@@ -588,6 +588,11 @@ bool ScriptingApi::Engine::matchesRegex(String stringToMatch, String wildcard)
 #endif
 }
 
+String ScriptingApi::Engine::doubleToString(double value, int digits)
+{
+    return String(value, digits);
+}
+
 // ====================================================================================================== Synth functions
 
 

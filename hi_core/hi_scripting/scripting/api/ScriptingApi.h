@@ -686,6 +686,8 @@ public:
 			setMethod("getUserPresetDirectoryContent", Wrapper::getUserPresetDirectoryContent);
 			setMethod("setCompileProgress", Wrapper::setCompileProgress);
 			setMethod("matchesRegex", Wrapper::matchesRegex);
+            setMethod("doubleToString", Wrapper::doubleToString);
+
 		}
 
 		static Identifier getClassName()   { return "Engine"; };
@@ -777,6 +779,9 @@ public:
 		/** Matches the string against the regex token. */
 		bool matchesRegex(String stringToMatch, String regex);
 
+        /** Returns a string of the value with the supplied number of digits. */
+        String doubleToString(double value, int digits);
+        
 		struct Wrapper
 		{
 			static var allNotesOff(const var::NativeFunctionArgs& args);
@@ -806,6 +811,7 @@ public:
 			static var getUserPresetDirectoryContent(const var::NativeFunctionArgs& args);
 			static var setCompileProgress(const var::NativeFunctionArgs& args);
 			static var matchesRegex(const var::NativeFunctionArgs& args);
+            static var doubleToString(const var::NativeFunctionArgs& args);
 			
 		};
 	};

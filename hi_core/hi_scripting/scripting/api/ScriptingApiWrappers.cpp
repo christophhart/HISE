@@ -485,6 +485,19 @@ var ScriptingApi::Engine::Wrapper::matchesRegex(const var::NativeFunctionArgs& a
 }
 
 
+var ScriptingApi::Engine::Wrapper::doubleToString(const var::NativeFunctionArgs& args)
+{
+    if (Engine* thisObject = GET_OBJECT(Engine))
+    {
+        CHECK_ARGUMENTS("doubleToString()", 2);
+        
+        return thisObject->doubleToString(args.arguments[0], args.arguments[1]);
+    }
+    
+    return var::undefined();
+}
+
+
 // =================================================================================================== Synth Wrappers
 
 var ScriptingApi::Synth::Wrapper::allowChildSynth(const var::NativeFunctionArgs& args)
