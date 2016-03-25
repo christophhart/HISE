@@ -1,0 +1,34 @@
+{
+  "id":             "hi_frontend",
+  "name":           "HISE Frontend Module",
+  "version":        "0.985",
+  "description":    "The wrapper plugin classes for embedding a HISE preset into a VST / AU plugin",
+  "website":        "http://www.hartinstruments.net/hise",
+  "license":        "GPL/Commercial",
+
+  "include":        "hi_frontend.h", 
+
+  "dependencies":   [ { "id": "juce_audio_basics" },
+					  {	"id": "juce_audio_devices" },
+					  {	"id": "juce_audio_formats" },
+					  {	"id": "juce_audio_processors" },
+					  {	"id": "juce_core" },
+					  {	"id": "juce_cryptography" },
+					  {	"id": "juce_data_structures" },
+					  {	"id": "juce_events" },
+					  {	"id": "juce_graphics" },
+					  {	"id": "juce_gui_basics" },
+					  {	"id": "juce_gui_extra" },
+					  {	"id": "juce_opengl" },
+					  { "id": "hi_core",       "version": "matching" },
+                      { "id": "hi_modules",    "version": "matching" } ],
+
+  
+  "compile":        [ { "file": "hi_frontend.cpp", "target": "! xcode" },
+                      { "file": "hi_frontend.mm",  "target": "xcode" } ],
+					  
+  
+  "browse":         [ "/*",
+                      "hi_frontend/*"
+					  ]
+}

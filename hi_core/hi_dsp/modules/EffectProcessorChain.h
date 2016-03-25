@@ -1,0 +1,397 @@
+#ifndef HI_EFFECT_PROCESSORCHAIN_H_INCLUDED
+#define HI_EFFECT_PROCESSORCHAIN_H_INCLUDED
+
+
+#define FOR_EACH_VOICE_EFFECT(x) {for(int i = 0; i < voiceEffects.size(); ++i) {if(!voiceEffects[i]->isBypassed()) voiceEffects[i]->x;}}
+#define FOR_EACH_MONO_EFFECT(x) {for(int i = 0; i < monoEffects.size(); ++i) {if(!monoEffects[i]->isBypassed())monoEffects[i]->x;}}
+#define FOR_EACH_MASTER_EFFECT(x) {for(int i = 0; i < masterEffects.size(); ++i) {if(!masterEffects[i]->isBypassed())masterEffects[i]->x;}}
+
+#define FOR_ALL_EFFECTS(x) {for(int i = 0; i < allEffects.size(); ++i) {if(!allEffects[i]->isBypassed())allEffects[i]->x;}}
+
+
+/** A EffectProcessorChain renders multiple EffectProcessors.
+*	@ingroup effect
+*
+*	It renders MasterEffectProcessor objects and VoiceEffectProcessorObjects seperately.
+*/
+class EffectProcessorChain: public VoiceEffectProcessor,
+							public Chain
+{
+public:
+
+	SET_PROCESSOR_NAME("EffectChain", "FX Chain")
+
+	EffectProcessorChain(Processor *parentProcessor, const String &id, int numVoices);
+
+	ChainHandler *getHandler() override {return &handler;};
+
+	const ChainHandler *getHandler() const override {return &handler;};
+
+	Processor *getParentProcessor() override { return parentProcessor; };
+
+	const Processor *getParentProcessor() const override { return parentProcessor; };
+
+	
+
+	FactoryType *getFactoryType() const override {return effectChainFactory;};
+
+	Colour getColour() const { return Colour(0xff3a6666).withMultipliedBrightness(1.1f);};
+
+	void setFactoryType(FactoryType *newFactoryType) override {effectChainFactory = newFactoryType;};
+
+	float getAttribute(int ) const override {return 1.0f;	};
+
+	void setInternalAttribute(int , float ) override {};
+
+	void prepareToPlay(double sampleRate, int samplesPerBlock) override
+	{
+		// Skip the effectProcessor's prepareToPlay since it assumes all child processors are ModulatorChains
+		Processor::prepareToPlay(sampleRate, samplesPerBlock);
+
+
+		for(int i = 0; i < allEffects.size(); i++) allEffects[i]->prepareToPlay(sampleRate, samplesPerBlock);
+	};
+
+	void handleMidiEvent(const MidiMessage &m) override
+	{	
+		if(isBypassed()) return;
+		FOR_ALL_EFFECTS(handleMidiEvent(m)); 
+	};
+
+	void preRenderCallback(int startSample, int numSamples) override
+	{
+		if(isBypassed()) return;
+		FOR_EACH_VOICE_EFFECT(preRenderCallback(startSample, numSamples));
+	}
+
+	void applyEffect(int /*voiceIndex*/, AudioSampleBuffer &/*b*/, int /*startSample*/, int /*numSamples*/) override {};
+
+	void preVoiceRendering(int /*voiceIndex*/, int /*startSample*/, int /*numSamples*/) override {};
+
+	void renderVoice(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples) override 
+	{ 
+		if(isBypassed()) return;
+
+		FOR_EACH_VOICE_EFFECT(renderVoice(voiceIndex, b, startSample, numSamples)); 
+	};
+
+	void renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples) override
+	{
+		if(isBypassed()) return;
+
+		FOR_ALL_EFFECTS(renderNextBlock(buffer, startSample, numSamples));
+	};
+
+	bool hasTail() const override
+	{
+		for(int i = 0; i < allEffects.size(); i++)
+		{
+			if (allEffects[i]->hasTail()) return true;
+		}
+
+		return false;
+	};
+
+	bool isTailingOff() const override
+	{
+		for(int i = 0; i < allEffects.size(); i++)
+		{
+			if (allEffects[i]->isTailingOff()) return true;
+		}
+
+		return false;
+	};
+
+	void renderMasterEffects(AudioSampleBuffer &b)
+	{
+		if(isBypassed()) return;
+
+		FOR_EACH_MASTER_EFFECT(renderWholeBuffer(b));
+
+		currentValues.outL = (b.getMagnitude(0, 0, b.getNumSamples()));
+		currentValues.outR = (b.getMagnitude(1, 0, b.getNumSamples()));
+
+	}
+
+	AudioSampleBuffer & getBufferForChain(int /*index*/)
+	{
+		jassertfalse;
+		return emptyBuffer;
+	};
+
+	void startVoice(int voiceIndex, int noteNumber) override 
+	{
+		if(isBypassed()) return;
+		FOR_EACH_VOICE_EFFECT(startVoice(voiceIndex, noteNumber)); 
+		FOR_EACH_MONO_EFFECT(startMonophonicVoice());
+		FOR_EACH_MASTER_EFFECT(startMonophonicVoice());
+	};
+
+	void stopVoice(int voiceIndex) override 
+	{
+		if(isBypassed()) return;
+		FOR_EACH_VOICE_EFFECT(stopVoice(voiceIndex));	
+		FOR_EACH_MONO_EFFECT(stopMonophonicVoice());
+		FOR_EACH_MASTER_EFFECT(stopMonophonicVoice());
+	};
+
+	void reset(int voiceIndex)
+	{ 
+		if(isBypassed()) return;
+		FOR_EACH_VOICE_EFFECT(reset(voiceIndex));	
+		FOR_EACH_MONO_EFFECT(resetMonophonicVoice());
+		FOR_EACH_MASTER_EFFECT(resetMonophonicVoice());
+	};
+
+	int getNumChildProcessors() const override { return getHandler()->getNumProcessors(); };
+
+	Processor *getChildProcessor(int processorIndex) override { return getHandler()->getProcessor(processorIndex); };
+
+	const Processor *getChildProcessor(int processorIndex) const override { return getHandler()->getProcessor(processorIndex); };
+
+	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+
+	class EffectChainHandler: public ChainHandler
+	{
+	public:
+
+		/** Creates a ChainHandler. */
+		EffectChainHandler(EffectProcessorChain *handledChain): chain(handledChain) {};
+
+		~EffectChainHandler() {};
+
+		/** adds a Effect to the chain and calls its prepareToPlay method. 
+		*
+		*	You simply pass the reference to the newly created EffectProcessor, and the function detects
+		*	the correct type and adds it to the specific chain (constant, variant or envelope).
+		*
+		*	If you call this method after the EffectProcessorChain is initialized, the EffectProcessor's prepareToPlay will be called.	
+		*/
+		void add(Processor *newProcessor, Processor *siblingToInsertBefore) override
+		{
+			jassert(dynamic_cast<EffectProcessor*>(newProcessor) != nullptr);
+			
+			for(int i = 0; i < newProcessor->getNumInternalChains(); i++)
+			{
+				dynamic_cast<ModulatorChain*>(newProcessor->getChildProcessor(i))->setColour(newProcessor->getColour());
+			}
+
+			newProcessor->setConstrainerForAllInternalChains(chain->getFactoryType()->getConstrainer());
+
+			if (VoiceEffectProcessor* vep = dynamic_cast<VoiceEffectProcessor*>(newProcessor))
+			{
+				const int index = chain->voiceEffects.indexOf(dynamic_cast<VoiceEffectProcessor*>(siblingToInsertBefore));
+
+				chain->voiceEffects.insert(index, vep);
+			}
+			else if (MasterEffectProcessor* mep = dynamic_cast<MasterEffectProcessor*>(newProcessor))
+			{
+				const int index = chain->masterEffects.indexOf(dynamic_cast<MasterEffectProcessor*>(siblingToInsertBefore));
+				chain->masterEffects.insert(index, mep);
+			}
+			else if (MonophonicEffectProcessor* mep = dynamic_cast<MonophonicEffectProcessor*>(newProcessor))
+			{
+				const int index = chain->monoEffects.indexOf(dynamic_cast<MonophonicEffectProcessor*>(siblingToInsertBefore));
+				chain->monoEffects.insert(index, mep);
+			
+			}
+			else jassertfalse;
+
+			if (RoutableProcessor *rp = dynamic_cast<RoutableProcessor*>(newProcessor))
+			{
+				RoutableProcessor *parentRouter = dynamic_cast<RoutableProcessor*>(chain->getParentProcessor());
+
+				jassert(parentRouter != nullptr);
+
+				rp->getMatrix().setNumSourceChannels(parentRouter->getMatrix().getNumSourceChannels());
+				rp->getMatrix().setNumDestinationChannels(parentRouter->getMatrix().getNumSourceChannels());
+				rp->getMatrix().setTargetProcessor(chain->getParentProcessor());
+			}
+
+			
+			
+			chain->allEffects.add(dynamic_cast<EffectProcessor*>(newProcessor));
+
+			jassert(chain->allEffects.size() == (chain->masterEffects.size() + chain->voiceEffects.size() + chain->monoEffects.size()));
+
+			
+
+			if(chain->getSampleRate() > 0.0) newProcessor->prepareToPlay(chain->getSampleRate(), chain->getBlockSize());
+			else
+			{
+				debugError(chain, "Trying to add a processor to a uninitialized effect chain (internal engine error).");
+			}
+
+			sendChangeMessage();
+		}
+
+		void remove(Processor *processorToBeRemoved) override
+		{
+			jassert(dynamic_cast<EffectProcessor*>(processorToBeRemoved) != nullptr);
+			
+			chain->allEffects.removeAllInstancesOf(dynamic_cast<EffectProcessor*>(processorToBeRemoved));
+
+			if(VoiceEffectProcessor* vep = dynamic_cast<VoiceEffectProcessor*>(processorToBeRemoved)) chain->voiceEffects.removeObject(vep);
+			else if (MasterEffectProcessor* mep = dynamic_cast<MasterEffectProcessor*>(processorToBeRemoved)) chain->masterEffects.removeObject(mep);
+			else if (MonophonicEffectProcessor* mep = dynamic_cast<MonophonicEffectProcessor*>(processorToBeRemoved)) chain->monoEffects.removeObject(mep);
+			else jassertfalse;
+
+			jassert(chain->allEffects.size() == (chain->masterEffects.size() + chain->voiceEffects.size() + chain->monoEffects.size()));
+
+			sendChangeMessage();
+		}
+
+		Processor *getProcessor(int processorIndex)
+		{
+			
+
+			if (processorIndex < chain->voiceEffects.size())
+			{
+				return chain->voiceEffects.getUnchecked(processorIndex);
+			}
+
+			processorIndex -= chain->voiceEffects.size();
+
+			if (processorIndex < chain->monoEffects.size())
+			{
+				return chain->monoEffects.getUnchecked(processorIndex);
+			}
+
+			processorIndex -= chain->monoEffects.size();
+
+			if (processorIndex < chain->masterEffects.size())
+			{
+				return chain->masterEffects.getUnchecked(processorIndex);
+			}
+
+			jassertfalse;
+
+			return chain->allEffects.getUnchecked(processorIndex);
+		};
+
+		const Processor *getProcessor(int processorIndex) const
+		{
+			
+
+			if (processorIndex < chain->voiceEffects.size())
+			{
+				return chain->voiceEffects.getUnchecked(processorIndex);
+			}
+
+			processorIndex -= chain->voiceEffects.size();
+
+			if (processorIndex < chain->monoEffects.size())
+			{
+				return chain->monoEffects.getUnchecked(processorIndex);
+			}
+
+			processorIndex -= chain->monoEffects.size();
+
+			if (processorIndex < chain->masterEffects.size())
+			{
+				return chain->masterEffects.getUnchecked(processorIndex);
+			}
+
+			jassertfalse;
+
+			return chain->allEffects.getUnchecked(processorIndex);
+			
+		};
+
+		virtual int getNumProcessors() const
+		{
+			return chain->allEffects.size(); 
+		};
+
+		void clear() override
+		{
+			chain->voiceEffects.clear();
+			chain->masterEffects.clear();
+			chain->monoEffects.clear();
+			chain->allEffects.clear();
+
+			sendChangeMessage();
+		}
+
+	private:
+
+		EffectProcessorChain *chain;
+
+		
+
+
+	};
+
+private:
+
+	// This is used for getBufferForChain
+	AudioSampleBuffer emptyBuffer;
+
+	EffectChainHandler handler;
+
+	OwnedArray<VoiceEffectProcessor> voiceEffects;
+	OwnedArray<MasterEffectProcessor> masterEffects;
+	OwnedArray<MonophonicEffectProcessor> monoEffects;
+
+	Array<EffectProcessor*> allEffects;
+
+	Processor *parentProcessor;
+
+	ScopedPointer<FactoryType> effectChainFactory;
+};
+
+
+class EffectProcessorChainFactoryType: public FactoryType
+{
+public:
+
+	enum
+	{
+		monophonicFilter = 0,
+		polyphonicFilter,
+		harmonicFilter,
+		curveEq,
+		stereoEffect,
+		simpleReverb,
+		simpleGain,
+		convolution,
+		delay,
+		limiter,
+		degrade,
+		chorus,
+		gainCollector,
+		routeFX,
+		saturation,
+		protoPlugEffect
+	};
+
+	EffectProcessorChainFactoryType(int numVoices_, Processor *ownerProcessor):
+		FactoryType(ownerProcessor),
+		numVoices(numVoices_)
+	{
+		fillTypeNameList();
+	};
+
+	void fillTypeNameList();
+
+	Processor* createProcessor	(int typeIndex, const String &id) override;
+	
+protected:
+
+	const Array<ProcessorEntry>& getTypeNames() const override
+	{
+		return typeNames;
+	};
+
+private:
+
+	Array<ProcessorEntry> typeNames;
+
+	int numVoices;
+
+};
+
+
+
+
+#endif

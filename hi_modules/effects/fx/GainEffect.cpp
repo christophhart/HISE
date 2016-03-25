@@ -1,0 +1,195 @@
+
+
+GainEffect::GainEffect(MainController *mc, const String &uid) :
+MasterEffectProcessor(mc, uid),
+gainChain(new ModulatorChain(mc, "Gain Modulation", 1, Modulation::GainMode, this)),
+delayChain(new ModulatorChain(mc, "Delay Modulation", 1, Modulation::GainMode, this)),
+widthChain(new ModulatorChain(mc, "Width Modulation", 1, Modulation::GainMode, this)),
+gain(1.0f),
+delay(0.0f)
+{
+	smoother.setSmoothingTime(0.2);
+
+	parameterNames.add("Gain");
+    parameterNames.add("Delay");
+    parameterNames.add("Width");
+
+	editorStateIdentifiers.add("GainChainShown");
+    editorStateIdentifiers.add("DelayChainShown");
+    editorStateIdentifiers.add("WidthChainShown");
+
+	gainChain->setFactoryType(new TimeVariantModulatorFactoryType(Modulation::GainMode, this));
+    widthChain->setFactoryType(new TimeVariantModulatorFactoryType(Modulation::GainMode, this));
+    delayChain->setFactoryType(new TimeVariantModulatorFactoryType(Modulation::GainMode, this));
+}
+
+void GainEffect::setInternalAttribute(int parameterIndex, float newValue)
+{
+	switch (parameterIndex)
+	{
+	case Gain:							gain = Decibels::decibelsToGain(newValue); break;
+    case Delay:                         setDelayTime(newValue); break;
+    case Width:                         msDecoder.setWidth(newValue/100.0f); break;
+	default:							jassertfalse; return;
+	}
+}
+
+float GainEffect::getAttribute(int parameterIndex) const
+{
+	switch (parameterIndex)
+	{
+	case Gain:							return Decibels::gainToDecibels(gain);
+    case Delay:                         return delay;
+    case Width:                         return msDecoder.getWidth() * 100.0f;
+	default:							jassertfalse; return 1.0f;
+	}
+}
+
+void GainEffect::restoreFromValueTree(const ValueTree &v)
+{
+	MasterEffectProcessor::restoreFromValueTree(v);
+
+	loadAttribute(Gain, "Gain");
+    loadAttribute(Delay, "Delay");
+    loadAttribute(Width, "Width");
+}
+
+ValueTree GainEffect::exportAsValueTree() const
+{
+	ValueTree v = MasterEffectProcessor::exportAsValueTree();
+
+	saveAttribute(Gain, "Gain");
+    saveAttribute(Gain, "Delay");
+    saveAttribute(Gain, "Width");
+
+	return v;
+}
+
+ProcessorEditorBody *GainEffect::createEditor(BetterProcessorEditor *parentEditor)
+{
+#if USE_BACKEND
+
+	return new GainEditor(parentEditor);
+
+#else 
+
+	jassertfalse;
+	return nullptr;
+
+#endif
+}
+
+void GainEffect::renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples)
+{
+	const int left = getLeftSourceChannel();
+	const int right = getRightSourceChannel();
+
+    if(left < buffer.getNumChannels() && right < buffer.getNumChannels())
+    {
+		const int samplesToCopy = numSamples;
+		const int startIndex = startSample;
+
+		float *l = buffer.getWritePointer(left, startIndex);
+		float *r = buffer.getWritePointer(right, startIndex);
+        
+        if (!delayChain->isBypassed() && delayChain->getNumChildProcessors() != 0)
+        {
+            delayChain->renderAllModulatorsAsMonophonic(delayBuffer, startIndex, samplesToCopy);
+            
+            const float thisDelayTime = delayBuffer.getSample(0, 0);
+            
+            leftDelay.setDelayTimeSeconds(thisDelayTime / 1000.0f);
+            rightDelay.setDelayTimeSeconds(thisDelayTime / 1000.0f);
+        }
+        
+        while (numSamples > 0)
+        {
+            const float smoothedGain = smoother.smooth(gain);
+            
+            l[0] = leftDelay.getDelayedValue(smoothedGain * l[0]);
+            r[0] = rightDelay.getDelayedValue(smoothedGain * r[0]);
+            
+            l[1] = leftDelay.getDelayedValue(smoothedGain * l[1]);
+            r[1] = rightDelay.getDelayedValue(smoothedGain * r[1]);
+            
+            l[2] = leftDelay.getDelayedValue(smoothedGain * l[2]);
+            r[2] = rightDelay.getDelayedValue(smoothedGain * r[2]);
+            
+            l[3] = leftDelay.getDelayedValue(smoothedGain * l[3]);
+            r[3] = rightDelay.getDelayedValue(smoothedGain * r[3]);
+            
+            l += 4;
+            r += 4;
+            
+            numSamples -= 4;
+        }
+        
+        
+        if(msDecoder.getWidth() != 1.0f)
+        {
+            numSamples = samplesToCopy;
+            
+            float *l = buffer.getWritePointer(left, startIndex);
+            float *r = buffer.getWritePointer(right, startIndex);
+            
+            if (!widthChain->isBypassed() && widthChain->getNumChildProcessors() != 0)
+            {
+                widthChain->renderAllModulatorsAsMonophonic(widthBuffer, startIndex, samplesToCopy);
+                
+                const float thisWidth = (msDecoder.getWidth() - 1.0f) * widthBuffer.getSample(0, 0) + 1.0f;
+                
+                msDecoder.setWidth(thisWidth);
+            }
+            
+            while (numSamples > 0)
+            {
+                const float smoothedGain = smoother.smooth(gain);
+                
+                msDecoder.calculateStereoValues(l[0], r[0]);
+                msDecoder.calculateStereoValues(l[1], r[1]);
+                msDecoder.calculateStereoValues(l[2], r[2]);
+                msDecoder.calculateStereoValues(l[3], r[3]);
+                
+                l += 4;
+                r += 4;
+                
+                numSamples -= 4;
+            }
+        }
+        
+        
+        if (!gainChain->isBypassed() && gainChain->getNumChildProcessors() != 0)
+        {
+            gainChain->renderAllModulatorsAsMonophonic(gainBuffer, startIndex, samplesToCopy);
+            
+            FloatVectorOperations::multiply(buffer.getWritePointer(left, startIndex), gainBuffer.getReadPointer(0, startIndex), samplesToCopy);
+            FloatVectorOperations::multiply(buffer.getWritePointer(right, startIndex), gainBuffer.getReadPointer(0, startIndex), samplesToCopy);
+        }
+    }
+}
+
+void GainEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
+{
+	MasterEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
+
+	if (sampleRate > 0)
+	{
+        gainChain->prepareToPlay(sampleRate, samplesPerBlock);
+        delayChain->prepareToPlay(sampleRate, samplesPerBlock);
+        widthChain->prepareToPlay(sampleRate, samplesPerBlock);
+        
+		gainBuffer = AudioSampleBuffer(1, samplesPerBlock);
+        delayBuffer = AudioSampleBuffer(1, samplesPerBlock);
+        widthBuffer = AudioSampleBuffer(1, samplesPerBlock);
+        
+        leftDelay.prepareToPlay(sampleRate);
+        rightDelay.prepareToPlay(sampleRate);
+        
+        leftDelay.setFadeTimeSamples(samplesPerBlock);
+        rightDelay.setFadeTimeSamples(samplesPerBlock);
+        
+		smoother.prepareToPlay(sampleRate);
+		smoother.setSmoothingTime(4.0);
+	}
+}
+

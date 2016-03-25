@@ -1,0 +1,283 @@
+#ifndef PROCESSOR_COLLECTION_H_INCLUDED
+#define PROCESSOR_COLLECTION_H_INCLUDED
+
+#define NUM_MAX_CHARS 128
+
+#define COLLECTION_HEIGHT 40
+#define ITEM_HEIGHT 20
+
+#define COLLECTION_WIDTH 380
+#define ITEM_WIDTH (380 - 16 - 8 - 24)
+
+/** A fuzzy search algorithm that uses the Levenshtein distance algorithm to find approximate strings. */
+class FuzzySearcher
+{
+public:
+
+	/** Matches the string against the search term with the given fuzzyness (0.0 - 1.0). */
+	static bool fitsSearch(const String &searchTerm, const String &stringToMatch, double fuzzyness);
+
+	/** Returns a string array with the results. */
+	static StringArray searchForResults(const String &word, const StringArray &wordList, double fuzzyness);
+
+	/** Returns a index array with the results for the given wordlist. */
+	static Array<int> searchForIndexes(const String &word, const StringArray &wordList, double fuzzyness);
+
+private:
+
+	static void search(void *outputArray, bool useIndexes, const String &word, const StringArray &wordList, double fuzzyness);
+
+	static int getLevenshteinDistance(const String &src, const String &dest);
+};
+
+
+/** A generic list component that allows fuzzy searching.
+*
+*	It is designed with two hierarchy levels: 
+*	
+*	1. Collections: the parent container for Items.
+*	
+*/
+class SearchableListComponent: public Component,
+							   public TextEditor::Listener,
+							   public AutoPopupDebugComponent
+{
+
+public:
+
+	/** This is the base class for all item components that are part of a Collection.
+	*
+	*	They contain a search keyword which is used to display only the search results.
+	*	They also contain a popup component which is displayed on right click.
+	*/
+	class Item : public Component
+	{
+	public:
+
+		/** Creates a new Item that uses the string for its search. Use a lower case string only (except you want to handle lower / upper case. */
+		Item(const String searchString) :
+			isSelected(false),
+			includedInSearch(true),
+			usePopupMenu(false),
+			searchKeywords(searchString)
+		{}
+
+		/** A basic component which is displayed whenever the user clicks right on the item.
+		*
+		*	It can be used to show additional information.
+		*/
+		class PopupComponent : public Component
+		{
+		public:
+
+			PopupComponent(Item *p);
+
+			void paint(Graphics& g) override;
+
+		private:
+
+			Component::SafePointer<Item> parent;
+		};
+
+        
+		void mouseDown(const MouseEvent& event) override;
+
+		/** You can overwrite this method if you want to display information in the popup component. */
+		virtual void paintPopupBox(Graphics &) const {};
+
+		virtual void fillPopupMenu(PopupMenu &) {};
+
+		virtual void popupCallback(int /*menuIndex*/) {};
+
+		void setUsePopupMenu(bool shouldUsePopupMenu) noexcept{ usePopupMenu = shouldUsePopupMenu; }
+
+		/** Overwrite this and return the height of the popup component. If you return 0 (default behaviour), the functionality is deactivated. */
+		virtual int getPopupHeight() const { return 0; };
+
+		/** This is called whenever the search text updates. */
+		void matchAgainstSearch(const String &stringToMatch, double fuzzyness);
+
+		/** Checks if the last search query included this item. */
+		bool isIncludedInSearch() const noexcept{ return includedInSearch; };
+
+	protected:
+
+		bool usePopupMenu;
+		bool isSelected;
+		bool includedInSearch;
+		const String searchKeywords;
+
+	private:
+
+
+		PopupLookAndFeel laf;
+
+		struct PopupCallback : public ModalComponentManager::Callback
+		{
+			PopupCallback(Item *parent_) : parent(parent_) {};
+
+			void modalStateFinished(int returnValue) override
+			{
+				if (parent.getComponent() != nullptr)
+				{
+					parent->popupCallback(returnValue);
+				}
+			};
+
+		private:
+
+			Component::SafePointer<Item> parent;
+		};
+
+        
+		
+	};
+
+	/** A Collection is the highest hierarchy level and contains multiple Items.
+	*
+	*	When a search term is used, it can be hidden.
+	*
+	*	While the collection amount is dynamically changeable, a collection must create all of its Items in its constructor
+	*	(it will be deleted and a new Collection is created if the items change).
+	*/
+	class Collection : public Component
+	{
+	public:
+
+		Collection();
+
+		void searchItems(const String &searchTerm, double fuzzyness);
+
+		/** Checks if the collection has any visible items.
+		*
+		*	Items can be either hidden because of the search result or because the collection is folded
+		*/
+		bool hasVisibleItems() const;
+
+		int getHeightForCollection() const;
+
+		void resized() override;
+
+		void paint(Graphics &g) override
+		{
+			g.fillAll(Colours::red);
+		}
+
+		bool isFolded() const noexcept { return folded; };
+
+		void setFolded(bool shouldBeFolded) noexcept;;
+
+	protected:
+
+		OwnedArray<SearchableListComponent::Item> items;
+
+	private:
+
+		int visibleItems;
+		bool folded;
+	};
+
+
+	class InternalContainer : public Component
+	{
+	public:
+
+		InternalContainer();
+
+		void resized() override;
+
+		void setShowEmptyCollections(bool shouldBeShown) noexcept { showEmptyCollections = shouldBeShown; };
+
+	private:
+
+		friend class SearchableListComponent;
+
+		OwnedArray<Collection> collections;
+
+		bool showEmptyCollections;
+	};
+
+	virtual ~SearchableListComponent() {};
+
+	/** Remove this. */
+	void fillNameList(); 
+
+	void setSelectedItem(Item *item) noexcept{ selectedItem = item; };
+
+	void setFuzzyness(double newFuzzyness) { fuzzyness = newFuzzyness; };
+
+	void textEditorTextChanged(TextEditor& editor);
+
+	void clearSearchResults();
+
+	/** Call this when you need to clear the collection. */
+	void clearCollections()
+	{
+		internalContainer->collections.clear();
+		resized();
+	}
+
+	void resized() override;
+
+	void paint(Graphics& g) override;
+
+	/** Call this whenever the visibility of one of the items changes. */
+	void refreshDisplayedItems();
+
+	/** Call this whenever an item is added / deleted. */
+	void rebuildModuleList(bool forceRebuild=false);
+
+	void setShowEmptyCollections(bool emptyCollectionsShouldBeShown);;
+
+   
+protected:
+	SearchableListComponent(BaseDebugArea *area);
+
+	/** Overwrite this method and return the number of collections.
+	*
+	*	This method is called whenever the items are rebuilt.
+	*	You can do some complex calculations here, there is a lighter method (getNumCollections()) that checks the currently existing amount.
+	*/
+	virtual int getNumCollectionsToCreate() const = 0;
+
+	/** Overwrite this method and return the collection for the given index. */
+	virtual Collection *createCollection(int index) = 0;
+
+	/** Returns the collection  at the specified index. */
+	Collection *getCollection(int index) { return internalContainer->collections[index]; };
+
+	/** Returns the collection  at the specified index. */
+	const Collection *getCollection(int index) const { return internalContainer->collections[index]; };
+
+	/** Returns the number of currently available collections. */
+	int getNumCollections() const { return internalContainer->collections.size(); }
+
+	/** */
+	void addCustomButton(ShapeButton *button)
+	{
+		customButtons.add(button);
+	}
+
+private:
+
+	double fuzzyness;
+
+	bool showEmptyCollections;
+
+	ScopedPointer<InternalContainer> internalContainer;
+	ScopedPointer<Viewport> viewport;
+	ScopedPointer<TextEditor> fuzzySearchBox;
+
+	StringArray moduleNameList;
+	
+	Array<int> displayedIndexes;
+
+	Component::SafePointer<Item> selectedItem;
+    
+	bool internalRebuildFlag;
+
+	Array<Component::SafePointer<ShapeButton>> customButtons;
+};
+
+
+#endif

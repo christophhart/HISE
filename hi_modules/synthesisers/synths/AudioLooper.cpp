@@ -1,0 +1,275 @@
+/*
+  ==============================================================================
+
+    AudioLooper.cpp
+    Created: 2 Jul 2015 2:19:57pm
+    Author:  Chrisboy
+
+  ==============================================================================
+*/
+
+#include "AudioLooper.h"
+
+AudioLooperVoice::AudioLooperVoice(ModulatorSynth *ownerSynth) :
+ModulatorSynthVoice(ownerSynth),
+syncFactor(1.0f)
+{
+}
+
+void AudioLooperVoice::startNote(int midiNoteNumber, float /*velocity*/, SynthesiserSound*, int /*currentPitchWheelPosition*/)
+{
+	ModulatorSynthVoice::startNote(midiNoteNumber, 0.0f, nullptr, -1);
+
+	voiceUptime = 0.0;
+
+	AudioLooper *looper = dynamic_cast<AudioLooper*>(getOwnerSynth());
+
+	const AudioSampleBuffer *buffer = looper->getBuffer();
+
+	uptimeDelta = buffer != nullptr ? 1.0 : 0.0;
+
+	const double resampleFactor = looper->getSampleRateForLoadedFile() / getSampleRate();
+
+	uptimeDelta *= resampleFactor;
+
+	if (looper->pitchTrackingEnabled)
+	{
+		const double noteDelta = jlimit<int>(-24, 24, midiNoteNumber - looper->rootNote);
+		const double pitchDelta = pow(2, noteDelta / 12.0);
+
+		uptimeDelta *= pitchDelta;
+	}
+}
+
+void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
+{
+	const int startIndex = startSample;
+	const int samplesToCopy = numSamples;
+
+	const float *voicePitchValues = getVoicePitchValues();
+
+	const float *modValues = getVoiceGainValues(startSample, numSamples);
+
+	AudioLooper *looper = dynamic_cast<AudioLooper*>(getOwnerSynth());
+
+	const AudioSampleBuffer *buffer = looper->getBuffer();
+
+	if (buffer == nullptr) return;
+
+	const float *leftSamples = buffer->getReadPointer(0);
+	const float *rightSamples = buffer->getNumChannels() > 1 ? buffer->getReadPointer(1) : leftSamples;
+
+	if (!looper->loopEnabled && (voiceUptime + numSamples) > looper->length)
+	{
+        voiceBuffer.clear();
+            
+        clearCurrentNote();
+        voiceUptime = 0.0;
+        uptimeDelta = 0.0;
+        return;
+	}
+    
+
+	while (--numSamples >= 0)
+	{
+		const int samplePos = (int)voiceUptime % looper->length + looper->sampleRange.getStart();
+		const int nextSamplePos = ((int)voiceUptime + 1) % looper->length + looper->sampleRange.getStart();
+
+        if(!looper->loopEnabled && nextSamplePos > looper->length)
+        {
+            voiceBuffer.clear();
+            
+            clearCurrentNote();
+            voiceUptime = 0.0;
+            uptimeDelta = 0.0;
+            return;
+        }
+        
+		const double alpha = fmod(voiceUptime, 1.0);
+
+		const float leftPrevSample = leftSamples[samplePos];
+		const float rightPrevSample = rightSamples[samplePos];
+
+		const float leftNextSample = leftSamples[nextSamplePos];
+		const float rightNextSample = rightSamples[nextSamplePos];
+
+		const float leftSample = Interpolator::interpolateLinear(leftPrevSample, leftNextSample, (float)alpha);
+		const float rightSample = Interpolator::interpolateLinear(rightPrevSample, rightNextSample, (float)alpha);
+
+		//const float currentSample = invAlpha * v1 + alpha * v2;
+
+		// Stereo mode assumed
+		voiceBuffer.setSample(0, startSample, leftSample);
+		voiceBuffer.setSample(1, startSample, rightSample);
+
+		jassert(voicePitchValues == nullptr || voicePitchValues[startSample] > 0.0f);
+
+		
+		const double pitchDelta = (uptimeDelta * syncFactor * (voicePitchValues == nullptr ? 1.0f : voicePitchValues[startSample]));
+		voiceUptime += pitchDelta;
+
+		++startSample;
+	}
+
+	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesToCopy);
+
+	FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), modValues + startIndex, samplesToCopy);
+	FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), modValues + startIndex, samplesToCopy);
+
+	const bool isLastVoice = getOwnerSynth()->isLastStartedVoice(this);
+
+	if (isLastVoice && looper->length != 0 && looper->inputMerger.shouldUpdate())
+	{
+		const float inputValue = (float)((int)voiceUptime % looper->length) / (float)looper->length;
+		looper->setInputValue(inputValue, dontSendNotification);
+	}
+}
+
+AudioLooper::AudioLooper(MainController *mc, const String &id, int numVoices) :
+ModulatorSynth(mc, id, numVoices),
+AudioSampleProcessor(this),
+syncMode(AudioSampleProcessor::SyncToHostMode::FreeRunning),
+loopEnabled(true),
+pitchTrackingEnabled(false),
+rootNote(64)
+{
+	parameterNames.add("SyncMode");
+	parameterNames.add("LoopEnabled");
+	parameterNames.add("PitchTracking");
+	parameterNames.add("RootNote");
+
+	inputMerger.setManualCountLimit(5);
+
+	for (int i = 0; i < numVoices; i++)
+	{
+		addVoice(new AudioLooperVoice(this));
+
+	}
+
+	addSound(new AudioLooperSound());
+}
+
+void AudioLooper::restoreFromValueTree(const ValueTree &v)
+{
+	ModulatorSynth::restoreFromValueTree(v);
+	AudioSampleProcessor::restoreFromValueTree(v);
+
+	loadAttribute(SyncMode, "SyncMode");
+	loadAttribute(PitchTracking, "PitchTracking");
+	loadAttribute(LoopEnabled, "LoopEnabled");
+	loadAttribute(RootNote, "RootNote");
+}
+
+ValueTree AudioLooper::exportAsValueTree() const
+{
+	ValueTree v = ModulatorSynth::exportAsValueTree();
+
+	saveAttribute(SyncMode, "SyncMode");
+	saveAttribute(PitchTracking, "PitchTracking");
+	saveAttribute(LoopEnabled, "LoopEnabled");
+	saveAttribute(RootNote, "RootNote");
+
+	AudioSampleProcessor::saveToValueTree(v);
+
+	return v;
+}
+
+float AudioLooper::getAttribute(int parameterIndex) const
+{
+	if (parameterIndex < ModulatorSynth::numModulatorSynthParameters) return ModulatorSynth::getAttribute(parameterIndex);
+
+	switch (parameterIndex)
+	{
+	case SyncMode:		return (float)(int)syncMode;
+	case LoopEnabled:	return loopEnabled ? 1.0f : 0.0f;
+	case RootNote:		return (float)rootNote;
+	case PitchTracking:	return pitchTrackingEnabled ? 1.0f : 0.0f;
+	default:					jassertfalse; return -1.0f;
+	}
+}
+
+float AudioLooper::getDefaultValue(int parameterIndex) const
+{
+	if (parameterIndex < ModulatorSynth::numModulatorSynthParameters) return ModulatorSynth::getDefaultValue(parameterIndex);
+
+	switch (parameterIndex)
+	{
+	case SyncMode:		return (float)(int)0;
+	case LoopEnabled:	return 1.0f;
+	case RootNote:		return 64.0f;
+	case PitchTracking:	return 0.0f;
+	default: jassertfalse; return -1.0f;
+	}
+}
+
+void AudioLooper::setInternalAttribute(int parameterIndex, float newValue)
+{
+	if (parameterIndex < ModulatorSynth::numModulatorSynthParameters)
+	{
+		ModulatorSynth::setInternalAttribute(parameterIndex, newValue);
+		return;
+	}
+
+	switch (parameterIndex)
+	{
+	case SyncMode:		setSyncMode((int)newValue); break;
+	case LoopEnabled:	loopEnabled = newValue > 0.5f; break;
+	case RootNote:		rootNote = (int)newValue; break;
+	case PitchTracking:	pitchTrackingEnabled = newValue > 0.5f; break;
+	default:			jassertfalse; break;
+	}
+}
+
+ProcessorEditorBody* AudioLooper::createEditor(BetterProcessorEditor *parentEditor)
+{
+#if USE_BACKEND
+	return new AudioLooperEditor(parentEditor);
+#else
+	return nullptr;
+#endif
+}
+
+void AudioLooper::setSyncMode(int newSyncMode)
+{
+	syncMode = (SyncToHostMode)newSyncMode;
+
+	const double globalBpm = getMainController()->getBpm();
+
+	const bool tempoOK = globalBpm > 0.0 && globalBpm < 1000.0;
+
+	const bool sampleRateOK = getSampleRate() != -1.0;
+
+	const bool lengthOK = length != 0;
+
+	if (!tempoOK || !sampleRateOK || !lengthOK)
+	{
+		dynamic_cast<AudioLooperVoice*>(getVoice(0))->syncFactor = 1.0;
+		return;
+	}
+
+	int multiplier = 1;
+
+	switch (syncMode)
+	{
+	case SyncToHostMode::FreeRunning:		dynamic_cast<AudioLooperVoice*>(getVoice(0))->syncFactor = 1.0; return;
+	case SyncToHostMode::OneBeat:			multiplier = 1; break;
+	case SyncToHostMode::TwoBeats:			multiplier = 2; break;
+	case SyncToHostMode::OneBar:			multiplier = 4; break;
+	case SyncToHostMode::TwoBars:			multiplier = 8; break;
+	case SyncToHostMode::FourBars:			multiplier = 16; break;
+	default:								jassertfalse; multiplier = 1;
+	}
+
+	const int lengthForOneBeat = TempoSyncer::getTempoInSamples(getMainController()->getBpm(), getSampleRate(), TempoSyncer::Quarter);
+
+	if (lengthForOneBeat == 0)
+	{
+		dynamic_cast<AudioLooperVoice*>(getVoice(0))->syncFactor = 1.0;
+	}
+	else
+	{
+		dynamic_cast<AudioLooperVoice*>(getVoice(0))->syncFactor = (float)length / (float)(lengthForOneBeat * multiplier);
+	}
+
+}
+

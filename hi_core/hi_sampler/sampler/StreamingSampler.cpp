@@ -1,0 +1,1154 @@
+// ==================================================================================================== StreamingSamplerSound methods
+
+StreamingSamplerSound::StreamingSamplerSound(const String &fileNameToLoad,
+											 BigInteger midiNotes_, 
+											 int midiNoteForNormalPitch,
+											 ModulatorSamplerSoundPool *pool):
+	fileReader(this, pool),
+	midiNotes(midiNotes_),
+	rootNote(midiNoteForNormalPitch),
+    sampleRate(-1.0),
+    purged(false),
+    monolithOffset(0),
+    monolithLength(0),
+    preloadSize(0),
+    internalPreloadSize(0),
+    entireSampleLoaded(false),
+    sampleStart(0),
+    sampleEnd(0),
+    sampleLength(0),
+    sampleStartMod(0),
+    loopEnabled(false),
+    loopStart(0),
+    loopEnd(0),
+    loopLength(0),
+    crossfadeLength(0),
+    crossfadeArea(Range<int>())
+{
+	fileReader.setFile(fileNameToLoad);
+
+    if(isMissing())
+    {
+        sampleStart = 0;
+        sampleEnd = INT_MAX;
+        sampleLength = INT_MAX;
+        sampleRate = -1.0;
+        setPreloadSize(0);
+
+        return;
+    }
+    
+	fileReader.openFileHandles(dontSendNotification);
+
+	AudioFormatReader *reader = fileReader.getReader();
+
+	if (reader != nullptr)
+	{
+		sampleStart = 0;
+		sampleEnd = reader->lengthInSamples;
+		sampleLength = sampleEnd - sampleStart;
+		monolithLength = (int)reader->lengthInSamples;
+
+		sampleRate = reader->sampleRate;
+		setLoopEnd(sampleEnd);
+        setPreloadSize(0);
+	}
+	else
+	{
+		fileReader.setMissing();
+
+		sampleStart = 0;
+		sampleEnd = INT_MAX;
+		sampleLength = INT_MAX;
+		sampleRate = -1;
+
+		setPreloadSize(0);
+	}
+
+	fileReader.closeFileHandles(dontSendNotification);
+}
+
+StreamingSamplerSound::StreamingSamplerSound(const File &data, const String &fileName_, int start, int length, ModulatorSamplerSoundPool *pool):
+	fileReader(this, pool),
+	midiNotes(-1),
+	rootNote(-1),
+	entireSampleLoaded(false),
+	loopEnabled(false),
+	loopStart(0),
+	sampleStartMod(0),
+	monolithOffset(start),
+	crossfadeLength(0),
+	purged(false)
+{
+	fileReader.setFile(fileName_);
+
+    if(isMissing())
+    {
+        sampleStart = 0;
+        sampleEnd = INT_MAX;
+        sampleLength = INT_MAX;
+        sampleRate = -1.0;
+        setPreloadSize(0);
+        
+        return;
+    }
+    
+	fileReader.openFileHandles(dontSendNotification);
+	
+	AudioFormatReader *reader = fileReader.getReader();
+
+	if (reader != nullptr)
+	{
+		sampleStart = 0;
+		monolithLength = length;
+		sampleEnd = start + length;
+		sampleLength = sampleEnd - (sampleStart + monolithOffset);
+		
+		sampleRate = reader->sampleRate;
+		setLoopEnd(sampleEnd);
+		setPreloadSize(0);
+	}
+	else
+	{
+		fileReader.setMissing();
+
+		sampleStart = 0;
+		sampleEnd = INT_MAX;
+		sampleLength = INT_MAX;
+		monolithLength = 0;
+		sampleRate = -1;
+
+		setPreloadSize(0);
+	}
+
+	fileReader.closeFileHandles(dontSendNotification);
+};
+
+
+
+StreamingSamplerSound::~StreamingSamplerSound() 
+{ 
+	fileReader.closeFileHandles(); 
+}
+
+void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
+{
+    const bool preloadSizeChanged = preloadSize == newPreloadSize;
+    const bool streamingDeactivated = newPreloadSize == -1 && entireSampleLoaded;
+    
+	if(!forceReload && (preloadSizeChanged || streamingDeactivated)) return;
+
+	ScopedLock sl(lock);
+
+    const bool sampleDeactivated = !hasActiveState() || newPreloadSize == 0;
+    
+	if (sampleDeactivated)
+	{
+		internalPreloadSize = 0;
+		preloadSize = 0;
+		preloadBuffer = AudioSampleBuffer();
+		preloadBuffer.setSize(2, 0);
+		return;
+	}
+    
+	preloadSize = newPreloadSize;
+
+	if(newPreloadSize == -1 || (preloadSize + sampleStartMod) > sampleLength)
+	{
+		internalPreloadSize = (int)sampleLength;
+		entireSampleLoaded = true;
+	}
+	else
+	{
+		internalPreloadSize = preloadSize + (int)sampleStartMod;
+		entireSampleLoaded = false;
+	}
+
+	internalPreloadSize = jmax(preloadSize, internalPreloadSize, 2048);
+
+	preloadBuffer = AudioSampleBuffer();
+	
+	try
+	{
+		preloadBuffer.setSize(2, internalPreloadSize, false, false, false);
+	}
+	catch (std::bad_alloc e)
+	{
+		preloadBuffer.setSize(2, 0);
+
+		throw StreamingSamplerSound::LoadingError(getFileName(), "Preload error (max memory exceeded).");
+	}
+	
+	preloadBuffer.clear();
+	
+	fileReader.readFromDisk(preloadBuffer, 0, internalPreloadSize, sampleStart + monolithOffset, true);
+}
+
+
+
+size_t StreamingSamplerSound::getActualPreloadSize() const
+{
+	return hasActiveState() ? (size_t)(internalPreloadSize *preloadBuffer.getNumChannels()) * sizeof(float) + (size_t)(loopBuffer.getNumSamples() *loopBuffer.getNumChannels()) * sizeof(float) : 0;
+}
+
+void StreamingSamplerSound::loadEntireSample() { setPreloadSize(-1); }
+
+void StreamingSamplerSound::increaseVoiceCount() const { fileReader.increaseVoiceCount(); }
+void StreamingSamplerSound::decreaseVoiceCount() const { fileReader.decreaseVoiceCount(); }
+
+void StreamingSamplerSound::closeFileHandle()
+{
+	fileReader.closeFileHandles();
+}
+
+void StreamingSamplerSound::openFileHandle()
+{
+	fileReader.openFileHandles();
+}
+
+bool StreamingSamplerSound::isOpened()
+{
+	return fileReader.isOpened();
+}
+
+String StreamingSamplerSound::getSampleStateAsString() const
+{
+	if (isMissing())
+	{
+		if (purged) return "Purged+Missing";
+		else return "Missing";
+	}
+	else
+	{
+		if (purged) return "Purged";
+		else return "Normal";
+	}
+}
+
+String StreamingSamplerSound::getFileName(bool getFullPath /*= false*/) const {	return fileReader.getFileName(getFullPath); }
+
+int64 StreamingSamplerSound::getHashCode() { return fileReader.getHashCode(); }
+
+
+void StreamingSamplerSound::checkFileReference()
+{
+	fileReader.checkFileReference();
+}
+
+
+void StreamingSamplerSound::replaceFileReference(const String &newFileName)
+{
+	fileReader.setFile(newFileName);
+
+	if (isMissing()) return;
+
+	fileReader.openFileHandles();
+
+	AudioFormatReader *reader = fileReader.getReader();
+
+	if (reader != nullptr)
+	{
+		monolithLength = (int)reader->lengthInSamples;
+		sampleRate = reader->sampleRate;
+
+		setPreloadSize(PRELOAD_SIZE, true);
+	}
+	else
+	{
+		throw LoadingError(fileReader.getFileName(true), "Error at normal reading");
+	}
+	
+	fileReader.closeFileHandles();
+}
+
+bool StreamingSamplerSound::isMissing() const noexcept { return fileReader.isMissing(); }
+
+bool StreamingSamplerSound::hasActiveState() const noexcept { return !isMissing() && !purged; }
+
+void StreamingSamplerSound::setSampleStart(int newSampleStart)
+{
+	if(sampleStart != newSampleStart && 
+	   (! loopEnabled || (loopEnabled && loopStart > newSampleStart)))
+	{
+		sampleStart = newSampleStart;
+		lengthChanged();
+	}
+}
+
+void StreamingSamplerSound::setSampleStartModulation(int newModulationDelta)
+{
+	if(sampleStartMod != newModulationDelta)
+	{
+		ScopedLock sl(lock);
+
+		sampleStartMod = newModulationDelta;
+		lengthChanged();
+	}
+}
+
+void StreamingSamplerSound::setLoopEnabled(bool shouldBeEnabled)
+{
+	if (loopEnabled != shouldBeEnabled)
+	{
+		loopEnabled = shouldBeEnabled;
+
+		if (shouldBeEnabled && loopStart < sampleStart)
+		{
+			setLoopStart(sampleStart);
+			return;
+		}
+		if (shouldBeEnabled && loopEnd > sampleEnd)
+		{
+			setLoopEnd(sampleEnd);
+			return;
+		}
+
+		loopChanged();
+	}
+}
+
+void StreamingSamplerSound::setLoopStart(int newLoopStart)
+{
+	if (loopStart != newLoopStart)
+	{
+		loopStart = jmax(sampleStart, newLoopStart);
+		loopChanged();
+	}
+}
+
+void StreamingSamplerSound::setLoopEnd(int newLoopEnd)
+{
+	if (loopEnd != newLoopEnd)
+	{
+		loopEnd = jmin(sampleEnd, newLoopEnd);
+		crossfadeArea = Range<int>((int)(loopEnd - crossfadeLength), (int)loopEnd);
+		loopChanged();
+	}
+}
+
+void StreamingSamplerSound::setLoopCrossfade(int newCrossfadeLength)
+{
+	if (crossfadeLength != newCrossfadeLength)
+	{
+		crossfadeLength = newCrossfadeLength;
+		crossfadeArea = Range<int>((int)(loopEnd - crossfadeLength), (int)loopEnd);
+		loopChanged();
+	}
+}
+
+
+void StreamingSamplerSound::setSampleEnd(int newSampleEnd)
+{
+	if(sampleEnd != newSampleEnd && 
+	   (! loopEnabled || (loopEnabled && loopEnd < newSampleEnd)))
+	{
+		sampleEnd = newSampleEnd;
+		lengthChanged();
+	}
+}
+
+void StreamingSamplerSound::lengthChanged()
+{
+	ScopedLock sl(lock);
+
+	sampleLength = sampleEnd - sampleStart;
+
+	setPreloadSize(preloadSize, true);
+}
+
+void StreamingSamplerSound::loopChanged()
+{
+	ScopedLock sl(lock);
+
+	if(loopEnabled)
+	{
+		loopStart = jmax<int>(loopStart, sampleStart);
+		loopEnd = jmin<int>(loopEnd, sampleEnd);
+		loopLength = loopEnd - loopStart;
+
+		if(crossfadeLength != 0)
+		{
+			loopBuffer.setSize(2, (int)crossfadeLength);
+			loopBuffer.clear();
+
+			AudioSampleBuffer tempBuffer = AudioSampleBuffer(2, (int)crossfadeLength);
+
+			// Calculate the fade in
+			const int startCrossfade = loopStart - crossfadeLength;
+			tempBuffer.clear();
+
+			fileReader.openFileHandles();
+
+			fileReader.readFromDisk(tempBuffer, 0, (int)crossfadeLength, startCrossfade + monolithOffset, false);
+			
+			tempBuffer.applyGainRamp(0, 0, (int)crossfadeLength, 0.0f, 1.0f);
+			tempBuffer.applyGainRamp(1, 0, (int)crossfadeLength, 0.0f, 1.0f);
+
+			FloatVectorOperations::copy(loopBuffer.getWritePointer(0, 0), tempBuffer.getReadPointer(0, 0), (int)crossfadeLength);
+			FloatVectorOperations::copy(loopBuffer.getWritePointer(1, 0), tempBuffer.getReadPointer(1, 0), (int)crossfadeLength);
+
+			// Calculate the fade out
+			tempBuffer.clear();
+
+			const int endCrossfade = loopEnd - crossfadeLength;
+
+			fileReader.readFromDisk(tempBuffer, 0, (int)crossfadeLength, endCrossfade + monolithOffset, false);
+			
+			tempBuffer.applyGainRamp(0, 0, (int)crossfadeLength, 1.0f, 0.0f);
+			tempBuffer.applyGainRamp(1, 0, (int)crossfadeLength, 1.0f, 0.0f);
+
+			FloatVectorOperations::add(loopBuffer.getWritePointer(0, 0), tempBuffer.getReadPointer(0, 0), (int)crossfadeLength);
+			FloatVectorOperations::add(loopBuffer.getWritePointer(1, 0), tempBuffer.getReadPointer(1, 0), (int)crossfadeLength);
+
+			fileReader.closeFileHandles();
+		}
+	}
+}
+
+void StreamingSamplerSound::wakeSound() const
+{
+	fileReader.wakeSound();
+}
+
+
+bool StreamingSamplerSound::hasEnoughSamplesForBlock(int maxSampleIndexInFile) const
+{
+	return (loopEnabled && loopLength != 0) || maxSampleIndexInFile < sampleLength;
+}
+
+float StreamingSamplerSound::calculatePeakValue()
+{
+	return fileReader.calculatePeakValue();
+}
+
+void StreamingSamplerSound::fillSampleBuffer(AudioSampleBuffer &sampleBuffer, int samplesToCopy, int uptime) const
+{
+	ScopedLock sl(lock);
+
+	if (!fileReader.isUsed()) return;
+
+	const bool wrapLoop = (uptime + samplesToCopy + sampleStart) > loopEnd;
+
+	if(loopEnabled && loopLength != 0 && wrapLoop)
+	{
+		const int indexInLoop = (uptime + sampleStart - loopStart) % loopLength;
+
+		const int numSamplesInThisLoop = (int)(loopLength - indexInLoop);
+
+		// Loop is smaller than streaming buffers
+		if(loopLength < samplesToCopy)
+		{
+			const int numSamplesBeforeFirstWrap = numSamplesInThisLoop;
+			
+			int numSamples = samplesToCopy - numSamplesBeforeFirstWrap;
+			int startSample = numSamplesBeforeFirstWrap;
+
+			const int indexToUse = indexInLoop > 0 ? (int)indexInLoop : uptime + (int)sampleStart;
+			fillInternal(sampleBuffer, numSamplesBeforeFirstWrap, indexToUse, 0);
+
+			while(numSamples > (int)loopLength)
+			{
+				fillInternal(sampleBuffer, (int)loopLength, (int)loopStart, startSample);
+				numSamples -= (int)loopLength;
+				startSample += (int)loopLength;
+			}
+
+			fillInternal(sampleBuffer, numSamples, (int)loopStart, startSample);
+		}
+
+		// loop is bigger than streaming buffers and does not get wrapped
+		else if(numSamplesInThisLoop > samplesToCopy)
+		{
+			fillInternal(sampleBuffer, samplesToCopy, (int)(loopStart + indexInLoop));
+		}
+
+		// loop is bigger than streaming buffers and needs some wrapping
+		else
+		{
+			const int numSamplesBeforeWrap = numSamplesInThisLoop;
+			const int numSamplesAfterWrap = samplesToCopy - numSamplesBeforeWrap;
+
+			fillInternal(sampleBuffer, numSamplesBeforeWrap, (int)(loopStart + indexInLoop), 0);
+			fillInternal(sampleBuffer, numSamplesAfterWrap, (int)loopStart, numSamplesBeforeWrap);
+		}
+	}
+	else
+	{
+		jassert(((int)sampleStart + uptime + samplesToCopy) <= sampleEnd);
+
+		fillInternal(sampleBuffer, samplesToCopy, uptime + (int)sampleStart);
+	}
+};
+
+void StreamingSamplerSound::fillInternal(AudioSampleBuffer &sampleBuffer, int samplesToCopy, int indexInFile, int offsetInBuffer) const
+{
+	jassert(indexInFile + samplesToCopy <= sampleEnd);
+
+	// Some samples from the loop crossfade buffer are required
+	if(loopEnabled && Range<int>(indexInFile, indexInFile + samplesToCopy).intersects(crossfadeArea))
+	{
+		const int numSamplesBeforeCrossfade = jmax(0, crossfadeArea.getStart() - indexInFile);
+
+		if(numSamplesBeforeCrossfade > 0)
+		{
+			fillInternal(sampleBuffer, numSamplesBeforeCrossfade, indexInFile, 0);
+		}
+		
+		const int numSamplesInCrossfade = jmin(samplesToCopy - numSamplesBeforeCrossfade, (int)crossfadeLength);
+
+		if(numSamplesInCrossfade > 0)
+		{
+			ScopedLock sl(lock);
+
+			const int indexInLoopBuffer = jmax(0, indexInFile - crossfadeArea.getStart());
+
+			FloatVectorOperations::copy(sampleBuffer.getWritePointer(0, numSamplesBeforeCrossfade), loopBuffer.getReadPointer(0, indexInLoopBuffer), numSamplesInCrossfade);
+			FloatVectorOperations::copy(sampleBuffer.getWritePointer(1, numSamplesBeforeCrossfade), loopBuffer.getReadPointer(1, indexInLoopBuffer), numSamplesInCrossfade);		
+		}
+
+#pragma warning( push )
+#pragma warning( disable: 4189 )
+
+		const int numSamplesAfterCrossfade = samplesToCopy - numSamplesBeforeCrossfade - numSamplesInCrossfade;
+		// Should be taken care by higher logic (fillSampleBuffer should wrap the loop)
+		jassert(numSamplesAfterCrossfade == 0);
+
+#pragma warning( pop )
+	}
+
+	// All samples can be fetched from the preload buffer
+	else if(indexInFile + samplesToCopy < internalPreloadSize)
+	{
+		// the preload buffer has already the samplestart offset
+		const int indexInPreloadBuffer = indexInFile - (int)sampleStart;
+
+		jassert(indexInPreloadBuffer >= 0);
+
+		if (indexInPreloadBuffer + samplesToCopy < preloadBuffer.getNumSamples())
+		{
+			FloatVectorOperations::copy(sampleBuffer.getWritePointer(0, offsetInBuffer), preloadBuffer.getReadPointer(0, indexInPreloadBuffer), samplesToCopy);
+			FloatVectorOperations::copy(sampleBuffer.getWritePointer(1, offsetInBuffer), preloadBuffer.getReadPointer(1, indexInPreloadBuffer), samplesToCopy);
+		}
+		else
+		{
+			jassertfalse;
+			FloatVectorOperations::clear(sampleBuffer.getWritePointer(0), sampleBuffer.getNumSamples());
+			FloatVectorOperations::clear(sampleBuffer.getWritePointer(1), sampleBuffer.getNumSamples());
+		}
+	}
+	
+	// Read all samples from disk
+	else
+	{
+		fileReader.readFromDisk(sampleBuffer, offsetInBuffer, samplesToCopy, indexInFile + monolithOffset, true);
+    }
+}
+
+// =============================================================================================================================================== StreamingSamplerSound::FileReader methods
+
+
+StreamingSamplerSound::FileReader::FileReader(StreamingSamplerSound *soundForReader, ModulatorSamplerSoundPool *pool_) :
+pool(pool_),
+sound(soundForReader),
+missing(false),
+hashCode(0),
+voiceCount(0),
+fileHandlesOpen(false)
+{}
+
+StreamingSamplerSound::FileReader::~FileReader()
+{
+	ScopedLock sl(readLock);
+
+	memoryReader = nullptr;
+	normalReader = nullptr;
+}
+
+void StreamingSamplerSound::FileReader::setFile(const String &f)
+{
+    if(File::isAbsolutePath(f))
+    {
+        loadedFile = File(f);
+    }
+    else
+    {
+        faultyFileName = f;
+        loadedFile = File::nonexistent;
+    }
+    
+	refreshFileInformation();
+}
+
+String StreamingSamplerSound::FileReader::getFileName(bool getFullPath)
+{
+    if(faultyFileName.isNotEmpty())
+    {
+        if(getFullPath)
+        {
+            return faultyFileName;
+        }
+        else
+        {
+#if JUCE_WINDOWS
+            return faultyFileName.fromLastOccurrenceOf("/", false, false);
+#else
+            return faultyFileName.fromLastOccurrenceOf("\\", false, false);
+#endif
+        }
+    }
+    else return getFullPath ? loadedFile.getFullPathName() : loadedFile.getFileName();
+}
+
+void StreamingSamplerSound::FileReader::checkFileReference()
+{
+	missing = !loadedFile.existsAsFile();// && getReader() == nullptr;
+}
+
+void StreamingSamplerSound::FileReader::refreshFileInformation()
+{
+	checkFileReference();
+
+	if (!missing)
+	{
+        faultyFileName = String::empty;
+        
+		ScopedPointer<MemoryMappedAudioFormatReader> mr = pool->afm.findFormatForFileExtension(loadedFile.getFileExtension())->createMemoryMappedReader(loadedFile);
+
+		fileFormatSupportsMemoryReading = mr != nullptr;
+		hashCode = loadedFile.hashCode64();
+	}
+}
+
+
+
+AudioFormatReader * StreamingSamplerSound::FileReader::getReader()
+{
+	if (!fileHandlesOpen) openFileHandles();
+
+	if (memoryReader != nullptr) return memoryReader;
+	else if (normalReader != nullptr) return normalReader;
+	else return nullptr;
+}
+
+void StreamingSamplerSound::FileReader::wakeSound()
+{
+	if (!fileFormatSupportsMemoryReading) return;
+
+	if (memoryReader != nullptr && !memoryReader->getMappedSection().isEmpty()) memoryReader->touchSample(sound->sampleStart + sound->monolithOffset);
+}
+
+void StreamingSamplerSound::FileReader::openFileHandles(NotificationType notifyPool)
+{
+	if (fileHandlesOpen)
+	{
+		jassert(memoryReader != nullptr || normalReader != nullptr);
+		return;
+	}
+	else
+	{
+		jassert(memoryReader == nullptr || normalReader == nullptr);
+
+		ScopedLock sl(readLock);
+
+		fileHandlesOpen = true;
+
+		memoryReader = nullptr;
+		normalReader = nullptr;
+
+		if (fileFormatSupportsMemoryReading)
+		{
+			memoryReader = pool->afm.findFormatForFileExtension(loadedFile.getFileExtension())->createMemoryMappedReader(loadedFile);
+
+			if (memoryReader != nullptr)
+			{
+				memoryReader->mapSectionOfFile(Range<int64>((int64)(sound->sampleStart) + (int64)(sound->monolithOffset), (int64)(sound->sampleEnd)));
+			}
+		}
+		normalReader = pool->afm.createReaderFor(loadedFile);
+
+		if(notifyPool == sendNotification) pool->increaseNumOpenFileHandles();
+	}
+}
+
+
+void StreamingSamplerSound::FileReader::closeFileHandles(NotificationType notifyPool)
+{
+	if (voiceCount.get() == 0)
+	{
+		ScopedLock sl(readLock);
+
+		fileHandlesOpen = false;
+
+		memoryReader = nullptr;
+		normalReader = nullptr;
+
+        if(notifyPool == sendNotification) pool->decreaseNumOpenFileHandles();
+	}
+}
+
+
+void StreamingSamplerSound::FileReader::readFromDisk(AudioSampleBuffer &buffer, int startSample, int numSamples, int readerPosition, bool useMemoryMappedReader)
+{
+	if (!fileHandlesOpen) openFileHandles(sendNotification);
+
+	if (useMemoryMappedReader)
+	{
+		if (memoryReader != nullptr && memoryReader->getMappedSection().contains(Range<int64>(readerPosition, readerPosition + numSamples)))
+		{
+			ScopedLock sl(readLock);
+
+			memoryReader->read(&buffer, startSample, numSamples, readerPosition, true, true);
+
+			return;
+		}
+	}
+	
+	if (normalReader != nullptr)
+	{
+		ScopedLock sl(readLock);
+
+		normalReader->read(&buffer, startSample, numSamples, readerPosition, true, true);
+	}
+	else
+	{
+		// Something is wrong so clear the buffer to be safe...
+		buffer.clear(startSample, numSamples);
+	}
+}
+
+
+float StreamingSamplerSound::FileReader::calculatePeakValue()
+{
+	float l, r, unused;
+
+	openFileHandles();
+
+	AudioFormatReader *readerToUse = getReader();
+
+	if (readerToUse != nullptr) readerToUse->readMaxLevels(sound->sampleStart + sound->monolithOffset, sound->sampleLength, unused, l, unused, r);
+	else return 0.0f;
+
+	closeFileHandles();
+
+	return fabsf(jmax(l, r));
+}
+
+
+// =============================================================================================================================================== SampleLoader methods
+
+SampleLoader::SampleLoader(SampleThreadPool *pool_) :
+SampleThreadPoolJob("SampleLoader"),
+backgroundPool(pool_),
+writeBufferIsBeingFilled(false),
+sound(0),
+readIndex(0),
+readIndexDouble(0.0),
+idealBufferSize(0),
+minimumBufferSizeForSamplesPerBlock(0),
+positionInSampleFile(0),
+isReadingFromPreloadBuffer(true),
+sampleStartModValue(0),
+readBuffer(nullptr),
+writeBuffer(nullptr),
+readPointerLeft(nullptr),
+readPointerRight(nullptr),
+diskUsage(0.0),
+lastCallToRequestData(0.0)
+{
+	unmapper.setLoader(this);
+
+//     for(int i = 0; i < NUM_UNMAPPERS; i++)
+//     {
+//         unmappers[i].setLoader(this);
+//     }
+//     
+	setBufferSize(BUFFER_SIZE_FOR_STREAM_BUFFERS);
+}
+
+/** Sets the buffer size in samples. */
+void SampleLoader::setBufferSize(int newBufferSize)
+{
+	ScopedLock sl(lock);
+
+	idealBufferSize = newBufferSize;
+
+	refreshBufferSizes();
+}
+
+bool SampleLoader::assertBufferSize(int minimumBufferSize)
+{
+	minimumBufferSizeForSamplesPerBlock = minimumBufferSize;
+
+	refreshBufferSizes();
+
+	return true;
+}
+
+void SampleLoader::startNote(StreamingSamplerSound const *s, int startTime)
+{
+	diskUsage = 0.0;
+
+	sound = s;
+	
+	s->wakeSound();
+
+	sampleStartModValue = (int)startTime;
+
+	const AudioSampleBuffer *localReadBuffer = &s->getPreloadBuffer();
+	AudioSampleBuffer *localWriteBuffer = &b1;
+
+	// the read pointer will be pointing directly to the preload buffer of the sample sound
+	readBuffer = localReadBuffer;
+	writeBuffer = localWriteBuffer;
+
+	readIndex = startTime;
+	readIndexDouble = (double)startTime;
+
+	readPointerLeft = localReadBuffer->getReadPointer(0, sampleStartModValue);
+	readPointerRight = localWriteBuffer->getReadPointer(1, sampleStartModValue);
+
+	isReadingFromPreloadBuffer = true;
+
+	// Set the sampleposition to (1 * bufferSize) because the first buffer is the preload buffer
+	positionInSampleFile = (int)localReadBuffer->getNumSamples();
+	
+    voiceCounterWasIncreased = false;
+    
+	// The other buffer will be filled on the next free thread pool slot
+	requestNewData();
+};
+
+StereoChannelData SampleLoader::fillVoiceBuffer(AudioSampleBuffer &voiceBuffer, double numSamples)
+{
+	const AudioSampleBuffer *localReadBuffer = readBuffer.get();
+	AudioSampleBuffer *localWriteBuffer = writeBuffer.get();
+
+	const int numSamplesInBuffer = localReadBuffer->getNumSamples();
+	const int maxSampleIndexForFillOperation = (int)(readIndexDouble + numSamples)+ 1; // Round up the samples
+
+	if (maxSampleIndexForFillOperation >= numSamplesInBuffer) // Check because of preloadbuffer style
+	{
+		const int indexBeforeWrap = jmax<int>(0, (int)readIndexDouble);
+		const int numSamplesInFirstBuffer = localReadBuffer->getNumSamples() - indexBeforeWrap;
+
+		jassert(numSamplesInFirstBuffer >= 0);
+
+		if (numSamplesInFirstBuffer > 0)
+		{
+			voiceBuffer.copyFrom(0, 0, *localReadBuffer, 0, indexBeforeWrap, numSamplesInFirstBuffer);
+			voiceBuffer.copyFrom(1, 0, *localReadBuffer, 1, indexBeforeWrap, numSamplesInFirstBuffer);
+		}
+
+		const int offset = numSamplesInFirstBuffer;
+		//remaining = (int)(numSamples)+1 - offset;
+
+		const int numSamplesAvailableInSecondBuffer = localWriteBuffer->getNumSamples() - offset;
+
+		if ( (numSamplesAvailableInSecondBuffer > 0) && (numSamplesAvailableInSecondBuffer < localWriteBuffer->getNumSamples()))
+		{
+			const int numSamplesToCopyFromSecondBuffer = jmin<int>(numSamplesAvailableInSecondBuffer, voiceBuffer.getNumSamples() - offset);
+
+			voiceBuffer.copyFrom(0, offset, *localWriteBuffer, 0, 0, numSamplesToCopyFromSecondBuffer);
+			voiceBuffer.copyFrom(1, offset, *localWriteBuffer, 1, 0, numSamplesToCopyFromSecondBuffer);
+		}
+		else
+		{
+			// The streaming buffers must be greater than the block size!
+			jassertfalse;
+			FloatVectorOperations::clear(voiceBuffer.getWritePointer(0), voiceBuffer.getNumSamples());
+			FloatVectorOperations::clear(voiceBuffer.getWritePointer(1), voiceBuffer.getNumSamples());
+		}
+		
+		StereoChannelData returnData;
+
+		returnData.leftChannel = voiceBuffer.getReadPointer(0);
+		returnData.rightChannel = voiceBuffer.getReadPointer(1);
+
+		return returnData;
+	}
+	else
+	{
+		const int index = (int)readIndexDouble;
+
+		StereoChannelData returnData;
+
+		returnData.leftChannel = localReadBuffer->getReadPointer(0, index);
+		returnData.rightChannel = localReadBuffer->getReadPointer(1, index);
+
+		return returnData;
+	}
+}
+
+void SampleLoader::advanceReadIndex(double delta)
+{
+	const int numSamplesInBuffer = readBuffer.get()->getNumSamples();
+	readIndexDouble += delta;
+
+	if (readIndexDouble >= numSamplesInBuffer)
+	{
+		positionInSampleFile += getNumSamplesForStreamingBuffers();
+		readIndexDouble -= (double)numSamplesInBuffer;
+
+		swapBuffers();
+		requestNewData();
+	}
+}
+
+void SampleLoader::requestNewData()
+{
+
+
+#if(USE_BACKGROUND_THREAD)
+
+	// check if the background thread is already loading this sound
+	jassert(! backgroundPool->contains(this));
+
+	backgroundPool->addJob(this, false);
+#else
+
+	// run the thread job synchronously
+	runJob();
+#endif
+};
+
+
+SampleThreadPoolJob::JobStatus SampleLoader::runJob()
+{
+    const double readStart = Time::highResolutionTicksToSeconds(Time::getHighResolutionTicks());
+
+	if (writeBufferIsBeingFilled)
+	{
+		return SampleThreadPoolJob::jobNeedsRunningAgain;
+	}
+
+	writeBufferIsBeingFilled = true; // A poor man's mutex but gets the job done.
+
+	const StreamingSamplerSound *localSound = sound.get();
+
+    if(!voiceCounterWasIncreased && localSound != nullptr)
+    {
+        localSound->increaseVoiceCount();
+        voiceCounterWasIncreased = true;
+    }
+    
+    fillInactiveBuffer();
+    
+    writeBufferIsBeingFilled = false;
+    
+    const double readStop = Time::highResolutionTicksToSeconds(Time::getHighResolutionTicks());
+    const double readTime = (readStop - readStart);
+    const double timeSinceLastCall = readStop - lastCallToRequestData;
+	const double diskUsageThisTime = jmax(diskUsage.get(), readTime / timeSinceLastCall);
+    diskUsage = diskUsageThisTime;
+    lastCallToRequestData = readStart;
+    
+    return SampleThreadPoolJob::JobStatus::jobHasFinished;
+}
+
+void SampleLoader::fillInactiveBuffer()
+{
+	const StreamingSamplerSound *localSound = sound.get();
+
+	if (localSound == nullptr) return;
+
+	if(localSound != nullptr)
+	{
+		if(localSound->hasEnoughSamplesForBlock(positionInSampleFile + getNumSamplesForStreamingBuffers()))
+		{
+			localSound->fillSampleBuffer(*writeBuffer.get(), getNumSamplesForStreamingBuffers(), (int)positionInSampleFile);
+		}
+		else if (localSound->hasEnoughSamplesForBlock(positionInSampleFile))
+		{
+			const int numSamplesToFill = (int)localSound->getSampleLength() - positionInSampleFile;
+			const int numSamplesToClear = getNumSamplesForStreamingBuffers() - numSamplesToFill;
+
+			localSound->fillSampleBuffer(*writeBuffer.get(), numSamplesToFill, (int)positionInSampleFile);
+
+			writeBuffer.get()->clear(numSamplesToFill, numSamplesToClear);
+		}
+		else
+		{
+			writeBuffer.get()->clear();
+		}
+	}
+};
+	
+void SampleLoader::refreshBufferSizes()
+{
+	const int numSamplesToUse = jmax<int>(idealBufferSize, minimumBufferSizeForSamplesPerBlock);
+
+	if (getNumSamplesForStreamingBuffers() != numSamplesToUse)
+	{
+		b1 = AudioSampleBuffer(2, numSamplesToUse);
+		b2 = AudioSampleBuffer(2, numSamplesToUse);
+
+		b1.clear();
+		b2.clear();
+
+		readBuffer = &b1;
+		writeBuffer = &b2;
+
+		reset();
+	}
+}
+
+bool SampleLoader::swapBuffers()
+{
+	const AudioSampleBuffer *localReadBuffer = readBuffer.get();
+
+	if(localReadBuffer == &b1)
+	{
+		readBuffer = &b2;
+		writeBuffer = &b1;
+	}
+	else // This condition will also be true if the read pointer points at the preload buffer
+	{
+		readBuffer = &b1;
+		writeBuffer = &b2;
+	}
+
+	isReadingFromPreloadBuffer = false;
+	sampleStartModValue = 0;
+
+	readPointerLeft = readBuffer.get()->getReadPointer(0, 0);
+	readPointerRight = readBuffer.get()->getReadPointer(1, 0);
+
+	return writeBufferIsBeingFilled == false;
+};
+
+// ==================================================================================================== StreamingSamplerVoice methods
+
+StreamingSamplerVoice::StreamingSamplerVoice(SampleThreadPool *pool):
+loader(pool),
+sampleStartModValue(0)
+{
+	pitchData = nullptr;
+};
+
+void StreamingSamplerVoice::startNote (int /*midiNoteNumber*/, 
+									   float /*velocity*/, 
+									   SynthesiserSound* s, 
+									   int /*currentPitchWheelPosition*/)
+{
+	StreamingSamplerSound *sound = dynamic_cast<StreamingSamplerSound*>(s);
+
+	if(sound->getSampleLength() > 0)
+	{
+		loader.startNote(sound, sampleStartModValue);
+
+		jassert(sound != nullptr);
+		sound->wakeSound();
+
+		voiceUptime = (double)sampleStartModValue;
+
+		// You have to call setPitchFactor() before startNote().
+		jassert(uptimeDelta != 0.0);
+
+		// Resample if sound has different samplerate than the audio sample rate
+		uptimeDelta *= (sound->getSampleRate() / getSampleRate());
+	}
+	else
+	{
+		resetVoice();
+	}
+}
+
+
+void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int startSample, int numSamples)
+{
+	const StreamingSamplerSound *sound = loader.getLoadedSound();
+
+	if(sound != nullptr)
+	{
+		const double startAlpha = fmod(voiceUptime, 1.0);
+		
+		double pitchCounter;
+
+		if (pitchData == nullptr) pitchCounter = uptimeDelta * (double)numSamples;
+		else
+		{
+			pitchCounter = 0.0;
+			pitchData += startSample;
+
+			for (int i = 0; i < numSamples; i++)
+			{
+				pitchCounter += uptimeDelta * (double)*pitchData++;
+			}
+
+			pitchData -= numSamples;
+		}
+
+		// Copy the not resampled values into the voice buffer.
+		StereoChannelData data = loader.fillVoiceBuffer(samplesForThisBlock, pitchCounter + startAlpha);
+
+		const float* const inL = data.leftChannel;
+		const float* const inR = data.rightChannel;
+		float* outL = outputBuffer.getWritePointer(0, startSample);
+		float* outR = outputBuffer.getWritePointer(1, startSample);
+		
+		double indexInBuffer = startAlpha;
+
+		if (pitchData != nullptr)
+		{
+			float indexInBufferFloat = (float)indexInBuffer;
+			const float uptimeDeltaFloat = (float)uptimeDelta;
+
+			while (numSamples > 0)
+			{
+				for (int i = 0; i < 4; i++)
+				{
+					const int pos = int(indexInBufferFloat);
+					const float alpha = indexInBufferFloat - (float)pos;
+					const float invAlpha = 1.0f - alpha;
+
+					float l = (inL[pos] * invAlpha + inL[pos + 1] * alpha);
+					float r = (inR[pos] * invAlpha + inR[pos + 1] * alpha);
+
+					*outL++ = l;
+					*outR++ = r;
+
+					jassert(r >= -1.0f);
+
+					indexInBufferFloat += (uptimeDeltaFloat * *pitchData++);
+				}
+				numSamples -= 4;
+			}
+		}
+		else
+		{
+			float indexInBufferFloat = (float)indexInBuffer;
+			const float uptimeDeltaFloat = (float)uptimeDelta;
+
+			while (numSamples > 0)
+			{
+				for (int i = 0; i < 4; i++)
+				{
+					const int pos = int(indexInBufferFloat);
+					const float alpha = indexInBufferFloat - (float)pos;
+					const float invAlpha = 1.0f - alpha;
+
+					float l = (inL[pos] * invAlpha + inL[pos + 1] * alpha);
+					float r = (inR[pos] * invAlpha + inR[pos + 1] * alpha);
+
+					*outL++ = l;
+					*outR++ = r;
+
+					indexInBufferFloat += uptimeDeltaFloat;
+				}
+				
+				numSamples -= 4;
+			}
+		}
+		
+		voiceUptime += pitchCounter;
+		loader.advanceReadIndex(pitchCounter);
+
+		const bool enoughSamples = sound->hasEnoughSamplesForBlock((int)(voiceUptime + numSamples * MAX_SAMPLER_PITCH));
+
+		if(!enoughSamples) resetVoice();
+	}
+    else
+    {
+        resetVoice();
+    }
+};

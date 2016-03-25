@@ -1,0 +1,222 @@
+
+ModuleBrowser::ModuleBrowser(BaseDebugArea *area) :
+SearchableListComponent(area)
+{
+	setName("Module Browser");
+}
+
+
+void ModuleBrowser::ModuleItem::paint(Graphics& g)
+{
+	float w = (float)getWidth() - 4;
+	float h = (float)getHeight();
+
+	Colour c;
+
+	switch (state)
+	{
+	case ModuleBrowser::ModuleItem::Inactive:
+		c = Colours::black;
+		break;
+	case ModuleBrowser::ModuleItem::Illegal:
+		c = Colours::red;
+		break;
+	case ModuleBrowser::ModuleItem::Legal:
+		c = Colours::green;
+		break;
+	case ModuleBrowser::ModuleItem::numDragStates:
+	default:
+		c = Colours::black;
+		break;
+	}
+
+	ColourGradient grad(c.withAlpha(0.1f), 0.0f, .0f, c.withAlpha(0.2f), 0.0f, h, false);
+
+	g.setGradientFill(grad);
+
+	g.fillRoundedRectangle(2.0f, 2.0f, w - 4.0f, h - 4.0f, 3.0f);
+
+	g.setColour(isMouseOver() ? Colours::white : c.withAlpha(0.5f));
+
+	g.drawRoundedRectangle(2.0f, 2.0f, w - 4.0f, h - 4.0f, 3.0f, 2.0f);
+
+	Colour textColour = Colours::white.withAlpha(.7f);
+	g.setColour(textColour);
+
+	g.setFont(GLOBAL_FONT());
+
+	g.drawText(name, 0, 0, getWidth(), getHeight(), Justification::centred);
+}
+
+void ModuleBrowser::ModuleItem::mouseDrag(const MouseEvent&)
+{
+	startDragging(id.toString() + "::" + name, this, Image::null, true);
+}
+
+void ModuleBrowser::ModuleItem::mouseEnter(const MouseEvent&)
+{
+	repaint();
+}
+
+void ModuleBrowser::ModuleItem::mouseUp(const MouseEvent&)
+{
+	setDragState(Inactive);
+	repaint();
+}
+
+void ModuleBrowser::ModuleItem::paintPopupBox(Graphics &g) const
+{
+	g.setColour(Colours::white);
+
+	g.setFont(GLOBAL_BOLD_FONT());
+
+	g.drawText("Parameter List", 0, 0, getWidth(), 20, Justification::centred);
+
+	int h = 30;
+
+	for (int i = 0; i < parameters.size(); i++)
+	{
+		g.setColour(Colours::white);
+		g.setFont(GLOBAL_FONT());
+		g.drawText(String(i), 10, h, 30, 20, Justification::centredLeft);
+
+		g.setColour(Colours::white.withAlpha(0.6f));
+
+		g.setFont(GLOBAL_MONOSPACE_FONT());
+
+		g.drawText(parameters[i], 30, h, getWidth() - 30, 20, Justification::centredLeft);
+
+		if (i != parameters.size() - 1)
+		{
+			g.setColour(Colours::white.withAlpha(0.3f));
+			g.drawLine(10.0f, (float)h + 18.0f, getWidth() - 10.0f, (float)h + 18.0f, 0.5f);
+		}
+
+		h += 20;
+	}
+}
+
+ModuleBrowser::ModuleItem::ModuleItem(String name_, Identifier id_) :
+Item(name_.toLowerCase()),
+id(id_),
+name(name_),
+state(Inactive)
+{
+	setSize(380 - 16 - 8 - 24, 20);
+}
+
+void ModuleBrowser::ModuleItem::setParameters(const ValueTree &v)
+{
+	parameters.clear();
+
+	if (v.isValid())
+	{
+		for (int i = 0; i < v.getNumProperties(); i++)
+		{
+			parameters.add(v.getProperty("id" + String(i), ""));
+		}
+	}
+}
+
+ModuleBrowser::ModuleCollection::ModuleCollection(Types t)
+{
+	File f(PresetHandler::getDataFolder() + "/moduleEnums.xml");
+
+	jassert(f.existsAsFile());
+
+	String content = f.loadFileAsString();
+
+	XmlDocument doc(f);
+
+	ScopedPointer<XmlElement> xml = doc.getDocumentElement();
+
+	switch (t)
+	{
+	case ModuleBrowser::ModuleCollection::MidiProcessors:
+		typeName = "MIDI Processors";
+		factoryType = new MidiProcessorFactoryType(nullptr);
+		p = MidiProcessor::getSymbolPath();
+		c = Colour(0xFF881100);
+		if (xml != nullptr) vt = ValueTree::fromXml(*xml->getChildByName("MidiProcessors"));
+		break;
+	case ModuleBrowser::ModuleCollection::VoiceStartModulators:
+		typeName = "Voice Start Modulators";
+		factoryType = new VoiceStartModulatorFactoryType(NUM_POLYPHONIC_VOICES, Modulation::GainMode, nullptr);
+		p = VoiceStartModulator::getSymbolPath();
+		c = Colour(0xffD9911E);
+		c2 = Colour(0xff628214);
+		if (xml != nullptr) vt = ValueTree::fromXml(*xml->getChildByName("VoiceStartModulators"));
+		break;
+	case ModuleBrowser::ModuleCollection::TimeVariantModulators:
+		typeName = "Timevariant Modulators";
+		factoryType = new TimeVariantModulatorFactoryType(Modulation::GainMode, nullptr);
+		c = Colour(0xffD9911E);
+		c2 = Colour(0xff628214);
+		p = TimeVariantModulator::getSymbolPath();
+		if (xml != nullptr) vt = ValueTree::fromXml(*xml->getChildByName("TimeVariantModulators"));
+		break;
+	case ModuleBrowser::ModuleCollection::EnvelopeModulators:
+		typeName = "Envelope Modulators";
+		factoryType = new EnvelopeModulatorFactoryType(NUM_POLYPHONIC_VOICES, Modulation::GainMode, nullptr);
+		c = Colour(0xffD9911E);
+		c2 = Colour(0xff628214);
+		p = EnvelopeModulator::getSymbolPath();
+		if (xml != nullptr) vt = ValueTree::fromXml(*xml->getChildByName("EnvelopeModulators"));
+		break;
+	case ModuleBrowser::ModuleCollection::ModulatorSynths:
+		typeName = "Sound Generators";
+		factoryType = new ModulatorSynthChainFactoryType(NUM_POLYPHONIC_VOICES, nullptr);
+		p.loadPathFromData(BackendBinaryData::ToolbarIcons::keyboard, sizeof(BackendBinaryData::ToolbarIcons::keyboard));
+		c = Colours::white.withAlpha(0.2f);
+		if (xml != nullptr) vt = ValueTree::fromXml(*xml->getChildByName("ModulatorSynths"));
+		break;
+	case ModuleBrowser::ModuleCollection::Effects:
+		typeName = "Effects";
+		factoryType = new EffectProcessorChainFactoryType(NUM_POLYPHONIC_VOICES, nullptr);
+		p.loadPathFromData(HiBinaryData::ProcessorIcons::effectChain, sizeof(HiBinaryData::ProcessorIcons::effectChain));
+		c = Colour(0xff3a6666);
+		if (xml != nullptr) vt = ValueTree::fromXml(*xml->getChildByName("Effects"));
+		break;
+	case ModuleBrowser::ModuleCollection::numTypes:
+	default:
+		jassertfalse;
+		break;
+	}
+
+	Array<FactoryType::ProcessorEntry> entries = factoryType->getAllowedTypes();
+
+	for (int i = 0; i < entries.size(); i++)
+	{
+		items.add(new ModuleItem(entries[i].name, entries[i].type));
+		dynamic_cast<ModuleItem*>(items.getLast())->setParameters(vt.getChild(i));
+		addAndMakeVisible(items.getLast());
+	}
+}
+
+void ModuleBrowser::ModuleCollection::paint(Graphics &g)
+{
+	//g.fillAll(Colours::black.withAlpha(0.5f));
+	p.scaleToFit(10.0f, 10.0f, 20.0f, 20.0f, true);
+	g.setColour(Colours::white.withAlpha(0.4f));
+	g.fillPath(p);
+
+	if (c2.isTransparent())
+	{
+		g.setColour(c);
+
+		g.fillRect(40, 5, getWidth() - 50, 30);
+	}
+	else
+	{
+		g.setGradientFill(ColourGradient(c, 0.0f, 0.0f, c2, (float)getWidth(), 0.0f, true));
+
+		g.fillRect(40, 5, getWidth() - 50, 30);
+	}
+
+	g.setColour(Colours::white.withAlpha(0.3f));
+	g.drawRect(40, 5, getWidth() - 50, 30);
+	g.setColour(Colours::white);
+	g.setFont(GLOBAL_BOLD_FONT());
+
+	g.drawText(typeName, 50, 0, getWidth() - 50, 40, Justification::centredLeft);
+}

@@ -1,0 +1,447 @@
+
+HeaderButton::HeaderButton(const String &name, const unsigned char *path, size_t pathSize, ProcessorEditorHeader *parentHeader_) :
+parentHeader(parentHeader_)
+{
+	addAndMakeVisible(button = new ShapeButton(name, Colours::white, Colours::white, Colours::white));
+	Path p;
+	p.loadPathFromData(path, pathSize);
+	button->setShape(p, true, true, true);
+	button->setToggleState(true, dontSendNotification);
+	refresh();
+
+	setWantsKeyboardFocus(false);
+
+	button->addListener(parentHeader);
+	button->addListener(this);
+}
+
+
+void HeaderButton::refresh()
+{
+	button->setTooltip(getTooltip());
+
+	bool off = !button->getToggleState();
+
+	Colour buttonColour = parentHeader->isHeaderOfModulatorSynth() ? Colours::black.withAlpha(0.8f) : Colours::white;
+
+	buttonColour = Colours::white;
+
+	Colour shadowColour = parentHeader->isHeaderOfModulatorSynth() ? Colours::cyan.withAlpha(0.25f) : Colours::white.withAlpha(0.6f);
+
+	shadowColour = Colours::white.withAlpha(0.7f);
+
+	DropShadowEffect *shadow = dynamic_cast<DropShadowEffect*>(button->getComponentEffect());
+
+	jassert(shadow != nullptr);
+
+	shadow->setShadowProperties(DropShadow(off ? Colours::transparentBlack : shadowColour, 3, Point<int>()));
+
+
+	buttonColour = off ? Colours::grey.withAlpha(0.3f) : buttonColour;
+
+	buttonColour = buttonColour.withMultipliedAlpha(isEnabled() ? 1.0f : 0.2f);
+
+	button->setColours(buttonColour, buttonColour, buttonColour);
+	button->repaint();
+	repaint();
+}
+
+
+void HeaderButton::paint(Graphics &g)
+{
+	float alpha = .8f;
+
+	if (!isEnabled()) alpha *= 0.6f;
+
+	if (!isMouseOver(true)) alpha *= 0.8f;
+
+	if (!button->getToggleState()) alpha *= 0.5f;
+
+	Colour bg = Colours::grey.withBrightness(0.5f).withAlpha(alpha);
+
+	g.setGradientFill(ColourGradient(bg.withMultipliedAlpha(0.65f), 0.0f, 0.0f,
+		bg, 0.0f, (float)getHeight(), false));
+
+	g.fillRoundedRectangle(0.0f, 0.0f, (float)getWidth(), (float)getHeight(), 5.0f);
+}
+
+
+ChainIcon::ChainIcon(Processor *p_)
+{
+	p = p_;
+
+	if (p->getId() == "Midi Processor")  chainType = ModulatorSynth::MidiProcessor;
+	else if (p->getId() == "GainModulation")  chainType = ModulatorSynth::GainModulation;
+	else if (p->getId() == "PitchModulation") chainType = ModulatorSynth::PitchModulation;
+	else if (p->getId() == "FX")			  chainType = ModulatorSynth::EffectChain;
+	else if (p->getId() == "Sample Start")	  chainType = ModulatorSampler::SampleStartModulation;
+	else if (dynamic_cast<const CurveEq*>(p) != nullptr)
+	{
+		chainType = Filter;
+		addAndMakeVisible(filterGraph = new FilterGraph(0, FilterGraph::Icon));
+		p->addChangeListener(filterGraph);
+
+
+	}
+	else if (dynamic_cast<const MasterEffectProcessor*>(p) != nullptr)
+	{
+		chainType = MasterEffect;
+	}
+	else if (dynamic_cast<const MonophonicEffectProcessor*>(p) != nullptr)
+	{
+		chainType = MonophonicEffect;
+	}
+	else if (dynamic_cast<const VoiceEffectProcessor*>(p) != nullptr)
+	{
+		chainType = PolyphonicEffect;
+	}
+	else if (dynamic_cast<const MacroModulator*>(p) != nullptr)
+	{
+		chainType = MacroMod;
+	}
+	else if (dynamic_cast<const VoiceStartModulator*>(p) != nullptr)
+	{
+		chainType = VoiceModulator;
+	}
+	else if (dynamic_cast<const TimeVariantModulator*>(p) != nullptr)
+	{
+		chainType = TimeModulator;
+	}
+	else if (dynamic_cast<const EnvelopeModulator*>(p) != nullptr)
+	{
+		chainType = Envelope;
+	}
+	else if (dynamic_cast<const ScriptProcessor*>(p) != nullptr)
+	{
+		chainType = ScriptingProcessor;
+	}
+	else if (dynamic_cast<const ModulatorSynth*>(p) != nullptr)
+	{
+		chainType = ChainIcons::ModulatorSynthIcon;
+
+	}
+
+
+
+	else chainType = -1;
+};
+
+void ChainIcon::mouseDown(const MouseEvent &)
+{
+	if (chainType == ModulatorSynthIcon)
+	{
+
+
+		Random r;
+
+		r.setSeed(Time::getCurrentTime().getApproximateMillisecondCounter());
+
+		Colour randomColour((uint8)(r.nextFloat() * 255.0f), (uint8)(r.nextFloat() * 255.0f), (uint8)(r.nextFloat() * 255.0f));
+
+		Colour iconColour = dynamic_cast<ModulatorSynth*>(p)->getIconColour();
+
+		ColourSelector* colourSelector = new ColourSelector(ColourSelector::showColourspace);
+		colourSelector->setName("background");
+		colourSelector->setCurrentColour(iconColour.isTransparent() ? randomColour : iconColour);
+		colourSelector->setColour(ColourSelector::backgroundColourId, Colours::transparentBlack);
+		colourSelector->setSize(300, 200);
+
+		colourSelector->addChangeListener(this);
+
+		CallOutBox::launchAsynchronously(colourSelector, getScreenBounds(), nullptr);
+
+	}
+
+}
+
+
+void ChainIcon::changeListenerCallback(ChangeBroadcaster *b)
+{
+	ColourSelector *s = dynamic_cast<ColourSelector*>(b);
+
+	if (s != nullptr)
+	{
+		if (ModulatorSynth *ms = dynamic_cast<ModulatorSynth*>(p))
+		{
+			ms->setIconColour(s->getCurrentColour());
+		}
+
+
+	}
+
+	repaint();
+}
+
+
+void ChainIcon::paint(Graphics &g)
+{
+
+	float w = (float)getWidth();
+	float h = (float)getHeight();
+
+	Path path;
+
+	if (chainType == ChainIcon::ModulatorSynthIcon)
+	{
+		g.setColour(Colours::grey);
+		g.drawRoundedRectangle(1.0f, 1.0f, w - 2.0f, h - 2.0f, 3.0f, 1.0f);
+
+		Colour iconColour = dynamic_cast<ModulatorSynth*>(p)->getIconColour();
+
+		if (iconColour == Colours::transparentBlack) return;
+
+
+		ColourGradient grad(iconColour.withAlpha(0.7f), 0.0f, 0.0f, iconColour, 0.0f, h, false);
+
+		g.setGradientFill(grad);
+		g.fillRoundedRectangle(1.0f, 1.0f, w - 2.0f, h - 2.0f, 3.0f);
+
+
+
+
+		return;
+
+	}
+
+	if (chainType == ModulatorSynth::GainModulation)
+	{
+		path.loadPathFromData(HiBinaryData::ProcessorIcons::gainModulation, sizeof(HiBinaryData::ProcessorIcons::gainModulation));
+
+	}
+	else if (chainType == ModulatorSynth::PitchModulation)
+	{
+		path.loadPathFromData(HiBinaryData::ProcessorIcons::pitchModulation, sizeof(HiBinaryData::ProcessorIcons::pitchModulation));
+
+	}
+	else if (chainType == ModulatorSynth::EffectChain)
+	{
+		path.loadPathFromData(HiBinaryData::ProcessorIcons::effectChain, sizeof(HiBinaryData::ProcessorIcons::effectChain));
+	}
+
+	else if (chainType == ModulatorSampler::SampleStartModulation)
+	{
+		path.loadPathFromData(HiBinaryData::ProcessorIcons::sampleStartModulation, sizeof(HiBinaryData::ProcessorIcons::sampleStartModulation));
+
+	}
+	else if (chainType == Filter)
+	{
+		return;
+	}
+	else
+	{
+		path = p->getSymbol();
+	}
+
+	path.scaleToFit(.0f, .0f, (float)getWidth(), (float)getHeight(), true);
+
+	g.setGradientFill(ColourGradient(Colour(0xaaffffff),
+		0.0f, 0.0f,
+		Colour(0x55ffffff),
+		0.0f, (float)getHeight(),
+		false));
+
+	g.fillPath(path);
+
+
+
+
+}
+
+
+Drawable * ButtonShapes::createSymbol(Symbol s, bool on, bool enabled)
+{
+	switch (s)
+	{
+	case Debug:  return bipolarShape(on, enabled);
+	case Fold:	 return foldShape(on, enabled);
+	case Bypass: return bypassShape(on, enabled);
+	case Delete: return deleteShape(on, enabled);
+	case Add:	 return addShape(on, enabled);
+	case Plot:	 return plotShape(on, enabled);
+	case Routing: return routingShape(on, enabled);
+	default:	 jassertfalse; return nullptr;
+	}
+}
+
+Drawable * ButtonShapes::foldShape(bool on, bool enabled)
+{
+	DrawablePath *dp = new DrawablePath();
+
+	Path internalPath1;
+
+	internalPath1.clear();
+	internalPath1.startNewSubPath(0.0f, 0.0f);
+	internalPath1.lineTo(1.0000f, 0.5000f);
+	internalPath1.lineTo(0.0f, 1.0000f);
+	internalPath1.closeSubPath();
+
+	if (on) internalPath1.applyTransform(AffineTransform::rotation(float_Pi / 2));
+
+	dp->setPath(internalPath1);
+
+	dp->setFill(FillType(Colours::white.withAlpha(enabled ? 1.0f : 0.4f)));
+
+	return dp;
+}
+
+Drawable * ButtonShapes::deleteShape(bool /*on*/, bool enabled)
+{
+	DrawableImage *di = new DrawableImage();
+	Image b(Image::PixelFormat::ARGB, 20, 20, true);
+	Graphics g(b);
+
+	Path internalPath1;
+	Path internalPath2;
+
+	internalPath1.clear();
+	internalPath1.startNewSubPath(18.0f, 2.0f);
+	internalPath1.lineTo(2.0f, 18.0f);
+	internalPath1.closeSubPath();
+
+	internalPath2.clear();
+	internalPath2.startNewSubPath(18.0f, 18.0f);
+	internalPath2.lineTo(2.0f, 2.0f);
+	internalPath2.closeSubPath();
+
+	g.setColour(Colours::white.withAlpha(enabled ? 1.0f : 0.4f));
+
+	g.strokePath(internalPath1, PathStrokeType(4.000f, PathStrokeType::mitered, PathStrokeType::square));
+	g.strokePath(internalPath2, PathStrokeType(4.000f, PathStrokeType::mitered, PathStrokeType::square));
+
+	DropShadow d(Colours::white.withAlpha(0.5f), 5, Point<int>());
+
+	d.drawForPath(g, internalPath1);
+	d.drawForPath(g, internalPath2);
+
+
+	di->setImage(b);
+
+	return di;
+}
+
+Drawable * ButtonShapes::plotShape(bool /*on*/, bool enabled)
+{
+	DrawableImage *di = new DrawableImage();
+	Image b(Image::PixelFormat::ARGB, 20, 20, true);
+	Graphics g(b);
+
+	Path internalPath1;
+
+	internalPath1.clear();
+	internalPath1.startNewSubPath(2.0f, 10.0f);
+	internalPath1.cubicTo(10.0f, static_cast<float> (-17), 10.0f, 36.0f, 18.0f, 10.0f);
+
+	g.setColour(Colours::white.withAlpha(enabled ? 1.0f : 0.4f));
+
+	g.strokePath(internalPath1, PathStrokeType(4.000f, PathStrokeType::mitered, PathStrokeType::square));
+
+	di->setImage(b);
+
+	return di;
+}
+
+Drawable * ButtonShapes::addShape(bool /*on*/, bool enabled)
+{
+	DrawableImage *di = new DrawableImage();
+	Image b(Image::PixelFormat::ARGB, 20, 20, true);
+	Graphics g(b);
+
+	Path internalPath1;
+	Path internalPath2;
+
+	internalPath1.clear();
+	internalPath1.startNewSubPath(10., 2.0f);
+	internalPath1.lineTo(10.0f, 18.0f);
+	internalPath1.closeSubPath();
+
+	internalPath2.clear();
+	internalPath2.startNewSubPath(2.0f, 10.0f);
+	internalPath2.lineTo(18.0f, 10.0f);
+	internalPath2.closeSubPath();
+
+	g.setColour(Colours::white.withAlpha(enabled ? 1.0f : 0.4f));
+
+	g.strokePath(internalPath1, PathStrokeType(5.000f, PathStrokeType::mitered, PathStrokeType::square));
+	g.strokePath(internalPath2, PathStrokeType(5.000f, PathStrokeType::mitered, PathStrokeType::square));
+
+	di->setImage(b);
+
+	return di;
+}
+
+Drawable * ButtonShapes::bypassShape(bool /*on*/, bool enabled)
+{
+	DrawableImage *di = new DrawableImage();
+	Image b(Image::PixelFormat::ARGB, 20, 20, true);
+	Graphics g(b);
+
+	Path internalPath1;
+	Path internalPath2;
+
+	internalPath1.clear();
+	internalPath1.startNewSubPath(10.0f, 2.0f);
+	internalPath1.cubicTo(14.0f, 2.0f, 18.0f, 6.0f, 18.0f, 10.0f);
+	internalPath1.cubicTo(18.0f, 14.0f, 14.0f, 18.0f, 10.0f, 18.0f);
+	internalPath1.startNewSubPath(2.0f, 10.0f);
+	internalPath1.cubicTo(2.0f, 6.0f, 6.0f, 2.0f, 10.0f, 2.0f);
+
+	internalPath2.clear();
+	internalPath2.startNewSubPath(10, 10);
+	internalPath2.lineTo(2.0f, 18);
+	internalPath2.closeSubPath();
+
+	g.setColour(Colours::white.withAlpha(enabled ? 1.0f : 0.4f));
+	g.addTransform(AffineTransform::rotation(float_Pi * 3.0f / 4.0f, 10, 10));
+
+	g.strokePath(internalPath1, PathStrokeType(4.000f, PathStrokeType::mitered, PathStrokeType::square));
+	g.strokePath(internalPath2, PathStrokeType(4.000f, PathStrokeType::mitered, PathStrokeType::square));
+
+
+	di->setImage(b);
+
+	return di;
+}
+
+Drawable * ButtonShapes::bipolarShape(bool , bool enabled)
+{
+
+	static const unsigned char pathData[] = { 110, 109, 0, 0, 7, 67, 46, 151, 47, 68, 108, 0, 0, 250, 66, 46, 151, 47, 68, 108, 0, 0, 12, 67, 46, 215, 43, 68, 108, 0, 0, 27, 67, 46, 151, 47, 68, 108, 0, 0, 17, 67, 46, 151, 47, 68, 108, 0, 0, 17, 67, 46, 23, 50, 68, 108, 0, 0, 27, 67, 46, 23, 50, 68, 108, 0, 0, 12, 67, 46, 215, 53, 68, 108, 0, 0, 250, 66, 46, 23, 50, 68, 108, 0,
+		0, 7, 67, 46, 23, 50, 68, 99, 101, 0, 0 };
+
+	DrawableImage *di = new DrawableImage();
+	Image b(Image::PixelFormat::ARGB, 20, 20, true);
+	Graphics g(b);
+
+	Path p;
+
+	p.loadPathFromData(pathData, sizeof(pathData));
+
+	g.setColour(Colours::white.withAlpha(enabled ? 1.0f : 0.4f));
+
+
+	g.fillPath(p);
+
+	di->setImage(b);
+
+	return di;
+}
+
+Drawable * ButtonShapes::routingShape(bool, bool enabled)
+{
+	DrawableImage *di = new DrawableImage();
+	Image b(Image::PixelFormat::ARGB, 20, 20, true);
+	Graphics g(b);
+
+	Path p;
+
+	p.loadPathFromData(HiBinaryData::SpecialSymbols::routingIcon, sizeof(HiBinaryData::SpecialSymbols::routingIcon));
+
+	g.setColour(Colours::white.withAlpha(enabled ? 1.0f : 0.4f));
+	
+
+	g.fillPath(p);
+	
+	di->setImage(b);
+
+	return di;
+}
