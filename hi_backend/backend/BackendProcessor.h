@@ -148,11 +148,9 @@ public:
 	{
 		MemoryOutputStream output(destData, false);
 
-		PerformanceCounter pc("Exporting as ValueTree");
-
-		pc.start();
 		ValueTree v = synthChain->exportAsValueTree();
-		pc.stop();
+
+		v.setProperty("ProjectRootFolder", GET_PROJECT_HANDLER(synthChain).getWorkDirectory().getFullPathName(), nullptr);
 
 		v.writeToStream(output);
 	};
@@ -162,6 +160,17 @@ public:
 	void setStateInformation(const void *data,int sizeInBytes) override
 	{
 		ValueTree v = ValueTree::readFromData(data, sizeInBytes);
+
+		String fileName = v.getProperty("ProjectRootFolder", String::empty);
+
+		if (fileName.isNotEmpty())
+		{
+			File root(fileName);
+			if (root.exists() && root.isDirectory())
+			{
+				GET_PROJECT_HANDLER(synthChain).setWorkingProject(root);
+			}
+		}
 
         loadPreset(v);
         
