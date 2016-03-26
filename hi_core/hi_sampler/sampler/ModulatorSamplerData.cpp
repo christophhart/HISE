@@ -391,11 +391,6 @@ void SampleMap::save(SaveMode m)
 
 		PresetHandler::saveProcessorAsPreset(sampler);
 	}
-	else
-	{
-
-		// Todo: Save as monolith
-	}
 
 	changed = false;
 }

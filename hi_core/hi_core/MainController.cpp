@@ -219,23 +219,6 @@ void MainController::loadPreset(ValueTree &v, Component* mainEditor)
 			v = PresetHandler::changeFileStructureToNewFormat(v);
 		}
 
-#if 0
-
-		PresetLoadingThread *presetLoader = new PresetLoadingThread(this, v);
-
-		if (mainEditor != nullptr)
-		{
-			presetLoader->setModalComponentOfMainEditor(mainEditor);
-		}
-		else
-		{
-			presetLoader->showOnDesktop();
-		}
-
-		presetLoader->runThread();
-
-#else
-
 		ModulatorSynthChain *synthChain = getMainSynthChain();
 
 		sampleRate = synthChain->getSampleRate();
@@ -254,8 +237,6 @@ void MainController::loadPreset(ValueTree &v, Component* mainEditor)
 		getSampleManager().getAudioSampleBufferPool()->clearData();
 
 		synthChain->setBypassed(false);
-
-#endif
 
 	}
 	else

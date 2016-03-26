@@ -216,8 +216,6 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 		synthTimerCallback();
 	};
 
-	
-
 	initRenderCallback();
 
 	MidiBuffer midiBufferCopy;
@@ -231,42 +229,6 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 	//jassert(numSamples % 4 == 0);
     MidiBuffer::Iterator midiIterator (useNewBuffer ? midiBufferCopy : inputMidiBuffer);
     MidiMessage m (0xf4, 0.0);
-
-
-	
-
-
-	//////////////////////////////////////
-#if 0
-    while (numSamples > 0)
-    {
-        int midiEventPos;
-        const bool useEvent = midiIterator.getNextEvent (m, midiEventPos)
-                                && midiEventPos < startSample + numSamples;
-
-        const int numThisTime = useEvent ? midiEventPos - startSample
-                                         : numSamples;
-
-        if (numThisTime > 0)
-        {
-			preVoiceRendering(startSample, numThisTime);
-
-			renderVoice(startSample, numThisTime);
-			
-			postVoiceRendering(startSample, numThisTime);
-
-        }
-
-        if (useEvent)
-		{
-            handleMidiEvent (m);
-		}
-
-        startSample += numThisTime;
-        numSamples -= numThisTime;
-    }
-
-#else
 
 	int midiEventPos;
 
@@ -313,11 +275,6 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 
 	while (midiIterator.getNextEvent(m, midiEventPos))
 		handleMidiEvent(m);
-
-
-#endif
-
-	///////////////////////////////////////
 
 	effectChain->renderMasterEffects(internalBuffer);
 

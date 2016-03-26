@@ -117,47 +117,6 @@ bool JavascriptCodeEditor::selectText(const Identifier &identifier)
 	}
 
 	return false;
-
-#if 0
-
-	String startTag;
-	startTag << "[JSON " << identifier.toString() << "]";
-
-	String endTag;
-	endTag << "[/JSON " << identifier.toString() << "]";
-
-	const int docSize = getDocument().getNumCharacters();
-
-	int index = docSize;
-
-	while (!getTextInRange(Range<int>(index, docSize)).startsWith(startTag) && (index > 0))
-	{
-		index--;
-	}
-
-	const int startIndex = index - 3;
-
-	index = startIndex;
-
-	while (!getTextInRange(Range<int>(startIndex, index)).endsWith(endTag) && (index < docSize))
-	{
-		index++;
-	}
-
-	const int endIndex = index;
-
-	if (startIndex != 0)
-	{
-		setHighlightedRegion(Range<int>(startIndex, endIndex));
-		repaint();
-		return true;
-	}
-	else
-	{
-		return false;
-	}
-
-#endif
 }
 
 void JavascriptCodeEditor::focusLost(FocusChangeType )

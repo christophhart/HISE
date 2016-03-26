@@ -200,16 +200,6 @@ void AhdsrEnvelope::stopVoice(int voiceIndex)
 
 void AhdsrEnvelope::calculateBlock(int startSample, int numSamples)
 {
-#if 0
-	if (--numSamples >= 0)
-	{
-		const float value = calculateNewValue();
-		internalBuffer.setSample(0, startSample, value);
-		++startSample;
-		if (polyManager.getCurrentVoice() == polyManager.getLastStartedVoice()) setOutputValue(value);
-	}
-#endif
-
 	const int voiceIndex = polyManager.getCurrentVoice();
 
 	state = static_cast<AhdsrEnvelopeState*>(states[voiceIndex]);

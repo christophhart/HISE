@@ -65,17 +65,6 @@ void MidiProcessor::addMidiMessageToBuffer(MidiMessage &m)
 	{
 		ownerSynth->generatedMessages.addEvent(m, timeStamp);
 	}
-
-#if 0 // adding something to the output buffer will be erased. Check for bugs!
-	if (m.getTimeStamp() > numThisTime)
-	{
-		ownerSynth->midiProcessorChain->futureBuffer.addEvent(m, (int)m.getTimeStamp());
-	}
-	else
-	{
-		ownerSynth->midiProcessorChain->outputBuffer.addEvent(m, (int)m.getTimeStamp());
-	}
-#endif
 }
 
 ProcessorEditorBody *MidiProcessor::createEditor(BetterProcessorEditor *parentEditor)

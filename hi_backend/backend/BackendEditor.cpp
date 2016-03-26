@@ -346,19 +346,7 @@ void BackendProcessorEditor::showViewPanelPopup()
 	}
 	else if (result == RemoveAllSoloProcessors)
 	{
-#if 0 // TODO SOLO
-		for (int i = 1; i < container->getChildComponentListAmount(); i++)
-		{
-			ProcessorEditor *pe = dynamic_cast<ProcessorEditor*>(container->getChildComponentFromList(i));
-
-			if (pe != nullptr)
-			{
-				removeProcessorFromPanel(pe->getProcessor());
-				i--;
-			}
-		}
-#endif
-
+		container->clearSoloProcessors();
 	}
 	else if (result == ShowAllHiddenProcessors)
 	{

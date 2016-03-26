@@ -380,8 +380,6 @@ void ModulatorChain::renderVoice(int voiceIndex, int startSample, int numSamples
 	// Copy the result to the voice buffer
 	FloatVectorOperations::copy(internalVoiceBuffer.getWritePointer(voiceIndex, startIndex), internalBuffer.getReadPointer(0, startIndex), sampleAmount);
 
-	// DUARSCHLOCH oder hier ?
-
 	if(USE_HI_DEBUG_TOOLS && voiceIndex == polyManager.getLastStartedVoice())
 	{
 		saveEnvelopeValueForPlotter(internalBuffer, startIndex, sampleAmount);

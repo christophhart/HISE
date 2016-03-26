@@ -56,7 +56,7 @@ void GlobalModulatorContainer::restoreFromValueTree(const ValueTree &v)
 
 float GlobalModulatorContainer::getVoiceStartValueFor(const Processor * /*voiceStartModulator*/)
 {
-	return 1.0f; // DUARSCHLOCH
+	return 1.0f;
 }
 
 const float * GlobalModulatorContainer::getModulationValuesForModulator(Processor *p, int startIndex, int voiceIndex /*= 0*/)

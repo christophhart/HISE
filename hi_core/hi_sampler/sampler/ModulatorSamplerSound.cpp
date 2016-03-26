@@ -1164,10 +1164,6 @@ ModulatorSamplerSound * ModulatorSamplerSoundPool::addSoundWithSingleMic(const V
             }
         }
         
-		StringArray multiMicTokens = StringArray::fromTokens(soundDescription.getProperty("multiMicTokens").toString(), ";", "");
-
-		//TODO DUARSCHLOCH: Save this anywhere...
-
 		StreamingSamplerSound *s = new StreamingSamplerSound(fileName, -1, -1, this);
 
 		pool.add(s);

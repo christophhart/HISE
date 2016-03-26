@@ -425,13 +425,6 @@ public:
 
 	void checkRelease();
 
-#if 0
-	/** This sequentially renders all group voices, but applies the calculated voices from the group modulator */
-	void renderNextBlock (AudioSampleBuffer& outputBuffer,
-                                  int startSample,
-                                  int numSamples) override;
-#endif
-
 	void calculateBlock(int startSample, int numSamples) override;
 
     

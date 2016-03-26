@@ -131,7 +131,7 @@ public:
 			IDLE ///< idle state (isPlaying() returns \c false.
 		};
 
-        /// the uptime @todo check if needed
+        /// the uptime
 		int uptime;
 		float current_value;
 

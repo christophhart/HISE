@@ -81,46 +81,10 @@ bool BetterProcessorEditor::isInterestedInDragSource(const SourceDetails & dragS
 
 	bool interested = false;
 
-	ModuleBrowser::ModuleItem *dragSource = dynamic_cast<ModuleBrowser::ModuleItem*>(dragSourceDetails.sourceComponent.get());
-
-	if (dragSource != nullptr)
+	if (File::isAbsolutePath(dragSourceDetails.description.toString()))
 	{
-		return false;
-#if 0
-		String id = dragSourceDetails.description.toString().upToFirstOccurrenceOf("::", false, false);
-
-		if (dragSource == nullptr) return false;
-
-		bool interested = false;
-
-		if (getProcessorAsChain() != nullptr)
-		{
-			interested = getProcessorAsChain()->getFactoryType()->allowType(id);
-		}
-		else
-		{
-			Chain *parentChain = getParentEditor()->getProcessorAsChain();
-
-			jassert(parentChain != nullptr);
-
-			if (parentChain != nullptr)
-			{
-				interested = parentChain->getFactoryType()->allowType(id);
-			}
-		}
-
-		dragSource->setDragState(interested ? ProcessorDragList::ProcessorDragObject::Legal : ProcessorDragList::ProcessorDragObject::Illegal);
-#endif
+		return File(dragSourceDetails.description).getFileExtension() == ".hip";
 	}
-	else
-	{
-		
-		interested = File(dragSourceDetails.description).getFileExtension() == ".hip";
-
-	}
-
-	
-	return interested;
 
 #else
 

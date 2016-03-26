@@ -742,32 +742,6 @@ void ScriptingApi::Synth::playNote(int noteNumber, int velocity)
 	const int timestamp = getScriptProcessor()->getCurrentMidiMessage().isNoteOff(false) ? 1 : 0;
 
 	addNoteOn(1, noteNumber, velocity, timestamp);
-
-#if 0 // This replaces the old functionality - check for instabilities
-	MidiMessage m = MidiMessage::noteOn(1, noteNumber, (uint8)velocity);
-
-	ModulatorSynthChain *ownerChain = dynamic_cast<ModulatorSynthChain*>(owner);
-
-	if (ownerChain != nullptr)
-	{
-		const int numProcessors = ownerChain->getHandler()->getNumProcessors();
-
-		for (int i = 0; i < numProcessors; i++)
-		{
-			ModulatorSynth* childSynth = dynamic_cast<ModulatorSynth*>(ownerChain->getHandler()->getProcessor(i));
-
-			childSynth->preMidiCallback(m);
-			childSynth->noteOn(1, noteNumber, (float)velocity / 127.0f);
-		}
-	}
-	else
-	{
-		owner->preMidiCallback(m);
-
-		owner->noteOn(1, noteNumber, (float)velocity / 127.0f);
-	}
-
-#endif
 }
 
 

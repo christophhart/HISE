@@ -74,64 +74,6 @@ void SineSynthVoice::calculateBlock(int startSample, int numSamples)
 
 	float *leftValues = voiceBuffer.getWritePointer(0, startSample);
 	
-#if 0
-
-	while (numSamples -4 >= 0)
-	{
-		numSamples -= 4;
-
-		const float voiceUptimeFloat = (float)voiceUptime;
-		const float uptimeDeltaFloat = (float)uptimeDelta;
-
-		__m128 uptimeDeltas = _mm_mul_ps(_mm_load_ps(voicePitchValues + startSample), _mm_set_ps1(uptimeDeltaFloat));
-		__m128 uptimes;
-
-		uptimes.m128_f32[0] = voiceUptimeFloat + uptimeDeltas.m128_f32[0];
-		uptimes.m128_f32[1] = uptimes.m128_f32[0] + uptimeDeltas.m128_f32[1];
-		uptimes.m128_f32[2] = uptimes.m128_f32[1] + uptimeDeltas.m128_f32[2];
-		uptimes.m128_f32[3] = uptimes.m128_f32[2] + uptimeDeltas.m128_f32[3];
-
-		const float increase = uptimes.m128_f32[3];
-
-		
-
-		__m128i index = _mm_cvtps_epi32(_mm_sub_ps(uptimes, _mm_set_ps(0.5f, 0.5f, 0.5f, 0.5f)));
-		__m128 alphas = _mm_mul_ps(_mm_set_ps(-1.0f, -1.0f, -1.0f, -1.0f), _mm_cvtepi32_ps(index));
-
-		alphas = _mm_add_ps(alphas, uptimes);
-
-
-		__m128i index2 = _mm_add_epi32(index, _mm_set_epi32(1, 1, 1, 1));
-		__m128i mask = _mm_set_epi32(2047, 2047, 2047, 2047);
-		index = _mm_and_si128(index, mask);
-		index2 = _mm_and_si128(index2, mask);
-
-		__m128 v1;
-		
-		v1.m128_f32[0] = sinTable[index.m128i_i32[0]];
-		v1.m128_f32[1] = sinTable[index.m128i_i32[1]];
-		v1.m128_f32[2] = sinTable[index.m128i_i32[2]];
-		v1.m128_f32[3] = sinTable[index.m128i_i32[3]];
-
-		__m128 v2;
-
-		v2.m128_f32[0] = sinTable[index2.m128i_i32[0]];
-		v2.m128_f32[1] = sinTable[index2.m128i_i32[1]];
-		v2.m128_f32[2] = sinTable[index2.m128i_i32[2]];
-		v2.m128_f32[3] = sinTable[index2.m128i_i32[3]];
-
-		__m128 invAlpha = _mm_mul_ps(alphas, _mm_set_ps(-1.0f, -1.0f, -1.0f, -1.0f));
-		invAlpha = _mm_add_ps(invAlpha, _mm_set_ps(1.0f, 1.0f, 1.0f, 1.0f));
-
-		__m128 output = _mm_add_ps(_mm_mul_ps(v1, invAlpha), _mm_mul_ps(v2, alphas));
-		_mm_store_ps(leftValues, output);
-
-		leftValues += 4;
-		voiceUptime = (double)uptimes.m128_f32[3];
-	}
-
-#else
-
 	if (isPitchModulationActive())
 	{
 		voicePitchValues += startSample;
@@ -180,10 +122,6 @@ void SineSynthVoice::calculateBlock(int startSample, int numSamples)
 			numSamples -= 4;
 		}
 	}
-
-	
-
-#endif
 
 	if (saturation != 0.0f)
 	{

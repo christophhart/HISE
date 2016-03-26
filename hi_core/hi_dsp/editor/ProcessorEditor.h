@@ -83,6 +83,11 @@ public:
 
 	BetterProcessorEditor *getFirstEditorOf(const Processor *p);
 
+	void clearSoloProcessors()
+	{
+		soloedProcessors.clear();
+	}
+
 private:
 
 	BetterProcessorEditor* searchInternal(BetterProcessorEditor *editorToSearch, const Processor *p);

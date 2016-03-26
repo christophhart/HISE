@@ -170,7 +170,7 @@ public:
 
 		const AhdsrEnvelope *envelope;
 
-        /// the uptime @todo check if needed
+        /// the uptime
 		int holdCounter;
 		float current_value;
 
