@@ -167,8 +167,6 @@ void MainController::loadPreset(const File &f, Component *mainEditor)
 {
 	clearPreset();
 
-#if 1
-
 	PresetLoadingThread *presetLoader = new PresetLoadingThread(this, f);
 
 	if (mainEditor != nullptr)
@@ -181,17 +179,6 @@ void MainController::loadPreset(const File &f, Component *mainEditor)
 	}
 
 	presetLoader->runSynchronous();
-
-	//presetLoader->runThread();
-
-#else
-
-	FileInputStream fis(f);
-
-	ValueTree v = ValueTree::readFromStream(fis);
-
-	loadPreset(v, mainEditor);
-#endif
 }
 
 void MainController::clearPreset()
@@ -206,7 +193,7 @@ void MainController::clearPreset()
 	}
 }
 
-void MainController::loadPreset(ValueTree &v, Component* mainEditor)
+void MainController::loadPreset(ValueTree &v, Component* /*mainEditor*/)
 {
 	if (v.isValid() && v.getProperty("Type", var::undefined()).toString() == "SynthChain")
 	{
@@ -630,6 +617,8 @@ file(presetFile),
 fileNeedsToBeParsed(true),
 mc(mc)
 {
+    
+    
 	addBasicComponents(false);
 }
 
@@ -651,6 +640,13 @@ void PresetLoadingThread::run()
 			}
 		}
 
+        const int presetVersion = v.getProperty("BuildVersion", 0);
+        
+        if(presetVersion > BUILD_SUB_VERSION)
+        {
+            PresetHandler::showMessageWindow("Version mismatch", "The preset was built with a newer the build of HISE: " + String(presetVersion) + ". To ensure perfect compatibility, update to at least this build.");
+        }
+        
 		setProgress(0.5);
 		if (threadShouldExit())
 		{
@@ -699,11 +695,9 @@ void PresetLoadingThread::threadFinished()
     
 	Processor::Iterator<ModulatorSampler> iter(synthChain, false);
 
-	ModulatorSampler *sampler;
-
 	int i = 0;
 
-	while ((sampler = iter.getNextProcessor()))
+	while (ModulatorSampler *sampler = iter.getNextProcessor())
 	{
 		showStatusMessage("Loading samples from " + sampler->getId());
 		setProgress((double)i / (double)iter.getNumProcessors());

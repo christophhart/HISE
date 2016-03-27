@@ -251,6 +251,9 @@ SettingWindows::BaseSettingsWindow::ValueTypes SettingWindows::BaseSettingsWindo
 			return (ValueTypes)i;
 		}
 	}
+
+	jassertfalse;
+	return ValueTypes::numValueTypes;
 }
 
 void SettingWindows::BaseSettingsWindow::addChildElement(XmlElement &element, int attributeIndex, const String &childValue, const String &description) const
@@ -626,4 +629,6 @@ File SettingWindows::getFileForSettingsWindow(Settings s, ProjectHandler *handle
 	default:
 		break;
 	}
+
+	return File::nonexistent;
 }

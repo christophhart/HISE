@@ -54,7 +54,7 @@ public:
     {
 		Colour up = isItemHighlighted() ? Colours::white : Colours::transparentBlack;
 
-		Colour down = isItemHighlighted() ? Colours::white.withBrightness(0.95) : Colours::black.withAlpha(0.05f);
+		Colour down = isItemHighlighted() ? Colours::white.withBrightness(0.95f) : Colours::black.withAlpha(0.05f);
 
 		g.setGradientFill(ColourGradient(up, 0.0f, 0.0f, down, 0.0f, (float)getHeight(), false));
 
@@ -592,7 +592,7 @@ public:
 
 			while (!it.isEOF())
 			{
-				c = it.nextChar();
+				c = (char)it.nextChar();
 
 				if (c == openCharacter || c == closeCharacter)
 				{

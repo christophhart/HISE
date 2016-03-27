@@ -160,15 +160,13 @@ void SamplerBody::SampleEditingActions::checkMicPositionAmountBeforePasting(cons
 {
 	int numMics = 1;
 
-	for (int i = 0; i < v.getNumChildren(); i++)
+	if (v.getNumChildren() != 0)
 	{
-		jassert(v.getChild(i).getType() == Identifier("sample"));
+		jassert(v.getChild(0).getType() == Identifier("sample"));
 
-		numMics = v.getChild(i).getNumChildren();
+		numMics = v.getChild(0).getNumChildren();
 
 		if (numMics == 0) numMics = 1;
-
-		break;
 	}
 
 	if (s->getNumMicPositions() == numMics)
@@ -190,7 +188,6 @@ void SamplerBody::SampleEditingActions::checkMicPositionAmountBeforePasting(cons
 
 			return;
 		}
-
 	}
 }
 
@@ -501,6 +498,8 @@ private:
 			default:
 				break;
 			}
+
+			return false;
 		}
 
 	private:

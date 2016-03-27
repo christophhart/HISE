@@ -875,9 +875,7 @@ public:
 		int numSamplers = iter.getNumProcessors();
 		int index = 0;
 
-		ModulatorSampler *s;
-
-		while ((s = iter.getNextProcessor()))
+		while (ModulatorSampler *s = iter.getNextProcessor())
 		{
 			setProgress((double)index / (double)numSamplers);
 

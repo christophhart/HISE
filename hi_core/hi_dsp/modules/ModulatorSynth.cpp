@@ -334,8 +334,6 @@ void ModulatorSynth::handleMidiEvent(const MidiMessage &m)
 {
 	preMidiCallback(m);
 
-	// TODO: Very bad hack, the MIDI channel should be ignored elsewhere.
-
 	const int channel = 1;
 
 	if (m.isNoteOn())

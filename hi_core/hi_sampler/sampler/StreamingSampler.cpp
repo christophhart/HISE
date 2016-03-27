@@ -77,7 +77,7 @@ StreamingSamplerSound::StreamingSamplerSound(const String &fileNameToLoad,
 	if (reader != nullptr)
 	{
 		sampleStart = 0;
-		sampleEnd = reader->lengthInSamples;
+		sampleEnd = (int)reader->lengthInSamples;
 		sampleLength = sampleEnd - sampleStart;
 		monolithLength = (int)reader->lengthInSamples;
 
@@ -100,7 +100,7 @@ StreamingSamplerSound::StreamingSamplerSound(const String &fileNameToLoad,
 	fileReader.closeFileHandles(dontSendNotification);
 }
 
-StreamingSamplerSound::StreamingSamplerSound(const File &data, const String &fileName_, int start, int length, ModulatorSamplerSoundPool *pool):
+StreamingSamplerSound::StreamingSamplerSound(const File &/*data*/, const String &fileName_, int start, int length, ModulatorSamplerSoundPool *pool):
 	fileReader(this, pool),
 	midiNotes(-1),
 	rootNote(-1),

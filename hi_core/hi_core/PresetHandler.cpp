@@ -73,6 +73,8 @@ void PresetHandler::saveProcessorAsPreset(Processor *p, const String &directoryP
 		debugToConsole(p, "Save " + p->getId() + " to " + directory.getFullPathName());
 
 		ValueTree v = p->exportAsValueTree();
+        
+        v.setProperty("BuildVersion", BUILD_SUB_VERSION, nullptr);
 
 		outputFile.deleteFile();
 
@@ -182,6 +184,8 @@ struct CountedProcessorId
 
 	const String processorName;
 	Array<WeakReference<Processor>> processors;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CountedProcessorId)
 };
 
 
@@ -1081,7 +1085,7 @@ void CompileExporter::exportMainSynthChainAsPackage(ModulatorSynthChain *chainTo
 }
 
 
-CompileExporter::BuildOption CompileExporter::showCompilePopup(String &publicKey, String &uniqueId, String &version, String &/*solutionDirectory*/)
+CompileExporter::BuildOption CompileExporter::showCompilePopup(String &/*publicKey*/, String &/*uniqueId*/, String &/*version*/, String &/*solutionDirectory*/)
 {
 	AlertWindowLookAndFeel pplaf;
 

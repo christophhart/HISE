@@ -736,7 +736,7 @@ void BackendProcessorEditor::clearPopup()
 	viewport->setEnabled(true);
 }
 
-void BackendProcessorEditor::scriptWasCompiled(ScriptProcessor *sp)
+void BackendProcessorEditor::scriptWasCompiled(ScriptProcessor * /*sp*/)
 {
 	updateCommands();
 }
@@ -924,6 +924,12 @@ void BackendProcessorEditor::refreshInterfaceAfterPresetLoad()
 
 void BackendProcessorEditor::loadNewContainer(ValueTree &v)
 {
+    const int presetVersion = v.getProperty("BuildVersion", 0);
+    
+    if(presetVersion > BUILD_SUB_VERSION)
+    {
+        PresetHandler::showMessageWindow("Version mismatch", "The preset was built with a newer the build of HISE: " + String(presetVersion) + ". To ensure perfect compatibility, update to at least this build.");
+    }
     
     getBackendProcessor()->suspendProcessing(true);
     

@@ -315,7 +315,7 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Three Columns", true, currentColumnMode == ThreeColumns, '3', true, ModifierKeys::altModifier);
 		break;
 	case MenuViewShowPluginPopupPreview:
-		setCommandTarget(result, "Open Plugin Preview Window", bpe->isPluginPreviewCreatable(), bpe->isPluginPreviewShown(), '3', 'X', false);
+		setCommandTarget(result, "Open Plugin Preview Window", bpe->isPluginPreviewCreatable(), bpe->isPluginPreviewShown(), 'X', false);
 		break;
     case MenuAddView:
         setCommandTarget(result, "Add new view", true, false, 'X', false);
@@ -1031,6 +1031,8 @@ void BackendCommandTarget::Actions::saveFileAsXml(BackendProcessorEditor * bpe)
 		{
 			ValueTree v = bpe->owner->getMainSynthChain()->exportAsValueTree();
 
+            v.setProperty("BuildVersion", BUILD_SUB_VERSION, nullptr);
+            
 			fc.getResult().replaceWithText(v.toXmlString());
 
 			debugToConsole(bpe->owner->getMainSynthChain(), "Exported as XML");
@@ -1106,7 +1108,7 @@ void BackendCommandTarget::Actions::redirectSampleFolder(BackendProcessorEditor 
     }
 }
 
-void BackendCommandTarget::Actions::showFilePresetSettings(BackendProcessorEditor * bpe)
+void BackendCommandTarget::Actions::showFilePresetSettings(BackendProcessorEditor * /*bpe*/)
 {
 	
 }

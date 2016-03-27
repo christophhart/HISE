@@ -79,15 +79,14 @@ bool BetterProcessorEditor::isInterestedInDragSource(const SourceDetails & dragS
 {	
 #if USE_BACKEND
 
-	bool interested = false;
-
 	if (File::isAbsolutePath(dragSourceDetails.description.toString()))
 	{
 		return File(dragSourceDetails.description).getFileExtension() == ".hip";
 	}
 
-#else
+	return false;
 
+#else
 
 	return false;
 

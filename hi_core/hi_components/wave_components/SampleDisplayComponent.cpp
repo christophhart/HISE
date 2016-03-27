@@ -528,6 +528,22 @@ void AudioSampleBufferComponent::changeListenerCallback(SafeChangeBroadcaster *b
 	repaint();
 }
 
+void AudioSampleBufferComponent::mouseDown(const MouseEvent &e)
+{
+	if (e.mods.isRightButtonDown())
+	{
+		String patterns = "*.wav;*.aif;*.aiff;*.WAV;*.AIFF";
+
+		FileChooser fc("Load File", GET_PROJECT_HANDLER(findParentComponentOfClass<BetterProcessorEditor>()->getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles), patterns, true);
+
+		if (fc.browseForFileToOpen())
+		{
+			currentFileName = fc.getResult().getFullPathName();
+			sendSynchronousChangeMessage();
+		}
+	}
+}
+
 void AudioSampleBufferComponent::paint(Graphics &g)
 {
 	if(isOpaque()) g.fillAll(bgColour);

@@ -175,11 +175,9 @@ int PatchBrowser::getNumCollectionsToCreate() const
 {
 	Processor::Iterator<ModulatorSynth> iter(editor.getComponent()->getMainSynthChain());
 
-	ModulatorSynth *synth = nullptr;
-
 	int i = 0;
 
-	while ((synth = iter.getNextProcessor()))
+	while (ModulatorSynth *synth = iter.getNextProcessor())
 	{
 		i++;
 	}
@@ -191,12 +189,10 @@ SearchableListComponent::Collection * PatchBrowser::createCollection(int index)
 {
 	Processor::Iterator<ModulatorSynth> iter(editor.getComponent()->getMainSynthChain(), true);
 
-	ModulatorSynth *synth = nullptr;
-
 	Array<ModulatorSynth*> synths;
 	Array<int> hierarchies;
 
-	while ((synth = iter.getNextProcessor()))
+	while (ModulatorSynth *synth = iter.getNextProcessor())
 	{
 		synths.add(synth);
 		hierarchies.add(iter.getHierarchyForCurrentProcessor());
@@ -473,11 +469,9 @@ hierarchy(hierarchy_)
 
 	Processor::Iterator<Processor> iter(synth, true);
 
-	Processor *p = nullptr;
+	iter.getNextProcessor(); // skip itself...
 
-	p = iter.getNextProcessor(); // skip itself...
-
-	while ((p = iter.getNextProcessor()))
+	while (Processor *p = iter.getNextProcessor())
 	{
 		if (ProcessorHelpers::is<ModulatorSynth>(p)) break;
 

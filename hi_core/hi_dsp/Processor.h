@@ -424,11 +424,7 @@ public:
 
 	/** Returns the block size. */
 	int getBlockSize() const
-    {
-        int x = 5;
-        
-        DBG(samplesPerBlock);
-        
+    {   
         return samplesPerBlock;
     };
 

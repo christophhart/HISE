@@ -82,9 +82,10 @@ public:
     {
         switch(processorIndex)
         {
-            case GainChain: return gainChain;
+            case GainChain:	 return gainChain;
             case DelayChain: return delayChain;
             case WidthChain: return widthChain;
+			default:		 return nullptr;
         }
     };
     
@@ -92,9 +93,10 @@ public:
     {
         switch(processorIndex)
         {
-            case GainChain: return gainChain;
+            case GainChain:  return gainChain;
             case DelayChain: return delayChain;
             case WidthChain: return widthChain;
+			default:		 return nullptr;
         }
     };
     

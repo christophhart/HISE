@@ -31,6 +31,56 @@
 
 // this is based on djbfft
 
+#if USE_IPP
+
+void WDL_fft_init()
+{
+	static int ffttabinit;
+
+	if(!ffttabinit)
+	{
+		ffttabinit = 1;
+		ippInit();
+	}
+};
+
+void WDL_fft(WDL_FFT_COMPLEX *buf, int len, int isInverse, FFTData &ippData)
+{
+
+	//Set the size
+	const int N = len;
+	const int order = (int)(log((double)N) / log(2.0));
+
+	// Spec and working buffers
+	IppsFFTSpec_C_32fc *pFFTSpec = 0;
+
+	Ipp32fc *pSrc = reinterpret_cast<Ipp32fc*>(buf);// ippsMalloc_32fc(N);
+
+	// Query to get buffer sizes
+	int sizeFFTSpec, sizeFFTInitBuf, sizeFFTWorkBuf;
+	ippsFFTGetSize_C_32fc(order, IPP_FFT_NODIV_BY_ANY,
+		ippAlgHintFast, &sizeFFTSpec, &sizeFFTInitBuf, &sizeFFTWorkBuf);
+
+
+	ippData.ensureSize(sizeFFTSpec, sizeFFTInitBuf, sizeFFTWorkBuf);
+
+	// Initialize FFT
+	ippsFFTInit_C_32fc(&pFFTSpec, order, IPP_FFT_NODIV_BY_ANY,
+		ippAlgHintFast, ippData.pFFTSpecBuf, ippData.pFFTInitBuf);
+
+
+	if (isInverse)
+	{
+		ippsFFTInv_CToC_32fc_I(pSrc, pFFTSpec, ippData.pFFTWorkBuf);
+	}
+	else
+	{
+		ippsFFTFwd_CToC_32fc_I(pSrc, pFFTSpec, ippData.pFFTWorkBuf);
+	}
+}
+
+#else
+
 #include <math.h>
 
 #include "fft.h"
@@ -358,6 +408,8 @@ static WDL_FFT_COMPLEX d32768[4095];
   b1 = t4; \
   }
 
+#if USE_IPP
+#else
 static void c2(register WDL_FFT_COMPLEX *a)
 {
   register WDL_FFT_REAL t1;
@@ -370,6 +422,7 @@ static void c2(register WDL_FFT_COMPLEX *a)
   a[1].im = a[0].im - t1;
   a[0].im += t1;
 }
+#endif
 
 static inline void c4(register WDL_FFT_COMPLEX *a)
 {
@@ -617,6 +670,8 @@ static void cpassbig(register WDL_FFT_COMPLEX *a,register const WDL_FFT_COMPLEX 
   } while (k -= 2);
 }
 
+#if USE_IPP
+#else
 
 static void c1024(register WDL_FFT_COMPLEX *a)
 {
@@ -650,6 +705,7 @@ static void c8192(register WDL_FFT_COMPLEX *a)
   c4096(a);
 }
 
+
 static void c16384(register WDL_FFT_COMPLEX *a)
 {
   cpassbig(a,d16384,2048);
@@ -658,6 +714,7 @@ static void c16384(register WDL_FFT_COMPLEX *a)
   c8192(a);
 }
 
+
 static void c32768(register WDL_FFT_COMPLEX *a)
 {
   cpassbig(a,d32768,4096);
@@ -665,6 +722,7 @@ static void c32768(register WDL_FFT_COMPLEX *a)
   c8192(a + 16384);
   c16384(a);
 }
+#endif
 
 #if 0
 static void mulr4(WDL_FFT_REAL *a,WDL_FFT_REAL *b)
@@ -1021,6 +1079,9 @@ static void upassbig(register WDL_FFT_COMPLEX *a,register const WDL_FFT_COMPLEX 
   } while (k -= 2);
 }
 
+#if USE_IPP
+
+#else
 
 
 static void u1024(register WDL_FFT_COMPLEX *a)
@@ -1056,6 +1117,9 @@ static void u8192(register WDL_FFT_COMPLEX *a)
   upassbig(a,d8192,1024);
 }
 
+
+
+
 static void u16384(register WDL_FFT_COMPLEX *a)
 {
   u8192(a);
@@ -1064,6 +1128,7 @@ static void u16384(register WDL_FFT_COMPLEX *a)
   upassbig(a,d16384,2048);
 }
 
+
 static void u32768(register WDL_FFT_COMPLEX *a)
 {
   u16384(a);
@@ -1071,7 +1136,6 @@ static void u32768(register WDL_FFT_COMPLEX *a)
   u8192(a + 16384  + 8192 );
   upassbig(a,d32768,4096);
 }
-
 
 static void __fft_gen(WDL_FFT_COMPLEX *buf, int sz, int isfull)
 {
@@ -1086,6 +1150,7 @@ static void __fft_gen(WDL_FFT_COMPLEX *buf, int sz, int isfull)
     buf[x].im = (WDL_FFT_REAL) sin((x+1)*div);
   }
 }
+#endif
 
 #ifndef WDL_FFT_NO_PERMUTE
 
@@ -1107,6 +1172,8 @@ static unsigned int fftfreq_c(unsigned int i,unsigned int n)
 
 static int _idxperm[2<<FFT_MAXBITLEN];
 
+#if USE_IPP
+#else
 static void idx_perm_calc(int offs, int n)
 {
 	int i, j;
@@ -1116,6 +1183,7 @@ static void idx_perm_calc(int offs, int n)
 		_idxperm[offs+n-j] = i;
 	}
 }
+#endif
 
 int WDL_fft_permute(int fftsize, int idx)
 {
@@ -1720,5 +1788,7 @@ void WDL_real_fft(WDL_FFT_REAL *buf, int len, int isInverse)
 #undef TMP
   }
 }
+
+#endif
 
 #endif

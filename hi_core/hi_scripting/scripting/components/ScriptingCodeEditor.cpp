@@ -653,7 +653,7 @@ fontSize(14)
 	resultLabel->setColour(Label::ColourIds::textColourId, Colours::white);
 	resultLabel->setEditable(false, false, false);
 
-    editor->setFont(GLOBAL_MONOSPACE_FONT().withHeight(fontSize));
+    editor->setFont(GLOBAL_MONOSPACE_FONT().withHeight((float)fontSize));
     
 	sp->setEditorState(sp->getEditorStateForIndex(ScriptProcessor::externalPopupShown), true);
 
@@ -704,7 +704,7 @@ bool PopupIncludeEditor::keyPressed(const KeyPress& key)
         
         if(fontSize > 30) fontSize = 30;
         
-        editor->setFont(GLOBAL_MONOSPACE_FONT().withHeight(fontSize));
+        editor->setFont(GLOBAL_MONOSPACE_FONT().withHeight((float)fontSize));
     }
     else if(key.isKeyCode('-') && key.getModifiers().isCommandDown())
     {
@@ -712,7 +712,7 @@ bool PopupIncludeEditor::keyPressed(const KeyPress& key)
         
         if(fontSize < 6) fontSize = 6;
         
-        editor->setFont(GLOBAL_MONOSPACE_FONT().withHeight(fontSize));
+        editor->setFont(GLOBAL_MONOSPACE_FONT().withHeight((float)fontSize));
     }
     
 	return false;

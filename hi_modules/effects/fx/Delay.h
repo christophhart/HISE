@@ -42,9 +42,11 @@ public:
     
     DelayLine():
     readIndex(0),
+	oldReadIndex(0),
     writeIndex(0),
+	lastIgnoredDelayTime(-1),
     sampleRate(-1.0),
-    currentDelayTime(0.0),
+    currentDelayTime(0),
     fadeCounter(-1),
     fadeTimeSamples(1024)
     {

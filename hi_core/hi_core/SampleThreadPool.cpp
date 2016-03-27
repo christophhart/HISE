@@ -123,7 +123,7 @@ void SampleThreadPool::stopThreads()
 		threads.getUnchecked(i)->stopThread(500);
 }
 
-void SampleThreadPool::addJob(SampleThreadPoolJob* const job, const bool deleteJobWhenFinished)
+void SampleThreadPool::addJob(SampleThreadPoolJob* const job, const bool /*deleteJobWhenFinished*/)
 {
 	jassert(job != nullptr);
 	jassert(job->pool == nullptr);
@@ -159,8 +159,6 @@ int SampleThreadPool::getNumJobs() const
 bool SampleThreadPool::contains(const SampleThreadPoolJob* const job) const
 {
 	return job->indexInPool.get() != -1;
-
-	return false;
 }
 
 bool SampleThreadPool::isJobRunning(const SampleThreadPoolJob* const job) const

@@ -548,21 +548,7 @@ public:
 		startDragging(currentFileName, this, Image::null, true);
 	}
 
-	void mouseDown(const MouseEvent &e) override
-	{
-		if(e.mods.isRightButtonDown())
-		{
-			String patterns = "*.wav;*.aif;*.aiff;*.WAV;*.AIFF";
-
-			FileChooser fc("Load File", File::nonexistent, patterns, true);
-
-			if(fc.browseForFileToOpen())
-			{
-				currentFileName = fc.getResult().getFullPathName();
-				sendSynchronousChangeMessage();
-			}
-		}
-	}
+	void mouseDown(const MouseEvent &e) override;
 
 	void timerCallback() override
 	{

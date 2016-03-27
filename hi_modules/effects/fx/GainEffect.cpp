@@ -38,7 +38,7 @@ widthChain(new ModulatorChain(mc, "Width Modulation", 1, Modulation::GainMode, t
 gain(1.0f),
 delay(0.0f)
 {
-	smoother.setSmoothingTime(0.2);
+	smoother.setSmoothingTime(0.2f);
 
 	parameterNames.add("Gain");
     parameterNames.add("Delay");
@@ -173,8 +173,6 @@ void GainEffect::renderNextBlock(AudioSampleBuffer &buffer, int startSample, int
             
             while (numSamples > 0)
             {
-                const float smoothedGain = smoother.smooth(gain);
-                
                 msDecoder.calculateStereoValues(l[0], r[0]);
                 msDecoder.calculateStereoValues(l[1], r[1]);
                 msDecoder.calculateStereoValues(l[2], r[2]);
@@ -186,7 +184,6 @@ void GainEffect::renderNextBlock(AudioSampleBuffer &buffer, int startSample, int
                 numSamples -= 4;
             }
         }
-        
         
         if (!gainChain->isBypassed() && gainChain->getNumChildProcessors() != 0)
         {

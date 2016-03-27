@@ -567,7 +567,7 @@ void FileImportDialogWindow::threadFinished()
 	sampler->refreshPreloadSizes();
 	sampler->refreshMemoryUsage();
 
-	int currentRRAmount = sampler->getAttribute(ModulatorSampler::Parameters::RRGroupAmount);
+	int currentRRAmount = (int)sampler->getAttribute(ModulatorSampler::Parameters::RRGroupAmount);
 	int maxRRIndex = 0;
 
 	for (int i = 0; i < sampler->getNumSounds(); i++)
@@ -581,7 +581,7 @@ void FileImportDialogWindow::threadFinished()
 	{
 		if (PresetHandler::showYesNoWindow("RR Group amount changed", "The amount of RR groups has changed (Old: " + String(currentRRAmount) + ", New: " + String(maxRRIndex) + "). Do you want to adjust the group amount?"))
 		{
-			sampler->setAttribute(ModulatorSampler::Parameters::RRGroupAmount, maxRRIndex, sendNotification);
+			sampler->setAttribute(ModulatorSampler::Parameters::RRGroupAmount, (float)maxRRIndex, sendNotification);
 		}
 	}
 
