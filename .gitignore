@@ -1,3 +1,4 @@
 .*
 !/.gitignore
 api generator/xml
+changelog.md

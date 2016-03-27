@@ -33,7 +33,7 @@
 #ifndef LIB_CONFIG_H
 #define LIB_CONFIG_H
 
-#define BUILD_SUB_VERSION 616
+#include "BuildVersion.h"
 
 #if USE_BACKEND || USE_FRONTEND == 0
 
