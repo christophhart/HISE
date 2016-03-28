@@ -17,10 +17,6 @@ nightly_build_folder="/Volumes/Shared/Development/Installer/OSX/nightly_builds"
 
 dmg_canvas_file="/Volumes/Shared/Development/Installer/OSX/DMGFile.dmgCanvas"
 
-dmgcanvas $dmg_canvas_file "$nigthly_build_folder/HISE_099_build"$build_version"_OSX.dmg" 
-
-exit
-
 # This is the project folder for the Standalone app
 standalone_folder="/Volumes/Shared/Development/Projekte/HISE Standalone"
 
@@ -125,7 +121,7 @@ echo "OK"
 
 echo "Building DMG..."
 
-dmgcanvas $dmg_canvas_file "$nigthly_build_folder/HISE_099_build"$build_version"_OSX.dmg" > /dev/null
+dmgcanvas $dmg_canvas_file "/Volumes/Shared/Development/Installer/OSX/nightly_builds/HISE_099_build"$build_version"_OSX.dmg" 
 
 if [ $? != "0" ];
 then
