@@ -65,7 +65,7 @@ then
 
 	echo "Writing new header file"
 
-	file_name=$(dirname "$0")/hi_core/BuildVersion.h
+	file_name=hi_core/BuildVersion.h
 	file_content="#define BUILD_SUB_VERSION $build_version"
 
 	echo $file_content > "$file_name"
