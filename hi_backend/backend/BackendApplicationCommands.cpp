@@ -923,7 +923,7 @@ public:
 	{
 	public:
 
-		ScopedTempFile(File &f_) :
+		ScopedTempFile(const File &f_) :
 			f(f_)
 		{
 			f.deleteFile();
@@ -1094,9 +1094,9 @@ private:
 
 	String getChangelog(int i) const
 	{
-		static String webFolder("http://hartinstruments.net/hise/download/nightly_builds/");
+		static String webFolder("http://www.hartinstruments.net/hise/download/nightly_builds/");
 
-		String changelogFile("changelog_" + String(i) + ".rtf");
+		String changelogFile("changelog_" + String(i) + ".txt");
 
 		URL url(webFolder + changelogFile);
 
@@ -1104,19 +1104,26 @@ private:
 
 		ScopedPointer<InputStream> stream = url.createInputStream(false);
 
-		String changes = stream->readEntireStreamAsString();
-		
-		if (changes.contains("404"))
-		{
-			return "404";
-		}
-		else if (changes.containsNonWhitespaceChars())
-		{
-			content = "Build " + String(i) + ":\n\n" + changes;
-			return content;
-		}
-
-		return String::empty;
+        if(stream != nullptr)
+        {
+            String changes = stream->readEntireStreamAsString();
+            
+            if (changes.contains("404"))
+            {
+                return "404";
+            }
+            else if (changes.containsNonWhitespaceChars())
+            {
+                content = "Build " + String(i) + ":\n\n" + changes;
+                return content;
+            }
+            
+            return String::empty;
+        }
+        else
+        {
+            return "404";
+        }
 	}
 
 	bool updatesAvailable;
@@ -1132,12 +1139,33 @@ private:
 	ScopedPointer<TextEditor> changelogDisplay;
 };
 
+
+static bool canConnectToWebsite (const URL& url)
+{
+    ScopedPointer<InputStream> in (url.createInputStream (false, nullptr, nullptr, String(), 2000, nullptr));
+    return in != nullptr;
+}
+
+static bool areMajorWebsitesAvailable()
+{
+    if (canConnectToWebsite (URL ("http://hartinstruments.net")))
+        return true;
+    
+    return false;
+}
+
 void BackendCommandTarget::Actions::checkVersion(BackendProcessorEditor *bpe)
 {
-	UpdateChecker * checker = new UpdateChecker();
-
-	checker->setModalComponentOfMainEditor(bpe);
-    
+    if (areMajorWebsitesAvailable())
+    {
+        UpdateChecker * checker = new UpdateChecker();
+        
+        checker->setModalComponentOfMainEditor(bpe);
+    }
+    else
+    {
+        PresetHandler::showMessageWindow("Offline", "Could not connect to the server");
+    }
 }
 
 void BackendCommandTarget::Actions::setColumns(BackendProcessorEditor * bpe, BackendCommandTarget* target, ColumnMode columns)
