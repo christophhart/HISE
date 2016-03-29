@@ -56,13 +56,13 @@ if %build_version% NEQ %prev_version% (
 
 	echo Creating the changelog
 
-	git log %prev_version%..master --oneline > changelog.rtf
+	git log %prev_version%..master --oneline > changelog.txt
 
 	del %nightly_build_folder%\changelog_%build_version%.txt
 	
 	xcopy changelog.rtf %nightly_build_folder% /Y
 
-	ren %nightly_build_folder%\changelog.rtf changelog_%build_version%.rtf
+	ren %nightly_build_folder%\changelog.txt changelog_%build_version%.txt
 	
 	echo Writing new header file"
 

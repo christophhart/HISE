@@ -22,7 +22,7 @@ AppUpdatesURL={#MyAppURL}
 DefaultDirName={pf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 LicenseFile="D:\Development\license.txt"
-InfoBeforeFile="D:\Development\HISE modules\changelog.rtf"
+InfoBeforeFile="D:\Development\HISE modules\changelog.txt"
 ArchitecturesInstallIn64BitMode=x64
 
 AllowNoIcons=yes
