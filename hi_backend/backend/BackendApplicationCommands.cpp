@@ -117,7 +117,8 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
         MenuRenameView,
         MenuViewSaveCurrentView,
         MenuToolsCheckDuplicate,
-		MenuHelpShowAboutPage
+		MenuHelpShowAboutPage,
+        MenuHelpCheckVersion
 		/*        MenuRevertFile,
 		
 		
@@ -343,6 +344,10 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "About HISE", true, false, 'X', false);
 
 		break;
+    case MenuHelpCheckVersion:
+        setCommandTarget(result, "Check for newer version", true, false, 'X', false);
+        break;
+            
 	default:					jassertfalse; return;
 	}
 }
@@ -410,6 +415,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
     case MenuViewSaveCurrentView:       Actions::saveView(bpe); updateCommands(); return true;
     case MenuToolsClearConsole:         owner->clearConsole(); return true;
 	case MenuHelpShowAboutPage:			Actions::showAboutPage(bpe); return true;
+    case MenuHelpCheckVersion:          Actions::checkVersion(bpe); return true;
 	case MenuOneColumn:					Actions::setColumns(bpe, this, OneColumn);  updateCommands(); return true;
 	case MenuTwoColumns:				Actions::setColumns(bpe, this, TwoColumns);  updateCommands(); return true;
 	case MenuThreeColumns:				Actions::setColumns(bpe, this, ThreeColumns);  updateCommands(); return true;
@@ -655,6 +661,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		}
 	case BackendCommandTarget::HelpMenu:
 			p.addCommandItem(mainCommandManager, MenuHelpShowAboutPage);
+            p.addCommandItem(mainCommandManager, MenuHelpCheckVersion);
 		break;
 	default:
 		break;
@@ -906,6 +913,231 @@ void BackendCommandTarget::Actions::checkDuplicateIds(BackendProcessorEditor *bp
 void BackendCommandTarget::Actions::showAboutPage(BackendProcessorEditor * bpe)
 {
 	bpe->aboutPage->showAboutPage();
+}
+
+class UpdateChecker: public ThreadWithAsyncProgressWindow
+{
+public:
+
+	class ScopedTempFile
+	{
+	public:
+
+		ScopedTempFile(File &f_) :
+			f(f_)
+		{
+			f.deleteFile();
+
+			jassert(!f.existsAsFile());
+
+			f.create();
+		}
+
+		~ScopedTempFile()
+		{
+			jassert(f.existsAsFile());
+
+			jassert(f.deleteFile());
+		}
+
+
+		File f;
+	};
+
+	UpdateChecker() :
+		ThreadWithAsyncProgressWindow("Checking for newer version."),
+		updatesAvailable(false),
+		lastUpdate(BUILD_SUB_VERSION)
+	{
+		
+
+		String changelog = getAllChangelogs();
+
+		if (updatesAvailable)
+		{
+			changelogDisplay = new TextEditor("Changelog");
+			changelogDisplay->setSize(500, 300);
+
+			changelogDisplay->setFont(GLOBAL_MONOSPACE_FONT());
+			changelogDisplay->setMultiLine(true);
+			changelogDisplay->setReadOnly(true);
+			changelogDisplay->setText(changelog);
+			addCustomComponent(changelogDisplay);
+
+			filePicker = new FilenameComponent("Download Location", File::getSpecialLocation(File::SpecialLocationType::userDesktopDirectory), false, true, true, "", "", "Choose Download Location");
+			filePicker->setSize(500, 24);
+
+			addCustomComponent(filePicker);
+
+			addBasicComponents();
+
+			showStatusMessage("New build available: " + String(lastUpdate) + ". Press OK to download file to the selected location");
+		}
+		else
+		{
+			addBasicComponents(false);
+
+			showStatusMessage("Your HISE build is up to date.");
+		}
+	}
+
+	static bool downloadProgress(void* context, int bytesSent, int totalBytes)
+	{
+		const double downloadedMB = (double)bytesSent / 1024.0 / 1024.0;
+		const double totalMB = (double)totalBytes / 1024.0 / 1024.0;
+		const double percent = downloadedMB / totalMB;
+
+		static_cast<UpdateChecker*>(context)->showStatusMessage("Downloaded: " + String(downloadedMB, 2) + " MB / " + String(totalMB, 2) + " MB");
+
+		static_cast<UpdateChecker*>(context)->setProgress(percent);
+
+		return !static_cast<UpdateChecker*>(context)->threadShouldExit();
+	}
+
+	void run()
+	{
+		static String webFolder("http://hartinstruments.net/hise/download/nightly_builds/");
+
+		static String version = "099";
+
+#if JUCE_WINDOWS
+		String downloadFileName = "HISE_" + version + "_build" + String(lastUpdate) + ".exe";
+#else
+		String downloadFileName = "HISE_" + version + "_build" + String(lastUpdate) + "_OSX.dmg";
+#endif
+
+		URL url(webFolder + downloadFileName);
+
+		ScopedPointer<InputStream> stream = url.createInputStream(false, &downloadProgress, this);
+
+		target = File(filePicker->getCurrentFile().getChildFile(downloadFileName));
+
+		if (!target.existsAsFile())
+		{
+			MemoryBlock mb;
+
+			mb.setSize(8192);
+
+			ScopedPointer<ScopedTempFile> tempFile = new ScopedTempFile(File(target.getFullPathName()+"temp"));
+
+			ScopedPointer<FileOutputStream> fos = new FileOutputStream(tempFile->f);
+
+			const int numBytesTotal = stream->getNumBytesRemaining();
+
+			int numBytesRead = 0;
+
+			downloadOK = false;
+
+			while (stream->getNumBytesRemaining() > 0)
+			{
+				const int chunkSize = jmin<int>(stream->getNumBytesRemaining(), 8192);
+
+				downloadProgress(this, numBytesRead, numBytesTotal);
+
+				if (threadShouldExit())
+				{
+					fos->flush();
+					fos = nullptr;
+
+					tempFile = nullptr;
+					return;
+				}
+
+				stream->read(mb.getData(), chunkSize);
+
+				numBytesRead += chunkSize;
+
+				fos->write(mb.getData(), chunkSize);
+			}
+
+			downloadOK = true;
+			fos->flush();
+			
+			tempFile->f.copyFileTo(target);
+		}
+	};
+
+	void threadFinished()
+	{
+		if (downloadOK)
+		{
+			PresetHandler::showMessageWindow("Download finished", "Quit the app and run the installer to update to the latest version");
+
+			target.revealToUser();
+		}
+	}
+
+private:
+
+	String getAllChangelogs()
+	{
+		int latestVersion = BUILD_SUB_VERSION + 1;
+
+		String completeLog;
+
+		while (true)
+		{
+			String log = getChangelog(latestVersion);
+
+			if (log == "404") break;
+
+			updatesAvailable = true;
+
+			lastUpdate = latestVersion;
+
+			completeLog << log;
+			latestVersion++;
+		}
+
+		return completeLog;
+	}
+
+	String getChangelog(int i) const
+	{
+		static String webFolder("http://hartinstruments.net/hise/download/nightly_builds/");
+
+		String changelogFile("changelog_" + String(i) + ".rtf");
+
+		URL url(webFolder + changelogFile);
+
+		String content;
+
+		ScopedPointer<InputStream> stream = url.createInputStream(false);
+
+		String changes = stream->readEntireStreamAsString();
+		
+		if (changes.contains("404"))
+		{
+			return "404";
+		}
+		else if (changes.containsNonWhitespaceChars())
+		{
+			content = "Build " + String(i) + ":\n\n" + changes;
+			return content;
+		}
+
+		return String::empty;
+	}
+
+	bool updatesAvailable;
+
+	int lastUpdate;
+
+	File target;
+	ScopedPointer<ScopedTempFile> tempFile;
+
+	bool downloadOK;
+
+	ScopedPointer<FilenameComponent> filePicker;
+	ScopedPointer<TextEditor> changelogDisplay;
+};
+
+void BackendCommandTarget::Actions::checkVersion(BackendProcessorEditor *bpe)
+{
+	UpdateChecker * checker = new UpdateChecker();
+
+	checker->setModalComponentOfMainEditor(bpe);
+    
 }
 
 void BackendCommandTarget::Actions::setColumns(BackendProcessorEditor * bpe, BackendCommandTarget* target, ColumnMode columns)

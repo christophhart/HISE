@@ -137,6 +137,12 @@ void ThreadWithAsyncProgressWindow::showStatusMessage(const String &message)
 		{
 			getTextEditor("state")->setText(message, dontSendNotification);
 		}
+		else
+		{
+			// Did you just call this method before 'addBasicComponents()' ?
+			jassertfalse;
+
+		}
 	}
 }
 
