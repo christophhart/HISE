@@ -29,8 +29,13 @@ installer_project="/Volumes/Shared/Development/Installer/OSX/HISEnew.pkgproj"
 
 # Update the build version file
 
+
 echo "Previous version:"
 cd "$(dirname "$0")"
+cd ..
+cd ..
+
+
 prev_version=$(git describe --abbrev=0 --tags)
 echo $prev_version
 
