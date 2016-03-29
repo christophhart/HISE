@@ -23,7 +23,7 @@ standalone_folder="/Volumes/Shared/Development/Projekte/HISE Standalone"
 # This is the project folder of the plugin project
 plugin_folder="/Volumes/Shared/Development/Projekte/HISE Plugin"
 
-installer_project="/Volumes/Shared/Development/Installer/OSX/HISEnew.pkgproj"
+installer_project="hise_nightly_build.pkgproj"
 
 # ===============================================================================
 
@@ -111,7 +111,14 @@ echo "OK"
 
 echo "Building Installer..."
 
+cd tools
+cd auto_build
+
 /usr/local/bin/packagesbuild $installer_project
+
+rm -rf /Volumes/Shared/Development/Installer/OSX/build/HISE.mpkg
+cp -r build/HISE.mpkg /Volumes/Shared/Development/Installer/OSX/build 
+rm -rf build/
 
 if [ $? != "0" ];
 then
