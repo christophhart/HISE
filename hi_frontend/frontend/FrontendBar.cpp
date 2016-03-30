@@ -46,6 +46,7 @@ FrontendBar::FrontendBar (FrontendProcessor *p)
 
 	Path path;
 
+
 	path.loadPathFromData(HiBinaryData::FrontendBinaryData::panicButtonShape, sizeof(HiBinaryData::FrontendBinaryData::panicButtonShape));
 
 	panicButton->setShape(path, true, true, true);

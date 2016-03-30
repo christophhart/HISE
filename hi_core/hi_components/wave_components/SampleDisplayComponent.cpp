@@ -530,6 +530,7 @@ void AudioSampleBufferComponent::changeListenerCallback(SafeChangeBroadcaster *b
 
 void AudioSampleBufferComponent::mouseDown(const MouseEvent &e)
 {
+#if USE_BACKEND
 	if (e.mods.isRightButtonDown())
 	{
 		String patterns = "*.wav;*.aif;*.aiff;*.WAV;*.AIFF";
@@ -542,6 +543,7 @@ void AudioSampleBufferComponent::mouseDown(const MouseEvent &e)
 			sendSynchronousChangeMessage();
 		}
 	}
+#endif
 }
 
 void AudioSampleBufferComponent::paint(Graphics &g)

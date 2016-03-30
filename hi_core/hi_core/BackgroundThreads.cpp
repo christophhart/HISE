@@ -156,6 +156,7 @@ void ThreadWithAsyncProgressWindow::showOnDesktop()
 
 void ThreadWithAsyncProgressWindow::setModalComponentOfMainEditor(Component * childComponentOfMainEditor)
 {
+#if USE_BACKEND
 	BackendProcessorEditor *editor = dynamic_cast<BackendProcessorEditor*>(childComponentOfMainEditor);
 	
 	if(editor == nullptr) editor = childComponentOfMainEditor->findParentComponentOfClass<BackendProcessorEditor>();
@@ -167,13 +168,16 @@ void ThreadWithAsyncProgressWindow::setModalComponentOfMainEditor(Component * ch
 		editor->setModalComponent(this);
 		isQuasiModal = true;
 	}
+#endif
 }
 
 void ThreadWithAsyncProgressWindow::destroy()
 {
 	if (isQuasiModal)
 	{
+#if USE_BACKEND
 		findParentComponentOfClass<BackendProcessorEditor>()->clearModalComponent();
+#endif
 	}
 	else
 	{

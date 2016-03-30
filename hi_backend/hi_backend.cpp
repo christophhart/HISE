@@ -20,3 +20,4 @@
 #include "backend/ProcessorPopupList.cpp"
 #include "backend/BackendApplicationCommands.cpp"
 #include "backend/BackendEditor.cpp"
+#include "backend/CompileExporter.cpp"

@@ -32,10 +32,12 @@
 
 void JavascriptCodeEditor::focusGained(FocusChangeType)
 {
+#if USE_BACKEND
 	if (findParentComponentOfClass<BackendProcessorEditor>() != nullptr)
 	{
 		grabCopyAndPasteFocus();
 	}
+#endif
 }
 
 void JavascriptCodeEditor::selectLineAfterDefinition(Identifier identifier)

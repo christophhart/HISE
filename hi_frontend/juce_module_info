@@ -22,7 +22,6 @@
 					  {	"id": "juce_opengl" },
 					  { "id": "hi_core",       "version": "matching" },
                       { "id": "hi_modules",    "version": "matching" } ],
-
   
   "compile":        [ { "file": "hi_frontend.cpp", "target": "! xcode" },
                       { "file": "hi_frontend.mm",  "target": "xcode" } ],

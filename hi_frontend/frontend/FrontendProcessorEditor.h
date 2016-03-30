@@ -36,69 +36,14 @@
 #define INCLUDE_BAR 1
 
 
-
+class ScriptContentContainer;
 
 class FrontendProcessorEditor: public AudioProcessorEditor,
 							   public Timer
 {
 public:
 
-	FrontendProcessorEditor(FrontendProcessor *fp):
-		AudioProcessorEditor(fp)
-	{
-		
-		addAndMakeVisible(interfaceComponent = new ScriptContentContainer(fp->getMainSynthChain(), nullptr));
-		interfaceComponent->checkInterfaces();
-
-		
-
-		interfaceComponent->setCurrentContent(0, dontSendNotification);
-		interfaceComponent->refreshContentBounds();
-		interfaceComponent->setIsFrontendContainer(true);
-		interfaceComponent->setBounds(0, 0, interfaceComponent->getContentWidth(), interfaceComponent->getContentHeight());
-
-#if INCLUDE_BAR
-
-		int barHeight = 24;
-		addAndMakeVisible(mainBar = new FrontendBar(fp));
-		mainBar->setBounds(0, 0, interfaceComponent->getWidth(), barHeight);
-		mainBar->startTimer(50);
-
-#else
-
-		int barHeight = 0;
-
-#endif
-
-		interfaceComponent->setTopLeftPosition(0, barHeight);
-
-		const int lowKey = 41;
-
-		addAndMakeVisible(keyboard = new CustomKeyboard(fp->keyboardState));
-
-		keyboard->setAvailableRange(lowKey, 127);
-
-		keyboard->setBounds(0, interfaceComponent->getBottom(), interfaceComponent->getWidth(), 72);
-		
-
-		if(!fp->samplesCorrectlyLoaded || !fp->keyFileCorrectlyLoaded)
-		{
-			interfaceComponent->setVisible(false);
-		}
-
-		setSize(interfaceComponent->getContentWidth(), barHeight + interfaceComponent->getHeight() + 72);
-
-		startTimer(4125);
-
-		addAndMakeVisible(aboutPage = new AboutPage());
-
-		aboutPage->setVisible(false);
-
-		aboutPage->setBoundsInset(BorderSize<int>(80));
-
-		aboutPage->setUserEmail(fp->unlocker.getUserEmail());	
-
-	};
+	FrontendProcessorEditor(FrontendProcessor *fp);;
 
 	void timerCallback()
 	{

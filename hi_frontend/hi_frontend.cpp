@@ -32,8 +32,6 @@
 
 /* HI Module */
 
-#include "AppConfig.h"
-
 #include "hi_frontend.h"
 
 #include "frontend/FrontEndProcessor.cpp"

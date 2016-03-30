@@ -923,6 +923,7 @@ private:
 
 void ModulatorSamplerSoundPool::resolveMissingSamples(Component *childComponentOfMainEditor)
 {
+#if USE_BACKEND
 	BackendProcessorEditor *editor = dynamic_cast<BackendProcessorEditor*>(childComponentOfMainEditor);
 	
 	if(editor == nullptr) editor = childComponentOfMainEditor->findParentComponentOfClass<BackendProcessorEditor>();
@@ -931,99 +932,7 @@ void ModulatorSamplerSoundPool::resolveMissingSamples(Component *childComponentO
 
 	r->setModalComponentOfMainEditor(childComponentOfMainEditor);
 
-
-#if 0
-
-	Array<StreamingSamplerSound*> missingSounds;
-
-	getMissingSamples(missingSounds);
-
-	if (missingSounds.size() == 0)
-	{
-		PresetHandler::showMessageWindow("No missing samples detected!", "All sample references are OK");
-		return;
-	}
-
-	const int numMissingSounds = missingSounds.size();
-
-	int remainingSounds = numMissingSounds;
-
-	String text = "Remaining missing sounds: " + String(remainingSounds) + " / " + String(numMissingSounds) + " missing sounds.";
-
-	double progress = 0.0;
-
-	AlertWindowLookAndFeel laf;
-
-	AlertWindow w("Resolve Missing Samples", String::empty, AlertWindow::AlertIconType::NoIcon);
-
-	w.setLookAndFeel(&laf);
-	w.setUsingNativeTitleBar(true);
-
-	w.setColour(AlertWindow::backgroundColourId, Colour(0xff222222));
-	w.setColour(AlertWindow::textColourId, Colours::white);
-	w.addTextBlock(text);
-
-	String fileNames = missingSounds[0]->getFileName(true);
-
-	String path = File(fileNames).getParentDirectory().getFullPathName();
-
-	w.addTextEditor("fileNames", fileNames, "Filenames:");
-
-	w.addTextEditor("search", path, "Search for:");
-	w.addTextEditor("replace", path, "Replace with:");
-	w.addProgressBarComponent(progress);
-	w.addButton("Replace current Wildcard", 1, KeyPress(KeyPress::returnKey));
-	w.addButton("Close", 0, KeyPress(KeyPress::escapeKey));
-
-
-	while (w.runModalLoop())
-	{
-		const String search = w.getTextEditorContents("search");
-		const String replace = w.getTextEditorContents("replace");
-		
-		int foundThisTime = 0;
-
-		try
-		{
-
-
-			for (int i = 0; i < missingSounds.size(); i++)
-			{
-				StreamingSamplerSound *sound = missingSounds[i];
-
-				String newFileName = sound->getFileName(true).replace(search, replace, true);
-
-				if (File(newFileName).existsAsFile())
-				{
-					sound->replaceFileReference(newFileName);
-
-
-					foundThisTime++;
-					missingSounds.remove(i);
-					i--;
-				}
-			}
-
-		}
-		catch (StreamingSamplerSound::LoadingError e)
-		{
-			PresetHandler::showMessageWindow("Error at preloading.", "There was an error at preloading.");
-		}
-
-		remainingSounds -= foundThisTime;
-
-		if (remainingSounds == 0) break;
-
-		text.clear();
-		text.append("Remaining missing sounds: " + String(remainingSounds) + " / " + String(numMissingSounds) + " missing sounds.", 2000);
-		
-		progress = (double)(numMissingSounds - remainingSounds) / (double)numMissingSounds;
-
-		
-
-	}
 #endif
-	
 }
 
 StringArray ModulatorSamplerSoundPool::getFileNameList() const

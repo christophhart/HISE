@@ -92,9 +92,10 @@ MainController::MainController():
 
 MainController::SampleManager::SampleManager(MainController *mc):
 	samplerLoaderThreadPool(new SampleThreadPool()),
+	projectHandler(),
 	globalSamplerSoundPool(new ModulatorSamplerSoundPool(mc)),
-	globalAudioSampleBufferPool(new AudioSampleBufferPool()),
-	globalImagePool(new ImagePool()),
+	globalAudioSampleBufferPool(new AudioSampleBufferPool(&projectHandler)),
+	globalImagePool(new ImagePool(&projectHandler)),
 	sampleClipboard(ValueTree("clipboard")),
 	useRelativePathsToProjectFolder(true)
 {

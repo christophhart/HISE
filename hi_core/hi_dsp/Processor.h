@@ -35,8 +35,6 @@
 
 class Chain;
 
-
-
 class BetterProcessorEditor;
 class ProcessorEditorBody;
 class FactoryTypeConstrainer;

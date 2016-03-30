@@ -71,7 +71,7 @@ ValueTree Pool<FileType>::exportAsValueTree() const
 		PoolData *d = data[i];
 
 		child.setProperty("ID", d->id.toString(), nullptr);
-		child.setProperty("FileName", d->fileName, nullptr);
+		child.setProperty("FileName", getProjectHandler().getFileReference(d->fileName, ProjectHandler::getSubDirectoryForIdentifier(getFileTypeName())), nullptr);
 
 		FileInputStream fis(d->fileName);
 
@@ -282,6 +282,19 @@ const String Pool<FileType>::getFileNameForId(Identifier identifier)
 template class Pool < Image > ;
 template class Pool < AudioSampleBuffer > ;
 
+AudioSampleBufferPool::AudioSampleBufferPool(ProjectHandler *handler) :
+Pool<AudioSampleBuffer>(handler),
+sampleRateIdentifier("SampleRate")
+{
+
+	cache = new AudioThumbnailCache(128);
+}
+
+Identifier AudioSampleBufferPool::getFileTypeName() const
+{
+	return getProjectHandler().getIdentifier(ProjectHandler::SubDirectories::AudioFiles);
+}
+
 AudioSampleBuffer * AudioSampleBufferPool::loadDataFromStream(InputStream *inputStream) const
 {
 	AudioSampleBuffer *buffer = new AudioSampleBuffer();
@@ -326,6 +339,11 @@ void AudioSampleBufferPool::reloadData(AudioSampleBuffer &dataToBeOverwritten, c
 	{
 		FloatVectorOperations::copy(dataToBeOverwritten.getWritePointer(i, 0), newBuffer->getReadPointer(i, 0), dataToBeOverwritten.getNumSamples());
 	}
+}
+
+Identifier ImagePool::getFileTypeName() const
+{
+	return getProjectHandler().getIdentifier(ProjectHandler::SubDirectories::Images);
 }
 
 Image ImagePool::getEmptyImage(int width, int height)

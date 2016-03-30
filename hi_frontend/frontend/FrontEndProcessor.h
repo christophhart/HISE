@@ -43,84 +43,7 @@ class FrontendProcessor: public PluginParameterAudioProcessor,
 						 public MainController
 {
 public:
-	FrontendProcessor(ValueTree &synthData, ValueTree *imageData_=nullptr, ValueTree *impulseData=nullptr, ValueTree *sampleData=nullptr):
-		MainController(),
-		synthChain(new ModulatorSynthChain(this, "Master Chain", NUM_POLYPHONIC_VOICES)),
-		samplesCorrectlyLoaded(true),
-		keyFileCorrectlyLoaded(true)
-	{
-#if USE_COPY_PROTECTION
-
-		if(PresetHandler::loadKeyFile(unlocker))
-		{
-			DBG("TUT");
-		}
-		else
-		{
-			DBG("FAIL");
-
-			keyFileCorrectlyLoaded = false;
-
-			return;
-			
-		}
-
-#endif
-
-		loadImages(imageData_);
-
-		if(sampleData != nullptr)
-		{
-			getSampleManager().setLoadedSampleMaps(*sampleData);
-
-			ModulatorSamplerSoundPool *pool = getSampleManager().getModulatorSamplerSoundPool();
-			
-			samplesCorrectlyLoaded = pool->loadMonolithicData(*sampleData);
-
-		}
-
-		if(impulseData != nullptr)
-		{
-			getSampleManager().getAudioSampleBufferPool()->restoreFromValueTree(*impulseData);
-		}
-
-		numParameters = 0;
-
-		if(samplesCorrectlyLoaded)
-		{
-			getMacroManager().setMacroChain(synthChain);
-
-			synthChain->setId(synthData.getProperty("ID", String::empty));
-
-			suspendProcessing(true);
-
-			synthChain->restoreFromValueTree(synthData);
-
-			
-
-			synthChain->compileAllScripts();
-
-			
-
-			for(int i = 0; i < 8; i++)
-			{
-				if(synthChain->getMacroControlData(i)->getNumParameters() != 0)
-				{
-					numParameters++;
-				}
-			}
-
-			if(getSampleRate() > 0)
-			{
-				synthChain->prepareToPlay(getSampleRate(), getBlockSize());
-			}
-
-			suspendProcessing(false);
-
-			
-
-		}
-	};
+	FrontendProcessor(ValueTree &synthData, ValueTree *imageData_=nullptr, ValueTree *impulseData=nullptr, ValueTree *sampleData=nullptr);;
 
 	 inline void checkKey()
 	{
@@ -260,7 +183,10 @@ private:
 
 	int numParameters;
 
+#if USE_COPY_PROTECTION
 	Unlocker unlocker;
+#endif
+
 
 	AudioPlayHead::CurrentPositionInfo lastPosInfo;
 

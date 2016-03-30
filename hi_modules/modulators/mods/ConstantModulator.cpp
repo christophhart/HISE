@@ -38,6 +38,8 @@ ProcessorEditorBody *ConstantModulator::createEditor(BetterProcessorEditor *pare
 
 #else 
 
+	ignoreUnused(parentEditor);
+
 	jassertfalse;
 	return nullptr;
 

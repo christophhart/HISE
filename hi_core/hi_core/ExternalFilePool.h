@@ -33,6 +33,7 @@
 #ifndef EXTERNALFILEPOOL_H_INCLUDED
 #define EXTERNALFILEPOOL_H_INCLUDED
 
+class ProjectHandler;
 
 
 /** A base class for all objects that can be saved as value tree. 
@@ -68,6 +69,10 @@ template <class FileType> class Pool: public SafeChangeBroadcaster,
 								public RestorableObject
 {
 public:
+
+	Pool(ProjectHandler *handler_) :
+		handler(handler_)
+	{};
 
 	virtual ~Pool() {};
 
@@ -129,6 +134,11 @@ protected:
 	/** Overwrite this method and return its file size. */
 	virtual size_t getFileSize(const FileType *data) const = 0;
 
+	const ProjectHandler &getProjectHandler() const { return *handler; }
+
+	// The subdirectory type for the project handler
+	int directoryType;
+
 private:
 
 	void addData(Identifier id, const String &fileName, InputStream *inputStream);;
@@ -145,6 +155,8 @@ private:
 	};
 
 	OwnedArray<PoolData> data;
+
+	ProjectHandler *handler;
 };
 
 
@@ -157,11 +169,9 @@ class AudioSampleBufferPool: public Pool<AudioSampleBuffer>
 {
 public:
 
-	AudioSampleBufferPool():
-	sampleRateIdentifier("SampleRate")
-	{ cache = new AudioThumbnailCache(128);	};
+	AudioSampleBufferPool(ProjectHandler *handler);
 
-	Identifier getFileTypeName() const override {return Identifier("AudioFile");};
+	Identifier getFileTypeName() const override;
 
 	virtual size_t getFileSize(const AudioSampleBuffer *data) const override
 	{
@@ -196,7 +206,11 @@ class ImagePool: public Pool<Image>
 {
 public:
 
-	Identifier getFileTypeName() const override {return Identifier("Image");};
+	ImagePool(ProjectHandler *handler) :
+		Pool<Image>(handler)
+	{};
+
+	Identifier getFileTypeName() const override;;
 
 	virtual size_t getFileSize(const Image *data) const override
 	{

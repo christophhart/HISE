@@ -48,6 +48,8 @@ class FactoryType;
 
 #endif
 
+#if USE_COPY_PROTECTION
+
 class Unlocker: public TracktionMarketplaceStatus
 {
 public:
@@ -80,7 +82,7 @@ private:
     String state;
 };
 
-
+#endif
 
 class AboutPage : public Component,
 				  public ButtonListener
@@ -142,41 +144,6 @@ private:
 
 class ModulatorSynthChain;
 
-class CompileExporter
-{
-public:
-
-	enum BuildOption
-	{
-		Cancelled = 0,
-		VSTx86,
-		VSTx64,
-		VSTx64x86,
-		AU,
-		numBuildOptions
-	};
-
-	/** Exports the main synthchain all samples, external files into a ValueTree file which can be included in a compiled FrontEndProcessor. */
-	static void exportMainSynthChainAsPackage(ModulatorSynthChain *chainToExport);
-
-private:
-
-	static BuildOption showCompilePopup(String &publicKey, String &uniqueId, String &version, String &solutionDirectory);
-
-	static void writeReferencedImageFiles(ModulatorSynthChain * chainToExport, const String directoryPath);
-
-	static void writeReferencedAudioFiles(ModulatorSynthChain * chainToExport, const String directoryPath);
-
-	static void writePresetFile(ModulatorSynthChain * chainToExport, const String directoryPath, const String &uniqueName);
-
-	static void compileSolution(const String &solutionDirectory, const String &uniqueId, BuildOption buildOption);
-
-	static void createPluginDataHeaderFile(const String &solutionDirectory, const String &uniqueName, const String &version, const String &publicKey);
-
-	static void createResourceFile(const String &solutionDirectory, const String & uniqueName, const String &version);
-
-
-};
 
 /** The class that wraps all file resolving issues.
 *
@@ -241,6 +208,10 @@ public:
 	/** */
 	void setProjectSettings(Component *mainEditor=nullptr);
 
+	static String getIdentifier(SubDirectories dir);
+
+	static SubDirectories getSubDirectoryForIdentifier(Identifier id);
+
 private:
 
 
@@ -280,7 +251,7 @@ private:
 
 	void restoreWorkingProjects();
 
-	String getIdentifier(SubDirectories dir) const;
+	
 
 	bool isValidProjectFolder(const File &file) const;
 
@@ -459,6 +430,7 @@ public:
 		return newTree;
 	}
 
+#if USE_COPY_PROTECTION
 	static bool loadKeyFile(Unlocker &ul)
 	{
 		File keyFile = File(getDataFolder() + "/" + String(PRODUCT_ID) + ".licence");
@@ -490,6 +462,7 @@ public:
 		
         return false;
 	};
+#endif
 
 	/** checks if one of the needed directories exists. */
 	static bool checkDirectory(bool checkPresetDirectory=true)
@@ -854,19 +827,5 @@ public:
 	static void addInstrumentToPackageXml(const String &instrumentFileName, const String &packageName);
 
 };
-
-/** A cheap rip-off of Juce's Binary Builder to convert the exported valuetrees into a cpp file. */
-class CppBuilder
-{
-public:
-
-	static int exportValueTreeAsCpp(const File &sourceDirectory, const File &targetDirectory, String &targetClassName);
-
-private:
-
-	static int addFile (const File& file, const String& classname, OutputStream& headerStream, OutputStream& cppStream);
-	static bool isHiddenFile (const File& f, const File& root);
-};
-
 
 #endif
