@@ -1287,11 +1287,85 @@ void BackendCommandTarget::Actions::collectExternalFiles(BackendProcessorEditor 
 	resource->setModalComponentOfMainEditor(bpe);
 }
 
+struct XmlBackupFunctions
+{
+	static void removeEditorStatesFromXml(XmlElement &xml)
+	{
+		xml.deleteAllChildElementsWithTagName("EditorStates");
+
+		for (int i = 0; i < xml.getNumChildElements(); i++)
+		{
+			removeEditorStatesFromXml(*xml.getChildElement(i));
+		}
+	}
+
+	static void removeAllScripts(XmlElement &xml)
+	{
+		xml.removeAttribute("Script");
+
+		for (int i = 0; i < xml.getNumChildElements(); i++)
+		{
+			removeAllScripts(*xml.getChildElement(i));
+		}
+	}
+
+	static void restoreAllScripts(XmlElement &xml, ModulatorSynthChain *masterChain, const String &newId)
+	{
+		if (xml.hasTagName("Processor") && xml.getStringAttribute("Type") == "ScriptProcessor")
+		{
+			File scriptDirectory = getScriptDirectoryFor(masterChain, newId);
+
+			DirectoryIterator iter(scriptDirectory, false, "*.js", File::findFiles);
+
+			while (iter.next())
+			{
+				File script = iter.getFile();
+
+				if (script.getFileNameWithoutExtension() == getSanitiziedName(xml.getStringAttribute("ID")))
+				{
+					xml.setAttribute("Script", script.loadFileAsString());
+					break;
+				}
+			}
+		}
+
+		for (int i = 0; i < xml.getNumChildElements(); i++)
+		{
+			restoreAllScripts(*xml.getChildElement(i), masterChain, newId);
+		}
+	}
+
+	static File getScriptDirectoryFor(ModulatorSynthChain *masterChain, const String &chainId=String::empty)
+	{
+		if (chainId.isEmpty())
+		{
+			return GET_PROJECT_HANDLER(masterChain).getSubDirectory(ProjectHandler::SubDirectories::Scripts).getChildFile("ScriptProcessors/" + getSanitiziedName(masterChain->getId()));
+		}
+		else
+		{
+			return GET_PROJECT_HANDLER(masterChain).getSubDirectory(ProjectHandler::SubDirectories::Scripts).getChildFile("ScriptProcessors/" + getSanitiziedName(chainId));
+		}
+	}
+
+	static File getScriptFileFor(ModulatorSynthChain *masterChain, const String &id)
+	{
+		return getScriptDirectoryFor(masterChain).getChildFile(getSanitiziedName(id) + ".js");
+	}
+
+private:
+
+	static String getSanitiziedName(const String &id)
+	{
+		return id.removeCharacters(" .()");
+	}
+};
+
+
 void BackendCommandTarget::Actions::saveFileAsXml(BackendProcessorEditor * bpe)
 {
 	if (GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive())
 	{
-		FileChooser fc("Select XML file to load", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::XMLPresetBackups), "*.xml", true);
+		FileChooser fc("Select XML file to save", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::XMLPresetBackups), "*.xml", true);
 
 		if (fc.browseForFileToSave(true))
 		{
@@ -1299,7 +1373,36 @@ void BackendCommandTarget::Actions::saveFileAsXml(BackendProcessorEditor * bpe)
 
             v.setProperty("BuildVersion", BUILD_SUB_VERSION, nullptr);
             
-			fc.getResult().replaceWithText(v.toXmlString());
+			ScopedPointer<XmlElement> xml = v.createXml();
+
+			if(PresetHandler::showYesNoWindow("Strip Editor View information", "Do you want to strip the editor view information? This reduces the noise when using version controls systems."))
+			{
+				XmlBackupFunctions::removeEditorStatesFromXml(*xml);
+			}
+
+			if (PresetHandler::showYesNoWindow("Write Scripts to external file?", "Do you want to write the scripts into an external file (They will be imported when loading this backup"))
+			{
+				File scriptDirectory = XmlBackupFunctions::getScriptDirectoryFor(bpe->getMainSynthChain());
+
+				Processor::Iterator<ScriptProcessor> iter(bpe->getMainSynthChain());
+
+				if (!scriptDirectory.isDirectory()) scriptDirectory.createDirectory();
+
+				while (ScriptProcessor *sp = iter.getNextProcessor())
+				{
+					String content;
+
+					sp->mergeCallbacksToScript(content);
+
+					File scriptFile = XmlBackupFunctions::getScriptFileFor(bpe->getMainSynthChain(), sp->getId());
+
+					scriptFile.replaceWithText(content);
+				}
+
+				XmlBackupFunctions::removeAllScripts(*xml);
+			}
+
+			fc.getResult().replaceWithText(xml->createDocument(""));
 
 			debugToConsole(bpe->owner->getMainSynthChain(), "Exported as XML");
 		}
@@ -1317,6 +1420,10 @@ void BackendCommandTarget::Actions::openFileFromXml(BackendProcessorEditor * bpe
 			File f = fc.getResult();
 
 			ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
+
+			String newId = xml->getStringAttribute("ID");
+
+			XmlBackupFunctions::restoreAllScripts(*xml, bpe->getMainSynthChain(), newId);
 
 			ValueTree v = ValueTree::fromXml(*xml);
 

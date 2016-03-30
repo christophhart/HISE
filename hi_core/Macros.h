@@ -78,7 +78,7 @@
 #endif
 
 #if JUCE_DEBUG
-#define IGNORE_UNUSED_IN_RELEASE(x) ()
+#define IGNORE_UNUSED_IN_RELEASE(x) 
 #else
 #define IGNORE_UNUSED_IN_RELEASE(x) (ignoreUnused(x))
 #endif
