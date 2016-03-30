@@ -21,8 +21,8 @@ AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 DefaultDirName={pf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
-LicenseFile="D:\Development\license.txt"
-InfoBeforeFile="D:\Development\HISE modules\changelog.txt"
+LicenseFile="..\..\license.txt"
+InfoBeforeFile="..\..\changelog.txt"
 ArchitecturesInstallIn64BitMode=x64
 
 AllowNoIcons=yes
@@ -40,10 +40,10 @@ Name: "Standalone64bit"; Description: "64bit Standalone application"; ExtraDiskS
 Name: "Standalone32bit"; Description: "32bit Standalone application"; ExtraDiskSpaceRequired: 9000
 
 [Files]
-Source: "D:\Development\Projekte\HISE Standalone\Builds\VisualStudio2013\x64\Release 64bit\HISE Standalone x64.exe"; DestDir: "{app}"; Flags: 64bit; Components: Standalone64bit
-Source: "D:\Development\Projekte\HISE Standalone\Builds\VisualStudio2013\Release\HISE Standalone.exe"; DestDir: "{app}"; Flags: 32bit; Components: Standalone32bit
+Source: "..\..\projects\standalone\Builds\VisualStudio2013\x64\Release 64bit\HISE Standalone x64.exe"; DestDir: "{app}"; Flags: 64bit; Components: Standalone64bit
+Source: "..\..\projects\standalone\Builds\VisualStudio2013\Release\HISE Standalone.exe"; DestDir: "{app}"; Flags: 32bit; Components: Standalone32bit
 Source: "C:\Program Files\VST Plugins\HISE x64.dll"; DestDir: "{code:Getx64bitDir}"; Flags: 64bit; Components: x64Plugin
-Source: "D:\Development\Projekte\HISE Plugin\Builds\VisualStudio2013\Release\HISE x86.dll"; DestDir: "{code:Getx86bitDir}"; Flags: 32bit; Components: x86Plugin
+Source: "..\..\projects\plugin\Builds\VisualStudio2013\Release\HISE x86.dll"; DestDir: "{code:Getx86bitDir}"; Flags: 32bit; Components: x86Plugin
 
 [Icons]
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"; 

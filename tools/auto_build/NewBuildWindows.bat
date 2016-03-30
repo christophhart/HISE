@@ -181,7 +181,7 @@ echo %password%>>upload.ftp
 echo cd "html/hise/download/nightly_builds/">> upload.ftp
 echo bin>>upload.ftp
 echo hash>>upload.ftp
-echo put changelog_%build_version%.rtf>> upload.ftp
+echo put changelog_%build_version%.txt>> upload.ftp
 echo put %filename%>> upload.ftp
 echo bye>> upload.ftp
 
