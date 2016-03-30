@@ -89,8 +89,8 @@ ValueTree GainEffect::exportAsValueTree() const
 	ValueTree v = MasterEffectProcessor::exportAsValueTree();
 
 	saveAttribute(Gain, "Gain");
-    saveAttribute(Gain, "Delay");
-    saveAttribute(Gain, "Width");
+    saveAttribute(Delay, "Delay");
+    saveAttribute(Width, "Width");
 
 	return v;
 }
