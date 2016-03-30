@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<ProjectSettings>
+  <Name value="Demo Project" type="TEXT" description="Project Name"/>
+  <Version value="1.0" type="TEXT" description="Project version"/>
+  <Description value="The most simple HISE project" type="TEXT" description="Project description"/>
+  <BundleIdentifier value="com.HISEDemoProject.pkg" type="TEXT" description="Bundle Identifier(eg.com.myCompany.bundle)"/>
+  <PluginCode value="Hidp" type="TEXT" description="a 4 character ID code(eg. 'Abcd')"/>
+</ProjectSettings>
