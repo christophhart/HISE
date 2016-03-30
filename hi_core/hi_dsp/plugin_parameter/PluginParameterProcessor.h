@@ -33,6 +33,12 @@
 #ifndef __PLUGINPROCESSOR_H_BF259E1F__
 #define __PLUGINPROCESSOR_H_BF259E1F__
 
+
+
+#pragma warning (push)
+#pragma warning (disable: 4996)
+
+
 //==============================================================================
 /** @class PluginParameterAudioProcessor
 	@brief This AudioProcessor subclass removes some annoying virtual methods and allows PluginParameter objects to 
@@ -111,6 +117,8 @@ public:
 	bool isInputChannelStereoPair (int ) const {return true;};
 	bool isOutputChannelStereoPair (int ) const {return true;};
 
+	
+
     virtual bool acceptsMidi() const = 0;
     virtual bool producesMidi() const = 0;
     virtual bool silenceInProducesSilenceOut() const = 0;
@@ -141,5 +149,9 @@ private:
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginParameterAudioProcessor)
 };
+
+
+#pragma warning (pop)
+
 
 #endif  // __PLUGINPROCESSOR_H_BF259E1F__

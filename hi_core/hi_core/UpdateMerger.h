@@ -154,6 +154,8 @@ public:
 	*/
 	bool shouldUpdate(bool debugInterval=false)
 	{
+		IGNORE_UNUSED_IN_RELEASE(debugInterval);
+
 		const int64 currentTime = Time::currentTimeMillis();
 
 #ifdef JUCE_DEBUG

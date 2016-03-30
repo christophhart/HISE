@@ -77,14 +77,13 @@
 #define START_TIMER() (startTimer(30))
 #endif
 
-static float constrainTo0To1(float x)
-{
-	if (x > 1.0f) return 1.0f;
-	else if (x < 0.0f) return 0.0f;
-	else return x;
-}
+#if JUCE_DEBUG
+#define IGNORE_UNUSED_IN_RELEASE(x) ()
+#else
+#define IGNORE_UNUSED_IN_RELEASE(x) (ignoreUnused(x))
+#endif
 
-#define CONSTRAIN_TO_0_1(x){constrainTo0To1(x)}
+#define CONSTRAIN_TO_0_1(x)(jlimit<float>(0.0f, 1.0f, x))
 
 
 #endif  // MACROS_H_INCLUDED

@@ -1022,17 +1022,17 @@ public:
 
 			ScopedPointer<FileOutputStream> fos = new FileOutputStream(tempFile->f);
 
-			const int numBytesTotal = stream->getNumBytesRemaining();
+			const int64 numBytesTotal = stream->getNumBytesRemaining();
 
-			int numBytesRead = 0;
+			int64 numBytesRead = 0;
 
 			downloadOK = false;
 
 			while (stream->getNumBytesRemaining() > 0)
 			{
-				const int chunkSize = jmin<int>(stream->getNumBytesRemaining(), 8192);
+				const int64 chunkSize = jmin<int64>(stream->getNumBytesRemaining(), 8192);
 
-				downloadProgress(this, numBytesRead, numBytesTotal);
+				downloadProgress(this, (int)numBytesRead, (int)numBytesTotal);
 
 				if (threadShouldExit())
 				{
@@ -1043,11 +1043,11 @@ public:
 					return;
 				}
 
-				stream->read(mb.getData(), chunkSize);
+				stream->read(mb.getData(), (int)chunkSize);
 
 				numBytesRead += chunkSize;
 
-				fos->write(mb.getData(), chunkSize);
+				fos->write(mb.getData(), (size_t)chunkSize);
 			}
 
 			downloadOK = true;
@@ -1075,11 +1075,17 @@ private:
 
 		String completeLog;
 
-		while (true)
+		bool lookFurther = true;
+
+		while (lookFurther)
 		{
 			String log = getChangelog(latestVersion);
 
-			if (log == "404") break;
+			if (log == "404")
+			{
+				lookFurther = false;
+				continue;
+			}
 
 			updatesAvailable = true;
 

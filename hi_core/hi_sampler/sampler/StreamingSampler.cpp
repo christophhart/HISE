@@ -538,14 +538,8 @@ void StreamingSamplerSound::fillInternal(AudioSampleBuffer &sampleBuffer, int sa
 			FloatVectorOperations::copy(sampleBuffer.getWritePointer(1, numSamplesBeforeCrossfade), loopBuffer.getReadPointer(1, indexInLoopBuffer), numSamplesInCrossfade);		
 		}
 
-#pragma warning( push )
-#pragma warning( disable: 4189 )
-
-		const int numSamplesAfterCrossfade = samplesToCopy - numSamplesBeforeCrossfade - numSamplesInCrossfade;
 		// Should be taken care by higher logic (fillSampleBuffer should wrap the loop)
-		jassert(numSamplesAfterCrossfade == 0);
-
-#pragma warning( pop )
+		jassert((samplesToCopy - numSamplesBeforeCrossfade - numSamplesInCrossfade) == 0);
 	}
 
 	// All samples can be fetched from the preload buffer

@@ -1535,6 +1535,8 @@ void AboutPage::buttonClicked(Button *)
 
 String PresetPlayerHandler::getSpecialFolder(FolderType type, const String &packageName /*= String::empty*/, bool ignoreMissingDirectory)
 {
+	IGNORE_UNUSED_IN_RELEASE(ignoreMissingDirectory);
+
 	File globalSampleFolder = PresetHandler::getGlobalSampleFolder();
 
 	String packageToUse = packageName;
