@@ -1386,7 +1386,9 @@ void BackendCommandTarget::Actions::saveFileAsXml(BackendProcessorEditor * bpe)
 
 				Processor::Iterator<ScriptProcessor> iter(bpe->getMainSynthChain());
 
-				if (!scriptDirectory.isDirectory()) scriptDirectory.createDirectory();
+				scriptDirectory.deleteRecursively();
+
+				scriptDirectory.createDirectory();
 
 				while (ScriptProcessor *sp = iter.getNextProcessor())
 				{

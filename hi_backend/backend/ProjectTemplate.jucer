@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<JUCERPROJECT id="Tw64Zd" name="%NAME%" projectType="audioplug" version="%VERSION%"
+              bundleIdentifier="%BUNDLE_ID%" includeBinaryInAppConfig="1" buildVST="1"
+              buildVST3="0" buildAU="1" buildRTAS="0" buildAAX="0" pluginName="%NAME%"
+              pluginDesc="%DESCRIPTION%" pluginManufacturer="%COMPANY%" pluginManufacturerCode="%MC%"
+              pluginCode="%PC%" pluginChannelConfigs="{0,2}" pluginIsSynth="1"
+              pluginWantsMidiIn="1" pluginProducesMidiOut="0" pluginIsMidiEffectPlugin="0"
+              pluginEditorRequiresKeys="1" pluginAUExportPrefix="DemoProjectAU"
+              pluginRTASCategory="" aaxIdentifier="com.yourcompany.DemoProject"
+              pluginAAXCategory="AAX_ePlugInCategory_Dynamics" jucerVersion="4.1.0"
+              companyName="%COMPANY%" companyWebsite="%COMPANY_WEBSITE%">
+  <MAINGROUP id="SLR7uY" name="%NAME%">
+    <GROUP id="{122C85F1-8B09-257A-B636-113E3EAC258A}" name="Source">
+      <FILE id="AOT2K8" name="Plugin.cpp" compile="1" resource="0" file="Source/Plugin.cpp"/>
+      <FILE id="X8WgLx" name="PluginData.h" compile="0" resource="0" file="Source/PluginData.h"/>
+      <FILE id="esGQuC" name="PresetData.cpp" compile="1" resource="0" file="Source/PresetData.cpp"/>
+      <FILE id="q8WZ82" name="PresetData.h" compile="0" resource="0" file="Source/PresetData.h"/>
+    </GROUP>
+  </MAINGROUP>
+  <EXPORTFORMATS>
+    <VS2013 targetFolder="Builds/VisualStudio2013" vstFolder="%VSTSDK_FOLDER%"
+            useIPP="Sequential">
+      <CONFIGURATIONS>
+        <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
+                       isDebug="1" optimisation="1" targetName="%NAME%_Debug.dll" binaryPath="Compiled/"/>
+        <CONFIGURATION name="Debug 64bit" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
+                       isDebug="1" optimisation="1" targetName="%NAME%_Debug x64.dll"
+                       binaryPath="Compiled/"/>
+        <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
+                       isDebug="0" optimisation="3" targetName="%NAME%.dll" binaryPath="Compiled/"/>
+        <CONFIGURATION name="Release 64bit" winWarningLevel="4" generateManifest="1"
+                       winArchitecture="x64" isDebug="0" optimisation="3" targetName="%NAME% x64.dll"
+                       binaryPath="Compiled/"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_core" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_events" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_graphics" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_data_structures" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_gui_basics" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_gui_extra" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_cryptography" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_opengl" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_audio_basics" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_audio_devices" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_audio_formats" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_audio_processors" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_audio_plugin_client" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_tracktion_marketplace" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_audio_utils" path="%JUCE_PATH%"/>
+        <MODULEPATH id="hi_frontend" path="%HISE_PATH%"/>
+        <MODULEPATH id="hi_modules" path="%HISE_PATH%"/>
+        <MODULEPATH id="hi_core" path="%HISE_PATH%"/>
+      </MODULEPATHS>
+    </VS2013>
+  </EXPORTFORMATS>
+  <MODULES>
+    <MODULE id="hi_core" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="hi_frontend" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="hi_modules" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="juce_audio_basics" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="juce_audio_devices" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="juce_audio_formats" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="juce_audio_plugin_client" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="juce_audio_processors" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="juce_audio_utils" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="juce_core" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="juce_cryptography" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="juce_data_structures" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="juce_events" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="juce_graphics" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="juce_gui_basics" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="juce_gui_extra" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="juce_opengl" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="juce_tracktion_marketplace" showAllCode="1" useLocalCopy="0"/>
+  </MODULES>
+  <JUCEOPTIONS JUCE_QUICKTIME="disabled"/>
+</JUCERPROJECT>

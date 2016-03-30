@@ -17,3 +17,4 @@ projects/standalone/JuceLibraryCode/BinaryData.cpp
 projects/standalone/JuceLibraryCode/BinaryData.h
 projects/standalone/JuceLibraryCode/JuceHeader.h
 projects/standalone/JuceLibraryCode/ReadMe.txt
+extras/demo_project/Binaries/
