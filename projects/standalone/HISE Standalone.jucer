@@ -26,7 +26,8 @@
     </GROUP>
   </MAINGROUP>
   <EXPORTFORMATS>
-    <VS2013 targetFolder="Builds/VisualStudio2013" smallIcon="gF9qiM" bigIcon="gF9qiM">
+    <VS2013 targetFolder="Builds/VisualStudio2013" smallIcon="gF9qiM" bigIcon="gF9qiM"
+            useIPP="Sequential">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
                        isDebug="1" optimisation="1" targetName="HISE Standalone" headerPath="C:\SDKs\ASIOSDK2.3\common&#10;&#10;"
