@@ -26,7 +26,7 @@
     </GROUP>
   </MAINGROUP>
   <EXPORTFORMATS>
-    <VS2013 targetFolder="Builds/VisualStudio2013" smallIcon="gF9qiM" bigIcon="gF9qiM"
+    <VS2013 targetFolder="Builds/VisualStudio2013" smallIcon="DEkG64" bigIcon="DEkG64"
             useIPP="Sequential">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
@@ -62,13 +62,17 @@
         <MODULEPATH id="hi_backend" path="../../"/>
       </MODULEPATHS>
     </VS2013>
-    <XCODE_MAC targetFolder="Builds/MacOSX" smallIcon="gF9qiM" bigIcon="gF9qiM">
+    <XCODE_MAC targetFolder="Builds/MacOSX" smallIcon="DEkG64" bigIcon="DEkG64"
+               extraLinkerFlags="/opt/intel/ipp/lib/libippi.a  /opt/intel/ipp/lib/libipps.a /opt/intel/ipp/lib/libippvm.a /opt/intel/ipp/lib/libippcore.a"
+               customPList="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;&#10;&lt;!DOCTYPE plist PUBLIC &quot;-//Apple//DTD PLIST 1.0//EN&quot; &quot;http://www.apple.com/DTDs/PropertyList-1.0.dtd&quot;&gt;&#10;&lt;plist version=&quot;1.0&quot;&gt;&#10;&lt;dict&gt;&#10;&lt;key&gt;NSAppTransportSecurity&lt;/key&gt; &#10;&lt;dict&gt; &#10;&lt;key&gt;NSAllowsArbitraryLoads&lt;/key&gt;&lt;true/&gt;&#10;&lt;/dict&gt;&#10;&lt;/dict&gt;&#10;&lt;/plist&gt;">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" osxSDK="default" osxCompatibility="default" osxArchitecture="64BitUniversal"
-                       isDebug="1" optimisation="1" targetName="HISE Standalone" linkTimeOptimisation="0"/>
+                       isDebug="1" optimisation="1" targetName="HISE Standalone" linkTimeOptimisation="0"
+                       headerPath="/opt/intel/ipp/include" libraryPath="/opt/intel/ipp/lib"/>
         <CONFIGURATION name="Release" osxSDK="default" osxCompatibility="10.7 SDK" osxArchitecture="64BitUniversal"
                        isDebug="0" optimisation="3" targetName="HISE Standalone" linkTimeOptimisation="1"
-                       cppLanguageStandard="c++11" cppLibType="libc++"/>
+                       cppLanguageStandard="c++11" cppLibType="libc++" libraryPath="/opt/intel/ipp/lib"
+                       headerPath="/opt/intel/ipp/include"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
