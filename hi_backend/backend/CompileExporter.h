@@ -47,6 +47,15 @@ public:
 		numBuildOptions
 	};
 
+	enum ErrorCodes
+	{
+		OK = 0,
+		ProjectXmlInvalid,
+		HISEImageDirectoryNotFound,
+		IntrojucerNotFound,
+		numErrorCodes
+	};
+
 	/** Exports the main synthchain all samples, external files into a ValueTree file which can be included in a compiled FrontEndProcessor. */
 	static void exportMainSynthChainAsPackage(ModulatorSynthChain *chainToExport);
 
@@ -60,13 +69,24 @@ private:
 
 	static void writePresetFile(ModulatorSynthChain *chainToExport, const String directoryPath, const String &uniqueName);
 
-	static void compileSolution(ModulatorSynthChain *chainToExport, BuildOption buildOption);
+	static ErrorCodes compileSolution(ModulatorSynthChain *chainToExport, BuildOption buildOption);
 
-	static void createPluginDataHeaderFile(const String &solutionDirectory, const String &uniqueName, const String &version, const String &publicKey);
+	static ErrorCodes createPluginDataHeaderFile(const String &solutionDirectory, const String &uniqueName, const String &version, const String &publicKey);
 
-	static void createResourceFile(const String &solutionDirectory, const String & uniqueName, const String &version);
+	static ErrorCodes createResourceFile(const String &solutionDirectory, const String & uniqueName, const String &version);
 
-	static void createIntrojucerFile(ModulatorSynthChain *chainToExport);
+	static ErrorCodes createIntrojucerFile(ModulatorSynthChain *chainToExport);
+
+	static ErrorCodes copyHISEImageFiles(ModulatorSynthChain *chainToExport);
+
+	static File getIntrojucerProjectFile(ModulatorSynthChain *chainToExport);
+
+	struct BatchFileCreator
+	{
+		static void createBatchFile(ModulatorSynthChain *chainToExport, BuildOption buildOption);
+
+		static File getBatchFile(ModulatorSynthChain *chainToExport);
+	};
 
 };
 

@@ -116,7 +116,7 @@
 #endif
 
 #ifndef INCLUDE_PROTOPLUG
-#define INCLUDE_PROTOPLUG 1
+#define INCLUDE_PROTOPLUG 0
 #endif
 #define USE_OLD_FILE_FORMAT 0
 

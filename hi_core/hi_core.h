@@ -55,6 +55,22 @@ If true, then the plugin uses the backend system including IDE editor & stuff.
 #define USE_BACKEND 0
 #endif
 
+/** Config: IS_STANDALONE_APP
+
+If true, then this will use some additional features for the standalone app (popup out windows, audio device settings etc.)
+*/
+#ifndef IS_STANDALONE_APP
+#define IS_STANDALONE_APP 0
+#endif
+
+/** Config: USE_IPP
+
+Use the Intel Performance Primitives Library for the convolution reverb.
+*/
+#ifndef USE_IPP
+#define USE_IPP 1
+#endif
+
 
 using namespace juce;
 

@@ -118,5 +118,6 @@
   </MODULES>
   <JUCEOPTIONS JUCE_ASIO="enabled" JUCE_DIRECTSOUND="enabled" JUCE_PLUGINHOST_VST="disabled"
                JUCE_PLUGINHOST_VST3="disabled" JUCE_PLUGINHOST_AU="disabled"
-               USE_BACKEND="enabled" JUCE_USE_DIRECTWRITE="enabled"/>
+               USE_BACKEND="enabled" JUCE_USE_DIRECTWRITE="enabled" IS_STANDALONE_APP="enabled"
+               USE_IPP="enabled"/>
 </JUCERPROJECT>

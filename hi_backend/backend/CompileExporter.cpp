@@ -45,7 +45,8 @@ void CompileExporter::exportMainSynthChainAsPackage(ModulatorSynthChain *chainTo
 	if (buildOption != Cancelled)
 	{
 		createPluginDataHeaderFile(solutionDirectory, uniqueId, version, publicKey);
-		//createResourceFile(solutionDirectory, uniqueId, version);
+		
+		copyHISEImageFiles(chainToExport);
 
 		const String directoryPath = File(solutionDirectory).getChildFile("temp/").getFullPathName();
 
@@ -128,145 +129,51 @@ void CompileExporter::writePresetFile(ModulatorSynthChain * chainToExport, const
 {
 	ValueTree preset = chainToExport->exportAsValueTree();
 
-#if USE_OLD_FILE_FORMAT
-
-	// Search for sample maps
-	SampleMapSearcher searcher = SampleMapSearcher(preset);
-	searcher.search();
-	StringArray sampleMapPaths = searcher.getFileNames();
-
-	preset = searcher.getStrippedPreset();
-
-	// Export the sample maps
-
-	SampleMapExporter exporter(sampleMapPaths);
-
-#else
-
-	ValueTree sampleMapTree("samplemaps");
-
-	PresetHandler::writeSampleMapsToValueTree(sampleMapTree, preset);
-
-	SampleMapExporter exporter(sampleMapTree);
-
-#endif
-
-	exporter.exportSamples(directoryPath, uniqueName, true);
-
 	PresetHandler::stripViewsFromPreset(preset);
 
 	File presetFile(directoryPath + "/preset");
 
 	ReferenceSearcher::writeValueTreeToFile(preset, presetFile);
-
-
-
 }
 
-void CompileExporter::compileSolution(ModulatorSynthChain *chainToExport, BuildOption buildOption)
+CompileExporter::ErrorCodes CompileExporter::compileSolution(ModulatorSynthChain *chainToExport, BuildOption buildOption)
 {
-	File solutionDirectory = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries);
+	BatchFileCreator::createBatchFile(chainToExport, buildOption);
 
-	File introjucerApp = File(SettingWindows::getSettingValue((int)SettingWindows::CompilerSettingWindow::Attributes::IntrojucerPath)).getChildFile("Introjucer.exe");
+	File batchFile = BatchFileCreator::getBatchFile(chainToExport);
 
-	File logFile = solutionDirectory.getChildFile("build.log");
-
-	jassert(introjucerApp.existsAsFile());
-
-	logFile.deleteFile();
-	logFile.create();
-
-	String command = "\"" + introjucerApp.getFullPathName() + "\" help > \"" + logFile.getFullPathName() + "\"";
-
-	//String command = "echo tut > \"" + logFile.getFullPathName() + "\"";
-	
+	String command = "\"" + batchFile.getFullPathName() + "\"";
 
 	int returnType = system(command.getCharPointer());
 
-	DBG(returnType);
-
-#if 0
-
-	if (buildOption == VSTx86 || buildOption == VSTx64x86)
+	if (returnType != 0)
 	{
-		String batchCommand = solutionDirectory + "/batch32.bat";
+		PresetHandler::showMessageWindow("Compile Export Error", "The Project is invalid or the Introjucer could not be found.");
 
-		batchCommand = "\"" + batchCommand.replaceCharacter('/', '\\') + "\"" + " " + uniqueId + " ";
-
-		const char *batchC = batchCommand.getCharPointer();
-
-		system(batchC);
+		return ErrorCodes::ProjectXmlInvalid;
 	}
 
-	if (buildOption == VSTx64 || buildOption == VSTx64x86)
-	{
-		String batchCommand = solutionDirectory + "/batch64.bat";
-
-		batchCommand = "\"" + batchCommand.replaceCharacter('/', '\\') + "\"" + " " + uniqueId + " ";
-
-		const char *batchC = batchCommand.getCharPointer();
-
-		system(batchC);
-	}
-
-#endif
-
+	batchFile.getParentDirectory().getChildFile("temp/").deleteRecursively();
 }
 
-void CompileExporter::createPluginDataHeaderFile(const String &solutionDirectory, const String &uniqueName, const String &version, const String &publicKey)
+CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(const String &solutionDirectory, const String &uniqueName, const String &version, const String &publicKey)
 {
-
-
-	jassert(version.matchesWildcard("*.*.*.*", true));
-
-	StringArray segments = StringArray::fromTokens(version, ".", "");
-
-	int versionAsHex = (segments[0].getIntValue() << 16)
-		+ (segments[1].getIntValue() << 8)
-		+ segments[2].getIntValue();
-
-	if (segments.size() >= 4)
-		versionAsHex = (versionAsHex << 8) + segments[3].getIntValue();
-
-	String hexString = "0x" + String::toHexString(versionAsHex);
-
-	//String publicKey = "3,57eaf85713e943702068568b343569b4b2eb497211bad3f06b701e65ce9a701d"; // hardcoded, make this dynamic
-
-	String author = SettingWindows::getSettingValue(SettingWindows::UserSettingWindow::Attributes::Company);
-
 	String pluginDataHeaderFile;
 
-	pluginDataHeaderFile << "#ifndef PLUGINDATA_H_INCLUDED\n";
-	pluginDataHeaderFile << "#define PLUGINDATA_H_INCLUDED\n";
+	pluginDataHeaderFile << "#include \"JuceHeader.h\"" << "\n";
+	pluginDataHeaderFile << "#include \"PresetData.h\"\n";
 	pluginDataHeaderFile << "\n";
-	pluginDataHeaderFile << "#define PRODUCT_ID \"" << uniqueName << "\"\n";
-	pluginDataHeaderFile << "#define AUTHOR \"" << author << "\"\n";
-	if (publicKey.isNotEmpty())
-	{
-		pluginDataHeaderFile << "#define PUBLIC_KEY \"" << publicKey << "\"\n";
-	}
-	else
-	{
-		pluginDataHeaderFile << "#define PUBLIC_KEY \"UNUSED\"\n";
-		pluginDataHeaderFile << "#define USE_COPY_PROTECTION 0\n";
-	}
-	pluginDataHeaderFile << "#define PRODUCT_VERSION " << hexString << "\n";
-	pluginDataHeaderFile << "#define PRODUCT_VERSION_STRING \"" << version << "\"\n";
+	pluginDataHeaderFile << "AudioProcessor* JUCE_CALLTYPE createPluginFilter() { CREATE_PLUGIN; }\n";
 	pluginDataHeaderFile << "\n";
-	pluginDataHeaderFile << "#endif";
-
-	File pluginDataHeader = File(solutionDirectory).getChildFile("Source/PluginData.h");
-
+	File pluginDataHeader = File(solutionDirectory).getChildFile("Source/Plugin.cpp");
+	
 	pluginDataHeader.create();
-
 	pluginDataHeader.replaceWithText(pluginDataHeaderFile);
 
-
-
-
+	return ErrorCodes::OK;
 }
 
-void CompileExporter::createResourceFile(const String &solutionDirectory, const String & uniqueName, const String &version)
+CompileExporter::ErrorCodes CompileExporter::createResourceFile(const String &solutionDirectory, const String & uniqueName, const String &version)
 {
 	// WRITE THE RESOURCES.RC file
 
@@ -304,11 +211,13 @@ void CompileExporter::createResourceFile(const String &solutionDirectory, const 
 
 	resourcesFileObject.create();
 	resourcesFileObject.appendText(resourcesFile);
+
+	return ErrorCodes::OK;
 }
 
 #define REPLACE_WILDCARD(wildcard, settingId) (templateProject = templateProject.replace(wildcard, SettingWindows::getSettingValue((int)settingId, &GET_PROJECT_HANDLER(chainToExport))))
 
-void CompileExporter::createIntrojucerFile(ModulatorSynthChain *chainToExport)
+CompileExporter::ErrorCodes CompileExporter::createIntrojucerFile(ModulatorSynthChain *chainToExport)
 {
 	MemoryInputStream mis(BinaryData::ProjectTemplate_jucer, BinaryData::ProjectTemplate_jucerSize, false);
 
@@ -329,18 +238,52 @@ void CompileExporter::createIntrojucerFile(ModulatorSynthChain *chainToExport)
 	REPLACE_WILDCARD("%VSTSDK_FOLDER%", SettingWindows::CompilerSettingWindow::Attributes::VSTSDKPath);
 	REPLACE_WILDCARD("%USE_IPP%", SettingWindows::CompilerSettingWindow::Attributes::IPPInclude);
 
-	ScopedPointer<XmlElement> xml = XmlDocument::parse(templateProject);
+	XmlDocument doc(templateProject);
+
+	
+
+	ScopedPointer<XmlElement> xml = doc.getDocumentElement();
 
 	jassert(xml != nullptr);
 
 	if (xml != nullptr)
 	{
-		File projectFile = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getChildFile("AutogeneratedProject.jucer");
+		File projectFile = getIntrojucerProjectFile(chainToExport);
 
 		projectFile.create();
 
 		projectFile.replaceWithText(xml->createDocument(""));
 	}
+	else
+	{
+		PresetHandler::showMessageWindow("Invalid XML", doc.getLastParseError());
+		return ErrorCodes::ProjectXmlInvalid;
+	}
+}
+
+CompileExporter::ErrorCodes CompileExporter::copyHISEImageFiles(ModulatorSynthChain *chainToExport)
+{
+	String hisePath = SettingWindows::getSettingValue((int)SettingWindows::CompilerSettingWindow::Attributes::HisePath);
+
+	File imageDirectory = File(hisePath).getChildFile("hi_core/hi_images/");
+
+	File targetDirectory = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getChildFile("Source/Images/");
+
+	targetDirectory.createDirectory();
+
+	if (!imageDirectory.isDirectory())
+	{
+		return ErrorCodes::HISEImageDirectoryNotFound;
+	}
+
+	if (!imageDirectory.copyDirectoryTo(targetDirectory)) return ErrorCodes::HISEImageDirectoryNotFound;
+
+	return ErrorCodes::OK;
+}
+
+File CompileExporter::getIntrojucerProjectFile(ModulatorSynthChain *chainToExport)
+{
+	return GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getChildFile("AutogeneratedProject.jucer");
 }
 
 #undef REPLACE_WILDCARD
@@ -482,4 +425,69 @@ int CppBuilder::exportValueTreeAsCpp(const File &sourceDirectory, const File &de
 	std::cout << std::endl << " Total size of binary data: " << totalBytes << " bytes" << std::endl;
 
 	return 0;
+}
+
+#define ADD_LINE(x) (batchContent << x << "\n")
+
+void CompileExporter::BatchFileCreator::createBatchFile(ModulatorSynthChain *chainToExport, BuildOption buildOption)
+{
+	File batchFile = getBatchFile(chainToExport);
+
+	if (batchFile.existsAsFile())
+	{
+		if (!PresetHandler::showYesNoWindow("Batch File already found", "Do you want to rewrite the batch file for the compile process?"))
+		{
+			return;
+		}
+	}
+
+	const String msbuildPath = "C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\MsBuild.exe";
+	const String buildPath = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getFullPathName();
+	const String introjucerPath = File(SettingWindows::getSettingValue((int)SettingWindows::CompilerSettingWindow::Attributes::IntrojucerPath)).getChildFile("The Introjucer.exe").getFullPathName();
+
+	String batchContent;
+
+	ADD_LINE("@echo off");
+	ADD_LINE("set project=Demo Project");
+	ADD_LINE("");
+	ADD_LINE("cd \"" << buildPath << "\"");
+	ADD_LINE("\"" << introjucerPath << "\" --resave AutogeneratedProject.jucer");
+	ADD_LINE("");
+
+	if (buildOption == VSTx86 || buildOption == VSTx64x86)
+	{
+		ADD_LINE("echo Compiling 32bit Plugin %project% ...");
+		ADD_LINE("set VisualStudioVersion=12.0");
+		ADD_LINE("set Platform=Win32");
+		ADD_LINE(msbuildPath << " \"Builds\\VisualStudio2013\\%project%.sln\" /p:Configuration=\"Release\" /verbosity:minimal");
+		ADD_LINE("");
+		ADD_LINE("echo Compiling finished.Cleaning up...");
+		ADD_LINE("del \"Compiled\\%project%.exp\"");
+		ADD_LINE("del \"Compiled\\%project%.lib\"");
+		ADD_LINE("");
+	}
+	
+	if (buildOption == VSTx64 || buildOption == VSTx64x86)
+	{
+		ADD_LINE("echo Compiling 64bit Plugin %project% ...");
+		ADD_LINE("set VisualStudioVersion=12.0");
+		ADD_LINE("set Platform=X64");
+		ADD_LINE(msbuildPath << " \"Builds\\VisualStudio2013\\%project%.sln\" /p:Configuration=\"Release 64bit\" /verbosity:minimal");
+		ADD_LINE("");
+		ADD_LINE("echo Compiling finished.Cleaning up...");
+		ADD_LINE("del \"Compiled\\%project% x64.exp\"");
+		ADD_LINE("del \"Compiled\\%project% x64.lib\"");
+	}
+
+	ADD_LINE("");
+	ADD_LINE("pause");
+
+	batchFile.replaceWithText(batchContent);
+}
+
+#undef ADD_LINE
+
+File CompileExporter::BatchFileCreator::getBatchFile(ModulatorSynthChain *chainToExport)
+{
+	return GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getChildFile("batchCompile.bat");
 }

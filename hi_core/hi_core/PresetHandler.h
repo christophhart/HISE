@@ -41,7 +41,7 @@ class Chain;
 class Processor;
 class FactoryType;
 
-#if USE_BACKEND == 1 || USE_FRONTEND == 0
+#if USE_BACKEND
 
 #define PRODUCT_ID ""
 #define PUBLIC_KEY ""
@@ -619,77 +619,7 @@ public:
 	}
 
 	/** This returns the folder where the samples of the library are stored. If it doesn't find the folder, it checks for it and saves the new path. */
-	static File getSampleDataFolder(const String &libraryName)
-	{
-
-#if JUCE_WINDOWS && USE_BACKEND == 0 // Compiled Plugins store their sample folder into the registry
-
-		libraryName.upToFirstOccurrenceOf("\n", true, true); // stupid command to prevent warning...
-
-		String key = "HKEY_CURRENT_USER\\Software\\Hart Instruments";
-		String dataName = String(PRODUCT_ID) + " SamplePath";
-
-		if(WindowsRegistry::keyExists(key))
-		{
-			if(WindowsRegistry::valueExists(key + "\\" + dataName))
-			{
-				String sampleLocation = WindowsRegistry::getValue(key + "\\" + dataName);
-
-				File f(sampleLocation);
-
-				if(f.exists())
-				{
-					return f;
-				}
-			}
-		}
-
-		File sampleFolder = getSampleFolder(PRODUCT_ID);
-
-		WindowsRegistry::setValue(String(key + "\\" + dataName), sampleFolder.getFullPathName());
-
-		return sampleFolder;
-
-#elif JUCE_MAC_OSX && USE_BACKEND == 0
-        
-        
-        File directory(getDataFolder() + "/" + PRODUCT_ID + " Samples");
-        
-        jassert(directory.exists());
-        
-        return directory;
-        
-        
-#else
-
-		File settings = getSampleDataSettingsFile(libraryName);
-
-		jassert(settings.existsAsFile());
-
-		FileInputStream fis(settings);
-
-		File libraryPath = File(fis.readEntireStreamAsString());
-
-		if(libraryPath.exists())
-		{
-			return libraryPath;
-		}
-		else
-		{
-			File sampleFolder = getSampleFolder(libraryName);
-
-			settings.deleteFile();
-
-			FileOutputStream fos(settings);
-			fos.writeText(sampleFolder.getFullPathName(), false, false);
-
-			fos.flush();
-
-			return sampleFolder;
-		}
-
-#endif
-	}
+	static File getSampleDataFolder(const String &libraryName);
     
     static String getSettingsValue(const String &settingId)
     {

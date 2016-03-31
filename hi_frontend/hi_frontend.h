@@ -35,11 +35,19 @@
 
 #include "../hi_modules/hi_modules.h"
 
+
+
 using namespace juce;
 
 #include "frontend/FrontEndProcessor.h"
 #include "frontend/FrontendBar.h"
 #include "frontend/FrontendProcessorEditor.h"
 
+#define CREATE_PLUGIN {ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\
+	ValueTree imageData = ValueTree::readFromData(PresetData::images, PresetData::imagesSize);\
+	ValueTree impulseData = ValueTree::readFromData(PresetData::impulses, PresetData::impulsesSize);\
+	\
+	return new FrontendProcessor(presetData, &imageData, &impulseData);\
+}
 
 #endif   // HI_FRONTEND_INCLUDED

@@ -438,6 +438,8 @@ ProjectHandler::SubDirectories ProjectHandler::getSubDirectoryForIdentifier(Iden
 			return (ProjectHandler::SubDirectories)i;
 		}
 	}
+
+	return SubDirectories::numSubDirectories;
 }
 
 bool ProjectHandler::isActive() const
@@ -1003,6 +1005,77 @@ XmlElement * PresetHandler::buildFactory(FactoryType *t, const String &factoryNa
 	return xml;
 }
 
+File PresetHandler::getSampleDataFolder(const String &libraryName)
+{
+#if JUCE_WINDOWS && USE_BACKEND == 0 // Compiled Plugins store their sample folder into the registry
+
+	libraryName.upToFirstOccurrenceOf("\n", true, true); // stupid command to prevent warning...
+
+	String key = "HKEY_CURRENT_USER\\Software\\Hart Instruments";
+	String dataName = String(JucePlugin_Name) + " SamplePath";
+
+	if (WindowsRegistry::keyExists(key))
+	{
+		if (WindowsRegistry::valueExists(key + "\\" + dataName))
+		{
+			String sampleLocation = WindowsRegistry::getValue(key + "\\" + dataName);
+
+			File f(sampleLocation);
+
+			if (f.exists())
+			{
+				return f;
+			}
+		}
+	}
+
+	File sampleFolder = getSampleFolder(JucePlugin_Name);
+
+	WindowsRegistry::setValue(String(key + "\\" + dataName), sampleFolder.getFullPathName());
+
+	return sampleFolder;
+
+#elif JUCE_MAC_OSX && USE_BACKEND == 0
+
+
+	File directory(getDataFolder() + "/" + PRODUCT_ID + " Samples");
+
+	jassert(directory.exists());
+
+	return directory;
+
+
+#else
+
+	File settings = getSampleDataSettingsFile(libraryName);
+
+	jassert(settings.existsAsFile());
+
+	FileInputStream fis(settings);
+
+	File libraryPath = File(fis.readEntireStreamAsString());
+
+	if (libraryPath.exists())
+	{
+		return libraryPath;
+	}
+	else
+	{
+		File sampleFolder = getSampleFolder(libraryName);
+
+		settings.deleteFile();
+
+		FileOutputStream fos(settings);
+		fos.writeText(sampleFolder.getFullPathName(), false, false);
+
+		fos.flush();
+
+		return sampleFolder;
+	}
+
+#endif
+}
+
 String PresetHandler::getGlobalSampleFolder()
 {
 	checkDirectory(false);
@@ -1104,23 +1177,7 @@ void AboutPage::refreshText()
 	Font bold = GLOBAL_BOLD_FONT();
 	
 
-#if USE_FRONTEND
-
-	Colour bright(0xFF999999);
-
-	infoData.append("Product: ", bold, bright);
-	infoData.append(PRODUCT_ID, normal, bright);
-	infoData.append("\nVersion: ", bold, bright);
-	infoData.append(String(PRODUCT_VERSION_STRING), normal, bright);
-	infoData.append("\nBuild date: ", bold, bright);
-	infoData.append(__DATE__, normal, bright);
-	infoData.append("\nCreated by: ", bold, bright);
-	infoData.append(AUTHOR, normal, bright);
-	infoData.append("\n\nRegistered to: ", bold, bright);
-	infoData.append(userEmail, normal, bright);
-
-#else
-
+#if USE_BACKEND
 
 	Colour bright(0xFFbbbbbb);
 
@@ -1135,15 +1192,31 @@ void AboutPage::refreshText()
 	infoData.append(String(BUILD_SUB_VERSION), normal, bright);
 
 
-#if USE_IPP
-	infoData.append("\n\naccelerated by FFT routines from the IPP library\n", normal, bright);
-#endif
 
 	infoData.append("\nCreated by: ", bold, bright);
 	infoData.append("Christoph Hart", normal, bright);
 
+#else
+
+	Colour bright(0xFF999999);
+
+	infoData.append("Product: ", bold, bright);
+	infoData.append(JucePlugin_Name, normal, bright);
+	infoData.append("\nVersion: ", bold, bright);
+	infoData.append(String(JucePlugin_VersionString), normal, bright);
+	infoData.append("\nBuild date: ", bold, bright);
+	infoData.append(__DATE__, normal, bright);
+	infoData.append("\nCreated by: ", bold, bright);
+	infoData.append(JucePlugin_Manufacturer, normal, bright);
+	infoData.append("\n\nRegistered to: ", bold, bright);
+	infoData.append(userEmail, normal, bright);
 
 #endif
+
+#if USE_IPP
+	infoData.append("\n\naccelerated by FFT routines from the IPP library\n", normal, bright);
+#endif
+
 
 	repaint();
 }

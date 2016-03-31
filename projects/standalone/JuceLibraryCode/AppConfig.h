@@ -19,13 +19,6 @@
 
 // (You can add your own code in this section, and the Introjucer will not overwrite it)
 
-#define USE_BACKEND 1
-#define HISE_STANDALONE 1
-#define IS_STANDALONE_APP 1
-#define INCLUDE_PROTOPLUG 0
-#define KARL_KOCH 0
-#define USE_IPP 1
-
 // [END_USER_CODE_SECTION]
 
 //==============================================================================
@@ -57,6 +50,14 @@
 
 #ifndef    USE_BACKEND
  #define   USE_BACKEND 1
+#endif
+
+#ifndef    IS_STANDALONE_APP
+ #define   IS_STANDALONE_APP 1
+#endif
+
+#ifndef    USE_IPP
+ #define   USE_IPP 1
 #endif
 
 //==============================================================================
