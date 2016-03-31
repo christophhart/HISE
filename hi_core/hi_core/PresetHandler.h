@@ -156,7 +156,9 @@ public:
 
 	ProjectHandler()
 	{
+#if USE_BACKEND
 		restoreWorkingProjects();
+#endif
 	}
 
 	enum class SubDirectories
@@ -211,6 +213,17 @@ public:
 	static String getIdentifier(SubDirectories dir);
 
 	static SubDirectories getSubDirectoryForIdentifier(Identifier id);
+
+	class Frontend
+	{
+	public:
+
+		static File getSampleLocationForCompiledPlugin();
+
+		static File getAppDataDirectory();
+
+		static String getSanitiziedFileNameForPoolReference(const String &absoluteFileName);
+	};
 
 private:
 

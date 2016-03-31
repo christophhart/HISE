@@ -1689,10 +1689,22 @@ void ScriptingApi::Content::ScriptImage::setImageFile(const String &absoluteFile
 
 	setScriptObjectProperty(FileName, absoluteFileName);
 	
+#if USE_FRONTEND
+
+	String poolName = ProjectHandler::Frontend::getSanitiziedFileNameForPoolReference(absoluteFileName);
+
+	image = pool->loadFileIntoPool(poolName, false);
+
+	jassert (image != nullptr);
+
+#else
+
 	File actualFile = getExternalFile(absoluteFileName);
 
 	image = pool->loadFileIntoPool(actualFile.getFullPathName(), forceUseRealFile);
 	
+#endif
+
 	if(image != nullptr)
 	{
 		setScriptObjectProperty(ScriptComponent::width, image->getWidth());

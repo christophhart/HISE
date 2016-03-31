@@ -1194,7 +1194,17 @@ public:
 	/** Call this method within your restoreFromValueTree() method to load the sample settings. */
 	void restoreFromValueTree(const ValueTree &v)
 	{
-		String name = GET_PROJECT_HANDLER(dynamic_cast<Processor*>(this)).getFilePath(v.getProperty("FileName", ""), ProjectHandler::SubDirectories::AudioFiles);
+		const String savedFileName = v.getProperty("FileName", "");
+
+#if USE_BACKEND
+
+		String name = GET_PROJECT_HANDLER(dynamic_cast<Processor*>(this)).getFilePath(savedFileName, ProjectHandler::SubDirectories::AudioFiles);
+
+#elif USE_FRONTEND
+
+		String name = ProjectHandler::Frontend::getSanitiziedFileNameForPoolReference(savedFileName);
+
+#endif
 
 		setLoadedFile(name, true);
 

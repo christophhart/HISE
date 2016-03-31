@@ -423,11 +423,19 @@ void AudioSampleProcessor::setLoadedFile(const String &fileName, bool loadThisFi
 
 		mc->getSampleManager().getAudioSampleBufferPool()->releasePoolData(sampleBuffer);
 
+#if USE_FRONTEND
+
+		sampleBuffer = mc->getSampleManager().getAudioSampleBufferPool()->loadFileIntoPool(fileName, false);
+
+		Identifier fileId = mc->getSampleManager().getAudioSampleBufferPool()->getIdForFileName(fileName);
+
+#else
+
 		File actualFile = getFile(loadedFileName, PresetPlayerHandler::AudioFiles);
-
 		Identifier fileId = mc->getSampleManager().getAudioSampleBufferPool()->getIdForFileName(actualFile.getFullPathName());
-
 		sampleBuffer = mc->getSampleManager().getAudioSampleBufferPool()->loadFileIntoPool(actualFile.getFullPathName(), forceReload);
+
+#endif
 
 		sampleRateOfLoadedFile = mc->getSampleManager().getAudioSampleBufferPool()->getSampleRateForFile(fileId);
 

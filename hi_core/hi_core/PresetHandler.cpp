@@ -497,7 +497,17 @@ String ProjectHandler::getFilePath(const String &pathToFile, SubDirectories subD
 	if (File::isAbsolutePath(pathToFile)) return pathToFile;
 
     static String id = "{PROJECT_FOLDER}";
-    
+ 
+#if USE_FRONTEND
+
+	// Everything else must be embedded into the binary...
+	jassert(subDir == ProjectHandler::SubDirectories::Samples);
+
+	return Frontend::getSampleLocationForCompiledPlugin().getChildFile(pathToFile.replace(id, "")).getFullPathName();
+
+#endif
+
+
 #if JUCE_MAC
     String pathToUse = pathToFile.replace("\\", "/");
     
@@ -506,6 +516,8 @@ String ProjectHandler::getFilePath(const String &pathToFile, SubDirectories subD
     
     GET_FILE(pathToFile)
 #endif
+
+
 }
 
 #undef GET_FILE
@@ -516,7 +528,6 @@ const String ProjectHandler::getFileReference(const String &absoluteFileName, Su
 
 	if (absoluteFileName.contains(id)) return absoluteFileName;
 
-
 	File subDir = getSubDirectory(dir);
 
 	if (absoluteFileName.contains(subDir.getFullPathName()))
@@ -526,6 +537,51 @@ const String ProjectHandler::getFileReference(const String &absoluteFileName, Su
 		return id + fileName;
 	}
 	else return absoluteFileName;
+}
+
+File ProjectHandler::Frontend::getSampleLocationForCompiledPlugin()
+{
+#if USE_FRONTEND
+	File appDataDir = getAppDataDirectory();
+
+	// The installer should take care of creating the app data directory...
+	jassert(appDataDir.isDirectory());
+	
+#if JUCE_MAC
+	File childFile = File(appDataDir.getChildFile("LinkOSX"));
+#else
+	File childFile = File(appDataDir.getChildFile("LinkWindows"));
+#endif
+
+	if (!childFile.exists())
+	{
+		FileChooser fc("Browse for sample location");
+
+		if (fc.browseForDirectory())
+		{
+			childFile.replaceWithText(fc.getResult().getFullPathName());
+		}
+	}
+
+	return childFile.loadFileAsString();
+#endif
+	return File::nonexistent;
+}
+
+File ProjectHandler::Frontend::getAppDataDirectory()
+{
+#if USE_FRONTEND
+	return File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile(String(JucePlugin_Manufacturer) + "/" + String(JucePlugin_Name));
+#else
+	return File::nonexistent;
+#endif
+}
+
+String ProjectHandler::Frontend::getSanitiziedFileNameForPoolReference(const String &absoluteFileName)
+{
+	static String id = "{PROJECT_FOLDER}";
+
+	return absoluteFileName.replace(id, "");
 }
 
 StringArray ProjectHandler::recentWorkDirectories = StringArray();

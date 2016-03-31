@@ -81,10 +81,7 @@ public:
 	ValueTree exportAsValueTree() const override;
 
 	/** Returns a non-whitespace version of the file as id (check for collisions!) */
-	Identifier getIdForFileName(const String &absoluteFileName) const
-	{
-		return Identifier(File(absoluteFileName).getFileNameWithoutExtension().removeCharacters(" \n\t"));
-	}
+	Identifier getIdForFileName(const String &absoluteFileName) const;
 
 	const String getFileNameForId(Identifier identifier);;
 

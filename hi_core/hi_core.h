@@ -55,6 +55,14 @@ If true, then the plugin uses the backend system including IDE editor & stuff.
 #define USE_BACKEND 0
 #endif
 
+/** Config: USE_FRONTEND
+
+If true, this project uses the frontend module and some special file reference handling.
+*/
+#ifndef USE_FRONTEND
+#define USE_FRONTEND 1
+#endif
+
 /** Config: IS_STANDALONE_APP
 
 If true, then this will use some additional features for the standalone app (popup out windows, audio device settings etc.)

@@ -71,7 +71,7 @@ ValueTree Pool<FileType>::exportAsValueTree() const
 		PoolData *d = data[i];
 
 		child.setProperty("ID", d->id.toString(), nullptr);
-		child.setProperty("FileName", getProjectHandler().getFileReference(d->fileName, ProjectHandler::getSubDirectoryForIdentifier(getFileTypeName())), nullptr);
+		child.setProperty("FileName", d->fileName, nullptr);
 
 		FileInputStream fis(d->fileName);
 
@@ -277,6 +277,18 @@ const String Pool<FileType>::getFileNameForId(Identifier identifier)
 	}
 
 	return String::empty;
+}
+
+template <class FileType>
+Identifier Pool<FileType>::getIdForFileName(const String &absoluteFileName) const
+{
+#if USE_FRONTEND
+
+	return Identifier(absoluteFileName.upToFirstOccurrenceOf(".", false, false).removeCharacters(" \n\t"));
+
+#else
+	return Identifier(File(absoluteFileName).getFileNameWithoutExtension().removeCharacters(" \n\t"));
+#endif
 }
 
 template class Pool < Image > ;

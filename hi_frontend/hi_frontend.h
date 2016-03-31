@@ -35,7 +35,9 @@
 
 #include "../hi_modules/hi_modules.h"
 
-
+#ifndef USE_FRONTEND
+#define USE_FRONTEND 1
+#endif
 
 using namespace juce;
 
