@@ -3,8 +3,6 @@
 *	This patch is a demonstration of the most basic HISE features.
 */
 
-include("externalScript.js");
-
 // Set the size of the interface
 Content.setHeight(300);
 Content.setWidth(600);

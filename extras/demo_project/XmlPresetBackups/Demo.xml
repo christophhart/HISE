@@ -16,10 +16,6 @@
             <designAwardImage value="0" visible="1"/>
           </Content>
         </Processor>
-        <Processor Type="ScriptProcessor" ID="TransposeScript" Bypassed="0">
-          <ChildProcessors/>
-          <Content/>
-        </Processor>
       </ChildProcessors>
     </Processor>
     <Processor Type="ModulatorChain" ID="GainModulation" Bypassed="0" Intensity="1">
@@ -53,10 +49,11 @@
         </Processor>
       </ChildProcessors>
     </Processor>
-    <Processor Type="SineSynth" ID="Sine Wave Generator" Bypassed="0" Gain="0.25"
-               Balance="0" VoiceLimit="128" KillFadeTime="20" IconColour="0"
-               OctaveTranspose="0" SemiTones="0" UseFreqRatio="0" CoarseFreqRatio="1"
-               FineFreqRatio="0" SaturationAmount="0">
+    <Processor Type="StreamingSampler" ID="Sampler" Bypassed="0" Gain="1" Balance="0"
+               VoiceLimit="128" KillFadeTime="20" IconColour="0" PreloadSize="8192"
+               BufferSize="4096" VoiceAmount="128" SamplerRepeatMode="-842150464"
+               RRGroupAmount="1" PitchTracking="1" OneShot="0" CrossfadeGroups="0"
+               Purged="0" NumChannels="1" SampleMap="">
       <ChildProcessors>
         <Processor Type="MidiProcessorChain" ID="Midi Processor" Bypassed="0">
           <ChildProcessors/>
@@ -80,8 +77,25 @@
         <Processor Type="EffectChain" ID="FX" Bypassed="0">
           <ChildProcessors/>
         </Processor>
+        <Processor Type="ModulatorChain" ID="Sample Start" Bypassed="0" Intensity="1">
+          <ChildProcessors/>
+        </Processor>
+        <Processor Type="ModulatorChain" ID="Group Fade" Bypassed="0" Intensity="1">
+          <ChildProcessors/>
+        </Processor>
       </ChildProcessors>
       <RoutingMatrix NumSourceChannels="2" Channel0="0" Send0="-1" Channel1="1" Send1="-1"/>
+      <channels>
+        <channelData enabled="1" level="0" suffix=""/>
+      </channels>
+      <samplemap FileName="" SaveMode="0" RelativePath="0" UseGlobalFolder="0">
+        <sample ID="0" FileName="{PROJECT_FOLDER}Triangle_-6dB.wav" Root="64"
+                HiKey="89" LoKey="50" LoVel="0" HiVel="127" RRGroup="1" Volume="0"
+                Pan="0" Normalized="0" Pitch="0" SampleStart="0" SampleEnd="44100"
+                SampleStartMod="0" LoopStart="0" LoopEnd="44100" LoopXFade="0"
+                LoopEnabled="0" LowerVelocityXFade="0" UpperVelocityXFade="0"
+                SampleState="0" NormalizedPeak="-1" Duplicate="0"/>
+      </samplemap>
     </Processor>
   </ChildProcessors>
   <RoutingMatrix NumSourceChannels="2" Channel0="0" Send0="-1" Channel1="1" Send1="-1"/>
