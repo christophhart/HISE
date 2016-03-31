@@ -60,6 +60,7 @@ ProcessorEditorBody *HardcodedScriptProcessor::createEditor(BetterProcessorEdito
 	
 #else
 
+	ignoreUnused(parentEditor);
 	jassertfalse;
 
 	return nullptr;

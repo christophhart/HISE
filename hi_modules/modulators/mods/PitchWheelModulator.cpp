@@ -62,6 +62,7 @@ ProcessorEditorBody *PitchwheelModulator::createEditor(BetterProcessorEditor *pa
 	
 #else
 
+	ignoreUnused(parentEditor);
 	jassertfalse;
 
 	return nullptr;

@@ -38,6 +38,7 @@ ProcessorEditorBody* SineSynth::createEditor(BetterProcessorEditor *parentEditor
 
 #else 
 
+	ignoreUnused(parentEditor);
 	jassertfalse;
 	return nullptr;
 

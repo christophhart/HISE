@@ -51,6 +51,7 @@ ProcessorEditorBody *MdaLimiterEffect::createEditor(BetterProcessorEditor *paren
 	
 #else
 
+	ignoreUnused(parentEditor);
 	jassertfalse;
 
 	return nullptr;
@@ -85,6 +86,7 @@ ProcessorEditorBody *MdaDegradeEffect::createEditor(BetterProcessorEditor *paren
 
 #else
 
+	ignoreUnused(parentEditor);
 	jassertfalse;
 
 	return nullptr;

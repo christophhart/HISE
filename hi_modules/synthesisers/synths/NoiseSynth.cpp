@@ -38,6 +38,7 @@ ProcessorEditorBody* NoiseSynth::createEditor(BetterProcessorEditor *parentEdito
 
 #else 
 
+	ignoreUnused(parentEditor);
 	jassertfalse;
 	return nullptr;
 

@@ -36,6 +36,7 @@ ProcessorEditorBody * ArrayModulator::createEditor(BetterProcessorEditor *parent
 	return new ArrayModulatorEditor(parentEditor);
 #else 
 	jassertfalse;
+	ignoreUnused(parentEditor);
 	return nullptr;
 #endif
 }

@@ -48,6 +48,7 @@ ProcessorEditorBody *::EffectProcessorChain::createEditor(BetterProcessorEditor 
 	
 #else 
 
+	ignoreUnused(parentEditor);
 	jassertfalse;
 	return nullptr;
 

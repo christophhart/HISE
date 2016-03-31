@@ -110,6 +110,7 @@ ProcessorEditorBody *GainMatcherVoiceStartModulator::createEditor(BetterProcesso
 
 #else
 
+	ignoreUnused(parentEditor);
 	jassertfalse;
 
 	return nullptr;
@@ -201,6 +202,7 @@ ProcessorEditorBody *GainMatcherTimeVariantModulator::createEditor(BetterProcess
 
 #else
 
+	ignoreUnused(parentEditor);
 	jassertfalse;
 
 	return nullptr;

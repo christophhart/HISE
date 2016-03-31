@@ -258,6 +258,7 @@ ProcessorEditorBody *MonoFilterEffect::createEditor(BetterProcessorEditor *paren
 
 #else 
 
+	ignoreUnused(parentEditor);
 	jassertfalse;
 	return nullptr;
 
@@ -374,6 +375,7 @@ ProcessorEditorBody *PolyFilterEffect::createEditor(BetterProcessorEditor *paren
 	
 #else
 
+	ignoreUnused(parentEditor);
 	jassertfalse;
 
 	return nullptr;

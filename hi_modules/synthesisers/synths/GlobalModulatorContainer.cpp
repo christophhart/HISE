@@ -95,6 +95,8 @@ ProcessorEditorBody* GlobalModulatorContainer::createEditor(BetterProcessorEdito
 #if USE_BACKEND
 	return new EmptyProcessorEditorBody(parentEditor);
 #else 
+
+	ignoreUnused(parentEditor);
 	jassertfalse;
 	return nullptr;
 #endif

@@ -485,6 +485,10 @@ void RoutableProcessor::editRouting(Component *childComponent)
 
 		editor->showPseudoModalWindow(new RouterComponent(&getMatrix()), id, true);
 	}
+#else 
+
+	ignoreUnused(childComponent);
+
 #endif
 	
 }

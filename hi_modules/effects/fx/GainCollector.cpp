@@ -147,6 +147,8 @@ ProcessorEditorBody *GainCollector::createEditor(BetterProcessorEditor *parentEd
 #if USE_BACKEND
 	return new GainCollectorEditor(parentEditor);
 #else 
+
+	ignoreUnused(parentEditor);
 	jassertfalse;
 	return nullptr;
 #endif

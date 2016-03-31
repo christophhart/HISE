@@ -71,6 +71,7 @@ ProcessorEditorBody *RandomModulator::createEditor(BetterProcessorEditor *parent
 	
 #else
 
+	ignoreUnused(parentEditor);
 	jassertfalse;
 
 	return nullptr;

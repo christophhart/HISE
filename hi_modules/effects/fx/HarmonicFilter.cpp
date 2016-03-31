@@ -275,7 +275,9 @@ ProcessorEditorBody * HarmonicFilter::createEditor(BetterProcessorEditor *parent
 {
 #if USE_BACKEND
 	return new HarmonicFilterEditor(parentEditor);
-#else 
+#else
+
+	ignoreUnused(parentEditor);
 	jassertfalse;
 	return nullptr;
 #endif

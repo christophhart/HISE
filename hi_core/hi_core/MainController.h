@@ -730,6 +730,10 @@ public:
 			console = c;
 			usePopupConsole = false;
 		}
+
+#else 
+		ignoreUnused(c, isPopupConsole);
+
 #endif
 		
 	};

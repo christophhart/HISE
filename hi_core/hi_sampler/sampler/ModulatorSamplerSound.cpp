@@ -932,6 +932,10 @@ void ModulatorSamplerSoundPool::resolveMissingSamples(Component *childComponentO
 
 	r->setModalComponentOfMainEditor(childComponentOfMainEditor);
 
+#else 
+
+	ignoreUnused(childComponentOfMainEditor);
+
 #endif
 }
 
@@ -984,7 +988,7 @@ String ModulatorSamplerSoundPool::getTextForPoolTable(int columnId, int indexInP
 
 	}
 #else
-
+	ignoreUnused(columnId, indexInPool);
 	return "";
 
 #endif

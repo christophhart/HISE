@@ -38,6 +38,7 @@ ProcessorEditorBody *ModulatorSynthChain::createEditor(BetterProcessorEditor *pa
 
 #else 
 
+	ignoreUnused(parentEditor);
 	jassertfalse;
 	return nullptr;
 
@@ -251,6 +252,7 @@ ProcessorEditorBody *ModulatorSynthGroup::createEditor(BetterProcessorEditor *pa
 	
 #else 
 
+	ignoreUnused(parentEditor);
 	jassertfalse;
 	return nullptr;
 

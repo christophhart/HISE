@@ -40,6 +40,7 @@ ProcessorEditorBody* WavetableSynth::createEditor(BetterProcessorEditor *parentE
 
 #else 
 
+	ignoreUnused(parentEditor);
 	jassertfalse;
 	return nullptr;
 

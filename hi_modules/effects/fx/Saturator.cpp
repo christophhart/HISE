@@ -150,6 +150,7 @@ ProcessorEditorBody * SaturatorEffect::createEditor(BetterProcessorEditor *paren
 
 #else 
 
+	ignoreUnused(parentEditor);
 	jassertfalse;
 	return nullptr;
 

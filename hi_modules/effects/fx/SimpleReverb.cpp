@@ -38,6 +38,7 @@ ProcessorEditorBody *SimpleReverbEffect::createEditor(BetterProcessorEditor *par
 
 #else 
 
+	ignoreUnused(parentEditor);
 	jassertfalse;
 	return nullptr;
 

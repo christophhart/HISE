@@ -44,6 +44,7 @@ ProcessorEditorBody *RouteEffect::createEditor(BetterProcessorEditor *parentEdit
 
 #else 
 
+	ignoreUnused(parentEditor);
 	jassertfalse;
 	return nullptr;
 

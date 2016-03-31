@@ -113,7 +113,7 @@ public:
 
 	};
 
-	ModulatorSynthChain(MainController *mc, const String &id, int numVoices_, UndoManager *viewUndoManager=nullptr):
+	ModulatorSynthChain(MainController *mc, const String &id, int numVoices_, UndoManager *viewUndoManager = nullptr) :
 		MacroControlBroadcaster(this),
 		ModulatorSynth(mc, id, numVoices_),
 #if USE_BACKEND
@@ -123,6 +123,10 @@ public:
 		handler(this),
 		vuValue(0.0f)
 	{
+#if USE_BACKEND == 0
+		ignoreUnused(viewUndoManager);
+#endif
+
 		FactoryType *t = new ModulatorSynthChainFactoryType(numVoices, this);
 
 		getMatrix().setAllowResizing(true);

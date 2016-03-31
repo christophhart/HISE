@@ -397,6 +397,7 @@ ProcessorEditorBody* ModulatorSampler::createEditor(BetterProcessorEditor *paren
 
 #else 
 
+	ignoreUnused(parentEditor);
 	jassertfalse;
 	return nullptr;
 

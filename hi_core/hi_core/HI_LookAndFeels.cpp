@@ -626,7 +626,12 @@ void ConcertinaPanelHeaderLookAndFeel::drawConcertinaPanelHeader(Graphics& g, co
 	g.setColour(Colours::white);
 	g.fillPath(path);
     
+#else
+
+	ignoreUnused(g, area, isMouseOver, panel);
+
 #endif
+
 }
 
 void PopupLookAndFeel::drawMenuBarBackground(Graphics& g, int width, int height, bool, MenuBarComponent& /*menuBar*/)

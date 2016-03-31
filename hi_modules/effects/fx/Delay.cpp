@@ -40,6 +40,7 @@ ProcessorEditorBody *DelayEffect::createEditor(BetterProcessorEditor *parentEdit
 
 #else
 
+	ignoreUnused(parentEditor);
 	jassertfalse;
 
 	return nullptr;

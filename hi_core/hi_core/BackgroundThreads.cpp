@@ -168,6 +168,8 @@ void ThreadWithAsyncProgressWindow::setModalComponentOfMainEditor(Component * ch
 		editor->setModalComponent(this);
 		isQuasiModal = true;
 	}
+#else 
+	ignoreUnused(childComponentOfMainEditor);
 #endif
 }
 

@@ -42,6 +42,7 @@ ProcessorEditorBody* WaveSynth::createEditor(BetterProcessorEditor *parentEditor
 
 #else
 
+	ignoreUnused(parentEditor);
 	jassertfalse;
 	return nullptr;
 

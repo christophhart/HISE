@@ -75,6 +75,7 @@ ProcessorEditorBody *MidiProcessor::createEditor(BetterProcessorEditor *parentEd
 
 #else 
 
+	ignoreUnused(parentEditor);
 	jassertfalse;
 	return nullptr;
 
@@ -89,6 +90,7 @@ ProcessorEditorBody *MidiProcessorChain::createEditor(BetterProcessorEditor *par
 
 #else 
 
+	ignoreUnused(parentEditor);
 	jassertfalse;
 	return nullptr;
 

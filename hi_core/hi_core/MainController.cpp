@@ -290,6 +290,8 @@ void MainController::showConsole(bool consoleShouldBeShown)
 	{
 		console->showComponentInDebugArea(consoleShouldBeShown);
 	}
+#else
+	ignoreUnused(consoleShouldBeShown);
 #endif
 }
 

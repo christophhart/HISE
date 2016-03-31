@@ -444,6 +444,8 @@ void ScriptContentComponent::paint(Graphics &g)
 			Colours::transparentBlack, 0.0f, 6.0f, false));
 		g.fillRect(0.0f, 0.0f, (float)getWidth(), 6.0f);
 	}
+#else
+	ignoreUnused(g);
 #endif
 }
 

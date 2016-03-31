@@ -245,6 +245,9 @@ ProcessorEditorBody* AudioLooper::createEditor(BetterProcessorEditor *parentEdit
 #if USE_BACKEND
 	return new AudioLooperEditor(parentEditor);
 #else
+
+	ignoreUnused(parentEditor);
+	jassertfalse;
 	return nullptr;
 #endif
 }

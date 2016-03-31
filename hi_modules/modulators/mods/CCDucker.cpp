@@ -75,6 +75,7 @@ ProcessorEditorBody * CCDucker::createEditor(BetterProcessorEditor *parentEditor
 	return new CCDuckerEditor(parentEditor);
 #else
 
+	ignoreUnused(parentEditor);
 	jassertfalse;
 	return nullptr;
 #endif

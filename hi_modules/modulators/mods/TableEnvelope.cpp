@@ -278,6 +278,7 @@ ProcessorEditorBody *TableEnvelope::createEditor(BetterProcessorEditor *parentEd
 
 #else
 
+	ignoreUnused(parentEditor);
 	jassertfalse;
 
 	return nullptr;

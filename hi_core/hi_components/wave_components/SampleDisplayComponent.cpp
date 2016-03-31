@@ -543,6 +543,9 @@ void AudioSampleBufferComponent::mouseDown(const MouseEvent &e)
 			sendSynchronousChangeMessage();
 		}
 	}
+#else 
+	ignoreUnused(e);
+
 #endif
 }
 

@@ -40,6 +40,7 @@ ProcessorEditorBody *PluginParameterModulator::createEditor(BetterProcessorEdito
 	
 #else
 
+	ignoreUnused(parentEditor);
 	jassertfalse;
 
 	return nullptr;

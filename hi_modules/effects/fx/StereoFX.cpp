@@ -39,6 +39,7 @@ ProcessorEditorBody *StereoEffect::createEditor(BetterProcessorEditor *parentEdi
 	
 #else
 
+	ignoreUnused(parentEditor);
 	jassertfalse;
 
 	return nullptr;

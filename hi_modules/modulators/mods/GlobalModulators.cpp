@@ -226,6 +226,7 @@ ProcessorEditorBody * GlobalVoiceStartModulator::createEditor(BetterProcessorEdi
 #if USE_BACKEND
 	return new GlobalModulatorEditor(parentEditor);
 #else
+	ignoreUnused(parentEditor);
 	jassertfalse;
 	return nullptr;
 #endif
@@ -302,6 +303,7 @@ ProcessorEditorBody * GlobalTimeVariantModulator::createEditor(BetterProcessorEd
 #if USE_BACKEND
 	return new GlobalModulatorEditor(parentEditor);
 #else
+	ignoreUnused(parentEditor);
 	jassertfalse;
 	return nullptr;
 #endif
@@ -393,6 +395,7 @@ ProcessorEditorBody * GlobalEnvelopeModulator::createEditor(BetterProcessorEdito
 #if USE_BACKEND
 	return new GlobalModulatorEditor(parentEditor);
 #else
+	ignoreUnused(parentEditor);
 	jassertfalse;
 	return nullptr;
 #endif

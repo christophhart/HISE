@@ -38,6 +38,7 @@ ProcessorEditorBody *Transposer::createEditor(BetterProcessorEditor *parentEdito
 
 #else
 
+	ignoreUnused(parentEditor);
 	jassertfalse;
 
 	return nullptr;
