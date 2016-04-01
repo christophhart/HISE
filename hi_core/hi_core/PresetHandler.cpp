@@ -571,7 +571,12 @@ File ProjectHandler::Frontend::getSampleLocationForCompiledPlugin()
 File ProjectHandler::Frontend::getAppDataDirectory()
 {
 #if USE_FRONTEND
+    
+#if JUCE_MAC
+    return File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("Application Support/" + String(JucePlugin_Manufacturer) + "/" + String(JucePlugin_Name));
+#else
 	return File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile(String(JucePlugin_Manufacturer) + "/" + String(JucePlugin_Name));
+#endif
 #else
 	return File::nonexistent;
 #endif

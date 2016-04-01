@@ -22,7 +22,6 @@
       <FILE id="rTpn8D" name="knobUnmodulated_200.png" compile="0" resource="1"
             file="Source/Images/knobUnmodulated_200.png"/>
       <FILE id="AOT2K8" name="Plugin.cpp" compile="1" resource="0" file="Source/Plugin.cpp"/>
-      <FILE id="X8WgLx" name="PluginData.h" compile="0" resource="0" file="Source/PluginData.h"/>
       <FILE id="esGQuC" name="PresetData.cpp" compile="1" resource="0" file="Source/PresetData.cpp"/>
       <FILE id="q8WZ82" name="PresetData.h" compile="0" resource="0" file="Source/PresetData.h"/>
       <FILE id="jjzOA2" name="toggle_200.png" compile="0" resource="1" file="Source/Images/toggle_200.png"/>
@@ -64,6 +63,40 @@
         <MODULEPATH id="hi_core" path="%HISE_PATH%"/>
       </MODULEPATHS>
     </VS2013>
+    <XCODE_MAC targetFolder="Builds/MacOSX"  vstFolder="%VSTSDK_FOLDER%" extraCompilerFlags=""
+               customPList="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;&#10;&lt;!DOCTYPE plist PUBLIC &quot;-//Apple//DTD PLIST 1.0//EN&quot; &quot;http://www.apple.com/DTDs/PropertyList-1.0.dtd&quot;&gt;&#10;&lt;plist version=&quot;1.0&quot;&gt;&#10;&lt;dict&gt;&#10;&lt;key&gt;NSAppTransportSecurity&lt;/key&gt; &#10;&lt;dict&gt; &#10;&lt;key&gt;NSAllowsArbitraryLoads&lt;/key&gt;&lt;true/&gt;&#10;&lt;/dict&gt;&#10;&lt;/dict&gt;&#10;&lt;/plist&gt;"
+               extraLinkerFlags="%IPP_COMPILER_FLAGS%">
+                
+      <CONFIGURATIONS>
+        <CONFIGURATION name="Debug" osxSDK="default" osxCompatibility="10.7 SDK" osxArchitecture="64BitUniversal"
+                       isDebug="1" optimisation="1" targetName="%NAME% Debug" headerPath="%IPP_HEADER%"
+                       libraryPath="%IPP_LIBRARY%" cppLibType="libc++"/>
+        <CONFIGURATION name="Release" osxSDK="default" osxCompatibility="10.7 SDK" osxArchitecture="64BitUniversal"
+                       isDebug="0" optimisation="3" targetName="%NAME%" headerPath="%IPP_HEADER%"
+                       libraryPath="/opt/intel/ipp/lib" cppLibType="libc++" linkTimeOptimisation="1"
+                       cppLanguageStandard="c++11"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_tracktion_marketplace" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_opengl" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_gui_extra" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_gui_basics" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_graphics" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_events" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_data_structures" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_cryptography" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_core" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_audio_utils" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_audio_processors" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_audio_plugin_client" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_audio_formats" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_audio_devices" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_audio_basics" path="%JUCE_PATH%"/>
+        <MODULEPATH id="hi_modules" path="%HISE_PATH%"/>
+        <MODULEPATH id="hi_frontend" path="%HISE_PATH%"/>
+        <MODULEPATH id="hi_core" path="%HISE_PATH%"/>
+      </MODULEPATHS>
+    </XCODE_MAC>
   </EXPORTFORMATS>
   <MODULES>
     <MODULE id="hi_core" showAllCode="1" useLocalCopy="0"/>

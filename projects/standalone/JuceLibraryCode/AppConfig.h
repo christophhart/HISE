@@ -52,6 +52,10 @@
  #define   USE_BACKEND 1
 #endif
 
+#ifndef    USE_FRONTEND
+ //#define USE_FRONTEND
+#endif
+
 #ifndef    IS_STANDALONE_APP
  #define   IS_STANDALONE_APP 1
 #endif
