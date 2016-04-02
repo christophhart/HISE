@@ -1404,8 +1404,6 @@ public:
 
 			void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor=sendNotification) override;
 
-			
-
 			ValueTree exportAsValueTree() const override
 			{
 				ValueTree v = ScriptComponent::exportAsValueTree();

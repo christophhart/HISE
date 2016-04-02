@@ -105,7 +105,23 @@ Content.setPropertiesFromJSON("imageSlider", {
   "filmstripImage": "{PROJECT_FOLDER}knob.png",
   "numStrips": "10"
 });
-// [/JSON imageSlider]function onNoteOn()
+// [/JSON imageSlider]
+
+
+presetLoader = Content.addComboBox("presetLoader", 25, 199);
+// [JSON presetLoader]
+Content.setPropertiesFromJSON("presetLoader", {
+  "text": "Load Preset",
+  "saveInPreset": false
+});
+// [/JSON presetLoader]
+
+files = Engine.getUserPresetDirectoryContent();
+
+for(i = 0; i < files.length; i++)
+{
+	presetLoader.addItem(files[i]);
+}function onNoteOn()
 {
 	
 }
@@ -131,5 +147,9 @@ function onControl(number, value)
 	{
 		// This could also be done using the macro controls, but for demo purposes, this would be the scripting way:
 		ConvolutionReverb.setAttribute(ConvolutionReverb.WetGain, value);
+	}
+	else if (number == presetLoader)
+	{
+		Content.restoreAllControlsFromPreset(presetLoader.getItemText());
 	}
 }

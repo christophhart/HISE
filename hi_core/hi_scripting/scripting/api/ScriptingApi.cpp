@@ -2475,11 +2475,15 @@ void ScriptingApi::Content::storeAllControlsAsPreset(const String &fileName)
 
 	ValueTree v = exportAsValueTree();
 
-	if (f.existsAsFile()) f.deleteFile();
+	ScopedPointer<XmlElement> xml = v.createXml();
 
-	FileOutputStream fos(f);
+	f.replaceWithText(xml->createDocument(""));
+
+	//if (f.existsAsFile()) f.deleteFile();
+
+	//FileOutputStream fos(f);
 	
-	v.writeToStream(fos);
+	//v.writeToStream(fos);
 }
 
 void ScriptingApi::Content::restoreAllControlsFromPreset(const String &fileName)
@@ -2497,16 +2501,35 @@ void ScriptingApi::Content::restoreAllControlsFromPreset(const String &fileName)
 
 	if (f.existsAsFile())
 	{
-		FileInputStream fis(f);
-		ValueTree v = ValueTree::readFromStream(fis);
+		ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
+
+		ValueTree v = ValueTree::fromXml(*xml);
 
 		restoreFromValueTree(v);
+
+		StringArray macroNames;
+
+		if (components.size() != 0)
+		{
+			macroNames = components[0]->getOptionsFor(components[0]->getIdFor(ScriptComponent::macroControl));
+		}
 
 		for (int i = 0; i < components.size(); i++)
 		{
 			if (!components[i]->getScriptObjectProperty(ScriptComponent::Properties::saveInPreset)) continue;
 
-			getScriptProcessor()->controlCallback(components[i], components[i]->getValue());
+			getScriptProcessor()->setAttribute(i, components[i]->getValue(), sendNotification);
+
+			const String macroName = components[i]->getScriptObjectProperty(ScriptComponent::macroControl).toString();
+
+			const int macroIndex = macroNames.indexOf(macroName) - 1;
+
+			if (macroIndex >= 0)
+			{
+				NormalisableRange<float> range(components[i]->getScriptObjectProperty(ScriptComponent::min), components[i]->getScriptObjectProperty(ScriptComponent::max));
+
+				getScriptProcessor()->getMainController()->getMacroManager().getMacroChain()->setMacroControl(macroIndex, range.convertTo0to1(components[i]->getValue()) * 127.0f, sendNotification);
+			}
 		}
 	}
 	else

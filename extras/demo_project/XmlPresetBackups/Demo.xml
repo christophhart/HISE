@@ -10,11 +10,9 @@
         <Processor Type="ScriptProcessor" ID="Interface" Bypassed="0">
           <ChildProcessors/>
           <Content>
-            <external value="0" visible="1"/>
-            <externalInSubfolder value="0" visible="1"/>
             <bgPanel value="0" visible="1"/>
-            <volumeSlider value="-2.499997615814209" visible="1" rangeMin="0" rangeMax="1"/>
-            <delaySlider value="-3.5000026226043701" visible="1" rangeMin="0" rangeMax="1"/>
+            <volumeSlider value="0" visible="1" rangeMin="0" rangeMax="1"/>
+            <delaySlider value="0" visible="1" rangeMin="0" rangeMax="1"/>
             <designAwardImage value="0" visible="1"/>
             <imageButton value="0" visible="1"/>
             <imageSlider value="0.43000000715255737" visible="1" rangeMin="0" rangeMax="1"/>
@@ -31,13 +29,13 @@
     <Processor Type="EffectChain" ID="FX" Bypassed="0">
       <ChildProcessors>
         <Processor Type="Convolution" ID="Convolution Reverb" Bypassed="0" DryGain="0"
-                   WetGain="-3.5000026226043701" Latency="0" ImpulseLength="1" ProcessInput="1"
-                   FileName="{PROJECT_FOLDER}tap_ir.wav" min="0" max="32448">
+                   WetGain="0" Latency="0" ImpulseLength="1" ProcessInput="1" FileName="{PROJECT_FOLDER}tap_ir.wav"
+                   min="0" max="32448">
           <ChildProcessors/>
           <RoutingMatrix NumSourceChannels="2" Channel0="0" Send0="-1" Channel1="1" Send1="-1"/>
         </Processor>
-        <Processor Type="SimpleGain" ID="Simple Gain" Bypassed="0" Gain="-2.4999973773956299"
-                   Delay="0" Width="-2.4999973773956299">
+        <Processor Type="SimpleGain" ID="Simple Gain" Bypassed="0" Gain="-100" Delay="0"
+                   Width="-2.4999973773956299">
           <ChildProcessors>
             <Processor Type="ModulatorChain" ID="Gain Modulation" Bypassed="0" Intensity="1">
               <ChildProcessors/>
@@ -104,13 +102,13 @@
   </ChildProcessors>
   <RoutingMatrix NumSourceChannels="2" Channel0="0" Send0="-1" Channel1="1" Send1="-1"/>
   <macro_controls>
-    <macro name="Macro 1" value="123.82500457763672" midi_cc="0">
+    <macro name="Volume" value="0" midi_cc="0">
       <controlled_parameter id="Simple Gain" parameter="0" parameter_name="Gain" min="-100"
                             max="36" low="-100" high="0" inverted="0" readonly="1"/>
       <controlled_parameter id="Interface" parameter="3" parameter_name="volumeSlider" min="-100"
                             max="0" low="-100" high="0" inverted="0" readonly="0"/>
     </macro>
-    <macro name="Macro 2" value="122.55500030517578" midi_cc="0">
+    <macro name="Delay" value="122.55500030517578" midi_cc="0">
       <controlled_parameter id="Interface" parameter="4" parameter_name="delaySlider" min="-100"
                             max="0" low="-100" high="0" inverted="0" readonly="0"/>
     </macro>

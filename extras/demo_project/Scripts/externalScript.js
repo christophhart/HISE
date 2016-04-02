@@ -8,3 +8,6 @@
 Console.print("This external script is also compiled");
 
 external = Content.addLabel("external", 0, 0);
+
+// Don't store this control in a preset
+external.set("saveInPreset", false);
