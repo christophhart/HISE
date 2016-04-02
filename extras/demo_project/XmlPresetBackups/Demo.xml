@@ -16,6 +16,8 @@
             <volumeSlider value="-2.499997615814209" visible="1" rangeMin="0" rangeMax="1"/>
             <delaySlider value="-3.5000026226043701" visible="1" rangeMin="0" rangeMax="1"/>
             <designAwardImage value="0" visible="1"/>
+            <imageButton value="0" visible="1"/>
+            <imageSlider value="0.43000000715255737" visible="1" rangeMin="0" rangeMax="1"/>
           </Content>
         </Processor>
       </ChildProcessors>

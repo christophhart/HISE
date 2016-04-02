@@ -2225,9 +2225,23 @@ void ScriptingApi::Content::ScriptSlider::setScriptObjectPropertyWithChangeMessa
 		{
 			setScriptObjectProperty(filmstripImage, newValue);
 
+
+#if USE_FRONTEND
+
+			String poolName = ProjectHandler::Frontend::getSanitiziedFileNameForPoolReference(newValue);
+
+			image = pool->loadFileIntoPool(poolName, false);
+
+			jassert(image != nullptr);
+
+#else
+
+
 			File actualFile = getExternalFile(newValue);
 
 			image = pool->loadFileIntoPool(actualFile.getFullPathName(), false);
+
+#endif
 		}		
 	}
 
@@ -3194,9 +3208,22 @@ void ScriptingApi::Content::ScriptButton::setScriptObjectPropertyWithChangeMessa
 		{
 			setScriptObjectProperty(filmstripImage, newValue);
 
+#if USE_FRONTEND
+
+			String poolName = ProjectHandler::Frontend::getSanitiziedFileNameForPoolReference(newValue);
+
+			image = pool->loadFileIntoPool(poolName, false);
+
+			jassert(image != nullptr);
+
+#else
+
+
 			File actualFile = getExternalFile(newValue);
 
 			image = pool->loadFileIntoPool(actualFile.getFullPathName(), false);
+
+#endif
 		}
 	}
 

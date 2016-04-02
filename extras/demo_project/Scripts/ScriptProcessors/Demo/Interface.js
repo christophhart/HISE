@@ -89,7 +89,23 @@ Content.setPropertiesFromJSON("designAwardImage", {
   "height": 37,
   "fileName": "{PROJECT_FOLDER}image.png"
 });
-// [/JSON designAwardImage]function onNoteOn()
+// [/JSON designAwardImage]
+
+imageButton = Content.addButton("imageButton", 290, 32);
+// [JSON imageButton]
+Content.setPropertiesFromJSON("imageButton", {
+  "filmstripImage": "{PROJECT_FOLDER}button.png"
+});
+// [/JSON imageButton]
+imageSlider = Content.addKnob("imageSlider", 450, 34);
+// [JSON imageSlider]
+Content.setPropertiesFromJSON("imageSlider", {
+  "width": 66,
+  "height": 66,
+  "filmstripImage": "{PROJECT_FOLDER}knob.png",
+  "numStrips": "10"
+});
+// [/JSON imageSlider]function onNoteOn()
 {
 	
 }
