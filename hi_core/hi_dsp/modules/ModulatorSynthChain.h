@@ -238,9 +238,6 @@ public:
 #if USE_BACKEND
 		ViewManager::restoreViewsFromValueTree(v);
 #endif
-
-		//MacroControlBroadcaster::loadMacrosFromValueTree(v);
-		
 	}
     
     void reset();

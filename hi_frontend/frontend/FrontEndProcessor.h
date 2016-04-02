@@ -82,7 +82,7 @@ public:
 		
 		ValueTree v("ControlData");
 		
-		synthChain->saveMacrosToValueTree(v);
+		synthChain->saveMacroValuesToValueTree(v);
 		
 		synthChain->saveInterfaceValues(v);
 		
@@ -95,7 +95,7 @@ public:
 		{
 			ValueTree v = ValueTree::readFromData(data, sizeInBytes);
 
-			synthChain->loadMacrosFromValueTree(v);
+			synthChain->loadMacroValuesFromValueTree(v);
 
 			synthChain->restoreInterfaceValues(v);
 		}
@@ -143,27 +143,20 @@ public:
 	*/
     void setParameter (int index, float newValue) override
 	{
-
 		synthChain->setMacroControl(index, newValue * 127.0f, sendNotificationAsync);
 	}
-
 
 	/// @brief returns the name of the PluginParameter
     const String getParameterName (int index) override
 	{
-		
 		return synthChain->getMacroControlData(index)->getMacroName();
 	}
 
 	/// @brief returns a converted and labeled string that represents the current value
     const String getParameterText (int index) override
 	{
-		
 		return String(synthChain->getMacroControlData(index)->getDisplayValue(), 1);
 	}
-
-
-	
 
 private:
 

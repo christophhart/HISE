@@ -146,15 +146,59 @@ MacroControlBroadcaster::MacroControlData::MacroControlData(ModulatorSynthChain 
 
 };
 
-void MacroControlBroadcaster::loadMacrosFromValueTree(const ValueTree &v)
+void MacroControlBroadcaster::saveMacrosToValueTree(ValueTree &v) const
 {
+	ScopedPointer<XmlElement> macroControlData = new XmlElement("macro_controls");
+
+	for (int i = 0; i < macroControls.size(); i++)
+	{
+		macroControlData->addChildElement(macroControls[i]->exportAsXml());
+	}
+
 #if USE_OLD_FILE_FORMAT
 
-	ScopedPointer<XmlElement> data = XmlDocument::parse(v.getProperty("MacroControls", String::empty));
-#else
-	ScopedPointer<XmlElement> data = v.getChildWithName("macro_controls").createXml();
-#endif
+	v.setProperty("MacroControls", macroControlData->createDocument(""), nullptr);
 
+#else
+	ValueTree macros = ValueTree::fromXml(*macroControlData);
+
+	v.addChild(macros, -1, nullptr);
+
+#endif
+}
+
+void MacroControlBroadcaster::saveMacroValuesToValueTree(ValueTree &v) const
+{
+	ScopedPointer<XmlElement> macroControlData = new XmlElement("macro_controls");
+
+	for (int i = 0; i < macroControls.size(); i++)
+	{
+		if (getMacroControlData(i)->getNumParameters() > 0)
+		{
+			XmlElement *child = new XmlElement("macro");
+
+			child->setAttribute("value", getMacroControlData(i)->getCurrentValue());
+
+			macroControlData->addChildElement(child);
+		}
+	}
+
+	DBG(macroControlData->createDocument(""));
+
+	ValueTree macros = ValueTree::fromXml(*macroControlData);
+
+	v.addChild(macros, -1, nullptr);
+}
+
+void MacroControlBroadcaster::loadMacrosFromValueTree(const ValueTree &v)
+{
+	ValueTree macroData = v.getChildWithName("macro_controls");
+
+	ScopedPointer<XmlElement> data = macroData.createXml();
+
+	String s = data->createDocument("");
+
+	DBG(s);
 
 	if(data != nullptr && data->getNumChildElements() == 8)
 	{
@@ -170,8 +214,26 @@ void MacroControlBroadcaster::loadMacrosFromValueTree(const ValueTree &v)
 		for(int i = 0; i < macroControls.size(); i++)
 		{
 			setMacroControl(i, macroControls[i]->getCurrentValue(), sendNotification);
+		}	
+	}
+
+	loadMacroValuesFromValueTree(v);
+}
+
+void MacroControlBroadcaster::loadMacroValuesFromValueTree(const ValueTree &v)
+{
+	ScopedPointer<XmlElement> data = v.getChildWithName("macro_controls").createXml();
+
+	for (int i = 0; i < macroControls.size(); i++)
+	{
+		XmlElement *child = data->getChildElement(i);
+
+		if (child != nullptr)
+		{
+			const float value = child->getDoubleAttribute("value", 0.0);
+
+			setMacroControl(i, value, sendNotification);
 		}
-			
 	}
 }
 

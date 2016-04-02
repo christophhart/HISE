@@ -340,29 +340,18 @@ public:
 	/** Returns the MacroControlData object at the supplied index. */
 	MacroControlData *getMacroControlData(int index) { return macroControls[index];	}
 
-	void saveMacrosToValueTree(ValueTree &v) const
-	{
-		ScopedPointer<XmlElement> macroControlData = new XmlElement("macro_controls");
+	/** Returns the MacroControlData object at the supplied index. */
+	const MacroControlData *getMacroControlData(int index) const { return macroControls[index]; }
 
-		for(int i = 0; i < macroControls.size(); i++)
-		{
-			macroControlData->addChildElement(macroControls[i]->exportAsXml());
-		}
+	void saveMacrosToValueTree(ValueTree &v) const;
 
-#if USE_OLD_FILE_FORMAT
-
-		v.setProperty("MacroControls", macroControlData->createDocument(""), nullptr);
-
-#else
-		ValueTree macros = ValueTree::fromXml(*macroControlData);
-		
-		v.addChild(macros, -1, nullptr);
-
-#endif
-	}
+	void saveMacroValuesToValueTree(ValueTree &v) const;
 
 	void loadMacrosFromValueTree(const ValueTree &v);
 	
+	/** Only loads the values of the macros (and doesn't recreate the macro controls. */
+	void loadMacroValuesFromValueTree(const ValueTree &v);
+
 	/** Removes all parameters and resets the name. */
 	void clearData(int macroIndex);
     

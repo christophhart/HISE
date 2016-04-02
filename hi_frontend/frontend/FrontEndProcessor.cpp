@@ -157,6 +157,8 @@ keyFileCorrectlyLoaded(true)
 
 		synthChain->compileAllScripts();
 
+		synthChain->loadMacrosFromValueTree(synthData);
+
 		for (int i = 0; i < 8; i++)
 		{
 			if (synthChain->getMacroControlData(i)->getNumParameters() != 0)
