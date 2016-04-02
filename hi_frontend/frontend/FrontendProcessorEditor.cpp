@@ -30,6 +30,17 @@
 *   ===========================================================================
 */
 
+
+Component *MidiKeyboardFocusTraverser::getDefaultComponent(Component *parentComponent)
+{
+	if (FrontendProcessorEditor *editor = dynamic_cast<FrontendProcessorEditor*>(parentComponent))
+	{
+		return editor->getKeyboard();
+	}
+
+	return nullptr;
+}
+
 FrontendProcessorEditor::FrontendProcessorEditor(FrontendProcessor *fp) :
 AudioProcessorEditor(fp)
 {

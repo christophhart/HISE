@@ -38,6 +38,11 @@
 
 class ScriptContentContainer;
 
+class MidiKeyboardFocusTraverser : public KeyboardFocusTraverser
+{
+	Component *getDefaultComponent(Component *parentComponent) override;
+};
+
 class FrontendProcessorEditor: public AudioProcessorEditor,
 							   public Timer
 {
@@ -50,7 +55,7 @@ public:
 		dynamic_cast<FrontendProcessor*>(getAudioProcessor())->checkKey();
 	}
 
-	
+	KeyboardFocusTraverser *createFocusTraverser() override { return new MidiKeyboardFocusTraverser(); };
 
 	void paint(Graphics &g)
 	{
@@ -69,6 +74,7 @@ public:
 		//interfaceComponent->checkInterfaces();
 	}
 
+	CustomKeyboard *getKeyboard() { return keyboard; }
 
 private:
 

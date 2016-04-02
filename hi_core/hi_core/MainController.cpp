@@ -743,8 +743,6 @@ void GlobalScriptCompileBroadcaster::setExternalScriptData(ValueTree &collectedE
 
 String GlobalScriptCompileBroadcaster::getExternalScriptFromCollection(const String &fileName)
 {
-
-
 	for (int i = 0; i < externalScripts.getNumChildren(); i++)
 	{
 		const String thisName = externalScripts.getChild(i).getProperty("FileName").toString();

@@ -28,6 +28,6 @@
 					  
   
   "browse":         [ "/*",
-                      "hi_frontend/*"
+                      "frontend/*"
 					  ]
 }
