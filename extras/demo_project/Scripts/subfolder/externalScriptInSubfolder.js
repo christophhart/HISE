@@ -7,4 +7,4 @@
 
 Console.print("This external script is also compiled");
 
-external = Content.addLabel("external", 0, 0);
+externalInSubfolder = Content.addLabel("externalInSubfolder", 0, 50);

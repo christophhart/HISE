@@ -157,6 +157,8 @@ public:
 
 	void showPopupForFile(int index);
 
+	static ValueTree collectAllScriptFiles(ModulatorSynthChain *synthChainToExport);
+
 private:
 
 	friend class FileWatcher;

@@ -43,7 +43,7 @@ class FrontendProcessor: public PluginParameterAudioProcessor,
 						 public MainController
 {
 public:
-	FrontendProcessor(ValueTree &synthData, ValueTree *imageData_=nullptr, ValueTree *impulseData=nullptr, ValueTree *sampleData=nullptr);;
+	FrontendProcessor(ValueTree &synthData, ValueTree *imageData_=nullptr, ValueTree *impulseData=nullptr, ValueTree *externalScriptData=nullptr);;
 
 	 inline void checkKey()
 	{

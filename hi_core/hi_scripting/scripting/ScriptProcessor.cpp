@@ -649,6 +649,26 @@ void ScriptProcessor::runScriptCallbacks()
 
 void ScriptProcessor::includeFile(const String &name)
 {
+#if USE_FRONTEND
+
+	if (includedFileNames.contains(name, true))
+	{
+		debugError(this, "Warning: File " + name + " is already included.");
+	}
+	else
+	{
+		String content = getMainController()->getExternalScriptFromCollection(name);
+		debugToConsole(this, "Including " + name);
+
+		includedFileNames.add(name);
+
+		scriptEngine->execute(content);
+
+		return;
+	}
+
+#else
+
 	const File file = GET_PROJECT_HANDLER(this).getSubDirectory(ProjectHandler::SubDirectories::Scripts).getChildFile(name);
 
 	if (file.existsAsFile())
@@ -677,6 +697,7 @@ void ScriptProcessor::includeFile(const String &name)
 	{
 		debugError(this, "File " + file.getFullPathName() + " was not found.");
 	}
+#endif
 }
 
 void ScriptProcessor::mergeCallbacksToScript(String &x) const
@@ -996,4 +1017,46 @@ void FileChangeListener::showPopupForFile(int index)
 
     popup->addToDesktop();
 	
+}
+
+ValueTree FileChangeListener::collectAllScriptFiles(ModulatorSynthChain *chainToExport)
+{
+	Processor::Iterator<ScriptProcessor> iter(chainToExport);
+
+	ValueTree externalScriptFiles = ValueTree("ExternalScripts");
+
+	while (ScriptProcessor *sp = iter.getNextProcessor())
+	{
+		for (int i = 0; i < sp->getNumWatchedFiles(); i++)
+		{
+			File scriptFile = sp->getWatchedFile(i);
+			String fileName = scriptFile.getRelativePathFrom(GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Scripts));
+
+			// Wow, much cross-platform, very OSX, totally Windows
+			fileName = fileName.replace("\\", "/");
+
+			bool exists = false;
+
+			for (int j = 0; j < externalScriptFiles.getNumChildren(); j++)
+			{
+				if (externalScriptFiles.getChild(j).getProperty("FileName").toString() == fileName)
+				{
+					exists = true;
+					break;
+				}
+			}
+
+			if (exists) continue;
+
+			String fileContent = scriptFile.loadFileAsString();
+			ValueTree script("Script");
+
+			script.setProperty("FileName", fileName, nullptr);
+			script.setProperty("Content", fileContent, nullptr);
+
+			externalScriptFiles.addChild(script, -1, nullptr);
+		}
+	}
+
+	return externalScriptFiles;
 }

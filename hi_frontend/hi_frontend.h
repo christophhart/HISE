@@ -48,8 +48,9 @@ using namespace juce;
 #define CREATE_PLUGIN {ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\
 	ValueTree imageData = ValueTree::readFromData(PresetData::images, PresetData::imagesSize);\
 	ValueTree impulseData = ValueTree::readFromData(PresetData::impulses, PresetData::impulsesSize);\
+	ValueTree externalScripts = ValueTree::readFromData(PresetData::externalScripts, PresetData::externalScriptsSize);\
 	\
-	return new FrontendProcessor(presetData, &imageData, &impulseData);\
+	return new FrontendProcessor(presetData, &imageData, &impulseData, &externalScripts);\
 }
 
 #endif   // HI_FRONTEND_INCLUDED

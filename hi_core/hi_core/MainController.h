@@ -219,12 +219,18 @@ public:
 
 	void fillExternalFileList(Array<File> &files, StringArray &processors);
 
+	void setExternalScriptData(ValueTree &collectedExternalScripts);
+
+	String getExternalScriptFromCollection(const String &fileName);
+
 private:
 
 	bool useBackgroundCompiling;
 	bool enableGlobalRecompile;
 
 	double timeOut;
+
+	ValueTree externalScripts;
 
 	Array<WeakReference<GlobalScriptCompileListener>> listenerListStart;
 	Array<WeakReference<GlobalScriptCompileListener>> listenerListEnd;

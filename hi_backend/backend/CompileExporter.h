@@ -80,7 +80,7 @@ private:
 	static ErrorCodes copyHISEImageFiles(ModulatorSynthChain *chainToExport);
 
 	static File getIntrojucerProjectFile(ModulatorSynthChain *chainToExport);
-
+	static void writeExternalScriptFiles(ModulatorSynthChain * chainToExport, const String &directoryPath);
 	struct BatchFileCreator
 	{
 		static void createBatchFile(ModulatorSynthChain *chainToExport, BuildOption buildOption);

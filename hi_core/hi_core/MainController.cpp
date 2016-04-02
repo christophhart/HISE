@@ -736,6 +736,30 @@ void GlobalScriptCompileBroadcaster::fillExternalFileList(Array<File> &files, St
 	}
 }
 
+void GlobalScriptCompileBroadcaster::setExternalScriptData(ValueTree &collectedExternalScripts)
+{
+	externalScripts = collectedExternalScripts;
+}
+
+String GlobalScriptCompileBroadcaster::getExternalScriptFromCollection(const String &fileName)
+{
+
+
+	for (int i = 0; i < externalScripts.getNumChildren(); i++)
+	{
+		const String thisName = externalScripts.getChild(i).getProperty("FileName").toString();
+
+		if (thisName == fileName)
+		{
+			return externalScripts.getChild(i).getProperty("Content").toString();
+		}
+	}
+
+	// Hitting this assert means you try to get a script that wasn't exported.
+	jassertfalse;
+	return String::empty;
+}
+
 void CustomKeyboardState::setLowestKeyToDisplay(int lowestKeyToDisplay)
 {
 	lowestKey = lowestKeyToDisplay;
