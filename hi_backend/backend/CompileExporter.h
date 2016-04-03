@@ -67,7 +67,13 @@ private:
 
 	static void writeReferencedAudioFiles(ModulatorSynthChain * chainToExport, const String directoryPath);
 
+	static void writeExternalScriptFiles(ModulatorSynthChain * chainToExport, const String &directoryPath);
+
+	static void writeUserPresetFiles(ModulatorSynthChain * chainToExport, const String &directoryPath);
+
 	static void writePresetFile(ModulatorSynthChain *chainToExport, const String directoryPath, const String &uniqueName);
+
+
 
 	static ErrorCodes compileSolution(ModulatorSynthChain *chainToExport, BuildOption buildOption);
 
@@ -80,7 +86,7 @@ private:
 	static ErrorCodes copyHISEImageFiles(ModulatorSynthChain *chainToExport);
 
 	static File getIntrojucerProjectFile(ModulatorSynthChain *chainToExport);
-	static void writeExternalScriptFiles(ModulatorSynthChain * chainToExport, const String &directoryPath);
+	
 	struct BatchFileCreator
 	{
 		static void createBatchFile(ModulatorSynthChain *chainToExport, BuildOption buildOption);

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
-<Content>
+<Preset>
+<Content Processor="Interface">
   <volumeSlider value="0" visible="1" rangeMin="0" rangeMax="1"/>
   <delaySlider value="0" visible="1" rangeMin="0" rangeMax="1"/>
 </Content>
+</Preset>

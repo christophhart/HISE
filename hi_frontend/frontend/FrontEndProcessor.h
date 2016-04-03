@@ -43,7 +43,7 @@ class FrontendProcessor: public PluginParameterAudioProcessor,
 						 public MainController
 {
 public:
-	FrontendProcessor(ValueTree &synthData, ValueTree *imageData_=nullptr, ValueTree *impulseData=nullptr, ValueTree *externalScriptData=nullptr);;
+	FrontendProcessor(ValueTree &synthData, ValueTree *imageData_=nullptr, ValueTree *impulseData=nullptr, ValueTree *externalScriptData=nullptr, ValueTree *userPresets=nullptr);
 
 	 inline void checkKey()
 	{
@@ -158,6 +158,32 @@ public:
 		return String(synthChain->getMacroControlData(index)->getDisplayValue(), 1);
 	}
 
+	int getNumPrograms() override
+	{
+		return jmax<int>(1, presets.getNumChildren());
+	}
+
+	const String getProgramName(int index) override
+	{
+		if (presets.getNumChildren() != 0)
+		{
+			return presets.getChild(index).getProperty("FileName");
+		}
+		else
+		{
+			return "Default Program";
+		}
+	}
+
+	int getCurrentProgram() override
+	{
+		return currentlyLoadedProgram;
+	}
+
+	void setCurrentProgram(int index) override;
+	
+    const ValueTree &getPresetData() const { return presets; };
+    
 private:
 
 	void loadImages(ValueTree *imageData)
@@ -180,6 +206,7 @@ private:
 	Unlocker unlocker;
 #endif
 
+	const ValueTree presets;
 
 	AudioPlayHead::CurrentPositionInfo lastPosInfo;
 
@@ -188,6 +215,8 @@ private:
 	ScopedPointer<ModulatorSynthChain> synthChain;
 
 	ScopedPointer<AudioSampleBufferPool> audioSampleBufferPool;
+
+	int currentlyLoadedProgram;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FrontendProcessor)
 };

@@ -567,6 +567,20 @@ var ScriptingApi::Engine::loadFromJSON(String fileName)
 
 var ScriptingApi::Engine::getUserPresetDirectoryContent()
 {
+#if USE_FRONTEND
+    
+    const ValueTree v = dynamic_cast<FrontendProcessor*>(getScriptProcessor()->getMainController())->getPresetData();
+    
+    var returnArray;
+    
+    for(int i = 0; i < v.getNumChildren(); i++)
+    {
+        returnArray.append(v.getChild(i).getProperty("FileName"));
+    }
+    
+    return returnArray;
+    
+#else
 	File presetDirectory = GET_PROJECT_HANDLER(getScriptProcessor()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
 
 	if (presetDirectory.exists() && presetDirectory.isDirectory())
@@ -586,6 +600,8 @@ var ScriptingApi::Engine::getUserPresetDirectoryContent()
 	{
 		return var::undefined();
 	}
+#endif
+    
 }
 
 
@@ -2475,19 +2491,72 @@ void ScriptingApi::Content::storeAllControlsAsPreset(const String &fileName)
 
 	ValueTree v = exportAsValueTree();
 
-	ScopedPointer<XmlElement> xml = v.createXml();
+	v.setProperty("Processor", getScriptProcessor()->getId(), nullptr);
 
-	f.replaceWithText(xml->createDocument(""));
+	if (f.existsAsFile())
+	{
+		ScopedPointer<XmlElement> existingData = XmlDocument::parse(f);
 
-	//if (f.existsAsFile()) f.deleteFile();
+		ValueTree preset = ValueTree::fromXml(*existingData);
 
-	//FileOutputStream fos(f);
-	
-	//v.writeToStream(fos);
+		for (int i = 0; i < preset.getNumChildren(); i++)
+		{
+			if (preset.getChild(i).getProperty("Processor") == getScriptProcessor()->getId())
+			{
+				preset.getChild(i).copyPropertiesFrom(v, nullptr);
+				break;
+			}
+		}
+
+		existingData = preset.createXml();
+
+		f.replaceWithText(existingData->createDocument(""));
+	}
+	else
+	{
+		ValueTree preset = ValueTree("Preset");
+
+		preset.addChild(v, -1, nullptr);
+
+		ScopedPointer<XmlElement> xml = preset.createXml();
+
+		f.replaceWithText(xml->createDocument(""));
+	}
 }
 
 void ScriptingApi::Content::restoreAllControlsFromPreset(const String &fileName)
 {
+#if USE_FRONTEND
+    
+    const ValueTree parent = dynamic_cast<FrontendProcessor*>(getScriptProcessor()->getMainController())->getPresetData();
+    
+    ValueTree v;
+        
+    for (int i = 0; i < parent.getNumChildren(); i++)
+    {
+        ValueTree preset = parent.getChild(i);
+        
+        if(preset.getProperty("FileName") != fileName) continue;
+        
+        for(int j = 0; j < preset.getNumChildren(); j++)
+        {
+            if (preset.getChild(j).getProperty("Processor") == getScriptProcessor()->getId())
+            {
+                v = preset.getChild(j);
+                break;
+            }
+        }
+    }
+    
+    if (!v.isValid())
+    {
+        reportScriptError("Preset ID not found");
+    }
+        
+    restoreAllControlsFromPreset(v);
+    
+#else
+    
 	File f;
 
 	if (File::isAbsolutePath(fileName))
@@ -2503,38 +2572,63 @@ void ScriptingApi::Content::restoreAllControlsFromPreset(const String &fileName)
 	{
 		ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
 
-		ValueTree v = ValueTree::fromXml(*xml);
+		ValueTree parent = ValueTree::fromXml(*xml);
 
-		restoreFromValueTree(v);
+		ValueTree v;
 
-		StringArray macroNames;
-
-		if (components.size() != 0)
+		for (int i = 0; i < parent.getNumChildren(); i++)
 		{
-			macroNames = components[0]->getOptionsFor(components[0]->getIdFor(ScriptComponent::macroControl));
-		}
-
-		for (int i = 0; i < components.size(); i++)
-		{
-			if (!components[i]->getScriptObjectProperty(ScriptComponent::Properties::saveInPreset)) continue;
-
-			getScriptProcessor()->setAttribute(i, components[i]->getValue(), sendNotification);
-
-			const String macroName = components[i]->getScriptObjectProperty(ScriptComponent::macroControl).toString();
-
-			const int macroIndex = macroNames.indexOf(macroName) - 1;
-
-			if (macroIndex >= 0)
+			if (parent.getChild(i).getProperty("Processor") == getScriptProcessor()->getId())
 			{
-				NormalisableRange<float> range(components[i]->getScriptObjectProperty(ScriptComponent::min), components[i]->getScriptObjectProperty(ScriptComponent::max));
-
-				getScriptProcessor()->getMainController()->getMacroManager().getMacroChain()->setMacroControl(macroIndex, range.convertTo0to1(components[i]->getValue()) * 127.0f, sendNotification);
+				v = parent.getChild(i);
+				break;
 			}
 		}
+
+		if (!v.isValid())
+		{
+			reportScriptError("Preset ID not found");
+		}
+
+		restoreAllControlsFromPreset(v);
+
+		
 	}
 	else
 	{
 		reportScriptError("File not found");
+	}
+    
+#endif
+}
+
+void ScriptingApi::Content::restoreAllControlsFromPreset(const ValueTree &preset)
+{
+	restoreFromValueTree(preset);
+
+	StringArray macroNames;
+
+	if (components.size() != 0)
+	{
+		macroNames = components[0]->getOptionsFor(components[0]->getIdFor(ScriptComponent::macroControl));
+	}
+
+	for (int i = 0; i < components.size(); i++)
+	{
+		if (!components[i]->getScriptObjectProperty(ScriptComponent::Properties::saveInPreset)) continue;
+
+		getScriptProcessor()->setAttribute(i, components[i]->getValue(), sendNotification);
+
+		const String macroName = components[i]->getScriptObjectProperty(ScriptComponent::macroControl).toString();
+
+		const int macroIndex = macroNames.indexOf(macroName) - 1;
+
+		if (macroIndex >= 0)
+		{
+			NormalisableRange<float> range(components[i]->getScriptObjectProperty(ScriptComponent::min), components[i]->getScriptObjectProperty(ScriptComponent::max));
+
+			getScriptProcessor()->getMainController()->getMacroManager().getMacroChain()->setMacroControl(macroIndex, range.convertTo0to1(components[i]->getValue()) * 127.0f, sendNotification);
+		}
 	}
 }
 

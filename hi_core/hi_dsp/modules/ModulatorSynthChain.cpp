@@ -201,7 +201,7 @@ void ModulatorSynthChain::saveInterfaceValues(ValueTree &v)
 		{
 			ValueTree data = sp->getScriptingContent()->exportAsValueTree();
 
-			data.setProperty("ID", sp->getId(), nullptr);
+			data.setProperty("Processor", sp->getId(), nullptr);
 
 			interfaceData.addChild(data, -1, nullptr);
 		}
@@ -212,28 +212,21 @@ void ModulatorSynthChain::saveInterfaceValues(ValueTree &v)
 
 void ModulatorSynthChain::restoreInterfaceValues(const ValueTree &v)
 {
-	const ValueTree interfaceData = v.getChildWithName("InterfaceData");
-
 	for (int i = 0; i < midiProcessorChain->getNumChildProcessors(); i++)
 	{
 		ScriptProcessor *sp = dynamic_cast<ScriptProcessor*>(midiProcessorChain->getChildProcessor(i));
 
 		if (sp != nullptr && sp->isFront())
 		{
-			for (int j = 0; j < interfaceData.getNumChildren(); j++)
+			for (int j = 0; j < v.getNumChildren(); j++)
 			{
-				const ValueTree child = interfaceData.getChild(j);
+				const ValueTree child = v.getChild(j);
 
-				if (child.getProperty("ID") == sp->getId())
+				if (child.getProperty("Processor") == sp->getId())
 				{
 					ScriptingApi::Content *content = sp->getScriptingContent();
 
-					content->restoreFromValueTree(child);
-
-					for (int c = 0; c < content->getNumComponents(); c++)
-					{
-						sp->controlCallback(content->getComponent(c), content->getComponent(c)->getValue());
-					}
+					content->restoreAllControlsFromPreset(child);
 
 					break;
 				}

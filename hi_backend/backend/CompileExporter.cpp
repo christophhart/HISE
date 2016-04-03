@@ -52,6 +52,7 @@ void CompileExporter::exportMainSynthChainAsPackage(ModulatorSynthChain *chainTo
 
 		writePresetFile(chainToExport, directoryPath, uniqueId);
 		writeExternalScriptFiles(chainToExport, directoryPath);
+		writeUserPresetFiles(chainToExport, directoryPath);
 		writeReferencedAudioFiles(chainToExport, directoryPath);
 		writeReferencedImageFiles(chainToExport, directoryPath);
 
@@ -141,6 +142,42 @@ void CompileExporter::writeExternalScriptFiles(ModulatorSynthChain * chainToExpo
 	ValueTree externalScriptFiles = FileChangeListener::collectAllScriptFiles(chainToExport);
 
 	PresetHandler::writeValueTreeAsFile(externalScriptFiles, File(directoryPath).getChildFile("externalScripts").getFullPathName());
+}
+
+void CompileExporter::writeUserPresetFiles(ModulatorSynthChain * chainToExport, const String &directoryPath)
+{
+	File presetDirectory = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
+
+	DirectoryIterator iter(presetDirectory, false, "*", File::findFiles);
+
+	ValueTree userPresets("UserPresets");
+
+	while (iter.next())
+	{
+		File f = iter.getFile();
+
+		XmlDocument doc(f);
+
+		ScopedPointer<XmlElement> xml = doc.getDocumentElement();
+
+		if (xml != nullptr)
+		{
+			xml->setAttribute("FileName", f.getFileNameWithoutExtension());
+
+			ValueTree v = ValueTree::fromXml(*xml);
+
+			userPresets.addChild(v, -1, nullptr);
+		}
+		else
+		{
+			// The presets must be valid XML files!
+			jassertfalse;
+		}
+	}
+
+	DBG(userPresets.createXml()->createDocument(""));
+
+	PresetHandler::writeValueTreeAsFile(userPresets, File(directoryPath).getChildFile("userPresets").getFullPathName());
 }
 
 void CompileExporter::writePresetFile(ModulatorSynthChain * chainToExport, const String directoryPath, const String &uniqueName)

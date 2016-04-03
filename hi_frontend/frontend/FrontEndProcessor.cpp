@@ -107,11 +107,13 @@ void FrontendProcessor::handleControllersForMacroKnobs(const MidiBuffer &midiMes
 
 }
 
-FrontendProcessor::FrontendProcessor(ValueTree &synthData, ValueTree *imageData_/*=nullptr*/, ValueTree *impulseData/*=nullptr*/, ValueTree *externalScriptData/*=nullptr*/) :
+FrontendProcessor::FrontendProcessor(ValueTree &synthData, ValueTree *imageData_/*=nullptr*/, ValueTree *impulseData/*=nullptr*/, ValueTree *externalScriptData/*=nullptr*/, ValueTree *userPresets) :
 MainController(),
 synthChain(new ModulatorSynthChain(this, "Master Chain", NUM_POLYPHONIC_VOICES)),
 samplesCorrectlyLoaded(true),
-keyFileCorrectlyLoaded(true)
+keyFileCorrectlyLoaded(true),
+presets(*userPresets),
+currentlyLoadedProgram(-1)
 {
 #if USE_COPY_PROTECTION
 
@@ -173,9 +175,6 @@ keyFileCorrectlyLoaded(true)
 		}
 
 		suspendProcessing(false);
-
-
-
 	}
 }
 
@@ -196,4 +195,23 @@ AudioProcessorEditor* FrontendProcessor::createEditor()
 	return new FrontendProcessorEditor(this);
 }
 
+void FrontendProcessor::setCurrentProgram(int index)
+{
+	if (presets.getNumChildren() != 0)
+	{
+		const ValueTree child = presets.getChild(index);
+
+		const String name = child.getProperty("FileName");
+
+		Processor::Iterator<ScriptProcessor> iter(synthChain);
+
+		while (ScriptProcessor *sp = iter.getNextProcessor())
+		{
+			if (sp->isFront())
+			{
+				sp->getScriptingContent()->restoreAllControlsFromPreset(name);
+			}
+		}
+	}
+}
 

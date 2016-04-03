@@ -2021,11 +2021,13 @@ public:
 		/** Sets the name that will be displayed in big fat Impact. */
 		void setName(const String &newName)	{ name = newName; };
 
-		/** Saves all controls that should be saved into a JSON data file. */
+		/** Saves all controls that should be saved into a XML data file. */
 		void storeAllControlsAsPreset(const String &fileName);
 
-		/** Restores all controls from a previously saved JSON data file. */
+		/** Restores all controls from a previously saved XML data file. */
 		void restoreAllControlsFromPreset(const String &fileName);
+
+		void restoreAllControlsFromPreset(const ValueTree &preset);
 
 		Colour getColour() const {return colour;};
 
