@@ -61,6 +61,18 @@
  //#define USE_BACKEND
 #endif
 
+#ifndef    USE_FRONTEND
+ //#define USE_FRONTEND
+#endif
+
+#ifndef    IS_STANDALONE_APP
+ //#define IS_STANDALONE_APP
+#endif
+
+#ifndef    USE_IPP
+ //#define USE_IPP
+#endif
+
 //==============================================================================
 // juce_audio_devices flags:
 

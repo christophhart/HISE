@@ -33,6 +33,7 @@
 #ifndef COMPILEEXPORTER_H_INCLUDED
 
 
+
 class CompileExporter
 {
 public:
@@ -95,7 +96,6 @@ private:
 	};
 
 };
-
 
 /** A cheap rip-off of Juce's Binary Builder to convert the exported valuetrees into a cpp file. */
 class CppBuilder

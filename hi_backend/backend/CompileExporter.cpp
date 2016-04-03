@@ -280,11 +280,12 @@ CompileExporter::ErrorCodes CompileExporter::createResourceFile(const String &so
 
 #define REPLACE_WILDCARD(wildcard, settingId) (templateProject = templateProject.replace(wildcard, SettingWindows::getSettingValue((int)settingId, &GET_PROJECT_HANDLER(chainToExport))))
 
+
 CompileExporter::ErrorCodes CompileExporter::createIntrojucerFile(ModulatorSynthChain *chainToExport)
 {
-	MemoryInputStream mis(BinaryData::ProjectTemplate_jucer, BinaryData::ProjectTemplate_jucerSize, false);
+	MemoryInputStream mis(projectTemplate_jucer, sizeof(projectTemplate_jucer), false);
 
-	String templateProject = mis.readEntireStreamAsString();
+	String templateProject = String(projectTemplate_jucer);
 
 	REPLACE_WILDCARD("%NAME%", SettingWindows::ProjectSettingWindow::Attributes::Name);
 	REPLACE_WILDCARD("%VERSION%", SettingWindows::ProjectSettingWindow::Attributes::Version);
