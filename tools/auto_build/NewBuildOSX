@@ -18,10 +18,10 @@ nightly_build_folder="/Volumes/Shared/Development/Installer/OSX/nightly_builds"
 dmg_canvas_file="/Volumes/Shared/Development/Installer/OSX/DMGFile.dmgCanvas"
 
 # This is the project folder for the Standalone app
-standalone_folder="/Volumes/Shared/Development/Projekte/HISE Standalone"
+standalone_folder="projects/standalone"
 
 # This is the project folder of the plugin project
-plugin_folder="/Volumes/Shared/Development/Projekte/HISE Plugin"
+plugin_folder="projects/plugin"
 
 installer_project="hise_nightly_build.pkgproj"
 
