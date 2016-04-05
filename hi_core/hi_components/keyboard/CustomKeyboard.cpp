@@ -43,7 +43,7 @@ CustomKeyboard::CustomKeyboard (CustomKeyboardState &state_):
     cachedImage_white_key_off_png = ImageCache::getFromMemory (white_key_off_png, white_key_off_pngSize);
     cachedImage_white_key_on_png = ImageCache::getFromMemory (white_key_on_png, white_key_on_pngSize);
 
-    setKeyWidth(narrowKeys ? 15.0f : 18.0f);
+    setKeyWidth(narrowKeys ? 14.0f : 18.0f);
 	setScrollButtonsVisible(false);
 	
 	setAvailableRange(21, 127);

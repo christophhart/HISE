@@ -1204,6 +1204,12 @@ void AboutPage::paint(Graphics &g)
 	g.fillAll(Colour(BACKEND_BG_COLOUR_BRIGHT));
 	g.setColour(Colour(0xFFbbbbbb));
 
+    Path p;
+    p.loadPathFromData(HiBinaryData::commonBinaryData::aboutHeader, sizeof(HiBinaryData::commonBinaryData::aboutHeader));
+
+    p.scaleToFit(40.0f, 20.0f, (float)getWidth() - 80.0f, 90.0f, true);
+    g.fillPath(p);
+    
 #else
 
 	g.fillAll(Colour(0xFF252525));
@@ -1211,17 +1217,9 @@ void AboutPage::paint(Graphics &g)
 
 #endif
 
-	Path p;
-	p.loadPathFromData(HiBinaryData::commonBinaryData::aboutHeader, sizeof(HiBinaryData::commonBinaryData::aboutHeader));
-
-
-
-
-
 	g.drawRect(getLocalBounds(), 1);
 
-	p.scaleToFit(40.0f, 20.0f, (float)getWidth() - 80.0f, 90.0f, true);
-	g.fillPath(p);
+
 
 	infoData.draw(g, Rectangle<float>(40.0f, 130.0f, getWidth() - 80.0f, getHeight() - 130.0f));
 
@@ -1264,9 +1262,11 @@ void AboutPage::refreshText()
 	infoData.append("Product: ", bold, bright);
 	infoData.append(JucePlugin_Name, normal, bright);
 	infoData.append("\nVersion: ", bold, bright);
-	infoData.append(String(JucePlugin_VersionString), normal, bright);
+    infoData.append(String(JucePlugin_VersionString), normal, bright);
+    infoData.append("\nHISE build version: ", bold, bright);
+    infoData.append(String(BUILD_SUB_VERSION), normal, bright);
 	infoData.append("\nBuild date: ", bold, bright);
-	infoData.append(__DATE__, normal, bright);
+	infoData.append(Time::getCompilationDate().toString(true, false, false, true), normal, bright);
 	infoData.append("\nCreated by: ", bold, bright);
 	infoData.append(JucePlugin_Manufacturer, normal, bright);
 	infoData.append("\n\nRegistered to: ", bold, bright);
