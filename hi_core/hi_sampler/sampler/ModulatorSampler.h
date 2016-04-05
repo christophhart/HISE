@@ -169,9 +169,11 @@ public:
 	*/
 	void setVoiceAmount(int newVoiceAmount);
 
-	/** Sets the streaming buffer and preload buffer sizes. */
-	void setPreloadSize(int newPreloadSize);;
+	
 
+    /** Sets the streaming buffer and preload buffer sizes asynchronously. */
+    void setPreloadSizeAsync(int newPreloadSize);
+    
 	/** this sets the current playing position that will be displayed in the editor. */
 	void setCurrentPlayingPosition(double normalizedPosition);
 
@@ -350,9 +352,38 @@ public:
 
 	void setNumMicPositions(StringArray &micPositions);
 	
+    
 
 private:
 
+    struct AsyncPreloader: public AsyncUpdater
+    {
+        AsyncPreloader(ModulatorSampler *sampler_):
+        sampler(sampler_),
+        preloadSize(-1)
+        {};
+        
+        void handleAsyncUpdate()
+        {
+            sampler->setPreloadSize(preloadSize);
+        }
+        
+        void setPreloadSize(int newPreloadSize)
+        {
+            preloadSize = newPreloadSize;
+            triggerAsyncUpdate();
+        }
+        
+        int preloadSize;
+        
+        ModulatorSampler *sampler;
+    };
+    
+    /** Sets the streaming buffer and preload buffer sizes. */
+    void setPreloadSize(int newPreloadSize);
+    
+    AsyncPreloader asyncPreloader;
+    
 	void refreshCrossfadeTables();
 
 	RoundRobinMap roundRobinMap;

@@ -34,6 +34,7 @@ ModulatorSampler::ModulatorSampler(MainController *mc, const String &id, int num
 ModulatorSynth(mc, id, numVoices),
 preloadSize(PRELOAD_SIZE),
 undoManager(new UndoManager()),
+asyncPreloader(this),
 soundCache(new AudioThumbnailCache(512)),
 sampleStartChain(new ModulatorChain(mc, "Sample Start", numVoices, Modulation::GainMode, this)),
 crossFadeChain(new ModulatorChain(mc, "Group Fade", numVoices, Modulation::GainMode, this)),
@@ -317,7 +318,7 @@ void ModulatorSampler::setInternalAttribute(int parameterIndex, float newValue)
 
 	switch (parameterIndex)
 	{
-	case PreloadSize:		setPreloadSize((int)newValue); break;
+	case PreloadSize:		setPreloadSizeAsync((int)newValue); break;
 	case BufferSize:		bufferSize = (int)newValue; refreshStreamingBuffers(); break;
 	case VoiceAmount:		setVoiceAmount((int)newValue); break;
 	case RRGroupAmount:		setRRGroupAmount((int)newValue); refreshCrossfadeTables(); break;
@@ -595,6 +596,11 @@ void ModulatorSampler::setPreloadSize(int newPreloadSize)
 	};
 
 	refreshMemoryUsage();
+}
+
+void ModulatorSampler::setPreloadSizeAsync(int newPreloadSize)
+{
+    asyncPreloader.setPreloadSize(newPreloadSize);
 }
 
 void ModulatorSampler::setCurrentPlayingPosition(double normalizedPosition)
