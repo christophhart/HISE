@@ -169,7 +169,9 @@ public:
 	{
 		/** Creates an empty data object. */
 		MacroControlData(int index):
-			macroName("Macro " + String(index + 1))
+			macroName("Macro " + String(index + 1)),
+			currentValue(0.0),
+			midiController(-1)
 		{};
 
 		virtual ~MacroControlData()

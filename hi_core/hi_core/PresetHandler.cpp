@@ -577,7 +577,11 @@ const String ProjectHandler::getFileReference(const String &absoluteFileName, Su
 
 	if (absoluteFileName.contains(subDir.getFullPathName()))
 	{
+#if JUCE_WINDOWS
+		String fileName = File(absoluteFileName).getRelativePathFrom(subDir).replace("\\", "/");
+#else
 		String fileName = File(absoluteFileName).getRelativePathFrom(subDir);
+#endif
 
 		return id + fileName;
 	}
