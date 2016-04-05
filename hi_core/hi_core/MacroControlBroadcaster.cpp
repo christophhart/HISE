@@ -230,7 +230,7 @@ void MacroControlBroadcaster::loadMacroValuesFromValueTree(const ValueTree &v)
 
 		if (child != nullptr)
 		{
-			const float value = child->getDoubleAttribute("value", 0.0);
+			const float value = (float)child->getDoubleAttribute("value", 0.0);
 
 			setMacroControl(i, value, sendNotification);
 		}

@@ -399,6 +399,8 @@ void AudioSampleProcessor::replaceReferencesWithGlobalFolder()
 
 void AudioSampleProcessor::setLoadedFile(const String &fileName, bool loadThisFile/*=false*/, bool forceReload/*=false*/)
 {
+	ignoreUnused(forceReload);
+
 	loadedFileName = fileName;
 
 	if (fileName.isEmpty())
