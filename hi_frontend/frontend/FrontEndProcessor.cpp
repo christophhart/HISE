@@ -113,7 +113,7 @@ synthChain(new ModulatorSynthChain(this, "Master Chain", NUM_POLYPHONIC_VOICES))
 samplesCorrectlyLoaded(true),
 keyFileCorrectlyLoaded(true),
 presets(*userPresets),
-currentlyLoadedProgram(-1)
+currentlyLoadedProgram(0)
 {
 #if USE_COPY_PROTECTION
 
@@ -197,9 +197,15 @@ AudioProcessorEditor* FrontendProcessor::createEditor()
 
 void FrontendProcessor::setCurrentProgram(int index)
 {
+	if (index == currentlyLoadedProgram) return;
+
+	currentlyLoadedProgram = index;
+
+	if (index == 0) return;
+
 	if (presets.getNumChildren() != 0)
 	{
-		const ValueTree child = presets.getChild(index);
+		const ValueTree child = presets.getChild(index-1);
 
 		const String name = child.getProperty("FileName");
 

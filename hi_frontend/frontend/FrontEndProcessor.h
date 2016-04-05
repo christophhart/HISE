@@ -86,14 +86,19 @@ public:
 		
 		synthChain->saveInterfaceValues(v);
 		
+		v.setProperty("Program", currentlyLoadedProgram, nullptr);
+
 		v.writeToStream(output);
 	};
+
 
 	void setStateInformation(const void *data,int sizeInBytes) override
 	{
 		if(samplesCorrectlyLoaded)
 		{
 			ValueTree v = ValueTree::readFromData(data, sizeInBytes);
+
+			currentlyLoadedProgram = v.getProperty("Program");
 
 			synthChain->loadMacroValuesFromValueTree(v);
 
@@ -160,19 +165,14 @@ public:
 
 	int getNumPrograms() override
 	{
-		return jmax<int>(1, presets.getNumChildren());
+		return presets.getNumChildren() + 1;
 	}
 
 	const String getProgramName(int index) override
 	{
-		if (presets.getNumChildren() != 0)
-		{
-			return presets.getChild(index).getProperty("FileName");
-		}
-		else
-		{
-			return "Default Program";
-		}
+		if (index == 0) return "Default";
+
+		return presets.getChild(index - 1).getProperty("FileName");
 	}
 
 	int getCurrentProgram() override
@@ -192,6 +192,7 @@ private:
 
 		getSampleManager().getImagePool()->restoreFromValueTree(*imageData);
 	}
+
 
 	friend class FrontendProcessorEditor;
 	friend class FrontendBar;
