@@ -197,7 +197,7 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Save File as XML Backup", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
 		break;
 	case MenuOpenXmlBackup:
-		setCommandTarget(result, "Load XML Backup", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
+		setCommandTarget(result, "Open XML Backup", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
 		break;
 	case MenuProjectNew:
 		setCommandTarget(result, "Create new Project folder", true, false, 'X', false);
@@ -380,7 +380,9 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuOpenFile:                  Actions::openFile(bpe); return true;
 	case MenuSaveFile:                  Actions::saveFile(bpe); return true;
 	case MenuSaveFileAsXmlBackup:		Actions::saveFileAsXml(bpe); return true;
-	case MenuOpenXmlBackup:				Actions::openFileFromXml(bpe); return true;
+    case MenuOpenXmlBackup:             { FileChooser fc("Select XML file to load",
+                                                         GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::XMLPresetBackups), "*.xml", true);
+                                        if (fc.browseForFileToOpen()) Actions::openFileFromXml(bpe, fc.getResult()); return true;}
 	case MenuProjectNew:				Actions::createNewProject(bpe); updateCommands();  return true;
 	case MenuProjectLoad:				Actions::loadProject(bpe); updateCommands(); return true;
 	case MenuCloseProject:				Actions::closeProject(bpe); updateCommands(); return true;
@@ -430,26 +432,6 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	return false;
 }
 
-struct FileModificationComparator
-{
-	static int compareElements(const File &first,
-		const File &second)
-	{
-		const int64 firstTime = first.getLastAccessTime().toMilliseconds();
-
-		const int64 secondTime = second.getLastAccessTime().toMilliseconds();
-
-		if (firstTime > secondTime)
-		{
-			return -1;
-		}
-		else
-		{
-			return 1;
-		}
-	}
-};
-
 
 PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const String &/*menuName*/)
 {
@@ -470,15 +452,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 
 		if (GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive())
 		{
-			File presetDir = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Presets);
-
-			recentFileList.clear();
-
-			presetDir.findChildFiles(recentFileList, File::findFiles, false, "*.hip");
-            
-            FileModificationComparator comparator;
-            
-			recentFileList.sort(comparator, false);
+			GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getFileList(recentFileList, ProjectHandler::SubDirectories::Presets, "*.hip", true);
 
 			for (int i = 0; i < recentFileList.size(); i++)
 			{
@@ -513,28 +487,30 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
         p.addCommandItem(mainCommandManager, MenuFileSaveUserPreset);
         
         PopupMenu userPresets;
-        
         Array<File> userPresetFiles;
         
-        if (GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive())
-        {
-            File userPresetDir = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
-            
-            userPresetDir.findChildFiles(userPresetFiles, File::findFiles, false, "*.preset");
-        }
+		GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getFileList(userPresetFiles, ProjectHandler::SubDirectories::UserPresets, "*.preset");
         
         for(int i = 0; i < userPresetFiles.size(); i++)
-        {
             userPresets.addItem(i + MenuFileUserPresetMenuOffset, userPresetFiles[i].getFileName());
-        }
         
         p.addSubMenu("User Presets", userPresets);
-        
         p.addSeparator();
         
 		p.addCommandItem(mainCommandManager, MenuOpenXmlBackup);
 		p.addCommandItem(mainCommandManager, MenuSaveFileAsXmlBackup);
 
+        PopupMenu xmlBackups;
+        Array<File> xmlBackupFiles;
+        
+		GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getFileList(xmlBackupFiles, ProjectHandler::SubDirectories::XMLPresetBackups, "*.xml");
+        
+        for(int i = 0; i < xmlBackupFiles.size(); i++)
+        {
+            xmlBackups.addItem(i + MenuFileXmlBackupMenuOffset, xmlBackupFiles[i].getFileName());
+        }
+        
+        p.addSubMenu("Load XML Backup from Project", xmlBackups);
 		p.addSeparator();
 
 		PopupMenu settingsSub;
@@ -729,19 +705,24 @@ void BackendCommandTarget::menuItemSelected(int menuItemID, int /*topLevelMenuIn
         const int index = menuItemID - MenuFileUserPresetMenuOffset;
         
         Array<File> userPresetFiles;
-        
-        if (GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive())
-        {
-            File userPresetDir = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
-            
-            userPresetDir.findChildFiles(userPresetFiles, File::findFiles, false, "*.preset");
-            
-            File presetToLoad = userPresetFiles[index];
-            
-            Actions::loadUserPreset(bpe, presetToLoad);
-        }
-    }
+		GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getFileList(userPresetFiles, ProjectHandler::SubDirectories::UserPresets, "*.preset");
 
+        File presetToLoad = userPresetFiles[index];
+		Actions::loadUserPreset(bpe, presetToLoad);
+    }
+    else if (menuItemID >= MenuFileXmlBackupMenuOffset && menuItemID < ((int)MenuFileXmlBackupMenuOffset+50))
+    {
+        const int index = menuItemID - MenuFileXmlBackupMenuOffset;
+        
+        Array<File> xmlFileList;
+        
+		GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getFileList(xmlFileList, ProjectHandler::SubDirectories::XMLPresetBackups, "*.xml");
+        
+		File presetToLoad = xmlFileList[index];
+            
+        Actions::openFileFromXml(bpe, presetToLoad);
+    }
+    
 	else if (menuItemID >= MenuViewOffset && menuItemID < (int)MenuViewOffset + 200)
 	{
 		ViewInfo *info = owner->synthChain->getViewInfo(menuItemID - MenuViewOffset);
@@ -1455,26 +1436,19 @@ void BackendCommandTarget::Actions::saveFileAsXml(BackendProcessorEditor * bpe)
 	}
 }
 
-void BackendCommandTarget::Actions::openFileFromXml(BackendProcessorEditor * bpe)
+void BackendCommandTarget::Actions::openFileFromXml(BackendProcessorEditor * bpe, const File &fileToLoad)
 {
 	if (GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive())
 	{
-		FileChooser fc("Select XML file to load", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::XMLPresetBackups), "*.xml", true);
+		ScopedPointer<XmlElement> xml = XmlDocument::parse(fileToLoad);
 
-		if (fc.browseForFileToOpen())
-		{
-			File f = fc.getResult();
+		String newId = xml->getStringAttribute("ID");
 
-			ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
+		XmlBackupFunctions::restoreAllScripts(*xml, bpe->getMainSynthChain(), newId);
 
-			String newId = xml->getStringAttribute("ID");
+		ValueTree v = ValueTree::fromXml(*xml);
 
-			XmlBackupFunctions::restoreAllScripts(*xml, bpe->getMainSynthChain(), newId);
-
-			ValueTree v = ValueTree::fromXml(*xml);
-
-			bpe->loadNewContainer(v);
-		}
+		bpe->loadNewContainer(v);
 	}
 }
 

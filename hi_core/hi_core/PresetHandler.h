@@ -214,6 +214,9 @@ public:
 
 	static SubDirectories getSubDirectoryForIdentifier(Identifier id);
 
+	/** Fills the given array with the contents of the specified directory. If 'sortByTime' is true, the most recent files will be the first items in the list. */
+	void getFileList(Array<File> &filesInDirectory, SubDirectories dir, const String &wildcard, bool sortByTime = false);
+
 	class Frontend
 	{
 	public:
@@ -350,6 +353,8 @@ public:
         return File::nonexistent;
     }
     
+	
+	
     static void saveFile(const String &dataToSave, const String &extension)
     {
 		jassert(extension.isEmpty() || extension.startsWith("*"));

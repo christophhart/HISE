@@ -79,7 +79,8 @@ public:
 		MenuSaveFile = 0x23000,
 		MenuSaveFileAsXmlBackup,
 		MenuOpenXmlBackup,
-		MenuProjectNew,
+        MenuFileXmlBackupMenuOffset,
+		MenuProjectNew = 0x24000,
 		MenuProjectLoad,
 		MenuCloseProject,
 		MenuProjectShowInFinder,
@@ -248,7 +249,7 @@ private:
 		static void toggleRelativePath(BackendProcessorEditor * bpe);
 		static void collectExternalFiles(BackendProcessorEditor * bpe);
 		static void saveFileAsXml(BackendProcessorEditor * bpe);
-		static void openFileFromXml(BackendProcessorEditor * bpe);
+		static void openFileFromXml(BackendProcessorEditor * bpe, const File &fileToLoad);
         static void redirectSampleFolder(BackendProcessorEditor *bpe);
 		static void showFilePresetSettings(BackendProcessorEditor * bpe);
 		static void showFileProjectSettings(BackendProcessorEditor * bpe);

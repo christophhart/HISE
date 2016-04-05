@@ -442,6 +442,51 @@ ProjectHandler::SubDirectories ProjectHandler::getSubDirectoryForIdentifier(Iden
 	return SubDirectories::numSubDirectories;
 }
 
+
+struct FileModificationComparator
+{
+	static int compareElements(const File &first, const File &second)
+	{
+		const int64 firstTime = first.getLastAccessTime().toMilliseconds();
+		const int64 secondTime = second.getLastAccessTime().toMilliseconds();
+
+		if (firstTime > secondTime) return -1;
+		else return 1;
+	}
+};
+
+
+void ProjectHandler::getFileList(Array<File> &filesInDirectory, SubDirectories dir, const String &wildcard, bool sortByTime /*= false*/)
+{
+	File presetDir = getSubDirectory(dir);
+
+	filesInDirectory.clear();
+
+	presetDir.findChildFiles(filesInDirectory, File::findFiles, false, wildcard);
+
+#if JUCE_WINDOWS
+
+	// Remove hidden OSX files (in OSX they are automatically ignored...)
+	for (int i = 0; i < filesInDirectory.size(); i++)
+	{
+		if (filesInDirectory[i].getFileName().startsWith("."))
+		{
+			filesInDirectory.remove(i);
+			i--;
+		}
+	}
+#endif
+
+	if (sortByTime)
+	{
+		FileModificationComparator comparator;
+
+		filesInDirectory.sort(comparator, false);
+	}
+	
+
+}
+
 bool ProjectHandler::isActive() const
 {
 	return currentWorkDirectory != File::nonexistent;
