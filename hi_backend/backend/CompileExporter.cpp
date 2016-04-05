@@ -174,9 +174,7 @@ void CompileExporter::writeUserPresetFiles(ModulatorSynthChain * chainToExport, 
 			jassertfalse;
 		}
 	}
-
-	DBG(userPresets.createXml()->createDocument(""));
-
+    
 	PresetHandler::writeValueTreeAsFile(userPresets, File(directoryPath).getChildFile("userPresets").getFullPathName());
 }
 
