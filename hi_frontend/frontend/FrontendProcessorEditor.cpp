@@ -70,14 +70,13 @@ AudioProcessorEditor(fp)
 
 	interfaceComponent->setTopLeftPosition(0, barHeight);
 
-	const int lowKey = 41;
 
 	addAndMakeVisible(keyboard = new CustomKeyboard(fp->keyboardState));
 
-	keyboard->setAvailableRange(lowKey, 127);
-
 	keyboard->setBounds(0, interfaceComponent->getBottom(), interfaceComponent->getWidth(), 72);
 
+    keyboard->setAvailableRange(fp->getKeyboardState().getLowestKeyToDisplay(), 127);
+    
 
 	if (!fp->samplesCorrectlyLoaded || !fp->keyFileCorrectlyLoaded)
 	{
