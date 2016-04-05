@@ -80,6 +80,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuProjectLoad,
 		MenuCloseProject,
 		MenuProjectShowInFinder,
+        MenuFileSaveUserPreset,
 		MenuFileSettingsPreset,
 		MenuFileSettingsProject,
 		MenuFileSettingsUser,
@@ -210,6 +211,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuProjectShowInFinder:
 		setCommandTarget(result, "Show Project folder in " + String((SystemStats::getOperatingSystemType() == SystemStats::OperatingSystemType::MacOSX) ? "Finder" : "Explorer"), GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
 		break;
+    case MenuFileSaveUserPreset:
+        setCommandTarget(result, "Save current state as new User Preset", true, false, 'X', false);
+        break;
     case MenuExportFileAsPlugin:
         setCommandTarget(result, "Export as VST/AU plugin", true, false, 'X', false);
         break;
@@ -381,6 +385,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuProjectLoad:				Actions::loadProject(bpe); updateCommands(); return true;
 	case MenuCloseProject:				Actions::closeProject(bpe); updateCommands(); return true;
 	case MenuProjectShowInFinder:		Actions::showProjectInFinder(bpe); return true;
+    case MenuFileSaveUserPreset:        Actions::saveUserPreset(bpe); return true;
 	case MenuFileSettingsPreset:		Actions::showFilePresetSettings(bpe); return true;
 	case MenuFileSettingsProject:		Actions::showFileProjectSettings(bpe); return true;
 	case MenuFileSettingsUser:			Actions::showFileUserSettings(bpe); return true;
@@ -503,8 +508,30 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 
 		p.addSubMenu("Recent projects", recentProjects);
 
-		p.addSeparator();
-
+        
+        p.addSeparator();
+        p.addCommandItem(mainCommandManager, MenuFileSaveUserPreset);
+        
+        PopupMenu userPresets;
+        
+        Array<File> userPresetFiles;
+        
+        if (GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive())
+        {
+            File userPresetDir = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
+            
+            userPresetDir.findChildFiles(userPresetFiles, File::findFiles, false, "*.preset");
+        }
+        
+        for(int i = 0; i < userPresetFiles.size(); i++)
+        {
+            userPresets.addItem(i + MenuFileUserPresetMenuOffset, userPresetFiles[i].getFileName());
+        }
+        
+        p.addSubMenu("User Presets", userPresets);
+        
+        p.addSeparator();
+        
 		p.addCommandItem(mainCommandManager, MenuOpenXmlBackup);
 		p.addCommandItem(mainCommandManager, MenuSaveFileAsXmlBackup);
 
@@ -697,6 +724,23 @@ void BackendCommandTarget::menuItemSelected(int menuItemID, int /*topLevelMenuIn
 			GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(file);
 		}
 	}
+    else if (menuItemID >= MenuFileUserPresetMenuOffset && menuItemID < ((int)MenuFileUserPresetMenuOffset+50))
+    {
+        const int index = menuItemID - MenuFileUserPresetMenuOffset;
+        
+        Array<File> userPresetFiles;
+        
+        if (GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive())
+        {
+            File userPresetDir = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
+            
+            userPresetDir.findChildFiles(userPresetFiles, File::findFiles, false, "*.preset");
+            
+            File presetToLoad = userPresetFiles[index];
+            
+            Actions::loadUserPreset(bpe, presetToLoad);
+        }
+    }
 
 	else if (menuItemID >= MenuViewOffset && menuItemID < (int)MenuViewOffset + 200)
 	{
@@ -1469,6 +1513,44 @@ void BackendCommandTarget::Actions::showProjectInFinder(BackendProcessorEditor *
 	{
 		GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getWorkDirectory().revealToUser();
 	}
+}
+
+void BackendCommandTarget::Actions::saveUserPreset(BackendProcessorEditor *bpe)
+{
+    if (GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive())
+    {
+        File userPresetDir = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
+        
+        String name = PresetHandler::getCustomName("User Preset");
+        
+        if(name.isNotEmpty())
+        {
+            File presetFile = userPresetDir.getChildFile(name + ".preset");
+            
+            if(!presetFile.existsAsFile() || PresetHandler::showYesNoWindow("Confirm overwrite", "Do you want to overwrite the preset " + name + "?"))
+            {
+                Processor::Iterator<ScriptProcessor> iter(bpe->getMainSynthChain());
+                
+                while(ScriptProcessor *sp = iter.getNextProcessor())
+                {
+                    sp->getScriptingContent()->storeAllControlsAsPreset(presetFile.getFullPathName());
+                }
+            }
+        }
+    }
+}
+
+void BackendCommandTarget::Actions::loadUserPreset(BackendProcessorEditor *bpe, const File &fileToLoad)
+{
+    if (GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive())
+    {
+        Processor::Iterator<ScriptProcessor> iter(bpe->getMainSynthChain());
+        
+        while(ScriptProcessor *sp = iter.getNextProcessor())
+        {
+            sp->getScriptingContent()->restoreAllControlsFromPreset(fileToLoad.getFullPathName());
+        }
+    }
 }
 
 void BackendCommandTarget::Actions::redirectSampleFolder(BackendProcessorEditor *bpe)

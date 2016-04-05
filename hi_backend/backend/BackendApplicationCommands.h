@@ -85,7 +85,9 @@ public:
 		MenuProjectShowInFinder,
 		MenuProjectRecentOffset,
 		MenuRevertFile = 0x26000,
-		MenuFileSettingsProject,
+        MenuFileSaveUserPreset,
+        MenuFileUserPresetMenuOffset,
+		MenuFileSettingsProject = 0x28000,
 		MenuFileSettingsPreset,
 		MenuFileSettings,
 		MenuFileSettingsCompiler,
@@ -241,6 +243,8 @@ private:
 		static void loadProject(BackendProcessorEditor *bpe);
 		static void closeProject(BackendProcessorEditor *bpe);
 		static void showProjectInFinder(BackendProcessorEditor *bpe);
+        static void saveUserPreset(BackendProcessorEditor *bpe);
+        static void loadUserPreset(BackendProcessorEditor *bpe, const File &fileToLoad);
 		static void toggleRelativePath(BackendProcessorEditor * bpe);
 		static void collectExternalFiles(BackendProcessorEditor * bpe);
 		static void saveFileAsXml(BackendProcessorEditor * bpe);
