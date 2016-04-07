@@ -57,6 +57,8 @@ public:
 	{
 		saturationSlider->updateValue();
 		wetSlider->updateValue();
+        pregainSlider->updateValue();
+        postGainSlider->updateValue();
 	}
     //[/UserMethods]
 
