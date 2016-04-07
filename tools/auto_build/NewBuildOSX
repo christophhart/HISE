@@ -42,6 +42,9 @@ echo $prev_version
 echo "Enter new build version:"
 read build_version
 
+if [ $build_version != "ftp" ];
+then
+
 if [ $build_version \< $prev_version ];
 then
 	echo "========================================================================"
@@ -144,6 +147,10 @@ then
 fi
 
 echo "OK"
+
+else
+build_version=$prev_version
+fi
 
 echo "Uploading to FTP..."
 
