@@ -1507,6 +1507,8 @@ void BackendCommandTarget::Actions::saveUserPreset(BackendProcessorEditor *bpe)
                 
                 while(ScriptProcessor *sp = iter.getNextProcessor())
                 {
+                    if(!sp->isFront()) continue;
+                    
                     sp->getScriptingContent()->storeAllControlsAsPreset(presetFile.getFullPathName());
                 }
             }
@@ -1522,6 +1524,8 @@ void BackendCommandTarget::Actions::loadUserPreset(BackendProcessorEditor *bpe, 
         
         while(ScriptProcessor *sp = iter.getNextProcessor())
         {
+            if(!sp->isFront()) continue;
+            
             sp->getScriptingContent()->restoreAllControlsFromPreset(fileToLoad.getFullPathName());
         }
     }
