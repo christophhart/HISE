@@ -762,3 +762,58 @@ void CustomKeyboardState::setLowestKeyToDisplay(int lowestKeyToDisplay)
 {
 	lowestKey = lowestKeyToDisplay;
 }
+
+void MidiControllerAutomationHandler::handleParameterData(MidiBuffer &b)
+{
+	if (automationData.size() == 0) return;
+
+	MidiBuffer::Iterator mb(b);
+
+	MidiMessage m;
+
+	int samplePos;
+
+	while (mb.getNextEvent(m, samplePos))
+	{
+		bool consumed = false;
+
+		for (int i = 0; i < automationData.size(); i++)
+		{
+			AutomationData *a = &automationData[i];
+
+			if (a->midiController == -1 && m.isController())
+			{
+				a->midiController = m.getControllerNumber();
+			}
+
+			if (m.isControllerOfType(a->midiController))
+			{
+				jassert(a->processor.get() != nullptr);
+
+				const float value = (float)a->parameterRange.convertFrom0to1((double)m.getControllerValue() / 127.0);
+
+				a->processor->setAttribute(a->attribute, value, sendNotification);
+
+				consumed = true;
+
+				break;
+			}
+		}
+
+		if (!consumed)
+		{
+			tempBuffer.addEvent(m, samplePos);
+		}
+	}
+
+	b.swapWith(tempBuffer);
+}
+
+MidiControllerAutomationHandler::AutomationData::AutomationData(Processor *processor_, int attribute_, NormalisableRange<double> parameterRange_) :
+processor(processor_),
+attribute(attribute_),
+midiController(-1),
+parameterRange(parameterRange_)
+{
+
+}

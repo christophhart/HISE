@@ -353,6 +353,118 @@ private:
 	bool fileNeedsToBeParsed;
 };
 
+
+
+class MidiControllerAutomationHandler
+{
+public:
+
+	MidiControllerAutomationHandler()
+	{
+		tempBuffer.ensureSize(2048);
+	}
+
+	void addMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex, NormalisableRange<double> parameterRange)
+	{
+		for (int i = 0; i < automationData.size(); i++)
+		{
+			AutomationData *a = &automationData[i];
+
+			if (a->processor == interfaceProcessor && a->attribute == attributeIndex)
+			{
+				a->midiController = -1;
+				return;
+			}
+		}
+
+		automationData.add(AutomationData(interfaceProcessor, attributeIndex, parameterRange));
+	}
+
+	bool isLearningActive(Processor *interfaceProcessor, int attributeIndex)
+	{
+		for (int i = 0; i < automationData.size(); i++)
+		{
+			AutomationData *a = &automationData[i];
+
+			if (a->processor == interfaceProcessor && a->attribute == attributeIndex)
+			{
+				return a->midiController == -1;
+			}
+		}
+
+		return false;
+	}
+
+	int getMidiControllerNumber(Processor *interfaceProcessor, int attributeIndex)
+	{
+		for (int i = 0; i < automationData.size(); i++)
+		{
+			AutomationData *a = &automationData[i];
+
+			if (a->processor == interfaceProcessor && a->attribute == attributeIndex)
+			{
+				return a->midiController;
+			}
+		}
+
+		return -1;
+	}
+
+	void removeMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex)
+	{
+		for (int i = 0; i < automationData.size(); i++)
+		{
+			AutomationData *a = &automationData[i];
+
+			if (a->processor == interfaceProcessor && a->attribute == attributeIndex)
+			{
+				automationData.remove(i);
+				i--;
+			}
+		}
+	}
+
+	void handleParameterData(MidiBuffer &b);
+
+	struct AutomationData
+	{
+		AutomationData(Processor *processor_, int attribute_, NormalisableRange<double> parameterRange_);
+
+		AutomationData():
+			processor(nullptr),
+			attribute(-1),
+			midiController(-1),
+			parameterRange(NormalisableRange<double>(.0, 0.0))
+		{}
+
+		WeakReference<Processor> processor;
+		int attribute;
+		int midiController;
+		NormalisableRange<double> parameterRange;
+	};
+
+	void setMidiControlNumber(Processor *interfaceProcessor, int attributeIndex, int midiController)
+	{
+		for (int i = 0; i < automationData.size(); i++)
+		{
+			AutomationData *a = &automationData[i];
+
+			if (a->processor == interfaceProcessor && a->attribute == attributeIndex)
+			{
+				a->midiController = midiController;
+				break;
+			}
+		}
+	}
+
+private:
+
+	MidiBuffer tempBuffer;
+
+	Array<AutomationData> automationData;
+};
+
+
 #define GET_PROJECT_HANDLER(x)(x->getMainController()->getSampleManager().getProjectHandler())
 
 /** A class for handling application wide tasks.
@@ -541,6 +653,17 @@ public:
 
 		void removeMacroControlsFor(Processor *p, Identifier name);
 	
+
+		MidiControllerAutomationHandler *getMidiControlAutomationHandler()
+		{
+			return &midiControllerHandler;
+		};
+
+		const MidiControllerAutomationHandler *getMidiControlAutomationHandler() const
+		{
+			return &midiControllerHandler;
+		};
+
 	private:
 
 		int macroControllerNumbers[8];
@@ -549,6 +672,8 @@ public:
 		int macroIndexForCurrentLearnMode;
 
 		int macroIndexForCurrentMidiLearnMode;
+
+		MidiControllerAutomationHandler midiControllerHandler;
 	};
 
 	MainController();

@@ -233,6 +233,8 @@ protected:
 
 	void removeParameterWithPopup();
 
+	void enableMidiLearnWithPopup();
+
 	ScopedPointer<NumberTag> numberTag;
 
 private:
@@ -293,7 +295,13 @@ public:
 		}
 		else
 		{
+#if USE_FRONTEND
+
+			enableMidiLearnWithPopup();
+
+#else
 			removeParameterWithPopup();
+#endif
 		}
 	}
 
@@ -342,7 +350,11 @@ public:
 		}
 		else
 		{
+#if USE_FRONTEND
+			enableMidiLearnWithPopup();
+#else
 			removeParameterWithPopup();
+#endif
 		}
 	}
 

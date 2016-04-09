@@ -39,7 +39,7 @@ void FrontendProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer& mid
 
     AudioPlayHead::CurrentPositionInfo newTime;
 
-	
+	getMacroManager().getMidiControlAutomationHandler()->handleParameterData(midiMessages);
 
     if (getPlayHead() != nullptr && getPlayHead()->getCurrentPosition (newTime))
     {

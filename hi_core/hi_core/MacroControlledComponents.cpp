@@ -79,6 +79,42 @@ void MacroControlledObject::removeParameterWithPopup()
 	}
 }
 
+void MacroControlledObject::enableMidiLearnWithPopup()
+{
+	MidiControllerAutomationHandler *handler = getProcessor()->getMainController()->getMacroManager().getMidiControlAutomationHandler();
+
+	const int midiController = handler->getMidiControllerNumber(processor, parameter);
+	const bool learningActive = handler->isLearningActive(processor, parameter);
+
+	PopupLookAndFeel plaf;
+	PopupMenu m;
+
+	m.setLookAndFeel(&plaf);
+
+	m.addSectionHeader("Current MIDI CC: " + (midiController != -1 ? String(midiController) : "None"));
+	m.addSeparator();
+	m.addItem(1, "Learn MIDI CC Automation", true, learningActive);
+	m.addItem(2, "Remove MIDI CC Automation", midiController != -1);
+
+	const int result = m.show();
+
+	if (result == 1)
+	{
+		if (!learningActive)
+		{
+			handler->addMidiControlledParameter(processor, parameter, getRange());
+		}
+		else
+		{
+			handler->removeMidiControlledParameter(processor, parameter);
+		}
+	}
+	else
+	{
+		handler->removeMidiControlledParameter(processor, parameter);
+	}
+}
+
 bool  MacroControlledObject::isLocked()
 {
 	if (!macroControlledComponentEnabled) return true;
@@ -212,7 +248,11 @@ void HiSlider::mouseDown(const MouseEvent &e)
 	}
 	else
 	{
+#if USE_FRONTEND
+		enableMidiLearnWithPopup();
+#else
 		removeParameterWithPopup();
+#endif
 	}
 }
 
