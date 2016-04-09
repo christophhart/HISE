@@ -92,7 +92,9 @@ AudioProcessorEditor(fp)
 
 	deactiveOverlay->setState(DeactiveOverlay::SamplesNotFound, !ProjectHandler::Frontend::getSampleLocationForCompiledPlugin().isDirectory());
 
+#if USE_COPY_PROTECTION
 	deactiveOverlay->setState(DeactiveOverlay::LicenceNotFound, !fp->unlocker.isUnlocked());
+#endif
 
 }
 
@@ -100,6 +102,7 @@ void DeactiveOverlay::buttonClicked(Button *b)
 {
 	if (b == resolveLicenceButton)
 	{
+#if USE_COPY_PROTECTION
 		FileChooser fc("Load Licence key file", File::nonexistent, "*.licence", true);
 
 		if (fc.browseForFileToOpen())
@@ -116,6 +119,7 @@ void DeactiveOverlay::buttonClicked(Button *b)
 
 			setState(LicenceNotFound, !ul->isUnlocked());
 		}
+#endif
 	}
 	else if (b == resolveSamplesButton)
 	{

@@ -154,7 +154,7 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "    <MODULE id=\"juce_opengl\" showAllCode=\"1\" useLocalCopy=\"0\"/>\r\n"
 "    <MODULE id=\"juce_tracktion_marketplace\" showAllCode=\"1\" useLocalCopy=\"0\"/>\r\n"
 "  </MODULES>\r\n"
-"  <JUCEOPTIONS JUCE_QUICKTIME=\"disabled\" USE_BACKEND=\"disabled\" IS_STANDALONE_APP=\"disabled\"\r\n"
+"  <JUCEOPTIONS JUCE_QUICKTIME=\"disabled\" USE_BACKEND=\"disabled\" USE_FRONTEND=\"enabled\" USE_COPY_PROTECTION=\"%USE_COPY_PROTECTION%\" IS_STANDALONE_APP=\"disabled\"\r\n"
 "               USE_IPP=\"enabled\"/>\r\n"
 "</JUCERPROJECT>\r\n";
 

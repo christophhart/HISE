@@ -120,10 +120,12 @@ public:
 
 	void timerCallback()
 	{
+#if USE_COPY_PROTECTION
 		if (!dynamic_cast<FrontendProcessor*>(getAudioProcessor())->unlocker.isUnlocked())
 		{
 			getAudioProcessor()->suspendProcessing(true);
 		}
+#endif
 	}
 
 	KeyboardFocusTraverser *createFocusTraverser() override { return new MidiKeyboardFocusTraverser(); };

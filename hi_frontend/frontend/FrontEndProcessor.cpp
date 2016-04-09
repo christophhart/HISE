@@ -33,9 +33,13 @@
 
 void FrontendProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {
+#if USE_COPY_PROTECTION
 	if ((unlockCounter & 1023 == 0) && !unlocker.isUnlocked()) return;
+#endif
 
     AudioPlayHead::CurrentPositionInfo newTime;
+
+	
 
     if (getPlayHead() != nullptr && getPlayHead()->getCurrentPosition (newTime))
     {

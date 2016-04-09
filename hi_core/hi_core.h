@@ -71,6 +71,14 @@ If true, then this will use some additional features for the standalone app (pop
 #define IS_STANDALONE_APP 0
 #endif
 
+/** Config: USE_COPY_PROTECTION
+
+If true, then the copy protection will be used
+*/
+#ifndef USE_COPY_PROTECTION
+#define USE_COPY_PROTECTION 0
+#endif
+
 /** Config: USE_IPP
 
 Use the Intel Performance Primitives Library for the convolution reverb.

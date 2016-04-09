@@ -241,6 +241,12 @@ CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(const St
 		pluginDataHeaderFile << "RSAKey Unlocker::getPublicKey() { return RSAKey(String(PUBLIC_KEY)); };" << "\n"; 
 		pluginDataHeaderFile << "#endif" << "\n";
 	}
+    else
+    {
+        pluginDataHeaderFile << "#if USE_COPY_PROTECTION" << "\n";
+        pluginDataHeaderFile << "RSAKey Unlocker::getPublicKey() { return RSAKey(\"\"); };" << "\n";
+        pluginDataHeaderFile << "#endif" << "\n";
+    }
 	
 	pluginDataHeaderFile << "AudioProcessor* JUCE_CALLTYPE createPluginFilter() { CREATE_PLUGIN; }\n";
 	pluginDataHeaderFile << "\n";
@@ -318,6 +324,10 @@ CompileExporter::ErrorCodes CompileExporter::createIntrojucerFile(ModulatorSynth
 	REPLACE_WILDCARD("%VSTSDK_FOLDER%", SettingWindows::CompilerSettingWindow::Attributes::VSTSDKPath);
 	REPLACE_WILDCARD("%USE_IPP%", SettingWindows::CompilerSettingWindow::Attributes::IPPInclude);
 
+    const bool useCopyProtection = GET_PROJECT_HANDLER(chainToExport).getPublicKey().isNotEmpty();
+    
+    templateProject = templateProject.replace("%USE_COPY_PROTECTION%", useCopyProtection ? "enabled" : "disabled");
+    
 #if JUCE_MAC
     
     REPLACE_WILDCARD("%IPP_COMPILER_FLAGS%", SettingWindows::CompilerSettingWindow::Attributes::IPPLinker);

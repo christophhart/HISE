@@ -35,6 +35,10 @@
 
 #include "BuildVersion.h"
 
+#if USE_IPP
+#include "ipp.h"
+#endif
+
 #if USE_BACKEND || USE_FRONTEND == 0
 
 #ifndef WARN_MISSING_FILE
@@ -55,16 +59,7 @@
 
 #define HI_USE_BACKWARD_COMPATIBILITY 1
 
-#if USE_IPP
-#include "ipp.h"
-#endif
 
-#else
-
-#ifndef USE_COPY_PROTECTION
-// Activate the copy protection
-#define USE_COPY_PROTECTION 1
-#endif
 
 #endif
 
@@ -92,13 +87,9 @@
 
 #define USE_FRONTEND 0
 #define HI_USE_CONSOLE 1
-#define USE_COPY_PROTECTION 0
+
 
 #else
-
-#ifndef USE_COPY_PROTECTION
-#define USE_COPY_PROTECTION 1
-#endif
 
 #define HI_USE_CONSOLE 0
 
