@@ -210,14 +210,16 @@ public:
 	{
 		ValueTree v = ModulatorSynth::exportAsValueTree();
 
-		v.setProperty("packageName", packageName, nullptr);
-
+        if(this == getMainController()->getMainSynthChain())
+        {
+            v.setProperty("packageName", packageName, nullptr);
+            
 #if USE_BACKEND
-		ViewManager::saveViewsToValueTree(v);
+            ViewManager::saveViewsToValueTree(v);
 #endif
-		MacroControlBroadcaster::saveMacrosToValueTree(v);
-		
+            MacroControlBroadcaster::saveMacrosToValueTree(v);
 
+        }
 		return v;
 	}
 
