@@ -548,6 +548,8 @@ String ProjectHandler::getPublicKey() const
 
 	ScopedPointer<XmlElement> xml = XmlDocument::parse(rsaFile);
 
+    if(xml == nullptr) return "";
+    
 	return xml->getChildByName("PublicKey")->getStringAttribute("value", "");
 }
 
@@ -557,6 +559,8 @@ String ProjectHandler::getPrivateKey() const
 
 	ScopedPointer<XmlElement> xml = XmlDocument::parse(rsaFile);
 
+    if(xml == nullptr) return "";
+    
 	return xml->getChildByName("PrivateKey")->getStringAttribute("value", "");
 }
 
