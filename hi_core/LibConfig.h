@@ -59,11 +59,6 @@
 #include "ipp.h"
 #endif
 
-#ifndef USE_COPY_PROTECTION
-// Deactivate the copy protection
-#define USE_COPY_PROTECTION 0
-#endif
-
 #else
 
 #ifndef USE_COPY_PROTECTION
@@ -97,8 +92,13 @@
 
 #define USE_FRONTEND 0
 #define HI_USE_CONSOLE 1
+#define USE_COPY_PROTECTION 0
 
 #else
+
+#ifndef USE_COPY_PROTECTION
+#define USE_COPY_PROTECTION 1
+#endif
 
 #define HI_USE_CONSOLE 0
 

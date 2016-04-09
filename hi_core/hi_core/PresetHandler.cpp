@@ -487,6 +487,79 @@ void ProjectHandler::getFileList(Array<File> &filesInDirectory, SubDirectories d
 
 }
 
+void ProjectHandler::createRSAKey() const
+{
+	RSAKey publicKey;
+	RSAKey privateKey;
+
+	Random r;
+
+	const int seeds[] = { r.nextInt(), r.nextInt(), r.nextInt(), r.nextInt(), r.nextInt(), r.nextInt() };
+
+	RSAKey::createKeyPair(publicKey, privateKey, 512, seeds, 6);
+
+	AlertWindowLookAndFeel wlaf;
+
+	AlertWindow w("RSA Keys", "You can use this key pair for the copy protection", AlertWindow::InfoIcon);
+
+	w.setLookAndFeel(&wlaf);
+
+	w.addTextEditor("publicKey", publicKey.toString(), "Public Key", false);
+	w.getTextEditor("publicKey")->setReadOnly(true);
+
+	w.addTextEditor("privateKey", privateKey.toString(), "Private Key", false);
+	w.getTextEditor("privateKey")->setReadOnly(true);
+
+	w.addButton("OK", 0, KeyPress(KeyPress::returnKey));
+	w.addButton("Copy to clipboard", 1);
+	w.addButton("Save to project folder", 2);
+
+	const int result = w.runModalLoop();
+
+	String text = "public: " + publicKey.toString() + "\n";
+	text << "private: " << privateKey.toString();
+
+	if (result == 1)
+	{
+		SystemClipboard::copyTextToClipboard(text);
+		PresetHandler::showMessageWindow("RSA Keys copied to clipboard", "The RSA keys are copied to the clipboard.");
+	}
+	else if (result == 2)
+	{
+		ScopedPointer<XmlElement> xml = new XmlElement("KeyPair");
+
+		xml->addChildElement(new XmlElement("PublicKey"));
+		xml->addChildElement(new XmlElement("PrivateKey"));
+
+		xml->getChildByName("PublicKey")->setAttribute("value", publicKey.toString());
+		xml->getChildByName("PrivateKey")->setAttribute("value", privateKey.toString());
+
+		File rsaFile = getWorkDirectory().getChildFile("RSA.xml");
+
+		rsaFile.replaceWithText(xml->createDocument(""));
+
+		PresetHandler::showMessageWindow("RSA keys exported to file", "The RSA Keys are written to the file " + rsaFile.getFullPathName());
+	}
+}
+
+String ProjectHandler::getPublicKey() const
+{
+	File rsaFile = getWorkDirectory().getChildFile("RSA.xml");
+
+	ScopedPointer<XmlElement> xml = XmlDocument::parse(rsaFile);
+
+	return xml->getChildByName("PublicKey")->getStringAttribute("value", "");
+}
+
+String ProjectHandler::getPrivateKey() const
+{
+	File rsaFile = getWorkDirectory().getChildFile("RSA.xml");
+
+	ScopedPointer<XmlElement> xml = XmlDocument::parse(rsaFile);
+
+	return xml->getChildByName("PrivateKey")->getStringAttribute("value", "");
+}
+
 bool ProjectHandler::isActive() const
 {
 	return currentWorkDirectory != File::nonexistent;
@@ -550,7 +623,7 @@ String ProjectHandler::getFilePath(const String &pathToFile, SubDirectories subD
 
 	return Frontend::getSampleLocationForCompiledPlugin().getChildFile(pathToFile.replace(id, "")).getFullPathName();
 
-#endif
+#else
 
 
 #if JUCE_MAC
@@ -562,6 +635,7 @@ String ProjectHandler::getFilePath(const String &pathToFile, SubDirectories subD
     GET_FILE(pathToFile)
 #endif
 
+#endif
 
 }
 
@@ -602,19 +676,16 @@ File ProjectHandler::Frontend::getSampleLocationForCompiledPlugin()
 	File childFile = File(appDataDir.getChildFile("LinkWindows"));
 #endif
 
-	if (!childFile.exists())
+	if (childFile.exists())
 	{
-		FileChooser fc("Browse for sample location");
-
-		if (fc.browseForDirectory())
-		{
-			childFile.replaceWithText(fc.getResult().getFullPathName());
-		}
+		return File(childFile.loadFileAsString());
 	}
 
-	return childFile.loadFileAsString();
-#endif
 	return File::nonexistent;
+
+#else
+	return File::nonexistent;
+#endif
 }
 
 File ProjectHandler::Frontend::getAppDataDirectory()
@@ -631,11 +702,43 @@ File ProjectHandler::Frontend::getAppDataDirectory()
 #endif
 }
 
+File ProjectHandler::Frontend::getLicenceKey()
+{
+#if USE_FRONTEND
+
+	return getAppDataDirectory().getChildFile(String(JucePlugin_Name) + ".licence");
+
+#else
+
+	return File::nonexistent;
+
+#endif
+}
+
 String ProjectHandler::Frontend::getSanitiziedFileNameForPoolReference(const String &absoluteFileName)
 {
 	static String id = "{PROJECT_FOLDER}";
 
 	return absoluteFileName.replace(id, "");
+}
+
+void ProjectHandler::Frontend::setSampleLocation(const File &newLocation)
+{
+#if USE_FRONTEND
+	File appDataDir = getAppDataDirectory();
+
+	// The installer should take care of creating the app data directory...
+	jassert(appDataDir.isDirectory());
+
+#if JUCE_MAC
+	File childFile = File(appDataDir.getChildFile("LinkOSX"));
+#else
+	File childFile = File(appDataDir.getChildFile("LinkWindows"));
+#endif
+
+	childFile.replaceWithText(newLocation.getFullPathName());
+
+#endif
 }
 
 StringArray ProjectHandler::recentWorkDirectories = StringArray();
@@ -1318,8 +1421,16 @@ void AboutPage::refreshText()
 	infoData.append(Time::getCompilationDate().toString(true, false, false, true), normal, bright);
 	infoData.append("\nCreated by: ", bold, bright);
 	infoData.append(JucePlugin_Manufacturer, normal, bright);
+
+#if USE_COPY_PROTECTION
+
+	Unlocker *ul = &dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor())->unlocker;
+
 	infoData.append("\n\nRegistered to: ", bold, bright);
-	infoData.append(userEmail, normal, bright);
+	infoData.append(ul->getUserEmail(), normal, bright);
+
+#endif
+
 
 #endif
 
@@ -1424,3 +1535,4 @@ void PresetPlayerHandler::addInstrumentToPackageXml(const String &instrumentFile
 
 
 }
+

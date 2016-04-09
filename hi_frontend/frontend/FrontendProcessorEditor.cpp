@@ -48,8 +48,6 @@ AudioProcessorEditor(fp)
 	addAndMakeVisible(interfaceComponent = new ScriptContentContainer(fp->getMainSynthChain(), nullptr));
 	interfaceComponent->checkInterfaces();
 
-
-
 	interfaceComponent->setCurrentContent(0, dontSendNotification);
 	interfaceComponent->refreshContentBounds();
 	interfaceComponent->setIsFrontendContainer(true);
@@ -78,11 +76,6 @@ AudioProcessorEditor(fp)
     keyboard->setAvailableRange(fp->getKeyboardState().getLowestKeyToDisplay(), 127);
     
 
-	if (!fp->samplesCorrectlyLoaded || !fp->keyFileCorrectlyLoaded)
-	{
-		interfaceComponent->setVisible(false);
-	}
-
 	setSize(interfaceComponent->getContentWidth(), barHeight + interfaceComponent->getHeight() + 72);
 
 	startTimer(4125);
@@ -93,7 +86,46 @@ AudioProcessorEditor(fp)
 
 	aboutPage->setBoundsInset(BorderSize<int>(80));
 
-#if USE_COPY_PROTECTION
-	aboutPage->setUserEmail(fp->unlocker.getUserEmail());
-#endif
+	addAndMakeVisible(deactiveOverlay = new DeactiveOverlay());
+
+	deactiveOverlay->setBounds(getLocalBounds());
+
+	deactiveOverlay->setState(DeactiveOverlay::SamplesNotFound, !ProjectHandler::Frontend::getSampleLocationForCompiledPlugin().isDirectory());
+
+	deactiveOverlay->setState(DeactiveOverlay::LicenceNotFound, !fp->unlocker.isUnlocked());
+
+}
+
+void DeactiveOverlay::buttonClicked(Button *b)
+{
+	if (b == resolveLicenceButton)
+	{
+		FileChooser fc("Load Licence key file", File::nonexistent, "*.licence", true);
+
+		if (fc.browseForFileToOpen())
+		{
+			File f = fc.getResult();
+
+			f.copyFileTo(ProjectHandler::Frontend::getLicenceKey());
+
+			String keyContent = f.loadFileAsString();
+
+			Unlocker *ul = &dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor())->unlocker;
+
+			ul->applyKeyFile(keyContent);
+
+			setState(LicenceNotFound, !ul->isUnlocked());
+		}
+	}
+	else if (b == resolveSamplesButton)
+	{
+		FileChooser fc("Select Sample Location", File::nonexistent, "*.*", true);
+
+		if (fc.browseForDirectory())
+		{
+			ProjectHandler::Frontend::setSampleLocation(fc.getResult());
+
+			setState(SamplesNotFound, !ProjectHandler::Frontend::getSampleLocationForCompiledPlugin().isDirectory());
+		}
+	}
 }

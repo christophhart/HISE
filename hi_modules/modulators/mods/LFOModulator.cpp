@@ -79,7 +79,7 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 
 	setCurrentWaveform();
 
-	CHECK_KEY(getMainController());
+	CHECK_COPY_AND_RETURN_10(this);
 
 	setTargetRatioA(0.3f);
 	
@@ -206,7 +206,7 @@ void LfoModulator::setInternalAttribute (int parameter_index, float newValue)
 		break;
 	case Parameters::TempoSync:
 		tempoSync = newValue >= 0.5f;
-		CHECK_KEY(getMainController());
+		CHECK_COPY_AND_RETURN_15(this);
 		break;
 	case Parameters::SmoothingTime:
 		smoothingTime = newValue;
@@ -277,7 +277,7 @@ void LfoModulator::prepareToPlay(double sampleRate, int samplesPerBlock)
 	
 	if(sampleRate != -1.0)
 	{
-		CHECK_KEY(getMainController());
+		CHECK_COPY_AND_RETURN_5(this);
 
 		intensityBuffer = AudioSampleBuffer(1, samplesPerBlock *2);
 

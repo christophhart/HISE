@@ -375,7 +375,7 @@ void JavascriptCodeEditor::addDefaultAutocompleteOptions()
 
 		if (set.getVarPointerAt(i)->isMethod())
 		{
-			continue;
+			//continue;
 		}
 		if (set.getVarPointerAt(i)->isObject())
 		{

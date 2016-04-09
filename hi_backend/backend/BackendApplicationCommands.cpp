@@ -106,6 +106,8 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsUseRelativePaths,
 		MenuToolsCollectExternalFiles,
         MenuToolsRedirectSampleFolder,
+		MenuToolsCreateRSAKeys,
+		MenuToolsCreateDummyLicenceFile,
         MenuViewFullscreen,
 		MenuViewBack,
 		MenuViewForward,
@@ -301,6 +303,12 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Redirect sample folder", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(),
 			GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isRedirected(ProjectHandler::SubDirectories::Samples), 'X', false);
         break;
+	case MenuToolsCreateRSAKeys:
+		setCommandTarget(result, "Create RSA Key pair", true, false, 'X', false);
+		break;
+	case MenuToolsCreateDummyLicenceFile:
+		setCommandTarget(result, "Create Dummy Licence File", true, false, 'X', false);
+		break;
     case MenuViewFullscreen:
         setCommandTarget(result, "Toggle Fullscreen", true, bpe->isFullScreenMode(), 'F');
         break;
@@ -411,6 +419,8 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsUseRelativePaths:		Actions::toggleRelativePath(bpe); updateCommands();  return true;
 	case MenuToolsCollectExternalFiles:	Actions::collectExternalFiles(bpe); return true;
     case MenuToolsRedirectSampleFolder: Actions::redirectSampleFolder(bpe); updateCommands(); return true;
+	case MenuToolsCreateRSAKeys:		Actions::createRSAKeys(bpe); return true;
+	case MenuToolsCreateDummyLicenceFile: Actions::createDummyLicenceFile(bpe); return true;
     case MenuViewFullscreen:            Actions::toggleFullscreen(bpe); updateCommands(); return true;
 	case MenuViewBack:					bpe->getViewUndoManager()->undo(); updateCommands(); return true;
 	case MenuViewForward:				bpe->getViewUndoManager()->redo(); updateCommands(); return true;
@@ -598,6 +608,10 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		p.addCommandItem(mainCommandManager, MenuToolsUseRelativePaths);
 		p.addCommandItem(mainCommandManager, MenuToolsCollectExternalFiles);
 		p.addCommandItem(mainCommandManager, MenuToolsRedirectSampleFolder);
+		p.addSeparator();
+		p.addSectionHeader("Licence Management");
+		p.addCommandItem(mainCommandManager, MenuToolsCreateDummyLicenceFile);
+		p.addCommandItem(mainCommandManager, MenuToolsCreateRSAKeys);
 		break;
 	}
 	case BackendCommandTarget::ViewMenu: {
@@ -1584,4 +1598,87 @@ void BackendCommandTarget::Actions::togglePluginPopupWindow(BackendProcessorEdit
 	{
 		bpe->setPluginPreviewWindow(new PopupPluginPreview(bpe));
 	}
+}
+
+void BackendCommandTarget::Actions::createRSAKeys(BackendProcessorEditor * bpe)
+{
+	GET_PROJECT_HANDLER(bpe->getMainSynthChain()).createRSAKey();
+}
+
+class DummyUnlocker : public OnlineUnlockStatus
+{
+public:
+
+	DummyUnlocker(ProjectHandler *handler_):
+		handler(handler_)
+	{
+
+	}
+	
+	String getProductID() override
+	{
+		return SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, handler);
+	}
+
+	bool doesProductIDMatch(const String & 	returnedIDFromServer)
+	{
+		return returnedIDFromServer == getProductID();
+	}
+
+	
+
+
+private:
+
+	ProjectHandler *handler;
+
+
+};
+
+void BackendCommandTarget::Actions::createDummyLicenceFile(BackendProcessorEditor * bpe)
+{
+	ProjectHandler *handler = &GET_PROJECT_HANDLER(bpe->getMainSynthChain());
+
+	if (!handler->isActive())
+	{
+		PresetHandler::showMessageWindow("No Project active", "You need an active project to create a key file.");
+		return;
+	}
+
+	const String appName = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, handler);
+
+	if (appName.isEmpty())
+	{
+		PresetHandler::showMessageWindow("No Product name", "You need a product name for a licence file.");
+		return;
+	}
+
+	const String dummyEmail = "dummy@email.com";
+	const String userName = "Dummy McLovin";
+
+	StringArray ids;
+
+#if JUCE_WINDOWS
+	OnlineUnlockStatus::MachineIDUtilities::addFileIDToList(ids, File::getSpecialLocation(File::windowsSystemDirectory));
+#else
+	OnlineUnlockStatus::MachineIDUtilities::addFileIDToList(ids, File("~"));
+#endif
+
+	// ..if that fails, use the MAC addresses..
+	if (ids.size() == 0)
+		OnlineUnlockStatus::MachineIDUtilities::addMACAddressesToList(ids);
+
+	RSAKey privateKey = RSAKey(handler->getPrivateKey());
+
+	if (!privateKey.isValid())
+	{
+		PresetHandler::showMessageWindow("No RSA key", "You have to create a RSA Key pair first.");
+		return;
+	}
+
+	String keyContent = KeyGeneration::generateKeyFile(appName, dummyEmail, userName, ids.joinIntoString("\n"), privateKey);
+
+	File key = handler->getWorkDirectory().getChildFile(appName + ".licence");
+
+	key.replaceWithText(keyContent);
 }

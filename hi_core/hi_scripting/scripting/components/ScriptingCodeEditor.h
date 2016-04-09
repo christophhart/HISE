@@ -529,6 +529,7 @@ public:
 		else if (v.isDouble()) return "double";
 		else if (v.isString()) return "String";
 		else if (v.isArray()) return "Array";
+        else if (v.isMethod()) return "Function";
 		else if (isObject && isCreatableScriptObject)
 		{
 			CreatableScriptObject * obj = dynamic_cast<CreatableScriptObject*>(v.getDynamicObject());

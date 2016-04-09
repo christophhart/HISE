@@ -419,8 +419,7 @@ void ModulatorChain::renderNextBlock(AudioSampleBuffer& buffer, int startSample,
 
 bool ModulatorChain::checkModulatorStructure()
 {
-	CHECK_KEY(getMainController());
-
+	
 	// Check the array size
 	const bool arraySizeCorrect = allModulators.size() == (voiceStartModulators.size() + envelopeModulators.size() + variantModulators.size());
 		

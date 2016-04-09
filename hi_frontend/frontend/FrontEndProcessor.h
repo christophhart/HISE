@@ -45,26 +45,6 @@ class FrontendProcessor: public PluginParameterAudioProcessor,
 public:
 	FrontendProcessor(ValueTree &synthData, ValueTree *imageData_=nullptr, ValueTree *impulseData=nullptr, ValueTree *externalScriptData=nullptr, ValueTree *userPresets=nullptr);
 
-	 inline void checkKey()
-	{
-
-#if USE_COPY_PROTECTION
-
-		if(unlocker.isUnlocked().isUndefined())
-		{
-			suspendProcessing(true);
-			keyFileCorrectlyLoaded = false;
-		}
-		else
-		{
-			suspendProcessing(false);
-			keyFileCorrectlyLoaded = true;
-		}
-
-#endif
-
-	}
-
 	~FrontendProcessor()
 	{
 		synthChain = nullptr;
@@ -184,6 +164,10 @@ public:
 	
     const ValueTree &getPresetData() const { return presets; };
     
+#if USE_COPY_PROTECTION
+	Unlocker unlocker;
+#endif
+
 private:
 
 	void loadImages(ValueTree *imageData)
@@ -203,10 +187,6 @@ private:
 
 	int numParameters;
 
-#if USE_COPY_PROTECTION
-	Unlocker unlocker;
-#endif
-
 	const ValueTree presets;
 
 	AudioPlayHead::CurrentPositionInfo lastPosInfo;
@@ -218,6 +198,8 @@ private:
 	ScopedPointer<AudioSampleBufferPool> audioSampleBufferPool;
 
 	int currentlyLoadedProgram;
+	
+	int unlockCounter;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FrontendProcessor)
 };

@@ -104,7 +104,7 @@ AudioFileEnvelope::AudioFileEnvelope(MainController *mc, const String &id, Modul
 
 	frequencyUpdater.setManualCountLimit(4096);
 
-	CHECK_KEY(getMainController());
+	CHECK_COPY_AND_RETURN_8(this);
 
 };
 
@@ -270,7 +270,7 @@ void AudioFileEnvelope::setInternalAttribute(int parameter_index, float newValue
 		break;
 	case Parameters::Mode:
 		mode = (EnvelopeFollowerMode)(int)newValue;
-		CHECK_KEY(getMainController());
+		CHECK_COPY_AND_RETURN_20(this);
 		attackReleaseEnvelopeFollower.setSampleRate(getSampleRate()); // update the coefficients
 		break;
 	case Parameters::SmoothTime:
@@ -368,7 +368,7 @@ void AudioFileEnvelope::prepareToPlay(double sampleRate, int samplesPerBlock)
 	
 	if(sampleRate != -1.0)
 	{
-		CHECK_KEY(getMainController());
+		CHECK_COPY_AND_RETURN_24(this);
 
 		intensityBuffer = AudioSampleBuffer(1, samplesPerBlock *2);
 		frequencyBuffer = AudioSampleBuffer(1, samplesPerBlock *2);

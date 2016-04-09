@@ -38,6 +38,74 @@
 
 class ScriptContentContainer;
 
+
+class DeactiveOverlay : public Component,
+						public ButtonListener
+{
+public:
+
+	DeactiveOverlay() :
+		currentState(0)
+	{
+		addAndMakeVisible(resolveLicenceButton = new TextButton("Find Licence File"));
+		addAndMakeVisible(resolveSamplesButton = new TextButton("Choose Sample Folder"));
+
+		resolveLicenceButton->setLookAndFeel(&alaf);
+		resolveSamplesButton->setLookAndFeel(&alaf);
+
+		resolveLicenceButton->addListener(this);
+		resolveSamplesButton->addListener(this);
+	};
+
+	void buttonClicked(Button *b);
+
+	enum State
+	{
+		AppDataDirectoryNotFound,
+		SamplesNotFound,
+		LicenceNotFound,
+		numReasons
+	};
+
+	void paint(Graphics &g)
+	{
+		g.setColour(Colours::black.withAlpha(0.8f));
+		g.fillAll();
+	}
+
+	void setState(State s, bool value)
+	{
+		currentState.setBit(s, value);
+
+		setVisible(currentState != 0);
+		resized();
+	}
+
+	void resized()
+	{
+		if (currentState[LicenceNotFound])
+		{
+			resolveLicenceButton->centreWithSize(200, 32);
+		}
+		else if (currentState[SamplesNotFound])
+		{
+			resolveSamplesButton->centreWithSize(200, 32);
+		}
+	}
+	
+
+private:
+
+	AlertWindowLookAndFeel alaf;
+
+	ScopedPointer<TextButton> resolveLicenceButton;
+	ScopedPointer<TextButton> resolveSamplesButton;
+
+	BigInteger currentState;
+	
+};
+
+
 class MidiKeyboardFocusTraverser : public KeyboardFocusTraverser
 {
 	Component *getDefaultComponent(Component *parentComponent) override;
@@ -52,20 +120,18 @@ public:
 
 	void timerCallback()
 	{
-		dynamic_cast<FrontendProcessor*>(getAudioProcessor())->checkKey();
+		if (!dynamic_cast<FrontendProcessor*>(getAudioProcessor())->unlocker.isUnlocked())
+		{
+			getAudioProcessor()->suspendProcessing(true);
+		}
 	}
 
 	KeyboardFocusTraverser *createFocusTraverser() override { return new MidiKeyboardFocusTraverser(); };
 
 	void paint(Graphics &g)
 	{
-		dynamic_cast<FrontendProcessor*>(getAudioProcessor())->checkKey();
-
+		
 		g.fillAll(Colours::black);
-
-		g.setFont(13.0f);
-		g.setColour(Colours::black);
-		g.drawText("Samples were not loaded correctly. Plugin is not working!", getLocalBounds(), Justification::centred, false);
 
 	};
 
@@ -87,6 +153,8 @@ private:
 	ScopedPointer<CustomKeyboard> keyboard;
 
 	ScopedPointer<AboutPage> aboutPage;
+
+	ScopedPointer<DeactiveOverlay> deactiveOverlay;
 
 };
 

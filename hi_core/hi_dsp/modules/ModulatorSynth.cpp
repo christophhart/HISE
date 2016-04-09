@@ -426,6 +426,8 @@ void ModulatorSynth::prepareToPlay(double sampleRate, int samplesPerBlock)
 		gainChain->prepareToPlay(sampleRate, samplesPerBlock);
 		pitchChain->prepareToPlay(sampleRate, samplesPerBlock);
 
+		CHECK_COPY_AND_RETURN_12(effectChain);
+
 		effectChain->prepareToPlay(sampleRate, samplesPerBlock);
 
 		setKillFadeOutTime(killFadeTime);
@@ -771,6 +773,8 @@ void ModulatorSynthChainFactoryType::fillTypeNameList()
 Processor* ModulatorSynthChainFactoryType::createProcessor	(int typeIndex, const String &id)
 {
 	MainController *m = getOwnerProcessor()->getMainController();
+
+	
 
 	switch(typeIndex)
 	{

@@ -33,6 +33,8 @@
 
 void FrontendProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {
+	if ((unlockCounter & 1023 == 0) && !unlocker.isUnlocked()) return;
+
     AudioPlayHead::CurrentPositionInfo newTime;
 
     if (getPlayHead() != nullptr && getPlayHead()->getCurrentPosition (newTime))
@@ -72,8 +74,6 @@ void FrontendProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer& mid
 	uptime += double(buffer.getNumSamples()) / getSampleRate();
 
 	stopCpuBenchmark();
-
-	
 };
 
 void FrontendProcessor::handleControllersForMacroKnobs(const MidiBuffer &midiMessages)
@@ -113,7 +113,8 @@ synthChain(new ModulatorSynthChain(this, "Master Chain", NUM_POLYPHONIC_VOICES))
 samplesCorrectlyLoaded(true),
 keyFileCorrectlyLoaded(true),
 presets(*userPresets),
-currentlyLoadedProgram(0)
+currentlyLoadedProgram(0),
+unlockCounter(0)
 {
 #if USE_COPY_PROTECTION
 
@@ -126,9 +127,6 @@ currentlyLoadedProgram(0)
 		DBG("FAIL");
 
 		keyFileCorrectlyLoaded = false;
-
-		return;
-
 	}
 
 #endif
@@ -147,51 +145,52 @@ currentlyLoadedProgram(0)
 
 	numParameters = 0;
 
-	if (samplesCorrectlyLoaded)
+	getMacroManager().setMacroChain(synthChain);
+
+	synthChain->setId(synthData.getProperty("ID", String::empty));
+
+	suspendProcessing(true);
+
+	synthChain->restoreFromValueTree(synthData);
+
+	synthChain->compileAllScripts();
+
+	synthChain->loadMacrosFromValueTree(synthData);
+
+	for (int i = 0; i < 8; i++)
 	{
-		getMacroManager().setMacroChain(synthChain);
-
-		synthChain->setId(synthData.getProperty("ID", String::empty));
-
-		suspendProcessing(true);
-
-		synthChain->restoreFromValueTree(synthData);
-
-		synthChain->compileAllScripts();
-
-		synthChain->loadMacrosFromValueTree(synthData);
-
-		for (int i = 0; i < 8; i++)
+		if (synthChain->getMacroControlData(i)->getNumParameters() != 0)
 		{
-			if (synthChain->getMacroControlData(i)->getNumParameters() != 0)
-			{
-				numParameters++;
-			}
+			numParameters++;
 		}
-
-		if (getSampleRate() > 0)
-		{
-			synthChain->prepareToPlay(getSampleRate(), getBlockSize());
-		}
-
-		suspendProcessing(false);
 	}
+
+	CHECK_COPY_AND_RETURN_6(synthChain);
+
+	if (getSampleRate() > 0)
+	{
+		synthChain->prepareToPlay(getSampleRate(), getBlockSize());
+	}
+
+	suspendProcessing(false);
 }
 
 void FrontendProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-	checkKey();
-	
+	suspendProcessing(true);
+
+	CHECK_COPY_AND_RETURN_1(synthChain);
 		
 	MainController::prepareToPlay(sampleRate, samplesPerBlock);
-
 	synthChain->prepareToPlay(sampleRate, samplesPerBlock);
-	
-	
+
+	suspendProcessing(false);
 };
 
 AudioProcessorEditor* FrontendProcessor::createEditor()
 {
+	
+
 	return new FrontendProcessorEditor(this);
 }
 

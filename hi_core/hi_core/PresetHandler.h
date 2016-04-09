@@ -50,30 +50,36 @@ class FactoryType;
 
 #if USE_COPY_PROTECTION
 
-class Unlocker: public TracktionMarketplaceStatus
+class Unlocker: public OnlineUnlockStatus
 {
 public:
     Unlocker():
         state(String::empty)
     {}
-    String getMarketplaceProductID()
-    {
-        return String(PRODUCT_ID);
-    }
-    RSAKey getPublicKey() override
-    {
-        return RSAKey(String(PUBLIC_KEY));
-    }
+
+	String getProductID() override { return String(JucePlugin_Name); };
+
+	bool doesProductIDMatch(const String& returnedIDFromServer) override { return returnedIDFromServer == getProductID(); };
+
+    juce::RSAKey getPublicKey() override;
+
     String getState() override
     {
         return state;
     };
-    StringArray getLocalMachineIDs() override
-    {
-        StringArray sa;
-        sa.add("BYPASS");
-        return sa;
-    };
+
+	String getWebsiteName() override
+	{
+		return JucePlugin_ManufacturerWebsite;
+	}
+
+	String readReplyFromWebserver(const String &email, const String &password) override { return ""; };
+
+	URL getServerAuthenticationURL() override
+	{
+		return URL(JucePlugin_ManufacturerWebsite).getChildURL("authorize/index.php");
+	}
+   
     void saveState(const String &s) override
     {
         state = s;
@@ -81,6 +87,8 @@ public:
 private:
     String state;
 };
+
+
 
 #endif
 
@@ -93,7 +101,7 @@ public:
 	{
 		addAndMakeVisible(checkUpdateButton = new TextButton("Check Updates"));
 
-		refreshText();
+		
 	};
 
 	void refreshText();
@@ -111,6 +119,8 @@ public:
 
 	void resized() override
 	{
+		refreshText();
+
 #if USE_BACKEND
 		//checkUpdateButton->setBounds(16, getHeight() - 32, 100, 24);
 #endif
@@ -217,15 +227,34 @@ public:
 	/** Fills the given array with the contents of the specified directory. If 'sortByTime' is true, the most recent files will be the first items in the list. */
 	void getFileList(Array<File> &filesInDirectory, SubDirectories dir, const String &wildcard, bool sortByTime = false);
 
+	void createRSAKey() const;
+
+	String getPublicKey() const;
+
+	String getPrivateKey() const;
+
 	class Frontend
 	{
 	public:
 
 		static File getSampleLocationForCompiledPlugin();
 
+		/** This returns the app data directory, which must be created by the installer of your product.
+		*
+		*	On OSX this will be ("Users/Library/Application Support/Company/Product/") and on Windows ("Users/AppData/Local/Company/Product").
+		*
+		*	This directory will be used for:
+		*	- sample location folder (using a LinkOS file)
+		*	- user presets (in the UserPresets subfolder)
+		*	- licence key file
+		*/
 		static File getAppDataDirectory();
 
+		static File getLicenceKey();
+
 		static String getSanitiziedFileNameForPoolReference(const String &absoluteFileName);
+		
+		static void setSampleLocation(const File &newLocation);
 	};
 
 private:
@@ -451,24 +480,11 @@ public:
 #if USE_COPY_PROTECTION
 	static bool loadKeyFile(Unlocker &ul)
 	{
-		File keyFile = File(getDataFolder() + "/" + String(PRODUCT_ID) + ".licence");
+		File keyFile = ProjectHandler::Frontend::getLicenceKey();
 
-		if(!keyFile.existsAsFile())
+		if (keyFile.existsAsFile())
 		{
-			File newKeyFile = checkFile(keyFile.getFullPathName());
-
-			keyFile.create();
-
-			newKeyFile.copyFileTo(keyFile);
-		}
-
-		
-
-		if (keyFile.exists())
-		{
-			FileInputStream fis(keyFile);
-
-			String keyData = fis.readEntireStreamAsString();
+			String keyData = keyFile.loadFileAsString();
 
 			ul.applyKeyFile(keyData);
 

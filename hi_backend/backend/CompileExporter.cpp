@@ -36,7 +36,7 @@ void CompileExporter::exportMainSynthChainAsPackage(ModulatorSynthChain *chainTo
 	String uniqueId, version, solutionDirectory, publicKey;
 	BuildOption buildOption = showCompilePopup(publicKey, uniqueId, version, solutionDirectory);
 
-	publicKey = "12345678"; // Todo
+	publicKey = GET_PROJECT_HANDLER(chainToExport).getPublicKey();
 	uniqueId = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, &GET_PROJECT_HANDLER(chainToExport));
 	version = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, &GET_PROJECT_HANDLER(chainToExport));
 
@@ -226,9 +226,22 @@ CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(const St
 {
 	String pluginDataHeaderFile;
 
+	if (publicKey.isNotEmpty())
+	{
+		pluginDataHeaderFile << "#define PUBLIC_KEY \"" << publicKey << "\"\n";
+		pluginDataHeaderFile << "\n";
+	}
 	pluginDataHeaderFile << "#include \"JuceHeader.h\"" << "\n";
 	pluginDataHeaderFile << "#include \"PresetData.h\"\n";
 	pluginDataHeaderFile << "\n";
+	
+	if (publicKey.isNotEmpty())
+	{
+		pluginDataHeaderFile << "#if USE_COPY_PROTECTION" << "\n";
+		pluginDataHeaderFile << "RSAKey Unlocker::getPublicKey() { return RSAKey(String(PUBLIC_KEY)); };" << "\n"; 
+		pluginDataHeaderFile << "#endif" << "\n";
+	}
+	
 	pluginDataHeaderFile << "AudioProcessor* JUCE_CALLTYPE createPluginFilter() { CREATE_PLUGIN; }\n";
 	pluginDataHeaderFile << "\n";
 	File pluginDataHeader = File(solutionDirectory).getChildFile("Source/Plugin.cpp");

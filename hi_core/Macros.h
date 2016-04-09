@@ -95,4 +95,7 @@
 
 #define DEBUG_BG_COLOUR 0xff636363
 
+#include "copyProtectionMacros.h"
+
+
 #endif  // MACROS_H_INCLUDED

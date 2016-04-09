@@ -1683,6 +1683,8 @@ StringArray ScriptingApi::Content::ScriptImage::getOptionsFor(const Identifier &
 
 void ScriptingApi::Content::ScriptImage::setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor)
 {
+	CHECK_COPY_AND_RETURN_17(getScriptProcessor());
+
 	if(id == getIdFor(FileName))
 	{
 		setImageFile(newValue, true);
@@ -1693,6 +1695,10 @@ void ScriptingApi::Content::ScriptImage::setScriptObjectPropertyWithChangeMessag
 
 void ScriptingApi::Content::ScriptImage::setImageFile(const String &absoluteFileName, bool forceUseRealFile)
 {
+	ignoreUnused(forceUseRealFile);
+
+	CHECK_COPY_AND_RETURN_10(getScriptProcessor());
+
 	if (absoluteFileName.isEmpty())
 	{
 		setScriptObjectProperty(FileName, absoluteFileName);
@@ -2135,6 +2141,8 @@ image(nullptr),
 minimum(0.0f),
 maximum(1.0f)
 {
+	CHECK_COPY_AND_RETURN_22(base);
+
 	propertyIds.add(Identifier("mode"));			ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	propertyIds.add(Identifier("style"));			ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	propertyIds.add(Identifier("stepSize"));		
@@ -2314,6 +2322,8 @@ void ScriptingApi::Content::ScriptSlider::setMidPoint(double valueForMidPoint)
 		reportScriptError("setMidPoint() value must be in the knob range.");
 		valueForMidPoint = (range.getEnd() - range.getStart()) / 2.0 + range.getStart();
 	}
+
+	CHECK_COPY_AND_RETURN_11(getScriptProcessor());
 
 	setScriptObjectProperty(middlePosition, valueForMidPoint);	
 }
@@ -2528,6 +2538,8 @@ void ScriptingApi::Content::restoreAllControlsFromPreset(const String &fileName)
 {
 #if USE_FRONTEND
     
+	CHECK_COPY_AND_RETURN_23(getScriptProcessor());
+
     const ValueTree parent = dynamic_cast<FrontendProcessor*>(getScriptProcessor()->getMainController())->getPresetData();
     
     ValueTree v;
