@@ -211,7 +211,12 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Close Project", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
 		break;
 	case MenuProjectShowInFinder:
-		setCommandTarget(result, "Show Project folder in " + String((SystemStats::getOperatingSystemType() == SystemStats::OperatingSystemType::MacOSX) ? "Finder" : "Explorer"), GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
+#if JUCE_WINDOWS
+        setCommandTarget(result, "Show Project folder in Explorer",
+#else
+		setCommandTarget(result, "Show Project folder in Finder",
+#endif
+        GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
 		break;
     case MenuFileSaveUserPreset:
         setCommandTarget(result, "Save current state as new User Preset", true, false, 'X', false);
@@ -387,7 +392,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
                                             bpe->clearPreset(); return true;
 	case MenuOpenFile:                  Actions::openFile(bpe); return true;
 	case MenuSaveFile:                  Actions::saveFile(bpe); return true;
-	case MenuSaveFileAsXmlBackup:		Actions::saveFileAsXml(bpe); return true;
+    case MenuSaveFileAsXmlBackup:		Actions::saveFileAsXml(bpe); updateCommands(); return true;
     case MenuOpenXmlBackup:             { FileChooser fc("Select XML file to load",
                                                          GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::XMLPresetBackups), "*.xml", true);
                                         if (fc.browseForFileToOpen()) Actions::openFileFromXml(bpe, fc.getResult()); return true;}
@@ -712,6 +717,8 @@ void BackendCommandTarget::menuItemSelected(int menuItemID, int /*topLevelMenuIn
 			bpe->clearPreset();
 
 			GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(file);
+            
+            menuItemsChanged();
 		}
 	}
     else if (menuItemID >= MenuFileUserPresetMenuOffset && menuItemID < ((int)MenuFileUserPresetMenuOffset+50))
@@ -1446,6 +1453,8 @@ void BackendCommandTarget::Actions::saveFileAsXml(BackendProcessorEditor * bpe)
 			fc.getResult().replaceWithText(xml->createDocument(""));
 
 			debugToConsole(bpe->owner->getMainSynthChain(), "Exported as XML");
+            
+            
 		}
 	}
 }
