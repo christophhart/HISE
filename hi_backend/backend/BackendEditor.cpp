@@ -580,14 +580,15 @@ void BackendProcessorEditor::resized()
 		menuBar->setBounds(0, 0, getWidth(), menuBarOffset);
 	}
 
+	const float dpiScale = Desktop::getInstance().getGlobalScaleFactor();
 
 	int columns = 0;
 
-	if (getWidth() < 1279)
+	if ((float)getWidth()*dpiScale < 1279.0f)
 	{
 		columns = 1;
 	}
-	else if (getWidth() <= 1600)
+	else if ((float)getWidth() * dpiScale <= 1600.0f)
 	{
 		columns = 2;
 	}
