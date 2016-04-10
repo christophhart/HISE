@@ -964,7 +964,7 @@ SampleThreadPoolJob::JobStatus SampleLoader::runJob()
     const double readStop = Time::highResolutionTicksToSeconds(Time::getHighResolutionTicks());
     const double readTime = (readStop - readStart);
     const double timeSinceLastCall = readStop - lastCallToRequestData;
-	const double diskUsageThisTime = jmax(diskUsage.get(), readTime / timeSinceLastCall);
+	const float diskUsageThisTime = jmax<float>(diskUsage.get(), (float)(readTime / timeSinceLastCall));
     diskUsage = diskUsageThisTime;
     lastCallToRequestData = readStart;
     

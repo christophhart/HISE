@@ -573,7 +573,7 @@ public:
     void clearLoader()
     {   
         sound = nullptr;
-        diskUsage = 0.0;
+        diskUsage = 0.0f;
         readPointerLeft = nullptr;
         readPointerRight = nullptr;
     }
@@ -585,8 +585,8 @@ public:
 	*/
 	double getDiskUsage() noexcept
 	{
-		const double returnValue = diskUsage.get();
-		diskUsage = 0.0;
+		const double returnValue = (double)diskUsage.get();
+		diskUsage = 0.0f;
 		return returnValue;
 	};
 
@@ -667,7 +667,7 @@ private:
 
 	// variables for disk usage measurement
 
-	Atomic<double> diskUsage;
+	Atomic<float> diskUsage;
 	double lastCallToRequestData;
 
 	// just a pointer to the used pool
