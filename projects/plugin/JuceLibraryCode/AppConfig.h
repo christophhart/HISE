@@ -69,6 +69,10 @@
  //#define IS_STANDALONE_APP
 #endif
 
+#ifndef    USE_COPY_PROTECTION
+ //#define USE_COPY_PROTECTION
+#endif
+
 #ifndef    USE_IPP
  //#define USE_IPP
 #endif
