@@ -157,21 +157,15 @@ ProcessorEditorBody * SaturatorEffect::createEditor(BetterProcessorEditor *paren
 #endif
 }
 
-void SaturatorEffect::renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples)
+void SaturatorEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples)
 {
-    if(getLeftSourceChannel() >= getMatrix().getNumDestinationChannels() ||
-       getRightSourceChannel() >= getMatrix().getNumDestinationChannels())
-        return;
-    
-	float *l = buffer.getWritePointer(getLeftSourceChannel(), startSample);
-	float *r = buffer.getWritePointer(getRightSourceChannel(), startSample);
+    float *l = buffer.getWritePointer(0, startSample);
+	float *r = buffer.getWritePointer(1, startSample);
 
 	float const *modValues = nullptr;
 
 	if (!saturationChain->isBypassed() && saturationChain->getNumChildProcessors() != 0)
 	{
-		saturationChain->renderAllModulatorsAsMonophonic(saturationBuffer, startSample, numSamples);
-
 		modValues = saturationBuffer.getReadPointer(0, startSample);
 	}
 

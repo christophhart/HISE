@@ -75,6 +75,16 @@ public:
 	void restoreFromValueTree(const ValueTree &v) override;;
 	ValueTree exportAsValueTree() const override;
 
+	AudioSampleBuffer &getBufferForChain(int index) override
+	{
+		switch (index)
+		{
+		case GainChain: return gainBuffer;
+		case DelayChain: return delayBuffer;
+		case WidthChain: return widthBuffer;
+		default: jassertfalse; return gainBuffer;
+		}
+	}
 	
 	bool hasTail() const override { return false; };
 
@@ -105,9 +115,8 @@ public:
 
 	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
 
-	virtual void renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples);;
 	void prepareToPlay(double sampleRate, int samplesPerBlock);
-	void applyEffect(AudioSampleBuffer &/*b*/, int /*startSample*/, int /*numSamples*/) override {};
+	void applyEffect(AudioSampleBuffer &b, int startSample, int numSamples) override;;
 
     void setDelayTime(float newDelayInMilliseconds)
     {

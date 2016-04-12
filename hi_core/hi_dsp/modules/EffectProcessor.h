@@ -297,7 +297,7 @@ public:
 	virtual void applyEffect(AudioSampleBuffer &b, int startSample, int numSamples) = 0;
 
 	/** This only renders the modulatorChains. */
-	virtual void renderNextBlock(AudioSampleBuffer &/*buffer*/, int startSample, int numSamples) override
+	virtual void renderNextBlock(AudioSampleBuffer &/*buffer*/, int startSample, int numSamples) final override
 	{
 		renderAllChains(startSample, numSamples);
 	}
@@ -306,7 +306,7 @@ public:
 	*
 	*	You can still modulate the wet signal amount or pan effects using multiplications
 	**/
-	void renderWholeBuffer(AudioSampleBuffer &buffer)
+	virtual void renderWholeBuffer(AudioSampleBuffer &buffer)
 	{
 		if (getLeftSourceChannel() != -1 && getRightSourceChannel() != -1 &&
             getLeftSourceChannel() < getMatrix().getNumDestinationChannels() &&

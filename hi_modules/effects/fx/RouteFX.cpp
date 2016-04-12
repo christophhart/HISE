@@ -51,8 +51,26 @@ ProcessorEditorBody *RouteEffect::createEditor(BetterProcessorEditor *parentEdit
 #endif
 }
 
-void RouteEffect::renderNextBlock(AudioSampleBuffer &b, int /*startSample*/, int numSamples)
+void RouteEffect::renderWholeBuffer(AudioSampleBuffer &b)
 {
+	
+
+	const int numSamples = b.getNumSamples();
+
+	if (getMatrix().isEditorShown())
+	{
+		float gainValues[NUM_MAX_CHANNELS];
+
+		jassert(getMatrix().getNumSourceChannels() == b.getNumChannels());
+
+		for (int i = 0; i < b.getNumChannels(); i++)
+		{
+			gainValues[i] = b.getMagnitude(i, 0, b.getNumSamples());
+		}
+
+		getMatrix().setGainValues(gainValues, true);
+	}
+
 	for (int i = 0; i < b.getNumChannels(); i++)
 	{
 		const int j = getMatrix().getSendForSourceChannel(i);
@@ -62,6 +80,22 @@ void RouteEffect::renderNextBlock(AudioSampleBuffer &b, int /*startSample*/, int
 			FloatVectorOperations::add(b.getWritePointer(j), b.getReadPointer(i), numSamples);
 		}
 	}
+
+	if (getMatrix().isEditorShown())
+	{
+		float gainValues[NUM_MAX_CHANNELS];
+
+		jassert(getMatrix().getNumDestinationChannels() == b.getNumChannels());
+
+		for (int i = 0; i < b.getNumChannels(); i++)
+		{
+			gainValues[i] = b.getMagnitude(i, 0, b.getNumSamples());
+		}
+
+		getMatrix().setGainValues(gainValues, false);
+	}
+	
+
 }
 
 void RouteEffect::applyEffect(AudioSampleBuffer &, int, int /*numSamples*/)

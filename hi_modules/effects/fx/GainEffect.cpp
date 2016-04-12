@@ -110,91 +110,84 @@ ProcessorEditorBody *GainEffect::createEditor(BetterProcessorEditor *parentEdito
 #endif
 }
 
-void GainEffect::renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples)
+
+void GainEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples)
 {
-	const int left = getLeftSourceChannel();
-	const int right = getRightSourceChannel();
+	const int samplesToCopy = numSamples;
+	const int startIndex = startSample;
 
-    if(left < buffer.getNumChannels() && right < buffer.getNumChannels())
-    {
-		const int samplesToCopy = numSamples;
-		const int startIndex = startSample;
+	float *l = buffer.getWritePointer(0, startIndex);
+	float *r = buffer.getWritePointer(1, startIndex);
 
-		float *l = buffer.getWritePointer(left, startIndex);
-		float *r = buffer.getWritePointer(right, startIndex);
-        
-        if (!delayChain->isBypassed() && delayChain->getNumChildProcessors() != 0)
-        {
-            delayChain->renderAllModulatorsAsMonophonic(delayBuffer, startIndex, samplesToCopy);
-            
-            const float thisDelayTime = delayBuffer.getSample(0, 0);
-            
-            leftDelay.setDelayTimeSeconds(thisDelayTime / 1000.0f);
-            rightDelay.setDelayTimeSeconds(thisDelayTime / 1000.0f);
-        }
-        
-        while (numSamples > 0)
-        {
-            const float smoothedGain = smoother.smooth(gain);
-            
-            l[0] = leftDelay.getDelayedValue(smoothedGain * l[0]);
-            r[0] = rightDelay.getDelayedValue(smoothedGain * r[0]);
-            
-            l[1] = leftDelay.getDelayedValue(smoothedGain * l[1]);
-            r[1] = rightDelay.getDelayedValue(smoothedGain * r[1]);
-            
-            l[2] = leftDelay.getDelayedValue(smoothedGain * l[2]);
-            r[2] = rightDelay.getDelayedValue(smoothedGain * r[2]);
-            
-            l[3] = leftDelay.getDelayedValue(smoothedGain * l[3]);
-            r[3] = rightDelay.getDelayedValue(smoothedGain * r[3]);
-            
-            l += 4;
-            r += 4;
-            
-            numSamples -= 4;
-        }
-        
-        
-        if(msDecoder.getWidth() != 1.0f)
-        {
-            numSamples = samplesToCopy;
-            
-            float *l = buffer.getWritePointer(left, startIndex);
-            float *r = buffer.getWritePointer(right, startIndex);
-            
-            if (!widthChain->isBypassed() && widthChain->getNumChildProcessors() != 0)
-            {
-                widthChain->renderAllModulatorsAsMonophonic(widthBuffer, startIndex, samplesToCopy);
-                
-                const float thisWidth = (msDecoder.getWidth() - 1.0f) * widthBuffer.getSample(0, 0) + 1.0f;
-                
-                msDecoder.setWidth(thisWidth);
-            }
-            
-            while (numSamples > 0)
-            {
-                msDecoder.calculateStereoValues(l[0], r[0]);
-                msDecoder.calculateStereoValues(l[1], r[1]);
-                msDecoder.calculateStereoValues(l[2], r[2]);
-                msDecoder.calculateStereoValues(l[3], r[3]);
-                
-                l += 4;
-                r += 4;
-                
-                numSamples -= 4;
-            }
-        }
-        
-        if (!gainChain->isBypassed() && gainChain->getNumChildProcessors() != 0)
-        {
-            gainChain->renderAllModulatorsAsMonophonic(gainBuffer, startIndex, samplesToCopy);
-            
-            FloatVectorOperations::multiply(buffer.getWritePointer(left, startIndex), gainBuffer.getReadPointer(0, startIndex), samplesToCopy);
-            FloatVectorOperations::multiply(buffer.getWritePointer(right, startIndex), gainBuffer.getReadPointer(0, startIndex), samplesToCopy);
-        }
-    }
+	if (!delayChain->isBypassed() && delayChain->getNumChildProcessors() != 0)
+	{
+		const float thisDelayTime = delayBuffer.getSample(0, 0);
+
+		leftDelay.setDelayTimeSeconds(thisDelayTime / 1000.0f);
+		rightDelay.setDelayTimeSeconds(thisDelayTime / 1000.0f);
+	}
+
+	while (numSamples > 0)
+	{
+		const float smoothedGain = smoother.smooth(gain);
+
+		l[0] = leftDelay.getDelayedValue(smoothedGain * l[0]);
+		r[0] = rightDelay.getDelayedValue(smoothedGain * r[0]);
+
+		l[1] = leftDelay.getDelayedValue(smoothedGain * l[1]);
+		r[1] = rightDelay.getDelayedValue(smoothedGain * r[1]);
+
+		l[2] = leftDelay.getDelayedValue(smoothedGain * l[2]);
+		r[2] = rightDelay.getDelayedValue(smoothedGain * r[2]);
+
+		l[3] = leftDelay.getDelayedValue(smoothedGain * l[3]);
+		r[3] = rightDelay.getDelayedValue(smoothedGain * r[3]);
+
+		l += 4;
+		r += 4;
+
+		numSamples -= 4;
+	}
+
+
+	if (msDecoder.getWidth() != 1.0f)
+	{
+		numSamples = samplesToCopy;
+
+		float *l = buffer.getWritePointer(0, startIndex);
+		float *r = buffer.getWritePointer(1, startIndex);
+
+		if (!widthChain->isBypassed() && widthChain->getNumChildProcessors() != 0)
+		{
+			const float thisWidth = (msDecoder.getWidth() - 1.0f) * widthBuffer.getSample(0, 0) + 1.0f;
+
+			msDecoder.setWidth(thisWidth);
+		}
+
+		while (numSamples > 0)
+		{
+			msDecoder.calculateStereoValues(l[0], r[0]);
+			msDecoder.calculateStereoValues(l[1], r[1]);
+			msDecoder.calculateStereoValues(l[2], r[2]);
+			msDecoder.calculateStereoValues(l[3], r[3]);
+
+			l += 4;
+			r += 4;
+
+			numSamples -= 4;
+		}
+	}
+
+	if (!gainChain->isBypassed() && gainChain->getNumChildProcessors() != 0)
+	{
+
+		FloatVectorOperations::multiply(buffer.getWritePointer(0, startIndex), gainBuffer.getReadPointer(0, startIndex), samplesToCopy);
+		FloatVectorOperations::multiply(buffer.getWritePointer(1, startIndex), gainBuffer.getReadPointer(0, startIndex), samplesToCopy);
+	}
 }
+
+
+
 
 void GainEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
@@ -220,4 +213,3 @@ void GainEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 		smoother.setSmoothingTime(4.0);
 	}
 }
-

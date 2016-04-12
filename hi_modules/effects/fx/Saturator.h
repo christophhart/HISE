@@ -70,6 +70,11 @@ public:
 	float getAttribute(int parameterIndex) const override;
 	float getDefaultValue(int parameterIndex) const override;
 
+	AudioSampleBuffer &getBufferForChain(int index) override
+	{
+		return saturationBuffer;
+	}
+
 	void restoreFromValueTree(const ValueTree &v) override;;
 	ValueTree exportAsValueTree() const override;
 
@@ -82,9 +87,8 @@ public:
 
 	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
 
-	virtual void renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples);;
-	void prepareToPlay(double sampleRate, int samplesPerBlock);
-	void applyEffect(AudioSampleBuffer &/*b*/, int /*startSample*/, int /*numSamples*/) override {};
+	void applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples) override;
+	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 
 private:
 

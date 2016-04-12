@@ -83,7 +83,7 @@ public:
 		MasterEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 	}
 
-	virtual void renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples) override;
+	void renderWholeBuffer(AudioSampleBuffer &buffer) override;
 	
 
 	void applyEffect(AudioSampleBuffer &/*b*/, int /*startSample*/, int /*numSamples*/) override;
