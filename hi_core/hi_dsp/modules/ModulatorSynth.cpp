@@ -478,7 +478,7 @@ void ModulatorSynth::noteOn(int midiChannel, int midiNoteNumber, float velocity)
     for (int i = sounds.size(); --i >= 0;)
     {
 		SynthesiserSound *s = sounds.getUnchecked(i);
-        ModulatorSynthSound *sound = dynamic_cast<ModulatorSynthSound*>(s);
+        ModulatorSynthSound *sound = static_cast<ModulatorSynthSound*>(s);
 
 		if (soundCanBePlayed(sound, midiChannel, midiNoteNumber, velocity))
         {

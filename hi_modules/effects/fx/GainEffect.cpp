@@ -121,7 +121,7 @@ void GainEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, int num
 
 	if (!delayChain->isBypassed() && delayChain->getNumChildProcessors() != 0)
 	{
-		const float thisDelayTime = delayBuffer.getSample(0, 0);
+		const float thisDelayTime = delay * delayBuffer.getSample(0, 0);
 
 		leftDelay.setDelayTimeSeconds(thisDelayTime / 1000.0f);
 		rightDelay.setDelayTimeSeconds(thisDelayTime / 1000.0f);
@@ -131,17 +131,34 @@ void GainEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, int num
 	{
 		const float smoothedGain = smoother.smooth(gain);
 
-		l[0] = leftDelay.getDelayedValue(smoothedGain * l[0]);
-		r[0] = rightDelay.getDelayedValue(smoothedGain * r[0]);
+		if (delay != 0)
+		{
+			l[0] = leftDelay.getDelayedValue(smoothedGain * l[0]);
+			r[0] = rightDelay.getDelayedValue(smoothedGain * r[0]);
 
-		l[1] = leftDelay.getDelayedValue(smoothedGain * l[1]);
-		r[1] = rightDelay.getDelayedValue(smoothedGain * r[1]);
+			l[1] = leftDelay.getDelayedValue(smoothedGain * l[1]);
+			r[1] = rightDelay.getDelayedValue(smoothedGain * r[1]);
 
-		l[2] = leftDelay.getDelayedValue(smoothedGain * l[2]);
-		r[2] = rightDelay.getDelayedValue(smoothedGain * r[2]);
+			l[2] = leftDelay.getDelayedValue(smoothedGain * l[2]);
+			r[2] = rightDelay.getDelayedValue(smoothedGain * r[2]);
 
-		l[3] = leftDelay.getDelayedValue(smoothedGain * l[3]);
-		r[3] = rightDelay.getDelayedValue(smoothedGain * r[3]);
+			l[3] = leftDelay.getDelayedValue(smoothedGain * l[3]);
+			r[3] = rightDelay.getDelayedValue(smoothedGain * r[3]);
+		}
+		else
+		{
+			l[0] = smoothedGain * l[0];
+			r[0] = smoothedGain * r[0];
+
+			l[1] = smoothedGain * l[1];
+			r[1] = smoothedGain * r[1];
+
+			l[2] = smoothedGain * l[2];
+			r[2] = smoothedGain * r[2];
+
+			l[3] = smoothedGain * l[3];
+			r[3] = smoothedGain * r[3];
+		}
 
 		l += 4;
 		r += 4;

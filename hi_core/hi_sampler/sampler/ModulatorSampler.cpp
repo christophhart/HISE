@@ -699,7 +699,7 @@ bool ModulatorSampler::soundCanBePlayed(ModulatorSynthSound *sound, int midiChan
 {
 	const bool messageFits = ModulatorSynth::soundCanBePlayed(sound, midiChannel, midiNoteNumber, velocity);
 
-	const bool rrGroupApplies = crossfadeGroups || dynamic_cast<ModulatorSamplerSound*>(sound)->appliesToRRGroup(currentRRGroupIndex);
+	const bool rrGroupApplies = crossfadeGroups || static_cast<ModulatorSamplerSound*>(sound)->appliesToRRGroup(currentRRGroupIndex);
 
 	return messageFits && rrGroupApplies;
 }

@@ -182,7 +182,7 @@ void GlobalModulatorContainerVoice::startNote(int midiNoteNumber, float /*veloci
 
 void GlobalModulatorContainerVoice::calculateBlock(int startSample, int numSamples)
 {
-	GlobalModulatorContainer *owner = dynamic_cast<GlobalModulatorContainer*>(getOwnerSynth());
+	GlobalModulatorContainer *owner = static_cast<GlobalModulatorContainer*>(getOwnerSynth());
 
 	for (int i = 0; i < owner->data.size(); i++)
 	{

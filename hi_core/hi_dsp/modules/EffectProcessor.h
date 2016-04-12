@@ -218,7 +218,7 @@ public:
 	{
 		for(int i = 0; i < getNumInternalChains(); i++)
 		{
-			ModulatorChain *mc = dynamic_cast<ModulatorChain*>(getChildProcessor(i));
+			ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(i));
 			jassert(mc != nullptr);
 			mc->renderVoice(0, startSample, numSamples);
 
