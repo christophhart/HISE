@@ -60,7 +60,7 @@ if %build_version% NEQ %prev_version% (
 
 	del %nightly_build_folder%\changelog_%build_version%.txt
 	
-	xcopy changelog.rtf %nightly_build_folder% /Y
+	xcopy changelog.txt %nightly_build_folder% /Y
 
 	ren %nightly_build_folder%\changelog.txt changelog_%build_version%.txt
 	
