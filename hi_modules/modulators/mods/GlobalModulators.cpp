@@ -250,13 +250,15 @@ float GlobalVoiceStartModulator::getAttribute(int parameterIndex) const
 	}
 }
 
-float GlobalVoiceStartModulator::calculateVoiceStartValue(const MidiMessage &)
+float GlobalVoiceStartModulator::calculateVoiceStartValue(const MidiMessage &m)
 {
 	if (isConnected())
 	{
+		jassert(m.isNoteOn());
 
+		const int noteNumber = m.getNoteNumber();
 
-		float globalValue = getConnectedContainer()->getConstantVoiceValue(getOriginalModulator());
+		float globalValue = getConnectedContainer()->getConstantVoiceValue(getOriginalModulator(), noteNumber);
 
 		if (useTable)
 		{

@@ -74,13 +74,13 @@ const float * GlobalModulatorContainer::getModulationValuesForModulator(Processo
 	return nullptr;
 }
 
-float GlobalModulatorContainer::getConstantVoiceValue(Processor *p)
+float GlobalModulatorContainer::getConstantVoiceValue(Processor *p, int noteNumber)
 {
 	for (int i = 0; i < data.size(); i++)
 	{
 		if (data[i]->getProcessor() == p)
 		{
-			return data[i]->getConstantVoiceValue();
+			return data[i]->getConstantVoiceValue(noteNumber);
 		}
 	}
 
@@ -120,7 +120,7 @@ void GlobalModulatorContainer::preStartVoice(int voiceIndex, int noteNumber)
 	{
 		if (data[i]->getVoiceStartModulator() != nullptr || data[i]->getEnvelopeModulator() != nullptr)
 		{
-			data[i]->saveValuesToBuffer(0, 0, voiceIndex);
+			data[i]->saveValuesToBuffer(0, 0, voiceIndex, noteNumber);
 		}
 	}
 }
@@ -221,7 +221,7 @@ modulator(modulator_)
 	
 		numVoices = getVoiceStartModulator()->polyManager.getVoiceAmount();
 
-		constantVoiceValues.insertMultiple(0, 1.0f, numVoices);
+		constantVoiceValues.insertMultiple(0, 1.0f, 128);
 
 	}
 	else
@@ -243,11 +243,11 @@ void GlobalModulatorData::prepareToPlay(double /*sampleRate*/, int blockSize)
 	}
 }
 
-void GlobalModulatorData::saveValuesToBuffer(int startIndex, int numSamples, int voiceIndex )
+void GlobalModulatorData::saveValuesToBuffer(int startIndex, int numSamples, int voiceIndex /*= 0*/, int noteNumber/*=-1*/ )
 {
 	switch (type)
 	{
-	case GlobalModulator::VoiceStart:	constantVoiceValues.set(0, getVoiceStartModulator()->getVoiceStartValue(voiceIndex)); break;
+	case GlobalModulator::VoiceStart:	jassert(noteNumber != -1);  constantVoiceValues.set(noteNumber, getVoiceStartModulator()->getVoiceStartValue(voiceIndex)); break;
 	case GlobalModulator::TimeVariant:	FloatVectorOperations::copy(valuesForCurrentBuffer.getWritePointer(0, startIndex), getTimeVariantModulator()->getCalculatedValues(0) + startIndex, numSamples); break;
 	case GlobalModulator::Envelope:		FloatVectorOperations::copy(valuesForCurrentBuffer.getWritePointer(voiceIndex, startIndex), getEnvelopeModulator()->getCalculatedValues(voiceIndex) + startIndex, numSamples); break;
 	}
@@ -265,7 +265,7 @@ const float * GlobalModulatorData::getModulationValues(int startIndex, int voice
 	return nullptr;
 }
 
-float GlobalModulatorData::getConstantVoiceValue()
+float GlobalModulatorData::getConstantVoiceValue(int noteNumber)
 {
-	return constantVoiceValues[0];
+	return constantVoiceValues[noteNumber];
 }

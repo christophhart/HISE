@@ -69,9 +69,9 @@ public:
 	/** Sets up the buffers depending on the type of the modulator. */
 	void prepareToPlay(double sampleRate, int blockSize);
 
-	void saveValuesToBuffer(int startIndex, int numSamples, int voiceIndex = 0);
+	void saveValuesToBuffer(int startIndex, int numSamples, int voiceIndex = 0, int noteNumber=-1);
 	const float *getModulationValues(int startIndex, int voiceIndex = 0);
-	float getConstantVoiceValue();
+	float getConstantVoiceValue(int noteNumber);
 
 	const Processor *getProcessor() const { return modulator.get(); }
 
@@ -106,7 +106,7 @@ public:
 	void restoreFromValueTree(const ValueTree &v) override;
 
 	const float *getModulationValuesForModulator(Processor *p, int startIndex, int voiceIndex = 0);
-	float getConstantVoiceValue(Processor *p);
+	float getConstantVoiceValue(Processor *p, int noteNumber);
 
 	ProcessorEditorBody* createEditor(BetterProcessorEditor *parentEditor) override;
 
