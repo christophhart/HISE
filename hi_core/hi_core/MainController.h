@@ -354,114 +354,152 @@ private:
 };
 
 
-
+/** This handles the MIDI automation for the frontend plugin.
+*
+*	For faster performance, one CC value can only control one parameter.
+*
+*/
 class MidiControllerAutomationHandler
 {
 public:
 
-	MidiControllerAutomationHandler()
+	MidiControllerAutomationHandler():
+		anyUsed(false)
 	{
 		tempBuffer.ensureSize(2048);
-	}
 
-	void addMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex, NormalisableRange<double> parameterRange)
-	{
-		for (int i = 0; i < automationData.size(); i++)
+		for (int i = 0; i < 128; i++)
 		{
-			AutomationData *a = &automationData[i];
-
-			if (a->processor == interfaceProcessor && a->attribute == attributeIndex)
-			{
-				a->midiController = -1;
-				return;
-			}
+			automationData[i] = AutomationData();
 		}
-
-		automationData.add(AutomationData(interfaceProcessor, attributeIndex, parameterRange));
 	}
 
-	bool isLearningActive(Processor *interfaceProcessor, int attributeIndex)
+	void addMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex, NormalisableRange<double> parameterRange, int macroIndex)
 	{
-		for (int i = 0; i < automationData.size(); i++)
+		ScopedLock sl(lock);
+
+		unlearnedData.processor = interfaceProcessor;
+		unlearnedData.attribute = attributeIndex;
+		unlearnedData.parameterRange = parameterRange;
+		unlearnedData.macroIndex = macroIndex;
+		unlearnedData.used = true;
+	}
+
+	bool isLearningActive() const
+	{
+		ScopedLock sl(lock);
+
+		return unlearnedData.used;
+	}
+
+	bool isLearningActive(Processor *interfaceProcessor, int attributeIndex) const
+	{
+		return unlearnedData.processor == interfaceProcessor && unlearnedData.attribute == attributeIndex;
+	}
+
+	void deactivateMidiLearning()
+	{
+		ScopedLock sl(lock);
+
+		unlearnedData = AutomationData();
+	}
+	
+	void setUnlearndedMidiControlNumber(int ccNumber)
+	{
+		ScopedLock sl(lock);
+
+		jassert(isLearningActive());
+
+		automationData[ccNumber] = unlearnedData;
+
+		unlearnedData = AutomationData();
+
+		anyUsed = true;
+	}
+
+	int getMidiControllerNumber(Processor *interfaceProcessor, int attributeIndex) const
+	{
+		for (int i = 0; i < 128; i++)
 		{
-			AutomationData *a = &automationData[i];
+			const AutomationData *a = automationData + i;
 
 			if (a->processor == interfaceProcessor && a->attribute == attributeIndex)
 			{
-				return a->midiController == -1;
-			}
-		}
-
-		return false;
-	}
-
-	int getMidiControllerNumber(Processor *interfaceProcessor, int attributeIndex)
-	{
-		for (int i = 0; i < automationData.size(); i++)
-		{
-			AutomationData *a = &automationData[i];
-
-			if (a->processor == interfaceProcessor && a->attribute == attributeIndex)
-			{
-				return a->midiController;
+				return i;
 			}
 		}
 
 		return -1;
 	}
 
+	void refreshAnyUsedState()
+	{
+		ScopedLock sl(lock);
+
+		anyUsed = false;
+
+		for (int i = 0; i < 128; i++)
+		{
+			AutomationData *a = automationData + i;
+
+			if (a->used)
+			{
+				anyUsed = true;
+				break;
+			}
+		}
+	}
+
 	void removeMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex)
 	{
-		for (int i = 0; i < automationData.size(); i++)
+		ScopedLock sl(lock);
+
+		for (int i = 0; i < 128; i++)
 		{
-			AutomationData *a = &automationData[i];
+			AutomationData *a = automationData + i;
 
 			if (a->processor == interfaceProcessor && a->attribute == attributeIndex)
 			{
-				automationData.remove(i);
-				i--;
+				*a = AutomationData();
+				break;
 			}
 		}
+
+		refreshAnyUsedState();
 	}
 
 	void handleParameterData(MidiBuffer &b);
 
 	struct AutomationData
 	{
-		AutomationData(Processor *processor_, int attribute_, NormalisableRange<double> parameterRange_);
-
 		AutomationData():
 			processor(nullptr),
 			attribute(-1),
-			midiController(-1),
-			parameterRange(NormalisableRange<double>(.0, 0.0))
+			parameterRange(NormalisableRange<double>()),
+			macroIndex(-1),
+			used(false)
 		{}
 
 		WeakReference<Processor> processor;
 		int attribute;
-		int midiController;
 		NormalisableRange<double> parameterRange;
+		int macroIndex;
+		bool used;
 	};
 
-	void setMidiControlNumber(Processor *interfaceProcessor, int attributeIndex, int midiController)
-	{
-		for (int i = 0; i < automationData.size(); i++)
-		{
-			AutomationData *a = &automationData[i];
-
-			if (a->processor == interfaceProcessor && a->attribute == attributeIndex)
-			{
-				a->midiController = midiController;
-				break;
-			}
-		}
-	}
 
 private:
 
+	CriticalSection lock;
+
+	bool anyUsed;
+
 	MidiBuffer tempBuffer;
 
-	Array<AutomationData> automationData;
+	AutomationData automationData[128];
+	
+	AutomationData unlearnedData;
+
 };
 
 

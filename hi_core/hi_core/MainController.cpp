@@ -765,7 +765,16 @@ void CustomKeyboardState::setLowestKeyToDisplay(int lowestKeyToDisplay)
 
 void MidiControllerAutomationHandler::handleParameterData(MidiBuffer &b)
 {
-	if (automationData.size() == 0) return;
+	const bool bufferEmpty = b.isEmpty();
+	const bool noCCsUsed = !anyUsed && !unlearnedData.used;
+
+	if (bufferEmpty || noCCsUsed) return;
+
+	ScopedLock sl(lock);
+
+	tempBuffer.clear();
+
+	
 
 	MidiBuffer::Iterator mb(b);
 
@@ -777,26 +786,35 @@ void MidiControllerAutomationHandler::handleParameterData(MidiBuffer &b)
 	{
 		bool consumed = false;
 
-		for (int i = 0; i < automationData.size(); i++)
+		if (m.isController())
 		{
-			AutomationData *a = &automationData[i];
+			const int number = m.getControllerNumber();
 
-			if (a->midiController == -1 && m.isController())
+			if (isLearningActive())
 			{
-				a->midiController = m.getControllerNumber();
+				setUnlearndedMidiControlNumber(number);
 			}
 
-			if (m.isControllerOfType(a->midiController))
+			AutomationData *a = automationData + number;
+
+			if (a->used)
 			{
 				jassert(a->processor.get() != nullptr);
 
 				const float value = (float)a->parameterRange.convertFrom0to1((double)m.getControllerValue() / 127.0);
 
-				a->processor->setAttribute(a->attribute, value, sendNotification);
+				if (a->macroIndex != -1)
+				{
+					a->processor->getMainController()->getMacroManager().getMacroChain()->setMacroControl(a->macroIndex, (double)m.getControllerValue(), sendNotification);
+				}
+				else
+				{
+					a->processor->setAttribute(a->attribute, value, sendNotification);
+				}
+
+				
 
 				consumed = true;
-
-				break;
 			}
 		}
 
@@ -806,14 +824,7 @@ void MidiControllerAutomationHandler::handleParameterData(MidiBuffer &b)
 		}
 	}
 
-	b.swapWith(tempBuffer);
-}
+	b.clear();
 
-MidiControllerAutomationHandler::AutomationData::AutomationData(Processor *processor_, int attribute_, NormalisableRange<double> parameterRange_) :
-processor(processor_),
-attribute(attribute_),
-midiController(-1),
-parameterRange(parameterRange_)
-{
-
+	b.addEvents(tempBuffer, 0, -1, 0);
 }

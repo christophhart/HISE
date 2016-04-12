@@ -91,25 +91,27 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 
 	m.setLookAndFeel(&plaf);
 
-	m.addSectionHeader("Current MIDI CC: " + (midiController != -1 ? String(midiController) : "None"));
-	m.addSeparator();
-	m.addItem(1, "Learn MIDI CC Automation", true, learningActive);
-	m.addItem(2, "Remove MIDI CC Automation", midiController != -1);
-
+	m.addItem(1, "Learn MIDI CC", true, learningActive);
+	
+	if (midiController != -1)
+	{
+		m.addItem(2, "Remove CC " + String(midiController));
+	}
+	
 	const int result = m.show();
 
 	if (result == 1)
 	{
 		if (!learningActive)
 		{
-			handler->addMidiControlledParameter(processor, parameter, getRange());
+			handler->addMidiControlledParameter(processor, parameter, getRange(), getMacroIndex());
 		}
 		else
 		{
-			handler->removeMidiControlledParameter(processor, parameter);
+			handler->deactivateMidiLearning();
 		}
 	}
-	else
+	else if (result == 2)
 	{
 		handler->removeMidiControlledParameter(processor, parameter);
 	}
