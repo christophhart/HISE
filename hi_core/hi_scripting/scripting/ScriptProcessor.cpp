@@ -835,7 +835,7 @@ void ScriptProcessor::runTimerCallback(int offsetInBuffer/*=-1*/)
 
 	lastExecutionTime = consoleEnabled ? Time::getMillisecondCounterHiRes() - startTime : 0.0;
 
-	if (isFront())
+	if (isDeferred())
 	{
 		sendSynchronousChangeMessage();
 	}

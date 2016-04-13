@@ -92,8 +92,29 @@ void TooltipBar::timerCallback()
 
 	Component* const newComp = mouseSource.isMouse() ? mouseSource.getComponentUnderMouse() : nullptr;
 
+    Component *parentComponent = nullptr;
+    
+    
+#if USE_BACKEND
+    
+    parentComponent = findParentComponentOfClass<BackendProcessorEditor>();
+    
+    if(parentComponent == nullptr)
+    {
+        parentComponent = findParentComponentOfClass<PopupPluginPreview>();
+    }
+    
+#else
+    
+    parentComponent = findParentComponentOfClass<FrontendProcessorEditor>();
+    
+#endif
+    
+    jassert(parentComponent != nullptr);
+    
+    
 	// Deactivate tooltips for multiple instances!
-	if (!getParentComponent()->isParentOf(newComp)) return;
+	if (parentComponent == nullptr || !parentComponent->isParentOf(newComp)) return;
 
 	TooltipClient *client = dynamic_cast<TooltipClient*>(newComp);
 
