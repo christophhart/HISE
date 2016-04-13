@@ -973,7 +973,21 @@ private:
 
 };
 
+class FrontendKnobLookAndFeel : public LookAndFeel_V3
+{
+public:
 
+	FrontendKnobLookAndFeel();
+
+	void drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, int width, int height, float /*sliderPosProportional*/, float /*rotaryStartAngle*/, float /*rotaryEndAngle*/, Slider &s) override;
+
+private:
+
+	Image volumeFilmStrip;
+
+	Image balanceFilmStrip;
+
+};
 
 class KnobLookAndFeel: public LookAndFeel_V3
 {

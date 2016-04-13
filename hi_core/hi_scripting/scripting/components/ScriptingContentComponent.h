@@ -242,7 +242,10 @@ public:
 		isFrontend = shouldBeFrontendContainer;
 	}
 
-
+	int getNumInterfaces() const
+	{
+		return interfaces.size();
+	}
 
 private:
 

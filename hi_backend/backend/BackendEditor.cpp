@@ -58,6 +58,10 @@ rootEditorIsMainSynthChain(true)
 	addAndMakeVisible(keyboard = new CustomKeyboard(owner->keyboardState));
 	addAndMakeVisible(tooltipBar = new TooltipBar());
 	addAndMakeVisible(cpuVoiceComponent = new VoiceCounterCpuUsageComponent(owner));
+
+	cpuVoiceComponent->setColour(Slider::backgroundColourId, Colour(BACKEND_BG_COLOUR));
+	cpuVoiceComponent->setOpaque(true);
+
 	addAndMakeVisible(aboutPage = new AboutPage());
 	
 	constrainer = new ComponentBoundsConstrainer();

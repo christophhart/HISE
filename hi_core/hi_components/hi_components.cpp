@@ -38,6 +38,7 @@
 #include "drag_plot/SliderPack.cpp"
 #include "drag_plot/TableEditor.cpp"
 #include "keyboard/CustomKeyboard.cpp"
+#include "keyboard/FrontendBar.cpp"
 
 #include "wave_components/SampleDisplayComponent.cpp"
 #include "wave_components/WavetableComponents.cpp"

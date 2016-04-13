@@ -45,6 +45,7 @@
 #include "drag_plot/SliderPack.h"
 #include "drag_plot/TableEditor.h"
 #include "keyboard/CustomKeyboard.h"
+#include "keyboard/FrontendBar.h"
 
 #include "wave_components/SampleDisplayComponent.h"
 #include "wave_components/WavetableComponents.h"

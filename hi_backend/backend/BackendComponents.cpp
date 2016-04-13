@@ -122,10 +122,6 @@ void MacroComponent::mouseDown(const MouseEvent &e)
 
 			macroNames[index]->setText("Macro " + String(index + 1), dontSendNotification);
 
-
-			
-
-			
 		}
 		else if(result == -2)
 		{
@@ -416,11 +412,6 @@ void CachedViewport::InternalViewport::paint(Graphics &g)
 	}
 }
 
-void VoiceCounterCpuUsageComponent::buttonClicked(Button *)
-{
-	dynamic_cast<BackendProcessorEditor*>(getParentComponent())->getMainSynthChain()->getMainController()->allNotesOff();
-}
-
 void BreadcrumbComponent::refreshBreadcrumbs()
 {
 	BackendProcessorEditor *bpe = findParentComponentOfClass<BackendProcessorEditor>();
@@ -500,7 +491,11 @@ PopupPluginPreview::Content::Content(BackendProcessorEditor *editor_) :
 editor(editor_),
 mainSynthChain(editor->getMainSynthChain())
 {
+	
+
 	addAndMakeVisible(container = new ScriptContentContainer(mainSynthChain));
+
+	addAndMakeVisible(frontendBar = new FrontendBar(editor->getBackendProcessor()));
 
 	container->checkInterfaces();
 	container->setIsFrontendContainer(true);
@@ -516,5 +511,7 @@ mainSynthChain(editor->getMainSynthChain())
 void PopupPluginPreview::Content::resized()
 {
 	container->setBounds(0, 0, container->getContentWidth(), container->getContentHeight());
-	keyboard->setBounds(0, container->getContentHeight(), container->getContentWidth(), 72);
+
+	frontendBar->setBounds(0, container->getNumInterfaces() != 1 ? 20 : 0, container->getContentWidth(), frontendBar->getHeight());
+	keyboard->setBounds(0, container->getBottom(), container->getContentWidth(), 72);
 }

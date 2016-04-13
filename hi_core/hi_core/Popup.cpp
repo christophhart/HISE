@@ -44,8 +44,7 @@ newPosition(true)
 	startTimer(30);
 #endif
 
-
-	setColour(backgroundColour, Colour(0xFF646464));
+	setColour(backgroundColour, Colours::black.withAlpha(0.2f));
 	setColour(iconColour, Colours::white.withAlpha(0.2f));
 	setColour(textColour, Colours::white.withAlpha(0.8f));
 

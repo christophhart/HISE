@@ -33,61 +33,78 @@
 #ifndef __JUCE_HEADER_59561CDF26DED86E__
 #define __JUCE_HEADER_59561CDF26DED86E__
 
+class VuMeter;
+
+
+class VoiceCounterCpuUsageComponent : public Component,
+									  public Timer,
+									  public ButtonListener
+{
+public:
+
+	VoiceCounterCpuUsageComponent(MainController *mc_);
+
+	void buttonClicked(Button *b) override;
+
+	void timerCallback() override;
+
+	void resized() override;
+
+	void paint(Graphics& g) override;
+
+	void paintOverChildren(Graphics& g) override;
+
+private:
+
+	ScopedPointer<ShapeButton> panicButton;
+
+	ScopedPointer<Label> voiceLabel;
+
+	ScopedPointer<VuMeter> cpuSlider;
+
+	MainController *mc;
+};
+
+
+
 /** The bar that is displayed for every FrontendProcessorEditor */
 class FrontendBar  : public Component,
                      public Timer,
-                     public ButtonListener
+                     public ButtonListener,
+					 public SliderListener,
+					 public SettableTooltipClient
 {
 public:
     
-    FrontendBar (FrontendProcessor *p);
+    FrontendBar (MainController *p);
     ~FrontendBar();
 
 	void buttonClicked(Button *b) override;
 
-	void timerCallback()
-	{
-		const float l = fp->getMainSynthChain()->getDisplayValues().outL;
-		const float r = fp->getMainSynthChain()->getDisplayValues().outR;
+	void sliderValueChanged(Slider* slider) override;
 
-		outMeter->setPeak(l, r);
-
-		cpuPeak = jmax<int>(fp->getCpuUsage(), cpuPeak);
-
-
-
-		if(cpuUpdater.shouldUpdate())
-		{
-
-			numVoices = "Voices: " + String(fp->getNumActiveVoices());
-			voiceLabel->setText(numVoices, dontSendNotification);
-			cpuSlider->setPeak((float)cpuPeak / 100.0f);
-			cpuPeak = 0;
-		}
-	}
+	void timerCallback();
 
     void paint (Graphics& g);
     void resized();
 
-
-
 private:
 
-	FrontendProcessor *fp;
+	MainController *mc;
 
-	ScopedPointer<VuMeter> cpuSlider;
+	FrontendKnobLookAndFeel fklaf;
 
-	ScopedPointer<Label> voiceLabel;
+	ScopedPointer<Label> volumeSliderLabel;
+	ScopedPointer<Label> pitchSliderLabel;
+	ScopedPointer<Label> balanceSliderLabel;
 
-	ScopedPointer<ShapeButton> panicButton;
-	ScopedPointer<ShapeButton> infoButton;
+	ScopedPointer<Slider> volumeSlider;
+	ScopedPointer<Slider> balanceSlider;
+	ScopedPointer<Slider> pitchSlider;
 
-	int cpuPeak;
-
-	String numVoices;
+	ScopedPointer<VoiceCounterCpuUsageComponent> voiceCpuComponent;
 
 	UpdateMerger cpuUpdater;
-
 	ScopedPointer<TooltipBar> tooltipBar;
 
     //==============================================================================

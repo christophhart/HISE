@@ -225,10 +225,7 @@ void ProjectHandler::setWorkingProject(const File &workingDirectory)
 	if (!workingDirectory.exists()) return;
 
 	checkSettingsFile();
-
 	checkSubDirectories();
-
-	
 
 	jassert(currentWorkDirectory.exists() && currentWorkDirectory.isDirectory());
 

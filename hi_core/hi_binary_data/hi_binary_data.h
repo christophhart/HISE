@@ -36,11 +36,9 @@
 namespace HiBinaryData
 {
 
-#if USE_BACKEND
 
-#else
 #include "FrontendBinaryData.h"
-#endif
+
 
 #include "ProcessorEditorHeaderBinaryData.h"
 #include "LookAndFeelBinaryData.h"

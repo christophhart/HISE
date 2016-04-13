@@ -46,8 +46,6 @@ public:
 	
 	void closeButtonPressed() override;;
 
-
-
 private:
 
 	class Content : public Component
@@ -61,6 +59,7 @@ private:
 	private:
 
 		Component::SafePointer<BackendProcessorEditor> editor;
+		ScopedPointer<FrontendBar> frontendBar;
 		ScopedPointer<ScriptContentContainer> container;
 		ModulatorSynthChain *mainSynthChain;
 		ScopedPointer<CustomKeyboard> keyboard;
@@ -775,99 +774,6 @@ public:
 
 	bool dragNew;
 
-};
-
-class VoiceCounterCpuUsageComponent : public Component,
-	public Timer,
-	public ButtonListener
-{
-public:
-
-	VoiceCounterCpuUsageComponent(MainController *mc_) :
-		mc(mc_)
-	{
-		addAndMakeVisible(cpuSlider = new VuMeter());
-
-		cpuSlider->setColour(VuMeter::backgroundColour, Colour(BACKEND_BG_COLOUR));
-		cpuSlider->setColour(VuMeter::ColourId::ledColour, Colours::white.withAlpha(0.45f));
-		cpuSlider->setColour(VuMeter::ColourId::outlineColour, Colours::white.withAlpha(0.6f));
-
-		addAndMakeVisible(voiceLabel = new Label());
-
-		voiceLabel->setColour(Label::ColourIds::outlineColourId, Colours::white.withAlpha(0.6f));
-		voiceLabel->setColour(Label::ColourIds::textColourId, Colours::white.withAlpha(0.7f));
-		voiceLabel->setColour(Label::ColourIds::backgroundColourId, Colour(BACKEND_BG_COLOUR));
-		voiceLabel->setFont(GLOBAL_FONT().withHeight(10.0f));
-
-		voiceLabel->setEditable(false);
-
-        addAndMakeVisible(panicButton = new ShapeButton("Panic", Colours::white.withAlpha(0.6f), Colours::white.withAlpha(0.5f), Colours::white.withAlpha(0.6f)));
-
-		static const unsigned char panicPathData[] = { 110, 109, 0, 29, 179, 66, 64, 37, 166, 67, 98, 126, 217, 172, 66, 64, 37, 166, 67, 0, 183, 167, 66, 223, 109, 167, 67, 0, 183, 167, 66, 192, 254, 168, 67, 108, 0, 183, 167, 66, 0, 222, 185, 67, 98, 0, 183, 167, 66, 224, 110, 187, 67, 126, 217, 172, 66, 128, 183, 188, 67, 0, 29, 179, 66, 128, 183, 188, 67, 108, 0, 80, 252,
-			66, 128, 183, 188, 67, 98, 193, 73, 1, 67, 128, 183, 188, 67, 128, 219, 3, 67, 224, 110, 187, 67, 128, 219, 3, 67, 0, 222, 185, 67, 108, 128, 219, 3, 67, 192, 254, 168, 67, 98, 128, 219, 3, 67, 223, 109, 167, 67, 193, 73, 1, 67, 64, 37, 166, 67, 0, 80, 252, 66, 64, 37, 166, 67, 108, 0, 29, 179, 66, 64, 37, 166, 67, 99, 109,
-			0, 29, 179, 66, 64, 165, 167, 67, 108, 0, 80, 252, 66, 64, 165, 167, 67, 98, 35, 91, 255, 66, 64, 165, 167, 67, 128, 219, 0, 67, 247, 59, 168, 67, 128, 219, 0, 67, 192, 254, 168, 67, 108, 128, 219, 0, 67, 0, 222, 185, 67, 98, 128, 219, 0, 67, 201, 160, 186, 67, 35, 91, 255, 66, 128, 55, 187, 67, 0, 80, 252, 66, 128, 55, 187,
-			67, 108, 0, 29, 179, 66, 128, 55, 187, 67, 98, 222, 17, 176, 66, 128, 55, 187, 67, 0, 183, 173, 66, 200, 160, 186, 67, 0, 183, 173, 66, 0, 222, 185, 67, 108, 0, 183, 173, 66, 192, 254, 168, 67, 98, 0, 183, 173, 66, 247, 59, 168, 67, 222, 17, 176, 66, 64, 165, 167, 67, 0, 29, 179, 66, 64, 165, 167, 67, 99, 109, 0, 65, 216,
-			66, 0, 134, 170, 67, 98, 71, 159, 214, 66, 31, 144, 170, 67, 61, 219, 211, 66, 253, 116, 170, 67, 0, 86, 211, 66, 0, 248, 170, 67, 98, 169, 158, 211, 66, 158, 227, 173, 67, 20, 0, 212, 66, 89, 207, 176, 67, 0, 82, 212, 66, 0, 187, 179, 67, 98, 102, 1, 212, 66, 84, 56, 180, 67, 97, 66, 214, 66, 108, 84, 180, 67, 0, 194, 215,
-			66, 64, 80, 180, 67, 98, 210, 122, 217, 66, 233, 72, 180, 67, 36, 89, 220, 66, 252, 110, 180, 67, 0, 239, 220, 66, 192, 229, 179, 67, 108, 1, 197, 221, 66, 64, 151, 172, 67, 98, 176, 200, 221, 66, 55, 8, 172, 67, 210, 255, 221, 66, 34, 120, 171, 67, 0, 225, 221, 66, 192, 233, 170, 67, 98, 172, 201, 220, 66, 124, 113, 170,
-			67, 32, 27, 218, 66, 29, 144, 170, 67, 0, 65, 216, 66, 0, 134, 170, 67, 99, 109, 0, 164, 217, 66, 128, 78, 181, 67, 98, 253, 125, 216, 66, 74, 73, 181, 67, 233, 77, 215, 66, 50, 82, 181, 67, 0, 57, 214, 66, 0, 93, 181, 67, 98, 9, 68, 212, 66, 222, 109, 181, 67, 119, 46, 211, 66, 224, 236, 181, 67, 0, 48, 211, 66, 0, 98, 182,
-			67, 98, 171, 34, 211, 66, 185, 235, 182, 67, 250, 203, 210, 66, 208, 159, 183, 67, 0, 202, 212, 66, 192, 251, 183, 67, 98, 78, 233, 214, 66, 26, 66, 184, 67, 121, 140, 217, 66, 30, 60, 184, 67, 255, 202, 219, 66, 0, 17, 184, 67, 98, 49, 232, 221, 66, 190, 224, 183, 67, 58, 42, 222, 66, 90, 61, 183, 67, 1, 37, 222, 66, 64,
-			194, 182, 67, 98, 25, 23, 222, 66, 95, 91, 182, 67, 65, 21, 222, 66, 21, 225, 181, 67, 0, 207, 220, 66, 128, 149, 181, 67, 98, 180, 229, 219, 66, 45, 103, 181, 67, 2, 202, 218, 66, 182, 83, 181, 67, 0, 164, 217, 66, 128, 78, 181, 67, 99, 101, 0, 0 };
-
-		Path panicPath;
-		panicPath.loadPathFromData(panicPathData, sizeof(panicPathData));
-
-		panicButton->setShape(panicPath, true, true, false);
-
-		panicButton->addListener(this);
-
-		setSize(86, 24);
-
-		startTimer(500);
-
-		setOpaque(true);
-	}
-
-	void buttonClicked(Button *b) override;
-
-	void timerCallback() override
-	{
-		cpuSlider->setPeak(mc->getCpuUsage() / 100.0f);
-		voiceLabel->setText(String(mc->getNumActiveVoices()), dontSendNotification);
-	}
-
-	void resized() override
-	{
-		panicButton->setBounds(0, 4, 20, 20);
-		voiceLabel->setBounds(24, 11, 30, 13);
-		cpuSlider->setBounds(56, 11, 30, 13);
-	}
-
-	void paint(Graphics& g) override
-	{
-		g.fillAll(Colour(BACKEND_BG_COLOUR));
-
-		g.setColour(Colours::white.withAlpha(0.6f));
-		g.setFont(GLOBAL_BOLD_FONT().withHeight(10.0f));
-		g.drawText("Voices", 24, 0, 50, 12, Justification::left, true);
-		g.drawText("CPU", 54, 0, 30, 12, Justification::right, true);
-	}
-
-	void paintOverChildren(Graphics& g) override
-	{
-		g.setColour(Colours::white.withAlpha(0.7f));
-		g.setFont(GLOBAL_FONT().withHeight(10.0f));
-		g.drawText(String(mc->getCpuUsage()) + "%", cpuSlider->getBounds(), Justification::centred, true);
-	}
-
-private:
-
-	ScopedPointer<ShapeButton> panicButton;
-
-	ScopedPointer<Label> voiceLabel;
-
-	ScopedPointer<VuMeter> cpuSlider;
-
-	MainController *mc;
 };
 
 
