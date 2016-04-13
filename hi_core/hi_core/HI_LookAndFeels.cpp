@@ -184,7 +184,7 @@ void KnobLookAndFeel::drawComboBox(Graphics &g, int width, int height, bool isBu
 {
 	c.setColour(ComboBox::ColourIds::textColourId, Colours::white);
 
-	drawHiBackground(g, 2, 2, width - 4, height - 4, dynamic_cast<HiComboBox*>(&c), isButtonDown);
+	drawHiBackground(g, 2, 2, width - 4, height - 4, dynamic_cast<ComboBox*>(&c), isButtonDown);
 
 	static const unsigned char pathData[] = { 110, 109, 0, 0, 130, 67, 92, 174, 193, 67, 108, 0, 0, 140, 67, 92, 174, 193, 67, 108, 0, 0, 135, 67, 92, 174, 198, 67, 99, 109, 0, 0, 130, 67, 92, 46, 191, 67, 108, 0, 0, 140, 67, 92, 46, 191, 67, 108, 0, 0, 135, 67, 92, 46, 186, 67, 99, 101, 0, 0 };
 

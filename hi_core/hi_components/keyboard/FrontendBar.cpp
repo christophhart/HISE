@@ -123,6 +123,32 @@ FrontendBar::FrontendBar(MainController *mc_) : mc(mc_)
 
 	cpuUpdater.setManualCountLimit(10);
 
+	addAndMakeVisible(presetSelector = new ComboBox());
+	mc->skin(*presetSelector);
+
+	presetSelector->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, Colours::transparentBlack);
+	presetSelector->setColour(MacroControlledObject::HiBackgroundColours::upperBgColour, Colours::black.withAlpha(0.2f));
+	presetSelector->setColour(MacroControlledObject::HiBackgroundColours::lowerBgColour, Colours::black.withAlpha(0.2f));
+	
+	presetSelector->setTextWhenNothingSelected("Preset");
+	presetSelector->setTooltip("Load a preset");
+
+	refreshPresetFileList();
+
+	Path savePath;
+
+	static const unsigned char pathData[] = { 110, 109, 0, 0, 144, 65, 0, 0, 0, 64, 108, 0, 0, 176, 65, 0, 0, 0, 64, 108, 0, 0, 176, 65, 0, 0, 48, 65, 108, 0, 0, 144, 65, 0, 0, 48, 65, 99, 109, 0, 0, 192, 64, 0, 0, 208, 65, 108, 0, 0, 208, 65, 0, 0, 208, 65, 108, 0, 0, 208, 65, 0, 0, 224, 65, 108, 0, 0, 192, 64, 0, 0, 224, 65, 99, 109, 0, 0, 192, 64, 0, 0, 176, 65, 108, 0, 0, 208,
+		65, 0, 0, 176, 65, 108, 0, 0, 208, 65, 0, 0, 192, 65, 108, 0, 0, 192, 64, 0, 0, 192, 65, 99, 109, 0, 0, 192, 64, 0, 0, 144, 65, 108, 0, 0, 208, 65, 0, 0, 144, 65, 108, 0, 0, 208, 65, 0, 0, 160, 65, 108, 0, 0, 192, 64, 0, 0, 160, 65, 99, 109, 0, 0, 208, 65, 0, 0, 0, 0, 108, 0, 0, 192, 65, 0, 0, 0, 0, 108, 0, 0, 192, 65, 0, 0, 80, 65, 108,
+		0, 0, 0, 65, 0, 0, 80, 65, 108, 0, 0, 0, 65, 0, 0, 0, 0, 108, 0, 0, 0, 0, 0, 0, 0, 0, 108, 0, 0, 0, 0, 0, 0, 0, 66, 108, 0, 0, 0, 66, 0, 0, 0, 66, 108, 0, 0, 0, 66, 0, 0, 192, 64, 108, 0, 0, 208, 65, 0, 0, 0, 0, 99, 109, 0, 0, 224, 65, 0, 0, 240, 65, 108, 0, 0, 128, 64, 0, 0, 240, 65, 108, 0, 0, 128, 64, 0, 0, 128, 65, 108, 0, 0, 224, 65, 0, 0,
+		128, 65, 108, 0, 0, 224, 65, 0, 0, 240, 65, 99, 101, 0, 0 };
+
+	savePath.loadPathFromData(pathData, sizeof(pathData));
+
+	addAndMakeVisible(presetSaveButton = new ShapeButton("Save Preset", Colours::white.withAlpha(.6f), Colours::white.withAlpha(0.8f), Colours::white));
+	presetSaveButton->setShape(savePath, true, true, true);
+
+	presetSaveButton->setTooltip("Save user preset");
+
 	addAndMakeVisible(volumeSliderLabel = new Label());
 	volumeSliderLabel->setFont(GLOBAL_BOLD_FONT().withHeight(10.0f));
 	volumeSliderLabel->setText("Gain", dontSendNotification);
@@ -209,6 +235,10 @@ void FrontendBar::resized()
 {
 	voiceCpuComponent->setBounds(6, 6, voiceCpuComponent->getWidth(), voiceCpuComponent->getHeight());
 
+	presetSelector->setBounds(voiceCpuComponent->getRight() + 6, 4, 100, 28);
+
+	presetSaveButton->setBounds(presetSelector->getRight() + 3, 6, 20, 20);
+
 	outMeter->setBounds(getRight() - 28, 3, 24, getHeight() - 6);
 
 	volumeSlider->setBounds(outMeter->getX() - 28, 12, 22, 22);
@@ -221,15 +251,29 @@ void FrontendBar::resized()
 	pitchSliderLabel->setBounds(pitchSlider->getX() - 6, 1, 32, 12);
 
 
-	int toolWidth = pitchSlider->getX() - voiceCpuComponent->getRight() - 12;
+	int toolWidth = pitchSlider->getX() - presetSaveButton->getRight() - 12;
 
-	tooltipBar->setBounds(voiceCpuComponent->getRight() + 6, 6, toolWidth, getHeight() - 12);
+	tooltipBar->setBounds(presetSaveButton->getRight() + 6, 6, toolWidth, getHeight() - 12);
 }
 
 
 
 void FrontendBar::buttonClicked(Button *b)
 {
+}
+
+void FrontendBar::refreshPresetFileList()
+{
+	Array<File> fileList;
+
+	GET_PROJECT_HANDLER(mc->getMainSynthChain()).getFileList(fileList, ProjectHandler::SubDirectories::UserPresets, "*.preset");
+
+	presetSelector->clear();
+
+	for (int i = 0; i < fileList.size(); i++)
+	{
+		presetSelector->addItem(fileList[i].getFileNameWithoutExtension(), i + 1);
+	}
 }
 
 void FrontendBar::sliderValueChanged(Slider* slider)

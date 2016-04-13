@@ -81,6 +81,8 @@ public:
 
 	void buttonClicked(Button *b) override;
 
+	void refreshPresetFileList();
+
 	void sliderValueChanged(Slider* slider) override;
 
 	void timerCallback();
@@ -106,6 +108,9 @@ private:
 
 	UpdateMerger cpuUpdater;
 	ScopedPointer<TooltipBar> tooltipBar;
+
+	ScopedPointer<ComboBox> presetSelector;
+	ScopedPointer<ShapeButton> presetSaveButton;
 
     //==============================================================================
     ScopedPointer<VuMeter> outMeter;
