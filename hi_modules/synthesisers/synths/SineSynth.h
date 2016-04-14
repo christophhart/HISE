@@ -75,6 +75,8 @@ public:
 		const double cyclesPerSample = cyclesPerSecond / getSampleRate();
 
 		uptimeDelta = cyclesPerSample * 2048.0 * octaveTransposeFactor;
+        
+        uptimeDelta *= getOwnerSynth()->getMainController()->getGlobalPitchFactor();
     }
 
 	void calculateBlock(int startSample, int numSamples) override;;

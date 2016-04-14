@@ -727,15 +727,15 @@ public:
 	*
 	*	This is necessary because a StreamingSamplerSound can have multiple instances with different root notes.
 	*/
-	void setPitchFactor(int midiNote, int rootNote, StreamingSamplerSound *sound)
+	void setPitchFactor(int midiNote, int rootNote, StreamingSamplerSound *sound, double globalPitchFactor)
 	{
 		if(midiNote == rootNote)
 		{
-			uptimeDelta = 1.0;
+			uptimeDelta = globalPitchFactor;
 		}
 		else
 		{
-			uptimeDelta = jmin(sound->getPitchFactor(midiNote, rootNote), (double)MAX_SAMPLER_PITCH);
+			uptimeDelta = jmin(sound->getPitchFactor(midiNote, rootNote) * globalPitchFactor, (double)MAX_SAMPLER_PITCH);
 		}
 		
 	};

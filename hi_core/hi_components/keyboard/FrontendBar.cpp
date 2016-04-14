@@ -233,6 +233,7 @@ FrontendBar::FrontendBar(MainController *mc_) : mc(mc_)
 	volumeSlider->setValue(Decibels::gainToDecibels(mc->getMainSynthChain()->getAttribute(ModulatorSynth::Parameters::Gain)), dontSendNotification);
 	volumeSlider->setDoubleClickReturnValue(true, 0.0);
 	volumeSlider->setTooltip("Main Volume: " + String(volumeSlider->getValue(), 1) + " dB");
+    volumeSlider->setWantsKeyboardFocus(false);
 	
 	addAndMakeVisible(balanceSlider = new Slider("Balance"));
 	balanceSlider->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
@@ -243,6 +244,7 @@ FrontendBar::FrontendBar(MainController *mc_) : mc(mc_)
 	balanceSlider->setValue(mc->getMainSynthChain()->getAttribute(ModulatorSynth::Parameters::Balance), dontSendNotification);
 	balanceSlider->setDoubleClickReturnValue(true, 0.0);
 	balanceSlider->setTooltip("Stereo Balance: " + String(balanceSlider->getValue() * 100.0, 0));
+    balanceSlider->setWantsKeyboardFocus(false);
 
 	addAndMakeVisible(pitchSlider = new Slider("Pitch"));
 	pitchSlider->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
@@ -252,7 +254,8 @@ FrontendBar::FrontendBar(MainController *mc_) : mc(mc_)
 	pitchSlider->addListener(this);
 	pitchSlider->setDoubleClickReturnValue(true, 0.0);
 	pitchSlider->setTooltip("Global Pitch Tuning: " + String(pitchSlider->getValue(), 2) + " st");
-
+    pitchSlider->setWantsKeyboardFocus(false);
+    
 	outMeter->setOpaque(false);
 	outMeter->setColour(VuMeter::backgroundColour, Colours::transparentBlack);
 	outMeter->setColour (VuMeter::ledColour, Colours::lightgrey);
@@ -263,6 +266,7 @@ FrontendBar::FrontendBar(MainController *mc_) : mc(mc_)
 	tooltipBar->setColour(TooltipBar::ColourIds::textColour, bright);
     tooltipBar->setColour(TooltipBar::ColourIds::backgroundColour, Colours::white.withAlpha(0.08f));
 
+    setWantsKeyboardFocus(false);
 	
 	voiceCpuComponent->timerCallback();
 
@@ -361,6 +365,7 @@ void FrontendBar::sliderValueChanged(Slider* slider)
 	else if (slider == pitchSlider)
 	{
 		pitchSlider->setTooltip("Global Pitch Tuning: " + String(slider->getValue(), 2) + " st");
+        mc->setGlobalPitchFactor(slider->getValue());
 	}
 	tooltipBar->repaint();
 }

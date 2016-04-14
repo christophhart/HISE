@@ -419,9 +419,8 @@ public:
 		
 
 		uptimeDelta = currentSound->getPitchRatio();
-
-		
-
+        
+        uptimeDelta *= getOwnerSynth()->getMainController()->getGlobalPitchFactor();
     };
 
 	const float *getTableModulationValues(int startSample, int numSamples);

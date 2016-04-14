@@ -52,6 +52,8 @@ void AudioLooperVoice::startNote(int midiNoteNumber, float /*velocity*/, Synthes
 
 	uptimeDelta *= resampleFactor;
 
+    uptimeDelta *= looper->getMainController()->getGlobalPitchFactor();
+    
 	if (looper->pitchTrackingEnabled)
 	{
 		const double noteDelta = jlimit<int>(-24, 24, midiNoteNumber - looper->rootNote);

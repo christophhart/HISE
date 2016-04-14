@@ -70,7 +70,9 @@ MainController::MainController():
 	shownComponents(0),
 	plotter(nullptr),
 	usagePercent(0),
-	scriptWatchTable(nullptr)
+	scriptWatchTable(nullptr),
+    globalPitchFactor(1.0),
+    midiInputFlag(false)
 {
 	
 #if USE_BACKEND

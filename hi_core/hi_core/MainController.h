@@ -954,6 +954,30 @@ public:
         return returnValue;
     }
 
+    /** This sets the global pitch factor. */
+    void setGlobalPitchFactor(double pitchFactorInSemiTones)
+    {
+        globalPitchFactor = pow(2, pitchFactorInSemiTones / 12.0);
+    }
+    
+    /** This returns the global pitch factor. 
+    *
+    *   Use this in your startVoice method and multiplicate it with your angleDelta.
+    */
+    double getGlobalPitchFactor() const
+    {
+        return globalPitchFactor;
+    }
+    
+    /** This returns the global pitch factor as semitones. 
+    *
+    *   This can be used for displaying / saving purposes.
+    */
+    double getGlobalPitchFactorSemiTones() const
+    {
+        return log2(globalPitchFactor) * 12.0;
+    }
+    
 protected:
 
 
@@ -1058,6 +1082,8 @@ private:
 
 	int usagePercent;
 
+    double globalPitchFactor;
+    
 	double bpm;
 	int voiceAmount;
 	bool allNotesOffFlag;
