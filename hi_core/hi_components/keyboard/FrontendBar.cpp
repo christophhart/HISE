@@ -38,20 +38,29 @@ mc(mc_)
 
 	cpuSlider->setColour(VuMeter::backgroundColour, Colours::transparentBlack);
 	cpuSlider->setColour(VuMeter::ColourId::ledColour, Colours::white.withAlpha(0.45f));
-	cpuSlider->setColour(VuMeter::ColourId::outlineColour, Colours::white.withAlpha(0.6f));
+	cpuSlider->setColour(VuMeter::ColourId::outlineColour, Colours::white.withAlpha(0.4f));
 
 	cpuSlider->setOpaque(false);
 
 	addAndMakeVisible(voiceLabel = new Label());
 
-	voiceLabel->setColour(Label::ColourIds::outlineColourId, Colours::white.withAlpha(0.6f));
+	voiceLabel->setColour(Label::ColourIds::outlineColourId, Colours::white.withAlpha(0.4f));
 	voiceLabel->setColour(Label::ColourIds::textColourId, Colours::white.withAlpha(0.7f));
 	voiceLabel->setColour(Label::ColourIds::backgroundColourId, Colours::transparentBlack);
 	voiceLabel->setFont(GLOBAL_FONT().withHeight(10.0f));
 
 	voiceLabel->setEditable(false);
+    
+    addAndMakeVisible(bpmLabel = new Label());
+    
+    bpmLabel->setColour(Label::ColourIds::outlineColourId, Colours::white.withAlpha(0.4f));
+    bpmLabel->setColour(Label::ColourIds::textColourId, Colours::white.withAlpha(0.7f));
+    bpmLabel->setColour(Label::ColourIds::backgroundColourId, Colours::transparentBlack);
+    bpmLabel->setFont(GLOBAL_FONT().withHeight(10.0f));
+    
+    bpmLabel->setEditable(false);
 
-	addAndMakeVisible(panicButton = new ShapeButton("Panic", Colours::white.withAlpha(0.6f), Colours::white.withAlpha(0.5f), Colours::white.withAlpha(0.6f)));
+	addAndMakeVisible(panicButton = new ShapeButton("Panic", Colours::white.withAlpha(0.6f), Colours::white.withAlpha(0.8f), Colours::white));
 
 	Path panicPath;
 	panicPath.loadPathFromData(HiBinaryData::FrontendBinaryData::panicButtonShape, sizeof(HiBinaryData::FrontendBinaryData::panicButtonShape));
@@ -60,7 +69,36 @@ mc(mc_)
 
 	panicButton->addListener(this);
 
-	setSize(86, 24);
+    
+    static const unsigned char midiPathData[] = { 110,109,0,0,226,66,92,46,226,67,98,0,0,226,66,112,2,227,67,79,80,223,66,92,174,227,67,0,0,220,66,92,174,227,67,98,177,175,216,66,92,174,227,67,0,0,214,66,112,2,227,67,0,0,214,66,92,46,226,67,98,0,0,214,66,72,90,225,67,177,175,216,66,92,174,224,67,0,0,
+        220,66,92,174,224,67,98,79,80,223,66,92,174,224,67,0,0,226,66,72,90,225,67,0,0,226,66,92,46,226,67,99,109,0,128,218,66,92,110,222,67,98,0,128,218,66,112,66,223,67,79,208,215,66,92,238,223,67,0,128,212,66,92,238,223,67,98,177,47,209,66,92,238,223,67,0,
+        128,206,66,112,66,223,67,0,128,206,66,92,110,222,67,98,0,128,206,66,72,154,221,67,177,47,209,66,92,238,220,67,0,128,212,66,92,238,220,67,98,79,208,215,66,92,238,220,67,0,128,218,66,72,154,221,67,0,128,218,66,92,110,222,67,99,109,0,128,203,66,92,142,220,
+        67,98,0,128,203,66,112,98,221,67,79,208,200,66,92,14,222,67,0,128,197,66,92,14,222,67,98,177,47,194,66,92,14,222,67,0,128,191,66,112,98,221,67,0,128,191,66,92,142,220,67,98,0,128,191,66,72,186,219,67,177,47,194,66,92,14,219,67,0,128,197,66,92,14,219,
+        67,98,79,208,200,66,92,14,219,67,0,128,203,66,72,186,219,67,0,128,203,66,92,142,220,67,99,109,0,128,188,66,92,110,222,67,98,0,128,188,66,112,66,223,67,79,208,185,66,92,238,223,67,0,128,182,66,92,238,223,67,98,177,47,179,66,92,238,223,67,0,128,176,66,
+        112,66,223,67,0,128,176,66,92,110,222,67,98,0,128,176,66,72,154,221,67,177,47,179,66,92,238,220,67,0,128,182,66,92,238,220,67,98,79,208,185,66,92,238,220,67,0,128,188,66,72,154,221,67,0,128,188,66,92,110,222,67,99,109,0,0,181,66,92,46,226,67,98,0,0,181,
+        66,112,2,227,67,79,80,178,66,92,174,227,67,0,0,175,66,92,174,227,67,98,177,175,171,66,92,174,227,67,0,0,169,66,112,2,227,67,0,0,169,66,92,46,226,67,98,0,0,169,66,72,90,225,67,177,175,171,66,92,174,224,67,0,0,175,66,92,174,224,67,98,79,80,178,66,92,174,
+        224,67,0,0,181,66,72,90,225,67,0,0,181,66,92,46,226,67,99,109,0,128,197,66,151,79,215,67,98,243,139,173,66,151,79,215,67,0,0,154,66,148,50,220,67,0,0,154,66,151,47,226,67,98,0,0,154,66,154,44,232,67,243,139,173,66,151,15,237,67,0,128,197,66,151,15,237,
+        67,98,12,116,221,66,151,15,237,67,0,0,241,66,154,44,232,67,0,0,241,66,151,47,226,67,98,0,0,241,66,148,50,220,67,13,116,221,66,151,79,215,67,0,128,197,66,151,79,215,67,99,109,0,128,197,66,151,79,218,67,98,209,247,214,66,151,79,218,67,0,0,229,66,163,209,
+        221,67,0,0,229,66,151,47,226,67,98,0,0,229,66,139,141,230,67,210,247,214,66,151,15,234,67,0,128,197,66,151,15,234,67,98,47,8,180,66,151,15,234,67,0,0,166,66,139,141,230,67,0,0,166,66,151,47,226,67,98,0,0,166,66,163,209,221,67,47,8,180,66,151,79,218,67,
+        0,128,197,66,151,79,218,67,99,101,0,0 };
+    
+    Path midiPath;
+    
+    
+    
+    midiPath.loadPathFromData (midiPathData, sizeof (midiPathData));
+    
+    addAndMakeVisible(midiButton = new ShapeButton("MIDI Input", Colours::white.withAlpha(0.6f), Colours::white.withAlpha(0.8f), Colours::white));
+    
+    midiButton->setShape(midiPath, true, true, false);
+    
+    midiButton->setEnabled(false);
+    
+    panicButton->setTooltip("MIDI Panic (all notes off)");
+    
+    midiButton->setTooltip("MIDI Activity LED");
+    
+	setSize(114, 28);
 
 	startTimer(500);
 }
@@ -81,25 +119,35 @@ void VoiceCounterCpuUsageComponent::timerCallback()
 
 	cpuSlider->setPeak(mc->getCpuUsage() / 100.0f);
 	voiceLabel->setText(String(mc->getNumActiveVoices()), dontSendNotification);
+    bpmLabel->setText(String(mc->getBpm(), 0), dontSendNotification);
+    
+    const bool midiFlag = mc->checkAndResetMidiInputFlag();
+    
+    Colour c = midiFlag ? Colours::white : Colours::white.withAlpha(0.6f);
+    
+    midiButton->setColours(c, c, c);
+    midiButton->repaint();
 }
 
 void VoiceCounterCpuUsageComponent::resized()
 {
-	
-
-	panicButton->setBounds(0, 4, 20, 20);
-	voiceLabel->setBounds(24, 11, 30, 13);
-	cpuSlider->setBounds(56, 11, 30, 13);
+	panicButton->setBounds(0, 0, 12, 12);
+    midiButton->setBounds(0, 14, 12, 12);
+	voiceLabel->setBounds(17, 13, 30, 14);
+    bpmLabel->setBounds(48, 13, 30, 14);
+	cpuSlider->setBounds(79, 13, 30, 14);
 }
 
 void VoiceCounterCpuUsageComponent::paint(Graphics& g)
 {
 	if(isOpaque()) g.fillAll(findColour(Slider::ColourIds::backgroundColourId));
 
-	g.setColour(Colours::white.withAlpha(0.6f));
+	g.setColour(Colours::white.withAlpha(0.4f));
 	g.setFont(GLOBAL_BOLD_FONT().withHeight(10.0f));
-	g.drawText("Voices", 24, 0, 50, 12, Justification::left, true);
-	g.drawText("CPU", 54, 0, 30, 12, Justification::right, true);
+	g.drawText("Voices", 16, 3, 50, 11, Justification::left, true);
+    
+	g.drawText("BPM", 44, 3, 30, 11, Justification::right, true);
+    g.drawText("CPU", 76, 3, 30, 11, Justification::right, true);
 }
 
 void VoiceCounterCpuUsageComponent::paintOverChildren(Graphics& g)
@@ -133,6 +181,8 @@ FrontendBar::FrontendBar(MainController *mc_) : mc(mc_)
 	presetSelector->setTextWhenNothingSelected("Preset");
 	presetSelector->setTooltip("Load a preset");
 
+    presetSelector->addListener(this);
+    
 	refreshPresetFileList();
 
 	Path savePath;
@@ -149,6 +199,8 @@ FrontendBar::FrontendBar(MainController *mc_) : mc(mc_)
 
 	presetSaveButton->setTooltip("Save user preset");
 
+    presetSaveButton->addListener(this);
+    
 	addAndMakeVisible(volumeSliderLabel = new Label());
 	volumeSliderLabel->setFont(GLOBAL_BOLD_FONT().withHeight(10.0f));
 	volumeSliderLabel->setText("Gain", dontSendNotification);
@@ -209,13 +261,14 @@ FrontendBar::FrontendBar(MainController *mc_) : mc(mc_)
 	
 	tooltipBar->setColour(TooltipBar::ColourIds::iconColour, bright.withAlpha(0.6f));
 	tooltipBar->setColour(TooltipBar::ColourIds::textColour, bright);
+    tooltipBar->setColour(TooltipBar::ColourIds::backgroundColour, Colours::white.withAlpha(0.08f));
 
 	
 	voiceCpuComponent->timerCallback();
 
 	setTooltip(" ");
 
-    setSize (800, 36);
+    setSize (800, 32);
 
 	START_TIMER();
 }
@@ -228,18 +281,21 @@ FrontendBar::~FrontendBar()
 
 void FrontendBar::paint (Graphics& g)
 {
-
+    g.setGradientFill(ColourGradient(Colours::black.withBrightness(0.1f), 0.0f, 0.0f,
+                      Colours::black, 0.0f, (float)getHeight(), false));
+    
+    g.fillAll();
 }
 
 void FrontendBar::resized()
 {
-	voiceCpuComponent->setBounds(6, 6, voiceCpuComponent->getWidth(), voiceCpuComponent->getHeight());
+	voiceCpuComponent->setBounds(6, 2, voiceCpuComponent->getWidth(), voiceCpuComponent->getHeight());
 
-	presetSelector->setBounds(voiceCpuComponent->getRight() + 6, 4, 100, 28);
+	presetSelector->setBounds(voiceCpuComponent->getRight() + 6, 2, 130, 28);
 
-	presetSaveButton->setBounds(presetSelector->getRight() + 3, 6, 20, 20);
+	presetSaveButton->setBounds(presetSelector->getRight() + 1, 6, 20, 20);
 
-	outMeter->setBounds(getRight() - 28, 3, 24, getHeight() - 6);
+	outMeter->setBounds(getRight() - 26, 0, 24, getHeight());
 
 	volumeSlider->setBounds(outMeter->getX() - 28, 12, 22, 22);
 	volumeSliderLabel->setBounds(volumeSlider->getX() - 6, 1, 32, 12);
@@ -253,13 +309,25 @@ void FrontendBar::resized()
 
 	int toolWidth = pitchSlider->getX() - presetSaveButton->getRight() - 12;
 
-	tooltipBar->setBounds(presetSaveButton->getRight() + 6, 6, toolWidth, getHeight() - 12);
+	tooltipBar->setBounds(presetSaveButton->getRight() + 6, 4, toolWidth, getHeight() - 8);
 }
 
 
 
 void FrontendBar::buttonClicked(Button *b)
 {
+    if(b == presetSaveButton)
+    {
+        UserPresetHandler::saveUserPreset(mc->getMainSynthChain());
+        
+        refreshPresetFileList();
+    }
+}
+
+void FrontendBar::comboBoxChanged(ComboBox *cb)
+{
+    const File f = UserPresetHandler::getUserPresetFile(mc->getMainSynthChain(), cb->getText());
+    UserPresetHandler::loadUserPreset(mc->getMainSynthChain(), f);
 }
 
 void FrontendBar::refreshPresetFileList()

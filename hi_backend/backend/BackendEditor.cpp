@@ -499,13 +499,13 @@ String BackendProcessorEditor::createStringFromPath(const Array<int> &path)
 void BackendProcessorEditor::setToolBarPosition(int x, int y, int width, int height)
 {
 	const int toolbarWidth = mainToolbar->getNumItems() * 24;
-	const int cpuVoiceWidth = 86;
+	const int cpuVoiceWidth = cpuVoiceComponent->getWidth();
 
-	tooltipBar->setBounds(x, y, width - toolbarWidth - cpuVoiceWidth - 16, height);
+	tooltipBar->setBounds(x, y + 2, width - toolbarWidth - cpuVoiceWidth - 16, height - 4);
 
 	cpuVoiceComponent->setBounds(tooltipBar->getRight() + 8, y, cpuVoiceWidth, height);
 
-	mainToolbar->setBounds(x + width - toolbarWidth, y, toolbarWidth, height);
+	mainToolbar->setBounds(x + width - toolbarWidth, y+2, toolbarWidth, height-4);
 }
 
 void BackendProcessorEditor::setViewportPositions(int viewportX, const int viewportY, const int viewportWidth, int viewportHeight)
@@ -666,7 +666,7 @@ void BackendProcessorEditor::resized()
 		heightOfSideColumns = getHeight() - poolY - bw;
 	}
 
-	setToolBarPosition(viewportX, menuBarOffset + 8 , viewportWidth, 24);
+	setToolBarPosition(viewportX, menuBarOffset + 4 , viewportWidth, 28);
 
 	breadCrumbComponent->setBounds(viewportX, viewportY - breadcrumbHeight, viewportWidth, breadcrumbHeight);
 

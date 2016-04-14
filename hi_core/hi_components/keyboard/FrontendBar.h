@@ -57,10 +57,16 @@ public:
 private:
 
 	ScopedPointer<ShapeButton> panicButton;
-
+    ScopedPointer<ShapeButton> midiButton;
+    
 	ScopedPointer<Label> voiceLabel;
 
 	ScopedPointer<VuMeter> cpuSlider;
+    
+    ScopedPointer<Label> bpmLabel;
+    
+    bool on;
+    
 
 	MainController *mc;
 };
@@ -72,7 +78,8 @@ class FrontendBar  : public Component,
                      public Timer,
                      public ButtonListener,
 					 public SliderListener,
-					 public SettableTooltipClient
+					 public SettableTooltipClient,
+                     public ComboBox::Listener
 {
 public:
     
@@ -85,6 +92,8 @@ public:
 
 	void sliderValueChanged(Slider* slider) override;
 
+    void comboBoxChanged(ComboBox *cb) override;
+    
 	void timerCallback();
 
     void paint (Graphics& g);
@@ -112,6 +121,8 @@ private:
 	ScopedPointer<ComboBox> presetSelector;
 	ScopedPointer<ShapeButton> presetSaveButton;
 
+
+    
     //==============================================================================
     ScopedPointer<VuMeter> outMeter;
 

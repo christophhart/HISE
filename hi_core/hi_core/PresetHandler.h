@@ -315,7 +315,16 @@ private:
 	Component::SafePointer<Component> window;
 };
 
-
+class UserPresetHandler
+{
+public:
+    
+    static void saveUserPreset(ModulatorSynthChain *chain);
+    
+    static void loadUserPreset(ModulatorSynthChain *chain, const File &fileToLoad);
+    
+    static File getUserPresetFile(ModulatorSynthChain *chain, const String &fileNameWithoutExtension);
+};
 
 /** A helper class which provides loading and saving Processors to files and clipboard. 
 *	@ingroup utility

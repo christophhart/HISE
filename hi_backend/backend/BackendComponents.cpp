@@ -505,13 +505,25 @@ mainSynthChain(editor->getMainSynthChain())
 
 	keyboard->setAvailableRange(editor->getBackendProcessor()->getKeyboardState().getLowestKeyToDisplay(), 127);
 
-	setSize(container->getContentWidth(), container->getContentHeight() + 45);
+    
+#if JUCE_WINDOWS
+    const int xDelta = 4;
+    
+#else
+    
+    const int xDelta = 2;
+    
+    
+#endif
+    
+	setSize(container->getContentWidth() + xDelta, container->getContentHeight() + frontendBar->getHeight() + 45 + xDelta);
 }
 
 void PopupPluginPreview::Content::resized()
 {
-	container->setBounds(0, 0, container->getContentWidth(), container->getContentHeight());
+    frontendBar->setBounds(2, 2, container->getContentWidth(), frontendBar->getHeight());
+	container->setBounds(2, 2+ frontendBar->getBottom(), container->getContentWidth(), container->getContentHeight());
 
-	frontendBar->setBounds(0, container->getNumInterfaces() != 1 ? 20 : 0, container->getContentWidth(), frontendBar->getHeight());
-	keyboard->setBounds(0, container->getBottom(), container->getContentWidth(), 72);
+
+	keyboard->setBounds(2, container->getBottom(), container->getContentWidth(), 72);
 }

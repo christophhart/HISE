@@ -488,7 +488,7 @@ ScriptContentContainer::~ScriptContentContainer()
 
 int ScriptContentContainer::getContentHeight() const
 {
-	const int heightOfButtonBar = interfaces.size() > 1 ? 20 : 0;
+	const int heightOfButtonBar = 0;
 
 	const int marginBottom = editor != nullptr ? 4 : 0;
 
@@ -532,13 +532,16 @@ void ScriptContentContainer::checkInterfaces()
 
 		interfaces.add(new InterfaceScriptAndButton(sp, this));
 
-		addAndMakeVisible(interfaces.getLast()->button);
-		addAndMakeVisible(interfaces.getLast()->content);
-	}
 
+		addAndMakeVisible(interfaces.getLast()->content);
+    }
+    
+    
 	// Check for dangling ScriptProcessors
 	for(int i = 0; i < interfaces.size(); i++)
 	{
+        addAndMakeVisible(interfaces[i]->button);
+        
 		if(interfaces[i]->content->getScriptProcessor() == nullptr)
 		{
 			if(interfaces[i]->content == currentContent)
@@ -577,12 +580,12 @@ void ScriptContentContainer::refreshContentBounds()
 
 	if(useButtonBar)
 	{
-		int widthPerButton = isFrontendContainer() ? 100 : (int)((float)getWidth() / (float)interfaces.size());
+		int widthPerButton = isFrontendContainer() ? 80 : (int)((float)getWidth() / (float)interfaces.size());
 
 		for(int i = 0; i < interfaces.size(); i++)
 		{
 			interfaces[i]->content->setBounds(0,0,0,0);
-			interfaces[i]->button->setBounds(buttonOffset + i * widthPerButton, buttonBarY, widthPerButton, 20);
+			interfaces[i]->button->setBounds(i * widthPerButton, buttonBarY, widthPerButton, 20);
 
 			interfaces[i]->button->setTooltip(interfaces[i]->content->getContentTooltip());
 
@@ -596,7 +599,7 @@ void ScriptContentContainer::refreshContentBounds()
 
 			int offsetX = jmax<int>(0, (getWidth() - width) / 2);
 
-			currentContent.getComponent()->setBounds(offsetX, contentY, width, currentContent->getContentHeight());
+			currentContent.getComponent()->setBounds(offsetX, 0, width, currentContent->getContentHeight());
 		}
 	}
 	else

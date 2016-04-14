@@ -1514,44 +1514,12 @@ void BackendCommandTarget::Actions::showProjectInFinder(BackendProcessorEditor *
 
 void BackendCommandTarget::Actions::saveUserPreset(BackendProcessorEditor *bpe)
 {
-    if (GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive())
-    {
-        File userPresetDir = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
-        
-        String name = PresetHandler::getCustomName("User Preset");
-        
-        if(name.isNotEmpty())
-        {
-            File presetFile = userPresetDir.getChildFile(name + ".preset");
-            
-            if(!presetFile.existsAsFile() || PresetHandler::showYesNoWindow("Confirm overwrite", "Do you want to overwrite the preset " + name + "?"))
-            {
-                Processor::Iterator<ScriptProcessor> iter(bpe->getMainSynthChain());
-                
-                while(ScriptProcessor *sp = iter.getNextProcessor())
-                {
-                    if(!sp->isFront()) continue;
-                    
-                    sp->getScriptingContent()->storeAllControlsAsPreset(presetFile.getFullPathName());
-                }
-            }
-        }
-    }
+    UserPresetHandler::saveUserPreset(bpe->getMainSynthChain());
 }
 
 void BackendCommandTarget::Actions::loadUserPreset(BackendProcessorEditor *bpe, const File &fileToLoad)
 {
-    if (GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive())
-    {
-        Processor::Iterator<ScriptProcessor> iter(bpe->getMainSynthChain());
-        
-        while(ScriptProcessor *sp = iter.getNextProcessor())
-        {
-            if(!sp->isFront()) continue;
-            
-            sp->getScriptingContent()->restoreAllControlsFromPreset(fileToLoad.getFullPathName());
-        }
-    }
+    UserPresetHandler::loadUserPreset(bpe->getMainSynthChain(), fileToLoad);
 }
 
 void BackendCommandTarget::Actions::redirectSampleFolder(BackendProcessorEditor *bpe)

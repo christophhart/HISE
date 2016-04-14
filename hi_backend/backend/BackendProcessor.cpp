@@ -167,6 +167,7 @@ void BackendProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiM
 
 	keyboardState.processNextMidiBuffer (midiMessages, 0, buffer.getNumSamples(), true);
 
+    if(!midiMessages.isEmpty()) setMidiInputFlag();
 	
 	multiChannelBuffer.clear();
 

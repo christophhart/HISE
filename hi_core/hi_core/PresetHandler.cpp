@@ -55,6 +55,53 @@ void CopyPasteTarget::grabCopyAndPasteFocus()
 }
 
 
+void UserPresetHandler::saveUserPreset(ModulatorSynthChain *chain)
+{
+    if (GET_PROJECT_HANDLER(chain).isActive())
+    {
+        File userPresetDir = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
+        
+        String name = PresetHandler::getCustomName("User Preset");
+        
+        if(name.isNotEmpty())
+        {
+            File presetFile = userPresetDir.getChildFile(name + ".preset");
+            
+            if(!presetFile.existsAsFile() || PresetHandler::showYesNoWindow("Confirm overwrite", "Do you want to overwrite the preset " + name + "?"))
+            {
+                Processor::Iterator<ScriptProcessor> iter(chain);
+                
+                while(ScriptProcessor *sp = iter.getNextProcessor())
+                {
+                    if(!sp->isFront()) continue;
+                    
+                    sp->getScriptingContent()->storeAllControlsAsPreset(presetFile.getFullPathName());
+                }
+            }
+        }
+    }
+}
+
+void UserPresetHandler::loadUserPreset(ModulatorSynthChain *chain, const File &fileToLoad)
+{
+    if (GET_PROJECT_HANDLER(chain).isActive())
+    {
+        Processor::Iterator<ScriptProcessor> iter(chain);
+        
+        while(ScriptProcessor *sp = iter.getNextProcessor())
+        {
+            if(!sp->isFront()) continue;
+            
+            sp->getScriptingContent()->restoreAllControlsFromPreset(fileToLoad.getFullPathName());
+        }
+    }
+}
+
+File UserPresetHandler::getUserPresetFile(ModulatorSynthChain *chain, const String &fileNameWithoutExtension)
+{
+    return GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::UserPresets).getChildFile(fileNameWithoutExtension + ".preset");
+}
+
 void PresetHandler::saveProcessorAsPreset(Processor *p, const String &directoryPath/*=String::empty*/)
 {
 	const bool hasCustomName = p->getName() != p->getId();

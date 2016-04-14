@@ -945,6 +945,14 @@ public:
 		}
 	}
 
+    
+    bool checkAndResetMidiInputFlag()
+    {
+        const bool returnValue = midiInputFlag;
+        midiInputFlag = false;
+        
+        return returnValue;
+    }
 
 protected:
 
@@ -997,7 +1005,9 @@ protected:
 	}
 	
 	CustomKeyboardState keyboardState;
-	
+
+    void setMidiInputFlag() {midiInputFlag = true; };
+    
 
 private:
 
@@ -1051,6 +1061,8 @@ private:
 	double bpm;
 	int voiceAmount;
 	bool allNotesOffFlag;
+    
+    bool midiInputFlag;
 	
 	double sampleRate;
 	double temp_usage;
