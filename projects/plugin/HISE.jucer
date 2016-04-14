@@ -15,6 +15,10 @@
     <GROUP id="{665762C7-5461-7343-9D6B-1FFA3A6308C3}" name="Source">
       <FILE id="PpFbAI" name="balanceKnob_200.png" compile="0" resource="1"
             file="../../hi_core/hi_images/balanceKnob_200.png"/>
+      <FILE id="dpVIbz" name="FrontendKnob_Bipolar.png" compile="0" resource="1"
+            file="../../hi_core/hi_images/FrontendKnob_Bipolar.png"/>
+      <FILE id="Si4Xwd" name="FrontendKnob_Unipolar.png" compile="0" resource="1"
+            file="../../hi_core/hi_images/FrontendKnob_Unipolar.png"/>
       <FILE id="sQbLrj" name="HISE_Logo.png" compile="0" resource="1" file="../../hi_core/hi_images/HISE_Logo.png"/>
       <FILE id="AgEW3K" name="knobEmpty_200.png" compile="0" resource="1"
             file="../../hi_core/hi_images/knobEmpty_200.png"/>
