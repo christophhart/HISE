@@ -3119,6 +3119,7 @@ audioSampleProcessor(dynamic_cast<Processor*>(sampleProcessor))
 	setMethod("setAttribute", Wrapper::setAttribute);
 	setMethod("setBypassed", Wrapper::setBypassed);
 	setMethod("getSampleLength", Wrapper::getSampleLength);
+    setMethod("setSampleRange", Wrapper::setSampleRange);
 	setMethod("setFile", Wrapper::setFile);
 }
 
@@ -3131,12 +3132,21 @@ void ScriptingObjects::ScriptingAudioSampleProcessor::setFile(String fileName)
 	}
 }
 
+void ScriptingObjects::ScriptingAudioSampleProcessor::setSampleRange(int start, int end)
+{
+    if (checkValidObject())
+    {
+        ScopedLock sl(audioSampleProcessor->getMainController()->getLock());
+        dynamic_cast<AudioSampleProcessor*>(audioSampleProcessor.get())->setRange(Range<int>(start, end));
+        
+    }
+}
+
 int ScriptingObjects::ScriptingAudioSampleProcessor::getSampleLength() const
 {
 	if (checkValidObject())
 	{
-		return dynamic_cast<const AudioSampleProcessor*>(audioSampleProcessor.get())->getRange().getLength();
-	}
+        return dynamic_cast<const AudioSampleProcessor*>(audioSampleProcessor.get())->getTotalLength();	}
 	else return 0;
 }
 

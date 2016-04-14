@@ -412,6 +412,7 @@ public:
 			static var setBypassed(const var::NativeFunctionArgs& args);
 			static var getSampleLength(const var::NativeFunctionArgs& args);
 			static var setFile(const var::NativeFunctionArgs& args);
+            static var setSampleRange(const var::NativeFunctionArgs& args);
 		};
 
 		WeakReference<Processor> audioSampleProcessor;

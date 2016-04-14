@@ -1228,6 +1228,8 @@ public:
 	/** Returns the range of the sample. */
 	Range<int> getRange() const { return sampleRange; };
 
+    int getTotalLength() const { return sampleBuffer != nullptr ? sampleBuffer->getNumSamples() : 0; };
+    
 	/** Returns a const pointer to the audio sample buffer. 
 	*
 	*	The pointer references a object from a AudioSamplePool and should be valid as long as the pool is not cleared. */

@@ -1911,6 +1911,18 @@ var ScriptingObjects::ScriptingAudioSampleProcessor::Wrapper::setFile(const var:
 	return var::undefined();
 }
 
+var ScriptingObjects::ScriptingAudioSampleProcessor::Wrapper::setSampleRange(const var::NativeFunctionArgs& args)
+{
+    if (ScriptingObjects::ScriptingAudioSampleProcessor *thisObject = dynamic_cast<ScriptingObjects::ScriptingAudioSampleProcessor*> (args.thisObject.getObject()))
+    {
+        CHECK_ARGUMENTS("setSampleRange()", 2);
+        
+        thisObject->setSampleRange((int)args.arguments[0], (int)args.arguments[1]);
+    }
+    
+    return var::undefined();
+}
+
 
 var ScriptingObjects::MidiList::Wrapper::fill(const var::NativeFunctionArgs& args)
 {
