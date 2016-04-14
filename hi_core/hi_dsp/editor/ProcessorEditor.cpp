@@ -650,7 +650,7 @@ Component * MidiKeyboardFocusTraverser::getDefaultComponent(Component *parentCom
 	else if (MacroParameterTable *table = parentComponent->findParentComponentOfClass<MacroParameterTable>())	return table;
 	
 
-	BackendProcessorEditor *editor = parentComponent->findParentComponentOfClass<BackendProcessorEditor>();
+    ComponentWithKeyboard *componentWithKeyboard = parentComponent->findParentComponentOfClass<ComponentWithKeyboard>();
 
 	if (dynamic_cast<CopyPasteTarget*>(parentComponent))
 	{
@@ -662,9 +662,11 @@ Component * MidiKeyboardFocusTraverser::getDefaultComponent(Component *parentCom
 	}
 	else
 	{
+        BackendProcessorEditor *editor = parentComponent->findParentComponentOfClass<BackendProcessorEditor>();
+        
 		if(editor != nullptr) editor->setCopyPasteTarget(nullptr);
 	}
 
-	return editor != nullptr ? editor->getKeyboard() : nullptr;
+	return componentWithKeyboard != nullptr ? componentWithKeyboard->getKeyboard() : nullptr;
 }
 

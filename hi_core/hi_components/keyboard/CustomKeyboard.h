@@ -107,6 +107,12 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CustomKeyboard)
 };
 
+class ComponentWithKeyboard
+{
+public:
+    
+    virtual Component *getKeyboard() const = 0;
+};
 
 
 #endif   

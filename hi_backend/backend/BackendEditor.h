@@ -46,7 +46,8 @@ class ScriptContentContainer;
 class BackendProcessorEditor: public AudioProcessorEditor,
 							  public BackendCommandTarget,
 							  public RestorableObject,
-							  public GlobalScriptCompileListener
+							  public GlobalScriptCompileListener,
+                              public ComponentWithKeyboard
 {
 public:
 
@@ -178,7 +179,7 @@ public:
 
 	BetterProcessorEditorContainer *getRootContainer() { return container; };
 
-	Component *getKeyboard() const { return keyboard; }
+	Component *getKeyboard() const override { return keyboard; }
 
 	void setModalComponent(Component *component)
 	{

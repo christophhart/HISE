@@ -48,7 +48,8 @@ public:
 
 private:
 
-	class Content : public Component
+	class Content : public Component,
+                    public ComponentWithKeyboard
 	{
 	public:
 
@@ -56,6 +57,10 @@ private:
 
 		void resized() override;
 
+        KeyboardFocusTraverser *createFocusTraverser() override { return new MidiKeyboardFocusTraverser(); }
+        
+        Component *getKeyboard() const override { return keyboard; };
+        
 	private:
 
 		Component::SafePointer<BackendProcessorEditor> editor;
