@@ -32,6 +32,10 @@
 
 void SoundPreloadThread::run()
 {
+	ModulatorSamplerSoundPool *pool = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
+
+	ScopedValueSetter<bool> preloadLock(pool->getPreloadLockFlag(), true);
+
     ScopedLock(sampler->getLock());
     
 	const int numSoundsToPreload = sampler->getNumSounds();
@@ -43,7 +47,7 @@ void SoundPreloadThread::run()
 	sampler->setBypassed(true);
 
 	sampler->setShouldUpdateUI(false);
-	sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->setUpdatePool(false);
+	pool->setUpdatePool(false);
 
 	debugToConsole(sampler, "Changing preload size to " + String(preloadSize) + " samples");
 

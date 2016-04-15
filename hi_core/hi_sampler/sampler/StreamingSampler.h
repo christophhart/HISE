@@ -273,7 +273,13 @@ public:
 	*	This is used by the SampleLoader class to fetch the samples from the preloaded buffer until the disk streaming
 	*	thread fills the other buffer.
 	*/
-	const AudioSampleBuffer &getPreloadBuffer() const {return preloadBuffer;}
+	const AudioSampleBuffer &getPreloadBuffer() const
+	{
+		// This should not happen (either its unloaded or it has some samples)...
+		jassert(preloadBuffer.getNumSamples() != 0);
+
+		return preloadBuffer;
+	}
 
 	// ==============================================================================================================================================
 

@@ -478,6 +478,13 @@ public:
 
 	bool isFileBeingUsed(int poolIndex);
 
+	bool &getPreloadLockFlag()
+	{
+		return isCurrentlyLoading;
+	}
+
+	bool isPreloading() const { return isCurrentlyLoading; }
+
 private:
 
 	// ================================================================================================================
@@ -495,6 +502,8 @@ private:
 	MainController *mc;
 
 	ReferenceCountedArray<StreamingSamplerSound> pool;
+
+	bool isCurrentlyLoading;
 
     bool updatePool;
 	bool searchPool;

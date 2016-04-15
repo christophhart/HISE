@@ -1363,10 +1363,8 @@ void ScriptingApi::Sampler::purgeMicPosition(String micName, bool shouldBePurged
 	for (int i = 0; i < sampler->getNumMicPositions(); i++)
 	{
 		if (micName == sampler->getChannelData(i).suffix)
-		{
-			purgeChannel = i;
-			purgeMode = shouldBePurged;
-			triggerAsyncUpdate();
+		{	
+			sampler->setMicEnabled(i, !shouldBePurged);
 			
 			return;
 		}
@@ -1406,16 +1404,6 @@ void ScriptingApi::Sampler::refreshInterface()
 
 	sampler->sendChangeMessage();
 	sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->sendChangeMessage();
-}
-
-void ScriptingApi::Sampler::handleAsyncUpdate()
-{
-	ModulatorSampler *sampler = dynamic_cast<ModulatorSampler*>(getScriptProcessor()->getOwnerSynth());
-
-	if (sampler != nullptr)
-	{
-		sampler->setMicEnabled(purgeChannel, !purgeMode);
-	}
 }
 
 int ScriptingApi::Synth::addModulator(int chain, const String &type, const String &id) const

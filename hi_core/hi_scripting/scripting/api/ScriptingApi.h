@@ -850,8 +850,7 @@ public:
 	};
 
 	/** All scripting functions for sampler specific functionality. */
-	class Sampler : public ScriptingObject,
-					public AsyncUpdater
+	class Sampler : public ScriptingObject
 	{
 	public:
 
@@ -910,18 +909,9 @@ public:
 
 		};
 
-		/** This will asynchronously change sample properties. */
-		void handleAsyncUpdate() override;
-
 	private:
 
-		
-
 		SelectedItemSet<WeakReference<ModulatorSamplerSound>> soundSelection;
-			
-		int purgeChannel;
-		bool purgeMode;
-
 	};
 	
 

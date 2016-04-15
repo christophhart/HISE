@@ -328,12 +328,11 @@ public:
 
 		channelData[channelIndex].enabled = channelIsEnabled;
 
-		refreshChannelsForSounds();
+		asyncPurger.triggerAsyncUpdate(); // will call refreshChannelsForSound asynchronously
 	}
 
 	void refreshChannelsForSounds()
 	{
-
 		for (int i = 0; i < sounds.size(); i++)
 		{
 			ModulatorSamplerSound *sound = dynamic_cast<ModulatorSamplerSound*>(sounds[i].get());
@@ -352,19 +351,61 @@ public:
 
 	void setNumMicPositions(StringArray &micPositions);
 	
-    
-
 private:
 
-    struct AsyncPreloader: public AsyncUpdater
+	struct AsyncPurger : public AsyncUpdater,
+						 public Timer
+	{
+	public:
+
+		AsyncPurger(ModulatorSampler *sampler_) :
+			sampler(sampler_)
+		{};
+
+		void timerCallback()
+		{
+			triggerAsyncUpdate();
+			stopTimer();
+		}
+
+		void handleAsyncUpdate()
+		{
+			if (sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->isPreloading())
+			{
+				startTimer(100);
+				return;
+			}
+
+			sampler->refreshChannelsForSounds();
+		}
+
+	private:
+
+		ModulatorSampler *sampler;
+	};
+
+    struct AsyncPreloader: public AsyncUpdater,
+						   public Timer
     {
         AsyncPreloader(ModulatorSampler *sampler_):
         sampler(sampler_),
         preloadSize(-1)
         {};
         
+		void timerCallback()
+		{
+			triggerAsyncUpdate();
+			stopTimer();
+		}
+
         void handleAsyncUpdate()
         {
+			if (sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->isPreloading())
+			{
+				startTimer(100);
+				return;
+			}
+
             sampler->setPreloadSize(preloadSize);
         }
         
@@ -383,6 +424,8 @@ private:
     void setPreloadSize(int newPreloadSize);
     
     AsyncPreloader asyncPreloader;
+
+	AsyncPurger asyncPurger;
     
 	void refreshCrossfadeTables();
 

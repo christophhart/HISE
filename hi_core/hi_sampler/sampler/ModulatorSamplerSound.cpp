@@ -620,7 +620,8 @@ debugProcessor(nullptr),
 mainAudioProcessor(nullptr),
 numOpenFileHandles(0),
 updatePool(true),
-searchPool(true)
+searchPool(true),
+isCurrentlyLoading(false)
 {
 	afm.registerBasicFormats();
 }
