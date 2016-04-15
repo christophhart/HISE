@@ -471,7 +471,6 @@ private:
 			setRange(min, max, 0.1);
 			normRange = NormalisableRange<double>(min, max);
 
-
 			if(mode == Discrete)
 			{
 				
@@ -479,13 +478,11 @@ private:
                 setSkewFactor(1.0);
 				return;
 			}
-			else if (mid != 0.5)
+			else if (mid != -1.0)
 			{
 				setSkewFactorFromMidPoint(mid);
 				return;
-			}
-
-			
+			}			
 		}
 
 		normRange = getRangeForMode(mode);
