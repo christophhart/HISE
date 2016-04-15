@@ -37,42 +37,6 @@
 class BackendProcessorEditor;
 class ScriptContentContainer;
 
-class PopupPluginPreview : public DocumentWindow
-{
-public:
-
-	PopupPluginPreview(BackendProcessorEditor *editor);
-
-	
-	void closeButtonPressed() override;;
-
-private:
-
-	class Content : public Component,
-                    public ComponentWithKeyboard
-	{
-	public:
-
-		Content(BackendProcessorEditor *editor_);
-
-		void resized() override;
-
-        KeyboardFocusTraverser *createFocusTraverser() override { return new MidiKeyboardFocusTraverser(); }
-        
-        Component *getKeyboard() const override { return keyboard; };
-        
-	private:
-
-		Component::SafePointer<BackendProcessorEditor> editor;
-		ScopedPointer<FrontendBar> frontendBar;
-		ScopedPointer<ScriptContentContainer> container;
-		ModulatorSynthChain *mainSynthChain;
-		ScopedPointer<CustomKeyboard> keyboard;
-	};
-
-	Component::SafePointer<BackendProcessorEditor> editor;
-};
-
 
 class MacroParameterTable;
 

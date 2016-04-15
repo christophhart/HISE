@@ -55,9 +55,9 @@ rootEditorIsMainSynthChain(true)
 	addAndMakeVisible(propertyDebugArea = new PropertyDebugArea(this));
 	addAndMakeVisible(macroKnobs = new MacroComponent(owner, propertyDebugArea->getMacroTable()));
 	addAndMakeVisible(mainToolbar = new Toolbar());
-	addAndMakeVisible(keyboard = new CustomKeyboard(owner->keyboardState));
+	addAndMakeVisible(keyboard = new CustomKeyboard(owner->getKeyboardState()));
 	addAndMakeVisible(tooltipBar = new TooltipBar());
-	addAndMakeVisible(cpuVoiceComponent = new VoiceCounterCpuUsageComponent(owner));
+	addAndMakeVisible(cpuVoiceComponent = new VoiceCpuBpmComponent(owner));
 
 	cpuVoiceComponent->setColour(Slider::backgroundColourId, Colour(BACKEND_BG_COLOUR));
 	cpuVoiceComponent->setOpaque(true);

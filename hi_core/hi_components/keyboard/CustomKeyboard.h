@@ -33,6 +33,21 @@
 #ifndef __JUCE_HEADER_BD6D51421EADA068__
 #define __JUCE_HEADER_BD6D51421EADA068__
 
+class MidiKeyboardFocusTraverser : public KeyboardFocusTraverser
+{
+	Component *getDefaultComponent(Component *parentComponent) override;
+};
+
+class ComponentWithMidiKeyboardTraverser : public Component
+{
+public:
+
+	KeyboardFocusTraverser *createFocusTraverser() override { return new MidiKeyboardFocusTraverser(); };
+};
+
+
+
+
 
 
 class CustomKeyboard : public MidiKeyboardComponent,

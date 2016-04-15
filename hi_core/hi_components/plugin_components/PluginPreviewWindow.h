@@ -30,35 +30,51 @@
 *   ===========================================================================
 */
 
-#ifndef HI_COMPONENTS_H_INCLUDED
-#define HI_COMPONENTS_H_INCLUDED
 
-/** @defgroup components Components
-*
-*	custom components for HI.
-*/
+#ifndef PLUGINPREVIEWWINDOW_H_INCLUDED
+#define PLUGINPREVIEWWINDOW_H_INCLUDED
 
-#include "resizable_height_component/ResizableHeightComponent.h"
+class BackendProcessorEditor;
+class ScriptContentContainer;
 
-#include "vu_meter/Plotter.h"
+class PluginPreviewWindow : public DocumentWindow
+{
+public:
 
-#include "drag_plot/SliderPack.h"
-#include "drag_plot/TableEditor.h"
-#include "keyboard/CustomKeyboard.h"
-#include "plugin_components/VoiceCpuBpmComponent.h"
-#include "plugin_components/FrontendBar.h"
-#include "plugin_components/PluginPreviewWindow.h"
+	PluginPreviewWindow(BackendProcessorEditor *editor);
 
-#include "wave_components/SampleDisplayComponent.h"
-#include "wave_components/WavetableComponents.h"
+	void closeButtonPressed() override;;
 
-#include "vu_meter/VuMeter.h"
+private:
+
+	class Content : public Component,
+		public ComponentWithKeyboard
+	{
+	public:
+
+		Content(BackendProcessorEditor *editor_);
+
+		~Content();
+
+		void resized() override;
+
+		KeyboardFocusTraverser *createFocusTraverser() override { return new MidiKeyboardFocusTraverser(); }
+
+		Component *getKeyboard() const override { return keyboard; };
+
+	private:
+
+		Component::SafePointer<BackendProcessorEditor> editor;
+		ScopedPointer<FrontendBar> frontendBar;
+		ScopedPointer<ScriptContentContainer> container;
+		ModulatorSynthChain *mainSynthChain;
+		ScopedPointer<CustomKeyboard> keyboard;
+	};
+
+	Component::SafePointer<BackendProcessorEditor> editor;
+};
 
 
-#include "eq_plot/FilterInfo.h"
-#include "eq_plot/FilterGraph.h"
-#include "eq_plot/EqComponent.h"
 
 
-
-#endif  // HI_COMPONENTS_H_INCLUDED
+#endif  // PLUGINPREVIEWWINDOW_H_INCLUDED

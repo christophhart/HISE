@@ -30,47 +30,8 @@
 *   ===========================================================================
 */
 
-#ifndef __JUCE_HEADER_59561CDF26DED86E__
-#define __JUCE_HEADER_59561CDF26DED86E__
-
-class VuMeter;
-
-
-class VoiceCounterCpuUsageComponent : public Component,
-									  public Timer,
-									  public ButtonListener
-{
-public:
-
-	VoiceCounterCpuUsageComponent(MainController *mc_);
-
-	void buttonClicked(Button *b) override;
-
-	void timerCallback() override;
-
-	void resized() override;
-
-	void paint(Graphics& g) override;
-
-	void paintOverChildren(Graphics& g) override;
-
-private:
-
-	ScopedPointer<ShapeButton> panicButton;
-    ScopedPointer<ShapeButton> midiButton;
-    
-	ScopedPointer<Label> voiceLabel;
-
-	ScopedPointer<VuMeter> cpuSlider;
-    
-    ScopedPointer<Label> bpmLabel;
-    
-    bool on;
-    
-
-	MainController *mc;
-};
-
+#ifndef __FRONTENDBAR_H_INCLUDED
+#define __FRONTENDBAR_H_INCLUDED
 
 
 /** The bar that is displayed for every FrontendProcessorEditor */
@@ -83,23 +44,26 @@ class FrontendBar  : public Component,
 {
 public:
     
+	// ================================================================================================================
+
     FrontendBar (MainController *p);
     ~FrontendBar();
 
 	void buttonClicked(Button *b) override;
-
+	void sliderValueChanged(Slider* slider) override;
+    void comboBoxChanged(ComboBox *cb) override;
+	
 	void refreshPresetFileList();
 
-	void sliderValueChanged(Slider* slider) override;
+	// ================================================================================================================
 
-    void comboBoxChanged(ComboBox *cb) override;
-    
 	void timerCallback();
-
     void paint (Graphics& g);
     void resized();
 
 private:
+
+	// ================================================================================================================
 
 	MainController *mc;
 
@@ -113,7 +77,7 @@ private:
 	ScopedPointer<Slider> balanceSlider;
 	ScopedPointer<Slider> pitchSlider;
 
-	ScopedPointer<VoiceCounterCpuUsageComponent> voiceCpuComponent;
+	ScopedPointer<VoiceCpuBpmComponent> voiceCpuComponent;
 
 	UpdateMerger cpuUpdater;
 	ScopedPointer<TooltipBar> tooltipBar;
@@ -121,14 +85,9 @@ private:
 	ScopedPointer<ComboBox> presetSelector;
 	ScopedPointer<ShapeButton> presetSaveButton;
 
+	ScopedPointer<VuMeter> outMeter;
 
-    
-    //==============================================================================
-    ScopedPointer<VuMeter> outMeter;
-
-
-    //==============================================================================
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FrontendBar)
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FrontendBar)
 };
 
 

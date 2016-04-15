@@ -101,7 +101,7 @@ void TooltipBar::timerCallback()
     
     if(parentComponent == nullptr)
     {
-        parentComponent = findParentComponentOfClass<PopupPluginPreview>();
+        parentComponent = findParentComponentOfClass<PluginPreviewWindow>();
     }
     
 #else

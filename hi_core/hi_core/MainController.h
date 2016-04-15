@@ -63,295 +63,11 @@ class FactoryType;
 #define debugMod(text) {;};
 #endif
 
-
 #define USE_MIDI_CONTROLLERS_FOR_MACROS 0
 
-/** This class is a listener class that can react to tempo changes.
-*	@ingroup utility
-*
-*	In order to use this, subclass this and implement the behaviour in the tempoChanged callback.
-*/
-class TempoListener
-{
-public:
-
-	virtual ~TempoListener() {masterReference.clear();};
-
-	/** The callback function that will be called if the tempo was changed.
-	*
-	*	This is called synchronously in the audio callback before the processing, so make sure you don't 
-	*	make something stupid here.
-	*
-	*	It will be called once per block, so you can't do sample synchronous tempo stuff, but that should be enough.
-	*/
-	virtual void tempoChanged(double newTempo) = 0;
-
-private:
-
-	friend class WeakReference<TempoListener>;
-	WeakReference<TempoListener>::Master masterReference;
-
-};
-
-#include "xmmintrin.h"
-
-class ScopedNoDenormals
-{
-public:
-	ScopedNoDenormals()
-	{
-
-		//There is also C99 way of doing this, but its not widely supported: fesetenv(...)
-
-		oldMXCSR = _mm_getcsr(); /*read the old MXCSR setting */ \
-		int newMXCSR = oldMXCSR | 0x8040; /* set DAZ and FZ bits */ \
-		_mm_setcsr(newMXCSR); /*write the new MXCSR setting to the MXCSR */
-	};
-
-	~ScopedNoDenormals()
-	{
-		_mm_setcsr(oldMXCSR);
-	};
-
-	int oldMXCSR;
-
-};
-
-/** A GlobalScriptCompileListener gets informed whenever a script was compiled. 
-*
-*	add it with getMainController()->addGlolablScriptCompileListener(this),
-*	overwrite the callback and do whatever you need to do.
-*
-*/
-class GlobalScriptCompileListener
-{
-public:
-
-	virtual ~GlobalScriptCompileListener() {masterReference.clear();};
-
-	/** Whenever a script was compiled, a message is sent out to every listener. */
-	virtual void scriptWasCompiled(ScriptProcessor *processor) = 0;
-
-private:
-
-	friend class WeakReference<GlobalScriptCompileListener>;
-	WeakReference<GlobalScriptCompileListener>::Master masterReference;
-};
-
-
-
-
-/** This class sends a message to all registered listeners. */
-class GlobalScriptCompileBroadcaster
-{
-public:
-
-	GlobalScriptCompileBroadcaster():
-		timeOut(2.0),
-		useBackgroundCompiling(false),
-		enableGlobalRecompile(true)
-	{}
-
-	virtual ~GlobalScriptCompileBroadcaster()
-	{};
-
-	/** This sends a synchronous message to all registered listeners.
-	*
-	*	Listeners which are manually inserted at the beginning (eg. ScriptingContentComponents) are notified first.
-	*/ 
-	void sendScriptCompileMessage(ScriptProcessor *processorThatWasCompiled)
-	{
-		if (!enableGlobalRecompile) return;
-
-		for(int i = 0; i < listenerListStart.size(); i++)
-		{
-			if(listenerListStart[i].get() != nullptr)
-			{
-				listenerListStart[i].get()->scriptWasCompiled(processorThatWasCompiled);
-			}
-			else
-			{
-				listenerListStart.remove(i--);
-			}
-		}
-
-		for(int i = 0; i < listenerListEnd.size(); i++)
-		{
-			if(listenerListEnd[i].get() != nullptr)
-			{
-				listenerListEnd[i].get()->scriptWasCompiled(processorThatWasCompiled);
-			}
-			else
-			{
-				listenerListEnd.remove(i--);
-			}
-		}
-	}
-
-	/** Adds a ScriptListener. You can influence the order of the callback by inserting Listeners at the beginning of the list. */
-	void addScriptListener(GlobalScriptCompileListener *listener, bool insertAtBeginning=false)
-	{
-		if(insertAtBeginning)
-		{
-			listenerListStart.addIfNotAlreadyThere(listener);
-		}
-		else
-		{
-			listenerListEnd.addIfNotAlreadyThere(listener);
-		}
-		
-	};
-
-	void removeScriptListener(GlobalScriptCompileListener *listener)
-	{
-		listenerListStart.removeAllInstancesOf(listener);
-		listenerListEnd.removeAllInstancesOf(listener);
-	};
-
-	void setShouldUseBackgroundThreadForCompiling(bool shouldBeEnabled) noexcept { useBackgroundCompiling = shouldBeEnabled; }
-	bool isUsingBackgroundThreadForCompiling() const noexcept { return useBackgroundCompiling; }
-
-	void setCompileTimeOut(double newTimeOut) noexcept { timeOut = newTimeOut; }
-	double getCompileTimeOut() const noexcept { return timeOut; }
-
-	void setEnableCompileAllScriptsOnPresetLoad(bool shouldBeEnabled) noexcept{ enableGlobalRecompile = shouldBeEnabled; };
-	bool isCompilingAllScriptsOnPresetLoad() const noexcept{ return enableGlobalRecompile; };
-
-	void fillExternalFileList(Array<File> &files, StringArray &processors);
-
-	void setExternalScriptData(ValueTree &collectedExternalScripts);
-
-	String getExternalScriptFromCollection(const String &fileName);
-
-private:
-
-	bool useBackgroundCompiling;
-	bool enableGlobalRecompile;
-
-	double timeOut;
-
-	ValueTree externalScripts;
-
-	Array<WeakReference<GlobalScriptCompileListener>> listenerListStart;
-	Array<WeakReference<GlobalScriptCompileListener>> listenerListEnd;
-};
-
-
-/** Subclass your component from this class and the main window will focus it to allow copy pasting with shortcuts.
-*
-*   Then, in your mouseDown method, call grabCopyAndPasteFocus()
-*/
-class CopyPasteTarget
-{
-public:
-
-	CopyPasteTarget() : isSelected(false) {};
-	virtual ~CopyPasteTarget()
-	{
-		masterReference.clear();
-	};
-
-	virtual String getObjectTypeName() = 0;
-	virtual void copyAction() = 0;
-	virtual void pasteAction() = 0;
-
-	void grabCopyAndPasteFocus();
-
-	bool isSelectedForCopyAndPaste() { return isSelected; };
-
-	void deselect()
-	{
-		isSelected = false;
-		dynamic_cast<Component*>(this)->repaint();
-	}
-
-private:
-
-	WeakReference<CopyPasteTarget>::Master masterReference;
-	friend class WeakReference<CopyPasteTarget>;
-
-	WeakReference<Processor> processor;
-
-	bool isSelected;
-
-};
-
-/** A keyboard state which adds the possibility of colouring the keys. */
-class CustomKeyboardState: public MidiKeyboardState,
-						   public SafeChangeBroadcaster
-{
-public:
-
-	/** Creates a new keyboard state. */
-	CustomKeyboardState():
-		MidiKeyboardState(),
-		lowestKey(40)
-	{
-		for(int i = 0; i < 127; i++)
-		{
-			setColourForSingleKey(i, Colours::transparentBlack);
-		}
-	}
-
-	/** Returns the colour for the given note number. */
-	Colour getColourForSingleKey(int noteNumber) const
-	{
-		return noteColours[noteNumber];
-	};
-
-	/** Checks if a colour was specified for the given note number. */
-	bool isColourDefinedForKey(int noteNumber) const
-	{
-		return noteColours[noteNumber] != Colours::transparentBlack;
-	};
-
-	/** Changes the colour for the given note number. */
-	void setColourForSingleKey(int noteNumber, Colour colour)
-	{
-		if(noteNumber >= 0 && noteNumber < 127)
-		{
-			noteColours[noteNumber] = colour;
-		}
-
-		sendChangeMessage();
-	}
-	void setLowestKeyToDisplay(int lowestKeyToDisplay);
-
-	int getLowestKeyToDisplay() const { return lowestKey; }
-
-private:
-
-	Colour noteColours[127];
-	int lowestKey;
-
-};
 
 class MainController;
 
-class PresetLoadingThread : public ThreadWithAsyncProgressWindow
-{
-public:
-
-	PresetLoadingThread(MainController *mc, const ValueTree v);
-
-	PresetLoadingThread(MainController *mc, const File &presetFile);
-
-	void run() override;
-
-	void threadFinished() override;
-
-private:
-
-	ValueTree v;
-	MainController *mc;
-
-	const File file;
-
-	double sampleRate;
-	int bufferSize;
-
-	bool fileNeedsToBeParsed;
-};
 
 
 /** This handles the MIDI automation for the frontend plugin.
@@ -823,9 +539,9 @@ public:
     
 	void setKeyboardCoulour(int keyNumber, Colour colour);
 
-	CustomKeyboardState &getKeyboardState(){ return keyboardState; }
+	CustomKeyboardState &getKeyboardState();
 
-	void setLowestKeyToDisplay(int lowestKeyToDisplay) { keyboardState.setLowestKeyToDisplay(lowestKeyToDisplay); }
+	void setLowestKeyToDisplay(int lowestKeyToDisplay);
 
 	void addPlottedModulator(Modulator *m);
 	void removePlottedModulator(Modulator *m);
@@ -858,7 +574,7 @@ public:
 
 	DynamicObject *getGlobalVariableObject() { return globalVariableObject.get(); };
 
-	void storePlayheadIntoDynamicObject(AudioPlayHead::CurrentPositionInfo &lastPosInfo);
+	
 
 	DynamicObject *getHostInfoObject() { return hostInfo.get(); }
 
@@ -980,13 +696,11 @@ public:
     
 protected:
 
+	/** This is the main processing loop that is shared among all subclasses. */
+	void processBlockCommon(AudioSampleBuffer &b, MidiBuffer &mb);
 
 	/** Sets the sample rate for the cpu meter. */
-	void prepareToPlay(double sampleRate_, int samplesPerBlock)
-	{
-		bufferSize = samplesPerBlock;
-		sampleRate = sampleRate_;
-	}
+	void prepareToPlay(double sampleRate_, int samplesPerBlock);
 
 
 	/** sets the new BPM and sends a message to all registered tempo listeners if the tempo changed. */
@@ -1028,12 +742,18 @@ protected:
 		return shownComponents[componentIndex];
 	}
 	
-	CustomKeyboardState keyboardState;
+	
 
     void setMidiInputFlag() {midiInputFlag = true; };
     
 
 private:
+
+	void storePlayheadIntoDynamicObject(AudioPlayHead::CurrentPositionInfo &lastPosInfo);
+
+	CustomKeyboardState keyboardState;
+
+	AudioSampleBuffer multiChannelBuffer;
 
 	friend class WeakReference<MainController>;
 	WeakReference<MainController>::Master masterReference;
@@ -1053,6 +773,7 @@ private:
 
 	int bufferSize;
 
+	AudioPlayHead::CurrentPositionInfo lastPosInfo;
 	
 	ScopedPointer<ApplicationCommandManager> mainCommandManager;
 

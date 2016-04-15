@@ -170,6 +170,33 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ThreadWithAsyncProgressWindow)
 };
 
+class MainController;
+
+class PresetLoadingThread : public ThreadWithAsyncProgressWindow
+{
+public:
+
+	PresetLoadingThread(MainController *mc, const ValueTree v);
+
+	PresetLoadingThread(MainController *mc, const File &presetFile);
+
+	void run() override;
+
+	void threadFinished() override;
+
+private:
+
+	ValueTree v;
+	MainController *mc;
+
+	const File file;
+
+	double sampleRate;
+	int bufferSize;
+
+	bool fileNeedsToBeParsed;
+};
+
 class ProjectHandler;
 
 /** Contains all Setting windows that can popup and edit a specified XML file. */

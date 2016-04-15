@@ -33,26 +33,11 @@
 #ifndef PROCESSOREDITOR_H_INCLUDED
 #define PROCESSOREDITOR_H_INCLUDED
 
-
 #define SET_ATTRIBUTE_FROM_SLIDER(x) {getProcessor()->setAttribute(x, (float)sliderThatWasMoved->getValue(), dontSendNotification);}
-
-
 
 #define CONTAINER_WIDTH 900 - 32
 #define INTENDATION_WIDTH 10
 
-
-class MidiKeyboardFocusTraverser : public KeyboardFocusTraverser
-{
-	Component *getDefaultComponent(Component *parentComponent) override;
-};
-
-class ComponentWithMidiKeyboardTraverser : public Component
-{
-public:
-
-	KeyboardFocusTraverser *createFocusTraverser() override { return new MidiKeyboardFocusTraverser(); };
-};
 
 /** The container that holds all vertically stacked ProcessorEditors. */
 class BetterProcessorEditorContainer : public ComponentWithMidiKeyboardTraverser,

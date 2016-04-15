@@ -196,6 +196,117 @@ void ThreadWithAsyncProgressWindow::runThread()
 
 
 
+PresetLoadingThread::PresetLoadingThread(MainController *mc, const ValueTree v_) :
+ThreadWithAsyncProgressWindow("Loading Preset " + v_.getProperty("ID").toString()),
+v(v_),
+mc(mc),
+fileNeedsToBeParsed(false)
+{
+	addBasicComponents(false);
+}
+
+PresetLoadingThread::PresetLoadingThread(MainController *mc, const File &presetFile) :
+ThreadWithAsyncProgressWindow("Loading Preset " + presetFile.getFileName()),
+file(presetFile),
+fileNeedsToBeParsed(true),
+mc(mc)
+{
+
+
+	addBasicComponents(false);
+}
+
+void PresetLoadingThread::run()
+{
+	if (fileNeedsToBeParsed)
+	{
+		setProgress(0.0);
+		showStatusMessage("Parsing preset file");
+		FileInputStream fis(file);
+
+		v = ValueTree::readFromStream(fis);
+
+		if (v.isValid() && v.getProperty("Type", var::undefined()).toString() == "SynthChain")
+		{
+			if (v.getType() != Identifier("Processor"))
+			{
+				v = PresetHandler::changeFileStructureToNewFormat(v);
+			}
+		}
+
+		const int presetVersion = v.getProperty("BuildVersion", 0);
+
+		if (presetVersion > BUILD_SUB_VERSION)
+		{
+			PresetHandler::showMessageWindow("Version mismatch", "The preset was built with a newer the build of HISE: " + String(presetVersion) + ". To ensure perfect compatibility, update to at least this build.");
+		}
+
+		setProgress(0.5);
+		if (threadShouldExit())
+		{
+			mc->clearPreset();
+			return;
+		}
+
+	}
+
+	ModulatorSynthChain *synthChain = mc->getMainSynthChain();
+
+
+
+	sampleRate = synthChain->getSampleRate();
+	bufferSize = synthChain->getBlockSize();
+
+	synthChain->setBypassed(true);
+
+	// Reset the sample rate so that prepareToPlay does not get called in restoreFromValueTree
+	synthChain->setCurrentPlaybackSampleRate(-1.0);
+
+	synthChain->setId(v.getProperty("ID", "MainSynthChain"));
+
+	if (threadShouldExit()) return;
+
+	showStatusMessage("Loading modules");
+
+	synthChain->restoreFromValueTree(v);
+
+	if (threadShouldExit()) return;
+
+}
+
+void PresetLoadingThread::threadFinished()
+{
+	ModulatorSynthChain *synthChain = mc->getMainSynthChain();
+
+	ScopedLock sl(synthChain->getLock());
+
+	synthChain->prepareToPlay(sampleRate, bufferSize);
+	synthChain->compileAllScripts();
+
+	mc->getSampleManager().getAudioSampleBufferPool()->clearData();
+
+	synthChain->setBypassed(false);
+
+	Processor::Iterator<ModulatorSampler> iter(synthChain, false);
+
+	int i = 0;
+
+	while (ModulatorSampler *sampler = iter.getNextProcessor())
+	{
+		showStatusMessage("Loading samples from " + sampler->getId());
+		setProgress((double)i / (double)iter.getNumProcessors());
+		sampler->refreshPreloadSizes();
+		sampler->refreshMemoryUsage();
+		if (threadShouldExit())
+		{
+			mc->clearPreset();
+			return;
+		}
+	}
+}
+
+
+
 void SettingWindows::BaseSettingsWindow::run()
 {
 	for (int i = 0; i < settings->getNumChildElements(); i++)

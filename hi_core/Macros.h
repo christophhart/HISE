@@ -55,6 +55,11 @@
 
 #define SCALE_FACTOR() ((float)Desktop::getInstance().getDisplays().getMainDisplay().scale)
 
+#if USE_BACKEND
+#define BACKEND_ONLY(x)(x)
+#else
+#define BACKEND_ONLY(x)
+#endif
 
 
 #ifdef JUCE_WINDOWS

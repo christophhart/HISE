@@ -31,6 +31,35 @@
 */
 
 
+Component * MidiKeyboardFocusTraverser::getDefaultComponent(Component *parentComponent)
+{
+	if (FileBrowser *browser = parentComponent->findParentComponentOfClass<FileBrowser>())						return browser;
+	if (SamplerBody *samplerBody = parentComponent->findParentComponentOfClass<SamplerBody>())					return samplerBody;
+	else if (MacroParameterTable *table = parentComponent->findParentComponentOfClass<MacroParameterTable>())	return table;
+
+	ComponentWithKeyboard *componentWithKeyboard = parentComponent->findParentComponentOfClass<ComponentWithKeyboard>();
+
+	if (dynamic_cast<CopyPasteTarget*>(parentComponent))
+	{
+		dynamic_cast<CopyPasteTarget*>(parentComponent)->grabCopyAndPasteFocus();
+	}
+	else if (parentComponent->findParentComponentOfClass<CopyPasteTarget>())
+	{
+		parentComponent->findParentComponentOfClass<CopyPasteTarget>()->grabCopyAndPasteFocus();
+	}
+	else
+	{
+		BackendProcessorEditor *editor = parentComponent->findParentComponentOfClass<BackendProcessorEditor>();
+
+		if (editor != nullptr) editor->setCopyPasteTarget(nullptr);
+	}
+
+	return componentWithKeyboard != nullptr ? componentWithKeyboard->getKeyboard() : nullptr;
+}
+
+
+
+
 //==============================================================================
 CustomKeyboard::CustomKeyboard (CustomKeyboardState &state_):
 	MidiKeyboardComponent(state_, Orientation::horizontalKeyboard),

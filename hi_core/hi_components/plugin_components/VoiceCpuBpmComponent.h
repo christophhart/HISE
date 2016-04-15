@@ -30,35 +30,44 @@
 *   ===========================================================================
 */
 
-#ifndef HI_COMPONENTS_H_INCLUDED
-#define HI_COMPONENTS_H_INCLUDED
+#ifndef VOICECPUBPMCOMPONENT_H_INCLUDED
+#define VOICECPUBPMCOMPONENT_H_INCLUDED
 
-/** @defgroup components Components
-*
-*	custom components for HI.
-*/
+class VuMeter;
 
-#include "resizable_height_component/ResizableHeightComponent.h"
+class VoiceCpuBpmComponent : public Component,
+	public Timer,
+	public ButtonListener
+{
+public:
 
-#include "vu_meter/Plotter.h"
+	VoiceCpuBpmComponent(MainController *mc_);
 
-#include "drag_plot/SliderPack.h"
-#include "drag_plot/TableEditor.h"
-#include "keyboard/CustomKeyboard.h"
-#include "plugin_components/VoiceCpuBpmComponent.h"
-#include "plugin_components/FrontendBar.h"
-#include "plugin_components/PluginPreviewWindow.h"
+	// ================================================================================================================
 
-#include "wave_components/SampleDisplayComponent.h"
-#include "wave_components/WavetableComponents.h"
+	void buttonClicked(Button *b) override;
+	void timerCallback() override;
+	void resized() override;
 
-#include "vu_meter/VuMeter.h"
+	void paint(Graphics& g) override;
+	void paintOverChildren(Graphics& g) override;
+
+private:
+
+	// ================================================================================================================
+
+	MainController *mc;
+
+	ScopedPointer<ShapeButton> panicButton;
+	ScopedPointer<ShapeButton> midiButton;
+
+	ScopedPointer<Label> voiceLabel;
+	ScopedPointer<VuMeter> cpuSlider;
+	ScopedPointer<Label> bpmLabel;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VoiceCpuBpmComponent)
+};
 
 
-#include "eq_plot/FilterInfo.h"
-#include "eq_plot/FilterGraph.h"
-#include "eq_plot/EqComponent.h"
 
-
-
-#endif  // HI_COMPONENTS_H_INCLUDED
+#endif  // VOICECPUBPMCOMPONENT_H_INCLUDED

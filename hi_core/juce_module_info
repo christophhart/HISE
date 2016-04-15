@@ -31,6 +31,7 @@
 					  "hi_components/drag_plot/*",
 					  "hi_components/eq_plot/*",
 					  "hi_components/keyboard/*",
+					  "hi_components/plugin_components/*",
                       "hi_components/vu_meter/*",
                       "hi_components/wave_components/*",
 					  "hi_components/resizable_height_component/*",

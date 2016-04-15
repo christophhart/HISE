@@ -1573,7 +1573,7 @@ void BackendCommandTarget::Actions::togglePluginPopupWindow(BackendProcessorEdit
 	}
 	else
 	{
-		bpe->setPluginPreviewWindow(new PopupPluginPreview(bpe));
+		bpe->setPluginPreviewWindow(new PluginPreviewWindow(bpe));
 	}
 }
 

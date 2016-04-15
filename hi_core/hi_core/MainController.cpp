@@ -30,24 +30,6 @@
 *   ===========================================================================
 */
 
-#if  JUCE_MAC
-
-struct FileLimitInitialiser
-{
-    FileLimitInitialiser()
-    {
-        rlimit lim;
-        
-        getrlimit (RLIMIT_NOFILE, &lim);
-        lim.rlim_cur = lim.rlim_max = 200000;
-        setrlimit (RLIMIT_NOFILE, &lim);
-    }
-};
-
-
-
-static FileLimitInitialiser fileLimitInitialiser;
-#endif
 
 MainController::MainController():
 	sampleManager(new SampleManager(this)),
@@ -58,15 +40,10 @@ MainController::MainController():
 	uptime(0.0),
 	bpm(120.0),
 	console(nullptr),
-
 	voiceAmount(0),
 	scrollY(0),
 	mainLookAndFeel(new KnobLookAndFeel()),
 	mainCommandManager(new ApplicationCommandManager()),
-#if USE_BACKEND
-	popupConsole(nullptr),
-	usePopupConsole(false),
-#endif
 	shownComponents(0),
 	plotter(nullptr),
 	usagePercent(0),
@@ -74,18 +51,15 @@ MainController::MainController():
     globalPitchFactor(1.0),
     midiInputFlag(false)
 {
-	
-#if USE_BACKEND
+	BACKEND_ONLY(popupConsole = nullptr);
+	BACKEND_ONLY(usePopupConsole = false);
 
-	shownComponents.setBit(BackendProcessorEditor::Keyboard, 1);
-	shownComponents.setBit(BackendProcessorEditor::Macros, 0);
-
-#endif
+	BACKEND_ONLY(shownComponents.setBit(BackendProcessorEditor::Keyboard, 1));
+	BACKEND_ONLY(shownComponents.setBit(BackendProcessorEditor::Macros, 0));
 
 	TempoSyncer::initTempoData();
     
 	globalVariableArray.insertMultiple(0, var::undefined(), NUM_GLOBAL_VARIABLES);
-
 	globalVariableObject = new DynamicObject();
 
 	hostInfo = new DynamicObject();
@@ -422,6 +396,16 @@ void MainController::setKeyboardCoulour(int keyNumber, Colour colour)
 	keyboardState.setColourForSingleKey(keyNumber, colour);
 }
 
+CustomKeyboardState & MainController::getKeyboardState()
+{
+	return keyboardState;
+}
+
+void MainController::setLowestKeyToDisplay(int lowestKeyToDisplay)
+{
+	keyboardState.setLowestKeyToDisplay(lowestKeyToDisplay);
+}
+
 void MainController::addPlottedModulator(Modulator *m)
 {
 	if(plotter.getComponent() != nullptr)
@@ -441,8 +425,6 @@ void MainController::removePlottedModulator(Modulator *m)
 #if USE_BACKEND
 void MainController::setWatchedScriptProcessor(ScriptProcessor *p, Component *editor)
 {
-
-
 	if(scriptWatchTable.getComponent() != nullptr)
 	{
 		scriptWatchTable->setScriptProcessor(p, dynamic_cast<ScriptingEditor*>(editor));
@@ -572,6 +554,85 @@ void MainController::setScriptComponentEditPanel(ScriptComponentEditPanel *panel
 }
 #endif
 
+void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &midiMessages)
+{
+	ScopedNoDenormals snd;
+
+	AudioPlayHead::CurrentPositionInfo newTime;
+
+	AudioProcessor *thisAsProcessor = dynamic_cast<AudioProcessor*>(this);
+
+	ModulatorSynthChain *synthChain = getMainSynthChain();
+
+	if (buffer.getNumSamples() != bufferSize)
+	{
+		debugError(synthChain, "Block size mismatch (old: " + String(bufferSize) + ", new: " + String(buffer.getNumSamples()));
+		prepareToPlay(sampleRate, buffer.getNumSamples());
+	}
+
+	if (thisAsProcessor->getPlayHead() != nullptr && thisAsProcessor->getPlayHead()->getCurrentPosition(newTime))
+	{
+		lastPosInfo = newTime;
+	}
+	else
+	{
+		lastPosInfo.resetToDefault();
+	};
+
+	storePlayheadIntoDynamicObject(lastPosInfo);
+
+	setBpm(lastPosInfo.bpm);
+
+#if USE_HI_DEBUG_TOOLS 
+	startCpuBenchmark(buffer.getNumSamples());
+#endif
+
+	if (thisAsProcessor->isSuspended())
+	{
+		buffer.clear();
+	}
+
+	checkAllNotesOff(midiMessages);
+
+#if USE_MIDI_CONTROLLERS_FOR_MACROS
+
+	handleControllersForMacroKnobs(midiMessages);
+
+#endif
+
+	keyboardState.processNextMidiBuffer(midiMessages, 0, buffer.getNumSamples(), true);
+
+	if (!midiMessages.isEmpty()) setMidiInputFlag();
+
+	multiChannelBuffer.clear();
+
+	synthChain->renderNextBlockWithModulators(multiChannelBuffer, midiMessages);
+
+	FloatVectorOperations::copy(buffer.getWritePointer(0), multiChannelBuffer.getReadPointer(0), buffer.getNumSamples());
+	FloatVectorOperations::copy(buffer.getWritePointer(1), multiChannelBuffer.getReadPointer(1), buffer.getNumSamples());
+
+	for (int i = 0; i < buffer.getNumChannels(); i++)
+	{
+		FloatVectorOperations::clip(buffer.getWritePointer(i, 0), buffer.getReadPointer(i, 0), -1.0f, 1.0f, buffer.getNumSamples());
+	}
+
+	midiMessages.clear();
+
+#if USE_HI_DEBUG_TOOLS
+	stopCpuBenchmark();
+#endif
+
+	uptime += double(buffer.getNumSamples()) / sampleRate;
+}
+
+void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
+{
+	bufferSize = samplesPerBlock;
+	sampleRate = sampleRate_;
+
+	multiChannelBuffer.setSize(getMainSynthChain()->getMatrix().getNumDestinationChannels(), samplesPerBlock);
+}
+
 void MainController::setBpm(double bpm_)
 {
 	if(bpm != bpm_)
@@ -607,163 +668,6 @@ ControlledObject::~ControlledObject()
 	
 };
 
-PresetLoadingThread::PresetLoadingThread(MainController *mc, const ValueTree v_) :
-ThreadWithAsyncProgressWindow("Loading Preset " + v_.getProperty("ID").toString()),
-v(v_),
-mc(mc),
-fileNeedsToBeParsed(false)
-{
-	addBasicComponents(false);
-}
-
-PresetLoadingThread::PresetLoadingThread(MainController *mc, const File &presetFile):
-ThreadWithAsyncProgressWindow("Loading Preset " + presetFile.getFileName()),
-file(presetFile),
-fileNeedsToBeParsed(true),
-mc(mc)
-{
-    
-    
-	addBasicComponents(false);
-}
-
-void PresetLoadingThread::run()
-{
-	if (fileNeedsToBeParsed)
-	{
-		setProgress(0.0);
-		showStatusMessage("Parsing preset file");
-		FileInputStream fis(file);
-
-		v = ValueTree::readFromStream(fis);
-
-		if (v.isValid() && v.getProperty("Type", var::undefined()).toString() == "SynthChain")
-		{
-			if (v.getType() != Identifier("Processor"))
-			{
-				v = PresetHandler::changeFileStructureToNewFormat(v);
-			}
-		}
-
-        const int presetVersion = v.getProperty("BuildVersion", 0);
-        
-        if(presetVersion > BUILD_SUB_VERSION)
-        {
-            PresetHandler::showMessageWindow("Version mismatch", "The preset was built with a newer the build of HISE: " + String(presetVersion) + ". To ensure perfect compatibility, update to at least this build.");
-        }
-        
-		setProgress(0.5);
-		if (threadShouldExit())
-		{
-			mc->clearPreset();
-			return;
-		}
-		
-	}
-
-	ModulatorSynthChain *synthChain = mc->getMainSynthChain();
-
-	
-
-	sampleRate = synthChain->getSampleRate();
-	bufferSize = synthChain->getBlockSize();
-
-	synthChain->setBypassed(true);
-
-	// Reset the sample rate so that prepareToPlay does not get called in restoreFromValueTree
-	synthChain->setCurrentPlaybackSampleRate(-1.0);
-
-	synthChain->setId(v.getProperty("ID", "MainSynthChain"));
-
-	if (threadShouldExit()) return;
-
-	showStatusMessage("Loading modules");
-
-	synthChain->restoreFromValueTree(v);
-
-	if (threadShouldExit()) return;
-	
-}
-
-void PresetLoadingThread::threadFinished()
-{
-	ModulatorSynthChain *synthChain = mc->getMainSynthChain();
-
-	ScopedLock sl(synthChain->getLock());
-
-	synthChain->prepareToPlay(sampleRate, bufferSize);
-	synthChain->compileAllScripts();
-
-	mc->getSampleManager().getAudioSampleBufferPool()->clearData();
-
-	synthChain->setBypassed(false);
-    
-	Processor::Iterator<ModulatorSampler> iter(synthChain, false);
-
-	int i = 0;
-
-	while (ModulatorSampler *sampler = iter.getNextProcessor())
-	{
-		showStatusMessage("Loading samples from " + sampler->getId());
-		setProgress((double)i / (double)iter.getNumProcessors());
-		sampler->refreshPreloadSizes();
-		sampler->refreshMemoryUsage();
-		if (threadShouldExit())
-		{
-			mc->clearPreset();
-			return;
-		}
-	}
-}
-
-void GlobalScriptCompileBroadcaster::fillExternalFileList(Array<File> &files, StringArray &processors)
-{
-	ModulatorSynthChain *mainChain = dynamic_cast<MainController*>(this)->getMainSynthChain();
-
-	Processor::Iterator<ScriptProcessor> iter(mainChain);
-
-	while (ScriptProcessor *sp = iter.getNextProcessor())
-	{
-		for (int i = 0; i < sp->getNumWatchedFiles(); i++)
-		{
-			if (!files.contains(sp->getWatchedFile(i)))
-			{
-				files.add(sp->getWatchedFile(i));
-				processors.add(sp->getId());
-			}
-
-			
-			
-		}
-	}
-}
-
-void GlobalScriptCompileBroadcaster::setExternalScriptData(ValueTree &collectedExternalScripts)
-{
-	externalScripts = collectedExternalScripts;
-}
-
-String GlobalScriptCompileBroadcaster::getExternalScriptFromCollection(const String &fileName)
-{
-	for (int i = 0; i < externalScripts.getNumChildren(); i++)
-	{
-		const String thisName = externalScripts.getChild(i).getProperty("FileName").toString();
-
-		if (thisName == fileName)
-		{
-			return externalScripts.getChild(i).getProperty("Content").toString();
-		}
-	}
-
-	// Hitting this assert means you try to get a script that wasn't exported.
-	jassertfalse;
-	return String::empty;
-}
-
-void CustomKeyboardState::setLowestKeyToDisplay(int lowestKeyToDisplay)
-{
-	lowestKey = lowestKeyToDisplay;
-}
 
 void MidiControllerAutomationHandler::handleParameterData(MidiBuffer &b)
 {

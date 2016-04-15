@@ -31,132 +31,6 @@
 */
 
 
-VoiceCounterCpuUsageComponent::VoiceCounterCpuUsageComponent(MainController *mc_) :
-mc(mc_)
-{
-	addAndMakeVisible(cpuSlider = new VuMeter());
-
-	cpuSlider->setColour(VuMeter::backgroundColour, Colours::transparentBlack);
-	cpuSlider->setColour(VuMeter::ColourId::ledColour, Colours::white.withAlpha(0.45f));
-	cpuSlider->setColour(VuMeter::ColourId::outlineColour, Colours::white.withAlpha(0.4f));
-
-	cpuSlider->setOpaque(false);
-
-	addAndMakeVisible(voiceLabel = new Label());
-
-	voiceLabel->setColour(Label::ColourIds::outlineColourId, Colours::white.withAlpha(0.4f));
-	voiceLabel->setColour(Label::ColourIds::textColourId, Colours::white.withAlpha(0.7f));
-	voiceLabel->setColour(Label::ColourIds::backgroundColourId, Colours::transparentBlack);
-	voiceLabel->setFont(GLOBAL_FONT().withHeight(10.0f));
-
-	voiceLabel->setEditable(false);
-    
-    addAndMakeVisible(bpmLabel = new Label());
-    
-    bpmLabel->setColour(Label::ColourIds::outlineColourId, Colours::white.withAlpha(0.4f));
-    bpmLabel->setColour(Label::ColourIds::textColourId, Colours::white.withAlpha(0.7f));
-    bpmLabel->setColour(Label::ColourIds::backgroundColourId, Colours::transparentBlack);
-    bpmLabel->setFont(GLOBAL_FONT().withHeight(10.0f));
-    
-    bpmLabel->setEditable(false);
-
-	addAndMakeVisible(panicButton = new ShapeButton("Panic", Colours::white.withAlpha(0.6f), Colours::white.withAlpha(0.8f), Colours::white));
-
-	Path panicPath;
-	panicPath.loadPathFromData(HiBinaryData::FrontendBinaryData::panicButtonShape, sizeof(HiBinaryData::FrontendBinaryData::panicButtonShape));
-	
-	panicButton->setShape(panicPath, true, true, false);
-
-	panicButton->addListener(this);
-
-    
-    static const unsigned char midiPathData[] = { 110,109,0,0,226,66,92,46,226,67,98,0,0,226,66,112,2,227,67,79,80,223,66,92,174,227,67,0,0,220,66,92,174,227,67,98,177,175,216,66,92,174,227,67,0,0,214,66,112,2,227,67,0,0,214,66,92,46,226,67,98,0,0,214,66,72,90,225,67,177,175,216,66,92,174,224,67,0,0,
-        220,66,92,174,224,67,98,79,80,223,66,92,174,224,67,0,0,226,66,72,90,225,67,0,0,226,66,92,46,226,67,99,109,0,128,218,66,92,110,222,67,98,0,128,218,66,112,66,223,67,79,208,215,66,92,238,223,67,0,128,212,66,92,238,223,67,98,177,47,209,66,92,238,223,67,0,
-        128,206,66,112,66,223,67,0,128,206,66,92,110,222,67,98,0,128,206,66,72,154,221,67,177,47,209,66,92,238,220,67,0,128,212,66,92,238,220,67,98,79,208,215,66,92,238,220,67,0,128,218,66,72,154,221,67,0,128,218,66,92,110,222,67,99,109,0,128,203,66,92,142,220,
-        67,98,0,128,203,66,112,98,221,67,79,208,200,66,92,14,222,67,0,128,197,66,92,14,222,67,98,177,47,194,66,92,14,222,67,0,128,191,66,112,98,221,67,0,128,191,66,92,142,220,67,98,0,128,191,66,72,186,219,67,177,47,194,66,92,14,219,67,0,128,197,66,92,14,219,
-        67,98,79,208,200,66,92,14,219,67,0,128,203,66,72,186,219,67,0,128,203,66,92,142,220,67,99,109,0,128,188,66,92,110,222,67,98,0,128,188,66,112,66,223,67,79,208,185,66,92,238,223,67,0,128,182,66,92,238,223,67,98,177,47,179,66,92,238,223,67,0,128,176,66,
-        112,66,223,67,0,128,176,66,92,110,222,67,98,0,128,176,66,72,154,221,67,177,47,179,66,92,238,220,67,0,128,182,66,92,238,220,67,98,79,208,185,66,92,238,220,67,0,128,188,66,72,154,221,67,0,128,188,66,92,110,222,67,99,109,0,0,181,66,92,46,226,67,98,0,0,181,
-        66,112,2,227,67,79,80,178,66,92,174,227,67,0,0,175,66,92,174,227,67,98,177,175,171,66,92,174,227,67,0,0,169,66,112,2,227,67,0,0,169,66,92,46,226,67,98,0,0,169,66,72,90,225,67,177,175,171,66,92,174,224,67,0,0,175,66,92,174,224,67,98,79,80,178,66,92,174,
-        224,67,0,0,181,66,72,90,225,67,0,0,181,66,92,46,226,67,99,109,0,128,197,66,151,79,215,67,98,243,139,173,66,151,79,215,67,0,0,154,66,148,50,220,67,0,0,154,66,151,47,226,67,98,0,0,154,66,154,44,232,67,243,139,173,66,151,15,237,67,0,128,197,66,151,15,237,
-        67,98,12,116,221,66,151,15,237,67,0,0,241,66,154,44,232,67,0,0,241,66,151,47,226,67,98,0,0,241,66,148,50,220,67,13,116,221,66,151,79,215,67,0,128,197,66,151,79,215,67,99,109,0,128,197,66,151,79,218,67,98,209,247,214,66,151,79,218,67,0,0,229,66,163,209,
-        221,67,0,0,229,66,151,47,226,67,98,0,0,229,66,139,141,230,67,210,247,214,66,151,15,234,67,0,128,197,66,151,15,234,67,98,47,8,180,66,151,15,234,67,0,0,166,66,139,141,230,67,0,0,166,66,151,47,226,67,98,0,0,166,66,163,209,221,67,47,8,180,66,151,79,218,67,
-        0,128,197,66,151,79,218,67,99,101,0,0 };
-    
-    Path midiPath;
-    
-    
-    
-    midiPath.loadPathFromData (midiPathData, sizeof (midiPathData));
-    
-    addAndMakeVisible(midiButton = new ShapeButton("MIDI Input", Colours::white.withAlpha(0.6f), Colours::white.withAlpha(0.8f), Colours::white));
-    
-    midiButton->setShape(midiPath, true, true, false);
-    
-    midiButton->setEnabled(false);
-    
-    panicButton->setTooltip("MIDI Panic (all notes off)");
-    
-    midiButton->setTooltip("MIDI Activity LED");
-    
-	setSize(114, 28);
-
-	startTimer(500);
-}
-
-
-
-void VoiceCounterCpuUsageComponent::buttonClicked(Button *)
-{
-	mc->allNotesOff();
-}
-
-
-void VoiceCounterCpuUsageComponent::timerCallback()
-{
-	cpuSlider->setColour(VuMeter::backgroundColour, findColour(Slider::backgroundColourId));
-
-	voiceLabel->setColour(Label::ColourIds::backgroundColourId, findColour(Slider::backgroundColourId));
-
-	cpuSlider->setPeak(mc->getCpuUsage() / 100.0f);
-	voiceLabel->setText(String(mc->getNumActiveVoices()), dontSendNotification);
-    bpmLabel->setText(String(mc->getBpm(), 0), dontSendNotification);
-    
-    const bool midiFlag = mc->checkAndResetMidiInputFlag();
-    
-    Colour c = midiFlag ? Colours::white : Colours::white.withAlpha(0.6f);
-    
-    midiButton->setColours(c, c, c);
-    midiButton->repaint();
-}
-
-void VoiceCounterCpuUsageComponent::resized()
-{
-	panicButton->setBounds(0, 0, 12, 12);
-    midiButton->setBounds(0, 14, 12, 12);
-	voiceLabel->setBounds(17, 13, 30, 14);
-    bpmLabel->setBounds(48, 13, 30, 14);
-	cpuSlider->setBounds(79, 13, 30, 14);
-}
-
-void VoiceCounterCpuUsageComponent::paint(Graphics& g)
-{
-	if(isOpaque()) g.fillAll(findColour(Slider::ColourIds::backgroundColourId));
-
-	g.setColour(Colours::white.withAlpha(0.4f));
-	g.setFont(GLOBAL_BOLD_FONT().withHeight(10.0f));
-	g.drawText("Voices", 16, 3, 50, 11, Justification::left, true);
-    
-	g.drawText("BPM", 44, 3, 30, 11, Justification::right, true);
-    g.drawText("CPU", 76, 3, 30, 11, Justification::right, true);
-}
-
-void VoiceCounterCpuUsageComponent::paintOverChildren(Graphics& g)
-{
-	g.setColour(Colours::white.withAlpha(0.7f));
-	g.setFont(GLOBAL_FONT().withHeight(10.0f));
-	g.drawText(String(mc->getCpuUsage()) + "%", cpuSlider->getBounds(), Justification::centred, true);
-}
-
 FrontendBar::FrontendBar(MainController *mc_) : mc(mc_)
 {
 	addAndMakeVisible (outMeter = new VuMeter (0.0, 0.0, VuMeter::StereoVertical));
@@ -165,7 +39,7 @@ FrontendBar::FrontendBar(MainController *mc_) : mc(mc_)
 	Colour dark(0xFF333333);
 	Colour bright(0xFF999999);
 
-	addAndMakeVisible(voiceCpuComponent = new VoiceCounterCpuUsageComponent(mc));
+	addAndMakeVisible(voiceCpuComponent = new VoiceCpuBpmComponent(mc));
 
 	addAndMakeVisible(tooltipBar = new TooltipBar());
 
@@ -279,7 +153,12 @@ FrontendBar::FrontendBar(MainController *mc_) : mc(mc_)
 
 FrontendBar::~FrontendBar()
 {
+	presetSelector->hidePopup();
+	presetSelector = nullptr;
+
     outMeter = nullptr;
+
+	
 }
 
 

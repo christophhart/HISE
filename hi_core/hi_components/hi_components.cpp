@@ -38,7 +38,9 @@
 #include "drag_plot/SliderPack.cpp"
 #include "drag_plot/TableEditor.cpp"
 #include "keyboard/CustomKeyboard.cpp"
-#include "keyboard/FrontendBar.cpp"
+#include "plugin_components/VoiceCpuBpmComponent.cpp"
+#include "plugin_components/FrontendBar.cpp"
+#include "plugin_components/PluginPreviewWindow.cpp"
 
 #include "wave_components/SampleDisplayComponent.cpp"
 #include "wave_components/WavetableComponents.cpp"

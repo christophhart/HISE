@@ -32,10 +32,12 @@
 
 #include "hi_core.h"
 
+#include "UtilityClasses.cpp"
 #include "HI_LookAndFeels.cpp"
 #include "Tables.cpp"
 #include "ExternalFilePool.cpp"
 #include "SampleThreadPool.cpp"
+#include "GlobalScriptCompileBroadcaster.cpp"
 #include "MainController.cpp"
 #include "PresetHandler.cpp"
 #include "SampleExporter.cpp"

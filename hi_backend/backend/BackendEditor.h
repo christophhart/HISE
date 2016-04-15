@@ -236,7 +236,7 @@ public:
 			moduleListNotifier.sendChangeMessage();
 	}
 
-	void setPluginPreviewWindow(PopupPluginPreview *newWindow)
+	void setPluginPreviewWindow(PluginPreviewWindow *newWindow)
 	{
 		previewWindow = nullptr;
 
@@ -305,7 +305,7 @@ private:
 
 	ScopedPointer<ProcessorList> list;
 
-	ScopedPointer<VoiceCounterCpuUsageComponent> cpuVoiceComponent;
+	ScopedPointer<VoiceCpuBpmComponent> cpuVoiceComponent;
 	
 	ScopedPointer<Component> modalComponent;
 
@@ -314,7 +314,7 @@ private:
 
 	ScopedPointer<BreadcrumbComponent> breadCrumbComponent;
 
-	ScopedPointer<PopupPluginPreview> previewWindow;
+	ScopedPointer<PluginPreviewWindow> previewWindow;
 
 	bool rootEditorIsMainSynthChain;
 };

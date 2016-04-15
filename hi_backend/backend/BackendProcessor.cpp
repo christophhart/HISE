@@ -33,14 +33,9 @@
 AudioDeviceDialog::AudioDeviceDialog(BackendProcessor *ownerProcessor_) :
 ownerProcessor(ownerProcessor_)
 {
-
-
-
 	setOpaque(true);
 
 	selector = new AudioDeviceSelectorComponent(*ownerProcessor->deviceManager, 0, 0, 2, 2, true, false, true, false);
-
-	
 
 	setLookAndFeel(&alaf);
 
@@ -125,71 +120,7 @@ BackendProcessor::~BackendProcessor()
 
 void BackendProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {
-    AudioPlayHead::CurrentPositionInfo newTime;
-
-    if(buffer.getNumSamples() != getBlockSize())
-    {
-        debugError(synthChain, "Block size mismatch (old: " + String(getBlockSize()) + ", new: " + String(buffer.getNumSamples()));
-        //prepareToPlay(getSampleRate(), buffer.getNumSamples());
-    }
-    
-	ScopedNoDenormals snd;
-
-    if (getPlayHead() != nullptr && getPlayHead()->getCurrentPosition (newTime))
-    {
-        lastPosInfo = newTime;
-    }
-    else
-    {
-        lastPosInfo.resetToDefault();
-    };
-
-	storePlayheadIntoDynamicObject(lastPosInfo);
-
-	setBpm(lastPosInfo.bpm);
-
-#if USE_HI_DEBUG_TOOLS 
-	startCpuBenchmark(buffer.getNumSamples()); 
-#endif
-
-	if(isSuspended())
-	{
-		buffer.clear();
-	}
-
-	checkAllNotesOff(midiMessages);
-
-#if USE_MIDI_CONTROLLERS_FOR_MACROS
-
-	handleControllersForMacroKnobs(midiMessages);
-
-#endif
-
-	keyboardState.processNextMidiBuffer (midiMessages, 0, buffer.getNumSamples(), true);
-
-    if(!midiMessages.isEmpty()) setMidiInputFlag();
-	
-	multiChannelBuffer.clear();
-
-	synthChain->renderNextBlockWithModulators(multiChannelBuffer, midiMessages);
-
-	FloatVectorOperations::copy(buffer.getWritePointer(0), multiChannelBuffer.getReadPointer(0), buffer.getNumSamples());
-	FloatVectorOperations::copy(buffer.getWritePointer(1), multiChannelBuffer.getReadPointer(1), buffer.getNumSamples());
-
-	for (int i = 0; i < buffer.getNumChannels(); i++)
-	{
-		FloatVectorOperations::clip(buffer.getWritePointer(i, 0), buffer.getReadPointer(i, 0), -1.0f, 1.0f, buffer.getNumSamples());
-	}
-
-	
-	midiMessages.clear();
-
-#if USE_HI_DEBUG_TOOLS
-	stopCpuBenchmark();
-#endif
-
-	uptime += double(buffer.getNumSamples()) / getSampleRate();
-
+	processBlockCommon(buffer, midiMessages);
 };
 
 void BackendProcessor::handleControllersForMacroKnobs(const MidiBuffer &midiMessages)
@@ -210,7 +141,6 @@ void BackendProcessor::handleControllersForMacroKnobs(const MidiBuffer &midiMess
 			if(getMacroManager().macroControlMidiLearnModeActive())
 			{
 				getMacroManager().setMidiControllerForMacro(controllerNumber);
-				
 			}
 
 			const int macroNumber = getMacroManager().getMacroControlForMidiController(controllerNumber);
@@ -232,12 +162,7 @@ void BackendProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 	MainController::prepareToPlay(sampleRate, samplesPerBlock);
 
 	synthChain->prepareToPlay(sampleRate, samplesPerBlock);
-
-	multiChannelBuffer.setSize(synthChain->getMatrix().getNumDestinationChannels(), samplesPerBlock);
-	
 };
-
-// RENAME BACK!
 
 AudioProcessorEditor* BackendProcessor::createEditor()
 {

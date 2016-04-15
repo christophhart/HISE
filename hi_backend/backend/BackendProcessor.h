@@ -173,9 +173,6 @@ public:
 		}
 
         loadPreset(v);
-        
-		//synthChain->restoreFromValueTree(v);
-		//synthChain->compileAllScripts();
 	}
 
 	void processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiMessages);
@@ -221,8 +218,6 @@ public:
 	/// @brief returns the PluginParameter value of the indexed PluginParameter.
     float getParameter (int index) override
 	{
-		
-
 		return synthChain->getMacroControlData(index)->getCurrentValue() / 127.0f;
 	}
 
@@ -252,8 +247,6 @@ public:
 	void setEditorState(ValueTree &editorState);
 private:
 
-	AudioPlayHead::CurrentPositionInfo lastPosInfo;
-
 	friend class AudioDeviceDialog;
 	friend class BackendProcessorEditor;
 	friend class BackendCommandTarget;
@@ -266,7 +259,7 @@ private:
 	
 	ScopedPointer<UndoManager> viewUndoManager;
 
-	AudioSampleBuffer multiChannelBuffer;
+	
 
 	ValueTree editorInformation;
 

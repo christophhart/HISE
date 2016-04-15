@@ -39,6 +39,7 @@
 *	A collection of basic classes.
 */
 
+#include "UtilityClasses.h"
 #include "HI_LookAndFeels.h"
 #include "Popup.h"
 #include "Tables.h"
@@ -47,6 +48,7 @@
 #include "BackgroundThreads.h"
 #include "SampleThreadPool.h"
 #include "PresetHandler.h"
+#include "GlobalScriptCompileBroadcaster.h"
 #include "MainController.h"
 
 #include "SampleExporter.h"
