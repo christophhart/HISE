@@ -49,7 +49,8 @@ MainController::MainController():
 	usagePercent(0),
 	scriptWatchTable(nullptr),
     globalPitchFactor(1.0),
-    midiInputFlag(false)
+    midiInputFlag(false),
+	macroManager(this)
 {
 	BACKEND_ONLY(popupConsole = nullptr);
 	BACKEND_ONLY(usePopupConsole = false);
@@ -79,9 +80,11 @@ MainController::SampleManager::SampleManager(MainController *mc):
 }
 
 
-MainController::MacroManager::MacroManager():
+MainController::MacroManager::MacroManager(MainController *mc_) :
 	macroIndexForCurrentLearnMode(-1),
-	macroChain(nullptr)
+	macroChain(nullptr),
+	mc(mc_),
+	midiControllerHandler(mc_)
 {
 	for(int i = 0; i < 8; i++)
 	{
@@ -668,6 +671,66 @@ ControlledObject::~ControlledObject()
 	
 };
 
+
+ValueTree MidiControllerAutomationHandler::exportAsValueTree() const
+{
+	ValueTree v("MidiAutomation");
+
+	for (int i = 0; i < 128; i++)
+	{
+		const AutomationData *a = automationData + i;
+		if (a->used)
+		{
+			ValueTree cc("Controller");
+
+			cc.setProperty("Controller", i, nullptr);
+			cc.setProperty("Processor", a->processor->getId(), nullptr);
+			cc.setProperty("MacroIndex", a->macroIndex, nullptr);
+			cc.setProperty("Start", a->parameterRange.start, nullptr);
+			cc.setProperty("End", a->parameterRange.end, nullptr);
+			cc.setProperty("Skew", a->parameterRange.skew, nullptr);
+			cc.setProperty("Interval", a->parameterRange.interval, nullptr);
+			cc.setProperty("Attribute", a->attribute, nullptr);
+
+			v.addChild(cc, -1, nullptr);
+		}
+	}
+
+	DBG(v.createXml()->createDocument(""));
+
+	return v;
+}
+
+void MidiControllerAutomationHandler::restoreFromValueTree(const ValueTree &v)
+{
+	if (v.getType() != Identifier("MidiAutomation")) return;
+
+	clear();
+
+	for (int i = 0; i < v.getNumChildren(); i++)
+	{
+		ValueTree cc = v.getChild(i);
+
+		int controller = cc.getProperty("Controller", i);
+
+		AutomationData *a = automationData + controller;
+
+		a->processor = ProcessorHelpers::getFirstProcessorWithName(mc->getMainSynthChain(), cc.getProperty("Processor"));
+		a->macroIndex = cc.getProperty("MacroIndex");
+		a->attribute = cc.getProperty("Attribute", a->attribute);
+
+		double start = cc.getProperty("Start");
+		double end = cc.getProperty("End");
+		double skew = cc.getProperty("Skew", a->parameterRange.skew);
+		double interval = cc.getProperty("Interval", a->parameterRange.interval);
+
+		a->parameterRange = NormalisableRange<double>(start, end, interval, skew);
+
+		a->used = true;
+	}
+
+	refreshAnyUsedState();
+}
 
 void MidiControllerAutomationHandler::handleParameterData(MidiBuffer &b)
 {

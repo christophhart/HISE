@@ -64,6 +64,8 @@ public:
 		
 		synthChain->saveMacroValuesToValueTree(v);
 		
+		v.addChild(getMacroManager().getMidiControlAutomationHandler()->exportAsValueTree(), -1, nullptr);
+
 		synthChain->saveInterfaceValues(v);
 		
 		v.setProperty("Program", currentlyLoadedProgram, nullptr);
@@ -79,6 +81,8 @@ public:
 			ValueTree v = ValueTree::readFromData(data, sizeInBytes);
 
 			currentlyLoadedProgram = v.getProperty("Program");
+
+			getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(v.getChildWithName("MidiAutomation"));
 
 			synthChain->loadMacroValuesFromValueTree(v);
 

@@ -75,19 +75,17 @@ class MainController;
 *	For faster performance, one CC value can only control one parameter.
 *
 */
-class MidiControllerAutomationHandler
+class MidiControllerAutomationHandler: public RestorableObject
 {
 public:
 
-	MidiControllerAutomationHandler():
-		anyUsed(false)
+	MidiControllerAutomationHandler(MainController *mc_) :
+		anyUsed(false),
+		mc(mc_)
 	{
 		tempBuffer.ensureSize(2048);
 
-		for (int i = 0; i < 128; i++)
-		{
-			automationData[i] = AutomationData();
-		}
+		clear();
 	}
 
 	void addMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex, NormalisableRange<double> parameterRange, int macroIndex)
@@ -107,6 +105,10 @@ public:
 
 		return unlearnedData.used;
 	}
+
+	ValueTree exportAsValueTree() const override;
+
+	void restoreFromValueTree(const ValueTree &v) override;
 
 	bool isLearningActive(Processor *interfaceProcessor, int attributeIndex) const
 	{
@@ -166,6 +168,14 @@ public:
 		}
 	}
 
+	void clear()
+	{
+		for (int i = 0; i < 128; i++)
+		{
+			automationData[i] = AutomationData();
+		};
+	}
+
 	void removeMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex)
 	{
 		ScopedLock sl(lock);
@@ -207,6 +217,8 @@ public:
 private:
 
 	CriticalSection lock;
+
+	MainController *mc;
 
 	bool anyUsed;
 
@@ -313,7 +325,7 @@ public:
 	{
 	public:
 
-		MacroManager();
+		MacroManager(MainController *mc_);
 
 		ModulatorSynthChain *getMacroChain() { return macroChain; };
 
@@ -419,6 +431,8 @@ public:
 		};
 
 	private:
+
+		MainController *mc;
 
 		int macroControllerNumbers[8];
 
