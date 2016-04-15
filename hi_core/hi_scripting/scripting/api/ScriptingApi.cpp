@@ -339,8 +339,8 @@ void ScriptingApi::Message::setMidiMessage(MidiMessage *m)
 		}
 
 
-		jassert( currentEventId != -1);
-	}
+        DBG("Wrong event ID");
+    }
 	else
 	{
 		currentEventId = -1;

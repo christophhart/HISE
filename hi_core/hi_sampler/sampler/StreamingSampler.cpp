@@ -926,9 +926,14 @@ void SampleLoader::requestNewData()
 
 #if(USE_BACKGROUND_THREAD)
 
-	// check if the background thread is already loading this sound
-	jassert(! backgroundPool->contains(this));
-
+#if JUCE_DEBUG
+    if(! backgroundPool->contains(this))
+    {
+        DBG("Job already in Pool (HDD overflow)");
+    }
+        
+#endif
+    
 	backgroundPool->addJob(this, false);
 #else
 

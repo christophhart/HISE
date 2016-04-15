@@ -125,9 +125,6 @@ void SampleThreadPool::stopThreads()
 
 void SampleThreadPool::addJob(SampleThreadPoolJob* const job, const bool /*deleteJobWhenFinished*/)
 {
-	jassert(job != nullptr);
-	jassert(job->pool == nullptr);
-
 	if (job->pool == nullptr)
 	{
 		job->pool = this;
