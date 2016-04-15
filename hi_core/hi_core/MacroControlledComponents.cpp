@@ -104,7 +104,14 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 	{
 		if (!learningActive)
 		{
-			handler->addMidiControlledParameter(processor, parameter, getRange(), getMacroIndex());
+			NormalisableRange<double> rangeWithSkew = getRange();
+
+			if (HiSlider *slider = dynamic_cast<HiSlider*>(this))
+			{
+				rangeWithSkew.skew = slider->getSkewFactor();
+			}
+
+			handler->addMidiControlledParameter(processor, parameter, rangeWithSkew, getMacroIndex());
 		}
 		else
 		{
