@@ -158,7 +158,7 @@ void JavascriptCodeEditor::handleEscapeKey()
 
 	if (length == 0)
 	{
-		addDefaultAutocompleteOptions();
+		addDefaultAutocompleteOptions("");
 		showAutoCompletePopup();
 		return;
 	}
@@ -255,9 +255,11 @@ void JavascriptCodeEditor::handleEscapeKey()
 				}
 			}
 		}
-		else if(textInRange.containsAnyOf(" \t\n({"))
+		else if(textInRange.containsAnyOf(" \t\r\n({"))
 		{
-			addDefaultAutocompleteOptions();
+			setHighlightedRegion(Range<int>(range.getStart() + 1, range.getEnd()));
+
+			addDefaultAutocompleteOptions(textInRange.removeCharacters(" \t\r\n({"));
 		}
 		else
 		{
@@ -358,15 +360,17 @@ void JavascriptCodeEditor::addGlobalsAutoCompleteOptions()
 	}
 }
 
-void JavascriptCodeEditor::addDefaultAutocompleteOptions()
+#define ADD_API_ENTRY(x) {if(enteredText.isEmpty() || String(x).startsWith(enteredText)) entries.add(new ApiClassEntry(x));}
+
+void JavascriptCodeEditor::addDefaultAutocompleteOptions(const String &enteredText)
 {
-	entries.add(new ApiClassEntry("Console"));
-	entries.add(new ApiClassEntry("Content"));
-	entries.add(new ApiClassEntry("Engine"));
-	entries.add(new ApiClassEntry("Message"));
-	entries.add(new ApiClassEntry("Synth"));
-	entries.add(new ApiClassEntry("Sampler"));
-	entries.add(new ApiClassEntry("Globals"));
+	ADD_API_ENTRY("Console")
+	ADD_API_ENTRY("Content");
+	ADD_API_ENTRY("Engine");
+	ADD_API_ENTRY("Message");
+	ADD_API_ENTRY("Synth");
+	ADD_API_ENTRY("Sampler");
+	ADD_API_ENTRY("Globals");
 
 	NamedValueSet set = scriptProcessor->getScriptEngine()->getRootObjectProperties();
 
@@ -375,7 +379,7 @@ void JavascriptCodeEditor::addDefaultAutocompleteOptions()
 
 		if (set.getVarPointerAt(i)->isMethod())
 		{
-			//continue;
+			continue;
 		}
 		if (set.getVarPointerAt(i)->isObject())
 		{
@@ -385,10 +389,15 @@ void JavascriptCodeEditor::addDefaultAutocompleteOptions()
 			{
 				NamedValueSet displaySet;
 
-				displaySet.set("variableName", set.getName(i).toString());
-				displaySet.set("value", cso->getProperties()["Name"]);
+				String name = set.getName(i).toString();
 
-				entries.add(new VariableEntry(cso->getObjectName().toString(), displaySet));
+				if (enteredText.isEmpty() || name.startsWith(enteredText))
+				{
+					displaySet.set("variableName", name);
+					displaySet.set("value", cso->getProperties()["Name"]);
+
+					entries.add(new VariableEntry(cso->getObjectName().toString(), displaySet));
+				}
 			}
 
 		}
@@ -401,13 +410,16 @@ void JavascriptCodeEditor::addDefaultAutocompleteOptions()
 		{
 			NamedValueSet displaySet;
 
-			displaySet.set("variableName", set.getName(i).toString());
-			displaySet.set("value", set.getValueAt(i).toString());
+			String name = set.getName(i).toString();
 
-			entries.add(new VariableEntry(getValueType(set.getValueAt(i)), displaySet));
+			if (enteredText.isEmpty() || name.startsWith(enteredText))
+			{
+				displaySet.set("variableName", name);
+				displaySet.set("value", set.getValueAt(i).toString());
 
+				entries.add(new VariableEntry(getValueType(set.getValueAt(i)), displaySet));
+			}
 		}
-
 	}
 
 	for (int i = 0; i < entries.size(); i++)

@@ -550,7 +550,7 @@ public:
 
 	void addGlobalsAutoCompleteOptions();
 
-	void addDefaultAutocompleteOptions();
+	void addDefaultAutocompleteOptions(const String &enteredText);
 
 	char getCharacterAtCaret(bool beforeCaret=false) const
 	{
