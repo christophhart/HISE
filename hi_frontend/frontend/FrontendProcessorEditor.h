@@ -106,13 +106,9 @@ private:
 };
 
 
-class MidiKeyboardFocusTraverser : public KeyboardFocusTraverser
-{
-	Component *getDefaultComponent(Component *parentComponent) override;
-};
-
 class FrontendProcessorEditor: public AudioProcessorEditor,
-							   public Timer
+							   public Timer,
+							   public ComponentWithKeyboard
 {
 public:
 
@@ -130,19 +126,19 @@ public:
 
 	KeyboardFocusTraverser *createFocusTraverser() override { return new MidiKeyboardFocusTraverser(); };
 
-	void paint(Graphics &g)
+	void paint(Graphics &g) override
 	{
-		
 		g.fillAll(Colours::black);
-
 	};
+
+	void resized() override;
 
 	void resetInterface()
 	{
 		//interfaceComponent->checkInterfaces();
 	}
 
-	CustomKeyboard *getKeyboard() { return keyboard; }
+	Component *getKeyboard() const override { return keyboard; }
 
 private:
 

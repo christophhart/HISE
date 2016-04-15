@@ -42,8 +42,9 @@
 using namespace juce;
 
 #include "frontend/FrontEndProcessor.h"
-#include "frontend/FrontendBar.h"
 #include "frontend/FrontendProcessorEditor.h"
+
+#define USER_PRESET_OFFSET 8192
 
 #define CREATE_PLUGIN {ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\
 	ValueTree imageData = ValueTree::readFromData(PresetData::images, PresetData::imagesSize);\

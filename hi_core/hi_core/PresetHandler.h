@@ -252,9 +252,12 @@ public:
 
 		static File getLicenceKey();
 
+		
+
 		static String getSanitiziedFileNameForPoolReference(const String &absoluteFileName);
 		
 		static void setSampleLocation(const File &newLocation);
+		static File getUserPresetDirectory();
 	};
 
 private:

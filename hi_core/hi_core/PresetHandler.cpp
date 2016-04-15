@@ -57,26 +57,33 @@ void CopyPasteTarget::grabCopyAndPasteFocus()
 
 void UserPresetHandler::saveUserPreset(ModulatorSynthChain *chain)
 {
-    if (GET_PROJECT_HANDLER(chain).isActive())
+#if USE_BACKEND
+
+	if (!GET_PROJECT_HANDLER(chain).isActive()) return;
+
+	File userPresetDir = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
+
+#else
+
+	File userPresetDir = ProjectHandler::Frontend::getUserPresetDirectory();
+
+#endif
+
+    String name = PresetHandler::getCustomName("User Preset");
+        
+    if(name.isNotEmpty())
     {
-        File userPresetDir = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
-        
-        String name = PresetHandler::getCustomName("User Preset");
-        
-        if(name.isNotEmpty())
-        {
-            File presetFile = userPresetDir.getChildFile(name + ".preset");
+        File presetFile = userPresetDir.getChildFile(name + ".preset");
             
-            if(!presetFile.existsAsFile() || PresetHandler::showYesNoWindow("Confirm overwrite", "Do you want to overwrite the preset " + name + "?"))
-            {
-                Processor::Iterator<ScriptProcessor> iter(chain);
+        if(!presetFile.existsAsFile() || PresetHandler::showYesNoWindow("Confirm overwrite", "Do you want to overwrite the preset " + name + "?"))
+        {
+            Processor::Iterator<ScriptProcessor> iter(chain);
                 
-                while(ScriptProcessor *sp = iter.getNextProcessor())
-                {
-                    if(!sp->isFront()) continue;
+            while(ScriptProcessor *sp = iter.getNextProcessor())
+            {
+                if(!sp->isFront()) continue;
                     
-                    sp->getScriptingContent()->storeAllControlsAsPreset(presetFile.getFullPathName());
-                }
+                sp->getScriptingContent()->storeAllControlsAsPreset(presetFile.getFullPathName());
             }
         }
     }
@@ -84,22 +91,44 @@ void UserPresetHandler::saveUserPreset(ModulatorSynthChain *chain)
 
 void UserPresetHandler::loadUserPreset(ModulatorSynthChain *chain, const File &fileToLoad)
 {
-    if (GET_PROJECT_HANDLER(chain).isActive())
-    {
-        Processor::Iterator<ScriptProcessor> iter(chain);
+#if USE_BACKEND
+
+	if (!GET_PROJECT_HANDLER(chain).isActive()) return;
+
+#endif
+
+	Processor::Iterator<ScriptProcessor> iter(chain);
         
-        while(ScriptProcessor *sp = iter.getNextProcessor())
-        {
-            if(!sp->isFront()) continue;
-            
-            sp->getScriptingContent()->restoreAllControlsFromPreset(fileToLoad.getFullPathName());
-        }
-    }
+	while (ScriptProcessor *sp = iter.getNextProcessor())
+	{
+		if (!sp->isFront()) continue;
+
+		ScopedPointer<XmlElement> xml = XmlDocument::parse(fileToLoad);
+
+		ValueTree parent = ValueTree::fromXml(*xml);
+
+		ValueTree v;
+
+		for (int i = 0; i < parent.getNumChildren(); i++)
+		{
+			if (parent.getChild(i).getProperty("Processor") == sp->getId())
+			{
+				v = parent.getChild(i);
+				break;
+			}
+		}
+
+		sp->getScriptingContent()->restoreAllControlsFromPreset(v);
+	}
 }
 
 File UserPresetHandler::getUserPresetFile(ModulatorSynthChain *chain, const String &fileNameWithoutExtension)
 {
+#if USE_BACKEND
     return GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::UserPresets).getChildFile(fileNameWithoutExtension + ".preset");
+#else 
+	return ProjectHandler::Frontend::getUserPresetDirectory().getChildFile(fileNameWithoutExtension + ".preset");
+#endif
 }
 
 void PresetHandler::saveProcessorAsPreset(Processor *p, const String &directoryPath/*=String::empty*/)
@@ -787,6 +816,17 @@ void ProjectHandler::Frontend::setSampleLocation(const File &newLocation)
 	childFile.replaceWithText(newLocation.getFullPathName());
 
 #endif
+}
+
+File ProjectHandler::Frontend::getUserPresetDirectory()
+{
+	File presetDir = getAppDataDirectory().getChildFile("User Presets");
+	if (!presetDir.isDirectory())
+	{
+		presetDir.createDirectory();
+	}
+
+	return presetDir;
 }
 
 StringArray ProjectHandler::recentWorkDirectories = StringArray();

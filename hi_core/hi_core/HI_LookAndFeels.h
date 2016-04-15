@@ -176,7 +176,11 @@ public:
 
 		Colour bright(0xFF999999);
 
+#if USE_BACKEND
 		setColour(PopupMenu::ColourIds::backgroundColourId, dark);
+#else
+		setColour(PopupMenu::ColourIds::backgroundColourId, Colours::black);
+#endif
 		setColour(PopupMenu::ColourIds::textColourId, bright);
 		setColour(PopupMenu::ColourIds::highlightedBackgroundColourId, bright);
 		setColour(PopupMenu::ColourIds::highlightedTextColourId, dark);

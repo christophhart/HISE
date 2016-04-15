@@ -33,11 +33,10 @@
 
 Component * MidiKeyboardFocusTraverser::getDefaultComponent(Component *parentComponent)
 {
+#if USE_BACKEND
 	if (FileBrowser *browser = parentComponent->findParentComponentOfClass<FileBrowser>())						return browser;
 	if (SamplerBody *samplerBody = parentComponent->findParentComponentOfClass<SamplerBody>())					return samplerBody;
 	else if (MacroParameterTable *table = parentComponent->findParentComponentOfClass<MacroParameterTable>())	return table;
-
-	ComponentWithKeyboard *componentWithKeyboard = parentComponent->findParentComponentOfClass<ComponentWithKeyboard>();
 
 	if (dynamic_cast<CopyPasteTarget*>(parentComponent))
 	{
@@ -53,6 +52,9 @@ Component * MidiKeyboardFocusTraverser::getDefaultComponent(Component *parentCom
 
 		if (editor != nullptr) editor->setCopyPasteTarget(nullptr);
 	}
+#endif
+
+	ComponentWithKeyboard *componentWithKeyboard = parentComponent->findParentComponentOfClass<ComponentWithKeyboard>();
 
 	return componentWithKeyboard != nullptr ? componentWithKeyboard->getKeyboard() : nullptr;
 }

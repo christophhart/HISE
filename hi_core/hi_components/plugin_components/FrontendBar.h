@@ -34,6 +34,83 @@
 #define __FRONTENDBAR_H_INCLUDED
 
 
+class PresetComboBox : public ComboBox
+{
+public:
+
+	enum Offset
+	{
+		FactoryOffset = 0,
+		UserPresetOffset = 8192
+	};
+
+	void addItemsToMenu(PopupMenu& m) const override
+	{
+		m.setLookAndFeel(&plaf);
+
+		m.addSectionHeader("Factory Presets");
+		m.addSeparator();
+		for (int i = 0; i < factoryPresets.size(); i++)
+		{
+			m.addItem(factoryPresets[i].id, factoryPresets[i].name, true, factoryPresets[i].id == getSelectedId());
+		}
+
+		m.addSectionHeader("User Presets");
+		m.addSeparator();
+		for (int i = 0; i < userPresets.size(); i++)
+		{
+			m.addItem(userPresets[i].id, userPresets[i].name, true, userPresets[i].id == getSelectedId());
+		}
+	}
+
+	/** This adds a factory preset. The ID will be internally adjusted.*/
+	void addFactoryPreset(const String &name, int id)
+	{
+		factoryPresets.add(Entry(name, id + FactoryOffset));
+
+		addItem(name, id + FactoryOffset);
+	}
+
+	void addUserPreset(const String &name, int id)
+	{
+		userPresets.add(Entry(name, id + UserPresetOffset));
+
+		addItem(name, id + UserPresetOffset);
+	}
+
+
+
+	void clearPresets()
+	{
+		clear(dontSendNotification);
+		factoryPresets.clear();
+		userPresets.clear();
+	}
+
+	bool isFactoryPresetSelected() const { return getSelectedId() < UserPresetOffset; }
+
+private:
+
+	struct Entry
+	{
+		Entry(String name_, int id_) :
+			name(name_),
+			id(id_)
+		{};
+
+		Entry() : name(""), id(-1) {};
+
+		String name;
+		int id;
+	};
+
+	mutable PopupLookAndFeel plaf;
+
+	Array<Entry> factoryPresets;
+	Array<Entry> userPresets;
+};
+
+
 /** The bar that is displayed for every FrontendProcessorEditor */
 class FrontendBar  : public Component,
                      public Timer,
@@ -82,7 +159,7 @@ private:
 	UpdateMerger cpuUpdater;
 	ScopedPointer<TooltipBar> tooltipBar;
 
-	ScopedPointer<ComboBox> presetSelector;
+	ScopedPointer<PresetComboBox> presetSelector;
 	ScopedPointer<ShapeButton> presetSaveButton;
 
 	ScopedPointer<VuMeter> outMeter;

@@ -31,16 +31,6 @@
 */
 
 
-Component *MidiKeyboardFocusTraverser::getDefaultComponent(Component *parentComponent)
-{
-	if (FrontendProcessorEditor *editor = dynamic_cast<FrontendProcessorEditor*>(parentComponent))
-	{
-		return editor->getKeyboard();
-	}
-
-	return nullptr;
-}
-
 FrontendProcessorEditor::FrontendProcessorEditor(FrontendProcessor *fp) :
 AudioProcessorEditor(fp)
 {
@@ -51,44 +41,25 @@ AudioProcessorEditor(fp)
 	interfaceComponent->setCurrentContent(0, dontSendNotification);
 	interfaceComponent->refreshContentBounds();
 	interfaceComponent->setIsFrontendContainer(true);
-	interfaceComponent->setBounds(0, 0, interfaceComponent->getContentWidth(), interfaceComponent->getContentHeight());
 
 #if INCLUDE_BAR
 
-	int barHeight = 24;
 	addAndMakeVisible(mainBar = new FrontendBar(fp));
-	mainBar->setBounds(0, 0, interfaceComponent->getWidth(), barHeight);
-	mainBar->startTimer(50);
-
-#else
-
-	int barHeight = 0;
 
 #endif
 
-	interfaceComponent->setTopLeftPosition(0, barHeight);
-
-
-	addAndMakeVisible(keyboard = new CustomKeyboard(fp->keyboardState));
-
-	keyboard->setBounds(0, interfaceComponent->getBottom(), interfaceComponent->getWidth(), 72);
+	addAndMakeVisible(keyboard = new CustomKeyboard(fp->getKeyboardState()));
 
     keyboard->setAvailableRange(fp->getKeyboardState().getLowestKeyToDisplay(), 127);
     
+	
 
-	setSize(interfaceComponent->getContentWidth(), barHeight + interfaceComponent->getHeight() + 72);
-
-	startTimer(4125);
+	
 
 	addAndMakeVisible(aboutPage = new AboutPage());
-
 	aboutPage->setVisible(false);
 
-	aboutPage->setBoundsInset(BorderSize<int>(80));
-
 	addAndMakeVisible(deactiveOverlay = new DeactiveOverlay());
-
-	deactiveOverlay->setBounds(getLocalBounds());
 
 	deactiveOverlay->setState(DeactiveOverlay::SamplesNotFound, !ProjectHandler::Frontend::getSampleLocationForCompiledPlugin().isDirectory());
 
@@ -96,6 +67,30 @@ AudioProcessorEditor(fp)
 	deactiveOverlay->setState(DeactiveOverlay::LicenceNotFound, !fp->unlocker.isUnlocked());
 #endif
 
+	setSize(interfaceComponent->getContentWidth(), (mainBar != nullptr ? mainBar->getHeight() : 0) + interfaceComponent->getContentHeight() + 72);
+
+	startTimer(4125);
+
+}
+
+void FrontendProcessorEditor::resized()
+{
+	int y = 0;
+	
+	if (mainBar != nullptr)
+	{
+		mainBar->setBounds(0, y, getWidth(), mainBar->getHeight());
+		y += mainBar->getHeight();
+	}
+
+	interfaceComponent->setBounds(0, y, getWidth(), interfaceComponent->getContentHeight());
+
+	y = interfaceComponent->getBottom();
+
+	keyboard->setBounds(0, y, getWidth(), 72);
+
+	aboutPage->setBoundsInset(BorderSize<int>(80));
+	deactiveOverlay->setBounds(getLocalBounds());
 }
 
 void DeactiveOverlay::buttonClicked(Button *b)

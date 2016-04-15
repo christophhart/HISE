@@ -40,7 +40,10 @@
 #include "keyboard/CustomKeyboard.cpp"
 #include "plugin_components/VoiceCpuBpmComponent.cpp"
 #include "plugin_components/FrontendBar.cpp"
+
+#if USE_BACKEND
 #include "plugin_components/PluginPreviewWindow.cpp"
+#endif
 
 #include "wave_components/SampleDisplayComponent.cpp"
 #include "wave_components/WavetableComponents.cpp"

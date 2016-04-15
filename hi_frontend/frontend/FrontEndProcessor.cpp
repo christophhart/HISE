@@ -37,47 +37,9 @@ void FrontendProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer& mid
 	if ((unlockCounter & 1023 == 0) && !unlocker.isUnlocked()) return;
 #endif
 
-    AudioPlayHead::CurrentPositionInfo newTime;
-
 	getMacroManager().getMidiControlAutomationHandler()->handleParameterData(midiMessages);
 
-    if (getPlayHead() != nullptr && getPlayHead()->getCurrentPosition (newTime))
-    {
-        lastPosInfo = newTime;
-    }
-    else
-    {
-        lastPosInfo.resetToDefault();
-    };
-
-	setBpm(lastPosInfo.bpm);
-
-	if(isSuspended())
-	{
-		buffer.clear();
-	}
-
-	checkAllNotesOff(midiMessages);
-
-#if USE_MIDI_CONTROLLERS_FOR_MACROS
-
-	handleControllersForMacroKnobs(midiMessages);
-
-#endif
-
-	startCpuBenchmark(buffer.getNumSamples());
-
-	keyboardState.processNextMidiBuffer (midiMessages, 0, buffer.getNumSamples(), true);
-
-	buffer.clear();
-
-	synthChain->renderNextBlockWithModulators(buffer, midiMessages);
-
-	midiMessages.clear();
-
-	uptime += double(buffer.getNumSamples()) / getSampleRate();
-
-	stopCpuBenchmark();
+	processBlockCommon(buffer, midiMessages);
 };
 
 void FrontendProcessor::handleControllersForMacroKnobs(const MidiBuffer &midiMessages)

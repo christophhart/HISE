@@ -45,7 +45,7 @@ FrontendBar::FrontendBar(MainController *mc_) : mc(mc_)
 
 	cpuUpdater.setManualCountLimit(10);
 
-	addAndMakeVisible(presetSelector = new ComboBox());
+	addAndMakeVisible(presetSelector = new PresetComboBox());
 	mc->skin(*presetSelector);
 
 	presetSelector->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, Colours::transparentBlack);
@@ -209,22 +209,72 @@ void FrontendBar::buttonClicked(Button *b)
 
 void FrontendBar::comboBoxChanged(ComboBox *cb)
 {
+#if USE_BACKEND
+
     const File f = UserPresetHandler::getUserPresetFile(mc->getMainSynthChain(), cb->getText());
     UserPresetHandler::loadUserPreset(mc->getMainSynthChain(), f);
+
+#else
+
+	FrontendProcessor *fp = dynamic_cast<FrontendProcessor*>(mc);
+
+	if (presetSelector->isFactoryPresetSelected())
+	{
+		fp->setCurrentProgram(cb->getSelectedId());
+		
+	}
+	else
+	{
+		fp->setCurrentProgram(0);
+
+		const File f = UserPresetHandler::getUserPresetFile(mc->getMainSynthChain(), cb->getText());
+		UserPresetHandler::loadUserPreset(mc->getMainSynthChain(), f);
+	}
+#endif
+
 }
 
 void FrontendBar::refreshPresetFileList()
 {
-	Array<File> fileList;
+	
 
+#if USE_BACKEND
+
+	Array<File> fileList;
 	GET_PROJECT_HANDLER(mc->getMainSynthChain()).getFileList(fileList, ProjectHandler::SubDirectories::UserPresets, "*.preset");
 
-	presetSelector->clear();
+	presetSelector->clearPresets();
 
 	for (int i = 0; i < fileList.size(); i++)
 	{
-		presetSelector->addItem(fileList[i].getFileNameWithoutExtension(), i + 1);
+		presetSelector->addFactoryPreset(fileList[i].getFileNameWithoutExtension(), i + 1);
 	}
+
+#else
+
+	FrontendProcessor *fp = dynamic_cast<FrontendProcessor*>(mc);
+
+	presetSelector->clearPresets();
+
+	for (int i = 1; i < fp->getNumPrograms(); i++)
+	{
+		presetSelector->addFactoryPreset(fp->getProgramName(i), i);
+	}
+
+	File userPresetDirectory = ProjectHandler::Frontend::getUserPresetDirectory();
+	Array<File> userPresets;
+	userPresetDirectory.findChildFiles(userPresets, File::findFiles, false, "*.preset");
+
+	for (int i = 0; i < userPresets.size(); i++)
+	{
+		presetSelector->addUserPreset(userPresets[i].getFileNameWithoutExtension(), i);
+	}
+
+	if(presetSelector->isFactoryPresetSelected()) presetSelector->setSelectedId(fp->getCurrentProgram());
+	else presetSelector->setSelectedId(-1, dontSendNotification);
+
+#endif
+
 }
 
 void FrontendBar::sliderValueChanged(Slider* slider)

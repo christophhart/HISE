@@ -47,7 +47,10 @@
 #include "keyboard/CustomKeyboard.h"
 #include "plugin_components/VoiceCpuBpmComponent.h"
 #include "plugin_components/FrontendBar.h"
+
+#if USE_BACKEND
 #include "plugin_components/PluginPreviewWindow.h"
+#endif
 
 #include "wave_components/SampleDisplayComponent.h"
 #include "wave_components/WavetableComponents.h"
