@@ -38,6 +38,12 @@ SET /p build_version=Enter new build version:
 
 echo %build_version%
 
+IF %build_version%==ftp (
+    set build_version=%prev_version%
+	SET filename=HISE_099_build%prev_version%.exe
+	GOTO FTP
+)
+
 SET filename=HISE_099_build%build_version%.exe
 
 if  %build_version% LSS %prev_version% (
@@ -166,6 +172,8 @@ echo "OK"
 REM =======================================================================================
 REM FTP Upload
 
+:FTP
+
 echo "Uploading to FTP..."
 
 cd %nightly_build_folder%
@@ -181,7 +189,7 @@ echo %password%>>upload.ftp
 echo cd "html/hise/download/nightly_builds/">> upload.ftp
 echo bin>>upload.ftp
 echo hash>>upload.ftp
-echo put changelog_%build_version%.txt>> upload.ftp
+if %build_version% NEQ %prev_version% (echo put changelog_%build_version%.txt>> upload.ftp)
 echo put %filename%>> upload.ftp
 echo bye>> upload.ftp
 
