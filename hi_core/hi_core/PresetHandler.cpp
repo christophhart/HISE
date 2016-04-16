@@ -379,8 +379,15 @@ bool ProjectHandler::isValidProjectFolder(const File &file) const
 
 		if (!(sub.exists() && sub.isDirectory()))
 		{
-			PresetHandler::showMessageWindow("Invalid Project Folder", "The subfolder " + sub.getFileName() + " does not exist.");
-			return false;
+			if (PresetHandler::showYesNoWindow("Invalid Project Folder", "The subfolder " + sub.getFileName() + " does not exist. Do you want to create it?"))
+			{
+				sub.createDirectory();
+
+			}
+			else
+			{
+				return false;
+			}
 		}
 	}
 
