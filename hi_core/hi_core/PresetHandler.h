@@ -57,7 +57,7 @@ public:
         state(String::empty)
     {}
 
-	String getProductID() override { return String(JucePlugin_Name); };
+	String getProductID() override { return String(JucePlugin_Name) + " " + String(JucePlugin_VersionString); };
 
 	bool doesProductIDMatch(const String& returnedIDFromServer) override { return returnedIDFromServer == getProductID(); };
 

@@ -47,8 +47,16 @@ public:
 	DeactiveOverlay() :
 		currentState(0)
 	{
+		addAndMakeVisible(descriptionLabel = new Label());
+
+		descriptionLabel->setFont(GLOBAL_BOLD_FONT());
+		descriptionLabel->setColour(Label::ColourIds::textColourId, Colours::white);
+		descriptionLabel->setEditable(false, false, false);
+		descriptionLabel->setJustificationType(Justification::centredTop);
+
 		addAndMakeVisible(resolveLicenceButton = new TextButton("Find Licence File"));
 		addAndMakeVisible(resolveSamplesButton = new TextButton("Choose Sample Folder"));
+
 
 		resolveLicenceButton->setLookAndFeel(&alaf);
 		resolveSamplesButton->setLookAndFeel(&alaf);
@@ -62,8 +70,13 @@ public:
 	enum State
 	{
 		AppDataDirectoryNotFound,
-		SamplesNotFound,
 		LicenceNotFound,
+		ProductNotMatching,
+		UserNameNotMatching,
+		EmailNotMatching,
+		MachineNumbersNotMatching,
+		LicenceInvalid,
+		SamplesNotFound,
 		numReasons
 	};
 
@@ -78,25 +91,90 @@ public:
 		currentState.setBit(s, value);
 
 		setVisible(currentState != 0);
+
+		refreshLabel();
+
 		resized();
+	}
+
+	bool check(State s, const String &value=String::empty);
+
+	State checkLicence(const String &keyContent=String::empty);
+
+	void refreshLabel()
+	{
+		for (int i = 0; i < numReasons; i++)
+		{
+			if (currentState[i])
+			{
+				descriptionLabel->setText(getTextForError((State)i), dontSendNotification);
+				return;
+			}
+		}
+	}
+
+	String getTextForError(State s) const
+	{
+		switch (s)
+		{
+		case DeactiveOverlay::AppDataDirectoryNotFound:
+			return "The application directory is not found. (The installation seems to be broken. Please reinstall this software.)";
+			break;
+		case DeactiveOverlay::SamplesNotFound:
+			return "The sample directory could not be located. \nClick below to choose the sample folder.";
+			break;
+		case DeactiveOverlay::LicenceNotFound:
+			return "The licence key could not be found.\nClick below to locate the licence key.";
+			break;
+		case DeactiveOverlay::ProductNotMatching:
+			return "The licence key is invalid (wrong plugin name / version).\nClick below to locate the correct licence key for this plugin / version";
+			break;
+		case DeactiveOverlay::MachineNumbersNotMatching:
+			return "The machine ID is invalid / not matching.\nClick below to load the correct licence key for this computer (or request a new licence key for this machine through support.";
+			break;
+		case DeactiveOverlay::UserNameNotMatching:
+			return "The user name is invalid.\nThis means usually a corrupt or rogued licence key file. Please contact support to get a new licence key.";
+			break;
+		case DeactiveOverlay::EmailNotMatching:
+			return "The email name is invalid.\nThis means usually a corrupt or rogued licence key file. Please contact support to get a new licence key.";
+			break;
+		case DeactiveOverlay::LicenceInvalid:
+			return "The licence key is malicious.\nPlease contact support.";
+		case DeactiveOverlay::numReasons:
+			break;
+		default:
+			break;
+		}
 	}
 
 	void resized()
 	{
-		if (currentState[LicenceNotFound])
+		if (currentState != 0)
 		{
+			descriptionLabel->centreWithSize(getWidth() - 20, 150);
+		}
+
+		if (currentState[LicenceNotFound] || currentState[LicenceInvalid] || currentState[MachineNumbersNotMatching] || currentState[UserNameNotMatching] || currentState[ProductNotMatching])
+		{
+			resolveLicenceButton->setVisible(true);
+			resolveSamplesButton->setVisible(false);
+
 			resolveLicenceButton->centreWithSize(200, 32);
 		}
 		else if (currentState[SamplesNotFound])
 		{
+			resolveLicenceButton->setVisible(false);
+			resolveSamplesButton->setVisible(true);
+
 			resolveSamplesButton->centreWithSize(200, 32);
 		}
 	}
-	
 
 private:
 
 	AlertWindowLookAndFeel alaf;
+
+	ScopedPointer<Label> descriptionLabel;
 
 	ScopedPointer<TextButton> resolveLicenceButton;
 	ScopedPointer<TextButton> resolveSamplesButton;

@@ -64,7 +64,13 @@ AudioProcessorEditor(fp)
 	deactiveOverlay->setState(DeactiveOverlay::SamplesNotFound, !ProjectHandler::Frontend::getSampleLocationForCompiledPlugin().isDirectory());
 
 #if USE_COPY_PROTECTION
-	deactiveOverlay->setState(DeactiveOverlay::LicenceNotFound, !fp->unlocker.isUnlocked());
+
+	if (!fp->unlocker.isUnlocked())
+	{
+		deactiveOverlay->checkLicence();
+	}
+
+	deactiveOverlay->setState(DeactiveOverlay::LicenceInvalid, !fp->unlocker.isUnlocked());
 #endif
 
 	setSize(interfaceComponent->getContentWidth(), (mainBar != nullptr ? mainBar->getHeight() : 0) + interfaceComponent->getContentHeight() + 72);
@@ -93,6 +99,7 @@ void FrontendProcessorEditor::resized()
 	deactiveOverlay->setBounds(getLocalBounds());
 }
 
+
 void DeactiveOverlay::buttonClicked(Button *b)
 {
 	if (b == resolveLicenceButton)
@@ -104,15 +111,27 @@ void DeactiveOverlay::buttonClicked(Button *b)
 		{
 			File f = fc.getResult();
 
-			f.copyFileTo(ProjectHandler::Frontend::getLicenceKey());
-
 			String keyContent = f.loadFileAsString();
 
 			Unlocker *ul = &dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor())->unlocker;
-
 			ul->applyKeyFile(keyContent);
 
-			setState(LicenceNotFound, !ul->isUnlocked());
+			State returnValue = checkLicence(keyContent);
+
+			if (returnValue == numReasons || returnValue == LicenceNotFound)
+			{
+				f.copyFileTo(ProjectHandler::Frontend::getLicenceKey());
+
+				returnValue = checkLicence();
+			}
+			
+            refreshLabel();
+            
+			if (returnValue != numReasons) return;
+
+			setState(LicenceInvalid, !ul->isUnlocked());
+            
+            PresetHandler::showMessageWindow("Valid key file found.", "You found a valid key file. Please reload this instance to activate the plugin.");
 		}
 #endif
 	}
@@ -124,7 +143,93 @@ void DeactiveOverlay::buttonClicked(Button *b)
 		{
 			ProjectHandler::Frontend::setSampleLocation(fc.getResult());
 
-			setState(SamplesNotFound, !ProjectHandler::Frontend::getSampleLocationForCompiledPlugin().isDirectory());
+			const bool directorySelected = ProjectHandler::Frontend::getSampleLocationForCompiledPlugin().isDirectory();
+
+			if (directorySelected)
+			{
+				PresetHandler::showMessageWindow("Sample Folder changed", "The sample folder was relocated, but you'll need to open a new instance of this plugin before it can be used.");
+			}
+
+			setState(SamplesNotFound, !directorySelected);
 		}
 	}
 }
+
+bool DeactiveOverlay::check(State s, const String &value/*=String::empty*/)
+{
+	Unlocker *ul = &dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor())->unlocker;
+
+	String compareValue;
+
+	switch (s)
+	{
+	case DeactiveOverlay::AppDataDirectoryNotFound:
+		return ProjectHandler::Frontend::getAppDataDirectory().isDirectory();
+		break;
+	case DeactiveOverlay::LicenceNotFound:
+		return ProjectHandler::Frontend::getLicenceKey().existsAsFile();
+		break;
+	case DeactiveOverlay::ProductNotMatching:
+		compareValue = String(JucePlugin_Name) + String(" ") + String(JucePlugin_VersionString);
+		return value == compareValue;
+		break;
+	case DeactiveOverlay::UserNameNotMatching:
+		break;
+	case DeactiveOverlay::EmailNotMatching:
+		break;
+	case DeactiveOverlay::MachineNumbersNotMatching:
+	{
+		StringArray ids = ul->getLocalMachineIDs();
+		return ids.contains(value);
+		break;
+	}
+	case DeactiveOverlay::LicenceInvalid:
+		return ul->isUnlocked();
+		break;
+	case DeactiveOverlay::SamplesNotFound:
+		break;
+	case DeactiveOverlay::numReasons:
+		break;
+	default:
+		break;
+	}
+
+	return true;
+}
+
+
+#define CHECK_LICENCE_PARAMETER(state, text){\
+if (!check(state, text))\
+{ setState(state, true); return state; }\
+currentState.setBit(state, false);}
+
+
+DeactiveOverlay::State DeactiveOverlay::checkLicence(const String &keyContent)
+{
+	String key = keyContent;
+
+	if (keyContent.isEmpty())
+	{
+		key = ProjectHandler::Frontend::getLicenceKey().loadFileAsString();
+	}
+
+	StringArray lines = StringArray::fromLines(key);
+
+	if (!check(AppDataDirectoryNotFound) || !check(LicenceNotFound) || lines.size() < 4)
+	{
+		setState(LicenceNotFound, true);
+		return LicenceNotFound;
+	}
+
+	currentState.setBit(LicenceNotFound, false);
+
+	const String productName = lines[0].fromFirstOccurrenceOf("Keyfile for ", false, false);
+	CHECK_LICENCE_PARAMETER(ProductNotMatching, productName);
+
+	const String keyFileMachineId = lines[3].fromFirstOccurrenceOf("Machine numbers: ", false, false);
+	CHECK_LICENCE_PARAMETER(MachineNumbersNotMatching, keyFileMachineId);
+
+    return numReasons;
+}
+
+#undef CHECK_LICENCE_PARAMETER

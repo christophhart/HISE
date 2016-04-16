@@ -14,7 +14,7 @@
 *   GNU General Public License for more details.
 *
 *   You should have received a copy of the GNU General Public License
-*   along with HISE.  If not, see <http://www.gnu.org/licenses/>.
+*   along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
 *
 *   Commercial licences for using HISE in an closed source project are
 *   available on request. Please visit the project's website to get more
@@ -1624,11 +1624,15 @@ void BackendCommandTarget::Actions::createDummyLicenceFile(BackendProcessorEdito
 
 	const String appName = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, handler);
 
-	if (appName.isEmpty())
+	const String version = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, handler);
+
+	if (appName.isEmpty() || version.isEmpty())
 	{
 		PresetHandler::showMessageWindow("No Product name", "You need a product name for a licence file.");
 		return;
 	}
+
+	const String productName = appName + " " + version;
 
 	const String dummyEmail = "dummy@email.com";
 	const String userName = "Dummy McLovin";
@@ -1653,9 +1657,8 @@ void BackendCommandTarget::Actions::createDummyLicenceFile(BackendProcessorEdito
 		return;
 	}
 
-	String keyContent = KeyGeneration::generateKeyFile(appName, dummyEmail, userName, ids.joinIntoString("\n"), privateKey);
-
-	File key = handler->getWorkDirectory().getChildFile(appName + ".licence");
+	String keyContent = KeyGeneration::generateKeyFile(productName, dummyEmail, userName, ids.joinIntoString("\n"), privateKey);
+	File key = handler->getWorkDirectory().getChildFile(productName + ".licence");
 
 	key.replaceWithText(keyContent);
 }
