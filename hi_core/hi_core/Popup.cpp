@@ -94,7 +94,6 @@ void TooltipBar::timerCallback()
 
     Component *parentComponent = nullptr;
     
-    
 #if USE_BACKEND
     
     parentComponent = findParentComponentOfClass<BackendProcessorEditor>();
@@ -112,9 +111,13 @@ void TooltipBar::timerCallback()
     
     jassert(parentComponent != nullptr);
     
+	const bool isPopupMenu = dynamic_cast<AutoCompleteEntry*>(newComp) != nullptr;
     
 	// Deactivate tooltips for multiple instances!
-	if (parentComponent == nullptr || !parentComponent->isParentOf(newComp)) return;
+	if (!isPopupMenu && (parentComponent == nullptr || !parentComponent->isParentOf(newComp)))
+	{
+		return;
+	}
 
 	TooltipClient *client = dynamic_cast<TooltipClient*>(newComp);
 
