@@ -3,7 +3,7 @@ header('Content-Type: text/plain');
 header('Content-Transfer-Encoding: UTF-8');
 header('Expires: 0');
 
-include("licence_information.php")
+$CONFIG = include("licence_information.php");
 
 if ($ALLOWED_IP != "" && $_SERVER['REMOTE_ADDR'] != $ALLOWED_IP)
 {
@@ -12,9 +12,14 @@ if ($ALLOWED_IP != "" && $_SERVER['REMOTE_ADDR'] != $ALLOWED_IP)
 
 // The user information will be submitted by POST data.
 
-$EMAIL = $_POST['email'];
-$USER = $_POST['first_name'] . " " . $_POST['last_name'];
-$MACHINE = $_POST['machine_id'];
+$PRODUCT_ID = $CONFIG['product'];
+$PRIVATE_KEY_PART_1 = $CONFIG['private_key_part_1'];
+$PRIVATE_KEY_PART_2 = $CONFIG['private_key_part_2'];
+
+
+$EMAIL = $_GET['email'];
+$USER = $_GET['user'];
+$MACHINE = $_GET['machine_id'];
 
 $DATE = date("j M Y g:i:sa");
 $TIME = dec2hex(round(microtime(true)*1000));
@@ -58,7 +63,7 @@ $KEY_FILE_TEXT = "";
 $KEY_FILE_TEXT .= "Keyfile for " . $PRODUCT_ID . "\n";
 $KEY_FILE_TEXT .= "User: ". $USER ."\n";
 $KEY_FILE_TEXT .= "Email: ". $EMAIL ."\n";
-$KEY_FILE_TEXT .= "Machine numbers: " . "\n";
+$KEY_FILE_TEXT .= "Machine numbers: " . $MACHINE . "\n";
 $KEY_FILE_TEXT .= "Created: ". $DATE  ."\n";
 $KEY_FILE_TEXT .= "\n";
 // Create the XML 
