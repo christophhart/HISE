@@ -672,6 +672,7 @@ ScriptingApi::Synth::Synth(ScriptBaseProcessor *p, ModulatorSynth *ownerSynth):
 	setMethod("addModulator", Wrapper::addModulator);
 	setMethod("getModulator", Wrapper::getModulator);
 	setMethod("getAudioSampleProcessor", Wrapper::getAudioSampleProcessor);
+	setMethod("getSampler", Wrapper::getSampler);
 	setMethod("getEffect", Wrapper::getEffect);
 	setMethod("getMidiProcessor", Wrapper::getMidiProcessor);
 	setMethod("getChildSynth", Wrapper::getChildSynth);
@@ -989,6 +990,30 @@ ScriptingObjects::ScriptingAudioSampleProcessor * ScriptingApi::Synth::getAudioS
 }
 
 
+ScriptingApi::Sampler * ScriptingApi::Synth::getSampler(const String &name)
+{
+	if (getScriptProcessor()->objectsCanBeCreated())
+	{
+		Processor::Iterator<ModulatorSampler> it(owner);
+
+		while (ModulatorSampler *s = it.getNextProcessor())
+		{
+			if (s->getId() == name)
+			{
+				debugToConsole(owner, s->getId() + " was found. ");
+				return new Sampler(getScriptProcessor(), s);
+			}
+		}
+
+		return new Sampler(getScriptProcessor(), nullptr);
+	}
+	else
+	{
+		reportIllegalCall("getScriptingAudioSampleProcessor()", "onInit");
+
+		return new Sampler(getScriptProcessor(), nullptr);
+	}
+}
 
 void ScriptingApi::Synth::setAttribute(int attributeIndex, float newAttribute)
 {
@@ -1148,8 +1173,9 @@ void ScriptingApi::Synth::setModulatorAttribute(int chain, int modulatorIndex, i
 }
 
 
-ScriptingApi::Sampler::Sampler(ScriptBaseProcessor *p) :
-ScriptingObject(p)
+ScriptingApi::Sampler::Sampler(ScriptBaseProcessor *p, ModulatorSampler *sampler_) :
+CreatableScriptObject(p),
+sampler(sampler_)
 {
 	setMethod("enableRoundRobin", Wrapper::enableRoundRobin);
 	setMethod("setActiveGroup", Wrapper::setActiveGroup);
@@ -1173,11 +1199,11 @@ ScriptingObject(p)
 
 void ScriptingApi::Sampler::enableRoundRobin(bool shouldUseRoundRobin)
 {
-	ModulatorSampler *sampler = dynamic_cast<ModulatorSampler*>(getScriptProcessor()->getOwnerSynth());
+	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(sampler.get());
 
-	if (sampler != nullptr)
+	if (s != nullptr)
 	{
-		sampler->setUseRoundRobinLogic(shouldUseRoundRobin);
+		s->setUseRoundRobinLogic(shouldUseRoundRobin);
 
 		getScriptProcessor()->setScriptProcessorDeactivatedRoundRobin(!shouldUseRoundRobin);
 
@@ -1190,21 +1216,21 @@ void ScriptingApi::Sampler::enableRoundRobin(bool shouldUseRoundRobin)
 
 void ScriptingApi::Sampler::setActiveGroup(int activeGroupIndex)
 {
-	ModulatorSampler *sampler = dynamic_cast<ModulatorSampler*>(getScriptProcessor()->getOwnerSynth());
+	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(sampler.get());
 
-	if (sampler == nullptr)
+	if (s == nullptr)
 	{
 		reportScriptError("setActiveGroup() only works with Samplers.");
 		return;
 	}
 	
-	if (sampler->isRoundRobinEnabled())
+	if (s->isRoundRobinEnabled())
 	{
 		reportScriptError("Round Robin is not disabled. Call 'Synth.enableRoundRobin(false)' before calling this method.");
 		return;
 	}
 
-	bool ok = sampler->setCurrentGroupIndex(activeGroupIndex);
+	bool ok = s->setCurrentGroupIndex(activeGroupIndex);
 
 	if (!ok)
 	{
@@ -1214,60 +1240,60 @@ void ScriptingApi::Sampler::setActiveGroup(int activeGroupIndex)
 
 int ScriptingApi::Sampler::getRRGroupsForMessage(int noteNumber, int velocity)
 {
-	ModulatorSampler *sampler = dynamic_cast<ModulatorSampler*>(getScriptProcessor()->getOwnerSynth());
+	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(sampler.get());
 
-	if (sampler == nullptr)
+	if (s == nullptr)
 	{
 		reportScriptError("getRRGroupsForMessage() only works with Samplers.");
 		return 0;
 	}
 
-	if (sampler->isRoundRobinEnabled())
+	if (s->isRoundRobinEnabled())
 	{
 		reportScriptError("Round Robin is not disabled. Call 'Synth.enableRoundRobin(false)' before calling this method.");
 		return 0;
 	}
 
-	return sampler->getRRGroupsForMessage(noteNumber, velocity);
+	return s->getRRGroupsForMessage(noteNumber, velocity);
 }
 
 void ScriptingApi::Sampler::refreshRRMap()
 {
-	ModulatorSampler *sampler = dynamic_cast<ModulatorSampler*>(getScriptProcessor()->getOwnerSynth());
+	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(sampler.get());
 
-	if (sampler == nullptr)
+	if (s == nullptr)
 	{
 		reportScriptError("refreshRRMap() only works with Samplers.");
 		return;
 	}
 
-	if (sampler->isRoundRobinEnabled())
+	if (s->isRoundRobinEnabled())
 	{
 		reportScriptError("Round Robin is not disabled. Call 'Synth.enableRoundRobin(false)' before calling this method.");
 		return;
 	}
 
-	sampler->refreshRRMap();
+	s->refreshRRMap();
 }
 
 void ScriptingApi::Sampler::selectSounds(String regexWildcard)
 {
-	ModulatorSampler *sampler = dynamic_cast<ModulatorSampler*>(getScriptProcessor()->getOwnerSynth());
+	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(sampler.get());
 
-	if (sampler == nullptr)
+	if (s == nullptr)
 	{
 		reportScriptError("selectSamplerSounds() only works with Samplers.");
 		return;
 	}
 
-	ModulatorSamplerSound::selectSoundsBasedOnRegex(regexWildcard, sampler, soundSelection);
+	ModulatorSamplerSound::selectSoundsBasedOnRegex(regexWildcard, s, soundSelection);
 }
 
 int ScriptingApi::Sampler::getNumSelectedSounds()
 {
-	ModulatorSampler *sampler = dynamic_cast<ModulatorSampler*>(getScriptProcessor()->getOwnerSynth());
+	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(sampler.get());
 
-	if (sampler == nullptr)
+	if (s == nullptr)
 	{
 		reportScriptError("getNumSelectedSamplerSounds() only works with Samplers.");
 		return -1;
@@ -1278,9 +1304,9 @@ int ScriptingApi::Sampler::getNumSelectedSounds()
 
 void ScriptingApi::Sampler::setSoundPropertyForSelection(int propertyId, var newValue)
 {
-	ModulatorSampler *sampler = dynamic_cast<ModulatorSampler*>(getScriptProcessor()->getOwnerSynth());
+	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(sampler.get());
 
-	if (sampler == nullptr)
+	if (s == nullptr)
 	{
 		reportScriptError("setSoundsProperty() only works with Samplers.");
 		return;
@@ -1301,9 +1327,9 @@ void ScriptingApi::Sampler::setSoundPropertyForSelection(int propertyId, var new
 
 var ScriptingApi::Sampler::getSoundProperty(int propertyIndex, int soundIndex)
 {
-	ModulatorSampler *sampler = dynamic_cast<ModulatorSampler*>(getScriptProcessor()->getOwnerSynth());
+	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(sampler.get());
 
-	if (sampler == nullptr)
+	if (s == nullptr)
 	{
 		reportScriptError("getSoundProperty() only works with Samplers.");
 		return var::undefined();
@@ -1325,9 +1351,9 @@ var ScriptingApi::Sampler::getSoundProperty(int propertyIndex, int soundIndex)
 
 void ScriptingApi::Sampler::setSoundProperty(int soundIndex, int propertyIndex, var newValue)
 {
-	ModulatorSampler *sampler = dynamic_cast<ModulatorSampler*>(getScriptProcessor()->getOwnerSynth());
+	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(sampler.get());
 
-	if (sampler == nullptr)
+	if (s == nullptr)
 	{
 		reportScriptError("ssetSoundProperty() only works with Samplers.");
 	}
@@ -1346,25 +1372,25 @@ void ScriptingApi::Sampler::setSoundProperty(int soundIndex, int propertyIndex, 
 
 void ScriptingApi::Sampler::purgeMicPosition(String micName, bool shouldBePurged)
 {
-	ModulatorSampler *sampler = dynamic_cast<ModulatorSampler*>(getScriptProcessor()->getOwnerSynth());
+	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(sampler.get());
 
-	if (sampler == nullptr)
+	if (s == nullptr)
 	{
 		reportScriptError("purgeMicPosition() only works with Samplers.");
 		return;
 	}
 
-	if (sampler->getNumMicPositions() == 1)
+	if (s->getNumMicPositions() == 1)
 	{
 		reportScriptError("purgeMicPosition() only works with multi mic Samplers.");
 		return;
 	}
 
-	for (int i = 0; i < sampler->getNumMicPositions(); i++)
+	for (int i = 0; i < s->getNumMicPositions(); i++)
 	{
-		if (micName == sampler->getChannelData(i).suffix)
+		if (micName == s->getChannelData(i).suffix)
 		{	
-			sampler->setMicEnabled(i, !shouldBePurged);
+			s->setMicEnabled(i, !shouldBePurged);
 			
 			return;
 		}
@@ -1375,35 +1401,35 @@ void ScriptingApi::Sampler::purgeMicPosition(String micName, bool shouldBePurged
 
 String ScriptingApi::Sampler::getMicPositionName(int channelIndex) 
 {
-	ModulatorSampler *sampler = dynamic_cast<ModulatorSampler*>(getScriptProcessor()->getOwnerSynth());
+	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(sampler.get());
 
-	if (sampler == nullptr)
+	if (s == nullptr)
 	{
 		reportScriptError("purgeMicPosition() only works with Samplers.");
 		return "";
 	}
 
-	if (sampler->getNumMicPositions() == 1)
+	if (s->getNumMicPositions() == 1)
 	{
 		reportScriptError("purgeMicPosition() only works with multi mic Samplers.");
 		return "";
 	}
 
-	return sampler->getChannelData(channelIndex).suffix;
+	return s->getChannelData(channelIndex).suffix;
 }
 
 void ScriptingApi::Sampler::refreshInterface()
 {
-	ModulatorSampler *sampler = dynamic_cast<ModulatorSampler*>(getScriptProcessor()->getOwnerSynth());
+	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(sampler.get());
 
-	if (sampler == nullptr)
+	if (s == nullptr)
 	{
 		reportScriptError("purgeMicPosition() only works with Samplers.");
 		return ;
 	}
 
-	sampler->sendChangeMessage();
-	sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->sendChangeMessage();
+	s->sendChangeMessage();
+	s->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->sendChangeMessage();
 }
 
 int ScriptingApi::Synth::addModulator(int chain, const String &type, const String &id) const

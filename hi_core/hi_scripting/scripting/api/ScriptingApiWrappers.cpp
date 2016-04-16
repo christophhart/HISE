@@ -704,9 +704,21 @@ var ScriptingApi::Synth::Wrapper::getAudioSampleProcessor(const var::NativeFunct
 {
 	if (Synth* thisObject = GET_OBJECT(Synth))
 	{
-		CHECK_ARGUMENTS("getScriptingAudioSampleProcessor(()", 1);
+		CHECK_ARGUMENTS("getScriptingAudioSampleProcessor()", 1);
 
 		return thisObject->getAudioSampleProcessor(args.arguments[0].toString());
+	}
+	return var::undefined();
+}
+
+
+var ScriptingApi::Synth::Wrapper::getSampler(const var::NativeFunctionArgs& args)
+{
+	if (Synth* thisObject = GET_OBJECT(Synth))
+	{
+		CHECK_ARGUMENTS("getSampler()", 1);
+
+		return thisObject->getSampler(args.arguments[0].toString());
 	}
 	return var::undefined();
 }

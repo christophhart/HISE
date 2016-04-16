@@ -276,6 +276,8 @@ void JavascriptCodeEditor::showAutoCompletePopup()
 	Rectangle<int> pos = getCaretRectangle();
 	Rectangle<int> pos2 = Rectangle<int>(pos.getX() + getScreenPosition().getX(), pos.getBottom() + getScreenPosition().getY(), 0, 2);
 
+	
+
 	int result = m.showAt(pos2);
 
 	if (result == 0)
@@ -390,6 +392,8 @@ void JavascriptCodeEditor::addDefaultAutocompleteOptions(const String &enteredTe
 				NamedValueSet displaySet;
 
 				String name = set.getName(i).toString();
+
+				if (name == "Sampler") continue;
 
 				if (enteredText.isEmpty() || name.startsWith(enteredText))
 				{

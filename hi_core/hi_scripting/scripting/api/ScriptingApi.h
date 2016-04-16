@@ -850,11 +850,16 @@ public:
 	};
 
 	/** All scripting functions for sampler specific functionality. */
-	class Sampler : public ScriptingObject
+	class Sampler : public CreatableScriptObject
 	{
 	public:
 
-		Sampler(ScriptBaseProcessor *p);
+		Sampler(ScriptBaseProcessor *p, ModulatorSampler *sampler);
+
+		Identifier getObjectName() const override
+		{
+			return "Sampler";
+		}
 
 		/** Enables / Disables the automatic round robin group start logic (works only on samplers). */
 		void enableRoundRobin(bool shouldUseRoundRobin);
@@ -892,6 +897,16 @@ public:
 		/** Refreshes the interface. Call this after you changed the properties. */
 		void refreshInterface();
 
+		bool objectDeleted() const override
+		{
+			return sampler.get() == nullptr;
+		}
+
+		bool objectExists() const override
+		{
+			return sampler.get() != nullptr;
+		}
+
 		struct Wrapper
 		{
 			static var enableRoundRobin(const var::NativeFunctionArgs& args);
@@ -910,6 +925,8 @@ public:
 		};
 
 	private:
+
+		WeakReference<Processor> sampler;
 
 		SelectedItemSet<WeakReference<ModulatorSamplerSound>> soundSelection;
 	};
@@ -1028,6 +1045,9 @@ public:
 		/** Returns the child synth with the supplied name. */
 		ScriptAudioSampleProcessor * getAudioSampleProcessor(const String &name);
 
+		/** Returns the sampler with the supplied name. */
+		Sampler *getSampler(const String &name);
+
 		/** Returns the index of the Modulator in the chain with the supplied chainId */
 		int getModulatorIndex(int chainId, const String &id) const;
 
@@ -1064,6 +1084,7 @@ public:
 			static var isLegatoInterval(const var::NativeFunctionArgs& args);
 			static var isSustainPedalDown(const var::NativeFunctionArgs& args);
 			static var getAudioSampleProcessor(const var::NativeFunctionArgs& args);
+			static var getSampler(const var::NativeFunctionArgs& args);
 			static var setClockSpeed(const var::NativeFunctionArgs& args);
 			
 		};

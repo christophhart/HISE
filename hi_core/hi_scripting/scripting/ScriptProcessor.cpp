@@ -525,7 +525,7 @@ void ScriptProcessor::setupApi()
 	currentMidiMessage = new ScriptingApi::Message(this);
 	engineObject = new ScriptingApi::Engine(this);
 	synthObject = new ScriptingApi::Synth(this, getOwnerSynth());
-	samplerObject = new ScriptingApi::Sampler(this);
+	samplerObject = new ScriptingApi::Sampler(this, dynamic_cast<ModulatorSampler*>(getOwnerSynth()));
 
 	DynamicObject *synthParameters = new DynamicObject();
 
