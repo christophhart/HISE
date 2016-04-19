@@ -1709,7 +1709,7 @@ public:
 			{
 				ValueTree v = ScriptComponent::exportAsValueTree();
 
-				v.setProperty("data", ownedTable->exportData(), nullptr);
+				v.setProperty("data", getTable()->exportData(), nullptr);
 				
 				return v;
 			}
@@ -1718,9 +1718,9 @@ public:
 			{
 				ScriptComponent::restoreFromValueTree(v);
 
-				ownedTable->restoreData(v.getProperty("data", String::empty));
+				getTable()->restoreData(v.getProperty("data", String::empty));
 
-				ownedTable->sendChangeMessage();
+				getTable()->sendChangeMessage();
 				
 			}
 
@@ -1729,6 +1729,12 @@ public:
 				return useOtherTable ? referencedTable.get() : ownedTable;
 			}
 			
+			const Table *getTable() const
+			{
+				return useOtherTable ? referencedTable.get() : ownedTable;
+			}
+
+
 			LookupTableProcessor * getTableProcessor() const;
 
 		private:
