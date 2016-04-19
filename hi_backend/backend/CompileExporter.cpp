@@ -222,13 +222,92 @@ CompileExporter::ErrorCodes CompileExporter::compileSolution(ModulatorSynthChain
 	batchFile.getParentDirectory().getChildFile("temp/").deleteRecursively();
 }
 
+
+class StringObfuscater
+{
+public:
+
+	static String getStringConcatenationExpression(Random& rng, int start, int length)
+	{
+		jassert(length > 0);
+
+		if (length == 1)
+			return "s" + String(start);
+
+		int breakPos = jlimit(1, length - 1, (length / 3) + rng.nextInt(length / 3));
+
+		return "(" + getStringConcatenationExpression(rng, start, breakPos)
+			+ " + " + getStringConcatenationExpression(rng, start + breakPos, length - breakPos) + ")";
+	};
+
+	static String generateObfuscatedStringCode(const String& args)
+	{
+		const String originalText(args);
+
+		struct Section
+		{
+			String text;
+			int position, index;
+
+			void writeGenerator(MemoryOutputStream& out) const
+			{
+				String name("s" + String(index));
+
+				out << "    String " << name << ";  " << name;
+
+				for (int i = 0; i < text.length(); ++i)
+					out << " << '" << String::charToString(text[i]) << "'";
+
+				out << ";" << newLine;
+			}
+		};
+
+		Array<Section> sections;
+		String text = originalText;
+		Random rng;
+
+		while (text.isNotEmpty())
+		{
+			int pos = jmax(0, text.length() - (1 + rng.nextInt(6)));
+			Section s = { text.substring(pos), pos, 0 };
+			sections.insert(0, s);
+			text = text.substring(0, pos);
+		}
+
+		for (int i = 0; i < sections.size(); ++i)
+			sections.getReference(i).index = i;
+
+		for (int i = 0; i < sections.size(); ++i)
+			sections.swap(i, rng.nextInt(sections.size()));
+
+		MemoryOutputStream out;
+
+		out << "RSAKey Unlocker::getPublicKey()" << newLine
+			<< "{" << newLine;
+
+		for (int i = 0; i < sections.size(); ++i)
+			sections.getReference(i).writeGenerator(out);
+
+		out << newLine
+			<< "    String result = " << getStringConcatenationExpression(rng, 0, sections.size()) << ";" << newLine
+			<< newLine
+			<< "    jassert (result == " << originalText.quoted() << ");" << newLine
+			<< "    return RSAKey(result);" << newLine
+			<< "}" << newLine;
+
+		return out.toString();
+	};
+};
+
+
+
 CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(const String &solutionDirectory, const String &uniqueName, const String &version, const String &publicKey)
 {
 	String pluginDataHeaderFile;
 
 	if (publicKey.isNotEmpty())
 	{
-		pluginDataHeaderFile << "#define PUBLIC_KEY \"" << publicKey << "\"\n";
+		//pluginDataHeaderFile << "#define PUBLIC_KEY \"" << publicKey << "\"\n";
 		pluginDataHeaderFile << "\n";
 	}
 	pluginDataHeaderFile << "#include \"JuceHeader.h\"" << "\n";
@@ -238,7 +317,9 @@ CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(const St
 	if (publicKey.isNotEmpty())
 	{
 		pluginDataHeaderFile << "#if USE_COPY_PROTECTION" << "\n";
-		pluginDataHeaderFile << "RSAKey Unlocker::getPublicKey() { return RSAKey(String(PUBLIC_KEY)); };" << "\n"; 
+		
+		pluginDataHeaderFile << StringObfuscater::generateObfuscatedStringCode(publicKey);
+		//pluginDataHeaderFile << "RSAKey Unlocker::getPublicKey() { return RSAKey(String(PUBLIC_KEY)); };" << "\n"; 
 		pluginDataHeaderFile << "#endif" << "\n";
 	}
     else
