@@ -2,20 +2,19 @@
 
 <Processor Type="SynthChain" ID="Demo" Bypassed="0" Gain="1" Balance="0"
            VoiceLimit="128" KillFadeTime="20" IconColour="0" packageName=""
-           views="32.rk1bzA...zbyM2byM2byM2byM2byM2byM2byM2byM2L" currentView="-1"
-           BuildVersion="621">
+           views="32.rk1bzA....E+q0ig9e..fJ..SOF5+A..P8gN38+eB.." currentView="-1"
+           BuildVersion="626">
   <ChildProcessors>
     <Processor Type="MidiProcessorChain" ID="Midi Processor" Bypassed="0">
       <ChildProcessors>
         <Processor Type="ScriptProcessor" ID="Interface" Bypassed="0">
           <ChildProcessors/>
           <Content>
-            <bgPanel value="0" visible="1"/>
+            <bgImage value="0" visible="1"/>
             <volumeSlider value="0" visible="1" rangeMin="0" rangeMax="1"/>
             <delaySlider value="0" visible="1" rangeMin="0" rangeMax="1"/>
-            <designAwardImage value="0" visible="1"/>
-            <imageButton value="0" visible="1"/>
-            <imageSlider value="0.43000000715255737" visible="1" rangeMin="0" rangeMax="1"/>
+            <velocityTable value="0" visible="1" data="72...............vOVaQN93g9M6C...vOr7d09PX4d3C...vOTIcC+LPlT7C...vOfAOV+....7C...vO...f+....9C...vO"/>
+            <velocityLabel value="0" visible="1"/>
           </Content>
         </Processor>
       </ChildProcessors>
@@ -34,8 +33,8 @@
           <ChildProcessors/>
           <RoutingMatrix NumSourceChannels="2" Channel0="0" Send0="-1" Channel1="1" Send1="-1"/>
         </Processor>
-        <Processor Type="SimpleGain" ID="Simple Gain" Bypassed="0" Gain="-100" Delay="0"
-                   Width="-2.4999973773956299">
+        <Processor Type="SimpleGain" ID="Simple Gain" Bypassed="0" Gain="0" Delay="0"
+                   Width="-2.4999974">
           <ChildProcessors>
             <Processor Type="ModulatorChain" ID="Gain Modulation" Bypassed="0" Intensity="1">
               <ChildProcessors/>
@@ -53,7 +52,7 @@
     </Processor>
     <Processor Type="StreamingSampler" ID="Sampler" Bypassed="0" Gain="1" Balance="0"
                VoiceLimit="128" KillFadeTime="20" IconColour="0" PreloadSize="8192"
-               BufferSize="4096" VoiceAmount="128" SamplerRepeatMode="-842150464"
+               BufferSize="4096" VoiceAmount="128" SamplerRepeatMode="3.4528169e+09"
                RRGroupAmount="1" PitchTracking="1" OneShot="0" CrossfadeGroups="0"
                Purged="0" NumChannels="1" SampleMap="">
       <ChildProcessors>
@@ -70,6 +69,10 @@
                   <ChildProcessors/>
                 </Processor>
               </ChildProcessors>
+            </Processor>
+            <Processor Type="Velocity" ID="SamplerVelocity" Bypassed="0" Intensity="1"
+                       UseTable="1" Inverted="0" VelocityTableData="48...............vOxuco9fZDV5iYl+1Oe3zP+PX4d5C...vO...f+....9ialwfO">
+              <ChildProcessors/>
             </Processor>
           </ChildProcessors>
         </Processor>
@@ -102,13 +105,15 @@
   </ChildProcessors>
   <RoutingMatrix NumSourceChannels="2" Channel0="0" Send0="-1" Channel1="1" Send1="-1"/>
   <macro_controls>
-    <macro name="Volume" value="0" midi_cc="0">
+    <macro name="Volume" value="127" midi_cc="0">
       <controlled_parameter id="Simple Gain" parameter="0" parameter_name="Gain" min="-100"
                             max="36" low="-100" high="0" inverted="0" readonly="1"/>
       <controlled_parameter id="Interface" parameter="3" parameter_name="volumeSlider" min="-100"
                             max="0" low="-100" high="0" inverted="0" readonly="0"/>
     </macro>
-    <macro name="Delay" value="122.55500030517578" midi_cc="0">
+    <macro name="Delay" value="127" midi_cc="0">
+      <controlled_parameter id="Interface" parameter="4" parameter_name="delaySlider" min="-100"
+                            max="0" low="-100" high="0" inverted="0" readonly="0"/>
       <controlled_parameter id="Interface" parameter="4" parameter_name="delaySlider" min="-100"
                             max="0" low="-100" high="0" inverted="0" readonly="0"/>
     </macro>
