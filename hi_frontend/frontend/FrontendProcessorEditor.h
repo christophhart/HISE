@@ -56,13 +56,16 @@ public:
 
 		addAndMakeVisible(resolveLicenceButton = new TextButton("Find Licence File"));
 		addAndMakeVisible(resolveSamplesButton = new TextButton("Choose Sample Folder"));
-
+        addAndMakeVisible(createMachineIdButton = new TextButton("Show Computer ID"));
+        
 
 		resolveLicenceButton->setLookAndFeel(&alaf);
 		resolveSamplesButton->setLookAndFeel(&alaf);
+        createMachineIdButton->setLookAndFeel(&alaf);
 
 		resolveLicenceButton->addListener(this);
 		resolveSamplesButton->addListener(this);
+        createMachineIdButton->addListener(this);
 	};
 
 	void buttonClicked(Button *b);
@@ -157,13 +160,19 @@ public:
 		if (currentState[LicenceNotFound] || currentState[LicenceInvalid] || currentState[MachineNumbersNotMatching] || currentState[UserNameNotMatching] || currentState[ProductNotMatching])
 		{
 			resolveLicenceButton->setVisible(true);
+            createMachineIdButton->setVisible(true);
 			resolveSamplesButton->setVisible(false);
 
 			resolveLicenceButton->centreWithSize(200, 32);
+            createMachineIdButton->centreWithSize(200, 32);
+            
+            createMachineIdButton->setTopLeftPosition(createMachineIdButton->getX(),
+                                                      createMachineIdButton->getY() + 40);
 		}
 		else if (currentState[SamplesNotFound])
 		{
 			resolveLicenceButton->setVisible(false);
+            createMachineIdButton->setVisible(false);
 			resolveSamplesButton->setVisible(true);
 
 			resolveSamplesButton->centreWithSize(200, 32);
@@ -178,6 +187,7 @@ private:
 
 	ScopedPointer<TextButton> resolveLicenceButton;
 	ScopedPointer<TextButton> resolveSamplesButton;
+    ScopedPointer<TextButton> createMachineIdButton;
 
 	BigInteger currentState;
 	
