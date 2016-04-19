@@ -62,6 +62,8 @@ public:
 
 private:
 
+	static bool checkSanity(ModulatorSynthChain *chainToExport);
+
 	static BuildOption showCompilePopup(String &publicKey, String &uniqueId, String &version, String &solutionDirectory);
 
 	static void writeReferencedImageFiles(ModulatorSynthChain * chainToExport, const String directoryPath);

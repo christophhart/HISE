@@ -33,6 +33,8 @@
 
 void CompileExporter::exportMainSynthChainAsPackage(ModulatorSynthChain *chainToExport)
 {
+	if (!checkSanity(chainToExport)) return;
+
 	String uniqueId, version, solutionDirectory, publicKey;
 	BuildOption buildOption = showCompilePopup(publicKey, uniqueId, version, solutionDirectory);
 
@@ -68,6 +70,47 @@ void CompileExporter::exportMainSynthChainAsPackage(ModulatorSynthChain *chainTo
 	}
 }
 
+
+bool CompileExporter::checkSanity(ModulatorSynthChain *chainToExport)
+{
+	// Check if a frontend script is in the main synth chain
+
+	MidiProcessorChain *mc = dynamic_cast<MidiProcessorChain*>(chainToExport->getChildProcessor(ModulatorSynth::MidiProcessor));
+
+	bool frontWasFound = false;
+
+	for (int i = 0; i < mc->getNumChildProcessors(); i++)
+	{
+		if (ScriptProcessor *sp = dynamic_cast<ScriptProcessor*>(mc->getChildProcessor(i)))
+		{
+			if (sp->isFront())
+			{
+				frontWasFound = true;
+				break;
+			}
+		}
+	}
+
+	if (!frontWasFound)
+	{
+		PresetHandler::showMessageWindow("No Interface found.", "You have to add at least one script processor and call Synth.addToFront(true).");
+		return false;
+	}
+
+	// Check the settings are correct
+
+	ProjectHandler *handler = &GET_PROJECT_HANDLER(chainToExport);
+
+	const String productName = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, handler);
+
+	if (!productName.containsOnly("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890 _-"))
+	{
+		PresetHandler::showMessageWindow("Illegal Project name", "The Project name must not contain exotic characters");
+		return false;
+	}
+
+	return true;
+}
 
 CompileExporter::BuildOption CompileExporter::showCompilePopup(String &/*publicKey*/, String &/*uniqueId*/, String &/*version*/, String &/*solutionDirectory*/)
 {
