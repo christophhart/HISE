@@ -1,4 +1,4 @@
-/*
+    /*
   ==============================================================================
 
     StandaloneProcessor.h
@@ -33,6 +33,8 @@ public:
 	{
 		deviceManager->removeAudioCallback(callback);
 		
+        deviceManager->closeAudioDevice();
+        
 		callback = nullptr;
 		backendProcessor = nullptr;
 		deviceManager = nullptr;
