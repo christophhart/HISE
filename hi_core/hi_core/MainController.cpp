@@ -696,8 +696,6 @@ ValueTree MidiControllerAutomationHandler::exportAsValueTree() const
 		}
 	}
 
-	DBG(v.createXml()->createDocument(""));
-
 	return v;
 }
 

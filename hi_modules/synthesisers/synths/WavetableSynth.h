@@ -97,11 +97,7 @@ public:
 
 			if(noteNumber != -1)
 			{
-				DBG("Reading " << wavFile.getFileNameWithoutExtension());
-
 				juce::AudioSampleBuffer *bufferOfNote = dataBuffers[noteNumber];
-
-
 
 				const int wavetableNumber = wavFile.getFileNameWithoutExtension().fromFirstOccurrenceOf("_", false, false).getIntValue();
 
@@ -114,8 +110,6 @@ public:
 				sampleRate = reader->sampleRate;
 
 				const int numSamples = (int)reader->lengthInSamples;
-
-				DBG("NoteNumber: " << noteNumber << ", wavetableIndex: " << wavetableNumber << ", numSamples: " << numSamples);
 
 				if(bufferOfNote->getNumSamples() != numSamples * 64)
 				{
@@ -175,9 +169,6 @@ public:
 	static int getWavetableLength(int noteNumber, double sampleRate)
 	{
 		const double freq = MidiMessage::getMidiNoteInHertz(noteNumber);
-
-		DBG("Frequency: " << freq);
-
 		const int sampleNumber = (int)(sampleRate / freq);
 
 		return sampleNumber;

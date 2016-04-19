@@ -397,8 +397,6 @@ void SampleMapExporter::SampleWriter::run()
 			if (sourceFile.getParentDirectory() == sampleFolder) continue;
 
 			sourceFile.copyFileTo(sampleFolder.getFullPathName() + "/" + sourceFile.getFileName());
-
-			DBG(fileNames[i]);
 		}
 	}
 	else

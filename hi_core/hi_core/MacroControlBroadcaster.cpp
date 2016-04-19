@@ -183,8 +183,6 @@ void MacroControlBroadcaster::saveMacroValuesToValueTree(ValueTree &v) const
 		}
 	}
 
-	DBG(macroControlData->createDocument(""));
-
 	ValueTree macros = ValueTree::fromXml(*macroControlData);
 
 	v.addChild(macros, -1, nullptr);
@@ -195,10 +193,6 @@ void MacroControlBroadcaster::loadMacrosFromValueTree(const ValueTree &v)
 	ValueTree macroData = v.getChildWithName("macro_controls");
 
 	ScopedPointer<XmlElement> data = macroData.createXml();
-
-	String s = data->createDocument("");
-
-	DBG(s);
 
 	if(data != nullptr && data->getNumChildElements() == 8)
 	{

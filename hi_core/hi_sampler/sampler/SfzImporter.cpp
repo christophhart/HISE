@@ -229,8 +229,6 @@ void SfzImporter::applyGlobalOpcodesToRegion()
 
 		groupSet->copyToXmlAttributes(*xml);
 
-		DBG(xml->createDocument(""));
-
 		for (int j = 0; j < globalSfzObject->groups[i]->regions.size(); j++)
 		{
 			Region *r = globalSfzObject->groups[i]->regions[j];

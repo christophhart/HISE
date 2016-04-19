@@ -19,8 +19,6 @@ MainContentComponent::MainContentComponent()
 	//open.attachTo(*editor);
 
 	setSize(editor->getWidth(), editor->getHeight());
-
-	DBG(Desktop::getInstance().getDisplays().getMainDisplay().scale);
 }
 
 MainContentComponent::~MainContentComponent()

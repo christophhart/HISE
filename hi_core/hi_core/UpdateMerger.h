@@ -165,8 +165,6 @@ public:
 			const int64 delta = (currentTime - timeOfDebugCall);
 
 			timeOfDebugCall = currentTime;
-
-			DBG(delta);
 		}
 
 #endif

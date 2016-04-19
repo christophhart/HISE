@@ -396,12 +396,6 @@ bool ProjectHandler::isValidProjectFolder(const File &file) const
 
 File ProjectHandler::getLinkFile(const File &subDirectory)
 {
-    if(subDirectory.isSymbolicLink())
-    {
-        DBG("TUT");
-    }
-    
-    
 #if JUCE_MAC
     File childFile = subDirectory.getChildFile("LinkOSX");
 #else
