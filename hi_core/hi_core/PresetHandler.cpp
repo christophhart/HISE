@@ -118,7 +118,10 @@ void UserPresetHandler::loadUserPreset(ModulatorSynthChain *chain, const File &f
 			}
 		}
 
-		sp->getScriptingContent()->restoreAllControlsFromPreset(v);
+		if (v.isValid())
+		{
+			sp->getScriptingContent()->restoreAllControlsFromPreset(v);
+		}
 	}
 }
 

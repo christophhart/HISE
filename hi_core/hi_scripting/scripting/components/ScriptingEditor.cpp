@@ -773,12 +773,9 @@ void ScriptingEditor::compileScript()
 
 	getProcessor()->getMainController()->setEditedScriptComponent(nullptr, this);
 
+	ScriptProcessor::SnippetResult resultMessage = s->compileScript();
 
-
-
-	ScriptProcessor::SnippetResult resultMessage = static_cast<ScriptProcessor*>(getProcessor())->compileScript();
-
-	double x = static_cast<ScriptProcessor*>(getProcessor())->getLastExecutionTime();
+	double x = s->getLastExecutionTime();
 	timeLabel->setText(String(x, 3) + " ms", dontSendNotification);
 
 	if(resultMessage.r.wasOk()) messageBox->setText("Compiled OK", false);

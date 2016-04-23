@@ -1662,34 +1662,7 @@ public:
 				numProperties
 			};
 
-			ScriptTable(ScriptBaseProcessor *base, Content *parentContent,  Identifier name, int x, int y, int width, int height):
-				ScriptComponent(base, parentContent, name, x, y, width, height),
-				ownedTable(new MidiTable()),
-				useOtherTable(false),
-				connectedProcessor(nullptr),
-				lookupTableIndex(-1)
-			{
-				deactivatedProperties.add(getIdFor(ScriptComponent::Properties::bgColour));
-				deactivatedProperties.add(getIdFor(ScriptComponent::Properties::itemColour));
-				deactivatedProperties.add(getIdFor(ScriptComponent::Properties::itemColour2));
-				deactivatedProperties.add(getIdFor(ScriptComponent::Properties::max));
-				deactivatedProperties.add(getIdFor(ScriptComponent::Properties::min));
-				deactivatedProperties.add(getIdFor(ScriptComponent::Properties::textColour));
-				deactivatedProperties.add(getIdFor(ScriptComponent::Properties::macroControl));
-
-				propertyIds.add("tableIndex");
-				propertyIds.add("processorId");
-				
-
-				componentProperties->setProperty(getIdFor(ProcessorId), 0);
-				componentProperties->setProperty(getIdFor(TableIndex), 0);
-
-				setDefaultValue(ScriptTable::Properties::ProcessorId, "");
-				setDefaultValue(ScriptTable::Properties::TableIndex, 0);
-				
-				setMethod("getTableValue", Wrapper::getTableValue);
-				setMethod("connectToOtherTable", Wrapper::connectToOtherTable);
-			}
+			ScriptTable(ScriptBaseProcessor *base, Content *parentContent,  Identifier name, int x, int y, int width, int height);
 
 			virtual Identifier 	getObjectName () const override { return "ScriptTable"; }
 
@@ -1953,6 +1926,10 @@ public:
 			void connectToAudioSampleProcessor(String processorId);
 
 			void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification) override;
+
+			ValueTree exportAsValueTree() const override;
+
+			void restoreFromValueTree(const ValueTree &v) override;
 
 			StringArray getOptionsFor(const Identifier &id) override;
 			

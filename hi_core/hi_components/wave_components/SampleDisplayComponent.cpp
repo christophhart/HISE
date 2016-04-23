@@ -530,12 +530,28 @@ void AudioSampleBufferComponent::changeListenerCallback(SafeChangeBroadcaster *b
 
 void AudioSampleBufferComponent::mouseDown(const MouseEvent &e)
 {
-#if USE_BACKEND
 	if (e.mods.isRightButtonDown())
 	{
 		String patterns = "*.wav;*.aif;*.aiff;*.WAV;*.AIFF";
 
-		FileChooser fc("Load File", GET_PROJECT_HANDLER(findParentComponentOfClass<BetterProcessorEditor>()->getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles), patterns, true);
+#if USE_BACKEND
+
+		File searchDirectory;
+
+		if (BetterProcessorEditor *editor = findParentComponentOfClass<BetterProcessorEditor>())
+		{
+			searchDirectory = GET_PROJECT_HANDLER(editor->getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles);
+		}
+		else
+		{
+			searchDirectory = File::nonexistent;
+		}
+		
+#else
+		File searchDirectory = File::nonexistent;
+#endif
+
+		FileChooser fc("Load File", searchDirectory, patterns, true);
 
 		if (fc.browseForFileToOpen())
 		{
@@ -543,10 +559,6 @@ void AudioSampleBufferComponent::mouseDown(const MouseEvent &e)
 			sendSynchronousChangeMessage();
 		}
 	}
-#else 
-	ignoreUnused(e);
-
-#endif
 }
 
 void AudioSampleBufferComponent::paint(Graphics &g)

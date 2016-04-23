@@ -2490,7 +2490,7 @@ void ScriptingApi::Content::setWidth(int newWidth) noexcept
 		return;
 	}
 
-	if(newWidth > 800)
+	if(newWidth > 900)
 	{
 		reportScriptError("Go easy on the width! (800px is enough)");
 		return;
@@ -2523,14 +2523,19 @@ void ScriptingApi::Content::storeAllControlsAsPreset(const String &fileName)
 
 		ValueTree preset = ValueTree::fromXml(*existingData);
 
+		bool found = false;
+
 		for (int i = 0; i < preset.getNumChildren(); i++)
 		{
 			if (preset.getChild(i).getProperty("Processor") == getScriptProcessor()->getId())
 			{
 				preset.getChild(i).copyPropertiesFrom(v, nullptr);
+				found = true;
 				break;
 			}
 		}
+
+		if (!found) preset.addChild(v, -1, nullptr);
 
 		existingData = preset.createXml();
 
@@ -2762,6 +2767,34 @@ String ScriptingApi::Content::ScriptComboBox::getItemText() const
 	return items[(int)value - 1];
 }
 
+ScriptingApi::Content::ScriptTable::ScriptTable(ScriptBaseProcessor *base, Content *parentContent, Identifier name, int x, int y, int width, int height) :
+ScriptComponent(base, parentContent, name, x, y, width, height),
+ownedTable(new MidiTable()),
+useOtherTable(false),
+connectedProcessor(nullptr),
+lookupTableIndex(-1)
+{
+	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::bgColour));
+	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::itemColour));
+	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::itemColour2));
+	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::max));
+	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::min));
+	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::textColour));
+	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::macroControl));
+
+	propertyIds.add("tableIndex");
+	propertyIds.add("processorId"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+
+	componentProperties->setProperty(getIdFor(ProcessorId), 0);
+	componentProperties->setProperty(getIdFor(TableIndex), 0);
+
+	setDefaultValue(ScriptTable::Properties::ProcessorId, "");
+	setDefaultValue(ScriptTable::Properties::TableIndex, 0);
+
+	setMethod("getTableValue", Wrapper::getTableValue);
+	setMethod("connectToOtherTable", Wrapper::connectToOtherTable);
+}
+
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptTable::createComponentWrapper(ScriptContentComponent *content, int index)
 {
 	return new ScriptCreatedComponentWrappers::TableWrapper(content, this, index);
@@ -2909,6 +2942,52 @@ void ScriptingApi::Content::ScriptAudioWaveform::setScriptObjectPropertyWithChan
 	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
 }
 
+
+ValueTree ScriptingApi::Content::ScriptAudioWaveform::exportAsValueTree() const
+{
+	ValueTree v = ScriptComponent::exportAsValueTree();
+
+	const AudioSampleProcessor *processor = dynamic_cast<const AudioSampleProcessor*>(connectedProcessor.get());
+	
+	if (processor != nullptr)
+	{
+		v.setProperty("Processor", connectedProcessor->getId(), nullptr);
+
+		v.setProperty("rangeStart", processor->getRange().getStart(), nullptr);
+		v.setProperty("rangeEnd", processor->getRange().getEnd(), nullptr);
+		v.setProperty("fileName", processor->getFileName(), nullptr);
+	}
+
+	return v;
+}
+
+void ScriptingApi::Content::ScriptAudioWaveform::restoreFromValueTree(const ValueTree &v)
+{
+	const String id = v.getProperty("Processor", "");
+
+
+
+	if (id.isNotEmpty())
+	{
+		if (connectedProcessor.get() == nullptr || connectedProcessor.get()->getId() != id)
+		{
+			connectToAudioSampleProcessor(id);
+		}
+
+		const String fileName = v.getProperty("fileName", "");
+
+		if (fileName.isNotEmpty())
+		{
+			getProcessor()->setLoadedFile(fileName, true, false);
+			
+			Range<int> range(v.getProperty("rangeStart"), v.getProperty("rangeEnd"));
+
+			getProcessor()->setRange(range);
+
+			sendChangeMessage();
+		}
+	}
+}
 
 StringArray ScriptingApi::Content::ScriptAudioWaveform::getOptionsFor(const Identifier &id)
 {

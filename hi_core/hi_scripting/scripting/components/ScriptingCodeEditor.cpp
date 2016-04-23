@@ -136,15 +136,141 @@ void JavascriptCodeEditor::focusLost(FocusChangeType )
 #endif
 }
 
-/*
-  ==============================================================================
+void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &m, const MouseEvent *e)
+{
+    m.setLookAndFeel(&plaf);
+    
+    CodeEditorComponent::addPopupMenuItems(m, e);
+    
+    String s = getTextInRange(getHighlightedRegion());
+    
+    ScriptingEditor *editor = findParentComponentOfClass<ScriptingEditor>();
+    
+    if(editor != nullptr)
+    {
+        m.addSeparator();
+        m.addSectionHeader("Import / Export");
+        m.addItem(101, "Save Script To File");
+        m.addItem(102, "Load Script From File");
+        m.addSeparator();
+        m.addItem(103, "Save Script to Clipboard");
+        m.addItem(104, "Load Script from Clipboard");
+        m.addSeparator();
+    }
+    
+    if(Identifier::isValidIdentifier(s))
+    {
+        Identifier selection = Identifier(s);
+        
+        NamedValueSet set = scriptProcessor->getScriptEngine()->getRootObjectProperties();
+        
+        if(set.contains(selection))
+        {
+            m.addSeparator();
+            int index = set.indexOf(selection);
+            const String itemString = "Set " + selection.toString() + "(" + set.getValueAt(index).toString() + ")";
+            m.addItem(99, itemString);
+        }
+    }
+};
 
-    ScriptingCodeEditor.cpp
-    Created: 31 May 2015 2:27:47pm
-    Author:  Christoph
-
-  ==============================================================================
-*/
+void JavascriptCodeEditor::performPopupMenuAction(int menuId)
+{
+    ScriptProcessor *s = scriptProcessor;
+    
+    ScriptingEditor *editor = findParentComponentOfClass<ScriptingEditor>();
+    
+    if(editor != nullptr && menuId == 101) // SAVE
+    {
+        FileChooser scriptSaver("Save script as",
+                                File(GET_PROJECT_HANDLER(s).getSubDirectory(ProjectHandler::SubDirectories::Scripts)),
+                                "*.js");
+        
+        if (scriptSaver.browseForFileToSave(true))
+        {
+            String script;
+            s->mergeCallbacksToScript(script);
+            scriptSaver.getResult().replaceWithText(script);
+            debugToConsole(s, "Script saved to " + scriptSaver.getResult().getFullPathName());
+        }
+    }
+    else if (editor != nullptr && menuId == 102) // LOAD
+    {
+        FileChooser scriptLoader("Please select the script you want to load",
+                                 File(GET_PROJECT_HANDLER(s).getSubDirectory(ProjectHandler::SubDirectories::Scripts)),
+                                 "*.js");
+        
+        if (scriptLoader.browseForFileToOpen())
+        {
+            String script = scriptLoader.getResult().loadFileAsString().removeCharacters("\r");
+            s->parseSnippetsFromString(script);
+            editor->compileScript();
+            debugToConsole(s, "Script loaded from " + scriptLoader.getResult().getFullPathName());
+        }
+    }
+    else if (editor != nullptr && menuId == 103) // COPY
+    {
+        String x;
+        s->mergeCallbacksToScript(x);
+        SystemClipboard::copyTextToClipboard(x);
+        
+        debugToConsole(s, "Script exported to Clipboard.");
+    }
+    else if (menuId == 104) // PASTE
+    {
+        String x = String(SystemClipboard::getTextFromClipboard()).removeCharacters("\r");
+        
+        if (x.containsNonWhitespaceChars() && PresetHandler::showYesNoWindow("Replace Script?", "Do you want to replace the script?"))
+        {
+            s->parseSnippetsFromString(x);
+            editor->compileScript();
+        }
+    }
+    else if(menuId == 99)
+    {
+        String s = getTextInRange(getHighlightedRegion());
+        
+        Identifier selection = Identifier(s);
+        
+        NamedValueSet set = scriptProcessor->getScriptEngine()->getRootObjectProperties();
+        
+        var v;
+        
+        if(set.contains(selection))
+        {
+            m.addSeparator();
+            
+            int index = set.indexOf(selection);
+            
+            v = set.getValueAt(index);
+        }
+        
+        ScopedPointer<AlertWindow> nameWindow = new AlertWindow("Change a variable", "Set the variable to a new value", AlertWindow::AlertIconType::NoIcon);
+        
+        
+        
+        nameWindow->addTextEditor("Name", v.toString() );
+        nameWindow->addButton("OK", 1, KeyPress(KeyPress::returnKey));
+        nameWindow->addButton("Cancel", 0, KeyPress(KeyPress::escapeKey));
+        
+        if(nameWindow->runModalLoop())
+        {
+            String newValue = nameWindow->getTextEditorContents("Name");
+            
+            String code = s << " = " << newValue << ";";
+            
+            Result r = scriptProcessor->getScriptEngine()->execute(code);
+            
+            if(r != Result::ok())
+            {
+                AlertWindow::showMessageBox(AlertWindow::NoIcon, "Error parsing expression", "The expression you entered is not valid.");
+            }
+            
+        }
+        
+    }
+    else CodeEditorComponent::performPopupMenuAction(menuId);
+}
 
 void JavascriptCodeEditor::handleEscapeKey()
 {

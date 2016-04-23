@@ -445,79 +445,9 @@ public:
 	}
 
 
-	void addPopupMenuItems(PopupMenu &m, const MouseEvent *e) override
-	{
-		m.setLookAndFeel(&plaf);
+    void addPopupMenuItems(PopupMenu &m, const MouseEvent *e) override;
 
-		CodeEditorComponent::addPopupMenuItems(m, e);
-
-		String s = getTextInRange(getHighlightedRegion());
-
-		if(Identifier::isValidIdentifier(s))
-		{
-			Identifier selection = Identifier(s);
-
-			NamedValueSet set = scriptProcessor->getScriptEngine()->getRootObjectProperties();
-
-			if(set.contains(selection))
-			{
-				m.addSeparator();
-				int index = set.indexOf(selection);
-				const String itemString = "Set " + selection.toString() + "(" + set.getValueAt(index).toString() + ")";
-				m.addItem(99, itemString);
-			}
-		}
-	};
-
-	void performPopupMenuAction(int menuId) override
-	{
-		if(menuId == 99)
-		{
-			String s = getTextInRange(getHighlightedRegion());
-
-			Identifier selection = Identifier(s);
-
-			NamedValueSet set = scriptProcessor->getScriptEngine()->getRootObjectProperties();
-
-			var v;
-
-			if(set.contains(selection))
-			{
-				m.addSeparator();
-
-				int index = set.indexOf(selection);
-
-				v = set.getValueAt(index);
-			}
-
-			ScopedPointer<AlertWindow> nameWindow = new AlertWindow("Change a variable", "Set the variable to a new value", AlertWindow::AlertIconType::NoIcon);
-
-
-
-			nameWindow->addTextEditor("Name", v.toString() );
-			nameWindow->addButton("OK", 1, KeyPress(KeyPress::returnKey));
-			nameWindow->addButton("Cancel", 0, KeyPress(KeyPress::escapeKey));
-
-			if(nameWindow->runModalLoop())
-			{
-				String newValue = nameWindow->getTextEditorContents("Name");
-
-				String code = s << " = " << newValue << ";";
-
-				Result r = scriptProcessor->getScriptEngine()->execute(code);
-
-				if(r != Result::ok())
-				{
-					AlertWindow::showMessageBox(AlertWindow::NoIcon, "Error parsing expression", "The expression you entered is not valid.");
-				}
-
-			}
-
-		}
-		else CodeEditorComponent::performPopupMenuAction(menuId);
-	}
-
-
+    void performPopupMenuAction(int menuId) override;
 
 	static String getValueType(const var &v)
 	{

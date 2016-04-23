@@ -600,13 +600,19 @@ ScriptCreatedComponentWrapper(content, index)
 {
 	AudioSampleBufferComponent *asb = new AudioSampleBufferComponent(*const_cast<ScriptProcessor*>(content->getScriptProcessor())->getMainController()->getSampleManager().getAudioSampleBufferPool()->getCache());
 
+	
+
 	asb->setName(form->name.toString());
+
+	asb->setOpaque(false);
 
 	AudioSampleProcessor *asp = form->getProcessor();
 
 	if (asp != nullptr)
 	{
 		asb->setAudioSampleBuffer(asp->getBuffer(), asp->getFileName());
+
+		asb->setRange(asp->getRange());
 
 		asb->addAreaListener(this);
 		asb->addChangeListener(asp);
@@ -621,15 +627,18 @@ void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateComponent()
 
 	AudioSampleProcessor *asp = form->getProcessor();
 
+	AudioSampleBufferComponent *asb = dynamic_cast<AudioSampleBufferComponent*>(component.get());
+
 	if (asp != nullptr)
 
 	{
 		dynamic_cast<Processor*>(form->getProcessor())->sendSynchronousChangeMessage();
 
-		//asb->setAudioSampleBuffer(asp->getBuffer(), asp->getFileName());
-
-		//asb->addAreaListener(this);
-		//asb->addChangeListener(asp);
+		if (asb != nullptr)
+		{
+			asb->setAudioSampleBuffer(asp->getBuffer(), asp->getFileName());
+			asb->setRange(asp->getRange());
+		}
 	}
 }
 
