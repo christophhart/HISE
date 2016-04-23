@@ -3,9 +3,6 @@
 *	This patch is a demonstration of the most basic HISE features.
 */
 
-include("externalScript.js");
-include("subfolder/externalScriptInSubfolder.js");
-
 
 bgImage = Content.addImage("bgImage", 143, 26);
 // [JSON bgImage]

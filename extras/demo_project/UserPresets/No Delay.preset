@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
+
 <Preset>
-<Content Processor="Interface">
-  <volumeSlider value="-12" visible="1" rangeMin="0" rangeMax="1"/>
-  <delaySlider value="-100" visible="1" rangeMin="0" rangeMax="1"/>
-</Content>
+  <Content Processor="Velocity Editor">
+    <bgImage value="0" visible="1"/>
+    <volumeSlider value="0" visible="1" rangeMin="0" rangeMax="1"/>
+    <delaySlider value="-100" visible="1" rangeMin="0" rangeMax="1"/>
+    <velocityTable value="0" visible="1" data="24...............vO...f+....9C...vO"/>
+    <velocityLabel value="0" visible="1"/>
+  </Content>
 </Preset>
