@@ -30,6 +30,8 @@
 *   ===========================================================================
 */
 
+#include <regex>
+
 void JavascriptCodeEditor::focusGained(FocusChangeType)
 {
 #if USE_BACKEND
@@ -42,30 +44,42 @@ void JavascriptCodeEditor::focusGained(FocusChangeType)
 
 void JavascriptCodeEditor::selectLineAfterDefinition(Identifier identifier)
 {
-	String lineStart;
+    try
+    {
+        String regex = "(var )?" + identifier.toString() + " *= *";
+        
+        
+        std::regex reg(regex.toStdString());
+        
+        
+        const int docSize = getDocument().getNumCharacters();
+        
+        int index = docSize;
+        
+        while (!std::regex_search(getTextInRange(Range<int>(index, docSize)).toStdString(), reg) && (index > 0))
+        {
+            index--;
+        }
+        
+        const int lineStartIndex = index;
+        
+        while (!getTextInRange(Range<int>(lineStartIndex, index)).containsChar('\n') && (index < docSize))
+        {
+            index++;
+        }
+        
+        moveCaretTo(CodeDocument::Position(getDocument(), index), false);
+        
+        const int currentCharPosition = getCaretPos().getPosition();
+        setHighlightedRegion(Range<int>(currentCharPosition, currentCharPosition));
+        
+        
+    }
+    catch (std::regex_error e)
+    {
+        //debugError(sampler, e.what());
+    }
 
-	lineStart << identifier.toString() << " = Content.add";
-
-	const int docSize = getDocument().getNumCharacters();
-
-	int index = docSize;
-
-	while (!getTextInRange(Range<int>(index, docSize)).startsWith(lineStart) && (index > 0))
-	{
-		index--;
-	}
-
-	const int lineStartIndex = index;
-
-	while (!getTextInRange(Range<int>(lineStartIndex, index)).containsChar('\n') && (index < docSize))
-	{
-		index++;
-	}
-
-	moveCaretTo(CodeDocument::Position(getDocument(), index), false);
-
-	const int currentCharPosition = getCaretPos().getPosition();
-	setHighlightedRegion(Range<int>(currentCharPosition, currentCharPosition));
 }
 
 bool JavascriptCodeEditor::selectText(const Identifier &identifier)
