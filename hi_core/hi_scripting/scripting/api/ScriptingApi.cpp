@@ -636,6 +636,42 @@ bool ScriptingApi::Engine::matchesRegex(String stringToMatch, String wildcard)
 #endif
 }
 
+var ScriptingApi::Engine::getRegexMatches(String stringToMatch, String wildcard)
+{
+#if STANDALONE_CONVOLUTION
+#else
+    try
+    {
+        std::string s = stringToMatch.toStdString();
+        
+        std::regex reg(wildcard.toStdString());
+        
+        std::smatch match;
+        
+
+        
+        if (std::regex_search(s, match, reg))
+        {
+            var returnArray = var();
+            
+            for (auto x:match)
+            {
+                returnArray.insert(-1, String(x));
+            }
+            
+            return returnArray;
+        }
+    }
+    catch (std::regex_error e)
+    {
+        debugError(getScriptProcessor(), e.what());
+        return var::undefined();
+    }
+    
+    return var::undefined();
+#endif
+}
+
 String ScriptingApi::Engine::doubleToString(double value, int digits)
 {
     return String(value, digits);

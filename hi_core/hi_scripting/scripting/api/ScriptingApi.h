@@ -719,6 +719,7 @@ public:
 			setMethod("getUserPresetDirectoryContent", Wrapper::getUserPresetDirectoryContent);
 			setMethod("setCompileProgress", Wrapper::setCompileProgress);
 			setMethod("matchesRegex", Wrapper::matchesRegex);
+            setMethod("getRegexMatches", Wrapper::getRegexMatches);
             setMethod("doubleToString", Wrapper::doubleToString);
 
 		}
@@ -812,6 +813,9 @@ public:
 		/** Matches the string against the regex token. */
 		bool matchesRegex(String stringToMatch, String regex);
 
+        /** Returns an array with all matches. */
+        var getRegexMatches(String stringToMatch, String regex);
+        
         /** Returns a string of the value with the supplied number of digits. */
         String doubleToString(double value, int digits);
         
@@ -844,6 +848,7 @@ public:
 			static var getUserPresetDirectoryContent(const var::NativeFunctionArgs& args);
 			static var setCompileProgress(const var::NativeFunctionArgs& args);
 			static var matchesRegex(const var::NativeFunctionArgs& args);
+            static var getRegexMatches(const var::NativeFunctionArgs& args);
             static var doubleToString(const var::NativeFunctionArgs& args);
 			
 		};

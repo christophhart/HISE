@@ -516,6 +516,18 @@ var ScriptingApi::Engine::Wrapper::matchesRegex(const var::NativeFunctionArgs& a
 	return var::undefined();
 }
 
+var ScriptingApi::Engine::Wrapper::getRegexMatches(const var::NativeFunctionArgs& args)
+{
+    if (Engine* thisObject = GET_OBJECT(Engine))
+    {
+        CHECK_ARGUMENTS("getRegexMatches()", 2);
+        
+        return thisObject->getRegexMatches(args.arguments[0].toString(), args.arguments[1].toString());
+        
+    }
+    return var::undefined();
+}
+
 
 var ScriptingApi::Engine::Wrapper::doubleToString(const var::NativeFunctionArgs& args)
 {
