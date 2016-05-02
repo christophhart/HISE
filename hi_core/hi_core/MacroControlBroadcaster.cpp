@@ -218,6 +218,13 @@ void MacroControlBroadcaster::loadMacroValuesFromValueTree(const ValueTree &v)
 {
 	ScopedPointer<XmlElement> data = v.getChildWithName("macro_controls").createXml();
 
+    if(data == nullptr)
+    {
+        // The macro controls could not be found...
+        jassertfalse;
+        return;
+    }
+    
 	for (int i = 0; i < macroControls.size(); i++)
 	{
 		XmlElement *child = data->getChildElement(i);
