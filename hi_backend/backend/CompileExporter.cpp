@@ -173,7 +173,16 @@ void CompileExporter::writeReferencedAudioFiles(ModulatorSynthChain * chainToExp
 {
 	// Search for impulse responses
 
-	AudioSampleBufferPool *samplePool = chainToExport->getMainController()->getSampleManager().getAudioSampleBufferPool();
+    DirectoryIterator iter(GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles), false);
+    
+    AudioSampleBufferPool *samplePool = chainToExport->getMainController()->getSampleManager().getAudioSampleBufferPool();
+    
+    while(iter.next())
+    {
+        samplePool->loadFileIntoPool(iter.getFile().getFullPathName());
+    }
+    
+	
 	ValueTree sampleTree = samplePool->exportAsValueTree();
 	PresetHandler::writeValueTreeAsFile(sampleTree, File(directoryPath).getChildFile("impulses").getFullPathName());
 }
