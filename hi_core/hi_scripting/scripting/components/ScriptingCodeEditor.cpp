@@ -152,6 +152,7 @@ void JavascriptCodeEditor::focusLost(FocusChangeType )
 
 void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &m, const MouseEvent *e)
 {
+#if USE_BACKEND
     m.setLookAndFeel(&plaf);
     
     CodeEditorComponent::addPopupMenuItems(m, e);
@@ -186,10 +187,12 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &m, const MouseEvent *e)
             m.addItem(99, itemString);
         }
     }
+#endif
 };
 
 void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 {
+#if USE_BACKEND
     ScriptProcessor *s = scriptProcessor;
     
     ScriptingEditor *editor = findParentComponentOfClass<ScriptingEditor>();
@@ -284,6 +287,7 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
         
     }
     else CodeEditorComponent::performPopupMenuAction(menuId);
+#endif
 }
 
 void JavascriptCodeEditor::handleEscapeKey()

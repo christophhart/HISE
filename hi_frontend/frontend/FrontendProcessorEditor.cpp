@@ -155,6 +155,7 @@ void DeactiveOverlay::buttonClicked(Button *b)
 	}
     else if (b == createMachineIdButton)
     {
+#if USE_COPY_PROTECTION
         Unlocker *ul = &dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor())->unlocker;
         
         StringArray machineIds = ul->getLocalMachineIDs();
@@ -165,12 +166,13 @@ void DeactiveOverlay::buttonClicked(Button *b)
             
             PresetHandler::showMessageWindow("Computer ID", "Use this ID to obtain a licence key:\n\n" +machineIds[0] + "\n\nThis ID is copied to the clipboard. If this computer is not connected to the internet, write it down somewhere and use it with another computer that has internet access.");
         }
-        
+#endif
     }
 }
 
 bool DeactiveOverlay::check(State s, const String &value/*=String::empty*/)
 {
+#if USE_COPY_PROTECTION
 	Unlocker *ul = &dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor())->unlocker;
 
 	String compareValue;
@@ -208,6 +210,8 @@ bool DeactiveOverlay::check(State s, const String &value/*=String::empty*/)
 		break;
 	}
 
+#endif
+    
 	return true;
 }
 
