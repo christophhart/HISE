@@ -61,7 +61,7 @@ ApiExtractor.exe xml\selection xml\selection
 
 del xml\selection\*.xml /Q
 
-BinaryBuilder.exe xml\selection "..\hi_core\hi_scripting\scripting\api" XmlApi
+BinaryBuilder.exe xml\selection "..\..\hi_core\hi_scripting\scripting\api" XmlApi
 
 del "xml\selection" /Q
 REM #rd "xml\selection"
