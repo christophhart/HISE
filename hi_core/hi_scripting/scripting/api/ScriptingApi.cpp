@@ -3257,7 +3257,14 @@ void ScriptingObjects::ScriptingAudioSampleProcessor::setFile(String fileName)
 	if (checkValidObject())
 	{
 		ScopedLock sl(audioSampleProcessor->getMainController()->getLock());
+        
+#if USE_FRONTEND
+        const String nameInPool = fileName.fromFirstOccurrenceOf("}", false, false);
+        
+        dynamic_cast<AudioSampleProcessor*>(audioSampleProcessor.get())->setLoadedFile(nameInPool, true);
+#else
 		dynamic_cast<AudioSampleProcessor*>(audioSampleProcessor.get())->setLoadedFile(GET_PROJECT_HANDLER(dynamic_cast<Processor*>(audioSampleProcessor.get())).getFilePath(fileName, ProjectHandler::SubDirectories::AudioFiles), true);
+#endif
 	}
 }
 
