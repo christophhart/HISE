@@ -125,33 +125,7 @@ void BackendProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiM
 
 void BackendProcessor::handleControllersForMacroKnobs(const MidiBuffer &midiMessages)
 {
-	if(!getMacroManager().macroControlMidiLearnModeActive() && !getMacroManager().midiMacroControlActive()) return;
-
-	MidiBuffer::Iterator it(midiMessages);
-
-	int samplePos;
-	MidiMessage message;
-
-	while(it.getNextEvent(message, samplePos))
-	{
-		if(message.isController())
-		{
-			const int controllerNumber = message.getControllerNumber();
-
-			if(getMacroManager().macroControlMidiLearnModeActive())
-			{
-				getMacroManager().setMidiControllerForMacro(controllerNumber);
-			}
-
-			const int macroNumber = getMacroManager().getMacroControlForMidiController(controllerNumber);
-
-			if(macroNumber != -1)
-			{
-				getMacroManager().getMacroChain()->setMacroControl(macroNumber, (float)message.getControllerValue(), sendNotification);
-			}
-		}
-	}
-
+	
 }
 
 
@@ -160,8 +134,6 @@ void BackendProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     setRateAndBufferSizeDetails(sampleRate, samplesPerBlock);
     
 	MainController::prepareToPlay(sampleRate, samplesPerBlock);
-
-	synthChain->prepareToPlay(sampleRate, samplesPerBlock);
 };
 
 AudioProcessorEditor* BackendProcessor::createEditor()

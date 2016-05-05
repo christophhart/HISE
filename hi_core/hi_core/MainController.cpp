@@ -634,6 +634,8 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 	sampleRate = sampleRate_;
 
 	multiChannelBuffer.setSize(getMainSynthChain()->getMatrix().getNumDestinationChannels(), samplesPerBlock);
+    
+    getMainSynthChain()->prepareToPlay(sampleRate, samplesPerBlock);
 }
 
 void MainController::setBpm(double bpm_)
