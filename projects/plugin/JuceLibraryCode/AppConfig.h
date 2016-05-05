@@ -257,10 +257,10 @@
  #define JucePlugin_ManufacturerEmail      ""
 #endif
 #ifndef  JucePlugin_ManufacturerCode
- #define JucePlugin_ManufacturerCode       'hain'
+ #define JucePlugin_ManufacturerCode       'Hain'
 #endif
 #ifndef  JucePlugin_PluginCode
- #define JucePlugin_PluginCode             'hise'
+ #define JucePlugin_PluginCode             'Hise'
 #endif
 #ifndef  JucePlugin_IsSynth
  #define JucePlugin_IsSynth                1

@@ -4,7 +4,7 @@
               bundleIdentifier="com.hi-instruments.HISE" includeBinaryInAppConfig="1"
               buildVST="1" buildVST3="0" buildAU="1" buildRTAS="0" buildAAX="0"
               pluginName="HISE" pluginDesc="Beta Version" pluginManufacturer="Hart Instruments"
-              pluginManufacturerCode="hain" pluginCode="hise" pluginChannelConfigs="{0, 2}"
+              pluginManufacturerCode="Hain" pluginCode="Hise" pluginChannelConfigs="{0, 2}"
               pluginIsSynth="1" pluginWantsMidiIn="1" pluginProducesMidiOut="0"
               pluginSilenceInIsSilenceOut="0" pluginEditorRequiresKeys="1"
               pluginAUExportPrefix="TestPluginAU" pluginRTASCategory="" aaxIdentifier="com.yourcompany.HISE"
