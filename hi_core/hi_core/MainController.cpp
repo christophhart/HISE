@@ -52,7 +52,7 @@ MainController::MainController():
     midiInputFlag(false),
 	macroManager(this),
 #if JUCE_WINDOWS
-    globalCodeFontSize(14.0f),
+    globalCodeFontSize(14.0f)
 #else
     globalCodeFontSize(13.0f)
 #endif

@@ -97,10 +97,13 @@ public:
 		MenuReplaceWithClipboardContent,
 		MenuExportFileAsPlugin,
 		MenuExportFileAsPlayerLibrary,
+        MenuExportFileAsSnippet,
 		MenuFileQuit,
 		MenuEditOffset = 0x30000,
 		MenuEditCopy,
 		MenuEditPaste,
+        MenuEditCopyAsSnippet,
+        MenuEditPasteAsSnippet,
 		MenuViewShowSelectedProcessorInPopup,
         MenuEditPlotModulator,
 		MenuEditCreateScriptVariable,
@@ -222,9 +225,11 @@ private:
 	public:
 
 		static bool hasProcessorInClipboard();
+        static bool hasSnippetInClipboard();
 		static void openFile(BackendProcessorEditor *bpe);
 		static void saveFile(BackendProcessorEditor *bpe);
 		static void replaceWithClipboardContent(BackendProcessorEditor *bpe);
+        static void exportFileAsSnippet(BackendProcessorEditor* bpe);
 		static void createScriptVariableDeclaration(CopyPasteTarget *currentCopyPasteTarget);
 		static void recompileAllScripts(BackendProcessorEditor * bpe);
         static void toggleFullscreen(BackendProcessorEditor * bpe);

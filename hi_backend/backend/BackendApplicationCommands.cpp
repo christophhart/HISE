@@ -88,6 +88,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuFileSettingCheckSanity,
 		MenuReplaceWithClipboardContent,
 		MenuExportFileAsPlugin,
+		MenuExportFileAsSnippet,
 		MenuFileQuit,
 		MenuEditCopy,
 		MenuEditPaste,
@@ -226,6 +227,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
     case MenuExportFileAsPlugin:
         setCommandTarget(result, "Export as VST/AU plugin", true, false, 'X', false);
         break;
+	case MenuExportFileAsSnippet:
+		setCommandTarget(result, "Export as pasteable web snippet", true, false, 'X', false);
+		break;
 	case MenuFileSettingsPreset:
 		setCommandTarget(result, "Preset Properties", true, false, 'X', false);
 		break;
@@ -242,7 +246,7 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Check for missing properties", true, false, 'X', false);
 		break;
 	case MenuReplaceWithClipboardContent:
-		setCommandTarget(result, "Replace with clipboard content", Actions::hasProcessorInClipboard(), false, 'X', false);
+		setCommandTarget(result, "Replace with clipboard content", Actions::hasProcessorInClipboard() || Actions::hasSnippetInClipboard(), false, 'X', false);
 		break;
 	case MenuFileQuit:
 		setCommandTarget(result, "Quit", true, false, 'X', false); break;
@@ -419,7 +423,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
                                             JUCEApplicationBase::quit(); return true;
 	case MenuEditCopy:                  if (currentCopyPasteTarget) currentCopyPasteTarget->copyAction(); return true;
 	case MenuEditPaste:                 if (currentCopyPasteTarget) currentCopyPasteTarget->pasteAction(); return true;
-	case MenuEditCreateScriptVariable:  Actions::createScriptVariableDeclaration(currentCopyPasteTarget); return true;
+    case MenuEditCreateScriptVariable:  Actions::createScriptVariableDeclaration(currentCopyPasteTarget); return true;
     case MenuEditPlotModulator:         Actions::plotModulator(currentCopyPasteTarget.get()); updateCommands(); return true;
     case MenuEditCloseAllChains:        Actions::closeAllChains(bpe); return true;
 	case MenuToolsRecompile:            Actions::recompileAllScripts(bpe); return true;
@@ -441,6 +445,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
     case MenuViewIncreaseCodeFontSize:  Actions::changeCodeFontSize(bpe, true); return true;
     case MenuViewDecraseCodeFontSize:   Actions::changeCodeFontSize(bpe, false); return true;
     case MenuExportFileAsPlugin:        CompileExporter::exportMainSynthChainAsPackage(owner->getMainSynthChain()); return true;
+    case MenuExportFileAsSnippet:       Actions::exportFileAsSnippet(bpe); return true;
     case MenuAddView:                   Actions::addView(bpe); updateCommands();return true;
     case MenuDeleteView:                Actions::deleteView(bpe); updateCommands();return true;
     case MenuRenameView:                Actions::renameView(bpe); updateCommands();return true;
@@ -553,6 +558,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 
         exportSub.addCommandItem(mainCommandManager, MenuExportFileAsPlugin);
 		exportSub.addItem(4, "Export as HISE Player library");
+        exportSub.addCommandItem(mainCommandManager, MenuExportFileAsSnippet);
 
 		p.addSubMenu("Export", exportSub);
 		p.addSeparator();
@@ -839,6 +845,14 @@ bool BackendCommandTarget::Actions::hasProcessorInClipboard()
 
 	return false;
 }
+                         
+      
+bool BackendCommandTarget::Actions::hasSnippetInClipboard()
+{
+    String clipboardContent = SystemClipboard::getTextFromClipboard();
+ 
+    return clipboardContent.startsWith("HiseSnippet ");
+}
 
 void BackendCommandTarget::Actions::openFile(BackendProcessorEditor *bpe)
 {
@@ -857,20 +871,47 @@ void BackendCommandTarget::Actions::saveFile(BackendProcessorEditor *bpe)
 
 void BackendCommandTarget::Actions::replaceWithClipboardContent(BackendProcessorEditor *bpe)
 {
-	ScopedPointer<XmlElement> xml = XmlDocument::parse(SystemClipboard::getTextFromClipboard());
+	String clipboardContent = SystemClipboard::getTextFromClipboard();
 
-	if (xml != nullptr)
+	if (hasSnippetInClipboard())
 	{
-		ValueTree v = ValueTree::fromXml(*xml);
+		String data = clipboardContent.fromFirstOccurrenceOf("HiseSnippet ", false, false);
 
-		if (v.isValid() && v.getProperty("Type") == "SynthChain")
+		MemoryBlock mb;
+
+		mb.fromBase64Encoding(data);
+
+		MemoryInputStream mis(mb, false);
+
+		GZIPDecompressorInputStream dezipper(&mis, false);
+
+		ValueTree v = ValueTree::readFromGZIPData(mb.getData(), mb.getSize());
+
+		if (v.isValid())
 		{
 			bpe->loadNewContainer(v);
 			return;
 		}
 	}
+	else
+	{
+		ScopedPointer<XmlElement> xml = XmlDocument::parse(clipboardContent);
 
-	PresetHandler::showMessageWindow("Invalid Preset", "The clipboard does not contain a valid container.");
+		if (xml != nullptr)
+		{
+			ValueTree v = ValueTree::fromXml(*xml);
+
+			if (v.isValid() && v.getProperty("Type") == "SynthChain")
+			{
+				bpe->loadNewContainer(v);
+				return;
+			}
+		}
+	}
+
+	
+
+	PresetHandler::showMessageWindow("Invalid Preset", "The clipboard does not contain a valid container / snippet.");
 }
 
 void BackendCommandTarget::Actions::createScriptVariableDeclaration(CopyPasteTarget *currentCopyPasteTarget)
@@ -1419,6 +1460,27 @@ private:
 	}
 };
 
+void BackendCommandTarget::Actions::exportFileAsSnippet(BackendProcessorEditor* bpe)
+{
+	ValueTree v = bpe->getMainSynthChain()->exportAsValueTree();
+
+	MemoryOutputStream mos;
+
+	v.writeToStream(mos);
+
+	MemoryOutputStream mos2;
+
+	GZIPCompressorOutputStream zipper(&mos2, 9);
+	
+	zipper.write(mos.getData(), mos.getDataSize());
+	zipper.flush();
+
+	String data = "HiseSnippet " + mos2.getMemoryBlock().toBase64Encoding();
+
+	SystemClipboard::copyTextToClipboard(data);
+
+	PresetHandler::showMessageWindow("Preset copied as compressed snippet", "You can paste the clipboard content to share this preset");
+}
 
 void BackendCommandTarget::Actions::saveFileAsXml(BackendProcessorEditor * bpe)
 {
