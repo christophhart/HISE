@@ -83,6 +83,7 @@ public:
 		v.setProperty("keyboardShown", keyboard->isVisible(), nullptr);
 		v.setProperty("macrosShown", macroKnobs->isVisible(), nullptr);
 		v.setProperty("scrollPosition", viewport->viewport->getViewPosition().getY(), nullptr);
+        v.setProperty("globalCodeFontSize", owner->getGlobalCodeFontSize(), nullptr);
 
 		v.addChild(referenceDebugArea->exportAsValueTree(), -1, nullptr);
 		v.addChild(propertyDebugArea->exportAsValueTree(), -1, nullptr);
@@ -102,7 +103,14 @@ public:
             setSize(v.getProperty("width", 900), v.getProperty("height", 700));
             
 			owner->setScrollY(v.getProperty("scrollPosition", 0));
-
+            
+#if JUCE_WINDOWS
+            
+            owner->setGlobalCodeFontSize(v.getProperty("globalCodeFontSize", 14.0f));
+#else
+            owner->setGlobalCodeFontSize(v.getProperty("globalCodeFontSize", 13.0f));
+#endif
+            
 			referenceDebugArea->restoreFromValueTree(v.getChildWithName(referenceDebugArea->getIdForArea()));
 			propertyDebugArea->restoreFromValueTree(v.getChildWithName(propertyDebugArea->getIdForArea()));
 		}
@@ -215,6 +223,8 @@ public:
 #endif
 
 	}
+    
+
 
 	BackendProcessor *getBackendProcessor() { return owner; };
 	const BackendProcessor *getBackendProcessor() const { return owner; };

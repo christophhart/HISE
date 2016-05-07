@@ -147,10 +147,7 @@ ScriptingEditor::ScriptingEditor (BetterProcessorEditor *p)
 
 	messageBox->setFont(GLOBAL_MONOSPACE_FONT());
 
-	codeEditor->editor->setFont(GLOBAL_MONOSPACE_FONT());
-
 	
-
 	doc = sp->getDocument();
 
 	addAndMakeVisible(scriptContent = new ScriptContentComponent(static_cast<ScriptProcessor*>(getProcessor())));
@@ -431,9 +428,6 @@ void ScriptingEditor::buttonClicked (Button* buttonThatWasClicked)
 	resized();
 
 	refreshBodySize();
-
-	codeEditor->editor->setFont(GLOBAL_MONOSPACE_FONT());
-
 
     //[/UserbuttonClicked_Post]
 }

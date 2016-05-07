@@ -50,7 +50,12 @@ MainController::MainController():
 	scriptWatchTable(nullptr),
     globalPitchFactor(1.0),
     midiInputFlag(false),
-	macroManager(this)
+	macroManager(this),
+#if JUCE_WINDOWS
+    globalCodeFontSize(14.0f),
+#else
+    globalCodeFontSize(13.0f)
+#endif
 {
 	BACKEND_ONLY(popupConsole = nullptr);
 	BACKEND_ONLY(usePopupConsole = false);

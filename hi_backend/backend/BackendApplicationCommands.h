@@ -116,6 +116,8 @@ public:
 		MenuViewShowPool,
 		MenuViewShowInspector,
 		MenuViewShowPluginPopupPreview,
+        MenuViewIncreaseCodeFontSize,
+        MenuViewDecraseCodeFontSize,
 		MenuAddView,
 		MenuDeleteView,
 		MenuRenameView,
@@ -259,6 +261,7 @@ private:
 		static void showFileCompilerSettings(BackendProcessorEditor * bpe);
 		static void checkSettingSanity(BackendProcessorEditor * bpe);
 		static void togglePluginPopupWindow(BackendProcessorEditor * bpe);
+        static void changeCodeFontSize(BackendProcessorEditor *bpe, bool increase);
 		static void createRSAKeys(BackendProcessorEditor * bpe);
 		static void createDummyLicenceFile(BackendProcessorEditor * bpe);
 	};

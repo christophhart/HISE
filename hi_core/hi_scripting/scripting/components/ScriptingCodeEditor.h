@@ -329,7 +329,8 @@ class JavascriptCodeEditor: public CodeEditorComponent,
 							public SettableTooltipClient,
 							public Timer,
 							public DragAndDropTarget,
-							public CopyPasteTarget
+							public CopyPasteTarget,
+                            public SafeChangeListener
 {
 public:
 
@@ -358,10 +359,18 @@ public:
 		setColour(CodeEditorComponent::ColourIds::highlightColourId, Colour(0xff666666));
 		setColour(CaretComponent::ColourIds::caretColourId, Colour(0xFFDDDDDD));
 		setColour(ScrollBar::ColourIds::thumbColourId, Colour(0x3dffffff));
+        
+        setFont(GLOBAL_MONOSPACE_FONT().withHeight(p->getMainController()->getGlobalCodeFontSize()));
+        
+        p->getMainController()->getFontSizeChangeBroadcaster().addChangeListener(this);
+
+        
 	};
 
 	virtual ~JavascriptCodeEditor()
 	{
+        scriptProcessor->getMainController()->getFontSizeChangeBroadcaster().removeChangeListener(this);
+        
 		scriptProcessor = nullptr;
 
 		currentModalWindow.deleteAndZero();
@@ -369,6 +378,16 @@ public:
 		stopTimer();
 	};
 
+    void changeListenerCallback(SafeChangeBroadcaster *b) override
+    {
+        float newFontSize = scriptProcessor->getMainController()->getGlobalCodeFontSize();
+        
+        Font newFont = GLOBAL_MONOSPACE_FONT().withHeight(newFontSize);
+        
+        setFont(newFont);
+        
+    }
+    
     void focusGained(FocusChangeType ) override;
     
 	virtual String getObjectTypeName() override
@@ -651,14 +670,14 @@ private:
 	Component::SafePointer<Component> currentModalWindow;
 
 	ScriptProcessor *scriptProcessor;
-
+    
 	PopupMenu m;
 	Array<AutoCompleteEntry::Ptr> entries;
 
 	PopupLookAndFeel plaf;
 
 	DragState positionFound;
-
+    
 	String getLeadingWhitespace (String line)
     {
         line = line.removeCharacters ("\r\n");

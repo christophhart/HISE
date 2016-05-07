@@ -798,9 +798,10 @@ bool JavascriptCodeEditor::keyPressed(const KeyPress& k)
 
 PopupIncludeEditor::PopupIncludeEditor(ScriptProcessor *s, const File &fileToEdit) :
 sp(s),
-file(fileToEdit),
-fontSize(14)
+file(fileToEdit)
 {
+    
+    
 	doc = new CodeDocument();
 
 	doc->replaceAllContent(file.loadFileAsString());
@@ -814,8 +815,6 @@ fontSize(14)
 	resultLabel->setColour(Label::ColourIds::backgroundColourId, Colours::darkgrey);
 	resultLabel->setColour(Label::ColourIds::textColourId, Colours::white);
 	resultLabel->setEditable(false, false, false);
-
-    editor->setFont(GLOBAL_MONOSPACE_FONT().withHeight((float)fontSize));
     
 	sp->setEditorState(sp->getEditorStateForIndex(ScriptProcessor::externalPopupShown), true);
 
@@ -829,8 +828,6 @@ PopupIncludeEditor::~PopupIncludeEditor()
 	editor = nullptr;
 	doc = nullptr;
 	tokeniser = nullptr;
-
-	sp->getMainController()->setConsole(nullptr, true);
 
 	sp->setEditorState(sp->getEditorStateForIndex(ScriptProcessor::externalPopupShown), false);
 
@@ -860,22 +857,6 @@ bool PopupIncludeEditor::keyPressed(const KeyPress& key)
         
 		return true;
 	}
-    else if(key.isKeyCode('+') && key.getModifiers().isCommandDown())
-    {
-        fontSize += 1;
-        
-        if(fontSize > 30) fontSize = 30;
-        
-        editor->setFont(GLOBAL_MONOSPACE_FONT().withHeight((float)fontSize));
-    }
-    else if(key.isKeyCode('-') && key.getModifiers().isCommandDown())
-    {
-        fontSize -= 1;
-        
-        if(fontSize < 6) fontSize = 6;
-        
-        editor->setFont(GLOBAL_MONOSPACE_FONT().withHeight((float)fontSize));
-    }
     
 	return false;
 }

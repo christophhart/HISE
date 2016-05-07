@@ -199,6 +199,31 @@ private:
 
 	};
     
+    class HiseFileBrowserFilter: public FileFilter
+    {
+    public:
+        HiseFileBrowserFilter():
+            FileFilter("HiseFileBrowserFilter")
+        {
+            
+        };
+        
+        bool isFileSuitable(const File &file) const override
+        {
+            return file.hasFileExtension("hip") ||
+                   file.hasFileExtension("js") ||
+                   AudioSampleBufferComponent::isAudioFile(file.getFullPathName()) ||
+                   (ImageFileFormat::findImageFormatForFileExtension(file) != nullptr) ;
+        }
+        
+        
+        bool isDirectorySuitable(const File &) const override
+        {
+            return true;
+        }
+    };
+    
+    
     void saveFavoriteFile()
     {
         ValueTree v("Favorites");
@@ -246,7 +271,7 @@ private:
 	ScopedPointer<ShapeButton> addToFavoriteButton;
 	ScopedPointer<ShapeButton> removeFromFavoritesButton;
 
-	ScopedPointer<AudioFileFilter> fileFilter;
+	ScopedPointer<FileFilter> fileFilter;
 
 	var fileArray;
 

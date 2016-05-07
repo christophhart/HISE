@@ -115,6 +115,8 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuTwoColumns,
 		MenuThreeColumns,
 		MenuViewShowPluginPopupPreview,
+        MenuViewIncreaseCodeFontSize,
+        MenuViewDecraseCodeFontSize,
         MenuAddView,
         MenuDeleteView,
         MenuRenameView,
@@ -335,6 +337,12 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuViewShowPluginPopupPreview:
 		setCommandTarget(result, "Open Plugin Preview Window", bpe->isPluginPreviewCreatable(), bpe->isPluginPreviewShown(), 'X', false);
 		break;
+    case MenuViewIncreaseCodeFontSize:
+        setCommandTarget(result, "Increase code font size", true, false, 'X', false);
+        break;
+    case MenuViewDecraseCodeFontSize:
+        setCommandTarget(result, "Decrease code font size", true, false, 'X', false);
+        break;
     case MenuAddView:
         setCommandTarget(result, "Add new view", true, false, 'X', false);
         break;
@@ -430,6 +438,8 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuViewBack:					bpe->getViewUndoManager()->undo(); updateCommands(); return true;
 	case MenuViewForward:				bpe->getViewUndoManager()->redo(); updateCommands(); return true;
 	case MenuViewShowPluginPopupPreview: Actions::togglePluginPopupWindow(bpe); updateCommands(); return true;
+    case MenuViewIncreaseCodeFontSize:  Actions::changeCodeFontSize(bpe, true); return true;
+    case MenuViewDecraseCodeFontSize:   Actions::changeCodeFontSize(bpe, false); return true;
     case MenuExportFileAsPlugin:        CompileExporter::exportMainSynthChainAsPackage(owner->getMainSynthChain()); return true;
     case MenuAddView:                   Actions::addView(bpe); updateCommands();return true;
     case MenuDeleteView:                Actions::deleteView(bpe); updateCommands();return true;
@@ -629,6 +639,9 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		p.addCommandItem(mainCommandManager, MenuOneColumn);
 		p.addCommandItem(mainCommandManager, MenuTwoColumns);
 		p.addCommandItem(mainCommandManager, MenuThreeColumns);
+        p.addSeparator();
+        p.addCommandItem(mainCommandManager, MenuViewIncreaseCodeFontSize);
+        p.addCommandItem(mainCommandManager, MenuViewDecraseCodeFontSize);
 		p.addSeparator();
 		p.addCommandItem(mainCommandManager, MenuViewShowPluginPopupPreview);
 		p.addCommandItem(mainCommandManager, CustomInterface);
@@ -1575,6 +1588,22 @@ void BackendCommandTarget::Actions::togglePluginPopupWindow(BackendProcessorEdit
 	{
 		bpe->setPluginPreviewWindow(new PluginPreviewWindow(bpe));
 	}
+}
+                    
+void BackendCommandTarget::Actions::changeCodeFontSize(BackendProcessorEditor *bpe, bool increase)
+{
+    float currentFontSize = bpe->getMainSynthChain()->getMainController()->getGlobalCodeFontSize();
+    
+    if(increase)
+    {
+        currentFontSize = jmin<float>(28.0f, currentFontSize + 1.0f);
+    }
+    else
+    {
+        currentFontSize = jmax<float>(10.0f, currentFontSize - 1.0f);
+    }
+    
+    bpe->getMainSynthChain()->getMainController()->setGlobalCodeFontSize(currentFontSize);
 }
 
 void BackendCommandTarget::Actions::createRSAKeys(BackendProcessorEditor * bpe)

@@ -684,6 +684,16 @@ public:
         return returnValue;
     }
 
+    float getGlobalCodeFontSize() const {return globalCodeFontSize; };
+    
+    void setGlobalCodeFontSize(float newFontSize)
+    {
+        globalCodeFontSize = newFontSize;
+        codeFontChangeNotificator.sendSynchronousChangeMessage();
+    };
+    
+    SafeChangeBroadcaster &getFontSizeChangeBroadcaster() { return codeFontChangeNotificator; };
+    
     /** This sets the global pitch factor. */
     void setGlobalPitchFactor(double pitchFactorInSemiTones)
     {
@@ -796,6 +806,8 @@ private:
 	Component::SafePointer<CodeEditorComponent> lastActiveEditor;
 	CodeDocument::Position lastPosition;
 
+    SafeChangeBroadcaster codeFontChangeNotificator;
+        
 	WeakReference<Console> console;
 
 	WeakReference<Console> popupConsole;
@@ -816,6 +828,8 @@ private:
 	Array<WeakReference<TempoListener>> tempoListeners;
 
 	int usagePercent;
+
+    float globalCodeFontSize;
 
     double globalPitchFactor;
     

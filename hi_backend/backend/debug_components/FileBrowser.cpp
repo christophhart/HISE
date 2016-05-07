@@ -177,7 +177,7 @@ Drawable * FileBrowserToolbarFactory::FileBrowserToolbarPaths::createPath(int id
 }
 
 
-FileBrowser::FileBrowser(BackendProcessorEditor* /*editor*/) :
+FileBrowser::FileBrowser(BackendProcessorEditor* editor) :
 directorySearcher("Directory Scanner")
 {
     loadFavoriteFile();
@@ -185,7 +185,7 @@ directorySearcher("Directory Scanner")
     
 	directorySearcher.startThread(3);
 
-	fileFilter = new AudioFileFilter();
+	fileFilter = new HiseFileBrowserFilter();
 
 	browserCommandManager = new ApplicationCommandManager(); // dynamic_cast<MainController*>(editor->getAudioProcessor())->getCommandManager();
 
@@ -232,12 +232,7 @@ directorySearcher("Directory Scanner")
 
 	fileTreeComponent->addMouseListener(this, true);
 
-
-#if JUCE_WINDOWS
-    goToDirectory(File("C:\\"), false);
-#else
-    goToDirectory(File::getSpecialLocation(File::userHomeDirectory), false);
-#endif
+    goToDirectory(GET_PROJECT_HANDLER(editor->getMainSynthChain()).getWorkDirectory());
 }
 
 void FileBrowser::goToDirectory(const File &newRoot, bool useUndoManager)
@@ -492,14 +487,42 @@ void FileBrowser::mouseDoubleClick(const MouseEvent& )
 {
 	File newRoot = fileTreeComponent->getSelectedFile();
 
+    BackendProcessorEditor *editor = findParentComponentOfClass<BackendProcessorEditor>();
+    
 	if (newRoot.isDirectory())
 	{
 		goToDirectory(newRoot);
 	}
 	else if (newRoot.getFileExtension() == ".hip")
 	{
-		findParentComponentOfClass<BackendProcessorEditor>()->loadNewContainer(newRoot);
+		editor->loadNewContainer(newRoot);
 	}
+    else if (newRoot.getFileExtension() == ".js")
+    {
+        // First look if the script is already used
+        
+        Processor::Iterator<ScriptProcessor> iter(editor->getMainSynthChain());
+        
+        while (ScriptProcessor *sp = iter.getNextProcessor())
+        {
+            for (int i = 0; i < sp->getNumWatchedFiles(); i++)
+            {
+                if (sp->getWatchedFile(i) == newRoot)
+                {
+                    sp->showPopupForFile(i);
+                    return;
+                }
+            }
+        }
+        
+        // If not there, insert it at the last editor position
+        
+        editor->getMainSynthChain()->getMainController()->insertStringAtLastActiveEditor("include(\"" + newRoot.getFileName() + "\");", false);
+    }
+    else if (ImageFileFormat::findImageFormatForFileExtension(newRoot) != nullptr)
+    {
+        editor->getMainSynthChain()->getMainController()->insertStringAtLastActiveEditor("\"{PROJECT_FOLDER}" + newRoot.getFileName() + "\"", false);
+    }
 }
 
 void FileBrowser::textEditorReturnKeyPressed(TextEditor& editor)
