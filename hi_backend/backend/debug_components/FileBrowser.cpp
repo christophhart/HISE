@@ -493,6 +493,10 @@ void FileBrowser::mouseDoubleClick(const MouseEvent& )
 	{
 		goToDirectory(newRoot);
 	}
+	else if (newRoot.getFileName() == "LinkWindows" || newRoot.getFileName() == "LinkOSX")
+	{
+		goToDirectory(File(newRoot.loadFileAsString()));
+	}
 	else if (newRoot.getFileExtension() == ".hip")
 	{
 		editor->loadNewContainer(newRoot);

@@ -212,6 +212,11 @@ private:
         {
             return file.hasFileExtension("hip") ||
                    file.hasFileExtension("js") ||
+#if JUCE_WINDOWS
+				   file.getFileName() == "LinkWindows" ||
+#else
+				   file.getFileName() == "LinkOSX" ||
+#endif
                    AudioSampleBufferComponent::isAudioFile(file.getFullPathName()) ||
                    (ImageFileFormat::findImageFormatForFileExtension(file) != nullptr) ;
         }
