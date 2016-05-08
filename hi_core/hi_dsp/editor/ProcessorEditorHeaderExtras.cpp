@@ -157,11 +157,17 @@ ChainIcon::ChainIcon(Processor *p_)
 	else chainType = -1;
 };
 
-void ChainIcon::mouseDown(const MouseEvent &)
+class ColourSelectorWithRecentList: public ColourSelector
 {
-	if (chainType == ModulatorSynthIcon)
-	{
+public:
 
+	ColourSelectorWithRecentList(BackendProcessorEditor *editor_, Colour initialColour=Colours::transparentBlack):
+		ColourSelector(showColourspace),
+		editor(editor_)
+	{
+		editor->restoreSwatchColours(swatchColours);
+
+		
 
 		Random r;
 
@@ -169,20 +175,53 @@ void ChainIcon::mouseDown(const MouseEvent &)
 
 		Colour randomColour((uint8)(r.nextFloat() * 255.0f), (uint8)(r.nextFloat() * 255.0f), (uint8)(r.nextFloat() * 255.0f));
 
-		Colour iconColour = dynamic_cast<ModulatorSynth*>(p)->getIconColour();
+		setName("background");
+		setCurrentColour(initialColour.isTransparent() ? randomColour : initialColour);
+		setColour(ColourSelector::backgroundColourId, Colours::transparentBlack);
 
-		ColourSelector* colourSelector = new ColourSelector(ColourSelector::showColourspace);
-		colourSelector->setName("background");
-		colourSelector->setCurrentColour(iconColour.isTransparent() ? randomColour : iconColour);
-		colourSelector->setColour(ColourSelector::backgroundColourId, Colours::transparentBlack);
-		colourSelector->setSize(300, 200);
+		setSize(300, 280);
+
+		setLookAndFeel(&plaf);
+	}
+
+	~ColourSelectorWithRecentList()
+	{
+		editor->storeSwatchColours(swatchColours);
+	}
+
+	int getNumSwatches() const override { return 8; }
+	
+	void setSwatchColour(int index, const Colour& newColour) const override
+	{
+		swatchColours[index] = newColour;
+	}
+
+	Colour getSwatchColour(int index) const override { return swatchColours[index]; }
+
+private:
+
+	PopupLookAndFeel plaf;
+
+	BackendProcessorEditor *editor;
+
+	mutable Colour swatchColours[8];
+};
+										
+
+void ChainIcon::mouseDown(const MouseEvent &)
+{
+	if (chainType == ModulatorSynthIcon)
+	{
+		Colour iconColour = dynamic_cast<ModulatorSynth*>(p)->getIconColour();
+		
+		BackendProcessorEditor *editor = findParentComponentOfClass<BackendProcessorEditor>();
+
+		ColourSelectorWithRecentList *colourSelector = new ColourSelectorWithRecentList(editor, iconColour);
 
 		colourSelector->addChangeListener(this);
 
 		CallOutBox::launchAsynchronously(colourSelector, getScreenBounds(), nullptr);
-
 	}
-
 }
 
 

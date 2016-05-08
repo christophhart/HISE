@@ -84,12 +84,17 @@ public:
 		v.setProperty("macrosShown", macroKnobs->isVisible(), nullptr);
 		v.setProperty("scrollPosition", viewport->viewport->getViewPosition().getY(), nullptr);
         v.setProperty("globalCodeFontSize", owner->getGlobalCodeFontSize(), nullptr);
+		
+		MemoryBlock mb;
+
+		
+
+		mb.append(swatchColours, sizeof(Colour)*8);
+		v.setProperty("swatchColours", mb.toBase64Encoding(), nullptr);
 
 		v.addChild(referenceDebugArea->exportAsValueTree(), -1, nullptr);
 		v.addChild(propertyDebugArea->exportAsValueTree(), -1, nullptr);
 
-        
-        
 		return v;
 	}
 
@@ -113,6 +118,15 @@ public:
             
 			referenceDebugArea->restoreFromValueTree(v.getChildWithName(referenceDebugArea->getIdForArea()));
 			propertyDebugArea->restoreFromValueTree(v.getChildWithName(propertyDebugArea->getIdForArea()));
+
+			MemoryBlock mb;
+			
+			mb.fromBase64Encoding(v.getProperty("swatchColours").toString());
+
+			if (mb.getSize() == sizeof(Colour) * 8)
+			{
+				storeSwatchColours((Colour*)(mb.getData()));
+			}
 		}
 		else
 		{
@@ -261,7 +275,19 @@ public:
 	bool isPluginPreviewShown() const;;
 	bool isPluginPreviewCreatable() const;
 
+	void storeSwatchColours(Colour *coloursFromColourPicker)
+	{
+		memcpy(swatchColours, coloursFromColourPicker, sizeof(Colour)*8);
+	}
+
+	void restoreSwatchColours(Colour *coloursFromColourPicker)
+	{
+		memcpy(coloursFromColourPicker, swatchColours, sizeof(Colour)*8);
+	}
+
 private:
+
+	Colour swatchColours[8];
 
 	friend class BackendProcessor;
 	
