@@ -117,7 +117,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuThreeColumns,
 		MenuViewShowPluginPopupPreview,
         MenuViewIncreaseCodeFontSize,
-        MenuViewDecraseCodeFontSize,
+        MenuViewDecreaseCodeFontSize,
         MenuAddView,
         MenuDeleteView,
         MenuRenameView,
@@ -344,7 +344,7 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
     case MenuViewIncreaseCodeFontSize:
         setCommandTarget(result, "Increase code font size", true, false, 'X', false);
         break;
-    case MenuViewDecraseCodeFontSize:
+    case MenuViewDecreaseCodeFontSize:
         setCommandTarget(result, "Decrease code font size", true, false, 'X', false);
         break;
     case MenuAddView:
@@ -443,7 +443,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuViewForward:				bpe->getViewUndoManager()->redo(); updateCommands(); return true;
 	case MenuViewShowPluginPopupPreview: Actions::togglePluginPopupWindow(bpe); updateCommands(); return true;
     case MenuViewIncreaseCodeFontSize:  Actions::changeCodeFontSize(bpe, true); return true;
-    case MenuViewDecraseCodeFontSize:   Actions::changeCodeFontSize(bpe, false); return true;
+    case MenuViewDecreaseCodeFontSize:   Actions::changeCodeFontSize(bpe, false); return true;
     case MenuExportFileAsPlugin:        CompileExporter::exportMainSynthChainAsPackage(owner->getMainSynthChain()); return true;
     case MenuExportFileAsSnippet:       Actions::exportFileAsSnippet(bpe); return true;
     case MenuAddView:                   Actions::addView(bpe); updateCommands();return true;
@@ -647,7 +647,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		p.addCommandItem(mainCommandManager, MenuThreeColumns);
         p.addSeparator();
         p.addCommandItem(mainCommandManager, MenuViewIncreaseCodeFontSize);
-        p.addCommandItem(mainCommandManager, MenuViewDecraseCodeFontSize);
+        p.addCommandItem(mainCommandManager, MenuViewDecreaseCodeFontSize);
 		p.addSeparator();
 		p.addCommandItem(mainCommandManager, MenuViewShowPluginPopupPreview);
 		p.addCommandItem(mainCommandManager, CustomInterface);

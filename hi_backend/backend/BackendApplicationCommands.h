@@ -120,7 +120,7 @@ public:
 		MenuViewShowInspector,
 		MenuViewShowPluginPopupPreview,
         MenuViewIncreaseCodeFontSize,
-        MenuViewDecraseCodeFontSize,
+        MenuViewDecreaseCodeFontSize,
 		MenuAddView,
 		MenuDeleteView,
 		MenuRenameView,
