@@ -301,6 +301,7 @@ public:
 	{
 		ProcessorCollection,
 		ApiCollectionEnum,
+		FileBrowserShown,
 		SamplePool,
 		ExternalFiles,
 		ImageTable,

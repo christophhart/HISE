@@ -80,7 +80,7 @@ CombinedDebugArea::CombinedDebugArea(BackendProcessorEditor *mainEditor_):
 	addButtonToToolbar(modulesButton);
 
 	ShapeButton *apiButton = new ShapeButton("API", Colour(BACKEND_ICON_COLOUR_OFF), Colour(BACKEND_ICON_COLOUR_OFF), Colour(BACKEND_ICON_COLOUR_OFF));
-	modulesButton->setTooltip("API List");
+	apiButton->setTooltip("API List");
 	Path apiPath;
 
 	apiPath.loadPathFromData(BackendBinaryData::ToolbarIcons::apiList, sizeof(BackendBinaryData::ToolbarIcons::apiList));
@@ -88,6 +88,15 @@ CombinedDebugArea::CombinedDebugArea(BackendProcessorEditor *mainEditor_):
 	apiButton->setShape(apiPath, true, true, false);
 
 	addButtonToToolbar(apiButton);
+
+	ShapeButton *fileBrowserButton = new ShapeButton("Plotter", Colour(BACKEND_ICON_COLOUR_OFF), Colour(BACKEND_ICON_COLOUR_OFF), Colour(BACKEND_ICON_COLOUR_OFF));
+	Path fileBrowserPath;
+
+	fileBrowserPath.loadPathFromData(BackendBinaryData::ToolbarIcons::fileBrowser, sizeof(BackendBinaryData::ToolbarIcons::fileBrowser));
+	fileBrowserButton->setShape(fileBrowserPath, true, true, false);
+	fileBrowserButton->setTooltip("File Browser");
+
+	addButtonToToolbar(fileBrowserButton);
 
 	ShapeButton *sampleButton = new ShapeButton("Plotter", Colour(BACKEND_ICON_COLOUR_OFF), Colour(BACKEND_ICON_COLOUR_OFF), Colour(BACKEND_ICON_COLOUR_OFF));
 	Path samplePath;
@@ -97,6 +106,8 @@ CombinedDebugArea::CombinedDebugArea(BackendProcessorEditor *mainEditor_):
 	sampleButton->setTooltip("Referenced sample files");
 
 	addButtonToToolbar(sampleButton);
+
+	
 
 	ShapeButton *fileButton = new ShapeButton("Plotter", Colour(BACKEND_ICON_COLOUR_OFF), Colour(BACKEND_ICON_COLOUR_OFF), Colour(BACKEND_ICON_COLOUR_OFF));
 	Path filePath;
@@ -124,10 +135,11 @@ Identifier CombinedDebugArea::getIdForComponent(int i) const
 	switch (i)
 	{
 	case SamplePool:		return "SamplePool";
-	case ExternalFiles:		return "FileBrowser"; // externalFileTable;
+	case ExternalFiles:		return "ExternalFiles";
 	case ImageTable:		return "ImagePool";
 	case ProcessorCollection: return "ModuleBrowser";
 	case ApiCollectionEnum:	return "ApiBrowser";
+	case FileBrowserShown:	return "FileBrowser";
 	case numAreas:			return "Empty";
 	default:				jassertfalse; return "";
 	}
@@ -138,7 +150,8 @@ Component *CombinedDebugArea::getComponentForIndex(int i) const
 	switch(i)
 	{
 	case SamplePool:		return poolTable;
-	case ExternalFiles:		return fileBrowser; // externalFileTable;
+	case FileBrowserShown:  return fileBrowser;
+	case ExternalFiles:		return externalFileTable;
 	case ImageTable:		return imageTable;
 	case ProcessorCollection: return processorDragList;
 	case ApiCollectionEnum:	return apiCollection;

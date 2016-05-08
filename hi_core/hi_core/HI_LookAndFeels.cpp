@@ -570,11 +570,15 @@ void ConcertinaPanelHeaderLookAndFeel::drawConcertinaPanelHeader(Graphics& g, co
 	}
 	else if (dynamic_cast<FileBrowser*>(&panel))
 	{
-		path.loadPathFromData(BackendBinaryData::ToolbarIcons::fileTable, sizeof(BackendBinaryData::ToolbarIcons::fileTable));
+		path.loadPathFromData(BackendBinaryData::ToolbarIcons::fileBrowser, sizeof(BackendBinaryData::ToolbarIcons::fileBrowser));
 	}
 	else if (dynamic_cast<ExternalFileTable<Image>*>(&panel))
 	{
 		path.loadPathFromData(BackendBinaryData::ToolbarIcons::imageTable, sizeof(BackendBinaryData::ToolbarIcons::imageTable));
+	}
+	else if (dynamic_cast<ExternalFileTable<AudioSampleBuffer>*>(&panel))
+	{
+		path.loadPathFromData(BackendBinaryData::ToolbarIcons::fileTable, sizeof(BackendBinaryData::ToolbarIcons::fileTable));
 	}
 	else if (dynamic_cast<Plotter*>(&panel))
 	{
@@ -596,7 +600,7 @@ void ConcertinaPanelHeaderLookAndFeel::drawConcertinaPanelHeader(Graphics& g, co
 	{
 		path.loadPathFromData(BackendBinaryData::ToolbarIcons::apiList, sizeof(BackendBinaryData::ToolbarIcons::apiList));
 	}
-    else
+	else
     {
         return;
     }
