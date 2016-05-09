@@ -64,7 +64,6 @@ void BackendCommandTarget::setEditor(BackendProcessorEditor *editor)
 void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 {
 	const CommandID id[] = { ModulatorList,
-		CustomInterface,
 		DebugPanel,
 		ViewPanel,
 		Mixer,
@@ -159,10 +158,6 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 {
 	switch (commandID)
 	{
-
-	case CustomInterface: 
-		setCommandTarget(result, "Frontend", true, (bpe->interfaceComponent != nullptr && !bpe->interfaceComponent->isVisible()), 'X', false);
-		break;
 	case Macros:
 		setCommandTarget(result, "Show Macro Controls", true, (bpe->macroKnobs != nullptr && !bpe->macroKnobs->isVisible()), 'X', false);
 		break;
@@ -385,9 +380,6 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 {
 	switch (info.commandID)
 	{
-	case CustomInterface:               toggleVisibility(bpe->interfaceComponent);
-                                        bpe->viewedComponentChanged();
-                                        return true;
 	case DebugPanel:                    toggleVisibility(bpe->referenceDebugArea);
                                         bpe->viewedComponentChanged();
                                         return true;
@@ -650,7 +642,6 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
         p.addCommandItem(mainCommandManager, MenuViewDecreaseCodeFontSize);
 		p.addSeparator();
 		p.addCommandItem(mainCommandManager, MenuViewShowPluginPopupPreview);
-		p.addCommandItem(mainCommandManager, CustomInterface);
 		p.addCommandItem(mainCommandManager, DebugPanel);
 		p.addCommandItem(mainCommandManager, Macros);
 		p.addCommandItem(mainCommandManager, Keyboard);

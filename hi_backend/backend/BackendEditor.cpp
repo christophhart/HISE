@@ -94,12 +94,6 @@ rootEditorIsMainSynthChain(true)
 
 	owner->addScriptListener(this);
 
-	addAndMakeVisible(interfaceComponent = new ScriptContentContainer(owner->synthChain, dynamic_cast<ModulatorSynthChainBody*>(editor->getBody())));
-	interfaceComponent->checkInterfaces();
-	interfaceComponent->setIsFrontendContainer(true);
-	interfaceComponent->setVisible(owner->isComponentShown(CustomInterface));
-	interfaceComponent->setIsFrontendContainer(true);
-
 	aboutPage->setVisible(false);
 	aboutPage->setBoundsInset(BorderSize<int>(80));
 
@@ -193,7 +187,6 @@ BackendProcessorEditor::~BackendProcessorEditor()
 	// Remove the main stuff
 
 	macroKnobs = nullptr;
-	interfaceComponent = nullptr;
 	container = nullptr;
 	viewport = nullptr;
 	
@@ -522,12 +515,6 @@ void BackendProcessorEditor::setViewportPositions(int viewportX, const int viewp
 
 	if (macroKnobs->isVisible()) y = macroKnobs->getBottom();
 
-	const int interfaceWidth = interfaceComponent->getContentWidth();
-
-	interfaceComponent->setBounds(viewportX, y, interfaceWidth != -1 ? interfaceWidth : viewportWidth, interfaceComponent->getContentHeight());
-
-	if (interfaceComponent->isVisible()) y = interfaceComponent->getBottom();
-
 	keyboard->setBounds(viewportX, getHeight() - 72, viewportWidth, 72);
 
 	const int containerHeight = getHeight() - (keyboard->isVisible() ? keyboard->getHeight() : 0)
@@ -556,7 +543,8 @@ bool BackendProcessorEditor::isPluginPreviewShown() const
 
 bool BackendProcessorEditor::isPluginPreviewCreatable() const
 {
-	return interfaceComponent != nullptr && interfaceComponent->getContentWidth() != 0 && interfaceComponent->getContentHeight() != 0;
+    // TODO: Reenable this
+    return true;
 }
 
 void BackendProcessorEditor::paint(Graphics &g)
@@ -925,12 +913,6 @@ void BackendProcessorEditor::refreshInterfaceAfterPresetLoad()
 	rebuildContainer();
     
     container->setRootProcessorEditor(p);
-    
-    BetterProcessorEditor *editor = container->getRootEditor();
-    addAndMakeVisible(interfaceComponent = new ScriptContentContainer(owner->synthChain, dynamic_cast<ModulatorSynthChainBody*>(editor->getBody())));
-    
-    interfaceComponent->checkInterfaces();
-    interfaceComponent->refreshContentBounds();
 }
 
 void BackendProcessorEditor::loadNewContainer(ValueTree &v)
@@ -999,11 +981,7 @@ void BackendProcessorEditor::clearPreset()
 	container->setRootProcessorEditor(p);
 
 	BetterProcessorEditor *editor = container->getRootEditor();
-	addAndMakeVisible(interfaceComponent = new ScriptContentContainer(owner->synthChain, dynamic_cast<ModulatorSynthChainBody*>(editor->getBody())));
-
-
-    interfaceComponent->checkInterfaces();
-    interfaceComponent->refreshContentBounds();
+	
     
 	rebuildModuleList(false);
 

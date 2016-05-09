@@ -308,9 +308,7 @@ private:
 
 	ScopedPointer<MacroComponent> macroKnobs;
 
-	ScopedPointer<ScriptContentContainer> interfaceComponent;
-
-	ScopedPointer<CachedViewport> viewport;
+    ScopedPointer<CachedViewport> viewport;
 	ScopedPointer<CustomKeyboard> keyboard;
 	ScopedPointer<MenuBarComponent> menuBar;
 
