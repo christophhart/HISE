@@ -122,6 +122,12 @@ HarmonicFilterEditor::HarmonicFilterEditor (BetterProcessorEditor *p)
 
     //[UserPreSize]
 
+    label->setFont(GLOBAL_BOLD_FONT().withHeight(28.0f));
+    label2->setFont(GLOBAL_BOLD_FONT());
+    label3->setFont(GLOBAL_BOLD_FONT());
+    label4->setFont(GLOBAL_BOLD_FONT());
+    
+    
 	filterNumbers->setup(getProcessor(), HarmonicFilter::NumFilterBands, "Filterband Amount");
 
 	qSlider->setup(getProcessor(), HarmonicFilter::QFactor, "Q Factor");

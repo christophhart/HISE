@@ -111,7 +111,7 @@ LfoEditorBody::LfoEditorBody (BetterProcessorEditor *p)
 
 	frequencySlider->setIsUsingModulatedRing(true);
 
-	smoothTimeSlider->setup(getProcessor(), LfoModulator::SmoothingTime, "Smoothing Time");
+	smoothTimeSlider->setup(getProcessor(), LfoModulator::SmoothingTime, "Smoothing");
 	smoothTimeSlider->setMode(HiSlider::Time, 0.0, 1000.0, 100.0);
 
 	fadeInSlider->setup(getProcessor(), LfoModulator::FadeIn, "Fadein Time");

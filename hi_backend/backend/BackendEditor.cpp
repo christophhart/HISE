@@ -437,9 +437,12 @@ void BackendProcessorEditor::rebuildContainer()
 
 void BackendProcessorEditor::setRootProcessorWithUndo(Processor *p)
 {
-	owner->viewUndoManager->beginNewTransaction(getRootContainer()->getRootEditor()->getProcessor()->getId() + " -> " + p->getId());
-	owner->viewUndoManager->perform(new ViewBrowsing(owner->synthChain, this, viewport->viewport->getViewPositionY(), p));
-	updateCommands();
+    if(getRootContainer()->getRootEditor()->getProcessor() != p)
+    {
+        owner->viewUndoManager->beginNewTransaction(getRootContainer()->getRootEditor()->getProcessor()->getId() + " -> " + p->getId());
+        owner->viewUndoManager->perform(new ViewBrowsing(owner->synthChain, this, viewport->viewport->getViewPositionY(), p));
+        updateCommands();
+    }
 }
 
 bool BackendProcessorEditor::getIndexPath(Array<int> &path, Processor *p, const int searchIndex, int &counter)

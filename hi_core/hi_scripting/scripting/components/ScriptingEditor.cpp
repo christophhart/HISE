@@ -440,9 +440,6 @@ void ScriptingEditor::buttonClicked (Button* buttonThatWasClicked)
     //[/UserbuttonClicked_Post]
 }
 
-
-
-
 //[MiscUserCode] You can add your own definitions of your custom methods or any other code here...
 
 void ScriptingEditor::goToSavedPosition(ScriptProcessor::Callback newCallback)

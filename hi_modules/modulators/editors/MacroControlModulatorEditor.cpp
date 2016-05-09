@@ -78,8 +78,8 @@ MacroControlModulatorEditorBody::MacroControlModulatorEditorBody (BetterProcesso
 	getProcessor()->getMainController()->skin(*macroSelector);
 	getProcessor()->getMainController()->skin(*useTableButton);
 
-	smoothingSlider->setup(getProcessor(), MacroModulator::SmoothTime, "Smoothing Time");
-	smoothingSlider->setMode(HiSlider::Discrete, 0.0, 1000.0, 100.0);
+	smoothingSlider->setup(getProcessor(), MacroModulator::SmoothTime, "Smoothing");
+    smoothingSlider->setMode(HiSlider::Time, 0.0, 1000.0, 100.0);
 
 	valueTable->connectToLookupTableProcessor(getProcessor());
 

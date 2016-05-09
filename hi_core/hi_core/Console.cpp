@@ -57,7 +57,7 @@ Console::Console(BaseDebugArea *area) :
 	
 	textConsole->setColour (TextEditor::shadowColourId, Colours::black);
 	textConsole->setColour(TextEditor::backgroundColourId, Colour(DEBUG_AREA_BACKGROUND_COLOUR));
-
+    textConsole->addMouseListener(this, true);
 
 
 	addAndMakeVisible (clearButton = new TextButton ("Clear"));
@@ -120,6 +120,55 @@ void Console::buttonClicked (Button* b)
 		textConsole->clear();
 	}
 }
+
+void Console::mouseDown(const MouseEvent &e)
+{
+    if(e.mods.isRightButtonDown())
+    {
+        PopupLookAndFeel plaf;
+        PopupMenu m;
+        
+        m.setLookAndFeel(&plaf);
+        
+        m.addItem(1, "Clear Console");
+        m.addItem(2, "Scroll down");
+        
+        const int result = m.show();
+        
+        if(result == 1) clear();
+            else if (result == 2)
+            {
+                textConsole->moveCaretToEnd(false);
+            }
+    }
+    else if (e.mods.isAltDown())
+    {
+        int textPos = textConsole->getTextIndexAt(e.getMouseDownX(), e.getMouseDownY());
+        
+        String content = textConsole->getText();
+        
+        int last = content.indexOfChar(textPos, ':');
+        
+        int first = content.substring(0, textPos).lastIndexOfChar('\n');
+        
+        String name = content.substring(first, last).upToFirstOccurrenceOf(":", false, false).removeCharacters("\r\n\t");
+        
+        if(name.isNotEmpty())
+        {
+            BackendProcessorEditor *editor = findParentComponentOfClass<BackendProcessorEditor>();
+            
+            Processor *p = ProcessorHelpers::getFirstProcessorWithName(editor->getMainSynthChain(), name);
+            
+            if(p != nullptr)
+            {
+                editor->setRootProcessorWithUndo(p);
+            }
+        }
+        DBG(name);
+        
+    }
+}
+
 
 void Console::logMessage(const String &t, WarningLevel warningLevel, const Processor *p, Colour c)
 {

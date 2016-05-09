@@ -79,7 +79,17 @@ public:
 	~Console();
 
 	void sendChangeMessage();
+    
+    void mouseDown(const MouseEvent &e) override;
 
+    void mouseMove(const MouseEvent &e) override
+    {
+        if(e.mods.isAltDown())
+        {
+            setMouseCursor(MouseCursor::PointingHandCursor);
+        }
+    }
+    
 	void resized() override;
 
 	void buttonClicked (Button* buttonThatWasClicked) override;

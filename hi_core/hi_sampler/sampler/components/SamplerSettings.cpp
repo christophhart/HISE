@@ -499,8 +499,8 @@ void SamplerSettings::paint (Graphics& g)
     g.setColour (Colour (0x18ffffff));
     g.fillRect (getWidth() - 9 - 222, 42, 222, 14);
 
-    g.setColour (Colour (0x70ffffff));
-    g.setFont (Font ("Arial", 20.00f, Font::bold));
+    g.setColour (Colour (0xaaffffff));
+    g.setFont (GLOBAL_BOLD_FONT().withHeight(22.0f));
     g.drawText (TRANS("SAMPLER SETTINGS"),
                 getWidth() - 8 - 240, 6, 240, 30,
                 Justification::centredRight, true);
