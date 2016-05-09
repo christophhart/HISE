@@ -1159,6 +1159,8 @@ void ProcessorEditorHeader::labelTextChanged(Label *l)
 	{
 
 		getEditor()->getProcessor()->setId(l->getText());
+        
+        findParentComponentOfClass<BackendProcessorEditor>()->getKeyboard()->grabKeyboardFocus();
 
 	}
 }

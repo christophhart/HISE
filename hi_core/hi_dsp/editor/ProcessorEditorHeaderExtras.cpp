@@ -39,6 +39,8 @@ parentHeader(parentHeader_)
 	button->setShape(p, true, true, true);
 	button->setToggleState(true, dontSendNotification);
 	refresh();
+    
+    button->setWantsKeyboardFocus(false);
 
 	setWantsKeyboardFocus(false);
 
