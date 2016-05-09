@@ -1440,19 +1440,26 @@ void PresetHandler::writeSampleMapsToValueTree(ValueTree &sampleMapTree, ValueTr
 	}
 }
 
+AboutPage::AboutPage()
+{
+    aboutHeader = ImageCache::getFromMemory(BinaryData::About_png, BinaryData::About_pngSize);
+    
+    addAndMakeVisible(checkUpdateButton = new TextButton("Check Updates"));
+};
 
 void AboutPage::paint(Graphics &g)
 {
 #if USE_BACKEND
 
-	g.fillAll(Colour(BACKEND_BG_COLOUR_BRIGHT));
-	g.setColour(Colour(0xFFbbbbbb));
+	g.fillAll(Colour(0xFF111111));
 
-    Path p;
-    p.loadPathFromData(HiBinaryData::commonBinaryData::aboutHeader, sizeof(HiBinaryData::commonBinaryData::aboutHeader));
+    g.drawImageAt(aboutHeader, (getWidth() - aboutHeader.getWidth()) / 2, 10);
 
-    p.scaleToFit(40.0f, 20.0f, (float)getWidth() - 80.0f, 90.0f, true);
-    g.fillPath(p);
+    //Path p;
+    //p.loadPathFromData(HiBinaryData::commonBinaryData::aboutHeader, sizeof(HiBinaryData::commonBinaryData::aboutHeader));
+
+    //p.scaleToFit(40.0f, 20.0f, (float)getWidth() - 80.0f, 90.0f, true);
+    //g.fillPath(p);
     
 #else
 
@@ -1461,13 +1468,14 @@ void AboutPage::paint(Graphics &g)
 
 #endif
 
+    g.setColour(Colour(0xFFaaaaaa));
 	g.drawRect(getLocalBounds(), 1);
 
 
 
-	infoData.draw(g, Rectangle<float>(40.0f, 130.0f, getWidth() - 80.0f, getHeight() - 130.0f));
+	infoData.draw(g, Rectangle<float>(40.0f, aboutHeader.getHeight() + 20, getWidth() - 80.0f, getHeight() - aboutHeader.getHeight() - 20));
 
-	g.drawHorizontalLine(120, 40.0f, (float)getWidth() - 40.0f);
+
 
 }
 

@@ -5,6 +5,7 @@
               jucerVersion="4.1.0" companyName="Hart Instruments" companyWebsite="http://hartinstruments.net/hise">
   <MAINGROUP id="yomWt4" name="HISE Standalone">
     <GROUP id="{577963C7-1A49-BB2A-D701-52DC7A5895F7}" name="Source">
+      <FILE id="celo0R" name="About.png" compile="0" resource="1" file="../../hi_core/hi_images/About.png"/>
       <FILE id="EfOrgJ" name="FrontendKnob_Bipolar.png" compile="0" resource="1"
             file="../../hi_core/hi_images/FrontendKnob_Bipolar.png"/>
       <FILE id="hJJvHU" name="FrontendKnob_Unipolar.png" compile="0" resource="1"

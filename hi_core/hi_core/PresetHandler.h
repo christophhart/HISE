@@ -97,12 +97,7 @@ class AboutPage : public Component,
 {
 public:
 
-	AboutPage()
-	{
-		addAndMakeVisible(checkUpdateButton = new TextButton("Check Updates"));
-
-		
-	};
+    AboutPage();
 
 	void refreshText();
 
@@ -149,6 +144,8 @@ private:
 	ScopedPointer<TextButton> checkUpdateButton;
 
 	AlertWindowLookAndFeel alaf;
+    
+    Image aboutHeader;
 
 };
 
