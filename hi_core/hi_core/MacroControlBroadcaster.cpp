@@ -451,8 +451,9 @@ void MacroControlBroadcaster::addControlledParameter(int macroControllerIndex,
 }
 
 void MacroControlBroadcaster::MacroControlData::removeParameter(int parameterIndex)
-{ 
-	if(controlledParameters[parameterIndex]->getProcessor() != nullptr)
+{
+    
+	if(parameterIndex < controlledParameters.size() && controlledParameters[parameterIndex]->getProcessor() != nullptr)
 	{
 		controlledParameters[parameterIndex]->getProcessor()->sendChangeMessage();
 	}

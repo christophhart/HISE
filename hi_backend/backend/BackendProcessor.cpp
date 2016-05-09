@@ -97,8 +97,11 @@ MainController(),
 deviceManager(deviceManager_),
 callback(callback_),
 viewUndoManager(new UndoManager()),
-synthChain(new ModulatorSynthChain(this, "Master Chain", NUM_POLYPHONIC_VOICES, viewUndoManager))
+synthChain(nullptr)
 {
+    synthChain = new ModulatorSynthChain(this, "Master Chain", NUM_POLYPHONIC_VOICES, viewUndoManager);
+
+    
 	synthChain->addProcessorsWhenEmpty();
 
 	getSampleManager().getModulatorSamplerSoundPool()->setDebugProcessor(synthChain);

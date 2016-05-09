@@ -45,7 +45,7 @@ ToolbarItemComponent * MainToolbarFactory::createItem(int itemId)
 void MainToolbarFactory::getAllToolbarItemIds(Array<int> &ids)
 {
     const CommandID id[] = { BackendProcessorEditor::ModulatorList,
-        BackendProcessorEditor::CustomInterface,
+        BackendCommandTarget::MenuViewShowPluginPopupPreview,
         //BackendProcessorEditor::DebugPanel,
         //BackendProcessorEditor::ViewPanel,
         //BackendProcessorEditor::Mixer,
@@ -67,7 +67,7 @@ Drawable *MainToolbarFactory::MainToolbarPaths::createPath(int id, bool isOn)
 
 	switch(id)
 	{
-	case BackendProcessorEditor::CustomInterface:
+        case BackendCommandTarget::MenuViewShowPluginPopupPreview:
 		{
 		
 		path.loadPathFromData (BackendBinaryData::ToolbarIcons::customInterface, sizeof (BackendBinaryData::ToolbarIcons::customInterface));
