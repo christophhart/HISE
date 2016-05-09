@@ -371,7 +371,7 @@ public:
 
 	void mergeCallbacksToScript(String &x) const;;
 
-	void parseSnippetsFromString(const String &x);
+	void parseSnippetsFromString(const String &x, bool clearUndoHistory=false);
 
 	ReferenceCountedObject *textInputisArrayElementObject(const String &t);
 

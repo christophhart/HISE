@@ -247,7 +247,8 @@ void ScriptProcessor::restoreFromValueTree(const ValueTree &v)
 {
 	String x = v.getProperty("Script", String::empty);
 
-	parseSnippetsFromString(x);
+	parseSnippetsFromString(x, true);
+    
     
 	ScriptBaseProcessor::restoreFromValueTree(v);
 }
@@ -710,7 +711,7 @@ void ScriptProcessor::mergeCallbacksToScript(String &x) const
 	}
 }
 
-void ScriptProcessor::parseSnippetsFromString(const String &x)
+void ScriptProcessor::parseSnippetsFromString(const String &x, bool clearUndoHistory)
 {
 	String codeToCut = String(x);
 
@@ -728,8 +729,13 @@ void ScriptProcessor::parseSnippetsFromString(const String &x)
 		}
 
 		s->replaceAllContent(code);
-
+        
 		codeToCut = codeToCut.upToLastOccurrenceOf(filter, false, false);
+        
+        if(clearUndoHistory)
+        {
+            s->getUndoManager().clearUndoHistory();
+        }
 	}
 
 	getSnippet(0)->replaceAllContent(codeToCut);
@@ -916,6 +922,8 @@ callbackName(callbackName_)
 	};
 
 	setEmptyText(header);
+    
+    getUndoManager().clearUndoHistory();
 }
 
 int ScriptProcessor::SnippetDocument::addLineToString(String &t, const String &lineToAdd)
