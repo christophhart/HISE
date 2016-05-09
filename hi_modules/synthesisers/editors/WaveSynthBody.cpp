@@ -176,7 +176,9 @@ WaveSynthBody::WaveSynthBody (BetterProcessorEditor *p)
 	mixSlider->setMode(HiSlider::Mode::NormalizedPercentage);
 
     voiceAmountEditor->setFont(GLOBAL_FONT());
+    voiceAmountLabel->setFont(GLOBAL_FONT());
     fadeTimeEditor->setFont(GLOBAL_FONT());
+    fadeTimeLabel->setFont(GLOBAL_FONT());
 
     //[/UserPreSize]
 
@@ -222,7 +224,7 @@ void WaveSynthBody::paint (Graphics& g)
     //[/UserPrePaint]
 
     g.setColour (Colour (0x52ffffff));
-    g.setFont (Font ("Arial", 20.00f, Font::bold));
+    g.setFont (GLOBAL_BOLD_FONT().withHeight(24.0f));
     g.drawText (TRANS("SYNTHESISER"),
                 (getWidth() / 2) - (152 / 2), 95, 152, 30,
                 Justification::centred, true);
