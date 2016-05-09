@@ -480,6 +480,31 @@ void FileBrowser::mouseDown(const MouseEvent& e)
 		fileTreeComponent->setDragAndDropDescription(sa.joinIntoString(";"));
 
 	}
+    else
+    {
+        PopupLookAndFeel plaf;
+        PopupMenu m;
+        
+        m.setLookAndFeel(&plaf);
+        
+        m.addItem(1, "Show in Finder");
+        m.addItem(2, "Copy as reference");
+        
+        const int result = m.show();
+        
+        if(result == 1)
+        {
+            if(fileTreeComponent->getNumSelectedFiles() > 0)
+            {
+                fileTreeComponent->getSelectedFile(0).revealToUser();
+            }
+        }
+        else if (result == 2)
+        {
+            
+        }
+        
+    }
 	
 }
 
