@@ -136,7 +136,9 @@ public:
 		editorStateIdentifiers.add("InterfaceShown");
 
 		setFactoryType(t);
-		
+
+        setEditorState(Processor::EditorState::BodyShown, false);
+        
 		// Skip the pitch chain
 		pitchChain->setBypassed(true);
 
