@@ -209,7 +209,7 @@ directorySearcher("Directory Scanner")
 	browserCommandManager->setFirstCommandTarget(this);
 	
 	addAndMakeVisible(textEditor = new TextEditor());
-	textEditor->setFont(GLOBAL_MONOSPACE_FONT());
+	textEditor->setFont(GLOBAL_BOLD_FONT());
 	textEditor->addListener(this);
     textEditor->setColour(TextEditor::ColourIds::backgroundColourId, Colours::white.withAlpha(0.2f));
 	textEditor->setColour(TextEditor::ColourIds::focusedOutlineColourId, Colours::black.withAlpha(0.5f));

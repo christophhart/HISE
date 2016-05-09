@@ -87,6 +87,7 @@ KeyEditor::KeyEditor (BetterProcessorEditor *p)
 	getProcessor()->getMainController()->skin(*scrollButton);
 	getProcessor()->getMainController()->skin(*selectionSlider);
 
+        
     //[/UserPreSize]
 
     setSize (900, 320);

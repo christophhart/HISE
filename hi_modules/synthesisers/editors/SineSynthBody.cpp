@@ -105,7 +105,7 @@ SineSynthBody::SineSynthBody (BetterProcessorEditor *p)
 
     addAndMakeVisible (label = new Label ("new label",
                                           TRANS("SINE WAVE")));
-    label->setFont (Font ("Arial", 24.00f, Font::bold));
+    label->setFont (GLOBAL_BOLD_FONT().withHeight(28.0f));
     label->setJustificationType (Justification::centred);
     label->setEditable (false, false, false);
     label->setColour (Label::textColourId, Colour (0x52ffffff));

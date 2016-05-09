@@ -187,13 +187,13 @@ void SampleMapEditor::paint (Graphics& g)
     //[/UserPrePaint]
 
     g.setColour (Colour (0x13ffffff));
-    g.fillRect (8, 8, getWidth() - 140, 24);
+    g.fillRect (8, 8, getWidth() - 132, 24);
 
     g.setColour (Colour (0x0fffffff));
-    g.drawRect (8, 8, getWidth() - 140, 24, 1);
+    g.drawRect (8, 8, getWidth() - 132, 24, 1);
 
-    g.setColour (Colour (0x70ffffff));
-    g.setFont (Font ("Arial", 20.00f, Font::bold));
+    g.setColour (Colour (0xaaffffff));
+    g.setFont (GLOBAL_BOLD_FONT().withHeight(22.0f));
     g.drawText (TRANS("MAP EDITOR"),
                 getWidth() - 12 - 244, 5, 244, 30,
                 Justification::centredRight, true);

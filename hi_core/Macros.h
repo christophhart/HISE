@@ -61,16 +61,22 @@
 #define BACKEND_ONLY(x)
 #endif
 
+static juce::Typeface::Ptr oxygenBoldTypeFace = juce::Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::oxygen_bold_ttf, HiBinaryData::FrontendBinaryData::oxygen_bold_ttfSize);
 
-#ifdef JUCE_WINDOWS
-#define GLOBAL_FONT() (Font("Tahoma", 13.0f, Font::plain))
-#define GLOBAL_BOLD_FONT() (Font("Tahoma", 13.0f, Font::bold))
-#define GLOBAL_MONOSPACE_FONT() (Font("Consolas", 14.0f, Font::plain))
-#else
-#define GLOBAL_FONT() (Font("Helvetica", 10.5f, Font::plain))
-#define GLOBAL_BOLD_FONT() (Font("Helvetica", 10.5f, Font::bold))
-#define GLOBAL_MONOSPACE_FONT() (Font("Menlo", 13.0f, Font::plain))
-#endif
+
+static juce::Typeface::Ptr oxygenTypeFace = juce::Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::oxygen_regular_ttf, HiBinaryData::FrontendBinaryData::oxygen_regular_ttfSize);
+
+static juce::Typeface::Ptr sourceCodeProTypeFace = juce::Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::SourceCodeProRegular_otf, HiBinaryData::FrontendBinaryData::SourceCodeProRegular_otfSize);
+
+static juce::Typeface::Ptr sourceCodeProBoldTypeFace = juce::Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::SourceCodeProBold_otf, HiBinaryData::FrontendBinaryData::SourceCodeProBold_otfSize);
+
+
+#define GLOBAL_FONT() (Font(oxygenTypeFace).withHeight(13.0f))
+
+//#define GLOBAL_FONT() (Font("Helvetica", 10.5f, Font::plain))
+#define GLOBAL_BOLD_FONT() (Font(oxygenBoldTypeFace).withHeight(14.0f))
+//#define GLOBAL_BOLD_FONT() (Font("Helvetica", 10.5f, Font::bold))
+#define GLOBAL_MONOSPACE_FONT() (Font(sourceCodeProTypeFace).withHeight(14.0f))
 
 
 #define loadTable(tableVariableName, nameAsString) { const var savedData = v.getProperty(nameAsString, var::null); tableVariableName->restoreData(savedData); }

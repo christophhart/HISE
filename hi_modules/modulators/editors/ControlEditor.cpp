@@ -100,6 +100,7 @@ ControlEditorBody::ControlEditorBody (BetterProcessorEditor *p)
 	getProcessor()->getMainController()->skin(*invertedButton);
 	getProcessor()->getMainController()->skin(*learnButton);
 
+    label->setFont (GLOBAL_BOLD_FONT().withHeight(26.0f));
 
 	tableUsed = cm->getAttribute(ControlModulator::UseTable) == 1.0f;
 

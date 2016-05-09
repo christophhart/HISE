@@ -246,7 +246,7 @@ void KnobLookAndFeel::drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, int wi
 
 
 	g.setColour(Colours::white.withAlpha(0.7f));
-	g.setFont (GLOBAL_FONT());
+	g.setFont (GLOBAL_BOLD_FONT());
 	g.drawText (s.getName(),
 				41, 10, (int)((0.5391f) * width) + 10, 12,
 				Justification::centred, true);

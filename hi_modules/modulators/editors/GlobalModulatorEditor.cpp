@@ -63,6 +63,8 @@ GlobalModulatorEditor::GlobalModulatorEditor (BetterProcessorEditor *p)
 	getProcessor()->getMainController()->skin(*globalModSelector);
 
 	setItemEntry();
+    
+    
 
     //[/UserPreSize]
 

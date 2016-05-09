@@ -52,14 +52,14 @@ ValueSettingComponent::ValueSettingComponent ()
 
     addAndMakeVisible (minusButton = new TextButton ("new button"));
     minusButton->setButtonText (TRANS("-"));
-    minusButton->setConnectedEdges (Button::ConnectedOnLeft | Button::ConnectedOnRight);
+    minusButton->setConnectedEdges (Button::ConnectedOnRight);
     minusButton->addListener (this);
     minusButton->setColour (TextButton::buttonColourId, Colour (0x3fffffff));
     minusButton->setColour (TextButton::buttonOnColourId, Colour (0xff700000));
 
     addAndMakeVisible (plusButton = new TextButton ("new button"));
     plusButton->setButtonText (TRANS("+"));
-    plusButton->setConnectedEdges (Button::ConnectedOnLeft | Button::ConnectedOnRight);
+    plusButton->setConnectedEdges (Button::ConnectedOnLeft);
     plusButton->addListener (this);
     plusButton->setColour (TextButton::buttonColourId, Colour (0x3fffffff));
     plusButton->setColour (TextButton::buttonOnColourId, Colour (0xff700000));
@@ -68,7 +68,7 @@ ValueSettingComponent::ValueSettingComponent ()
     //[UserPreSize]
 
 	valueLabel->setFont (GLOBAL_FONT());
-	descriptionLabel->setFont (GLOBAL_FONT());
+	descriptionLabel->setFont (GLOBAL_BOLD_FONT());
 
 	valueLabel->addMouseListener(this, true);
 	descriptionLabel->addMouseListener(this, true);
@@ -114,8 +114,8 @@ void ValueSettingComponent::resized()
 {
     valueLabel->setBounds ((getWidth() / 2) - ((getWidth() - 36) / 2), 15, getWidth() - 36, 16);
     descriptionLabel->setBounds ((getWidth() / 2) - ((proportionOfWidth (1.0000f)) / 2), -4, proportionOfWidth (1.0000f), 24);
-    minusButton->setBounds (1, 15, 16, 16);
-    plusButton->setBounds (getWidth() - 1 - 16, 15, 16, 16);
+    minusButton->setBounds (1, 14, 16, 18);
+    plusButton->setBounds (getWidth() - 1 - 16, 14, 16, 18);
     //[UserResized] Add your own custom resize handling here..
     //[/UserResized]
 }

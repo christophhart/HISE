@@ -521,12 +521,8 @@ public:
 	double getBpm() const noexcept { return bpm > 0.0 ? bpm : 120.0; };
 
 	/** skins the given component (applies the global look and feel to it). */
-	void skin(Component &c)
-	{
-		c.setLookAndFeel(mainLookAndFeel);
-		
-		if(dynamic_cast<Slider*>(&c) != nullptr) dynamic_cast<Slider*>(&c)->setScrollWheelEnabled(false);
-	};
+    void skin(Component &c);
+	
 
 	
 

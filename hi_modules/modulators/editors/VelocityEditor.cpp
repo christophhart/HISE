@@ -50,7 +50,7 @@ VelocityEditorBody::VelocityEditorBody (BetterProcessorEditor *p)
 
     addAndMakeVisible (label = new Label ("new label",
                                           TRANS("velocity")));
-    label->setFont (Font ("Arial Unicode MS", 24.00f, Font::bold));
+    label->setFont (GLOBAL_BOLD_FONT().withHeight(26.0f));
     label->setJustificationType (Justification::centredRight);
     label->setEditable (false, false, false);
     label->setColour (Label::textColourId, Colour (0x52ffffff));
@@ -60,6 +60,8 @@ VelocityEditorBody::VelocityEditorBody (BetterProcessorEditor *p)
 
     //[UserPreSize]
 
+    label->setFont (GLOBAL_BOLD_FONT().withHeight(26.0f));
+    
 	vm = static_cast<VelocityModulator*>(getProcessor());
 
 	getProcessor()->getMainController()->skin(*invertedButton);

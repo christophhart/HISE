@@ -479,6 +479,17 @@ void MainController::setPlotter(Plotter *p)
 	plotter = p;
 };
 
+void MainController::skin(Component &c)
+{
+    c.setLookAndFeel(mainLookAndFeel);
+    
+    c.setColour(MacroControlledObject::HiBackgroundColours::upperBgColour, Colour(0x66333333));
+    c.setColour(MacroControlledObject::HiBackgroundColours::lowerBgColour, Colour(0xfb111111));
+    c.setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, Colours::white.withAlpha(0.3f));
+    
+    if(dynamic_cast<Slider*>(&c) != nullptr) dynamic_cast<Slider*>(&c)->setScrollWheelEnabled(false);
+};
+
 
 
 void MainController::setCurrentViewChanged()

@@ -88,6 +88,8 @@ CurveEqEditor::CurveEqEditor (BetterProcessorEditor *p)
 
     //[UserPreSize]
 
+    label->setFont(GLOBAL_BOLD_FONT().withHeight(26.0f));
+    
 	currentlySelectedFilterBand = -1;
 
 	numFilters = 0;

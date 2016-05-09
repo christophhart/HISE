@@ -41,6 +41,9 @@ BackendCommandTarget(static_cast<BackendProcessor*>(ownerProcessor)),
 owner(static_cast<BackendProcessor*>(getAudioProcessor())),
 rootEditorIsMainSynthChain(true)
 {
+    
+    
+    
 	setOpaque(true);
 
 	setEditor(this);

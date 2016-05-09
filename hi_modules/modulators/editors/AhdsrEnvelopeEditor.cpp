@@ -212,6 +212,8 @@ AhdsrEnvelopeEditor::AhdsrEnvelopeEditor (BetterProcessorEditor *p)
 	releaseSlider->setup(getProcessor(), AhdsrEnvelope::Release, "Release Time");
 	releaseSlider->setMode(HiSlider::Time);
 
+    label->setFont (GLOBAL_BOLD_FONT().withHeight(26.0f));
+    
     //[/UserPreSize]
 
     setSize (850, 170);

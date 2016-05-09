@@ -75,7 +75,7 @@ void ModuleBrowser::ModuleItem::paint(Graphics& g)
 	Colour textColour = Colours::white.withAlpha(.7f);
 	g.setColour(textColour);
 
-	g.setFont(GLOBAL_FONT());
+	g.setFont(GLOBAL_BOLD_FONT());
 
 	g.drawText(name, 0, 0, getWidth(), getHeight(), Justification::centred);
 }
@@ -134,7 +134,7 @@ id(id_),
 name(name_),
 state(Inactive)
 {
-	setSize(380 - 16 - 8 - 24, 20);
+	setSize(380 - 16 - 8 - 24, ITEM_HEIGHT);
 }
 
 void ModuleBrowser::ModuleItem::setParameters(const ValueTree &v)

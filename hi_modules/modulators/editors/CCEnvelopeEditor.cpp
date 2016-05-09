@@ -148,6 +148,8 @@ CCEnvelopeEditor::CCEnvelopeEditor (BetterProcessorEditor *pe)
 	fixedNoteOffButton->setup(getProcessor(), CCEnvelope::FixedNoteOff, "Fixed Note Off");
 
 
+    label->setFont (GLOBAL_BOLD_FONT().withHeight(26.0f));
+    
 	getProcessor()->getMainController()->skin(*useTableButton);
 	getProcessor()->getMainController()->skin(*learnButton);
 

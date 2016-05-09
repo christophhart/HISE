@@ -36,7 +36,7 @@
 #define NUM_MAX_CHARS 128
 
 #define COLLECTION_HEIGHT 40
-#define ITEM_HEIGHT 20
+#define ITEM_HEIGHT 22
 
 #define COLLECTION_WIDTH 380
 #define ITEM_WIDTH (380 - 16 - 8 - 24)

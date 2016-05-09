@@ -80,6 +80,7 @@ CCDuckerEditor::CCDuckerEditor (BetterProcessorEditor *p)
 	timeSlider->setup(getProcessor(), CCDucker::DuckingTime, "Ducking Time");
 	timeSlider->setMode(HiSlider::Time);
 
+        
     //[/UserPreSize]
 
     setSize (850, 200);

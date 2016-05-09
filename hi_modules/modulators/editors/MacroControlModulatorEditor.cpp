@@ -83,7 +83,8 @@ MacroControlModulatorEditorBody::MacroControlModulatorEditorBody (BetterProcesso
 
 	valueTable->connectToLookupTableProcessor(getProcessor());
 
-
+    label->setFont (GLOBAL_BOLD_FONT().withHeight(26.0f));
+    
     //[/UserPreSize]
 
     setSize (800, 210);

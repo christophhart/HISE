@@ -91,6 +91,18 @@ namespace FrontendBinaryData
 		222, 67, 108, 0, 163, 4, 67, 93, 46, 226, 67, 108, 0, 54, 251, 66, 93, 46, 226, 67, 108, 0, 54, 251, 66, 93, 180, 222, 67, 99, 101, 0, 0 };
 
 
+    extern const char*   oxygen_bold_ttf;
+    const int            oxygen_bold_ttfSize = 48812;
+    
+    extern const char*   oxygen_regular_ttf;
+    const int            oxygen_regular_ttfSize = 48092;
+
+    extern const char*   SourceCodeProBold_otf;
+    const int            SourceCodeProBold_otfSize = 143932;
+
+    extern const char*   SourceCodeProRegular_otf;
+    const int            SourceCodeProRegular_otfSize = 140088;
+    
 
 }
 

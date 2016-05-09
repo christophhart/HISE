@@ -30,6 +30,7 @@
 *   ===========================================================================
 */
 
+#include <regex>
 
 //==============================================================================
 ScriptingEditor::ScriptingEditor (BetterProcessorEditor *p)
@@ -65,7 +66,7 @@ ScriptingEditor::ScriptingEditor (BetterProcessorEditor *p)
 
     addAndMakeVisible (timeLabel = new Label ("new label",
                                               TRANS("2.5 microseconds")));
-    timeLabel->setFont (Font ("Khmer UI", 12.40f, Font::plain));
+    timeLabel->setFont (GLOBAL_BOLD_FONT());
     timeLabel->setJustificationType (Justification::centredLeft);
     timeLabel->setEditable (false, false, false);
     timeLabel->setColour (Label::textColourId, Colours::white);
@@ -80,6 +81,7 @@ ScriptingEditor::ScriptingEditor (BetterProcessorEditor *p)
     noteOnButton->setColour (TextButton::buttonOnColourId, Colour (0xff680000));
     noteOnButton->setColour (TextButton::textColourOnId, Colour (0x77ffffff));
     noteOnButton->setColour (TextButton::textColourOffId, Colour (0x45ffffff));
+    noteOnButton->setLookAndFeel(&alaf);
 
     addAndMakeVisible (noteOffButton = new TextButton ("new button"));
     noteOffButton->setButtonText (TRANS("onNoteOff"));
@@ -89,6 +91,7 @@ ScriptingEditor::ScriptingEditor (BetterProcessorEditor *p)
     noteOffButton->setColour (TextButton::buttonOnColourId, Colour (0xff680000));
     noteOffButton->setColour (TextButton::textColourOnId, Colour (0x77ffffff));
     noteOffButton->setColour (TextButton::textColourOffId, Colour (0x45ffffff));
+    noteOffButton->setLookAndFeel(&alaf);
 
     addAndMakeVisible (onControllerButton = new TextButton ("new button"));
     onControllerButton->setButtonText (TRANS("onController"));
@@ -98,6 +101,7 @@ ScriptingEditor::ScriptingEditor (BetterProcessorEditor *p)
     onControllerButton->setColour (TextButton::buttonOnColourId, Colour (0xff680000));
     onControllerButton->setColour (TextButton::textColourOnId, Colour (0x77ffffff));
     onControllerButton->setColour (TextButton::textColourOffId, Colour (0x45ffffff));
+    onControllerButton->setLookAndFeel(&alaf);
 
     addAndMakeVisible (onTimerButton = new TextButton ("new button"));
     onTimerButton->setButtonText (TRANS("onTimer"));
@@ -107,6 +111,7 @@ ScriptingEditor::ScriptingEditor (BetterProcessorEditor *p)
     onTimerButton->setColour (TextButton::buttonOnColourId, Colour (0xff680000));
     onTimerButton->setColour (TextButton::textColourOnId, Colour (0x77ffffff));
     onTimerButton->setColour (TextButton::textColourOffId, Colour (0x45ffffff));
+    onTimerButton->setLookAndFeel(&alaf);
 
     addAndMakeVisible (onInitButton = new TextButton ("new button"));
     onInitButton->setButtonText (TRANS("onInit"));
@@ -116,6 +121,7 @@ ScriptingEditor::ScriptingEditor (BetterProcessorEditor *p)
     onInitButton->setColour (TextButton::buttonOnColourId, Colour (0xff680000));
     onInitButton->setColour (TextButton::textColourOnId, Colour (0x77ffffff));
     onInitButton->setColour (TextButton::textColourOffId, Colour (0x45ffffff));
+    onInitButton->setLookAndFeel(&alaf);
 
     addAndMakeVisible (onControlButton = new TextButton ("new button"));
     onControlButton->setButtonText (TRANS("onControl"));
@@ -125,7 +131,8 @@ ScriptingEditor::ScriptingEditor (BetterProcessorEditor *p)
     onControlButton->setColour (TextButton::buttonOnColourId, Colour (0xff680000));
     onControlButton->setColour (TextButton::textColourOnId, Colour (0x77ffffff));
     onControlButton->setColour (TextButton::textColourOffId, Colour (0x45ffffff));
-
+    onControlButton->setLookAndFeel(&alaf);
+    
     addAndMakeVisible (contentButton = new TextButton ("new button"));
     contentButton->setButtonText (TRANS("Content"));
     contentButton->setConnectedEdges (Button::ConnectedOnRight);
@@ -134,6 +141,7 @@ ScriptingEditor::ScriptingEditor (BetterProcessorEditor *p)
     contentButton->setColour (TextButton::buttonOnColourId, Colour (0xffb4b4b4));
     contentButton->setColour (TextButton::textColourOnId, Colour (0x77ffffff));
     contentButton->setColour (TextButton::textColourOffId, Colour (0x45ffffff));
+    contentButton->setLookAndFeel(&alaf);
 
 	ScriptProcessor *sp = dynamic_cast<ScriptProcessor*>(getProcessor());
 	
@@ -143,7 +151,7 @@ ScriptingEditor::ScriptingEditor (BetterProcessorEditor *p)
 		//static_cast<ScriptProcessor*>(getProcessor())->showPopupForFile(0);
 	}
 
-    timeLabel->setFont (GLOBAL_FONT());
+    timeLabel->setFont (GLOBAL_BOLD_FONT());
 
 	messageBox->setFont(GLOBAL_MONOSPACE_FONT());
 
@@ -698,10 +706,14 @@ void ScriptingEditor::mouseDown(const MouseEvent &e)
 
 bool ScriptingEditor::keyPressed(const KeyPress &k)
 {
-	if (k.isKeyCode(KeyPress::F3Key) || k.isKeyCode(KeyPress::F2Key))
+#if JUCE_WINDOWS
+	if ((k.isKeyCode(KeyPress::leftKey) || k.isKeyCode(KeyPress::rightKey)) && k.getModifiers().isCtrlDown() && k.getModifiers().isAltDown())
+#else
+    if ((k.isKeyCode(KeyPress::leftKey) || k.isKeyCode(KeyPress::rightKey)) && k.getModifiers().isCtrlDown() && k.getModifiers().isCommandDown())
+#endif
 	{
 		int current = getActiveCallback();
-		if(k.isKeyCode(KeyPress::F2Key)) current--;
+        if(k.isKeyCode(KeyPress::F2Key) || k.isKeyCode(KeyPress::leftKey)) current--;
 		else							 current++;
 
 		if (current >= ScriptProcessor::onInit && current < ScriptProcessor::Callback::numCallbacks)
@@ -776,6 +788,44 @@ void ScriptingEditor::compileScript()
 	else
 	{
 		messageBox->setText(s->getSnippet(resultMessage.c)->getCallbackName().toString() + "() - " + resultMessage.r.getErrorMessage(), false);
+        
+        
+        try
+        {
+            std::string error = resultMessage.r.getErrorMessage().toStdString();
+            
+            std::regex reg(".*Line ([0-9]*), column ([0-9]*) :.*");
+            
+            std::smatch match;
+            
+            if (std::regex_search(error, match, reg))
+            {
+                StringArray sa;
+                for (auto x:match)
+                {
+                    sa.insert(-1, String(x));
+                }
+            
+                Button *b = getSnippetButton(resultMessage.c);
+                
+                if(!b->getToggleState())
+                {
+                    buttonClicked(b);
+                }
+                
+                CodeDocument::Position errorPos(*s->getSnippet(resultMessage.c), sa[1].getIntValue()-1, sa[2].getIntValue()-1);
+                
+                codeEditor->editor->moveCaretTo(errorPos, false);
+                
+                DBG(sa[1]);
+                DBG(sa[2]);
+            }
+        }
+        catch (std::regex_error e)
+        {
+            jassertfalse;
+        }
+        
 	}
 
 	checkActiveSnippets();

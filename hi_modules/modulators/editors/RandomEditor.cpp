@@ -62,6 +62,7 @@ RandomEditorBody::RandomEditorBody (BetterProcessorEditor *p)
 
 	midiTable->connectToLookupTableProcessor(getProcessor());
 
+    label->setFont (GLOBAL_BOLD_FONT().withHeight(26.0f));
 
 
     //[/UserPreSize]

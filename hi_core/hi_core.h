@@ -43,6 +43,8 @@
 #include "../JUCE/modules/juce_gui_extra/juce_gui_extra.h"
 #include "../JUCE/modules/juce_tracktion_marketplace/juce_tracktion_marketplace.h"
 
+#include "hi_binary_data/hi_binary_data.h"
+
 #include "LibConfig.h"
 #include "Macros.h"
 
@@ -110,7 +112,7 @@ For all defined variables:
 *	New files must be added in the specific subfolder header / .cpp file.
 */
 
-#include "hi_binary_data/hi_binary_data.h"
+
 #include "hi_core/hi_core.h"
 #include "hi_components/hi_components.h"
 #include "hi_dsp/hi_dsp.h"

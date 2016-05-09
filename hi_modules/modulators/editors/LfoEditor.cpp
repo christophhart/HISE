@@ -125,6 +125,8 @@ LfoEditorBody::LfoEditorBody (BetterProcessorEditor *p)
 
 	waveformTable->connectToLookupTableProcessor(getProcessor());
 
+    label->setFont (GLOBAL_BOLD_FONT().withHeight(26.0f));
+    
     //[/UserPreSize]
 
     setSize (800, 255);

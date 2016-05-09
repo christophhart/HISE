@@ -195,7 +195,7 @@ private:
 #if JUCE_WINDOWS
 		return GLOBAL_FONT().withHeight(15.0f);
 #else
-		return GLOBAL_FONT();
+		return GLOBAL_BOLD_FONT();
 #endif
 	};
 
@@ -243,9 +243,109 @@ private:
 		g.setColour(findColour(PopupMenu::textColourId));
 		//g.drawRoundedRectangle(0.0f, 0.0f, (float)width, (float)height, 4.0f, 0.5f);
 #endif
-
-
 	}
+    
+    
+    void drawPopupMenuItem (Graphics& g, const Rectangle<int>& area,
+                                            const bool isSeparator, const bool isActive,
+                                            const bool isHighlighted, const bool isTicked,
+                                            const bool hasSubMenu, const String& text,
+                                            const String& shortcutKeyText,
+                                            const Drawable* icon, const Colour* const textColourToUse)
+    {
+        if (isSeparator)
+        {
+            Rectangle<int> r (area.reduced (0, 0));
+            r.removeFromTop (r.getHeight() / 2 - 1);
+            
+            g.setColour (Colour(0x55999999));
+            g.fillRect (r.removeFromTop (1));
+        }
+        else
+        {
+            Colour textColour (findColour (PopupMenu::textColourId));
+            
+            if (textColourToUse != nullptr)
+                textColour = *textColourToUse;
+            
+            Rectangle<int> r (area.reduced (1));
+            
+            if (isHighlighted)
+            {
+                g.setColour (findColour (PopupMenu::highlightedBackgroundColourId));
+                g.fillRect (r);
+                
+                g.setColour (findColour (PopupMenu::highlightedTextColourId));
+            }
+            else
+            {
+                g.setColour (textColour);
+            }
+            
+            if (! isActive)
+                g.setOpacity (0.3f);
+            
+            Font font (getPopupMenuFont());
+            
+            const float maxFontHeight = area.getHeight() / 1.3f;
+            
+            if (font.getHeight() > maxFontHeight)
+                font.setHeight (maxFontHeight);
+            
+            g.setFont (font);
+            
+            Rectangle<float> iconArea (r.removeFromLeft ((r.getHeight() * 5) / 4).reduced (3).toFloat());
+            
+            if (icon != nullptr)
+            {
+                icon->drawWithin (g, iconArea, RectanglePlacement::centred | RectanglePlacement::onlyReduceInSize, 1.0f);
+            }
+            else if (isTicked)
+            {
+                const Path tick (getTickShape (1.0f));
+                g.fillPath (tick, tick.getTransformToScaleToFit (iconArea, true));
+            }
+            
+            if (hasSubMenu)
+            {
+                const float arrowH = 0.6f * getPopupMenuFont().getAscent();
+                
+                const float x = (float) r.removeFromRight ((int) arrowH).getX();
+                const float halfH = (float) r.getCentreY();
+                
+                Path p;
+                p.addTriangle (x, halfH - arrowH * 0.5f,
+                               x, halfH + arrowH * 0.5f,
+                               x + arrowH * 0.6f, halfH);
+                
+                g.fillPath (p);
+            }
+            
+            r.removeFromRight (3);
+            g.drawFittedText (text, r, Justification::centredLeft, 1);
+            
+            if (shortcutKeyText.isNotEmpty())
+            {
+                Font f2 (font);
+                f2.setHeight (f2.getHeight() * 0.75f);
+                f2.setHorizontalScale (0.95f);
+                g.setFont (f2);
+                
+                g.drawText (shortcutKeyText, r, Justification::centredRight, true);
+            }
+        }
+    }
+    
+    void drawPopupMenuSectionHeader (Graphics& g, const Rectangle<int>& area, const String& sectionName)
+    {
+        g.setFont (getPopupMenuFont());
+        g.setColour (Colours::white);
+        
+        g.drawFittedText (sectionName,
+                          area.getX() + 12, area.getY(), area.getWidth() - 16, (int) (area.getHeight() * 0.8f),
+                          Justification::bottomLeft, 1);
+    }
+    
 };
 
 
@@ -679,8 +779,13 @@ public:
 
 	Font getAlertWindowMessageFont () override
 	{
-		return GLOBAL_FONT();
+		return GLOBAL_BOLD_FONT();
 	}
+    
+    virtual Font 	getAlertWindowTitleFont () override
+    {
+        return GLOBAL_BOLD_FONT().withHeight(17.0f);
+    }
 
 	Font getTextButtonFont (TextButton &, int /*buttonHeight*/) override
 	{
@@ -694,7 +799,7 @@ public:
 
 	Font getPopupMenuFont() override
 	{
-		return GLOBAL_FONT();
+		return GLOBAL_BOLD_FONT();
 	};
 
 	void drawPopupMenuBackground(Graphics& g, int width, int height) override
@@ -745,7 +850,7 @@ public:
  
 	Font getAlertWindowFont () override
 	{
-		return GLOBAL_FONT();
+		return GLOBAL_BOLD_FONT();
 	};
 
 	void setColourIdsForAlertWindow(AlertWindow &window)
@@ -1161,12 +1266,12 @@ public:
 
 	Font getTextButtonFont (TextButton&, int /*buttonHeight*/) override
 	{
-		return GLOBAL_FONT();
+		return GLOBAL_BOLD_FONT();
 	}
 
 	void drawButtonText(Graphics& g, TextButton& button, bool /*isMouseOverButton*/, bool /*isButtonDown*/) override
 	{		
-		g.setFont(GLOBAL_FONT());
+		g.setFont(GLOBAL_BOLD_FONT());
 		g.setColour(button.findColour(button.getToggleState() ? TextButton::textColourOnId
 			: TextButton::textColourOffId)
 			.withMultipliedAlpha(button.isEnabled() ? 1.0f : 0.5f));

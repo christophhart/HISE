@@ -126,15 +126,7 @@ void SimpleEnvelopeEditorBody::paint (Graphics& g)
     
     g.setColour (Colour (0x66FFFFFF));
     
-#if JUCE_WINDOWS
-    
-    g.setFont (Font ("Arial", 24.00f, Font::bold));
-    
-#else
-
-    g.setFont (Font ("Helvetica", 20.00f, Font::bold));
-    
-#endif
+    g.setFont (GLOBAL_BOLD_FONT().withHeight(26.0f));
     
     g.drawText (getProcessor()->getName().toLowerCase(),
                 getWidth() - 53 - 500, 6, 500, 40,

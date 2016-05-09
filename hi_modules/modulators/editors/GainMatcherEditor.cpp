@@ -64,7 +64,7 @@ GainMatcherEditor::GainMatcherEditor (BetterProcessorEditor *pe)
 
 	setItemEntry();
 
-
+    
     //[/UserPreSize]
 
     setSize (900, 200);

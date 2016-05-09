@@ -71,6 +71,8 @@ ConvolutionEditor::ConvolutionEditor (BetterProcessorEditor *p)
 
     //[UserPreSize]
 
+    label->setFont(GLOBAL_BOLD_FONT().withHeight(26.0f));
+    
 	drySlider->setup(getProcessor(), ConvolutionEffect::DryGain, "Dry Level");
 	drySlider->setMode(HiSlider::Decibel);
 
