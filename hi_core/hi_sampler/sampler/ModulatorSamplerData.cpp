@@ -307,6 +307,8 @@ ValueTree SampleMap::exportAsValueTree() const
 
 	StringArray absoluteFileNames;
 
+	bool warnIfUseAbsolutePathsInProjects = true;
+
 	for(int i = 0; i < sampler->getNumSounds(); i++)
 	{
 		ValueTree soundTree = sampler->getSound(i)->exportAsValueTree();
@@ -314,6 +316,20 @@ ValueTree SampleMap::exportAsValueTree() const
 		if(saveRelativePaths)
 		{
 			File soundFile = File(soundTree.getProperty("FileName", String::empty));
+
+			if (warnIfUseAbsolutePathsInProjects)
+			{
+				warnIfUseAbsolutePathsInProjects = !soundFile.isAChildOf(GET_PROJECT_HANDLER(sampler).getSubDirectory(ProjectHandler::SubDirectories::Samples));
+			}
+
+			if (warnIfUseAbsolutePathsInProjects)
+			{
+				if (PresetHandler::showYesNoWindow("Absolute file paths when using project", "You are using external samples without redirecting the sample folder (or outside the redirecting location). The preset can't be loaded on another machine. Press OK to choose a root sample folder or Cancel to ignore this.", PresetHandler::IconType::Warning))
+				{
+					sampler->getMainController()->getCommandManager()->invokeDirectly(BackendCommandTarget::MenuToolsRedirectSampleFolder, false);
+				}
+			}
+
 			absoluteFileNames.add(getSampleDirectory() + soundFile.getFileName());
 			
 			soundTree.setProperty("FileName", soundFile.getFileName(), nullptr);

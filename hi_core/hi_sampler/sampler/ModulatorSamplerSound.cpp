@@ -780,6 +780,16 @@ class SampleResolver : public ThreadWithAsyncProgressWindow
 {
 public:
 
+    class HorizontalSpacer: public Component
+    {
+    public:
+        
+        HorizontalSpacer()
+        {
+            setSize(900, 2);
+        }
+    };
+    
 	SampleResolver(ModulatorSamplerSoundPool *pool_, Processor *synthChain_):
 		ThreadWithAsyncProgressWindow("Sample Resolver"),
 		pool(pool_),
@@ -789,7 +799,7 @@ public:
 
 		if (missingSounds.size() == 0)
 		{
-			showStatusMessage("No missing samples detected.");
+			
 			addBasicComponents(false);
 		}
 		else
@@ -800,13 +810,13 @@ public:
 
 			String text = "Remaining missing sounds: " + String(remainingSounds) + " / " + String(numMissingSounds) + " missing sounds.";
 
-			showStatusMessage(text);
+            addCustomComponent(spacer = new HorizontalSpacer());
 
 			String fileNames = missingSounds[0]->getFileName(true);
             
             String path;
 
-            if(File::isAbsolutePath(fileNames))
+            if(ProjectHandler::isAbsolutePathCrossPlatform(fileNames))
             {
                 path = File(fileNames).getParentDirectory().getFullPathName();
 
@@ -814,12 +824,20 @@ public:
             else path = fileNames;
             
 			addTextEditor("fileNames", fileNames, "Filenames:");
-
-			addTextEditor("search", path, "Search for:");
+           
+            addTextEditor("search", path, "Search for:");
 			addTextEditor("replace", path, "Replace with:");
-
-			addBasicComponents(true);
+            
+            addButton("Search in Finder", 5);
+            
+            addBasicComponents(true);
+            
+            
+            
+            showStatusMessage(text);
 		}
+        
+
 	};
 
 
@@ -895,21 +913,58 @@ public:
 	{
 		if (errorMessage.isEmpty())
 		{
-			PresetHandler::showMessageWindow("Missing Samples resolved", String(numMissingSounds - remainingSounds) + " out of " + String(numMissingSounds) + " were resolved.");
+			PresetHandler::showMessageWindow("Missing Samples resolved", String(numMissingSounds - remainingSounds) + " out of " + String(numMissingSounds) + " were resolved.", PresetHandler::IconType::Info);
 		}
 		else
 		{
-			PresetHandler::showMessageWindow("Error", errorMessage);
+			PresetHandler::showMessageWindow("Error", errorMessage, PresetHandler::IconType::Error);
 		}
 
 		pool->setUpdatePool(true);
 		pool->sendChangeMessage();
 	}
+    
+    void resultButtonClicked(const String &name) override
+    {
+        if(name == "Search in Finder")
+        {
+            String file = getTextEditor("fileNames")->getText();
+            
+            file.replace("\\", "/");
+            
+            String fileName = file.fromLastOccurrenceOf("/", false, false);
+            String pathName = file.upToLastOccurrenceOf("/", true, false);
+            
+#if JUCE_WINDOWS
+            String dialogName = "Explorer";
+#else
+            String dialogName = "Finder";
+#endif
+            
+            PresetHandler::showMessageWindow("Search file", "Search for the sample:\n\n"+fileName +"\n\nPress OK to open the " + dialogName, PresetHandler::IconType::Info);
+            
+            FileChooser fc("Search sample location " + fileName);
+            
+            if(fc.browseForFileToOpen())
+            {
+                File f = fc.getResult();
+
+				
+                
+                String newPath = f.getFullPathName().replaceCharacter('\\', '/').upToLastOccurrenceOf("/", true, false);;
+                
+                getTextEditor("search")->setText(pathName);
+                getTextEditor("replace")->setText(newPath);
+            }
+        }
+    };
 
 private:
 
 	Array<StreamingSamplerSound*> missingSounds;
 
+    ScopedPointer<HorizontalSpacer> spacer;
+    
 	int remainingSounds;
 	int numMissingSounds;
 
@@ -930,7 +985,7 @@ void ModulatorSamplerSoundPool::resolveMissingSamples(Component *childComponentO
 	if(editor == nullptr) editor = childComponentOfMainEditor->findParentComponentOfClass<BackendProcessorEditor>();
 
 	SampleResolver *r = new SampleResolver(this, editor->getMainSynthChain());
-
+    
 	r->setModalComponentOfMainEditor(childComponentOfMainEditor);
 
 #else 
