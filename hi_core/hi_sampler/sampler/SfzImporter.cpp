@@ -77,6 +77,24 @@ ModulatorSamplerSound::Property SfzImporter::getSamplerProperty(Opcode opcode)
 	};
 }
 
+int getNoteNumberFromNameOrNumber(const String &data)
+{
+    if(RegexFunctions::matchesWildcard("[A-Ga-g]#?-?[0-9]", data))
+    {
+        const String noteName = data.toUpperCase();
+        
+        for(int i = 0; i < 127; i++)
+        {
+            if(noteName.contains(MidiMessage::getMidiNoteName(i, true, true, 3)))
+            {
+                return i;
+            }
+        }
+        return -1;
+    }
+    
+    return data.getIntValue();
+}
 
 var SfzImporter::getOpcodeValue(Opcode o, const String &valueString) const
 {
@@ -84,6 +102,9 @@ var SfzImporter::getOpcodeValue(Opcode o, const String &valueString) const
 	{
 	case sample:		return var(fileToImport.getParentDirectory().getFullPathName() + "/" + valueString);
 	case loop_mode:		return (valueString == "loop_continuous") ? var(1) : var(0);
+    case lokey:
+    case hikey:
+    case pitch_keycenter: return var(getNoteNumberFromNameOrNumber(valueString));
 	default:			return var(valueString.getIntValue());
 	}
 }
