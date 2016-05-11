@@ -1687,7 +1687,8 @@ public:
 			{
 				ValueTree v = ScriptComponent::exportAsValueTree();
 
-				v.setProperty("data", getTable()->exportData(), nullptr);
+				if (getTable() != nullptr) v.setProperty("data", getTable()->exportData(), nullptr);
+				else jassertfalse;
 				
 				return v;
 			}
