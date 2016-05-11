@@ -238,7 +238,7 @@ void PresetLoadingThread::run()
 
 		if (presetVersion > BUILD_SUB_VERSION)
 		{
-			PresetHandler::showMessageWindow("Version mismatch", "The preset was built with a newer the build of HISE: " + String(presetVersion) + ". To ensure perfect compatibility, update to at least this build.");
+			PresetHandler::showMessageWindow("Version mismatch", "The preset was built with a newer the build of HISE: " + String(presetVersion) + ". To ensure perfect compatibility, update to at least this build.", PresetHandler::IconType::Warning);
 		}
 
 		setProgress(0.5);
@@ -712,7 +712,7 @@ void SettingWindows::checkAllSettings(ProjectHandler *handler)
 
 	if (missingNames.size() != 0)
 	{
-		if (PresetHandler::showYesNoWindow("Missing settings found", "Missing Settings:\n\n" + missingNames.joinIntoString("\n") + "\n\nPress OK to open setting windows"))
+		if (PresetHandler::showYesNoWindow("Missing settings found", "Missing Settings:\n\n" + missingNames.joinIntoString("\n") + "\n\nPress OK to open setting windows", PresetHandler::IconType::Warning))
 		{
 			if (missingProjectSettings)
 			{

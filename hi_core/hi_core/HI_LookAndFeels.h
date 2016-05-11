@@ -774,7 +774,7 @@ public:
 		setColour(PopupMenu::ColourIds::textColourId, bright);
 		setColour(PopupMenu::ColourIds::highlightedBackgroundColourId, bright);
 		setColour(PopupMenu::ColourIds::highlightedTextColourId, dark);
-		setColour(PopupMenu::ColourIds::headerTextColourId, bright);
+		setColour(PopupMenu::ColourIds::headerTextColourId, dark);
 	}
 
 	Font getAlertWindowMessageFont () override
@@ -900,31 +900,7 @@ public:
 
 	}
 
-	void drawAlertBox (Graphics &g, AlertWindow &alert, const Rectangle< int > &textArea, juce::TextLayout &textLayout) override
-	{
-		ColourGradient grad(dark.withMultipliedBrightness(1.4f), 0.0f, 0.0f,
-						dark, 0.0f, (float)alert.getHeight(), false);
-
-		g.setGradientFill(grad);
-		g.fillAll ();
-
-		g.setColour (bright);
-
-		for(int i = 0; i < textLayout.getNumLines(); i++)
-		{
-			textLayout.getLine(i).runs.getUnchecked(0)->colour = bright;
-		}
-
-		textLayout.draw (g, Rectangle<int> (textArea.getX(),
-											textArea.getY(),
-											textArea.getWidth(),
-											textArea.getHeight()).toFloat());
-
-		g.setColour (bright);
-		g.drawRect (0, 0, alert.getWidth(), alert.getHeight());
-
-
-	};
+	void drawAlertBox (Graphics &g, AlertWindow &alert, const Rectangle< int > &textArea, juce::TextLayout &textLayout) override;;
 
 private:
 

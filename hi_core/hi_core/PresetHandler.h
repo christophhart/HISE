@@ -230,6 +230,15 @@ public:
 
 	String getPrivateKey() const;
 
+    /** checks if this is a absolute path (including absolute win paths on OSX and absolute OSX paths on windows); */
+    static bool isAbsolutePathCrossPlatform(const String &pathName)
+    {
+        const bool isAbsoluteWindowsPath = pathName.containsChar(':');
+        const bool isAbsoluteOSXPath = pathName.startsWithChar('/');
+        
+        return isAbsoluteWindowsPath || isAbsoluteOSXPath || File::isAbsolutePath(pathName);
+    }
+    
 	class Frontend
 	{
 	public:
@@ -334,6 +343,15 @@ class PresetHandler
 {
 public:
 
+	enum class IconType
+	{
+		Info = 0,
+		Warning,
+		Question,
+		Error,
+		numIconTypes
+	};
+
 	/** Saves the Processor into a subfolder of the directory provided with getPresetFolder(). */
 	static void saveProcessorAsPreset(Processor *p, const String &directory=String::empty);
 	
@@ -343,10 +361,10 @@ public:
 	static String getCustomName(const String &typeName);
 
 	/** Opens a Yes/No box (HI Style) */
-	static bool showYesNoWindow(const String &title, const String &message);
+	static bool showYesNoWindow(const String &title, const String &message, IconType icon=IconType::Question);
 
 	/** Opens a message box (HI Style) */
-	static void showMessageWindow(const String &title, const String &message);
+	static void showMessageWindow(const String &title, const String &message, IconType icon=IconType::Info);
 
 
 	/** Checks if an child processor has a already taken name. If silentMode is false, it will display a message box at the end. */
@@ -585,7 +603,7 @@ public:
 		
 		if (!returnPath.exists())
 		{
-			showMessageWindow("The Preset Folder was not found", "The preset folder 'Hart Instruments/SynthPresets' was not found. It must be in the user documentation folder.");
+			showMessageWindow("The Preset Folder was not found", "The preset folder 'Hart Instruments/SynthPresets' was not found. It must be in the user documentation folder.", IconType::Error);
 		}
 
 		return returnPath;
@@ -596,7 +614,7 @@ public:
 
 		if (!returnPath.exists())
 		{
-			showMessageWindow("The Preset Folder was not found", "The preset folder 'Hart Instruments/SynthPresets' was not found. It must be in the user's 'Library/Application Support' folder.");
+			showMessageWindow("The Preset Folder was not found", "The preset folder 'Hart Instruments/SynthPresets' was not found. It must be in the user's 'Library/Application Support' folder.", IconType::Error);
 		}
 
 		return returnPath;

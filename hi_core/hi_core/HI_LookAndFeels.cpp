@@ -703,3 +703,31 @@ void FrontendKnobLookAndFeel::drawRotarySlider(Graphics &g, int /*x*/, int /*y*/
 	
 	g.drawImageAt(clip, 0, 0);
 }
+
+void AlertWindowLookAndFeel::drawAlertBox(Graphics &g, AlertWindow &alert, const Rectangle< int > &textArea, juce::TextLayout &textLayout)
+{
+	ColourGradient grad(dark.withMultipliedBrightness(1.4f), 0.0f, 0.0f,
+		dark, 0.0f, (float)alert.getHeight(), false);
+
+	g.setGradientFill(grad);
+	g.fillAll();
+
+	g.setColour(Colours::white.withAlpha(0.1f));
+
+	g.fillRect(0, 0, alert.getWidth(), 37);
+
+	g.setColour(bright);
+
+	for (int i = 0; i < textLayout.getNumLines(); i++)
+	{
+		textLayout.getLine(i).runs.getUnchecked(0)->colour = bright;
+	}
+
+	textLayout.draw(g, Rectangle<int>(textArea.getX(),
+		textArea.getY(),
+		textArea.getWidth(),
+		textArea.getHeight()).toFloat());
+
+	g.setColour(bright);
+	g.drawRect(0, 0, alert.getWidth(), alert.getHeight());
+}

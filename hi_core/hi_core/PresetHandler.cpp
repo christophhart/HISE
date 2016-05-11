@@ -201,18 +201,87 @@ void PresetHandler::copyProcessorToClipboard(Processor *p)
 	debugToConsole(p, p->getId() + " was copied to clipboard.");
 }
 
+class MessageWithIcon : public Component
+{
+public:
+	
+	
+
+	MessageWithIcon(PresetHandler::IconType type, const String &message)
+	{
+		switch (type)
+		{
+		case PresetHandler::IconType::Info: image = ImageCache::getFromMemory(BinaryData::infoInfo_png, BinaryData::infoInfo_pngSize);
+			break;
+		case PresetHandler::IconType::Warning: image = ImageCache::getFromMemory(BinaryData::infoWarning_png, BinaryData::infoWarning_pngSize);
+			break;
+		case PresetHandler::IconType::Question: image = ImageCache::getFromMemory(BinaryData::infoQuestion_png, BinaryData::infoQuestion_pngSize);
+			break;
+		case PresetHandler::IconType::Error: image = ImageCache::getFromMemory(BinaryData::infoError_png, BinaryData::infoError_pngSize);
+			break;
+		case PresetHandler::IconType::numIconTypes: image = Image(); jassertfalse;
+			break;
+		default:
+			break;
+		}
+
+		Font font = GLOBAL_BOLD_FONT();
+
+		StringArray lines = StringArray::fromLines(message);
+
+		bestWidth = 0;
+
+		AttributedString s;
+		
+		s.setJustification(Justification::topLeft);
+		
+		for (int i = 0; i < lines.size(); i++)
+		{
+			bestWidth = jmax<int>(bestWidth, font.getStringWidth(lines[i]));
+			s.append(lines[i] + "\n", i == 0 ? GLOBAL_BOLD_FONT() : GLOBAL_FONT(), Colour(0xFF888888));
+		}
+
+		layout.createLayoutWithBalancedLineLengths(s, bestWidth);
+		setSize(bestWidth + image.getWidth(), jmax<int>(image.getHeight(), (int)(layout.getHeight() + font.getHeight())));
+	}
+
+	void paint(Graphics &g) override
+	{
+
+		g.drawImageAt(image, 0, 0);
+		g.setColour(Colour(0xFF999999));
+		layout.draw(g, Rectangle<float>((float)image.getWidth(), 0.0f, (float)bestWidth, (float)getHeight()));
+	}
+
+private:
+	
+	
+
+private:
+
+	int bestWidth;
+	
+	TextLayout layout;
+
+	Image image;
+};
+
 String PresetHandler::getCustomName(const String &typeName)
 {
 	String message;
 	message << "Enter the unique Name for the ";
 	message << typeName;
-	message << ". CamelCase is recommended.";
+	message << ".\nCamelCase is recommended.";
 
 	AlertWindowLookAndFeel laf;
 
-	ScopedPointer<AlertWindow> nameWindow = new AlertWindow("Enter name for " + typeName, message, AlertWindow::AlertIconType::QuestionIcon);
+	ScopedPointer<MessageWithIcon> comp = new MessageWithIcon(PresetHandler::IconType::Question, message);
+
+	ScopedPointer<AlertWindow> nameWindow = new AlertWindow("Enter name for " + typeName, "", AlertWindow::AlertIconType::NoIcon);
 
 	nameWindow->setLookAndFeel(&laf);
+
+	nameWindow->addCustomComponent(comp);
 
 	nameWindow->addTextEditor("Name", typeName );
 	nameWindow->addButton("OK", 1, KeyPress(KeyPress::returnKey));
@@ -222,14 +291,16 @@ String PresetHandler::getCustomName(const String &typeName)
 	else return String::empty;
 };
 
-bool PresetHandler::showYesNoWindow(const String &title, const String &message)
+bool PresetHandler::showYesNoWindow(const String &title, const String &message, PresetHandler::IconType type)
 {
 	AlertWindowLookAndFeel laf;
 
-	ScopedPointer<AlertWindow> nameWindow = new AlertWindow(title, message, AlertWindow::AlertIconType::NoIcon);
+	ScopedPointer<MessageWithIcon> comp = new MessageWithIcon(type, message);
+
+	ScopedPointer<AlertWindow> nameWindow = new AlertWindow(title, "", AlertWindow::AlertIconType::NoIcon);
 
 	nameWindow->setLookAndFeel(&laf);
-
+	nameWindow->addCustomComponent(comp);
 	
 	nameWindow->addButton("OK", 1, KeyPress(KeyPress::returnKey));
 	nameWindow->addButton("Cancel", 0, KeyPress(KeyPress::escapeKey));
@@ -237,15 +308,16 @@ bool PresetHandler::showYesNoWindow(const String &title, const String &message)
 	return (nameWindow->runModalLoop() == 1);
 };
 
-void PresetHandler::showMessageWindow(const String &title, const String &message)
+void PresetHandler::showMessageWindow(const String &title, const String &message, PresetHandler::IconType type)
 {
 	AlertWindowLookAndFeel laf;
 
-	ScopedPointer<AlertWindow> nameWindow = new AlertWindow(title, message, AlertWindow::AlertIconType::NoIcon);
+	ScopedPointer<MessageWithIcon> comp = new MessageWithIcon(type, message);
+
+	ScopedPointer<AlertWindow> nameWindow = new AlertWindow(title, "", AlertWindow::AlertIconType::NoIcon);
 
 	nameWindow->setLookAndFeel(&laf);
-
-	
+	nameWindow->addCustomComponent(comp);
 	nameWindow->addButton("OK", 1, KeyPress(KeyPress::returnKey));
 
 	nameWindow->runModalLoop();
@@ -274,7 +346,7 @@ void ProjectHandler::createNewProject(const File &workingDirectory)
 	{
 		if (workingDirectory.getNumberOfChildFiles(File::findFilesAndDirectories) != 0)
 		{
-			PresetHandler::showMessageWindow("Directory already exists", "The directory is not empty. Try another one...");
+			PresetHandler::showMessageWindow("Directory already exists", "The directory is not empty. Try another one...", PresetHandler::IconType::Warning);
 			return;
 		}
 	}
@@ -382,7 +454,7 @@ bool ProjectHandler::isValidProjectFolder(const File &file) const
 
 		if (!(sub.exists() && sub.isDirectory()))
 		{
-			if (PresetHandler::showYesNoWindow("Invalid Project Folder", "The subfolder " + sub.getFileName() + " does not exist. Do you want to create it?"))
+			if (PresetHandler::showYesNoWindow("Invalid Project Folder", "The subfolder " + sub.getFileName() + " does not exist. Do you want to create it?", PresetHandler::IconType::Warning))
 			{
 				sub.createDirectory();
 
@@ -440,9 +512,27 @@ File ProjectHandler::checkSubDirectory(SubDirectories dir)
 	{
 		String absolutePath = childFile.loadFileAsString();
 
-		if (File::isAbsolutePath(absolutePath))
+		if (ProjectHandler::isAbsolutePathCrossPlatform(absolutePath))
 		{
-			jassert(File(absolutePath).exists());
+			if(!File(absolutePath).exists())
+            {
+                if(PresetHandler::showYesNoWindow("Missing Sample Folder", "The sample relocation folder does not exist. Press OK to choose a new location or Cancel to ignore this.", PresetHandler::IconType::Warning))
+                {
+                    FileChooser fc("Redirect sample folder to the following location");
+                    
+                    if (fc.browseForDirectory())
+                    {
+                        File f = fc.getResult();
+                        
+                        createLinkFile(ProjectHandler::SubDirectories::Samples, f);
+                        
+                        return f;
+                    }
+                }
+            }
+            
+            
+            
 			return File(absolutePath);
 		}
 	}
@@ -599,7 +689,7 @@ void ProjectHandler::createRSAKey() const
 	if (result == 1)
 	{
 		SystemClipboard::copyTextToClipboard(text);
-		PresetHandler::showMessageWindow("RSA Keys copied to clipboard", "The RSA keys are copied to the clipboard.");
+		PresetHandler::showMessageWindow("RSA Keys copied to clipboard", "The RSA keys are copied to the clipboard.", PresetHandler::IconType::Info);
 	}
 	else if (result == 2)
 	{
@@ -615,7 +705,7 @@ void ProjectHandler::createRSAKey() const
 
 		rsaFile.replaceWithText(xml->createDocument(""));
 
-		PresetHandler::showMessageWindow("RSA keys exported to file", "The RSA Keys are written to the file " + rsaFile.getFullPathName());
+		PresetHandler::showMessageWindow("RSA keys exported to file", "The RSA Keys are written to the file " + rsaFile.getFullPathName(), PresetHandler::IconType::Info);
 	}
 }
 
@@ -693,7 +783,7 @@ void ProjectHandler::setProjectSettings(Component *mainEditor)
 
 String ProjectHandler::getFilePath(const String &pathToFile, SubDirectories subDir) const
 {
-	if (File::isAbsolutePath(pathToFile)) return pathToFile;
+	if (ProjectHandler::isAbsolutePathCrossPlatform(pathToFile)) return pathToFile;
 
     static String id = "{PROJECT_FOLDER}";
  
@@ -738,7 +828,14 @@ const String ProjectHandler::getFileReference(const String &absoluteFileName, Su
 		String fileName = File(absoluteFileName).getRelativePathFrom(subDir);
 #endif
 
-		return id + fileName;
+        if(ProjectHandler::isAbsolutePathCrossPlatform(fileName))
+        {
+            return absoluteFileName;
+        }
+        else
+        {
+            return id + fileName;
+        }
 	}
 	else return absoluteFileName;
 }
@@ -939,7 +1036,7 @@ File PresetHandler::getDirectory(Processor *p)
 File PresetHandler::checkFile(const String &pathName)
 {
 
-	if(!File::isAbsolutePath(pathName))
+	if(!ProjectHandler::isAbsolutePathCrossPlatform(pathName))
 	{
 #if WARN_MISSING_FILE
 		FileChooser fc("Resolve missing reference for " + pathName);
@@ -978,7 +1075,7 @@ File PresetHandler::checkFile(const String &pathName)
 
 File PresetHandler::checkDirectory(const String &pathName)
 {
-	if(!File::isAbsolutePath(pathName))
+	if(!ProjectHandler::isAbsolutePathCrossPlatform(pathName))
 	{
 		FileChooser fc("Resolve missing reference for " + pathName);
 
@@ -1471,12 +1568,7 @@ void AboutPage::paint(Graphics &g)
     g.setColour(Colour(0xFFaaaaaa));
 	g.drawRect(getLocalBounds(), 1);
 
-
-
 	infoData.draw(g, Rectangle<float>(40.0f, aboutHeader.getHeight() + 20, getWidth() - 80.0f, getHeight() - aboutHeader.getHeight() - 20));
-
-
-
 }
 
 

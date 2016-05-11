@@ -483,7 +483,7 @@ File ExternalFileProcessor::getFileForGlobalReference(const String &reference, P
 
 	if (packageName.isEmpty())
 	{
-		PresetHandler::showMessageWindow("Package Name not set", "Press OK to enter the package name");
+		PresetHandler::showMessageWindow("Package Name not set", "Press OK to enter the package name", PresetHandler::IconType::Info);
 		packageName = PresetHandler::getCustomName("Package Name");
 
 		dynamic_cast<Processor*>(this)->getMainController()->getMainSynthChain()->setPackageName(packageName);

@@ -93,7 +93,7 @@ bool CompileExporter::checkSanity(ModulatorSynthChain *chainToExport)
 
 	if (!frontWasFound)
 	{
-		PresetHandler::showMessageWindow("No Interface found.", "You have to add at least one script processor and call Synth.addToFront(true).");
+		PresetHandler::showMessageWindow("No Interface found.", "You have to add at least one script processor and call Synth.addToFront(true).", PresetHandler::IconType::Error);
 		return false;
 	}
 
@@ -105,7 +105,7 @@ bool CompileExporter::checkSanity(ModulatorSynthChain *chainToExport)
 
 	if (!productName.containsOnly("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890 _-"))
 	{
-		PresetHandler::showMessageWindow("Illegal Project name", "The Project name must not contain exotic characters");
+		PresetHandler::showMessageWindow("Illegal Project name", "The Project name must not contain exotic characters", PresetHandler::IconType::Error);
 		return false;
 	}
 
@@ -266,7 +266,7 @@ CompileExporter::ErrorCodes CompileExporter::compileSolution(ModulatorSynthChain
 
 	if (returnType != 0)
 	{
-		PresetHandler::showMessageWindow("Compile Export Error", "The Project is invalid or the Introjucer could not be found.");
+		PresetHandler::showMessageWindow("Compile Export Error", "The Project is invalid or the Introjucer could not be found.", PresetHandler::IconType::Error);
 
 		return ErrorCodes::ProjectXmlInvalid;
 	}
@@ -487,7 +487,7 @@ CompileExporter::ErrorCodes CompileExporter::createIntrojucerFile(ModulatorSynth
 	}
 	else
 	{
-		PresetHandler::showMessageWindow("Invalid XML", doc.getLastParseError());
+		PresetHandler::showMessageWindow("Invalid XML", doc.getLastParseError(), PresetHandler::IconType::Error);
 		return ErrorCodes::ProjectXmlInvalid;
 	}
 }

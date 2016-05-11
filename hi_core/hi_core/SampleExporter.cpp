@@ -500,5 +500,5 @@ void ExternalResourceCollector::run()
 
 void ExternalResourceCollector::threadFinished()
 {
-	PresetHandler::showMessageWindow("Collecting finished", String(numSamplesCopied) + " samples copied");
+	PresetHandler::showMessageWindow("Collecting finished", String(numSamplesCopied) + " samples copied", PresetHandler::IconType::Info);
 }

@@ -662,7 +662,7 @@ private:
 
 		if (offset == -1)
 		{
-			PresetHandler::showMessageWindow("Finished searching", "Find reached the end of the file.");
+			PresetHandler::showMessageWindow("Finished searching", "Find reached the end of the file.", PresetHandler::IconType::Info);
 		}
 		else
 		{

@@ -427,7 +427,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsResolveMissingSamples:Actions::resolveMissingSamples(bpe); return true;
 	case MenuToolsUseRelativePaths:		Actions::toggleRelativePath(bpe); updateCommands();  return true;
 	case MenuToolsCollectExternalFiles:	Actions::collectExternalFiles(bpe); return true;
-    case MenuToolsRedirectSampleFolder: Actions::redirectSampleFolder(bpe); updateCommands(); return true;
+    case MenuToolsRedirectSampleFolder: Actions::redirectSampleFolder(bpe->getMainSynthChain()); updateCommands(); return true;
 	case MenuToolsCreateRSAKeys:		Actions::createRSAKeys(bpe); return true;
 	case MenuToolsCreateDummyLicenceFile: Actions::createDummyLicenceFile(bpe); return true;
     case MenuViewFullscreen:            Actions::toggleFullscreen(bpe); updateCommands(); return true;
@@ -902,7 +902,7 @@ void BackendCommandTarget::Actions::replaceWithClipboardContent(BackendProcessor
 
 	
 
-	PresetHandler::showMessageWindow("Invalid Preset", "The clipboard does not contain a valid container / snippet.");
+	PresetHandler::showMessageWindow("Invalid Preset", "The clipboard does not contain a valid container / snippet.", PresetHandler::IconType::Warning);
 }
 
 void BackendCommandTarget::Actions::createScriptVariableDeclaration(CopyPasteTarget *currentCopyPasteTarget)
@@ -1152,7 +1152,7 @@ public:
 	{
 		if (downloadOK)
 		{
-			PresetHandler::showMessageWindow("Download finished", "Quit the app and run the installer to update to the latest version");
+			PresetHandler::showMessageWindow("Download finished", "Quit the app and run the installer to update to the latest version", PresetHandler::IconType::Info);
 
 			target.revealToUser();
 		}
@@ -1261,7 +1261,7 @@ void BackendCommandTarget::Actions::checkVersion(BackendProcessorEditor *bpe)
     }
     else
     {
-        PresetHandler::showMessageWindow("Offline", "Could not connect to the server");
+        PresetHandler::showMessageWindow("Offline", "Could not connect to the server", PresetHandler::IconType::Warning);
     }
 }
 
@@ -1470,7 +1470,7 @@ void BackendCommandTarget::Actions::exportFileAsSnippet(BackendProcessorEditor* 
 
 	SystemClipboard::copyTextToClipboard(data);
 
-	PresetHandler::showMessageWindow("Preset copied as compressed snippet", "You can paste the clipboard content to share this preset");
+	PresetHandler::showMessageWindow("Preset copied as compressed snippet", "You can paste the clipboard content to share this preset", PresetHandler::IconType::Info);
 }
 
 void BackendCommandTarget::Actions::saveFileAsXml(BackendProcessorEditor * bpe)
@@ -1588,7 +1588,7 @@ void BackendCommandTarget::Actions::loadUserPreset(BackendProcessorEditor *bpe, 
     UserPresetHandler::loadUserPreset(bpe->getMainSynthChain(), fileToLoad);
 }
 
-void BackendCommandTarget::Actions::redirectSampleFolder(BackendProcessorEditor *bpe)
+void BackendCommandTarget::Actions::redirectSampleFolder(Processor *processorForTheProjectHandler)
 {
     FileChooser fc("Redirect sample folder to the following location");
     
@@ -1596,7 +1596,7 @@ void BackendCommandTarget::Actions::redirectSampleFolder(BackendProcessorEditor 
     {
         File f = fc.getResult();
         
-		GET_PROJECT_HANDLER(bpe->getMainSynthChain()).createLinkFile(ProjectHandler::SubDirectories::Samples, f);
+		GET_PROJECT_HANDLER(processorForTheProjectHandler).createLinkFile(ProjectHandler::SubDirectories::Samples, f);
     }
 }
 
@@ -1700,7 +1700,7 @@ void BackendCommandTarget::Actions::createDummyLicenceFile(BackendProcessorEdito
 
 	if (!handler->isActive())
 	{
-		PresetHandler::showMessageWindow("No Project active", "You need an active project to create a key file.");
+		PresetHandler::showMessageWindow("No Project active", "You need an active project to create a key file.", PresetHandler::IconType::Warning);
 		return;
 	}
 
@@ -1710,7 +1710,7 @@ void BackendCommandTarget::Actions::createDummyLicenceFile(BackendProcessorEdito
 
 	if (appName.isEmpty() || version.isEmpty())
 	{
-		PresetHandler::showMessageWindow("No Product name", "You need a product name for a licence file.");
+		PresetHandler::showMessageWindow("No Product name", "You need a product name for a licence file.", PresetHandler::IconType::Warning);
 		return;
 	}
 
@@ -1735,7 +1735,7 @@ void BackendCommandTarget::Actions::createDummyLicenceFile(BackendProcessorEdito
 
 	if (!privateKey.isValid())
 	{
-		PresetHandler::showMessageWindow("No RSA key", "You have to create a RSA Key pair first.");
+		PresetHandler::showMessageWindow("No RSA key", "You have to create a RSA Key pair first.", PresetHandler::IconType::Warning);
 		return;
 	}
 

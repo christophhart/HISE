@@ -921,7 +921,7 @@ void BackendProcessorEditor::loadNewContainer(ValueTree &v)
     
     if(presetVersion > BUILD_SUB_VERSION)
     {
-        PresetHandler::showMessageWindow("Version mismatch", "The preset was built with a newer the build of HISE: " + String(presetVersion) + ". To ensure perfect compatibility, update to at least this build.");
+        PresetHandler::showMessageWindow("Version mismatch", "The preset was built with a newer the build of HISE: " + String(presetVersion) + ". To ensure perfect compatibility, update to at least this build.", PresetHandler::IconType::Warning);
     }
     
     getBackendProcessor()->suspendProcessing(true);

@@ -1064,7 +1064,7 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 				}
 			}
 			
-			PresetHandler::showMessageWindow("Invalid Preset", "The clipboard does not contain a valid container.");
+			PresetHandler::showMessageWindow("Invalid Preset", "The clipboard does not contain a valid container.", PresetHandler::IconType::Warning);
 		}
 		else if (result == OpenIncludedFileInPopup)
 		{
@@ -1092,7 +1092,7 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 			}
 			else
 			{
-				PresetHandler::showMessageWindow("Invalid Preset", "The selected Preset file was not a container");
+				PresetHandler::showMessageWindow("Invalid Preset", "The selected Preset file was not a container", PresetHandler::IconType::Error);
 			}
 		}
 	}

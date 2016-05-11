@@ -569,7 +569,7 @@ void AudioSampleBufferComponent::paint(Graphics &g)
 
 	g.setFont(GLOBAL_FONT());
 	g.setColour(Colours::white.withAlpha(0.5f));
-	g.drawText(File::isAbsolutePath(currentFileName) ? File(currentFileName).getFileName() : currentFileName, getWidth() - 400, 0, 395, 20, Justification::centredRight);
+	g.drawText(ProjectHandler::isAbsolutePathCrossPlatform(currentFileName) ? File(currentFileName).getFileName() : currentFileName, getWidth() - 400, 0, 395, 20, Justification::centredRight);
 
 	if (itemDragged)
 	{

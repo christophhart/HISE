@@ -111,7 +111,7 @@ void SamplerBody::SampleEditingActions::removeDuplicateSounds(SamplerBody *body)
 
 		if (numDeleted != 0)
 		{
-			PresetHandler::showMessageWindow("Duplicates deleted", String(numDeleted) + " duplicate samples were deleted.");
+			PresetHandler::showMessageWindow("Duplicates deleted", String(numDeleted) + " duplicate samples were deleted.", PresetHandler::IconType::Info);
 		}
 	}
 }
@@ -401,7 +401,7 @@ public:
 	{
 		if (errorStatus != Error::OK)
 		{
-			PresetHandler::showMessageWindow("Error", errorMessage + ".\nPress OK to quit merging");
+			PresetHandler::showMessageWindow("Error", errorMessage + ".\nPress OK to quit merging", PresetHandler::IconType::Error);
 			return;
 		}
 

@@ -259,7 +259,7 @@ private:
 		static void collectExternalFiles(BackendProcessorEditor * bpe);
 		static void saveFileAsXml(BackendProcessorEditor * bpe);
 		static void openFileFromXml(BackendProcessorEditor * bpe, const File &fileToLoad);
-        static void redirectSampleFolder(BackendProcessorEditor *bpe);
+        static void redirectSampleFolder(Processor *processorForTheProjectHandler);
 		static void showFilePresetSettings(BackendProcessorEditor * bpe);
 		static void showFileProjectSettings(BackendProcessorEditor * bpe);
 		static void showFileUserSettings(BackendProcessorEditor * bpe);

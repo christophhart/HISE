@@ -213,7 +213,7 @@ void MainController::loadPreset(ValueTree &v, Component* /*mainEditor*/)
 	}
 	else
 	{
-		PresetHandler::showMessageWindow("No valid container", "This preset is not a container file");
+		PresetHandler::showMessageWindow("No valid container", "This preset is not a container file", PresetHandler::IconType::Error);
 	}
 }
 

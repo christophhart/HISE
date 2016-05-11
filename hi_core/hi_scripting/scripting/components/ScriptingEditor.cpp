@@ -650,7 +650,7 @@ void ScriptingEditor::mouseDown(const MouseEvent &e)
 
 			bool wrongName = id.isEmpty() || !Identifier::isValidIdentifier(id);
 
-			while (wrongName && PresetHandler::showYesNoWindow("Wrong variable name", "Press 'OK' to re-enter a valid variable name (no funky characters, no whitespace) or 'Cancel' to abort"))
+			while (wrongName && PresetHandler::showYesNoWindow("Wrong variable name", "Press 'OK' to re-enter a valid variable name (no funky characters, no whitespace) or 'Cancel' to abort", PresetHandler::IconType::Warning))
 			{
 				id = PresetHandler::getCustomName(widgetType);
 				wrongName = id.isEmpty() || !Identifier::isValidIdentifier(id);
@@ -767,7 +767,7 @@ void ScriptingEditor::compileScript()
 
 	if (component != nullptr)
 	{
-		if (!PresetHandler::showYesNoWindow("Discard changed properties?", "There are some properties for the component " + String(dynamic_cast<ScriptingApi::Content::ScriptComponent*>(component)->getName().toString()) + " that are not saved. Press OK to discard these changes or Cancel to abort compiling"))
+		if (!PresetHandler::showYesNoWindow("Discard changed properties?", "There are some properties for the component " + String(dynamic_cast<ScriptingApi::Content::ScriptComponent*>(component)->getName().toString()) + " that are not saved. Press OK to discard these changes or Cancel to abort compiling", PresetHandler::IconType::Warning))
 		{
 			getProcessor()->getMainController()->setEditedScriptComponent(component, this);
 			return;

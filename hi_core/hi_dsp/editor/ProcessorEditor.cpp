@@ -209,7 +209,7 @@ void BetterProcessorEditor::itemDropped(const SourceDetails &dragSourceDetails)
 	}
 	else
 	{
-		PresetHandler::showMessageWindow("Error at loading preset file", "The preset can't be dropped here.");
+		PresetHandler::showMessageWindow("Error at loading preset file", "The preset can't be dropped here.", PresetHandler::IconType::Error);
 	}
 
 	
