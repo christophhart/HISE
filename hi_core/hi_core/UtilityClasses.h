@@ -35,6 +35,55 @@
 
 
 #include "xmmintrin.h"
+#include <regex>
+
+class Processor;
+
+/** A Helper class that encapsulates the regex operations */
+class RegexFunctions
+{
+public:
+    
+    static StringArray getMatches(const String &wildcard, const String &stringToTest, const Processor *processorForErrorOutput=nullptr)
+    {
+        try
+        {
+            std::regex reg(wildcard.toStdString());
+            
+            std::smatch match;
+            
+            if (std::regex_search(stringToTest.toStdString(), match, reg))
+            {
+                StringArray sa;
+                for (auto x:match)
+                {
+                    sa.insert(-1, String(x));
+                }
+                
+                return sa;
+            }
+        }
+        catch (std::regex_error e)
+        {
+            jassertfalse;
+            return StringArray();
+        }
+    }
+    
+    static bool matchesWildcard(const String &wildcard, const String &stringToTest, const Processor *processorForErrorOutput=nullptr)
+    {
+        try
+        {
+            std::regex reg(wildcard.toStdString());
+            
+            return std::regex_search(stringToTest.toStdString(), reg);
+        }
+        catch (std::regex_error e)
+        {
+            //debugError(sampler, e.what());
+        }
+    }
+};
 
 
 /** A small helper class that uses RAII for enabling flush to zero mode. */
