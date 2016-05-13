@@ -68,6 +68,8 @@ public:
             jassertfalse;
             return StringArray();
         }
+        
+        
     }
     
     static bool matchesWildcard(const String &wildcard, const String &stringToTest, const Processor *processorForErrorOutput=nullptr)

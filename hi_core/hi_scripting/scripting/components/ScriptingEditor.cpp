@@ -494,6 +494,136 @@ void ScriptingEditor::scriptComponentChanged(DynamicObject *scriptComponent, Ide
 	}
 }
 
+class ParameterConnector: public ThreadWithAsyncProgressWindow,
+						  public ComboBoxListener
+{
+public:
+
+	ParameterConnector(ScriptingApi::Content::ScriptComponent *sc_, ScriptingEditor *editor_) :
+		ThreadWithAsyncProgressWindow("Connect widget to module parameter"),
+		sc(sc_),
+		editor(editor_),
+		sp(dynamic_cast<ScriptProcessor*>(editor_->getProcessor())),
+		processorToAdd(nullptr),
+		parameterIndexToAdd(-1)
+	{
+		Processor::Iterator<Processor> boxIter(dynamic_cast<ScriptProcessor*>(editor->getProcessor())->getOwnerSynth(), false);
+
+		
+		while (Processor *p = boxIter.getNextProcessor())
+		{
+			if (dynamic_cast<Chain*>(p) != nullptr) continue;
+
+			processorList.add(p);
+		}
+
+		StringArray processorIdList;
+
+		for (int i = 0; i < processorList.size(); i++)
+		{
+			processorIdList.add(processorList[i]->getId());
+		}
+
+		addComboBox("Processors", processorIdList, "Module");
+
+		getComboBoxComponent("Processors")->addListener(this);
+		addComboBox("Parameters", StringArray(), "Parameters");
+
+		getComboBoxComponent("Parameters")->addListener(this);
+		getComboBoxComponent("Parameters")->setTextWhenNothingSelected("Choose a module");
+
+		addBasicComponents();
+
+		showStatusMessage("Choose a module and its parameter and press OK");
+	}
+
+	void comboBoxChanged(ComboBox* comboBoxThatHasChanged)
+	{
+		if (comboBoxThatHasChanged->getName() == "Processors")
+		{
+			Processor *selectedProcessor = processorList[comboBoxThatHasChanged->getSelectedItemIndex()];
+
+			ComboBox *parameterBox = getComboBoxComponent("Parameters");
+
+			parameterBox->clear();
+
+			for (int i = 0; i < selectedProcessor->getNumParameters(); i++)
+			{
+				parameterBox->addItem(selectedProcessor->getIdentifierForParameterIndex(i).toString(), i+1);
+			}
+
+			setProgress(0.5);
+		}
+		else if (comboBoxThatHasChanged->getName() == "Parameters")
+		{
+			processorToAdd = processorList[getComboBoxComponent("Processors")->getSelectedItemIndex()];
+			parameterIndexToAdd = comboBoxThatHasChanged->getSelectedItemIndex();
+
+			setProgress(1.0);
+
+			showStatusMessage("Press OK to add the connection code to this script.");
+		}
+	}
+
+	void run() override
+	{
+		
+	};
+
+	void threadFinished() override
+	{
+		if (processorToAdd == nullptr || parameterIndexToAdd == -1) return;
+
+		String onInitText = sp->getSnippet(ScriptProcessor::onInit)->getAllContent();
+		String declaration = ProcessorHelpers::getScriptVariableDeclaration(processorToAdd, false);
+		String processorId = declaration.upToFirstOccurrenceOf(" ", false, false);
+
+		if (!onInitText.contains(declaration))
+		{
+			onInitText << "\n" << declaration << "\n";
+			sp->getSnippet(ScriptProcessor::onInit)->replaceAllContent(onInitText);
+		}
+
+		String onControlText = sp->getSnippet(ScriptProcessor::onControl)->getAllContent();
+		const String controlStatement = ("if(number == ") + sc->getName() + ")";
+        
+        const String body = processorId + ".setAttribute(" + processorId + "." + processorToAdd->getIdentifierForParameterIndex(parameterIndexToAdd).toString() + ", value);\n\n";
+
+        if(onControlText.contains(controlStatement))
+        {
+            const String replaceString = onControlText.fromFirstOccurrenceOf(controlStatement, true, false).upToFirstOccurrenceOf("\n", true, false);
+            
+            
+            
+            sp->getSnippet(ScriptProcessor::onControl)->replaceAllContent(onControlText.replace(replaceString, controlStatement + " " + body));
+            
+            editor->compileScript();
+        }
+        else
+        {
+
+            
+            sp->getSnippet(ScriptProcessor::onControl)->replaceAllContent(onControlText.upToLastOccurrenceOf("}", false, false) +             (onControlText.contains("if(") ? "\telse " : "\t") + controlStatement + " " + body + onControlText.fromLastOccurrenceOf("}", true, false));
+            
+            editor->compileScript();
+        }
+        
+		
+
+    };
+
+private:
+
+	Processor *processorToAdd;
+	int parameterIndexToAdd;
+
+	ScriptingApi::Content::ScriptComponent *sc;
+	ScriptingEditor *editor;
+	ScriptProcessor *sp;
+	Array<WeakReference<Processor>> processorList;
+
+};
+
 void ScriptingEditor::mouseDown(const MouseEvent &e)
 {
 	if (e.mods.isLeftButtonDown() && useComponentSelectMode)
@@ -561,7 +691,8 @@ void ScriptingEditor::mouseDown(const MouseEvent &e)
 		{
 			m.addSeparator();
 			m.addItem(5, "Edit \"" + sc->getName().toString() + "\" in Panel");
-	}
+			m.addItem(6, "Connect to Module Parameter");
+		}
 
 		int result = m.show();
 
@@ -618,6 +749,15 @@ void ScriptingEditor::mouseDown(const MouseEvent &e)
 			jassert(sc != nullptr);
 
 			getProcessor()->getMainController()->setEditedScriptComponent(sc, this);
+		}
+		else if (result == 6)
+		{
+			jassert(sc != nullptr);
+
+			ParameterConnector *comp = new ParameterConnector(sc, this);
+
+			comp->setModalComponentOfMainEditor(findParentComponentOfClass<BackendProcessorEditor>());
+
 		}
 		else if (result >= Knob && result < numWidgets)
 		{
