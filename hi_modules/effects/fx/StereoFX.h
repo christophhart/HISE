@@ -151,7 +151,9 @@ public:
 
 		while(--numSamples >= 0)
 		{
-            msDecoder.calculateStereoValues(l[startSample], r[startSample++]);
+            msDecoder.calculateStereoValues(l[startSample], r[startSample]);
+         
+            startSample++;
             
 			//const float m = (l[startSample]  + r[startSample])*0.5f;
 			//const float s = (r[startSample] - l[startSample]) * width * 0.5f;

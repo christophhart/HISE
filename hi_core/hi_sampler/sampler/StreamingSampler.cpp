@@ -443,7 +443,7 @@ void StreamingSamplerSound::wakeSound() const
 }
 
 
-bool StreamingSamplerSound::hasEnoughSamplesForBlock(int maxSampleIndexInFile) const
+bool StreamingSamplerSound::hasEnoughSamplesForBlock(int maxSampleIndexInFile) const noexcept
 {
 	return (loopEnabled && loopLength != 0) || maxSampleIndexInFile < sampleLength;
 }

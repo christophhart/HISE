@@ -31,7 +31,7 @@
 */
 
 #ifndef HI_SAMPLER_INCLUDED
-#define HI_SAMPER_INCLUDED
+#define HI_SAMPLER_INCLUDED
 
 #include <AppConfig.h>
 

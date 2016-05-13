@@ -336,11 +336,9 @@ int ProcessorHelpers::getAmountOf(const Processor *rootProcessor, const Processo
 {
 	Processor::Iterator<ProcessorType> iter(rootProcessor);
 
-	ProcessorType *p;
-
 	int count = 0;
 
-	while (p = iter.getNextProcessor())
+	while (ProcessorType *p = iter.getNextProcessor())
 	{
 		
 		if (upTochildProcessor != nullptr && p == upTochildProcessor)
@@ -376,7 +374,7 @@ String ProcessorHelpers::getScriptVariableDeclaration(const Processor *p, bool c
 	String code;
 
 	String name = p->getId();
-	String id = name.removeCharacters(" \n\t\"\'!§$%&/()");
+	String id = name.removeCharacters(" \n\t\"\'!$%&/()");
 	
 	code << id << " = Synth.get" << typeName << "(\"" << name << "\");";
 

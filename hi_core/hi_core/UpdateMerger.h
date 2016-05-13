@@ -162,8 +162,6 @@ public:
 
 		if (debugInterval)
 		{
-			const int64 delta = (currentTime - timeOfDebugCall);
-
 			timeOfDebugCall = currentTime;
 		}
 

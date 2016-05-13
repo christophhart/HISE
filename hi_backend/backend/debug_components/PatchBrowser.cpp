@@ -177,7 +177,7 @@ int PatchBrowser::getNumCollectionsToCreate() const
 
 	int i = 0;
 
-	while (ModulatorSynth *synth = iter.getNextProcessor())
+	while (iter.getNextProcessor())
 	{
 		i++;
 	}
@@ -449,6 +449,7 @@ void PatchBrowser::ModuleDragTarget::drawDragStatus(Graphics &g, Rectangle<float
 		g.setColour(Colours::red.withMultipliedBrightness(isOver ? 1.5f : 0.6f).withAlpha(0.3f)); break;
 	case ModuleDragTarget::DragState::Inactive:
 		g.setColour(Colours::transparentBlack); break;
+    case ModuleDragTarget::DragState::numDragStates: break;
 	}
 
 	g.fillRoundedRectangle(area, 2.0f);

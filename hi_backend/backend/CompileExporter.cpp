@@ -272,6 +272,8 @@ CompileExporter::ErrorCodes CompileExporter::compileSolution(ModulatorSynthChain
 	}
 
 	batchFile.getParentDirectory().getChildFile("temp/").deleteRecursively();
+    
+    return ErrorCodes::OK;
 }
 
 
@@ -490,6 +492,8 @@ CompileExporter::ErrorCodes CompileExporter::createIntrojucerFile(ModulatorSynth
 		PresetHandler::showMessageWindow("Invalid XML", doc.getLastParseError(), PresetHandler::IconType::Error);
 		return ErrorCodes::ProjectXmlInvalid;
 	}
+    
+    return ErrorCodes::OK;
 }
 
 CompileExporter::ErrorCodes CompileExporter::copyHISEImageFiles(ModulatorSynthChain *chainToExport)

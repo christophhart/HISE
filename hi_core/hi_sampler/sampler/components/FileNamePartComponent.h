@@ -25,7 +25,6 @@
 
 class PopupLabel;
 
-/** @internal
 //[/Headers]
 
 

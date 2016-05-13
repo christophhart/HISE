@@ -126,6 +126,8 @@ class ComponentWithKeyboard
 {
 public:
     
+    virtual ~ComponentWithKeyboard() {};
+    
     virtual Component *getKeyboard() const = 0;
 };
 

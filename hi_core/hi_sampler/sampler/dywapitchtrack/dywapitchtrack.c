@@ -374,18 +374,18 @@ double _dywapitch_dynamicprocess(dywapitchtracker *pitchtracker, double pitch) {
 			pitchtracker->_prevPitch = pitch;
 			pitchtracker->_pitchConfidence = 1;
 			
-		} else if (abs(pitchtracker->_prevPitch - pitch)/pitch < acceptedError) {
+		} else if (std::abs(pitchtracker->_prevPitch - pitch)/pitch < acceptedError) {
 			// similar : remember and increment pitch
 			pitchtracker->_prevPitch = pitch;
 			estimatedPitch = pitch;
 			pitchtracker->_pitchConfidence = min(maxConfidence, pitchtracker->_pitchConfidence + 1); // maximum 3
 			
-		} else if ((pitchtracker->_pitchConfidence >= maxConfidence-2) && abs(pitchtracker->_prevPitch - 2.*pitch)/(2.*pitch) < acceptedError) {
+		} else if ((pitchtracker->_pitchConfidence >= maxConfidence-2) && std::abs(pitchtracker->_prevPitch - 2.*pitch)/(2.*pitch) < acceptedError) {
 			// close to half the last pitch, which is trusted
 			estimatedPitch = 2.*pitch;
 			pitchtracker->_prevPitch = estimatedPitch;
 			
-		} else if ((pitchtracker->_pitchConfidence >= maxConfidence-2) && abs(pitchtracker->_prevPitch - 0.5*pitch)/(0.5*pitch) < acceptedError) {
+		} else if ((pitchtracker->_pitchConfidence >= maxConfidence-2) && std::abs(pitchtracker->_prevPitch - 0.5*pitch)/(0.5*pitch) < acceptedError) {
 			// close to twice the last pitch, which is trusted
 			estimatedPitch = 0.5*pitch;
 			pitchtracker->_prevPitch = estimatedPitch;

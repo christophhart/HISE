@@ -90,8 +90,6 @@ rootEditorIsMainSynthChain(true)
 
 	setRootProcessor(owner->synthChain->getRootProcessor());
 
-	BetterProcessorEditor *editor = container->getRootEditor();
-
 	owner->addScriptListener(this);
 
 	aboutPage->setVisible(false);
@@ -980,9 +978,6 @@ void BackendProcessorEditor::clearPreset()
 
 	container->setRootProcessorEditor(p);
 
-	BetterProcessorEditor *editor = container->getRootEditor();
-	
-    
 	rebuildModuleList(false);
 
 	getBackendProcessor()->getMainSynthChain()->setBypassed(false);

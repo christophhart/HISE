@@ -62,6 +62,8 @@ public:
                 
                 return sa;
             }
+            
+            return StringArray();
         }
         catch (std::regex_error e)
         {
@@ -83,7 +85,11 @@ public:
         catch (std::regex_error e)
         {
             //debugError(sampler, e.what());
+            
+            return false;
         }
+        
+        return false;
     }
 };
 

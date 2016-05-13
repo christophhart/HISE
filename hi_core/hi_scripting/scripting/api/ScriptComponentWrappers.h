@@ -38,7 +38,7 @@ public:
 	class Listener
 	{
 	public:
-		~Listener()
+		virtual ~Listener()
 		{
 			masterReference.clear();
 		}

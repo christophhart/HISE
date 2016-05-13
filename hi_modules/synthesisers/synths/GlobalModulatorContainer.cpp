@@ -240,6 +240,7 @@ void GlobalModulatorData::prepareToPlay(double /*sampleRate*/, int blockSize)
 	case GlobalModulator::VoiceStart:	valuesForCurrentBuffer = AudioSampleBuffer(); return;
 	case GlobalModulator::TimeVariant:	valuesForCurrentBuffer = AudioSampleBuffer(1, blockSize);
 	case GlobalModulator::Envelope:		valuesForCurrentBuffer = AudioSampleBuffer(numVoices, blockSize);
+    case GlobalModulator::numTypes: break;
 	}
 }
 
@@ -250,6 +251,7 @@ void GlobalModulatorData::saveValuesToBuffer(int startIndex, int numSamples, int
 	case GlobalModulator::VoiceStart:	jassert(noteNumber != -1);  constantVoiceValues.set(noteNumber, getVoiceStartModulator()->getVoiceStartValue(voiceIndex)); break;
 	case GlobalModulator::TimeVariant:	FloatVectorOperations::copy(valuesForCurrentBuffer.getWritePointer(0, startIndex), getTimeVariantModulator()->getCalculatedValues(0) + startIndex, numSamples); break;
 	case GlobalModulator::Envelope:		FloatVectorOperations::copy(valuesForCurrentBuffer.getWritePointer(voiceIndex, startIndex), getEnvelopeModulator()->getCalculatedValues(voiceIndex) + startIndex, numSamples); break;
+    case GlobalModulator::numTypes: break;
 	}
 }
 
@@ -260,6 +262,7 @@ const float * GlobalModulatorData::getModulationValues(int startIndex, int voice
 	case GlobalModulator::VoiceStart:	jassertfalse; return nullptr;
 	case GlobalModulator::TimeVariant:	return valuesForCurrentBuffer.getReadPointer(0, startIndex);
 	case GlobalModulator::Envelope:		return valuesForCurrentBuffer.getReadPointer(voiceIndex, startIndex);
+    case GlobalModulator::numTypes: return nullptr;
 	}
 
 	return nullptr;

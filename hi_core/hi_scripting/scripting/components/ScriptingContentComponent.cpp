@@ -574,9 +574,7 @@ void ScriptContentContainer::refreshContentBounds()
 	const bool useButtonBar = interfaces.size() > 1;
 
 	const int buttonBarY = 0;
-	const int contentY = 20;
-
-	const int buttonOffset = isFrontendContainer() ? 55 : 0;
+	
 
 	if(useButtonBar)
 	{
