@@ -241,7 +241,7 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Check for missing properties", true, false, 'X', false);
 		break;
 	case MenuReplaceWithClipboardContent:
-		setCommandTarget(result, "Replace with clipboard content", Actions::hasProcessorInClipboard() || Actions::hasSnippetInClipboard(), false, 'X', false);
+		setCommandTarget(result, "Replace with clipboard content", true, false, 'X', false);
 		break;
 	case MenuFileQuit:
 		setCommandTarget(result, "Quit", true, false, 'X', false); break;
@@ -899,9 +899,7 @@ void BackendCommandTarget::Actions::replaceWithClipboardContent(BackendProcessor
 			}
 		}
 	}
-
-	
-
+    
 	PresetHandler::showMessageWindow("Invalid Preset", "The clipboard does not contain a valid container / snippet.", PresetHandler::IconType::Warning);
 }
 
