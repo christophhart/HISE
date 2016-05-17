@@ -1539,7 +1539,11 @@ void PresetHandler::writeSampleMapsToValueTree(ValueTree &sampleMapTree, ValueTr
 
 AboutPage::AboutPage()
 {
+#if USE_BACKEND
+    
     aboutHeader = ImageCache::getFromMemory(BinaryData::About_png, BinaryData::About_pngSize);
+    
+#endif
     
     addAndMakeVisible(checkUpdateButton = new TextButton("Check Updates"));
 };

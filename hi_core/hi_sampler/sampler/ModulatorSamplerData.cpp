@@ -322,6 +322,8 @@ ValueTree SampleMap::exportAsValueTree() const
 				warnIfUseAbsolutePathsInProjects = !soundFile.isAChildOf(GET_PROJECT_HANDLER(sampler).getSubDirectory(ProjectHandler::SubDirectories::Samples));
 			}
 
+#if USE_BACKEND
+            
 			if (warnIfUseAbsolutePathsInProjects)
 			{
 				if (PresetHandler::showYesNoWindow("Absolute file paths when using project", "You are using external samples without redirecting the sample folder (or outside the redirecting location). The preset can't be loaded on another machine. Press OK to choose a root sample folder or Cancel to ignore this.", PresetHandler::IconType::Warning))
@@ -329,6 +331,8 @@ ValueTree SampleMap::exportAsValueTree() const
 					sampler->getMainController()->getCommandManager()->invokeDirectly(BackendCommandTarget::MenuToolsRedirectSampleFolder, false);
 				}
 			}
+            
+#endif
 
 			absoluteFileNames.add(getSampleDirectory() + soundFile.getFileName());
 			

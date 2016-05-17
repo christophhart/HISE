@@ -153,6 +153,8 @@ void Console::mouseDown(const MouseEvent &e)
         
         String name = content.substring(first, last).upToFirstOccurrenceOf(":", false, false).removeCharacters("\r\n\t");
         
+#if USE_BACKEND
+        
         if(name.isNotEmpty())
         {
             BackendProcessorEditor *editor = findParentComponentOfClass<BackendProcessorEditor>();
@@ -164,7 +166,8 @@ void Console::mouseDown(const MouseEvent &e)
                 editor->setRootProcessorWithUndo(p);
             }
         }
-        DBG(name);
+
+#endif
         
     }
 }
