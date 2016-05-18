@@ -242,6 +242,7 @@ private:
 
 	ScopedPointer<DeactiveOverlay> deactiveOverlay;
 
+	ScopedPointer<ThreadWithQuasiModalProgressWindow::Overlay> loaderOverlay;
 };
 
 

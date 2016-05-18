@@ -41,6 +41,7 @@
 
 #include "UtilityClasses.h"
 #include "HI_LookAndFeels.h"
+#include "ThreadWithQuasiModalProgressWindow.h"
 #include "Popup.h"
 #include "Tables.h"
 #include "UpdateMerger.h"

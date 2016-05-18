@@ -503,9 +503,7 @@ void ModulatorSampler::refreshPreloadSizes()
 {
 	if (getNumSounds() != 0)
 	{
-		SoundPreloadThread loadThread(this);
-
-		loadThread.runThread();
+		SoundPreloadThread *loadThread = new SoundPreloadThread(this);
 	}
 }
 

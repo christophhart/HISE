@@ -350,6 +350,8 @@ private:
 
 	ScopedPointer<PluginPreviewWindow> previewWindow;
 
+	ScopedPointer<ThreadWithQuasiModalProgressWindow::Overlay> progressOverlay;
+
 	bool rootEditorIsMainSynthChain;
 };
 

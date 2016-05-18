@@ -41,33 +41,18 @@ class ModulatorSamplerSound;
 *
 *	Whenever you need to change the preloadSize, create an instance of this
 */
-class SoundPreloadThread: public ThreadWithProgressWindow
+class SoundPreloadThread: public ThreadWithQuasiModalProgressWindow
 {
 public:
 
 	/** Creates a preload thread which preloads all sounds from the supplied sampler. */
-	SoundPreloadThread(ModulatorSampler *s): 
-		ThreadWithProgressWindow("Loading Sample Data", true, true, 10000, "Abort loading"),
-        sampler(s)
-	{
-		getAlertWindow()->setLookAndFeel(&laf);
-		
-		
-	
-	};
+	SoundPreloadThread(ModulatorSampler *s);;
 
 	/** Creates a preload thread which preloads all sounds from the pointer array. 
 	*
 	*	This can be used to only preload a selection (which is the case when changing sample starts).
 	*/
-	SoundPreloadThread(ModulatorSampler *s, Array<ModulatorSamplerSound*> soundsToPreload_):
-		ThreadWithProgressWindow("Preloading Sample Data", true, true),
-        sampler(s),
-		soundsToPreload(soundsToPreload_)
-	{
-		getAlertWindow()->setLookAndFeel(&laf);
-	
-	};
+	SoundPreloadThread(ModulatorSampler *s, Array<ModulatorSamplerSound*> soundsToPreload_);;
 
 	/** preloads either all sounds from the sampler or the list of sounds that was passed in the constructor. */
 	void run() override;

@@ -239,7 +239,8 @@ private:
 *	Every Processor must be connected to a MainController instance and has access to its public methods.
 *
 */
-class MainController: public GlobalScriptCompileBroadcaster
+class MainController: public GlobalScriptCompileBroadcaster,
+					  public ThreadWithQuasiModalProgressWindow::Holder
 {
 public:
 

@@ -73,6 +73,10 @@ AudioProcessorEditor(fp)
 	deactiveOverlay->setState(DeactiveOverlay::LicenceInvalid, !fp->unlocker.isUnlocked());
 #endif
 
+	addAndMakeVisible(loaderOverlay = new ThreadWithQuasiModalProgressWindow::Overlay());
+	loaderOverlay->setDialog(nullptr);
+	fp->setOverlay(loaderOverlay);
+
 	setSize(interfaceComponent->getContentWidth(), (mainBar != nullptr ? mainBar->getHeight() : 0) + interfaceComponent->getContentHeight() + 72);
 
 	startTimer(4125);
@@ -97,6 +101,7 @@ void FrontendProcessorEditor::resized()
 
 	aboutPage->setBoundsInset(BorderSize<int>(80));
 	deactiveOverlay->setBounds(getLocalBounds());
+	loaderOverlay->setBounds(getLocalBounds());
 }
 
 

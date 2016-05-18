@@ -33,6 +33,7 @@
 #include "hi_core.h"
 
 #include "UtilityClasses.cpp"
+#include "ThreadWithQuasiModalProgressWindow.cpp"
 #include "HI_LookAndFeels.cpp"
 #include "Tables.cpp"
 #include "ExternalFilePool.cpp"

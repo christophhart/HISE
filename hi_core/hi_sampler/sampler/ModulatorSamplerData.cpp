@@ -30,8 +30,32 @@
 *   ===========================================================================
 */
 
+
+SoundPreloadThread::SoundPreloadThread(ModulatorSampler *s) :
+ThreadWithQuasiModalProgressWindow("Loading Sample Data", true, true, s->getMainController(), 10000, "Abort loading"),
+sampler(s)
+{
+	getAlertWindow()->setLookAndFeel(&laf);
+}
+
+
+SoundPreloadThread::SoundPreloadThread(ModulatorSampler *s, Array<ModulatorSamplerSound*> soundsToPreload_) :
+ThreadWithQuasiModalProgressWindow("Preloading Sample Data", true, true, s->getMainController()),
+sampler(s),
+soundsToPreload(soundsToPreload_)
+{
+	getAlertWindow()->setLookAndFeel(&laf);
+}
+
 void SoundPreloadThread::run()
 {
+    if(sampler == nullptr)
+    {
+        jassertfalse;
+        
+        return;
+    }
+    
 	ModulatorSamplerSoundPool *pool = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
 
 	ScopedValueSetter<bool> preloadLock(pool->getPreloadLockFlag(), true);
@@ -95,7 +119,7 @@ void SoundPreloadThread::preloadSample(StreamingSamplerSound * s, const int prel
 
 	s->checkFileReference();
 
-	String fileName = s->getFileName(true);
+	String fileName = s->getFileName(false);
 
 	setStatusMessage(fileName);
 

@@ -41,9 +41,6 @@ BackendCommandTarget(static_cast<BackendProcessor*>(ownerProcessor)),
 owner(static_cast<BackendProcessor*>(getAudioProcessor())),
 rootEditorIsMainSynthChain(true)
 {
-    
-    
-    
 	setOpaque(true);
 
 	setEditor(this);
@@ -73,6 +70,9 @@ rootEditorIsMainSynthChain(true)
 	constrainer->setMaximumWidth(1920);
 
 	addAndMakeVisible(borderDragger = new ResizableBorderComponent(this, constrainer));
+
+	
+
 
 	viewport->viewport->setScrollBarThickness(16);
 
@@ -122,6 +122,10 @@ rootEditorIsMainSynthChain(true)
 
 #endif
 
+	addAndMakeVisible(progressOverlay = new ThreadWithQuasiModalProgressWindow::Overlay());
+	owner->setOverlay(progressOverlay);
+	progressOverlay->setDialog(nullptr);
+
 	restoreFromValueTree(editorState);
 
 	//setSize(referenceDebugArea->isVisible() ? 1280 : 900, 700);
@@ -134,7 +138,7 @@ rootEditorIsMainSynthChain(true)
 BackendProcessorEditor::~BackendProcessorEditor()
 {
 	owner->removeScriptListener(this);
-
+	
     ValueTree v = exportAsValueTree();
     
 	owner->setEditorState(v);
@@ -187,9 +191,6 @@ BackendProcessorEditor::~BackendProcessorEditor()
 	macroKnobs = nullptr;
 	container = nullptr;
 	viewport = nullptr;
-	
-	
-	
 	
 }
 
@@ -568,6 +569,8 @@ void BackendProcessorEditor::resized()
         getParentComponent()->getParentComponent()->setSize(getWidth(), getHeight());
 	}
 #endif
+
+	progressOverlay->setBounds(0, 0, getWidth(), getHeight());
 
 	const int menuBarOffset = menuBar == nullptr ? 0 : 20;
 
