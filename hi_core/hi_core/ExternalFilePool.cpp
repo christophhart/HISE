@@ -327,14 +327,16 @@ AudioSampleBuffer * AudioSampleBufferPool::loadDataFromStream(InputStream *input
 		buffer->setSize(reader->numChannels, (int)reader->lengthInSamples);
 
 		reader->read(buffer, 0, (int)reader->lengthInSamples, 0, true, true);
+
+		if (dynamic_cast<FileInputStream*>(inputStream) != nullptr)
+		{
+			String fileName = dynamic_cast<FileInputStream*>(inputStream)->getFile().getFullPathName();
+
+			setPropertyForData(getIdForFileName(fileName), sampleRateIdentifier, reader->sampleRate);
+		}
 	}
 
-	if (dynamic_cast<FileInputStream*>(inputStream) != nullptr)
-	{
-		String fileName = dynamic_cast<FileInputStream*>(inputStream)->getFile().getFullPathName();
 
-		setPropertyForData(getIdForFileName(fileName), sampleRateIdentifier, reader->sampleRate);
-	}
 
 	return buffer;
 }

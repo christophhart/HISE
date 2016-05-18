@@ -179,6 +179,12 @@ void CompileExporter::writeReferencedAudioFiles(ModulatorSynthChain * chainToExp
     
     while(iter.next())
     {
+#if JUCE_WINDOWS
+
+		// Skip OSX hidden files on windows...
+		if (iter.getFile().getFileName().startsWith(".")) continue;
+
+#endif
         samplePool->loadFileIntoPool(iter.getFile().getFullPathName());
     }
     
