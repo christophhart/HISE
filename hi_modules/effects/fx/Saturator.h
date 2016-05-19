@@ -70,7 +70,7 @@ public:
 	float getAttribute(int parameterIndex) const override;
 	float getDefaultValue(int parameterIndex) const override;
 
-	AudioSampleBuffer &getBufferForChain(int index) override
+	AudioSampleBuffer &getBufferForChain(int /*index*/) override
 	{
 		return saturationBuffer;
 	}

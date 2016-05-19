@@ -126,7 +126,7 @@ void BackendProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiM
 	processBlockCommon(buffer, midiMessages);
 };
 
-void BackendProcessor::handleControllersForMacroKnobs(const MidiBuffer &midiMessages)
+void BackendProcessor::handleControllersForMacroKnobs(const MidiBuffer &/*midiMessages*/)
 {
 	
 }

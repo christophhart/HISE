@@ -129,7 +129,10 @@ File UserPresetHandler::getUserPresetFile(ModulatorSynthChain *chain, const Stri
 {
 #if USE_BACKEND
     return GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::UserPresets).getChildFile(fileNameWithoutExtension + ".preset");
-#else 
+#else
+
+	ignoreUnused(chain);
+
 	return ProjectHandler::Frontend::getUserPresetDirectory().getChildFile(fileNameWithoutExtension + ".preset");
 #endif
 }
@@ -241,7 +244,7 @@ public:
 			s.append(lines[i] + "\n", i == 0 ? GLOBAL_BOLD_FONT() : GLOBAL_FONT(), Colour(0xFF888888));
 		}
 
-		layout.createLayoutWithBalancedLineLengths(s, bestWidth);
+		layout.createLayoutWithBalancedLineLengths(s, (float)bestWidth);
 		setSize(bestWidth + image.getWidth(), jmax<int>(image.getHeight(), (int)(layout.getHeight() + font.getHeight())));
 	}
 
@@ -870,6 +873,8 @@ File ProjectHandler::Frontend::getAppDataDirectory(ProjectHandler *handler/*=nul
 {
 #if USE_FRONTEND
     
+	ignoreUnused(handler);
+
 #if JUCE_MAC
     return File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("Application Support/" + String(JucePlugin_Manufacturer) + "/" + String(JucePlugin_Name));
 #else
@@ -926,6 +931,10 @@ void ProjectHandler::Frontend::setSampleLocation(const File &newLocation)
 #endif
 
 	childFile.replaceWithText(newLocation.getFullPathName());
+
+#else
+
+	ignoreUnused(newLocation);
 
 #endif
 }
@@ -1583,7 +1592,7 @@ void AboutPage::paint(Graphics &g)
     g.setColour(Colour(0xFFaaaaaa));
 	g.drawRect(getLocalBounds(), 1);
 
-	infoData.draw(g, Rectangle<float>(40.0f, aboutHeader.getHeight() + 20, getWidth() - 80.0f, getHeight() - aboutHeader.getHeight() - 20));
+	infoData.draw(g, Rectangle<float>(40.0f, (float)aboutHeader.getHeight() + 20.f, (float)getWidth() - 80.0f, (float)getHeight() - (float)aboutHeader.getHeight() - 20.f));
 }
 
 

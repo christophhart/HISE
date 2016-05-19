@@ -73,7 +73,7 @@ private:
 *
 *	Simply call loadThumbNails whenever you change the directory and it takes care of everything.
 */
-class ThumbnailHandler: public ThreadWithProgressWindow
+class ThumbnailHandler: public ThreadWithQuasiModalProgressWindow
 {
 public:
 
@@ -97,26 +97,9 @@ public:
 
 private:
 
-	ThumbnailHandler(const File &directoryToLoad, ModulatorSampler *s):
-		ThreadWithProgressWindow("Generating Audio Thumbnails for directory " + directoryToLoad.getFullPathName(), true, true),
-		directory(directoryToLoad),
-		sampler(s),
-		writeCache(nullptr),
-		addThumbNailsToExistingCache(false)
-	{
-		getAlertWindow()->setLookAndFeel(&laf);
-	};
+	ThumbnailHandler(const File &directoryToLoad, ModulatorSampler *s);;
 
-	ThumbnailHandler(const File &directoryToLoad, const StringArray &fileNames, ModulatorSampler *s):
-		ThreadWithProgressWindow("Generating Audio Thumbnails for " + String(fileNames.size()) + " files.", true, true),
-		fileNamesToLoad(fileNames),
-		directory(directoryToLoad),
-		sampler(s),
-		writeCache(nullptr),
-		addThumbNailsToExistingCache(true)
-	{
-		getAlertWindow()->setLookAndFeel(&laf);
-	}
+	ThumbnailHandler(const File &directoryToLoad, const StringArray &fileNames, ModulatorSampler *s);
 
 	static File getThumbnailFile(ModulatorSampler *sampler);;
 
@@ -125,8 +108,7 @@ private:
 	/** This generates a thumbnail file in the specified directory and loads it into the sampler. */
 	static void generateThumbnailData(ModulatorSampler *sampler, const File &directoryToLoad)
 	{
-		ThumbnailHandler g(directoryToLoad, sampler);
-		g.runThread();
+		new ThumbnailHandler(directoryToLoad, sampler);
 	}
 
 	void saveThumbnail(AudioThumbnailCache *cache, AudioFormatManager &afm, const File &file)

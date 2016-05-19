@@ -245,13 +245,12 @@ private:
 #endif
 	}
     
-    
     void drawPopupMenuItem (Graphics& g, const Rectangle<int>& area,
-                                            const bool isSeparator, const bool isActive,
-                                            const bool isHighlighted, const bool isTicked,
-                                            const bool hasSubMenu, const String& text,
+                                            bool isSeparator, bool isActive,
+                                            bool isHighlighted, bool isTicked,
+                                            bool hasSubMenu, const String& text,
                                             const String& shortcutKeyText,
-                                            const Drawable* icon, const Colour* const textColourToUse)
+                                            const Drawable* icon, const Colour* textColourToUse)
     {
         if (isSeparator)
         {

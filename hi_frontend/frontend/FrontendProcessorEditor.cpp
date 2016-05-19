@@ -215,6 +215,10 @@ bool DeactiveOverlay::check(State s, const String &value/*=String::empty*/)
 		break;
 	}
 
+#else
+
+	ignoreUnused(s, value);
+
 #endif
     
 	return true;

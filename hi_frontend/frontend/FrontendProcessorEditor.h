@@ -148,6 +148,8 @@ public:
 		default:
 			break;
 		}
+
+		return String();
 	}
 
 	void resized()
@@ -157,7 +159,11 @@ public:
 			descriptionLabel->centreWithSize(getWidth() - 20, 150);
 		}
 
-		if (currentState[LicenceNotFound] || currentState[LicenceInvalid] || currentState[MachineNumbersNotMatching] || currentState[UserNameNotMatching] || currentState[ProductNotMatching])
+		if (currentState[LicenceNotFound] || 
+			currentState[LicenceInvalid] || 
+			currentState[MachineNumbersNotMatching] || 
+			currentState[UserNameNotMatching] || 
+			currentState[ProductNotMatching])
 		{
 			resolveLicenceButton->setVisible(true);
             createMachineIdButton->setVisible(true);

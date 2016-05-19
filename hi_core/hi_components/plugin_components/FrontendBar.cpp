@@ -283,13 +283,13 @@ void FrontendBar::sliderValueChanged(Slider* slider)
 	{
 		volumeSlider->setTooltip("Main Volume: " + String(slider->getValue(), 1) + " dB");
 		
-		mc->getMainSynthChain()->setAttribute(ModulatorSynth::Parameters::Gain, Decibels::decibelsToGain(slider->getValue()), sendNotification);
+		mc->getMainSynthChain()->setAttribute(ModulatorSynth::Parameters::Gain, Decibels::decibelsToGain((float)slider->getValue()), sendNotification);
 	}
 	else if (slider == balanceSlider)
 	{
 		balanceSlider->setTooltip("Stereo Balance: " + String(slider->getValue() * 100.0, 0));
 
-		mc->getMainSynthChain()->setAttribute(ModulatorSynth::Parameters::Balance, slider->getValue(), sendNotification);
+		mc->getMainSynthChain()->setAttribute(ModulatorSynth::Parameters::Balance, (float)slider->getValue(), sendNotification);
 	}
 	else if (slider == pitchSlider)
 	{

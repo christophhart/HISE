@@ -208,7 +208,7 @@ public:
 			cancel();
 		}
 
-		void buttonClicked(Button *b) override
+		void buttonClicked(Button *) override
 		{
 			cancel();
 		}

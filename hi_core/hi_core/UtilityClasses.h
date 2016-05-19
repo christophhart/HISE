@@ -44,7 +44,7 @@ class RegexFunctions
 {
 public:
     
-    static StringArray getMatches(const String &wildcard, const String &stringToTest, const Processor *processorForErrorOutput=nullptr)
+    static StringArray getMatches(const String &wildcard, const String &stringToTest, const Processor* /*processorForErrorOutput*/=nullptr)
     {
         try
         {
@@ -74,7 +74,7 @@ public:
         
     }
     
-    static bool matchesWildcard(const String &wildcard, const String &stringToTest, const Processor *processorForErrorOutput=nullptr)
+    static bool matchesWildcard(const String &wildcard, const String &stringToTest, const Processor* /*processorForErrorOutput*/=nullptr)
     {
         try
         {

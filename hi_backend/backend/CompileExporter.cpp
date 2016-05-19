@@ -243,7 +243,7 @@ void CompileExporter::writeUserPresetFiles(ModulatorSynthChain * chainToExport, 
 	PresetHandler::writeValueTreeAsFile(userPresets, File(directoryPath).getChildFile("userPresets").getFullPathName());
 }
 
-void CompileExporter::writePresetFile(ModulatorSynthChain * chainToExport, const String directoryPath, const String &uniqueName)
+void CompileExporter::writePresetFile(ModulatorSynthChain * chainToExport, const String directoryPath, const String &/*uniqueName*/)
 {
 	ValueTree preset = chainToExport->exportAsValueTree();
 
@@ -366,7 +366,7 @@ public:
 
 
 
-CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(ModulatorSynthChain* chainToExport, const String &solutionDirectory, const String &uniqueName, const String &version, const String &publicKey)
+CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(ModulatorSynthChain* chainToExport, const String &solutionDirectory, const String &/*uniqueName*/, const String &/*version*/, const String &publicKey)
 {
 	String pluginDataHeaderFile;
 

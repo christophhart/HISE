@@ -143,6 +143,27 @@ void SoundPreloadThread::preloadSample(StreamingSamplerSound * s, const int prel
 	}
 }
 
+ThumbnailHandler::ThumbnailHandler(const File &directoryToLoad, const StringArray &fileNames, ModulatorSampler *s) :
+ThreadWithQuasiModalProgressWindow("Generating Audio Thumbnails for " + String(fileNames.size()) + " files.", true, true, s->getMainController()),
+fileNamesToLoad(fileNames),
+directory(directoryToLoad),
+sampler(s),
+writeCache(nullptr),
+addThumbNailsToExistingCache(true)
+{
+	getAlertWindow()->setLookAndFeel(&laf);
+}
+
+ThumbnailHandler::ThumbnailHandler(const File &directoryToLoad, ModulatorSampler *s) :
+ThreadWithQuasiModalProgressWindow("Generating Audio Thumbnails for directory " + directoryToLoad.getFullPathName(), true, true, s->getMainController()),
+directory(directoryToLoad),
+sampler(s),
+writeCache(nullptr),
+addThumbNailsToExistingCache(false)
+{
+	getAlertWindow()->setLookAndFeel(&laf);
+}
+
 File ThumbnailHandler::getThumbnailFile(ModulatorSampler *sampler)
 {
 	return GET_PROJECT_HANDLER(sampler).getWorkDirectory().getChildFile("/thumbnails.dat");
@@ -159,8 +180,7 @@ void ThumbnailHandler::saveNewThumbNails(ModulatorSampler *sampler, const String
 {
 	File directory = GET_PROJECT_HANDLER(sampler).getWorkDirectory();
 	
-	ThumbnailHandler th(directory, newAudioFiles, sampler);
-	th.runThread();
+	new ThumbnailHandler(directory, newAudioFiles, sampler);
 }
 
 void ThumbnailHandler::run()

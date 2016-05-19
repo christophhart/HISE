@@ -790,7 +790,7 @@ void MidiControllerAutomationHandler::handleParameterData(MidiBuffer &b)
 
 				if (a->macroIndex != -1)
 				{
-					a->processor->getMainController()->getMacroManager().getMacroChain()->setMacroControl(a->macroIndex, (double)m.getControllerValue(), sendNotification);
+					a->processor->getMainController()->getMacroManager().getMacroChain()->setMacroControl(a->macroIndex, (float)m.getControllerValue(), sendNotification);
 				}
 				else
 				{

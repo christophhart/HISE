@@ -187,6 +187,11 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &m, const MouseEvent *e)
             m.addItem(99, itemString);
         }
     }
+
+#else
+
+	ignoreUnused(m, e);
+
 #endif
 };
 

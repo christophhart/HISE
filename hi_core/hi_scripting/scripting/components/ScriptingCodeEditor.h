@@ -378,7 +378,7 @@ public:
 		stopTimer();
 	};
 
-    void changeListenerCallback(SafeChangeBroadcaster *b) override
+    void changeListenerCallback(SafeChangeBroadcaster *) override
     {
         float newFontSize = scriptProcessor->getMainController()->getGlobalCodeFontSize();
         
