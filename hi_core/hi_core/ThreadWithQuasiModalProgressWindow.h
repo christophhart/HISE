@@ -147,17 +147,22 @@ public:
 
 		void paint(Graphics &g) override 
 		{ 
-			g.fillAll(Colours::black.withAlpha(0.8f)); 
+			g.fillAll(Colours::grey.withAlpha(0.5f));
 
 			if (window.getComponent() != nullptr)
 			{
-				Rectangle<int> textArea(window->getBoundsInParent().getX(),
-										window->getBoundsInParent().getY() - 40,
-										window->getBoundsInParent().getWidth(),
-										36);
+				Rectangle<int> textArea(0,
+										0,
+										getWidth(),
+										42);
 
+                g.setColour(Colours::black.withAlpha(0.7f));
+                g.fillRect(textArea);
+                
 				g.setColour(Colours::white);
 
+                
+                
 				g.setFont(GLOBAL_BOLD_FONT());
 
 				g.drawText("Task: " + String(currentTaskIndex) + "/" + String(totalTasks), textArea, Justification::centred);
