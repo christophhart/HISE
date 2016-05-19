@@ -405,11 +405,31 @@ void ScriptCreatedComponentWrappers::LabelWrapper::updateComponent()
 
 	l->setTooltip(GET_SCRIPT_PROPERTY(tooltip));
 
-	Font font(sl->getScriptObjectProperty(ScriptingApi::Content::ScriptLabel::FontName).toString(),
-		sl->getScriptObjectProperty(ScriptingApi::Content::ScriptLabel::FontStyle).toString(),
-		(float)sl->getScriptObjectProperty(ScriptingApi::Content::ScriptLabel::FontSize));
+	const String fontName = sl->getScriptObjectProperty(ScriptingApi::Content::ScriptLabel::FontName).toString();
+	const String fontStyle = sl->getScriptObjectProperty(ScriptingApi::Content::ScriptLabel::FontStyle).toString();
+	const float fontSize = (float)sl->getScriptObjectProperty(ScriptingApi::Content::ScriptLabel::FontSize);
 
-	l->setFont(font);
+	if (fontName == "Oxygen" || fontName == "Default")
+	{
+		if (fontStyle == "Bold")
+		{
+			l->setFont(GLOBAL_BOLD_FONT().withHeight(fontSize));
+		}
+		else
+		{
+			l->setFont(GLOBAL_FONT().withHeight(fontSize));
+		}
+	}
+	else if (fontName == "Source Code Pro")
+	{
+		l->setFont(GLOBAL_MONOSPACE_FONT().withHeight(fontSize));
+	}
+	else
+	{
+		Font font(fontName, fontStyle, fontSize);
+		l->setFont(font);
+	}
+
 	l->setJustificationType(sl->getJustification());
 	l->setColour(Label::ColourIds::textColourId, GET_OBJECT_COLOUR(textColour));
 	l->setColour(Label::ColourIds::backgroundColourId, GET_OBJECT_COLOUR(bgColour));

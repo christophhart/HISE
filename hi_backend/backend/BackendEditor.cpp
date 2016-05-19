@@ -127,8 +127,6 @@ rootEditorIsMainSynthChain(true)
 	progressOverlay->setDialog(nullptr);
 
 	restoreFromValueTree(editorState);
-
-	//setSize(referenceDebugArea->isVisible() ? 1280 : 900, 700);
     
 	keyboard->grabKeyboardFocus();
     

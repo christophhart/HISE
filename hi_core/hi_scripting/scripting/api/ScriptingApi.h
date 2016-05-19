@@ -721,6 +721,7 @@ public:
 			setMethod("matchesRegex", Wrapper::matchesRegex);
             setMethod("getRegexMatches", Wrapper::getRegexMatches);
             setMethod("doubleToString", Wrapper::doubleToString);
+			setMethod("getOS", Wrapper::getOS);
 
 		}
 
@@ -783,6 +784,9 @@ public:
 		/** Returns the name for the given macro index. */
 		String getMacroName(int index);
 		
+		/** Returns the current operating system ("OSX" or ("WIN"). */
+		String getOS();
+
 		/** Opens an editor for the included file. */
 		void openEditor(int includedFileIndex);
 
@@ -850,6 +854,8 @@ public:
 			static var matchesRegex(const var::NativeFunctionArgs& args);
             static var getRegexMatches(const var::NativeFunctionArgs& args);
             static var doubleToString(const var::NativeFunctionArgs& args);
+			static var getOS(const var::NativeFunctionArgs& args);
+
 			
 		};
 	};
@@ -1600,7 +1606,10 @@ public:
 				{
 				case FontStyle:	sa.addArray(f.getAvailableStyles());
 								break;
-				case FontName:	sa.addArray(Font::findAllTypefaceNames());
+				case FontName:	sa.add("Default");
+								sa.add("Oxygen");
+								sa.add("Source Code Pro");
+								sa.addArray(Font::findAllTypefaceNames());
 								break;
 				case Alignment: sa.add("left");
 								sa.add("right");

@@ -402,6 +402,15 @@ String ScriptingApi::Engine::getMacroName(int index)
 	}
 }
 
+String ScriptingApi::Engine::getOS()
+{
+#if JUCE_WINDOWS
+	return "WIN";
+#else
+	return "OSX";
+#endif
+}
+
 int ScriptingApi::Engine::getMidiNoteFromName(String midiNoteName) const
 {
 	for (int i = 0; i < 127; i++)

@@ -542,6 +542,20 @@ var ScriptingApi::Engine::Wrapper::doubleToString(const var::NativeFunctionArgs&
 }
 
 
+
+var ScriptingApi::Engine::Wrapper::getOS(const var::NativeFunctionArgs& args)
+{
+	if (Engine* thisObject = GET_OBJECT(Engine))
+	{
+		CHECK_ARGUMENTS("getOS()", 0);
+
+		return thisObject->getOS();
+	}
+
+	return var::undefined();
+}
+
+
 // =================================================================================================== Synth Wrappers
 
 var ScriptingApi::Synth::Wrapper::allowChildSynth(const var::NativeFunctionArgs& args)
