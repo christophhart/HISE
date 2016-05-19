@@ -254,7 +254,7 @@ public:
 		*	- user presets (in the UserPresets subfolder)
 		*	- licence key file
 		*/
-		static File getAppDataDirectory();
+		static File getAppDataDirectory(ProjectHandler *handler=nullptr);
 
 		static File getLicenceKey();
 

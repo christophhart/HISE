@@ -80,7 +80,7 @@ private:
 
 	static ErrorCodes compileSolution(ModulatorSynthChain *chainToExport, BuildOption buildOption);
 
-	static ErrorCodes createPluginDataHeaderFile(const String &solutionDirectory, const String &uniqueName, const String &version, const String &publicKey);
+	static ErrorCodes createPluginDataHeaderFile(ModulatorSynthChain* chainToExport, const String &solutionDirectory, const String &uniqueName, const String &version, const String &publicKey);
 
 	static ErrorCodes createResourceFile(const String &solutionDirectory, const String & uniqueName, const String &version);
 

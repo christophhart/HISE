@@ -313,6 +313,7 @@ public:
 			Description,
 			BundleIdentifier,
 			PluginCode,
+			EmbedAudioFiles,
 			numAttributes
 		};
 

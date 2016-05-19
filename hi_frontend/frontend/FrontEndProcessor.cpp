@@ -108,6 +108,17 @@ unlockCounter(0)
 	{
 		getSampleManager().getAudioSampleBufferPool()->restoreFromValueTree(*impulseData);
 	}
+	else
+	{
+		FileInputStream fis(ProjectHandler::Frontend::getAppDataDirectory().getChildFile("AudioResources.dat"));
+
+		ValueTree impulseDataFile = ValueTree::readFromStream(fis);
+
+		if (impulseDataFile.isValid())
+		{
+			getSampleManager().getAudioSampleBufferPool()->restoreFromValueTree(impulseDataFile);
+		}
+	}
 
 	numParameters = 0;
 

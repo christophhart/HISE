@@ -433,6 +433,17 @@ void SettingWindows::BaseSettingsWindow::setSettingsFile()
 	{
 		// Somehow the loaded XML file has not the correct structure.
 		jassertfalse;
+
+		if (compare->getNumChildElements() > settings->getNumChildElements())
+		{
+			for (int i = 0; i < compare->getNumChildElements(); i++)
+			{
+				if (settings->getChildByName(compare->getChildElement(i)->getTagName()) == nullptr)
+				{
+					settings->addChildElement(XmlDocument::parse(compare->getChildElement(i)->createDocument("")));
+				}
+			}
+		}
 	}
 
 	for (int i = 0; i < settings->getNumChildElements(); i++)
@@ -490,6 +501,7 @@ String SettingWindows::ProjectSettingWindow::getAttributeNameForSetting(int attr
 	case SettingWindows::ProjectSettingWindow::Attributes::Description:		 return "Description";
 	case SettingWindows::ProjectSettingWindow::Attributes::BundleIdentifier: return "BundleIdentifier";
 	case SettingWindows::ProjectSettingWindow::Attributes::PluginCode:		 return "PluginCode";
+	case SettingWindows::ProjectSettingWindow::Attributes::EmbedAudioFiles:	 return "EmbedAudioFiles";
 	case SettingWindows::ProjectSettingWindow::Attributes::numAttributes:
 	default: return "";
 	}
@@ -504,6 +516,7 @@ XmlElement * SettingWindows::ProjectSettingWindow::createNewSettingsFile() const
 	addChildElement(*xml, (int)Attributes::Description, "", "Project description");
 	addChildElement(*xml, (int)Attributes::BundleIdentifier, "", "Bundle Identifier(eg.com.myCompany.bundle)");
 	addChildElement(*xml, (int)Attributes::PluginCode, "", "a 4 character ID code(eg. 'Abcd')");
+	addChildElementWithOptions(*xml, (int)Attributes::EmbedAudioFiles, "No", "Embed Audio files in plugin", "Yes\nNo");
 
 	return xml;
 }

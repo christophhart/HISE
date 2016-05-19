@@ -46,7 +46,7 @@ void CompileExporter::exportMainSynthChainAsPackage(ModulatorSynthChain *chainTo
 
 	if (buildOption != Cancelled)
 	{
-		createPluginDataHeaderFile(solutionDirectory, uniqueId, version, publicKey);
+		createPluginDataHeaderFile(chainToExport, solutionDirectory, uniqueId, version, publicKey);
 		
 		copyHISEImageFiles(chainToExport);
 
@@ -188,9 +188,16 @@ void CompileExporter::writeReferencedAudioFiles(ModulatorSynthChain * chainToExp
         samplePool->loadFileIntoPool(iter.getFile().getFullPathName());
     }
     
-	
 	ValueTree sampleTree = samplePool->exportAsValueTree();
-	PresetHandler::writeValueTreeAsFile(sampleTree, File(directoryPath).getChildFile("impulses").getFullPathName());
+
+	if (SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::EmbedAudioFiles, &GET_PROJECT_HANDLER(chainToExport)) == "No")
+	{
+		PresetHandler::writeValueTreeAsFile(sampleTree, ProjectHandler::Frontend::getAppDataDirectory(&GET_PROJECT_HANDLER(chainToExport)).getChildFile("AudioResources.dat").getFullPathName());
+	}
+	else
+	{
+		PresetHandler::writeValueTreeAsFile(sampleTree, File(directoryPath).getChildFile("impulses").getFullPathName());
+	}
 }
 
 void CompileExporter::writeExternalScriptFiles(ModulatorSynthChain * chainToExport, const String &directoryPath)
@@ -359,7 +366,7 @@ public:
 
 
 
-CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(const String &solutionDirectory, const String &uniqueName, const String &version, const String &publicKey)
+CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(ModulatorSynthChain* chainToExport, const String &solutionDirectory, const String &uniqueName, const String &version, const String &publicKey)
 {
 	String pluginDataHeaderFile;
 
@@ -387,8 +394,18 @@ CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(const St
         pluginDataHeaderFile << "#endif" << "\n";
     }
 	
-	pluginDataHeaderFile << "AudioProcessor* JUCE_CALLTYPE createPluginFilter() { CREATE_PLUGIN; }\n";
-	pluginDataHeaderFile << "\n";
+	if (SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::EmbedAudioFiles, &GET_PROJECT_HANDLER(chainToExport)) == "No")
+	{
+		pluginDataHeaderFile << "AudioProcessor* JUCE_CALLTYPE createPluginFilter() { CREATE_PLUGIN; }\n";
+		pluginDataHeaderFile << "\n";
+	}
+	else
+	{
+		pluginDataHeaderFile << "AudioProcessor* JUCE_CALLTYPE createPluginFilter() { CREATE_PLUGIN_AUDIO_FILES; }\n";
+		pluginDataHeaderFile << "\n";
+	}
+
+	
 	File pluginDataHeader = File(solutionDirectory).getChildFile("Source/Plugin.cpp");
 	
 	pluginDataHeader.create();

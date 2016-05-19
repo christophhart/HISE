@@ -48,11 +48,20 @@ using namespace juce;
 
 #define CREATE_PLUGIN {ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\
 	ValueTree imageData = ValueTree::readFromData(PresetData::images, PresetData::imagesSize);\
+	ValueTree externalScripts = ValueTree::readFromData(PresetData::externalScripts, PresetData::externalScriptsSize);\
+	ValueTree userPresets = ValueTree::readFromData(PresetData::userPresets, PresetData::userPresetsSize);\
+	\
+	return new FrontendProcessor(presetData, &imageData, nullptr, &externalScripts, &userPresets);\
+}
+
+#define CREATE_PLUGIN_WITH_AUDIO_FILES {ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\
+	ValueTree imageData = ValueTree::readFromData(PresetData::images, PresetData::imagesSize);\
 	ValueTree impulseData = ValueTree::readFromData(PresetData::impulses, PresetData::impulsesSize);\
 	ValueTree externalScripts = ValueTree::readFromData(PresetData::externalScripts, PresetData::externalScriptsSize);\
 	ValueTree userPresets = ValueTree::readFromData(PresetData::userPresets, PresetData::userPresetsSize);\
 	\
 	return new FrontendProcessor(presetData, &imageData, &impulseData, &externalScripts, &userPresets);\
 }
+
 
 #endif   // HI_FRONTEND_INCLUDED

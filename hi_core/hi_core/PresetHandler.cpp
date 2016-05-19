@@ -866,7 +866,7 @@ File ProjectHandler::Frontend::getSampleLocationForCompiledPlugin()
 #endif
 }
 
-File ProjectHandler::Frontend::getAppDataDirectory()
+File ProjectHandler::Frontend::getAppDataDirectory(ProjectHandler *handler/*=nullptr*/)
 {
 #if USE_FRONTEND
     
@@ -876,7 +876,18 @@ File ProjectHandler::Frontend::getAppDataDirectory()
 	return File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile(String(JucePlugin_Manufacturer) + "/" + String(JucePlugin_Name));
 #endif
 #else
-	return File::nonexistent;
+
+	jassert(handler != nullptr);
+
+	const String company = SettingWindows::getSettingValue((int)SettingWindows::UserSettingWindow::Attributes::Company);
+	const String product = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, handler);
+
+#if JUCE_MAC
+	return File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("Application Support/" + company + "/" + product);
+#else
+	return File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile(company + "/" + String(product));
+#endif
+
 #endif
 }
 

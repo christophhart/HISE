@@ -1602,7 +1602,7 @@ public:
 
 				Font f("Arial", 13.0f, Font::plain);
 
-				switch(index)
+				switch(index) 
 				{
 				case FontStyle:	sa.addArray(f.getAvailableStyles());
 								break;
