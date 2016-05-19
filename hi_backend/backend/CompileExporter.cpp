@@ -259,13 +259,11 @@ CompileExporter::ErrorCodes CompileExporter::compileSolution(ModulatorSynthChain
     
 #else
     
-
-    
-    
+    String permissionCommand = "chmod +x \"" + batchFile.getFullPathName() + "\"";
+    system(permissionCommand.getCharPointer());
     
     String command = "open \"" + batchFile.getFullPathName() + "\"";
 
-    
 #endif
     
 	int returnType = system(command.getCharPointer());
