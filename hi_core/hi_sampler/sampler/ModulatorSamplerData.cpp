@@ -81,6 +81,8 @@ void SoundPreloadThread::run()
 
 		setProgress(i / (double)numSoundsToPreload);
 
+		sampler->getSound(i)->checkFileReference();
+
 		if (sampler->getNumMicPositions() == 1)
 		{
 			StreamingSamplerSound *s = sampler->getSound(i)->getReferenceToSound();
@@ -113,11 +115,7 @@ void SoundPreloadThread::run()
 
 void SoundPreloadThread::preloadSample(StreamingSamplerSound * s, const int preloadSize)
 {
-    
-    
 	jassert(s != nullptr);
-
-	s->checkFileReference();
 
 	String fileName = s->getFileName(false);
 

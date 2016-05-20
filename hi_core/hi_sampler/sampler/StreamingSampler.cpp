@@ -47,57 +47,19 @@ StreamingSamplerSound::StreamingSamplerSound(const String &fileNameToLoad,
     internalPreloadSize(0),
     entireSampleLoaded(false),
     sampleStart(0),
-    sampleEnd(0),
-    sampleLength(0),
+    sampleEnd(INT_MAX),
+    sampleLength(INT_MAX),
     sampleStartMod(0),
     loopEnabled(false),
     loopStart(0),
-    loopEnd(0),
+    loopEnd(INT_MAX),
     loopLength(0),
     crossfadeLength(0),
     crossfadeArea(Range<int>())
 {
 	fileReader.setFile(fileNameToLoad);
 
-    if(isMissing())
-    {
-        sampleStart = 0;
-        sampleEnd = INT_MAX;
-        sampleLength = INT_MAX;
-        sampleRate = -1.0;
-        setPreloadSize(0);
-
-        return;
-    }
-    
-	fileReader.openFileHandles(dontSendNotification);
-
-	AudioFormatReader *reader = fileReader.getReader();
-
-	if (reader != nullptr)
-	{
-		sampleStart = 0;
-		sampleEnd = (int)reader->lengthInSamples;
-		sampleLength = sampleEnd - sampleStart;
-		monolithLength = (int)reader->lengthInSamples;
-
-		sampleRate = reader->sampleRate;
-		setLoopEnd(sampleEnd);
-        setPreloadSize(0);
-	}
-	else
-	{
-		fileReader.setMissing();
-
-		sampleStart = 0;
-		sampleEnd = INT_MAX;
-		sampleLength = INT_MAX;
-		sampleRate = -1;
-
-		setPreloadSize(0);
-	}
-
-	fileReader.closeFileHandles(dontSendNotification);
+    setPreloadSize(0);
 }
 
 StreamingSamplerSound::StreamingSamplerSound(const File &/*data*/, const String &fileName_, int start, int length, ModulatorSamplerSoundPool *pool):
@@ -109,56 +71,18 @@ StreamingSamplerSound::StreamingSamplerSound(const File &/*data*/, const String 
 	loopStart(0),
 	sampleStartMod(0),
 	monolithOffset(start),
+	monolithLength(INT_MAX),
 	crossfadeLength(0),
 	purged(false)
 {
 	fileReader.setFile(fileName_);
 
-    if(isMissing())
-    {
-        sampleStart = 0;
-        sampleEnd = INT_MAX;
-        sampleLength = INT_MAX;
-        sampleRate = -1.0;
-        setPreloadSize(0);
-        
-        return;
-    }
+    setPreloadSize(0);
     
-	fileReader.openFileHandles(dontSendNotification);
-	
-	AudioFormatReader *reader = fileReader.getReader();
-
-	if (reader != nullptr)
-	{
-		sampleStart = 0;
-		monolithLength = length;
-		sampleEnd = start + length;
-		sampleLength = sampleEnd - (sampleStart + monolithOffset);
-		
-		sampleRate = reader->sampleRate;
-		setLoopEnd(sampleEnd);
-		setPreloadSize(0);
-	}
-	else
-	{
-		fileReader.setMissing();
-
-		sampleStart = 0;
-		sampleEnd = INT_MAX;
-		sampleLength = INT_MAX;
-		monolithLength = 0;
-		sampleRate = -1;
-
-		setPreloadSize(0);
-	}
-
-	fileReader.closeFileHandles(dontSendNotification);
 };
 
 
-
-StreamingSamplerSound::~StreamingSamplerSound() 
+StreamingSamplerSound::~StreamingSamplerSound()
 { 
 	fileReader.closeFileHandles(); 
 }
@@ -213,6 +137,17 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 	
 	preloadBuffer.clear();
 	
+	if (sampleRate <= 0.0)
+	{
+		if (AudioFormatReader *reader = fileReader.getReader())
+		{
+			sampleRate = reader->sampleRate;
+			sampleEnd = jmin<int>(sampleEnd, reader->lengthInSamples);
+			sampleLength = sampleEnd - sampleStart;
+			loopEnd = jmin(loopEnd, sampleEnd);
+		}
+	}
+
 	fileReader.readFromDisk(preloadBuffer, 0, internalPreloadSize, sampleStart + monolithOffset, true);
 }
 
@@ -576,7 +511,7 @@ void StreamingSamplerSound::fillInternal(AudioSampleBuffer &sampleBuffer, int sa
 StreamingSamplerSound::FileReader::FileReader(StreamingSamplerSound *soundForReader, ModulatorSamplerSoundPool *pool_) :
 pool(pool_),
 sound(soundForReader),
-missing(false),
+missing(true),
 hashCode(0),
 voiceCount(0),
 fileHandlesOpen(false)
@@ -595,14 +530,18 @@ void StreamingSamplerSound::FileReader::setFile(const String &f)
     if(File::isAbsolutePath(f))
     {
         loadedFile = File(f);
+
+		const String fileExtension = loadedFile.getFileExtension();
+
+		fileFormatSupportsMemoryReading = fileExtension.compareIgnoreCase(".wav") || fileExtension.startsWithIgnoreCase(".aif");
+
+		hashCode = loadedFile.hashCode64();
     }
     else
     {
         faultyFileName = f;
         loadedFile = File::nonexistent;
     }
-    
-	refreshFileInformation();
 }
 
 String StreamingSamplerSound::FileReader::getFileName(bool getFullPath)
@@ -627,7 +566,7 @@ String StreamingSamplerSound::FileReader::getFileName(bool getFullPath)
 
 void StreamingSamplerSound::FileReader::checkFileReference()
 {
-	missing = !loadedFile.existsAsFile();// && getReader() == nullptr;
+	if(missing) missing = !loadedFile.existsAsFile();// && getReader() == nullptr;
 }
 
 void StreamingSamplerSound::FileReader::refreshFileInformation()
@@ -638,9 +577,10 @@ void StreamingSamplerSound::FileReader::refreshFileInformation()
 	{
         faultyFileName = String::empty;
         
-		ScopedPointer<MemoryMappedAudioFormatReader> mr = pool->afm.findFormatForFileExtension(loadedFile.getFileExtension())->createMemoryMappedReader(loadedFile);
+		const String fileExtension = loadedFile.getFileExtension();
 
-		fileFormatSupportsMemoryReading = mr != nullptr;
+		fileFormatSupportsMemoryReading = fileExtension.compareIgnoreCase(".wav") || fileExtension.startsWithIgnoreCase(".aif");
+
 		hashCode = loadedFile.hashCode64();
 	}
 }

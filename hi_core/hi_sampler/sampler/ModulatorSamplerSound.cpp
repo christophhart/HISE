@@ -55,7 +55,7 @@ purgeChannels(0)
 {
 	soundList.add(wrappedSound.get());
 
-	checkFileReference();
+	
 
 	setProperty(Pan, 0);
 }
@@ -86,7 +86,7 @@ purgeChannels(0)
 		soundList.add(soundArray[i]);
 	}
 
-	checkFileReference();
+	
 	setProperty(Pan, 0);
 }
 
@@ -357,7 +357,7 @@ void ModulatorSamplerSound::restoreFromValueTree(const ValueTree &v)
 		if (!x.isUndefined()) setProperty(p, x, dontSendNotification);
 	}
 
-	checkFileReference();
+	
 
 	normalizedPeak = v.getProperty("NormalizedPeak", -1.0f);
 }

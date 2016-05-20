@@ -404,7 +404,7 @@ const Image * FrontendBar::getFilmStripImageFromString(const String &fileReferen
 {
 #if USE_FRONTEND
 
-	String poolName = ProjectHandler::Frontend::getSanitiziedFileNameForPoolReference(newValue);
+	String poolName = ProjectHandler::Frontend::getSanitiziedFileNameForPoolReference(fileReference);
 
 #else
 

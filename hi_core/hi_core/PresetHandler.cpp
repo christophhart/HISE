@@ -922,7 +922,7 @@ String ProjectHandler::Frontend::getSanitiziedFileNameForPoolReference(const Str
 {
 	static String id = "{PROJECT_FOLDER}";
 
-	return absoluteFileName.replace(id, "");
+	return absoluteFileName.substring(16);
 }
 
 void ProjectHandler::Frontend::setSampleLocation(const File &newLocation)
