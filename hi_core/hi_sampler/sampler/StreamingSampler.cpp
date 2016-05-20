@@ -831,7 +831,7 @@ void SampleLoader::startNote(StreamingSamplerSound const *s, int startTime)
 	readIndexDouble = (double)startTime;
 
 	readPointerLeft = localReadBuffer->getReadPointer(0, sampleStartModValue);
-	readPointerRight = localWriteBuffer->getReadPointer(1, sampleStartModValue);
+	readPointerRight = localReadBuffer->getReadPointer(1, sampleStartModValue);
 
 	isReadingFromPreloadBuffer = true;
 
