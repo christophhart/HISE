@@ -621,6 +621,7 @@ mainAudioProcessor(nullptr),
 numOpenFileHandles(0),
 updatePool(true),
 searchPool(true),
+forcePoolSearch(false),
 isCurrentlyLoading(false)
 {
 	afm.registerBasicFormats();
@@ -1092,8 +1093,6 @@ ModulatorSamplerSound * ModulatorSamplerSoundPool::addSoundWithSingleMic(const V
 {
 	String fileName = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getFilePath(soundDescription.getProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::FileName)), ProjectHandler::SubDirectories::Samples);
 
-	//String fileName = soundDescription.getChild(0).getProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::FileName));
-
 	if (forceReuse)
 	{
         int64 hash = fileName.hashCode64();
@@ -1116,9 +1115,9 @@ ModulatorSamplerSound * ModulatorSamplerSoundPool::addSoundWithSingleMic(const V
         
         const bool isDuplicate = soundDescription.getProperty(duplicate, true);
         
-        const bool skipPoolSearch = isDuplicate ? false : true;
+        const bool searchThisSampleInPool = forcePoolSearch || isDuplicate;
         
-        if(!skipPoolSearch)
+        if(searchThisSampleInPool)
         {
             int64 hash = fileName.hashCode64();
             int i = getSoundIndexFromPool(hash);
@@ -1164,9 +1163,11 @@ ModulatorSamplerSound * ModulatorSamplerSoundPool::addSoundWithMultiMic(const Va
 		{
             static Identifier duplicate("Duplicate");
             
-            const bool skipPoolSearch = soundDescription.getProperty(duplicate, true) ? false : true;
-            
-            if(!skipPoolSearch)
+			const bool isDuplicate = soundDescription.getProperty(duplicate, true);
+
+			const bool searchThisSampleInPool = forcePoolSearch || isDuplicate;
+
+			if (searchThisSampleInPool)
             {
                 int64 hash = fileName.hashCode64();
                 int i = getSoundIndexFromPool(hash);
@@ -1191,4 +1192,9 @@ ModulatorSamplerSound * ModulatorSamplerSoundPool::addSoundWithMultiMic(const Va
 	if(updatePool) sendChangeMessage();
 
 	return new ModulatorSamplerSound(multiMicArray, index);
+}
+
+bool ModulatorSamplerSoundPool::isPoolSearchForced() const
+{
+	return forcePoolSearch;
 }

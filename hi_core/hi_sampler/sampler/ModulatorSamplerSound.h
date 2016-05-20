@@ -485,6 +485,10 @@ public:
 
 	bool isPreloading() const { return isCurrentlyLoading; }
 
+	void setForcePoolSearch(bool shouldBeForced) { forcePoolSearch = shouldBeForced; };
+
+	bool isPoolSearchForced() const;
+
 private:
 
 	// ================================================================================================================
@@ -493,7 +497,7 @@ private:
 
 	ModulatorSamplerSound *addSoundWithSingleMic(const ValueTree &soundDescription, int index, bool forceReuse = false);
 	ModulatorSamplerSound *addSoundWithMultiMic(const ValueTree &soundDescription, int index, bool forceReuse = false);
-
+	
 	// ================================================================================================================
 
 	AudioProcessor *mainAudioProcessor;
@@ -504,7 +508,7 @@ private:
 	ReferenceCountedArray<StreamingSamplerSound> pool;
 
 	bool isCurrentlyLoading;
-
+	bool forcePoolSearch;
     bool updatePool;
 	bool searchPool;
     

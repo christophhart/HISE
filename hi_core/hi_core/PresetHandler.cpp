@@ -780,15 +780,14 @@ void ProjectHandler::setProjectSettings(Component *mainEditor)
 	}
 }
 
-#define GET_FILE(x) {if (x.contains(id)) \
-                         return getSubDirectory(subDir).getChildFile(x.fromFirstOccurrenceOf(id, false, true)).getFullPathName(); \
-                     return x;}
 
 String ProjectHandler::getFilePath(const String &pathToFile, SubDirectories subDir) const
 {
 	if (ProjectHandler::isAbsolutePathCrossPlatform(pathToFile)) return pathToFile;
 
     static String id = "{PROJECT_FOLDER}";
+
+	static int idLength = id.length();
  
 #if USE_FRONTEND
 
@@ -803,17 +802,27 @@ String ProjectHandler::getFilePath(const String &pathToFile, SubDirectories subD
 #if JUCE_MAC
     String pathToUse = pathToFile.replace("\\", "/");
     
-    GET_FILE(pathToUse)
+	if (pathToUse.startsWith(id))
+	{
+		return getSubDirectory(subDir).getChildFile(pathToUse.substring(idLength)).getFullPathName(); \
+	}
+
+	return pathToFile;
+
 #else
     
-    GET_FILE(pathToFile)
+	if (pathToFile.startsWith(id))
+	{
+		return getSubDirectory(subDir).getChildFile(pathToFile.substring(idLength)).getFullPathName(); \
+	}
+		
+	return pathToFile;
+
 #endif
 
 #endif
 
 }
-
-#undef GET_FILE
 
 const String ProjectHandler::getFileReference(const String &absoluteFileName, SubDirectories dir) const
 {
