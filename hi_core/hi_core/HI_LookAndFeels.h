@@ -915,7 +915,23 @@ public:
 
 	void drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, int width, int height, float /*sliderPosProportional*/, float /*rotaryStartAngle*/, float /*rotaryEndAngle*/, Slider &s) override;
 
+	void setCustomFilmstripImage(const Image *customImage, int numFilmstrips)
+	{
+		if (numFilmstrips != 0 && customImage->isValid())
+		{
+			volumeFilmStrip = customImage->createCopy();
+			balanceFilmStrip = volumeFilmStrip;
+
+			numStrips = numFilmstrips;
+			useCustomStrip = true;
+		}
+	}
+
 private:
+
+	int numStrips;
+
+	bool useCustomStrip;
 
 	Image volumeFilmStrip;
 

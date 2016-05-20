@@ -132,17 +132,32 @@ public:
 	
 	void refreshPresetFileList();
 
+	void setProperties(DynamicObject *p);
+	static String createJSONString(DynamicObject *p=nullptr);
+	static DynamicObject *createDefaultProperties();
+
 	// ================================================================================================================
 
 	void timerCallback();
     void paint (Graphics& g);
     void resized();
 
+	bool isOverlaying() const { return overlaying; }
+
 private:
+
+	const Image *getFilmStripImageFromString(const String &fileReference) const;
 
 	// ================================================================================================================
 
+	
 	MainController *mc;
+
+	bool overlaying;
+
+	int height;
+
+	Colour bgColour;
 
 	FrontendKnobLookAndFeel fklaf;
 

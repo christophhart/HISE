@@ -656,7 +656,9 @@ void PopupLookAndFeel::drawMenuBarBackground(Graphics& g, int width, int height,
 	g.drawLine(0.0f, (float)height, (float)width, (float)height);
 }
 
-FrontendKnobLookAndFeel::FrontendKnobLookAndFeel()
+FrontendKnobLookAndFeel::FrontendKnobLookAndFeel():
+numStrips(127),
+useCustomStrip(false)
 {
 	volumeFilmStrip = ImageCache::getFromMemory(BinaryData::FrontendKnob_Unipolar_png, BinaryData::FrontendKnob_Unipolar_pngSize);
 	balanceFilmStrip = ImageCache::getFromMemory(BinaryData::FrontendKnob_Bipolar_png, BinaryData::FrontendKnob_Bipolar_pngSize);
@@ -667,39 +669,47 @@ void FrontendKnobLookAndFeel::drawRotarySlider(Graphics &g, int /*x*/, int /*y*/
 	const double value = s.getValue();
 	const double normalizedValue = (value - s.getMinimum()) / (s.getMaximum() - s.getMinimum());
 	const double proportion = pow(normalizedValue, s.getSkewFactor());
-	const int stripIndex = (int)(proportion * 126);
+	const int stripIndex = (int)(proportion * (numStrips - 1));
 
-	
-	const int filmstripHeight = 22;
+	const int filmstripHeight = volumeFilmStrip.getHeight() / numStrips;
 
 	const int offset = stripIndex * filmstripHeight;
 
 	Image *imageToUse;
 	
-	if (s.getName() == "Volume")
+	if (useCustomStrip)
 	{
 		imageToUse = &volumeFilmStrip;
 	}
-	else 
+	else
 	{
-		imageToUse = &balanceFilmStrip;
+		if (s.getName() == "Volume")
+		{
+			imageToUse = &volumeFilmStrip;
+		}
+		else
+		{
+			imageToUse = &balanceFilmStrip;
+		}
 	}
 
 	Image clip = imageToUse->getClippedImage(Rectangle<int>(0, offset, filmstripHeight, filmstripHeight));
 
-	if (s.isMouseButtonDown())
+	if (!useCustomStrip)
 	{
-		g.setColour(Colours::black.withAlpha(1.0f));
+		if (s.isMouseButtonDown())
+		{
+			g.setColour(Colours::black.withAlpha(1.0f));
+		}
+		else if (s.isMouseOver())
+		{
+			g.setColour(Colours::black.withAlpha(0.8f));
+		}
+		else
+		{
+			g.setColour(Colours::black.withAlpha(0.5f));
+		}
 	}
-	else if (s.isMouseOver())
-	{
-		g.setColour(Colours::black.withAlpha(0.8f));
-	}
-	else
-	{
-		g.setColour(Colours::black.withAlpha(0.5f));
-	}
-
 	
 	g.drawImageAt(clip, 0, 0);
 }

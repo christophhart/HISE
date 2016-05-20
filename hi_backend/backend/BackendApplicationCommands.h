@@ -135,12 +135,15 @@ public:
 		MenuToolsSetCompileTimeOut,
 		MenuToolsUseBackgroundThreadForCompile,
 		MenuToolsRecompileScriptsOnReload,
+		MenuToolsCreateToolbarPropertyDefinition,
 		MenuToolsExternalScriptFileOffset,
+		
 		MenuToolsResolveMissingSamples = 0x60000,
 		MenuToolsDeleteMissingSamples,
 		MenuToolsUseRelativePaths,
 		MenuToolsCollectExternalFiles,
         MenuToolsRedirectSampleFolder,
+		MenuToolsForcePoolSearch,
 		MenuToolsCreateRSAKeys,
 		MenuToolsCreateDummyLicenceFile,
 		MenuHelpShowAboutPage,
@@ -269,6 +272,8 @@ private:
         static void changeCodeFontSize(BackendProcessorEditor *bpe, bool increase);
 		static void createRSAKeys(BackendProcessorEditor * bpe);
 		static void createDummyLicenceFile(BackendProcessorEditor * bpe);
+		static void createDefaultToolbarJSON(BackendProcessorEditor * bpe);
+		static void toggleForcePoolSearch(BackendProcessorEditor * bpe);
 	};
 
 	ColumnMode currentColumnMode;

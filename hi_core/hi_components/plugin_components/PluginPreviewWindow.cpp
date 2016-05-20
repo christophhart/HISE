@@ -76,7 +76,7 @@ mainSynthChain(editor->getMainSynthChain())
 
 	const int xDelta = 2;
 
-	setSize(container->getContentWidth() + xDelta, container->getContentHeight() + frontendBar->getHeight() + 45 + xDelta);
+	setSize(container->getContentWidth() + xDelta, container->getContentHeight() + (frontendBar->isOverlaying() ? 0 : frontendBar->getHeight()) + 45 + xDelta);
 }
 
 PluginPreviewWindow::Content::~Content()
@@ -91,6 +91,6 @@ PluginPreviewWindow::Content::~Content()
 void PluginPreviewWindow::Content::resized()
 {
 	frontendBar->setBounds(2, 2, container->getContentWidth(), frontendBar->getHeight());
-	container->setBounds(2, 2 + frontendBar->getBottom(), container->getContentWidth(), container->getContentHeight());
+	container->setBounds(2, (frontendBar->isOverlaying() ? frontendBar->getY() : frontendBar->getBottom()), container->getContentWidth(), container->getContentHeight());
 	keyboard->setBounds(2, container->getBottom(), container->getContentWidth(), 72);
 }

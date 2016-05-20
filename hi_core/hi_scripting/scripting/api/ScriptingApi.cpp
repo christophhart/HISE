@@ -2545,6 +2545,20 @@ void ScriptingApi::Content::setWidth(int newWidth) noexcept
 };
 
 
+void ScriptingApi::Content::setToolbarProperties(const var &toolbarProperties)
+{
+	NamedValueSet *newSet = &toolbarProperties.getDynamicObject()->getProperties();
+
+	NamedValueSet *set = &getScriptProcessor()->getMainController()->getToolbarPropertiesObject()->getProperties();
+
+	set->clear();
+
+	for (int i = 0; i < newSet->size(); i++)
+	{
+		set->set(newSet->getName(i), newSet->getValueAt(i));
+	}
+}
+
 void ScriptingApi::Content::storeAllControlsAsPreset(const String &fileName)
 {
 	File f;

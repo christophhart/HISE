@@ -101,11 +101,13 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsSetCompileTimeOut,
 		MenuToolsUseBackgroundThreadForCompile,
 		MenuToolsRecompileScriptsOnReload,
+		MenuToolsCreateToolbarPropertyDefinition,
 		MenuToolsResolveMissingSamples,
 		MenuToolsDeleteMissingSamples,
 		MenuToolsUseRelativePaths,
 		MenuToolsCollectExternalFiles,
         MenuToolsRedirectSampleFolder,
+		MenuToolsForcePoolSearch,
 		MenuToolsCreateRSAKeys,
 		MenuToolsCreateDummyLicenceFile,
         MenuViewFullscreen,
@@ -293,6 +295,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuToolsRecompileScriptsOnReload:
 		setCommandTarget(result, "Recompile all scripts on preset load", true, bpe->getBackendProcessor()->isCompilingAllScriptsOnPresetLoad(), 'X', false);
 		break;
+	case MenuToolsCreateToolbarPropertyDefinition:
+		setCommandTarget(result, "Create default Toolbar JSON definition", true, false, 'X', false);
+		break;
 	case MenuToolsDeleteMissingSamples:
 		setCommandTarget(result, "Delete missing samples", true, false, 'X', false);
 		break;
@@ -309,6 +314,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Redirect sample folder", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(),
 			GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isRedirected(ProjectHandler::SubDirectories::Samples), 'X', false);
         break;
+	case MenuToolsForcePoolSearch:
+		setCommandTarget(result, "Force duplicate search in pool when loading samples", true, bpe->getBackendProcessor()->getSampleManager().getModulatorSamplerSoundPool()->isPoolSearchForced(), 'X', false);
+		break;
 	case MenuToolsCreateRSAKeys:
 		setCommandTarget(result, "Create RSA Key pair", true, false, 'X', false);
 		break;
@@ -422,12 +430,14 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsSetCompileTimeOut:	Actions::setCompileTimeOut(bpe); return true;
 	case MenuToolsUseBackgroundThreadForCompile: Actions::toggleUseBackgroundThreadsForCompiling(bpe); updateCommands(); return true;
 	case MenuToolsRecompileScriptsOnReload: Actions::toggleCompileScriptsOnPresetLoad(bpe); updateCommands(); return true;
+	case MenuToolsCreateToolbarPropertyDefinition:	Actions::createDefaultToolbarJSON(bpe); return true;
     case MenuToolsCheckDuplicate:       Actions::checkDuplicateIds(bpe); return true;
 	case MenuToolsDeleteMissingSamples: Actions::deleteMissingSamples(bpe); return true;
 	case MenuToolsResolveMissingSamples:Actions::resolveMissingSamples(bpe); return true;
 	case MenuToolsUseRelativePaths:		Actions::toggleRelativePath(bpe); updateCommands();  return true;
 	case MenuToolsCollectExternalFiles:	Actions::collectExternalFiles(bpe); return true;
     case MenuToolsRedirectSampleFolder: Actions::redirectSampleFolder(bpe->getMainSynthChain()); updateCommands(); return true;
+	case MenuToolsForcePoolSearch:		Actions::toggleForcePoolSearch(bpe); updateCommands(); return true;
 	case MenuToolsCreateRSAKeys:		Actions::createRSAKeys(bpe); return true;
 	case MenuToolsCreateDummyLicenceFile: Actions::createDummyLicenceFile(bpe); return true;
     case MenuViewFullscreen:            Actions::toggleFullscreen(bpe); updateCommands(); return true;
@@ -599,6 +609,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		p.addCommandItem(mainCommandManager, MenuToolsRecompileScriptsOnReload);
 		p.addCommandItem(mainCommandManager, MenuToolsSetCompileTimeOut);
 		p.addCommandItem(mainCommandManager, MenuToolsUseBackgroundThreadForCompile);
+		p.addCommandItem(mainCommandManager, MenuToolsCreateToolbarPropertyDefinition);
 
 		PopupMenu sub;
 
@@ -621,6 +632,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		p.addCommandItem(mainCommandManager, MenuToolsUseRelativePaths);
 		p.addCommandItem(mainCommandManager, MenuToolsCollectExternalFiles);
 		p.addCommandItem(mainCommandManager, MenuToolsRedirectSampleFolder);
+		p.addCommandItem(mainCommandManager, MenuToolsForcePoolSearch);
 		p.addSeparator();
 		p.addSectionHeader("Licence Management");
 		p.addCommandItem(mainCommandManager, MenuToolsCreateDummyLicenceFile);
@@ -1741,4 +1753,29 @@ void BackendCommandTarget::Actions::createDummyLicenceFile(BackendProcessorEdito
 	File key = handler->getWorkDirectory().getChildFile(productName + ".licence");
 
 	key.replaceWithText(keyContent);
+}
+
+void BackendCommandTarget::Actions::createDefaultToolbarJSON(BackendProcessorEditor * bpe)
+{
+	String json = FrontendBar::createJSONString(bpe->getBackendProcessor()->getToolbarPropertiesObject());
+
+	String clipboard = "var toolbarData = ";
+	
+	clipboard << json;
+
+	clipboard << ";\n\nContent.setToolbarProperties(toolbarData);";
+
+	SystemClipboard::copyTextToClipboard(clipboard);
+
+	PresetHandler::showMessageWindow("JSON Data copied to clipboard", 
+		"The current toolbar properties are copied into the clipboard.\nPaste it into any script and change the data", 
+		PresetHandler::IconType::Info);
+
+}
+
+void BackendCommandTarget::Actions::toggleForcePoolSearch(BackendProcessorEditor * bpe)
+{
+	ModulatorSamplerSoundPool *pool = bpe->getBackendProcessor()->getSampleManager().getModulatorSamplerSoundPool();
+
+	pool->setForcePoolSearch(!pool->isPoolSearchForced());
 }

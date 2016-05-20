@@ -95,7 +95,6 @@ public:
 
 	StringArray getTextDataForId(int i);
 
-
 	/** Clears the data. */
 	void clearData();
 

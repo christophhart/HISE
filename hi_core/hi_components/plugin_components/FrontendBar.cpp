@@ -31,8 +31,11 @@
 */
 
 
-FrontendBar::FrontendBar(MainController *mc_) : mc(mc_)
+FrontendBar::FrontendBar(MainController *mc_) : mc(mc_),
+												height(32),
+												overlaying(false)
 {
+	
 	addAndMakeVisible (outMeter = new VuMeter (0.0, 0.0, VuMeter::StereoVertical));
     outMeter->setName ("new component");
 
@@ -108,7 +111,8 @@ FrontendBar::FrontendBar(MainController *mc_) : mc(mc_)
 	volumeSlider->setDoubleClickReturnValue(true, 0.0);
 	volumeSlider->setTooltip("Main Volume: " + String(volumeSlider->getValue(), 1) + " dB");
     volumeSlider->setWantsKeyboardFocus(false);
-	
+	volumeSlider->setSize(22, 22);
+
 	addAndMakeVisible(balanceSlider = new Slider("Balance"));
 	balanceSlider->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
 	balanceSlider->setTextBoxStyle(Slider::NoTextBox, true, 0, 0);
@@ -119,6 +123,7 @@ FrontendBar::FrontendBar(MainController *mc_) : mc(mc_)
 	balanceSlider->setDoubleClickReturnValue(true, 0.0);
 	balanceSlider->setTooltip("Stereo Balance: " + String(balanceSlider->getValue() * 100.0, 0));
     balanceSlider->setWantsKeyboardFocus(false);
+	balanceSlider->setSize(22, 22);
 
 	addAndMakeVisible(pitchSlider = new Slider("Pitch"));
 	pitchSlider->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
@@ -129,7 +134,8 @@ FrontendBar::FrontendBar(MainController *mc_) : mc(mc_)
 	pitchSlider->setDoubleClickReturnValue(true, 0.0);
 	pitchSlider->setTooltip("Global Pitch Tuning: " + String(pitchSlider->getValue(), 2) + " st");
     pitchSlider->setWantsKeyboardFocus(false);
-    
+	pitchSlider->setSize(22, 22);
+
 	outMeter->setOpaque(false);
 	outMeter->setColour(VuMeter::backgroundColour, Colours::transparentBlack);
 	outMeter->setColour (VuMeter::ledColour, Colours::lightgrey);
@@ -146,7 +152,10 @@ FrontendBar::FrontendBar(MainController *mc_) : mc(mc_)
 
 	setTooltip(" ");
 
-    setSize (800, 32);
+	setProperties(mc->getToolbarPropertiesObject());
+
+
+    setSize (800, height);
 
 	START_TIMER();
 }
@@ -164,35 +173,70 @@ FrontendBar::~FrontendBar()
 
 void FrontendBar::paint (Graphics& g)
 {
-    g.setGradientFill(ColourGradient(Colours::black.withBrightness(0.1f), 0.0f, 0.0f,
-                      Colours::black, 0.0f, (float)getHeight(), false));
-    
-    g.fillAll();
+	if (!isOverlaying())
+	{
+		g.setGradientFill(ColourGradient(Colours::black.withBrightness(0.1f), 0.0f, 0.0f,
+			Colours::black, 0.0f, (float)getHeight(), false));
+
+		g.fillAll();
+	}
 }
 
 void FrontendBar::resized()
 {
-	voiceCpuComponent->setBounds(6, 2, voiceCpuComponent->getWidth(), voiceCpuComponent->getHeight());
+	int leftX = 0;
+	const int spaceX = 6;
 
-	presetSelector->setBounds(voiceCpuComponent->getRight() + 6, 2, 130, 28);
+	if (voiceCpuComponent->isVisible())
+	{
+		voiceCpuComponent->setBounds(leftX + spaceX, (getHeight() - voiceCpuComponent->getHeight()) / 2, voiceCpuComponent->getWidth(), voiceCpuComponent->getHeight());
 
-	presetSaveButton->setBounds(presetSelector->getRight() + 1, 6, 20, 20);
+		leftX = voiceCpuComponent->getRight();
+	}
+	
+	if (presetSelector->isVisible())
+	{
+		const int presetHeight = 28;
 
-	outMeter->setBounds(getRight() - 26, 0, 24, getHeight());
+		presetSelector->setBounds(leftX + spaceX, (getHeight() - presetHeight) / 2, 130, presetHeight);
 
-	volumeSlider->setBounds(outMeter->getX() - 28, 12, 22, 22);
-	volumeSliderLabel->setBounds(volumeSlider->getX() - 6, 1, 32, 12);
+		presetSaveButton->setBounds(presetSelector->getRight() + 1, (getHeight() - 20) / 2, 20, 20);
 
-	balanceSlider->setBounds(volumeSlider->getX() - 28, 12, 22, 22);
-	balanceSliderLabel->setBounds(balanceSlider->getX() - 6, 1, 32, 12);
+		leftX = presetSaveButton->getRight();
+	}
+	
+	int rightX = getRight() - 26;
 
-	pitchSlider->setBounds(balanceSlider->getX() - 28, 12, 22, 22);
-	pitchSliderLabel->setBounds(pitchSlider->getX() - 6, 1, 32, 12);
+	if (outMeter->isVisible())
+	{
+		outMeter->setBounds(rightX, 0, 24, getHeight());
 
+		rightX = outMeter->getX();
+	}
 
-	int toolWidth = pitchSlider->getX() - presetSaveButton->getRight() - 12;
+	if (volumeSlider->isVisible())
+	{
+		const int buttonWidth = volumeSlider->getWidth();
 
-	tooltipBar->setBounds(presetSaveButton->getRight() + 6, 4, toolWidth, getHeight() - 8);
+		volumeSlider->setBounds(rightX - buttonWidth - spaceX, 12, buttonWidth, buttonWidth);
+		volumeSliderLabel->setBounds(Rectangle<int>(volumeSlider->getX(), 1, buttonWidth, 12).expanded(12));
+
+		balanceSlider->setBounds(volumeSlider->getX() - buttonWidth - spaceX, 12, buttonWidth, buttonWidth);
+		balanceSliderLabel->setBounds(Rectangle<int>(balanceSlider->getX(), 1, buttonWidth, 12).expanded(12));
+
+		pitchSlider->setBounds(balanceSlider->getX() - buttonWidth - spaceX, 12, buttonWidth, buttonWidth);
+		pitchSliderLabel->setBounds(Rectangle<int>(pitchSlider->getX(), 1, buttonWidth, 12).expanded(12));
+
+		rightX = pitchSlider->getX();
+	}
+	
+	if (tooltipBar->isVisible())
+	{
+		int toolWidth = rightX - leftX - 2 * spaceX;
+		int toolHeight = 24;
+
+		tooltipBar->setBounds(leftX + spaceX, (getHeight() - toolHeight) / 2, toolWidth, toolHeight);
+	}	
 }
 
 
@@ -311,4 +355,89 @@ void FrontendBar::timerCallback()
 		volumeSlider->setValue(Decibels::gainToDecibels(mc->getMainSynthChain()->getAttribute(ModulatorSynth::Parameters::Gain)), dontSendNotification);
 		balanceSlider->setValue(mc->getMainSynthChain()->getAttribute(ModulatorSynth::Parameters::Balance), dontSendNotification);
 	}
+}
+
+void FrontendBar::setProperties(DynamicObject *p)
+{
+	const NamedValueSet *set = &p->getProperties();
+
+	bgColour = Colour((int)(set->getWithDefault("bgColour", (int)0xFF000000)));
+	overlaying = set->getWithDefault("overlaying", false);
+	height = set->getWithDefault("height", 32);
+
+	voiceCpuComponent->setVisible(set->getWithDefault("cpuTempoVoicesShown", true));
+	presetSelector->setVisible(set->getWithDefault("presetShown", true));
+	presetSaveButton->setVisible(set->getWithDefault("presetShown", true));
+	tooltipBar->setVisible(set->getWithDefault("tooltipBarShown", true));
+	volumeSlider->setVisible(set->getWithDefault("knobsShown", true));
+	pitchSlider->setVisible(set->getWithDefault("knobsShown", true));
+	balanceSlider->setVisible(set->getWithDefault("knobsShown", true));
+	volumeSliderLabel->setVisible(set->getWithDefault("knobsShown", true));
+	pitchSliderLabel->setVisible(set->getWithDefault("knobsShown", true));
+	balanceSliderLabel->setVisible(set->getWithDefault("knobsShown", true));
+	outMeter->setVisible(set->getWithDefault("outputMeterShown", true));
+
+	int numFilmstrips = set->getWithDefault("knobNumFilmStrips", 0);
+
+	if (numFilmstrips != 0)
+	{
+		String imageName = set->getWithDefault("knobFilmStrip", "");
+
+		const Image *customFilmStrip = getFilmStripImageFromString(imageName);
+
+		const int width = customFilmStrip->getWidth();
+
+		volumeSlider->setSize(width, width);
+		pitchSlider->setSize(width, width);
+		balanceSlider->setSize(width, width);
+
+		if (customFilmStrip->isValid())
+		{
+			fklaf.setCustomFilmstripImage(customFilmStrip, numFilmstrips);
+		}
+	}
+
+	resized();
+}
+
+const Image * FrontendBar::getFilmStripImageFromString(const String &fileReference) const
+{
+#if USE_FRONTEND
+
+	String poolName = ProjectHandler::Frontend::getSanitiziedFileNameForPoolReference(newValue);
+
+#else
+
+	String poolName = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getFilePath(fileReference, ProjectHandler::SubDirectories::Images);
+
+#endif
+
+	const Image *image = mc->getSampleManager().getImagePool()->loadFileIntoPool(poolName, false);
+
+	return image;
+}
+
+DynamicObject * FrontendBar::createDefaultProperties()
+{
+	DynamicObject *properties = new DynamicObject();
+
+	NamedValueSet *v = &properties->getProperties();
+
+	v->set("height", 32);
+	v->set("overlaying", false);
+	v->set("bgColour", 0xFF00000);
+	v->set("cpuTempoVoicesShown", true);
+	v->set("presetShown", true);
+	v->set("tooltipBarShown", true);
+	v->set("knobsShown", true);
+	v->set("knobFilmStrip", String());
+	v->set("knobNumFilmStrips", 0);
+	v->set("outputMeterShown", true);
+
+	return properties;
+}
+
+String FrontendBar::createJSONString(DynamicObject *p/*=nullptr*/)
+{
+	return JSON::toString((p == nullptr ? createDefaultProperties() : p), false);
 }

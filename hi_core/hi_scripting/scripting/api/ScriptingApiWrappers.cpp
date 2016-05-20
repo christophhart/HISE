@@ -1339,6 +1339,20 @@ var ScriptingApi::Content::Wrapper::setContentTooltip (const var::NativeFunction
 	return var::undefined();
 };
 
+
+var ScriptingApi::Content::Wrapper::setToolbarProperties(const var::NativeFunctionArgs& args)
+{
+	if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
+	{
+		CHECK_ARGUMENTS("setToolbarProperties()", 1);
+
+		thisObject->setToolbarProperties(args.arguments[0]);
+	}
+
+	return var::undefined();
+}
+
+
 var ScriptingApi::Content::Wrapper::setWidth (const var::NativeFunctionArgs& args)
 {
 	if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
@@ -1444,6 +1458,8 @@ var ScriptingApi::Content::Wrapper::setTooltip (const var::NativeFunctionArgs& a
 
 	return var::undefined();
 };
+
+
 
 var ScriptingApi::Content::Wrapper::setImageFile (const var::NativeFunctionArgs& args)
 {

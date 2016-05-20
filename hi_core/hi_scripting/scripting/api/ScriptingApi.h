@@ -1199,6 +1199,7 @@ public:
 			setMethod("addAudioWaveform", Wrapper::addAudioWaveform);
 			setMethod("addSliderPack", Wrapper::addSliderPack);
 			setMethod("setContentTooltip", Wrapper::setContentTooltip);
+			setMethod("setToolbarProperties", Wrapper::setToolbarProperties);
 			setMethod("setHeight", Wrapper::setHeight);
 			setMethod("setWidth", Wrapper::setWidth);
 			setMethod("setName", Wrapper::setName);
@@ -2028,6 +2029,9 @@ public:
 			tooltip = tooltipToShow;
 		}
 
+		/** Sets the main toolbar properties from a JSON object. */
+		void setToolbarProperties(const var &toolbarProperties);
+
 		/** Sets the name that will be displayed in big fat Impact. */
 		void setName(const String &newName)	{ name = newName; };
 
@@ -2100,6 +2104,7 @@ public:
 			static var setColour (const var::NativeFunctionArgs& args);
 			static var setTooltip (const var::NativeFunctionArgs& args);
 			static var setContentTooltip (const var::NativeFunctionArgs& args);
+			static var setToolbarProperties(const var::NativeFunctionArgs& args);
 			static var setImageFile (const var::NativeFunctionArgs& args);
 			static var setImageAlpha (const var::NativeFunctionArgs& args);
 			static var showControl (const var::NativeFunctionArgs& args);
