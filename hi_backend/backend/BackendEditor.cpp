@@ -112,7 +112,9 @@ rootEditorIsMainSynthChain(true)
 
 #endif
 
-#if JUCE_MAC && IS_STANDALONE_APP
+#if JUCE_IOS 
+
+#elif JUCE_MAC && IS_STANDALONE_APP
 	MenuBarModel::setMacMainMenu(this);
 
 #else
@@ -560,7 +562,9 @@ void BackendProcessorEditor::paint(Graphics &g)
 
 void BackendProcessorEditor::resized()
 {
-#if IS_STANDALONE_APP
+#if JUCE_IOS
+    
+#elif IS_STANDALONE_APP
 
 	if (getParentComponent() != nullptr)
 	{

@@ -323,7 +323,11 @@ void PresetHandler::showMessageWindow(const String &title, const String &message
 	nameWindow->addCustomComponent(comp);
 	nameWindow->addButton("OK", 1, KeyPress(KeyPress::returnKey));
 
+#if JUCE_IOS
+    
+#else
 	nameWindow->runModalLoop();
+#endif
 
 	return ;
 };

@@ -32,8 +32,6 @@ public:
 
 		mainWindow->setUsingNativeTitleBar(true);
 
-		
-
 		mainWindow->toFront(true);
     }
 
@@ -73,11 +71,24 @@ public:
         {
             setContentOwned (new MainContentComponent(), true);
 
+#if JUCE_IOS
+            
+            Rectangle<int> area = Desktop::getInstance().getDisplays().getMainDisplay().userArea;
+            
+            setSize(area.getWidth(), area.getHeight());
+            
+#else
+            
 			setResizable(true, true);
 
 			setUsingNativeTitleBar(true);
 
+
+            
             centreWithSize (getWidth(), getHeight() - 28);
+            
+#endif
+            
             setVisible (true);
 			
         }
