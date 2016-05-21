@@ -391,6 +391,7 @@ public:
 		limiter,
 		degrade,
 		chorus,
+        phaser,
 		gainCollector,
 		routeFX,
 		saturation,
