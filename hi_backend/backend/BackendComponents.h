@@ -181,6 +181,8 @@ public:
 
 	void paint(Graphics &g)
 	{
+		g.fillAll(Colour(BACKEND_BG_COLOUR));
+
 		g.setColour(Colours::black.withAlpha(0.1f));
 
 		g.drawRoundedRectangle(0.0f, 0.0f, (float) getWidth(), (float) getHeight() + 3.0f, 3.0f, 1.0f);
@@ -195,12 +197,44 @@ public:
 
 	int getCurrentHeight()
 	{
+#if HISE_IOS
+		return 200;
+#else
 		return 90;
+#endif
 	}
 
 	void resized()
 	{
 		const int macroAmount = macroKnobs.size();
+
+#if HISE_IOS
+
+		const int width = (getWidth()-30) / 4;
+		int x = 15;
+
+		for(int i = 0; i < 4; i++)
+		{
+			macroKnobs[i]->setBounds(x + width / 2- 24, 10, 48, 48);
+			macroNames[i]->setBounds(x, 64, width - 28, 20);
+			editButtons[i]->setBounds(macroNames[i]->getRight() + 2, 64, 20, 20);
+
+			x += width;
+		}
+
+		x = 15;
+
+		for(int i = 4; i < 8; i++)
+		{
+			macroKnobs[i]->setBounds(x + width / 2- 24, 100, 48, 48);
+			macroNames[i]->setBounds(x, 160, width - 28, 20);
+			editButtons[i]->setBounds(macroNames[i]->getRight() + 2, 160, 20, 20);
+
+			x += width;
+		}
+
+
+#else
 
 		const int width = getWidth() / macroAmount;
 		int x = 0;
@@ -213,6 +247,8 @@ public:
 			
 			x += getWidth() / macroAmount;
 		}
+
+#endif
 
 		checkActiveButtons();
 	}

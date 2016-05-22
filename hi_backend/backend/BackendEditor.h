@@ -33,6 +33,12 @@
 #ifndef BACKEND_EDITOR_H_INCLUDED
 #define BACKEND_EDITOR_H_INCLUDED
 
+#if HISE_IOS
+#define SCROLLBAR_WIDTH 60
+#else
+#define SCROLLBAR_WIDTH 16
+#endif
+
 
 class ProcessorEditorPanel;
 class PopupWindow;
@@ -353,6 +359,14 @@ private:
 	ScopedPointer<ThreadWithQuasiModalProgressWindow::Overlay> progressOverlay;
 
 	bool rootEditorIsMainSynthChain;
+
+#if HISE_IOS
+
+	ScopedPointer<ShapeButton> octaveUpButton;
+	ScopedPointer<ShapeButton> octaveDownButton;
+
+#endif
+
 };
 
 #endif

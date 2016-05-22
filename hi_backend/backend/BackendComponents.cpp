@@ -363,17 +363,20 @@ void CachedViewport::InternalViewport::paint(Graphics &g)
 {
 	g.setColour(findColour(backgroundColourId));
 
+	
     
     g.setColour(Colour(BACKEND_BG_COLOUR));
     
-	g.fillRect(getWidth() - 16, 0, 16, getHeight());
+	g.fillAll();
+
+	g.fillRect(getWidth() - SCROLLBAR_WIDTH, 0, 16, getHeight());
 
 	g.fillRect(0, 0, getWidth(), 10);
     
 
     g.setColour(Colour(BACKEND_BG_COLOUR_BRIGHT));
     
-    g.fillRect(0, 10, getWidth() - 16, getHeight());
+    g.fillRect(0, 10, getWidth() - SCROLLBAR_WIDTH, getHeight());
 
 	const int viewportRight = getWidth() - getVerticalScrollBar()->getWidth();
 	

@@ -19,7 +19,10 @@
 
 //[Headers] You can add your own extra header files here...
 
+#if JUCE_IOS
+#else
 #include "../fx/dustfft.c"
+#endif
 
 //[/Headers]
 
@@ -450,6 +453,10 @@ void FilterDragOverlay::timerCallback()
 		return;
 	}
 
+#if JUCE_IOS
+    
+#else
+    
 	const int size = FFT_SIZE_FOR_EQ;
 	const int half = size / 2;
 
@@ -546,6 +553,8 @@ void FilterDragOverlay::timerCallback()
 
 		repaint();
 	}
+    
+#endif
 }
 
 void FilterDragOverlay::paint(Graphics &g)

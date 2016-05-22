@@ -35,6 +35,7 @@
 #include <regex>
 
 
+
 BackendProcessorEditor::BackendProcessorEditor(AudioProcessor *ownerProcessor, ValueTree &editorState) :
 AudioProcessorEditor(ownerProcessor),
 BackendCommandTarget(static_cast<BackendProcessor*>(ownerProcessor)),
@@ -71,10 +72,7 @@ rootEditorIsMainSynthChain(true)
 
 	addAndMakeVisible(borderDragger = new ResizableBorderComponent(this, constrainer));
 
-	
-
-
-	viewport->viewport->setScrollBarThickness(16);
+	viewport->viewport->setScrollBarThickness(SCROLLBAR_WIDTH);
 
 	tooltipBar->addMouseListener(this, false);
 	tooltipBar->setColour(TooltipBar::ColourIds::iconColour, Colours::lightgrey);
@@ -112,8 +110,11 @@ rootEditorIsMainSynthChain(true)
 
 #endif
 
-#if JUCE_IOS 
+#if HISE_IOS 
 
+    addAndMakeVisible(menuBar = new MenuBarComponent(this));
+    menuBar->setLookAndFeel(&plaf);
+    
 #elif JUCE_MAC && IS_STANDALONE_APP
 	MenuBarModel::setMacMainMenu(this);
 
@@ -128,10 +129,34 @@ rootEditorIsMainSynthChain(true)
 	owner->setOverlay(progressOverlay);
 	progressOverlay->setDialog(nullptr);
 
+#if HISE_IOS
+
+	Path arrow;
+
+	arrow.startNewSubPath(0.0f, 0.0f);
+	arrow.lineTo(2.0f, 1.0f);
+	arrow.lineTo(0.0f, 2.0f);
+	arrow.closeSubPath();
+
+	addAndMakeVisible(octaveDownButton = new ShapeButton("OctaveDown", Colour(0xFF444444), Colours::white, Colours::white));
+	addAndMakeVisible(octaveUpButton = new ShapeButton("OctaveUp", Colour(0xFF444444), Colours::white, Colours::white));
+
+	octaveUpButton->addListener(keyboard);
+	octaveDownButton->addListener(keyboard);
+
+	octaveUpButton->setShape(arrow, true, true, true);
+
+	arrow.applyTransform(AffineTransform::rotation(float_Pi));
+
+	octaveDownButton->setShape(arrow, true, true, true);
+
+#endif
+
 	restoreFromValueTree(editorState);
     
 	keyboard->grabKeyboardFocus();
-    
+
+
     updateCommands();
 };
 
@@ -514,12 +539,30 @@ void BackendProcessorEditor::setViewportPositions(int viewportX, const int viewp
 
 	if (macroKnobs->isVisible()) y = macroKnobs->getBottom();
 
-	keyboard->setBounds(viewportX, getHeight() - 72, viewportWidth, 72);
+#if HISE_IOS
+	const int keyboardHeight = 250;
+
+	octaveDownButton->setBounds(15, getHeight() - 150, 50, 50);
+	octaveUpButton->setBounds(getWidth() - 65, getHeight() - 150, 50, 50);
+
+	octaveDownButton->setVisible(keyboard->isVisible());
+	octaveUpButton->setVisible(keyboard->isVisible());
+
+#else
+	const int keyboardHeight = 72;
+
+#endif
+
+	keyboard->setBounds(viewportX, getHeight() - keyboardHeight, viewportWidth, keyboardHeight);
 
 	const int containerHeight = getHeight() - (keyboard->isVisible() ? keyboard->getHeight() : 0)
 		- y;
 
-	viewport->setBounds(viewportX, y, viewportWidth + 16, containerHeight); // Overlap with the fade
+	viewport->setVisible(containerHeight > 0);
+
+
+
+	viewport->setBounds(viewportX, y, viewportWidth + SCROLLBAR_WIDTH, containerHeight); // Overlap with the fade
 
 	aboutPage->setBounds(viewportX, viewportY, viewportWidth, viewportHeight);
 
@@ -529,9 +572,6 @@ void BackendProcessorEditor::setViewportPositions(int viewportX, const int viewp
 		stupidRectangle->setBounds(viewport->getBounds());
 		currentPopupComponent->setTopLeftPosition(currentPopupComponent->getX(), y + 40);
 	}
-
-	
-
 
 }
 
@@ -550,14 +590,6 @@ void BackendProcessorEditor::paint(Graphics &g)
 {
 	g.fillAll(Colour(BACKEND_BG_COLOUR));
 
-    //ProcessorEditorLookAndFeel::drawNoiseBackground(g, getLocalBounds(), Colours::lightgrey);
-
-	
-    
-	if(keyboard->isVisible()) g.fillRect(viewport->getX(), keyboard->getY() - 40, viewport->getWidth() - 16, 40);
-	
-	g.setColour (Colour (0x11000000));
-    
 }
 
 void BackendProcessorEditor::resized()
@@ -574,12 +606,24 @@ void BackendProcessorEditor::resized()
 
 	progressOverlay->setBounds(0, 0, getWidth(), getHeight());
 
+#if HISE_IOS
+
+	const int menuBarOffset = menuBar == nullptr ? 0 : 28;
+
+	if (menuBarOffset != 0)
+	{
+		menuBar->setBounds(0, 0, getWidth(), menuBarOffset);
+	}
+
+#else
 	const int menuBarOffset = menuBar == nullptr ? 0 : 20;
 
 	if (menuBarOffset != 0)
 	{
 		menuBar->setBounds(0, 0, getWidth(), menuBarOffset);
 	}
+
+#endif
 
 	const float dpiScale = Desktop::getInstance().getGlobalScaleFactor();
 

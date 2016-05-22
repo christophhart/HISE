@@ -51,13 +51,26 @@ public:
 
 
 class CustomKeyboard : public MidiKeyboardComponent,
-					   public SafeChangeListener
+					   public SafeChangeListener,
+					   public ButtonListener
 					   
 {
 public:
     //==============================================================================
     CustomKeyboard (CustomKeyboardState &state);
     virtual ~CustomKeyboard();
+
+	void buttonClicked(Button *b) override
+	{
+		if (b->getName() == "OctaveUp")
+		{
+			setLowestVisibleKey(getLowestVisibleKey() + 12);
+		}
+		else
+		{
+			setLowestVisibleKey(getLowestVisibleKey() - 12);
+		}
+	}
 
 	void paint(Graphics &g) override
 	{

@@ -289,7 +289,13 @@ ProcessorEditorHeader::ProcessorEditorHeader(BetterProcessorEditor *p) :
 
 	checkSoloLabel();
 
+#if HISE_IOS
+
+	setSize(BetterProcessorEditorContainer::getWidthForIntendationLevel(getEditor()->getIndentationLevel()), 45);
+
+#else
     setSize(BetterProcessorEditorContainer::getWidthForIntendationLevel(getEditor()->getIndentationLevel()), 30);
+#endif
 
 	update();
 
@@ -423,11 +429,25 @@ void ProcessorEditorHeader::paint (Graphics& g)
 
 void ProcessorEditorHeader::resized()
 {
+
+#if HISE_IOS
+
+	const int addCloseWidth = 22;
+
+	int yOffset = 6;
+	const int yOffset2 = 7;
+
+#else
 	const int addCloseWidth = 16;
+
+	int yOffset = 8;
+	const int yOffset2 = 5;
+
+#endif
 
 	int x = 8;
 
-    int yOffset = 8;
+    
     
 	const bool isInternalChain = isHeaderOfChain() && !isHeaderOfModulatorSynth();
 
@@ -485,7 +505,7 @@ void ProcessorEditorHeader::resized()
 		
 		x = idLabel->getRight();
 
-		bypassButton->setBounds(x, yOffset-3, 30, 20);
+		bypassButton->setBounds(x, yOffset2, 30, 20);
 
 		x = bypassButton->getRight() + 10;
 	}
@@ -494,7 +514,7 @@ void ProcessorEditorHeader::resized()
 
 	if (showValueMeter)
 	{
-		valueMeter->setBounds(x, yOffset-3, getWidth() / 2 - x, 20);
+		valueMeter->setBounds(x, yOffset2, getWidth() / 2 - x, 20);
 		x = valueMeter->getRight() + 3;
 	}
 
@@ -522,19 +542,19 @@ void ProcessorEditorHeader::resized()
 	
 	if (IS(ScriptProcessor))
 	{
-		debugButton->setBounds(x, yOffset-3, 30, 20);
+		debugButton->setBounds(x, yOffset2, 30, 20);
 		debugButton->setVisible(true);
 	}
 	
 	
 
 
-	intensitySlider->setBounds (x, yOffset-3, 200, 20);
+	intensitySlider->setBounds (x, yOffset2, 200, 20);
 
     
 
 	
-    plotButton->setBounds (getWidth() - 101 - 50, yOffset-3, 30, 20);
+    plotButton->setBounds (getWidth() - 101 - 50, yOffset2, 30, 20);
 	plotButton->setVisible(false);
     
 
@@ -554,7 +574,7 @@ void ProcessorEditorHeader::resized()
     
 	if(isHeaderOfModulatorSynth())
 	{
-		balanceSlider->setBounds(intensitySlider->getRight() + 5, yOffset-3, 28, 24);
+		balanceSlider->setBounds(intensitySlider->getRight() + 5, yOffset2, 28, 24);
 
 		if (getEditor()->getIndentationLevel() == 0)
 		{

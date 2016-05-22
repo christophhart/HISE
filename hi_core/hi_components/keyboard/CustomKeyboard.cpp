@@ -74,10 +74,23 @@ CustomKeyboard::CustomKeyboard (CustomKeyboardState &state_):
     cachedImage_white_key_off_png = ImageCache::getFromMemory (white_key_off_png, white_key_off_pngSize);
     cachedImage_white_key_on_png = ImageCache::getFromMemory (white_key_on_png, white_key_on_pngSize);
 
+#if HISE_IOS
+
+	setKeyWidth(75.0f);
+	setScrollButtonsVisible(false);
+
+	setAvailableRange(0, 127);
+
+#else
+
     setKeyWidth(narrowKeys ? 14.0f : 18.0f);
 	setScrollButtonsVisible(false);
 	
 	setAvailableRange(21, 127);
+
+#endif
+
+	
 }
 
 CustomKeyboard::~CustomKeyboard()
@@ -87,6 +100,35 @@ CustomKeyboard::~CustomKeyboard()
 
 void CustomKeyboard::drawWhiteNote (int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &/*lineColour*/, const Colour &/*textColour*/)
 {
+#if HISE_IOS
+
+	g.setColour(Colour(BACKEND_BG_COLOUR_BRIGHT));
+	g.fillRect(x, y, w, h);
+
+	const int off = midiNoteNumber % 12;
+
+	g.setGradientFill(ColourGradient(Colour(0xFFEEEEEE), 0.0f, 0.0f,
+									 Colour(0xFFCCCCCC), 0.0f, (float)(y+h), false));
+
+	g.fillRoundedRectangle((float)x+1.f,(float)y-5.0f,(float)w-2.f,(float)h+5.0f, 5.0f);
+
+	if (isDown)
+	{
+		g.setColour(Colours::red.withAlpha(0.1f));
+		g.fillRoundedRectangle((float)x + 1.f, (float)y - 5.0f, (float)w - 2.f, (float)h + 5.0f, 5.0f);
+	}
+
+
+	g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.2f), 0.0f, 0.0f,
+								   	 Colours::transparentBlack, 0.0f, 8.0f, false));
+
+	g.fillRect(x, y, w, 8);
+
+	g.setColour(Colour(BACKEND_BG_COLOUR_BRIGHT));
+	g.drawLine(x, y, x + w, y, 2);
+
+
+#else
 
 	const int off = midiNoteNumber % 12;
 
@@ -128,11 +170,32 @@ void CustomKeyboard::drawWhiteNote (int midiNoteNumber, Graphics &g, int x, int 
 		g.fillRect(x,y,w,h);
 	}
 
+#endif
 }
 
 void CustomKeyboard::drawBlackNote (int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &/*noteFillColour*/)
 {
 	
+#if HISE_IOS
+
+	g.setGradientFill(ColourGradient(Colour(0xFF444444), 0.0f, 0.0f,
+									 Colour(0xFF222222), 0.0f, (float)h, false));
+
+	Rectangle<float> keyArea((float)x, (float)y-5.0f, (float)w, (float)(h - 5.0f)*0.9f);
+
+	g.fillRoundedRectangle(keyArea, 5.0f);
+
+	if (isDown)
+	{
+		g.setColour(Colours::red.withAlpha(0.1f));
+		g.fillRoundedRectangle(keyArea, 5.0f);
+	}
+
+	g.setColour(Colour(BACKEND_BG_COLOUR_BRIGHT));
+
+	g.drawRoundedRectangle(keyArea, 5.0f, 2.0f);
+
+#else
 
 	const int offset[12] = {0, 2, 0, 0, 0, 0, 4, 0, 2, 0, -1, 0};
 
@@ -171,6 +234,8 @@ void CustomKeyboard::drawBlackNote (int midiNoteNumber, Graphics &g, int x, int 
 		g.setColour(state->getColourForSingleKey(midiNoteNumber));
 		g.fillRect(x + offset[off],y,w - 2, h-4);
 	}
+
+#endif
 }
 
 

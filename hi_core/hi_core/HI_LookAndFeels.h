@@ -192,12 +192,22 @@ private:
 
 	Font getPopupMenuFont() override
 	{
-#if JUCE_WINDOWS
-		return GLOBAL_FONT().withHeight(15.0f);
+#if HISE_IOS
+		return GLOBAL_BOLD_FONT().withHeight(24.0f);
 #else
 		return GLOBAL_BOLD_FONT();
 #endif
 	};
+
+
+#if HISE_IOS
+	void getIdealPopupMenuItemSize(const String &text, bool isSeparator, int standardMenuItemHeight, int &idealWidth, int &idealHeight) override
+	{
+		idealHeight = 28;
+
+		idealWidth = getPopupMenuFont().getStringWidth(text) + 20;
+	}
+#endif
 
 	void drawMenuBarBackground(Graphics& g, int width, int height,
 		bool, MenuBarComponent& menuBar);
@@ -226,7 +236,7 @@ private:
 			g.setColour(Colour(0xFF222222));
 		}
 
-		g.setFont(GLOBAL_BOLD_FONT());
+		g.setFont(getPopupMenuFont());
 		
 		g.drawFittedText(itemText, 0, 0, width, height, Justification::centred, 1);
 

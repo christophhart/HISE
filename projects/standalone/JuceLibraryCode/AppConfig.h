@@ -21,6 +21,8 @@
 
 #define NUM_DIGITS_FOR_DOUBLE_VAR_TO_STRING 8
 
+#define HISE_IOS 0
+
 // [END_USER_CODE_SECTION]
 
 //==============================================================================

@@ -33,9 +33,12 @@
 #ifndef UTILITYCLASSES_H_INCLUDED
 #define UTILITYCLASSES_H_INCLUDED
 
-
-#include "xmmintrin.h"
 #include <regex>
+
+#if JUCE_IOS
+#else
+#include "xmmintrin.h"
+#endif
 
 class Processor;
 
@@ -99,15 +102,21 @@ class ScopedNoDenormals
 {
 public:
 	ScopedNoDenormals()
-	{
+    {
+#if JUCE_IOS
+#else
 		oldMXCSR = _mm_getcsr();
 	    int newMXCSR = oldMXCSR | 0x8040;
 		_mm_setcsr(newMXCSR);
+#endif
 	};
 
 	~ScopedNoDenormals()
 	{
+#if JUCE_IOS
+#else
 		_mm_setcsr(oldMXCSR);
+        #endif
 	};
 
 	int oldMXCSR;
