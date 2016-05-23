@@ -33,17 +33,17 @@ PhaserEditor::PhaserEditor (BetterProcessorEditor *p)
     //[Constructor_pre] You can add your own custom stuff here..
     //[/Constructor_pre]
 
-    addAndMakeVisible (speedSlider = new HiSlider ("Speed"));
-    speedSlider->setRange (0, 1, 0.01);
-    speedSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
-    speedSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
-    speedSlider->addListener (this);
+    addAndMakeVisible (freq1Slider = new HiSlider ("Speed"));
+    freq1Slider->setRange (0, 1, 0.01);
+    freq1Slider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
+    freq1Slider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
+    freq1Slider->addListener (this);
 
-    addAndMakeVisible (rangeSlider = new HiSlider ("Range"));
-    rangeSlider->setRange (0, 1, 0.01);
-    rangeSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
-    rangeSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
-    rangeSlider->addListener (this);
+    addAndMakeVisible (freq2Slider = new HiSlider ("Range"));
+    freq2Slider->setRange (0, 1, 0.01);
+    freq2Slider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
+    freq2Slider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
+    freq2Slider->addListener (this);
 
     addAndMakeVisible (feedBackSlider = new HiSlider ("Feedback"));
     feedBackSlider->setRange (0, 1, 0.01);
@@ -60,13 +60,13 @@ PhaserEditor::PhaserEditor (BetterProcessorEditor *p)
 
     //[UserPreSize]
     
-    speedSlider->setup(getProcessor(), PhaserEffect::Attributes::Speed, "Speed");
-    speedSlider->setMode(HiSlider::Mode::NormalizedPercentage);
-    rangeSlider->setup(getProcessor(), PhaserEffect::Attributes::Range, "Range");
-    rangeSlider->setMode(HiSlider::Mode::NormalizedPercentage);
-    feedBackSlider->setup(getProcessor(), PhaserEffect::Attributes::Feedback, "Feedback");
+    freq1Slider->setup(getProcessor(), PhaseFX::Attributes::Frequency1, "Frequency1");
+    freq1Slider->setMode(HiSlider::Mode::Frequency);
+    freq2Slider->setup(getProcessor(), PhaseFX::Attributes::Frequency2, "Frequency2");
+    freq2Slider->setMode(HiSlider::Mode::Frequency);
+    feedBackSlider->setup(getProcessor(), PhaseFX::Attributes::Feedback, "Feedback");
     feedBackSlider->setMode(HiSlider::Mode::NormalizedPercentage);
-    wetSlider->setup(getProcessor(), PhaserEffect::Attributes::Mix, "Mix");
+    wetSlider->setup(getProcessor(), PhaseFX::Attributes::Mix, "Mix");
     wetSlider->setMode(HiSlider::Mode::NormalizedPercentage);
 
     
@@ -84,8 +84,8 @@ PhaserEditor::~PhaserEditor()
     //[Destructor_pre]. You can add your own custom destruction code here..
     //[/Destructor_pre]
 
-    speedSlider = nullptr;
-    rangeSlider = nullptr;
+    freq1Slider = nullptr;
+    freq2Slider = nullptr;
     feedBackSlider = nullptr;
     wetSlider = nullptr;
 
@@ -121,8 +121,8 @@ void PhaserEditor::resized()
     //[UserPreResize] Add your own custom resize code here..
     //[/UserPreResize]
 
-    speedSlider->setBounds ((getWidth() / 2) + -165 - 128, 16, 128, 48);
-    rangeSlider->setBounds ((getWidth() / 2) + -14 - 128, 16, 128, 48);
+    freq1Slider->setBounds ((getWidth() / 2) + -165 - 128, 16, 128, 48);
+    freq2Slider->setBounds ((getWidth() / 2) + -14 - 128, 16, 128, 48);
     feedBackSlider->setBounds ((getWidth() / 2) + 130 - 128, 16, 128, 48);
     wetSlider->setBounds ((getWidth() / 2) + 274 - 128, 16, 128, 48);
     //[UserResized] Add your own custom resize handling here..
@@ -134,12 +134,12 @@ void PhaserEditor::sliderValueChanged (Slider* sliderThatWasMoved)
     //[UsersliderValueChanged_Pre]
     //[/UsersliderValueChanged_Pre]
 
-    if (sliderThatWasMoved == speedSlider)
+    if (sliderThatWasMoved == freq1Slider)
     {
         //[UserSliderCode_speedSlider] -- add your slider handling code here..
         //[/UserSliderCode_speedSlider]
     }
-    else if (sliderThatWasMoved == rangeSlider)
+    else if (sliderThatWasMoved == freq2Slider)
     {
         //[UserSliderCode_rangeSlider] -- add your slider handling code here..
         //[/UserSliderCode_rangeSlider]
@@ -185,12 +185,12 @@ BEGIN_JUCER_METADATA
     <TEXT pos="53Rr 6 200 40" fill="solid: 52ffffff" hasStroke="0" text="phaser"
           fontname="Oxygen" fontsize="24" bold="1" italic="0" justification="34"/>
   </BACKGROUND>
-  <SLIDER name="Speed" id="89cc5b4c20e221e" memberName="speedSlider" virtualName="HiSlider"
+  <SLIDER name="Speed" id="89cc5b4c20e221e" memberName="freq1Slider" virtualName="HiSlider"
           explicitFocusOrder="0" pos="-165Cr 16 128 48" posRelativeX="109abf6dc0fb35f3"
           min="0" max="1" int="0.010000000000000000208" style="RotaryHorizontalVerticalDrag"
           textBoxPos="TextBoxRight" textBoxEditable="1" textBoxWidth="80"
           textBoxHeight="20" skewFactor="1" needsCallback="1"/>
-  <SLIDER name="Range" id="13e15d71142cf03b" memberName="rangeSlider" virtualName="HiSlider"
+  <SLIDER name="Range" id="13e15d71142cf03b" memberName="freq2Slider" virtualName="HiSlider"
           explicitFocusOrder="0" pos="-14Cr 16 128 48" posRelativeX="109abf6dc0fb35f3"
           min="0" max="1" int="0.010000000000000000208" style="RotaryHorizontalVerticalDrag"
           textBoxPos="TextBoxRight" textBoxEditable="1" textBoxWidth="80"

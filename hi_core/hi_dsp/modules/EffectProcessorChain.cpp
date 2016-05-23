@@ -70,7 +70,7 @@ void EffectProcessorChainFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(MdaLimiterEffect);
 	ADD_NAME_TO_TYPELIST(MdaDegradeEffect);
 	ADD_NAME_TO_TYPELIST(ChorusEffect);
-    ADD_NAME_TO_TYPELIST(PhaserEffect);
+    ADD_NAME_TO_TYPELIST(PhaseFX);
 	ADD_NAME_TO_TYPELIST(GainCollector);
 	ADD_NAME_TO_TYPELIST(RouteEffect);
 	ADD_NAME_TO_TYPELIST(SaturatorEffect);
@@ -98,7 +98,7 @@ Processor* EffectProcessorChainFactoryType::createProcessor	(int typeIndex, cons
 	case limiter:						return new MdaLimiterEffect(m, id);
 	case degrade:						return new MdaDegradeEffect(m, id);
 	case chorus:						return new ChorusEffect(m, id);
-    case phaser:                        return new PhaserEffect(m, id);
+    case phaser:                        return new PhaseFX(m, id);
 	case gainCollector:					return new GainCollector(m, id);
 	case routeFX:						return new RouteEffect(m, id);
 	case saturation:					return new SaturatorEffect(m, id);

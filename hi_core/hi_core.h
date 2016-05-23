@@ -89,6 +89,9 @@ Use the Intel Performance Primitives Library for the convolution reverb.
 #define USE_IPP 1
 #endif
 
+#if JUCE_IOS
+#define HISE_IOS 1
+#endif
 
 using namespace juce;
 

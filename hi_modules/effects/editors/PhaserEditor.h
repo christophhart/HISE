@@ -47,8 +47,8 @@ public:
     
     void updateGui()
     {
-        speedSlider->updateValue();
-        rangeSlider->updateValue();
+        freq1Slider->updateValue();
+        freq2Slider->updateValue();
         feedBackSlider->updateValue();
         wetSlider->updateValue();
     }
@@ -71,8 +71,8 @@ private:
     //[/UserVariables]
 
     //==============================================================================
-    ScopedPointer<HiSlider> speedSlider;
-    ScopedPointer<HiSlider> rangeSlider;
+    ScopedPointer<HiSlider> freq1Slider;
+    ScopedPointer<HiSlider> freq2Slider;
     ScopedPointer<HiSlider> feedBackSlider;
     ScopedPointer<HiSlider> wetSlider;
 

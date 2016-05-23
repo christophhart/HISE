@@ -1,164 +1,141 @@
+/*  ===========================================================================
+*
+*   This file is part of HISE.
+*   Copyright 2016 Christoph Hart
+*
+*   HISE is free software: you can redistribute it and/or modify
+*   it under the terms of the GNU General Public License as published by
+*   the Free Software Foundation, either version 3 of the License, or
+*   (at your option) any later version.
+*
+*   HISE is distributed in the hope that it will be useful,
+*   but WITHOUT ANY WARRANTY; without even the implied warranty of
+*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*   GNU General Public License for more details.
+*
+*   You should have received a copy of the GNU General Public License
+*   along with HISE.  If not, see <http://www.gnu.org/licenses/>.
+*
+*   Commercial licences for using HISE in an closed source project are
+*   available on request. Please visit the project's website to get more
+*   information about commercial licencing:
+*
+*   http://www.hartinstruments.net/hise/
+*
+*   HISE is based on the JUCE library,
+*   which also must be licenced for commercial applications:
+*
+*   http://www.juce.com
+*
+*   ===========================================================================
+*/
 
 
-#define SR (44100.f)  //sample rate
-#define F_PI (3.14159f)
-
-#if 0
-class Phaser
+PhaseFX::PhaseFX(MainController *mc, const String &id) :
+MasterEffectProcessor(mc, id),
+freq1(400.0f),
+freq2(1600.0f),
+feedback(0.7f),
+mix(1.0f),
+phaseModulationChain(new ModulatorChain(mc, "Phase Modulation", 1, Modulation::GainMode, this))
 {
-public:
-    Phaser()
-    : feedback( .7f )
-    , lfoPhase( 0.f )
-    , depth( 1.f )
-    , _zm1( 0.f )
-    {
-        setRange( 440.f, 1600.f );
-        setRate( .5f );
-    }
-    
-    void setRange( float fMin, float fMax ){ // Hz
-        _dmin = fMin / (SR/2.f);
-        _dmax = fMax / (SR/2.f);
-    }
-    
-    void setRate( float rate ){ // cps
-        lfoDelta= 2.f * F_PI * (rate / SR);
-    }
-    
-    void setFeedback( float fb ){ // 0 -> <1.
-        feedback = fb;
-    }
-    
-    void Depth( float depth ){  // 0 -> 1.
-        _depth = depth;
-    }
-    
-    float Update( float inSamp ){
-        //calculate and update phaser sweep lfo...
-        float d  = _dmin + (_dmax-_dmin) * ((sin( _lfoPhase ) +
-                                             1.f)/2.f);
-        _lfoPhase += _lfoInc;
-        if( _lfoPhase >= F_PI * 2.f )
-            _lfoPhase -= F_PI * 2.f;
-        
-        //update filter coeffs
-        for( int i=0; i<6; i++ )
-            _alps[i].Delay( d );
-        
-        //calculate output
-        float y = 	_alps[0].Update(
-                                    _alps[1].Update(
-                                                    _alps[2].Update(
-                                                                    _alps[3].Update(
-                                                                                    _alps[4].Update(
-                                                                                                    _alps[5].Update( inSamp + _zm1 * _fb ))))));
-        _zm1 = y;
-        
-        return inSamp + y * _depth;
-    }
-private:
-    class AllpassDelay{
-    public:
-        AllpassDelay()
-        : _a1( 0.f )
-        , _zm1( 0.f )
-        {}
-        
-        void Delay( float delay ){ //sample delay time
-            _a1 = (1.f - delay) / (1.f + delay);
-        }
-        
-        float Update( float inSamp ){
-            float y = inSamp * -_a1 + _zm1;
-            _zm1 = y * _a1 + inSamp;
-            
-            return y;
-        }
-    private:
-        float _a1, _zm1;
-    };
-    
-    AllpassDelay _alps[6];
-    
-    float rangeMin, rangeMax;
-    float feedback;
-    float lfoPhase;
-    float lfoDelta;
-    float depth;
-    
-    float _zm1;
-};
-
-#endif
-
-PhaserEffect::PhaserEffect(MainController *mc, const String &id) :
-MasterEffectProcessor(mc, id)
-{
-    parameterNames.add("Speed");
-    parameterNames.add("Range");
+    parameterNames.add("Frequency1");
+    parameterNames.add("Frequency2");
     parameterNames.add("Feedback");
     parameterNames.add("Mix");
     
+	editorStateIdentifiers.add("PhaseModulationChainShown");
+
+	updateFrequencies();
 }
 
-float PhaserEffect::getAttribute(int parameterIndex) const
+float PhaseFX::getAttribute(int parameterIndex) const
 {
     switch (parameterIndex)
     {
-        case Speed:			return 0.0f;
-        case Range:			return 0.0f;
-        case Feedback:		return 0.0f;
-        case Mix:			return 0.0f;
+        case Frequency1:			return freq1;
+        case Frequency2:			return freq2;
+        case Feedback:		return feedback;
+        case Mix:			return mix;
         default:			jassertfalse; return 1.0f;
     }
 }
 
-void PhaserEffect::setInternalAttribute(int parameterIndex, float value)
+void PhaseFX::setInternalAttribute(int parameterIndex, float value)
 {
     switch (parameterIndex)
     {
-        case Speed:			break;
-        case Range:			break;
-        case Feedback:		break;
-        case Mix:			break;
-        default:			jassertfalse; break;
+	case Frequency1:	freq1 = value; updateFrequencies(); break;
+	case Frequency2:	freq2 = value; updateFrequencies(); break;
+	case Feedback:		feedback = value; 
+						phaserLeft.setFeedback(value);
+						phaserRight.setFeedback(value);
+						break;
+	case Mix:			mix = value; break;
+       default:			jassertfalse; break;
     }
 }
 
 
-void PhaserEffect::restoreFromValueTree(const ValueTree &v)
+void PhaseFX::restoreFromValueTree(const ValueTree &v)
 {
     MasterEffectProcessor::restoreFromValueTree(v);
     
-    loadAttribute(Speed, "Speed");
-    loadAttribute(Range, "Range");
+    loadAttribute(Frequency1, "Speed");
+    loadAttribute(Frequency2, "Range");
     loadAttribute(Feedback, "Feedback");
     loadAttribute(Mix, "Mix");
 }
 
-ValueTree PhaserEffect::exportAsValueTree() const
+ValueTree PhaseFX::exportAsValueTree() const
 {
     ValueTree v = MasterEffectProcessor::exportAsValueTree();
     
-    saveAttribute(Speed, "Speed");
-    saveAttribute(Range, "Range");
+    saveAttribute(Frequency1, "Speed");
+    saveAttribute(Frequency2, "Range");
     saveAttribute(Feedback, "Feedback");
     saveAttribute(Mix, "Mix");
 
     return v;
 }
 
-void PhaserEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
+void PhaseFX::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     MasterEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
+
+	if (sampleRate > 0.0)
+	{
+		phaseModulationChain->prepareToPlay(sampleRate, samplesPerBlock);
+		phaseModulationBuffer = AudioSampleBuffer(1, samplesPerBlock);
+
+		phaserLeft.setSampleRate(sampleRate);
+		phaserRight.setSampleRate(sampleRate);
+
+		updateFrequencies();
+	}
 }
 
-void PhaserEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples)
+void PhaseFX::applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples)
 {
+	const float *modValues = phaseModulationBuffer.getReadPointer(0, startSample);
+
+	float *l = buffer.getWritePointer(0, startSample);
+	float *r = buffer.getWritePointer(1, startSample);
+
+	while (--numSamples >= 0)
+	{
+		
+
+		*l = *l * (1.0f - mix) + mix * phaserLeft.getNextSample(*l, *modValues);
+		*r = *r * (1.0f-mix) + mix * phaserRight.getNextSample(*r, *modValues);
+		
+		l++;
+		r++;
+		modValues++;
+	}
 }
 
-ProcessorEditorBody *PhaserEffect::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *PhaseFX::createEditor(BetterProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
     
@@ -174,3 +151,53 @@ ProcessorEditorBody *PhaserEffect::createEditor(BetterProcessorEditor *parentEdi
 }
 
 
+PhaseFX::PhaseModulator::PhaseModulator() :
+feedback(.7f),
+currentValue(0.f),
+sampleRate(-1.0f)
+{
+	setRange(440.f, 1600.f);
+}
+
+void PhaseFX::PhaseModulator::setRange(float freq1, float freq2)
+{
+	fMin = jmin<float>(freq1, freq2);
+	fMax = jmax<float>(freq1, freq2);
+
+	if (sampleRate > 0.0f)
+	{
+		minDelay = fMin / (sampleRate / 2.f);
+		maxDelay = fMax / (sampleRate / 2.f);
+	}
+}
+
+void PhaseFX::PhaseModulator::setSampleRate(double newSampleRate)
+{
+	sampleRate = (float)newSampleRate;
+	setRange(fMin, fMax);
+}
+
+float PhaseFX::PhaseModulator::getNextSample(float input, float modValue)
+{
+	float delayThisSample = minDelay + (maxDelay - minDelay) * (modValue);
+
+	const float delayCoefficient = AllpassDelay::getDelayCoefficient(delayThisSample);
+
+	allpassFilters[0].setDelay(delayCoefficient);
+	allpassFilters[1].setDelay(delayCoefficient);
+	allpassFilters[2].setDelay(delayCoefficient);
+	allpassFilters[3].setDelay(delayCoefficient);
+	allpassFilters[4].setDelay(delayCoefficient);
+	allpassFilters[5].setDelay(delayCoefficient);
+
+	float output = allpassFilters[0].getNextSample(
+		allpassFilters[1].getNextSample(
+		allpassFilters[2].getNextSample(
+		allpassFilters[3].getNextSample(
+		allpassFilters[4].getNextSample(
+		allpassFilters[5].getNextSample(input + currentValue * feedback))))));
+
+	currentValue = output;
+
+	return input + output;
+}

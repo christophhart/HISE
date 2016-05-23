@@ -62,7 +62,7 @@ StreamingSamplerSound::StreamingSamplerSound(const String &fileNameToLoad,
     setPreloadSize(0);
 }
 
-StreamingSamplerSound::StreamingSamplerSound(const File &/*data*/, const String &fileName_, int start, int length, ModulatorSamplerSoundPool *pool):
+StreamingSamplerSound::StreamingSamplerSound(const File &/*data*/, const String &fileName_, int start, int /*length*/, ModulatorSamplerSoundPool *pool):
 	fileReader(this, pool),
 	midiNotes(-1),
 	rootNote(-1),
@@ -142,7 +142,7 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 		if (AudioFormatReader *reader = fileReader.getReader())
 		{
 			sampleRate = reader->sampleRate;
-			sampleEnd = jmin<int>(sampleEnd, reader->lengthInSamples);
+			sampleEnd = jmin<int>(sampleEnd, (int)reader->lengthInSamples);
 			sampleLength = sampleEnd - sampleStart;
 			loopEnd = jmin(loopEnd, sampleEnd);
 		}
