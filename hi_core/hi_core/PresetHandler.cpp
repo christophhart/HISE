@@ -463,15 +463,7 @@ bool ProjectHandler::isValidProjectFolder(const File &file) const
 
 		if (!(sub.exists() && sub.isDirectory()))
 		{
-			if (PresetHandler::showYesNoWindow("Invalid Project Folder", "The subfolder " + sub.getFileName() + " does not exist. Do you want to create it?", PresetHandler::IconType::Warning))
-			{
-				sub.createDirectory();
-
-			}
-			else
-			{
-				return false;
-			}
+			sub.createDirectory();
 		}
 	}
 
@@ -634,6 +626,8 @@ struct FileModificationComparator
 
 void ProjectHandler::getFileList(Array<File> &filesInDirectory, SubDirectories dir, const String &wildcard, bool sortByTime /*= false*/)
 {
+    if(!isActive()) return;
+    
 	File presetDir = getSubDirectory(dir);
 
 	filesInDirectory.clear();
@@ -1142,10 +1136,12 @@ File PresetHandler::checkDirectory(const String &pathName)
 
 PopupMenu PresetHandler::getAllSavedPresets(int minIndex, Processor *p)
 {
-
+    PopupMenu m;
 	
-
-	PopupMenu m;
+#if HISE_IOS
+    
+#else
+	
 	File directoryToScan = PresetHandler::getDirectory(p);
 	DirectoryIterator directoryIterator(directoryToScan, false, "*", File::TypesOfFileToFind::findFilesAndDirectories);
 
@@ -1175,6 +1171,8 @@ PopupMenu PresetHandler::getAllSavedPresets(int minIndex, Processor *p)
 
 	}
 
+#endif
+    
 	return m;
 }
 
