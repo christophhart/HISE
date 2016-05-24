@@ -843,7 +843,11 @@ void BackendProcessorEditor::showModulatorTreePopup()
 
 	addProcessorToPopupMenu(soloView, owner->synthChain);
 
+#if HISE_IOS
+    soloView.showAt(viewport->getBounds(), 1, 900-32);
+#else
 	soloView.show();
+#endif
 }
 
 void BackendProcessorEditor::showProcessorPopup(Processor *p, Processor *parent)

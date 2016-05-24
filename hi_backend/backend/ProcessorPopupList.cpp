@@ -62,7 +62,15 @@ usedInList(false)
 
 void ProcessorPopupItem::mouseDown(const MouseEvent &m)
 {
-	if (m.mods.isRightButtonDown())
+#if HISE_IOS
+    editor->setRootProcessorWithUndo(p);
+    
+    if (!usedInList)
+    {
+        triggerMenuItem();
+    }
+#else
+    if(m.mods.isRightButtonDown())
 	{
 		PopupMenu m;
 
@@ -83,6 +91,8 @@ void ProcessorPopupItem::mouseDown(const MouseEvent &m)
 			ProcessorHelpers::getScriptVariableDeclaration(p);
 		}
 	}
+#endif
+    
 }
 
 
@@ -101,6 +111,8 @@ void ProcessorPopupItem::initButtons()
 
 	visibleButton->setEnabled(!isSolo);
 
+#if HISE_IOS
+#else
 
 	addAndMakeVisible(setAsRootButton = new ShapeButton("", Colours::white.withAlpha(0.5f),
 		Colours::white.withAlpha(0.8f),
@@ -126,6 +138,9 @@ void ProcessorPopupItem::initButtons()
 
 	soloButton->addListener(this);
 
+    
+#endif
+    
 	addAndMakeVisible(bypassButton = new ShapeButton("", Colours::white.withAlpha(0.5f),
 		Colours::white.withAlpha(0.8f),
 		Colours::white));
@@ -137,6 +152,9 @@ void ProcessorPopupItem::initButtons()
 
 	bypassButton->addListener(this);
 
+#if HISE_IOS
+#else
+    
 	addAndMakeVisible(popupButton = new ShapeButton("", Colours::white.withAlpha(0.5f),
 		Colours::white.withAlpha(0.8f),
 		Colours::white));
@@ -148,6 +166,7 @@ void ProcessorPopupItem::initButtons()
 
 	popupButton->addListener(this);
 
+#endif
 
 }
 
@@ -215,6 +234,15 @@ void ProcessorPopupItem::buttonClicked(Button *b)
 
 void ProcessorPopupItem::resized()
 {
+#if HISE_IOS
+    
+    int w = isHeadline ? getWidth() : getWidth() - 6;
+    int h = getHeight() - 12;
+    
+    bypassButton->setBounds(w - h - 3 - h - 3, 6, h, h);
+    visibleButton->setBounds(w - h - 3 - h - 3 - h - 3, 6, h, h);
+    
+#else
 	int w = isHeadline ? getWidth() : getWidth() - 6;
 	int h = getHeight() - 12;
 
@@ -231,8 +259,9 @@ void ProcessorPopupItem::resized()
 		popupButton->setBounds(w - h - 3 - h - 3, 6, h, h);
 		bypassButton->setBounds(w - h - 3 - h - 3 - h - 3, 6, h, h);
 		soloButton->setBounds(w - h - 3 - h - 3 - h - 3 - h - 3, 6, h, h);
-	 visibleButton->setBounds(w - h - 3 - h - 3 - h - 3 - h - 3 - h - 3, 6, h, h);
+        visibleButton->setBounds(w - h - 3 - h - 3 - h - 3 - h - 3 - h - 3, 6, h, h);
 	}
+#endif
 }
 
 void ProcessorPopupItem::paint(Graphics &g)
@@ -250,11 +279,10 @@ void ProcessorPopupItem::paint(Graphics &g)
 
 		g.fillRoundedRectangle(0, 4, w + 4, h - 8, 4.0f);
 
-
 		Colour textColour = p->isBypassed() ? Colours::white.withAlpha(0.3f) : Colours::white;
 		g.setColour(textColour);
 
-		g.setFont(GLOBAL_FONT().withHeight(15.0f).boldened());
+		g.setFont(GLOBAL_BOLD_FONT().withHeight(15.0f));
 		g.drawText(p->getId(), 35, 3, (int)w - 12, (int)h - 6, Justification::centredLeft, true);
 
 		if (!p->isBypassed())

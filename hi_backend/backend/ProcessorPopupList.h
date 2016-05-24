@@ -74,8 +74,13 @@ public:
 
 	void getIdealSize(int &idealWidth, int &idealHeight) override
 	{
+#if HISE_IOS
+        idealWidth = 500;
+        idealHeight = 45;
+#else
 		idealWidth = 300;
 		idealHeight = 30;
+#endif
 	};
 
 	void resized() override;
