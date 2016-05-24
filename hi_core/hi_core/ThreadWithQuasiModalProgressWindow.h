@@ -370,6 +370,8 @@ public:
     */
     void setProgress (double newProgress);
 
+	double *getProgressValue() { return &progress; };
+
     /** The thread can call this to change the message that's displayed in the dialog box. */
     void setStatusMessage (const String& newStatusMessage);
 

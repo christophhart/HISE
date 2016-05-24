@@ -78,6 +78,8 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuProjectNew,
 		MenuProjectLoad,
 		MenuCloseProject,
+		MenuFileArchiveProject,
+		MenuFileDownloadNewProject,
 		MenuProjectShowInFinder,
         MenuFileSaveUserPreset,
 		MenuFileSettingsPreset,
@@ -209,6 +211,12 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		break;
 	case MenuCloseProject:
 		setCommandTarget(result, "Close Project", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
+		break;
+	case MenuFileArchiveProject:
+		setCommandTarget(result, "Archive Project", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
+		break;
+	case MenuFileDownloadNewProject:
+		setCommandTarget(result, "Download archived Project", true, false, 'X', false);
 		break;
 	case MenuProjectShowInFinder:
 #if JUCE_WINDOWS
@@ -411,6 +419,8 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuProjectNew:				Actions::createNewProject(bpe); updateCommands();  return true;
 	case MenuProjectLoad:				Actions::loadProject(bpe); updateCommands(); return true;
 	case MenuCloseProject:				Actions::closeProject(bpe); updateCommands(); return true;
+	case MenuFileArchiveProject:		Actions::archiveProject(bpe); return true;
+	case MenuFileDownloadNewProject:	Actions::downloadNewProject(bpe); return true;
 	case MenuProjectShowInFinder:		Actions::showProjectInFinder(bpe); return true;
     case MenuFileSaveUserPreset:        Actions::saveUserPreset(bpe); return true;
 	case MenuFileSettingsPreset:		Actions::showFilePresetSettings(bpe); return true;
@@ -465,6 +475,17 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 }
 
 
+#define ADD_ALL_PLATFORMS(x)(p.addCommandItem(mainCommandManager, x))
+
+#if HISE_IOS
+#define ADD_IOS_ONLY(x)(p.addCommandItem(mainCommandManager, x))
+#define ADD_DESKTOP_ONLY(x)
+#else
+#define ADD_IOS_ONLY(x)()
+#define ADD_DESKTOP_ONLY(x)(p.addCommandItem(mainCommandManager, x))
+#endif
+
+
 PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const String &/*menuName*/)
 {
 	MenuNames m = (MenuNames)topLevelMenuIndex;
@@ -474,11 +495,11 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 	switch (m)
 	{
 	case BackendCommandTarget::FileMenu: {
-		p.addCommandItem(mainCommandManager, MenuNewFile);
+		ADD_ALL_PLATFORMS(MenuNewFile);
 
-		p.addCommandItem(mainCommandManager, MenuOpenFile);
-		p.addCommandItem(mainCommandManager, MenuSaveFile);
-		p.addCommandItem(mainCommandManager, MenuReplaceWithClipboardContent);
+		ADD_DESKTOP_ONLY(MenuOpenFile);
+		ADD_ALL_PLATFORMS(MenuSaveFile);
+		ADD_ALL_PLATFORMS(MenuReplaceWithClipboardContent);
 
 		PopupMenu filesInProject;
 
@@ -496,14 +517,35 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 
 		p.addSeparator();
 
-		p.addCommandItem(mainCommandManager, MenuProjectNew);
-		p.addCommandItem(mainCommandManager, MenuProjectLoad);
-		p.addCommandItem(mainCommandManager, MenuCloseProject);
-		p.addCommandItem(mainCommandManager, MenuProjectShowInFinder);
+		ADD_ALL_PLATFORMS(MenuProjectNew);
+		ADD_DESKTOP_ONLY(MenuProjectLoad);
+		ADD_DESKTOP_ONLY(MenuCloseProject);
+		ADD_DESKTOP_ONLY(MenuProjectShowInFinder);
 
 		PopupMenu recentProjects;
 
+#if HISE_IOS
+
+		Array<File> results;
+
+		File userDataDirectory = File::getSpecialLocation(File::userDocumentsDirectory);
+
+		userDataDirectory.findChildFiles(results, File::findDirectories, false);
+
+		String currentProject = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getWorkDirectory().getFullPathName();
+		
+		const String menuTitle = "Available Projects";
+
+		for (int i = 0; i < results.size(); i++)
+		{
+			recentProjects.addItem(MenuProjectRecentOffset + i, results[i].getFileName(), true, results[i].getFullPathName() == currentProject);
+		}
+
+#else
+
 		StringArray recentProjectDirectories = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getRecentWorkDirectories();
+
+		const String menuTitle = "Recent Projects";
 
 		String currentProject = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getWorkDirectory().getFullPathName();
 
@@ -512,25 +554,35 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 			recentProjects.addItem(MenuProjectRecentOffset + i, recentProjectDirectories[i], true, currentProject == recentProjectDirectories[i]);
 		}
 
-		p.addSubMenu("Recent projects", recentProjects);
+#endif
 
+		p.addSubMenu(menuTitle, recentProjects);
         
         p.addSeparator();
-        p.addCommandItem(mainCommandManager, MenuFileSaveUserPreset);
+
+		ADD_DESKTOP_ONLY(MenuFileArchiveProject);
+		ADD_ALL_PLATFORMS(MenuFileDownloadNewProject);
+
+		p.addSeparator();
+
+        ADD_ALL_PLATFORMS(MenuFileSaveUserPreset);
         
         PopupMenu userPresets;
         Array<File> userPresetFiles;
         
-		GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getFileList(userPresetFiles, ProjectHandler::SubDirectories::UserPresets, "*.preset");
+        ProjectHandler *handler = &GET_PROJECT_HANDLER(bpe->getMainSynthChain());
         
+        handler->getFileList(userPresetFiles, ProjectHandler::SubDirectories::UserPresets, "*.preset");
+            
         for(int i = 0; i < userPresetFiles.size(); i++)
             userPresets.addItem(i + MenuFileUserPresetMenuOffset, userPresetFiles[i].getFileName());
+        
         
         p.addSubMenu("User Presets", userPresets);
         p.addSeparator();
         
-		p.addCommandItem(mainCommandManager, MenuOpenXmlBackup);
-		p.addCommandItem(mainCommandManager, MenuSaveFileAsXmlBackup);
+		ADD_ALL_PLATFORMS(MenuOpenXmlBackup);
+		ADD_ALL_PLATFORMS(MenuSaveFileAsXmlBackup);
 
         PopupMenu xmlBackups;
         Array<File> xmlBackupFiles;
@@ -543,6 +595,10 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
         }
         
         p.addSubMenu("Load XML Backup from Project", xmlBackups);
+
+
+#if HISE_IOS
+#else
 		p.addSeparator();
 
 		PopupMenu settingsSub;
@@ -556,6 +612,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 
 		p.addSubMenu("Settings", settingsSub);
 
+
 		PopupMenu exportSub;
 
         exportSub.addCommandItem(mainCommandManager, MenuExportFileAsPlugin);
@@ -564,7 +621,9 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 
 		p.addSubMenu("Export", exportSub);
 		p.addSeparator();
-		p.addCommandItem(mainCommandManager, MenuFileQuit);
+		ADD_ALL_PLATFORMS(MenuFileQuit);
+#endif
+
 		break; }
 	case BackendCommandTarget::EditMenu:
         if(dynamic_cast<JavascriptCodeEditor*>(bpe->currentCopyPasteTarget.get()))
@@ -578,8 +637,8 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		}
         else
         {
-            p.addCommandItem(mainCommandManager, MenuEditCopy);
-            p.addCommandItem(mainCommandManager, MenuEditPaste);
+            ADD_ALL_PLATFORMS(MenuEditCopy);
+            ADD_ALL_PLATFORMS(MenuEditPaste);
             p.addSeparator();
             
             const int chainOffset = 0x6000;
@@ -595,21 +654,21 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
                 }
             }
             
-            p.addCommandItem(mainCommandManager, MenuEditCreateScriptVariable);
-            p.addCommandItem(mainCommandManager, MenuEditCloseAllChains);
-            p.addCommandItem(mainCommandManager, MenuEditPlotModulator);
+            ADD_ALL_PLATFORMS(MenuEditCreateScriptVariable);
+            ADD_ALL_PLATFORMS(MenuEditCloseAllChains);
+            ADD_DESKTOP_ONLY(MenuEditPlotModulator);
         }
 		break;
 	case BackendCommandTarget::ToolsMenu:
 	{
 		p.addSectionHeader("Scripting Tools");
-		p.addCommandItem(mainCommandManager, MenuToolsRecompile);
-		p.addCommandItem(mainCommandManager, MenuToolsCheckDuplicate);
-		p.addCommandItem(mainCommandManager, MenuToolsClearConsole);
-		p.addCommandItem(mainCommandManager, MenuToolsRecompileScriptsOnReload);
-		p.addCommandItem(mainCommandManager, MenuToolsSetCompileTimeOut);
-		p.addCommandItem(mainCommandManager, MenuToolsUseBackgroundThreadForCompile);
-		p.addCommandItem(mainCommandManager, MenuToolsCreateToolbarPropertyDefinition);
+		ADD_ALL_PLATFORMS(MenuToolsRecompile);
+		ADD_ALL_PLATFORMS(MenuToolsCheckDuplicate);
+		ADD_ALL_PLATFORMS(MenuToolsClearConsole);
+		ADD_DESKTOP_ONLY(MenuToolsRecompileScriptsOnReload);
+		ADD_DESKTOP_ONLY(MenuToolsSetCompileTimeOut);
+		ADD_DESKTOP_ONLY(MenuToolsUseBackgroundThreadForCompile);
+		ADD_DESKTOP_ONLY(MenuToolsCreateToolbarPropertyDefinition);
 
 		PopupMenu sub;
 
@@ -627,42 +686,42 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 
 		p.addSeparator();
 		p.addSectionHeader("Sample Management");
-		p.addCommandItem(mainCommandManager, MenuToolsResolveMissingSamples);
-		p.addCommandItem(mainCommandManager, MenuToolsDeleteMissingSamples);
-		p.addCommandItem(mainCommandManager, MenuToolsUseRelativePaths);
-		p.addCommandItem(mainCommandManager, MenuToolsCollectExternalFiles);
-		p.addCommandItem(mainCommandManager, MenuToolsRedirectSampleFolder);
-		p.addCommandItem(mainCommandManager, MenuToolsForcePoolSearch);
+		ADD_DESKTOP_ONLY(MenuToolsResolveMissingSamples);
+		ADD_DESKTOP_ONLY(MenuToolsDeleteMissingSamples);
+		ADD_DESKTOP_ONLY(MenuToolsUseRelativePaths);
+		ADD_DESKTOP_ONLY(MenuToolsCollectExternalFiles);
+		ADD_DESKTOP_ONLY(MenuToolsRedirectSampleFolder);
+		ADD_DESKTOP_ONLY(MenuToolsForcePoolSearch);
 		p.addSeparator();
 		p.addSectionHeader("Licence Management");
-		p.addCommandItem(mainCommandManager, MenuToolsCreateDummyLicenceFile);
-		p.addCommandItem(mainCommandManager, MenuToolsCreateRSAKeys);
+		ADD_DESKTOP_ONLY(MenuToolsCreateDummyLicenceFile);
+		ADD_DESKTOP_ONLY(MenuToolsCreateRSAKeys);
 		break;
 	}
 	case BackendCommandTarget::ViewMenu: {
-		p.addCommandItem(mainCommandManager, MenuViewBack);
-		p.addCommandItem(mainCommandManager, MenuViewForward);
+		ADD_ALL_PLATFORMS(MenuViewBack);
+		ADD_ALL_PLATFORMS(MenuViewForward);
 		p.addSeparator();
-		p.addCommandItem(mainCommandManager, MenuViewFullscreen);
-		p.addCommandItem(mainCommandManager, MenuViewShowSelectedProcessorInPopup);
+		ADD_DESKTOP_ONLY(MenuViewFullscreen);
+		ADD_ALL_PLATFORMS(MenuViewShowSelectedProcessorInPopup);
 		p.addSeparator();
-		p.addCommandItem(mainCommandManager, MenuOneColumn);
-		p.addCommandItem(mainCommandManager, MenuTwoColumns);
-		p.addCommandItem(mainCommandManager, MenuThreeColumns);
+		ADD_DESKTOP_ONLY(MenuOneColumn);
+		ADD_DESKTOP_ONLY(MenuTwoColumns);
+		ADD_DESKTOP_ONLY(MenuThreeColumns);
         p.addSeparator();
-        p.addCommandItem(mainCommandManager, MenuViewIncreaseCodeFontSize);
-        p.addCommandItem(mainCommandManager, MenuViewDecreaseCodeFontSize);
+        ADD_ALL_PLATFORMS(MenuViewIncreaseCodeFontSize);
+        ADD_ALL_PLATFORMS(MenuViewDecreaseCodeFontSize);
 		p.addSeparator();
-		p.addCommandItem(mainCommandManager, MenuViewShowPluginPopupPreview);
-		p.addCommandItem(mainCommandManager, DebugPanel);
-		p.addCommandItem(mainCommandManager, Macros);
-		p.addCommandItem(mainCommandManager, Keyboard);
-		p.addCommandItem(mainCommandManager, Settings);
+		ADD_ALL_PLATFORMS(MenuViewShowPluginPopupPreview);
+		ADD_ALL_PLATFORMS(DebugPanel);
+		ADD_ALL_PLATFORMS(Macros);
+		ADD_ALL_PLATFORMS(Keyboard);
+		ADD_ALL_PLATFORMS(Settings);
 		p.addSeparator();
-		p.addCommandItem(mainCommandManager, MenuAddView);
-		p.addCommandItem(mainCommandManager, MenuDeleteView);
-		p.addCommandItem(mainCommandManager, MenuRenameView);
-		p.addCommandItem(mainCommandManager, MenuViewSaveCurrentView);
+		ADD_ALL_PLATFORMS(MenuAddView);
+		ADD_ALL_PLATFORMS(MenuDeleteView);
+		ADD_ALL_PLATFORMS(MenuRenameView);
+		ADD_ALL_PLATFORMS(MenuViewSaveCurrentView);
 
 		if (viewActive())
 		{
@@ -704,8 +763,8 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		break;
 		}
 	case BackendCommandTarget::HelpMenu:
-			p.addCommandItem(mainCommandManager, MenuHelpShowAboutPage);
-            p.addCommandItem(mainCommandManager, MenuHelpCheckVersion);
+			ADD_ALL_PLATFORMS(MenuHelpShowAboutPage);
+			ADD_DESKTOP_ONLY(MenuHelpCheckVersion);
 		break;
 	default:
 		break;
@@ -713,6 +772,10 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 
 	return p;
 }
+
+#undef ADD_ALL_PLATFORMS
+#undef ADD_IOS_ONLY
+#undef ADD_DESKTOP_ONLY
 
 void BackendCommandTarget::menuItemSelected(int menuItemID, int /*topLevelMenuIndex*/)
 {
@@ -1778,4 +1841,252 @@ void BackendCommandTarget::Actions::toggleForcePoolSearch(BackendProcessorEditor
 	ModulatorSamplerSoundPool *pool = bpe->getBackendProcessor()->getSampleManager().getModulatorSamplerSoundPool();
 
 	pool->setForcePoolSearch(!pool->isPoolSearchForced());
+}
+
+class ProjectArchiver : public ThreadWithQuasiModalProgressWindow
+{
+public:
+
+	ProjectArchiver(File &archiveFile_, File &projectDirectory_, ThreadWithQuasiModalProgressWindow::Holder *holder):
+		ThreadWithQuasiModalProgressWindow("Archiving Project", true, true, holder),
+		archiveFile(archiveFile_),
+		projectDirectory(projectDirectory_)
+	{
+		getAlertWindow()->setLookAndFeel(&alaf);
+	}
+
+	void run()
+	{
+		ZipFile::Builder builder;
+
+		StringArray ignoredDirectories;
+
+		ignoredDirectories.add("Binaries");
+		ignoredDirectories.add("git");
+
+		DirectoryIterator walker(projectDirectory, true, "*", File::findFilesAndDirectories);
+
+		while (walker.next())
+		{
+			File currentFile = walker.getFile();
+
+			if (currentFile.isDirectory() ||
+				currentFile.getFullPathName().contains("git") ||
+				currentFile.getParentDirectory().getFullPathName().contains("Binaries"))
+			{
+				continue;
+			}
+
+			builder.addFile(currentFile, 9, currentFile.getRelativePathFrom(projectDirectory));
+		}
+
+		setStatusMessage("Creating ZIP archive of project folder");
+
+		archiveFile.deleteFile();
+
+		archiveFile.create();
+
+		FileOutputStream fos(archiveFile);
+
+		builder.writeToStream(fos, getProgressValue());
+
+		
+	}
+
+	void threadComplete(bool userPressedCancel) override
+	{
+		if (!userPressedCancel && PresetHandler::showYesNoWindow("Successfully exported", "Press OK to show the archive", PresetHandler::IconType::Info))
+		{
+			archiveFile.revealToUser();
+		}
+
+		ThreadWithQuasiModalProgressWindow::threadComplete(userPressedCancel);
+	}
+
+private:
+
+	AlertWindowLookAndFeel alaf;
+
+	File archiveFile;
+
+	File projectDirectory;
+};
+
+void BackendCommandTarget::Actions::archiveProject(BackendProcessorEditor * bpe)
+{
+	ProjectHandler *handler = &GET_PROJECT_HANDLER(bpe->getMainSynthChain());
+
+	if (handler->isRedirected(ProjectHandler::SubDirectories::Samples))
+	{
+		if (PresetHandler::showYesNoWindow("Sample Folder is redirected", 
+										   "The sample folder is redirected to another location.\nIt will not be included in the archive. Press OK to continue or cancel to abort", 
+										   PresetHandler::IconType::Warning))
+			return;
+	}
+
+	FileChooser fc("Select archive destination", File::nonexistent, "*.zip");
+
+	if (fc.browseForFileToSave(true))
+	{
+		File archiveFile = fc.getResult();
+
+		File projectDirectory = handler->getWorkDirectory();
+
+		new ProjectArchiver(archiveFile, projectDirectory, bpe->getBackendProcessor());
+
+	}
+}
+
+class ProjectDownloader: public ThreadWithAsyncProgressWindow,
+						 public TextEditor::Listener
+{
+public:
+
+	ProjectDownloader(BackendProcessorEditor *bpe_):
+		ThreadWithAsyncProgressWindow("Download new Project"),
+		bpe(bpe_)
+	{
+		addTextEditor("url", "http://www.", "URL");
+
+#if HISE_IOS
+
+		addTextEditor("projectName", "Project", "Project Name");
+
+#else
+
+		targetFile = new FilenameComponent("Target folder", File::nonexistent, true, true, true, "", "", "Choose target folder");
+		targetFile->setSize(300, 24);
+		addCustomComponent(targetFile);
+
+#endif
+
+		addBasicComponents(true);
+	};
+
+	void run() override
+	{
+#if HISE_IOS
+		targetDirectory = File::getSpecialLocation(File::userDocumentsDirectory).getChildFile(getTextEditor("projectName")->getText());
+		targetDirectory.createDirectory();
+
+#else
+		targetDirectory = targetFile->getCurrentFile();
+		if (!targetDirectory.isDirectory()) return;
+
+#endif
+
+		URL downloadLocation(getTextEditor("url")->getText());
+
+		showStatusMessage("Downloading the project");
+
+		ScopedPointer<InputStream> stream = downloadLocation.createInputStream(false, &downloadProgress, this);
+
+        if(stream == nullptr)
+        {
+            PresetHandler::showMessageWindow("Error downloading", "The URL could not be opened.", PresetHandler::IconType::Error);
+            return;
+        }
+        
+		File tempFile(File::getSpecialLocation(File::tempDirectory).getChildFile("projectDownload.tmp"));
+
+		tempFile.deleteFile();
+		tempFile.create();
+
+		ScopedPointer<OutputStream> fos = tempFile.createOutputStream();
+
+		MemoryBlock mb;
+		mb.setSize(8192);
+
+		const int64 numBytesTotal = stream->getNumBytesRemaining();
+		int64 numBytesRead = 0;
+
+		while (stream->getNumBytesRemaining() > 0)
+		{
+			const int64 chunkSize = jmin<int64>(stream->getNumBytesRemaining(), 8192);
+
+			downloadProgress(this, (int)numBytesRead, (int)numBytesTotal);
+
+			if (threadShouldExit())
+			{
+				fos->flush();
+				fos = nullptr;
+
+				tempFile.deleteFile();
+				return;
+			}
+
+			stream->read(mb.getData(), (int)chunkSize);
+
+			numBytesRead += chunkSize;
+
+			fos->write(mb.getData(), (size_t)chunkSize);
+		}
+
+		fos->flush();
+
+		showStatusMessage("Extracting...");
+
+		setProgress(-1.0);
+
+		FileInputStream fis(tempFile);
+
+		ZipFile input(&fis, false);
+
+		const int numFiles = input.getNumEntries();
+
+		for (int i = 0; i < numFiles; i++)
+		{
+			if (threadShouldExit())
+			{
+				tempFile.deleteFile();
+				break;
+			}
+
+			input.uncompressEntry(i, targetDirectory, true);
+
+			setProgress((double)i / (double)numFiles);
+		}
+
+		input.uncompressTo(targetDirectory);
+
+		tempFile.deleteFile();
+
+	}
+
+	static bool downloadProgress(void* context, int bytesSent, int totalBytes)
+	{
+		const double downloadedMB = (double)bytesSent / 1024.0 / 1024.0;
+		const double totalMB = (double)totalBytes / 1024.0 / 1024.0;
+        const double percent = (totalMB > 0.0) ? (downloadedMB / totalMB) : 0.0;
+
+		static_cast<ProjectDownloader*>(context)->showStatusMessage("Downloaded: " + String(downloadedMB, 2) + " MB / " + String(totalMB, 2) + " MB");
+
+		static_cast<ProjectDownloader*>(context)->setProgress(percent);
+
+		return !static_cast<ProjectDownloader*>(context)->threadShouldExit();
+	}
+
+	void threadFinished() override
+	{
+		if (PresetHandler::showYesNoWindow("Switch projects", "Do you want to switch to the downloaded project?", PresetHandler::IconType::Question))
+		{
+			GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(targetDirectory);
+		}
+	}
+
+private:
+
+	BackendProcessorEditor *bpe;
+
+	ScopedPointer<FilenameComponent> targetFile;
+
+	File targetDirectory;
+
+};
+
+void BackendCommandTarget::Actions::downloadNewProject(BackendProcessorEditor * bpe)
+{
+	ProjectDownloader *downloader = new ProjectDownloader(bpe);
+
+	downloader->setModalComponentOfMainEditor(bpe);
 }

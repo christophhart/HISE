@@ -83,6 +83,8 @@ public:
 		MenuProjectNew = 0x24000,
 		MenuProjectLoad,
 		MenuCloseProject,
+		MenuFileArchiveProject,
+		MenuFileDownloadNewProject,
 		MenuProjectShowInFinder,
 		MenuProjectRecentOffset,
 		MenuRevertFile = 0x26000,
@@ -274,6 +276,8 @@ private:
 		static void createDummyLicenceFile(BackendProcessorEditor * bpe);
 		static void createDefaultToolbarJSON(BackendProcessorEditor * bpe);
 		static void toggleForcePoolSearch(BackendProcessorEditor * bpe);
+		static void archiveProject(BackendProcessorEditor * bpe);
+		static void downloadNewProject(BackendProcessorEditor * bpe);
 	};
 
 	ColumnMode currentColumnMode;
