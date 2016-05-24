@@ -64,12 +64,15 @@ public:
 	{
 		if (b->getName() == "OctaveUp")
 		{
-			setLowestVisibleKey(getLowestVisibleKey() + 12);
-		}
+            lowKey += 12;
+        }
+            
 		else
 		{
-			setLowestVisibleKey(getLowestVisibleKey() - 12);
-		}
+            lowKey -= 12;
+        }
+		
+        setAvailableRange(lowKey, lowKey + 19);
 	}
 
 	void paint(Graphics &g) override
@@ -123,6 +126,8 @@ private:
 	CustomKeyboardState *state;
  
     bool narrowKeys;
+    
+    int lowKey;
     
     //==============================================================================
     Image cachedImage_black_key_off_png;

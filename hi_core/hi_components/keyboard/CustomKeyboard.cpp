@@ -66,7 +66,8 @@ Component * MidiKeyboardFocusTraverser::getDefaultComponent(Component *parentCom
 CustomKeyboard::CustomKeyboard (CustomKeyboardState &state_):
 	MidiKeyboardComponent(state_, Orientation::horizontalKeyboard),
 	state(&state_),
-    narrowKeys(true)
+    narrowKeys(true),
+    lowKey(36)
 {
 	state->addChangeListener(this);
     cachedImage_black_key_off_png = ImageCache::getFromMemory (black_key_off_png, black_key_off_pngSize);
@@ -79,8 +80,8 @@ CustomKeyboard::CustomKeyboard (CustomKeyboardState &state_):
 	setKeyWidth(75.0f);
 	setScrollButtonsVisible(false);
 
-	setAvailableRange(0, 127);
-
+	setAvailableRange(36, 36 + 21);
+    
 #else
 
     setKeyWidth(narrowKeys ? 14.0f : 18.0f);
