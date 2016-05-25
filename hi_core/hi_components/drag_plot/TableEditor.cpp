@@ -372,8 +372,12 @@ TableEditor::DragPoint::DragPoint(bool isStart_, bool isEnd_):
 	dragPlotSize(Rectangle<int>()),
 	constantValue(-1.0f)
 {
+#if HISE_IOS
+    const int size = isStartOrEnd() ? 50 : 35;
+#else
 	const int size = isStartOrEnd() ? 20 : 14;
-
+#endif
+    
 	setSize(size,size);
 
 	
@@ -387,22 +391,24 @@ TableEditor::DragPoint::~DragPoint()
 
 void TableEditor::DragPoint::paint (Graphics& g)
 {
-
+    const float width = (float)getWidth() - 6.0f;
+    const float round = width * 0.2;
+    
 	if(isStartOrEnd())
 	{
 		g.setColour (Colours::white.withAlpha(0.3f));
-		g.drawRoundedRectangle (3.0f , 3.0f, 14.0f, 14.0f, 3.0f, over ? 2.0f : 1.0f);
+		g.drawRoundedRectangle (3.0f , 3.0f, width, width, round, over ? 2.0f : 1.0f);
 
 		g.setColour (Colours::white.withAlpha(0.2f));
-		g.fillRoundedRectangle (3.0f , 3.0f, 14.0f, 14.0f, 3.0f);
+		g.fillRoundedRectangle (3.0f , 3.0f, width, width, round);
 
 	}
 	else
 	{
 		g.setColour (Colours::white.withAlpha(0.3f));
-		g.drawRoundedRectangle (3.0f , 3.0f, 8.0f, 8.0f, 3.0f, over ? 2.0f : 1.0f);
+		g.drawRoundedRectangle (3.0f , 3.0f, width, width, round, over ? 2.0f : 1.0f);
 		g.setColour (Colours::white.withAlpha(0.2f));
-		g.fillRoundedRectangle (3.0f , 3.0f, 8.0f, 8.0f, 3.0f);
+		g.fillRoundedRectangle (3.0f , 3.0f, width, width, round);
 	}
 }
 
