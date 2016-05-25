@@ -610,6 +610,12 @@ public:
 
 #else
         
+#if HISE_IOS
+      
+        return File::getSpecialLocation(File::SpecialLocationType::userDocumentsDirectory);
+        
+#else
+        
         File returnPath = File(File::getSpecialLocation(File::userApplicationDataDirectory).getFullPathName() + "/Application Support/Hart Instruments/SynthPresets/");
 
 		if (!returnPath.exists())
@@ -618,6 +624,7 @@ public:
 		}
 
 		return returnPath;
+#endif
 #endif
 	};
 

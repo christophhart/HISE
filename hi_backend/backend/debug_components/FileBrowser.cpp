@@ -232,7 +232,10 @@ directorySearcher("Directory Scanner")
 
 	fileTreeComponent->addMouseListener(this, true);
 
+#if HISE_IOS
+#else
     goToDirectory(GET_PROJECT_HANDLER(editor->getMainSynthChain()).getWorkDirectory());
+#endif
 }
 
 void FileBrowser::goToDirectory(const File &newRoot, bool useUndoManager)

@@ -72,7 +72,14 @@ void AudioDeviceDialog::buttonClicked(Button *b)
 			}
 
 #else
+            
+#if JUCE_IOS
+    
+            String parentDirectory = File::getSpecialLocation(File::SpecialLocationType::userApplicationDataDirectory).getFullPathName();
+#else
+            
 			String parentDirectory = File::getSpecialLocation(File::SpecialLocationType::currentExecutableFile).getParentDirectory().getFullPathName();
+#endif
 #endif
 
 
