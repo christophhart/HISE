@@ -296,10 +296,13 @@ String PresetHandler::getCustomName(const String &typeName)
 
 bool PresetHandler::showYesNoWindow(const String &title, const String &message, PresetHandler::IconType type)
 {
+#if HISE_IOS
+    return NativeMessageBox::showOkCancelBox(AlertWindow::AlertIconType::NoIcon, title, message);
+    
+#else
 	AlertWindowLookAndFeel laf;
 
 	ScopedPointer<MessageWithIcon> comp = new MessageWithIcon(type, message);
-
 	ScopedPointer<AlertWindow> nameWindow = new AlertWindow(title, "", AlertWindow::AlertIconType::NoIcon);
 
 	nameWindow->setLookAndFeel(&laf);
@@ -309,26 +312,29 @@ bool PresetHandler::showYesNoWindow(const String &title, const String &message, 
 	nameWindow->addButton("Cancel", 0, KeyPress(KeyPress::escapeKey));
 
 	return (nameWindow->runModalLoop() == 1);
+    
+#endif
 };
 
 void PresetHandler::showMessageWindow(const String &title, const String &message, PresetHandler::IconType type)
 {
-	AlertWindowLookAndFeel laf;
-
-	ScopedPointer<MessageWithIcon> comp = new MessageWithIcon(type, message);
-
-	ScopedPointer<AlertWindow> nameWindow = new AlertWindow(title, "", AlertWindow::AlertIconType::NoIcon);
-
-	nameWindow->setLookAndFeel(&laf);
-	nameWindow->addCustomComponent(comp);
-	nameWindow->addButton("OK", 1, KeyPress(KeyPress::returnKey));
-
 #if JUCE_IOS
     
-	
-
+    NativeMessageBox::showMessageBox(AlertWindow::AlertIconType::NoIcon, title, message);
+    
 #else
-	nameWindow->runModalLoop();
+    
+    AlertWindowLookAndFeel laf;
+    
+    ScopedPointer<MessageWithIcon> comp = new MessageWithIcon(type, message);
+    
+    ScopedPointer<AlertWindow> nameWindow = new AlertWindow(title, "", AlertWindow::AlertIconType::NoIcon);
+    
+    nameWindow->setLookAndFeel(&laf);
+    nameWindow->addCustomComponent(comp);
+    nameWindow->addButton("OK", 1, KeyPress(KeyPress::returnKey));
+    
+    nameWindow->runModalLoop();
 #endif
 
 	return ;
@@ -1054,7 +1060,7 @@ File PresetHandler::getDirectory(Processor *p)
 		else														{ jassertfalse; return File::nonexistent; }
 
 		File directory((getPresetFolder().getFullPathName() + "/" + typeName));
-
+        
 		jassert(directory.exists());
 		jassert(directory.isDirectory());
 
@@ -1538,8 +1544,12 @@ String PresetHandler::getDataFolder()
 
 #else
 
+#if HISE_IOS
+    return File::getSpecialLocation(File::userApplicationDataDirectory).getFullPathName();
+#else
     return File::getSpecialLocation(File::userApplicationDataDirectory).getFullPathName() + "/Application Support/Hart Instruments";
-
+#endif
+    
 #endif
     
 }
