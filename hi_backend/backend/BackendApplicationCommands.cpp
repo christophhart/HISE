@@ -1942,9 +1942,21 @@ class ProjectDownloader: public ThreadWithAsyncProgressWindow,
 {
 public:
 
+	enum class ErrorCodes
+	{
+		OK = 0,
+		InvalidURL,
+		URLNotFound,
+		DirectoryAlreadyExists,
+		FileNotAnArchive,
+		AbortedByUser,
+		numErrorCodes
+	};
+
 	ProjectDownloader(BackendProcessorEditor *bpe_):
 		ThreadWithAsyncProgressWindow("Download new Project"),
-		bpe(bpe_)
+		bpe(bpe_),
+		result(ErrorCodes::OK)
 	{
 		addTextEditor("url", "http://www.", "URL");
 
@@ -1961,29 +1973,62 @@ public:
 #endif
 
 		addBasicComponents(true);
+		addButton("Paste URL from Clipboard", 2);
 	};
+
+	void resultButtonClicked(const String &name)
+	{
+		if (name == "Paste URL from Clipboard")
+		{
+			getTextEditor("url")->setText(SystemClipboard::getTextFromClipboard());
+		}
+	}
 
 	void run() override
 	{
 #if HISE_IOS
 		targetDirectory = File::getSpecialLocation(File::userDocumentsDirectory).getChildFile(getTextEditor("projectName")->getText());
+		
+		if (targetDirectory.isDirectory())
+		{
+			result = ErrorCodes::DirectoryAlreadyExists;
+			return;
+		}
+		
 		targetDirectory.createDirectory();
 
 #else
 		targetDirectory = targetFile->getCurrentFile();
-		if (!targetDirectory.isDirectory()) return;
+		
+		if (targetDirectory.isDirectory() && targetDirectory.getNumberOfChildFiles(File::findFilesAndDirectories) != 0)
+		{
+			result = ErrorCodes::DirectoryAlreadyExists;
+			return;
+		}
 
 #endif
 
-		URL downloadLocation(getTextEditor("url")->getText());
+		const String enteredURL = getTextEditor("url")->getText();
+
+		const String directURL = replaceHosterLinksWithDirectDownloadURL(enteredURL);
+
+		URL downloadLocation(directURL);
+
+		if (!downloadLocation.isWellFormed())
+		{
+			result == ErrorCodes::InvalidURL;
+			targetDirectory.deleteRecursively();
+			return;
+		}
 
 		showStatusMessage("Downloading the project");
 
-		ScopedPointer<InputStream> stream = downloadLocation.createInputStream(false, &downloadProgress, this);
+		ScopedPointer<InputStream> stream = downloadLocation.createInputStream(false, &downloadProgress, this, String(), 0, nullptr, &httpStatusCode, 20);
 
-        if(stream == nullptr)
+        if(stream == nullptr || stream->getTotalLength() <= 0)
         {
-            PresetHandler::showMessageWindow("Error downloading", "The URL could not be opened.", PresetHandler::IconType::Error);
+			result = ErrorCodes::URLNotFound;
+			targetDirectory.deleteRecursively();
             return;
         }
         
@@ -2008,10 +2053,12 @@ public:
 
 			if (threadShouldExit())
 			{
+				result = ErrorCodes::AbortedByUser;
 				fos->flush();
 				fos = nullptr;
 
 				tempFile.deleteFile();
+				targetDirectory.deleteRecursively();
 				return;
 			}
 
@@ -2032,6 +2079,14 @@ public:
 
 		ZipFile input(&fis, false);
 
+		if (input.getNumEntries() == 0)
+		{
+			result = ErrorCodes::FileNotAnArchive;
+			tempFile.deleteFile();
+			targetDirectory.deleteRecursively();
+			return;
+		}
+
 		const int numFiles = input.getNumEntries();
 
 		for (int i = 0; i < numFiles; i++)
@@ -2039,6 +2094,9 @@ public:
 			if (threadShouldExit())
 			{
 				tempFile.deleteFile();
+				targetDirectory.deleteRecursively();
+				result = ErrorCodes::AbortedByUser;
+				
 				break;
 			}
 
@@ -2047,11 +2105,10 @@ public:
 			setProgress((double)i / (double)numFiles);
 		}
 
-		input.uncompressTo(targetDirectory);
-
 		tempFile.deleteFile();
 
 	}
+
 
 	static bool downloadProgress(void* context, int bytesSent, int totalBytes)
 	{
@@ -2059,7 +2116,7 @@ public:
 		const double totalMB = (double)totalBytes / 1024.0 / 1024.0;
         const double percent = (totalMB > 0.0) ? (downloadedMB / totalMB) : 0.0;
 
-		static_cast<ProjectDownloader*>(context)->showStatusMessage("Downloaded: " + String(downloadedMB, 2) + " MB / " + String(totalMB, 2) + " MB");
+		static_cast<ProjectDownloader*>(context)->showStatusMessage("Downloaded: " + String(downloadedMB, 1) + " MB / " + String(totalMB, 2) + " MB");
 
 		static_cast<ProjectDownloader*>(context)->setProgress(percent);
 
@@ -2068,13 +2125,57 @@ public:
 
 	void threadFinished() override
 	{
-		if (PresetHandler::showYesNoWindow("Switch projects", "Do you want to switch to the downloaded project?", PresetHandler::IconType::Question))
+		switch (result)
 		{
-			GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(targetDirectory);
+		case ProjectDownloader::ErrorCodes::OK:
+			if (PresetHandler::showYesNoWindow("Switch projects", "Do you want to switch to the downloaded project?", PresetHandler::IconType::Question))
+			{
+				GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(targetDirectory);
+			}
+			break;
+		case ProjectDownloader::ErrorCodes::InvalidURL:
+			PresetHandler::showMessageWindow("Wrong URL", "The entered URL is not valid", PresetHandler::IconType::Error);
+			break;
+		case ProjectDownloader::ErrorCodes::URLNotFound:
+			PresetHandler::showMessageWindow("Error downloading", "The URL could not be opened. HTTP status code: " + String(httpStatusCode), PresetHandler::IconType::Error);
+			break;
+		case ProjectDownloader::ErrorCodes::DirectoryAlreadyExists:
+			PresetHandler::showMessageWindow("Project already exists.", "You'll need to delete the existing project before downloading.", PresetHandler::IconType::Error);
+			break;
+		case ProjectDownloader::ErrorCodes::FileNotAnArchive:
+			PresetHandler::showMessageWindow("Archive corrupt", "The file could not be extracted because it is either corrupt or not an archive.", PresetHandler::IconType::Error);
+		case ProjectDownloader::ErrorCodes::AbortedByUser:
+			PresetHandler::showMessageWindow("Download cancelled", "The project was not downloaded because the progress was aborted.", PresetHandler::IconType::Error);
+		case ProjectDownloader::ErrorCodes::numErrorCodes:
+			break;
+		default:
+			break;
 		}
+
+		
 	}
 
 private:
+
+	/** A small helper function that replaces links to cloud content with their direct download URL. */
+	static String replaceHosterLinksWithDirectDownloadURL(const String url)
+	{
+		const bool dropBox = url.containsIgnoreCase("dropbox");
+		const bool googleDrive = url.containsIgnoreCase("drive.google.com");
+
+		if (dropBox)
+		{
+			return url.replace("dl=0", "dl=1");;
+		}
+		else if (googleDrive)
+		{
+			const String downloadID = url.fromFirstOccurrenceOf("https://drive.google.com/file/d/", false, true).upToFirstOccurrenceOf("/", false, false);
+			const String directLink = "https://drive.google.com/uc?export=download&id=" + downloadID;
+
+			return directLink;
+		}
+		else return url;
+	}
 
 	BackendProcessorEditor *bpe;
 
@@ -2082,6 +2183,8 @@ private:
 
 	File targetDirectory;
 
+	ErrorCodes result;
+	int httpStatusCode;
 };
 
 void BackendCommandTarget::Actions::downloadNewProject(BackendProcessorEditor * bpe)
