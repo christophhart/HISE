@@ -110,10 +110,10 @@
                   extraLinkerFlags="" smallIcon="DEkG64" bigIcon="DEkG64" iosBackgroundAudio="1"
                   UIStatusBarHidden="1" extraDefs="USE_IPP=0&#10;HISE_IOS=1" customPList="&lt;key&gt;NSAppTransportSecurity&lt;/key&gt;&#10;&lt;dict&gt;&#10;    &lt;key&gt;NSAllowsArbitraryLoads&lt;/key&gt;&#10;    &lt;true/&gt;&#10;&lt;/dict&gt;">
       <CONFIGURATIONS>
-        <CONFIGURATION name="Debug" iosCompatibility="default" isDebug="1" optimisation="1"
+        <CONFIGURATION name="Debug" iosCompatibility="8.0" isDebug="1" optimisation="1"
                        targetName="HISE Standalone" cppLanguageStandard="c++11" cppLibType="libc++"
                        libraryPath="" headerPath=""/>
-        <CONFIGURATION name="Release" iosCompatibility="default" isDebug="0" optimisation="3"
+        <CONFIGURATION name="Release" iosCompatibility="8.0" isDebug="0" optimisation="3"
                        targetName="HISE Standalone" headerPath="" libraryPath="" cppLanguageStandard="c++11"
                        cppLibType="libc++" linkTimeOptimisation="1"/>
       </CONFIGURATIONS>
