@@ -246,6 +246,8 @@ void TableEditor::mouseDown(const MouseEvent &e)
 {
 	if (!isEnabled()) return;
 
+	grabCopyAndPasteFocus();
+
 	MouseEvent parentEvent = e.getEventRelativeTo(this);
 	int x = parentEvent.getMouseDownPosition().getX();
 	int y = parentEvent.getMouseDownPosition().getY();

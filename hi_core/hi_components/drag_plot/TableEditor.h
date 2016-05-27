@@ -316,7 +316,8 @@ private:
 */
 class TableEditor : public Component,
 	public SettableTooltipClient,
-	public SafeChangeListener
+	public SafeChangeListener,
+	public CopyPasteTarget
 {
 public:
 
@@ -355,6 +356,21 @@ public:
 			createDragPoints();
 			refreshGraph();
 		}
+	}
+
+	String getObjectTypeName() override
+	{ 
+		return "Table Data"; 
+	};
+
+	void copyAction() override { SystemClipboard::copyTextToClipboard(getEditedTable()->exportData()); };
+	virtual void pasteAction() override
+	{
+		const String data = SystemClipboard::getTextFromClipboard();
+		getEditedTable()->restoreData(data);
+
+		createDragPoints();
+		refreshGraph();
 	}
 
 	void changeListenerCallback(SafeChangeBroadcaster *b) override;;
@@ -407,6 +423,11 @@ public:
 	 * \param setLeftEdge  change the left edge.
 	 */  
 	void setEdge(float f, bool setLeftEdge=true);
+
+	void paintOverChildren(Graphics& g)
+	{
+		CopyPasteTarget::paintOutlineIfSelected(g);
+	}
 
 private:
 
