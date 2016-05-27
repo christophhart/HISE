@@ -155,6 +155,9 @@ WaveSynthBody::WaveSynthBody (BetterProcessorEditor *p)
 	waveFormSelector->setup(getProcessor(), WaveSynth::SpecialParameters::WaveForm1, "Waveform 1");
 	waveFormSelector2->setup(getProcessor(), WaveSynth::SpecialParameters::WaveForm2, "Waveform 2");
 
+	waveformDisplay->setSelector(waveFormSelector);
+	waveformDisplay2->setSelector(waveFormSelector2);
+
 	octaveSlider->setup(getProcessor(), WaveSynth::SpecialParameters::OctaveTranspose1, "Octave 1");
 	octaveSlider->setMode(HiSlider::Discrete, -5.0, 5.0);
 	octaveSlider2->setup(getProcessor(), WaveSynth::SpecialParameters::OctaveTranspose2, "Octave 2");

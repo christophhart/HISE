@@ -353,7 +353,7 @@ void ProcessorEditorChainBar::resized()
 	{
 		if (!chainButtons[i]->isVisible()) continue;
 
-		chainButtons[i]->setBounds(x, 0, buttonWidth, 18);
+		chainButtons[i]->setBounds(x, 0, buttonWidth, getHeight() - 4);
 		x += buttonWidth;
 	}
 }
@@ -416,14 +416,17 @@ void ProcessorEditorChainBar::paintOverChildren(Graphics &g)
 	{
 		if (chainButtons[i + 1]->getWidth() != 0)
 		{
+#if HISE_IOS
+			const int heightSub = 5;
+#else
+			const int heightSub = 0;
+#endif
 
-
-			Image img(Image::PixelFormat::ARGB, chainButtons[i + 1]->getWidth(), chainButtons[i + 1]->getHeight(), true);
-
+			Image img(Image::PixelFormat::ARGB, chainButtons[i + 1]->getWidth(), chainButtons[i + 1]->getHeight()-heightSub, true);
 
 			Graphics g2(img);
 
-			numberTags[i]->applyEffect(img, g2, 1.0f / SCALE_FACTOR(), 1.0f);
+			numberTags[i]->applyEffect(img, g2, 1.0f, 1.0f);
 
 
 

@@ -291,7 +291,7 @@ ProcessorEditorHeader::ProcessorEditorHeader(BetterProcessorEditor *p) :
 
 #if HISE_IOS
 
-	setSize(BetterProcessorEditorContainer::getWidthForIntendationLevel(getEditor()->getIndentationLevel()), 45);
+	setSize(BetterProcessorEditorContainer::getWidthForIntendationLevel(getEditor()->getIndentationLevel()), 40);
 
 #else
     setSize(BetterProcessorEditorContainer::getWidthForIntendationLevel(getEditor()->getIndentationLevel()), 30);
@@ -415,7 +415,7 @@ void ProcessorEditorHeader::paint (Graphics& g)
 		false));
 	g.fillRect(0, 30, getWidth(), 30);
 
-	luf->drawBackground(g, (float)getWidth(), 35.0f, getProcessor()->getEditorState(Processor::Folded));	
+	luf->drawBackground(g, (float)getWidth(), getHeight()+5, getProcessor()->getEditorState(Processor::Folded));	
 	if(isSoloHeader)
 	{
 		g.setColour(Colours::white.withAlpha(0.2f));
@@ -868,25 +868,25 @@ void ProcessorEditorHeader::createProcessorFromPopup(Processor *insertBeforeSibl
 		Identifier type = t->getTypeNameFromPopupMenuResult(result);
 		String typeName = t->getNameFromPopupMenuResult(result);
 
-		String name;
+String name;
 
-		if (isHeaderOfModulatorSynth()) name = typeName; // PresetHandler::getCustomName(typeName);
-		else						  name = typeName;
+if (isHeaderOfModulatorSynth()) name = typeName; // PresetHandler::getCustomName(typeName);
+else						  name = typeName;
 
 
-		if(name.isNotEmpty())
-		{
-			processorToBeAdded = MainController::createProcessor(t, type, name);
+if (name.isNotEmpty())
+{
+	processorToBeAdded = MainController::createProcessor(t, type, name);
 
-			processorToBeAdded->setId(FactoryType::getUniqueName(processorToBeAdded));
+	processorToBeAdded->setId(FactoryType::getUniqueName(processorToBeAdded));
 
-			if (ProcessorHelpers::is<ModulatorSynth>(processorToBeAdded) && dynamic_cast<ModulatorSynthGroup*>(getEditor()->getProcessor()) == nullptr)
-			{
-				dynamic_cast<ModulatorSynth*>(processorToBeAdded)->addProcessorsWhenEmpty();
-			}
+	if (ProcessorHelpers::is<ModulatorSynth>(processorToBeAdded) && dynamic_cast<ModulatorSynthGroup*>(getEditor()->getProcessor()) == nullptr)
+	{
+		dynamic_cast<ModulatorSynth*>(processorToBeAdded)->addProcessorsWhenEmpty();
+	}
 
-		}
-		else return;
+}
+else return;
 	}
 
 	// =================================================================================================================
@@ -898,7 +898,7 @@ void ProcessorEditorHeader::createProcessorFromPopup(Processor *insertBeforeSibl
 
 void ProcessorEditorHeader::addProcessor(Processor *processorToBeAdded, Processor *insertBeforeSibling)
 {
-	if(processorToBeAdded == nullptr)	{ jassertfalse;	return;	}
+	if (processorToBeAdded == nullptr)	{ jassertfalse;	return; }
 
 	getEditor()->getProcessorAsChain()->getHandler()->add(processorToBeAdded, insertBeforeSibling);
 
@@ -912,11 +912,11 @@ void ProcessorEditorHeader::addProcessor(Processor *processorToBeAdded, Processo
 
 #endif
 
-	if(dynamic_cast<ModulatorSynth*>(getProcessor()) != nullptr)
+	if (dynamic_cast<ModulatorSynth*>(getProcessor()) != nullptr)
 	{
 		getProcessor()->getMainController()->getMainSynthChain()->compileAllScripts();
 	}
-	else if(dynamic_cast<ScriptProcessor*>(processorToBeAdded) != nullptr)
+	else if (dynamic_cast<ScriptProcessor*>(processorToBeAdded) != nullptr)
 	{
 		dynamic_cast<ScriptProcessor*>(processorToBeAdded)->compileScript();
 	}
@@ -927,10 +927,10 @@ void ProcessorEditorHeader::addProcessor(Processor *processorToBeAdded, Processo
 
 void ProcessorEditorHeader::timerCallback()
 {
-	
-	if(getProcessor() != nullptr)
+
+	if (getProcessor() != nullptr)
 	{
-		if(isHeaderOfModulator())
+		if (isHeaderOfModulator())
 		{
 			const float outputValue = getProcessor()->getOutputValue();
 			const float value = dynamic_cast<Modulation*>(getProcessor())->getMode() == Modulation::PitchMode ? outputValue / 2.0f : outputValue;
@@ -938,8 +938,8 @@ void ProcessorEditorHeader::timerCallback()
 		}
 		else
 		{
-			valueMeter->setPeak(getProcessor()->getDisplayValues().outL, 
-						getProcessor()->getDisplayValues().outR);
+			valueMeter->setPeak(getProcessor()->getDisplayValues().outL,
+				getProcessor()->getDisplayValues().outR);
 		}
 
 		bypassButton->refresh();
@@ -948,8 +948,33 @@ void ProcessorEditorHeader::timerCallback()
 };
 
 
-void ProcessorEditorHeader::mouseDown(const MouseEvent &e) 
-{   
+void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
+{
+#if HISE_IOS
+
+	// Increase the hit area for the buttons
+
+	const Rectangle<int> extendedAddButtonBounds = addButton->getBounds().expanded(10);
+	const Rectangle<int> extendedFoldButtonBounds = foldButton->getBounds().expanded(10);
+	const Rectangle<int> extendedCloseButtonBounds = deleteButton->getBounds().expanded(10);
+
+	const Point<int> pos = e.getMouseDownPosition();
+
+	if (addButton->isVisible() && extendedAddButtonBounds.contains(pos))
+	{
+		addButton->triggerClick();
+	}
+	else if (foldButton->isVisible() && extendedFoldButtonBounds.contains(pos))
+	{
+		foldButton->triggerClick();
+	}
+	else if (deleteButton->isVisible() && extendedCloseButtonBounds.contains(pos))
+	{
+		deleteButton->triggerClick();
+	}
+		
+#endif
+
 	if(e.mods.isRightButtonDown())
 	{
 
@@ -1158,10 +1183,14 @@ void ProcessorEditorHeader::refreshShapeButton(ShapeButton *b)
 
 	DropShadowEffect *shadow = dynamic_cast<DropShadowEffect*>(b->getComponentEffect());
 
-	jassert(shadow != nullptr);
+	if (shadow != nullptr)
+	{
+		jassert(shadow != nullptr);
 
-	shadow->setShadowProperties (DropShadow (off? Colours::transparentBlack : shadowColour, 3, Point<int>()));
-		
+		shadow->setShadowProperties(DropShadow(off ? Colours::transparentBlack : shadowColour, 3, Point<int>()));
+
+	}
+	
 		
 	buttonColour = off ? Colours::grey.withAlpha(0.7f) : buttonColour;
 

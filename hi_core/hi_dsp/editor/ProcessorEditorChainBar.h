@@ -48,7 +48,14 @@ public:
 
 	
 
-	int getActualHeight() { return chainButtons.size() != 0 ? 22 : 0; };
+	int getActualHeight()
+	{ 
+#if HISE_IOS
+		return chainButtons.size() != 0 ? 35 : 0; 
+#else
+		return chainButtons.size() != 0 ? 22 : 0; 
+#endif
+	};
 
 	/** This shortens the ModulatorChain ids ("GainModulation" -> "Gain" etc.) for nicer display. */
 	String getShortName(const String identifier) const

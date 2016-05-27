@@ -497,6 +497,11 @@ public:
 
 	void addApiAutoCompleteOptions(XmlElement *api);
 
+	void paintOverChildren(Graphics& g)
+	{
+		CopyPasteTarget::paintOutlineIfSelected(g);
+	}
+
 	void addGlobalsAutoCompleteOptions();
 
 	void addDefaultAutocompleteOptions(const String &enteredText);

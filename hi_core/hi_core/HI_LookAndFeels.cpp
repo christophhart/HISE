@@ -741,3 +741,51 @@ void AlertWindowLookAndFeel::drawAlertBox(Graphics &g, AlertWindow &alert, const
 	g.setColour(bright);
 	g.drawRect(0, 0, alert.getWidth(), alert.getHeight());
 }
+
+void ChainBarButtonLookAndFeel::drawButtonText(Graphics& g, TextButton& button, bool /*isMouseOverButton*/, bool /*isButtonDown*/)
+{
+
+	g.setFont(GLOBAL_BOLD_FONT());
+	g.setColour(button.findColour(button.getToggleState() ? TextButton::textColourOnId
+		: TextButton::textColourOffId)
+		.withMultipliedAlpha(button.isEnabled() ? 1.0f : 0.5f));
+
+
+#if HISE_IOS
+
+	const String wholeButtonText = button.getButtonText();
+
+	const bool isMainBar = button.findParentComponentOfClass<ProcessorEditorChainBar>() != nullptr;
+
+	if (isMainBar && wholeButtonText.contains(" ") && wholeButtonText.length() > 8)
+	{
+		StringArray lines = StringArray::fromTokens(wholeButtonText, " ", "");
+
+		// Coallescate the first two items for IDS like "Attack Time Modulation"...
+		if (lines.size() == 3)
+		{
+			StringArray twoLines;
+
+			twoLines.add(lines[0] + " " + lines[1]);
+			twoLines.add(lines[2]);
+
+			lines = twoLines;
+		}
+
+		if (lines.size() == 2)
+		{
+			g.drawText(lines[0], 0, 2, button.getWidth(), button.getHeight() - 4, Justification::centredTop, false);
+			g.drawText(lines[1], 0, 2, button.getWidth(), button.getHeight() - 4, Justification::centredBottom, false);
+		}
+	}
+	else
+	{
+		g.drawText(button.getButtonText(), 0, 0, button.getWidth(), button.getHeight(), Justification::centred, false);
+	}
+
+
+
+#else
+	g.drawText(button.getButtonText(), 0, 0, button.getWidth(), button.getHeight(), Justification::centred, false);
+#endif
+}

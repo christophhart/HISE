@@ -196,6 +196,31 @@ public:
 
 	}
 
+	static void comboBoxPopupMenuFinishedCallback(int result, HiComboBox* combo)
+	{
+		if (combo != nullptr)
+		{
+			combo->hidePopup();
+
+			if (result != 0)
+				combo->setSelectedId(result);
+		}
+	}
+
+	void showPopup() override
+	{
+		PopupMenu menu;
+		menu.setLookAndFeel(&getLookAndFeel());
+		addItemsToMenu(menu);
+
+		menu.showMenuAsync(PopupMenu::Options().withTargetComponent(this)
+			.withItemThatMustBeVisible(getSelectedId())
+			.withMinimumWidth(getWidth())
+			.withMaximumNumColumns(1)
+			.withStandardItemHeight(28.0f),
+			ModalCallbackFunction::forComponent(comboBoxPopupMenuFinishedCallback, this));
+	}
+
 	void mouseDown(const MouseEvent &e) override
 	{
 		if(e.mods.isLeftButtonDown())

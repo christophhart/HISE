@@ -389,7 +389,8 @@ class Processor;
 
 /** Subclass your component from this class and the main window will focus it to allow copy pasting with shortcuts.
 *
-*   Then, in your mouseDown method, call grabCopyAndPasteFocus()
+*   Then, in your mouseDown method, call grabCopyAndPasteFocus().
+*	If you call paintOutlineIfSelected from your paint method, it will be automatically highlighted.
 */
 class CopyPasteTarget
 {
@@ -408,6 +409,57 @@ public:
 	void grabCopyAndPasteFocus();
 
 	bool isSelectedForCopyAndPaste() { return isSelected; };
+
+	void paintOutlineIfSelected(Graphics &g)
+	{
+		if (isSelected)
+		{
+			Component *thisAsComponent = dynamic_cast<Component*>(this);
+
+			if (thisAsComponent != nullptr)
+			{
+				Rectangle<float> bounds = Rectangle<float>(thisAsComponent->getLocalBounds().getX(),
+														   thisAsComponent->getLocalBounds().getY(),
+														   thisAsComponent->getLocalBounds().getWidth(),
+														   thisAsComponent->getLocalBounds().getHeight());
+
+
+
+				Colour outlineColour = Colour(0xffb9d2d6);
+				Colour transparentColour = outlineColour.withAlpha(0.0f);
+
+				const float gradientWidth = 4.0f;
+
+				g.setColour(outlineColour);
+
+				/*
+				g.setGradientFill(ColourGradient(outlineColour, bounds.getX(), bounds.getY(),
+												 transparentColour, gradientWidth, bounds.getY(), false));
+
+				g.fillRect(bounds.getX(), bounds.getY(), gradientWidth, bounds.getHeight());
+
+				g.setGradientFill(ColourGradient(outlineColour, bounds.getX(), bounds.getY(),
+												 transparentColour, bounds.getX(), gradientWidth, false));
+
+				g.fillRect(bounds.getX(), bounds.getY(), bounds.getWidth(), gradientWidth);
+
+				g.setGradientFill(ColourGradient(outlineColour, bounds.getWidth(), bounds.getY(),
+					transparentColour, bounds.getWidth() - gradientWidth, bounds.getY(), false));
+
+				g.fillRect(bounds.getWidth() - gradientWidth, bounds.getY(), gradientWidth, bounds.getHeight());
+
+				g.setGradientFill(ColourGradient(outlineColour, bounds.getX(), bounds.getHeight(),
+					transparentColour, bounds.getX(), bounds.getHeight() - gradientWidth, false));
+
+				g.fillRect(bounds.getX(), bounds.getHeight() - gradientWidth, bounds.getWidth(), gradientWidth);
+				*/
+
+				g.drawRect(bounds, 2.0f);
+
+			}
+			else jassertfalse;
+		}
+	}
 
 	void deselect()
 	{

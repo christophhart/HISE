@@ -136,14 +136,8 @@ public:
 		g.setColour(Colours::white.withAlpha(0.7f));
 
 		g.drawRoundedRectangle(rect.reduced(1.0f), 4.0f, 1.0f);
-
-#if JUCE_WINDOWS
-        
-		g.setFont(GLOBAL_BOLD_FONT().withHeight(12.0f));
-        
-#else
-        g.setFont(GLOBAL_BOLD_FONT());
-#endif
+	
+		g.setFont(GLOBAL_BOLD_FONT());
 
 		g.drawText(String(number), rect, Justification::centred, false);
 
@@ -728,14 +722,19 @@ public:
 	{
 		g.excludeClipRegion(Rectangle<int>(0, 35, (int)width, 10));
 
+#if HISE_IOS
+		height = 45.0f;
+#else
 		height = 30.0f;
+#endif
+
 
 		g.setGradientFill (ColourGradient (getColour(HeaderBackgroundColour),
 										288.0f, 8.0f,
 										getColour(HeaderBackgroundColour).withMultipliedBrightness(0.9f),
-										288.0f, 30.0f,
+										288.0f, height,
 										false));
-		g.fillRoundedRectangle (0.0f, 0.0f, width, 33.0f, 3.0f);
+		g.fillRoundedRectangle (0.0f, 0.0f, width, height, 3.0f);
 
 	}
 
@@ -1270,17 +1269,7 @@ public:
 		return GLOBAL_BOLD_FONT();
 	}
 
-	void drawButtonText(Graphics& g, TextButton& button, bool /*isMouseOverButton*/, bool /*isButtonDown*/) override
-	{		
-		g.setFont(GLOBAL_BOLD_FONT());
-		g.setColour(button.findColour(button.getToggleState() ? TextButton::textColourOnId
-			: TextButton::textColourOffId)
-			.withMultipliedAlpha(button.isEnabled() ? 1.0f : 0.5f));
-
-
-		g.drawText(button.getButtonText(), 0, 0, button.getWidth(), button.getHeight(), Justification::centred, false);
-
-	}
+	void drawButtonText(Graphics& g, TextButton& button, bool /*isMouseOverButton*/, bool /*isButtonDown*/) override;
 
 	void drawButtonBackground (Graphics &g, Button &b, const Colour &backgroundColour, bool isMouseOverButton, bool isButtonDown) override
 	{

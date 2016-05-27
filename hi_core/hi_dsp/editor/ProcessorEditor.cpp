@@ -242,7 +242,13 @@ int BetterProcessorEditor::getActualHeight() const
 
 		panel->refreshChildProcessorVisibility();
 
-		h += panel->getHeightOfAllEditors();
+#if HISE_IOS
+		const int marginBeforePanel = 6;
+#else
+		const int marginBeforePanel = 0;
+#endif
+
+		h += panel->getHeightOfAllEditors() + marginBeforePanel;
 
         return h + (dynamic_cast<const ScriptProcessor*>(getProcessor()) ? 0 : 6);
 	}
@@ -253,6 +259,13 @@ void BetterProcessorEditor::resized()
 	header->setBounds(0, 0, getWidth(), header->getHeight());
 	chainBar->setBounds(0, header->getBottom() + 6, getWidth(), chainBar->getActualHeight());
 	
+
+#if HISE_IOS
+	const int marginBeforePanel = 6;
+#else
+	const int marginBeforePanel = 0;
+#endif
+
 	if (isPopup())
 	{
 		body->setBounds(0, chainBar->getBottom(), getWidth(), getHeight() - chainBar->getBottom());
@@ -261,7 +274,7 @@ void BetterProcessorEditor::resized()
 	else
 	{
 		body->setBounds(0, chainBar->getBottom(), getWidth(), getProcessor()->getEditorState(Processor::BodyShown) ? body->getBodyHeight() : 0);
-		panel->setBounds(INTENDATION_WIDTH, body->getBottom(), panel->getWidth(), panel->getHeightOfAllEditors());
+		panel->setBounds(INTENDATION_WIDTH, body->getBottom() + marginBeforePanel, panel->getWidth(), panel->getHeightOfAllEditors());
 	}
 	
 }
@@ -524,7 +537,11 @@ int BetterProcessorEditorPanel::getHeightOfAllEditors() const
 
 		if (!editors[i]->getProcessor()->getEditorState(Processor::EditorState::Visible)) continue;
 
+#if HISE_IOS
+		y += editors[i]->getActualHeight() + 10;
+#else
 		y += editors[i]->getActualHeight() + 3;
+#endif
 	}
 
 	return y;
@@ -608,7 +625,11 @@ void BetterProcessorEditorPanel::resized()
 
 		editors[i]->setBounds(0, y, BetterProcessorEditorContainer::getWidthForIntendationLevel(editors[i]->getIndentationLevel()) - 4, editors[i]->getActualHeight());
 
+#if HISE_IOS
+		y += editors[i]->getActualHeight() + 10;
+#else
 		y += editors[i]->getActualHeight() + 3;
+#endif
 	}
 
 }

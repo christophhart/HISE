@@ -175,6 +175,11 @@ public:
 
 	void paint(Graphics &g) override;
 
+	void paintOverChildren(Graphics& g) override
+	{
+		CopyPasteTarget::paintOutlineIfSelected(g);
+	}
+
 	String getObjectTypeName() { return getProcessor()->getId(); };
 	void copyAction();
 	void pasteAction();

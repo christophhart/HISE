@@ -102,6 +102,8 @@ LfoEditorBody::LfoEditorBody (BetterProcessorEditor *p)
 
     //[UserPreSize]
 
+	waveformDisplay->setSelector(waveFormSelector);
+
 	waveFormSelector->setup(getProcessor(), LfoModulator::WaveFormType, "Waveform");
 
 	tableUsed = getProcessor()->getAttribute(LfoModulator::WaveFormType) == LfoModulator::Custom;

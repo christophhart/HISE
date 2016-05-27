@@ -32,7 +32,6 @@ public:
 	~StandaloneProcessor()
 	{
 		deviceManager->removeAudioCallback(callback);
-
         deviceManager->closeAudioDevice();
         
 		callback = nullptr;
