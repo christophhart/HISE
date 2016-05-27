@@ -131,6 +131,19 @@ public:
 		type(Sine)
 	{};
 
+	void mouseDown(const MouseEvent &e)
+	{
+		if (selector != nullptr)
+		{
+			selector->showPopup();
+		}
+	}
+
+	void setSelector(ComboBox *b)
+	{
+		selector = b;
+	}
+
 	void paint(Graphics &g);
 
 	void setType(int t)
@@ -142,6 +155,8 @@ public:
 private:
 
 	WaveformType type;
+
+	Component::SafePointer<ComboBox> selector;
 
 };
 
