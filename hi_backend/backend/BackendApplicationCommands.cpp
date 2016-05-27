@@ -797,6 +797,21 @@ void BackendCommandTarget::menuItemSelected(int menuItemID, int /*topLevelMenuIn
 
 		if (PresetHandler::showYesNoWindow("Switch projects?", "Do you want to switch projects? The current preset will be cleared"))
 		{
+#if HISE_IOS
+			Array<File> results;
+
+			File userDataDirectory = File::getSpecialLocation(File::userDocumentsDirectory);
+
+			userDataDirectory.findChildFiles(results, File::findDirectories, false);
+
+			File file = results[index];
+
+			bpe->clearPreset();
+
+			GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(file);
+
+#else
+
 			String file = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getRecentWorkDirectories()[index];
 
 			bpe->clearPreset();
@@ -804,6 +819,7 @@ void BackendCommandTarget::menuItemSelected(int menuItemID, int /*topLevelMenuIn
 			GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(file);
             
             menuItemsChanged();
+#endif
 		}
 	}
     else if (menuItemID >= MenuFileUserPresetMenuOffset && menuItemID < ((int)MenuFileUserPresetMenuOffset+50))
