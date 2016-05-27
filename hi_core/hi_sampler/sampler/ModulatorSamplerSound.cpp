@@ -348,6 +348,8 @@ ValueTree ModulatorSamplerSound::exportAsValueTree() const
 
 void ModulatorSamplerSound::restoreFromValueTree(const ValueTree &v)
 {
+    normalizedPeak = v.getProperty("NormalizedPeak", -1.0f);
+    
 	for (int i = RootNote; i < numProperties; i++) // ID and filename must be passed to the constructor!
 	{
 		Property p = (Property)i;
@@ -357,9 +359,6 @@ void ModulatorSamplerSound::restoreFromValueTree(const ValueTree &v)
 		if (!x.isUndefined()) setProperty(p, x, dontSendNotification);
 	}
 
-	
-
-	normalizedPeak = v.getProperty("NormalizedPeak", -1.0f);
 }
 
 void ModulatorSamplerSound::startPropertyChange(Property p, int newValue)
