@@ -41,10 +41,14 @@ void CopyPasteTarget::grabCopyAndPasteFocus()
     
     if(thisAsComponent)
     {
-        thisAsComponent->findParentComponentOfClass<BackendProcessorEditor>()->setCopyPasteTarget(this);
-
-		isSelected = true;
-		thisAsComponent->repaint();
+        BackendProcessorEditor *editor = thisAsComponent->findParentComponentOfClass<BackendProcessorEditor>();
+        
+        if(editor != nullptr)
+        {
+            editor->setCopyPasteTarget(this);
+            isSelected = true;
+            thisAsComponent->repaint();
+        }
     }
     else
     {
