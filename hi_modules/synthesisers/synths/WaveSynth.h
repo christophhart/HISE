@@ -504,14 +504,14 @@ public:
 			FloatVectorOperations::multiply(tempBuffer.getWritePointer(1, startSample), mix, numSamples);
 		}
 
-		const float balance1Left = BalanceCalculator::getGainFactorForBalance((int)pan1, true);
-		const float balance1Right = BalanceCalculator::getGainFactorForBalance((int)pan1, false);
+		const float balance1Left = BalanceCalculator::getGainFactorForBalance(pan1, true);
+		const float balance1Right = BalanceCalculator::getGainFactorForBalance(pan1, false);
 		
 		FloatVectorOperations::copyWithMultiply(internalBuffer.getWritePointer(0, startSample), tempBuffer.getReadPointer(0, startSample), balance1Left, numSamples);
 		FloatVectorOperations::copyWithMultiply(internalBuffer.getWritePointer(1, startSample), tempBuffer.getReadPointer(0, startSample), balance1Right, numSamples);
 
-		const float balance2Left = BalanceCalculator::getGainFactorForBalance((int)pan2, true);
-		const float balance2Right = BalanceCalculator::getGainFactorForBalance((int)pan2, false);
+		const float balance2Left = BalanceCalculator::getGainFactorForBalance(pan2, true);
+		const float balance2Right = BalanceCalculator::getGainFactorForBalance(pan2, false);
 
 		FloatVectorOperations::addWithMultiply(internalBuffer.getWritePointer(0, startSample), tempBuffer.getReadPointer(1, startSample), balance2Left, numSamples);
 		FloatVectorOperations::addWithMultiply(internalBuffer.getWritePointer(1, startSample), tempBuffer.getReadPointer(1, startSample), balance2Right, numSamples);

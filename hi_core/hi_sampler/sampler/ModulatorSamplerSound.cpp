@@ -264,8 +264,8 @@ void ModulatorSamplerSound::setProperty(Property p, int newValue, NotificationTy
 	}
 	case Pan:		{
 		pan = (int)newValue;
-		leftBalanceGain = BalanceCalculator::getGainFactorForBalance(pan, true);
-		rightBalanceGain = BalanceCalculator::getGainFactorForBalance(pan, false);
+		leftBalanceGain = BalanceCalculator::getGainFactorForBalance(newValue, true);
+		rightBalanceGain = BalanceCalculator::getGainFactorForBalance(newValue, false);
 		break;
 	}
 	case Pitch:		{	centPitch = newValue;

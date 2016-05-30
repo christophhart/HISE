@@ -410,8 +410,8 @@ public:
 	{
 		balance = newBalance;
 
-		leftBalanceGain = BalanceCalculator::getGainFactorForBalance((int)(balance * 100.0f), true);
-		rightBalanceGain = BalanceCalculator::getGainFactorForBalance((int)(balance * 100.0f), false);
+		leftBalanceGain = BalanceCalculator::getGainFactorForBalance((balance * 100.0f), true);
+		rightBalanceGain = BalanceCalculator::getGainFactorForBalance((balance * 100.0f), false);
 	};
 
 	/** Returns the calculated (equal power) pan value for either the left or the right channel. */
