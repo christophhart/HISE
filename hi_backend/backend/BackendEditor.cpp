@@ -558,7 +558,7 @@ void BackendProcessorEditor::setViewportPositions(int viewportX, const int viewp
 
 	macroKnobs->setBounds(viewportX, viewportY, viewportWidth, macroKnobs->getCurrentHeight());
 
-	//if (macroKnobs->isVisible()) viewportY = macroKnobs->getBottom();
+	const int macroOffset = macroKnobs->isVisible() ? macroKnobs->getHeight() : 0;
 
 #if HISE_IOS
 	const int keyboardHeight = 250;
@@ -577,13 +577,13 @@ void BackendProcessorEditor::setViewportPositions(int viewportX, const int viewp
 	keyboard->setBounds(viewportX, getHeight() - keyboardHeight, viewportWidth, keyboardHeight);
 
 	const int containerHeight = getHeight() - (keyboard->isVisible() ? keyboard->getHeight() : 10)
-		- viewportY;
+		- viewportY - macroOffset;
 
 	viewport->setVisible(containerHeight > 0);
 
 
 
-	viewport->setBounds(viewportX, viewportY, viewportWidth + SCROLLBAR_WIDTH, containerHeight); // Overlap with the fade
+	viewport->setBounds(viewportX, viewportY + macroOffset, viewportWidth + SCROLLBAR_WIDTH, containerHeight); // Overlap with the fade
 
 #if HISE_IOS
 
