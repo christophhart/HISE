@@ -295,6 +295,110 @@ private:
 
 };
 
+
+/** Calculates the balance.
+*	@ingroup utility
+*
+*/
+class BalanceCalculator
+{
+public:
+
+	/** Converts a balance value to the gain factor for the supplied channel using an equal power formula. */
+	static float getGainFactorForBalance(float balanceValue, bool calculateLeftChannel)
+	{
+		const float balance = balanceValue / 100.0f;
+
+		float panValue = (float_Pi * (balance + 1.0f)) * 0.25f;
+
+		return 1.4142f * (calculateLeftChannel ? cosf(panValue) : sinf(panValue));
+	};
+
+	/** Processes a stereo buffer with an array of balance values (from 0...1) - typically the output of a modulation chain. 
+	*
+	*	This is slightly faster than calling getGainFactorForBalance because it uses some vectorization...
+	*	The float array that is passed in is used as working buffer, so don't rely on it not being changed...
+	*	
+	*/
+	static void processBuffer(AudioSampleBuffer &stereoBuffer, float *panValues, int startSample, int numSamples)
+	{
+		FloatVectorOperations::multiply(panValues + startSample, float_Pi * 0.5f, numSamples);
+
+		stereoBuffer.applyGain(1.4142f); // +3dB for equal power...
+
+		float *l = stereoBuffer.getWritePointer(0, startSample);
+		float *r = stereoBuffer.getWritePointer(1, startSample);
+
+		while (--numSamples >= 0)
+		{
+			*l++ *= cosf(*panValues) * 1.4142f;
+			*r++ *= sinf(*panValues);
+
+			panValues++;
+		}
+	}
+
+	/** Returns a string version of the pan value. */
+	static String getBalanceAsString(int balanceValue)
+	{
+		if (balanceValue == 0) return "C";
+
+		else return String(balanceValue) + (balanceValue > 0 ? "R" : "L");
+	}
+};
+
+
+
+class Saturator
+{
+public:
+
+	Saturator()
+	{
+		setSaturationAmount(0.0f);
+	};
+
+	inline float getSaturatedSample(float inputSample)
+	{
+		return (1.0f + k) * inputSample / (1.0f + k * fabsf(inputSample));
+	}
+
+	void setSaturationAmount(float newSaturationAmount)
+	{
+		saturationAmount = newSaturationAmount;
+		if (saturationAmount == 1.0f) saturationAmount = 0.999f;
+
+		k = 2 * saturationAmount / (1.0f - saturationAmount);
+	}
+
+private:
+
+	float saturationAmount;
+	float k;
+
+};
+
+
+/** A utility class for linear interpolation between samples.
+*	@ingroup utility
+*
+*/
+class Interpolator
+{
+public:
+
+	/** A simple linear interpolation.
+	*
+	*	@param lowValue the value of the lower index.
+	*	@param highValue the value of the higher index.
+	*	@param delta the sub-integer part between the two indexes (must be between 0.0f and 1.0f)
+	*	@returns the interpolated value.
+	*/
+	static float interpolateLinear(const float lowValue, const float highValue, const float delta);
+
+};
+
+
 /** A class that handles temposyncing.
 *	@ingroup utility
 *
