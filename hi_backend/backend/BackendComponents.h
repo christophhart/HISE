@@ -333,7 +333,11 @@ private:
         {
             if(processor.get() != nullptr)
             {
+#if HISE_IOS
+				Font f = GLOBAL_BOLD_FONT().withHeight(18.0f);
+#else
                 Font f = GLOBAL_BOLD_FONT();
+#endif
                 
                 return f.getStringWidth(processor->getId());
             }
@@ -345,7 +349,14 @@ private:
             if(processor.get() != nullptr)
             {
 				g.setColour(Colours::white.withAlpha(isMouseOver(true) ? 1.0f : 0.6f));
-                g.setFont(GLOBAL_BOLD_FONT());
+
+#if HISE_IOS
+				Font f = GLOBAL_BOLD_FONT().withHeight(18.0f);
+#else
+				Font f = GLOBAL_BOLD_FONT();
+#endif
+
+                g.setFont(f);
                 g.drawText(processor->getId(), getLocalBounds(), Justification::centredLeft, true);
             }
 			

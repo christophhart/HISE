@@ -84,6 +84,13 @@ rootEditorIsMainSynthChain(true)
 	mainToolbar->setColour(Toolbar::ColourIds::buttonMouseOverBackgroundColourId, Colours::white.withAlpha(0.5f));
 	mainToolbar->setColour(Toolbar::ColourIds::buttonMouseDownBackgroundColourId, Colours::white.withAlpha(0.7f));
 
+#if HISE_IOS
+	mainToolbar->setVertical(true);
+
+	addAndMakeVisible(menuRuler = new Component());
+
+#endif
+
 	viewport->viewport->setSingleStepSizes(0, 6);
 
 	setRootProcessor(owner->synthChain->getRootProcessor());
@@ -521,6 +528,19 @@ String BackendProcessorEditor::createStringFromPath(const Array<int> &path)
 
 void BackendProcessorEditor::setToolBarPosition(int x, int y, int width, int height)
 {
+#if HISE_IOS
+
+	const int widthBeforeViewport = viewport->getX();
+	width = 40;
+
+	const int yOffset = 50;
+	height = getHeight() - yOffset;
+
+	mainToolbar->setBounds((widthBeforeViewport - width)/2, yOffset, width, height);
+
+	cpuVoiceComponent->setVisible(false);
+
+#else
 	const int toolbarWidth = mainToolbar->getNumItems() * 24;
 	const int cpuVoiceWidth = cpuVoiceComponent->getWidth();
 
@@ -529,15 +549,16 @@ void BackendProcessorEditor::setToolBarPosition(int x, int y, int width, int hei
 	cpuVoiceComponent->setBounds(tooltipBar->getRight() + 8, y, cpuVoiceWidth, height);
 
 	mainToolbar->setBounds(x + width - toolbarWidth, y+2, toolbarWidth, height-4);
+#endif
 }
 
 void BackendProcessorEditor::setViewportPositions(int viewportX, const int viewportY, const int viewportWidth, int viewportHeight)
 {
-	int y = viewportY;
 
-	macroKnobs->setBounds(viewportX, y, viewportWidth, macroKnobs->getCurrentHeight());
 
-	if (macroKnobs->isVisible()) y = macroKnobs->getBottom();
+	macroKnobs->setBounds(viewportX, viewportY, viewportWidth, macroKnobs->getCurrentHeight());
+
+	//if (macroKnobs->isVisible()) viewportY = macroKnobs->getBottom();
 
 #if HISE_IOS
 	const int keyboardHeight = 250;
@@ -555,14 +576,20 @@ void BackendProcessorEditor::setViewportPositions(int viewportX, const int viewp
 
 	keyboard->setBounds(viewportX, getHeight() - keyboardHeight, viewportWidth, keyboardHeight);
 
-	const int containerHeight = getHeight() - (keyboard->isVisible() ? keyboard->getHeight() : 0)
-		- y;
+	const int containerHeight = getHeight() - (keyboard->isVisible() ? keyboard->getHeight() : 10)
+		- viewportY;
 
 	viewport->setVisible(containerHeight > 0);
 
 
 
-	viewport->setBounds(viewportX, y, viewportWidth + SCROLLBAR_WIDTH, containerHeight); // Overlap with the fade
+	viewport->setBounds(viewportX, viewportY, viewportWidth + SCROLLBAR_WIDTH, containerHeight); // Overlap with the fade
+
+#if HISE_IOS
+
+	menuRuler->setBounds(viewportX, viewportY-1, viewportWidth, 1);
+
+#endif
 
 	aboutPage->setBounds(viewportX, viewportY, viewportWidth, viewportHeight);
 
@@ -570,7 +597,7 @@ void BackendProcessorEditor::setViewportPositions(int viewportX, const int viewp
 	{
 		jassert(stupidRectangle != nullptr);
 		stupidRectangle->setBounds(viewport->getBounds());
-		currentPopupComponent->setTopLeftPosition(currentPopupComponent->getX(), y + 40);
+		currentPopupComponent->setTopLeftPosition(currentPopupComponent->getX(), viewportY + 40);
 	}
 
 }
@@ -594,7 +621,7 @@ void BackendProcessorEditor::paint(Graphics &g)
 
 void BackendProcessorEditor::resized()
 {
-#if JUCE_IOS
+#if HISE_IOS
     
 #elif IS_STANDALONE_APP
 
@@ -608,12 +635,7 @@ void BackendProcessorEditor::resized()
 
 #if HISE_IOS
 
-	const int menuBarOffset = menuBar == nullptr ? 0 : 28;
-
-	if (menuBarOffset != 0)
-	{
-		menuBar->setBounds(0, 0, getWidth(), menuBarOffset);
-	}
+	const int menuBarOffset = 0;
 
 #else
 	const int menuBarOffset = menuBar == nullptr ? 0 : 20;
@@ -642,10 +664,19 @@ void BackendProcessorEditor::resized()
 		columns = 3;
 	}
 
-	const int breadcrumbHeight = rootEditorIsMainSynthChain ? 0 : 30;
+	
 
+#if HISE_IOS
+	const int breadcrumbHeight = rootEditorIsMainSynthChain ? 0 : 45;
+	const int viewportY = 10;
+	
+#else
+	const int breadcrumbHeight = rootEditorIsMainSynthChain ? 0 : 30;
 	const int viewportY = menuBarOffset + 8 + 24 + 8 + breadcrumbHeight;
-	const int viewportHeight = getHeight() - viewportY;
+#endif
+
+	
+	const int viewportHeight = getHeight() - viewportY - (keyboard->isVisible() ? 0 : 10);
 	
 	const int viewportWidth = 868;
 	
@@ -709,9 +740,11 @@ void BackendProcessorEditor::resized()
 
 	setToolBarPosition(viewportX, menuBarOffset + 4 , viewportWidth, 28);
 
-	breadCrumbComponent->setBounds(viewportX, viewportY - breadcrumbHeight, viewportWidth, breadcrumbHeight);
 
-	setViewportPositions(viewportX, viewportY, viewportWidth, viewportHeight);
+
+	breadCrumbComponent->setBounds(viewportX, viewportY, viewportWidth, breadcrumbHeight);
+
+	setViewportPositions(viewportX, viewportY + breadcrumbHeight, viewportWidth, viewportHeight);
 
 	viewport->viewport->setViewPosition(0, owner->getScrollY());
 
@@ -767,12 +800,18 @@ void BackendProcessorEditor::clearPopup()
 		}
 		else if (dynamic_cast<SampleMapEditor*>(currentPopupComponent.get()) != nullptr)
 		{
+			Desktop::getInstance().getAnimator().fadeOut(stupidRectangle, 100);
+			Desktop::getInstance().getAnimator().fadeOut(currentPopupComponent, 100);
+
 			dynamic_cast<SampleMapEditor*>(currentPopupComponent.get())->deletePopup();
 			currentPopupComponent = nullptr;
 		}
 	}
 	else
 	{
+		Desktop::getInstance().getAnimator().fadeOut(stupidRectangle, 300);
+		Desktop::getInstance().getAnimator().fadeOut(ownedPopupComponent, 600);
+
 		ownedPopupComponent = nullptr;
 	}
 
@@ -780,6 +819,7 @@ void BackendProcessorEditor::clearPopup()
 	
 	stupidRectangle = nullptr;
 	viewport->setEnabled(true);
+	viewport->viewport->setScrollBarsShown(true, false);
 }
 
 void BackendProcessorEditor::scriptWasCompiled(ScriptProcessor * /*sp*/)
@@ -819,18 +859,22 @@ void BackendProcessorEditor::showPseudoModalWindow(Component *componentToShow, c
 
 	stupidRectangle->addMouseListener(this, true);
 
-	stupidRectangle->setBounds(viewport->getX(), viewport->getY(), viewport->getWidth() - 16, viewport->getHeight());
+	stupidRectangle->setBounds(viewport->getX(), viewport->getY(), viewport->getWidth() - SCROLLBAR_WIDTH, viewport->getHeight());
 
 	addAndMakeVisible(componentToShow);
 
 
 
-	componentToShow->setBounds(viewport->getX(), viewport->getY() + 40, viewport->getWidth()-16, componentToShow->getHeight());
+	componentToShow->setBounds(viewport->getX(), viewport->getY() + 40, viewport->getWidth()-SCROLLBAR_WIDTH, componentToShow->getHeight());
 
 	Desktop::getInstance().getAnimator().fadeOut(stupidRectangle, 1);
-	Desktop::getInstance().getAnimator().fadeIn(stupidRectangle, 300);
+	Desktop::getInstance().getAnimator().fadeIn(stupidRectangle, 100);
+	Desktop::getInstance().getAnimator().fadeOut(componentToShow, 1);
+	Desktop::getInstance().getAnimator().fadeIn(componentToShow, 600);
 
 	viewport->setEnabled(false);
+
+	viewport->viewport->setScrollBarsShown(false, false);
 
 	componentToShow->setAlwaysOnTop(true);
 }
@@ -844,7 +888,12 @@ void BackendProcessorEditor::showModulatorTreePopup()
 	addProcessorToPopupMenu(soloView, owner->synthChain);
 
 #if HISE_IOS
-    soloView.showAt(viewport->getBounds(), 1, 900-32);
+
+	soloView.showMenuAsync(PopupMenu::Options().withTargetComponent(menuRuler)
+		.withMinimumWidth(menuRuler->getWidth())
+		.withMaximumNumColumns(viewport->getHeight() / 45), nullptr);
+
+    //soloView.showAt(viewport->getBounds(), 1, 900-32);
 #else
 	soloView.show();
 #endif

@@ -127,7 +127,14 @@ public:
 
 #else
 
-		String parentDirectory = File::getSpecialLocation(File::SpecialLocationType::currentExecutableFile).getParentDirectory().getFullPathName();
+
+#if HISE_IOS        
+        String parentDirectory = File::getSpecialLocation(File::SpecialLocationType::userApplicationDataDirectory).getFullPathName();
+#else
+        
+        String parentDirectory = File::getSpecialLocation(File::SpecialLocationType::currentExecutableFile).getParentDirectory().getFullPathName();
+#endif
+      
 
 #endif
 

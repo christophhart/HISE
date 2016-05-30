@@ -63,12 +63,7 @@ usedInList(false)
 void ProcessorPopupItem::mouseDown(const MouseEvent &m)
 {
 #if HISE_IOS
-    editor->setRootProcessorWithUndo(p);
-    
-    if (!usedInList)
-    {
-        triggerMenuItem();
-    }
+   
 #else
     if(m.mods.isRightButtonDown())
 	{
@@ -94,6 +89,38 @@ void ProcessorPopupItem::mouseDown(const MouseEvent &m)
 #endif
     
 }
+
+
+void ProcessorPopupItem::mouseUp(const MouseEvent& event)
+{
+
+#if HISE_IOS
+	editor->setRootProcessorWithUndo(p);
+
+	
+	Component *c = getParentComponent()->getParentComponent();
+
+	if (c != nullptr)
+	{
+		Point<int> mouseUpPointInParent = c->getLocalPoint(this, event.getPosition());
+
+		Component* upComponent = c->getComponentAt(mouseUpPointInParent);
+
+		if (ProcessorPopupItem *up = dynamic_cast<ProcessorPopupItem*>(upComponent))
+		{
+			editor->setRootProcessor(up->p);
+		}
+
+	}
+
+	
+	if (!usedInList)
+	{
+		triggerMenuItem();
+	}
+#endif
+}
+
 
 
 void ProcessorPopupItem::initButtons()
@@ -432,7 +459,14 @@ void StupidRectangle::paint(Graphics &g)
     
     //g.drawRect(getLocalBounds(), 1);
 
-	g.setFont(GLOBAL_BOLD_FONT().withHeight(15.0f));
+#if HISE_IOS
+
+		g.setFont(GLOBAL_BOLD_FONT().withHeight(24.0f));
+#else
+
+		g.setFont(GLOBAL_BOLD_FONT().withHeight(15.0f));
+#endif
+
 
 	g.setColour(Colours::white);
 
@@ -441,7 +475,13 @@ void StupidRectangle::paint(Graphics &g)
 
 void StupidRectangle::resized()
 {
-	closeButton->setBounds(getWidth() - 24, 12, 16, 16);
+#if HISE_IOS
+	const int buttonWidth = 24;
+#else
+	const int buttonWidth = 16;
+#endif
+
+	closeButton->setBounds(getWidth() - buttonWidth - 8, (40 - buttonWidth)/2, buttonWidth, buttonWidth);
 }
 
 ProcessorList::ProcessorList(BackendProcessorEditor *editor_) :

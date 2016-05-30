@@ -44,6 +44,23 @@ ToolbarItemComponent * MainToolbarFactory::createItem(int itemId)
 
 void MainToolbarFactory::getAllToolbarItemIds(Array<int> &ids)
 {
+#if HISE_IOS
+	const CommandID id[] = { 
+		BackendCommandTarget::HamburgerMenu,
+		ToolbarItemFactory::spacerId,
+		ToolbarItemFactory::spacerId,
+		ToolbarItemFactory::spacerId,
+		BackendCommandTarget::MenuViewShowPluginPopupPreview,
+		ToolbarItemFactory::spacerId,
+		BackendProcessorEditor::Macros,
+		ToolbarItemFactory::spacerId,
+		BackendProcessorEditor::ModulatorList,
+		ToolbarItemFactory::spacerId,
+		BackendProcessorEditor::Keyboard,
+		ToolbarItemFactory::spacerId,
+		BackendProcessorEditor::Settings
+	};
+#else
     const CommandID id[] = { BackendProcessorEditor::ModulatorList,
         BackendCommandTarget::MenuViewShowPluginPopupPreview,
         //BackendProcessorEditor::DebugPanel,
@@ -53,10 +70,10 @@ void MainToolbarFactory::getAllToolbarItemIds(Array<int> &ids)
         BackendProcessorEditor::Keyboard,
 		ToolbarItemFactory::spacerId,
 		BackendCommandTarget::MenuViewBack,
-		BackendCommandTarget::MenuViewForward
-        //BackendProcessorEditor::Settings
+		BackendCommandTarget::MenuViewForward,
+        BackendProcessorEditor::Settings
     };
-
+#endif
     
 	ids.addArray(id, numElementsInArray(id));
 };
@@ -67,6 +84,11 @@ Drawable *MainToolbarFactory::MainToolbarPaths::createPath(int id, bool isOn)
 
 	switch(id)
 	{
+		case BackendCommandTarget::HamburgerMenu:
+		{
+			path.loadPathFromData(BackendBinaryData::ToolbarIcons::hamburgerIcon, sizeof(BackendBinaryData::ToolbarIcons::hamburgerIcon));
+			break;
+		}
         case BackendCommandTarget::MenuViewShowPluginPopupPreview:
 		{
 		

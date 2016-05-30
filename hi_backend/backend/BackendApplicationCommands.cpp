@@ -63,7 +63,9 @@ void BackendCommandTarget::setEditor(BackendProcessorEditor *editor)
 
 void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 {
-	const CommandID id[] = { ModulatorList,
+	const CommandID id[] = { 
+		HamburgerMenu,
+		ModulatorList,
 		DebugPanel,
 		ViewPanel,
 		Mixer,
@@ -162,6 +164,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 {
 	switch (commandID)
 	{
+	case HamburgerMenu:
+		setCommandTarget(result, "Show Menu", true, false, 'X', false);
+		break;
 	case Macros:
 		setCommandTarget(result, "Show Macro Controls", true, (bpe->macroKnobs != nullptr && !bpe->macroKnobs->isVisible()), 'X', false);
 		break;
@@ -350,7 +355,7 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Three Columns", true, currentColumnMode == ThreeColumns, '3', true, ModifierKeys::altModifier);
 		break;
 	case MenuViewShowPluginPopupPreview:
-		setCommandTarget(result, "Open Plugin Preview Window", bpe->isPluginPreviewCreatable(), bpe->isPluginPreviewShown(), 'X', false);
+		setCommandTarget(result, "Open Plugin Preview Window", bpe->isPluginPreviewCreatable(), !bpe->isPluginPreviewShown(), 'X', false);
 		break;
     case MenuViewIncreaseCodeFontSize:
         setCommandTarget(result, "Increase code font size", true, false, 'X', false);
@@ -396,6 +401,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 {
 	switch (info.commandID)
 	{
+	case HamburgerMenu:					Actions::showMainMenu(bpe);  return true;
 	case DebugPanel:                    toggleVisibility(bpe->referenceDebugArea);
                                         bpe->viewedComponentChanged();
                                         return true;
@@ -2208,4 +2214,28 @@ void BackendCommandTarget::Actions::downloadNewProject(BackendProcessorEditor * 
 	ProjectDownloader *downloader = new ProjectDownloader(bpe);
 
 	downloader->setModalComponentOfMainEditor(bpe);
+}
+
+void BackendCommandTarget::Actions::showMainMenu(BackendProcessorEditor * bpe)
+{
+	const int commandIDs[] = { MenuNewFile,
+		MenuOpenFile,
+		MenuSaveFile,
+		0,
+		MenuReplaceWithClipboardContent,
+		MenuExportFileAsSnippet,
+		0,
+		MenuFileDownloadNewProject,
+		MenuProjectLoad,
+		0,
+		MenuEditCopy,
+		MenuEditPaste,
+		0,
+		MainToolbarCommands::Settings};
+
+	Array<int> ids;
+	ids.addArray(commandIDs, numElementsInArray(commandIDs));
+
+	bpe->showPseudoModalWindow(new MainMenuContainer(bpe->mainCommandManager, ids), "Main Menu", true);
+
 }

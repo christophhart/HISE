@@ -29,38 +29,63 @@
 *
 *   ===========================================================================
 */
-
-#ifndef HI_BACKEND_INCLUDED
-#define HI_BACKEND_INCLUDED
-
-#include "../hi_modules/hi_modules.h"
-
-using namespace juce;
+#ifndef MAINMENUCOMPONENT_H_INCLUDED
+#define MAINMENUCOMPONENT_H_INCLUDED
 
 
 
+#define MAIN_MENU_ITEM_HEIGHT 50
 
-#include "backend/BackendBinaryData.h"
+class MainMenuItem : public Component
+{
+public:
+	MainMenuItem(ApplicationCommandManager *manager_, int commandId_);
 
-#include "backend/debug_components/SamplePoolTable.h"
-#include "backend/debug_components/MacroEditTable.h"
-#include "backend/debug_components/ScriptWatchTable.h"
-#include "backend/debug_components/ProcessorCollection.h"
-#include "backend/debug_components/ApiBrowser.h"
-#include "backend/debug_components/ModuleBrowser.h"
-#include "backend/debug_components/PatchBrowser.h"
-#include "backend/debug_components/FileBrowser.h"
-#include "backend/debug_components/DebugArea.h"
+	void mouseUp(const MouseEvent &event);
 
-#include "backend/BackendProcessor.h"
-#include "backend/BackendComponents.h"
-#include "backend/BackendToolbar.h"
-#include "backend/ProcessorPopupList.h"
-#include "backend/MainMenuComponent.h"
-#include "backend/BackendApplicationCommands.h"
-#include "backend/BackendEditor.h"
-#include "backend/CompileExporter.h"
+	void triggerMenuItem();
+
+	MainMenuItem *getItemUnderMouse(const MouseEvent &event);
+
+	void mouseDrag(const MouseEvent& event);
+
+	void mouseDown(const MouseEvent& event);
+
+	void clearOnState()
+	{
+		on = false;
+		repaint();
+	}
 
 
+	void paint(Graphics& g);
 
-#endif   // HI_BACKEND_INCLUDED
+private:
+
+	bool on;
+
+	int commandId;
+	BackendProcessorEditor *editor;
+	ApplicationCommandManager *manager;
+};
+
+class MainMenuContainer : public Component
+{
+public:
+
+	MainMenuContainer(ApplicationCommandManager *manager, const Array<int> &ids);
+
+	void clearOnStateForAllItems();
+
+	
+
+	void resized();
+
+private:
+
+	OwnedArray<MainMenuItem> items;
+};
+
+
+
+#endif  // MAINMENUCOMPONENT_H_INCLUDED

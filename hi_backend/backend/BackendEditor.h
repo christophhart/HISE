@@ -358,9 +358,13 @@ private:
 
 	ScopedPointer<ThreadWithQuasiModalProgressWindow::Overlay> progressOverlay;
 
+	
+
 	bool rootEditorIsMainSynthChain;
 
 #if HISE_IOS
+
+	ScopedPointer<Component> menuRuler;
 
 	ScopedPointer<ShapeButton> octaveUpButton;
 	ScopedPointer<ShapeButton> octaveDownButton;

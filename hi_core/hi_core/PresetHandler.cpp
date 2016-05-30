@@ -322,7 +322,7 @@ bool PresetHandler::showYesNoWindow(const String &title, const String &message, 
 
 void PresetHandler::showMessageWindow(const String &title, const String &message, PresetHandler::IconType type)
 {
-#if JUCE_IOS
+#if HISE_IOS
     
     NativeMessageBox::showMessageBox(AlertWindow::AlertIconType::NoIcon, title, message);
     

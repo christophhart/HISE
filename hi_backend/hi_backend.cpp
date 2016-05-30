@@ -18,6 +18,7 @@
 #include "backend/BackendComponents.cpp"
 #include "backend/BackendToolbar.cpp"
 #include "backend/ProcessorPopupList.cpp"
+#include "backend/MainMenuComponent.cpp"
 #include "backend/BackendApplicationCommands.cpp"
 #include "backend/BackendEditor.cpp"
 

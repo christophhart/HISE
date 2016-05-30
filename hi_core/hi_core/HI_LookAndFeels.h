@@ -792,7 +792,11 @@ public:
     
     virtual Font 	getAlertWindowTitleFont () override
     {
+#if HISE_IOS
+		return GLOBAL_BOLD_FONT().withHeight(24.0f);
+#else
         return GLOBAL_BOLD_FONT().withHeight(17.0f);
+#endif
     }
 
 	Font getTextButtonFont (TextButton &, int /*buttonHeight*/) override
@@ -858,7 +862,7 @@ public:
  
 	Font getAlertWindowFont () override
 	{
-		return GLOBAL_BOLD_FONT();
+		return GLOBAL_BOLD_FONT().withHeight(18.0f);
 	};
 
 	void setColourIdsForAlertWindow(AlertWindow &window)

@@ -63,7 +63,7 @@ public:
 	enum MainToolbarCommands
 	{
 		ModulatorList = 0x10000,
-
+		HamburgerMenu,
 		CustomInterface,
 		DebugPanel,
 		ViewPanel,
@@ -278,6 +278,7 @@ private:
 		static void toggleForcePoolSearch(BackendProcessorEditor * bpe);
 		static void archiveProject(BackendProcessorEditor * bpe);
 		static void downloadNewProject(BackendProcessorEditor * bpe);
+		static void showMainMenu(BackendProcessorEditor * bpe);
 	};
 
 	ColumnMode currentColumnMode;

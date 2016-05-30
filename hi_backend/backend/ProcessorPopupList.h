@@ -56,6 +56,8 @@ public:
 
 	void mouseDown(const MouseEvent &m) override;
     
+	void mouseUp(const MouseEvent& event) override;
+
 	void buttonClicked(Button *b) override;
 
 	void initButtons();
