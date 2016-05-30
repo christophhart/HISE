@@ -45,6 +45,7 @@ public:
 		GainChain = 0,
         DelayChain,
         WidthChain,
+		BalanceChain,
 		numInternalChains
 	};
 
@@ -53,6 +54,7 @@ public:
 		GainChainShown = Processor::numEditorStates,
         DelayChainShown,
         WidthChainShown,
+		BalanceChainShown,
 		numEditorStates
 	};
 
@@ -61,6 +63,7 @@ public:
 		Gain = 0,
         Delay,
         Width,
+		Balance,
 		numParameters
 	};
 
@@ -82,6 +85,7 @@ public:
 		case GainChain: return gainBuffer;
 		case DelayChain: return delayBuffer;
 		case WidthChain: return widthBuffer;
+		case BalanceChain: return balanceBuffer;
 		default: jassertfalse; return gainBuffer;
 		}
 	}
@@ -95,6 +99,7 @@ public:
             case GainChain:	 return gainChain;
             case DelayChain: return delayChain;
             case WidthChain: return widthChain;
+			case BalanceChain: return balanceChain;
 			default:		 return nullptr;
         }
     };
@@ -106,6 +111,7 @@ public:
             case GainChain:  return gainChain;
             case DelayChain: return delayChain;
             case WidthChain: return widthChain;
+			case BalanceChain: return balanceChain;
 			default:		 return nullptr;
         }
     };
@@ -129,16 +135,20 @@ private:
 
 	float gain;
     float delay;
-	
+	float balance;
+
 	ScopedPointer<ModulatorChain> gainChain;
     ScopedPointer<ModulatorChain> delayChain;
     ScopedPointer<ModulatorChain> widthChain;
+	ScopedPointer<ModulatorChain> balanceChain;
 
 	Smoother smoother;
+	Smoother balanceSmoother;
 
 	AudioSampleBuffer gainBuffer;
     AudioSampleBuffer delayBuffer;
     AudioSampleBuffer widthBuffer;
+	AudioSampleBuffer balanceBuffer;
     
     MidSideDecoder msDecoder;
     

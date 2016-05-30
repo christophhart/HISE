@@ -35,22 +35,27 @@ MasterEffectProcessor(mc, uid),
 gainChain(new ModulatorChain(mc, "Gain Modulation", 1, Modulation::GainMode, this)),
 delayChain(new ModulatorChain(mc, "Delay Modulation", 1, Modulation::GainMode, this)),
 widthChain(new ModulatorChain(mc, "Width Modulation", 1, Modulation::GainMode, this)),
+balanceChain(new ModulatorChain(mc, "Pan Modulation", 1, Modulation::GainMode, this)),
 gain(1.0f),
-delay(0.0f)
+delay(0.0f),
+balance(0.0f)
 {
 	smoother.setSmoothingTime(0.2f);
 
 	parameterNames.add("Gain");
     parameterNames.add("Delay");
     parameterNames.add("Width");
+	parameterNames.add("Balance");
 
 	editorStateIdentifiers.add("GainChainShown");
     editorStateIdentifiers.add("DelayChainShown");
     editorStateIdentifiers.add("WidthChainShown");
+	editorStateIdentifiers.add("BalanceChainShown");
 
 	gainChain->setFactoryType(new TimeVariantModulatorFactoryType(Modulation::GainMode, this));
     widthChain->setFactoryType(new TimeVariantModulatorFactoryType(Modulation::GainMode, this));
     delayChain->setFactoryType(new TimeVariantModulatorFactoryType(Modulation::GainMode, this));
+
 }
 
 void GainEffect::setInternalAttribute(int parameterIndex, float newValue)
@@ -60,6 +65,7 @@ void GainEffect::setInternalAttribute(int parameterIndex, float newValue)
 	case Gain:							gain = Decibels::decibelsToGain(newValue); break;
     case Delay:                         setDelayTime(newValue); break;
     case Width:                         msDecoder.setWidth(newValue/100.0f); break;
+	case Balance:						balance = newValue; break;
 	default:							jassertfalse; return;
 	}
 }
@@ -71,6 +77,7 @@ float GainEffect::getAttribute(int parameterIndex) const
 	case Gain:							return Decibels::gainToDecibels(gain);
     case Delay:                         return delay;
     case Width:                         return msDecoder.getWidth() * 100.0f;
+	case Balance:						return balance;
 	default:							jassertfalse; return 1.0f;
 	}
 }
@@ -82,6 +89,7 @@ void GainEffect::restoreFromValueTree(const ValueTree &v)
 	loadAttribute(Gain, "Gain");
     loadAttribute(Delay, "Delay");
     loadAttribute(Width, "Width");
+	loadAttribute(Balance, "Balance");
 }
 
 ValueTree GainEffect::exportAsValueTree() const
@@ -91,6 +99,7 @@ ValueTree GainEffect::exportAsValueTree() const
 	saveAttribute(Gain, "Gain");
     saveAttribute(Delay, "Delay");
     saveAttribute(Width, "Width");
+	saveAttribute(Balance, "Balance");
 
 	return v;
 }
@@ -197,13 +206,28 @@ void GainEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, int num
 
 	if (!gainChain->isBypassed() && gainChain->getNumChildProcessors() != 0)
 	{
-
 		FloatVectorOperations::multiply(buffer.getWritePointer(0, startIndex), gainBuffer.getReadPointer(0, startIndex), samplesToCopy);
 		FloatVectorOperations::multiply(buffer.getWritePointer(1, startIndex), gainBuffer.getReadPointer(0, startIndex), samplesToCopy);
 	}
+
+	if (!balanceChain->isBypassed() && balanceChain->getNumChildProcessors() != 0)
+	{
+		BalanceCalculator::processBuffer(buffer, balanceBuffer.getWritePointer(0, startIndex), startIndex, samplesToCopy);
+	}
+	else
+	{
+		const float smoothedBalance = balanceSmoother.smooth(balance);
+
+		const float leftGain = BalanceCalculator::getGainFactorForBalance(smoothedBalance, true);
+		const float rightGain = BalanceCalculator::getGainFactorForBalance(smoothedBalance, false);
+
+		if(leftGain != rightGain)
+		{
+			FloatVectorOperations::multiply(buffer.getWritePointer(0, startIndex), leftGain, samplesToCopy);
+			FloatVectorOperations::multiply(buffer.getWritePointer(1, startIndex), rightGain, samplesToCopy);
+		}
+	}
 }
-
-
 
 
 void GainEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
@@ -215,10 +239,12 @@ void GainEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
         gainChain->prepareToPlay(sampleRate, samplesPerBlock);
         delayChain->prepareToPlay(sampleRate, samplesPerBlock);
         widthChain->prepareToPlay(sampleRate, samplesPerBlock);
+		balanceChain->prepareToPlay(sampleRate, samplesPerBlock);
         
 		gainBuffer = AudioSampleBuffer(1, samplesPerBlock);
         delayBuffer = AudioSampleBuffer(1, samplesPerBlock);
         widthBuffer = AudioSampleBuffer(1, samplesPerBlock);
+		balanceBuffer = AudioSampleBuffer(1, samplesPerBlock);
         
         leftDelay.prepareToPlay(sampleRate);
         rightDelay.prepareToPlay(sampleRate);
@@ -228,5 +254,8 @@ void GainEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
         
 		smoother.prepareToPlay(sampleRate);
 		smoother.setSmoothingTime(4.0);
+
+		balanceSmoother.prepareToPlay(sampleRate / (double)samplesPerBlock);
+		balanceSmoother.setSmoothingTime(1000.0f);
 	}
 }

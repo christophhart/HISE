@@ -51,12 +51,18 @@ GainEditor::GainEditor (BetterProcessorEditor *p)
     delaySlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     delaySlider->addListener (this);
 
+    addAndMakeVisible (balanceSlider = new HiSlider ("Balance"));
+    balanceSlider->setRange (-100, 36, 1);
+    balanceSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
+    balanceSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
+    balanceSlider->addListener (this);
+
 
     //[UserPreSize]
 	gainSlider->setup(getProcessor(), GainEffect::Gain, "Gain");
 	gainSlider->setMode(HiSlider::Decibel, -100.0, 36.0, 0.0);
     gainSlider->setIsUsingModulatedRing(true);
-    
+
     delaySlider->setup(getProcessor(), GainEffect::Delay, "Delay");
     delaySlider->setMode(HiSlider::Time, 0, 500, 100);
     delaySlider->setIsUsingModulatedRing(true);
@@ -65,8 +71,12 @@ GainEditor::GainEditor (BetterProcessorEditor *p)
 	widthSlider->setMode(HiSlider::Discrete, 0.0, 200.0, 100.0);
     widthSlider->setIsUsingModulatedRing(true);
 
+	balanceSlider->setup(getProcessor(), GainEffect::Balance, "Balance");
+	balanceSlider->setMode(HiSlider::Pan);
+	balanceSlider->setIsUsingModulatedRing(true);
+
     START_TIMER();
-    
+
     //[/UserPreSize]
 
     setSize (800, 80);
@@ -84,6 +94,7 @@ GainEditor::~GainEditor()
     widthSlider = nullptr;
     gainSlider = nullptr;
     delaySlider = nullptr;
+    balanceSlider = nullptr;
 
 
     //[Destructor]. You can add your own custom destruction code here..
@@ -103,8 +114,7 @@ void GainEditor::paint (Graphics& g)
     g.drawRoundedRectangle (static_cast<float> ((getWidth() / 2) - ((getWidth() - 84) / 2)), 6.0f, static_cast<float> (getWidth() - 84), static_cast<float> (getHeight() - 12), 6.000f, 2.000f);
 
     g.setColour (Colour (0x52ffffff));
-    
-    g.setFont(GLOBAL_BOLD_FONT().withHeight(26.0f));
+    g.setFont (Font ("Arial", 24.00f, Font::bold));
     g.drawText (TRANS("gain"),
                 getWidth() - 53 - 200, 6, 200, 40,
                 Justification::centredRight, true);
@@ -118,9 +128,10 @@ void GainEditor::resized()
     //[UserPreResize] Add your own custom resize code here..
     //[/UserPreResize]
 
-    widthSlider->setBounds ((getWidth() / 2) + 160 - (128 / 2), 16, 128, 48);
-    gainSlider->setBounds ((getWidth() / 2) + -160 - (128 / 2), 16, 128, 48);
-    delaySlider->setBounds ((getWidth() / 2) - (128 / 2), 16, 128, 48);
+    widthSlider->setBounds ((getWidth() / 2) + 40 - (128 / 2), 16, 128, 48);
+    gainSlider->setBounds ((getWidth() / 2) + -280 - (128 / 2), 16, 128, 48);
+    delaySlider->setBounds ((getWidth() / 2) + -120 - (128 / 2), 16, 128, 48);
+    balanceSlider->setBounds ((getWidth() / 2) + 208 - (128 / 2), 16, 128, 48);
     //[UserResized] Add your own custom resize handling here..
     //[/UserResized]
 }
@@ -144,6 +155,11 @@ void GainEditor::sliderValueChanged (Slider* sliderThatWasMoved)
     {
         //[UserSliderCode_delaySlider] -- add your slider handling code here..
         //[/UserSliderCode_delaySlider]
+    }
+    else if (sliderThatWasMoved == balanceSlider)
+    {
+        //[UserSliderCode_balanceSlider] -- add your slider handling code here..
+        //[/UserSliderCode_balanceSlider]
     }
 
     //[UsersliderValueChanged_Post]
@@ -177,20 +193,25 @@ BEGIN_JUCER_METADATA
           fontname="Arial" fontsize="24" bold="1" italic="0" justification="34"/>
   </BACKGROUND>
   <SLIDER name="Gain" id="89cc5b4c20e221e" memberName="widthSlider" virtualName="HiSlider"
-          explicitFocusOrder="0" pos="160Cc 16 128 48" posRelativeX="f930000f86c6c8b6"
+          explicitFocusOrder="0" pos="40Cc 16 128 48" posRelativeX="f930000f86c6c8b6"
           min="-100" max="36" int="1" style="RotaryHorizontalVerticalDrag"
           textBoxPos="TextBoxRight" textBoxEditable="1" textBoxWidth="80"
-          textBoxHeight="20" skewFactor="1"/>
+          textBoxHeight="20" skewFactor="1" needsCallback="1"/>
   <SLIDER name="Gain" id="4dc41660965e265c" memberName="gainSlider" virtualName="HiSlider"
-          explicitFocusOrder="0" pos="-160Cc 16 128 48" posRelativeX="f930000f86c6c8b6"
+          explicitFocusOrder="0" pos="-280Cc 16 128 48" posRelativeX="f930000f86c6c8b6"
           min="-100" max="36" int="1" style="RotaryHorizontalVerticalDrag"
           textBoxPos="TextBoxRight" textBoxEditable="1" textBoxWidth="80"
-          textBoxHeight="20" skewFactor="1"/>
+          textBoxHeight="20" skewFactor="1" needsCallback="1"/>
   <SLIDER name="Gain" id="5cd4c50ac19c9c3c" memberName="delaySlider" virtualName="HiSlider"
-          explicitFocusOrder="0" pos="0Cc 16 128 48" posRelativeX="f930000f86c6c8b6"
+          explicitFocusOrder="0" pos="-120Cc 16 128 48" posRelativeX="f930000f86c6c8b6"
           min="-100" max="36" int="1" style="RotaryHorizontalVerticalDrag"
           textBoxPos="TextBoxRight" textBoxEditable="1" textBoxWidth="80"
-          textBoxHeight="20" skewFactor="1"/>
+          textBoxHeight="20" skewFactor="1" needsCallback="1"/>
+  <SLIDER name="Balance" id="53bf35a7c21709e9" memberName="balanceSlider"
+          virtualName="HiSlider" explicitFocusOrder="0" pos="208Cc 16 128 48"
+          posRelativeX="f930000f86c6c8b6" min="-100" max="36" int="1" style="RotaryHorizontalVerticalDrag"
+          textBoxPos="TextBoxRight" textBoxEditable="1" textBoxWidth="80"
+          textBoxHeight="20" skewFactor="1" needsCallback="1"/>
 </JUCER_COMPONENT>
 
 END_JUCER_METADATA

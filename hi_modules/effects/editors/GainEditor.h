@@ -53,6 +53,7 @@ public:
 		gainSlider->updateValue();
         delaySlider->updateValue();
         widthSlider->updateValue();
+		balanceSlider->updateValue();
 	}
 
     void timerCallback()
@@ -60,14 +61,15 @@ public:
         gainSlider->setDisplayValue(getProcessor()->getChildProcessor(GainEffect::InternalChains::GainChain)->getOutputValue());
         delaySlider->setDisplayValue(getProcessor()->getChildProcessor(GainEffect::InternalChains::DelayChain)->getOutputValue());
         widthSlider->setDisplayValue(getProcessor()->getChildProcessor(GainEffect::InternalChains::WidthChain)->getOutputValue());
-        
+		balanceSlider->setDisplayValue(getProcessor()->getChildProcessor(GainEffect::InternalChains::BalanceChain)->getOutputValue());
+
     }
-    
+
     //[/UserMethods]
 
-    void paint (Graphics& g);
-    void resized();
-    void sliderValueChanged (Slider* sliderThatWasMoved);
+    void paint (Graphics& g) override;
+    void resized() override;
+    void sliderValueChanged (Slider* sliderThatWasMoved) override;
 
 
 
@@ -79,6 +81,7 @@ private:
     ScopedPointer<HiSlider> widthSlider;
     ScopedPointer<HiSlider> gainSlider;
     ScopedPointer<HiSlider> delaySlider;
+    ScopedPointer<HiSlider> balanceSlider;
 
 
     //==============================================================================
