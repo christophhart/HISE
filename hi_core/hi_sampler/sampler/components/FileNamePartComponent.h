@@ -231,7 +231,7 @@ private:
 		{
 		case Number:	return token.getIntValue();
 		case NoteName:	{
-						String cleanedToken = token.toUpperCase();
+						String cleanedToken = token.toUpperCase().removeCharacters(" ");
 
 
 						for(int i = 0; i < 127; i++)
