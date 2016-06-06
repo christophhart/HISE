@@ -31,76 +31,197 @@
 */
 
 
-class BorderPanel : public Component
+class MouseCallbackComponent: public Component
+{
+    enum EnterState
+    {
+        Nothing = 0,
+        Entered,
+        Exited,
+        numEnterStates
+    };
+    
+public:
+    
+    class Listener
+    {
+    public:
+        virtual ~Listener()
+        {
+            masterReference.clear();
+        }
+        
+        virtual void mouseCallback(const var &mouseInformation) = 0;
+        
+    private:
+        
+        friend class WeakReference < Listener > ;
+        WeakReference<Listener>::Master masterReference;
+    };
+    
+    virtual ~MouseCallbackComponent()
+    {
+        
+    };
+    
+    MouseCallbackComponent():
+      allowCallback(false),
+      currentEvent(new DynamicObject())
+    {
+        
+    };
+    
+    void addMouseCallbackListener(Listener *l)
+    {
+        listenerList.addIfNotAlreadyThere(l);
+    }
+    
+    void removeCallbackListener(Listener *l)
+    {
+        listenerList.removeAllInstancesOf(l);
+    }
+    
+    void removeAllCallbackListeners()
+    {
+        listenerList.clear();
+    }
+    
+    
+    void mouseDown(const MouseEvent& event) override
+    {
+        sendMessage(event);
+    }
+    
+    void setAllowCallback(bool shouldAllowCallback) noexcept
+    {
+        allowCallback = shouldAllowCallback;
+    }
+    
+    void mouseDrag(const MouseEvent& event) override
+    {
+        sendMessage(event);
+    }
+    
+    void mouseEnter(const MouseEvent &event) override
+    {
+        sendMessage(event, Entered);
+    }
+    
+    void mouseExit(const MouseEvent &event) override
+    {
+        sendMessage(event, Exited);
+    }
+    
+private:
+    
+    bool allowCallback;
+    
+    void sendMessage(const MouseEvent &event, EnterState state=Nothing);
+    
+    Array<WeakReference<Listener>> listenerList;
+    
+    DynamicObject::Ptr currentEvent;
+    
+};
+
+class BorderPanel : public MouseCallbackComponent
 {
 public:
 
-	class Listener
-	{
-	public:
-		virtual ~Listener()
-		{
-			masterReference.clear();
-		}
-
-		virtual void mouseCallback(const var &mouseInformation) = 0;
-
-	private:
-
-		friend class WeakReference < Listener > ;
-		WeakReference<Listener>::Master masterReference;
-	};
-
 	BorderPanel();
 
-	void addMouseCallbackListener(Listener *l)
-	{
-		listenerList.addIfNotAlreadyThere(l);
-	}
-
-	void removeCallbackListener(Listener *l)
-	{
-		listenerList.removeAllInstancesOf(l);
-	}
-
-	void removeAllCallbackListeners()
-	{
-		listenerList.clear();
-	}
 
 	void paint(Graphics &g);
-
-	void mouseDown(const MouseEvent& event) override
-	{
-		sendMessage(event);
-	}
-
-	void setAllowCallback(bool shouldAllowCallback) noexcept
-	{
-		allowCallback = shouldAllowCallback;
-	}
-
-	void mouseDrag(const MouseEvent& event) override
-	{
-		sendMessage(event);
-	}
-
 	Colour c1, c2, borderColour;
 
 	float borderRadius;
 	float borderSize;
 
-private:
-
-	bool allowCallback;
-
-	void sendMessage(const MouseEvent &event);
-
-	Array<WeakReference<Listener>> listenerList;
-
 };
 
 
+class ImageComponentWithMouseCallback: public MouseCallbackComponent
+{
+public:
+    
+    ImageComponentWithMouseCallback():
+      image(nullptr),
+      alpha(1.0f),
+      offset(0),
+      scale(1.0)
+    {
+        
+    }
+    
+    void paint(Graphics &g) override
+    {
+        if(image.isValid())
+        {
+            g.setOpacity(jmax<float>(0.0f, jmin<float>(1.0f, alpha)));
+
+            Rectangle<int> cropArea = Rectangle<int>(0,
+                                                     offset,
+                                                     jmin<int>(getWidth(), image.getWidth()),
+                                                     jmin<int>(getHeight(), image.getHeight()));
+            
+            Image croppedImage = image.getClippedImage(cropArea);
+            
+            if(scale != 1.0)
+            {
+                croppedImage = croppedImage.rescaled(croppedImage.getWidth() / scale, croppedImage.getHeight() / scale);
+            }
+            
+            g.drawImageAt(croppedImage, 0, 0);
+        }
+    };
+    
+    void setImage(const Image &newImage)
+    {
+        if(newImage != image)
+        {
+            image = newImage;
+            repaint();
+        }
+    };
+    
+    void setAlpha(float newAlpha)
+    {
+        if(alpha != newAlpha)
+        {
+            alpha = newAlpha;
+            repaint();            
+        }
+    };
+    
+    void setOffset(int newOffset)
+    {
+        if(newOffset != offset)
+        {
+            offset = newOffset;
+            repaint();
+        }
+    };
+    
+    void setScale(double newScale)
+    {
+        if(newScale != scale)
+        {
+            scale = jmax<double>(0.1, newScale);
+            
+            repaint();
+        }
+    };
+    
+private:
+    
+    float alpha;
+    int offset;
+    double scale;
+    
+    AffineTransform scaler;
+    
+    Image image;
+};
 
 class ScriptContentComponent;
 
@@ -367,19 +488,22 @@ public:
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PlotterWrapper)
 	};
 
-	class ImageWrapper : public ScriptCreatedComponentWrapper
+	class ImageWrapper : public ScriptCreatedComponentWrapper,
+                         public MouseCallbackComponent::Listener
 	{
 	public:
 
 		ImageWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptImage *image, int index);
 
 		void updateComponent() override;
-
+        
+        void mouseCallback(const var &mouseInformation) override;
+        
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ImageWrapper)
 	};
 
 	class PanelWrapper : public ScriptCreatedComponentWrapper,
-						 public BorderPanel::Listener
+                         public MouseCallbackComponent::Listener
 	{
 	public:
 

@@ -1756,6 +1756,8 @@ void ScriptingApi::Content::ScriptImage::setImageFile(const String &absoluteFile
 {
 	ignoreUnused(forceUseRealFile);
 
+    const bool imageWasEmpty = (image == nullptr);
+    
 	CHECK_COPY_AND_RETURN_10(getScriptProcessor());
 
 	if (absoluteFileName.isEmpty())
@@ -1786,7 +1788,7 @@ void ScriptingApi::Content::ScriptImage::setImageFile(const String &absoluteFile
 	
 #endif
 
-	if(image != nullptr)
+	if(imageWasEmpty && image != nullptr)
 	{
 		setScriptObjectProperty(ScriptComponent::width, image->getWidth());
 		setScriptObjectProperty(ScriptComponent::height, image->getHeight());
@@ -1809,12 +1811,25 @@ image(nullptr)
 
 	propertyIds.add("alpha");		ADD_AS_SLIDER_TYPE(0.0, 1.0, 0.01);
 	propertyIds.add("fileName");	ADD_TO_TYPE_SELECTOR(SelectorTypes::FileSelector);
+    propertyIds.add("offset");
+    propertyIds.add("scale");
+    propertyIds.add("allowCallbacks");  ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 
+    priorityProperties.add(getIdFor(FileName));
+    
 	componentProperties->setProperty(getIdFor(Alpha), 0);
 	componentProperties->setProperty(getIdFor(FileName), 0);
+    componentProperties->setProperty(getIdFor(Offset), 0);
+    componentProperties->setProperty(getIdFor(Scale), 1.0);
+    componentProperties->setProperty(getIdFor(AllowCallbacks), 0);
 
+    setDefaultValue(ScriptComponent::Properties::saveInPreset, false);
 	setDefaultValue(Alpha, 1.0f);
 	setDefaultValue(FileName, String::empty);
+    setDefaultValue(Offset, 0);
+    setDefaultValue(Scale, 1.0);
+    setDefaultValue(AllowCallbacks, false);
+    
 
 	setMethod("setImageFile", Wrapper::setImageFile);
 	setMethod("setAlpha", Wrapper::setImageAlpha);
@@ -3560,6 +3575,7 @@ ScriptComponent(base, parentContent, panelName, x, y, width, height)
 	componentProperties->setProperty(getIdFor(borderRadius), 0);
 	componentProperties->setProperty(getIdFor(allowCallbacks), 0);
 
+    setDefaultValue(ScriptComponent::Properties::saveInPreset, false);
 	setDefaultValue(textColour, 0x23FFFFFF);
 	setDefaultValue(itemColour, 0x30000000);
 	setDefaultValue(itemColour2, 0x30000000);

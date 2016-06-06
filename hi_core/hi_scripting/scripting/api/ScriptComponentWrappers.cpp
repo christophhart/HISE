@@ -35,8 +35,7 @@ borderColour(Colours::black),
 c1(Colours::white),
 c2(Colours::white),
 borderRadius(0.0f),
-borderSize(1.0f),
-allowCallback(false)
+borderSize(1.0f)
 {
 
 }
@@ -65,21 +64,31 @@ void BorderPanel::paint(Graphics &g)
 
 
 
-void BorderPanel::sendMessage(const MouseEvent &event)
+void MouseCallbackComponent::sendMessage(const MouseEvent &event, EnterState state)
 {
 	if (!allowCallback) return;
 
-	DynamicObject::Ptr obj = new DynamicObject();
+    DynamicObject::Ptr obj = currentEvent;
 
-	obj->setProperty(Identifier("x"), event.getPosition().getX());
-	obj->setProperty(Identifier("y"), event.getPosition().getY());
-	obj->setProperty(Identifier("clicked"), event.mouseWasClicked());
-	obj->setProperty(Identifier("drag"), event.getDistanceFromDragStart() > 4);
-    obj->setProperty(Identifier("dragX"), event.getDistanceFromDragStartX());
-    obj->setProperty(Identifier("dragY"), event.getDistanceFromDragStartY());
-
-    obj->setProperty(Identifier("mouseDownX"), event.getEventRelativeTo(getParentComponent()).getMouseDownX());
-    obj->setProperty(Identifier("mouseDownY"), event.getEventRelativeTo(getParentComponent()).getMouseDownY());
+    static Identifier x("x");
+    static Identifier y("y");
+    static Identifier clicked("clicked");
+    static Identifier drag("drag");
+    static Identifier dragX("dragX");
+    static Identifier dragY("dragY");
+    static Identifier hover("hover");
+    static Identifier mouseDownX("mouseDownX");
+    static Identifier mouseDownY("mouseDownY");
+    
+    currentEvent->setProperty(x, event.getPosition().getX());
+    currentEvent->setProperty(y, event.getPosition().getY());
+    currentEvent->setProperty(clicked, event.mouseWasClicked());
+    currentEvent->setProperty(drag, event.getDistanceFromDragStart() > 4);
+    currentEvent->setProperty(dragX, event.getDistanceFromDragStartX());
+    currentEvent->setProperty(dragY, event.getDistanceFromDragStartY());
+    currentEvent->setProperty(hover, state != Exited);
+    currentEvent->setProperty(mouseDownX, event.getEventRelativeTo(getParentComponent()).getMouseDownX());
+    currentEvent->setProperty(mouseDownY, event.getEventRelativeTo(getParentComponent()).getMouseDownY());
     
 	var clickInformation(obj);
 
@@ -520,23 +529,33 @@ void ScriptCreatedComponentWrappers::PlotterWrapper::updateComponent()
 ScriptCreatedComponentWrappers::ImageWrapper::ImageWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptImage *img, int index):
 ScriptCreatedComponentWrapper(content, index)
 {
-	ImageComponent *i = new ImageComponent();
+	ImageComponentWithMouseCallback *i = new ImageComponentWithMouseCallback();
 
 	i->setName(img->name.toString());
 
-	i->setInterceptsMouseClicks(false, false);
+	//i->setInterceptsMouseClicks(false, false);
 
+    
+    i->addMouseCallbackListener(this);
+    
 	component = i;
 }
 
 void ScriptCreatedComponentWrappers::ImageWrapper::updateComponent()
 {
-	ImageComponent *ic = dynamic_cast<ImageComponent*>(component.get());
+	ImageComponentWithMouseCallback *ic = dynamic_cast<ImageComponentWithMouseCallback*>(component.get());
 	ScriptingApi::Content::ScriptImage *si = dynamic_cast<ScriptingApi::Content::ScriptImage*>(getScriptComponent());
 
 	if (si->getImage() != nullptr)
 	{
+        const bool allowCallbacks = si->getScriptObjectProperty(ScriptingApi::Content::ScriptImage::AllowCallbacks);
+        ic->setInterceptsMouseClicks(allowCallbacks, false);
+        ic->setAllowCallback(allowCallbacks);
+     
+        ic->setBounds(si->getPosition());
 		ic->setImage(*si->getImage());
+        ic->setOffset(si->getScriptObjectProperty(ScriptingApi::Content::ScriptImage::Offset));
+        ic->setScale(si->getScriptObjectProperty(ScriptingApi::Content::ScriptImage::Scale));
 		ic->setAlpha(si->getScriptObjectProperty(ScriptingApi::Content::ScriptImage::Alpha));
 	}
 	else
@@ -546,6 +565,11 @@ void ScriptCreatedComponentWrappers::ImageWrapper::updateComponent()
 	}
 
 	contentComponent->repaint();
+}
+
+void ScriptCreatedComponentWrappers::ImageWrapper::mouseCallback(const var &mouseInformation)
+{
+    changed(mouseInformation);
 }
 
 ScriptCreatedComponentWrappers::PanelWrapper::PanelWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptPanel *panel, int index) :

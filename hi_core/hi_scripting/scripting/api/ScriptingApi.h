@@ -1307,7 +1307,7 @@ public:
 			void set(String propertyName, var value);;
 
 			/** Returns the current value. */
-			var getValue() const { return value; }
+			virtual var getValue() const { return value; }
 
 			/** Sets the current value
 			*
@@ -1317,7 +1317,7 @@ public:
 			*	@param componentIndex the index of the component that was returned at the creation.
 			*	@param newValue the new value.
 			*/
-			void setValue(var newValue);
+			virtual void setValue(var newValue);
 
 			/** Sets the current value from a range 0.0 ... 1.0. */
 			virtual void setValueNormalized(double normalizedValue) { setValue(normalizedValue); };
@@ -1754,6 +1754,16 @@ public:
 
 			virtual Identifier 	getObjectName () const override { return "ScriptPanel"; }
 
+            var getValue() const override
+            {
+                jassertfalse;
+            }
+            
+            void setValue(var newValue) override
+            {
+                jassertfalse;
+            }
+            
 			ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 
 		};
@@ -1764,6 +1774,9 @@ public:
 			{
 				Alpha = ScriptComponent::numProperties,
 				FileName,
+                Offset,
+                Scale,
+                AllowCallbacks,
 				numProperties
 			};
 
@@ -1792,6 +1805,16 @@ public:
 			{
 				return image;
 			}
+            
+            var getValue() const override
+            {
+                jassertfalse;
+            }
+            
+            void setValue(var newValue) override
+            {
+                jassertfalse;
+            }
 
 			void setScriptProcessor(ScriptBaseProcessor *sb);
 
