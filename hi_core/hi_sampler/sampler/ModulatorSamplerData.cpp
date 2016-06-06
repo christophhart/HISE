@@ -164,7 +164,7 @@ addThumbNailsToExistingCache(false)
 
 File ThumbnailHandler::getThumbnailFile(ModulatorSampler *sampler)
 {
-	return GET_PROJECT_HANDLER(sampler).getWorkDirectory().getChildFile("/thumbnails.dat");
+	return GET_PROJECT_HANDLER(sampler).getWorkDirectory().getChildFile("thumbnails.dat");
 }
 
 void ThumbnailHandler::loadThumbnailsIntoSampler(ModulatorSampler *sampler)
