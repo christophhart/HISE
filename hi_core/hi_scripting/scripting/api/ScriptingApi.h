@@ -1757,6 +1757,7 @@ public:
             var getValue() const override
             {
                 jassertfalse;
+				return var::undefined();
             }
             
             void setValue(var newValue) override
@@ -1809,6 +1810,7 @@ public:
             var getValue() const override
             {
                 jassertfalse;
+				return var::undefined();
             }
             
             void setValue(var newValue) override
