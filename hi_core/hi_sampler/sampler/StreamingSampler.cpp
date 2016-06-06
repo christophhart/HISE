@@ -685,18 +685,23 @@ void StreamingSamplerSound::FileReader::readFromDisk(AudioSampleBuffer &buffer, 
 
 float StreamingSamplerSound::FileReader::calculatePeakValue()
 {
-	float l, r, unused;
+
+
+	float l1, l2, r1, r2, unused;
 
 	openFileHandles();
 
 	AudioFormatReader *readerToUse = getReader();
 
-	if (readerToUse != nullptr) readerToUse->readMaxLevels(sound->sampleStart + sound->monolithOffset, sound->sampleLength, unused, l, unused, r);
+	if (readerToUse != nullptr) readerToUse->readMaxLevels(sound->sampleStart + sound->monolithOffset, sound->sampleLength, l1, l2, r1, r2);
 	else return 0.0f;
 
 	closeFileHandles();
 
-	return fabsf(jmax(l, r));
+	const float maxLeft = jmax<float>(-l1, l2);
+	const float maxRight = jmax<float>(-r1, r2);
+
+	return jmax<float>(maxLeft, maxRight);
 }
 
 
