@@ -46,35 +46,13 @@ void Processor::restoreFromValueTree(const ValueTree &previouslyExportedProcesso
 
 	const ValueTree &v = previouslyExportedProcessorState;
 
-#if USE_OLD_FILE_FORMAT
-
-	jassert(v.getType() == Identifier(getType()));
-	
-#else
-
 	jassert(Identifier(v.getProperty("Type", String::empty)) == getType());
-
-#endif
 
 	jassert(v.getProperty("ID", String::empty) == getId());
 	setBypassed(v.getProperty("Bypassed", false));
 
-	
-#if OLD_FILE_FORMAT
-
-	ScopedPointer<XmlElement> editorValueSet = XmlDocument::parse(v.getProperty("EditorState", var::undefined()));
-
-	if(editorValueSet != nullptr)
-	{
-		editorStateValueSet.setFromXmlAttributes(*editorValueSet);
-	}
-
-#else
-
 	ScopedPointer<XmlElement> editorValueSet = v.getChildWithName("EditorStates").createXml();
-
 	
-
 	if(editorValueSet != nullptr)
 	{
 		if (!editorValueSet->hasAttribute("Visible") && (dynamic_cast<Chain*>(this) == nullptr || dynamic_cast<ModulatorSynth*>(this) != nullptr)) editorValueSet->setAttribute("Visible", true); // Compatibility for old patches
@@ -82,35 +60,18 @@ void Processor::restoreFromValueTree(const ValueTree &previouslyExportedProcesso
 		editorStateValueSet.setFromXmlAttributes(*editorValueSet);
 	}
 
-#endif
-
-#if USE_OLD_FILE_FORMAT
-	
-#else
 	ValueTree childProcessors = v.getChildWithName("ChildProcessors");
 
 	jassert(childProcessors.isValid());
 
-#endif
-
 	if(Chain *c = dynamic_cast<Chain*>(this))
 	{
-#if USE_OLD_FILE_FORMAT
-
-		if( !c->restoreChain(v)) return;
-#else
 		if( !c->restoreChain(childProcessors)) return;
-
-#endif
 	}
 
 	for(int i = 0; i < getNumChildProcessors(); i++)
 	{
 		Processor *p = getChildProcessor(i);
-
-#if USE_OLD_FILE_FORMAT
-		p->restoreFromValueTree(v.getChild(i));
-#else
 
 		for (int j = 0; j < childProcessors.getNumChildren(); j++)
 		{
@@ -119,13 +80,8 @@ void Processor::restoreFromValueTree(const ValueTree &previouslyExportedProcesso
 				p->restoreFromValueTree(childProcessors.getChild(j));
 				break;
 			}
-		}
-
-		
-#endif
-			
+		}	
 	}
-
 };
 
 void Processor::setConstrainerForAllInternalChains(FactoryTypeConstrainer *constrainer)
@@ -153,18 +109,8 @@ bool Chain::restoreChain(const ValueTree &v)
 
 	jassert(thisAsProcessor != nullptr);
 
-#if USE_OLD_FILE_FORMAT
-	jassert(v.getType() == Identifier(thisAsProcessor->getType()));
-	jassert(v.getProperty("ID", String::empty) == thisAsProcessor->getId());
-#else
-	//jassert(Identifier(v.getProperty("Type").toString()) == thisAsProcessor->getType());
-
 
 	jassert(v.getType().toString() == "ChildProcessors");
-
-#endif
-
-	
 
 	getHandler()->clear();
 
@@ -172,15 +118,7 @@ bool Chain::restoreChain(const ValueTree &v)
 	{
 		const bool isFixedInternalChain = i < thisAsProcessor->getNumChildProcessors();
 
-#if USE_OLD_FILE_FORMAT
-
-		const bool isNoProcessorChild = false; // dont need it
-
-#else
-
 		const bool isNoProcessorChild = v.getChild(i).getType() != Identifier("Processor");
-
-#endif
 
 		if (isNoProcessorChild || isFixedInternalChain)
 		{
@@ -189,12 +127,7 @@ bool Chain::restoreChain(const ValueTree &v)
 		else
 		{
 
-#if USE_OLD_FILE_FORMAT
-			Processor *p = MainController::createProcessor(getFactoryType(), String(v.getChild(i).getType()), v.getChild(i).getProperty("ID"));
-#else
 			Processor *p = MainController::createProcessor(getFactoryType(), v.getChild(i).getProperty("Type", String::empty).toString(), v.getChild(i).getProperty("ID"));
-			
-#endif
 			
 			if(p == nullptr)
 			{

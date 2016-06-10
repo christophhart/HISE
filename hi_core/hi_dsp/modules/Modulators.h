@@ -620,11 +620,6 @@ public:
 		
 		if(m.isNoteOnOrOff() && m.isNoteOn())
 		{
-			/*if(!lastValueWasSaved())
-			{
-				debugError(this, "Last Voice Start was not saved!");	
-			};*/
-
 			unsavedValue = calculateVoiceStartValue(m);
 		}
 	};
