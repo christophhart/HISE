@@ -248,7 +248,10 @@ public:
 
 			
 
-			if(chain->getSampleRate() > 0.0) newProcessor->prepareToPlay(chain->getSampleRate(), chain->getBlockSize());
+			if(chain->getSampleRate() > 0.0 && newProcessor != nullptr)
+            {
+                newProcessor->prepareToPlay(chain->getSampleRate(), chain->getBlockSize());
+            }
 			else
 			{
 				debugError(chain, "Trying to add a processor to a uninitialized effect chain (internal engine error).");
