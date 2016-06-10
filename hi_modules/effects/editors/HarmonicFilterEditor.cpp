@@ -36,13 +36,13 @@ HarmonicFilterEditor::HarmonicFilterEditor (BetterProcessorEditor *p)
     //[Constructor_pre] You can add your own custom stuff here..
     //[/Constructor_pre]
 
-    addAndMakeVisible (sliderPackA = new SliderPack (dynamic_cast<HarmonicFilter*>(getProcessor())->getSliderPackData(0)));
+    addAndMakeVisible (sliderPackA = new SliderPack (dynamic_cast<BaseHarmonicFilter*>(getProcessor())->getSliderPackData(0)));
     sliderPackA->setName ("new component");
 
-    addAndMakeVisible (sliderPackB = new SliderPack (dynamic_cast<HarmonicFilter*>(getProcessor())->getSliderPackData(1)));
+    addAndMakeVisible (sliderPackB = new SliderPack (dynamic_cast<BaseHarmonicFilter*>(getProcessor())->getSliderPackData(1)));
     sliderPackB->setName ("new component");
 
-    addAndMakeVisible (sliderPackMix = new SliderPack (dynamic_cast<HarmonicFilter*>(getProcessor())->getSliderPackData(2)));
+    addAndMakeVisible (sliderPackMix = new SliderPack (dynamic_cast<BaseHarmonicFilter*>(getProcessor())->getSliderPackData(2)));
     sliderPackMix->setName ("new component");
 
     addAndMakeVisible (label2 = new Label ("new label",
@@ -249,7 +249,7 @@ void HarmonicFilterEditor::sliderValueChanged (Slider* sliderThatWasMoved)
 
 		const double normalizedValue = (crossfadeSlider->getValue() + 1.0) / 2.0;
 
-		dynamic_cast<HarmonicFilter*>(getProcessor())->setAttribute(HarmonicFilter::Crossfade, (float)normalizedValue, dontSendNotification);
+		getProcessor()->setAttribute(HarmonicFilter::Crossfade, (float)normalizedValue, dontSendNotification);
 
         //[/UserSliderCode_crossfadeSlider]
     }
@@ -310,13 +310,13 @@ BEGIN_JUCER_METADATA
   </BACKGROUND>
   <GENERICCOMPONENT name="new component" id="d050db4d14cb45f1" memberName="sliderPackA"
                     virtualName="" explicitFocusOrder="0" pos="-142Cr 86 192 136"
-                    class="SliderPack" params="dynamic_cast&lt;HarmonicFilter*&gt;(getProcessor())-&gt;getSliderPackData(0)"/>
+                    class="SliderPack" params="dynamic_cast&lt;BaseHarmonicFilter*&gt;(getProcessor())-&gt;getSliderPackData(0)"/>
   <GENERICCOMPONENT name="new component" id="a24223cdd6589f94" memberName="sliderPackB"
                     virtualName="" explicitFocusOrder="0" pos="142C 86 192 136" class="SliderPack"
-                    params="dynamic_cast&lt;HarmonicFilter*&gt;(getProcessor())-&gt;getSliderPackData(1)"/>
+                    params="dynamic_cast&lt;BaseHarmonicFilter*&gt;(getProcessor())-&gt;getSliderPackData(1)"/>
   <GENERICCOMPONENT name="new component" id="9768772bb12c50e7" memberName="sliderPackMix"
                     virtualName="" explicitFocusOrder="0" pos="0Cc 86 256 104" class="SliderPack"
-                    params="dynamic_cast&lt;HarmonicFilter*&gt;(getProcessor())-&gt;getSliderPackData(2)"/>
+                    params="dynamic_cast&lt;BaseHarmonicFilter*&gt;(getProcessor())-&gt;getSliderPackData(2)"/>
   <LABEL name="new label" id="ac19153614231d20" memberName="label2" virtualName=""
          explicitFocusOrder="0" pos="-142Cr 67 192 20" bkgCol="24000000"
          textCol="91ffffff" outlineCol="32ffffff" edTextCol="ff000000"

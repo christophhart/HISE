@@ -155,7 +155,7 @@ public:
 	{
 		if(isBypassed()) return;
 		FOR_EACH_VOICE_EFFECT(startVoice(voiceIndex, noteNumber)); 
-		FOR_EACH_MONO_EFFECT(startMonophonicVoice());
+		FOR_EACH_MONO_EFFECT(startMonophonicVoice(noteNumber));
 		FOR_EACH_MASTER_EFFECT(startMonophonicVoice());
 	};
 
@@ -382,6 +382,7 @@ public:
 		monophonicFilter = 0,
 		polyphonicFilter,
 		harmonicFilter,
+		harmonicFilterMono,
 		curveEq,
 		stereoEffect,
 		simpleReverb,

@@ -357,6 +357,7 @@ private:
 
 	friend class PolyFilterEffect;
 	friend class HarmonicFilter;
+	friend class HarmonicMonophonicFilter;
 
 	bool changeFlag;
 

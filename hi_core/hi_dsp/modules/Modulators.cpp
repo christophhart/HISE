@@ -62,9 +62,9 @@ VoiceStartModulator::VoiceStartModulator(MainController *mc, const String &id, i
 		VoiceModulation(numVoices, m),
 		Modulator(mc, id),
 		Modulation(m),
-		unsavedValue(-1.0f)
+		unsavedValue(1.0f)
 {
-	voiceValues.insertMultiple(0, -1.0f, numVoices);
+	voiceValues.insertMultiple(0, 1.0f, numVoices);
 };
 
 EnvelopeModulator::EnvelopeModulator(MainController *mc, const String &id, int voiceAmount_, Modulation::Mode m):

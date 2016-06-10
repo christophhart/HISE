@@ -34,9 +34,20 @@
 #define HARMONICFILTER_H_INCLUDED
 
 
+
+class BaseHarmonicFilter
+{
+public:
+
+	virtual SliderPackData *getSliderPackData(int i) = 0;
+	virtual void setCrossfadeValue(double normalizedCrossfadeValue) = 0;
+
+};
+
  
 
-class HarmonicFilter : public VoiceEffectProcessor
+class HarmonicFilter : public VoiceEffectProcessor,
+					   public BaseHarmonicFilter
 {
 public:
 
@@ -110,8 +121,9 @@ public:
 
 	
 	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
-	SliderPackData *getSliderPackData(int i);
-	void setCrossfadeValue(double normalizedCrossfadeValue);
+	
+	SliderPackData *getSliderPackData(int i) override;
+	void setCrossfadeValue(double normalizedCrossfadeValue) override;
 
 private:
 	
@@ -131,6 +143,105 @@ private:
 	ScopedPointer<ModulatorChain> xFadeChain;
 	AudioSampleBuffer timeVariantFreqModulatorBuffer;
 };
+
+
+
+
+class HarmonicMonophonicFilter : public MonophonicEffectProcessor,
+								 public BaseHarmonicFilter
+{
+public:
+
+	SET_PROCESSOR_NAME("HarmonicFilterMono", "Harmonic Filter Monophonic");
+
+	enum InternalChains
+	{
+		XFadeChain = 0,
+		numInternalChains
+	};
+
+	enum EditorStates
+	{
+		MixChainShown = Processor::numEditorStates,
+		numEditorStates
+	};
+
+	enum SpecialParameters
+	{
+		NumFilterBands = 0,
+		QFactor,
+		Crossfade,
+		SemiToneTranspose,
+		numParameters
+	};
+
+	enum SliderPacks
+	{
+		A = 0,
+		B,
+		Mix,
+		numPacks
+	};
+
+	enum FilterBandNumbers
+	{
+		OneBand = 0,
+		TwoBands,
+		FourBands,
+		EightBands,
+		SixteenBands,
+		numFilterBandNumbers
+	};
+
+	HarmonicMonophonicFilter(MainController *mc, const String &uid);
+
+	void setInternalAttribute(int parameterIndex, float newValue) override;
+	float getAttribute(int parameterIndex) const override;;
+
+	ValueTree exportAsValueTree() const override;
+	void restoreFromValueTree(const ValueTree &v) override;;
+
+	int getNumInternalChains() const override { return numInternalChains; };
+	Processor *getChildProcessor(int /*processorIndex*/) override { return xFadeChain; };
+	const Processor *getChildProcessor(int /*processorIndex*/) const override { return xFadeChain; };
+	int getNumChildProcessors() const override { return 1; };
+	AudioSampleBuffer & getBufferForChain(int /*index*/) override { return timeVariantFreqModulatorBuffer; };
+
+	void setQ(float newQ);
+	void setNumFilterBands(int numBands);
+	void setSemitoneTranspose(float newValue);
+
+	bool hasTail() const override { return true; };
+	void prepareToPlay(double sampleRate, int samplesPerBlock) override;;
+	
+	/** Resets the filter state if a new voice is started. */
+	void startMonophonicVoice(int noteNumber) override;
+
+	void applyEffect(AudioSampleBuffer &b, int startSample, int numSamples) override;
+
+	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	SliderPackData *getSliderPackData(int i);
+	void setCrossfadeValue(double normalizedCrossfadeValue);
+
+private:
+
+	int getNumBandForFilterBandIndex(FilterBandNumbers number) const;
+
+	int filterBandIndex;
+	float currentCrossfadeValue;
+	int semiToneTranspose;
+	float q;
+
+	ScopedPointer<SliderPackData> dataA;
+	ScopedPointer<SliderPackData> dataB;
+	ScopedPointer<SliderPackData> dataMix;
+
+	OwnedArray<MonoFilterEffect> harmonicFilters;
+	ScopedPointer<ModulatorChain> xFadeChain;
+	AudioSampleBuffer timeVariantFreqModulatorBuffer;
+};
+
+
 
 
 

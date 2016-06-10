@@ -61,6 +61,7 @@ void EffectProcessorChainFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(MonoFilterEffect);
 	ADD_NAME_TO_TYPELIST(PolyFilterEffect);
 	ADD_NAME_TO_TYPELIST(HarmonicFilter);
+	ADD_NAME_TO_TYPELIST(HarmonicMonophonicFilter);
 	ADD_NAME_TO_TYPELIST(CurveEq);
 	ADD_NAME_TO_TYPELIST(StereoEffect);
 	ADD_NAME_TO_TYPELIST(SimpleReverbEffect);
@@ -89,6 +90,7 @@ Processor* EffectProcessorChainFactoryType::createProcessor	(int typeIndex, cons
 	case monophonicFilter:				return new MonoFilterEffect(m, id);
 	case polyphonicFilter:				return new PolyFilterEffect(m, id, numVoices);
 	case harmonicFilter:				return new HarmonicFilter(m, id, numVoices);
+	case harmonicFilterMono:			return new HarmonicMonophonicFilter(m, id);
 	case curveEq:						return new CurveEq(m, id);
 	case stereoEffect:					return new StereoEffect(m, id, numVoices);
 	case convolution:					return new ConvolutionEffect(m, id);

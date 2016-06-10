@@ -412,7 +412,7 @@ public:
 		}
 	}
 
-	virtual void startMonophonicVoice()
+	virtual void startMonophonicVoice(int noteNumber=-1)
 	{
 		for(int i = 0; i < getNumInternalChains(); i++)
 		{
