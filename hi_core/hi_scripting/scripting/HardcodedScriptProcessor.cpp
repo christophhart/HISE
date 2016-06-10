@@ -36,7 +36,8 @@ HardcodedScriptProcessor::HardcodedScriptProcessor(MainController *mc, const Str
 	Synth(this, ms),
 	Engine(this),
 	Console(this),
-	Content(this)
+	Content(this),
+	Sampler(this, dynamic_cast<ModulatorSampler*>(ms))
 {
 	
 	content = &Content;

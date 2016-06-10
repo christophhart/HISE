@@ -174,8 +174,6 @@ void ModulatorSampler::refreshCrossfadeTables()
 
 void ModulatorSampler::restoreFromValueTree(const ValueTree &v)
 {
-	ModulatorSynth::restoreFromValueTree(v);
-
 	loadAttribute(PreloadSize, "PreloadSize");
 	
 	setInternalAttribute(BufferSize, v.getProperty("BufferSize", 4096));
@@ -243,6 +241,8 @@ void ModulatorSampler::restoreFromValueTree(const ValueTree &v)
 			loadTable(crossfadeTables[i], "Group" + String(i) + "Table");
 		}
 	}
+
+	ModulatorSynth::restoreFromValueTree(v);
 };
 
 ValueTree ModulatorSampler::exportAsValueTree() const

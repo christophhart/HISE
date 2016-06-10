@@ -106,7 +106,7 @@ public:
 
 	virtual void restoreFromValueTree(const ValueTree &v) override
 	{
-		Processor::restoreFromValueTree(v);
+		
 
 		RESTORE_MATRIX();
 
@@ -116,6 +116,8 @@ public:
 		loadAttribute(KillFadeTime, "KillFadeTime");
 
 		iconColour = Colour::fromString(v.getProperty("IconColour", Colours::transparentBlack.toString()).toString());
+
+		Processor::restoreFromValueTree(v);
 	};
 
 	

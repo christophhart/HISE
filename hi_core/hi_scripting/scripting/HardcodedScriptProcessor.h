@@ -75,6 +75,8 @@ public:
         
         ScriptBaseProcessor::restoreFromValueTree(v);
         
+		onInit();
+
         if(content.get() != nullptr)
         {
             for(int i = 0; i < content->getNumComponents(); i++)
@@ -103,6 +105,7 @@ protected:
 	ScriptingApi::Console Console;
 	ScriptingApi::Engine Engine;
 	ScriptingApi::Content Content;
+	ScriptingApi::Sampler Sampler;
 
 	void processMidiMessage (MidiMessage &m) override;
 
@@ -442,22 +445,28 @@ public:
 	void onInit() override
 	{
 		lastNote = -1;
+		rrAmount = Synth.getAttribute(7);
+		lastGroup = 0;
+		thisGroup = 0;
+		selectorValue = 0;
+		updown = false;
 
-		Content.setHeight(120);
+		r.setSeedRandomly();
 
-		controllerNumberSlider = Content.addKnob("controllerNumberSlider", 10, 10);
-		controllerNumberSlider->set("text", "CC Number");
-		controllerNumberSlider->set("min", 0);
-		controllerNumberSlider->set("max", 127);
-		controllerNumberSlider->set("stepSize", 1);
-		controllerNumberSlider->set("middlePosition", 64);
+		Content.setHeight(80);
 
+		bypassButton = Content.addButton("Bypass", 0, 0);
 
-		noteOnOrOff = Content.addButton("noteOnOrOff", 10, 70);
-		noteOnOrOff->set("text", "Generate Note On");
-		veloTable = Content.addTable("veloTable", 150, 17);
-		veloTable->set("width", 400);
-		veloTable->set("height", 80);
+		ccSelector = Content.addComboBox("ccSelector", 309, 15);
+		
+
+		for (int i = 1; i < 127; i++)
+		{
+			ccSelector->addItem("CC " + String(i));
+		}
+
+		Sampler.enableRoundRobin(false);
+
 	}
 
 	void onNoteOn() override
@@ -477,52 +486,63 @@ public:
 
 	void onController() override
 	{
-		if (lastNote != -1 && (int)Message.getControllerNumber() == controllerNumber)
+		if (lastNote != -1 && ((int)Message.getControllerNumber() == selectorValue))
 		{
-			if (noteOn)
+			if ((double)bypassButton->getValue() < 0.5)
 			{
-				const float velo = veloTable->getTableValue(Message.getControllerValue()) * 127.0f;
+				updown = !updown;
 
-				Synth.addNoteOn(1, lastNote, (int)velo, 0);
+				if (!updown)
+				{
+					
+					thisGroup = floor(r.nextFloat() * (float)(rrAmount) / 2.0f);
+
+					while (thisGroup == lastGroup) thisGroup = floor(r.nextFloat() * (float)(rrAmount) / 2.0f);
+
+					lastGroup = thisGroup;
+				}
+
+				const int thisGroupNumber = thisGroup * 2 + (updown ? 1 : 0) + 1;
+
+				Sampler.setActiveGroup(thisGroupNumber);
 			}
-			else
+
+			if (lastNote != -1)
 			{
-				Synth.addNoteOff(1, lastNote, 0);
+				Synth.playNote(lastNote, Message.getControllerValue());
 			}
 		}
 	};
 
 	void onControl(ScriptingApi::Content::ScriptComponent * controller, var value) override
 	{
-		if (controller == noteOnOrOff)
+		rrAmount = Synth.getAttribute(7);
+
+		if (controller == bypassButton)
 		{
-			if ((float)value > 0.5f)
-			{
-				noteOnOrOff->set("text", "Generate Note On");
-				noteOn = true;
-			}
-			else
-			{
-				noteOnOrOff->set("text", "Generate Note Off");
-				noteOn = false;
-			}
+			Sampler.enableRoundRobin((double)value > 0.5);
 		}
-		else if (controller == controllerNumberSlider)
+		else if (controller == ccSelector)
 		{
-			controllerNumber = value;
+			selectorValue = (int)value;
 		}
 	};
 
 private:
 
-	ScriptingApi::Content::ScriptButton * noteOnOrOff;
-	ScriptingApi::Content::ScriptSlider *controllerNumberSlider;
-	ScriptingApi::Content::ScriptTable *veloTable;
+	ScriptingApi::Content::ScriptButton *bypassButton;
+	ScriptingApi::Content::ScriptComboBox *ccSelector;
 
+	Random r;
+
+	int selectorValue;
 	int lastNote;
+	int rrAmount;
+	int lastGroup;
+	int thisGroup;
+	bool updown;
 
-	int controllerNumber;
-	bool noteOn;
+	
 };
 
 class ChannelFilterScriptProcessor : public HardcodedScriptProcessor
