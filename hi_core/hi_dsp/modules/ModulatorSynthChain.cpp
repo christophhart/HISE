@@ -95,6 +95,8 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 {
 	if (isBypassed()) return;
 
+    ADD_GLITCH_DETECTOR(getId() + " rendering");
+    
 	ScopedLock sl(lock);
 
 	const int numSamples = buffer.getNumSamples();

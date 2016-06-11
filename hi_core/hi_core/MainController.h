@@ -231,6 +231,22 @@ private:
 };
 
 
+class ConsoleLogger: public Logger
+{
+public:
+    
+    ConsoleLogger(Processor *p):
+      processor(p)
+    {};
+    
+    void logMessage(const String &message) override;
+    
+private:
+    
+    Processor *processor;
+    
+};
+
 #define GET_PROJECT_HANDLER(x)(x->getMainController()->getSampleManager().getProjectHandler())
 
 /** A class for handling application wide tasks.
@@ -447,7 +463,12 @@ public:
 
 	MainController();
 
-	virtual ~MainController() {	masterReference.clear(); };
+	virtual ~MainController()
+    {
+        Logger::setCurrentLogger(nullptr);
+        logger = nullptr;
+        masterReference.clear();
+    };
 
 	SampleManager &getSampleManager() {return *sampleManager;};
 
@@ -807,6 +828,8 @@ private:
         
 	WeakReference<Console> console;
 
+    ScopedPointer<ConsoleLogger> logger;
+    
 	WeakReference<Console> popupConsole;
 	bool usePopupConsole;
 

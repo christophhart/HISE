@@ -49,3 +49,7 @@ struct FileLimitInitialiser
 static FileLimitInitialiser fileLimitInitialiser;
 #endif
 
+
+double ScopedGlitchDetector::maxMilliSeconds = 3.0;
+Identifier ScopedGlitchDetector::lastPositiveId = Identifier();
+

@@ -31,6 +31,12 @@
 */
 
 
+void ConsoleLogger::logMessage(const String &message)
+{
+    debugError(processor, message);
+}
+
+
 MainController::MainController():
 	sampleManager(new SampleManager(this)),
 	allNotesOffFlag(false),
@@ -579,6 +585,9 @@ void MainController::setScriptComponentEditPanel(ScriptComponentEditPanel *panel
 
 void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &midiMessages)
 {
+    
+    ADD_GLITCH_DETECTOR("MainRoutine");
+    
 	ScopedNoDenormals snd;
 
 	AudioPlayHead::CurrentPositionInfo newTime;
@@ -652,6 +661,12 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 {
 	bufferSize = samplesPerBlock;
 	sampleRate = sampleRate_;
+    
+    logger = new ConsoleLogger(getMainSynthChain());
+    
+    Logger::setCurrentLogger(logger);
+    
+    ScopedGlitchDetector::setMaxTimeOutFromBufferSize(sampleRate_, (double)samplesPerBlock);
 
 	multiChannelBuffer.setSize(getMainSynthChain()->getMatrix().getNumDestinationChannels(), samplesPerBlock);
     

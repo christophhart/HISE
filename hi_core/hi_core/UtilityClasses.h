@@ -147,6 +147,98 @@ private:
 	WeakReference<SafeChangeListener>::Master masterReference;
 };
 
+
+
+/** A small helper class that detects a timeout.
+*
+*   Use this to catch down drop outs by adding it to time critical functions in the audio thread and set a global time out value 
+*   using either setMaxMilliSeconds() or, more convenient, setMaxTimeOutFromBufferSize().
+*
+*   Then in your function create a object of this class on the stack and when it is destroyed after the function terminates it
+*   measures the lifespan of the object and logs to the current system Logger if it exceeds the timespan.
+*
+*   The Identifier you pass in should be unique. It will be used to deactivate logging until you create a GlitchDetector with the same
+*   ID again. This makes sure you only get one log per glitch (if you have multiple GlitchDetectors in your stack trace, 
+*   they all would fire if a glitch occurred.
+*
+*   You might want to use the macro ADD_GLITCH_DETECTOR(name) (where name is a simple C string literal which will be parsed to a 
+*   static Identifier, because it can be excluded for deployment builds using
+*   
+*       #define USE_GLITCH_DETECTION 0
+*
+*   This macro can be only used once per function scope, but this should be OK...
+*/
+class ScopedGlitchDetector
+{
+public:
+    
+    /** Creates a new GlitchDetector with a given identifier. 
+    *
+    *   It uses the id to only log the last call in a stack trace, so you only get the GlitchDetector where the glitch actually occured.
+    */
+    ScopedGlitchDetector(const Identifier &id):
+      identifier(id),
+      startTime(Time::getMillisecondCounterHiRes())
+    {
+        if(lastPositiveId == id)
+        {
+            // Resets the identifier if a GlitchDetector is recreated...
+            lastPositiveId = Identifier::null;
+        }
+    };
+    
+    ~ScopedGlitchDetector()
+    {
+        const double stopTime = Time::getMillisecondCounterHiRes();
+        const double interval = (stopTime - startTime);
+        
+        if (lastPositiveId.isNull() && interval > maxMilliSeconds)
+        {
+            lastPositiveId = identifier;
+            
+            if(Logger::getCurrentLogger() != nullptr)
+            {
+                Logger::getCurrentLogger()->writeToLog("Time out in function: " + identifier.toString());
+            }
+        }
+    }
+    
+    // =================================================================================================================================
+    
+    /** Change the global time out value. */
+    static void setMaxMilliSeconds(double newMaxMilliSeconds) noexcept
+    {
+        maxMilliSeconds = newMaxMilliSeconds;
+    };
+    
+    /** Same as setMaxMilliSeconds, but accepts the sample rate and the buffer size as parameters to save you some calculation. */
+    static void setMaxTimeOutFromBufferSize(double sampleRate, double bufferSize) noexcept
+    {
+        maxMilliSeconds = (bufferSize / sampleRate) * 1000.0;
+    };
+    
+private:
+    
+    // =================================================================================================================================
+    
+    const Identifier identifier;
+    const double startTime;
+    static double maxMilliSeconds;
+    static Identifier lastPositiveId;
+    
+    // =================================================================================================================================
+    
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScopedGlitchDetector)
+};
+
+#define USE_GLITCH_DETECTION 1
+
+#if USE_GLITCH_DETECTION
+#define ADD_GLITCH_DETECTOR(x) static Identifier glitchId(x); ScopedGlitchDetector sgd(glitchId)
+#else
+#define ADD_GLITCH_DETECTOR(x)
+#endif
+
 /** A drop in replacement for the ChangeBroadcaster class from JUCE but with weak references.
 *
 *	If you use the normal class and forget to unregister a listener in its destructor, it will crash the application.
