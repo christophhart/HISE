@@ -45,7 +45,7 @@ public:
 	oldReadIndex(0),
     writeIndex(0),
 	lastIgnoredDelayTime(-1),
-    sampleRate(-1.0),
+    sampleRate(44100.0), // better safe than sorry...
     currentDelayTime(0),
     fadeCounter(-1),
     fadeTimeSamples(1024)
@@ -352,7 +352,7 @@ public:
 			skipFirstBuffer = false;
 			return;
 		}
-
+        
 		const int sampleIndex = startSample;
 		const int samplesToCopy = numSamples;
 

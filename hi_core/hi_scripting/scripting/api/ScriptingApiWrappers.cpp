@@ -32,7 +32,7 @@
 
 #define GET_OBJECT(x) (dynamic_cast<ScriptingApi::x*> (args.thisObject.getObject()))
 
-#define USE_SAFE_CHECKS 0
+
 
 
 #if USE_SAFE_CHECKS

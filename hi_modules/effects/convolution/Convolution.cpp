@@ -170,6 +170,8 @@ void ConvolutionEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples)
 {
+    ADD_GLITCH_DETECTOR("Rendering IR reverb " + getId());
+    
 	if (startSample != 0)
 	{
 		debugError(this, "Buffer start not 0!");

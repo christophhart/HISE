@@ -104,6 +104,8 @@ public:
 	{ 
 		if(isBypassed()) return;
 
+        ADD_GLITCH_DETECTOR("Rendering voice effects for" + parentProcessor->getId());
+        
 		FOR_EACH_VOICE_EFFECT(renderVoice(voiceIndex, b, startSample, numSamples)); 
 	};
 
@@ -138,6 +140,8 @@ public:
 	{
 		if(isBypassed()) return;
 
+        ADD_GLITCH_DETECTOR("Rendering master effects for" + parentProcessor->getId());
+        
 		FOR_EACH_MASTER_EFFECT(renderWholeBuffer(b));
 
 		currentValues.outL = (b.getMagnitude(0, 0, b.getNumSamples()));

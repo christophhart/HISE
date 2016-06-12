@@ -341,7 +341,8 @@ ProcessorEditorBody *ModulatorChain::createEditor(BetterProcessorEditor *parentE
 
 void ModulatorChain::renderVoice(int voiceIndex, int startSample, int numSamples)
 {
-
+    ADD_GLITCH_DETECTOR("Rendering " + getId() + " voices for " + parentProcessor->getId());
+    
 	// Use the internal buffer from timeModulation as working buffer.
 
 	initializeBuffer(internalBuffer, startSample, numSamples);
@@ -391,6 +392,8 @@ void ModulatorChain::renderVoice(int voiceIndex, int startSample, int numSamples
 
 void ModulatorChain::renderNextBlock(AudioSampleBuffer& buffer, int startSample, int numSamples)
 {
+    ADD_GLITCH_DETECTOR("Rendering time varian modulators for " + parentProcessor->getId());
+    
 	jassert (getSampleRate() > 0);
 
 	initializeBuffer(internalBuffer, startSample, numSamples);

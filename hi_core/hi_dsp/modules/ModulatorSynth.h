@@ -177,8 +177,7 @@ public:
 
 	virtual void synthTimerCallback()
 	{
-
-
+        ADD_GLITCH_DETECTOR(getId() + " timer callback");
 
 		const int offsetInBuffer = (int)((getMainController()->getUptime() - nextTimerCallbackTime) * getSampleRate());
 

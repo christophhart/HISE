@@ -867,7 +867,7 @@ void SampleLoader::advanceReadIndex(double delta)
 
 void SampleLoader::requestNewData()
 {
-
+    ADD_GLITCH_DETECTOR("Requesting new sample data");
 
 #if(USE_BACKGROUND_THREAD)
 
@@ -1032,10 +1032,14 @@ void StreamingSamplerVoice::startNote (int /*midiNoteNumber*/,
 
 void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int startSample, int numSamples)
 {
+    
+    
 	const StreamingSamplerSound *sound = loader.getLoadedSound();
 
 	if(sound != nullptr)
 	{
+        ADD_GLITCH_DETECTOR("Rendering sample " + sound->getFileName());
+        
 		const double startAlpha = fmod(voiceUptime, 1.0);
 		
 		double pitchCounter;

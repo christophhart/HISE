@@ -203,6 +203,8 @@ void ModulatorSynth::addProcessorsWhenEmpty()
 
 void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuffer, const MidiBuffer& inputMidiBuffer)
 {
+    ADD_GLITCH_DETECTOR("Rendering " + getId());
+    
 	const ScopedLock sl (lock);
 
 	int numSamples = outputBuffer.getNumSamples();
@@ -316,10 +318,10 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 
 void ModulatorSynth::renderVoice(int startSample, int numThisTime)
 {
+    ADD_GLITCH_DETECTOR("Rendering voices for " + getId());
+    
 	for (int i = voices.size(); --i >= 0;)
 	{
-		
-
 		ModulatorSynthVoice *v = static_cast<ModulatorSynthVoice*>(voices[i]);
 
 		if (!v->isInactive())
@@ -473,6 +475,8 @@ void ModulatorSynth::numDestinationChannelsChanged()
 
 void ModulatorSynth::noteOn(int midiChannel, int midiNoteNumber, float velocity)
 {
+    ADD_GLITCH_DETECTOR("Note on callback for " + getId());
+    
     const ScopedLock sl (lock);
 
     for (int i = sounds.size(); --i >= 0;)
@@ -620,6 +624,7 @@ int ModulatorSynthVoice::getVoiceIndex() const
 
 void ModulatorSynthVoice::stopNote(float, bool)
 {
+    
 		ModulatorSynth *os = getOwnerSynth();
 		
 		ModulatorChain *c = static_cast<ModulatorChain*>(os->getChildProcessor(ModulatorSynth::GainModulation));

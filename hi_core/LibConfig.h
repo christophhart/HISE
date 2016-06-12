@@ -96,6 +96,16 @@
 #endif
 
 
+#ifndef USE_SAFE_CHECKS
+#define USE_SAFE_CHECKS 1
+#endif
+
+#ifndef USE_GLITCH_DETECTION
+#define USE_GLITCH_DETECTION 0
+#endif
+
+
+
 #if JUCE_MAC_OSX
 #ifndef HI_WINDOWS
 #define HI_WINDOWS 0

@@ -21,6 +21,8 @@
 
 #define NUM_DIGITS_FOR_DOUBLE_VAR_TO_STRING 8
 
+#define USE_GLITCH_DETECTION 1
+
 // [END_USER_CODE_SECTION]
 
 //==============================================================================

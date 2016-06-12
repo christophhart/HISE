@@ -497,6 +497,8 @@ void ScriptProcessor::processMidiMessage(MidiMessage &m)
 	}
 	else
 	{
+        ADD_GLITCH_DETECTOR("Processing " + getId() + " script callbacks");
+        
 		if(currentMidiMessage != nullptr)
 		{
 			currentMessage = m;

@@ -226,8 +226,6 @@ void HarmonicFilter::startVoice(int voiceIndex, int noteNumber)
 			}
 
 		}
-
-
 	}
 }
 

@@ -69,8 +69,12 @@ void ModulatorSamplerVoice::stopNote(float velocity, bool allowTailoff)
 
 void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 {
+    
+    
     const StreamingSamplerSound *sound = wrappedVoice.getLoadedSound();
     jassert(sound != nullptr);
+    
+    ADD_GLITCH_DETECTOR("Rendering sample" + sound->getFileName());
     
 	ModulatorSampler *sampler = static_cast<ModulatorSampler*>(getOwnerSynth());
 

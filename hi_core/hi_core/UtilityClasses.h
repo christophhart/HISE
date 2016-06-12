@@ -231,7 +231,6 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScopedGlitchDetector)
 };
 
-#define USE_GLITCH_DETECTION 1
 
 #if USE_GLITCH_DETECTION
 #define ADD_GLITCH_DETECTOR(x) static Identifier glitchId(x); ScopedGlitchDetector sgd(glitchId)
