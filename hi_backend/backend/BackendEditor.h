@@ -53,7 +53,8 @@ class BackendProcessorEditor: public AudioProcessorEditor,
 							  public BackendCommandTarget,
 							  public RestorableObject,
 							  public GlobalScriptCompileListener,
-                              public ComponentWithKeyboard
+                              public ComponentWithKeyboard,
+                              public Label::Listener
 {
 public:
 
@@ -176,10 +177,16 @@ public:
 	
 	void mouseDown(const MouseEvent &m);
 
+    void labelTextChanged(Label *l) override
+    {
+        owner->setChanged();
+    }
+    
     void clearPreset();
 
 	void clearModuleList();
 
+    
 
 	void loadNewContainer(const File &f);
 

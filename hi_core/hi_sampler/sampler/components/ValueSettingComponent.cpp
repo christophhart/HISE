@@ -189,6 +189,65 @@ void ValueSettingComponent::buttonClicked (Button* buttonThatWasClicked)
 
 
 //[MiscUserCode] You can add your own definitions of your custom methods or any other code here...
+
+void ValueSettingComponent::mouseDown(const MouseEvent &e)
+{
+    BetterProcessorEditor *editor = findParentComponentOfClass<BetterProcessorEditor>();
+    
+    if(editor != nullptr)
+    {
+        PresetHandler::setChanged(editor->getProcessor());
+    }
+    
+    if(currentSelection.size() != 0 && e.mods.isRightButtonDown())
+    {
+        Slider *s = new Slider();
+        
+        s->setSliderStyle(Slider::LinearBar);
+        s->setTextBoxStyle(Slider::NoTextBox, true, 0, 0);
+        s->setRange(currentSelection[0]->getPropertyRange(soundProperty).getStart(),
+                    currentSelection[0]->getPropertyRange(soundProperty).getEnd(),
+                    1);
+        s->setTextBoxStyle (Slider::NoTextBox, false, 80, 20);
+        s->setColour (Slider::thumbColourId, Colours::white);
+        s->setColour (Slider::rotarySliderOutlineColourId, Colour (0x00000000));
+        s->setColour (Slider::textBoxOutlineColourId, Colour (0x00808080));
+        s->addListener (this);
+        
+        s->setLookAndFeel(&laf);
+        
+        currentSlider = s;
+        
+        if(currentSelection.size() != 0)
+        {
+            if(isFileAccessingProperty())
+            {
+                for(int i = 0; i < currentSelection.size(); i++)
+                {
+                    currentSelection[i].get()->openFileHandle();
+                }
+            }
+            
+            
+            s->setValue(currentSelection[0]->getProperty(soundProperty), dontSendNotification);
+            
+        }
+        else
+        {
+            s->setEnabled(false);
+        }
+        
+        
+        s->setSize (600, 32);
+        
+        CallOutBox::launchAsynchronously (s, getScreenBounds(), getParentComponent());
+        
+        startTimer(500);
+        
+    }
+    
+}
+
 //[/MiscUserCode]
 
 

@@ -606,6 +606,8 @@ void ProcessorEditorHeader::sliderValueChanged (Slider* sliderThatWasMoved)
 {
     if (sliderThatWasMoved == intensitySlider)
     {
+        PresetHandler::setChanged(getProcessor());
+        
 		if(isHeaderOfModulator())
 		{
 			Modulation *mod = dynamic_cast<Modulation*>(getProcessor());
@@ -620,6 +622,8 @@ void ProcessorEditorHeader::sliderValueChanged (Slider* sliderThatWasMoved)
 
 	else if(sliderThatWasMoved == balanceSlider)
 	{
+        PresetHandler::setChanged(getProcessor());
+        
 		dynamic_cast<ModulatorSynth*>(getProcessor())->setBalance((float)balanceSlider->getValue());
 	}
 }
@@ -665,6 +669,9 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
 		{
 			panel->getChildEditor(i)->setEnabled(!shouldBeBypassed);
 		}
+        
+        PresetHandler::setChanged(getProcessor());
+        
     }
 	else if (buttonThatWasClicked == routeButton)
 	{
@@ -682,6 +689,8 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
     }
     else if (buttonThatWasClicked == deleteButton)
 	{
+        PresetHandler::setChanged(getProcessor());
+        
 		if(dynamic_cast<BackendProcessorEditor*>(getEditor()->getParentComponent()) != nullptr)
 		{
 			dynamic_cast<BackendProcessorEditor*>(getEditor()->getParentComponent())->clearPopup();
@@ -692,7 +701,8 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
 		{
 			
 			getEditor()->getParentEditor()->getPanel()->removeProcessorEditor(getProcessor());
-			
+		
+            PresetHandler::setChanged(getProcessor());
 		}
 		
 		
@@ -921,6 +931,8 @@ void ProcessorEditorHeader::addProcessor(Processor *processorToBeAdded, Processo
 		dynamic_cast<ScriptProcessor*>(processorToBeAdded)->compileScript();
 	}
 
+    PresetHandler::setChanged(getProcessor());
+    
 	return;
 
 }
@@ -1211,6 +1223,7 @@ void ProcessorEditorHeader::labelTextChanged(Label *l)
         
         findParentComponentOfClass<BackendProcessorEditor>()->getKeyboard()->grabKeyboardFocus();
 
+        PresetHandler::setChanged(getProcessor());
 	}
 }
 

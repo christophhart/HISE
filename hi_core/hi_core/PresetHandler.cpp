@@ -1240,6 +1240,14 @@ Processor *PresetHandler::createProcessorFromPreset(int menuIndexDelta, Processo
 }
 
 
+bool PresetHandler::setChanged(Processor *p)
+{
+    if(p != nullptr)
+    {
+        p->getMainController()->setChanged();
+    }
+}
+
 Processor* PresetHandler::createProcessorFromClipBoard(Processor *parent)
 {
 	try

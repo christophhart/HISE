@@ -359,6 +359,7 @@ private:
 };
 
 
+
 /** This class is a listener class that can react to tempo changes.
 *	@ingroup utility
 *

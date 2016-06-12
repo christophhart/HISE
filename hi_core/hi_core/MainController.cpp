@@ -186,6 +186,8 @@ void MainController::clearPreset()
 	{
 		setKeyboardCoulour(i, Colours::transparentBlack);
 	}
+    
+    changed = false;
 }
 
 void MainController::loadPreset(ValueTree &v, Component* /*mainEditor*/)
@@ -220,6 +222,8 @@ void MainController::loadPreset(ValueTree &v, Component* /*mainEditor*/)
 
 		synthChain->setBypassed(false);
 
+        changed = false;
+        
 	}
 	else
 	{

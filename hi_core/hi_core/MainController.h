@@ -63,6 +63,10 @@ class FactoryType;
 #define debugMod(text) {;};
 #endif
 
+
+
+#define SET_PRESET_CHANGED(p)
+
 #define USE_MIDI_CONTROLLERS_FOR_MACROS 0
 
 
@@ -702,6 +706,17 @@ public:
         return returnValue;
     }
 
+    bool isChanged() const
+    {
+        return changed;
+    }
+    
+    void setChanged()
+    {
+        changed = true;
+    }
+ 
+    
     float getGlobalCodeFontSize() const {return globalCodeFontSize; };
     
     void setGlobalCodeFontSize(float newFontSize)
@@ -785,10 +800,8 @@ protected:
 	}
 	
 	
-
     void setMidiInputFlag() {midiInputFlag = true; };
     
-
 private:
 
 	void storePlayheadIntoDynamicObject(AudioPlayHead::CurrentPositionInfo &lastPosInfo);
@@ -856,6 +869,8 @@ private:
 	double bpm;
 	int voiceAmount;
 	bool allNotesOffFlag;
+    
+    bool changed;
     
     bool midiInputFlag;
 	

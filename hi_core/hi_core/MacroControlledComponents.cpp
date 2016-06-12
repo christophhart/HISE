@@ -156,6 +156,8 @@ bool  MacroControlledObject::isReadOnly()
 void HiSlider::sliderValueChanged(Slider *s)
 {
 	jassert(s == this);
+ 
+    
     
 #if STANDALONE_CONVOLUTION
     
@@ -252,6 +254,8 @@ void HiSlider::mouseDown(const MouseEvent &e)
 {
 	if (e.mods.isLeftButtonDown())
 	{
+        PresetHandler::setChanged(getProcessor());
+        
 		checkLearnMode();
 		Slider::mouseDown(e);
 	}
@@ -271,11 +275,53 @@ void HiToggleButton::setLookAndFeelOwned(LookAndFeel *laf_)
 	setLookAndFeel(laf);
 }
 
+void HiToggleButton::mouseDown(const MouseEvent &e)
+{
+    if(e.mods.isLeftButtonDown())
+    {
+        checkLearnMode();
+        
+        PresetHandler::setChanged(getProcessor());
+        
+        ToggleButton::mouseDown(e);
+    }
+    else
+    {
+#if USE_FRONTEND
+        enableMidiLearnWithPopup();
+#else
+        removeParameterWithPopup();
+#endif
+    }
+}
+
 void HiComboBox::setup(Processor *p, int parameter, const String &name)
 {
 	MacroControlledObject::setup(p, parameter, name);
 
 	p->getMainController()->skin(*this);
+}
+
+void HiComboBox::mouseDown(const MouseEvent &e)
+{
+    if(e.mods.isLeftButtonDown())
+    {
+        checkLearnMode();
+        
+        PresetHandler::setChanged(getProcessor());
+        
+        ComboBox::mouseDown(e);
+    }
+    else
+    {
+#if USE_FRONTEND
+        
+        enableMidiLearnWithPopup();
+        
+#else
+        removeParameterWithPopup();
+#endif
+    }
 }
 
 void HiComboBox::updateValue()
@@ -292,7 +338,7 @@ void HiComboBox::updateValue()
 void HiComboBox::comboBoxChanged(ComboBox *c)
 {
 	const int index = c->getSelectedId();
-
+    
 	if(index == 0) return;
 
 	const int macroIndex = getProcessor()->getMainController()->getMacroManager().getMacroChain()->getMacroControlIndexForProcessorParameter(getProcessor(), parameter);

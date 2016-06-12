@@ -286,6 +286,13 @@ void SliderPack::mouseDown(const MouseEvent &e)
 {
 	if (!isEnabled()) return;
 
+    BetterProcessorEditor *editor = findParentComponentOfClass<BetterProcessorEditor>();
+    
+    if(editor != nullptr)
+    {
+        PresetHandler::setChanged(editor->getProcessor());
+    }
+    
 	int x = e.getEventRelativeTo(this).getMouseDownPosition().getX();
 	int y = e.getEventRelativeTo(this).getMouseDownPosition().getY();
 

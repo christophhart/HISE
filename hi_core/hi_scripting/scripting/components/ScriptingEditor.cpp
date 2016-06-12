@@ -965,6 +965,8 @@ void ScriptingEditor::compileScript()
         
 	}
 
+    PresetHandler::setChanged(getProcessor());
+    
 	checkActiveSnippets();
 
 	refreshBodySize();

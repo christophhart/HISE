@@ -199,6 +199,15 @@ public:
 		return path;
 	}
 
+    void mouseDown(const MouseEvent &e) override
+    {
+        BetterProcessorEditor *editor = findParentComponentOfClass<BetterProcessorEditor>();
+        
+        if(editor != nullptr)
+        {
+            PresetHandler::setChanged(editor->getProcessor());
+        }
+    }
 
 
 	void resized()

@@ -787,6 +787,10 @@ void BackendCommandTarget::menuItemSelected(int menuItemID, int /*topLevelMenuIn
 {
 	if (menuItemID >= MenuOpenFileFromProjectOffset && menuItemID < ((int)(MenuOpenFileFromProjectOffset) + 50))
 	{
+        const bool shouldDiscard = !bpe->getBackendProcessor()->isChanged() || PresetHandler::showYesNoWindow("Discard the current preset?", "The current preset will be discarded", PresetHandler::IconType::Question);
+        
+        if (!shouldDiscard) return;
+        
 		if (GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive())
 		{
 			File f = recentFileList[menuItemID - (int)MenuOpenFileFromProjectOffset];
@@ -799,6 +803,10 @@ void BackendCommandTarget::menuItemSelected(int menuItemID, int /*topLevelMenuIn
 	}
 	else if (menuItemID >= MenuProjectRecentOffset && menuItemID < (int)MenuProjectRecentOffset + 12)
 	{
+        const bool shouldDiscard = !bpe->getBackendProcessor()->isChanged() || PresetHandler::showYesNoWindow("Discard the current preset?", "The current preset will be discarded", PresetHandler::IconType::Question);
+        
+        if (!shouldDiscard) return;
+        
 		const int index = menuItemID - MenuProjectRecentOffset;
 
 		if (PresetHandler::showYesNoWindow("Switch projects?", "Do you want to switch projects? The current preset will be cleared"))
@@ -840,6 +848,10 @@ void BackendCommandTarget::menuItemSelected(int menuItemID, int /*topLevelMenuIn
     }
     else if (menuItemID >= MenuFileXmlBackupMenuOffset && menuItemID < ((int)MenuFileXmlBackupMenuOffset+50))
     {
+        const bool shouldDiscard = !bpe->getBackendProcessor()->isChanged() || PresetHandler::showYesNoWindow("Discard the current preset?", "The current preset will be discarded", PresetHandler::IconType::Question);
+        
+        if (!shouldDiscard) return;
+        
         const int index = menuItemID - MenuFileXmlBackupMenuOffset;
         
         Array<File> xmlFileList;
@@ -944,6 +956,10 @@ bool BackendCommandTarget::Actions::hasSnippetInClipboard()
 
 void BackendCommandTarget::Actions::openFile(BackendProcessorEditor *bpe)
 {
+    const bool shouldDiscard = !bpe->getBackendProcessor()->isChanged() || PresetHandler::showYesNoWindow("Discard the current preset?", "The current preset will be discarded", PresetHandler::IconType::Question);
+    
+    if (!shouldDiscard) return;
+    
 	FileChooser fc("Load Preset File", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Presets), "*.hip", true);
 
 	if (fc.browseForFileToOpen()) bpe->loadNewContainer(fc.getResult());
@@ -961,6 +977,10 @@ void BackendCommandTarget::Actions::replaceWithClipboardContent(BackendProcessor
 {
 	String clipboardContent = SystemClipboard::getTextFromClipboard();
 
+    const bool shouldDiscard = !bpe->getBackendProcessor()->isChanged() || PresetHandler::showYesNoWindow("Discard the current preset?", "The current preset will be discarded", PresetHandler::IconType::Question);
+    
+    if (!shouldDiscard) return;
+    
 	if (hasSnippetInClipboard())
 	{
 		String data = clipboardContent.fromFirstOccurrenceOf("HiseSnippet ", false, false);
@@ -1622,6 +1642,10 @@ void BackendCommandTarget::Actions::saveFileAsXml(BackendProcessorEditor * bpe)
 
 void BackendCommandTarget::Actions::openFileFromXml(BackendProcessorEditor * bpe, const File &fileToLoad)
 {
+    const bool shouldDiscard = !bpe->getBackendProcessor()->isChanged() || PresetHandler::showYesNoWindow("Discard the current preset?", "The current preset will be discarded", PresetHandler::IconType::Question);
+    
+    if (!shouldDiscard) return;
+    
 	if (GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive())
 	{
 		ScopedPointer<XmlElement> xml = XmlDocument::parse(fileToLoad);
@@ -1638,6 +1662,10 @@ void BackendCommandTarget::Actions::openFileFromXml(BackendProcessorEditor * bpe
 
 void BackendCommandTarget::Actions::createNewProject(BackendProcessorEditor *bpe)
 {
+    const bool shouldDiscard = !bpe->getBackendProcessor()->isChanged() || PresetHandler::showYesNoWindow("Discard the current preset?", "The current preset will be discarded", PresetHandler::IconType::Question);
+    
+    if (!shouldDiscard) return;
+    
 	FileChooser fc("Create new project directory");
 
 	if (fc.browseForDirectory())
@@ -1650,6 +1678,10 @@ void BackendCommandTarget::Actions::createNewProject(BackendProcessorEditor *bpe
 
 void BackendCommandTarget::Actions::loadProject(BackendProcessorEditor *bpe)
 {
+    const bool shouldDiscard = !bpe->getBackendProcessor()->isChanged() || PresetHandler::showYesNoWindow("Discard the current preset?", "The current preset will be discarded", PresetHandler::IconType::Question);
+    
+    if (!shouldDiscard) return;
+    
 	FileChooser fc("Load project (set as working directory)");
 
 	if (fc.browseForDirectory())
@@ -1662,6 +1694,10 @@ void BackendCommandTarget::Actions::loadProject(BackendProcessorEditor *bpe)
 
 void BackendCommandTarget::Actions::closeProject(BackendProcessorEditor *bpe)
 {
+    const bool shouldDiscard = !bpe->getBackendProcessor()->isChanged() || PresetHandler::showYesNoWindow("Discard the current preset?", "The current preset will be discarded", PresetHandler::IconType::Question);
+    
+    if (!shouldDiscard) return;
+    
 	GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(File::nonexistent);
 }
 
@@ -1680,6 +1716,10 @@ void BackendCommandTarget::Actions::saveUserPreset(BackendProcessorEditor *bpe)
 
 void BackendCommandTarget::Actions::loadUserPreset(BackendProcessorEditor *bpe, const File &fileToLoad)
 {
+    const bool shouldDiscard = !bpe->getBackendProcessor()->isChanged() || PresetHandler::showYesNoWindow("Discard the current preset?", "The current preset will be discarded", PresetHandler::IconType::Question);
+    
+    if (!shouldDiscard) return;
+    
     UserPresetHandler::loadUserPreset(bpe->getMainSynthChain(), fileToLoad);
 }
 

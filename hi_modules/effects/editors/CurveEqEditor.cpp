@@ -315,6 +315,13 @@ Point<int> FilterDragOverlay::getPosition(int index)
 
 void FilterDragOverlay::mouseDown(const MouseEvent &e)
 {
+    BetterProcessorEditor *editor2 = findParentComponentOfClass<BetterProcessorEditor>();
+    
+    if(editor2 != nullptr)
+    {
+        PresetHandler::setChanged(editor2->getProcessor());
+    }
+    
 	if(!e.mods.isRightButtonDown())
 	{
 

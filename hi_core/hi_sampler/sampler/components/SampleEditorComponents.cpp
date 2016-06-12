@@ -42,6 +42,13 @@ void PopupLabel::showPopup()
 
 void PopupLabel::mouseDown(const MouseEvent &)
 {
+    BetterProcessorEditor *editor = findParentComponentOfClass<BetterProcessorEditor>();
+    
+    if(editor != nullptr)
+    {
+        PresetHandler::setChanged(editor->getProcessor());
+    }
+    
 	if(isEnabled())
 	{
 		showPopup();

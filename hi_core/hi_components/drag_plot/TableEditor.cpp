@@ -246,6 +246,13 @@ void TableEditor::mouseDown(const MouseEvent &e)
 {
 	if (!isEnabled()) return;
 
+    BetterProcessorEditor *editor = findParentComponentOfClass<BetterProcessorEditor>();
+    
+    if(editor != nullptr)
+    {
+        PresetHandler::setChanged(editor->getProcessor());
+    }
+    
 	grabCopyAndPasteFocus();
 
 	MouseEvent parentEvent = e.getEventRelativeTo(this);

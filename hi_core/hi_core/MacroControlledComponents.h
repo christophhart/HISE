@@ -200,6 +200,7 @@ public:
 	{
 		if (combo != nullptr)
 		{
+            
 			combo->hidePopup();
 
 			if (result != 0)
@@ -221,24 +222,7 @@ public:
 			ModalCallbackFunction::forComponent(comboBoxPopupMenuFinishedCallback, this));
 	}
 
-	void mouseDown(const MouseEvent &e) override
-	{
-		if(e.mods.isLeftButtonDown())
-		{
-			checkLearnMode();
-			ComboBox::mouseDown(e);
-		}
-		else
-		{
-#if USE_FRONTEND
-
-			enableMidiLearnWithPopup();
-
-#else
-			removeParameterWithPopup();
-#endif
-		}
-	}
+    void mouseDown(const MouseEvent &e);
 
 	NormalisableRange<double> getRange() const override { return NormalisableRange<double>(1.0, (double)getNumItems()); };
 	
@@ -276,22 +260,7 @@ public:
 
 	void setLookAndFeelOwned(LookAndFeel *fslaf);
 
-	void mouseDown(const MouseEvent &e) override
-	{
-		if(e.mods.isLeftButtonDown())
-		{
-			checkLearnMode();
-			ToggleButton::mouseDown(e);
-		}
-		else
-		{
-#if USE_FRONTEND
-			enableMidiLearnWithPopup();
-#else
-			removeParameterWithPopup();
-#endif
-		}
-	}
+    void mouseDown(const MouseEvent &e) override;
 
 	void paint(Graphics &g) override
 	{
