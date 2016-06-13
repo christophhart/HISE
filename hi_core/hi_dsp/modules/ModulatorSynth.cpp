@@ -311,9 +311,7 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 		}
 	}
 
-	// Display the output
 	handlePeakDisplay(outputBuffer.getNumSamples());
-
 }
 
 void ModulatorSynth::renderVoice(int startSample, int numThisTime)
@@ -333,6 +331,16 @@ void ModulatorSynth::renderVoice(int startSample, int numThisTime)
 };
 
 	
+void ModulatorSynth::handlePeakDisplay(int numSamplesInOutputBuffer)
+{
+#if ENABLE_ALL_PEAK_METERS == 0
+	if(this != getMainController()->getMainSynthChain()) return;
+#endif
+
+	currentValues.outL = gain * internalBuffer.getMagnitude(0, 0, numSamplesInOutputBuffer) * leftBalanceGain;
+	currentValues.outR = gain * internalBuffer.getMagnitude(1, 0, numSamplesInOutputBuffer) * rightBalanceGain;
+}
+
 void ModulatorSynth::handleMidiEvent(const MidiMessage &m)
 {
 	preMidiCallback(m);

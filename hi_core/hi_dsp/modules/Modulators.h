@@ -314,18 +314,6 @@ public:
 
 		FloatVectorOperations::clip(mod, mod, 0.0f, 1.0f, samplesToCopy);
 
-#if JUCE_DEBUG
-
-		for (int i = 0; i < samplesToCopy - startIndex; i++)
-		{
-			const float thisValue = mod[i];
-
-			jassert(thisValue >= 0.0f);
-			jassert(thisValue <= 1.0f);
-		}
-
-#endif
-
 		switch(modulationMode)
 		{
 			case GainMode: applyGainModulation(mod, dest, getIntensity(), samplesToCopy); break;
@@ -555,8 +543,10 @@ public:
 	virtual void startVoice(int voiceIndex) override
 	{
 		voiceValues.setUnchecked(voiceIndex, unsavedValue);
+
+#if ENABLE_ALL_PEAK_METERS
 		setOutputValue(unsavedValue);
-		//unsavedValue = -1.0f;
+#endif
 	};
 
 	static Path getSymbolPath()
@@ -713,7 +703,7 @@ protected:
 
 	Processor *getProcessor() override { return this; };
 
-	bool shouldUpdatePlotter() const override {return true;};
+	bool shouldUpdatePlotter() const override {return ENABLE_PLOTTER == 1;};
 
 	void updatePlotter(const AudioSampleBuffer &processedBuffer, int startSample, int numSamples) override
 	{
@@ -814,10 +804,12 @@ public:
 	/** Overwrite this to reset the envelope. If you want to have the display resetted, call this method from your subclass. */
 	virtual void reset(int voiceIndex)
 	{
+#if ENABLE_ALL_PEAK_METERS
 		if(voiceIndex == polyManager.getLastStartedVoice())
 		{
 			setOutputValue(0.0f);
 		};
+#endif
 	}
 
 	void handleMidiEvent(const MidiMessage &m)

@@ -173,6 +173,7 @@ public:
 
 	void calculateBlock(int startSample, int numSamples) override
 	{
+#if ENABLE_ALL_PEAK_METERS
 		if(--numSamples >= 0)
 		{
 			const float value = calculateNewValue();
@@ -180,6 +181,7 @@ public:
 			++startSample;
 			setOutputValue(value); 
 		}
+#endif
 
 		while(--numSamples >= 0)
 		{

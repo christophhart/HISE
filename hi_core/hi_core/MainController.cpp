@@ -589,12 +589,9 @@ void MainController::setScriptComponentEditPanel(ScriptComponentEditPanel *panel
 
 void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &midiMessages)
 {
-    
     ADD_GLITCH_DETECTOR("MainRoutine");
     
 	ScopedNoDenormals snd;
-
-	AudioPlayHead::CurrentPositionInfo newTime;
 
 	AudioProcessor *thisAsProcessor = dynamic_cast<AudioProcessor*>(this);
 
@@ -606,20 +603,20 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		prepareToPlay(sampleRate, buffer.getNumSamples());
 	}
 
+#if ENABLE_HOST_INFO
+	AudioPlayHead::CurrentPositionInfo newTime;
+
 	if (thisAsProcessor->getPlayHead() != nullptr && thisAsProcessor->getPlayHead()->getCurrentPosition(newTime))
 	{
 		lastPosInfo = newTime;
 	}
-	else
-	{
-		lastPosInfo.resetToDefault();
-	};
+	else lastPosInfo.resetToDefault();
 
 	storePlayheadIntoDynamicObject(lastPosInfo);
-
 	setBpm(lastPosInfo.bpm);
+#endif
 
-#if USE_HI_DEBUG_TOOLS 
+#if ENABLE_CPU_MEASUREMENT
 	startCpuBenchmark(buffer.getNumSamples());
 #endif
 
@@ -631,9 +628,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	checkAllNotesOff(midiMessages);
 
 #if USE_MIDI_CONTROLLERS_FOR_MACROS
-
 	handleControllersForMacroKnobs(midiMessages);
-
 #endif
 
 	keyboardState.processNextMidiBuffer(midiMessages, 0, buffer.getNumSamples(), true);
@@ -654,7 +649,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 	midiMessages.clear();
 
-#if USE_HI_DEBUG_TOOLS
+#if ENABLE_CPU_MEASUREMENT
 	stopCpuBenchmark();
 #endif
 
@@ -666,14 +661,15 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 	bufferSize = samplesPerBlock;
 	sampleRate = sampleRate_;
     
+#if ENABLE_CONSOLE_OUTPUT
     logger = new ConsoleLogger(getMainSynthChain());
+	Logger::setCurrentLogger(logger);
+#if USE_GLITCH_DETECTION
+	ScopedGlitchDetector::setMaxTimeOutFromBufferSize(sampleRate_, (double)samplesPerBlock);
+#endif
+#endif
     
-    Logger::setCurrentLogger(logger);
-    
-    ScopedGlitchDetector::setMaxTimeOutFromBufferSize(sampleRate_, (double)samplesPerBlock);
-
 	multiChannelBuffer.setSize(getMainSynthChain()->getMatrix().getNumDestinationChannels(), samplesPerBlock);
-    
     getMainSynthChain()->prepareToPlay(sampleRate, samplesPerBlock);
 }
 

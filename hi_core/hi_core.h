@@ -108,9 +108,6 @@ For all defined variables:
 
 */
 
-// Comment this out if you don't want to use the debug tools
-#define USE_HI_DEBUG_TOOLS 1
-
 
 /** Add new subgroups here and in hi_module.cpp
 *

@@ -1544,7 +1544,7 @@ int ScriptingApi::Synth::getModulatorIndex(int chain, const String &id) const
 void ScriptingApi::Console::print(var x)
 {
 #if USE_BACKEND
-	getScriptProcessor()->getMainController()->writeToConsole(x, 0, getScriptProcessor(), getScriptProcessor()->getScriptingContent()->getColour());
+	debugToConsole(getScriptProcessor(), x);
 #endif
 }
 
@@ -1561,10 +1561,7 @@ void ScriptingApi::Console::stop()
 	const double ms = (now - startTime) * 1000.0;
 	startTime = 0.0;
 
-	getScriptProcessor()->getMainController()->writeToConsole(benchmarkTitle + " Benchmark Result: " + String(ms, 3) + " ms", 
-												   0, 
-												   getScriptProcessor(), 
-												   getScriptProcessor()->getScriptingContent()->getColour());
+	debugToConsole(getScriptProcessor(), benchmarkTitle + " Benchmark Result: " + String(ms, 3) + " ms");
 #endif
 }
 

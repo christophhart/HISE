@@ -95,8 +95,8 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 {
 	if (isBypassed()) return;
 
-    ADD_GLITCH_DETECTOR(getId() + " rendering");
-    
+	ADD_GLITCH_DETECTOR(getId() + " rendering");
+
 	ScopedLock sl(lock);
 
 	const int numSamples = buffer.getNumSamples();
@@ -104,8 +104,6 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 	initRenderCallback();
 
 	MidiBuffer copy;
-
-	
 
 	if (checkTimerCallback())
 	{
@@ -125,39 +123,44 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 
 	effectChain->renderMasterEffects(internalBuffer);
 
-	//jassert(buffer.getNumChannels() == getMatrix().getNumDestinationChannels());
-	jassert(internalBuffer.getNumChannels() == getMatrix().getNumSourceChannels());
-
-
-
-	for (int i = 0; i < internalBuffer.getNumChannels(); i++)
+	if (internalBuffer.getNumChannels() != 2)
 	{
-		const int sourceIndex = i;
-		const int destinationIndex = getMatrix().getConnectionForSourceChannel(i);
-
-		if (destinationIndex >= 0 && destinationIndex < buffer.getNumChannels())
-		{
-			FloatVectorOperations::addWithMultiply(buffer.getWritePointer(destinationIndex, 0), internalBuffer.getReadPointer(sourceIndex, 0), getGain() * getBalance(i % 2 != 0), buffer.getNumSamples());
-		}
-	}
-
-	if (getMatrix().isEditorShown())
-	{
-		float gainValues[NUM_MAX_CHANNELS];
+		jassert(internalBuffer.getNumChannels() == getMatrix().getNumSourceChannels());
 
 		for (int i = 0; i < internalBuffer.getNumChannels(); i++)
 		{
-			gainValues[i] = FloatVectorOperations::findMaximum(internalBuffer.getReadPointer(i), numSamples);
+			const int sourceIndex = i;
+			const int destinationIndex = getMatrix().getConnectionForSourceChannel(i);
+
+			if (destinationIndex >= 0 && destinationIndex < buffer.getNumChannels())
+			{
+				FloatVectorOperations::addWithMultiply(buffer.getWritePointer(destinationIndex, 0), internalBuffer.getReadPointer(sourceIndex, 0), getGain() * getBalance(i % 2 != 0), buffer.getNumSamples());
+			}
 		}
 
-		getMatrix().setGainValues(gainValues, true);
-
-		for (int i = 0; i < buffer.getNumChannels(); i++)
+		if (getMatrix().isEditorShown())
 		{
-			gainValues[i] = FloatVectorOperations::findMaximum(buffer.getReadPointer(i), numSamples);
-		}
+			float gainValues[NUM_MAX_CHANNELS];
 
-		getMatrix().setGainValues(gainValues, false);
+			for (int i = 0; i < internalBuffer.getNumChannels(); i++)
+			{
+				gainValues[i] = FloatVectorOperations::findMaximum(internalBuffer.getReadPointer(i), numSamples);
+			}
+
+			getMatrix().setGainValues(gainValues, true);
+
+			for (int i = 0; i < buffer.getNumChannels(); i++)
+			{
+				gainValues[i] = FloatVectorOperations::findMaximum(buffer.getReadPointer(i), numSamples);
+			}
+
+			getMatrix().setGainValues(gainValues, false);
+		}
+	}
+	else // save some cycles on non multichannel buffers...
+	{
+		FloatVectorOperations::addWithMultiply(buffer.getWritePointer(0, 0), internalBuffer.getReadPointer(0, 0), getGain() * getBalance(false), buffer.getNumSamples());
+		FloatVectorOperations::addWithMultiply(buffer.getWritePointer(1, 0), internalBuffer.getReadPointer(1, 0), getGain() * getBalance(true), buffer.getNumSamples());
 	}
 
 	// Display the output

@@ -149,22 +149,18 @@ void AhdsrEnvelope::setSustainLevel(float level) {
 
 void AhdsrEnvelope::setTargetRatioA(float targetRatio) {
     if (targetRatio < 0.0000001f)
-        targetRatio = 0.0000001f;  // -180 dB
+        targetRatio = 0.0000001f;
     targetRatioA = targetRatio;
     attackBase = (1.0f + targetRatioA) * (1.0f - attackCoef);
 }
 
 void AhdsrEnvelope::setTargetRatioDR(float targetRatio) {
     if (targetRatio < 0.0000001f)
-        targetRatio = 0.0000001f;  // -180 dB
+        targetRatio = 0.0000001f;
     targetRatioDR = targetRatio;
     decayBase = (sustain - targetRatioDR) * (1.0f - decayCoef);
     releaseBase = -targetRatioDR * (1.0f - releaseCoef);
 }
-
-
-
-
 
 void AhdsrEnvelope::startVoice(int voiceIndex)
 {
@@ -182,15 +178,10 @@ void AhdsrEnvelope::startVoice(int voiceIndex)
 	}
 
 	state->setAttackRate(attack);
-
 	state->setDecayRate(decay);
-
 	state->setReleaseRate(release);
-
 	state->attackLevel = attackLevel * state->modValues[AttackLevelChain];
-
 	state->current_state = AhdsrEnvelopeState::ATTACK;
-	//debugMod(" (Voice " + String(voiceIndex) + ": IDLE->ATTACK");
 }
 
 void AhdsrEnvelope::stopVoice(int voiceIndex)
@@ -229,7 +220,9 @@ void AhdsrEnvelope::calculateBlock(int startSample, int numSamples)
 		}
 	}
 
+#if ENABLE_ALL_PEAK_METERS
 	if (polyManager.getCurrentVoice() == polyManager.getLastStartedVoice()) setOutputValue(internalBuffer.getSample(0, startSample-1));
+#endif
 }
 
 void AhdsrEnvelope::reset(int voiceIndex)

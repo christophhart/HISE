@@ -274,11 +274,7 @@ public:
 		if( !isChainDisabled(EffectChain) ) effectChain->renderNextBlock(internalBuffer, startSample, numThisTime);		
 	};
 
-	virtual void handlePeakDisplay(int numSamplesInOutputBuffer)
-	{
-		currentValues.outL = gain * internalBuffer.getMagnitude(0, 0, numSamplesInOutputBuffer) * leftBalanceGain;
-		currentValues.outR = gain * internalBuffer.getMagnitude(1, 0, numSamplesInOutputBuffer) * rightBalanceGain;
-	}
+	virtual void handlePeakDisplay(int numSamplesInOutputBuffer);
 
 	void setPeakValues(float l, float r)
 	{

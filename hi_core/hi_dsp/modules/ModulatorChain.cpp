@@ -129,45 +129,9 @@ void ModulatorChain::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 float ModulatorChain::calculateNewValue()
 {
-
 	jassertfalse;
 
 	return 1.0f;
-
-	/*
-	if(isBypassed()) return 1.0f;
-
-	const int voiceIndex = polyManager.getCurrentVoice();
-	float value = getConstantVoiceValue(voiceIndex);
-
-	for(int i = 0; i < envelopeModulators.size(); i++)
-	{
-		EnvelopeModulator *m = envelopeModulators[i];
-		if(m->isBypassed() ) continue;
-
-		m->polyManager.setCurrentVoice(voiceIndex);
-		const float modValue = m->calcIntensityValue(m->calculateNewValue(bufferStart));
-		m->applyModulationValue(modValue, value);
-		m->polyManager.clearCurrentVoice();
-	}
-
-	for(int i = 0; i < variantModulators.size(); i++)
-	{
-		TimeVariantModulator *m = variantModulators[i];
-		if(m->isBypassed() ) continue;
-
-		const float modValue = m->calcIntensityValue(m->calculateNewValue(bufferStart));
-
-		m->applyModulationValue(modValue, value);
-	}
-
-	if(bufferStart)
-	{
-		setOutputValue(value);
-	}
-
-	return value;
-	*/
 };
 
 
@@ -382,12 +346,13 @@ void ModulatorChain::renderVoice(int voiceIndex, int startSample, int numSamples
 	// Copy the result to the voice buffer
 	FloatVectorOperations::copy(internalVoiceBuffer.getWritePointer(voiceIndex, startIndex), internalBuffer.getReadPointer(0, startIndex), sampleAmount);
 
-	if(USE_HI_DEBUG_TOOLS && voiceIndex == polyManager.getLastStartedVoice())
+#if ENABLE_PLOTTER
+	if(voiceIndex == polyManager.getLastStartedVoice())
 	{
 		saveEnvelopeValueForPlotter(internalBuffer, startIndex, sampleAmount);
-		
 	}
-	
+#endif
+
 }
 
 void ModulatorChain::renderNextBlock(AudioSampleBuffer& buffer, int startSample, int numSamples)
@@ -410,11 +375,8 @@ void ModulatorChain::renderNextBlock(AudioSampleBuffer& buffer, int startSample,
 		}
 	}
 	
-#if USE_HI_DEBUG_TOOLS
-
+#if ENABLE_PLOTTER
 	updatePlotter(internalBuffer, startSample, numSamples);
-	//setOutputValue(internalBuffer.getReadPointer(0, startIndex)[0] * getVoiceValues(polyManager.getLastStartedVoice())[0]);
-
 #endif
 
 	FloatVectorOperations::copy(buffer.getWritePointer(0, startIndex), internalBuffer.getReadPointer(0, startIndex), sampleAmount);

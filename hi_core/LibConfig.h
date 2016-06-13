@@ -84,27 +84,43 @@
 #define NUM_MAX_CHANNELS 16
 
 #if USE_BACKEND
-
 #define USE_FRONTEND 0
-#define HI_USE_CONSOLE 1
-
-
-#else
-
-#define HI_USE_CONSOLE 0
-
 #endif
 
-
-#ifndef USE_SAFE_CHECKS
-#define USE_SAFE_CHECKS 1
-#endif
-
+// Enable this to add a glitch detector to some performance crititcal functions
 #ifndef USE_GLITCH_DETECTION
 #define USE_GLITCH_DETECTION 0
 #endif
 
+// Set this to 0 to deactivate the plotter data collection
+#ifndef ENABLE_PLOTTER
+#define ENABLE_PLOTTER 1
+#endif
 
+// Set this to 0 to deactivate the safe checks for scripting
+#ifndef ENABLE_SCRIPTING_SAFE_CHECKS
+#define ENABLE_SCRIPTING_SAFE_CHECKS 1
+#endif
+
+// Set this to 0 to deactivate peak collection for any other processor than the main synth chain
+#ifndef ENABLE_ALL_PEAK_METERS
+#define ENABLE_ALL_PEAK_METERS 1
+#endif
+
+// Set this to 0 to deactivate the console output
+#ifndef ENABLE_CONSOLE_OUTPUT
+#define ENABLE_CONSOLE_OUTPUT 1
+#endif
+
+// Set this to 0 to disable host information like tempo, playing position etc...
+#ifndef ENABLE_HOST_INFO
+#define ENABLE_HOST_INFO 1
+#endif
+
+// Set this to 0 to deactivate the CPU peak meter.
+#ifndef ENABLE_CPU_MEASUREMENT
+#define ENABLE_CPU_MEASUREMENT 1
+#endif
 
 #if JUCE_MAC_OSX
 #ifndef HI_WINDOWS

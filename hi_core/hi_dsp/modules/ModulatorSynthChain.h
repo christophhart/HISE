@@ -691,10 +691,6 @@ public:
 
 	ValueTree exportAsValueTree() const override;
 
-	void handlePeakDisplay(int numSamplesInOutputBuffer) override
-	{
-		ModulatorSynth::handlePeakDisplay(numSamplesInOutputBuffer);
-	}
 
 	/** Handles the ModulatorSynthGroup. 
 	*

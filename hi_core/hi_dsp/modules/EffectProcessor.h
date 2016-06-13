@@ -321,8 +321,10 @@ public:
 
 			applyEffect(stereoBuffer, 0, buffer.getNumSamples());
 
+#if ENABLE_ALL_PEAK_METERS
 			currentValues.outL = stereoBuffer.getMagnitude(0, 0, buffer.getNumSamples());
 			currentValues.outR = stereoBuffer.getMagnitude(1, 0, buffer.getNumSamples());
+#endif
 
 			if (getMatrix().isEditorShown())
 			{
@@ -439,10 +441,7 @@ public:
 		}
 	}
 
-	virtual void resetMonophonicVoice()
-	{
-		
-	}
+	virtual void resetMonophonicVoice() {}
 
 	/** A wrapper function around the actual processing.
 	*
@@ -475,8 +474,10 @@ public:
 			applyEffect(buffer, startSample, numSamples);
 		}
 
+#if ENABLE_ALL_PEAK_METERS
 		currentValues.outL = buffer.getMagnitude(0, startSample, numSamples);
 		currentValues.outR = buffer.getMagnitude(1, startSample, numSamples);
+#endif
 	}
 };
 

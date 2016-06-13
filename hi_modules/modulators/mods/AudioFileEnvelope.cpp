@@ -379,6 +379,7 @@ void AudioFileEnvelope::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 void AudioFileEnvelope::calculateBlock(int startSample, int numSamples)
 {
+#if ENABLE_ALL_PEAK_METERS
 	if (--numSamples >= 0)
 	{
 		const float value = calculateNewValue();
@@ -386,6 +387,7 @@ void AudioFileEnvelope::calculateBlock(int startSample, int numSamples)
 		++startSample;
 		setOutputValue(value);
 	}
+#endif
 
 	while (--numSamples >= 0)
 	{

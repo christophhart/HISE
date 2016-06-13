@@ -85,23 +85,6 @@ Path MacroModulator::getSpecialSymbol() const
 }
 #endif
 
-ProcessorEditorBody *MacroModulator::createEditor(ProcessorEditor *parentEditor)
-{
-#if USE_BACKEND
-
-	return new MacroControlModulatorEditorBody(parentEditor);
-
-	
-#else
-
-	ignoreUnused(parentEditor);
-	jassertfalse;
-
-	return nullptr;
-
-#endif
-};
-
 void MacroModulator::addToMacroController(int index)
 {
 	macroIndex = index;
@@ -224,6 +207,7 @@ void MacroModulator::calculateBlock(int startSample, int numSamples)
 		FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), currentValue, numSamples);
 	}
 
-	//setInputValue(inputValue);
 	setOutputValue(currentValue);
 }
+
+ADD_EDITOR_CREATOR(MacroModulator, MacroControlModulatorEditorBody)

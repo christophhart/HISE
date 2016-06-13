@@ -40,6 +40,8 @@
 
 A pretty common envelope type with 5 states. (Go to http://en.wikiaudio.org/ADSR_envelope for a general description on how an envelope works)
 
+The code is based on the example envelope code from http://earlevel.com.
+
 The Modulator has five states: Attack, Hold, Decay, Sustain and Release and allows modulation of 
 the attack time and level, the decay time and the release time with VoiceStartModulators.
 

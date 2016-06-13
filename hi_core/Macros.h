@@ -37,7 +37,7 @@
 #define JUCE_WINDOWS 1
 #endif
 
-#if HI_USE_CONSOLE 
+#if ENABLE_CONSOLE_OUTPUT
 #define debugToConsole(p, x) (p->getMainController()->writeToConsole(x, 0, p))
 #define debugError(p, x) (p->getMainController()->writeToConsole(x, 1, p))
 #else
@@ -51,7 +51,6 @@
 #else
 #define CHECK_KEY(mainController) {mainController;}
 #endif
-
 
 #define SCALE_FACTOR() ((float)Desktop::getInstance().getDisplays().getMainDisplay().scale)
 

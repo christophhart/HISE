@@ -32,22 +32,17 @@
 
 #define GET_OBJECT(x) (dynamic_cast<ScriptingApi::x*> (args.thisObject.getObject()))
 
+#if ENABLE_SCRIPTING_SAFE_CHECKS
 
-
-
-#if USE_SAFE_CHECKS
-
-#define CHECK_VALID_ARGUMENTS() {if(thisObject->checkValidArguments(args) != -1) return var::undefined();}
-
-#define CHECK_ARGUMENTS(callName, expectedArguments) {if (!thisObject->checkArguments(callName, args.numArguments, expectedArguments)) return var::undefined(); CHECK_VALID_ARGUMENTS(); }
-
-#define CHECK_IF_DEFERRED(x) {if(!thisObject->checkIfSynchronous(x))return var::undefined();}
+#define CHECK_VALID_ARGUMENTS() if(thisObject->checkValidArguments(args) != -1) return var::undefined();
+#define CHECK_ARGUMENTS(callName, expectedArguments) if (!thisObject->checkArguments(callName, args.numArguments, expectedArguments)) return var::undefined(); CHECK_VALID_ARGUMENTS();
+#define CHECK_IF_DEFERRED(x) if(!thisObject->checkIfSynchronous(x))return var::undefined();
 
 #else
 
-#define CHECK_VALID_ARGUMENTS() {}
-#define CHECK_ARGUMENTS(callName, expectedArguments) {}
-#define CHECK_IF_DEFERRED(x) {}
+#define CHECK_VALID_ARGUMENTS() 
+#define CHECK_ARGUMENTS(callName, expectedArguments)
+#define CHECK_IF_DEFERRED(x)
 
 #endif
 
