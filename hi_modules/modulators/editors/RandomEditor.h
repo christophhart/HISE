@@ -40,7 +40,7 @@ class RandomEditorBody  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    RandomEditorBody (BetterProcessorEditor *p);
+    RandomEditorBody (ProcessorEditor *p);
     ~RandomEditorBody();
 
     //==============================================================================

@@ -33,7 +33,7 @@
 #include <regex>
 
 //==============================================================================
-ScriptingEditor::ScriptingEditor (BetterProcessorEditor *p)
+ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
     : ProcessorEditorBody(p),
       doc (dynamic_cast<ScriptProcessor*>(getProcessor())->getDocument()),
       tokenizer(new JavascriptTokeniser())

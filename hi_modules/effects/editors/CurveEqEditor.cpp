@@ -33,7 +33,7 @@
 //[/MiscUserDefs]
 
 //==============================================================================
-CurveEqEditor::CurveEqEditor (BetterProcessorEditor *p)
+CurveEqEditor::CurveEqEditor (ProcessorEditor *p)
     : ProcessorEditorBody(p)
 {
     //[Constructor_pre] You can add your own custom stuff here..
@@ -315,7 +315,7 @@ Point<int> FilterDragOverlay::getPosition(int index)
 
 void FilterDragOverlay::mouseDown(const MouseEvent &e)
 {
-    BetterProcessorEditor *editor2 = findParentComponentOfClass<BetterProcessorEditor>();
+    ProcessorEditor *editor2 = findParentComponentOfClass<ProcessorEditor>();
     
     if(editor2 != nullptr)
     {
@@ -592,7 +592,7 @@ BEGIN_JUCER_METADATA
 
 <JUCER_COMPONENT documentType="Component" className="CurveEqEditor" componentName=""
                  parentClasses="public ProcessorEditorBody, public Timer, public FilterTypeSelector::Listener"
-                 constructorParams="BetterProcessorEditor *p" variableInitialisers="ProcessorEditorBody(p)&#10;"
+                 constructorParams="ProcessorEditor *p" variableInitialisers="ProcessorEditorBody(p)&#10;"
                  snapPixels="8" snapActive="1" snapShown="1" overlayOpacity="0.330"
                  fixedSize="1" initialWidth="800" initialHeight="320">
   <BACKGROUND backgroundColour="ffffff">

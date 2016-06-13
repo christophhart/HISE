@@ -218,7 +218,7 @@ public:
 			.withItemThatMustBeVisible(getSelectedId())
 			.withMinimumWidth(getWidth())
 			.withMaximumNumColumns(1)
-			.withStandardItemHeight(28.0f),
+			.withStandardItemHeight(28),
 			ModalCallbackFunction::forComponent(comboBoxPopupMenuFinishedCallback, this));
 	}
 

@@ -192,7 +192,7 @@ void ValueSettingComponent::buttonClicked (Button* buttonThatWasClicked)
 
 void ValueSettingComponent::mouseDown(const MouseEvent &e)
 {
-    BetterProcessorEditor *editor = findParentComponentOfClass<BetterProcessorEditor>();
+    ProcessorEditor *editor = findParentComponentOfClass<ProcessorEditor>();
     
     if(editor != nullptr)
     {

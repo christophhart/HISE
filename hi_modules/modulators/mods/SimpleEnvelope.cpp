@@ -267,7 +267,7 @@ void SimpleEnvelope::prepareToPlay(double sampleRate, int samplesPerBlock)
 	if(attackChain != nullptr) attackChain->prepareToPlay(sampleRate, samplesPerBlock);
 }
 
-ProcessorEditorBody *SimpleEnvelope::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *SimpleEnvelope::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

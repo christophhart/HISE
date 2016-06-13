@@ -40,7 +40,7 @@ class GlobalModulatorEditor  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    GlobalModulatorEditor (BetterProcessorEditor *p);
+    GlobalModulatorEditor (ProcessorEditor *p);
     ~GlobalModulatorEditor();
 
     //==============================================================================

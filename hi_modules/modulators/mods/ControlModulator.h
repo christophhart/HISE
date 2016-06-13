@@ -82,7 +82,7 @@ public:
 	void disableLearnMode() { learnMode = false; sendChangeMessage(); }
 	bool learnModeActive() const { return learnMode; }
 
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 private:
 

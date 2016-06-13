@@ -27,7 +27,7 @@
 //[/MiscUserDefs]
 
 //==============================================================================
-FilterEditor::FilterEditor (BetterProcessorEditor *p)
+FilterEditor::FilterEditor (ProcessorEditor *p)
     : ProcessorEditorBody(p)
 {
     //[Constructor_pre] You can add your own custom stuff here..
@@ -231,7 +231,7 @@ void FilterEditor::comboBoxChanged (ComboBox* comboBoxThatHasChanged)
 BEGIN_JUCER_METADATA
 
 <JUCER_COMPONENT documentType="Component" className="FilterEditor" componentName=""
-                 parentClasses="public ProcessorEditorBody, public Timer" constructorParams="BetterProcessorEditor *p"
+                 parentClasses="public ProcessorEditorBody, public Timer" constructorParams="ProcessorEditor *p"
                  variableInitialisers="ProcessorEditorBody(p)" snapPixels="8"
                  snapActive="1" snapShown="1" overlayOpacity="0.330" fixedSize="1"
                  initialWidth="800" initialHeight="180">

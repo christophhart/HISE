@@ -68,7 +68,7 @@ class AhdsrEnvelopeEditor  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    AhdsrEnvelopeEditor (BetterProcessorEditor *p);
+    AhdsrEnvelopeEditor (ProcessorEditor *p);
     ~AhdsrEnvelopeEditor();
 
     //==============================================================================

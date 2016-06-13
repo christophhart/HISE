@@ -287,7 +287,7 @@ public:
     
 	void setupApi();
 
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	void addToFront(bool addToFront_) noexcept { front = addToFront_;};
 

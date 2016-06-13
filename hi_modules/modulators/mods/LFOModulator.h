@@ -151,7 +151,7 @@ public:
 	};
 
 	/** Returns a new ControlEditor */
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 
 	float getDefaultValue(int parameterIndex) const override; 

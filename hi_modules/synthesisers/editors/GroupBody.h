@@ -42,7 +42,7 @@ class GroupBody  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    GroupBody (BetterProcessorEditor *p);
+    GroupBody (ProcessorEditor *p);
     ~GroupBody();
 
     //==============================================================================

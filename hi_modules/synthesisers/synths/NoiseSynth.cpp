@@ -30,7 +30,7 @@
 *   ===========================================================================
 */
 
-ProcessorEditorBody* NoiseSynth::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody* NoiseSynth::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

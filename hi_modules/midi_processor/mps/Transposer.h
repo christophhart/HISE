@@ -70,7 +70,7 @@ public:
 		loadAttribute(TransposeAmount , "TransposeAmount");
 	}
 
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	
 

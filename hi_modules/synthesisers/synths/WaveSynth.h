@@ -539,7 +539,7 @@ public:
 		ModulatorSynth::preMidiCallback(m);
 	}
 
-	ProcessorEditorBody* createEditor(BetterProcessorEditor *parentEditor) override;
+	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;
 
 private:
 

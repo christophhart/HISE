@@ -40,7 +40,7 @@ class PluginParameterEditorBody  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    PluginParameterEditorBody (BetterProcessorEditor *p);
+    PluginParameterEditorBody (ProcessorEditor *p);
     ~PluginParameterEditorBody();
 
     //==============================================================================

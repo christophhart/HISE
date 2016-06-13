@@ -89,7 +89,7 @@ float GlobalModulatorContainer::getConstantVoiceValue(Processor *p, int noteNumb
 	return 1.0f;
 }
 
-ProcessorEditorBody* GlobalModulatorContainer::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody* GlobalModulatorContainer::createEditor(ProcessorEditor *parentEditor)
 {
 
 #if USE_BACKEND

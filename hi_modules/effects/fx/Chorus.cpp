@@ -202,7 +202,7 @@ void ChorusEffect::calculateInternalValues()
 	fb = 1.9f * parameterFeedback - 0.95f;
 }
 
-ProcessorEditorBody *ChorusEffect::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *ChorusEffect::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

@@ -270,7 +270,7 @@ void TableEnvelope::prepareToPlay(double sampleRate, int samplesPerBlock)
 	setInternalAttribute(Release, release);
 }
 
-ProcessorEditorBody *TableEnvelope::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *TableEnvelope::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

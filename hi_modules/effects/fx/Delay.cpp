@@ -32,7 +32,7 @@
 
 #include "Delay.h"
 
-ProcessorEditorBody *DelayEffect::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *DelayEffect::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

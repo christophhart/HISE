@@ -36,7 +36,7 @@ MasterEffectProcessor(mc, uid)
 	getMatrix().setOnlyEnablingAllowed(false);
 }
 
-ProcessorEditorBody *RouteEffect::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *RouteEffect::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

@@ -142,7 +142,7 @@ void GainCollector::applyEffect(AudioSampleBuffer &buffer, int startSample, int 
 	}
 }
 
-ProcessorEditorBody *GainCollector::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *GainCollector::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 	return new GainCollectorEditor(parentEditor);

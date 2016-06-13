@@ -24,7 +24,7 @@
 //[/MiscUserDefs]
 
 //==============================================================================
-MacroControlModulatorEditorBody::MacroControlModulatorEditorBody (BetterProcessorEditor *p)
+MacroControlModulatorEditorBody::MacroControlModulatorEditorBody (ProcessorEditor *p)
     : ProcessorEditorBody(p)
 {
     //[Constructor_pre] You can add your own custom stuff here..
@@ -211,7 +211,7 @@ void MacroControlModulatorEditorBody::comboBoxChanged (ComboBox* comboBoxThatHas
 BEGIN_JUCER_METADATA
 
 <JUCER_COMPONENT documentType="Component" className="MacroControlModulatorEditorBody"
-                 componentName="" parentClasses="public ProcessorEditorBody" constructorParams="BetterProcessorEditor *p"
+                 componentName="" parentClasses="public ProcessorEditorBody" constructorParams="ProcessorEditor *p"
                  variableInitialisers="ProcessorEditorBody(p)" snapPixels="8"
                  snapActive="1" snapShown="1" overlayOpacity="0.330" fixedSize="1"
                  initialWidth="800" initialHeight="210">

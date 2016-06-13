@@ -85,7 +85,7 @@ Path MacroModulator::getSpecialSymbol() const
 }
 #endif
 
-ProcessorEditorBody *MacroModulator::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *MacroModulator::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

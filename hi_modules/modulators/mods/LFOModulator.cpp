@@ -91,7 +91,7 @@ LfoModulator::~LfoModulator()
 };
 
 
-ProcessorEditorBody *LfoModulator::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *LfoModulator::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

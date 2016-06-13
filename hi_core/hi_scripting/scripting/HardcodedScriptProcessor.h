@@ -109,7 +109,7 @@ protected:
 
 	void processMidiMessage (MidiMessage &m) override;
 
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 	
 private:
 
@@ -445,7 +445,7 @@ public:
 	void onInit() override
 	{
 		lastNote = -1;
-		rrAmount = Synth.getAttribute(7);
+		rrAmount = (int)Synth.getAttribute(7);
 		lastGroup = 0;
 		thisGroup = 0;
 		selectorValue = 0;
@@ -495,9 +495,9 @@ public:
 				if (!updown)
 				{
 					
-					thisGroup = floor(r.nextFloat() * (float)(rrAmount) / 2.0f);
+					thisGroup = (int)floor(r.nextFloat() * (float)(rrAmount) / 2.0f);
 
-					while (thisGroup == lastGroup) thisGroup = floor(r.nextFloat() * (float)(rrAmount) / 2.0f);
+					while (thisGroup == lastGroup) thisGroup = (int)(floor(r.nextFloat() * (float)(rrAmount) / 2.0f));
 
 					lastGroup = thisGroup;
 				}
@@ -516,7 +516,7 @@ public:
 
 	void onControl(ScriptingApi::Content::ScriptComponent * controller, var value) override
 	{
-		rrAmount = Synth.getAttribute(7);
+		rrAmount = (int)Synth.getAttribute(7);
 
 		if (controller == bypassButton)
 		{

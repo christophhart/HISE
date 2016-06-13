@@ -27,7 +27,7 @@
 //[/MiscUserDefs]
 
 //==============================================================================
-CCEnvelopeEditor::CCEnvelopeEditor (BetterProcessorEditor *pe)
+CCEnvelopeEditor::CCEnvelopeEditor (ProcessorEditor *pe)
     : ProcessorEditorBody(pe)
 {
     //[Constructor_pre] You can add your own custom stuff here..
@@ -409,7 +409,7 @@ void CCEnvelopeDisplay::paint(Graphics &g)
 BEGIN_JUCER_METADATA
 
 <JUCER_COMPONENT documentType="Component" className="CCEnvelopeEditor" componentName=""
-                 parentClasses="public ProcessorEditorBody, public Timer" constructorParams="BetterProcessorEditor *pe"
+                 parentClasses="public ProcessorEditorBody, public Timer" constructorParams="ProcessorEditor *pe"
                  variableInitialisers="ProcessorEditorBody(pe)" snapPixels="8"
                  snapActive="1" snapShown="1" overlayOpacity="0.330" fixedSize="1"
                  initialWidth="900" initialHeight="340">

@@ -62,7 +62,7 @@ ValueTree RandomModulator::exportAsValueTree() const
 	return v;
 }
 
-ProcessorEditorBody *RandomModulator::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *RandomModulator::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

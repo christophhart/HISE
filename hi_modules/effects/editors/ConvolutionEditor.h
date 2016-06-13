@@ -43,7 +43,7 @@ class ConvolutionEditor  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    ConvolutionEditor (BetterProcessorEditor *p);
+    ConvolutionEditor (ProcessorEditor *p);
     ~ConvolutionEditor();
 
     //==============================================================================

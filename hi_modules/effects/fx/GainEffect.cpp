@@ -104,7 +104,7 @@ ValueTree GainEffect::exportAsValueTree() const
 	return v;
 }
 
-ProcessorEditorBody *GainEffect::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *GainEffect::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

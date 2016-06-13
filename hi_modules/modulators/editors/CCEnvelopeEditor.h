@@ -87,7 +87,7 @@ class CCEnvelopeEditor  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    CCEnvelopeEditor (BetterProcessorEditor *pe);
+    CCEnvelopeEditor (ProcessorEditor *pe);
     ~CCEnvelopeEditor();
 
     //==============================================================================

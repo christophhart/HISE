@@ -27,7 +27,7 @@
 //[/MiscUserDefs]
 
 //==============================================================================
-ChorusEditor::ChorusEditor (BetterProcessorEditor *p)
+ChorusEditor::ChorusEditor (ProcessorEditor *p)
     : ProcessorEditorBody(p)
 {
     //[Constructor_pre] You can add your own custom stuff here..
@@ -173,7 +173,7 @@ void ChorusEditor::sliderValueChanged (Slider* sliderThatWasMoved)
 BEGIN_JUCER_METADATA
 
 <JUCER_COMPONENT documentType="Component" className="ChorusEditor" componentName=""
-                 parentClasses="public ProcessorEditorBody" constructorParams="BetterProcessorEditor *p"
+                 parentClasses="public ProcessorEditorBody" constructorParams="ProcessorEditor *p"
                  variableInitialisers="ProcessorEditorBody(p)&#10;" snapPixels="8"
                  snapActive="1" snapShown="1" overlayOpacity="0.330" fixedSize="1"
                  initialWidth="900" initialHeight="80">

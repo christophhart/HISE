@@ -456,7 +456,7 @@ void BackendProcessorEditor::rebuildContainer()
 {
 	container = nullptr;
 
-	viewport->viewport->setViewedComponent(container = new BetterProcessorEditorContainer());
+	viewport->viewport->setViewedComponent(container = new ProcessorEditorContainer());
 }
 
 void BackendProcessorEditor::setRootProcessorWithUndo(Processor *p)
@@ -489,7 +489,7 @@ bool BackendProcessorEditor::getIndexPath(Array<int> &path, Processor *p, const 
 	return false;
 }
 
-BetterProcessorEditor *BackendProcessorEditor::getProcessorEditorFromPath(const Array<int> &path)
+ProcessorEditor *BackendProcessorEditor::getProcessorEditorFromPath(const Array<int> &path)
 {
 
 	Processor *p = owner->synthChain;
@@ -501,7 +501,7 @@ BetterProcessorEditor *BackendProcessorEditor::getProcessorEditorFromPath(const 
 		p = p->getChildProcessor(i);
 	}
 
-	return new BetterProcessorEditor(nullptr, 0, p, nullptr);
+	return new ProcessorEditor(nullptr, 0, p, nullptr);
 	
 }
 
@@ -510,14 +510,14 @@ String BackendProcessorEditor::createStringFromPath(const Array<int> &path)
 
 	String p;
 
-	BetterProcessorEditor *pe = container->getRootEditor();
+	ProcessorEditor *pe = container->getRootEditor();
 
 	for(int i = 0; i < path.size(); i++)
 	{
 
 		p << pe->getProcessor()->getId() << " :: ";
 
-		pe = dynamic_cast<BetterProcessorEditor*>(pe->getPanel()->getChildEditor(path[i]));
+		pe = dynamic_cast<ProcessorEditor*>(pe->getPanel()->getChildEditor(path[i]));
 	}
 
 	p << pe->getProcessor()->getId();
@@ -901,7 +901,7 @@ void BackendProcessorEditor::showModulatorTreePopup()
 
 void BackendProcessorEditor::showProcessorPopup(Processor *p, Processor *parent)
 {
-	popupEditor = new BetterProcessorEditor(nullptr, 1, p, nullptr);
+	popupEditor = new ProcessorEditor(nullptr, 1, p, nullptr);
 
 	String pathString;
 

@@ -102,7 +102,7 @@ ValueTree GainMatcherVoiceStartModulator::exportAsValueTree() const
 	return v;
 }
 
-ProcessorEditorBody *GainMatcherVoiceStartModulator::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *GainMatcherVoiceStartModulator::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 
@@ -194,7 +194,7 @@ ValueTree GainMatcherTimeVariantModulator::exportAsValueTree() const
 	return v;
 }
 
-ProcessorEditorBody *GainMatcherTimeVariantModulator::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *GainMatcherTimeVariantModulator::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

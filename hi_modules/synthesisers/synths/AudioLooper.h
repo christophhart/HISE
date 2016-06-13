@@ -106,7 +106,7 @@ public:
 
 	
 
-	ProcessorEditorBody* createEditor(BetterProcessorEditor *parentEditor) override;
+	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;
 	void setSyncMode(int newSyncMode);
 
 private:

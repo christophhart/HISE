@@ -31,7 +31,7 @@
 */
 
 
-ProcessorEditorBody *PluginParameterModulator::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *PluginParameterModulator::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

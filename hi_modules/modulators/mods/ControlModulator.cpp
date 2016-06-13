@@ -92,7 +92,7 @@ ValueTree ControlModulator::exportAsValueTree() const
 	return v;
 }
 
-ProcessorEditorBody *ControlModulator::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *ControlModulator::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

@@ -328,7 +328,7 @@ void AudioDisplayComponent::SampleArea::mouseUp(const MouseEvent &e)
 
 void AudioDisplayComponent::SampleArea::mouseDown(const MouseEvent &e)
 {
-    BetterProcessorEditor *editor = findParentComponentOfClass<BetterProcessorEditor>();
+    ProcessorEditor *editor = findParentComponentOfClass<ProcessorEditor>();
     
     if(editor != nullptr)
     {
@@ -540,7 +540,7 @@ void AudioSampleBufferComponent::mouseDown(const MouseEvent &e)
 {
 	if (e.mods.isRightButtonDown())
 	{
-        BetterProcessorEditor *editor = findParentComponentOfClass<BetterProcessorEditor>();
+        ProcessorEditor *editor = findParentComponentOfClass<ProcessorEditor>();
         
         if(editor != nullptr)
         {
@@ -553,7 +553,7 @@ void AudioSampleBufferComponent::mouseDown(const MouseEvent &e)
 
 		File searchDirectory;
 
-		if (BetterProcessorEditor *editor = findParentComponentOfClass<BetterProcessorEditor>())
+		if (ProcessorEditor *editor = findParentComponentOfClass<ProcessorEditor>())
 		{
 			searchDirectory = GET_PROJECT_HANDLER(editor->getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles);
 		}

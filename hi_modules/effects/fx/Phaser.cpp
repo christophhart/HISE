@@ -135,7 +135,7 @@ void PhaseFX::applyEffect(AudioSampleBuffer &buffer, int startSample, int numSam
 	}
 }
 
-ProcessorEditorBody *PhaseFX::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *PhaseFX::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
     

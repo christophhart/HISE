@@ -95,7 +95,7 @@ void CurveEq::setInternalAttribute(int index, float newValue)
 	}
 }
 
-ProcessorEditorBody *CurveEq::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *CurveEq::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

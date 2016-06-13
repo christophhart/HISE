@@ -74,7 +74,7 @@ pitchModulationActive(false)
 	disableChain(EffectChain, false);
 }
 
-ProcessorEditorBody *ModulatorSynth::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *ModulatorSynth::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

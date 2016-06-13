@@ -27,7 +27,7 @@
 //[/MiscUserDefs]
 
 //==============================================================================
-VelocityEditorBody::VelocityEditorBody (BetterProcessorEditor *p)
+VelocityEditorBody::VelocityEditorBody (ProcessorEditor *p)
     : ProcessorEditorBody(p)
 {
     //[Constructor_pre] You can add your own custom stuff here..
@@ -176,7 +176,7 @@ void VelocityEditorBody::buttonClicked (Button* buttonThatWasClicked)
 BEGIN_JUCER_METADATA
 
 <JUCER_COMPONENT documentType="Component" className="VelocityEditorBody" componentName=""
-                 parentClasses="public ProcessorEditorBody" constructorParams="BetterProcessorEditor *p"
+                 parentClasses="public ProcessorEditorBody" constructorParams="ProcessorEditor *p"
                  variableInitialisers="ProcessorEditorBody(p)" snapPixels="8"
                  snapActive="1" snapShown="0" overlayOpacity="0.330" fixedSize="1"
                  initialWidth="800" initialHeight="190">

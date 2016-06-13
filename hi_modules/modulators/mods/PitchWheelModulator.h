@@ -88,7 +88,7 @@ public:
 	
 
 	/** Returns a new editor */
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	virtual Processor *getChildProcessor(int /*processorIndex*/) override final {return nullptr;};
 

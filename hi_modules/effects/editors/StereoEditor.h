@@ -40,7 +40,7 @@ class StereoEditor  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    StereoEditor (BetterProcessorEditor *p);
+    StereoEditor (ProcessorEditor *p);
     ~StereoEditor();
 
     //==============================================================================

@@ -63,7 +63,7 @@ public:
         }
 	};
 
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	/// sets the constant value. The only valid parameter_index is Intensity
 	void setInternalAttribute(int index, float value) override

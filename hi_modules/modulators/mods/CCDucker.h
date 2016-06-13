@@ -58,7 +58,7 @@ public:
 	ValueTree exportAsValueTree() const override;;
 
 	/** Returns a new ControlEditor */
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	virtual Processor *getChildProcessor(int /*processorIndex*/) override final { return nullptr; };
 	virtual const Processor *getChildProcessor(int /*processorIndex*/) const override final { return nullptr; };

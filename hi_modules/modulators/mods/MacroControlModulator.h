@@ -73,7 +73,7 @@ public:
 #endif
 
 	/** Returns a new ControlEditor */
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	virtual Processor *getChildProcessor(int /*processorIndex*/) override final {return nullptr;};
 

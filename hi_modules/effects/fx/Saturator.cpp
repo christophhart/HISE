@@ -141,7 +141,7 @@ ValueTree SaturatorEffect::exportAsValueTree() const
 	return v;
 }
 
-ProcessorEditorBody * SaturatorEffect::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody * SaturatorEffect::createEditor(ProcessorEditor *parentEditor)
 {
 
 #if USE_BACKEND

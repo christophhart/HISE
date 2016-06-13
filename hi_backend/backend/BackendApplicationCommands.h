@@ -247,7 +247,7 @@ private:
 		static void showAboutPage(BackendProcessorEditor * bpe);
         static void checkVersion(BackendProcessorEditor *bpe);
 		static void setColumns(BackendProcessorEditor * bpe, BackendCommandTarget* target, ColumnMode columns);
-		static void showProcessorInPopup(BackendProcessorEditor * bpe, BetterProcessorEditor* editor);
+		static void showProcessorInPopup(BackendProcessorEditor * bpe, ProcessorEditor* editor);
    		static void plotModulator(CopyPasteTarget *currentCopyPasteTarget);
 		static void resolveMissingSamples(BackendProcessorEditor *bpe);
 		static void deleteMissingSamples(BackendProcessorEditor *bpe);

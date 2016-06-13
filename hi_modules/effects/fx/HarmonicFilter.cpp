@@ -271,7 +271,7 @@ void HarmonicFilter::applyEffect(int voiceIndex, AudioSampleBuffer &b, int start
 	}
 }
 
-ProcessorEditorBody * HarmonicFilter::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody * HarmonicFilter::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 	return new HarmonicFilterEditor(parentEditor);
@@ -560,7 +560,7 @@ void HarmonicMonophonicFilter::applyEffect(AudioSampleBuffer &b, int startSample
 	}
 }
 
-ProcessorEditorBody * HarmonicMonophonicFilter::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody * HarmonicMonophonicFilter::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 	return new HarmonicFilterEditor(parentEditor);

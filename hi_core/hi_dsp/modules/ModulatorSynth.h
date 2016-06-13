@@ -218,7 +218,7 @@ public:
 		return lastStartedVoice;
 	}
 
-	virtual ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	virtual ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	/** Call this instead of Synthesiser::renderNextBlock to let the ModulatorChains to their work. 
 	*

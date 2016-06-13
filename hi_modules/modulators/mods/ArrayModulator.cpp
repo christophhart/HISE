@@ -30,7 +30,7 @@
 *   ===========================================================================
 */
 
-ProcessorEditorBody * ArrayModulator::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody * ArrayModulator::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 	return new ArrayModulatorEditor(parentEditor);

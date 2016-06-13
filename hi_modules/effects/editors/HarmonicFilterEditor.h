@@ -43,7 +43,7 @@ class HarmonicFilterEditor  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    HarmonicFilterEditor (BetterProcessorEditor *p);
+    HarmonicFilterEditor (ProcessorEditor *p);
     ~HarmonicFilterEditor();
 
     //==============================================================================

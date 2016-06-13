@@ -31,7 +31,7 @@
 */
 
 //==============================================================================
-ProcessorEditorChainBar::ProcessorEditorChainBar (BetterProcessorEditor *p): 
+ProcessorEditorChainBar::ProcessorEditorChainBar (ProcessorEditor *p): 
 	ProcessorEditorChildComponent(p),
 	insertPosition(-1),
 	itemDragging(false)
@@ -256,7 +256,7 @@ void ProcessorEditorChainBar::itemDropped(const SourceDetails &dragSourceDetails
 			{
 				int index = chainButtons.indexOf(dynamic_cast<TextButton*>(targetComponent)) - 1;
 
-				BetterProcessorEditor *editorToUse = getEditor()->getPanel()->getChildEditor(index);
+				ProcessorEditor *editorToUse = getEditor()->getPanel()->getChildEditor(index);
 
 				Processor *newProcessor = MainController::createProcessor(c->getFactoryType(), id, name);
 

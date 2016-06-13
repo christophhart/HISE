@@ -246,7 +246,7 @@ void TableEditor::mouseDown(const MouseEvent &e)
 {
 	if (!isEnabled()) return;
 
-    BetterProcessorEditor *editor = findParentComponentOfClass<BetterProcessorEditor>();
+    ProcessorEditor *editor = findParentComponentOfClass<ProcessorEditor>();
     
     if(editor != nullptr)
     {
@@ -401,7 +401,7 @@ TableEditor::DragPoint::~DragPoint()
 void TableEditor::DragPoint::paint (Graphics& g)
 {
     const float width = (float)getWidth() - 6.0f;
-    const float round = width * 0.2;
+    const float round = width * 0.2f;
     
 	if(isStartOrEnd())
 	{

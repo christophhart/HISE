@@ -45,7 +45,7 @@ class SineSynthBody  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    SineSynthBody (BetterProcessorEditor *p);
+    SineSynthBody (ProcessorEditor *p);
     ~SineSynthBody();
 
     //==============================================================================

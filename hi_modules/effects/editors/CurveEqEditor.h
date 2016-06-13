@@ -199,9 +199,9 @@ public:
 		return path;
 	}
 
-    void mouseDown(const MouseEvent &e) override
+    void mouseDown(const MouseEvent &) override
     {
-        BetterProcessorEditor *editor = findParentComponentOfClass<BetterProcessorEditor>();
+        ProcessorEditor *editor = findParentComponentOfClass<ProcessorEditor>();
         
         if(editor != nullptr)
         {
@@ -488,7 +488,7 @@ class CurveEqEditor  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    CurveEqEditor (BetterProcessorEditor *p);
+    CurveEqEditor (ProcessorEditor *p);
     ~CurveEqEditor();
 
     //==============================================================================

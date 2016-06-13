@@ -27,7 +27,7 @@
 //[/MiscUserDefs]
 
 //==============================================================================
-AudioFileEnvelopeEditor::AudioFileEnvelopeEditor (BetterProcessorEditor *p)
+AudioFileEnvelopeEditor::AudioFileEnvelopeEditor (ProcessorEditor *p)
     : ProcessorEditorBody(p)
 {
     //[Constructor_pre] You can add your own custom stuff here..
@@ -339,7 +339,7 @@ BEGIN_JUCER_METADATA
 
 <JUCER_COMPONENT documentType="Component" className="AudioFileEnvelopeEditor"
                  componentName="" parentClasses="public ProcessorEditorBody, public Timer, public AudioDisplayComponent::Listener"
-                 constructorParams="BetterProcessorEditor *p" variableInitialisers="ProcessorEditorBody(p)"
+                 constructorParams="ProcessorEditor *p" variableInitialisers="ProcessorEditorBody(p)"
                  snapPixels="8" snapActive="1" snapShown="1" overlayOpacity="0.330"
                  fixedSize="1" initialWidth="800" initialHeight="310">
   <BACKGROUND backgroundColour="ffffff">

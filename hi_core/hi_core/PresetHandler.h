@@ -426,7 +426,7 @@ public:
         
     }
 
-    static bool setChanged(Processor *p);
+    static void setChanged(Processor *p);
     
 	/** Checks if the. */
 	static String getProcessorNameFromClipboard(const FactoryType *t);

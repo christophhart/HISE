@@ -39,7 +39,7 @@ class TransposerEditor  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    TransposerEditor (BetterProcessorEditor *p);
+    TransposerEditor (ProcessorEditor *p);
     ~TransposerEditor();
 
     //==============================================================================

@@ -27,7 +27,7 @@
 //[/MiscUserDefs]
 
 //==============================================================================
-RouteFXEditor::RouteFXEditor (BetterProcessorEditor *p)
+RouteFXEditor::RouteFXEditor (ProcessorEditor *p)
     : ProcessorEditorBody(p)
 {
     //[Constructor_pre] You can add your own custom stuff here..
@@ -111,7 +111,7 @@ void RouteFXEditor::resized()
 BEGIN_JUCER_METADATA
 
 <JUCER_COMPONENT documentType="Component" className="RouteFXEditor" componentName=""
-                 parentClasses="public ProcessorEditorBody" constructorParams="BetterProcessorEditor *p"
+                 parentClasses="public ProcessorEditorBody" constructorParams="ProcessorEditor *p"
                  variableInitialisers="ProcessorEditorBody(p)&#10;" snapPixels="8"
                  snapActive="1" snapShown="1" overlayOpacity="0.330" fixedSize="1"
                  initialWidth="800" initialHeight="180">

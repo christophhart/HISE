@@ -168,7 +168,7 @@ public:
             
             if(scale != 1.0)
             {
-                croppedImage = croppedImage.rescaled(croppedImage.getWidth() / scale, croppedImage.getHeight() / scale);
+                croppedImage = croppedImage.rescaled((int)((double)croppedImage.getWidth() / scale), (int)((double)croppedImage.getHeight() / scale));
             }
             
             g.drawImageAt(croppedImage, 0, 0);

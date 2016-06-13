@@ -38,7 +38,7 @@ class ArrayModulatorEditor  : public ProcessorEditorBody
 {
 public:
     //==============================================================================
-    ArrayModulatorEditor (BetterProcessorEditor *p);
+    ArrayModulatorEditor (ProcessorEditor *p);
     ~ArrayModulatorEditor();
 
     //==============================================================================

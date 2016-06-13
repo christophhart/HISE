@@ -39,7 +39,7 @@ class PhaserEditor  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    PhaserEditor (BetterProcessorEditor *p);
+    PhaserEditor (ProcessorEditor *p);
     ~PhaserEditor();
 
     //==============================================================================

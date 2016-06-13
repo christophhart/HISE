@@ -40,7 +40,7 @@ class ReverbEditor  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    ReverbEditor (BetterProcessorEditor *p);
+    ReverbEditor (ProcessorEditor *p);
     ~ReverbEditor();
 
     //==============================================================================

@@ -48,7 +48,7 @@ class ProcessorEditorHeader  : public ProcessorEditorChildComponent,
 public:
 
     //==============================================================================
-	ProcessorEditorHeader (BetterProcessorEditor *p);
+	ProcessorEditorHeader (ProcessorEditor *p);
     ~ProcessorEditorHeader();
 
     //==============================================================================

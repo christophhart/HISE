@@ -35,17 +35,24 @@
 
 #define SET_ATTRIBUTE_FROM_SLIDER(x) {getProcessor()->setAttribute(x, (float)sliderThatWasMoved->getValue(), dontSendNotification);}
 
+#if USE_BACKEND
+#define ADD_EDITOR_CREATOR(processorClassName, editorClassName) ProcessorEditorBody *processorClassName::createEditor(ProcessorEditor *parentEditor) { return new editorClassName(parentEditor); }
+#else
+#define ADD_EDITOR_CREATOR(processorClassName, editorClassName) ProcessorEditorBody *processorClassName::createEditor(ProcessorEditor *parentEditor) { ignoreUnused(parentEditor);jassertfalse;return nullptr; }
+#endif
+
+
 #define CONTAINER_WIDTH 900 - 32
 #define INTENDATION_WIDTH 10
 
 
 /** The container that holds all vertically stacked ProcessorEditors. */
-class BetterProcessorEditorContainer : public ComponentWithMidiKeyboardTraverser,
+class ProcessorEditorContainer : public ComponentWithMidiKeyboardTraverser,
 									   public SafeChangeBroadcaster
 {
 public:
 
-	BetterProcessorEditorContainer() {};
+	ProcessorEditorContainer() {};
 
 	/** Call this whenever you change the size of a child component */
 	void refreshSize(bool processorAmountChanged=false);
@@ -63,10 +70,10 @@ public:
 		return CONTAINER_WIDTH - (intentationLevel * INTENDATION_WIDTH*2);
 	};
 
-	BetterProcessorEditor *getRootEditor() { return rootProcessorEditor; };
+	ProcessorEditor *getRootEditor() { return rootProcessorEditor; };
 	void deleteProcessorEditor(const Processor * processorToBeRemoved);
 
-	BetterProcessorEditor *getFirstEditorOf(const Processor *p);
+	ProcessorEditor *getFirstEditorOf(const Processor *p);
 
 	void clearSoloProcessors()
 	{
@@ -75,19 +82,19 @@ public:
 
 private:
 
-	BetterProcessorEditor* searchInternal(BetterProcessorEditor *editorToSearch, const Processor *p);
+	ProcessorEditor* searchInternal(ProcessorEditor *editorToSearch, const Processor *p);
 
-	ScopedPointer<BetterProcessorEditor> rootProcessorEditor;
+	ScopedPointer<ProcessorEditor> rootProcessorEditor;
 
-	OwnedArray<BetterProcessorEditor> soloedProcessors;
+	OwnedArray<ProcessorEditor> soloedProcessors;
 };
 
-class BetterProcessorEditor;
+class ProcessorEditor;
 class ProcessorEditorHeader;
 class ProcessorEditorChainBar;
-class BetterProcessorEditorPanel;
+class ProcessorEditorPanel;
 
-class BetterProcessorEditor : public ComponentWithMidiKeyboardTraverser,
+class ProcessorEditor : public ComponentWithMidiKeyboardTraverser,
 							  public SafeChangeListener,
 							  public DragAndDropTarget,
 
@@ -95,9 +102,9 @@ class BetterProcessorEditor : public ComponentWithMidiKeyboardTraverser,
 {
 public:
 
-	BetterProcessorEditor(BetterProcessorEditorContainer *rootContainer, int intendationLevel, Processor *p, BetterProcessorEditor *parentEditor);
+	ProcessorEditor(ProcessorEditorContainer *rootContainer, int intendationLevel, Processor *p, ProcessorEditor *parentEditor);
 
-	virtual ~BetterProcessorEditor()
+	virtual ~ProcessorEditor()
 	{
 		// The Editor must be destroyed before the Processor!
 		jassert(processor != nullptr);
@@ -121,9 +128,9 @@ public:
 
 	void itemDropped(const SourceDetails &dragSourceDetails) override;;
 
-	BetterProcessorEditorPanel *getDragChainPanel();
+	ProcessorEditorPanel *getDragChainPanel();
 
-	BetterProcessorEditorContainer *getRootContainer()
+	ProcessorEditorContainer *getRootContainer()
 	{
 		return rootContainer.getComponent();
 	};
@@ -146,7 +153,7 @@ public:
 		}
 		else
 		{
-			setSize(BetterProcessorEditorContainer::getWidthForIntendationLevel(0), getActualHeight());
+			setSize(ProcessorEditorContainer::getWidthForIntendationLevel(0), getActualHeight());
 		}
 	}
 
@@ -165,7 +172,7 @@ public:
 	{
 		if (shouldBeResized())
 		{
-			setSize(BetterProcessorEditorContainer::getWidthForIntendationLevel(intendationLevel), getActualHeight());
+			setSize(ProcessorEditorContainer::getWidthForIntendationLevel(intendationLevel), getActualHeight());
 
 			getRootContainer()->refreshSize(false);
 
@@ -205,9 +212,9 @@ public:
 	ProcessorEditorBody *getBody() { return body; };
 	ProcessorEditorHeader *getHeader() { return header; };
 	ProcessorEditorChainBar *getChainBar() { return chainBar; };
-	BetterProcessorEditorPanel *getPanel() { return panel; };
-	const BetterProcessorEditor *getParentEditor() const { return parentEditor.getComponent(); };
-	BetterProcessorEditor *getParentEditor() { return parentEditor.getComponent(); };
+	ProcessorEditorPanel *getPanel() { return panel; };
+	const ProcessorEditor *getParentEditor() const { return parentEditor.getComponent(); };
+	ProcessorEditor *getParentEditor() { return parentEditor.getComponent(); };
 
 	bool isRootEditor() const 
 	{ 
@@ -232,11 +239,11 @@ private:
 	ScopedPointer<ProcessorEditorHeader> header;
 	ScopedPointer<ProcessorEditorChainBar> chainBar;
 	ScopedPointer<ProcessorEditorBody> body;
-	ScopedPointer<BetterProcessorEditorPanel> panel;
+	ScopedPointer<ProcessorEditorPanel> panel;
 
-	Component::SafePointer<BetterProcessorEditorContainer> rootContainer;
+	Component::SafePointer<ProcessorEditorContainer> rootContainer;
 
-	Component::SafePointer<BetterProcessorEditor> parentEditor;
+	Component::SafePointer<ProcessorEditor> parentEditor;
 
 	int intendationLevel;
 
@@ -257,7 +264,7 @@ class ProcessorEditorChildComponent: public ComponentWithMidiKeyboardTraverser
 public:
 
 	/** Creates a new child component. */
-	ProcessorEditorChildComponent(BetterProcessorEditor*editor);;
+	ProcessorEditorChildComponent(ProcessorEditor*editor);;
 
 	virtual ~ProcessorEditorChildComponent()
 	{
@@ -273,10 +280,10 @@ public:
 protected:
 
 	/** Returns a const pointer to the editor if the component is initialized. */
-	const BetterProcessorEditor *getEditor() const { return parentEditor.getComponent(); };
+	const ProcessorEditor *getEditor() const { return parentEditor.getComponent(); };
 
 	/** Returns a pointer to the editor. */
-	BetterProcessorEditor *getEditor() { return parentEditor.getComponent(); };
+	ProcessorEditor *getEditor() { return parentEditor.getComponent(); };
 
 	
 	
@@ -293,17 +300,17 @@ private:
 	friend class WeakReference<ProcessorEditorChildComponent>;
 	WeakReference<ProcessorEditorChildComponent>::Master masterReference;
 
-	Component::SafePointer<BetterProcessorEditor> parentEditor;
+	Component::SafePointer<ProcessorEditor> parentEditor;
 
 	WeakReference<Processor> processor;
 };
 
 
-class BetterProcessorEditorPanel : public ProcessorEditorChildComponent
+class ProcessorEditorPanel : public ProcessorEditorChildComponent
 {
 public:
 
-	BetterProcessorEditorPanel(BetterProcessorEditor *parent);
+	ProcessorEditorPanel(ProcessorEditor *parent);
 
 	void addProcessorEditor(Processor *p);
 
@@ -317,7 +324,7 @@ public:
 
 	int getHeightOfAllEditors() const;
 
-	BetterProcessorEditor *getChildEditor(int index)
+	ProcessorEditor *getChildEditor(int index)
 	{
 		return editors[index];
 	}
@@ -332,7 +339,7 @@ private:
 
 	
 	int currentPosition;
-	OwnedArray<BetterProcessorEditor> editors;
+	OwnedArray<ProcessorEditor> editors;
 };
 
 
@@ -346,7 +353,7 @@ class ProcessorEditorBody: public ProcessorEditorChildComponent
 {
 public:
 
-	ProcessorEditorBody(BetterProcessorEditor *parentEditor):
+	ProcessorEditorBody(ProcessorEditor *parentEditor):
 		ProcessorEditorChildComponent(parentEditor)
 	{};
 
@@ -364,7 +371,7 @@ public:
 	*/
 	void refreshBodySize()
 	{ 
-		BetterProcessorEditor *parentEditor = dynamic_cast<BetterProcessorEditor*>(getParentComponent());
+		ProcessorEditor *parentEditor = dynamic_cast<ProcessorEditor*>(getParentComponent());
 
 		if (parentEditor != nullptr)
 		{
@@ -385,7 +392,7 @@ class EmptyProcessorEditorBody: public ProcessorEditorBody
 {
 public:
 
-	EmptyProcessorEditorBody(BetterProcessorEditor *parent):
+	EmptyProcessorEditorBody(ProcessorEditor *parent):
 		ProcessorEditorBody(parent)
 	{}
 

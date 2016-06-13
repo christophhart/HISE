@@ -1,5 +1,5 @@
 
-ModulatorSynthChainBody::ModulatorSynthChainBody(BetterProcessorEditor *parentEditor) :
+ModulatorSynthChainBody::ModulatorSynthChainBody(ProcessorEditor *parentEditor) :
 ProcessorEditorBody(parentEditor),
 chain(dynamic_cast<ModulatorSynthChain*>(parentEditor->getProcessor()))
 {

@@ -40,7 +40,7 @@ class PitchWheelEditorBody  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    PitchWheelEditorBody (BetterProcessorEditor *p);
+    PitchWheelEditorBody (ProcessorEditor *p);
     ~PitchWheelEditorBody();
 
     //==============================================================================

@@ -144,7 +144,7 @@ public:
 
 	ValueTree exportAsValueTree() const override;
 
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	void setInternalAttribute(int parameterIndex, float newValue) override;;
 
@@ -171,7 +171,7 @@ public:
 
 	ValueTree exportAsValueTree() const override;;
 
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	void setInternalAttribute(int parameterIndex, float newValue) override;;
 
@@ -223,7 +223,7 @@ public:
 
 	ValueTree exportAsValueTree() const override;
 
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	void setInternalAttribute(int parameterIndex, float newValue) override;;
 

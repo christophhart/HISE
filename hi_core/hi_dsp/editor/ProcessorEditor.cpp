@@ -33,7 +33,7 @@
 
 // ====================================================================================================================== BETTER STUFF
 
-BetterProcessorEditor::BetterProcessorEditor(BetterProcessorEditorContainer *rootContainer_, int intendationLevel_, Processor *p, BetterProcessorEditor *parentEditor_):
+ProcessorEditor::ProcessorEditor(ProcessorEditorContainer *rootContainer_, int intendationLevel_, Processor *p, ProcessorEditor *parentEditor_):
 rootContainer(rootContainer_),
 intendationLevel(intendationLevel_),
 processor(p),
@@ -45,13 +45,13 @@ isPopupMode(false)
 	addAndMakeVisible(header = new ProcessorEditorHeader(this));
 	addAndMakeVisible(body = p->createEditor(this));
 	
-	addAndMakeVisible(panel = new BetterProcessorEditorPanel(this));
+	addAndMakeVisible(panel = new ProcessorEditorPanel(this));
 	addAndMakeVisible(chainBar = new ProcessorEditorChainBar(this));
 
     setOpaque(true);
 	
 
-	setSize(BetterProcessorEditorContainer::getWidthForIntendationLevel(intendationLevel), getActualHeight());
+	setSize(ProcessorEditorContainer::getWidthForIntendationLevel(intendationLevel), getActualHeight());
 
 	header->update();
 	body->updateGui();
@@ -59,7 +59,7 @@ isPopupMode(false)
 
 
 
-void BetterProcessorEditor::changeListenerCallback(SafeChangeBroadcaster *b)
+void ProcessorEditor::changeListenerCallback(SafeChangeBroadcaster *b)
 {
 	// the ChangeBroadcaster must be the connected Processor!
 
@@ -75,7 +75,7 @@ void BetterProcessorEditor::changeListenerCallback(SafeChangeBroadcaster *b)
 }
 
 
-bool BetterProcessorEditor::isInterestedInDragSource(const SourceDetails & dragSourceDetails)
+bool ProcessorEditor::isInterestedInDragSource(const SourceDetails & dragSourceDetails)
 {	
 #if USE_BACKEND
 
@@ -93,7 +93,7 @@ bool BetterProcessorEditor::isInterestedInDragSource(const SourceDetails & dragS
 #endif
 }
 
-void BetterProcessorEditor::itemDragEnter(const SourceDetails &dragSourceDetails)
+void ProcessorEditor::itemDragEnter(const SourceDetails &dragSourceDetails)
 {
 	
 
@@ -136,7 +136,7 @@ void BetterProcessorEditor::itemDragEnter(const SourceDetails &dragSourceDetails
 	}
 }
 
-void BetterProcessorEditor::itemDragExit(const SourceDetails &dragSourceDetails)
+void ProcessorEditor::itemDragExit(const SourceDetails &dragSourceDetails)
 {
 	ModuleBrowser::ModuleItem *dragSource = dynamic_cast<ModuleBrowser::ModuleItem*>(dragSourceDetails.sourceComponent.get());
 
@@ -149,11 +149,11 @@ void BetterProcessorEditor::itemDragExit(const SourceDetails &dragSourceDetails)
 	getDragChainPanel()->setInsertPosition(-1);
 }
 
-void BetterProcessorEditor::itemDropped(const SourceDetails &dragSourceDetails)
+void ProcessorEditor::itemDropped(const SourceDetails &dragSourceDetails)
 {
 	Chain *chain = getProcessorAsChain();
 
-	BetterProcessorEditor *editorToUse = this;
+	ProcessorEditor *editorToUse = this;
 
 	if (chain == nullptr)
 	{
@@ -216,13 +216,13 @@ void BetterProcessorEditor::itemDropped(const SourceDetails &dragSourceDetails)
 	
 }
 
-BetterProcessorEditorPanel * BetterProcessorEditor::getDragChainPanel()
+ProcessorEditorPanel * ProcessorEditor::getDragChainPanel()
 {
 	if (getProcessorAsChain() != nullptr) return panel;
 	else return getParentEditor()->getPanel();
 }
 
-int BetterProcessorEditor::getActualHeight() const
+int ProcessorEditor::getActualHeight() const
 {
 
 	if (getParentEditor() != nullptr && getProcessor()->getEditorState(Processor::Folded))
@@ -254,7 +254,7 @@ int BetterProcessorEditor::getActualHeight() const
 	}
 }
 
-void BetterProcessorEditor::resized()
+void ProcessorEditor::resized()
 {
 	header->setBounds(0, 0, getWidth(), header->getHeight());
 	chainBar->setBounds(0, header->getBottom() + 6, getWidth(), chainBar->getActualHeight());
@@ -281,11 +281,11 @@ void BetterProcessorEditor::resized()
 
 
 
-void BetterProcessorEditor::copyAction()
+void ProcessorEditor::copyAction()
 {
 	PresetHandler::copyProcessorToClipboard(getProcessor());
 }
-void BetterProcessorEditor::pasteAction()
+void ProcessorEditor::pasteAction()
 {
 	if (getProcessorAsChain() != nullptr)
 	{
@@ -313,7 +313,7 @@ void BetterProcessorEditor::pasteAction()
 }
 
 
-void BetterProcessorEditor::paint(Graphics &g)
+void ProcessorEditor::paint(Graphics &g)
 {
 	const float yOffset = (float)header->getBottom();
 
@@ -356,20 +356,20 @@ void BetterProcessorEditor::paint(Graphics &g)
 }
 
 
-const Chain * BetterProcessorEditor::getProcessorAsChain() const { return dynamic_cast<const Chain*>(getProcessor()); }
-Chain * BetterProcessorEditor::getProcessorAsChain() { return dynamic_cast<Chain*>(getProcessor()); }
+const Chain * ProcessorEditor::getProcessorAsChain() const { return dynamic_cast<const Chain*>(getProcessor()); }
+Chain * ProcessorEditor::getProcessorAsChain() { return dynamic_cast<Chain*>(getProcessor()); }
 
-void BetterProcessorEditor::setFolded(bool shouldBeFolded, bool notifyEditor)
+void ProcessorEditor::setFolded(bool shouldBeFolded, bool notifyEditor)
 {
 	getProcessor()->setEditorState(Processor::Folded, shouldBeFolded, notifyEditor ? sendNotification : dontSendNotification);
 }
 
-void BetterProcessorEditor::childEditorAmountChanged() const
+void ProcessorEditor::childEditorAmountChanged() const
 {
 	panel->updateChildEditorList();
 }
 
-void BetterProcessorEditorContainer::refreshSize(bool )
+void ProcessorEditorContainer::refreshSize(bool )
 {
 	int y = 0;
 
@@ -388,7 +388,7 @@ void BetterProcessorEditorContainer::refreshSize(bool )
 	
 }
 
-void BetterProcessorEditorContainer::resized()
+void ProcessorEditorContainer::resized()
 {
 	int y = 0;
 
@@ -412,15 +412,15 @@ void BetterProcessorEditorContainer::resized()
 }
 
 
-void BetterProcessorEditorContainer::setRootProcessorEditor(Processor *p)
+void ProcessorEditorContainer::setRootProcessorEditor(Processor *p)
 {
-	addAndMakeVisible(rootProcessorEditor = new BetterProcessorEditor(this, 0, p, nullptr));
+	addAndMakeVisible(rootProcessorEditor = new ProcessorEditor(this, 0, p, nullptr));
 	refreshSize(false);
 }
 
-void BetterProcessorEditorContainer::addSoloProcessor(Processor *p)
+void ProcessorEditorContainer::addSoloProcessor(Processor *p)
 {
-	BetterProcessorEditor *soloEditor = new BetterProcessorEditor(this, 0, p, nullptr);
+	ProcessorEditor *soloEditor = new ProcessorEditor(this, 0, p, nullptr);
 
 	addAndMakeVisible(soloEditor);
 
@@ -429,7 +429,7 @@ void BetterProcessorEditorContainer::addSoloProcessor(Processor *p)
 	refreshSize(false);
 }
 
-void BetterProcessorEditorContainer::removeSoloProcessor(Processor *p, bool removeAllChildProcessors/*=false*/)
+void ProcessorEditorContainer::removeSoloProcessor(Processor *p, bool removeAllChildProcessors/*=false*/)
 {
 	for (int i = 0; i < soloedProcessors.size(); i++)
 	{
@@ -456,12 +456,12 @@ void BetterProcessorEditorContainer::removeSoloProcessor(Processor *p, bool remo
 
 
 
-BetterProcessorEditor * BetterProcessorEditorContainer::getFirstEditorOf(const Processor *p)
+ProcessorEditor * ProcessorEditorContainer::getFirstEditorOf(const Processor *p)
 {
 	return searchInternal(getRootEditor(), p);
 }
 
-BetterProcessorEditor* BetterProcessorEditorContainer::searchInternal(BetterProcessorEditor *editorToSearch, const Processor *p)
+ProcessorEditor* ProcessorEditorContainer::searchInternal(ProcessorEditor *editorToSearch, const Processor *p)
 {
 	if (editorToSearch->getProcessor() == p)
 	{
@@ -469,7 +469,7 @@ BetterProcessorEditor* BetterProcessorEditorContainer::searchInternal(BetterProc
 	}
 	for (int i = 0; i < editorToSearch->getPanel()->getNumChildEditors(); i++)
 	{
-		BetterProcessorEditor * editor = searchInternal(editorToSearch->getPanel()->getChildEditor(i), p);
+		ProcessorEditor * editor = searchInternal(editorToSearch->getPanel()->getChildEditor(i), p);
 
 		if (editor != nullptr) return editor;
 	}
@@ -479,16 +479,16 @@ BetterProcessorEditor* BetterProcessorEditorContainer::searchInternal(BetterProc
 
 // ===================================================================================================== PANEL
 
-BetterProcessorEditorPanel::BetterProcessorEditorPanel(BetterProcessorEditor *parent) :
+ProcessorEditorPanel::ProcessorEditorPanel(ProcessorEditor *parent) :
 ProcessorEditorChildComponent(parent),
 currentPosition(-1)
 {
 	updateChildEditorList();
 }
 
-void BetterProcessorEditorPanel::addProcessorEditor(Processor *p)
+void ProcessorEditorPanel::addProcessorEditor(Processor *p)
 {
-	BetterProcessorEditor *editor = new BetterProcessorEditor(getEditor()->getRootContainer(), getEditor()->getIndentationLevel() + 1, p, getEditor());
+	ProcessorEditor *editor = new ProcessorEditor(getEditor()->getRootContainer(), getEditor()->getIndentationLevel() + 1, p, getEditor());
 	editors.add(editor);
 
 	refreshSize();
@@ -496,7 +496,7 @@ void BetterProcessorEditorPanel::addProcessorEditor(Processor *p)
 	
 }
 
-void BetterProcessorEditorPanel::removeProcessorEditor(Processor *p)
+void ProcessorEditorPanel::removeProcessorEditor(Processor *p)
 {
 	if (getEditor()->getRootContainer() != nullptr)
 	{
@@ -526,7 +526,7 @@ void BetterProcessorEditorPanel::removeProcessorEditor(Processor *p)
 
 }
 
-int BetterProcessorEditorPanel::getHeightOfAllEditors() const
+int ProcessorEditorPanel::getHeightOfAllEditors() const
 {
 	int y = 0;
 
@@ -547,7 +547,7 @@ int BetterProcessorEditorPanel::getHeightOfAllEditors() const
 	return y;
 }
 
-void BetterProcessorEditorPanel::refreshChildProcessorVisibility()
+void ProcessorEditorPanel::refreshChildProcessorVisibility()
 {
 	Processor *p = getEditor()->getProcessor();
 
@@ -561,14 +561,14 @@ void BetterProcessorEditorPanel::refreshChildProcessorVisibility()
 	}
 }
 
-void BetterProcessorEditorPanel::setInsertPosition(int position)
+void ProcessorEditorPanel::setInsertPosition(int position)
 {
 	currentPosition = position;
 	
 	repaint();
 }
 
-void BetterProcessorEditorPanel::updateChildEditorList()
+void ProcessorEditorPanel::updateChildEditorList()
 {
 	if (editors.size() == getProcessor()->getNumChildProcessors())
 	{
@@ -582,7 +582,7 @@ void BetterProcessorEditorPanel::updateChildEditorList()
 	{
 		if (i >= editors.size())
 		{
-			BetterProcessorEditor *editor = new BetterProcessorEditor(getEditor()->getRootContainer(), getEditor()->getIndentationLevel() + 1, getProcessor()->getChildProcessor(i), getEditor());
+			ProcessorEditor *editor = new ProcessorEditor(getEditor()->getRootContainer(), getEditor()->getIndentationLevel() + 1, getProcessor()->getChildProcessor(i), getEditor());
 
 			addAndMakeVisible(editor);
 
@@ -602,18 +602,18 @@ void BetterProcessorEditorPanel::updateChildEditorList()
 	}
 }
 
-void BetterProcessorEditorPanel::refreshSize()
+void ProcessorEditorPanel::refreshSize()
 {
 	refreshChildProcessorVisibility();
 
-	setSize(BetterProcessorEditorContainer::getWidthForIntendationLevel(getEditor()->getIndentationLevel()),
+	setSize(ProcessorEditorContainer::getWidthForIntendationLevel(getEditor()->getIndentationLevel()),
 		getHeightOfAllEditors());
 
 	getEditor()->sendResizedMessage();
 }
 
 
-void BetterProcessorEditorPanel::resized()
+void ProcessorEditorPanel::resized()
 {
 	if (getHeightOfAllEditors() == 0) return;
 
@@ -623,7 +623,7 @@ void BetterProcessorEditorPanel::resized()
 	{
 		if (!editors[i]->getProcessor()->getEditorState(Processor::EditorState::Visible)) continue;
 
-		editors[i]->setBounds(0, y, BetterProcessorEditorContainer::getWidthForIntendationLevel(editors[i]->getIndentationLevel()) - 4, editors[i]->getActualHeight());
+		editors[i]->setBounds(0, y, ProcessorEditorContainer::getWidthForIntendationLevel(editors[i]->getIndentationLevel()) - 4, editors[i]->getActualHeight());
 
 #if HISE_IOS
 		y += editors[i]->getActualHeight() + 10;
@@ -634,7 +634,7 @@ void BetterProcessorEditorPanel::resized()
 
 }
 
-void BetterProcessorEditorPanel::paintOverChildren(Graphics& g)
+void ProcessorEditorPanel::paintOverChildren(Graphics& g)
 {
 	if (currentPosition != -1)
 	{
@@ -657,7 +657,7 @@ void BetterProcessorEditorPanel::paintOverChildren(Graphics& g)
 	}
 }
 
-ProcessorEditorChildComponent::ProcessorEditorChildComponent(BetterProcessorEditor*editor) :
+ProcessorEditorChildComponent::ProcessorEditorChildComponent(ProcessorEditor*editor) :
 parentEditor(editor),
 processor(editor->getProcessor())
 {

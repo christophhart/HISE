@@ -41,7 +41,7 @@ class GainCollectorEditor  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    GainCollectorEditor (BetterProcessorEditor *pe);
+    GainCollectorEditor (ProcessorEditor *pe);
     ~GainCollectorEditor();
 
     //==============================================================================

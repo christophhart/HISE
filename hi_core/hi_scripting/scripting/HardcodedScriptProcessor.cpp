@@ -52,7 +52,7 @@ HardcodedScriptProcessor::HardcodedScriptProcessor(MainController *mc, const Str
 
 };
 
-ProcessorEditorBody *HardcodedScriptProcessor::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *HardcodedScriptProcessor::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

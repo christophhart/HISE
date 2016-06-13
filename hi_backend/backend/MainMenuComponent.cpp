@@ -78,6 +78,8 @@ MainMenuItem * MainMenuItem::getItemUnderMouse(const MouseEvent &event)
 
 		return dynamic_cast<MainMenuItem*>(upComponent);
 	}
+
+	return nullptr;
 }
 
 void MainMenuItem::mouseDrag(const MouseEvent& event)
@@ -90,7 +92,7 @@ void MainMenuItem::mouseDrag(const MouseEvent& event)
 	}
 }
 
-void MainMenuItem::mouseDown(const MouseEvent& event)
+void MainMenuItem::mouseDown(const MouseEvent& )
 {
 	if (commandId == 0) return;
 	on = true;

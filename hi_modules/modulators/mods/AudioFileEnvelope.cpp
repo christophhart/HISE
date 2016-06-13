@@ -169,21 +169,7 @@ const Processor * AudioFileEnvelope::getChildProcessor(int i) const
 	}
 }
 
-ProcessorEditorBody *AudioFileEnvelope::createEditor(BetterProcessorEditor *parentEditor)
-{
-#if USE_BACKEND
-
-	return new AudioFileEnvelopeEditor(parentEditor);
-
-#else
-
-	ignoreUnused(parentEditor);
-	jassertfalse;
-
-	return nullptr;
-
-#endif
-};
+ADD_EDITOR_CREATOR(AudioFileEnvelope, AudioFileEnvelopeEditor)
 
 
 void AudioFileEnvelope::rangeUpdated()

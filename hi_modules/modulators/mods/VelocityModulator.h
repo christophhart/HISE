@@ -113,7 +113,7 @@ public:
 		}
 	}
 	
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 
 	float calculateVoiceStartValue(const MidiMessage &m) override

@@ -39,7 +39,7 @@ class ChorusEditor  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    ChorusEditor (BetterProcessorEditor *p);
+    ChorusEditor (ProcessorEditor *p);
     ~ChorusEditor();
 
     //==============================================================================

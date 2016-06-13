@@ -39,7 +39,7 @@ class CCDuckerEditor  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    CCDuckerEditor (BetterProcessorEditor *p);
+    CCDuckerEditor (ProcessorEditor *p);
     ~CCDuckerEditor();
 
     //==============================================================================

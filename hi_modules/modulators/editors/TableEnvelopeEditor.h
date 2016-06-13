@@ -100,7 +100,7 @@ class TableEnvelopeEditorBody  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    TableEnvelopeEditorBody (BetterProcessorEditor *p);
+    TableEnvelopeEditorBody (ProcessorEditor *p);
     ~TableEnvelopeEditorBody();
 
     //==============================================================================

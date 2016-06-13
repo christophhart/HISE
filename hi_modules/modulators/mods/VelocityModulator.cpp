@@ -30,7 +30,7 @@
 *   ===========================================================================
 */
 
-ProcessorEditorBody *VelocityModulator::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *VelocityModulator::createEditor(ProcessorEditor *parentEditor)
 {
 
 #if USE_BACKEND

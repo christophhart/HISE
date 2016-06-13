@@ -30,7 +30,7 @@
 *   ===========================================================================
 */
 
-ProcessorEditorBody *ModulatorSynthChain::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *ModulatorSynthChain::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 
@@ -238,7 +238,7 @@ void ModulatorSynthChain::restoreInterfaceValues(const ValueTree &v)
 	}
 }
 
-ProcessorEditorBody *ModulatorSynthGroup::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *ModulatorSynthGroup::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

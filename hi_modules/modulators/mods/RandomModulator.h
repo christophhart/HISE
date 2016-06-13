@@ -57,7 +57,7 @@ public:
 	void restoreFromValueTree(const ValueTree &v) override;;
 	ValueTree exportAsValueTree() const override;
 
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	void setInternalAttribute(int parameterIndex, float newValue) override;;
 	float getAttribute(int parameterIndex) const override;;

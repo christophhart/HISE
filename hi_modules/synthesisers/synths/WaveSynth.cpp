@@ -34,7 +34,7 @@ float WaveSynthVoice::sinTable[2048];
 
 Random WaveSynthVoice::noiseGenerator = Random();
 
-ProcessorEditorBody* WaveSynth::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody* WaveSynth::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

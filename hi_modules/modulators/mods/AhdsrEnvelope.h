@@ -112,7 +112,7 @@ public:
 	void handleMidiEvent(MidiMessage const &m);
 	
 
-	ProcessorEditorBody *createEditor(BetterProcessorEditor* parentEditor) override;
+	ProcessorEditorBody *createEditor(ProcessorEditor* parentEditor) override;
 
 	
 

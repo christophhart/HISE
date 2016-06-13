@@ -150,7 +150,7 @@ class KeyEditor  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    KeyEditor (BetterProcessorEditor *p);
+    KeyEditor (ProcessorEditor *p);
     ~KeyEditor();
 
     //==============================================================================

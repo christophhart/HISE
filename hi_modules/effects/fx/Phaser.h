@@ -81,7 +81,7 @@ public:
     
 	AudioSampleBuffer &getBufferForChain(int /*index*/) override { return phaseModulationBuffer; };
 
-    ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+    ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
     
 private:
     

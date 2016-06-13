@@ -42,7 +42,7 @@ class SimpleEnvelopeEditorBody  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    SimpleEnvelopeEditorBody (BetterProcessorEditor *p);
+    SimpleEnvelopeEditorBody (ProcessorEditor *p);
     ~SimpleEnvelopeEditorBody();
 
     //==============================================================================

@@ -38,7 +38,7 @@ class HardcodedScriptEditor: public ProcessorEditorBody
 {
 public:
 
-	HardcodedScriptEditor(BetterProcessorEditor *p):
+	HardcodedScriptEditor(ProcessorEditor *p):
 		ProcessorEditorBody(p)
 
 	{
@@ -77,7 +77,7 @@ class ScriptingEditor  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    ScriptingEditor (BetterProcessorEditor *p);
+    ScriptingEditor (ProcessorEditor *p);
     ~ScriptingEditor();
 
     //==============================================================================

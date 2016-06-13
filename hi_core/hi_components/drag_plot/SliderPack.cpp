@@ -286,7 +286,7 @@ void SliderPack::mouseDown(const MouseEvent &e)
 {
 	if (!isEnabled()) return;
 
-    BetterProcessorEditor *editor = findParentComponentOfClass<BetterProcessorEditor>();
+    ProcessorEditor *editor = findParentComponentOfClass<ProcessorEditor>();
     
     if(editor != nullptr)
     {

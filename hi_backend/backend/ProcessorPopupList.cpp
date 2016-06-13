@@ -118,6 +118,11 @@ void ProcessorPopupItem::mouseUp(const MouseEvent& event)
 	{
 		triggerMenuItem();
 	}
+
+#else
+
+	ignoreUnused(event);
+
 #endif
 }
 

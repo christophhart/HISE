@@ -38,7 +38,7 @@ class VelocityEditorBody  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    VelocityEditorBody (BetterProcessorEditor *p);
+    VelocityEditorBody (ProcessorEditor *p);
     ~VelocityEditorBody();
 
     //==============================================================================

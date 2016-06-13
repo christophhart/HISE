@@ -132,7 +132,7 @@ public:
 	void handleMidiEvent(MidiMessage const &m);
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	float calcCoefficient(float time) const { return 1.0f / ((time / 1000.0f) * (float)this->getSampleRate()); };
 	

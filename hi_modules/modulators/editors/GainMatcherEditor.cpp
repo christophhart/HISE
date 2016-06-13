@@ -27,7 +27,7 @@
 //[/MiscUserDefs]
 
 //==============================================================================
-GainMatcherEditor::GainMatcherEditor (BetterProcessorEditor *pe)
+GainMatcherEditor::GainMatcherEditor (ProcessorEditor *pe)
     : ProcessorEditorBody(pe)
 {
     //[Constructor_pre] You can add your own custom stuff here..
@@ -198,7 +198,7 @@ void GainMatcherEditor::setItemEntry()
 BEGIN_JUCER_METADATA
 
 <JUCER_COMPONENT documentType="Component" className="GainMatcherEditor" componentName=""
-                 parentClasses="public ProcessorEditorBody" constructorParams="BetterProcessorEditor *pe"
+                 parentClasses="public ProcessorEditorBody" constructorParams="ProcessorEditor *pe"
                  variableInitialisers="ProcessorEditorBody(pe)&#10;" snapPixels="8"
                  snapActive="1" snapShown="1" overlayOpacity="0.330" fixedSize="1"
                  initialWidth="900" initialHeight="200">

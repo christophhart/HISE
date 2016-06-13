@@ -414,6 +414,8 @@ public:
 
 	virtual void startMonophonicVoice(int noteNumber=-1)
 	{
+		ignoreUnused(noteNumber);
+
 		for(int i = 0; i < getNumInternalChains(); i++)
 		{
 			ModulatorChain *mc = dynamic_cast<ModulatorChain*>(getChildProcessor(i));

@@ -30,7 +30,7 @@
 *   ===========================================================================
 */
 
-ProcessorEditorBody *StereoEffect::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *StereoEffect::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

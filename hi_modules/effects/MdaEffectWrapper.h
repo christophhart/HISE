@@ -272,7 +272,7 @@ public:
 
 	MdaLimiterEffect(MainController *mc, const String &id);
 
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 };
 
 
@@ -330,7 +330,7 @@ public:
 		else					     return effect->getParameter(parameterIndex);
 	};
 
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	virtual void applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples) override
 	{

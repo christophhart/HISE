@@ -43,7 +43,7 @@ class FilterEditor  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    FilterEditor (BetterProcessorEditor *p);
+    FilterEditor (ProcessorEditor *p);
     ~FilterEditor();
 
     //==============================================================================

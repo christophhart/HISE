@@ -53,7 +53,7 @@ PitchwheelModulator::~PitchwheelModulator()
 {
 };
 
-ProcessorEditorBody *PitchwheelModulator::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *PitchwheelModulator::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

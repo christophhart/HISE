@@ -160,7 +160,7 @@ public:
 
 	}
 
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 

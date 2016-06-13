@@ -171,7 +171,7 @@ public:
 
 	int getNumChildProcessors() const override { return numInternalChains; };
 
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	AudioSampleBuffer &getBufferForChain(int /*index*/) override
 	{

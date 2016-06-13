@@ -614,41 +614,18 @@ public:
 
 			if (thisAsComponent != nullptr)
 			{
-				Rectangle<float> bounds = Rectangle<float>(thisAsComponent->getLocalBounds().getX(),
-														   thisAsComponent->getLocalBounds().getY(),
-														   thisAsComponent->getLocalBounds().getWidth(),
-														   thisAsComponent->getLocalBounds().getHeight());
+				Rectangle<float> bounds = Rectangle<float>((float)thisAsComponent->getLocalBounds().getX(),
+														   (float)thisAsComponent->getLocalBounds().getY(),
+														   (float)thisAsComponent->getLocalBounds().getWidth(),
+														   (float)thisAsComponent->getLocalBounds().getHeight());
 
 
 
 				Colour outlineColour = Colour(0xffb9d2d6);
 				Colour transparentColour = outlineColour.withAlpha(0.0f);
 
-				const float gradientWidth = 4.0f;
-
+				
 				g.setColour(outlineColour);
-
-				/*
-				g.setGradientFill(ColourGradient(outlineColour, bounds.getX(), bounds.getY(),
-												 transparentColour, gradientWidth, bounds.getY(), false));
-
-				g.fillRect(bounds.getX(), bounds.getY(), gradientWidth, bounds.getHeight());
-
-				g.setGradientFill(ColourGradient(outlineColour, bounds.getX(), bounds.getY(),
-												 transparentColour, bounds.getX(), gradientWidth, false));
-
-				g.fillRect(bounds.getX(), bounds.getY(), bounds.getWidth(), gradientWidth);
-
-				g.setGradientFill(ColourGradient(outlineColour, bounds.getWidth(), bounds.getY(),
-					transparentColour, bounds.getWidth() - gradientWidth, bounds.getY(), false));
-
-				g.fillRect(bounds.getWidth() - gradientWidth, bounds.getY(), gradientWidth, bounds.getHeight());
-
-				g.setGradientFill(ColourGradient(outlineColour, bounds.getX(), bounds.getHeight(),
-					transparentColour, bounds.getX(), bounds.getHeight() - gradientWidth, false));
-
-				g.fillRect(bounds.getX(), bounds.getHeight() - gradientWidth, bounds.getWidth(), gradientWidth);
-				*/
 
 				g.drawRect(bounds, 2.0f);
 

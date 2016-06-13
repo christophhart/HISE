@@ -41,7 +41,7 @@ class MacroControlModulatorEditorBody  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    MacroControlModulatorEditorBody (BetterProcessorEditor *p);
+    MacroControlModulatorEditorBody (ProcessorEditor *p);
     ~MacroControlModulatorEditorBody();
 
     //==============================================================================

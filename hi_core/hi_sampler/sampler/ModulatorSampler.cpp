@@ -391,7 +391,7 @@ void ModulatorSampler::prepareToPlay(double sampleRate, int samplesPerBlock)
 	}
 }
 
-ProcessorEditorBody* ModulatorSampler::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody* ModulatorSampler::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

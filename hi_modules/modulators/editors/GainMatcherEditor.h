@@ -40,7 +40,7 @@ class GainMatcherEditor  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    GainMatcherEditor (BetterProcessorEditor *pe);
+    GainMatcherEditor (ProcessorEditor *pe);
     ~GainMatcherEditor();
 
     //==============================================================================

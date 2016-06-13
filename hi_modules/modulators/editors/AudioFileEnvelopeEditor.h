@@ -43,7 +43,7 @@ class AudioFileEnvelopeEditor  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    AudioFileEnvelopeEditor (BetterProcessorEditor *p);
+    AudioFileEnvelopeEditor (ProcessorEditor *p);
     ~AudioFileEnvelopeEditor();
 
     //==============================================================================

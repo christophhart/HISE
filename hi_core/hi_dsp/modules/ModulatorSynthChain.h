@@ -168,7 +168,7 @@ public:
 
 	
 
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor) override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor) override;
 
 	ChainHandler *getHandler() override { return &handler; };
 
@@ -495,7 +495,7 @@ public:
 		midiProcessorChain = nullptr;
 	};
 
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor) override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor) override;
 
 	ChainHandler *getHandler() override { return &handler; };
 

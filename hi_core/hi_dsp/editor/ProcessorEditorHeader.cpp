@@ -32,7 +32,7 @@
 
 #define IS(C) (ProcessorHelpers::is<C>(getProcessor()))
 
-ProcessorEditorHeader::ProcessorEditorHeader(BetterProcessorEditor *p) :
+ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 	ProcessorEditorChildComponent(p),
 	isSoloHeader(false)
 {
@@ -291,10 +291,10 @@ ProcessorEditorHeader::ProcessorEditorHeader(BetterProcessorEditor *p) :
 
 #if HISE_IOS
 
-	setSize(BetterProcessorEditorContainer::getWidthForIntendationLevel(getEditor()->getIndentationLevel()), 40);
+	setSize(ProcessorEditorContainer::getWidthForIntendationLevel(getEditor()->getIndentationLevel()), 40);
 
 #else
-    setSize(BetterProcessorEditorContainer::getWidthForIntendationLevel(getEditor()->getIndentationLevel()), 30);
+    setSize(ProcessorEditorContainer::getWidthForIntendationLevel(getEditor()->getIndentationLevel()), 30);
 #endif
 
 	update();
@@ -374,7 +374,7 @@ bool ProcessorEditorHeader::isHeaderOfEmptyChain() const
 //==============================================================================
 void ProcessorEditorHeader::paint (Graphics& g)
 {
-    BetterProcessorEditor *parentEditor = getEditor()->getParentEditor();
+    ProcessorEditor *parentEditor = getEditor()->getParentEditor();
     
     if(parentEditor != nullptr)
     {
@@ -415,7 +415,7 @@ void ProcessorEditorHeader::paint (Graphics& g)
 		false));
 	g.fillRect(0, 30, getWidth(), 30);
 
-	luf->drawBackground(g, (float)getWidth(), getHeight()+5, getProcessor()->getEditorState(Processor::Folded));	
+	luf->drawBackground(g, (float)getWidth(), (float)getHeight()+5.f, getProcessor()->getEditorState(Processor::Folded));	
 	if(isSoloHeader)
 	{
 		g.setColour(Colours::white.withAlpha(0.2f));
@@ -663,7 +663,7 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
 		getProcessor()->setBypassed(shouldBeBypassed);
 		bypassButton->setToggleState(!shouldBeBypassed, dontSendNotification);
 		
-		BetterProcessorEditorPanel *panel = getEditor()->getPanel();
+		ProcessorEditorPanel *panel = getEditor()->getPanel();
 
 		for(int i = 0; i < panel->getNumChildEditors(); i++)
 		{
@@ -1068,7 +1068,7 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 
 		else if (result == InsertBefore)
 		{
-			BetterProcessorEditor *parentEditor = getEditor()->getParentEditor();
+			ProcessorEditor *parentEditor = getEditor()->getParentEditor();
 
 			ProcessorEditorHeader *parentHeader = parentEditor->getHeader();
 

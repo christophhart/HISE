@@ -471,7 +471,7 @@ float CCEnvelope::calculateNewValue()
 
 }
 
-ProcessorEditorBody *CCEnvelope::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *CCEnvelope::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

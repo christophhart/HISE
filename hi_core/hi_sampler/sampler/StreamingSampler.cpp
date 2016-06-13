@@ -685,9 +685,7 @@ void StreamingSamplerSound::FileReader::readFromDisk(AudioSampleBuffer &buffer, 
 
 float StreamingSamplerSound::FileReader::calculatePeakValue()
 {
-
-
-	float l1, l2, r1, r2, unused;
+	float l1, l2, r1, r2;
 
 	openFileHandles();
 

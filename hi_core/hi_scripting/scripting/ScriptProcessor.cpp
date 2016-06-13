@@ -286,7 +286,7 @@ const ScriptProcessor::SnippetDocument * ScriptProcessor::getSnippet(int c) cons
 	}
 }
 
-ProcessorEditorBody *ScriptProcessor::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *ScriptProcessor::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

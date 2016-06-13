@@ -27,7 +27,7 @@
 //[/MiscUserDefs]
 
 //==============================================================================
-PhaserEditor::PhaserEditor (BetterProcessorEditor *p)
+PhaserEditor::PhaserEditor (ProcessorEditor *p)
     : ProcessorEditorBody(p)
 {
     //[Constructor_pre] You can add your own custom stuff here..
@@ -175,7 +175,7 @@ void PhaserEditor::sliderValueChanged (Slider* sliderThatWasMoved)
 BEGIN_JUCER_METADATA
 
 <JUCER_COMPONENT documentType="Component" className="PhaserEditor" componentName=""
-                 parentClasses="public Component" constructorParams="BetterProcessorEditor *p"
+                 parentClasses="public Component" constructorParams="ProcessorEditor *p"
                  variableInitialisers="ProcessorEditorBody(p)&#10;" snapPixels="8"
                  snapActive="1" snapShown="1" overlayOpacity="0.330" fixedSize="1"
                  initialWidth="900" initialHeight="80">

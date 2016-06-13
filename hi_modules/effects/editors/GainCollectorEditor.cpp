@@ -27,7 +27,7 @@
 //[/MiscUserDefs]
 
 //==============================================================================
-GainCollectorEditor::GainCollectorEditor (BetterProcessorEditor *pe)
+GainCollectorEditor::GainCollectorEditor (ProcessorEditor *pe)
     : ProcessorEditorBody(pe)
 {
     //[Constructor_pre] You can add your own custom stuff here..
@@ -206,7 +206,7 @@ void GainCollectorEditor::comboBoxChanged (ComboBox* comboBoxThatHasChanged)
 BEGIN_JUCER_METADATA
 
 <JUCER_COMPONENT documentType="Component" className="GainCollectorEditor" componentName=""
-                 parentClasses="public ProcessorEditorBody, public Timer" constructorParams="BetterProcessorEditor *pe"
+                 parentClasses="public ProcessorEditorBody, public Timer" constructorParams="ProcessorEditor *pe"
                  variableInitialisers="ProcessorEditorBody(pe)&#10;" snapPixels="8"
                  snapActive="1" snapShown="1" overlayOpacity="0.330" fixedSize="1"
                  initialWidth="900" initialHeight="150">

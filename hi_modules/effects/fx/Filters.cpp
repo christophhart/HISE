@@ -250,7 +250,7 @@ void MonoFilterEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, i
     processBlockPartial(buffer, startSample, numSamples);
 }
 
-ProcessorEditorBody *MonoFilterEffect::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *MonoFilterEffect::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 
@@ -367,7 +367,7 @@ void PolyFilterEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 	}
 }
 
-ProcessorEditorBody *PolyFilterEffect::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *PolyFilterEffect::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

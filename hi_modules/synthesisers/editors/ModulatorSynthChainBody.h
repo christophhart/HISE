@@ -17,7 +17,7 @@ class ModulatorSynthChainBody: public ProcessorEditorBody
 {
 public:
 
-	ModulatorSynthChainBody(BetterProcessorEditor *parentEditor);
+	ModulatorSynthChainBody(ProcessorEditor *parentEditor);
 
 	~ModulatorSynthChainBody()
 	{

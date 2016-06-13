@@ -1023,8 +1023,6 @@ public:
 		mode(m)
 	{
 		fillTypeNameList();
-
-		
 	};
 
 	void fillTypeNameList();

@@ -41,7 +41,7 @@ class ControlEditorBody  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    ControlEditorBody (BetterProcessorEditor *p);
+    ControlEditorBody (ProcessorEditor *p);
     ~ControlEditorBody();
 
     //==============================================================================

@@ -336,7 +336,7 @@ public:
 	const Processor *getChildProcessor(int processorIndex) const override { return processorIndex == FrequencyChain ? freqChain : gainChain; };
 	AudioSampleBuffer &getBufferForChain(int chainIndex) { return chainIndex == FrequencyChain ? freqBuffer : gainBuffer; };
 
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 	
 	static IIRCoefficients makeResoLowPass(double sampleRate, double cutoff, double q);;
 
@@ -428,7 +428,7 @@ public:
 	void startVoice(int voiceIndex, int noteNumber) override;
 	bool hasTail() const override { return true; };
 	
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	IIRCoefficients getCurrentCoefficients() const override {return voiceFilters[0]->getCurrentCoefficients();};
 

@@ -41,7 +41,7 @@ KeyModulator::KeyModulator(MainController *mc, const String &id, int numVoices, 
 	parameterNames.add("NumberMode");
 };
 
-ProcessorEditorBody *KeyModulator::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *KeyModulator::createEditor(ProcessorEditor *parentEditor)
 { 
 #if USE_BACKEND
 

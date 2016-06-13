@@ -27,7 +27,7 @@
 //[/MiscUserDefs]
 
 //==============================================================================
-TableEnvelopeEditorBody::TableEnvelopeEditorBody (BetterProcessorEditor *p)
+TableEnvelopeEditorBody::TableEnvelopeEditorBody (ProcessorEditor *p)
     : ProcessorEditorBody(p)
 {
     //[Constructor_pre] You can add your own custom stuff here..
@@ -176,7 +176,7 @@ BEGIN_JUCER_METADATA
 
 <JUCER_COMPONENT documentType="Component" className="TableEnvelopeEditorBody"
                  componentName="" parentClasses="public ProcessorEditorBody, public Timer"
-                 constructorParams="BetterProcessorEditor *p" variableInitialisers="ProcessorEditorBody(p)"
+                 constructorParams="ProcessorEditor *p" variableInitialisers="ProcessorEditorBody(p)"
                  snapPixels="8" snapActive="1" snapShown="1" overlayOpacity="0.330"
                  fixedSize="1" initialWidth="800" initialHeight="200">
   <BACKGROUND backgroundColour="291538">

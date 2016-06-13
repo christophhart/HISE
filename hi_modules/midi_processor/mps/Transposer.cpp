@@ -30,7 +30,7 @@
 *   ===========================================================================
 */
 
-ProcessorEditorBody *Transposer::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *Transposer::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

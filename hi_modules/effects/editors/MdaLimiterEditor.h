@@ -131,7 +131,7 @@ class MdaLimiterEditor  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    MdaLimiterEditor (BetterProcessorEditor *p);
+    MdaLimiterEditor (ProcessorEditor *p);
     ~MdaLimiterEditor();
 
     //==============================================================================

@@ -177,7 +177,7 @@ public:
 	
 	void mouseDown(const MouseEvent &m);
 
-    void labelTextChanged(Label *l) override
+    void labelTextChanged(Label *) override
     {
         owner->setChanged();
     }
@@ -206,13 +206,13 @@ public:
 	bool getIndexPath(Array<int> &path, Processor *p, const int searchIndex, int &counter);
 
 	/** returns the ProcessorEditor for the path. */
-	BetterProcessorEditor *getProcessorEditorFromPath(const Array<int> &path);
+	ProcessorEditor *getProcessorEditorFromPath(const Array<int> &path);
 
     void refreshInterfaceAfterPresetLoad();
     
 	String createStringFromPath(const Array<int> &path);
 
-	BetterProcessorEditorContainer *getRootContainer() { return container; };
+	ProcessorEditorContainer *getRootContainer() { return container; };
 
 	Component *getKeyboard() const override { return keyboard; }
 
@@ -317,7 +317,7 @@ private:
 
 	ScopedPointer<TooltipBar> tooltipBar;
 
-	ScopedPointer<BetterProcessorEditorContainer> container;
+	ScopedPointer<ProcessorEditorContainer> container;
 
 	ScopedPointer<MacroComponent> macroKnobs;
 
@@ -341,7 +341,7 @@ private:
 
     WeakReference<CopyPasteTarget> currentlySelectedCopyableObject;
     
-	ScopedPointer<BetterProcessorEditor> popupEditor;
+	ScopedPointer<ProcessorEditor> popupEditor;
 	ScopedPointer<StupidRectangle> stupidRectangle;
 	
 	ScopedPointer<AudioDeviceDialog> currentDialog;

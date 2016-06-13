@@ -185,7 +185,7 @@ public:
 
 	const Processor *getChildProcessor(int processorIndex) const override { return getHandler()->getProcessor(processorIndex); };
 
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	class EffectChainHandler: public ChainHandler
 	{

@@ -110,7 +110,7 @@ class WavetableBody  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    WavetableBody (BetterProcessorEditor *p);
+    WavetableBody (ProcessorEditor *p);
     ~WavetableBody();
 
     //==============================================================================

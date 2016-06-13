@@ -893,7 +893,7 @@ public:
 		}
 	};
 
-	ProcessorEditorBody* createEditor(BetterProcessorEditor *parentEditor) override;
+	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;
 
 private:
 

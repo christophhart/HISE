@@ -42,7 +42,7 @@ MdaLimiterEffect::MdaLimiterEffect(MainController *mc, const String &id):
 	parameterNames.add("Knee");
 };
 
-ProcessorEditorBody *MdaLimiterEffect::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *MdaLimiterEffect::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 
@@ -77,7 +77,7 @@ MdaDegradeEffect::MdaDegradeEffect(MainController *mc, const String &id):
 	effect = new mdaDegrade();
 };
 
-ProcessorEditorBody *MdaDegradeEffect::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *MdaDegradeEffect::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

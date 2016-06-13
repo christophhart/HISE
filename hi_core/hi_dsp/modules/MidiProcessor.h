@@ -143,7 +143,7 @@ public:
 	virtual int getNumChildProcessors() const override {return 0;};
 
 	/** If you want an editor that is more than the header, overwrite this method and return a subclass of ProcessorEditorBody. */
-	virtual ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor) override;
+	virtual ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor) override;
 
 	/** Overwrite this method. If you want to cancel the MidiMessage, you can call ignoreEvent() within this callback. */
 	virtual void processMidiMessage(MidiMessage &m) = 0;
@@ -270,7 +270,7 @@ public:
 
 	void setFactoryType(FactoryType *newFactoryType) override {midiProcessorFactory = newFactoryType;};
 
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	/** Sequentially processes all processors. */
 	void processMidiMessage(MidiMessage &m) override

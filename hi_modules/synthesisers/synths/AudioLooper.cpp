@@ -242,7 +242,7 @@ void AudioLooper::setInternalAttribute(int parameterIndex, float newValue)
 	}
 }
 
-ProcessorEditorBody* AudioLooper::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody* AudioLooper::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 	return new AudioLooperEditor(parentEditor);

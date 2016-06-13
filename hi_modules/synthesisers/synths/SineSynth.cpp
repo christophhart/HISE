@@ -30,7 +30,7 @@
 *   ===========================================================================
 */
 
-ProcessorEditorBody* SineSynth::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody* SineSynth::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

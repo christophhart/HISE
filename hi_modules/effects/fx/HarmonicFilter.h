@@ -120,7 +120,7 @@ public:
 	void applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples) override;
 
 	
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 	
 	SliderPackData *getSliderPackData(int i) override;
 	void setCrossfadeValue(double normalizedCrossfadeValue) override;
@@ -219,7 +219,7 @@ public:
 
 	void applyEffect(AudioSampleBuffer &b, int startSample, int numSamples) override;
 
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 	SliderPackData *getSliderPackData(int i);
 	void setCrossfadeValue(double normalizedCrossfadeValue);
 

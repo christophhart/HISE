@@ -184,7 +184,7 @@ public:
 	const Processor *getChildProcessor(int i) const override;;
 
 	/** Returns a new ControlEditor */
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	void tempoChanged(double /*newTempo*/) override { setSyncMode(syncMode); }
 
@@ -206,6 +206,11 @@ public:
 
 	/** Returns the modulated intensity value. */
 	virtual float getIntensity() const noexcept;;
+
+	static Processor *createProcessor(MainController *m, const String &id, Modulation::Mode mode)
+	{
+		return new AudioFileEnvelope(m, id, mode);
+	}
 
 private:
 

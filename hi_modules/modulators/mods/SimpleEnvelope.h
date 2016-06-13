@@ -107,7 +107,7 @@ public:
 	void calculateBlock(int startSample, int numSamples) override;
 	void handleMidiEvent(MidiMessage const &m);
 	
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
     /** The container for the envelope state. */
     struct SimpleEnvelopeState: public EnvelopeModulator::ModulatorState

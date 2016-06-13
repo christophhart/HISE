@@ -76,7 +76,7 @@ public:
 
 	int getNumChildProcessors() const override { return 0; };
 
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock)
 	{

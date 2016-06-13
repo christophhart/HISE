@@ -40,7 +40,7 @@ class SaturationEditor  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    SaturationEditor (BetterProcessorEditor *p);
+    SaturationEditor (ProcessorEditor *p);
     ~SaturationEditor();
 
     //==============================================================================

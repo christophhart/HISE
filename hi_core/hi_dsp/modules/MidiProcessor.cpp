@@ -67,7 +67,7 @@ void MidiProcessor::addMidiMessageToBuffer(MidiMessage &m)
 	}
 }
 
-ProcessorEditorBody *MidiProcessor::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *MidiProcessor::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 
@@ -82,7 +82,7 @@ ProcessorEditorBody *MidiProcessor::createEditor(BetterProcessorEditor *parentEd
 #endif
 };
 
-ProcessorEditorBody *MidiProcessorChain::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *MidiProcessorChain::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

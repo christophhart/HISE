@@ -73,7 +73,7 @@ public:
 	Processor *getChildProcessor(int /*processorIndex*/) override { return nullptr; };
 	const Processor *getChildProcessor(int /*processorIndex*/) const override { return nullptr; };
 
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	float getCurrentGain() const { return currentGain; }
 

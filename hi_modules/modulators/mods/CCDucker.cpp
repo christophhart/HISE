@@ -69,7 +69,7 @@ ValueTree CCDucker::exportAsValueTree() const
 	return v;
 }
 
-ProcessorEditorBody * CCDucker::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody * CCDucker::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 	return new CCDuckerEditor(parentEditor);

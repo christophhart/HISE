@@ -42,7 +42,7 @@ void PopupLabel::showPopup()
 
 void PopupLabel::mouseDown(const MouseEvent &)
 {
-    BetterProcessorEditor *editor = findParentComponentOfClass<BetterProcessorEditor>();
+    ProcessorEditor *editor = findParentComponentOfClass<ProcessorEditor>();
     
     if(editor != nullptr)
     {

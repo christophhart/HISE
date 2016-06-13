@@ -130,7 +130,7 @@ public:
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;;
 
-	ProcessorEditorBody* createEditor(BetterProcessorEditor *parentEditor) override;
+	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;
 
 	/** returns the ModulatorSamplerSound::Property for the given index. */
 	var getPropertyForSound(int soundIndex, ModulatorSamplerSound::Property p);

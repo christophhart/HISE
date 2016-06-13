@@ -263,7 +263,7 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 	}
 }
 
-ProcessorEditorBody *ConvolutionEffect::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *ConvolutionEffect::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

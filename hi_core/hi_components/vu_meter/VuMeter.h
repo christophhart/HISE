@@ -131,7 +131,7 @@ public:
 		type(Sine)
 	{};
 
-	void mouseDown(const MouseEvent &e)
+	void mouseDown(const MouseEvent &)
 	{
 		if (selector != nullptr)
 		{

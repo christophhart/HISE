@@ -78,7 +78,7 @@ public:
 
 	
 
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	/** Returns the handler that is used to add / delete Modulators in the chain. Use this if you want to change the modulator. */
 	ChainHandler *getHandler() override;

@@ -40,7 +40,7 @@ class MdaDegradeEditor  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    MdaDegradeEditor (BetterProcessorEditor *p);
+    MdaDegradeEditor (ProcessorEditor *p);
     ~MdaDegradeEditor();
 
     //==============================================================================

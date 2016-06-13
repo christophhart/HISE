@@ -30,7 +30,7 @@
 *   ===========================================================================
 */
 
-ProcessorEditorBody *SimpleReverbEffect::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *SimpleReverbEffect::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

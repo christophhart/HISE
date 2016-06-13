@@ -32,7 +32,7 @@
 
 #include "ClarinetData.cpp"
 
-ProcessorEditorBody* WavetableSynth::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody* WavetableSynth::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

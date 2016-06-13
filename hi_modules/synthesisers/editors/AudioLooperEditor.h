@@ -45,7 +45,7 @@ class AudioLooperEditor  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    AudioLooperEditor (BetterProcessorEditor *p);
+    AudioLooperEditor (ProcessorEditor *p);
     ~AudioLooperEditor();
 
     //==============================================================================

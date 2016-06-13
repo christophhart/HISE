@@ -40,7 +40,7 @@ class DelayEditor  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    DelayEditor (BetterProcessorEditor *p);
+    DelayEditor (ProcessorEditor *p);
     ~DelayEditor();
 
     //==============================================================================

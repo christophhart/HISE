@@ -108,7 +108,7 @@ public:
 	const float *getModulationValuesForModulator(Processor *p, int startIndex, int voiceIndex = 0);
 	float getConstantVoiceValue(Processor *p, int noteNumber);
 
-	ProcessorEditorBody* createEditor(BetterProcessorEditor *parentEditor) override;
+	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;
 
 	void changeListenerCallback(SafeChangeBroadcaster *) { refreshList(); }
 	void addChangeListenerToHandler(SafeChangeListener *listener);

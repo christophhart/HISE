@@ -27,7 +27,7 @@
 //[/MiscUserDefs]
 
 //==============================================================================
-MdaLimiterEditor::MdaLimiterEditor (BetterProcessorEditor *p)
+MdaLimiterEditor::MdaLimiterEditor (ProcessorEditor *p)
     : ProcessorEditorBody(p)
 {
     //[Constructor_pre] You can add your own custom stuff here..
@@ -245,7 +245,7 @@ void MdaLimiterEditor::buttonClicked (Button* buttonThatWasClicked)
 BEGIN_JUCER_METADATA
 
 <JUCER_COMPONENT documentType="Component" className="MdaLimiterEditor" componentName=""
-                 parentClasses="public ProcessorEditorBody, public Timer" constructorParams="BetterProcessorEditor *p"
+                 parentClasses="public ProcessorEditorBody, public Timer" constructorParams="ProcessorEditor *p"
                  variableInitialisers="ProcessorEditorBody(p)&#10;" snapPixels="8"
                  snapActive="1" snapShown="1" overlayOpacity="0.330" fixedSize="1"
                  initialWidth="900" initialHeight="210">

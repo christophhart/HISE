@@ -222,7 +222,7 @@ ValueTree GlobalVoiceStartModulator::exportAsValueTree() const
 	return v;
 }
 
-ProcessorEditorBody * GlobalVoiceStartModulator::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody * GlobalVoiceStartModulator::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 	return new GlobalModulatorEditor(parentEditor);
@@ -301,7 +301,7 @@ ValueTree GlobalTimeVariantModulator::exportAsValueTree() const
 	return v;
 }
 
-ProcessorEditorBody * GlobalTimeVariantModulator::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody * GlobalTimeVariantModulator::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 	return new GlobalModulatorEditor(parentEditor);
@@ -393,7 +393,7 @@ ValueTree GlobalEnvelopeModulator::exportAsValueTree() const
 	return v;
 }
 
-ProcessorEditorBody * GlobalEnvelopeModulator::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody * GlobalEnvelopeModulator::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 	return new GlobalModulatorEditor(parentEditor);

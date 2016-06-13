@@ -43,7 +43,7 @@ class ProcessorEditorChainBar  : public ProcessorEditorChildComponent,
 {
 public:
     //==============================================================================
-    ProcessorEditorChainBar (BetterProcessorEditor *p);
+    ProcessorEditorChainBar (ProcessorEditor *p);
     ~ProcessorEditorChainBar();
 
 	

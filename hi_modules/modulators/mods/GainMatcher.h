@@ -84,7 +84,7 @@ public:
 	void restoreFromValueTree(const ValueTree &v) override;;
 	ValueTree exportAsValueTree() const override;
 
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	void setInternalAttribute(int parameterIndex, float newValue) override;;
 	float getAttribute(int parameterIndex) const override;;
@@ -124,7 +124,7 @@ public:
 	void handleMidiEvent(const MidiMessage &m) override;
 	virtual void prepareToPlay(double sampleRate, int samplesPerBlock) override;;
 
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 private:
 

@@ -119,7 +119,7 @@ public:
 	int getNumInternalChains() const override { return numInternalChains; };
 	int getNumChildProcessors() const override { return numInternalChains; };
 
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock);
 	void applyEffect(AudioSampleBuffer &b, int startSample, int numSamples) override;;

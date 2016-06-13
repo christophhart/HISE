@@ -103,7 +103,7 @@ void ProtoplugEffectProcessor::applyEffect(AudioSampleBuffer &buffer, int startS
 	FloatVectorOperations::add(buffer.getWritePointer(1, startSample), mixBuffer.getReadPointer(1, startSample), numSamples);
 }
 
-ProcessorEditorBody * ProtoplugEffectProcessor::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody * ProtoplugEffectProcessor::createEditor(ProcessorEditor *parentEditor)
 {
 
 	AudioProcessorEditor *editor = internalProcessor->createEditorIfNeeded();
@@ -192,7 +192,7 @@ void ProtoPlugParameterContainer::updateParameters()
 	}
 }
 
-ProtoplugEditor::ProtoplugEditor(BetterProcessorEditor *parentEditor, AudioProcessorEditor *internalEditor_) :
+ProtoplugEditor::ProtoplugEditor(ProcessorEditor *parentEditor, AudioProcessorEditor *internalEditor_) :
 ProcessorEditorBody(parentEditor),
 internalEditor(internalEditor_)
 {

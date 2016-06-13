@@ -414,7 +414,7 @@ float AhdsrEnvelope::calculateNewValue()
 }
 
 
-ProcessorEditorBody * AhdsrEnvelope::createEditor(BetterProcessorEditor* parentEditor)
+ProcessorEditorBody * AhdsrEnvelope::createEditor(ProcessorEditor* parentEditor)
 {
 #if USE_BACKEND
 

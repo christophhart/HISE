@@ -271,7 +271,7 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		break;
     case MenuEditPlotModulator:
         {
-            BetterProcessorEditor * editor = dynamic_cast<BetterProcessorEditor*>(currentCopyPasteTarget.get());
+            ProcessorEditor * editor = dynamic_cast<ProcessorEditor*>(currentCopyPasteTarget.get());
             
             bool active = false;
             
@@ -376,7 +376,7 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
         setCommandTarget(result, "Save current view", viewActive(), false, 'X', false);
         break;
 	case MenuViewShowSelectedProcessorInPopup:
-		setCommandTarget(result, "Show Processor in full screen", dynamic_cast<BetterProcessorEditor*>(currentCopyPasteTarget.get()) != nullptr, false, 'X', false);
+		setCommandTarget(result, "Show Processor in full screen", dynamic_cast<ProcessorEditor*>(currentCopyPasteTarget.get()) != nullptr, false, 'X', false);
 		result.addDefaultKeypress(KeyPress::F11Key, ModifierKeys::noModifiers);
 		break;
     case MenuToolsCheckDuplicate:
@@ -474,7 +474,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuOneColumn:					Actions::setColumns(bpe, this, OneColumn);  updateCommands(); return true;
 	case MenuTwoColumns:				Actions::setColumns(bpe, this, TwoColumns);  updateCommands(); return true;
 	case MenuThreeColumns:				Actions::setColumns(bpe, this, ThreeColumns);  updateCommands(); return true;
-	case MenuViewShowSelectedProcessorInPopup: Actions::showProcessorInPopup(bpe, dynamic_cast<BetterProcessorEditor*>(currentCopyPasteTarget.get())); return true;
+	case MenuViewShowSelectedProcessorInPopup: Actions::showProcessorInPopup(bpe, dynamic_cast<ProcessorEditor*>(currentCopyPasteTarget.get())); return true;
 	}
 
 	return false;
@@ -649,7 +649,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
             
             const int chainOffset = 0x6000;
             
-            BetterProcessorEditor * editor = dynamic_cast<BetterProcessorEditor*>(bpe->currentCopyPasteTarget.get());
+            ProcessorEditor * editor = dynamic_cast<ProcessorEditor*>(bpe->currentCopyPasteTarget.get());
             if(editor != nullptr)
             {
                 for(int i = 0; i < editor->getProcessor()->getNumInternalChains(); i++)
@@ -1022,7 +1022,7 @@ void BackendCommandTarget::Actions::replaceWithClipboardContent(BackendProcessor
 
 void BackendCommandTarget::Actions::createScriptVariableDeclaration(CopyPasteTarget *currentCopyPasteTarget)
 {
-	BetterProcessorEditor *editor = dynamic_cast<BetterProcessorEditor*>(currentCopyPasteTarget);
+	ProcessorEditor *editor = dynamic_cast<ProcessorEditor*>(currentCopyPasteTarget);
 
 	if (editor != nullptr)
 	{
@@ -1102,7 +1102,7 @@ void BackendCommandTarget::Actions::saveView(BackendProcessorEditor *bpe)
 
 void BackendCommandTarget::Actions::closeAllChains(BackendProcessorEditor *bpe)
 {
-    BetterProcessorEditor *editor = dynamic_cast<BetterProcessorEditor*>(bpe->currentCopyPasteTarget.get());
+    ProcessorEditor *editor = dynamic_cast<ProcessorEditor*>(bpe->currentCopyPasteTarget.get());
     
     if(editor != nullptr)
     {
@@ -1403,14 +1403,14 @@ void BackendCommandTarget::Actions::setColumns(BackendProcessorEditor * bpe, Bac
 	
 }
 
-void BackendCommandTarget::Actions::showProcessorInPopup(BackendProcessorEditor * bpe, BetterProcessorEditor* editor)
+void BackendCommandTarget::Actions::showProcessorInPopup(BackendProcessorEditor * bpe, ProcessorEditor* editor)
 {
 	bpe->showProcessorPopup(editor->getProcessor(), editor->getParentEditor() != nullptr ? editor->getParentEditor()->getProcessor() : nullptr);
 }
 
 void BackendCommandTarget::Actions::plotModulator(CopyPasteTarget *currentCopyPasteTarget)
 {
-    BetterProcessorEditor *editor = dynamic_cast<BetterProcessorEditor*>(currentCopyPasteTarget);
+    ProcessorEditor *editor = dynamic_cast<ProcessorEditor*>(currentCopyPasteTarget);
                                                                          
     if(editor != nullptr)
     {
@@ -2078,7 +2078,7 @@ public:
 
 		if (!downloadLocation.isWellFormed())
 		{
-			result == ErrorCodes::InvalidURL;
+			result = ErrorCodes::InvalidURL;
 			targetDirectory.deleteRecursively();
 			return;
 		}

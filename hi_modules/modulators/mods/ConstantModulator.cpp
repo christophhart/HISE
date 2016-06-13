@@ -30,7 +30,7 @@
 *   ===========================================================================
 */
 
-ProcessorEditorBody *ConstantModulator::createEditor(BetterProcessorEditor *parentEditor)
+ProcessorEditorBody *ConstantModulator::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

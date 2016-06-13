@@ -133,12 +133,12 @@ void PatchBrowser::itemDropped(const SourceDetails& dragSourceDetails)
 			dynamic_cast<Processor*>(c)->setEditorState(Processor::EditorState::Visible, true, sendNotification);
 
 
-			BetterProcessorEditorContainer *rootContainer = findParentComponentOfClass<BackendProcessorEditor>()->getRootContainer();
+			ProcessorEditorContainer *rootContainer = findParentComponentOfClass<BackendProcessorEditor>()->getRootContainer();
 
 			jassert(rootContainer != nullptr);
 
-			BetterProcessorEditor *editorOfParent = nullptr;
-			BetterProcessorEditor *editorOfChain = nullptr;
+			ProcessorEditor *editorOfParent = nullptr;
+			ProcessorEditor *editorOfChain = nullptr;
 
 			if (ProcessorHelpers::is<ModulatorSynth>(dragTarget->getProcessor()))
 			{

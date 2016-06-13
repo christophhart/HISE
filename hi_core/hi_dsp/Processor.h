@@ -35,7 +35,7 @@
 
 class Chain;
 
-class BetterProcessorEditor;
+class ProcessorEditor;
 class ProcessorEditorBody;
 class FactoryTypeConstrainer;
 
@@ -190,7 +190,7 @@ public:
 		Remember to pass the Processor as parameter to allow asynchronous GUI notification.
 		The concept between Processor and ProcessorEditor is the same as AudioProcessor and AudioProcessorEditor.
 	*/
-	virtual ProcessorEditorBody *createEditor(BetterProcessorEditor* parentEditor) = 0;
+	virtual ProcessorEditorBody *createEditor(ProcessorEditor* parentEditor) = 0;
 
 	/** This saves the Processor.
 	*
@@ -918,8 +918,6 @@ public:
 
 		Identifier type;
 		String name;
-
-		
 	};
 
 	/** Creates a Factory type.  */
@@ -1073,7 +1071,6 @@ public:
 		return ownedConstrainer.get() != nullptr ? ownedConstrainer.get() : constrainer;
 	}
 
-
 protected:
 
 	/** This should only be overwritten by the subclasses. For external usage, use getAllowedTypes(). */
@@ -1094,7 +1091,6 @@ private:
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FactoryType)
 };
-
 
 
 class ExternalFileProcessor

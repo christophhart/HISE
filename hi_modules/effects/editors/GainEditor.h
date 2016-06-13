@@ -40,7 +40,7 @@ class GainEditor  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    GainEditor (BetterProcessorEditor *p);
+    GainEditor (ProcessorEditor *p);
     ~GainEditor();
 
     //==============================================================================

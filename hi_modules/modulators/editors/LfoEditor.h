@@ -43,7 +43,7 @@ class LfoEditorBody  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    LfoEditorBody (BetterProcessorEditor *p);
+    LfoEditorBody (ProcessorEditor *p);
     ~LfoEditorBody();
 
     //==============================================================================

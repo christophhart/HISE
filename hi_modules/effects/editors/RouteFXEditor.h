@@ -40,7 +40,7 @@ class RouteFXEditor  : public ProcessorEditorBody
 {
 public:
     //==============================================================================
-    RouteFXEditor (BetterProcessorEditor *p);
+    RouteFXEditor (ProcessorEditor *p);
     ~RouteFXEditor();
 
     //==============================================================================

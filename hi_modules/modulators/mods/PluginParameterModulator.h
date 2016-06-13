@@ -101,7 +101,7 @@ public:
 
 	const Processor *getChildProcessor(int ) const override {jassertfalse; return nullptr;};
 
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	/// sets the constant value. The only valid parameter_index is Intensity
 	void setInternalAttribute(int, float newValue) override

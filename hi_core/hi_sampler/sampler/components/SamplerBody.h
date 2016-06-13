@@ -44,7 +44,7 @@ class SamplerBody  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    SamplerBody (BetterProcessorEditor *p);
+    SamplerBody (ProcessorEditor *p);
     ~SamplerBody();
 
     //==============================================================================

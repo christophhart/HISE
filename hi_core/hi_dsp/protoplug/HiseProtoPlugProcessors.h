@@ -56,7 +56,7 @@ public:
 
 	AudioSampleBuffer &getBufferForChain(int /*chainIndex*/) { return dryWetBuffer; };
 
-	ProcessorEditorBody *createEditor(BetterProcessorEditor *parentEditor)  override;
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 private:
 
@@ -112,7 +112,7 @@ class ProtoplugEditor: public ProcessorEditorBody
 {
 public:
 
-	ProtoplugEditor(BetterProcessorEditor *parentEditor, AudioProcessorEditor *internalEditor);
+	ProtoplugEditor(ProcessorEditor *parentEditor, AudioProcessorEditor *internalEditor);
 
 	~ProtoplugEditor();
 

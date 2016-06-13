@@ -41,7 +41,7 @@ class WaveSynthBody  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
-    WaveSynthBody (BetterProcessorEditor *p);
+    WaveSynthBody (ProcessorEditor *p);
     ~WaveSynthBody();
 
     //==============================================================================
