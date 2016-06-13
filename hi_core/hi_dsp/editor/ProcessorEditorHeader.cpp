@@ -699,13 +699,11 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
 
 		if(dynamic_cast<ModulatorSynth*>(getProcessor()) == nullptr || PresetHandler::showYesNoWindow("Delete " + getProcessor()->getId() + "?", "Do you want to delete the Synth module?"))
 		{
-			
-			getEditor()->getParentEditor()->getPanel()->removeProcessorEditor(getProcessor());
-		
+            
             PresetHandler::setChanged(getProcessor());
+            
+			getEditor()->getParentEditor()->getPanel()->removeProcessorEditor(getProcessor());
 		}
-		
-		
 	}
   
 	else if (buttonThatWasClicked == addButton)
