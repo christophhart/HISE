@@ -63,7 +63,6 @@ mainSynthChain(editor->getMainSynthChain())
 {
 
 	addAndMakeVisible(container = new ScriptContentContainer(mainSynthChain));
-
 	addAndMakeVisible(frontendBar = new FrontendBar(editor->getBackendProcessor()));
 
 	container->checkInterfaces();
@@ -76,7 +75,15 @@ mainSynthChain(editor->getMainSynthChain())
 
 	const int xDelta = 2;
 
-	setSize(container->getContentWidth() + xDelta, container->getContentHeight() + (frontendBar->isOverlaying() ? 0 : frontendBar->getHeight()) + 45 + xDelta);
+#if HISE_IOS
+
+	frontendBar->setVisible(false);
+	keyboard->setVisible(false);
+
+	setSize(container->getContentWidth(), container->getContentHeight());
+#else
+	setSize(container->getContentWidth() + xDelta, container->getContentHeight() + (frontendBar->isOverlaying() ? 0 : frontendBar->getHeight()) + 45 + xDelta);	
+#endif
 }
 
 PluginPreviewWindow::Content::~Content()
@@ -90,7 +97,11 @@ PluginPreviewWindow::Content::~Content()
 
 void PluginPreviewWindow::Content::resized()
 {
+#if HISE_IOS
+	container->setBounds(0, 0, container->getContentWidth(), container->getContentHeight());
+#else
 	frontendBar->setBounds(2, 2, container->getContentWidth(), frontendBar->getHeight());
 	container->setBounds(2, (frontendBar->isOverlaying() ? frontendBar->getY() : frontendBar->getBottom()), container->getContentWidth(), container->getContentHeight());
 	keyboard->setBounds(2, container->getBottom(), container->getContentWidth(), 72);
+#endif
 }

@@ -281,8 +281,14 @@ public:
 
 		if (previewWindow != nullptr)
 		{
+#if HISE_IOS
+            showPseudoModalWindow(newWindow, getMainSynthChain()->getId(), true);
+#else
+            
 			newWindow->addToDesktop();
+#endif
 		}
+
 	}
 
 	bool isPluginPreviewShown() const;;

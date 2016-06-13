@@ -858,7 +858,9 @@ void BackendProcessorEditor::showPseudoModalWindow(Component *componentToShow, c
 
 	stupidRectangle->addMouseListener(this, true);
 
-	stupidRectangle->setBounds(viewport->getX(), viewport->getY(), viewport->getWidth() - SCROLLBAR_WIDTH, getHeight() - viewport->getY());
+	const int height = dynamic_cast<PluginPreviewWindow::Content*>(componentToShow) ? getHeight() - viewport->getY() - keyboard->getHeight() : getHeight() - viewport->getY();
+
+	stupidRectangle->setBounds(viewport->getX(), viewport->getY(), viewport->getWidth() - SCROLLBAR_WIDTH, height);
 
 	addAndMakeVisible(componentToShow);
 
@@ -912,6 +914,8 @@ void BackendProcessorEditor::showProcessorPopup(Processor *p, Processor *parent)
 	popupEditor->setIsPopup(true);
 
 	showPseudoModalWindow(popupEditor, pathString);
+
+	
 
 	popupEditor->setBounds(viewport->getX(), viewport->getY()+40, viewport->getWidth()-16, viewport->getHeight()-40);
 

@@ -1804,7 +1804,11 @@ void BackendCommandTarget::Actions::togglePluginPopupWindow(BackendProcessorEdit
 	}
 	else
 	{
+#if HISE_IOS
+		bpe->showPseudoModalWindow(new PluginPreviewWindow::Content(bpe), bpe->getMainSynthChain()->getId(), true);
+#else
 		bpe->setPluginPreviewWindow(new PluginPreviewWindow(bpe));
+#endif
 	}
 }
                     

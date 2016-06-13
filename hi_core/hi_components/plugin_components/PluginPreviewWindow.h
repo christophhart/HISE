@@ -45,8 +45,6 @@ public:
 
 	void closeButtonPressed() override;;
 
-private:
-
 	class Content : public Component,
 		public ComponentWithKeyboard
 	{
@@ -70,6 +68,10 @@ private:
 		ModulatorSynthChain *mainSynthChain;
 		ScopedPointer<CustomKeyboard> keyboard;
 	};
+
+private:
+
+	
 
 	Component::SafePointer<BackendProcessorEditor> editor;
 };
