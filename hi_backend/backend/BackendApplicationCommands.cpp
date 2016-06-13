@@ -1672,6 +1672,8 @@ void BackendCommandTarget::Actions::openFileFromXml(BackendProcessorEditor * bpe
 		ValueTree v = ValueTree::fromXml(*xml);
 
 		bpe->loadNewContainer(v);
+        
+        
 	}
 }
 

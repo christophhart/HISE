@@ -183,7 +183,8 @@ private:
 	// ====================================================================================================================
 
 	class PatchItem :  public SearchableListComponent::Item,
-					   public ModuleDragTarget
+					   public ModuleDragTarget,
+                       public Label::Listener
 	{
 	public:
 
@@ -203,15 +204,44 @@ private:
 		virtual Processor *getProcessor() override { return processor.get(); };
 		virtual const Processor *getProcessor() const override { return processor.get(); };
 
+        void mouseDown(const MouseEvent &e) override
+        {
+            const uint32 thisTime = Time::getMillisecondCounter();
+            
+            const bool isEditable = dynamic_cast<Chain*>(processor.get()) == nullptr ||
+                                    dynamic_cast<ModulatorSynth*>(processor.get()) != nullptr;
+            
+            const int interval = (int)(thisTime - lastMouseDown);
+            
+            if(isEditable && interval < 900 && interval > MouseEvent::getDoubleClickTimeout())
+            {
+                idLabel->showEditor();
+            }
+            
+            lastMouseDown = thisTime;
+        }
+        
+        void labelTextChanged(Label *l) override
+        {
+            if(processor.get() != nullptr && processor->getId() != l->getText())
+            {
+                processor->setId(l->getText());
+            }
+        }
+        
 	private:
 
 		WeakReference<Processor> processor;
-		WeakReference<Processor> parent;
+        WeakReference<Processor> parent;
+        
+        ScopedPointer<Label> idLabel;
 
 		String lastId;
 
 		int hierarchy;
 
+        uint32 lastMouseDown;
+        
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PatchItem)
 	};
 

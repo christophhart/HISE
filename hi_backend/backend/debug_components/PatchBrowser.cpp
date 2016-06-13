@@ -662,13 +662,20 @@ PatchBrowser::PatchItem::PatchItem(Processor *p, Processor *parent_, int hierarc
 Item(searchTerm.toLowerCase()),
 processor(p),
 parent(parent_),
-lastId(p->getId()),
-hierarchy(hierarchy_)
+lastId(String()),
+hierarchy(hierarchy_),
+lastMouseDown(0)
 {
+    addAndMakeVisible(idLabel = new Label());
+    
+    idLabel->setInterceptsMouseClicks(false, false);
+    
 	setSize(380 - 16, ITEM_HEIGHT);
 
 	setUsePopupMenu(true);
 	setRepaintsOnMouseActivity(true);
+    
+    idLabel->addListener(this);
 }
 
 PatchBrowser::PatchItem::~PatchItem()
@@ -800,10 +807,17 @@ void PatchBrowser::PatchItem::paint(Graphics& g)
 		g.drawRoundedRectangle(1.0f + xOffset, 1.0f, (float)getHeight() - 4.0f, (float)getHeight() - 4.0f, 2.0f, 2.0f);
 
 		g.setColour(ProcessorHelpers::is<Chain>(processor) ? Colours::black.withAlpha(0.6f) : Colours::black);
-		g.setFont(GLOBAL_BOLD_FONT());
-		g.drawText(processor->getId(), getHeight() + 4 + (int)xOffset, 0, getWidth() - (int)xOffset, getHeight(), Justification::centredLeft, false);
-		lastId = processor->getId();
-
+		
+        if(lastId != processor->getId())
+        {
+            idLabel->setFont(GLOBAL_BOLD_FONT());
+            idLabel->setJustificationType(Justification::centredLeft);
+            idLabel->setBounds(getHeight() + 4 + (int)xOffset, 0, getWidth() - (int)xOffset, getHeight());
+            
+            lastId = processor->getId();
+            idLabel->setText(lastId, dontSendNotification);
+        }
+        
 		drawDragStatus(g, Rectangle<float>(1.0f + xOffset, 0.0f, (float)getWidth() - 2.0f - xOffset, (float)getHeight() - 2.0f));
 
 		if (getProcessor()->isBypassed())

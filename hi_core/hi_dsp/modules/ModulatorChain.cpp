@@ -404,6 +404,7 @@ void TimeVariantModulatorFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(ControlModulator);
 	ADD_NAME_TO_TYPELIST(PitchwheelModulator);
 	ADD_NAME_TO_TYPELIST(MacroModulator);
+    ADD_NAME_TO_TYPELIST(AudioFileEnvelope);
 	ADD_NAME_TO_TYPELIST(PluginParameterModulator);
 	ADD_NAME_TO_TYPELIST(GlobalTimeVariantModulator);
 	ADD_NAME_TO_TYPELIST(GainMatcherTimeVariantModulator);

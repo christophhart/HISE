@@ -222,6 +222,14 @@ void MainController::loadPreset(ValueTree &v, Component* /*mainEditor*/)
 
 		synthChain->setBypassed(false);
 
+        
+        Processor::Iterator<ModulatorSynth> iter(synthChain, false);
+        
+        while(ModulatorSynth *synth = iter.getNextProcessor())
+        {
+            synth->setEditorState(Processor::EditorState::Folded, true);
+        }
+        
         changed = false;
         
 	}
