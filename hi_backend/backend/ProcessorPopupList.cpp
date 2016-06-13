@@ -467,6 +467,13 @@ void StupidRectangle::paint(Graphics &g)
 #if HISE_IOS
 
 		g.setFont(GLOBAL_BOLD_FONT().withHeight(24.0f));
+
+		g.setColour(Colour(BACKEND_BG_COLOUR));
+		g.fillRect(0, getHeight() - 12, getWidth(), 12);
+
+		g.setColour(Colours::white.withAlpha(0.2f));
+		g.drawHorizontalLine(getHeight() - 12, 0.0f, (float)getWidth());
+
 #else
 
 		g.setFont(GLOBAL_BOLD_FONT().withHeight(15.0f));

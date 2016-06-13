@@ -800,8 +800,8 @@ void BackendProcessorEditor::clearPopup()
 		}
 		else if (dynamic_cast<SampleMapEditor*>(currentPopupComponent.get()) != nullptr)
 		{
-			Desktop::getInstance().getAnimator().fadeOut(stupidRectangle, 100);
-			Desktop::getInstance().getAnimator().fadeOut(currentPopupComponent, 100);
+			stupidRectangle->setVisible(false);
+			currentPopupComponent->setVisible(false);
 
 			dynamic_cast<SampleMapEditor*>(currentPopupComponent.get())->deletePopup();
 			currentPopupComponent = nullptr;
@@ -809,8 +809,7 @@ void BackendProcessorEditor::clearPopup()
 	}
 	else
 	{
-		Desktop::getInstance().getAnimator().fadeOut(stupidRectangle, 300);
-		Desktop::getInstance().getAnimator().fadeOut(ownedPopupComponent, 600);
+		stupidRectangle->setVisible(false);
 
 		ownedPopupComponent = nullptr;
 	}
@@ -859,18 +858,14 @@ void BackendProcessorEditor::showPseudoModalWindow(Component *componentToShow, c
 
 	stupidRectangle->addMouseListener(this, true);
 
-	stupidRectangle->setBounds(viewport->getX(), viewport->getY(), viewport->getWidth() - SCROLLBAR_WIDTH, viewport->getHeight());
+	stupidRectangle->setBounds(viewport->getX(), viewport->getY(), viewport->getWidth() - SCROLLBAR_WIDTH, getHeight() - viewport->getY());
 
 	addAndMakeVisible(componentToShow);
 
-
-
 	componentToShow->setBounds(viewport->getX(), viewport->getY() + 40, viewport->getWidth()-SCROLLBAR_WIDTH, componentToShow->getHeight());
 
-	Desktop::getInstance().getAnimator().fadeOut(stupidRectangle, 1);
-	Desktop::getInstance().getAnimator().fadeIn(stupidRectangle, 100);
-	Desktop::getInstance().getAnimator().fadeOut(componentToShow, 1);
-	Desktop::getInstance().getAnimator().fadeIn(componentToShow, 600);
+	stupidRectangle->setVisible(true);
+	componentToShow->setVisible(true);
 
 	viewport->setEnabled(false);
 

@@ -39,11 +39,24 @@
 class MainMenuItem : public Component
 {
 public:
-	MainMenuItem(ApplicationCommandManager *manager_, int commandId_);
+	
+	MainMenuItem() :
+		on(false)
+	{};
 
 	void mouseUp(const MouseEvent &event);
 
 	void triggerMenuItem();
+
+	/** Overwrite this method and do your stuff.
+	*/
+	virtual void perform() = 0;
+
+	virtual String getName() = 0;
+	
+	virtual bool isPlaceHolder() { return false; };
+
+	void setupSize();
 
 	MainMenuItem *getItemUnderMouse(const MouseEvent &event);
 
@@ -57,27 +70,75 @@ public:
 		repaint();
 	}
 
-
 	void paint(Graphics& g);
 
 private:
 
 	bool on;
 
+};
+
+class CommandMenuItem : public MainMenuItem
+{
+public:
+
+	CommandMenuItem(ApplicationCommandManager *manager_, int commandId_);
+
+	void perform() override;
+
+	String getName() override;
+
+	bool isPlaceHolder() override { return commandId == 0; }
+
 	int commandId;
 	BackendProcessorEditor *editor;
 	ApplicationCommandManager *manager;
+};
+
+class FileMenuItem : public MainMenuItem
+{
+public:
+
+	enum class Action
+	{
+		OpenProject = 0,
+		OpenXmlPreset,
+		OpenPreset
+	};
+
+	FileMenuItem(const File &file_, Action actionToDo_, BackendProcessorEditor *bpe_) :
+		file(file_),
+		actionToDo(actionToDo_),
+		bpe(bpe_)
+	{
+		setupSize();
+	};
+
+	void perform() override;
+
+	String getName() override { return file.getFileName(); }
+
+private:
+
+	BackendProcessorEditor *bpe;
+	File file;
+	Action actionToDo;
 };
 
 class MainMenuContainer : public Component
 {
 public:
 
-	MainMenuContainer(ApplicationCommandManager *manager, const Array<int> &ids);
+	~MainMenuContainer()
+	{
+		int x = 5;
+	}
+
+	void addCommandIds(ApplicationCommandManager *manager, const Array<int> &ids);
+
+	void addFileIds(const Array<File> &files, BackendProcessorEditor *bpe);
 
 	void clearOnStateForAllItems();
-
-	
 
 	void resized();
 
@@ -86,6 +147,41 @@ private:
 	OwnedArray<MainMenuItem> items;
 };
 
+class MainMenuWithViewPort : public Component
+{
+public:
+
+	MainMenuWithViewPort()
+	{
+		addAndMakeVisible(viewport = new Viewport());
+
+		viewport->setViewedComponent(menuContainer = new MainMenuContainer());
+		viewport->setScrollBarsShown(true, false, false, false);
+		viewport->setScrollBarThickness(30.0f);
+
+		setSize(900 - 32, 768);
+	}
+
+	~MainMenuWithViewPort()
+	{
+		viewport->setViewedComponent(nullptr);
+		menuContainer = nullptr;
+		viewport = nullptr;
+		
+	}
+
+	MainMenuContainer *getContainer() { return menuContainer.getComponent(); }
+
+	void resized()
+	{
+		viewport->setBounds(getLocalBounds());
+	}
+
+private:
+
+	ScopedPointer<Viewport> viewport;
+	Component::SafePointer<MainMenuContainer> menuContainer;
+};
 
 
 #endif  // MAINMENUCOMPONENT_H_INCLUDED

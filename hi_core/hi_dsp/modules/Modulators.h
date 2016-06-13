@@ -718,8 +718,6 @@ protected:
 		addValueToPlotter(plot4);
 	};
 
-private:
-
 };
 
 
@@ -738,8 +736,6 @@ class EnvelopeModulator: public Modulator,
 						 public TimeModulation
 {
 public:
-
-	
 
 	virtual ~EnvelopeModulator() {};
 

@@ -960,9 +960,24 @@ void BackendCommandTarget::Actions::openFile(BackendProcessorEditor *bpe)
     
     if (!shouldDiscard) return;
     
+#if HISE_IOS
+
+	Array<File> fileList;
+
+	GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Presets).findChildFiles(fileList, File::findFiles, false, "*.hip");
+
+	MainMenuWithViewPort *menu = new MainMenuWithViewPort();
+
+	menu->getContainer()->addFileIds(fileList, bpe);
+
+	bpe->showPseudoModalWindow(menu, "Load File from Project", true);
+
+#else
+
 	FileChooser fc("Load Preset File", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Presets), "*.hip", true);
 
 	if (fc.browseForFileToOpen()) bpe->loadNewContainer(fc.getResult());
+#endif
 }
 
 void BackendCommandTarget::Actions::saveFile(BackendProcessorEditor *bpe)
@@ -1682,6 +1697,20 @@ void BackendCommandTarget::Actions::loadProject(BackendProcessorEditor *bpe)
     
     if (!shouldDiscard) return;
     
+#if HISE_IOS
+
+	Array<File> fileList;
+	
+	File::getSpecialLocation(File::userDocumentsDirectory).findChildFiles(fileList, File::findDirectories, false);
+
+
+	MainMenuWithViewPort *newMenu = new MainMenuWithViewPort();
+
+	newMenu->getContainer()->addFileIds(fileList, bpe);
+	
+	bpe->showPseudoModalWindow(newMenu, "Open a project from the list", true);
+
+#else
 	FileChooser fc("Load project (set as working directory)");
 
 	if (fc.browseForDirectory())
@@ -1690,6 +1719,7 @@ void BackendCommandTarget::Actions::loadProject(BackendProcessorEditor *bpe)
 
 		GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(f);
 	}
+#endif
 }
 
 void BackendCommandTarget::Actions::closeProject(BackendProcessorEditor *bpe)
@@ -2276,6 +2306,10 @@ void BackendCommandTarget::Actions::showMainMenu(BackendProcessorEditor * bpe)
 	Array<int> ids;
 	ids.addArray(commandIDs, numElementsInArray(commandIDs));
 
-	bpe->showPseudoModalWindow(new MainMenuContainer(bpe->mainCommandManager, ids), "Main Menu", true);
+	MainMenuContainer *newMenu = new MainMenuContainer();
+
+	newMenu->addCommandIds(bpe->mainCommandManager, ids);
+
+	bpe->showPseudoModalWindow(newMenu, "Main Menu", true);
 
 }

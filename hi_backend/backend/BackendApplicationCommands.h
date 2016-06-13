@@ -222,33 +222,30 @@ public:
 
 	ColumnMode getColumnMode() const noexcept { return currentColumnMode; }
 
-private:
-
-
 	class Actions
 	{
 	public:
 
 		static bool hasProcessorInClipboard();
-        static bool hasSnippetInClipboard();
+		static bool hasSnippetInClipboard();
 		static void openFile(BackendProcessorEditor *bpe);
 		static void saveFile(BackendProcessorEditor *bpe);
 		static void replaceWithClipboardContent(BackendProcessorEditor *bpe);
-        static void exportFileAsSnippet(BackendProcessorEditor* bpe);
+		static void exportFileAsSnippet(BackendProcessorEditor* bpe);
 		static void createScriptVariableDeclaration(CopyPasteTarget *currentCopyPasteTarget);
 		static void recompileAllScripts(BackendProcessorEditor * bpe);
-        static void toggleFullscreen(BackendProcessorEditor * bpe);
-        static void addView(BackendProcessorEditor *bpe);
-        static void deleteView(BackendProcessorEditor *bpe);
-        static void saveView(BackendProcessorEditor *bpe);
-        static void renameView(BackendProcessorEditor *bpe);
-        static void closeAllChains(BackendProcessorEditor *bpe);
-        static void checkDuplicateIds(BackendProcessorEditor *bpe);
+		static void toggleFullscreen(BackendProcessorEditor * bpe);
+		static void addView(BackendProcessorEditor *bpe);
+		static void deleteView(BackendProcessorEditor *bpe);
+		static void saveView(BackendProcessorEditor *bpe);
+		static void renameView(BackendProcessorEditor *bpe);
+		static void closeAllChains(BackendProcessorEditor *bpe);
+		static void checkDuplicateIds(BackendProcessorEditor *bpe);
 		static void showAboutPage(BackendProcessorEditor * bpe);
-        static void checkVersion(BackendProcessorEditor *bpe);
+		static void checkVersion(BackendProcessorEditor *bpe);
 		static void setColumns(BackendProcessorEditor * bpe, BackendCommandTarget* target, ColumnMode columns);
 		static void showProcessorInPopup(BackendProcessorEditor * bpe, ProcessorEditor* editor);
-   		static void plotModulator(CopyPasteTarget *currentCopyPasteTarget);
+		static void plotModulator(CopyPasteTarget *currentCopyPasteTarget);
 		static void resolveMissingSamples(BackendProcessorEditor *bpe);
 		static void deleteMissingSamples(BackendProcessorEditor *bpe);
 		static void setCompileTimeOut(BackendProcessorEditor * bpe);
@@ -258,20 +255,20 @@ private:
 		static void loadProject(BackendProcessorEditor *bpe);
 		static void closeProject(BackendProcessorEditor *bpe);
 		static void showProjectInFinder(BackendProcessorEditor *bpe);
-        static void saveUserPreset(BackendProcessorEditor *bpe);
-        static void loadUserPreset(BackendProcessorEditor *bpe, const File &fileToLoad);
+		static void saveUserPreset(BackendProcessorEditor *bpe);
+		static void loadUserPreset(BackendProcessorEditor *bpe, const File &fileToLoad);
 		static void toggleRelativePath(BackendProcessorEditor * bpe);
 		static void collectExternalFiles(BackendProcessorEditor * bpe);
 		static void saveFileAsXml(BackendProcessorEditor * bpe);
 		static void openFileFromXml(BackendProcessorEditor * bpe, const File &fileToLoad);
-        static void redirectSampleFolder(Processor *processorForTheProjectHandler);
+		static void redirectSampleFolder(Processor *processorForTheProjectHandler);
 		static void showFilePresetSettings(BackendProcessorEditor * bpe);
 		static void showFileProjectSettings(BackendProcessorEditor * bpe);
 		static void showFileUserSettings(BackendProcessorEditor * bpe);
 		static void showFileCompilerSettings(BackendProcessorEditor * bpe);
 		static void checkSettingSanity(BackendProcessorEditor * bpe);
 		static void togglePluginPopupWindow(BackendProcessorEditor * bpe);
-        static void changeCodeFontSize(BackendProcessorEditor *bpe, bool increase);
+		static void changeCodeFontSize(BackendProcessorEditor *bpe, bool increase);
 		static void createRSAKeys(BackendProcessorEditor * bpe);
 		static void createDummyLicenceFile(BackendProcessorEditor * bpe);
 		static void createDefaultToolbarJSON(BackendProcessorEditor * bpe);
@@ -280,6 +277,11 @@ private:
 		static void downloadNewProject(BackendProcessorEditor * bpe);
 		static void showMainMenu(BackendProcessorEditor * bpe);
 	};
+
+private:
+
+
+	
 
 	ColumnMode currentColumnMode;
 

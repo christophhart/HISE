@@ -30,12 +30,29 @@
 *   ===========================================================================
 */
 
-MainMenuItem::MainMenuItem(ApplicationCommandManager *manager_, int commandId_) :
-manager(manager_),
-commandId(commandId_),
-on(false)
+
+void MainMenuItem::mouseUp(const MouseEvent &event)
 {
-	if (commandId == 0)
+	if (isPlaceHolder()) return;
+	on = false;
+	repaint();
+
+	if (MainMenuItem *up = getItemUnderMouse(event))
+	{
+		up->perform();
+		triggerMenuItem();
+	}
+}
+
+void MainMenuItem::triggerMenuItem()
+{
+	if (isPlaceHolder()) return;
+	findParentComponentOfClass<BackendProcessorEditor>()->clearPopup();
+}
+
+void MainMenuItem::setupSize()
+{
+	if (isPlaceHolder())
 	{
 		setSize(900 - 32 - 40, 20);
 	}
@@ -43,27 +60,6 @@ on(false)
 	{
 		setSize(900 - 32 - 40, MAIN_MENU_ITEM_HEIGHT);
 	}
-
-	
-}
-
-void MainMenuItem::mouseUp(const MouseEvent &event)
-{
-	if (commandId == 0) return;
-	on = false;
-	repaint();
-
-	if (MainMenuItem *up = getItemUnderMouse(event))
-	{
-		manager->invokeDirectly(up->commandId, false);
-		triggerMenuItem();
-	}
-}
-
-void MainMenuItem::triggerMenuItem()
-{
-	if (commandId == 0) return;
-	findParentComponentOfClass<BackendProcessorEditor>()->clearPopup();
 }
 
 MainMenuItem * MainMenuItem::getItemUnderMouse(const MouseEvent &event)
@@ -94,14 +90,15 @@ void MainMenuItem::mouseDrag(const MouseEvent& event)
 
 void MainMenuItem::mouseDown(const MouseEvent& )
 {
-	if (commandId == 0) return;
+	if(isPlaceHolder()) return;
+
 	on = true;
 	repaint();
 }
 
 void MainMenuItem::paint(Graphics& g)
 {
-	if (commandId == 0)
+	if (isPlaceHolder())
 	{
 		g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.1f), 0.0f, 0.0f,
 			Colours::transparentBlack, 0.0f, 16.0f, false));
@@ -124,7 +121,7 @@ void MainMenuItem::paint(Graphics& g)
 
 		g.setFont(GLOBAL_BOLD_FONT().withHeight(18.0f));
 
-		const String name = manager->getCommandForID(commandId)->shortName;
+		const String name = getName();
 
 		g.setColour(Colours::white);
 
@@ -136,18 +133,46 @@ void MainMenuItem::paint(Graphics& g)
 
 // ============================================================================================
 
-MainMenuContainer::MainMenuContainer(ApplicationCommandManager *manager, const Array<int> &ids)
+void MainMenuContainer::addCommandIds(ApplicationCommandManager *manager, const Array<int> &ids)
 {
+	items.clear();
+
 	for (int i = 0; i < ids.size(); i++)
 	{
-		MainMenuItem *item = new MainMenuItem(manager, ids[i]);
+		CommandMenuItem *item = new CommandMenuItem(manager, ids[i]);
 
 		addAndMakeVisible(item);
 
 		items.add(item);
 	}
 
-	setSize(900 - 32, 40 + items.size() * MAIN_MENU_ITEM_HEIGHT);
+	setSize(900 - 32, 768);
+}
+
+void MainMenuContainer::addFileIds(const Array<File> &files, BackendProcessorEditor *bpe)
+{
+	items.clear();
+
+	int y = 20;
+
+	for (int i = 0; i < files.size(); i++)
+	{
+		FileMenuItem::Action actionToDo;
+
+		if (files[i].isDirectory()) actionToDo = FileMenuItem::Action::OpenProject;
+		else if (files[i].hasFileExtension(".hip")) actionToDo = FileMenuItem::Action::OpenPreset;
+		else actionToDo = FileMenuItem::Action::OpenXmlPreset;
+
+		FileMenuItem *item = new FileMenuItem(files[i], actionToDo, bpe);
+
+		addAndMakeVisible(item);
+
+		y += item->getHeight();
+
+		items.add(item);
+	}
+
+	setSize(900 - 32, y);
 }
 
 void MainMenuContainer::clearOnStateForAllItems()
@@ -166,5 +191,41 @@ void MainMenuContainer::resized()
 	{
 		items[i]->setTopLeftPosition(20, y);
 		y += items[i]->getHeight();
+	}
+}
+
+CommandMenuItem::CommandMenuItem(ApplicationCommandManager *manager_, int commandId_):
+MainMenuItem(),
+manager(manager_),
+commandId(commandId_)
+{
+	setupSize();
+}
+
+void CommandMenuItem::perform()
+{
+	manager->invokeDirectly(commandId, true);
+}
+
+String CommandMenuItem::getName()
+{
+	return manager->getCommandForID(commandId)->shortName;
+}
+
+void FileMenuItem::perform()
+{
+	switch (actionToDo)
+	{
+	case FileMenuItem::Action::OpenProject:
+		GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(file);
+		break;
+	case FileMenuItem::Action::OpenXmlPreset:
+		BackendCommandTarget::Actions::openFileFromXml(bpe, file);
+		break;
+	case FileMenuItem::Action::OpenPreset:
+		bpe->loadNewContainer(file);
+		break;
+	default:
+		break;
 	}
 }
