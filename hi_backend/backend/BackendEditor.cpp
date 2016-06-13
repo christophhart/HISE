@@ -34,18 +34,41 @@
 
 #include <regex>
 
-
+void AutoSaver::timerCallback()
+{
+    File presetDirectory = GET_PROJECT_HANDLER(mainEditor->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Presets);
+    
+    if(presetDirectory.isDirectory())
+    {
+        Processor *mainSynthChain = mainEditor->getMainSynthChain();
+        
+        File backupFile = presetDirectory.getNonexistentChildFile("AutoSavePreset", ".bak");
+        
+        ValueTree v = mainSynthChain->exportAsValueTree();
+        
+        v.setProperty("BuildVersion", BUILD_SUB_VERSION, nullptr);
+        
+        FileOutputStream fos(backupFile);
+        
+        v.writeToStream(fos);
+        
+        debugToConsole(mainSynthChain, "Autosaving as " + backupFile.getFileName());
+    }
+}
 
 BackendProcessorEditor::BackendProcessorEditor(AudioProcessor *ownerProcessor, ValueTree &editorState) :
 AudioProcessorEditor(ownerProcessor),
 BackendCommandTarget(static_cast<BackendProcessor*>(ownerProcessor)),
 owner(static_cast<BackendProcessor*>(getAudioProcessor())),
-rootEditorIsMainSynthChain(true)
+rootEditorIsMainSynthChain(true),
+autoSaver(this)
 {
 	setOpaque(true);
 
 	setEditor(this);
 
+    autoSaver.enableAutoSaving();
+    
 	PresetHandler::buildProcessorDataBase(owner->getMainSynthChain());
 
 	setLookAndFeel(&lookAndFeelV3);

@@ -47,7 +47,31 @@ class BackendProcessor;
 class ScriptContentContainer;
 
 
-
+class AutoSaver: public Timer
+{
+public:
+    
+    AutoSaver(BackendProcessorEditor *mainEditor_):
+      mainEditor(mainEditor_)
+    {};
+    
+    void enableAutoSaving()
+    {
+        startTimer(1000 * 60 * 3); // autosave all 3 minutes
+    }
+    
+    void disableAutoSaving()
+    {
+        stopTimer();
+    }
+    
+    void timerCallback() override;
+    
+private:
+    
+    BackendProcessorEditor *mainEditor;
+    
+};
 
 class BackendProcessorEditor: public AudioProcessorEditor,
 							  public BackendCommandTarget,
@@ -371,7 +395,7 @@ private:
 
 	ScopedPointer<ThreadWithQuasiModalProgressWindow::Overlay> progressOverlay;
 
-	
+    AutoSaver autoSaver;
 
 	bool rootEditorIsMainSynthChain;
 
