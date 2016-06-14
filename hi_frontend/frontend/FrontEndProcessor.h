@@ -39,11 +39,18 @@
 *	It is connected to a FrontendProcessorEditor, which will display all script interfaces that are brought to the front using 'Synth.addToFront(true)'.
 *	It also checks for a licence file to allow minimal protection against the most stupid crackers.
 */
-class FrontendProcessor: public PluginParameterAudioProcessor,
+class FrontendProcessor: public AudioProcessorWithScriptedParameters,
 						 public MainController
 {
 public:
 	FrontendProcessor(ValueTree &synthData, ValueTree *imageData_=nullptr, ValueTree *impulseData=nullptr, ValueTree *externalScriptData=nullptr, ValueTree *userPresets=nullptr);
+
+	const String getName(void) const override
+	{
+		return JucePlugin_Name;
+	}
+
+	void changeProgramName(int index, const String &newName) override {};
 
 	~FrontendProcessor()
 	{
@@ -113,40 +120,6 @@ public:
 
 	const ModulatorSynthChain *getMainSynthChain() const override { return synthChain; }
 
-	/// @brief returns the number of PluginParameter objects, that are added in the constructor
-    int getNumParameters() override
-	{
-		return numParameters;
-	}
-
-	/// @brief returns the PluginParameter value of the indexed PluginParameter.
-    float getParameter (int index) override
-	{
-		return synthChain->getMacroControlData(index)->getCurrentValue() / 127.0f;
-	}
-
-	/** @brief sets the PluginParameter value.
-	
-		This method uses the 0.0-1.0 range to ensure compatibility with hosts. 
-		A more user friendly but slower function for GUI handling etc. is setParameterConverted()
-	*/
-    void setParameter (int index, float newValue) override
-	{
-		synthChain->setMacroControl(index, newValue * 127.0f, sendNotificationAsync);
-	}
-
-	/// @brief returns the name of the PluginParameter
-    const String getParameterName (int index) override
-	{
-		return synthChain->getMacroControlData(index)->getMacroName();
-	}
-
-	/// @brief returns a converted and labeled string that represents the current value
-    const String getParameterText (int index) override
-	{
-		return String(synthChain->getMacroControlData(index)->getDisplayValue(), 1);
-	}
-
 	int getNumPrograms() override
 	{
 		return presets.getNumChildren() + 1;
@@ -180,7 +153,7 @@ private:
 
 		getSampleManager().getImagePool()->restoreFromValueTree(*imageData);
 	}
-
+	void addScriptedParameters();
 
 	friend class FrontendProcessorEditor;
 	friend class FrontendBar;

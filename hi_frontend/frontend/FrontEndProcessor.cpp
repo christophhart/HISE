@@ -83,18 +83,13 @@ currentlyLoadedProgram(0),
 unlockCounter(0)
 {
 #if USE_COPY_PROTECTION
-
 	if (PresetHandler::loadKeyFile(unlocker))
 	{
-		DBG("TUT");
 	}
 	else
 	{
-		DBG("FAIL");
-
 		keyFileCorrectlyLoaded = false;
 	}
-
 #endif
 
 	loadImages(imageData_);
@@ -133,6 +128,8 @@ unlockCounter(0)
 	synthChain->compileAllScripts();
 
 	synthChain->loadMacrosFromValueTree(synthData);
+
+	addScriptedParameters();
 
 	for (int i = 0; i < 8; i++)
 	{
@@ -192,6 +189,26 @@ void FrontendProcessor::setCurrentProgram(int index)
 			if (sp->isFront())
 			{
 				sp->getScriptingContent()->restoreAllControlsFromPreset(name);
+			}
+		}
+	}
+}
+
+void FrontendProcessor::addScriptedParameters()
+{
+	Processor::Iterator<ScriptProcessor> iter(synthChain);
+
+	while (ScriptProcessor *sp = iter.getNextProcessor())
+	{
+		if (sp->isFront())
+		{
+			ScriptingApi::Content *content = sp->getScriptingContent();
+
+			for (int i = 0; i < content->getNumComponents(); i++)
+			{
+				if (ScriptedControlAudioParameter::getType(content->getComponent(i)) == ScriptedControlAudioParameter::Type::Unsupported) continue;
+
+				addParameter(new ScriptedControlAudioParameter(content->getComponent(i), this));
 			}
 		}
 	}

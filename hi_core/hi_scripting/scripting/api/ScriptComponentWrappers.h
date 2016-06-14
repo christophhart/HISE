@@ -124,6 +124,60 @@ private:
     
 };
 
+
+
+class ScriptedControlAudioParameter : public AudioProcessorParameterWithID
+{
+public:
+
+	enum class Type
+	{
+		Slider = 0,
+		Button,
+		ComboBox,
+		Unsupported
+	};
+
+	ScriptedControlAudioParameter(ScriptingApi::Content::ScriptComponent *controlledComponent, AudioProcessor *parentProcessor);
+
+	float getValue() const override;
+	void setValue(float newValue) override;
+	float getDefaultValue() const override;
+
+	String getName(int maximumStringLength) const override;
+	String getLabel() const override;
+	String getText(float value, int) const override;
+
+	float getValueForText(const String &text) const override;
+	int getNumSteps() const override;
+
+	bool isAutomatable() const override { return true; };
+
+	static Type getType(ScriptingApi::Content::ScriptComponent *component);
+
+	ScriptingApi::Content::ScriptComponent *getComponent()
+	{
+		if (DynamicObject *object = controlledComponent.get()) return static_cast<ScriptingApi::Content::ScriptComponent*>(object);
+		else return nullptr;
+	}
+
+	const ScriptingApi::Content::ScriptComponent *getComponent() const
+	{
+		if (DynamicObject *object = controlledComponent.get()) return static_cast<ScriptingApi::Content::ScriptComponent*>(object);
+		else return nullptr;
+	}
+
+private:
+
+	NormalisableRange<float> range;
+
+	Type type;
+
+	AudioProcessor *parentProcessor;
+
+	DynamicObject::Ptr controlledComponent;
+};
+
 class BorderPanel : public MouseCallbackComponent
 {
 public:

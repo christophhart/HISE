@@ -665,6 +665,8 @@ ScriptCreatedComponentWrapper(content, index)
 	component = asb;
 }
 
+
+
 void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateComponent()
 {
 	ScriptingApi::Content::ScriptAudioWaveform *form = dynamic_cast<ScriptingApi::Content::ScriptAudioWaveform*>(getScriptComponent());
@@ -702,3 +704,178 @@ void ScriptCreatedComponentWrappers::AudioWaveformWrapper::rangeChanged(AudioDis
 
 }
 
+typedef ScriptingApi::Content::ScriptComponent ScriptedComponent;
+
+ScriptedControlAudioParameter::ScriptedControlAudioParameter(ScriptedComponent *controlledComponent_, AudioProcessor *parentProcessor_):
+  AudioProcessorParameterWithID(controlledComponent_->getName().toString(), 
+								controlledComponent_->getScriptObjectProperty(ScriptedComponent::text)),
+  controlledComponent(controlledComponent_),
+  parentProcessor(parentProcessor_),
+  type(getType(controlledComponent_))
+{
+	const float min = controlledComponent_->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::min);
+	const float max = controlledComponent_->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::max);
+	
+	range = NormalisableRange<float>(min, max);
+
+	switch (type)
+	{
+	case ScriptedControlAudioParameter::Type::Slider:
+		range.interval = controlledComponent_->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::stepSize);
+		range.skew = controlledComponent_->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::middlePosition);
+		break;
+	case ScriptedControlAudioParameter::Type::Button:
+		break;
+	case ScriptedControlAudioParameter::Type::ComboBox:
+		range.interval = 1.0f;
+		break;
+	case ScriptedControlAudioParameter::Type::Unsupported:
+		// This should be taken care of before creation of this object...
+		jassertfalse;
+		break;
+	default:
+		break;
+	}
+}
+
+float ScriptedControlAudioParameter::getValue() const
+{
+	const ScriptedComponent *c = getComponent();
+
+	if (c != nullptr)
+	{
+		return c->getValueNormalized();
+	}
+	else
+	{
+		jassertfalse;
+		return 0.0f;
+	}
+}
+
+void ScriptedControlAudioParameter::setValue(float newValue)
+{
+	ScriptedComponent *c = getComponent();
+
+	if (c != nullptr)
+	{
+		c->setValueNormalized(newValue);
+	}
+	else
+	{
+		jassertfalse;
+	}
+}
+
+float ScriptedControlAudioParameter::getDefaultValue() const
+{
+	const ScriptedComponent *c = getComponent();
+
+	if (c != nullptr && type == Type::Slider)
+	{
+		return c->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::defaultValue);
+	}
+	else
+	{
+		return 0.0f;
+	}
+}
+
+String ScriptedControlAudioParameter::getName(int maximumStringLength) const
+{
+	const ScriptedComponent *c = getComponent();
+
+	if (c != nullptr)
+	{
+		return c->getScriptObjectProperty(ScriptedComponent::text);
+	}
+	else
+	{
+		jassertfalse;
+		return String();
+	}
+}
+
+String ScriptedControlAudioParameter::getLabel() const
+{
+	const ScriptedComponent *c = getComponent();
+
+	if (c != nullptr && type == Type::Slider)
+	{
+		return c->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::suffix);
+	}
+	else return String();
+}
+
+String ScriptedControlAudioParameter::getText(float value, int) const
+{
+	const ScriptedComponent *c = getComponent();
+
+	switch (type)
+	{
+	case ScriptedControlAudioParameter::Type::Slider:
+		return String((float)c->getValue(), 1) + " " + getLabel();
+		break;
+	case ScriptedControlAudioParameter::Type::Button:
+		return (double)c->getValue() > 0.5f ? "On" : "Off";
+		break;
+	case ScriptedControlAudioParameter::Type::ComboBox:
+		return dynamic_cast<const ScriptingApi::Content::ScriptComboBox*>(c)->getItemText();
+		break;
+	case ScriptedControlAudioParameter::Type::Unsupported:
+	default:
+		jassertfalse;
+		break;
+	}
+}
+
+float ScriptedControlAudioParameter::getValueForText(const String &text) const
+{
+	const ScriptedComponent *c = getComponent();
+
+	switch (type)
+	{
+	case ScriptedControlAudioParameter::Type::Slider:
+		return text.getFloatValue();
+		break;
+	case ScriptedControlAudioParameter::Type::Button:
+		return text == "On" ? 1.0f : 0.0f;
+		break;
+	case ScriptedControlAudioParameter::Type::ComboBox:
+		return (float)dynamic_cast<const ScriptingApi::Content::ScriptComboBox*>(c)->getItemList().indexOf(text);
+		break;
+	case ScriptedControlAudioParameter::Type::Unsupported:
+		break;
+	default:
+		break;
+	}
+}
+
+int ScriptedControlAudioParameter::getNumSteps() const
+{
+	const ScriptedComponent *c = getComponent();
+
+	switch (type)
+	{
+	case ScriptedControlAudioParameter::Type::Slider:
+		return parentProcessor->getDefaultNumParameterSteps();
+		break;
+	case ScriptedControlAudioParameter::Type::Button:
+		return 2;
+		break;
+	case ScriptedControlAudioParameter::Type::ComboBox:
+		return (float)dynamic_cast<const ScriptingApi::Content::ScriptComboBox*>(c)->getItemList().size();
+	case ScriptedControlAudioParameter::Type::Unsupported:
+		break;
+	default:
+		break;
+	}
+}
+
+ScriptedControlAudioParameter::Type ScriptedControlAudioParameter::getType(ScriptingApi::Content::ScriptComponent *component)
+{
+	if (dynamic_cast<ScriptingApi::Content::ScriptSlider*>(component)) return Type::Slider;
+	else if (dynamic_cast<ScriptingApi::Content::ScriptComboBox*>(component)) return Type::ComboBox;
+	else if (dynamic_cast<ScriptingApi::Content::ScriptButton*>(component)) return Type::Button;
+	else return Type::Unsupported;
+}
