@@ -706,4 +706,52 @@ private:
 
 };
 
+class MainController;
+
+class AutoSaver : public Timer
+{
+public:
+
+	AutoSaver(MainController *mc_) :
+		mc(mc_),
+		currentAutoSaveIndex(0)
+	{
+		enableAutoSaving();
+	};
+
+	void enableAutoSaving()
+	{
+		startTimer(1000 * 60 * 5); // autosave all 5 minutes
+	}
+
+	void disableAutoSaving()
+	{
+		stopTimer();
+	}
+
+	bool isAutoSaving() const
+	{
+		return isTimerRunning();
+	}
+
+	void timerCallback() override;
+
+	void toggleAutoSaving()
+	{
+		if (isAutoSaving()) disableAutoSaving();
+		else enableAutoSaving();
+	}
+
+private:
+
+	File getAutoSaveFile();
+
+	Array<File> fileList;
+
+	int currentAutoSaveIndex;
+
+	MainController *mc;
+};
+
+
 #endif  // UTILITYCLASSES_H_INCLUDED

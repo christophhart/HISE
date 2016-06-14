@@ -57,6 +57,7 @@ MainController::MainController():
     globalPitchFactor(1.0),
     midiInputFlag(false),
 	macroManager(this),
+	autoSaver(this),
 #if JUCE_WINDOWS
     globalCodeFontSize(14.0f)
 #else

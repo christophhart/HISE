@@ -112,6 +112,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsCollectExternalFiles,
         MenuToolsRedirectSampleFolder,
 		MenuToolsForcePoolSearch,
+		MenuToolsEnableAutoSaving,
 		MenuToolsCreateRSAKeys,
 		MenuToolsCreateDummyLicenceFile,
         MenuViewFullscreen,
@@ -330,6 +331,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuToolsForcePoolSearch:
 		setCommandTarget(result, "Force duplicate search in pool when loading samples", true, bpe->getBackendProcessor()->getSampleManager().getModulatorSamplerSoundPool()->isPoolSearchForced(), 'X', false);
 		break;
+	case MenuToolsEnableAutoSaving:
+		setCommandTarget(result, "Enable Autosaving", true, bpe->owner->getAutoSaver().isAutoSaving(), 'X', false);
+		break;
 	case MenuToolsCreateRSAKeys:
 		setCommandTarget(result, "Create RSA Key pair", true, false, 'X', false);
 		break;
@@ -474,6 +478,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuOneColumn:					Actions::setColumns(bpe, this, OneColumn);  updateCommands(); return true;
 	case MenuTwoColumns:				Actions::setColumns(bpe, this, TwoColumns);  updateCommands(); return true;
 	case MenuThreeColumns:				Actions::setColumns(bpe, this, ThreeColumns);  updateCommands(); return true;
+	case MenuToolsEnableAutoSaving:		bpe->owner->getAutoSaver().toggleAutoSaving(); updateCommands(); return true;
 	case MenuViewShowSelectedProcessorInPopup: Actions::showProcessorInPopup(bpe, dynamic_cast<ProcessorEditor*>(currentCopyPasteTarget.get())); return true;
 	}
 
@@ -698,6 +703,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuToolsCollectExternalFiles);
 		ADD_DESKTOP_ONLY(MenuToolsRedirectSampleFolder);
 		ADD_DESKTOP_ONLY(MenuToolsForcePoolSearch);
+		ADD_DESKTOP_ONLY(MenuToolsEnableAutoSaving);
 		p.addSeparator();
 		p.addSectionHeader("Licence Management");
 		ADD_DESKTOP_ONLY(MenuToolsCreateDummyLicenceFile);

@@ -53,3 +53,49 @@ static FileLimitInitialiser fileLimitInitialiser;
 double ScopedGlitchDetector::maxMilliSeconds = 3.0;
 Identifier ScopedGlitchDetector::lastPositiveId = Identifier();
 
+
+void AutoSaver::timerCallback()
+{
+	Processor *mainSynthChain = mc->getMainSynthChain();
+
+	File backupFile = getAutoSaveFile();
+
+	ValueTree v = mainSynthChain->exportAsValueTree();
+
+	v.setProperty("BuildVersion", BUILD_SUB_VERSION, nullptr);
+	FileOutputStream fos(backupFile);
+	v.writeToStream(fos);
+
+	debugToConsole(mainSynthChain, "Autosaving as " + backupFile.getFileName());
+}
+
+File AutoSaver::getAutoSaveFile()
+{
+	Processor *mainSynthChain = mc->getMainSynthChain();
+
+	File presetDirectory = GET_PROJECT_HANDLER(mainSynthChain).getSubDirectory(ProjectHandler::SubDirectories::Presets);
+
+	if (presetDirectory.isDirectory())
+	{
+		if (fileList.size() == 0)
+		{
+			fileList.add(presetDirectory.getChildFile("Autosave_1.hip"));
+			fileList.add(presetDirectory.getChildFile("Autosave_2.hip"));
+			fileList.add(presetDirectory.getChildFile("Autosave_3.hip"));
+			fileList.add(presetDirectory.getChildFile("Autosave_4.hip"));
+			fileList.add(presetDirectory.getChildFile("Autosave_5.hip"));
+		}
+
+		File toReturn = fileList[currentAutoSaveIndex];
+
+		if (toReturn.existsAsFile()) toReturn.deleteFile();
+
+		currentAutoSaveIndex = (currentAutoSaveIndex + 1) % 5;
+
+		return toReturn;
+	}
+	else
+	{
+		return File::nonexistent;
+	}
+}

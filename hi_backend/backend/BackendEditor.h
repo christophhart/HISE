@@ -47,32 +47,6 @@ class BackendProcessor;
 class ScriptContentContainer;
 
 
-class AutoSaver: public Timer
-{
-public:
-    
-    AutoSaver(BackendProcessorEditor *mainEditor_):
-      mainEditor(mainEditor_)
-    {};
-    
-    void enableAutoSaving()
-    {
-        startTimer(1000 * 60 * 3); // autosave all 3 minutes
-    }
-    
-    void disableAutoSaving()
-    {
-        stopTimer();
-    }
-    
-    void timerCallback() override;
-    
-private:
-    
-    BackendProcessorEditor *mainEditor;
-    
-};
-
 class BackendProcessorEditor: public AudioProcessorEditor,
 							  public BackendCommandTarget,
 							  public RestorableObject,
@@ -115,7 +89,8 @@ public:
 		v.setProperty("macrosShown", macroKnobs->isVisible(), nullptr);
 		v.setProperty("scrollPosition", viewport->viewport->getViewPosition().getY(), nullptr);
         v.setProperty("globalCodeFontSize", owner->getGlobalCodeFontSize(), nullptr);
-		
+		v.setProperty("autosaving", owner->getAutoSaver().isAutoSaving(), nullptr);
+
 		MemoryBlock mb;
 
 		
@@ -140,6 +115,11 @@ public:
             
 			owner->setScrollY(v.getProperty("scrollPosition", 0));
             
+			const bool wasAutoSaving = v.getProperty("autosaving", true);
+
+			if (wasAutoSaving) owner->getAutoSaver().enableAutoSaving();
+			else owner->getAutoSaver().disableAutoSaving();
+
 #if JUCE_WINDOWS
             
             owner->setGlobalCodeFontSize(v.getProperty("globalCodeFontSize", 14.0f));
@@ -394,8 +374,6 @@ private:
 	ScopedPointer<PluginPreviewWindow> previewWindow;
 
 	ScopedPointer<ThreadWithQuasiModalProgressWindow::Overlay> progressOverlay;
-
-    AutoSaver autoSaver;
 
 	bool rootEditorIsMainSynthChain;
 

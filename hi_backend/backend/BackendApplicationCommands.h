@@ -148,6 +148,7 @@ public:
 		MenuToolsForcePoolSearch,
 		MenuToolsCreateRSAKeys,
 		MenuToolsCreateDummyLicenceFile,
+		MenuToolsEnableAutoSaving,
 		MenuHelpShowAboutPage,
         MenuHelpCheckVersion,
 		numCommands

@@ -480,6 +480,10 @@ public:
 
 	const MacroManager &getMacroManager() const {return macroManager;};
 
+	AutoSaver &getAutoSaver() { return autoSaver; }
+
+	const AutoSaver &getAutoSaver() const { return autoSaver; }
+
 #if USE_BACKEND
 	/** Writes to the console. */
 	void writeToConsole(const String &message, int warningLevel, const Processor *p=nullptr, Colour c=Colours::transparentBlack);
@@ -845,6 +849,8 @@ private:
     
 	WeakReference<Console> popupConsole;
 	bool usePopupConsole;
+
+	AutoSaver autoSaver;
 
 #if USE_BACKEND
     
