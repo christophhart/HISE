@@ -210,4 +210,17 @@ void MacroModulator::calculateBlock(int startSample, int numSamples)
 	setOutputValue(currentValue);
 }
 
-ADD_EDITOR_CREATOR(MacroModulator, MacroControlModulatorEditorBody)
+ProcessorEditorBody *MacroModulator::createEditor(ProcessorEditor *parentEditor)
+{
+#if USE_BACKEND
+
+	return new MacroControlModulatorEditorBody(parentEditor);
+
+#else
+
+	ignoreUnused(parentEditor);
+	jassertfalse;
+	return nullptr;
+
+#endif
+};

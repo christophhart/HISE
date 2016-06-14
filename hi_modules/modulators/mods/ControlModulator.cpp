@@ -101,9 +101,7 @@ ProcessorEditorBody *ControlModulator::createEditor(ProcessorEditor *parentEdito
 #else
 
 	ignoreUnused(parentEditor);
-
 	jassertfalse;
-
 	return nullptr;
 
 #endif

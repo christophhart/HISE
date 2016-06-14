@@ -38,7 +38,7 @@
 #if USE_BACKEND
 #define ADD_EDITOR_CREATOR(processorClassName, editorClassName) ProcessorEditorBody *processorClassName::createEditor(ProcessorEditor *parentEditor) { return new editorClassName(parentEditor); }
 #else
-#define ADD_EDITOR_CREATOR(processorClassName, editorClassName) ProcessorEditorBody *processorClassName::createEditor(ProcessorEditor *parentEditor) { ignoreUnused(parentEditor);jassertfalse;return nullptr; }
+#define ADD_EDITOR_CREATOR(processorClassName, editorClassName) ProcessorEditorBody *processorClassName::createEditor(ProcessorEditor *parentEditor) { ignoreUnused(parentEditor); jassertfalse; return nullptr; }
 #endif
 
 
