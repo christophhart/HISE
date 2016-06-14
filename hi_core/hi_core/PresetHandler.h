@@ -73,7 +73,7 @@ public:
 		return JucePlugin_ManufacturerWebsite;
 	}
 
-	String readReplyFromWebserver(const String &email, const String &password) override { return ""; };
+	String readReplyFromWebserver(const String &/*email*/, const String &/*password*/) override { return ""; };
 
 	URL getServerAuthenticationURL() override
 	{
@@ -258,7 +258,7 @@ public:
 
 		static File getLicenceKey();
 
-		
+		static String getLicenceKeyExtension();
 
 		static String getSanitiziedFileNameForPoolReference(const String &absoluteFileName);
 		

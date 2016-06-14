@@ -34,7 +34,7 @@
 void FrontendProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {
 #if USE_COPY_PROTECTION
-	if ((unlockCounter & 1023 == 0) && !unlocker.isUnlocked()) return;
+	if (((unlockCounter & 1023) == 0) && !unlocker.isUnlocked()) return;
 #endif
 
 	getMacroManager().getMidiControlAutomationHandler()->handleParameterData(midiMessages);

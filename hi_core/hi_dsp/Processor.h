@@ -658,6 +658,8 @@ public:
 				allProcessors.add(p);
 			}
 
+			if (p == nullptr) return;
+
 			for(int i = 0; i < p->getNumChildProcessors(); i++)
 			{
 				addProcessor(p->getChildProcessor(i));
@@ -667,6 +669,8 @@ public:
 		void addProcessorWithHierarchy(Processor *p)
 		{
 			jassert(p != nullptr);
+
+			if (p == nullptr) return;
 
 			const int thisHierarchy = internalHierarchyLevel;
 

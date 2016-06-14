@@ -324,7 +324,7 @@ public:
 
 	void setMicEnabled(int channelIndex, bool channelIsEnabled) noexcept
 	{
-		if (channelIndex > NUM_MIC_POSITIONS || channelIndex < 0) return;
+		if (channelIndex >= NUM_MIC_POSITIONS || channelIndex < 0) return;
 
 		channelData[channelIndex].enabled = channelIsEnabled;
 

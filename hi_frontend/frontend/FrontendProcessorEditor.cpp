@@ -110,7 +110,7 @@ void DeactiveOverlay::buttonClicked(Button *b)
 	if (b == resolveLicenceButton)
 	{
 #if USE_COPY_PROTECTION
-		FileChooser fc("Load Licence key file", File::nonexistent, "*.licence", true);
+		FileChooser fc("Load Licence key file", File::nonexistent, "*" + ProjectHandler::Frontend::getLicenceKeyExtension(), true);
 
 		if (fc.browseForFileToOpen())
 		{

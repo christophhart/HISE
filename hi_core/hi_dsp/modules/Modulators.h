@@ -805,6 +805,8 @@ public:
 		{
 			setOutputValue(0.0f);
 		};
+#else
+		ignoreUnused(voiceIndex);
 #endif
 	}
 

@@ -436,6 +436,15 @@ public:
 
 	NormalisableRange<double> getRange() const override { return normRange; };
 
+	static double getSkewFactorFromMidPoint(double minimum, double maximum, double midPoint)
+	{
+		if (maximum > minimum)
+			return log(0.5) / log((midPoint - minimum) / (maximum - minimum));
+		
+		jassertfalse;
+		return 1.0;
+	}
+
 	static String getSuffixForMode(HiSlider::Mode mode, float panValue)
 	{
 		jassert(mode != numModes);
@@ -460,7 +469,7 @@ private:
 
 	String getModeSuffix()
 	{
-		return getSuffixForMode(mode, modeValues[Pan]);
+		return getSuffixForMode(mode, (float)modeValues[Pan]);
 	};
 
 	void setModeRange(double min, double max, double mid)

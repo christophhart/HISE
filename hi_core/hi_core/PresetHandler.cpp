@@ -919,12 +919,28 @@ File ProjectHandler::Frontend::getLicenceKey()
 {
 #if USE_FRONTEND
 
-	return getAppDataDirectory().getChildFile(String(JucePlugin_Name) + ".licence");
+	return getAppDataDirectory().getChildFile(String(JucePlugin_Name) + getLicenceKeyExtension());
 
 #else
 
 	return File::nonexistent;
 
+#endif
+}
+
+String ProjectHandler::Frontend::getLicenceKeyExtension()
+{
+
+#if JUCE_WINDOWS
+
+#if JUCE_64BIT
+	return ".licence_x64";
+#else
+	return ".licence_x86";
+#endif
+
+#else
+	return ".licence";
 #endif
 }
 
