@@ -3,31 +3,17 @@
 <Processor Type="SynthChain" ID="Demo" Bypassed="0" Gain="1" Balance="0"
            VoiceLimit="128" KillFadeTime="20" IconColour="0" packageName=""
            views="32.rk1bzA...zbyM2byM2byM2byM2byM2byM2byM2byM2L" currentView="-1"
-           BuildVersion="626">
+           BuildVersion="635">
   <ChildProcessors>
     <Processor Type="MidiProcessorChain" ID="Midi Processor" Bypassed="0">
       <ChildProcessors>
         <Processor Type="ScriptProcessor" ID="Velocity Editor" Bypassed="0">
           <ChildProcessors/>
           <Content>
-            <bgImage value="0" visible="1"/>
             <volumeSlider value="0" visible="1" rangeMin="0" rangeMax="1"/>
             <delaySlider value="-100" visible="1" rangeMin="0" rangeMax="1"/>
             <velocityTable value="0" visible="1" data="24......35P+5C...vO...f+XDVt6C...vO"/>
             <velocityLabel value="0" visible="1"/>
-          </Content>
-        </Processor>
-        <Processor Type="ScriptProcessor" ID="MultiChannel" Bypassed="0">
-          <ChildProcessors/>
-          <Content>
-            <bgImage value="0" visible="1"/>
-          </Content>
-        </Processor>
-        <Processor Type="ScriptProcessor" ID="Looper" Bypassed="0">
-          <ChildProcessors/>
-          <Content>
-            <bgImage value="0" visible="1"/>
-            <AudioWaveform value="0" visible="1"/>
           </Content>
         </Processor>
       </ChildProcessors>
@@ -47,7 +33,7 @@
           <RoutingMatrix NumSourceChannels="2" Channel0="0" Send0="-1" Channel1="1" Send1="-1"/>
         </Processor>
         <Processor Type="SimpleGain" ID="Simple Gain" Bypassed="0" Gain="0" Delay="0"
-                   Width="-2.4999974">
+                   Width="-2.4999974" Balance="0">
           <ChildProcessors>
             <Processor Type="ModulatorChain" ID="Gain Modulation" Bypassed="0" Intensity="1">
               <ChildProcessors/>
@@ -56,6 +42,9 @@
               <ChildProcessors/>
             </Processor>
             <Processor Type="ModulatorChain" ID="Width Modulation" Bypassed="0" Intensity="1">
+              <ChildProcessors/>
+            </Processor>
+            <Processor Type="ModulatorChain" ID="Pan Modulation" Bypassed="0" Intensity="1">
               <ChildProcessors/>
             </Processor>
           </ChildProcessors>

@@ -6,4 +6,6 @@
   <Description value="The most simple HISE project" type="TEXT" description="Project description"/>
   <BundleIdentifier value="com.HISEDemoProject.pkg" type="TEXT" description="Bundle Identifier(eg.com.myCompany.bundle)"/>
   <PluginCode value="Hidp" type="TEXT" description="a 4 character ID code(eg. 'Abcd')"/>
+  <EmbedAudioFiles value="Yes" type="LIST" description="Embed Audio files in plugin"
+                   options="Yes&#10;No"/>
 </ProjectSettings>
