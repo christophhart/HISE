@@ -1989,6 +1989,7 @@ void ScriptingApi::Content::ScriptSlider::setMode(String mode)
 		setScriptObjectProperty(ScriptComponent::Properties::min, nr.start);
 		setScriptObjectProperty(ScriptComponent::Properties::max,  nr.end);
 		setScriptObjectProperty(stepSize, nr.interval);
+		setScriptObjectProperty(ScriptSlider::Properties::suffix, HiSlider::getSuffixForMode(m, getValue()));
 		setMidPoint(getScriptObjectProperty(ScriptSlider::Properties::middlePosition));
 	}
 }
@@ -2351,7 +2352,8 @@ StringArray ScriptingApi::Content::ScriptSlider::getOptionsFor(const Identifier 
 
 	switch (index)
 	{
-	case Properties::Mode:	sa.add("Frequency");
+	case Properties::Mode:	
+		sa.add("Frequency");
 		sa.add("Decibel");
 		sa.add("Time");
 		sa.add("TempoSync");

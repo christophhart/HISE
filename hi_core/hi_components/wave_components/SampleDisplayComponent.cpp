@@ -328,14 +328,8 @@ void AudioDisplayComponent::SampleArea::mouseUp(const MouseEvent &e)
 
 void AudioDisplayComponent::SampleArea::mouseDown(const MouseEvent &e)
 {
-    ProcessorEditor *editor = findParentComponentOfClass<ProcessorEditor>();
-    
-    if(editor != nullptr)
-    {
-        PresetHandler::setChanged(editor->getProcessor());
-    }
+	SET_CHANGED_FROM_PARENT_EDITOR()
 
-    
 	prevDragWidth = getWidth();
 	leftEdgeClicked = e.eventComponent == leftEdge;
 
@@ -540,12 +534,7 @@ void AudioSampleBufferComponent::mouseDown(const MouseEvent &e)
 {
 	if (e.mods.isRightButtonDown())
 	{
-        ProcessorEditor *editor = findParentComponentOfClass<ProcessorEditor>();
-        
-        if(editor != nullptr)
-        {
-            PresetHandler::setChanged(editor->getProcessor());
-        }
+		SET_CHANGED_FROM_PARENT_EDITOR()
         
 		String patterns = "*.wav;*.aif;*.aiff;*.WAV;*.AIFF";
 

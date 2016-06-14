@@ -436,24 +436,31 @@ public:
 
 	NormalisableRange<double> getRange() const override { return normRange; };
 
-private:
-
-	String getModeSuffix()
+	static String getSuffixForMode(HiSlider::Mode mode, float panValue)
 	{
 		jassert(mode != numModes);
+
+
 
 		switch (mode)
 		{
 		case Frequency:		return " Hz";
 		case Decibel:		return " dB";
 		case Time:			return " ms";
-		case Pan:			return modeValues[Pan] > 0.0 ? "R" : "L";
+		case Pan:			return panValue > 0.0 ? "R" : "L";
 		case TempoSync:		return String::empty;
 		case Linear:		return String::empty;
 		case Discrete:		return String::empty;
 		case NormalizedPercentage:	return "%";
 		default:			return String::empty;
 		}
+	}
+
+private:
+
+	String getModeSuffix()
+	{
+		return getSuffixForMode(mode, modeValues[Pan]);
 	};
 
 	void setModeRange(double min, double max, double mid)

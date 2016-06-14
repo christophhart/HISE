@@ -401,7 +401,7 @@ CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(Modulato
 	}
 	else
 	{
-		pluginDataHeaderFile << "AudioProcessor* JUCE_CALLTYPE createPluginFilter() { CREATE_PLUGIN_AUDIO_FILES; }\n";
+		pluginDataHeaderFile << "AudioProcessor* JUCE_CALLTYPE createPluginFilter() { CREATE_PLUGIN_WITH_AUDIO_FILES; }\n";
 		pluginDataHeaderFile << "\n";
 	}
 

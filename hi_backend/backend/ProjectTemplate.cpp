@@ -164,7 +164,8 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "    <MODULE id=\"juce_tracktion_marketplace\" showAllCode=\"1\" useLocalCopy=\"0\"/>\r\n"
 "  </MODULES>\r\n"
 "  <JUCEOPTIONS JUCE_QUICKTIME=\"disabled\" USE_BACKEND=\"disabled\" USE_FRONTEND=\"enabled\" USE_COPY_PROTECTION=\"%USE_COPY_PROTECTION%\" IS_STANDALONE_APP=\"disabled\"\r\n"
-"               USE_IPP=\"enabled\"/>\r\n"
+"               USE_IPP=\"enabled\" USE_GLITCH_DETECTION=\"disabled\" ENABLE_PLOTTER=\"disabled\" ENABLE_SCRIPTING_SAFE_CHECKS=\"disabled\""
+"               ENABLE_ALL_PEAK_METERS=\"disabled\" ENABLE_CONSOLE_OUTPUT=\"disabled\"/>/>\r\n"
 "</JUCERPROJECT>\r\n";
 
 const char* projectTemplate_jucer = (const char*)projectTemplate_jucer_lines;

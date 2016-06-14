@@ -246,12 +246,7 @@ void TableEditor::mouseDown(const MouseEvent &e)
 {
 	if (!isEnabled()) return;
 
-    ProcessorEditor *editor = findParentComponentOfClass<ProcessorEditor>();
-    
-    if(editor != nullptr)
-    {
-        PresetHandler::setChanged(editor->getProcessor());
-    }
+	SET_CHANGED_FROM_PARENT_EDITOR()
     
 	grabCopyAndPasteFocus();
 

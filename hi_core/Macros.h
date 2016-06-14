@@ -40,9 +40,11 @@
 #if ENABLE_CONSOLE_OUTPUT
 #define debugToConsole(p, x) (p->getMainController()->writeToConsole(x, 0, p))
 #define debugError(p, x) (p->getMainController()->writeToConsole(x, 1, p))
+#define debugMod(text) { if(consoleEnabled) debugProcessor(text); };
 #else
 #define debugToConsole(p, x)
 #define debugError(p, x)
+#define debugMod(text)
 #endif
 
 
@@ -60,38 +62,35 @@
 #define BACKEND_ONLY(x)
 #endif
 
+#if USE_BACKEND
+#define SET_CHANGED_FROM_PARENT_EDITOR() if(ProcessorEditor *editor = findParentComponentOfClass<ProcessorEditor>()) PresetHandler::setChanged(editor->getProcessor());
+#else
+#define SET_CHANGED_FROM_PARENT_EDITOR()
+#endif
+
 static juce::Typeface::Ptr oxygenBoldTypeFace = juce::Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::oxygen_bold_ttf, HiBinaryData::FrontendBinaryData::oxygen_bold_ttfSize);
-
-
 static juce::Typeface::Ptr oxygenTypeFace = juce::Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::oxygen_regular_ttf, HiBinaryData::FrontendBinaryData::oxygen_regular_ttfSize);
-
 static juce::Typeface::Ptr sourceCodeProTypeFace = juce::Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::SourceCodeProRegular_otf, HiBinaryData::FrontendBinaryData::SourceCodeProRegular_otfSize);
-
 static juce::Typeface::Ptr sourceCodeProBoldTypeFace = juce::Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::SourceCodeProBold_otf, HiBinaryData::FrontendBinaryData::SourceCodeProBold_otfSize);
 
-
 #define GLOBAL_FONT() (Font(oxygenTypeFace).withHeight(13.0f))
-
-//#define GLOBAL_FONT() (Font("Helvetica", 10.5f, Font::plain))
 #define GLOBAL_BOLD_FONT() (Font(oxygenBoldTypeFace).withHeight(14.0f))
-//#define GLOBAL_BOLD_FONT() (Font("Helvetica", 10.5f, Font::bold))
 #define GLOBAL_MONOSPACE_FONT() (Font(sourceCodeProTypeFace).withHeight(14.0f))
 
+
+#define GET_PROJECT_HANDLER(x)(x->getMainController()->getSampleManager().getProjectHandler())
 
 #define loadTable(tableVariableName, nameAsString) { const var savedData = v.getProperty(nameAsString, var::null); tableVariableName->restoreData(savedData); }
 #define saveTable(tableVariableName, nameAsString) ( v.setProperty(nameAsString, tableVariableName->exportData(), nullptr) )
 
 #if JUCE_DEBUG
 #define START_TIMER() (startTimer(150))
-#else
-#define START_TIMER() (startTimer(30))
-#endif
-
-#if JUCE_DEBUG
 #define IGNORE_UNUSED_IN_RELEASE(x) 
 #else
+#define START_TIMER() (startTimer(30))
 #define IGNORE_UNUSED_IN_RELEASE(x) (ignoreUnused(x))
 #endif
+
 
 #define CONSTRAIN_TO_0_1(x)(jlimit<float>(0.0f, 1.0f, x))
 
