@@ -89,6 +89,65 @@ Use the Intel Performance Primitives Library for the convolution reverb.
 #define USE_IPP 1
 #endif
 
+
+
+/** Config: USE_GLITCH_DETECTION
+
+Enable this to add a glitch detector to some performance crititcal functions
+*/
+#ifndef USE_GLITCH_DETECTION
+#define USE_GLITCH_DETECTION 0
+#endif
+
+/** Config: ENABLE_PLOTTER
+
+Set this to 0 to deactivate the plotter data collection
+*/
+#ifndef ENABLE_PLOTTER
+#define ENABLE_PLOTTER 1
+#endif
+
+/** Config: ENABLE_SCRIPTING_SAFE_CHECKS
+
+Set this to 0 to deactivate the safe checks for scripting
+*/
+#ifndef ENABLE_SCRIPTING_SAFE_CHECKS
+#define ENABLE_SCRIPTING_SAFE_CHECKS 1
+#endif
+
+/** Config: ENABLE_ALL_PEAK_METERS
+
+Set this to 0 to deactivate peak collection for any other processor than the main synth chain
+*/
+#ifndef ENABLE_ALL_PEAK_METERS
+#define ENABLE_ALL_PEAK_METERS 1
+#endif
+
+/** Config: ENABLE_CONSOLE_OUTPUT
+
+Set this to 0 to deactivate the console output
+*/
+#ifndef ENABLE_CONSOLE_OUTPUT
+#define ENABLE_CONSOLE_OUTPUT 1
+#endif
+
+/** Config: ENABLE_HOST_INFO
+
+Set this to 0 to disable host information like tempo, playing position etc...
+*/
+#ifndef ENABLE_HOST_INFO
+#define ENABLE_HOST_INFO 1
+#endif
+
+/** Config: ENABLE_CPU_MEASUREMENT
+
+Set this to 0 to deactivate the CPU peak meter.
+*/
+#ifndef ENABLE_CPU_MEASUREMENT
+#define ENABLE_CPU_MEASUREMENT 1
+#endif
+
+
 #if JUCE_IOS
 #ifndef HISE_IOS
 #define HISE_IOS 1

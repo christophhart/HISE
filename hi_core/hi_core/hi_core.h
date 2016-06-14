@@ -50,6 +50,7 @@
 #include "SampleThreadPool.h"
 #include "PresetHandler.h"
 #include "GlobalScriptCompileBroadcaster.h"
+#include "MainControllerHelpers.h"
 #include "MainController.h"
 
 #include "SampleExporter.h"

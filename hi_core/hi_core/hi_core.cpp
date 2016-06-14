@@ -39,6 +39,7 @@
 #include "ExternalFilePool.cpp"
 #include "SampleThreadPool.cpp"
 #include "GlobalScriptCompileBroadcaster.cpp"
+#include "MainControllerHelpers.cpp"
 #include "MainController.cpp"
 #include "PresetHandler.cpp"
 #include "SampleExporter.cpp"

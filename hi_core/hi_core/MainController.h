@@ -33,226 +33,6 @@
 #ifndef MAINCONTROLLER_H_INCLUDED
 #define MAINCONTROLLER_H_INCLUDED
 
-// ====================================================================================================
-// Extern class definitions
-
-class PluginParameterModulator;
-class PluginParameterAudioProcessor;
-class ControlledObject;
-class Processor;
-class Console;
-class ModulatorSamplerSound;
-class ModulatorSamplerSoundPool;
-class AudioSampleBufferPool;
-class Plotter;
-class ScriptWatchTable;
-class ScriptComponentEditPanel;
-class ScriptProcessor;
-class Modulator;
-class CustomKeyboardState;
-class ModulatorSynthChain;
-class FactoryType;
-
-// ====================================================================================================
-// Macro definitions
-
-#if USE_BACKEND
-
-#define debugMod(text) { if(consoleEnabled) debugProcessor(text); };
-#else
-#define debugMod(text) {;};
-#endif
-
-
-
-#define SET_PRESET_CHANGED(p)
-
-#define USE_MIDI_CONTROLLERS_FOR_MACROS 0
-
-
-class MainController;
-
-
-
-/** This handles the MIDI automation for the frontend plugin.
-*
-*	For faster performance, one CC value can only control one parameter.
-*
-*/
-class MidiControllerAutomationHandler: public RestorableObject
-{
-public:
-
-	MidiControllerAutomationHandler(MainController *mc_) :
-		anyUsed(false),
-		mc(mc_)
-	{
-		tempBuffer.ensureSize(2048);
-
-		clear();
-	}
-
-	void addMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex, NormalisableRange<double> parameterRange, int macroIndex)
-	{
-		ScopedLock sl(lock);
-
-		unlearnedData.processor = interfaceProcessor;
-		unlearnedData.attribute = attributeIndex;
-		unlearnedData.parameterRange = parameterRange;
-		unlearnedData.macroIndex = macroIndex;
-		unlearnedData.used = true;
-	}
-
-	bool isLearningActive() const
-	{
-		ScopedLock sl(lock);
-
-		return unlearnedData.used;
-	}
-
-	ValueTree exportAsValueTree() const override;
-
-	void restoreFromValueTree(const ValueTree &v) override;
-
-	bool isLearningActive(Processor *interfaceProcessor, int attributeIndex) const
-	{
-		return unlearnedData.processor == interfaceProcessor && unlearnedData.attribute == attributeIndex;
-	}
-
-	void deactivateMidiLearning()
-	{
-		ScopedLock sl(lock);
-
-		unlearnedData = AutomationData();
-	}
-	
-	void setUnlearndedMidiControlNumber(int ccNumber)
-	{
-		ScopedLock sl(lock);
-
-		jassert(isLearningActive());
-
-		automationData[ccNumber] = unlearnedData;
-
-		unlearnedData = AutomationData();
-
-		anyUsed = true;
-	}
-
-	int getMidiControllerNumber(Processor *interfaceProcessor, int attributeIndex) const
-	{
-		for (int i = 0; i < 128; i++)
-		{
-			const AutomationData *a = automationData + i;
-
-			if (a->processor == interfaceProcessor && a->attribute == attributeIndex)
-			{
-				return i;
-			}
-		}
-
-		return -1;
-	}
-
-	void refreshAnyUsedState()
-	{
-		ScopedLock sl(lock);
-
-		anyUsed = false;
-
-		for (int i = 0; i < 128; i++)
-		{
-			AutomationData *a = automationData + i;
-
-			if (a->used)
-			{
-				anyUsed = true;
-				break;
-			}
-		}
-	}
-
-	void clear()
-	{
-		for (int i = 0; i < 128; i++)
-		{
-			automationData[i] = AutomationData();
-		};
-	}
-
-	void removeMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex)
-	{
-		ScopedLock sl(lock);
-
-		for (int i = 0; i < 128; i++)
-		{
-			AutomationData *a = automationData + i;
-
-			if (a->processor == interfaceProcessor && a->attribute == attributeIndex)
-			{
-				*a = AutomationData();
-				break;
-			}
-		}
-
-		refreshAnyUsedState();
-	}
-
-	void handleParameterData(MidiBuffer &b);
-
-	struct AutomationData
-	{
-		AutomationData():
-			processor(nullptr),
-			attribute(-1),
-			parameterRange(NormalisableRange<double>()),
-			macroIndex(-1),
-			used(false)
-		{}
-
-		WeakReference<Processor> processor;
-		int attribute;
-		NormalisableRange<double> parameterRange;
-		int macroIndex;
-		bool used;
-	};
-
-
-private:
-
-	CriticalSection lock;
-
-	MainController *mc;
-
-	bool anyUsed;
-
-	MidiBuffer tempBuffer;
-
-	AutomationData automationData[128];
-	
-	AutomationData unlearnedData;
-
-};
-
-
-class ConsoleLogger: public Logger
-{
-public:
-    
-    ConsoleLogger(Processor *p):
-      processor(p)
-    {};
-    
-    void logMessage(const String &message) override;
-    
-private:
-    
-    Processor *processor;
-    
-};
-
-#define GET_PROJECT_HANDLER(x)(x->getMainController()->getSampleManager().getProjectHandler())
-
 /** A class for handling application wide tasks.
 *	@ingroup core
 *
@@ -297,16 +77,7 @@ public:
 		*	This is used when a sample map is loaded - it checks if the name already exists in the loaded monolithic data
 		*	and loads the sounds from there if there is a match. 
 		*/
-		const ValueTree getLoadedSampleMap(const String &fileName) const
-		{
-			for(int i = 0; i < sampleMaps.getNumChildren(); i++)
-			{
-				String childFileName = sampleMaps.getChild(i).getProperty("SampleMapIdentifier", String::empty);
-				if(childFileName == fileName) return sampleMaps.getChild(i);
-			}
-
-			return ValueTree::invalid;
-		}
+		const ValueTree getLoadedSampleMap(const String &fileName) const;
 
 		bool shouldUseRelativePathToProjectFolder() const { return useRelativePathsToProjectFolder; }
 
@@ -354,93 +125,32 @@ public:
 
 		void setMacroChain(ModulatorSynthChain *chain) { macroChain = chain; }
 
-		bool midiMacroControlActive() const
-		{
-			for(int i = 0; i < 8; i++)
-			{
-				if(macroControllerNumbers[i] != -1) return true;
-			}
-
-			return false;
-		}
+		bool midiMacroControlActive() const;
 
 		void setMidiControllerForMacro(int midiControllerNumber);
 
-		void setMidiControllerForMacro(int macroIndex, int midiControllerNumber)
-		{
-			if( macroIndex < 8)
-			{
-				macroControllerNumbers[macroIndex] = midiControllerNumber;
-			}
-		};
+		void setMidiControllerForMacro(int macroIndex, int midiControllerNumber);;
 
-		void setMacroControlMidiLearnMode(ModulatorSynthChain *chain, int index)
-		{
-			macroChain = chain;
-			macroIndexForCurrentMidiLearnMode = index;
-		}
+		void setMacroControlMidiLearnMode(ModulatorSynthChain *chain, int index);
 
-		int getMacroControlForMidiController(int midiController)
-		{
-			for(int i = 0; i < 8; i++)
-			{
-				if(macroControllerNumbers[i] == midiController) return i;
-			}
+		int getMacroControlForMidiController(int midiController);
 
-			return -1;
-		}
+		int getMidiControllerForMacro(int macroIndex);
 
-		int getMidiControllerForMacro(int macroIndex)
-		{
-			if(macroIndex < 8)
-			{
-				return macroControllerNumbers[macroIndex];
-			}
-			else
-			{
-				return -1;
-			}
-		}
+		bool midiControlActiveForMacro(int macroIndex) const;;
 
-		bool midiControlActiveForMacro(int macroIndex) const
-		{
-			if(macroIndex < 8)
-			{
-				return macroControllerNumbers[macroIndex] != -1;
-			}
-			else
-			{
-				jassertfalse;
-				return false;
-			}
-		};
-
-		void removeMidiController(int macroIndex)
-		{
-			if(macroIndex < 8)
-			{
-				macroControllerNumbers[macroIndex] = -1;
-			}
-		}
+		void removeMidiController(int macroIndex);
 
 		bool macroControlMidiLearnModeActive() { return macroIndexForCurrentMidiLearnMode != -1; }
 
-		void setMacroControlLearnMode(ModulatorSynthChain *chain, int index)
-		{
-			macroChain = chain;
-			macroIndexForCurrentLearnMode = index;
-		}
+		void setMacroControlLearnMode(ModulatorSynthChain *chain, int index);
 
-		int getMacroControlLearnMode() const
-		{
-			return macroIndexForCurrentLearnMode;
-		};
+		int getMacroControlLearnMode() const;;
 
 		void removeMacroControlsFor(Processor *p);
 
 		void removeMacroControlsFor(Processor *p, Identifier name);
 	
-
 		MidiControllerAutomationHandler *getMidiControlAutomationHandler()
 		{
 			return &midiControllerHandler;
@@ -467,12 +177,7 @@ public:
 
 	MainController();
 
-	virtual ~MainController()
-    {
-        Logger::setCurrentLogger(nullptr);
-        logger = nullptr;
-        masterReference.clear();
-    };
+	virtual ~MainController();;
 
 	SampleManager &getSampleManager() {return *sampleManager;};
 
@@ -524,8 +229,6 @@ public:
  							   const Identifier &typeName, 
 							   const String &id);
 
-
-
 	/** Adds a PluginParameterModulator to the parameter list of the plugin. */
 	int addPluginParameter(PluginParameterModulator *p);
 	
@@ -542,10 +245,7 @@ public:
 	void setPluginParameter(int index, float newValue);
 	
 	/** Returns the uptime in seconds. */
-	double getUptime() const noexcept
-	{ 
-		return uptime; 
-	}
+	double getUptime() const noexcept { return uptime; }
 
 	/** returns the tempo as bpm. */
 	double getBpm() const noexcept { return bpm > 0.0 ? bpm : 120.0; };
@@ -553,27 +253,13 @@ public:
 	/** skins the given component (applies the global look and feel to it). */
     void skin(Component &c);
 	
-
-	
-
 	/** adds a TempoListener to the main controller that will receive a callback whenever the host changes the tempo. */
-	void addTempoListener(TempoListener *t)
-	{
-		ScopedLock sl(lock);
-		tempoListeners.addIfNotAlreadyThere(t);
-	}
+	void addTempoListener(TempoListener *t);
 
 	/** removes a TempoListener. */
-	void removeTempoListener(TempoListener *t)
-	{
-		ScopedLock sl(lock);
-		tempoListeners.removeAllInstancesOf(t);
-	};
+	void removeTempoListener(TempoListener *t);;
 
-	ApplicationCommandManager *getCommandManager()
-	{
-		return mainCommandManager;
-	};
+	ApplicationCommandManager *getCommandManager() { return mainCommandManager; };
 
     const CriticalSection &getLock() const;
     
@@ -629,9 +315,7 @@ public:
 	/** Returns the amount of playing voices. */
 	int getNumActiveVoices() const 
 	{ 
-		ScopedLock sl(lock);
-
-		return voiceAmount; 
+		return voiceAmount.get(); 
 	};
 
 	void replaceReferencesToGlobalFolder();
@@ -873,7 +557,7 @@ private:
     double globalPitchFactor;
     
 	double bpm;
-	int voiceAmount;
+	Atomic<int> voiceAmount;
 	bool allNotesOffFlag;
     
     bool changed;

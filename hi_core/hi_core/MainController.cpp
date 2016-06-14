@@ -30,13 +30,6 @@
 *   ===========================================================================
 */
 
-
-void ConsoleLogger::logMessage(const String &message)
-{
-    debugError(processor, message);
-}
-
-
 MainController::MainController():
 	sampleManager(new SampleManager(this)),
 	allNotesOffFlag(false),
@@ -81,6 +74,15 @@ MainController::MainController():
 
 };
 
+
+MainController::~MainController()
+{
+	Logger::setCurrentLogger(nullptr);
+	logger = nullptr;
+	masterReference.clear();
+}
+
+
 MainController::SampleManager::SampleManager(MainController *mc):
 	samplerLoaderThreadPool(new SampleThreadPool()),
 	projectHandler(),
@@ -121,29 +123,18 @@ void MainController::writeToConsole(const String &message, int warningLevel, con
 
 void MainController::increaseVoiceCounter()
 {
-	ScopedLock sl(lock);
-
-	++voiceAmount;
-
-
+	voiceAmount.set(voiceAmount.get() + 1);
 }
 
 void MainController::decreaseVoiceCounter()
 {
-	ScopedLock sl(lock);
-
-	--voiceAmount;
-	 
-	if(voiceAmount < 0) voiceAmount = 0;
-
+	voiceAmount.set(voiceAmount.get() - 1);
+	if (voiceAmount.get() < 0) voiceAmount.set(0);
 }
 
 void MainController::resetVoiceCounter()
 {
-	ScopedLock sl(lock);
- 
-	voiceAmount = 0;
-
+	voiceAmount.set(0);
 }
 
 const CriticalSection &MainController::getLock() const
@@ -358,6 +349,17 @@ void MainController::SampleManager::saveAllSamplesToGlobalFolder(const String &p
 
 }
 
+const ValueTree MainController::SampleManager::getLoadedSampleMap(const String &fileName) const
+{
+	for (int i = 0; i < sampleMaps.getNumChildren(); i++)
+	{
+		String childFileName = sampleMaps.getChild(i).getProperty("SampleMapIdentifier", String::empty);
+		if (childFileName == fileName) return sampleMaps.getChild(i);
+	}
+
+	return ValueTree::invalid;
+}
+
 Processor *MainController::createProcessor(FactoryType *factory,
 											 const Identifier &typeName,
 											 const String &id)
@@ -421,6 +423,83 @@ void MainController::MacroManager::setMidiControllerForMacro(int midiControllerN
 	}
 }
 
+void MainController::MacroManager::setMidiControllerForMacro(int macroIndex, int midiControllerNumber)
+{
+	if (macroIndex < 8)
+	{
+		macroControllerNumbers[macroIndex] = midiControllerNumber;
+	}
+}
+
+bool MainController::MacroManager::midiMacroControlActive() const
+{
+	for (int i = 0; i < 8; i++)
+	{
+		if (macroControllerNumbers[i] != -1) return true;
+	}
+
+	return false;
+}
+
+void MainController::MacroManager::setMacroControlMidiLearnMode(ModulatorSynthChain *chain, int index)
+{
+	macroChain = chain;
+	macroIndexForCurrentMidiLearnMode = index;
+}
+
+int MainController::MacroManager::getMacroControlForMidiController(int midiController)
+{
+	for (int i = 0; i < 8; i++)
+	{
+		if (macroControllerNumbers[i] == midiController) return i;
+	}
+
+	return -1;
+}
+
+int MainController::MacroManager::getMidiControllerForMacro(int macroIndex)
+{
+	if (macroIndex < 8)
+	{
+		return macroControllerNumbers[macroIndex];
+	}
+	else
+	{
+		return -1;
+	}
+}
+
+bool MainController::MacroManager::midiControlActiveForMacro(int macroIndex) const
+{
+	if (macroIndex < 8)
+	{
+		return macroControllerNumbers[macroIndex] != -1;
+	}
+	else
+	{
+		jassertfalse;
+		return false;
+	}
+}
+
+void MainController::MacroManager::removeMidiController(int macroIndex)
+{
+	if (macroIndex < 8)
+	{
+		macroControllerNumbers[macroIndex] = -1;
+	}
+}
+
+void MainController::MacroManager::setMacroControlLearnMode(ModulatorSynthChain *chain, int index)
+{
+	macroChain = chain;
+	macroIndexForCurrentLearnMode = index;
+}
+
+int MainController::MacroManager::getMacroControlLearnMode() const
+{
+	return macroIndexForCurrentLearnMode;
+}
 
 void MainController::setKeyboardCoulour(int keyNumber, Colour colour)
 {
@@ -705,6 +784,18 @@ void MainController::setBpm(double bpm_)
 	}
 };
 
+void MainController::addTempoListener(TempoListener *t)
+{
+	ScopedLock sl(lock);
+	tempoListeners.addIfNotAlreadyThere(t);
+}
+
+void MainController::removeTempoListener(TempoListener *t)
+{
+	ScopedLock sl(lock);
+	tempoListeners.removeAllInstancesOf(t);
+}
+
 ControlledObject::ControlledObject(MainController *m):	
 	controller(m)	{jassert(m != nullptr);};
 
@@ -716,128 +807,3 @@ ControlledObject::~ControlledObject()
 	masterReference.clear();
 	
 };
-
-
-ValueTree MidiControllerAutomationHandler::exportAsValueTree() const
-{
-	ValueTree v("MidiAutomation");
-
-	for (int i = 0; i < 128; i++)
-	{
-		const AutomationData *a = automationData + i;
-		if (a->used)
-		{
-			ValueTree cc("Controller");
-
-			cc.setProperty("Controller", i, nullptr);
-			cc.setProperty("Processor", a->processor->getId(), nullptr);
-			cc.setProperty("MacroIndex", a->macroIndex, nullptr);
-			cc.setProperty("Start", a->parameterRange.start, nullptr);
-			cc.setProperty("End", a->parameterRange.end, nullptr);
-			cc.setProperty("Skew", a->parameterRange.skew, nullptr);
-			cc.setProperty("Interval", a->parameterRange.interval, nullptr);
-			cc.setProperty("Attribute", a->attribute, nullptr);
-
-			v.addChild(cc, -1, nullptr);
-		}
-	}
-
-	return v;
-}
-
-void MidiControllerAutomationHandler::restoreFromValueTree(const ValueTree &v)
-{
-	if (v.getType() != Identifier("MidiAutomation")) return;
-
-	clear();
-
-	for (int i = 0; i < v.getNumChildren(); i++)
-	{
-		ValueTree cc = v.getChild(i);
-
-		int controller = cc.getProperty("Controller", i);
-
-		AutomationData *a = automationData + controller;
-
-		a->processor = ProcessorHelpers::getFirstProcessorWithName(mc->getMainSynthChain(), cc.getProperty("Processor"));
-		a->macroIndex = cc.getProperty("MacroIndex");
-		a->attribute = cc.getProperty("Attribute", a->attribute);
-
-		double start = cc.getProperty("Start");
-		double end = cc.getProperty("End");
-		double skew = cc.getProperty("Skew", a->parameterRange.skew);
-		double interval = cc.getProperty("Interval", a->parameterRange.interval);
-
-		a->parameterRange = NormalisableRange<double>(start, end, interval, skew);
-
-		a->used = true;
-	}
-
-	refreshAnyUsedState();
-}
-
-void MidiControllerAutomationHandler::handleParameterData(MidiBuffer &b)
-{
-	const bool bufferEmpty = b.isEmpty();
-	const bool noCCsUsed = !anyUsed && !unlearnedData.used;
-
-	if (bufferEmpty || noCCsUsed) return;
-
-	ScopedLock sl(lock);
-
-	tempBuffer.clear();
-
-	
-
-	MidiBuffer::Iterator mb(b);
-
-	MidiMessage m;
-
-	int samplePos;
-
-	while (mb.getNextEvent(m, samplePos))
-	{
-		bool consumed = false;
-
-		if (m.isController())
-		{
-			const int number = m.getControllerNumber();
-
-			if (isLearningActive())
-			{
-				setUnlearndedMidiControlNumber(number);
-			}
-
-			AutomationData *a = automationData + number;
-
-			if (a->used)
-			{
-				jassert(a->processor.get() != nullptr);
-
-				const float value = (float)a->parameterRange.convertFrom0to1((double)m.getControllerValue() / 127.0);
-
-				if (a->macroIndex != -1)
-				{
-					a->processor->getMainController()->getMacroManager().getMacroChain()->setMacroControl(a->macroIndex, (float)m.getControllerValue(), sendNotification);
-				}
-				else
-				{
-					a->processor->setAttribute(a->attribute, value, sendNotification);
-				}
-
-				
-
-				consumed = true;
-			}
-		}
-
-		if (!consumed)
-		{
-			tempBuffer.addEvent(m, samplePos);
-		}
-	}
-
-	b.clear();
-
-	b.addEvents(tempBuffer, 0, -1, 0);
-}
