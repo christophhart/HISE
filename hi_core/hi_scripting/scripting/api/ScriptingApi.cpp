@@ -2224,6 +2224,7 @@ maximum(1.0f)
 	propertyIds.add(Identifier("filmstripImage"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::FileSelector);
 	propertyIds.add(Identifier("numStrips"));
 	propertyIds.add(Identifier("isVertical"));		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	propertyIds.add(Identifier("isPluginParameter")); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 
 	componentProperties->setProperty(getIdFor(Mode), 0);
 	componentProperties->setProperty(getIdFor(Style), 0);
@@ -2234,6 +2235,7 @@ maximum(1.0f)
 	componentProperties->setProperty(getIdFor(filmstripImage), String::empty);
 	componentProperties->setProperty(getIdFor(numStrips), 0);
 	componentProperties->setProperty(getIdFor(isVertical), true);
+	componentProperties->setProperty(getIdFor(isPluginParameter), false);
 
 	priorityProperties.add(getIdFor(Mode));
 
@@ -2248,6 +2250,7 @@ maximum(1.0f)
 	setDefaultValue(ScriptSlider::Properties::filmstripImage, "Use default skin");
 	setDefaultValue(ScriptSlider::Properties::numStrips, 0);
 	setDefaultValue(ScriptSlider::Properties::isVertical, true);
+	setDefaultValue(ScriptSlider::Properties::isPluginParameter, false);
 
 	setScriptObjectPropertyWithChangeMessage(getIdFor(Mode), "Linear", dontSendNotification);
 	setScriptObjectPropertyWithChangeMessage(getIdFor(Style), "Knob", dontSendNotification);
@@ -2742,7 +2745,6 @@ void ScriptingApi::Content::ScriptComponent::setValue(var controlValue)
 	{
 		ScopedLock sl(parent->lock);
 		value = controlValue;
-
 	}
 
 	if(parent->allowGuiCreation)
@@ -2751,7 +2753,6 @@ void ScriptingApi::Content::ScriptComponent::setValue(var controlValue)
 	}
 
 	sendChangeMessage();
-
 };
 
 void ScriptingApi::Content::ScriptComponent::setColour(int colourId, int colourAs32bitHex)
@@ -2808,7 +2809,7 @@ ScriptingApi::Content::ScriptComboBox::ScriptComboBox(ScriptBaseProcessor *base,
 ScriptComponent(base, parentContent, name, x, y, width, 32)
 {
 	propertyIds.add(Identifier("items"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::MultilineSelector);
-
+	propertyIds.add(Identifier("isPluginParameter")); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
     
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::height));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::max));
@@ -2821,6 +2822,7 @@ ScriptComponent(base, parentContent, name, x, y, width, 32)
 
 	setDefaultValue(Items, "");
 	setDefaultValue(ScriptComponent::min, 1.0f);
+	setDefaultValue(isPluginParameter, false);
 
 	setMethod("addItem", Wrapper::addItem);
 	setMethod("getItemText", Wrapper::getItemText);
@@ -3488,6 +3490,7 @@ image(nullptr)
 	propertyIds.add("filmstripImage");	ADD_TO_TYPE_SELECTOR(SelectorTypes::FileSelector);
 	propertyIds.add("isVertical");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	propertyIds.add("radioGroup");
+	propertyIds.add("isPluginParameter");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::max));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::min));
@@ -3496,6 +3499,7 @@ image(nullptr)
 	setDefaultValue(ScriptButton::Properties::filmstripImage, "");
 	setDefaultValue(ScriptButton::Properties::isVertical, true);
 	setDefaultValue(ScriptButton::Properties::radioGroup, 0);
+	setDefaultValue(isPluginParameter, false);
 }
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptButton::createComponentWrapper(ScriptContentComponent *content, int index)
@@ -3591,3 +3595,29 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptPanel::createCompon
 #undef SEND_MESSAGE
 #undef ADD_TO_TYPE_SELECTOR
 #undef ADD_AS_SLIDER_TYPE
+
+void ScriptingApi::Content::PluginParameterConnector::setConnected(ScriptedControlAudioParameter *p)
+{
+	parameter = p;
+
+	if (parameter != nullptr)
+	{
+		parameter->setControlledScriptComponent(dynamic_cast<ScriptComponent*>(this));
+	}
+}
+
+void ScriptingApi::Content::PluginParameterConnector::sendParameterChangeNotification(float newValue)
+{
+	if (nextUpdateIsDeactivated)
+	{
+		nextUpdateIsDeactivated = false;
+		return;
+	}
+
+	if (isConnected() && (parameter->getParameterIndex() != -1))
+	{
+		parameter->beginChangeGesture();
+		parameter->setValueNotifyingHost(newValue);
+		parameter->endChangeGesture();
+	}
+}

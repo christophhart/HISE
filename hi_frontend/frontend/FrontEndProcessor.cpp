@@ -131,14 +131,6 @@ unlockCounter(0)
 
 	addScriptedParameters();
 
-	for (int i = 0; i < 8; i++)
-	{
-		if (synthChain->getMacroControlData(i)->getNumParameters() != 0)
-		{
-			numParameters++;
-		}
-	}
-
 	CHECK_COPY_AND_RETURN_6(synthChain);
 
 	if (getSampleRate() > 0)
@@ -206,9 +198,14 @@ void FrontendProcessor::addScriptedParameters()
 
 			for (int i = 0; i < content->getNumComponents(); i++)
 			{
-				if (ScriptedControlAudioParameter::getType(content->getComponent(i)) == ScriptedControlAudioParameter::Type::Unsupported) continue;
+				ScriptingApi::Content::PluginParameterConnector *c = dynamic_cast<ScriptingApi::Content::PluginParameterConnector*>(content->getComponent(i));
 
-				addParameter(new ScriptedControlAudioParameter(content->getComponent(i), this));
+				if (c != nullptr)
+				{
+					ScriptedControlAudioParameter *newParameter = new ScriptedControlAudioParameter(content->getComponent(i), this);
+					addParameter(newParameter);
+					c->setConnected(newParameter);
+				}
 			}
 		}
 	}

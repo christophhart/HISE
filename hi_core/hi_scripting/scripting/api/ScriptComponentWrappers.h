@@ -138,7 +138,9 @@ public:
 		Unsupported
 	};
 
-	ScriptedControlAudioParameter(ScriptingApi::Content::ScriptComponent *controlledComponent, AudioProcessor *parentProcessor);
+	ScriptedControlAudioParameter(ScriptingApi::Content::ScriptComponent *newComponent, AudioProcessor *parentProcessor);
+
+	void setControlledScriptComponent(ScriptingApi::Content::ScriptComponent *newComponent);
 
 	float getValue() const override;
 	void setValue(float newValue) override;
@@ -164,6 +166,18 @@ public:
 	const ScriptingApi::Content::ScriptComponent *getComponent() const
 	{
 		if (DynamicObject *object = controlledComponent.get()) return static_cast<ScriptingApi::Content::ScriptComponent*>(object);
+		else return nullptr;
+	}
+
+	ScriptingApi::Content::PluginParameterConnector *getConnector()
+	{
+		if (DynamicObject *object = controlledComponent.get()) return dynamic_cast<ScriptingApi::Content::PluginParameterConnector*>(object);
+		else return nullptr;
+	}
+
+	const ScriptingApi::Content::PluginParameterConnector *getConnector() const
+	{
+		if (DynamicObject *object = controlledComponent.get()) return dynamic_cast<ScriptingApi::Content::PluginParameterConnector*>(object);
 		else return nullptr;
 	}
 

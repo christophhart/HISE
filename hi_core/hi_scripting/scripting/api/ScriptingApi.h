@@ -37,6 +37,7 @@
 
 class ScriptCreatedComponentWrapper;
 class ScriptContentComponent;
+class ScriptedControlAudioParameter;
 
 /** This class wrapps all available objects that can be created by a script.
 *	@ingroup scripting
@@ -1222,7 +1223,31 @@ public:
 
 		static Identifier getClassName()   { return "Content"; };
 
+		class PluginParameterConnector
+		{
+		public:
 
+			PluginParameterConnector():
+				parameter(nullptr),
+				nextUpdateIsDeactivated(false)
+			{}
+
+			virtual ~PluginParameterConnector() {};
+
+			bool isConnected() const { return parameter != nullptr; };
+
+			void setConnected(ScriptedControlAudioParameter *controllingParameter);
+
+			void sendParameterChangeNotification(float newValue);
+
+			void deactivateNextUpdate() { nextUpdateIsDeactivated = true; }
+
+		private:
+
+			ScriptedControlAudioParameter *parameter;
+
+			bool nextUpdateIsDeactivated;
+		};
 
 		struct ScriptComponent : public RestorableObject,
 			public CreatableScriptObject,
@@ -1400,7 +1425,8 @@ public:
 			bool changed;
 		};
 
-		struct ScriptSlider: public ScriptComponent
+		struct ScriptSlider: public ScriptComponent,
+							 public PluginParameterConnector
 		{
 		public:
 
@@ -1415,6 +1441,7 @@ public:
 				filmstripImage,
 				numStrips,
 				isVertical,
+				isPluginParameter,
 				numProperties
 			};
 
@@ -1481,7 +1508,7 @@ public:
 
 			/** Checks if the given value is within the range. */
 			bool contains(double value);
-				
+			
 			HiSlider::Mode m;
 			
 			Slider::SliderStyle styleId;
@@ -1503,7 +1530,9 @@ public:
 			{
 				filmstripImage = ScriptComponent::Properties::numProperties,
 				isVertical,
-				radioGroup
+				radioGroup,
+				isPluginParameter,
+				numProperties
 			};
 
 			~ScriptButton();
@@ -1530,6 +1559,7 @@ public:
 			enum Properties
 			{
 				Items = ScriptComponent::numProperties,
+				isPluginParameter,
 				numProperties
 			};
 

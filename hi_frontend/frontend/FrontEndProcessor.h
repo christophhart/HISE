@@ -39,7 +39,7 @@
 *	It is connected to a FrontendProcessorEditor, which will display all script interfaces that are brought to the front using 'Synth.addToFront(true)'.
 *	It also checks for a licence file to allow minimal protection against the most stupid crackers.
 */
-class FrontendProcessor: public AudioProcessorWithScriptedParameters,
+class FrontendProcessor: public AudioProcessor,
 						 public MainController
 {
 public:
