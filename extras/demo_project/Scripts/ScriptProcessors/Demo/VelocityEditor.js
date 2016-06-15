@@ -42,7 +42,6 @@ Content.setPropertiesFromJSON("volumeSlider", {
   "text": "Volume",
   "min": -100,
   "max": 0,
-  "macroControl": "Macro 1",
   "mode": "Decibel",
   "stepSize": 0.10000000000000001,
   "middlePosition": -12
@@ -56,7 +55,6 @@ Content.setPropertiesFromJSON("delaySlider", {
   "text": "Delay",
   "min": -100,
   "max": 0,
-  "macroControl": "Macro 2",
   "mode": "Decibel",
   "stepSize": 0.10000000000000001,
   "middlePosition": -12
@@ -127,9 +125,5 @@ function onControl(number, value)
 	{
 		// This could also be done using the macro controls, but for demo purposes, this would be the scripting way:
 		ConvolutionReverb.setAttribute(ConvolutionReverb.WetGain, value);
-	}
-	else if (number == presetLoader)
-	{
-		Content.restoreAllControlsFromPreset(presetLoader.getItemText());
 	}
 }

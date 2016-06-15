@@ -1917,9 +1917,21 @@ void BackendCommandTarget::Actions::createDummyLicenceFile(BackendProcessorEdito
 	}
 
 	String keyContent = KeyGeneration::generateKeyFile(productName, dummyEmail, userName, ids.joinIntoString("\n"), privateKey);
-	File key = handler->getWorkDirectory().getChildFile(productName + ".licence");
+	File key = handler->getWorkDirectory().getChildFile(productName + ProjectHandler::Frontend::getLicenceKeyExtension());
 
 	key.replaceWithText(keyContent);
+
+#if JUCE_WINDOWS
+#if JUCE_64BIT
+	const String message = "A dummy licence file for 64bit plugins was created.\nTo load 32bit plugins, please use the 32bit version of HISE to create the licence file";
+#else
+	const String message = "A dummy licence file for 32bit plugins was created.\nTo load 64bit plugins, please use the 64bit version of HISE to create the licence file";
+#endif
+#else
+	const String message = "A dummy licence file for the plugins was created.";
+#endif
+
+	PresetHandler::showMessageWindow("Licence File created", message, PresetHandler::IconType::Info);
 }
 
 void BackendCommandTarget::Actions::createDefaultToolbarJSON(BackendProcessorEditor * bpe)

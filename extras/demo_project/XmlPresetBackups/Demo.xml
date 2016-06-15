@@ -2,7 +2,7 @@
 
 <Processor Type="SynthChain" ID="Demo" Bypassed="0" Gain="1" Balance="0"
            VoiceLimit="128" KillFadeTime="20" IconColour="0" packageName=""
-           views="32.rk1bzA...zbyM2byM2byM2byM2byM2byM2byM2byM2L" currentView="-1"
+           views="32.rk1bzA..........................l7eWU0E...H" currentView="-1"
            BuildVersion="635">
   <ChildProcessors>
     <Processor Type="MidiProcessorChain" ID="Midi Processor" Bypassed="0">
