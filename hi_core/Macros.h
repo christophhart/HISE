@@ -42,9 +42,9 @@
 #define debugError(p, x) (p->getMainController()->writeToConsole(x, 1, p))
 #define debugMod(text) { if(consoleEnabled) debugProcessor(text); };
 #else
-#define debugToConsole(p, x)
-#define debugError(p, x)
-#define debugMod(text)
+#define debugToConsole(p, x) ignoreUnused(x)
+#define debugError(p, x) ignoreUnused(x)
+#define debugMod(text) ignoreUnused(text)
 #endif
 
 

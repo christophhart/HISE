@@ -668,7 +668,8 @@ lastMouseDown(0)
 {
     addAndMakeVisible(idLabel = new Label());
     
-    idLabel->setInterceptsMouseClicks(false, false);
+    idLabel->setEditable(false);
+    idLabel->addMouseListener(this, true);
     
 	setSize(380 - 16, ITEM_HEIGHT);
 
@@ -790,7 +791,9 @@ void PatchBrowser::PatchItem::paint(Graphics& g)
 		
 		g.fillRoundedRectangle(1.0f + xOffset, 0.0f, (float)getWidth() - 2.0f - xOffset, (float)getHeight() - 2.0f, 2.0f);
 
-		if (isMouseOver(true))
+
+        
+		if (isMouseOver(true) || idLabel->isMouseOver(true))
 		{
 			g.setGradientFill(ColourGradient(Colours::white.withAlpha(0.3f), 0.0f, 0.0f,
 											 Colours::white.withAlpha(0.2f), 0.0f, (float)getHeight(), false));

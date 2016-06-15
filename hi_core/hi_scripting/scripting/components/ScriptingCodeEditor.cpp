@@ -292,6 +292,9 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
         
     }
     else CodeEditorComponent::performPopupMenuAction(menuId);
+#else 
+	ignoreUnused(menuId);
+
 #endif
 }
 

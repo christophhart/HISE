@@ -103,7 +103,7 @@ void ApiCollection::MethodItem::paint(Graphics& g)
 
 	g.fillRoundedRectangle(2.0f, 2.0f, w - 4.0f, h - 4.0f, 3.0f);
 
-	g.setColour(isMouseOver() ? Colours::white : c.withAlpha(0.5f));
+	g.setColour(isMouseOver(true) ? Colours::white : c.withAlpha(0.5f));
 
 	g.drawRoundedRectangle(2.0f, 2.0f, w - 4.0f, h - 4.0f, 3.0f, 2.0f);
 

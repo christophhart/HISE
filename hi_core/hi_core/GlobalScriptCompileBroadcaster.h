@@ -113,7 +113,7 @@ public:
 	String getExternalScriptFromCollection(const String &fileName);
 
 private:
-
+	
 	bool useBackgroundCompiling;
 	bool enableGlobalRecompile;
 

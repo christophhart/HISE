@@ -155,16 +155,9 @@ void MacroControlBroadcaster::saveMacrosToValueTree(ValueTree &v) const
 		macroControlData->addChildElement(macroControls[i]->exportAsXml());
 	}
 
-#if USE_OLD_FILE_FORMAT
-
-	v.setProperty("MacroControls", macroControlData->createDocument(""), nullptr);
-
-#else
 	ValueTree macros = ValueTree::fromXml(*macroControlData);
 
 	v.addChild(macros, -1, nullptr);
-
-#endif
 }
 
 void MacroControlBroadcaster::saveMacroValuesToValueTree(ValueTree &v) const
@@ -417,7 +410,9 @@ void MacroControlBroadcaster::setMacroControl(int macroIndex, float newValue, No
 		// Skip sending parameter changes before everything is loaded
 		if(macroIndex >= p->getNumParameters()) return;
 
+#if USE_BACKEND
 		p->setParameterNotifyingHost(macroIndex, newValue / 127.0f);
+#endif
 	}
 }
 

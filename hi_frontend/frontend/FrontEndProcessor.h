@@ -50,7 +50,7 @@ public:
 		return JucePlugin_Name;
 	}
 
-	void changeProgramName(int index, const String &newName) override {};
+	void changeProgramName(int /*index*/, const String &/*newName*/) override {};
 
 	~FrontendProcessor()
 	{
@@ -113,7 +113,7 @@ public:
 
 	bool acceptsMidi() const {return true;};
 	bool producesMidi() const {return false;};
-	bool silenceInProducesSilenceOut() const {return false;};
+	
 	double getTailLengthSeconds() const {return 0.0;};
 
 	ModulatorSynthChain *getMainSynthChain() override {return synthChain; };
