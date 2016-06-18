@@ -71,6 +71,8 @@ public:
 		Decay,		 ///< the decay time in milliseconds
 		Sustain,	 ///< the sustain level in decibel
 		Release,	 ///< the release time in milliseconds
+		AttackCurve, ///< the attack curve (0.0 = concave, 1.0 = convex)
+		DecayCurve, ///< the release curve (and the decayCurve)
 		numTotalParameters
 	};
 
@@ -120,21 +122,13 @@ public:
 
 	float getDefaultValue(int parameterIndex) const override;
 	void setInternalAttribute (int parameter_index, float newValue) override;;
-
-
 	float getAttribute(int parameter_index) const override;;
-
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 
 	/** @brief returns \c true, if the envelope is not IDLE and not bypassed. */
 	bool isPlaying(int voiceIndex) const override;;
     
-	
-    
-	float calcAttackRate(float newRate);
-
-	
     /** The container for the envelope state. */
     struct AhdsrEnvelopeState: public EnvelopeModulator::ModulatorState
 	{
@@ -195,6 +189,8 @@ public:
 
 	ModulatorState *createSubclassedState(int voiceIndex) const override {return new AhdsrEnvelopeState(voiceIndex, this); };
 
+	void calculateCoefficients(float timeInMilliSeconds, float base, float maximum, float &stateBase, float &stateCoeff) const;
+
 private:
 
 	void setAttackRate(float rate);
@@ -208,18 +204,23 @@ private:
 	float calcCoef(float rate, float targetRatio) const;
 
 	float calculateNewValue ();
-
+	
+	void setAttackCurve(float newValue);
+	void setDecayCurve(float newValue);
+	
 	float inputValue;
 
 	float attack;
-	float attackCoef;
-	float attackBase;
-	float targetRatioA;
-
+	
 	float attackLevel;
+
+	float attackCurve;
+	float decayCurve;
 
 	float hold;
 	float holdTimeSamples;
+
+	float attackBase;
 
 	float decay;
 	float decayCoef;

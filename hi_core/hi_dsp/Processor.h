@@ -44,6 +44,8 @@ class FactoryType;
 #define loadAttribute(name, nameAsString) (setAttribute(name, (float)v.getProperty(nameAsString, false), sendNotification))
 #define saveAttribute(name, nameAsString) (v.setProperty(nameAsString, getAttribute(name), nullptr))
 
+#define loadAttributeWithDefault(parameterId) setAttribute(parameterId, v.getProperty(getIdentifierForParameterIndex(parameterId), getDefaultValue(parameterId)), dontSendNotification);
+
 // Handy macro to set the name of the processor (type = Identifier, name = Displayed processor name)
 #define SET_PROCESSOR_NAME(type, name) static String getClassName() {return name;}; \
 						  const String getName() const override {	return getClassName();}; \

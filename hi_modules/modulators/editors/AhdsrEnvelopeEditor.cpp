@@ -37,6 +37,8 @@ void AhdsrGraph::paint(Graphics &g)
 	const float decay = processor->getAttribute(AhdsrEnvelope::Decay);
 	const float sustain = processor->getAttribute(AhdsrEnvelope::Sustain);
 	const float release = processor->getAttribute(AhdsrEnvelope::Release);
+	const float attackCurve = processor->getAttribute(AhdsrEnvelope::AttackCurve);
+
 
 	float aln = pow((1.0f - (attackLevel + 100.0f) / 100.0f), 0.6f);
 	const float sn =  pow((1.0f - (sustain     + 100.0f) / 100.0f), 0.6f);
@@ -64,7 +66,9 @@ void AhdsrGraph::paint(Graphics &g)
 	lastX = x;
 	x += an;
 
-	envelopePath.quadraticTo((lastX + x) / 2, aln * height, x, aln * height);
+	const float controlY = aln*height + attackCurve * (height - aln*height);
+
+	envelopePath.quadraticTo((lastX + x) / 2, controlY, x, aln * height);
 
 	x += hn;
 
@@ -191,6 +195,25 @@ AhdsrEnvelopeEditor::AhdsrEnvelopeEditor (ProcessorEditor *p)
     addAndMakeVisible (ahdsrGraph = new AhdsrGraph (getProcessor()));
     ahdsrGraph->setName ("new component");
 
+    addAndMakeVisible (attackCurveSlider = new HiSlider ("Decay"));
+    attackCurveSlider->setRange (1, 20000, 1);
+    attackCurveSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
+    attackCurveSlider->setTextBoxStyle (Slider::TextBoxRight, true, 80, 20);
+    attackCurveSlider->setColour (Slider::backgroundColourId, Colour (0x00000000));
+    attackCurveSlider->setColour (Slider::thumbColourId, Colour (0x80666666));
+    attackCurveSlider->setColour (Slider::textBoxTextColourId, Colours::white);
+    attackCurveSlider->addListener (this);
+    attackCurveSlider->setSkewFactor (0.3);
+
+    addAndMakeVisible (decayCurveSlider = new HiSlider ("Sustain"));
+    decayCurveSlider->setRange (-100, 0, 1);
+    decayCurveSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
+    decayCurveSlider->setTextBoxStyle (Slider::TextBoxRight, true, 80, 20);
+    decayCurveSlider->setColour (Slider::backgroundColourId, Colour (0x00000000));
+    decayCurveSlider->setColour (Slider::thumbColourId, Colour (0x80666666));
+    decayCurveSlider->setColour (Slider::textBoxTextColourId, Colours::white);
+    decayCurveSlider->addListener (this);
+
 
     //[UserPreSize]
 
@@ -213,7 +236,15 @@ AhdsrEnvelopeEditor::AhdsrEnvelopeEditor (ProcessorEditor *p)
 	releaseSlider->setMode(HiSlider::Time);
 
     label->setFont (GLOBAL_BOLD_FONT().withHeight(26.0f));
-    
+
+	attackCurveSlider->setup(getProcessor(), AhdsrEnvelope::AttackCurve, "Attack Curve");
+	attackCurveSlider->setMode(HiSlider::NormalizedPercentage);
+
+	decayCurveSlider->setup(getProcessor(), AhdsrEnvelope::DecayCurve, "Decay Curve");
+	decayCurveSlider->setMode(HiSlider::NormalizedPercentage);
+
+
+
     //[/UserPreSize]
 
     setSize (850, 170);
@@ -248,6 +279,8 @@ AhdsrEnvelopeEditor::~AhdsrEnvelopeEditor()
     decaySlider = nullptr;
     sustainSlider = nullptr;
     ahdsrGraph = nullptr;
+    attackCurveSlider = nullptr;
+    decayCurveSlider = nullptr;
 
 
     //[Destructor]. You can add your own custom destruction code here..
@@ -261,14 +294,14 @@ void AhdsrEnvelopeEditor::paint (Graphics& g)
     //[/UserPrePaint]
 
     g.setColour (Colour (0x30000000));
-    g.fillRoundedRectangle (static_cast<float> ((getWidth() / 2) - ((getWidth() - 84) / 2)), 6.0f, static_cast<float> (getWidth() - 84), static_cast<float> (getHeight() - 12), 6.000f);
+    g.fillRoundedRectangle (static_cast<float> ((getWidth() / 2) - (710 / 2)), 6.0f, 710.0f, static_cast<float> (getHeight() - 12), 6.000f);
 
     g.setColour (Colour (0x25ffffff));
-    g.drawRoundedRectangle (static_cast<float> ((getWidth() / 2) - ((getWidth() - 84) / 2)), 6.0f, static_cast<float> (getWidth() - 84), static_cast<float> (getHeight() - 12), 6.000f, 2.000f);
+    g.drawRoundedRectangle (static_cast<float> ((getWidth() / 2) - (710 / 2)), 6.0f, 710.0f, static_cast<float> (getHeight() - 12), 6.000f, 2.000f);
 
     //[UserPaint] Add your own custom painting code here..
 
-	KnobLookAndFeel::drawHiBackground(g, ahdsrGraph->getX() - 16, ahdsrGraph->getY() - 8, ahdsrGraph->getWidth() + 32, ahdsrGraph->getHeight() + 16, nullptr, false);
+	//KnobLookAndFeel::drawHiBackground(g, ahdsrGraph->getX() - 16, ahdsrGraph->getY() - 8, ahdsrGraph->getWidth() + 32, ahdsrGraph->getHeight() + 16, nullptr, false);
 
     //[/UserPaint]
 }
@@ -278,14 +311,16 @@ void AhdsrEnvelopeEditor::resized()
     //[UserPreResize] Add your own custom resize code here..
     //[/UserPreResize]
 
-    label->setBounds (getWidth() - 52 - 290, 21, 290, 40);
-    attackSlider->setBounds (56, 112, proportionOfWidth (0.1506f), 48);
-    releaseSlider->setBounds (getWidth() - 56 - proportionOfWidth (0.1506f), 112, proportionOfWidth (0.1506f), 48);
-    attackLevelSlider->setBounds (getWidth() - 56 - proportionOfWidth (0.1506f), 59, proportionOfWidth (0.1506f), 48);
-    holdSlider->setBounds (proportionOfWidth (0.2447f), 112, proportionOfWidth (0.1506f), 48);
-    decaySlider->setBounds (proportionOfWidth (0.2447f) + proportionOfWidth (0.1506f) - -25, 112, proportionOfWidth (0.1506f), 48);
-    sustainSlider->setBounds ((proportionOfWidth (0.2447f) + proportionOfWidth (0.1506f) - -25) + proportionOfWidth (0.1506f) - -25, 112, proportionOfWidth (0.1506f), 48);
-    ahdsrGraph->setBounds (88, 32, proportionOfWidth (0.6224f), 64);
+    label->setBounds ((getWidth() / 2) + 348 - 290, 8, 290, 40);
+    attackSlider->setBounds ((getWidth() / 2) + -340, 112, 128, 48);
+    releaseSlider->setBounds ((getWidth() / 2) + 341 - 128, 112, 128, 48);
+    attackLevelSlider->setBounds ((getWidth() / 2) + 341 - 128, 42, 128, 48);
+    holdSlider->setBounds ((getWidth() / 2) + -202, 112, 128, 48);
+    decaySlider->setBounds (((getWidth() / 2) + -202) + 128 / 2 + 75, 112, 128, 48);
+    sustainSlider->setBounds ((((getWidth() / 2) + -202) + 128 / 2 + 75) + 128 - -10, 112, 128, 48);
+    ahdsrGraph->setBounds ((getWidth() / 2) + -73 - 264, 32, 264, 64);
+    attackCurveSlider->setBounds (((getWidth() / 2) + -202) + 128 - -10, 42, 128, 48);
+    decayCurveSlider->setBounds ((((getWidth() / 2) + -202) + 128 / 2 + 75) + 128 - -10, 42, 128, 48);
     //[UserResized] Add your own custom resize handling here..
     //[/UserResized]
 }
@@ -338,6 +373,16 @@ void AhdsrEnvelopeEditor::sliderValueChanged (Slider* sliderThatWasMoved)
 
         //[/UserSliderCode_sustainSlider]
     }
+    else if (sliderThatWasMoved == attackCurveSlider)
+    {
+        //[UserSliderCode_attackCurveSlider] -- add your slider handling code here..
+        //[/UserSliderCode_attackCurveSlider]
+    }
+    else if (sliderThatWasMoved == decayCurveSlider)
+    {
+        //[UserSliderCode_decayCurveSlider] -- add your slider handling code here..
+        //[/UserSliderCode_decayCurveSlider]
+    }
 
     //[UsersliderValueChanged_Post]
 
@@ -367,49 +412,64 @@ BEGIN_JUCER_METADATA
                  snapActive="1" snapShown="1" overlayOpacity="0.330" fixedSize="1"
                  initialWidth="850" initialHeight="170">
   <BACKGROUND backgroundColour="ffffff">
-    <ROUNDRECT pos="0Cc 6 84M 12M" cornerSize="6" fill="solid: 30000000" hasStroke="1"
+    <ROUNDRECT pos="0Cc 6 710 12M" cornerSize="6" fill="solid: 30000000" hasStroke="1"
                stroke="2, mitered, butt" strokeColour="solid: 25ffffff"/>
   </BACKGROUND>
   <LABEL name="new label" id="bd1d8d6ad6d04bdc" memberName="label" virtualName=""
-         explicitFocusOrder="0" pos="52Rr 21 290 40" textCol="52ffffff"
+         explicitFocusOrder="0" pos="348Cr 8 290 40" textCol="52ffffff"
          edTextCol="ff000000" edBkgCol="0" labelText="ahdsr" editableSingleClick="0"
          editableDoubleClick="0" focusDiscardsChanges="0" fontname="Arial"
          fontsize="24" bold="1" italic="0" justification="34"/>
   <SLIDER name="Attack" id="9ef32c38be6d2f66" memberName="attackSlider"
-          virtualName="HiSlider" explicitFocusOrder="0" pos="56 112 15.059% 48"
+          virtualName="HiSlider" explicitFocusOrder="0" pos="-340C 112 128 48"
           bkgcol="0" thumbcol="80666666" textboxtext="ffffffff" min="1"
           max="20000" int="1" style="RotaryHorizontalVerticalDrag" textBoxPos="TextBoxRight"
-          textBoxEditable="0" textBoxWidth="80" textBoxHeight="20" skewFactor="0.29999999999999999"/>
+          textBoxEditable="0" textBoxWidth="80" textBoxHeight="20" skewFactor="0.29999999999999999"
+          needsCallback="1"/>
   <SLIDER name="Release" id="b3d59ac44c48ffc2" memberName="releaseSlider"
-          virtualName="HiSlider" explicitFocusOrder="0" pos="56Rr 112 15.059% 48"
+          virtualName="HiSlider" explicitFocusOrder="0" pos="341Cr 112 128 48"
           thumbcol="80666666" textboxtext="ffffffff" min="1" max="20000"
           int="1" style="RotaryHorizontalVerticalDrag" textBoxPos="TextBoxRight"
-          textBoxEditable="0" textBoxWidth="80" textBoxHeight="20" skewFactor="0.29999999999999999"/>
+          textBoxEditable="0" textBoxWidth="80" textBoxHeight="20" skewFactor="0.29999999999999999"
+          needsCallback="1"/>
   <SLIDER name="Attack Level" id="d72131224c938370" memberName="attackLevelSlider"
-          virtualName="HiSlider" explicitFocusOrder="0" pos="56Rr 59 15.059% 48"
+          virtualName="HiSlider" explicitFocusOrder="0" pos="341Cr 42 128 48"
           tooltip="The attack peak level." bkgcol="0" thumbcol="80666666"
           textboxtext="ffffffff" min="-100" max="0" int="1" style="RotaryHorizontalVerticalDrag"
           textBoxPos="TextBoxRight" textBoxEditable="0" textBoxWidth="80"
-          textBoxHeight="20" skewFactor="1"/>
+          textBoxHeight="20" skewFactor="1" needsCallback="1"/>
   <SLIDER name="Hold" id="557420bb82cec3a9" memberName="holdSlider" virtualName="HiSlider"
-          explicitFocusOrder="0" pos="24.471% 112 15.059% 48" bkgcol="0"
-          thumbcol="80666666" textboxtext="ffffffff" min="0" max="20000"
-          int="1" style="RotaryHorizontalVerticalDrag" textBoxPos="TextBoxRight"
-          textBoxEditable="0" textBoxWidth="80" textBoxHeight="20" skewFactor="0.29999999999999999"/>
+          explicitFocusOrder="0" pos="-202C 112 128 48" bkgcol="0" thumbcol="80666666"
+          textboxtext="ffffffff" min="0" max="20000" int="1" style="RotaryHorizontalVerticalDrag"
+          textBoxPos="TextBoxRight" textBoxEditable="0" textBoxWidth="80"
+          textBoxHeight="20" skewFactor="0.29999999999999999" needsCallback="1"/>
   <SLIDER name="Decay" id="4baa7ade743ecf2b" memberName="decaySlider" virtualName="HiSlider"
-          explicitFocusOrder="0" pos="-25R 112 15.059% 48" posRelativeX="557420bb82cec3a9"
+          explicitFocusOrder="0" pos="75C 112 128 48" posRelativeX="557420bb82cec3a9"
           bkgcol="0" thumbcol="80666666" textboxtext="ffffffff" min="1"
           max="20000" int="1" style="RotaryHorizontalVerticalDrag" textBoxPos="TextBoxRight"
-          textBoxEditable="0" textBoxWidth="80" textBoxHeight="20" skewFactor="0.29999999999999999"/>
+          textBoxEditable="0" textBoxWidth="80" textBoxHeight="20" skewFactor="0.29999999999999999"
+          needsCallback="1"/>
   <SLIDER name="Sustain" id="a564ecb868858bb9" memberName="sustainSlider"
-          virtualName="HiSlider" explicitFocusOrder="0" pos="-25R 112 15.059% 48"
+          virtualName="HiSlider" explicitFocusOrder="0" pos="-10R 112 128 48"
           posRelativeX="4baa7ade743ecf2b" bkgcol="0" thumbcol="80666666"
           textboxtext="ffffffff" min="-100" max="0" int="1" style="RotaryHorizontalVerticalDrag"
           textBoxPos="TextBoxRight" textBoxEditable="0" textBoxWidth="80"
-          textBoxHeight="20" skewFactor="1"/>
+          textBoxHeight="20" skewFactor="1" needsCallback="1"/>
   <GENERICCOMPONENT name="new component" id="9694b8a8ec6e9c20" memberName="ahdsrGraph"
-                    virtualName="" explicitFocusOrder="0" pos="88 32 62.235% 64"
-                    class="AhdsrGraph" params="getProcessor()"/>
+                    virtualName="" explicitFocusOrder="0" pos="-73Cr 32 264 64" class="AhdsrGraph"
+                    params="getProcessor()"/>
+  <SLIDER name="Decay" id="a7c54198d4a84cc" memberName="attackCurveSlider"
+          virtualName="HiSlider" explicitFocusOrder="0" pos="-10R 42 128 48"
+          posRelativeX="557420bb82cec3a9" bkgcol="0" thumbcol="80666666"
+          textboxtext="ffffffff" min="1" max="20000" int="1" style="RotaryHorizontalVerticalDrag"
+          textBoxPos="TextBoxRight" textBoxEditable="0" textBoxWidth="80"
+          textBoxHeight="20" skewFactor="0.29999999999999999" needsCallback="1"/>
+  <SLIDER name="Sustain" id="e6f50736c60dcaee" memberName="decayCurveSlider"
+          virtualName="HiSlider" explicitFocusOrder="0" pos="-10R 42 128 48"
+          posRelativeX="4baa7ade743ecf2b" bkgcol="0" thumbcol="80666666"
+          textboxtext="ffffffff" min="-100" max="0" int="1" style="RotaryHorizontalVerticalDrag"
+          textBoxPos="TextBoxRight" textBoxEditable="0" textBoxWidth="80"
+          textBoxHeight="20" skewFactor="1" needsCallback="1"/>
 </JUCER_COMPONENT>
 
 END_JUCER_METADATA

@@ -59,6 +59,8 @@ AhdsrEnvelope::AhdsrEnvelope(MainController *mc, const String &id, int voiceAmou
 	parameterNames.add("Decay");
 	parameterNames.add("Sustain");
 	parameterNames.add("Release");
+	parameterNames.add("AttackCurve");
+	parameterNames.add("DecayCurve");
 
 	editorStateIdentifiers.add("AttackTimeChainShown");
 	editorStateIdentifiers.add("AttackLevelChainShown");
@@ -79,9 +81,7 @@ AhdsrEnvelope::AhdsrEnvelope(MainController *mc, const String &id, int voiceAmou
 		internalChains[i]->setIsVoiceStartChain(true);
 	};
 
-    setTargetRatioA(0.3f);
     setTargetRatioDR(0.0001f);
-
 }
 
 
@@ -89,6 +89,8 @@ void AhdsrEnvelope::restoreFromValueTree(const ValueTree &v)
 {
 	EnvelopeModulator::restoreFromValueTree(v);
 
+	loadAttributeWithDefault(AttackCurve);
+	loadAttributeWithDefault(DecayCurve);
 	loadAttribute(Attack, "Attack");
 	loadAttribute(AttackLevel, "AttackLevel");
 	loadAttribute(Hold, "Hold");
@@ -101,40 +103,38 @@ ValueTree AhdsrEnvelope::exportAsValueTree() const
 {
 	ValueTree v = EnvelopeModulator::exportAsValueTree();
 
+	saveAttribute(AttackCurve, "AttackCurve");
+	saveAttribute(DecayCurve, "DecayCurve");
 	saveAttribute(Attack, "Attack");
 	saveAttribute(AttackLevel, "AttackLevel");
 	saveAttribute(Hold, "Hold");
 	saveAttribute(Decay, "Decay");
 	saveAttribute(Sustain, "Sustain");
 	saveAttribute(Release, "Release");
-
+	
 	return v;
 }
 
 void AhdsrEnvelope::setAttackRate(float rate) {
 	attack = rate;
-
-	attackCoef = calcCoef(attack, targetRatioA);
-    attackBase = (1.0f + targetRatioA) * (1.0f - attackCoef);
 }
 
 void AhdsrEnvelope::setHoldTime(float holdTimeMs) {
 	hold = holdTimeMs;
 
 	holdTimeSamples = holdTimeMs * ((float)getSampleRate() / 1000.0f);
-
-	attackCoef = calcCoef(attack, targetRatioA);
-    attackBase = (1.0f + targetRatioA) * (1.0f - attackCoef);
 }
 
-void AhdsrEnvelope::setDecayRate(float rate) {
+void AhdsrEnvelope::setDecayRate(float rate)
+{
     decay = rate;
 	
     decayCoef = calcCoef(decay, targetRatioDR);
     decayBase = (sustain - targetRatioDR) * (1.0f - decayCoef);
 }
 
-void AhdsrEnvelope::setReleaseRate(float rate) {
+void AhdsrEnvelope::setReleaseRate(float rate)
+{
     
 	release = jmax<float>(1.0f, rate);
 
@@ -142,22 +142,18 @@ void AhdsrEnvelope::setReleaseRate(float rate) {
     releaseBase = -targetRatioDR * (1.0f - releaseCoef);
 }
 
-void AhdsrEnvelope::setSustainLevel(float level) {
+void AhdsrEnvelope::setSustainLevel(float level)
+{
     sustain = level;
     decayBase = (sustain - targetRatioDR) * (1.0f - decayCoef);
 }
 
-void AhdsrEnvelope::setTargetRatioA(float targetRatio) {
-    if (targetRatio < 0.0000001f)
-        targetRatio = 0.0000001f;
-    targetRatioA = targetRatio;
-    attackBase = (1.0f + targetRatioA) * (1.0f - attackCoef);
-}
-
 void AhdsrEnvelope::setTargetRatioDR(float targetRatio) {
-    if (targetRatio < 0.0000001f)
+    
+	if (targetRatio < 0.0000001f)
         targetRatio = 0.0000001f;
     targetRatioDR = targetRatio;
+
     decayBase = (sustain - targetRatioDR) * (1.0f - decayCoef);
     releaseBase = -targetRatioDR * (1.0f - releaseCoef);
 }
@@ -177,11 +173,15 @@ void AhdsrEnvelope::startVoice(int voiceIndex)
 		state->modValues[i] = jmax(0.0f, internalChains[i]->getConstantVoiceValue(voiceIndex));
 	}
 
+	state->attackLevel = attackLevel * state->modValues[AttackLevelChain];
 	state->setAttackRate(attack);
 	state->setDecayRate(decay);
 	state->setReleaseRate(release);
-	state->attackLevel = attackLevel * state->modValues[AttackLevelChain];
+	
 	state->current_state = AhdsrEnvelopeState::ATTACK;
+
+	state->current_value = (state->attackCoef - 1.0f) / (state->attackBase - 1.0f);
+
 }
 
 void AhdsrEnvelope::stopVoice(int voiceIndex)
@@ -204,12 +204,8 @@ void AhdsrEnvelope::calculateBlock(int startSample, int numSamples)
 	}
 	else
 	{
-		
-
 		while (numSamples > 0)
 		{
-
-
 			for (int i = 0; i < 4; i++)
 			{
 				internalBuffer.setSample(0, startSample, calculateNewValue());
@@ -253,6 +249,8 @@ float AhdsrEnvelope::getDefaultValue(int parameterIndex) const
 	case Decay:			return 300.0f;
 	case Sustain:		return Decibels::gainToDecibels(1.0f);
 	case Release:		return 20.0f;
+	case AttackCurve:	return 1.0f;
+	case DecayCurve:	return 1.0f;
 	default:		jassertfalse; return -1;
 	}
 }
@@ -267,6 +265,8 @@ void AhdsrEnvelope::setInternalAttribute(int parameter_index, float newValue)
 	case Decay:			setDecayRate(newValue); break;
 	case Sustain:		setSustainLevel(Decibels::decibelsToGain(newValue)); break;
 	case Release:		setReleaseRate(newValue); break;
+	case AttackCurve:	setAttackCurve(newValue); break;
+	case DecayCurve:	setDecayCurve(newValue); break;
 	default:			jassertfalse;
 	}
 }
@@ -281,6 +281,8 @@ float AhdsrEnvelope::getAttribute(int parameter_index) const
 	case Decay:			return decay;
 	case Sustain:		return Decibels::gainToDecibels(sustain);
 	case Release:		return release;
+	case AttackCurve:	return attackCurve;
+	case DecayCurve:	return decayCurve;
 	default:		jassertfalse; return -1;
 	}
 }
@@ -302,6 +304,16 @@ bool AhdsrEnvelope::isPlaying(int voiceIndex) const
 	return static_cast<AhdsrEnvelopeState*>(states[voiceIndex])->current_state != AhdsrEnvelopeState::IDLE;
 }
 
+void AhdsrEnvelope::calculateCoefficients(float timeInMilliSeconds, float base, float maximum, float &stateBase, float &stateCoeff) const
+{
+	const float t = (timeInMilliSeconds / 1000.0f) * (float)getSampleRate();
+	const float exp1 = (powf(base, 1.0f / t));
+	const float invertedBase = 1.0f / (base - 1.0f);
+
+	stateCoeff = exp1;
+	stateBase = (exp1 *invertedBase - invertedBase) * maximum;
+}
+
 float AhdsrEnvelope::calculateNewValue()
 {
     const float thisSustain = sustain * state->modValues[SustainLevelChain];
@@ -313,7 +325,8 @@ float AhdsrEnvelope::calculateNewValue()
 		{
 			if (attack != 0.0f)
 			{
-				state->current_value = state->attackBase + state->current_value * state->attackCoef;
+				state->current_value = (state->attackBase + state->current_value * state->attackCoef);
+
 				if (state->attackLevel > thisSustain)
 				{
 					if (state->current_value >= state->attackLevel)
@@ -336,12 +349,11 @@ float AhdsrEnvelope::calculateNewValue()
 			}
 			else
 			{
+				state->current_value = state->attackLevel;
+				state->holdCounter = 0;
 				state->current_state = AhdsrEnvelopeState::HOLD;
 			}
-
-			
 		}
-
 		case AhdsrEnvelopeState::HOLD:
 			{
 				state->holdCounter++;
@@ -367,7 +379,6 @@ float AhdsrEnvelope::calculateNewValue()
 					state->current_state = AhdsrEnvelopeState::SUSTAIN;
 
 					if (thisSustain == 0.0f)  state->current_state = AhdsrEnvelopeState::IDLE;
-
 				}
 			}
 			else
@@ -377,8 +388,6 @@ float AhdsrEnvelope::calculateNewValue()
 
 				if (thisSustain == 0.0f)  state->current_state = AhdsrEnvelopeState::IDLE;
 			}
-
-			
 			break;
 		}
         case AhdsrEnvelopeState::SUSTAIN: state->current_value = thisSustain;
@@ -398,14 +407,43 @@ float AhdsrEnvelope::calculateNewValue()
 				state->current_value = 0.0f;
 				state->current_state = AhdsrEnvelopeState::IDLE;
 			}
-
-			
 		}
 	}
 
 	return state->current_value;
 }
 
+
+void AhdsrEnvelope::setAttackCurve(float newValue)
+{
+	attackCurve = newValue;
+
+	if (newValue > 0.5001f)
+	{
+		const float r1 = (newValue - 0.5f)*2.0f;
+		attackBase = r1 * 100.0f;
+	}
+	else if (newValue < 0.4999f)
+	{
+		const float r1 = 1.0f - (newValue *2.0f);
+		attackBase = 1.0f / (r1 * 100.0f);
+	}
+	else
+	{
+		attackBase = 1.2f;
+	}
+}
+
+void AhdsrEnvelope::setDecayCurve(float newValue)
+{
+	decayCurve = newValue;
+
+	const float newRatio = decayCurve / 1000.0f;
+
+	setTargetRatioDR(newRatio);
+	setDecayRate(decay);
+	setReleaseRate(release);
+}
 
 ProcessorEditorBody * AhdsrEnvelope::createEditor(ProcessorEditor* parentEditor)
 {
@@ -444,15 +482,11 @@ void AhdsrEnvelope::AhdsrEnvelopeState::setAttackRate(float rate)
 	{
 		const float stateAttack = modValue * rate;
 
-		attackCoef = envelope->calcCoef(stateAttack, envelope->targetRatioA);
-		attackBase = (1.0f + envelope->targetRatioA) * (1.0f - attackCoef);
-
+		envelope->calculateCoefficients(stateAttack, envelope->attackBase, attackLevel, attackBase, attackCoef);
 	}
-	
 	else
 	{
-		attackCoef = envelope->attackCoef;
-		attackBase = envelope->attackBase;
+		envelope->calculateCoefficients(rate, envelope->attackBase, attackLevel, attackBase, attackCoef);
 	}
 }
 

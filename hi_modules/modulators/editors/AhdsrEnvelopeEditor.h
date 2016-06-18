@@ -83,6 +83,8 @@ public:
 		decaySlider->updateValue();
 		sustainSlider->updateValue();
 		releaseSlider->updateValue();
+		attackCurveSlider->updateValue();
+		decayCurveSlider->updateValue();
 
 		ahdsrGraph->repaint();
 	}
@@ -99,15 +101,15 @@ public:
 		decaySlider->setDisplayValue(getProcessor()->getChildProcessor(AhdsrEnvelope::InternalChains::DecayTimeChain)->getOutputValue());
 		sustainSlider->setDisplayValue(getProcessor()->getChildProcessor(AhdsrEnvelope::InternalChains::SustainLevelChain)->getOutputValue());
 		releaseSlider->setDisplayValue(getProcessor()->getChildProcessor(AhdsrEnvelope::InternalChains::ReleaseTimeChain)->getOutputValue());
-		
+
 
 	}
 
     //[/UserMethods]
 
-    void paint (Graphics& g);
-    void resized();
-    void sliderValueChanged (Slider* sliderThatWasMoved);
+    void paint (Graphics& g) override;
+    void resized() override;
+    void sliderValueChanged (Slider* sliderThatWasMoved) override;
 
 
 
@@ -125,6 +127,8 @@ private:
     ScopedPointer<HiSlider> decaySlider;
     ScopedPointer<HiSlider> sustainSlider;
     ScopedPointer<AhdsrGraph> ahdsrGraph;
+    ScopedPointer<HiSlider> attackCurveSlider;
+    ScopedPointer<HiSlider> decayCurveSlider;
 
 
     //==============================================================================
