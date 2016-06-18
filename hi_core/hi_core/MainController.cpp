@@ -750,8 +750,11 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 	sampleRate = sampleRate_;
     
 #if ENABLE_CONSOLE_OUTPUT
-    logger = new ConsoleLogger(getMainSynthChain());
-	Logger::setCurrentLogger(logger);
+	if (logger == nullptr)
+	{
+		logger = new ConsoleLogger(getMainSynthChain());
+		Logger::setCurrentLogger(logger);
+	}
 #if USE_GLITCH_DETECTION
 	ScopedGlitchDetector::setMaxTimeOutFromBufferSize(sampleRate_, (double)samplesPerBlock);
 #endif
