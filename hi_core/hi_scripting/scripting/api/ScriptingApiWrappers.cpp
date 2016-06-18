@@ -1032,6 +1032,18 @@ var ScriptingApi::Sampler::Wrapper::refreshInterface(const var::NativeFunctionAr
 }
 
 
+var ScriptingApi::Sampler::Wrapper::loadSampleMap(const var::NativeFunctionArgs& args)
+{
+	if (Sampler* thisObject = GET_OBJECT(Sampler))
+	{
+		CHECK_ARGUMENTS("loadSampleMap", 1);
+
+		thisObject->loadSampleMap(args.arguments[0].toString());
+	}
+	return var::undefined();
+}
+
+
 // =================================================================================================== Console Wrappers
 
 var ScriptingApi::Console::Wrapper::print (const var::NativeFunctionArgs& args)

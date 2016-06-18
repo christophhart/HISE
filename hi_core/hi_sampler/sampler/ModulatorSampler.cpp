@@ -281,8 +281,6 @@ ValueTree ModulatorSampler::exportAsValueTree() const
 		}
 	}
 
-	sampleMap->setRelativeSaveMode(false);
-
 	v.addChild(sampleMap->exportAsValueTree(), -1, nullptr);
 
 	v.setProperty("SampleMap", sampleMap->getFile().getFullPathName(), nullptr);

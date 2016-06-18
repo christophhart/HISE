@@ -443,9 +443,10 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 	case ZoomOut:			zoom(true); return true;
 	case ToggleVerticalSize:toggleVerticalSize(); return true;
 	case PopOutMap:			popoutMap(); return true;
-	case NewSampleMap:		sampler->clearSampleMap(); return true;
+	case NewSampleMap:		if(PresetHandler::showYesNoWindow("Clear Sample Map", "Do you want to clear the sample map?", PresetHandler::IconType::Question)) 
+								sampler->clearSampleMap(); return true;
 	case LoadSampleMap:		{
-							FileChooser f("Load new samplemap", GET_PROJECT_HANDLER(sampler).getWorkDirectory(), "*.xml;*.him");
+							FileChooser f("Load new samplemap", GET_PROJECT_HANDLER(sampler).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps), "*.xml");
 							if(f.browseForFileToOpen())
 							{
 								sampler->loadSampleMap(f.getResult());

@@ -1235,6 +1235,7 @@ sampler(sampler_)
 	setMethod("purgeMicPosition", Wrapper::purgeMicPosition);
 	setMethod("getMicPositionName", Wrapper::getMicPositionName);
 	setMethod("refreshInterface", Wrapper::refreshInterface);
+	setMethod("loadSampleMap", Wrapper::loadSampleMap);
 
 	for (int i = 1; i < ModulatorSamplerSound::numProperties; i++)
 	{
@@ -1477,6 +1478,42 @@ void ScriptingApi::Sampler::refreshInterface()
 	s->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->sendChangeMessage();
 }
 
+void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
+{
+	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+	{
+		reportScriptError("loadSampleMap() only works with Samplers.");
+		return;
+	}
+
+	File f = GET_PROJECT_HANDLER(s).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps).getChildFile(fileName + ".xml");
+
+	if (!f.existsAsFile())
+	{
+		reportScriptError("Samplemap " + f.getFileName() + " not found.");
+		return;
+	}
+
+	XmlDocument doc(f);
+
+	ScopedPointer<XmlElement> xml = doc.getDocumentElement();
+
+	if (xml != nullptr)
+	{
+		ValueTree v = ValueTree::fromXml(*xml);
+
+		s->loadSampleMap(v);
+		s->sendChangeMessage();
+		s->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->sendChangeMessage();
+	}
+	else
+	{
+		reportScriptError("Error when loading sample map: " + doc.getLastParseError());
+	}
+}
+
 int ScriptingApi::Synth::addModulator(int chain, const String &type, const String &id) const
 {
 	ModulatorChain *c = nullptr;
@@ -1509,7 +1546,6 @@ int ScriptingApi::Synth::addModulator(int chain, const String &type, const Strin
 
 	int index = c->getHandler()->getNumProcessors() - 1;
 
-	
 #if USE_BACKEND
 	p->getMainController()->writeToConsole("Modulator " + id + " added to " + c->getId() + " at index " + String(index), 0, p, getScriptProcessor()->getScriptingContent()->getColour());
 #endif

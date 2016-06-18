@@ -909,6 +909,9 @@ public:
 		/** Refreshes the interface. Call this after you changed the properties. */
 		void refreshInterface();
 
+		/** Loads a new samplemap into this sampler. */
+		void loadSampleMap(const String &fileName);
+
 		bool objectDeleted() const override
 		{
 			return sampler.get() == nullptr;
@@ -933,6 +936,7 @@ public:
 			static var purgeMicPosition(const var::NativeFunctionArgs& args);
 			static var getMicPositionName(const var::NativeFunctionArgs& args);
 			static var refreshInterface(const var::NativeFunctionArgs& args);
+			static var loadSampleMap(const var::NativeFunctionArgs& args);
 
 		};
 

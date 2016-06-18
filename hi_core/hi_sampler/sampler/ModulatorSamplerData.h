@@ -225,12 +225,6 @@ public:
 		return false; //fileOnDisk == File::nonexistent || changed;
 	}
 
-	/** changes the save mode. */
-	void setRelativeSaveMode(bool shouldSaveRelativePaths)
-	{
-		saveRelativePaths = shouldSaveRelativePaths;
-	};
-
 	/** Returns the file on the disk. */
 	File getFile() const {return fileOnDisk;};
 
@@ -274,7 +268,6 @@ public:
 		mode = Undefined;
 		fileOnDisk = File::nonexistent;
 		changed = false;
-		saveRelativePaths = true;
 	}
 
 	void replaceReferencesWithGlobalFolder();
@@ -293,7 +286,6 @@ private:
 
 	File fileOnDisk;
 	bool changed;
-	bool saveRelativePaths;
 	bool monolith;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SampleMap)

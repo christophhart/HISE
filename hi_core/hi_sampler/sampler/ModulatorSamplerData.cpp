@@ -278,7 +278,6 @@ SampleMap::SampleMap(ModulatorSampler *sampler_):
 	sampler(sampler_),
 	fileOnDisk(File::nonexistent),
 	changed(false),
-	saveRelativePaths(true),
 	mode(Undefined)
 {
 	// You have to clear the sound array before you set a new SampleMap!
@@ -344,7 +343,6 @@ ValueTree SampleMap::exportAsValueTree() const
 
 	v.setProperty("FileName", fileOnDisk.getFullPathName(), nullptr);
 	v.setProperty("SaveMode", mode, nullptr);
-	v.setProperty("RelativePath", saveRelativePaths, nullptr);
 	v.setProperty("UseGlobalFolder", sampler->useGlobalFolderForSaving(), nullptr);
 
 	StringArray absoluteFileNames;
@@ -354,32 +352,6 @@ ValueTree SampleMap::exportAsValueTree() const
 	for(int i = 0; i < sampler->getNumSounds(); i++)
 	{
 		ValueTree soundTree = sampler->getSound(i)->exportAsValueTree();
-
-		if(saveRelativePaths)
-		{
-			File soundFile = File(soundTree.getProperty("FileName", String::empty));
-
-			if (warnIfUseAbsolutePathsInProjects)
-			{
-				warnIfUseAbsolutePathsInProjects = !soundFile.isAChildOf(GET_PROJECT_HANDLER(sampler).getSubDirectory(ProjectHandler::SubDirectories::Samples));
-			}
-
-#if USE_BACKEND
-            
-			if (warnIfUseAbsolutePathsInProjects)
-			{
-				if (PresetHandler::showYesNoWindow("Absolute file paths when using project", "You are using external samples without redirecting the sample folder (or outside the redirecting location). The preset can't be loaded on another machine. Press OK to choose a root sample folder or Cancel to ignore this.", PresetHandler::IconType::Warning))
-				{
-					sampler->getMainController()->getCommandManager()->invokeDirectly(BackendCommandTarget::MenuToolsRedirectSampleFolder, false);
-				}
-			}
-            
-#endif
-
-			absoluteFileNames.add(getSampleDirectory() + soundFile.getFileName());
-			
-			soundTree.setProperty("FileName", soundFile.getFileName(), nullptr);
-		}
 
 		if (soundTree.getNumChildren() != 0)
 		{
@@ -395,15 +367,7 @@ ValueTree SampleMap::exportAsValueTree() const
 			replaceFileReferences(soundTree);
 		}
 
-
 		v.addChild(soundTree, i, nullptr);
-	}
-
-	if(saveRelativePaths)
-	{
-		SampleWriter sw(sampler, absoluteFileNames);
-
-		sw.runThread();
 	}
 
 	return v;
@@ -425,38 +389,17 @@ void SampleMap::replaceFileReferences(ValueTree &soundTree) const
 
 void SampleMap::save(SaveMode m)
 {
-	const String extension = m == Monolith ? "him" : "xml";
+	const String name = PresetHandler::getCustomName("Sample Map");
 
-	if(m != Undefined) // Choose a new file
-	{
-		FileChooser fc("Save SampleMap", GET_PROJECT_HANDLER(sampler).getWorkDirectory(), extension, true);
+	File sampleMapDirectory = GET_PROJECT_HANDLER(sampler).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
 
-		if(fc.browseForFileToSave(true))
-		{
-			fileOnDisk = fc.getResult();
-		}
-		else
-		{
-			return;
-		}
-	}
+	File sampleMapFile = sampleMapDirectory.getChildFile(name + ".xml");
 
-	if(extension == "xml")
-	{
-		mode = SaveMode::MultipleFiles;
+	mode = SaveMode::MultipleFiles;
 
-		ValueTree v = exportAsValueTree();
-		ScopedPointer<XmlElement> xml = v.createXml();
-		xml->writeToFile(fileOnDisk, "");
-
-		File thumbnailFile(getSampleDirectory() + "/thumbnails.dat");
-        
-        FileOutputStream outputStream(thumbnailFile);
-
-		sampler->getCache().writeToStream(outputStream);
-
-		PresetHandler::saveProcessorAsPreset(sampler);
-	}
+	ValueTree v = exportAsValueTree();
+	ScopedPointer<XmlElement> xml = v.createXml();
+	xml->writeToFile(sampleMapFile, "");
 
 	changed = false;
 }
@@ -475,8 +418,6 @@ void SampleMap::loadSamplesFromDirectory(const ValueTree &v)
 
 	if ((bool)v.getProperty("UseGlobalFolder", false) == true)
 	{
-		
-
 		globalTree = v.createCopy();
 
 		for (int i = 0; i < globalTree.getNumChildren(); i++)
@@ -495,32 +436,8 @@ void SampleMap::loadSamplesFromDirectory(const ValueTree &v)
 		if (fileName.isNotEmpty()) fileOnDisk = PresetHandler::checkFile(fileName);
 
 		mode = (SaveMode)(int)v.getProperty("SaveMode", (int)Undefined);
-		saveRelativePaths = v.getProperty("RelativePath", false);
 
-		if (saveRelativePaths)
-		{
-			// Copy the tree, since you need to change the references.
-			absoluteTree = v.createCopy();
-
-			const String directory = fileOnDisk.getParentDirectory().getFullPathName() + "/samples/";
-
-			for (int i = 0; i < absoluteTree.getNumChildren(); i++)
-			{
-				const String fileName = absoluteTree.getChild(i).getProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::FileName), String::empty);
-
-				String absoluteFileName = directory + fileName;
-
-				jassert(File(absoluteFileName).existsAsFile());
-
-				absoluteTree.getChild(i).setProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::FileName), directory + fileName, nullptr);
-			}
-
-			treeToUse = &absoluteTree;
-		}
-		else
-		{
-			treeToUse = &v;
-		}
+		treeToUse = &v;
 	}
 
 	sampler->deleteAllSounds();
@@ -553,7 +470,7 @@ void SampleMap::loadSamplesFromDirectory(const ValueTree &v)
 	{
 		String firstFileName = treeToUse->getChild(0).getProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::FileName), String::empty);
 
-		File sampleDirectory = File(firstFileName).getParentDirectory();
+		File sampleDirectory = File(GET_PROJECT_HANDLER(sampler).getFilePath(firstFileName, ProjectHandler::SubDirectories::Samples)).getParentDirectory();
 
 		jassert(sampleDirectory.isDirectory());
 

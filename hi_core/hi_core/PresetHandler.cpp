@@ -602,6 +602,7 @@ String ProjectHandler::getIdentifier(SubDirectories dir)
 	case ProjectHandler::SubDirectories::Images:			return "Images/";
 	case ProjectHandler::SubDirectories::AudioFiles:		return "AudioFiles/";
 	case ProjectHandler::SubDirectories::UserPresets:		return "UserPresets/";
+	case ProjectHandler::SubDirectories::SampleMaps:		return "SampleMaps/";
 	case ProjectHandler::SubDirectories::numSubDirectories: 
 	default:												jassertfalse; return String::empty;
 	}

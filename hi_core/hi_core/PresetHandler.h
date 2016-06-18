@@ -178,6 +178,7 @@ public:
 		Samples,
 		Images,
 		AudioFiles,
+		SampleMaps,
 		numSubDirectories
 	};
 
