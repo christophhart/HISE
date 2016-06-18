@@ -180,7 +180,7 @@ void AhdsrEnvelope::startVoice(int voiceIndex)
 	
 	state->current_state = AhdsrEnvelopeState::ATTACK;
 
-	state->current_value = (state->attackCoef - 1.0f) / (state->attackBase - 1.0f);
+	state->current_value = 0.0f;
 
 }
 

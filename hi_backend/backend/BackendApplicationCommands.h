@@ -104,6 +104,8 @@ public:
 		MenuEditOffset = 0x30000,
 		MenuEditCopy,
 		MenuEditPaste,
+		MenuEditMoveUp,
+		MenuEditMoveDown,
         MenuEditCopyAsSnippet,
         MenuEditPasteAsSnippet,
 		MenuViewShowSelectedProcessorInPopup,
@@ -277,6 +279,7 @@ public:
 		static void archiveProject(BackendProcessorEditor * bpe);
 		static void downloadNewProject(BackendProcessorEditor * bpe);
 		static void showMainMenu(BackendProcessorEditor * bpe);
+		static void moveModule(CopyPasteTarget *currentCopyPasteTarget, bool moveUp);
 	};
 
 private:

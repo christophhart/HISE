@@ -303,6 +303,8 @@ public:
 
 		void add(Processor *newProcessor, Processor *siblingToInsertBefore)
 		{
+			ScopedLock sl(chain->getMainController()->getLock());
+
 			MidiProcessor *m = dynamic_cast<MidiProcessor*>(newProcessor);
 
 			//m->setColour(chain->getColour().withMultipliedBrightness(0.6f));
@@ -318,6 +320,8 @@ public:
 
 		void remove(Processor *processorToBeRemoved)
 		{
+			ScopedLock sl(chain->getMainController()->getLock());
+
 			jassert(dynamic_cast<MidiProcessor*>(processorToBeRemoved) != nullptr);
 			for(int i = 0; i < chain->processors.size(); i++)
 			{

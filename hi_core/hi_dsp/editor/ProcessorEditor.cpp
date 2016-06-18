@@ -663,3 +663,13 @@ processor(editor->getProcessor())
 {
 
 }
+
+void ProcessorEditor::Iterator::addChildEditors(ProcessorEditor *editor)
+{
+	editors.add(editor);
+
+	for (int i = 0; i < editor->getPanel()->getNumChildEditors(); i++)
+	{
+		addChildEditors(editor->getPanel()->getChildEditor(i));
+	}
+}

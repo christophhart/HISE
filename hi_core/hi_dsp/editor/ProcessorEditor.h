@@ -230,6 +230,35 @@ public:
 
 	void setFolded(bool shouldBeFolded, bool notifyEditor);
 	void childEditorAmountChanged() const;
+
+	class Iterator
+	{
+	public:
+
+		Iterator(ProcessorEditor *rootEditor):
+			index(0)
+		{
+			if(rootEditor != nullptr) addChildEditors(rootEditor);
+		}
+
+		ProcessorEditor *getNextEditor()
+		{
+			if (index < editors.size())
+			{
+				return editors[index++].getComponent();
+			}
+
+			return nullptr;
+		}
+
+	private:
+
+		void addChildEditors(ProcessorEditor *editor);
+
+		int index;
+		Array<Component::SafePointer<ProcessorEditor>> editors;
+	};
+
 private:
 
 	bool isPopupMode;

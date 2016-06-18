@@ -22,3 +22,4 @@ changelog*
 JUCE/
 *.licence
 Autosave*
+extras/demo_project/thumbnails.dat

@@ -197,6 +197,8 @@ void ModulatorChain::ModulatorChainHandler::addModulator(Modulator *newModulator
 
 void ModulatorChain::ModulatorChainHandler::add(Processor *newProcessor, Processor *siblingToInsertBefore)
 {
+	ScopedLock sl(chain->getMainController()->getLock());
+
 	jassert(dynamic_cast<Modulator*>(newProcessor) != nullptr);
 	addModulator(dynamic_cast<Modulator*>(newProcessor), siblingToInsertBefore);
 
@@ -240,6 +242,8 @@ void ModulatorChain::ModulatorChainHandler::deleteModulator(Modulator *modulator
 
 void ModulatorChain::ModulatorChainHandler::remove(Processor *processorToBeRemoved)
 {
+	ScopedLock sl(chain->getMainController()->getLock());
+
 	jassert(dynamic_cast<Modulator*>(processorToBeRemoved) != nullptr);
 	deleteModulator(dynamic_cast<Modulator*>(processorToBeRemoved));
     

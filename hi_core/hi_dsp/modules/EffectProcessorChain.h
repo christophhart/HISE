@@ -205,6 +205,8 @@ public:
 		*/
 		void add(Processor *newProcessor, Processor *siblingToInsertBefore) override
 		{
+			ScopedLock sl(chain->getMainController()->getLock());
+
 			jassert(dynamic_cast<EffectProcessor*>(newProcessor) != nullptr);
 			
 			for(int i = 0; i < newProcessor->getNumInternalChains(); i++)
@@ -266,6 +268,8 @@ public:
 
 		void remove(Processor *processorToBeRemoved) override
 		{
+			ScopedLock sl(chain->getMainController()->getLock());
+
 			jassert(dynamic_cast<EffectProcessor*>(processorToBeRemoved) != nullptr);
 			
 			chain->allEffects.removeAllInstancesOf(dynamic_cast<EffectProcessor*>(processorToBeRemoved));
@@ -280,10 +284,30 @@ public:
 			sendChangeMessage();
 		}
 
+		void moveProcessor(Processor *processorInChain, int delta)
+		{
+			if (MasterEffectProcessor *mep = dynamic_cast<MasterEffectProcessor*>(processorInChain))
+			{
+				const int indexOfProcessor = chain->masterEffects.indexOf(mep);
+				jassert(indexOfProcessor != -1);
+
+				const int indexOfSwapProcessor = jlimit<int>(0, chain->masterEffects.size(), indexOfProcessor + delta);
+
+				const int indexOfProcessorInAllEffects = chain->allEffects.indexOf(mep);
+				const int indexOfSwapProcessorInAllEfects = jlimit<int>(0, chain->allEffects.size(), indexOfProcessorInAllEffects + delta);
+
+				if (indexOfProcessor != indexOfSwapProcessor)
+				{
+					ScopedLock sl(chain->getMainController()->getLock());
+
+					chain->masterEffects.swap(indexOfProcessor, indexOfSwapProcessor);
+					chain->allEffects.swap(indexOfProcessorInAllEffects, indexOfSwapProcessorInAllEfects);
+				}
+			}
+		}
+
 		Processor *getProcessor(int processorIndex)
 		{
-			
-
 			if (processorIndex < chain->voiceEffects.size())
 			{
 				return chain->voiceEffects.getUnchecked(processorIndex);

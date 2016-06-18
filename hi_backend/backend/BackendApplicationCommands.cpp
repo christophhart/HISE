@@ -95,6 +95,8 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuFileQuit,
 		MenuEditCopy,
 		MenuEditPaste,
+		MenuEditMoveUp,
+		MenuEditMoveDown,
 		MenuEditCreateScriptVariable,
         MenuEditCloseAllChains,
         MenuEditPlotModulator,
@@ -266,6 +268,14 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		break;
 	case MenuEditPaste:
 		setCommandTarget(result, "Paste", currentCopyPasteTarget.get() != nullptr, false, 'V');
+		break;
+	case MenuEditMoveUp:
+		setCommandTarget(result, "Move up", currentCopyPasteTarget.get() != nullptr, false, 'X', false);
+		result.addDefaultKeypress(KeyPress::upKey, ModifierKeys::ctrlModifier);
+		break;
+	case MenuEditMoveDown:
+		setCommandTarget(result, "Move down", currentCopyPasteTarget.get() != nullptr, false, 'X', false);
+		result.addDefaultKeypress(KeyPress::downKey, ModifierKeys::ctrlModifier);
 		break;
 	case MenuEditCreateScriptVariable:
 		setCommandTarget(result, "Create script variable", clipBoardNotEmpty(), false, 'C', true, ModifierKeys::commandModifier | ModifierKeys::shiftModifier);
@@ -443,6 +453,8 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
                                             JUCEApplicationBase::quit(); return true;
 	case MenuEditCopy:                  if (currentCopyPasteTarget) currentCopyPasteTarget->copyAction(); return true;
 	case MenuEditPaste:                 if (currentCopyPasteTarget) currentCopyPasteTarget->pasteAction(); return true;
+	case MenuEditMoveUp:				if (currentCopyPasteTarget) Actions::moveModule(currentCopyPasteTarget, true); return true;
+	case MenuEditMoveDown:				if (currentCopyPasteTarget) Actions::moveModule(currentCopyPasteTarget, false); return true;
     case MenuEditCreateScriptVariable:  Actions::createScriptVariableDeclaration(currentCopyPasteTarget); return true;
     case MenuEditPlotModulator:         Actions::plotModulator(currentCopyPasteTarget.get()); updateCommands(); return true;
     case MenuEditCloseAllChains:        Actions::closeAllChains(bpe); return true;
@@ -651,6 +663,9 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
             ADD_ALL_PLATFORMS(MenuEditCopy);
             ADD_ALL_PLATFORMS(MenuEditPaste);
             p.addSeparator();
+
+			ADD_ALL_PLATFORMS(MenuEditMoveUp);
+			ADD_ALL_PLATFORMS(MenuEditMoveDown);
             
             const int chainOffset = 0x6000;
             
@@ -2336,4 +2351,31 @@ void BackendCommandTarget::Actions::showMainMenu(BackendProcessorEditor * bpe)
 
 	bpe->showPseudoModalWindow(newMenu, "Main Menu", true);
 
+}
+
+void BackendCommandTarget::Actions::moveModule(CopyPasteTarget *currentCopyPasteTarget, bool moveUp)
+{
+	if (ProcessorEditor *editor = dynamic_cast<ProcessorEditor*>(currentCopyPasteTarget))
+	{
+		Processor *processor = editor->getProcessor();
+
+		ProcessorEditor *parentEditor = editor->getParentEditor();
+
+		if (parentEditor == nullptr) return;
+
+		if (Chain *c = parentEditor->getProcessorAsChain())
+		{
+			c->getHandler()->moveProcessor(editor->getProcessor(), moveUp ? -1 : 1);
+			editor->childEditorAmountChanged();
+
+			ProcessorEditor *rootEditor = editor->getRootContainer()->getRootEditor();
+
+			BackendProcessorEditor *bpe = editor->findParentComponentOfClass<BackendProcessorEditor>();
+
+			bpe->refreshContainer(processor);
+
+			
+
+		}
+	}
 }

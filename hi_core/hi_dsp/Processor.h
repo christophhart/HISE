@@ -824,6 +824,9 @@ public:
 
 	virtual const Processor *getProcessor(int processorIndex) const = 0;
 
+	/** Overwrite this method and implement a move operation. */
+	virtual void moveProcessor(Processor *processorInChain, int delta) {};
+
 	/** Returns the amount of processors. */
 	virtual int getNumProcessors() const = 0;
 

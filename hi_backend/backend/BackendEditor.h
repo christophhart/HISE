@@ -153,6 +153,26 @@ public:
 
 	void clearPopup();
 
+	void refreshContainer(Processor *selectedProcessor)
+	{
+		if (container != nullptr)
+		{
+			const int y = viewport->viewport->getViewPositionY();
+
+			setRootProcessor(container->getRootEditor()->getProcessor(), y);
+
+			ProcessorEditor::Iterator iter(getRootContainer()->getRootEditor());
+
+			while (ProcessorEditor *editor = iter.getNextEditor())
+			{
+				if (editor->getProcessor() == selectedProcessor)
+				{
+					editor->grabCopyAndPasteFocus();
+				}
+			}
+		}
+	}
+
 	void scriptWasCompiled(ScriptProcessor *sp) override;
 
 	ModulatorSynthChain *getMainSynthChain() { return owner->synthChain; };

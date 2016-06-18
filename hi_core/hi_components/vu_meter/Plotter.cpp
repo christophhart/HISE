@@ -221,7 +221,10 @@ void Plotter::paint (Graphics& g)
 	for(int i = 0; i< 1024; i++)
 	{
 		int pos = (i + currentRingBufferPosition) % 1024;
-		drawPath.lineTo(i/factor, getHeight() - internalBuffer[pos] * getHeight());
+
+		const float thisValue = jlimit<float>(0.0f, 1.0f, internalBuffer[pos]);
+
+		drawPath.lineTo(i/factor, getHeight() - thisValue * getHeight());
 	}
     
 	drawPath.lineTo((float)getWidth(), (float)getHeight());

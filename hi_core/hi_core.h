@@ -46,7 +46,7 @@
 #include "hi_binary_data/hi_binary_data.h"
 
 #include "LibConfig.h"
-#include "Macros.h"
+
 
 //=============================================================================
 /** Config: USE_BACKEND
@@ -173,6 +173,8 @@ For all defined variables:
 *	New files must be added in the specific subfolder header / .cpp file.
 */
 
+
+#include "Macros.h"
 
 #include "hi_core/hi_core.h"
 #include "hi_components/hi_components.h"

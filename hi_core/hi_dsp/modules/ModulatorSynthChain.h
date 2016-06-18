@@ -300,7 +300,9 @@ public:
 
 		/** Deletes a processor from the chain. */
 		virtual void remove(Processor *processorToBeRemoved) override
-		{	
+		{
+			ScopedLock sl(synth->lock);
+
 			synth->synths.removeObject(dynamic_cast<ModulatorSynth*>(processorToBeRemoved));
 
 			sendChangeMessage();
