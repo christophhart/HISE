@@ -223,7 +223,7 @@ public:
 	static SubDirectories getSubDirectoryForIdentifier(Identifier id);
 
 	/** Fills the given array with the contents of the specified directory. If 'sortByTime' is true, the most recent files will be the first items in the list. */
-	void getFileList(Array<File> &filesInDirectory, SubDirectories dir, const String &wildcard, bool sortByTime = false);
+	void getFileList(Array<File> &filesInDirectory, SubDirectories dir, const String &wildcard, bool sortByTime = false, bool searchInSubfolders=false);
 
 	void createRSAKey() const;
 

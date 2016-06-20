@@ -1512,6 +1512,15 @@ void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
 	{
 		reportScriptError("Error when loading sample map: " + doc.getLastParseError());
 	}
+
+	int maxGroup = 1;
+
+	for (int i = 0; i < s->getNumSounds(); i++)
+	{
+		maxGroup = jmax<int>(maxGroup, s->getSound(i)->getProperty(ModulatorSamplerSound::RRGroup));
+	}
+
+	s->setAttribute(ModulatorSampler::RRGroupAmount, maxGroup, sendNotification);
 }
 
 int ScriptingApi::Synth::addModulator(int chain, const String &type, const String &id) const

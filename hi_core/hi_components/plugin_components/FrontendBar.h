@@ -44,17 +44,51 @@ public:
 		UserPresetOffset = 8192
 	};
 
+	void showPopup()
+	{
+		PopupMenu m;
+
+		addItemsToMenu(m);
+
+		const int result = m.show();
+
+		setSelectedId(result, sendNotification);
+	}
+
 	void addItemsToMenu(PopupMenu& m) const override
 	{
 		m.setLookAndFeel(&plaf);
-
+		
 		m.addSectionHeader("Factory Presets");
-		m.addSeparator();
-		for (int i = 0; i < factoryPresets.size(); i++)
+		
+		PopupMenu sub1;
+
+		sub1.addItem(12334, "tut");
+		sub1.addItem(23623, "TUT2");
+		m.addSubMenu("Menu", sub1);
+
+		for (int i = 0; i < unsortedFactoryPresets.size(); i++)
 		{
-			m.addItem(factoryPresets[i].id, factoryPresets[i].name, true, factoryPresets[i].id == getSelectedId());
+			m.addItem(unsortedFactoryPresets[i].id,
+				      unsortedFactoryPresets[i].name, 
+					  true, 
+					  unsortedFactoryPresets[i].id == getSelectedId());
 		}
 
+		for (int i = 0; i < factoryPresetCategories.size(); i++)
+		{
+			PopupMenu sub;
+
+			for (int j = 0; j < factoryPresetCategories[i]->presets.size(); j++)
+			{
+				Entry *e = &factoryPresetCategories[i]->presets[j];
+
+				sub.addItem(e->id, e->name, true, e->id == getSelectedId());
+			}
+
+			m.addSubMenu(factoryPresetCategories[i]->name, sub);
+		}
+		m.addSeparator();
 		m.addSectionHeader("User Presets");
 		m.addSeparator();
 		for (int i = 0; i < userPresets.size(); i++)
@@ -64,9 +98,37 @@ public:
 	}
 
 	/** This adds a factory preset. The ID will be internally adjusted.*/
-	void addFactoryPreset(const String &name, int id)
+	void addFactoryPreset(const String &name, const String &category, int id)
 	{
-		factoryPresets.add(Entry(name, id + FactoryOffset));
+		if (category.isEmpty())
+		{
+			unsortedFactoryPresets.add(Entry(name, id + FactoryOffset));
+		}
+		else
+		{
+			int index = -1;
+
+			for (int i = 0; i < factoryPresetCategories.size(); i++)
+			{
+				if (factoryPresetCategories[i]->name == category)
+				{
+					index = i;
+					break;
+				}
+			}
+
+			if (index == -1)
+			{
+				PresetCategory *newCategory = new PresetCategory(category);
+				newCategory->presets.add(Entry(name, id + FactoryOffset));
+				factoryPresetCategories.add(newCategory);
+			}
+			else
+			{
+				factoryPresetCategories[index]->presets.add(Entry(name, id + FactoryOffset));
+			}
+		}
+		
 
 		addItem(name, id + FactoryOffset);
 	}
@@ -83,7 +145,7 @@ public:
 	void clearPresets()
 	{
 		clear(dontSendNotification);
-		factoryPresets.clear();
+		factoryPresetCategories.clear();
 		userPresets.clear();
 	}
 
@@ -104,9 +166,22 @@ private:
 		int id;
 	};
 
+	struct PresetCategory
+	{
+		PresetCategory(String name_):
+			name(name_)
+		{};
+
+		PresetCategory() : name("") {};
+
+		String name;
+		Array<Entry> presets;
+	};
+
 	mutable PopupLookAndFeel plaf;
 
-	Array<Entry> factoryPresets;
+	Array<Entry> unsortedFactoryPresets;
+	OwnedArray<PresetCategory> factoryPresetCategories;
 	Array<Entry> userPresets;
 };
 

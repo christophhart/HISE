@@ -635,7 +635,7 @@ struct FileModificationComparator
 };
 
 
-void ProjectHandler::getFileList(Array<File> &filesInDirectory, SubDirectories dir, const String &wildcard, bool sortByTime /*= false*/)
+void ProjectHandler::getFileList(Array<File> &filesInDirectory, SubDirectories dir, const String &wildcard, bool sortByTime /*= false*/, bool searchInSubfolders/*=false*/)
 {
     if(!isActive()) return;
     
@@ -643,7 +643,7 @@ void ProjectHandler::getFileList(Array<File> &filesInDirectory, SubDirectories d
 
 	filesInDirectory.clear();
 
-	presetDir.findChildFiles(filesInDirectory, File::findFiles, false, wildcard);
+	presetDir.findChildFiles(filesInDirectory, File::findFiles, searchInSubfolders, wildcard);
 
 #if JUCE_WINDOWS
 

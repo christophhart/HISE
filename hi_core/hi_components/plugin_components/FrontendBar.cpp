@@ -285,13 +285,21 @@ void FrontendBar::refreshPresetFileList()
 #if USE_BACKEND
 
 	Array<File> fileList;
-	GET_PROJECT_HANDLER(mc->getMainSynthChain()).getFileList(fileList, ProjectHandler::SubDirectories::UserPresets, "*.preset");
+	
+	ProjectHandler *handler = &GET_PROJECT_HANDLER(mc->getMainSynthChain());
+	
+	handler->getFileList(fileList, ProjectHandler::SubDirectories::UserPresets, "*.preset", false, true);
 
 	presetSelector->clearPresets();
 
 	for (int i = 0; i < fileList.size(); i++)
 	{
-		presetSelector->addFactoryPreset(fileList[i].getFileNameWithoutExtension(), i + 1);
+		const File parentDirectory = fileList[i].getParentDirectory();
+		const File presetDirectory = handler->getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
+		const bool useCategory = (presetDirectory != parentDirectory);
+		const String categoryName = useCategory ? fileList[i].getParentDirectory().getFileName() : "";
+
+		presetSelector->addFactoryPreset(fileList[i].getFileNameWithoutExtension(), categoryName, i + 1);
 	}
 
 #else

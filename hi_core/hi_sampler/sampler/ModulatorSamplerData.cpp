@@ -304,19 +304,15 @@ void SampleMap::restoreFromValueTree(const ValueTree &v)
 
 	if(monolith)
 	{
-
 		loadSamplesFromMonolith(v);
-
 	}
 
 	else
 	{
-
 		loadSamplesFromDirectory(v);
-
-		
 	}
 
+	if(!sampler->isRoundRobinEnabled()) sampler->refreshRRMap();
 	sampler->refreshPreloadSizes();
 	sampler->refreshMemoryUsage();
 	

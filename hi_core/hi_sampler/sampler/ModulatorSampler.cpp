@@ -807,6 +807,8 @@ void ModulatorSampler::loadSampleMap(const File &f)
 	clearSampleMap();
 	sampleMap->load(f);
 
+	
+
 	setBypassed(false);
 }
 
