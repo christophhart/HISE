@@ -533,6 +533,16 @@ private:
 			this->setCentrePosition(getPos().getX(), getPos().getY());
 		};
 
+		void setPos(Point<float> normalizedPoint)
+		{
+			jassert(!dragPlotSize.isEmpty());
+
+			normalizedGraphPoint.x = normalizedPoint.x;
+			normalizedGraphPoint.y = normalizedPoint.y;
+
+			this->setCentrePosition(getPos().getX(), getPos().getY());
+		}
+
 		/* sets the curve */
 		void updateCurve(float newCurveValue)
 		{

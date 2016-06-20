@@ -81,9 +81,9 @@ public:
 
 			for (int j = 0; j < factoryPresetCategories[i]->presets.size(); j++)
 			{
-				Entry *e = &factoryPresetCategories[i]->presets[j];
+				const Entry e = factoryPresetCategories[i]->presets[j];
 
-				sub.addItem(e->id, e->name, true, e->id == getSelectedId());
+				sub.addItem(e.id, e.name, true, e.id == getSelectedId());
 			}
 
 			m.addSubMenu(factoryPresetCategories[i]->name, sub);

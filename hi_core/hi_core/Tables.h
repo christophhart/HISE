@@ -114,6 +114,43 @@ public:
 		fillLookUpTable();
 	};
 
+	void setTablePoint(int pointIndex, float x, float y, float curve)
+	{
+		const float sanitizedX = jlimit(0.0f, 1.0f, x);
+		const float sanitizedY = jlimit(0.0f, 1.0f, y);
+		const float sanitizedCurve = jlimit(0.0f, 1.0f, curve);
+
+		if (pointIndex >= 0 && pointIndex < graphPoints.size())
+		{
+			if (pointIndex != 0 && pointIndex != graphPoints.size() - 1)
+			{
+				// Just change the x value of non-edge points...
+				graphPoints.getRawDataPointer()[pointIndex].x = sanitizedX;
+			}
+
+			graphPoints.getRawDataPointer()[pointIndex].y = sanitizedY;
+			graphPoints.getRawDataPointer()[pointIndex].curve = sanitizedCurve;
+		}
+
+		fillLookUpTable();
+	}
+
+	void reset()
+	{
+		graphPoints.clear();
+		graphPoints.add(GraphPoint(0.0f, 0.0f, 0.5f));
+		graphPoints.add(GraphPoint(1.0f, 1.0f, 0.5f));
+
+		fillLookUpTable();
+	}
+
+	void addTablePoint(float x, float y)
+	{
+		graphPoints.add(GraphPoint(x, y, 0.5f));
+
+		fillLookUpTable();
+	}
+
 	/** Returns the number of graph points */
 	int getNumGraphPoints() const { return graphPoints.size(); };
 
@@ -155,12 +192,8 @@ private:
 		};
 	};
 
-	
-
 	WeakReference<Table>::Master masterReference;
 	friend class WeakReference<Table>;
-
-	
 
 	CriticalSection lock;
 

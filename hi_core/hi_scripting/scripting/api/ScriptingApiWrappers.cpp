@@ -746,6 +746,17 @@ var ScriptingApi::Synth::Wrapper::getAudioSampleProcessor(const var::NativeFunct
 	return var::undefined();
 }
 
+var ScriptingApi::Synth::Wrapper::getTableProcessor(const var::NativeFunctionArgs& args)
+{
+	if (Synth* thisObject = GET_OBJECT(Synth))
+	{
+		CHECK_ARGUMENTS("getScriptingTableProcessor()", 1);
+
+		return thisObject->getTableProcessor(args.arguments[0].toString());
+	}
+	return var::undefined();
+}
+
 
 var ScriptingApi::Synth::Wrapper::getSampler(const var::NativeFunctionArgs& args)
 {
@@ -1997,6 +2008,43 @@ var ScriptingObjects::ScriptingAudioSampleProcessor::Wrapper::setSampleRange(con
     
     return var::undefined();
 }
+
+var ScriptingObjects::ScriptingTableProcessor::Wrapper::setTablePoint(const var::NativeFunctionArgs& args)
+{
+	if (ScriptingObjects::ScriptingTableProcessor *thisObject = dynamic_cast<ScriptingObjects::ScriptingTableProcessor*> (args.thisObject.getObject()))
+	{
+		CHECK_ARGUMENTS("setTablePoint()", 5);
+
+		thisObject->setTablePoint((int)args.arguments[0], (int)args.arguments[1], (float)args.arguments[2], (float)args.arguments[3], (float)args.arguments[4]);
+	}
+
+	return var::undefined();
+}
+
+var ScriptingObjects::ScriptingTableProcessor::Wrapper::addTablePoint(const var::NativeFunctionArgs& args)
+{
+	if (ScriptingObjects::ScriptingTableProcessor *thisObject = dynamic_cast<ScriptingObjects::ScriptingTableProcessor*> (args.thisObject.getObject()))
+	{
+		CHECK_ARGUMENTS("addTablePoint()", 3);
+
+		thisObject->addTablePoint((int)args.arguments[0], (float)args.arguments[1], (float)args.arguments[2]);
+	}
+
+	return var::undefined();
+}
+
+var ScriptingObjects::ScriptingTableProcessor::Wrapper::reset(const var::NativeFunctionArgs& args)
+{
+	if (ScriptingObjects::ScriptingTableProcessor *thisObject = dynamic_cast<ScriptingObjects::ScriptingTableProcessor*> (args.thisObject.getObject()))
+	{
+		CHECK_ARGUMENTS("reset()", 1);
+
+		thisObject->reset((int)args.arguments[0]);
+	}
+
+	return var::undefined();
+}
+
 
 
 var ScriptingObjects::MidiList::Wrapper::fill(const var::NativeFunctionArgs& args)

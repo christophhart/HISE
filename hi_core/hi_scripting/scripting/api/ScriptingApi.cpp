@@ -717,6 +717,7 @@ ScriptingApi::Synth::Synth(ScriptBaseProcessor *p, ModulatorSynth *ownerSynth):
 	setMethod("addModulator", Wrapper::addModulator);
 	setMethod("getModulator", Wrapper::getModulator);
 	setMethod("getAudioSampleProcessor", Wrapper::getAudioSampleProcessor);
+	setMethod("getTableProcessor", Wrapper::getTableProcessor);
 	setMethod("getSampler", Wrapper::getSampler);
 	setMethod("getEffect", Wrapper::getEffect);
 	setMethod("getMidiProcessor", Wrapper::getMidiProcessor);
@@ -1034,6 +1035,31 @@ ScriptingObjects::ScriptingAudioSampleProcessor * ScriptingApi::Synth::getAudioS
 	}
 }
 
+
+ScriptingObjects::ScriptingTableProcessor *ScriptingApi::Synth::getTableProcessor(const String &name)
+{
+	if (getScriptProcessor()->objectsCanBeCreated())
+	{
+		Processor::Iterator<LookupTableProcessor> it(owner);
+
+		while (LookupTableProcessor *lut = it.getNextProcessor())
+		{
+			if (dynamic_cast<Processor*>(lut)->getId() == name)
+			{
+				debugToConsole(owner, dynamic_cast<Processor*>(lut)->getId() + " was found. ");
+				return new ScriptTableProcessor(getScriptProcessor(), lut);
+			}
+		}
+
+		return new ScriptTableProcessor(getScriptProcessor(), nullptr);
+	}
+	else
+	{
+		reportIllegalCall("getScriptingTableProcessor()", "onInit");
+
+		return new ScriptTableProcessor(getScriptProcessor(), nullptr);
+	}
+}
 
 ScriptingApi::Sampler * ScriptingApi::Synth::getSampler(const String &name)
 {
@@ -2580,9 +2606,9 @@ void ScriptingApi::Content::setHeight(int newHeight) noexcept
 		return;
 	}
 
-	if(newHeight > MAX_SCRIPT_HEIGHT)
+	if(newHeight > 800)
 	{
-		reportScriptError("Go easy on the height! (" + String(MAX_SCRIPT_HEIGHT) + "px is enough)");
+		reportScriptError("Go easy on the height! (" + String(800) + "px is enough)");
 		return;
 	}
 
@@ -2597,9 +2623,9 @@ void ScriptingApi::Content::setWidth(int newWidth) noexcept
 		return;
 	}
 
-	if(newWidth > 900)
+	if(newWidth > 1280)
 	{
-		reportScriptError("Go easy on the width! (800px is enough)");
+		reportScriptError("Go easy on the width! (1280px is enough)");
 		return;
 	}
 
@@ -3371,6 +3397,75 @@ int ScriptingObjects::ScriptingAudioSampleProcessor::getSampleLength() const
 }
 
 
+ScriptingObjects::ScriptingTableProcessor::ScriptingTableProcessor(ScriptBaseProcessor *p, LookupTableProcessor *tableProcessor_):
+  CreatableScriptObject(p),
+  tableProcessor(dynamic_cast<Processor*>(tableProcessor_))
+{
+    if (tableProcessor != nullptr)
+    {
+        objectProperties.set("Name", tableProcessor->getId());
+        
+        for (int i = 0; i < tableProcessor->getNumParameters(); i++)
+        {
+            setProperty(tableProcessor->getIdentifierForParameterIndex(i), var(i));
+        }
+    }
+    else
+    {
+        objectProperties.set("Name", "Invalid Processor");
+    }
+    
+    setMethod("addTablePoint", Wrapper::addTablePoint);
+    setMethod("reset", Wrapper::reset);
+    setMethod("setTablePoint", Wrapper::setTablePoint);
+}
+    
+    
+    
+void ScriptingObjects::ScriptingTableProcessor::setTablePoint(int tableIndex, int pointIndex, float x, float y, float curve)
+{
+    if(tableProcessor != nullptr)
+    {
+        Table *table = dynamic_cast<LookupTableProcessor*>(tableProcessor.get())->getTable(tableIndex);
+        
+        if(table != nullptr)
+        {
+			table->setTablePoint(pointIndex, x, y, curve);
+			table->sendChangeMessage();
+        }
+    }
+}
+
+
+void ScriptingObjects::ScriptingTableProcessor::addTablePoint(int tableIndex, float x, float y)
+{
+	if (tableProcessor != nullptr)
+	{
+		Table *table = dynamic_cast<LookupTableProcessor*>(tableProcessor.get())->getTable(tableIndex);
+
+		if (table != nullptr)
+		{
+			table->addTablePoint(x, y);
+			table->sendChangeMessage();
+		}
+	}
+}
+
+
+void ScriptingObjects::ScriptingTableProcessor::reset(int tableIndex)
+{
+	if (tableProcessor != nullptr)
+	{
+		Table *table = dynamic_cast<LookupTableProcessor*>(tableProcessor.get())->getTable(tableIndex);
+
+		if (table != nullptr)
+		{
+			table->reset();
+			table->sendChangeMessage();
+		}
+	}
+}
+
 ScriptingApi::Content::ScriptSliderPack::ScriptSliderPack(ScriptBaseProcessor *base, Content *parentContent, Identifier imageName, int x, int y, int width, int height) :
 ScriptComponent(base, parentContent, imageName, x, y, width, height),
 packData(new SliderPackData()),
@@ -3666,3 +3761,4 @@ void ScriptingApi::Content::PluginParameterConnector::sendParameterChangeNotific
 		parameter->endChangeGesture();
 	}
 }
+

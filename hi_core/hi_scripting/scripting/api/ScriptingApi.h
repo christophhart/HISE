@@ -418,11 +418,58 @@ public:
 
 		WeakReference<Processor> audioSampleProcessor;
 	};
-
-
-	class ScriptingEffect: public CreatableScriptObject
-	{
-	public:
+    
+    class ScriptingTableProcessor : public CreatableScriptObject
+    {
+    public:
+        
+        ScriptingTableProcessor(ScriptBaseProcessor *p, LookupTableProcessor *tableProcessor);
+        
+        Identifier getObjectName() const override
+        {
+            return "TableProcessor";
+        };
+        
+        /** Checks if the Object exists and prints a error message on the console if not. */
+        bool exists() { return checkValidObject(); };
+        
+        /** Sets the point with the given index to the values. */
+        void setTablePoint(int tableIndex, int pointIndex, float x, float y, float curve);
+        
+        /** Adds a new table point (x and y are normalized coordinates). */
+        void addTablePoint(int tableIndex, float x, float y);
+        
+        /** Resets the table with the given index to a 0..1 line. */
+        void reset(int tableIndex);
+        
+    protected:
+        
+        bool objectDeleted() const override
+        {
+            return tableProcessor.get() == nullptr;
+        }
+        
+        bool objectExists() const override
+        {
+            return tableProcessor != nullptr;
+        }
+        
+    private:
+        
+        struct Wrapper
+        {
+            static var setTablePoint(const var::NativeFunctionArgs& args);
+            static var addTablePoint(const var::NativeFunctionArgs& args);
+            static var reset(const var::NativeFunctionArgs& args);
+        };
+        
+        WeakReference<Processor> tableProcessor;
+    };
+    
+    
+    class ScriptingEffect: public CreatableScriptObject
+    {
+    public:
 		ScriptingEffect(ScriptBaseProcessor *p, EffectProcessor *fx);
 
 		Identifier getObjectName() const override
@@ -1061,6 +1108,11 @@ public:
 		/** Returns the child synth with the supplied name. */
 		ScriptAudioSampleProcessor * getAudioSampleProcessor(const String &name);
 
+		typedef ScriptingObjects::ScriptingTableProcessor ScriptTableProcessor;
+
+		/** Returns the table processor with the given name. */
+		ScriptTableProcessor *getTableProcessor(const String &name);
+
 		/** Returns the sampler with the supplied name. */
 		Sampler *getSampler(const String &name);
 
@@ -1100,6 +1152,7 @@ public:
 			static var isLegatoInterval(const var::NativeFunctionArgs& args);
 			static var isSustainPedalDown(const var::NativeFunctionArgs& args);
 			static var getAudioSampleProcessor(const var::NativeFunctionArgs& args);
+			static var getTableProcessor(const var::NativeFunctionArgs& args);
 			static var getSampler(const var::NativeFunctionArgs& args);
 			static var setClockSpeed(const var::NativeFunctionArgs& args);
 			

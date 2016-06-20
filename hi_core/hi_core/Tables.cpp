@@ -88,11 +88,10 @@ void Table::createPath(Path &normalizedPath) const
 
 void Table::fillLookUpTable()
 {
-	ScopedPointer<GraphPointComparator> gpc = new GraphPointComparator();
-	graphPoints.sort(*gpc);
+	GraphPointComparator gpc;
+	graphPoints.sort(gpc);
 
 	Path renderPath;
-
 
 	createPath(renderPath);
 
