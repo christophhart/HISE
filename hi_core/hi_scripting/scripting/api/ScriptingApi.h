@@ -1600,6 +1600,8 @@ public:
 
 			ScriptButton(ScriptBaseProcessor *base, Content *parentContent, Identifier name, int x, int y, int , int );
 
+			bool isAutomatable() const override { return true; }
+
 			Identifier 	getObjectName () const override { return "ScriptButton"; }
 
 			ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
@@ -1625,6 +1627,8 @@ public:
 			};
 
 			ScriptComboBox(ScriptBaseProcessor *base, Content *parentContent,  Identifier name, int x, int y, int width, int );
+
+			bool isAutomatable() const override { return true; }
 
 			virtual Identifier 	getObjectName () const override { return "ScriptComboBox"; }
 

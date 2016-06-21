@@ -2890,6 +2890,8 @@ ScriptComponent(base, parentContent, name, x, y, width, 32)
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::min));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::textColour));
 
+	deactivatedProperties.removeAllInstancesOf(getIdFor(ScriptComponent::Properties::isPluginParameter));
+
 	priorityProperties.add(getIdFor(Items));
 
 	componentProperties->setProperty(getIdFor(Items), 0);
@@ -3633,16 +3635,15 @@ image(nullptr)
 	propertyIds.add("filmstripImage");	ADD_TO_TYPE_SELECTOR(SelectorTypes::FileSelector);
 	propertyIds.add("isVertical");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	propertyIds.add("radioGroup");
-	propertyIds.add("isPluginParameter");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::max));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::min));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::textColour));
+	deactivatedProperties.removeAllInstancesOf(getIdFor(ScriptComponent::Properties::isPluginParameter));
 
 	setDefaultValue(ScriptButton::Properties::filmstripImage, "");
 	setDefaultValue(ScriptButton::Properties::isVertical, true);
 	setDefaultValue(ScriptButton::Properties::radioGroup, 0);
-	setDefaultValue(isPluginParameter, false);
 }
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptButton::createComponentWrapper(ScriptContentComponent *content, int index)

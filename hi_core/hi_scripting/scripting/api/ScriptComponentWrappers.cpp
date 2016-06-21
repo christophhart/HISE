@@ -833,8 +833,13 @@ String ScriptedControlAudioParameter::getText(float value, int) const
 		return value > 0.5f ? "On" : "Off";
 		break;
 	case ScriptedControlAudioParameter::Type::ComboBox:
-		return itemList[(int)value];
+	{
+		const int index = jlimit<int>(0, itemList.size() - 1, (int)(value*(float)itemList.size()));
+
+		return itemList[index];
 		break;
+	}
+		
 	case ScriptedControlAudioParameter::Type::Unsupported:
 	default:
 		jassertfalse;
