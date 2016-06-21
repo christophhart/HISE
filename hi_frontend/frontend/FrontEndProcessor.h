@@ -69,7 +69,7 @@ public:
 		
 		ValueTree v("ControlData");
 		
-		synthChain->saveMacroValuesToValueTree(v);
+		//synthChain->saveMacroValuesToValueTree(v);
 		
 		v.addChild(getMacroManager().getMidiControlAutomationHandler()->exportAsValueTree(), -1, nullptr);
 
@@ -91,11 +91,13 @@ public:
 
 			getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(v.getChildWithName("MidiAutomation"));
 
-			synthChain->loadMacroValuesFromValueTree(v);
+			//synthChain->loadMacroValuesFromValueTree(v);
 
-			synthChain->restoreInterfaceValues(v);
+			synthChain->restoreInterfaceValues(v.getChildWithName("InterfaceData"));
 		}
 	}
+
+	void setScriptedPluginParameter(Identifier id, float newValue);
 
 	void processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiMessages);
 
@@ -122,19 +124,23 @@ public:
 
 	int getNumPrograms() override
 	{
-		return presets.getNumChildren() + 1;
+		return 1;// presets.getNumChildren() + 1;
 	}
 
 	const String getProgramName(int index) override
 	{
-		if (index == 0) return "Default";
+		return "Default";
 
-		return presets.getChild(index - 1).getProperty("FileName");
+		//if (index == 0) return "Default";
+
+		//return presets.getChild(index - 1).getProperty("FileName");
 	}
 
 	int getCurrentProgram() override
 	{
-		return currentlyLoadedProgram;
+		return 0;
+
+		//return currentlyLoadedProgram;
 	}
 
 	void setCurrentProgram(int index) override;

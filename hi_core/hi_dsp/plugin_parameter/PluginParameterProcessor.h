@@ -142,6 +142,8 @@ private:
 
 	ScopedPointer<ValueTree> data_to_save;
 
+	StringArray itemList;
+
 	String name;
 
 	WeakReference<Processor> parameterSlots[32];

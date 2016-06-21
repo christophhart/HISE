@@ -439,6 +439,8 @@ public:
         return log2(globalPitchFactor) * 12.0;
     }
     
+	bool &getPluginParameterUpdateState() { return enablePluginParameterUpdate; }
+
 protected:
 
 	/** This is the main processing loop that is shared among all subclasses. */
@@ -551,6 +553,8 @@ private:
 	Array<WeakReference<TempoListener>> tempoListeners;
 
 	int usagePercent;
+
+	bool enablePluginParameterUpdate;
 
     float globalCodeFontSize;
 

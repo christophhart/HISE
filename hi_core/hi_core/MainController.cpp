@@ -51,6 +51,7 @@ MainController::MainController():
     midiInputFlag(false),
 	macroManager(this),
 	autoSaver(this),
+	enablePluginParameterUpdate(true),
 #if JUCE_WINDOWS
     globalCodeFontSize(14.0f)
 #else

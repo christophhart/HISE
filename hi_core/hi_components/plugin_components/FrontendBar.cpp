@@ -310,7 +310,7 @@ void FrontendBar::refreshPresetFileList()
 
 	for (int i = 1; i < fp->getNumPrograms(); i++)
 	{
-		presetSelector->addFactoryPreset(fp->getProgramName(i), i);
+		presetSelector->addFactoryPreset(fp->getProgramName(i), "", i);
 	}
 
 	File userPresetDirectory = ProjectHandler::Frontend::getUserPresetDirectory();

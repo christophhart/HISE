@@ -706,21 +706,23 @@ void ScriptCreatedComponentWrappers::AudioWaveformWrapper::rangeChanged(AudioDis
 
 typedef ScriptingApi::Content::ScriptComponent ScriptedComponent;
 
-ScriptedControlAudioParameter::ScriptedControlAudioParameter(ScriptedComponent *controlledComponent_, AudioProcessor *parentProcessor_):
-  AudioProcessorParameterWithID(controlledComponent_->getName().toString(), 
-								controlledComponent_->getScriptObjectProperty(ScriptedComponent::text)),
-  controlledComponent(controlledComponent_),
+ScriptedControlAudioParameter::ScriptedControlAudioParameter(ScriptingApi::Content::ScriptComponent *newComponent, AudioProcessor *parentProcessor_, ScriptBaseProcessor *scriptProcessor_, int index_) :
+  AudioProcessorParameterWithID(newComponent->getName().toString(), 
+								getNameForComponent(newComponent)),
+  id(newComponent->getName()),
   parentProcessor(parentProcessor_),
-  type(getType(controlledComponent_))
+  type(getType(newComponent)),
+  scriptProcessor(scriptProcessor_),
+  componentIndex(index_),
+  suffix(String()),
+  deactivated(false)
 {
-	setControlledScriptComponent(controlledComponent_);
+	setControlledScriptComponent(newComponent);
 }
 
 void ScriptedControlAudioParameter::setControlledScriptComponent(ScriptingApi::Content::ScriptComponent *newComponent)
 {
-	controlledComponent = newComponent;
-
-	ScriptedComponent *c = getComponent();
+	ScriptedComponent *c = newComponent;
 
 	if (c != nullptr)
 	{
@@ -732,13 +734,24 @@ void ScriptedControlAudioParameter::setControlledScriptComponent(ScriptingApi::C
 		switch (type)
 		{
 		case ScriptedControlAudioParameter::Type::Slider:
+		{
 			range.interval = c->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::stepSize);
-			range.skew = (float)HiSlider::getSkewFactorFromMidPoint((double)min, (double)max, (double)c->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::middlePosition));
+
+			const double midPoint = (double)c->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::middlePosition);
+
+			if (range.getRange().contains(midPoint))
+			{
+				range.skew = (float)HiSlider::getSkewFactorFromMidPoint((double)min, (double)max, midPoint);
+			}
+
+			suffix = c->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::suffix);
 			break;
+		}
 		case ScriptedControlAudioParameter::Type::Button:
 			break;
 		case ScriptedControlAudioParameter::Type::ComboBox:
 			range.interval = 1.0f;
+			itemList = dynamic_cast<ScriptingApi::Content::ScriptComboBox*>(c)->getItemList();
 			break;
 		case ScriptedControlAudioParameter::Type::Unsupported:
 			// This should be taken care of before creation of this object...
@@ -752,11 +765,12 @@ void ScriptedControlAudioParameter::setControlledScriptComponent(ScriptingApi::C
 
 float ScriptedControlAudioParameter::getValue() const
 {
-	const ScriptedComponent *c = getComponent();
-
-	if (c != nullptr)
+	if (scriptProcessor.get() != nullptr)
 	{
-		return range.convertTo0to1(c->getValue());
+		const float value = jlimit<float>(0.0f, 1.0f, range.convertTo0to1(scriptProcessor->getAttribute(componentIndex)));
+
+		return value;
+		
 	}
 	else
 	{
@@ -767,11 +781,16 @@ float ScriptedControlAudioParameter::getValue() const
 
 void ScriptedControlAudioParameter::setValue(float newValue)
 {
-	ScriptedComponent *c = getComponent();
-
-	if (c != nullptr)
+	if (scriptProcessor.get() != nullptr)
 	{
-		c->setValue(range.convertFrom0to1(newValue));
+		bool *enableUpdate = &dynamic_cast<MainController*>(parentProcessor)->getPluginParameterUpdateState();
+
+		if (enableUpdate)
+		{
+			ScopedValueSetter<bool> setter(*enableUpdate, false, true);
+
+			scriptProcessor->setAttribute(componentIndex, range.convertFrom0to1(newValue), sendNotification);
+		}
 	}
 	else
 	{
@@ -781,11 +800,9 @@ void ScriptedControlAudioParameter::setValue(float newValue)
 
 float ScriptedControlAudioParameter::getDefaultValue() const
 {
-	const ScriptedComponent *c = getComponent();
-
-	if (c != nullptr && type == Type::Slider)
+	if (scriptProcessor.get() != nullptr && type == Type::Slider)
 	{
-		return range.convertTo0to1(c->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::defaultValue));
+		return range.convertTo0to1(scriptProcessor->getDefaultValue(componentIndex));
 	}
 	else
 	{
@@ -793,46 +810,30 @@ float ScriptedControlAudioParameter::getDefaultValue() const
 	}
 }
 
-String ScriptedControlAudioParameter::getName(int /*maximumStringLength*/) const
-{
-	const ScriptedComponent *c = getComponent();
 
-	if (c != nullptr)
-	{
-		return c->getScriptObjectProperty(ScriptedComponent::text);
-	}
-	else
-	{
-		jassertfalse;
-		return String();
-	}
-}
 
 String ScriptedControlAudioParameter::getLabel() const
 {
-	const ScriptedComponent *c = getComponent();
-
-	if (c != nullptr && type == Type::Slider)
+	if (type == Type::Slider)
 	{
-		return c->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::suffix);
+		return suffix;
 	}
 	else return String();
 }
 
 String ScriptedControlAudioParameter::getText(float value, int) const
 {
-	const ScriptedComponent *c = getComponent();
-
 	switch (type)
 	{
 	case ScriptedControlAudioParameter::Type::Slider:
-		return String(range.convertFrom0to1(value), 1);
+
+		return String(range.convertFrom0to1(jlimit(0.0f, 1.0f, value)), 1);
 		break;
 	case ScriptedControlAudioParameter::Type::Button:
 		return value > 0.5f ? "On" : "Off";
 		break;
 	case ScriptedControlAudioParameter::Type::ComboBox:
-		return dynamic_cast<const ScriptingApi::Content::ScriptComboBox*>(c)->getItemList()[(int)value];
+		return itemList[(int)value];
 		break;
 	case ScriptedControlAudioParameter::Type::Unsupported:
 	default:
@@ -845,8 +846,6 @@ String ScriptedControlAudioParameter::getText(float value, int) const
 
 float ScriptedControlAudioParameter::getValueForText(const String &text) const
 {
-	const ScriptedComponent *c = getComponent();
-
 	switch (type)
 	{
 	case ScriptedControlAudioParameter::Type::Slider:
@@ -856,7 +855,7 @@ float ScriptedControlAudioParameter::getValueForText(const String &text) const
 		return text == "On" ? 1.0f : 0.0f;
 		break;
 	case ScriptedControlAudioParameter::Type::ComboBox:
-		return (float)dynamic_cast<const ScriptingApi::Content::ScriptComboBox*>(c)->getItemList().indexOf(text);
+		return (float)itemList.indexOf(text);
 		break;
 	case ScriptedControlAudioParameter::Type::Unsupported:
 		break;
@@ -869,18 +868,16 @@ float ScriptedControlAudioParameter::getValueForText(const String &text) const
 
 int ScriptedControlAudioParameter::getNumSteps() const
 {
-	const ScriptedComponent *c = getComponent();
-
 	switch (type)
 	{
 	case ScriptedControlAudioParameter::Type::Slider:
-		return parentProcessor->getDefaultNumParameterSteps();
+		return (int)((float)range.getRange().getLength() / range.interval);
 		break;
 	case ScriptedControlAudioParameter::Type::Button:
 		return 2;
 		break;
 	case ScriptedControlAudioParameter::Type::ComboBox:
-		return dynamic_cast<const ScriptingApi::Content::ScriptComboBox*>(c)->getItemList().size();
+		return itemList.size();
 	case ScriptedControlAudioParameter::Type::Unsupported:
 		break;
 	default:
@@ -888,6 +885,12 @@ int ScriptedControlAudioParameter::getNumSteps() const
 	}
 
 	return parentProcessor->getDefaultNumParameterSteps();
+}
+
+void ScriptedControlAudioParameter::setParameterNotifyingHost(int index, float newValue)
+{
+	ScopedValueSetter<bool> setter(dynamic_cast<MainController*>(parentProcessor)->getPluginParameterUpdateState(), false, true);
+	parentProcessor->setParameterNotifyingHost(index, range.convertTo0to1(newValue));
 }
 
 ScriptedControlAudioParameter::Type ScriptedControlAudioParameter::getType(ScriptingApi::Content::ScriptComponent *component)

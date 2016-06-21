@@ -138,7 +138,7 @@ public:
 		Unsupported
 	};
 
-	ScriptedControlAudioParameter(ScriptingApi::Content::ScriptComponent *newComponent, AudioProcessor *parentProcessor);
+	ScriptedControlAudioParameter(ScriptingApi::Content::ScriptComponent *newComponent, AudioProcessor *parentProcessor, ScriptBaseProcessor *scriptProcessor, int index);
 
 	void setControlledScriptComponent(ScriptingApi::Content::ScriptComponent *newComponent);
 
@@ -146,42 +146,36 @@ public:
 	void setValue(float newValue) override;
 	float getDefaultValue() const override;
 
-	String getName(int maximumStringLength) const override;
 	String getLabel() const override;
 	String getText(float value, int) const override;
 
 	float getValueForText(const String &text) const override;
 	int getNumSteps() const override;
 
+	void setParameterNotifyingHost(int index, float newValue);
+
 	bool isAutomatable() const override { return true; };
 
 	static Type getType(ScriptingApi::Content::ScriptComponent *component);
 
-	ScriptingApi::Content::ScriptComponent *getComponent()
+	static String getNameForComponent(ScriptingApi::Content::ScriptComponent *component)
 	{
-		if (DynamicObject *object = controlledComponent.get()) return static_cast<ScriptingApi::Content::ScriptComponent*>(object);
-		else return nullptr;
+		const String givenName = component->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::text);
+
+		if (givenName.isEmpty()) return component->getName().toString();
+		else return givenName;
 	}
 
-	const ScriptingApi::Content::ScriptComponent *getComponent() const
-	{
-		if (DynamicObject *object = controlledComponent.get()) return static_cast<ScriptingApi::Content::ScriptComponent*>(object);
-		else return nullptr;
-	}
+	Identifier getId() const { return id; }
 
-	ScriptingApi::Content::PluginParameterConnector *getConnector()
-	{
-		if (DynamicObject *object = controlledComponent.get()) return dynamic_cast<ScriptingApi::Content::PluginParameterConnector*>(object);
-		else return nullptr;
-	}
 
-	const ScriptingApi::Content::PluginParameterConnector *getConnector() const
-	{
-		if (DynamicObject *object = controlledComponent.get()) return dynamic_cast<ScriptingApi::Content::PluginParameterConnector*>(object);
-		else return nullptr;
-	}
+	void deactivateUpdateForNextSetValue() { deactivated = true; }
 
 private:
+
+	bool deactivated;
+
+	const Identifier id;
 
 	NormalisableRange<float> range;
 
@@ -189,7 +183,13 @@ private:
 
 	AudioProcessor *parentProcessor;
 
-	DynamicObject::Ptr controlledComponent;
+	WeakReference<ScriptBaseProcessor> scriptProcessor;
+
+	int componentIndex;
+
+	String suffix;
+
+	StringArray itemList;
 };
 
 class BorderPanel : public MouseCallbackComponent

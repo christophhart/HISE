@@ -1329,6 +1329,7 @@ public:
 				macroControl,
 				zOrder,
 				saveInPreset,
+				isPluginParameter,
 				numProperties
 			};
 
@@ -1356,6 +1357,8 @@ public:
 			}
 
 			virtual void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor=sendNotification);
+
+			virtual bool isAutomatable() const { return false; }
 
 			const Identifier getIdFor(int p) const
 			{
@@ -1498,7 +1501,6 @@ public:
 				filmstripImage,
 				numStrips,
 				isVertical,
-				isPluginParameter,
 				numProperties
 			};
 
@@ -1507,6 +1509,8 @@ public:
 			~ScriptSlider();
 
 			Identifier 	getObjectName () const override { return "ScriptSlider"; }
+
+			virtual bool isAutomatable() const { return true; }
 
 			ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 

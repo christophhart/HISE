@@ -162,6 +162,8 @@ AudioProcessorEditor* FrontendProcessor::createEditor()
 
 void FrontendProcessor::setCurrentProgram(int index)
 {
+	return;
+
 	if (index == currentlyLoadedProgram) return;
 
 	currentlyLoadedProgram = index;
@@ -198,16 +200,29 @@ void FrontendProcessor::addScriptedParameters()
 
 			for (int i = 0; i < content->getNumComponents(); i++)
 			{
-				ScriptingApi::Content::PluginParameterConnector *c = dynamic_cast<ScriptingApi::Content::PluginParameterConnector*>(content->getComponent(i));
+				ScriptingApi::Content::ScriptComponent *c = content->getComponent(i);
 
-				if (c != nullptr)
+				if (c->isAutomatable() && c->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::isPluginParameter))
 				{
-					ScriptedControlAudioParameter *newParameter = new ScriptedControlAudioParameter(content->getComponent(i), this);
+					ScriptedControlAudioParameter *newParameter = new ScriptedControlAudioParameter(content->getComponent(i), this, sp, i);
 					addParameter(newParameter);
-					c->setConnected(newParameter);
 				}
 			}
 		}
 	}
 }
 
+void FrontendProcessor::setScriptedPluginParameter(Identifier id, float newValue)
+{
+	for (int i = 0; i < getNumParameters(); i++)
+	{
+		if (ScriptedControlAudioParameter * sp = static_cast<ScriptedControlAudioParameter*>(getParameters().getUnchecked(i)))
+		{
+			if (sp->getId() == id)
+			{
+				sp->setParameterNotifyingHost(i, newValue);
+				
+			}
+		}
+	}
+}

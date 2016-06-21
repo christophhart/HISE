@@ -2128,6 +2128,9 @@ changed(false)
 	propertyIds.add(Identifier("macroControl")); ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	propertyIds.add(Identifier("zOrder"));
 	propertyIds.add(Identifier("saveInPreset")); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	propertyIds.add(Identifier("isPluginParameter")); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+
+	deactivatedProperties.add(getIdFor(isPluginParameter));
 
 	setDefaultValue(Properties::text, name.toString());
 	setDefaultValue(Properties::visible, true);
@@ -2146,6 +2149,7 @@ changed(false)
 	setDefaultValue(Properties::macroControl, -1);
 	setDefaultValue(Properties::zOrder, "Normal order");
 	setDefaultValue(Properties::saveInPreset, true);
+	setDefaultValue(Properties::isPluginParameter, false);
 
 	setMethod("set", Wrapper::set);
 	setMethod("get", Wrapper::get);
@@ -2295,7 +2299,8 @@ maximum(1.0f)
 	propertyIds.add(Identifier("filmstripImage"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::FileSelector);
 	propertyIds.add(Identifier("numStrips"));
 	propertyIds.add(Identifier("isVertical"));		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-	propertyIds.add(Identifier("isPluginParameter")); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	
+	deactivatedProperties.removeAllInstancesOf(getIdFor(isPluginParameter));
 
 	componentProperties->setProperty(getIdFor(Mode), 0);
 	componentProperties->setProperty(getIdFor(Style), 0);
@@ -2306,7 +2311,6 @@ maximum(1.0f)
 	componentProperties->setProperty(getIdFor(filmstripImage), String::empty);
 	componentProperties->setProperty(getIdFor(numStrips), 0);
 	componentProperties->setProperty(getIdFor(isVertical), true);
-	componentProperties->setProperty(getIdFor(isPluginParameter), false);
 
 	priorityProperties.add(getIdFor(Mode));
 
@@ -2321,7 +2325,6 @@ maximum(1.0f)
 	setDefaultValue(ScriptSlider::Properties::filmstripImage, "Use default skin");
 	setDefaultValue(ScriptSlider::Properties::numStrips, 0);
 	setDefaultValue(ScriptSlider::Properties::isVertical, true);
-	setDefaultValue(ScriptSlider::Properties::isPluginParameter, false);
 
 	setScriptObjectPropertyWithChangeMessage(getIdFor(Mode), "Linear", dontSendNotification);
 	setScriptObjectPropertyWithChangeMessage(getIdFor(Style), "Knob", dontSendNotification);

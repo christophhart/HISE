@@ -65,8 +65,21 @@ void ScriptBaseProcessor::setInternalAttribute(int index, float newValue)
 	{
 		ScriptingApi::Content::ScriptComponent *c = content->getComponent(index);
 
-		c->setValue(newValue);
-		controlCallback(c, newValue);
+		if (c != nullptr)
+		{
+			c->setValue(newValue);
+
+#if USE_FRONTEND
+			if (c->isAutomatable() && 
+				c->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::isPluginParameter) &&
+				getMainController()->getPluginParameterUpdateState())
+			{
+				dynamic_cast<FrontendProcessor*>(getMainController())->setScriptedPluginParameter(c->getName(), newValue);
+			}
+#endif
+
+			controlCallback(c, newValue);
+		}
 	}
 }
 
