@@ -55,6 +55,7 @@ using namespace juce;
 
 #include "sampler/SampleImporter.h"
 #include "sampler/SfzImporter.h"
+#include "sampler/MachFiveImporter.h"
 
 #include "sampler/components/FileNamePartComponent.h"
 #include "sampler/components/FileNameImporterDialog.h"

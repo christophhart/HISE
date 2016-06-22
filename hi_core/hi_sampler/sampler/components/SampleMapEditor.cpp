@@ -419,7 +419,12 @@ void SampleMapEditor::getCommandInfo(CommandID commandID, ApplicationCommandInfo
 	case RefreshVelocityXFade:	result.setInfo("Refresh Velocity Crossfades.", "Adds a crossfade to overlapping sounds in a group.", "Sample Editing", 0);
 		result.setActive(selectionIsNotEmpty);
 		break;
+	case AutomapUsingMetadata:  result.setInfo("Automap using Metadata", "Automaps the sample using the metadata that is found in the sample file.", "Sample Editing", 0);
+		result.setActive(selectionIsNotEmpty);
+		break;
 	}
+
+
 }
 
 
@@ -514,6 +519,8 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 	case AutomapVelocity:	SamplerBody::SampleEditingActions::automapVelocity(body);
 							return true;
 	case RefreshVelocityXFade:	SamplerBody::SampleEditingActions::refreshCrossfades(body);
+							return true;
+	case AutomapUsingMetadata: SamplerBody::SampleEditingActions::automapUsingMetadata(body);
 							return true;
 	}
 	return false;

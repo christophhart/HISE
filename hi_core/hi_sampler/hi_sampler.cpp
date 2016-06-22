@@ -49,6 +49,7 @@
 
 #include "sampler/SampleImporter.cpp"
 #include "sampler/SfzImporter.cpp"
+#include "sampler/MachFiveImporter.cpp"
 
 #include "sampler/components/FileNamePartComponent.cpp"
 #include "sampler/components/FileNameImporterDialog.cpp"

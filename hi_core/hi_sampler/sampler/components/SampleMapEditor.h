@@ -94,7 +94,7 @@ public:
 		FillVelocityGaps,
 		AutomapVelocity,
 		RefreshVelocityXFade,
-
+		AutomapUsingMetadata,
 		numCommands
 	};
 
@@ -130,7 +130,8 @@ public:
 								FillNoteGaps,
 								FillVelocityGaps,
 								AutomapVelocity,
-								RefreshVelocityXFade
+								RefreshVelocityXFade,
+								AutomapUsingMetadata
 								};
 
 		commands.addArray(id, numElementsInArray(id));
@@ -434,6 +435,7 @@ public:
 
 		toolsMenu.addCommandItem(a, FillNoteGaps);
 		toolsMenu.addCommandItem(a, FillVelocityGaps);
+		toolsMenu.addCommandItem(a, AutomapUsingMetadata);
 		toolsMenu.addSeparator();
 		toolsMenu.addCommandItem(a, MergeIntoMultisamples);
 		toolsMenu.addCommandItem(a, ExtractToSingleMicSamples);
