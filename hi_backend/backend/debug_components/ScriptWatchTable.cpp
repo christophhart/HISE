@@ -778,8 +778,10 @@ void ScriptComponentEditPanel::HiFilePropertyComponent::buttonClicked(Button *)
 		
 void ScriptComponentEditPanel::HiFilePropertyComponent::comboBoxChanged(ComboBox *)
 {
-	currentFile = component.box.getItemText(component.box.getSelectedItemIndex());
-
+    const String fileName = component.box.getItemText(component.box.getSelectedItemIndex());
+    
+	currentFile = GET_PROJECT_HANDLER(findParentComponentOfClass<BackendProcessorEditor>()->getMainSynthChain()).getFileReference(fileName, ProjectHandler::SubDirectories::Images);
+    
 	sendSynchronousChangeMessage();
 }
 
