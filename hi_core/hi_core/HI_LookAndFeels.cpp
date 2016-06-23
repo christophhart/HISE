@@ -56,7 +56,9 @@ void FilmstripLookAndFeel::drawToggleButton(Graphics &g, ToggleButton &b, bool i
 
 		g.setColour(Colours::black.withAlpha(b.isEnabled() ? 1.0f : 0.5f));
 
-		g.drawImageAt(clip, 0, 0);
+        
+        
+		g.drawImage(clip, 0, 0, widthOfEachStrip * scaleFactor, heightOfEachStrip * scaleFactor, 0, 0, widthOfEachStrip, heightOfEachStrip);
 		
 	}
 }
@@ -90,7 +92,7 @@ void FilmstripLookAndFeel::drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, i
 
 		g.setColour(Colours::black.withAlpha(s.isEnabled() ? 1.0f : 0.5f));
 
-		g.drawImageAt(clip, 0, 0);
+        g.drawImage(clip, 0, 0, widthOfEachStrip * scaleFactor, heightOfEachStrip * scaleFactor, 0, 0, widthOfEachStrip, heightOfEachStrip);
 	}
 }
 

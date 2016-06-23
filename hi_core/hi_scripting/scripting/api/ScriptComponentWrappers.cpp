@@ -230,15 +230,22 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateComponent()
 
 	jassert(s != nullptr);
 
+    FilmstripLookAndFeel *fslaf = dynamic_cast<FilmstripLookAndFeel*>(&s->getLookAndFeel());
+
+    ScriptingApi::Content::ScriptSlider* sc = dynamic_cast<ScriptingApi::Content::ScriptSlider*>(getScriptComponent());
+    
+    if(fslaf != nullptr)
+    {
+        fslaf->setScaleFactor(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::scaleFactor));
+    }
+    
 	s->setTooltip(GET_SCRIPT_PROPERTY(tooltip));
 
-	ScriptingApi::Content::ScriptSlider* sc = dynamic_cast<ScriptingApi::Content::ScriptSlider*>(getScriptComponent());
+
 
 	s->setName(GET_SCRIPT_PROPERTY(text));
 
-	s->setSliderStyle(sc->styleId);
-
-	
+    s->setSliderStyle(sc->styleId);
 
 	s->enableMacroControlledComponent(GET_SCRIPT_PROPERTY(enabled));
 
@@ -376,6 +383,14 @@ void ScriptCreatedComponentWrappers::ButtonWrapper::updateComponent()
 	HiToggleButton *b = dynamic_cast<HiToggleButton*>(component.get());
 
 	b->enableMacroControlledComponent(GET_SCRIPT_PROPERTY(enabled));
+
+    
+    FilmstripLookAndFeel *fslaf = dynamic_cast<FilmstripLookAndFeel*>(&b->getLookAndFeel());
+    
+    if(fslaf != nullptr)
+    {
+        fslaf->setScaleFactor(getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::scaleFactor));
+    }
 
     b->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, GET_OBJECT_COLOUR(bgColour));
     b->setColour(MacroControlledObject::HiBackgroundColours::upperBgColour, GET_OBJECT_COLOUR(itemColour));

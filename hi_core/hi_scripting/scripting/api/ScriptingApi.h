@@ -1501,6 +1501,7 @@ public:
 				filmstripImage,
 				numStrips,
 				isVertical,
+                scaleFactor,
 				numProperties
 			};
 
@@ -1591,6 +1592,7 @@ public:
 			{
 				filmstripImage = ScriptComponent::Properties::numProperties,
 				isVertical,
+                scaleFactor,
 				radioGroup,
 				isPluginParameter,
 				numProperties

@@ -1171,7 +1171,8 @@ public:
 	FilmstripLookAndFeel() :
 		imageToUse(Image()),
 		isVertical(true),
-		numStrips(0)
+		numStrips(0),
+        scaleFactor(1.0f)
 	{};
 
 	void setFilmstripImage(const Image &imageToUse_, int numStrips_, bool isVertical_=true)
@@ -1195,6 +1196,11 @@ public:
 
 	};
 
+    void setScaleFactor(float newScaleFactor) noexcept
+    {
+        scaleFactor = newScaleFactor;
+    }
+    
 	void drawToggleButton(Graphics &g, ToggleButton &b, bool isMouseOverButton, bool isButtonDown) override;
 
 	void drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, int width, int height, float /*sliderPosProportional*/, float /*rotaryStartAngle*/, float /*rotaryEndAngle*/, Slider &s) override;
@@ -1204,6 +1210,7 @@ private:
 	int heightOfEachStrip;
 	int widthOfEachStrip;
 
+    float scaleFactor;
 	
 	bool isVertical;
 	Image imageToUse;

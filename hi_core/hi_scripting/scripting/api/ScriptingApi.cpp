@@ -2299,6 +2299,7 @@ maximum(1.0f)
 	propertyIds.add(Identifier("filmstripImage"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::FileSelector);
 	propertyIds.add(Identifier("numStrips"));
 	propertyIds.add(Identifier("isVertical"));		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+    propertyIds.add(Identifier("scaleFactor"));
 	
 	deactivatedProperties.removeAllInstancesOf(getIdFor(isPluginParameter));
 
@@ -2325,6 +2326,7 @@ maximum(1.0f)
 	setDefaultValue(ScriptSlider::Properties::filmstripImage, "Use default skin");
 	setDefaultValue(ScriptSlider::Properties::numStrips, 0);
 	setDefaultValue(ScriptSlider::Properties::isVertical, true);
+    setDefaultValue(ScriptSlider::Properties::scaleFactor, 1.0f);
 
 	setScriptObjectPropertyWithChangeMessage(getIdFor(Mode), "Linear", dontSendNotification);
 	setScriptObjectPropertyWithChangeMessage(getIdFor(Style), "Knob", dontSendNotification);
@@ -3634,6 +3636,7 @@ image(nullptr)
 {
 	propertyIds.add("filmstripImage");	ADD_TO_TYPE_SELECTOR(SelectorTypes::FileSelector);
 	propertyIds.add("isVertical");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+    propertyIds.add("scaleFactor");
 	propertyIds.add("radioGroup");
 
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::max));
@@ -3643,6 +3646,7 @@ image(nullptr)
 
 	setDefaultValue(ScriptButton::Properties::filmstripImage, "");
 	setDefaultValue(ScriptButton::Properties::isVertical, true);
+    setDefaultValue(ScriptButton::Properties::scaleFactor, 1.0f);
 	setDefaultValue(ScriptButton::Properties::radioGroup, 0);
 }
 
