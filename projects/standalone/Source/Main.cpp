@@ -12,6 +12,7 @@
 #include "MainComponent.h"
 
 
+
 //==============================================================================
 class HISEStandaloneApplication  : public JUCEApplication
 {
@@ -27,6 +28,9 @@ public:
     void initialise (const String& ) override
     {
         // This method is where you should put your application's initialisation code..
+		AudioProcessorWrapper::addAudioProcessorToList("GainProcessor", &GainProcessor::create);
+		AudioProcessorWrapper::addAudioProcessorToList("Spatializer", &Spatializer::create);
+		
 
         mainWindow = new MainWindow();
 

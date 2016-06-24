@@ -719,6 +719,33 @@ void ScriptCreatedComponentWrappers::AudioWaveformWrapper::rangeChanged(AudioDis
 
 }
 
+
+ScriptCreatedComponentWrappers::PluginEditorWrapper::PluginEditorWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptPluginEditor *editor, int index):
+ScriptCreatedComponentWrapper(content, index)
+{
+	AudioProcessorWrapper *wrapper = editor->getProcessor();
+
+	AudioProcessorEditorWrapper::Content *apew = new AudioProcessorEditorWrapper::Content(wrapper);
+
+	if (wrapper != nullptr)
+	{
+		apew->setAudioProcessor(editor->getProcessor()->getWrappedAudioProcessor());
+		apew->setOpaque(false);
+	}
+
+	component = apew;
+}
+
+
+void ScriptCreatedComponentWrappers::PluginEditorWrapper::updateComponent()
+{
+
+}
+
+
+
+
+
 typedef ScriptingApi::Content::ScriptComponent ScriptedComponent;
 
 ScriptedControlAudioParameter::ScriptedControlAudioParameter(ScriptingApi::Content::ScriptComponent *newComponent, AudioProcessor *parentProcessor_, ScriptBaseProcessor *scriptProcessor_, int index_) :

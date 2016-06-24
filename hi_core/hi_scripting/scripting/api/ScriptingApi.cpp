@@ -1756,6 +1756,11 @@ ScriptingApi::Content::ScriptSliderPack * ScriptingApi::Content::addSliderPack(I
 	return addComponent<ScriptSliderPack>(sliderPackName, x, y, 200, 100);
 }
 
+ScriptingApi::Content::ScriptPluginEditor * ScriptingApi::Content::addPluginEditor(Identifier pluginEditorName, int x, int y)
+{
+	return addComponent<ScriptPluginEditor>(pluginEditorName, x, y);
+}
+
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptedPlotter::createComponentWrapper(ScriptContentComponent *content, int index)
 {
 	return new ScriptCreatedComponentWrappers::PlotterWrapper(content, this, index);
@@ -3740,9 +3745,7 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptPanel::createCompon
 	return new ScriptCreatedComponentWrappers::PanelWrapper(content, this, index);
 }
 
-#undef SEND_MESSAGE
-#undef ADD_TO_TYPE_SELECTOR
-#undef ADD_AS_SLIDER_TYPE
+
 
 void ScriptingApi::Content::PluginParameterConnector::setConnected(ScriptedControlAudioParameter *p)
 {
@@ -3770,3 +3773,100 @@ void ScriptingApi::Content::PluginParameterConnector::sendParameterChangeNotific
 	}
 }
 
+ScriptingApi::Content::ScriptPluginEditor::ScriptPluginEditor(ScriptBaseProcessor *base, Content*parentContent, Identifier name, int x, int y, int width, int height):
+ScriptComponent(base, parentContent, name, x, y, width, height),
+connectedProcessor(nullptr)
+{
+	propertyIds.add("processorId");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+
+	deactivatedProperties.add(getIdFor(text));
+	deactivatedProperties.add(getIdFor(min));
+	deactivatedProperties.add(getIdFor(max));
+	deactivatedProperties.add(getIdFor(bgColour));
+	deactivatedProperties.add(getIdFor(itemColour));
+	deactivatedProperties.add(getIdFor(itemColour2));
+	deactivatedProperties.add(getIdFor(textColour));
+	deactivatedProperties.add(getIdFor(macroControl));
+
+	componentProperties->setProperty(getIdFor(processorId), "");
+
+	setMethod("connectToAudioSampleProcessor", Wrapper::connectToAudioSampleProcessor);
+}
+
+void ScriptingApi::Content::ScriptPluginEditor::connectToAudioProcessorWrapper(String processorId)
+{
+	Processor::Iterator<AudioProcessorWrapper> it(getScriptProcessor()->getOwnerSynth(), false);
+
+	while (AudioProcessorWrapper *p = it.getNextProcessor())
+	{
+		if (p->getId() == processorId)
+		{
+			debugToConsole(getScriptProcessor(), processorId + " was found.");
+
+			connectedProcessor = p;
+
+			return;
+		}
+
+	}
+
+	connectedProcessor = nullptr;
+}
+
+ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptPluginEditor::createComponentWrapper(ScriptContentComponent *content, int index)
+{
+	return new ScriptCreatedComponentWrappers::PluginEditorWrapper(content, this, index);
+}
+
+void ScriptingApi::Content::ScriptPluginEditor::setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /*= sendNotification*/)
+{
+	if (id == getIdFor(processorId))
+	{
+		connectToAudioProcessorWrapper(newValue.toString());
+	}
+
+	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
+}
+
+ValueTree ScriptingApi::Content::ScriptPluginEditor::exportAsValueTree() const
+{
+	ValueTree v = ScriptComponent::exportAsValueTree();
+
+	const AudioProcessorWrapper *processor = dynamic_cast<const AudioProcessorWrapper*>(connectedProcessor.get());
+
+	if (processor != nullptr)
+	{
+		v.setProperty("Processor", connectedProcessor->getId(), nullptr);
+	}
+
+	return v;
+}
+
+void ScriptingApi::Content::ScriptPluginEditor::restoreFromValueTree(const ValueTree &v)
+{
+	const String id = v.getProperty("Processor", "");
+
+	if (id.isNotEmpty())
+	{
+		if (connectedProcessor.get() == nullptr || connectedProcessor.get()->getId() != id)
+		{
+			connectToAudioProcessorWrapper(id);
+		}
+	}
+}
+
+StringArray ScriptingApi::Content::ScriptPluginEditor::getOptionsFor(const Identifier &id)
+{
+	if (id != getIdFor(processorId)) return ScriptComponent::getOptionsFor(id);
+
+	return ProcessorHelpers::getAllIdsForType<AudioProcessorWrapper>(getScriptProcessor()->getOwnerSynth());
+}
+
+AudioProcessorWrapper * ScriptingApi::Content::ScriptPluginEditor::getProcessor()
+{
+	return dynamic_cast<AudioProcessorWrapper*>(connectedProcessor.get());
+}
+
+#undef SEND_MESSAGE
+#undef ADD_TO_TYPE_SELECTOR
+#undef ADD_AS_SLIDER_TYPE

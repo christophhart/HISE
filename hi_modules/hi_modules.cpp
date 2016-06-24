@@ -90,6 +90,7 @@
 #include "effects/mda/mdaLimiter.cpp"
 #include "effects/mda/mdaDegrade.cpp"
 #include "effects/fx/Saturator.cpp"
+#include "effects/fx/AudioProcessorWrapper.cpp"
 
 #if USE_BACKEND
 
@@ -110,6 +111,8 @@
 #include "effects/editors/SaturationEditor.cpp"
 
 #endif
+
+#include "effects/editors/AudioProcessorEditorWrapper.cpp"
 
 /** @defgroup synthTypes Synth Types ===========================================================================
 *	@ingroup dsp

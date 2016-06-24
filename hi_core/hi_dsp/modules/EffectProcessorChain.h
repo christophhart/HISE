@@ -427,6 +427,7 @@ public:
 		gainCollector,
 		routeFX,
 		saturation,
+		audioProcessorWrapper,
 		protoPlugEffect
 	};
 

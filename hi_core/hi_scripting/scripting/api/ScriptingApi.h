@@ -38,6 +38,7 @@
 class ScriptCreatedComponentWrapper;
 class ScriptContentComponent;
 class ScriptedControlAudioParameter;
+class AudioProcessorWrapper;
 
 /** This class wrapps all available objects that can be created by a script.
 *	@ingroup scripting
@@ -1256,6 +1257,7 @@ public:
 			setMethod("addPanel", Wrapper::addPanel);
 			setMethod("addAudioWaveform", Wrapper::addAudioWaveform);
 			setMethod("addSliderPack", Wrapper::addSliderPack);
+			setMethod("addPluginEditor", Wrapper::addPluginEditor);
 			setMethod("setContentTooltip", Wrapper::setContentTooltip);
 			setMethod("setToolbarProperties", Wrapper::setToolbarProperties);
 			setMethod("setHeight", Wrapper::setHeight);
@@ -2082,6 +2084,42 @@ public:
 
 		};
 
+
+		struct ScriptPluginEditor : public ScriptComponent
+		{
+			enum Properties
+			{
+				processorId = ScriptComponent::numProperties,
+				numProperties
+			};
+
+			ScriptPluginEditor(ScriptBaseProcessor *base, Content*parentContent, Identifier name, int x, int y, int width, int height);
+
+			virtual Identifier getObjectName() const override 
+			{ 
+				static Identifier id("ScriptPluginEditor");
+				return id;
+			};
+
+			void connectToAudioProcessorWrapper(String processorId);
+
+			ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
+
+			void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification) override;
+
+			ValueTree exportAsValueTree() const override;
+
+			void restoreFromValueTree(const ValueTree &v) override;
+
+			StringArray getOptionsFor(const Identifier &id) override;
+
+			AudioProcessorWrapper *getProcessor();
+
+		private:
+
+			WeakReference<Processor> connectedProcessor;
+		};
+
 		/** Adds a toggle button to the Content and returns the component index.
 		*
 		*	@param knobName the name for the knob. It should contain no whitespace
@@ -2124,6 +2162,9 @@ public:
 
 		/** Adds a slider pack. */
 		ScriptSliderPack *addSliderPack(Identifier sliderPackName, int x, int y);
+
+		/** Adds a plugin editor window. */
+		ScriptPluginEditor *addPluginEditor(Identifier pluginEditorName, int x, int y);
 
 		void setPropertiesFromJSON(const Identifier &name, const var &jsonData)
 		{
@@ -2206,6 +2247,7 @@ public:
 			static var addPanel (const var::NativeFunctionArgs& args);
 			static var addAudioWaveform(const var::NativeFunctionArgs& args);
 			static var addSliderPack(const var::NativeFunctionArgs& args);
+			static var addPluginEditor(const var::NativeFunctionArgs& args);
 			static var set (const var::NativeFunctionArgs& args);
 			static var get (const var::NativeFunctionArgs& args);
 			static var clearModulatorToPlotter (const var::NativeFunctionArgs& args);
