@@ -263,15 +263,18 @@ public:
 	};
 
 	/** Clears the sample map. */
-	void clear()
-	{
-		mode = Undefined;
-		fileOnDisk = File::nonexistent;
-		changed = false;
-	}
+    void clear();
+	
 
 	void replaceReferencesWithGlobalFolder();
 
+    void setId(Identifier newIdentifier)
+    {
+        sampleMapId = newIdentifier;
+    }
+    
+    Identifier getId() const { return sampleMapId; };
+    
 private:
 
 	void resolveMissingFiles(ValueTree &treeToUse);
@@ -288,6 +291,8 @@ private:
 	bool changed;
 	bool monolith;
 
+    Identifier sampleMapId;
+    
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SampleMap)
 		
 };

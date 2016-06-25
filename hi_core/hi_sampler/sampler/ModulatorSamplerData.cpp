@@ -291,17 +291,23 @@ void SampleMap::changeListenerCallback(SafeChangeBroadcaster *)
 		
 };
 
+void SampleMap::clear()
+{
+    mode = Undefined;
+    fileOnDisk = File::nonexistent;
+    sampleMapId = Identifier("unused");
+    changed = false;
+    
+    sampler->sendChangeMessage();
+    sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->sendChangeMessage();    
+}
+
 void SampleMap::restoreFromValueTree(const ValueTree &v)
 {
-
 	monolith = v.hasProperty("Monolithic");
 
-	if (v.getProperty("UseGlobalFolder", false))
-	{
-		sampler->setUseGlobalFolderForSaving();
-	}
-	
-
+    sampleMapId = Identifier(v.getProperty("ID", "unused").toString());
+    
 	if(monolith)
 	{
 		loadSamplesFromMonolith(v);
@@ -337,9 +343,8 @@ ValueTree SampleMap::exportAsValueTree() const
 
 	ValueTree v("samplemap");
 
-	v.setProperty("FileName", fileOnDisk.getFullPathName(), nullptr);
+    v.setProperty("ID", sampleMapId.toString(), nullptr);
 	v.setProperty("SaveMode", mode, nullptr);
-	v.setProperty("UseGlobalFolder", sampler->useGlobalFolderForSaving(), nullptr);
 
 	StringArray absoluteFileNames;
 
@@ -387,6 +392,8 @@ void SampleMap::save(SaveMode m)
 {
 	const String name = PresetHandler::getCustomName("Sample Map");
 
+    sampleMapId = Identifier(name);
+    
 	File sampleMapDirectory = GET_PROJECT_HANDLER(sampler).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
 
 	File sampleMapFile = sampleMapDirectory.getChildFile(name + ".xml");

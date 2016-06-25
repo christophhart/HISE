@@ -57,9 +57,8 @@ AudioProcessorEditorWrapper::~AudioProcessorEditorWrapper()
 AudioProcessorEditorWrapper::Content::Content(AudioProcessorWrapper *wrapper_):
   wrapper(wrapper_)
 {
-	setLookAndFeel(&laf);
-
-
+    setLookAndFeel(&laf);
+    
 	addAndMakeVisible(registeredProcessorList = new ComboBox());
 
 	registeredProcessorList->addItemList(AudioProcessorWrapper::getRegisteredProcessorList(), 1);
@@ -92,6 +91,9 @@ void AudioProcessorEditorWrapper::Content::setAudioProcessor(AudioProcessor *new
 	if (getWrapper() != nullptr && newProcessor != nullptr)
 	{
 		addAndMakeVisible(wrappedEditor = newProcessor->createEditor());
+        
+        
+        
 		registeredProcessorList->setVisible(false);
 	}
 	else

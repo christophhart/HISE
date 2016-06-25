@@ -1530,9 +1530,17 @@ void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
 	{
 		ValueTree v = ValueTree::fromXml(*xml);
 
-		s->loadSampleMap(v);
-		s->sendChangeMessage();
-		s->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->sendChangeMessage();
+        static const Identifier unused = Identifier("unused");
+        const Identifier oldId = s->getSampleMap()->getId();
+        const Identifier newId = Identifier(v.getProperty("ID", "unused").toString());
+        
+        if(newId != unused && newId != oldId)
+        {
+            s->loadSampleMap(v);
+            s->sendChangeMessage();
+            s->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->sendChangeMessage();
+        }
+        
 	}
 	else
 	{
@@ -3837,6 +3845,17 @@ ValueTree ScriptingApi::Content::ScriptPluginEditor::exportAsValueTree() const
 	if (processor != nullptr)
 	{
 		v.setProperty("Processor", connectedProcessor->getId(), nullptr);
+        
+        if(const AudioProcessor *audioProcessor = processor->getWrappedAudioProcessor())
+        {
+            MemoryBlock data;
+            
+            const_cast<AudioProcessor*>(audioProcessor)->getStateInformation(data);
+            
+            v.setProperty("PluginData", data.toBase64Encoding(), nullptr);
+        }
+            
+        
 	}
 
 	return v;
@@ -3851,8 +3870,28 @@ void ScriptingApi::Content::ScriptPluginEditor::restoreFromValueTree(const Value
 		if (connectedProcessor.get() == nullptr || connectedProcessor.get()->getId() != id)
 		{
 			connectToAudioProcessorWrapper(id);
-		}
-	}
+            
+        }
+        
+        AudioProcessorWrapper *processor = dynamic_cast<AudioProcessorWrapper*>(connectedProcessor.get());
+        
+        if (processor != nullptr)
+        {
+            if(AudioProcessor *audioProcessor = processor->getWrappedAudioProcessor())
+            {
+                
+                MemoryBlock data;
+                
+                const String dataString = v.getProperty("PluginData", "").toString();
+                
+                data.fromBase64Encoding(dataString);
+                
+                audioProcessor->setStateInformation(data.getData(), data.getSize());
+                
+            }
+        }
+        
+    }
 }
 
 StringArray ScriptingApi::Content::ScriptPluginEditor::getOptionsFor(const Identifier &id)

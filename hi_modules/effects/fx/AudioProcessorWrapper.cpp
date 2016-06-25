@@ -96,7 +96,7 @@ void AudioProcessorWrapper::restoreFromValueTree(const ValueTree &v)
 {
 	MasterEffectProcessor::restoreFromValueTree(v);
 
-	const Identifier processorId = v.getProperty("AudioProcessorId", "unused");
+	const Identifier processorId = Identifier(v.getProperty("AudioProcessorId", "unused").toString());
 
 	setAudioProcessor(processorId);
 

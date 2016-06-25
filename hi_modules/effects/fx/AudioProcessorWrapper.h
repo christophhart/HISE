@@ -98,6 +98,11 @@ public:
 		return wrappedAudioProcessor.get();
 	}
 
+    const AudioProcessor *getWrappedAudioProcessor() const
+    {
+        return wrappedAudioProcessor.get();
+    }
+    
 	/** Returns a list of all registered processors. */
 	static StringArray getRegisteredProcessorList()
 	{
