@@ -335,7 +335,7 @@ public:
 	/** Call this when you compile the script. */
 	SnippetResult compileScript();
 
-	JavascriptEngine *getScriptEngine()
+	HiseJavascriptEngine *getScriptEngine()
 	{
 		return scriptEngine;
 	}
@@ -507,7 +507,7 @@ private:
 	MidiBuffer deferredMidiMessages;
 	MidiBuffer copyBuffer;
 
-	ScopedPointer<JavascriptEngine> scriptEngine;
+	ScopedPointer<HiseJavascriptEngine> scriptEngine;
 
 	// Only Pointers, since they will be owned by the Javascript Engine
 

@@ -197,7 +197,7 @@ onNoteOffCallback(new SnippetDocument("onNoteOff")),
 onControllerCallback(new SnippetDocument("onController")),
 onTimerCallback(new SnippetDocument("onTimer")),
 onControlCallback(new SnippetDocument("onControl")),
-scriptEngine(new JavascriptEngine()),
+scriptEngine(new HiseJavascriptEngine()),
 lastExecutionTime(0.0),
 currentMidiMessage(nullptr),
 apiData(ValueTree::readFromData(XmlApi::apivaluetree_dat, XmlApi::apivaluetree_datSize)),
@@ -405,7 +405,7 @@ ScriptProcessor::SnippetResult ScriptProcessor::compileInternal()
 
 	ScopedLock sl(compileLock);
 
-	scriptEngine = new JavascriptEngine();
+	scriptEngine = new HiseJavascriptEngine();
 	scriptEngine->maximumExecutionTime = RelativeTime(getMainController()->getCompileTimeOut());
 
 	setupApi();
@@ -533,7 +533,7 @@ void ScriptProcessor::setupApi()
 
 	clearFileWatchers();
 
-	scriptEngine = new JavascriptEngine();
+	scriptEngine = new HiseJavascriptEngine();
 	scriptEngine->maximumExecutionTime = RelativeTime(getMainController()->getCompileTimeOut());
 
 	content = new ScriptingApi::Content(this);
@@ -582,7 +582,7 @@ void ScriptProcessor::runScriptCallbacks()
 		Result r = Result::ok();
 		const double startTime = consoleEnabled ? Time::getMillisecondCounterHiRes() : 0.0;
 
-		scriptEngine->callFunction(getSnippet(onNoteOn)->getCallbackName(), var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), nullptr, 0), &r);
+		scriptEngine->executeWithoutAllocation(getSnippet(onNoteOn)->getCallbackName(), var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), nullptr, 0), &r);
 
 		lastExecutionTime = consoleEnabled ? Time::getMillisecondCounterHiRes() - startTime : 0.0 ;
 		sendChangeMessage();
@@ -598,7 +598,7 @@ void ScriptProcessor::runScriptCallbacks()
 		Result r = Result::ok();
 		const double startTime = consoleEnabled ? Time::getMillisecondCounterHiRes() : 0.0;
 
-		scriptEngine->callFunction(getSnippet(onNoteOff)->getCallbackName(), var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), nullptr, 0), &r);
+		scriptEngine->executeWithoutAllocation(getSnippet(onNoteOff)->getCallbackName(), var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), nullptr, 0), &r);
 
 		lastExecutionTime = consoleEnabled ? Time::getMillisecondCounterHiRes() - startTime : 0.0 ;
 		sendChangeMessage();
@@ -620,7 +620,7 @@ void ScriptProcessor::runScriptCallbacks()
 		Result r = Result::ok();
 		const double startTime = consoleEnabled ? Time::getMillisecondCounterHiRes() : 0.0;
 
-		scriptEngine->callFunction(getSnippet(onController)->getCallbackName(), var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), nullptr, 0), &r);
+		scriptEngine->executeWithoutAllocation(getSnippet(onController)->getCallbackName(), var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), nullptr, 0), &r);
 
 		lastExecutionTime = consoleEnabled ? Time::getMillisecondCounterHiRes() - startTime : 0.0 ;
 		sendChangeMessage();
@@ -638,7 +638,7 @@ void ScriptProcessor::runScriptCallbacks()
 
 		var args[1] = { currentMessage.getSongPositionPointerMidiBeat() };
 
-		scriptEngine->callFunction(onClock, var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), args, 1), &r);
+		scriptEngine->executeWithoutAllocation(onClock, var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), args, 1), &r);
 
 		lastExecutionTime = consoleEnabled ? Time::getMillisecondCounterHiRes() - startTime : 0.0;
 		sendChangeMessage();
@@ -654,7 +654,7 @@ void ScriptProcessor::runScriptCallbacks()
 
 		var args[1] = { currentMessage.isMidiStart() };
 
-		scriptEngine->callFunction(onClock, var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), args, 1), &r);
+		scriptEngine->executeWithoutAllocation(onClock, var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), args, 1), &r);
 
 		lastExecutionTime = consoleEnabled ? Time::getMillisecondCounterHiRes() - startTime : 0.0;
 		sendChangeMessage();

@@ -112,6 +112,8 @@
 
 #endif
 
+#include "effects/fx/WrappedAudioProcessors/WrappedAudioProcessors.cpp"
+
 #include "effects/editors/AudioProcessorEditorWrapper.cpp"
 
 /** @defgroup synthTypes Synth Types ===========================================================================

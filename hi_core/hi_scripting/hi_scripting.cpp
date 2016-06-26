@@ -34,9 +34,12 @@
 
 #include "hi_scripting.h"
 
+#include "scripting/HiseJavascriptEngine.cpp"
+
 #include "scripting/api/XmlApi.cpp"
 #include "scripting/api/ScriptingApi.cpp"
 #include "scripting/api/ScriptingApiWrappers.cpp"
+
 
 #include "scripting/ScriptProcessor.cpp"
 #include "scripting/HardcodedScriptProcessor.cpp"

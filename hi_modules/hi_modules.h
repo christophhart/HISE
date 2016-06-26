@@ -64,6 +64,8 @@
 #include "midi_processor/mps/SampleRaster.h"
 #include "midi_processor/mps/RoundRobin.h"
 
+
+
 #if USE_BACKEND
 
 #include "midi_processor/editors/TransposerEditor.h"
@@ -116,6 +118,8 @@
 #endif
 
 #include "effects/editors/AudioProcessorEditorWrapper.h"
+
+#include "effects/fx/WrappedAudioProcessors/WrappedAudioProcessors.h"
 
 /** @defgroup synthTypes Synth Types ===========================================================================
 *	@ingroup dsp

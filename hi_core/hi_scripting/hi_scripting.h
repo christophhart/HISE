@@ -37,6 +37,8 @@
 
 #include "../hi_core/hi_core.h"
 
+#include "scripting/HiseJavascriptEngine.h"
+
 #include "scripting/api/XmlApi.h"
 #include "scripting/api/ScriptingBaseObjects.h"
 #include "scripting/api/ScriptingApi.h"
