@@ -37,6 +37,7 @@
 					  "modulators/mods/*",
 					  "effects/*",
 					  "effects/fx/*",
+					  "effects/fx/WrappedAudioProcessors/*",
 					  "effects/mda/*",
 					  "effects/convolution/*",
 					  "effects/editors/*",

@@ -96,6 +96,7 @@
 #include "effects/mda/mdaDegrade.h"
 #include "effects/fx/Saturator.h"
 #include "effects/fx/AudioProcessorWrapper.h"
+#include "effects/fx/ScriptedAudioProcessor.h"
 
 #if USE_BACKEND
 
@@ -120,6 +121,7 @@
 #include "effects/editors/AudioProcessorEditorWrapper.h"
 
 #include "effects/fx/WrappedAudioProcessors/WrappedAudioProcessors.h"
+
 
 /** @defgroup synthTypes Synth Types ===========================================================================
 *	@ingroup dsp

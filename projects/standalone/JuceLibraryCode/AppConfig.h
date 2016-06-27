@@ -64,7 +64,7 @@
 #endif
 
 #ifndef    USE_COPY_PROTECTION
- //#define USE_COPY_PROTECTION
+ #define   USE_COPY_PROTECTION 0
 #endif
 
 #ifndef    USE_IPP
@@ -72,31 +72,31 @@
 #endif
 
 #ifndef    USE_GLITCH_DETECTION
- //#define USE_GLITCH_DETECTION
+ #define   USE_GLITCH_DETECTION 1
 #endif
 
 #ifndef    ENABLE_PLOTTER
- //#define ENABLE_PLOTTER
+ #define   ENABLE_PLOTTER 1
 #endif
 
 #ifndef    ENABLE_SCRIPTING_SAFE_CHECKS
- //#define ENABLE_SCRIPTING_SAFE_CHECKS
+ #define   ENABLE_SCRIPTING_SAFE_CHECKS 1
 #endif
 
 #ifndef    ENABLE_ALL_PEAK_METERS
- //#define ENABLE_ALL_PEAK_METERS
+ #define   ENABLE_ALL_PEAK_METERS 1
 #endif
 
 #ifndef    ENABLE_CONSOLE_OUTPUT
- //#define ENABLE_CONSOLE_OUTPUT
+ #define   ENABLE_CONSOLE_OUTPUT 1
 #endif
 
 #ifndef    ENABLE_HOST_INFO
- //#define ENABLE_HOST_INFO
+ #define   ENABLE_HOST_INFO 1
 #endif
 
 #ifndef    ENABLE_CPU_MEASUREMENT
- //#define ENABLE_CPU_MEASUREMENT
+ #define   ENABLE_CPU_MEASUREMENT 1
 #endif
 
 //==============================================================================

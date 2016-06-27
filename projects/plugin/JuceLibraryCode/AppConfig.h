@@ -77,6 +77,34 @@
  //#define USE_IPP
 #endif
 
+#ifndef    USE_GLITCH_DETECTION
+ //#define USE_GLITCH_DETECTION
+#endif
+
+#ifndef    ENABLE_PLOTTER
+ //#define ENABLE_PLOTTER
+#endif
+
+#ifndef    ENABLE_SCRIPTING_SAFE_CHECKS
+ //#define ENABLE_SCRIPTING_SAFE_CHECKS
+#endif
+
+#ifndef    ENABLE_ALL_PEAK_METERS
+ //#define ENABLE_ALL_PEAK_METERS
+#endif
+
+#ifndef    ENABLE_CONSOLE_OUTPUT
+ //#define ENABLE_CONSOLE_OUTPUT
+#endif
+
+#ifndef    ENABLE_HOST_INFO
+ //#define ENABLE_HOST_INFO
+#endif
+
+#ifndef    ENABLE_CPU_MEASUREMENT
+ //#define ENABLE_CPU_MEASUREMENT
+#endif
+
 //==============================================================================
 // juce_audio_devices flags:
 
