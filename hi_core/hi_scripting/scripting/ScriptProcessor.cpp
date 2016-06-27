@@ -543,6 +543,11 @@ void ScriptProcessor::setupApi()
 	synthObject = new ScriptingApi::Synth(this, getOwnerSynth());
 	samplerObject = new ScriptingApi::Sampler(this, dynamic_cast<ModulatorSampler*>(getOwnerSynth()));
 
+    onNoteOnScope = new DynamicObject();
+    onNoteOffScope = new DynamicObject();
+    onControllerScope = new DynamicObject();
+    onTimerScope = new DynamicObject();
+    
 	DynamicObject *synthParameters = new DynamicObject();
 
 	for(int i = 0; i < getOwnerSynth()->getNumParameters(); i++)
@@ -582,10 +587,10 @@ void ScriptProcessor::runScriptCallbacks()
 		Result r = Result::ok();
 		const double startTime = consoleEnabled ? Time::getMillisecondCounterHiRes() : 0.0;
 
-		scriptEngine->executeWithoutAllocation(getSnippet(onNoteOn)->getCallbackName(), var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), nullptr, 0), &r);
+		scriptEngine->executeWithoutAllocation(getSnippet(onNoteOn)->getCallbackName(), var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), nullptr, 0), &r, onNoteOnScope);
 
-		lastExecutionTime = consoleEnabled ? Time::getMillisecondCounterHiRes() - startTime : 0.0 ;
-		sendChangeMessage();
+		//lastExecutionTime = consoleEnabled ? Time::getMillisecondCounterHiRes() - startTime : 0.0 ;
+		//sendChangeMessage();
 
 		if (!r.wasOk()) debugError(this, r.getErrorMessage());
 
@@ -598,10 +603,10 @@ void ScriptProcessor::runScriptCallbacks()
 		Result r = Result::ok();
 		const double startTime = consoleEnabled ? Time::getMillisecondCounterHiRes() : 0.0;
 
-		scriptEngine->executeWithoutAllocation(getSnippet(onNoteOff)->getCallbackName(), var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), nullptr, 0), &r);
+		scriptEngine->executeWithoutAllocation(getSnippet(onNoteOff)->getCallbackName(), var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), nullptr, 0), &r, onNoteOffScope);
 
-		lastExecutionTime = consoleEnabled ? Time::getMillisecondCounterHiRes() - startTime : 0.0 ;
-		sendChangeMessage();
+		//lastExecutionTime = consoleEnabled ? Time::getMillisecondCounterHiRes() - startTime : 0.0 ;
+		//sendChangeMessage();
 
 		if (!r.wasOk()) debugError(this, r.getErrorMessage());
 	}
@@ -620,10 +625,10 @@ void ScriptProcessor::runScriptCallbacks()
 		Result r = Result::ok();
 		const double startTime = consoleEnabled ? Time::getMillisecondCounterHiRes() : 0.0;
 
-		scriptEngine->executeWithoutAllocation(getSnippet(onController)->getCallbackName(), var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), nullptr, 0), &r);
+		scriptEngine->executeWithoutAllocation(getSnippet(onController)->getCallbackName(), var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), nullptr, 0), &r, onControllerScope);
 
-		lastExecutionTime = consoleEnabled ? Time::getMillisecondCounterHiRes() - startTime : 0.0 ;
-		sendChangeMessage();
+		//lastExecutionTime = consoleEnabled ? Time::getMillisecondCounterHiRes() - startTime : 0.0 ;
+		//sendChangeMessage();
 
 		if (!r.wasOk()) debugError(this, r.getErrorMessage());
 	}
@@ -634,14 +639,14 @@ void ScriptProcessor::runScriptCallbacks()
 		Result r = Result::ok();
 		const double startTime = consoleEnabled ? Time::getMillisecondCounterHiRes() : 0.0;
 
-		static Identifier onClock("onClock");
+		static const Identifier onClock("onClock");
 
 		var args[1] = { currentMessage.getSongPositionPointerMidiBeat() };
 
 		scriptEngine->executeWithoutAllocation(onClock, var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), args, 1), &r);
 
-		lastExecutionTime = consoleEnabled ? Time::getMillisecondCounterHiRes() - startTime : 0.0;
-		sendChangeMessage();
+		//lastExecutionTime = consoleEnabled ? Time::getMillisecondCounterHiRes() - startTime : 0.0;
+		//sendChangeMessage();
 
 		if (!r.wasOk()) debugError(this, r.getErrorMessage());
 	}
@@ -650,7 +655,7 @@ void ScriptProcessor::runScriptCallbacks()
 		Result r = Result::ok();
 		const double startTime = consoleEnabled ? Time::getMillisecondCounterHiRes() : 0.0;
 
-		static Identifier onClock("onTransport");
+		static const Identifier onClock("onTransport");
 
 		var args[1] = { currentMessage.isMidiStart() };
 

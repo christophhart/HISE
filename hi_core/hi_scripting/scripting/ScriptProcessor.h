@@ -522,6 +522,11 @@ private:
 	ScriptingApi::Synth *synthObject;
 
 	bool lastCompileWasOK;
+    
+    DynamicObject::Ptr onNoteOnScope;
+    DynamicObject::Ptr onNoteOffScope;
+    DynamicObject::Ptr onControllerScope;
+    DynamicObject::Ptr onTimerScope;
 };
 
 
