@@ -790,11 +790,30 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 		{
 			s.checkTimeOut(location);
 
+#if 0
+            
 			Array<var> argVars;
 			for (int i = 0; i < arguments.size(); ++i)
 				argVars.add(arguments.getUnchecked(i)->getResult(s));
 
-			const var::NativeFunctionArgs args(thisObject, argVars.begin(), argVars.size());
+            const var::NativeFunctionArgs args(thisObject, argVars.begin(), argVars.size());
+            
+#else
+      
+            var argVars[16];
+            
+            const int numArgs = jmin<int>(16, arguments.size());
+            
+            for(int i = 0; i < numArgs; i++)
+            {
+                argVars[i] = arguments.getUnchecked(i)->getResult(s);
+            }
+            
+            const var::NativeFunctionArgs args(thisObject, argVars, numArgs);
+            
+#endif
+            
+			
 
 			if (var::NativeFunction nativeFunction = function.getNativeFunction())
 				return nativeFunction(args);
@@ -906,11 +925,17 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 			return result;
 		}
 
-		var invokeWithoutAllocation(const Scope &s, const var::NativeFunctionArgs &args, DynamicObject *unneededScope) const
+		var invokeWithoutAllocation(const Scope &s, const var::NativeFunctionArgs &args, DynamicObject *scope) const
 		{
 			var result;
 
-			body->perform(Scope(&s, s.root, unneededScope), &result);
+            for(int i = 0; i < parameters.size(); i++)
+            {
+                scope->setProperty(parameters.getReference(i),
+                i < args.numArguments ? args.arguments[i] : var::undefined());
+            }
+            
+			body->perform(Scope(&s, s.root, scope), &result);
 
 			return result;
 		}
@@ -1959,7 +1984,7 @@ var HiseJavascriptEngine::callFunction(const Identifier& function, const var::Na
 	return returnVal;
 }
 
-var HiseJavascriptEngine::executeWithoutAllocation(const Identifier &function, const var::NativeFunctionArgs& args, Result* result /*= nullptr*/)
+var HiseJavascriptEngine::executeWithoutAllocation(const Identifier &function, const var::NativeFunctionArgs& args, Result* result /*= nullptr*/, DynamicObject *scopeToUse)
 {
 	var returnVal(var::undefined());
 
@@ -1967,7 +1992,7 @@ var HiseJavascriptEngine::executeWithoutAllocation(const Identifier &function, c
 	{
 		prepareTimeout();
 		if (result != nullptr) *result = Result::ok();
-		RootObject::Scope(nullptr, root, root).invokeMidiCallback(function, args, returnVal, unneededScope);
+        RootObject::Scope(nullptr, root, root).invokeMidiCallback(function, args, returnVal, (scopeToUse != nullptr ? scopeToUse : unneededScope.get()));
 	}
 	catch (String& error)
 	{
@@ -1980,6 +2005,11 @@ var HiseJavascriptEngine::executeWithoutAllocation(const Identifier &function, c
 const NamedValueSet& HiseJavascriptEngine::getRootObjectProperties() const noexcept
 {
 	return root->getProperties();
+}
+
+DynamicObject * HiseJavascriptEngine::getRootObject()
+{
+	return dynamic_cast<DynamicObject*>(root.get());
 }
 
 #if JUCE_MSVC

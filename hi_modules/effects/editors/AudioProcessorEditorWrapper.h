@@ -77,7 +77,7 @@ public:
 		{
 			if (wrappedEditor != nullptr)
 			{
-				wrappedEditor->setBounds((getWidth() - wrappedEditor->getWidth()) / 2, 5, wrappedEditor->getWidth(), wrappedEditor->getHeight());
+				wrappedEditor->setBounds((getWidth() - jmin<int>(wrappedEditor->getWidth(), getWidth())) / 2, 5, wrappedEditor->getWidth(), wrappedEditor->getHeight());
 			}
 			else if (getWrapper() != nullptr)
 			{

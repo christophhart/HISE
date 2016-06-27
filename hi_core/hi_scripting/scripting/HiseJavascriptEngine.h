@@ -91,9 +91,10 @@ public:
 		const var::NativeFunctionArgs& args,
 		Result* errorMessage = nullptr);
 
+    
 	var executeWithoutAllocation(const Identifier &function,
 		const var::NativeFunctionArgs& args,
-		Result* errorMessage = nullptr);
+		Result* errorMessage = nullptr, DynamicObject *scopeToUse=nullptr);
 
 	/** Adds a native object to the root namespace.
 	The object passed-in is reference-counted, and will be retained by the
@@ -111,6 +112,8 @@ public:
 
 	/** Provides access to the set of properties of the root namespace object. */
 	const NamedValueSet& getRootObjectProperties() const noexcept;
+
+	DynamicObject *getRootObject();;
 
 private:
 	JUCE_PUBLIC_IN_DLL_BUILD(struct RootObject)

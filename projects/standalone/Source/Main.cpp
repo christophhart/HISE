@@ -30,7 +30,8 @@ public:
         // This method is where you should put your application's initialisation code..
 		AudioProcessorWrapper::addAudioProcessorToList("GainProcessor", &GainProcessor::create);
 		AudioProcessorWrapper::addAudioProcessorToList("Spatializer", &Spatializer::create);
-		
+        AudioProcessorWrapper::addAudioProcessorToList("Compressor", PluginAudioProcessor::create);
+		AudioProcessorWrapper::addAudioProcessorToList("ScriptFX", &ScriptingAudioProcessor::create);
 
         mainWindow = new MainWindow();
 
