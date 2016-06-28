@@ -220,13 +220,13 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 			return false;
 		}
 
-		bool invokeMidiCallback(const Identifier &callbackName, const var::NativeFunctionArgs &args, var &result, DynamicObject*unneededScope) const
+		bool invokeMidiCallback(const Identifier &callbackName, const var::NativeFunctionArgs &args, var &result, DynamicObject*scope) const
 		{
 			if (const var* m = getPropertyPointer(scope, callbackName))
 			{
 				if (FunctionObject* fo = dynamic_cast<FunctionObject*> (m->getObject()))
 				{
-					result = fo->invokeWithoutAllocation(*this, args, unneededScope);
+					result = fo->invokeWithoutAllocation(*this, args, scope);
 					return true;
 				}
 			}

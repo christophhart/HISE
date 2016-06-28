@@ -51,8 +51,6 @@ public:
         
     };
     
-    
-    
     struct Buffer : public BaseObject
     {
         Buffer(AudioSampleBuffer *externalBuffer=nullptr)
@@ -65,9 +63,11 @@ public:
             initMethods();
         }
         
+        
+        
         Buffer(int channels, int samples)
         {
-            buffer = AudioSampleBuffer(channels, samples);
+            setSize(channels, samples);
             
             buffer.clear();
             
@@ -375,6 +375,150 @@ public:
         ReferenceCountedObjectPtr<Buffer> delayedBuffer;
     };
     
+    class Biquad: public DspObject
+    {
+    public:
+        
+        enum class Mode
+        {
+            LowPass = 0,
+            HighPass,
+            LowShelf,
+            HighShelf,
+            Peak,
+            numModes
+        };
+        
+        SET_MODULE_NAME("biquad")
+        
+        Biquad():
+          DspObject()
+        {
+            coefficients = IIRCoefficients::makeLowPass(44100.0, 20000.0);
+            
+            setProperty("LowPass", LowPass);
+            setProperty("HighPass", HighPass);
+            setProperty("LowShelf", LowShelf);
+            setProperty("HighShelf", HighShelf);
+            setProperty("Peak", Peak);
+            
+            setMethod("setMode", Wrappers::setMode);
+            setMethod("setFrequency", Wrappers::setFrequency);
+            setMethod("setGain", Wrappers::setGain);
+            setMethod("setQ", Wrappers::setQ);
+        }
+        
+        void prepareToPlay(double sampleRate_, int samplesPerBlock) override
+        {
+            sampleRate = sampleRate_;
+        }
+        
+        void setMode(Mode newMode)
+        {
+            m = newMode;
+            calcCoefficients();
+        }
+        
+        void setFrequency(double newFrequency)
+        {
+            frequency = newFrequency;
+            calcCoefficients();
+        }
+        
+        void setGain(double newGain)
+        {
+            gain = newGain;
+            calcCoefficients();
+        }
+        
+        void setQ(double newQ)
+        {
+            q = newQ;
+            calcCoefficients();
+        }
+        
+        void processBlock(Buffer &b) override
+        {
+            float *inL = b.buffer.getWritePointer(0);
+            float *inR = b.buffer.getWritePointer(1);
+            
+            const int numSamples = b.buffer.getNumSamples();
+
+            leftFilter.processSamples(inL, numSamples);
+            rightFilter.processSamples(inR, numSamples);
+        }
+        
+    private:
+        
+        struct Wrappers
+        {
+            static var setMode(const var::NativeFunctionArgs& args)
+            {
+                if (Biquad* thisObject = dynamic_cast<Biquad*>(args.thisObject.getObject()))
+                {
+                    thisObject->setMode((Mode)(int)args.arguments[0]);
+                }
+                return var::undefined();
+            }
+            
+            static var setFrequency(const var::NativeFunctionArgs& args)
+            {
+                if (Biquad* thisObject = dynamic_cast<Biquad*>(args.thisObject.getObject()))
+                {
+                    thisObject->setFrequency((double)args.arguments[0]);
+                }
+                return var::undefined();
+            }
+            
+            static var setGain(const var::NativeFunctionArgs& args)
+            {
+                if (Biquad* thisObject = dynamic_cast<Biquad*>(args.thisObject.getObject()))
+                {
+                    thisObject->setGain((double)args.arguments[0]);
+                }
+                return var::undefined();
+            }
+            
+            static var setQ(const var::NativeFunctionArgs& args)
+            {
+                if (Biquad* thisObject = dynamic_cast<Biquad*>(args.thisObject.getObject()))
+                {
+                    thisObject->setQ((double)args.arguments[0]);
+                }
+                return var::undefined();
+            }
+        };
+        
+        void calcCoefficients()
+        {
+            switch(m)
+            {
+                case Mode::LowPass: coefficients = IIRCoefficients::makeLowPass(sampleRate, frequency); break;
+                case Mode::HighPass: coefficients = IIRCoefficients::makeHighPass(sampleRate, frequency); break;
+                case Mode::LowShelf: coefficients = IIRCoefficients::makeLowShelf(sampleRate, frequency, q, gain); break;
+                case Mode::HighShelf: coefficients = IIRCoefficients::makeHighShelf(sampleRate, frequency, q, gain); break;
+                case Mode::Peak:      coefficients = IIRCoefficients::makePeakFilter(sampleRate, frequency, q, gain); break;
+            }
+            
+            leftFilter.setCoefficients(coefficients);
+            rightFilter.setCoefficients(coefficients);
+        }
+        
+        double sampleRate = 44100.0;
+        
+        Mode m = Mode::LowPass;
+        
+        double gain = 0.0;
+        double frequency = 20000.0;
+        double q = 1.0;
+        
+        IIRFilter leftFilter;
+        IIRFilter rightFilter;
+        
+        IIRCoefficients coefficients;
+        
+    };
+    
     class Factory
     {
     public:
@@ -405,6 +549,11 @@ public:
                         Delay *d = new Delay();
                         return var(d);
                     }
+                    else if (id == Biquad::getName())
+                    {
+                        Biquad *b = new Biquad();
+                        return var(b);
+                    }
                 }
             }
             
@@ -426,11 +575,13 @@ public:
     
     ScriptingAudioProcessor():
     samplesPerBlock(0),
-    callbackResult(Result::ok())
+    callbackResult(Result::ok()),
+    mc(nullptr)
     {
         REGISTER_DSP_SCRIPTING_MODULE(Buffer);
         REGISTER_DSP_SCRIPTING_MODULE(Gain);
         REGISTER_DSP_SCRIPTING_MODULE(Delay);
+        REGISTER_DSP_SCRIPTING_MODULE(Biquad);
         
         compileScript();
     }
@@ -464,9 +615,16 @@ public:
         
         var::NativeFunctionArgs args(this, arguments, 2);
         
-        Result r(Result::ok());
         
-        scriptingEngine->callFunction("prepareToPlay", args, &r);
+        
+        scriptingEngine->callFunction("prepareToPlay", args, &callbackResult);
+        
+        if (mc != nullptr && callbackResult.failed())
+        {
+            mc->writeToConsole(callbackResult.getErrorMessage(), 1);
+        }
+        
+        
     }
     
     void releaseResources() {};
@@ -487,9 +645,9 @@ public:
             
             scriptingEngine->executeWithoutAllocation(id, args, &callbackResult, processBlockScope);
             
-            if (callbackResult.failed())
+            if (mc != nullptr && callbackResult.failed())
             {
-                Logger::getCurrentLogger()->writeToLog(callbackResult.getErrorMessage());
+                mc->writeToConsole(callbackResult.getErrorMessage(), 1);
             }
         }
     }
@@ -497,6 +655,11 @@ public:
     void getStateInformation(MemoryBlock& destData) override
     {
         
+    }
+    
+    void setMainController(MainController *mc_)
+    {
+        mc = mc_;
     }
     
     void setStateInformation(const void* data, int sizeInBytes) override
@@ -545,6 +708,8 @@ public:
     }
     
 private:
+    
+    MainController *mc;
     
     Result callbackResult = Result::ok();
     

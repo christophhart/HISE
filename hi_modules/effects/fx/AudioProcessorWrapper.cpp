@@ -215,6 +215,11 @@ void AudioProcessorWrapper::setAudioProcessor(const Identifier id)
 
 			wrappedAudioProcessor = (*createProcessor)();
 
+            if(ScriptingAudioProcessor *sp = dynamic_cast<ScriptingAudioProcessor*>(wrappedAudioProcessor.get()))
+            {
+                sp->setMainController(getMainController());
+            }
+            
 			if (wrappedAudioProcessor != nullptr)
 			{
 				if (getSampleRate() > 0.0)
