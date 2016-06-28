@@ -249,7 +249,7 @@ void AudioProcessorWrapper::setAudioProcessor(const Identifier id)
 AudioProcessorWrapper::ListEntry AudioProcessorWrapper::registeredAudioProcessors[1024];
 int AudioProcessorWrapper::numRegisteredProcessors = 0;
 
-Array<Identifier> ScriptingDsp::Factory::moduleIds;
+
 
 // this needs at least c++11
 Array<Spatializer::SpeakerLayout> Spatializer::speakerPositions =

@@ -29,3 +29,15 @@
  *
  *   ===========================================================================
  */
+
+
+
+ScriptingAudioProcessor::ScriptingAudioProcessor() :
+samplesPerBlock(0),
+callbackResult(Result::ok()),
+mc(nullptr)
+{
+	compileScript();
+
+
+}

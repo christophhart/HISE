@@ -37,6 +37,9 @@
 
 class ModulatorSynthGroup;
 
+
+
+
 /** This class acts as base class for both ScriptProcessor and HardcodedScriptProcessor.
 *
 *	It contains all logic that the ScriptingApi objects need in order to work with both types.

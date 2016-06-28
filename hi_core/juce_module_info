@@ -25,6 +25,8 @@
                       { "file": "hi_core.mm",  "target": "xcode" } ],
 
   "browse":         [ "/*",
+					  "additional_libraries/*",
+					  "additional_libraries/icst/*",
                       "hi_binary_data/*",
 					  "hi_components/*",
 					  "hi_components/debug_components/*",

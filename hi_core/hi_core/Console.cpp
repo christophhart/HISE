@@ -233,7 +233,7 @@ void Console::handleAsyncUpdate()
 			textConsole->insertTextAtCaret(p->getId() + ": ");
 		}
 
-		Colour messageColour = (messagesForThisTime[i].warningLevel == Error) ? Colours::red : Colours::black;
+		Colour messageColour = (messagesForThisTime[i].warningLevel == Error) ? Colours::red.withBrightness(0.4f) : Colours::black;
 
 		textConsole->setColour(TextEditor::ColourIds::textColourId, messageColour);
 		textConsole->moveCaretToEnd(false);

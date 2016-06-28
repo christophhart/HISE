@@ -271,6 +271,15 @@ void MidiControllerAutomationHandler::handleParameterData(MidiBuffer &b)
 
 void ConsoleLogger::logMessage(const String &message)
 {
-	debugError(processor, message);
+	if (message.startsWith("!"))
+	{
+		debugError(processor, message.substring(1));
+	}
+	else
+	{
+		debugToConsole(processor, message);
+	}
+
+	
 }
 
