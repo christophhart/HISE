@@ -13,20 +13,15 @@
 
 
 
-class IppFFT;
-
-namespace icstdsp {		// begin library specific namespace
-
-
 /** Contains all methods that rely on FFT. 
 *
 *	This removes the necessity of having static instances of FFT buffers.
 */
-class BlockDspObject
+class FFTProcessor
 {
 public:
 
-	BlockDspObject(int dataType);
+	FFTProcessor(int dataType);
 
 	IppFFT *getFFTObject();
 
@@ -43,17 +38,17 @@ public:
 
 	// Functions based on FFT
 
-	void fconv(float* d, 						// fast convolution(d,r):
+	void fastConvolution(float* d, 						// fast convolution(d,r):
 				float* r, 						// d[0..dsize-1],r[0..rsize-1]
 				int dsize, 						// -> d[0..dsize+rsize-2]
 					int rsize);					// space of both d and r: 
 												// => nexthipow2(dsize+rsize)
 
-	void facorr(float* d, int size);				// fast biased autocorrelation:
+	void fastAutoCorrelation(float* d, int size);				// fast biased autocorrelation:
 													// d[0..size-1] -> d[0..size-1]
 													// space: d[nexthipow2(2*size)]
 
-	void fccorr(float* d,	 					// fast cross correlation(d,r):
+	void fastCrossCorrelation(float* d,	 					// fast cross correlation(d,r):
 		float* r, 						// d[0..dsize-1], r[0..rsize-1] 
 		int dsize,						// -> d[0..dsize-1]
 		int rsize);					// space of both d and r: 
@@ -67,7 +62,7 @@ private:
 };
 
 
-class BlkDsp
+class VectorFunctions
 {
 //******************************* user methods ***********************************
 
@@ -97,7 +92,7 @@ static void dst(float* d, int size);				// DST type2
 static void dst(double* d, int size);
 static void idst(float* d, int size);				// IDST type2
 static void idst(double* d, int size);
-static cpx goertzel(float* d, int size, int k);		// return k-th bin of realfft
+static Complex goertzel(float* d, int size, int k);		// return k-th bin of realfft
 													// of arbitrary size
 static void hwt(float* d, int size);				// haar wavelet transform HWT 
 static void ihwt(float* d, int size);				// inverse HWT
@@ -150,7 +145,7 @@ static void kaiser(float* d, int size,double alpha);// kaiser window
 							
 //***	elementary real array operations	***
 //
-static float sum(float* d, int size);				// return sum
+static float sum(const float* d, int size);				// return sum
 static float energy(float* d, int size);			// .. signal energy: <d,d>
 static float power(float* d, int size);				// .. signal power: <d,d>/size
 static float rms(float* d, int size);				// .. RMS value: sqrt(power)
@@ -216,7 +211,7 @@ static void bacorr(float* d, float* r,				// biased autocorrelation of
 //***	elementary complex array operations	***
 // cpx operations format: re[0],im[0],..,re[size-1],im[size-1]
 //
-static cpx cpxsum(float* d, int size);				// return sum
+static Complex cpxsum(float* d, int size);				// return sum
 static float cpxenergy(float* d, int size);			// .. signal energy: <d,d*>
 static float cpxpower(float* d, int size);			// .. signal power: <d,d*>/size
 static float cpxrms(float* d, int size);			// .. RMS value: sqrt(power)
@@ -231,18 +226,18 @@ static void cpxpow(float* d, float* r, int size);	// |r|^2 -> d	(r=d ok)
 static void cpxarg(float* d, float* r, int size);	// arg{r} -> d	(r=d ok)
 static void cpxprune(float* d, float lim,			// if |d[n]|<=lim: rep ->
 						float rep, int size);		// Re(d[n]), 0 -> Im(d[n])
-static void cpxset(float* d, cpx c, int size);		// c -> d
+static void cpxset(float* d, Complex c, int size);		// c -> d
 static void cpxcopy(float* d, float* r, int size);	// r -> d, may overlap
 static void cpxswap(float* d, float* r, int size);	// r <-> d
-static void cpxadd(float* d, cpx c, int size);		// d+c -> d
+static void cpxadd(float* d, Complex c, int size);		// d+c -> d
 static void cpxadd(float* d, float* r, int size);	// d+r -> d
-static void cpxsub(float* d, cpx c, int size);		// d-c -> d
+static void cpxsub(float* d, Complex c, int size);		// d-c -> d
 static void cpxsub(float* d, float* r, int size);	// d-r -> d
-static void cpxmul(float* d, cpx c, int size);		// c*d -> d
+static void cpxmul(float* d, Complex c, int size);		// c*d -> d
 static void cpxmul(float* d, float* r, int size);	// d*r -> d
 static void cpxmac(float* d, float* r, 				// d + c*r -> d
-					cpx c, int size);
-static cpx cpxdotp(float* d, float* r, int size);	// return dot product: <d,r*>
+					Complex c, int size);
+static Complex cpxdotp(float* d, float* r, int size);	// return dot product: <d,r*>
 static void cpxre(float* re, float* d, int size);	// Re(d) -> re	(re=d ok)
 static void cpxim(float* im, float* d, int size);	// Im(d) -> im	(im=d ok)			
 static void realtocpx(float* d, float* re,			// re -> Re(d), im -> Im(d)
@@ -413,7 +408,7 @@ static float cov(float* x, float* y, int size);		// .. covariance
 static float cpears(float* x, float* y, int size);	// .. pearson correlation
 static float cspear(float* x, float* y, int size);	// .. spearman rho correlation
 static float ckend(float* x, float* y, int size);	// .. kendall tau correlation
-static cpx linreg(		float* c,					// linear regression -> c:
+static Complex linreg(		float* c,					// linear regression -> c:
 						float* x,					// yest[0..size-1] = 
 						float* y,					//	 c[0] + sum(i=1..n){c[i]*
 						int size,					//	 x[(i-1)*size..i*size-1]}
@@ -447,7 +442,7 @@ static float grubbs(	float* d,					// Grubbs test -> p-value
 						int* idx=NULL,				// idx[0] = i of farthest d[i]
 						float* mv=NULL	);			// opt. in (faster):
 													// mv[0,1] = mean,variance of d
-static cpx ttest(		float ref,					// t-test -> [p-value, Cohens d]
+static Complex ttest(		float ref,					// t-test -> [p-value, Cohens d]
 						int xsize,					// number of x data points
 						float xmean,				// arithmetic mean: mean(x)
 						float xvar,					// unbiased variance: var(x)
@@ -469,7 +464,7 @@ static float levtest(	float* x,					// Levene test -> p-value
 						int ysize,					// onesided = false(true):
 						bool onesided=false,		// test for var(x) =(<=) var(y)
 						bool bf=false			);	// bf=true: Brown-Forsythe test
-static cpx chi2test(	float* fo,					// chi square test ->
+static Complex chi2test(	float* fo,					// chi square test ->
 						float* fe,					// [p-value, chi squared]
 						int size,					// fo[0..size-1] = observed,
 						int rdf=1,					// frequencies, fe[0..size-1] =
@@ -483,7 +478,7 @@ static float binomtest(	float pa,					// binomial test -> p-value
 						bool onesided=false		);	// tsize: sample size
 static float cdfn(float x, float mean, float std);	// cdf(x) of normal distribution
 static float cdfcn(float x, float mean, float std);	// 1-cdf(x), std = std deviation
-static cpx civn(		float mean,					// a-level confidence interval
+static Complex civn(		float mean,					// a-level confidence interval
 						float std,					// of normally distributed data
 						float a=0.95f	);			// -> [xlo, xhi]
 
@@ -552,7 +547,7 @@ private:
 	CircBuffer(const CircBuffer& src);
 };
 
-}	// end library specific namespace
+
 
 #endif
 

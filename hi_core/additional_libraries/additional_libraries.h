@@ -48,18 +48,31 @@
 #define ICSTLIB_USE_IPP 1
 #endif
 
+class IppFFT;
 
 #include "icst/MathDefs.h"
-#include "icst/Common.h"  
-#include "icst/fftooura.h"
-#include "icst/BlkDsp.h"
-#include "icst/AudioAnalysis.h"
-//#include "icst/AudioFile.h"
-#include "icst/AudioSynth.h"
+#include "icst/Common.h"  	
+
+namespace icstdsp
+{
+	#include "icst/fftooura.h"	
+	#include "icst/BlkDsp.h"	
+	#include "icst/AudioAnalysis.h"
+	#include "icst/AudioSynth.h"
+	#include "icst/Neuro.h"
+	#include "icst/SpecMath.h"
+}
 
 
-#include "icst/Neuro.h"
-#include "icst/SpecMath.h"
+
+
+
+
+
+
+
+
+
 
 
 #endif  // ADDITIONAL_LIBRARIES_H_INCLUDED

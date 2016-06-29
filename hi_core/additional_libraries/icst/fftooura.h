@@ -16,8 +16,6 @@
 #ifndef _ICST_DSPLIB_FFTOOURA_INCLUDED
 #define _ICST_DSPLIB_FFTOOURA_INCLUDED
 
-namespace icstdsp {		// begin library specific namespace 
-
 void cdft(int n, int isgn, double *a);		// DFT	
 void cdft(int n, int isgn, float *a);	
 void rdft(int n, int isgn, double *a);		// real data DFT 
@@ -30,8 +28,6 @@ void dfct(int n, double *a);				// real data symmetric DFT
 void dfct(int n, float *a);
 void dfst(int n, double *a);				// real data asymmetric DFT
 void dfst(int n, float *a);
-
-}	// end library specific namespace
 
 #endif
 

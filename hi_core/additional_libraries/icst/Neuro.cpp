@@ -13,7 +13,7 @@
 #include "SpecMath.h"
 #endif
 
-namespace icstdsp {		// begin library specific namespace
+
 
 //******************************************************************************
 //* Neurons
@@ -25,14 +25,14 @@ Neurons::Neurons(int k, int type)
 	else {ntype = NT_SIG;}
 	if (k >= 0) {
 		nn = k+1;
-		n = BlkDsp::sseallocf(nn);
+		n = VectorFunctions::sseallocf(nn);
 		if (n) {n[0] = 1.0f;} else {nn = 0;}
 	}
 	else {n = NULL; nn = 0;}	
 }
 
 // destruction
-Neurons::~Neurons() {if (n) BlkDsp::ssefree(n);}
+Neurons::~Neurons() {if (n) VectorFunctions::ssefree(n);}
 
 // return number of neurons, failed:-1
 int Neurons::GetNofNeurons() {return nn-1;}
@@ -54,10 +54,10 @@ Axons::Axons(Neurons* in, Neurons* out)
 	nnout = pon->GetNofNeurons();
 	if ((nnout <= 0) || (nnin <= 0)) return;
 	size = nnin*nnout;
-	w = BlkDsp::sseallocf(size);
-	xsav = BlkDsp::sseallocf(nnin);
+	w = VectorFunctions::sseallocf(size);
+	xsav = VectorFunctions::sseallocf(nnin);
 	if (xsav == NULL) {
-		if (w) {BlkDsp::ssefree(w);}
+		if (w) {VectorFunctions::ssefree(w);}
 		w = NULL;
 	}
 	Reset();
@@ -66,9 +66,9 @@ Axons::Axons(Neurons* in, Neurons* out)
 // destruction
 Axons::~Axons()
 {
-	if (w) BlkDsp::ssefree(w);
-	if (dw) BlkDsp::ssefree(dw);
-	if (xsav) BlkDsp::ssefree(xsav);
+	if (w) VectorFunctions::ssefree(w);
+	if (dw) VectorFunctions::ssefree(dw);
+	if (xsav) VectorFunctions::ssefree(xsav);
 }
 
 // init weights
@@ -79,21 +79,21 @@ void Axons::Reset(int mode)
 	if (w) {
 		switch(mode) {
 		case WI_ZERO:
-			BlkDsp::set(w,0,size); 
+			VectorFunctions::set(w,0,size); 
 			break;
 		case WI_ZEROBIASRNDOTHER:
-			BlkDsp::unoise(w,size);
-			BlkDsp::mul(w,1.6f/static_cast<float>(nnin),size);
+			VectorFunctions::unoise(w,size);
+			VectorFunctions::mul(w,1.6f/static_cast<float>(nnin),size);
 			for (i=0; i<size; i+=nnin) {w[i] = 0;}
 			break;
 		case WI_RND:
 		default:
-			BlkDsp::unoise(w,size);
-			BlkDsp::mul(w,1.6f/static_cast<float>(nnin),size);			
+			VectorFunctions::unoise(w,size);
+			VectorFunctions::mul(w,1.6f/static_cast<float>(nnin),size);			
 			break;
 		}
 	}	
-	if (dw) {BlkDsp::set(dw,0,size);}
+	if (dw) {VectorFunctions::set(dw,0,size);}
 	weff = w; blon = false;
 }			
 
@@ -110,27 +110,27 @@ void Axons::FeedForward()
 			switch (type) {
 			case NT_SIG:	
 				for (i=1; i<=nnout; i++) {
-					pon->n[i] = SpecMath::qdtanh(BlkDsp::dotp(w+j,pin->n,nnin));
+					pon->n[i] = SpecMath::qdtanh(VectorFunctions::dotp(w+j,pin->n,nnin));
 					j += nnin;
 				}
 				break;
 			case NT_LIN:	
 				for (i=1; i<=nnout; i++) {
-					pon->n[i] = BlkDsp::dotp(w+j,pin->n,nnin);
+					pon->n[i] = VectorFunctions::dotp(w+j,pin->n,nnin);
 					j += nnin;
 				}
 				break;
 			case NT_BIN:	
 				for (i=1; i<=nnout; i++) {
 					pon->n[i] = 
-						(BlkDsp::dotp(w+j,pin->n,nnin) < 0) ? -1.0f : 1.0f;
+						(VectorFunctions::dotp(w+j,pin->n,nnin) < 0) ? -1.0f : 1.0f;
 					j += nnin;
 				}
 				break;
 			}
 		}
 		else {
-			BlkDsp::mmulv(	pon->n + 1,
+			VectorFunctions::mmulv(	pon->n + 1,
 							w,
 							pin->n,
 							nnout,
@@ -141,7 +141,7 @@ void Axons::FeedForward()
 							while (i <= nnout) {pon->n[i] = SpecMath::qdtanh(pon->n[i]); i++;}
 							break;
 			case NT_LIN:	break;
-			case NT_BIN:	BlkDsp::sgn(pon->n + 1, nnout); break;
+			case NT_BIN:	VectorFunctions::sgn(pon->n + 1, nnout); break;
 			}
 		}
 	}
@@ -153,8 +153,8 @@ void Axons::EnableBatchLearning()
 	int size = (pin->GetNofNeurons() + 1)*pon->GetNofNeurons();
 	if (w == NULL) return;
 	if (!blon) {
-		if (dw == NULL) {dw = BlkDsp::sseallocf(size);}
-		if (dw) {BlkDsp::set(dw,0,size); weff = dw; blon = true;}
+		if (dw == NULL) {dw = VectorFunctions::sseallocf(size);}
+		if (dw) {VectorFunctions::set(dw,0,size); weff = dw; blon = true;}
 	}	
 }
 
@@ -162,7 +162,7 @@ void Axons::EnableBatchLearning()
 void Axons::DisableBatchLearning()
 {
 	int size = (pin->GetNofNeurons() + 1)*pon->GetNofNeurons();
-	if (blon) {BlkDsp::add(w,dw,size); weff = w; blon = false;}
+	if (blon) {VectorFunctions::add(w,dw,size); weff = w; blon = false;}
 }
 
 // update weights using back propagation
@@ -196,7 +196,7 @@ void Axons::BackPropagate(float lrate, float* out, bool in)
 			nnin = 	pin->GetNofNeurons() + 1; nnout = pon->GetNofNeurons();
 			for (i=0; i<nnout; i++) {
 				x = lrate*pon->n[i+1];
-				BlkDsp::mac(weff + i*nnin, pin->n, x, nnin);
+				VectorFunctions::mac(weff + i*nnin, pin->n, x, nnin);
 			}
 		}
 	}
@@ -204,8 +204,8 @@ void Axons::BackPropagate(float lrate, float* out, bool in)
 	// hidden layer	
 	else {
 		nnin = 	pin->GetNofNeurons() + 1; nnout = pon->GetNofNeurons();
-		BlkDsp::copy(xsav,pin->n,nnin);
-		BlkDsp::mtmulv(	pin->n,				// leaves room for optimization
+		VectorFunctions::copy(xsav,pin->n,nnin);
+		VectorFunctions::mtmulv(	pin->n,				// leaves room for optimization
 						w,					// as the bias node should not
 						(pon->n)+1,			// be replaced by the delta ->
 						nnout,				// modify "mtmulv" or make a
@@ -222,7 +222,7 @@ void Axons::BackPropagate(float lrate, float* out, bool in)
 		if (lrate != 0) {
 			for (i=0; i<nnout; i++) {
 				x = lrate*pon->n[i+1];
-				BlkDsp::mac(weff + i*nnin, xsav, x, nnin);
+				VectorFunctions::mac(weff + i*nnin, xsav, x, nnin);
 			}
 		}
 	}
@@ -235,7 +235,7 @@ void Axons::Hebb(float lrate)
 	int i, nnin = pin->GetNofNeurons() + 1, nnout = pon->GetNofNeurons();
 	if (w == NULL) return;
 	for (i=0; i<nnout; i++) {
-		BlkDsp::mac(weff + i*nnin + 1, 1 + pin->n, lrate*pon->n[i+1], nnin-1);
+		VectorFunctions::mac(weff + i*nnin + 1, 1 + pin->n, lrate*pon->n[i+1], nnin-1);
 	}
 }
 
@@ -262,9 +262,9 @@ void Axons::ReadInputWeights(float* d, int n)
 {
 	int nnin = pin->GetNofNeurons() + 1, nnout = pon->GetNofNeurons();
 	if ((w != NULL) && (n >= 0) && (n < nnin)) {
-		BlkDsp::deinterleave(d+1, w, nnout, nnin, n); d[0]=0;
+		VectorFunctions::deinterleave(d+1, w, nnout, nnin, n); d[0]=0;
 	}
-	else if (nnout >= 0) {BlkDsp::set(d,0,nnout+1);}
+	else if (nnout >= 0) {VectorFunctions::set(d,0,nnout+1);}
 }
 
 // make d[0..output_neurons] the weights of input neuron n
@@ -272,7 +272,7 @@ void Axons::WriteInputWeights(float* d, int n)
 {
 	int nnin = pin->GetNofNeurons() + 1, nnout = pon->GetNofNeurons();
 	if ((w != NULL) && (n >= 0) && (n < nnin)) {
-		BlkDsp::interleave(w, d+1, nnout, nnin, n);
+		VectorFunctions::interleave(w, d+1, nnout, nnin, n);
 	}
 }
 
@@ -281,9 +281,9 @@ void Axons::ReadOutputWeights(float* d, int n)
 {
 	int nnin = pin->GetNofNeurons() + 1, nnout = pon->GetNofNeurons();
 	if ((w != NULL) && (n > 0) && (n <= nnout)) {
-		BlkDsp::copy(d, w + (n-1)*nnin, nnin);
+		VectorFunctions::copy(d, w + (n-1)*nnin, nnin);
 	}
-	else if (nnin > 0) {BlkDsp::set(d,0,nnin);}
+	else if (nnin > 0) {VectorFunctions::set(d,0,nnin);}
 }
 
 // make d[0..input_neurons] the weights of output neuron n
@@ -291,7 +291,7 @@ void Axons::WriteOutputWeights(float* d, int n)
 {
 	int nnin = pin->GetNofNeurons() + 1, nnout = pon->GetNofNeurons();
 	if ((w != NULL) && (n > 0) && (n <= nnout)) {
-		BlkDsp::copy(w + (n-1)*nnin, d, nnin);
+		VectorFunctions::copy(w + (n-1)*nnin, d, nnin);
 	}	
 }
 
@@ -306,25 +306,25 @@ Kohonen::Kohonen(	int nodes, int vsize, float lrate, float alpha,
 
 	// allocate memory for weights and neighborhood relations
 	if ((nn > 0) && (vsz > 0)) {
-		w = BlkDsp::sseallocf(nn*vsz); 
+		w = VectorFunctions::sseallocf(nn*vsz); 
 		if (w == NULL) {nn = vsz = 0;}
 		try {cnt = new int[nn];} catch(...) {cnt = NULL;}
 		if (cnt == NULL) { 	
-			if (w) {BlkDsp::ssefree(w); w = NULL;}
+			if (w) {VectorFunctions::ssefree(w); w = NULL;}
 			nn = vsz = 0;
 		}
 		if (dist) {
-			nbh = BlkDsp::sseallocf(nn*nn);
+			nbh = VectorFunctions::sseallocf(nn*nn);
 			if (nbh == NULL) {
-				if (w) {BlkDsp::ssefree(w); w = NULL;}
+				if (w) {VectorFunctions::ssefree(w); w = NULL;}
 				if (cnt) {delete[] cnt; cnt = NULL;}
 				nn = vsz = 0;
 			}
-			dnbh = BlkDsp::sseallocf(nn*nn);
+			dnbh = VectorFunctions::sseallocf(nn*nn);
 			if (dnbh == NULL) {
-				if (w) {BlkDsp::ssefree(w); w = NULL;}
+				if (w) {VectorFunctions::ssefree(w); w = NULL;}
 				if (cnt) {delete[] cnt; cnt = NULL;}
-				if (nbh) {BlkDsp::ssefree(nbh); nbh = NULL;}
+				if (nbh) {VectorFunctions::ssefree(nbh); nbh = NULL;}
 				nn = vsz = 0;
 			}
 		}
@@ -333,7 +333,7 @@ Kohonen::Kohonen(	int nodes, int vsize, float lrate, float alpha,
 	
 	// init weights
 	initcnt = 0;
-	if (w) {BlkDsp::set(w,0,nn*vsz);}
+	if (w) {VectorFunctions::set(w,0,nn*vsz);}
 	
 	// init learning rate and neighborhood relations
 	int i;
@@ -349,9 +349,9 @@ Kohonen::Kohonen(	int nodes, int vsize, float lrate, float alpha,
 // destruction	
 Kohonen::~Kohonen() 
 {
-	if (w) BlkDsp::ssefree(w);
-	if (nbh) BlkDsp::ssefree(nbh);
-	if (dnbh) BlkDsp::ssefree(dnbh);
+	if (w) VectorFunctions::ssefree(w);
+	if (nbh) VectorFunctions::ssefree(nbh);
+	if (dnbh) VectorFunctions::ssefree(dnbh);
 	if (cnt) delete[] cnt;
 }
 
@@ -360,9 +360,9 @@ void Kohonen::Reset()
 {
 	if (w == NULL) return;
 	initcnt = 0;
-	BlkDsp::set(w,0,nn*vsz);
+	VectorFunctions::set(w,0,nn*vsz);
 	lr = ilr;
-	if (nbh) {BlkDsp::set(nbh,ilr,nn*nn);}
+	if (nbh) {VectorFunctions::set(nbh,ilr,nn*nn);}
 }			
 
 // return output node corresponding to input vector
@@ -387,9 +387,9 @@ int Kohonen::GetNode(float* d)
 		}
 	}	
 	else {
-		m = BlkDsp::sdist(d, w, vsz);
+		m = VectorFunctions::sdist(d, w, vsz);
 		for (i=1; i<nn; i++) {
-			y = BlkDsp::sdist(d, w+k, vsz);
+			y = VectorFunctions::sdist(d, w+k, vsz);
 			k += vsz;
 			if (y < m) {m=y; midx=i;}
 		}
@@ -400,8 +400,8 @@ int Kohonen::GetNode(float* d)
 // fill d with vector of a specified output node  
 void Kohonen::GetVector(float* d, int node)
 {
-	if ((w == NULL) || (node < 0) || (node >= nn)) {BlkDsp::set(d,0,vsz);}
-	else {BlkDsp::copy(d,w+node*vsz,vsz);}
+	if ((w == NULL) || (node < 0) || (node >= nn)) {VectorFunctions::set(d,0,vsz);}
+	else {VectorFunctions::copy(d,w+node*vsz,vsz);}
 }
 
 // learn input vector d
@@ -409,7 +409,7 @@ void Kohonen::Learn(float* d)
 {
 	if (w == NULL) return;
 	if (initcnt < nn) {							// process as init vector
-		BlkDsp::copy(w+initcnt*vsz,d,vsz);
+		VectorFunctions::copy(w+initcnt*vsz,d,vsz);
 		initcnt++;
 		return;
 	}
@@ -424,7 +424,7 @@ void Kohonen::Learn(float* d)
 				k++;
 			}
 		}
-		BlkDsp::mul(nbh,dnbh,nn*nn);
+		VectorFunctions::mul(nbh,dnbh,nn*nn);
 	}
 	else {										// linear vector quantization: 
 		k = node*vsz;							// independent nodes
@@ -446,7 +446,7 @@ int Kohonen::KMeans(float* d, int vecs, int* kmnode)
 	bool conv;
 	float scl;											
 	initcnt = __min(vecs,nn);
-	BlkDsp::copy(w,d,initcnt*vsz);
+	VectorFunctions::copy(w,d,initcnt*vsz);
 	for (i=0; i<vecs; i++) {kmnode[i] = -1;}
 iter:
 	conv = true;
@@ -490,43 +490,43 @@ int PCA::pcomp(float* pcs, float* mean, float* var, float* d,
 	int i,j,k; float x,m,pm,vnorm, rnrg=1.0f;
 
 	// calculate and subtract mean vector
-	BlkDsp::set(mean,0,vsize);
-	for (i=0; i<vecs; i++) {BlkDsp::add(mean,d+i*vsize,vsize);}
-	BlkDsp::mul(mean,1.0f/static_cast<float>(vecs),vsize);
-	for (i=0; i<vecs; i++) {BlkDsp::sub(d+i*vsize,mean,vsize);}
-	vnorm = BlkDsp::energy(d,vecs*vsize);
+	VectorFunctions::set(mean,0,vsize);
+	for (i=0; i<vecs; i++) {VectorFunctions::add(mean,d+i*vsize,vsize);}
+	VectorFunctions::mul(mean,1.0f/static_cast<float>(vecs),vsize);
+	for (i=0; i<vecs; i++) {VectorFunctions::sub(d+i*vsize,mean,vsize);}
+	vnorm = VectorFunctions::energy(d,vecs*vsize);
 	if (vnorm >= FLT_MIN) {vnorm = 1.0f/vnorm;} else return 0;
 
 	// get principal components by repeated calculation of the dominant one
 	// via expectation maximum (may also be viewed as batch hebbian learning
 	// with weight normalization) followed by deflation
-	float* v = BlkDsp::sseallocf(vsize);
+	float* v = VectorFunctions::sseallocf(vsize);
 	for (j=0; j<n; j++) {
-		BlkDsp::unoise(pcs,vsize);
+		VectorFunctions::unoise(pcs,vsize);
 		m = 0;
 		do {
 			pm = m;
-			BlkDsp::set(v,0,vsize);
+			VectorFunctions::set(v,0,vsize);
 			for (i=0,k=0; i<vecs; i++,k+=vsize) {
-				x = BlkDsp::dotp(pcs,d+k,vsize);
-				BlkDsp::mac(v,d+k,x,vsize);
+				x = VectorFunctions::dotp(pcs,d+k,vsize);
+				VectorFunctions::mac(v,d+k,x,vsize);
 			}
-			m = BlkDsp::norm(v,vsize);
-			if (m < FLT_MIN) {BlkDsp::ssefree(v); return j;}
-			BlkDsp::mul(v,1.0f/m,vsize);
-			BlkDsp::copy(pcs,v,vsize);
+			m = VectorFunctions::norm(v,vsize);
+			if (m < FLT_MIN) {VectorFunctions::ssefree(v); return j;}
+			VectorFunctions::mul(v,1.0f/m,vsize);
+			VectorFunctions::copy(pcs,v,vsize);
 		}
 		while (pm < m);
 		for (i=0,k=0; i<vecs; i++,k+=vsize) {
-			x = -BlkDsp::dotp(pcs,d+k,vsize);
-			BlkDsp::mac(d+k,pcs,x,vsize);
+			x = -VectorFunctions::dotp(pcs,d+k,vsize);
+			VectorFunctions::mac(d+k,pcs,x,vsize);
 		}
-		x = vnorm*BlkDsp::energy(d,vecs*vsize);
+		x = vnorm*VectorFunctions::energy(d,vecs*vsize);
 		var[j] = rnrg - x;
 		rnrg = x;
 		pcs += vsize;
 	}
-	BlkDsp::ssefree(v);
+	VectorFunctions::ssefree(v);
 	return n;
 }
 
@@ -537,10 +537,10 @@ int PCA::pcomp(float* pcs, float* mean, float* var, float* d,
 void PCA::decompose(float* a, float* pcs, float* d, int vsize, int n,
 					float* mean)
 {
-	if (mean) {BlkDsp::sub(d,mean,vsize);}
+	if (mean) {VectorFunctions::sub(d,mean,vsize);}
 	for (int i=0; i<n; i++) {
-		a[i] = BlkDsp::dotp(d,pcs,vsize);
-		BlkDsp::mac(d,pcs,-a[i],vsize);
+		a[i] = VectorFunctions::dotp(d,pcs,vsize);
+		VectorFunctions::mac(d,pcs,-a[i],vsize);
 		pcs += vsize;
 	}
 }
@@ -550,9 +550,9 @@ void PCA::decompose(float* a, float* pcs, float* d, int vsize, int n,
 // and an optional mean vector mean[0..vsize-1]
 void PCA::compose(float* d, float* pcs, float* a, int vsize, int n, float* mean)
 {
-	if (mean) {BlkDsp::add(d,mean,vsize);}
+	if (mean) {VectorFunctions::add(d,mean,vsize);}
 	for (int i=0; i<n; i++) {
-		BlkDsp::mac(d,pcs,a[i],vsize);
+		VectorFunctions::mac(d,pcs,a[i],vsize);
 		pcs += vsize;
 	}	
 }
@@ -568,45 +568,43 @@ void PCA::ica(float* ics, float* pcs, int vsize, int m, int n)
 	float plim = 1.0f - FLT_EPSILON*5.0f*sqrtf(fvsize*static_cast<float>(n));
 	float scl = sqrtf(fvsize);
 	float invscl = 1.0f/scl;
-	float* v = BlkDsp::sseallocf(vsize);	// workspace (distorted independent comp.)
+	float* v = VectorFunctions::sseallocf(vsize);	// workspace (distorted independent comp.)
 	float* wtmp = new float[n];				// workspace (intermediate weight)
 	float* w = new float[n*m];				// demixing weights
 	float* wcur = w;						// points to currently calculated weight
 	
-	BlkDsp::unoise(w,m*n);
-	for (i=0; i<(n*m); i+=n) {BlkDsp::normalize(w+i,n);}
+	VectorFunctions::unoise(w,m*n);
+	for (i=0; i<(n*m); i+=n) {VectorFunctions::normalize(w+i,n);}
 
 	for (i=0; i<m; i++) {
 		p = 0;
 		do {
 			pp = p;
-			BlkDsp::mtmulv(ics,pcs,wcur,n,vsize);
-			BlkDsp::copy(v,ics,vsize);
-			BlkDsp::mul(v,scl,vsize);
+			VectorFunctions::mtmulv(ics,pcs,wcur,n,vsize);
+			VectorFunctions::copy(v,ics,vsize);
+			VectorFunctions::mul(v,scl,vsize);
 			j=0;
 			while (j <= (vsize-4)) {SpecMath::qdtanh(v+j); j+=4;}
 			while (j < vsize) {v[j] = SpecMath::qdtanh(v[j]); j++;}
-			x = invscl*BlkDsp::energy(v,vsize) - scl;
-			BlkDsp::mmulv(wtmp,pcs,v,n,vsize);
-			BlkDsp::mac(wtmp,wcur,x,n);
-			BlkDsp::normalize(wtmp,n);
+			x = invscl*VectorFunctions::energy(v,vsize) - scl;
+			VectorFunctions::mmulv(wtmp,pcs,v,n,vsize);
+			VectorFunctions::mac(wtmp,wcur,x,n);
+			VectorFunctions::normalize(wtmp,n);
 			if (i > 0) {
 				for (j=0; j<(i*n); j+=n) {
-					x = BlkDsp::dotp(wtmp,w+j,n);
-					BlkDsp::mac(wtmp,w+j,-x,n);
+					x = VectorFunctions::dotp(wtmp,w+j,n);
+					VectorFunctions::mac(wtmp,w+j,-x,n);
 				}
-				BlkDsp::normalize(wtmp,n);
+				VectorFunctions::normalize(wtmp,n);
 			}
-			p = fabsf(BlkDsp::dotp(wtmp,wcur,n));
-			BlkDsp::copy(wcur,wtmp,n);
+			p = fabsf(VectorFunctions::dotp(wtmp,wcur,n));
+			VectorFunctions::copy(wcur,wtmp,n);
 		}
 		while ((pp < p) || (p < plim));
 		wcur += n;
 		ics += vsize;
 	}
 
-	BlkDsp::ssefree(v); delete[] w; delete[] wtmp;
+	VectorFunctions::ssefree(v); delete[] w; delete[] wtmp;
 }
-
-}	// end library specific namespace
 

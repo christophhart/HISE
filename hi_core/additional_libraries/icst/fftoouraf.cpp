@@ -12,7 +12,7 @@
 
 #include <cmath>
 
-namespace icstdsp {		// begin library specific namespace 
+
 
 void cftfsub(int n, float *a);
 void cftbsub(int n, float *a);
@@ -3249,6 +3249,6 @@ void dstsub4(int n, float *a)
     a[m] *= wki;
 }
 
-}	// end library specific namespace
+
 
 

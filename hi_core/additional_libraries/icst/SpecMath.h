@@ -10,7 +10,6 @@
 #ifndef _ICST_DSPLIB_SPECMATH_INCLUDED
 #define _ICST_DSPLIB_SPECMATH_INCLUDED
 
-namespace icstdsp {		// begin library specific namespace
 
 class SpecMath
 {
@@ -173,7 +172,7 @@ static void pstocheby(double* c, int d);
 static float fitlin(float* y, float x);
 
 // (re,im)=(xext,yext) of parabola y(x) given y(-1),y(0),y(1), no extremum:(0,y0) 				
-static cpx paraext(float ym1, float y0, float y1);	
+static Complex paraext(float ym1, float y0, float y1);	
 
 // fill c with coefficients of y(x) = c[0] + c[1]*x + c[2]*x^2 + c[3]*x^3 such
 // that y(x) is an interpolation function for x = x0..x1 that goes through
@@ -304,8 +303,6 @@ static int findroot(double* k, double* r, int d);
 static double dbesj0(double x);
 static double dbesj1(double x);
 };
-
-}	// end library specific namespace
 
 #include "SpecMathInline.h"			// inline methods
 

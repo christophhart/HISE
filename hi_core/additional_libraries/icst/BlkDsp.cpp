@@ -20,181 +20,14 @@
 	#include <ipp.h>	// Intel Performance Primitives package
 #endif
 
-namespace icstdsp {		// begin library specific namespace
 
-//******************************************************************************
-//* resources to speed up transforms
-//*
-#ifdef ICSTLIB_USE_IPP						
-namespace {								// begin anonymous namespace
-	
-}										// end anonymous namespace
-#endif
-
-
-
-#if 0
-
-// preallocate resources to speed up transforms
-// call once during application initialization
-// call UnPrepareTransforms before the application terminates
-// effect on internal routines:	none
-// effect on external routines:	prepare IPP FFT
-void BlkDsp::PrepareTransforms()
-{
-#ifdef ICSTLIB_USE_IPP
-	int i; bool err = false;
-	if (fftfSpec) return;
-
-	fftfSpec = new IppsFFTSpec_C_32fc*[IPP_FFT_MAX_POWER_OF_TWO + 1];
-	fftdSpec = new IppsFFTSpec_C_64fc*[IPP_FFT_MAX_POWER_OF_TWO + 1];
-	rfftfSpec = new IppsFFTSpec_R_32f*[IPP_FFT_MAX_POWER_OF_TWO + 1];
-	rfftdSpec = new IppsFFTSpec_R_64f*[IPP_FFT_MAX_POWER_OF_TWO + 1];
-	//dctfSpec = new IppsDCTFwdSpec_32f*[FFTMAXORD + 1];
-	//dctdSpec = new IppsDCTFwdSpec_64f*[FFTMAXORD + 1];
-	//idctfSpec = new IppsDCTInvSpec_32f*[FFTMAXORD + 1];
-	//idctdSpec = new IppsDCTInvSpec_64f*[FFTMAXORD + 1];
-
-	jassert(fftBuffers == nullptr);
-
-	fftBuffers = new FFTBufferCollection();
-
-	for (i=0; i<=IPP_FFT_MAX_POWER_OF_TWO; i++) {
-		fftfSpec[i] = NULL;
-		fftdSpec[i] = NULL;
-		rfftfSpec[i] = NULL;
-		rfftdSpec[i] = NULL;
-		//dctfSpec[i] = NULL;
-		//dctdSpec[i] = NULL;
-		//idctfSpec[i] = NULL;
-		//idctdSpec[i] = NULL;
-
-		
-		//BlkDsp::ippData_DCTfloat[i] = new FFTData();
-		//BlkDsp::ippData_DCTdouble[i] = new FFTData();
-		//BlkDsp::ippData_rDCTfloat[i] = new FFTData();
-		//BlkDsp::ippData_rDCTdouble[i] = new FFTData();
-	}
-
-	for (i=1; i<=IPP_FFT_MAX_POWER_OF_TWO; i++) 
-	{
-		// (i)fft float/
-		
-		const int N = pow(2, i);
-
-		IppStatus result;
-
-		FFTData *ippData = &(fftBuffers->ippData_FFTfloat[i]);
-
-		int sizeSpec, sizeInit, sizeWork;
-		result = ippsFFTGetSize_C_32fc(i, IPP_FFT_DIV_INV_BY_N, ippAlgHintFast, &sizeSpec, &sizeInit, &sizeWork);
-
-		jassert(result == ippStsNoErr);
-
-		ippData->ensureSize(sizeSpec, sizeInit, sizeWork);
-
-		result = ippsFFTInit_C_32fc(fftfSpec + i, i, IPP_FFT_DIV_INV_BY_N, ippAlgHintFast, ippData->pFFTSpecBuf, ippData->pFFTInitBuf);
-
-		
-
-		// (i)fft double
-
-		ippData = &(fftBuffers->ippData_FFTdouble[i]);
-
-		
-		ippsFFTGetSize_C_64fc(i, IPP_FFT_DIV_INV_BY_N, ippAlgHintFast, &sizeSpec, &sizeInit, &sizeWork);
-		ippData->ensureSize(sizeSpec, sizeInit, sizeWork);
-
-		ippsFFTInit_C_64fc(fftdSpec + i, i, IPP_FFT_DIV_INV_BY_N, ippAlgHintFast, ippData->pFFTSpecBuf, ippData->pFFTInitBuf);
-
-		// real(i)fft float
-
-		ippData = &(fftBuffers->ippData_rFFTfloat[i]);
-
-		
-		ippsFFTGetSize_R_32f(i, IPP_FFT_DIV_INV_BY_N, ippAlgHintFast, &sizeSpec, &sizeInit, &sizeWork);
-		ippData->ensureSize(sizeSpec, sizeInit, sizeWork);
-
-		ippsFFTInit_R_32f(		
-			rfftfSpec + i, i, IPP_FFT_DIV_INV_BY_N, ippAlgHintFast, ippData->pFFTSpecBuf, ippData->pFFTInitBuf);
-		
-		// real(i)fft double
-		
-		ippData = &(fftBuffers->ippData_rFFTdouble[i]);
-
-		
-		
-		ippsFFTGetSize_R_64f(i, IPP_FFT_DIV_INV_BY_N, ippAlgHintFast, &sizeSpec, &sizeInit, &sizeWork);
-		ippData->ensureSize(sizeSpec, sizeInit, sizeWork);
-
-		ippsFFTInit_R_64f(
-			rfftdSpec + i, i, IPP_FFT_DIV_INV_BY_N, ippAlgHintFast, ippData->pFFTSpecBuf, ippData->pFFTInitBuf);
-		
-		continue;
-	}
-	for (i=1; i<=IPP_FFT_MAX_POWER_OF_TWO; i++) {
-		err |= (fftfSpec[i] == NULL);
-		err |= (fftdSpec[i] == NULL);
-		err |= (rfftfSpec[i] == NULL);
-		err |= (rfftdSpec[i] == NULL);
-		//err |= (dctfSpec[i] == NULL);
-		//err |= (dctdSpec[i] == NULL);
-		//err |= (idctfSpec[i] == NULL);
-		//err |= (idctdSpec[i] == NULL);
-	}
-	if (err) {UnPrepareTransforms();}
-#endif
-}
-
-// free resources allocated by PrepareTransforms
-// call before terminating the application if PrepareTransforms has ever
-// been called, has no effect if PrepareTransforms was never called
-void BlkDsp::UnPrepareTransforms()
-{
-#ifdef ICSTLIB_USE_IPP
-	if (fftfSpec) {
-		for (int i=1; i<=IPP_FFT_MAX_POWER_OF_TWO; i++) {
-			if (fftfSpec[i]) {ippsFree(fftfSpec[i]);}
-			if (fftdSpec[i]) {ippsFree(fftdSpec[i]); }
-			if (rfftfSpec[i]) {ippsFree(rfftfSpec[i]); }
-			if (rfftdSpec[i]) {ippsFree(rfftdSpec[i]); }
-			//if (dctfSpec[i]) {ippsFree(dctfSpec[i]); }
-			//if (dctdSpec[i]) {ippsFree(dctdSpec[i]); }
-			//if (idctfSpec[i]) {ippsFree(idctfSpec[i]); }
-			//if (idctdSpec[i]) {ippsFree(idctdSpec[i]); }
-
-			
-			//if (ippData_DCTfloat[i]) { delete ippData_DCTfloat[i]; }
-			//if (ippData_DCTdouble[i]) { delete ippData_DCTdouble[i]; }
-			//if (ippData_rDCTfloat[i]) { delete ippData_rDCTfloat[i]; }
-			//if (ippData_rDCTdouble[i]) { delete ippData_rDCTdouble[i]; }
-		}
-
-		
-
-		delete[] fftfSpec; fftfSpec = NULL;
-		delete[] fftdSpec; fftdSpec = NULL;
-		delete[] rfftfSpec; rfftfSpec = NULL;
-		delete[] rfftdSpec; rfftdSpec = NULL;
-		//delete[] dctfSpec; dctfSpec = NULL;
-		//delete[] dctdSpec; dctdSpec = NULL;
-		//delete[] idctfSpec; idctfSpec = NULL;
-		//delete[] idctdSpec; idctdSpec = NULL;
-
-		delete fftBuffers;
-	}
-#endif
-}
-
-#endif
-
-BlockDspObject::BlockDspObject(int fftDataType)
+FFTProcessor::FFTProcessor(int fftDataType)
 {
 	fftData = new IppFFT((IppFFT::DataType)fftDataType);
 }
 
 
-IppFFT * BlockDspObject::getFFTObject()
+IppFFT * FFTProcessor::getFFTObject()
 {
 	return fftData.get();
 }
@@ -204,7 +37,7 @@ IppFFT * BlockDspObject::getFFTObject()
 //*
 // standard FFT. size is a power of 2.
 // d[] = re[0],im[0],..,re[size-1],im[size-1].
-void BlockDspObject::fft(float* d, int size)
+void FFTProcessor::fft(float* d, int size)
 {
 #ifdef ICSTLIB_USE_IPP
 
@@ -227,7 +60,7 @@ void BlockDspObject::fft(float* d, int size)
 #endif
 }
 
-void BlockDspObject::fft(double* d, int size)
+void FFTProcessor::fft(double* d, int size)
 {
 #ifdef ICSTLIB_USE_IPP
 
@@ -252,7 +85,7 @@ void BlockDspObject::fft(double* d, int size)
 
 // standard IFFT. size is a power of 2.
 // d[] = re[0],im[0],..,re[size-1],im[size-1].
-void BlockDspObject::ifft(float* d, int size)
+void FFTProcessor::ifft(float* d, int size)
 {
 #ifdef ICSTLIB_USE_IPP
 
@@ -275,7 +108,7 @@ void BlockDspObject::ifft(float* d, int size)
 #endif
 }
 
-void BlockDspObject::ifft(double* d, int size)
+void FFTProcessor::ifft(double* d, int size)
 {
 #ifdef ICSTLIB_USE_IPP
 
@@ -302,7 +135,7 @@ void BlockDspObject::ifft(double* d, int size)
 // FFT of real data. size is a power of 2.
 // in: d[] = re[0],re[1],..,re[size-1]. 
 // out: d[] = re[0],*re[size/2]*,re[1],im[1],..,re[size/2-1],im[size/2-1].
-void BlockDspObject::realfft(float* d, int size)
+void FFTProcessor::realfft(float* d, int size)
 {
 #ifdef ICSTLIB_USE_IPP
 
@@ -326,7 +159,7 @@ void BlockDspObject::realfft(float* d, int size)
 #endif
 }
 
-void BlockDspObject::realfft(double* d, int size)
+void FFTProcessor::realfft(double* d, int size)
 {
 #ifdef ICSTLIB_USE_IPP
 
@@ -352,7 +185,7 @@ void BlockDspObject::realfft(double* d, int size)
 // IFFT to real data. size is a power of 2.
 // in: d[] = re[0],*re[size/2]*,re[1],im[1],..,re[size/2-1],im[size/2-1].
 // out: d[] = re[0],re[1],..,re[size-1].
-void BlockDspObject::realifft(float* d, int size)
+void FFTProcessor::realifft(float* d, int size)
 {
 #ifdef ICSTLIB_USE_IPP
 
@@ -377,7 +210,7 @@ void BlockDspObject::realifft(float* d, int size)
 #endif
 }
 
-void BlockDspObject::realifft(double* d, int size)
+void FFTProcessor::realifft(double* d, int size)
 {
 #ifdef ICSTLIB_USE_IPP
 
@@ -406,13 +239,13 @@ void BlockDspObject::realifft(double* d, int size)
 // FFT of symmetrical real data. size is a power of 2.
 // in:	d[] = re[0],re[1],..,re[size], contains lower half original data
 // out:	d[] = re[0],re[1],..,re[size], contains lower half spectrum
-void BlkDsp::realsymfft(float* d, int size)
+void VectorFunctions::realsymfft(float* d, int size)
 {
 	mul(d, 2.0f, size);		// preserve aligned processing if d aligned 
 	d[0] *= 0.5f;			//
 	dfct(size, d);	
 }
-void BlkDsp::realsymfft(double* d, int size)
+void VectorFunctions::realsymfft(double* d, int size)
 {
 	for (int i=1; i<size; i++) {d[i] *= 2.0;}
 	dfct(size, d);
@@ -421,13 +254,13 @@ void BlkDsp::realsymfft(double* d, int size)
 // IFFT to symmetrical real data. size is a power of 2.	
 // in:	d[] = re[0],re[1],..,re[size], contains lower half spectrum
 // out:	d[] = re[0],re[1],..,re[size], contains lower half original data	
-void BlkDsp::realsymifft(float* d, int size)
+void VectorFunctions::realsymifft(float* d, int size)
 {
 	d[0] *= 0.5f; d[size] *= 0.5f; 
 	dfct(size, d);
 	mul(d, 1.0f/static_cast<float>(size), size+1);
 }
-void BlkDsp::realsymifft(double* d, int size)
+void VectorFunctions::realsymifft(double* d, int size)
 {
 	int i; double norm = 1.0/static_cast<double>(size);
 	d[0] *= 0.5; d[size] *= 0.5; 
@@ -437,26 +270,26 @@ void BlkDsp::realsymifft(double* d, int size)
 
 // DCT type 2. size is a power of 2.
 // d[] = re[0],re[1],..,re[size-1]. 
-void BlkDsp::dct(float* d, int size)
+void VectorFunctions::dct(float* d, int size)
 {
 	ddct(size, -1, d);
 }
 
-void BlkDsp::dct(double* d, int size)
+void VectorFunctions::dct(double* d, int size)
 {
 	ddct(size, -1, d);
 }
 		
 // IDCT type 2 (= DCT type 3). size is a power of 2.
 // d[] = re[0],re[1],..,re[size-1].
-void BlkDsp::idct(float* d, int size)
+void VectorFunctions::idct(float* d, int size)
 {
 	d[0] *= 0.5f;
 	ddct(size, 1, d);
 	mul(d, 2.0f/static_cast<float>(size), size);
 }
 
-void BlkDsp::idct(double* d, int size)
+void VectorFunctions::idct(double* d, int size)
 {
 	double norm = 2.0/static_cast<double>(size);
 	d[0] *= 0.5;
@@ -466,12 +299,12 @@ void BlkDsp::idct(double* d, int size)
 
 // DST type 2. size is a power of 2.
 // d[] = re[0],re[1],..,re[size-1]
-void BlkDsp::dst(float* d, int size)
+void VectorFunctions::dst(float* d, int size)
 {
 	ddst(size, -1, d);
 	float tmp = d[0]; memmove(d,d+1,(size-1)*sizeof(float)); d[size-1] = tmp;
 }
-void BlkDsp::dst(double* d, int size)
+void VectorFunctions::dst(double* d, int size)
 {
 	ddst(size, -1, d);
 	double tmp = d[0]; memmove(d,d+1,(size-1)*sizeof(double)); d[size-1] = tmp;
@@ -479,7 +312,7 @@ void BlkDsp::dst(double* d, int size)
 
 // IDST type 2. size is a power of 2.
 // d[] = re[0],re[1],..,re[size-1].
-void BlkDsp::idst(float* d, int size)
+void VectorFunctions::idst(float* d, int size)
 {
 	float tmp = d[size-1];
 	memmove(d+1,d,(size-1)*sizeof(float)); d[0] = tmp; 
@@ -487,7 +320,7 @@ void BlkDsp::idst(float* d, int size)
 	ddst(size, 1, d);
 	mul(d, 2.0f/static_cast<float>(size), size);
 }
-void BlkDsp::idst(double* d, int size)
+void VectorFunctions::idst(double* d, int size)
 {
 	double tmp = d[size-1], norm = 2.0/static_cast<double>(size);
 	memmove(d+1,d,(size-1)*sizeof(double)); d[0] = tmp; 
@@ -498,7 +331,7 @@ void BlkDsp::idst(double* d, int size)
 
 // return single k-th bin of realfft of arbitrary size using the Goertzel
 // algorithm, about 0.5*log2(size) times faster than float version of realfft
-cpx BlkDsp::goertzel(float* d, int size, int k)
+Complex VectorFunctions::goertzel(float* d, int size, int k)
 {
 	double tmp,c1,c2,s1=0,s2=0;
 	tmp = 2.0*M_PI*static_cast<double>(k)/static_cast<double>(size);
@@ -515,7 +348,7 @@ cpx BlkDsp::goertzel(float* d, int size, int k)
 		s2 += static_cast<double>(d[i+2]); s2 -= c1*s1;
 		s1 += static_cast<double>(d[i+3]); s1 += c1*s2;
 	}
-	cpx out;
+	Complex out;
 	out.re = static_cast<float>(0.5*c1*s1 - s2);
 	out.im = static_cast<float>(c2*s1);
 	return out;
@@ -523,7 +356,7 @@ cpx BlkDsp::goertzel(float* d, int size, int k)
 
 // haar wavelet transform
 // d[0..size-1] -> d[[0],[0],[0..1],[0..3],..,[0..size/2-1]]
-void BlkDsp::hwt(float* d, int size)
+void VectorFunctions::hwt(float* d, int size)
 {
 	static const float scl = sqrtf(0.5f);
 	int i,j,k;
@@ -558,7 +391,7 @@ void BlkDsp::hwt(float* d, int size)
 
 // inverse haar wavelet transform
 // d[[0],[0],[0..1],[0..3],..,[0..size/2-1]] -> d[0..size-1]	
-void BlkDsp::ihwt(float* d, int size)
+void VectorFunctions::ihwt(float* d, int size)
 {
 	static const float scl = sqrtf(0.5f);
 	int h,i,j,k;
@@ -596,7 +429,7 @@ void BlkDsp::ihwt(float* d, int size)
 //* all windows are symmetric: d[0] = d[size-1]
 //*
 // linear segment
-void BlkDsp::linear(float* d, int size, float start, float end)
+void VectorFunctions::linear(float* d, int size, float start, float end)
 {
 	if (size == 1) {d[0] = 0.5f*(start + end); return;}
 	int i=0;
@@ -639,7 +472,7 @@ void BlkDsp::linear(float* d, int size, float start, float end)
 }
 
 // exponential segment
-void BlkDsp::exponential(float* d, int size, float start, float end, float time)
+void VectorFunctions::exponential(float* d, int size, float start, float end, float time)
 {
 	if (size == 1) {
 		if (time < (-0.5f/logf(FLT_EPSILON))) {d[0] = end;}
@@ -678,7 +511,7 @@ void BlkDsp::exponential(float* d, int size, float start, float end, float time)
 }
 
 // logarithmically spaced data points
-void BlkDsp::logspace(float* d, int size, float start, float end)
+void VectorFunctions::logspace(float* d, int size, float start, float end)
 {
 	int i=0; double x0=0, x1,x2,x3, delta=0, qdelta;
 	if (start*end > 0) {
@@ -709,7 +542,7 @@ void BlkDsp::logspace(float* d, int size, float start, float end)
 // sine function
 // phase as fraction of a period, center=true: phase relative to center
 // return endpoint phasor angle as fraction of a period
-float BlkDsp::sine(float* d, int size, float periods, float phase, 
+float VectorFunctions::sine(float* d, int size, float periods, float phase, 
 						bool center)
 {
 	if (center) {phase -= 0.5f*periods;}
@@ -738,7 +571,7 @@ float BlkDsp::sine(float* d, int size, float periods, float phase,
 }
 
 // linear chirp: a version of "sine" with linearly changing frequency 
-float BlkDsp::chirp(float* d, int size, float startpd, float endpd, 
+float VectorFunctions::chirp(float* d, int size, float startpd, float endpd, 
 					float phase)
 {
 	float endphase = phase + 0.5f*(startpd+endpd); endphase -= floorf(endphase);
@@ -776,7 +609,7 @@ float BlkDsp::chirp(float* d, int size, float startpd, float endpd,
 
 // exponential chirp: a version of "sine" with exponentially changing frequency
 // 4 times faster than sin(x)-based version, absolute error < 1.1e-6 
-float BlkDsp::expchirp(	float* d, int size, float startpd, float endpd,	 
+float VectorFunctions::expchirp(	float* d, int size, float startpd, float endpd,	 
 						float phase	)
 {
 	int i; double alpha=0, delta=1.0, beta,gamma,lambda,spd,epd,ph,x;
@@ -803,7 +636,7 @@ float BlkDsp::expchirp(	float* d, int size, float startpd, float endpd,
 
 // complex phasor
 // phase=0: d(0) = 1+0j, other parameters s. sine
-float BlkDsp::cpxphasor(float* d, int size, float periods, float phase, 
+float VectorFunctions::cpxphasor(float* d, int size, float periods, float phase, 
 						bool center)
 {
 	if (center) {phase -= 0.5f*periods;}
@@ -838,7 +671,7 @@ float BlkDsp::cpxphasor(float* d, int size, float periods, float phase,
 // phase=0: d[0 or center] = 0 (1st occurence from the left in shapes below)  
 // symmetry: 0 -> |\|\, 0.5 -> /\/\, 1 -> /|/|
 // other parameters s. "sine"
-float BlkDsp::saw(float* d, int size, float periods, float symmetry,
+float VectorFunctions::saw(float* d, int size, float periods, float symmetry,
 					float phase, bool center)
 {
 	if (center) {phase -= 0.5f*periods;}
@@ -866,7 +699,7 @@ float BlkDsp::saw(float* d, int size, float periods, float symmetry,
 // auxiliary routine for random number generation using SSE2 vector operations
 // MWC algorithm with an approximate period of 2^63
 #ifndef ICSTLIB_NO_SSEOPT 
-void BlkDsp::randsse(float* d, int size, int n)
+void VectorFunctions::randsse(float* d, int size, int n)
 {
 	static CriticalSection cs;
 	static __m128i x[4] = {	_mm_set1_epi32(0), _mm_set1_epi32(0),
@@ -961,7 +794,7 @@ void BlkDsp::randsse(float* d, int size, int n)
 #endif
 
 // noise, uniformly distributed (-1..1) 
-void BlkDsp::unoise(float* d, int size)
+void VectorFunctions::unoise(float* d, int size)
 {
 #ifdef ICSTLIB_NO_SSEOPT
 	static CriticalSection cs;
@@ -986,7 +819,7 @@ void BlkDsp::unoise(float* d, int size)
 // noise, gaussian with variance 1
 // apxorder = number of uniformly distributed random values summed
 // to obtain an output value (typ. 10, 2 -> triangular distribution)
-void BlkDsp::gnoise(float* d, int size, int apxorder)
+void VectorFunctions::gnoise(float* d, int size, int apxorder)
 {
 	apxorder = __min(apxorder,255);
 	float scl = sqrtf(3.0f/static_cast<float>(apxorder));
@@ -1017,7 +850,7 @@ void BlkDsp::gnoise(float* d, int size, int apxorder)
 }		
 
 // noise, exponentially distributed (var=1) positive values			
-void BlkDsp::enoise(float* d, int size)
+void VectorFunctions::enoise(float* d, int size)
 {
 	unoise(d,size);
 	for (int i=0; i<size; i++) {d[i] = 0.5f + 0.5f*d[i];}
@@ -1026,13 +859,13 @@ void BlkDsp::enoise(float* d, int size)
 }
 
 // noise, standard cauchy distributed
-void BlkDsp::cnoise(float* d, int size)
+void VectorFunctions::cnoise(float* d, int size)
 {	
 	static const float c1 = -1.583915135f;
 	static const float c2 = 0.269032248f;
 	static const float c3 = -1.008330496f;
 	int i; float x,y;
-	BlkDsp::unoise(d,size);		// d[i] = uniformly distributed noise -1..1
+	VectorFunctions::unoise(d,size);		// d[i] = uniformly distributed noise -1..1
 	for (i=0; i<size; i++) {	// d[i] = approx. tan(pi/2*d[i])
 		x = d[i];
 		if (fabs(x) <= 0.5f) {
@@ -1048,7 +881,7 @@ void BlkDsp::cnoise(float* d, int size)
 }
 
 // sinc window
-void BlkDsp::sinc(float* d, int size, double periods)
+void VectorFunctions::sinc(float* d, int size, double periods)
 {
 	if (size == 1) {d[0] = 1.0f; return;}
 	double phi = 2.0*M_PI*periods/static_cast<double>(size-1);
@@ -1065,7 +898,7 @@ void BlkDsp::sinc(float* d, int size, double periods)
 }
 
 // triangular window
-void BlkDsp::triangle(float* d, int size)
+void VectorFunctions::triangle(float* d, int size)
 {	
 	if (size == 1) {d[0] = 1.0f; return;}
 	double x=0, delta=2.0/static_cast<double>(size-1);
@@ -1074,7 +907,7 @@ void BlkDsp::triangle(float* d, int size)
 }
 
 // generic 2-term trigonometric window
-void BlkDsp::trigwin2(float* d, int size, double c0, double c1)
+void VectorFunctions::trigwin2(float* d, int size, double c0, double c1)
 {
 	if (size == 1) {d[0] = static_cast<float>(c0 + c1); return;}
 	double temp = 2.0*M_PI/static_cast<double>(size-1);
@@ -1087,7 +920,7 @@ void BlkDsp::trigwin2(float* d, int size, double c0, double c1)
 }
 
 // generic 4-term trigonometric window
-void BlkDsp::trigwin4(	float* d, int size, double c0, double c1,
+void VectorFunctions::trigwin4(	float* d, int size, double c0, double c1,
 						double c2, double c3						)
 {
 	if (size == 1) {d[0] = static_cast<float>(c0 + c1 + c2 + c3); return;}
@@ -1102,27 +935,27 @@ void BlkDsp::trigwin4(	float* d, int size, double c0, double c1,
 }
 
 // hann window
-void BlkDsp::hann(float* d, int size)
+void VectorFunctions::hann(float* d, int size)
 	{trigwin2(d, size, 0.5, 0.5);}
 
 // hamming window		
-void BlkDsp::hamming(float* d, int size)
+void VectorFunctions::hamming(float* d, int size)
 	{trigwin2(d, size, 0.53836, 0.46164);}
 
 // blackman window
-void BlkDsp::blackman(float* d, int size)
+void VectorFunctions::blackman(float* d, int size)
 		{trigwin4(d, size, 0.42, 0.5, 0.08, 0);}
 			
 // 3-term blackman-harris window
-void BlkDsp::bhw3(float* d, int size)
+void VectorFunctions::bhw3(float* d, int size)
 	{trigwin4(d, size, 0.42323, 0.49755, 0.07922, 0);}
 
 // 4-term blackman-harris window
-void BlkDsp::bhw4(float* d, int size)
+void VectorFunctions::bhw4(float* d, int size)
 	{trigwin4(d, size, 0.35875, 0.48829, 0.14128, 0.01168);}
 
 // 5-term flat top window
-void BlkDsp::flattop(float* d, int size)
+void VectorFunctions::flattop(float* d, int size)
 {
 	if (size == 1) {d[0] = 1.0f; return;}
 	const double c0=-0.0555, c1=0.1651, c2=0.5005, c3=0.3344, c4=0.0555;
@@ -1136,7 +969,7 @@ void BlkDsp::flattop(float* d, int size)
 }
 
 // gaussian window, sigma = standard deviation
-void BlkDsp::gauss(float* d, int size, double sigma)
+void VectorFunctions::gauss(float* d, int size, double sigma)
 {
 	double a,b,x;
 	double temp = sigma*static_cast<double>(size);
@@ -1150,7 +983,7 @@ void BlkDsp::gauss(float* d, int size, double sigma)
 }
 
 // kaiser window
-void BlkDsp::kaiser(float* d, int size,	double alpha)
+void VectorFunctions::kaiser(float* d, int size,	double alpha)
 {
 	if (size == 1) {d[0] = 1.0f; return;}
 	double delta = 2.0/static_cast<double>(size-1);
@@ -1166,7 +999,7 @@ void BlkDsp::kaiser(float* d, int size,	double alpha)
 //* elementary real array operations
 //*
 // |d| -> d
-void BlkDsp::abs(float* d, int size)
+void VectorFunctions::abs(float* d, int size)
 {
 	int i=0;
 #ifndef ICSTLIB_NO_SSEOPT  
@@ -1216,7 +1049,7 @@ void BlkDsp::abs(float* d, int size)
 
 // sgn(d) -> d
 // 1 or -1, the sign of 0 follows the IEEE 754 float definition
-void BlkDsp::sgn(float* d, int size)
+void VectorFunctions::sgn(float* d, int size)
 {
 #ifdef ICSTLIB_NO_SSEOPT 
 	union {float a; int b;};
@@ -1284,7 +1117,7 @@ void BlkDsp::sgn(float* d, int size)
 }				
 
 // fast reciprocal
-void BlkDsp::finv(float* d, int size)
+void VectorFunctions::finv(float* d, int size)
 {
 #ifdef ICSTLIB_NO_SSEOPT  
 	for (int i=0; i<size; i++) {d[i] = 1.0f/d[i];}
@@ -1316,7 +1149,7 @@ void BlkDsp::finv(float* d, int size)
 
 // fast square root
 // full precision, faster than rsqrt-newton version on Core2
-void BlkDsp::fsqrt(float* d, int size)
+void VectorFunctions::fsqrt(float* d, int size)
 {
 #ifdef ICSTLIB_NO_SSEOPT  
 	for (int i=0; i<size; i++) {d[i] = sqrtf(d[i]);}
@@ -1339,7 +1172,7 @@ void BlkDsp::fsqrt(float* d, int size)
 
 // fast cosine
 // absolute error < 1e-6 for |d| < 2pi
-void BlkDsp::fcos(float* d, int size)
+void VectorFunctions::fcos(float* d, int size)
 {
 #ifdef ICSTLIB_NO_SSEOPT
 	for (int i=0; i<size; i++) {d[i] = cosf(d[i]);}
@@ -1484,7 +1317,7 @@ void BlkDsp::fcos(float* d, int size)
 	
 // fast sine
 // absolute error < 1.1e-6 for |d| < 2pi
-void BlkDsp::fsin(float* d, int size)
+void VectorFunctions::fsin(float* d, int size)
 {
 #ifdef ICSTLIB_NO_SSEOPT  
 		for (int i=0; i<size; i++) {d[i] = sinf(d[i]);}
@@ -1499,7 +1332,7 @@ void BlkDsp::fsin(float* d, int size)
 // (optimization note: although the SSE code looks like causing dependency stalls,
 //  the routine is very fast on Core2 and Pentium M CPUs, probably due to efficient
 //  register renaming and out-of-order execution, performance on P4 yet unknown)
-void BlkDsp::logabs(float* d, int size)
+void VectorFunctions::logabs(float* d, int size)
 {
 	static const float ln2 = logf(2.0f);
 #ifdef ICSTLIB_NO_SSEOPT
@@ -1612,7 +1445,7 @@ void BlkDsp::logabs(float* d, int size)
 
 // exp(d) -> d
 // relative error: 3e-7	
-void BlkDsp::fexp(float* d, int size)
+void VectorFunctions::fexp(float* d, int size)
 {
 #ifdef ICSTLIB_NO_SSEOPT  
 	for (int i=0; i<size; i++) {d[i] = expf(d[i]);}
@@ -1916,14 +1749,14 @@ void BlkDsp::fexp(float* d, int size)
 }
 
 // reverse element order
-void BlkDsp::reverse(float* d, int size) 
+void VectorFunctions::reverse(float* d, int size) 
 {
 	int j = size-1; float x; 
 	for (int i=0; i<(size>>1); i++,j--) {x=d[i]; d[i]=d[j]; d[j]=x;}
 }			
 
 // normalize d to norm=1, return scale factor
-float BlkDsp::normalize(float* d, int size)
+float VectorFunctions::normalize(float* d, int size)
 {
 	float n = norm(d,size);
 	if (n >= FLT_MIN) {n = 1.0f/n; mul(d,n,size); return n;}
@@ -1931,7 +1764,7 @@ float BlkDsp::normalize(float* d, int size)
 }			
 
 // return sum of d
-float BlkDsp::sum(float* d, int size)
+float VectorFunctions::sum(const float* d, int size)
 {
 #ifdef ICSTLIB_NO_SSEOPT  
 	int i, rm = size - ((size>>4)<<4); float x=0; double y;
@@ -2036,7 +1869,7 @@ float BlkDsp::sum(float* d, int size)
 }			
 
 // return signal energy of d: <d,d>
-float BlkDsp::energy(float* d, int size)
+float VectorFunctions::energy(float* d, int size)
 {
 #ifdef ICSTLIB_NO_SSEOPT  
 	int i, rm = size - ((size>>3)<<3);
@@ -2164,19 +1997,19 @@ float BlkDsp::energy(float* d, int size)
 }
 
 // return L2 vector norm of d: sqrt(<d,d>)
-float BlkDsp::norm(float* d, int size) {
+float VectorFunctions::norm(float* d, int size) {
 	return sqrtf(energy(d,size));}	
 
 // return signal power of d: <d,d>/size
-float BlkDsp::power(float* d, int size) {
+float VectorFunctions::power(float* d, int size) {
 	return energy(d,size)/static_cast<float>(size);}
 
 // return RMS value of d: sqrt(<d,d>/size)
-float BlkDsp::rms(float* d, int size) {
+float VectorFunctions::rms(float* d, int size) {
 	return sqrtf(energy(d,size)/static_cast<float>(size));}
 
 // return index of maximum d
-int BlkDsp::maxi(float* d, int size)
+int VectorFunctions::maxi(float* d, int size)
 {
 	float max=d[0]; int i,idx=0, rm = size - ((size>>2)<<2);
 	for (i=1; i<rm; i++) {if (d[i]>max) {max=d[i]; idx=i;}}
@@ -2192,7 +2025,7 @@ int BlkDsp::maxi(float* d, int size)
 }
 
 // return index of minimum d	
-int BlkDsp::mini(float* d, int size)
+int VectorFunctions::mini(float* d, int size)
 {
 	float min=d[0]; int i,idx=0, rm = size - ((size>>2)<<2);
 	for (i=1; i<rm; i++) {if (d[i]<min) {min=d[i]; idx=i;}}
@@ -2208,7 +2041,7 @@ int BlkDsp::mini(float* d, int size)
 }
 
 // return index i of element with maximum |d[i] - r|
-int BlkDsp::farthesti(float* d, float r, int size)
+int VectorFunctions::farthesti(float* d, float r, int size)
 {
 	int i,idx=0;
 	float x, diff = fabsf(d[0] - r);
@@ -2220,7 +2053,7 @@ int BlkDsp::farthesti(float* d, float r, int size)
 }
 
 // return index i of element with minimum |d[i] - r|
-int BlkDsp::nearesti(float* d, float r, int size)
+int VectorFunctions::nearesti(float* d, float r, int size)
 {
 	int i,idx=0;
 	float x, diff = fabsf(d[0] - r);
@@ -2232,7 +2065,7 @@ int BlkDsp::nearesti(float* d, float r, int size)
 }
 
 // fill d with cumulative sum of d
-void BlkDsp::cumsum(float* d, int size)
+void VectorFunctions::cumsum(float* d, int size)
 {
 	double x=0;
 	for (int i=0; i<size; i++) {
@@ -2243,7 +2076,7 @@ void BlkDsp::cumsum(float* d, int size)
 // differentiate d, normalize for d=linear(0..1) -> d'=1
 // uses 3 points for d[0..1] and d[size-2..size-1], 5 points otherwise
 // consider discarding 3-point values for highest precision  
-void BlkDsp::diff(float* d, int size)
+void VectorFunctions::diff(float* d, int size)
 {
 	float temp,dm1, dm2=0;
 	float c1 = 0.5f*static_cast<float>(size-1);
@@ -2269,7 +2102,7 @@ void BlkDsp::diff(float* d, int size)
 // lf=f:	trapezoidal rule, y[n+1] = y[n] + 0.5*(x[n+1]+x[n])
 // lf=t:	4th order rule, 
 //			y[n+1] = y[n] + 13/24*(x[n+1]+x[n]) - 1/24*(x[n+2]+x[n-1])
-void BlkDsp::integrate(float* d, int size, bool lf, 
+void VectorFunctions::integrate(float* d, int size, bool lf, 
 						   float dprev, float dnext)
 {
 	int i; float x,xm1,xm2,xp1,c1,c2; double y=0;
@@ -2298,7 +2131,7 @@ void BlkDsp::integrate(float* d, int size, bool lf,
 }
 																							
 // c -> d
-void BlkDsp::set(float* d, float c, int size)
+void VectorFunctions::set(float* d, float c, int size)
 {
 #ifdef ICSTLIB_NO_SSEOPT  
 	for (int i=0; i<size; i++) {d[i] = c;}
@@ -2338,7 +2171,7 @@ void BlkDsp::set(float* d, float c, int size)
 }
 
 // if |d[n]|<=lim: sign(d[n])*rep -> d[n]
-void BlkDsp::prune(float* d, float lim, float rep, int size) 
+void VectorFunctions::prune(float* d, float lim, float rep, int size) 
 {
 #ifdef ICSTLIB_NO_SSEOPT  
 	for (int i=0; i<size; i++) {
@@ -2387,7 +2220,7 @@ void BlkDsp::prune(float* d, float lim, float rep, int size)
 }
 
 // limit d
-void BlkDsp::limit(float* d, int size, float hi, float lo)
+void VectorFunctions::limit(float* d, int size, float hi, float lo)
 {
 #ifdef ICSTLIB_NO_SSEOPT  
 	for (int i=0; i<size; i++) {d[i] = __max(__min(d[i],hi),lo);}
@@ -2450,7 +2283,7 @@ void BlkDsp::limit(float* d, int size, float hi, float lo)
 }	
 
 // c*d -> d
-void BlkDsp::mul(float* d, float c, int size)
+void VectorFunctions::mul(float* d, float c, int size)
 {
 	int i=0;
 #ifndef ICSTLIB_NO_SSEOPT  
@@ -2484,7 +2317,7 @@ void BlkDsp::mul(float* d, float c, int size)
 }	
 
 // fill d with element-wise product of d*r
-void BlkDsp::mul(float* d, float* r, int size)
+void VectorFunctions::mul(float* d, float* r, int size)
 {
 	int i=0;
 #ifndef ICSTLIB_NO_SSEOPT  
@@ -2520,7 +2353,7 @@ void BlkDsp::mul(float* d, float* r, int size)
 }	
 
 // return dot product: <d,r>
-float BlkDsp::dotp(float* d, float* r, int size)
+float VectorFunctions::dotp(float* d, float* r, int size)
 {
 #ifdef ICSTLIB_NO_SSEOPT  
 	int i, rm = size - ((size>>4)<<4); float x=0; double y; 
@@ -2714,7 +2547,7 @@ float BlkDsp::dotp(float* d, float* r, int size)
 }
 
 // return squared distance	
-float BlkDsp::sdist(float* d, float* r, int size)
+float VectorFunctions::sdist(float* d, float* r, int size)
 {
 #ifndef ICSTLIB_NO_SSEOPT  
 	if ((reinterpret_cast<uintptr_t>(d) | reinterpret_cast<uintptr_t>(r)) & 0xF) {
@@ -2765,11 +2598,11 @@ float BlkDsp::sdist(float* d, float* r, int size)
 }
 
 // r -> d, regions may overlap
-void BlkDsp::copy(float* d, float* r, int size) {
+void VectorFunctions::copy(float* d, float* r, int size) {
 	memmove(d,r,static_cast<size_t>(size)*sizeof(float));}
 
 // r <-> d
-void BlkDsp::swap(float* d, float* r, int size)
+void VectorFunctions::swap(float* d, float* r, int size)
 {
 	int i=0; float x;
 #ifndef ICSTLIB_NO_SSEOPT  
@@ -2809,7 +2642,7 @@ void BlkDsp::swap(float* d, float* r, int size)
 }
 
 // max(d,r) -> d
-void BlkDsp::max(float* d, float* r, int size)
+void VectorFunctions::max(float* d, float* r, int size)
 {
 	int i=0;
 #ifndef ICSTLIB_NO_SSEOPT
@@ -2845,7 +2678,7 @@ void BlkDsp::max(float* d, float* r, int size)
 }		
 
 // min(d,r) -> d
-void BlkDsp::min(float* d, float* r, int size)
+void VectorFunctions::min(float* d, float* r, int size)
 {
 	int i=0;
 #ifndef ICSTLIB_NO_SSEOPT
@@ -2881,7 +2714,7 @@ void BlkDsp::min(float* d, float* r, int size)
 }
 
 // d+c -> d
-void BlkDsp::add(float* d, float c, int size)
+void VectorFunctions::add(float* d, float c, int size)
 {
 	int i=0;
 #ifndef ICSTLIB_NO_SSEOPT  
@@ -2915,7 +2748,7 @@ void BlkDsp::add(float* d, float c, int size)
 }	
 
 // d+r -> d
-void BlkDsp::add(float* d, float* r, int size)
+void VectorFunctions::add(float* d, float* r, int size)
 {
 	int i=0;
 #ifndef ICSTLIB_NO_SSEOPT  
@@ -2951,10 +2784,10 @@ void BlkDsp::add(float* d, float* r, int size)
 }	
 
 // d-c -> d
-void BlkDsp::sub(float* d, float c, int size) {add(d,-c,size);}
+void VectorFunctions::sub(float* d, float c, int size) {add(d,-c,size);}
 	
 // d-r -> d
-void BlkDsp::sub(float* d, float* r, int size)
+void VectorFunctions::sub(float* d, float* r, int size)
 {
 	int i=0;
 #ifndef ICSTLIB_NO_SSEOPT  
@@ -2990,7 +2823,7 @@ void BlkDsp::sub(float* d, float* r, int size)
 }	
 
 // multiply-accumulate: d + c*r -> d
-void BlkDsp::mac(float* d, float* r, float c, int size) {
+void VectorFunctions::mac(float* d, float* r, float c, int size) {
 	int i=0;
 #ifndef ICSTLIB_NO_SSEOPT  
 	if ((reinterpret_cast<uintptr_t>(d) | reinterpret_cast<uintptr_t>(r)) & 0xF) {
@@ -3054,7 +2887,7 @@ void BlkDsp::mac(float* d, float* r, float c, int size) {
 // convolution(d,r) -> d
 // input:	d[0..dsize-1], r[0..rsize-1]
 // output:	d[0..dsize+rsize-2]
-void BlkDsp::conv(float* d, float* r, int dsize, int rsize)
+void VectorFunctions::conv(float* d, float* r, int dsize, int rsize)
 {
 	dsize--; rsize--;
 	float x;
@@ -3188,7 +3021,7 @@ void BlkDsp::conv(float* d, float* r, int dsize, int rsize)
 // cross correlation(d,r) -> d
 // input:	d[0..dsize-1], r[0..rsize-1]
 // output:	d[0..pts-1], pts<=dsize
-void BlkDsp::ccorr(float* d, float* r, int dsize, int rsize, int pts)
+void VectorFunctions::ccorr(float* d, float* r, int dsize, int rsize, int pts)
 {
 	float x;
 	int i,j, n = __max(0,__min(pts,dsize-rsize+1));
@@ -3307,7 +3140,7 @@ void BlkDsp::ccorr(float* d, float* r, int dsize, int rsize, int pts)
 }
 
 // unbiased autocorrelation of r[0..rsize-1] -> d[0..dsize-1], dsize<=rsize
-void BlkDsp::uacorr(float* d, float* r, int dsize, int rsize)
+void VectorFunctions::uacorr(float* d, float* r, int dsize, int rsize)
 {
 #ifdef ICSTLIB_NO_SSEOPT
 	float x; int i,j;
@@ -3421,7 +3254,7 @@ void BlkDsp::uacorr(float* d, float* r, int dsize, int rsize)
 }
 
 // biased autocorrelation of r[0..rsize-1] -> d[0..dsize-1], dsize<=rsize
-void BlkDsp::bacorr(float* d, float* r, int dsize, int rsize)
+void VectorFunctions::bacorr(float* d, float* r, int dsize, int rsize)
 {
 #ifdef ICSTLIB_NO_SSEOPT  
 	float x; int i,j;
@@ -3550,16 +3383,16 @@ void BlkDsp::bacorr(float* d, float* r, int dsize, int rsize)
 // input:	d[0..dsize-1], r[0..rsize-1]
 // output:	d[0..dsize+rsize-2]	
 // size of both d and r >= nexthigherpow2(dsize+rsize)
-void BlockDspObject::fconv(float* d, float* r, int dsize, int rsize)
+void FFTProcessor::fastConvolution(float* d, float* r, int dsize, int rsize)
 {
-	int tsize = BlkDsp::nexthipow2(rsize + dsize);
-	BlkDsp::set(d + dsize, 0, tsize - dsize);
-	BlkDsp::set(r + rsize, 0, tsize - rsize);
+	int tsize = VectorFunctions::nexthipow2(rsize + dsize);
+	VectorFunctions::set(d + dsize, 0, tsize - dsize);
+	VectorFunctions::set(r + rsize, 0, tsize - rsize);
 	realfft(d,tsize);
 	realfft(r,tsize);
 	float tmp = d[1]*r[1];	// process aligned if d and r are aligned	
 	d[1] = 0;				//
-	BlkDsp::cpxmul(d,r,tsize>>1);	// 
+	VectorFunctions::cpxmul(d,r,tsize>>1);	// 
 	d[1] = tmp;				//
 	realifft(d,tsize);
 }
@@ -3568,28 +3401,28 @@ void BlockDspObject::fconv(float* d, float* r, int dsize, int rsize)
 // input:	d[0..dsize-1], r[0..rsize-1]
 // output:	d[0..dsize-1]
 // size of both d and r => nexthipow2(dsize+rsize)
-void BlockDspObject::fccorr(float* d, float* r, int dsize, int rsize)
+void FFTProcessor::fastCrossCorrelation(float* d, float* r, int dsize, int rsize)
 {
-	int tsize = BlkDsp::nexthipow2(rsize + dsize);
+	int tsize = VectorFunctions::nexthipow2(rsize + dsize);
 	int hsize = tsize>>1;	
-	BlkDsp::set(d+dsize, 0, tsize-dsize);
-	BlkDsp::set(r + rsize, 0, tsize - rsize);
+	VectorFunctions::set(d+dsize, 0, tsize-dsize);
+	VectorFunctions::set(r + rsize, 0, tsize - rsize);
 	realfft(d,tsize);
 	realfft(r,tsize);
-	BlkDsp::cpxconj(r, hsize);		// process aligned if d and r are aligned
+	VectorFunctions::cpxconj(r, hsize);		// process aligned if d and r are aligned
 	float tmp = -d[1]*r[1];	// 	
 	d[1] = 0;				//
-	BlkDsp::cpxmul(d, r, hsize);		// 
+	VectorFunctions::cpxmul(d, r, hsize);		// 
 	d[1] = tmp;				//
 	realifft(d,tsize);
 }
 
 // FFT-based fast biased autocorrelation of d
 // d[0..size-1] -> d[0..size-1], size of d => nexthipow2(2*size)
-void BlockDspObject::facorr(float* d, int size)
+void FFTProcessor::fastAutoCorrelation(float* d, int size)
 {
-	int i, tsize = BlkDsp::nexthipow2(2 * size);
-	BlkDsp::set(d + size, 0, tsize - size);
+	int i, tsize = VectorFunctions::nexthipow2(2 * size);
+	VectorFunctions::set(d + size, 0, tsize - size);
 	realfft(d,tsize);
 	d[0] *= d[0]; d[1] *= d[1];
 	for (i=2; i<tsize; i+=2) {d[i] = d[i]*d[i] + d[i+1]*d[i+1]; d[i+1]=0;} 
@@ -3602,7 +3435,7 @@ void BlockDspObject::facorr(float* d, int size)
 //* format of d: re[0] im[0] re[1] ... im[size-1]
 //*
 // conjugate d: d -> d*
-void BlkDsp::cpxconj(float* d, int size) {
+void VectorFunctions::cpxconj(float* d, int size) {
 	int i=0;
 #ifndef ICSTLIB_NO_SSEOPT  
 	if (reinterpret_cast<uintptr_t>(d) & 0xF) {
@@ -3635,14 +3468,14 @@ void BlkDsp::cpxconj(float* d, int size) {
 }
 
 // return sum
-cpx BlkDsp::cpxsum(float* d, int size)
+Complex VectorFunctions::cpxsum(float* d, int size)
 {
 	int i=0;
 #ifndef ICSTLIB_NO_SSEOPT  
 	if (reinterpret_cast<uintptr_t>(d) & 0xF) {
 #endif
 		int rm = 2*(size - ((size>>3)<<3));
-		float a=0,b=0; double x,y; cpx res;
+		float a=0,b=0; double x,y; Complex res;
 		for (i=0; i<rm; i+=2) {a += d[i]; b += d[i+1];}
 		x = static_cast<double>(a); y = static_cast<double>(b);
 		for (i=rm; i<(2*size); i+=16) {
@@ -3660,7 +3493,7 @@ cpx BlkDsp::cpxsum(float* d, int size)
 	else {
 		__m128 r0,r1,r2,r3,acc0,acc1,acc2,acc3;
 		__m128d tmp0,tmp1,sum0,sum1;
-		float res[4]; cpx rval;
+		float res[4]; Complex rval;
 		sum0 = _mm_setzero_pd(); sum1 = _mm_setzero_pd();
 		size <<= 1;
 		while (i <= (size-32)) {
@@ -3721,7 +3554,7 @@ cpx BlkDsp::cpxsum(float* d, int size)
 }			
 
 // 1/d -> d
-void BlkDsp::cpxinv(float* d, int size, bool fullrange)
+void VectorFunctions::cpxinv(float* d, int size, bool fullrange)
 {
 	static const double LLIM = 1.0/(static_cast<double>(FLT_MAX)*static_cast<double>(FLT_MAX));
 	int i=0; float x;
@@ -3819,7 +3652,7 @@ void BlkDsp::cpxinv(float* d, int size, bool fullrange)
 }
 
 // fill d with magnitude of r
-void BlkDsp::cpxmag(float* d, float* r, int size)
+void VectorFunctions::cpxmag(float* d, float* r, int size)
 {
 #ifdef ICSTLIB_NO_SSEOPT
 	int i, j=0;
@@ -3831,7 +3664,7 @@ void BlkDsp::cpxmag(float* d, float* r, int size)
 }
 
 // fill d with magnitude^2 of r
-void BlkDsp::cpxpow(float* d, float* r, int size)
+void VectorFunctions::cpxpow(float* d, float* r, int size)
 {
 	int i=0, j=0;
 #ifndef ICSTLIB_NO_SSEOPT  
@@ -3866,24 +3699,24 @@ void BlkDsp::cpxpow(float* d, float* r, int size)
 }
 
 // return signal energy: <d,d*>
-float BlkDsp::cpxenergy(float* d, int size) {return energy(d,2*size);}
+float VectorFunctions::cpxenergy(float* d, int size) {return energy(d,2*size);}
 
 // return L2 vector norm: sqrt(<d,d*>)		
-float BlkDsp::cpxnorm(float* d, int size) {return sqrtf(energy(d,2*size));}
+float VectorFunctions::cpxnorm(float* d, int size) {return sqrtf(energy(d,2*size));}
 
 // return signal power: <d,d*>/size
-float BlkDsp::cpxpower(float* d, int size) {
+float VectorFunctions::cpxpower(float* d, int size) {
 	return energy(d,2*size)/static_cast<float>(size);}
 
 // return RMS value of d: sqrt(<d,d*>/size)
-float BlkDsp::cpxrms(float* d, int size) {
+float VectorFunctions::cpxrms(float* d, int size) {
 	return sqrtf(energy(d,2*size)/static_cast<float>(size));}
 
 // normalize d to cpxnorm=1, return norm factor
-float BlkDsp::cpxnormalize(float* d, int size) {return normalize(d,2*size);}		
+float VectorFunctions::cpxnormalize(float* d, int size) {return normalize(d,2*size);}		
 
 // if |d[n]|<=lim: rep -> Re(d[n]), 0 -> Im(d[n]) 
-void BlkDsp::cpxprune(float* d, float lim, float rep, int size)
+void VectorFunctions::cpxprune(float* d, float lim, float rep, int size)
 {
 	int i=0;
 	lim *= lim;
@@ -3930,7 +3763,7 @@ void BlkDsp::cpxprune(float* d, float lim, float rep, int size)
 }
 
 // c -> d
-void BlkDsp::cpxset(float* d, cpx c, int size)
+void VectorFunctions::cpxset(float* d, Complex c, int size)
 {
 	int i=0;
 #ifndef ICSTLIB_NO_SSEOPT  
@@ -3957,14 +3790,14 @@ void BlkDsp::cpxset(float* d, cpx c, int size)
 }
 
 // r -> d, may overlap
-void BlkDsp::cpxcopy(float* d, float* r, int size){
+void VectorFunctions::cpxcopy(float* d, float* r, int size){
 	memmove(d,r,static_cast<size_t>(2*size)*sizeof(float));}
 
 // r <-> d
-void BlkDsp::cpxswap(float* d, float* r, int size) {swap(d,r,2*size);}
+void VectorFunctions::cpxswap(float* d, float* r, int size) {swap(d,r,2*size);}
 
 // d+c -> d
-void BlkDsp::cpxadd(float* d, cpx c, int size) 
+void VectorFunctions::cpxadd(float* d, Complex c, int size) 
 {
 	int i=0;
 #ifndef ICSTLIB_NO_SSEOPT  
@@ -3997,17 +3830,17 @@ void BlkDsp::cpxadd(float* d, cpx c, int size)
 }
 
 // d+r -> d
-void BlkDsp::cpxadd(float* d, float* r, int size) {add(d,r,2*size);}
+void VectorFunctions::cpxadd(float* d, float* r, int size) {add(d,r,2*size);}
 
 // d-c -> d
-void BlkDsp::cpxsub(float* d, cpx c, int size) {
+void VectorFunctions::cpxsub(float* d, Complex c, int size) {
 	c.re *= -1.0f; c.im *= -1.0f; cpxadd(d, c, size);}
 
 // d-r -> d
-void BlkDsp::cpxsub(float* d, float* r, int size) {sub(d,r,2*size);}
+void VectorFunctions::cpxsub(float* d, float* r, int size) {sub(d,r,2*size);}
 
 // c*d -> d
-void BlkDsp::cpxmul(float* d, cpx c, int size)
+void VectorFunctions::cpxmul(float* d, Complex c, int size)
 {		
 	int i=0; float tmp;
 #ifdef ICSTLIB_NO_SSEOPT  
@@ -4064,7 +3897,7 @@ void BlkDsp::cpxmul(float* d, cpx c, int size)
 }
 
 // d*r -> d
-void BlkDsp::cpxmul(float* d, float* r, int size)
+void VectorFunctions::cpxmul(float* d, float* r, int size)
 {
 	int i=0; float tmp;
 #ifdef ICSTLIB_NO_SSEOPT  
@@ -4123,7 +3956,7 @@ void BlkDsp::cpxmul(float* d, float* r, int size)
 }
 
 // d + c*r -> d
-void BlkDsp::cpxmac(float* d, float* r, cpx c, int size)
+void VectorFunctions::cpxmac(float* d, float* r, Complex c, int size)
 {
 	int i=0;
 #ifdef ICSTLIB_NO_SSEOPT  
@@ -4182,7 +4015,7 @@ void BlkDsp::cpxmac(float* d, float* r, cpx c, int size)
 }
 
 // fill d with argument of r
-void BlkDsp::cpxarg(float* d, float* r, int size)
+void VectorFunctions::cpxarg(float* d, float* r, int size)
 {
 	int i=0, j=0;
 #ifdef ICSTLIB_NO_SSEOPT  
@@ -4248,9 +4081,9 @@ void BlkDsp::cpxarg(float* d, float* r, int size)
 }
 
 // return complex dot product: <d,r*>
-cpx BlkDsp::cpxdotp(float* d, float* r, int size)
+Complex VectorFunctions::cpxdotp(float* d, float* r, int size)
 {
-	int i=0; cpx res;
+	int i=0; Complex res;
 #ifdef ICSTLIB_NO_SSEOPT  
 	int rm = 2*(size - ((size>>2)<<2));
 	float rsum=0,isum=0; double x,y;
@@ -4403,14 +4236,14 @@ cpx BlkDsp::cpxdotp(float* d, float* r, int size)
 }
 
 // Re(d) -> re
-void BlkDsp::cpxre(float* re, float* d, int size) {deinterleave(re,d,size,2,0);} 
+void VectorFunctions::cpxre(float* re, float* d, int size) {deinterleave(re,d,size,2,0);} 
 
 // Im(d) -> im
-void BlkDsp::cpxim(float* im, float* d, int size) {deinterleave(im,d,size,2,1);}		
+void VectorFunctions::cpxim(float* im, float* d, int size) {deinterleave(im,d,size,2,1);}		
 
 // re -> Re(d), im -> Im(d)
 // if re=NULL: 0 -> Re(d), if im=NULL: 0 -> Im(d)   											
-void BlkDsp::realtocpx(float* d, float* re,	float* im, int size)
+void VectorFunctions::realtocpx(float* d, float* re,	float* im, int size)
 {
 	int i,j = 2*(size-1);
 	if (!im) {for (i=size-1; i>=0; i--,j-=2) {d[j]=re[i]; d[j+1]=0;}}
@@ -4420,7 +4253,7 @@ void BlkDsp::realtocpx(float* d, float* re,	float* im, int size)
 
 // polar (mag,arg) to cartesian d
 // relative error < 1.1e-6 for |arg| < 2pi
-void BlkDsp::cpxptc(float* d, float* mag, float* arg, int size)
+void VectorFunctions::cpxptc(float* d, float* mag, float* arg, int size)
 {
 	int i=0,j=0;
 #ifdef ICSTLIB_NO_SSEOPT
@@ -4491,7 +4324,7 @@ void BlkDsp::cpxptc(float* d, float* mag, float* arg, int size)
 }
 
 // arg{d} and magnitude mag -> d
-void BlkDsp::cpxcombine(float* d, float* mag, int size)
+void VectorFunctions::cpxcombine(float* d, float* mag, int size)
 {
 	int i=0,j=0; float norm;
 #ifdef ICSTLIB_NO_SSEOPT  
@@ -4585,15 +4418,15 @@ void BlkDsp::cpxcombine(float* d, float* mag, int size)
 //* special array operations
 //*
 // copy float to double
-void BlkDsp::ftod(double* d, float* r, int size) {
+void VectorFunctions::ftod(double* d, float* r, int size) {
 	for (int i=0; i<size; i++) {d[i] = static_cast<double>(r[i]);}}
 
 // copy double to float
-void BlkDsp::dtof(float* d, double* r, int size) {
+void VectorFunctions::dtof(float* d, double* r, int size) {
 	for (int i=0; i<size; i++) {d[i] = static_cast<float>(r[i]);}}	
 
 // copy and clip float to int
-void BlkDsp::ftoi(int* d, float* r, int size)
+void VectorFunctions::ftoi(int* d, float* r, int size)
 {
 #ifdef ICSTLIB_DEF_ROUND
 	#ifdef ICSTLIB_NO_SSEOPT
@@ -4716,7 +4549,7 @@ void BlkDsp::ftoi(int* d, float* r, int size)
 }
 
 // copy int to float
-void BlkDsp::itof(float* d, int* r, int size)
+void VectorFunctions::itof(float* d, int* r, int size)
 {
 #ifdef ICSTLIB_NO_SSEOPT 
 	for (int i=0; i<size; i++) {d[i] = static_cast<float>(r[i]);}
@@ -4747,7 +4580,7 @@ void BlkDsp::itof(float* d, int* r, int size)
 }
 
 // interleave r to d, skipped d elements remain unchanged
-void BlkDsp::interleave(float* d,float* r,int rsize,int interval,int offset) 
+void VectorFunctions::interleave(float* d,float* r,int rsize,int interval,int offset) 
 {
 	int i, j=offset, rm = rsize - ((rsize>>2)<<2);
 	for (i=0; i<rm; i++) {d[j]=r[i]; j+=interval;}
@@ -4758,7 +4591,7 @@ void BlkDsp::interleave(float* d,float* r,int rsize,int interval,int offset)
 }	
 	 
 // deinterleave r to d
-void BlkDsp::deinterleave(float* d,float* r,int dsize,int interval,int offset)
+void VectorFunctions::deinterleave(float* d,float* r,int dsize,int interval,int offset)
 {
 	int i, j=offset, rm = dsize - ((dsize>>2)<<2); 
 	for (i=0; i<rm; i++) {d[i]=r[j]; j+=interval;}
@@ -4769,7 +4602,7 @@ void BlkDsp::deinterleave(float* d,float* r,int dsize,int interval,int offset)
 }
 
 // map d = rlo..rhi linearly to d = dlo..dhi
-void BlkDsp::maplin(float* d, int size, float dhi, float dlo,			
+void VectorFunctions::maplin(float* d, int size, float dhi, float dlo,			
 					float rhi, float rlo)
 {
 	int i=0;
@@ -4802,7 +4635,7 @@ void BlkDsp::maplin(float* d, int size, float dhi, float dlo,
 }
 
 // linear fade from d to r with linear mixing -> d
-void BlkDsp::xfade(float* d, float* r, int size)
+void VectorFunctions::xfade(float* d, float* r, int size)
 {
 	if (size == 1) {d[0] = 0.5f*(r[0] + d[0]); return;}
 	double x=0, delta = 1.0/static_cast<double>(size-1);
@@ -4813,12 +4646,12 @@ void BlkDsp::xfade(float* d, float* r, int size)
 }
 
 // arbitrary fade with linear mixing: (1-w)*d + w*r -> d	
-void BlkDsp::xfade(float* d, float* r, float* w, int size) {
+void VectorFunctions::xfade(float* d, float* r, float* w, int size) {
 	for (int i=0; i<size; i++) {d[i] += w[i]*(r[i] - d[i]);}}
 
 // power fade version of xfade
 // d*cos(x) + r*sin(x) -> d	with x = 0..pi/2
-void BlkDsp::pxfade(float* d, float* r, int size)
+void VectorFunctions::pxfade(float* d, float* r, int size)
 {
 	if (size == 1) {d[0] = 0.70710678f*(r[0] + d[0]); return;}
 	int i, rm = size - ((size>>2)<<2);
@@ -4842,7 +4675,7 @@ void BlkDsp::pxfade(float* d, float* r, int size)
 }
 
 // evaluate power series: sum(i=0..order){c[i]*d^i} -> d
-void BlkDsp::polyval(float* d, int dsize, float* c,	int order)
+void VectorFunctions::polyval(float* d, int dsize, float* c,	int order)
 {
 #ifdef ICSTLIB_NO_SSEOPT 
 	int i,j; float x;	
@@ -4901,7 +4734,7 @@ void BlkDsp::polyval(float* d, int dsize, float* c,	int order)
 	}
 #endif
 }	
-void BlkDsp::polyval(float* d, int dsize, double* c, int order)
+void VectorFunctions::polyval(float* d, int dsize, double* c, int order)
 {
 	int i,j; double x,y;
 	for (i=0; i<dsize; i++) {
@@ -4913,7 +4746,7 @@ void BlkDsp::polyval(float* d, int dsize, double* c, int order)
 
 // evaluate power series with complex argument d = {re(0),im(0),..,im(dsize-1)}
 // sum(i=0..order){c[i]*d^i} -> d
-void BlkDsp::cpxpolyval(float* d, int dsize, float* c, int order)
+void VectorFunctions::cpxpolyval(float* d, int dsize, float* c, int order)
 {
 	int i,j; float a,b,r,s,tmp;
 	if (order < 1) {
@@ -4932,7 +4765,7 @@ void BlkDsp::cpxpolyval(float* d, int dsize, float* c, int order)
 		d[i+1] *= a;
 	}
 }
-void BlkDsp::cpxpolyval(float* d, int dsize, double* c, int order)
+void VectorFunctions::cpxpolyval(float* d, int dsize, double* c, int order)
 {
 	int i,j; float tmp; double x,y,z,a,b,r,s;
 	if (order < 1) {
@@ -4955,7 +4788,7 @@ void BlkDsp::cpxpolyval(float* d, int dsize, double* c, int order)
 }
 
 // evaluate chebyshev series: sum(i=0..order){c[i]*T[i](d)} -> d 
-void BlkDsp::chebyval(float* d, int dsize, float* c, int order)
+void VectorFunctions::chebyval(float* d, int dsize, float* c, int order)
 {
 #ifdef ICSTLIB_NO_SSEOPT 
 	int i,j; float a,x,y,z;
@@ -5011,7 +4844,7 @@ void BlkDsp::chebyval(float* d, int dsize, float* c, int order)
 	}
 #endif
 }
-void BlkDsp::chebyval(float* d, int dsize, double* c, int order)
+void VectorFunctions::chebyval(float* d, int dsize, double* c, int order)
 {
 	int i,j; double a,x,y,z;
 	for (i=0; i<dsize; i++) {						
@@ -5022,7 +4855,7 @@ void BlkDsp::chebyval(float* d, int dsize, double* c, int order)
 }
 
 // unwrap phase data
-void BlkDsp::unwrap(float* d, int size)
+void VectorFunctions::unwrap(float* d, int size)
 {
 	static const float TWOPI = 2.0f*M_PI_FLOAT;
 	float tmp,phase,delta, offset=0, prevphase=d[0];
@@ -5056,7 +4889,7 @@ void BlkDsp::unwrap(float* d, int size)
 }			
 
 // fill in indices of peaks of d, return peak count
-int BlkDsp::findpeaks(float* d, int* idx, int size)
+int VectorFunctions::findpeaks(float* d, int* idx, int size)
 {
 	int i=1,icnt=0;
 	while (i<(size-1)) {
@@ -5067,7 +4900,7 @@ int BlkDsp::findpeaks(float* d, int* idx, int size)
 }
 
 // fill in indices of dips of d, return dip count
-int BlkDsp::finddips(float* d, int* idx, int size)
+int VectorFunctions::finddips(float* d, int* idx, int size)
 {
 	int i=1,icnt=0;
 	while (i<(size-1)) {
@@ -5083,7 +4916,7 @@ int BlkDsp::finddips(float* d, int* idx, int size)
 // output options:		a = NULL -> no a,b
 //						aidx = NULL -> no aidx,bidx
 // additional option:	b = NULL -> no b,bidx
-int BlkDsp::select(float* d, float* sel, float* a, float* b,
+int VectorFunctions::select(float* d, float* sel, float* a, float* b,
 				   int* aidx, int* bidx, int size			)
 {
 	int i, j=0, k=0;
@@ -5133,7 +4966,7 @@ int BlkDsp::select(float* d, float* sel, float* a, float* b,
 
 // return i of d[i] closest to but not greater than x
 // !!! d must increase monotonically !!!
-int BlkDsp::mtabinv(float* d, float x, int size)
+int VectorFunctions::mtabinv(float* d, float x, int size)
 {
 	int nhf, offset=0, n=size;
 	while (n > 1) {
@@ -5148,7 +4981,7 @@ int BlkDsp::mtabinv(float* d, float x, int size)
 // t: table[0..2^ltsize], !!! t[0]=t[2^ltsize] !!! 
 // start=table start index [0..2^ltsize), step=index increment
 // return next start index
-float BlkDsp::linlookup(float* d, int dsize, float* t, int ltsize,
+float VectorFunctions::linlookup(float* d, int dsize, float* t, int ltsize,
 						float start, float step)
 {
 	unsigned int fracmask = 0xffffffff >> ltsize;
@@ -5185,7 +5018,7 @@ float BlkDsp::linlookup(float* d, int dsize, float* t, int ltsize,
 // higher performance attributed to elimination of the compare function call
 // NOTE:	quicksort is fast for randomly ordered arrays but slow for already
 //			well-ordered ones (C = nlog(n) bounded alternative: introsort)
-void BlkDsp::isort(float* d, int* idx, int size) 
+void VectorFunctions::isort(float* d, int* idx, int size) 
 {
 	for (int i=0; i<size; i++) {idx[i]=i;}
 	qs(d,idx,size-1,0);
@@ -5197,7 +5030,7 @@ void BlkDsp::isort(float* d, int* idx, int size)
 //* matrix a(row,column): {a11,..,a1n,a21,..,a2n,..,am1,..,amn}
 //* column vector: {r1,...,rn}
 // return determinant of matrix a(n,n)
-float BlkDsp::mdet(float* a, int n)
+float VectorFunctions::mdet(float* a, int n)
 {
 	float* t; t = new float[n*n];
 	copy(t,a,n*n);
@@ -5207,7 +5040,7 @@ float BlkDsp::mdet(float* a, int n)
 }			
 
 // return trace of matrix a(n,n)
-float BlkDsp::mtrace(float* a, int n)
+float VectorFunctions::mtrace(float* a, int n)
 {
 	float acc=0;
 	for (int i=0; i<(n*n); i += (n+1)) {acc += a[i];}
@@ -5215,7 +5048,7 @@ float BlkDsp::mtrace(float* a, int n)
 }
 
 // transpose matrix a(m,n)
-void BlkDsp::mxpose(float* a, int m, int n)
+void VectorFunctions::mxpose(float* a, int m, int n)
 {
 	int i,j,sw1, sw2=0; float tmp; float* t;
 	if (n == m) {									// square matrix:
@@ -5257,20 +5090,20 @@ void BlkDsp::mxpose(float* a, int m, int n)
 }
 
 // get identity matrix a(n,n)
-void BlkDsp::mident(float* a, int n) {
+void VectorFunctions::mident(float* a, int n) {
 	set(a,0,n*n); for (int i=0; i<(n*n); i += (n+1)) {a[i] = 1.0f;}}
 
 // c*a(m,n) -> a(m,n)
-void BlkDsp::mmul(float* a, float c, int m, int n) {mul(a,c,m*n);}	
+void VectorFunctions::mmul(float* a, float c, int m, int n) {mul(a,c,m*n);}	
 
 // matrix a(m,n) + b(m,n) -> a(m,n)
-void BlkDsp::madd(float* a, float* b, int m, int n) {add(a,b,m*n);}
+void VectorFunctions::madd(float* a, float* b, int m, int n) {add(a,b,m*n);}
 
 // a(m,n) - b(m,n) -> a(m,n)
-void BlkDsp::msub(float* a, float* b, int m, int n) {sub(a,b,m*n);}
+void VectorFunctions::msub(float* a, float* b, int m, int n) {sub(a,b,m*n);}
 
 // matrix a(m,n) * vector r(n) -> vector d(m)
-void BlkDsp::mmulv(float* d, float* a, float* r, int m, int n)
+void VectorFunctions::mmulv(float* d, float* a, float* r, int m, int n)
 {
 #ifdef ICSTLIB_NO_SSEOPT
 	int i=0, j;
@@ -5478,7 +5311,7 @@ void BlkDsp::mmulv(float* d, float* a, float* r, int m, int n)
 }
 
 // transpose of matrix a(m,n) * vector r(m) -> vector d(n)
-void BlkDsp::mtmulv(float* d, float* a,	float* r, int m, int n)
+void VectorFunctions::mtmulv(float* d, float* a,	float* r, int m, int n)
 {
 	int i=0, j,k; float acc0a;
 #ifdef ICSTLIB_NO_SSEOPT
@@ -5518,7 +5351,7 @@ void BlkDsp::mtmulv(float* d, float* a,	float* r, int m, int n)
 }
 
 // matrices a(m,n)*b(n,p) -> matrix c(m,p) 
-void BlkDsp::mmulm(float* c, float* a, float* b, int m, int n, int p)
+void VectorFunctions::mmulm(float* c, float* a, float* b, int m, int n, int p)
 {
 	float* t; t = new float[n];
 	for (int i=0; i<p; i++) {
@@ -5531,7 +5364,7 @@ void BlkDsp::mmulm(float* c, float* a, float* b, int m, int n, int p)
 
 // inverse of matrix b(m,m) * matrix a(m,n) -> matrix a(m,n)
 // return determinant of b, if det(b)=0: a remains unchanged
-float BlkDsp::minvmulm(float* a, float* b, int m, int n)
+float VectorFunctions::minvmulm(float* a, float* b, int m, int n)
 {
 	int i,j,k,p,q,r; float acc,norm,det;
 	int* idx; idx = new int[m];
@@ -5570,7 +5403,7 @@ float BlkDsp::minvmulm(float* a, float* b, int m, int n)
 //*
 // static delay: r delayed by n sampling intervals -> d
 // c[0..n-1],cp: continuation data (init:0)
-void BlkDsp::delay(float* d, float* r, int size, float* c, int& cp, int n)
+void VectorFunctions::delay(float* d, float* r, int size, float* c, int& cp, int n)
 {
 	int x,y,z;
 	x = __min(n-1,__max(0,cp));
@@ -5606,7 +5439,7 @@ void BlkDsp::delay(float* d, float* r, int size, float* c, int& cp, int n)
 // H(z) = b[0] + b[1]z^-1 +... + b[order]z^-order
 // c[0..order-1]:	continuation data (init:0)
 // NOTE: time-varying versions are made of 2 static filters and xfade
-void BlkDsp::fir(float* d, int size, float* b, int order, float* c)
+void VectorFunctions::fir(float* d, int size, float* b, int order, float* c)
 {
 	int i,j; float acc;
 	int len = __min(order,size);
@@ -5664,7 +5497,7 @@ void BlkDsp::fir(float* d, int size, float* b, int order, float* c)
 	for (i=0; i<order; i++) {c[i] = temp[i];}
 	delete[] temp;
 }
-void BlkDsp::fir(float* d, int size, double* b, int order, float* c)
+void VectorFunctions::fir(float* d, int size, double* b, int order, float* c)
 {
 	int i,j; double acc;
 	int len = __min(order,size);
@@ -5692,7 +5525,7 @@ void BlkDsp::fir(float* d, int size, double* b, int order, float* c)
 // static IIR filter
 // H(z) = 1/(1 + a[1]z^-1 + ... + a[order]z^-order)
 // c[0..order-1]: continuation data (init:0)	
-void BlkDsp::iir(float* d, int size, double* a, int order, double* c)
+void VectorFunctions::iir(float* d, int size, double* a, int order, double* c)
 {
 	int i,j; double x;
 	for (i=0; i<size; i++) {
@@ -5707,7 +5540,7 @@ void BlkDsp::iir(float* d, int size, double* a, int order, double* c)
 // static 1st order section
 // H(z) = 	(b[0] + b[1]z^-1)/(1 + a[1]z^-1)
 // c[0]: continuation data (init:0)
-void BlkDsp::iir1(float* d, int size, float* a, float* b, float* c)
+void VectorFunctions::iir1(float* d, int size, float* a, float* b, float* c)
 {
 	// anti-denormal RNG, thread-safe in practice as occasionally overwriting
 	// x by another call is harmless and write to int is atomic
@@ -5751,7 +5584,7 @@ void BlkDsp::iir1(float* d, int size, float* a, float* b, float* c)
 // start coefficients: as[1],bs[0],bs[1], end coefficients: ae[1],be[0],be[1]
 // H(z) = (bs[0]..be[0] + bs[1]..be[1]*z^-1)/(1 + as[1]..ae[1]*z^-1)
 // c[0]: continuation data (init:0)
-void BlkDsp::viir1(float* d, int size, float* as, float* ae,
+void VectorFunctions::viir1(float* d, int size, float* as, float* ae,
 				   float* bs, float* be, float* c)
 {
 	// anti-denormal RNG, thread-safe in practice as occasionally overwriting
@@ -5791,7 +5624,7 @@ void BlkDsp::viir1(float* d, int size, float* as, float* ae,
 // NOTE:time-varying versions can be made of 2 static filters and xfade, if
 //		modulation speed and natural transitions are important, alternative
 //		filter structures (Chamberlin, Gold-Rader) are strongly recommended 
-void BlkDsp::biquad(float* d, int size, double* a, double* b, double* c)
+void VectorFunctions::biquad(float* d, int size, double* a, double* b, double* c)
 {
 	// anti-denormal RNG, thread-safe in practice as occasionally overwriting
 	// z by another call is harmless and write to int is atomic
@@ -5834,7 +5667,7 @@ void BlkDsp::biquad(float* d, int size, double* a, double* b, double* c)
 
 // 3-point median filter
 // c[0..1]: continuation data (init:0)
-void BlkDsp::med3(float* d, int size, float* c)
+void VectorFunctions::med3(float* d, int size, float* c)
 {
 	int i; float x,t0,t1;							
 	if (size == 1) {t0 = c[1];} else {t0 = d[size-2];}
@@ -5895,7 +5728,7 @@ void BlkDsp::med3(float* d, int size, float* c)
 
 // 5-point median filter
 // c[0..3]: continuation data (init:0)
-void BlkDsp::med5(float* d, int size, float* c)
+void VectorFunctions::med5(float* d, int size, float* c)
 {
 	int i; float t0; float s[5];				
 	for (i=0; i<size; i++) {
@@ -5920,7 +5753,7 @@ void BlkDsp::med5(float* d, int size, float* c)
 //			sum(i=0..border){b[i]z^-i}
 //  H(z) =	--------------------------
 //			sum(i=0..aorder){a[i]z^-i}
-void BlkDsp::freqz(	float* mag,	float* phase, float* f, int size,
+void VectorFunctions::freqz(	float* mag,	float* phase, float* f, int size,
 					double* a, int aorder, double* b, int border)				
 {
 	int i,j=0; float omega; float* av; float* bv;
@@ -5940,7 +5773,7 @@ void BlkDsp::freqz(	float* mag,	float* phase, float* f, int size,
 //			sum(i=0..border){b[i]s^i}		
 //	G(s) =	-------------------------							
 //			sum(i=0..aorder){a[i]s^i}											 
-void BlkDsp::freqs(float* mag, float* phase, float* f, int size,
+void VectorFunctions::freqs(float* mag, float* phase, float* f, int size,
 				   float* a, int aorder, float* b, int border)
 {
 	float* av; av = new float[2*size]; float* bv; bv = new float[2*size];
@@ -5956,7 +5789,7 @@ void BlkDsp::freqs(float* mag, float* phase, float* f, int size,
 //			sum(i=0..border){b[i]z^-i}
 //	H(z) =	--------------------------
 //			sum(i=0..aorder){a[i]z^-i}
-void BlkDsp::gdelz(	float* gdelay, float* f, int size,				
+void VectorFunctions::gdelz(	float* gdelay, float* f, int size,				
 					double* a, int aorder, double* b, int border)
 {
 	int i,j=0; float omega;
@@ -5992,7 +5825,7 @@ void BlkDsp::gdelz(	float* gdelay, float* f, int size,
 //			sum(i=0..border){b[i]s^i}
 //	G(s) =	-------------------------
 //			sum(i=0..aorder){a[i]s^i}
-void BlkDsp::gdels(	float* gdelay, float* f, int size,										
+void VectorFunctions::gdels(	float* gdelay, float* f, int size,										
 					float* a, int aorder, float* b, int border)
 {
 	float* av; float* bv; float* dav; float* dbv; float* da; float* db;
@@ -6025,12 +5858,12 @@ void BlkDsp::gdels(	float* gdelay, float* f, int size,
 //* statistics
 //*
 // return arithmetic mean
-float BlkDsp::mean(float* d, int size) {
-	return BlkDsp::sum(d,size)/static_cast<float>(size);}
+float VectorFunctions::mean(float* d, int size) {
+	return VectorFunctions::sum(d,size)/static_cast<float>(size);}
 
 // return arithmetic mean of data pairs:
 // {d[i] = unnormalized probability, r[i] = value}
-float BlkDsp::pdmean(float* d, float* r, int size)
+float VectorFunctions::pdmean(float* d, float* r, int size)
 {
 	int i=0; double xsum=0, ysum=0;
 	
@@ -6136,7 +5969,7 @@ float BlkDsp::pdmean(float* d, float* r, int size)
 }
 
 // return unbiased variance	using 2-pass algorithm with double precision accumulation
-float BlkDsp::var(float* d, int size)
+float VectorFunctions::var(float* d, int size)
 {
 	if (size < 2) {return 0;}				// no worse than any other value
 	int i=0; double xsum=0;
@@ -6240,7 +6073,7 @@ float BlkDsp::var(float* d, int size)
 
 // return unbiased variance of data pairs:
 // {d[i] = unnormalized probability, r[i] = value}
-float BlkDsp::pdvar(float* d, float* r, int size)
+float VectorFunctions::pdvar(float* d, float* r, int size)
 {
 	int i=0; float t; double vsum=0, xsum=0, ysum=0;
 	float z = pdmean(d,r,size);
@@ -6352,7 +6185,7 @@ float BlkDsp::pdvar(float* d, float* r, int size)
 
 // return average absolute deviation
 // m = mean or median
-float BlkDsp::aad(float* d, int size, float m)
+float VectorFunctions::aad(float* d, int size, float m)
 {
 	int i=0; double x=0;
 
@@ -6415,10 +6248,10 @@ float BlkDsp::aad(float* d, int size, float m)
 
 // return median
 // uses STL selector which is O(n) on average and thus faster than sort + pick
-float BlkDsp::median(float* d, int size)
+float VectorFunctions::median(float* d, int size)
 {
 	float* temp; temp = new float[size];
-	BlkDsp::copy(temp,d,size);
+	VectorFunctions::copy(temp,d,size);
 	std::nth_element(temp, temp + (size>>1), temp+size);
 	float x = temp[size>>1];
 	if ((size & 1) == 0) {x = 0.5f*(x + temp[maxi(temp,size>>1)]);}
@@ -6427,7 +6260,7 @@ float BlkDsp::median(float* d, int size)
 }
 
 // return median absolute deviation
-float BlkDsp::mad(float* d, int size)
+float VectorFunctions::mad(float* d, int size)
 {
 	float x, m = median(d,size);
 	float* temp; temp = new float[size];
@@ -6441,14 +6274,14 @@ float BlkDsp::mad(float* d, int size)
 
 // return p-quantile
 // uses Hazen's rule and STL selector which is O(n) on average
-float BlkDsp::quantile(float* d, float p, int size)
+float VectorFunctions::quantile(float* d, float p, int size)
 {
 	double pfrac = static_cast<double>(p)*static_cast<double>(size) - 0.5;
 	if (pfrac <= 0) {return d[mini(d,size)];}
 	if (pfrac >= static_cast<double>(size-1)) {return d[maxi(d,size)];}
 	int pint = SpecMath::fsplit(pfrac);
 	float* temp; temp = new float[size];
-	BlkDsp::copy(temp,d,size);
+	VectorFunctions::copy(temp,d,size);
 	std::nth_element(temp, temp+pint, temp+size);
 	float xlo = temp[pint];
 	float xhi = temp[pint + 1 + mini(temp+pint+1, size-pint-1)];
@@ -6457,7 +6290,7 @@ float BlkDsp::quantile(float* d, float p, int size)
 }
 
 // return geometric mean
-float BlkDsp::gmean(float* d, int size)
+float VectorFunctions::gmean(float* d, int size)
 {
 	const double LLIM = 1.000001*DBL_MIN/static_cast<double>(FLT_MIN);
 	const double ULIM = 0.999999*DBL_MAX/static_cast<double>(FLT_MAX);
@@ -6481,7 +6314,7 @@ float BlkDsp::gmean(float* d, int size)
 }
 
 // return harmonic mean			
-float BlkDsp::hmean(float* d, int size)
+float VectorFunctions::hmean(float* d, int size)
 {
 	int i=0; double x=0;
 
@@ -6532,7 +6365,7 @@ float BlkDsp::hmean(float* d, int size)
 }
 
 // return covariance
-float BlkDsp::cov(float* x, float* y, int size)
+float VectorFunctions::cov(float* x, float* y, int size)
 {
 	int i=0; double a=0;
 	float xm = mean(x,size), ym = mean(y,size);
@@ -6644,7 +6477,7 @@ float BlkDsp::cov(float* x, float* y, int size)
 }
 
 // return pearson's product-moment correlation
-float BlkDsp::cpears(float* x, float* y, int size)
+float VectorFunctions::cpears(float* x, float* y, int size)
 {
 	float tx,ty, xm = mean(x,size), ym = mean(y,size);
 	double a=0, b=0, c=0; int i=0;
@@ -6791,7 +6624,7 @@ float BlkDsp::cpears(float* x, float* y, int size)
 }
 
 // return spearman's rank correlation rho
-float BlkDsp::cspear(float* x, float* y, int size)
+float VectorFunctions::cspear(float* x, float* y, int size)
 {
 	if (size < 2) {return 0;}
 	int i; float tmp, c=0; double sum=0;
@@ -6815,7 +6648,7 @@ float BlkDsp::cspear(float* x, float* y, int size)
 // return kendall's rank correlation tau
 // complexity = O(n*n), consider cspear for large size
 // (optimization note: faster algorithms with O(nlogn) exist)
-float BlkDsp::ckend(float* x, float* y, int size)
+float VectorFunctions::ckend(float* x, float* y, int size)
 {
 	if (size < 2) {return 0;}
 	int i,j; float xr,yr; double sum=0;
@@ -6842,13 +6675,13 @@ float BlkDsp::ckend(float* x, float* y, int size)
 // if sdc not NULL: standard deviation of c[0..n] -> sdc[0..n]
 // if cov[(n+1)*(n+1)] not NULL: if cov[0] <= 0: save c covariance matrix
 //								 if cov[0] > 0: use c covariance matrix
-cpx BlkDsp::linreg(	float* c, float* x, float* y, int size, int n,
+Complex VectorFunctions::linreg(	float* c, float* x, float* y, int size, int n,
 					float* p, float* sdc, float* cov				)
 {
 	n++;
 	float* m = new float[n*n];
 	float* a = new float[n];
-	int i,j,v,q; float df1,df2,tmp,tmp2; cpx r;
+	int i,j,v,q; float df1,df2,tmp,tmp2; Complex r;
 	bool usecov=false, savecov=false;
 	if (cov) {savecov = !(usecov = (cov[0] > 0));}
 
@@ -6950,7 +6783,7 @@ cpx BlkDsp::linreg(	float* c, float* x, float* y, int size, int n,
 // ye(x) = sum(i=0..d){c[i]*x^i} of value pairs (x,y)[0..size-1] weighted
 // with w[0..size-1], w = NULL: no weights
 // calculate residual y - ye -> y
-void BlkDsp::polyfit(float* c, int d, int size, float* x, float* y, float* w)
+void VectorFunctions::polyfit(float* c, int d, int size, float* x, float* y, float* w)
 {
 	float* m = new float[(d+1)*(d+1)];
 	float* a = new float[d+1];
@@ -6993,7 +6826,7 @@ void BlkDsp::polyfit(float* c, int d, int size, float* x, float* y, float* w)
 
 // create histogram bin[bins] of data d[dsize] with range min..max
 // return number of outliers
-int BlkDsp::histogram(float* d, int* bin, int dsize, int bins, 
+int VectorFunctions::histogram(float* d, int* bin, int dsize, int bins, 
 					   float dmin, float dmax)
 {
 	int i, outs=0;
@@ -7010,7 +6843,7 @@ int BlkDsp::histogram(float* d, int* bin, int dsize, int bins,
 
 // get quantile-quantile pairs by reordering x and y data
 // norm=true: x replaced by normally distributed data
-void BlkDsp::qqpairs(float* x, float* y, int size, bool norm)
+void VectorFunctions::qqpairs(float* x, float* y, int size, bool norm)
 {
 	std::sort(y,y+size);
 	if (norm) {
@@ -7029,7 +6862,7 @@ void BlkDsp::qqpairs(float* x, float* y, int size, bool norm)
 // d[0..size-1]: data
 // t = detection threshold, default: 1.0
 // return number of outliers
-int BlkDsp::outliers(float* score, float* d, int size, float th)
+int VectorFunctions::outliers(float* score, float* d, int size, float th)
 {
 	copy(score, d, size);
 	sub(score, median(d,size), size);
@@ -7049,7 +6882,7 @@ int BlkDsp::outliers(float* score, float* d, int size, float th)
 // d[0..size-1] = normally distributed data
 // optional out (idx not NULL): idx[0] = index of farthest value
 // optional in (mv not NULL): m[0,1] = mean,variance of d -> faster
-float BlkDsp::grubbs(float* d, int size, int* idx, float* mv)
+float VectorFunctions::grubbs(float* d, int size, int* idx, float* mv)
 {
 	int i; float x,tmp,m,v;
 	float n = static_cast<float>(size);
@@ -7072,11 +6905,11 @@ float BlkDsp::grubbs(float* d, int size, int* idx, float* mv)
 // onesided = false(true): test for mean(x) - mean(y) =(<=) ref
 // ysize = 0: 1-sample or paired 2-sample version
 // if t not NULL: t-value -> t[0]
-cpx BlkDsp::ttest(	float ref, int xsize, float xmean, float xvar,
+Complex VectorFunctions::ttest(	float ref, int xsize, float xmean, float xvar,
 					bool onesided, int ysize, float ymean, float yvar, float* t)
 {
 	static const float IEPS = 10.0f/sqrtf(FLT_EPSILON);
-	float tt,nu,tmp; cpx r;
+	float tt,nu,tmp; Complex r;
 	float nx = static_cast<float>(__max(xsize,2));
 	float ny = static_cast<float>(__max(ysize,2));
 	xvar = __max(xvar,FLT_MIN); yvar = __max(yvar,FLT_MIN);
@@ -7115,7 +6948,7 @@ cpx BlkDsp::ttest(	float ref, int xsize, float xmean, float xvar,
 // onesided = false(true): test for var(x) =(<=) var(y)
 // ysize <= 0: known y variance
 // use Levene test for size > 1e6 
-float BlkDsp::ftest(float xvar, int xsize, float yvar, int ysize, bool onesided)
+float VectorFunctions::ftest(float xvar, int xsize, float yvar, int ysize, bool onesided)
 {
 	float xnu = static_cast<float>(__max(xsize,2) - 1);
 	float ynu = static_cast<float>(__max(ysize,2) - 1);
@@ -7157,7 +6990,7 @@ float BlkDsp::ftest(float xvar, int xsize, float yvar, int ysize, bool onesided)
 // x[0..xsize-1] = x data, y[0..ysize-1] = y data
 // onesided = false(true): test for var(x) =(<=) var(y)
 // bf = false(true): Levene(Brown-Forsythe) test
-float BlkDsp::levtest(float* x, int xsize, float* y, int ysize,
+float VectorFunctions::levtest(float* x, int xsize, float* y, int ysize,
 					  bool onesided, bool bf)
 {
 	float* zx = new float[xsize];
@@ -7166,7 +6999,7 @@ float BlkDsp::levtest(float* x, int xsize, float* y, int ysize,
 	if (bf) {	sub(zx,median(zx,xsize),xsize);	sub(zy,median(zy,ysize),ysize);	}
 	else {		sub(zx,mean(zx,xsize),xsize);	sub(zy,mean(zy,ysize),ysize);	}
 	abs(zx,xsize);		abs(zy,ysize);
-	cpx r =  ttest(	0, xsize, mean(zx,xsize), var(zx,xsize), onesided,
+	Complex r =  ttest(	0, xsize, mean(zx,xsize), var(zx,xsize), onesided,
 					ysize, mean(zy,ysize), var(zy,ysize)				);
 	delete[] zx; delete[] zy;
 	return r.re;
@@ -7179,9 +7012,9 @@ float BlkDsp::levtest(float* x, int xsize, float* y, int ysize,
 // fe[i] > 0 required for all i
 // size = number of bins (< 1e6), degrees of freedom = size - rdf
 // yates = true: use yates correction
-cpx BlkDsp::chi2test(float* fo, float* fe, int size, int rdf, bool yates)
+Complex VectorFunctions::chi2test(float* fo, float* fe, int size, int rdf, bool yates)
 {
-	int i; float t,df, c=0; cpx r;
+	int i; float t,df, c=0; Complex r;
 	mul(fe,sum(fo,size)/sum(fe,size),size);
 	if (yates) {
 		for (i=0; i<size; i++) {
@@ -7210,7 +7043,7 @@ cpx BlkDsp::chi2test(float* fo, float* fe, int size, int rdf, bool yates)
 //						a conservative estimate that is quite good if the
 //						distribution is approximately symmetrical around the
 //						mean, which is the case for tsize*pa > 5
-float BlkDsp::binomtest(float pa, int asize, int tsize, bool onesided)
+float VectorFunctions::binomtest(float pa, int asize, int tsize, bool onesided)
 {
 	float asz = static_cast<float>(asize);
 	float tsz = static_cast<float>(tsize);
@@ -7231,7 +7064,7 @@ float BlkDsp::binomtest(float pa, int asize, int tsize, bool onesided)
 }
 
 // return cumulative distribution function of the normal distribution
-float BlkDsp::cdfn(float x, float mean, float std)
+float VectorFunctions::cdfn(float x, float mean, float std)
 {
 	static const float scl = 1.0f/sqrtf(2.0f);
 	if (std > 0) {return 0.5f*SpecMath::erfcf(scl*(mean - x)/std);}
@@ -7243,7 +7076,7 @@ float BlkDsp::cdfn(float x, float mean, float std)
 }
 
 // return cumulative distribution function complement of the normal distribution
-float BlkDsp::cdfcn(float x, float mean, float std)
+float VectorFunctions::cdfcn(float x, float mean, float std)
 {
 	static const float scl = 1.0f/sqrtf(2.0f);
 	if (std > 0) {return 0.5f*SpecMath::erfcf(scl*(x - mean)/std);}
@@ -7255,9 +7088,9 @@ float BlkDsp::cdfcn(float x, float mean, float std)
 }
 
 // return a-level confidence interval of normally distributed data -> [xlo, xhi]
-cpx BlkDsp::civn(float mean, float std, float a)
+Complex VectorFunctions::civn(float mean, float std, float a)
 {
-	cpx r;
+	Complex r;
 	float x = std*SpecMath::probit(0.5f*(a + 1.0f));
 	r.re = mean - x; r.im = mean + x;
 	return r;
@@ -7268,7 +7101,7 @@ cpx BlkDsp::civn(float mean, float std, float a)
 //*
 // save d to file, return number of elements written or -1 if no access
 // append = true: append data if file already exists
-int BlkDsp::save(float* d, int size, char* filename, bool append)
+int VectorFunctions::save(float* d, int size, char* filename, bool append)
 {
 	FILE* file; int count;
 	if (filename[0] == 0) return -1;
@@ -7281,7 +7114,7 @@ int BlkDsp::save(float* d, int size, char* filename, bool append)
 
 // fill d with file data, start reading at an offset specified in elements
 // return number of elements read or -1 if no access
-int BlkDsp::load(float* d, int size, char* filename, int offset)
+int VectorFunctions::load(float* d, int size, char* filename, int offset)
 {
 	FILE* file; int count;
 	if (filename[0] == 0) return -1;
@@ -7294,7 +7127,7 @@ int BlkDsp::load(float* d, int size, char* filename, int offset)
 }
 
 // return number of elements in file or -1 if no access
-int BlkDsp::getsize(char* filename)
+int VectorFunctions::getsize(char* filename)
 {
 	FILE* file; int count;
 	if (filename[0] == 0) return -1;
@@ -7309,11 +7142,11 @@ int BlkDsp::getsize(char* filename)
 //* auxiliary functions
 //*
 // return closest power of 2 greater or equal to i
-int BlkDsp::nexthipow2(int i) {int x=1; while (x < i) {x <<= 1;} return x;}
+int VectorFunctions::nexthipow2(int i) {int x=1; while (x < i) {x <<= 1;} return x;}
 
 // allocate array[size] aligned for unconstrained SSE support
 // return pointer to 1st element
-float* BlkDsp::sseallocf(int size)
+float* VectorFunctions::sseallocf(int size)
 {
 #ifndef ICSTLIB_NO_SSEOPT 	
 	return reinterpret_cast<float*>(_mm_malloc(size*sizeof(float), 16));
@@ -7321,7 +7154,7 @@ float* BlkDsp::sseallocf(int size)
 	return reinterpret_cast<float*>(malloc(size*sizeof(float)));
 #endif	
 }
-double* BlkDsp::sseallocd(int size)
+double* VectorFunctions::sseallocd(int size)
 {
 #ifndef ICSTLIB_NO_SSEOPT 	
 	return reinterpret_cast<double*>(_mm_malloc(size*sizeof(double), 16));
@@ -7329,7 +7162,7 @@ double* BlkDsp::sseallocd(int size)
 	return reinterpret_cast<double*>(malloc(size*sizeof(double)));
 #endif	
 }
-int* BlkDsp::ssealloci(int size)
+int* VectorFunctions::ssealloci(int size)
 {
 #ifndef ICSTLIB_NO_SSEOPT 	
 	return reinterpret_cast<int*>(_mm_malloc(size*sizeof(int), 16));
@@ -7338,16 +7171,16 @@ int* BlkDsp::ssealloci(int size)
 #endif	
 }
 #ifndef ICSTLIB_NO_SSEOPT
-	__m128* BlkDsp::sseallocm128(int size) {
+	__m128* VectorFunctions::sseallocm128(int size) {
 		return reinterpret_cast<__m128*>(_mm_malloc(size*sizeof(__m128), 16));}
-	__m128d* BlkDsp::sseallocm128d(int size) {
+	__m128d* VectorFunctions::sseallocm128d(int size) {
 		return reinterpret_cast<__m128d*>(_mm_malloc(size*sizeof(__m128d), 16));}
-	__m128i* BlkDsp::sseallocm128i(int size) {
+	__m128i* VectorFunctions::sseallocm128i(int size) {
 		return reinterpret_cast<__m128i*>(_mm_malloc(size*sizeof(__m128i), 16));}
 #endif
 
 // free SSE-supporting array
-void BlkDsp::ssefree(void* p)
+void VectorFunctions::ssefree(void* p)
 {
 #ifndef ICSTLIB_NO_SSEOPT 	
 	_mm_free(p);
@@ -7360,7 +7193,7 @@ void BlkDsp::ssefree(void* p)
 //* internal functions
 //*
 // return n given x = 2^n, based on De Bruijn sequence
-int BlkDsp::twopownton(int x)
+int VectorFunctions::twopownton(int x)
 {
 	static const int tab[32] = {0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25,
 		17, 4, 8, 31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9	};
@@ -7368,7 +7201,7 @@ int BlkDsp::twopownton(int x)
 }
 
 // helper method for isort (the actual quicksort algorithm)
-void BlkDsp::qs(float* d, int* idx, int hi, int lo)
+void VectorFunctions::qs(float* d, int* idx, int hi, int lo)
 {
 	float x,tf; int i,j,ti;
 	int diff = hi-lo;
@@ -7395,7 +7228,7 @@ void BlkDsp::qs(float* d, int* idx, int hi, int lo)
 
 // lu decomposition of matrix a(n,n), return determinant
 // uses Crout's algorithm with scaled partial pivoting 
-float BlkDsp::lu(float* a, int n, int* idx)
+float VectorFunctions::lu(float* a, int n, int* idx)
 {
 	int i,j,k,m,p, piv=0;
 	float x,y,z, det=1.0f;
@@ -7446,7 +7279,7 @@ float BlkDsp::lu(float* a, int n, int* idx)
 // remarks: the code below is unmodified, it differs from the original package only
 // in that the latter contains some additional functions, if float precision is
 // sufficient, faster approximations are found readily based on Abramovitz/Stegun
-double BlkDsp::bessi0(double x)
+double VectorFunctions::bessi0(double x)
 {
     int k;
     double w, t, y;
@@ -7687,6 +7520,4 @@ int CircBuffer::GetWriteSize()
 	if (x < 0) {x += bsize;}
 	return x;
 }
-
-}	// end library specific namespace
 

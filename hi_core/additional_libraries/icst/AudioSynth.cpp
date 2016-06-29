@@ -15,7 +15,7 @@
 #endif
 #include <climits>
 
-namespace icstdsp {		// begin library specific namespace
+
 
 //******************************************************************************
 //* helper functions and objects used by different classes of AudioSynth.cpp
@@ -25,12 +25,12 @@ namespace {				// begin anonymous namespace
 // fill d[size] with data intended to be added to a signal to prevent denormals
 void GetAntiDenormalTable(float* d, int size)
 {
-	BlkDsp::unoise(d, size);
-	BlkDsp::abs(d, size);
-	BlkDsp::add(d, 0.9f, size);
-	BlkDsp::cpxconj(d, size>>1);
-	BlkDsp::add(d, 1.1f, size);
-	BlkDsp::mul(d, 0.5f*ANTI_DENORMAL_FLOAT, size);
+	VectorFunctions::unoise(d, size);
+	VectorFunctions::abs(d, size);
+	VectorFunctions::add(d, 0.9f, size);
+	VectorFunctions::cpxconj(d, size>>1);
+	VectorFunctions::add(d, 1.1f, size);
+	VectorFunctions::mul(d, 0.5f*ANTI_DENORMAL_FLOAT, size);
 }
 
 }						// end anonymous namespace
@@ -42,7 +42,7 @@ void GetAntiDenormalTable(float* d, int size)
 WaveOsc::WaveOsc(int tablesize, int tables, float maxpitch, float minpitch, 
 				 float smprate)
 {	
-	dspInstance = new BlockDspObject((int)IppFFT::DataType::RealFloat);
+	dspInstance = new FFTProcessor((int)IppFFT::DataType::RealFloat);
 
 	// minimum frequency to which spectral components are aliased AND desired
 	// spectral components are produced if possible with specified table size
@@ -57,7 +57,7 @@ WaveOsc::WaveOsc(int tablesize, int tables, float maxpitch, float minpitch,
 	pconv = logf(maxpitch/minpitch); 
 	
 	// init pitch-dependent wave selection
-	tablesize = BlkDsp::nexthipow2(__max(tablesize,4));
+	tablesize = VectorFunctions::nexthipow2(__max(tablesize,4));
 	float flim = __min(ALIASBW, 0.45f*smprate);
 	gamma = 1.0f/(smprate/flim - 1.0f);
 	float flow = __max(smprate/static_cast<float>(tablesize), minpitch);
@@ -79,7 +79,7 @@ WaveOsc::WaveOsc(int tablesize, int tables, float maxpitch, float minpitch,
 		table = new float[ssize];
 		gamma = pcrit = alpha = beta = 0;
 	}
-	BlkDsp::set(table,0,ssize);
+	VectorFunctions::set(table,0,ssize);
 
 	// init control-dependent wave selection
 	pbkconv = static_cast<float>(65535*pblocks);
@@ -127,7 +127,7 @@ void WaveOsc::LoadTable(float* d, int idx)
 	tmp = new float[size]; tmp2 = new float[wsize];
 	
 	// create precompensated spectrum
-	BlkDsp::copy(tmp+2,d,size-2); tmp[0] = tmp[1] = 0;
+	VectorFunctions::copy(tmp+2,d,size-2); tmp[0] = tmp[1] = 0;
 	y = 0; z = 2.0f/static_cast<float>(size);
 	for (i=0; i<size; i+=2) {
 		x = 1.0f + (0.485f+ 0.875f*y)*y*y;
@@ -139,24 +139,24 @@ void WaveOsc::LoadTable(float* d, int idx)
 	offset = idx*wsize;
 	x = beta;
 	n = 2*static_cast<int>(x);
-	if (n > 0) {BlkDsp::copy(tmp2,tmp,n);}
-	if (n < size) {BlkDsp::set(tmp2+n,0,size-n);}
+	if (n > 0) {VectorFunctions::copy(tmp2,tmp,n);}
+	if (n < size) {VectorFunctions::set(tmp2+n,0,size-n);}
 	dspInstance->realifft(tmp2,size);
 	tmp2[size] = tmp2[0];						// oscillator requires identical
-	y = BlkDsp::rms(tmp2,wsize);				// first and last elements
+	y = VectorFunctions::rms(tmp2,wsize);				// first and last elements
 	if (y >= FLT_MIN) {y = 0.5f/y;} else {y = 0;}
-	BlkDsp::mul(tmp2,y,wsize);
-	BlkDsp::copy(table + offset,tmp2,wsize);		
+	VectorFunctions::mul(tmp2,y,wsize);
+	VectorFunctions::copy(table + offset,tmp2,wsize);		
 	for (i=1; i<pblocks; i++) {
 		offset += tsize;
 		x *= gamma;
 		n = 2*static_cast<int>(x);
-		if (n > 0) {BlkDsp::copy(tmp2,tmp,n);}
-		if (n < size) {BlkDsp::set(tmp2+n,0,size-n);}
+		if (n > 0) {VectorFunctions::copy(tmp2,tmp,n);}
+		if (n < size) {VectorFunctions::set(tmp2+n,0,size-n);}
 		dspInstance->realifft(tmp2,size);
 		tmp2[size] = tmp2[0];
-		BlkDsp::mul(tmp2,y,wsize);
-		BlkDsp::copy(table + offset,tmp2,wsize);
+		VectorFunctions::mul(tmp2,y,wsize);
+		VectorFunctions::copy(table + offset,tmp2,wsize);
 	}
 
 	delete[] tmp; delete[] tmp2;										
@@ -256,7 +256,7 @@ void Noise::SetType(int type) {ntype = __max(0,__min(1,type));}
 void Noise::Update(float* out, int samples)
 {
 	int i; float x;
-	BlkDsp::unoise(out,samples);
+	VectorFunctions::unoise(out,samples);
 	if (ntype == 1) {
 		for (i=0; i<samples; i++) {		
 			x = out[i] + 2.479309f*s1 - 1.9850127f*s2 + 0.5056004f*s3;
@@ -275,7 +275,7 @@ Delay::Delay(int maxlen, float smprate, float zlevel)
 	// assign delay line memory and init
 	mlen = __max(1,maxlen);
 	try {d = new float[mlen];} catch(...) {d = NULL;}
-	if (d) {BlkDsp::set(d,0,mlen);} else {mlen = 0;}
+	if (d) {VectorFunctions::set(d,0,mlen);} else {mlen = 0;}
 	cp = 0; len = tlen = nlen = state = cntdwn = 0; a = 1.0f;
 	xflen = __max(1,static_cast<int>(0.02f*smprate));
 	invxflen = 1.0f/static_cast<float>(xflen);
@@ -292,7 +292,7 @@ void Delay::SetType(int dlen) {tlen = __max(0,__min(mlen,dlen));}
 void Delay::Update(float* in, float* out, int samples)
 {
 	// audio update
-	BlkDsp::delay(out,in,samples,d,cp,len);
+	VectorFunctions::delay(out,in,samples,d,cp,len);
 
 	// delay time change
 	int i; bool proceed=false;
@@ -331,14 +331,14 @@ void Delay::Update(float* in, float* out, int samples)
 				break;
 			case 2:	// switch length and wait until the new delay line is filled
 				if (cntdwn >= samples) {
-					BlkDsp::copy(out,in,samples);
-					BlkDsp::mul(out,zlev,samples);
+					VectorFunctions::copy(out,in,samples);
+					VectorFunctions::mul(out,zlev,samples);
 					cntdwn -= samples;
 					proceed = false;
 				}
 				else {
-					BlkDsp::copy(out,in,cntdwn);
-					BlkDsp::mul(out,zlev,cntdwn);
+					VectorFunctions::copy(out,in,cntdwn);
+					VectorFunctions::mul(out,zlev,cntdwn);
 					samples -= cntdwn;
 					out += cntdwn;
 					in += cntdwn;
@@ -393,7 +393,7 @@ VarDelay::VarDelay(float maxlen)
 	wrapmask = len - 1;
 	outd = 0; widx = delay = adidx = 0;
 	try {d = new float[len];} catch(...) {d = NULL;}
-	if (d) {BlkDsp::set(d,0,len);}
+	if (d) {VectorFunctions::set(d,0,len);}
 	else {d = new float[2]; len = 2; wrapmask = 1; llim = 0;}
 	GetAntiDenormalTable(adtab,16);
 }
@@ -441,16 +441,16 @@ SampleOsc::SampleOsc()
 	if (c == NULL) {
 		c = new float[20480];				// no check for low space demand
 		tmp = new float[20480];
-		BlkDsp::set(c,1.0f,20480);
-		BlkDsp::kaiser(tmp,20480,0.7);
-		BlkDsp::mac(c,tmp,-0.9f,20480);	
-		BlkDsp::kaiser(tmp,20480,9.0);
-		BlkDsp::mul(tmp,c,20480);
-		BlkDsp::sinc(c,20480,10.0*18.3/48.0);
-		BlkDsp::mul(tmp,c,20480);
-		BlkDsp::mul(tmp,7.602131f,20480);
-		for (i=0; i<10; i++) {BlkDsp::reverse(tmp+2048*i,2048);}
-		for (i=0; i<10; i++) {BlkDsp::interleave(c,tmp+2048*i,2048,10,i);}
+		VectorFunctions::set(c,1.0f,20480);
+		VectorFunctions::kaiser(tmp,20480,0.7);
+		VectorFunctions::mac(c,tmp,-0.9f,20480);	
+		VectorFunctions::kaiser(tmp,20480,9.0);
+		VectorFunctions::mul(tmp,c,20480);
+		VectorFunctions::sinc(c,20480,10.0*18.3/48.0);
+		VectorFunctions::mul(tmp,c,20480);
+		VectorFunctions::mul(tmp,7.602131f,20480);
+		for (i=0; i<10; i++) {VectorFunctions::reverse(tmp+2048*i,2048);}
+		for (i=0; i<10; i++) {VectorFunctions::interleave(c,tmp+2048*i,2048,10,i);}
 		delete[] tmp;	
 	}
 
@@ -495,9 +495,9 @@ void SampleOsc::PreComp(float* d, int length, int looplen, float srate)
 			if (j >= length) {j -= looplen;}
 		}
 	}
-	else {BlkDsp::set(d+length,0,16);}
-	if (srate > 47500.0f) {BlkDsp::fir(d,length+16,bhf,16,pad);}
-	else {BlkDsp::fir(d,length+16,blf,16,pad);}
+	else {VectorFunctions::set(d+length,0,16);}
+	if (srate > 47500.0f) {VectorFunctions::fir(d,length+16,bhf,16,pad);}
+	else {VectorFunctions::fir(d,length+16,blf,16,pad);}
 }
 
 // audio and control update
@@ -528,14 +528,14 @@ int SampleOsc::Update(float* out, float* d, int samples, float invsmp,
 					}
 				}
 				else {
-					BlkDsp::set(out+i,0,samples-i);
+					VectorFunctions::set(out+i,0,samples-i);
 					didx += static_cast<icstdsp_int64>(samples-i)*txfinc;
 					if (didx < 0) {idx = sampleend-1;}
 					return 1;
 				}
 			}
 			else {	// sample start reached in reverse direction
-				BlkDsp::set(out+i,0,samples-i);
+				VectorFunctions::set(out+i,0,samples-i);
 				didx += static_cast<icstdsp_int64>(samples-i)*txfinc;
 				if (didx > 0) {idx = 0;}
 				return -1;	
@@ -877,7 +877,7 @@ ChambFilter::ChambFilter(float smprate, float fmin)
 		Noise n;
 		n.SetType(1);
 		n.Update(tab,4096);
-		BlkDsp::mul(tab,3.0f*ANTI_DENORMAL_FLOAT,4096);
+		VectorFunctions::mul(tab,3.0f*ANTI_DENORMAL_FLOAT,4096);
 	}
 
 	// init frequency conversion
@@ -1143,7 +1143,7 @@ MoogFilter::MoogFilter(float smprate, float fmin)
 		Noise n;
 		n.SetType(1);
 		n.Update(tab,4096);
-		BlkDsp::mul(tab,3.0f*ANTI_DENORMAL_FLOAT,4096);
+		VectorFunctions::mul(tab,3.0f*ANTI_DENORMAL_FLOAT,4096);
 	}
 	
 	// init frequency conversion
@@ -1413,9 +1413,9 @@ VAOsc::VAOsc(float maxpitch, float minpitch, float smprate)
 							-3.25094f,-11.51283f,13.50376f,-4.36023f	};
 	if (tab == NULL) {
 		tab = new float[4096];				// no check for low space demand
-		BlkDsp::linear(tab,4096,1.0f/8192.0f,8191.0f/8192.0f);
-		BlkDsp::polyval(tab,4096,c,7);
-		BlkDsp::mul(tab,2147483648.0f,4096);
+		VectorFunctions::linear(tab,4096,1.0f/8192.0f,8191.0f/8192.0f);
+		VectorFunctions::polyval(tab,4096,c,7);
+		VectorFunctions::mul(tab,2147483648.0f,4096);
 	}
 
 	// init pitch conversion
@@ -1626,7 +1626,7 @@ void AudioToPM::Update(	float* in, int* out, int samples, float invsmp,
 // construction
 Hilbert::Hilbert()
 {
-	BlkDsp::set(s,0,33);
+	VectorFunctions::set(s,0,33);
 	adidx = 0;
 	GetAntiDenormalTable(adtab,16);
 }
@@ -1742,6 +1742,4 @@ void Highpass1::Update(float* data, int samples, float invsmp, float freq)
 		s += (2.0f*x);
 	}
 }
-
-}	// end library specific namespace
 

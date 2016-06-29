@@ -30,13 +30,19 @@
 *   ===========================================================================
 */
 
-#include "icst/Common.h"  
-#include "icst/AudioAnalysis.cpp"
-//#include "icst/AudioFile.cpp"
-#include "icst/fftoourad.cpp"
-#include "icst/fftoouraf.cpp"
-#include "icst/AudioSynth.cpp"
-#include "icst/BlkDsp.cpp"
-#include "icst/Chart.cpp"
-#include "icst/Neuro.cpp"
-#include "icst/SpecMath.cpp"
+	#include "icst/Common.h"  
+
+namespace icstdsp
+{
+	#include "icst/AudioAnalysis.cpp"
+	#include "icst/fftoourad.cpp"
+	#include "icst/fftoouraf.cpp"
+	#include "icst/AudioSynth.cpp"
+	#include "icst/BlkDsp.cpp"
+	#include "icst/Chart.cpp"
+	#include "icst/Neuro.cpp"
+	#include "icst/SpecMath.cpp"
+}
+
+	
+

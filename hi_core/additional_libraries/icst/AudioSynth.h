@@ -10,8 +10,6 @@
 #ifndef _ICST_DSPLIB_AUDIOSYNTH_INCLUDED
 #define _ICST_DSPLIB_AUDIOSYNTH_INCLUDED
 
-namespace icstdsp {		// begin library specific namespace
-
 // wavetable oscillator
 // control characteristics: pitch + pitchmod exponential, wave linear 
 // phase modulation input: int(-2^31..2^31-1) <-> phase(-pi..pi)
@@ -40,7 +38,7 @@ public:
 					int* pmod		);	// audio rate PM input
 private:
 
-	ScopedPointer<BlockDspObject> dspInstance;
+	ScopedPointer<FFTProcessor> dspInstance;
 
 	float* table;						// wavetable data
 	int ssize;							// total wavetable size
@@ -510,7 +508,6 @@ private:
 	float adtab[16];
 };
 
-}	// end library specific namespace
 
 #endif
 

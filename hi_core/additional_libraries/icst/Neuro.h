@@ -8,8 +8,6 @@
 #ifndef _ICST_DSPLIB_NEURO_INCLUDED
 #define _ICST_DSPLIB_NEURO_INCLUDED
 
-namespace icstdsp {		// begin library specific namespace
-
 								// neuron types:
 const int NT_SIG = 0;				// sigmoidal nonlinearity: tanh(x)
 const int NT_LIN = 1;				// linear sum of inputs
@@ -185,8 +183,6 @@ static void ica(				// use FastICA algorithm to get m independent
 			int m,				//	
 			int n		);		// 		 
 };
-
-}	// end library specific namespace
 
 #endif
 

@@ -18,7 +18,7 @@
 #define ICSTLIB_USE_IPP 1
 #endif
 
-class BlockDspObject;
+class FFTProcessor;
 
 // universal includes that must be provided to the outside
 #include <cfloat>
@@ -51,7 +51,7 @@ class BlockDspObject;
 // library specific data types that must be provided to the outside
 namespace icstdsp {		// begin library specific namespace
 
-class cpx {public: float re; float im;};
+class Complex {public: float re; float im;};
 
 #if (defined(_MSC_VER) || defined(__BORLANDC__))		
 	typedef __int64 icstdsp_int64;

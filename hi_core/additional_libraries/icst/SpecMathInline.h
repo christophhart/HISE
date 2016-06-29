@@ -8,7 +8,7 @@
 #ifndef _ICST_DSPLIB_SPECMATHINLINE_INCLUDED
 #define _ICST_DSPLIB_SPECMATHINLINE_INCLUDED
 
-namespace icstdsp {		// begin library specific namespace
+
 
 // quick and dirty atan2, if the general shape of atan matters more than values,
 // suitable as a nonlinearity where an unlimited input must be limited by a
@@ -305,7 +305,7 @@ inline float SpecMath::fitcubic(float* y, float x)
 	return y[1] + (m0 + (mm - m0 - a + a*x)*x)*x;
 }
 
-}	// end library specific namespace
+
 
 #endif
 

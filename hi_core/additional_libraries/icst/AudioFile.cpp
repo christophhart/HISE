@@ -36,7 +36,6 @@
 #define F_F32CSND 0x32334c46					// tags: NONE, float (std + CSound)
 #define F_NONE 0x454e4f4e						//
 
-namespace icstdsp {		// begin library specific namespace
 
 static const unsigned char WEXGUID[14] =		// WAVE_FORMAT_EXTENSIBLE GUID
 {0,0,0,0,0x10,0,0x80,0,0,0xaa,0,0x38,0x9b,0x71};

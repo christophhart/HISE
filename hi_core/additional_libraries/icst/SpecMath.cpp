@@ -14,7 +14,7 @@
 
 #include <cstring>
 
-namespace icstdsp {		// begin library specific namespace
+
 						
 //******************************************************************************
 //* functions
@@ -1126,9 +1126,9 @@ void SpecMath::chebypoly(double* c, int d)
 //*
 // return (re,im) = (extremal x, extremal y) of parabola y(x)
 // given y(-1),y(0),y(1), if no extremum return (0,y0)	
-cpx SpecMath::paraext(float ym1, float y0, float y1)
+Complex SpecMath::paraext(float ym1, float y0, float y1)
 {
-	float b,c; cpx res;
+	float b,c; Complex res;
 	b = 0.25f*(y1-ym1); c = 0.5f*(y1+ym1) - y0;
 	if (fabsf(b) >= fabsf(c)) {res.re=0; res.im=y0; return res;} 
 	res.re = -b/c; res.im = y0 + b*res.re; return res;
@@ -1959,5 +1959,4 @@ double SpecMath::dbesj1(double x)
     return x < 0 ? -y : y;
 }
 
-}	// end library specific namespace
 
