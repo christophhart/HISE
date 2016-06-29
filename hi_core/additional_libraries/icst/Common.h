@@ -15,9 +15,10 @@
 //#define ICSTLIB_USE_IPP
 
 #ifdef USE_IPP
-//#define ICSTLIB_USE_IPP 1
+#define ICSTLIB_USE_IPP 1
 #endif
 
+class BlockDspObject;
 
 // universal includes that must be provided to the outside
 #include <cfloat>

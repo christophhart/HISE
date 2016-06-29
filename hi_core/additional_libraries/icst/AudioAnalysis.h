@@ -12,8 +12,27 @@ namespace icstdsp {		// begin library specific namespace
 
 class AudioAnalysis
 {
+
+	
+
 //******************************* user methods ***********************************
 public:
+
+	AudioAnalysis();
+
+	~AudioAnalysis()
+	{
+		realFloatFFTs = nullptr;
+		realDoubleFFTs = nullptr;
+		complexFloatFFTs = nullptr;
+		complexDoubleFFTs = nullptr;
+	}
+
+	ScopedPointer<BlockDspObject> realFloatFFTs;
+	ScopedPointer<BlockDspObject> realDoubleFFTs;
+	ScopedPointer<BlockDspObject> complexFloatFFTs;
+	ScopedPointer<BlockDspObject> complexDoubleFFTs;
+
 //***	spectral analysis	***
 // high resolution spectral analysis
 // array sizes: (d,freq,amp,time,temp)[size],(w,dw,rw)[size+1], aic[4]
@@ -29,13 +48,13 @@ public:
 //			time[0..size/2-1], time[size/2..size-1] undefined
 //			reassigned amplitudes of peaks -> amp[0..size/2-1], no peak:0,
 //			amp[size/2..size-1] undefined  
-static void spec(float* d, float* freq, float* amp, float* time, int size,
+void spec(float* d, float* freq, float* amp, float* time, int size,
 				 float* w, float* dw, float* rw, float* temp, float* aic);
 
 // obtain spec parameters
 // input:	symmetric window w[size+1]
 // output:	dw[size+1], rw[size+1], aic[4]								
-static void prespec(float* w, float* dw, float* rw, float* aic, int size);	
+void prespec(float* w, float* dw, float* rw, float* aic, int size);	
 
 //***	analysis by decomposition to arbitrary functions	***
 // use the matching pursuit algorithm to approximate the data as a weighted sum
@@ -179,7 +198,7 @@ static void oldenvelope(float* d, float* r, float &c, int size,
 // output:	[re,im]	= [fundamental frequency relative to fs, 
 //					   tonality measure (0 untuned ... 1 pure harmonic)]
 // note:	precision of "tonality" does not depend on a correct fundamental   
-static cpx fundamental(float* d, int size, int type=2);
+cpx fundamental(float* d, int size, int type=2);
 
 // verify given fundamental frequency against high resolution spectrum
 // input:	amplitude spectrum amp[0..size-1] as obtained from "spec",  

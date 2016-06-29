@@ -34,6 +34,10 @@
 #define HI_CORE_H_INCLUDED
 
 
+#if USE_IPP
+#include "IppFFT.h"
+#endif
+
 
 /** @defgroup core Core Classes
 *	A collection of basic classes.

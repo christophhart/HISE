@@ -39,6 +39,9 @@ public:
 					float wave,			// wave selection control (0..1)
 					int* pmod		);	// audio rate PM input
 private:
+
+	ScopedPointer<BlockDspObject> dspInstance;
+
 	float* table;						// wavetable data
 	int ssize;							// total wavetable size
 	int tsize;							// wavetable size per pitch version

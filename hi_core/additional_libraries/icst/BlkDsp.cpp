@@ -27,17 +27,13 @@ namespace icstdsp {		// begin library specific namespace
 //*
 #ifdef ICSTLIB_USE_IPP						
 namespace {								// begin anonymous namespace
-	const int FFTMAXORD = 14;			// prepare up to size = 2^FFTMAXORD
-	static IppsFFTSpec_C_32fc** fftfSpec = NULL;	// (i)fft float
-	static IppsFFTSpec_C_64fc** fftdSpec = NULL;	// (i)fft double
-	static IppsFFTSpec_R_32f** rfftfSpec = NULL;	// real(i)fft float
-	static IppsFFTSpec_R_64f** rfftdSpec = NULL;	// real(i)fft double
-	static IppsDCTFwdSpec_32f** dctfSpec = NULL;	// dct float
-	static IppsDCTFwdSpec_64f** dctdSpec = NULL;	// dct double
-	static IppsDCTInvSpec_32f** idctfSpec = NULL;	// idct float
-	static IppsDCTInvSpec_64f** idctdSpec = NULL;	// idct double
+	
 }										// end anonymous namespace
 #endif
+
+
+
+#if 0
 
 // preallocate resources to speed up transforms
 // call once during application initialization
@@ -49,52 +45,102 @@ void BlkDsp::PrepareTransforms()
 #ifdef ICSTLIB_USE_IPP
 	int i; bool err = false;
 	if (fftfSpec) return;
-	fftfSpec = new IppsFFTSpec_C_32fc*[FFTMAXORD + 1];
-	fftdSpec = new IppsFFTSpec_C_64fc*[FFTMAXORD + 1];
-	rfftfSpec = new IppsFFTSpec_R_32f*[FFTMAXORD + 1];
-	rfftdSpec = new IppsFFTSpec_R_64f*[FFTMAXORD + 1];
-	dctfSpec = new IppsDCTFwdSpec_32f*[FFTMAXORD + 1];
-	dctdSpec = new IppsDCTFwdSpec_64f*[FFTMAXORD + 1];
-	idctfSpec = new IppsDCTInvSpec_32f*[FFTMAXORD + 1];
-	idctdSpec = new IppsDCTInvSpec_64f*[FFTMAXORD + 1];
-	for (i=0; i<=FFTMAXORD; i++) {
+
+	fftfSpec = new IppsFFTSpec_C_32fc*[IPP_FFT_MAX_POWER_OF_TWO + 1];
+	fftdSpec = new IppsFFTSpec_C_64fc*[IPP_FFT_MAX_POWER_OF_TWO + 1];
+	rfftfSpec = new IppsFFTSpec_R_32f*[IPP_FFT_MAX_POWER_OF_TWO + 1];
+	rfftdSpec = new IppsFFTSpec_R_64f*[IPP_FFT_MAX_POWER_OF_TWO + 1];
+	//dctfSpec = new IppsDCTFwdSpec_32f*[FFTMAXORD + 1];
+	//dctdSpec = new IppsDCTFwdSpec_64f*[FFTMAXORD + 1];
+	//idctfSpec = new IppsDCTInvSpec_32f*[FFTMAXORD + 1];
+	//idctdSpec = new IppsDCTInvSpec_64f*[FFTMAXORD + 1];
+
+	jassert(fftBuffers == nullptr);
+
+	fftBuffers = new FFTBufferCollection();
+
+	for (i=0; i<=IPP_FFT_MAX_POWER_OF_TWO; i++) {
 		fftfSpec[i] = NULL;
 		fftdSpec[i] = NULL;
 		rfftfSpec[i] = NULL;
 		rfftdSpec[i] = NULL;
-		dctfSpec[i] = NULL;
-		dctdSpec[i] = NULL;
-		idctfSpec[i] = NULL;
-		idctdSpec[i] = NULL;
-	}
-	for (i=1; i<=FFTMAXORD; i++) {
+		//dctfSpec[i] = NULL;
+		//dctdSpec[i] = NULL;
+		//idctfSpec[i] = NULL;
+		//idctdSpec[i] = NULL;
+
 		
-		ippsFFTInit_C_32fc(	// (i)fft float
-			fftfSpec+i, i, IPP_FFT_DIV_INV_BY_N, ippAlgHintFast	);
-		ippsFFTInit_C_64fc(	// (i)fft double
-			fftdSpec+i, i, IPP_FFT_DIV_INV_BY_N, ippAlgHintFast	);
-		ippsFFTInit_R_32f(		// real(i)fft float
-			rfftfSpec+i, i, IPP_FFT_DIV_INV_BY_N, ippAlgHintFast	);
-		ippsFFTInit_R_64f(		// real(i)fft double
-			rfftdSpec+i, i, IPP_FFT_DIV_INV_BY_N, ippAlgHintFast	);
-		ippsDCTFwdInit_32f(	// dct float
-			dctfSpec+i, 1<<i, ippAlgHintFast	);
-		ippsDCTFwdInit_64f(	// dct double
-			dctdSpec+i, 1<<i, ippAlgHintFast	);
-		ippsDCTInvInit_32f(	// idct float
-			idctfSpec+i, 1<<i, ippAlgHintFast	);
-		ippsDCTInvInit_64f(	// idct double
-			idctdSpec+i, 1<<i, ippAlgHintFast	);
+		//BlkDsp::ippData_DCTfloat[i] = new FFTData();
+		//BlkDsp::ippData_DCTdouble[i] = new FFTData();
+		//BlkDsp::ippData_rDCTfloat[i] = new FFTData();
+		//BlkDsp::ippData_rDCTdouble[i] = new FFTData();
 	}
-	for (i=1; i<=FFTMAXORD; i++) {
+
+	for (i=1; i<=IPP_FFT_MAX_POWER_OF_TWO; i++) 
+	{
+		// (i)fft float/
+		
+		const int N = pow(2, i);
+
+		IppStatus result;
+
+		FFTData *ippData = &(fftBuffers->ippData_FFTfloat[i]);
+
+		int sizeSpec, sizeInit, sizeWork;
+		result = ippsFFTGetSize_C_32fc(i, IPP_FFT_DIV_INV_BY_N, ippAlgHintFast, &sizeSpec, &sizeInit, &sizeWork);
+
+		jassert(result == ippStsNoErr);
+
+		ippData->ensureSize(sizeSpec, sizeInit, sizeWork);
+
+		result = ippsFFTInit_C_32fc(fftfSpec + i, i, IPP_FFT_DIV_INV_BY_N, ippAlgHintFast, ippData->pFFTSpecBuf, ippData->pFFTInitBuf);
+
+		
+
+		// (i)fft double
+
+		ippData = &(fftBuffers->ippData_FFTdouble[i]);
+
+		
+		ippsFFTGetSize_C_64fc(i, IPP_FFT_DIV_INV_BY_N, ippAlgHintFast, &sizeSpec, &sizeInit, &sizeWork);
+		ippData->ensureSize(sizeSpec, sizeInit, sizeWork);
+
+		ippsFFTInit_C_64fc(fftdSpec + i, i, IPP_FFT_DIV_INV_BY_N, ippAlgHintFast, ippData->pFFTSpecBuf, ippData->pFFTInitBuf);
+
+		// real(i)fft float
+
+		ippData = &(fftBuffers->ippData_rFFTfloat[i]);
+
+		
+		ippsFFTGetSize_R_32f(i, IPP_FFT_DIV_INV_BY_N, ippAlgHintFast, &sizeSpec, &sizeInit, &sizeWork);
+		ippData->ensureSize(sizeSpec, sizeInit, sizeWork);
+
+		ippsFFTInit_R_32f(		
+			rfftfSpec + i, i, IPP_FFT_DIV_INV_BY_N, ippAlgHintFast, ippData->pFFTSpecBuf, ippData->pFFTInitBuf);
+		
+		// real(i)fft double
+		
+		ippData = &(fftBuffers->ippData_rFFTdouble[i]);
+
+		
+		
+		ippsFFTGetSize_R_64f(i, IPP_FFT_DIV_INV_BY_N, ippAlgHintFast, &sizeSpec, &sizeInit, &sizeWork);
+		ippData->ensureSize(sizeSpec, sizeInit, sizeWork);
+
+		ippsFFTInit_R_64f(
+			rfftdSpec + i, i, IPP_FFT_DIV_INV_BY_N, ippAlgHintFast, ippData->pFFTSpecBuf, ippData->pFFTInitBuf);
+		
+		continue;
+	}
+	for (i=1; i<=IPP_FFT_MAX_POWER_OF_TWO; i++) {
 		err |= (fftfSpec[i] == NULL);
 		err |= (fftdSpec[i] == NULL);
 		err |= (rfftfSpec[i] == NULL);
 		err |= (rfftdSpec[i] == NULL);
-		err |= (dctfSpec[i] == NULL);
-		err |= (dctdSpec[i] == NULL);
-		err |= (idctfSpec[i] == NULL);
-		err |= (idctdSpec[i] == NULL);
+		//err |= (dctfSpec[i] == NULL);
+		//err |= (dctdSpec[i] == NULL);
+		//err |= (idctfSpec[i] == NULL);
+		//err |= (idctdSpec[i] == NULL);
 	}
 	if (err) {UnPrepareTransforms();}
 #endif
@@ -107,26 +153,50 @@ void BlkDsp::UnPrepareTransforms()
 {
 #ifdef ICSTLIB_USE_IPP
 	if (fftfSpec) {
-		for (int i=1; i<=FFTMAXORD; i++) {
-			if (fftfSpec[i]) {ippsFFTFree_C_32fc(fftfSpec[i]);}
-			if (fftdSpec[i]) {ippsFFTFree_C_64fc(fftdSpec[i]);}
-			if (rfftfSpec[i]) {ippsFFTFree_R_32f(rfftfSpec[i]);}
-			if (rfftdSpec[i]) {ippsFFTFree_R_64f(rfftdSpec[i]);}
-			if (dctfSpec[i]) {ippsDCTFwdFree_32f(dctfSpec[i]);}
-			if (dctdSpec[i]) {ippsDCTFwdFree_64f(dctdSpec[i]);}
-			if (idctfSpec[i]) {ippsDCTInvFree_32f(idctfSpec[i]);}
-			if (idctdSpec[i]) {ippsDCTInvFree_64f(idctdSpec[i]);}
+		for (int i=1; i<=IPP_FFT_MAX_POWER_OF_TWO; i++) {
+			if (fftfSpec[i]) {ippsFree(fftfSpec[i]);}
+			if (fftdSpec[i]) {ippsFree(fftdSpec[i]); }
+			if (rfftfSpec[i]) {ippsFree(rfftfSpec[i]); }
+			if (rfftdSpec[i]) {ippsFree(rfftdSpec[i]); }
+			//if (dctfSpec[i]) {ippsFree(dctfSpec[i]); }
+			//if (dctdSpec[i]) {ippsFree(dctdSpec[i]); }
+			//if (idctfSpec[i]) {ippsFree(idctfSpec[i]); }
+			//if (idctdSpec[i]) {ippsFree(idctdSpec[i]); }
+
+			
+			//if (ippData_DCTfloat[i]) { delete ippData_DCTfloat[i]; }
+			//if (ippData_DCTdouble[i]) { delete ippData_DCTdouble[i]; }
+			//if (ippData_rDCTfloat[i]) { delete ippData_rDCTfloat[i]; }
+			//if (ippData_rDCTdouble[i]) { delete ippData_rDCTdouble[i]; }
 		}
+
+		
+
 		delete[] fftfSpec; fftfSpec = NULL;
 		delete[] fftdSpec; fftdSpec = NULL;
 		delete[] rfftfSpec; rfftfSpec = NULL;
 		delete[] rfftdSpec; rfftdSpec = NULL;
-		delete[] dctfSpec; dctfSpec = NULL;
-		delete[] dctdSpec; dctdSpec = NULL;
-		delete[] idctfSpec; idctfSpec = NULL;
-		delete[] idctdSpec; idctdSpec = NULL;
+		//delete[] dctfSpec; dctfSpec = NULL;
+		//delete[] dctdSpec; dctdSpec = NULL;
+		//delete[] idctfSpec; idctfSpec = NULL;
+		//delete[] idctdSpec; idctdSpec = NULL;
+
+		delete fftBuffers;
 	}
 #endif
+}
+
+#endif
+
+BlockDspObject::BlockDspObject(int fftDataType)
+{
+	fftData = new IppFFT((IppFFT::DataType)fftDataType);
+}
+
+
+IppFFT * BlockDspObject::getFFTObject()
+{
+	return fftData.get();
 }
 
 //******************************************************************************
@@ -134,43 +204,47 @@ void BlkDsp::UnPrepareTransforms()
 //*
 // standard FFT. size is a power of 2.
 // d[] = re[0],im[0],..,re[size-1],im[size-1].
-void BlkDsp::fft(float* d, int size)
+void BlockDspObject::fft(float* d, int size)
 {
 #ifdef ICSTLIB_USE_IPP
+
+	fftData->complexFFT(d, size);
+
+#if 0
 	int order = twopownton(size);
-	if ((fftfSpec != NULL) && (order <= FFTMAXORD)) {
+	if ((fftfSpec != NULL) && (order <= IPP_FFT_MAX_POWER_OF_TWO)) {
 		ippsFFTFwd_CToC_32fc_I((Ipp32fc*)d, fftfSpec[order], NULL);
 	}
-	else {
-		IppsFFTSpec_C_32fc *tmpSpec;
-		ippsFFTInitAlloc_C_32fc(	&tmpSpec,
-									order,
-									IPP_FFT_DIV_INV_BY_N,
-									ippAlgHintFast			);
-		ippsFFTFwd_CToC_32fc_I((Ipp32fc*)d, tmpSpec, NULL);
-		ippsFFTFree_C_32fc(tmpSpec);
+	else 
+	{
+		// Must be initialised!
+		jassertfalse;
 	}
+#endif
+
 #else
 	cdft(2*size, -1, d);
 #endif
 }
 
-void BlkDsp::fft(double* d, int size)
+void BlockDspObject::fft(double* d, int size)
 {
 #ifdef ICSTLIB_USE_IPP
+
+	fftData->complexFFT(d, size);
+
+#if 0
 	int order = twopownton(size);
-	if ((fftdSpec != NULL) && (order <= FFTMAXORD)) {
+	if ((fftdSpec != NULL) && (order <= IPP_FFT_MAX_POWER_OF_TWO)) {
 		ippsFFTFwd_CToC_64fc_I((Ipp64fc*)d, fftdSpec[order], NULL);
 	}
-	else {
-		IppsFFTSpec_C_64fc *tmpSpec;
-		ippsFFTInitAlloc_C_64fc(	&tmpSpec,
-									order,
-									IPP_FFT_DIV_INV_BY_N,
-									ippAlgHintFast			);
-		ippsFFTFwd_CToC_64fc_I((Ipp64fc*)d, tmpSpec, NULL);
-		ippsFFTFree_C_64fc(tmpSpec);
+	else 
+	{
+		// Must be initialised!
+		jassertfalse;
 	}
+#endif
+
 #else
 	cdft(2*size, -1, d);
 #endif
@@ -178,44 +252,46 @@ void BlkDsp::fft(double* d, int size)
 
 // standard IFFT. size is a power of 2.
 // d[] = re[0],im[0],..,re[size-1],im[size-1].
-void BlkDsp::ifft(float* d, int size) 
+void BlockDspObject::ifft(float* d, int size)
 {
 #ifdef ICSTLIB_USE_IPP
+
+	fftData->complexInverseFFT(d, size);
+
+#if 0
 	int order = twopownton(size);
-	if ((fftfSpec != NULL) && (order <= FFTMAXORD)) {
+	if ((fftfSpec != NULL) && (order <= IPP_FFT_MAX_POWER_OF_TWO)) {
 		ippsFFTInv_CToC_32fc_I((Ipp32fc*)d, fftfSpec[order], NULL);
 	}
-	else {
-		IppsFFTSpec_C_32fc *tmpSpec;
-		ippsFFTInitAlloc_C_32fc(	&tmpSpec,
-									order,
-									IPP_FFT_DIV_INV_BY_N,
-									ippAlgHintFast			);
-		ippsFFTInv_CToC_32fc_I((Ipp32fc*)d, tmpSpec, NULL);
-		ippsFFTFree_C_32fc(tmpSpec);
+	else
+	{
+		// Must be initialised!
+		jassertfalse;
 	}
+#endif
 #else
 	cdft(2*size, 1, d);
 	mul(d, 1.0f/static_cast<float>(size), 2*size);
 #endif
 }
 
-void BlkDsp::ifft(double* d, int size) 
+void BlockDspObject::ifft(double* d, int size)
 {
 #ifdef ICSTLIB_USE_IPP
+
+	fftData->complexInverseFFT(d, size);
+
+#if 0
 	int order = twopownton(size);
-	if ((fftdSpec != NULL) && (order <= FFTMAXORD)) {
+	if ((fftdSpec != NULL) && (order <= IPP_FFT_MAX_POWER_OF_TWO)) {
 		ippsFFTInv_CToC_64fc_I((Ipp64fc*)d, fftdSpec[order], NULL);
 	}
-	else {
-		IppsFFTSpec_C_64fc *tmpSpec;
-		ippsFFTInitAlloc_C_64fc(	&tmpSpec,
-									order,
-									IPP_FFT_DIV_INV_BY_N,
-									ippAlgHintFast			);
-		ippsFFTInv_CToC_64fc_I((Ipp64fc*)d, tmpSpec, NULL);
-		ippsFFTFree_C_64fc(tmpSpec);
+	else
+	{
+		// Must be initialised!
+		jassertfalse;
 	}
+#endif
 #else
 	double norm = 1.0/static_cast<double>(size);
 	cdft(2*size, 1, d);
@@ -226,22 +302,23 @@ void BlkDsp::ifft(double* d, int size)
 // FFT of real data. size is a power of 2.
 // in: d[] = re[0],re[1],..,re[size-1]. 
 // out: d[] = re[0],*re[size/2]*,re[1],im[1],..,re[size/2-1],im[size/2-1].
-void BlkDsp::realfft(float* d, int size) 
+void BlockDspObject::realfft(float* d, int size)
 {
 #ifdef ICSTLIB_USE_IPP
+
+	fftData->realFFT(d, size);
+
+#if 0
 	int order = twopownton(size);
-	if ((fftfSpec != NULL) && (order <= FFTMAXORD)) {
+	if ((fftfSpec != NULL) && (order <= IPP_FFT_MAX_POWER_OF_TWO)) {
 		ippsFFTFwd_RToPerm_32f_I((Ipp32f*)d, rfftfSpec[order], NULL);
 	}
-	else {
-		IppsFFTSpec_R_32f *tmpSpec;
-		ippsFFTInitAlloc_R_32f(	&tmpSpec,
-								order,
-								IPP_FFT_DIV_INV_BY_N,
-								ippAlgHintFast			);
-		ippsFFTFwd_RToPerm_32f_I((Ipp32f*)d, tmpSpec, NULL);
-		ippsFFTFree_R_32f(tmpSpec);
+	else 
+	{
+		// Must be initialised
+		jassertfalse;
 	}
+#endif
 #else
 	rdft(size, 1, d);		
 	cpxconj(d, size>>1);	// preserve aligned processing if d aligned
@@ -249,22 +326,23 @@ void BlkDsp::realfft(float* d, int size)
 #endif
 }
 
-void BlkDsp::realfft(double* d, int size) 
+void BlockDspObject::realfft(double* d, int size)
 {
 #ifdef ICSTLIB_USE_IPP
+
+	fftData->realFFT(d, size);
+
+#if 0
 	int order = twopownton(size);
-	if ((fftfSpec != NULL) && (order <= FFTMAXORD)) {
+	if ((fftfSpec != NULL) && (order <= IPP_FFT_MAX_POWER_OF_TWO)) {
 		ippsFFTFwd_RToPerm_64f_I((Ipp64f*)d, rfftdSpec[order], NULL);
 	}
-	else {
-		IppsFFTSpec_R_64f *tmpSpec;
-		ippsFFTInitAlloc_R_64f(	&tmpSpec,
-								order,
-								IPP_FFT_DIV_INV_BY_N,
-								ippAlgHintFast			);
-		ippsFFTFwd_RToPerm_64f_I((Ipp64f*)d, tmpSpec, NULL);
-		ippsFFTFree_R_64f(tmpSpec);
+	else 
+	{
+		// Must be initialised!
+		jassertfalse;
 	}
+#endif
 #else
 	rdft(size, 1, d);
 	for (int i=3; i<size; i+=2) {d[i] = -d[i];}
@@ -274,22 +352,23 @@ void BlkDsp::realfft(double* d, int size)
 // IFFT to real data. size is a power of 2.
 // in: d[] = re[0],*re[size/2]*,re[1],im[1],..,re[size/2-1],im[size/2-1].
 // out: d[] = re[0],re[1],..,re[size-1].
-void BlkDsp::realifft(float* d, int size) 
+void BlockDspObject::realifft(float* d, int size)
 {
 #ifdef ICSTLIB_USE_IPP
+
+	fftData->realInverseFFT(d, size);
+
+#if 0
 	int order = twopownton(size);
-	if ((fftfSpec != NULL) && (order <= FFTMAXORD)) {
+	if ((fftfSpec != NULL) && (order <= IPP_FFT_MAX_POWER_OF_TWO)) {
 		ippsFFTInv_PermToR_32f_I((Ipp32f*)d, rfftfSpec[order], NULL);
 	}
-	else {
-		IppsFFTSpec_R_32f *tmpSpec;
-		ippsFFTInitAlloc_R_32f(	&tmpSpec,
-								order,
-								IPP_FFT_DIV_INV_BY_N,
-								ippAlgHintFast			);
-		ippsFFTInv_PermToR_32f_I((Ipp32f*)d, tmpSpec, NULL);
-		ippsFFTFree_R_32f(tmpSpec);
+	else 
+	{
+		// Must be initialised!
+		jassertfalse;
 	}
+#endif
 #else
 	mul(d, 2.0f/static_cast<float>(size), size);
 	cpxconj(d, size>>1);	// preserve aligned processing if d aligned
@@ -298,22 +377,23 @@ void BlkDsp::realifft(float* d, int size)
 #endif
 }
 
-void BlkDsp::realifft(double* d, int size) 
+void BlockDspObject::realifft(double* d, int size)
 {
 #ifdef ICSTLIB_USE_IPP
+
+	fftData->realInverseFFT(d, size);
+
+#if 0
 	int order = twopownton(size);
-	if ((fftfSpec != NULL) && (order <= FFTMAXORD)) {
+	if ((fftfSpec != NULL) && (order <= IPP_FFT_MAX_POWER_OF_TWO)) {
 		ippsFFTInv_PermToR_64f_I((Ipp64f*)d, rfftdSpec[order], NULL);
 	}
-	else {
-		IppsFFTSpec_R_64f *tmpSpec;
-		ippsFFTInitAlloc_R_64f(	&tmpSpec,
-								order,
-								IPP_FFT_DIV_INV_BY_N,
-								ippAlgHintFast			);
-		ippsFFTInv_PermToR_64f_I((Ipp64f*)d, tmpSpec, NULL);
-		ippsFFTFree_R_64f(tmpSpec);
+	else 
+	{
+		// Must be initialised!
+		jassertfalse;
 	}
+#endif
 #else
 	int i; double norm = 2.0/static_cast<double>(size); double mnorm = -norm;
 	for (i=0; i<size; i+=2) {d[i] *= norm;}
@@ -359,99 +439,29 @@ void BlkDsp::realsymifft(double* d, int size)
 // d[] = re[0],re[1],..,re[size-1]. 
 void BlkDsp::dct(float* d, int size)
 {
-#ifdef ICSTLIB_USE_IPP
-	int order = twopownton(size);
-	if ((fftfSpec != NULL) && (order <= FFTMAXORD)) {
-		ippsDCTFwd_32f_I((Ipp32f*)d, dctfSpec[order], NULL);
-	}
-	else {
-		IppsDCTFwdSpec_32f *tmpSpec;
-		ippsDCTFwdInitAlloc_32f(	&tmpSpec,
-									size,
-									ippAlgHintFast		);
-		ippsDCTFwd_32f_I((Ipp32f*)d, tmpSpec, NULL);
-		ippsDCTFwdFree_32f(tmpSpec);
-	}
-	mul(d, sqrtf(0.5f*static_cast<float>(size)), size);
-	d[0] *= sqrtf(2.0f);
-#else
 	ddct(size, -1, d);
-#endif
 }
 
 void BlkDsp::dct(double* d, int size)
 {
-#ifdef ICSTLIB_USE_IPP
-	int order = twopownton(size);
-	if ((fftfSpec != NULL) && (order <= FFTMAXORD)) {
-		ippsDCTFwd_64f_I((Ipp64f*)d, dctdSpec[order], NULL);
-	}
-	else {
-		IppsDCTFwdSpec_64f *tmpSpec;
-		ippsDCTFwdInitAlloc_64f(	&tmpSpec,
-									size,
-									ippAlgHintFast		);
-		ippsDCTFwd_64f_I((Ipp64f*)d, tmpSpec, NULL);
-		ippsDCTFwdFree_64f(tmpSpec);
-	}
-	double norm = sqrt(0.5*static_cast<double>(size));
-	for (int i=0; i<size; i++) {d[i] *= norm;}
-	d[0] *= sqrt(2.0);
-#else
 	ddct(size, -1, d);
-#endif
 }
 		
 // IDCT type 2 (= DCT type 3). size is a power of 2.
 // d[] = re[0],re[1],..,re[size-1].
 void BlkDsp::idct(float* d, int size)
 {
-#ifdef ICSTLIB_USE_IPP
-	int order = twopownton(size);
-	mul(d, 1.0f/sqrtf(0.5f*static_cast<float>(size)), size);
-	d[0] *= sqrtf(0.5f);
-	if ((fftfSpec != NULL) && (order <= FFTMAXORD)) {
-		ippsDCTInv_32f_I((Ipp32f*)d, idctfSpec[order], NULL);
-	}
-	else {
-		IppsDCTInvSpec_32f *tmpSpec;
-		ippsDCTInvInitAlloc_32f(	&tmpSpec,
-									size,
-									ippAlgHintFast		);
-		ippsDCTInv_32f_I((Ipp32f*)d, tmpSpec, NULL);
-		ippsDCTInvFree_32f(tmpSpec);
-	}
-#else
 	d[0] *= 0.5f;
 	ddct(size, 1, d);
 	mul(d, 2.0f/static_cast<float>(size), size);
-#endif
 }
 
 void BlkDsp::idct(double* d, int size)
 {
-#ifdef ICSTLIB_USE_IPP
-	int order = twopownton(size);
-	double norm = 1.0/sqrt(0.5*static_cast<double>(size));
-	for (int i=0; i<size; i++) {d[i] *= norm;}
-	d[0] *= sqrt(0.5);
-	if ((fftfSpec != NULL) && (order <= FFTMAXORD)) {
-		ippsDCTInv_64f_I((Ipp64f*)d, idctdSpec[order], NULL);
-	}
-	else {
-		IppsDCTInvSpec_64f *tmpSpec;
-		ippsDCTInvInitAlloc_64f(	&tmpSpec,
-									size,
-									ippAlgHintFast		);
-		ippsDCTInv_64f_I((Ipp64f*)d, tmpSpec, NULL);
-		ippsDCTInvFree_64f(tmpSpec);
-	}
-#else
 	double norm = 2.0/static_cast<double>(size);
 	d[0] *= 0.5;
 	ddct(size, 1, d);
 	for (int i=0; i<size; i++) {d[i] *= norm;}
-#endif
 }
 
 // DST type 2. size is a power of 2.
@@ -3540,16 +3550,16 @@ void BlkDsp::bacorr(float* d, float* r, int dsize, int rsize)
 // input:	d[0..dsize-1], r[0..rsize-1]
 // output:	d[0..dsize+rsize-2]	
 // size of both d and r >= nexthigherpow2(dsize+rsize)
-void BlkDsp::fconv(float* d, float* r, int dsize, int rsize)
+void BlockDspObject::fconv(float* d, float* r, int dsize, int rsize)
 {
-	int tsize = nexthipow2(rsize + dsize);
-	set(d+dsize, 0, tsize-dsize);
-	set(r+rsize, 0, tsize-rsize);
+	int tsize = BlkDsp::nexthipow2(rsize + dsize);
+	BlkDsp::set(d + dsize, 0, tsize - dsize);
+	BlkDsp::set(r + rsize, 0, tsize - rsize);
 	realfft(d,tsize);
 	realfft(r,tsize);
 	float tmp = d[1]*r[1];	// process aligned if d and r are aligned	
 	d[1] = 0;				//
-	cpxmul(d,r,tsize>>1);	// 
+	BlkDsp::cpxmul(d,r,tsize>>1);	// 
 	d[1] = tmp;				//
 	realifft(d,tsize);
 }
@@ -3558,28 +3568,28 @@ void BlkDsp::fconv(float* d, float* r, int dsize, int rsize)
 // input:	d[0..dsize-1], r[0..rsize-1]
 // output:	d[0..dsize-1]
 // size of both d and r => nexthipow2(dsize+rsize)
-void BlkDsp::fccorr(float* d, float* r, int dsize, int rsize)
+void BlockDspObject::fccorr(float* d, float* r, int dsize, int rsize)
 {
-	int tsize = nexthipow2(rsize + dsize);
+	int tsize = BlkDsp::nexthipow2(rsize + dsize);
 	int hsize = tsize>>1;	
-	set(d+dsize, 0, tsize-dsize);
-	set(r+rsize, 0, tsize-rsize); 
+	BlkDsp::set(d+dsize, 0, tsize-dsize);
+	BlkDsp::set(r + rsize, 0, tsize - rsize);
 	realfft(d,tsize);
 	realfft(r,tsize);
-	cpxconj(r,hsize);		// process aligned if d and r are aligned
+	BlkDsp::cpxconj(r, hsize);		// process aligned if d and r are aligned
 	float tmp = -d[1]*r[1];	// 	
 	d[1] = 0;				//
-	cpxmul(d,r,hsize);		// 
+	BlkDsp::cpxmul(d, r, hsize);		// 
 	d[1] = tmp;				//
 	realifft(d,tsize);
 }
 
 // FFT-based fast biased autocorrelation of d
 // d[0..size-1] -> d[0..size-1], size of d => nexthipow2(2*size)
-void BlkDsp::facorr(float* d, int size)
+void BlockDspObject::facorr(float* d, int size)
 {
-	int i, tsize = nexthipow2(2*size);
-	set(d+size, 0, tsize-size);
+	int i, tsize = BlkDsp::nexthipow2(2 * size);
+	BlkDsp::set(d + size, 0, tsize - size);
 	realfft(d,tsize);
 	d[0] *= d[0]; d[1] *= d[1];
 	for (i=2; i<tsize; i+=2) {d[i] = d[i]*d[i] + d[i+1]*d[i+1]; d[i+1]=0;} 

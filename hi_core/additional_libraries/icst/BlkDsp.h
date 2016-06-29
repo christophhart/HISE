@@ -11,12 +11,68 @@
 #ifndef _ICST_DSPLIB_BLKDSP_INCLUDED
 #define _ICST_DSPLIB_BLKDSP_INCLUDED
 
+
+
+class IppFFT;
+
 namespace icstdsp {		// begin library specific namespace
+
+
+/** Contains all methods that rely on FFT. 
+*
+*	This removes the necessity of having static instances of FFT buffers.
+*/
+class BlockDspObject
+{
+public:
+
+	BlockDspObject(int dataType);
+
+	IppFFT *getFFTObject();
+
+	// Direct FFT functions
+
+	void fft(float* d, int size);				// standard FFT
+	void fft(double* d, int size);
+	void ifft(float* d, int size);				// standard IFFT
+	void ifft(double* d, int size);
+	void realfft(float* d, int size);			// FFT of real data
+	void realfft(double* d, int size);
+	void realifft(float* d, int size);			// IFFT to real data
+	void realifft(double* d, int size);
+
+	// Functions based on FFT
+
+	void fconv(float* d, 						// fast convolution(d,r):
+				float* r, 						// d[0..dsize-1],r[0..rsize-1]
+				int dsize, 						// -> d[0..dsize+rsize-2]
+					int rsize);					// space of both d and r: 
+												// => nexthipow2(dsize+rsize)
+
+	void facorr(float* d, int size);				// fast biased autocorrelation:
+													// d[0..size-1] -> d[0..size-1]
+													// space: d[nexthipow2(2*size)]
+
+	void fccorr(float* d,	 					// fast cross correlation(d,r):
+		float* r, 						// d[0..dsize-1], r[0..rsize-1] 
+		int dsize,						// -> d[0..dsize-1]
+		int rsize);					// space of both d and r: 
+	// => nexthipow2(dsize+rsize)
+
+
+private:
+
+	ScopedPointer<IppFFT> fftData;
+
+};
+
 
 class BlkDsp
 {
 //******************************* user methods ***********************************
+
 public:
+
 //***	transforms	***
 // fft,dct,hwt sizes must be a power of 2 and > 1
 // fft,ifft format: re[0],im[0],..,re[size-1],im[size-1]
@@ -28,14 +84,7 @@ public:
 // hwt,ihwt original domain format: [0..size-1]
 // hwt,ihwt transform domain format: [[0],[0],[0..1],[0..3],..,[0..size/2-1]]
 // 
-static void fft(float* d, int size);				// standard FFT
-static void fft(double* d, int size);		
-static void ifft(float* d, int size);				// standard IFFT
-static void ifft(double* d, int size);
-static void realfft(float* d, int size);			// FFT of real data
-static void realfft(double* d, int size);
-static void realifft(float* d, int size);			// IFFT to real data
-static void realifft(double* d, int size);
+
 static void realsymfft(float* d, int size);			// FFT of symmetrical real
 static void realsymfft(double* d, int size);		// data
 static void realsymifft(float* d, int size);		// IFFT to symmetrical real
@@ -152,28 +201,18 @@ static void conv(	float* d,  						// convolution(d,r):
 					float* r, 						// d[0..dsize-1],r[0..rsize-1]
 					int dsize,						// -> d[0..dsize+rsize-2]
 					int rsize	);					// dsize>rsize for efficiency
-static void fconv(	float* d, 						// fast convolution(d,r):
-					float* r, 						// d[0..dsize-1],r[0..rsize-1]
-					int dsize, 						// -> d[0..dsize+rsize-2]
-					int rsize	);					// space of both d and r: 
-													// => nexthipow2(dsize+rsize)
+		
 static void ccorr(float* d, float* r, int dsize, 	// cross correlation(d,r) -> d
 					int rsize, int pts);			// d[0..dsize-1],r[0..rsize-1]
 													// -> d[0..pts-1], pts<=dsize
-static void fccorr(	float* d,	 					// fast cross correlation(d,r):
-					float* r, 						// d[0..dsize-1], r[0..rsize-1] 
-					int dsize,						// -> d[0..dsize-1]
-					int rsize	);					// space of both d and r: 
-													// => nexthipow2(dsize+rsize)
+	
 static void uacorr(float* d, float* r,				// unbiased autocorrelation of
 					int dsize, int rsize);			// r[0..rsize-1]->d[0..dsize-1] 
 													// dsize <= rsize
 static void bacorr(float* d, float* r,				// biased autocorrelation of
 					int dsize, int rsize);			// r[0..rsize-1]->d[0..dsize-1]
 													// dsize <= rsize
-static void facorr(float* d, int size);				// fast biased autocorrelation:
-													// d[0..size-1] -> d[0..size-1]
-													// space: d[nexthipow2(2*size)]
+	
 //***	elementary complex array operations	***
 // cpx operations format: re[0],im[0],..,re[size-1],im[size-1]
 //
@@ -472,12 +511,8 @@ static int* ssealloci(int size);					// return pointer to 1st element
 	static __m128i* sseallocm128i(int size);		//
 #endif												//
 static void ssefree(void* p);						// free SSE-supporting array
-static void PrepareTransforms();					// preallocate resources to speed
-													// up transforms, call during
-													// application initialization
-static void UnPrepareTransforms();					// free resources allocated by
-													// PrepareTransforms, call before
-													// the application terminates
+
+
 
 //----------------------------- internal only ------------------------------------
 private:

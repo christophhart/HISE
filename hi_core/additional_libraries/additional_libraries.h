@@ -52,10 +52,11 @@
 #include "icst/MathDefs.h"
 #include "icst/Common.h"  
 #include "icst/fftooura.h"
+#include "icst/BlkDsp.h"
 #include "icst/AudioAnalysis.h"
 //#include "icst/AudioFile.h"
 #include "icst/AudioSynth.h"
-#include "icst/BlkDsp.h"
+
 
 #include "icst/Neuro.h"
 #include "icst/SpecMath.h"

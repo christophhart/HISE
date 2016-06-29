@@ -17,6 +17,19 @@
 
 namespace icstdsp {		// begin library specific namespace
 
+
+	AudioAnalysis::AudioAnalysis()
+	{
+
+
+		//realFloatFFTs = new BlockDspObject((int)IppFFT::DataType::RealFloat);
+		realDoubleFFTs = new BlockDspObject((int)IppFFT::DataType::RealDouble);
+		//complexFloatFFTs = new BlockDspObject((int)IppFFT::DataType::ComplexFloat);
+		//complexDoubleFFTs = new BlockDspObject((int)IppFFT::DataType::ComplexDouble);
+	}
+
+	
+
 //******************************************************************************
 //* spectral analysis
 //*
@@ -43,7 +56,7 @@ void AudioAnalysis::spec(float* d, float* freq, float* amp, float* time,
 	if (freq) {BlkDsp::copy(freq,d,size);}
 	if (time) {BlkDsp::copy(time,d,size);}
 	BlkDsp::mul(d,w,size);
-	BlkDsp::realfft(d,size); d[1]=0;			// raw complex spectrum -> d
+	realFloatFFTs->realfft(d,size); d[1]=0;			// raw complex spectrum -> d
 		
 	// common to frequency and time reassignment
 	if ((freq) || (time)) {
@@ -57,7 +70,7 @@ void AudioAnalysis::spec(float* d, float* freq, float* amp, float* time,
 	// frequency reassignment
 	if (freq) {
 		BlkDsp::mul(freq,dw,size);
-		BlkDsp::realfft(freq,size); freq[1]=0;	// f reassignment spectrum -> freq
+		realFloatFFTs->realfft(freq,size); freq[1]=0;	// f reassignment spectrum -> freq
 		BlkDsp::cpxmul(freq,temp,hsize);
 		BlkDsp::cpxim(freq,freq,hsize);			// delta f -> freq
 		BlkDsp::linear(freq+hsize,hsize,0,0.5f-1.0f/static_cast<float>(size));
@@ -67,7 +80,7 @@ void AudioAnalysis::spec(float* d, float* freq, float* amp, float* time,
 	// time reassignment
 	if (time) {
 		BlkDsp::mul(time,rw,size);					
-		BlkDsp::realfft(time,size); time[1]=0;	// t reassignment spectrum -> time
+		realFloatFFTs->realfft(time,size); time[1]=0;	// t reassignment spectrum -> time
 		BlkDsp::cpxmul(time,temp,hsize);
 		BlkDsp::cpxre(time,time,hsize);			// delta t -> time
 	}
@@ -141,7 +154,7 @@ void AudioAnalysis::prespec(float* w, float* dw, float* rw, float* aic, int size
 	float tw[1024]; float u[129]; double c[9];
 	BlkDsp::set(tw,0,1024);
 	BlkDsp::deinterleave(tw+512-8,w,17,size/16,0);
-	BlkDsp::realfft(tw,1024); tw[1]=0;
+	realFloatFFTs->realfft(tw,1024); tw[1]=0;
 	BlkDsp::cpxmag(tw,tw,65);
 	BlkDsp::copy(u+64,tw,65);
 	BlkDsp::reverse(tw,65);
@@ -848,7 +861,7 @@ cpx AudioAnalysis::fundamental(float* d, int size, int type)
 	float* n2; n2 = new float[hsize];
 	
 	// fast biased autocorrelation via FFT
-	BlkDsp::copy(r,d,size); BlkDsp::facorr(r,size);	
+	BlkDsp::copy(r,d,size); realFloatFFTs->facorr(r,size);	
 
 	// calculate normalization data
 	ns1=0; for (i=0; i<size; i++) {ns1 += (d[i]*d[i]);}

@@ -42,6 +42,8 @@ void GetAntiDenormalTable(float* d, int size)
 WaveOsc::WaveOsc(int tablesize, int tables, float maxpitch, float minpitch, 
 				 float smprate)
 {	
+	dspInstance = new BlockDspObject((int)IppFFT::DataType::RealFloat);
+
 	// minimum frequency to which spectral components are aliased AND desired
 	// spectral components are produced if possible with specified table size
 	const float ALIASBW = 18000.0f;
@@ -139,7 +141,7 @@ void WaveOsc::LoadTable(float* d, int idx)
 	n = 2*static_cast<int>(x);
 	if (n > 0) {BlkDsp::copy(tmp2,tmp,n);}
 	if (n < size) {BlkDsp::set(tmp2+n,0,size-n);}
-	BlkDsp::realifft(tmp2,size);
+	dspInstance->realifft(tmp2,size);
 	tmp2[size] = tmp2[0];						// oscillator requires identical
 	y = BlkDsp::rms(tmp2,wsize);				// first and last elements
 	if (y >= FLT_MIN) {y = 0.5f/y;} else {y = 0;}
@@ -151,7 +153,7 @@ void WaveOsc::LoadTable(float* d, int idx)
 		n = 2*static_cast<int>(x);
 		if (n > 0) {BlkDsp::copy(tmp2,tmp,n);}
 		if (n < size) {BlkDsp::set(tmp2+n,0,size-n);}
-		BlkDsp::realifft(tmp2,size);
+		dspInstance->realifft(tmp2,size);
 		tmp2[size] = tmp2[0];
 		BlkDsp::mul(tmp2,y,wsize);
 		BlkDsp::copy(table + offset,tmp2,wsize);

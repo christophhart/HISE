@@ -155,7 +155,9 @@ private:
 	
 };
 
-extern void WDL_fft(WDL_FFT_COMPLEX *, int len, int isInverse, FFTData &data);
+//extern void WDL_fft(WDL_FFT_COMPLEX *, int len, int isInverse, FFTData &data);
+
+extern void WDL_fft(WDL_FFT_COMPLEX *, int len, int isInverse, IppFFT &data);
 
 #else
 

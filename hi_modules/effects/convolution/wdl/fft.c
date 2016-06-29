@@ -44,8 +44,19 @@ void WDL_fft_init()
 	}
 };
 
-void WDL_fft(WDL_FFT_COMPLEX *buf, int len, int isInverse, FFTData &ippData)
+void WDL_fft(WDL_FFT_COMPLEX *buf, int len, int isInverse, IppFFT &ippData)
 {
+	if (isInverse)
+	{
+		ippData.complexInverseFFT((float*)buf, len);
+	}
+	else
+	{
+		ippData.complexFFT((float*)buf, len);
+	}
+	
+
+#if 0
 
 	//Set the size
 	const int N = len;
@@ -77,6 +88,8 @@ void WDL_fft(WDL_FFT_COMPLEX *buf, int len, int isInverse, FFTData &ippData)
 	{
 		ippsFFTFwd_CToC_32fc_I(pSrc, pFFTSpec, ippData.pFFTWorkBuf);
 	}
+
+#endif
 }
 
 #else

@@ -128,7 +128,7 @@ public:
 
 #if USE_IPP
 
-  FFTData fftData;
+  IppFFT fftData;
 
 #endif
 

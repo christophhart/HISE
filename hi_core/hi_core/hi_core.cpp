@@ -32,6 +32,10 @@
 
 #include "hi_core.h"
 
+#if USE_IPP
+#include "IppFFT.cpp"
+#endif
+
 #include "UtilityClasses.cpp"
 #include "ThreadWithQuasiModalProgressWindow.cpp"
 #include "HI_LookAndFeels.cpp"
