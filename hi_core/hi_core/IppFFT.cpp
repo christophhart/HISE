@@ -53,6 +53,8 @@ flag(flagToUse)
 	{
 		initFFT(i);
 	}
+
+	//additionalWorkingBuffer = new Buffer(pow(2, maxPowerOfTwo) * sizeof(float));
 }
 
 IppFFT::~IppFFT()
@@ -85,6 +87,8 @@ IppFFT::~IppFFT()
 
 	specBuffers.clear();
 	workingBuffers.clear();
+
+	additionalWorkingBuffer = nullptr;
 }
 
 void IppFFT::realFFT(float *data, int size)

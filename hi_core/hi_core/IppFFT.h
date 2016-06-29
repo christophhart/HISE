@@ -99,6 +99,11 @@ public:
 	/** Complex inverse inplace FFT (input is aligned Complex<double> array, size is power of two.) */
 	void complexInverseFFT(double *data, int size);
 
+	float *getAdditionalWorkBuffer()
+	{
+		return (float*)additionalWorkingBuffer->getData();
+	}
+
 private:
 
 	// =============================================================================================================================
@@ -154,6 +159,8 @@ private:
 
 	OwnedArray<Buffer> workingBuffers;
 	OwnedArray<Buffer> specBuffers;
+
+	ScopedPointer<Buffer> additionalWorkingBuffer;
 
 	// =============================================================================================================================
 
