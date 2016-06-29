@@ -2598,7 +2598,7 @@ float VectorFunctions::sdist(float* d, float* r, int size)
 }
 
 // r -> d, regions may overlap
-void VectorFunctions::copy(float* d, float* r, int size) {
+void VectorFunctions::copy(float* d, const float* r, int size) {
 	memmove(d,r,static_cast<size_t>(size)*sizeof(float));}
 
 // r <-> d
@@ -5403,7 +5403,7 @@ float VectorFunctions::minvmulm(float* a, float* b, int m, int n)
 //*
 // static delay: r delayed by n sampling intervals -> d
 // c[0..n-1],cp: continuation data (init:0)
-void VectorFunctions::delay(float* d, float* r, int size, float* c, int& cp, int n)
+void VectorFunctions::delay(float* d, const float* r, int size, float* c, int& cp, int n)
 {
 	int x,y,z;
 	x = __min(n-1,__max(0,cp));

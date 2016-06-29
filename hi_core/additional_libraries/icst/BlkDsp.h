@@ -178,7 +178,7 @@ static void prune(float* d, float lim, float rep,	// if |d[n]|<=lim:
 					int size);						// sign(d[n])*rep -> d[n]
 static void limit(float* d, int size,				// limit d to lo..hi
 				  float hi, float lo);
-static void copy(float* d, float* r, int size);		// r -> d, may overlap
+static void copy(float* d, const float* r, int size);		// r -> d, may overlap
 static void swap(float* d, float* r, int size);		// r <-> d
 static void max(float* d, float* r, int size);		// max(d,r) -> d
 static void min(float* d, float* r, int size);		// min(d,r) -> d
@@ -324,7 +324,7 @@ static float minvmulm(	float* a,					// inverse of matrix b(m,m)
 //***	filters	+ delays ***
 //
 static void delay(	float* d,						// static delay
-					float* r,						// r delayed by n sampling 
+					const float* r,						// r delayed by n sampling 
 					int size,						// intervals -> d
 					float* c,						// c[0..n-1],cp = 
 					int& cp,						// continuation data (init:0)

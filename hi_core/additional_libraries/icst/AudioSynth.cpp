@@ -17,6 +17,18 @@
 
 
 
+void Effect::processInplace(float *data, int numSamples)
+{
+	if (inplaceProcessingEnabled && numSamples < inplaceBuffer.getNumSamples())
+	{
+		VectorFunctions::copy(inplaceBuffer.getWritePointer(0), data, numSamples);
+
+		processBlock(inplaceBuffer.getReadPointer(0), data, numSamples);
+	}
+}
+
+
+
 //******************************************************************************
 //* helper functions and objects used by different classes of AudioSynth.cpp
 //*
@@ -172,7 +184,7 @@ void WaveOsc::SetPhase(float phase)
 }									// for x86/AMD64/ECMA memory models
 
 // audio and control update
-void WaveOsc::Update(float* d, int samples, float invsmp, float pitch, 
+void WaveOsc::processBlock(float* d, int samples, float invsmp, float pitch, 
 					 float pitchmod, float wave, int* pmod)
 {
 	int i,j,idx,pwave,dwave,df;
@@ -220,18 +232,28 @@ void WaveOsc::Update(float* d, int samples, float invsmp, float pitch,
 //*
 //* includes prefilters (zero @ fs/2), correction postfilter, dc trap (fc=5hz)
 // construction
-RingMod::RingMod(float smprate)
+RingMod::RingMod()
 {
 	in1d = in2d = od = dc = 0; adidx = 0;
-	a = 31.4f/__max(62.8f,smprate);
+	a = 0.0f;
+
 	GetAntiDenormalTable(adtab,16);
 }
 
-// audio update
-void RingMod::Update(float* in1, float* in2, float* out, int samples)
+
+void RingMod::prepareToPlay(double sampleRate, int samplesPerBlock)
+{
+	a = 31.4f / __max(62.8f, sampleRate);
+}
+
+
+void RingMod::processBlockWithTwoOutputs(const float* in1, const float* in2, float* out, int samples)
 {	
 	float adn[2];
-	adn[0] = adtab[adidx]; adn[1] = adtab[adidx+1]; adidx = (adidx+2) & 0xe;
+	adn[0] = adtab[adidx]; 
+	adn[1] = adtab[adidx+1]; 
+	adidx = (adidx+2) & 0xe;
+
 	for (int i=0; i<samples; i++)
 	{
 		od = 0.41666667f*(in1[i]+in1d)*(in2[i]+in2d) - 0.66666667f*od + adn[i&1];
@@ -250,10 +272,10 @@ void RingMod::Update(float* in1, float* in2, float* out, int samples)
 Noise::Noise() {s1 = s2 = s3 = 0; ntype = 0;}
 
 // set noise type: 0 = white, 1 = pink
-void Noise::SetType(int type) {ntype = __max(0,__min(1,type));}
+void Noise::setNoiseType(NoiseType type) {ntype = __max(0,__min(1,(int)type));}
 
 // audio update
-void Noise::Update(float* out, int samples)
+void Noise::processInplace(float* out, int samples)
 {
 	int i; float x;
 	VectorFunctions::unoise(out,samples);
@@ -266,19 +288,24 @@ void Noise::Update(float* out, int samples)
 	}
 }
 
+
+void Noise::processBlock(const float* in, float *out, int numSamples)
+{
+	processInplace(out, numSamples);
+}
+
 //******************************************************************************
 //* static delay line with clickless delay time change
 //* 
 // construction
-Delay::Delay(int maxlen, float smprate, float zlevel)
+Delay::Delay(int maxlen, float zlevel)
 {
 	// assign delay line memory and init
 	mlen = __max(1,maxlen);
 	try {d = new float[mlen];} catch(...) {d = NULL;}
 	if (d) {VectorFunctions::set(d,0,mlen);} else {mlen = 0;}
 	cp = 0; len = tlen = nlen = state = cntdwn = 0; a = 1.0f;
-	xflen = __max(1,static_cast<int>(0.02f*smprate));
-	invxflen = 1.0f/static_cast<float>(xflen);
+	
 	zlev = zlevel;
 }
 
@@ -286,10 +313,19 @@ Delay::Delay(int maxlen, float smprate, float zlevel)
 Delay::~Delay() {if (d) delete[] d;}
 
 // set delay time in samples
-void Delay::SetType(int dlen) {tlen = __max(0,__min(mlen,dlen));}				
+void Delay::setDelayTime(int timeInSamples) {tlen = __max(0,__min(mlen,timeInSamples));}				
+
+
+void Delay::prepareToPlay(double sampleRate, int samplesPerBlock)
+{
+	xflen = __max(1, static_cast<int>(0.02f*sampleRate));
+	invxflen = 1.0f / static_cast<float>(xflen);
+
+	enableInplaceProcessing(true, samplesPerBlock);
+}
 
 // audio and control update
-void Delay::Update(float* in, float* out, int samples)
+void Delay::processBlock(const float* in, /* audio in */ float* out, /* audio out */ int samples)
 {
 	// audio update
 	VectorFunctions::delay(out,in,samples,d,cp,len);
@@ -370,6 +406,8 @@ void Delay::Update(float* in, float* out, int samples)
 	}
 }			
 
+
+
 //******************************************************************************
 //* time varying delay line with 1st order allpass interpolation
 //*
@@ -401,10 +439,22 @@ VarDelay::VarDelay(float maxlen)
 // destruction
 VarDelay::~VarDelay() {if (d) delete[] d;}
 
-// audio and control update
-void VarDelay::Update(float* in, float* out, int samples, float invsmp,
-					  float length)
+
+void VarDelay::setDelayTime(float delayTimeSamples)
 {
+	length = delayTimeSamples;
+}
+
+void VarDelay::prepareToPlay(double sampleRate, int samplesPerBlock)
+{
+	enableInplaceProcessing(true, samplesPerBlock);
+}
+
+// audio and control update
+void VarDelay::processBlock(const float* in, /* audio in */ float* out, /* audio out */ int samples)
+{
+	float invsmp = 1.0f / (float)samples;
+
 	float adn[2];
 	adn[0] = adtab[adidx]; adn[1] = adtab[adidx+1]; adidx = (adidx+2) & 0xe;
 	int i,ridx,dinc; float g;
@@ -427,14 +477,11 @@ void VarDelay::Update(float* in, float* out, int samples, float invsmp,
 //*
 int SampleOsc::instances = 0;
 float* SampleOsc::c = NULL;
-namespace {static CriticalSection csSampleOsc;}
 
 // construction
 SampleOsc::SampleOsc()
 {
-	ScopedLock sl(csSampleOsc);
-
-	
+	ScopedLock sl(lock);
 
 	// create interpolation table
 	int i; float* tmp;
@@ -464,7 +511,7 @@ SampleOsc::SampleOsc()
 // destruction
 SampleOsc::~SampleOsc()
 {
-	ScopedLock sl(csSampleOsc);					// single thread access on
+	ScopedLock sl(lock);					// single thread access on
 	if (instances <= 1) {if (c) {delete[] c; c = NULL;}}
 	instances--;
  					// single thread access off
@@ -803,11 +850,13 @@ Amp::Amp()
 }
 
 // set control characteristic: 0=linear, 1=square, 2=quartic
-void Amp::SetType(int curve) {ncurve = __max(0,__min(2,curve));}
+void Amp::setCurveType(CurveType curve) {ncurve = __max(0,__min(2,(int)curve));}
 
 // audio and control update
-void Amp::Update(float* data, int samples, float invsmp, float amp)	
+void Amp::processInplace(float* data, int samples)	
 {
+	float invsmp = 1.0f / (samples);
+
 	float adn[2];
 	adn[0] = adtab[adidx]; adn[1] = adtab[adidx+1]; adidx = (adidx+2) & 0xe;
 	int i; unsigned int t; float da;
@@ -858,6 +907,14 @@ void Amp::Update(float* data, int samples, float invsmp, float amp)
 	}
 }
 
+
+void Amp::processBlock(const float *input, float *output, int numSamples)
+{
+	VectorFunctions::copy(output, input, numSamples);
+
+	processInplace(output, numSamples);
+}
+
 //******************************************************************************
 //* second order multimode filter
 //*
@@ -867,7 +924,7 @@ float* ChambFilter::tab = NULL;
 namespace {static CriticalSection csChambFilter;}
 
 // construction 
-ChambFilter::ChambFilter(float smprate, float fmin)
+ChambFilter::ChambFilter()
 {
 	ScopedLock sl(csChambFilter);					// single thread access on
 	
@@ -875,14 +932,13 @@ ChambFilter::ChambFilter(float smprate, float fmin)
 	if (tab == NULL) {
 		tab = new float[4096];
 		Noise n;
-		n.SetType(1);
-		n.Update(tab,4096);
+		n.setNoiseType(Noise::NoiseType::PinkNoise);
+		n.processInplace(tab,4096);
 		VectorFunctions::mul(tab,3.0f*ANTI_DENORMAL_FLOAT,4096);
 	}
 
 	// init frequency conversion
-	fscl1 = sqrtf(__min(1.0f,__max(0.0001f,M_PI_FLOAT*fmin/(1.22f*smprate))));
-	fscl2 = -logf(fscl1);
+	
 
 	// init states
 	a = b = lim = 0;
@@ -903,8 +959,38 @@ ChambFilter::~ChambFilter()
  					// single thread access off
 }
 
+
+void ChambFilter::prepareToPlay(double sampleRate, int samplesPerBlock)
+{
+	const float fmin = 5.0f;
+
+	fscl1 = sqrtf(__min(1.0f, __max(0.0001f, M_PI_FLOAT*fmin / (1.22f*(float)sampleRate))));
+	fscl2 = -logf(fscl1);
+}
+
 // set filter type
-void ChambFilter::SetType(int type) {ftype = type;}
+void ChambFilter::setFilterType(FilterType type) {ftype = (int)type;}
+
+
+void ChambFilter::processBlock(const float *input, float *output, int numSamples)
+{
+	VectorFunctions::copy(output, input, numSamples);
+
+	processInplace(output, numSamples);
+}
+
+
+void ChambFilter::processInplace(float *data, int numSamples)
+{
+	if (mode == WorkingMode::Normal)
+	{
+		Update(data, numSamples, 1.0f / (float)numSamples, freq, res);
+	}
+	else
+	{
+		UpdateCmp(data, numSamples, 1.0f / (float)numSamples, freq, res);
+	}
+}
 
 // audio and control update, purely linear
 void ChambFilter::Update(	float* data, int samples, float invsmp,
@@ -1133,7 +1219,7 @@ float* MoogFilter::tab = NULL;
 namespace {static CriticalSection csMoogFilter;}
 
 // construction
-MoogFilter::MoogFilter(float smprate, float fmin)
+MoogFilter::MoogFilter()
 {
 	ScopedLock sl(csMoogFilter);					// single thread access on
 	
@@ -1141,14 +1227,12 @@ MoogFilter::MoogFilter(float smprate, float fmin)
 	if (tab == NULL) {
 		tab = new float[4096];
 		Noise n;
-		n.SetType(1);
-		n.Update(tab,4096);
+		n.setNoiseType(Noise::NoiseType::PinkNoise);
+		n.processInplace(tab,4096);
 		VectorFunctions::mul(tab,3.0f*ANTI_DENORMAL_FLOAT,4096);
 	}
 	
-	// init frequency conversion
-	fscl1 = sqrtf(__min(1.0f,__max(0.0001f,2.5f*fmin/smprate)));
-	fscl2 = -logf(fscl1);
+	
 	
 	// init states
 	rc = s1 = s2 = s3 = s4 = s5 = s6 = s7 = s8 = slim = previn = 0;
@@ -1168,10 +1252,21 @@ MoogFilter::~MoogFilter()
  					// single thread access off
 }
 
-// audio and control update
-void MoogFilter::Update(float* data, int samples, float invsmp,
-						float freq, float res)
+
+void MoogFilter::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
+	const float fmin = 20.0f;
+
+	// init frequency conversion
+	fscl1 = sqrtf(__min(1.0f, __max(0.0001f, 2.5f*fmin / (float)sampleRate)));
+	fscl2 = -logf(fscl1);
+}
+
+// audio and control update
+void MoogFilter::processInplace(float* data, int samples)
+{
+	const float invsmp = 1.0f / (float)samples;
+
 	float r,f,fcpl,inscl,x,y;
 	
 	// control processing	
@@ -1249,6 +1344,14 @@ void MoogFilter::Update(float* data, int samples, float invsmp,
 		s8 = s5;
 		s7 = s5 = x;								
 	}
+}
+
+
+void MoogFilter::processBlock(const float *input, float *output, int numSamples)
+{
+	VectorFunctions::copy(output, input, numSamples);
+
+	processInplace(output, numSamples);
 }
 
 //******************************************************************************

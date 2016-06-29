@@ -10,6 +10,37 @@
 #ifndef _ICST_DSPLIB_AUDIOSYNTH_INCLUDED
 #define _ICST_DSPLIB_AUDIOSYNTH_INCLUDED
 
+/** The base class of ICSTDSP effects. */
+class Effect
+{
+	/** Call this before calls to processBlock / processInplace to setup the effect. */
+	virtual void prepareToPlay(double sampleRate, int samplesPerBlock) {};
+
+	/** Processes the samples from input to output. Both arrays must be at have numSamples elements. */
+	virtual void processBlock(const float *input, float *output, int numSamples) {};
+
+	/** Processes the float data in place. 
+	*
+	*	The default behaviour copies the input data into an internal buffer and calls processBlock.
+	*/
+	virtual void processInplace(float *data, int numSamples);
+
+protected:
+
+	/** Call this in your subclasses prepareToPlay method and tell it to automatically use inplace processing. */
+	void enableInplaceProcessing(bool shouldBeEnabled, int numMaxSamplesToExpect)
+	{
+		inplaceProcessingEnabled = shouldBeEnabled;
+		inplaceBuffer = AudioSampleBuffer(1, numMaxSamplesToExpect);
+	}
+
+private:
+
+	bool inplaceProcessingEnabled;
+
+	AudioSampleBuffer inplaceBuffer;
+};
+
 // wavetable oscillator
 // control characteristics: pitch + pitchmod exponential, wave linear 
 // phase modulation input: int(-2^31..2^31-1) <-> phase(-pi..pi)
@@ -28,7 +59,7 @@ public:
 					float* d,			// and normalize to RMS = 0.5		
 					int idx			);	// wave index (0..tables-1)			
 	void SetPhase(	float phase		);	// set phase synchronously (0..1) 
-	void Update(						// audio and control update
+	void processBlock(						// audio and control update
 					float* d,			// audio out
 					int samples,		// number of samples
 					float invsmp,		// 1/samples
@@ -68,80 +99,141 @@ private:
 	WaveOsc(const WaveOsc& src);				// and assignments
 };
 
-// ring modulator
-// includes prefilters (zero @ fs/2), correction postfilter, dc trap (fc=5hz)
-class RingMod
+/** Ring modulator
+*
+*	Includes prefilters (zero @ fs/2), correction postfilter, dc trap (fc=5hz)
+*/
+class RingMod: public Effect
 {
 public:
-	RingMod(float smprate);				// sample rate
-	void Update(float* in1,				// audio in 1
-				float* in2,				// audio in 2
-				float* out,				// audio out
-				int samples);			// number of samples					
+
+	RingMod();
+	
+	/** Call this to setup the sampleRate. */
+	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
+
+	void processBlockWithTwoOutputs(const float* in1, const float* in2, float* out, int numSamples);
+
 private:
 	float in1d,in2d,od,dc,a;
 	int adidx;
 	float adtab[16];
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RingMod)
 };
 
-// noise generator
-// uniformly distributed white noise, range: -1..1, RMS amplitude: 0.577 
-// pink noise, accuracy: +/- 0.3db (0.00045..0.45fs), RMS amplitude: 0.577
-class Noise
+/** Noise generator
+*
+*	uniformly distributed white noise, range: -1..1, RMS amplitude: 0.577 
+*	pink noise, accuracy: +/- 0.3db (0.00045..0.45fs), RMS amplitude: 0.577
+*/
+class Noise: public Effect
 {
 public:
+
+	// ======================================================================================
+	enum class NoiseType
+	{
+		WhiteNoise = 0,
+		PinkNoise,
+		numNoiseTypes
+	};
+
 	Noise();
-	void SetType(int type);				// set noise type: 0=white, 1=pink
-	void Update(float* out,				// audio out
-				int samples);			// number of samples
+
+	// ======================================================================================
+
+	/** Sets the noise type (white or pink noise). */
+	void setNoiseType(NoiseType type);				// set noise type: 0=white, 1=pink
+	
+	/** Fills the given float array with noise. */
+	void processInplace(float* data, int numSamples) override;
+
+	/** Same as inplace processing (ignores the input). */
+	void processBlock(const float* in, float *out, int numSamples) override;
+
 private:
+
+	// ======================================================================================
+
 	int ntype;
 	float s1,s2,s3;
+
+	// ======================================================================================
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Noise)
 };
 
-// static delay line
-// implements clickless delay time change by this sequence:
-//	1. crossfade delayed to original signal * zlevel within 20 ms
-//	2. wait new delay time
-//	3. crossfade back to delayed signal within 20 ms
-class Delay
+/** Static delay line
+*
+*	implements clickless delay time change by this sequence:
+*	1. crossfade delayed to original signal * zlevel within 20 ms
+*	2. wait new delay time
+*	3. crossfade back to delayed signal within 20 ms
+*/
+class Delay: public Effect
 {
 public:
-	Delay(	int maxlen,					// maximum delay time in samples
-			float smprate,				// sample rate in Hz
-			float zlevel=1.0f	);		// thru gain during delay change 
+
+	// ======================================================================================
+
+	Delay(	int maxlen, float zlevel=1.0f	);
 	~Delay();
-	void SetType(int dlen);				// set delay time in samples
-	void Update(float* in,				// audio in
-				float* out,				// audio out
-				int samples);			// number of samples	
+	
+	// ======================================================================================
+
+	void setDelayTime(int timeInSamples);
+	
+	// ======================================================================================
+
+	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
+	void processBlock(const float* in, float* out, int samples) override;
+
+	// ======================================================================================
+
 private:
+
 	float* d;
 	float a,invxflen,zlev;
 	int cp,len,mlen,tlen,nlen,state,cntdwn,xflen;
 	Delay& operator = (const Delay& src);
-	Delay(const Delay& src);				
+	Delay(const Delay& src);	
 };
 
-// time varying delay line
-// uses 1st order allpass interpolation
-class VarDelay
+/** Time varying delay line
+*
+*	uses 1st order allpass interpolation
+*/
+class VarDelay: public Effect
 {
 public:
+
+	// ======================================================================================
+
 	VarDelay(float maxlen);				// set maximum delay time in samples
 	~VarDelay();
-	void Update(float* in,				// audio in
-				float* out,				// audio out
-				int samples,			// number of samples
-				float invsmp,			// 1/samples
-				float length);			// delay time in samples				
+	
+	void setDelayTime(float delayTimeSamples);
+
+	// ======================================================================================
+
+	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
+	void processBlock(const float* in, float* out, int numSamples) override;
+
+	// ======================================================================================
+
 private:
+
+	float length = 0;
+
 	float* d;							
 	float outd,dscl,dscl2,llim;
 	int wrapmask,widx,delay,dshift,dmask,adidx;
 	float adtab[16];
 	VarDelay& operator = (const VarDelay& src);	
 	VarDelay(const VarDelay& src);
+
+	// ======================================================================================
 };
 
 // sample playback oscillator
@@ -178,6 +270,9 @@ public:
 					int startpos=-1,	// start position (<0: continue)
 					float looplen=0	);	// loop length in samples, 0:no loop	
 private:
+
+	CriticalSection lock;
+
 	static int instances;				// number of object instances
 	static float* c;					// interpolation coefficients
 	union {								// sample index
@@ -258,72 +353,164 @@ private:
 };
 
 // controlled amplifier
-class Amp
+class Amp: public Effect
 {
 public:
+
+	// ======================================================================================
+
+	enum class CurveType
+	{
+		Linear = 0,
+		Square,
+		Quartic,
+		numCurveTypes
+	};
+
 	Amp();
-	void SetType(	int curve		);	// set control characteristic:
-										// 0=linear, 1=square, 2=quartic
-	void Update(	float* data,		// audio data
-					int samples,		// number of samples to process
-					float invsmp,		// 1/samples
-					float amp		);	// amplitude		
+
+	// ======================================================================================
+
+	void setCurveType(CurveType curve);	
+	
+	/** set the gain (from 0..1) according to the curve type. */
+	void setGain(float newGain) noexcept { amp = newGain; }
+	
+
+	void processInplace(float* data, int samples) override;
+	void processBlock(const float *input, float *output, int numSamples) override;
+
+	// ======================================================================================
+
 private:
+
+	float amp = 1.0f;
+
 	int ccurve,ncurve,adidx;						
 	float a;
 	float adtab[16];
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Amp)
+
+	// ======================================================================================
 };
 
-// second order multimode filter				 
-// control characteristics: frequency exponential, resonance reciprocal
-// modes:	lowpass (12dB/oct), bandpass (6dB/oct), highpass (12dB/oct),
-//			peaking, notch
-// gain @ res=0,freq=1,mode=0, linear version: 0dB
-// approximate low-level gain @ res=0,freq=1,mode=0, nonlinear version: -6dB
-class ChambFilter
+/** Second order multimode filter				 
+*
+*	control characteristics: frequency exponential, resonance reciprocal
+*	modes:	lowpass (12dB/oct), bandpass (6dB/oct), highpass (12dB/oct),
+*			peaking, notch
+*	gain @ res=0,freq=1,mode=0, linear version: 0dB
+*	approximate low-level gain @ res=0,freq=1,mode=0, nonlinear version: -6dB
+*/
+class ChambFilter: public Effect
 {
 public:
-	ChambFilter(	float smprate,		// sample rate
-					float fmin=5.0f	);	// minimum center frequency (Hz)
+
+	// ======================================================================================
+
+	enum class FilterType
+	{
+		LowPass = 0,
+		BandPass,
+		HighPass,
+		Peak,
+		Notch,
+		Bypassed,
+		numFilterTypes
+	};
+
+	enum class WorkingMode
+	{
+		Normal = 0,
+		NonlinearCompression,
+		numWorkingModes
+	};
+
+	// ======================================================================================
+
+	ChambFilter();
 	~ChambFilter();
-	void SetType(	int type		);	// set filter type: 0=LP, 1=BP, 2=HP,
-										// 3=peaking, 4=notch, other=bypass
-	void Update(	float* data,		// audio data
-					int samples,		// number of samples
-					float invsmp,		// 1/samples
-					float freq,			// cutoff/center frequency
-					float res		);	// resonance
-	void UpdateCmp(	float* data,		// 
-					int samples,		// nonlinear version with amplitude
-					float invsmp,		// compression, resonance up to self
-					float freq,			// oscillation
-					float res		);	//
+
+	// ======================================================================================
+
+	void setFilterType(FilterType type);
+	void setFrequency(float frequency) { freq = frequency; }
+	void setResonance(float resonance) { res = resonance; }
+	void setWorkingMode(WorkingMode newMode) { mode = newMode; }
+
+	// ======================================================================================
+
+	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
+	void processBlock(const float *input, float *output, int numSamples) override;
+	void processInplace(float *data, int numSamples) override;
+
 private:
+
+	// ======================================================================================
+
+	float freq = 1000.0f;
+	float res = 0.5f;
+
+	WorkingMode mode;
+
+	void Update(float* data,		// audio data
+		int samples,		// number of samples
+		float invsmp,		// 1/samples
+		float freq,			// cutoff/center frequency
+		float res);	// resonance
+	void UpdateCmp(float* data,		// 
+		int samples,		// nonlinear version with amplitude
+		float invsmp,		// compression, resonance up to self
+		float freq,			// oscillation
+		float res);	//
+
 	static int instances;				// number of object instances
 	static float* tab;					// anti-denormal pink noise table
 	int adidx;							// anti-denormal table index
 	float a,b,lim,d,fc,fscl1,fscl2;
 	int ftype;
+
+	// ======================================================================================
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ChambFilter)
 };
 
-// virtual analog moog lowpass filter
-// key features: low-alias wideband nonlinearity, amplitude compression,
-//				 resonance up to self-oscillation with precise tuning,
-//				 improved gain evolution with increasing resonance
-// control characteristics: frequency exponential, resonance reciprocal
-// approximate low-level gain @ res=0,freq=1: -6dB
-class MoogFilter
+/** Virtual analog moog lowpass filter
+*
+*	key features: low-alias wideband nonlinearity, amplitude compression,
+*				 resonance up to self-oscillation with precise tuning,
+*				 improved gain evolution with increasing resonance
+*	control characteristics: frequency exponential, resonance reciprocal
+*	approximate low-level gain @ res=0,freq=1: -6dB
+*/
+class MoogFilter: public Effect
 {
 public:
-	MoogFilter(		float smprate,		// sample rate
-					float fmin=5.0f	);	// minimum center frequency (Hz)
+
+	// ======================================================================================
+
+	MoogFilter();
 	~MoogFilter();
-	void Update(	float* data,		// audio data
-					int samples,		// number of samples
-					float invsmp,		// 1/samples
-					float freq,			// cutoff/center frequency (0..1)
-					float res		);	// resonance (0..1)
+	
+	// ======================================================================================
+
+	void setFrequency(double frequency) { freq = frequency; };
+	void setResonance(float resonance) { res = resonance; }
+
+	// ======================================================================================
+
+	void prepareToPlay(double sampleRate, int samplesPerBlock);
+	void processInplace(float* data, int numSamples) override;
+	void processBlock(const float *input, float *output, int numSamples) override;
+
+	// ======================================================================================
+
 private:
+
+	float freq = 1000.0f;
+	float res = 1.0f;
+
 	static int instances;				// number of object instances
 	static float* tab;					// anti-denormal pink noise table
 	int adidx;							// anti-denormal table index
@@ -335,6 +522,10 @@ private:
 	float rc;							// resonance control
 	float drc;							// r.c. increment
 	float previn;						// previous scaled input value
+
+	// ======================================================================================
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MoogFilter)
 };
 
 // FM oscillator
