@@ -176,8 +176,10 @@ For all defined variables:
 
 #include "Macros.h"
 
-#include "additional_libraries/additional_libraries.h"
+
 #include "hi_core/hi_core.h"
+#include "additional_libraries/additional_libraries.h"
+
 #include "hi_components/hi_components.h"
 #include "hi_dsp/hi_dsp.h"
 #include "hi_scripting/hi_scripting.h"

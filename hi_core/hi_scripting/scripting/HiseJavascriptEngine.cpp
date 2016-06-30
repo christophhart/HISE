@@ -504,8 +504,20 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 
 		var getResult(const Scope& s) const override
 		{
-			if (const Array<var>* array = object->getResult(s).getArray())
+			var result = object->getResult(s);
+
+			if (const Array<var>* array = result.getArray())
 				return (*array)[static_cast<int> (index->getResult(s))];
+
+			else if (result.isObject())
+			{
+				if (ScriptingDsp::Buffer * b = dynamic_cast<ScriptingDsp::Buffer*>(result.getDynamicObject()))
+				{
+					const int i = index->getResult(s);
+
+					return b->getSample(0, i);
+				}
+			}
 
 			return var::undefined();
 		}
@@ -519,6 +531,14 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 					array->add(var::undefined());
 
 				array->set(i, newValue);
+				return;
+			}
+			else if (ScriptingDsp::Buffer * b = dynamic_cast<ScriptingDsp::Buffer*>(object->getResult(s).getDynamicObject()))
+			{
+				const int i = index->getResult(s);
+				
+				b->setSample(0, i, newValue);
+				b->setSample(1, i, newValue);
 				return;
 			}
 
@@ -642,6 +662,29 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 		MultiplyOp(const CodeLocation& l, ExpPtr& a, ExpPtr& b) noexcept : BinaryOperator(l, a, b, TokenTypes::times) {}
 		var getWithDoubles(double a, double b) const override { return a * b; }
 		var getWithInts(int64 a, int64 b) const override      { return a * b; }
+
+		var getWithArrayOrObject(const var& a, const var&b) const override
+		{
+			if (ScriptingDsp::Buffer *buffer = dynamic_cast<ScriptingDsp::Buffer*>(a.getDynamicObject()))
+			{
+				if (ScriptingDsp::Buffer *otherBuffer = dynamic_cast<ScriptingDsp::Buffer*>(b.getDynamicObject()))
+				{
+					if (otherBuffer->buffer.getNumSamples() != buffer->buffer.getNumSamples())
+					{
+						throw String("Buffer size mismatch: " + String(buffer->buffer.getNumSamples()) + " vs. " + String(otherBuffer->buffer.getNumSamples()));
+					}
+
+					*buffer *= *otherBuffer;
+				}
+				else
+				{
+					*buffer *= (float)b;
+				}
+			}
+
+			return a;
+		}
+
 	};
 
 	struct DivideOp : public BinaryOperator
@@ -679,6 +722,28 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 	{
 		LeftShiftOp(const CodeLocation& l, ExpPtr& a, ExpPtr& b) noexcept : BinaryOperator(l, a, b, TokenTypes::leftShift) {}
 		var getWithInts(int64 a, int64 b) const override   { return ((int)a) << (int)b; }
+
+		var getWithArrayOrObject(const var& a, const var&b) const override
+		{
+			if (ScriptingDsp::Buffer *buffer = dynamic_cast<ScriptingDsp::Buffer*>(a.getDynamicObject()))
+			{
+				if (ScriptingDsp::Buffer *otherBuffer = dynamic_cast<ScriptingDsp::Buffer*>(b.getDynamicObject()))
+				{
+					if (otherBuffer->buffer.getNumSamples() != buffer->buffer.getNumSamples())
+					{
+						throw String("Buffer size mismatch: " + String(buffer->buffer.getNumSamples()) + " vs. " + String(otherBuffer->buffer.getNumSamples()));
+					}
+
+					*buffer << *otherBuffer;
+				}
+				else
+				{
+					*buffer << (float)b;
+				}
+			}
+
+			return a;
+		}
 	};
 
 	struct RightShiftOp : public BinaryOperator
