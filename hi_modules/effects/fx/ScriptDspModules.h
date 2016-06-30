@@ -33,6 +33,218 @@
 #ifndef SCRIPTDSPMODULES_H_INCLUDED
 #define SCRIPTDSPMODULES_H_INCLUDED
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+namespace juce
+{
+
+
+
+#define SET_MODULE_NAME(x) static Identifier getName() {static const Identifier id(x); return id; };
+#define ARG(x) args.arguments[x]
+#define GET_ARG_OBJECT(classType, argumentIndex) dynamic_cast<classType*>(args.arguments[argumentIndex].getObject())
+
+#define ADD_WRAPPER_FUNCTION(className, functionName, ...) static var functionName(const var::NativeFunctionArgs& args) \
+{ \
+	if (className* thisObject = dynamic_cast<className*>(args.thisObject.getObject())) \
+					{ \
+		thisObject->functionName(__VA_ARGS__); \
+					} \
+	return var::undefined(); \
+} 
+
+#define ADD_WRAPPER_FUNCTION_WITH_RETURN(className, functionName, ...) static var functionName(const var::NativeFunctionArgs& args) \
+{ \
+	if (className* thisObject = dynamic_cast<className*>(args.thisObject.getObject())) \
+						{ \
+		return thisObject->functionName(__VA_ARGS__); \
+						} \
+	return var::undefined(); \
+} 
+
+#define ADD_METHOD(name) setMethod(#name, Wrappers::name);
+
+#define CHECK_CONDITION(condition, errorMessage) if(!(condition)) throw String(errorMessage);
+
+
+
+
+class VariantBuffer : public DynamicObject
+{
+public:
+
+	VariantBuffer(AudioSampleBuffer *externalBuffer = nullptr)
+	{
+		if (externalBuffer != nullptr)
+			buffer.setDataToReferTo(externalBuffer->getArrayOfWritePointers(), externalBuffer->getNumChannels(), externalBuffer->getNumSamples());
+
+		initMethods();
+	}
+
+	VariantBuffer(int channels, int samples)
+	{
+		setSize(channels, samples);
+		buffer.clear();
+		initMethods();
+	}
+
+	void initMethods()
+	{
+		ADD_METHOD(setSize);
+		ADD_METHOD(copyFrom);
+		ADD_METHOD(add);
+		ADD_METHOD(getSample);
+		ADD_METHOD(setSample);
+		ADD_METHOD(getNumSamples);
+	}
+
+	SET_MODULE_NAME("buffer");
+
+	void referToBuffer(AudioSampleBuffer &b)
+	{
+		buffer.setDataToReferTo(b.getArrayOfWritePointers(), b.getNumChannels(), b.getNumSamples());
+	}
+
+	/** Resizes the buffer and clears it. */
+	void setSize(int numChannels, int numSamples)
+	{
+		buffer.setSize(numChannels, numSamples);
+		buffer.clear();
+	}
+
+	VariantBuffer operator *(VariantBuffer b)
+	{
+		FloatVectorOperations::multiply(buffer.getWritePointer(0), b.buffer.getReadPointer(0), buffer.getNumSamples());
+		FloatVectorOperations::multiply(buffer.getWritePointer(1), b.buffer.getReadPointer(1), buffer.getNumSamples());
+
+		return *this;
+	}
+
+	VariantBuffer& operator *=(VariantBuffer b)
+	{
+		FloatVectorOperations::multiply(buffer.getWritePointer(0), b.buffer.getReadPointer(0), buffer.getNumSamples());
+		FloatVectorOperations::multiply(buffer.getWritePointer(1), b.buffer.getReadPointer(1), buffer.getNumSamples());
+
+		return *this;
+	}
+
+	VariantBuffer operator *(float gain)
+	{
+		buffer.applyGain(gain);
+
+		return *this;
+	}
+
+	VariantBuffer& operator *=(float gain)
+	{
+		buffer.applyGain(gain);
+
+		return *this;
+	}
+
+	VariantBuffer& operator <<(VariantBuffer b)
+	{
+		b.copyFrom(this);
+
+		return *this;
+	}
+
+	VariantBuffer& operator <<(float f)
+	{
+		FloatVectorOperations::fill(buffer.getWritePointer(0), f, buffer.getNumSamples());
+		FloatVectorOperations::fill(buffer.getWritePointer(1), f, buffer.getNumSamples());
+
+		return *this;
+	}
+
+	var getSample(int channelIndex, int sampleIndex)
+	{
+		CHECK_CONDITION(channelIndex < buffer.getNumChannels(), getName() + ": Invalid channel index");
+		CHECK_CONDITION(sampleIndex < buffer.getNumSamples(), getName() + ": Invalid sample index");
+
+		return buffer.getSample(channelIndex, sampleIndex);
+	}
+
+	void setSample(int channelIndex, int sampleIndex, float newValue)
+	{
+		CHECK_CONDITION(channelIndex < buffer.getNumChannels(), getName() + ": Invalid channel index");
+		CHECK_CONDITION(sampleIndex < buffer.getNumSamples(), getName() + ": Invalid sample index");
+
+		buffer.setSample(channelIndex, sampleIndex, newValue);
+	}
+
+	var getNumSamples() const
+	{
+		return buffer.getNumSamples();
+	}
+
+	void copyFrom(VariantBuffer *otherBuffer)
+	{
+		if (otherBuffer == nullptr) return;
+
+
+		buffer.copyFrom(0, 0, otherBuffer->buffer, 0, 0, buffer.getNumSamples());
+		buffer.copyFrom(1, 0, otherBuffer->buffer, 1, 0, buffer.getNumSamples());
+	}
+
+	void add(VariantBuffer *otherBuffer)
+	{
+		buffer.addFrom(0, 0, otherBuffer->buffer, 0, 0, buffer.getNumSamples());
+		buffer.addFrom(1, 0, otherBuffer->buffer, 1, 0, buffer.getNumSamples());
+	}
+
+	AudioSampleBuffer buffer;
+
+	struct Wrappers
+	{
+
+		ADD_WRAPPER_FUNCTION(VariantBuffer, setSize, ARG(0), ARG(1))
+			ADD_WRAPPER_FUNCTION(VariantBuffer, add, GET_ARG_OBJECT(VariantBuffer, 0))
+			ADD_WRAPPER_FUNCTION(VariantBuffer, copyFrom, GET_ARG_OBJECT(VariantBuffer, 0))
+
+			ADD_WRAPPER_FUNCTION(VariantBuffer, setSample, ARG(0), ARG(1), ARG(2))
+			ADD_WRAPPER_FUNCTION_WITH_RETURN(VariantBuffer, getSample, ARG(0), ARG(1))
+			ADD_WRAPPER_FUNCTION_WITH_RETURN(VariantBuffer, getNumSamples)
+	};
+};
+
+#undef ADD_WRAPPER_FUNCTION
+#undef ADD_WRAPPER_FUNCTION_WITH_RETURN
+#undef GET_ARG_OBJECT
+#undef ARG
+#undef CHECK_CONDITION
+#undef SET_MODULE_NAME
+#undef ADD_METHOD
+
+
+
+
+
+
+
+
+
+}
+
+
+
+
+
+
+
+
+
 // Some handy macros to save typing...
 
 #define SET_MODULE_NAME(x) static Identifier getName() {static const Identifier id(x); return id; };
@@ -124,6 +336,7 @@ private:
 
 
 
+
 class ScriptingDsp
 {
 public:
@@ -138,143 +351,6 @@ public:
 
 	};
 
-	struct Buffer : public BaseObject
-	{
-		Buffer(AudioSampleBuffer *externalBuffer = nullptr)
-		{
-			if (externalBuffer != nullptr)
-				buffer.setDataToReferTo(externalBuffer->getArrayOfWritePointers(), externalBuffer->getNumChannels(), externalBuffer->getNumSamples());
-
-			initMethods();
-		}
-
-		Buffer(int channels, int samples)
-		{
-			setSize(channels, samples);
-			buffer.clear();
-			initMethods();
-		}
-
-		void initMethods()
-		{
-			ADD_METHOD(setSize);
-			ADD_METHOD(copyFrom);
-			ADD_METHOD(add);
-			ADD_METHOD(getSample);
-			ADD_METHOD(setSample);
-			ADD_METHOD(getNumSamples);
-		}
-
-		SET_MODULE_NAME("buffer");
-
-		void referToBuffer(AudioSampleBuffer &b)
-		{
-			buffer.setDataToReferTo(b.getArrayOfWritePointers(), b.getNumChannels(), b.getNumSamples());
-		}
-
-		/** Resizes the buffer and clears it. */
-		void setSize(int numChannels, int numSamples)
-		{
-			buffer.setSize(numChannels, numSamples);
-			buffer.clear();
-		}
-
-
-		Buffer operator *(Buffer b)
-		{
-			FloatVectorOperations::multiply(buffer.getWritePointer(0), b.buffer.getReadPointer(0), buffer.getNumSamples());
-			FloatVectorOperations::multiply(buffer.getWritePointer(1), b.buffer.getReadPointer(1), buffer.getNumSamples());
-
-			return *this;
-		}
-
-		Buffer& operator *=(Buffer b)
-		{
-			FloatVectorOperations::multiply(buffer.getWritePointer(0), b.buffer.getReadPointer(0), buffer.getNumSamples());
-			FloatVectorOperations::multiply(buffer.getWritePointer(1), b.buffer.getReadPointer(1), buffer.getNumSamples());
-
-			return *this;
-		}
-
-		Buffer operator *(float gain)
-		{
-			buffer.applyGain(gain);
-
-			return *this;
-		}
-
-		Buffer& operator *=(float gain)
-		{
-			buffer.applyGain(gain);
-
-			return *this;
-		}
-
-		Buffer& operator <<(Buffer b)
-		{
-			b.copyFrom(this);
-
-			return *this;
-		}
-
-		Buffer& operator <<(float f)
-		{
-			FloatVectorOperations::fill(buffer.getWritePointer(0), f, buffer.getNumSamples());
-			FloatVectorOperations::fill(buffer.getWritePointer(1), f, buffer.getNumSamples());
-
-			return *this;
-		}
-
-		var getSample(int channelIndex, int sampleIndex)
-		{
-			CHECK_CONDITION(channelIndex < buffer.getNumChannels(), getName() + ": Invalid channel index");
-			CHECK_CONDITION(sampleIndex < buffer.getNumSamples(), getName() + ": Invalid sample index");
-
-			return buffer.getSample(channelIndex, sampleIndex);
-		}
-
-		void setSample(int channelIndex, int sampleIndex, float newValue)
-		{
-			CHECK_CONDITION(channelIndex < buffer.getNumChannels(), getName() + ": Invalid channel index");
-			CHECK_CONDITION(sampleIndex < buffer.getNumSamples(), getName() + ": Invalid sample index");
-
-			buffer.setSample(channelIndex, sampleIndex, newValue);
-		}
-
-		var getNumSamples() const
-		{
-			return buffer.getNumSamples();
-		}
-
-		void copyFrom(Buffer *otherBuffer)
-		{
-			if (otherBuffer == nullptr) return;
-
-
-			buffer.copyFrom(0, 0, otherBuffer->buffer, 0, 0, buffer.getNumSamples());
-			buffer.copyFrom(1, 0, otherBuffer->buffer, 1, 0, buffer.getNumSamples());
-		}
-
-		void add(Buffer *otherBuffer)
-		{
-			buffer.addFrom(0, 0, otherBuffer->buffer, 0, 0, buffer.getNumSamples());
-			buffer.addFrom(1, 0, otherBuffer->buffer, 1, 0, buffer.getNumSamples());
-		}
-
-		AudioSampleBuffer buffer;
-
-		struct Wrappers
-		{
-
-			ADD_WRAPPER_FUNCTION(Buffer, setSize, ARG(0), ARG(1))
-			ADD_WRAPPER_FUNCTION(Buffer, add, GET_ARG_OBJECT(Buffer, 0))
-			ADD_WRAPPER_FUNCTION(Buffer, copyFrom, GET_ARG_OBJECT(Buffer, 0))
-
-			ADD_WRAPPER_FUNCTION(Buffer, setSample, ARG(0), ARG(1), ARG(2))
-			ADD_WRAPPER_FUNCTION_WITH_RETURN(Buffer, getSample, ARG(0), ARG(1))
-			ADD_WRAPPER_FUNCTION_WITH_RETURN(Buffer, getNumSamples)
-		};
-	};
 
 	class DspObject : public BaseObject
 	{
@@ -294,7 +370,7 @@ public:
 		*
 		*	If you don't want inplace processing (eg. for delays), store it in a internal buffer and return this buffer using getBuffer().
 		*/
-		virtual void processBlock(Buffer &buffer) = 0;
+		virtual void processBlock(VariantBuffer &buffer) = 0;
 
 		/** Return the internal buffer of the object.
 		*
@@ -308,7 +384,7 @@ public:
 			{
 				if (DspObject* thisObject = dynamic_cast<DspObject*>(args.thisObject.getObject()))
 				{
-					Buffer *buffer = dynamic_cast<Buffer*>(args.arguments[0].getObject());
+					VariantBuffer *buffer = dynamic_cast<VariantBuffer*>(args.arguments[0].getObject());
 
 					thisObject->processBlock(*buffer);
 				}
@@ -349,7 +425,7 @@ public:
 
 			void prepareToPlay(double sampleRate, int samplesPerBlock) override {};
 
-		void processBlock(Buffer &buffer) override
+		void processBlock(VariantBuffer &buffer) override
 		{
 			float **out = buffer.buffer.getArrayOfWritePointers();
 
@@ -402,7 +478,7 @@ public:
 
 		void prepareToPlay(double sampleRate, int samplesPerBlock) override
 		{
-			delayedBuffer = new Buffer(2, samplesPerBlock);
+			delayedBuffer = new VariantBuffer(2, samplesPerBlock);
 
 
 
@@ -410,7 +486,7 @@ public:
 			delayR.prepareToPlay(sampleRate);
 		}
 
-		void processBlock(Buffer &b) override
+		void processBlock(VariantBuffer &b) override
 		{
 			const float *inL = b.buffer.getReadPointer(0);
 			const float *inR = b.buffer.getReadPointer(1);
@@ -451,7 +527,7 @@ public:
 		DelayLine delayL;
 		DelayLine delayR;
 
-		ReferenceCountedObjectPtr<Buffer> delayedBuffer;
+		ReferenceCountedObjectPtr<VariantBuffer> delayedBuffer;
 	};
 
 	class MoogFilter : public DspObject
@@ -482,7 +558,7 @@ public:
 			freq = frequency / (0.42 * sampleRate);
 		}
 
-		void processBlock(Buffer &buffer) override
+		void processBlock(VariantBuffer &buffer) override
 		{
 			float *l = buffer.buffer.getWritePointer(0);
 			float *r = buffer.buffer.getWritePointer(1);
@@ -557,7 +633,7 @@ public:
 		{
 			filterL.setFilterType((icstdsp::ChambFilter::FilterType)type);
 		}
-		void processBlock(Buffer &buffer)
+		void processBlock(VariantBuffer &buffer)
 		{
 			float *l = buffer.buffer.getWritePointer(0);
 			float *r = buffer.buffer.getWritePointer(1);
@@ -643,7 +719,7 @@ public:
 			calcCoefficients();
 		}
 
-		void processBlock(Buffer &b) override
+		void processBlock(VariantBuffer &b) override
 		{
 			float *inL = b.buffer.getWritePointer(0);
 			float *inR = b.buffer.getWritePointer(1);
@@ -724,10 +800,6 @@ public:
 		IIRCoefficients coefficients;
 
 	};
-
-
-
-	
 };
 
 
@@ -756,7 +828,7 @@ private:
 		ADD_WRAPPER_FUNCTION_WITH_RETURN(DspFactory, createModule, ARG(0).toString());
 	};
 
-	Factory<ScriptingDsp::BaseObject> factory;
+	Factory<DynamicObject> factory;
 
 };
 

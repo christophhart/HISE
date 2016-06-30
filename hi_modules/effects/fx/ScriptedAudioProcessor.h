@@ -51,7 +51,7 @@ public:
 
         processBlockScope = new DynamicObject();
         
-        currentBuffer = new ScriptingDsp::Buffer();
+        currentBuffer = new VariantBuffer();
         
 		DspFactory *f = new DspFactory();
 
@@ -59,6 +59,8 @@ public:
 
         
 		scriptingEngine->getRootObject()->setMethod("print", print);
+
+		scriptingEngine->getRootObject()->setMethod("Buffer", createBuffer);
 
         callbackResult = scriptingEngine->execute(doc.getAllContent());
         
@@ -108,9 +110,9 @@ public:
             
             currentBuffer->referToBuffer(buffer);
             
-            const var arguments[3] = { var(currentBuffer), 0, buffer.getNumSamples() };
+            const var arguments[1] = { var(currentBuffer)};
             
-            var::NativeFunctionArgs args(this, arguments, 3);
+            var::NativeFunctionArgs args(this, arguments, 1);
             
             static const Identifier id("processBlock");
             
@@ -184,6 +186,20 @@ public:
 		return var::undefined();
 	}
 
+	static var createBuffer(const var::NativeFunctionArgs &args)
+	{
+		if (args.numArguments == 1)
+		{
+			VariantBuffer *b = new VariantBuffer(2, (int)args.arguments[0]);
+			return var(b);
+		}
+		else
+		{
+			VariantBuffer *b = new VariantBuffer();
+			return var(b);
+		}
+	};
+
     CodeDocument &getDocument()
     {
         return doc;
@@ -201,7 +217,7 @@ private:
     
 	double sampleRate = 0.0;
 
-    ReferenceCountedObjectPtr<ScriptingDsp::Buffer> currentBuffer;
+    ReferenceCountedObjectPtr<VariantBuffer> currentBuffer;
     
     CriticalSection compileLock;
     

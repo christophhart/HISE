@@ -33,6 +33,63 @@
 #ifndef HISEJAVASCRIPTENGINE_H_INCLUDED
 #define HISEJAVASCRIPTENGINE_H_INCLUDED
 
+#define NUM_VAR_REGISTERS 8
+
+class VarRegister
+{
+public:
+
+	VarRegister()
+	{
+		for (int i = 0; i < NUM_VAR_REGISTERS; i++)
+		{
+			registerStack[i] = var::undefined();
+			registerStackIds[i] = Identifier::null;
+		}
+	}
+
+	void addRegister(const Identifier &id, var newValue)
+	{
+		for (int i = 0; i < NUM_VAR_REGISTERS; i++)
+		{
+			if (registerStackIds[i] == id)
+			{
+				registerStack[i] = newValue;
+				break;
+			}
+
+			if (registerStackIds[i].isNull())
+			{
+				registerStackIds[i] = Identifier(id);
+				registerStack[i] = newValue;
+				break;
+			}
+		}
+	}
+
+	void setRegister(int registerIndex, var newValue)
+	{
+		if (registerIndex < NUM_VAR_REGISTERS)
+		{
+			registerStack[registerIndex] = newValue;
+		}
+	}
+
+	const var getFromRegister(int registerIndex)
+	{
+		if (registerIndex < NUM_VAR_REGISTERS)
+		{
+			return *(registerStack + registerIndex);
+		}
+
+		return var::undefined();
+	}
+
+private:
+
+	var registerStack[NUM_VAR_REGISTERS];
+	Identifier registerStackIds[NUM_VAR_REGISTERS];
+};
 
 
 /**
@@ -121,6 +178,7 @@ private:
 	void prepareTimeout() const noexcept;
 
 	DynamicObject::Ptr unneededScope;
+
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HiseJavascriptEngine)
 };

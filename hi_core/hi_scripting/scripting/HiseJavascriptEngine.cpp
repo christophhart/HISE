@@ -49,7 +49,7 @@
     X(var,      "var")      X(if_,     "if")     X(else_,  "else")   X(do_,       "do")       X(null_,     "null") \
     X(while_,   "while")    X(for_,    "for")    X(break_, "break")  X(continue_, "continue") X(undefined, "undefined") \
     X(function, "function") X(return_, "return") X(true_,  "true")   X(false_,    "false")    X(new_,      "new") \
-    X(typeof_,  "typeof")	X(switch_, "switch") X(case_, "case")	 X(default_,  "default")
+    X(typeof_,  "typeof")	X(switch_, "switch") X(case_, "case")	 X(default_,  "default")  X(register_var, "register")
 
 namespace TokenTypes
 {
@@ -83,6 +83,8 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 
 	typedef const var::NativeFunctionArgs& Args;
 	typedef const char* TokenType;
+
+	VarRegister varRegister;
 
 	void execute(const String& code)
 	{
@@ -193,6 +195,8 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 			return parent != nullptr ? parent->findSymbolInParentScopes(name)
 				: var::undefined();
 		}
+
+		
 
 		bool findAndInvokeMethod(const Identifier& function, const var::NativeFunctionArgs& args, var& result) const
 		{
@@ -385,6 +389,20 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 		ExpPtr initialiser;
 	};
 
+	struct RegisterVarStatement : public Statement
+	{
+		RegisterVarStatement(const CodeLocation& l) noexcept : Statement(l) {}
+
+		ResultCode perform(const Scope& s, var*) const override
+		{
+			s.root->varRegister.addRegister(name, initialiser->getResult(s));
+			return ok;
+		}
+
+		Identifier name;
+		ExpPtr initialiser;
+	};
+
 	struct LoopStatement : public Statement
 	{
 		LoopStatement(const CodeLocation& l, bool isDo) noexcept : Statement(l), isDoLoop(isDo) {}
@@ -464,6 +482,24 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 		Identifier name;
 	};
 
+	struct RegisterName : public Expression
+	{
+		RegisterName(const CodeLocation& l, const Identifier& n, int registerIndex) noexcept : Expression(l), name(n), indexInRegister(registerIndex) {}
+
+		var getResult(const Scope& s) const override 
+		{ 
+			return s.root->varRegister.getFromRegister(indexInRegister);
+		}
+
+		void assign(const Scope& s, const var& newValue) const override
+		{
+			s.root->varRegister.setRegister(indexInRegister, newValue);
+		}
+
+		Identifier name;
+		int indexInRegister;
+	};
+
 	struct DotOperator : public Expression
 	{
 		DotOperator(const CodeLocation& l, ExpPtr& p, const Identifier& c) noexcept : Expression(l), parent(p), child(c) {}
@@ -506,25 +542,32 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 		{
 			var result = object->getResult(s);
 
-			if (const Array<var>* array = result.getArray())
-				return (*array)[static_cast<int> (index->getResult(s))];
-
-			else if (result.isObject())
+			if (VariantBuffer *b = result.getBuffer())
 			{
-				if (ScriptingDsp::Buffer * b = dynamic_cast<ScriptingDsp::Buffer*>(result.getDynamicObject()))
-				{
-					const int i = index->getResult(s);
+				const int i = index->getResult(s);
 
-					return b->getSample(0, i);
-				}
+				return b->getSample(0, i);
 			}
+			else if (const Array<var>* array = result.getArray())
+				return (*array)[static_cast<int> (index->getResult(s))];
 
 			return var::undefined();
 		}
 
 		void assign(const Scope& s, const var& newValue) const override
 		{
-			if (Array<var>* array = object->getResult(s).getArray())
+			var result = object->getResult(s);
+
+			if (VariantBuffer *b = result.getBuffer())
+			{
+				
+				const int i = index->getResult(s);
+
+				b->setSample(0, i, newValue);
+				b->setSample(1, i, newValue);
+				return;
+			}
+			else if (Array<var>* array = result.getArray())
 			{
 				const int i = index->getResult(s);
 				while (array->size() < i)
@@ -533,14 +576,7 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 				array->set(i, newValue);
 				return;
 			}
-			else if (ScriptingDsp::Buffer * b = dynamic_cast<ScriptingDsp::Buffer*>(object->getResult(s).getDynamicObject()))
-			{
-				const int i = index->getResult(s);
-				
-				b->setSample(0, i, newValue);
-				b->setSample(1, i, newValue);
-				return;
-			}
+			
 
 			Expression::assign(s, newValue);
 		}
@@ -572,11 +608,11 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 		{
 			var a(lhs->getResult(s)), b(rhs->getResult(s));
 
-			if ((a.isUndefined() || a.isVoid()) && (b.isUndefined() || b.isVoid()))
-				return getWithUndefinedArg();
-
 			if (isNumericOrUndefined(a) && isNumericOrUndefined(b))
 				return (a.isDouble() || b.isDouble()) ? getWithDoubles(a, b) : getWithInts(a, b);
+
+			if ((a.isUndefined() || a.isVoid()) && (b.isUndefined() || b.isVoid()))
+				return getWithUndefinedArg();
 
 			if (a.isArray() || a.isObject())
 				return getWithArrayOrObject(a, b);
@@ -665,9 +701,9 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 
 		var getWithArrayOrObject(const var& a, const var&b) const override
 		{
-			if (ScriptingDsp::Buffer *buffer = dynamic_cast<ScriptingDsp::Buffer*>(a.getDynamicObject()))
+			if (VariantBuffer *buffer = dynamic_cast<VariantBuffer*>(a.getDynamicObject()))
 			{
-				if (ScriptingDsp::Buffer *otherBuffer = dynamic_cast<ScriptingDsp::Buffer*>(b.getDynamicObject()))
+				if (VariantBuffer *otherBuffer = dynamic_cast<VariantBuffer*>(b.getDynamicObject()))
 				{
 					if (otherBuffer->buffer.getNumSamples() != buffer->buffer.getNumSamples())
 					{
@@ -725,9 +761,9 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 
 		var getWithArrayOrObject(const var& a, const var&b) const override
 		{
-			if (ScriptingDsp::Buffer *buffer = dynamic_cast<ScriptingDsp::Buffer*>(a.getDynamicObject()))
+			if (VariantBuffer *buffer = dynamic_cast<VariantBuffer*>(a.getDynamicObject()))
 			{
-				if (ScriptingDsp::Buffer *otherBuffer = dynamic_cast<ScriptingDsp::Buffer*>(b.getDynamicObject()))
+				if (VariantBuffer *otherBuffer = dynamic_cast<VariantBuffer*>(b.getDynamicObject()))
 				{
 					if (otherBuffer->buffer.getNumSamples() != buffer->buffer.getNumSamples())
 					{
@@ -804,6 +840,24 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 		}
 
 		ExpPtr target, newValue;
+	};
+
+	struct RegisterAssignment : public Expression
+	{
+		RegisterAssignment(const CodeLocation &l, int registerId, ExpPtr source_) noexcept: Expression(l), registerIndex(registerId), source(source_) {}
+	
+		var getResult(const Scope &s) const override
+		{
+			var value(source->getResult(s));
+
+			s.root->varRegister.setRegister(registerIndex, value);
+			return value;
+
+		}
+
+		int registerIndex;
+
+		ExpPtr source;
 	};
 
 	struct SelfAssignment : public Expression
@@ -1242,6 +1296,8 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 		{
 			ExpPtr lhs(parseLogicOperator());
 
+			
+
 			if (matchIf(TokenTypes::question))          return parseTerneryOperator(lhs);
 			if (matchIf(TokenTypes::assign))            { ExpPtr rhs(parseExpression()); return new Assignment(location, lhs, rhs); }
 			if (matchIf(TokenTypes::plusEquals))        return parseInPlaceOpExpression<AdditionOp>(lhs);
@@ -1273,8 +1329,25 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 
 		Statement* parseStatement()
 		{
+			
+
 			if (currentType == TokenTypes::openBrace)   return parseBlock();
+
 			if (matchIf(TokenTypes::var))              return parseVar();
+			if (matchIf(TokenTypes::register_var))	   return parseRegisterVar();
+			
+#if 0
+			if (currentType == TokenTypes::identifier)
+			{
+				Identifier id = Identifier(currentValue.toString());
+
+				if (registerIdentifiers.contains(id))
+				{
+					return parseRegisterAssignment(id);
+				}
+			}
+#endif
+
 			if (matchIf(TokenTypes::if_))              return parseIf();
 			if (matchIf(TokenTypes::while_))           return parseDoOrWhileLoop(false);
 			if (matchIf(TokenTypes::do_))              return parseDoOrWhileLoop(true);
@@ -1312,6 +1385,19 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 			return s.release();
 		}
 
+		Statement *parseRegisterAssignment(const Identifier &id)
+		{
+			match(TokenTypes::identifier);
+			match(TokenTypes::assign);
+
+			const int index = registerIdentifiers.indexOf(id);
+
+			RegisterAssignment *r = new RegisterAssignment(location, index, parseExpression());
+
+			match(TokenTypes::semicolon);
+			return r;
+		}
+
 		Statement* parseReturn()
 		{
 			if (matchIf(TokenTypes::semicolon))
@@ -1326,6 +1412,28 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 		{
 			ScopedPointer<VarStatement> s(new VarStatement(location));
 			s->name = parseIdentifier();
+			s->initialiser = matchIf(TokenTypes::assign) ? parseExpression() : new Expression(location);
+
+			if (matchIf(TokenTypes::comma))
+			{
+				ScopedPointer<BlockStatement> block(new BlockStatement(location));
+				block->statements.add(s.release());
+				block->statements.add(parseVar());
+				return block.release();
+			}
+
+			match(TokenTypes::semicolon);
+			return s.release();
+		}
+
+		Statement *parseRegisterVar()
+		{
+			ScopedPointer<RegisterVarStatement> s(new RegisterVarStatement(location));
+			
+			s->name = parseIdentifier();
+
+			registerIdentifiers.add(s->name);
+
 			s->initialiser = matchIf(TokenTypes::assign) ? parseExpression() : new Expression(location);
 
 			if (matchIf(TokenTypes::comma))
@@ -1544,7 +1652,21 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 
 		Expression* parseFactor()
 		{
-			if (currentType == TokenTypes::identifier)  return parseSuffixes(new UnqualifiedName(location, parseIdentifier()));
+			if (currentType == TokenTypes::identifier)
+			{
+				Identifier id = Identifier(currentValue.toString());
+
+				const int indexOfId = registerIdentifiers.indexOf(id);
+
+				if (indexOfId != -1)
+				{
+					return parseSuffixes(new RegisterName(location, parseIdentifier(), indexOfId));
+				}
+				else
+				{
+					return parseSuffixes(new UnqualifiedName(location, parseIdentifier()));
+				}
+			}
 			if (matchIf(TokenTypes::openParen))        return parseSuffixes(matchCloseParen(parseExpression()));
 			if (matchIf(TokenTypes::true_))            return parseSuffixes(new LiteralValue(location, (int)1));
 			if (matchIf(TokenTypes::false_))           return parseSuffixes(new LiteralValue(location, (int)0));
@@ -1743,6 +1865,8 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 			e->falseBranch = parseExpression();
 			return e.release();
 		}
+
+		Array<Identifier> registerIdentifiers;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ExpressionTreeBuilder)
 	};
