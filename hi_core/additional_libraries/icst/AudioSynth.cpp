@@ -16,7 +16,6 @@
 #include <climits>
 
 
-
 void Effect::processInplace(float *data, int numSamples)
 {
 	if (inplaceProcessingEnabled && numSamples < inplaceBuffer.getNumSamples())
@@ -26,8 +25,6 @@ void Effect::processInplace(float *data, int numSamples)
 		processBlock(inplaceBuffer.getReadPointer(0), data, numSamples);
 	}
 }
-
-
 
 //******************************************************************************
 //* helper functions and objects used by different classes of AudioSynth.cpp

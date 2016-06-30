@@ -4,6 +4,8 @@
 // under the 2-clause BSD license. Copyright (c) 2008-2010, Zurich
 // University of the Arts, Beat Frei. All rights reserved.
 
+
+
 #if DONT_INCLUDE_HEADERS_IN_CPP
 #else
 #include "common.h"
@@ -1334,6 +1336,11 @@ void VectorFunctions::fsin(float* d, int size)
 //  register renaming and out-of-order execution, performance on P4 yet unknown)
 void VectorFunctions::logabs(float* d, int size)
 {
+#if PREFER_NATIVE_VECTOR_FUNCTIONS && ICSTLIB_USE_IPP
+
+	ippsLn_32f_I(d, size);
+
+#else
 	static const float ln2 = logf(2.0f);
 #ifdef ICSTLIB_NO_SSEOPT
 	static const float inv2pow23 = 1.0f/8388608.0f;
@@ -1440,13 +1447,20 @@ void VectorFunctions::logabs(float* d, int size)
 		_mm_store_ss(d+i , r2);
 		i++;
 	}		
-#endif		
+#endif	
+#endif
 }
 
 // exp(d) -> d
 // relative error: 3e-7	
 void VectorFunctions::fexp(float* d, int size)
 {
+#if PREFER_NATIVE_VECTOR_FUNCTIONS && ICSTLIB_USE_IPP
+
+	ippsExp_32f_I(d, size);
+
+#else
+
 #ifdef ICSTLIB_NO_SSEOPT  
 	for (int i=0; i<size; i++) {d[i] = expf(d[i]);}
 #else
@@ -1745,6 +1759,7 @@ void VectorFunctions::fexp(float* d, int size)
 		_mm_store_ss(d+i , r1);
 		i++;
 	}
+#endif
 #endif
 }
 
@@ -2133,6 +2148,11 @@ void VectorFunctions::integrate(float* d, int size, bool lf,
 // c -> d
 void VectorFunctions::set(float* d, float c, int size)
 {
+#if PREFER_NATIVE_VECTOR_FUNCTIONS
+
+	FloatVectorOperations::fill(d, c, size);
+
+#else
 #ifdef ICSTLIB_NO_SSEOPT  
 	for (int i=0; i<size; i++) {d[i] = c;}
 #else
@@ -2167,6 +2187,7 @@ void VectorFunctions::set(float* d, float c, int size)
 	}
 	if (size & 2) {d[i] = c; d[i+1] = c; i+=2;}
 	if (size & 1) {d[i] = c;}
+#endif
 #endif
 }
 
@@ -2285,6 +2306,11 @@ void VectorFunctions::limit(float* d, int size, float hi, float lo)
 // c*d -> d
 void VectorFunctions::mul(float* d, float c, int size)
 {
+#if PREFER_NATIVE_VECTOR_FUNCTIONS
+
+	FloatVectorOperations::multiply(d, c, size);
+
+#else
 	int i=0;
 #ifndef ICSTLIB_NO_SSEOPT  
 	if (reinterpret_cast<uintptr_t>(d) & 0xF) {
@@ -2314,11 +2340,17 @@ void VectorFunctions::mul(float* d, float c, int size)
 		if (size & 1) {d[i] *= c;}
 	}
 #endif
+#endif
 }	
 
 // fill d with element-wise product of d*r
-void VectorFunctions::mul(float* d, float* r, int size)
+void VectorFunctions::mul(float* d, const float* r, int size)
 {
+#if PREFER_NATIVE_VECTOR_FUNCTIONS
+
+	FloatVectorOperations::multiply(d, r, size);
+
+#else
 	int i=0;
 #ifndef ICSTLIB_NO_SSEOPT  
 	if ((reinterpret_cast<uintptr_t>(d) | reinterpret_cast<uintptr_t>(r)) & 0xF) {
@@ -2349,6 +2381,7 @@ void VectorFunctions::mul(float* d, float* r, int size)
 		if (size & 2) {d[i] *= r[i]; d[i+1] *= r[i+1]; i+=2;}
 		if (size & 1) {d[i] *= r[i];}
 	}
+#endif
 #endif
 }	
 
@@ -2644,6 +2677,12 @@ void VectorFunctions::swap(float* d, float* r, int size)
 // max(d,r) -> d
 void VectorFunctions::max(float* d, float* r, int size)
 {
+#if PREFER_NATIVE_VECTOR_FUNCTIONS
+
+	FloatVectorOperations::max(d, d, r, size);
+
+#else
+
 	int i=0;
 #ifndef ICSTLIB_NO_SSEOPT
 	if ((reinterpret_cast<uintptr_t>(d) | reinterpret_cast<uintptr_t>(r)) & 0xF) {
@@ -2674,6 +2713,7 @@ void VectorFunctions::max(float* d, float* r, int size)
 		if (size & 2) {d[i] = __max(d[i],r[i]); d[i+1] = __max(d[i+1],r[i+1]); i+=2;}
 		if (size & 1) {d[i] = __max(d[i],r[i]);}
 	}
+#endif
 #endif
 }		
 
@@ -2716,6 +2756,12 @@ void VectorFunctions::min(float* d, float* r, int size)
 // d+c -> d
 void VectorFunctions::add(float* d, float c, int size)
 {
+#if PREFER_NATIVE_VECTOR_FUNCTIONS
+
+	FloatVectorOperations::add(d, c, size);
+
+#else
+
 	int i=0;
 #ifndef ICSTLIB_NO_SSEOPT  
 	if (reinterpret_cast<uintptr_t>(d) & 0xF) {
@@ -2745,11 +2791,17 @@ void VectorFunctions::add(float* d, float c, int size)
 		if (size & 1) {d[i] += c;}
 	}
 #endif
+#endif
 }	
 
 // d+r -> d
 void VectorFunctions::add(float* d, float* r, int size)
 {
+#if PREFER_NATIVE_VECTOR_FUNCTIONS
+
+	FloatVectorOperations::add(d, r, size);
+
+#else
 	int i=0;
 #ifndef ICSTLIB_NO_SSEOPT  
 	if ((reinterpret_cast<uintptr_t>(d) | reinterpret_cast<uintptr_t>(r)) & 0xF) {
@@ -2781,14 +2833,20 @@ void VectorFunctions::add(float* d, float* r, int size)
 		if (size & 1) {d[i] += r[i];}
 	}
 #endif
+#endif
 }	
 
 // d-c -> d
 void VectorFunctions::sub(float* d, float c, int size) {add(d,-c,size);}
 	
 // d-r -> d
-void VectorFunctions::sub(float* d, float* r, int size)
+void VectorFunctions::sub(float* d, const float* r, int size)
 {
+#if PREFER_NATIVE_VECTOR_FUNCTIONS
+
+	FloatVectorOperations::subtract(d, r, size);
+
+#else
 	int i=0;
 #ifndef ICSTLIB_NO_SSEOPT  
 	if ((reinterpret_cast<uintptr_t>(d) | reinterpret_cast<uintptr_t>(r)) & 0xF) {
@@ -2820,10 +2878,17 @@ void VectorFunctions::sub(float* d, float* r, int size)
 		if (size & 1) {d[i] -= r[i];}
 	}
 #endif
+#endif
 }	
 
 // multiply-accumulate: d + c*r -> d
-void VectorFunctions::mac(float* d, float* r, float c, int size) {
+void VectorFunctions::mac(float* d, const float* r, /* d + c*r -> d */ float c, int size) 
+{
+#if PREFER_NATIVE_VECTOR_FUNCTIONS
+
+	FloatVectorOperations::addWithMultiply(d, r, c, size);
+
+#else
 	int i=0;
 #ifndef ICSTLIB_NO_SSEOPT  
 	if ((reinterpret_cast<uintptr_t>(d) | reinterpret_cast<uintptr_t>(r)) & 0xF) {
@@ -2881,6 +2946,7 @@ void VectorFunctions::mac(float* d, float* r, float c, int size) {
 		if (size & 2) {d[i] += (c*r[i]); d[i+1] += (c*r[i+1]); i+=2;}
 		if (size & 1) {d[i] += (c*r[i]);}
 	}
+#endif
 #endif
 }	
 
@@ -3899,6 +3965,9 @@ void VectorFunctions::cpxmul(float* d, Complex c, int size)
 // d*r -> d
 void VectorFunctions::cpxmul(float* d, float* r, int size)
 {
+#if PREFER_NATIVE_VECTOR_FUNCTIONS && ICSTLIB_USE_IPP
+
+#else
 	int i=0; float tmp;
 #ifdef ICSTLIB_NO_SSEOPT  
 	for (i=0; i<(2*size); i+=2) {
@@ -3953,6 +4022,8 @@ void VectorFunctions::cpxmul(float* d, float* r, int size)
 		d[i+1] = r[i]*d[i+1] + tmp*r[i+1];	
 	}
 #endif
+#endif
+
 }
 
 // d + c*r -> d

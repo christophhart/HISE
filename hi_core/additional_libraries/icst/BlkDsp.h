@@ -11,7 +11,7 @@
 #ifndef _ICST_DSPLIB_BLKDSP_INCLUDED
 #define _ICST_DSPLIB_BLKDSP_INCLUDED
 
-
+#define PREFER_NATIVE_VECTOR_FUNCTIONS 1
 
 /** Contains all methods that rely on FFT. 
 *
@@ -185,11 +185,10 @@ static void min(float* d, float* r, int size);		// min(d,r) -> d
 static void add(float* d, float c, int size);		// d+c -> d
 static void add(float* d, float* r, int size);		// d+r -> d
 static void sub(float* d, float c, int size);		// d-c -> d
-static void sub(float* d, float* r, int size);		// d-r -> d
+static void sub(float* d, const float* r, int size);		// d-r -> d
 static void mul(float* d, float c, int size);		// c*d -> d
-static void mul(float* d, float* r, int size);		// d*r -> d
-static void mac(float* d, float* r, 				// d + c*r -> d
-					float c, int size);				//
+static void mul(float* d, const float* r, int size);		// d*r -> d
+static void mac(float* d, const float* r, 				/* d + c*r -> d */ float c, int size);				//
 static float dotp(float* d, float* r, int size);	// return dot product: <d,r>
 static float sdist(float* d, float* r, int size);	// return squared distance
 static void conv(	float* d,  						// convolution(d,r):
