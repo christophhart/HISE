@@ -13,6 +13,7 @@ void DspFactory::registerTypes(DspFactory *instance)
 	REGISTER_TYPE(ScriptingDsp::Buffer);
 	REGISTER_TYPE(ScriptingDsp::Gain);
 	REGISTER_TYPE(ScriptingDsp::Biquad);
+	REGISTER_TYPE(ScriptingDsp::Filter);
 	REGISTER_TYPE(ScriptingDsp::MoogFilter);
 	REGISTER_TYPE(ScriptingDsp::Delay);
 }

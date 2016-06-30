@@ -59,7 +59,7 @@
 
 #define ADD_METHOD(name) setMethod(#name, Wrappers::name);
 
-#define CHECK_CONDITION(condition, errorMessage) if(!condition) throw String(errorMessage);
+#define CHECK_CONDITION(condition, errorMessage) if(!(condition)) throw String(errorMessage);
 
 
 
@@ -177,6 +177,52 @@ public:
 		{
 			buffer.setSize(numChannels, numSamples);
 			buffer.clear();
+		}
+
+
+		Buffer operator *(Buffer b)
+		{
+			FloatVectorOperations::multiply(buffer.getWritePointer(0), b.buffer.getReadPointer(0), buffer.getNumSamples());
+			FloatVectorOperations::multiply(buffer.getWritePointer(1), b.buffer.getReadPointer(1), buffer.getNumSamples());
+
+			return *this;
+		}
+
+		Buffer& operator *=(Buffer b)
+		{
+			FloatVectorOperations::multiply(buffer.getWritePointer(0), b.buffer.getReadPointer(0), buffer.getNumSamples());
+			FloatVectorOperations::multiply(buffer.getWritePointer(1), b.buffer.getReadPointer(1), buffer.getNumSamples());
+
+			return *this;
+		}
+
+		Buffer operator *(float gain)
+		{
+			buffer.applyGain(gain);
+
+			return *this;
+		}
+
+		Buffer& operator *=(float gain)
+		{
+			buffer.applyGain(gain);
+
+			return *this;
+		}
+
+		Buffer& operator <<(Buffer b)
+		{
+			b.copyFrom(this);
+
+			return *this;
+		}
+
+		Buffer& operator <<(float f)
+		{
+			FloatVectorOperations::fill(buffer.getWritePointer(0), f, buffer.getNumSamples());
+			FloatVectorOperations::fill(buffer.getWritePointer(1), f, buffer.getNumSamples());
+
+			return *this;
 		}
 
 		var getSample(int channelIndex, int sampleIndex)
@@ -408,8 +454,6 @@ public:
 		ReferenceCountedObjectPtr<Buffer> delayedBuffer;
 	};
 
-
-
 	class MoogFilter : public DspObject
 	{
 	public:
@@ -418,11 +462,9 @@ public:
 			DspObject()
 		{
 			ADD_METHOD(setFrequency);
-
-
 		};
 
-		SET_MODULE_NAME("icst_moog");
+		SET_MODULE_NAME("moog");
 
 		void prepareToPlay(double sampleRate_, int samplesPerBlock) override
 		{
@@ -430,8 +472,8 @@ public:
 			{
 				sampleRate = sampleRate_;
 
-				moogL = icstdsp::MoogFilter(sampleRate);
-				moogL = icstdsp::MoogFilter(sampleRate);
+				moogL.prepareToPlay(sampleRate_, samplesPerBlock);
+				moogL.prepareToPlay(sampleRate_, samplesPerBlock);
 			}
 		}
 
@@ -447,8 +489,8 @@ public:
 
 			const int numSamples = buffer.getNumSamples();
 
-			moogL.Update(l, numSamples, 1.0f / float(numSamples), freq, resonance);
-			moogR.Update(r, numSamples, 1.0f / float(numSamples), freq, resonance);
+			moogL.processInplace(l, numSamples);
+			moogR.processInplace(r, numSamples);
 		}
 
 	private:
@@ -463,8 +505,80 @@ public:
 		double freq = 20000.0;
 		double resonance = 0.5;
 
-		icstdsp::MoogFilter moogL = icstdsp::MoogFilter(44100.0);
-		icstdsp::MoogFilter moogR = icstdsp::MoogFilter(44100.0);
+		icstdsp::MoogFilter moogL;
+		icstdsp::MoogFilter moogR;
+	};
+
+	class Filter : public DspObject
+	{
+	public:
+
+		Filter() :
+			DspObject()
+		{
+			ADD_METHOD(setFrequency);
+			ADD_METHOD(setResonance);
+			ADD_METHOD(setType);
+
+			static const Identifier lp("LowPass");
+			static const Identifier hp("HighPass");
+			static const Identifier bp("BandPass");
+			static const Identifier pk("Peak");
+			static const Identifier nt("Notch");
+
+			setProperty(lp, (int)icstdsp::ChambFilter::FilterType::LowPass);
+			setProperty(hp, (int)icstdsp::ChambFilter::FilterType::HighPass);
+			setProperty(bp, (int)icstdsp::ChambFilter::FilterType::BandPass);
+			setProperty(pk, (int)icstdsp::ChambFilter::FilterType::Peak);
+			setProperty(nt, (int)icstdsp::ChambFilter::FilterType::Notch);
+		}
+
+		SET_MODULE_NAME("filter");
+
+		void setFrequency(float frequency)
+		{
+			filterL.setFrequency(frequency);
+			filterR.setFrequency(frequency);
+		}
+
+		void setResonance(float resonance)
+		{
+			filterL.setResonance(resonance);
+			filterR.setResonance(resonance);
+		}
+
+		void prepareToPlay(double sampleRate, int samplesPerBlock) override
+		{
+			filterL.prepareToPlay(sampleRate, samplesPerBlock);
+			filterR.prepareToPlay(sampleRate, samplesPerBlock);
+		}
+
+		void setType(int type)
+		{
+			filterL.setFilterType((icstdsp::ChambFilter::FilterType)type);
+		}
+		void processBlock(Buffer &buffer)
+		{
+			float *l = buffer.buffer.getWritePointer(0);
+			float *r = buffer.buffer.getWritePointer(1);
+
+			const int numSamples = buffer.getNumSamples();
+
+			filterL.processInplace(l, numSamples);
+			filterR.processInplace(r, numSamples);
+		}
+
+	private:
+
+		icstdsp::ChambFilter filterL;
+		icstdsp::ChambFilter filterR;
+
+		struct Wrappers
+		{
+			ADD_WRAPPER_FUNCTION(Filter, setFrequency, (float)ARG(0));
+			ADD_WRAPPER_FUNCTION(Filter, setType, (float)ARG(0));
+			ADD_WRAPPER_FUNCTION(Filter, setResonance, (float)ARG(0));
+		};
 	};
 
 	class Biquad : public DspObject
