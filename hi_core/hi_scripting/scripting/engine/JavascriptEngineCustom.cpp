@@ -76,3 +76,91 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 
 	const ReferenceCountedObjectPtr<ApiObject2> apiClass;
 };
+
+struct HiseJavascriptEngine::RootObject::InlineFunction
+{
+	struct FunctionCall;
+
+	struct Object : public DynamicObject
+	{
+	public:
+
+		Object(Identifier &n, const Array<Identifier> &p) : 
+			body(nullptr) ,
+			name(n),
+			e(nullptr)
+		{
+			parameterNames.addArray(p);
+		}
+
+		void setFunctionCall(const FunctionCall *e_)
+		{
+			e = e_;
+		}
+
+		Identifier name;
+		Array<Identifier> parameterNames;
+		typedef ReferenceCountedObjectPtr<Object> Ptr;
+		ScopedPointer<BlockStatement> body;
+
+		const FunctionCall *e;
+
+	};
+
+	struct FunctionCall : public Expression
+	{
+		FunctionCall(const CodeLocation &l, Object *referredFunction) : 
+			Expression(l),
+			f(referredFunction),
+			numArgs(f->parameterNames.size())
+		{
+			for (int i = 0; i < numArgs; i++)
+			{
+				parameterResults.add(var::undefined());
+			}
+		};
+
+		void addParameter(Expression *e)
+		{
+			parameterExpressions.add(e);
+		}
+
+		var getResult(const Scope& s) const override
+		{
+			f->setFunctionCall(this);
+
+			for (int i = 0; i < numArgs; i++)
+			{
+				parameterResults.setUnchecked(i, parameterExpressions.getUnchecked(i)->getResult(s));
+			}
+
+			ResultCode c = f->body->perform(s, &returnVar);
+
+			if (c == Statement::returnWasHit) return returnVar;
+			else return var::undefined();
+		}
+
+		Object::Ptr f;
+
+		OwnedArray<Expression> parameterExpressions;
+		mutable Array<var> parameterResults;
+
+		mutable var returnVar;
+
+		const int numArgs;
+	};
+
+	struct ParameterReference : public Expression
+	{
+		ParameterReference(const CodeLocation &l, Object *referedFunction, int id):
+			Expression(l),
+			index(id),
+			f(referedFunction)
+		{}
+
+		var getResult(const Scope&) const override   { return  (f->e->parameterResults.getUnchecked(index)); }
+
+		Object::Ptr f;
+		int index;
+	};
+};

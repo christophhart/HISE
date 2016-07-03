@@ -217,10 +217,11 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 	ExpressionTreeBuilder(const String code) :
 		TokenIterator(code){}
 
-	void setApiData(Array<Identifier> &apiIds_, ReferenceCountedArray<ApiObject2> &apiClasses_)
+	void setApiData(Array<Identifier> &apiIds_, ReferenceCountedArray<ApiObject2> &apiClasses_, ReferenceCountedArray<DynamicObject> &functionArray_)
 	{
 		apiIds = apiIds_;
 		apiClasses = &apiClasses_;
+		inlineFunctions = &functionArray_;
 	}
 
 	BlockStatement* parseStatementList()
@@ -252,7 +253,7 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 
 	Expression* parseExpression()
 	{
-		Identifier id(currentValue.toString());
+		Identifier id = Identifier::isValidIdentifier(currentValue.toString()) ? Identifier(currentValue.toString()) : Identifier::null;
 
 		ExpPtr lhs(parseLogicOperator());
 
@@ -277,10 +278,16 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 		return lhs.release();
 	}
 
-	Array<Identifier> apiIds;
-	ReferenceCountedArray<ApiObject2> *apiClasses;
+	
 
 private:
+
+	Array<Identifier> apiIds;
+	ReferenceCountedArray<ApiObject2> *apiClasses;
+	ReferenceCountedArray<DynamicObject> *inlineFunctions;
+	
+	bool currentlyParsingInlineFunction = false;
+
 	void throwError(const String& err) const  { location.throwError(err); }
 
 	template <typename OpType>
@@ -301,23 +308,12 @@ private:
 
 	Statement* parseStatement()
 	{
+		if (matchIf(TokenTypes::inline_))		   return parseInlineFunction();
+
 		if (currentType == TokenTypes::openBrace)   return parseBlock();
 
 		if (matchIf(TokenTypes::var))              return parseVar();
 		if (matchIf(TokenTypes::register_var))	   return parseRegisterVar();
-
-#if 0
-		if (currentType == TokenTypes::identifier)
-		{
-			Identifier id = Identifier(currentValue.toString());
-
-			if (registerIdentifiers.contains(id))
-			{
-				return parseRegisterAssignment(id);
-			}
-		}
-#endif
-
 		if (matchIf(TokenTypes::if_))              return parseIf();
 		if (matchIf(TokenTypes::while_))           return parseDoOrWhileLoop(false);
 		if (matchIf(TokenTypes::do_))              return parseDoOrWhileLoop(true);
@@ -327,7 +323,6 @@ private:
 		if (matchIf(TokenTypes::break_))           return new BreakStatement(location);
 		if (matchIf(TokenTypes::continue_))        return new ContinueStatement(location);
 		if (matchIf(TokenTypes::function))         return parseFunction();
-		//if (matchIf(TokenTypes::inline_))		   return parseInlineFunction;
 		if (matchIf(TokenTypes::semicolon))        return new Statement(location);
 		if (matchIf(TokenTypes::plusplus))         return parsePreIncDec<AdditionOp>();
 		if (matchIf(TokenTypes::minusminus))       return parsePreIncDec<SubtractionOp>();
@@ -434,6 +429,87 @@ private:
 		return new Assignment(location, nm, value);
 	}
 
+	InlineFunction::Object *getInlineFunction(Identifier &id)
+	{
+		for (int i = 0; i < inlineFunctions->size(); i++)
+		{
+			DynamicObject *o = inlineFunctions->getUnchecked(i);
+
+			InlineFunction::Object *obj = dynamic_cast<InlineFunction::Object*>(o);
+
+			jassert(obj != nullptr);
+
+			if (obj->name == id) return obj;
+		}
+
+		return nullptr;
+	}
+
+	Expression* parseInlineFunctionCall(InlineFunction::Object *obj)
+	{
+		ScopedPointer<InlineFunction::FunctionCall> f = new InlineFunction::FunctionCall(location, obj);
+
+		parseIdentifier();
+
+		match(TokenTypes::openParen);
+
+		while (currentType != TokenTypes::closeParen)
+		{
+			f->addParameter(parseExpression());
+			if (currentType != TokenTypes::closeParen)
+				match(TokenTypes::comma);
+		}
+
+		if (f->numArgs != f->parameterExpressions.size())
+		{
+
+			throwError("Inline function call " + obj->name + ": parameter amount mismatch: " + String(f->parameterExpressions.size()) + " (Expected: " + String(f->numArgs) + ")");
+		}
+
+		return matchCloseParen(f.release());
+		
+	}
+
+	Statement *parseInlineFunction()
+	{
+		if (currentlyParsingInlineFunction) throwError("No nested inline functions allowed.");
+
+		match(TokenTypes::function);
+
+		Identifier name = parseIdentifier();
+
+		match(TokenTypes::openParen);
+
+		Array<Identifier> inlineArguments;
+
+		while (currentType != TokenTypes::closeParen)
+		{
+			inlineArguments.add(parseIdentifier());
+			if (currentType != TokenTypes::closeParen)
+				match(TokenTypes::comma);
+		}
+		
+		match(TokenTypes::closeParen);
+
+		currentlyParsingInlineFunction = true;
+
+		InlineFunction::Object *o = new InlineFunction::Object(name, inlineArguments);
+
+		inlineFunctions->add(o);
+
+		ScopedPointer<BlockStatement> body = parseBlock();
+
+		o->body = body.release();
+
+		currentlyParsingInlineFunction = false;
+
+		match(TokenTypes::semicolon);
+
+		
+
+		return new Statement(location);
+	}
+
 	Statement* parseCaseStatement()
 	{
 		const bool isNotDefaultCase = currentType == TokenTypes::case_;
@@ -516,9 +592,11 @@ private:
 	{
 		match(TokenTypes::openParen);
 
+		const bool isVarInitialiser = matchIf(TokenTypes::var);
+		
 		Expression *iter = parseExpression();
 
-		if (currentType == TokenTypes::closeParen)
+		if (!isVarInitialiser && currentType == TokenTypes::closeParen)
 		{
 			ScopedPointer<LoopStatement> s(new LoopStatement(location, false, true));
 
@@ -726,10 +804,15 @@ private:
 			}
 
 			const int registerIndex = registerIdentifiers.indexOf(id);
-
 			const int apiClassIndex = apiIds.indexOf(id);
+			InlineFunction::Object *obj = getInlineFunction(id);
 
-			if (registerIndex != -1)
+
+			if (obj != nullptr)
+			{
+				return parseSuffixes(parseInlineFunctionCall(obj));
+			}
+			else if (registerIndex != -1)
 			{
 				return parseSuffixes(new RegisterName(location, parseIdentifier(), registerIndex));
 			}
@@ -739,6 +822,23 @@ private:
 			}
 			else
 			{
+				if (currentlyParsingInlineFunction)
+				{
+					DynamicObject *o = inlineFunctions->getLast();
+
+					jassert(o != nullptr);
+
+					InlineFunction::Object* ob = dynamic_cast<InlineFunction::Object*>(o);
+
+					const int inlineParameterIndex = ob->parameterNames.indexOf(id);
+
+					if (inlineParameterIndex >= 0)
+					{
+						parseIdentifier();
+						return parseSuffixes(new InlineFunction::ParameterReference(location, ob, inlineParameterIndex));
+					}
+				}
+
 				return parseSuffixes(new UnqualifiedName(location, parseIdentifier()));
 			}
 		}
@@ -953,7 +1053,7 @@ var HiseJavascriptEngine::RootObject::evaluate(const String& code)
 {
 	ExpressionTreeBuilder tb(code);
 
-	tb.setApiData(apiIds, apiClasses);
+	tb.setApiData(apiIds, apiClasses, inlineFunctions);
 
 	return ExpPtr(tb.parseExpression())->getResult(Scope(nullptr, this, this));
 }
@@ -962,7 +1062,7 @@ void HiseJavascriptEngine::RootObject::execute(const String& code)
 {
 	ExpressionTreeBuilder tb(code);
 
-	tb.setApiData(apiIds, apiClasses);
+	tb.setApiData(apiIds, apiClasses, inlineFunctions);
 
 	ScopedPointer<BlockStatement>(tb.parseStatementList())->perform(Scope(nullptr, this, this), nullptr);
 }

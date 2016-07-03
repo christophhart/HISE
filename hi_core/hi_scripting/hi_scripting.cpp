@@ -38,6 +38,7 @@
 #include "scripting/engine/HiseJavascriptEngine.cpp"
 #include "scripting/engine/JavascriptEngineExpressions.cpp"
 #include "scripting/engine/JavascriptEngineStatements.cpp"
+#include "scripting/engine/JavascriptEngineOperators.cpp"
 #include "scripting/engine/JavascriptEngineCustom.cpp"
 #include "scripting/engine/JavascriptEngineParser.cpp"
 #include "scripting/engine/JavascriptEngineObjects.cpp"
