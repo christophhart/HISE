@@ -53,6 +53,7 @@
 					  "hi_sampler/sampler/dywapitchtrack/*",
 					  "hi_scripting/*",
 					  "hi_scripting/scripting/*",
+					  "hi_scripting/scripting/engine/*",
 					  "hi_scripting/scripting/api/*",
 					  "hi_scripting/scripting/components/*",
 					  ]
