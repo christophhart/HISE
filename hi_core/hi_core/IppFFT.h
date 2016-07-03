@@ -69,16 +69,16 @@ public:
 	*	Input: d[] = re[0],re[1],..,re[size-1].
 	*	Output: d[] = re[0],*re[size/2]*,re[1],im[1],..,re[size/2-1],im[size/2-1].
 	*/
-	void realFFT(float *data, int size);
+	void realFFT(float *data, int size) const;
 
 	/** Real inplace FFT (input is aligned float array, size is power of two.) */
-	void realInverseFFT(float *data, int size);
+	void realInverseFFT(float *data, int size) const;
 
 	/** Complex inplace FFT (input is aligned Complex<float> array, size is power of two.) */
-	void complexFFT(float *data, int size);
+	void complexFFT(float *data, int size) const;
 
 	/** Complex inverse inplace FFT (input is aligned float array, size is power of two.) */
-	void complexInverseFFT(float *data, int size);
+	void complexInverseFFT(float *data, int size) const;
 
 	// ==================================================================================================================================== double FFTs
 
@@ -88,16 +88,16 @@ public:
 	*	Output: data[] = re[0],*re[size/2]*,re[1],im[1],..,re[size/2-1],im[size/2-1].
 	*
 	*/
-	void realFFT(double *data, int size);
+	void realFFT(double *data, int size) const;
 
 	/** Real inplace inverse FFT (input is aligned double array, size is power of two.) */
-	void realInverseFFT(double *data, int size);
+	void realInverseFFT(double *data, int size) const;
 
 	/** Complex inplace FFT (input is aligned Complex<double> array, size is power of two.) */
-	void complexFFT(double *data, int size);
+	void complexFFT(double *data, int size) const;
 
 	/** Complex inverse inplace FFT (input is aligned Complex<double> array, size is power of two.) */
-	void complexInverseFFT(double *data, int size);
+	void complexInverseFFT(double *data, int size) const;
 
 	float *getAdditionalWorkBuffer()
 	{
@@ -140,7 +140,7 @@ private:
 	// =============================================================================================================================
 
 	/** @internal */
-	int getPowerOfTwo(int size);
+	int getPowerOfTwo(int size) const;
 	/** @internal */
 	void initSpec(int N, Ipp8u *specData, Ipp8u *initData);
 	/** @internal */

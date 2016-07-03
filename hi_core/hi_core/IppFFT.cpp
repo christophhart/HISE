@@ -91,7 +91,7 @@ IppFFT::~IppFFT()
 	additionalWorkingBuffer = nullptr;
 }
 
-void IppFFT::realFFT(float *data, int size)
+void IppFFT::realFFT(float *data, int size) const
 {
 	jassert(type == DataType::RealFloat);
 
@@ -103,7 +103,7 @@ void IppFFT::realFFT(float *data, int size)
 	}
 }
 
-void IppFFT::realFFT(double *data, int size)
+void IppFFT::realFFT(double *data, int size) const
 {
 	jassert(type == DataType::RealDouble);
 
@@ -115,7 +115,7 @@ void IppFFT::realFFT(double *data, int size)
 	}
 }
 
-void IppFFT::realInverseFFT(float *data, int size)
+void IppFFT::realInverseFFT(float *data, int size) const
 {
 	jassert(type == DataType::RealFloat);
 
@@ -127,7 +127,7 @@ void IppFFT::realInverseFFT(float *data, int size)
 	}
 }
 
-void IppFFT::realInverseFFT(double *data, int size)
+void IppFFT::realInverseFFT(double *data, int size) const
 {
 	jassert(type == DataType::RealDouble);
 
@@ -139,7 +139,7 @@ void IppFFT::realInverseFFT(double *data, int size)
 	}
 }
 
-void IppFFT::complexFFT(float *data, int size)
+void IppFFT::complexFFT(float *data, int size) const
 {
 	jassert(type == DataType::ComplexFloat);
 
@@ -151,7 +151,7 @@ void IppFFT::complexFFT(float *data, int size)
 	}
 }
 
-void IppFFT::complexFFT(double *data, int size)
+void IppFFT::complexFFT(double *data, int size) const
 {
 	jassert(type == DataType::ComplexDouble);
 
@@ -163,7 +163,7 @@ void IppFFT::complexFFT(double *data, int size)
 	}
 }
 
-void IppFFT::complexInverseFFT(float *data, int size)
+void IppFFT::complexInverseFFT(float *data, int size) const
 {
 	jassert(type == DataType::ComplexFloat);
 
@@ -175,7 +175,7 @@ void IppFFT::complexInverseFFT(float *data, int size)
 	}
 }
 
-void IppFFT::complexInverseFFT(double *data, int size)
+void IppFFT::complexInverseFFT(double *data, int size) const
 {
 	jassert(type == DataType::ComplexDouble);
 
@@ -188,7 +188,7 @@ void IppFFT::complexInverseFFT(double *data, int size)
 	}
 }
 
-int IppFFT::getPowerOfTwo(int size)
+int IppFFT::getPowerOfTwo(int size) const
 {
 	if (!isPowerOfTwo(size)) return -1;
 

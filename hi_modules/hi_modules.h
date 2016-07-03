@@ -91,6 +91,7 @@
 #include "effects/fx/Chorus.h"
 #include "effects/fx/Phaser.h"
 #include "effects/fx/GainCollector.h"
+#include "effects/convolution/AtkConvolution.h"
 #include "effects/convolution/Convolution.h"
 #include "effects/mda/mdaLimiter.h"
 #include "effects/mda/mdaDegrade.h"

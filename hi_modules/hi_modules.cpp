@@ -86,6 +86,7 @@
 #include "effects/fx/Chorus.cpp"
 #include "effects/fx/Phaser.cpp"
 #include "effects/fx/GainCollector.cpp"
+#include "effects/convolution/AtkConvolution.cpp"
 #include "effects/convolution/Convolution.cpp"
 #include "effects/mda/mdaLimiter.cpp"
 #include "effects/mda/mdaDegrade.cpp"
