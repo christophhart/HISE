@@ -57,7 +57,7 @@ struct JavascriptTokeniserFunctions
             { "if", "in", "do", "or", nullptr };
 
         static const char* const keywords3Char[] =
-            { "for", "let", "int", "new", "try", "var", "NaN", nullptr };
+            { "for", "reg", "let", "int", "new", "try", "var", "NaN", nullptr };
 
         static const char* const keywords4Char[] =
             { "void", "this", "true", "long", "else", "char",
@@ -79,7 +79,7 @@ struct JavascriptTokeniserFunctions
 
         static const char* const keywordsOther[] =
 		{ "continue", "protected", "volatile", "undefined",
-              "function", "register", nullptr };
+              "function", nullptr };
 
         const char* const* k;
 

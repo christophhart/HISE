@@ -51,16 +51,15 @@ public:
 
         processBlockScope = new DynamicObject();
         
-        currentBuffer = new VariantBuffer();
-        
 		DspFactory *f = new DspFactory();
 
 		scriptingEngine->registerNativeObject("Modules", f);
 
-        
 		scriptingEngine->getRootObject()->setMethod("print", print);
 
-		scriptingEngine->getRootObject()->setMethod("Buffer", createBuffer);
+		scriptingEngine->registerNativeObject("Buffer", new VariantBuffer::Factory(64));
+
+		scriptingEngine->registerApiClass(new MathFunctions());
 
         callbackResult = scriptingEngine->execute(doc.getAllContent());
         
@@ -81,6 +80,9 @@ public:
 		if (sampleRate_ > 0)
 		{
 			sampleRate = sampleRate_;
+
+			leftChannel = new VariantBuffer(samplesPerBlock_);
+			rightChannel = new VariantBuffer(samplesPerBlock_);
 
 			ScopedLock sl(compileLock);
 
@@ -106,14 +108,16 @@ public:
     {
         if (callbackResult.wasOk())
         {
-            ScopedLock sl(compileLock);
+			ScopedLock sl(compileLock);
             
-            currentBuffer->referToBuffer(buffer);
-            
-            const var arguments[1] = { var(currentBuffer)};
-            
-            var::NativeFunctionArgs args(this, arguments, 1);
-            
+			leftChannel->referToData(buffer.getWritePointer(0), buffer.getNumSamples());
+			rightChannel->referToData(buffer.getWritePointer(1), buffer.getNumSamples());
+
+			var channels[2] = { var(leftChannel), var(rightChannel) };
+			Array<var> c(channels, 2);
+			const var arguments[1] = { var(c) };
+			var::NativeFunctionArgs args(this, arguments, 1);
+
             static const Identifier id("processBlock");
             
             scriptingEngine->executeWithoutAllocation(id, args, &callbackResult, processBlockScope);
@@ -186,20 +190,6 @@ public:
 		return var::undefined();
 	}
 
-	static var createBuffer(const var::NativeFunctionArgs &args)
-	{
-		if (args.numArguments == 1)
-		{
-			VariantBuffer *b = new VariantBuffer(2, (int)args.arguments[0]);
-			return var(b);
-		}
-		else
-		{
-			VariantBuffer *b = new VariantBuffer();
-			return var(b);
-		}
-	};
-
     CodeDocument &getDocument()
     {
         return doc;
@@ -217,8 +207,11 @@ private:
     
 	double sampleRate = 0.0;
 
-    ReferenceCountedObjectPtr<VariantBuffer> currentBuffer;
-    
+	VariantBuffer::Ptr leftChannel;
+	VariantBuffer::Ptr rightChannel;
+
+	Array<var> channelData;
+
     CriticalSection compileLock;
     
     CodeDocument doc;

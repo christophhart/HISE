@@ -49,12 +49,13 @@
     X(var,      "var")      X(if_,     "if")     X(else_,  "else")   X(do_,       "do")       X(null_,     "null") \
     X(while_,   "while")    X(for_,    "for")    X(break_, "break")  X(continue_, "continue") X(undefined, "undefined") \
     X(function, "function") X(return_, "return") X(true_,  "true")   X(false_,    "false")    X(new_,      "new") \
-    X(typeof_,  "typeof")	X(switch_, "switch") X(case_, "case")	 X(default_,  "default")  X(register_var, "register")
+    X(typeof_,  "typeof")	X(switch_, "switch") X(case_, "case")	 X(default_,  "default")  X(register_var, "reg") \
+	X(in, 		"in")
 
 namespace TokenTypes
 {
 #define JUCE_DECLARE_JS_TOKEN(name, str)  static const char* const name = str;
-	JUCE_JS_KEYWORDS(JUCE_DECLARE_JS_TOKEN)
+		JUCE_JS_KEYWORDS(JUCE_DECLARE_JS_TOKEN)
 		JUCE_JS_OPERATORS(JUCE_DECLARE_JS_TOKEN)
 		JUCE_DECLARE_JS_TOKEN(eof, "$eof")
 		JUCE_DECLARE_JS_TOKEN(literal, "$literal")
@@ -86,15 +87,24 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 
 	VarRegister varRegister;
 
+	ReferenceCountedArray<ApiObject2> apiClasses;
+	Array<Identifier> apiIds;
+
 	void execute(const String& code)
 	{
 		ExpressionTreeBuilder tb(code);
+
+		tb.setApiData(apiIds, apiClasses);
+
 		ScopedPointer<BlockStatement>(tb.parseStatementList())->perform(Scope(nullptr, this, this), nullptr);
 	}
 
 	var evaluate(const String& code)
 	{
 		ExpressionTreeBuilder tb(code);
+
+		tb.setApiData(apiIds, apiClasses);
+
 		return ExpPtr(tb.parseExpression())->getResult(Scope(nullptr, this, this));
 	}
 
@@ -139,7 +149,23 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 	//==============================================================================
 	struct Scope
 	{
-		Scope(const Scope* p, RootObject* r, DynamicObject* s) noexcept : parent(p), root(r), scope(s) {}
+		Scope(const Scope* p, RootObject* r, DynamicObject* s) noexcept : parent(p), root(r), scope(s), currentLoopStatement(nullptr) {}
+
+		mutable var currentIteratorObject;
+		mutable int currentIteratorIndex;
+
+		void setCurrentIteratorObject(var &newObject) const
+		{
+			currentIteratorIndex = 0;
+			currentIteratorObject = newObject;
+		}
+
+		void incIteratorIndex() const
+		{
+			currentIteratorIndex++;
+		}
+
+		mutable void *currentLoopStatement;
 
 		const Scope* parent;
 		ReferenceCountedObjectPtr<RootObject> root;
@@ -403,35 +429,186 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 		ExpPtr initialiser;
 	};
 
+	struct NextIteratorStatement : public Statement
+	{
+		
+
+		// This is used just for parsing the statement
+		struct IteratorOp : public Expression
+		{
+			IteratorOp(const CodeLocation& l, Expression *i, Expression *o, Identifier &iteratorId_) noexcept : Expression(l), iterator(i), object(o), iteratorId(iteratorId_) {}
+
+			var getResult(const Scope& s) const override { jassertfalse; return var::undefined(); }
+
+			void assign(const Scope& s, const var& v) const override { jassertfalse; }
+
+			Expression *iterator;
+			Expression *object;
+
+			const Identifier iteratorId;
+		};
+
+		NextIteratorStatement(const CodeLocation& l, IteratorOp &op) noexcept : 
+		  Statement(l), 
+	      iterator(op.iterator),
+		  object(op.object),
+		  iteratorId(op.iteratorId)
+		{}
+
+		void initObject(const Scope &s)
+		{
+			s.currentIteratorObject = object->getResult(s);
+
+			a = s.currentIteratorObject.getArray();
+
+			s.currentIteratorIndex = 0;
+			
+			isArrayIterator = a != nullptr;
+			index = 0;
+		}
+
+		ResultCode perform(const Scope& s, var* result) const override
+		{
+			if (isArrayIterator)
+			{
+				if (s.currentIteratorIndex <s.currentIteratorObject.getArray()->size())
+				{
+					return Statement::continueWasHit;
+				}
+				else return Statement::returnWasHit;
+			}
+			else return Statement::returnWasHit;
+		}
+
+		ExpPtr iterator;
+		ExpPtr object;
+
+		Identifier iteratorId;
+
+		mutable int index;
+
+		bool isArrayIterator;
+		Array<var> *a;
+	};
+
+	
+
 	struct LoopStatement : public Statement
 	{
-		LoopStatement(const CodeLocation& l, bool isDo) noexcept : Statement(l), isDoLoop(isDo) {}
+		struct IteratorName : public Expression
+		{
+			IteratorName(const CodeLocation& l, Identifier id_) noexcept : Expression(l), id(id_) {}
+
+			var getResult(const Scope& s) const override
+			{
+				LoopStatement *loop = (LoopStatement*)(s.currentLoopStatement);
+
+				var *data = &loop->currentObject;
+
+				CHECK_CONDITION(data != nullptr, "data does not exist");
+
+				if (data->isArray())
+				{
+					return data->getArray()->getUnchecked(loop->index);
+				}
+				else if (data->isBuffer())
+				{
+					return data->getBuffer()->getSample(loop->index);
+				}
+			}
+
+			void assign(const Scope& s, const var& newValue) const override
+			{
+				LoopStatement *loop = (LoopStatement*)(s.currentLoopStatement);
+
+				var *data = &loop->currentObject;
+
+				CHECK_CONDITION(data != nullptr, "data does not exist");
+
+				if (data->isArray())
+				{
+					data->getArray()->set(loop->index, newValue);
+				}
+				else if (data->isBuffer())
+				{
+					return data->getBuffer()->setSample(loop->index, newValue);
+				}
+			}
+
+			bool isArray;
+			bool isBuffer;
+
+			const Identifier id;
+		};
+
+		LoopStatement(const CodeLocation& l, bool isDo, bool isIterator_=false) noexcept : Statement(l), isDoLoop(isDo), isIterator(isIterator_) {}
 
 		ResultCode perform(const Scope& s, var* returnedValue) const override
 		{
-			initialiser->perform(s, nullptr);
-
-			while (isDoLoop || condition->getResult(s))
+			if (isIterator)
 			{
-				s.checkTimeOut(location);
-				ResultCode r = body->perform(s, returnedValue);
+				CHECK_CONDITION((currentIterator != nullptr), "Iterator does not exist");
 
-				if (r == returnWasHit)   return r;
-				if (r == breakWasHit)    break;
+				currentObject = currentIterator->getResult(s);
 
-				iterator->perform(s, nullptr);
+				ScopedValueSetter<void*> loopScoper(s.currentLoopStatement, (void*)this);
+	
+				index = 0;
+				
+				const int size = currentObject.isArray() ? currentObject.getArray()->size() :
+								 currentObject.isBuffer() ? currentObject.getBuffer()->size : 0;
 
-				if (isDoLoop && r != continueWasHit && !condition->getResult(s))
-					break;
+				while (index < size)
+				{
+					ResultCode r = body->perform(s, returnedValue);
+							
+					index++;
+
+					if (r == returnWasHit)   return r;
+					if (r == breakWasHit)    break;
+				}
+
+				return ok;
 			}
+			else
+			{
+				initialiser->perform(s, nullptr);
 
-			return ok;
+				while (isDoLoop || condition->getResult(s))
+				{
+					s.checkTimeOut(location);
+					ResultCode r = body->perform(s, returnedValue);
+
+					if (r == returnWasHit)   return r;
+					if (r == breakWasHit)    break;
+
+					iterator->perform(s, nullptr);
+
+					if (isDoLoop && r != continueWasHit && !condition->getResult(s))
+						break;
+				}
+
+				return ok;
+			}
 		}
 
 		ScopedPointer<Statement> initialiser, iterator, body;
+
 		ExpPtr condition;
+
+		ExpPtr currentIterator;
+
 		bool isDoLoop;
+
+		bool isIterator;
+
+		mutable int index;
+		
+		mutable var currentObject;
 	};
+
+	
+	
 
 	struct ReturnStatement : public Statement
 	{
@@ -482,6 +659,8 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 		Identifier name;
 	};
 
+	
+
 	struct RegisterName : public Expression
 	{
 		RegisterName(const CodeLocation& l, const Identifier& n, int registerIndex) noexcept : Expression(l), name(n), indexInRegister(registerIndex) {}
@@ -500,6 +679,56 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 		int indexInRegister;
 	};
 
+
+	struct ArraySubscript : public Expression
+	{
+		ArraySubscript(const CodeLocation& l) noexcept : Expression(l) {}
+
+		var getResult(const Scope& s) const override
+		{
+			var result = object->getResult(s);
+
+			if (VariantBuffer *b = result.getBuffer())
+			{
+				const int i = index->getResult(s);
+				return (*b)[i];
+			}
+			else if (const Array<var>* array = result.getArray())
+				return (*array)[static_cast<int> (index->getResult(s))];
+
+			return var::undefined();
+		}
+
+		void assign(const Scope& s, const var& newValue) const override
+		{
+			var result = object->getResult(s);
+
+			if (VariantBuffer *b = result.getBuffer())
+			{
+				const int i = index->getResult(s);
+
+				(*b)[i] = newValue;
+				return;
+			}
+			else if (Array<var>* array = result.getArray())
+			{
+				const int i = index->getResult(s);
+				while (array->size() < i)
+					array->add(var::undefined());
+
+				array->set(i, newValue);
+				return;
+			}
+
+
+			Expression::assign(s, newValue);
+		}
+
+		ExpPtr object, index;
+	};
+
+
+
 	struct DotOperator : public Expression
 	{
 		DotOperator(const CodeLocation& l, ExpPtr& p, const Identifier& c) noexcept : Expression(l), parent(p), child(c) {}
@@ -512,6 +741,8 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 			if (child == lengthID)
 			{
 				if (Array<var>* array = p.getArray())   return array->size();
+				if (p.isBuffer()) return p.getBuffer()->size;
+
 				if (p.isString())                       return p.toString().length();
 			}
 
@@ -534,55 +765,7 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 		Identifier child;
 	};
 
-	struct ArraySubscript : public Expression
-	{
-		ArraySubscript(const CodeLocation& l) noexcept : Expression(l) {}
-
-		var getResult(const Scope& s) const override
-		{
-			var result = object->getResult(s);
-
-			if (VariantBuffer *b = result.getBuffer())
-			{
-				const int i = index->getResult(s);
-
-				return b->getSample(0, i);
-			}
-			else if (const Array<var>* array = result.getArray())
-				return (*array)[static_cast<int> (index->getResult(s))];
-
-			return var::undefined();
-		}
-
-		void assign(const Scope& s, const var& newValue) const override
-		{
-			var result = object->getResult(s);
-
-			if (VariantBuffer *b = result.getBuffer())
-			{
-				
-				const int i = index->getResult(s);
-
-				b->setSample(0, i, newValue);
-				b->setSample(1, i, newValue);
-				return;
-			}
-			else if (Array<var>* array = result.getArray())
-			{
-				const int i = index->getResult(s);
-				while (array->size() < i)
-					array->add(var::undefined());
-
-				array->set(i, newValue);
-				return;
-			}
-			
-
-			Expression::assign(s, newValue);
-		}
-
-		ExpPtr object, index;
-	};
+	
 
 	struct BinaryOperatorBase : public Expression
 	{
@@ -701,21 +884,31 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 
 		var getWithArrayOrObject(const var& a, const var&b) const override
 		{
-			if (VariantBuffer *buffer = dynamic_cast<VariantBuffer*>(a.getDynamicObject()))
+			if (a.isBuffer())
 			{
-				if (VariantBuffer *otherBuffer = dynamic_cast<VariantBuffer*>(b.getDynamicObject()))
+				VariantBuffer *vba = a.getBuffer();
+				jassert(vba != nullptr);
+				
+				if (b.isBuffer())
 				{
-					if (otherBuffer->buffer.getNumSamples() != buffer->buffer.getNumSamples())
+					VariantBuffer *vbb = b.getBuffer();
+					jassert(vbb != nullptr);
+
+					if (vbb->buffer.getNumSamples() != vba->buffer.getNumSamples())
 					{
-						throw String("Buffer size mismatch: " + String(buffer->buffer.getNumSamples()) + " vs. " + String(otherBuffer->buffer.getNumSamples()));
+						throw String("Buffer size mismatch: " + String(b.getBuffer()->buffer.getNumSamples()) + " vs. " + String(a.getBuffer()->buffer.getNumSamples()));
 					}
 
-					*buffer *= *otherBuffer;
+					*vba *= *vbb;
 				}
 				else
 				{
-					*buffer *= (float)b;
+					*vba *= (float)b;
 				}
+			}
+			else
+			{
+				return BinaryOperator::getWithArrayOrObject(a, b);
 			}
 
 			return a;
@@ -828,6 +1021,8 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 		ExpPtr condition, trueBranch, falseBranch;
 	};
 
+	
+
 	struct Assignment : public Expression
 	{
 		Assignment(const CodeLocation& l, ExpPtr& dest, ExpPtr& source) noexcept : Expression(l), target(dest), newValue(source) {}
@@ -887,6 +1082,50 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 			target->assign(s, newValue->getResult(s));
 			return oldValue;
 		}
+	};
+
+	struct ApiConstant : public Expression
+	{
+		ApiConstant(const CodeLocation& l) noexcept : Expression(l) {}
+		var getResult(const Scope&) const override   { return value; }
+		
+		var value;
+	};
+
+	struct ApiCall : public Expression
+	{
+		ApiCall(const CodeLocation &l, ApiObject2 *apiClass_, int expectedArguments_, int functionIndex) noexcept: 
+		  Expression(l), 
+		  expectedNumArguments(expectedArguments_),
+		  functionIndex(functionIndex),
+		  apiClass(apiClass_)
+		{
+			for (int i = 0; i < 4; i++)
+			{
+				results[i] = var::undefined();
+				argumentList[i] = nullptr;
+			}
+		};
+
+		var getResult(const Scope& s) const override
+		{
+			for (int i = 0; i < expectedNumArguments; i++)
+			{
+				results[i] = argumentList[i]->getResult(s);
+			}
+
+			CHECK_CONDITION(apiClass != nullptr, "API class does not exist");
+
+			return apiClass->callFunction(functionIndex, results, expectedNumArguments);
+		}
+
+		const int expectedNumArguments;
+
+		ExpPtr argumentList[4];
+		const int functionIndex;
+		mutable var results[4];
+
+		const ReferenceCountedObjectPtr<ApiObject2> apiClass;
 	};
 
 	struct FunctionCall : public Expression
@@ -1263,7 +1502,14 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 	//==============================================================================
 	struct ExpressionTreeBuilder : private TokenIterator
 	{
-		ExpressionTreeBuilder(const String code) : TokenIterator(code) {}
+		ExpressionTreeBuilder(const String code): 
+			TokenIterator(code){}
+
+		void setApiData(Array<Identifier> &apiIds_, ReferenceCountedArray<ApiObject2> &apiClasses_)
+		{
+			apiIds = apiIds_;
+			apiClasses = &apiClasses_;
+		}
 
 		BlockStatement* parseStatementList()
 		{
@@ -1294,9 +1540,20 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 
 		Expression* parseExpression()
 		{
+			Identifier id(currentValue.toString());
+
 			ExpPtr lhs(parseLogicOperator());
 
-			
+			if (matchIf(TokenTypes::in))
+			{
+				
+
+				ExpPtr rhs(parseExpression());
+
+				currentIterator = id;
+
+				return rhs.release();
+			}
 
 			if (matchIf(TokenTypes::question))          return parseTerneryOperator(lhs);
 			if (matchIf(TokenTypes::assign))            { ExpPtr rhs(parseExpression()); return new Assignment(location, lhs, rhs); }
@@ -1307,6 +1564,9 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 
 			return lhs.release();
 		}
+
+		Array<Identifier> apiIds;
+		ReferenceCountedArray<ApiObject2> *apiClasses;
 
 	private:
 		void throwError(const String& err) const  { location.throwError(err); }
@@ -1329,8 +1589,6 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 
 		Statement* parseStatement()
 		{
-			
-
 			if (currentType == TokenTypes::openBrace)   return parseBlock();
 
 			if (matchIf(TokenTypes::var))              return parseVar();
@@ -1365,7 +1623,10 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 				return matchEndOfStatement(parseFactor());
 
 			if (matchesAny(TokenTypes::identifier, TokenTypes::literal, TokenTypes::minus))
-				return matchEndOfStatement(parseExpression());
+			{
+				ExpPtr ex = parseExpression();
+				return matchEndOfStatement(ex.release());
+			}
 
 			throwError("Found " + getTokenName(currentType) + " when expecting a statement");
 			return nullptr;
@@ -1540,28 +1801,53 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 
 		Statement* parseForLoop()
 		{
-			ScopedPointer<LoopStatement> s(new LoopStatement(location, false));
 			match(TokenTypes::openParen);
-			s->initialiser = parseStatement();
 
-			if (matchIf(TokenTypes::semicolon))
+			Expression *iter = parseExpression();
+
+			if (currentType == TokenTypes::closeParen)
+			{
+				ScopedPointer<LoopStatement> s(new LoopStatement(location, false, true));
+
+				s->currentIterator = iter;
+
+				s->iterator = nullptr;
+				s->initialiser = nullptr;
 				s->condition = new LiteralValue(location, true);
-			else
-			{
-				s->condition = parseExpression();
-				match(TokenTypes::semicolon);
-			}
 
-			if (matchIf(TokenTypes::closeParen))
-				s->iterator = new Statement(location);
-			else
-			{
-				s->iterator = parseExpression();
 				match(TokenTypes::closeParen);
+
+				s->body = parseStatement();
+				return s.release();
+			}
+			else
+			{
+				ScopedPointer<LoopStatement> s(new LoopStatement(location, false));
+
+				s->initialiser = matchEndOfStatement(iter);
+
+				if (matchIf(TokenTypes::semicolon))
+					s->condition = new LiteralValue(location, true);
+				else
+				{
+					s->condition = parseExpression();
+					match(TokenTypes::semicolon);
+				}
+
+				if (matchIf(TokenTypes::closeParen))
+					s->iterator = new Statement(location);
+				else
+				{
+					s->iterator = parseExpression();
+					match(TokenTypes::closeParen);
+				}
+
+				s->body = parseStatement();
+				return s.release();
 			}
 
-			s->body = parseStatement();
-			return s.release();
+			
+			
 		}
 
 		Statement* parseDoOrWhileLoop(bool isDoLoop)
@@ -1625,6 +1911,71 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 			return matchCloseParen(s.release());
 		}
 
+		Expression* parseApiExpression()
+		{
+			const Identifier apiId = parseIdentifier();
+			const int apiIndex = apiIds.indexOf(apiId);
+			ApiObject2 *apiClass = apiClasses->getUnchecked(apiIndex);
+
+			match(TokenTypes::dot);
+			
+			const Identifier memberName = parseIdentifier();
+
+			int constantIndex = apiClass->getConstantIndex(memberName);
+
+			if (constantIndex != -1)
+			{
+				return parseApiConstant(apiClass, memberName);
+			}
+			else
+			{
+				return parseApiCall(apiClass, memberName);
+			}
+		}
+
+		Expression* parseApiConstant(ApiObject2 *apiClass, const Identifier &constantName)
+		{
+			const int index = apiClass->getConstantIndex(constantName);
+
+			const var value = apiClass->getConstantValue(index);
+
+			ScopedPointer<ApiConstant> s = new ApiConstant(location);
+			s->value = value;
+
+			return s.release();
+		}
+
+		Expression* parseApiCall(ApiObject2 *apiClass, const Identifier &functionName)
+		{
+			int functionIndex, numArgs;
+			apiClass->getIndexAndNumArgsForFunction(functionName, functionIndex, numArgs);
+
+			const String prettyName = apiClass->getName() + "." + functionName.toString();
+
+			if(functionIndex < 0) throwError("Function / constant not found: " + prettyName); // Handle also missing constants here
+			ScopedPointer<ApiCall> s = new ApiCall(location, apiClass, numArgs, functionIndex);
+
+			match(TokenTypes::openParen);
+
+			int numActualArguments = 0;
+
+			while (currentType != TokenTypes::closeParen)
+			{
+				if (numActualArguments < numArgs)
+				{
+					s->argumentList[numActualArguments++] = parseExpression();
+					
+					if (currentType != TokenTypes::closeParen)
+						match(TokenTypes::comma);
+				}
+				else throwError("Too many arguments in API call " + prettyName + "(). Expected: " + String(numArgs));
+			}
+
+			if (numArgs != numActualArguments) throwError("Call to " + prettyName + "(): argument number mismatch : " + String(numActualArguments) + " (Expected : " + String(numArgs) + ")");
+			
+			return matchCloseParen(s.release());
+		}
+
 		Expression* parseSuffixes(Expression* e)
 		{
 			ExpPtr input(e);
@@ -1656,11 +2007,22 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 			{
 				Identifier id = Identifier(currentValue.toString());
 
-				const int indexOfId = registerIdentifiers.indexOf(id);
-
-				if (indexOfId != -1)
+				if (id == currentIterator)
 				{
-					return parseSuffixes(new RegisterName(location, parseIdentifier(), indexOfId));
+					return parseSuffixes(new LoopStatement::IteratorName(location, parseIdentifier()));
+				}
+
+				const int registerIndex = registerIdentifiers.indexOf(id);
+
+				const int apiClassIndex = apiIds.indexOf(id);
+
+				if (registerIndex != -1)
+				{
+					return parseSuffixes(new RegisterName(location, parseIdentifier(), registerIndex));
+				}
+				else if (apiClassIndex != -1)
+				{
+					return parseSuffixes(parseApiExpression());
 				}
 				else
 				{
@@ -1867,6 +2229,8 @@ struct HiseJavascriptEngine::RootObject : public DynamicObject
 		}
 
 		Array<Identifier> registerIdentifiers;
+
+		Identifier currentIterator;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ExpressionTreeBuilder)
 	};
@@ -2200,6 +2564,14 @@ DynamicObject * HiseJavascriptEngine::getRootObject()
 {
 	return dynamic_cast<DynamicObject*>(root.get());
 }
+
+void HiseJavascriptEngine::registerApiClass(ApiObject2 *apiClass)
+{
+	root->apiClasses.add(apiClass);
+	root->apiIds.add(apiClass->getName());
+}
+
+ApiObject2::Constant ApiObject2::Constant::null;
 
 #if JUCE_MSVC
 #pragma warning (pop)

@@ -10,7 +10,7 @@ var DspFactory::createModule(String name)
 
 void DspFactory::registerTypes(DspFactory *instance)
 {
-	REGISTER_TYPE(juce::VariantBuffer);
+	
 	REGISTER_TYPE(ScriptingDsp::Gain);
 	REGISTER_TYPE(ScriptingDsp::Biquad);
 	REGISTER_TYPE(ScriptingDsp::Filter);

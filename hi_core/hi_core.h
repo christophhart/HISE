@@ -107,6 +107,8 @@ Set this to 0 to deactivate the plotter data collection
 #define ENABLE_PLOTTER 1
 #endif
 
+
+
 /** Config: ENABLE_SCRIPTING_SAFE_CHECKS
 
 Set this to 0 to deactivate the safe checks for scripting
