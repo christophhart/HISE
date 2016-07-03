@@ -35,6 +35,9 @@
 #include "hi_scripting.h"
 
 #include "scripting/HiseJavascriptEngine.cpp"
+#include "scripting/JavascriptEngineExpressions.cpp"
+#include "scripting/JavascriptEngineParser.cpp"
+#include "scripting/JavascriptEngineObjects.cpp"
 
 #include "scripting/api/XmlApi.cpp"
 #include "scripting/api/ScriptingApi.cpp"
