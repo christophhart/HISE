@@ -401,8 +401,6 @@ public:
 			}
 		};
 
-		
-
 		struct Wrapper
 		{
 			static var setAttribute(const var::NativeFunctionArgs& args);
@@ -672,12 +670,14 @@ public:
 	*
 	*		message.delayEvent(200);
 	*/
-	class Message: public ScriptingObject
+	class Message: public ScriptingObject,
+				   public ApiClass
 	{
 	public:
 
 		Message(ScriptBaseProcessor *p):
 			ScriptingObject(p),
+			ApiClass(0),
 			ignored(false),
 			wrongNoteOff(false),
 			messageHolder(nullptr),
@@ -685,22 +685,17 @@ public:
 			eventIdCounter(0)
 			
 		{
-			setMethod("setNoteNumber", Wrapper::setNoteNumber);
-			setMethod("setVelocity", Wrapper::setVelocity);
-			setMethod("setControllerNumber", Wrapper::setControllerNumber);
-			setMethod("setControllerValue", Wrapper::setControllerValue);
-			setMethod("getNoteNumber", Wrapper::getNoteNumber);
-			setMethod("getVelocity", Wrapper::getVelocity);
-			setMethod("ignoreEvent", Wrapper::ignoreEvent);
-			setMethod("delayEvent", Wrapper::delayEvent);
-			setMethod("getEventId", Wrapper::getEventId);
-
-			setMethod("getChannel", Wrapper::getChannel);
-			setMethod("setChannel", Wrapper::setChannel);
-
-			setMethod("getControllerNumber", Wrapper::getControllerNumber);
-			setMethod("getControllerValue", Wrapper::getControllerValue);
-			
+			ADD_API_METHOD_1(setNoteNumber);
+			ADD_API_METHOD_1(setVelocity);
+			ADD_API_METHOD_1(setControllerNumber);
+			ADD_API_METHOD_1(setControllerValue);
+			ADD_API_METHOD_0(getNoteNumber);
+			ADD_API_METHOD_0(getVelocity);
+			ADD_API_METHOD_1(ignoreEvent);
+			ADD_API_METHOD_1(delayEvent);
+			ADD_API_METHOD_0(getEventId);
+			ADD_API_METHOD_0(getChannel);
+			ADD_API_METHOD_1(setChannel);
 		};
 
 		~Message()
@@ -708,7 +703,9 @@ public:
 			messageHolder = nullptr;
 		}
 
-		static Identifier getClassName() { return "Message"; };
+		Identifier getName() const override { RETURN_STATIC_IDENTIFIER("Message"); }
+
+		static Identifier getClassName() { RETURN_STATIC_IDENTIFIER("Message"); }
 
 		/** Return the note number. This can be called only on midi event callbacks. */
 		int getNoteNumber() const;
@@ -755,6 +752,19 @@ public:
 
 		struct Wrapper
 		{
+			API_VOID_METHOD_WRAPPER_1(Message, setNoteNumber);
+			API_VOID_METHOD_WRAPPER_1(Message, setVelocity);
+			API_VOID_METHOD_WRAPPER_1(Message, setControllerNumber);
+			API_VOID_METHOD_WRAPPER_1(Message, setControllerValue);
+			API_METHOD_WRAPPER_0(Message, getNoteNumber);
+			API_METHOD_WRAPPER_0(Message, getVelocity);
+			API_VOID_METHOD_WRAPPER_1(Message, ignoreEvent);
+			API_VOID_METHOD_WRAPPER_1(Message, delayEvent);
+			API_METHOD_WRAPPER_0(Message, getEventId);
+			API_METHOD_WRAPPER_0(Message, getChannel);
+			API_VOID_METHOD_WRAPPER_1(Message, setChannel);
+
+#if 0
 			static var getNoteNumber(const var::NativeFunctionArgs& args);
 			static var ignoreEvent(const var::NativeFunctionArgs& args);
 			static var delayEvent(const var::NativeFunctionArgs& args);
@@ -768,6 +778,7 @@ public:
 			static var setControllerValue(const var::NativeFunctionArgs& args);
 			static var setChannel(const var::NativeFunctionArgs& args);
 			static var getChannel(const var::NativeFunctionArgs& args);
+#endif
 		};
 
 	private:
@@ -806,7 +817,8 @@ public:
 	/** All scripting methods related to the main engine can be accessed here.
 	*	@ingroup scriptingApi
 	*/
-	class Engine: public ScriptingObject
+	class Engine: public ScriptingObject,
+				  public DynamicObject
 	{
 	public:
 
@@ -1073,7 +1085,8 @@ public:
 	*
 	*	There are special methods for SynthGroups which only work with SynthGroups
 	*/
-	class Synth: public ScriptingObject
+	class Synth: public ScriptingObject,
+				 public DynamicObject
 	{
 	public:
 		Synth(ScriptBaseProcessor *p, ModulatorSynth *ownerSynth);
@@ -1263,21 +1276,24 @@ public:
 	*	
 	*
 	*/
-	class Console: public ScriptingObject
+	class Console: public ApiClass,
+				   public ScriptingObject
 	{
 	public:
 
 		Console(ScriptBaseProcessor *p):
 			ScriptingObject(p),
+			ApiClass(0),
 			startTime(0.0),
 			benchmarkTitle(String::empty)
 		{
-			setMethod("print", Wrapper::print);
-			setMethod("start", Wrapper::start);
-			setMethod("stop", Wrapper::stop);
+			ADD_API_METHOD_1(print);
+			ADD_API_METHOD_1(start);
+			ADD_API_METHOD_0(stop);
 		};
 
-		static Identifier getClassName()   { return "Console"; };
+		Identifier getName() const override { RETURN_STATIC_IDENTIFIER("Console"); }
+		static Identifier getClassName()   { RETURN_STATIC_IDENTIFIER("Console"); };
 
 		/** Prints a message to the console. */
 		void print(var debug);
@@ -1290,9 +1306,9 @@ public:
 		
 		struct Wrapper
 		{
-			static var print (const var::NativeFunctionArgs& args);
-			static var start (const var::NativeFunctionArgs& args);
-			static var stop (const var::NativeFunctionArgs& args);
+			API_VOID_METHOD_WRAPPER_1(Console, print);
+			API_VOID_METHOD_WRAPPER_1(Console, start);
+			API_VOID_METHOD_WRAPPER_0(Console, stop);
 		};
 
 		double startTime;
@@ -1306,6 +1322,7 @@ public:
 	*
 	*/
 	class Content: public ScriptingObject,
+				   public DynamicObject,
 				   public SafeChangeBroadcaster,
 				   public RestorableObject
 	{

@@ -102,7 +102,17 @@ public:
 	*/
 	void registerNativeObject(const Identifier& objectName, DynamicObject* object);
 
+	/** Registers a callback to the engine.
+	*
+	*	If a function with this name is found at parsing, it will be stored as callback for faster execution:
+	*	
+	*	- no scope (only global variables)
+	*	- no arguments
+	*	- no overhead if the callback is not found
+	*/
+	int registerCallbackName(const Identifier &callbackName);
 
+	void executeCallback(int callbackIndex, Result *result);
 
 	/** This value indicates how long a call to one of the evaluate methods is permitted
 	to run before timing-out and failing.
@@ -237,6 +247,9 @@ private:
 			Array<Identifier> apiIds;
 			ReferenceCountedArray<DynamicObject> inlineFunctions;
 			NamedValueSet constObjects;
+
+			Array<Identifier> callbackIds;
+			OwnedArray<BlockStatement> callbacks;
 		};
 
 		HiseSpecialData hiseSpecialData;

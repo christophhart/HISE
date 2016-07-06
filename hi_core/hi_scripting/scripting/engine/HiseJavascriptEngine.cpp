@@ -288,6 +288,24 @@ var HiseJavascriptEngine::callFunction(const Identifier& function, const var::Na
 	return returnVal;
 }
 
+int HiseJavascriptEngine::registerCallbackName(const Identifier &callbackName)
+{
+	const int index = root->hiseSpecialData.callbackIds.indexOf(callbackName);
+
+	if (index != -1) return index;
+
+	root->hiseSpecialData.callbackIds.add(callbackName);
+	root->hiseSpecialData.callbacks.add(nullptr);
+
+	return root->hiseSpecialData.callbackIds.size();
+
+
+}
+
+
+
+
+
 var HiseJavascriptEngine::executeWithoutAllocation(const Identifier &function, const var::NativeFunctionArgs& args, Result* result /*= nullptr*/, DynamicObject *scopeToUse)
 {
 	var returnVal(var::undefined());

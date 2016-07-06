@@ -59,6 +59,8 @@ var CreatableScriptObject::Wrappers::checkExists(const var::NativeFunctionArgs& 
 }
 
 
+#if 0
+
 var ScriptingApi::Message::Wrapper::getNoteNumber(const var::NativeFunctionArgs& args)
 {
 	if(Message* thisObject = GET_OBJECT(Message))
@@ -206,7 +208,7 @@ var ScriptingApi::Message::Wrapper::getControllerValue(const var::NativeFunction
 	return var::undefined();
 };
 
-
+#endif
 
 // =================================================================================================== Engine Wrappers
 
@@ -1057,6 +1059,8 @@ var ScriptingApi::Sampler::Wrapper::loadSampleMap(const var::NativeFunctionArgs&
 
 // =================================================================================================== Console Wrappers
 
+#if 0
+
 var ScriptingApi::Console::Wrapper::print (const var::NativeFunctionArgs& args)
 {
 	
@@ -1093,6 +1097,8 @@ var ScriptingApi::Console::Wrapper::stop (const var::NativeFunctionArgs& args)
 	return var::undefined();
 };
 
+
+#endif
 
 // =================================================================================================== Content Wrappers
 

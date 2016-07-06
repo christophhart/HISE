@@ -558,13 +558,21 @@ void ScriptProcessor::setupApi()
 
 	scriptEngine->registerNativeObject("Content", content);
 	scriptEngine->registerNativeObject("SynthParameters", synthParameters);
-	scriptEngine->registerNativeObject("Console", new ScriptingApi::Console(this));
+
+	scriptEngine->registerApiClass(currentMidiMessage);
+
+	//scriptEngine->registerNativeObject("Console", new ScriptingApi::Console(this));
 	scriptEngine->registerNativeObject("Engine", engineObject);
-	scriptEngine->registerNativeObject("Message", currentMidiMessage);
+	scriptEngine->registerApiClass(new ScriptingApi::Console(this));
 	scriptEngine->registerNativeObject("Synth", synthObject);
 	scriptEngine->registerNativeObject("Sampler", samplerObject);
-
 	scriptEngine->registerNativeObject("Globals", getMainController()->getGlobalVariableObject());
+
+	scriptEngine->registerCallbackName(getSnippet(onInit)->getCallbackName());
+	scriptEngine->registerCallbackName(getSnippet(onNoteOn)->getCallbackName());
+	//scriptEngine->registerCallbackName(getSnippet(onNoteOff)->getCallbackName());
+
+
 	scriptEngine->execute("function include(string){Engine.include(string);};");
 
 }
@@ -587,7 +595,9 @@ void ScriptProcessor::runScriptCallbacks()
 		Result r = Result::ok();
 		const double startTime = consoleEnabled ? Time::getMillisecondCounterHiRes() : 0.0;
 
-		scriptEngine->executeWithoutAllocation(getSnippet(onNoteOn)->getCallbackName(), var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), nullptr, 0), &r, onNoteOnScope);
+		scriptEngine->executeCallback(onNoteOn, &r);
+
+		//scriptEngine->executeWithoutAllocation(getSnippet(onNoteOn)->getCallbackName(), var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), nullptr, 0), &r, onNoteOnScope);
 
 		//lastExecutionTime = consoleEnabled ? Time::getMillisecondCounterHiRes() - startTime : 0.0 ;
 		//sendChangeMessage();
@@ -603,7 +613,9 @@ void ScriptProcessor::runScriptCallbacks()
 		Result r = Result::ok();
 		const double startTime = consoleEnabled ? Time::getMillisecondCounterHiRes() : 0.0;
 
-		scriptEngine->executeWithoutAllocation(getSnippet(onNoteOff)->getCallbackName(), var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), nullptr, 0), &r, onNoteOffScope);
+		scriptEngine->executeCallback(onNoteOff, &r);
+
+		//scriptEngine->executeWithoutAllocation(getSnippet(onNoteOff)->getCallbackName(), var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), nullptr, 0), &r, onNoteOffScope);
 
 		//lastExecutionTime = consoleEnabled ? Time::getMillisecondCounterHiRes() - startTime : 0.0 ;
 		//sendChangeMessage();
@@ -625,7 +637,9 @@ void ScriptProcessor::runScriptCallbacks()
 		Result r = Result::ok();
 		const double startTime = consoleEnabled ? Time::getMillisecondCounterHiRes() : 0.0;
 
-		scriptEngine->executeWithoutAllocation(getSnippet(onController)->getCallbackName(), var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), nullptr, 0), &r, onControllerScope);
+		//scriptEngine->executeWithoutAllocation(getSnippet(onController)->getCallbackName(), var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), nullptr, 0), &r, onControllerScope);
+
+		scriptEngine->executeCallback(onController, &r);
 
 		//lastExecutionTime = consoleEnabled ? Time::getMillisecondCounterHiRes() - startTime : 0.0 ;
 		//sendChangeMessage();
@@ -857,7 +871,9 @@ void ScriptProcessor::runTimerCallback(int offsetInBuffer/*=-1*/)
 
 	const var args[1] = { offsetInBuffer };
 
-	scriptEngine->callFunction(getSnippet(onTimer)->getCallbackName(), var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), args, 1), &r);
+	scriptEngine->executeCallback(onTimer, &r);
+
+	//scriptEngine->callFunction(getSnippet(onTimer)->getCallbackName(), var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), args, 1), &r);
 
 	lastExecutionTime = consoleEnabled ? Time::getMillisecondCounterHiRes() - startTime : 0.0;
 
@@ -867,7 +883,7 @@ void ScriptProcessor::runTimerCallback(int offsetInBuffer/*=-1*/)
 	}
 	else
 	{
-		sendChangeMessage();
+		//sendChangeMessage();
 	}
 
 #if USE_BACKEND

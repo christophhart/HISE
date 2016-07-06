@@ -514,9 +514,9 @@ private:
 
 	// Only Pointers, since they will be owned by the Javascript Engine
 
-	ScriptingApi::Message *currentMidiMessage;
+	ReferenceCountedObjectPtr<ScriptingApi::Message> currentMidiMessage;
 
-	ScriptingApi::Engine *engineObject;
+	ReferenceCountedObjectPtr<ScriptingApi::Engine> engineObject;
 
 	ScriptingApi::Sampler *samplerObject;
 

@@ -46,7 +46,7 @@ class ScriptProcessor;
 *
 *	It contains some basic methods for error handling.
 */
-class ScriptingObject: public DynamicObject
+class ScriptingObject
 {
 public:
 
@@ -92,7 +92,8 @@ class EffectProcessor;
 *	You need to overwrite the objectDeleted() and objectExists() methods.
 *	From then on, you can use the checkValidObject() function within methods for sanity checking.
 */
-class CreatableScriptObject: public ScriptingObject
+class CreatableScriptObject: public ScriptingObject,
+							 public DynamicObject
 {
 public:
 

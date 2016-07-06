@@ -260,6 +260,23 @@ var HiseJavascriptEngine::RootObject::Scope::findFunctionCall(const CodeLocation
 	return var();
 }
 
+void HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
+{
+	RootObject::BlockStatement *bs = root->hiseSpecialData.callbacks[callbackIndex];
 
+	if (bs == nullptr) return;
 
+	RootObject::Scope s(nullptr, root, root);
+
+	try
+	{
+		prepareTimeout();
+
+		bs->perform(s, nullptr);
+	}
+	catch (String &error)
+	{
+		if (result != nullptr) *result = Result::fail(error);
+	}
+}
 

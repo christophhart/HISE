@@ -25,6 +25,12 @@
 #define API_METHOD_WRAPPER_3(className, name)	inline static var name(ApiClass *m, var value1, var value2, var value3) { return static_cast<className*>(m)->name(value1, value2, value3); };
 #define API_METHOD_WRAPPER_4(className, name) inline static var name(ApiClass *m, var value1, var value2, var value3, var value4) { return static_cast<className*>(m)->name(value1, value2, value3, value4); };
 
+#define API_VOID_METHOD_WRAPPER_0(className, name)	inline static var name(ApiClass *m) { static_cast<className*>(m)->name(); return var::undefined(); };
+#define API_VOID_METHOD_WRAPPER_1(className, name)	inline static var name(ApiClass *m, var value1) { static_cast<className*>(m)->name(value1); return var::undefined(); };
+#define API_VOID_METHOD_WRAPPER_2(className, name)	inline static var name(ApiClass *m, var value1, var value2) { static_cast<className*>(m)->name(value1, value2); return var::undefined(); };
+#define API_VOID_METHOD_WRAPPER_3(className, name)	inline static var name(ApiClass *m, var value1, var value2, var value3) { static_cast<className*>(m)->name(value1, value2, value3); return var::undefined(); };
+#define API_VOID_METHOD_WRAPPER_4(className, name) inline static var name(ApiClass *m, var value1, var value2, var value3, var value4) { static_cast<className*>(m)->name(value1, value2, value3, value4); return var::undefined(); };
+
 
 // Macros for DynamicObject objects
 

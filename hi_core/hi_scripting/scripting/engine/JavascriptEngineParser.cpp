@@ -433,9 +433,31 @@ private:
 		return s.release();
 	}
 
+	Statement* parseCallback()
+	{
+		Identifier name = parseIdentifier();
+
+		const int index = hiseSpecialData->callbackIds.indexOf(name);
+
+		match(TokenTypes::openParen);
+		match(TokenTypes::closeParen);
+
+		ScopedPointer<BlockStatement> s = parseBlock();
+
+		hiseSpecialData->callbacks.set(index, s.release());
+
+		return new Statement(location);
+	}
+
 	Statement* parseFunction()
 	{
 		Identifier name;
+
+		if (hiseSpecialData->callbackIds.contains(currentValue.toString()))
+		{
+			return parseCallback();
+		}
+
 		var fn = parseFunctionDefinition(name);
 
 		if (name.isNull())
