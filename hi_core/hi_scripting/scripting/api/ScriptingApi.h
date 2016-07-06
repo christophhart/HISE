@@ -194,7 +194,8 @@ public:
 
 	/** A scripting objects that wraps an existing Modulator.
 	*/
-	class ScriptingModulator: public CreatableScriptObject
+	class ScriptingModulator: public CreatableScriptObject,
+							  public AssignableObject
 	{
 	public:
 
@@ -253,6 +254,22 @@ public:
 		/** Changes the Intensity of the Modulator. Ranges: Gain Mode 0 ... 1, PitchMode -12 ... 12. */
 		void setIntensity(float newIntensity);
 
+		int getIndex(const var &indexExpression) const override
+		{
+			
+			return getProperties().indexOf(Identifier(indexExpression.toString()));
+		}
+
+		void assign(const int index, var newValue) override
+		{
+			setAttribute(index, (float)newValue);
+		}
+
+		var getAssignedValue(int index) const override
+		{
+			return 1.0; // Todo...
+		}
+
 		struct Wrapper
 		{
 			static var setAttribute(const var::NativeFunctionArgs& args);
@@ -276,7 +293,8 @@ public:
 		WeakReference<Modulator> mod;
 	};
 
-	class ScriptingMidiProcessor: public CreatableScriptObject
+	class ScriptingMidiProcessor: public CreatableScriptObject,
+								  public AssignableObject
 	{
 	public:
 
@@ -305,6 +323,21 @@ public:
 		Identifier getObjectName() const override
 		{
 			return "MidiProcessor";
+		}
+
+		int getIndex(const var &indexExpression) const override
+		{
+			return getProperties().indexOf(Identifier(indexExpression.toString()));
+		}
+
+		void assign(const int index, var newValue) override
+		{
+			setAttribute(index, (float)newValue);
+		}
+
+		var getAssignedValue(int index) const override
+		{
+			return 1.0; // Todo...
 		}
 
 		/** Checks if the Object exists and prints a error message on the console if not. */
@@ -1309,8 +1342,9 @@ public:
 		};
 
 		struct ScriptComponent : public RestorableObject,
-			public CreatableScriptObject,
-			public SafeChangeBroadcaster
+								 public CreatableScriptObject,
+								 public SafeChangeBroadcaster,
+								 public AssignableObject
 		{
 			enum Properties
 			{
@@ -1351,6 +1385,30 @@ public:
 			virtual ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) = 0;
 
 			virtual ValueTree exportAsValueTree() const override;;
+
+			var getAssignedValue(int index) const override
+			{
+				return getScriptObjectProperty(index);
+			}
+
+			void assign(const int index, var newValue) override
+			{
+				setScriptObjectProperty(index, newValue);
+			}
+
+			int getIndex(const var &indexExpression) const override
+			{
+				Identifier id(indexExpression.toString());
+
+				for (int i = 0; i < getNumIds(); i++)
+				{
+					if (deactivatedProperties.contains(getIdFor(i))) continue;
+
+					if (getIdFor(i) == id) return i;
+				}
+
+				return -1;
+			}
 
 			Identifier getObjectName() const override
 			{

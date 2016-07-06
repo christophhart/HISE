@@ -56,6 +56,12 @@ struct HiseJavascriptEngine::RootObject::ArraySubscript : public Expression
 			const int i = index->getResult(s);
 			return (*b)[i];
 		}
+		else if (AssignableObject * instance = dynamic_cast<AssignableObject*>(result.getObject()))
+		{
+			cacheIndex(instance, s);
+
+			return instance->getAssignedValue(cachedIndex);
+		}
 		else if (const Array<var>* array = result.getArray())
 			return (*array)[static_cast<int> (index->getResult(s))];
 
@@ -82,12 +88,38 @@ struct HiseJavascriptEngine::RootObject::ArraySubscript : public Expression
 			array->set(i, newValue);
 			return;
 		}
+		else if (AssignableObject * instance = dynamic_cast<AssignableObject*>(result.getObject()))
+		{
+			cacheIndex(instance, s);
+
+			instance->assign(cachedIndex, (float)newValue);
+			
+			return;
+		}
 
 
 		Expression::assign(s, newValue);
 	}
 
+	void cacheIndex(AssignableObject *instance, const Scope &s) const
+	{
+		if (cachedIndex == -1)			
+		{
+			if (dynamic_cast<LiteralValue*>(index.get()) != nullptr ||
+				dynamic_cast<ConstReference*>(index.get()) != nullptr)
+			{
+				const var i = index->getResult(s);
+				cachedIndex = instance->getIndex(i);
+
+				if (cachedIndex == -1) location.throwError("Property " + i.toString() + " not found");
+			}
+			else location.throwError("[]-access must be used with a literal or constant");
+		}
+	}
+
 	ExpPtr object, index;
+
+	mutable int cachedIndex = -1;
 };
 
 
