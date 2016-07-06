@@ -388,6 +388,29 @@ private:
 		return s.release();
 	}
 
+	Statement* parseConstVar()
+	{
+		matchIf(TokenTypes::var);
+
+		ScopedPointer<ConstVarStatement> s(new ConstVarStatement(location));
+
+		s->name = parseIdentifier();
+
+		s->initialiser = matchIf(TokenTypes::assign) ? parseExpression() : new Expression(location);
+
+		if (matchIf(TokenTypes::comma))
+		{
+			ScopedPointer<BlockStatement> block(new BlockStatement(location));
+			block->statements.add(s.release());
+			block->statements.add(parseVar());
+			return block.release();
+		}
+
+		hiseSpecialData->constObjects.set(s->name, "uninitialised"); // Will be initialied at runtime
+		
+		return s.release();
+	}
+
 	Statement *parseRegisterVar()
 	{
 		ScopedPointer<RegisterVarStatement> s(new RegisterVarStatement(location));
@@ -816,11 +839,16 @@ private:
 			{
 				return parseSuffixes(parseApiExpression());
 			}
+			else if (constIndex != -1)
+			{
+				parseIdentifier();
+				return parseSuffixes(new ConstReference(location, constIndex));
+			}
 			else
 			{
 				if (currentlyParsingInlineFunction)
 				{
-					DynamicObject *o = inlineFunctions->getLast();
+					DynamicObject *o = hiseSpecialData->inlineFunctions.getLast();
 
 					jassert(o != nullptr);
 

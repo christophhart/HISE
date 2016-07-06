@@ -24,6 +24,25 @@ struct HiseJavascriptEngine::RootObject::UnqualifiedName : public Expression
 	Identifier name;
 };
 
+
+struct HiseJavascriptEngine::RootObject::ConstReference : public Expression
+{
+	ConstReference(const CodeLocation& l, int i) noexcept : Expression(l), index(i) {}
+
+	var getResult(const Scope& s) const override  
+	{ 
+		return s.root->hiseSpecialData.constObjects.getValueAt(index);
+	}
+
+	void assign(const Scope& s, const var& newValue) const override
+	{
+		location.throwError("Can't assign to this expression!");
+	}
+
+	int index;
+};
+
+
 struct HiseJavascriptEngine::RootObject::ArraySubscript : public Expression
 {
 	ArraySubscript(const CodeLocation& l) noexcept : Expression(l) {}

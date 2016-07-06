@@ -52,7 +52,7 @@
     X(while_,   "while")    X(for_,    "for")    X(break_, "break")  X(continue_, "continue") X(undefined, "undefined") \
     X(function, "function") X(return_, "return") X(true_,  "true")   X(false_,    "false")    X(new_,      "new") \
     X(typeof_,  "typeof")	X(switch_, "switch") X(case_, "case")	 X(default_,  "default")  X(register_var, "reg") \
-	X(in, 		"in")		X(inline_, "inline")
+	X(in, 		"in")		X(inline_, "inline") X(const_, "const")
 
 namespace TokenTypes
 {

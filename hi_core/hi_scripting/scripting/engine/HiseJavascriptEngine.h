@@ -200,6 +200,7 @@ private:
 
 		struct RegisterVarStatement;	struct RegisterName;		struct RegisterAssignment;
 		struct ApiConstant;				struct ApiCall;				struct InlineFunction;
+		struct ConstVarStatement;		struct ConstReference;
 
 		// Parser classes
 

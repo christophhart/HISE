@@ -110,6 +110,23 @@ struct HiseJavascriptEngine::RootObject::VarStatement : public Statement
 };
 
 
+
+struct HiseJavascriptEngine::RootObject::ConstVarStatement : public Statement
+{
+	ConstVarStatement(const CodeLocation& l) noexcept : Statement(l) {}
+
+	ResultCode perform(const Scope& s, var*) const override
+	{
+		s.root->hiseSpecialData.constObjects.set(name, initialiser->getResult(s));
+		return ok;
+	}
+
+	Identifier name;
+	ExpPtr initialiser;
+};
+
+
+
 struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 {
 	struct IteratorName : public Expression
