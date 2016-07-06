@@ -51,30 +51,6 @@ namespace juce
 
 
 
-#define SET_MODULE_NAME(x) static Identifier getName() {static const Identifier id(x); return id; };
-#define ARG(x) args.arguments[x]
-#define GET_ARG_OBJECT(classType, argumentIndex) dynamic_cast<classType*>(args.arguments[argumentIndex].getObject())
-
-#define ADD_WRAPPER_FUNCTION(className, functionName, ...) static var functionName(const var::NativeFunctionArgs& args) \
-{ \
-	if (className* thisObject = dynamic_cast<className*>(args.thisObject.getObject())) \
-					{ \
-		thisObject->functionName(__VA_ARGS__); \
-					} \
-	return var::undefined(); \
-} 
-
-#define ADD_WRAPPER_FUNCTION_WITH_RETURN(className, functionName, ...) static var functionName(const var::NativeFunctionArgs& args) \
-{ \
-	if (className* thisObject = dynamic_cast<className*>(args.thisObject.getObject())) \
-						{ \
-		return thisObject->functionName(__VA_ARGS__); \
-						} \
-	return var::undefined(); \
-} 
-
-#define ADD_METHOD(name) setMethod(#name, Wrappers::name);
-
 #define CHECK_CONDITION(condition, errorMessage) if(!(condition)) throw String(errorMessage);
 
 
@@ -134,7 +110,9 @@ public:
 		buffer.clear();
 	}
 
-	SET_MODULE_NAME("buffer");
+	static Identifier getName() { RETURN_STATIC_IDENTIFIER("Buffer") };
+
+	//SET_MODULE_NAME("buffer");
 
 	void referToOtherBuffer(VariantBuffer *b, int offset = 0, int numSamples = -1)
 	{
@@ -374,121 +352,9 @@ public:
 };
 
 
-
-#undef ADD_WRAPPER_FUNCTION
-#undef ADD_WRAPPER_FUNCTION_WITH_RETURN
-#undef GET_ARG_OBJECT
-#undef ARG
-#undef CHECK_CONDITION
-#undef SET_MODULE_NAME
-#undef ADD_METHOD
-
-
-
-
-
-
-
-
-
 }
 
 
-
-
-
-
-
-
-
-// Some handy macros to save typing...
-
-#define SET_MODULE_NAME(x) static Identifier getName() {static const Identifier id(x); return id; }; String getInstanceName() const override { return String(x);};
-#define ARG(x) args.arguments[x]
-#define GET_ARG_OBJECT(classType, argumentIndex) dynamic_cast<classType*>(args.arguments[argumentIndex].getObject())
-
-#define ADD_WRAPPER_FUNCTION(className, functionName, ...) static var functionName(const var::NativeFunctionArgs& args) \
-{ \
-	if (className* thisObject = dynamic_cast<className*>(args.thisObject.getObject())) \
-		{ \
-		thisObject->functionName(__VA_ARGS__); \
-		} \
-	return var::undefined(); \
-} 
-
-#define ADD_WRAPPER_FUNCTION_WITH_RETURN(className, functionName, ...) static var functionName(const var::NativeFunctionArgs& args) \
-{ \
-	if (className* thisObject = dynamic_cast<className*>(args.thisObject.getObject())) \
-			{ \
-		return thisObject->functionName(__VA_ARGS__); \
-			} \
-	return var::undefined(); \
-} 
-
-#define ADD_METHOD(name) setMethod(#name, Wrappers::name);
-
-#define CHECK_CONDITION(condition, errorMessage) if(!(condition)) throw String(errorMessage);
-
-
-
-#include <map>
-
-template <typename BaseClass>
-class Factory
-{
-public:
-	template <typename DerivedClass>
-	void registerType(const std::string name)
-	{
-		static_assert(std::is_base_of<BaseClass, DerivedClass>::value, "Factory::registerType doesn't accept this type because doesn't derive from base class");
-		_createFuncs[name] = &createFunc<DerivedClass>;
-	}
-
-	BaseClass* create(const std::string name) {
-		typename std::map<std::string, PCreateFunc>::const_iterator it = _createFuncs.find(name);
-		if (it != _createFuncs.end()) {
-			return it.value()();
-		}
-		return nullptr;
-	}
-
-	template <typename DerivedClass>
-	void registerType()
-	{
-		if (std::is_base_of<BaseClass, DerivedClass>::value)
-		{
-			ids.add(DerivedClass::getName());
-			functions.add(&createFunc<DerivedClass>);
-		}
-	}
-
-	BaseClass* createFromId(const Identifier &id) 
-	{
-		int index = ids.indexOf(id);
-
-		if (index != -1)
-		{
-			return functions[index]();
-		}
-
-		return nullptr;
-	}
-
-private:
-	template <typename DerivedClass>
-	static BaseClass* createFunc()
-	{
-		return new DerivedClass();
-	}
-
-	typedef BaseClass* (*PCreateFunc)();
-	std::map<std::string, PCreateFunc> _createFuncs;
-
-	Array<Identifier> ids;
-	Array <PCreateFunc> functions;;
-
-
-};
 
 
 
@@ -543,38 +409,7 @@ public:
 
 	public:
 
-		/** Applies the module on the data.
-		*
-		*	The incoming data can be either a VariantBuffer or a array of VariantBuffers. */
-		void operator >>(var &data)
-		{
-			process(data);
-		}
-
-		/** Copies the modules internal data into either the supplied multichannel array or the buffer. */
-		void operator << (var &data) const
-		{
-			if (data.isArray())
-			{
-				const Array<var> *internalData = getChannels();
-				Array<var> *dest = data.getArray();
-
-				CHECK_CONDITION((dest->size() >= internalData->size()), "Too few channels");
-
-				for (int i = 0; i < internalData->size(); i++)
-				{
-					VariantBuffer &destChannel = *data[i].getBuffer();
-					const VariantBuffer &src = *(internalData->getUnchecked(i)).getBuffer();
-					
-					src >> destChannel;
-				}
-			}
-			else if (data.isBuffer())
-			{
-				//CHECK_CONDITION((getBuffer() != nullptr && data.getBuffer() != nullptr), "Buffer error");
-				*getBuffer() >> *data.getBuffer();
-			}
-		}
+		
 
 		/** If you want to support multichannel mode for a module, overwrite this function and return an array containing all buffers.
 		*/
@@ -623,75 +458,31 @@ public:
 		}
 	};
 
-	class Gain : public DspObject
+
+	class Delay : public DspBaseObject
 	{
 	public:
 
-		Gain() :
-			DspObject()
+		enum class Parameters
 		{
-			setMethod("setGain", Wrappers::setGain);
-		}
-
-		SET_MODULE_NAME("gain")
-
-			void prepareToPlay(double sampleRate, int samplesPerBlock) override {};
-
-		void processMultiChannel(Array<var> &channels) override
-		{
-
-		}
-
-		void processBuffer(VariantBuffer &buffer) override
-		{
-			float **out = buffer.buffer.getArrayOfWritePointers();
-
-			float *l = out[0];
-			float *r = out[1];
-
-			const int numSamples = buffer.buffer.getNumSamples();
-
-			FloatVectorOperations::multiply(l, gain, numSamples);
-			FloatVectorOperations::multiply(r, gain, numSamples);
-		}
-
-		void setGain(float newGain) noexcept{ gain = newGain; };
-
-		struct Wrappers
-		{
-			static var setGain(const var::NativeFunctionArgs& args)
-			{
-				if (Gain* thisObject = dynamic_cast<Gain*>(args.thisObject.getObject()))
-				{
-					thisObject->setGain(args.arguments[0]);
-				}
-				return var::undefined();
-			}
+			DelayTime = 0,
+			numParameters
 		};
-
-	private:
-
-		float gain = 1.0f;
-
-	};
-
-	class Delay : public DspObject
-	{
-	public:
-
-		Delay() :
-			DspObject()
-		{
-			setMethod("setDelayTime", Wrappers::setDelayTime);
-		}
 
 		SET_MODULE_NAME("delay")
 
-			void setDelayTime(int newDelayInSamples)
+		void setParameter(int /*index*/, float newValue) override
 		{
-			delayL.setDelayTimeSamples(newDelayInSamples);
-			delayR.setDelayTimeSamples(newDelayInSamples);
-		}
+			delayTimeSamples = newValue;
+			delayL.setDelayTimeSamples((int)newValue);
+			delayR.setDelayTimeSamples((int)newValue);			
+		};
+
+		int getNumParameters() const override { return 1; };
+
+		float getParameter(int /*index*/) const override { return delayTimeSamples; };
+
+		const Identifier &getIdForParameter(int /*index*/) const override { RETURN_STATIC_IDENTIFIER("DelayTime"); }
 
 		void prepareToPlay(double sampleRate, int samplesPerBlock) override
 		{
@@ -702,67 +493,49 @@ public:
 			delayR.prepareToPlay(sampleRate);
 		}
 
-		void processBuffer(VariantBuffer &b) override
+		void processBlock(float **data, int numChannels, int numSamples) override
 		{
-			const float *inL = b.buffer.getReadPointer(0);
-			const float *inR = b.buffer.getReadPointer(1);
-
-			float *l = delayedBufferL->buffer.getWritePointer(0);
-			float *r = delayedBufferR->buffer.getWritePointer(1);
-
-			int numSamples = b.buffer.getNumSamples();
-
-			while (--numSamples >= 0)
+			if (numChannels == 2)
 			{
-				*l++ = delayL.getDelayedValue(*inL++);
-				*r++ = delayL.getDelayedValue(*inR++);
-			}
-		}
+				const float *inL = data[0];
+				const float *inR = data[1];
 
-		void processMultiChannel(Array<var> &channels) override
-		{
-			const float *inL = channels[0].getBuffer()->buffer.getWritePointer(0);
-			const float *inR = channels[1].getBuffer()->buffer.getWritePointer(1);
+				float *l = delayedBufferL->buffer.getWritePointer(0);
+				float *r = delayedBufferR->buffer.getWritePointer(1);
 
-			float *l = delayedBufferL->buffer.getWritePointer(0);
-			float *r = delayedBufferR->buffer.getWritePointer(1);
-
-			int numSamples = channels[0].getBuffer()->size;
-
-			while (--numSamples >= 0)
-			{
-				*l++ = delayL.getDelayedValue(*inL++);
-				*r++ = delayL.getDelayedValue(*inR++);
-			}
-		}
-
-		const VariantBuffer *getBuffer() const override
-		{
-			return delayedBufferL;
-		}
-
-		struct Wrappers
-		{
-			static var setDelayTime(const var::NativeFunctionArgs& args)
-			{
-				if (Delay* thisObject = dynamic_cast<Delay*>(args.thisObject.getObject()))
+				while (--numSamples >= 0)
 				{
-					thisObject->setDelayTime(args.arguments[0]);
+					*l++ = delayL.getDelayedValue(*inL++);
+					*r++ = delayL.getDelayedValue(*inR++);
 				}
-				return var::undefined();
 			}
-		};
+			else
+			{
+				const float *inL = data[0];
 
+				float *l = delayedBufferL->buffer.getWritePointer(0);
 
-
+				while (--numSamples >= 0)
+				{
+					*l++ = delayL.getDelayedValue(*inL++);
+				}
+			}
+			
+		}
+		
 	private:
 
 		DelayLine delayL;
 		DelayLine delayR;
 
+		float delayTimeSamples = 0.0f;
+
 		VariantBuffer::Ptr delayedBufferL;
 		VariantBuffer::Ptr delayedBufferR;
 	};
+
+
+#if 0
 
 	class MoogFilter : public DspObject
 	{
@@ -771,7 +544,7 @@ public:
 		MoogFilter() :
 			DspObject()
 		{
-			ADD_METHOD(setFrequency);
+			ADD_DYNAMIC_METHOD(setFrequency);
 		};
 
 		SET_MODULE_NAME("moog");
@@ -813,7 +586,7 @@ public:
 		struct Wrappers
 		{
 
-			ADD_WRAPPER_FUNCTION(MoogFilter, setFrequency, args.arguments[0]);
+			DYNAMIC_METHOD_WRAPPER(MoogFilter, setFrequency, args.arguments[0]);
 		};
 
 		double sampleRate = 44100.0;
@@ -831,9 +604,9 @@ public:
 		Filter() :
 			DspObject()
 		{
-			ADD_METHOD(setFrequency);
-			ADD_METHOD(setResonance);
-			ADD_METHOD(setType);
+			ADD_DYNAMIC_METHOD(setFrequency);
+			ADD_DYNAMIC_METHOD(setResonance);
+			ADD_DYNAMIC_METHOD(setType);
 
 			static const Identifier lp("LowPass");
 			static const Identifier hp("HighPass");
@@ -900,9 +673,9 @@ public:
 
 		struct Wrappers
 		{
-			ADD_WRAPPER_FUNCTION(Filter, setFrequency, (float)ARG(0));
-			ADD_WRAPPER_FUNCTION(Filter, setType, (float)ARG(0));
-			ADD_WRAPPER_FUNCTION(Filter, setResonance, (float)ARG(0));
+			DYNAMIC_METHOD_WRAPPER(Filter, setFrequency, (float)ARG(0));
+			DYNAMIC_METHOD_WRAPPER(Filter, setType, (float)ARG(0));
+			DYNAMIC_METHOD_WRAPPER(Filter, setResonance, (float)ARG(0));
 		};
 	};
 
@@ -1054,36 +827,20 @@ public:
 		IIRCoefficients coefficients;
 
 	};
+
+#endif
 };
 
 
-class DspFactory : public DynamicObject
+
+class HiseCoreDspFactory : public StaticDspFactory
 {
-public:
+	Identifier getId() const override { RETURN_STATIC_IDENTIFIER("Core") };
 
-	DspFactory()
+	void registerModules() override
 	{
-		ADD_METHOD(createModule);
-
-		registerTypes(this);
-	};
-
-	var createModule(String name);
-
-	
-
-	static void registerTypes(DspFactory *instance);
-
-
-private:
-
-	struct Wrappers
-	{
-		ADD_WRAPPER_FUNCTION_WITH_RETURN(DspFactory, createModule, ARG(0).toString());
-	};
-
-	Factory<DynamicObject> factory;
-
+		registerDspModule<ScriptingDsp::Delay>();
+	}
 };
 
 #endif  // SCRIPTDSPMODULES_H_INCLUDED

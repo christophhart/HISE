@@ -15,6 +15,39 @@
 #define NUM_VAR_REGISTERS 8
 
 
+struct VariantComparator
+{
+	int compareElements(const var &a, const var &b) const
+	{
+		if (isNumericOrUndefined(a) && isNumericOrUndefined(b))
+			return (a.isDouble() || b.isDouble()) ? returnCompareResult<double>(a, b) : returnCompareResult<int>(a, b);
+
+		if ((a.isUndefined() || a.isVoid()) && (b.isUndefined() || b.isVoid()))
+			return 0;
+
+		if (a.isArray() || a.isObject())
+			throw String("Can't compare arrays or objects");
+
+        return 0;
+	};
+
+private:
+
+	template <typename PrimitiveType> int returnCompareResult(const var &first, const var&second) const noexcept
+	{
+		PrimitiveType f = static_cast<PrimitiveType>(first);
+		PrimitiveType s = static_cast<PrimitiveType>(second);
+		return (f == s) ? 0 : (f > s ? 1 : -1);
+	}
+
+	bool isNumericOrUndefined(const var &v) const
+	{
+		return v.isDouble() || v.isInt() || v.isInt64() || v.isUndefined() || v.isBool();
+	}
+};
+
+
+
 
 
 class VarRegister
@@ -77,11 +110,20 @@ private:
 #define NUM_API_FUNCTION_SLOTS 32
 
 
-class ApiObject2 : public ReferenceCountedObject
+/** A API class is a class with a fixed number of methods and constants that can be called from Javascript.
+*
+*	It is used to improve the performance of calling C++ functions from Javascript. This is achieved by resolving the function call at compile time
+*	making the call from Javascript almost as fast as a regular C++ function call (the arguments still need to be evaluated).
+*
+*	You can also define constants which are resolved into literal values at compile time making them exactly as fast as typing the literal value.
+*
+*	A ApiClass needs to be registered on the C++ side before the ScriptingEngine parses and executes the code.
+*/
+class ApiClass : public ReferenceCountedObject
 {
 public:
 
-	ApiObject2(int numConstants_) :
+	ApiClass(int numConstants_) :
 		numConstants(numConstants_)
 	{
 		for (int i = 0; i < NUM_API_FUNCTION_SLOTS; i++)
@@ -100,11 +142,10 @@ public:
 		}
 	};
 
-
-	typedef std::function<var(ApiObject2*)> call0;
-	typedef std::function<var(ApiObject2*, var)> call1;
-	typedef std::function<var(ApiObject2*, var, var)> call2;
-	typedef std::function<var(ApiObject2*, var, var, var)> call3;
+	typedef std::function<var(ApiClass*)> call0;
+	typedef std::function<var(ApiClass*, var)> call1;
+	typedef std::function<var(ApiClass*, var, var)> call2;
+	typedef std::function<var(ApiClass*, var, var, var)> call3;
 
 	virtual Identifier getName() const = 0;
 
@@ -207,7 +248,6 @@ public:
 		numArgs = -1;
 	}
 
-
 	var callFunction(int index, var *args, int numArgs)
 	{
 		if (index > NUM_API_FUNCTION_SLOTS)
@@ -259,12 +299,7 @@ private:
 			return *this;
 		}
 
-		Constant& operator=(const Constant&& other)
-		{
-			id = other.id;
-			value = other.value;
-			return *this;
-		}
+		
 
 		static Constant null;
 		Identifier id;
@@ -277,27 +312,17 @@ private:
 
 
 
-#define ADD_FUNCTION_0(name) addFunction(Identifier(#name), &Wrapper::name)
-#define ADD_FUNCTION_1(name) addFunction1(Identifier(#name), &Wrapper::name)
-#define ADD_FUNCTION_2(name) addFunction2(Identifier(#name), &Wrapper::name)
-#define ADD_FUNCTION_3(name) addFunction3(Identifier(#name), &Wrapper::name)
 
-#define WRAPPER_FUNCTION_0(className, name)	inline static var name(ApiObject2 *m) { return static_cast<className*>(m)->name(); };
-#define WRAPPER_FUNCTION_1(className, name)	inline static var name(ApiObject2 *m, var value1) { return static_cast<className*>(m)->name(value1); };
-#define WRAPPER_FUNCTION_2(className, name)	inline static var name(ApiObject2 *m, var value1, var value2) { return static_cast<className*>(m)->name(value1, value2); };
-#define WRAPPER_FUNCTION_3(className, name)	inline static var name(ApiObject2 *m, var value1, var value2, var value3) { return static_cast<className*>(m)->name(value1, value2, value3); };
-#define WRAPPER_FUNCTION_4(className, name) inline static var name(ApiObject2 *m, var value1, var value2, var value3, var value4) { return static_cast<className*>(m)->name(value1, value2, value3, value4); };
-
-class MidiM : public ApiObject2
+class MidiM : public ApiClass
 {
 public:
 
 	MidiM() :
-		ApiObject2(8),
+		ApiClass(8),
 		n(0)
 	{
-		ADD_FUNCTION_0(getNoteNumber);
-		ADD_FUNCTION_1(setNoteNumber);
+		ADD_API_METHOD_0(getNoteNumber);
+		ADD_API_METHOD_1(setNoteNumber);
 	};
 
 	Identifier getName() const override { static const Identifier id("Message2"); return id; }
@@ -316,44 +341,40 @@ public:
 
 	struct Wrapper
 	{
-		WRAPPER_FUNCTION_1(MidiM, setNoteNumber)
-			WRAPPER_FUNCTION_0(MidiM, getNoteNumber);
+		API_METHOD_WRAPPER_1(MidiM, setNoteNumber)
+		API_METHOD_WRAPPER_0(MidiM, getNoteNumber);
 	};
 
 	int n;
 };
 
-class MathFunctions : public ApiObject2
+class MathFunctions : public ApiClass
 {
 public:
 
 	MathFunctions() :
-		ApiObject2(2)
+		ApiClass(1)
 	{
-		ADD_FUNCTION_1(sin);
-		ADD_FUNCTION_1(abs);
+		ADD_API_METHOD_1(sin);
+		ADD_API_METHOD_1(abs);
+
 		addConstant("PI", float_Pi);
 	}
 
 	Identifier getName() const override { static const Identifier id("Math2"); return id; }
 
-	var sin(const var &input) const
-	{
-		return sinf((double)input);
-	}
+	var sin(const var &input) const { return std::sin((double)input); }
 
-	var abs(const var &input) const
-	{
-		return fabs((double)input);
-	}
+	var abs(const var &input) const { return std::abs((double)input); }
 
 	struct Wrapper
 	{
-		WRAPPER_FUNCTION_1(MathFunctions, sin)
-		WRAPPER_FUNCTION_1(MathFunctions, abs);
+		API_METHOD_WRAPPER_1(MathFunctions, sin)
+		API_METHOD_WRAPPER_1(MathFunctions, abs);
 	};
 
 };
+
 
 
 

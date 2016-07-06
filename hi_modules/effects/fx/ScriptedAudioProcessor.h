@@ -51,11 +51,10 @@ public:
 
         processBlockScope = new DynamicObject();
         
-		DspFactory *f = new DspFactory();
-
-		scriptingEngine->registerNativeObject("Modules", f);
+		scriptingEngine->registerNativeObject("Libraries", libraryLoader);
 
 		scriptingEngine->getRootObject()->setMethod("print", print);
+		
 
 		scriptingEngine->registerNativeObject("Buffer", new VariantBuffer::Factory(64));
 
@@ -195,8 +194,14 @@ public:
         return doc;
     }
     
+	
+
+	
+
 private:
     
+	DynamicObject::Ptr libraryLoader;
+
     MainController *mc;
     
     Result callbackResult = Result::ok();

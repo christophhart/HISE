@@ -35,9 +35,8 @@
 ScriptingAudioProcessor::ScriptingAudioProcessor() :
 samplesPerBlock(0),
 callbackResult(Result::ok()),
-mc(nullptr)
+mc(nullptr),
+libraryLoader(new DspFactory::LibraryLoader())
 {
 	compileScript();
-
-
 }
