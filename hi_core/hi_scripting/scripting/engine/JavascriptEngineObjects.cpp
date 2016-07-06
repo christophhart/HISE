@@ -22,6 +22,7 @@ struct HiseJavascriptEngine::RootObject::ArrayClass : public DynamicObject
 		setMethod("remove", remove);
 		setMethod("join", join);
 		setMethod("push", push);
+        setMethod("sort", sort);
 	}
 
 	static Identifier getClassName()   { static const Identifier i("Array"); return i; }
@@ -65,6 +66,17 @@ struct HiseJavascriptEngine::RootObject::ArrayClass : public DynamicObject
 
 		return var::undefined();
 	}
+    
+    static var sort(Args a)
+    {
+        if (Array<var>* array = a.thisObject.getArray())
+        {
+            VariantComparator comparator;
+            array->sort(comparator);
+        }
+        
+        return var::undefined();
+    }
 };
 
 //==============================================================================
