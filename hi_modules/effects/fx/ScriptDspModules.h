@@ -469,6 +469,10 @@ public:
 			numParameters
 		};
 
+		Delay() :
+			DspBaseObject()
+		{};
+
 		SET_MODULE_NAME("delay")
 
 		void setParameter(int /*index*/, float newValue) override
@@ -501,7 +505,7 @@ public:
 				const float *inR = data[1];
 
 				float *l = delayedBufferL->buffer.getWritePointer(0);
-				float *r = delayedBufferR->buffer.getWritePointer(1);
+				float *r = delayedBufferR->buffer.getWritePointer(0);
 
 				while (--numSamples >= 0)
 				{

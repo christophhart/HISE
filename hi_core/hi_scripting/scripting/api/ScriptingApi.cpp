@@ -2176,7 +2176,7 @@ changed(false)
 	setMethod("showControl", Wrapper::showControl);
 	setMethod("addToMacroControl", Wrapper::addToMacroControl);
 
-	objectProperties.set("Name", name_.toString());
+	setName(name_.toString());
 
 	SEND_MESSAGE(this);
 }
@@ -3319,7 +3319,7 @@ ScriptingObjects::ScriptingEffect::ScriptingEffect(ScriptBaseProcessor *p, Effec
 {
 	if(fx != nullptr)
 	{
-		objectProperties.set("Name", fx->getId());
+		setName(fx->getId());
 
 		for(int i = 0; i < fx->getNumParameters(); i++)
 		{
@@ -3328,7 +3328,7 @@ ScriptingObjects::ScriptingEffect::ScriptingEffect(ScriptBaseProcessor *p, Effec
 	}
 	else
 	{
-		objectProperties.set("Name", "Invalid Effect");
+		setName("Invalid Effect");
 	}
 
 	setMethod("setAttribute", Wrapper::setAttribute);
@@ -3341,7 +3341,7 @@ ScriptingObjects::ScriptingSynth::ScriptingSynth(ScriptBaseProcessor *p, Modulat
 {
 	if(synth != nullptr)
 	{
-		objectProperties.set("Name", synth->getId());
+		setName(synth->getId());
 
 		for(int i = 0; i < synth->getNumParameters(); i++)
 		{
@@ -3350,7 +3350,7 @@ ScriptingObjects::ScriptingSynth::ScriptingSynth(ScriptBaseProcessor *p, Modulat
 	}
 	else
 	{
-		objectProperties.set("Name", "Invalid Effect");
+		setName("Invalid Effect");
 	}
 
 	setMethod("setAttribute", Wrapper::setAttribute);
@@ -3363,7 +3363,7 @@ audioSampleProcessor(dynamic_cast<Processor*>(sampleProcessor))
 {
 	if (audioSampleProcessor != nullptr)
 	{
-		objectProperties.set("Name", audioSampleProcessor->getId());
+		setName(audioSampleProcessor->getId());
 
 		for (int i = 0; i < audioSampleProcessor->getNumParameters(); i++)
 		{
@@ -3372,7 +3372,7 @@ audioSampleProcessor(dynamic_cast<Processor*>(sampleProcessor))
 	}
 	else
 	{
-		objectProperties.set("Name", "Invalid Processor");
+		setName("Invalid Processor");
 	}
 
 	setMethod("setAttribute", Wrapper::setAttribute);
@@ -3423,7 +3423,7 @@ ScriptingObjects::ScriptingTableProcessor::ScriptingTableProcessor(ScriptBasePro
 {
     if (tableProcessor != nullptr)
     {
-        objectProperties.set("Name", tableProcessor->getId());
+        setName(tableProcessor->getId());
         
         for (int i = 0; i < tableProcessor->getNumParameters(); i++)
         {
@@ -3432,7 +3432,7 @@ ScriptingObjects::ScriptingTableProcessor::ScriptingTableProcessor(ScriptBasePro
     }
     else
     {
-        objectProperties.set("Name", "Invalid Processor");
+        setName("Invalid Processor");
     }
     
     setMethod("addTablePoint", Wrapper::addTablePoint);

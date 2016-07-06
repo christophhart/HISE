@@ -108,12 +108,9 @@ public:
 	/** \internal Overwrite this method and return the class name of the object which will be used in the script context. */
 	virtual Identifier getObjectName() const = 0;
 
-	/** \internal returns a const reference to the internal data object. */
-	const NamedValueSet &getProperties() const { return objectProperties; };
+	String getInstanceName() const { return name; }
 
 protected:
-
-	
 
 	/** \internal Overwrite this method and check if the object got deleted. Best thing is to use a WeakReference and check if it's nullptr. */
 	virtual bool objectDeleted() const = 0;
@@ -126,20 +123,24 @@ protected:
 	{
 		if(!objectExists())
 		{
-			reportScriptError(getObjectName().toString() + " " + objectProperties["Name"].toString() + " does not exist.");
+			reportScriptError(getObjectName().toString() + " " + getInstanceName() + " does not exist.");
 			return false;
 		}
 
 		if(objectDeleted())
 		{
-			reportScriptError(getObjectName().toString() + " " + objectProperties["Name"].toString() + " was deleted");	
+			reportScriptError(getObjectName().toString() + " " + getInstanceName() + " was deleted");	
 			return false;
 		}
 
 		return true;
 	}
 
-	NamedValueSet objectProperties;
+	void setName(const String &name_) noexcept { name = name_; };
+
+private:
+
+	String name;
 
 	struct Wrappers
 	{

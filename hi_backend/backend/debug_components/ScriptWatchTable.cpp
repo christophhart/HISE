@@ -189,7 +189,7 @@ void ScriptWatchTable::paintCell (Graphics& g, int rowNumber, int columnId,
 
 				if (strippedSet.getValueAt(rowNumber).isObject() && dynamic_cast<CreatableScriptObject*>(strippedSet.getValueAt(rowNumber).getDynamicObject()) != nullptr)
 				{
-					value = dynamic_cast<CreatableScriptObject*>(strippedSet.getValueAt(rowNumber).getDynamicObject())->getProperties()["Name"];
+					value = dynamic_cast<CreatableScriptObject*>(strippedSet.getValueAt(rowNumber).getDynamicObject())->getInstanceName();
 				}
 				else
 				{

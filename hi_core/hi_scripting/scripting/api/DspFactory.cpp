@@ -106,6 +106,87 @@ void DspInstance::processBlock(const var &data)
 	}
 }
 
+void DspInstance::setParameter(int index, var newValue)
+{
+	if (object != nullptr)
+	{
+		object->setParameter(index, newValue);
+	}
+}
+
+var DspInstance::getParameter(int index) const
+{
+	if (object != nullptr)
+	{
+		return object->getParameter(index);
+	}
+}
+
+void DspInstance::assign(const int index, var newValue)
+{
+	setParameter(index, newValue);
+}
+
+var DspInstance::getAssignedValue(int index) const
+{
+	return getParameter(index);
+}
+
+int DspInstance::getCachedIndex(const var &name) const
+{
+	for (int i = 0; i < object->getNumParameters(); i++)
+	{
+		if (name.toString() == object->getIdForParameter(i).toString())
+		{
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+void DspInstance::operator<<(var &data) const
+{
+	// DSP_TODO
+}
+
+var DspInstance::getInfo() const
+{
+	if (object != nullptr)
+	{
+		String info;
+
+		info << "Name: " + moduleName << "\n";
+
+		info << "Parameters: " + object->getNumParameters() << "\n";
+
+		for (int i = 0; i < object->getNumParameters(); i++)
+		{
+			const String line = String("Parameter #1: ") + object->getIdForParameter(i).toString() + String(", current value: ") + String(object->getParameter(i)) + String("\n");
+
+			info << line;
+		}
+
+		info << "\n";
+
+		info << "Constants: " + object->getNumConstants() << "\n";
+
+		for (int i = 0; i < object->getNumConstants(); i++)
+		{
+			info << "Constant #1: " << object->getIdForConstant(i) << +" = " << object->getConstant(i).toString() << "\n";
+		}
+
+		return var(info);
+	}
+
+	return var("No module loaded");
+}
+
+void DspInstance::operator>>(var &data)
+{
+	processBlock(data);
+}
+
 DspInstance::~DspInstance()
 {
 	if (factory != nullptr)
@@ -115,7 +196,41 @@ DspInstance::~DspInstance()
 	}
 }
 
+void DspInstance::prepareToPlay(double sampleRate, int samplesPerBlock)
+{
+	if (object != nullptr)
+	{
+		object->prepareToPlay(sampleRate, samplesPerBlock);
+	}
+}
+
 typedef DspBaseObject*(*createDspModule_)(const char *);
+
+DynamicDspFactory::DynamicDspFactory(const String &name_) :
+name(name_)
+{
+#if JUCE_WINDOWS
+
+	const File path = File("D:\\Development\\HISE modules\\extras\\script_module_template\\Builds\\VisualStudio2013\\Debug");
+
+	const String libraryName = name + ".dll";
+
+	const String fullLibraryPath = path.getChildFile(libraryName).getFullPathName();
+
+
+#else
+
+	const String fullLibraryPath = name + ".dylib";
+
+#endif
+
+	library = new DynamicLibrary();
+	library->open(fullLibraryPath);
+
+	initialise();
+
+	ADD_DYNAMIC_METHOD(createModule);
+}
 
 DspBaseObject * DynamicDspFactory::createDspBaseObject(const String &moduleName) const
 {
@@ -165,6 +280,13 @@ void DynamicDspFactory::initialise()
 
 }
 
+var DynamicDspFactory::createModule(const String &moduleName) const
+{
+	DspInstance *i = new DspInstance(this, moduleName);
+
+	return var(i);
+}
+
 typedef const Array<Identifier> &(*getModuleList_)();
 
 var DynamicDspFactory::getModuleList() const
@@ -203,6 +325,18 @@ DspBaseObject * StaticDspFactory::createDspBaseObject(const String &moduleName) 
 void StaticDspFactory::destroyDspBaseObject(DspBaseObject* handle) const
 {
 	delete handle;
+}
+
+var StaticDspFactory::getModuleList() const
+{
+	Array<var> moduleList;
+
+	for (int i = 0; i < factory.getIdList().size(); i++)
+	{
+		moduleList.add(factory.getIdList().getUnchecked(i).toString());
+	}
+
+	return var(moduleList);
 }
 
 var StaticDspFactory::createModule(const String &name) const

@@ -43,7 +43,7 @@ public:
 
 	virtual var getAssignedValue(int index) const = 0;
 
-	virtual int getIndex(const var &indexExpression) const = 0;
+	virtual int getCachedIndex(const var &indexExpression) const = 0;
 };
 
 #if HISE_DLL
@@ -123,6 +123,9 @@ public:
 	virtual void processBlock(float **data, int numChannels, int numSamples) = 0;
 
 	// =================================================================================================================
+
+	DspBaseObject() {};
+
     virtual ~DspBaseObject() {}
     
 protected:
@@ -158,6 +161,7 @@ protected:
 
 	// =================================================================================================================
 
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DspBaseObject)
 };
 
 

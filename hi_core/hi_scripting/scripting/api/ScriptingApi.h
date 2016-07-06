@@ -47,7 +47,8 @@ class ScriptingObjects
 {
 public:
 
-	class MidiList : public CreatableScriptObject
+	class MidiList : public CreatableScriptObject,
+					 public AssignableObject
 	{
 	public:
 
@@ -74,6 +75,21 @@ public:
         bool objectDeleted() const override { return false;	}
         
         bool objectExists() const override { return false; }
+
+		void assign(const int index, var newValue)
+		{
+			setValue(index, (int)newValue);
+		}
+
+		int getCachedIndex(const var &indexExpression) const override
+		{
+			return (int)indexExpression;
+		}
+
+		var getAssignedValue(int index) const override
+		{
+			return getValue(index);
+		}
 
 		~MidiList() {};
 
@@ -110,6 +126,8 @@ public:
 
 			return amount;
 		};
+
+
 
 		/** Returns the first index that contains this value. */
 		int getIndex(int value) const
@@ -206,7 +224,7 @@ public:
 		{
 			if(m != nullptr)
 			{
-				objectProperties.set("Name", m->getId());
+				setName(m->getId());
 
 				for(int i = 0; i < mod->getNumParameters(); i++)
 				{
@@ -215,7 +233,7 @@ public:
 			}
 			else
 			{
-				objectProperties.set("Name", "Invalid Modulator");
+				setName("Invalid Modulator");
 			}
 
 			setMethod("setAttribute", Wrapper::setAttribute);
@@ -254,10 +272,23 @@ public:
 		/** Changes the Intensity of the Modulator. Ranges: Gain Mode 0 ... 1, PitchMode -12 ... 12. */
 		void setIntensity(float newIntensity);
 
-		int getIndex(const var &indexExpression) const override
+		int getCachedIndex(const var &indexExpression) const override
 		{
+			if (checkValidObject())
+			{
+				Identifier id(indexExpression.toString());
+
+				for (int i = 0; i < mod->getNumParameters(); i++)
+				{
+					if (id == mod->getIdentifierForParameterIndex(i)) return i;
+				}
+				return -1;
+			}
+			else
+			{
+				throw String("Modulator does not exist");
+			}
 			
-			return getProperties().indexOf(Identifier(indexExpression.toString()));
 		}
 
 		void assign(const int index, var newValue) override
@@ -304,7 +335,7 @@ public:
 		{
 			if(mp != nullptr)
 			{
-				objectProperties.set("Name", mp->getId());
+				setName(mp->getId());
 
 				for(int i = 0; i < mp->getNumParameters(); i++)
 				{
@@ -313,7 +344,7 @@ public:
 			}
 			else
 			{
-				objectProperties.set("Name", "Invalid MidiProcessor");
+				setName("Invalid MidiProcessor");
 			}
 
 			setMethod("setAttribute", Wrapper::setAttribute);
@@ -325,9 +356,17 @@ public:
 			return "MidiProcessor";
 		}
 
-		int getIndex(const var &indexExpression) const override
+		int getCachedIndex(const var &indexExpression) const override
 		{
-			return getProperties().indexOf(Identifier(indexExpression.toString()));
+			if (checkValidObject())
+			{
+				Identifier id(indexExpression.toString());
+
+				for (int i = 0; i < mp->getNumParameters(); i++)
+				{
+					if (id == mp->getIdentifierForParameterIndex(i)) return i;
+				}
+			}
 		}
 
 		void assign(const int index, var newValue) override
@@ -1396,7 +1435,7 @@ public:
 				setScriptObjectProperty(index, newValue);
 			}
 
-			int getIndex(const var &indexExpression) const override
+			int getCachedIndex(const var &indexExpression) const override
 			{
 				Identifier id(indexExpression.toString());
 

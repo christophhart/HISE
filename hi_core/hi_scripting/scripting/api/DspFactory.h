@@ -136,6 +136,8 @@ public:
 		};
 
 		SharedResourcePointer<DspFactory::Handler> handler;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LibraryLoader)
 	};
 
 	DspFactory():
@@ -184,104 +186,33 @@ public:
 	/** Creates a new instance from the given Factory with the supplied name. */
 	DspInstance(const DspFactory *f, const String &moduleName_);
 
+	virtual ~DspInstance();
+
 	/** Calls the setup method of the external module. */
-	void prepareToPlay(double sampleRate, int samplesPerBlock)
-	{
-		if (object != nullptr)
-		{
-			object->prepareToPlay(sampleRate, samplesPerBlock);
-		}
-	}
+	void prepareToPlay(double sampleRate, int samplesPerBlock);
 
 	/** Calls the processMethod of the external module. */
 	void processBlock(const var &data);
 
-	void setParameter(int index, var newValue)
-	{
-		if (object != nullptr)
-		{
-			object->setParameter(index, newValue);
-		}
-	}
+	void setParameter(int index, var newValue);
+	var getParameter(int index) const;
 
-	var getParameter(int index) const
-	{
-		if (object != nullptr)
-		{
-			return object->getParameter(index);
-		}
-	}
+	void assign(const int index, var newValue) override;
+	var getAssignedValue(int index) const override;
+	int getCachedIndex(const var &name) const override;
 
-	void assign(const int index, var newValue) override
-	{
-		setParameter(index, newValue);
-	}
-
-	var getAssignedValue(int index) const override
-	{
-		return getParameter(index);
-	}
-
-	int getIndex(const var &name) const override
-	{
-		for (int i = 0; i < object->getNumParameters(); i++)
-		{
-			if (name.toString() == object->getIdForParameter(i).toString())
-			{
-				return i;
-			}
-		}
-
-		return -1;
-	}
-
-	virtual ~DspInstance();
+	
 
 	/** Applies the module on the data.
 	*
 	*	The incoming data can be either a VariantBuffer or a array of VariantBuffers. */
-	void operator >>(var &data)
-	{
-		processBlock(data);
-	}
+	void operator >>(var &data);
 
 	/** Copies the modules internal data into either the supplied multichannel array or the buffer. */
-	void operator << (var &data) const
-	{
-		// DSP_TODO
-	}
+	void operator << (var &data) const;
 
-	var getInfo() const 
-	{
-		if (object != nullptr)
-		{
-			String info;
+	var getInfo() const;
 
-			info << "Name: " + moduleName << "\n";
-
-			info << "Parameters: " + object->getNumParameters() << "\n";
-			
-			for (int i = 0; i < object->getNumParameters(); i++)
-			{
-				const String line = String("Parameter #1: ") + object->getIdForParameter(i).toString() + String(", current value: ") + String(object->getParameter(i)) + String("\n");
-
-				info << line;
-			}
-
-			info << "\n";
-
-			info << "Constants: " + object->getNumConstants() << "\n";
-
-			for (int i = 0; i < object->getNumConstants(); i++)
-			{
-				info << "Constant #1: " << object->getIdForConstant(i) << + " = " << object->getConstant(i).toString() << "\n";
-			}
-
-			return var(info);
-		}
-
-		return var("No module loaded");
-	}
 private:
 
 	struct Wrapper
@@ -303,6 +234,8 @@ private:
 	DspBaseObject *object;
 
 	DspFactory::Ptr factory;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DspInstance)
 };
 
 
@@ -314,29 +247,19 @@ class StaticDspFactory : public DspFactory
 {
 public:
 
+	StaticDspFactory() {};
+	virtual ~StaticDspFactory() {};
+
 	var createModule(const String &name) const override;
 
 	DspBaseObject *createDspBaseObject(const String &moduleName) const override;
 
-	/** This simply deletes the instance. */
 	void destroyDspBaseObject(DspBaseObject* handle) const override;
 
 	/** Overwrite this method and register every module you want to create with this factory using registerDspModule<Type>(). */
 	virtual void registerModules() = 0;
 
-	var getModuleList() const override
-	{
-
-		Array<var> moduleList;
-
-		for (int i = 0; i < factory.getIdList().size(); i++)
-		{
-			moduleList.add(factory.getIdList().getUnchecked(i).toString());
-		}
-
-		return var(moduleList);
-
-	}
+	var getModuleList() const override;
 
 protected:
 
@@ -346,6 +269,8 @@ protected:
 private:
 
 	Factory<DspBaseObject> factory;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StaticDspFactory)
 };
 
 
@@ -353,59 +278,22 @@ class DynamicDspFactory : public DspFactory
 {
 public:
 
+	DynamicDspFactory(const String &name_);;
 
-
-	DynamicDspFactory(const String &name_):
-		name(name_)
-	{
-#if JUCE_WINDOWS
-        
-		const File path = File("D:\\Development\\HISE modules\\extras\\script_module_template\\Builds\\VisualStudio2013\\Debug");
-
-		const String libraryName = name + ".dll";
-
-		const String fullLibraryPath = path.getChildFile(libraryName).getFullPathName();
-
-        
-#else
-      
-        const String fullLibraryPath = name + ".dylib";
-        
-#endif
-        
-		library = new DynamicLibrary();
-		library->open(fullLibraryPath);
-
-		initialise();
-
-		ADD_DYNAMIC_METHOD(createModule);
-
-	};
-
-	// This is called by the DspInstance constructor
 	DspBaseObject *createDspBaseObject(const String &moduleName) const override;
-
-	// This is called by the DspInstance destructor
 	void destroyDspBaseObject(DspBaseObject *object) const override;
 
 	void initialise();
-
-	var createModule(const String &moduleName) const override
-	{
-		DspInstance *i = new DspInstance(this, moduleName);
-
-		return var(i);
-	}
-
+	var createModule(const String &moduleName) const override;
 	Identifier getId() const override { RETURN_STATIC_IDENTIFIER(name); }
-
 	var getModuleList() const override;
 
 private:
 
 	const String name;
-
 	ScopedPointer<DynamicLibrary> library;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DynamicDspFactory)
 };
 
 

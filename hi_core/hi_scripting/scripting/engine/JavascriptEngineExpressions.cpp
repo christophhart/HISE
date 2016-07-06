@@ -109,7 +109,7 @@ struct HiseJavascriptEngine::RootObject::ArraySubscript : public Expression
 				dynamic_cast<ConstReference*>(index.get()) != nullptr)
 			{
 				const var i = index->getResult(s);
-				cachedIndex = instance->getIndex(i);
+				cachedIndex = instance->getCachedIndex(i);
 
 				if (cachedIndex == -1) location.throwError("Property " + i.toString() + " not found");
 			}

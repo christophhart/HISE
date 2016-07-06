@@ -379,7 +379,7 @@ void JavascriptCodeEditor::handleEscapeKey()
 						{
 							insertSection = false;
 							m.addSeparator();
-							m.addSectionHeader(cso->getProperties()["Name"].toString() + String(" Parameters"));
+							m.addSectionHeader(cso->getInstanceName() + String(" Parameters"));
 						}
 						m.addCustomItem(entries.size(), entries.getLast());
 					}
@@ -550,7 +550,7 @@ void JavascriptCodeEditor::addDefaultAutocompleteOptions(const String &enteredTe
 				if (enteredText.isEmpty() || name.startsWith(enteredText))
 				{
 					displaySet.set("variableName", name);
-					displaySet.set("value", cso->getProperties()["Name"]);
+					displaySet.set("value", cso->getInstanceName());
 
 					entries.add(new VariableEntry(cso->getObjectName().toString(), displaySet));
 				}
