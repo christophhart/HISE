@@ -24,3 +24,5 @@ JUCE/
 Autosave*
 extras/demo_project/thumbnails.dat
 *.hip
+extras/script_module_template/Builds
+extras/script_module_template/JuceLibraryCode

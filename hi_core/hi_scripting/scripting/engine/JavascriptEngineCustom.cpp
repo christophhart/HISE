@@ -5,7 +5,7 @@ struct HiseJavascriptEngine::RootObject::RegisterVarStatement : public Statement
 
 	ResultCode perform(const Scope& s, var*) const override
 	{
-		s.root->varRegister.addRegister(name, initialiser->getResult(s));
+		s.root->hiseSpecialData.varRegister.addRegister(name, initialiser->getResult(s));
 		return ok;
 	}
 
@@ -22,7 +22,7 @@ struct HiseJavascriptEngine::RootObject::RegisterAssignment : public Expression
 	{
 		var value(source->getResult(s));
 
-		s.root->varRegister.setRegister(registerIndex, value);
+		s.root->hiseSpecialData.varRegister.setRegister(registerIndex, value);
 		return value;
 
 	}
@@ -43,7 +43,7 @@ struct HiseJavascriptEngine::RootObject::ApiConstant : public Expression
 
 struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 {
-	ApiCall(const CodeLocation &l, ApiObject2 *apiClass_, int expectedArguments_, int functionIndex) noexcept:
+	ApiCall(const CodeLocation &l, ApiClass *apiClass_, int expectedArguments_, int functionIndex) noexcept:
 	Expression(l),
 		expectedNumArguments(expectedArguments_),
 		functionIndex(functionIndex),
@@ -74,7 +74,7 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 	const int functionIndex;
 	mutable var results[4];
 
-	const ReferenceCountedObjectPtr<ApiObject2> apiClass;
+	const ReferenceCountedObjectPtr<ApiClass> apiClass;
 };
 
 struct HiseJavascriptEngine::RootObject::InlineFunction

@@ -34,6 +34,7 @@
 
 #include "hi_scripting.h"
 
+#include "scripting/api/DspFactory.cpp"
 #include "scripting/engine/JavascriptApiClass.cpp"
 #include "scripting/engine/HiseJavascriptEngine.cpp"
 #include "scripting/engine/JavascriptEngineExpressions.cpp"

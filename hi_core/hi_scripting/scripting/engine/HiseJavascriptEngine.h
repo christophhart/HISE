@@ -116,7 +116,7 @@ public:
 
 	DynamicObject *getRootObject();;
 
-	void registerApiClass(ApiObject2 *apiClass);
+	void registerApiClass(ApiClass *apiClass);
 
 private:
 	
@@ -229,10 +229,16 @@ private:
 		static var exec(Args a);
 		static var eval(Args a);
 
-		VarRegister varRegister;
-		ReferenceCountedArray<ApiObject2> apiClasses;
-		Array<Identifier> apiIds;
-		ReferenceCountedArray<DynamicObject> inlineFunctions;
+		struct HiseSpecialData
+		{
+			VarRegister varRegister;
+			ReferenceCountedArray<ApiClass> apiClasses;
+			Array<Identifier> apiIds;
+			ReferenceCountedArray<DynamicObject> inlineFunctions;
+			NamedValueSet constObjects;
+		};
+
+		HiseSpecialData hiseSpecialData;
 	};
 
 	const ReferenceCountedObjectPtr<RootObject> root;

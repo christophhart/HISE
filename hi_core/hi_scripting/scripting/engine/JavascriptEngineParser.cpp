@@ -4,12 +4,12 @@ struct HiseJavascriptEngine::RootObject::RegisterName : public Expression
 
 	var getResult(const Scope& s) const override
 	{
-		return s.root->varRegister.getFromRegister(indexInRegister);
+		return s.root->hiseSpecialData.varRegister.getFromRegister(indexInRegister);
 	}
 
 	void assign(const Scope& s, const var& newValue) const override
 	{
-		s.root->varRegister.setRegister(indexInRegister, newValue);
+		s.root->hiseSpecialData.varRegister.setRegister(indexInRegister, newValue);
 	}
 
 	Identifier name;
@@ -217,11 +217,9 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 	ExpressionTreeBuilder(const String code) :
 		TokenIterator(code){}
 
-	void setApiData(Array<Identifier> &apiIds_, ReferenceCountedArray<ApiObject2> &apiClasses_, ReferenceCountedArray<DynamicObject> &functionArray_)
+	void setApiData(HiseSpecialData &data)
 	{
-		apiIds = apiIds_;
-		apiClasses = &apiClasses_;
-		inlineFunctions = &functionArray_;
+		hiseSpecialData = &data;
 	}
 
 	BlockStatement* parseStatementList()
@@ -259,8 +257,6 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 
 		if (matchIf(TokenTypes::in))
 		{
-
-
 			ExpPtr rhs(parseExpression());
 
 			currentIterator = id;
@@ -278,14 +274,10 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 		return lhs.release();
 	}
 
-	
-
 private:
 
-	Array<Identifier> apiIds;
-	ReferenceCountedArray<ApiObject2> *apiClasses;
-	ReferenceCountedArray<DynamicObject> *inlineFunctions;
-	
+	HiseSpecialData *hiseSpecialData;
+
 	bool currentlyParsingInlineFunction = false;
 
 	void throwError(const String& err) const  { location.throwError(err); }
@@ -312,6 +304,7 @@ private:
 
 		if (currentType == TokenTypes::openBrace)   return parseBlock();
 
+		if (matchIf(TokenTypes::const_))		   return parseConstVar();
 		if (matchIf(TokenTypes::var))              return parseVar();
 		if (matchIf(TokenTypes::register_var))	   return parseRegisterVar();
 		if (matchIf(TokenTypes::if_))              return parseIf();
@@ -431,9 +424,9 @@ private:
 
 	InlineFunction::Object *getInlineFunction(Identifier &id)
 	{
-		for (int i = 0; i < inlineFunctions->size(); i++)
+		for (int i = 0; i < hiseSpecialData->inlineFunctions.size(); i++)
 		{
-			DynamicObject *o = inlineFunctions->getUnchecked(i);
+			DynamicObject *o = hiseSpecialData->inlineFunctions.getUnchecked(i);
 
 			InlineFunction::Object *obj = dynamic_cast<InlineFunction::Object*>(o);
 
@@ -495,7 +488,7 @@ private:
 
 		InlineFunction::Object *o = new InlineFunction::Object(name, inlineArguments);
 
-		inlineFunctions->add(o);
+		hiseSpecialData->inlineFunctions.add(o);
 
 		ScopedPointer<BlockStatement> body = parseBlock();
 
@@ -705,8 +698,8 @@ private:
 	Expression* parseApiExpression()
 	{
 		const Identifier apiId = parseIdentifier();
-		const int apiIndex = apiIds.indexOf(apiId);
-		ApiObject2 *apiClass = apiClasses->getUnchecked(apiIndex);
+		const int apiIndex = hiseSpecialData->apiIds.indexOf(apiId);
+		ApiClass *apiClass = hiseSpecialData->apiClasses.getUnchecked(apiIndex);
 
 		match(TokenTypes::dot);
 
@@ -724,7 +717,7 @@ private:
 		}
 	}
 
-	Expression* parseApiConstant(ApiObject2 *apiClass, const Identifier &constantName)
+	Expression* parseApiConstant(ApiClass *apiClass, const Identifier &constantName)
 	{
 		const int index = apiClass->getConstantIndex(constantName);
 
@@ -736,7 +729,7 @@ private:
 		return s.release();
 	}
 
-	Expression* parseApiCall(ApiObject2 *apiClass, const Identifier &functionName)
+	Expression* parseApiCall(ApiClass *apiClass, const Identifier &functionName)
 	{
 		int functionIndex, numArgs;
 		apiClass->getIndexAndNumArgsForFunction(functionName, functionIndex, numArgs);
@@ -804,7 +797,10 @@ private:
 			}
 
 			const int registerIndex = registerIdentifiers.indexOf(id);
-			const int apiClassIndex = apiIds.indexOf(id);
+			const int apiClassIndex = hiseSpecialData->apiIds.indexOf(id);
+			const int constIndex = hiseSpecialData->constObjects.indexOf(id);
+
+
 			InlineFunction::Object *obj = getInlineFunction(id);
 
 
@@ -1053,7 +1049,7 @@ var HiseJavascriptEngine::RootObject::evaluate(const String& code)
 {
 	ExpressionTreeBuilder tb(code);
 
-	tb.setApiData(apiIds, apiClasses, inlineFunctions);
+	tb.setApiData(hiseSpecialData);
 
 	return ExpPtr(tb.parseExpression())->getResult(Scope(nullptr, this, this));
 }
@@ -1062,7 +1058,7 @@ void HiseJavascriptEngine::RootObject::execute(const String& code)
 {
 	ExpressionTreeBuilder tb(code);
 
-	tb.setApiData(apiIds, apiClasses, inlineFunctions);
+	tb.setApiData(hiseSpecialData);
 
 	ScopedPointer<BlockStatement>(tb.parseStatementList())->perform(Scope(nullptr, this, this), nullptr);
 }

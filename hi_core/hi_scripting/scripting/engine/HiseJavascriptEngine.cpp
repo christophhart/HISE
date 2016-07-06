@@ -127,6 +127,8 @@ struct HiseJavascriptEngine::RootObject::Scope
 	ReferenceCountedObjectPtr<RootObject> root;
 	DynamicObject::Ptr scope;
 
+	
+
 	var findFunctionCall(const CodeLocation& location, const var& targetObject, const Identifier& functionName) const;
 
 	var* findRootClassProperty(const Identifier& className, const Identifier& propName) const
@@ -254,13 +256,13 @@ DynamicObject * HiseJavascriptEngine::getRootObject()
 	return dynamic_cast<DynamicObject*>(root.get());
 }
 
-void HiseJavascriptEngine::registerApiClass(ApiObject2 *apiClass)
+void HiseJavascriptEngine::registerApiClass(ApiClass *apiClass)
 {
-	root->apiClasses.add(apiClass);
-	root->apiIds.add(apiClass->getName());
+	root->hiseSpecialData.apiClasses.add(apiClass);
+	root->hiseSpecialData.apiIds.add(apiClass->getName());
 }
 
-ApiObject2::Constant ApiObject2::Constant::null;
+ApiClass::Constant ApiClass::Constant::null;
 
 #if JUCE_MSVC
 #pragma warning (pop)

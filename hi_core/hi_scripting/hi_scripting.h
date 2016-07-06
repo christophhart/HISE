@@ -37,8 +37,12 @@
 
 #include "../hi_core/hi_core.h"
 
+#include "scripting/api/ScriptMacroDefinitions.h"
+#include "scripting/api/DspBaseModule.h"
+#include "scripting/api/DspFactory.h"
 #include "scripting/engine/JavascriptApiClass.h"
 #include "scripting/engine/HiseJavascriptEngine.h"
+
 
 #include "scripting/api/XmlApi.h"
 #include "scripting/api/ScriptingBaseObjects.h"
