@@ -12,7 +12,7 @@
 #define JAVASCRIPTAPICLASS_H_INCLUDED
 
 
-#define NUM_VAR_REGISTERS 8
+
 
 
 struct VariantComparator
@@ -48,7 +48,7 @@ private:
 
 
 
-
+#define NUM_VAR_REGISTERS 32
 
 class VarRegister
 {
@@ -100,6 +100,15 @@ public:
 		return var::undefined();
 	}
 
+	int getRegisterIndex(const Identifier &id) const
+	{
+		for (int i = 0; i < NUM_VAR_REGISTERS; i++)
+		{
+			if (registerStackIds[i] == id) return i;
+		}
+
+		return -1;
+	}
 private:
 
 	var registerStack[NUM_VAR_REGISTERS];

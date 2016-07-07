@@ -1,20 +1,3 @@
-struct HiseJavascriptEngine::RootObject::RegisterName : public Expression
-{
-	RegisterName(const CodeLocation& l, const Identifier& n, int registerIndex) noexcept : Expression(l), name(n), indexInRegister(registerIndex) {}
-
-	var getResult(const Scope& s) const override
-	{
-		return s.root->hiseSpecialData.varRegister.getFromRegister(indexInRegister);
-	}
-
-	void assign(const Scope& s, const var& newValue) const override
-	{
-		s.root->hiseSpecialData.varRegister.setRegister(indexInRegister, newValue);
-	}
-
-	Identifier name;
-	int indexInRegister;
-};
 
 
 //==============================================================================
@@ -352,7 +335,9 @@ private:
 		match(TokenTypes::identifier);
 		match(TokenTypes::assign);
 
-		const int index = registerIdentifiers.indexOf(id);
+		//const int index = registerIdentifiers.indexOf(id);
+
+		const int index = hiseSpecialData->varRegister.getRegisterIndex(id);
 
 		RegisterAssignment *r = new RegisterAssignment(location, index, parseExpression());
 
@@ -417,7 +402,9 @@ private:
 
 		s->name = parseIdentifier();
 
-		registerIdentifiers.add(s->name);
+		//registerIdentifiers.add(s->name);
+
+		hiseSpecialData->varRegister.addRegister(s->name, var::undefined());
 
 		s->initialiser = matchIf(TokenTypes::assign) ? parseExpression() : new Expression(location);
 
@@ -841,7 +828,7 @@ private:
 				return parseSuffixes(new LoopStatement::IteratorName(location, parseIdentifier()));
 			}
 
-			const int registerIndex = registerIdentifiers.indexOf(id);
+			const int registerIndex = hiseSpecialData->varRegister.getRegisterIndex(id);
 			const int apiClassIndex = hiseSpecialData->apiIds.indexOf(id);
 			const int constIndex = hiseSpecialData->constObjects.indexOf(id);
 

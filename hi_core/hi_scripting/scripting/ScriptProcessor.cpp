@@ -570,7 +570,9 @@ void ScriptProcessor::setupApi()
 
 	scriptEngine->registerCallbackName(getSnippet(onInit)->getCallbackName());
 	scriptEngine->registerCallbackName(getSnippet(onNoteOn)->getCallbackName());
-	//scriptEngine->registerCallbackName(getSnippet(onNoteOff)->getCallbackName());
+	scriptEngine->registerCallbackName(getSnippet(onNoteOff)->getCallbackName());
+	scriptEngine->registerCallbackName(getSnippet(onController)->getCallbackName());
+	scriptEngine->registerCallbackName(getSnippet(onTimer)->getCallbackName());
 
 
 	scriptEngine->execute("function include(string){Engine.include(string);};");

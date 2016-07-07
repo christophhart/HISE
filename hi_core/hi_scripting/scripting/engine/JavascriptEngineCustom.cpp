@@ -32,6 +32,24 @@ struct HiseJavascriptEngine::RootObject::RegisterAssignment : public Expression
 	ExpPtr source;
 };
 
+struct HiseJavascriptEngine::RootObject::RegisterName : public Expression
+{
+	RegisterName(const CodeLocation& l, const Identifier& n, int registerIndex) noexcept : Expression(l), name(n), indexInRegister(registerIndex) {}
+
+	var getResult(const Scope& s) const override
+	{
+		return s.root->hiseSpecialData.varRegister.getFromRegister(indexInRegister);
+	}
+
+	void assign(const Scope& s, const var& newValue) const override
+	{
+		s.root->hiseSpecialData.varRegister.setRegister(indexInRegister, newValue);
+	}
+
+	Identifier name;
+	int indexInRegister;
+};
+
 
 struct HiseJavascriptEngine::RootObject::ApiConstant : public Expression
 {
