@@ -2218,6 +2218,11 @@ ValueTree ScriptingApi::Content::ScriptComponent::exportAsValueTree() const
 	return v;
 }
 
+void ScriptingApi::Content::ScriptComponent::doubleClickCallback(Component *componentToNotify)
+{
+	getScriptProcessor()->getMainController()->setEditedScriptComponent(this, componentToNotify);
+}
+
 void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor)
 {
 	jassert(propertyIds.contains(id));
@@ -3205,6 +3210,23 @@ bool ScriptingApi::Content::isEmpty()
 	return components.size() == 0;
 }
 
+
+void ScriptingObjects::ScriptingModulator::doubleClickCallback(Component *componentToNotify)
+{
+#if USE_BACKEND
+	if (objectExists() && !objectDeleted())
+	{
+		BackendProcessorEditor *editor = componentToNotify->findParentComponentOfClass<BackendProcessorEditor>();
+
+		Processor *p = ProcessorHelpers::getFirstProcessorWithName(editor->getMainSynthChain(), mod->getId());
+
+		if (p != nullptr)
+		{
+			editor->setRootProcessorWithUndo(p);
+		}
+	}
+#endif
+}
 
 void ScriptingObjects::ScriptingModulator::setIntensity(float newIntensity)
 {

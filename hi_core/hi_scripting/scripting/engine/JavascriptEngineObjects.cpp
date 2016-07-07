@@ -260,6 +260,114 @@ var HiseJavascriptEngine::RootObject::Scope::findFunctionCall(const CodeLocation
 	return var();
 }
 
+Array<Identifier> HiseJavascriptEngine::RootObject::HiseSpecialData::hiddenProperties;
+
+bool HiseJavascriptEngine::RootObject::HiseSpecialData::initHiddenProperties = true;
+
+HiseJavascriptEngine::RootObject::HiseSpecialData::HiseSpecialData()
+{
+	if (initHiddenProperties)
+	{
+		hiddenProperties.addIfNotAlreadyThere(Identifier("exec"));
+		hiddenProperties.addIfNotAlreadyThere(Identifier("eval"));
+		hiddenProperties.addIfNotAlreadyThere(Identifier("trace"));
+		hiddenProperties.addIfNotAlreadyThere(Identifier("charToInt"));
+		hiddenProperties.addIfNotAlreadyThere(Identifier("parseInt"));
+		hiddenProperties.addIfNotAlreadyThere(Identifier("typeof"));
+		hiddenProperties.addIfNotAlreadyThere(Identifier("Object"));
+		hiddenProperties.addIfNotAlreadyThere(Identifier("Array"));
+		hiddenProperties.addIfNotAlreadyThere(Identifier("String"));
+		hiddenProperties.addIfNotAlreadyThere(Identifier("Math"));
+		hiddenProperties.addIfNotAlreadyThere(Identifier("JSON"));
+		hiddenProperties.addIfNotAlreadyThere(Identifier("Integer"));
+		hiddenProperties.addIfNotAlreadyThere(Identifier("Content"));
+		hiddenProperties.addIfNotAlreadyThere(Identifier("SynthParameters"));
+		hiddenProperties.addIfNotAlreadyThere(Identifier("Engine"));
+		hiddenProperties.addIfNotAlreadyThere(Identifier("Synth"));
+		hiddenProperties.addIfNotAlreadyThere(Identifier("Sampler"));
+		hiddenProperties.addIfNotAlreadyThere(Identifier("Globals"));
+		hiddenProperties.addIfNotAlreadyThere(Identifier("include"));
+
+		initHiddenProperties = false;
+	}
+
+	for (int i = 0; i < 32; i++)
+	{
+		callbackTimes[i] = 0.0;
+	}
+}
+
+HiseJavascriptEngine::RootObject::HiseSpecialData::~HiseSpecialData()
+{
+
+}
+
+
+void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(DynamicObject *root, double callbackTime)
+{
+	ScopedLock sl(debugLock);
+
+	debugInformation.clear();
+
+	for (int i = 0; i < constObjects.size(); i++)
+	{
+		debugInformation.add(new DebugInformation(constObjects.getName(i).toString(), DebugInformation::Type::Constant, constObjects.getVarPointerAt(i)));
+	}
+
+
+	const int numRegisters = varRegister.getNumUsedRegisters();
+
+	for (int i = 0; i < numRegisters; i++)
+	{
+		debugInformation.add(new DebugInformation(varRegister.getRegisterId(i).toString(), DebugInformation::Type::RegisterVariable, &varRegister.getFromRegister(i)));
+	}
+
+	NamedValueSet *globals = &root->getProperty("Globals").getDynamicObject()->getProperties();
+
+	for (int i = 0; i < globals->size(); i++)
+	{
+		debugInformation.add(new DebugInformation(globals->getName(i).toString(), DebugInformation::Type::Globals, globals->getVarPointerAt(i)));
+	}
+
+	NamedValueSet *variables = &root->getProperties();
+
+	for (int i = 0; i < variables->size(); i++)
+	{
+		if (hiddenProperties.contains(variables->getName(i))) continue;
+		debugInformation.add(new DebugInformation(variables->getName(i).toString(), DebugInformation::Type::Variables, variables->getVarPointerAt(i)));
+	}
+	
+	for (int i = 0; i < inlineFunctions.size(); i++)
+	{
+		InlineFunction::Object *o = dynamic_cast<InlineFunction::Object*>(inlineFunctions.getUnchecked(i).get());
+
+		String functionDef = o->name.toString();
+
+		functionDef << "(";
+
+		for (int i = 0; i < o->parameterNames.size(); i++)
+		{
+			functionDef << o->parameterNames[i].toString();
+
+			if (i != (o->parameterNames.size() - 1)) functionDef << ",";
+		}
+
+		functionDef << ")";
+
+		debugInformation.add(new DebugInformation(functionDef, DebugInformation::Type::InlineFunction, &o->lastReturnValue));
+	}
+
+	for (int i = 0; i < callbackIds.size(); i++)
+	{
+		if (callbacks[i] != nullptr)
+		{
+			var si = callbacks[i]->statements.size();
+			debugInformation.add(new DebugInformation(callbackIds[i].toString() + "()", DebugInformation::Type::Callback, nullptr, &callbackTimes[i], callbackTime));
+		}
+	}
+}
+
+
 void HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 {
 	RootObject::BlockStatement *bs = root->hiseSpecialData.callbacks[callbackIndex];
@@ -270,9 +378,18 @@ void HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 
 	try
 	{
+		
 		prepareTimeout();
 
+		const double pre = Time::getMillisecondCounterHiRes();
 		bs->perform(s, nullptr);
+
+		const double post = Time::getMillisecondCounterHiRes();
+
+		double diff = post - pre;
+
+		root->hiseSpecialData.callbackTimes[callbackIndex] = diff;
+
 	}
 	catch (String &error)
 	{

@@ -90,7 +90,7 @@ public:
 		}
 	}
 
-	const var getFromRegister(int registerIndex)
+	const var &getFromRegister(int registerIndex) const
 	{
 		if (registerIndex < NUM_VAR_REGISTERS)
 		{
@@ -109,6 +109,25 @@ public:
 
 		return -1;
 	}
+
+	int getNumUsedRegisters() const
+	{
+		for (int i = 0; i < NUM_VAR_REGISTERS; i++)
+		{
+			if (registerStackIds[i] == Identifier::null) return i;
+		}
+
+		return NUM_VAR_REGISTERS;
+	}
+
+	Identifier getRegisterId(int index) const
+	{
+		if (index < NUM_VAR_REGISTERS)
+			return registerStackIds[index];
+
+		return Identifier::null;
+	}
+
 private:
 
 	var registerStack[NUM_VAR_REGISTERS];

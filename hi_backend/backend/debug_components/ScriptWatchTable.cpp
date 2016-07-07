@@ -32,31 +32,20 @@
 
 ScriptWatchTable::ScriptWatchTable(MainController *mc, BaseDebugArea *area) :
 	AutoPopupDebugComponent(area),
-	font (GLOBAL_FONT()),
 	controller(mc)
 {
 	setName(getHeadline());
 
-    // Create our table component and add it to this component..
     addAndMakeVisible (table = new TableListBox());
     table->setModel (this);
-
 	table->getHeader().setLookAndFeel(&laf);
-
 	table->getHeader().setSize(getWidth(), 22);
-
-    // give it a border
-    
     table->setOutlineThickness (0);
-
 	table->getViewport()->setScrollBarsShown(true, false, false, false);
-
     table->setColour(ListBox::backgroundColourId, Colour(DEBUG_AREA_BACKGROUND_COLOUR));
 
-    
-	//table.getHeader().setInterceptsMouseClicks(false, false);
-
-	table->getHeader().addColumn("Type", Type, 100);
+	table->getHeader().addColumn("Type", Type, 30, 30, 30);
+	table->getHeader().addColumn("Data Type", DataType, 100);
 	table->getHeader().addColumn("Name", Name, 100);
 	table->getHeader().addColumn("Value", Value, 180);
 
@@ -67,44 +56,101 @@ ScriptWatchTable::ScriptWatchTable(MainController *mc, BaseDebugArea *area) :
 void ScriptWatchTable::timerCallback()
 {
 	if(table != nullptr)
-    {
-        table->updateContent();
-
-        refreshStrippedSet();
-        
-        repaint();
-    }
+		refreshStrippedSet();
 }
 
 int ScriptWatchTable::getNumRows() 
 {
-	return strippedSet.size();
+	return renderedSet.size();
 };
 
 void ScriptWatchTable::refreshStrippedSet()
 {
-	NamedValueSet oldSet = NamedValueSet(strippedSet);
-
-	changed.clear();
-
-	strippedSet.clear();
-
-	fillWithGlobalVariables();
-
-	if(processor.get() == nullptr)
+	if (processor.get() == nullptr)
 	{
 		setScriptProcessor(nullptr, nullptr);
 		return;
 	}
 	else
 	{
-		fillWithLocalVariables();
+		HiseJavascriptEngine *engine = dynamic_cast<ScriptProcessor*>(processor.get())->getScriptEngine();
+		const int numRows = engine->getNumDebugObjects();
+		BigInteger lastChanged = changed;
+		bool updateTable = false;
 
+		changed = 0;
+
+		if (numRows < renderedSet.size())
+		{
+			renderedSet.removeRange(numRows-1, INT_MAX);
+			updateTable = true;
+		}
+
+		for (int i = 0; i < numRows; i++)
+		{
+			ScriptingDebugInfo *info = dynamic_cast<ScriptingDebugInfo*>(engine->getDebugInformation(i));
+
+			if (i < renderedSet.size())
+			{
+				String newValue = info->getTextForRow(ScriptingDebugInfo::Row::Value);
+				String name = info->getTextForRow(ScriptingDebugInfo::Row::Name);
+
+				if (renderedSet[i][(int)ScriptingDebugInfo::Row::Name] != name)
+				{
+					renderedSet.set(i, info->createTextArray());
+					updateTable = true;
+				}
+
+				String oldValue = renderedSet[i][(int)ScriptingDebugInfo::Row::Value];
+
+				if (oldValue != newValue)
+				{
+					changed.setBit(i, true);
+					renderedSet.set(i, info->createTextArray());
+				}
+			}
+			else
+			{
+				renderedSet.add(info->createTextArray());
+				changed.setBit(i, true);
+
+				updateTable = true;
+			}
+		}
+
+		if (updateTable)
+		{
+			table->updateContent();
+			repaint();
+		}
+		else if(lastChanged != changed || changed != 0) repaint();		
 	}
-
-	refreshChangedDisplay(oldSet);
-
 };
+
+
+void ScriptWatchTable::mouseDoubleClick(const MouseEvent &/*e*/)
+{
+	if (processor.get() != nullptr  && editor.getComponent() != nullptr)
+	{
+		HiseJavascriptEngine *engine = dynamic_cast<ScriptProcessor*>(processor.get())->getScriptEngine();
+
+		if (engine != nullptr)
+		{
+			const int componentIndex = table->getSelectedRow(0);
+			ScriptingDebugInfo *info = dynamic_cast<ScriptingDebugInfo*>(engine->getDebugInformation(componentIndex));
+
+			if (info != nullptr)
+			{
+				DebugableObject *db = dynamic_cast<DebugableObject*>(info->value->getObject());
+
+				if (db != nullptr)
+				{
+					db->doubleClickCallback(editor.getComponent());
+				}
+			}
+		}
+	}
+}
 
 void ScriptWatchTable::setScriptProcessor(ScriptProcessor *p, ScriptingEditor *editor_)
 {
@@ -121,7 +167,7 @@ void ScriptWatchTable::setScriptProcessor(ScriptProcessor *p, ScriptingEditor *e
 	else
 	{
 		showComponentInDebugArea(false);
-		strippedSet.clear();
+		renderedSet.clear();
 		
 		table->updateContent();
 
@@ -151,61 +197,48 @@ void ScriptWatchTable::paintCell (Graphics& g, int rowNumber, int columnId,
 	g.drawHorizontalLine(0, 0.0f, (float)width);
 	
 	g.setColour (Colours::white.withAlpha(.8f));
-    g.setFont (font);
+    g.setFont (GLOBAL_FONT());
 
     if(processor.get() != nullptr)
 	{
         String text;
 
-		switch(columnId)
+		if (columnId == Type)
 		{
-		case Name:
+			const juce_wchar c = renderedSet[rowNumber][columnId - 1][0]; // Only the first char...
+			const float alpha = 0.4f;
+			const float brightness = 0.6f;
+			const float h = jmin<float>((float)height, (float)width) - 4.0f;
+			const Rectangle<float> area(((float)width - h) / 2.0f, 2.0f, h, h);
 
-			if (rowNumber < strippedSet.size())
+			switch (c)
 			{
-				g.setFont(GLOBAL_MONOSPACE_FONT());
-
-				text << strippedSet.getName(rowNumber).toString().replaceCharacter(':', '.');
+			case 'I': g.setColour(Colours::blue.withAlpha(alpha).withBrightness(brightness)); break;
+			case 'V': g.setColour(Colours::cyan.withAlpha(alpha).withBrightness(brightness)); break;
+			case 'G': g.setColour(Colours::green.withAlpha(alpha).withBrightness(brightness)); break;
+			case 'C': g.setColour(Colours::yellow.withAlpha(alpha).withBrightness(brightness)); break;
+			case 'R': g.setColour(Colours::red.withAlpha(alpha).withBrightness(brightness)); break;
+			case 'F': g.setColour(Colours::orange.withAlpha(alpha).withBrightness(brightness)); break;
 			}
 
-			
-			break;
+			g.fillRoundedRectangle(area, 5.0f);
+			g.setColour(Colours::white.withAlpha(0.4f));
+			g.drawRoundedRectangle(area, 5.0f, 1.0f);
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.setColour(Colours::white);
 
-		case Type:
-
-			if (rowNumber < strippedSet.size())
-			{
-				g.setFont(GLOBAL_MONOSPACE_FONT());
-				text << JavascriptCodeEditor::getValueType(strippedSet.getValueAt(rowNumber));
-			}
-
-			break;
-
-		case Value:
-
-			if (rowNumber < strippedSet.size())
-			{
-				String value;
-
-				if (strippedSet.getValueAt(rowNumber).isObject() && dynamic_cast<CreatableScriptObject*>(strippedSet.getValueAt(rowNumber).getDynamicObject()) != nullptr)
-				{
-					value = dynamic_cast<CreatableScriptObject*>(strippedSet.getValueAt(rowNumber).getDynamicObject())->getInstanceName();
-				}
-				else
-				{
-					value = strippedSet.getValueAt(rowNumber).toString();
-				}
-
-				text << value;
-
-				if (changed[rowNumber])
-				{
-					g.setColour(Colours::red);
-				}
-			}
+			String type;
+			type << c;
+			g.drawText(type, area, Justification::centred);
 		}
+		else
+		{
+			text << renderedSet[rowNumber][columnId - 1];
 
-		g.drawText (text, 5, 0, width - 10, height, Justification::centredLeft, true);
+			g.setColour(changed[rowNumber] ? Colours::darkred : Colours::black);
+			g.setFont(GLOBAL_MONOSPACE_FONT());
+			g.drawText(text, 5, 0, width - 10, height, Justification::centredLeft, true);
+		}
 	}
 }
 

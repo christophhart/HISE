@@ -213,7 +213,8 @@ public:
 	/** A scripting objects that wraps an existing Modulator.
 	*/
 	class ScriptingModulator: public CreatableScriptObject,
-							  public AssignableObject
+							  public AssignableObject,
+							  public DebugableObject
 	{
 	public:
 
@@ -258,6 +259,27 @@ public:
 				mod->setAttribute(index, value, sendNotification);
 			}
 		}
+
+		String getDebugName() override
+		{
+			if (objectExists() && !objectDeleted())
+			{
+				return mod->getType().toString();
+			}
+
+			return String("Deleted");
+		}
+
+		String getDebugValue() override
+		{
+			if (objectExists() && !objectDeleted())
+			{
+				return String(mod->getOutputValue(), 2);
+			}
+			return "0.0";
+		}
+
+		void doubleClickCallback(Component *componentToNotify);
 
 		/** Bypasses the Modulator. */
 		void setBypassed(bool shouldBeBypassed)
@@ -1400,7 +1422,8 @@ public:
 		struct ScriptComponent : public RestorableObject,
 								 public CreatableScriptObject,
 								 public SafeChangeBroadcaster,
-								 public AssignableObject
+								 public AssignableObject,
+								 public DebugableObject
 		{
 			enum Properties
 			{
@@ -1441,6 +1464,15 @@ public:
 			virtual ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) = 0;
 
 			virtual ValueTree exportAsValueTree() const override;;
+
+			
+			String getDebugValue() override { return getValue().toString(); };
+
+			String getDebugName() override { return getObjectName().toString(); };
+
+
+			/** This will be called if the user double clicks on the row. */
+			virtual void doubleClickCallback(Component *componentToNotify);;
 
 			var getAssignedValue(int index) const override
 			{
@@ -1999,6 +2031,8 @@ public:
 			~ScriptImage();
 
 			virtual Identifier 	getObjectName () const override { return "ScriptImage"; }
+
+			virtual String getDebugValue() override { return getScriptObjectProperty(Properties::FileName); }
 
 			ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 

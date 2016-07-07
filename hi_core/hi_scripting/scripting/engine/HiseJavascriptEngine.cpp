@@ -296,15 +296,37 @@ int HiseJavascriptEngine::registerCallbackName(const Identifier &callbackName)
 
 	root->hiseSpecialData.callbackIds.add(callbackName);
 	root->hiseSpecialData.callbacks.add(nullptr);
-
+	
 	return root->hiseSpecialData.callbackIds.size();
-
-
 }
 
 
 
 
+
+ReferenceCountedObject * HiseJavascriptEngine::getDebugInformation(int index)
+{
+	return root->hiseSpecialData.getDebugObject(index);
+}
+
+
+int HiseJavascriptEngine::getNumDebugObjects() const
+{
+	return root->hiseSpecialData.getNumDebugObjects();
+}
+
+
+void HiseJavascriptEngine::clearDebugInformation()
+{
+	root->hiseSpecialData.clearDebugInformation();
+}
+
+void HiseJavascriptEngine::rebuildDebugInformation(double callbackTime)
+{
+	root->hiseSpecialData.clearDebugInformation();
+
+	root->hiseSpecialData.createDebugInformation(root, callbackTime);
+}
 
 var HiseJavascriptEngine::executeWithoutAllocation(const Identifier &function, const var::NativeFunctionArgs& args, Result* result /*= nullptr*/, DynamicObject *scopeToUse)
 {
@@ -323,3 +345,4 @@ var HiseJavascriptEngine::executeWithoutAllocation(const Identifier &function, c
 
 	return returnVal;
 }
+

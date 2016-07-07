@@ -315,6 +315,8 @@ public:
 
 			chain->processors.insert(index, m);
 
+			newProcessor->prepareToPlay(chain->getSampleRate(), chain->getBlockSize());
+
 			sendChangeMessage();
 		}
 

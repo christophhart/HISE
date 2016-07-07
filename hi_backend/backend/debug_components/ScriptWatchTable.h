@@ -56,6 +56,7 @@ public:
     enum ColumnId
     {
         Type = 1,
+		DataType,
         Name,
         Value,
         numColumns
@@ -66,12 +67,9 @@ public:
     ~ScriptWatchTable()
     {
         controller = nullptr;
-        
-        strippedSet.clear();
-        
+        renderedSet.clear();
         processor = nullptr;
         editor = nullptr;
-        
         table = nullptr;
     }
     
@@ -80,77 +78,25 @@ public:
     void setScriptProcessor(ScriptProcessor *p, ScriptingEditor *editor);
     
     int getNumRows() override;
-    
     void paintRowBackground (Graphics& g, int rowNumber, int /*width*/, int /*height*/, bool rowIsSelected) override;
-    
-    void selectedRowsChanged(int /*lastRowSelected*/);
-    
-    void paintCell (Graphics& g, int rowNumber, int columnId,
-                    int width, int height, bool /*rowIsSelected*/) override;
+    void selectedRowsChanged(int /*lastRowSelected*/) override;
+    void paintCell (Graphics& g, int rowNumber, int columnId, int width, int height, bool /*rowIsSelected*/) override;
     
     String getHeadline() const;
-    
     void resized() override;
     
     void refreshStrippedSet();
-    
-    void refreshChangedDisplay(const NamedValueSet &oldSet)
-    {
-        changed.setRange(0, strippedSet.size(), false);
-        
-        for (int i = 0; i < strippedSet.size(); i++)
-        {
-            var oldValue = oldSet[strippedSet.getName(i)];
-            
-            var newValue = strippedSet.getValueAt(i);
-            
-            if (!oldValue.isUndefined() && !oldValue.equals(newValue))
-            {
-                changed.setBit(i, true);
-            }
-        }
-    };
-    
-    void fillWithGlobalVariables()
-    {
-        const NamedValueSet &globalSet = controller->getGlobalVariableObject()->getProperties();
-        
-        for (int i = 0; i < globalSet.size(); i++)
-        {
-            if (globalSet.getValueAt(i).isMethod()) continue;
-            if (globalSet.getValueAt(i).isObject() && dynamic_cast<CreatableScriptObject*>(globalSet.getValueAt(i).getDynamicObject()) == nullptr) continue;
-            
-            Identifier id = Identifier("Globals:" + globalSet.getName(i).toString());
-            
-            strippedSet.set(id, globalSet.getValueAt(i));
-        }
-        
-    };
-    
-    void fillWithLocalVariables();
-    
     void mouseDoubleClick(const MouseEvent &e) override;
     
 private:
     
     TableHeaderLookAndFeel laf;
-    
-    Font font;
-    
-    
-    
-    NamedValueSet strippedSet;
-    
+	Array<StringArray> renderedSet;
     BigInteger changed;
-    
     MainController *controller;
-    
     WeakReference<Processor> processor;
     Component::SafePointer<ScriptingEditor> editor;
-    
-    int numRows;            // The number of rows of data we've got
-    
-    ScopedPointer<TableListBox> table;     // the table component itself
+    ScopedPointer<TableListBox> table;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptWatchTable);
 };

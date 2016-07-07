@@ -121,6 +121,8 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 		typedef ReferenceCountedObjectPtr<Object> Ptr;
 		ScopedPointer<BlockStatement> body;
 
+		var lastReturnValue = var::undefined();
+		
 		const FunctionCall *e;
 
 	};
@@ -153,6 +155,8 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			}
 
 			ResultCode c = f->body->perform(s, &returnVar);
+
+			f->lastReturnValue = returnVar;
 
 			if (c == Statement::returnWasHit) return returnVar;
 			else return var::undefined();

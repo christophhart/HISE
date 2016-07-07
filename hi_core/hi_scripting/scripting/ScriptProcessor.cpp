@@ -405,6 +405,8 @@ ScriptProcessor::SnippetResult ScriptProcessor::compileInternal()
 
 	ScopedLock sl(compileLock);
 
+	scriptEngine->clearDebugInformation();
+
 	scriptEngine = new HiseJavascriptEngine();
 	scriptEngine->maximumExecutionTime = RelativeTime(getMainController()->getCompileTimeOut());
 
@@ -441,6 +443,10 @@ ScriptProcessor::SnippetResult ScriptProcessor::compileInternal()
 			}
 		}
 	}
+
+	const double callbackTime = (double)getBlockSize() / getSampleRate() * 1000.0;
+
+	scriptEngine->rebuildDebugInformation(callbackTime);
 
 	content->restoreFromValueTree(restoredContentValues);
 
@@ -586,7 +592,7 @@ void ScriptProcessor::runScriptCallbacks()
 {
 	ScopedLock sl(compileLock);
 
-	scriptEngine->maximumExecutionTime = isDeferred() ? RelativeTime(0.5) : RelativeTime(0.003);
+	scriptEngine->maximumExecutionTime = isDeferred() ? RelativeTime(0.5) : RelativeTime(0.03);
 
 	if(currentMessage.isNoteOn())
 	{
@@ -616,6 +622,15 @@ void ScriptProcessor::runScriptCallbacks()
 		const double startTime = consoleEnabled ? Time::getMillisecondCounterHiRes() : 0.0;
 
 		scriptEngine->executeCallback(onNoteOff, &r);
+
+		
+
+		for (int i = 0; i < scriptEngine->getNumDebugObjects(); i++)
+		{
+			ScriptingDebugInfo *o = dynamic_cast<ScriptingDebugInfo*>(scriptEngine->getDebugInformation(i));
+
+			DBG(o->toString());
+		}
 
 		//scriptEngine->executeWithoutAllocation(getSnippet(onNoteOff)->getCallbackName(), var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), nullptr, 0), &r, onNoteOffScope);
 

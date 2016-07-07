@@ -238,39 +238,6 @@ void MacroComponent::changeListenerCallback(SafeChangeBroadcaster *)
 }
 
 
-void ScriptWatchTable::fillWithLocalVariables()
-{
-	ScriptProcessor *sp = dynamic_cast<ScriptProcessor*>(processor.get());
-
-	const NamedValueSet &scriptSet = sp->getScriptEngine()->getRootObjectProperties();
-
-	for (int i = 0; i < scriptSet.size(); i++)
-	{
-		if (scriptSet.getValueAt(i).isMethod()) continue;
-		if (scriptSet.getValueAt(i).isObject() && dynamic_cast<CreatableScriptObject*>(scriptSet.getValueAt(i).getDynamicObject()) == nullptr) continue;
-
-		strippedSet.set(scriptSet.getName(i), scriptSet.getValueAt(i));
-	}
-}
-
-void ScriptWatchTable::mouseDoubleClick(const MouseEvent &/*e*/)
-{
-
-
-    const int componentIndex = table->getSelectedRow(0);
-				
-	var x = strippedSet.getValueAt(componentIndex);
-				
-	ScriptingApi::Content::ScriptComponent* sc = dynamic_cast<ScriptingApi::Content::ScriptComponent*>(x.getObject());
-				
-	if(sc != nullptr)
-	{
-		processor.get()->getMainController()->setEditedScriptComponent(sc, editor.getComponent());
-	}
-
-	
-}
-
 void AutoPopupDebugComponent::showComponentInDebugArea(bool shouldBeVisible)
 {
 	if (parentArea == nullptr) return;
