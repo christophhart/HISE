@@ -33,11 +33,65 @@
 ApiCollection::ApiCollection(BaseDebugArea *area) :
 SearchableListComponent(area),
 parentArea(area),
-apiTree(ValueTree::readFromData(XmlApi::apivaluetree_dat, XmlApi::apivaluetree_datSize))
+apiTree(ValueTree(ValueTree::readFromData(XmlApi::apivaluetree_dat, XmlApi::apivaluetree_datSize)))
 {
 	setName("API Browser");
 
 	setFuzzyness(0.6);
+}
+
+
+String ApiHelpers::createCodeToInsert(const ValueTree &method, const String &className)
+{
+	const String name = method.getProperty(Identifier("name")).toString();
+	const String arguments = method.getProperty(Identifier("arguments")).toString();
+
+	return String(className + "." + name + arguments);
+}
+
+
+AttributedString ApiHelpers::createAttributedStringFromApi(const ValueTree &method, const String &className, bool multiLine, Colour textColour)
+{
+	AttributedString help;
+
+	const String name = method.getProperty(Identifier("name")).toString();
+	const String arguments = method.getProperty(Identifier("arguments")).toString();
+	const String description = method.getProperty(Identifier("description")).toString();
+	const String returnType = method.getProperty("returnType", "void");
+
+	
+	help.setWordWrap(AttributedString::byWord);
+	
+
+	if (multiLine)
+	{
+		help.setJustification(Justification::topLeft);
+		help.setLineSpacing(1.5f);
+		help.append("Name:\n  ", GLOBAL_BOLD_FONT(), textColour);
+		help.append(name, GLOBAL_MONOSPACE_FONT(), textColour.withAlpha(0.8f));
+		help.append(arguments + "\n\n", GLOBAL_MONOSPACE_FONT(), textColour.withAlpha(0.6f));
+		help.append("Description:\n  ", GLOBAL_BOLD_FONT(), textColour);
+		help.append(description + "\n\n", GLOBAL_FONT(), textColour.withAlpha(0.8f));
+
+		help.append("Return Type:\n  ", GLOBAL_BOLD_FONT(), textColour);
+		help.append(method.getProperty("returnType", "void"), GLOBAL_MONOSPACE_FONT(), textColour.withAlpha(0.8f));
+	}
+
+	else
+	{
+		help.setJustification(Justification::centredLeft);
+		help.append(description, GLOBAL_BOLD_FONT(), textColour.withAlpha(0.8f));
+		
+		const String returnType = method.getProperty("returnType", "");
+
+		if (returnType.isNotEmpty())
+		{
+			help.append("\nReturn Type: ", GLOBAL_BOLD_FONT(), textColour);
+			help.append(returnType, GLOBAL_MONOSPACE_FONT(), textColour.withAlpha(0.8f));
+		}
+	}
+
+	return help;
 }
 
 
@@ -51,18 +105,7 @@ className(className_)
 {
 	setSize(380 - 16 - 8 - 24, ITEM_HEIGHT);
 
-	help.setJustification(Justification::topLeft);
-	help.setWordWrap(AttributedString::byWord);
-	help.setLineSpacing(1.5f);
-
-	help.append("Name:\n  ", GLOBAL_BOLD_FONT(), Colours::white);
-	help.append(name, GLOBAL_MONOSPACE_FONT(), Colours::white.withAlpha(0.8f));
-	help.append(arguments + "\n\n", GLOBAL_MONOSPACE_FONT(), Colours::white.withAlpha(0.6f));
-	help.append("Description:\n  ", GLOBAL_BOLD_FONT(), Colours::white);
-	help.append(description + "\n\n", GLOBAL_FONT(), Colours::white.withAlpha(0.8f));
-
-	help.append("Return Type:\n  ", GLOBAL_BOLD_FONT(), Colours::white);
-	help.append(methodTree.getProperty("returnType", "void"), GLOBAL_MONOSPACE_FONT(), Colours::white.withAlpha(0.8f));
+	help = ApiHelpers::createAttributedStringFromApi(methodTree, className, true, Colours::white);
 }
 
 
@@ -112,6 +155,9 @@ void ApiCollection::MethodItem::paint(Graphics& g)
 	g.drawText(name, 10, 0, getWidth() - 20, ITEM_HEIGHT, Justification::centredLeft, true);
 
 }
+
+bool JavascriptCodeEditor::AutoCompletePopup::apiRowsInitialised = false;
+JavascriptCodeEditor::AutoCompletePopup::ApiRows JavascriptCodeEditor::AutoCompletePopup::apiRows(false);
 
 ApiCollection::ClassCollection::ClassCollection(const ValueTree &api) :
 classApi(api),

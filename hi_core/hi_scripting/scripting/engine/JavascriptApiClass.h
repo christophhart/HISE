@@ -128,6 +128,8 @@ public:
 		return Identifier::null;
 	}
 
+	const var *getVarPointer(int index) const { return registerStack + index; }
+
 private:
 
 	var registerStack[NUM_VAR_REGISTERS];

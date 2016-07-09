@@ -46,21 +46,6 @@ public:
 	virtual int getCachedIndex(const var &indexExpression) const = 0;
 };
 
-/** Overwrite this method if you want to add debugging functionality to a object. */
-class DebugableObject
-{
-public:
-
-	/** This will be shown as value of the object. */
-	virtual String getDebugValue() = 0;
-
-	/** This will be shown as name of the object. */
-	virtual String getDebugName() = 0;
-
-	/** This will be called if the user double clicks on the row. */
-	virtual void doubleClickCallback(Component *componentToNotify) {};
-};
-
 #if HISE_DLL
 
 /** A generic template factory class.

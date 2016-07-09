@@ -41,13 +41,12 @@
 #include "scripting/api/DspBaseModule.h"
 #include "scripting/api/DspFactory.h"
 #include "scripting/engine/JavascriptApiClass.h"
+#include "scripting/engine/DebugHelpers.h"
 #include "scripting/engine/HiseJavascriptEngine.h"
-
 
 #include "scripting/api/XmlApi.h"
 #include "scripting/api/ScriptingBaseObjects.h"
 #include "scripting/api/ScriptingApi.h"
-
 
 #include "scripting/ScriptProcessor.h"
 #include "scripting/HardcodedScriptProcessor.h"

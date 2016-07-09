@@ -33,6 +33,27 @@
 #define SCRIPTINGCODEEDITOR_H_INCLUDED
 
 
+class ApiHelpers
+{
+public:
+
+	static AttributedString createAttributedStringFromApi(const ValueTree &method, const String &className, bool multiLine, Colour textColour);
+
+	static String createCodeToInsert(const ValueTree &method, const String &className);
+
+	static void getColourAndCharForType(int type, char &c, Colour &colour);
+
+	struct Api
+	{
+		Api();
+
+		ValueTree apiTree;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Api)
+	};
+};
+
+
 class AutoCompleteEntry: public PopupMenu::CustomComponent,
                          public SettableTooltipClient
 {
@@ -346,12 +367,6 @@ public:
 		scriptProcessor(p)
 	{
 		
-#if JUCE_DEBUG
-	startTimer(150);
-#else
-	startTimer(30);
-#endif
-
 		setColour(CodeEditorComponent::backgroundColourId, Colour(0xff262626));
 		setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colour(0xFFCCCCCC));
 		setColour(CodeEditorComponent::ColourIds::lineNumberTextId, Colour(0xFFCCCCCC));
@@ -369,9 +384,13 @@ public:
 
 	virtual ~JavascriptCodeEditor()
 	{
+		currentPopup = nullptr;
+
         scriptProcessor->getMainController()->getFontSizeChangeBroadcaster().removeChangeListener(this);
         
 		scriptProcessor = nullptr;
+
+		
 
 		currentModalWindow.deleteAndZero();
 
@@ -451,16 +470,12 @@ public:
 
 	void timerCallback() override
 	{
-		if(entries.size() != 0)
+		if (!getCurrentTokenRange().isEmpty() && currentPopup == nullptr)
 		{
-			for(int i = 0; i < entries.size(); i++)
-			{
-				if(entries[i]->isItemHighlighted())
-				{
-					setTooltip(entries[i]->getDescription());
-				}
-			}
+			showAutoCompleteNew();
 		}
+
+		stopTimer();
 	}
 
 
@@ -489,6 +504,221 @@ public:
 		else return String::empty;
 	}
 
+	class AutoCompletePopup : public ListBoxModel,
+							  public Component
+	{
+
+	public:
+
+		class AllToTheEditorTraverser : public KeyboardFocusTraverser
+		{
+		public:
+			AllToTheEditorTraverser(JavascriptCodeEditor *editor_): editor(editor_) {};
+
+			virtual Component * 	getNextComponent(Component *current) { return editor; }
+			virtual Component * 	getPreviousComponent(Component *current) { return editor; }
+			virtual Component * 	getDefaultComponent(Component *parentComponent) { return editor; }
+
+			JavascriptCodeEditor *editor;
+		};
+
+		AutoCompletePopup(int fontHeight_, JavascriptCodeEditor* editor_, Range<int> tokenRange_, const String &tokenText);
+
+		void createVariableRows();
+
+		void createApiRows(const ValueTree &apiTree);
+
+		void createObjectPropertyRows(const ValueTree &apiTree, const String &tokenText);
+
+		~AutoCompletePopup()
+		{
+			infoBox = nullptr;
+			listbox = nullptr;
+
+			allInfo.clear();
+		}
+
+		KeyboardFocusTraverser* createFocusTraverser() override
+		{
+			return new AllToTheEditorTraverser(editor);
+		}
+
+
+		int getNumRows() override
+		{
+			return visibleInfo.size();
+		}
+
+		void paint(Graphics& g) override
+		{
+			g.fillAll(Colour(0xFFBBBBBB));
+		}
+
+		void paintOverChildren(Graphics& g)
+		{
+			g.setColour(Colours::white);
+			g.drawRect(getLocalBounds(), 1);
+		}
+
+		void paintListBoxItem(int rowNumber, Graphics &g, int width, int height, bool rowIsSelected) override;
+		
+		virtual void listBoxItemClicked(int row, const MouseEvent &)
+		{
+			selectRowInfo(row);
+		}
+			
+		virtual void listBoxItemDoubleClicked(int row, const MouseEvent &)
+		{
+			editor->closeAutoCompleteNew(visibleInfo[row]->name);
+		}
+
+		bool handleEditorKeyPress(const KeyPress& k);
+
+		
+
+		void resized()
+		{
+			infoBox->setBounds(0, 0, getWidth(), 3*fontHeight);
+			listbox->setBounds(0, 3*fontHeight, getWidth(), getHeight()-3*fontHeight);
+		}
+
+		void selectRowInfo(int rowIndex)
+		{
+			listbox->repaintRow(currentlySelectedBox);
+
+			currentlySelectedBox = rowIndex;
+
+			listbox->selectRow(currentlySelectedBox);
+			listbox->repaintRow(currentlySelectedBox);
+			infoBox->setInfo(visibleInfo[currentlySelectedBox]);
+		}
+
+		void rebuildVisibleItems(const String &selection)
+		{
+			visibleInfo.clear();
+
+			int maxNameLength = 0;
+
+			for (int i = 0; i < allInfo.size(); i++)
+			{
+				if (allInfo[i]->matchesSelection(selection))
+				{
+					maxNameLength = jmax<int>(maxNameLength, allInfo[i]->name.length());
+					visibleInfo.add(allInfo[i]);
+				}
+			}
+
+			listbox->updateContent();
+
+			const float maxWidth = 450.0f;
+			const int height = jmin<int>(200, fontHeight * 3 + (visibleInfo.size()) * (fontHeight + 4));
+			setSize((int)maxWidth, height); 
+		}
+
+		bool escapeKeyHandled = false;
+
+	private:
+
+		SharedResourcePointer<ApiHelpers::Api> api;
+
+		struct RowInfo
+		{
+			enum class Type
+			{
+				ApiClass = (int)DebugInformation::Type::numTypes,
+				ApiMethod,
+				numTypes
+			};
+
+			bool matchesSelection(const String &selection)
+			{
+				return name.containsIgnoreCase(selection);
+			}
+
+
+			AttributedString description;
+			String codeToInsert;
+			String name;
+			int type;
+			String typeName;
+			String value;
+		};
+
+		struct ApiRows
+		{
+		public:
+
+			ApiRows(bool init=false)
+			{
+				if (init)
+				{
+					
+				}	
+			}
+
+			Array<String> a;
+		};
+
+		void initApiRows()
+		{
+			if (!apiRowsInitialised)
+			{
+				apiRows = ApiRows(true);
+				apiRowsInitialised = true;
+			}
+		}
+
+		static ApiRows apiRows;
+		static bool apiRowsInitialised;
+
+		class InfoBox : public Component
+		{
+		public:
+
+			void setInfo(RowInfo *newInfo);
+
+			void paint(Graphics &g);
+
+		private:
+
+			AttributedString infoText;
+			RowInfo *currentInfo = nullptr;
+		};
+
+		OwnedArray<RowInfo> allInfo;
+		Array<RowInfo*> visibleInfo;
+
+		StringArray names;
+
+		int fontHeight;
+		
+		int currentlySelectedBox = -1;
+
+		ScopedPointer<InfoBox> infoBox;
+		ScopedPointer<ListBox> listbox;
+		ScriptProcessor *sp;
+		
+		Range<int> tokenRange;
+
+		JavascriptCodeEditor *editor;
+
+	};
+
+	void showAutoCompleteNew();
+
+	Range<int> getCurrentTokenRange() const
+	{
+		CodeDocument::Position tokenStart = getCaretPos();
+		CodeDocument::Position tokenEnd(tokenStart);
+		getDocument().findTokenContaining(tokenStart, tokenStart, tokenEnd);
+
+		return Range<int>(tokenStart.getPosition(), tokenEnd.getPosition());
+	}
+
+	void closeAutoCompleteNew(const String returnString);
+
+	void selectFunctionParameters();
+
 	void handleEscapeKey() override;
 
 	void showAutoCompletePopup();
@@ -512,10 +742,14 @@ public:
 
 		if (beforeCaret)
 		{
+			if(getCaretPos().getPosition() == 0) return 0;
+
 			return (char)(getDocument().getTextBetween(caretPos.movedBy(-1), caretPos).getCharPointer()[0]);
 		}
 		else
 		{
+			if (getCaretPos().getPosition() == getDocument().getNumCharacters()-1) return 0;
+
 			return (char)(getDocument().getTextBetween(caretPos, caretPos.movedBy(1)).getCharPointer()[0]);
 		}
 	}
@@ -673,6 +907,8 @@ public:
 private:
 
 	Component::SafePointer<Component> currentModalWindow;
+
+	ScopedPointer<AutoCompletePopup> currentPopup;
 
 	ScriptProcessor *scriptProcessor;
     

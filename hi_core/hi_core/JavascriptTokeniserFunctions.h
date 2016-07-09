@@ -69,7 +69,7 @@ struct JavascriptTokeniserFunctions
 
         static const char* const keywords6Char[] =
             { "Engine", "return","delete", "double", "export", "public", "static",
-              "switch", "typeof", "inline", nullptr };
+              "switch", "global","typeof", "inline", nullptr };
 
         static const char* const keywords7Char[] =
             { "Message", "Console", "Content", "default", "finally", "private",

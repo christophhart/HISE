@@ -260,7 +260,7 @@ public:
 			}
 		}
 
-		String getDebugName() override
+		String getDebugName() const override
 		{
 			if (objectExists() && !objectDeleted())
 			{
@@ -270,7 +270,7 @@ public:
 			return String("Deleted");
 		}
 
-		String getDebugValue() override
+		String getDebugValue() const override
 		{
 			if (objectExists() && !objectDeleted())
 			{
@@ -279,7 +279,7 @@ public:
 			return "0.0";
 		}
 
-		void doubleClickCallback(Component *componentToNotify);
+		void doubleClickCallback(Component *componentToNotify) override;
 
 		/** Bypasses the Modulator. */
 		void setBypassed(bool shouldBeBypassed)
@@ -1466,13 +1466,13 @@ public:
 			virtual ValueTree exportAsValueTree() const override;;
 
 			
-			String getDebugValue() override { return getValue().toString(); };
+			String getDebugValue() const override { return getValue().toString(); };
 
-			String getDebugName() override { return getObjectName().toString(); };
+			String getDebugName() const override { return getObjectName().toString(); };
 
 
 			/** This will be called if the user double clicks on the row. */
-			virtual void doubleClickCallback(Component *componentToNotify);;
+			virtual void doubleClickCallback(Component *componentToNotify) override;
 
 			var getAssignedValue(int index) const override
 			{
@@ -2032,7 +2032,7 @@ public:
 
 			virtual Identifier 	getObjectName () const override { return "ScriptImage"; }
 
-			virtual String getDebugValue() override { return getScriptObjectProperty(Properties::FileName); }
+			virtual String getDebugValue() const override { return getScriptObjectProperty(Properties::FileName); }
 
 			ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 

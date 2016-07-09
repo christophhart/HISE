@@ -36,6 +36,7 @@
 
 #include "scripting/api/DspFactory.cpp"
 #include "scripting/engine/JavascriptApiClass.cpp"
+#include "scripting/engine/DebugHelpers.cpp"
 #include "scripting/engine/HiseJavascriptEngine.cpp"
 #include "scripting/engine/JavascriptEngineExpressions.cpp"
 #include "scripting/engine/JavascriptEngineStatements.cpp"

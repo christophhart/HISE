@@ -37,9 +37,6 @@
 
 using namespace juce;
 
-
-
-
 #include "backend/BackendBinaryData.h"
 
 #include "backend/debug_components/SamplePoolTable.h"

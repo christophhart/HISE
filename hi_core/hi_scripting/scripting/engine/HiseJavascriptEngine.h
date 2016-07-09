@@ -102,6 +102,8 @@ public:
 	*/
 	void registerNativeObject(const Identifier& objectName, DynamicObject* object);
 
+	void registerGlobalStorge(DynamicObject *globaObject);
+
 	/** Registers a callback to the engine.
 	*
 	*	If a function with this name is found at parsing, it will be stored as callback for faster execution:
@@ -110,17 +112,19 @@ public:
 	*	- no arguments
 	*	- no overhead if the callback is not found
 	*/
-	int registerCallbackName(const Identifier &callbackName);
+	int registerCallbackName(const Identifier &callbackName, double bufferTime);
 
 	void executeCallback(int callbackIndex, Result *result);
 
-	ReferenceCountedObject *getDebugInformation(int index);
+	DebugInformation*getDebugInformation(int index);
+
+	const DynamicObject *getScriptObject(const Identifier &id) const;
 
 	int getNumDebugObjects() const;
 
 	void clearDebugInformation();
 	
-	void rebuildDebugInformation(double callbackTime);
+	void rebuildDebugInformation();
 
 	/** This value indicates how long a call to one of the evaluate methods is permitted
 	to run before timing-out and failing.
@@ -218,7 +222,8 @@ public:
 
 		struct RegisterVarStatement;	struct RegisterName;		struct RegisterAssignment;
 		struct ApiConstant;				struct ApiCall;				struct InlineFunction;
-		struct ConstVarStatement;		struct ConstReference;
+		struct ConstVarStatement;		struct ConstReference;		
+		struct GlobalVarStatement;		struct GlobalReference;
 
 		// Parser classes
 
@@ -248,167 +253,75 @@ public:
 		static var exec(Args a);
 		static var eval(Args a);
 
+		class Callback:  public DynamicObject,
+					     public DebugableObject
+		{
+		public:
+
+			Callback(const Identifier &id, double bufferTime_);
+
+			void perform(RootObject *root);
+
+			void setStatements(BlockStatement *s) noexcept;
+
+			bool isDefined() const noexcept{ return isCallbackDefined; }
+
+			const Identifier &getName() const { return callbackName; }
+
+			String getDebugDataType() const { return "Callback"; }
+
+			String getDebugName() const override { return callbackName.toString() + "()"; }
+
+			String getDebugValue() const override 
+			{
+				const double percentage = lastExecutionTime / bufferTime * 100.0;
+				return String(percentage, 2) + "%";
+			}
+
+			void doubleClickCallback(Component *componentToNotify) override
+			{
+				DBG("JUMP");
+			}
+
+		private:
+
+			ScopedPointer<BlockStatement> statements;
+			double lastExecutionTime;
+			const Identifier callbackName;
+
+			const double bufferTime;
+
+			bool isCallbackDefined = false;
+		};
+
 		struct HiseSpecialData
 		{
 			HiseSpecialData();
 
 			~HiseSpecialData();
 
-			struct DebugInformation : ReferenceCountedObject
+			void clear()
 			{
-				enum class Type
+				clearDebugInformation();
+				apiClasses.clear();
+				inlineFunctions.clear();
+				constObjects.clear();
+				callbackNEW.clear();
+				globals = nullptr;
+			}
+
+			Callback *getCallback(const Identifier &id)
+			{
+				for (int i = 0; i < callbackNEW.size(); i++)
 				{
-					RegisterVariable = 0,
-					Variables,
-					Constant,
-					InlineFunction,
-					Globals,
-					Callback
-				};
-
-				enum class Row
-				{
-					Type=0,
-					DataType,
-					Name,
-					Value,
-					numRows
-				};
-
-				DebugInformation(const String &n, Type t, const var *v) : name(n), type(t), value(v), doubleValue(nullptr), callbackTime(1.0) {};
-
-				DebugInformation(const String &n, Type t, const var *v, const double *d, double ct) : name(n), type(t), value(v), doubleValue(d), callbackTime(ct) {};
-
-				static String varArrayToString(const Array<var> &arrayToStringify)
-				{
-
-					String output;
-					output << "[";
-					const int maxSize = jmin<int>(4, arrayToStringify.size());
-
-					for (int i = 0; i < maxSize-1; i++)
-						output << arrayToStringify[i].toString() << ", ";
-
-					output << arrayToStringify[maxSize - 1].toString();
-
-					if (maxSize != arrayToStringify.size())
-						output << ", (...)]";
-					else 
-						output << "]";
-
-					return output;
-				};
-
-				StringArray createTextArray()
-				{
-					StringArray sa;
-					for (int i = 0; i < (int)Row::numRows; i++)
+					if (callbackNEW[i]->getName() == id)
 					{
-						sa.add(getTextForRow((Row)i));
+						return callbackNEW[i];
 					}
-					return sa;
 				}
 
-				String getTextForRow(Row r)
-				{
-					var v;
-
-					if (value != nullptr)
-					{
-						v = *value;
-					}
-					else
-					{
-						v = var(*doubleValue / callbackTime);
-					}
-
-					switch (r)
-					{
-					case Row::Name:
-					{
-						return name;
-					}
-					case Row::Type:
-					{
-						switch (type)
-						{
-						case Type::RegisterVariable:	return "Register";
-						case Type::Variables:			return "Variable";
-						case Type::Constant:			return "Constant";
-						case Type::InlineFunction:		return "Inlined function";
-						case Type::Callback:			return "Function";
-						case Type::Globals:				return "Global";
-						}
-					}
-					case Row::DataType:
-					{
-						
-
-						if (type == Type::InlineFunction)
-						{
-							if (v.isUndefined()) return "void";
-						}
-						else if (type == Type::Callback)
-						{
-							return "Callback";
-						}
-						if (v.isUndefined())	return "undefined";
-						else if (v.isArray())	return "Array";
-						else if (v.isBool())	return "bool";
-						else if (v.isInt() ||
-								 v.isInt64())	return "int";
-						else if (v.isObject())
-						{
-							if (DebugableObject *d = dynamic_cast<DebugableObject*>(v.getObject()))
-							{
-								return d->getDebugName();
-							}
-							else return "Object";
-						}
-						else if (v.isObject()) return "Object";
-						else if (v.isDouble()) return "double";
-						else if (v.isString()) return "String";
-						else if (v.isMethod()) return "function";
-						
-					}
-					case Row::Value:
-					{
-						if (type == Type::Callback)
-						{
-							return String((double)v*100.0, 2) + "%";
-						}
-						if (v.isArray()) return varArrayToString(*v.getArray());
-						else if (DebugableObject *d = dynamic_cast<DebugableObject*>(v.getObject()))
-						{
-							return d->getDebugValue();
-						}
-						else return v.toString();
-					}
-					}
-
-					return "";
-				}
-
-				String toString()
-				{
-					String output;
-
-					output << "Name: " << getTextForRow(Row::Name) << ", ";
-					output << "Type: " << getTextForRow(Row::Type) << ", ";
-					output << "DataType:" << getTextForRow(Row::DataType) << ", ";
-					output << "Value: " << getTextForRow(Row::Value);
-
-					return output;
-				}
-
-				const String name;
-				const Type type;
-				const var const* value;
-				const double const* doubleValue;
-				const double callbackTime;
-
-				JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DebugInformation)
-			};
+				return nullptr;
+			}
 
 			static bool initHiddenProperties;
 
@@ -421,12 +334,18 @@ public:
 			Array<Identifier> callbackIds;
 			OwnedArray<RootObject::BlockStatement> callbacks;
 
+			DynamicObject::Ptr globals;
+
+			ReferenceCountedArray<Callback> callbackNEW;
+
 			double callbackTimes[32];
 
 			static Array<Identifier> hiddenProperties;
 
+			Array<File> includedFiles;
+
 			/** Call this after compiling and a dictionary of all values will be created. */
-			void createDebugInformation(DynamicObject *root, double callbackTime);
+			void createDebugInformation(DynamicObject *root);
 
 			/** Call this before compiling to clear the debug information. */
 			void clearDebugInformation()
@@ -436,7 +355,7 @@ public:
 				for (int i = 0; i < debugInformation.size(); i++)
 				{
 					// There is something clinging to this debug information;
-					jassert(debugInformation[i]->getReferenceCount() == 2);
+					//jassert(debugInformation[i]->getReferenceCount() == 2);
 				}
 
 				debugInformation.clear();
@@ -444,7 +363,7 @@ public:
 
 			int getNumDebugObjects() { return debugInformation.size(); }
 
-			ReferenceCountedObject *getDebugObject(int debugIndex)
+			DebugInformation *getDebugInformation(int debugIndex)
 			{
 				if (debugIndex < debugInformation.size())
 				{
@@ -462,13 +381,11 @@ public:
 				return debugLock;
 			}
 
-			ReferenceCountedObjectPtr<DebugInformation> Ptr;
-
 		private:
 
 			CriticalSection debugLock;
 
-			ReferenceCountedArray<DebugInformation> debugInformation;
+			OwnedArray<DebugInformation> debugInformation;
 		};
 
 		HiseSpecialData hiseSpecialData;
@@ -477,8 +394,7 @@ public:
 
 private:
 
-
-	const ReferenceCountedObjectPtr<RootObject> root;
+	ReferenceCountedObjectPtr<RootObject> root;
 	void prepareTimeout() const noexcept;
 
 	DynamicObject::Ptr unneededScope;
@@ -486,7 +402,7 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HiseJavascriptEngine)
 };
 
-typedef HiseJavascriptEngine::RootObject::HiseSpecialData::DebugInformation ScriptingDebugInfo;
+
 
 
 #endif  // HISEJAVASCRIPTENGINE_H_INCLUDED

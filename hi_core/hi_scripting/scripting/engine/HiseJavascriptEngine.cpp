@@ -52,7 +52,7 @@
     X(while_,   "while")    X(for_,    "for")    X(break_, "break")  X(continue_, "continue") X(undefined, "undefined") \
     X(function, "function") X(return_, "return") X(true_,  "true")   X(false_,    "false")    X(new_,      "new") \
     X(typeof_,  "typeof")	X(switch_, "switch") X(case_, "case")	 X(default_,  "default")  X(register_var, "reg") \
-	X(in, 		"in")		X(inline_, "inline") X(const_, "const")
+	X(in, 		"in")		X(inline_, "inline") X(const_, "const")	 X(global_,   "global")	  X(include_,  "include")
 
 namespace TokenTypes
 {
@@ -71,7 +71,11 @@ namespace TokenTypes
 
 
 
-HiseJavascriptEngine::~HiseJavascriptEngine() {}
+HiseJavascriptEngine::~HiseJavascriptEngine()
+{
+	root->hiseSpecialData.clear();
+	root = nullptr;
+}
 
 void HiseJavascriptEngine::prepareTimeout() const noexcept{ root->timeout = Time::getCurrentTime() + maximumExecutionTime; }
 
@@ -81,10 +85,16 @@ void HiseJavascriptEngine::registerNativeObject(const Identifier& name, DynamicO
 }
 
 
+void HiseJavascriptEngine::registerGlobalStorge(DynamicObject *globalObject)
+{
+	registerNativeObject("Globals", globalObject);
+	root->hiseSpecialData.globals = globalObject;
+}
+
 struct HiseJavascriptEngine::RootObject::CodeLocation
 {
-	CodeLocation(const String& code) noexcept        : program(code), location(program.getCharPointer()) {}
-	CodeLocation(const CodeLocation& other) noexcept : program(other.program), location(other.location) {}
+	CodeLocation(const String& code, const String &externalFile_) noexcept        : program(code), location(program.getCharPointer()), externalFile(externalFile_) {}
+	CodeLocation(const CodeLocation& other) noexcept : program(other.program), location(other.location), externalFile(other.externalFile) {}
 
 	void throwError(const String& message) const
 	{
@@ -96,11 +106,13 @@ struct HiseJavascriptEngine::RootObject::CodeLocation
 			if (*i == '\n')  { col = 1; ++line; }
 		}
 
-		throw "Line " + String(line) + ", column " + String(col) + " : " + message;
+		throw (externalFile.isEmpty() ? "" : externalFile + ": ") + "Line " + String(line) + ", column " + String(col) + " : " + message;
 	}
 
 	String program;
+	String externalFile;
 	String::CharPointerType location;
+	
 };
 
 struct HiseJavascriptEngine::RootObject::Scope
@@ -288,27 +300,61 @@ var HiseJavascriptEngine::callFunction(const Identifier& function, const var::Na
 	return returnVal;
 }
 
-int HiseJavascriptEngine::registerCallbackName(const Identifier &callbackName)
+int HiseJavascriptEngine::registerCallbackName(const Identifier &callbackName, double bufferTime)
 {
-	const int index = root->hiseSpecialData.callbackIds.indexOf(callbackName);
+	RootObject::Callback *c = root->hiseSpecialData.getCallback(callbackName);
 
-	if (index != -1) return index;
+	// Can't register a callback twice...
+	jassert(c == nullptr);
 
-	root->hiseSpecialData.callbackIds.add(callbackName);
-	root->hiseSpecialData.callbacks.add(nullptr);
+	root->hiseSpecialData.callbackNEW.add(new RootObject::Callback(callbackName, bufferTime));
+
+	return 1;
+}
+
+DebugInformation* HiseJavascriptEngine::getDebugInformation(int index)
+{
+	return root->hiseSpecialData.getDebugInformation(index);
+}
+
+
+const DynamicObject * HiseJavascriptEngine::getScriptObject(const Identifier &id) const
+{
+	var v = root->getProperty(id);
+
+	if (v.isObject())
+	{
+		return v.getDynamicObject();
+	}
+
+	v = root->hiseSpecialData.constObjects[id];
+
+	if (v.isObject())
+	{
+		return v.getDynamicObject();
+	}
+
+	int registerIndex = root->hiseSpecialData.varRegister.getRegisterIndex(id);
+
+	if (registerIndex != -1)
+	{
+		v = root->hiseSpecialData.varRegister.getFromRegister(registerIndex);
+
+		if (v.isObject())
+		{
+			return v.getDynamicObject();
+		}
+	}
+
+	v = root->hiseSpecialData.globals->getProperty(id);
 	
-	return root->hiseSpecialData.callbackIds.size();
+	if (v.isObject())
+	{
+		return v.getDynamicObject();
+	}
+
+	return nullptr;
 }
-
-
-
-
-
-ReferenceCountedObject * HiseJavascriptEngine::getDebugInformation(int index)
-{
-	return root->hiseSpecialData.getDebugObject(index);
-}
-
 
 int HiseJavascriptEngine::getNumDebugObjects() const
 {
@@ -321,11 +367,11 @@ void HiseJavascriptEngine::clearDebugInformation()
 	root->hiseSpecialData.clearDebugInformation();
 }
 
-void HiseJavascriptEngine::rebuildDebugInformation(double callbackTime)
+void HiseJavascriptEngine::rebuildDebugInformation()
 {
 	root->hiseSpecialData.clearDebugInformation();
 
-	root->hiseSpecialData.createDebugInformation(root, callbackTime);
+	root->hiseSpecialData.createDebugInformation(root);
 }
 
 var HiseJavascriptEngine::executeWithoutAllocation(const Identifier &function, const var::NativeFunctionArgs& args, Result* result /*= nullptr*/, DynamicObject *scopeToUse)
@@ -344,5 +390,13 @@ var HiseJavascriptEngine::executeWithoutAllocation(const Identifier &function, c
 	}
 
 	return returnVal;
+}
+
+
+HiseJavascriptEngine::RootObject::Callback::Callback(const Identifier &id, double bufferTime_) :
+callbackName(id),
+bufferTime(bufferTime_)
+{
+
 }
 

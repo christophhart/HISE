@@ -3211,7 +3211,7 @@ bool ScriptingApi::Content::isEmpty()
 }
 
 
-void ScriptingObjects::ScriptingModulator::doubleClickCallback(Component *componentToNotify)
+void ScriptingObjects::ScriptingModulator::doubleClickCallback(Component *componentToNotify) 
 {
 #if USE_BACKEND
 	if (objectExists() && !objectDeleted())

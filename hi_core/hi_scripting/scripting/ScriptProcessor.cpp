@@ -444,9 +444,7 @@ ScriptProcessor::SnippetResult ScriptProcessor::compileInternal()
 		}
 	}
 
-	const double callbackTime = (double)getBlockSize() / getSampleRate() * 1000.0;
-
-	scriptEngine->rebuildDebugInformation(callbackTime);
+	scriptEngine->rebuildDebugInformation();
 
 	content->restoreFromValueTree(restoredContentValues);
 
@@ -574,14 +572,18 @@ void ScriptProcessor::setupApi()
 	scriptEngine->registerNativeObject("Sampler", samplerObject);
 	scriptEngine->registerNativeObject("Globals", getMainController()->getGlobalVariableObject());
 
-	scriptEngine->registerCallbackName(getSnippet(onInit)->getCallbackName());
-	scriptEngine->registerCallbackName(getSnippet(onNoteOn)->getCallbackName());
-	scriptEngine->registerCallbackName(getSnippet(onNoteOff)->getCallbackName());
-	scriptEngine->registerCallbackName(getSnippet(onController)->getCallbackName());
-	scriptEngine->registerCallbackName(getSnippet(onTimer)->getCallbackName());
+	scriptEngine->registerGlobalStorge(getMainController()->getGlobalVariableObject());
+
+	const double bufferTime = (double)getBlockSize() / getSampleRate() * 1000.0;
+
+	scriptEngine->registerCallbackName(getSnippet(onInit)->getCallbackName(), bufferTime);
+	scriptEngine->registerCallbackName(getSnippet(onNoteOn)->getCallbackName(), bufferTime);
+	scriptEngine->registerCallbackName(getSnippet(onNoteOff)->getCallbackName(), bufferTime);
+	scriptEngine->registerCallbackName(getSnippet(onController)->getCallbackName(), bufferTime);
+	scriptEngine->registerCallbackName(getSnippet(onTimer)->getCallbackName(), bufferTime);
 
 
-	scriptEngine->execute("function include(string){Engine.include(string);};");
+	//scriptEngine->execute("function include(string){Engine.include(string);};");
 
 }
 
@@ -627,7 +629,7 @@ void ScriptProcessor::runScriptCallbacks()
 
 		for (int i = 0; i < scriptEngine->getNumDebugObjects(); i++)
 		{
-			ScriptingDebugInfo *o = dynamic_cast<ScriptingDebugInfo*>(scriptEngine->getDebugInformation(i));
+			DebugInformation *o = scriptEngine->getDebugInformation(i);
 
 			DBG(o->toString());
 		}

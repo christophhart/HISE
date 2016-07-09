@@ -299,11 +299,11 @@ HiseJavascriptEngine::RootObject::HiseSpecialData::HiseSpecialData()
 
 HiseJavascriptEngine::RootObject::HiseSpecialData::~HiseSpecialData()
 {
-
+	debugInformation.clear();
 }
 
 
-void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(DynamicObject *root, double callbackTime)
+void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(DynamicObject *root)
 {
 	ScopedLock sl(debugLock);
 
@@ -311,89 +311,109 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(D
 
 	for (int i = 0; i < constObjects.size(); i++)
 	{
-		debugInformation.add(new DebugInformation(constObjects.getName(i).toString(), DebugInformation::Type::Constant, constObjects.getVarPointerAt(i)));
+		debugInformation.add(new FixedVarPointerInformation(constObjects.getVarPointerAt(i), constObjects.getName(i), DebugInformation::Type::Constant));
 	}
-
 
 	const int numRegisters = varRegister.getNumUsedRegisters();
 
 	for (int i = 0; i < numRegisters; i++)
+		debugInformation.add(new FixedVarPointerInformation(varRegister.getVarPointer(i), varRegister.getRegisterId(i), DebugInformation::Type::RegisterVariable));
+
+	DynamicObject *globals = root->getProperty("Globals").getDynamicObject();
+
+	for (int i = 0; i < globals->getProperties().size(); i++)
+		debugInformation.add(new DynamicObjectDebugInformation(globals, globals->getProperties().getName(i), DebugInformation::Type::Globals));
+
+	for (int i = 0; i < root->getProperties().size(); i++)
 	{
-		debugInformation.add(new DebugInformation(varRegister.getRegisterId(i).toString(), DebugInformation::Type::RegisterVariable, &varRegister.getFromRegister(i)));
-	}
+		const Identifier id = root->getProperties().getName(i);
+		if (hiddenProperties.contains(id)) continue;
 
-	NamedValueSet *globals = &root->getProperty("Globals").getDynamicObject()->getProperties();
-
-	for (int i = 0; i < globals->size(); i++)
-	{
-		debugInformation.add(new DebugInformation(globals->getName(i).toString(), DebugInformation::Type::Globals, globals->getVarPointerAt(i)));
-	}
-
-	NamedValueSet *variables = &root->getProperties();
-
-	for (int i = 0; i < variables->size(); i++)
-	{
-		if (hiddenProperties.contains(variables->getName(i))) continue;
-		debugInformation.add(new DebugInformation(variables->getName(i).toString(), DebugInformation::Type::Variables, variables->getVarPointerAt(i)));
+		debugInformation.add(new DynamicObjectDebugInformation(root, id, DebugInformation::Type::Variables));
 	}
 	
 	for (int i = 0; i < inlineFunctions.size(); i++)
 	{
 		InlineFunction::Object *o = dynamic_cast<InlineFunction::Object*>(inlineFunctions.getUnchecked(i).get());
 
-		String functionDef = o->name.toString();
-
-		functionDef << "(";
-
-		for (int i = 0; i < o->parameterNames.size(); i++)
-		{
-			functionDef << o->parameterNames[i].toString();
-
-			if (i != (o->parameterNames.size() - 1)) functionDef << ",";
-		}
-
-		functionDef << ")";
-
-		debugInformation.add(new DebugInformation(functionDef, DebugInformation::Type::InlineFunction, &o->lastReturnValue));
+		debugInformation.add(new DebugableObjectInformation(o, o->name, DebugInformation::Type::InlineFunction));
 	}
 
-	for (int i = 0; i < callbackIds.size(); i++)
+	for (int i = 0; i < callbackNEW.size(); i++)
 	{
-		if (callbacks[i] != nullptr)
-		{
-			var si = callbacks[i]->statements.size();
-			debugInformation.add(new DebugInformation(callbackIds[i].toString() + "()", DebugInformation::Type::Callback, nullptr, &callbackTimes[i], callbackTime));
-		}
+		if (!callbackNEW[i]->isDefined()) continue;
+
+		debugInformation.add(new DebugableObjectInformation(callbackNEW[i], callbackNEW[i]->getName(), DebugInformation::Type::Callback));
 	}
 }
 
 
 void HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 {
-	RootObject::BlockStatement *bs = root->hiseSpecialData.callbacks[callbackIndex];
+	RootObject::Callback *c = root->hiseSpecialData.callbackNEW[callbackIndex];
 
-	if (bs == nullptr) return;
+	// You need to register the callback correctly...
+	jassert(c != nullptr);
 
-	RootObject::Scope s(nullptr, root, root);
-
-	try
+	if (c != nullptr && c->isDefined())
 	{
-		
-		prepareTimeout();
-
-		const double pre = Time::getMillisecondCounterHiRes();
-		bs->perform(s, nullptr);
-
-		const double post = Time::getMillisecondCounterHiRes();
-
-		double diff = post - pre;
-
-		root->hiseSpecialData.callbackTimes[callbackIndex] = diff;
-
-	}
-	catch (String &error)
-	{
-		if (result != nullptr) *result = Result::fail(error);
+		try
+		{
+			prepareTimeout();
+			c->perform(root);
+		}
+		catch (String &error)
+		{
+			if (result != nullptr) *result = Result::fail(error);
+		}
 	}
 }
 
+void HiseJavascriptEngine::RootObject::Callback::setStatements(BlockStatement *s) noexcept
+{
+	statements = s;
+	isCallbackDefined = s->statements.size() != 0;
+}
+
+
+void HiseJavascriptEngine::RootObject::Callback::perform(RootObject *root)
+{
+	RootObject::Scope s(nullptr, root, root);
+
+#if USE_BACKEND
+	const double pre = Time::getMillisecondCounterHiRes();
+
+	statements->perform(s, nullptr);
+
+	const double post = Time::getMillisecondCounterHiRes();
+	lastExecutionTime = post - pre;
+#else
+	statements->perform(s, nullptr);
+#endif
+}
+
+
+
+AttributedString DynamicObjectDebugInformation::getDescription() const
+{
+	var v = obj->getProperty(id);
+
+	if (HiseJavascriptEngine::RootObject::FunctionObject *o = dynamic_cast<HiseJavascriptEngine::RootObject::FunctionObject*>(v.getObject()))
+	{
+		AttributedString info;
+		info.setJustification(Justification::centredLeft);
+
+		info.append("Description: ", GLOBAL_BOLD_FONT(), Colours::black);
+		info.append(o->commentDoc, GLOBAL_FONT(), Colours::black.withBrightness(0.2f));
+		info.append("\nParameters: ", GLOBAL_BOLD_FONT(), Colours::black);
+		for (int i = 0; i < o->parameters.size(); i++)
+		{
+			info.append(o->parameters[i].toString(), GLOBAL_MONOSPACE_FONT(), Colours::darkblue);
+			if (i != o->parameters.size() - 1) info.append(", ", GLOBAL_BOLD_FONT(), Colours::black);
+		}
+
+		return info;
+	}
+
+	return AttributedString();
+}

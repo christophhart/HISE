@@ -3,7 +3,7 @@
 //==============================================================================
 struct HiseJavascriptEngine::RootObject::TokenIterator
 {
-	TokenIterator(const String& code) : location(code), p(code.getCharPointer()) { skip(); }
+	TokenIterator(const String& code, const String &externalFile) : location(code, externalFile), p(code.getCharPointer()) { skip(); }
 
 	void skip()
 	{
@@ -27,6 +27,14 @@ struct HiseJavascriptEngine::RootObject::TokenIterator
 	CodeLocation location;
 	TokenType currentType;
 	var currentValue;
+
+	void clearLastComment()
+	{
+		lastComment = String();
+	}
+
+
+	String lastComment;
 
 private:
 	String::CharPointerType p;
@@ -75,7 +83,8 @@ private:
 		p += (int)len;  return true;
 	}
 
-		void skipWhitespaceAndComments()
+
+	void skipWhitespaceAndComments()
 	{
 		for (;;)
 		{
@@ -90,7 +99,12 @@ private:
 				if (c2 == '*')
 				{
 					location.location = p;
+
+					lastComment = String(p).upToFirstOccurrenceOf("*/", false, false).fromFirstOccurrenceOf("/**", false, false).trim();
+					
 					p = CharacterFunctions::find(p + 2, CharPointer_ASCII("*/"));
+
+					
 					if (p.isEmpty()) location.throwError("Unterminated '/*' comment");
 					p += 2; continue;
 				}
@@ -197,8 +211,8 @@ private:
 //==============================================================================
 struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIterator
 {
-	ExpressionTreeBuilder(const String code) :
-		TokenIterator(code){}
+	ExpressionTreeBuilder(const String code, const String externalFile) :
+		TokenIterator(code, externalFile){}
 
 	void setApiData(HiseSpecialData &data)
 	{
@@ -283,6 +297,7 @@ private:
 
 	Statement* parseStatement()
 	{
+		if (matchIf(TokenTypes::include_))		   return parseExternalFile();
 		if (matchIf(TokenTypes::inline_))		   return parseInlineFunction();
 
 		if (currentType == TokenTypes::openBrace)   return parseBlock();
@@ -290,6 +305,7 @@ private:
 		if (matchIf(TokenTypes::const_))		   return parseConstVar();
 		if (matchIf(TokenTypes::var))              return parseVar();
 		if (matchIf(TokenTypes::register_var))	   return parseRegisterVar();
+		if (matchIf(TokenTypes::global_))		   return parseGlobalAssignment();
 		if (matchIf(TokenTypes::if_))              return parseIf();
 		if (matchIf(TokenTypes::while_))           return parseDoOrWhileLoop(false);
 		if (matchIf(TokenTypes::do_))              return parseDoOrWhileLoop(true);
@@ -314,6 +330,59 @@ private:
 
 		throwError("Found " + getTokenName(currentType) + " when expecting a statement");
 		return nullptr;
+	}
+
+	Statement* parseExternalFile()
+	{
+		match(TokenTypes::openParen);
+		
+		String fileName = currentValue.toString().removeCharacters("\"\'");
+
+		File f(fileName);
+
+		if (!f.existsAsFile())
+		{
+			throwError("File " + fileName + " not found");
+		}
+
+		if (hiseSpecialData->includedFiles.contains(f))
+		{
+			throwError("File " + fileName + " was included multiple times");
+		}
+
+		String fileContent = f.loadFileAsString();
+
+		if (fileContent.isEmpty())
+		{
+			match(TokenTypes::literal);
+			match(TokenTypes::closeParen);
+			match(TokenTypes::semicolon);
+
+			return new Statement(location);
+		}
+		else
+		{
+			hiseSpecialData->includedFiles.add(fileName);
+
+			try
+			{
+				ExpressionTreeBuilder ftb(fileContent, fileName);
+
+				ftb.setApiData(*hiseSpecialData);
+
+				ScopedPointer<BlockStatement> s = ftb.parseStatementList();
+
+				match(TokenTypes::literal);
+				match(TokenTypes::closeParen);
+				match(TokenTypes::semicolon);
+
+				return s.release();
+			}
+			catch (String &errorMessage)
+			{
+				throw errorMessage;
+			}
+		}
 	}
 
 	Expression* matchEndOfStatement(Expression* ex)  { ExpPtr e(ex); if (currentType != TokenTypes::eof) match(TokenTypes::semicolon); return e.release(); }
@@ -370,6 +439,7 @@ private:
 		}
 
 		match(TokenTypes::semicolon);
+		clearLastComment();
 		return s.release();
 	}
 
@@ -401,9 +471,6 @@ private:
 		ScopedPointer<RegisterVarStatement> s(new RegisterVarStatement(location));
 
 		s->name = parseIdentifier();
-
-		//registerIdentifiers.add(s->name);
-
 		hiseSpecialData->varRegister.addRegister(s->name, var::undefined());
 
 		s->initialiser = matchIf(TokenTypes::assign) ? parseExpression() : new Expression(location);
@@ -420,18 +487,39 @@ private:
 		return s.release();
 	}
 
+	Statement* parseGlobalAssignment()
+	{
+		ScopedPointer<GlobalVarStatement> s(new GlobalVarStatement(location));
+		s->name = parseIdentifier();
+		hiseSpecialData->globals->setProperty(s->name, var::undefined());
+		s->initialiser = matchIf(TokenTypes::assign) ? parseExpression() : new Expression(location);
+		
+		if (matchIf(TokenTypes::comma))
+		{
+			ScopedPointer<BlockStatement> block(new BlockStatement(location));
+			block->statements.add(s.release());
+			block->statements.add(parseVar());
+			return block.release();
+		}
+
+		match(TokenTypes::semicolon);
+		return s.release();
+	}
+
 	Statement* parseCallback()
 	{
 		Identifier name = parseIdentifier();
 
-		const int index = hiseSpecialData->callbackIds.indexOf(name);
+		Callback *c = hiseSpecialData->getCallback(name);
+
+		jassert(c != nullptr);
 
 		match(TokenTypes::openParen);
 		match(TokenTypes::closeParen);
 
 		ScopedPointer<BlockStatement> s = parseBlock();
 
-		hiseSpecialData->callbacks.set(index, s.release());
+		c->setStatements(s.release());
 
 		return new Statement(location);
 	}
@@ -440,12 +528,14 @@ private:
 	{
 		Identifier name;
 
-		if (hiseSpecialData->callbackIds.contains(currentValue.toString()))
+		if (hiseSpecialData->getCallback(currentValue.toString()))
 		{
 			return parseCallback();
 		}
 
 		var fn = parseFunctionDefinition(name);
+
+		clearLastComment();
 
 		if (name.isNull())
 			throwError("Functions defined at statement-level must have a name");
@@ -469,6 +559,8 @@ private:
 
 		return nullptr;
 	}
+
+	
 
 	Expression* parseInlineFunctionCall(InlineFunction::Object *obj)
 	{
@@ -708,6 +800,7 @@ private:
 		ScopedPointer<FunctionObject> fo(new FunctionObject());
 		parseFunctionParamsAndBody(*fo);
 		fo->functionCode = String(functionStart, location.location);
+		fo->commentDoc = lastComment;
 		return var(fo.release());
 	}
 
@@ -831,10 +924,9 @@ private:
 			const int registerIndex = hiseSpecialData->varRegister.getRegisterIndex(id);
 			const int apiClassIndex = hiseSpecialData->apiIds.indexOf(id);
 			const int constIndex = hiseSpecialData->constObjects.indexOf(id);
-
+			const int globalIndex = hiseSpecialData->globals->getProperties().indexOf(id);
 
 			InlineFunction::Object *obj = getInlineFunction(id);
-
 
 			if (obj != nullptr)
 			{
@@ -852,6 +944,10 @@ private:
 			{
 				parseIdentifier();
 				return parseSuffixes(new ConstReference(location, constIndex));
+			}
+			else if (globalIndex != -1)
+			{
+				return parseSuffixes(new GlobalReference(location, hiseSpecialData->globals, parseIdentifier()));
 			}
 			else
 			{
@@ -1074,6 +1170,9 @@ private:
 		return e.release();
 	}
 
+	
+
+
 	Array<Identifier> registerIdentifiers;
 
 	Identifier currentIterator;
@@ -1084,7 +1183,7 @@ private:
 
 var HiseJavascriptEngine::RootObject::evaluate(const String& code)
 {
-	ExpressionTreeBuilder tb(code);
+	ExpressionTreeBuilder tb(code, String());
 
 	tb.setApiData(hiseSpecialData);
 
@@ -1093,7 +1192,7 @@ var HiseJavascriptEngine::RootObject::evaluate(const String& code)
 
 void HiseJavascriptEngine::RootObject::execute(const String& code)
 {
-	ExpressionTreeBuilder tb(code);
+	ExpressionTreeBuilder tb(code, String());
 
 	tb.setApiData(hiseSpecialData);
 
@@ -1102,6 +1201,6 @@ void HiseJavascriptEngine::RootObject::execute(const String& code)
 
 HiseJavascriptEngine::RootObject::FunctionObject::FunctionObject(const FunctionObject& other) : DynamicObject(), functionCode(other.functionCode)
 {
-	ExpressionTreeBuilder tb(functionCode);
+	ExpressionTreeBuilder tb(functionCode, String());
 	tb.parseFunctionParamsAndBody(*this);
 }

@@ -38,6 +38,7 @@
 #include <list>
 #include <vector>
 
+#if 0
 struct IppBuffer
 {
 	IppBuffer(int size=0):
@@ -60,6 +61,7 @@ struct IppBuffer
 
 	Ipp8u *data;
 };
+
 
 //#include <ATK/Core/TypedBaseFilter.h>
 //#include <ATK/Utility/FFT.h>
@@ -98,7 +100,7 @@ public:
 
 	AudioSampleBuffer bruteBuffer;
 
-	IppBuffer bruteBuffer2;
+	IppBuffer<float> bruteBuffer2;
 
 	std::list<AudioSampleBuffer> partialFrequencyInputBufferList;
 
@@ -143,6 +145,6 @@ public:
 
 };
 
-
+#endif
 
 #endif  // ATKCONVOLUTION_H_INCLUDED

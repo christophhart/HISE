@@ -99,7 +99,8 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 {
 	struct FunctionCall;
 
-	struct Object : public DynamicObject
+	struct Object : public DynamicObject,
+					public DebugableObject
 	{
 	public:
 
@@ -109,7 +110,25 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			e(nullptr)
 		{
 			parameterNames.addArray(p);
+
+			functionDef = name.toString();
+			functionDef << "(";
+
+			for (int i = 0; i < parameterNames.size(); i++)
+			{
+				functionDef << parameterNames[i].toString();
+				if (i != parameterNames.size()-1) functionDef << ", ";
+			}
+
+			functionDef << ")";
 		}
+
+		virtual String getDebugValue() const override { return lastReturnValue.toString(); }
+
+		/** This will be shown as name of the object. */
+		virtual String getDebugName() const override { return functionDef; }
+
+		virtual String getDebugDataType() const override { return DebugInformation::getVarType(lastReturnValue); }
 
 		void setFunctionCall(const FunctionCall *e_)
 		{
@@ -120,6 +139,8 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 		Array<Identifier> parameterNames;
 		typedef ReferenceCountedObjectPtr<Object> Ptr;
 		ScopedPointer<BlockStatement> body;
+
+		String functionDef;
 
 		var lastReturnValue = var::undefined();
 		
@@ -185,4 +206,42 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 		Object::Ptr f;
 		int index;
 	};
+};
+
+
+
+struct HiseJavascriptEngine::RootObject::GlobalVarStatement : public Statement
+{
+	GlobalVarStatement(const CodeLocation& l) noexcept : Statement(l) {}
+
+	ResultCode perform(const Scope& s, var*) const override
+	{
+		s.root->hiseSpecialData.globals->setProperty(name, initialiser->getResult(s));
+		return ok;
+	}
+
+	Identifier name;
+	ExpPtr initialiser;
+};
+
+
+
+struct HiseJavascriptEngine::RootObject::GlobalReference : public Expression
+{
+	GlobalReference(const CodeLocation& l, DynamicObject *globals_, Identifier &id_) noexcept : Expression(l), globals(globals_), id(id_) {}
+
+	var getResult(const Scope& s) const override
+	{
+		return s.root->hiseSpecialData.globals->getProperty(id);
+	}
+
+	void assign(const Scope& s, const var& newValue) const override
+	{
+		s.root->hiseSpecialData.globals->setProperty(id, newValue);
+	}
+
+	DynamicObject::Ptr globals;
+	const Identifier id;
+
+	int index;
 };

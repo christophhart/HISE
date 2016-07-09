@@ -88,20 +88,20 @@ void ScriptWatchTable::refreshStrippedSet()
 
 		for (int i = 0; i < numRows; i++)
 		{
-			ScriptingDebugInfo *info = dynamic_cast<ScriptingDebugInfo*>(engine->getDebugInformation(i));
+			DebugInformation *info = engine->getDebugInformation(i);
 
 			if (i < renderedSet.size())
 			{
-				String newValue = info->getTextForRow(ScriptingDebugInfo::Row::Value);
-				String name = info->getTextForRow(ScriptingDebugInfo::Row::Name);
+				String newValue = info->getTextForRow(DebugInformation::Row::Value);
+				String name = info->getTextForRow(DebugInformation::Row::Name);
 
-				if (renderedSet[i][(int)ScriptingDebugInfo::Row::Name] != name)
+				if (renderedSet[i][(int)DebugInformation::Row::Name] != name)
 				{
 					renderedSet.set(i, info->createTextArray());
 					updateTable = true;
 				}
 
-				String oldValue = renderedSet[i][(int)ScriptingDebugInfo::Row::Value];
+				String oldValue = renderedSet[i][(int)DebugInformation::Row::Value];
 
 				if (oldValue != newValue)
 				{
@@ -137,11 +137,11 @@ void ScriptWatchTable::mouseDoubleClick(const MouseEvent &/*e*/)
 		if (engine != nullptr)
 		{
 			const int componentIndex = table->getSelectedRow(0);
-			ScriptingDebugInfo *info = dynamic_cast<ScriptingDebugInfo*>(engine->getDebugInformation(componentIndex));
+			DebugInformation *info = engine->getDebugInformation(componentIndex);
 
 			if (info != nullptr)
 			{
-				DebugableObject *db = dynamic_cast<DebugableObject*>(info->value->getObject());
+				DebugableObject *db = info->getObject();
 
 				if (db != nullptr)
 				{

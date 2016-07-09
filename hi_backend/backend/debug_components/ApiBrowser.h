@@ -34,6 +34,7 @@
 #define APIBROWSER_H_INCLUDED
 
 
+
 class ApiCollection : public SearchableListComponent
 {
 public:
@@ -95,9 +96,9 @@ public:
 		return new ClassCollection(apiTree.getChild(index));
 	}
 
-private:
-
 	ValueTree apiTree;
+
+private:
 
 	BaseDebugArea *parentArea;
 

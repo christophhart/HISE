@@ -1,5 +1,7 @@
 
 
+#if 0
+
 ConvolutionFilter::ConvolutionFilter() : split_position(0), splitSize(0), processor(IppFFT::DataType::ComplexFloat)
 {
 }
@@ -63,7 +65,7 @@ void ConvolutionFilter::setup()
 
 	ippsConvolveGetBufferSize(splitSize - 1, impulseBuffer.getNumSamples() , IppDataType::ipp32f, IppAlgType::ippAlgAuto, &bruteLength);
 
-	bruteBuffer2 = IppBuffer(bruteLength);
+	bruteBuffer2(bruteLength);
 
 	bruteBuffer.setSize(1, splitSize);
 
@@ -204,7 +206,7 @@ void ConvolutionFilter::processBruteConvolution(float *input, int numSamples)
 
 	
 
-	ippsConvolve_32f(impulse_ptr, input_delay + 1, input, numSamples, output, IppAlgType::ippAlgAuto, bruteBuffer2.data);
+	ippsConvolve_32f(impulse_ptr, input_delay + 1, input, numSamples, output, IppAlgType::ippAlgAuto, bruteBuffer2.getNativeDataPointer());
 	
 	FloatVectorOperations::add(output, tempBuffer.getWritePointer(0, split_position), numSamples);
 
@@ -247,3 +249,4 @@ void ConvolutionFilter::processBlock(float *data, int numSamples)
 }
 
 
+#endif
