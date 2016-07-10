@@ -804,9 +804,9 @@ String ProjectHandler::getFilePath(const String &pathToFile, SubDirectories subD
 
 	// Everything else must be embedded into the binary...
 	jassert(subDir == ProjectHandler::SubDirectories::Samples);
+	ignoreUnused(subDir);
 
 	return Frontend::getSampleLocationForCompiledPlugin().getChildFile(pathToFile.replace(id, "")).getFullPathName();
-
 #else
 
 

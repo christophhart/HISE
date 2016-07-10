@@ -159,7 +159,7 @@ var DspInstance::getInfo() const
 
 		info << "Name: " + moduleName << "\n";
 
-		info << "Parameters: " + object->getNumParameters() << "\n";
+		info << "Parameters: " << String(object->getNumParameters()) << "\n";
 
 		for (int i = 0; i < object->getNumParameters(); i++)
 		{
@@ -170,7 +170,7 @@ var DspInstance::getInfo() const
 
 		info << "\n";
 
-		info << "Constants: " + object->getNumConstants() << "\n";
+		info << "Constants: " << String(object->getNumConstants()) << "\n";
 
 		for (int i = 0; i < object->getNumConstants(); i++)
 		{

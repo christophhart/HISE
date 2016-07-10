@@ -397,7 +397,7 @@ void PolyFilterEffect::applyEffect(int voiceIndex, AudioSampleBuffer &b, int sta
 	const double freqModValue = (double)getCurrentModulationValue(FrequencyChain, voiceIndex, startSample);
 	const double checkFreq = std::abs(freqModValue * freq);
 
-	if (mode != LowPass && mode != HighPass && gainChain->getNumChildProcessors() > 0)
+    if (mode != MonoFilterEffect::FilterMode::LowPass && mode != MonoFilterEffect::FilterMode::HighPass && gainChain->getNumChildProcessors() > 0)
 	{
 		const float modulationValue = getCurrentModulationValue(GainChain, voiceIndex, startSample);
 

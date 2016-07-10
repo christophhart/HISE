@@ -13,6 +13,10 @@
 /** The base class of ICSTDSP effects. */
 class Effect
 {
+public:
+    
+    virtual ~Effect() {};
+    
 	/** Call this before calls to processBlock / processInplace to setup the effect. */
 	virtual void prepareToPlay(double /*sampleRate*/, int /*samplesPerBlock*/) {};
 
@@ -369,6 +373,8 @@ public:
 
 	Amp();
 
+    ~Amp() {};
+    
 	// ======================================================================================
 
 	void setCurveType(CurveType curve);	

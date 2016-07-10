@@ -145,6 +145,8 @@ void AudioProcessorWrapper::applyEffect(AudioSampleBuffer &buffer, int startSamp
 {
 	jassert(startSample == 0);
 
+	ignoreUnused(startSample);
+
 	ScopedLock sl(wrapperLock);
 
 	MidiBuffer messages;

@@ -245,7 +245,6 @@ private:
 
 	OwnedArray<CodeDocument::Position> lastPositions;
 
-
     //==============================================================================
     ScopedPointer<CodeEditorWrapper> codeEditor;
     ScopedPointer<TextButton> compileButton;

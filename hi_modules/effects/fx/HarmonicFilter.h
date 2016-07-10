@@ -39,6 +39,8 @@ class BaseHarmonicFilter
 {
 public:
 
+    virtual ~BaseHarmonicFilter() {};
+    
 	virtual SliderPackData *getSliderPackData(int i) = 0;
 	virtual void setCrossfadeValue(double normalizedCrossfadeValue) = 0;
 

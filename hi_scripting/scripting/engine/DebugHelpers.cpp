@@ -68,6 +68,7 @@ String DebugInformation::getTextForRow(Row r)
 	case Row::Type: return getTextForType();
 	case Row::DataType: return getTextForDataType();
 	case Row::Value: return getTextForValue();
+    case Row::numRows:   return "";
 	}
 
 	return "";

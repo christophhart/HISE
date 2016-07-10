@@ -300,29 +300,10 @@ public:
 
 			~HiseSpecialData();
 
-			void clear()
-			{
-				clearDebugInformation();
-				apiClasses.clear();
-				inlineFunctions.clear();
-				constObjects.clear();
-				callbackNEW.clear();
-				globals = nullptr;
-			}
-
-			Callback *getCallback(const Identifier &id)
-			{
-				for (int i = 0; i < callbackNEW.size(); i++)
-				{
-					if (callbackNEW[i]->getName() == id)
-					{
-						return callbackNEW[i];
-					}
-				}
-
-				return nullptr;
-			}
-
+            void clear();
+            
+            Callback *getCallback(const Identifier &id);
+            
 			static bool initHiddenProperties;
 
 			VarRegister varRegister;

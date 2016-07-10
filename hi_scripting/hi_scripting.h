@@ -60,8 +60,9 @@
 
 #if USE_BACKEND
 
-#include "scripting/components/ScriptingEditor.h"
 #include "scripting/components/ScriptingCodeEditor.h"
+#include "scripting/components/ScriptingEditor.h"
+
 
 #endif 
 #endif

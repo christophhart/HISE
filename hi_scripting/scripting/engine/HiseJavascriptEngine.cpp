@@ -302,10 +302,8 @@ var HiseJavascriptEngine::callFunction(const Identifier& function, const var::Na
 
 int HiseJavascriptEngine::registerCallbackName(const Identifier &callbackName, double bufferTime)
 {
-	RootObject::Callback *c = root->hiseSpecialData.getCallback(callbackName);
-
 	// Can't register a callback twice...
-	jassert(c == nullptr);
+	jassert(root->hiseSpecialData.getCallback(callbackName) == nullptr);
 
 	root->hiseSpecialData.callbackNEW.add(new RootObject::Callback(callbackName, bufferTime));
 

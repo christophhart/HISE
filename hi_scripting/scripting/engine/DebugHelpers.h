@@ -40,6 +40,8 @@ class DebugableObject
 {
 public:
 
+    virtual ~DebugableObject() {};
+    
 	/** This will be shown as value of the object. */
 	virtual String getDebugValue() const = 0;
 
@@ -97,6 +99,7 @@ public:
 		case Type::InlineFunction:	 return "InlineFunction";
 		case Type::Globals:			 return "Globals";
 		case Type::Callback:		 return "Callback";
+        case Type::numTypes:         return "";
 		}
 		return "";
 	}

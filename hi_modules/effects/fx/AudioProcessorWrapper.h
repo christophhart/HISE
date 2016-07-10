@@ -207,6 +207,7 @@ public:
 
 				addAndMakeVisible(aLabel);
 			}
+#if 0 // Add this when the time comes...
 			else if (const AudioParameterBool *param = dynamic_cast<AudioParameterBool*>(params[i]))
 			{
 
@@ -215,6 +216,7 @@ public:
 			{
 
 			}
+#endif
 		}
 
 		noParameterLabel.setJustificationType(Justification::horizontallyCentred | Justification::verticallyCentred);

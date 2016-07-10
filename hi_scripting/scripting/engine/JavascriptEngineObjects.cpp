@@ -302,6 +302,30 @@ HiseJavascriptEngine::RootObject::HiseSpecialData::~HiseSpecialData()
 	debugInformation.clear();
 }
 
+void HiseJavascriptEngine::RootObject::HiseSpecialData::clear()
+{
+    clearDebugInformation();
+    apiClasses.clear();
+    inlineFunctions.clear();
+    constObjects.clear();
+    callbackNEW.clear();
+    globals = nullptr;
+}
+
+HiseJavascriptEngine::RootObject::Callback *HiseJavascriptEngine::RootObject::HiseSpecialData::getCallback(const Identifier &id)
+{
+    for (int i = 0; i < callbackNEW.size(); i++)
+    {
+        if (callbackNEW[i]->getName() == id)
+        {
+            return callbackNEW[i];
+        }
+    }
+    
+    return nullptr;
+}
+
+
 
 void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(DynamicObject *root)
 {

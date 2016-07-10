@@ -2222,6 +2222,8 @@ void ScriptingApi::Content::ScriptComponent::doubleClickCallback(Component *comp
 {
 #if USE_BACKEND
 	getScriptProcessor()->getMainController()->setEditedScriptComponent(this, componentToNotify);
+#else
+	ignoreUnused(componentToNotify);
 #endif
 }
 
@@ -3227,6 +3229,8 @@ void ScriptingObjects::ScriptingModulator::doubleClickCallback(Component *compon
 			editor->setRootProcessorWithUndo(p);
 		}
 	}
+#else 
+	ignoreUnused(componentToNotify);
 #endif
 }
 
