@@ -148,8 +148,8 @@ class ProcessorEditor;
 
 
 #include "modules/ModulatorSynth.h"
-
 #include "modules/ModulatorSynthChain.h"
+#include "modules/DspCoreModules.h"
 
 #if INCLUDE_PROTOPLUG
 #include "protoplug/hi_protoplug.h"

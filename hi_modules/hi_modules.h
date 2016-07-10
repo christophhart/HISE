@@ -2,7 +2,7 @@
 #define HI_MODULES_INCLUDED
 
 #include <AppConfig.h>
-#include "../hi_core/hi_core.h"
+#include "../hi_scripting/hi_scripting.h"
 
 /** @defgroup modulatorTypes ModulatorTypes =========================================================================
 *	@ingroup modulator
@@ -97,8 +97,7 @@
 #include "effects/mda/mdaDegrade.h"
 #include "effects/fx/Saturator.h"
 #include "effects/fx/AudioProcessorWrapper.h"
-#include "effects/fx/ScriptDspModules.h"
-#include "effects/fx/ScriptedAudioProcessor.h"
+
 
 #if USE_BACKEND
 

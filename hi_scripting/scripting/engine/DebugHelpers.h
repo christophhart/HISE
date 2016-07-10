@@ -49,7 +49,7 @@ public:
 	virtual String getDebugDataType() const { return getDebugName(); }
 
 	/** This will be called if the user double clicks on the row. */
-	virtual void doubleClickCallback(Component *componentToNotify) {};
+	virtual void doubleClickCallback(Component* /*componentToNotify*/) {};
 
 	
 };
@@ -79,11 +79,8 @@ public:
 		numRows
 	};
 
-	DebugInformation(Type t):
-		type(t)
-	{
-		int x = 6;
-	};
+	DebugInformation(Type t): type(t) {};
+
 	virtual ~DebugInformation() {};
 
 	static String varArrayToString(const Array<var> &arrayToStringify);;
@@ -136,6 +133,8 @@ public:
 		else if (v.isDouble()) return "double";
 		else if (v.isString()) return "String";
 		else if (v.isMethod()) return "function";
+
+		return "undefined";
 	}
 
 protected:

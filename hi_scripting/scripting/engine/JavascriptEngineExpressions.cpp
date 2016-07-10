@@ -35,7 +35,7 @@ struct HiseJavascriptEngine::RootObject::ConstReference : public Expression
 		return s.root->hiseSpecialData.constObjects.getValueAt(index);
 	}
 
-	void assign(const Scope& s, const var& newValue) const override
+	void assign(const Scope& /*s*/, const var& /*newValue*/) const override
 	{
 		location.throwError("Can't assign to this expression!");
 	}

@@ -111,13 +111,9 @@ void TooltipBar::timerCallback()
     
     jassert(parentComponent != nullptr);
     
-	const bool isPopupMenu = dynamic_cast<AutoCompleteEntry*>(newComp) != nullptr;
-    
 	// Deactivate tooltips for multiple instances!
-	if (!isPopupMenu && (parentComponent == nullptr || !parentComponent->isParentOf(newComp)))
-	{
+	if (parentComponent == nullptr || !parentComponent->isParentOf(newComp))
 		return;
-	}
 
 	TooltipClient *client = dynamic_cast<TooltipClient*>(newComp);
 

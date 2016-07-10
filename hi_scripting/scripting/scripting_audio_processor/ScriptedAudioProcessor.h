@@ -74,8 +74,6 @@ public:
     
     void prepareToPlay(double sampleRate_, int samplesPerBlock_)
     {
-		
-
 		if (sampleRate_ > 0)
 		{
 			sampleRate = sampleRate_;
@@ -89,7 +87,9 @@ public:
 
 			const var arguments[2] = { sampleRate, samplesPerBlock };
 
-			var::NativeFunctionArgs args(this, arguments, 2);
+			var thisObject;
+
+			var::NativeFunctionArgs args(thisObject, arguments, 2);
 
 			scriptingEngine->callFunction("prepareToPlay", args, &callbackResult);
 
@@ -103,7 +103,7 @@ public:
     
     void releaseResources() {};
     
-    void processBlock(AudioBuffer<float>& buffer, MidiBuffer& midiMessages)
+    void processBlock(AudioBuffer<float>& buffer, MidiBuffer& /*midiMessages*/)
     {
         if (callbackResult.wasOk())
         {
@@ -115,7 +115,10 @@ public:
 			var channels[2] = { var(leftChannel), var(rightChannel) };
 			Array<var> c(channels, 2);
 			const var arguments[1] = { var(c) };
-			var::NativeFunctionArgs args(this, arguments, 1);
+
+			var thisObject;
+
+			var::NativeFunctionArgs args(thisObject, arguments, 1);
 
             static const Identifier id("processBlock");
             
@@ -128,7 +131,7 @@ public:
         }
     }
     
-    void getStateInformation(MemoryBlock& destData) override
+    void getStateInformation(MemoryBlock& /*destData*/) override
     {
         
     }
@@ -138,7 +141,7 @@ public:
         mc = mc_;
     }
     
-    void setStateInformation(const void* data, int sizeInBytes) override
+    void setStateInformation(const void* /*data*/, int /*sizeInBytes*/) override
     {
         
     }
@@ -226,47 +229,18 @@ private:
 	Factory<ScriptingDsp::BaseObject> objectFactory;
 };
 
+class GenericEditor;
 
 class ScriptingAudioProcessorEditor : public AudioProcessorEditor,
 public ButtonListener
 {
 public:
     
-    ScriptingAudioProcessorEditor(AudioProcessor *p):
-    AudioProcessorEditor(p),
-    tokenizer(new JavascriptTokeniser())
-    {
-        addAndMakeVisible(controls = new GenericEditor(*p));
-        addAndMakeVisible(codeEditor = new CodeEditorComponent(dynamic_cast<ScriptingAudioProcessor*>(p)->getDocument(), tokenizer));
-        addAndMakeVisible(compileButton = new TextButton("Compile"));
-        
-        codeEditor->setColour(CodeEditorComponent::backgroundColourId, Colour(0xff262626));
-        codeEditor->setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colour(0xFFCCCCCC));
-        codeEditor->setColour(CodeEditorComponent::ColourIds::lineNumberTextId, Colour(0xFFCCCCCC));
-        codeEditor->setColour(CodeEditorComponent::ColourIds::lineNumberBackgroundId, Colour(0xff363636));
-        codeEditor->setColour(CodeEditorComponent::ColourIds::highlightColourId, Colour(0xff666666));
-        codeEditor->setColour(CaretComponent::ColourIds::caretColourId, Colour(0xFFDDDDDD));
-        codeEditor->setColour(ScrollBar::ColourIds::thumbColourId, Colour(0x3dffffff));
-        
-        compileButton->addListener(this);
-        
-        setSize(1000, controls->getHeight() + 600);
-    }
+    ScriptingAudioProcessorEditor(AudioProcessor *p);
     
-    void resized()
-    {
-        controls->setBounds(0, 0, getWidth(), jmax<int>(controls->getHeight(), 50));
-        codeEditor->setBounds(0, controls->getBottom(), getWidth(), getHeight() - controls->getBottom());
-        compileButton->setBounds(0, 0, 80, 20);
-    }
+    void resized();
     
-    void buttonClicked(Button *b) override
-    {
-        if (b == compileButton)
-        {
-            dynamic_cast<ScriptingAudioProcessor*>(getAudioProcessor())->compileScript();
-        }
-    }
+    void buttonClicked(Button *b) override;
     
 private:
     

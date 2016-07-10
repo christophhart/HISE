@@ -305,7 +305,7 @@ void JavascriptCodeEditor::showAutoCompleteNew()
 
 	BackendProcessorEditor *editor = findParentComponentOfClass<BackendProcessorEditor>();
 
-	editor->addAndMakeVisible(currentPopup = new AutoCompletePopup(getFont().getHeight(), this, tokenRange, getTextInRange(tokenRange)));
+	editor->addAndMakeVisible(currentPopup = new AutoCompletePopup((int)getFont().getHeight(), this, tokenRange, getTextInRange(tokenRange)));
 
 	CodeDocument::Position current = getCaretPos();
 
@@ -378,130 +378,6 @@ void JavascriptCodeEditor::handleEscapeKey()
 	else
 	{
 		closeAutoCompleteNew(String());
-	}
-
-	return;
-
-	entries.clear();
-
-	int length = getCaretPos().getPosition();
-
-	ScopedPointer<AutocompleteLookAndFeel> laf = new AutocompleteLookAndFeel();
-	//laf->setColour(PopupMenu::backgroundColourId, Colours::transparentBlack);
-	m.setLookAndFeel(laf);
-
-	if (length == 0)
-	{
-		addDefaultAutocompleteOptions("");
-		showAutoCompletePopup();
-		return;
-	}
-
-	for(int i = 0; i <= length; i++)
-	{
-		Range<int> range = Range<int>(length - i, length);
-
-		String textInRange = getTextInRange(Range<int>(length - i, length));
-
-		ScopedPointer<XmlElement> api = scriptProcessor->textInputMatchesApiClass(textInRange);
-
-		if(textInRange == "SynthParameters")
-		{
-			addSynthParameterAutoCompleteOptions();
-		}
-		else if (textInRange == "Globals")
-		{
-			
-
-			setHighlightedRegion(range);
-			addGlobalsAutoCompleteOptions();
-		}
-		else if(api != nullptr)
-		{
-			setHighlightedRegion(range);
-
-			addApiAutoCompleteOptions(api);
-
-			if (textInRange == "Sampler")
-			{
-				addSamplerSoundPropertyList();
-			}
-		}
-		else if(DynamicObject *obj = scriptProcessor->textInputMatchesScriptingObject(textInRange))
-		{
-			if(CreatableScriptObject* cso = dynamic_cast<CreatableScriptObject*>(obj))
-			{
-				setHighlightedRegion(range);
-
-				ScopedPointer<XmlElement> api = scriptProcessor->textInputMatchesApiClass(cso->getObjectName().toString());
-
-				setHighlightedRegion(range);
-
-				if(api != nullptr)
-				{
-					for(int i = 0; i < api->getNumChildElements(); i++)
-					{
-						entries.add(new ApiEntry(api->getChildElement(i), String(textInRange)));
-						m.addCustomItem(i + 1, entries[i]);
-					}
-
-				}
-					
-				bool insertSection = true;
-
-				for(int i = 0; i < obj->getProperties().size(); i++)
-				{
-					var value = obj->getProperties().getValueAt(i);
-
-					if(value.isInt())
-					{
-						Identifier id = obj->getProperties().getName(i);	
-						entries.add(new ParameterEntry(textInRange, id, value));
-						if(insertSection)
-						{
-							insertSection = false;
-							m.addSeparator();
-							m.addSectionHeader(cso->getInstanceName() + String(" Parameters"));
-						}
-						m.addCustomItem(entries.size(), entries.getLast());
-					}
-					
-				}
-			}
-		}
-		else if(ReferenceCountedObject *obj = scriptProcessor->textInputisArrayElementObject(textInRange))
-		{
-			if(CreatableScriptObject* cso = dynamic_cast<CreatableScriptObject*>(obj))
-			{
-				setHighlightedRegion(range);
-
-				ScopedPointer<XmlElement> api = scriptProcessor->textInputMatchesApiClass(cso->getObjectName().toString());
-
-				if(api != nullptr)
-				{
-					setHighlightedRegion(range);
-
-					for(int i = 0; i < api->getNumChildElements(); i++)
-					{
-						entries.add(new ApiEntry(api->getChildElement(i), String(textInRange)));
-						m.addCustomItem(i + 1, entries[i]);
-					}
-				}
-			}
-		}
-		else if(textInRange.containsAnyOf(" \t\r\n({"))
-		{
-			setHighlightedRegion(Range<int>(range.getStart() + 1, range.getEnd()));
-
-			addDefaultAutocompleteOptions(textInRange.removeCharacters(" \t\r\n({"));
-		}
-		else
-		{
-			continue;
-		}
-
-		showAutoCompletePopup();
-		return;
 	}
 }
 
@@ -1066,8 +942,6 @@ void JavascriptCodeEditor::AutoCompletePopup::createVariableRows()
 
 void JavascriptCodeEditor::AutoCompletePopup::createApiRows(const ValueTree &apiTree)
 {
-	HiseJavascriptEngine *engine = sp->getScriptEngine();
-
 	for (int i = 0; i < apiTree.getNumChildren(); i++)
 	{
 		ValueTree classTree = apiTree.getChild(i);
@@ -1196,7 +1070,7 @@ void JavascriptCodeEditor::AutoCompletePopup::paintListBoxItem(int rowNumber, Gr
 
 
 	g.setColour(rowIsSelected ? Colours::white : Colours::black);
-	g.setFont(GLOBAL_MONOSPACE_FONT().withHeight(fontHeight));
+	g.setFont(GLOBAL_MONOSPACE_FONT().withHeight((float)fontHeight));
 
 	const String name = info->name;
 
@@ -1280,7 +1154,7 @@ void JavascriptCodeEditor::AutoCompletePopup::InfoBox::paint(Graphics &g)
 
 		g.setColour(colour);
 
-		const Rectangle<float> area(5.0f, getHeight()/2 - 12, (float)24.0f, (float)24.0f);
+		const Rectangle<float> area(5.0f, (float)(getHeight()/2 - 12), (float)24.0f, (float)24.0f);
 
 		g.fillRoundedRectangle(area, 5.0f);
 		g.setColour(Colours::black.withAlpha(0.4f));

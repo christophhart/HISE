@@ -92,8 +92,6 @@
 #include "effects/mda/mdaDegrade.cpp"
 #include "effects/fx/Saturator.cpp"
 #include "effects/fx/AudioProcessorWrapper.cpp"
-#include "effects/fx/ScriptDspModules.cpp"
-#include "effects/fx/ScriptedAudioProcessor.cpp"
 
 #if USE_BACKEND
 

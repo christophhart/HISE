@@ -50,7 +50,7 @@ String ApiHelpers::createCodeToInsert(const ValueTree &method, const String &cla
 }
 
 
-AttributedString ApiHelpers::createAttributedStringFromApi(const ValueTree &method, const String &className, bool multiLine, Colour textColour)
+AttributedString ApiHelpers::createAttributedStringFromApi(const ValueTree &method, const String &/*className*/, bool multiLine, Colour textColour)
 {
 	AttributedString help;
 

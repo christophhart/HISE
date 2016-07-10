@@ -141,6 +141,10 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 
 			if (data->isArray())			return data->getArray()->getUnchecked(loop->index);
 			else if (data->isBuffer())		return data->getBuffer()->getSample(loop->index);
+			else if (data->isObject())		return data->getDynamicObject()->getProperties().getValueAt(loop->index);
+			else location.throwError("Illegal iterator target");
+
+			return var::undefined();
 		}
 
 		void assign(const Scope& s, const var& newValue) const override
@@ -150,7 +154,8 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 			CHECK_CONDITION(data != nullptr, "data does not exist");
 
 			if (data->isArray())		data->getArray()->set(loop->index, newValue);
-			else if (data->isBuffer())	return data->getBuffer()->setSample(loop->index, newValue);
+			else if (data->isBuffer())	data->getBuffer()->setSample(loop->index, newValue);
+			else if (data->isObject())	*data->getDynamicObject()->getProperties().getVarPointerAt(loop->index) = newValue;	   
 		}
 
 		bool isArray;
@@ -171,8 +176,9 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 			ScopedValueSetter<void*> loopScoper(s.currentLoopStatement, (void*)this);
 			index = 0;
 
-			const int size =  currentObject.isArray() ? currentObject.getArray()->size() :
-							 currentObject.isBuffer() ? currentObject.getBuffer()->size : 0;
+			const int size = currentObject.isArray() ? currentObject.getArray()->size() :
+							 currentObject.isBuffer() ? currentObject.getBuffer()->size :
+							 currentObject.isObject() ? currentObject.getDynamicObject()->getProperties().size() : 0;
 
 			while (index < size)
 			{

@@ -31,6 +31,8 @@
 */
 
 
+#pragma warning (push)
+#pragma warning (disable: 4127)
 
 namespace icstdsp
 {
@@ -46,3 +48,4 @@ namespace icstdsp
 
 	
 
+#pragma warning (pop)

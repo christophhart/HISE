@@ -96,7 +96,6 @@ void DspInstance::processBlock(const var &data)
 			if (b != nullptr)
 			{
 				float *sampleData[1] = { b->buffer.getWritePointer(0) };
-				const int numChannels = 1;
 				const int numSamples = b->size;
 
 				object->processBlock(sampleData, 1, numSamples);
@@ -120,6 +119,8 @@ var DspInstance::getParameter(int index) const
 	{
 		return object->getParameter(index);
 	}
+
+	return var::undefined();
 }
 
 void DspInstance::assign(const int index, var newValue)
@@ -145,7 +146,7 @@ int DspInstance::getCachedIndex(const var &name) const
 	return -1;
 }
 
-void DspInstance::operator<<(var &data) const
+void DspInstance::operator<<(var &/*data*/) const
 {
 	// DSP_TODO
 }
@@ -243,6 +244,8 @@ DspBaseObject * DynamicDspFactory::createDspBaseObject(const String &moduleName)
 			return c(moduleName.getCharPointer());
 		}
 	}
+
+	return nullptr;
 }
 
 typedef void(*destroyDspModule_)(DspBaseObject*);
@@ -314,7 +317,7 @@ var DynamicDspFactory::getModuleList() const
 		}
 	}
 
-	return var::undefined;
+	return var::undefined();
 }
 
 DspBaseObject * StaticDspFactory::createDspBaseObject(const String &moduleName) const

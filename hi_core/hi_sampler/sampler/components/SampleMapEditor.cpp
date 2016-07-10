@@ -459,8 +459,8 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 							return true;
 							}
 	case SaveSampleMap:				sampler->saveSampleMap(); return true;
-	case SaveSampleMapAsXml:		sampler->saveSampleMap(SampleMap::SaveMode::MultipleFiles); return true;
-	case SaveSampleMapAsMonolith:	sampler->saveSampleMap(SampleMap::SaveMode::Monolith); return true;
+	case SaveSampleMapAsXml:		sampler->saveSampleMap(); return true;
+	case SaveSampleMapAsMonolith:	sampler->saveSampleMap(); return true;
 	case ImportSfz:			{
 							FileChooser f("Import sfz", GET_PROJECT_HANDLER(sampler).getWorkDirectory(), "*.sfz");
 

@@ -33,7 +33,6 @@ struct HiseJavascriptEngine::RootObject::TokenIterator
 		lastComment = String();
 	}
 
-
 	String lastComment;
 
 private:

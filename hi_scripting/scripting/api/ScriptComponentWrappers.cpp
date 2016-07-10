@@ -725,7 +725,7 @@ ScriptCreatedComponentWrapper(content, index)
 {
 	AudioProcessorWrapper *wrapper = editor->getProcessor();
 
-	AudioProcessorEditorWrapper::Content *apew = new AudioProcessorEditorWrapper::Content(wrapper);
+	WrappedAudioProcessorEditorContent *apew = new WrappedAudioProcessorEditorContent(wrapper);
 
 	if (wrapper != nullptr)
 	{
@@ -779,11 +779,11 @@ void ScriptedControlAudioParameter::setControlledScriptComponent(ScriptingApi::C
 		{
 			range.interval = c->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::stepSize);
 
-			const double midPoint = (double)c->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::middlePosition);
+			const float midPoint = (float)c->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::middlePosition);
 
 			if (range.getRange().contains(midPoint))
 			{
-				range.skew = (float)HiSlider::getSkewFactorFromMidPoint((double)min, (double)max, midPoint);
+				range.skew = (float)HiSlider::getSkewFactorFromMidPoint((double)min, (double)max, (double)midPoint);
 			}
 
 			suffix = c->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::suffix);

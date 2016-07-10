@@ -33,6 +33,7 @@
 #ifndef HI_BACKEND_INCLUDED
 #define HI_BACKEND_INCLUDED
 
+#include <AppConfig.h>
 #include "../hi_modules/hi_modules.h"
 
 using namespace juce;

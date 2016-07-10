@@ -53,6 +53,7 @@
 
 #endif
 
+#include "modules/DspCoreModules.cpp"
 #include "modules/Modulators.cpp"
 #include "modules/ModulatorChain.cpp"
 #include "modules/MidiProcessor.cpp"

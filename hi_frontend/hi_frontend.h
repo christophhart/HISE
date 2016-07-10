@@ -31,9 +31,29 @@
 */
 
 #ifndef HI_FRONTEND_INCLUDED
-#define HI_FRONENT_INCLUDED
+#define HI_FRONTEND_INCLUDED
+
+
 
 #include "../hi_modules/hi_modules.h"
+
+
+#if USE_FRONTEND_STATIC_LIB
+
+extern char* getPluginName();
+#define JucePlugin_Name getPluginName()
+
+extern char* getVersionString();
+#define JucePlugin_VersionString getVersionString()
+
+extern char* getManufacturer();
+#define JucePlugin_Manufacturer getManufacturer()
+
+AudioProcessor* createPlugin(ValueTree &presetData, ValueTree &imageData, ValueTree &externalScripts, ValueTree &userPresets);
+
+#endif
+
+
 
 #ifndef USE_FRONTEND
 #define USE_FRONTEND 1
@@ -51,7 +71,7 @@ using namespace juce;
 	ValueTree externalScripts = ValueTree::readFromData(PresetData::externalScripts, PresetData::externalScriptsSize);\
 	ValueTree userPresets = ValueTree::readFromData(PresetData::userPresets, PresetData::userPresetsSize);\
 	\
-	return new FrontendProcessor(presetData, &imageData, nullptr, &externalScripts, &userPresets);\
+	return createPlugin(presetData, &imageData, nullptr, &externalScripts, &userPresets);\
 }
 
 #define CREATE_PLUGIN_WITH_AUDIO_FILES {ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\

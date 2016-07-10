@@ -37,7 +37,7 @@
 
 class ProcessorEditorHeader;
 class Modulator;
-
+class ScriptContentComponent;
 
 
 //==============================================================================

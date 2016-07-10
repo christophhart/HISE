@@ -1,0 +1,35 @@
+{
+  "id":             "hi_scripting",
+  "name":           "HISE Scripting Module",
+  "version":        "0.99",
+  "description":    "The scripting classes.",
+  "website":        "http://www.hise.audio",
+  "license":        "GPL/Commercial",
+
+  "include":        "hi_scripting.h", 
+
+  "dependencies":   [ { "id": "juce_audio_basics" },
+					  {	"id": "juce_audio_devices" },
+					  {	"id": "juce_audio_formats" },
+					  {	"id": "juce_audio_processors" },
+					  {	"id": "juce_core" },
+					  {	"id": "juce_cryptography" },
+					  {	"id": "juce_data_structures" },
+					  {	"id": "juce_events" },
+					  {	"id": "juce_graphics" },
+					  {	"id": "juce_gui_basics" },
+					  {	"id": "juce_gui_extra" },
+					  {	"id": "juce_opengl" },
+					  { "id": "hi_core"} ],
+  
+  "compile":        [ { "file": "hi_scripting.cpp", "target": "! xcode" },
+                      { "file": "hi_scripting.mm",  "target": "xcode" } ],
+
+  "browse":         [ "/*",
+					  "scripting/*",
+					  "scripting/engine/*",
+					  "scripting/api/*",
+					  "scripting/components/*",
+					  "scripting/scripting_audio_processor/*",
+					  ]
+}

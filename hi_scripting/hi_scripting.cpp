@@ -30,35 +30,38 @@
 *   ===========================================================================
 */
 
-#ifndef HI_SCRIPTING_INCLUDED
-#define HI_SCRIPTING_INCLUDED
+/* HI Module */
 
-#define MAX_SCRIPT_HEIGHT 700
+#include "hi_scripting.h"
 
-#include "../hi_core/hi_core.h"
+#include "scripting/api/DspFactory.cpp"
+#include "scripting/engine/JavascriptApiClass.cpp"
+#include "scripting/engine/DebugHelpers.cpp"
+#include "scripting/engine/HiseJavascriptEngine.cpp"
+#include "scripting/engine/JavascriptEngineExpressions.cpp"
+#include "scripting/engine/JavascriptEngineStatements.cpp"
+#include "scripting/engine/JavascriptEngineOperators.cpp"
+#include "scripting/engine/JavascriptEngineCustom.cpp"
+#include "scripting/engine/JavascriptEngineParser.cpp"
+#include "scripting/engine/JavascriptEngineObjects.cpp"
 
-#include "scripting/api/ScriptMacroDefinitions.h"
-#include "scripting/api/DspBaseModule.h"
-#include "scripting/api/DspFactory.h"
-#include "scripting/engine/JavascriptApiClass.h"
-#include "scripting/engine/DebugHelpers.h"
-#include "scripting/engine/HiseJavascriptEngine.h"
+#include "scripting/api/XmlApi.cpp"
+#include "scripting/api/ScriptingApi.cpp"
+#include "scripting/api/ScriptingApiWrappers.cpp"
 
-#include "scripting/api/XmlApi.h"
-#include "scripting/api/ScriptingBaseObjects.h"
-#include "scripting/api/ScriptingApi.h"
 
-#include "scripting/ScriptProcessor.h"
-#include "scripting/HardcodedScriptProcessor.h"
+#include "scripting/ScriptProcessor.cpp"
+#include "scripting/HardcodedScriptProcessor.cpp"
 
-#include "scripting/components/ScriptingCodeEditor.h"
+#include "scripting/api/ScriptComponentWrappers.cpp"
+#include "scripting/components/ScriptingContentComponent.cpp"
 
-#include "scripting/api/ScriptComponentWrappers.h"
-#include "scripting/components/ScriptingContentComponent.h"
+#include "scripting/scripting_audio_processor/ScriptDspModules.cpp"
+#include "scripting/scripting_audio_processor/ScriptedAudioProcessor.cpp"
 
 #if USE_BACKEND
 
-#include "scripting/components/ScriptingEditor.h"
+#include "scripting/components/ScriptingCodeEditor.cpp"
+#include "scripting/components/ScriptingEditor.cpp"
 
 #endif 
-#endif

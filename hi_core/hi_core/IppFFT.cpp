@@ -71,18 +71,15 @@ IppFFT::~IppFFT()
 			realFloatSpecs[i] = nullptr;
 		}
 
-		return;
-
 		if (complexDoubleSpecs[i] != nullptr)
 		{
-			ippFree(complexDoubleSpecs[i]);
+			complexDoubleSpecs[i] = nullptr;
 		}
 
 		if (complexFloatSpecs[i] != nullptr)
 		{
-			ippFree(complexFloatSpecs[i]);
+			complexFloatSpecs[i] = nullptr;
 		}
-
 	}
 
 	specBuffers.clear();
@@ -99,7 +96,7 @@ void IppFFT::realFFT(float *data, int size) const
 
 	if (N > 0)
 	{
-		IppStatus status = ippsFFTFwd_RToPerm_32f_I((Ipp32f*)data, realFloatSpecs[N], workingBuffers[N]->getData());
+		ippsFFTFwd_RToPerm_32f_I((Ipp32f*)data, realFloatSpecs[N], workingBuffers[N]->getData());
 	}
 }
 
@@ -111,7 +108,7 @@ void IppFFT::realFFT(double *data, int size) const
 
 	if (N > 0)
 	{
-		IppStatus status = ippsFFTFwd_RToPerm_64f_I((Ipp64f*)data, realDoubleSpecs[N], workingBuffers[N]->getData());
+		ippsFFTFwd_RToPerm_64f_I((Ipp64f*)data, realDoubleSpecs[N], workingBuffers[N]->getData());
 	}
 }
 
@@ -123,7 +120,7 @@ void IppFFT::realInverseFFT(float *data, int size) const
 
 	if (N > 0)
 	{
-		IppStatus status = ippsFFTInv_PermToR_32f_I((Ipp32f*)data, realFloatSpecs[N], workingBuffers[N]->getData());
+		ippsFFTInv_PermToR_32f_I((Ipp32f*)data, realFloatSpecs[N], workingBuffers[N]->getData());
 	}
 }
 
@@ -135,7 +132,7 @@ void IppFFT::realInverseFFT(double *data, int size) const
 
 	if (N > 0)
 	{
-		IppStatus status = ippsFFTInv_PermToR_64f_I((Ipp64f*)data, realDoubleSpecs[N], workingBuffers[N]->getData());
+		ippsFFTInv_PermToR_64f_I((Ipp64f*)data, realDoubleSpecs[N], workingBuffers[N]->getData());
 	}
 }
 
@@ -147,7 +144,7 @@ void IppFFT::complexFFT(float *data, int size) const
 
 	if (N > 0)
 	{
-		IppStatus status = ippsFFTFwd_CToC_32fc_I((Ipp32fc*)data, complexFloatSpecs[N], workingBuffers[N]->getData());
+		ippsFFTFwd_CToC_32fc_I((Ipp32fc*)data, complexFloatSpecs[N], workingBuffers[N]->getData());
 	}
 }
 
@@ -159,7 +156,7 @@ void IppFFT::complexFFT(double *data, int size) const
 
 	if (N > 0)
 	{
-		IppStatus status = ippsFFTFwd_CToC_64fc_I((Ipp64fc*)data, complexDoubleSpecs[N], workingBuffers[N]->getData());
+		ippsFFTFwd_CToC_64fc_I((Ipp64fc*)data, complexDoubleSpecs[N], workingBuffers[N]->getData());
 	}
 }
 
@@ -171,7 +168,7 @@ void IppFFT::complexInverseFFT(float *data, int size) const
 
 	if (N > 0)
 	{
-		IppStatus status = ippsFFTInv_CToC_32fc_I((Ipp32fc*)data, complexFloatSpecs[N], workingBuffers[N]->getData());
+		ippsFFTInv_CToC_32fc_I((Ipp32fc*)data, complexFloatSpecs[N], workingBuffers[N]->getData());
 	}
 }
 
@@ -183,7 +180,7 @@ void IppFFT::complexInverseFFT(double *data, int size) const
 
 	if (N > 0)
 	{
-		IppStatus status = ippsFFTInv_CToC_64fc_I((Ipp64fc*)data, complexDoubleSpecs[N], workingBuffers[N]->getData());
+		ippsFFTInv_CToC_64fc_I((Ipp64fc*)data, complexDoubleSpecs[N], workingBuffers[N]->getData());
 
 	}
 }
@@ -202,6 +199,8 @@ int IppFFT::getPowerOfTwo(int size) const
 	{
 		jassertfalse;
 	}
+
+	return -1;
 }
 
 
@@ -210,12 +209,6 @@ void IppFFT::initFFT(int N)
 	int sizeSpec = 0;
 	int sizeInit = 0;
 	int sizeBuffer = 0;
-
-
-	if ((int)type == 3 && N == 6)
-	{
-		int x = 5;
-	}
 
 	getSizes(N, sizeSpec, sizeInit, sizeBuffer);
 
@@ -249,7 +242,7 @@ void IppFFT::getSizes(int FFTOrder, int &sizeSpec, int &sizeInit, int &sizeBuffe
 
 void IppFFT::initSpec(int N, Ipp8u *specData, Ipp8u *initData)
 {
-	IppStatus status;
+	IppStatus status = ippStsNoErr;
 
 
 	DBG("Type: " + String((int)type) + ", N: " + String(N));

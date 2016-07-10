@@ -141,6 +141,11 @@ unlockCounter(0)
 	suspendProcessing(false);
 }
 
+const String FrontendProcessor::getName(void) const
+{
+	return JucePlugin_Name;
+}
+
 void FrontendProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
 	suspendProcessing(true);

@@ -54,7 +54,8 @@ class VarRegister
 {
 public:
 
-	VarRegister()
+	VarRegister():
+		empty(var::undefined())
 	{
 		for (int i = 0; i < NUM_VAR_REGISTERS; i++)
 		{
@@ -62,6 +63,21 @@ public:
 			registerStackIds[i] = Identifier::null;
 		}
 	}
+
+	VarRegister& operator=(const VarRegister &) { return *this; }
+
+	VarRegister(VarRegister &other):
+		empty(var::undefined())
+	{
+		for (int i = 0; i < NUM_VAR_REGISTERS; i++)
+		{
+			registerStack[i] = other.registerStack[i];
+			registerStackIds[i] = other.registerStackIds[i];
+		}
+	}
+
+	//CodeLocation(const CodeLocation& other) noexcept : program(other.program), location(other.location), externalFile(other.externalFile) {}
+
 
 	void addRegister(const Identifier &id, var newValue)
 	{
@@ -97,7 +113,7 @@ public:
 			return *(registerStack + registerIndex);
 		}
 
-		return var::undefined();
+		return empty;
 	}
 
 	int getRegisterIndex(const Identifier &id) const
@@ -128,12 +144,20 @@ public:
 		return Identifier::null;
 	}
 
-	const var *getVarPointer(int index) const { return registerStack + index; }
+	const var *getVarPointer(int index) const
+	{ 
+		if (index < NUM_VAR_REGISTERS)
+			return registerStack + index; 
+
+		return nullptr;
+	}
 
 private:
 
 	var registerStack[NUM_VAR_REGISTERS];
 	Identifier registerStackIds[NUM_VAR_REGISTERS];
+
+	const var empty;
 };
 
 

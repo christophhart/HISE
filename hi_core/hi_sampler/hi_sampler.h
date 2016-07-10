@@ -33,14 +33,6 @@
 #ifndef HI_SAMPLER_INCLUDED
 #define HI_SAMPLER_INCLUDED
 
-#include <AppConfig.h>
-
-#include "../hi_core/hi_core.h"
-#include "../hi_scripting/hi_scripting.h"
-#include "../../hi_modules/hi_modules.h"
-
-using namespace juce;
-
 #include "sampler/StreamingSampler.h"
 
 #include "sampler/dywapitchtrack/dywapitchtrack.h"

@@ -33,6 +33,8 @@
 #ifndef DSPFACTORY_H_INCLUDED
 #define DSPFACTORY_H_INCLUDED
 
+#pragma warning (push)
+#pragma warning (disable: 4127)
 
 /** A generic template factory class. 
 *
@@ -80,6 +82,10 @@ private:
 	Array<Identifier> ids;
 	Array <PCreateFunc> functions;;
 };
+
+
+#pragma warning (pop)
+
 
 class DspInstance;
 

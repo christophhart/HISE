@@ -2358,7 +2358,6 @@ void BackendCommandTarget::Actions::moveModule(CopyPasteTarget *currentCopyPaste
 	if (ProcessorEditor *editor = dynamic_cast<ProcessorEditor*>(currentCopyPasteTarget))
 	{
 		Processor *processor = editor->getProcessor();
-
 		ProcessorEditor *parentEditor = editor->getParentEditor();
 
 		if (parentEditor == nullptr) return;
@@ -2368,14 +2367,8 @@ void BackendCommandTarget::Actions::moveModule(CopyPasteTarget *currentCopyPaste
 			c->getHandler()->moveProcessor(editor->getProcessor(), moveUp ? -1 : 1);
 			editor->childEditorAmountChanged();
 
-			ProcessorEditor *rootEditor = editor->getRootContainer()->getRootEditor();
-
 			BackendProcessorEditor *bpe = editor->findParentComponentOfClass<BackendProcessorEditor>();
-
 			bpe->refreshContainer(processor);
-
-			
-
 		}
 	}
 }

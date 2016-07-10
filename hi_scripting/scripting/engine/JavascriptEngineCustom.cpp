@@ -228,7 +228,7 @@ struct HiseJavascriptEngine::RootObject::GlobalVarStatement : public Statement
 
 struct HiseJavascriptEngine::RootObject::GlobalReference : public Expression
 {
-	GlobalReference(const CodeLocation& l, DynamicObject *globals_, Identifier &id_) noexcept : Expression(l), globals(globals_), id(id_) {}
+	GlobalReference(const CodeLocation& l, DynamicObject *globals_, const Identifier &id_) noexcept : Expression(l), globals(globals_), id(id_) {}
 
 	var getResult(const Scope& s) const override
 	{

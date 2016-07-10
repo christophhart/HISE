@@ -33,95 +33,94 @@
 #ifndef AUDIOPROCESSOREDITORWRAPPER_H_INCLUDED
 #define AUDIOPROCESSOREDITORWRAPPER_H_INCLUDED
 
-
-
-
-class AudioProcessorEditorWrapper : public ProcessorEditorBody
+class WrappedAudioProcessorEditorContent : public Component,
+	public ComboBox::Listener
 {
 public:
 
-	class Content: public Component,
-				   public ComboBox::Listener
+	WrappedAudioProcessorEditorContent(AudioProcessorWrapper *wrapper);
+
+	~WrappedAudioProcessorEditorContent()
 	{
-	public:
+		wrappedEditor = nullptr;
 
-		Content(AudioProcessorWrapper *wrapper);
+		if (getWrapper() != nullptr) getWrapper()->removeEditor(this);
 
-		~Content()
+		wrapper = nullptr;
+	}
+
+	void comboBoxChanged(ComboBox *c) override;
+
+	void setAudioProcessor(AudioProcessor *newProcessor);
+
+	void paint(Graphics &g) override
+	{
+		g.setColour(Colours::white.withAlpha(0.1f));
+		g.drawRect(getLocalBounds(), 1);
+
+		if (unconnected)
 		{
-			wrappedEditor = nullptr;
+			g.setColour(Colours::white);
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.drawText("Unconnected", getLocalBounds(), Justification::centred);
+		}
+	}
 
-			if(getWrapper() != nullptr) getWrapper()->removeEditor(this);
-
-			wrapper = nullptr;
+	void resized()
+	{
+		if (wrappedEditor != nullptr)
+		{
+			wrappedEditor->setBounds((getWidth() - jmin<int>(wrappedEditor->getWidth(), getWidth())) / 2, 5, wrappedEditor->getWidth(), wrappedEditor->getHeight());
+		}
+		else if (getWrapper() != nullptr)
+		{
+			registeredProcessorList->setBounds((getWidth() - registeredProcessorList->getWidth()) / 2, 0, 150, 30);
 		}
 
-		void comboBoxChanged(ComboBox *c) override;
+	}
 
-		void setAudioProcessor(AudioProcessor *newProcessor);
+	void setUnconnected()
+	{
+		unconnected = true;
 
-		void paint(Graphics &g) override
-		{
-			g.setColour(Colours::white.withAlpha(0.1f));
-			g.drawRect(getLocalBounds(), 1);
+		wrappedEditor = nullptr;
+		wrapper = nullptr;
 
-			if (unconnected)
-			{
-				g.setColour(Colours::white);
-				g.setFont(GLOBAL_BOLD_FONT());
-				g.drawText("Unconnected", getLocalBounds(), Justification::centred);
-			}
-		}
+		registeredProcessorList->setVisible(false);
 
-		void resized()
-		{
-			if (wrappedEditor != nullptr)
-			{
-				wrappedEditor->setBounds((getWidth() - jmin<int>(wrappedEditor->getWidth(), getWidth())) / 2, 5, wrappedEditor->getWidth(), wrappedEditor->getHeight());
-			}
-			else if (getWrapper() != nullptr)
-			{
-				registeredProcessorList->setBounds((getWidth() - registeredProcessorList->getWidth()) / 2, 0, 150, 30);
-			}
-			
-		}
+		repaint();
+	}
 
-		void setUnconnected()
-		{
-			unconnected = true;
+private:
 
-			wrappedEditor = nullptr;
-			wrapper = nullptr;
+	bool unconnected;
 
-			registeredProcessorList->setVisible(false);
+	AudioProcessorWrapper *getWrapper() { return dynamic_cast<AudioProcessorWrapper*>(wrapper.get()); };
 
-			repaint();
-		}
+	const AudioProcessorWrapper *getWrapper() const { return dynamic_cast<AudioProcessorWrapper*>(wrapper.get()); };
 
-	private:
+	KnobLookAndFeel laf;
 
-		bool unconnected;
+	friend class AudioProcessorEditorWrapper;
 
-		AudioProcessorWrapper *getWrapper() { return dynamic_cast<AudioProcessorWrapper*>(wrapper.get()); };
+	ScopedPointer<AudioProcessorEditor> wrappedEditor;
 
-		const AudioProcessorWrapper *getWrapper() const { return dynamic_cast<AudioProcessorWrapper*>(wrapper.get()); };
+	ScopedPointer<ComboBox> registeredProcessorList;
 
-		KnobLookAndFeel laf;
+	WeakReference<Processor> wrapper;
+};
 
-		friend class AudioProcessorEditorWrapper;
 
-		ScopedPointer<AudioProcessorEditor> wrappedEditor;
-
-		ScopedPointer<ComboBox> registeredProcessorList;
-
-		WeakReference<Processor> wrapper;
-	};
+#if USE_BACKEND
+class AudioProcessorEditorWrapper : public ProcessorEditorBody
+{
+public:
 
 	AudioProcessorEditorWrapper(ProcessorEditor *p);;
 
 	~AudioProcessorEditorWrapper();
 
-	void updateGui()
+	void updateGui() override
 	{
 
 	};
@@ -153,9 +152,9 @@ public:
 
 private:
 
-	ScopedPointer<Content> content;
+	ScopedPointer<WrappedAudioProcessorEditorContent> content;
 };
-
+#endif
 
 
 #endif  // AUDIOPROCESSOREDITORWRAPPER_H_INCLUDED

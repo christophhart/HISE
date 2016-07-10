@@ -37,7 +37,7 @@
   </MAINGROUP>
   <EXPORTFORMATS>
     <VS2013 targetFolder="Builds/VisualStudio2013" smallIcon="DEkG64" bigIcon="DEkG64"
-            useIPP="Sequential" extraCompilerFlags="/bigobj">
+            useIPP="Sequential" extraCompilerFlags="">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
                        isDebug="1" optimisation="1" targetName="HISE Standalone" headerPath="C:\SDKs\ASIOSDK2.3\common&#10;&#10;"
@@ -70,6 +70,7 @@
         <MODULEPATH id="hi_core" path="../../"/>
         <MODULEPATH id="hi_modules" path="../../"/>
         <MODULEPATH id="hi_backend" path="../../"/>
+        <MODULEPATH id="hi_scripting" path="../../../HISE modules"/>
       </MODULEPATHS>
     </VS2013>
     <XCODE_MAC targetFolder="Builds/MacOSX" smallIcon="DEkG64" bigIcon="DEkG64"
@@ -104,6 +105,7 @@
         <MODULEPATH id="hi_core" path="../../"/>
         <MODULEPATH id="hi_modules" path="../../"/>
         <MODULEPATH id="hi_backend" path="../../"/>
+        <MODULEPATH id="hi_scripting" path="../../../HISE modules"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <XCODE_IPHONE targetFolder="Builds/iOS" iosScreenOrientation="landscape" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override"
@@ -135,6 +137,7 @@
         <MODULEPATH id="hi_modules" path="../../"/>
         <MODULEPATH id="hi_core" path="../../"/>
         <MODULEPATH id="hi_backend" path="../../"/>
+        <MODULEPATH id="hi_scripting" path="../../../HISE modules"/>
       </MODULEPATHS>
     </XCODE_IPHONE>
   </EXPORTFORMATS>
@@ -142,6 +145,7 @@
     <MODULE id="hi_backend" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_core" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_modules" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="hi_scripting" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_audio_basics" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_audio_devices" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_audio_formats" showAllCode="1" useLocalCopy="0"/>

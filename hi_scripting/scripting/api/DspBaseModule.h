@@ -32,17 +32,23 @@
 
 #include "ScriptMacroDefinitions.h"
 
-
+/** A interface class for objects that can be used with the [] operator in Javascript. 
+*
+*	It uses a cached look up index on compilation to accelerate the look up. 
+*/
 class AssignableObject
 {
 public:
 
     virtual ~AssignableObject() {};
     
+	/** Assign the value to the specified index. The parameter passed in must relate to the index created with getCachedIndex. */
 	virtual void assign(const int index, var newValue) = 0;
 
+	/** Return the value for the specified index. The parameter passed in must relate to the index created with getCachedIndex. */
 	virtual var getAssignedValue(int index) const = 0;
 
+	/** Overwrite this and return an index that can be used to look up the value when the script is executed. */
 	virtual int getCachedIndex(const var &indexExpression) const = 0;
 };
 

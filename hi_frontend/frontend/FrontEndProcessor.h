@@ -45,10 +45,7 @@ class FrontendProcessor: public AudioProcessor,
 public:
 	FrontendProcessor(ValueTree &synthData, ValueTree *imageData_=nullptr, ValueTree *impulseData=nullptr, ValueTree *externalScriptData=nullptr, ValueTree *userPresets=nullptr);
 
-	const String getName(void) const override
-	{
-		return JucePlugin_Name;
-	}
+	const String getName(void) const override;
 
 	void changeProgramName(int /*index*/, const String &/*newName*/) override {};
 
@@ -127,13 +124,9 @@ public:
 		return 1;// presets.getNumChildren() + 1;
 	}
 
-	const String getProgramName(int index) override
+	const String getProgramName(int /*index*/) override
 	{
 		return "Default";
-
-		//if (index == 0) return "Default";
-
-		//return presets.getChild(index - 1).getProperty("FileName");
 	}
 
 	int getCurrentProgram() override

@@ -49,7 +49,7 @@
 namespace juce
 {
 
-
+#define RETURN_STATIC_IDENTIFIER(name) static const Identifier id(name); return id;
 
 #define CHECK_CONDITION(condition, errorMessage) if(!(condition)) throw String(errorMessage);
 
@@ -87,12 +87,12 @@ public:
 
 	/** Creates a buffer using preallocated data. */
 	VariantBuffer(float *externalData, int size_):
-		size((externalData != nullptr) ? size : 0)
+		size((externalData != nullptr) ? size_ : 0)
 	{
 		if (externalData != nullptr)
 		{
 			float *data[1] = { externalData };
-			buffer.setDataToReferTo(data, 1, size);
+			buffer.setDataToReferTo(data, 1, size_);
 		}
 	}
 
@@ -128,12 +128,6 @@ public:
 		buffer.setDataToReferTo(&data, 1, numSamples);
 
 		size = numSamples;
-	}
-
-	/** Resizes the buffer and clears it. */
-	void setSize(int numChannels, int numSamples)
-	{
-		
 	}
 
 	void addSum(const VariantBuffer &a, const VariantBuffer &b)

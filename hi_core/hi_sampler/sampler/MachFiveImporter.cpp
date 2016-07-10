@@ -1,6 +1,6 @@
 
 
-void MachFiveImporter::loadIntoSampleMap(SampleMap &map, const File &machFiveFile, const String &layerName)
+void MachFiveImporter::loadIntoSampleMap(SampleMap &map, const File &/*machFiveFile*/, const String &/*layerName*/)
 {
 	map.clear();
 

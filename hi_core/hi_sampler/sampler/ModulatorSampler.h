@@ -217,7 +217,7 @@ public:
 	void loadSampleMapFromMonolith(const String &sampleMapId);
 	void loadSampleMap(const File &f);
 	void loadSampleMap(const ValueTree &valueTreeData);;
-	void saveSampleMap(SampleMap::SaveMode m= SampleMap::Undefined) const;
+	void saveSampleMap() const;
 
 	/** Disables the automatic cycling and allows custom setting of the used round robin group. */
 	void setUseRoundRobinLogic(bool shouldUseRoundRobinLogic) noexcept { useRoundRobinCycleLogic = shouldUseRoundRobinLogic; };

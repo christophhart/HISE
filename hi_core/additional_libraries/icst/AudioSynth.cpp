@@ -238,9 +238,9 @@ RingMod::RingMod()
 }
 
 
-void RingMod::prepareToPlay(double sampleRate, int samplesPerBlock)
+void RingMod::prepareToPlay(double sampleRate, int /*samplesPerBlock*/)
 {
-	a = 31.4f / __max(62.8f, sampleRate);
+	a = 31.4f / jmax<float>(62.8f, (float)sampleRate);
 }
 
 
@@ -286,7 +286,7 @@ void Noise::processInplace(float* out, int samples)
 }
 
 
-void Noise::processBlock(const float* in, float *out, int numSamples)
+void Noise::processBlock(const float* /*in*/, float *out, int numSamples)
 {
 	processInplace(out, numSamples);
 }
@@ -442,7 +442,7 @@ void VarDelay::setDelayTime(float delayTimeSamples)
 	length = delayTimeSamples;
 }
 
-void VarDelay::prepareToPlay(double sampleRate, int samplesPerBlock)
+void VarDelay::prepareToPlay(double /*sampleRate*/, int samplesPerBlock)
 {
 	enableInplaceProcessing(true, samplesPerBlock);
 }
@@ -957,7 +957,7 @@ ChambFilter::~ChambFilter()
 }
 
 
-void ChambFilter::prepareToPlay(double sampleRate, int samplesPerBlock)
+void ChambFilter::prepareToPlay(double sampleRate, int /*samplesPerBlock*/)
 {
 	const float fmin = 5.0f;
 
@@ -1250,7 +1250,7 @@ MoogFilter::~MoogFilter()
 }
 
 
-void MoogFilter::prepareToPlay(double sampleRate, int samplesPerBlock)
+void MoogFilter::prepareToPlay(double sampleRate, int /*samplesPerBlock*/)
 {
 	const float fmin = 20.0f;
 

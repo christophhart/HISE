@@ -33,7 +33,6 @@
 #ifndef STREAMINGSAMPLER_H_INCLUDED
 #define STREAMINGSAMPLER_H_INCLUDED
 
-#include "JuceHeader.h"
 
 class ModulatorSampler;
 class ModulatorSamplerSoundPool;

@@ -47,7 +47,7 @@ AudioProcessorWrapper::~AudioProcessorWrapper()
 	{
 		if (connectedEditors[i].getComponent() != nullptr)
 		{
-			dynamic_cast<AudioProcessorEditorWrapper::Content*>(connectedEditors[i].getComponent())->setUnconnected();
+			dynamic_cast<WrappedAudioProcessorEditorContent*>(connectedEditors[i].getComponent())->setUnconnected();
 		}
 	}
 
@@ -106,7 +106,7 @@ void AudioProcessorWrapper::restoreFromValueTree(const ValueTree &v)
 
 		data.fromBase64Encoding(v.getProperty("AudioProcessorData", "").toString());
 
-		wrappedAudioProcessor->setStateInformation(data.getData(), data.getSize());
+		wrappedAudioProcessor->setStateInformation(data.getData(), (int)data.getSize());
 	}
 }
 
@@ -132,7 +132,13 @@ ValueTree AudioProcessorWrapper::exportAsValueTree() const
 
 ProcessorEditorBody * AudioProcessorWrapper::createEditor(ProcessorEditor *parentEditor)
 {
+#if USE_BACKEND
 	return new AudioProcessorEditorWrapper(parentEditor);
+#else
+	ignoreUnused(parentEditor);
+	jassertfalse;
+	return nullptr;
+#endif
 }
 
 void AudioProcessorWrapper::applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples)
@@ -233,7 +239,7 @@ void AudioProcessorWrapper::setAudioProcessor(const Identifier id)
 				{
 					if (connectedEditors[i].getComponent() != nullptr)
 					{
-						dynamic_cast<AudioProcessorEditorWrapper::Content*>(connectedEditors[i].getComponent())->setAudioProcessor(wrappedAudioProcessor);
+						dynamic_cast<WrappedAudioProcessorEditorContent*>(connectedEditors[i].getComponent())->setAudioProcessor(wrappedAudioProcessor);
 					}
 					else
 					{

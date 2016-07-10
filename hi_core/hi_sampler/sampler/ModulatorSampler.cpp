@@ -822,9 +822,9 @@ void ModulatorSampler::loadSampleMap(const ValueTree &valueTreeData)
 	setBypassed(false);
 }
 
-void ModulatorSampler::saveSampleMap(SampleMap::SaveMode m/*= SampleMap::Undefined*/) const
+void ModulatorSampler::saveSampleMap() const
 {
-	sampleMap->save(m);
+	sampleMap->save();
 }
 
 bool ModulatorSampler::setCurrentGroupIndex(int currentIndex)

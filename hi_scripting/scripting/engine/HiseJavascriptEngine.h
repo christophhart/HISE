@@ -278,7 +278,7 @@ public:
 				return String(percentage, 2) + "%";
 			}
 
-			void doubleClickCallback(Component *componentToNotify) override
+			void doubleClickCallback(Component* /*componentToNotify*/) override
 			{
 				DBG("JUMP");
 			}

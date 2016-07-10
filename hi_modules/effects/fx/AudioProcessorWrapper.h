@@ -313,7 +313,7 @@ public:
 	~GainProcessor() {}
 
 	//==============================================================================
-	void prepareToPlay(double sampleRate, int samplesPerBlock) override {}
+	void prepareToPlay(double /*sampleRate*/, int /*samplesPerBlock*/) override {}
 	void releaseResources() override {}
 
 	void processBlock(AudioSampleBuffer& buffer, MidiBuffer&) override
@@ -440,7 +440,7 @@ public:
 	}
 
 	//==============================================================================
-	void prepareToPlay(double sampleRate, int samplesPerBlock) override
+	void prepareToPlay(double /*sampleRate*/, int samplesPerBlock) override
 	{
 		scratchBuffer.setSize(1, samplesPerBlock);
 	}

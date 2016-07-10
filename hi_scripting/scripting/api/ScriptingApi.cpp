@@ -1554,7 +1554,7 @@ void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
 		maxGroup = jmax<int>(maxGroup, s->getSound(i)->getProperty(ModulatorSamplerSound::RRGroup));
 	}
 
-	s->setAttribute(ModulatorSampler::RRGroupAmount, maxGroup, sendNotification);
+	s->setAttribute(ModulatorSampler::RRGroupAmount, (float)maxGroup, sendNotification);
 }
 
 int ScriptingApi::Synth::addModulator(int chain, const String &type, const String &id) const
@@ -2220,7 +2220,9 @@ ValueTree ScriptingApi::Content::ScriptComponent::exportAsValueTree() const
 
 void ScriptingApi::Content::ScriptComponent::doubleClickCallback(Component *componentToNotify)
 {
+#if USE_BACKEND
 	getScriptProcessor()->getMainController()->setEditedScriptComponent(this, componentToNotify);
+#endif
 }
 
 void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor)
@@ -3908,7 +3910,7 @@ void ScriptingApi::Content::ScriptPluginEditor::restoreFromValueTree(const Value
                 
                 data.fromBase64Encoding(dataString);
                 
-                audioProcessor->setStateInformation(data.getData(), data.getSize());
+                audioProcessor->setStateInformation(data.getData(), (int)data.getSize());
                 
             }
         }

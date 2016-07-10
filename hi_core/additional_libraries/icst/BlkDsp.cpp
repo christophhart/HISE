@@ -3965,9 +3965,7 @@ void VectorFunctions::cpxmul(float* d, Complex c, int size)
 // d*r -> d
 void VectorFunctions::cpxmul(float* d, float* r, int size)
 {
-#if PREFER_NATIVE_VECTOR_FUNCTIONS && ICSTLIB_USE_IPP
 
-#else
 	int i=0; float tmp;
 #ifdef ICSTLIB_NO_SSEOPT  
 	for (i=0; i<(2*size); i+=2) {
@@ -4021,7 +4019,6 @@ void VectorFunctions::cpxmul(float* d, float* r, int size)
 		d[i] = tmp*r[i] - d[i+1]*r[i+1];
 		d[i+1] = r[i]*d[i+1] + tmp*r[i+1];	
 	}
-#endif
 #endif
 
 }
@@ -7174,27 +7171,24 @@ Complex VectorFunctions::civn(float mean, float std, float a)
 // append = true: append data if file already exists
 int VectorFunctions::save(float* d, int size, char* filename, bool append)
 {
-	FILE* file; int count;
-	if (filename[0] == 0) return -1;
-	if (append) {if ((file = fopen(filename,"a+b")) == NULL) return -1;}
-	else {if ((file = fopen(filename,"wb")) == NULL) return -1;}
-	count = fwrite(d, sizeof(float), __max(size,0), file);
-	fclose(file);
-	return count;
+	ignoreUnused(d, size, filename, append);
+
+	// Don't need this with JUCE...
+	jassertfalse;
+
+	return 0;
 }
 
 // fill d with file data, start reading at an offset specified in elements
 // return number of elements read or -1 if no access
 int VectorFunctions::load(float* d, int size, char* filename, int offset)
 {
-	FILE* file; int count;
-	if (filename[0] == 0) return -1;
-	if ((file = fopen(filename,"rb")) == NULL) return -1;
-	if (fseek(file, offset*sizeof(float), SEEK_SET) != 0) {
-		fclose(file); return -1;}
-	count = fread(d, sizeof(float), __max(size,0), file);
-	fclose(file);
-	return count;
+	ignoreUnused(d, size, filename, offset);
+
+	// Don't need this with JUCE...
+	jassertfalse;
+
+	return 0;
 }
 
 // return number of elements in file or -1 if no access

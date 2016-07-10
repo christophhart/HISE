@@ -32,8 +32,6 @@
 
 /* HI Module */
 
-#include "AppConfig.h"
-
 #include "hi_sampler.h"
 
 #include "sampler/StreamingSampler.cpp"

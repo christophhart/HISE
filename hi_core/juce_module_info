@@ -46,15 +46,6 @@
 					  "hi_dsp/protoplug/exports/*",
 					  "hi_dsp/protoplug/guiclasses/*",
 					  "hi_dsp/protoplug/res/*",
-					  "hi_dsp/protoplug/vflib/*",
-					  "hi_sampler/*",
-					  "hi_sampler/sampler/*",
-					  "hi_sampler/sampler/components/*",
-					  "hi_sampler/sampler/dywapitchtrack/*",
-					  "hi_scripting/*",
-					  "hi_scripting/scripting/*",
-					  "hi_scripting/scripting/engine/*",
-					  "hi_scripting/scripting/api/*",
-					  "hi_scripting/scripting/components/*",
+					  "hi_dsp/protoplug/vflib/*"
 					  ]
 }

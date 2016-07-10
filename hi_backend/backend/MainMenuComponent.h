@@ -129,10 +129,7 @@ class MainMenuContainer : public Component
 {
 public:
 
-	~MainMenuContainer()
-	{
-		int x = 5;
-	}
+	~MainMenuContainer() {}
 
 	void addCommandIds(ApplicationCommandManager *manager, const Array<int> &ids);
 
@@ -157,7 +154,7 @@ public:
 
 		viewport->setViewedComponent(menuContainer = new MainMenuContainer());
 		viewport->setScrollBarsShown(true, false, false, false);
-		viewport->setScrollBarThickness(30.0f);
+		viewport->setScrollBarThickness(30);
 
 		setSize(900 - 32, 768);
 	}

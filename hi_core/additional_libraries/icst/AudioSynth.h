@@ -14,10 +14,10 @@
 class Effect
 {
 	/** Call this before calls to processBlock / processInplace to setup the effect. */
-	virtual void prepareToPlay(double sampleRate, int samplesPerBlock) {};
+	virtual void prepareToPlay(double /*sampleRate*/, int /*samplesPerBlock*/) {};
 
 	/** Processes the samples from input to output. Both arrays must be at have numSamples elements. */
-	virtual void processBlock(const float *input, float *output, int numSamples) {};
+	virtual void processBlock(const float* /*input*/, float* /*output*/, int /*numSamples*/) {};
 
 	/** Processes the float data in place. 
 	*
@@ -495,7 +495,7 @@ public:
 	
 	// ======================================================================================
 
-	void setFrequency(double frequency) { freq = frequency; };
+	void setFrequency(float frequency) { freq = frequency; };
 	void setResonance(float resonance) { res = resonance; }
 
 	// ======================================================================================

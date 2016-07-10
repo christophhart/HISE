@@ -26,3 +26,10 @@ extras/demo_project/thumbnails.dat
 *.hip
 extras/script_module_template/Builds
 extras/script_module_template/JuceLibraryCode
+projects/frontend_library_test/Builds/
+projects/frontend_library/Builds/VisualStudio2013/Release/HISE Fro.A9694304.tlog/lib.command.1.tlog
+projects/frontend_library/Builds/VisualStudio2013/HISE Frontend Library.v12.suo
+projects/frontend_library/Builds/
+projects/frontend_library_test/lib/HISEFrontendLibrary.lib
+projects/frontend_library/JuceLibraryCode/
+projects/frontend_library_test/JuceLibraryCode/

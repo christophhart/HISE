@@ -19,8 +19,8 @@
 
 // (You can add your own code in this section, and the Introjucer will not overwrite it)
 
-#define NUM_DIGITS_FOR_DOUBLE_VAR_TO_STRING 8
 #define USE_IPP 1
+#include "ipp.h"
 
 // [END_USER_CODE_SECTION]
 
@@ -28,6 +28,7 @@
 #define JUCE_MODULE_AVAILABLE_hi_backend                      1
 #define JUCE_MODULE_AVAILABLE_hi_core                         1
 #define JUCE_MODULE_AVAILABLE_hi_modules                      1
+#define JUCE_MODULE_AVAILABLE_hi_scripting                    1
 #define JUCE_MODULE_AVAILABLE_juce_audio_basics               1
 #define JUCE_MODULE_AVAILABLE_juce_audio_devices              1
 #define JUCE_MODULE_AVAILABLE_juce_audio_formats              1

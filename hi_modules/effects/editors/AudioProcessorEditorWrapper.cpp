@@ -30,15 +30,24 @@
 *   ===========================================================================
 */
 
-
+#if USE_BACKEND
 AudioProcessorEditorWrapper::AudioProcessorEditorWrapper(ProcessorEditor *p) :
 ProcessorEditorBody(p)
 {
-	addAndMakeVisible(content = new Content(dynamic_cast<AudioProcessorWrapper*>(p->getProcessor())));
+	addAndMakeVisible(content = new WrappedAudioProcessorEditorContent(dynamic_cast<AudioProcessorWrapper*>(p->getProcessor())));
 }
 
 
-void AudioProcessorEditorWrapper::Content::comboBoxChanged(ComboBox *c)
+AudioProcessorEditorWrapper::~AudioProcessorEditorWrapper()
+{
+	content = nullptr;
+
+}
+
+#endif
+
+
+void WrappedAudioProcessorEditorContent::comboBoxChanged(ComboBox *c)
 {
 	const Identifier id = Identifier(c->getItemText(c->getSelectedItemIndex()));
 	
@@ -48,13 +57,8 @@ void AudioProcessorEditorWrapper::Content::comboBoxChanged(ComboBox *c)
 	}
 }
 
-AudioProcessorEditorWrapper::~AudioProcessorEditorWrapper()
-{
-	content = nullptr;
-	
-}
 
-AudioProcessorEditorWrapper::Content::Content(AudioProcessorWrapper *wrapper_):
+WrappedAudioProcessorEditorContent::WrappedAudioProcessorEditorContent(AudioProcessorWrapper *wrapper_) :
   wrapper(wrapper_)
 {
     setLookAndFeel(&laf);
@@ -86,7 +90,7 @@ AudioProcessorEditorWrapper::Content::Content(AudioProcessorWrapper *wrapper_):
 	}
 }
 
-void AudioProcessorEditorWrapper::Content::setAudioProcessor(AudioProcessor *newProcessor)
+void WrappedAudioProcessorEditorContent::setAudioProcessor(AudioProcessor *newProcessor)
 {
 	if (getWrapper() != nullptr && newProcessor != nullptr)
 	{
@@ -102,8 +106,10 @@ void AudioProcessorEditorWrapper::Content::setAudioProcessor(AudioProcessor *new
 		wrappedEditor = nullptr;
 	}
 
+#if USE_BACKEND
 	if (AudioProcessorEditorWrapper *body = dynamic_cast<AudioProcessorEditorWrapper*>(getParentComponent()))
 	{
 		body->refreshBodySize();
 	}
+#endif
 }

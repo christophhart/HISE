@@ -348,8 +348,6 @@ ValueTree SampleMap::exportAsValueTree() const
 
 	StringArray absoluteFileNames;
 
-	bool warnIfUseAbsolutePathsInProjects = true;
-
 	for(int i = 0; i < sampler->getNumSounds(); i++)
 	{
 		ValueTree soundTree = sampler->getSound(i)->exportAsValueTree();
@@ -388,7 +386,7 @@ void SampleMap::replaceFileReferences(ValueTree &soundTree) const
 	}
 }
 
-void SampleMap::save(SaveMode m)
+void SampleMap::save()
 {
 	const String name = PresetHandler::getCustomName("Sample Map");
 

@@ -184,8 +184,8 @@ For all defined variables:
 
 #include "hi_components/hi_components.h"
 #include "hi_dsp/hi_dsp.h"
-#include "hi_scripting/hi_scripting.h"
 #include "hi_sampler/hi_sampler.h"
+
 
 
 #endif   // HI_CORE_INCLUDED

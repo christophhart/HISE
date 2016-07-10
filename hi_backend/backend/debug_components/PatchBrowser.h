@@ -204,7 +204,7 @@ private:
 		virtual Processor *getProcessor() override { return processor.get(); };
 		virtual const Processor *getProcessor() const override { return processor.get(); };
 
-        void mouseDown(const MouseEvent &e) override
+        void mouseDown(const MouseEvent &) override
         {
             const uint32 thisTime = Time::getMillisecondCounter();
             

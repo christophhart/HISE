@@ -599,18 +599,11 @@ void ScriptProcessor::runScriptCallbacks()
 	if(currentMessage.isNoteOn())
 	{
 		synthObject->increaseNoteCounter();
-
 		if(onNoteOnCallback->isSnippetEmpty()) return;
 
 		Result r = Result::ok();
-		const double startTime = consoleEnabled ? Time::getMillisecondCounterHiRes() : 0.0;
-
+		
 		scriptEngine->executeCallback(onNoteOn, &r);
-
-		//scriptEngine->executeWithoutAllocation(getSnippet(onNoteOn)->getCallbackName(), var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), nullptr, 0), &r, onNoteOnScope);
-
-		//lastExecutionTime = consoleEnabled ? Time::getMillisecondCounterHiRes() - startTime : 0.0 ;
-		//sendChangeMessage();
 
 		if (!r.wasOk()) debugError(this, r.getErrorMessage());
 
@@ -621,23 +614,7 @@ void ScriptProcessor::runScriptCallbacks()
 
 		if(onNoteOffCallback->isSnippetEmpty()) return;
 		Result r = Result::ok();
-		const double startTime = consoleEnabled ? Time::getMillisecondCounterHiRes() : 0.0;
-
 		scriptEngine->executeCallback(onNoteOff, &r);
-
-		
-
-		for (int i = 0; i < scriptEngine->getNumDebugObjects(); i++)
-		{
-			DebugInformation *o = scriptEngine->getDebugInformation(i);
-
-			DBG(o->toString());
-		}
-
-		//scriptEngine->executeWithoutAllocation(getSnippet(onNoteOff)->getCallbackName(), var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), nullptr, 0), &r, onNoteOffScope);
-
-		//lastExecutionTime = consoleEnabled ? Time::getMillisecondCounterHiRes() - startTime : 0.0 ;
-		//sendChangeMessage();
 
 		if (!r.wasOk()) debugError(this, r.getErrorMessage());
 	}
@@ -654,48 +631,30 @@ void ScriptProcessor::runScriptCallbacks()
 		if(currentMessage.isAllNotesOff()) return;
 
 		Result r = Result::ok();
-		const double startTime = consoleEnabled ? Time::getMillisecondCounterHiRes() : 0.0;
-
-		//scriptEngine->executeWithoutAllocation(getSnippet(onController)->getCallbackName(), var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), nullptr, 0), &r, onControllerScope);
-
 		scriptEngine->executeCallback(onController, &r);
-
-		//lastExecutionTime = consoleEnabled ? Time::getMillisecondCounterHiRes() - startTime : 0.0 ;
-		//sendChangeMessage();
 
 		if (!r.wasOk()) debugError(this, r.getErrorMessage());
 	}
 	else if (currentMessage.isSongPositionPointer())
 	{
-
-		//if (onNoteOffCallback->isSnippetEmpty()) return;
 		Result r = Result::ok();
-		const double startTime = consoleEnabled ? Time::getMillisecondCounterHiRes() : 0.0;
-
+		
 		static const Identifier onClock("onClock");
 
 		var args[1] = { currentMessage.getSongPositionPointerMidiBeat() };
-
 		scriptEngine->executeWithoutAllocation(onClock, var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), args, 1), &r);
-
-		//lastExecutionTime = consoleEnabled ? Time::getMillisecondCounterHiRes() - startTime : 0.0;
-		//sendChangeMessage();
 
 		if (!r.wasOk()) debugError(this, r.getErrorMessage());
 	}
 	else if (currentMessage.isMidiStart() || currentMessage.isMidiStop())
 	{
 		Result r = Result::ok();
-		const double startTime = consoleEnabled ? Time::getMillisecondCounterHiRes() : 0.0;
-
+		
 		static const Identifier onClock("onTransport");
 
 		var args[1] = { currentMessage.isMidiStart() };
 
 		scriptEngine->executeWithoutAllocation(onClock, var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), args, 1), &r);
-
-		lastExecutionTime = consoleEnabled ? Time::getMillisecondCounterHiRes() - startTime : 0.0;
-		sendChangeMessage();
 	}
 }
 
@@ -877,34 +836,22 @@ XmlElement * ScriptProcessor::textInputMatchesApiClass(const String &s) const
 	return nullptr;
 }
 
-void ScriptProcessor::runTimerCallback(int offsetInBuffer/*=-1*/)
+void ScriptProcessor::runTimerCallback(int /*offsetInBuffer*//*=-1*/)
 {
 	if (isBypassed() || onTimerCallback->isSnippetEmpty()) return;
 
 	ScopedLock sl(compileLock);
 
 	scriptEngine->maximumExecutionTime = isDeferred() ? RelativeTime(0.5) : RelativeTime(0.002);
-
+	
 	Result r = Result::ok();
-	const double startTime = consoleEnabled ? Time::getMillisecondCounterHiRes() : 0.0;
-
-	const var args[1] = { offsetInBuffer };
-
 	scriptEngine->executeCallback(onTimer, &r);
-
-	//scriptEngine->callFunction(getSnippet(onTimer)->getCallbackName(), var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), args, 1), &r);
-
-	lastExecutionTime = consoleEnabled ? Time::getMillisecondCounterHiRes() - startTime : 0.0;
 
 	if (isDeferred())
 	{
 		sendSynchronousChangeMessage();
 	}
-	else
-	{
-		//sendChangeMessage();
-	}
-
+	
 #if USE_BACKEND
 	if (!r.wasOk()) getMainController()->writeToConsole(r.getErrorMessage(), 1, this, content->getColour());
 #endif
@@ -1056,6 +1003,7 @@ File FileChangeListener::getWatchedFile(int index) const
 
 void FileChangeListener::showPopupForFile(int index)
 {
+#if USE_BACKEND
     const File watchedFile = getWatchedFile(index);
     
     
@@ -1079,7 +1027,9 @@ void FileChangeListener::showPopupForFile(int index)
     currentPopups.add(popup);
 
     popup->addToDesktop();
-	
+#else
+	ignoreUnused(index);
+#endif
 }
 
 ValueTree FileChangeListener::collectAllScriptFiles(ModulatorSynthChain *chainToExport)

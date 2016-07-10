@@ -252,7 +252,7 @@ public:
 	void replaceFileReferences(ValueTree &soundTree) const;
 
 	/** Saves all data with the mode depending on the file extension. */
-	void save(SaveMode m= SaveMode::Undefined);
+	void save();
 
 	/** returns the default sample directory (the sample map directory + '/samples'. */
 	String getSampleDirectory() const

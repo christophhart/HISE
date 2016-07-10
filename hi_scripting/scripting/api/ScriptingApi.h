@@ -318,7 +318,7 @@ public:
 			setAttribute(index, (float)newValue);
 		}
 
-		var getAssignedValue(int index) const override
+		var getAssignedValue(int /*index*/) const override
 		{
 			return 1.0; // Todo...
 		}
@@ -389,6 +389,8 @@ public:
 					if (id == mp->getIdentifierForParameterIndex(i)) return i;
 				}
 			}
+
+			return -1;
 		}
 
 		void assign(const int index, var newValue) override
@@ -396,7 +398,7 @@ public:
 			setAttribute(index, (float)newValue);
 		}
 
-		var getAssignedValue(int index) const override
+		var getAssignedValue(int /*index*/) const override
 		{
 			return 1.0; // Todo...
 		}

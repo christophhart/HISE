@@ -515,9 +515,9 @@ public:
 		public:
 			AllToTheEditorTraverser(JavascriptCodeEditor *editor_): editor(editor_) {};
 
-			virtual Component * 	getNextComponent(Component *current) { return editor; }
-			virtual Component * 	getPreviousComponent(Component *current) { return editor; }
-			virtual Component * 	getDefaultComponent(Component *parentComponent) { return editor; }
+			virtual Component* getNextComponent(Component* /*current*/) { return editor; }
+			virtual Component* getPreviousComponent(Component* /*current*/) { return editor; }
+			virtual Component* getDefaultComponent(Component* /*parentComponent*/) { return editor; }
 
 			JavascriptCodeEditor *editor;
 		};
@@ -525,9 +525,7 @@ public:
 		AutoCompletePopup(int fontHeight_, JavascriptCodeEditor* editor_, Range<int> tokenRange_, const String &tokenText);
 
 		void createVariableRows();
-
 		void createApiRows(const ValueTree &apiTree);
-
 		void createObjectPropertyRows(const ValueTree &apiTree, const String &tokenText);
 
 		~AutoCompletePopup()
