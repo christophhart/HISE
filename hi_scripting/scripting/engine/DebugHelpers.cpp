@@ -1,3 +1,5 @@
+
+
 /*  ===========================================================================
 *
 *   This file is part of HISE.
@@ -52,10 +54,12 @@ String DebugInformation::varArrayToString(const Array<var> &arrayToStringify)
 StringArray DebugInformation::createTextArray()
 {
 	StringArray sa;
-	for (int i = 0; i < (int)Row::numRows; i++)
-	{
-		sa.add(getTextForRow((Row)i));
-	}
+	
+	sa.add(getTextForType());
+	sa.add(getTextForDataType());
+	sa.add(getTextForName());
+	sa.add(getTextForValue());
+	
 	return sa;
 }
 
@@ -85,3 +89,5 @@ String DebugInformation::toString()
 
 	return output;
 }
+
+

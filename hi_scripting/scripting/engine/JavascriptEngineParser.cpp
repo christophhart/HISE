@@ -270,7 +270,11 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 		return lhs.release();
 	}
 
+	
+
 private:
+
+	
 
 	HiseSpecialData *hiseSpecialData;
 
@@ -335,18 +339,20 @@ private:
 	{
 		match(TokenTypes::openParen);
 		
-		String fileName = currentValue.toString().removeCharacters("\"\'");
+		const String fileName = "{PROJECT_FOLDER}" + currentValue.toString().removeCharacters("\"\'");
+		const String refFileName = GET_PROJECT_HANDLER(hiseSpecialData->processor).getFilePath(fileName, ProjectHandler::SubDirectories::Scripts);
 
-		File f(fileName);
+
+		File f(refFileName);
 
 		if (!f.existsAsFile())
 		{
-			throwError("File " + fileName + " not found");
+			throwError("File " + refFileName + " not found");
 		}
 
 		if (hiseSpecialData->includedFiles.contains(f))
 		{
-			throwError("File " + fileName + " was included multiple times");
+			throwError("File " + refFileName + " was included multiple times");
 		}
 
 		String fileContent = f.loadFileAsString();
@@ -361,11 +367,11 @@ private:
 		}
 		else
 		{
-			hiseSpecialData->includedFiles.add(fileName);
+			hiseSpecialData->includedFiles.add(refFileName);
 
 			try
 			{
-				ExpressionTreeBuilder ftb(fileContent, fileName);
+				ExpressionTreeBuilder ftb(fileContent, refFileName);
 
 				ftb.setApiData(*hiseSpecialData);
 
@@ -438,7 +444,6 @@ private:
 		}
 
 		match(TokenTypes::semicolon);
-		clearLastComment();
 		return s.release();
 	}
 
@@ -534,7 +539,7 @@ private:
 
 		var fn = parseFunctionDefinition(name);
 
-		clearLastComment();
+		
 
 		if (name.isNull())
 			throwError("Functions defined at statement-level must have a name");
@@ -610,6 +615,9 @@ private:
 		currentlyParsingInlineFunction = true;
 
 		InlineFunction::Object *o = new InlineFunction::Object(name, inlineArguments);
+
+		o->commentDoc = lastComment;
+		clearLastComment();
 
 		hiseSpecialData->inlineFunctions.add(o);
 
@@ -797,9 +805,13 @@ private:
 			functionName = parseIdentifier();
 
 		ScopedPointer<FunctionObject> fo(new FunctionObject());
+
+		fo->createFunctionDefinition(functionName);
+
 		parseFunctionParamsAndBody(*fo);
 		fo->functionCode = String(functionStart, location.location);
 		fo->commentDoc = lastComment;
+		clearLastComment();
 		return var(fo.release());
 	}
 

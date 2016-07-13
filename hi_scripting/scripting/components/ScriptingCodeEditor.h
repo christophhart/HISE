@@ -54,178 +54,6 @@ public:
 };
 
 
-class AutoCompleteEntry: public PopupMenu::CustomComponent,
-                         public SettableTooltipClient
-{
-public:
-
-    void getIdealSize(int &width, int &height) override
-    {
-        height = 20;
-        width = methodName.getText().length() * 7 + 10;
-    }
-
-	Font getAutoCompleteFont() const
-	{
-		return GLOBAL_MONOSPACE_FONT();
-        
-	}
-
-    void paint(Graphics &g) override
-    {
-		Colour up = isItemHighlighted() ? Colours::white : Colours::transparentBlack;
-
-		Colour down = isItemHighlighted() ? Colours::white.withBrightness(0.95f) : Colours::black.withAlpha(0.05f);
-
-		g.setGradientFill(ColourGradient(up, 0.0f, 0.0f, down, 0.0f, (float)getHeight(), false));
-
-        g.fillAll();
-
-        methodName.draw(g, Rectangle<float>(2.0f, 2.0f, (float)getWidth(), 14.0f));
-    }
-
-	const String getDescription() const
-	{
-		return description;
-	};
-
-	const String getCodeToInsert() const
-	{
-		return codeToInsert;
-	}
-
-	typedef ReferenceCountedObjectPtr<AutoCompleteEntry> Ptr;
-
-protected:
-
-    AttributedString methodName;
-    String description;
-    String codeToInsert;
-
-
-private:
-
-
-
-
-};
-
-
-
-class ApiEntry: public AutoCompleteEntry
-{
-public:
-
-	/** Creates an Autocomplete entry from an API XML element.
-    *
-    *    @param xml the xml element with the detailed information about the autocomplete entry
-    *    @param className the name of the class. This will be used to display the function as class method
-    *                     like "ClassName.method()".
-    */
-    ApiEntry(XmlElement *xml, String className)
-    {
-        const String name = xml->getStringAttribute("name", "");
-
-        const String arguments = xml->getStringAttribute("arguments", "()");
-
-		Font f = getAutoCompleteFont();
-
-        methodName.append(xml->getStringAttribute("returnType", ""), f,Colours::black);
-        methodName.append(className,  f, Colours::darkblue);
-        methodName.append((className != "" ? "." : " "), f, Colours::black);
-        methodName.append(name, f, Colours::darkblue.withAlpha(0.8f));
-        methodName.append(arguments, f, Colours::black);
-
-        description = xml->getStringAttribute("description", "");
-
-        setTooltip(description);
-
-        codeToInsert = className != "" ? className << "." << name << arguments : name;
-
-    }
-
-private:
-
-
-
-};
-
-class VariableEntry: public AutoCompleteEntry
-{
-public:
-
-	/** Creates an AutoCompleteEntry for the variable.
-	*
-	*	@param className the class of the variable
-	*	@param variableProperties a NamedValueSet with at least those properties:
-	*			- \c'variableName' - the name of the variable.
-	*			- \c'value'	- the value (or the string representation of the current value)
-	*/
-    VariableEntry(const String &className, NamedValueSet variableProperties)
-    {
-		ScopedPointer<XmlElement> xml= new XmlElement(className);
-
-		variableProperties.copyToXmlAttributes(*xml);
-
-		Font f = getAutoCompleteFont();
-
-        methodName.append(className + " ", f, Colours::black);
-		methodName.append(variableProperties["variableName"].toString() + ": ", f, Colours::darkblue);
-		methodName.append(variableProperties["value"].toString(), f, Colours::black);
-
-		if(variableProperties["objectName"].toString().isNotEmpty()) codeToInsert <<  variableProperties["objectName"].toString() << ".";
-
-        codeToInsert << variableProperties["variableName"].toString() ;
-    }
-
-	void setCodeToInsert(const String &newCode)
-	{
-		codeToInsert = newCode;
-	}
-};
-
-class ParameterEntry: public AutoCompleteEntry
-{
-public:
-
-	/** Creates an AutoCompleteEntry for the variable.
-	*
-	*	@param className the class of the variable
-	*	@param variableProperties a NamedValueSet with at least those properties:
-	*			- \c'variableName' - the name of the variable.
-	*			- \c'value'	- the value (or the string representation of the current value)
-	*/
-    ParameterEntry(const String &objectName, const Identifier &parameterName, int parameterValue)
-    {
-		Font f = getAutoCompleteFont();
-
-		methodName.append(parameterName.toString() + ": ", f, Colours::darkblue);
-		methodName.append(String(parameterValue), f, Colours::black);
-
-		codeToInsert <<  objectName << ".";
-
-        codeToInsert << parameterName.toString() ;
-    }
-};
-
-
-class ApiClassEntry: public AutoCompleteEntry
-{
-public:
-
-	ApiClassEntry(const String &className)
-	{
-
-		Font f = getAutoCompleteFont();
-
-		methodName.append(className, f, Colours::darkblue);
-
-		codeToInsert << className;
-
-	}
-
-
-};
 
 class JavascriptCodeEditor;
 
@@ -549,13 +377,8 @@ public:
 
 		void paint(Graphics& g) override
 		{
-			g.fillAll(Colour(0xFFBBBBBB));
-		}
-
-		void paintOverChildren(Graphics& g)
-		{
-			g.setColour(Colours::white);
-			g.drawRect(getLocalBounds(), 1);
+			g.setColour(Colour(0xFFBBBBBB));
+			g.fillRoundedRectangle(0.0f, 0.0f, (float)getWidth(), (float)getHeight(), 3.0f);
 		}
 
 		void paintListBoxItem(int rowNumber, Graphics &g, int width, int height, bool rowIsSelected) override;
@@ -576,8 +399,8 @@ public:
 
 		void resized()
 		{
-			infoBox->setBounds(0, 0, getWidth(), 3*fontHeight);
-			listbox->setBounds(0, 3*fontHeight, getWidth(), getHeight()-3*fontHeight);
+			infoBox->setBounds(3, 3, getWidth()-6, 3*fontHeight-6);
+			listbox->setBounds(3, 3*fontHeight+3, getWidth()-6, getHeight()-3*fontHeight-6);
 		}
 
 		void selectRowInfo(int rowIndex)
@@ -610,7 +433,7 @@ public:
 
 			const float maxWidth = 450.0f;
 			const int height = jmin<int>(200, fontHeight * 3 + (visibleInfo.size()) * (fontHeight + 4));
-			setSize((int)maxWidth, height); 
+			setSize((int)maxWidth + 6, height + 6); 
 		}
 
 		bool escapeKeyHandled = false;
@@ -911,7 +734,7 @@ private:
 	ScriptProcessor *scriptProcessor;
     
 	PopupMenu m;
-	Array<AutoCompleteEntry::Ptr> entries;
+	
 
 	PopupLookAndFeel plaf;
 

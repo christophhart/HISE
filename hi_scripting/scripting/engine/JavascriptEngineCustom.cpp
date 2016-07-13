@@ -123,12 +123,17 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			functionDef << ")";
 		}
 
-		virtual String getDebugValue() const override { return lastReturnValue.toString(); }
+		String getDebugValue() const override { return lastReturnValue.toString(); }
 
 		/** This will be shown as name of the object. */
-		virtual String getDebugName() const override { return functionDef; }
+		String getDebugName() const override { return functionDef; }
 
-		virtual String getDebugDataType() const override { return DebugInformation::getVarType(lastReturnValue); }
+		String getDebugDataType() const override { return DebugInformation::getVarType(lastReturnValue); }
+
+		AttributedString getDescription() const override 
+		{ 
+			return DebugableObject::Helpers::getFunctionDoc(commentDoc, parameterNames); 
+		}
 
 		void setFunctionCall(const FunctionCall *e_)
 		{
@@ -141,6 +146,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 		ScopedPointer<BlockStatement> body;
 
 		String functionDef;
+		String commentDoc;
 
 		var lastReturnValue = var::undefined();
 		

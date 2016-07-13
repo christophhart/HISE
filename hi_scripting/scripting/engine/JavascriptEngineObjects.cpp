@@ -206,8 +206,10 @@ struct HiseJavascriptEngine::RootObject::IntegerClass : public DynamicObject
 
 
 //==============================================================================
-HiseJavascriptEngine::HiseJavascriptEngine() : maximumExecutionTime(15.0), root(new RootObject()), unneededScope(new DynamicObject())
+HiseJavascriptEngine::HiseJavascriptEngine(Processor *p) : maximumExecutionTime(15.0), root(new RootObject()), unneededScope(new DynamicObject())
 {
+	root->hiseSpecialData.setProcessor(p);
+
 	registerNativeObject(RootObject::ObjectClass::getClassName(), new RootObject::ObjectClass());
 	registerNativeObject(RootObject::ArrayClass::getClassName(), new RootObject::ArrayClass());
 	registerNativeObject(RootObject::StringClass::getClassName(), new RootObject::StringClass());
@@ -258,6 +260,32 @@ var HiseJavascriptEngine::RootObject::Scope::findFunctionCall(const CodeLocation
 
 	location.throwError("Unknown function '" + functionName.toString() + "'");
 	return var();
+}
+
+
+var HiseJavascriptEngine::callExternalFunction(var callback, const var::NativeFunctionArgs& args, Result* result)
+{
+    var returnVal(var::undefined());
+    
+    try
+    {
+        prepareTimeout();
+        if (result != nullptr) *result = Result::ok();
+        
+        RootObject::FunctionObject *fo = dynamic_cast<RootObject::FunctionObject*>(callback.getObject());
+        
+        if (fo != nullptr)
+        {
+            RootObject::Scope s(nullptr, root, root);
+            returnVal = fo->invoke(s, args);
+        }
+    }
+    catch (String& error)
+    {
+        if (result != nullptr) *result = Result::fail(error);
+    }
+    
+    return returnVal;
 }
 
 Array<Identifier> HiseJavascriptEngine::RootObject::HiseSpecialData::hiddenProperties;
@@ -420,24 +448,5 @@ void HiseJavascriptEngine::RootObject::Callback::perform(RootObject *root)
 
 AttributedString DynamicObjectDebugInformation::getDescription() const
 {
-	var v = obj->getProperty(id);
-
-	if (HiseJavascriptEngine::RootObject::FunctionObject *o = dynamic_cast<HiseJavascriptEngine::RootObject::FunctionObject*>(v.getObject()))
-	{
-		AttributedString info;
-		info.setJustification(Justification::centredLeft);
-
-		info.append("Description: ", GLOBAL_BOLD_FONT(), Colours::black);
-		info.append(o->commentDoc, GLOBAL_FONT(), Colours::black.withBrightness(0.2f));
-		info.append("\nParameters: ", GLOBAL_BOLD_FONT(), Colours::black);
-		for (int i = 0; i < o->parameters.size(); i++)
-		{
-			info.append(o->parameters[i].toString(), GLOBAL_MONOSPACE_FONT(), Colours::darkblue);
-			if (i != o->parameters.size() - 1) info.append(", ", GLOBAL_BOLD_FONT(), Colours::black);
-		}
-
-		return info;
-	}
-
 	return AttributedString();
 }

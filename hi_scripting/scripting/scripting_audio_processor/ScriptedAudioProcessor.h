@@ -45,7 +45,7 @@ public:
     {
         ScopedLock sl(compileLock);
         
-        scriptingEngine = new HiseJavascriptEngine();
+        scriptingEngine = new HiseJavascriptEngine(nullptr);
         
 		
 

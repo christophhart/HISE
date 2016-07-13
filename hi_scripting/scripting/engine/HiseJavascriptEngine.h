@@ -59,7 +59,7 @@ public:
 	This creates a root namespace and defines some basic Object, String, Array
 	and Math library methods.
 	*/
-	HiseJavascriptEngine();
+	HiseJavascriptEngine(Processor *p);
 
 	/** Destructor. */
 	~HiseJavascriptEngine();
@@ -89,6 +89,10 @@ public:
 	var callFunction(const Identifier& function,
 		const var::NativeFunctionArgs& args,
 		Result* errorMessage = nullptr);
+    
+    var callExternalFunction(var function,
+                             const var::NativeFunctionArgs& args,
+                             Result* errorMessage = nullptr);
 
     
 	var executeWithoutAllocation(const Identifier &function,
@@ -119,6 +123,8 @@ public:
 	DebugInformation*getDebugInformation(int index);
 
 	const DynamicObject *getScriptObject(const Identifier &id) const;
+
+	const Array<File> &getIncludedFiles() const;
 
 	int getNumDebugObjects() const;
 
@@ -304,6 +310,8 @@ public:
             
             Callback *getCallback(const Identifier &id);
             
+			void setProcessor(Processor *p) noexcept { processor = p; }
+
 			static bool initHiddenProperties;
 
 			VarRegister varRegister;
@@ -314,6 +322,7 @@ public:
 
 			Array<Identifier> callbackIds;
 			OwnedArray<RootObject::BlockStatement> callbacks;
+			WeakReference<Processor> processor;
 
 			DynamicObject::Ptr globals;
 

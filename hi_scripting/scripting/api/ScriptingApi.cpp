@@ -450,14 +450,9 @@ void ScriptingApi::Engine::setLowestKeyToDisplay(int keyNumber)
 	getScriptProcessor()->getMainController()->setLowestKeyToDisplay(keyNumber);
 }
 
-void ScriptingApi::Engine::includeFile(const String &string)
+void ScriptingApi::Engine::include(const String &string)
 {
-	ScriptProcessor *sp = dynamic_cast<ScriptProcessor*>(getScriptProcessor());
-
-	if (sp != nullptr)
-	{
-		sp->includeFile(string);
-	}
+	jassertfalse;
 }
 
 
@@ -526,6 +521,11 @@ ScriptingObjects::MidiList *ScriptingApi::Engine::createMidiList()
     return new ScriptingObjects::MidiList(getScriptProcessor());
 };
 
+
+ScriptingObjects::TimerObject* ScriptingApi::Engine::createTimerObject()
+{
+	return new ScriptingObjects::TimerObject(getScriptProcessor());
+}
 
 void ScriptingApi::Engine::dumpAsJSON(var object, String fileName)
 {
@@ -3937,3 +3937,20 @@ AudioProcessorWrapper * ScriptingApi::Content::ScriptPluginEditor::getProcessor(
 #undef SEND_MESSAGE
 #undef ADD_TO_TYPE_SELECTOR
 #undef ADD_AS_SLIDER_TYPE
+
+void ScriptingObjects::TimerObject::timerCallback()
+{
+	var callback = getProperty("callback");
+    var undefinedArgs = var::undefined();
+    var::NativeFunctionArgs args(this, &undefinedArgs, 0);
+
+    Result r = Result::ok();
+    
+    dynamic_cast<ScriptProcessor*>(getScriptProcessor())->getScriptEngine()->callExternalFunction(callback, args);
+    
+	if(r.failed())
+    {
+        stopTimer();
+        debugError(getScriptProcessor(), r.getErrorMessage());
+    }
+}

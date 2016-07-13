@@ -197,7 +197,7 @@ onNoteOffCallback(new SnippetDocument("onNoteOff")),
 onControllerCallback(new SnippetDocument("onController")),
 onTimerCallback(new SnippetDocument("onTimer")),
 onControlCallback(new SnippetDocument("onControl")),
-scriptEngine(new HiseJavascriptEngine()),
+scriptEngine(new HiseJavascriptEngine(this)),
 lastExecutionTime(0.0),
 currentMidiMessage(nullptr),
 apiData(ValueTree::readFromData(XmlApi::apivaluetree_dat, XmlApi::apivaluetree_datSize)),
@@ -407,7 +407,7 @@ ScriptProcessor::SnippetResult ScriptProcessor::compileInternal()
 
 	scriptEngine->clearDebugInformation();
 
-	scriptEngine = new HiseJavascriptEngine();
+	scriptEngine = new HiseJavascriptEngine(this);
 	scriptEngine->maximumExecutionTime = RelativeTime(getMainController()->getCompileTimeOut());
 
 	setupApi();
@@ -487,6 +487,13 @@ ScriptProcessor::SnippetResult ScriptProcessor::compileScript()
 		String x;
 		mergeCallbacksToScript(x);
 		parseSnippetsFromString(x);
+
+		clearFileWatchers();
+		for (int i = 0; i < scriptEngine->getIncludedFiles().size(); i++)
+		{
+			addFileWatcher(scriptEngine->getIncludedFiles().getUnchecked(i));
+		}
+
 	}
 
 	getMainController()->sendScriptCompileMessage(this);
@@ -533,11 +540,9 @@ void ScriptProcessor::processMidiMessage(MidiMessage &m)
 
 void ScriptProcessor::setupApi()
 {
-	includedFileNames.clear();
-
 	clearFileWatchers();
 
-	scriptEngine = new HiseJavascriptEngine();
+	scriptEngine = new HiseJavascriptEngine(this);
 	scriptEngine->maximumExecutionTime = RelativeTime(getMainController()->getCompileTimeOut());
 
 	content = new ScriptingApi::Content(this);
@@ -566,7 +571,7 @@ void ScriptProcessor::setupApi()
 	scriptEngine->registerApiClass(currentMidiMessage);
 
 	//scriptEngine->registerNativeObject("Console", new ScriptingApi::Console(this));
-	scriptEngine->registerNativeObject("Engine", engineObject);
+	scriptEngine->registerApiClass(new ScriptingApi::Engine(this));
 	scriptEngine->registerApiClass(new ScriptingApi::Console(this));
 	scriptEngine->registerNativeObject("Synth", synthObject);
 	scriptEngine->registerNativeObject("Sampler", samplerObject);
@@ -682,6 +687,8 @@ void ScriptProcessor::includeFile(const String &name)
 
 #else
 
+
+#if 0
 	const File file = GET_PROJECT_HANDLER(this).getSubDirectory(ProjectHandler::SubDirectories::Scripts).getChildFile(name);
 
 	if (file.existsAsFile())
@@ -710,6 +717,8 @@ void ScriptProcessor::includeFile(const String &name)
 	{
 		debugError(this, "File " + file.getFullPathName() + " was not found.");
 	}
+#endif
+
 #endif
 }
 

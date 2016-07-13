@@ -212,6 +212,8 @@ var ScriptingApi::Message::Wrapper::getControllerValue(const var::NativeFunction
 
 // =================================================================================================== Engine Wrappers
 
+#if 0
+
 var ScriptingApi::Engine::Wrapper::getSamplesForMilliSeconds(const var::NativeFunctionArgs& args)
 {
 	if(Engine* thisObject = GET_OBJECT(Engine))
@@ -566,6 +568,8 @@ var ScriptingApi::Engine::Wrapper::getOS(const var::NativeFunctionArgs& args)
 	return var::undefined();
 }
 
+
+#endif
 
 // =================================================================================================== Synth Wrappers
 

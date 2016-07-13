@@ -41,6 +41,15 @@ class MouseCallbackComponent: public Component
         numEnterStates
     };
     
+    enum class Action
+    {
+        Moved,
+        Dragged,
+        Clicked,
+        Entered,
+        Nothing
+    };
+    
 public:
     
     class Listener
@@ -89,7 +98,7 @@ public:
     
     void mouseDown(const MouseEvent& event) override
     {
-        sendMessage(event);
+        sendMessage(event, Action::Clicked);
     }
     
     void setAllowCallback(bool shouldAllowCallback) noexcept
@@ -99,25 +108,25 @@ public:
     
     void mouseDrag(const MouseEvent& event) override
     {
-        sendMessage(event);
+        sendMessage(event, Action::Dragged);
     }
     
     void mouseEnter(const MouseEvent &event) override
     {
-        sendMessage(event, Entered);
+        sendMessage(event, Action::Moved, Entered);
     }
     
     void mouseExit(const MouseEvent &event) override
     {
-        sendMessage(event, Exited);
+        sendMessage(event, Action::Moved, Exited);
     }
     
 private:
     
     bool allowCallback;
     
-    void sendMessage(const MouseEvent &event, EnterState state=Nothing);
     
+    void sendMessage(const MouseEvent &event, Action action, EnterState state=Nothing);
     Array<WeakReference<Listener>> listenerList;
     
     DynamicObject::Ptr currentEvent;

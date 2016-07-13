@@ -346,6 +346,37 @@ public:
 		WeakReference<Modulator> mod;
 	};
 
+
+	class TimerObject : public Timer,
+						public CreatableScriptObject
+	{
+	public:
+
+		TimerObject(ScriptBaseProcessor *p) :
+		CreatableScriptObject(p)
+		{
+			ADD_DYNAMIC_METHOD(startTimer);
+			ADD_DYNAMIC_METHOD(stopTimer);
+		};
+
+		Identifier getObjectName() const override
+		{
+			return "Timer";
+		}
+
+		bool objectDeleted() const override { return false; }
+		bool objectExists() const override { return false; }
+		
+		void timerCallback() override;;
+
+
+		struct Wrapper
+		{
+			DYNAMIC_METHOD_WRAPPER(TimerObject, startTimer, (int)ARG(0));
+			DYNAMIC_METHOD_WRAPPER(TimerObject, stopTimer);
+		};
+	};
+
 	class ScriptingMidiProcessor: public CreatableScriptObject,
 								  public AssignableObject
 	{
@@ -842,47 +873,49 @@ public:
 	*	@ingroup scriptingApi
 	*/
 	class Engine: public ScriptingObject,
-				  public DynamicObject
+				  public ApiClass
 	{
 	public:
 
 		Engine(ScriptBaseProcessor *p):
-			ScriptingObject(p)
+			ScriptingObject(p),
+			ApiClass(0)
 		{
-			setMethod("allNotesOff", Wrapper::allNotesOff);
-			setMethod("getUptime", Wrapper::getUptime);
-			setMethod("getHostBpm", Wrapper::getHostBpm);
-			setMethod("setGlobal", Wrapper::setGlobal);
-			setMethod("getGlobal", Wrapper::getGlobal);
-			setMethod("getMilliSecondsForTempo", Wrapper::getMilliSecondsForTempo);
-			setMethod("getSamplesForMilliSeconds", Wrapper::getSamplesForMilliSeconds);
-			setMethod("getMilliSecondsForSamples", Wrapper::getMilliSecondsForSamples);
-			setMethod("getGainFactorForDecibels", Wrapper::getGainFactorForDecibels);
-			setMethod("getDecibelsForGainFactor", Wrapper::getDecibelsForGainFactor);
-			setMethod("getFrequencyForMidiNoteNumber", Wrapper::getFrequencyForMidiNoteNumber);
-			setMethod("getSampleRate", Wrapper::getSampleRate);
-			setMethod("getMidiNoteName", Wrapper::getMidiNoteName);
-			setMethod("getMidiNoteFromName", Wrapper::getMidiNoteFromName);
-			setMethod("getMacroName", Wrapper::getMacroName);
-			setMethod("setKeyColour", Wrapper::setKeyColour);
-			setMethod("setLowestKeyToDisplay", Wrapper::setLowestKeyToDisplay);
-            setMethod("createMidiList", Wrapper::createMidiList);
-			setMethod("openEditor", Wrapper::openEditor);
-			setMethod("createLiveCodingVariables", Wrapper::createLiveCodingVariables);
-			setMethod("include", Wrapper::include);
-			setMethod("getPlayHead", Wrapper::getPlayHead);
-			setMethod("dumpAsJSON", Wrapper::dumpAsJSON);
-			setMethod("loadFromJSON", Wrapper::loadFromJSON);
-			setMethod("getUserPresetDirectoryContent", Wrapper::getUserPresetDirectoryContent);
-			setMethod("setCompileProgress", Wrapper::setCompileProgress);
-			setMethod("matchesRegex", Wrapper::matchesRegex);
-            setMethod("getRegexMatches", Wrapper::getRegexMatches);
-            setMethod("doubleToString", Wrapper::doubleToString);
-			setMethod("getOS", Wrapper::getOS);
+			ADD_API_METHOD_0(allNotesOff);
+			ADD_API_METHOD_0(getUptime);
+			ADD_API_METHOD_0(getHostBpm);
+			ADD_API_METHOD_2(setGlobal);
+			ADD_API_METHOD_1(getGlobal);
+			ADD_API_METHOD_1(getMilliSecondsForTempo);
+			ADD_API_METHOD_1(getSamplesForMilliSeconds);
+			ADD_API_METHOD_1(getMilliSecondsForSamples);
+			ADD_API_METHOD_1(getGainFactorForDecibels);
+			ADD_API_METHOD_1(getDecibelsForGainFactor);
+			ADD_API_METHOD_1(getFrequencyForMidiNoteNumber);
+			ADD_API_METHOD_0(getSampleRate);
+			ADD_API_METHOD_1(getMidiNoteName);
+			ADD_API_METHOD_1(getMidiNoteFromName);
+			ADD_API_METHOD_1(getMacroName);
+			ADD_API_METHOD_2(setKeyColour);
+			ADD_API_METHOD_1(setLowestKeyToDisplay);
+            ADD_API_METHOD_0(createMidiList);
+			ADD_API_METHOD_1(openEditor);
+			ADD_API_METHOD_0(createLiveCodingVariables);
+			ADD_API_METHOD_1(include);
+			ADD_API_METHOD_0(getPlayHead);
+			ADD_API_METHOD_2(dumpAsJSON);
+			ADD_API_METHOD_1(loadFromJSON);
+			ADD_API_METHOD_0(getUserPresetDirectoryContent);
+			ADD_API_METHOD_1(setCompileProgress);
+			ADD_API_METHOD_2(matchesRegex);
+            ADD_API_METHOD_2(getRegexMatches);
+            ADD_API_METHOD_2(doubleToString);
+			ADD_API_METHOD_0(getOS);
+			ADD_API_METHOD_0(createTimerObject);
 
 		}
 
-		static Identifier getClassName()   { return "Engine"; };
+		Identifier getName() const override  { RETURN_STATIC_IDENTIFIER("Engine"); };
 
 		/** Returns the current sample rate. */
 		double getSampleRate() const;
@@ -948,7 +981,7 @@ public:
 		void openEditor(int includedFileIndex);
 
 		/** Includes the file (from the script folder). */
-		void includeFile(const String &string);
+		void include(const String &string);
         
 		/** Creates some handy variables for live coding purposes (note names, some chords, etc). */
 		void createLiveCodingVariables();
@@ -958,6 +991,9 @@ public:
 
 		/** Creates a MIDI List object. */
         ScriptingObjects::MidiList *createMidiList(); 
+
+		/** Creates a new timer object. */
+		ScriptingObjects::TimerObject* createTimerObject();
 
 		/** Exports an object as JSON. */
 		void dumpAsJSON(var object, String fileName);
@@ -982,7 +1018,41 @@ public:
         
 		struct Wrapper
 		{
-			static var allNotesOff(const var::NativeFunctionArgs& args);
+			API_VOID_METHOD_WRAPPER_0(Engine, allNotesOff);
+			API_METHOD_WRAPPER_0(Engine, getUptime);
+			API_METHOD_WRAPPER_0(Engine, getHostBpm);
+			API_VOID_METHOD_WRAPPER_2(Engine, setGlobal);
+			API_METHOD_WRAPPER_1(Engine, getGlobal);
+			API_METHOD_WRAPPER_1(Engine, getMilliSecondsForTempo);
+			API_METHOD_WRAPPER_1(Engine, getSamplesForMilliSeconds);
+			API_METHOD_WRAPPER_1(Engine, getMilliSecondsForSamples);
+			API_METHOD_WRAPPER_1(Engine, getGainFactorForDecibels);
+			API_METHOD_WRAPPER_1(Engine, getDecibelsForGainFactor);
+			API_METHOD_WRAPPER_1(Engine, getFrequencyForMidiNoteNumber);
+			API_METHOD_WRAPPER_0(Engine, getSampleRate);
+			API_METHOD_WRAPPER_1(Engine, getMidiNoteName);
+			API_METHOD_WRAPPER_1(Engine, getMidiNoteFromName);
+			API_METHOD_WRAPPER_1(Engine, getMacroName);
+			API_VOID_METHOD_WRAPPER_2(Engine, setKeyColour);
+			API_VOID_METHOD_WRAPPER_1(Engine, setLowestKeyToDisplay);
+			API_METHOD_WRAPPER_0(Engine, createMidiList);
+			API_METHOD_WRAPPER_0(Engine, createTimerObject);
+			API_VOID_METHOD_WRAPPER_1(Engine, openEditor);
+			API_VOID_METHOD_WRAPPER_0(Engine, createLiveCodingVariables);
+			API_VOID_METHOD_WRAPPER_1(Engine, include);
+			API_METHOD_WRAPPER_0(Engine, getPlayHead);
+			API_VOID_METHOD_WRAPPER_2(Engine, dumpAsJSON);
+			API_METHOD_WRAPPER_1(Engine, loadFromJSON);
+			API_METHOD_WRAPPER_0(Engine, getUserPresetDirectoryContent);
+			API_VOID_METHOD_WRAPPER_1(Engine, setCompileProgress);
+			API_METHOD_WRAPPER_2(Engine, matchesRegex);
+			API_METHOD_WRAPPER_2(Engine, getRegexMatches);
+			API_METHOD_WRAPPER_2(Engine, doubleToString);
+			API_METHOD_WRAPPER_0(Engine, getOS);
+			
+
+
+#if 0
 			static var getMilliSecondsForTempo(const var::NativeFunctionArgs& args);
 			static var getUptime(const var::NativeFunctionArgs& args);
 			static var getHostBpm(const var::NativeFunctionArgs& args);
@@ -1012,7 +1082,7 @@ public:
             static var getRegexMatches(const var::NativeFunctionArgs& args);
             static var doubleToString(const var::NativeFunctionArgs& args);
 			static var getOS(const var::NativeFunctionArgs& args);
-
+#endif
 			
 		};
 	};
@@ -1470,8 +1540,9 @@ public:
 			
 			String getDebugValue() const override { return getValue().toString(); };
 
-			String getDebugName() const override { return getObjectName().toString(); };
+			String getDebugName() const override { return name.toString(); };
 
+			String getDebugDataType() const override { return getObjectName().toString(); }
 
 			/** This will be called if the user double clicks on the row. */
 			virtual void doubleClickCallback(Component *componentToNotify) override;

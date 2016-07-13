@@ -300,29 +300,42 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 
 void JavascriptCodeEditor::showAutoCompleteNew()
 {
-
 	Range<int> tokenRange = getCurrentTokenRange();
+	currentPopup = new AutoCompletePopup((int)getFont().getHeight(), this, tokenRange, getTextInRange(tokenRange));
 
-	BackendProcessorEditor *editor = findParentComponentOfClass<BackendProcessorEditor>();
-
-	editor->addAndMakeVisible(currentPopup = new AutoCompletePopup((int)getFont().getHeight(), this, tokenRange, getTextInRange(tokenRange)));
-
-	CodeDocument::Position current = getCaretPos();
-
-	moveCaretTo(CodeDocument::Position(getDocument(), tokenRange.getStart()), false);
-
-	Rectangle<int> caret = editor->getLocalArea(this, getCaretRectangle());
-
-	Point<int> topLeft = caret.getBottomLeft();
-
-	if (caret.getY() > editor->getHeight() - currentPopup->getHeight())
+	if (currentPopup->getNumRows() == 0)
 	{
-		topLeft = Point<int>(topLeft.getX(), jmax<int>(0, caret.getY() - currentPopup->getHeight()));
+		currentPopup = nullptr;
 	}
+	else
+	{
+		Component *editor = findParentComponentOfClass<BackendProcessorEditor>();
 
-	currentPopup->setTopLeftPosition(topLeft);
+		if (editor == nullptr)
+		{
+			editor = findParentComponentOfClass<PopupIncludeEditorWindow>();
+		}
 
-	moveCaretTo(current, false);
+		if (editor != nullptr)
+		{
+			editor->addAndMakeVisible(currentPopup);
+
+			CodeDocument::Position current = getCaretPos();
+			moveCaretTo(CodeDocument::Position(getDocument(), tokenRange.getStart()), false);
+
+			Rectangle<int> caret = editor->getLocalArea(this, getCaretRectangle());
+			Point<int> topLeft = caret.getBottomLeft();
+
+			if (caret.getY() > editor->getHeight() - currentPopup->getHeight())
+			{
+				topLeft = Point<int>(topLeft.getX(), jmax<int>(0, caret.getY() - currentPopup->getHeight()));
+			}
+
+			moveCaretTo(current, false);
+
+			currentPopup->setTopLeftPosition(topLeft);
+		}
+	}
 }
 
 void JavascriptCodeEditor::closeAutoCompleteNew(const String returnString)
@@ -338,10 +351,7 @@ void JavascriptCodeEditor::closeAutoCompleteNew(const String returnString)
 		getDocument().replaceSection(tokenRange.getStart(), tokenRange.getEnd(), returnString);
 
 		selectFunctionParameters();
-
 	}
-
-	grabKeyboardFocus();
 }
 
 void JavascriptCodeEditor::selectFunctionParameters()
@@ -381,166 +391,6 @@ void JavascriptCodeEditor::handleEscapeKey()
 	}
 }
 
-void JavascriptCodeEditor::showAutoCompletePopup()
-{
-	Rectangle<int> pos = getCaretRectangle();
-	Rectangle<int> pos2 = Rectangle<int>(pos.getX() + getScreenPosition().getX(), pos.getBottom() + getScreenPosition().getY(), 0, 2);
-
-	
-
-	int result = m.showAt(pos2);
-
-	if (result == 0)
-	{
-		entries.clear();
-		m.clear();
-	}
-	else
-	{
-		const String codeToInsert = entries[result - 1]->getCodeToInsert();
-
-		insertTextAtCaret(codeToInsert);
-
-		const bool containsNonEmptyArgumentList = codeToInsert.contains("(") && !codeToInsert.contains("()");
-
-		if (containsNonEmptyArgumentList)
-		{
-			moveCaretLeft(false, false);
-			while (getCharacterAtCaret(false) != '(')
-			{
-				moveCaretLeft(false, true);
-			}
-			moveCaretRight(false, true);
-		}
-
-		entries.clear();
-		m.clear();
-	}
-}
-
-void JavascriptCodeEditor::addSynthParameterAutoCompleteOptions()
-{
-	for (int i = 0; i < scriptProcessor->getOwnerSynth()->getNumParameters(); i++)
-	{
-		entries.add(new ParameterEntry("", scriptProcessor->getOwnerSynth()->getIdentifierForParameterIndex(i), i));
-		m.addCustomItem(entries.size(), entries.getLast());
-	}
-}
-
-void JavascriptCodeEditor::addSamplerSoundPropertyList()
-{
-	m.addSeparator();
-	m.addSectionHeader("Sampler Sound Property Indexes");
-
-	for (int i = 1; i < ModulatorSamplerSound::numProperties; i++)
-	{
-		entries.add(new ParameterEntry("Sampler", ModulatorSamplerSound::getPropertyName((ModulatorSamplerSound::Property)i), i));
-		m.addCustomItem(entries.size(), entries.getLast());
-	}
-}
-
-void JavascriptCodeEditor::addApiAutoCompleteOptions(XmlElement *api)
-{
-	for (int i = 0; i < api->getNumChildElements(); i++)
-	{
-		entries.add(new ApiEntry(api->getChildElement(i), String(api->getTagName())));
-		m.addCustomItem(i + 1, entries[i]);
-	}
-}
-
-void JavascriptCodeEditor::addGlobalsAutoCompleteOptions()
-{
-	DynamicObject::Ptr globalObject = scriptProcessor->getMainController()->getGlobalVariableObject();
-
-	NamedValueSet globalSet = globalObject->getProperties();
-
-	for (int i = 0; i < globalSet.size(); i++)
-	{
-		NamedValueSet displaySet;
-
-		String name = globalSet.getName(i).toString();
-
-		displaySet.set("variableName", name);
-		displaySet.set("value", globalSet.getValueAt(i).toString());
-
-		VariableEntry *entry = new VariableEntry(getValueType(globalSet.getValueAt(i)), displaySet);
-
-		entry->setCodeToInsert("Globals." + name);
-
-		entries.add(entry);
-		m.addCustomItem(i + 1, entry);
-	}
-}
-
-#define ADD_API_ENTRY(x) {if(enteredText.isEmpty() || String(x).startsWith(enteredText)) entries.add(new ApiClassEntry(x));}
-
-void JavascriptCodeEditor::addDefaultAutocompleteOptions(const String &enteredText)
-{
-	ADD_API_ENTRY("Console")
-	ADD_API_ENTRY("Content");
-	ADD_API_ENTRY("Engine");
-	ADD_API_ENTRY("Message");
-	ADD_API_ENTRY("Synth");
-	ADD_API_ENTRY("Sampler");
-	ADD_API_ENTRY("Globals");
-
-	NamedValueSet set = scriptProcessor->getScriptEngine()->getRootObjectProperties();
-
-	for (int i = 0; i < set.size(); i++)
-	{
-
-		if (set.getVarPointerAt(i)->isMethod())
-		{
-			continue;
-		}
-		if (set.getVarPointerAt(i)->isObject())
-		{
-			DynamicObject *o = set.getVarPointerAt(i)->getDynamicObject();
-
-			if (CreatableScriptObject *cso = dynamic_cast<CreatableScriptObject*>(o))
-			{
-				NamedValueSet displaySet;
-
-				String name = set.getName(i).toString();
-
-				if (name == "Sampler") continue;
-
-				if (enteredText.isEmpty() || name.startsWith(enteredText))
-				{
-					displaySet.set("variableName", name);
-					displaySet.set("value", cso->getInstanceName());
-
-					entries.add(new VariableEntry(cso->getObjectName().toString(), displaySet));
-				}
-			}
-
-		}
-
-		if (set.getVarPointerAt(i)->isObject() && !set.getVarPointerAt(i)->isArray())
-		{
-
-		}
-		else
-		{
-			NamedValueSet displaySet;
-
-			String name = set.getName(i).toString();
-
-			if (enteredText.isEmpty() || name.startsWith(enteredText))
-			{
-				displaySet.set("variableName", name);
-				displaySet.set("value", set.getValueAt(i).toString());
-
-				entries.add(new VariableEntry(getValueType(set.getValueAt(i)), displaySet));
-			}
-		}
-	}
-
-	for (int i = 0; i < entries.size(); i++)
-	{
-		m.addCustomItem(i + 1, entries[i]);
-	}
-}
 
 class CodeReplacer: public ThreadWithAsyncProgressWindow,
 					public TextEditorListener
@@ -854,7 +704,8 @@ void ApiHelpers::getColourAndCharForType(int type, char &c, Colour &colour)
 
 	switch (type)
 	{
-	case (int)DebugInformation::Type::InlineFunction:	c = 'C'; break;
+	case (int)DebugInformation::Type::InlineFunction:	c = 'I'; break;
+	case (int)DebugInformation::Type::Callback:			c = 'F'; break;
 	case (int)DebugInformation::Type::Variables:		c = 'V'; break;
 	case (int)DebugInformation::Type::Globals:			c = 'G'; break;
 	case (int)DebugInformation::Type::Constant:			c = 'C'; break;
@@ -871,6 +722,7 @@ void ApiHelpers::getColourAndCharForType(int type, char &c, Colour &colour)
 	case 'C': colour = Colours::yellow.withAlpha(alpha).withBrightness(brightness); break;
 	case 'R': colour = Colours::red.withAlpha(alpha).withBrightness(brightness); break;
 	case 'A': colour = Colours::orange.withAlpha(alpha).withBrightness(brightness); break;
+	case 'F': colour = Colours::purple.withAlpha(alpha).withBrightness(brightness); break;
 
 	}
 }
@@ -882,7 +734,7 @@ tokenRange(tokenRange_)
 {
 	sp = editor->scriptProcessor;
 
-	setOpaque(true);
+	
 
 	addAndMakeVisible(listbox = new ListBox());
 	addAndMakeVisible(infoBox = new InfoBox());
@@ -923,20 +775,32 @@ void JavascriptCodeEditor::AutoCompletePopup::createVariableRows()
 	for (int i = 0; i < engine->getNumDebugObjects(); i++)
 	{
 		DebugInformation *info = engine->getDebugInformation(i);
+		ScopedPointer<RowInfo> row = new RowInfo();
 
+		DebugableObject *object = info->getObject();
+
+		if (object != nullptr)
+		{
+			row->type = info->getType();
+			
+			row->description = object->getDescription();
+			row->name = object->getDebugName();
+			row->typeName = object->getDebugDataType();
+			row->value = object->getDebugValue();
+			row->codeToInsert = object->getDebugName();
+		}
+		else
+		{
+			row->type = info->getType();
+			row->description = info->getDescription();
+			row->name = info->getTextForName();
+			row->typeName = info->getTextForDataType();
+			row->value = info->getTextForValue();
+			row->codeToInsert = info->getTextForName();
+		}
 		
 
-		RowInfo *row = new RowInfo();
-		row->type = info->getType();
-		
-		row->description = info->getDescription();
-
-		row->name = info->getTextForName();
-		row->typeName = info->getTextForDataType();
-		row->value = info->getTextForValue();
-		row->codeToInsert = info->getTextForName();
-
-		allInfo.add(row);
+		allInfo.add(row.release());
 	}
 }
 
@@ -1044,11 +908,13 @@ void JavascriptCodeEditor::AutoCompletePopup::createObjectPropertyRows(const Val
 void JavascriptCodeEditor::AutoCompletePopup::paintListBoxItem(int rowNumber, Graphics &g, int width, int height, bool rowIsSelected)
 {
 	RowInfo *info = visibleInfo[rowNumber];
-	Colour c = (rowIsSelected ? Colour(0xff772222) : Colour(0xFFBBBBBB));
+	Colour c = (rowIsSelected ? Colour(0xff333333) : Colours::transparentBlack);
 
-	g.setGradientFill(ColourGradient(c, 0.0f, 0.0f, c.withMultipliedBrightness(0.95f), 0.0f, (float)height, false));
-
+	g.setColour(c);
 	g.fillAll();
+
+	g.setColour(Colours::black.withAlpha(0.1f));
+	g.drawHorizontalLine(0, 0.0f, (float)width);
 
 	if (rowIsSelected)
 	{
@@ -1069,7 +935,7 @@ void JavascriptCodeEditor::AutoCompletePopup::paintListBoxItem(int rowNumber, Gr
 
 
 
-	g.setColour(rowIsSelected ? Colours::white : Colours::black);
+	g.setColour(rowIsSelected ? Colours::white : Colours::black.withAlpha(0.7f));
 	g.setFont(GLOBAL_MONOSPACE_FONT().withHeight((float)fontHeight));
 
 	const String name = info->name;
@@ -1140,7 +1006,7 @@ void JavascriptCodeEditor::AutoCompletePopup::InfoBox::setInfo(RowInfo *newInfo)
 
 void JavascriptCodeEditor::AutoCompletePopup::InfoBox::paint(Graphics &g)
 {
-	g.setColour(Colours::black.withAlpha(0.1f));
+	g.setColour(Colours::black.withAlpha(0.2f));
 	g.fillAll();
 
 	if (currentInfo != nullptr)

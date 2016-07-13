@@ -50,11 +50,33 @@ public:
 
 	virtual String getDebugDataType() const { return getDebugName(); }
 
+	virtual AttributedString getDescription() const { return AttributedString(); }
+
 	/** This will be called if the user double clicks on the row. */
 	virtual void doubleClickCallback(Component* /*componentToNotify*/) {};
 
-	
+	struct Helpers
+	{
+		static AttributedString getFunctionDoc(const String &docBody, const Array<Identifier> &parameters)
+		{
+			AttributedString info;
+			info.setJustification(Justification::centredLeft);
+
+			info.append("Description: ", GLOBAL_BOLD_FONT(), Colours::black);
+			info.append(docBody, GLOBAL_FONT(), Colours::black.withBrightness(0.2f));
+			info.append("\nParameters: ", GLOBAL_BOLD_FONT(), Colours::black);
+			for (int i = 0; i < parameters.size(); i++)
+			{
+				info.append(parameters[i].toString(), GLOBAL_MONOSPACE_FONT(), Colours::darkblue);
+				if (i != parameters.size() - 1) info.append(", ", GLOBAL_BOLD_FONT(), Colours::black);
+			}
+
+			return info;
+		}
+	};
 };
+
+
 
 
 class DebugInformation
@@ -80,6 +102,8 @@ public:
 		Value,
 		numRows
 	};
+
+	static DebugInformation *createDebugInformationFor(var *value, const Identifier &id, Type t);
 
 	DebugInformation(Type t): type(t) {};
 
@@ -128,7 +152,7 @@ public:
 		{
 			if (DebugableObject *d = dynamic_cast<DebugableObject*>(v.getObject()))
 			{
-				return d->getDebugName();
+				return d->getDebugDataType();
 			}
 			else return "Object";
 		}
@@ -228,6 +252,7 @@ public:
 	String getTextForDataType() const override { return object->getDebugDataType(); }
 	String getTextForName() const override { return object->getDebugName(); }
 	String getTextForValue() const override { return object->getDebugValue(); }
+	AttributedString getDescription() const override { return object->getDescription(); }
 
 	DebugableObject *getObject() { return object; }
 

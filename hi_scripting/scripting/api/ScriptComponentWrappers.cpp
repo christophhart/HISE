@@ -64,25 +64,27 @@ void BorderPanel::paint(Graphics &g)
 
 
 
-void MouseCallbackComponent::sendMessage(const MouseEvent &event, EnterState state)
+void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action, EnterState state)
 {
 	if (!allowCallback) return;
 
     DynamicObject::Ptr obj = currentEvent;
 
-    static Identifier x("x");
-    static Identifier y("y");
-    static Identifier clicked("clicked");
-    static Identifier drag("drag");
-    static Identifier dragX("dragX");
-    static Identifier dragY("dragY");
-    static Identifier hover("hover");
-    static Identifier mouseDownX("mouseDownX");
-    static Identifier mouseDownY("mouseDownY");
+    static const Identifier x("x");
+    static const Identifier y("y");
+    static const Identifier clicked("clicked");
+    static const Identifier rightClick("rightClick");
+    static const Identifier drag("drag");
+    static const Identifier dragX("dragX");
+    static const Identifier dragY("dragY");
+    static const Identifier hover("hover");
+    static const Identifier mouseDownX("mouseDownX");
+    static const Identifier mouseDownY("mouseDownY");
     
     currentEvent->setProperty(x, event.getPosition().getX());
     currentEvent->setProperty(y, event.getPosition().getY());
-    currentEvent->setProperty(clicked, event.mouseWasClicked());
+    currentEvent->setProperty(clicked, action == Action::Clicked);
+    currentEvent->setProperty(rightClick, action == Action::Clicked && event.mods.isRightButtonDown());
     currentEvent->setProperty(drag, event.getDistanceFromDragStart() > 4);
     currentEvent->setProperty(dragX, event.getDistanceFromDragStartX());
     currentEvent->setProperty(dragY, event.getDistanceFromDragStartY());

@@ -250,23 +250,23 @@ class SafeChangeBroadcaster
 public:
 
 	SafeChangeBroadcaster() :
-		dispatcher(this)
+		dispatcher(this),
+        flagTimer(this)
 	{};
 
 	virtual ~SafeChangeBroadcaster()
 	{
 		dispatcher.cancelPendingUpdate();
+        flagTimer.stopTimer();
 	};
 
 	/** Sends a synchronous change message to all the registered listeners.
 	*
 	*	This will immediately call all the listeners that are registered. For thread-safety reasons, you must only call this method on the main message thread.
 	*/
-	void sendSynchronousChangeMessage(const String &identifier = String::empty)
+	void sendSynchronousChangeMessage()
 	{
-		currentString = identifier;
-
-		// Ooops, only call this in the message thread.
+        // Ooops, only call this in the message thread.
 		// Use sendChangeMessage() if you need to send a message from elsewhere.
 		jassert(MessageManager::getInstance()->isThisTheMessageThread());
 
@@ -328,13 +328,46 @@ public:
 	*/
 	void sendChangeMessage(const String &identifier = String::empty)
 	{
-		currentString = identifier;
-
-		dispatcher.triggerAsyncUpdate();
+        flagTimer.triggerUpdate();
+		//dispatcher.triggerAsyncUpdate();
 	};
 
 private:
 
+    class FlagTimer: public Timer
+    {
+    public:
+        
+        
+        FlagTimer(SafeChangeBroadcaster *parent_):
+          parent(parent_)
+        {
+            startTimer(50);
+        }
+ 
+        ~FlagTimer()
+        {
+            stopTimer();
+        }
+        
+        void triggerUpdate()
+        {
+            send = true;
+        }
+        
+        void timerCallback() override
+        {
+            if(send)
+            {
+                parent->sendSynchronousChangeMessage();
+                send = false;
+            }
+        }
+        
+        SafeChangeBroadcaster *parent;
+        bool send = false;
+    };
+    
 	class AsyncBroadcaster : public AsyncUpdater
 	{
 	public:
@@ -344,7 +377,7 @@ private:
 
 		void handleAsyncUpdate() override
 		{
-			parent->sendSynchronousChangeMessage(parent->currentString);
+			parent->sendSynchronousChangeMessage();
 		}
 
 		SafeChangeBroadcaster *parent;
@@ -352,6 +385,7 @@ private:
 	};
 
 	AsyncBroadcaster dispatcher;
+    FlagTimer flagTimer;
 
 	String currentString;
 

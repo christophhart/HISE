@@ -291,7 +291,8 @@ struct HiseJavascriptEngine::RootObject::ArrayDeclaration : public Expression
 };
 
 //==============================================================================
-struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject
+struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
+														  public DebugableObject
 {
 	FunctionObject() noexcept{}
 
@@ -335,11 +336,43 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject
 		return result;
 	}
 
+	void createFunctionDefinition(const Identifier &name)
+	{
+		functionDef = name.toString();
+		functionDef << "(";
+
+		for (int i = 0; i < parameters.size(); i++)
+		{
+			functionDef << parameters[i].toString();
+			if (i != parameters.size() - 1) functionDef << ", ";
+		}
+
+		functionDef << ")";
+	}
+
+	
+	String getDebugValue() const override { return ""; }
+
+	String getDebugDataType() const override { return "function"; }
+	
+	String getDebugName() const override
+	{
+		return functionDef;
+	}
+
+	AttributedString getDescription() const override
+	{
+		return DebugableObject::Helpers::getFunctionDoc(commentDoc, parameters);
+	}
+
+	Identifier name;
+
 	String functionCode;
 	Array<Identifier> parameters;
 	ScopedPointer<Statement> body;
 
 	String commentDoc;
+	String functionDef;
 
 	DynamicObject::Ptr unneededScope;
 };

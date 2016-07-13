@@ -300,6 +300,8 @@ var HiseJavascriptEngine::callFunction(const Identifier& function, const var::Na
 	return returnVal;
 }
 
+
+
 int HiseJavascriptEngine::registerCallbackName(const Identifier &callbackName, double bufferTime)
 {
 	// Can't register a callback twice...
@@ -352,6 +354,12 @@ const DynamicObject * HiseJavascriptEngine::getScriptObject(const Identifier &id
 	}
 
 	return nullptr;
+}
+
+
+const Array<File> & HiseJavascriptEngine::getIncludedFiles() const
+{
+	return root->hiseSpecialData.includedFiles;
 }
 
 int HiseJavascriptEngine::getNumDebugObjects() const
