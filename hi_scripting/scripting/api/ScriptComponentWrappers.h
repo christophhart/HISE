@@ -49,9 +49,20 @@ class MouseCallbackComponent: public Component
         Entered,
         Nothing
     };
+
+
     
 public:
     
+	enum class CallbackLevel
+	{
+		NoCallbacks = 0,
+		ClicksOnly,
+		ClicksAndEnter,
+		Drag,
+		AllCallbacks
+	};
+
     class Listener
     {
     public:
@@ -73,13 +84,39 @@ public:
         
     };
     
+	static StringArray getCallbackLevels()
+	{
+		StringArray sa;
+		sa.add("No Callbacks");
+		sa.add("Clicks Only"); 
+		sa.add("Clicks & Hover");
+		sa.add("Clicks, Hover & Dragging");
+		sa.add("All Callbacks");
+
+		return sa;
+	}
+
     MouseCallbackComponent():
-      allowCallback(false),
-      currentEvent(new DynamicObject())
+      callbackLevel(CallbackLevel::NoCallbacks),
+      currentEvent(new DynamicObject()),
+	  callbackLevels(getCallbackLevels())
     {
         
     };
     
+
+	void setPopupMenuItems(const StringArray &newItemList)
+	{
+		itemList.clear();
+		itemList.addArray(newItemList);
+	}
+
+	void setUseRightClickForPopup(bool shouldUseRightClickForPopup)
+	{
+		useRightClickForPopup = shouldUseRightClickForPopup;
+	}
+
+
     void addMouseCallbackListener(Listener *l)
     {
         listenerList.addIfNotAlreadyThere(l);
@@ -98,36 +135,78 @@ public:
     
     void mouseDown(const MouseEvent& event) override
     {
-        sendMessage(event, Action::Clicked);
+		if (callbackLevel < CallbackLevel::ClicksOnly) return;
+
+		sendMessage(event, Action::Clicked);
+
+		if (itemList.size() != 0)
+		{
+			if (event.mods.isRightButtonDown() == useRightClickForPopup)
+			{
+				PopupMenu m;
+				m.setLookAndFeel(&plaf);
+
+				for (int i = 0; i < itemList.size(); i++)
+				{
+					m.addItem(i + 1, itemList[i], true, false);
+				}
+
+				var result = m.show();
+
+				sendToListeners(result);
+			}
+		}
     }
     
-    void setAllowCallback(bool shouldAllowCallback) noexcept
+    void setAllowCallback(const String &newCallbackLevel) noexcept
     {
-        allowCallback = shouldAllowCallback;
+		const int index = callbackLevels.indexOf(newCallbackLevel);
+
+		callbackLevel = index != -1 ? (CallbackLevel)index : CallbackLevel::NoCallbacks;
     }
     
+	CallbackLevel getCallbackLevel() const
+	{
+		return callbackLevel;
+	}
+
     void mouseDrag(const MouseEvent& event) override
     {
+		if (callbackLevel < CallbackLevel::Drag) return;
+
         sendMessage(event, Action::Dragged);
     }
     
     void mouseEnter(const MouseEvent &event) override
     {
+		if (callbackLevel < CallbackLevel::ClicksAndEnter) return;
+
         sendMessage(event, Action::Moved, Entered);
     }
     
     void mouseExit(const MouseEvent &event) override
     {
+		if (callbackLevel < CallbackLevel::ClicksAndEnter) return;
+
         sendMessage(event, Action::Moved, Exited);
     }
     
 private:
     
-    bool allowCallback;
+	const StringArray callbackLevels;
+
+	PopupLookAndFeel plaf;
+
+    CallbackLevel callbackLevel;
     
+	StringArray itemList;
+	bool useRightClickForPopup = true;
     
     void sendMessage(const MouseEvent &event, Action action, EnterState state=Nothing);
-    Array<WeakReference<Listener>> listenerList;
+
+	void sendToListeners(var clickInformation);
+
+	Array<WeakReference<Listener>> listenerList;
     
     DynamicObject::Ptr currentEvent;
     
@@ -291,10 +370,13 @@ public:
     
 private:
     
+	
     float alpha;
     int offset;
     double scale;
     
+	
+
     AffineTransform scaler;
     
     Image image;

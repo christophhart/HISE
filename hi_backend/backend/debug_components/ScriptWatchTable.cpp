@@ -383,7 +383,7 @@ void ScriptComponentEditPanel::addProperty(Array<PropertyComponent*> &arrayToAdd
 	}
 	else
 	{
-		arrayToAddTo.add(new HiTextPropertyComponent(obj, id, this, id == Identifier("items")));
+		arrayToAddTo.add(new HiTextPropertyComponent(obj, id, this, t == ScriptComponentPropertyTypeSelector::MultilineSelector));
 		dynamic_cast<HiTextPropertyComponent*>(arrayToAddTo.getLast())->addChangeListener(this);
 		arrayToAddTo.getLast()->setLookAndFeel(&pplaf);
 

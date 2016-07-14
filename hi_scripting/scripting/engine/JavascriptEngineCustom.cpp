@@ -123,6 +123,12 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			functionDef << ")";
 		}
 
+		~Object()
+		{
+			parameterNames.clear();
+			body = nullptr;
+		}
+
 		String getDebugValue() const override { return lastReturnValue.toString(); }
 
 		/** This will be shown as name of the object. */
@@ -152,6 +158,8 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 		
 		const FunctionCall *e;
 
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Object)
+
 	};
 
 	struct FunctionCall : public Expression
@@ -166,6 +174,11 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 				parameterResults.add(var::undefined());
 			}
 		};
+
+		~FunctionCall()
+		{
+			f = nullptr;
+		}
 
 		void addParameter(Expression *e)
 		{
@@ -207,9 +220,14 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			f(referedFunction)
 		{}
 
+		~ParameterReference()
+		{
+			f = nullptr;
+		}
+
 		var getResult(const Scope&) const override   { return  (f->e->parameterResults.getUnchecked(index)); }
 
-		Object::Ptr f;
+		Object* f;
 		int index;
 	};
 };

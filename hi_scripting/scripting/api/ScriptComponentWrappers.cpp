@@ -66,7 +66,7 @@ void BorderPanel::paint(Graphics &g)
 
 void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action, EnterState state)
 {
-	if (!allowCallback) return;
+	if (callbackLevel == CallbackLevel::NoCallbacks) return;
 
     DynamicObject::Ptr obj = currentEvent;
 
@@ -81,19 +81,43 @@ void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action,
     static const Identifier mouseDownX("mouseDownX");
     static const Identifier mouseDownY("mouseDownY");
     
-    currentEvent->setProperty(x, event.getPosition().getX());
-    currentEvent->setProperty(y, event.getPosition().getY());
-    currentEvent->setProperty(clicked, action == Action::Clicked);
-    currentEvent->setProperty(rightClick, action == Action::Clicked && event.mods.isRightButtonDown());
-    currentEvent->setProperty(drag, event.getDistanceFromDragStart() > 4);
-    currentEvent->setProperty(dragX, event.getDistanceFromDragStartX());
-    currentEvent->setProperty(dragY, event.getDistanceFromDragStartY());
-    currentEvent->setProperty(hover, state != Exited);
-    currentEvent->setProperty(mouseDownX, event.getEventRelativeTo(getParentComponent()).getMouseDownX());
-    currentEvent->setProperty(mouseDownY, event.getEventRelativeTo(getParentComponent()).getMouseDownY());
+	currentEvent->clear();
+
+	if (callbackLevel >= CallbackLevel::ClicksOnly)
+	{
+		currentEvent->setProperty(clicked, action == Action::Clicked);
+		currentEvent->setProperty(rightClick, action == Action::Clicked && event.mods.isRightButtonDown());
+		currentEvent->setProperty(mouseDownX, event.getEventRelativeTo(getParentComponent()).getMouseDownX());
+		currentEvent->setProperty(mouseDownY, event.getEventRelativeTo(getParentComponent()).getMouseDownY());
+	}
+
+	if (callbackLevel >= CallbackLevel::ClicksAndEnter)
+	{
+		currentEvent->setProperty(hover, state != Exited);
+	}
+
+	if (callbackLevel >= CallbackLevel::Drag)
+	{
+		currentEvent->setProperty(drag, event.getDistanceFromDragStart() > 4);
+		currentEvent->setProperty(dragX, event.getDistanceFromDragStartX());
+		currentEvent->setProperty(dragY, event.getDistanceFromDragStartY());
+	}
+    
+	if (callbackLevel >= CallbackLevel::AllCallbacks)
+	{
+		currentEvent->setProperty(x, event.getPosition().getX());
+		currentEvent->setProperty(y, event.getPosition().getY());
+	}
     
 	var clickInformation(obj);
 
+	sendToListeners(clickInformation);
+}
+
+
+
+void MouseCallbackComponent::sendToListeners(var clickInformation)
+{
 	for (int i = 0; i < listenerList.size(); i++)
 	{
 		if (listenerList[i].get() != nullptr)
@@ -102,8 +126,6 @@ void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action,
 		}
 	}
 }
-
-
 
 #undef GET_SCRIPT_PROPERTY
 #undef GET_OBJECT_COLOUR
@@ -565,10 +587,18 @@ void ScriptCreatedComponentWrappers::ImageWrapper::updateComponent()
 
 	if (si->getImage() != nullptr)
 	{
-        const bool allowCallbacks = si->getScriptObjectProperty(ScriptingApi::Content::ScriptImage::AllowCallbacks);
-        ic->setInterceptsMouseClicks(allowCallbacks, false);
-        ic->setAllowCallback(allowCallbacks);
-     
+		const StringArray sa = si->getItemList();
+
+		ic->setAllowCallback(si->getScriptObjectProperty(ScriptingApi::Content::ScriptImage::AllowCallbacks).toString());
+
+		const bool allowCallbacks = ic->getCallbackLevel() != MouseCallbackComponent::CallbackLevel::NoCallbacks;
+		const bool showPopupMenu = sa.size() != 0;
+
+        ic->setInterceptsMouseClicks(allowCallbacks || showPopupMenu, false);
+        
+		ic->setPopupMenuItems(si->getItemList());
+		ic->setUseRightClickForPopup(si->getScriptObjectProperty(ScriptingApi::Content::ScriptImage::PopupOnRightClick));
+
         ic->setBounds(si->getPosition());
 		ic->setImage(*si->getImage());
         ic->setOffset(si->getScriptObjectProperty(ScriptingApi::Content::ScriptImage::Offset));
@@ -611,9 +641,7 @@ void ScriptCreatedComponentWrappers::PanelWrapper::updateComponent()
 	bpc->borderRadius = getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::borderRadius);
 	bpc->borderSize = getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::borderSize);
 
-	bpc->setAllowCallback(getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::allowCallbacks));
-
-	
+	bpc->setAllowCallback(getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::allowCallbacks).toString());
 
 	contentComponent->repaint();
 }

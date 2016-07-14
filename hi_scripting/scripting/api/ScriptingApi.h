@@ -2072,6 +2072,8 @@ public:
 
 			virtual Identifier 	getObjectName () const override { return "ScriptPanel"; }
 
+			StringArray getOptionsFor(const Identifier &id) override;
+
             var getValue() const override
             {
                 jassertfalse;
@@ -2096,6 +2098,8 @@ public:
                 Offset,
                 Scale,
                 AllowCallbacks,
+				PopupMenuItems,
+				PopupOnRightClick,
 				numProperties
 			};
 
@@ -2127,16 +2131,18 @@ public:
 				return image;
 			}
             
-            var getValue() const override
-            {
-                jassertfalse;
-				return var::undefined();
-            }
-            
-            void setValue(var newValue) override
-            {
-                jassertfalse;
-            }
+			StringArray getItemList() const
+			{
+				String items = getScriptObjectProperty(PopupMenuItems).toString();
+
+				if (items.isEmpty()) return StringArray();
+
+				StringArray sa;
+				sa.addTokens(items, "\n", "");
+				sa.removeEmptyStrings();
+
+				return sa;
+			}
 
 			void setScriptProcessor(ScriptBaseProcessor *sb);
 

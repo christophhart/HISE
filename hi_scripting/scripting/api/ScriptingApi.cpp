@@ -1810,15 +1810,25 @@ void ScriptingApi::Content::ScriptedPlotter::clearModulatorPlotter()
 
 StringArray ScriptingApi::Content::ScriptImage::getOptionsFor(const Identifier &id)
 {
-	if (id != getIdFor(FileName)) return ScriptComponent::getOptionsFor(id);
+	if (id == getIdFor(FileName))
+	{
+		StringArray sa;
 
-	StringArray sa;
+		sa.add("Load new File");
 
-	sa.add("Load new File");
+		sa.addArray(getScriptProcessor()->getMainController()->getSampleManager().getImagePool()->getFileNameList());
+
+		return sa;
+	}
+	else if (id == getIdFor(AllowCallbacks))
+	{
+		return MouseCallbackComponent::getCallbackLevels();
+	}
+		
+		
+	return ScriptComponent::getOptionsFor(id);
+
 	
-	sa.addArray(getScriptProcessor()->getMainController()->getSampleManager().getImagePool()->getFileNameList());
-
-	return sa;
 }
 
 void ScriptingApi::Content::ScriptImage::setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor)
@@ -1894,7 +1904,9 @@ image(nullptr)
 	propertyIds.add("fileName");	ADD_TO_TYPE_SELECTOR(SelectorTypes::FileSelector);
     propertyIds.add("offset");
     propertyIds.add("scale");
-    propertyIds.add("allowCallbacks");  ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+    propertyIds.add("allowCallbacks");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	propertyIds.add("popupMenuItems");		ADD_TO_TYPE_SELECTOR(SelectorTypes::MultilineSelector);
+	propertyIds.add("popupOnRightClick");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 
     priorityProperties.add(getIdFor(FileName));
     
@@ -1903,6 +1915,8 @@ image(nullptr)
     componentProperties->setProperty(getIdFor(Offset), 0);
     componentProperties->setProperty(getIdFor(Scale), 1.0);
     componentProperties->setProperty(getIdFor(AllowCallbacks), 0);
+	componentProperties->setProperty(getIdFor(PopupMenuItems), "");
+	componentProperties->setProperty(getIdFor(PopupOnRightClick), true);
 
     setDefaultValue(ScriptComponent::Properties::saveInPreset, false);
 	setDefaultValue(Alpha, 1.0f);
@@ -1910,7 +1924,8 @@ image(nullptr)
     setDefaultValue(Offset, 0);
     setDefaultValue(Scale, 1.0);
     setDefaultValue(AllowCallbacks, false);
-    
+	setDefaultValue(PopupMenuItems, "");
+	setDefaultValue(PopupOnRightClick, true);
 
 	setMethod("setImageFile", Wrapper::setImageFile);
 	setMethod("setAlpha", Wrapper::setImageAlpha);
@@ -3761,7 +3776,7 @@ ScriptComponent(base, parentContent, panelName, x, y, width, height)
 
 	propertyIds.add("borderSize");		ADD_AS_SLIDER_TYPE(0, 20, 1);
 	propertyIds.add("borderRadius");	ADD_AS_SLIDER_TYPE(0, 20, 1);
-	propertyIds.add("allowCallbacks");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	propertyIds.add("allowCallbacks");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 
 	componentProperties->setProperty(getIdFor(borderSize), 0);
 	componentProperties->setProperty(getIdFor(borderRadius), 0);
@@ -3774,6 +3789,16 @@ ScriptComponent(base, parentContent, panelName, x, y, width, height)
 	setDefaultValue(borderSize, 2.0f);
 	setDefaultValue(borderRadius, 6.0f);
 	setDefaultValue(allowCallbacks, 0);
+}
+
+StringArray ScriptingApi::Content::ScriptPanel::getOptionsFor(const Identifier &id)
+{
+	if (id == getIdFor(allowCallbacks))
+	{
+		return MouseCallbackComponent::getCallbackLevels();
+	}
+
+	return ScriptComponent::getOptionsFor(id);
 }
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptPanel::createComponentWrapper(ScriptContentComponent *content, int index)
