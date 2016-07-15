@@ -721,6 +721,20 @@ public:
 				}
 			}
 		}
+        
+#if JUCE_MAC
+      
+        if (currentPopup != nullptr)
+        {
+            if(newText.length() == 1)
+            {
+                KeyPress k = KeyPress(newText.getLastCharacter());
+                
+                currentPopup->handleEditorKeyPress(k);
+            }
+        }
+        
+#endif
 
 		CodeEditorComponent::insertTextAtCaret (newText);
 	};

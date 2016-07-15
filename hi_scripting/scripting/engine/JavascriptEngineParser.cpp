@@ -627,10 +627,8 @@ private:
 
 		currentlyParsingInlineFunction = false;
 
-		match(TokenTypes::semicolon);
-
+		matchIf(TokenTypes::semicolon);
 		
-
 		return new Statement(location);
 	}
 
@@ -806,10 +804,10 @@ private:
 
 		ScopedPointer<FunctionObject> fo(new FunctionObject());
 
-		fo->createFunctionDefinition(functionName);
-
+		
 		parseFunctionParamsAndBody(*fo);
 		fo->functionCode = String(functionStart, location.location);
+        fo->createFunctionDefinition(functionName);
 		fo->commentDoc = lastComment;
 		clearLastComment();
 		return var(fo.release());

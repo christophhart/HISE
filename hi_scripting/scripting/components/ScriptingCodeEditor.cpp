@@ -957,10 +957,11 @@ bool JavascriptCodeEditor::AutoCompletePopup::handleEditorKeyPress(const KeyPres
 	}
 	else if (k == KeyPress::returnKey)
 	{
-		editor->closeAutoCompleteNew(currentlySelectedBox < 0 ? String() :
-			visibleInfo[currentlySelectedBox]->name);
+        const bool insertSomething = currentlySelectedBox >= 0;
+        
+        editor->closeAutoCompleteNew(insertSomething ? visibleInfo[currentlySelectedBox]->name : String());
 
-		return true;
+		return insertSomething;
 	}
 	else if (k == KeyPress::spaceKey || k == KeyPress::tabKey || k.getTextCharacter() == ';' || k.getTextCharacter() == '(')
 	{
