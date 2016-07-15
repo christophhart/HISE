@@ -52,9 +52,9 @@ AudioProcessorEditor(fp)
 
     keyboard->setAvailableRange(fp->getKeyboardState().getLowestKeyToDisplay(), 127);
     
-	
+    bool showKeyboard = fp->getToolbarPropertiesObject()->getProperty("keyboard");
 
-	
+    keyboard->setVisible(showKeyboard);
 
 	addAndMakeVisible(aboutPage = new AboutPage());
 	aboutPage->setVisible(false);
@@ -77,7 +77,9 @@ AudioProcessorEditor(fp)
 	loaderOverlay->setDialog(nullptr);
 	fp->setOverlay(loaderOverlay);
 
-	setSize(interfaceComponent->getContentWidth(), (mainBar != nullptr ? mainBar->getHeight() : 0) + interfaceComponent->getContentHeight() + 72);
+    overlayToolbar = fp->getToolbarPropertiesObject()->getProperty("overlaying");
+    
+    setSize(interfaceComponent->getContentWidth(), ((mainBar != nullptr && !overlayToolbar) ? mainBar->getHeight() : 0) + interfaceComponent->getContentHeight() + (showKeyboard ? 72 : 0));
 
 	startTimer(4125);
 
@@ -90,15 +92,20 @@ void FrontendProcessorEditor::resized()
 	if (mainBar != nullptr)
 	{
 		mainBar->setBounds(0, y, getWidth(), mainBar->getHeight());
-		y += mainBar->getHeight();
+		
+        if(!overlayToolbar)
+            y += mainBar->getHeight();
 	}
 
 	interfaceComponent->setBounds(0, y, getWidth(), interfaceComponent->getContentHeight());
 
 	y = interfaceComponent->getBottom();
 
-	keyboard->setBounds(0, y, getWidth(), 72);
-
+    if(keyboard->isVisible())
+    {
+        keyboard->setBounds(0, y, getWidth(), 72);
+    }
+	
 	aboutPage->setBoundsInset(BorderSize<int>(80));
 	deactiveOverlay->setBounds(getLocalBounds());
 	loaderOverlay->setBounds(getLocalBounds());
