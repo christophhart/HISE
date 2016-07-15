@@ -339,6 +339,8 @@ private:
 	{
 		match(TokenTypes::openParen);
 		
+#if USE_BACKEND
+        
 		const String fileName = "{PROJECT_FOLDER}" + currentValue.toString().removeCharacters("\"\'");
 		const String refFileName = GET_PROJECT_HANDLER(hiseSpecialData->processor).getFilePath(fileName, ProjectHandler::SubDirectories::Scripts);
 
@@ -357,6 +359,18 @@ private:
 
 		String fileContent = f.loadFileAsString();
 
+        
+#else
+        
+        const String fileName = currentValue.toString().removeCharacters("\"\'");
+        const String refFileName = fileName;
+        
+        String fileContent = hiseSpecialData->processor->getMainController()->getExternalScriptFromCollection(fileName);
+        
+        
+
+#endif
+        
 		if (fileContent.isEmpty())
 		{
 			match(TokenTypes::literal);
@@ -367,7 +381,10 @@ private:
 		}
 		else
 		{
+#if USE_BACKEND
+            
 			hiseSpecialData->includedFiles.add(refFileName);
+#endif
 
 			try
 			{

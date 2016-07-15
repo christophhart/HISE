@@ -803,7 +803,7 @@ void ScriptingEditor::mouseDown(const MouseEvent &e)
 			int insertX = e.getEventRelativeTo(scriptContent).getMouseDownPosition().getX();
 			int insertY = e.getEventRelativeTo(scriptContent).getMouseDownPosition().getY();
 
-			textToInsert << "\n" << id << " = Content.add" << widgetType << "(\"" << id << "\", " << insertX << ", " << insertY << ");\n";
+			textToInsert << "\n const var " << id << " = Content.add" << widgetType << "(\"" << id << "\", " << insertX << ", " << insertY << ");\n";
 
 			if (result == duplicateWidget)
 			{
@@ -926,42 +926,6 @@ void ScriptingEditor::compileScript()
 	{
 		messageBox->setText(s->getSnippet(resultMessage.c)->getCallbackName().toString() + "() - " + resultMessage.r.getErrorMessage(), false);
         
-        
-        try
-        {
-            std::string error = resultMessage.r.getErrorMessage().toStdString();
-            
-            std::regex reg(".*Line ([0-9]*), column ([0-9]*) :.*");
-            
-            std::smatch match;
-            
-            if (std::regex_search(error, match, reg))
-            {
-                StringArray sa;
-                for (auto x:match)
-                {
-                    sa.insert(-1, String(x));
-                }
-            
-                Button *b = getSnippetButton(resultMessage.c);
-                
-                if(!b->getToggleState())
-                {
-                    buttonClicked(b);
-                }
-                
-                CodeDocument::Position errorPos(*s->getSnippet(resultMessage.c), sa[1].getIntValue()-1, sa[2].getIntValue()-1);
-                
-                codeEditor->editor->moveCaretTo(errorPos, false);
-                
-                DBG(sa[1]);
-                DBG(sa[2]);
-            }
-        }
-        catch (std::regex_error e)
-        {
-            jassertfalse;
-        }
         
 	}
 

@@ -69,9 +69,16 @@ mainSynthChain(editor->getMainSynthChain())
 	container->setIsFrontendContainer(true);
 	container->setIsFrontendContainer(true);
 
-	addAndMakeVisible(keyboard = new CustomKeyboard(editor->getBackendProcessor()->getKeyboardState()));
-
-	keyboard->setAvailableRange(editor->getBackendProcessor()->getKeyboardState().getLowestKeyToDisplay(), 127);
+    
+    DynamicObject::Ptr toolbarSettings = editor->getMainSynthChain()->getMainController()->getToolbarPropertiesObject();
+    
+    const bool showKeyboard = toolbarSettings->getProperty("keyboard");
+    
+    addAndMakeVisible(keyboard = new CustomKeyboard(editor->getBackendProcessor()->getKeyboardState()));
+    keyboard->setAvailableRange(editor->getBackendProcessor()->getKeyboardState().getLowestKeyToDisplay(), 127);
+    
+    keyboard->setVisible(showKeyboard);
+    
 
 	const int xDelta = 2;
 
@@ -82,7 +89,8 @@ mainSynthChain(editor->getMainSynthChain())
 
 	setSize(container->getContentWidth(), container->getContentHeight());
 #else
-	setSize(container->getContentWidth() + xDelta, container->getContentHeight() + (frontendBar->isOverlaying() ? 0 : frontendBar->getHeight()) + 45 + xDelta);	
+    
+    setSize(container->getContentWidth() + xDelta, container->getContentHeight() + (frontendBar->isOverlaying() ? 0 : frontendBar->getHeight()) + (showKeyboard ? (45 + xDelta) : -25));
 #endif
 }
 
