@@ -186,6 +186,7 @@ public:
 			functions1[i] = nullptr;
 			functions2[i] = nullptr;
 			functions3[i] = nullptr;
+			functions4[i] = nullptr;
 		}
 
 		constants.ensureStorageAllocated(numConstants);
@@ -196,10 +197,19 @@ public:
 		}
 	};
 
+	typedef var(*call0)(ApiClass*);
+	typedef var(*call1)(ApiClass*, var);
+	typedef var(*call2)(ApiClass*, var, var);
+	typedef var(*call3)(ApiClass*, var, var, var);
+	typedef var(*call4)(ApiClass*, var, var, var, var);
+
+#if 0
 	typedef std::function<var(ApiClass*)> call0;
 	typedef std::function<var(ApiClass*, var)> call1;
 	typedef std::function<var(ApiClass*, var, var)> call2;
 	typedef std::function<var(ApiClass*, var, var, var)> call3;
+	typedef std::function<var(ApiClass*, var, var, var, var)> call4;
+#endif
 
 	virtual Identifier getName() const = 0;
 
@@ -272,10 +282,23 @@ public:
 	{
 		for (int i = 0; i < NUM_API_FUNCTION_SLOTS; i++)
 		{
-			if (functions0[i] == nullptr)
+			if (functions3[i] == nullptr)
 			{
 				functions3[i] = newFunction;
 				id3[i] = id;
+				return;
+			}
+		}
+	}
+
+	void addFunction4(const Identifier &id, call4 newFunction)
+	{
+		for (int i = 0; i < NUM_API_FUNCTION_SLOTS; i++)
+		{
+			if (functions4[i] == nullptr)
+			{
+				functions4[i] = newFunction;
+				id4[i] = id;
 				return;
 			}
 		}
@@ -297,6 +320,24 @@ public:
 				numArgs = 1;
 				return;
 			}
+			if (id2[i] == id)
+			{
+				index = i;
+				numArgs = 2;
+				return;
+			}
+			if (id3[i] == id)
+			{
+				index = i;
+				numArgs = 3;
+				return;
+			}
+			if (id4[i] == id)
+			{
+				index = i;
+				numArgs = 4;
+				return;
+			}
 		}
 		index = -1;
 		numArgs = -1;
@@ -315,6 +356,7 @@ public:
 		case 1: { auto f = functions1[index]; return f(this, args[0]); }
 		case 2: { auto f = functions2[index]; return f(this, args[0], args[1]); }
 		case 3: { auto f = functions3[index]; return f(this, args[0], args[1], args[2]); }
+		case 4: { auto f = functions4[index]; return f(this, args[0], args[1], args[2], args[3]); }
 		}
 
 		return var::undefined();
@@ -326,11 +368,13 @@ private:
 	Identifier id1[NUM_API_FUNCTION_SLOTS];
 	Identifier id2[NUM_API_FUNCTION_SLOTS];
 	Identifier id3[NUM_API_FUNCTION_SLOTS];
+	Identifier id4[NUM_API_FUNCTION_SLOTS];
 
 	call0 functions0[NUM_API_FUNCTION_SLOTS];
 	call1 functions1[NUM_API_FUNCTION_SLOTS];
 	call2 functions2[NUM_API_FUNCTION_SLOTS];
 	call3 functions3[NUM_API_FUNCTION_SLOTS];
+	call4 functions4[NUM_API_FUNCTION_SLOTS];
 
 	struct Constant
 	{
@@ -353,8 +397,6 @@ private:
 			return *this;
 		}
 
-		
-
 		static Constant null;
 		Identifier id;
 		var value;
@@ -365,7 +407,7 @@ private:
 };
 
 
-
+#if 0
 
 class MidiM : public ApiClass
 {
@@ -429,7 +471,7 @@ public:
 
 };
 
-
+#endif
 
 
 #endif  // JAVASCRIPTAPICLASS_H_INCLUDED

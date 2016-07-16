@@ -691,42 +691,45 @@ String ScriptingApi::Engine::doubleToString(double value, int digits)
 
 ScriptingApi::Synth::Synth(ScriptBaseProcessor *p, ModulatorSynth *ownerSynth):
 	ScriptingObject(p),
+	ApiClass(0),
 	owner(ownerSynth),
 	numPressedKeys(0),
 	sustainState(false)
 {
 	jassert(owner != nullptr);
 
-	setMethod("allowChildSynth", Wrapper::allowChildSynth);
-	setMethod("getNumChildSynths", Wrapper::getNumChildSynths);
-	setMethod("addToFront", Wrapper::addToFront);
-	setMethod("deferCallbacks", Wrapper::deferCallbacks);
-	setMethod("noteOff", Wrapper::noteOff);
-	setMethod("playNote", Wrapper::playNote);
-	setMethod("setAttribute", Wrapper::setAttribute);
-	setMethod("getAttribute", Wrapper::getAttribute);
-	setMethod("addNoteOn", Wrapper::addNoteOn);
-	setMethod("addNoteOff", Wrapper::addNoteOff);
-	setMethod("addController", Wrapper::addController);
-	setMethod("startTimer", Wrapper::startTimer);
-	setMethod("stopTimer", Wrapper::stopTimer);
-	setMethod("setMacroControl", Wrapper::setMacroControl);
-	setMethod("sendController", Wrapper::sendController);
-	setMethod("sendControllerToChildSynths", Wrapper::sendControllerToChildSynths);
-	setMethod("setModulatorAttribute", Wrapper::setModulatorAttribute);
-	setMethod("addModulator", Wrapper::addModulator);
-	setMethod("getModulator", Wrapper::getModulator);
-	setMethod("getAudioSampleProcessor", Wrapper::getAudioSampleProcessor);
-	setMethod("getTableProcessor", Wrapper::getTableProcessor);
-	setMethod("getSampler", Wrapper::getSampler);
-	setMethod("getEffect", Wrapper::getEffect);
-	setMethod("getMidiProcessor", Wrapper::getMidiProcessor);
-	setMethod("getChildSynth", Wrapper::getChildSynth);
-	setMethod("getModulatorIndex", Wrapper::getModulatorIndex);
-	setMethod("getNumPressedKeys", Wrapper::getNumPressedKeys);
-	setMethod("isLegatoInterval", Wrapper::isLegatoInterval);
-	setMethod("isSustainPedalDown", Wrapper::isSustainPedalDown);
-	setMethod("setClockSpeed", Wrapper::setClockSpeed);
+	
+
+	ADD_API_METHOD_2(allowChildSynth);
+	ADD_API_METHOD_0(getNumChildSynths);
+	ADD_API_METHOD_1(addToFront);
+	ADD_API_METHOD_1(deferCallbacks);
+	ADD_API_METHOD_1(noteOff);
+	ADD_API_METHOD_2(playNote);
+	ADD_API_METHOD_2(setAttribute);
+	ADD_API_METHOD_1(getAttribute);
+	ADD_API_METHOD_4(addNoteOn);
+	ADD_API_METHOD_3(addNoteOff);
+	ADD_API_METHOD_4(addController);
+	ADD_API_METHOD_1(startTimer);
+	ADD_API_METHOD_0(stopTimer);
+	ADD_API_METHOD_2(setMacroControl);
+	ADD_API_METHOD_2(sendController);
+	ADD_API_METHOD_2(sendControllerToChildSynths);
+	ADD_API_METHOD_4(setModulatorAttribute);
+	ADD_API_METHOD_3(addModulator);
+	ADD_API_METHOD_1(getModulator);
+	ADD_API_METHOD_1(getAudioSampleProcessor);
+	ADD_API_METHOD_1(getTableProcessor);
+	ADD_API_METHOD_1(getSampler);
+	ADD_API_METHOD_1(getEffect);
+	ADD_API_METHOD_1(getMidiProcessor);
+	ADD_API_METHOD_1(getChildSynth);
+	ADD_API_METHOD_2(getModulatorIndex);
+	ADD_API_METHOD_0(getNumPressedKeys);
+	ADD_API_METHOD_0(isLegatoInterval);
+	ADD_API_METHOD_0(isSustainPedalDown);
+	ADD_API_METHOD_1(setClockSpeed);
 	
 };
 

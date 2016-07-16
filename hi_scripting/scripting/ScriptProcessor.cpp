@@ -552,11 +552,6 @@ void ScriptProcessor::setupApi()
 	synthObject = new ScriptingApi::Synth(this, getOwnerSynth());
 	samplerObject = new ScriptingApi::Sampler(this, dynamic_cast<ModulatorSampler*>(getOwnerSynth()));
 
-    onNoteOnScope = new DynamicObject();
-    onNoteOffScope = new DynamicObject();
-    onControllerScope = new DynamicObject();
-    onTimerScope = new DynamicObject();
-    
 	DynamicObject *synthParameters = new DynamicObject();
 
 	for(int i = 0; i < getOwnerSynth()->getNumParameters(); i++)
@@ -569,11 +564,9 @@ void ScriptProcessor::setupApi()
 	scriptEngine->registerNativeObject("SynthParameters", synthParameters);
 
 	scriptEngine->registerApiClass(currentMidiMessage);
-
-	//scriptEngine->registerNativeObject("Console", new ScriptingApi::Console(this));
-	scriptEngine->registerApiClass(new ScriptingApi::Engine(this));
+	scriptEngine->registerApiClass(engineObject);
 	scriptEngine->registerApiClass(new ScriptingApi::Console(this));
-	scriptEngine->registerNativeObject("Synth", synthObject);
+	scriptEngine->registerApiClass(synthObject);
 	scriptEngine->registerNativeObject("Sampler", samplerObject);
 	scriptEngine->registerNativeObject("Globals", getMainController()->getGlobalVariableObject());
 

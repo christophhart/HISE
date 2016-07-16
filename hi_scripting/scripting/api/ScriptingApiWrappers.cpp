@@ -573,6 +573,8 @@ var ScriptingApi::Engine::Wrapper::getOS(const var::NativeFunctionArgs& args)
 
 // =================================================================================================== Synth Wrappers
 
+#if 0
+
 var ScriptingApi::Synth::Wrapper::allowChildSynth(const var::NativeFunctionArgs& args)
 {
 	if(Synth* thisObject = GET_OBJECT(Synth))
@@ -906,6 +908,7 @@ var ScriptingApi::Synth::Wrapper::setClockSpeed(const var::NativeFunctionArgs& a
 	return var::undefined();
 }
 
+#endif
 
 // ============================================================================================= SAMPLER Wrapper methods
 
