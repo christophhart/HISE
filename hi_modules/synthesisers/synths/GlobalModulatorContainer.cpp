@@ -118,7 +118,7 @@ void GlobalModulatorContainer::preStartVoice(int voiceIndex, int noteNumber)
 
 	for (int i = 0; i < data.size(); i++)
 	{
-		if (data[i]->getVoiceStartModulator() != nullptr || data[i]->getEnvelopeModulator() != nullptr)
+		if (data[i]->getType() == GlobalModulator::VoiceStart)
 		{
 			data[i]->saveValuesToBuffer(0, 0, voiceIndex, noteNumber);
 		}
@@ -131,7 +131,7 @@ void GlobalModulatorContainer::postVoiceRendering(int startSample, int numThisTi
 
 	for (int i = 0; i < data.size(); i++)
 	{
-		if (data[i]->getTimeVariantModulator() != nullptr)
+		if (data[i]->getType() == GlobalModulator::TimeVariant)
 		{
 			data[i]->saveValuesToBuffer(startSample, numThisTime, 0);
 		}
@@ -248,8 +248,8 @@ void GlobalModulatorData::saveValuesToBuffer(int startIndex, int numSamples, int
 {
 	switch (type)
 	{
-	case GlobalModulator::VoiceStart:	jassert(noteNumber != -1);  constantVoiceValues.set(noteNumber, getVoiceStartModulator()->getVoiceStartValue(voiceIndex)); break;
-	case GlobalModulator::TimeVariant:	FloatVectorOperations::copy(valuesForCurrentBuffer.getWritePointer(0, startIndex), getTimeVariantModulator()->getCalculatedValues(0) + startIndex, numSamples); break;
+	case GlobalModulator::VoiceStart:	jassert(noteNumber != -1);  constantVoiceValues.set(noteNumber, static_cast<VoiceStartModulator*>(modulator.get())->getVoiceStartValue(voiceIndex)); break;
+	case GlobalModulator::TimeVariant:	FloatVectorOperations::copy(valuesForCurrentBuffer.getWritePointer(0, startIndex), static_cast<TimeVariantModulator*>(modulator.get())->getCalculatedValues(0) + startIndex, numSamples); break;
 	case GlobalModulator::Envelope:		FloatVectorOperations::copy(valuesForCurrentBuffer.getWritePointer(voiceIndex, startIndex), getEnvelopeModulator()->getCalculatedValues(voiceIndex) + startIndex, numSamples); break;
     case GlobalModulator::numTypes: break;
 	}

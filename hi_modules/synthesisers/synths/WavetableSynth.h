@@ -387,7 +387,7 @@ public:
 	{
 		ModulatorSynthVoice::startNote(midiNoteNumber, 0.0f, nullptr, -1);
 
-		currentSound = dynamic_cast<WavetableSound*>(s);
+		currentSound = static_cast<WavetableSound*>(s);
 
         voiceUptime = 0.0;
         
@@ -795,7 +795,7 @@ public:
 
 			for(int i = 0; i < sounds.size(); i++)
 			{
-				dynamic_cast<WavetableSound*>(getSound(i))->calculatePitchRatio(sampleRate);
+				static_cast<WavetableSound*>(getSound(i))->calculatePitchRatio(sampleRate);
 			}
 		}
 
@@ -884,7 +884,7 @@ public:
 
 				for(int i = 0; i < getNumVoices(); i++)
 				{
-					dynamic_cast<WavetableSynthVoice*>(getVoice(i))->setHqMode(hqMode);
+					static_cast<WavetableSynthVoice*>(getVoice(i))->setHqMode(hqMode);
 				}
 				break;
 			}

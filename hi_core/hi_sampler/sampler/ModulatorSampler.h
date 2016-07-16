@@ -262,7 +262,7 @@ public:
 
 			for (int i = 0; i < sounds.size(); i++)
 			{
-				ModulatorSamplerSound *sound = dynamic_cast<ModulatorSamplerSound*>(getSound(i));
+				ModulatorSamplerSound *sound = static_cast<ModulatorSamplerSound*>(getSound(i));
 
 				sound->setPurged(shouldBePurged);
 			}
@@ -335,7 +335,7 @@ public:
 	{
 		for (int i = 0; i < sounds.size(); i++)
 		{
-			ModulatorSamplerSound *sound = dynamic_cast<ModulatorSamplerSound*>(sounds[i].get());
+			ModulatorSamplerSound *sound = static_cast<ModulatorSamplerSound*>(sounds[i].get());
 
 			for (int j = 0; j < sound->getNumMultiMicSamples(); j++)
 			{

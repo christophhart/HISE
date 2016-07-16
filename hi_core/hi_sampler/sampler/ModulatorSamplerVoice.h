@@ -86,6 +86,10 @@ protected:
 	
 	ModulatorSamplerSound *currentlyPlayingSamplerSound;
 
+
+	ModulatorSampler *sampler;
+
+
 	float velocityXFadeValue;
 	float sampleStartModValue;
 

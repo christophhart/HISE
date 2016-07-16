@@ -53,6 +53,8 @@ lastClockCounter(0),
 wasPlayingInLastBuffer(false),
 pitchModulationActive(false)
 {
+	getMatrix().init();
+
 	parameterNames.add("Gain");
 	parameterNames.add("Balance");
 	parameterNames.add("VoiceLimit");
@@ -403,7 +405,7 @@ void ModulatorSynth::preMidiCallback(const MidiMessage &m)
 	
 void ModulatorSynth::preStartVoice(int voiceIndex, int noteNumber)
 {
-	lastStartedVoice = dynamic_cast<ModulatorSynthVoice*>(getVoice(voiceIndex));
+	lastStartedVoice = static_cast<ModulatorSynthVoice*>(getVoice(voiceIndex));
 
 
 
@@ -670,7 +672,7 @@ void ModulatorSynth::killAllVoicesWithNoteNumber(int noteNumber)
 	{	
 		if(voices[i]->isPlayingChannel(1) && voices[i]->getCurrentlyPlayingNote() == noteNumber)
 		{
-			dynamic_cast<ModulatorSynthVoice*>(voices[i])->killVoice();
+			static_cast<ModulatorSynthVoice*>(voices[i])->killVoice();
 		}
 	}
 };
@@ -686,7 +688,7 @@ void ModulatorSynth::killLastVoice()
 	// search all tailing notes
 	for(int i = 0; i < voices.size(); i++)
 	{
-		ModulatorSynthVoice *v = dynamic_cast<ModulatorSynthVoice*>(voices[i]);
+		ModulatorSynthVoice *v = static_cast<ModulatorSynthVoice*>(voices[i]);
 
 		if(v->isBeingKilled() || !v->isTailingOff()) continue;
 
@@ -709,7 +711,7 @@ void ModulatorSynth::killLastVoice()
 	// search all notes
 	for(int i = 0; i < voices.size(); i++)
 	{
-		ModulatorSynthVoice *v = dynamic_cast<ModulatorSynthVoice*>(voices[i]);
+		ModulatorSynthVoice *v = static_cast<ModulatorSynthVoice*>(voices[i]);
 
 		if(v->isBeingKilled()) continue;
 
@@ -739,7 +741,7 @@ void ModulatorSynth::setKillFadeOutTime(double fadeTimeMilliSeconds)
 
 	for(int i = 0; i < voices.size(); i++)
 	{
-		dynamic_cast<ModulatorSynthVoice*>(voices[i])->setKillFadeFactor(killTimeFactor);
+		static_cast<ModulatorSynthVoice*>(voices[i])->setKillFadeFactor(killTimeFactor);
 	}
 }
 

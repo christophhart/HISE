@@ -1351,13 +1351,13 @@ public:
 	/** Small helper function that checks if the given processor is of the supplied type. */
 	template <class ProcessorType> static bool is(const Processor *p)
 	{
-		return dynamic_cast<const ProcessorType*>(p) != nullptr;
+		return typeid(ProcessorType) == typeid(p);
 	}
 
 	/** Small helper function that checks if the given processor is of the supplied type. */
 	template <class ProcessorType> static bool is(Processor *p)
 	{
-		return dynamic_cast<ProcessorType*>(p) != nullptr;
+		return typeid(ProcessorType) == typeid(p);
 	}
 
 	/** Checks if the Processor can be hidden. This returns true for all processors that show up in the popup list. */

@@ -250,14 +250,13 @@ class SafeChangeBroadcaster
 public:
 
 	SafeChangeBroadcaster() :
-		dispatcher(this),
-        flagTimer(this)
+		dispatcher(this)
 	{};
 
 	virtual ~SafeChangeBroadcaster()
 	{
 		dispatcher.cancelPendingUpdate();
-        flagTimer.stopTimer();
+        //flagTimer.stopTimer();
 	};
 
 	/** Sends a synchronous change message to all the registered listeners.
@@ -326,10 +325,10 @@ public:
 	*	The message will be delivered asynchronously by the main message thread, so this method will return immediately.
 	*	To call the listeners synchronously use sendSynchronousChangeMessage().
 	*/
-	void sendChangeMessage(const String &identifier = String::empty)
+	void sendChangeMessage(const String &/*identifier*/ = String::empty)
 	{
-        flagTimer.triggerUpdate();
-		//dispatcher.triggerAsyncUpdate();
+        //flagTimer.triggerUpdate();
+		dispatcher.triggerAsyncUpdate();
 	};
 
 private:
@@ -342,7 +341,7 @@ private:
         FlagTimer(SafeChangeBroadcaster *parent_):
           parent(parent_)
         {
-            startTimer(50);
+            //startTimer(50);
         }
  
         ~FlagTimer()
@@ -385,7 +384,7 @@ private:
 	};
 
 	AsyncBroadcaster dispatcher;
-    FlagTimer flagTimer;
+    //FlagTimer flagTimer;
 
 	String currentString;
 

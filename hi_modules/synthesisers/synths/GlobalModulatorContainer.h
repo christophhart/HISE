@@ -82,6 +82,8 @@ public:
 	EnvelopeModulator *getEnvelopeModulator() { return dynamic_cast<EnvelopeModulator*>(modulator.get()); }
 	const EnvelopeModulator *getEnvelopeModulator() const { return dynamic_cast<EnvelopeModulator*>(modulator.get()); }
 
+	GlobalModulator::ModulatorType getType() const noexcept{ return type; }
+
 private:
 
 	WeakReference<Processor> modulator;

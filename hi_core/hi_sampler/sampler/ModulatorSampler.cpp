@@ -122,7 +122,7 @@ void ModulatorSampler::refreshRRMap()
 	roundRobinMap.clear();
 	for (int i = 0; i < sounds.size(); i++)
 	{
-		const ModulatorSamplerSound *sound = dynamic_cast<const ModulatorSamplerSound*>(sounds.getUnchecked(i).get());
+		const ModulatorSamplerSound *sound = static_cast<const ModulatorSamplerSound*>(sounds.getUnchecked(i).get());
 		roundRobinMap.addSample(sound);
 	}
 }
@@ -333,13 +333,13 @@ void ModulatorSampler::setInternalAttribute(int parameterIndex, float newValue)
 const ModulatorSamplerSound * ModulatorSampler::getSound(int soundIndex) const
 {
 	SynthesiserSound *s = sounds[soundIndex];
-	return dynamic_cast<const ModulatorSamplerSound*>(s);
+	return static_cast<const ModulatorSamplerSound*>(s);
 }
 
 ModulatorSamplerSound * ModulatorSampler::getSound(int soundIndex)
 {
 	SynthesiserSound *s = sounds[soundIndex];
-	return dynamic_cast<ModulatorSamplerSound*>(s);
+	return static_cast<ModulatorSamplerSound*>(s);
 }
 
 Processor * ModulatorSampler::getChildProcessor(int processorIndex)
@@ -428,8 +428,8 @@ void ModulatorSampler::refreshStreamingBuffers()
 	for (int i = 0; i < getNumVoices(); i++)
 	{
 		SynthesiserVoice *v = getVoice(i);
-		dynamic_cast<ModulatorSamplerVoice*>(v)->resetVoice();
-		dynamic_cast<ModulatorSamplerVoice*>(v)->setLoaderBufferSize(bufferSize);
+		static_cast<ModulatorSamplerVoice*>(v)->resetVoice();
+		static_cast<ModulatorSamplerVoice*>(v)->setLoaderBufferSize(bufferSize);
 	}
 }
 
@@ -441,9 +441,9 @@ void ModulatorSampler::deleteSound(ModulatorSamplerSound *s)
 
 	for (int i = 0; i < voices.size(); i++)
 	{
-		if (dynamic_cast<ModulatorSamplerVoice*>(voices[i])->getCurrentlyPlayingSamplerSound() == s)
+		if (static_cast<ModulatorSamplerVoice*>(voices[i])->getCurrentlyPlayingSamplerSound() == s)
 		{
-			dynamic_cast<ModulatorSamplerVoice*>(voices[i])->resetVoice();
+			static_cast<ModulatorSamplerVoice*>(voices[i])->resetVoice();
 		}
 	}
 
@@ -455,13 +455,13 @@ void ModulatorSampler::deleteSound(ModulatorSamplerSound *s)
 
 	sounds.removeObject(s);
 
-	getMainController()->getSampleManager().getModulatorSamplerSoundPool()->deleteSound(dynamic_cast<ModulatorSamplerSound*>(refPointer.get()));
+	getMainController()->getSampleManager().getModulatorSamplerSoundPool()->deleteSound(static_cast<ModulatorSamplerSound*>(refPointer.get()));
 
 	refreshMemoryUsage();
 
     for(int i = deletedIndex; i < getNumSounds(); i++)
     {
-        dynamic_cast<ModulatorSamplerSound*>(sounds[i].get())->setNewIndex(i);
+        static_cast<ModulatorSamplerSound*>(sounds[i].get())->setNewIndex(i);
     }
     
 	sendChangeMessage();
@@ -475,7 +475,7 @@ void ModulatorSampler::deleteAllSounds()
 
 	for (int i = 0; i < voices.size(); i++)
 	{
-		dynamic_cast<ModulatorSamplerVoice*>(getVoice(i))->resetVoice();
+		static_cast<ModulatorSamplerVoice*>(getVoice(i))->resetVoice();
 	}
 
 
@@ -511,7 +511,7 @@ double ModulatorSampler::getDiskUsage()
 
 	for (int i = 0; i < getNumVoices(); i++)
 	{
-		diskUsage += dynamic_cast<ModulatorSamplerVoice*>(getVoice(i))->getDiskUsage();
+		diskUsage += static_cast<ModulatorSamplerVoice*>(getVoice(i))->getDiskUsage();
 	}
 
 	return diskUsage * 100.0;
@@ -532,7 +532,7 @@ void ModulatorSampler::refreshMemoryUsage()
 
 	for (int i = 0; i < getNumVoices(); i++)
 	{
-		actualPreloadSize += dynamic_cast<ModulatorSamplerVoice*>(getVoice(i))->getStreamingBufferSize();
+		actualPreloadSize += static_cast<ModulatorSamplerVoice*>(getVoice(i))->getStreamingBufferSize();
 	}
 
 	const int64 streamBufferSizePerVoice = 2 *				// two buffers
@@ -573,7 +573,7 @@ void ModulatorSampler::setVoiceAmount(int newVoiceAmount)
 				addVoice(new ModulatorSamplerVoice(this));
 			}
 
-			if (Processor::getSampleRate() != -1.0) dynamic_cast<ModulatorSamplerVoice*>(getVoice(i))->prepareToPlay(Processor::getSampleRate(), getBlockSize());
+			if (Processor::getSampleRate() != -1.0) static_cast<ModulatorSamplerVoice*>(getVoice(i))->prepareToPlay(Processor::getSampleRate(), getBlockSize());
 		};
 
 		setKillFadeOutTime((int)getAttribute(ModulatorSynth::KillFadeTime)); 
@@ -629,7 +629,7 @@ void ModulatorSampler::resetNotes()
 {
 	for (int i = 0; i < voices.size(); i++)
 	{
-		dynamic_cast<ModulatorSamplerVoice*>(voices[i])->resetVoice();
+		static_cast<ModulatorSamplerVoice*>(voices[i])->resetVoice();
 	}
 }
 
@@ -679,7 +679,7 @@ void ModulatorSampler::preStartVoice(int voiceIndex, int noteNumber)
 
 	samplerDisplayValues.currentSampleStartPos = sampleStartModValue;
 
-	dynamic_cast<ModulatorSamplerVoice*>(getLastStartedVoice())->setSampleStartModValue(sampleStartModValue);
+	static_cast<ModulatorSamplerVoice*>(getLastStartedVoice())->setSampleStartModValue(sampleStartModValue);
 }
 
 void ModulatorSampler::preVoiceRendering(int startSample, int numThisTime)
@@ -763,7 +763,7 @@ void ModulatorSampler::calculateCrossfadeModulationValuesForVoice(int voiceIndex
 
 	FloatVectorOperations::multiply(crossFadeValues, timeVariantCrossFadeValues, startSample + numSamples);
 
-	if (isLastStartedVoice(dynamic_cast<ModulatorSynthVoice*>(getVoice(voiceIndex))) && numSamples > 0)
+	if (isLastStartedVoice(static_cast<ModulatorSynthVoice*>(getVoice(voiceIndex))) && numSamples > 0)
 	{
 		setCrossfadeTableValue(crossFadeValues[startSample]);
 	}

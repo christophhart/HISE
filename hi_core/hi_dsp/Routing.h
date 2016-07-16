@@ -107,10 +107,15 @@ public:
 
 		void setTargetProcessor(Processor *p);
 		String getTargetName() const { return targetProcessor.get() != nullptr ? targetProcessor.get()->getId() : "HISE Output"; }
-		String getSourceName() const { return dynamic_cast<Processor*>(owningProcessor)->getId(); }
+		String getSourceName() const { return thisAsProcessor->getId(); }
 
 		void setGainValues(float *numMaxChannelValues, bool isSourceValue);
 		float getGainValue(int channelIndex, bool getSourceValue) const noexcept { return getSourceValue ? sourceGainValues[channelIndex] : targetGainValues[channelIndex]; };
+
+		void init()
+		{
+			thisAsProcessor = dynamic_cast<Processor*>(owningProcessor);
+		}
 
 	protected:
 
@@ -126,6 +131,7 @@ public:
 
 		WeakReference<Processor> targetProcessor;
 		RoutableProcessor *owningProcessor;
+		Processor *thisAsProcessor;
 
 		bool resizeAllowed;
 		bool allowEnablingOnly;
@@ -146,8 +152,6 @@ public:
 	/** Opens a routing editor in the quasi modal popup. Pass in any component that is a child component of the backend window. */
 	void editRouting(Component *childComponent);
 
-	
-
 	const MatrixData &getMatrix() const { return data; };
 
 	MatrixData &getMatrix() { return data; };
@@ -164,13 +168,9 @@ public:
 	/** Quick way to get the right target channel. */
 	int getRightDestinationChannel() const  { return leftTargetChannel; };
 
-	
-
 	MatrixData data;
 
 protected:
-
-
 
 private:
 

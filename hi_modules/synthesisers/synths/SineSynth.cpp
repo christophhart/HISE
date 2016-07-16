@@ -71,7 +71,7 @@ void SineSynthVoice::calculateBlock(int startSample, int numSamples)
 
 	const float *modValues = getVoiceGainValues(startSample, numSamples);
 
-	float saturation = dynamic_cast<SineSynth*>(getOwnerSynth())->saturationAmount;
+	float saturation = static_cast<SineSynth*>(getOwnerSynth())->saturationAmount;
 
 	float *leftValues = voiceBuffer.getWritePointer(0, startSample);
 	

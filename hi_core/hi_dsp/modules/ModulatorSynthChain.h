@@ -311,13 +311,13 @@ public:
 		/** Returns the processor at the index. */
 		virtual Processor *getProcessor(int processorIndex) override
 		{
-			return dynamic_cast<Processor*>(synth->synths[processorIndex]);
+			return synth->synths[processorIndex];
 		};
 
 		/** Returns the processor at the index. */
 		virtual const Processor *getProcessor(int processorIndex) const override
 		{
-			return dynamic_cast<Processor*>(synth->synths[processorIndex]);
+			return synth->synths[processorIndex];
 		};
 
 		/** Returns the amount of processors. */
@@ -661,11 +661,10 @@ public:
 
 		if (fmCorrectlySetup)
 		{
-			ModulatorSynth *modSynth = dynamic_cast<ModulatorSynth*>(getChildProcessor(modIndex));
-			ModulatorChain *gainChainOfModSynth = dynamic_cast<ModulatorChain*>(modSynth->getChildProcessor(ModulatorSynth::GainModulation));
+			ModulatorSynth *modSynth = static_cast<ModulatorSynth*>(getChildProcessor(modIndex));
+			ModulatorChain *gainChainOfModSynth = static_cast<ModulatorChain*>(modSynth->getChildProcessor(ModulatorSynth::GainModulation));
 
 			gainChainOfModSynth->renderNextBlock(modSynthGainValues, startSample, numThisTime);
-
 		}
 
 		while(iterator.getNextAllowedChild(childSynth))
@@ -736,12 +735,12 @@ public:
 		/** Returns the processor at the index. */
 		virtual Processor *getProcessor(int processorIndex)
 		{
-			return dynamic_cast<Processor*>(group->synths[processorIndex]);
+			return (group->synths[processorIndex]);
 		};
 
 		const virtual Processor *getProcessor(int processorIndex) const override
 		{
-			return dynamic_cast<Processor*>(group->synths[processorIndex]);
+			return (group->synths[processorIndex]);
 		};
 
 		/** Returns the amount of processors. */

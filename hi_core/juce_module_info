@@ -46,6 +46,9 @@
 					  "hi_dsp/protoplug/exports/*",
 					  "hi_dsp/protoplug/guiclasses/*",
 					  "hi_dsp/protoplug/res/*",
-					  "hi_dsp/protoplug/vflib/*"
+					  "hi_dsp/protoplug/vflib/*",
+					  "hi_dsp/hi_sampler/*",
+					  "hi_dsp/hi_sampler/sampler/*",
+					  "hi_dsp/hi_sampler/sampler/components/*"
 					  ]
 }

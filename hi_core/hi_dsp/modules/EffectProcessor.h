@@ -57,7 +57,7 @@ public:
 
 		for(int i = 0; i < getNumChildProcessors(); i++)
 		{
-			ModulatorChain *mc = dynamic_cast<ModulatorChain*>(getChildProcessor(i));
+			ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(i));
 			jassert(mc != nullptr);
 			if(mc != nullptr)
             {
@@ -90,9 +90,7 @@ public:
 	{
 		for(int i = 0; i < getNumInternalChains(); i++)
 		{
-			ModulatorChain *mc = dynamic_cast<ModulatorChain*>(getChildProcessor(i));
-			jassert(mc != nullptr);
-			mc->handleMidiEvent(m);
+			static_cast<ModulatorChain*>(getChildProcessor(i))->handleMidiEvent(m);
 		}
 	};
 
@@ -156,12 +154,12 @@ protected:
 
 	float getCurrentModulationValue(int chainIndex, int voiceIndex, int samplePosition)
 	{
-		return dynamic_cast<ModulatorChain*>(getChildProcessor(chainIndex))->getVoiceValues(voiceIndex)[samplePosition];
+		return static_cast<ModulatorChain*>(getChildProcessor(chainIndex))->getVoiceValues(voiceIndex)[samplePosition];
 	}
 
 	void calculateChain(int chainIndex, int voiceIndex, int startSample, int numSamples)
 	{
-		ModulatorChain *mc = dynamic_cast<ModulatorChain*>(getChildProcessor(chainIndex));
+		ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(chainIndex));
 
 		jassert(mc != nullptr);
 
@@ -198,6 +196,7 @@ class MasterEffectProcessor: public EffectProcessor,
 public:
 	MasterEffectProcessor(MainController *mc, const String &uid): EffectProcessor(mc, uid)
 	{
+		getMatrix().init();
 		getMatrix().setOnlyEnablingAllowed(true);
 		getMatrix().setNumAllowedConnections(2);
 	};
@@ -264,7 +263,7 @@ public:
 	{
 		for(int i = 0; i < getNumInternalChains(); i++)
 		{
-			ModulatorChain *mc = dynamic_cast<ModulatorChain*>(getChildProcessor(i));
+			ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(i));
 			jassert(mc != nullptr);
 			mc->startVoice(0);
 		}
@@ -274,7 +273,7 @@ public:
 	{
 		for(int i = 0; i < getNumInternalChains(); i++)
 		{
-			ModulatorChain *mc = dynamic_cast<ModulatorChain*>(getChildProcessor(i));
+			ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(i));
 			jassert(mc != nullptr);
 			mc->stopVoice(0);
 		}
@@ -404,10 +403,8 @@ public:
 	{
 		for(int i = 0; i < getNumInternalChains(); i++)
 		{
-			ModulatorChain *mc = dynamic_cast<ModulatorChain*>(getChildProcessor(i));
-			jassert(mc != nullptr);
+			ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(i));
 			mc->renderVoice(0, startSample, numSamples);
-
 			mc->renderNextBlock(getBufferForChain(i), startSample, numSamples);
 
 			FloatVectorOperations::multiply(getBufferForChain(i).getWritePointer(0, startSample), mc->getVoiceValues(0), numSamples);
@@ -420,7 +417,7 @@ public:
 
 		for(int i = 0; i < getNumInternalChains(); i++)
 		{
-			ModulatorChain *mc = dynamic_cast<ModulatorChain*>(getChildProcessor(i));
+			ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(i));
 			jassert(mc != nullptr);
 			mc->startVoice(0);
 		}
@@ -435,7 +432,7 @@ public:
 	{
 		for(int i = 0; i < getNumInternalChains(); i++)
 		{
-			ModulatorChain *mc = dynamic_cast<ModulatorChain*>(getChildProcessor(i));
+			ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(i));
 			jassert(mc != nullptr);
 			mc->stopVoice(0);
 		}
@@ -529,15 +526,14 @@ public:
 	{
 		for(int i = 0; i < getNumInternalChains(); i++)
 		{
-			ModulatorChain *mc = dynamic_cast<ModulatorChain*>(getChildProcessor(i));
-			jassert(mc != nullptr);
+			ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(i));
 			mc->renderNextBlock(getBufferForChain(i), startSample, numSamples);
 		}
 	}
 
 	const float *getModulationValuesForStepsizeCalculation(int chainIndex, int voiceIndex) override
 	{
-		ModulatorChain *mc = dynamic_cast<ModulatorChain*>(getChildProcessor(chainIndex));
+		ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(chainIndex));
 		jassert(mc != nullptr);
 		return mc->getVoiceValues(voiceIndex);
 	}
@@ -594,7 +590,7 @@ public:
 	{
 		for(int i = 0; i < getNumInternalChains(); i++)
 		{
-			ModulatorChain *mc = dynamic_cast<ModulatorChain*>(getChildProcessor(i));
+			ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(i));
 			jassert(mc != nullptr);
 			mc->startVoice(voiceIndex);
 		}
@@ -604,7 +600,7 @@ public:
 	{
 		for(int i = 0; i < getNumInternalChains(); i++)
 		{
-			ModulatorChain *mc = dynamic_cast<ModulatorChain*>(getChildProcessor(i));
+			ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(i));
 			jassert(mc != nullptr);
 			mc->stopVoice(voiceIndex);
 		}
@@ -615,7 +611,7 @@ public:
 	{
 		for(int i = 0; i < getNumInternalChains(); i++)
 		{
-			ModulatorChain *mc = dynamic_cast<ModulatorChain*>(getChildProcessor(i));
+			ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(i));
 			jassert(mc != nullptr);
 			mc->reset(voiceIndex);
 		}
@@ -625,7 +621,7 @@ public:
 	{
 		for(int i = 0; i < getNumInternalChains(); i++)
 		{
-			ModulatorChain *mc = dynamic_cast<ModulatorChain*>(getChildProcessor(i));
+			ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(i));
 			jassert(mc != nullptr);
 			mc->handleMidiEvent(m);
 		}

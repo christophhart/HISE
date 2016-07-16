@@ -450,7 +450,7 @@ void ScriptingApi::Engine::setLowestKeyToDisplay(int keyNumber)
 	getScriptProcessor()->getMainController()->setLowestKeyToDisplay(keyNumber);
 }
 
-void ScriptingApi::Engine::include(const String &string)
+void ScriptingApi::Engine::include(const String &/*string*/)
 {
 	jassertfalse;
 }

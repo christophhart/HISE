@@ -40,6 +40,7 @@ resizeAllowed(false),
 allowEnablingOnly(false),
 editorShown(false)
 {
+	
 	resetToDefault();
 }
 
@@ -419,7 +420,7 @@ void RoutableProcessor::MatrixData::setNumDestinationChannels(int newNumChannels
 
 CriticalSection & RoutableProcessor::MatrixData::getLock()
 {
-	return dynamic_cast<Processor*>(owningProcessor)->getMainController()->getMainSynthChain()->getLock();
+	return thisAsProcessor->getMainController()->getMainSynthChain()->getLock();
 }
 
 void RoutableProcessor::MatrixData::setTargetProcessor(Processor *p)

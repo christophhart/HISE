@@ -310,7 +310,7 @@ void ModulatorSynthGroupVoice::startNote (int midiNoteNumber, float velocity, Sy
 
 			for(int i = 0; i < childSynth->getNumSounds(); i++)
 			{
-				ModulatorSynthSound *s = dynamic_cast<ModulatorSynthSound*>(childSynth->getSound(i));
+				ModulatorSynthSound *s = static_cast<ModulatorSynthSound*>(childSynth->getSound(i));
 
 				if(s->appliesToMessage(1, midiNoteNumber, (int)(velocity * 127)))
 				{
@@ -532,7 +532,7 @@ void ModulatorSynthGroup::checkFmState()
 	{
 		enablePitchModulation(true);
 
-		dynamic_cast<ModulatorSynth*>(getChildProcessor(carrierIndex))->enablePitchModulation(true);
+		static_cast<ModulatorSynth*>(getChildProcessor(carrierIndex))->enablePitchModulation(true);
 	}
 
 	
@@ -547,7 +547,7 @@ void ModulatorSynthGroupVoice::calculateBlock(int startSample, int numSamples)
 	// Clear the buffer, since all child voices are added to this so it must be empty.
 	voiceBuffer.clear();
 
-	ModulatorSynthGroup *group = dynamic_cast<ModulatorSynthGroup*>(getOwnerSynth());
+	ModulatorSynthGroup *group = static_cast<ModulatorSynthGroup*>(getOwnerSynth());
 
 	
 	const float *voicePitchValues = getVoicePitchValues();
@@ -556,10 +556,10 @@ void ModulatorSynthGroupVoice::calculateBlock(int startSample, int numSamples)
 	{
 		// Calculate the modulator
 
-		ModulatorSynth *modSynth = dynamic_cast<ModulatorSynth*>(group->getChildProcessor(group->modIndex));
+		ModulatorSynth *modSynth = static_cast<ModulatorSynth*>(group->getChildProcessor(group->modIndex));
 		jassert(modSynth != nullptr);
 
-		ModulatorSynthVoice *modVoice = dynamic_cast<ModulatorSynthVoice*>(modSynth->getVoice(voiceIndex));
+		ModulatorSynthVoice *modVoice = static_cast<ModulatorSynthVoice*>(modSynth->getVoice(voiceIndex));
 
 		if (modSynth->isBypassed() || modVoice->isInactive()) return;
 
@@ -593,10 +593,10 @@ void ModulatorSynthGroupVoice::calculateBlock(int startSample, int numSamples)
 
 		// Calculate the carrier voice
 
-		ModulatorSynth *carrierSynth = dynamic_cast<ModulatorSynth*>(group->getChildProcessor(group->carrierIndex));
+		ModulatorSynth *carrierSynth = static_cast<ModulatorSynth*>(group->getChildProcessor(group->carrierIndex));
 		jassert(carrierSynth != nullptr);
 
-		ModulatorSynthVoice *carrierVoice = dynamic_cast<ModulatorSynthVoice*>(carrierSynth->getVoice(voiceIndex));
+		ModulatorSynthVoice *carrierVoice = static_cast<ModulatorSynthVoice*>(carrierSynth->getVoice(voiceIndex));
 		
 
 		if (carrierSynth->isBypassed() || carrierVoice->isInactive()) return;

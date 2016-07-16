@@ -39,10 +39,10 @@ void ModulatorSamplerVoice::startNote(int midiNoteNumber,
 
 	jassert(s != nullptr);
 
-	currentlyPlayingSamplerSound = dynamic_cast<ModulatorSamplerSound*>(s);
+	currentlyPlayingSamplerSound = static_cast<ModulatorSamplerSound*>(s);
 
 	velocityXFadeValue = currentlyPlayingSamplerSound->getGainValueForVelocityXFade((int)(velocity * 127.0f));
-	const bool samePitch = !dynamic_cast<ModulatorSampler*>(getOwnerSynth())->isPitchTrackingEnabled();
+	const bool samePitch = !static_cast<ModulatorSampler*>(getOwnerSynth())->isPitchTrackingEnabled();
 
 	StreamingSamplerSound *sound = currentlyPlayingSamplerSound->getReferenceToSound();
 	const int sampleStartModulationDelta = (int)(sampleStartModValue * sound->getSampleStartModulation());
@@ -182,14 +182,14 @@ size_t ModulatorSamplerVoice::getStreamingBufferSize() const
 const float * ModulatorSamplerVoice::getCrossfadeModulationValues(int startSample, int numSamples)
 {
 
-	dynamic_cast<ModulatorSampler*>(getOwnerSynth())->calculateCrossfadeModulationValuesForVoice(voiceIndex, startSample, numSamples, currentlyPlayingSamplerSound->getRRGroup() - 1);
+	static_cast<ModulatorSampler*>(getOwnerSynth())->calculateCrossfadeModulationValuesForVoice(voiceIndex, startSample, numSamples, currentlyPlayingSamplerSound->getRRGroup() - 1);
 
-	return dynamic_cast<ModulatorSampler*>(getOwnerSynth())->getCrossfadeModValues(voiceIndex);
+	return sampler->getCrossfadeModValues(voiceIndex);
 }
 
 void ModulatorSamplerVoice::resetVoice()
 {
-	dynamic_cast<ModulatorSampler*>(getOwnerSynth())->resetNoteDisplay(this->getCurrentlyPlayingNote());
+	sampler->resetNoteDisplay(this->getCurrentlyPlayingNote());
 
 	wrappedVoice.resetVoice();
 
@@ -203,7 +203,8 @@ ModulatorSamplerVoice::ModulatorSamplerVoice(ModulatorSynth *ownerSynth) :
 ModulatorSynthVoice(ownerSynth),
 sampleStartModValue(0.0f),
 velocityXFadeValue(1.0f),
-wrappedVoice(dynamic_cast<ModulatorSampler*>(ownerSynth)->getBackgroundThreadPool())
+sampler(dynamic_cast<ModulatorSampler*>(ownerSynth)),
+wrappedVoice(sampler->getBackgroundThreadPool())
 {};
 
 
@@ -227,10 +228,10 @@ void MultiMicModulatorSamplerVoice::startNote(int midiNoteNumber, float velocity
 
 	jassert(s != nullptr);
 
-	currentlyPlayingSamplerSound = dynamic_cast<ModulatorSamplerSound*>(s);
+	currentlyPlayingSamplerSound = static_cast<ModulatorSamplerSound*>(s);
 
 	velocityXFadeValue = currentlyPlayingSamplerSound->getGainValueForVelocityXFade((int)(velocity * 127.0f));
-	const bool samePitch = !dynamic_cast<ModulatorSampler*>(getOwnerSynth())->isPitchTrackingEnabled();
+	const bool samePitch = !sampler->isPitchTrackingEnabled();
 
 	const int rootNote = samePitch ? midiNoteNumber : currentlyPlayingSamplerSound->getRootNote();
 	const int sampleStartModulationDelta = (int)(sampleStartModValue * currentlyPlayingSamplerSound->getReferenceToSound()->getSampleStartModulation());
@@ -262,8 +263,6 @@ void MultiMicModulatorSamplerVoice::startNote(int midiNoteNumber, float velocity
 
 void MultiMicModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 {
-	ModulatorSampler *sampler = static_cast<ModulatorSampler*>(getOwnerSynth());
-
 	const int startIndex = startSample;
 	const int samplesInBlock = numSamples;
 
@@ -392,7 +391,7 @@ size_t MultiMicModulatorSamplerVoice::getStreamingBufferSize() const
 
 void MultiMicModulatorSamplerVoice::resetVoice()
 {
-	dynamic_cast<ModulatorSampler*>(getOwnerSynth())->resetNoteDisplay(this->getCurrentlyPlayingNote());
+	sampler->resetNoteDisplay(this->getCurrentlyPlayingNote());
 
 	for (int i = 0; i < wrappedVoices.size(); i++)
 	{
