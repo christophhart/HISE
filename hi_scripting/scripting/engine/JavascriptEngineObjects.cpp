@@ -121,63 +121,203 @@ struct HiseJavascriptEngine::RootObject::StringClass : public DynamicObject
 };
 
 //==============================================================================
-struct HiseJavascriptEngine::RootObject::MathClass : public DynamicObject
+struct HiseJavascriptEngine::RootObject::MathClass : public ApiClass
 {
-	MathClass()
+	MathClass():
+	ApiClass(2)
 	{
-		setMethod("abs", Math_abs);              setMethod("round", Math_round);
-		setMethod("random", Math_random);           setMethod("randInt", Math_randInt);
-		setMethod("min", Math_min);              setMethod("max", Math_max);
-		setMethod("range", Math_range);            setMethod("sign", Math_sign);
-		setMethod("toDegrees", Math_toDegrees);        setMethod("toRadians", Math_toRadians);
-		setMethod("sin", Math_sin);              setMethod("asin", Math_asin);
-		setMethod("sinh", Math_sinh);             setMethod("asinh", Math_asinh);
-		setMethod("cos", Math_cos);              setMethod("acos", Math_acos);
-		setMethod("cosh", Math_cosh);             setMethod("acosh", Math_acosh);
-		setMethod("tan", Math_tan);              setMethod("atan", Math_atan);
-		setMethod("tanh", Math_tanh);             setMethod("atanh", Math_atanh);
-		setMethod("log", Math_log);              setMethod("log10", Math_log10);
-		setMethod("exp", Math_exp);              setMethod("pow", Math_pow);
-		setMethod("sqr", Math_sqr);              setMethod("sqrt", Math_sqrt);
-		setMethod("ceil", Math_ceil);             setMethod("floor", Math_floor);
+		ADD_API_METHOD_1(abs);              
+		ADD_API_METHOD_1(round);
+		ADD_API_METHOD_0(random);           
+		ADD_API_METHOD_2(randInt);
+		ADD_API_METHOD_2(min);              
+		ADD_API_METHOD_2(max);
+		ADD_API_METHOD_3(range);            
+		ADD_API_METHOD_1(sign);
+		ADD_API_METHOD_1(toDegrees);        
+		ADD_API_METHOD_1(toRadians);
+		ADD_API_METHOD_1(sin);              
+		ADD_API_METHOD_1(asin);
+		ADD_API_METHOD_1(sinh);             
+		ADD_API_METHOD_1(asinh);
+		ADD_API_METHOD_1(cos);              
+		ADD_API_METHOD_1(acos);
+		ADD_API_METHOD_1(cosh);             
+		ADD_API_METHOD_1(acosh);
+		ADD_API_METHOD_1(tan);              
+		ADD_API_METHOD_1(atan);
+		ADD_API_METHOD_1(tanh);             
+		ADD_API_METHOD_1(atanh);
+		ADD_API_METHOD_1(log);              
+		ADD_API_METHOD_1(log10);
+		ADD_API_METHOD_1(exp);              
+		ADD_API_METHOD_2(pow);
+		ADD_API_METHOD_1(sqr);              
+		ADD_API_METHOD_1(sqrt);
+		ADD_API_METHOD_1(ceil);             
+		ADD_API_METHOD_1(floor);
 
-		setProperty("PI", double_Pi);
-		setProperty("E", exp(1.0));
+		addConstant("PI", double_Pi);
+		addConstant("E", exp(1.0));
 	}
 
-	static var Math_random(Args)   { return Random::getSystemRandom().nextDouble(); }
-	static var Math_randInt(Args a) { return Random::getSystemRandom().nextInt(Range<int>(getInt(a, 0), getInt(a, 1))); }
-	static var Math_abs(Args a) { return isInt(a, 0) ? var(std::abs(getInt(a, 0))) : var(std::abs(getDouble(a, 0))); }
-	static var Math_round(Args a) { return isInt(a, 0) ? var(roundToInt(getInt(a, 0))) : var(roundToInt(getDouble(a, 0))); }
-	static var Math_sign(Args a) { return isInt(a, 0) ? var(sign(getInt(a, 0))) : var(sign(getDouble(a, 0))); }
-	static var Math_range(Args a) { return isInt(a, 0) ? var(jlimit(getInt(a, 1), getInt(a, 2), getInt(a, 0))) : var(jlimit(getDouble(a, 1), getDouble(a, 2), getDouble(a, 0))); }
-	static var Math_min(Args a) { return (isInt(a, 0) && isInt(a, 1)) ? var(jmin(getInt(a, 0), getInt(a, 1))) : var(jmin(getDouble(a, 0), getDouble(a, 1))); }
-	static var Math_max(Args a) { return (isInt(a, 0) && isInt(a, 1)) ? var(jmax(getInt(a, 0), getInt(a, 1))) : var(jmax(getDouble(a, 0), getDouble(a, 1))); }
-	static var Math_toDegrees(Args a) { return radiansToDegrees(getDouble(a, 0)); }
-	static var Math_toRadians(Args a) { return degreesToRadians(getDouble(a, 0)); }
-	static var Math_sin(Args a) { return sin(getDouble(a, 0)); }
-	static var Math_asin(Args a) { return asin(getDouble(a, 0)); }
-	static var Math_cos(Args a) { return cos(getDouble(a, 0)); }
-	static var Math_acos(Args a) { return acos(getDouble(a, 0)); }
-	static var Math_sinh(Args a) { return sinh(getDouble(a, 0)); }
-	static var Math_asinh(Args a) { return asinh(getDouble(a, 0)); }
-	static var Math_cosh(Args a) { return cosh(getDouble(a, 0)); }
-	static var Math_acosh(Args a) { return acosh(getDouble(a, 0)); }
-	static var Math_tan(Args a) { return tan(getDouble(a, 0)); }
-	static var Math_tanh(Args a) { return tanh(getDouble(a, 0)); }
-	static var Math_atan(Args a) { return atan(getDouble(a, 0)); }
-	static var Math_atanh(Args a) { return atanh(getDouble(a, 0)); }
-	static var Math_log(Args a) { return log(getDouble(a, 0)); }
-	static var Math_log10(Args a) { return log10(getDouble(a, 0)); }
-	static var Math_exp(Args a) { return exp(getDouble(a, 0)); }
-	static var Math_pow(Args a) { return pow(getDouble(a, 0), getDouble(a, 1)); }
-	static var Math_sqr(Args a) { double x = getDouble(a, 0); return x * x; }
-	static var Math_sqrt(Args a) { return std::sqrt(getDouble(a, 0)); }
-	static var Math_ceil(Args a) { return std::ceil(getDouble(a, 0)); }
-	static var Math_floor(Args a) { return std::floor(getDouble(a, 0)); }
+	Identifier getName() const override { static const Identifier i("Math"); return i; }
 
-	static Identifier getClassName()   { static const Identifier i("Math"); return i; }
-	template <typename Type> static Type sign(Type n) noexcept{ return n > 0 ? (Type)1 : (n < 0 ? (Type)-1 : 0); }
+	struct Wrapper
+	{
+		API_METHOD_WRAPPER_1(MathClass, abs);
+		API_METHOD_WRAPPER_1(MathClass, round);
+		API_METHOD_WRAPPER_0(MathClass, random);
+		API_METHOD_WRAPPER_2(MathClass, randInt);
+		API_METHOD_WRAPPER_2(MathClass, min);
+		API_METHOD_WRAPPER_2(MathClass, max);
+		API_METHOD_WRAPPER_3(MathClass, range);
+		API_METHOD_WRAPPER_1(MathClass, sign);
+		API_METHOD_WRAPPER_1(MathClass, toDegrees);
+		API_METHOD_WRAPPER_1(MathClass, toRadians);
+		API_METHOD_WRAPPER_1(MathClass, sin);
+		API_METHOD_WRAPPER_1(MathClass, asin);
+		API_METHOD_WRAPPER_1(MathClass, sinh);
+		API_METHOD_WRAPPER_1(MathClass, asinh);
+		API_METHOD_WRAPPER_1(MathClass, cos);
+		API_METHOD_WRAPPER_1(MathClass, acos);
+		API_METHOD_WRAPPER_1(MathClass, cosh);
+		API_METHOD_WRAPPER_1(MathClass, acosh);
+		API_METHOD_WRAPPER_1(MathClass, tan);
+		API_METHOD_WRAPPER_1(MathClass, atan);
+		API_METHOD_WRAPPER_1(MathClass, tanh);
+		API_METHOD_WRAPPER_1(MathClass, atanh);
+		API_METHOD_WRAPPER_1(MathClass, log);
+		API_METHOD_WRAPPER_1(MathClass, log10);
+		API_METHOD_WRAPPER_1(MathClass, exp);
+		API_METHOD_WRAPPER_2(MathClass, pow);
+		API_METHOD_WRAPPER_1(MathClass, sqr);
+		API_METHOD_WRAPPER_1(MathClass, sqrt);
+		API_METHOD_WRAPPER_1(MathClass, ceil);
+		API_METHOD_WRAPPER_1(MathClass, floor);
+	};
+
+	/** Returns a random number between 0.0 and 1.0. */
+	var random()
+	{ 
+		return Random::getSystemRandom().nextDouble(); 
+	}
+
+	/** Returns a random integer between the low and the high values. */
+	var randInt(var low, var high) 
+	{ 
+		return Random::getSystemRandom().nextInt(Range<int>((int)low, (int)high)); 
+	}
+
+	/** Returns the absolute (unsigned) value. */
+	var abs(var value) 
+	{
+		return value.isInt() ? var(std::abs((int)value)) : 
+							   var(std::abs((double)value)); 
+	}
+
+	/** Rounds the value to the next integer. */
+	var round(var value) 
+	{ 
+		return value.isInt() ? var(roundToInt((int)value)) :
+							   var(roundToInt((double)value));
+	}
+
+	/** Returns the sign of the value. */
+	var sign(var value) 
+	{ 
+		return value.isInt() ? var(sign_((int)value)) : 
+							   var(sign_((double)value));
+	}
+
+	/** Limits the value to the given range. */
+	var range(var value, var lowerLimit, var upperLimit)
+	{	
+		return value.isInt() ? var(jlimit<int>(lowerLimit, upperLimit, value)) :
+							   var(jlimit<double>(lowerLimit, upperLimit, value));
+	}
+
+	/** Returns the smaller number. */
+	var min(var first, var second)
+	{ 
+		return (first.isInt() && second.isInt()) ? var(jmin((int)first, (int)second)) : 
+												   var(jmin((double)first, (double)second)); 
+	}
+
+	/** Returns the bigger number. */
+	var max(var first, var second) 
+	{ 
+		return (first.isInt() && second.isInt()) ? var(jmax((int)first, (int)second)) :
+												   var(jmax((double)first, (double)second));
+	}
+
+	/** Converts radian (0...2*PI) to degree (0...360°). */
+	var toDegrees(var value) { return radiansToDegrees((double)value); }
+
+	/** Converts degree  (0...360°) to radian (0...2*PI). */
+	var toRadians(var value) { return degreesToRadians((double)value); }
+
+	/** Calculates the sine value (radian based). */
+	var sin(var value) { return std::sin((double)value); }
+
+	/** Calculates the asine value (radian based). */
+	var asin(var value) { return std::asin((double)value); }
+
+	/** Calculates the cosine value (radian based). */
+	var cos(var value) { return std::cos((double)value); }
+
+	/** Calculates the acosine value (radian based). */
+	var acos(var value) { return std::acos((double)value); }
+
+	/** Calculates the sinh value (radian based). */
+	var sinh(var value) { return std::sinh((double)value); }
+
+	/** Calculates the asinh value (radian based). */
+	var asinh(var value) { return std::asinh((double)value); }
+
+	/** Calculates the cosh value (radian based). */
+	var cosh(var value) { return std::cosh((double)value); }
+
+	/** Calculates the acosh value (radian based). */
+	var acosh(var value) { return std::acosh((double)value); }
+
+	/** Calculates the tan value (radian based). */
+	var tan(var value) { return std::tan((double)value); }
+
+	/** Calculates the tanh value (radian based). */
+	var tanh(var value) { return std::tanh((double)value); }
+
+	/** Calculates the atan value (radian based). */
+	var atan(var value) { return std::atan((double)value); }
+
+	/** Calculates the atanh value (radian based). */
+	var atanh(var value) { return std::atanh((double)value); }
+
+	/** Calculates the log value (with base E). */
+	var log(var value) { return std::log((double)value); }
+
+	/** Calculates the log value (with base 10). */
+	var log10(var value) { return std::log10((double)value); }
+
+	/** Calculates the exp value. */
+	var exp(var value) { return std::exp((double)value); }
+
+	/** Calculates the power of base and exponent. */
+	var pow(var base, var exp) { return std::pow((double)base, (double)exp); }
+
+	/** Calculates the square (x*x) of the value. */
+	var sqr(var value) { double x = (double)value; return x * x; }
+
+	/** Calculates the square root of the value. */
+	var sqrt(var value) { return std::sqrt((double)value); }
+
+	/** Rounds up the value. */
+	var ceil(var value) { return std::ceil((double)value); }
+
+	/** Rounds down the value. */
+	var floor(var value) { return std::floor((double)value); }
+	
+	template <typename Type> static Type sign_(Type n) noexcept{ return n > 0 ? (Type)1 : (n < 0 ? (Type)-1 : 0); }
 };
 
 //==============================================================================
@@ -213,7 +353,7 @@ HiseJavascriptEngine::HiseJavascriptEngine(Processor *p) : maximumExecutionTime(
 	registerNativeObject(RootObject::ObjectClass::getClassName(), new RootObject::ObjectClass());
 	registerNativeObject(RootObject::ArrayClass::getClassName(), new RootObject::ArrayClass());
 	registerNativeObject(RootObject::StringClass::getClassName(), new RootObject::StringClass());
-	registerNativeObject(RootObject::MathClass::getClassName(), new RootObject::MathClass());
+	registerApiClass(new RootObject::MathClass());
 	registerNativeObject(RootObject::JSONClass::getClassName(), new RootObject::JSONClass());
 	registerNativeObject(RootObject::IntegerClass::getClassName(), new RootObject::IntegerClass());
 }

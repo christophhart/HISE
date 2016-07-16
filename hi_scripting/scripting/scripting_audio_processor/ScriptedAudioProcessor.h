@@ -58,8 +58,6 @@ public:
 
 		scriptingEngine->registerNativeObject("Buffer", new VariantBuffer::Factory(64));
 
-		scriptingEngine->registerApiClass(new MathFunctions());
-
         callbackResult = scriptingEngine->execute(doc.getAllContent());
         
 		if (callbackResult.failed())
