@@ -45,17 +45,17 @@
 #define ADD_AS_SLIDER_TYPE(min, max, interval) (ScriptComponentPropertyTypeSelector::addToTypeSelector(ScriptComponentPropertyTypeSelector::SliderSelector, propertyIds.getLast(), min, max, interval))
 
 ScriptingObject::ScriptingObject(ScriptBaseProcessor *p):
-	processor(dynamic_cast<Processor*>(p))
+	processor(static_cast<Processor*>(p))
 	{};	
 
 ScriptBaseProcessor *ScriptingObject::getScriptProcessor() 
 {
-	return dynamic_cast<ScriptBaseProcessor*>(processor.get()); 
+	return static_cast<ScriptBaseProcessor*>(processor.get()); 
 };
 
 const ScriptBaseProcessor *ScriptingObject::getScriptProcessor() const 
 { 
-	return dynamic_cast<ScriptBaseProcessor*>(processor.get());
+	return static_cast<ScriptBaseProcessor*>(processor.get());
 };
 
 
@@ -760,26 +760,6 @@ void ScriptingApi::Synth::noteOff(int noteNumber)
 	const int timestamp = 1;
 
 	addNoteOff(1, noteNumber, timestamp);
-
-#if 0
-	ModulatorSynthChain *ownerChain = dynamic_cast<ModulatorSynthChain*>(owner);
-
-	if (ownerChain != nullptr)
-	{
-		const int numProcessors = ownerChain->getHandler()->getNumProcessors();
-
-		for (int i = 0; i < numProcessors; i++)
-		{
-			ModulatorSynth* childSynth = dynamic_cast<ModulatorSynth*>(ownerChain->getHandler()->getProcessor(i));
-
-			childSynth->noteOff(1, noteNumber, 1.0f, true);
-		}
-	}
-	else
-	{
-		owner->noteOff(1, noteNumber, 1.0f, true);
-	}
-#endif
 }
 
 void ScriptingApi::Synth::addToFront(bool addToFront)
@@ -1271,7 +1251,7 @@ sampler(sampler_)
 
 void ScriptingApi::Sampler::enableRoundRobin(bool shouldUseRoundRobin)
 {
-	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(sampler.get());
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s != nullptr)
 	{
@@ -1288,7 +1268,7 @@ void ScriptingApi::Sampler::enableRoundRobin(bool shouldUseRoundRobin)
 
 void ScriptingApi::Sampler::setActiveGroup(int activeGroupIndex)
 {
-	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(sampler.get());
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
 	{
@@ -1312,7 +1292,7 @@ void ScriptingApi::Sampler::setActiveGroup(int activeGroupIndex)
 
 int ScriptingApi::Sampler::getRRGroupsForMessage(int noteNumber, int velocity)
 {
-	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(sampler.get());
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
 	{
@@ -1331,7 +1311,7 @@ int ScriptingApi::Sampler::getRRGroupsForMessage(int noteNumber, int velocity)
 
 void ScriptingApi::Sampler::refreshRRMap()
 {
-	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(sampler.get());
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
 	{
@@ -1350,7 +1330,7 @@ void ScriptingApi::Sampler::refreshRRMap()
 
 void ScriptingApi::Sampler::selectSounds(String regexWildcard)
 {
-	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(sampler.get());
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
 	{
@@ -1363,7 +1343,7 @@ void ScriptingApi::Sampler::selectSounds(String regexWildcard)
 
 int ScriptingApi::Sampler::getNumSelectedSounds()
 {
-	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(sampler.get());
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
 	{
@@ -1376,7 +1356,7 @@ int ScriptingApi::Sampler::getNumSelectedSounds()
 
 void ScriptingApi::Sampler::setSoundPropertyForSelection(int propertyId, var newValue)
 {
-	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(sampler.get());
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
 	{
@@ -1399,7 +1379,7 @@ void ScriptingApi::Sampler::setSoundPropertyForSelection(int propertyId, var new
 
 var ScriptingApi::Sampler::getSoundProperty(int propertyIndex, int soundIndex)
 {
-	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(sampler.get());
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
 	{
@@ -1423,7 +1403,7 @@ var ScriptingApi::Sampler::getSoundProperty(int propertyIndex, int soundIndex)
 
 void ScriptingApi::Sampler::setSoundProperty(int soundIndex, int propertyIndex, var newValue)
 {
-	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(sampler.get());
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
 	{
@@ -1444,7 +1424,7 @@ void ScriptingApi::Sampler::setSoundProperty(int soundIndex, int propertyIndex, 
 
 void ScriptingApi::Sampler::purgeMicPosition(String micName, bool shouldBePurged)
 {
-	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(sampler.get());
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
 	{
@@ -1473,7 +1453,7 @@ void ScriptingApi::Sampler::purgeMicPosition(String micName, bool shouldBePurged
 
 String ScriptingApi::Sampler::getMicPositionName(int channelIndex) 
 {
-	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(sampler.get());
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
 	{
@@ -1492,7 +1472,7 @@ String ScriptingApi::Sampler::getMicPositionName(int channelIndex)
 
 void ScriptingApi::Sampler::refreshInterface()
 {
-	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(sampler.get());
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
 	{
@@ -1506,7 +1486,7 @@ void ScriptingApi::Sampler::refreshInterface()
 
 void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
 {
-	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(sampler.get());
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 	if (s == nullptr)
 	{
@@ -3253,7 +3233,7 @@ void ScriptingObjects::ScriptingModulator::setIntensity(float newIntensity)
 {
 	if(checkValidObject())
 	{
-		Modulation *m = dynamic_cast<Modulation*>(mod.get());
+		Modulation *m = reinterpret_cast<Modulation*>(mod.get());
 
 		if(m->getMode() == Modulation::GainMode)
 		{
@@ -3264,14 +3244,10 @@ void ScriptingObjects::ScriptingModulator::setIntensity(float newIntensity)
 		else
 		{
 			const float value = jlimit<float>(-12.0f, 12.0f, newIntensity);
-
 			const float pitchFactor = powf(2.0f, value / 12.0f);
 
 			m->setIntensity(pitchFactor);
-
 		}
-
-		
 
 		mod->sendChangeMessage();
 	}
