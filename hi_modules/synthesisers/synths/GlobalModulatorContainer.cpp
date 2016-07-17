@@ -182,17 +182,7 @@ void GlobalModulatorContainerVoice::startNote(int midiNoteNumber, float /*veloci
 
 void GlobalModulatorContainerVoice::calculateBlock(int startSample, int numSamples)
 {
-	GlobalModulatorContainer *owner = static_cast<GlobalModulatorContainer*>(getOwnerSynth());
-
-	for (int i = 0; i < owner->data.size(); i++)
-	{
-		if (owner->data[i]->getEnvelopeModulator() != nullptr)
-		{
-			owner->data[i]->saveValuesToBuffer(startSample, numSamples, voiceIndex);
-		}
-	}
-
-
+	
 	FloatVectorOperations::fill(voiceBuffer.getWritePointer(0, startSample), 0.0f, numSamples);
 	FloatVectorOperations::fill(voiceBuffer.getWritePointer(1, startSample), 0.0f, numSamples);
 }

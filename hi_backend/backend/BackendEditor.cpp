@@ -819,7 +819,7 @@ void BackendProcessorEditor::clearPopup()
 	viewport->viewport->setScrollBarsShown(true, false);
 }
 
-void BackendProcessorEditor::scriptWasCompiled(ScriptProcessor * /*sp*/)
+void BackendProcessorEditor::scriptWasCompiled(JavascriptProcessor * /*sp*/)
 {
 	updateCommands();
 }

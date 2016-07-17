@@ -44,16 +44,17 @@ mod(m)
 	vuMeter->addMouseListener(this, true);
 }
 
-ScriptContentComponent::ScriptContentComponent(ScriptBaseProcessor *p) :
-processor(p),
+ScriptContentComponent::ScriptContentComponent(ProcessorWithScriptingContent *p_) :
+processor(p_),
+p(dynamic_cast<Processor*>(p_)),
 editedComponent(-1)
 {
-	setNewContent(p->getScriptingContent());
+	setNewContent(processor->getScriptingContent());
 
 	setInterceptsMouseClicks(false, true);
 
-	processor->addChangeListener(this);
-	processor->getMainController()->addScriptListener(this, true);
+	p->addChangeListener(this);
+	p->getMainController()->addScriptListener(this, true);
 }
 
 
@@ -71,10 +72,10 @@ ScriptContentComponent::~ScriptContentComponent()
 		}
 	}
 
-	if (processor.get() != nullptr)
+	if (p.get() != nullptr)
 	{
-		processor->getMainController()->removeScriptListener(this);
-		processor->removeChangeListener(this);
+		p->getMainController()->removeScriptListener(this);
+		p->removeChangeListener(this);
 	};
 }
 
@@ -82,15 +83,15 @@ ScriptContentComponent::~ScriptContentComponent()
 
 void ScriptContentComponent::refreshMacroIndexes()
 {
-	MacroControlBroadcaster *mcb = processor->getMainController()->getMacroManager().getMacroChain();
+	MacroControlBroadcaster *mcb = p->getMainController()->getMacroManager().getMacroChain();
 
 	for(int i = 0; i < componentWrappers.size(); i++)
 	{
-		int macroIndex = mcb->getMacroControlIndexForProcessorParameter(processor, i);
+		int macroIndex = mcb->getMacroControlIndexForProcessorParameter(p, i);
 
 		if(macroIndex != -1)
 		{
-			MacroControlBroadcaster::MacroControlledParameterData * pData = mcb->getMacroControlData(macroIndex)->getParameterWithProcessorAndIndex(processor, i);
+			MacroControlBroadcaster::MacroControlledParameterData * pData = mcb->getMacroControlData(macroIndex)->getParameterWithProcessorAndIndex(p, i);
 
 			// Check if the name matches
 			if(pData->getParameterName() != componentWrappers[i]->getComponent()->getName())
@@ -99,9 +100,9 @@ void ScriptContentComponent::refreshMacroIndexes()
 
 				mcb->getMacroControlData(macroIndex)->removeParameter(x);
 
-				processor->getMainController()->getMacroManager().getMacroChain()->sendChangeMessage();
+				p->getMainController()->getMacroManager().getMacroChain()->sendChangeMessage();
 
-				debugToConsole(processor, "Index mismatch: Removed Macro Control for " + x);
+				debugToConsole(p, "Index mismatch: Removed Macro Control for " + x);
 			}
 
 		}
@@ -169,12 +170,12 @@ void ScriptContentComponent::changeListenerCallback(SafeChangeBroadcaster *b)
 {
 	if (contentData.get() == nullptr) return;
 
-	if (processor.get() == nullptr)
+	if (p.get() == nullptr)
 	{
 		setEnabled(false);
 	}
 
-	if (getScriptProcessor() == b)
+	if (p == b)
 	{
 		updateValues();
 	}
@@ -262,11 +263,11 @@ void ScriptContentComponent::resized()
 	}
 }
 
-void ScriptContentComponent::scriptWasCompiled(ScriptProcessor *p)
+void ScriptContentComponent::scriptWasCompiled(JavascriptProcessor *p)
 {
 	if (p == getScriptProcessor())
 	{
-		setNewContent(p->getScriptingContent());
+		setNewContent(processor->getScriptingContent());
 		updateContent();
 	}
 }
@@ -497,13 +498,13 @@ int ScriptContentContainer::getContentHeight() const
 	return heightOfButtonBar + contentHeight;
 };
 
-void ScriptContentContainer::scriptWasCompiled(ScriptProcessor *) 
+void ScriptContentContainer::scriptWasCompiled(JavascriptProcessor *) 
 {
 	checkInterfaces();
 
 	for(int i = 0; i < interfaces.size(); i++)
 	{
-		interfaces[i]->button->setButtonText(interfaces[i]->content->getScriptProcessor()->getId());
+		interfaces[i]->button->setButtonText(dynamic_cast<const Processor*>(interfaces[i]->content->getScriptProcessor())->getId());
 	}
 
 	restoreSavedView();
@@ -517,9 +518,9 @@ void ScriptContentContainer::scriptWasCompiled(ScriptProcessor *)
 
 void ScriptContentContainer::checkInterfaces()
 {
-	Processor::Iterator<ScriptProcessor> iter(chain, true);
+	Processor::Iterator<JavascriptMidiProcessor> iter(chain, true);
 
-	ScriptProcessor *sp;
+	JavascriptMidiProcessor *sp;
 
 	while((sp = iter.getNextProcessor()) != nullptr)
 	{
@@ -691,7 +692,7 @@ void ScriptContentContainer::restoreSavedView()
 	if(index >= 0 && index < interfaces.size()) setCurrentContent(index, dontSendNotification);
 }
 
-ScriptContentContainer::InterfaceScriptAndButton::InterfaceScriptAndButton(ScriptProcessor *sp, ScriptContentContainer *container)
+ScriptContentContainer::InterfaceScriptAndButton::InterfaceScriptAndButton(JavascriptMidiProcessor *sp, ScriptContentContainer *container)
 {
 	content = new ScriptContentComponent(sp);
 	button = new TextButton(content->getScriptName(), "Show / hide the " + content->getScriptName());

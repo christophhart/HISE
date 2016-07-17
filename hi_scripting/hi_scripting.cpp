@@ -51,6 +51,7 @@
 
 
 #include "scripting/ScriptProcessor.cpp"
+#include "scripting/ScriptProcessorModules.cpp"
 #include "scripting/HardcodedScriptProcessor.cpp"
 
 #include "scripting/api/ScriptComponentWrappers.cpp"

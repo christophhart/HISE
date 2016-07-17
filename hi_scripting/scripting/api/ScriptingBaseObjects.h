@@ -36,9 +36,9 @@
 
 class ModulatorSynthGroup;
 
-class ScriptBaseProcessor;
+class ProcessorWithScriptingContent;
 
-class ScriptProcessor;
+class JavascriptMidiProcessor;
 
 
 /** The base class for all scripting API classes. 
@@ -66,11 +66,14 @@ public:
 
 protected:
 
-	ScriptingObject(ScriptBaseProcessor *p);
+	ScriptingObject(ProcessorWithScriptingContent *p);
 
-	ScriptBaseProcessor *getScriptProcessor(); 
+	ProcessorWithScriptingContent *getScriptProcessor(); 
 
-	const ScriptBaseProcessor *getScriptProcessor() const; 
+	const ProcessorWithScriptingContent *getScriptProcessor() const; 
+
+	Processor* getProcessor() { return thisAsProcessor; };
+	const Processor* getProcessor() const { return thisAsProcessor; }
 
 	/** \internal Prints a error in the script to the console. */
 	void reportScriptError(const String &errorMessage) const;
@@ -80,7 +83,8 @@ protected:
 	
 private:
 
-	WeakReference<Processor> processor;	
+	ProcessorWithScriptingContent* processor;	
+	Processor* thisAsProcessor;
 };
 
 class EffectProcessor;
@@ -97,7 +101,7 @@ class CreatableScriptObject: public ScriptingObject,
 {
 public:
 
-	CreatableScriptObject(ScriptBaseProcessor *p):
+	CreatableScriptObject(ProcessorWithScriptingContent *p):
 		ScriptingObject(p)
 	{
 		setMethod("exists", Wrappers::checkExists);
@@ -169,7 +173,7 @@ public:
 	{
 	public:
 
-		MidiList(ScriptBaseProcessor *p) :
+		MidiList(ProcessorWithScriptingContent *p) :
 			CreatableScriptObject(p)
 		{
 			setMethod("fill", Wrapper::fill);
@@ -336,7 +340,7 @@ public:
 	public:
 
 
-		ScriptingModulator(ScriptBaseProcessor *p, Modulator *m) :
+		ScriptingModulator(ProcessorWithScriptingContent *p, Modulator *m) :
 			CreatableScriptObject(p),
 			mod(m)
 		{
@@ -469,7 +473,7 @@ public:
 	{
 	public:
 
-		TimerObject(ScriptBaseProcessor *p) :
+		TimerObject(ProcessorWithScriptingContent *p) :
 			CreatableScriptObject(p)
 		{
 			ADD_DYNAMIC_METHOD(startTimer);
@@ -499,7 +503,7 @@ public:
 	{
 	public:
 
-		ScriptingMidiProcessor(ScriptBaseProcessor *p, MidiProcessor *mp_) :
+		ScriptingMidiProcessor(ProcessorWithScriptingContent *p, MidiProcessor *mp_) :
 			CreatableScriptObject(p),
 			mp(mp_)
 		{
@@ -598,7 +602,7 @@ public:
 	{
 	public:
 
-		ScriptingAudioSampleProcessor(ScriptBaseProcessor *p, AudioSampleProcessor *sampleProcessor);
+		ScriptingAudioSampleProcessor(ProcessorWithScriptingContent *p, AudioSampleProcessor *sampleProcessor);
 
 		Identifier getObjectName() const override
 		{
@@ -666,7 +670,7 @@ public:
 	{
 	public:
 
-		ScriptingTableProcessor(ScriptBaseProcessor *p, LookupTableProcessor *tableProcessor);
+		ScriptingTableProcessor(ProcessorWithScriptingContent *p, LookupTableProcessor *tableProcessor);
 
 		Identifier getObjectName() const override
 		{
@@ -713,7 +717,7 @@ public:
 	class ScriptingEffect : public CreatableScriptObject
 	{
 	public:
-		ScriptingEffect(ScriptBaseProcessor *p, EffectProcessor *fx);
+		ScriptingEffect(ProcessorWithScriptingContent *p, EffectProcessor *fx);
 
 		Identifier getObjectName() const override
 		{
@@ -770,7 +774,7 @@ public:
 	class ScriptingSynth : public CreatableScriptObject
 	{
 	public:
-		ScriptingSynth(ScriptBaseProcessor *p, ModulatorSynth *synth_);
+		ScriptingSynth(ProcessorWithScriptingContent *p, ModulatorSynth *synth_);
 
 		Identifier getObjectName() const override
 		{

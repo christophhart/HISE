@@ -533,9 +533,9 @@ void FileBrowser::mouseDoubleClick(const MouseEvent& )
     {
         // First look if the script is already used
         
-        Processor::Iterator<ScriptProcessor> iter(editor->getMainSynthChain());
+        Processor::Iterator<JavascriptMidiProcessor> iter(editor->getMainSynthChain());
         
-        while (ScriptProcessor *sp = iter.getNextProcessor())
+        while (JavascriptMidiProcessor *sp = iter.getNextProcessor())
         {
             for (int i = 0; i < sp->getNumWatchedFiles(); i++)
             {

@@ -86,7 +86,7 @@ class ScriptContentComponent: public Component,
 public:
 
 	/** Creates a new Content which acts as container for all scripted elements. */
-	ScriptContentComponent(ScriptBaseProcessor *p);;
+	ScriptContentComponent(ProcessorWithScriptingContent *p);;
 
 	~ScriptContentComponent();
 
@@ -114,18 +114,18 @@ public:
 	/** Checks if the content is valid (recompiling the script invalidates it. */
 	bool contentValid() const
 	{
-		return (processor.get() != nullptr) && processor.get()->getScriptingContent() == contentData; 
+		return (processor != nullptr) && processor->getScriptingContent() == contentData; 
 	};
 
 	/** Returns the ScriptBaseProcessor associated with this Component. If it is not a ScriptProcessor or was deleted, it returns nullptr. */
-	const ScriptProcessor *getScriptProcessor() const
+	const JavascriptProcessor *getScriptProcessor() const
 	{
-		return dynamic_cast<ScriptProcessor*>(processor.get());
+		return dynamic_cast<JavascriptProcessor*>(processor);
 	}
 
 	void paint(Graphics &g) override;
 
-	void scriptWasCompiled(ScriptProcessor *p) override;
+	void scriptWasCompiled(JavascriptProcessor *p) override;
 
 	/** Recreates all components based on the supplied Content object and restores its values. */
 	void setNewContent(ScriptingApi::Content *c);
@@ -174,7 +174,8 @@ private:
 	int height;
 
 	WeakReference<ScriptingApi::Content> contentData;
-	WeakReference<ScriptBaseProcessor> processor;
+	ProcessorWithScriptingContent* processor;
+	WeakReference<Processor> p;
 
 	int editedComponent;
 
@@ -209,7 +210,7 @@ public:
 		}
 	}
 
-	void scriptWasCompiled(ScriptProcessor *sp) override;
+	void scriptWasCompiled(JavascriptProcessor *sp) override;
 
 	/** Refreshes the bounds of the interface contents and adds a tab bar if multiple interfaces are used. */
 	void refreshContentBounds();
@@ -249,7 +250,7 @@ public:
 
 private:
 
-	bool processorHasContent(ScriptProcessor *sp)
+	bool processorHasContent(JavascriptMidiProcessor *sp)
 	{
 		for(int i = 0; i < interfaces.size(); i++)
 		{
@@ -275,7 +276,7 @@ private:
 
 	struct InterfaceScriptAndButton
 	{
-		InterfaceScriptAndButton(ScriptProcessor *sp, ScriptContentContainer *container);
+		InterfaceScriptAndButton(JavascriptMidiProcessor *sp, ScriptContentContainer *container);
 
 		ScopedPointer<TextButton> button;
 		ScopedPointer<ScriptContentComponent> content;

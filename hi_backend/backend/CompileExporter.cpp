@@ -81,7 +81,7 @@ bool CompileExporter::checkSanity(ModulatorSynthChain *chainToExport)
 
 	for (int i = 0; i < mc->getNumChildProcessors(); i++)
 	{
-		if (ScriptProcessor *sp = dynamic_cast<ScriptProcessor*>(mc->getChildProcessor(i)))
+		if (JavascriptMidiProcessor *sp = dynamic_cast<JavascriptMidiProcessor*>(mc->getChildProcessor(i)))
 		{
 			if (sp->isFront())
 			{
@@ -202,7 +202,7 @@ void CompileExporter::writeReferencedAudioFiles(ModulatorSynthChain * chainToExp
 
 void CompileExporter::writeExternalScriptFiles(ModulatorSynthChain * chainToExport, const String &directoryPath)
 {
-	Processor::Iterator<ScriptProcessor> iter(chainToExport);
+	Processor::Iterator<JavascriptMidiProcessor> iter(chainToExport);
 
 	ValueTree externalScriptFiles = FileChangeListener::collectAllScriptFiles(chainToExport);
 

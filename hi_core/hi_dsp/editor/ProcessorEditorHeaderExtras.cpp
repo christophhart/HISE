@@ -144,7 +144,7 @@ ChainIcon::ChainIcon(Processor *p_)
 	{
 		chainType = Envelope;
 	}
-	else if (dynamic_cast<const ScriptProcessor*>(p) != nullptr)
+	else if (dynamic_cast<const JavascriptMidiProcessor*>(p) != nullptr)
 	{
 		chainType = ScriptingProcessor;
 	}

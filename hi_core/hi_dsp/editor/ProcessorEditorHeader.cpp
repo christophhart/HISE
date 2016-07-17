@@ -196,9 +196,6 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 
 	if(isHeaderOfModulatorSynth())
 	{
-		
-
-	
 		addButton->setTooltip("Add a new child Processor.");
 		balanceSlider->setTooltip("Change the Pan of the Synth.");
 		deleteButton->setTooltip("Delete the synth.");
@@ -279,8 +276,7 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 		typeLabel->setColour (Label::textColourId, Colour (0xffFFFFFF));
 
 		plotButton->setVisible(false);
-		debugButton->setVisible(false);
-		
+		debugButton->setVisible(ProcessorHelpers::is<JavascriptProcessor>(getProcessor()));
 
 		addButton->setVisible(isHeaderOfChain());
 		deleteButton->setVisible(!isHeaderOfChain());
@@ -540,15 +536,12 @@ void ProcessorEditorHeader::resized()
 		x += 3;
 	}
 	
-	if (IS(ScriptProcessor))
+	if (IS(JavascriptProcessor))
 	{
 		debugButton->setBounds(x, yOffset2, 30, 20);
 		debugButton->setVisible(true);
 	}
 	
-	
-
-
 	intensitySlider->setBounds (x, yOffset2, 200, 20);
 
     
@@ -635,9 +628,9 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
         const bool value = buttonThatWasClicked->getToggleState();
 		getProcessor()->enableConsoleOutput(!value);
 
-		if(dynamic_cast<ScriptProcessor*>(getProcessor()) != nullptr)
+		if(dynamic_cast<JavascriptProcessor*>(getProcessor()) != nullptr)
 		{
-			ScriptProcessor *sp = value ? nullptr : dynamic_cast<ScriptProcessor*>(getProcessor());
+			JavascriptProcessor *sp = value ? nullptr : dynamic_cast<JavascriptProcessor*>(getProcessor());
 
 			getProcessor()->getMainController()->setWatchedScriptProcessor(sp, getEditor()->getBody());
 
@@ -924,9 +917,9 @@ void ProcessorEditorHeader::addProcessor(Processor *processorToBeAdded, Processo
 	{
 		getProcessor()->getMainController()->getMainSynthChain()->compileAllScripts();
 	}
-	else if (dynamic_cast<ScriptProcessor*>(processorToBeAdded) != nullptr)
+	else if (dynamic_cast<JavascriptProcessor*>(processorToBeAdded) != nullptr)
 	{
-		dynamic_cast<ScriptProcessor*>(processorToBeAdded)->compileScript();
+		dynamic_cast<JavascriptProcessor*>(processorToBeAdded)->compileScript();
 	}
 
     PresetHandler::setChanged(getProcessor());
@@ -1046,7 +1039,7 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 			m.addSeparator();
 		}
 
-		else if (ScriptProcessor *sp = dynamic_cast<ScriptProcessor*>(getProcessor()))
+		else if (JavascriptProcessor *sp = dynamic_cast<JavascriptProcessor*>(getProcessor()))
 		{
 			m.addSeparator();
 			m.addSectionHeader("Script Processor Tools");
@@ -1123,7 +1116,7 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 		}
 		else if (result == OpenIncludedFileInPopup)
 		{
-			ScriptProcessor *sp = dynamic_cast<ScriptProcessor*>(getProcessor());
+			JavascriptProcessor *sp = dynamic_cast<JavascriptProcessor*>(getProcessor());
 
 			if (sp->getNumWatchedFiles() == 1)
 			{

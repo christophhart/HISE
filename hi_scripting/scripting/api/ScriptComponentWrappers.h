@@ -226,7 +226,7 @@ public:
 		Unsupported
 	};
 
-	ScriptedControlAudioParameter(ScriptingApi::Content::ScriptComponent *newComponent, AudioProcessor *parentProcessor, ScriptBaseProcessor *scriptProcessor, int index);
+	ScriptedControlAudioParameter(ScriptingApi::Content::ScriptComponent *newComponent, AudioProcessor *parentProcessor, ScriptBaseMidiProcessor *scriptProcessor, int index);
 
 	void setControlledScriptComponent(ScriptingApi::Content::ScriptComponent *newComponent);
 
@@ -271,7 +271,7 @@ private:
 
 	AudioProcessor *parentProcessor;
 
-	WeakReference<ScriptBaseProcessor> scriptProcessor;
+	WeakReference<ScriptBaseMidiProcessor> scriptProcessor;
 
 	int componentIndex;
 

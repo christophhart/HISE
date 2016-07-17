@@ -44,18 +44,19 @@
 #define ADD_TO_TYPE_SELECTOR(x) (ScriptComponentPropertyTypeSelector::addToTypeSelector(ScriptComponentPropertyTypeSelector::x, propertyIds.getLast()))
 #define ADD_AS_SLIDER_TYPE(min, max, interval) (ScriptComponentPropertyTypeSelector::addToTypeSelector(ScriptComponentPropertyTypeSelector::SliderSelector, propertyIds.getLast(), min, max, interval))
 
-ScriptingObject::ScriptingObject(ScriptBaseProcessor *p):
-	processor(static_cast<Processor*>(p))
+ScriptingObject::ScriptingObject(ProcessorWithScriptingContent *p):
+	processor(p),
+	thisAsProcessor(dynamic_cast<Processor*>(p))
 	{};	
 
-ScriptBaseProcessor *ScriptingObject::getScriptProcessor() 
+ProcessorWithScriptingContent *ScriptingObject::getScriptProcessor() 
 {
-	return static_cast<ScriptBaseProcessor*>(processor.get()); 
+	return processor; 
 };
 
-const ScriptBaseProcessor *ScriptingObject::getScriptProcessor() const 
+const ProcessorWithScriptingContent *ScriptingObject::getScriptProcessor() const 
 { 
-	return static_cast<ScriptBaseProcessor*>(processor.get());
+	return processor;
 };
 
 
@@ -85,7 +86,6 @@ int ScriptingObject::checkValidArguments(const var::NativeFunctionArgs &args)
 	}
 
 	return -1;
-
 };
 
 
@@ -95,9 +95,8 @@ int ScriptingObject::checkValidArguments(const var::NativeFunctionArgs &args)
 
 void ScriptingObject::reportScriptError(const String &errorMessage) const
 { 
-	
 #if USE_BACKEND // needs to be customized because of the colour!
-	const_cast<MainController*>(getScriptProcessor()->getMainController())->writeToConsole(errorMessage, 1, getScriptProcessor(), getScriptProcessor()->getScriptingContent()->getColour()); 
+	const_cast<MainController*>(getProcessor()->getMainController())->writeToConsole(errorMessage, 1, getProcessor(), getScriptProcessor()->getScriptingContent()->getColour()); 
 #endif
 }
 
@@ -105,7 +104,7 @@ void ScriptingObject::reportScriptError(const String &errorMessage) const
 
 bool ScriptingObject::checkIfSynchronous(const Identifier &methodName) const
 { 
-	const ScriptProcessor *sp = dynamic_cast<const ScriptProcessor*>(getScriptProcessor());
+	const JavascriptMidiProcessor *sp = dynamic_cast<const JavascriptMidiProcessor*>(getScriptProcessor());
 
 	if(sp == nullptr) return true; // HardcodedScriptProcessors are always synchronous
 
@@ -352,14 +351,14 @@ void ScriptingApi::Message::setMidiMessage(MidiMessage *m)
 
 void ScriptingApi::Engine::allNotesOff()
 {
-	getScriptProcessor()->getMainController()->allNotesOff();
+	getProcessor()->getMainController()->allNotesOff();
 };
 
 
 
 double ScriptingApi::Engine::getSampleRate() const
 {
-	return const_cast<MainController*>(getScriptProcessor()->getMainController())->getMainSynthChain()->getSampleRate();
+	return const_cast<MainController*>(getProcessor()->getMainController())->getMainSynthChain()->getSampleRate();
 }
 
 void ScriptingApi::Engine::setGlobal(int index, var valueToSave)
@@ -370,29 +369,29 @@ void ScriptingApi::Engine::setGlobal(int index, var valueToSave)
 		return;
 	}
 
-	getScriptProcessor()->getMainController()->setGlobalVariable(index, valueToSave);
+	getProcessor()->getMainController()->setGlobalVariable(index, valueToSave);
 }
 
 var ScriptingApi::Engine::getGlobal(int index) const
 {
-	return getScriptProcessor()->getMainController()->getGlobalVariable(index);
+	return getProcessor()->getMainController()->getGlobalVariable(index);
 }
 
 double ScriptingApi::Engine::getUptime() const
 {
-	return getScriptProcessor()->getMainController()->getUptime();
+	return getProcessor()->getMainController()->getUptime();
 }
 
 double ScriptingApi::Engine::getHostBpm() const
 {
-	return getScriptProcessor()->getMainController()->getBpm();
+	return getProcessor()->getMainController()->getBpm();
 }
 
 String ScriptingApi::Engine::getMacroName(int index)
 {
 	if (index >= 1 && index <= 8)
 	{
-		return getScriptProcessor()->getMainController()->getMainSynthChain()->getMacroControlData(index-1)->getMacroName();
+		return getProcessor()->getMainController()->getMainSynthChain()->getMacroControlData(index-1)->getMacroName();
 	}
 	else
 	{
@@ -428,11 +427,11 @@ int ScriptingApi::Engine::getMidiNoteFromName(String midiNoteName) const
 
 void ScriptingApi::Engine::openEditor(int includedFileIndex)
 {
-	ScriptProcessor *sp = dynamic_cast<ScriptProcessor*>(getScriptProcessor());
+	JavascriptMidiProcessor *sp = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor());
 
 	if (sp != nullptr && includedFileIndex >= 0 && includedFileIndex < sp->getNumWatchedFiles())
 	{
-		dynamic_cast<ScriptProcessor*>(getScriptProcessor())->showPopupForFile(includedFileIndex);
+		dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->showPopupForFile(includedFileIndex);
 	}
 	else
 	{
@@ -442,12 +441,12 @@ void ScriptingApi::Engine::openEditor(int includedFileIndex)
 
 void ScriptingApi::Engine::setKeyColour(int keyNumber, int colourAsHex)
 {
-	getScriptProcessor()->getMainController()->setKeyboardCoulour(keyNumber, Colour(colourAsHex));
+	getProcessor()->getMainController()->setKeyboardCoulour(keyNumber, Colour(colourAsHex));
 }
 
 void ScriptingApi::Engine::setLowestKeyToDisplay(int keyNumber)
 {
-	getScriptProcessor()->getMainController()->setLowestKeyToDisplay(keyNumber);
+	getProcessor()->getMainController()->setLowestKeyToDisplay(keyNumber);
 }
 
 void ScriptingApi::Engine::include(const String &/*string*/)
@@ -458,7 +457,7 @@ void ScriptingApi::Engine::include(const String &/*string*/)
 
 void ScriptingApi::Engine::createLiveCodingVariables()
 {
-	ScriptProcessor *sp = dynamic_cast<ScriptProcessor*>(getScriptProcessor());
+	JavascriptMidiProcessor *sp = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor());
 
 	if (sp != nullptr)
 	{
@@ -513,7 +512,7 @@ void ScriptingApi::Engine::createLiveCodingVariables()
 
 DynamicObject * ScriptingApi::Engine::getPlayHead()
 {
-	return getScriptProcessor()->getMainController()->getHostInfoObject();
+	return getProcessor()->getMainController()->getHostInfoObject();
 }
 
 ScriptingObjects::MidiList *ScriptingApi::Engine::createMidiList()
@@ -543,7 +542,7 @@ void ScriptingApi::Engine::dumpAsJSON(var object, String fileName)
 	}
 	else
 	{
-		f = File(GET_PROJECT_HANDLER(getScriptProcessor()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets).getChildFile(fileName));
+		f = File(GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets).getChildFile(fileName));
 	}
 
 	f.replaceWithText(JSON::toString(object, false));
@@ -560,7 +559,7 @@ var ScriptingApi::Engine::loadFromJSON(String fileName)
 	}
 	else
 	{
-		f = File(GET_PROJECT_HANDLER(getScriptProcessor()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets).getChildFile(fileName));
+		f = File(GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets).getChildFile(fileName));
 	}
 
 	if (f.existsAsFile())
@@ -578,7 +577,7 @@ var ScriptingApi::Engine::getUserPresetDirectoryContent()
 {
 #if USE_FRONTEND
     
-    const ValueTree v = dynamic_cast<FrontendProcessor*>(getScriptProcessor()->getMainController())->getPresetData();
+    const ValueTree v = dynamic_cast<FrontendProcessor*>(getProcessor()->getMainController())->getPresetData();
     
     var returnArray;
     
@@ -590,11 +589,11 @@ var ScriptingApi::Engine::getUserPresetDirectoryContent()
     return returnArray;
     
 #else
-	File presetDirectory = GET_PROJECT_HANDLER(getScriptProcessor()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
+	File presetDirectory = GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
 
 	if (presetDirectory.exists() && presetDirectory.isDirectory())
 	{
-		DirectoryIterator iter(GET_PROJECT_HANDLER(getScriptProcessor()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets), false, "*", File::findFiles);
+		DirectoryIterator iter(GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets), false, "*", File::findFiles);
 
 		var returnArray;
 
@@ -617,7 +616,7 @@ var ScriptingApi::Engine::getUserPresetDirectoryContent()
 
 void ScriptingApi::Engine::setCompileProgress(var progress)
 {
-	ScriptProcessor *sp = dynamic_cast<ScriptProcessor*>(getScriptProcessor());
+	JavascriptProcessor *sp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
 
 	if (sp != nullptr)
 	{
@@ -639,7 +638,7 @@ bool ScriptingApi::Engine::matchesRegex(String stringToMatch, String wildcard)
 	}
 	catch (std::regex_error e)
 	{
-		debugError(getScriptProcessor(), e.what());
+		debugError(getProcessor(), e.what());
 		return false;
 	}
 #endif
@@ -673,7 +672,7 @@ var ScriptingApi::Engine::getRegexMatches(String stringToMatch, String wildcard)
     }
     catch (std::regex_error e)
     {
-        debugError(getScriptProcessor(), e.what());
+        debugError(getProcessor(), e.what());
         return var::undefined();
     }
     
@@ -689,7 +688,7 @@ String ScriptingApi::Engine::doubleToString(double value, int digits)
 // ====================================================================================================== Synth functions
 
 
-ScriptingApi::Synth::Synth(ScriptBaseProcessor *p, ModulatorSynth *ownerSynth):
+ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *ownerSynth):
 	ScriptingObject(p),
 	ApiClass(0),
 	owner(ownerSynth),
@@ -768,12 +767,12 @@ void ScriptingApi::Synth::noteOff(int noteNumber)
 void ScriptingApi::Synth::addToFront(bool addToFront)
 {
 	
-	dynamic_cast<ScriptProcessor*>(getScriptProcessor())->addToFront(addToFront);
+	dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->addToFront(addToFront);
 }
 
 void ScriptingApi::Synth::deferCallbacks(bool deferCallbacks)
 {
-	dynamic_cast<ScriptProcessor*>(getScriptProcessor())->deferCallbacks(deferCallbacks);
+	dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->deferCallbacks(deferCallbacks);
 }
 
 void ScriptingApi::Synth::playNote(int noteNumber, int velocity)
@@ -785,7 +784,7 @@ void ScriptingApi::Synth::playNote(int noteNumber, int velocity)
 	}
 
 	// Set the timestamp to the future if this is called in the note off callback to prevent wrong order.
-	const int timestamp = getScriptProcessor()->getCurrentMidiMessage().isNoteOff(false) ? 1 : 0;
+	const int timestamp = dynamic_cast<JavascriptMidiProcessor*>(getProcessor())->getCurrentMidiMessage().isNoteOff(false) ? 1 : 0;
 
 	addNoteOn(1, noteNumber, velocity, timestamp);
 }
@@ -799,7 +798,7 @@ void ScriptingApi::Synth::startTimer(double intervalInSeconds)
 		return;
 	}
 
-	ScriptProcessor *p = dynamic_cast<ScriptProcessor*>(getScriptProcessor());
+	JavascriptMidiProcessor *p = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor());
 
 	if(p != nullptr && p->isDeferred())
 	{
@@ -814,7 +813,7 @@ void ScriptingApi::Synth::startTimer(double intervalInSeconds)
 
 void ScriptingApi::Synth::stopTimer()
 {
-	ScriptProcessor *p = dynamic_cast<ScriptProcessor*>(getScriptProcessor());
+	JavascriptMidiProcessor *p = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor());
 
 	if(p != nullptr && p->isDeferred())
 	{
@@ -899,7 +898,7 @@ ScriptingObjects::ScriptingModulator *ScriptingApi::Synth::getModulator(const St
 
 ScriptingObjects::ScriptingMidiProcessor *ScriptingApi::Synth::getMidiProcessor(const String &name)
 {
-	if(name == getScriptProcessor()->getId())
+	if(name == getProcessor()->getId())
 	{
 		reportScriptError("You can't get a reference to yourself!");
 	}
@@ -1101,10 +1100,14 @@ void ScriptingApi::Synth::addNoteOn(int channel, int noteNumber, int velocity, i
 			{
 				if (timeStampSamples >= 0)
 				{
-					MidiMessage m = MidiMessage::noteOn(channel, noteNumber, (uint8)velocity);
-					m.setTimeStamp(getScriptProcessor()->getCurrentMidiMessage().getTimeStamp() + timeStampSamples);
+					if (JavascriptMidiProcessor* sp = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor()))
+					{
+						MidiMessage m = MidiMessage::noteOn(channel, noteNumber, (uint8)velocity);
+						m.setTimeStamp(sp->getCurrentMidiMessage().getTimeStamp() + timeStampSamples);
 
-					getScriptProcessor()->addMidiMessageToBuffer(m);
+						sp->addMidiMessageToBuffer(m);
+					}
+					else reportScriptError("Only valid in MidiProcessors");
 				}
 				else reportScriptError("Timestamp must be >= 0");
 			}
@@ -1123,12 +1126,15 @@ void ScriptingApi::Synth::addNoteOff(int channel, int noteNumber, int timeStampS
 		{
 			if (timeStampSamples >= 0)
 			{
-				timeStampSamples = jmax<int>(1, timeStampSamples);
+				if (JavascriptMidiProcessor* sp = dynamic_cast<JavascriptMidiProcessor*>(getProcessor()))
+				{
+					timeStampSamples = jmax<int>(1, timeStampSamples);
 
-				MidiMessage m = MidiMessage::noteOff(channel, noteNumber);
-				m.setTimeStamp(getScriptProcessor()->getCurrentMidiMessage().getTimeStamp() + timeStampSamples);
+					MidiMessage m = MidiMessage::noteOff(channel, noteNumber);
+					m.setTimeStamp(sp->getCurrentMidiMessage().getTimeStamp() + timeStampSamples);
 
-				getScriptProcessor()->addMidiMessageToBuffer(m);
+					sp->addMidiMessageToBuffer(m);
+				}
 			}
 			else reportScriptError("Timestamp must be > 0");
 		}
@@ -1147,10 +1153,14 @@ void ScriptingApi::Synth::addController(int channel, int number, int value, int 
 			{
 				if (timeStampSamples >= 0)
 				{
-					MidiMessage m = MidiMessage::controllerEvent(channel, number, value);
-					m.setTimeStamp(getScriptProcessor()->getCurrentMidiMessage().getTimeStamp() + timeStampSamples);
+					if (JavascriptMidiProcessor* sp = dynamic_cast<JavascriptMidiProcessor*>(getProcessor()))
+					{
+						MidiMessage m = MidiMessage::controllerEvent(channel, number, value);
+						m.setTimeStamp(sp->getCurrentMidiMessage().getTimeStamp() + timeStampSamples);
 
-					getScriptProcessor()->addMidiMessageToBuffer(m);
+						sp->addMidiMessageToBuffer(m);
+					}
+					
 				}
 				else reportScriptError("Timestamp must be > 0");
 			}
@@ -1227,7 +1237,7 @@ void ScriptingApi::Synth::setModulatorAttribute(int chain, int modulatorIndex, i
 }
 
 
-ScriptingApi::Sampler::Sampler(ScriptBaseProcessor *p, ModulatorSampler *sampler_) :
+ScriptingApi::Sampler::Sampler(ProcessorWithScriptingContent *p, ModulatorSampler *sampler_) :
 CreatableScriptObject(p),
 sampler(sampler_)
 {
@@ -1259,9 +1269,6 @@ void ScriptingApi::Sampler::enableRoundRobin(bool shouldUseRoundRobin)
 	if (s != nullptr)
 	{
 		s->setUseRoundRobinLogic(shouldUseRoundRobin);
-
-		getScriptProcessor()->setScriptProcessorDeactivatedRoundRobin(!shouldUseRoundRobin);
-
 	}
 	else
 	{
@@ -1556,7 +1563,7 @@ int ScriptingApi::Synth::addModulator(int chain, const String &type, const Strin
 		if(c->getHandler()->getProcessor(i)->getId() == id) return i;
 	}
 
-	Processor *p = getScriptProcessor()->getMainController()->createProcessor(c->getFactoryType(), type, id);
+	Processor *p = getProcessor()->getMainController()->createProcessor(c->getFactoryType(), type, id);
 
 	if(p == nullptr)
 	{
@@ -1606,7 +1613,7 @@ int ScriptingApi::Synth::getModulatorIndex(int chain, const String &id) const
 void ScriptingApi::Console::print(var x)
 {
 #if USE_BACKEND
-	debugToConsole(getScriptProcessor(), x);
+	debugToConsole(getProcessor(), x);
 #endif
 }
 
@@ -1623,7 +1630,7 @@ void ScriptingApi::Console::stop()
 	const double ms = (now - startTime) * 1000.0;
 	startTime = 0.0;
 
-	debugToConsole(getScriptProcessor(), benchmarkTitle + " Benchmark Result: " + String(ms, 3) + " ms");
+	debugToConsole(getProcessor(), benchmarkTitle + " Benchmark Result: " + String(ms, 3) + " ms");
 #endif
 }
 
@@ -1759,7 +1766,7 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptedPlotter::createCo
 
 void ScriptingApi::Content::ScriptedPlotter::addModulatorToPlotter(String processorName, String modulatorName)
 {
-	Processor::Iterator<ModulatorSynth> synthIter(getScriptProcessor()->getMainController()->getMainSynthChain());
+	Processor::Iterator<ModulatorSynth> synthIter(getProcessor()->getMainController()->getMainSynthChain());
 
 	ModulatorSynth *synth;
 
@@ -1799,7 +1806,7 @@ StringArray ScriptingApi::Content::ScriptImage::getOptionsFor(const Identifier &
 
 		sa.add("Load new File");
 
-		sa.addArray(getScriptProcessor()->getMainController()->getSampleManager().getImagePool()->getFileNameList());
+		sa.addArray(getProcessor()->getMainController()->getSampleManager().getImagePool()->getFileNameList());
 
 		return sa;
 	}
@@ -1816,7 +1823,7 @@ StringArray ScriptingApi::Content::ScriptImage::getOptionsFor(const Identifier &
 
 void ScriptingApi::Content::ScriptImage::setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor)
 {
-	CHECK_COPY_AND_RETURN_17(getScriptProcessor());
+	CHECK_COPY_AND_RETURN_17(getProcessor());
 
 	if(id == getIdFor(FileName))
 	{
@@ -1832,7 +1839,7 @@ void ScriptingApi::Content::ScriptImage::setImageFile(const String &absoluteFile
 
     const bool imageWasEmpty = (image == nullptr);
     
-	CHECK_COPY_AND_RETURN_10(getScriptProcessor());
+	CHECK_COPY_AND_RETURN_10(getProcessor());
 
 	if (absoluteFileName.isEmpty())
 	{
@@ -1840,7 +1847,7 @@ void ScriptingApi::Content::ScriptImage::setImageFile(const String &absoluteFile
 		return;
 	}
 
-	ImagePool *pool = getScriptProcessor()->getMainController()->getSampleManager().getImagePool();
+	ImagePool *pool = getProcessor()->getMainController()->getSampleManager().getImagePool();
 
 	pool->releasePoolData(image);
 
@@ -1871,7 +1878,7 @@ void ScriptingApi::Content::ScriptImage::setImageFile(const String &absoluteFile
 	parent->sendChangeMessage();
 };
 
-ScriptingApi::Content::ScriptImage::ScriptImage(ScriptBaseProcessor *base, Content *parentContent, Identifier imageName, int x, int y, int width, int height) :
+ScriptingApi::Content::ScriptImage::ScriptImage(ProcessorWithScriptingContent *base, Content *parentContent, Identifier imageName, int x, int y, int width, int height) :
 ScriptComponent(base, parentContent, imageName, x, y, width, height),
 image(nullptr)
 {
@@ -1916,9 +1923,9 @@ image(nullptr)
 
 ScriptingApi::Content::ScriptImage::~ScriptImage()
 {
-	if(getScriptProcessor() != nullptr)
+	if(getProcessor() != nullptr)
 	{
-		ImagePool *pool = getScriptProcessor()->getMainController()->getSampleManager().getImagePool();
+		ImagePool *pool = getProcessor()->getMainController()->getSampleManager().getImagePool();
 
 		pool->releasePoolData(image);
 	}
@@ -1948,14 +1955,14 @@ void ScriptingApi::Content::ScriptComponent::addToMacroControl(int macroIndex)
 
 	if(macroIndex == -1)
 	{
-		getScriptProcessor()->getMainController()->getMacroManager().removeMacroControlsFor(getScriptProcessor(), getName());
+		getProcessor()->getMainController()->getMacroManager().removeMacroControlsFor(getProcessor(), getName());
 	}
 	else
 	{
 		NormalisableRange<double> range(getScriptObjectProperty(Properties::min), getScriptObjectProperty(Properties::max));
 
-		getScriptProcessor()->getMainController()->getMacroManager().getMacroChain()->addControlledParameter(
-		macroIndex, getScriptProcessor()->getId(), knobIndex, name.toString(), range, false);
+		getProcessor()->getMainController()->getMacroManager().getMacroChain()->addControlledParameter(
+		macroIndex, getProcessor()->getId(), knobIndex, name.toString(), range, false);
 	}
 
 	
@@ -2103,17 +2110,17 @@ void ScriptingApi::Content::ScriptComponent::setTooltip(const String &newTooltip
 
 File ScriptingApi::Content::ScriptComponent::getExternalFile(var newValue)
 {
-	if (GET_PROJECT_HANDLER(getScriptProcessor()).isActive())
+	if (GET_PROJECT_HANDLER(getProcessor()).isActive())
 	{
-		return GET_PROJECT_HANDLER(getScriptProcessor()).getFilePath(newValue, ProjectHandler::SubDirectories::Images);
+		return GET_PROJECT_HANDLER(getProcessor()).getFilePath(newValue, ProjectHandler::SubDirectories::Images);
 	}
 	else
 	{
-		return dynamic_cast<ScriptProcessor*>(getScriptProcessor())->getFile(newValue, PresetPlayerHandler::ImageResources);
+		return dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->getFile(newValue, PresetPlayerHandler::ImageResources);
 	}
 }
 
-ScriptingApi::Content::ScriptComponent::ScriptComponent(ScriptBaseProcessor *base, Content *parentContent, Identifier name_, int x, int y, int width, int height) :
+ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name_, int x, int y, int width, int height) :
 CreatableScriptObject(base),
 name(name_),
 value(0.0),
@@ -2219,7 +2226,7 @@ ValueTree ScriptingApi::Content::ScriptComponent::exportAsValueTree() const
 void ScriptingApi::Content::ScriptComponent::doubleClickCallback(Component *componentToNotify)
 {
 #if USE_BACKEND
-	getScriptProcessor()->getMainController()->setEditedScriptComponent(this, componentToNotify);
+	getScriptProcessor()->getMainController_()->setEditedScriptComponent(this, componentToNotify);
 #else
 	ignoreUnused(componentToNotify);
 #endif
@@ -2300,7 +2307,7 @@ void ScriptingApi::Content::ScriptComponent::set(String propertyName, var value)
 	setScriptObjectPropertyWithChangeMessage(name, value, parent->allowGuiCreation ? dontSendNotification : sendNotification);
 }
 
-ScriptingApi::Content::ScriptSlider::ScriptSlider(ScriptBaseProcessor *base, Content *parentContent, Identifier name_, int x, int y, int, int) :
+ScriptingApi::Content::ScriptSlider::ScriptSlider(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name_, int x, int y, int, int) :
 ScriptComponent(base, parentContent, name_, x, y, 128, 48),
 styleId(Slider::SliderStyle::RotaryHorizontalVerticalDrag),
 m(HiSlider::Mode::Linear),
@@ -2376,7 +2383,7 @@ ScriptingApi::Content::ScriptSlider::~ScriptSlider()
 {
 	if (getScriptProcessor() != nullptr)
 	{
-		ImagePool *pool = getScriptProcessor()->getMainController()->getSampleManager().getImagePool();
+		ImagePool *pool = getProcessor()->getMainController()->getSampleManager().getImagePool();
 
 		pool->releasePoolData(image);
 	}
@@ -2407,7 +2414,7 @@ void ScriptingApi::Content::ScriptSlider::setScriptObjectPropertyWithChangeMessa
 	}
 	else if (id == getIdFor(filmstripImage))
 	{
-		ImagePool *pool = getScriptProcessor()->getMainController()->getSampleManager().getImagePool();
+		ImagePool *pool = getProcessor()->getMainController()->getSampleManager().getImagePool();
 
 		pool->releasePoolData(image);
 
@@ -2469,7 +2476,7 @@ StringArray ScriptingApi::Content::ScriptSlider::getOptionsFor(const Identifier 
 	case filmstripImage:
 		sa.add("Load new File");
 		sa.add("Use default skin");
-		sa.addArray(getScriptProcessor()->getMainController()->getSampleManager().getImagePool()->getFileNameList());
+		sa.addArray(getProcessor()->getMainController()->getSampleManager().getImagePool()->getFileNameList());
 		break;
 	default:				sa = ScriptComponent::getOptionsFor(id);
 	}
@@ -2495,7 +2502,7 @@ void ScriptingApi::Content::ScriptSlider::setMidPoint(double valueForMidPoint)
 		valueForMidPoint = (range.getEnd() - range.getStart()) / 2.0 + range.getStart();
 	}
 
-	CHECK_COPY_AND_RETURN_11(getScriptProcessor());
+	CHECK_COPY_AND_RETURN_11(getProcessor());
 
 	setScriptObjectProperty(middlePosition, valueForMidPoint);	
 }
@@ -2574,7 +2581,7 @@ bool ScriptingApi::Content::ScriptSlider::contains(double value)
 	}
 }
 
-ScriptingApi::Content::ScriptLabel::ScriptLabel(ScriptBaseProcessor *base, Content *parentContent, Identifier name, int x, int y, int width, int) :
+ScriptingApi::Content::ScriptLabel::ScriptLabel(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name, int x, int y, int width, int) :
 ScriptComponent(base, parentContent, name, x, y, width, 16)
 {
 	propertyIds.add(Identifier("fontName"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
@@ -2662,7 +2669,7 @@ void ScriptingApi::Content::setToolbarProperties(const var &toolbarProperties)
 {
 	NamedValueSet *newSet = &toolbarProperties.getDynamicObject()->getProperties();
 
-	NamedValueSet *set = &getScriptProcessor()->getMainController()->getToolbarPropertiesObject()->getProperties();
+	NamedValueSet *set = &getProcessor()->getMainController()->getToolbarPropertiesObject()->getProperties();
 
 	set->clear();
 
@@ -2682,12 +2689,12 @@ void ScriptingApi::Content::storeAllControlsAsPreset(const String &fileName)
 	}
 	else
 	{
-		f = File(GET_PROJECT_HANDLER(getScriptProcessor()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets).getChildFile(fileName));
+		f = File(GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets).getChildFile(fileName));
 	}
 
 	ValueTree v = exportAsValueTree();
 
-	v.setProperty("Processor", getScriptProcessor()->getId(), nullptr);
+	v.setProperty("Processor", getProcessor()->getId(), nullptr);
 
 	if (f.existsAsFile())
 	{
@@ -2699,7 +2706,7 @@ void ScriptingApi::Content::storeAllControlsAsPreset(const String &fileName)
 
 		for (int i = 0; i < preset.getNumChildren(); i++)
 		{
-			if (preset.getChild(i).getProperty("Processor") == getScriptProcessor()->getId())
+			if (preset.getChild(i).getProperty("Processor") == getProcessor()->getId())
 			{
 				preset.getChild(i).copyPropertiesFrom(v, nullptr);
 				found = true;
@@ -2729,9 +2736,9 @@ void ScriptingApi::Content::restoreAllControlsFromPreset(const String &fileName)
 {
 #if USE_FRONTEND
     
-	CHECK_COPY_AND_RETURN_23(getScriptProcessor());
+	CHECK_COPY_AND_RETURN_23(getProcessor());
 
-    const ValueTree parent = dynamic_cast<FrontendProcessor*>(getScriptProcessor()->getMainController())->getPresetData();
+    const ValueTree parent = dynamic_cast<FrontendProcessor*>(getProcessor()->getMainController())->getPresetData();
     
     ValueTree v;
         
@@ -2743,7 +2750,7 @@ void ScriptingApi::Content::restoreAllControlsFromPreset(const String &fileName)
         
         for(int j = 0; j < preset.getNumChildren(); j++)
         {
-            if (preset.getChild(j).getProperty("Processor") == getScriptProcessor()->getId())
+            if (preset.getChild(j).getProperty("Processor") == getProcessor()->getId())
             {
                 v = preset.getChild(j);
                 break;
@@ -2768,7 +2775,7 @@ void ScriptingApi::Content::restoreAllControlsFromPreset(const String &fileName)
 	}
 	else
 	{
-		f = File(GET_PROJECT_HANDLER(getScriptProcessor()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets).getChildFile(fileName));
+		f = File(GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets).getChildFile(fileName));
 	}
 
 	if (f.existsAsFile())
@@ -2781,7 +2788,7 @@ void ScriptingApi::Content::restoreAllControlsFromPreset(const String &fileName)
 
 		for (int i = 0; i < parent.getNumChildren(); i++)
 		{
-			if (parent.getChild(i).getProperty("Processor") == getScriptProcessor()->getId())
+			if (parent.getChild(i).getProperty("Processor") == getProcessor()->getId())
 			{
 				v = parent.getChild(i);
 				break;
@@ -2820,7 +2827,7 @@ void ScriptingApi::Content::restoreAllControlsFromPreset(const ValueTree &preset
 	{
 		if (!components[i]->getScriptObjectProperty(ScriptComponent::Properties::saveInPreset)) continue;
 
-		getScriptProcessor()->setAttribute(i, components[i]->getValue(), sendNotification);
+		getProcessor()->setAttribute(i, components[i]->getValue(), sendNotification);
 
 		const String macroName = components[i]->getScriptObjectProperty(ScriptComponent::macroControl).toString();
 
@@ -2830,7 +2837,7 @@ void ScriptingApi::Content::restoreAllControlsFromPreset(const ValueTree &preset
 		{
 			NormalisableRange<float> range(components[i]->getScriptObjectProperty(ScriptComponent::min), components[i]->getScriptObjectProperty(ScriptComponent::max));
 
-			getScriptProcessor()->getMainController()->getMacroManager().getMacroChain()->setMacroControl(macroIndex, range.convertTo0to1(components[i]->getValue()) * 127.0f, sendNotification);
+			getProcessor()->getMainController()->getMacroManager().getMacroChain()->setMacroControl(macroIndex, range.convertTo0to1(components[i]->getValue()) * 127.0f, sendNotification);
 		}
 	}
 }
@@ -2901,7 +2908,7 @@ void ScriptingApi::Content::ScriptComponent::setPosition(int x, int y, int w, in
 	sendChangeMessage();
 }
 
-ScriptingApi::Content::ScriptComboBox::ScriptComboBox(ScriptBaseProcessor *base, Content *parentContent, Identifier name, int x, int y, int width, int) :
+ScriptingApi::Content::ScriptComboBox::ScriptComboBox(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name, int x, int y, int width, int) :
 ScriptComponent(base, parentContent, name, x, y, width, 32)
 {
 	propertyIds.add(Identifier("items"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::MultilineSelector);
@@ -2940,7 +2947,7 @@ String ScriptingApi::Content::ScriptComboBox::getItemText() const
 	return items[(int)value - 1];
 }
 
-ScriptingApi::Content::ScriptTable::ScriptTable(ScriptBaseProcessor *base, Content *parentContent, Identifier name, int x, int y, int width, int height) :
+ScriptingApi::Content::ScriptTable::ScriptTable(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name, int x, int y, int width, int height) :
 ScriptComponent(base, parentContent, name, x, y, width, height),
 ownedTable(new MidiTable()),
 useOtherTable(false),
@@ -3005,7 +3012,10 @@ StringArray ScriptingApi::Content::ScriptTable::getOptionsFor(const Identifier &
 {
 	if(id != getIdFor(ProcessorId)) return ScriptComponent::getOptionsFor(id);
 
-	return ProcessorHelpers::getAllIdsForType<LookupTableProcessor>(getScriptProcessor()->getOwnerSynth());
+	MidiProcessor* mp = dynamic_cast<MidiProcessor*>(getProcessor());
+	if (mp == nullptr) return StringArray();
+
+	return ProcessorHelpers::getAllIdsForType<LookupTableProcessor>(mp->getOwnerSynth());
 };
 
 void ScriptingApi::Content::ScriptTable::setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor)
@@ -3028,7 +3038,10 @@ void ScriptingApi::Content::ScriptTable::connectToOtherTable(const String &other
 {
 	if (otherTableId.isEmpty()) return;
 
-	Processor::Iterator<Processor> it(getScriptProcessor()->getOwnerSynth(), false);
+	MidiProcessor* mp = dynamic_cast<MidiProcessor*>(getProcessor());
+	if (mp == nullptr) return;
+
+	Processor::Iterator<Processor> it(mp->getOwnerSynth(), false);
 
 	Processor *p;
 
@@ -3038,7 +3051,7 @@ void ScriptingApi::Content::ScriptTable::connectToOtherTable(const String &other
 		{
 			useOtherTable = true;
 
-			debugToConsole(getScriptProcessor(), otherTableId + " was found.");
+			debugToConsole(getProcessor(), otherTableId + " was found.");
 
 			referencedTable = dynamic_cast<LookupTableProcessor*>(p)->getTable(index);
 			connectedProcessor = p;
@@ -3058,7 +3071,7 @@ LookupTableProcessor * ScriptingApi::Content::ScriptTable::getTableProcessor() c
 	return dynamic_cast<LookupTableProcessor*>(connectedProcessor.get());
 }
 
-ScriptingApi::Content::ScriptAudioWaveform::ScriptAudioWaveform(ScriptBaseProcessor *base, Content *parentContent, Identifier plotterName, int x, int y, int width, int height) :
+ScriptingApi::Content::ScriptAudioWaveform::ScriptAudioWaveform(ProcessorWithScriptingContent *base, Content *parentContent, Identifier plotterName, int x, int y, int width, int height) :
 ScriptComponent(base, parentContent, plotterName, x, y, width, height),
 connectedProcessor(nullptr)
 {
@@ -3085,7 +3098,11 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptAudioWaveform::crea
 
 void ScriptingApi::Content::ScriptAudioWaveform::connectToAudioSampleProcessor(String processorId)
 {
-	Processor::Iterator<Processor> it(getScriptProcessor()->getOwnerSynth(), false);
+	MidiProcessor* mp = dynamic_cast<MidiProcessor*>(getProcessor());
+
+	if (mp == nullptr) return;
+
+	Processor::Iterator<Processor> it(mp->getOwnerSynth(), false);
 
 	Processor *p;
 
@@ -3093,7 +3110,7 @@ void ScriptingApi::Content::ScriptAudioWaveform::connectToAudioSampleProcessor(S
 	{
 		if (dynamic_cast<AudioSampleProcessor*>(p) != nullptr && p->getId() == processorId)
 		{
-			debugToConsole(getScriptProcessor(), processorId + " was found.");
+			debugToConsole(getProcessor(), processorId + " was found.");
 
 			connectedProcessor = p;
 
@@ -3151,11 +3168,11 @@ void ScriptingApi::Content::ScriptAudioWaveform::restoreFromValueTree(const Valu
 
 		if (fileName.isNotEmpty())
 		{
-			getProcessor()->setLoadedFile(fileName, true, false);
+			getAudioProcessor()->setLoadedFile(fileName, true, false);
 			
 			Range<int> range(v.getProperty("rangeStart"), v.getProperty("rangeEnd"));
 
-			getProcessor()->setRange(range);
+			getAudioProcessor()->setRange(range);
 
 			sendChangeMessage();
 		}
@@ -3166,7 +3183,10 @@ StringArray ScriptingApi::Content::ScriptAudioWaveform::getOptionsFor(const Iden
 {
 	if (id != getIdFor(processorId)) return ScriptComponent::getOptionsFor(id);
 
-	return ProcessorHelpers::getAllIdsForType<AudioSampleProcessor>(getScriptProcessor()->getOwnerSynth());
+	MidiProcessor* mp = dynamic_cast<MidiProcessor*>(getProcessor());
+	if (mp == nullptr) return StringArray();
+
+	return ProcessorHelpers::getAllIdsForType<AudioSampleProcessor>(mp->getOwnerSynth());
 }
 
 void ScriptingApi::Content::endInitialization()
@@ -3260,9 +3280,13 @@ void ScriptingObjects::ScriptingModulator::setIntensity(float newIntensity)
 #pragma warning( push )
 #pragma warning( disable : 4390)
 
-void ScriptingApi::Content::ModulatorMeter::setScriptProcessor(ScriptBaseProcessor *sp)
+void ScriptingApi::Content::ModulatorMeter::setScriptProcessor(ProcessorWithScriptingContent *sp)
 {
-	Processor::Iterator<Modulator> it(sp->getOwnerSynth(), true);
+	MidiProcessor* mp = dynamic_cast<MidiProcessor*>(sp);
+
+	if (mp == nullptr) reportScriptError("Can only be called from MidiProcessors");
+	
+	Processor::Iterator<Modulator> it(mp->getOwnerSynth(), true);
 
 	String name = getScriptObjectProperty(ModulatorId);
 
@@ -3279,7 +3303,7 @@ void ScriptingApi::Content::ModulatorMeter::setScriptProcessor(ScriptBaseProcess
 		}
 	}
 
-	if(m == nullptr) debugError(sp, "Modulator " + name + " not found!");
+	if (m == nullptr) debugError(mp, "Modulator " + name + " not found!");
 };
 
 #pragma warning( pop )
@@ -3290,7 +3314,10 @@ StringArray ScriptingApi::Content::ModulatorMeter::getOptionsFor(const Identifie
 
 	StringArray sa;
 
-	Processor::Iterator<Modulator> iter(getScriptProcessor()->getOwnerSynth());
+	MidiProcessor* mp = dynamic_cast<MidiProcessor*>(getProcessor());
+	if (mp == nullptr) return StringArray();
+
+	Processor::Iterator<Modulator> iter(mp->getOwnerSynth());
 
 	Modulator *m;
 
@@ -3302,7 +3329,7 @@ StringArray ScriptingApi::Content::ModulatorMeter::getOptionsFor(const Identifie
 	return sa;
 };
 
-ScriptingApi::Content::ModulatorMeter::ModulatorMeter(ScriptBaseProcessor *base, Content *parentContent, Identifier modulatorName, int x, int y, int width, int height) :
+ScriptingApi::Content::ModulatorMeter::ModulatorMeter(ProcessorWithScriptingContent *base, Content *parentContent, Identifier modulatorName, int x, int y, int width, int height) :
 ScriptComponent(base, parentContent, modulatorName, x, y, width, height),
 targetMod(nullptr)
 {
@@ -3335,7 +3362,7 @@ void ScriptingApi::Content::ModulatorMeter::setScriptObjectPropertyWithChangeMes
 
 
 
-ScriptingObjects::ScriptingEffect::ScriptingEffect(ScriptBaseProcessor *p, EffectProcessor *fx) :
+ScriptingObjects::ScriptingEffect::ScriptingEffect(ProcessorWithScriptingContent *p, EffectProcessor *fx) :
 	CreatableScriptObject(p),
 	effect(fx)
 {
@@ -3357,7 +3384,7 @@ ScriptingObjects::ScriptingEffect::ScriptingEffect(ScriptBaseProcessor *p, Effec
 	setMethod("setBypassed", Wrapper::setBypassed);
 };
 
-ScriptingObjects::ScriptingSynth::ScriptingSynth(ScriptBaseProcessor *p, ModulatorSynth *synth_):
+ScriptingObjects::ScriptingSynth::ScriptingSynth(ProcessorWithScriptingContent *p, ModulatorSynth *synth_):
 	CreatableScriptObject(p),
 	synth(synth_)
 {
@@ -3379,7 +3406,7 @@ ScriptingObjects::ScriptingSynth::ScriptingSynth(ScriptBaseProcessor *p, Modulat
 	setMethod("setBypassed", Wrapper::setBypassed);
 };
 
-ScriptingObjects::ScriptingAudioSampleProcessor::ScriptingAudioSampleProcessor(ScriptBaseProcessor *p, AudioSampleProcessor *sampleProcessor):
+ScriptingObjects::ScriptingAudioSampleProcessor::ScriptingAudioSampleProcessor(ProcessorWithScriptingContent *p, AudioSampleProcessor *sampleProcessor):
 CreatableScriptObject(p),
 audioSampleProcessor(dynamic_cast<Processor*>(sampleProcessor))
 {
@@ -3439,7 +3466,7 @@ int ScriptingObjects::ScriptingAudioSampleProcessor::getSampleLength() const
 }
 
 
-ScriptingObjects::ScriptingTableProcessor::ScriptingTableProcessor(ScriptBaseProcessor *p, LookupTableProcessor *tableProcessor_):
+ScriptingObjects::ScriptingTableProcessor::ScriptingTableProcessor(ProcessorWithScriptingContent *p, LookupTableProcessor *tableProcessor_):
   CreatableScriptObject(p),
   tableProcessor(dynamic_cast<Processor*>(tableProcessor_))
 {
@@ -3508,7 +3535,7 @@ void ScriptingObjects::ScriptingTableProcessor::reset(int tableIndex)
 	}
 }
 
-ScriptingApi::Content::ScriptSliderPack::ScriptSliderPack(ScriptBaseProcessor *base, Content *parentContent, Identifier imageName, int x, int y, int width, int height) :
+ScriptingApi::Content::ScriptSliderPack::ScriptSliderPack(ProcessorWithScriptingContent *base, Content *parentContent, Identifier imageName, int x, int y, int width, int height) :
 ScriptComponent(base, parentContent, imageName, x, y, width, height),
 packData(new SliderPackData()),
 existingData(nullptr)
@@ -3589,7 +3616,10 @@ void ScriptingApi::Content::ScriptSliderPack::connectToOtherSliderPack(const Str
 {
     if (otherPackId.isEmpty()) return;
     
-    Processor::Iterator<Processor> it(getScriptProcessor()->getOwnerSynth(), false);
+	MidiProcessor* mp = dynamic_cast<MidiProcessor*>(getProcessor());
+	if (mp == nullptr) return;
+
+    Processor::Iterator<Processor> it(mp->getOwnerSynth(), false);
     
     Processor *p;
     
@@ -3599,7 +3629,7 @@ void ScriptingApi::Content::ScriptSliderPack::connectToOtherSliderPack(const Str
         {
             existingData = dynamic_cast<SliderPackProcessor*>(p)->getSliderPackData(0);
             
-            debugToConsole(getScriptProcessor(), otherPackId + " was found.");
+            debugToConsole(getProcessor(), otherPackId + " was found.");
             
             return;
         }
@@ -3612,7 +3642,10 @@ StringArray ScriptingApi::Content::ScriptSliderPack::getOptionsFor(const Identif
 {
     if(id != getIdFor(ProcessorId)) return ScriptComponent::getOptionsFor(id);
     
-    return ProcessorHelpers::getAllIdsForType<SliderPackProcessor>(getScriptProcessor()->getOwnerSynth());
+	MidiProcessor* mp = dynamic_cast<MidiProcessor*>(getProcessor());
+	if (mp == nullptr) return StringArray();
+
+    return ProcessorHelpers::getAllIdsForType<SliderPackProcessor>(mp->getOwnerSynth());
 };
 
 void ScriptingApi::Content::ScriptSliderPack::setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /*= sendNotification*/)
@@ -3659,13 +3692,13 @@ ScriptingApi::Content::ScriptButton::~ScriptButton()
 {
 	if (getScriptProcessor() != nullptr)
 	{
-		ImagePool *pool = getScriptProcessor()->getMainController()->getSampleManager().getImagePool();
+		ImagePool *pool = getProcessor()->getMainController()->getSampleManager().getImagePool();
 
 		pool->releasePoolData(image);
 	}
 }
 
-ScriptingApi::Content::ScriptButton::ScriptButton(ScriptBaseProcessor *base, Content *parentContent, Identifier name, int x, int y, int, int) :
+ScriptingApi::Content::ScriptButton::ScriptButton(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name, int x, int y, int, int) :
 ScriptComponent(base, parentContent, name, x, y, 128, 32),
 image(nullptr)
 {
@@ -3694,7 +3727,7 @@ void ScriptingApi::Content::ScriptButton::setScriptObjectPropertyWithChangeMessa
 {
 	if (id == getIdFor(filmstripImage))
 	{
-		ImagePool *pool = getScriptProcessor()->getMainController()->getSampleManager().getImagePool();
+		ImagePool *pool = getProcessor()->getMainController()->getSampleManager().getImagePool();
 
 		pool->releasePoolData(image);
 
@@ -3738,12 +3771,12 @@ StringArray ScriptingApi::Content::ScriptButton::getOptionsFor(const Identifier 
 	sa.add("Load new File");
 
 	sa.add("Use default skin");
-	sa.addArray(getScriptProcessor()->getMainController()->getSampleManager().getImagePool()->getFileNameList());
+	sa.addArray(getProcessor()->getMainController()->getSampleManager().getImagePool()->getFileNameList());
 
 	return sa;
 }
 
-ScriptingApi::Content::ScriptPanel::ScriptPanel(ScriptBaseProcessor *base, Content *parentContent, Identifier panelName, int x, int y, int width, int height) :
+ScriptingApi::Content::ScriptPanel::ScriptPanel(ProcessorWithScriptingContent *base, Content *parentContent, Identifier panelName, int x, int y, int width, int height) :
 ScriptComponent(base, parentContent, panelName, x, y, width, height)
 {
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::max));
@@ -3813,7 +3846,7 @@ void ScriptingApi::Content::PluginParameterConnector::sendParameterChangeNotific
 	}
 }
 
-ScriptingApi::Content::ScriptPluginEditor::ScriptPluginEditor(ScriptBaseProcessor *base, Content*parentContent, Identifier name, int x, int y, int width, int height):
+ScriptingApi::Content::ScriptPluginEditor::ScriptPluginEditor(ProcessorWithScriptingContent *base, Content*parentContent, Identifier name, int x, int y, int width, int height):
 ScriptComponent(base, parentContent, name, x, y, width, height),
 connectedProcessor(nullptr)
 {
@@ -3835,13 +3868,17 @@ connectedProcessor(nullptr)
 
 void ScriptingApi::Content::ScriptPluginEditor::connectToAudioProcessorWrapper(String processorId)
 {
-	Processor::Iterator<AudioProcessorWrapper> it(getScriptProcessor()->getOwnerSynth(), false);
+	MidiProcessor* mp = dynamic_cast<MidiProcessor*>(getScriptProcessor());
+
+	if (mp == nullptr) reportScriptError("Can only be called from MidiProcessors");
+
+	Processor::Iterator<AudioProcessorWrapper> it(mp->getOwnerSynth(), false);
 
 	while (AudioProcessorWrapper *p = it.getNextProcessor())
 	{
 		if (p->getId() == processorId)
 		{
-			debugToConsole(getScriptProcessor(), processorId + " was found.");
+			debugToConsole(getProcessor(), processorId + " was found.");
 
 			connectedProcessor = p;
 
@@ -3930,7 +3967,10 @@ StringArray ScriptingApi::Content::ScriptPluginEditor::getOptionsFor(const Ident
 {
 	if (id != getIdFor(processorId)) return ScriptComponent::getOptionsFor(id);
 
-	return ProcessorHelpers::getAllIdsForType<AudioProcessorWrapper>(getScriptProcessor()->getOwnerSynth());
+	MidiProcessor* mp = dynamic_cast<MidiProcessor*>(getProcessor());
+	if (mp == nullptr) return StringArray();
+
+	return ProcessorHelpers::getAllIdsForType<AudioProcessorWrapper>(mp->getOwnerSynth());
 }
 
 AudioProcessorWrapper * ScriptingApi::Content::ScriptPluginEditor::getProcessor()
@@ -3950,11 +3990,11 @@ void ScriptingObjects::TimerObject::timerCallback()
 
     Result r = Result::ok();
     
-    dynamic_cast<ScriptProcessor*>(getScriptProcessor())->getScriptEngine()->callExternalFunction(callback, args);
+    dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->getScriptEngine()->callExternalFunction(callback, args);
     
 	if(r.failed())
     {
         stopTimer();
-        debugError(getScriptProcessor(), r.getErrorMessage());
+        debugError(getProcessor(), r.getErrorMessage());
     }
 }

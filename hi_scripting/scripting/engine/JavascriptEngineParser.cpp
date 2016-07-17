@@ -279,6 +279,7 @@ private:
 	HiseSpecialData *hiseSpecialData;
 
 	bool currentlyParsingInlineFunction = false;
+	Identifier currentlyParsedCallback = Identifier::null;
 
 	void throwError(const String& err) const  { location.throwError(err); }
 
@@ -342,8 +343,7 @@ private:
 #if USE_BACKEND
         
 		const String fileName = "{PROJECT_FOLDER}" + currentValue.toString().removeCharacters("\"\'");
-		const String refFileName = GET_PROJECT_HANDLER(hiseSpecialData->processor).getFilePath(fileName, ProjectHandler::SubDirectories::Scripts);
-
+		const String refFileName = GET_PROJECT_HANDLER(dynamic_cast<Processor*>(hiseSpecialData->processor)).getFilePath(fileName, ProjectHandler::SubDirectories::Scripts);
 
 		File f(refFileName);
 
@@ -365,7 +365,7 @@ private:
         const String fileName = currentValue.toString().removeCharacters("\"\'");
         const String refFileName = fileName;
         
-        String fileContent = hiseSpecialData->processor->getMainController()->getExternalScriptFromCollection(fileName);
+		String fileContent = dynamic_cast<Processor*>(hiseSpecialData->processor)->getMainController()->getExternalScriptFromCollection(fileName);
         
         
 
@@ -536,7 +536,18 @@ private:
 		jassert(c != nullptr);
 
 		match(TokenTypes::openParen);
+
+		for (int i = 0; i < c->getNumArgs(); i++)
+		{
+			c->parameters[i] = parseIdentifier();
+			c->parameterValues[i] = var::undefined();
+			
+			if (i != c->getNumArgs() - 1) match(TokenTypes::comma);
+		}
+
 		match(TokenTypes::closeParen);
+
+		ScopedValueSetter<Identifier> cParser(currentlyParsedCallback, name, Identifier::null);
 
 		ScopedPointer<BlockStatement> s = parseBlock();
 
@@ -991,6 +1002,25 @@ private:
 					{
 						parseIdentifier();
 						return parseSuffixes(new InlineFunction::ParameterReference(location, ob, inlineParameterIndex));
+					}
+				}
+				else if (!currentlyParsedCallback.isNull())
+				{
+					Callback *c = hiseSpecialData->getCallback(currentlyParsedCallback);
+
+					if (c != nullptr)
+					{
+						var* callbackParameter = c->getVarPointer(id);
+
+						if (callbackParameter != nullptr)
+						{
+							parseIdentifier();
+							return parseSuffixes(new CallbackParameterReference(location, callbackParameter));
+						}
+					}
+					else
+					{
+						jassertfalse;
 					}
 				}
 

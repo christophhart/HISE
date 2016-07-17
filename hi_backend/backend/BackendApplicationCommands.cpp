@@ -929,9 +929,9 @@ void BackendCommandTarget::menuItemSelected(int menuItemID, int /*topLevelMenuIn
 
 		File f = files[menuItemID - MenuToolsExternalScriptFileOffset];
 
-		Processor::Iterator<ScriptProcessor> iter(bpe->getMainSynthChain());
+		Processor::Iterator<JavascriptMidiProcessor> iter(bpe->getMainSynthChain());
 
-		while (ScriptProcessor *sp = iter.getNextProcessor())
+		while (JavascriptMidiProcessor *sp = iter.getNextProcessor())
 		{
 			for (int i = 0; i < sp->getNumWatchedFiles(); i++)
 			{
@@ -1647,13 +1647,13 @@ void BackendCommandTarget::Actions::saveFileAsXml(BackendProcessorEditor * bpe)
 			{
 				File scriptDirectory = XmlBackupFunctions::getScriptDirectoryFor(bpe->getMainSynthChain());
 
-				Processor::Iterator<ScriptProcessor> iter(bpe->getMainSynthChain());
+				Processor::Iterator<JavascriptMidiProcessor> iter(bpe->getMainSynthChain());
 
 				scriptDirectory.deleteRecursively();
 
 				scriptDirectory.createDirectory();
 
-				while (ScriptProcessor *sp = iter.getNextProcessor())
+				while (JavascriptMidiProcessor *sp = iter.getNextProcessor())
 				{
 					String content;
 

@@ -75,7 +75,7 @@ public:
     
     void timerCallback();
     
-    void setScriptProcessor(ScriptProcessor *p, ScriptingEditor *editor);
+    void setScriptProcessor(JavascriptProcessor *p, ScriptingEditor *editor);
     
     int getNumRows() override;
     void paintRowBackground (Graphics& g, int rowNumber, int /*width*/, int /*height*/, bool rowIsSelected) override;

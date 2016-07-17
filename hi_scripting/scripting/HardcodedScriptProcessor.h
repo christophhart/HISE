@@ -44,7 +44,7 @@ class ModulatorSynth;
 *	You obviously have to change some language specific stuff (eg. 'var' 'function' ...), but 
 *	this class tries to smooth out the process of converting as much as possible.
 */
-class HardcodedScriptProcessor: public ScriptBaseProcessor
+class HardcodedScriptProcessor: public ScriptBaseMidiProcessor
 {
 public:
 
@@ -73,7 +73,7 @@ public:
     {
         jassert(content.get() != nullptr);
         
-        ScriptBaseProcessor::restoreFromValueTree(v);
+        ScriptBaseMidiProcessor::restoreFromValueTree(v);
         
 		onInit();
 
@@ -88,7 +88,6 @@ public:
 
 protected:
 
-	
 	void controlCallback(ScriptingApi::Content::ScriptComponent *component, var controllerValue) override
 	{
 		onControl(component, controllerValue);
@@ -758,7 +757,7 @@ public:
     
     ValueTree exportAsValueTree() const override
     {
-        ValueTree v = ScriptBaseProcessor::exportAsValueTree();
+        ValueTree v = ScriptBaseMidiProcessor::exportAsValueTree();
         
         v.setProperty("VelocityName", velocityName.toString(), nullptr);
         v.setProperty("NoteName", noteName.toString(), nullptr);
@@ -769,7 +768,7 @@ public:
     
     void restoreFromValueTree(const ValueTree &v) override
     {
-        ScriptBaseProcessor::restoreFromValueTree(v);
+        ScriptBaseMidiProcessor::restoreFromValueTree(v);
         
 		String n = v.getProperty("NoteName").toString();
 

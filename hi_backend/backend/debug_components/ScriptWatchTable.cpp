@@ -32,7 +32,8 @@
 
 ScriptWatchTable::ScriptWatchTable(MainController *mc, BaseDebugArea *area) :
 	AutoPopupDebugComponent(area),
-	controller(mc)
+	controller(mc),
+	editor(nullptr)
 {
 	setName(getHeadline());
 
@@ -73,7 +74,7 @@ void ScriptWatchTable::refreshStrippedSet()
 	}
 	else
 	{
-		HiseJavascriptEngine *engine = dynamic_cast<ScriptProcessor*>(processor.get())->getScriptEngine();
+		HiseJavascriptEngine *engine = dynamic_cast<JavascriptProcessor*>(processor.get())->getScriptEngine();
 		const int numRows = engine->getNumDebugObjects();
 		BigInteger lastChanged = changed;
 		bool updateTable = false;
@@ -132,7 +133,7 @@ void ScriptWatchTable::mouseDoubleClick(const MouseEvent &/*e*/)
 {
 	if (processor.get() != nullptr  && editor.getComponent() != nullptr)
 	{
-		HiseJavascriptEngine *engine = dynamic_cast<ScriptProcessor*>(processor.get())->getScriptEngine();
+		HiseJavascriptEngine *engine = dynamic_cast<JavascriptProcessor*>(processor.get())->getScriptEngine();
 
 		if (engine != nullptr)
 		{
@@ -152,9 +153,9 @@ void ScriptWatchTable::mouseDoubleClick(const MouseEvent &/*e*/)
 	}
 }
 
-void ScriptWatchTable::setScriptProcessor(ScriptProcessor *p, ScriptingEditor *editor_)
+void ScriptWatchTable::setScriptProcessor(JavascriptProcessor *p, ScriptingEditor *editor_)
 {
-	processor = static_cast<Processor*>(p);
+	processor = dynamic_cast<Processor*>(p);
 	editor = editor_;
 
 	setName(getHeadline());

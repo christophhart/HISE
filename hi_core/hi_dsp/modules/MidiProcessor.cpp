@@ -105,7 +105,7 @@ MidiProcessorFactoryType::MidiProcessorFactoryType(Processor *p):
 {
 	ADD_NAME_TO_TYPELIST(MidiDelay);
 	ADD_NAME_TO_TYPELIST(SampleRaster);
-	ADD_NAME_TO_TYPELIST(ScriptProcessor);
+	ADD_NAME_TO_TYPELIST(JavascriptMidiProcessor);
 	ADD_NAME_TO_TYPELIST(Transposer);
 	ADD_NAME_TO_TYPELIST(RoundRobinMidiProcessor);
 
@@ -152,7 +152,7 @@ Processor *MidiProcessorFactoryType::createProcessor(int typeIndex, const String
 		{
 			case midiDelay:				mp = new MidiDelay(m, id); break;
 			case sampleRaster:			mp = new SampleRaster(m, id); break;
-			case scriptProcessor:		mp = new ScriptProcessor(m, id); break;
+			case scriptProcessor:		mp = new JavascriptMidiProcessor(m, id); break;
 			case transposer:			mp = new Transposer(m, id); break;
 			case roundRobin:			return nullptr;
 			case midiProcessorChain:	jassertfalse; mp = new MidiProcessorChain(m, id, getOwnerProcessor()); break;

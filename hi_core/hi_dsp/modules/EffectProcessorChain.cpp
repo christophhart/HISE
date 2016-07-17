@@ -76,6 +76,7 @@ void EffectProcessorChainFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(RouteEffect);
 	ADD_NAME_TO_TYPELIST(SaturatorEffect);
 	ADD_NAME_TO_TYPELIST(AudioProcessorWrapper);
+	ADD_NAME_TO_TYPELIST(JavascriptMasterEffect);
 
 #if INCLUDE_PROTOPLUG
 	ADD_NAME_TO_TYPELIST(ProtoplugEffectProcessor);
@@ -106,6 +107,7 @@ Processor* EffectProcessorChainFactoryType::createProcessor	(int typeIndex, cons
 	case routeFX:						return new RouteEffect(m, id);
 	case saturation:					return new SaturatorEffect(m, id);
 	case audioProcessorWrapper:			return new AudioProcessorWrapper(m, id);
+	case scriptFxProcessor:				return new JavascriptMasterEffect(m, id);
 #if INCLUDE_PROTOPLUG
 	case protoPlugEffect:				return new ProtoplugEffectProcessor(m, id);
 #endif

@@ -31,7 +31,7 @@
 */
 
 HardcodedScriptProcessor::HardcodedScriptProcessor(MainController *mc, const String &id, ModulatorSynth *ms):
-	ScriptBaseProcessor(mc, id),
+	ScriptBaseMidiProcessor(mc, id),
 	Message(this),
 	Synth(this, ms),
 	Engine(this),
@@ -58,7 +58,6 @@ ProcessorEditorBody *HardcodedScriptProcessor::createEditor(ProcessorEditor *par
 
 	return new HardcodedScriptEditor(parentEditor);
 
-	
 #else
 
 	ignoreUnused(parentEditor);

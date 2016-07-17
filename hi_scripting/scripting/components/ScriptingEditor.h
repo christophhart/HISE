@@ -42,7 +42,7 @@ public:
 		ProcessorEditorBody(p)
 
 	{
-		addAndMakeVisible(contentComponent = new ScriptContentComponent(static_cast<ScriptBaseProcessor*>(getProcessor())));
+		addAndMakeVisible(contentComponent = new ScriptContentComponent(static_cast<ScriptBaseMidiProcessor*>(getProcessor())));
 		contentComponent->refreshMacroIndexes();
 
 
@@ -89,12 +89,12 @@ public:
 	{
 		if(getHeight() != getBodyHeight()) setSize(getWidth(), getBodyHeight());
 
-		double x = static_cast<ScriptProcessor*>(getProcessor())->getLastExecutionTime();
+		double x = dynamic_cast<JavascriptProcessor*>(getProcessor())->getLastExecutionTime();
 		timeLabel->setText(String(x, 3) + " ms", dontSendNotification);
 
 		getProcessor()->setEditorState(Processor::BodyShown, true);
 
-		contentButton->setToggleState(getProcessor()->getEditorState(ScriptProcessor::contentShown), dontSendNotification);
+		contentButton->setToggleState(getProcessor()->getEditorState(ProcessorWithScriptingContent::EditorStates::contentShown), dontSendNotification);
 
 	};
 
@@ -108,15 +108,16 @@ public:
 	{
 		bool anyOpen = false;
 
-		for(int i = 0; i < ScriptProcessor::numCallbacks; i++)
+		JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(getProcessor());
+
+		for(int i = 0; i < sp->getNumSnippets(); i++)
 		{
-			if(getProcessor()->getEditorState(i + Processor::numEditorStates))
+			if(getProcessor()->getEditorState(i + ProcessorWithScriptingContent::EditorStates::onInitShown))
 			{
-				buttonClicked(getSnippetButton((ScriptProcessor::Callback) i));
+				buttonClicked(getSnippetButton(i));
 				anyOpen = true;
 			}
 		}
-
 
 		if (! anyOpen)
 		{
@@ -154,45 +155,13 @@ public:
 	}
 
 
-	ScriptProcessor::Callback getActiveCallback() const;
+	int getActiveCallback() const;
 
-	void checkActiveSnippets()
+	void checkActiveSnippets();
+
+	Button *getSnippetButton(int i)
 	{
-		ScriptProcessor *s = static_cast<ScriptProcessor*>(getProcessor());
-
-
-
-		for(int i = 0; i < ScriptProcessor::numCallbacks; i++)
-		{
-			const bool isSnippetEmpty = s->getSnippet((ScriptProcessor::Callback)i)->isSnippetEmpty();
-
-			Button *t = getSnippetButton((ScriptProcessor::Callback)i);
-
-			t->setColour(TextButton::buttonColourId, !isSnippetEmpty ? Colour (0x77cccccc) : Colour (0x4c4b4b4b));
-			t->setColour (TextButton::buttonOnColourId, Colours::white.withAlpha(0.7f));
-			t->setColour (TextButton::textColourOnId, Colour (0xaa000000));
-			t->setColour (TextButton::textColourOffId, Colour (0x99ffffff));
-
-			if(i == ScriptProcessor::onNoteOff || i == ScriptProcessor::onNoteOn || i == ScriptProcessor::onController || i == ScriptProcessor::onTimer)
-			{
-				t->setButtonText(s->getSnippet(i)->getCallbackName().toString() + (s->isDeferred() ? " (D)" : ""));
-			}
-
-		}
-	}
-
-	Button *getSnippetButton(ScriptProcessor::Callback c)
-	{
-		switch(c)
-		{
-		case ScriptProcessor::onInit:		return onInitButton;
-		case ScriptProcessor::onNoteOn:		return noteOnButton;
-		case ScriptProcessor::onNoteOff:	return noteOffButton;
-		case ScriptProcessor::onController:	return onControllerButton;
-		case ScriptProcessor::onTimer:		return onTimerButton;
-		case ScriptProcessor::onControl:	return onControlButton;
-		default:							jassertfalse; return nullptr;
-		}
+		return callbackButtons[i];
 	}
 
 	int getBodyHeight() const override
@@ -202,7 +171,7 @@ public:
 			return findParentComponentOfClass<Viewport>()->getHeight() - 36;
 		}
 
-		const int contentHeight = getProcessor()->getEditorState(ScriptProcessor::contentShown) ? scriptContent->getContentHeight() : 0;
+		const int contentHeight = getProcessor()->getEditorState(ProcessorWithScriptingContent::EditorStates::contentShown) ? scriptContent->getContentHeight() : 0;
 
 		if (editorShown)
 		{
@@ -220,7 +189,7 @@ public:
     void resized();
     void buttonClicked (Button* buttonThatWasClicked);
 
-	void goToSavedPosition(ScriptProcessor::Callback newCallback);
+	void goToSavedPosition(int newCallback);
 	void saveLastCallback();
 
 
@@ -250,14 +219,10 @@ private:
     ScopedPointer<TextButton> compileButton;
     ScopedPointer<TextEditor> messageBox;
     ScopedPointer<Label> timeLabel;
-    ScopedPointer<TextButton> noteOnButton;
-    ScopedPointer<TextButton> noteOffButton;
-    ScopedPointer<TextButton> onControllerButton;
-    ScopedPointer<TextButton> onTimerButton;
-    ScopedPointer<TextButton> onInitButton;
-    ScopedPointer<TextButton> onControlButton;
-    ScopedPointer<TextButton> contentButton;
-	
+
+	ScopedPointer<TextButton> contentButton;
+	OwnedArray<TextButton> callbackButtons;
+
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ScriptingEditor)
 };

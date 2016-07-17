@@ -34,6 +34,8 @@
 #define HISEJAVASCRIPTENGINE_H_INCLUDED
 
 
+class JavascriptProcessor;
+
 /**
 A simple javascript interpreter!
 
@@ -59,7 +61,7 @@ public:
 	This creates a root namespace and defines some basic Object, String, Array
 	and Math library methods.
 	*/
-	HiseJavascriptEngine(Processor *p);
+	HiseJavascriptEngine(JavascriptProcessor *p);
 
 	/** Destructor. */
 	~HiseJavascriptEngine();
@@ -116,9 +118,11 @@ public:
 	*	- no arguments
 	*	- no overhead if the callback is not found
 	*/
-	int registerCallbackName(const Identifier &callbackName, double bufferTime);
+	int registerCallbackName(const Identifier &callbackName, int numArgs, double bufferTime);
 
 	void executeCallback(int callbackIndex, Result *result);
+
+	inline void setCallbackParameter(int callbackIndex, int parameterIndex, var newValue);
 
 	DebugInformation*getDebugInformation(int index);
 
@@ -229,7 +233,7 @@ public:
 		struct RegisterVarStatement;	struct RegisterName;		struct RegisterAssignment;
 		struct ApiConstant;				struct ApiCall;				struct InlineFunction;
 		struct ConstVarStatement;		struct ConstReference;		
-		struct GlobalVarStatement;		struct GlobalReference;
+		struct GlobalVarStatement;		struct GlobalReference;		struct CallbackParameterReference;
 
 		// Parser classes
 
@@ -264,7 +268,7 @@ public:
 		{
 		public:
 
-			Callback(const Identifier &id, double bufferTime_);
+			Callback(const Identifier &id, int numArgs, double bufferTime_);
 
 			void perform(RootObject *root);
 
@@ -274,9 +278,26 @@ public:
 
 			const Identifier &getName() const { return callbackName; }
 
+			int getNumArgs() const { return numArgs; };
+
 			String getDebugDataType() const { return "Callback"; }
 
 			String getDebugName() const override { return callbackName.toString() + "()"; }
+
+			void setParameterValue(int parameterIndex, var newValue)
+			{
+				parameterValues[parameterIndex] = newValue;
+			}
+
+			var* getVarPointer(const Identifier &id)
+			{
+				for (int i = 0; i < 4; i++)
+				{
+					if (id == parameters[i]) return &parameterValues[i];
+				}
+
+				return nullptr;
+			}
 
 			String getDebugValue() const override 
 			{
@@ -289,11 +310,15 @@ public:
 				DBG("JUMP");
 			}
 
+			Identifier parameters[4];
+			var parameterValues[4];
+
 		private:
 
 			ScopedPointer<BlockStatement> statements;
 			double lastExecutionTime;
 			const Identifier callbackName;
+			int numArgs;
 
 			const double bufferTime;
 
@@ -310,7 +335,7 @@ public:
             
             Callback *getCallback(const Identifier &id);
             
-			void setProcessor(Processor *p) noexcept { processor = p; }
+			void setProcessor(JavascriptProcessor *p) noexcept { processor = p; }
 
 			static bool initHiddenProperties;
 
@@ -322,7 +347,7 @@ public:
 
 			Array<Identifier> callbackIds;
 			OwnedArray<RootObject::BlockStatement> callbacks;
-			WeakReference<Processor> processor;
+			JavascriptProcessor* processor;
 
 			DynamicObject::Ptr globals;
 

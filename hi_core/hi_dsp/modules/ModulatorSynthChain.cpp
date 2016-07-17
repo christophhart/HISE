@@ -75,9 +75,9 @@ void ModulatorSynthChain::compileAllScripts()
 {
 	if (getMainController()->isCompilingAllScriptsOnPresetLoad())
 	{
-		Processor::Iterator<ScriptProcessor> it(this);
+		Processor::Iterator<JavascriptMidiProcessor> it(this);
 
-		ScriptProcessor *sp;
+		JavascriptMidiProcessor *sp;
 
 		while ((sp = it.getNextProcessor()) != 0)
 		{
@@ -200,7 +200,7 @@ void ModulatorSynthChain::saveInterfaceValues(ValueTree &v)
 
 	for (int i = 0; i < midiProcessorChain->getNumChildProcessors(); i++)
 	{
-		ScriptProcessor *sp = dynamic_cast<ScriptProcessor*>(midiProcessorChain->getChildProcessor(i));
+		JavascriptMidiProcessor *sp = dynamic_cast<JavascriptMidiProcessor*>(midiProcessorChain->getChildProcessor(i));
 
 		if (sp != nullptr && sp->isFront())
 		{
@@ -219,7 +219,7 @@ void ModulatorSynthChain::restoreInterfaceValues(const ValueTree &v)
 {
 	for (int i = 0; i < midiProcessorChain->getNumChildProcessors(); i++)
 	{
-		ScriptProcessor *sp = dynamic_cast<ScriptProcessor*>(midiProcessorChain->getChildProcessor(i));
+		JavascriptMidiProcessor *sp = dynamic_cast<JavascriptMidiProcessor*>(midiProcessorChain->getChildProcessor(i));
 
 		if (sp != nullptr && sp->isFront())
 		{

@@ -33,7 +33,9 @@
 #ifndef GLOBALSCRIPTCOMPILEBROADCASTER_H_INCLUDED
 #define GLOBALSCRIPTCOMPILEBROADCASTER_H_INCLUDED
 
-class ScriptProcessor;
+class JavascriptMidiProcessor;
+class JavascriptProcessor;
+
 
 /** A GlobalScriptCompileListener gets informed whenever a script was compiled.
 *
@@ -48,7 +50,7 @@ public:
 	virtual ~GlobalScriptCompileListener() { masterReference.clear(); };
 
 	/** Whenever a script was compiled, a message is sent out to every listener. */
-	virtual void scriptWasCompiled(ScriptProcessor *processor) = 0;
+	virtual void scriptWasCompiled(JavascriptProcessor *processor) = 0;
 
 private:
 
@@ -75,7 +77,7 @@ public:
 	*
 	*	Listeners which are manually inserted at the beginning (eg. ScriptingContentComponents) are notified first.
 	*/
-	void sendScriptCompileMessage(ScriptProcessor *processorThatWasCompiled);
+	void sendScriptCompileMessage(JavascriptProcessor *processorThatWasCompiled);
 
 	/** Adds a ScriptListener. You can influence the order of the callback by inserting Listeners at the beginning of the list. */
 	void addScriptListener(GlobalScriptCompileListener *listener, bool insertAtBeginning = false)

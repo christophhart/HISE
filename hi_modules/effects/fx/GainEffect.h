@@ -122,7 +122,7 @@ public:
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock);
-	void applyEffect(AudioSampleBuffer &b, int startSample, int numSamples) override;;
+	void applyEffect(AudioSampleBuffer &b, int startSample, int numSamples) override;
 
     void setDelayTime(float newDelayInMilliseconds)
     {

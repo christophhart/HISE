@@ -182,12 +182,12 @@ void ScriptCreatedComponentWrapper::changed(var newValue)
 {
 	getScriptComponent()->value = newValue;
 
-	dynamic_cast<ScriptBaseProcessor*>(getProcessor())->controlCallback(getScriptComponent(), newValue);
+	dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor())->controlCallback(getScriptComponent(), newValue);
 }
 
 Processor * ScriptCreatedComponentWrapper::getProcessor()
 {
-	return contentComponent->processor;
+	return contentComponent->p.get();
 }
 
 ScriptingApi::Content * ScriptCreatedComponentWrapper::getContent()
@@ -687,15 +687,15 @@ void ScriptCreatedComponentWrappers::SliderPackWrapper::updateComponent()
 ScriptCreatedComponentWrappers::AudioWaveformWrapper::AudioWaveformWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptAudioWaveform *form, int index):
 ScriptCreatedComponentWrapper(content, index)
 {
-	AudioSampleBufferComponent *asb = new AudioSampleBufferComponent(*const_cast<ScriptProcessor*>(content->getScriptProcessor())->getMainController()->getSampleManager().getAudioSampleBufferPool()->getCache());
+	// Ugly as fuck
+	AudioThumbnailCache* cache = const_cast<Processor*>(dynamic_cast<const Processor*>(content->getScriptProcessor()))->getMainController()->getSampleManager().getAudioSampleBufferPool()->getCache();
 
-	
+	AudioSampleBufferComponent *asb = new AudioSampleBufferComponent(*cache);
 
 	asb->setName(form->name.toString());
-
 	asb->setOpaque(false);
 
-	AudioSampleProcessor *asp = form->getProcessor();
+	AudioSampleProcessor *asp = form->getAudioProcessor();
 
 	if (asp != nullptr)
 	{
@@ -716,14 +716,14 @@ void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateComponent()
 {
 	ScriptingApi::Content::ScriptAudioWaveform *form = dynamic_cast<ScriptingApi::Content::ScriptAudioWaveform*>(getScriptComponent());
 
-	AudioSampleProcessor *asp = form->getProcessor();
+	AudioSampleProcessor *asp = form->getAudioProcessor();
 
 	AudioSampleBufferComponent *asb = dynamic_cast<AudioSampleBufferComponent*>(component.get());
 
 	if (asp != nullptr)
 
 	{
-		dynamic_cast<Processor*>(form->getProcessor())->sendSynchronousChangeMessage();
+		dynamic_cast<Processor*>(form->getAudioProcessor())->sendSynchronousChangeMessage();
 
 		if (asb != nullptr)
 		{
@@ -742,11 +742,9 @@ void ScriptCreatedComponentWrappers::AudioWaveformWrapper::rangeChanged(AudioDis
 	{
 		Range<int> newRange = broadcaster->getSampleArea(changedArea)->getSampleRange();
 
-		form->getProcessor()->setLoadedFile(dynamic_cast<AudioSampleBufferComponent*>(broadcaster)->getCurrentlyLoadedFileName());
-		form->getProcessor()->setRange(newRange);
+		form->getAudioProcessor()->setLoadedFile(dynamic_cast<AudioSampleBufferComponent*>(broadcaster)->getCurrentlyLoadedFileName());
+		form->getAudioProcessor()->setRange(newRange);
 	}
-	
-
 }
 
 
@@ -778,7 +776,7 @@ void ScriptCreatedComponentWrappers::PluginEditorWrapper::updateComponent()
 
 typedef ScriptingApi::Content::ScriptComponent ScriptedComponent;
 
-ScriptedControlAudioParameter::ScriptedControlAudioParameter(ScriptingApi::Content::ScriptComponent *newComponent, AudioProcessor *parentProcessor_, ScriptBaseProcessor *scriptProcessor_, int index_) :
+ScriptedControlAudioParameter::ScriptedControlAudioParameter(ScriptingApi::Content::ScriptComponent *newComponent, AudioProcessor *parentProcessor_, ScriptBaseMidiProcessor *scriptProcessor_, int index_) :
   AudioProcessorParameterWithID(newComponent->getName().toString(), 
 								getNameForComponent(newComponent)),
   id(newComponent->getName()),

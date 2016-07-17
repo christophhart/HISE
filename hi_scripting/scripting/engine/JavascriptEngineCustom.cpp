@@ -269,3 +269,16 @@ struct HiseJavascriptEngine::RootObject::GlobalReference : public Expression
 
 	int index;
 };
+
+
+struct HiseJavascriptEngine::RootObject::CallbackParameterReference: public Expression
+{
+	CallbackParameterReference(const CodeLocation& l, var* data_) noexcept : Expression(l), data(data_) {}
+
+	var getResult(const Scope& s) const override
+	{
+		return *data;
+	}
+
+	var* data;
+};

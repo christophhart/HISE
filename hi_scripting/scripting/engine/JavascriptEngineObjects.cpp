@@ -346,7 +346,7 @@ struct HiseJavascriptEngine::RootObject::IntegerClass : public DynamicObject
 
 
 //==============================================================================
-HiseJavascriptEngine::HiseJavascriptEngine(Processor *p) : maximumExecutionTime(15.0), root(new RootObject()), unneededScope(new DynamicObject())
+HiseJavascriptEngine::HiseJavascriptEngine(JavascriptProcessor *p) : maximumExecutionTime(15.0), root(new RootObject()), unneededScope(new DynamicObject())
 {
 	root->hiseSpecialData.setProcessor(p);
 

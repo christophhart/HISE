@@ -277,7 +277,7 @@ public:
 	void setScriptWatchTable(ScriptWatchTable *table);
 	void setScriptComponentEditPanel(ScriptComponentEditPanel *panel);
 
-	void setWatchedScriptProcessor(ScriptProcessor *p, Component *editor);
+	void setWatchedScriptProcessor(JavascriptProcessor *p, Component *editor);
 
 	/** Sets the ScriptComponent object to be edited in the main ScriptComponentEditPanel.
 	*
@@ -604,8 +604,6 @@ public:
 	}
 
 private:
-
-	
 
 	friend class WeakReference<ControlledObject>;
 	WeakReference<ControlledObject>::Master masterReference;

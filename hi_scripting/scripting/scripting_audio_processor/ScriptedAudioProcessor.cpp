@@ -30,7 +30,7 @@
  *   ===========================================================================
  */
 
-
+#if 0
 
 ScriptingAudioProcessor::ScriptingAudioProcessor() :
 samplesPerBlock(0),
@@ -39,6 +39,35 @@ mc(nullptr),
 libraryLoader(new DspFactory::LibraryLoader())
 {
 	compileScript();
+}
+
+void ScriptingAudioProcessor::compileScript()
+{
+	ScopedLock sl(compileLock);
+
+	scriptingEngine = new HiseJavascriptEngine(nullptr);
+
+
+
+	processBlockScope = new DynamicObject();
+
+	scriptingEngine->registerNativeObject("Libraries", libraryLoader);
+
+	scriptingEngine->getRootObject()->setMethod("print", print);
+
+
+	scriptingEngine->registerNativeObject("Buffer", new VariantBuffer::Factory(64));
+
+	callbackResult = scriptingEngine->execute(doc.getAllContent());
+
+	if (callbackResult.failed())
+	{
+		Logger::writeToLog("!" + callbackResult.getErrorMessage());
+	}
+	else
+	{
+		prepareToPlay(sampleRate, samplesPerBlock);
+	}
 }
 
 ScriptingAudioProcessorEditor::ScriptingAudioProcessorEditor(AudioProcessor *p) :
@@ -76,3 +105,5 @@ void ScriptingAudioProcessorEditor::buttonClicked(Button *b)
 		dynamic_cast<ScriptingAudioProcessor*>(getAudioProcessor())->compileScript();
 	}
 }
+
+#endif

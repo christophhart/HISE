@@ -35,14 +35,12 @@
 //==============================================================================
 ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
     : ProcessorEditorBody(p),
-      doc (dynamic_cast<ScriptProcessor*>(getProcessor())->getDocument()),
+      doc (dynamic_cast<JavascriptProcessor*>(getProcessor())->getDocument()),
       tokenizer(new JavascriptTokeniser())
 {
-    
+	JavascriptProcessor *sp = dynamic_cast<JavascriptProcessor*>(getProcessor());
 
-    addAndMakeVisible (codeEditor = new CodeEditorWrapper (*doc,
-                                                           tokenizer,
-                                                           dynamic_cast<ScriptProcessor*>(getProcessor())));
+    addAndMakeVisible (codeEditor = new CodeEditorWrapper (*doc, tokenizer, sp));
     codeEditor->setName ("new component");
 
     addAndMakeVisible (compileButton = new TextButton ("new button"));
@@ -73,93 +71,39 @@ ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
     timeLabel->setColour (TextEditor::textColourId, Colours::black);
     timeLabel->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
 
-    addAndMakeVisible (noteOnButton = new TextButton ("new button"));
-    noteOnButton->setButtonText (TRANS("onNoteOn"));
-    noteOnButton->setConnectedEdges (Button::ConnectedOnLeft | Button::ConnectedOnRight);
-    noteOnButton->addListener (this);
-    noteOnButton->setColour (TextButton::buttonColourId, Colour (0x4c4b4b4b));
-    noteOnButton->setColour (TextButton::buttonOnColourId, Colour (0xff680000));
-    noteOnButton->setColour (TextButton::textColourOnId, Colour (0x77ffffff));
-    noteOnButton->setColour (TextButton::textColourOffId, Colour (0x45ffffff));
-    noteOnButton->setLookAndFeel(&alaf);
+	addAndMakeVisible(contentButton = new TextButton("new button"));
+	contentButton->setButtonText(TRANS("Content"));
+	contentButton->setConnectedEdges(Button::ConnectedOnRight);
+	contentButton->addListener(this);
+	contentButton->setColour(TextButton::buttonColourId, Colour(0x4c4b4b4b));
+	contentButton->setColour(TextButton::buttonOnColourId, Colour(0xffb4b4b4));
+	contentButton->setColour(TextButton::textColourOnId, Colour(0x77ffffff));
+	contentButton->setColour(TextButton::textColourOffId, Colour(0x45ffffff));
+	contentButton->setLookAndFeel(&alaf);
 
-    addAndMakeVisible (noteOffButton = new TextButton ("new button"));
-    noteOffButton->setButtonText (TRANS("onNoteOff"));
-    noteOffButton->setConnectedEdges (Button::ConnectedOnLeft | Button::ConnectedOnRight);
-    noteOffButton->addListener (this);
-    noteOffButton->setColour (TextButton::buttonColourId, Colour (0x4c4b4b4b));
-    noteOffButton->setColour (TextButton::buttonOnColourId, Colour (0xff680000));
-    noteOffButton->setColour (TextButton::textColourOnId, Colour (0x77ffffff));
-    noteOffButton->setColour (TextButton::textColourOffId, Colour (0x45ffffff));
-    noteOffButton->setLookAndFeel(&alaf);
 
-    addAndMakeVisible (onControllerButton = new TextButton ("new button"));
-    onControllerButton->setButtonText (TRANS("onController"));
-    onControllerButton->setConnectedEdges (Button::ConnectedOnLeft | Button::ConnectedOnRight);
-    onControllerButton->addListener (this);
-    onControllerButton->setColour (TextButton::buttonColourId, Colour (0x4c4b4b4b));
-    onControllerButton->setColour (TextButton::buttonOnColourId, Colour (0xff680000));
-    onControllerButton->setColour (TextButton::textColourOnId, Colour (0x77ffffff));
-    onControllerButton->setColour (TextButton::textColourOffId, Colour (0x45ffffff));
-    onControllerButton->setLookAndFeel(&alaf);
-
-    addAndMakeVisible (onTimerButton = new TextButton ("new button"));
-    onTimerButton->setButtonText (TRANS("onTimer"));
-    onTimerButton->setConnectedEdges (Button::ConnectedOnLeft | Button::ConnectedOnRight);
-    onTimerButton->addListener (this);
-    onTimerButton->setColour (TextButton::buttonColourId, Colour (0x4c4b4b4b));
-    onTimerButton->setColour (TextButton::buttonOnColourId, Colour (0xff680000));
-    onTimerButton->setColour (TextButton::textColourOnId, Colour (0x77ffffff));
-    onTimerButton->setColour (TextButton::textColourOffId, Colour (0x45ffffff));
-    onTimerButton->setLookAndFeel(&alaf);
-
-    addAndMakeVisible (onInitButton = new TextButton ("new button"));
-    onInitButton->setButtonText (TRANS("onInit"));
-    onInitButton->setConnectedEdges (Button::ConnectedOnLeft | Button::ConnectedOnRight);
-    onInitButton->addListener (this);
-    onInitButton->setColour (TextButton::buttonColourId, Colour (0x4c4b4b4b));
-    onInitButton->setColour (TextButton::buttonOnColourId, Colour (0xff680000));
-    onInitButton->setColour (TextButton::textColourOnId, Colour (0x77ffffff));
-    onInitButton->setColour (TextButton::textColourOffId, Colour (0x45ffffff));
-    onInitButton->setLookAndFeel(&alaf);
-
-    addAndMakeVisible (onControlButton = new TextButton ("new button"));
-    onControlButton->setButtonText (TRANS("onControl"));
-    onControlButton->setConnectedEdges (Button::ConnectedOnLeft);
-    onControlButton->addListener (this);
-    onControlButton->setColour (TextButton::buttonColourId, Colour (0x4c4b4b4b));
-    onControlButton->setColour (TextButton::buttonOnColourId, Colour (0xff680000));
-    onControlButton->setColour (TextButton::textColourOnId, Colour (0x77ffffff));
-    onControlButton->setColour (TextButton::textColourOffId, Colour (0x45ffffff));
-    onControlButton->setLookAndFeel(&alaf);
-    
-    addAndMakeVisible (contentButton = new TextButton ("new button"));
-    contentButton->setButtonText (TRANS("Content"));
-    contentButton->setConnectedEdges (Button::ConnectedOnRight);
-    contentButton->addListener (this);
-    contentButton->setColour (TextButton::buttonColourId, Colour (0x4c4b4b4b));
-    contentButton->setColour (TextButton::buttonOnColourId, Colour (0xffb4b4b4));
-    contentButton->setColour (TextButton::textColourOnId, Colour (0x77ffffff));
-    contentButton->setColour (TextButton::textColourOffId, Colour (0x45ffffff));
-    contentButton->setLookAndFeel(&alaf);
-
-	ScriptProcessor *sp = dynamic_cast<ScriptProcessor*>(getProcessor());
-	
-
-	if (getProcessor()->getEditorState(getProcessor()->getEditorStateForIndex(ScriptProcessor::externalPopupShown)))
+	for (int i = 0; i < sp->getNumSnippets(); i++)
 	{
-		//static_cast<ScriptProcessor*>(getProcessor())->showPopupForFile(0);
+		TextButton *b = new TextButton("new button");
+		addAndMakeVisible(b);
+		b->setButtonText(sp->getSnippet(i)->getCallbackName().toString());
+		b->setConnectedEdges(Button::ConnectedOnLeft | Button::ConnectedOnRight);
+		b->addListener(this);
+		b->setColour(TextButton::buttonColourId, Colour(0x4c4b4b4b));
+		b->setColour(TextButton::buttonOnColourId, Colour(0xff680000));
+		b->setColour(TextButton::textColourOnId, Colour(0x77ffffff));
+		b->setColour(TextButton::textColourOffId, Colour(0x45ffffff));
+		b->setLookAndFeel(&alaf);
+		callbackButtons.add(b);
 	}
 
     timeLabel->setFont (GLOBAL_BOLD_FONT());
 
 	messageBox->setFont(GLOBAL_MONOSPACE_FONT());
-
 	
 	doc = sp->getDocument();
 
-	addAndMakeVisible(scriptContent = new ScriptContentComponent(static_cast<ScriptProcessor*>(getProcessor())));
-
+	addAndMakeVisible(scriptContent = new ScriptContentComponent(dynamic_cast<ProcessorWithScriptingContent*>(getProcessor())));
 
 	messageBox->setLookAndFeel(&laf2);
 
@@ -169,21 +113,19 @@ ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
 
 	compileButton->setLookAndFeel(&alaf);
 
-	lastPositions.add(new CodeDocument::Position(*sp->getSnippet(ScriptProcessor::Callback::onInit), 0));
-	lastPositions.add(new CodeDocument::Position(*sp->getSnippet(ScriptProcessor::Callback::onNoteOn), 23));
-	lastPositions.add(new CodeDocument::Position(*sp->getSnippet(ScriptProcessor::Callback::onNoteOff), 24));
-	lastPositions.add(new CodeDocument::Position(*sp->getSnippet(ScriptProcessor::Callback::onController), 27));
-	lastPositions.add(new CodeDocument::Position(*sp->getSnippet(ScriptProcessor::Callback::onTimer), 22));
-	lastPositions.add(new CodeDocument::Position(*sp->getSnippet(ScriptProcessor::Callback::onControl), 37));
+	if (dynamic_cast<JavascriptMidiProcessor*>(getProcessor()))
+	{
+		lastPositions.add(new CodeDocument::Position(*sp->getSnippet(JavascriptMidiProcessor::Callback::onInit), 0));
+		lastPositions.add(new CodeDocument::Position(*sp->getSnippet(JavascriptMidiProcessor::Callback::onNoteOn), 23));
+		lastPositions.add(new CodeDocument::Position(*sp->getSnippet(JavascriptMidiProcessor::Callback::onNoteOff), 24));
+		lastPositions.add(new CodeDocument::Position(*sp->getSnippet(JavascriptMidiProcessor::Callback::onController), 27));
+		lastPositions.add(new CodeDocument::Position(*sp->getSnippet(JavascriptMidiProcessor::Callback::onTimer), 22));
+		lastPositions.add(new CodeDocument::Position(*sp->getSnippet(JavascriptMidiProcessor::Callback::onControl), 37));
+	}
 	
-   
-
     setSize (800, 500);
 
-
-
 	editorInitialized();
-
 }
 
 ScriptingEditor::~ScriptingEditor()
@@ -192,21 +134,13 @@ ScriptingEditor::~ScriptingEditor()
 	getProcessor()->getMainController()->setEditedScriptComponent(nullptr, nullptr);
 
 	doc = nullptr;
-
 	scriptContent = nullptr;
-
-   
 
     codeEditor = nullptr;
     compileButton = nullptr;
     messageBox = nullptr;
     timeLabel = nullptr;
-    noteOnButton = nullptr;
-    noteOffButton = nullptr;
-    onControllerButton = nullptr;
-    onTimerButton = nullptr;
-    onInitButton = nullptr;
-    onControlButton = nullptr;
+	callbackButtons.clear();
     contentButton = nullptr;
 
 	lastPositions.clear();
@@ -224,7 +158,7 @@ void ScriptingEditor::paint (Graphics& g)
 
 	if(editorShown && getProcessor() != nullptr)
 	{
-		g.setColour(dynamic_cast<ScriptProcessor*>(getProcessor())->wasLastCompileOK() ? Colour(0xff323832) : Colour(0xff383232));
+		g.setColour(dynamic_cast<JavascriptProcessor*>(getProcessor())->wasLastCompileOK() ? Colour(0xff323832) : Colour(0xff383232));
 		g.fillRect (1, getHeight() - 26, getWidth()-1, 26);
 
 		g.setColour(Colours::white.withAlpha(0.2f));
@@ -236,32 +170,30 @@ void ScriptingEditor::paint (Graphics& g)
 
 void ScriptingEditor::resized()
 {
-    //[UserPreResize] Add your own custom resize code here..
-
-
-    //[/UserPreResize]
-
+    
     codeEditor->setBounds ((getWidth() / 2) - ((getWidth() - 90) / 2), 104, getWidth() - 90, getHeight() - 140);
     compileButton->setBounds (((getWidth() / 2) - ((getWidth() - 90) / 2)) + (getWidth() - 90) - 95, getHeight() - 24, 95, 24);
     messageBox->setBounds (((getWidth() / 2) - ((getWidth() - 90) / 2)) + 0, getHeight() - 24, getWidth() - 296, 24);
     timeLabel->setBounds (getWidth() - 136 - 104, getHeight() - -1 - 24, 104, 24);
-    noteOnButton->setBounds ((proportionOfWidth (0.0450f) + proportionOfWidth (0.1300f)) + proportionOfWidth (0.1300f), 0, proportionOfWidth (0.1300f), 20);
-    noteOffButton->setBounds (((proportionOfWidth (0.0450f) + proportionOfWidth (0.1300f)) + proportionOfWidth (0.1300f)) + proportionOfWidth (0.1300f), 0, proportionOfWidth (0.1300f), 20);
-    onControllerButton->setBounds ((((proportionOfWidth (0.0450f) + proportionOfWidth (0.1300f)) + proportionOfWidth (0.1300f)) + proportionOfWidth (0.1300f)) + proportionOfWidth (0.1300f), 0, proportionOfWidth (0.1300f), 20);
-    onTimerButton->setBounds (((((proportionOfWidth (0.0450f) + proportionOfWidth (0.1300f)) + proportionOfWidth (0.1300f)) + proportionOfWidth (0.1300f)) + proportionOfWidth (0.1300f)) + proportionOfWidth (0.1300f), 0, proportionOfWidth (0.1300f), 20);
-    onInitButton->setBounds (proportionOfWidth (0.0450f) + proportionOfWidth (0.1300f), 0, proportionOfWidth (0.1300f), 20);
-    onControlButton->setBounds ((((((proportionOfWidth (0.0450f) + proportionOfWidth (0.1300f)) + proportionOfWidth (0.1300f)) + proportionOfWidth (0.1300f)) + proportionOfWidth (0.1300f)) + proportionOfWidth (0.1300f)) + proportionOfWidth (0.1300f), 0, proportionOfWidth (0.1300f), 20);
-    contentButton->setBounds (proportionOfWidth (0.0450f), 0, proportionOfWidth (0.1300f), 20);
-    //[UserResized] Add your own custom resize handling here..
+    
+	int buttonWidth = (getWidth()-20) / (callbackButtons.size() + 1);
+	int buttonX = 10;
 
+	contentButton->setBounds(buttonX, 0, buttonWidth, 20);
+	buttonX = contentButton->getRight();
 
-	
+	for (int i = 0; i < callbackButtons.size(); i++)
+	{
+		callbackButtons[i]->setBounds(buttonX, 0, buttonWidth, 20);
+		buttonX = callbackButtons[i]->getRight();
+	}
+
 	int y = 28;
 
 	int xOff = isRootEditor() ? 0 : 1;
 	int w = getWidth() - 2*xOff;
 
-	scriptContent->setVisible(getProcessor()->getEditorState(ScriptProcessor::contentShown));
+	scriptContent->setVisible(getProcessor()->getEditorState(ProcessorWithScriptingContent::contentShown));
 
 	const int contentHeight = scriptContent->isVisible() ? scriptContent->getContentHeight() : 0;
 
@@ -285,7 +217,7 @@ void ScriptingEditor::resized()
 	}
 	else
 	{
-		codeEditor->setBounds(xOff, y, getWidth()-2*xOff, codeEditor->getHeight());
+		codeEditor->setBounds(xOff, y, getWidth() - 2 * xOff, codeEditor->getHeight());
 
 		y += codeEditor->getHeight();
 
@@ -293,160 +225,79 @@ void ScriptingEditor::resized()
 
 		compileButton->setTopLeftPosition(codeEditor->getRight() - compileButton->getWidth(), y);
 	}
-
-    //[/UserResized]
 }
 
 void ScriptingEditor::buttonClicked (Button* buttonThatWasClicked)
 {
-    //[UserbuttonClicked_Pre]
+    
+	JavascriptProcessor *s = dynamic_cast<JavascriptProcessor*>(getProcessor());
 
-	ScriptProcessor *s = static_cast<ScriptProcessor*>(getProcessor());
+    
 
-    //[/UserbuttonClicked_Pre]
+	int callbackIndex = callbackButtons.indexOf(dynamic_cast<TextButton*>(buttonThatWasClicked));
 
-    if (buttonThatWasClicked == compileButton)
-    {
-        //[UserButtonCode_compileButton] -- add your button handler code here..
+	if (callbackIndex != -1)
+	{
+		saveLastCallback();
 
-		
+		addAndMakeVisible(codeEditor = new CodeEditorWrapper(*s->getSnippet(callbackIndex), tokenizer, dynamic_cast<JavascriptProcessor*>(getProcessor())));
+		goToSavedPosition(callbackIndex);
+
+	}
+	else if (buttonThatWasClicked == compileButton)
+	{
+
 		compileScript();
 
-		
-
 		return;
 
-        //[/UserButtonCode_compileButton]
-    }
-    else if (buttonThatWasClicked == noteOnButton)
-    {
-        //[UserButtonCode_noteOnButton] -- add your button handler code here..
-
-		saveLastCallback();
-		addAndMakeVisible(codeEditor = new CodeEditorWrapper(*s->getSnippet(ScriptProcessor::onNoteOn), tokenizer, dynamic_cast<ScriptProcessor*>(getProcessor())));
-		goToSavedPosition(ScriptProcessor::Callback::onNoteOn);
-
-        //[/UserButtonCode_noteOnButton]
-    }
-    else if (buttonThatWasClicked == noteOffButton)
-    {
-        //[UserButtonCode_noteOffButton] -- add your button handler code here..
-
-		saveLastCallback();
-		addAndMakeVisible(codeEditor = new CodeEditorWrapper(*s->getSnippet(ScriptProcessor::onNoteOff), tokenizer, dynamic_cast<ScriptProcessor*>(getProcessor())));
-		goToSavedPosition(ScriptProcessor::Callback::onNoteOff);
-
-        //[/UserButtonCode_noteOffButton]
-    }
-    else if (buttonThatWasClicked == onControllerButton)
-    {
-        //[UserButtonCode_onControllerButton] -- add your button handler code here..
-		
-		saveLastCallback();
-		addAndMakeVisible(codeEditor = new CodeEditorWrapper(*s->getSnippet(ScriptProcessor::onController), tokenizer, dynamic_cast<ScriptProcessor*>(getProcessor())));
-		goToSavedPosition(ScriptProcessor::Callback::onController);
-
-        //[/UserButtonCode_onControllerButton]
-    }
-    else if (buttonThatWasClicked == onTimerButton)
-    {
-        //[UserButtonCode_onTimerButton] -- add your button handler code here..
-		
-		saveLastCallback();
-		addAndMakeVisible(codeEditor = new CodeEditorWrapper(*s->getSnippet(ScriptProcessor::onTimer), tokenizer, dynamic_cast<ScriptProcessor*>(getProcessor())));
-		goToSavedPosition(ScriptProcessor::Callback::onTimer);
-
-        //[/UserButtonCode_onTimerButton]
-    }
-    else if (buttonThatWasClicked == onInitButton)
-    {
-        //[UserButtonCode_onInitButton] -- add your button handler code here..
-		
-		saveLastCallback();
-		addAndMakeVisible(codeEditor = new CodeEditorWrapper(*s->getSnippet(ScriptProcessor::onInit), tokenizer, dynamic_cast<ScriptProcessor*>(getProcessor())));
-		goToSavedPosition(ScriptProcessor::Callback::onInit);
-
-        //[/UserButtonCode_onInitButton]
-    }
-    else if (buttonThatWasClicked == onControlButton)
-    {
-        //[UserButtonCode_onControlButton] -- add your button handler code here..
-		
-		saveLastCallback();
-		addAndMakeVisible(codeEditor = new CodeEditorWrapper(*s->getSnippet(ScriptProcessor::onControl), tokenizer, dynamic_cast<ScriptProcessor*>(getProcessor())));
-		goToSavedPosition(ScriptProcessor::Callback::onControl);
-
-        //[/UserButtonCode_onControlButton]
-    }
+	}
     else if (buttonThatWasClicked == contentButton)
     {
-        //[UserButtonCode_contentButton] -- add your button handler code here..
-
-		getProcessor()->setEditorState(ScriptProcessor::contentShown, !toggleButton(contentButton));
-
+		getProcessor()->setEditorState(ProcessorWithScriptingContent::EditorStates::contentShown, !toggleButton(contentButton));
 		refreshBodySize();
 		return;
-
-        //[/UserButtonCode_contentButton]
     }
-
-    //[UserbuttonClicked_Post]
-
-
 
 	if(buttonThatWasClicked->getToggleState())
 	{
 		editorShown = false;
 
-		noteOnButton->setToggleState(false, dontSendNotification);
-		noteOffButton->setToggleState(false, dontSendNotification);
-		onControllerButton->setToggleState(false, dontSendNotification);
-		onInitButton->setToggleState(false, dontSendNotification);
-		onTimerButton->setToggleState(false, dontSendNotification);
-		onControlButton->setToggleState(false, dontSendNotification);
-
-		getProcessor()->setEditorState(ScriptProcessor::onInitOpen, false);
-		getProcessor()->setEditorState(ScriptProcessor::onNoteOnOpen, false);
-		getProcessor()->setEditorState(ScriptProcessor::onNoteOffOpen, false);
-		getProcessor()->setEditorState(ScriptProcessor::onControllerOpen, false);
-		getProcessor()->setEditorState(ScriptProcessor::onControlOpen, false);
-		getProcessor()->setEditorState(ScriptProcessor::onTimerOpen, false);
+		for (int i = 0; i < callbackButtons.size(); i++)
+		{
+			callbackButtons[i]->setToggleState(false, dontSendNotification);
+			getProcessor()->setEditorState((int)ProcessorWithScriptingContent::EditorStates::onInitShown + i, false);
+		}
 	}
 	else
 	{
 		editorShown = true;
 
-		onInitButton->setToggleState(buttonThatWasClicked == onInitButton, dontSendNotification);
-		noteOnButton->setToggleState(buttonThatWasClicked == noteOnButton, dontSendNotification);
-		noteOffButton->setToggleState(buttonThatWasClicked == noteOffButton, dontSendNotification);
-		onControllerButton->setToggleState(buttonThatWasClicked == onControllerButton, dontSendNotification);
-		onTimerButton->setToggleState(buttonThatWasClicked == onTimerButton, dontSendNotification);
-		onControlButton->setToggleState(buttonThatWasClicked == onControlButton, dontSendNotification);
-
-		getProcessor()->setEditorState(ScriptProcessor::onInitOpen, buttonThatWasClicked == onInitButton);
-		getProcessor()->setEditorState(ScriptProcessor::onNoteOnOpen, buttonThatWasClicked == noteOnButton);
-		getProcessor()->setEditorState(ScriptProcessor::onNoteOffOpen, buttonThatWasClicked == noteOffButton);
-		getProcessor()->setEditorState(ScriptProcessor::onControllerOpen, buttonThatWasClicked == onControllerButton);
-		getProcessor()->setEditorState(ScriptProcessor::onControlOpen, buttonThatWasClicked == onControlButton);
-		getProcessor()->setEditorState(ScriptProcessor::onTimerOpen, buttonThatWasClicked == onTimerButton);
+		for (int i = 0; i < callbackButtons.size(); i++)
+		{
+			const bool isShown = buttonThatWasClicked == callbackButtons[i];
+			callbackButtons[i]->setToggleState(isShown, dontSendNotification);
+			getProcessor()->setEditorState((int)ProcessorWithScriptingContent::EditorStates::onInitShown + i, isShown);
+		}
 
 		buttonThatWasClicked->setToggleState(true, dontSendNotification);
 	}
 
 	resized();
-
 	refreshBodySize();
-
-    //[/UserbuttonClicked_Post]
 }
 
 //[MiscUserCode] You can add your own definitions of your custom methods or any other code here...
 
-void ScriptingEditor::goToSavedPosition(ScriptProcessor::Callback newCallback)
+void ScriptingEditor::goToSavedPosition(int newCallback)
 {
-	if (newCallback != ScriptProcessor::Callback::numCallbacks)
+	if (newCallback < callbackButtons.size())
 	{
-		codeEditor->editor->moveCaretTo(*lastPositions[newCallback], false);
+		if (newCallback < lastPositions.size())
+		{
+			codeEditor->editor->moveCaretTo(*lastPositions[newCallback], false);
+		}
+		
 		codeEditor->editor->scrollToColumn(0);
 		codeEditor->editor->grabKeyboardFocus();
 	}
@@ -454,10 +305,13 @@ void ScriptingEditor::goToSavedPosition(ScriptProcessor::Callback newCallback)
 
 void ScriptingEditor::saveLastCallback()
 {
-	ScriptProcessor::Callback lastCallback = getActiveCallback();
-	if (lastCallback != ScriptProcessor::Callback::numCallbacks)
+	int lastCallback = getActiveCallback();
+	if (lastCallback < callbackButtons.size())
 	{
-		lastPositions[lastCallback]->setPosition(codeEditor->editor->getCaretPos().getPosition());
+		if (lastCallback < lastPositions.size())
+		{
+			lastPositions[lastCallback]->setPosition(codeEditor->editor->getCaretPos().getPosition());
+		}
 	}
 }
 
@@ -469,8 +323,8 @@ void ScriptingEditor::setEditedScriptComponent(DynamicObject *component)
 
 	if(component != nullptr)
 	{
-		onInitButton->setToggleState(false, dontSendNotification);
-		buttonClicked(onInitButton);
+		callbackButtons[0]->setToggleState(false, dontSendNotification);
+		buttonClicked(callbackButtons[0]);
 
 		codeEditor->editor->selectText(sc->getName());
 	}
@@ -478,7 +332,7 @@ void ScriptingEditor::setEditedScriptComponent(DynamicObject *component)
 
 void ScriptingEditor::scriptComponentChanged(DynamicObject *scriptComponent, Identifier /*propertyThatWasChanged*/)
 {
-	if (!onInitButton->getToggleState()) return;
+	if (!callbackButtons[0]->getToggleState()) return;
 
 	ScriptingApi::Content::ScriptComponent *sc = dynamic_cast<ScriptingApi::Content::ScriptComponent*>(scriptComponent);
 
@@ -503,38 +357,47 @@ public:
 		ThreadWithAsyncProgressWindow("Connect widget to module parameter"),
 		sc(sc_),
 		editor(editor_),
-		sp(dynamic_cast<ScriptProcessor*>(editor_->getProcessor())),
+		sp(dynamic_cast<JavascriptMidiProcessor*>(editor_->getProcessor())),
 		processorToAdd(nullptr),
 		parameterIndexToAdd(-1)
 	{
-		Processor::Iterator<Processor> boxIter(dynamic_cast<ScriptProcessor*>(editor->getProcessor())->getOwnerSynth(), false);
+		if (sp != nullptr)
+		{
+			Processor::Iterator<Processor> boxIter(sp->getOwnerSynth(), false);
+
+
+			while (Processor *p = boxIter.getNextProcessor())
+			{
+				if (dynamic_cast<Chain*>(p) != nullptr) continue;
+
+				processorList.add(p);
+			}
+
+			StringArray processorIdList;
+
+			for (int i = 0; i < processorList.size(); i++)
+			{
+				processorIdList.add(processorList[i]->getId());
+			}
+
+			addComboBox("Processors", processorIdList, "Module");
+
+			getComboBoxComponent("Processors")->addListener(this);
+			addComboBox("Parameters", StringArray(), "Parameters");
+
+			getComboBoxComponent("Parameters")->addListener(this);
+			getComboBoxComponent("Parameters")->setTextWhenNothingSelected("Choose a module");
+
+			addBasicComponents();
+
+			showStatusMessage("Choose a module and its parameter and press OK");
+		}
+		else
+		{
+			jassertfalse;
+		}
 
 		
-		while (Processor *p = boxIter.getNextProcessor())
-		{
-			if (dynamic_cast<Chain*>(p) != nullptr) continue;
-
-			processorList.add(p);
-		}
-
-		StringArray processorIdList;
-
-		for (int i = 0; i < processorList.size(); i++)
-		{
-			processorIdList.add(processorList[i]->getId());
-		}
-
-		addComboBox("Processors", processorIdList, "Module");
-
-		getComboBoxComponent("Processors")->addListener(this);
-		addComboBox("Parameters", StringArray(), "Parameters");
-
-		getComboBoxComponent("Parameters")->addListener(this);
-		getComboBoxComponent("Parameters")->setTextWhenNothingSelected("Choose a module");
-
-		addBasicComponents();
-
-		showStatusMessage("Choose a module and its parameter and press OK");
 	}
 
 	void comboBoxChanged(ComboBox* comboBoxThatHasChanged)
@@ -574,17 +437,17 @@ public:
 	{
 		if (processorToAdd == nullptr || parameterIndexToAdd == -1) return;
 
-		String onInitText = sp->getSnippet(ScriptProcessor::onInit)->getAllContent();
+		String onInitText = sp->getSnippet(JavascriptMidiProcessor::onInit)->getAllContent();
 		String declaration = ProcessorHelpers::getScriptVariableDeclaration(processorToAdd, false);
 		String processorId = declaration.upToFirstOccurrenceOf(" ", false, false);
 
 		if (!onInitText.contains(declaration))
 		{
 			onInitText << "\n" << declaration << "\n";
-			sp->getSnippet(ScriptProcessor::onInit)->replaceAllContent(onInitText);
+			sp->getSnippet(JavascriptMidiProcessor::onInit)->replaceAllContent(onInitText);
 		}
 
-		String onControlText = sp->getSnippet(ScriptProcessor::onControl)->getAllContent();
+		String onControlText = sp->getSnippet(JavascriptMidiProcessor::onControl)->getAllContent();
 		const String controlStatement = ("if(number == ") + sc->getName() + ")";
         
         const String body = processorId + ".setAttribute(" + processorId + "." + processorToAdd->getIdentifierForParameterIndex(parameterIndexToAdd).toString() + ", value);\n\n";
@@ -595,7 +458,7 @@ public:
             
             
             
-            sp->getSnippet(ScriptProcessor::onControl)->replaceAllContent(onControlText.replace(replaceString, controlStatement + " " + body));
+            sp->getSnippet(JavascriptMidiProcessor::onControl)->replaceAllContent(onControlText.replace(replaceString, controlStatement + " " + body));
             
             editor->compileScript();
         }
@@ -603,7 +466,7 @@ public:
         {
 
             
-            sp->getSnippet(ScriptProcessor::onControl)->replaceAllContent(onControlText.upToLastOccurrenceOf("}", false, false) +             (onControlText.contains("if(") ? "\telse " : "\t") + controlStatement + " " + body + onControlText.fromLastOccurrenceOf("}", true, false));
+            sp->getSnippet(JavascriptMidiProcessor::onControl)->replaceAllContent(onControlText.upToLastOccurrenceOf("}", false, false) +             (onControlText.contains("if(") ? "\telse " : "\t") + controlStatement + " " + body + onControlText.fromLastOccurrenceOf("}", true, false));
             
             editor->compileScript();
         }
@@ -619,7 +482,7 @@ private:
 
 	ScriptingApi::Content::ScriptComponent *sc;
 	ScriptingEditor *editor;
-	ScriptProcessor *sp;
+	JavascriptMidiProcessor *sp;
 	Array<WeakReference<Processor>> processorList;
 
 };
@@ -696,12 +559,12 @@ void ScriptingEditor::mouseDown(const MouseEvent &e)
 
 		int result = m.show();
 
-		ScriptProcessor *s = static_cast<ScriptProcessor*>(getProcessor());
+		JavascriptProcessor *s = dynamic_cast<JavascriptProcessor*>(getProcessor());
 
 		if (result == 1) // SAVE
 		{
 			FileChooser scriptSaver("Save script as",
-				File(GET_PROJECT_HANDLER(s).getSubDirectory(ProjectHandler::SubDirectories::Scripts)),
+				File(GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::Scripts)),
 				"*.js");
 
 			if (scriptSaver.browseForFileToSave(true))
@@ -715,7 +578,7 @@ void ScriptingEditor::mouseDown(const MouseEvent &e)
 		else if (result == 2) // LOAD
 		{
 			FileChooser scriptLoader("Please select the script you want to load",
-				File(GET_PROJECT_HANDLER(s).getSubDirectory(ProjectHandler::SubDirectories::Scripts)),
+				File(GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::Scripts)),
 				"*.js");
 
 			if (scriptLoader.browseForFileToOpen())
@@ -754,10 +617,12 @@ void ScriptingEditor::mouseDown(const MouseEvent &e)
 		{
 			jassert(sc != nullptr);
 
-			ParameterConnector *comp = new ParameterConnector(sc, this);
+			if (ProcessorHelpers::is<JavascriptMidiProcessor>(getProcessor()))
+			{
+				ParameterConnector *comp = new ParameterConnector(sc, this);
 
-			comp->setModalComponentOfMainEditor(findParentComponentOfClass<BackendProcessorEditor>());
-
+				comp->setModalComponentOfMainEditor(findParentComponentOfClass<BackendProcessorEditor>());
+			}
 		}
 		else if (result >= Knob && result < numWidgets)
 		{
@@ -822,9 +687,9 @@ void ScriptingEditor::mouseDown(const MouseEvent &e)
 				textToInsert << jsonDataOfNewComponent;
 			}
 
-			if (getActiveCallback() != ScriptProcessor::Callback::onInit)
+			if (getActiveCallback() != 0)
 			{
-				buttonClicked(onInitButton); // we need synchronous execution here
+				buttonClicked(callbackButtons[0]); // we need synchronous execution here
 			}
 
 			codeEditor->editor->moveCaretToEnd(false);
@@ -853,9 +718,9 @@ bool ScriptingEditor::keyPressed(const KeyPress &k)
         if(k.isKeyCode(KeyPress::F2Key) || k.isKeyCode(KeyPress::leftKey)) current--;
 		else							 current++;
 
-		if (current >= ScriptProcessor::onInit && current < ScriptProcessor::Callback::numCallbacks)
+		if (current > 0 && current < callbackButtons.size())
 		{
-			getSnippetButton((ScriptProcessor::Callback)current)->triggerClick();
+			callbackButtons[current]->triggerClick();
 			return true;
 		}
 	}
@@ -867,32 +732,45 @@ bool ScriptingEditor::keyPressed(const KeyPress &k)
 	}
 	if (k.isKeyCode('1') && k.getModifiers().isCtrlDown())
 	{
-		onInitButton->triggerClick();
+		if (callbackButtons.size() > 0)
+			callbackButtons[0]->triggerClick();
+
 		return true;
 	}
 	else if(k.isKeyCode('2') && k.getModifiers().isCtrlDown())
 	{
-		noteOnButton->triggerClick();
+		if (callbackButtons.size() > 1)
+			callbackButtons[1]->triggerClick();
+
 		return true;
 	}
 	else if (k.isKeyCode('3') && k.getModifiers().isCtrlDown())
 	{
-		noteOffButton->triggerClick();
+		if (callbackButtons.size() > 2)
+			callbackButtons[2]->triggerClick();
+
+
 		return true;
 	}
 	else if (k.isKeyCode('4') && k.getModifiers().isCtrlDown())
 	{
-		onControllerButton->triggerClick();
+		if (callbackButtons.size() > 3)
+			callbackButtons[3]->triggerClick();
+
 		return true;
 	}
 	else if (k.isKeyCode('5') && k.getModifiers().isCtrlDown())
 	{
-		onTimerButton->triggerClick();
+		if (callbackButtons.size() > 4)
+			callbackButtons[4]->triggerClick();
+
 		return true;
 	}
 	else if (k.isKeyCode('6') && k.getModifiers().isCtrlDown())
 	{
-		onControlButton->triggerClick();
+		if (callbackButtons.size() > 5)
+			callbackButtons[5]->triggerClick();
+
 		return true;
 	}
 
@@ -901,7 +779,8 @@ bool ScriptingEditor::keyPressed(const KeyPress &k)
 
 void ScriptingEditor::compileScript()
 {
-	ScriptProcessor *s = static_cast<ScriptProcessor*>(getProcessor());
+	ProcessorWithScriptingContent *s = dynamic_cast<ProcessorWithScriptingContent*>(getProcessor());
+	JavascriptProcessor* jsp = dynamic_cast<JavascriptProcessor*>(getProcessor());
 
 	DynamicObject *component = s->checkContentChangedInPropertyPanel();
 
@@ -916,44 +795,64 @@ void ScriptingEditor::compileScript()
 
 	getProcessor()->getMainController()->setEditedScriptComponent(nullptr, this);
 
-	ScriptProcessor::SnippetResult resultMessage = s->compileScript();
+	JavascriptProcessor::SnippetResult resultMessage = jsp->compileScript();
 
-	double x = s->getLastExecutionTime();
+	double x = jsp->getLastExecutionTime();
 	timeLabel->setText(String(x, 3) + " ms", dontSendNotification);
 
 	if(resultMessage.r.wasOk()) messageBox->setText("Compiled OK", false);
 	else
 	{
-		messageBox->setText(s->getSnippet(resultMessage.c)->getCallbackName().toString() + "() - " + resultMessage.r.getErrorMessage(), false);
-        
-        
+		messageBox->setText(jsp->getSnippet(resultMessage.c)->getCallbackName().toString() + "() - " + resultMessage.r.getErrorMessage(), false);
 	}
 
     PresetHandler::setChanged(getProcessor());
     
 	checkActiveSnippets();
-
 	refreshBodySize();
-
 	repaint();
 }
 
-ScriptProcessor::Callback ScriptingEditor::getActiveCallback() const
+int ScriptingEditor::getActiveCallback() const
 {
-	if (codeEditor == nullptr) return ScriptProcessor::Callback::numCallbacks;
+	const JavascriptProcessor *sp = dynamic_cast<const JavascriptProcessor*>(getProcessor());
 
-	const ScriptProcessor *sp = dynamic_cast<const ScriptProcessor*>(getProcessor());
+	if (codeEditor == nullptr) return sp->getNumSnippets();
 
 	const CodeDocument &doc = codeEditor->editor->getDocument();
 
-	for (int i = 0; i < ScriptProcessor::Callback::numCallbacks; i++)
+	for (int i = 0; i < sp->getNumSnippets(); i++)
 	{
 		if (&doc == sp->getSnippet(i))
 		{
-			return (ScriptProcessor::Callback)i;
+			return i;
 		}
 	}
 
-	return ScriptProcessor::Callback::numCallbacks;
-	
+	return sp->getNumSnippets();
+}
+
+void ScriptingEditor::checkActiveSnippets()
+{
+	JavascriptProcessor *s = dynamic_cast<JavascriptProcessor*>(getProcessor());
+
+	for (int i = 0; i < s->getNumSnippets(); i++)
+	{
+		const bool isSnippetEmpty = s->getSnippet(i)->isSnippetEmpty();
+
+		TextButton *t = callbackButtons[i];
+
+		t->setColour(TextButton::buttonColourId, !isSnippetEmpty ? Colour(0x77cccccc) : Colour(0x4c4b4b4b));
+		t->setColour(TextButton::buttonOnColourId, Colours::white.withAlpha(0.7f));
+		t->setColour(TextButton::textColourOnId, Colour(0xaa000000));
+		t->setColour(TextButton::textColourOffId, Colour(0x99ffffff));
+
+		if (JavascriptMidiProcessor* jsmp = dynamic_cast<JavascriptMidiProcessor*>(s))
+		{
+			if (i == JavascriptMidiProcessor::onNoteOff || i == JavascriptMidiProcessor::onNoteOn || i == JavascriptMidiProcessor::onController || i == JavascriptMidiProcessor::onTimer)
+			{
+				t->setButtonText(s->getSnippet(i)->getCallbackName().toString() + (jsmp->isDeferred() ? " (D)" : ""));
+			}
+		}
+	}
 }

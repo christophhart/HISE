@@ -173,7 +173,7 @@ public:
 		}
 	}
 
-	void scriptWasCompiled(ScriptProcessor *sp) override;
+	void scriptWasCompiled(JavascriptProcessor *sp) override;
 
 	ModulatorSynthChain *getMainSynthChain() { return owner->synthChain; };
 

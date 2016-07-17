@@ -69,7 +69,7 @@ public:
 	}
 
 
-	PopupIncludeEditor(ScriptProcessor *s, const File &fileToEdit);
+	PopupIncludeEditor(JavascriptProcessor *s, const File &fileToEdit);
 
 	~PopupIncludeEditor();
 
@@ -87,7 +87,7 @@ private:
 	
 	ScopedPointer<Label> resultLabel;	
 
-	ScriptProcessor *sp;
+	JavascriptProcessor *sp;
 	File file;
 
 	bool lastCompileOk;
@@ -97,7 +97,7 @@ class PopupIncludeEditorWindow: public DocumentWindow
 {
 public:
 
-	PopupIncludeEditorWindow(File f, ScriptProcessor *s) :
+	PopupIncludeEditorWindow(File f, JavascriptProcessor *s) :
 		DocumentWindow("Editing external file: " + f.getFullPathName(), Colours::black, DocumentWindow::allButtons, true),
         file(f)
 	{
@@ -190,9 +190,10 @@ public:
 		NoJSONFound
 	};
 
-	JavascriptCodeEditor(CodeDocument &document, CodeTokeniser *codeTokeniser, ScriptProcessor *p):
+	JavascriptCodeEditor(CodeDocument &document, CodeTokeniser *codeTokeniser, JavascriptProcessor *p):
 		CodeEditorComponent (document, codeTokeniser),
-		scriptProcessor(p)
+		scriptProcessor(p),
+		processor(dynamic_cast<Processor*>(p))
 	{
 		
 		setColour(CodeEditorComponent::backgroundColourId, Colour(0xff262626));
@@ -203,9 +204,9 @@ public:
 		setColour(CaretComponent::ColourIds::caretColourId, Colour(0xFFDDDDDD));
 		setColour(ScrollBar::ColourIds::thumbColourId, Colour(0x3dffffff));
         
-        setFont(GLOBAL_MONOSPACE_FONT().withHeight(p->getMainController()->getGlobalCodeFontSize()));
+        setFont(GLOBAL_MONOSPACE_FONT().withHeight(processor->getMainController()->getGlobalCodeFontSize()));
         
-        p->getMainController()->getFontSizeChangeBroadcaster().addChangeListener(this);
+        processor->getMainController()->getFontSizeChangeBroadcaster().addChangeListener(this);
 
         
 	};
@@ -214,10 +215,10 @@ public:
 	{
 		currentPopup = nullptr;
 
-        scriptProcessor->getMainController()->getFontSizeChangeBroadcaster().removeChangeListener(this);
+        processor->getMainController()->getFontSizeChangeBroadcaster().removeChangeListener(this);
         
 		scriptProcessor = nullptr;
-
+		processor = nullptr;
 		
 
 		currentModalWindow.deleteAndZero();
@@ -227,7 +228,7 @@ public:
 
     void changeListenerCallback(SafeChangeBroadcaster *) override
     {
-        float newFontSize = scriptProcessor->getMainController()->getGlobalCodeFontSize();
+        float newFontSize = processor->getMainController()->getGlobalCodeFontSize();
         
         Font newFont = GLOBAL_MONOSPACE_FONT().withHeight(newFontSize);
         
@@ -517,7 +518,7 @@ public:
 
 		ScopedPointer<InfoBox> infoBox;
 		ScopedPointer<ListBox> listbox;
-		ScriptProcessor *sp;
+		JavascriptProcessor *sp;
 		
 		Range<int> tokenRange;
 
@@ -745,8 +746,9 @@ private:
 
 	ScopedPointer<AutoCompletePopup> currentPopup;
 
-	ScriptProcessor *scriptProcessor;
-    
+	JavascriptProcessor *scriptProcessor;
+	Processor *processor;
+
 	PopupMenu m;
 	
 
@@ -821,7 +823,7 @@ class CodeEditorWrapper: public Component,
 {
 public:
 
-	CodeEditorWrapper(CodeDocument &document, CodeTokeniser *codeTokeniser, ScriptProcessor *p)
+	CodeEditorWrapper(CodeDocument &document, CodeTokeniser *codeTokeniser, JavascriptProcessor *p)
 	{
 		addAndMakeVisible(editor = new JavascriptCodeEditor(document, codeTokeniser, p));
 

@@ -30,7 +30,7 @@
 *   ===========================================================================
 */
 
-void GlobalScriptCompileBroadcaster::sendScriptCompileMessage(ScriptProcessor *processorThatWasCompiled)
+void GlobalScriptCompileBroadcaster::sendScriptCompileMessage(JavascriptProcessor *processorThatWasCompiled)
 {
 	if (!enableGlobalRecompile) return;
 
@@ -63,9 +63,9 @@ void GlobalScriptCompileBroadcaster::fillExternalFileList(Array<File> &files, St
 {
 	ModulatorSynthChain *mainChain = dynamic_cast<MainController*>(this)->getMainSynthChain();
 
-	Processor::Iterator<ScriptProcessor> iter(mainChain);
+	Processor::Iterator<JavascriptMidiProcessor> iter(mainChain);
 
-	while (ScriptProcessor *sp = iter.getNextProcessor())
+	while (JavascriptMidiProcessor *sp = iter.getNextProcessor())
 	{
 		for (int i = 0; i < sp->getNumWatchedFiles(); i++)
 		{

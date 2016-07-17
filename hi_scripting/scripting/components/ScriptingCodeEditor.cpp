@@ -198,14 +198,16 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &m, const MouseEvent *e)
 void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 {
 #if USE_BACKEND
-    ScriptProcessor *s = scriptProcessor;
+    JavascriptProcessor *s = scriptProcessor;
     
+	Processor* p = dynamic_cast<Processor*>(s);
+
     ScriptingEditor *editor = findParentComponentOfClass<ScriptingEditor>();
     
     if(editor != nullptr && menuId == 101) // SAVE
     {
         FileChooser scriptSaver("Save script as",
-                                File(GET_PROJECT_HANDLER(s).getSubDirectory(ProjectHandler::SubDirectories::Scripts)),
+                                File(GET_PROJECT_HANDLER(p).getSubDirectory(ProjectHandler::SubDirectories::Scripts)),
                                 "*.js");
         
         if (scriptSaver.browseForFileToSave(true))
@@ -213,13 +215,13 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
             String script;
             s->mergeCallbacksToScript(script);
             scriptSaver.getResult().replaceWithText(script);
-            debugToConsole(s, "Script saved to " + scriptSaver.getResult().getFullPathName());
+			debugToConsole(p, "Script saved to " + scriptSaver.getResult().getFullPathName());
         }
     }
     else if (editor != nullptr && menuId == 102) // LOAD
     {
         FileChooser scriptLoader("Please select the script you want to load",
-                                 File(GET_PROJECT_HANDLER(s).getSubDirectory(ProjectHandler::SubDirectories::Scripts)),
+                                 File(GET_PROJECT_HANDLER(p).getSubDirectory(ProjectHandler::SubDirectories::Scripts)),
                                  "*.js");
         
         if (scriptLoader.browseForFileToOpen())
@@ -227,7 +229,7 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
             String script = scriptLoader.getResult().loadFileAsString().removeCharacters("\r");
             s->parseSnippetsFromString(script);
             editor->compileScript();
-            debugToConsole(s, "Script loaded from " + scriptLoader.getResult().getFullPathName());
+            debugToConsole(p, "Script loaded from " + scriptLoader.getResult().getFullPathName());
         }
     }
     else if (editor != nullptr && menuId == 103) // COPY
@@ -236,7 +238,7 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
         s->mergeCallbacksToScript(x);
         SystemClipboard::copyTextToClipboard(x);
         
-        debugToConsole(s, "Script exported to Clipboard.");
+        debugToConsole(p, "Script exported to Clipboard.");
     }
     else if (menuId == 104) // PASTE
     {
@@ -619,11 +621,11 @@ bool JavascriptCodeEditor::keyPressed(const KeyPress& k)
 
 
 
-PopupIncludeEditor::PopupIncludeEditor(ScriptProcessor *s, const File &fileToEdit) :
+PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor *s, const File &fileToEdit) :
 sp(s),
 file(fileToEdit)
 {
-    
+	Processor *p = dynamic_cast<Processor*>(sp);
     
 	doc = new CodeDocument();
 
@@ -639,7 +641,7 @@ file(fileToEdit)
 	resultLabel->setColour(Label::ColourIds::textColourId, Colours::white);
 	resultLabel->setEditable(false, false, false);
     
-	sp->setEditorState(sp->getEditorStateForIndex(ScriptProcessor::externalPopupShown), true);
+	p->setEditorState(p->getEditorStateForIndex(JavascriptMidiProcessor::externalPopupShown), true);
 
     if(!file.existsAsFile()) editor->setEnabled(false);
     
@@ -652,9 +654,12 @@ PopupIncludeEditor::~PopupIncludeEditor()
 	doc = nullptr;
 	tokeniser = nullptr;
 
-	sp->setEditorState(sp->getEditorStateForIndex(ScriptProcessor::externalPopupShown), false);
+	Processor *p = dynamic_cast<Processor*>(sp);
+
+	p->setEditorState(p->getEditorStateForIndex(JavascriptMidiProcessor::externalPopupShown), false);
 
 	sp = nullptr;
+	p = nullptr;
 }
 
 bool PopupIncludeEditor::keyPressed(const KeyPress& key)

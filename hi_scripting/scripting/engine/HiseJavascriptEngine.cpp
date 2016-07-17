@@ -302,14 +302,20 @@ var HiseJavascriptEngine::callFunction(const Identifier& function, const var::Na
 
 
 
-int HiseJavascriptEngine::registerCallbackName(const Identifier &callbackName, double bufferTime)
+int HiseJavascriptEngine::registerCallbackName(const Identifier &callbackName, int numArgs, double bufferTime)
 {
 	// Can't register a callback twice...
 	jassert(root->hiseSpecialData.getCallback(callbackName) == nullptr);
 
-	root->hiseSpecialData.callbackNEW.add(new RootObject::Callback(callbackName, bufferTime));
+	root->hiseSpecialData.callbackNEW.add(new RootObject::Callback(callbackName, numArgs, bufferTime));
 
 	return 1;
+}
+
+
+void HiseJavascriptEngine::setCallbackParameter(int callbackIndex, int parameterIndex, var newValue)
+{
+	root->hiseSpecialData.callbackNEW[callbackIndex]->setParameterValue(parameterIndex, newValue);
 }
 
 DebugInformation* HiseJavascriptEngine::getDebugInformation(int index)
@@ -346,11 +352,16 @@ const DynamicObject * HiseJavascriptEngine::getScriptObject(const Identifier &id
 		}
 	}
 
-	v = root->hiseSpecialData.globals->getProperty(id);
-	
-	if (v.isObject())
+	DynamicObject* globals = root->hiseSpecialData.globals;
+
+	if (globals != nullptr)
 	{
-		return v.getDynamicObject();
+		v = globals->getProperty(id);
+
+		if (v.isObject())
+		{
+			return v.getDynamicObject();
+		}
 	}
 
 	return nullptr;
@@ -399,10 +410,15 @@ var HiseJavascriptEngine::executeWithoutAllocation(const Identifier &function, c
 }
 
 
-HiseJavascriptEngine::RootObject::Callback::Callback(const Identifier &id, double bufferTime_) :
+HiseJavascriptEngine::RootObject::Callback::Callback(const Identifier &id, int numArgs_, double bufferTime_) :
 callbackName(id),
-bufferTime(bufferTime_)
+bufferTime(bufferTime_),
+numArgs(numArgs_)
 {
-
+	for (int i = 0; i < 4; i++)
+	{
+		parameters[i] = Identifier::null;
+		parameterValues[i] = var::undefined();
+	}
 }
 

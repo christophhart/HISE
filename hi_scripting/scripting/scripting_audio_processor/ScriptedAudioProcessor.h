@@ -34,41 +34,14 @@
 #define SCRIPTEDAUDIOPROCESSOR_H_INCLUDED
 
 
-
+#if 0
 class ScriptingAudioProcessor: public AudioProcessor
 {
 public:
     
     ScriptingAudioProcessor();
     
-    void compileScript()
-    {
-        ScopedLock sl(compileLock);
-        
-        scriptingEngine = new HiseJavascriptEngine(nullptr);
-        
-		
-
-        processBlockScope = new DynamicObject();
-        
-		scriptingEngine->registerNativeObject("Libraries", libraryLoader);
-
-		scriptingEngine->getRootObject()->setMethod("print", print);
-		
-
-		scriptingEngine->registerNativeObject("Buffer", new VariantBuffer::Factory(64));
-
-        callbackResult = scriptingEngine->execute(doc.getAllContent());
-        
-		if (callbackResult.failed())
-		{
-			Logger::writeToLog("!" + callbackResult.getErrorMessage());
-		}
-		else
-		{
-			prepareToPlay(sampleRate, samplesPerBlock);
-		}
-    };
+    void compileScript();;
     
     void prepareToPlay(double sampleRate_, int samplesPerBlock_)
     {
@@ -227,6 +200,8 @@ private:
 	Factory<ScriptingDsp::BaseObject> objectFactory;
 };
 
+
+
 class GenericEditor;
 
 class ScriptingAudioProcessorEditor : public AudioProcessorEditor,
@@ -253,5 +228,6 @@ private:
     ScopedPointer<TextButton> compileButton;
 };
 
+#endif
 
 #endif  // SCRIPTEDAUDIOPROCESSOR_H_INCLUDED

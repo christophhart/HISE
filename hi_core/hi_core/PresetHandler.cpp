@@ -81,9 +81,9 @@ void UserPresetHandler::saveUserPreset(ModulatorSynthChain *chain)
             
         if(!presetFile.existsAsFile() || PresetHandler::showYesNoWindow("Confirm overwrite", "Do you want to overwrite the preset " + name + "?"))
         {
-            Processor::Iterator<ScriptProcessor> iter(chain);
+            Processor::Iterator<JavascriptMidiProcessor> iter(chain);
                 
-            while(ScriptProcessor *sp = iter.getNextProcessor())
+            while(JavascriptMidiProcessor *sp = iter.getNextProcessor())
             {
                 if(!sp->isFront()) continue;
                     
@@ -101,9 +101,9 @@ void UserPresetHandler::loadUserPreset(ModulatorSynthChain *chain, const File &f
 
 #endif
 
-	Processor::Iterator<ScriptProcessor> iter(chain);
+	Processor::Iterator<JavascriptMidiProcessor> iter(chain);
         
-	while (ScriptProcessor *sp = iter.getNextProcessor())
+	while (JavascriptMidiProcessor *sp = iter.getNextProcessor())
 	{
 		if (!sp->isFront()) continue;
 

@@ -428,6 +428,7 @@ public:
 		routeFX,
 		saturation,
 		audioProcessorWrapper,
+		scriptFxProcessor,
 		protoPlugEffect
 	};
 

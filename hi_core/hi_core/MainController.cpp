@@ -247,9 +247,9 @@ void MainController::startCpuBenchmark(int bufferSize_)
 
 void MainController::compileAllScripts()
 {
-	Processor::Iterator<ScriptProcessor> it(getMainSynthChain());
+	Processor::Iterator<JavascriptProcessor> it(getMainSynthChain());
 
-	ScriptProcessor *sp;
+	JavascriptProcessor *sp;
 		
 	while((sp = it.getNextProcessor()) != nullptr)
 	{
@@ -534,7 +534,7 @@ void MainController::removePlottedModulator(Modulator *m)
 };
 
 #if USE_BACKEND
-void MainController::setWatchedScriptProcessor(ScriptProcessor *p, Component *editor)
+void MainController::setWatchedScriptProcessor(JavascriptProcessor *p, Component *editor)
 {
 	if(scriptWatchTable.getComponent() != nullptr)
 	{

@@ -31,36 +31,12 @@
 */
 
 
-float ScriptBaseProcessor::getAttribute(int index) const
+
+void ProcessorWithScriptingContent::setControlValue(int index, float newValue)
 {
 
-	if (content != nullptr && index < content->getNumComponents())
-	{
-		return content->getComponent(index)->getValue();
+	jassert(content.get() != nullptr);
 
-	}
-
-	else return 1.0f;
-}
-
-
-ScriptBaseProcessor::~ScriptBaseProcessor()
-{
-	if (scriptProcessorDeactivatedRoundRobin && dynamic_cast<ModulatorSampler*>(getOwnerSynth()) != nullptr)
-	{
-		dynamic_cast<ModulatorSampler*>(getOwnerSynth())->setUseRoundRobinLogic(true); // Reactivate Round Robin Logic if ScriptProcessor is deleted.
-	}
-
-	masterReference.clear();
-}
-
-
-
-void ScriptBaseProcessor::setInternalAttribute(int index, float newValue)
-{
-
-    jassert(content.get() != nullptr);
-    
 	if (content != nullptr && index < content->getNumComponents())
 	{
 		ScriptingApi::Content::ScriptComponent *c = content->getComponent(index);
@@ -70,7 +46,7 @@ void ScriptBaseProcessor::setInternalAttribute(int index, float newValue)
 			c->setValue(newValue);
 
 #if USE_FRONTEND
-			if (c->isAutomatable() && 
+			if (c->isAutomatable() &&
 				c->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::isPluginParameter) &&
 				getMainController()->getPluginParameterUpdateState())
 			{
@@ -83,311 +59,35 @@ void ScriptBaseProcessor::setInternalAttribute(int index, float newValue)
 	}
 }
 
-ValueTree ScriptBaseProcessor::exportAsValueTree() const
+float ProcessorWithScriptingContent::getControlValue(int index) const
 {
-	ValueTree v = MidiProcessor::exportAsValueTree();
+	if (content != nullptr && index < content->getNumComponents())
+	{
+		return content->getComponent(index)->getValue();
+
+	}
+
+	else return 1.0f;
+}
+
+void ProcessorWithScriptingContent::restoreContent(const ValueTree &restoredState)
+{
+	restoredContentValues = restoredState.getChildWithName("Content");
 
 	if (content.get() != nullptr)
 	{
-
-#if USE_OLD_FILE_FORMAT
-
-		MemoryBlock b;
-
-		MemoryOutputStream mos(b, false);
-
-		content->exportAsValueTree().writeToStream(mos);
-
-		v.setProperty("Content", var(b.getData(), b.getSize()), nullptr);
-
-#else
-
-		v.addChild(content->exportAsValueTree(), -1, nullptr);
-
-#endif
-
-	}
-
-	return v;
-}
-
-void ScriptBaseProcessor::restoreFromValueTree(const ValueTree &v)
-{
-	MidiProcessor::restoreFromValueTree(v);
-
-	if (getOwnerSynth() != nullptr)
-	{
-#if USE_OLD_FILE_FORMAT
-
-		MemoryBlock b = *v.getProperty("Content", MemoryBlock()).getBinaryData();
-
-		restoredContentValues = ValueTree::readFromData(b.getData(), b.getSize());
-#else
-		restoredContentValues = v.getChildWithName("Content");
-
-#endif
-        
-		if (content.get() != nullptr)
-		{
-			content->restoreFromValueTree(restoredContentValues);
-		}
-	}
-	else
-	{
-		jassertfalse;
+		content->restoreFromValueTree(restoredContentValues);
 	}
 }
 
-void ScriptProcessor::replaceReferencesWithGlobalFolder()
+void ProcessorWithScriptingContent::saveContent(ValueTree &savedState) const
 {
-	String script;
-	
-	mergeCallbacksToScript(script);
-
-	const StringArray allLines = StringArray::fromLines(script);
-
-	StringArray newLines;
-
-	for (int i = 0; i < allLines.size(); i++)
-	{
-		String line = allLines[i];
-
-		if (line.contains("\"fileName\""))
-		{
-			String fileName = line.fromFirstOccurrenceOf("\"fileName\"", false, false);
-			fileName = fileName.fromFirstOccurrenceOf("\"", false, false);
-			fileName = fileName.upToFirstOccurrenceOf("\"", false, false);
-
-			if (fileName.isNotEmpty()) line = line.replace(fileName, getGlobalReferenceForFile(fileName));
-		}
-
-		else if (line.contains("\"filmstripImage\"") && !line.contains("Use default skin"))
-		{
-			String fileName = line.fromFirstOccurrenceOf("\"filmstripImage\"", false, false);
-			fileName = fileName.fromFirstOccurrenceOf("\"", false, false);
-			fileName = fileName.upToFirstOccurrenceOf("\"", false, false);
-			
-			if(fileName.isNotEmpty()) line = line.replace(fileName, getGlobalReferenceForFile(fileName));
-		}
-		else if (line.contains(".setImageFile("))
-		{
-			String fileName = line.fromFirstOccurrenceOf(".setImageFile(", false, false);
-			fileName = fileName.fromFirstOccurrenceOf("\"", false, false);
-			fileName = fileName.upToFirstOccurrenceOf("\"", false, false);
-
-			line = line.replace(fileName, getGlobalReferenceForFile(fileName));
-		}
-
-		newLines.add(line);
-	}
-
-	String newCode = newLines.joinIntoString("\n");
-
-	parseSnippetsFromString(newCode);
-
-	compileScript();
-}
-
-ScriptProcessor::ScriptProcessor(MainController *mc, const String &id) :
-ScriptBaseProcessor(mc, id),
-doc(new CodeDocument()),
-onInitCallback(new SnippetDocument("onInit")),
-onNoteOnCallback(new SnippetDocument("onNoteOn")),
-onNoteOffCallback(new SnippetDocument("onNoteOff")),
-onControllerCallback(new SnippetDocument("onController")),
-onTimerCallback(new SnippetDocument("onTimer")),
-onControlCallback(new SnippetDocument("onControl")),
-scriptEngine(new HiseJavascriptEngine(this)),
-lastExecutionTime(0.0),
-currentMidiMessage(nullptr),
-apiData(ValueTree::readFromData(XmlApi::apivaluetree_dat, XmlApi::apivaluetree_datSize)),
-front(false),
-deferred(false),
-deferredUpdatePending(false),
-lastCompileWasOK(false),
-currentCompileThread(nullptr)
-{
-	editorStateIdentifiers.add("onInitOpen");
-	editorStateIdentifiers.add("onNoteOnOpen");
-	editorStateIdentifiers.add("onNoteOffOpen");
-	editorStateIdentifiers.add("onControllerOpen");
-	editorStateIdentifiers.add("onTimerOpen");
-	editorStateIdentifiers.add("onControlOpen");
-	editorStateIdentifiers.add("contentShown");
-	editorStateIdentifiers.add("externalPopupShown");
+	if (content.get() != nullptr)
+		savedState.addChild(content->exportAsValueTree(), -1, nullptr);
 }
 
 
-
-ScriptProcessor::~ScriptProcessor()
-{
-#if USE_BACKEND
-	if (consoleEnabled)
-	{
-		getMainController()->setWatchedScriptProcessor(nullptr, nullptr);
-	}
-#endif
-
-	scriptEngine = nullptr;
-	doc = nullptr;
-}
-
-Path ScriptProcessor::getSpecialSymbol() const
-{
-	Path path;
-
-	path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, sizeof(HiBinaryData::SpecialSymbols::scriptProcessor));
-
-	return path;
-}
-
-ValueTree ScriptProcessor::exportAsValueTree() const
-{
-	ValueTree v = ScriptBaseProcessor::exportAsValueTree();
-
-	String x;
-
-	mergeCallbacksToScript(x);
-
-	v.setProperty("Script", x, nullptr);
-
-
-
-	return v;
-}
-
-void ScriptProcessor::restoreFromValueTree(const ValueTree &v)
-{
-	String x = v.getProperty("Script", String::empty);
-
-	parseSnippetsFromString(x, true);
-    
-    
-	ScriptBaseProcessor::restoreFromValueTree(v);
-}
-
-void ScriptProcessor::fileChanged()
-{
-	compileScript();
-}
-
-ScriptProcessor::SnippetDocument * ScriptProcessor::getSnippet(int c)
-{
-	switch (c)
-	{
-	case onInit:		return onInitCallback;
-	case onNoteOn:		return onNoteOnCallback;
-	case onNoteOff:		return onNoteOffCallback;
-	case onController:	return onControllerCallback;
-	case onTimer:		return onTimerCallback;
-	case onControl:		return onControlCallback;
-	default:			jassertfalse; return nullptr;
-	}
-}
-
-const ScriptProcessor::SnippetDocument * ScriptProcessor::getSnippet(int c) const
-{
-	switch (c)
-	{
-	case onInit:		return onInitCallback;
-	case onNoteOn:		return onNoteOnCallback;
-	case onNoteOff:		return onNoteOffCallback;
-	case onController:	return onControllerCallback;
-	case onTimer:		return onTimerCallback;
-	case onControl:		return onControlCallback;
-	default:			jassertfalse; return nullptr;
-	}
-}
-
-ProcessorEditorBody *ScriptProcessor::createEditor(ProcessorEditor *parentEditor)
-{
-#if USE_BACKEND
-
-	return new ScriptingEditor(parentEditor);
-
-#else
-
-	ignoreUnused(parentEditor);
-	jassertfalse;
-
-	return nullptr;
-
-#endif
-};
-
-void ScriptProcessor::handleAsyncUpdate()
-{
-	jassert(isDeferred());
-	jassert(!deferredUpdatePending);
-
-	deferredUpdatePending = true;
-
-	if(deferredMidiMessages.getNumEvents() != 0)
-	{
-		ScopedLock sl(lock);
-
-		copyBuffer.swapWith(deferredMidiMessages);
-	}
-	else
-	{
-		deferredUpdatePending = false;
-		return;
-	}
-
-	MidiBuffer::Iterator iter(copyBuffer);
-
-	MidiMessage m;
-	int samplePos;
-
-	while(iter.getNextEvent(m, samplePos))
-	{
-		currentMessage = m;
-		currentMidiMessage->setMidiMessage(&m);
-
-
-		runScriptCallbacks();
-	}
-
-	copyBuffer.clear();
-	deferredUpdatePending = false;
-
-}
-
-void ScriptProcessor::controlCallback(ScriptingApi::Content::ScriptComponent *component, var controllerValue)
-{
-	if (onControlCallback->isSnippetEmpty())
-	{
-		return;
-	}
-
-	Result r = Result::ok();
-
-	const var args[2] = { component, controllerValue };
-
-	scriptEngine->maximumExecutionTime = RelativeTime(0.5);
-
-	allowObjectConstructors = true;
-
-	scriptEngine->callFunction(getSnippet(onControl)->getCallbackName(), var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), args, 2), &r);
-
-	allowObjectConstructors = false;
-
-	if (MessageManager::getInstance()->isThisTheMessageThread())
-	{
-		sendSynchronousChangeMessage();
-	}
-	else
-	{
-		sendChangeMessage();
-	}
-	
-
-#if USE_BACKEND
-	if (!r.wasOk()) getMainController()->writeToConsole(r.getErrorMessage(), 1, this, content->getColour());
-#endif
-}
-
-ScriptingApi::Content::ScriptComponent * ScriptProcessor::checkContentChangedInPropertyPanel()
+ScriptingApi::Content::ScriptComponent * ProcessorWithScriptingContent::checkContentChangedInPropertyPanel()
 {
 	if (content.get() == nullptr) return nullptr;
 
@@ -399,577 +99,24 @@ ScriptingApi::Content::ScriptComponent * ScriptProcessor::checkContentChangedInP
 	return nullptr;
 }
 
-ScriptProcessor::SnippetResult ScriptProcessor::compileInternal()
-{
-	if (lastCompileWasOK && content != nullptr) restoredContentValues = content->exportAsValueTree();
-
-	ScopedLock sl(compileLock);
-
-	scriptEngine->clearDebugInformation();
-
-	scriptEngine = new HiseJavascriptEngine(this);
-	scriptEngine->maximumExecutionTime = RelativeTime(getMainController()->getCompileTimeOut());
-
-	setupApi();
-
-	allowObjectConstructors = true;
-
-	content->restoreFromValueTree(restoredContentValues);
-
-	for (int i = 0; i < numCallbacks; i++)
-	{
-		getSnippet(i)->checkIfScriptActive();
-
-		if (!getSnippet(i)->isSnippetEmpty())
-		{
-			Result r = scriptEngine->execute(getSnippet(i)->getSnippetAsFunction());
-
-			if (!r.wasOk())
-			{
-				//content->restoreFromValueTree(restoredContentValues);
-				content->endInitialization();
-				allowObjectConstructors = false;
-
-				// Check the rest of the snippets or they will be deleted on failed compile...
-				for (int j = i; j < numCallbacks; j++)
-				{
-					getSnippet(j)->checkIfScriptActive();
-				}
-
-				lastCompileWasOK = false;
-
-				return SnippetResult(r, (Callback)i);
-
-			}
-		}
-	}
-
-	scriptEngine->rebuildDebugInformation();
-
-	content->restoreFromValueTree(restoredContentValues);
-
-	content->endInitialization();
-
-	allowObjectConstructors = false;
-
-	lastCompileWasOK = true;
-
-	return SnippetResult(Result::ok(), numCallbacks);
-}
-
-
-
-ScriptProcessor::SnippetResult ScriptProcessor::compileScript()
-{
-	const bool useBackgroundThread = getMainController()->isUsingBackgroundThreadForCompiling();
-
-	SnippetResult result = SnippetResult(Result::ok(), ScriptBaseProcessor::Callback::onInit);
-
-	if (useBackgroundThread)
-	{
-		CompileThread ct(this);
-
-		currentCompileThread = &ct;
-
-		ct.runThread();
-
-		currentCompileThread = nullptr;
-
-		result = ct.result;
-	}
-	else
-	{
-		result = compileInternal();
-	}
-
-	if (lastCompileWasOK)
-	{
-		String x;
-		mergeCallbacksToScript(x);
-		parseSnippetsFromString(x);
-
-		clearFileWatchers();
-		for (int i = 0; i < scriptEngine->getIncludedFiles().size(); i++)
-		{
-			addFileWatcher(scriptEngine->getIncludedFiles().getUnchecked(i));
-		}
-
-	}
-
-	getMainController()->sendScriptCompileMessage(this);
-
-	return result;
-}
-
-void ScriptProcessor::processMidiMessage(MidiMessage &m)
-{	
-	if(isDeferred())
-	{
-		processThisMessage = true;
-
-		if (processThisMessage)
-		{
-			ScopedLock sl(lock);
-			deferredMidiMessages.addEvent(m, (int)m.getTimeStamp());
-		}
-		
-		//currentMessage = m;
-		//currentMidiMessage->setMidiMessage(&m);
-		currentMidiMessage->ignoreEvent(false);
-
-		triggerAsyncUpdate();
-	}
-	else
-	{
-        ADD_GLITCH_DETECTOR("Processing " + getId() + " script callbacks");
-        
-		if(currentMidiMessage != nullptr)
-		{
-			currentMessage = m;
-			currentMidiMessage->setMidiMessage(&m);
-			currentMidiMessage->ignoreEvent(false);
-
-			runScriptCallbacks();
-
-			processThisMessage = !currentMidiMessage->ignored;
-		}
-	}
-
-	
-};
-
-void ScriptProcessor::setupApi()
-{
-	clearFileWatchers();
-
-	scriptEngine = new HiseJavascriptEngine(this);
-	scriptEngine->maximumExecutionTime = RelativeTime(getMainController()->getCompileTimeOut());
-
-	content = new ScriptingApi::Content(this);
-
-	currentMidiMessage = new ScriptingApi::Message(this);
-	engineObject = new ScriptingApi::Engine(this);
-	synthObject = new ScriptingApi::Synth(this, getOwnerSynth());
-	samplerObject = new ScriptingApi::Sampler(this, dynamic_cast<ModulatorSampler*>(getOwnerSynth()));
-
-	DynamicObject *synthParameters = new DynamicObject();
-
-	for(int i = 0; i < getOwnerSynth()->getNumParameters(); i++)
-	{
-		synthParameters->setProperty(getOwnerSynth()->getIdentifierForParameterIndex(i), var(i));
-	}
-
-
-	scriptEngine->registerNativeObject("Content", content);
-	scriptEngine->registerNativeObject("SynthParameters", synthParameters);
-
-	scriptEngine->registerApiClass(currentMidiMessage);
-	scriptEngine->registerApiClass(engineObject);
-	scriptEngine->registerApiClass(new ScriptingApi::Console(this));
-	scriptEngine->registerApiClass(synthObject);
-	scriptEngine->registerNativeObject("Sampler", samplerObject);
-	scriptEngine->registerNativeObject("Globals", getMainController()->getGlobalVariableObject());
-
-	scriptEngine->registerGlobalStorge(getMainController()->getGlobalVariableObject());
-
-	const double bufferTime = (double)getBlockSize() / getSampleRate() * 1000.0;
-
-	scriptEngine->registerCallbackName(getSnippet(onInit)->getCallbackName(), bufferTime);
-	scriptEngine->registerCallbackName(getSnippet(onNoteOn)->getCallbackName(), bufferTime);
-	scriptEngine->registerCallbackName(getSnippet(onNoteOff)->getCallbackName(), bufferTime);
-	scriptEngine->registerCallbackName(getSnippet(onController)->getCallbackName(), bufferTime);
-	scriptEngine->registerCallbackName(getSnippet(onTimer)->getCallbackName(), bufferTime);
-
-
-	//scriptEngine->execute("function include(string){Engine.include(string);};");
-
-}
-
-#pragma warning( push )
-#pragma warning( disable : 4390)
-
-void ScriptProcessor::runScriptCallbacks()
-{
-	ScopedLock sl(compileLock);
-
-	scriptEngine->maximumExecutionTime = isDeferred() ? RelativeTime(0.5) : RelativeTime(0.03);
-
-	if(currentMessage.isNoteOn())
-	{
-		synthObject->increaseNoteCounter();
-		if(onNoteOnCallback->isSnippetEmpty()) return;
-
-		Result r = Result::ok();
-		
-		scriptEngine->executeCallback(onNoteOn, &r);
-
-		if (!r.wasOk()) debugError(this, r.getErrorMessage());
-
-	}
-	else if(currentMessage.isNoteOff())
-	{
-		synthObject->decreaseNoteCounter();
-
-		if(onNoteOffCallback->isSnippetEmpty()) return;
-		Result r = Result::ok();
-		scriptEngine->executeCallback(onNoteOff, &r);
-
-		if (!r.wasOk()) debugError(this, r.getErrorMessage());
-	}
-	else if(currentMessage.isController() || currentMessage.isPitchWheel() || currentMessage.isAftertouch())
-	{
-		if(currentMessage.isControllerOfType(64))
-		{
-			synthObject->setSustainPedal(currentMessage.getControllerValue() > 64);
-		}
-
-		if(onControllerCallback->isSnippetEmpty()) return;
-
-		// All notes off are controller message, so they should not be processed, or it can lead to loop.
-		if(currentMessage.isAllNotesOff()) return;
-
-		Result r = Result::ok();
-		scriptEngine->executeCallback(onController, &r);
-
-		if (!r.wasOk()) debugError(this, r.getErrorMessage());
-	}
-	else if (currentMessage.isSongPositionPointer())
-	{
-		Result r = Result::ok();
-		
-		static const Identifier onClock("onClock");
-
-		var args[1] = { currentMessage.getSongPositionPointerMidiBeat() };
-		scriptEngine->executeWithoutAllocation(onClock, var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), args, 1), &r);
-
-		if (!r.wasOk()) debugError(this, r.getErrorMessage());
-	}
-	else if (currentMessage.isMidiStart() || currentMessage.isMidiStop())
-	{
-		Result r = Result::ok();
-		
-		static const Identifier onClock("onTransport");
-
-		var args[1] = { currentMessage.isMidiStart() };
-
-		scriptEngine->executeWithoutAllocation(onClock, var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), args, 1), &r);
-	}
-}
-
-
-
-void ScriptProcessor::includeFile(const String &name)
-{
-#if USE_FRONTEND
-
-	if (includedFileNames.contains(name, true))
-	{
-		debugError(this, "Warning: File " + name + " is already included.");
-	}
-	else
-	{
-		String content = getMainController()->getExternalScriptFromCollection(name);
-		debugToConsole(this, "Including " + name);
-
-		includedFileNames.add(name);
-
-		scriptEngine->execute(content);
-
-		return;
-	}
-
-#else
-
-
-#if 0
-	const File file = GET_PROJECT_HANDLER(this).getSubDirectory(ProjectHandler::SubDirectories::Scripts).getChildFile(name);
-
-	if (file.existsAsFile())
-	{
-		if (includedFileNames.contains(name, true))
-		{
-			debugError(this, "Warning: File " + name + " is already included.");
-		}
-		else
-		{
-			String content = file.loadFileAsString();
-			debugToConsole(this, "Including " + name);
-
-			includedFileNames.add(name);
-			
-			addFileWatcher(file);
-
-			Result r = scriptEngine->execute(content);
-
-			setFileResult(file, r);
-
-			return;
-		}
-	}
-	else
-	{
-		debugError(this, "File " + file.getFullPathName() + " was not found.");
-	}
-#endif
-
-#endif
-}
-
-void ScriptProcessor::mergeCallbacksToScript(String &x) const
-{
-	for (int i = 0; i < numCallbacks; i++)
-	{
-		const SnippetDocument *s = getSnippet(i);
-
-		x << s->getSnippetAsFunction();
-	}
-}
-
-void ScriptProcessor::parseSnippetsFromString(const String &x, bool clearUndoHistory)
-{
-	String codeToCut = String(x);
-
-	for (int i = numCallbacks; i > 1; i--)
-	{
-		SnippetDocument *s = getSnippet(i-1);
-		
-		String filter = "function " + s->getCallbackName().toString() + "(";
-
-		String code = codeToCut.fromLastOccurrenceOf(filter, true, false);
-
-		if (!code.containsNonWhitespaceChars())
-		{
-			debugError(this, s->getCallbackName().toString() + " could not be parsed!");
-		}
-
-		s->replaceAllContent(code);
-        
-		codeToCut = codeToCut.upToLastOccurrenceOf(filter, false, false);
-        
-        if(clearUndoHistory)
-        {
-            s->getUndoManager().clearUndoHistory();
-        }
-	}
-
-	getSnippet(0)->replaceAllContent(codeToCut);
-
-	debugToConsole(this, "All callbacks sucessfuly parsed");
-}
-
-ReferenceCountedObject * ScriptProcessor::textInputisArrayElementObject(const String &t)
-{
-	if (t.contains("[") && t.contains("]"))
-	{
-		const String possibleArrayName = t.upToFirstOccurrenceOf("[", false, false);
-
-		if (!Identifier::isValidIdentifier(possibleArrayName))
-		{
-			return nullptr;
-		}
-
-		Identifier variableName = Identifier(possibleArrayName);
-
-		var *v = scriptEngine->getRootObjectProperties().getVarPointer(variableName);
-
-		if (v == nullptr || v->isUndefined())
-		{
-			return nullptr;
-		}
-
-		if (!v->isArray())
-		{
-			return nullptr;
-		}
-
-
-		const int number = t.fromFirstOccurrenceOf("[", false, false).upToFirstOccurrenceOf("]", false, false).getIntValue();
-
-		if (number < 0 || number >= v->getArray()->size())
-		{
-			return nullptr;
-		}
-
-		var obj = v->getArray()->getUnchecked(number);
-
-		if (obj.isObject())
-		{
-			return obj.getObject();
-		}
-
-		return nullptr;
-	}
-
-
-	return nullptr;
-}
-
-DynamicObject * ScriptProcessor::textInputMatchesScriptingObject(const String &textToShow)
-{
-
-	if (!Identifier::isValidIdentifier(textToShow)) return nullptr;
-
-	String stripped = textToShow.removeCharacters(" \r\n\t");
-
-	if (scriptEngine->getRootObjectProperties().contains(stripped))
-	{
-		var *v = scriptEngine->getRootObjectProperties().getVarPointer(stripped);
-
-		DynamicObject *obj = v->getDynamicObject();
-
-		return obj;
-	}
-
-	return nullptr;
-}
-
-XmlElement * ScriptProcessor::textInputMatchesApiClass(const String &s) const
-{
-	for (int i = 0; i < apiData.getNumChildren(); i++)
-	{
-		const String apiClassName = apiData.getChild(i).getType().toString();
-
-		if (s == apiClassName || s == (apiClassName + "."))
-		{
-			return apiData.getChild(i).createXml();
-		}
-	}
-
-	return nullptr;
-}
-
-void ScriptProcessor::runTimerCallback(int /*offsetInBuffer*//*=-1*/)
-{
-	if (isBypassed() || onTimerCallback->isSnippetEmpty()) return;
-
-	ScopedLock sl(compileLock);
-
-	scriptEngine->maximumExecutionTime = isDeferred() ? RelativeTime(0.5) : RelativeTime(0.002);
-	
-	Result r = Result::ok();
-	scriptEngine->executeCallback(onTimer, &r);
-
-	if (isDeferred())
-	{
-		sendSynchronousChangeMessage();
-	}
-	
-#if USE_BACKEND
-	if (!r.wasOk()) getMainController()->writeToConsole(r.getErrorMessage(), 1, this, content->getColour());
-#endif
-}
-
-#pragma warning( pop ) 
-
-void ScriptProcessor::deferCallbacks(bool addToFront_)
-{ 
-	deferred = addToFront_;
-	if(deferred)
-	{
-		getOwnerSynth()->stopSynthTimer();
-	}
-	else
-	{
-		stopTimer();
-	}
-};
-
-StringArray ScriptProcessor::getImageFileNames() const
-{
-	jassert(isFront());
-
-	StringArray fileNames;
-
-	for(int i = 0; i < content->getNumComponents(); i++)
-	{
-		const ScriptingApi::Content::ScriptImage *image = dynamic_cast<const ScriptingApi::Content::ScriptImage*>(content->getComponent(i));
-
-		if(image != nullptr) fileNames.add(image->getScriptObjectProperty(ScriptingApi::Content::ScriptImage::FileName));
-	}
-
-	return fileNames;
-}
-
-ScriptProcessor::SnippetDocument::SnippetDocument(const Identifier &callbackName_) :
-CodeDocument(),
-lines(Range<int>()),
-isActive(false),
-callbackName(callbackName_)
-{
-	String header;
-	//String x = callbackName_.toString() + " Callback";
-
-	//String line;
-
-	//for (int i = 0; i < x.length(); i++) line << "=";
-
-	//header << "// " << line << "\n";
-	//header << "// " << x << "\n";
-	//header << "\n";
-
-	if (callbackName == Identifier("onInit"))
-	{
-
-	}
-	else if (callbackName == Identifier("onControl"))
-	{
-		header << "function onControl(number, value)\n";
-		header << "{\n";
-		header << "\t\n";
-		header << "}\n";
-	}
-	else {
-		header << "function " << callbackName_.toString() << "()\n";
-		header << "{\n";
-		header << "\t\n";
-		header << "}\n";
-	};
-
-	setEmptyText(header);
-    
-    getUndoManager().clearUndoHistory();
-}
-
-int ScriptProcessor::SnippetDocument::addLineToString(String &t, const String &lineToAdd)
-{
-	// Every line must be added seperately!
-	//jassert(lineToAdd.findFirstOccurenceOf('\n') == -1);
-
-	t << lineToAdd << "\n";
-	return 1;
-}
-
-int ScriptProcessor::SnippetDocument::addToString(String &t, int startLine)
-{
-	t << getAllContent();
-
-	isActive = true;
-
-	if (!getAllContent().containsNonWhitespaceChars()) isActive = false;
-	if (getAllContent() == emptyText)					isActive = false;
-
-	lines = Range<int>(startLine, startLine + getNumLines());
-	return getNumLines();
-}
-
 FileChangeListener::~FileChangeListener()
 {
 	watchers.clear();
 	masterReference.clear();
 
-    if(currentPopups.size() != 0)
-    {
-        for(int i = 0; i < currentPopups.size(); i++)
-        {
-            if (currentPopups[i].getComponent() != nullptr)
-            {
-                currentPopups[i]->closeButtonPressed();
-            }
+	if (currentPopups.size() != 0)
+	{
+		for (int i = 0; i < currentPopups.size(); i++)
+		{
+			if (currentPopups[i].getComponent() != nullptr)
+			{
+				currentPopups[i]->closeButtonPressed();
+			}
 
-        }
-        
-        currentPopups.clear();
-    }
+		}
+
+		currentPopups.clear();
+	}
 }
 
 void FileChangeListener::addFileWatcher(const File &file)
@@ -995,40 +142,40 @@ Result FileChangeListener::getWatchedResult(int index)
 
 File FileChangeListener::getWatchedFile(int index) const
 {
-    if(index < watchers.size())
-    {
-        return watchers[index]->getFile();
+	if (index < watchers.size())
+	{
+		return watchers[index]->getFile();
 
-    }
-    else return File::nonexistent;
+	}
+	else return File::nonexistent;
 }
 
 void FileChangeListener::showPopupForFile(int index)
 {
 #if USE_BACKEND
-    const File watchedFile = getWatchedFile(index);
-    
-    
-    for(int i = 0; i < currentPopups.size(); i++)
-    {
-        if(currentPopups[i] == nullptr)
-        {
-            currentPopups.remove(i--);
-            continue;
-        }
-        
-        if(dynamic_cast<PopupIncludeEditorWindow*>(currentPopups[i].getComponent())->getFile() == watchedFile)
-        {
-            currentPopups[i]->toFront(true);
-            return;
-        }
-    }
-    
-	PopupIncludeEditorWindow *popup = new PopupIncludeEditorWindow(getWatchedFile(index), dynamic_cast<ScriptProcessor*>(this));
+	const File watchedFile = getWatchedFile(index);
 
-    currentPopups.add(popup);
 
-    popup->addToDesktop();
+	for (int i = 0; i < currentPopups.size(); i++)
+	{
+		if (currentPopups[i] == nullptr)
+		{
+			currentPopups.remove(i--);
+			continue;
+		}
+
+		if (dynamic_cast<PopupIncludeEditorWindow*>(currentPopups[i].getComponent())->getFile() == watchedFile)
+		{
+			currentPopups[i]->toFront(true);
+			return;
+		}
+	}
+
+	PopupIncludeEditorWindow *popup = new PopupIncludeEditorWindow(getWatchedFile(index), dynamic_cast<JavascriptProcessor*>(this));
+
+	currentPopups.add(popup);
+
+	popup->addToDesktop();
 #else
 	ignoreUnused(index);
 #endif
@@ -1036,11 +183,11 @@ void FileChangeListener::showPopupForFile(int index)
 
 ValueTree FileChangeListener::collectAllScriptFiles(ModulatorSynthChain *chainToExport)
 {
-	Processor::Iterator<ScriptProcessor> iter(chainToExport);
+	Processor::Iterator<JavascriptProcessor> iter(chainToExport);
 
 	ValueTree externalScriptFiles = ValueTree("ExternalScripts");
 
-	while (ScriptProcessor *sp = iter.getNextProcessor())
+	while (JavascriptProcessor *sp = iter.getNextProcessor())
 	{
 		for (int i = 0; i < sp->getNumWatchedFiles(); i++)
 		{
@@ -1074,4 +221,281 @@ ValueTree FileChangeListener::collectAllScriptFiles(ModulatorSynthChain *chainTo
 	}
 
 	return externalScriptFiles;
+}
+
+
+JavascriptProcessor::JavascriptProcessor(MainController *mc) :
+mainController(mc),
+doc(new CodeDocument()),
+scriptEngine(new HiseJavascriptEngine(this)),
+lastExecutionTime(0.0),
+lastCompileWasOK(false),
+currentCompileThread(nullptr)
+{
+
+}
+
+
+
+JavascriptProcessor::~JavascriptProcessor()
+{
+	scriptEngine = nullptr;
+	doc = nullptr;
+}
+
+
+void JavascriptProcessor::fileChanged()
+{
+	compileScript();
+}
+
+
+
+
+JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
+{
+	ProcessorWithScriptingContent* thisAsScriptBaseProcessor = dynamic_cast<ProcessorWithScriptingContent*>(this);
+
+	ScriptingApi::Content* content = thisAsScriptBaseProcessor->getScriptingContent();
+
+	if (lastCompileWasOK && content != nullptr) thisAsScriptBaseProcessor->restoredContentValues = content->exportAsValueTree();
+
+	ScopedLock sl(compileLock);
+
+	scriptEngine->clearDebugInformation();
+
+	setupApi();
+
+	content = thisAsScriptBaseProcessor->getScriptingContent();
+
+	thisAsScriptBaseProcessor->allowObjectConstructors = true;
+
+	content->restoreFromValueTree(thisAsScriptBaseProcessor->restoredContentValues);
+
+	for (int i = 0; i < getNumSnippets(); i++)
+	{
+		getSnippet(i)->checkIfScriptActive();
+
+		if (!getSnippet(i)->isSnippetEmpty())
+		{
+			Result r = scriptEngine->execute(getSnippet(i)->getSnippetAsFunction());
+
+			if (!r.wasOk())
+			{
+				//content->restoreFromValueTree(restoredContentValues);
+				content->endInitialization();
+				thisAsScriptBaseProcessor->allowObjectConstructors = false;
+
+				// Check the rest of the snippets or they will be deleted on failed compile...
+				for (int j = i; j < getNumSnippets(); j++)
+				{
+					getSnippet(j)->checkIfScriptActive();
+				}
+
+				lastCompileWasOK = false;
+
+				return SnippetResult(r, i);
+
+			}
+		}
+	}
+
+	scriptEngine->rebuildDebugInformation();
+
+	content->restoreFromValueTree(thisAsScriptBaseProcessor->restoredContentValues);
+
+	content->endInitialization();
+
+	thisAsScriptBaseProcessor->allowObjectConstructors = false;
+
+	lastCompileWasOK = true;
+
+	postCompileCallback();
+
+	return SnippetResult(Result::ok(), getNumSnippets());
+}
+
+
+
+JavascriptProcessor::SnippetResult JavascriptProcessor::compileScript()
+{
+	const bool useBackgroundThread = mainController->isUsingBackgroundThreadForCompiling();
+
+	SnippetResult result = SnippetResult(Result::ok(), 0);
+
+	if (useBackgroundThread)
+	{
+		CompileThread ct(this);
+
+		currentCompileThread = &ct;
+
+		ct.runThread();
+
+		currentCompileThread = nullptr;
+
+		result = ct.result;
+	}
+	else
+	{
+		result = compileInternal();
+	}
+
+	if (lastCompileWasOK)
+	{
+		String x;
+		mergeCallbacksToScript(x);
+		parseSnippetsFromString(x);
+
+		clearFileWatchers();
+		for (int i = 0; i < scriptEngine->getIncludedFiles().size(); i++)
+		{
+			addFileWatcher(scriptEngine->getIncludedFiles().getUnchecked(i));
+		}
+
+	}
+
+	mainController->sendScriptCompileMessage(this);
+
+	return result;
+}
+
+
+void JavascriptProcessor::setupApi()
+{
+	clearFileWatchers();
+
+	scriptEngine = new HiseJavascriptEngine(this);
+	scriptEngine->maximumExecutionTime = RelativeTime(mainController->getCompileTimeOut());
+
+	registerApiClasses();
+	
+	scriptEngine->registerNativeObject("Globals", mainController->getGlobalVariableObject());
+	scriptEngine->registerGlobalStorge(mainController->getGlobalVariableObject());
+
+	registerCallbacks();
+}
+
+
+void JavascriptProcessor::registerCallbacks()
+{
+	const Processor* p = dynamic_cast<Processor*>(this);
+
+	const double bufferTime = (double)p->getBlockSize() / p->getSampleRate() * 1000.0;
+
+	for (int i = 0; i < getNumSnippets(); i++)
+	{
+		scriptEngine->registerCallbackName(getSnippet(i)->getCallbackName(), getSnippet(i)->getNumArgs(), bufferTime);
+	}
+}
+
+
+void JavascriptProcessor::saveScript(ValueTree &v) const
+{
+	String x;
+	mergeCallbacksToScript(x);
+	v.setProperty("Script", x, nullptr);
+}
+
+void JavascriptProcessor::restoreScript(const ValueTree &v)
+{
+	String x = v.getProperty("Script", String::empty);
+	parseSnippetsFromString(x, true);
+
+	compileScript();
+}
+
+void JavascriptProcessor::mergeCallbacksToScript(String &x) const
+{
+	for (int i = 0; i < getNumSnippets(); i++)
+	{
+		const SnippetDocument *s = getSnippet(i);
+
+		x << s->getSnippetAsFunction();
+	}
+}
+
+void JavascriptProcessor::parseSnippetsFromString(const String &x, bool clearUndoHistory)
+{
+	String codeToCut = String(x);
+
+	for (int i = getNumSnippets(); i > 1; i--)
+	{
+		SnippetDocument *s = getSnippet(i-1);
+		
+		String filter = "function " + s->getCallbackName().toString() + "(";
+
+		String code = codeToCut.fromLastOccurrenceOf(filter, true, false);
+
+		if (!code.containsNonWhitespaceChars())
+		{
+			debugError(dynamic_cast<Processor*>(this), s->getCallbackName().toString() + " could not be parsed!");
+		}
+
+		s->replaceAllContent(code);
+        
+		codeToCut = codeToCut.upToLastOccurrenceOf(filter, false, false);
+        
+        if(clearUndoHistory)
+        {
+            s->getUndoManager().clearUndoHistory();
+        }
+	}
+
+	getSnippet(0)->replaceAllContent(codeToCut);
+
+	debugToConsole(dynamic_cast<Processor*>(this), "All callbacks sucessfuly parsed");
+}
+
+
+
+JavascriptProcessor::SnippetDocument::SnippetDocument(const Identifier &callbackName_, const String &parameters_) :
+CodeDocument(),
+lines(Range<int>()),
+isActive(false),
+callbackName(callbackName_)
+{
+	parameters = StringArray::fromTokens(parameters_, " ", "");
+	numArgs = parameters.size();
+
+	String header;
+	
+
+	if (callbackName != Identifier("onInit"))
+	{
+		header << "function " << callbackName_.toString() << "(";
+		
+		for (int i = 0; i < numArgs; i++)
+		{
+			header << parameters[i];
+			if (i != numArgs - 1) header << ", ";
+		}
+		
+		header << ")\n";
+		header << "{\n";
+		header << "\t\n";
+		header << "}\n";
+	};
+
+	setEmptyText(header);
+    
+    getUndoManager().clearUndoHistory();
+}
+
+int JavascriptProcessor::SnippetDocument::addLineToString(String &t, const String &lineToAdd)
+{
+	t << lineToAdd << "\n";
+	return 1;
+}
+
+int JavascriptProcessor::SnippetDocument::addToString(String &t, int startLine)
+{
+	t << getAllContent();
+
+	isActive = true;
+
+	if (!getAllContent().containsNonWhitespaceChars()) isActive = false;
+	if (getAllContent() == emptyText)					isActive = false;
+
+	lines = Range<int>(startLine, startLine + getNumLines());
+	return getNumLines();
 }

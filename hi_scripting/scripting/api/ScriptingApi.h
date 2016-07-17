@@ -53,7 +53,7 @@ public:
 	{
 	public:
 
-		Message(ScriptBaseProcessor *p):
+		Message(ProcessorWithScriptingContent *p):
 			ScriptingObject(p),
 			ApiClass(0),
 			ignored(false),
@@ -163,7 +163,7 @@ public:
 		// sets the reference to the midi message.
 		void setMidiMessage(MidiMessage *m);
 
-		friend class ScriptProcessor;
+		friend class JavascriptMidiProcessor;
 		friend class HardcodedScriptProcessor;
 
 		MidiMessage *messageHolder;
@@ -182,7 +182,7 @@ public:
 	{
 	public:
 
-		Engine(ScriptBaseProcessor *p):
+		Engine(ProcessorWithScriptingContent *p):
 			ScriptingObject(p),
 			ApiClass(0)
 		{
@@ -362,7 +362,7 @@ public:
 	{
 	public:
 
-		Sampler(ScriptBaseProcessor *p, ModulatorSampler *sampler);
+		Sampler(ProcessorWithScriptingContent *p, ModulatorSampler *sampler);
 
 		Identifier getObjectName() const override
 		{
@@ -453,7 +453,7 @@ public:
 				 public ApiClass
 	{
 	public:
-		Synth(ScriptBaseProcessor *p, ModulatorSynth *ownerSynth);
+		Synth(ProcessorWithScriptingContent *p, ModulatorSynth *ownerSynth);
 		
 		Identifier getName() const override { RETURN_STATIC_IDENTIFIER("Synth"); };
 
@@ -680,7 +680,7 @@ public:
 	{
 	public:
 
-		Console(ScriptBaseProcessor *p):
+		Console(ProcessorWithScriptingContent *p):
 			ScriptingObject(p),
 			ApiClass(0),
 			startTime(0.0),
@@ -726,7 +726,7 @@ public:
 				   public RestorableObject
 	{
 	public:
-		Content(ScriptBaseProcessor *p):
+		Content(ProcessorWithScriptingContent *p):
 			ScriptingObject(p),
 			height(50),
 			width(-1),
@@ -827,7 +827,7 @@ public:
 
 			File getExternalFile(var newValue);
 
-			ScriptComponent(ScriptBaseProcessor *base, Content *parentContent, Identifier name_, int x, int y, int width, int height);
+			ScriptComponent(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name_, int x, int y, int width, int height);
 
 			bool isPropertyDeactivated(Identifier &id) const
 			{
@@ -1031,7 +1031,7 @@ public:
 				numProperties
 			};
 
-			ScriptSlider(ScriptBaseProcessor *base, Content *parentContent, Identifier name_, int x, int y, int , int );
+			ScriptSlider(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name_, int x, int y, int, int);
 
 			~ScriptSlider();
 
@@ -1126,7 +1126,7 @@ public:
 
 			~ScriptButton();
 
-			ScriptButton(ScriptBaseProcessor *base, Content *parentContent, Identifier name, int x, int y, int , int );
+			ScriptButton(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name, int x, int y, int, int);
 
 			bool isAutomatable() const override { return true; }
 
@@ -1154,7 +1154,7 @@ public:
 				numProperties
 			};
 
-			ScriptComboBox(ScriptBaseProcessor *base, Content *parentContent,  Identifier name, int x, int y, int width, int );
+			ScriptComboBox(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name, int x, int y, int width, int);
 
 			bool isAutomatable() const override { return true; }
 
@@ -1212,7 +1212,7 @@ public:
 			};
 
 
-			ScriptLabel(ScriptBaseProcessor *base, Content *parentContent, Identifier name, int x, int y, int width, int );
+			ScriptLabel(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name, int x, int y, int width, int );
 
 			virtual Identifier 	getObjectName () const override { return "ScriptLabel"; }
 
@@ -1300,7 +1300,7 @@ public:
 				numProperties
 			};
 
-			ScriptTable(ScriptBaseProcessor *base, Content *parentContent,  Identifier name, int x, int y, int width, int height);
+			ScriptTable(ProcessorWithScriptingContent *base, Content *parentContent,  Identifier name, int x, int y, int width, int height);
 
 			virtual Identifier 	getObjectName () const override { return "ScriptTable"; }
 
@@ -1373,7 +1373,7 @@ public:
 				numProperties
 			};
 
-			ScriptPanel(ScriptBaseProcessor *base, Content *parentContent, Identifier panelName, int x, int y, int width, int height);;
+			ScriptPanel(ProcessorWithScriptingContent *base, Content *parentContent, Identifier panelName, int x, int y, int width, int height);;
 
 			virtual Identifier 	getObjectName () const override { return "ScriptPanel"; }
 
@@ -1381,13 +1381,13 @@ public:
 
             var getValue() const override
             {
-                jassertfalse;
+                
 				return var::undefined();
             }
             
             void setValue(var newValue) override
             {
-                jassertfalse;
+                
             }
             
 			ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
@@ -1408,7 +1408,7 @@ public:
 				numProperties
 			};
 
-			ScriptImage(ScriptBaseProcessor *base, Content *parentContent, Identifier imageName, int x, int y, int width, int height);;
+			ScriptImage(ProcessorWithScriptingContent *base, Content *parentContent, Identifier imageName, int x, int y, int width, int height);;
 
 			~ScriptImage();
 
@@ -1449,7 +1449,7 @@ public:
 				return sa;
 			}
 
-			void setScriptProcessor(ScriptBaseProcessor *sb);
+			void setScriptProcessor(ProcessorWithScriptingContent *sb);
 
 		private:
 
@@ -1469,7 +1469,7 @@ public:
 				numProperties
 			};
 
-			ScriptSliderPack(ScriptBaseProcessor *base, Content *parentContent, Identifier imageName, int x, int y, int width, int height);;
+			ScriptSliderPack(ProcessorWithScriptingContent *base, Content *parentContent, Identifier imageName, int x, int y, int width, int height);;
 
 			~ScriptSliderPack()
 			{
@@ -1513,7 +1513,7 @@ public:
 
 			void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification) override;
 
-			void setScriptProcessor(ScriptBaseProcessor *sb);
+			void setScriptProcessor(ProcessorWithScriptingContent *sb);
 
             SliderPackData *getSliderPackData() { return (existingData != nullptr) ? existingData.get() : packData.get(); };
 
@@ -1536,7 +1536,7 @@ public:
 				numProperties
 			};
 
-			ModulatorMeter(ScriptBaseProcessor *base, Content *parentContent, Identifier modulatorName, int x, int y, int width, int height);;
+			ModulatorMeter(ProcessorWithScriptingContent *base, Content *parentContent, Identifier modulatorName, int x, int y, int width, int height);;
 
 			virtual Identifier 	getObjectName () const override { return "ModulatorMeter"; }
 
@@ -1546,7 +1546,7 @@ public:
 
 			StringArray getOptionsFor(const Identifier &id) override;
 
-			void setScriptProcessor(ScriptBaseProcessor *sb);
+			void setScriptProcessor(ProcessorWithScriptingContent *sb);
 
 			WeakReference<Modulator> targetMod;
 		};
@@ -1556,7 +1556,7 @@ public:
 		{
 		public:
 
-			ScriptedPlotter(ScriptBaseProcessor *base, Content *parentContent, Identifier plotterName, int x, int y, int width, int height):
+			ScriptedPlotter(ProcessorWithScriptingContent *base, Content *parentContent, Identifier plotterName, int x, int y, int width, int height):
 				ScriptComponent(base, parentContent, plotterName, x,y,width, height)
 			{
 				setMethod("addModulatorToPlotter", Wrapper::addModulatorToPlotter);
@@ -1589,7 +1589,7 @@ public:
 				numProperties
 			};
 
-			ScriptAudioWaveform(ScriptBaseProcessor *base, Content *parentContent, Identifier plotterName, int x, int y, int width, int height);;
+			ScriptAudioWaveform(ProcessorWithScriptingContent *base, Content *parentContent, Identifier plotterName, int x, int y, int width, int height);;
 
 			virtual Identifier 	getObjectName() const override { return "ScriptAudioWaveform"; };
 			
@@ -1605,7 +1605,7 @@ public:
 
 			StringArray getOptionsFor(const Identifier &id) override;
 			
-			AudioSampleProcessor * getProcessor()
+			AudioSampleProcessor * getAudioProcessor()
 			{
 				return dynamic_cast<AudioSampleProcessor*>(connectedProcessor.get());
 			};
@@ -1625,7 +1625,7 @@ public:
 				numProperties
 			};
 
-			ScriptPluginEditor(ScriptBaseProcessor *base, Content*parentContent, Identifier name, int x, int y, int width, int height);
+			ScriptPluginEditor(ProcessorWithScriptingContent *base, Content*parentContent, Identifier name, int x, int y, int width, int height);
 
 			virtual Identifier getObjectName() const override 
 			{ 

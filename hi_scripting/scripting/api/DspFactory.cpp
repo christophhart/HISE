@@ -135,11 +135,14 @@ var DspInstance::getAssignedValue(int index) const
 
 int DspInstance::getCachedIndex(const var &name) const
 {
-	for (int i = 0; i < object->getNumParameters(); i++)
+	if (object != nullptr)
 	{
-		if (name.toString() == object->getIdForParameter(i).toString())
+		for (int i = 0; i < object->getNumParameters(); i++)
 		{
-			return i;
+			if (name.toString() == object->getIdForParameter(i).toString())
+			{
+				return i;
+			}
 		}
 	}
 

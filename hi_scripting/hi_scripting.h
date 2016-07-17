@@ -41,6 +41,10 @@
 #include "scripting/api/ScriptMacroDefinitions.h"
 #include "scripting/api/DspBaseModule.h"
 #include "scripting/api/DspFactory.h"
+#include "scripting/scripting_audio_processor/ScriptDspModules.h"
+#include "scripting/scripting_audio_processor/ScriptedAudioProcessor.h"
+
+
 #include "scripting/engine/JavascriptApiClass.h"
 #include "scripting/engine/DebugHelpers.h"
 #include "scripting/engine/HiseJavascriptEngine.h"
@@ -50,13 +54,13 @@
 #include "scripting/api/ScriptingApi.h"
 
 #include "scripting/ScriptProcessor.h"
+#include "scripting/ScriptProcessorModules.h"
 #include "scripting/HardcodedScriptProcessor.h"
 
 #include "scripting/api/ScriptComponentWrappers.h"
 #include "scripting/components/ScriptingContentComponent.h"
 
-#include "scripting/scripting_audio_processor/ScriptDspModules.h"
-#include "scripting/scripting_audio_processor/ScriptedAudioProcessor.h"
+
 
 #if USE_BACKEND
 

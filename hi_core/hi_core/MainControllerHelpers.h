@@ -49,7 +49,7 @@ class AudioSampleBufferPool;
 class Plotter;
 class ScriptWatchTable;
 class ScriptComponentEditPanel;
-class ScriptProcessor;
+class JavascriptMidiProcessor;
 class Modulator;
 class CustomKeyboardState;
 class ModulatorSynthChain;

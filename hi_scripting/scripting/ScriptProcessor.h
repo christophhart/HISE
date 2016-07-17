@@ -38,24 +38,79 @@
 class ModulatorSynthGroup;
 
 
+/** A class that has a content that can be populated with script components. */
+class ProcessorWithScriptingContent
+{
+public:
+
+	ProcessorWithScriptingContent(MainController* mc_) :
+		content(nullptr),
+		restoredContentValues(ValueTree("Content")),
+		mc(mc_)
+	{}
+
+	enum EditorStates
+	{
+		contentShown = Processor::EditorState::numEditorStates,
+		onInitShown,
+		numEditorStates
+	};
+
+	virtual ~ProcessorWithScriptingContent() {};
+
+	bool objectsCanBeCreated() const
+	{
+		return allowObjectConstructors;
+	}
+
+	ScriptingApi::Content *getScriptingContent() const
+	{
+		return content.get();
+	}
+
+	void setControlValue(int index, float newValue);
+
+	float getControlValue(int index) const;
+
+	virtual void controlCallback(ScriptingApi::Content::ScriptComponent *component, var controllerValue) = 0;
+
+	var getSavedValue(Identifier name)
+	{
+		return restoredContentValues.getChildWithName(name).getProperty("value", var::undefined());
+	}
+
+	/** Checks if any of the properties was changed. */
+	ScriptingApi::Content::ScriptComponent *checkContentChangedInPropertyPanel();
+
+	void restoreContent(const ValueTree &restoredState);
+
+	void saveContent(ValueTree &savedState) const;
+
+	MainController* getMainController_() { return mc; }
+
+	const MainController* getMainController_() const { return mc; }
+
+protected:
+
+	friend class JavascriptProcessor;
+
+	MainController* mc;
+
+	bool allowObjectConstructors;
+
+	ValueTree restoredContentValues;
+	WeakReference<ScriptingApi::Content> content;
+};
 
 
 /** This class acts as base class for both ScriptProcessor and HardcodedScriptProcessor.
 *
 *	It contains all logic that the ScriptingApi objects need in order to work with both types.
 */
-class ScriptBaseProcessor: public MidiProcessor
+class ScriptBaseMidiProcessor: public MidiProcessor,
+							   public ProcessorWithScriptingContent
 {
 public:
-
-	ScriptBaseProcessor(MainController *mc, const String &id):
-		MidiProcessor(mc, id),
-		content(nullptr),
-		restoredContentValues(ValueTree("Content"))
-	{
-	};
-
-	virtual ~ScriptBaseProcessor();
 
 	enum Callback
 	{
@@ -68,62 +123,56 @@ public:
 		numCallbacks
 	};
 
-	virtual void controlCallback(ScriptingApi::Content::ScriptComponent *component, var controllerValue) = 0;
-	
+	ScriptBaseMidiProcessor(MainController *mc, const String &id): MidiProcessor(mc, id), ProcessorWithScriptingContent(mc) {};
+	virtual ~ScriptBaseMidiProcessor() { masterReference.clear(); }
 
-	bool objectsCanBeCreated() const
-	{
-		return allowObjectConstructors;
-	}
+	float getAttribute(int index) const override { return getControlValue(index); }
+	void setInternalAttribute(int index, float newValue) override { setControlValue(index, newValue); }
 
-	ScriptingApi::Content *getScriptingContent() const
-	{
-		return content.get();
-	}
-
-	float getAttribute(int index) const override;;
-
-	void setInternalAttribute(int index, float newValue) override;;
-
-	virtual ValueTree exportAsValueTree() const override;
-
-	virtual void restoreFromValueTree(const ValueTree &v) override;
-
-	var getSavedValue(Identifier name)
-	{
-		return restoredContentValues.getChildWithName(name).getProperty("value", var::undefined());
-	}
-
-	
-
-	bool isControlVisible(Identifier name)
-	{
-		return restoredContentValues.getChildWithName(name).getProperty("visible", true);
-	}
-
-	void setScriptProcessorDeactivatedRoundRobin(bool deactivated)
-	{
-		scriptProcessorDeactivatedRoundRobin = deactivated;
-	}
+	ValueTree exportAsValueTree() const override { ValueTree v = MidiProcessor::exportAsValueTree(); saveContent(v); return v; }
+	void restoreFromValueTree(const ValueTree &v) override { MidiProcessor::restoreFromValueTree(v); restoreContent(v); }
 
 	const MidiMessage &getCurrentMidiMessage() const { return currentMessage; };
 
 protected:
 
-	WeakReference<ScriptBaseProcessor>::Master masterReference;
-    friend class WeakReference<ScriptBaseProcessor>;
+	WeakReference<ScriptBaseMidiProcessor>::Master masterReference;
+    friend class WeakReference<ScriptBaseMidiProcessor>;
 	
-
 	MidiMessage currentMessage;
-
-	ValueTree restoredContentValues;
-	WeakReference<ScriptingApi::Content> content;
-	
-	bool allowObjectConstructors;
-
-	bool scriptProcessorDeactivatedRoundRobin;
-
 };
+
+class ScriptBaseMasterEffectProcessor : public MasterEffectProcessor,
+										public ProcessorWithScriptingContent
+{
+public:
+
+	enum Callbacks
+	{
+		onInit,
+		prepareToPlay,
+		processBlock,
+		onControl,
+		numCallbacks
+	};
+
+	ScriptBaseMasterEffectProcessor(MainController *mc, const String &id) : MasterEffectProcessor(mc, id), ProcessorWithScriptingContent(mc) {};
+	virtual ~ScriptBaseMasterEffectProcessor() { masterReference.clear(); }
+
+	float getAttribute(int index) const override { return getControlValue(index); }
+	void setInternalAttribute(int index, float newValue) override { setControlValue(index, newValue); }
+
+	ValueTree exportAsValueTree() const override { ValueTree v = MasterEffectProcessor::exportAsValueTree(); saveContent(v); return v; }
+	void restoreFromValueTree(const ValueTree &v) override { MasterEffectProcessor::restoreFromValueTree(v); restoreContent(v); }
+
+private:
+
+	WeakReference<ScriptBaseMasterEffectProcessor>::Master masterReference;
+	friend class WeakReference < ScriptBaseMasterEffectProcessor > ;
+};
+
+
+
 
 class FileWatcher;
 
@@ -225,214 +274,20 @@ private:
 
 };
 
-
-
-/** This scripting processor uses the JavaScript Engine to execute small scripts that can change the midi message. 
-*	@ingroup midiTypes
+/** The base class for modules that can be scripted. 
 *
-*	A script should have this function:
 *	
-*		function onNoteOn()
-*		{
-*			// do your stuff here
-*		}
-*
-*	You can use the methods from ScriptingApi to change the midi message.
-*
 */
-class ScriptProcessor: public ScriptBaseProcessor,
-					   public Timer,
-					   public ExternalFileProcessor,
-					   public AsyncUpdater,
-					   public FileChangeListener
-					
+class JavascriptProcessor :	public FileChangeListener
 {
-	class SnippetDocument;
-
 public:
 
-	SET_PROCESSOR_NAME("ScriptProcessor", "Script Processor")
-
-	struct SnippetResult;
-
-	enum SnippetsOpen
-	{
-		onInitOpen = Processor::numEditorStates,
-		onNoteOnOpen,
-		onNoteOffOpen,
-		onControllerOpen,
-		onTimerOpen,
-		onControlOpen,
-		contentShown,
-		externalPopupShown,
-		numScriptEditorStates
-	};
-
-	ScriptProcessor(MainController *mc, const String &id);;
-
-	~ScriptProcessor();;
-
-	Path getSpecialSymbol() const override;
-
-	ValueTree exportAsValueTree() const override;;
-
-	virtual void restoreFromValueTree(const ValueTree &v) override;
-
-	virtual void fileChanged() override;
-
-	SnippetDocument *getSnippet(int c);;
-
-	void replaceReferencesWithGlobalFolder() override;
-
-	const SnippetDocument *getSnippet(int c) const;;
-
-	CodeDocument *getDocument() { return doc; };
-    
-	void setupApi();
-
-	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
-
-	void addToFront(bool addToFront_) noexcept { front = addToFront_;};
-
-	bool isFront() const {return front;};
-
-	StringArray getImageFileNames() const;
-
-	/** This defers the callbacks to the message thread.
-	*
-	*	It stops all timers and clears any message queues.
-	*/
-	void deferCallbacks(bool addToFront_);
-
-	bool isDeferred() const {return deferred;};
-
-	void setCompileProgress(double progress)
-	{ 
-		if (currentCompileThread != nullptr && getMainController()->isUsingBackgroundThreadForCompiling())
-		{
-			currentCompileThread->setProgress(progress);
-		}
-	}
-
-	void handleAsyncUpdate();
-
-	void timerCallback() override
-	{
-		jassert(isDeferred());
-		runTimerCallback();
-	}
-
-	bool wasLastCompileOK() const { return lastCompileWasOK; }
-
-	void synthTimerCallback(int offsetInBuffer) override
-	{
-		jassert(!isDeferred());
-		runTimerCallback(offsetInBuffer);
-	};
-
-	void controlCallback(ScriptingApi::Content::ScriptComponent *component, var controllerValue) override;
-
-	/** Checks if any of the properties was changed. */
-	ScriptingApi::Content::ScriptComponent *checkContentChangedInPropertyPanel();
-
-	/** Call this when you compile the script. */
-	SnippetResult compileScript();
-
-	HiseJavascriptEngine *getScriptEngine()
-	{
-		return scriptEngine;
-	}
-
-	/** This calls the processMidiMessage() function in the compiled Javascript code. @see ScriptingApi */
-	void processMidiMessage(MidiMessage &m);
-	
-	/** Runs the script callbacks.
-	*
-	*	These are the possible callbacks:
-	*
-	*		function onNoteOn() {};
-	*		function onNoteOff() {};
-	*		function onController() {};
-	*		function onPitchWheel() {};
-	*/
-	void runScriptCallbacks();
-
-	double getLastExecutionTime() const noexcept {return lastExecutionTime;};
-
-	struct SnippetResult
-	{
-		SnippetResult(Result r_, Callback c_): r(r_), c(c_) {};
-
-		/** the result */
-		Result r;
-
-		/** the callback */
-		Callback c;
-	};
-
-	void includeFile(const String &name);
-
-	void mergeCallbacksToScript(String &x) const;;
-
-	void parseSnippetsFromString(const String &x, bool clearUndoHistory=false);
-
-	ReferenceCountedObject *textInputisArrayElementObject(const String &t);
-
-
-	DynamicObject *textInputMatchesScriptingObject(const String &textToShow);
-
-	XmlElement *textInputMatchesApiClass(const String &s) const;
-
-	
-	
-private:
-
-	class CompileThread : public ThreadWithProgressWindow
+	class SnippetDocument : public CodeDocument
 	{
 	public:
 
-		CompileThread(ScriptProcessor *processor):
-			ThreadWithProgressWindow("Compiling", true, false),
-			sp(processor),
-			result(SnippetResult(Result::ok(), ScriptBaseProcessor::onInit))
-		{
-			getAlertWindow()->setLookAndFeel(&alaf);
-		}
-
-		void run()
-		{
-			ScopedLock sl(sp->lock);
-
-			result = sp->compileInternal();
-		}
-
-		ScriptProcessor::SnippetResult result;
-
-	private:
-
-		AlertWindowLookAndFeel alaf;
-
-		ScriptProcessor *sp;
-
-		
-	};
-
-	ScriptProcessor::SnippetResult compileInternal();
-
-	friend class CompileThread;
-
-	CriticalSection lock;
-
-	CriticalSection compileLock;
-
-	void runTimerCallback(int offsetInBuffer=-1);
-
-	ValueTree apiData;
-
-	class SnippetDocument: public CodeDocument
-	{
-	public:
-		SnippetDocument(const Identifier &callbackName_);;
+		/** Create a snippet document. If you want to supply parameters, supply a whitespace separated list as last argument. */
+		SnippetDocument(const Identifier &callbackName_, const String &parameters=String::empty);
 
 		const Identifier &getCallbackName() const
 		{
@@ -443,7 +298,7 @@ private:
 		{
 			isActive = true;
 
-			if( !getAllContent().containsNonWhitespaceChars() ) isActive = false;
+			if (!getAllContent().containsNonWhitespaceChars()) isActive = false;
 
 			String trimmedText = getAllContent().removeCharacters(" \t\n\r");
 
@@ -454,7 +309,7 @@ private:
 
 		String getSnippetAsFunction() const
 		{
-			if( isSnippetEmpty()) return emptyText;
+			if (isSnippetEmpty()) return emptyText;
 			else				  return getAllContent();
 		}
 
@@ -467,6 +322,8 @@ private:
 		{
 			lines = Range<int>(start, end);
 		};
+
+		int getNumArgs() const { return numArgs; }
 
 		void setEmptyText(const String &t)
 		{
@@ -487,46 +344,120 @@ private:
 
 		Identifier callbackName;
 
+		int numArgs;
+
+		StringArray parameters;
+
 		String emptyText;
 		bool isActive;
 		Range<int> lines;
 	};
+	
+	JavascriptProcessor(MainController *mc);
+
+	virtual ~JavascriptProcessor();
+
+	struct SnippetResult
+	{
+		SnippetResult(Result r_, int c_) : r(r_), c(c_) {};
+
+		/** the result */
+		Result r;
+
+		/** the callback */
+		int c;
+	};
+
+	virtual void fileChanged() override;
+
+	SnippetResult compileScript();
+
+	void setupApi();
+
+	virtual void registerApiClasses() = 0;
+	void registerCallbacks();
+
+	virtual SnippetDocument *getSnippet(int c) = 0;
+	virtual const SnippetDocument *getSnippet(int c) const = 0;
+	virtual int getNumSnippets() const = 0;
+
+	void saveScript(ValueTree &v) const;
+	void restoreScript(const ValueTree &v);
+
+	bool wasLastCompileOK() const { return lastCompileWasOK; }
+
+	double getLastExecutionTime() const noexcept{ return lastExecutionTime; };
+
+	HiseJavascriptEngine *getScriptEngine() { return scriptEngine; }
+
+	void mergeCallbacksToScript(String &x) const;
+	void parseSnippetsFromString(const String &x, bool clearUndoHistory = false);
+
+	CodeDocument *getDocument() { return doc; };
+
+	void setCompileProgress(double progress)
+	{
+		if (currentCompileThread != nullptr && mainController->isUsingBackgroundThreadForCompiling())
+		{
+			currentCompileThread->setProgress(progress);
+		}
+	}
+
+
+protected:
+
+	virtual void postCompileCallback() {};
+
+	class CompileThread : public ThreadWithProgressWindow
+	{
+	public:
+
+		CompileThread(JavascriptProcessor *processor) :
+			ThreadWithProgressWindow("Compiling", true, false),
+			sp(processor),
+			result(SnippetResult(Result::ok(), 0))
+		{
+			getAlertWindow()->setLookAndFeel(&alaf);
+		}
+
+		void run()
+		{
+			ScopedLock sl(sp->lock);
+
+			result = sp->compileInternal();
+		}
+
+		JavascriptProcessor::SnippetResult result;
+
+	private:
+
+		AlertWindowLookAndFeel alaf;
+
+		JavascriptProcessor *sp;
+
+
+	};
+
+	virtual SnippetResult compileInternal();
+
+	friend class CompileThread;
+
+	CriticalSection lock;
+
+	CriticalSection compileLock;
 
 	double lastExecutionTime;
 
 	CompileThread *currentCompileThread;
-	
+
 	ScopedPointer<CodeDocument> doc;
-
-	ScopedPointer<SnippetDocument> onInitCallback;
-	ScopedPointer<SnippetDocument> onNoteOnCallback;
-	ScopedPointer<SnippetDocument> onNoteOffCallback;
-	ScopedPointer<SnippetDocument> onControllerCallback;
-	ScopedPointer<SnippetDocument> onControlCallback;
-	ScopedPointer<SnippetDocument> onTimerCallback;
-
-	StringArray includedFileNames;
-
-	MidiBuffer deferredMidiMessages;
-	MidiBuffer copyBuffer;
 
 	ScopedPointer<HiseJavascriptEngine> scriptEngine;
 
-	// Only Pointers, since they will be owned by the Javascript Engine
-
-	ReferenceCountedObjectPtr<ScriptingApi::Message> currentMidiMessage;
-
-	ReferenceCountedObjectPtr<ScriptingApi::Engine> engineObject;
-
-	ScriptingApi::Sampler *samplerObject;
-
-	bool front, deferred, deferredUpdatePending;
-
-	ScriptingApi::Synth *synthObject;
+	MainController* mainController;
 
 	bool lastCompileWasOK;
 };
-
 
 
 

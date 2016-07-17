@@ -250,7 +250,7 @@ int ProcessorEditor::getActualHeight() const
 
 		h += panel->getHeightOfAllEditors() + marginBeforePanel;
 
-        return h + (dynamic_cast<const ScriptProcessor*>(getProcessor()) ? 0 : 6);
+        return h + (dynamic_cast<const JavascriptMidiProcessor*>(getProcessor()) ? 0 : 6);
 	}
 }
 

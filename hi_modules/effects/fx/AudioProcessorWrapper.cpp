@@ -223,11 +223,6 @@ void AudioProcessorWrapper::setAudioProcessor(const Identifier id)
 
 			wrappedAudioProcessor = (*createProcessor)();
 
-            if(ScriptingAudioProcessor *sp = dynamic_cast<ScriptingAudioProcessor*>(wrappedAudioProcessor.get()))
-            {
-                sp->setMainController(getMainController());
-            }
-            
 			if (wrappedAudioProcessor != nullptr)
 			{
 				if (getSampleRate() > 0.0)
@@ -267,7 +262,3 @@ Array<Spatializer::SpeakerLayout> Spatializer::speakerPositions =
 	Spatializer::SpeakerLayout{ AudioChannelSet::create5point0(), { SpeakerPosition{ 1.0f, 0.0f }, SpeakerPosition{ 1.0f, -0.25f * float_Pi }, SpeakerPosition{ 1.0f, 0.25f * float_Pi }, SpeakerPosition{ 1.0f, -0.75f * float_Pi }, SpeakerPosition{ 1.0f, 0.75f * float_Pi } } }
 };
 
-AudioProcessorEditor* ScriptingAudioProcessor::createEditor()
-{
-	return new ScriptingAudioProcessorEditor(this);
-}
