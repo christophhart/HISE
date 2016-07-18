@@ -202,8 +202,6 @@ void CompileExporter::writeReferencedAudioFiles(ModulatorSynthChain * chainToExp
 
 void CompileExporter::writeExternalScriptFiles(ModulatorSynthChain * chainToExport, const String &directoryPath)
 {
-	Processor::Iterator<JavascriptMidiProcessor> iter(chainToExport);
-
 	ValueTree externalScriptFiles = FileChangeListener::collectAllScriptFiles(chainToExport);
 
 	PresetHandler::writeValueTreeAsFile(externalScriptFiles, File(directoryPath).getChildFile("externalScripts").getFullPathName());

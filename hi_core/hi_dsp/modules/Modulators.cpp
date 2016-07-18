@@ -94,6 +94,7 @@ Processor *VoiceStartModulatorFactoryType::createProcessor(int typeIndex, const 
 		case globalVoiceStartModulator:	return new GlobalVoiceStartModulator(m, id, numVoices, mode);
 		case gainMatcherVoiceStartModulator:	return new GainMatcherVoiceStartModulator(m, id, numVoices, mode);
 		case arrayModulator:	return new ArrayModulator(m, id, numVoices, mode);
+		case scriptVoiceStartModulator:	return new JavascriptVoiceStartModulator(m, id, numVoices, mode);
 		default: jassertfalse; return nullptr;
 	}
 };
@@ -104,16 +105,17 @@ Processor *TimeVariantModulatorFactoryType::createProcessor(int typeIndex, const
 
 	switch(typeIndex)
 	{
-	case lfoModulator: return new LfoModulator(m, id, mode);
-	case controlModulator: return new ControlModulator(m, id, mode);
-	case pitchWheel:		return new PitchwheelModulator(m, id, mode);
-	case macroModulator:	return new MacroModulator(m, id, mode);
-	case audioFileEnvelope:	return new AudioFileEnvelope(m, id, mode);
-	case pluginParameter: return new PluginParameterModulator(m, id, mode);
+	case lfoModulator:					return new LfoModulator(m, id, mode);
+	case controlModulator:				return new ControlModulator(m, id, mode);
+	case pitchWheel:					return new PitchwheelModulator(m, id, mode);
+	case macroModulator:				return new MacroModulator(m, id, mode);
+	case audioFileEnvelope:				return new AudioFileEnvelope(m, id, mode);
+	case pluginParameter:				return new PluginParameterModulator(m, id, mode);
 	case globalTimeVariantModulator:	return new GlobalTimeVariantModulator(m, id, mode);
 	case gainMatcherTimeVariantModulator:	return new GainMatcherTimeVariantModulator(m, id, mode);
-	case ccDucker:			return new CCDucker(m, id, mode);
-	default: jassertfalse; return nullptr;
+	case ccDucker:						return new CCDucker(m, id, mode);
+	case scriptTimeVariantModulator:	return new JavascriptTimeVariantModulator(m, id, mode);
+	default: jassertfalse;				return nullptr;
 
 	}
 };

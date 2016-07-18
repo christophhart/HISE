@@ -120,7 +120,7 @@ public:
 	*/
 	int registerCallbackName(const Identifier &callbackName, int numArgs, double bufferTime);
 
-	void executeCallback(int callbackIndex, Result *result);
+	var executeCallback(int callbackIndex, Result *result);
 
 	inline void setCallbackParameter(int callbackIndex, int parameterIndex, var newValue);
 
@@ -270,7 +270,7 @@ public:
 
 			Callback(const Identifier &id, int numArgs, double bufferTime_);
 
-			void perform(RootObject *root);
+			var perform(RootObject *root);
 
 			void setStatements(BlockStatement *s) noexcept;
 

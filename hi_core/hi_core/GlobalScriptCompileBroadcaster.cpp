@@ -63,16 +63,16 @@ void GlobalScriptCompileBroadcaster::fillExternalFileList(Array<File> &files, St
 {
 	ModulatorSynthChain *mainChain = dynamic_cast<MainController*>(this)->getMainSynthChain();
 
-	Processor::Iterator<JavascriptMidiProcessor> iter(mainChain);
+	Processor::Iterator<JavascriptProcessor> iter(mainChain);
 
-	while (JavascriptMidiProcessor *sp = iter.getNextProcessor())
+	while (JavascriptProcessor *sp = iter.getNextProcessor())
 	{
 		for (int i = 0; i < sp->getNumWatchedFiles(); i++)
 		{
 			if (!files.contains(sp->getWatchedFile(i)))
 			{
 				files.add(sp->getWatchedFile(i));
-				processors.add(sp->getId());
+				processors.add(dynamic_cast<Processor*>(sp)->getId());
 			}
 
 

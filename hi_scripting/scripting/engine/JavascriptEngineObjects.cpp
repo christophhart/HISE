@@ -540,7 +540,7 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(D
 }
 
 
-void HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
+var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 {
 	RootObject::Callback *c = root->hiseSpecialData.callbackNEW[callbackIndex];
 
@@ -552,13 +552,15 @@ void HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 		try
 		{
 			prepareTimeout();
-			c->perform(root);
+			return c->perform(root);
 		}
 		catch (String &error)
 		{
 			if (result != nullptr) *result = Result::fail(error);
 		}
 	}
+
+	return var::undefined();
 }
 
 void HiseJavascriptEngine::RootObject::Callback::setStatements(BlockStatement *s) noexcept
@@ -568,20 +570,24 @@ void HiseJavascriptEngine::RootObject::Callback::setStatements(BlockStatement *s
 }
 
 
-void HiseJavascriptEngine::RootObject::Callback::perform(RootObject *root)
+var HiseJavascriptEngine::RootObject::Callback::perform(RootObject *root)
 {
 	RootObject::Scope s(nullptr, root, root);
+
+	var returnValue = var::undefined();
 
 #if USE_BACKEND
 	const double pre = Time::getMillisecondCounterHiRes();
 
-	statements->perform(s, nullptr);
+	statements->perform(s, &returnValue);
 
 	const double post = Time::getMillisecondCounterHiRes();
 	lastExecutionTime = post - pre;
 #else
-	statements->perform(s, nullptr);
+	statements->perform(s, &returnValue);
 #endif
+
+	return returnValue;
 }
 
 

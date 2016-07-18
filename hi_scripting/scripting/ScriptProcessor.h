@@ -438,12 +438,13 @@ protected:
 
 	};
 
+	Result lastResult;
+
 	virtual SnippetResult compileInternal();
 
 	friend class CompileThread;
 
 	CriticalSection lock;
-
 	CriticalSection compileLock;
 
 	double lastExecutionTime;

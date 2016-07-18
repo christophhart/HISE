@@ -245,14 +245,10 @@ public:
 				rp->getMatrix().setNumDestinationChannels(parentRouter->getMatrix().getNumSourceChannels());
 				rp->getMatrix().setTargetProcessor(chain->getParentProcessor());
 			}
-
-			
 			
 			chain->allEffects.add(dynamic_cast<EffectProcessor*>(newProcessor));
 
 			jassert(chain->allEffects.size() == (chain->masterEffects.size() + chain->voiceEffects.size() + chain->monoEffects.size()));
-
-			
 
 			if(chain->getSampleRate() > 0.0 && newProcessor != nullptr)
             {

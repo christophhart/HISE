@@ -230,7 +230,8 @@ doc(new CodeDocument()),
 scriptEngine(new HiseJavascriptEngine(this)),
 lastExecutionTime(0.0),
 lastCompileWasOK(false),
-currentCompileThread(nullptr)
+currentCompileThread(nullptr),
+lastResult(Result::ok())
 {
 
 }
@@ -278,9 +279,9 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 		if (!getSnippet(i)->isSnippetEmpty())
 		{
-			Result r = scriptEngine->execute(getSnippet(i)->getSnippetAsFunction());
+			lastResult = scriptEngine->execute(getSnippet(i)->getSnippetAsFunction());
 
-			if (!r.wasOk())
+			if (!lastResult.wasOk())
 			{
 				//content->restoreFromValueTree(restoredContentValues);
 				content->endInitialization();
@@ -294,7 +295,7 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 				lastCompileWasOK = false;
 
-				return SnippetResult(r, i);
+				return SnippetResult(lastResult, i);
 
 			}
 		}

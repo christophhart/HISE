@@ -143,6 +143,14 @@ public:
 			API_VOID_METHOD_WRAPPER_1(Message, setChannel);
 		};
 
+		// sets the reference to the midi message.
+		void setMidiMessage(MidiMessage *m);
+
+		void setMidiMessage(const MidiMessage *m)
+		{
+			constMessageHolder = m;
+		};
+
 	private:
 
 		struct MidiMessageWithEventId
@@ -160,11 +168,12 @@ public:
 			static MidiMessageWithEventId empty;
 		};
 
-		// sets the reference to the midi message.
-		void setMidiMessage(MidiMessage *m);
+		
 
 		friend class JavascriptMidiProcessor;
 		friend class HardcodedScriptProcessor;
+
+		MidiMessage const* constMessageHolder;
 
 		MidiMessage *messageHolder;
 		bool wrongNoteOff;
@@ -197,6 +206,8 @@ public:
 			ADD_API_METHOD_1(getGainFactorForDecibels);
 			ADD_API_METHOD_1(getDecibelsForGainFactor);
 			ADD_API_METHOD_1(getFrequencyForMidiNoteNumber);
+			ADD_API_METHOD_1(getPitchRatioFromSemitones);
+			ADD_API_METHOD_1(getSemitonesFromPitchRatio);
 			ADD_API_METHOD_0(getSampleRate);
 			ADD_API_METHOD_1(getMidiNoteName);
 			ADD_API_METHOD_1(getMidiNoteFromName);
@@ -242,6 +253,12 @@ public:
 
 		/** Converts midi note number 0 ... 127 to Frequency 20 ... 20.000. */
 		double getFrequencyForMidiNoteNumber(int midiNumber) const { return MidiMessage::getMidiNoteInHertz(midiNumber); };
+
+		/** Converts a semitone value to a pitch ratio (-12 ... 12) -> (0.5 ... 2.0) */
+		double getPitchRatioFromSemitones(double semiTones) const { return pow(2.0, semiTones / 12.0); }
+
+		/** Converts a pitch ratio to semitones (0.5 ... 2.0) -> (-12 ... 12) */
+		double getSemitonesFromPitchRatio(double pitchRatio) const { return 1200.0 * log2(pitchRatio); }
 
 		/** Converts MIDI note number to Midi note name ("C3" for middle C). */
 		String getMidiNoteName(int midiNumber) const { return MidiMessage::getMidiNoteName(midiNumber, true, true, 3); };
@@ -334,6 +351,8 @@ public:
 			API_METHOD_WRAPPER_1(Engine, getGainFactorForDecibels);
 			API_METHOD_WRAPPER_1(Engine, getDecibelsForGainFactor);
 			API_METHOD_WRAPPER_1(Engine, getFrequencyForMidiNoteNumber);
+			API_METHOD_WRAPPER_1(Engine, getPitchRatioFromSemitones);
+			API_METHOD_WRAPPER_1(Engine, getSemitonesFromPitchRatio);
 			API_METHOD_WRAPPER_0(Engine, getSampleRate);
 			API_METHOD_WRAPPER_1(Engine, getMidiNoteName);
 			API_METHOD_WRAPPER_1(Engine, getMidiNoteFromName);
@@ -478,6 +497,12 @@ public:
 		/** Sets an attribute of the parent synth. */
 		void setAttribute(int attributeIndex, float newAttribute);
 
+		/** Applies a gain factor to a specified voice. */
+		void setVoiceGainValue(int voiceIndex, float gainValue);
+
+		/** Applies a pitch factor (0.5 ... 2.0) to a specified voice. */
+		void setVoicePitchValue(int voiceIndex, double pitchValue);
+
 		/** Returns the attribute of the parent synth. */
 		float getAttribute(int attributeIndex) const;
 
@@ -588,6 +613,8 @@ public:
 			API_VOID_METHOD_WRAPPER_4(Synth, addNoteOn);
 			API_VOID_METHOD_WRAPPER_3(Synth, addNoteOff);
 			API_VOID_METHOD_WRAPPER_4(Synth, addController);
+			API_VOID_METHOD_WRAPPER_2(Synth, setVoiceGainValue);
+			API_VOID_METHOD_WRAPPER_2(Synth, setVoicePitchValue);
 			API_VOID_METHOD_WRAPPER_1(Synth, startTimer);
 			API_VOID_METHOD_WRAPPER_0(Synth, stopTimer);
 			API_VOID_METHOD_WRAPPER_2(Synth, setMacroControl);
@@ -712,6 +739,49 @@ public:
 
 		double startTime;
 		String benchmarkTitle;
+	};
+
+	class ModulatorApi : public ApiClass
+	{
+	public:
+
+		ModulatorApi(Modulator* mod_) :
+			ApiClass(0),
+			mod(mod_),
+			m(dynamic_cast<Modulation*>(mod_))
+		{
+			ADD_API_METHOD_1(setIntensity);
+			ADD_API_METHOD_1(setBypassed);
+		};
+
+		Identifier getName() const override { RETURN_STATIC_IDENTIFIER("Modulator") }
+
+		/** Sets the intensity of the modulator (raw value) */
+		void setIntensity(var newValue)
+		{
+			m->setIntensity((float)newValue);
+			BACKEND_ONLY(mod->sendChangeMessage());
+		}
+
+		/** Bypasses the modulator. */
+		void setBypassed(var newValue)
+		{
+			mod->setBypassed((bool)newValue);
+			BACKEND_ONLY(mod->sendChangeMessage());
+		}
+
+	private:
+
+		struct Wrapper
+		{
+			API_VOID_METHOD_WRAPPER_1(ModulatorApi, setIntensity);
+			API_VOID_METHOD_WRAPPER_1(ModulatorApi, setBypassed);
+		};
+
+		Modulator* mod;
+		Modulation* m;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ModulatorApi)
 	};
 
 	

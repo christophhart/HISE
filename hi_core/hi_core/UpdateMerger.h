@@ -292,7 +292,6 @@ public:
 		stepAmount(-1)
 	{};
 
-
 	/** Sets the step amount that the ramper will use. You can overwrite this value by supplying a step number in setTarget. */
 	void setStepAmount(int newStepAmount) { stepAmount = newStepAmount; };
 
@@ -304,6 +303,7 @@ public:
 		else jassertfalse; // Either the step amount should be set, or a new step amount should be supplied
 
 		targetValue = newTarget;
+		busy = true;
 	};
 
 	/** Sets the ramper value and the target to the new value and stops ramping. */
@@ -311,20 +311,21 @@ public:
 	{
 		targetValue = newValue;
 		stepDelta = 0.0f;
+		busy = false;
 	};
 
 	/** ramps the supplied value and returns true if the targetValue is reached. */
 	inline bool ramp(float &valueToChange) 
 	{
 		valueToChange += stepDelta;
-
-		return fabs(targetValue - valueToChange) > 0.001;
-
-		
+		busy = fabs(targetValue - valueToChange) > 0.001f;
+		return busy;
 	};
 
+	bool isBusy() const { return busy; }
 private:
 
+	bool busy = false;
 	float targetValue, stepDelta;
 	int stepAmount;
 

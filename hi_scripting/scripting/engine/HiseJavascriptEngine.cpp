@@ -197,6 +197,7 @@ struct HiseJavascriptEngine::RootObject::Expression : public Statement
 	ResultCode perform(const Scope& s, var*) const override  { getResult(s); return ok; }
 };
 
+
 var HiseJavascriptEngine::RootObject::typeof_internal(Args a)
 {
 	var v(get(a, 0));

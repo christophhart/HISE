@@ -180,7 +180,9 @@ void ModulatorChain::ModulatorChainHandler::addModulator(Modulator *newModulator
 	{
 		TimeVariantModulator *m = static_cast<TimeVariantModulator*>(newModulator);
 		chain->variantModulators.add(m);
-		if(chain->isInitialized()) m->prepareToPlay(chain->getSampleRate(), chain->blockSize);
+
+		if (chain->isInitialized())
+			m->prepareToPlay(chain->getSampleRate(), chain->blockSize);   
 	}
 	else jassertfalse;
 		
@@ -413,6 +415,7 @@ void TimeVariantModulatorFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(GlobalTimeVariantModulator);
 	ADD_NAME_TO_TYPELIST(GainMatcherTimeVariantModulator);
 	ADD_NAME_TO_TYPELIST(CCDucker);
+	ADD_NAME_TO_TYPELIST(JavascriptTimeVariantModulator);
 }
 
 void VoiceStartModulatorFactoryType::fillTypeNameList()
@@ -424,6 +427,7 @@ void VoiceStartModulatorFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(GlobalVoiceStartModulator);
 	ADD_NAME_TO_TYPELIST(GainMatcherVoiceStartModulator);
 	ADD_NAME_TO_TYPELIST(ArrayModulator);
+	ADD_NAME_TO_TYPELIST(JavascriptVoiceStartModulator);
 }
 
 void EnvelopeModulatorFactoryType::fillTypeNameList()

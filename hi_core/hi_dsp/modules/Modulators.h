@@ -94,7 +94,7 @@ public:
 	*/
 	void setIntensity(float newIntensity) noexcept
 	{ 
-	intensity = newIntensity;
+		intensity = newIntensity;
 	};
 
 	/** Use this method to set the intensity from the ModulatorEditorHeader's intensity slider converting linear -12 ... 12 to log 0.5 ... 2. */
@@ -607,7 +607,6 @@ public:
 	/**	If a note on is received, the voice start value is calculated and stored temporarily until startNote() is called. */
 	virtual void handleMidiEvent(const MidiMessage &m) override
 	{
-		
 		if(m.isNoteOnOrOff() && m.isNoteOn())
 		{
 			unsavedValue = calculateVoiceStartValue(m);
@@ -620,6 +619,8 @@ protected:
 	virtual float inline calculateVoiceStartValue(const MidiMessage &m) = 0;
 	
 private:
+
+	friend class JavascriptVoiceStartModulator;
 
 	/** Checks if the last value that was calculated by a note on message was saved. */
 	bool lastValueWasSaved() const
@@ -913,7 +914,8 @@ class VoiceStartModulatorFactoryType: public FactoryType
 		randomModulator,
 		globalVoiceStartModulator,
 		gainMatcherVoiceStartModulator,
-		arrayModulator
+		arrayModulator,
+		scriptVoiceStartModulator
 	};
 
 public:
@@ -1003,7 +1005,8 @@ class TimeVariantModulatorFactoryType: public FactoryType
 		pluginParameter,
 		globalTimeVariantModulator,
 		gainMatcherTimeVariantModulator,
-		ccDucker
+		ccDucker,
+		scriptTimeVariantModulator
 	};
 
 public:

@@ -536,15 +536,18 @@ void ProcessorEditorHeader::resized()
 		x += 3;
 	}
 	
+	intensitySlider->setBounds(x, yOffset2, 200, 20);
+
+	x = intensitySlider->getRight() + 3;
+
 	if (IS(JavascriptProcessor))
 	{
 		debugButton->setBounds(x, yOffset2, 30, 20);
 		debugButton->setVisible(true);
+		x += 40;
 	}
-	
-	intensitySlider->setBounds (x, yOffset2, 200, 20);
 
-    
+	
 
 	
     plotButton->setBounds (getWidth() - 101 - 50, yOffset2, 30, 20);

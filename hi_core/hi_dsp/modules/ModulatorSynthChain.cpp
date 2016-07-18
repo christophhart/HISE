@@ -75,18 +75,16 @@ void ModulatorSynthChain::compileAllScripts()
 {
 	if (getMainController()->isCompilingAllScriptsOnPresetLoad())
 	{
-		Processor::Iterator<JavascriptMidiProcessor> it(this);
+		Processor::Iterator<JavascriptProcessor> it(this);
 
-		JavascriptMidiProcessor *sp;
+		JavascriptProcessor *sp;
 
 		while ((sp = it.getNextProcessor()) != 0)
 		{
 			sp->compileScript();
             
-            ValueTree v = sp->exportAsValueTree();
-            
-            sp->restoreFromValueTree(v);
-            
+            ValueTree v = dynamic_cast<Processor*>(sp)->exportAsValueTree();
+			dynamic_cast<Processor*>(sp)->restoreFromValueTree(v);
 		}
 	}
 }

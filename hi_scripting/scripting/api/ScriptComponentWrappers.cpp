@@ -182,7 +182,7 @@ void ScriptCreatedComponentWrapper::changed(var newValue)
 {
 	getScriptComponent()->value = newValue;
 
-	dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor())->controlCallback(getScriptComponent(), newValue);
+	dynamic_cast<ProcessorWithScriptingContent*>(getProcessor())->controlCallback(getScriptComponent(), newValue);
 }
 
 Processor * ScriptCreatedComponentWrapper::getProcessor()

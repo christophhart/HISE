@@ -140,6 +140,158 @@ private:
 	bool front, deferred, deferredUpdatePending;
 };
 
+class JavascriptVoiceStartModulator : public JavascriptProcessor,
+									  public ProcessorWithScriptingContent,
+									  public VoiceStartModulator
+{
+public:
+
+	enum Callback
+	{
+		onInit = 0,
+		onVoiceStart,
+		onVoiceStop,
+		onController,
+		onControl,
+		numCallbacks
+	};
+
+	enum EditorStates
+	{
+		onVoiceStartOpen = ProcessorWithScriptingContent::EditorStates::numEditorStates,
+		onVoiceStopOpen,
+		onControllerOpen,
+		onControlOpen,
+		externalPopupShown,
+		numScriptEditorStates
+	};
+
+	SET_PROCESSOR_NAME("ScriptVoiceStartModulator", "Script Voice Start Modulator")
+
+
+	JavascriptVoiceStartModulator(MainController *mc, const String &id, int voiceAmount, Modulation::Mode m);;
+	~JavascriptVoiceStartModulator();
+
+	Path getSpecialSymbol() const override;
+
+	float getAttribute(int index) const override { return getControlValue(index); }
+	void setInternalAttribute(int index, float newValue) override { setControlValue(index, newValue); }
+
+	ValueTree exportAsValueTree() const override { ValueTree v = VoiceStartModulator::exportAsValueTree(); saveContent(v); saveScript(v); return v; }
+	void restoreFromValueTree(const ValueTree &v) override { VoiceStartModulator::restoreFromValueTree(v); restoreScript(v); restoreContent(v); }
+	
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
+
+	float calculateVoiceStartValue(const MidiMessage &m) override { return 0.0f; };
+	virtual void handleMidiEvent(const MidiMessage &m) override;
+
+	/** When the startNote function is called, a previously calculated value (by the handleMidiMessage function) is stored using the supplied voice index. */
+	virtual void startVoice(int voiceIndex) override;;
+
+	SnippetDocument *getSnippet(int c) override;
+	const SnippetDocument *getSnippet(int c) const override;
+	int getNumSnippets() const override { return numCallbacks; }
+	void registerApiClasses() override;
+	void controlCallback(ScriptingApi::Content::ScriptComponent *component, var controllerValue) override;
+
+private:
+
+	ReferenceCountedObjectPtr<ScriptingApi::Message> currentMidiMessage;
+	ReferenceCountedObjectPtr<ScriptingApi::Engine> engineObject;
+
+	ScriptingApi::Sampler *samplerObject;
+	ScriptingApi::Synth *synthObject;
+
+	ScopedPointer<SnippetDocument> onInitCallback;
+	ScopedPointer<SnippetDocument> onVoiceStartCallback;
+	ScopedPointer<SnippetDocument> onVoiceStopCallback;
+	ScopedPointer<SnippetDocument> onControllerCallback;
+	ScopedPointer<SnippetDocument> onControlCallback;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(JavascriptVoiceStartModulator)
+};
+
+
+class JavascriptTimeVariantModulator : public JavascriptProcessor,
+									   public ProcessorWithScriptingContent,
+									   public TimeVariantModulator
+{
+public:
+
+	SET_PROCESSOR_NAME("ScriptTimeVariantModulator", "Script Time Variant Modulator")
+
+	enum Callback
+	{
+		onInit = 0,
+		prepare,
+		processBlock,
+		onNoteOn,
+		onNoteOff,
+		onController,
+		onControl,
+		numCallbacks
+	};
+
+	enum EditorStates
+	{
+		prepareToPlayOpen = ProcessorWithScriptingContent::EditorStates::numEditorStates,
+		processBlockOpen,
+		onNoteOnOpen,
+		onNoteOffOpen,
+		onControllerOpen,
+		onControlOpen,
+		externalPopupShown,
+		numScriptEditorStates
+	};
+
+	JavascriptTimeVariantModulator(MainController *mc, const String &id, Modulation::Mode m);
+	~JavascriptTimeVariantModulator();
+
+	Path getSpecialSymbol() const override;
+
+	float getAttribute(int index) const override { return getControlValue(index); }
+	void setInternalAttribute(int index, float newValue) override { setControlValue(index, newValue); }
+
+	ValueTree exportAsValueTree() const override { ValueTree v = TimeVariantModulator::exportAsValueTree(); saveContent(v); saveScript(v); return v; }
+	void restoreFromValueTree(const ValueTree &v) override { TimeVariantModulator::restoreFromValueTree(v); restoreScript(v); restoreContent(v); }
+
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
+
+	void handleMidiEvent(const MidiMessage &m) override;
+	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
+	void calculateBlock(int startSample, int numSamples) override;;
+
+	Processor *getChildProcessor(int /*processorIndex*/) override final { return nullptr; };
+	const Processor *getChildProcessor(int /*processorIndex*/) const override final { return nullptr; };
+	int getNumChildProcessors() const override final { return 0; };
+
+	SnippetDocument *getSnippet(int c) override;
+	const SnippetDocument *getSnippet(int c) const override;
+	int getNumSnippets() const override { return Callback::numCallbacks; }
+	void registerApiClasses() override;
+	void controlCallback(ScriptingApi::Content::ScriptComponent *component, var controllerValue) override;
+
+	void postCompileCallback() override;
+
+private:
+
+	ReferenceCountedObjectPtr<ScriptingApi::Message> currentMidiMessage;
+	ReferenceCountedObjectPtr<ScriptingApi::Engine> engineObject;
+	ScriptingApi::Synth *synthObject;
+
+	VariantBuffer::Ptr buffer;
+	var bufferVar;
+
+	ScopedPointer<SnippetDocument> onInitCallback;
+	ScopedPointer<SnippetDocument> prepareToPlayCallback;
+	ScopedPointer<SnippetDocument> processBlockCallback;
+	ScopedPointer<SnippetDocument> onNoteOnCallback;
+	ScopedPointer<SnippetDocument> onNoteOffCallback;
+	ScopedPointer<SnippetDocument> onControllerCallback;
+	ScopedPointer<SnippetDocument> onControlCallback;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(JavascriptTimeVariantModulator)
+};
 
 class JavascriptMasterEffect : public JavascriptProcessor,
 							   public ScriptBaseMasterEffectProcessor
@@ -193,7 +345,7 @@ private:
 
 	var channels;
 
-	Result lastResult;
+	
 
 	ScopedPointer<SnippetDocument> onInitCallback;
 	ScopedPointer<SnippetDocument> prepareToPlayCallback;

@@ -420,6 +420,10 @@ public:
 	/** Returns the gain of the ModulatorSynth from 0.0 to 1.0. */
 	float getGain() const {	return gain; };
 
+	void setScriptGainValue(int voiceIndex, float gainValue) noexcept;
+
+	void setScriptPitchValue(int voiceIndex, double pitchValue) noexcept;
+
 	/** Sets the parent group. This can only be called once, since synths are not supposed to change their parents. */
 	void setGroup(ModulatorSynthGroup *parent)
 	{
@@ -499,19 +503,23 @@ public:
 	virtual void handleRetriggeredNote(ModulatorSynthVoice *voice);
 
 	/** Calculates the voice values with the GainModulationChain and returns a read pointer to the values. */
-	const float *calculateGainValuesForVoice(int voiceIndex, int startSample, int numSamples)
+	const float *calculateGainValuesForVoice(int voiceIndex, float scriptGainValue, int startSample, int numSamples)
 	{
 		gainChain->renderVoice(voiceIndex, startSample, numSamples);
-		return gainChain->getVoiceValues(voiceIndex);
+		float *data = gainChain->getVoiceValues(voiceIndex);
+		if (scriptGainValue != 1.0f) FloatVectorOperations::multiply(data + startSample, scriptGainValue, numSamples);
+
+		return data;
 	};
 
 	/** calculates the voice pitch values. You can get the values with getPitchValues for voice. */
-	void calculatePitchValuesForVoice(int voiceIndex, int startSample, int numSamples)
+	void calculatePitchValuesForVoice(int voiceIndex, float scriptPitchValue, int startSample, int numSamples)
 	{
         pitchChain->renderVoice(voiceIndex, startSample, numSamples);
 		float *voicePitchValues = pitchChain->getVoiceValues(voiceIndex);
 		const float *timeVariantPitchValues = getConstantPitchValues();
 		FloatVectorOperations::multiply(voicePitchValues, timeVariantPitchValues, startSample + numSamples);
+		if (scriptPitchValue != 1.0f) FloatVectorOperations::multiply(voicePitchValues, scriptPitchValue, startSample + numSamples);
 	}
 
 	/** Returns a read pointer to the calculated pitch values. */
@@ -622,7 +630,7 @@ public:
 	
 	void calculateVoicePitchValues(int startSample, int numSamples)
 	{
-		getOwnerSynth()->calculatePitchValuesForVoice(voiceIndex, startSample, numSamples);
+		getOwnerSynth()->calculatePitchValuesForVoice(voiceIndex, scriptPitchValue, startSample, numSamples);
 	}
 
 	const float *getVoicePitchValues() const
@@ -637,7 +645,7 @@ public:
 
 	const float *getVoiceGainValues(int startSample, int numSamples)
 	{
-		return getOwnerSynth()->calculateGainValuesForVoice(voiceIndex, startSample, numSamples);
+		return getOwnerSynth()->calculateGainValuesForVoice(voiceIndex, scriptGainValue, startSample, numSamples);
 	}
 
 	/** This only checks if the sound is valid, but you can override this with the desired behaviour. */
@@ -747,6 +755,9 @@ public:
 
 	bool isPitchModulationActive() const noexcept{ return pitchModulationActive; }
 
+	void setScriptGainValue(float newGainValue) { scriptGainValue = newGainValue; }
+	void setScriptPitchValue(float newPitchValue) { scriptPitchValue = newPitchValue; }
+
 protected:
 
 	/** Returns the ModulatorSynth instance that this voice belongs to.
@@ -783,6 +794,9 @@ private:
 	float killFadeFactor;
 	
 	double startUptime;
+
+	float scriptGainValue = 1.0f;
+	double scriptPitchValue = 1.0;
 
 	ModulatorSynth* const ownerSynth;
 

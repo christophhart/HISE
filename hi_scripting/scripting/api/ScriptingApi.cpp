@@ -129,34 +129,40 @@ void ScriptingObject::reportIllegalCall(const String &callName, const String &al
 
 int ScriptingApi::Message::getNoteNumber() const
 {
-	if(messageHolder == nullptr || !messageHolder->isNoteOnOrOff())
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+	if(constMessageHolder == nullptr || !constMessageHolder->isNoteOnOrOff())
 	{
 		reportIllegalCall("getNoteNumber()", "onNoteOn / onNoteOff");
 		return -1;
 	}
+#endif
 
-	return messageHolder->getNoteNumber();
+	return constMessageHolder->getNoteNumber();
 };
 
 
 void ScriptingApi::Message::delayEvent(int samplesToDelay)
 {
+#if ENABLE_SCRIPTING_SAFE_CHECKS
 	if(messageHolder == nullptr)
 	{
 		reportIllegalCall("delayEvent()", "midi event");
 		return;
 	}	
+#endif
 
 	messageHolder->addToTimeStamp(samplesToDelay);
 };
 
 void ScriptingApi::Message::setNoteNumber(int newValue)
 {
+#if ENABLE_SCRIPTING_SAFE_CHECKS
 	if(messageHolder == nullptr)
 	{
 		reportIllegalCall("setNoteNumber()", "midi event");
 		return;
 	}
+#endif
 
 	if(!messageHolder->isNoteOnOrOff())
 	{
@@ -168,6 +174,7 @@ void ScriptingApi::Message::setNoteNumber(int newValue)
 
 void ScriptingApi::Message::setVelocity(int newValue)
 {
+#if ENABLE_SCRIPTING_SAFE_CHECKS
 	if(messageHolder == nullptr)
 	{
 		reportIllegalCall("setVelocity()", "midi event");
@@ -178,6 +185,7 @@ void ScriptingApi::Message::setVelocity(int newValue)
 	{
 		reportIllegalCall("setVelocity()", "onNoteOn");
 	}
+#endif
 
 	messageHolder->setVelocity((float)newValue / 127.0f);
 };
@@ -187,6 +195,7 @@ void ScriptingApi::Message::setVelocity(int newValue)
 
 void ScriptingApi::Message::setControllerNumber(int newValue)
 {
+#if ENABLE_SCRIPTING_SAFE_CHECKS
 	if(messageHolder == nullptr)
 	{
 		reportIllegalCall("setControllerNumber()", "midi event");
@@ -197,6 +206,7 @@ void ScriptingApi::Message::setControllerNumber(int newValue)
 	{
 		reportIllegalCall("setControllerNumber()", "onController");
 	}
+#endif
 
 	const int value = messageHolder->getControllerValue();
 
@@ -205,6 +215,7 @@ void ScriptingApi::Message::setControllerNumber(int newValue)
 
 void ScriptingApi::Message::setControllerValue(int newValue)
 {
+#if ENABLE_SCRIPTING_SAFE_CHECKS
 	if(messageHolder == nullptr)
 	{
 		reportIllegalCall("setVelocity()", "midi event");
@@ -215,6 +226,7 @@ void ScriptingApi::Message::setControllerValue(int newValue)
 	{
 		reportIllegalCall("setControllerValue()", "onController");
 	}
+#endif
 
 	const int number = messageHolder->getControllerNumber();
 
@@ -223,57 +235,66 @@ void ScriptingApi::Message::setControllerValue(int newValue)
 
 var ScriptingApi::Message::getControllerNumber() const
 {
-	if(messageHolder == nullptr || ( !messageHolder->isController() && !messageHolder->isPitchWheel() && !messageHolder->isAftertouch() ))
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+	if(constMessageHolder == nullptr || ( !constMessageHolder->isController() && !constMessageHolder->isPitchWheel() && !constMessageHolder->isAftertouch() ))
 	{
 		reportIllegalCall("getControllerNumber()", "onController");
 		return var::undefined();
 	}
+#endif
 
-	if(messageHolder->isController())		  return messageHolder->getControllerNumber();
-	else if (messageHolder->isPitchWheel())	  return 128;
-	else if (messageHolder->isAftertouch())   return 129;
+	if(constMessageHolder->isController())		  return constMessageHolder->getControllerNumber();
+	else if (constMessageHolder->isPitchWheel())	  return 128;
+	else if (constMessageHolder->isAftertouch())   return 129;
 	else									  return var::undefined();
 };
 
 
 var ScriptingApi::Message::getControllerValue() const
 {
-	if(messageHolder == nullptr || ( !messageHolder->isController() && !messageHolder->isPitchWheel() && !messageHolder->isAftertouch() ))
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+	if(constMessageHolder == nullptr || ( !constMessageHolder->isController() && !constMessageHolder->isPitchWheel() && !constMessageHolder->isAftertouch() ))
 	{
 		reportIllegalCall("getControllerValue()", "onController");
 		return var::undefined();
 	}
+#endif
 
-	if      (messageHolder->isController())	  return messageHolder->getControllerValue();
-	else if (messageHolder->isAftertouch())   return messageHolder->getAfterTouchValue();
-	else if (messageHolder->isPitchWheel())	  return messageHolder->getPitchWheelValue();
+	if      (constMessageHolder->isController())	  return constMessageHolder->getControllerValue();
+	else if (constMessageHolder->isAftertouch())	  return constMessageHolder->getAfterTouchValue();
+	else if (constMessageHolder->isPitchWheel())	  return constMessageHolder->getPitchWheelValue();
 	else									  return var::undefined();
 };
 
 int ScriptingApi::Message::getVelocity() const
 {
-	if(messageHolder == nullptr || (!messageHolder->isNoteOn()))
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+	if(constMessageHolder == nullptr || (!constMessageHolder->isNoteOn()))
 	{
 		reportIllegalCall("getVelocity()", "onNoteOn");
 		return -1;
 	}
+#endif
 
-	return messageHolder->getVelocity();
+	return constMessageHolder->getVelocity();
 };
 
 int ScriptingApi::Message::getChannel() const
 {
-	if(messageHolder == nullptr)
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+	if(constMessageHolder == nullptr)
 	{
 		reportScriptError("Can only be called in MIDI callbacks");
 		return -1;
 	}
+#endif
 
-	return messageHolder->getChannel();
+	return constMessageHolder->getChannel();
 };
 
 void ScriptingApi::Message::setChannel(int newValue)
 {
+#if ENABLE_SCRIPTING_SAFE_CHECKS
 	if(messageHolder == nullptr)
 	{
 		reportIllegalCall("setChannel()", "midi event");
@@ -285,6 +306,7 @@ void ScriptingApi::Message::setChannel(int newValue)
 		reportScriptError("Channel must be between 1 and 16.");
 		return;
 	}
+#endif
 
 	messageHolder->setChannel(newValue);
 };
@@ -299,13 +321,12 @@ int ScriptingApi::Message::getEventId() const
 void ScriptingApi::Message::setMidiMessage(MidiMessage *m)
 {
 	messageHolder = m;
+	constMessageHolder = m;
 
 	if(m->isNoteOn())
 	{
 		eventIdCounter++;
 		currentEventId = eventIdCounter;
-
-		
 
 		for(int i = 0; i < 1024; i++)
 		{
@@ -315,8 +336,6 @@ void ScriptingApi::Message::setMidiMessage(MidiMessage *m)
 				break;
 			}
 		}
-
-		
 	}
 	else if(m->isNoteOff())
 	{
@@ -336,8 +355,6 @@ void ScriptingApi::Message::setMidiMessage(MidiMessage *m)
 				break;
 			}
 		}
-
-
         DBG("Wrong event ID");
     }
 	else
@@ -427,11 +444,11 @@ int ScriptingApi::Engine::getMidiNoteFromName(String midiNoteName) const
 
 void ScriptingApi::Engine::openEditor(int includedFileIndex)
 {
-	JavascriptMidiProcessor *sp = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor());
+	JavascriptProcessor *sp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
 
 	if (sp != nullptr && includedFileIndex >= 0 && includedFileIndex < sp->getNumWatchedFiles())
 	{
-		dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->showPopupForFile(includedFileIndex);
+		dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->showPopupForFile(includedFileIndex);
 	}
 	else
 	{
@@ -710,6 +727,8 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	ADD_API_METHOD_4(addNoteOn);
 	ADD_API_METHOD_3(addNoteOff);
 	ADD_API_METHOD_4(addController);
+	ADD_API_METHOD_2(setVoiceGainValue);
+	ADD_API_METHOD_2(setVoicePitchValue);
 	ADD_API_METHOD_1(startTimer);
 	ADD_API_METHOD_0(stopTimer);
 	ADD_API_METHOD_2(setMacroControl);
@@ -784,7 +803,7 @@ void ScriptingApi::Synth::playNote(int noteNumber, int velocity)
 	}
 
 	// Set the timestamp to the future if this is called in the note off callback to prevent wrong order.
-	const int timestamp = dynamic_cast<JavascriptMidiProcessor*>(getProcessor())->getCurrentMidiMessage().isNoteOff(false) ? 1 : 0;
+	const int timestamp = dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor())->getCurrentMidiMessage().isNoteOff(false) ? 1 : 0;
 
 	addNoteOn(1, noteNumber, velocity, timestamp);
 }
@@ -1079,6 +1098,28 @@ void ScriptingApi::Synth::setAttribute(int attributeIndex, float newAttribute)
 	owner->setAttribute(attributeIndex, newAttribute, sendNotification);
 }
 
+void ScriptingApi::Synth::setVoiceGainValue(int voiceIndex, float gainValue)
+{
+	if (owner == nullptr)
+	{
+		jassertfalse;
+		return;
+	}
+
+	owner->setScriptGainValue(voiceIndex, gainValue);
+}
+
+void ScriptingApi::Synth::setVoicePitchValue(int voiceIndex, double pitchValue)
+{
+	if (owner == nullptr)
+	{
+		jassertfalse;
+		return;
+	}
+
+	owner->setScriptPitchValue(voiceIndex, pitchValue);
+}
+
 float ScriptingApi::Synth::getAttribute(int attributeIndex) const
 {
 	if (owner == nullptr)
@@ -1100,7 +1141,7 @@ void ScriptingApi::Synth::addNoteOn(int channel, int noteNumber, int velocity, i
 			{
 				if (timeStampSamples >= 0)
 				{
-					if (JavascriptMidiProcessor* sp = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor()))
+					if (ScriptBaseMidiProcessor* sp = dynamic_cast<ScriptBaseMidiProcessor*>(getScriptProcessor()))
 					{
 						MidiMessage m = MidiMessage::noteOn(channel, noteNumber, (uint8)velocity);
 						m.setTimeStamp(sp->getCurrentMidiMessage().getTimeStamp() + timeStampSamples);
@@ -1126,7 +1167,7 @@ void ScriptingApi::Synth::addNoteOff(int channel, int noteNumber, int timeStampS
 		{
 			if (timeStampSamples >= 0)
 			{
-				if (JavascriptMidiProcessor* sp = dynamic_cast<JavascriptMidiProcessor*>(getProcessor()))
+				if (ScriptBaseMidiProcessor* sp = dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor()))
 				{
 					timeStampSamples = jmax<int>(1, timeStampSamples);
 
@@ -1153,7 +1194,7 @@ void ScriptingApi::Synth::addController(int channel, int number, int value, int 
 			{
 				if (timeStampSamples >= 0)
 				{
-					if (JavascriptMidiProcessor* sp = dynamic_cast<JavascriptMidiProcessor*>(getProcessor()))
+					if (ScriptBaseMidiProcessor* sp = dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor()))
 					{
 						MidiMessage m = MidiMessage::controllerEvent(channel, number, value);
 						m.setTimeStamp(sp->getCurrentMidiMessage().getTimeStamp() + timeStampSamples);
@@ -2116,7 +2157,7 @@ File ScriptingApi::Content::ScriptComponent::getExternalFile(var newValue)
 	}
 	else
 	{
-		return dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->getFile(newValue, PresetPlayerHandler::ImageResources);
+		return dynamic_cast<ExternalFileProcessor*>(getScriptProcessor())->getFile(newValue, PresetPlayerHandler::ImageResources);
 	}
 }
 
