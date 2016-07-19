@@ -38,20 +38,29 @@
 #include <AppConfig.h>
 #include "../hi_core/hi_core.h"
 
+
 #include "scripting/api/ScriptMacroDefinitions.h"
+#include "scripting/engine/JavascriptApiClass.h"
+#include "scripting/api/ScriptingBaseObjects.h"
+
 #include "scripting/api/DspBaseModule.h"
 #include "scripting/api/DspFactory.h"
 #include "scripting/scripting_audio_processor/ScriptDspModules.h"
 #include "scripting/scripting_audio_processor/ScriptedAudioProcessor.h"
 
 
-#include "scripting/engine/JavascriptApiClass.h"
+
 #include "scripting/engine/DebugHelpers.h"
 #include "scripting/engine/HiseJavascriptEngine.h"
 
 #include "scripting/api/XmlApi.h"
-#include "scripting/api/ScriptingBaseObjects.h"
+
+
+#include "scripting/api/ScriptingApiObjects.h"
 #include "scripting/api/ScriptingApi.h"
+
+
+
 
 #include "scripting/ScriptProcessor.h"
 #include "scripting/ScriptProcessorModules.h"
@@ -59,8 +68,6 @@
 
 #include "scripting/api/ScriptComponentWrappers.h"
 #include "scripting/components/ScriptingContentComponent.h"
-
-
 
 #if USE_BACKEND
 

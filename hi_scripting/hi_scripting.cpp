@@ -46,6 +46,7 @@
 #include "scripting/engine/JavascriptEngineObjects.cpp"
 
 #include "scripting/api/XmlApi.cpp"
+#include "scripting/api/ScriptingApiObjects.cpp"
 #include "scripting/api/ScriptingApi.cpp"
 #include "scripting/api/ScriptingApiWrappers.cpp"
 

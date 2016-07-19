@@ -13,8 +13,6 @@
 
 
 
-
-
 struct VariantComparator
 {
 	int compareElements(const var &a, const var &b) const
@@ -28,7 +26,7 @@ struct VariantComparator
 		if (a.isArray() || a.isObject())
 			throw String("Can't compare arrays or objects");
 
-        return 0;
+		return 0;
 	};
 
 private:
@@ -46,6 +44,18 @@ private:
 	}
 };
 
+class IdentifierComparator
+{
+public:
+
+	int compareElements(const Identifier &a, const Identifier &b) const
+	{
+		if (a.toString() > b.toString()) return 1;
+		if (a.toString() < b.toString()) return -1;
+
+		return 0;
+	};
+};
 
 
 #define NUM_VAR_REGISTERS 32
@@ -187,13 +197,12 @@ public:
 			functions2[i] = nullptr;
 			functions3[i] = nullptr;
 			functions4[i] = nullptr;
+			functions5[i] = nullptr;
 		}
 
-		constants.ensureStorageAllocated(numConstants);
-
-		for (int i = 0; i < numConstants_; i++)
+		for (int i = 0; i < NUM_API_FUNCTION_SLOTS; i++)
 		{
-			constants.add(Constant());
+			constants[i] = Constant();
 		}
 	};
 
@@ -202,6 +211,7 @@ public:
 	typedef var(*call2)(ApiClass*, var, var);
 	typedef var(*call3)(ApiClass*, var, var, var);
 	typedef var(*call4)(ApiClass*, var, var, var, var);
+	typedef var(*call5)(ApiClass*, var, var, var, var, var);
 
 #if 0
 	typedef std::function<var(ApiClass*)> call0;
@@ -219,14 +229,16 @@ public:
 		{
 			if (constants[i].id.isNull())
 			{
-				constants.set(i, Constant(constantName, value));
+				constants[i].id = Identifier(constantName);
+				constants[i].value = value;
+				return;
 			}
 		}
 	}
 
 	const var getConstantValue(int index) const
 	{
-		return constants.getUnchecked(index).value;
+		return constants[index].value;
 	}
 
 	int getConstantIndex(const Identifier &id) const
@@ -304,6 +316,19 @@ public:
 		}
 	}
 
+	void addFunction5(const Identifier &id, call5 newFunction)
+	{
+		for (int i = 0; i < NUM_API_FUNCTION_SLOTS; i++)
+		{
+			if (functions5[i] == nullptr)
+			{
+				functions5[i] = newFunction;
+				id5[i] = id;
+				return;
+			}
+		}
+	}
+
 	void getIndexAndNumArgsForFunction(const Identifier &id, int &index, int &numArgs) const
 	{
 		for (int i = 0; i < NUM_API_FUNCTION_SLOTS; i++)
@@ -314,28 +339,34 @@ public:
 				numArgs = 0;
 				return;
 			}
-			if (id1[i] == id)
+			else if (id1[i] == id)
 			{
 				index = i;
 				numArgs = 1;
 				return;
 			}
-			if (id2[i] == id)
+			else if (id2[i] == id)
 			{
 				index = i;
 				numArgs = 2;
 				return;
 			}
-			if (id3[i] == id)
+			else if (id3[i] == id)
 			{
 				index = i;
 				numArgs = 3;
 				return;
 			}
-			if (id4[i] == id)
+			else if (id4[i] == id)
 			{
 				index = i;
 				numArgs = 4;
+				return;
+			}
+			else if (id5[i] == id)
+			{
+				index = i;
+				numArgs = 5;
 				return;
 			}
 		}
@@ -357,9 +388,37 @@ public:
 		case 2: { auto f = functions2[index]; return f(this, args[0], args[1]); }
 		case 3: { auto f = functions3[index]; return f(this, args[0], args[1], args[2]); }
 		case 4: { auto f = functions4[index]; return f(this, args[0], args[1], args[2], args[3]); }
+		case 5: { auto f = functions5[index]; return f(this, args[0], args[1], args[2], args[3], args[4]); }
 		}
 
 		return var::undefined();
+	}
+
+	void getAllFunctionNames(Array<Identifier> &ids) const
+	{
+		ids.ensureStorageAllocated(NUM_API_FUNCTION_SLOTS * 5);
+
+		for (int i = 0; i < NUM_API_FUNCTION_SLOTS; i++)
+		{
+			if (!id0[i].isNull()) ids.add(id0[i]);
+			if (!id1[i].isNull()) ids.add(id1[i]);
+			if (!id2[i].isNull()) ids.add(id2[i]);
+			if (!id3[i].isNull()) ids.add(id3[i]);
+			if (!id4[i].isNull()) ids.add(id4[i]);
+			if (!id5[i].isNull()) ids.add(id5[i]);
+		}
+
+		IdentifierComparator idComp;
+
+		ids.sort(idComp);
+	}
+
+	void getAllConstants(Array<Identifier> &ids) const
+	{
+		for (int i = 0; i < numConstants; i++)
+		{
+			if(!constants[i].id.isNull()) ids.add(constants[i].id);
+		}
 	}
 
 private:
@@ -369,12 +428,14 @@ private:
 	Identifier id2[NUM_API_FUNCTION_SLOTS];
 	Identifier id3[NUM_API_FUNCTION_SLOTS];
 	Identifier id4[NUM_API_FUNCTION_SLOTS];
+	Identifier id5[NUM_API_FUNCTION_SLOTS];
 
 	call0 functions0[NUM_API_FUNCTION_SLOTS];
 	call1 functions1[NUM_API_FUNCTION_SLOTS];
 	call2 functions2[NUM_API_FUNCTION_SLOTS];
 	call3 functions3[NUM_API_FUNCTION_SLOTS];
 	call4 functions4[NUM_API_FUNCTION_SLOTS];
+	call5 functions5[NUM_API_FUNCTION_SLOTS];
 
 	struct Constant
 	{
@@ -402,76 +463,9 @@ private:
 		var value;
 	};
 
-	Array<Constant> constants;
+	Constant constants[NUM_API_FUNCTION_SLOTS];
 	const int numConstants;
 };
-
-
-#if 0
-
-class MidiM : public ApiClass
-{
-public:
-
-	MidiM() :
-		ApiClass(8),
-		n(0)
-	{
-		ADD_API_METHOD_0(getNoteNumber);
-		ADD_API_METHOD_1(setNoteNumber);
-	};
-
-	Identifier getName() const override { static const Identifier id("Message2"); return id; }
-
-	var getNoteNumber() const
-	{
-		return n;
-	}
-
-	var setNoteNumber(int number)
-	{
-		n = number;
-
-		return var::undefined();
-	}
-
-	struct Wrapper
-	{
-		API_METHOD_WRAPPER_1(MidiM, setNoteNumber)
-		API_METHOD_WRAPPER_0(MidiM, getNoteNumber);
-	};
-
-	int n;
-};
-
-class MathFunctions : public ApiClass
-{
-public:
-
-	MathFunctions() :
-		ApiClass(1)
-	{
-		ADD_API_METHOD_1(sin);
-		ADD_API_METHOD_1(abs);
-
-		addConstant("PI", float_Pi);
-	}
-
-	Identifier getName() const override { static const Identifier id("Math2"); return id; }
-
-	var sin(const var &input) const { return std::sin((double)input); }
-
-	var abs(const var &input) const { return std::abs((double)input); }
-
-	struct Wrapper
-	{
-		API_METHOD_WRAPPER_1(MathFunctions, sin)
-		API_METHOD_WRAPPER_1(MathFunctions, abs);
-	};
-
-};
-
-#endif
 
 
 #endif  // JAVASCRIPTAPICLASS_H_INCLUDED

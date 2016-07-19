@@ -33,7 +33,7 @@
 
 
 DspInstance::DspInstance(const DspFactory *f, const String &moduleName_) :
-DynamicObject(),
+ConstScriptingObject(nullptr, NUM_API_FUNCTION_SLOTS),
 moduleName(moduleName_),
 factory(const_cast<DspFactory*>(f))
 {
@@ -43,15 +43,15 @@ factory(const_cast<DspFactory*>(f))
 
 		if (object != nullptr)
 		{
-			ADD_DYNAMIC_METHOD(processBlock);
-			ADD_DYNAMIC_METHOD(prepareToPlay);
-			ADD_DYNAMIC_METHOD(setParameter);
-			ADD_DYNAMIC_METHOD(getParameter);
-			ADD_DYNAMIC_METHOD(getInfo);
+			ADD_API_METHOD_1(processBlock);
+			ADD_API_METHOD_2(prepareToPlay);
+			ADD_API_METHOD_2(setParameter);
+			ADD_API_METHOD_1(getParameter);
+			ADD_API_METHOD_0(getInfo);
 
 			for (int i = 0; i < object->getNumConstants(); i++)
 			{
-				setProperty(object->getIdForConstant(i), object->getConstant(i));
+				addConstant(object->getIdForConstant(i).toString(), object->getConstant(i));
 			}
 		}
 	};

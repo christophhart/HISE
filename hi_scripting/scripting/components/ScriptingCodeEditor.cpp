@@ -782,9 +782,18 @@ void JavascriptCodeEditor::AutoCompletePopup::createVariableRows()
 		DebugInformation *info = engine->getDebugInformation(i);
 		ScopedPointer<RowInfo> row = new RowInfo();
 
+		row->type = info->getType();
+		row->description = info->getDescription();
+		row->name = info->getTextForName();
+		row->typeName = info->getTextForDataType();
+		row->value = info->getTextForValue();
+		row->codeToInsert = info->getTextForName();
+
+#if 0
+
 		DebugableObject *object = info->getObject();
 
-		if (object != nullptr)
+		if (object != nullptr && false)
 		{
 			row->type = info->getType();
 			
@@ -796,14 +805,10 @@ void JavascriptCodeEditor::AutoCompletePopup::createVariableRows()
 		}
 		else
 		{
-			row->type = info->getType();
-			row->description = info->getDescription();
-			row->name = info->getTextForName();
-			row->typeName = info->getTextForDataType();
-			row->value = info->getTextForValue();
-			row->codeToInsert = info->getTextForName();
+			
 		}
-		
+	
+#endif
 
 		allInfo.add(row.release());
 	}
@@ -815,6 +820,8 @@ void JavascriptCodeEditor::AutoCompletePopup::createApiRows(const ValueTree &api
 	{
 		ValueTree classTree = apiTree.getChild(i);
 		const String className = classTree.getType().toString();
+
+		if (className != "Content" && !sp->getScriptEngine()->isApiClassRegistered(className)) continue;
 
 		RowInfo *row = new RowInfo();
 		row->codeToInsert = className;
@@ -843,24 +850,24 @@ void JavascriptCodeEditor::AutoCompletePopup::createObjectPropertyRows(const Val
 	const Identifier objectId = Identifier(tokenText.upToLastOccurrenceOf(String("."), false, true));
 
 	HiseJavascriptEngine *engine = sp->getScriptEngine();
-	const DynamicObject* o = engine->getScriptObject(objectId);
+	const ReferenceCountedObject* o = engine->getScriptObject(objectId);
 
 	if (o != nullptr)
 	{
-		if (const CreatableScriptObject* cso = dynamic_cast<const CreatableScriptObject*>(o))
+		if (const DynamicScriptingObject* cso = dynamic_cast<const DynamicScriptingObject*>(o))
 		{
 			const Identifier csoName = cso->getObjectName();
 
 			ValueTree documentedMethods = apiTree.getChildWithName(csoName);
 
-			for (int i = 0; i < o->getProperties().size(); i++)
+			for (int i = 0; i < cso->getProperties().size(); i++)
 			{
-				const var prop = o->getProperties().getValueAt(i);
-				
+				const var prop = cso->getProperties().getValueAt(i);
+
 				if (prop.isMethod())
 				{
 					RowInfo *info = new RowInfo();
-					const Identifier id = o->getProperties().getName(i);
+					const Identifier id = cso->getProperties().getName(i);
 
 					static const Identifier name("name");
 
@@ -874,32 +881,98 @@ void JavascriptCodeEditor::AutoCompletePopup::createObjectPropertyRows(const Val
 				}
 			}
 
-			for (int i = 0; i < o->getProperties().size(); i++)
+			for (int i = 0; i < cso->getProperties().size(); i++)
 			{
-				const var prop = o->getProperties().getValueAt(i);
-				
+				const var prop = cso->getProperties().getValueAt(i);
+
 				if (prop.isMethod()) continue;
 
-				const Identifier id = o->getProperties().getName(i);
+				const Identifier id = cso->getProperties().getName(i);
 				RowInfo *info = new RowInfo();
 
-				info->name = objectId.toString() + "." + o->getProperties().getName(i).toString();
+				info->name = objectId.toString() + "." + cso->getProperties().getName(i).toString();
 				info->codeToInsert = info->name;
 				info->typeName = DebugInformation::getVarType(prop);
 				info->value = prop.toString();
-				
+
 				allInfo.add(info);
 			}
 		}
-		else
+		else if (const ConstScriptingObject* cow = dynamic_cast<const ConstScriptingObject*>(o))
 		{
-			for (int i = 0; i < o->getProperties().size(); i++)
+			const Identifier cowName = cow->getObjectName();
+
+			ValueTree documentedMethods = apiTree.getChildWithName(cowName);
+
+			Array<Identifier> functionNames;
+			Array<Identifier> constantNames;
+
+			cow->getAllFunctionNames(functionNames);
+			cow->getAllConstants(constantNames);
+
+			for (int i = 0; i < functionNames.size(); i++)
 			{
-				const var prop = o->getProperties().getValueAt(i);
+				RowInfo *info = new RowInfo();
+				const Identifier id = functionNames[i];
+				static const Identifier name("name");
+				
+				const ValueTree methodTree = documentedMethods.getChildWithProperty(name, id.toString());
+
+				info->description = ApiHelpers::createAttributedStringFromApi(methodTree, objectId.toString(), false, Colours::black);
+				info->codeToInsert = ApiHelpers::createCodeToInsert(methodTree, objectId.toString());
+
+				if (!info->codeToInsert.contains(id.toString()))
+				{
+					jassertfalse;
+
+					info->codeToInsert = objectId.toString() + "." + id.toString() + "(";
+
+					int numArgs, functionIndex;
+					cow->getIndexAndNumArgsForFunction(id, functionIndex, numArgs);
+
+					for (int i = 0; i < numArgs; i++)
+					{
+						info->codeToInsert << "arg" + String(i + 1);
+						if (i != (numArgs - 1)) info->codeToInsert << ", ";
+					}
+
+					
+					info->codeToInsert << ")";
+				}
+
+				info->name = info->codeToInsert;
+				info->type = (int)RowInfo::Type::ApiMethod;
+
+				jassert(info->name.isNotEmpty());
+
+				allInfo.add(info);
+			}
+
+			for (int i = 0; i < constantNames.size(); i++)
+			{
+				const Identifier id = constantNames[i];
+				RowInfo *info = new RowInfo();
+
+				var value = cow->getConstantValue(cow->getConstantIndex(id));
+
+				info->name = objectId.toString() + "." + id.toString();
+				info->codeToInsert = info->name;
+				info->type = (int)DebugInformation::Type::Constant;
+				info->typeName = DebugInformation::getVarType(value);
+				info->value = value;
+
+				allInfo.add(info);
+			}
+		}
+		else if (const DynamicObject* obj = dynamic_cast<const DynamicObject*>(o))
+		{
+			for (int i = 0; i < obj->getProperties().size(); i++)
+			{
+				const var prop = obj->getProperties().getValueAt(i);
 
 				RowInfo *info = new RowInfo();
 
-				info->name = objectId.toString() + "." + o->getProperties().getName(i).toString();
+				info->name = objectId.toString() + "." + obj->getProperties().getName(i).toString();
 				info->codeToInsert = info->name;
 				info->typeName = DebugInformation::getVarType(prop);
 				info->value = prop.toString();

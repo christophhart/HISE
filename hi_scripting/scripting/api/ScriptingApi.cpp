@@ -893,7 +893,6 @@ ScriptingObjects::ScriptingModulator *ScriptingApi::Synth::getModulator(const St
 
 		Modulator *m;
 		
-
 		while((m = it.getNextProcessor()) != 0)
 		{
 			if(m->getId() == name)
@@ -1279,27 +1278,26 @@ void ScriptingApi::Synth::setModulatorAttribute(int chain, int modulatorIndex, i
 
 
 ScriptingApi::Sampler::Sampler(ProcessorWithScriptingContent *p, ModulatorSampler *sampler_) :
-CreatableScriptObject(p),
+ConstScriptingObject(p, ModulatorSamplerSound::Property::numProperties),
 sampler(sampler_)
 {
-	setMethod("enableRoundRobin", Wrapper::enableRoundRobin);
-	setMethod("setActiveGroup", Wrapper::setActiveGroup);
-	setMethod("getRRGroupsForMessage", Wrapper::getRRGroupsForMessage);
-	setMethod("refreshRRMap", Wrapper::refreshRRMap);
-
-	setMethod("selectSounds", Wrapper::selectSounds);
-	setMethod("getNumSelectedSounds", Wrapper::getNumSelectedSounds);
-	setMethod("setSoundPropertyForSelection", Wrapper::setSoundPropertyForSelection);
-	setMethod("getSoundProperty", Wrapper::getSoundProperty);
-	setMethod("setSoundProperty", Wrapper::setSoundProperty);
-	setMethod("purgeMicPosition", Wrapper::purgeMicPosition);
-	setMethod("getMicPositionName", Wrapper::getMicPositionName);
-	setMethod("refreshInterface", Wrapper::refreshInterface);
-	setMethod("loadSampleMap", Wrapper::loadSampleMap);
+	ADD_API_METHOD_1(enableRoundRobin);
+	ADD_API_METHOD_1(setActiveGroup);
+	ADD_API_METHOD_2(getRRGroupsForMessage);
+	ADD_API_METHOD_0(refreshRRMap);
+	ADD_API_METHOD_1(selectSounds);
+	ADD_API_METHOD_0(getNumSelectedSounds);
+	ADD_API_METHOD_2(setSoundPropertyForSelection);
+	ADD_API_METHOD_2(getSoundProperty);
+	ADD_API_METHOD_3(setSoundProperty);
+	ADD_API_METHOD_2(purgeMicPosition);
+	ADD_API_METHOD_1(getMicPositionName);
+	ADD_API_METHOD_0(refreshInterface);
+	ADD_API_METHOD_1(loadSampleMap);
 
 	for (int i = 1; i < ModulatorSamplerSound::numProperties; i++)
 	{
-		setProperty(Identifier(ModulatorSamplerSound::getPropertyName((ModulatorSamplerSound::Property)i)), i);
+		addConstant(ModulatorSamplerSound::getPropertyName((ModulatorSamplerSound::Property)i), i);
 	}
 }
 
@@ -2165,7 +2163,7 @@ File ScriptingApi::Content::ScriptComponent::getExternalFile(var newValue)
 }
 
 ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name_, int x, int y, int width, int height) :
-ConstObjectWithApiCalls(base, 0),
+ConstScriptingObject(base, 0),
 name(name_),
 value(0.0),
 parent(parentContent),
@@ -3303,13 +3301,12 @@ void ScriptingObjects::ScriptingModulator::setIntensity(float newIntensity)
 {
 	if(checkValidObject())
 	{
-		Modulation *m = reinterpret_cast<Modulation*>(mod.get());
-
 		if(m->getMode() == Modulation::GainMode)
 		{
 			const float value = jlimit<float>(0.0f, 1.0f, newIntensity);
-
 			m->setIntensity(value);
+
+			mod.get()->sendChangeMessage();
 		}
 		else
 		{
@@ -3317,9 +3314,9 @@ void ScriptingObjects::ScriptingModulator::setIntensity(float newIntensity)
 			const float pitchFactor = powf(2.0f, value / 12.0f);
 
 			m->setIntensity(pitchFactor);
-		}
 
-		mod->sendChangeMessage();
+			mod.get()->sendChangeMessage();
+		}
 	}
 };
 
@@ -3409,178 +3406,7 @@ void ScriptingApi::Content::ModulatorMeter::setScriptObjectPropertyWithChangeMes
 
 
 
-ScriptingObjects::ScriptingEffect::ScriptingEffect(ProcessorWithScriptingContent *p, EffectProcessor *fx) :
-	CreatableScriptObject(p),
-	effect(fx)
-{
-	if(fx != nullptr)
-	{
-		setName(fx->getId());
 
-		for(int i = 0; i < fx->getNumParameters(); i++)
-		{
-			setProperty(fx->getIdentifierForParameterIndex(i), var(i));
-		}
-	}
-	else
-	{
-		setName("Invalid Effect");
-	}
-
-	setMethod("setAttribute", Wrapper::setAttribute);
-	setMethod("setBypassed", Wrapper::setBypassed);
-};
-
-ScriptingObjects::ScriptingSynth::ScriptingSynth(ProcessorWithScriptingContent *p, ModulatorSynth *synth_):
-	CreatableScriptObject(p),
-	synth(synth_)
-{
-	if(synth != nullptr)
-	{
-		setName(synth->getId());
-
-		for(int i = 0; i < synth->getNumParameters(); i++)
-		{
-			setProperty(synth->getIdentifierForParameterIndex(i), var(i));
-		}
-	}
-	else
-	{
-		setName("Invalid Effect");
-	}
-
-	setMethod("setAttribute", Wrapper::setAttribute);
-	setMethod("setBypassed", Wrapper::setBypassed);
-};
-
-ScriptingObjects::ScriptingAudioSampleProcessor::ScriptingAudioSampleProcessor(ProcessorWithScriptingContent *p, AudioSampleProcessor *sampleProcessor):
-CreatableScriptObject(p),
-audioSampleProcessor(dynamic_cast<Processor*>(sampleProcessor))
-{
-	if (audioSampleProcessor != nullptr)
-	{
-		setName(audioSampleProcessor->getId());
-
-		for (int i = 0; i < audioSampleProcessor->getNumParameters(); i++)
-		{
-			setProperty(audioSampleProcessor->getIdentifierForParameterIndex(i), var(i));
-		}
-	}
-	else
-	{
-		setName("Invalid Processor");
-	}
-
-	setMethod("setAttribute", Wrapper::setAttribute);
-	setMethod("setBypassed", Wrapper::setBypassed);
-	setMethod("getSampleLength", Wrapper::getSampleLength);
-    setMethod("setSampleRange", Wrapper::setSampleRange);
-	setMethod("setFile", Wrapper::setFile);
-}
-
-void ScriptingObjects::ScriptingAudioSampleProcessor::setFile(String fileName)
-{
-	if (checkValidObject())
-	{
-		ScopedLock sl(audioSampleProcessor->getMainController()->getLock());
-        
-#if USE_FRONTEND
-        const String nameInPool = fileName.fromFirstOccurrenceOf("}", false, false);
-        
-        dynamic_cast<AudioSampleProcessor*>(audioSampleProcessor.get())->setLoadedFile(nameInPool, true);
-#else
-		dynamic_cast<AudioSampleProcessor*>(audioSampleProcessor.get())->setLoadedFile(GET_PROJECT_HANDLER(dynamic_cast<Processor*>(audioSampleProcessor.get())).getFilePath(fileName, ProjectHandler::SubDirectories::AudioFiles), true);
-#endif
-	}
-}
-
-void ScriptingObjects::ScriptingAudioSampleProcessor::setSampleRange(int start, int end)
-{
-    if (checkValidObject())
-    {
-        ScopedLock sl(audioSampleProcessor->getMainController()->getLock());
-        dynamic_cast<AudioSampleProcessor*>(audioSampleProcessor.get())->setRange(Range<int>(start, end));
-        
-    }
-}
-
-int ScriptingObjects::ScriptingAudioSampleProcessor::getSampleLength() const
-{
-	if (checkValidObject())
-	{
-        return dynamic_cast<const AudioSampleProcessor*>(audioSampleProcessor.get())->getTotalLength();	}
-	else return 0;
-}
-
-
-ScriptingObjects::ScriptingTableProcessor::ScriptingTableProcessor(ProcessorWithScriptingContent *p, LookupTableProcessor *tableProcessor_):
-  CreatableScriptObject(p),
-  tableProcessor(dynamic_cast<Processor*>(tableProcessor_))
-{
-    if (tableProcessor != nullptr)
-    {
-        setName(tableProcessor->getId());
-        
-        for (int i = 0; i < tableProcessor->getNumParameters(); i++)
-        {
-            setProperty(tableProcessor->getIdentifierForParameterIndex(i), var(i));
-        }
-    }
-    else
-    {
-        setName("Invalid Processor");
-    }
-    
-    setMethod("addTablePoint", Wrapper::addTablePoint);
-    setMethod("reset", Wrapper::reset);
-    setMethod("setTablePoint", Wrapper::setTablePoint);
-}
-    
-    
-    
-void ScriptingObjects::ScriptingTableProcessor::setTablePoint(int tableIndex, int pointIndex, float x, float y, float curve)
-{
-    if(tableProcessor != nullptr)
-    {
-        Table *table = dynamic_cast<LookupTableProcessor*>(tableProcessor.get())->getTable(tableIndex);
-        
-        if(table != nullptr)
-        {
-			table->setTablePoint(pointIndex, x, y, curve);
-			table->sendChangeMessage();
-        }
-    }
-}
-
-
-void ScriptingObjects::ScriptingTableProcessor::addTablePoint(int tableIndex, float x, float y)
-{
-	if (tableProcessor != nullptr)
-	{
-		Table *table = dynamic_cast<LookupTableProcessor*>(tableProcessor.get())->getTable(tableIndex);
-
-		if (table != nullptr)
-		{
-			table->addTablePoint(x, y);
-			table->sendChangeMessage();
-		}
-	}
-}
-
-
-void ScriptingObjects::ScriptingTableProcessor::reset(int tableIndex)
-{
-	if (tableProcessor != nullptr)
-	{
-		Table *table = dynamic_cast<LookupTableProcessor*>(tableProcessor.get())->getTable(tableIndex);
-
-		if (table != nullptr)
-		{
-			table->reset();
-			table->sendChangeMessage();
-		}
-	}
-}
 
 ScriptingApi::Content::ScriptSliderPack::ScriptSliderPack(ProcessorWithScriptingContent *base, Content *parentContent, Identifier imageName, int x, int y, int width, int height) :
 ScriptComponent(base, parentContent, imageName, x, y, width, height),
@@ -4030,20 +3856,3 @@ AudioProcessorWrapper * ScriptingApi::Content::ScriptPluginEditor::getProcessor(
 #undef SEND_MESSAGE
 #undef ADD_TO_TYPE_SELECTOR
 #undef ADD_AS_SLIDER_TYPE
-
-void ScriptingObjects::TimerObject::timerCallback()
-{
-	var callback = getProperty("callback");
-    var undefinedArgs = var::undefined();
-    var::NativeFunctionArgs args(this, &undefinedArgs, 0);
-
-    Result r = Result::ok();
-    
-    dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->getScriptEngine()->callExternalFunction(callback, args);
-    
-	if(r.failed())
-    {
-        stopTimer();
-        debugError(getProcessor(), r.getErrorMessage());
-    }
-}

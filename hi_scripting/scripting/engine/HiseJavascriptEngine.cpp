@@ -79,6 +79,9 @@ HiseJavascriptEngine::~HiseJavascriptEngine()
 
 void HiseJavascriptEngine::prepareTimeout() const noexcept{ root->timeout = Time::getCurrentTime() + maximumExecutionTime; }
 
+
+
+
 void HiseJavascriptEngine::registerNativeObject(const Identifier& name, DynamicObject* object)
 {
 	root->setProperty(name, object);
@@ -275,6 +278,13 @@ void HiseJavascriptEngine::registerApiClass(ApiClass *apiClass)
 	root->hiseSpecialData.apiIds.add(apiClass->getName());
 }
 
+bool HiseJavascriptEngine::isApiClassRegistered(const String& className)
+{
+	Identifier id(className);
+
+	return root->hiseSpecialData.apiIds.contains(id);
+}
+
 ApiClass::Constant ApiClass::Constant::null;
 
 #if JUCE_MSVC
@@ -325,20 +335,20 @@ DebugInformation* HiseJavascriptEngine::getDebugInformation(int index)
 }
 
 
-const DynamicObject * HiseJavascriptEngine::getScriptObject(const Identifier &id) const
+const ReferenceCountedObject* HiseJavascriptEngine::getScriptObject(const Identifier &id) const
 {
 	var v = root->getProperty(id);
 
 	if (v.isObject())
 	{
-		return v.getDynamicObject();
+		return v.getObject();
 	}
 
 	v = root->hiseSpecialData.constObjects[id];
 
 	if (v.isObject())
 	{
-		return v.getDynamicObject();
+		return v.getObject();
 	}
 
 	int registerIndex = root->hiseSpecialData.varRegister.getRegisterIndex(id);
@@ -349,7 +359,7 @@ const DynamicObject * HiseJavascriptEngine::getScriptObject(const Identifier &id
 
 		if (v.isObject())
 		{
-			return v.getDynamicObject();
+			return v.getObject();
 		}
 	}
 
@@ -361,7 +371,7 @@ const DynamicObject * HiseJavascriptEngine::getScriptObject(const Identifier &id
 
 		if (v.isObject())
 		{
-			return v.getDynamicObject();
+			return v.getObject();
 		}
 	}
 

@@ -226,7 +226,7 @@ struct HiseJavascriptEngine::RootObject::FunctionCall : public Expression
 
 				if (parentIsConstReference)
 				{
-					constObject = dynamic_cast<ConstObjectWithApiCalls*>(dot->parent->getResult(s).getObject());
+					constObject = dynamic_cast<ConstScriptingObject*>(dot->parent->getResult(s).getObject());
 
 					if (constObject != nullptr)
 					{
@@ -255,7 +255,7 @@ struct HiseJavascriptEngine::RootObject::FunctionCall : public Expression
 
 			var thisObject(dot->parent->getResult(s));
 
-			if (ConstObjectWithApiCalls* c = dynamic_cast<ConstObjectWithApiCalls*>(thisObject.getObject()))
+			if (ConstScriptingObject* c = dynamic_cast<ConstScriptingObject*>(thisObject.getObject()))
 			{
 				c->getIndexAndNumArgsForFunction(dot->child, functionIndex, numArgs);
 
@@ -285,7 +285,7 @@ struct HiseJavascriptEngine::RootObject::FunctionCall : public Expression
 	mutable bool initialised = false;
 	mutable bool isConstObjectApiFunction = false;
 	mutable bool parentIsConstReference = false;
-	mutable ConstObjectWithApiCalls* constObject = nullptr;
+	mutable ConstScriptingObject* constObject = nullptr;
 	mutable int numArgs = -1;
 	mutable int functionIndex = -1;
 };

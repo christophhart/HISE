@@ -122,7 +122,7 @@ struct HiseJavascriptEngine::RootObject::ConstObjectApiCall : public Expression
 
 			CHECK_CONDITION(objectPointer != nullptr, "Object Pointer does not exist");
 
-			object = dynamic_cast<ConstObjectWithApiCalls*>(objectPointer->getObject());
+			object = dynamic_cast<ConstScriptingObject*>(objectPointer->getObject());
 
 			CHECK_CONDITION(object != nullptr, "Object doesn't exist");
 
@@ -151,7 +151,7 @@ struct HiseJavascriptEngine::RootObject::ConstObjectApiCall : public Expression
 
 	var* objectPointer;
 
-	mutable ReferenceCountedObjectPtr<ConstObjectWithApiCalls> object;
+	mutable ReferenceCountedObjectPtr<ConstScriptingObject> object;
 };
 
 struct HiseJavascriptEngine::RootObject::InlineFunction

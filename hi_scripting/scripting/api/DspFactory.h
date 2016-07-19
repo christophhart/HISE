@@ -178,13 +178,14 @@ public:
 
 };
 
+class ConstScriptingObject;
 
 
 /** This objects is a wrapper around the actual DSP module that is loaded from a plugin.
 *
 *	It contains the glue code for accessing it per Javascript and is reference counted to manage the lifetime of the external module.
 */
-class DspInstance : public DynamicObject,
+class DspInstance : public ConstScriptingObject,
 					public AssignableObject
 {
 public:
@@ -192,7 +193,9 @@ public:
 	/** Creates a new instance from the given Factory with the supplied name. */
 	DspInstance(const DspFactory *f, const String &moduleName_);
 
-	virtual ~DspInstance();
+	~DspInstance();
+
+	Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("DspModule") };
 
 	/** Calls the setup method of the external module. */
 	void prepareToPlay(double sampleRate, int samplesPerBlock);
@@ -206,8 +209,6 @@ public:
 	void assign(const int index, var newValue) override;
 	var getAssignedValue(int index) const override;
 	int getCachedIndex(const var &name) const override;
-
-	
 
 	/** Applies the module on the data.
 	*
@@ -223,11 +224,11 @@ private:
 
 	struct Wrapper
 	{
-		DYNAMIC_METHOD_WRAPPER(DspInstance, processBlock, ARG(0));
-		DYNAMIC_METHOD_WRAPPER(DspInstance, prepareToPlay, (double)ARG(0), (int)ARG(1));
-		DYNAMIC_METHOD_WRAPPER(DspInstance, setParameter, (int)ARG(0), ARG(1));
-		DYNAMIC_METHOD_WRAPPER_WITH_RETURN(DspInstance, getParameter, (int)ARG(0));
-		DYNAMIC_METHOD_WRAPPER_WITH_RETURN(DspInstance, getInfo);
+		API_VOID_METHOD_WRAPPER_1(DspInstance, processBlock);
+		API_VOID_METHOD_WRAPPER_2(DspInstance, prepareToPlay);
+		API_VOID_METHOD_WRAPPER_2(DspInstance, setParameter);
+		API_METHOD_WRAPPER_1(DspInstance, getParameter);
+		API_METHOD_WRAPPER_0(DspInstance, getInfo);
 	};
 
 	void throwError(const String &errorMessage)

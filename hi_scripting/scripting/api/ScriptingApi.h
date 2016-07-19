@@ -377,16 +377,15 @@ public:
 	};
 
 	/** All scripting functions for sampler specific functionality. */
-	class Sampler : public CreatableScriptObject
+	class Sampler : public ConstScriptingObject
 	{
 	public:
 
 		Sampler(ProcessorWithScriptingContent *p, ModulatorSampler *sampler);
 
-		Identifier getObjectName() const override
-		{
-			return "Sampler";
-		}
+		Identifier getObjectName() const override { return "Sampler"; }
+		bool objectDeleted() const override { return sampler.get() == nullptr; }
+		bool objectExists() const override { return sampler.get() != nullptr; }
 
 		/** Enables / Disables the automatic round robin group start logic (works only on samplers). */
 		void enableRoundRobin(bool shouldUseRoundRobin);
@@ -427,32 +426,21 @@ public:
 		/** Loads a new samplemap into this sampler. */
 		void loadSampleMap(const String &fileName);
 
-		bool objectDeleted() const override
-		{
-			return sampler.get() == nullptr;
-		}
-
-		bool objectExists() const override
-		{
-			return sampler.get() != nullptr;
-		}
-
 		struct Wrapper
 		{
-			static var enableRoundRobin(const var::NativeFunctionArgs& args);
-			static var setActiveGroup(const var::NativeFunctionArgs& args);
-			static var getRRGroupsForMessage(const var::NativeFunctionArgs& args);
-			static var refreshRRMap(const var::NativeFunctionArgs& args);
-			static var selectSounds(const var::NativeFunctionArgs& args);
-			static var getNumSelectedSounds(const var::NativeFunctionArgs& args);
-			static var setSoundPropertyForSelection(const var::NativeFunctionArgs& args);
-			static var getSoundProperty(const var::NativeFunctionArgs& args);
-			static var setSoundProperty(const var::NativeFunctionArgs& args);
-			static var purgeMicPosition(const var::NativeFunctionArgs& args);
-			static var getMicPositionName(const var::NativeFunctionArgs& args);
-			static var refreshInterface(const var::NativeFunctionArgs& args);
-			static var loadSampleMap(const var::NativeFunctionArgs& args);
-
+			API_VOID_METHOD_WRAPPER_1(Sampler, enableRoundRobin);
+			API_VOID_METHOD_WRAPPER_1(Sampler, setActiveGroup);
+			API_METHOD_WRAPPER_2(Sampler, getRRGroupsForMessage);
+			API_VOID_METHOD_WRAPPER_0(Sampler, refreshRRMap);
+			API_VOID_METHOD_WRAPPER_1(Sampler, selectSounds);
+			API_METHOD_WRAPPER_0(Sampler, getNumSelectedSounds);
+			API_VOID_METHOD_WRAPPER_2(Sampler, setSoundPropertyForSelection);
+			API_METHOD_WRAPPER_2(Sampler, getSoundProperty);
+			API_VOID_METHOD_WRAPPER_3(Sampler, setSoundProperty);
+			API_VOID_METHOD_WRAPPER_2(Sampler, purgeMicPosition);
+			API_METHOD_WRAPPER_1(Sampler, getMicPositionName);
+			API_VOID_METHOD_WRAPPER_0(Sampler, refreshInterface);
+			API_VOID_METHOD_WRAPPER_1(Sampler, loadSampleMap);
 		};
 
 	private:
@@ -867,7 +855,7 @@ public:
 		};
 
 		struct ScriptComponent : public RestorableObject,
-								 public ConstObjectWithApiCalls,
+								 public ConstScriptingObject,
 								 public SafeChangeBroadcaster,
 								 public AssignableObject,
 								 public DebugableObject
@@ -997,6 +985,7 @@ public:
 			/** Sets the current value from a range 0.0 ... 1.0. */
 			virtual void setValueNormalized(double normalizedValue) { setValue(normalizedValue); };
 
+			/** Returns the normalited value. */
 			virtual double getValueNormalized() const { return getValue(); };
 
 			/** sets the colour of the component (BG, IT1, IT2, TXT). */

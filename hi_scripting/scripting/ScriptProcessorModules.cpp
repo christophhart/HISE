@@ -181,7 +181,7 @@ void JavascriptMidiProcessor::registerApiClasses()
 	scriptEngine->registerApiClass(engineObject);
 	scriptEngine->registerApiClass(new ScriptingApi::Console(this));
 	scriptEngine->registerApiClass(synthObject);
-	scriptEngine->registerNativeObject("Sampler", samplerObject);
+	scriptEngine->registerApiClass(samplerObject);
 }
 
 
@@ -990,6 +990,9 @@ void JavascriptTimeVariantModulator::registerApiClasses()
 	scriptEngine->registerApiClass(new ScriptingApi::Console(this));
 	scriptEngine->registerApiClass(new ScriptingApi::ModulatorApi(this));
 	scriptEngine->registerApiClass(synthObject);
+
+	scriptEngine->registerNativeObject("Libraries", new DspFactory::LibraryLoader());
+	scriptEngine->registerNativeObject("Buffer", new VariantBuffer::Factory(64));
 }
 
 void JavascriptTimeVariantModulator::controlCallback(ScriptingApi::Content::ScriptComponent *component, var controllerValue)

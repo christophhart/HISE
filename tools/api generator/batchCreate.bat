@@ -11,10 +11,10 @@ md "xml\selection"
 xcopy "xml\class_scripting_api_1_1_console.xml" "xml\selection"
 xcopy "xml\class_scripting_api_1_1_content.xml" "xml\selection"
 xcopy "xml\class_scripting_api_1_1_engine.xml" "xml\selection"
+xcopy "xml\class_scripting_api_1_1_math.xml" "xml\selection"
 xcopy "xml\class_scripting_api_1_1_message.xml" "xml\selection"
 xcopy "xml\class_scripting_api_1_1_synth.xml" "xml\selection"
 xcopy "xml\class_scripting_api_1_1_sampler.xml" "xml\selection"
-xcopy "xml\class_scripting_api_1_1_math.xml" "xml\selection"
 xcopy "xml\class_scripting_objects_1_1_scripting_modulator.xml" "xml\selection"
 xcopy "xml\class_scripting_objects_1_1_midi_list.xml" "xml\selection"
 xcopy "xml\class_scripting_objects_1_1_scripting_audio_sample_processor.xml" "xml\selection"
@@ -37,11 +37,10 @@ xcopy "xml\struct_scripting_api_1_1_content_1_1_script_slider_pack.xml" "xml\sel
 ren "xml\selection\class_scripting_api_1_1_console.xml" "Console.xml"
 ren "xml\selection\class_scripting_api_1_1_content.xml" "Content.xml"
 ren "xml\selection\class_scripting_api_1_1_engine.xml" "Engine.xml"
+ren "xml\selection\class_scripting_api_1_1_math.xml" "Math.xml"
 ren "xml\selection\class_scripting_api_1_1_message.xml" "Message.xml"
 ren "xml\selection\class_scripting_api_1_1_synth.xml" "Synth.xml"
 ren "xml\selection\class_scripting_api_1_1_sampler.xml" "Sampler.xml"
-ren "xml\selection\class_scripting_api_1_1_math.xml" "Math.xml"
-
 
 
 ren "xml\selection\class_scripting_objects_1_1_scripting_modulator.xml" "Modulator.xml"
@@ -64,7 +63,6 @@ ren "xml\selection\struct_scripting_api_1_1_content_1_1_scripted_plotter.xml" "S
 ren "xml\selection\struct_scripting_api_1_1_content_1_1_script_slider_pack.xml" "ScriptSliderPack.xml"
 
 ApiExtractor.exe xml\selection xml\selection
-
 
 del xml\selection\*.xml /Q
 

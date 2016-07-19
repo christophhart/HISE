@@ -126,7 +126,7 @@ public:
 
 	DebugInformation*getDebugInformation(int index);
 
-	const DynamicObject *getScriptObject(const Identifier &id) const;
+	const ReferenceCountedObject* getScriptObject(const Identifier &id) const;
 
 	const Array<File> &getIncludedFiles() const;
 
@@ -151,6 +151,7 @@ public:
 	
 
 	void registerApiClass(ApiClass *apiClass);
+	bool isApiClassRegistered(const String& className);
 
 	//==============================================================================
 	struct RootObject : public DynamicObject
@@ -414,7 +415,7 @@ private:
 
 	ReferenceCountedObjectPtr<RootObject> root;
 	void prepareTimeout() const noexcept;
-
+	
 	DynamicObject::Ptr unneededScope;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HiseJavascriptEngine)

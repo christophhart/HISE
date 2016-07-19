@@ -299,7 +299,9 @@ public:
 
 	void timerCallback() override
 	{
-		if (!getCurrentTokenRange().isEmpty() && currentPopup == nullptr)
+		if (!getCurrentTokenRange().isEmpty() && 
+			(getSelectionStart() != getSelectionEnd()) &&
+			currentPopup == nullptr)
 		{
 			showAutoCompleteNew();
 		}
@@ -315,7 +317,7 @@ public:
 	static String getValueType(const var &v)
 	{
 		const bool isObject = v.isObject();
-		const bool isCreatableScriptObject = dynamic_cast<CreatableScriptObject*>(v.getDynamicObject()) != nullptr;
+		const bool isCreatableScriptObject = dynamic_cast<DynamicScriptingObject*>(v.getDynamicObject()) != nullptr;
 
 		if(v.isBool()) return "bool";
 		else if(v.isInt() || v.isInt64()) return "int";
@@ -325,7 +327,7 @@ public:
         else if (v.isMethod()) return "Function";
 		else if (isObject && isCreatableScriptObject)
 		{
-			CreatableScriptObject * obj = dynamic_cast<CreatableScriptObject*>(v.getDynamicObject());
+			DynamicScriptingObject * obj = dynamic_cast<DynamicScriptingObject*>(v.getDynamicObject());
 
 			if(obj != nullptr) return obj->getObjectName().toString();
 			else return String::empty;

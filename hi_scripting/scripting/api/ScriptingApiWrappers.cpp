@@ -49,9 +49,9 @@
 
 // =================================================================================================== Message Wrappers
 
-var CreatableScriptObject::Wrappers::checkExists(const var::NativeFunctionArgs& args)
+var DynamicScriptingObject::Wrappers::checkExists(const var::NativeFunctionArgs& args)
 {
-	if(CreatableScriptObject* thisObject = dynamic_cast<CreatableScriptObject*>(args.thisObject.getObject()))
+	if(DynamicScriptingObject* thisObject = dynamic_cast<DynamicScriptingObject*>(args.thisObject.getObject()))
 	{
 		return thisObject->checkValidObject();
 	}
@@ -912,7 +912,7 @@ var ScriptingApi::Synth::Wrapper::setClockSpeed(const var::NativeFunctionArgs& a
 
 // ============================================================================================= SAMPLER Wrapper methods
 
-
+#if 0
 var ScriptingApi::Sampler::Wrapper::enableRoundRobin(const var::NativeFunctionArgs& args)
 {
 	if (Sampler* thisObject = GET_OBJECT(Sampler))
@@ -1062,7 +1062,7 @@ var ScriptingApi::Sampler::Wrapper::loadSampleMap(const var::NativeFunctionArgs&
 	}
 	return var::undefined();
 }
-
+#endif
 
 // =================================================================================================== Console Wrappers
 
@@ -1866,6 +1866,7 @@ var ScriptingApi::Content::Wrapper::contains(const var::NativeFunctionArgs& args
 
 // =================================================================================================== Content Wrappers
 
+#if 0
 
 var ScriptingObjects::ScriptingModulator::Wrapper::setBypassed (const var::NativeFunctionArgs& args)
 {
@@ -1928,7 +1929,6 @@ var ScriptingObjects::ScriptingEffect::Wrapper::setAttribute (const var::NativeF
 	return var::undefined();
 };
 
-
 var ScriptingObjects::ScriptingMidiProcessor::Wrapper::setBypassed (const var::NativeFunctionArgs& args)
 {
 	if (ScriptingObjects::ScriptingMidiProcessor* thisObject = dynamic_cast<ScriptingObjects::ScriptingMidiProcessor*> (args.thisObject.getObject()))
@@ -1952,7 +1952,9 @@ var ScriptingObjects::ScriptingMidiProcessor::Wrapper::setAttribute (const var::
 
 	return var::undefined();
 };
+#endif
 
+#if 0
 
 var ScriptingObjects::ScriptingSynth::Wrapper::setBypassed (const var::NativeFunctionArgs& args)
 {
@@ -1978,6 +1980,9 @@ var ScriptingObjects::ScriptingSynth::Wrapper::setAttribute (const var::NativeFu
 	return var::undefined();
 };
 
+#endif
+
+#if 0
 
 var ScriptingObjects::ScriptingAudioSampleProcessor::Wrapper::setBypassed(const var::NativeFunctionArgs& args)
 {
@@ -2076,6 +2081,8 @@ var ScriptingObjects::ScriptingTableProcessor::Wrapper::reset(const var::NativeF
 
 	return var::undefined();
 }
+
+#endif
 
 #if 0
 

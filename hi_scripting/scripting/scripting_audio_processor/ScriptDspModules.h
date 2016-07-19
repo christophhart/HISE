@@ -36,16 +36,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
 namespace juce
 {
 
@@ -532,6 +522,79 @@ public:
 		VariantBuffer::Ptr delayedBufferR;
 	};
 
+	class SignalSmoother : public DspBaseObject
+	{
+	public:
+
+		enum class Parameters
+		{
+			SmoothingTime = 0,
+			numParameters
+		};
+
+		SignalSmoother() :
+			DspBaseObject()
+		{};
+
+		SET_MODULE_NAME("smoother");
+
+		void setParameter(int /*index*/, float newValue) override
+		{
+			smoothingTime = newValue;
+			smootherL.setSmoothingTime(newValue);
+			smootherR.setSmoothingTime(newValue);
+		};
+
+		int getNumParameters() const override { return 1; };
+
+		float getParameter(int /*index*/) const override { return smoothingTime; };
+
+		const Identifier &getIdForParameter(int /*index*/) const override { RETURN_STATIC_IDENTIFIER("SmoothingTime"); }
+
+		void prepareToPlay(double sampleRate, int samplesPerBlock) override
+		{
+			smootherL.prepareToPlay(sampleRate);
+			smootherR.prepareToPlay(sampleRate);
+		}
+
+		void processBlock(float **data, int numChannels, int numSamples) override
+		{
+			if (numChannels == 2)
+			{
+				float *inL = data[0];
+				float *inR = data[1];
+
+				while (--numSamples >= 0)
+				{
+					*inL = smootherL.smooth(*inL);
+					*inR = smootherR.smooth(*inR);
+
+					inL++;
+					inR++;
+				}
+			}
+			else
+			{
+				float *inL = data[0];
+				
+				while (--numSamples >= 0)
+				{
+					*inL = smootherL.smooth(*inL);
+					
+					inL++;
+				}
+			}
+		}
+
+	private:
+
+		Smoother smootherL;
+		Smoother smootherR;
+
+		float smoothingTime = 0;
+	};
+
+
 
 #if 0
 
@@ -838,6 +901,7 @@ class HiseCoreDspFactory : public StaticDspFactory
 	void registerModules() override
 	{
 		registerDspModule<ScriptingDsp::Delay>();
+		registerDspModule<ScriptingDsp::SignalSmoother>();
 	}
 };
 
