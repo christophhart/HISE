@@ -482,6 +482,7 @@ private:
 			return block.release();
 		}
 
+
 		hiseSpecialData->constObjects.set(s->name, "uninitialised"); // Will be initialied at runtime
 		
 		return s.release();
@@ -922,6 +923,49 @@ private:
 		return matchCloseParen(s.release());
 	}
 
+	Expression* parseConstExpression()
+	{
+		const Identifier constId = parseIdentifier();
+		const int index = hiseSpecialData->constObjects.indexOf(constId);
+
+#if 0
+		var v = hiseSpecialData->constObjects[constId];
+
+		if (currentType == TokenTypes::dot)
+		{
+			match(TokenTypes::dot);
+			const Identifier memberName = parseIdentifier();
+
+			return parseConstObjectApiCall(constId, memberName);
+		}
+#endif
+		
+		return new ConstReference(location, index);
+	}
+
+	Expression* parseConstObjectApiCall(const Identifier& objectName, const Identifier& functionName)
+	{
+		const String prettyName = objectName.toString() + "." + functionName.toString();
+
+		var *v = hiseSpecialData->constObjects.getVarPointer(objectName);
+
+		ScopedPointer<ConstObjectApiCall> s = new ConstObjectApiCall(location, v, functionName);
+
+		match(TokenTypes::openParen);
+
+		int numActualArguments = 0;
+
+		while (currentType != TokenTypes::closeParen)
+		{
+			s->argumentList[numActualArguments++] = parseExpression();
+
+			if (currentType != TokenTypes::closeParen)
+				match(TokenTypes::comma);
+		}
+
+		return matchCloseParen(s.release());
+	}
+
 	Expression* parseSuffixes(Expression* e)
 	{
 		ExpPtr input(e);
@@ -979,8 +1023,7 @@ private:
 			}
 			else if (constIndex != -1)
 			{
-				parseIdentifier();
-				return parseSuffixes(new ConstReference(location, constIndex));
+				return parseSuffixes(parseConstExpression());
 			}
 			else if (globalIndex != -1)
 			{

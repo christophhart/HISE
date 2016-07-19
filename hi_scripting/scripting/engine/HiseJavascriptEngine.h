@@ -232,7 +232,7 @@ public:
 
 		struct RegisterVarStatement;	struct RegisterName;		struct RegisterAssignment;
 		struct ApiConstant;				struct ApiCall;				struct InlineFunction;
-		struct ConstVarStatement;		struct ConstReference;		
+		struct ConstVarStatement;		struct ConstReference;		struct ConstObjectApiCall;
 		struct GlobalVarStatement;		struct GlobalReference;		struct CallbackParameterReference;
 
 		// Parser classes
@@ -327,7 +327,7 @@ public:
 
 		struct HiseSpecialData
 		{
-			HiseSpecialData();
+			HiseSpecialData(RootObject* root);
 
 			~HiseSpecialData();
 
@@ -344,6 +344,9 @@ public:
 			Array<Identifier> apiIds;
 			ReferenceCountedArray<DynamicObject> inlineFunctions;
 			NamedValueSet constObjects;
+
+
+			RootObject* root;
 
 			Array<Identifier> callbackIds;
 			OwnedArray<RootObject::BlockStatement> callbacks;

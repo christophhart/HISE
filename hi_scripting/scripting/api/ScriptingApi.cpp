@@ -1958,8 +1958,11 @@ image(nullptr)
 	setDefaultValue(PopupMenuItems, "");
 	setDefaultValue(PopupOnRightClick, true);
 
-	setMethod("setImageFile", Wrapper::setImageFile);
-	setMethod("setAlpha", Wrapper::setImageAlpha);
+	ADD_API_METHOD_2(setImageFile);
+	ADD_API_METHOD_1(setAlpha);
+
+	//setMethod("setImageFile", Wrapper::setImageFile);
+	//setMethod("setAlpha", Wrapper::setImageAlpha);
 }
 
 ScriptingApi::Content::ScriptImage::~ScriptImage()
@@ -2162,7 +2165,7 @@ File ScriptingApi::Content::ScriptComponent::getExternalFile(var newValue)
 }
 
 ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name_, int x, int y, int width, int height) :
-CreatableScriptObject(base),
+ConstObjectWithApiCalls(base, 0),
 name(name_),
 value(0.0),
 parent(parentContent),
@@ -2210,19 +2213,19 @@ changed(false)
 	setDefaultValue(Properties::saveInPreset, true);
 	setDefaultValue(Properties::isPluginParameter, false);
 
-	setMethod("set", Wrapper::set);
-	setMethod("get", Wrapper::get);
-	setMethod("getValue", Wrapper::getValue);
-	setMethod("setValue", Wrapper::setValue);
-	setMethod("setValueNormalized", Wrapper::setValueNormalized);
-	setMethod("getValueNormalized", Wrapper::getValueNormalized);
-	setMethod("setColour", Wrapper::setColour);
-	setMethod("setPosition", Wrapper::setPosition);
-	setMethod("setTooltip", Wrapper::setTooltip);
-	setMethod("showControl", Wrapper::showControl);
-	setMethod("addToMacroControl", Wrapper::addToMacroControl);
+	ADD_API_METHOD_2(set);
+	ADD_API_METHOD_1(get);
+	ADD_API_METHOD_0(getValue);
+	ADD_API_METHOD_1(setValue);
+	ADD_API_METHOD_1(setValueNormalized);
+	ADD_API_METHOD_0(getValueNormalized);
+	ADD_API_METHOD_2(setColour);
+	ADD_API_METHOD_4(setPosition);
+	ADD_API_METHOD_1(setTooltip);
+	ADD_API_METHOD_1(showControl);
+	ADD_API_METHOD_1(addToMacroControl);
 
-	setName(name_.toString());
+	//setName(name_.toString());
 
 	SEND_MESSAGE(this);
 }
@@ -2405,19 +2408,20 @@ maximum(1.0f)
 	setScriptObjectPropertyWithChangeMessage(getIdFor(suffix), "", dontSendNotification);
 	setScriptObjectPropertyWithChangeMessage(getIdFor(filmstripImage), "Use default skin", dontSendNotification);
 
-	setMethod("setMidPoint", Wrapper::setMidPoint);
-	setMethod("setRange", Wrapper::setRange);
-	setMethod("setMode", Wrapper::setMode);
-	setMethod("setStyle", Wrapper::setStyle);
-	setMethod("setMinValue", Wrapper::setMinValue);
-	setMethod("setMaxValue", Wrapper::setMaxValue);
-	setMethod("getMinValue", Wrapper::getMinValue);
-	setMethod("getMaxValue", Wrapper::getMaxValue);
-	setMethod("contains", Wrapper::contains);
 
-	setProperty("Decibel", HiSlider::Mode::Decibel);
-	setProperty("Discrete", HiSlider::Mode::Discrete);
-	setProperty("Frequency", HiSlider::Mode::Frequency);
+	ADD_API_METHOD_1(setMidPoint);
+	ADD_API_METHOD_3(setRange);
+	ADD_API_METHOD_1(setMode);
+	ADD_API_METHOD_1(setStyle);
+	ADD_API_METHOD_1(setMinValue);
+	ADD_API_METHOD_1(setMaxValue);
+	ADD_API_METHOD_0(getMinValue);
+	ADD_API_METHOD_0(getMaxValue);
+	ADD_API_METHOD_1(contains);
+
+	//addConstant("Decibel", HiSlider::Mode::Decibel);
+	//addConstant("Discrete", HiSlider::Mode::Discrete);
+	//addConstant("Frequency", HiSlider::Mode::Frequency);
 }
 
 ScriptingApi::Content::ScriptSlider::~ScriptSlider()
@@ -2652,7 +2656,7 @@ ScriptComponent(base, parentContent, name, x, y, width, 16)
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::min));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::max));
 
-	setMethod("setEditable", Wrapper::setEditable);
+	ADD_API_METHOD_1(setEditable);
 }
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptLabel::createComponentWrapper(ScriptContentComponent *content, int index)
@@ -2970,8 +2974,8 @@ ScriptComponent(base, parentContent, name, x, y, width, 32)
 	setDefaultValue(ScriptComponent::min, 1.0f);
 	setDefaultValue(isPluginParameter, false);
 
-	setMethod("addItem", Wrapper::addItem);
-	setMethod("getItemText", Wrapper::getItemText);
+	ADD_API_METHOD_1(addItem);
+	ADD_API_METHOD_0(getItemText);
 }
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptComboBox::createComponentWrapper(ScriptContentComponent *content, int index)
@@ -3012,8 +3016,8 @@ lookupTableIndex(-1)
 	setDefaultValue(ScriptTable::Properties::ProcessorId, "");
 	setDefaultValue(ScriptTable::Properties::TableIndex, 0);
 
-	setMethod("getTableValue", Wrapper::getTableValue);
-	setMethod("connectToOtherTable", Wrapper::connectToOtherTable);
+	ADD_API_METHOD_1(getTableValue);
+	ADD_API_METHOD_2(connectToOtherTable);
 }
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptTable::createComponentWrapper(ScriptContentComponent *content, int index)
@@ -3129,7 +3133,9 @@ connectedProcessor(nullptr)
 
 	componentProperties->setProperty(getIdFor(processorId), "");
 
+#if 0
 	setMethod("connectToAudioSampleProcessor", Wrapper::connectToAudioSampleProcessor);
+#endif
 }
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptAudioWaveform::createComponentWrapper(ScriptContentComponent *content, int index)
@@ -3607,10 +3613,10 @@ existingData(nullptr)
 	setDefaultValue(SliderAmount, 16);
 	setDefaultValue(StepSize, 0.01);
 
-	setMethod("setSliderAtIndex", Wrapper::setSliderAtIndex);
-	setMethod("getSliderValueAt", Wrapper::getSliderValueAt);
-	setMethod("setAllValues", Wrapper::setAllValues);
-	setMethod("getNumSliders", Wrapper::getNumSliders);
+	ADD_API_METHOD_2(setSliderAtIndex);
+	ADD_API_METHOD_1(getSliderValueAt);
+	ADD_API_METHOD_1(setAllValues);
+	ADD_API_METHOD_0(getNumSliders);
 }
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptSliderPack::createComponentWrapper(ScriptContentComponent *content, int index)
@@ -3904,7 +3910,9 @@ connectedProcessor(nullptr)
 
 	componentProperties->setProperty(getIdFor(processorId), "");
 
+#if 0
 	setMethod("connectToAudioSampleProcessor", Wrapper::connectToAudioSampleProcessor);
+#endif
 }
 
 void ScriptingApi::Content::ScriptPluginEditor::connectToAudioProcessorWrapper(String processorId)

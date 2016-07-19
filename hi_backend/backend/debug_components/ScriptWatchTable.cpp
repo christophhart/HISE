@@ -525,7 +525,7 @@ void ScriptComponentEditPanel::sliderDragEnded(Slider *s)
 	sendPanelPropertyChangeMessage(hpc->getId());
 }
 
-void ScriptComponentEditPanel::setEditedComponent(DynamicObject *o)
+void ScriptComponentEditPanel::setEditedComponent(ReferenceCountedObject* o)
 {
 	if (editedComponent.get() != nullptr)
 	{	
@@ -619,7 +619,7 @@ String CodeDragger::getTextFromPanel()
 	return String::empty;
 }
 
-String CodeDragger::getText(DynamicObject *scriptComponent)
+String CodeDragger::getText(ReferenceCountedObject*scriptComponent)
 {
 	ScriptingApi::Content::ScriptComponent *sc = dynamic_cast<ScriptingApi::Content::ScriptComponent *>(scriptComponent);
 
@@ -691,7 +691,7 @@ void CodeDragger::paint(Graphics &g)
 	g.drawText("Drag JSON to CodeEditor", 0, 0, getWidth(), getHeight(), Justification::centred);
 }
 
-String CodeDragger::getTag(DynamicObject *scriptComponent, bool getEndTag)
+String CodeDragger::getTag(ReferenceCountedObject*scriptComponent, bool getEndTag)
 {
 	ScriptingApi::Content::ScriptComponent *sc = dynamic_cast<ScriptingApi::Content::ScriptComponent *>(scriptComponent);
 

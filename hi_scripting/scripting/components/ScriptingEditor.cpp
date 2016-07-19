@@ -315,7 +315,7 @@ void ScriptingEditor::saveLastCallback()
 	}
 }
 
-void ScriptingEditor::setEditedScriptComponent(DynamicObject *component)
+void ScriptingEditor::setEditedScriptComponent(ReferenceCountedObject* component)
 {
 	ScriptingApi::Content::ScriptComponent *sc = dynamic_cast<ScriptingApi::Content::ScriptComponent*>(component);
 
@@ -330,7 +330,7 @@ void ScriptingEditor::setEditedScriptComponent(DynamicObject *component)
 	}
 }
 
-void ScriptingEditor::scriptComponentChanged(DynamicObject *scriptComponent, Identifier /*propertyThatWasChanged*/)
+void ScriptingEditor::scriptComponentChanged(ReferenceCountedObject* scriptComponent, Identifier /*propertyThatWasChanged*/)
 {
 	if (!callbackButtons[0]->getToggleState()) return;
 
@@ -668,7 +668,7 @@ void ScriptingEditor::mouseDown(const MouseEvent &e)
 			int insertX = e.getEventRelativeTo(scriptContent).getMouseDownPosition().getX();
 			int insertY = e.getEventRelativeTo(scriptContent).getMouseDownPosition().getY();
 
-			textToInsert << "\n const var " << id << " = Content.add" << widgetType << "(\"" << id << "\", " << insertX << ", " << insertY << ");\n";
+			textToInsert << "\nconst var " << id << " = Content.add" << widgetType << "(\"" << id << "\", " << insertX << ", " << insertY << ");\n";
 
 			if (result == duplicateWidget)
 			{
@@ -782,7 +782,7 @@ void ScriptingEditor::compileScript()
 	ProcessorWithScriptingContent *s = dynamic_cast<ProcessorWithScriptingContent*>(getProcessor());
 	JavascriptProcessor* jsp = dynamic_cast<JavascriptProcessor*>(getProcessor());
 
-	DynamicObject *component = s->checkContentChangedInPropertyPanel();
+	ReferenceCountedObject *component = s->checkContentChangedInPropertyPanel();
 
 	if (component != nullptr)
 	{

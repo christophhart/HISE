@@ -543,11 +543,11 @@ void MainController::setWatchedScriptProcessor(JavascriptProcessor *p, Component
 };
 
 
-void MainController::setEditedScriptComponent(DynamicObject *object, Component *listener)
+void MainController::setEditedScriptComponent(ReferenceCountedObject* c, Component *listener)
 {
 
 
-	ScriptingApi::Content::ScriptComponent *sc = dynamic_cast<ScriptingApi::Content::ScriptComponent *>(object);
+	ScriptingApi::Content::ScriptComponent *sc = dynamic_cast<ScriptingApi::Content::ScriptComponent *>(c);
 	
 
 	if(scriptComponentEditPanel.getComponent() != nullptr)

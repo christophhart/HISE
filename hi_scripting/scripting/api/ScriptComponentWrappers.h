@@ -545,7 +545,7 @@ public:
 		masterReference.clear();
 	}
 
-	virtual void scriptComponentChanged(DynamicObject *componentThatWasChanged, Identifier idThatWasChanged) = 0;
+	virtual void scriptComponentChanged(ReferenceCountedObject *componentThatWasChanged, Identifier idThatWasChanged) = 0;
 
 private:
 

@@ -95,6 +95,65 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 	const ReferenceCountedObjectPtr<ApiClass> apiClass;
 };
 
+
+struct HiseJavascriptEngine::RootObject::ConstObjectApiCall : public Expression
+{
+	ConstObjectApiCall(const CodeLocation &l, var *objectPointer_, const Identifier& functionName_) noexcept:
+	Expression(l),
+		object(nullptr),
+		objectPointer(objectPointer_),
+		functionName(functionName_),
+		expectedNumArguments(-1),
+		functionIndex(-1),
+		initialised(false)
+	{
+		for (int i = 0; i < 4; i++)
+		{
+			results[i] = var::undefined();
+			argumentList[i] = nullptr;
+		}
+	};
+
+	var getResult(const Scope& s) const override
+	{
+		if (!initialised)
+		{
+			initialised = true;
+
+			CHECK_CONDITION(objectPointer != nullptr, "Object Pointer does not exist");
+
+			object = dynamic_cast<ConstObjectWithApiCalls*>(objectPointer->getObject());
+
+			CHECK_CONDITION(object != nullptr, "Object doesn't exist");
+
+			object->getIndexAndNumArgsForFunction(functionName, functionIndex, expectedNumArguments);
+
+			CHECK_CONDITION(functionIndex != -1, "function " + functionName.toString() + " not found.");
+		}
+
+		for (int i = 0; i < expectedNumArguments; i++)
+		{
+			results[i] = argumentList[i]->getResult(s);
+		}
+
+		CHECK_CONDITION(object != nullptr, "Object does not exist");
+
+		return object->callFunction(functionIndex, results, expectedNumArguments);
+	}
+
+	
+	mutable bool initialised;
+	ExpPtr argumentList[4];
+	mutable int expectedNumArguments;
+	mutable int functionIndex;
+	mutable var results[4];
+	Identifier functionName;
+
+	var* objectPointer;
+
+	mutable ReferenceCountedObjectPtr<ConstObjectWithApiCalls> object;
+};
+
 struct HiseJavascriptEngine::RootObject::InlineFunction
 {
 	struct FunctionCall;

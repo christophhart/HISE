@@ -358,7 +358,8 @@ HiseJavascriptEngine::HiseJavascriptEngine(JavascriptProcessor *p) : maximumExec
 	registerNativeObject(RootObject::IntegerClass::getClassName(), new RootObject::IntegerClass());
 }
 
-HiseJavascriptEngine::RootObject::RootObject()
+HiseJavascriptEngine::RootObject::RootObject():
+hiseSpecialData(this)
 {
 	setMethod("exec", exec);
 	setMethod("eval", eval);
@@ -432,7 +433,8 @@ Array<Identifier> HiseJavascriptEngine::RootObject::HiseSpecialData::hiddenPrope
 
 bool HiseJavascriptEngine::RootObject::HiseSpecialData::initHiddenProperties = true;
 
-HiseJavascriptEngine::RootObject::HiseSpecialData::HiseSpecialData()
+HiseJavascriptEngine::RootObject::HiseSpecialData::HiseSpecialData(RootObject* root_):
+root(root_)
 {
 	if (initHiddenProperties)
 	{

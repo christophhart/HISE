@@ -284,7 +284,7 @@ public:
 	*	The pointer is a DynamicObject because of forward declaration issues, but make sure, you only call this method with ScriptComponent objects
 	*	(otherwise it will have no effect)
 	*/
-	void setEditedScriptComponent(DynamicObject *c, Component *listener);
+	void setEditedScriptComponent(ReferenceCountedObject* c, Component *listener);
 	
 #endif
 

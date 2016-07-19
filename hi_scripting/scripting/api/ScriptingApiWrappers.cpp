@@ -2077,6 +2077,7 @@ var ScriptingObjects::ScriptingTableProcessor::Wrapper::reset(const var::NativeF
 	return var::undefined();
 }
 
+#if 0
 
 
 var ScriptingObjects::MidiList::Wrapper::fill(const var::NativeFunctionArgs& args)
@@ -2201,6 +2202,7 @@ var ScriptingObjects::MidiList::Wrapper::restoreFromBase64String(const var::Nati
 	return var::undefined();
 }
 
+#endif
 
 #undef GET_OBJECT
 

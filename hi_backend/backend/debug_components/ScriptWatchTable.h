@@ -120,9 +120,9 @@ public:
 		panel(panel_)
 	{};
 
-	static String getTag(DynamicObject *scriptComponent, bool getEndTag);
+	static String getTag(ReferenceCountedObject*scriptComponent, bool getEndTag);
 
-	static String getText(DynamicObject *scriptComponent);
+	static String getText(ReferenceCountedObject*scriptComponent);
 
 	void mouseDown(const MouseEvent &) override;;
 
@@ -329,7 +329,7 @@ public:
 		panel->setBounds(0, 0, getWidth(), getHeight());
 		}
 
-	void setEditedComponent(DynamicObject *o);
+	void setEditedComponent(ReferenceCountedObject* o);
 
 	static void debugProperties(DynamicObject *properties);;
 
@@ -574,7 +574,7 @@ private:
 	ScopedPointer<PropertyPanel> panel;
 	ScopedPointer<CodeDragger> codeDragger;
 
-	ReferenceCountedObjectPtr<DynamicObject> editedComponent;
+	ReferenceCountedObjectPtr<ReferenceCountedObject> editedComponent;
 
 
 };

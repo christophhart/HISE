@@ -89,6 +89,25 @@ private:
 
 class EffectProcessor;
 
+
+class ConstObjectWithApiCalls : public ScriptingObject,
+								public ApiClass
+{
+public:
+
+	ConstObjectWithApiCalls(ProcessorWithScriptingContent* p, int numConstants):
+		ScriptingObject(p),
+		ApiClass(numConstants)
+	{
+
+	}
+
+	virtual Identifier getObjectName() const = 0;
+
+	Identifier getName() const override { return getObjectName(); }
+
+};
+
 /** The base class for all objects that can be created by a script. 
 *	@ingroup scripting
 *
@@ -168,34 +187,29 @@ class ScriptingObjects
 {
 public:
 
-	class MidiList : public CreatableScriptObject,
-		public AssignableObject
+	class MidiList : public ConstObjectWithApiCalls,
+					 public AssignableObject
 	{
 	public:
 
 		MidiList(ProcessorWithScriptingContent *p) :
-			CreatableScriptObject(p)
+			ConstObjectWithApiCalls(p, 0)
 		{
-			setMethod("fill", Wrapper::fill);
-
-			setMethod("clear", Wrapper::clear);
-			setMethod("getValue", Wrapper::getValue);
-			setMethod("getValueAmount", Wrapper::getValueAmount);
-			setMethod("getIndex", Wrapper::getIndex);
-			setMethod("isEmpty", Wrapper::isEmpty);
-			setMethod("getNumSetValues", Wrapper::getNumSetValues);
-			setMethod("setValue", Wrapper::setValue);
-			setMethod("restoreFromBase64String", Wrapper::restoreFromBase64String);
-			setMethod("getBase64String", Wrapper::getBase64String);
+			ADD_API_METHOD_1(fill);
+			ADD_API_METHOD_0(clear);
+			ADD_API_METHOD_1(getValue);
+			ADD_API_METHOD_1(getValueAmount);
+			ADD_API_METHOD_1(getIndex);
+			ADD_API_METHOD_0(isEmpty);
+			ADD_API_METHOD_0(getNumSetValues);
+			ADD_API_METHOD_2(setValue);
+			ADD_API_METHOD_1(restoreFromBase64String);
+			ADD_API_METHOD_0(getBase64String);
 
 			clear();
 		};
 
 		Identifier getObjectName() const override { return "MidiList"; }
-
-		bool objectDeleted() const override { return false; }
-
-		bool objectExists() const override { return false; }
 
 		void assign(const int index, var newValue)
 		{
@@ -311,17 +325,16 @@ public:
 
 		struct Wrapper
 		{
-			static var fill(const var::NativeFunctionArgs& args);
-			static var clear(const var::NativeFunctionArgs& args);
-			static var getValue(const var::NativeFunctionArgs& args);
-			static var getValueAmount(const var::NativeFunctionArgs& args);
-			static var getIndex(const var::NativeFunctionArgs& args);
-			static var isEmpty(const var::NativeFunctionArgs& args);
-			static var getNumSetValues(const var::NativeFunctionArgs& args);
-			static var setValue(const var::NativeFunctionArgs& args);
-			static var getBase64String(const var::NativeFunctionArgs& args);
-			static var restoreFromBase64String(const var::NativeFunctionArgs& args);
-
+			API_VOID_METHOD_WRAPPER_1(MidiList, fill);
+			API_VOID_METHOD_WRAPPER_0(MidiList, clear);
+			API_METHOD_WRAPPER_1(MidiList, getValue);
+			API_METHOD_WRAPPER_1(MidiList, getValueAmount);
+			API_METHOD_WRAPPER_1(MidiList, getIndex);
+			API_METHOD_WRAPPER_0(MidiList, isEmpty);
+			API_METHOD_WRAPPER_0(MidiList, getNumSetValues);
+			API_VOID_METHOD_WRAPPER_2(MidiList, setValue);
+			API_VOID_METHOD_WRAPPER_1(MidiList, restoreFromBase64String);
+			API_METHOD_WRAPPER_0(MidiList, getBase64String);
 		};
 
 	private:

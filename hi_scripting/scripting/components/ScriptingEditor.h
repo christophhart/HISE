@@ -83,7 +83,7 @@ public:
     //==============================================================================
    
 
-	void scriptComponentChanged(DynamicObject *scriptComponent, Identifier /*propertyThatWasChanged*/) override;
+	void scriptComponentChanged(ReferenceCountedObject *scriptComponent, Identifier /*propertyThatWasChanged*/) override;
 
 	void updateGui() override
 	{
@@ -98,7 +98,7 @@ public:
 
 	};
 
-	void setEditedScriptComponent(DynamicObject *component);
+	void setEditedScriptComponent(ReferenceCountedObject* component);
 
 	void mouseDown(const MouseEvent &e) override;
 

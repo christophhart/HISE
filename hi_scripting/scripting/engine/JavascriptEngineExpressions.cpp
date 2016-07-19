@@ -216,9 +216,60 @@ struct HiseJavascriptEngine::RootObject::FunctionCall : public Expression
 
 	var getResult(const Scope& s) const override
 	{
+		if (!initialised)
+		{
+			initialised = true;
+
+			if (DotOperator* dot = dynamic_cast<DotOperator*> (object.get()))
+			{
+				parentIsConstReference = dynamic_cast<ConstReference*>(dot->parent.get());
+
+				if (parentIsConstReference)
+				{
+					constObject = dynamic_cast<ConstObjectWithApiCalls*>(dot->parent->getResult(s).getObject());
+
+					if (constObject != nullptr)
+					{
+						constObject->getIndexAndNumArgsForFunction(dot->child, functionIndex, numArgs);
+						isConstObjectApiFunction = true;
+
+						CHECK_CONDITION(functionIndex != -1, "function not found");
+						CHECK_CONDITION(numArgs == arguments.size(), "argument amount mismatch: " + String(arguments.size()) + ", Expected: " + String(numArgs));
+					}
+				}
+			}
+		}
+
+		if (isConstObjectApiFunction)
+		{
+			var parameters[4];
+
+			for (int i = 0; i < arguments.size(); i++)
+				parameters[i] = arguments[i]->getResult(s);
+
+			return constObject->callFunction(functionIndex, parameters, numArgs);
+		}
+
 		if (DotOperator* dot = dynamic_cast<DotOperator*> (object.get()))
 		{
+
 			var thisObject(dot->parent->getResult(s));
+
+			if (ConstObjectWithApiCalls* c = dynamic_cast<ConstObjectWithApiCalls*>(thisObject.getObject()))
+			{
+				c->getIndexAndNumArgsForFunction(dot->child, functionIndex, numArgs);
+
+				CHECK_CONDITION(functionIndex != -1, "function not found");
+				CHECK_CONDITION(numArgs == arguments.size(), "argument amount mismatch: " + String(arguments.size()) + ", Expected: " + String(numArgs));
+
+				var parameters[4];
+
+				for (int i = 0; i < arguments.size(); i++)
+					parameters[i] = arguments[i]->getResult(s);
+
+				return c->callFunction(functionIndex, parameters, numArgs);
+			}
+
 			return invokeFunction(s, s.findFunctionCall(location, thisObject, dot->child), thisObject);
 		}
 
@@ -230,6 +281,13 @@ struct HiseJavascriptEngine::RootObject::FunctionCall : public Expression
 
 	ExpPtr object;
 	OwnedArray<Expression> arguments;
+
+	mutable bool initialised = false;
+	mutable bool isConstObjectApiFunction = false;
+	mutable bool parentIsConstReference = false;
+	mutable ConstObjectWithApiCalls* constObject = nullptr;
+	mutable int numArgs = -1;
+	mutable int functionIndex = -1;
 };
 
 struct HiseJavascriptEngine::RootObject::NewOperator : public FunctionCall

@@ -867,7 +867,7 @@ public:
 		};
 
 		struct ScriptComponent : public RestorableObject,
-								 public CreatableScriptObject,
+								 public ConstObjectWithApiCalls,
 								 public SafeChangeBroadcaster,
 								 public AssignableObject,
 								 public DebugableObject
@@ -944,12 +944,6 @@ public:
 				}
 
 				return -1;
-			}
-
-			Identifier getObjectName() const override
-			{
-				jassertfalse;
-				return Identifier();
 			}
 
 			virtual void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor=sendNotification);
@@ -1034,6 +1028,15 @@ public:
 				return name;
 			}
 			
+
+
+			Identifier getObjectName() const override
+			{
+				jassertfalse;
+				return Identifier();
+			}
+#if 0
+
 			bool objectExists () const override { return true; };
 
 			
@@ -1041,6 +1044,8 @@ public:
 			{ 
 				return false;	// returns always false, since it should not be accessed after its lifetime.
 			}
+
+#endif
 
 			virtual void restoreFromValueTree(const ValueTree &v) override 
 			{ 
@@ -1055,6 +1060,22 @@ public:
 			Content *parent;
 
 			bool skipRestoring;
+
+			struct Wrapper
+			{
+				API_VOID_METHOD_WRAPPER_2(ScriptComponent, set);
+				API_METHOD_WRAPPER_1(ScriptComponent, get);
+				API_METHOD_WRAPPER_0(ScriptComponent, getValue);
+				API_VOID_METHOD_WRAPPER_1(ScriptComponent, setValue);
+				API_VOID_METHOD_WRAPPER_1(ScriptComponent, setValueNormalized);
+				API_METHOD_WRAPPER_0(ScriptComponent, getValueNormalized);
+				API_VOID_METHOD_WRAPPER_2(ScriptComponent, setColour);
+				API_VOID_METHOD_WRAPPER_4(ScriptComponent, setPosition);
+				API_VOID_METHOD_WRAPPER_1(ScriptComponent, setTooltip);
+				API_VOID_METHOD_WRAPPER_1(ScriptComponent, showControl);
+				API_VOID_METHOD_WRAPPER_1(ScriptComponent, addToMacroControl);
+			};
+
 
 		protected:
 
@@ -1076,6 +1097,7 @@ public:
 
 		private:
 
+			
 			NamedValueSet defaultValues;
 
 			bool changed;
@@ -1173,6 +1195,18 @@ public:
 
 			const Image *getImage() const { return image; };
 
+			struct Wrapper
+			{
+				API_VOID_METHOD_WRAPPER_1(ScriptSlider, setMidPoint);
+				API_VOID_METHOD_WRAPPER_3(ScriptSlider, setRange);
+				API_VOID_METHOD_WRAPPER_1(ScriptSlider, setMode);
+				API_VOID_METHOD_WRAPPER_1(ScriptSlider, setStyle);
+				API_VOID_METHOD_WRAPPER_1(ScriptSlider, setMinValue);
+				API_VOID_METHOD_WRAPPER_1(ScriptSlider, setMaxValue);
+				API_METHOD_WRAPPER_0(ScriptSlider, getMinValue);
+				API_METHOD_WRAPPER_0(ScriptSlider, getMaxValue);
+				API_METHOD_WRAPPER_1(ScriptSlider, contains);
+			};
 
 		private:
 
@@ -1264,7 +1298,11 @@ public:
 			/** Adds an item to a combo box. */
 			void addItem(const String &newName);
 
-		private:
+			struct Wrapper
+			{
+				API_VOID_METHOD_WRAPPER_1(ScriptComboBox, addItem);
+				API_METHOD_WRAPPER_0(ScriptComboBox, getItemText);
+			};
 		};
 
 
@@ -1358,6 +1396,10 @@ public:
 			*/
 			void setEditable(bool shouldBeEditable);
 
+			struct Wrapper
+			{
+				API_VOID_METHOD_WRAPPER_1(ScriptLabel, setEditable);
+			};
 		};
 
 
@@ -1418,6 +1460,12 @@ public:
 
 
 			LookupTableProcessor * getTableProcessor() const;
+
+			struct Wrapper
+			{
+				API_METHOD_WRAPPER_1(ScriptTable, getTableValue);
+				API_VOID_METHOD_WRAPPER_2(ScriptTable, connectToOtherTable);
+			};
 
 		private:
 
@@ -1521,6 +1569,12 @@ public:
 
 			void setScriptProcessor(ProcessorWithScriptingContent *sb);
 
+			struct Wrapper
+			{
+				API_VOID_METHOD_WRAPPER_2(ScriptImage, setImageFile);
+				API_VOID_METHOD_WRAPPER_1(ScriptImage, setAlpha);
+			};
+
 		private:
 
 			Image const *image;
@@ -1589,6 +1643,14 @@ public:
 
             const SliderPackData *getSliderPackData() const { return (existingData != nullptr) ? existingData.get() : packData.get(); };
             
+			struct Wrapper
+			{
+				API_VOID_METHOD_WRAPPER_2(ScriptSliderPack, setSliderAtIndex);
+				API_METHOD_WRAPPER_1(ScriptSliderPack, getSliderValueAt);
+				API_VOID_METHOD_WRAPPER_1(ScriptSliderPack, setAllValues);
+				API_METHOD_WRAPPER_0(ScriptSliderPack, getNumSliders);
+			};
+
 		private:
 
             void connectToOtherSliderPack(const String &otherPackId);
@@ -1629,8 +1691,10 @@ public:
 			ScriptedPlotter(ProcessorWithScriptingContent *base, Content *parentContent, Identifier plotterName, int x, int y, int width, int height):
 				ScriptComponent(base, parentContent, plotterName, x,y,width, height)
 			{
-				setMethod("addModulatorToPlotter", Wrapper::addModulatorToPlotter);
-				setMethod("clearModulatorPlotter", Wrapper::clearModulatorToPlotter);
+				ADD_API_METHOD_2(addModulatorToPlotter);
+				ADD_API_METHOD_0(clearModulatorPlotter);
+				//setMethod("addModulatorToPlotter", Wrapper::addModulatorToPlotter);
+				//setMethod("clearModulatorPlotter", Wrapper::clearModulatorToPlotter);
 			};
 
 			virtual Identifier 	getObjectName () const override { return "ScriptedPlotter"; }
@@ -1648,6 +1712,12 @@ public:
 			void clearModulatorPlotter();
 
 			Array<WeakReference<Modulator>> mods;
+
+			struct Wrapper
+			{
+				API_VOID_METHOD_WRAPPER_2(ScriptedPlotter, addModulatorToPlotter)
+				API_VOID_METHOD_WRAPPER_0(ScriptedPlotter, clearModulatorPlotter);
+			};
 
 		};
 
