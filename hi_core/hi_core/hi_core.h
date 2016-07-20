@@ -39,10 +39,14 @@
 #endif
 
 
+namespace juce
+{
+#include "VariantBuffer.h"
+}
+
 /** @defgroup core Core Classes
 *	A collection of basic classes.
 */
-
 #include "UtilityClasses.h"
 #include "HI_LookAndFeels.h"
 #include "ThreadWithQuasiModalProgressWindow.h"
@@ -56,10 +60,9 @@
 #include "GlobalScriptCompileBroadcaster.h"
 #include "MainControllerHelpers.h"
 #include "MainController.h"
-
 #include "SampleExporter.h"
 #include "Console.h"
-
+#include "MiscComponents.h"
 
 #ifdef INCLUDE_INSTALLER
 
@@ -70,9 +73,6 @@
 
 #include "JavascriptTokeniser.h"
 #include "JavascriptTokeniserFunctions.h"
-
-
-
 #include "MacroControlledComponents.h"
 #include "MacroControlBroadcaster.h"
 

@@ -205,3 +205,27 @@ bool MidiProcessorFactoryType::allowType(const Identifier &typeName) const
 	return true;
 
 }
+
+void MidiProcessorChain::MidiProcessorChainHandler::add(Processor *newProcessor, Processor *siblingToInsertBefore)
+{
+	ScopedLock sl(chain->getMainController()->getLock());
+
+	MidiProcessor *m = dynamic_cast<MidiProcessor*>(newProcessor);
+
+	//m->setColour(chain->getColour().withMultipliedBrightness(0.6f));
+
+	jassert(m != nullptr);
+
+	const int index = siblingToInsertBefore == nullptr ? -1 : chain->processors.indexOf(dynamic_cast<MidiProcessor*>(siblingToInsertBefore));
+
+	chain->processors.insert(index, m);
+
+	newProcessor->prepareToPlay(chain->getSampleRate(), chain->getBlockSize());
+
+	if (JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(newProcessor))
+	{
+		sp->compileScript();
+	}
+
+	sendChangeMessage();
+}

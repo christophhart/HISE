@@ -222,7 +222,7 @@ struct HiseJavascriptEngine::RootObject::FunctionCall : public Expression
 
 			if (DotOperator* dot = dynamic_cast<DotOperator*> (object.get()))
 			{
-				parentIsConstReference = dynamic_cast<ConstReference*>(dot->parent.get());
+				parentIsConstReference = dynamic_cast<ConstReference*>(dot->parent.get()) != nullptr;
 
 				if (parentIsConstReference)
 				{
@@ -233,8 +233,8 @@ struct HiseJavascriptEngine::RootObject::FunctionCall : public Expression
 						constObject->getIndexAndNumArgsForFunction(dot->child, functionIndex, numArgs);
 						isConstObjectApiFunction = true;
 
-						CHECK_CONDITION(functionIndex != -1, "function not found");
-						CHECK_CONDITION(numArgs == arguments.size(), "argument amount mismatch: " + String(arguments.size()) + ", Expected: " + String(numArgs));
+						CHECK_CONDITION_WITH_LOCATION(functionIndex != -1, "function not found");
+						CHECK_CONDITION_WITH_LOCATION(numArgs == arguments.size(), "argument amount mismatch: " + String(arguments.size()) + ", Expected: " + String(numArgs));
 					}
 				}
 			}
@@ -252,15 +252,14 @@ struct HiseJavascriptEngine::RootObject::FunctionCall : public Expression
 
 		if (DotOperator* dot = dynamic_cast<DotOperator*> (object.get()))
 		{
-
 			var thisObject(dot->parent->getResult(s));
 
 			if (ConstScriptingObject* c = dynamic_cast<ConstScriptingObject*>(thisObject.getObject()))
 			{
 				c->getIndexAndNumArgsForFunction(dot->child, functionIndex, numArgs);
 
-				CHECK_CONDITION(functionIndex != -1, "function not found");
-				CHECK_CONDITION(numArgs == arguments.size(), "argument amount mismatch: " + String(arguments.size()) + ", Expected: " + String(numArgs));
+				CHECK_CONDITION_WITH_LOCATION(functionIndex != -1, "function not found");
+				CHECK_CONDITION_WITH_LOCATION(numArgs == arguments.size(), "argument amount mismatch: " + String(arguments.size()) + ", Expected: " + String(numArgs));
 
 				var parameters[4];
 

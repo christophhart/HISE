@@ -30,6 +30,14 @@
 *   ===========================================================================
 */
 
+struct DspInstance::Wrapper
+{
+	API_VOID_METHOD_WRAPPER_1(DspInstance, processBlock);
+	API_VOID_METHOD_WRAPPER_2(DspInstance, prepareToPlay);
+	API_VOID_METHOD_WRAPPER_2(DspInstance, setParameter);
+	API_METHOD_WRAPPER_1(DspInstance, getParameter);
+	API_METHOD_WRAPPER_0(DspInstance, getInfo);
+};
 
 
 DspInstance::DspInstance(const DspFactory *f, const String &moduleName_) :
@@ -186,7 +194,7 @@ var DspInstance::getInfo() const
 	return var("No module loaded");
 }
 
-void DspInstance::operator>>(var &data)
+void DspInstance::operator>>(const var &data)
 {
 	processBlock(data);
 }
@@ -209,6 +217,72 @@ void DspInstance::prepareToPlay(double sampleRate, int samplesPerBlock)
 }
 
 typedef DspBaseObject*(*createDspModule_)(const char *);
+
+class DspFactory::Handler
+{
+public:
+
+	Handler();
+	~Handler();
+
+	DspInstance *createDspInstance(const String &factoryName, const String &moduleName);
+
+	template <class T> static void registerStaticFactory(Handler *instance);
+
+	/** Returns a factory with the given name.
+	*
+	*	It looks for static factories first. If no static library is found, it searches for opened dynamic factories.
+	*	If no dynamic factory is found, it will open the dynamic library at the standard path and returns this instance.
+	*/
+	DspFactory *getFactory(const String &name);
+
+private:
+
+	static void registerStaticFactories(Handler *instance);
+
+	ReferenceCountedArray<DspFactory> staticFactories;
+	ReferenceCountedArray<DspFactory> loadedPlugins;
+};
+
+class DspFactory::LibraryLoader : public DynamicObject
+{
+public:
+
+	LibraryLoader()
+	{
+		ADD_DYNAMIC_METHOD(getLibrary);
+	}
+
+	var getLibrary(const String &name)
+	{
+		DspFactory *f = dynamic_cast<DspFactory*>(handler->getFactory(name));
+		return var(f);
+	}
+
+private:
+
+	struct Wrapper
+	{
+		DYNAMIC_METHOD_WRAPPER_WITH_RETURN(LibraryLoader, getLibrary, ARG(0).toString());
+	};
+
+	SharedResourcePointer<DspFactory::Handler> handler;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LibraryLoader)
+};
+
+struct DspFactory::Wrapper
+{
+	DYNAMIC_METHOD_WRAPPER_WITH_RETURN(DspFactory, createModule, ARG(0).toString());
+	DYNAMIC_METHOD_WRAPPER_WITH_RETURN(DspFactory, getModuleList);
+};
+
+DspFactory::DspFactory() :
+DynamicObject()
+{
+	ADD_DYNAMIC_METHOD(createModule);
+	ADD_DYNAMIC_METHOD(getModuleList);
+}
 
 DynamicDspFactory::DynamicDspFactory(const String &name_) :
 name(name_)

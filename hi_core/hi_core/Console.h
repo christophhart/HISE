@@ -52,6 +52,64 @@ class Console: public Component,
 {
 public:
 
+	class ConsoleTokeniser: public CodeTokeniser
+	{
+	public:
+
+		ConsoleTokeniser()
+		{
+			s.set("id", Colours::black);
+			s.set("default", Colours::black.withBrightness(0.15f));
+			s.set("error", Colours::red.withBrightness(0.7f));
+		}
+
+		int readNextToken(CodeDocument::Iterator& source)
+		{
+			while (source.nextChar() != ':')
+			{
+				return 0;
+			}
+
+
+			if (source.peekNextChar() == '!')
+			{
+				source.skipToEndOfLine();
+				
+				return 2;
+			}
+			else
+			{
+				source.skipToEndOfLine();
+				
+				return 1;
+			}
+		}
+
+		CodeEditorComponent::ColourScheme getDefaultColourScheme() override { return s; }
+
+
+
+	private:
+
+		CodeEditorComponent::ColourScheme s;
+
+	};
+
+	class ConsoleEditorComponent : public CodeEditorComponent
+	{
+	public:
+
+		ConsoleEditorComponent(CodeDocument &doc, CodeTokeniser *tok);
+
+		void addPopupMenuItems(PopupMenu &menuToAddTo, const MouseEvent *m) override
+		{
+
+		};
+
+
+
+	};
+
 	enum WarningLevel
 	{
 		Message = 0,
@@ -157,6 +215,10 @@ private:
     ScopedPointer<TextEditor> textConsole;
     ScopedPointer<TextButton> clearButton;
 	ScopedPointer<Label> voiceLabel;
+
+	ScopedPointer<CodeDocument> doc;
+	ScopedPointer<ConsoleEditorComponent> newTextConsole;
+	ScopedPointer<CodeTokeniser> tokeniser;
 
 	bool popupMode;
 	bool overflowProtection;

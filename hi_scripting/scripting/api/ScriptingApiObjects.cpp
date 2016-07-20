@@ -240,6 +240,52 @@ void ScriptingObjects::ScriptingModulator::setBypassed(bool shouldBeBypassed)
 	}
 }
 
+
+
+void ScriptingObjects::ScriptingModulator::doubleClickCallback(Component *componentToNotify)
+{
+#if USE_BACKEND
+	if (objectExists() && !objectDeleted())
+	{
+		BackendProcessorEditor *editor = componentToNotify->findParentComponentOfClass<BackendProcessorEditor>();
+
+		Processor *p = ProcessorHelpers::getFirstProcessorWithName(editor->getMainSynthChain(), mod->getId());
+
+		if (p != nullptr)
+		{
+			editor->setRootProcessorWithUndo(p);
+		}
+	}
+#else 
+	ignoreUnused(componentToNotify);
+#endif
+}
+
+void ScriptingObjects::ScriptingModulator::setIntensity(float newIntensity)
+{
+	if (checkValidObject())
+	{
+		if (m->getMode() == Modulation::GainMode)
+		{
+			const float value = jlimit<float>(0.0f, 1.0f, newIntensity);
+			m->setIntensity(value);
+
+			mod.get()->sendChangeMessage();
+		}
+		else
+		{
+			const float value = jlimit<float>(-12.0f, 12.0f, newIntensity);
+			const float pitchFactor = powf(2.0f, value / 12.0f);
+
+			m->setIntensity(pitchFactor);
+
+			mod.get()->sendChangeMessage();
+		}
+	}
+};
+
+
+
 // ScriptingEffect ==============================================================================================================
 
 struct ScriptingObjects::ScriptingEffect::Wrapper

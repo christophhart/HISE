@@ -920,10 +920,6 @@ void ProcessorEditorHeader::addProcessor(Processor *processorToBeAdded, Processo
 	{
 		getProcessor()->getMainController()->getMainSynthChain()->compileAllScripts();
 	}
-	else if (dynamic_cast<JavascriptProcessor*>(processorToBeAdded) != nullptr)
-	{
-		dynamic_cast<JavascriptProcessor*>(processorToBeAdded)->compileScript();
-	}
 
     PresetHandler::setChanged(getProcessor());
     

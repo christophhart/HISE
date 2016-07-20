@@ -33,59 +33,6 @@
 #ifndef DSPFACTORY_H_INCLUDED
 #define DSPFACTORY_H_INCLUDED
 
-#pragma warning (push)
-#pragma warning (disable: 4127)
-
-/** A generic template factory class. 
-*
-*	Create a instance with the base class as template and add subclasses via registerType<SubClass>().
-*	The subclasses must have a static method 
-*	
-*		static Identifier getName() { RETURN_STATIC_IDENTIFIER(name) }
-*
-*	so that the factory can decide which subtype to create.
-*/
-template <typename BaseClass>
-class Factory
-{
-public:
-	
-	/** Register a subclass to this factory. The subclass must have a static method 'Identifier getName()'. */
-	template <typename DerivedClass> void registerType()
-	{
-		if (std::is_base_of<BaseClass, DerivedClass>::value)
-		{
-			ids.add(DerivedClass::getName());
-			functions.add(&createFunc<DerivedClass>);
-		}
-	}
-
-	/** Creates a subclass instance with the registered Identifier and returns a base class pointer to this. You need to take care of the ownership of course. */
-	BaseClass* createFromId(const Identifier &id) const
-	{
-		const int index = ids.indexOf(id);
-
-		if (index != -1) return functions[index]();
-		else			 return nullptr;
-	}
-
-	const Array<Identifier> &getIdList() const { return ids; }
-
-private:
-
-	/** @internal */
-	template <typename DerivedClass> static BaseClass* createFunc() { return new DerivedClass(); }
-
-	/** @internal */
-	typedef BaseClass* (*PCreateFunc)();
-	
-	Array<Identifier> ids;
-	Array <PCreateFunc> functions;;
-};
-
-
-#pragma warning (pop)
-
 
 class DspInstance;
 
@@ -93,65 +40,7 @@ class DspFactory : public DynamicObject
 {
 public:
 
-	class Handler
-	{
-	public:
-
-		Handler();
-		~Handler();
-
-		DspInstance *createDspInstance(const String &factoryName, const String &moduleName);
-
-		template <class T> static void registerStaticFactory(Handler *instance);
-
-		/** Returns a factory with the given name.
-		*
-		*	It looks for static factories first. If no static library is found, it searches for opened dynamic factories.
-		*	If no dynamic factory is found, it will open the dynamic library at the standard path and returns this instance.
-		*/
-		DspFactory *getFactory(const String &name);
-
-	private:
-
-		static void registerStaticFactories(Handler *instance);
-
-		ReferenceCountedArray<DspFactory> staticFactories;
-		ReferenceCountedArray<DspFactory> loadedPlugins;
-	};
-
-	class LibraryLoader : public DynamicObject
-	{
-	public:
-
-		LibraryLoader()
-		{
-			ADD_DYNAMIC_METHOD(getLibrary);
-		}
-
-		var getLibrary(const String &name)
-		{
-			DspFactory *f = dynamic_cast<DspFactory*>(handler->getFactory(name));
-			return var(f);
-		}
-
-	private:
-
-		struct Wrapper
-		{
-			DYNAMIC_METHOD_WRAPPER_WITH_RETURN(LibraryLoader, getLibrary, ARG(0).toString());
-		};
-
-		SharedResourcePointer<DspFactory::Handler> handler;
-
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LibraryLoader)
-	};
-
-	DspFactory():
-		DynamicObject()
-	{
-		ADD_DYNAMIC_METHOD(createModule);
-		ADD_DYNAMIC_METHOD(getModuleList);
-	}
+	DspFactory();
 
 	/** If you write a static DspLibrary, you need to overwrite this method and return an unique ID. */
 	virtual Identifier getId() const = 0;
@@ -167,18 +56,12 @@ public:
 	/** This method must return an array with all module names that can be created. */
 	virtual var getModuleList() const = 0;
 
-	struct Wrapper
-	{
-		DYNAMIC_METHOD_WRAPPER_WITH_RETURN(DspFactory, createModule, ARG(0).toString());
-		DYNAMIC_METHOD_WRAPPER_WITH_RETURN(DspFactory, getModuleList);
-	};
+	struct Wrapper;
+	class Handler;
+	class LibraryLoader;
 
 	typedef ReferenceCountedObjectPtr<DspFactory> Ptr;
-	typedef ReferenceCountedObjectPtr<const DspFactory> ConstPtr;
-
 };
-
-class ConstScriptingObject;
 
 
 /** This objects is a wrapper around the actual DSP module that is loaded from a plugin.
@@ -213,23 +96,16 @@ public:
 	/** Applies the module on the data.
 	*
 	*	The incoming data can be either a VariantBuffer or a array of VariantBuffers. */
-	void operator >>(var &data);
+	void operator >>(const var &data);
 
 	/** Copies the modules internal data into either the supplied multichannel array or the buffer. */
 	void operator << (var &data) const;
 
 	var getInfo() const;
 
-private:
+	struct Wrapper;
 
-	struct Wrapper
-	{
-		API_VOID_METHOD_WRAPPER_1(DspInstance, processBlock);
-		API_VOID_METHOD_WRAPPER_2(DspInstance, prepareToPlay);
-		API_VOID_METHOD_WRAPPER_2(DspInstance, setParameter);
-		API_METHOD_WRAPPER_1(DspInstance, getParameter);
-		API_METHOD_WRAPPER_0(DspInstance, getInfo);
-	};
+private:
 
 	void throwError(const String &errorMessage)
 	{
@@ -239,7 +115,6 @@ private:
 	const String moduleName;
 
 	DspBaseObject *object;
-
 	DspFactory::Ptr factory;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DspInstance)
@@ -260,7 +135,6 @@ public:
 	var createModule(const String &name) const override;
 
 	DspBaseObject *createDspBaseObject(const String &moduleName) const override;
-
 	void destroyDspBaseObject(DspBaseObject* handle) const override;
 
 	/** Overwrite this method and register every module you want to create with this factory using registerDspModule<Type>(). */

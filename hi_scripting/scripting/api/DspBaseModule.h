@@ -32,76 +32,11 @@
 
 #include "ScriptMacroDefinitions.h"
 
-/** A interface class for objects that can be used with the [] operator in Javascript. 
-*
-*	It uses a cached look up index on compilation to accelerate the look up. 
-*/
-class AssignableObject
-{
-public:
-
-    virtual ~AssignableObject() {};
-    
-	/** Assign the value to the specified index. The parameter passed in must relate to the index created with getCachedIndex. */
-	virtual void assign(const int index, var newValue) = 0;
-
-	/** Return the value for the specified index. The parameter passed in must relate to the index created with getCachedIndex. */
-	virtual var getAssignedValue(int index) const = 0;
-
-	/** Overwrite this and return an index that can be used to look up the value when the script is executed. */
-	virtual int getCachedIndex(const var &indexExpression) const = 0;
-};
-
 #if HISE_DLL
-
-/** A generic template factory class.
-*
-*	Create a instance with the base class as template and add subclasses via registerType<SubClass>().
-*	The subclasses must have a static method
-*
-*		static Identifier getName() { RETURN_STATIC_IDENTIFIER(name) }
-*
-*	so that the factory can decide which subtype to create.
-*/
-template <typename BaseClass>
-class Factory
-{
-public:
-
-	/** Register a subclass to this factory. The subclass must have a static method 'Identifier getName()'. */
-	template <typename DerivedClass> void registerType()
-	{
-		if (std::is_base_of<BaseClass, DerivedClass>::value)
-		{
-			ids.add(DerivedClass::getName());
-			functions.add(&createFunc<DerivedClass>);
-		}
-	}
-
-	/** Creates a subclass instance with the registered Identifier and returns a base class pointer to this. You need to take care of the ownership of course. */
-	BaseClass* createFromId(const Identifier &id) const
-	{
-		const int index = ids.indexOf(id);
-
-		if (index != -1) return functions[index]();
-		else			 return nullptr;
-	}
-
-	const Array<Identifier> &getIdList() const { return ids; }
-
-private:
-
-	/** @internal */
-	template <typename DerivedClass> static BaseClass* createFunc() { return new DerivedClass(); }
-
-	/** @internal */
-	typedef BaseClass* (*PCreateFunc)();
-
-	Array<Identifier> ids;
-	Array <PCreateFunc> functions;;
-};
-
+#include "BaseFactory.h"
 #endif
+
+
 
 /** This interface class is the base class for all modules that can be loaded as plugin into the script FX processor. 
 *

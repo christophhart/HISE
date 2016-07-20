@@ -115,3 +115,67 @@ Processor* EffectProcessorChainFactoryType::createProcessor	(int typeIndex, cons
 	}
 };
 
+void EffectProcessorChain::EffectChainHandler::add(Processor *newProcessor, Processor *siblingToInsertBefore)
+{
+	ScopedLock sl(chain->getMainController()->getLock());
+
+	jassert(dynamic_cast<EffectProcessor*>(newProcessor) != nullptr);
+
+	for (int i = 0; i < newProcessor->getNumInternalChains(); i++)
+	{
+		dynamic_cast<ModulatorChain*>(newProcessor->getChildProcessor(i))->setColour(newProcessor->getColour());
+	}
+
+	newProcessor->setConstrainerForAllInternalChains(chain->getFactoryType()->getConstrainer());
+
+	if (VoiceEffectProcessor* vep = dynamic_cast<VoiceEffectProcessor*>(newProcessor))
+	{
+		const int index = chain->voiceEffects.indexOf(dynamic_cast<VoiceEffectProcessor*>(siblingToInsertBefore));
+
+		chain->voiceEffects.insert(index, vep);
+	}
+	else if (MasterEffectProcessor* mep = dynamic_cast<MasterEffectProcessor*>(newProcessor))
+	{
+		const int index = chain->masterEffects.indexOf(dynamic_cast<MasterEffectProcessor*>(siblingToInsertBefore));
+		chain->masterEffects.insert(index, mep);
+	}
+	else if (MonophonicEffectProcessor* mep = dynamic_cast<MonophonicEffectProcessor*>(newProcessor))
+	{
+		const int index = chain->monoEffects.indexOf(dynamic_cast<MonophonicEffectProcessor*>(siblingToInsertBefore));
+		chain->monoEffects.insert(index, mep);
+
+	}
+	else jassertfalse;
+
+	if (RoutableProcessor *rp = dynamic_cast<RoutableProcessor*>(newProcessor))
+	{
+		RoutableProcessor *parentRouter = dynamic_cast<RoutableProcessor*>(chain->getParentProcessor());
+
+		jassert(parentRouter != nullptr);
+
+		rp->getMatrix().setNumSourceChannels(parentRouter->getMatrix().getNumSourceChannels());
+		rp->getMatrix().setNumDestinationChannels(parentRouter->getMatrix().getNumSourceChannels());
+		rp->getMatrix().setTargetProcessor(chain->getParentProcessor());
+	}
+
+	chain->allEffects.add(dynamic_cast<EffectProcessor*>(newProcessor));
+
+	jassert(chain->allEffects.size() == (chain->masterEffects.size() + chain->voiceEffects.size() + chain->monoEffects.size()));
+
+	if (chain->getSampleRate() > 0.0 && newProcessor != nullptr)
+	{
+		newProcessor->prepareToPlay(chain->getSampleRate(), chain->getBlockSize());
+	}
+	else
+	{
+		debugError(chain, "Trying to add a processor to a uninitialized effect chain (internal engine error).");
+	}
+
+
+	if (JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(newProcessor))
+	{
+		sp->compileScript();
+	}
+
+	sendChangeMessage();
+}

@@ -197,11 +197,9 @@ void JavascriptMidiProcessor::runScriptCallbacks()
 		synthObject->increaseNoteCounter();
 		if (onNoteOnCallback->isSnippetEmpty()) return;
 
-		Result r = Result::ok();
+		scriptEngine->executeCallback(onNoteOn, &lastResult);
 
-		scriptEngine->executeCallback(onNoteOn, &r);
-
-		if (!r.wasOk()) debugError(this, r.getErrorMessage());
+		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, onNoteOnCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
 
 	}
 	else if (currentMessage.isNoteOff())
@@ -209,10 +207,10 @@ void JavascriptMidiProcessor::runScriptCallbacks()
 		synthObject->decreaseNoteCounter();
 
 		if (onNoteOffCallback->isSnippetEmpty()) return;
-		Result r = Result::ok();
-		scriptEngine->executeCallback(onNoteOff, &r);
 
-		if (!r.wasOk()) debugError(this, r.getErrorMessage());
+		scriptEngine->executeCallback(onNoteOff, &lastResult);
+
+		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, onNoteOffCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
 	}
 	else if (currentMessage.isController() || currentMessage.isPitchWheel() || currentMessage.isAftertouch())
 	{
@@ -227,9 +225,9 @@ void JavascriptMidiProcessor::runScriptCallbacks()
 		if (currentMessage.isAllNotesOff()) return;
 
 		Result r = Result::ok();
-		scriptEngine->executeCallback(onController, &r);
+		scriptEngine->executeCallback(onController, &lastResult);
 
-		if (!r.wasOk()) debugError(this, r.getErrorMessage());
+		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, onControllerCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
 	}
 	else if (currentMessage.isSongPositionPointer())
 	{
@@ -263,17 +261,14 @@ void JavascriptMidiProcessor::runTimerCallback(int /*offsetInBuffer*//*=-1*/)
 
 	scriptEngine->maximumExecutionTime = isDeferred() ? RelativeTime(0.5) : RelativeTime(0.002);
 
-	Result r = Result::ok();
-	scriptEngine->executeCallback(onTimer, &r);
+	scriptEngine->executeCallback(onTimer, &lastResult);
 
 	if (isDeferred())
 	{
 		sendSynchronousChangeMessage();
 	}
 
-#if USE_BACKEND
-	if (!r.wasOk()) getMainController()->writeToConsole(r.getErrorMessage(), 1, this, content->getColour());
-#endif
+	BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, onTimerCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
 }
 
 void JavascriptMidiProcessor::deferCallbacks(bool addToFront_)
@@ -401,12 +396,10 @@ void JavascriptMidiProcessor::controlCallback(ScriptingApi::Content::ScriptCompo
 		return;
 	}
 
-	Result r = Result::ok();
-
 	scriptEngine->maximumExecutionTime = RelativeTime(0.5);
 	scriptEngine->setCallbackParameter(onControl, 0, component);
 	scriptEngine->setCallbackParameter(onControl, 1, controllerValue);
-	scriptEngine->executeCallback(onControl, &r);
+	scriptEngine->executeCallback(onControl, &lastResult);
 
 	if (MessageManager::getInstance()->isThisTheMessageThread())
 	{
@@ -418,9 +411,7 @@ void JavascriptMidiProcessor::controlCallback(ScriptingApi::Content::ScriptCompo
 	}
 
 
-#if USE_BACKEND
-	if (!r.wasOk()) debugError(this, r.getErrorMessage());
-#endif
+	BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, onControlCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
 }
 
 
@@ -546,15 +537,13 @@ void JavascriptMasterEffect::controlCallback(ScriptingApi::Content::ScriptCompon
 		return;
 	}
 
-	Result r = Result::ok();
-
 	scriptEngine->maximumExecutionTime = RelativeTime(0.5);
 
 	ScopedLock sl(compileLock);
 
 	scriptEngine->setCallbackParameter(onControl, 0, component);
 	scriptEngine->setCallbackParameter(onControl, 1, controllerValue);
-	scriptEngine->executeCallback(onControl, &r);
+	scriptEngine->executeCallback(onControl, &lastResult);
 
 	if (MessageManager::getInstance()->isThisTheMessageThread())
 	{
@@ -565,9 +554,7 @@ void JavascriptMasterEffect::controlCallback(ScriptingApi::Content::ScriptCompon
 		sendChangeMessage();
 	}
 
-#if USE_BACKEND
-	if (!r.wasOk()) debugError(this, r.getErrorMessage());
-#endif
+	BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, onControlCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
 }
 
 void JavascriptMasterEffect::postCompileCallback()
@@ -580,9 +567,6 @@ void JavascriptMasterEffect::prepareToPlay(double sampleRate, int samplesPerBloc
 	ScopedLock sl(compileLock);
 
 	MasterEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
-
-	
-
 	Array<var> channelArray;
 
 	bufferL = new VariantBuffer(0);
@@ -599,9 +583,7 @@ void JavascriptMasterEffect::prepareToPlay(double sampleRate, int samplesPerBloc
 		scriptEngine->setCallbackParameter(Callbacks::prepareToPlay, 1, samplesPerBlock);
 		scriptEngine->executeCallback(Callbacks::prepareToPlay, &lastResult);
 
-#if USE_BACKEND
-		if (!lastResult.wasOk()) debugError(this, lastResult.getErrorMessage());
-#endif
+		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, prepareToPlayCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
 	}
 }
 
@@ -620,9 +602,7 @@ void JavascriptMasterEffect::applyEffect(AudioSampleBuffer &b, int startSample, 
 		scriptEngine->setCallbackParameter(Callbacks::processBlock, 0, channels);
 		scriptEngine->executeCallback(Callbacks::processBlock, &lastResult);
 
-#if USE_BACKEND
-		if (!lastResult.wasOk()) debugError(this, lastResult.getErrorMessage());
-#endif
+		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, processBlockCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
 	}
 }
 
@@ -693,17 +673,17 @@ void JavascriptVoiceStartModulator::handleMidiEvent(const MidiMessage &m)
 			ScopedLock sl(compileLock);
 			scriptEngine->setCallbackParameter(onVoiceStop, 0, 0);
 			scriptEngine->executeCallback(onVoiceStop, &lastResult);
+
+			BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, onVoiceStopCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
 		}
 	}
 	else if (m.isController() && !onControllerCallback->isSnippetEmpty())
 	{
 		ScopedLock sl(compileLock);
 		scriptEngine->executeCallback(onController, &lastResult);
-	}
 
-#if USE_BACKEND
-	if (!lastResult.wasOk()) debugError(this, lastResult.getErrorMessage());
-#endif
+		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, onControllerCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
+	}
 }
 
 void JavascriptVoiceStartModulator::startVoice(int voiceIndex)
@@ -790,9 +770,7 @@ void JavascriptVoiceStartModulator::controlCallback(ScriptingApi::Content::Scrip
 		sendChangeMessage();
 	}
 
-#if USE_BACKEND
-	if (!lastResult.wasOk()) debugError(this, lastResult.getErrorMessage());
-#endif
+	BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, onControlCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
 }
 
 
@@ -878,6 +856,8 @@ void JavascriptTimeVariantModulator::handleMidiEvent(const MidiMessage &m)
 			ScopedLock sl(compileLock);
 			scriptEngine->executeCallback(onNoteOn, &lastResult);
 		}
+
+		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, onNoteOnCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
 	}
 	else if (m.isNoteOff())
 	{
@@ -888,16 +868,18 @@ void JavascriptTimeVariantModulator::handleMidiEvent(const MidiMessage &m)
 			ScopedLock sl(compileLock);
 			scriptEngine->executeCallback(onNoteOff, &lastResult);
 		}
+
+		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, onNoteOffCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
 	}
 	else if (m.isController() && !onControllerCallback->isSnippetEmpty())
 	{
 		ScopedLock sl(compileLock);
 		scriptEngine->executeCallback(onController, &lastResult);
+
+		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, onControllerCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
 	}
 
-#if USE_BACKEND
-	if (!lastResult.wasOk()) debugError(this, lastResult.getErrorMessage());
-#endif
+
 }
 
 void JavascriptTimeVariantModulator::prepareToPlay(double sampleRate, int samplesPerBlock)
@@ -916,9 +898,7 @@ void JavascriptTimeVariantModulator::prepareToPlay(double sampleRate, int sample
 		scriptEngine->setCallbackParameter(Callback::prepare, 1, samplesPerBlock);
 		scriptEngine->executeCallback(Callback::prepare, &lastResult);
 
-#if USE_BACKEND
-		if (!lastResult.wasOk()) debugError(this, lastResult.getErrorMessage());
-#endif
+		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, prepareToPlayCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
 	}
 }
 
@@ -933,9 +913,7 @@ void JavascriptTimeVariantModulator::calculateBlock(int startSample, int numSamp
 		scriptEngine->setCallbackParameter(Callback::processBlock, 0, bufferVar);
 		scriptEngine->executeCallback(Callback::processBlock, &lastResult);
 
-#if USE_BACKEND
-		if (!lastResult.wasOk()) debugError(this, lastResult.getErrorMessage());
-#endif
+		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, processBlockCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
 	}
 
 #if ENABLE_ALL_PEAK_METERS
@@ -1019,9 +997,7 @@ void JavascriptTimeVariantModulator::controlCallback(ScriptingApi::Content::Scri
 		sendChangeMessage();
 	}
 
-#if USE_BACKEND
-	if (!lastResult.wasOk()) debugError(this, lastResult.getErrorMessage());
-#endif
+	BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, onControlCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
 }
 
 void JavascriptTimeVariantModulator::postCompileCallback()

@@ -31,192 +31,11 @@
 */
 
 
-class MouseCallbackComponent: public Component
-{
-    enum EnterState
-    {
-        Nothing = 0,
-        Entered,
-        Exited,
-        numEnterStates
-    };
-    
-    enum class Action
-    {
-        Moved,
-        Dragged,
-        Clicked,
-        Entered,
-        Nothing
-    };
-
-
-    
-public:
-    
-	enum class CallbackLevel
-	{
-		NoCallbacks = 0,
-		ClicksOnly,
-		ClicksAndEnter,
-		Drag,
-		AllCallbacks
-	};
-
-    class Listener
-    {
-    public:
-        virtual ~Listener()
-        {
-            masterReference.clear();
-        }
-        
-        virtual void mouseCallback(const var &mouseInformation) = 0;
-        
-    private:
-        
-        friend class WeakReference < Listener > ;
-        WeakReference<Listener>::Master masterReference;
-    };
-    
-    virtual ~MouseCallbackComponent()
-    {
-        
-    };
-    
-	static StringArray getCallbackLevels()
-	{
-		StringArray sa;
-		sa.add("No Callbacks");
-		sa.add("Clicks Only"); 
-		sa.add("Clicks & Hover");
-		sa.add("Clicks, Hover & Dragging");
-		sa.add("All Callbacks");
-
-		return sa;
-	}
-
-    MouseCallbackComponent():
-      callbackLevel(CallbackLevel::NoCallbacks),
-      currentEvent(new DynamicObject()),
-	  callbackLevels(getCallbackLevels())
-    {
-        
-    };
-    
-
-	void setPopupMenuItems(const StringArray &newItemList)
-	{
-		itemList.clear();
-		itemList.addArray(newItemList);
-	}
-
-	void setUseRightClickForPopup(bool shouldUseRightClickForPopup)
-	{
-		useRightClickForPopup = shouldUseRightClickForPopup;
-	}
-
-
-    void addMouseCallbackListener(Listener *l)
-    {
-        listenerList.addIfNotAlreadyThere(l);
-    }
-    
-    void removeCallbackListener(Listener *l)
-    {
-        listenerList.removeAllInstancesOf(l);
-    }
-    
-    void removeAllCallbackListeners()
-    {
-        listenerList.clear();
-    }
-    
-    
-    void mouseDown(const MouseEvent& event) override
-    {
-		if (callbackLevel < CallbackLevel::ClicksOnly) return;
-
-		sendMessage(event, Action::Clicked);
-
-		if (itemList.size() != 0)
-		{
-			if (event.mods.isRightButtonDown() == useRightClickForPopup)
-			{
-				PopupMenu m;
-				m.setLookAndFeel(&plaf);
-
-				for (int i = 0; i < itemList.size(); i++)
-				{
-					m.addItem(i + 1, itemList[i], true, false);
-				}
-
-				var result = m.show();
-
-				sendToListeners(result);
-			}
-		}
-    }
-    
-    void setAllowCallback(const String &newCallbackLevel) noexcept
-    {
-		const int index = callbackLevels.indexOf(newCallbackLevel);
-
-		callbackLevel = index != -1 ? (CallbackLevel)index : CallbackLevel::NoCallbacks;
-    }
-    
-	CallbackLevel getCallbackLevel() const
-	{
-		return callbackLevel;
-	}
-
-    void mouseDrag(const MouseEvent& event) override
-    {
-		if (callbackLevel < CallbackLevel::Drag) return;
-
-        sendMessage(event, Action::Dragged);
-    }
-    
-    void mouseEnter(const MouseEvent &event) override
-    {
-		if (callbackLevel < CallbackLevel::ClicksAndEnter) return;
-
-        sendMessage(event, Action::Moved, Entered);
-    }
-    
-    void mouseExit(const MouseEvent &event) override
-    {
-		if (callbackLevel < CallbackLevel::ClicksAndEnter) return;
-
-        sendMessage(event, Action::Moved, Exited);
-    }
-    
-private:
-    
-	const StringArray callbackLevels;
-
-	PopupLookAndFeel plaf;
-
-    CallbackLevel callbackLevel;
-    
-	StringArray itemList;
-	bool useRightClickForPopup = true;
-    
-    void sendMessage(const MouseEvent &event, Action action, EnterState state=Nothing);
-
-	void sendToListeners(var clickInformation);
-
-	Array<WeakReference<Listener>> listenerList;
-    
-    DynamicObject::Ptr currentEvent;
-    
-};
-
-
-
 class ScriptedControlAudioParameter : public AudioProcessorParameterWithID
 {
 public:
+
+	// ================================================================================================================
 
 	enum class Type
 	{
@@ -226,9 +45,14 @@ public:
 		Unsupported
 	};
 
-	ScriptedControlAudioParameter(ScriptingApi::Content::ScriptComponent *newComponent, AudioProcessor *parentProcessor, ScriptBaseMidiProcessor *scriptProcessor, int index);
+	ScriptedControlAudioParameter(ScriptingApi::Content::ScriptComponent *newComponent, 
+								  AudioProcessor *parentProcessor, 
+								  ScriptBaseMidiProcessor *scriptProcessor, 
+								  int index);
 
 	void setControlledScriptComponent(ScriptingApi::Content::ScriptComponent *newComponent);
+
+	// ================================================================================================================
 
 	float getValue() const override;
 	void setValue(float newValue) override;
@@ -241,7 +65,6 @@ public:
 	int getNumSteps() const override;
 
 	void setParameterNotifyingHost(int index, float newValue);
-
 	bool isAutomatable() const override { return true; };
 
 	static Type getType(ScriptingApi::Content::ScriptComponent *component);
@@ -256,130 +79,25 @@ public:
 
 	Identifier getId() const { return id; }
 
-
 	void deactivateUpdateForNextSetValue() { deactivated = true; }
 
 private:
 
+	// ================================================================================================================
+
 	bool deactivated;
-
 	const Identifier id;
-
 	NormalisableRange<float> range;
-
 	Type type;
-
 	AudioProcessor *parentProcessor;
-
-	WeakReference<ScriptBaseMidiProcessor> scriptProcessor;
-
+	WeakReference<Processor> scriptProcessor;
 	int componentIndex;
-
 	String suffix;
-
 	StringArray itemList;
-};
 
-class BorderPanel : public MouseCallbackComponent
-{
-public:
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptedControlAudioParameter);
 
-	BorderPanel();
-
-
-	void paint(Graphics &g);
-	Colour c1, c2, borderColour;
-
-	float borderRadius;
-	float borderSize;
-
-};
-
-
-class ImageComponentWithMouseCallback: public MouseCallbackComponent
-{
-public:
-    
-    ImageComponentWithMouseCallback():
-      image(nullptr),
-      alpha(1.0f),
-      offset(0),
-      scale(1.0)
-    {
-        
-    }
-    
-    void paint(Graphics &g) override
-    {
-        if(image.isValid())
-        {
-            g.setOpacity(jmax<float>(0.0f, jmin<float>(1.0f, alpha)));
-
-            Rectangle<int> cropArea = Rectangle<int>(0,
-                                                     offset,
-                                                     jmin<int>(getWidth(), image.getWidth()),
-                                                     jmin<int>(getHeight(), image.getHeight()));
-            
-            Image croppedImage = image.getClippedImage(cropArea);
-            
-            if(scale != 1.0)
-            {
-                croppedImage = croppedImage.rescaled((int)((double)croppedImage.getWidth() / scale), (int)((double)croppedImage.getHeight() / scale));
-            }
-            
-            g.drawImageAt(croppedImage, 0, 0);
-        }
-    };
-    
-    void setImage(const Image &newImage)
-    {
-        if(newImage != image)
-        {
-            image = newImage;
-            repaint();
-        }
-    };
-    
-    void setAlpha(float newAlpha)
-    {
-        if(alpha != newAlpha)
-        {
-            alpha = newAlpha;
-            repaint();            
-        }
-    };
-    
-    void setOffset(int newOffset)
-    {
-        if(newOffset != offset)
-        {
-            offset = newOffset;
-            repaint();
-        }
-    };
-    
-    void setScale(double newScale)
-    {
-        if(newScale != scale)
-        {
-            scale = jmax<double>(0.1, newScale);
-            
-            repaint();
-        }
-    };
-    
-private:
-    
-	
-    float alpha;
-    int offset;
-    double scale;
-    
-	
-
-    AffineTransform scaler;
-    
-    Image image;
+	// ================================================================================================================
 };
 
 class ScriptContentComponent;

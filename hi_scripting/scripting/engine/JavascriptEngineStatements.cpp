@@ -137,7 +137,7 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 		{
 			LoopStatement *loop = (LoopStatement*)(s.currentLoopStatement);
 			var *data = &loop->currentObject;
-			CHECK_CONDITION(data != nullptr, "data does not exist");
+			CHECK_CONDITION_WITH_LOCATION(data != nullptr, "data does not exist");
 
 			if (data->isArray())			return data->getArray()->getUnchecked(loop->index);
 			else if (data->isBuffer())		return data->getBuffer()->getSample(loop->index);
@@ -151,7 +151,7 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 		{
 			LoopStatement *loop = (LoopStatement*)(s.currentLoopStatement);
 			var *data = &loop->currentObject;
-			CHECK_CONDITION(data != nullptr, "data does not exist");
+			CHECK_CONDITION_WITH_LOCATION(data != nullptr, "data does not exist");
 
 			if (data->isArray())		data->getArray()->set(loop->index, newValue);
 			else if (data->isBuffer())	data->getBuffer()->setSample(loop->index, newValue);
@@ -170,7 +170,7 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 	{
 		if (isIterator)
 		{
-			CHECK_CONDITION((currentIterator != nullptr), "Iterator does not exist");
+			CHECK_CONDITION_WITH_LOCATION((currentIterator != nullptr), "Iterator does not exist");
 			currentObject = currentIterator->getResult(s);
 
 			ScopedValueSetter<void*> loopScoper(s.currentLoopStatement, (void*)this);

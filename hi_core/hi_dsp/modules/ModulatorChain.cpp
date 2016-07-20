@@ -193,6 +193,11 @@ void ModulatorChain::ModulatorChainHandler::addModulator(Modulator *newModulator
 
 	jassert(chain->checkModulatorStructure());
 
+	if (JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(newModulator))
+	{
+		sp->compileScript();
+	}
+
 	chain->sendChangeMessage();
 };
 

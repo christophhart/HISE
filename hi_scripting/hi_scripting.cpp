@@ -36,6 +36,7 @@
 
 #include "scripting/api/DspFactory.cpp"
 #include "scripting/engine/JavascriptApiClass.cpp"
+#include "scripting/api/ScriptingBaseObjects.cpp"
 #include "scripting/engine/DebugHelpers.cpp"
 #include "scripting/engine/HiseJavascriptEngine.cpp"
 #include "scripting/engine/JavascriptEngineExpressions.cpp"
@@ -44,11 +45,15 @@
 #include "scripting/engine/JavascriptEngineCustom.cpp"
 #include "scripting/engine/JavascriptEngineParser.cpp"
 #include "scripting/engine/JavascriptEngineObjects.cpp"
+#include "scripting/engine/JavascriptEngineMathObject.cpp"
+#include "scripting/engine/JavascriptEngineAdditionalMethods.cpp"
 
 #include "scripting/api/XmlApi.cpp"
 #include "scripting/api/ScriptingApiObjects.cpp"
 #include "scripting/api/ScriptingApi.cpp"
 #include "scripting/api/ScriptingApiWrappers.cpp"
+#include "scripting/api/ScriptingApiContent.cpp"
+
 
 
 #include "scripting/ScriptProcessor.cpp"

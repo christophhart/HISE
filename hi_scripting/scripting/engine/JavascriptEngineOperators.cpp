@@ -32,6 +32,9 @@ struct HiseJavascriptEngine::RootObject::BinaryOperator : public BinaryOperatorB
 		if (a.isArray() || a.isObject())
 			return getWithArrayOrObject(a, b);
 
+		if (isNumericOrUndefined(a) && b.isBuffer())
+			return getWithArrayOrObject(a, b);
+
 		return getWithStrings(a.toString(), b.toString());
 	}
 
@@ -188,18 +191,17 @@ struct HiseJavascriptEngine::RootObject::LeftShiftOp : public BinaryOperator
 	{
 		if (VariantBuffer *buffer = dynamic_cast<VariantBuffer*>(a.getDynamicObject()))
 		{
-			if (VariantBuffer *otherBuffer = dynamic_cast<VariantBuffer*>(b.getDynamicObject()))
-			{
-				if (otherBuffer->buffer.getNumSamples() != buffer->buffer.getNumSamples())
-				{
-					throw String("Buffer size mismatch: " + String(buffer->buffer.getNumSamples()) + " vs. " + String(otherBuffer->buffer.getNumSamples()));
-				}
-
-				*buffer << *otherBuffer;
-			}
-			else
+			if (isNumericOrUndefined(b))
 			{
 				*buffer << (float)b;
+			}
+			else if (VariantBuffer *otherBuffer = dynamic_cast<VariantBuffer*>(b.getDynamicObject()))
+			{
+				*buffer << *otherBuffer;
+			}
+			else if (DspInstance* instance = dynamic_cast<DspInstance*>(b.getObject()))
+			{
+				*instance >> a;
 			}
 		}
 
@@ -211,6 +213,32 @@ struct HiseJavascriptEngine::RootObject::RightShiftOp : public BinaryOperator
 {
 	RightShiftOp(const CodeLocation& l, ExpPtr& a, ExpPtr& b) noexcept : BinaryOperator(l, a, b, TokenTypes::rightShift) {}
 	var getWithInts(int64 a, int64 b) const override   { return ((int)a) >> (int)b; }
+	
+	var getWithArrayOrObject(const var& a, const var&b) const override
+	{
+		if (isNumericOrUndefined(a))
+		{
+			if (VariantBuffer *buffer = dynamic_cast<VariantBuffer*>(b.getDynamicObject()))
+			{
+				(float)a >> *buffer;
+			}
+		}
+		else if (VariantBuffer *buffer = dynamic_cast<VariantBuffer*>(a.getDynamicObject()))
+		{
+			if (VariantBuffer *otherBuffer = dynamic_cast<VariantBuffer*>(b.getDynamicObject()))
+			{
+				*buffer >> *otherBuffer;
+			}
+		}
+		else if (DspInstance* instance = dynamic_cast<DspInstance*>(a.getObject()))
+		{
+			*instance >> b;
+		}
+		
+
+		return a;
+	}
+
 };
 
 struct HiseJavascriptEngine::RootObject::RightShiftUnsignedOp : public BinaryOperator

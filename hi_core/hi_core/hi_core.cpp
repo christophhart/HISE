@@ -32,6 +32,11 @@
 
 #include "hi_core.h"
 
+namespace juce
+{
+#include "VariantBuffer.cpp"
+}
+
 #if USE_IPP
 #include "IppFFT.cpp"
 #endif
@@ -50,8 +55,7 @@
 #include "Popup.cpp"
 #include "Console.cpp"
 #include "BackgroundThreads.cpp"
-
+#include "MiscComponents.cpp"
 #include "JavascriptTokeniser.cpp"
-
 #include "MacroControlledComponents.cpp"
 #include "MacroControlBroadcaster.cpp"

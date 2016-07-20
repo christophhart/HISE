@@ -301,24 +301,7 @@ public:
 			chain(c)
 		{};
 
-		void add(Processor *newProcessor, Processor *siblingToInsertBefore)
-		{
-			ScopedLock sl(chain->getMainController()->getLock());
-
-			MidiProcessor *m = dynamic_cast<MidiProcessor*>(newProcessor);
-
-			//m->setColour(chain->getColour().withMultipliedBrightness(0.6f));
-
-			jassert(m != nullptr);
-			
-			const int index = siblingToInsertBefore == nullptr ? -1 : chain->processors.indexOf(dynamic_cast<MidiProcessor*>(siblingToInsertBefore));
-
-			chain->processors.insert(index, m);
-
-			newProcessor->prepareToPlay(chain->getSampleRate(), chain->getBlockSize());
-
-			sendChangeMessage();
-		}
+		void add(Processor *newProcessor, Processor *siblingToInsertBefore);
 
 		void remove(Processor *processorToBeRemoved)
 		{

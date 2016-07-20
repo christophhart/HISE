@@ -81,7 +81,7 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 			results[i] = argumentList[i]->getResult(s);
 		}
 
-		CHECK_CONDITION(apiClass != nullptr, "API class does not exist");
+		CHECK_CONDITION_WITH_LOCATION(apiClass != nullptr, "API class does not exist");
 
 		return apiClass->callFunction(functionIndex, results, expectedNumArguments);
 	}
@@ -120,15 +120,15 @@ struct HiseJavascriptEngine::RootObject::ConstObjectApiCall : public Expression
 		{
 			initialised = true;
 
-			CHECK_CONDITION(objectPointer != nullptr, "Object Pointer does not exist");
+			CHECK_CONDITION_WITH_LOCATION(objectPointer != nullptr, "Object Pointer does not exist");
 
 			object = dynamic_cast<ConstScriptingObject*>(objectPointer->getObject());
 
-			CHECK_CONDITION(object != nullptr, "Object doesn't exist");
+			CHECK_CONDITION_WITH_LOCATION(object != nullptr, "Object doesn't exist");
 
 			object->getIndexAndNumArgsForFunction(functionName, functionIndex, expectedNumArguments);
 
-			CHECK_CONDITION(functionIndex != -1, "function " + functionName.toString() + " not found.");
+			CHECK_CONDITION_WITH_LOCATION(functionIndex != -1, "function " + functionName.toString() + " not found.");
 		}
 
 		for (int i = 0; i < expectedNumArguments; i++)
@@ -136,7 +136,7 @@ struct HiseJavascriptEngine::RootObject::ConstObjectApiCall : public Expression
 			results[i] = argumentList[i]->getResult(s);
 		}
 
-		CHECK_CONDITION(object != nullptr, "Object does not exist");
+		CHECK_CONDITION_WITH_LOCATION(object != nullptr, "Object does not exist");
 
 		return object->callFunction(functionIndex, results, expectedNumArguments);
 	}

@@ -30,6 +30,21 @@
 *   ===========================================================================
 */
 
+
+
+Console::ConsoleEditorComponent::ConsoleEditorComponent(CodeDocument &doc, CodeTokeniser* tok) :
+CodeEditorComponent(doc, tok)
+{
+	setReadOnly(true);
+	setColour(CodeEditorComponent::ColourIds::backgroundColourId, Colour(0xFF666666));
+	getDocument().getUndoManager().setMaxNumberOfStoredUnits(0, 0);
+
+	setFont(GLOBAL_MONOSPACE_FONT());
+	setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colours::white.withBrightness(0.9f));
+	setLineNumbersShown(false);
+}
+
+
 Console::Console(BaseDebugArea *area) :
 		AutoPopupDebugComponent(area),
 		line(0),
@@ -53,8 +68,12 @@ Console::Console(BaseDebugArea *area) :
 	
 	textConsole->setPopupMenuEnabled(false);
     
-	
-	
+	doc = new CodeDocument();
+	tokeniser = new ConsoleTokeniser();
+
+	addAndMakeVisible(newTextConsole = new ConsoleEditorComponent(*doc, tokeniser));
+	newTextConsole->addMouseListener(this, true);
+
 	textConsole->setColour (TextEditor::shadowColourId, Colours::black);
 	textConsole->setColour(TextEditor::backgroundColourId, Colour(DEBUG_AREA_BACKGROUND_COLOUR));
     textConsole->addMouseListener(this, true);
@@ -96,6 +115,10 @@ Console::~Console()
 	textConsole = nullptr;
 	clearButton = nullptr;
 	
+	newTextConsole = nullptr;
+	doc = nullptr;
+	tokeniser = nullptr;
+
 	masterReference.clear();
 
 };
@@ -103,7 +126,8 @@ Console::~Console()
 
 void Console::resized()
 {
-	textConsole->setBounds(getLocalBounds());
+	newTextConsole->setBounds(getLocalBounds());
+
 }
 
 void Console::buttonClicked (Button* b)
@@ -135,26 +159,26 @@ void Console::mouseDown(const MouseEvent &e)
         
         const int result = m.show();
         
-        if(result == 1) clear();
-            else if (result == 2)
-            {
-                textConsole->moveCaretToEnd(false);
-            }
+		if (result == 1)
+		{
+			newTextConsole->getDocument().replaceAllContent("");
+			
+		}
+        else if (result == 2)
+        {
+			newTextConsole->moveCaretToEnd(false);
+        }
     }
     else if (e.mods.isAltDown())
     {
-        int textPos = textConsole->getTextIndexAt(e.getMouseDownX(), e.getMouseDownY());
-        
-        String content = textConsole->getText();
-        
-        int last = content.indexOfChar(textPos, ':');
-        
-        int first = content.substring(0, textPos).lastIndexOfChar('\n');
-        
-        String name = content.substring(first, last).upToFirstOccurrenceOf(":", false, false).removeCharacters("\r\n\t");
-        
+		
+
 #if USE_BACKEND
         
+		CodeDocument::Position pos = newTextConsole->getCaretPos();
+
+		String name = newTextConsole->getDocument().getLine(pos.getLineNumber()).upToFirstOccurrenceOf(":", false, false);
+
         if(name.isNotEmpty())
         {
             BackendProcessorEditor *editor = findParentComponentOfClass<BackendProcessorEditor>();
@@ -175,7 +199,6 @@ void Console::mouseDown(const MouseEvent &e)
 
 void Console::logMessage(const String &t, WarningLevel warningLevel, const Processor *p, Colour c)
 {
-
 	if(overflowProtection) return;
 
 	else
@@ -208,17 +231,27 @@ void Console::logMessage(const String &t, WarningLevel warningLevel, const Proce
 void Console::handleAsyncUpdate()
 {
 	Array<ConsoleMessage> messagesForThisTime;
-	messagesForThisTime.ensureStorageAllocated(unprintedMessages.size());
+	messagesForThisTime.ensureStorageAllocated(10);
 
 	if(unprintedMessages.size() != 0)
 	{
 		ScopedLock sl(lock);
-		messagesForThisTime.addArray(unprintedMessages);
-		unprintedMessages.clearQuick();
+		messagesForThisTime.swapWith(unprintedMessages);
 	}
 
 	for(int i = 0; i < messagesForThisTime.size(); i++)
 	{
+		
+		String message = messagesForThisTime[i].processor->getId();
+		message << ":";
+		message << (messagesForThisTime[i].warningLevel == WarningLevel::Error ? "! " : " ");
+		message << messagesForThisTime[i].message + "\n";
+		
+		doc->insertText(doc->getNumCharacters(), message);
+
+		continue;
+
+#if 0
 		
 		textConsole->moveCaretToEnd(false);
 
@@ -238,6 +271,7 @@ void Console::handleAsyncUpdate()
 		textConsole->setColour(TextEditor::ColourIds::textColourId, messageColour);
 		textConsole->moveCaretToEnd(false);
 		textConsole->insertTextAtCaret(messagesForThisTime[i].message + "\n");
+#endif
 	}
 
 	
