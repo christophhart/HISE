@@ -108,6 +108,21 @@ Console::Console(BaseDebugArea *area) :
 
 }
 
+void Console::timerCallback()
+{
+	cpuSlider->setValue(usage, dontSendNotification);
+
+	voiceLabel->setText("Voices: " + String(voiceAmount) + ", Tempo: " + String(hostTempo) + "BPM", dontSendNotification);
+
+	if (usage != 0)
+	{
+		ScopedLock sl(lock);
+		usage = 0;
+	}
+
+	unprintedMessages.ensureStorageAllocated(100);
+}
+
 Console::~Console()
 {
 	stopTimer();
@@ -143,6 +158,18 @@ void Console::buttonClicked (Button* b)
 	{
 		textConsole->clear();
 	}
+}
+
+void Console::clear()
+{
+	ScopedLock sl(lock);
+	{
+		tempString.clear();
+		line = 0;
+		processorLines.clear();
+	}
+
+	textConsole->clear();
 }
 
 void Console::mouseDown(const MouseEvent &e)
@@ -196,6 +223,14 @@ void Console::mouseDown(const MouseEvent &e)
     }
 }
 
+
+void Console::mouseMove(const MouseEvent &e)
+{
+	if (e.mods.isAltDown())
+	{
+		setMouseCursor(MouseCursor::PointingHandCursor);
+	}
+}
 
 void Console::logMessage(const String &t, WarningLevel warningLevel, const Processor *p, Colour c)
 {
@@ -279,3 +314,32 @@ void Console::handleAsyncUpdate()
 
 	return;
 };
+
+Console::ConsoleTokeniser::ConsoleTokeniser()
+{
+	s.set("id", Colours::black);
+	s.set("default", Colours::black.withBrightness(0.15f));
+	s.set("error", Colours::red.withBrightness(0.7f));
+}
+
+int Console::ConsoleTokeniser::readNextToken(CodeDocument::Iterator& source)
+{
+	while (source.nextChar() != ':')
+	{
+		return 0;
+	}
+
+
+	if (source.peekNextChar() == '!')
+	{
+		source.skipToEndOfLine();
+
+		return 2;
+	}
+	else
+	{
+		source.skipToEndOfLine();
+
+		return 1;
+	}
+}

@@ -52,6 +52,7 @@ MainController::MainController():
 	macroManager(this),
 	autoSaver(this),
 	enablePluginParameterUpdate(true),
+	customTypeFaceData(ValueTree("CustomFonts")),
 #if JUCE_WINDOWS
     globalCodeFontSize(14.0f)
 #else
@@ -81,6 +82,7 @@ MainController::~MainController()
 	Logger::setCurrentLogger(nullptr);
 	logger = nullptr;
 	masterReference.clear();
+	customTypeFaces.clear();
 }
 
 
@@ -799,6 +801,122 @@ void MainController::removeTempoListener(TempoListener *t)
 	ScopedLock sl(lock);
 	tempoListeners.removeAllInstancesOf(t);
 }
+
+juce::Typeface* MainController::getFont(const String &fontName) const
+{
+	for (int i = 0; i < customTypeFaces.size(); i++)
+	{
+		if (customTypeFaces[i]->getName() == fontName)
+		{
+			return customTypeFaces[i].get();
+		}
+	}
+
+	return nullptr;
+}
+
+void MainController::fillWithCustomFonts(StringArray &fontList)
+{
+	for (int i = 0; i < customTypeFaces.size(); i++)
+	{
+		fontList.addIfNotAlreadyThere(customTypeFaces[i]->getName());
+	}
+}
+
+void MainController::loadTypeFace(const String& fileName, const void* fontData, size_t fontDataSize)
+{
+	if (customTypeFaceData.getChildWithProperty("Name", fileName).isValid()) return;
+
+	customTypeFaces.add(juce::Typeface::createSystemTypefaceFor(fontData, fontDataSize));
+
+	MemoryBlock mb(fontData, fontDataSize);
+	
+	ValueTree v("Font");
+	v.setProperty("Name", fileName, nullptr);
+	v.setProperty("Data", var(mb), nullptr);
+	v.setProperty("Size", var((int)mb.getSize()), nullptr);
+
+	customTypeFaceData.addChild(v, -1, nullptr);
+}
+
+ValueTree MainController::exportCustomFontsAsValueTree() const
+{
+	return customTypeFaceData;
+}
+
+
+void MainController::restoreCustomFontValueTree(const ValueTree &v)
+{
+	customTypeFaceData = v;
+
+	for (int i = 0; i < customTypeFaceData.getNumChildren(); i++)
+	{
+		ValueTree child = customTypeFaceData.getChild(i);
+
+		if (!child.isValid())
+		{
+			jassertfalse;
+			return;
+		}
+
+		var c = child.getProperty("Data", var::undefined());
+
+		if (!c.isBinaryData())
+		{
+			jassertfalse;
+			return;
+		}
+
+		MemoryBlock *mb = c.getBinaryData();
+
+
+		if (mb != nullptr)
+		{
+			customTypeFaces.add(juce::Typeface::createSystemTypefaceFor(mb->getData(), mb->getSize()));
+		}
+		else
+		{
+			jassertfalse;
+		}
+	}
+}
+
+void MainController::insertStringAtLastActiveEditor(const String &string, bool selectArguments)
+{
+	if (lastActiveEditor.getComponent() != nullptr)
+	{
+		lastActiveEditor->getDocument().deleteSection(lastActiveEditor->getSelectionStart(), lastActiveEditor->getSelectionEnd());
+		lastActiveEditor->moveCaretTo(lastPosition, false);
+
+		lastActiveEditor->insertTextAtCaret(string);
+
+
+
+		if (selectArguments)
+		{
+			lastActiveEditor->moveCaretLeft(false, false);
+
+			while (!lastActiveEditor->getTextInRange(lastActiveEditor->getHighlightedRegion()).contains("("))
+			{
+				lastActiveEditor->moveCaretLeft(false, true);
+			}
+
+			lastActiveEditor->moveCaretRight(false, true);
+		}
+
+		lastActiveEditor->grabKeyboardFocus();
+	}
+}
+
+bool MainController::checkAndResetMidiInputFlag()
+{
+	const bool returnValue = midiInputFlag;
+	midiInputFlag = false;
+
+	return returnValue;
+}
+
+
 
 ControlledObject::ControlledObject(MainController *m):	
 	controller(m)	{jassert(m != nullptr);};

@@ -362,6 +362,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_2(Engine, getRegexMatches);
 	API_METHOD_WRAPPER_2(Engine, doubleToString);
 	API_METHOD_WRAPPER_0(Engine, getOS);
+	API_VOID_METHOD_WRAPPER_1(Engine, loadFont);
 };
 
 ScriptingApi::Engine::Engine(ProcessorWithScriptingContent *p) :
@@ -401,6 +402,7 @@ ApiClass(0)
 	ADD_API_METHOD_2(doubleToString);
 	ADD_API_METHOD_0(getOS);
 	ADD_API_METHOD_0(createTimerObject);
+	ADD_API_METHOD_1(loadFont);
 }
 
 
@@ -412,10 +414,36 @@ void ScriptingApi::Engine::allNotesOff()
 
 
 
-double ScriptingApi::Engine::getSampleRate() const
+void ScriptingApi::Engine::loadFont(const String &fileName)
 {
-	return const_cast<MainController*>(getProcessor()->getMainController())->getMainSynthChain()->getSampleRate();
+#if USE_BACKEND
+
+	const String absolutePath = GET_PROJECT_HANDLER(getProcessor()).getFilePath(fileName, ProjectHandler::SubDirectories::Images);
+	File f(absolutePath);
+	ScopedPointer<FileInputStream> fis = f.createInputStream();
+
+	if (fis == nullptr)
+	{
+		reportScriptError("File not found");
+		return;
+	}
+	else
+	{
+		MemoryBlock mb;
+
+		fis->readIntoMemoryBlock(mb);
+		getProcessor()->getMainController()->loadTypeFace(fileName, mb.getData(), mb.getSize());
+	}
+
+#else
+
+	// Nothing to do here, it will be loaded on startup...
+
+#endif
 }
+
+double ScriptingApi::Engine::getSampleRate() const { return const_cast<MainController*>(getProcessor()->getMainController())->getMainSynthChain()->getSampleRate(); }
+double ScriptingApi::Engine::getSamplesForMilliSeconds(double milliSeconds) const { return (milliSeconds / 1000.0) * getSampleRate(); }
 
 void ScriptingApi::Engine::setGlobal(int index, var valueToSave)
 {
@@ -428,31 +456,17 @@ void ScriptingApi::Engine::setGlobal(int index, var valueToSave)
 	getProcessor()->getMainController()->setGlobalVariable(index, valueToSave);
 }
 
-var ScriptingApi::Engine::getGlobal(int index) const
-{
-	return getProcessor()->getMainController()->getGlobalVariable(index);
-}
-
-double ScriptingApi::Engine::getUptime() const
-{
-	return getProcessor()->getMainController()->getUptime();
-}
-
-double ScriptingApi::Engine::getHostBpm() const
-{
-	return getProcessor()->getMainController()->getBpm();
-}
+var ScriptingApi::Engine::getGlobal(int index) const { return getProcessor()->getMainController()->getGlobalVariable(index); }
+double ScriptingApi::Engine::getUptime() const		 { return getProcessor()->getMainController()->getUptime(); }
+double ScriptingApi::Engine::getHostBpm() const		 { return getProcessor()->getMainController()->getBpm(); }
 
 String ScriptingApi::Engine::getMacroName(int index)
 {
 	if (index >= 1 && index <= 8)
-	{
 		return getProcessor()->getMainController()->getMainSynthChain()->getMacroControlData(index-1)->getMacroName();
-	}
 	else
 	{
 		reportScriptError("Illegal Macro Index");
-
 		return "Undefined";
 	}
 }
@@ -471,9 +485,7 @@ int ScriptingApi::Engine::getMidiNoteFromName(String midiNoteName) const
 	for (int i = 0; i < 127; i++)
 	{
 		if (getMidiNoteName(i) == midiNoteName)
-		{
 			return i;
-		}
 	}
 	return -1;
 }
@@ -495,25 +507,10 @@ void ScriptingApi::Engine::openEditor(int includedFileIndex)
 	}
 }
 
-void ScriptingApi::Engine::setKeyColour(int keyNumber, int colourAsHex)
-{
-	getProcessor()->getMainController()->setKeyboardCoulour(keyNumber, Colour(colourAsHex));
-}
-
-void ScriptingApi::Engine::setLowestKeyToDisplay(int keyNumber)
-{
-	getProcessor()->getMainController()->setLowestKeyToDisplay(keyNumber);
-}
-
-double ScriptingApi::Engine::getMilliSecondsForTempo(int tempoIndex) const
-{
-	return (double)TempoSyncer::getTempoInMilliSeconds(getHostBpm(), (TempoSyncer::Tempo)tempoIndex);
-}
-
-void ScriptingApi::Engine::include(const String &/*string*/)
-{
-	jassertfalse;
-}
+void ScriptingApi::Engine::setKeyColour(int keyNumber, int colourAsHex) { getProcessor()->getMainController()->setKeyboardCoulour(keyNumber, Colour(colourAsHex));}
+void ScriptingApi::Engine::setLowestKeyToDisplay(int keyNumber) { getProcessor()->getMainController()->setLowestKeyToDisplay(keyNumber); }
+double ScriptingApi::Engine::getMilliSecondsForTempo(int tempoIndex) const { return (double)TempoSyncer::getTempoInMilliSeconds(getHostBpm(), (TempoSyncer::Tempo)tempoIndex); }
+void ScriptingApi::Engine::include(const String &/*string*/) { jassertfalse; }
 
 
 void ScriptingApi::Engine::createLiveCodingVariables()
@@ -571,21 +568,9 @@ void ScriptingApi::Engine::createLiveCodingVariables()
 	}
 }
 
-DynamicObject * ScriptingApi::Engine::getPlayHead()
-{
-	return getProcessor()->getMainController()->getHostInfoObject();
-}
-
-ScriptingObjects::MidiList *ScriptingApi::Engine::createMidiList()
-{
-    return new ScriptingObjects::MidiList(getScriptProcessor());
-};
-
-
-ScriptingObjects::TimerObject* ScriptingApi::Engine::createTimerObject()
-{
-	return new ScriptingObjects::TimerObject(getScriptProcessor());
-}
+DynamicObject * ScriptingApi::Engine::getPlayHead() { return getProcessor()->getMainController()->getHostInfoObject(); }
+ScriptingObjects::MidiList *ScriptingApi::Engine::createMidiList() { return new ScriptingObjects::MidiList(getScriptProcessor()); };
+ScriptingObjects::TimerObject* ScriptingApi::Engine::createTimerObject() { return new ScriptingObjects::TimerObject(getScriptProcessor()); }
 
 void ScriptingApi::Engine::dumpAsJSON(var object, String fileName)
 {
@@ -598,13 +583,9 @@ void ScriptingApi::Engine::dumpAsJSON(var object, String fileName)
 	File f;
 
 	if (File::isAbsolutePath(fileName))
-	{
 		f = File(fileName);
-	}
 	else
-	{
 		f = File(GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets).getChildFile(fileName));
-	}
 
 	f.replaceWithText(JSON::toString(object, false));
 	
@@ -615,18 +596,12 @@ var ScriptingApi::Engine::loadFromJSON(String fileName)
 	File f;
 
 	if (File::isAbsolutePath(fileName))
-	{
 		f = File(fileName);
-	}
 	else
-	{
 		f = File(GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets).getChildFile(fileName));
-	}
 
 	if (f.existsAsFile())
-	{
 		return JSON::parse(f);
-	}
 	else
 	{
 		reportScriptError("File not found");
@@ -655,24 +630,18 @@ var ScriptingApi::Engine::getUserPresetDirectoryContent()
 	if (presetDirectory.exists() && presetDirectory.isDirectory())
 	{
 		DirectoryIterator iter(GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets), false, "*", File::findFiles);
-
 		var returnArray;
 
 		while (iter.next())
-		{
 			returnArray.append(iter.getFile().getFileName());
-		}
 
 		return returnArray;
 	}
 	else
-	{
 		return var::undefined();
-	}
-#endif
-    
-}
 
+#endif    
+}
 
 
 void ScriptingApi::Engine::setCompileProgress(var progress)
@@ -680,9 +649,7 @@ void ScriptingApi::Engine::setCompileProgress(var progress)
 	JavascriptProcessor *sp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
 
 	if (sp != nullptr)
-	{
 		sp->setCompileProgress((double)progress);
-	}
 }
 
 

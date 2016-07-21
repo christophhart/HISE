@@ -56,37 +56,11 @@ public:
 	{
 	public:
 
-		ConsoleTokeniser()
-		{
-			s.set("id", Colours::black);
-			s.set("default", Colours::black.withBrightness(0.15f));
-			s.set("error", Colours::red.withBrightness(0.7f));
-		}
+		ConsoleTokeniser();
 
-		int readNextToken(CodeDocument::Iterator& source)
-		{
-			while (source.nextChar() != ':')
-			{
-				return 0;
-			}
-
-
-			if (source.peekNextChar() == '!')
-			{
-				source.skipToEndOfLine();
-				
-				return 2;
-			}
-			else
-			{
-				source.skipToEndOfLine();
-				
-				return 1;
-			}
-		}
+		int readNextToken(CodeDocument::Iterator& source);
 
 		CodeEditorComponent::ColourScheme getDefaultColourScheme() override { return s; }
-
 
 
 	private:
@@ -101,12 +75,7 @@ public:
 
 		ConsoleEditorComponent(CodeDocument &doc, CodeTokeniser *tok);
 
-		void addPopupMenuItems(PopupMenu &menuToAddTo, const MouseEvent *m) override
-		{
-
-		};
-
-
+		void addPopupMenuItems(PopupMenu &menuToAddTo, const MouseEvent *m) override {};
 
 	};
 
@@ -118,52 +87,20 @@ public:
 
 	Console(BaseDebugArea *area);
 
-	void timerCallback()
-	{
-		cpuSlider->setValue(usage, dontSendNotification);
-
-		voiceLabel->setText("Voices: " + String(voiceAmount) + ", Tempo: " + String(hostTempo) + "BPM", dontSendNotification);
-
-		if(usage != 0)
-		{
-			ScopedLock sl(lock);
-			usage = 0;
-		}
-
-		unprintedMessages.ensureStorageAllocated(100);
-
-	};
+	void timerCallback();;
 
 	~Console();
 
 	void sendChangeMessage();
     
     void mouseDown(const MouseEvent &e) override;
-
-    void mouseMove(const MouseEvent &e) override
-    {
-        if(e.mods.isAltDown())
-        {
-            setMouseCursor(MouseCursor::PointingHandCursor);
-        }
-    }
+    void mouseMove(const MouseEvent &e) override;
     
 	void resized() override;
 
 	void buttonClicked (Button* buttonThatWasClicked) override;
 
-    void clear()
-    {
-        ScopedLock sl(lock);
-        {
-            tempString.clear();
-            line = 0;
-            processorLines.clear();
-        }
-        
-        textConsole->clear();
-        
-    }
+    void clear();
 
 	void handleAsyncUpdate();
 

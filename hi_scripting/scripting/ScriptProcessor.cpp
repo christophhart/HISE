@@ -48,9 +48,9 @@ void ProcessorWithScriptingContent::setControlValue(int index, float newValue)
 #if USE_FRONTEND
 			if (c->isAutomatable() &&
 				c->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::isPluginParameter) &&
-				getMainController()->getPluginParameterUpdateState())
+				getMainController_()->getPluginParameterUpdateState())
 			{
-				dynamic_cast<FrontendProcessor*>(getMainController())->setScriptedPluginParameter(c->getName(), newValue);
+				dynamic_cast<FrontendProcessor*>(getMainController_())->setScriptedPluginParameter(c->getName(), newValue);
 			}
 #endif
 

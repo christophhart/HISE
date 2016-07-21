@@ -171,14 +171,14 @@ public:
 
 		// ============================================================================================================ API Methods
 
+		/** Loads a font file. */
+		void loadFont(const String &fileName);
+
 		/** Returns the current sample rate. */
 		double getSampleRate() const;
 
 		/** Converts milli seconds to samples */
-		double getSamplesForMilliSeconds(double milliSeconds) const 
-		{ 
-			return (milliSeconds / 1000.0) * getSampleRate(); 
-		};
+		double getSamplesForMilliSeconds(double milliSeconds) const;;
 		
 		/** Converts samples to milli seconds. */
 		double getMilliSecondsForSamples(double samples) const { return samples / getSampleRate() * 1000.0; };

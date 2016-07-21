@@ -344,8 +344,21 @@ void ScriptCreatedComponentWrappers::LabelWrapper::updateComponent()
 	}
 	else
 	{
-		Font font(fontName, fontStyle, fontSize);
-		l->setFont(font);
+		ScriptContentComponent* content = l->findParentComponentOfClass<ScriptContentComponent>();
+		const juce::Typeface::Ptr typeface = dynamic_cast<const Processor*>(content->getScriptProcessor())->getMainController()->getFont(fontName);
+
+		
+
+		if (typeface != nullptr)
+		{
+			Font font = Font(typeface).withHeight(fontSize);
+			l->setFont(font);
+		}
+		else
+		{
+			Font font(fontName, fontStyle, fontSize);
+			l->setFont(font);
+		}
 	}
 
 	l->setJustificationType(sl->getJustification());

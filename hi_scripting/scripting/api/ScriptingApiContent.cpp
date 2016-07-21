@@ -1027,6 +1027,7 @@ StringArray ScriptingApi::Content::ScriptLabel::getOptionsFor(const Identifier &
 	case FontName:	sa.add("Default");
 		sa.add("Oxygen");
 		sa.add("Source Code Pro");
+		getScriptProcessor()->getMainController_()->fillWithCustomFonts(sa);
 		sa.addArray(Font::findAllTypefaceNames());
 		break;
 	case Alignment: sa.add("left");

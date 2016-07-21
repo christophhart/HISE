@@ -177,7 +177,7 @@ public:
 
 	MainController();
 
-	virtual ~MainController();;
+	virtual ~MainController();
 
 	SampleManager &getSampleManager() {return *sampleManager;};
 
@@ -358,51 +358,18 @@ public:
 		lastPosition = position;
 	}
 
-	void insertStringAtLastActiveEditor(const String &string, bool selectArguments)
-	{
-		if (lastActiveEditor.getComponent() != nullptr)
-		{
-			lastActiveEditor->getDocument().deleteSection(lastActiveEditor->getSelectionStart(), lastActiveEditor->getSelectionEnd());
-			lastActiveEditor->moveCaretTo(lastPosition, false);
+	void insertStringAtLastActiveEditor(const String &string, bool selectArguments);
 
-			lastActiveEditor->insertTextAtCaret(string);
+	void loadTypeFace(const String& fileName, const void* fontData, size_t fontDataSize);
 
-			
-			
-			if (selectArguments)
-			{
-				lastActiveEditor->moveCaretLeft(false, false);
+	void fillWithCustomFonts(StringArray &fontList);
+	juce::Typeface* getFont(const String &fontName) const;
+	ValueTree exportCustomFontsAsValueTree() const;
+	void restoreCustomFontValueTree(const ValueTree &v);
 
-				while (!lastActiveEditor->getTextInRange(lastActiveEditor->getHighlightedRegion()).contains("("))
-				{
-					lastActiveEditor->moveCaretLeft(false, true);
-				}
-
-				lastActiveEditor->moveCaretRight(false, true);
-			}
-
-			lastActiveEditor->grabKeyboardFocus();
-		}
-	}
-
-    
-    bool checkAndResetMidiInputFlag()
-    {
-        const bool returnValue = midiInputFlag;
-        midiInputFlag = false;
-        
-        return returnValue;
-    }
-
-    bool isChanged() const
-    {
-        return changed;
-    }
-    
-    void setChanged()
-    {
-        changed = true;
-    }
+    bool checkAndResetMidiInputFlag();
+    bool isChanged() const { return changed; }
+    void setChanged() { changed = true; }
  
     
     float getGlobalCodeFontSize() const {return globalCodeFontSize; };
@@ -492,6 +459,7 @@ protected:
 	
     void setMidiInputFlag() {midiInputFlag = true; };
     
+
 private:
 
 	void storePlayheadIntoDynamicObject(AudioPlayHead::CurrentPositionInfo &lastPosInfo);
@@ -502,6 +470,9 @@ private:
 
 	friend class WeakReference<MainController>;
 	WeakReference<MainController>::Master masterReference;
+
+	ReferenceCountedArray<juce::Typeface> customTypeFaces;
+	ValueTree customTypeFaceData;
 
 	Array<var> globalVariableArray;
 

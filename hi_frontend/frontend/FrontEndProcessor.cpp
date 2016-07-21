@@ -73,7 +73,7 @@ void FrontendProcessor::handleControllersForMacroKnobs(const MidiBuffer &midiMes
 
 }
 
-FrontendProcessor::FrontendProcessor(ValueTree &synthData, ValueTree *imageData_/*=nullptr*/, ValueTree *impulseData/*=nullptr*/, ValueTree *externalScriptData/*=nullptr*/, ValueTree *userPresets) :
+FrontendProcessor::FrontendProcessor(ValueTree &synthData, ValueTree *imageData_/*=nullptr*/, ValueTree *impulseData/*=nullptr*/, ValueTree *externalFiles/*=nullptr*/, ValueTree *userPresets) :
 MainController(),
 synthChain(new ModulatorSynthChain(this, "Master Chain", NUM_POLYPHONIC_VOICES)),
 samplesCorrectlyLoaded(true),
@@ -94,9 +94,10 @@ unlockCounter(0)
 
 	loadImages(imageData_);
 
-	if (externalScriptData != nullptr)
+	if (externalFiles != nullptr)
 	{
-		setExternalScriptData(*externalScriptData);
+		setExternalScriptData(externalFiles->getChildWithName("ExternalFiles"));
+		restoreCustomFontValueTree(externalFiles->getChildWithName("CustomFonts"));
 	}
 
 	if (impulseData != nullptr)
@@ -181,9 +182,9 @@ void FrontendProcessor::setCurrentProgram(int index)
 
 		const String name = child.getProperty("FileName");
 
-		Processor::Iterator<ScriptProcessor> iter(synthChain);
+		Processor::Iterator<JavascriptMidiProcessor> iter(synthChain);
 
-		while (ScriptProcessor *sp = iter.getNextProcessor())
+		while (JavascriptMidiProcessor *sp = iter.getNextProcessor())
 		{
 			if (sp->isFront())
 			{
@@ -195,9 +196,9 @@ void FrontendProcessor::setCurrentProgram(int index)
 
 void FrontendProcessor::addScriptedParameters()
 {
-	Processor::Iterator<ScriptProcessor> iter(synthChain);
+	Processor::Iterator<JavascriptMidiProcessor> iter(synthChain);
 
-	while (ScriptProcessor *sp = iter.getNextProcessor())
+	while (JavascriptMidiProcessor *sp = iter.getNextProcessor())
 	{
 		if (sp->isFront())
 		{

@@ -203,8 +203,13 @@ void CompileExporter::writeReferencedAudioFiles(ModulatorSynthChain * chainToExp
 void CompileExporter::writeExternalScriptFiles(ModulatorSynthChain * chainToExport, const String &directoryPath)
 {
 	ValueTree externalScriptFiles = FileChangeListener::collectAllScriptFiles(chainToExport);
+	ValueTree customFonts = chainToExport->getMainController()->exportCustomFontsAsValueTree();
 
-	PresetHandler::writeValueTreeAsFile(externalScriptFiles, File(directoryPath).getChildFile("externalScripts").getFullPathName());
+	ValueTree externalFiles("ExternalFiles");
+	externalFiles.addChild(externalScriptFiles, -1, nullptr);
+	externalFiles.addChild(customFonts, -1, nullptr);
+
+	PresetHandler::writeValueTreeAsFile(externalFiles, File(directoryPath).getChildFile("externalFiles").getFullPathName());
 }
 
 void CompileExporter::writeUserPresetFiles(ModulatorSynthChain * chainToExport, const String &directoryPath)
