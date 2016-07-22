@@ -30,6 +30,48 @@
 *   ===========================================================================
 */
 
+
+void QuasiModalComponent::setModalBaseWindowComponent(Component * childComponentOfModalBaseWindow, int fadeInTime)
+{
+	ModalBaseWindow *editor = dynamic_cast<ModalBaseWindow*>(childComponentOfModalBaseWindow);
+
+	if (editor == nullptr) editor = childComponentOfModalBaseWindow->findParentComponentOfClass<ModalBaseWindow>();
+
+	jassert(editor != nullptr);
+
+	if (editor != nullptr)
+	{
+		editor->setModalComponent(dynamic_cast<Component*>(this), fadeInTime);
+
+		isQuasiModal = true;
+	}
+}
+
+void QuasiModalComponent::showOnDesktop()
+{
+	Component *t = dynamic_cast<Component*>(this);
+
+	isQuasiModal = false;
+	t->setVisible(true);
+	t->addToDesktop(ComponentPeer::StyleFlags::windowHasCloseButton);
+}
+
+void QuasiModalComponent::destroy()
+{
+	Component *t = dynamic_cast<Component*>(this);
+
+	if (isQuasiModal)
+	{
+		t->findParentComponentOfClass<ModalBaseWindow>()->clearModalComponent();
+	}
+	else
+	{
+		t->removeFromDesktop();
+		delete this;
+	}
+}
+
+
 ThreadWithAsyncProgressWindow::ThreadWithAsyncProgressWindow(const String &title, bool synchronous_) :
 AlertWindow(title, String::empty, AlertWindow::AlertIconType::NoIcon),
 progress(0.0),
@@ -146,47 +188,7 @@ void ThreadWithAsyncProgressWindow::showStatusMessage(const String &message)
 	}
 }
 
-void ThreadWithAsyncProgressWindow::showOnDesktop()
-{
-	isQuasiModal = false;
-	setVisible(true);
-	addToDesktop();
-	
-}
 
-void ThreadWithAsyncProgressWindow::setModalComponentOfMainEditor(Component * childComponentOfMainEditor)
-{
-#if USE_BACKEND
-	BackendProcessorEditor *editor = dynamic_cast<BackendProcessorEditor*>(childComponentOfMainEditor);
-	
-	if(editor == nullptr) editor = childComponentOfMainEditor->findParentComponentOfClass<BackendProcessorEditor>();
-
-	jassert(editor != nullptr);
-
-	if (editor != nullptr)
-	{
-		editor->setModalComponent(this);
-		isQuasiModal = true;
-	}
-#else 
-	ignoreUnused(childComponentOfMainEditor);
-#endif
-}
-
-void ThreadWithAsyncProgressWindow::destroy()
-{
-	if (isQuasiModal)
-	{
-#if USE_BACKEND
-		findParentComponentOfClass<BackendProcessorEditor>()->clearModalComponent();
-#endif
-	}
-	else
-	{
-		removeFromDesktop();
-		delete this;
-	}
-}
 
 void ThreadWithAsyncProgressWindow::runThread()
 {

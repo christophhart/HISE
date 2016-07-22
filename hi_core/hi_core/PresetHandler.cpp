@@ -59,6 +59,258 @@ void CopyPasteTarget::grabCopyAndPasteFocus()
 }
 
 
+UserPresetData::UserPresetData(MainController* mc_) :
+mc(mc_)
+{
+	userPresets = new PresetCategory("User Presets");
+
+	refreshPresetFileList();
+}
+
+
+UserPresetData::~UserPresetData()
+{
+	mc = nullptr;
+	listeners.clear();
+}
+
+void UserPresetData::getCurrentPresetIndexes(int &category, int &preset, String &name) const
+{
+	category = currentCategoryIndex;
+	preset = currentPresetIndex;
+	name = currentName;
+}
+
+void UserPresetData::addFactoryPreset(const String &name, const String &category, int id, ValueTree &v)
+{
+	int index = -1;
+
+	for (int i = 0; i < factoryPresetCategories.size(); i++)
+	{
+		if (factoryPresetCategories[i]->name == category)
+		{
+			index = i;
+			break;
+		}
+	}
+
+	if (index == -1)
+	{
+		PresetCategory *newCategory = new PresetCategory(category);
+		newCategory->presets.add(Entry(name, id, v));
+		factoryPresetCategories.add(newCategory);
+	}
+	else
+	{
+		factoryPresetCategories[index]->presets.add(Entry(name, id, v));
+	}
+}
+
+void UserPresetData::addUserPreset(const String &name, int id, const ValueTree &v)
+{
+	userPresets->presets.add(Entry(name, id, v));
+}
+
+void UserPresetData::fillCategoryList(StringArray& listToFill) const
+{
+	listToFill.clear();
+
+	for (int i = 0; i < factoryPresetCategories.size(); i++)
+	{
+		listToFill.add(factoryPresetCategories[i]->name);
+	}
+
+	listToFill.add(userPresets->name);
+}
+
+
+
+
+
+void UserPresetData::fillPresetList(StringArray& listToFill, int categoryIndex) const
+{
+	listToFill.clear();
+
+	const PresetCategory* c = getPresetCategory(categoryIndex);
+
+	if (c != nullptr)
+	{
+		for (int i = 0; i < c->presets.size(); i++)
+		{
+			listToFill.add(c->presets[i].name);
+		}
+	}
+}
+
+
+void UserPresetData::addListener(Listener *newListener) const
+{
+	listeners.addIfNotAlreadyThere(newListener);
+}
+
+void UserPresetData::removeListener(Listener *listenerToRemove) const
+{
+	listeners.removeAllInstancesOf(listenerToRemove);
+}
+
+const UserPresetData::PresetCategory* UserPresetData::getPresetCategory(int index) const
+{
+	if (index == factoryPresetCategories.size())
+	{
+		return userPresets;
+	}
+	else if (index < factoryPresetCategories.size())
+	{
+		return factoryPresetCategories[index];
+	}
+	else return nullptr;
+}
+
+void UserPresetData::loadPreset(int categoryToLoad, int presetToLoad) const
+{
+	PresetCategory* c = nullptr;
+
+	if (categoryToLoad == factoryPresetCategories.size())
+	{
+		c = userPresets;
+	}
+	else
+	{
+		c = factoryPresetCategories[categoryToLoad];
+	}
+
+	if (c != nullptr)
+	{
+		if (presetToLoad < c->presets.size())
+		{
+			Entry* e = &c->presets[presetToLoad];
+
+			if (e != nullptr)
+			{
+				currentCategoryIndex = categoryToLoad;
+				currentPresetIndex = presetToLoad;
+				currentName = e->name;
+
+				for (int i = 0; i < listeners.size(); i++)
+				{
+					listeners[i]->presetLoaded(currentCategoryIndex, currentPresetIndex, e->name);
+				}
+
+				UserPresetHandler::loadUserPreset(mc->getMainSynthChain(), e->v);
+			}
+		}
+	}
+}
+
+
+void UserPresetData::loadNextPreset() const
+{
+	const PresetCategory* c = getPresetCategory(currentCategoryIndex);
+
+	if (c != nullptr)
+	{
+		const int nextPresetIndex = currentPresetIndex + 1;
+
+		if (nextPresetIndex < c->presets.size())
+			loadPreset(currentCategoryIndex, nextPresetIndex);
+		else
+		{
+			const PresetCategory* c = getPresetCategory(currentCategoryIndex + 1);
+
+			if (c != nullptr)
+				loadPreset(currentCategoryIndex + 1, 0);
+		}
+	}
+}
+
+void UserPresetData::loadPreviousPreset() const
+{
+	const PresetCategory* c = getPresetCategory(currentCategoryIndex);
+
+	if (c != nullptr)
+	{
+		const int prevPresetIndex = currentPresetIndex - 1;
+
+		if (prevPresetIndex >= 0)
+			loadPreset(currentCategoryIndex, prevPresetIndex);
+
+		else
+		{
+			const PresetCategory* c = getPresetCategory(currentCategoryIndex - 1);
+
+			if (c != nullptr)
+				loadPreset(currentCategoryIndex - 1, c->presets.size() - 1);
+		}
+	}
+}
+
+void UserPresetData::refreshPresetFileList()
+{
+#if USE_BACKEND
+
+	Array<File> fileList;
+
+	ProjectHandler *handler = &GET_PROJECT_HANDLER(mc->getMainSynthChain());
+
+	handler->getFileList(fileList, ProjectHandler::SubDirectories::UserPresets, "*.preset", false, true);
+
+	factoryPresetCategories.clear();
+	userPresets->presets.clear();
+
+	for (int i = 0; i < fileList.size(); i++)
+	{
+		const File parentDirectory = fileList[i].getParentDirectory();
+		const File presetDirectory = handler->getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
+		const bool useCategory = (presetDirectory != parentDirectory);
+		const String categoryName = useCategory ? fileList[i].getParentDirectory().getFileName() : "Uncategorized";
+
+		ScopedPointer<XmlElement> xml = XmlDocument::parse(fileList[i]);
+
+		if (xml != nullptr)
+		{
+			ValueTree v = ValueTree::fromXml(*xml);
+			addFactoryPreset(fileList[i].getFileNameWithoutExtension(), categoryName, i + 1, v);
+		}
+	}
+
+#else
+
+	FrontendProcessor *fp = dynamic_cast<FrontendProcessor*>(mc);
+
+	ValueTree factoryPresets = fp->getPresetData();
+
+	factoryPresetCategories.clear();
+	userPresets->presets.clear();
+
+	for (int i = 1; i < factoryPresets.getNumChildren(); i++)
+	{
+		ValueTree c = factoryPresets.getChild(i);
+
+		addFactoryPreset(c.getProperty("FileName"), c.getProperty("Category"), i, c);
+	}
+
+	File userPresetDirectory = ProjectHandler::Frontend::getUserPresetDirectory();
+	Array<File> userPresets;
+	userPresetDirectory.findChildFiles(userPresets, File::findFiles, false, "*.preset");
+
+	for (int i = 0; i < userPresets.size(); i++)
+	{
+		ScopedPointer<XmlElement> xml = XmlDocument::parse(userPresets[i]);
+
+		if (xml != nullptr)
+		{
+			ValueTree v = ValueTree::fromXml(*xml);
+
+			addUserPreset(userPresets[i].getFileNameWithoutExtension(), i, v);
+		}
+	}
+
+#endif
+
+}
+
+
+
 void UserPresetHandler::saveUserPreset(ModulatorSynthChain *chain)
 {
 #if USE_BACKEND
@@ -91,10 +343,25 @@ void UserPresetHandler::saveUserPreset(ModulatorSynthChain *chain)
             }
         }
     }
+
+	
 }
 
 void UserPresetHandler::loadUserPreset(ModulatorSynthChain *chain, const File &fileToLoad)
 {
+	ScopedPointer<XmlElement> xml = XmlDocument::parse(fileToLoad);
+	ValueTree parent = ValueTree::fromXml(*xml);
+
+	if (parent.isValid())
+	{
+		loadUserPreset(chain, parent);
+	}
+
+}
+
+void UserPresetHandler::loadUserPreset(ModulatorSynthChain* chain, const ValueTree &parent)
+{
+
 #if USE_BACKEND
 
 	if (!GET_PROJECT_HANDLER(chain).isActive()) return;
@@ -102,14 +369,10 @@ void UserPresetHandler::loadUserPreset(ModulatorSynthChain *chain, const File &f
 #endif
 
 	Processor::Iterator<JavascriptMidiProcessor> iter(chain);
-        
+
 	while (JavascriptMidiProcessor *sp = iter.getNextProcessor())
 	{
 		if (!sp->isFront()) continue;
-
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(fileToLoad);
-
-		ValueTree parent = ValueTree::fromXml(*xml);
 
 		ValueTree v;
 
@@ -787,7 +1050,7 @@ void ProjectHandler::setProjectSettings(Component *mainEditor)
 	}
 	else
 	{
-		w->setModalComponentOfMainEditor(mainEditor);
+		w->setModalBaseWindowComponent(mainEditor);
 	}
 }
 

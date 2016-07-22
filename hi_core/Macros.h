@@ -91,6 +91,8 @@ static juce::Typeface::Ptr sourceCodeProBoldTypeFace = juce::Typeface::createSys
 #define IGNORE_UNUSED_IN_RELEASE(x) (ignoreUnused(x))
 #endif
 
+#define FLOAT_RECTANGLE(r) Rectangle<float>((float)r.getX(), (float)r.getY(), (float)r.getWidth(), (float)r.getHeight())
+#define INT_RECTANGLE(r) Rectangle<int>((int)r.getX(), (int)r.getY(), (int)r.getWidth(), (int)r.getHeight())
 
 #define CONSTRAIN_TO_0_1(x)(jlimit<float>(0.0f, 1.0f, x))
 

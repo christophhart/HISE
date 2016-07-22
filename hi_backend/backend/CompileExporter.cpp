@@ -216,7 +216,7 @@ void CompileExporter::writeUserPresetFiles(ModulatorSynthChain * chainToExport, 
 {
 	File presetDirectory = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
 
-	DirectoryIterator iter(presetDirectory, false, "*", File::findFiles);
+	DirectoryIterator iter(presetDirectory, true, "*", File::findFiles);
 
 	ValueTree userPresets("UserPresets");
 
@@ -230,7 +230,12 @@ void CompileExporter::writeUserPresetFiles(ModulatorSynthChain * chainToExport, 
 
 		if (xml != nullptr)
 		{
+			File pd = f.getParentDirectory();
+
+			const String category = pd == presetDirectory ? "" : pd.getFileName();
+
 			xml->setAttribute("FileName", f.getFileNameWithoutExtension());
+			xml->setAttribute("Category", category);
 
 			ValueTree v = ValueTree::fromXml(*xml);
 

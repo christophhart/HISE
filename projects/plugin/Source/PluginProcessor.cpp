@@ -20,8 +20,6 @@ AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 
 	AudioProcessorWrapper::addAudioProcessorToList("GainProcessor", &GainProcessor::create);
 	AudioProcessorWrapper::addAudioProcessorToList("Spatializer", &Spatializer::create);
-	AudioProcessorWrapper::addAudioProcessorToList("ScriptFX", &ScriptingAudioProcessor::create);
-
 
 	return new BackendProcessor();	
 };

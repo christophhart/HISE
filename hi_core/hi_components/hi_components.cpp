@@ -39,6 +39,7 @@
 #include "drag_plot/TableEditor.cpp"
 #include "keyboard/CustomKeyboard.cpp"
 #include "plugin_components/VoiceCpuBpmComponent.cpp"
+#include "plugin_components/PresetComponents.cpp"
 #include "plugin_components/FrontendBar.cpp"
 
 #if USE_BACKEND

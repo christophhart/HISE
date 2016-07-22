@@ -1408,7 +1408,7 @@ void BackendCommandTarget::Actions::checkVersion(BackendProcessorEditor *bpe)
     {
         UpdateChecker * checker = new UpdateChecker();
         
-        checker->setModalComponentOfMainEditor(bpe);
+        checker->setModalBaseWindowComponent(bpe);
     }
     else
     {
@@ -1526,7 +1526,7 @@ void BackendCommandTarget::Actions::collectExternalFiles(BackendProcessorEditor 
 {
 	ExternalResourceCollector *resource = new ExternalResourceCollector(bpe->getBackendProcessor());
 
-	resource->setModalComponentOfMainEditor(bpe);
+	resource->setModalBaseWindowComponent(bpe);
 }
 
 struct XmlBackupFunctions
@@ -1711,6 +1711,8 @@ void BackendCommandTarget::Actions::createNewProject(BackendProcessorEditor *bpe
 		File f = fc.getResult();
 
 		GET_PROJECT_HANDLER(bpe->getMainSynthChain()).createNewProject(f);
+
+		bpe->getBackendProcessor()->createUserPresetData();
 	}
 }
 
@@ -1741,6 +1743,8 @@ void BackendCommandTarget::Actions::loadProject(BackendProcessorEditor *bpe)
 		File f = fc.getResult();
 
 		GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(f);
+
+		bpe->getBackendProcessor()->createUserPresetData();
 	}
 #endif
 }
@@ -1752,6 +1756,10 @@ void BackendCommandTarget::Actions::closeProject(BackendProcessorEditor *bpe)
     if (!shouldDiscard) return;
     
 	GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(File::nonexistent);
+
+
+	bpe->getBackendProcessor()->createUserPresetData();
+
 }
 
 void BackendCommandTarget::Actions::showProjectInFinder(BackendProcessorEditor *bpe)
@@ -1797,21 +1805,21 @@ void BackendCommandTarget::Actions::showFileProjectSettings(BackendProcessorEdit
 {
 	SettingWindows::ProjectSettingWindow *window = new SettingWindows::ProjectSettingWindow(&GET_PROJECT_HANDLER(bpe->getMainSynthChain()));
 
-	window->setModalComponentOfMainEditor(bpe);
+	window->setModalBaseWindowComponent(bpe);
 }
 
 void BackendCommandTarget::Actions::showFileUserSettings(BackendProcessorEditor * bpe)
 {
 	SettingWindows::UserSettingWindow *window = new SettingWindows::UserSettingWindow();
 
-	window->setModalComponentOfMainEditor(bpe);
+	window->setModalBaseWindowComponent(bpe);
 }
 
 void BackendCommandTarget::Actions::showFileCompilerSettings(BackendProcessorEditor * bpe)
 {
 	SettingWindows::CompilerSettingWindow *window = new SettingWindows::CompilerSettingWindow();
 
-	window->setModalComponentOfMainEditor(bpe);
+	window->setModalBaseWindowComponent(bpe);
 }
 
 void BackendCommandTarget::Actions::checkSettingSanity(BackendProcessorEditor * bpe)
@@ -2322,7 +2330,7 @@ void BackendCommandTarget::Actions::downloadNewProject(BackendProcessorEditor * 
 {
 	ProjectDownloader *downloader = new ProjectDownloader(bpe);
 
-	downloader->setModalComponentOfMainEditor(bpe);
+	downloader->setModalBaseWindowComponent(bpe);
 }
 
 void BackendCommandTarget::Actions::showMainMenu(BackendProcessorEditor * bpe)

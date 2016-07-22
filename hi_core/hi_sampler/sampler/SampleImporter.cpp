@@ -249,7 +249,7 @@ void SampleImporter::loadAudioFilesUsingFileName(Component *childComponentOfMain
 	
 	FileImportDialogWindow *dialogWindow = new FileImportDialogWindow(sampler, fileNames);
 
-	dialogWindow->setModalComponentOfMainEditor(childComponentOfMainEditor);
+	dialogWindow->setModalBaseWindowComponent(childComponentOfMainEditor);
 
 	
 

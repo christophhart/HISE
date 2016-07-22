@@ -52,7 +52,8 @@ class BackendProcessorEditor: public AudioProcessorEditor,
 							  public RestorableObject,
 							  public GlobalScriptCompileListener,
                               public ComponentWithKeyboard,
-                              public Label::Listener
+                              public Label::Listener,
+							  public ModalBaseWindow
 {
 public:
 
@@ -240,24 +241,6 @@ public:
 
 	Component *getKeyboard() const override { return keyboard; }
 
-	void setModalComponent(Component *component)
-	{
-		if (modalComponent != nullptr)
-		{
-			modalComponent = nullptr;
-		}
-		
-		modalComponent = component;
-
-		addAndMakeVisible(modalComponent);
-
-		modalComponent->centreWithSize(component->getWidth(), component->getHeight());
-	}
-
-	void clearModalComponent()
-	{
-		modalComponent = nullptr;
-	}
 
 	bool isFullScreenMode() const
 	{
@@ -384,8 +367,6 @@ private:
 
 	ScopedPointer<VoiceCpuBpmComponent> cpuVoiceComponent;
 	
-	ScopedPointer<Component> modalComponent;
-
 	ScopedPointer<ShapeButton> backButton;
 	ScopedPointer<ShapeButton> forwardButton;
 

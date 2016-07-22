@@ -986,7 +986,7 @@ void ModulatorSamplerSoundPool::resolveMissingSamples(Component *childComponentO
 
 	SampleResolver *r = new SampleResolver(this, editor->getMainSynthChain());
     
-	r->setModalComponentOfMainEditor(childComponentOfMainEditor);
+	r->setModalBaseWindowComponent(childComponentOfMainEditor);
 
 #else 
 

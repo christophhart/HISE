@@ -48,36 +48,16 @@ FrontendBar::FrontendBar(MainController *mc_) : mc(mc_),
 
 	cpuUpdater.setManualCountLimit(10);
 
-	addAndMakeVisible(presetSelector = new PresetComboBox());
+	addAndMakeVisible(presetSelector = new PresetBox(mc));
 	mc->skin(*presetSelector);
 
 	presetSelector->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, Colours::transparentBlack);
 	presetSelector->setColour(MacroControlledObject::HiBackgroundColours::upperBgColour, Colours::black.withAlpha(0.2f));
 	presetSelector->setColour(MacroControlledObject::HiBackgroundColours::lowerBgColour, Colours::black.withAlpha(0.2f));
 	
-	presetSelector->setTextWhenNothingSelected("Preset");
-	presetSelector->setTooltip("Load a preset");
+	
 
-    presetSelector->addListener(this);
-    
-	refreshPresetFileList();
-
-	Path savePath;
-
-	static const unsigned char pathData[] = { 110, 109, 0, 0, 144, 65, 0, 0, 0, 64, 108, 0, 0, 176, 65, 0, 0, 0, 64, 108, 0, 0, 176, 65, 0, 0, 48, 65, 108, 0, 0, 144, 65, 0, 0, 48, 65, 99, 109, 0, 0, 192, 64, 0, 0, 208, 65, 108, 0, 0, 208, 65, 0, 0, 208, 65, 108, 0, 0, 208, 65, 0, 0, 224, 65, 108, 0, 0, 192, 64, 0, 0, 224, 65, 99, 109, 0, 0, 192, 64, 0, 0, 176, 65, 108, 0, 0, 208,
-		65, 0, 0, 176, 65, 108, 0, 0, 208, 65, 0, 0, 192, 65, 108, 0, 0, 192, 64, 0, 0, 192, 65, 99, 109, 0, 0, 192, 64, 0, 0, 144, 65, 108, 0, 0, 208, 65, 0, 0, 144, 65, 108, 0, 0, 208, 65, 0, 0, 160, 65, 108, 0, 0, 192, 64, 0, 0, 160, 65, 99, 109, 0, 0, 208, 65, 0, 0, 0, 0, 108, 0, 0, 192, 65, 0, 0, 0, 0, 108, 0, 0, 192, 65, 0, 0, 80, 65, 108,
-		0, 0, 0, 65, 0, 0, 80, 65, 108, 0, 0, 0, 65, 0, 0, 0, 0, 108, 0, 0, 0, 0, 0, 0, 0, 0, 108, 0, 0, 0, 0, 0, 0, 0, 66, 108, 0, 0, 0, 66, 0, 0, 0, 66, 108, 0, 0, 0, 66, 0, 0, 192, 64, 108, 0, 0, 208, 65, 0, 0, 0, 0, 99, 109, 0, 0, 224, 65, 0, 0, 240, 65, 108, 0, 0, 128, 64, 0, 0, 240, 65, 108, 0, 0, 128, 64, 0, 0, 128, 65, 108, 0, 0, 224, 65, 0, 0,
-		128, 65, 108, 0, 0, 224, 65, 0, 0, 240, 65, 99, 101, 0, 0 };
-
-	savePath.loadPathFromData(pathData, sizeof(pathData));
-
-	addAndMakeVisible(presetSaveButton = new ShapeButton("Save Preset", Colours::white.withAlpha(.6f), Colours::white.withAlpha(0.8f), Colours::white));
-	presetSaveButton->setShape(savePath, true, true, true);
-
-	presetSaveButton->setTooltip("Save user preset");
-
-    presetSaveButton->addListener(this);
-    
+	
 	addAndMakeVisible(volumeSliderLabel = new Label());
 	volumeSliderLabel->setFont(GLOBAL_BOLD_FONT().withHeight(10.0f));
 	volumeSliderLabel->setText("Gain", dontSendNotification);
@@ -162,7 +142,7 @@ FrontendBar::FrontendBar(MainController *mc_) : mc(mc_),
 
 FrontendBar::~FrontendBar()
 {
-	presetSelector->hidePopup();
+	
 	presetSelector = nullptr;
 
     outMeter = nullptr;
@@ -198,11 +178,8 @@ void FrontendBar::resized()
 	{
 		const int presetHeight = 28;
 
-		presetSelector->setBounds(leftX + spaceX, (getHeight() - presetHeight) / 2, 130, presetHeight);
+		presetSelector->setBounds(leftX + spaceX, (getHeight() - presetHeight) / 2, 150, presetHeight);
 
-		presetSaveButton->setBounds(presetSelector->getRight() + 1, (getHeight() - 20) / 2, 20, 20);
-
-		leftX = presetSaveButton->getRight();
 	}
 	
 	int rightX = getRight() - 26;
@@ -239,95 +216,6 @@ void FrontendBar::resized()
 	}	
 }
 
-
-
-void FrontendBar::buttonClicked(Button *b)
-{
-    if(b == presetSaveButton)
-    {
-        UserPresetHandler::saveUserPreset(mc->getMainSynthChain());
-        
-        refreshPresetFileList();
-    }
-}
-
-void FrontendBar::comboBoxChanged(ComboBox *cb)
-{
-#if USE_BACKEND
-
-    const File f = UserPresetHandler::getUserPresetFile(mc->getMainSynthChain(), cb->getText());
-    UserPresetHandler::loadUserPreset(mc->getMainSynthChain(), f);
-
-#else
-
-	FrontendProcessor *fp = dynamic_cast<FrontendProcessor*>(mc);
-
-	if (presetSelector->isFactoryPresetSelected())
-	{
-		fp->setCurrentProgram(cb->getSelectedId());
-		
-	}
-	else
-	{
-		fp->setCurrentProgram(0);
-
-		const File f = UserPresetHandler::getUserPresetFile(mc->getMainSynthChain(), cb->getText());
-		UserPresetHandler::loadUserPreset(mc->getMainSynthChain(), f);
-	}
-#endif
-
-}
-
-void FrontendBar::refreshPresetFileList()
-{
-	
-
-#if USE_BACKEND
-
-	Array<File> fileList;
-	
-	ProjectHandler *handler = &GET_PROJECT_HANDLER(mc->getMainSynthChain());
-	
-	handler->getFileList(fileList, ProjectHandler::SubDirectories::UserPresets, "*.preset", false, true);
-
-	presetSelector->clearPresets();
-
-	for (int i = 0; i < fileList.size(); i++)
-	{
-		const File parentDirectory = fileList[i].getParentDirectory();
-		const File presetDirectory = handler->getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
-		const bool useCategory = (presetDirectory != parentDirectory);
-		const String categoryName = useCategory ? fileList[i].getParentDirectory().getFileName() : "";
-
-		presetSelector->addFactoryPreset(fileList[i].getFileNameWithoutExtension(), categoryName, i + 1);
-	}
-
-#else
-
-	FrontendProcessor *fp = dynamic_cast<FrontendProcessor*>(mc);
-
-	presetSelector->clearPresets();
-
-	for (int i = 1; i < fp->getNumPrograms(); i++)
-	{
-		presetSelector->addFactoryPreset(fp->getProgramName(i), "", i);
-	}
-
-	File userPresetDirectory = ProjectHandler::Frontend::getUserPresetDirectory();
-	Array<File> userPresets;
-	userPresetDirectory.findChildFiles(userPresets, File::findFiles, false, "*.preset");
-
-	for (int i = 0; i < userPresets.size(); i++)
-	{
-		presetSelector->addUserPreset(userPresets[i].getFileNameWithoutExtension(), i);
-	}
-
-	if(presetSelector->isFactoryPresetSelected()) presetSelector->setSelectedId(fp->getCurrentProgram());
-	else presetSelector->setSelectedId(-1, dontSendNotification);
-
-#endif
-
-}
 
 void FrontendBar::sliderValueChanged(Slider* slider)
 {
@@ -375,7 +263,6 @@ void FrontendBar::setProperties(DynamicObject *p)
 
 	voiceCpuComponent->setVisible(set->getWithDefault("cpuTempoVoicesShown", true));
 	presetSelector->setVisible(set->getWithDefault("presetShown", true));
-	presetSaveButton->setVisible(set->getWithDefault("presetShown", true));
 	tooltipBar->setVisible(set->getWithDefault("tooltipBarShown", true));
 	volumeSlider->setVisible(set->getWithDefault("knobsShown", true));
 	pitchSlider->setVisible(set->getWithDefault("knobsShown", true));

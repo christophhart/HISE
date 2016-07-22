@@ -202,7 +202,10 @@ private:
 
 class FrontendProcessorEditor: public AudioProcessorEditor,
 							   public Timer,
-							   public ComponentWithKeyboard
+							   public ComponentWithKeyboard,
+							   public ModalBaseWindow
+
+
 {
 public:
 

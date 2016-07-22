@@ -189,11 +189,12 @@ Identifier ScriptingApi::Content::ScriptComponent::getObjectName() const
 
 ValueTree ScriptingApi::Content::ScriptComponent::exportAsValueTree() const
 {
-	ValueTree v(name);
+	ValueTree v("Control");
 
+	v.setProperty("type", getObjectName().toString(), nullptr);
+	v.setProperty("id", getName().toString(), nullptr);
 	v.setProperty("value", value, nullptr);
-	v.setProperty("visible", visible, nullptr);
-
+	
 	return v;
 }
 
@@ -615,8 +616,11 @@ ValueTree ScriptingApi::Content::ScriptSlider::exportAsValueTree() const
 {
 	ValueTree v = ScriptComponent::exportAsValueTree();
 
-	v.setProperty("rangeMin", minimum, nullptr);
-	v.setProperty("rangeMax", maximum, nullptr);
+	if (getScriptObjectProperty(Properties::Style) == "Range")
+	{
+		v.setProperty("rangeMin", minimum, nullptr);
+		v.setProperty("rangeMax", maximum, nullptr);
+	}
 
 	return v;
 }
@@ -624,7 +628,7 @@ ValueTree ScriptingApi::Content::ScriptSlider::exportAsValueTree() const
 void ScriptingApi::Content::ScriptSlider::restoreFromValueTree(const ValueTree &v)
 {
 	ScriptComponent::restoreFromValueTree(v);
-
+	
 	minimum = v.getProperty("rangeMin", 0.0f);
 	maximum = v.getProperty("rangeMax", 1.0f);
 }
@@ -2549,8 +2553,15 @@ void ScriptingApi::Content::restoreFromValueTree(const ValueTree &v)
 	{
 		if (components[i]->skipRestoring || !components[i]->getScriptObjectProperty(ScriptComponent::Properties::saveInPreset)) continue;
 
-		ValueTree child = v.getChildWithName(components[i]->name);
-		if (child.isValid())
+		ValueTree child = v.getChildWithProperty("id", components[i]->name.toString());
+
+		const String childTypeString = child.getProperty("type");
+
+		if (childTypeString.isEmpty()) continue;
+
+		Identifier childType(childTypeString);
+
+		if (child.isValid() && childType == components[i]->getObjectName())
 		{
 			components[i]->restoreFromValueTree(child);
 		}

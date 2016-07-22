@@ -96,7 +96,7 @@ unlockCounter(0)
 
 	if (externalFiles != nullptr)
 	{
-		setExternalScriptData(externalFiles->getChildWithName("ExternalFiles"));
+		setExternalScriptData(externalFiles->getChildWithName("ExternalScripts"));
 		restoreCustomFontValueTree(externalFiles->getChildWithName("CustomFonts"));
 	}
 
@@ -140,6 +140,8 @@ unlockCounter(0)
 	}
 
 	suspendProcessing(false);
+
+	createUserPresetData();
 }
 
 const String FrontendProcessor::getName(void) const

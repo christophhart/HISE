@@ -34,6 +34,93 @@
 #define BACKGROUNDTHREADS_H_INCLUDED
 
 
+
+class QuasiModalComponent
+{
+public:
+
+	virtual ~QuasiModalComponent() {}
+
+	/** This uses the given component to show this dialog as quasi modal window on the main editor. */
+	void setModalBaseWindowComponent(Component * childComponentOfModalBaseWindow, int fadeInTime=0);
+
+	void showOnDesktop();
+
+	void destroy();
+
+private:
+
+	bool isQuasiModal = false;
+};
+
+class ModalBaseWindow
+{
+public:
+
+	ModalBaseWindow()
+	{
+		s.colour = Colours::black;
+		s.radius = 20.0f;
+		s.offset = Point<int>();
+	}
+
+	virtual ~ModalBaseWindow()
+	{	
+		shadow = nullptr;
+		clearModalComponent();
+		
+	};
+
+
+	void setModalComponent(Component *component, int fadeInTime=0)
+	{
+		if (modalComponent != nullptr)
+		{
+			shadow = nullptr;
+			modalComponent = nullptr;
+		}
+
+		
+		shadow = new DropShadower(s);
+		modalComponent = component;
+
+
+		if (fadeInTime == 0)
+		{
+			dynamic_cast<Component*>(this)->addAndMakeVisible(modalComponent);
+			modalComponent->centreWithSize(component->getWidth(), component->getHeight());
+		}
+		else
+		{
+			dynamic_cast<Component*>(this)->addChildComponent(modalComponent);
+			modalComponent->centreWithSize(component->getWidth(), component->getHeight());
+			Desktop::getInstance().getAnimator().fadeIn(modalComponent, fadeInTime);
+			
+		}
+
+		
+
+		shadow->setOwner(modalComponent);
+
+		
+	}
+
+	bool isCurrentlyModal() const { return modalComponent != nullptr; }
+
+	void clearModalComponent()
+	{
+		shadow = nullptr;
+		modalComponent = nullptr;
+	}
+
+	ScopedPointer<Component> modalComponent;
+
+	DropShadow s;
+
+	ScopedPointer<DropShadower> shadow;
+};
+
+
 /** An replacement for the ThreadWithProgressWindow with the following differences:
 *
 *	- no modal windows
@@ -45,6 +132,7 @@
 *	Then simply create a instance and call its method 'setModalComponentOfMainEditor()'
 */
 class ThreadWithAsyncProgressWindow : public AlertWindow,
+									  public QuasiModalComponent,
 									  public AsyncUpdater
 {
 public:
@@ -68,14 +156,7 @@ public:
 
 
 	// ================================================================================================================
-
-	/** This uses the given component to show this dialog as quasi modal window on the main editor. */
-	void setModalComponentOfMainEditor(Component * childComponentOfMainEditor);
-
-	/** Adds the dialog window to the desktop. If possible, use setModalComponentOfMainEditor instead for a nicer UX. */
-	void showOnDesktop();
-
-
+	
 	// ================================================================================================================
 
 	/** Starts the thread. */
@@ -128,7 +209,6 @@ protected:
 private:
 
 	void handleAsyncUpdate() override;
-	void destroy();
 
 	// ================================================================================================================
 

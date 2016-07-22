@@ -325,6 +325,103 @@ private:
 	Component::SafePointer<Component> window;
 };
 
+
+class UserPresetData
+{
+public:
+	// ================================================================================================================
+
+	/** A Listener will be notified if a preset was loaded. */
+	class Listener
+	{
+	public:
+
+		virtual ~Listener() {};
+		virtual void presetLoaded(int categoryIndex, int presetIndex, const String &presetName) = 0;
+	};
+
+	// ================================================================================================================
+
+	UserPresetData(MainController* mc_);;
+	~UserPresetData();
+
+	// ================================================================================================================
+
+	/** Call this when the amount of presets has changed. */
+	void refreshPresetFileList();
+
+	/** Loads a preset with the given category and preset index.
+	*
+	*	If the indexes are invalid, nothing will happen.
+	*/
+	void loadPreset(int categoryToLoad, int presetToLoad) const;
+
+	/** Loads the next preset and adjusts the current index. */
+	void loadNextPreset() const;
+
+	/** Loads the previous preset and adjusts the current index. */
+	void loadPreviousPreset() const;
+
+	/** Fills a StringArray with all presets. You can use the indexes to call loadPreset(). */
+	void fillPresetList(StringArray& listToFill, int categoryIndex) const;;
+
+	/** Fills a StringArray with all categories (User Presets being the last category. */
+	void fillCategoryList(StringArray& listToFill) const;
+
+	/** Provides information about the current preset. */
+	void getCurrentPresetIndexes(int &category, int &preset, String &name) const;
+
+	/** Add a listener that will receive a notification when a preset was loaded. */
+	void addListener(Listener *newListener) const;
+
+	/** Removes a listener. */
+	void removeListener(Listener *listenerToRemove) const;
+
+private:
+
+	// ================================================================================================================
+
+	struct Entry
+	{
+		Entry(String name_, int id_, const ValueTree &v_) : name(name_), id(id_), v(v_) {};
+		Entry() : name(""), id(-1) {};
+
+		String name;
+		int id;
+		ValueTree v;
+	};
+
+	struct PresetCategory
+	{
+		PresetCategory(String name_) : name(name_) {};
+		PresetCategory() : name("") {};
+
+		String name;
+		Array<Entry> presets;
+	};
+
+	// ================================================================================================================
+
+	void addFactoryPreset(const String &name, const String &category, int id, ValueTree &v);
+	void addUserPreset(const String &name, int id, const ValueTree &v);
+	const PresetCategory* getPresetCategory(int index) const;
+
+	MainController* mc;
+	mutable Array<Listener*> listeners;
+
+	OwnedArray<PresetCategory> factoryPresetCategories;
+	ScopedPointer<PresetCategory> userPresets;
+
+	mutable String currentName = "Default";
+	mutable int currentCategoryIndex = 0;
+	mutable	int currentPresetIndex = 0;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(UserPresetData);
+
+	// ================================================================================================================
+};
+
+
 class UserPresetHandler
 {
 public:
@@ -332,6 +429,8 @@ public:
     static void saveUserPreset(ModulatorSynthChain *chain);
     
     static void loadUserPreset(ModulatorSynthChain *chain, const File &fileToLoad);
+
+	static void loadUserPreset(ModulatorSynthChain* chain, const ValueTree &v);
     
     static File getUserPresetFile(ModulatorSynthChain *chain, const String &fileNameWithoutExtension);
 };

@@ -37,7 +37,8 @@
 class BackendProcessorEditor;
 class ScriptContentContainer;
 
-class PluginPreviewWindow : public DocumentWindow
+class PluginPreviewWindow : public DocumentWindow,
+							public ModalBaseWindow
 {
 public:
 

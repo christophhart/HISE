@@ -621,7 +621,7 @@ void ScriptingEditor::mouseDown(const MouseEvent &e)
 			{
 				ParameterConnector *comp = new ParameterConnector(sc, this);
 
-				comp->setModalComponentOfMainEditor(findParentComponentOfClass<BackendProcessorEditor>());
+				comp->setModalBaseWindowComponent(findParentComponentOfClass<BackendProcessorEditor>());
 			}
 		}
 		else if (result >= Knob && result < numWidgets)

@@ -408,6 +408,15 @@ public:
     
 	bool &getPluginParameterUpdateState() { return enablePluginParameterUpdate; }
 
+	void createUserPresetData()
+	{
+		userPresetData = new UserPresetData(this);
+	}
+
+	const UserPresetData* getUserPresetData() const { return userPresetData; }
+	
+	void rebuildUserPresetDatabase() { userPresetData->refreshPresetFileList(); }
+
 protected:
 
 	/** This is the main processing loop that is shared among all subclasses. */
@@ -461,6 +470,8 @@ protected:
     
 
 private:
+
+	ScopedPointer<UserPresetData> userPresetData;
 
 	void storePlayheadIntoDynamicObject(AudioPlayHead::CurrentPositionInfo &lastPosInfo);
 

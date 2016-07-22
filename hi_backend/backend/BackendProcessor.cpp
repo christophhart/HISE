@@ -116,6 +116,8 @@ synthChain(nullptr)
 	getMacroManager().setMacroChain(synthChain);
 
 	handleEditorData(false);
+
+	createUserPresetData();
 }
 
 

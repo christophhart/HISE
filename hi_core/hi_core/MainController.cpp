@@ -83,6 +83,7 @@ MainController::~MainController()
 	logger = nullptr;
 	masterReference.clear();
 	customTypeFaces.clear();
+	userPresetData = nullptr;
 }
 
 
@@ -159,7 +160,7 @@ void MainController::loadPreset(const File &f, Component *mainEditor)
 
 	if (mainEditor != nullptr)
 	{
-		presetLoader->setModalComponentOfMainEditor(mainEditor);
+		presetLoader->setModalBaseWindowComponent(mainEditor);
 	}
 	else
 	{

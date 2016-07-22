@@ -332,7 +332,7 @@ void SamplerBody::SampleEditingActions::normalizeSamples(SamplerBody *body)
 {
 	NormalizeThread *nm = new NormalizeThread(body);
 
-	nm->setModalComponentOfMainEditor(body);
+	nm->setModalBaseWindowComponent(body);
 	
 	nm->runThread();
 }
@@ -808,7 +808,7 @@ void SamplerBody::SampleEditingActions::mergeIntoMultiSamples(SamplerBody * body
 {
 	MultimicMergeDialogWindow * dialogWindow = new MultimicMergeDialogWindow(body);
 
-	dialogWindow->setModalComponentOfMainEditor(body);
+	dialogWindow->setModalBaseWindowComponent(body);
 }
 
 
