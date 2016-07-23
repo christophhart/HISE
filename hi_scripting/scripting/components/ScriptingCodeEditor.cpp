@@ -830,18 +830,11 @@ void JavascriptCodeEditor::AutoCompletePopup::createApiRows(const ValueTree &api
 
 		allInfo.add(row);
 
-		for (int j = 0; j < classTree.getNumChildren(); j++)
-		{
-			ValueTree methodTree = classTree.getChild(j);
+		const ApiClass* apiClass = sp->getScriptEngine()->getApiClass(className);
 
-			RowInfo *row = new RowInfo();
-			row->description = ApiHelpers::createAttributedStringFromApi(methodTree, className, false, Colours::black);
-			row->codeToInsert = ApiHelpers::createCodeToInsert(methodTree, className);
-			row->name = row->codeToInsert;
-			row->type = (int)RowInfo::Type::ApiMethod;
+		addApiMethods(classTree, Identifier(className));
 
-			allInfo.add(row);
-		}
+		if (apiClass != nullptr) addApiConstants(apiClass, apiClass->getName());
 	}
 }
 
@@ -851,6 +844,8 @@ void JavascriptCodeEditor::AutoCompletePopup::createObjectPropertyRows(const Val
 
 	HiseJavascriptEngine *engine = sp->getScriptEngine();
 	const ReferenceCountedObject* o = engine->getScriptObject(objectId);
+
+	const ApiClass* apiClass = engine->getApiClass(objectId);
 
 	if (o != nullptr)
 	{
@@ -980,6 +975,85 @@ void JavascriptCodeEditor::AutoCompletePopup::createObjectPropertyRows(const Val
 				allInfo.add(info);
 			}
 		}
+	}
+	else if (apiClass != nullptr)
+	{
+		ValueTree classTree = apiTree.getChildWithName(apiClass->getName());
+
+		addApiMethods(classTree, objectId);
+		addApiConstants(apiClass, objectId);
+	}
+	
+	addCustomEntries(objectId, apiTree);
+
+}
+
+void JavascriptCodeEditor::AutoCompletePopup::addCustomEntries(const Identifier &objectId, const ValueTree &apiTree)
+{
+	if (objectId.toString() == "g") // Special treatment for the g variable...
+	{
+		static const Identifier g("Graphics");
+
+		ValueTree classTree = apiTree.getChildWithName(g);
+
+		addApiMethods(classTree, objectId.toString());
+	}
+	else if (objectId.toString() == "event")
+	{
+		StringArray names = MouseCallbackComponent::getCallbackPropertyNames();
+
+		for (int i = 0; i < names.size(); i++)
+		{
+			RowInfo *info = new RowInfo();
+
+			info->name = objectId.toString() + "." + names[i];
+			info->codeToInsert = info->name;
+			info->typeName = "int";
+			info->value = names[i];
+			info->type = (int)DebugInformation::Type::Variables;
+
+			allInfo.add(info);
+		}
+	}
+}
+
+void JavascriptCodeEditor::AutoCompletePopup::addApiConstants(const ApiClass* apiClass, const Identifier &objectId)
+{
+	Array<Identifier> constants;
+
+	apiClass->getAllConstants(constants);
+
+	for (int i = 0; i < constants.size(); i++)
+	{
+		const var prop = apiClass->getConstantValue(i);
+
+		RowInfo *info = new RowInfo();
+
+		info->name = objectId.toString() + "." + constants[i].toString();
+		info->codeToInsert = info->name;
+		info->typeName = DebugInformation::getVarType(prop);
+		info->value = prop.toString();
+		info->type = (int)DebugInformation::Type::Constant;
+
+		allInfo.add(info);
+	}
+}
+
+void JavascriptCodeEditor::AutoCompletePopup::addApiMethods(const ValueTree &classTree, const Identifier &objectId)
+{
+	
+
+	for (int j = 0; j < classTree.getNumChildren(); j++)
+	{
+		ValueTree methodTree = classTree.getChild(j);
+
+		RowInfo *row = new RowInfo();
+		row->description = ApiHelpers::createAttributedStringFromApi(methodTree, objectId.toString(), false, Colours::black);
+		row->codeToInsert = ApiHelpers::createCodeToInsert(methodTree, objectId.toString());
+		row->name = row->codeToInsert;
+		row->type = (int)RowInfo::Type::ApiMethod;
+
+		allInfo.add(row);
 	}
 }
 

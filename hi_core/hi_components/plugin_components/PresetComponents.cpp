@@ -266,12 +266,12 @@ void PresetBrowserWindow::setPreset(int newPresetIndex)
 	repaint();
 }
 
-void PresetBrowserWindow::buttonClicked(Button *b)
+void PresetBrowserWindow::buttonClicked(Button */*b*/)
 {
 	destroy();
 }
 
-void PresetBrowserWindow::presetLoaded(int categoryIndex_, int presetIndex_, const String &presetName)
+void PresetBrowserWindow::presetLoaded(int categoryIndex_, int presetIndex_, const String &/*presetName*/)
 {
 	setCategory(categoryIndex_);
 	presetIndex = presetIndex_;
@@ -387,7 +387,7 @@ void PresetBox::resized()
 	presetSaveButton->setBounds(nextButton->getRight() + 3, y, s, s);
 }
 
-void PresetBox::mouseDown(const MouseEvent& event)
+void PresetBox::mouseDown(const MouseEvent& /*event*/)
 {
 	ModalBaseWindow* mbw = findParentComponentOfClass<ModalBaseWindow>();
 
@@ -421,7 +421,7 @@ void PresetBox::buttonClicked(Button *b)
 	}
 }
 
-void PresetBox::presetLoaded(int categoryIndex, int presetIndex, const String &presetName)
+void PresetBox::presetLoaded(int /*categoryIndex*/, int /*presetIndex*/, const String &presetName)
 {
 	presetNameLabel->setText(presetName, dontSendNotification);
 }

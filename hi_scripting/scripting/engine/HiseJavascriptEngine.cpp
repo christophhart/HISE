@@ -285,6 +285,19 @@ bool HiseJavascriptEngine::isApiClassRegistered(const String& className)
 	return root->hiseSpecialData.apiIds.contains(id);
 }
 
+
+const ApiClass* HiseJavascriptEngine::getApiClass(const Identifier &className) const
+{
+	const int index = root->hiseSpecialData.apiIds.indexOf(className);
+
+	if (index != -1)
+	{
+		return root->hiseSpecialData.apiClasses[index];
+	}
+
+	return nullptr;
+}
+
 ApiClass::Constant ApiClass::Constant::null;
 
 #if JUCE_MSVC

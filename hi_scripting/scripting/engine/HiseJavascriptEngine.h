@@ -153,6 +153,8 @@ public:
 	void registerApiClass(ApiClass *apiClass);
 	bool isApiClassRegistered(const String& className);
 
+	const ApiClass* getApiClass(const Identifier &className) const;
+
 	//==============================================================================
 	struct RootObject : public DynamicObject
 	{

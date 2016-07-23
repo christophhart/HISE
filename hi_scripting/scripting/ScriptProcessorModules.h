@@ -329,8 +329,8 @@ public:
 
 	bool hasTail() const override { return false; };
 
-	Processor *getChildProcessor(int processorIndex) override { return nullptr; };
-	const Processor *getChildProcessor(int processorIndex) const override { return nullptr; };
+	Processor *getChildProcessor(int /*processorIndex*/) override { return nullptr; };
+	const Processor *getChildProcessor(int /*processorIndex*/) const override { return nullptr; };
 
 	int getNumInternalChains() const override { return 0; };
 	int getNumChildProcessors() const override { return 0; };

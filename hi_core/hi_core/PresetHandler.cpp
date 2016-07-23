@@ -183,7 +183,7 @@ void UserPresetData::loadPreset(int categoryToLoad, int presetToLoad) const
 	{
 		if (presetToLoad < c->presets.size())
 		{
-			Entry* e = &c->presets[presetToLoad];
+			Entry* e = &c->presets.getReference(presetToLoad);
 
 			if (e != nullptr)
 			{

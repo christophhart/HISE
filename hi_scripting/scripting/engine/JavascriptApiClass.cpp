@@ -116,10 +116,29 @@ numConstants(numConstants_)
 		functions5[i] = nullptr;
 	}
 
-	for (int i = 0; i < NUM_API_FUNCTION_SLOTS; i++)
+	if (numConstants > 8)
 	{
-		constants[i] = Constant();
+		constantBigStorage = Array<Constant>();
+		constantBigStorage.ensureStorageAllocated(numConstants);
+		
+		for (int i = 0; i < numConstants; i++)
+		{
+			constantBigStorage.add(Constant());
+		}
+
+		constantsToUse = constantBigStorage.getRawDataPointer();
 	}
+	else
+	{
+		for (int i = 0; i < 8; i++)
+		{
+			constants[i] = Constant();
+		}
+
+		constantsToUse = constants;
+	}
+
+	
 }
 
 ApiClass::~ApiClass()
@@ -132,18 +151,26 @@ ApiClass::~ApiClass()
 		functions3[i] = nullptr;
 		functions4[i] = nullptr;
 		functions5[i] = nullptr;
-		constants[i].value = var::undefined();
 	}
+
+	
+	for (int i = 0; i < numConstants; i++)
+	{
+		constantsToUse[i] = Constant();
+	}
+
+	constantsToUse = nullptr;
+	constantBigStorage.clear();
 }
 
 void ApiClass::addConstant(String constantName, var value)
 {
 	for (int i = 0; i < numConstants; i++)
 	{
-		if (constants[i].id.isNull())
+		if (constantsToUse[i].id.isNull())
 		{
-			constants[i].id = Identifier(constantName);
-			constants[i].value = value;
+			constantsToUse[i].id = Identifier(constantName);
+			constantsToUse[i].value = value;
 			return;
 		}
 	}
@@ -151,14 +178,14 @@ void ApiClass::addConstant(String constantName, var value)
 
 const var ApiClass::getConstantValue(int index) const
 {
-	return constants[index].value;
+	return constantsToUse[index].value;
 }
 
 int ApiClass::getConstantIndex(const Identifier &id) const
 {
 	for (int i = 0; i < numConstants; i++)
 	{
-		if (constants[i].id == id) return i;
+		if (constantsToUse[i].id == id) return i;
 	}
 
 	return -1;
@@ -330,7 +357,7 @@ void ApiClass::getAllConstants(Array<Identifier> &ids) const
 {
 	for (int i = 0; i < numConstants; i++)
 	{
-		if (!constants[i].id.isNull()) ids.add(constants[i].id);
+		if (!constantsToUse[i].id.isNull()) ids.add(constantsToUse[i].id);
 	}
 }
 

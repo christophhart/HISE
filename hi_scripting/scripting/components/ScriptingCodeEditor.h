@@ -359,6 +359,12 @@ public:
 		void createApiRows(const ValueTree &apiTree);
 		void createObjectPropertyRows(const ValueTree &apiTree, const String &tokenText);
 
+		void addCustomEntries(const Identifier &objectId, const ValueTree &apiTree);
+
+		void addApiConstants(const ApiClass* apiClass, const Identifier &objectId);
+
+		void addApiMethods(const ValueTree &classTree, const Identifier &objectId);
+
 		~AutoCompletePopup()
 		{
 			infoBox = nullptr;

@@ -8,6 +8,7 @@ doxygen "xml.doxyfile"
 
 md "xml\selection"
 
+xcopy "xml\class_scripting_api_1_1_colours.xml" "xml\selection"
 xcopy "xml\class_scripting_api_1_1_console.xml" "xml\selection"
 xcopy "xml\class_scripting_api_1_1_content.xml" "xml\selection"
 xcopy "xml\class_scripting_api_1_1_engine.xml" "xml\selection"
@@ -22,6 +23,9 @@ xcopy "xml\class_scripting_objects_1_1_scripting_table_processor.xml" "xml\selec
 xcopy "xml\class_scripting_objects_1_1_scripting_effect.xml" "xml\selection"
 xcopy "xml\class_scripting_objects_1_1_scripting_midi_processor.xml" "xml\selection"
 xcopy "xml\class_scripting_objects_1_1_scripting_preset_storage.xml" "xml\selection"
+xcopy "xml\class_scripting_objects_1_1_graphics_object.xml" "xml\selection"
+
+
 
 xcopy "xml\struct_scripting_api_1_1_content_1_1_script_button.xml" "xml\selection"
 xcopy "xml\struct_scripting_api_1_1_content_1_1_script_combo_box.xml" "xml\selection"
@@ -31,9 +35,11 @@ xcopy "xml\struct_scripting_api_1_1_content_1_1_modulator_meter.xml" "xml\select
 xcopy "xml\struct_scripting_api_1_1_content_1_1_script_table.xml" "xml\selection"
 xcopy "xml\struct_scripting_api_1_1_content_1_1_scripted_plotter.xml" "xml\selection"
 xcopy "xml\struct_scripting_api_1_1_content_1_1_script_image.xml" "xml\selection"
+xcopy "xml\struct_scripting_api_1_1_content_1_1_script_panel.xml" "xml\selection"
 xcopy "xml\struct_scripting_api_1_1_content_1_1_script_slider_pack.xml" "xml\selection"
 
 
+ren "xml\selection\class_scripting_api_1_1_colours.xml" "Colours.xml"
 ren "xml\selection\class_scripting_api_1_1_console.xml" "Console.xml"
 ren "xml\selection\class_scripting_api_1_1_content.xml" "Content.xml"
 ren "xml\selection\class_scripting_api_1_1_engine.xml" "Engine.xml"
@@ -51,6 +57,7 @@ ren "xml\selection\class_scripting_objects_1_1_scripting_audio_sample_processor.
 ren "xml\selection\class_scripting_objects_1_1_scripting_table_processor.xml" "TableProcessor.xml"
 ren "xml\selection\class_scripting_objects_1_1_scripting_synth.xml" "ChildSynth.xml"
 ren "xml\selection\class_scripting_objects_1_1_scripting_preset_storage.xml" "PresetStorage.xml"
+ren "xml\selection\class_scripting_objects_1_1_graphics_object.xml" "Graphics.xml"
 
 ren "xml\selection\struct_scripting_api_1_1_content_1_1_script_button.xml" "ScriptButton.xml"
 ren "xml\selection\struct_scripting_api_1_1_content_1_1_script_combo_box.xml" "ScriptComboBox.xml"
@@ -59,6 +66,7 @@ ren "xml\selection\struct_scripting_api_1_1_content_1_1_script_label.xml" "Scrip
 ren "xml\selection\struct_scripting_api_1_1_content_1_1_modulator_meter.xml" "ModulatorMeter.xml"
 ren "xml\selection\struct_scripting_api_1_1_content_1_1_script_table.xml" "ScriptTable.xml"
 ren "xml\selection\struct_scripting_api_1_1_content_1_1_script_image.xml" "ScriptImage.xml"
+ren "xml\selection\struct_scripting_api_1_1_content_1_1_script_panel.xml" "ScriptPanel.xml"
 ren "xml\selection\struct_scripting_api_1_1_content_1_1_scripted_plotter.xml" "ScriptedPlotter.xml"
 ren "xml\selection\struct_scripting_api_1_1_content_1_1_script_slider_pack.xml" "ScriptSliderPack.xml"
 

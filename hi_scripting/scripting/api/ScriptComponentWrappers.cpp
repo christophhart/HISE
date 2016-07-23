@@ -517,12 +517,17 @@ ScriptCreatedComponentWrapper(content, index)
 void ScriptCreatedComponentWrappers::PanelWrapper::updateComponent()
 {
 	BorderPanel *bpc = dynamic_cast<BorderPanel*>(component.get());
+	auto sc = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(getScriptComponent());
 
 	bpc->c1 = GET_OBJECT_COLOUR(itemColour);
 	bpc->c2 = GET_OBJECT_COLOUR(itemColour2);
 	bpc->borderColour = GET_OBJECT_COLOUR(textColour);
 	bpc->borderRadius = getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::borderRadius);
 	bpc->borderSize = getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::borderSize);
+	bpc->image = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(getScriptComponent())->getImage();
+	bpc->isUsingCustomImage = sc->isUsingCustomPaintRoutine();
+
+	bpc->repaint();
 
 	bpc->setAllowCallback(getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::allowCallbacks).toString());
 
@@ -531,7 +536,9 @@ void ScriptCreatedComponentWrappers::PanelWrapper::updateComponent()
 
 void ScriptCreatedComponentWrappers::PanelWrapper::mouseCallback(const var &mouseInformation)
 {
-	changed(mouseInformation);
+	auto sp = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(getScriptComponent());
+
+	sp->mouseCallback(mouseInformation);
 }
 
 ScriptCreatedComponentWrappers::SliderPackWrapper::SliderPackWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptSliderPack *pack, int index) :

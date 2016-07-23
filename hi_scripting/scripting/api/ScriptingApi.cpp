@@ -1780,3 +1780,161 @@ m(dynamic_cast<Modulation*>(mod_))
 	ADD_API_METHOD_1(setIntensity);
 	ADD_API_METHOD_1(setBypassed);
 }
+
+struct ScriptingApi::Colours::Wrapper
+{
+	API_METHOD_WRAPPER_2(Colours, withAlpha);
+};
+
+ScriptingApi::Colours::Colours() :
+ApiClass(139)
+{
+	addConstant("transparentBlack", (int64)0);
+	addConstant("transparentWhite", (int64)0x00ffffff);
+	addConstant("aliceblue", (int64)0xfff0f8ff);
+	addConstant("antiquewhite", (int64)0xfffaebd7);
+	addConstant("aqua", (int64)0xff00ffff);
+	addConstant("aquamarine", (int64)0xff7fffd4);
+	addConstant("azure", (int64)0xfff0ffff);
+	addConstant("beige", (int64)0xfff5f5dc);
+	addConstant("bisque", (int64)0xffffe4c4);
+	addConstant("black", (int64)0xff000000);
+	addConstant("blanchedalmond", (int64)0xffffebcd);
+	addConstant("blue", (int64)0xff0000ff);
+	addConstant("blueviolet", (int64)0xff8a2be2);
+	addConstant("brown", (int64)0xffa52a2a);
+	addConstant("burlywood", (int64)0xffdeb887);
+	addConstant("cadetblue", (int64)0xff5f9ea0);
+	addConstant("chartreuse", (int64)0xff7fff00);
+	addConstant("chocolate", (int64)0xffd2691e);
+	addConstant("coral", (int64)0xffff7f50);
+	addConstant("cornflowerblue", (int64)0xff6495ed);
+	addConstant("cornsilk", (int64)0xfffff8dc);
+	addConstant("crimson", (int64)0xffdc143c);
+	addConstant("cyan", (int64)0xff00ffff);
+	addConstant("darkblue", (int64)0xff00008b);
+	addConstant("darkcyan", (int64)0xff008b8b);
+	addConstant("darkgoldenrod", (int64)0xffb8860b);
+	addConstant("darkgrey", (int64)0xff555555);
+	addConstant("darkgreen", (int64)0xff006400);
+	addConstant("darkkhaki", (int64)0xffbdb76b);
+	addConstant("darkmagenta", (int64)0xff8b008b);
+	addConstant("darkolivegreen", (int64)0xff556b2f);
+	addConstant("darkorange", (int64)0xffff8c00);
+	addConstant("darkorchid", (int64)0xff9932cc);
+	addConstant("darkred", (int64)0xff8b0000);
+	addConstant("darksalmon", (int64)0xffe9967a);
+	addConstant("darkseagreen", (int64)0xff8fbc8f);
+	addConstant("darkslateblue", (int64)0xff483d8b);
+	addConstant("darkslategrey", (int64)0xff2f4f4f);
+	addConstant("darkturquoise", (int64)0xff00ced1);
+	addConstant("darkviolet", (int64)0xff9400d3);
+	addConstant("deeppink", (int64)0xffff1493);
+	addConstant("deepskyblue", (int64)0xff00bfff);
+	addConstant("dimgrey", (int64)0xff696969);
+	addConstant("dodgerblue", (int64)0xff1e90ff);
+	addConstant("firebrick", (int64)0xffb22222);
+	addConstant("floralwhite", (int64)0xfffffaf0);
+	addConstant("forestgreen", (int64)0xff228b22);
+	addConstant("fuchsia", (int64)0xffff00ff);
+	addConstant("gainsboro", (int64)0xffdcdcdc);
+	addConstant("gold", (int64)0xffffd700);
+	addConstant("goldenrod", (int64)0xffdaa520);
+	addConstant("grey", (int64)0xff808080);
+	addConstant("green", (int64)0xff008000);
+	addConstant("greenyellow", (int64)0xffadff2f);
+	addConstant("honeydew", (int64)0xfff0fff0);
+	addConstant("hotpink", (int64)0xffff69b4);
+	addConstant("indianred", (int64)0xffcd5c5c);
+	addConstant("indigo", (int64)0xff4b0082);
+	addConstant("ivory", (int64)0xfffffff0);
+	addConstant("khaki", (int64)0xfff0e68c);
+	addConstant("lavender", (int64)0xffe6e6fa);
+	addConstant("lavenderblush", (int64)0xfffff0f5);
+	addConstant("lemonchiffon", (int64)0xfffffacd);
+	addConstant("lightblue", (int64)0xffadd8e6);
+	addConstant("lightcoral", (int64)0xfff08080);
+	addConstant("lightcyan", (int64)0xffe0ffff);
+	addConstant("lightgoldenrodyellow", (int64)0xfffafad2);
+	addConstant("lightgreen", (int64)0xff90ee90);
+	addConstant("lightgrey", (int64)0xffd3d3d3);
+	addConstant("lightpink", (int64)0xffffb6c1);
+	addConstant("lightsalmon", (int64)0xffffa07a);
+	addConstant("lightseagreen", (int64)0xff20b2aa);
+	addConstant("lightskyblue", (int64)0xff87cefa);
+	addConstant("lightslategrey", (int64)0xff778899);
+	addConstant("lightsteelblue", (int64)0xffb0c4de);
+	addConstant("lightyellow", (int64)0xffffffe0);
+	addConstant("lime", (int64)0xff00ff00);
+	addConstant("limegreen", (int64)0xff32cd32);
+	addConstant("linen", (int64)0xfffaf0e6);
+	addConstant("magenta", (int64)0xffff00ff);
+	addConstant("maroon", (int64)0xff800000);
+	addConstant("mediumaquamarine", (int64)0xff66cdaa);
+	addConstant("mediumblue", (int64)0xff0000cd);
+	addConstant("mediumorchid", (int64)0xffba55d3);
+	addConstant("mediumpurple", (int64)0xff9370db);
+	addConstant("mediumseagreen", (int64)0xff3cb371);
+	addConstant("mediumslateblue", (int64)0xff7b68ee);
+	addConstant("mediumspringgreen", (int64)0xff00fa9a);
+	addConstant("mediumturquoise", (int64)0xff48d1cc);
+	addConstant("mediumvioletred", (int64)0xffc71585);
+	addConstant("midnightblue", (int64)0xff191970);
+	addConstant("mintcream", (int64)0xfff5fffa);
+	addConstant("mistyrose", (int64)0xffffe4e1);
+	addConstant("navajowhite", (int64)0xffffdead);
+	addConstant("navy", (int64)0xff000080);
+	addConstant("oldlace", (int64)0xfffdf5e6);
+	addConstant("olive", (int64)0xff808000);
+	addConstant("olivedrab", (int64)0xff6b8e23);
+	addConstant("orange", (int64)0xffffa500);
+	addConstant("orangered", (int64)0xffff4500);
+	addConstant("orchid", (int64)0xffda70d6);
+	addConstant("palegoldenrod", (int64)0xffeee8aa);
+	addConstant("palegreen", (int64)0xff98fb98);
+	addConstant("paleturquoise", (int64)0xffafeeee);
+	addConstant("palevioletred", (int64)0xffdb7093);
+	addConstant("papayawhip", (int64)0xffffefd5);
+	addConstant("peachpuff", (int64)0xffffdab9);
+	addConstant("peru", (int64)0xffcd853f);
+	addConstant("pink", (int64)0xffffc0cb);
+	addConstant("plum", (int64)0xffdda0dd);
+	addConstant("powderblue", (int64)0xffb0e0e6);
+	addConstant("purple", (int64)0xff800080);
+	addConstant("red", (int64)0xffff0000);
+	addConstant("rosybrown", (int64)0xffbc8f8f);
+	addConstant("royalblue", (int64)0xff4169e1);
+	addConstant("saddlebrown", (int64)0xff8b4513);
+	addConstant("salmon", (int64)0xfffa8072);
+	addConstant("sandybrown", (int64)0xfff4a460);
+	addConstant("seagreen", (int64)0xff2e8b57);
+	addConstant("seashell", (int64)0xfffff5ee);
+	addConstant("sienna", (int64)0xffa0522d);
+	addConstant("silver", (int64)0xffc0c0c0);
+	addConstant("skyblue", (int64)0xff87ceeb);
+	addConstant("slateblue", (int64)0xff6a5acd);
+	addConstant("slategrey", (int64)0xff708090);
+	addConstant("snow", (int64)0xfffffafa);
+	addConstant("springgreen", (int64)0xff00ff7f);
+	addConstant("steelblue", (int64)0xff4682b4);
+	addConstant("tan", (int64)0xffd2b48c);
+	addConstant("teal", (int64)0xff008080);
+	addConstant("thistle", (int64)0xffd8bfd8);
+	addConstant("tomato", (int64)0xffff6347);
+	addConstant("turquoise", (int64)0xff40e0d0);
+	addConstant("violet", (int64)0xffee82ee);
+	addConstant("wheat", (int64)0xfff5deb3);
+	addConstant("white", (int64)0xffffffff);
+	addConstant("whitesmoke", (int64)0xfff5f5f5);
+	addConstant("yellow", (int64)0xffffff00);
+	addConstant("yellowgreen", (int64)0xff9acd32);
+
+	ADD_API_METHOD_2(withAlpha);
+}
+
+int ScriptingApi::Colours::withAlpha(int colour, float alpha)
+{
+	Colour c((uint32)colour);
+
+	return (int)c.withAlpha(alpha).getARGB();
+}

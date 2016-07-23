@@ -107,15 +107,7 @@ var HiseJavascriptEngine::callExternalFunction(var function, const var::NativeFu
 
 		if (fo != nullptr)
 		{
-			
-			root->setProperty(thisIdent, args.thisObject);
-
-			var result;
-			fo->body->perform(RootObject::Scope(nullptr, root, root), &result);
-
-			root->removeProperty(thisIdent);
-
-			return result;
+			return fo->invoke(RootObject::Scope(nullptr, root, root), args);;
 		}
 	}
 	catch (String& error)

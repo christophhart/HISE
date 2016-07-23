@@ -181,8 +181,12 @@ private:
 		var value;
 	};
 
-	Constant constants[NUM_API_FUNCTION_SLOTS];
+	Constant constants[8];
 	const int numConstants;
+
+	Constant* constantsToUse;
+
+	Array<Constant> constantBigStorage;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ApiClass)
 

@@ -544,6 +544,33 @@ public:
 
 	class Content;
 
+	class Colours: public ApiClass
+	{
+	public:
+
+		// ============================================================================================================
+
+		Colours();
+		~Colours() {};
+
+		Identifier getName() const override { RETURN_STATIC_IDENTIFIER("Colours"); }
+
+		// ============================================================================================================ API Methods
+
+		/** Returns a colour value with the specified alpha value. */
+		int withAlpha(int colour, float alpha);
+
+		// ============================================================================================================
+
+		struct Wrapper;
+
+	private:
+
+		// ============================================================================================================
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Colours);
+	};
+
 	class ModulatorApi : public ApiClass
 	{
 	public:

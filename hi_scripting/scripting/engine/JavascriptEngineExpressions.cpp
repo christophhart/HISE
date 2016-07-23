@@ -242,7 +242,7 @@ struct HiseJavascriptEngine::RootObject::FunctionCall : public Expression
 
 		if (isConstObjectApiFunction)
 		{
-			var parameters[4];
+			var parameters[5];
 
 			for (int i = 0; i < arguments.size(); i++)
 				parameters[i] = arguments[i]->getResult(s);
@@ -261,7 +261,7 @@ struct HiseJavascriptEngine::RootObject::FunctionCall : public Expression
 				CHECK_CONDITION_WITH_LOCATION(functionIndex != -1, "function not found");
 				CHECK_CONDITION_WITH_LOCATION(numArgs == arguments.size(), "argument amount mismatch: " + String(arguments.size()) + ", Expected: " + String(numArgs));
 
-				var parameters[4];
+				var parameters[5];
 
 				for (int i = 0; i < arguments.size(); i++)
 					parameters[i] = arguments[i]->getResult(s);

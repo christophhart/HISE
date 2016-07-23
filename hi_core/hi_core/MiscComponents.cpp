@@ -54,6 +54,24 @@ StringArray MouseCallbackComponent::getCallbackLevels()
 	return sa;
 }
 
+StringArray MouseCallbackComponent::getCallbackPropertyNames()
+{
+	StringArray sa;
+	
+	sa.add("mouseDownX");
+	sa.add("mouseDownY");
+	sa.add("x");
+	sa.add("y");
+	sa.add("clicked");
+	sa.add("rightClick");
+	sa.add("drag");
+	sa.add("dragX");
+	sa.add("dragY");
+	sa.add("hover");
+
+	return sa;
+}
+
 void MouseCallbackComponent::setPopupMenuItems(const StringArray &newItemList)
 {
 	itemList.clear();
@@ -138,6 +156,13 @@ void MouseCallbackComponent::mouseExit(const MouseEvent &event)
 	sendMessage(event, Action::Moved, Exited);
 }
 
+void MouseCallbackComponent::mouseUp(const MouseEvent &event)
+{
+	if (callbackLevel < CallbackLevel::ClicksOnly) return;
+
+	sendMessage(event, Action::MouseUp);
+}
+
 void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action, EnterState state)
 {
 	if (callbackLevel == CallbackLevel::NoCallbacks) return;
@@ -161,8 +186,11 @@ void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action,
 	{
 		currentEvent->setProperty(clicked, action == Action::Clicked);
 		currentEvent->setProperty(rightClick, action == Action::Clicked && event.mods.isRightButtonDown());
-		currentEvent->setProperty(mouseDownX, event.getEventRelativeTo(getParentComponent()).getMouseDownX());
-		currentEvent->setProperty(mouseDownY, event.getEventRelativeTo(getParentComponent()).getMouseDownY());
+		
+		currentEvent->setProperty(mouseDownX, event.getMouseDownX());
+		currentEvent->setProperty(mouseDownY, event.getMouseDownY());
+		currentEvent->setProperty(x, event.getPosition().getX());
+		currentEvent->setProperty(y, event.getPosition().getY());
 	}
 
 	if (callbackLevel >= CallbackLevel::ClicksAndEnter)
@@ -175,12 +203,6 @@ void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action,
 		currentEvent->setProperty(drag, event.getDistanceFromDragStart() > 4);
 		currentEvent->setProperty(dragX, event.getDistanceFromDragStartX());
 		currentEvent->setProperty(dragY, event.getDistanceFromDragStartY());
-	}
-
-	if (callbackLevel >= CallbackLevel::AllCallbacks)
-	{
-		currentEvent->setProperty(x, event.getPosition().getX());
-		currentEvent->setProperty(y, event.getPosition().getY());
 	}
 
 	var clickInformation(obj);
@@ -215,22 +237,28 @@ borderSize(1.0f)
 
 void BorderPanel::paint(Graphics &g)
 {
-	ColourGradient grad = ColourGradient(c1, 0.0f, 0.0f, c2, 0.0f, (float)getHeight(), false);
+	if (isUsingCustomImage)
+	{
+		g.setColour(Colours::black);
+		g.setOpacity(1.0f);
 
-	Rectangle<float> fillR(borderSize, borderSize, getWidth() - 2 * borderSize, getHeight() - 2 * borderSize);
+		g.drawImageAt(image, 0, 0);
+	}
+	else
+	{
+		ColourGradient grad = ColourGradient(c1, 0.0f, 0.0f, c2, 0.0f, (float)getHeight(), false);
+		Rectangle<float> fillR(borderSize, borderSize, getWidth() - 2 * borderSize, getHeight() - 2 * borderSize);
 
-	fillR.expand(borderSize * 0.5f, borderSize * 0.5f);
+		fillR.expand(borderSize * 0.5f, borderSize * 0.5f);
 
-	if (fillR.isEmpty() || fillR.getX() < 0 || fillR.getY() < 0) return;
+		if (fillR.isEmpty() || fillR.getX() < 0 || fillR.getY() < 0) return;
 
-	g.setGradientFill(grad);
-	g.fillRoundedRectangle(fillR, borderRadius);
+		g.setGradientFill(grad);
+		g.fillRoundedRectangle(fillR, borderRadius);
 
-
-
-	g.setColour(borderColour);
-
-	g.drawRoundedRectangle(fillR, borderRadius, borderSize);
+		g.setColour(borderColour);
+		g.drawRoundedRectangle(fillR, borderRadius, borderSize);
+	}
 }
 
 

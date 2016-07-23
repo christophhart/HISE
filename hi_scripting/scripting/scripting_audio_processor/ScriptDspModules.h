@@ -249,7 +249,7 @@ public:
 
 		const Identifier &getIdForParameter(int /*index*/) const override { RETURN_STATIC_IDENTIFIER("SmoothingTime"); }
 
-		void prepareToPlay(double sampleRate, int samplesPerBlock) override
+		void prepareToPlay(double sampleRate, int /*samplesPerBlock*/) override
 		{
 			smootherL.prepareToPlay(sampleRate);
 			smootherR.prepareToPlay(sampleRate);

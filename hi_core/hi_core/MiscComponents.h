@@ -50,6 +50,7 @@ class MouseCallbackComponent : public Component
 		Moved,
 		Dragged,
 		Clicked,
+		MouseUp,
 		Entered,
 		Nothing
 	};
@@ -90,6 +91,8 @@ public:
 
 	static StringArray getCallbackLevels();
 
+	static StringArray getCallbackPropertyNames();
+
 	void setPopupMenuItems(const StringArray &newItemList);
 	void setUseRightClickForPopup(bool shouldUseRightClickForPopup);
 
@@ -101,6 +104,7 @@ public:
 	void mouseDrag(const MouseEvent& event) override;
 	void mouseEnter(const MouseEvent &event) override;
 	void mouseExit(const MouseEvent &event) override;
+	void mouseUp(const MouseEvent &event) override;
 
 	void setAllowCallback(const String &newCallbackLevel) noexcept;
 	CallbackLevel getCallbackLevel() const;
@@ -145,6 +149,8 @@ public:
 
 	float borderRadius;
 	float borderSize;
+	Image image;
+	bool isUsingCustomImage;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BorderPanel);
 

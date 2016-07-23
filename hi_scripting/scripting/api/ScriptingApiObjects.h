@@ -377,19 +377,121 @@ public:
 	{
 	public:
 
+		// ============================================================================================================
+
 		TimerObject(ProcessorWithScriptingContent *p);
 		~TimerObject();
+
+		// ============================================================================================================
 
 		Identifier getObjectName() const override { return "Timer"; }
 		bool objectDeleted() const override { return false; }
 		bool objectExists() const override { return false; }
 
+		// ============================================================================================================
+		
 		/** the timer callback. */
 		void timerCallback() override;;
 
 		struct Wrapper;
 
+		// ============================================================================================================
+
+	private:
+
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TimerObject)
+	};
+
+	class GraphicsObject : public ConstScriptingObject
+	{
+	public:
+
+		// ============================================================================================================
+
+		GraphicsObject(ProcessorWithScriptingContent *p, ConstScriptingObject* parent);
+		~GraphicsObject();
+
+		// ============================================================================================================
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Graphics"); }
+		
+		// ============================================================================================================ API Methods
+
+		/** Fills the whole area with the given colour. */
+		void fillAll(int colour);
+
+		/** Fills a rectangle with the given colour. */
+		void fillRect(var area);
+
+		/** Draws a rectangle. */
+		void drawRect(var area, float borderSize);
+
+		/** Fills a rounded rectangle. */
+		void fillRoundedRectangle(var area, float cornerSize);
+
+		/** Draws a rounded rectangle. */
+		void drawRoundedRectangle(var area, float cornerSize, float borderSize);
+
+		/** Draws a (non interpolated) horizontal line. */
+		void drawHorizontalLine(int y, float x1, float x2);
+
+		/** Sets a global transparency level. */
+		void setOpacity(float alphaValue);
+
+		/** Draws a line. */
+		void drawLine(float x1, float x2, float y1, float y2, float lineThickness);
+
+		/** Sets the current colour. */
+		void setColour(int colour);
+
+		/** Sets the current font. */
+		void setFont(String fontName, float fontSize);
+
+		/** Draws a (centered) text. */
+		void drawText(String text, var area);
+
+		/** Sets the current gradient via an array [Colour1, x1, y1, Colour2, x2, y2] */
+		void setGradientFill(var gradientData);
+
+		/** Draws a ellipse in the given area. */
+		void drawEllipse(var area, float lineThickness);
+		
+		/** Fills a ellipse in the given area. */
+		void fillEllipse(var area);
+
+		/** Draws a image into the area. */
+		void drawImage(String imageName, var area, int xOffset, int yOffset);
+
+		// ============================================================================================================
+
+		struct Wrapper;
+
+		
+		void setGraphics(Graphics *g_)
+		{
+			g = g_;
+		}
+
+	private:
+
+		void initGraphics();
+
+		Rectangle<float> getRectangleFromVar(const var &data);
+
+		Image imageToDraw;
+
+		Graphics *g = nullptr;
+
+		Colour currentColour;
+		Font currentFont;
+		ColourGradient currentGradient;
+		bool useGradient = false;
+
+		ConstScriptingObject* parent;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GraphicsObject);
+
+		// ============================================================================================================
 	};
 };
 

@@ -557,6 +557,8 @@ public:
 		*	If forceUseRealFile is true, then it will reload the file from disk instead of caching it. */
 		void setImageFile(const String &absoluteFileName, bool forceUseRealFile);
 
+		
+
 		// ========================================================================================================
 
 		struct Wrapper;
@@ -570,7 +572,8 @@ public:
 		// ========================================================================================================
 	};
 
-	struct ScriptPanel : public ScriptComponent
+	struct ScriptPanel : public ScriptComponent,
+						 public Timer
 	{
 		// ========================================================================================================
 
@@ -583,7 +586,12 @@ public:
 		};
 
 		ScriptPanel(ProcessorWithScriptingContent *base, Content *parentContent, Identifier panelName, int x, int y, int width, int height);;
-		~ScriptPanel() {}
+		~ScriptPanel()
+		{
+			timerRoutine = var::undefined();
+			mouseRoutine = var::undefined();
+			paintRoutine = var::undefined();
+		}
 
 		// ========================================================================================================
 
@@ -591,11 +599,100 @@ public:
 		StringArray getOptionsFor(const Identifier &id) override;
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 
+		// ======================================================================================================== API Methods
+
+		/** Triggers a repaint. */
+		void repaint();
+
+		/** Sets a paint routine (a function with one parameter). */
+		void setPaintRoutine(var paintFunction);
+
+		/** Sets a mouse callback. */
+		void setMouseCallback(var mouseCallbackFunction);
+
+		/** Sets a timer callback. */
+		void setTimerCallback(var timerCallback);
+
+		/** Call this to indicate that the value has changed (the onControl callback will be executed. */
+		void changed();
+
+		void loadImage(String imageName, String prettyName);
+
 		// ========================================================================================================
+
+		struct Wrapper;
+
+		Image getImage() const
+		{
+			return paintCanvas;
+		}
+
+		bool isUsingCustomPaintRoutine() const { return !paintRoutine.isUndefined(); }
+
+		void mouseCallback(var mouseInformation);
+
+		void timerCallback() override;
+
+		const Image* getLoadedImage(const String &prettyName) const
+		{
+			for (int i = 0; i < loadedImages.size(); i++)
+			{
+				if (loadedImages[i].prettyName == prettyName)
+					return loadedImages[i].image;
+			}
+		};
 
 	private:
 
+		void internalRepaint();
+
+		struct AsyncControlCallbackSender : public AsyncUpdater
+		{
+			AsyncControlCallbackSender(ScriptPanel* parent_, ProcessorWithScriptingContent* p_) : parent(parent_), p(p_) {};
+
+			void handleAsyncUpdate();
+
+			ScriptPanel* parent;
+			ProcessorWithScriptingContent* p;
+		};
+
+		struct AsyncRepainter : public AsyncUpdater
+		{
+			AsyncRepainter(ScriptPanel* parent_) : parent(parent_){}
+
+			void handleAsyncUpdate()
+			{
+				parent->internalRepaint();
+			}
+
+			ScriptPanel* parent;
+		};
+
+		struct NamedImage
+		{
+			NamedImage(const Image* image_, const String &prettyName_ , const String &fileName_) : image(image_), prettyName(prettyName_), fileName(fileName_) {};
+			
+			NamedImage(): image(nullptr), fileName(String()), prettyName(String()) {}
+
+			const Image* image;
+			const String fileName;
+			const String prettyName;
+		};
+
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptPanel);
+
+		ReferenceCountedObjectPtr<ScriptingObjects::GraphicsObject> graphics;
+
+		var paintRoutine = var::undefined();
+		var mouseRoutine = var::undefined();
+		var timerRoutine = var::undefined();
+
+		Image paintCanvas;
+
+		Array<NamedImage> loadedImages;
+
+		AsyncRepainter repainter;
+		AsyncControlCallbackSender controlSender;
 
 		// ========================================================================================================
 	};

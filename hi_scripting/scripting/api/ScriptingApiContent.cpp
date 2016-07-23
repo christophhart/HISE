@@ -1700,10 +1700,23 @@ void ScriptingApi::Content::ScriptImage::setAlpha(float newAlphaValue)
 	setScriptObjectPropertyWithChangeMessage(getIdFor(Alpha), newAlphaValue);
 }
 
-
+struct ScriptingApi::Content::ScriptPanel::Wrapper
+{
+	API_VOID_METHOD_WRAPPER_0(ScriptPanel, repaint);
+	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setPaintRoutine);
+	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setMouseCallback);
+	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setTimerCallback);
+	API_VOID_METHOD_WRAPPER_1(ScriptPanel, startTimer);
+	API_VOID_METHOD_WRAPPER_0(ScriptPanel, stopTimer);
+	API_VOID_METHOD_WRAPPER_0(ScriptPanel, changed);
+	API_VOID_METHOD_WRAPPER_2(ScriptPanel, loadImage);
+};
 
 ScriptingApi::Content::ScriptPanel::ScriptPanel(ProcessorWithScriptingContent *base, Content *parentContent, Identifier panelName, int x, int y, int width, int height) :
-ScriptComponent(base, parentContent, panelName, x, y, width, height)
+ScriptComponent(base, parentContent, panelName, x, y, width, height),
+graphics(new ScriptingObjects::GraphicsObject(base, this)),
+repainter(this),
+controlSender(this, base)
 {
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::max));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::min));
@@ -1727,6 +1740,15 @@ ScriptComponent(base, parentContent, panelName, x, y, width, height)
 	setDefaultValue(borderSize, 2.0f);
 	setDefaultValue(borderRadius, 6.0f);
 	setDefaultValue(allowCallbacks, 0);
+
+	ADD_API_METHOD_0(repaint);
+	ADD_API_METHOD_1(setPaintRoutine);
+	ADD_API_METHOD_1(setMouseCallback);
+	ADD_API_METHOD_1(setTimerCallback);
+	ADD_API_METHOD_0(changed);
+	ADD_API_METHOD_1(startTimer);
+	ADD_API_METHOD_0(stopTimer);
+	ADD_API_METHOD_2(loadImage);
 }
 
 StringArray ScriptingApi::Content::ScriptPanel::getOptionsFor(const Identifier &id)
@@ -1742,6 +1764,131 @@ StringArray ScriptingApi::Content::ScriptPanel::getOptionsFor(const Identifier &
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptPanel::createComponentWrapper(ScriptContentComponent *content, int index)
 {
 	return new ScriptCreatedComponentWrappers::PanelWrapper(content, this, index);
+}
+
+void ScriptingApi::Content::ScriptPanel::repaint()
+{
+	repainter.triggerAsyncUpdate();
+}
+
+void ScriptingApi::Content::ScriptPanel::setPaintRoutine(var paintFunction)
+{
+	paintRoutine = paintFunction;
+	repaint();
+}
+
+void ScriptingApi::Content::ScriptPanel::internalRepaint()
+{
+	paintCanvas = Image(Image::PixelFormat::ARGB, (int)getScriptObjectProperty(ScriptComponent::Properties::width), (int)getScriptObjectProperty(ScriptComponent::Properties::height), true);
+
+	Graphics g(paintCanvas);
+
+	var arguments = var(graphics);
+	var::NativeFunctionArgs args(this, &arguments, 1);
+
+	graphics->setGraphics(&g);
+
+	Result r = Result::ok();
+
+	dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine()->callExternalFunction(paintRoutine, args, &r);
+
+	if (r.failed())
+	{
+		reportScriptError(r.getErrorMessage());
+	}
+
+	graphics->setGraphics(nullptr);
+
+	sendChangeMessage();
+}
+
+void ScriptingApi::Content::ScriptPanel::setMouseCallback(var mouseCallbackFunction)
+{
+	mouseRoutine = mouseCallbackFunction;
+}
+
+void ScriptingApi::Content::ScriptPanel::mouseCallback(var mouseInformation)
+{
+	if (!mouseRoutine.isUndefined())
+	{
+		var::NativeFunctionArgs args(this, &mouseInformation, 1);
+
+		Result r = Result::ok();
+
+		dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine()->callExternalFunction(mouseRoutine, args, &r);
+
+		if (r.failed())
+		{
+			reportScriptError(r.getErrorMessage());
+		}
+	}
+}
+
+void ScriptingApi::Content::ScriptPanel::setTimerCallback(var timerCallback_)
+{
+	timerRoutine = timerCallback_;
+}
+
+void ScriptingApi::Content::ScriptPanel::timerCallback()
+{
+	if (!timerRoutine.isUndefined())
+	{
+		var::NativeFunctionArgs args(this, nullptr, 0);
+
+		Result r = Result::ok();
+
+		dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine()->callExternalFunction(timerRoutine, args, &r);
+
+		if (r.failed())
+		{
+			reportScriptError(r.getErrorMessage());
+		}
+	}
+}
+
+void ScriptingApi::Content::ScriptPanel::changed()
+{
+	controlSender.triggerAsyncUpdate();
+}
+
+void ScriptingApi::Content::ScriptPanel::loadImage(String imageName, String prettyName)
+{
+	for (int i = 0; i < loadedImages.size(); i++)
+	{
+		if (loadedImages[i].fileName == imageName) return;
+	}
+
+	ImagePool *pool = getProcessor()->getMainController()->getSampleManager().getImagePool();
+
+#if USE_FRONTEND
+
+	String poolName = ProjectHandler::Frontend::getSanitiziedFileNameForPoolReference(imageName);
+
+	const Image *newImage = pool->loadFileIntoPool(poolName, false);
+
+	jassert(image != nullptr);
+
+#else
+
+	File actualFile = getExternalFile(imageName);
+
+	const Image *newImage = pool->loadFileIntoPool(actualFile.getFullPathName(), true);
+
+#endif
+
+	if (newImage != nullptr)
+	{
+		loadedImages.add(NamedImage(newImage, prettyName, imageName));
+	}
+	else
+	{
+		BACKEND_ONLY(reportScriptError("Image " + actualFile.getFullPathName() + " not found. "));
+	}
+}
+
+void ScriptingApi::Content::ScriptPanel::AsyncControlCallbackSender::handleAsyncUpdate()
+{
+	p->controlCallback(parent, parent->getValue());
 }
 
 

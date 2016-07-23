@@ -665,3 +665,239 @@ void ScriptingObjects::TimerObject::timerCallback()
 		debugError(getProcessor(), r.getErrorMessage());
 	}
 }
+
+struct ScriptingObjects::GraphicsObject::Wrapper
+{
+	API_VOID_METHOD_WRAPPER_1(GraphicsObject, fillAll);
+	API_VOID_METHOD_WRAPPER_1(GraphicsObject, setColour);
+	API_VOID_METHOD_WRAPPER_1(GraphicsObject, setOpacity);
+	API_VOID_METHOD_WRAPPER_1(GraphicsObject, fillRect);
+	API_VOID_METHOD_WRAPPER_2(GraphicsObject, drawRect);
+	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawRoundedRectangle);
+	API_VOID_METHOD_WRAPPER_2(GraphicsObject, fillRoundedRectangle);
+	API_VOID_METHOD_WRAPPER_5(GraphicsObject, drawLine);
+	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawHorizontalLine);
+	API_VOID_METHOD_WRAPPER_2(GraphicsObject, setFont);
+	API_VOID_METHOD_WRAPPER_2(GraphicsObject, drawText);
+	API_VOID_METHOD_WRAPPER_1(GraphicsObject, setGradientFill);
+	API_VOID_METHOD_WRAPPER_2(GraphicsObject, drawEllipse);
+	API_VOID_METHOD_WRAPPER_1(GraphicsObject, fillEllipse);
+	API_VOID_METHOD_WRAPPER_4(GraphicsObject, drawImage);
+};
+
+ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *p, ConstScriptingObject* parent_) :
+ConstScriptingObject(p, 0),
+parent(parent_)
+{
+	ADD_API_METHOD_1(fillAll);
+	ADD_API_METHOD_1(setColour);
+	ADD_API_METHOD_1(setOpacity);
+	ADD_API_METHOD_2(drawRect);
+	ADD_API_METHOD_1(fillRect);
+	ADD_API_METHOD_3(drawRoundedRectangle);
+	ADD_API_METHOD_2(fillRoundedRectangle);
+	ADD_API_METHOD_5(drawLine);
+	ADD_API_METHOD_3(drawHorizontalLine);
+	ADD_API_METHOD_2(setFont);
+	ADD_API_METHOD_2(drawText);
+	ADD_API_METHOD_1(setGradientFill);
+	ADD_API_METHOD_2(drawEllipse);
+	ADD_API_METHOD_1(fillEllipse);
+	ADD_API_METHOD_4(drawImage);
+}
+
+ScriptingObjects::GraphicsObject::~GraphicsObject()
+{
+
+}
+
+void ScriptingObjects::GraphicsObject::fillAll(int colour)
+{
+	initGraphics();
+	Colour c((uint32)colour);
+
+	g->fillAll(c);
+
+	
+}
+
+void ScriptingObjects::GraphicsObject::fillRect(var area)
+{
+	initGraphics();
+
+	g->fillRect(getRectangleFromVar(area));
+}
+
+void ScriptingObjects::GraphicsObject::drawRect(var area, float borderSize)
+{
+	initGraphics();
+
+	g->drawRect(getRectangleFromVar(area), borderSize);
+}
+
+void ScriptingObjects::GraphicsObject::fillRoundedRectangle(var area, float cornerSize)
+{
+	initGraphics();
+
+	g->fillRoundedRectangle(getRectangleFromVar(area), cornerSize);
+}
+
+void ScriptingObjects::GraphicsObject::drawRoundedRectangle(var area, float cornerSize, float borderSize)
+{
+	initGraphics();
+
+
+
+	g->drawRoundedRectangle(getRectangleFromVar(area), cornerSize, borderSize);
+}
+
+void ScriptingObjects::GraphicsObject::drawHorizontalLine(int y, float x1, float x2)
+{
+	initGraphics();
+
+	g->drawHorizontalLine(y, x1, x2);
+}
+
+void ScriptingObjects::GraphicsObject::setOpacity(float alphaValue)
+{
+	initGraphics();
+
+	
+
+	g->setOpacity(alphaValue);
+}
+
+void ScriptingObjects::GraphicsObject::drawLine(float x1, float x2, float y1, float y2, float lineThickness)
+{
+	initGraphics();
+
+	g->drawLine(x1, y1, x2, y2, lineThickness);
+}
+
+void ScriptingObjects::GraphicsObject::setColour(int colour)
+{
+	
+	currentColour = Colour((uint32)colour);
+	g->setColour(currentColour);
+
+	useGradient = false;
+}
+
+void ScriptingObjects::GraphicsObject::setFont(String fontName, float fontSize)
+{
+	MainController *mc = getScriptProcessor()->getMainController_();
+
+	juce::Typeface::Ptr typeface = mc->getFont(fontName);
+
+	if (typeface != nullptr)
+	{
+		currentFont = Font(typeface).withHeight(fontSize);
+	}
+	else
+	{
+		currentFont = Font(fontName, fontSize, Font::plain);
+	}
+
+	g->setFont(currentFont);
+}
+
+void ScriptingObjects::GraphicsObject::drawText(String text, var area)
+{
+	initGraphics();
+
+	g->drawText(text, getRectangleFromVar(area), Justification::centred);
+}
+
+void ScriptingObjects::GraphicsObject::setGradientFill(var gradientData)
+{
+	if (gradientData.isArray())
+	{
+		Array<var>* data = gradientData.getArray();
+
+		if (gradientData.getArray()->size() == 6)
+		{
+			currentGradient = ColourGradient(Colour((uint32)(int64)data->getUnchecked(0)), (float)data->getUnchecked(1), (float)data->getUnchecked(2),
+					 					       Colour((uint32)(int64)data->getUnchecked(3)), (float)data->getUnchecked(4), (float)data->getUnchecked(5), false);
+
+			useGradient = true;
+
+			g->setGradientFill(currentGradient);
+		}
+		else
+		{
+			reportScriptError("Gradient Data must have six elements");
+		}
+	}
+	else
+	{
+		reportScriptError("Gradient Data is not sufficient");
+	}
+}
+
+
+
+void ScriptingObjects::GraphicsObject::drawEllipse(var area, float lineThickness)
+{
+	initGraphics();
+
+	g->drawEllipse(getRectangleFromVar(area), lineThickness);
+}
+
+void ScriptingObjects::GraphicsObject::fillEllipse(var area)
+{
+	initGraphics();
+
+	g->fillEllipse(getRectangleFromVar(area));
+}
+
+void ScriptingObjects::GraphicsObject::drawImage(String imageName, var area, int xOffset, int yOffset)
+{
+	initGraphics();
+
+	auto sc = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(parent);
+
+	const Image *imageToDraw = sc->getLoadedImage(imageName);
+
+	if (imageToDraw != nullptr && imageToDraw->isValid())
+	{
+		Rectangle<float> r = getRectangleFromVar(area);
+
+		g->drawImage(*imageToDraw, (int)r.getX(), (int)r.getY(), (int)r.getWidth(), (int)r.getHeight(), xOffset, yOffset, (int)r.getWidth(), (int)r.getHeight());
+	}
+	else
+	{
+		reportScriptError("Image not found");
+	};
+}
+
+void ScriptingObjects::GraphicsObject::initGraphics()
+{
+	if (g == nullptr) reportScriptError("Graphics not initialised");
+
+}
+
+
+Rectangle<float> ScriptingObjects::GraphicsObject::getRectangleFromVar(const var &data)
+{
+	if (data.isArray())
+	{
+		Array<var>* d = data.getArray();
+
+		if (d->size() == 4)
+		{
+			Rectangle<float> rectangle((float)d->getUnchecked(0), (float)d->getUnchecked(1), (float)d->getUnchecked(2), (float)d->getUnchecked(3));
+
+			return rectangle;
+		}
+		else
+		{
+			reportScriptError("Rectangle array needs 4 elements");
+			return Rectangle<float>();
+		}
+	}
+	else
+	{
+		reportScriptError("Rectangle data is not an array");
+		return Rectangle<float>();
+	}
+}
