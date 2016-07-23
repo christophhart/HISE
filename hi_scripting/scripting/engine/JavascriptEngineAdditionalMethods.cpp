@@ -92,26 +92,37 @@ var HiseJavascriptEngine::RootObject::Scope::findFunctionCall(const CodeLocation
 }
 
 
-var HiseJavascriptEngine::callExternalFunction(var callback, const var::NativeFunctionArgs& args, Result* result)
+var HiseJavascriptEngine::callExternalFunction(var function, const var::NativeFunctionArgs& args, Result* errorMessage /*= nullptr*/)
 {
 	var returnVal(var::undefined());
+
+	static const Identifier thisIdent("this");
 
 	try
 	{
 		prepareTimeout();
-		if (result != nullptr) *result = Result::ok();
+		if (errorMessage != nullptr) *errorMessage = Result::ok();
 
-		RootObject::FunctionObject *fo = dynamic_cast<RootObject::FunctionObject*>(callback.getObject());
+		RootObject::FunctionObject *fo = dynamic_cast<RootObject::FunctionObject*>(function.getObject());
 
 		if (fo != nullptr)
 		{
-			RootObject::Scope s(nullptr, root, root);
-			returnVal = fo->invoke(s, args);
+			
+			root->setProperty(thisIdent, args.thisObject);
+
+			var result;
+			fo->body->perform(RootObject::Scope(nullptr, root, root), &result);
+
+			root->removeProperty(thisIdent);
+
+			return result;
 		}
 	}
 	catch (String& error)
 	{
-		if (result != nullptr) *result = Result::fail(error);
+		root->removeProperty(thisIdent);
+
+		if (errorMessage != nullptr) *errorMessage = Result::fail(error);
 	}
 
 	return returnVal;

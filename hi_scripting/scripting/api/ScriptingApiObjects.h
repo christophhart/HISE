@@ -377,7 +377,8 @@ public:
 	{
 	public:
 
-		TimerObject(ProcessorWithScriptingContent *p);;
+		TimerObject(ProcessorWithScriptingContent *p);
+		~TimerObject();
 
 		Identifier getObjectName() const override { return "Timer"; }
 		bool objectDeleted() const override { return false; }
@@ -387,6 +388,8 @@ public:
 		void timerCallback() override;;
 
 		struct Wrapper;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TimerObject)
 	};
 };
 

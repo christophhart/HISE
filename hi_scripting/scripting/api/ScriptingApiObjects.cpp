@@ -639,18 +639,25 @@ DynamicScriptingObject(p)
 {
 	ADD_DYNAMIC_METHOD(startTimer);
 	ADD_DYNAMIC_METHOD(stopTimer);
+
+
 }
 
 
+ScriptingObjects::TimerObject::~TimerObject()
+{
+	removeProperty("callback");
+}
+
 void ScriptingObjects::TimerObject::timerCallback()
 {
-	var callback = getProperty("callback");
 	var undefinedArgs = var::undefined();
+	
 	var::NativeFunctionArgs args(this, &undefinedArgs, 0);
 
 	Result r = Result::ok();
 
-	dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->getScriptEngine()->callExternalFunction(callback, args);
+	dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->getScriptEngine()->callExternalFunction(getProperty("callback"), args, &r);
 
 	if (r.failed())
 	{

@@ -67,15 +67,15 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 		functionIndex(functionIndex),
 		apiClass(apiClass_)
 	{
-		for (int i = 0; i < 4; i++)
+		for (int i = 0; i < 5; i++)
 		{
-			results[i] = var::undefined();
 			argumentList[i] = nullptr;
 		}
 	};
 
 	var getResult(const Scope& s) const override
 	{
+		var results[5];
 		for (int i = 0; i < expectedNumArguments; i++)
 		{
 			results[i] = argumentList[i]->getResult(s);
@@ -88,9 +88,9 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 
 	const int expectedNumArguments;
 
-	ExpPtr argumentList[4];
+	ExpPtr argumentList[5];
 	const int functionIndex;
-	mutable var results[4];
+	
 
 	const ReferenceCountedObjectPtr<ApiClass> apiClass;
 };
