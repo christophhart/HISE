@@ -616,6 +616,7 @@ public:
 		/** Call this to indicate that the value has changed (the onControl callback will be executed. */
 		void changed();
 
+		/** Loads a image which can be drawn with the paint function later on. */
 		void loadImage(String imageName, String prettyName);
 
 		// ========================================================================================================

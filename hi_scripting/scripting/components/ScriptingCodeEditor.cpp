@@ -379,6 +379,19 @@ void JavascriptCodeEditor::selectFunctionParameters()
 			moveCaretTo(pos, true);
 		}
 	}
+	else if (getCharacterAtCaret(true) == '\n')
+	{
+		CodeDocument::Position pos = getCaretPos();
+
+		while (pos.getCharacter() != '\t' && pos.getPosition() > 0)
+		{
+			pos.moveBy(-1);
+		}
+
+		pos.moveBy(1);
+
+		moveCaretTo(pos, false);
+	}
 }
 
 void JavascriptCodeEditor::handleEscapeKey()

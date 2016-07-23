@@ -44,9 +44,40 @@ apiTree(ValueTree(ValueTree::readFromData(XmlApi::apivaluetree_dat, XmlApi::apiv
 String ApiHelpers::createCodeToInsert(const ValueTree &method, const String &className)
 {
 	const String name = method.getProperty(Identifier("name")).toString();
-	const String arguments = method.getProperty(Identifier("arguments")).toString();
 
-	return String(className + "." + name + arguments);
+	if (name == "setMouseCallback")
+	{
+		const String argumentName = "event";
+		String functionDef = className;
+		functionDef << "." << name + "(function(" << argumentName << ")\n";
+		functionDef << "{\n\t\n});\n";
+
+		return functionDef;
+	}
+	else if (name == "setTimerCallback")
+	{
+		const String argumentName = "";
+		String functionDef = className;
+		functionDef << "." << name + "(function(" << argumentName << ")\n";
+		functionDef << "{\n\t\n});\n";
+
+		return functionDef;
+	}
+	else if (name == "setPaintRoutine")
+	{
+		const String argumentName = "g";
+		String functionDef = className;
+		functionDef << "." << name + "(function(" << argumentName << ")\n";
+		functionDef << "{\n\t\n});\n";
+		
+		return functionDef;
+	}
+	else
+	{
+		const String arguments = method.getProperty(Identifier("arguments")).toString();
+
+		return String(className + "." + name + arguments);
+	}
 }
 
 

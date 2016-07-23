@@ -189,6 +189,7 @@ void Console::mouseDown(const MouseEvent &e)
 		if (result == 1)
 		{
 			newTextConsole->getDocument().replaceAllContent("");
+			newTextConsole->scrollToLine(0);
 			
 		}
         else if (result == 2)
@@ -309,7 +310,12 @@ void Console::handleAsyncUpdate()
 #endif
 	}
 
+	int numLinesVisible = jmax<int>(0, doc->getNumLines() - (int)((float)newTextConsole->getHeight() / GLOBAL_MONOSPACE_FONT().getHeight()));
+
+	newTextConsole->scrollToLine(numLinesVisible);
 	
+	
+
 	overflowProtection = false;
 
 	return;
