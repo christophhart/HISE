@@ -60,6 +60,7 @@ public:
 	enum class CallbackLevel
 	{
 		NoCallbacks = 0,
+		PopupMenuOnly,
 		ClicksOnly,
 		ClicksAndEnter,
 		Drag,
@@ -90,11 +91,11 @@ public:
 	virtual ~MouseCallbackComponent() {};
 
 	static StringArray getCallbackLevels();
-
 	static StringArray getCallbackPropertyNames();
 
 	void setPopupMenuItems(const StringArray &newItemList);
 	void setUseRightClickForPopup(bool shouldUseRightClickForPopup);
+	void alignPopup(bool shouldBeAligned);
 
 	void addMouseCallbackListener(Listener *l);
 	void removeCallbackListener(Listener *l);
@@ -122,6 +123,8 @@ private:
 
 	StringArray itemList;
 	bool useRightClickForPopup = true;
+	bool popupShouldBeAligned = false;
+
 
 	Array<WeakReference<Listener>> listenerList;
 	DynamicObject::Ptr currentEvent;
@@ -153,7 +156,7 @@ public:
 	bool isUsingCustomImage;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BorderPanel);
-
+	
 	// ================================================================================================================
 };
 

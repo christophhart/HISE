@@ -46,6 +46,7 @@ StringArray MouseCallbackComponent::getCallbackLevels()
 {
 	StringArray sa;
 	sa.add("No Callbacks");
+	sa.add("Context Menu");
 	sa.add("Clicks Only");
 	sa.add("Clicks & Hover");
 	sa.add("Clicks, Hover & Dragging");
@@ -68,6 +69,8 @@ StringArray MouseCallbackComponent::getCallbackPropertyNames()
 	sa.add("dragX");
 	sa.add("dragY");
 	sa.add("hover");
+	sa.add("result");
+	sa.add("itemText");
 
 	return sa;
 }
@@ -81,6 +84,11 @@ void MouseCallbackComponent::setPopupMenuItems(const StringArray &newItemList)
 void MouseCallbackComponent::setUseRightClickForPopup(bool shouldUseRightClickForPopup)
 {
 	useRightClickForPopup = shouldUseRightClickForPopup;
+}
+
+void MouseCallbackComponent::alignPopup(bool shouldBeAligned)
+{
+	popupShouldBeAligned = shouldBeAligned;
 }
 
 void MouseCallbackComponent::addMouseCallbackListener(Listener *l)
@@ -100,9 +108,7 @@ void MouseCallbackComponent::removeAllCallbackListeners()
 
 void MouseCallbackComponent::mouseDown(const MouseEvent& event)
 {
-	if (callbackLevel < CallbackLevel::ClicksOnly) return;
-
-	sendMessage(event, Action::Clicked);
+	if (callbackLevel < CallbackLevel::PopupMenuOnly) return;
 
 	if (itemList.size() != 0)
 	{
@@ -116,10 +122,36 @@ void MouseCallbackComponent::mouseDown(const MouseEvent& event)
 				m.addItem(i + 1, itemList[i], true, false);
 			}
 
-			var result = m.show();
+			int result = 0;
+				
+			if (popupShouldBeAligned)
+			{
+				result = m.showAt(this, 0, getWidth());
+			}
+			else
+			{
+				result = m.show();
+			}
 
-			sendToListeners(result);
+			String name = result != 0 ? itemList[result-1] : "";
+
+			DynamicObject::Ptr obj = new DynamicObject();
+
+			static const Identifier r("result");
+			static const Identifier itemText("itemText");
+
+			obj->setProperty(r, result);
+			obj->setProperty(itemText, name);
+
+			sendToListeners(var(obj));
+
+			return;
 		}
+	}
+
+	if (callbackLevel > CallbackLevel::PopupMenuOnly)
+	{
+		sendMessage(event, Action::Clicked);
 	}
 }
 
@@ -260,6 +292,8 @@ void BorderPanel::paint(Graphics &g)
 		g.drawRoundedRectangle(fillR, borderRadius, borderSize);
 	}
 }
+
+
 
 
 

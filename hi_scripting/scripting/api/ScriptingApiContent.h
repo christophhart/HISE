@@ -582,6 +582,9 @@ public:
 			borderSize = ScriptComponent::numProperties,
 			borderRadius,
 			allowCallbacks,
+			PopupMenuItems,
+			PopupOnRightClick,
+			popupMenuAlign,
 			numProperties
 		};
 
@@ -596,7 +599,10 @@ public:
 		// ========================================================================================================
 
 		virtual Identifier 	getObjectName() const override { RETURN_STATIC_IDENTIFIER("ScriptPanel"); }
+		
 		StringArray getOptionsFor(const Identifier &id) override;
+		StringArray getItemList() const;
+
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 
 		// ======================================================================================================== API Methods

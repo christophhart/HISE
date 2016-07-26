@@ -110,6 +110,7 @@ changed(false)
 	propertyIds.add(Identifier("zOrder"));
 	propertyIds.add(Identifier("saveInPreset")); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	propertyIds.add(Identifier("isPluginParameter")); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	
 
 	deactivatedProperties.add(getIdFor(isPluginParameter));
 
@@ -1728,6 +1729,9 @@ controlSender(this, base)
 	propertyIds.add("borderSize");		ADD_AS_SLIDER_TYPE(0, 20, 1);
 	propertyIds.add("borderRadius");	ADD_AS_SLIDER_TYPE(0, 20, 1);
 	propertyIds.add("allowCallbacks");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	propertyIds.add("popupMenuItems");		ADD_TO_TYPE_SELECTOR(SelectorTypes::MultilineSelector);
+	propertyIds.add("popupOnRightClick");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	propertyIds.add(Identifier("popupMenuAlign")); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 
 	componentProperties->setProperty(getIdFor(borderSize), 0);
 	componentProperties->setProperty(getIdFor(borderRadius), 0);
@@ -1740,6 +1744,9 @@ controlSender(this, base)
 	setDefaultValue(borderSize, 2.0f);
 	setDefaultValue(borderRadius, 6.0f);
 	setDefaultValue(allowCallbacks, 0);
+	setDefaultValue(PopupMenuItems, "");
+	setDefaultValue(PopupOnRightClick, true);
+	setDefaultValue(popupMenuAlign, false);
 
 	ADD_API_METHOD_0(repaint);
 	ADD_API_METHOD_1(setPaintRoutine);
@@ -1786,7 +1793,7 @@ void ScriptingApi::Content::ScriptPanel::internalRepaint()
 	var arguments = var(graphics);
 	var::NativeFunctionArgs args(this, &arguments, 1);
 
-	graphics->setGraphics(&g);
+	graphics->setGraphics(&g, &paintCanvas);
 
 	Result r = Result::ok();
 
@@ -1797,7 +1804,7 @@ void ScriptingApi::Content::ScriptPanel::internalRepaint()
 		reportScriptError(r.getErrorMessage());
 	}
 
-	graphics->setGraphics(nullptr);
+	graphics->setGraphics(nullptr, nullptr);
 
 	sendChangeMessage();
 }
@@ -1884,6 +1891,19 @@ void ScriptingApi::Content::ScriptPanel::loadImage(String imageName, String pret
 	{
 		BACKEND_ONLY(reportScriptError("Image " + actualFile.getFullPathName() + " not found. "));
 	}
+}
+
+StringArray ScriptingApi::Content::ScriptPanel::getItemList() const
+{
+	String items = getScriptObjectProperty(PopupMenuItems).toString();
+
+	if (items.isEmpty()) return StringArray();
+
+	StringArray sa;
+	sa.addTokens(items, "\n", "");
+	sa.removeEmptyStrings();
+
+	return sa;
 }
 
 void ScriptingApi::Content::ScriptPanel::AsyncControlCallbackSender::handleAsyncUpdate()

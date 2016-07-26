@@ -526,6 +526,9 @@ void ScriptCreatedComponentWrappers::PanelWrapper::updateComponent()
 	bpc->borderSize = getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::borderSize);
 	bpc->image = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(getScriptComponent())->getImage();
 	bpc->isUsingCustomImage = sc->isUsingCustomPaintRoutine();
+	bpc->setPopupMenuItems(sc->getItemList());
+	bpc->setUseRightClickForPopup(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::PopupOnRightClick));
+	bpc->alignPopup(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::popupMenuAlign));
 
 	bpc->repaint();
 
