@@ -212,6 +212,7 @@ private:
         {
             return file.hasFileExtension("hip") ||
                    file.hasFileExtension("js") ||
+                   file.hasFileExtension("ttf") ||
 #if JUCE_WINDOWS
 				   file.getFileName() == "LinkWindows" ||
 #else

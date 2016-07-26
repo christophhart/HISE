@@ -546,14 +546,14 @@ void FileBrowser::mouseDoubleClick(const MouseEvent& )
                 }
             }
         }
-        
-        // If not there, insert it at the last editor position
-        
-        editor->getMainSynthChain()->getMainController()->insertStringAtLastActiveEditor("include(\"" + newRoot.getFileName() + "\");", false);
     }
-    else if (ImageFileFormat::findImageFormatForFileExtension(newRoot) != nullptr)
+    else if ((ImageFileFormat::findImageFormatForFileExtension(newRoot) != nullptr) || (newRoot.getFileExtension() == ".ttf"))
     {
-        editor->getMainSynthChain()->getMainController()->insertStringAtLastActiveEditor("\"{PROJECT_FOLDER}" + newRoot.getFileName() + "\"", false);
+
+        
+        const String reference = GET_PROJECT_HANDLER(editor->getMainSynthChain()).getFileReference(newRoot.getFullPathName(), ProjectHandler::SubDirectories::Images);
+        
+        editor->getMainSynthChain()->getMainController()->insertStringAtLastActiveEditor("\"" + reference + "\"", false);
     }
 }
 
