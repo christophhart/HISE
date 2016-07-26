@@ -515,7 +515,7 @@ public:
 private:
 
 	float freq = 1000.0f;
-	float res = 1.0f;
+	float res = 0.0f;
 
 	static int instances;				// number of object instances
 	static float* tab;					// anti-denormal pink noise table

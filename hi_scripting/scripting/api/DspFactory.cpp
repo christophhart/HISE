@@ -236,6 +236,23 @@ public:
 	*/
 	DspFactory *getFactory(const String &name);
 
+    void getAllStaticLibraries(StringArray &libraries)
+    {
+        for(int i = 0; i < staticFactories.size(); i++)
+        {
+            libraries.add(staticFactories[i]->getId().toString());
+        }
+    };
+    
+    void getAllDynamicLibraries(StringArray &libraries)
+    {
+        for(int i = 0; i < loadedPlugins.size(); i++)
+        {
+            libraries.add(loadedPlugins[i]->getId().toString());
+        }
+    }
+    
+                          
 private:
 
 	static void registerStaticFactories(Handler *instance);
@@ -250,20 +267,38 @@ public:
 
 	LibraryLoader()
 	{
-		ADD_DYNAMIC_METHOD(getLibrary);
+		ADD_DYNAMIC_METHOD(load);
+        ADD_DYNAMIC_METHOD(list);
 	}
 
-	var getLibrary(const String &name)
+	var load(const String &name)
 	{
 		DspFactory *f = dynamic_cast<DspFactory*>(handler->getFactory(name));
 		return var(f);
 	}
+    
+    var list()
+    {
+        StringArray s1, s2;
+        
+        handler->getAllStaticLibraries(s1);
+        handler->getAllDynamicLibraries(s2);
+        
+        String output = "Available static libraries: \n";
+        output << s1.joinIntoString("\n");
+        
+        output << "\nAvailable dynamic libraries: " << "\n";
+        output << s2.joinIntoString("\n");
+        
+        return var(output);
+    }
 
 private:
 
 	struct Wrapper
 	{
-		DYNAMIC_METHOD_WRAPPER_WITH_RETURN(LibraryLoader, getLibrary, ARG(0).toString());
+		DYNAMIC_METHOD_WRAPPER_WITH_RETURN(LibraryLoader, load, ARG(0).toString());
+        DYNAMIC_METHOD_WRAPPER_WITH_RETURN(LibraryLoader, list);
 	};
 
 	SharedResourcePointer<DspFactory::Handler> handler;

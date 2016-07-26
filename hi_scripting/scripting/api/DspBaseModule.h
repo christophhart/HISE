@@ -37,19 +37,24 @@
 #endif
 
 
-
 /** This interface class is the base class for all modules that can be loaded as plugin into the script FX processor. 
 *
 *	A DspBaseObject can have parameters and constants which can be conveniently accessed via Javascript like this:
 *
+*       @code{.js}
 *	    // Parameter:
 *		module["Gain"] = 0.2;
 *		var x = module["Gain"];
 *
 *		// Constant
 *		var y = module.PI;
+*       @endcode
 *
-*	
+*   This class can be used to compile little plugins as dynamic library and load them into the script processors to
+*   extend HISE with your custom C++ DSP code. There is a template project for the Introjucer in the HISE repository
+*   that can be used as a starting point for this.
+*
+*   They can also be used as static libraries and compiled into your finished plugin to avoid DLL problems.
 */
 class DspBaseObject
 {

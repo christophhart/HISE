@@ -36,6 +36,18 @@
 
 class DspInstance;
 
+/** The DspFactory class is the abstract base class for handling additional modules.
+*
+*   You won't have to deal with this class, but more with one of its derived classes: 
+*   - the DynamicDspFactory for handling dynamic libraries (dylibs / DLLs)
+*   - the StaticDspLibrary for handling static libraries.
+*
+*   A factory is an object that can create different modules within Javascript:
+*
+*   @code{.js}
+*   Libraries.load
+*
+*/
 class DspFactory : public DynamicObject
 {
 public:
@@ -124,6 +136,11 @@ private:
 /** This class is used to create modules.
 *
 *	Unline the DynamicDspFactory, it needs to be embedded in the main application.
+*
+*   If you want to embed your modules as static library into your compiled plugin, subclass this library
+*   and register every module that can be created using your
+*  
+*   Take a look at the HiseCoreDspFactory class to see a living example.
 */
 class StaticDspFactory : public DspFactory
 {

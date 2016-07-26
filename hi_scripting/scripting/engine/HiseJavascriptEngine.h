@@ -36,24 +36,57 @@
 
 class JavascriptProcessor;
 
-/**
-A simple javascript interpreter!
-
-It's not fully standards-compliant, and won't be as fast as the fancy JIT-compiled
-engines that you get in browsers, but this is an extremely compact, low-overhead javascript
-interpreter, which is integrated with the juce var and DynamicObject classes. If you need
-a few simple bits of scripting in your app, and want to be able to easily let the JS
-work with native objects defined as DynamicObject subclasses, then this might do the job.
-
-To use, simply create an instance of this class and call execute() to run your code.
-Variables that the script sets can be retrieved with evaluate(), and if you need to provide
-native objects for the script to use, you can add them with registerNativeObject().
-
-One caveat: Because the values and objects that the engine works with are DynamicObject
-and var objects, they use reference-counting rather than garbage-collection, so if your
-script creates complex connections between objects, you run the risk of creating cyclic
-dependencies and hence leaking.
-*/
+/** The HISE Javascript Engine.
+ *
+ *	This class is a modified version of the original Javascript engine found in JUCE.
+ *	It adds some language features that were missing in the original code:
+ *
+ *	- `switch` statements
+ *	- `const` (immutable) variables
+ *	- `for ... in` iterator loop
+ *
+ *	As well as some HISE specific features, which are not standard Javascript, but a useful
+ *	addition for a DSP scripting language. However, they don't break any Javascript features.
+ *
+ *	**Inline Functions**
+ *  no overhead inlining of functions with parameters and return value).
+ *
+ *      inline function square(x)
+ *      {
+ *          return x*x;
+ *      };
+ *
+ *	**C++ API Wrapper class**
+ *
+ *  A class interface for low overhead calling of C++ functions / methods. Instead of using the standard
+ *  DynamicObject class, which involves O(n) lookup, allocations and creating a scope for each function call,
+ *  calling a ApiClass method comes with almost no overhead (it directly accesses the C++ function via a func pointer).
+ *  
+ *  @see ApiClass
+ *	
+ *  **VariantBuffer**
+ *
+ *  A native object type to efficiently operate on an array of floats. There are also some overloaded operators
+ *  for making things faster to type (and execute!):
+ *
+ *      var buffer = Buffer.create(256); // Creates a buffer with 256 samples
+ *      0.5 >> buffer;                   // Fills the buffer with 0.5;
+ *      buffer * 1.2;                    // Multiplies every sample with 1.2;
+ *      for (s in buffer) s = s * 1.2;   // Does the same thing but for each sample (much slower).
+ *      
+ *  @see VariantBuffer.
+ *
+ *  **Register variables**
+ *
+ *  A special storage location with accelerated access / lookup times. There are 32 slots which can be directly
+ *  from Javascript (without a lookup in the NamedValueSet of a scope) to improve the performance for temporary / working 
+ *  variables.
+ *
+ *  @see VarRegister
+ *
+ *
+ *
+ */
 class HiseJavascriptEngine
 {
 public:

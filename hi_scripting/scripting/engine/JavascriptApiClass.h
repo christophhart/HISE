@@ -102,13 +102,48 @@ private:
 
 /** A API class is a class with a fixed number of methods and constants that can be called from Javascript.
 *
-*	It is used to improve the performance of calling C++ functions from Javascript. This is achieved by resolving the function call at compile time
-*	making the call from Javascript almost as fast as a regular C++ function call (the arguments still need to be evaluated).
+*	It is used to improve the performance of calling C++ functions from Javascript. 
+*   This is achieved by resolving the function call at compile time making the call from Javascript almost as fast 
+*   as a regular C++ function call (the arguments still need to be evaluated).
 *
-*	You can also define constants which are resolved into literal values at compile time making them exactly as fast as typing the literal value.
+*	You can also define constants which are resolved into literal values at compile time making them exactly 
+*   as fast as typing the literal value.
 *
 *	A ApiClass needs to be registered on the C++ side before the ScriptingEngine parses and executes the code using
-*/
+*   HiseJavascriptEngine::registerApiClass().
+*
+*   To use this class, subclass it, write the methods you want to expose to Javascript as member functions of your
+*   subclass and use these two macros to publish them to the Javascript Engine:
+*
+ *      @code{.cpp}
+ *		class MyApiClass: public ApiClass
+ *		{
+ *		public:
+ *		   MyApiClass():
+ *		     ApiClass(0) // we don't need constants here...
+ *		   {
+ *		       ADD_API_METHOD_1(square); // This adds the method wrapper to the function list
+ *		   }
+ *
+ *
+ *		   double square(double x) const
+ *		   {
+ *		       return x*x;
+ *		   };
+ *
+ *		   struct Wrapper // You'll need a subclass called `Wrapper` for it to work...
+ *		   {
+ *		   		// this defines a wrapper function that is using a static_cast to call the member function.
+ *		 		ADD_API_METHOD_WRAPPER_1(MyApiClass, square);
+ *		   };
+ *		};
+        @endcode
+ *
+ *  The Macros support up to 5 arguments. You'll need another macro for void functions: `API_VOID_METHOD_WRAPPER_X`,
+ *  but apart from this, it is pretty straight forward...
+ *
+ *  For a living example of an API class take a look at eg. the Math class or the ScriptingApi::Engine class.
+ */
 class ApiClass : public ReferenceCountedObject
 {
 public:
@@ -124,30 +159,76 @@ public:
 
 	// ================================================================================================================
 
+    /** Creates a Api class with the given amount of constants.
+    *
+    *   If numConstants_ is not zero, you'll need to add the constants in your subclass constructor using addConstant().
+    *   You also need to register every function in your class there.
+    */
 	ApiClass(int numConstants_);;
 	virtual ~ApiClass();
 
+    /** Overwrite this and return your API class name (which will be the name in Javascript for the object).*/
 	virtual Identifier getName() const = 0;
 
 	// ================================================================================================================
 
+    /** Adds a constant. You can give it a name (it must be a valid Identifier) and a value and will be resolved at
+    *   compile time to accelerate the access to it. */
 	void addConstant(String constantName, var value);
+    
+    /** Returns the constant at the given index. */
 	const var getConstantValue(int index) const;
+    
+    /** Return the index for the given name. */
 	int getConstantIndex(const Identifier &id) const;
 
 	// ================================================================================================================
 
+    /** Adds a function with no parameters. 
+    *
+    *   You don't need to use this directly, but use the macro ADD_API_METHOD_0() for it. */
 	void addFunction(const Identifier &id, call0 newFunction);;
-	void addFunction1(const Identifier &id, call1 newFunction);
-	void addFunction2(const Identifier &id, call2 newFunction);
-	void addFunction3(const Identifier &id, call3 newFunction);
-	void addFunction4(const Identifier &id, call4 newFunction);
-	void addFunction5(const Identifier &id, call5 newFunction);
+	
+    /** Adds a function with one parameter.
+     *
+     *   You don't need to use this directly, but use the macro ADD_API_METHOD_1() for it. */
+    void addFunction1(const Identifier &id, call1 newFunction);
+	
+    /** Adds a function with two parameters.
+     *
+     *   You don't need to use this directly, but use the macro ADD_API_METHOD_2() for it. */
+    void addFunction2(const Identifier &id, call2 newFunction);
+	
+    /** Adds a function with three parameters.
+     *
+     *   You don't need to use this directly, but use the macro ADD_API_METHOD_3() for it. */
+    void addFunction3(const Identifier &id, call3 newFunction);
+	
+    /** Adds a function with four parameters.
+     *
+     *   You don't need to use this directly, but use the macro ADD_API_METHOD_4() for it. */
+    void addFunction4(const Identifier &id, call4 newFunction);
+	
+    /** Adds a function with five parameters.
+     *
+     *   You don't need to use this directly, but use the macro ADD_API_METHOD_5() for it. */
+    void addFunction5(const Identifier &id, call5 newFunction);
 
+    /** This will fill in the information for the given function. 
+    *
+    *   The JavascriptEngine uses this to resolve the function call into a function pointer at compile time.
+    *   When the script is executed, this information will be used for blazing fast access to the methods.*/
 	void getIndexAndNumArgsForFunction(const Identifier &id, int &index, int &numArgs) const;
+    
+    /** Calls the function with the index and the argument data.
+    *
+    *   You'll need to call getIndexAndNumArgsForFunction() before calling this. */
 	var callFunction(int index, var *args, int numArgs);
 
+    /** This returns all function names alphabetically sorted. This is used by the autocomplete popup. */
 	void getAllFunctionNames(Array<Identifier> &ids) const;
+    
+    /** Returns all constant names as alphabetically sorted array. This is used by the autocomplete popup. */
 	void getAllConstants(Array<Identifier> &ids) const;
 
 private:
