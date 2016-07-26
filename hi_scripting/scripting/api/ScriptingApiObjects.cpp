@@ -683,6 +683,10 @@ struct ScriptingObjects::GraphicsObject::Wrapper
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, drawEllipse);
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, fillEllipse);
 	API_VOID_METHOD_WRAPPER_4(GraphicsObject, drawImage);
+	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawDropShadow);
+	API_VOID_METHOD_WRAPPER_2(GraphicsObject, addDropShadowFromAlpha);
+	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawTriangle);
+	API_VOID_METHOD_WRAPPER_2(GraphicsObject, fillTriangle);
 };
 
 ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *p, ConstScriptingObject* parent_) :
@@ -704,6 +708,10 @@ parent(parent_)
 	ADD_API_METHOD_2(drawEllipse);
 	ADD_API_METHOD_1(fillEllipse);
 	ADD_API_METHOD_4(drawImage);
+	ADD_API_METHOD_3(drawDropShadow);
+	ADD_API_METHOD_2(addDropShadowFromAlpha);
+	ADD_API_METHOD_3(drawTriangle);
+	ADD_API_METHOD_2(fillTriangle);
 }
 
 ScriptingObjects::GraphicsObject::~GraphicsObject()
@@ -805,7 +813,13 @@ void ScriptingObjects::GraphicsObject::drawText(String text, var area)
 {
 	initGraphics();
 
-	g->drawText(text, getRectangleFromVar(area), Justification::centred);
+	Rectangle<float> r = getRectangleFromVar(area);
+
+	currentFont.setHeightWithoutChangingWidth(r.getHeight());
+
+	g->setFont(currentFont);
+
+	g->drawText(text, r, Justification::centred);
 }
 
 void ScriptingObjects::GraphicsObject::setGradientFill(var gradientData)
@@ -870,6 +884,66 @@ void ScriptingObjects::GraphicsObject::drawImage(String imageName, var area, int
 	};
 }
 
+void ScriptingObjects::GraphicsObject::drawDropShadow(var area, int colour, float radius)
+{
+	initGraphics();
+
+	DropShadow shadow;
+
+	shadow.colour = Colour((uint32)colour);
+	shadow.radius = radius;
+
+	auto r = getIntRectangleFromVar(area);
+
+	shadow.drawForRectangle(*g, r);
+}
+
+void ScriptingObjects::GraphicsObject::drawTriangle(var area, float angle, float lineThickness)
+{
+	initGraphics();
+
+	Path p;
+	p.startNewSubPath(0.5f, 0.0f);
+	p.lineTo(1.0f, 1.0f);
+	p.lineTo(0.0f, 1.0f);
+	p.closeSubPath();
+	p.applyTransform(AffineTransform::rotation(angle));
+	auto r = getRectangleFromVar(area);
+	p.scaleToFit(r.getX(), r.getY(), r.getWidth(), r.getHeight(), false);
+	
+	PathStrokeType pst(lineThickness);
+	g->strokePath(p, pst);
+}
+
+void ScriptingObjects::GraphicsObject::fillTriangle(var area, float angle)
+{
+	initGraphics();
+
+	Path p;
+	p.startNewSubPath(0.5f, 0.0f);
+	p.lineTo(1.0f, 1.0f);
+	p.lineTo(0.0f, 1.0f);
+	p.closeSubPath();
+	p.applyTransform(AffineTransform::rotation(angle));
+	auto r = getRectangleFromVar(area);
+	p.scaleToFit(r.getX(), r.getY(), r.getWidth(), r.getHeight(), false);
+
+	g->fillPath(p);
+}
+
+void ScriptingObjects::GraphicsObject::addDropShadowFromAlpha(int colour, float radius)
+{
+	initGraphics();
+
+	DropShadow shadow;
+
+	shadow.colour = Colour((uint32)colour);
+	shadow.radius = radius;
+
+
+	shadow.drawForImage(*g, *imageToDraw);
+}
+
 void ScriptingObjects::GraphicsObject::initGraphics()
 {
 	if (g == nullptr) reportScriptError("Graphics not initialised");
@@ -899,5 +973,30 @@ Rectangle<float> ScriptingObjects::GraphicsObject::getRectangleFromVar(const var
 	{
 		reportScriptError("Rectangle data is not an array");
 		return Rectangle<float>();
+	}
+}
+
+Rectangle<int> ScriptingObjects::GraphicsObject::getIntRectangleFromVar(const var &data)
+{
+	if (data.isArray())
+	{
+		Array<var>* d = data.getArray();
+
+		if (d->size() == 4)
+		{
+			Rectangle<int> rectangle((int)d->getUnchecked(0), (int)d->getUnchecked(1), (int)d->getUnchecked(2), (int)d->getUnchecked(3));
+
+			return rectangle;
+		}
+		else
+		{
+			reportScriptError("Rectangle array needs 4 elements");
+			return Rectangle<int>();
+		}
+	}
+	else
+	{
+		reportScriptError("Rectangle data is not an array");
+		return Rectangle<int>();
 	}
 }

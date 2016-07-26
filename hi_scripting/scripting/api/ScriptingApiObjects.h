@@ -462,14 +462,27 @@ public:
 		/** Draws a image into the area. */
 		void drawImage(String imageName, var area, int xOffset, int yOffset);
 
+		/** Draws a drop shadow around a rectangle. */
+		void drawDropShadow(var area, int colour, float radius);
+
+		/** Draws a triangle rotated by the angle in radians. */
+		void drawTriangle(var area, float angle, float lineThickness);
+
+		/** Fills a triangle rotated by the angle in radians. */
+		void fillTriangle(var area, float angle);
+
+		/** Adds a drop shadow based on the alpha values of the current image. */
+		void addDropShadowFromAlpha(int colour, float radius);
+
 		// ============================================================================================================
 
 		struct Wrapper;
 
 		
-		void setGraphics(Graphics *g_)
+		void setGraphics(Graphics *g_, Image* image_)
 		{
 			g = g_;
+			imageToDraw = image_;
 		}
 
 	private:
@@ -477,8 +490,9 @@ public:
 		void initGraphics();
 
 		Rectangle<float> getRectangleFromVar(const var &data);
+		Rectangle<int> getIntRectangleFromVar(const var &data);
 
-		Image imageToDraw;
+		Image *imageToDraw;
 
 		Graphics *g = nullptr;
 
