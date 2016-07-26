@@ -277,37 +277,21 @@ void Console::handleAsyncUpdate()
 
 	for(int i = 0; i < messagesForThisTime.size(); i++)
 	{
-		
-		String message = messagesForThisTime[i].processor->getId();
-		message << ":";
+        String message;
+        
+        const Processor* processor = messagesForThisTime[i].processor.get();
+        
+        if(processor == nullptr)
+        {
+            jassertfalse;
+            continue;
+        }
+        
+		message << processor->getId() << ":";
 		message << (messagesForThisTime[i].warningLevel == WarningLevel::Error ? "! " : " ");
 		message << messagesForThisTime[i].message + "\n";
 		
 		doc->insertText(doc->getNumCharacters(), message);
-
-		continue;
-
-#if 0
-		
-		textConsole->moveCaretToEnd(false);
-
-		const Processor *p = messagesForThisTime[i].processor;
-//		jassert(p != nullptr);
-
-		if(p != nullptr)
-		{
-			Colour processorColour = messagesForThisTime[i].colour.withSaturation(0.8f).withAlpha(1.0f); 
-			textConsole->setColour(TextEditor::ColourIds::textColourId, processorColour);
-			
-			textConsole->insertTextAtCaret(p->getId() + ": ");
-		}
-
-		Colour messageColour = (messagesForThisTime[i].warningLevel == Error) ? Colours::red.withBrightness(0.4f) : Colours::black;
-
-		textConsole->setColour(TextEditor::ColourIds::textColourId, messageColour);
-		textConsole->moveCaretToEnd(false);
-		textConsole->insertTextAtCaret(messagesForThisTime[i].message + "\n");
-#endif
 	}
 
 	int numLinesVisible = jmax<int>(0, doc->getNumLines() - (int)((float)newTextConsole->getHeight() / GLOBAL_MONOSPACE_FONT().getHeight()));

@@ -118,7 +118,7 @@ private:
 		ConsoleMessage(const String &m, WarningLevel w, const Processor *p, Colour c=Colours::black):
 			message(m),
 			warningLevel(w),
-			processor(p),
+			processor(const_cast<Processor*>(p)), // too stupid to get a weak reference of a const pointer...
 			colour(c)
 		{ };
 
@@ -138,7 +138,7 @@ private:
 		};
 
 		const String message;
-		const Processor * const processor;
+		const WeakReference<Processor> processor;
 		const WarningLevel warningLevel;
 		Colour colour;
         
