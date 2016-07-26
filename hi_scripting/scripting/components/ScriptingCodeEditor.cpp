@@ -669,7 +669,8 @@ PopupIncludeEditor::~PopupIncludeEditor()
 
 	Processor *p = dynamic_cast<Processor*>(sp);
 
-	p->setEditorState(p->getEditorStateForIndex(JavascriptMidiProcessor::externalPopupShown), false);
+    if(p != nullptr)
+        p->setEditorState(p->getEditorStateForIndex(JavascriptMidiProcessor::externalPopupShown), false);
 
 	sp = nullptr;
 	p = nullptr;
@@ -931,7 +932,7 @@ void JavascriptCodeEditor::AutoCompletePopup::createObjectPropertyRows(const Val
 
 				if (!info->codeToInsert.contains(id.toString()))
 				{
-					jassertfalse;
+					
 
 					info->codeToInsert = objectId.toString() + "." + id.toString() + "(";
 
@@ -943,7 +944,6 @@ void JavascriptCodeEditor::AutoCompletePopup::createObjectPropertyRows(const Val
 						info->codeToInsert << "arg" + String(i + 1);
 						if (i != (numArgs - 1)) info->codeToInsert << ", ";
 					}
-
 					
 					info->codeToInsert << ")";
 				}
