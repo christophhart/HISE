@@ -34,13 +34,6 @@
 #define SCRIPTDSPMODULES_H_INCLUDED
 
 
-
-
-
-
-
-
-
 class ScriptingDsp
 {
 public:
@@ -294,21 +287,71 @@ public:
 
 
 
-#if 0
 
-	class MoogFilter : public DspObject
+	class MoogFilter : public DspBaseObject
 	{
 	public:
 
+        enum class Parameters
+        {
+            Frequency = 0,
+            Resonance,
+            numParameters
+        };
+        
 		MoogFilter() :
-			DspObject()
+			DspBaseObject()
 		{
-			ADD_DYNAMIC_METHOD(setFrequency);
+			
 		};
 
-		SET_MODULE_NAME("moog");
+        SET_MODULE_NAME("moog");
+        
+        void setParameter(int index, float newValue) override
+        {
+            Parameters p = (Parameters)index;
+            
+            switch(p)
+            {
+                case Parameters::Frequency: frequency = newValue;
+                                            freq = newValue / (0.42 * sampleRate);
+                                            moogL.setFrequency(freq);
+                                            moogR.setFrequency(freq);
+                                            break;
+                case Parameters::Resonance: resonance = newValue;
+                                            moogL.setResonance(resonance);
+                                            moogR.setFrequency(resonance);
+                                            break;
+            }
+        };
+        
+        int getNumParameters() const override { return (int)Parameters::numParameters; };
+        
+        float getParameter(int index) const override
+        {
+            Parameters p = (Parameters)index;
+            
+            switch(p)
+            {
+                case Parameters::Frequency: return frequency;
+                case Parameters::Resonance: return resonance;
+            }
+            
+            return -1;
+        };
+        
+        const Identifier &getIdForParameter(int index) const override
+        {
+            switch((Parameters)index)
+            {
+                case Parameters::Frequency: return "Frequency";
+                case Parameters::Resonance: return "Resonance";
+            }
 
-		void prepareToPlay(double sampleRate_, int samplesPerBlock) override
+            return Identifier::null;
+        }
+        
+        void prepareToPlay(double sampleRate_, int samplesPerBlock) override
 		{
 			if (sampleRate_ > 0.0)
 			{
@@ -319,44 +362,38 @@ public:
 			}
 		}
 
-		void setFrequency(double frequency)
-		{
-			freq = frequency / (0.42 * sampleRate);
-		}
-
-		void processBuffer(VariantBuffer &buffer) override
-		{
-			moogL.processInplace(buffer.buffer.getWritePointer(0), buffer.size);
-		}
-
-		void processMultiChannel(Array<var> &channels) override
-		{
-			float *l = channels[0].getBuffer()->buffer.getWritePointer(0);
-			float *r = channels[1].getBuffer()->buffer.getWritePointer(1);
-
-			const int numSamples = channels[0].getBuffer()->size;
-
-			moogL.processInplace(l, numSamples);
-			moogR.processInplace(r, numSamples);
-		}
-
+        void processBlock(float **data, int numChannels, int numSamples) override
+        {
+            if (numChannels == 2)
+            {
+                float *l = data[0];
+                float *r = data[1];
+                
+                moogL.processInplace(l, numSamples);
+                moogR.processInplace(r, numSamples);
+            }
+            else
+            {
+                float *inL = data[0];
+                
+                moogL.processInplace(inL, numSamples);
+            }
+        }
+        
 	private:
-
-		struct Wrappers
-		{
-
-			DYNAMIC_METHOD_WRAPPER(MoogFilter, setFrequency, args.arguments[0]);
-		};
 
 		double sampleRate = 44100.0;
 		double freq = 20000.0;
+        double frequency = 20000.0;
 		double resonance = 0.5;
 
 		icstdsp::MoogFilter moogL;
 		icstdsp::MoogFilter moogR;
 	};
 
-	class Filter : public DspObject
+#if 0
+    
+	class Filter : public DspBaseObject
 	{
 	public:
 
@@ -600,6 +637,7 @@ class HiseCoreDspFactory : public StaticDspFactory
 	{
 		registerDspModule<ScriptingDsp::Delay>();
 		registerDspModule<ScriptingDsp::SignalSmoother>();
+        registerDspModule<ScriptingDsp::MoogFilter>();
 	}
 };
 
