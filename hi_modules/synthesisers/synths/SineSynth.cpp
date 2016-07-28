@@ -68,11 +68,9 @@ void SineSynthVoice::calculateBlock(int startSample, int numSamples)
 	const int samplesToCopy = numSamples;
 
 	const float *voicePitchValues = getVoicePitchValues();
-
 	const float *modValues = getVoiceGainValues(startSample, numSamples);
 
 	float saturation = static_cast<SineSynth*>(getOwnerSynth())->saturationAmount;
-
 	float *leftValues = voiceBuffer.getWritePointer(0, startSample);
 	
 	if (isPitchModulationActive())

@@ -832,7 +832,8 @@ public:
 		streamingSampler,
 		modulatorSynthChain,
 		modulatorSynthGroup,
-		globalModulatorContainer
+		globalModulatorContainer,
+		scriptSynth
 	};
 
 	ModulatorSynthChainFactoryType(int numVoices_, Processor *ownerProcessor):

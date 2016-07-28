@@ -570,7 +570,7 @@ void ProcessorEditorHeader::resized()
     
 	if(isHeaderOfModulatorSynth())
 	{
-		balanceSlider->setBounds(intensitySlider->getRight() + 5, yOffset2, 28, 24);
+		balanceSlider->setBounds(x + 2, yOffset2, 28, 24);
 
 		if (getEditor()->getIndentationLevel() == 0)
 		{

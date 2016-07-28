@@ -52,15 +52,17 @@ public:
         try
         {
             std::regex reg(wildcard.toStdString());
-            
+			std::string s(stringToTest.toStdString());
             std::smatch match;
             
-            if (std::regex_search(stringToTest.toStdString(), match, reg))
+
+            if (std::regex_search(s, match, reg))
             {
                 StringArray sa;
+
                 for (auto x:match)
                 {
-                    sa.insert(-1, String(x));
+					sa.add(String(x));
                 }
                 
                 return sa;
@@ -654,13 +656,13 @@ public:
 
 
 
-				Colour outlineColour = Colour(0xffb9d2d6);
+				Colour outlineColour = Colour(0x77b9d2d6);
 				Colour transparentColour = outlineColour.withAlpha(0.0f);
 
 				
 				g.setColour(outlineColour);
 
-				g.drawRect(bounds, 2.0f);
+				g.drawRect(bounds, 1.0f);
 
 			}
 			else jassertfalse;

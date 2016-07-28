@@ -83,8 +83,8 @@ void ModulatorSynthChain::compileAllScripts()
 		{
 			sp->compileScript();
             
-            ValueTree v = dynamic_cast<Processor*>(sp)->exportAsValueTree();
-			dynamic_cast<Processor*>(sp)->restoreFromValueTree(v);
+            //ValueTree v = dynamic_cast<Processor*>(sp)->exportAsValueTree();
+			//dynamic_cast<Processor*>(sp)->restoreFromValueTree(v);
 		}
 	}
 }

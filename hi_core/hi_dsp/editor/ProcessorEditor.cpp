@@ -535,6 +535,12 @@ int ProcessorEditorPanel::getHeightOfAllEditors() const
 		// This must be set correctly with refreshChildProcessorVisiblity()!
 		//jassert(editors[i]->getProcessor()->getEditorState(Processor::EditorState::Visible) == editors[i]->isVisible());
 
+        if(editors[i]->getProcessor() == nullptr)
+        {
+            jassertfalse;
+            continue;
+        }
+        
 		if (!editors[i]->getProcessor()->getEditorState(Processor::EditorState::Visible)) continue;
 
 #if HISE_IOS

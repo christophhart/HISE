@@ -191,6 +191,7 @@ bool ModulatorSynth::processMidiBuffer(const MidiBuffer &inputBuffer, MidiBuffer
 
 void ModulatorSynth::addProcessorsWhenEmpty()
 {
+	
 	if (dynamic_cast<ModulatorSynthChain*>(this) == nullptr)
 	{
 		gainChain->getHandler()->add(new SimpleEnvelope(getMainController(),
@@ -794,6 +795,7 @@ void ModulatorSynthChainFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(ModulatorSynthChain);
 	ADD_NAME_TO_TYPELIST(ModulatorSynthGroup);
 	ADD_NAME_TO_TYPELIST(GlobalModulatorContainer);
+	ADD_NAME_TO_TYPELIST(JavascriptModulatorSynth);
 }
 
 
@@ -815,6 +817,7 @@ Processor* ModulatorSynthChainFactoryType::createProcessor	(int typeIndex, const
 	case modulatorSynthChain:	return new ModulatorSynthChain(m, id, numVoices);
 	case modulatorSynthGroup:	return new ModulatorSynthGroup(m, id, numVoices);
 	case globalModulatorContainer:	return new GlobalModulatorContainer(m, id, numVoices);
+	case scriptSynth:			return new JavascriptModulatorSynth(m, id, numVoices);
 	default:					jassertfalse; return nullptr;
 	}
 };
