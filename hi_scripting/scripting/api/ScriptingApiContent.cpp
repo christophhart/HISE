@@ -204,7 +204,7 @@ void ScriptingApi::Content::ScriptComponent::restoreFromValueTree(const ValueTre
 	value = v.getProperty("value", var::undefined());
 }
 
-void ScriptingApi::Content::ScriptComponent::doubleClickCallback(Component *componentToNotify)
+void ScriptingApi::Content::ScriptComponent::doubleClickCallback(const MouseEvent &e, Component* componentToNotify)
 {
 #if USE_BACKEND
 	getScriptProcessor()->getMainController_()->setEditedScriptComponent(this, componentToNotify);
@@ -2326,6 +2326,7 @@ colour(Colour(0xff777777))
 	setMethod("restoreAllControlsFromPreset", Wrapper::restoreAllControlsFromPreset);
 	setMethod("setColour", Wrapper::setColour);
 	setMethod("clear", Wrapper::clear);
+	setMethod("createPath", Wrapper::createPath);
 }
 
 ScriptingApi::Content::~Content()
@@ -2741,6 +2742,12 @@ bool ScriptingApi::Content::isEmpty()
 	return components.size() == 0;
 }
 
+var ScriptingApi::Content::createPath()
+{
+	ScriptingObjects::PathObject* obj = new ScriptingObjects::PathObject(getScriptProcessor());
+
+	return var(obj);
+}
 
 #undef ADD_TO_TYPE_SELECTOR
 #undef ADD_AS_SLIDER_TYPE

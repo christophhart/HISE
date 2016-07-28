@@ -115,7 +115,7 @@ public:
 		String getDebugValue() const override { return getValue().toString(); };
 		String getDebugName() const override { return name.toString(); };
 		String getDebugDataType() const override { return getObjectName().toString(); }
-		virtual void doubleClickCallback(Component *componentToNotify) override;
+		virtual void doubleClickCallback(const MouseEvent &e, Component* componentToNotify) override;
 
 		var getAssignedValue(int index) const override;
 		void assign(const int index, var newValue) override;
@@ -591,9 +591,13 @@ public:
 		ScriptPanel(ProcessorWithScriptingContent *base, Content *parentContent, Identifier panelName, int x, int y, int width, int height);;
 		~ScriptPanel()
 		{
+			graphics = nullptr;
+
 			timerRoutine = var::undefined();
 			mouseRoutine = var::undefined();
 			paintRoutine = var::undefined();
+
+			
 		}
 
 		// ========================================================================================================
@@ -897,6 +901,9 @@ public:
 
 	/** Restore the widget from a JSON object. */
 	void setPropertiesFromJSON(const Identifier &name, const var &jsonData);
+
+	/** Creates a Path that can be drawn to a ScriptPanel. */
+	var createPath();
 
 	/** Sets the colour for the panel. */
 	void setColour(int red, int green, int blue) { colour = Colour((uint8)red, (uint8)green, (uint8)blue); };

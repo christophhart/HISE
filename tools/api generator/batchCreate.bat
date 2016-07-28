@@ -24,6 +24,7 @@ xcopy "xml\class_scripting_objects_1_1_scripting_effect.xml" "xml\selection"
 xcopy "xml\class_scripting_objects_1_1_scripting_midi_processor.xml" "xml\selection"
 xcopy "xml\class_scripting_objects_1_1_scripting_preset_storage.xml" "xml\selection"
 xcopy "xml\class_scripting_objects_1_1_graphics_object.xml" "xml\selection"
+xcopy "xml\class_scripting_objects_1_1_path_object.xml" "xml\selection"
 
 
 
@@ -48,7 +49,6 @@ ren "xml\selection\class_scripting_api_1_1_message.xml" "Message.xml"
 ren "xml\selection\class_scripting_api_1_1_synth.xml" "Synth.xml"
 ren "xml\selection\class_scripting_api_1_1_sampler.xml" "Sampler.xml"
 
-
 ren "xml\selection\class_scripting_objects_1_1_scripting_modulator.xml" "Modulator.xml"
 ren "xml\selection\class_scripting_objects_1_1_midi_list.xml" "MidiList.xml"
 ren "xml\selection\class_scripting_objects_1_1_scripting_effect.xml" "Effect.xml"
@@ -58,6 +58,7 @@ ren "xml\selection\class_scripting_objects_1_1_scripting_table_processor.xml" "T
 ren "xml\selection\class_scripting_objects_1_1_scripting_synth.xml" "ChildSynth.xml"
 ren "xml\selection\class_scripting_objects_1_1_scripting_preset_storage.xml" "PresetStorage.xml"
 ren "xml\selection\class_scripting_objects_1_1_graphics_object.xml" "Graphics.xml"
+ren "xml\selection\class_scripting_objects_1_1_path_object.xml" "Path.xml"
 
 ren "xml\selection\struct_scripting_api_1_1_content_1_1_script_button.xml" "ScriptButton.xml"
 ren "xml\selection\struct_scripting_api_1_1_content_1_1_script_combo_box.xml" "ScriptComboBox.xml"

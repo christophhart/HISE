@@ -112,6 +112,7 @@ struct ScriptingApi::Content::Wrapper
 	static var getMinValue(const var::NativeFunctionArgs& args);
 	static var getMaxValue(const var::NativeFunctionArgs& args);
 	static var contains(const var::NativeFunctionArgs& args);
+	static var createPath(const var::NativeFunctionArgs& args);
 };
 
 var ScriptingApi::Content::Wrapper::addButton (const var::NativeFunctionArgs& args)
@@ -867,6 +868,17 @@ var ScriptingApi::Content::Wrapper::contains(const var::NativeFunctionArgs& args
 	return var::undefined();
 }
 
+var ScriptingApi::Content::Wrapper::createPath(const var::NativeFunctionArgs& args)
+{
+	if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
+	{
+		CHECK_ARGUMENTS("createPath()", 0);
+
+		return thisObject->createPath();
+	}
+
+	return var::undefined();
+}
 
 #undef GET_OBJECT
 #undef CHECK_ARGUMENTS

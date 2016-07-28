@@ -242,7 +242,7 @@ void ScriptingObjects::ScriptingModulator::setBypassed(bool shouldBeBypassed)
 
 
 
-void ScriptingObjects::ScriptingModulator::doubleClickCallback(Component *componentToNotify)
+void ScriptingObjects::ScriptingModulator::doubleClickCallback(const MouseEvent &e, Component* componentToNotify)
 {
 #if USE_BACKEND
 	if (objectExists() && !objectDeleted())
@@ -666,6 +666,118 @@ void ScriptingObjects::TimerObject::timerCallback()
 	}
 }
 
+class PathPreviewComponent: public Component
+{
+public:
+
+	PathPreviewComponent(Path &p_) : p(p_) { setSize(300, 300); }
+
+	void paint(Graphics &g) override
+	{
+		g.setColour(Colours::white);
+		p.scaleToFit(0.0f, 0.0f, (float)getWidth(), (float)getHeight(), true);
+		g.fillPath(p);
+	}
+
+private:
+
+	Path p;
+};
+
+void ScriptingObjects::PathObject::doubleClickCallback(const MouseEvent &e, Component* componentToNotify)
+{
+#if USE_BACKEND
+
+	BackendProcessorEditor *editor = componentToNotify->findParentComponentOfClass<BackendProcessorEditor>();
+
+	PathPreviewComponent* content = new PathPreviewComponent(p);
+	
+	MouseEvent ee = e.getEventRelativeTo(editor);
+
+	Rectangle<int> r = Rectangle<int>(ee.getMouseDownPosition(), ee.getMouseDownPosition());
+
+	CallOutBox& myBox = CallOutBox::launchAsynchronously(content, r, editor);
+
+
+#endif
+}
+
+
+struct ScriptingObjects::PathObject::Wrapper
+{
+	API_VOID_METHOD_WRAPPER_1(PathObject, loadFromData);
+	API_VOID_METHOD_WRAPPER_0(PathObject, closeSubPath);
+	API_VOID_METHOD_WRAPPER_2(PathObject, startNewSubPath);
+	API_VOID_METHOD_WRAPPER_2(PathObject, lineTo);
+	API_VOID_METHOD_WRAPPER_0(PathObject, clear);
+	API_VOID_METHOD_WRAPPER_4(PathObject, quadraticTo);
+};
+
+ScriptingObjects::PathObject::PathObject(ProcessorWithScriptingContent* p) :
+ConstScriptingObject(p, 0)
+{
+	ADD_API_METHOD_1(loadFromData);
+	ADD_API_METHOD_0(closeSubPath);
+	ADD_API_METHOD_0(clear);
+	ADD_API_METHOD_2(startNewSubPath);
+	ADD_API_METHOD_2(lineTo);
+	ADD_API_METHOD_4(quadraticTo);
+}
+
+ScriptingObjects::PathObject::~PathObject()
+{
+
+}
+
+
+void ScriptingObjects::PathObject::loadFromData(var data)
+{
+	if (data.isArray())
+	{
+		p.clear();
+
+		Array<unsigned char> pathData;
+
+		Array<var> *varData = data.getArray();
+
+		const int numElements = varData->size();
+
+		pathData.ensureStorageAllocated(numElements);
+
+		for (int i = 0; i < numElements; i++)
+		{
+			pathData.add(static_cast<unsigned char>((int)varData->getUnchecked(i)));
+		}
+
+		p.loadPathFromData(pathData.getRawDataPointer(), numElements);
+	}
+}
+
+void ScriptingObjects::PathObject::clear()
+{
+	p.clear();
+}
+
+void ScriptingObjects::PathObject::startNewSubPath(var x, var y)
+{
+	p.startNewSubPath(x, y);
+}
+
+void ScriptingObjects::PathObject::closeSubPath()
+{
+	p.closeSubPath();
+}
+
+void ScriptingObjects::PathObject::lineTo(var x, var y)
+{
+	p.lineTo(x, y);
+}
+
+void ScriptingObjects::PathObject::quadraticTo(var cx, var cy, var x, var y)
+{
+	p.quadraticTo(cx, cy, x, y);
+}
+
 struct ScriptingObjects::GraphicsObject::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, fillAll);
@@ -687,6 +799,7 @@ struct ScriptingObjects::GraphicsObject::Wrapper
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, addDropShadowFromAlpha);
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawTriangle);
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, fillTriangle);
+	API_VOID_METHOD_WRAPPER_2(GraphicsObject, fillPath);
 };
 
 ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *p, ConstScriptingObject* parent_) :
@@ -712,11 +825,14 @@ parent(parent_)
 	ADD_API_METHOD_2(addDropShadowFromAlpha);
 	ADD_API_METHOD_3(drawTriangle);
 	ADD_API_METHOD_2(fillTriangle);
+	ADD_API_METHOD_2(fillPath);
 }
 
 ScriptingObjects::GraphicsObject::~GraphicsObject()
 {
-
+	parent = nullptr;
+	imageToDraw = nullptr;
+	g = nullptr;
 }
 
 void ScriptingObjects::GraphicsObject::fillAll(int colour)
@@ -944,6 +1060,19 @@ void ScriptingObjects::GraphicsObject::addDropShadowFromAlpha(int colour, float 
 	shadow.drawForImage(*g, *imageToDraw);
 }
 
+void ScriptingObjects::GraphicsObject::fillPath(var path, var area)
+{
+	if (PathObject* pathObject = dynamic_cast<PathObject*>(path.getObject()))
+	{
+		Path p = pathObject->getPath();
+		Rectangle<float> r = getRectangleFromVar(area);
+
+		p.scaleToFit(r.getX(), r.getY(), r.getWidth(), r.getHeight(), false);
+
+		g->fillPath(p);
+	}
+}
+
 void ScriptingObjects::GraphicsObject::initGraphics()
 {
 	if (g == nullptr) reportScriptError("Graphics not initialised");
@@ -1000,3 +1129,4 @@ Rectangle<int> ScriptingObjects::GraphicsObject::getIntRectangleFromVar(const va
 		return Rectangle<int>();
 	}
 }
+

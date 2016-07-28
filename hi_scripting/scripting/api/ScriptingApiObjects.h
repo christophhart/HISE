@@ -128,7 +128,7 @@ public:
 
 		String getDebugName() const override;
 		String getDebugValue() const override;
-		void doubleClickCallback(Component *componentToNotify) override;
+		void doubleClickCallback(const MouseEvent &e, Component* componentToNotify) override;
 
 		// ============================================================================================================
 
@@ -402,6 +402,60 @@ public:
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TimerObject)
 	};
 
+
+	class PathObject : public ConstScriptingObject,
+					   public DebugableObject
+	{
+	public:
+
+		// ============================================================================================================
+
+		PathObject(ProcessorWithScriptingContent* p);
+		~PathObject();
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Path"); }
+
+		
+		String getDebugValue() const override { return String(p.getLength(), 2); }
+		String getDebugName() const override { return "Path"; }
+		
+		void doubleClickCallback(const MouseEvent &e, Component* componentToNotify) override;
+
+		// ============================================================================================================ API Methods
+
+		/** Loads a path from a data array. */
+		void loadFromData(var data);
+
+		/** Clears the Path. */
+		void clear();
+
+		/** Starts a new Path. It does not clear the path, so use 'clear()' if you want to start all over again. */
+		void startNewSubPath(var x, var y);
+
+		/** Closes the Path. */
+		void closeSubPath();
+
+		/** Adds a line to [x,y]. */
+		void lineTo(var x, var y);
+
+		/** Adds a quadratic bezier curve with the control point [cx,cy] and the end point [x,y]. */
+		void quadraticTo(var cx, var cy, var x, var y);
+
+		// ============================================================================================================
+
+		struct Wrapper;
+
+		const Path& getPath() const { return p; }
+
+	private:
+
+		Path p;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PathObject);
+
+		// ============================================================================================================
+	};
+
 	class GraphicsObject : public ConstScriptingObject
 	{
 	public:
@@ -473,6 +527,9 @@ public:
 
 		/** Adds a drop shadow based on the alpha values of the current image. */
 		void addDropShadowFromAlpha(int colour, float radius);
+
+		/** Fills a Path. */
+		void fillPath(var path, var area);
 
 		// ============================================================================================================
 
