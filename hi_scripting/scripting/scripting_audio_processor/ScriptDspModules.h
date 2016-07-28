@@ -287,6 +287,67 @@ public:
 
 
 
+	class SineGenerator : public DspBaseObject
+	{
+	public:
+
+		SineGenerator() :
+			DspBaseObject()
+		{
+
+		}
+
+		SET_MODULE_NAME("sine");
+
+		void setParameter(int /*index*/, float newValue) override {};
+
+		int getNumParameters() const override { return 0; };
+
+		float getParameter(int /*index*/) const override { return -1; };
+
+		const Identifier &getIdForParameter(int /*index*/) const override { RETURN_STATIC_IDENTIFIER("Unused"); }
+
+		void prepareToPlay(double sampleRate, int /*samplesPerBlock*/) override { }
+
+		void processBlock(float **data, int numChannels, int numSamples) override
+		{
+			if (numChannels == 2)
+			{
+				float *inL = data[0];
+				float *pitch = data[1];
+				float phase = pitch[0];
+
+				while (--numSamples >= 0)
+				{
+					*inL = std::sin(phase);
+					pitch++;
+					phase += *pitch;
+					inL++;
+				}
+			}
+			else if (numChannels == 3)
+			{
+				float *inL = data[0];
+				float *inR = data[1];
+				float *pitch = data[2];
+				float phase = pitch[0];
+
+				const int samplesToCopy = numSamples;
+
+				while (--numSamples >= 0)
+				{
+					*inL = std::sin(phase);
+					pitch++;
+					phase += *pitch;
+					inL++;
+				}
+
+				FloatVectorOperations::copy(inR, inL, samplesToCopy);
+			}
+		}
+
+	};
+
 
 	class MoogFilter : public DspBaseObject
 	{
@@ -638,6 +699,7 @@ class HiseCoreDspFactory : public StaticDspFactory
 		registerDspModule<ScriptingDsp::Delay>();
 		registerDspModule<ScriptingDsp::SignalSmoother>();
         registerDspModule<ScriptingDsp::MoogFilter>();
+		registerDspModule<ScriptingDsp::SineGenerator>();
 	}
 };
 

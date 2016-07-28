@@ -70,6 +70,43 @@ float ProcessorWithScriptingContent::getControlValue(int index) const
 	else return 1.0f;
 }
 
+void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::ScriptComponent *component, var controllerValue)
+{
+	JavascriptProcessor* jsp = dynamic_cast<JavascriptProcessor*>(this);
+	int callbackIndex = getControlCallbackIndex();
+
+	JavascriptProcessor::SnippetDocument* onControlCallback = jsp->getSnippet(callbackIndex);
+
+	if (onControlCallback->isSnippetEmpty())
+	{
+		return;
+	}
+
+	Processor* thisAsProcessor = dynamic_cast<Processor*>(this);
+	
+	
+	HiseJavascriptEngine* scriptEngine = jsp->getScriptEngine();
+
+	scriptEngine->maximumExecutionTime = RelativeTime(0.5);
+
+	ScopedLock sl(jsp->compileLock);
+
+	scriptEngine->setCallbackParameter(callbackIndex, 0, component);
+	scriptEngine->setCallbackParameter(callbackIndex, 1, controllerValue);
+	scriptEngine->executeCallback(callbackIndex, &jsp->lastResult);
+
+	if (MessageManager::getInstance()->isThisTheMessageThread())
+	{
+		thisAsProcessor->sendSynchronousChangeMessage();
+	}
+	else
+	{
+		thisAsProcessor->sendChangeMessage();
+	}
+
+	BACKEND_ONLY(if (!jsp->lastResult.wasOk()) debugError(thisAsProcessor, onControlCallback->getCallbackName().toString() + ": " + jsp->lastResult.getErrorMessage()));
+}
+
 void ProcessorWithScriptingContent::restoreContent(const ValueTree &restoredState)
 {
 	restoredContentValues = restoredState.getChildWithName("Content");
@@ -347,12 +384,28 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileScript()
 		mergeCallbacksToScript(x);
 		parseSnippetsFromString(x);
 
-		clearFileWatchers();
-		for (int i = 0; i < scriptEngine->getIncludedFiles().size(); i++)
-		{
-			addFileWatcher(scriptEngine->getIncludedFiles().getUnchecked(i));
-		}
+	}
+	clearFileWatchers();
 
+	const int numFiles = scriptEngine->getNumIncludedFiles();
+
+	for (int i = 0; i < numFiles; i++)
+	{
+		addFileWatcher(scriptEngine->getIncludedFile(i));
+		setFileResult(scriptEngine->getIncludedFile(i), scriptEngine->getIncludedFileResult(i));
+	}
+
+	const String fileName = ApiHelpers::getFileNameFromErrorMessage(result.r.getErrorMessage());
+
+	if (fileName.isNotEmpty())
+	{
+		for (int i = 0; i < getNumWatchedFiles(); i++)
+		{
+			if (getWatchedFile(i).getFileName() == fileName)
+			{
+				setFileResult(getWatchedFile(i), result.r);
+			}
+		}
 	}
 
 	mainController->sendScriptCompileMessage(this);

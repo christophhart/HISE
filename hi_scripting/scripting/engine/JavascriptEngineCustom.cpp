@@ -109,7 +109,6 @@ struct HiseJavascriptEngine::RootObject::ConstObjectApiCall : public Expression
 	{
 		for (int i = 0; i < 4; i++)
 		{
-			results[i] = var::undefined();
 			argumentList[i] = nullptr;
 		}
 	};
@@ -131,6 +130,8 @@ struct HiseJavascriptEngine::RootObject::ConstObjectApiCall : public Expression
 			CHECK_CONDITION_WITH_LOCATION(functionIndex != -1, "function " + functionName.toString() + " not found.");
 		}
 
+		var results[5];
+
 		for (int i = 0; i < expectedNumArguments; i++)
 		{
 			results[i] = argumentList[i]->getResult(s);
@@ -146,7 +147,6 @@ struct HiseJavascriptEngine::RootObject::ConstObjectApiCall : public Expression
 	ExpPtr argumentList[4];
 	mutable int expectedNumArguments;
 	mutable int functionIndex;
-	mutable var results[4];
 	Identifier functionName;
 
 	var* objectPointer;
@@ -254,6 +254,11 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			}
 
 			ResultCode c = f->body->perform(s, &returnVar);
+
+			for (int i = 0; i < numArgs; i++)
+			{
+				parameterResults.setUnchecked(i, var::undefined());
+			}
 
 			f->lastReturnValue = returnVar;
 

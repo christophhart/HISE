@@ -85,7 +85,7 @@ public:
 	const SnippetDocument *getSnippet(int c) const override;
 	int getNumSnippets() const override { return numCallbacks; }
 	void registerApiClasses() override;
-	void controlCallback(ScriptingApi::Content::ScriptComponent *component, var controllerValue) override;
+	
 
 	void addToFront(bool addToFront_) noexcept{ front = addToFront_; };
 	bool isFront() const { return front; };
@@ -192,7 +192,8 @@ public:
 	const SnippetDocument *getSnippet(int c) const override;
 	int getNumSnippets() const override { return numCallbacks; }
 	void registerApiClasses() override;
-	void controlCallback(ScriptingApi::Content::ScriptComponent *component, var controllerValue) override;
+	
+	int getControlCallbackIndex() const override { return (int)Callback::onControl; };
 
 private:
 
@@ -265,11 +266,14 @@ public:
 	const Processor *getChildProcessor(int /*processorIndex*/) const override final { return nullptr; };
 	int getNumChildProcessors() const override final { return 0; };
 
+	
+
 	SnippetDocument *getSnippet(int c) override;
 	const SnippetDocument *getSnippet(int c) const override;
 	int getNumSnippets() const override { return Callback::numCallbacks; }
 	void registerApiClasses() override;
-	void controlCallback(ScriptingApi::Content::ScriptComponent *component, var controllerValue) override;
+	
+	int getControlCallbackIndex() const override { return (int)Callback::onControl; };
 
 	void postCompileCallback() override;
 
@@ -293,12 +297,127 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(JavascriptTimeVariantModulator)
 };
 
+class JavascriptModulatorSynth : public JavascriptProcessor,
+								 public ProcessorWithScriptingContent,
+								 public ModulatorSynth
+{
+public:
+
+
+	SET_PROCESSOR_NAME("ScriptSynth", "Script Synthesiser")
+
+	enum class EditorStates
+	{
+		script1ChainShown = ModulatorSynth::numEditorStates,
+		script2ChainShown,
+		contentShown,
+		onInitShown,
+		prepareToPlayOpen,
+		startVoiceOpen,
+		renderVoiceOpen,
+		onNoteOnOpen,
+		onNoteOffOpen,
+		onControllerOpen,
+		onControlOpen,
+		externalPopupShown,
+		numEditorStates
+	};
+
+	enum InternalChains
+	{
+		ScriptChain1 = ModulatorSynth::numInternalChains,
+		ScriptChain2,
+		numInternalChains
+	};
+
+	enum class Callback
+	{
+		onInit = 0,
+		prepareToPlay,
+		startVoice,
+		renderVoice,
+		onNoteOn,
+		onNoteOff,
+		onController,
+		onControl,
+		numCallbacks
+	};
+
+	JavascriptModulatorSynth(MainController *mc, const String &id, int numVoices);
+	~JavascriptModulatorSynth();
+
+	void restoreFromValueTree(const ValueTree &v) override { ModulatorSynth::restoreFromValueTree(v); restoreScript(v); restoreContent(v); };
+	ValueTree exportAsValueTree() const override { ValueTree v = ModulatorSynth::exportAsValueTree(); saveContent(v); saveScript(v); return v; }
+
+	int getNumChildProcessors() const override { return numInternalChains; };
+	int getNumInternalChains() const override { return numInternalChains; };
+
+	virtual Processor *getChildProcessor(int processorIndex) override;;
+	virtual const Processor *getChildProcessor(int processorIndex) const override;;
+
+	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
+	void preMidiCallback(const MidiMessage &m) override;
+	void preStartVoice(int voiceIndex, int noteNumber) override;;
+	void preVoiceRendering(int startSample, int numThisTime);;
+
+	float getAttribute(int parameterIndex) const override;;
+	void setInternalAttribute(int parameterIndex, float newValue) override;;
+
+	SnippetDocument *getSnippet(int c) override;
+	const SnippetDocument *getSnippet(int c) const override;
+	int getNumSnippets() const override { return (int)Callback::numCallbacks; }
+	void registerApiClasses() override;
+	
+	int getControlCallbackIndex() const override { return (int)Callback::onControl; };
+
+	int getCallbackEditorStateOffset() const override { return (int)EditorStates::contentShown; }
+
+	void postCompileCallback() override;
+
+	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;
+
+	void calculateScriptChainValuesForVoice(int voiceIndex, int startSample, int numSamples);
+	const float *getScriptChainValues(int chainIndex, int voiceIndex) const;
+
+private:
+
+	class Sound;
+	class Voice;
+
+	AudioSampleBuffer scriptChain1Buffer, scriptChain2Buffer;
+
+	ScopedPointer<ModulatorChain> scriptChain1, scriptChain2;
+
+	ScopedPointer<SnippetDocument> onInitCallback;
+	ScopedPointer<SnippetDocument> prepareToPlayCallback;
+	ScopedPointer<SnippetDocument> startVoiceCallback;
+	ScopedPointer<SnippetDocument> renderVoiceCallback;
+	ScopedPointer<SnippetDocument> onNoteOnCallback;
+	ScopedPointer<SnippetDocument> onNoteOffCallback;
+	ScopedPointer<SnippetDocument> onControllerCallback;
+	ScopedPointer<SnippetDocument> onControlCallback;
+
+	ReferenceCountedObjectPtr<ScriptingApi::Message> currentMidiMessage;
+	ReferenceCountedObjectPtr<ScriptingApi::Engine> engineObject;
+	ScriptingApi::Synth *synthObject;
+};
+
 class JavascriptMasterEffect : public JavascriptProcessor,
-							   public ScriptBaseMasterEffectProcessor
+							   public ProcessorWithScriptingContent,
+							   public MasterEffectProcessor
 {
 public:
 
 	SET_PROCESSOR_NAME("ScriptFX", "Script FX")
+
+	enum class Callback
+	{
+		onInit,
+		prepareToPlay,
+		processBlock,
+		onControl,
+		numCallbacks
+	};
 
 	enum EditorStates
 	{
@@ -315,15 +434,13 @@ public:
 
 	Path getSpecialSymbol() const override;
 
-	ValueTree exportAsValueTree() const override;;
-	void restoreFromValueTree(const ValueTree &v) override;
+	
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	SnippetDocument *getSnippet(int c) override;
 	const SnippetDocument *getSnippet(int c) const override;
-	int getNumSnippets() const override { return numCallbacks; }
+	int getNumSnippets() const override { return (int)Callback::numCallbacks; }
 	void registerApiClasses() override;
-	void controlCallback(ScriptingApi::Content::ScriptComponent *component, var controllerValue) override;
 	void postCompileCallback() override;
 
 
@@ -335,8 +452,16 @@ public:
 	int getNumInternalChains() const override { return 0; };
 	int getNumChildProcessors() const override { return 0; };
 
-	void prepareToPlay(double sampleRate, int samplesPerBlock);
+	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 	void applyEffect(AudioSampleBuffer &b, int startSample, int numSamples) override;
+
+	float getAttribute(int index) const override { return getControlValue(index); }
+	void setInternalAttribute(int index, float newValue) override { setControlValue(index, newValue); }
+
+	ValueTree exportAsValueTree() const override { ValueTree v = MasterEffectProcessor::exportAsValueTree(); saveContent(v); return v; }
+	void restoreFromValueTree(const ValueTree &v) override { MasterEffectProcessor::restoreFromValueTree(v); restoreContent(v); }
+
+	int getControlCallbackIndex() const override { return (int)Callback::onControl; };
 
 private:
 
@@ -344,8 +469,6 @@ private:
 	VariantBuffer::Ptr bufferR;
 
 	var channels;
-
-	
 
 	ScopedPointer<SnippetDocument> onInitCallback;
 	ScopedPointer<SnippetDocument> prepareToPlayCallback;

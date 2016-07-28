@@ -218,6 +218,7 @@ void DspInstance::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 typedef DspBaseObject*(*createDspModule_)(const char *);
 
+
 class DspFactory::Handler
 {
 public:
@@ -228,7 +229,7 @@ public:
 	DspInstance *createDspInstance(const String &factoryName, const String &moduleName);
 
 	template <class T> static void registerStaticFactory(Handler *instance);
-
+    
 	/** Returns a factory with the given name.
 	*
 	*	It looks for static factories first. If no static library is found, it searches for opened dynamic factories.
@@ -257,6 +258,8 @@ private:
 
 	static void registerStaticFactories(Handler *instance);
 
+    
+    
 	ReferenceCountedArray<DspFactory> staticFactories;
 	ReferenceCountedArray<DspFactory> loadedPlugins;
 };

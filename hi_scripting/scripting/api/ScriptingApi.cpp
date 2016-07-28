@@ -679,12 +679,8 @@ var ScriptingApi::Engine::getRegexMatches(String stringToMatch, String wildcard)
     try
     {
         std::string s = stringToMatch.toStdString();
-        
         std::regex reg(wildcard.toStdString());
-        
         std::smatch match;
-        
-
         
         if (std::regex_search(s, match, reg))
         {

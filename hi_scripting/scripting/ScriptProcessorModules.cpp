@@ -390,37 +390,12 @@ void JavascriptMidiProcessor::handleAsyncUpdate()
 
 }
 
-void JavascriptMidiProcessor::controlCallback(ScriptingApi::Content::ScriptComponent *component, var controllerValue)
-{
-	if (onControlCallback->isSnippetEmpty())
-	{
-		return;
-	}
-
-	scriptEngine->maximumExecutionTime = RelativeTime(0.5);
-	scriptEngine->setCallbackParameter(onControl, 0, component);
-	scriptEngine->setCallbackParameter(onControl, 1, controllerValue);
-	scriptEngine->executeCallback(onControl, &lastResult);
-
-	if (MessageManager::getInstance()->isThisTheMessageThread())
-	{
-		sendSynchronousChangeMessage();
-	}
-	else
-	{
-		sendChangeMessage();
-	}
-
-
-	BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, onControlCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
-}
-
-
 
 
 JavascriptMasterEffect::JavascriptMasterEffect(MainController *mc, const String &id):
 JavascriptProcessor(mc),
-ScriptBaseMasterEffectProcessor(mc, id),
+ProcessorWithScriptingContent(mc),
+MasterEffectProcessor(mc, id),
 onInitCallback(new SnippetDocument("onInit")),
 prepareToPlayCallback(new SnippetDocument("prepareToPlay", "sampleRate blockSize")),
 processBlockCallback(new SnippetDocument("processBlock", "channels")),
@@ -453,20 +428,6 @@ Path JavascriptMasterEffect::getSpecialSymbol() const
 	Path path; path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, sizeof(HiBinaryData::SpecialSymbols::scriptProcessor)); return path;
 }
 
-ValueTree JavascriptMasterEffect::exportAsValueTree() const
-{
-	ValueTree v = ScriptBaseMasterEffectProcessor::exportAsValueTree();
-	saveScript(v);
-
-	return v;
-}
-
-void JavascriptMasterEffect::restoreFromValueTree(const ValueTree &v)
-{
-	restoreScript(v);
-	ScriptBaseMasterEffectProcessor::restoreFromValueTree(v);
-}
-
 ProcessorEditorBody * JavascriptMasterEffect::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
@@ -482,15 +443,15 @@ ProcessorEditorBody * JavascriptMasterEffect::createEditor(ProcessorEditor *pare
 
 JavascriptProcessor::SnippetDocument * JavascriptMasterEffect::getSnippet(int c)
 {
-	Callbacks ca = (Callbacks)c;
+	Callback ca = (Callback)c;
 
 	switch (ca)
 	{
-	case ScriptBaseMasterEffectProcessor::onInit:		 return onInitCallback;
-	case ScriptBaseMasterEffectProcessor::prepareToPlay: return prepareToPlayCallback;
-	case ScriptBaseMasterEffectProcessor::processBlock:	 return processBlockCallback;
-	case ScriptBaseMasterEffectProcessor::onControl:	 return onControlCallback;
-	case ScriptBaseMasterEffectProcessor::numCallbacks:  return nullptr;
+	case Callback::onInit:			return onInitCallback;
+	case Callback::prepareToPlay:	return prepareToPlayCallback;
+	case Callback::processBlock:	return processBlockCallback;
+	case Callback::onControl:		return onControlCallback;
+	case Callback::numCallbacks:	return nullptr;
 	default:
 		break;
 	}
@@ -500,15 +461,15 @@ JavascriptProcessor::SnippetDocument * JavascriptMasterEffect::getSnippet(int c)
 
 const JavascriptProcessor::SnippetDocument * JavascriptMasterEffect::getSnippet(int c) const
 {
-	Callbacks ca = (Callbacks)c;
+	Callback ca = (Callback)c;
 
 	switch (ca)
 	{
-	case ScriptBaseMasterEffectProcessor::onInit:		 return onInitCallback;
-	case ScriptBaseMasterEffectProcessor::prepareToPlay: return prepareToPlayCallback;
-	case ScriptBaseMasterEffectProcessor::processBlock:	 return processBlockCallback;
-	case ScriptBaseMasterEffectProcessor::onControl:	 return onControlCallback;
-	case ScriptBaseMasterEffectProcessor::numCallbacks:  return nullptr;
+	case Callback::onInit:			return onInitCallback;
+	case Callback::prepareToPlay:	return prepareToPlayCallback;
+	case Callback::processBlock:	return processBlockCallback;
+	case Callback::onControl:		return onControlCallback;
+	case Callback::numCallbacks:	return nullptr;
 	default:
 		break;
 	}
@@ -531,32 +492,6 @@ void JavascriptMasterEffect::registerApiClasses()
 
 }
 
-void JavascriptMasterEffect::controlCallback(ScriptingApi::Content::ScriptComponent *component, var controllerValue)
-{
-	if (onControlCallback->isSnippetEmpty())
-	{
-		return;
-	}
-
-	scriptEngine->maximumExecutionTime = RelativeTime(0.5);
-
-	ScopedLock sl(compileLock);
-
-	scriptEngine->setCallbackParameter(onControl, 0, component);
-	scriptEngine->setCallbackParameter(onControl, 1, controllerValue);
-	scriptEngine->executeCallback(onControl, &lastResult);
-
-	if (MessageManager::getInstance()->isThisTheMessageThread())
-	{
-		sendSynchronousChangeMessage();
-	}
-	else
-	{
-		sendChangeMessage();
-	}
-
-	BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, onControlCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
-}
 
 void JavascriptMasterEffect::postCompileCallback()
 {
@@ -580,9 +515,9 @@ void JavascriptMasterEffect::prepareToPlay(double sampleRate, int samplesPerBloc
 
 	if (!prepareToPlayCallback->isSnippetEmpty() && lastResult.wasOk())
 	{
-		scriptEngine->setCallbackParameter(Callbacks::prepareToPlay, 0, sampleRate);
-		scriptEngine->setCallbackParameter(Callbacks::prepareToPlay, 1, samplesPerBlock);
-		scriptEngine->executeCallback(Callbacks::prepareToPlay, &lastResult);
+		scriptEngine->setCallbackParameter((int)Callback::prepareToPlay, 0, sampleRate);
+		scriptEngine->setCallbackParameter((int)Callback::prepareToPlay, 1, samplesPerBlock);
+		scriptEngine->executeCallback((int)Callback::prepareToPlay, &lastResult);
 
 		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, prepareToPlayCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
 	}
@@ -600,8 +535,8 @@ void JavascriptMasterEffect::applyEffect(AudioSampleBuffer &b, int startSample, 
 		bufferL->referToData(l, numSamples);
 		bufferR->referToData(r, numSamples);
 
-		scriptEngine->setCallbackParameter(Callbacks::processBlock, 0, channels);
-		scriptEngine->executeCallback(Callbacks::processBlock, &lastResult);
+		scriptEngine->setCallbackParameter((int)Callback::processBlock, 0, channels);
+		scriptEngine->executeCallback((int)Callback::processBlock, &lastResult);
 
 		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, processBlockCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
 	}
@@ -745,33 +680,6 @@ void JavascriptVoiceStartModulator::registerApiClasses()
 	scriptEngine->registerApiClass(new ScriptingApi::Console(this));
 	scriptEngine->registerApiClass(new ScriptingApi::ModulatorApi(this));
 	scriptEngine->registerApiClass(synthObject);
-}
-
-void JavascriptVoiceStartModulator::controlCallback(ScriptingApi::Content::ScriptComponent *component, var controllerValue)
-{
-	if (onControlCallback->isSnippetEmpty())
-	{
-		return;
-	}
-
-	scriptEngine->maximumExecutionTime = RelativeTime(0.5);
-
-	ScopedLock sl(compileLock);
-
-	scriptEngine->setCallbackParameter(onControl, 0, component);
-	scriptEngine->setCallbackParameter(onControl, 1, controllerValue);
-	scriptEngine->executeCallback(onControl, &lastResult);
-
-	if (MessageManager::getInstance()->isThisTheMessageThread())
-	{
-		sendSynchronousChangeMessage();
-	}
-	else
-	{
-		sendChangeMessage();
-	}
-
-	BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, onControlCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
 }
 
 
@@ -974,34 +882,357 @@ void JavascriptTimeVariantModulator::registerApiClasses()
 	scriptEngine->registerNativeObject("Buffer", new VariantBuffer::Factory(64));
 }
 
-void JavascriptTimeVariantModulator::controlCallback(ScriptingApi::Content::ScriptComponent *component, var controllerValue)
-{
-	if (onControlCallback->isSnippetEmpty())
-	{
-		return;
-	}
-
-	scriptEngine->maximumExecutionTime = RelativeTime(0.5);
-
-	ScopedLock sl(compileLock);
-
-	scriptEngine->setCallbackParameter(Callback::onControl, 0, component);
-	scriptEngine->setCallbackParameter(Callback::onControl, 1, controllerValue);
-	scriptEngine->executeCallback(Callback::onControl, &lastResult);
-
-	if (MessageManager::getInstance()->isThisTheMessageThread())
-	{
-		sendSynchronousChangeMessage();
-	}
-	else
-	{
-		sendChangeMessage();
-	}
-
-	BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, onControlCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
-}
 
 void JavascriptTimeVariantModulator::postCompileCallback()
 {
 	prepareToPlay(getSampleRate(), getBlockSize());
+}
+
+
+
+
+
+class JavascriptModulatorSynth::Sound : public ModulatorSynthSound
+{
+public:
+	Sound() {}
+
+	bool appliesToNote(int /*midiNoteNumber*/) override   { return true; }
+	bool appliesToChannel(int /*midiChannel*/) override   { return true; }
+	bool appliesToVelocity(int /*midiChannel*/) override  { return true; }
+};
+
+
+
+class JavascriptModulatorSynth::Voice : public ModulatorSynthVoice
+{
+public:
+
+	Voice(ModulatorSynth *ownerSynth) :
+		ModulatorSynthVoice(ownerSynth)
+	{
+
+		leftBuffer = new VariantBuffer(0);
+		rightBuffer = new VariantBuffer(0);
+		pitchData = new VariantBuffer(0);
+
+		channels.add(var(leftBuffer));
+		channels.add(var(rightBuffer));
+		channels.add(var(pitchData));
+	};
+
+	bool canPlaySound(SynthesiserSound *) override
+	{
+		return true;
+	};
+
+	void startNote(int midiNoteNumber, float velocity, SynthesiserSound*, int /*currentPitchWheelPosition*/) override
+	{
+		ModulatorSynthVoice::startNote(midiNoteNumber, 0.0f, nullptr, -1);
+
+		JavascriptModulatorSynth* ownerSynth = static_cast<JavascriptModulatorSynth*>(getOwnerSynth());
+
+		ScopedLock sl(ownerSynth->compileLock);
+
+		ownerSynth->scriptEngine->setCallbackParameter((int)JavascriptModulatorSynth::Callback::startVoice, 0, getVoiceIndex());
+		ownerSynth->scriptEngine->setCallbackParameter((int)JavascriptModulatorSynth::Callback::startVoice, 1, midiNoteNumber);
+		ownerSynth->scriptEngine->setCallbackParameter((int)JavascriptModulatorSynth::Callback::startVoice, 2, velocity);
+
+		voiceUptime = 0.0;
+		uptimeDelta = (double)ownerSynth->scriptEngine->executeCallback((int)JavascriptModulatorSynth::Callback::startVoice, &ownerSynth->lastResult);
+
+		BACKEND_ONLY(if (!ownerSynth->lastResult.wasOk()) debugError(ownerSynth, ownerSynth->startVoiceCallback->getCallbackName().toString() + ": " + ownerSynth->lastResult.getErrorMessage()));
+	}
+
+	void calculateBlock(int startSample, int numSamples) override
+	{
+		const int startIndex = startSample;
+		const int samplesToCopy = numSamples;
+
+		const float *voicePitchValues = getVoicePitchValues();
+		const float *modValues = getVoiceGainValues(startSample, numSamples);
+
+		float *leftValues = voiceBuffer.getWritePointer(0, startSample);
+		float *rightValues = voiceBuffer.getWritePointer(1, startSample);
+
+		channels[0].getBuffer()->referToData(leftValues, numSamples);
+		channels[1].getBuffer()->referToData(rightValues, numSamples);
+		
+		if (voicePitchValues != nullptr)
+		{
+			voicePitchValues += startSample;
+			channels[2].getBuffer()->referToData(const_cast<float*>(voicePitchValues), numSamples);
+		}
+		
+		JavascriptModulatorSynth* ownerSynth = static_cast<JavascriptModulatorSynth*>(getOwnerSynth());
+
+		ScopedLock sl(ownerSynth->compileLock);
+
+		ownerSynth->scriptEngine->setCallbackParameter((int)JavascriptModulatorSynth::Callback::renderVoice, 0, getVoiceIndex());
+		ownerSynth->scriptEngine->setCallbackParameter((int)JavascriptModulatorSynth::Callback::renderVoice, 1, var(channels));
+
+		voiceUptime += (double)ownerSynth->scriptEngine->executeCallback((int)JavascriptModulatorSynth::Callback::renderVoice, &ownerSynth->lastResult);
+
+		BACKEND_ONLY(if (!ownerSynth->lastResult.wasOk()) debugError(ownerSynth, ownerSynth->renderVoiceCallback->getCallbackName().toString() + ": " + ownerSynth->lastResult.getErrorMessage()));
+
+		getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesToCopy);
+
+		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), modValues + startIndex, samplesToCopy);
+		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), modValues + startIndex, samplesToCopy);
+	}
+
+	Array<var> channels;
+
+	VariantBuffer::Ptr leftBuffer;
+	VariantBuffer::Ptr rightBuffer;
+	VariantBuffer::Ptr pitchData;
+};
+
+
+JavascriptModulatorSynth::JavascriptModulatorSynth(MainController *mc, const String &id, int numVoices) :
+ModulatorSynth(mc, id, numVoices),
+JavascriptProcessor(mc),
+ProcessorWithScriptingContent(mc),
+scriptChain1(new ModulatorChain(mc, "Script Chain 1", numVoices, Modulation::GainMode, this)),
+scriptChain2(new ModulatorChain(mc, "Script Chain 2", numVoices, Modulation::GainMode, this)),
+onInitCallback(new SnippetDocument("onInit")),
+prepareToPlayCallback(new SnippetDocument("prepareToPlay", "sampleRate blockSize")),
+startVoiceCallback(new SnippetDocument("onStartVoice", "voiceIndex noteNumber velocity")),
+renderVoiceCallback(new SnippetDocument("renderVoice", "voiceIndex channels")),
+onNoteOnCallback(new SnippetDocument("onNoteOn")),
+onNoteOffCallback(new SnippetDocument("onNoteOff")),
+onControllerCallback(new SnippetDocument("onController")),
+onControlCallback(new SnippetDocument("onControl", "number value"))
+{
+
+	scriptChain1->setColour(Colour(0xFF666666));
+	scriptChain2->setColour(Colour(0xFF666666));
+
+	editorStateIdentifiers.add("ScriptChain1Shown");
+	editorStateIdentifiers.add("ScriptChain2Shown");
+	editorStateIdentifiers.add("contentShown");
+	editorStateIdentifiers.add("onInitOpen");
+	editorStateIdentifiers.add("prepareToPlayOpen");
+	editorStateIdentifiers.add("startVoiceOpen");
+	editorStateIdentifiers.add("renderVoiceOpen");
+	editorStateIdentifiers.add("onNoteOnOpen");
+	editorStateIdentifiers.add("onNoteOffOpen");
+	editorStateIdentifiers.add("onControllerOpen");
+	editorStateIdentifiers.add("onControlOpen");
+	editorStateIdentifiers.add("externalPopupShown");
+
+	for (int i = 0; i < editorStateIdentifiers.size(); i++)
+	{
+		DBG(editorStateIdentifiers[i].toString());
+	}
+
+	addSound(new Sound());
+
+	for (int i = 0; i < numVoices; i++)
+	{
+		addVoice(new Voice(this));
+	}
+}
+
+JavascriptModulatorSynth::~JavascriptModulatorSynth()
+{
+#if USE_BACKEND
+	if (consoleEnabled)
+	{
+		getMainController()->setWatchedScriptProcessor(nullptr, nullptr);
+	}
+#endif
+
+}
+
+Processor * JavascriptModulatorSynth::getChildProcessor(int processorIndex)
+{
+	switch (processorIndex)
+	{
+	
+	case ModulatorSynth::InternalChains::MidiProcessor:	 return midiProcessorChain;
+	case ModulatorSynth::InternalChains::GainModulation: return gainChain;
+	case ModulatorSynth::InternalChains::PitchModulation:return pitchChain;
+	case ModulatorSynth::InternalChains::EffectChain:	 return effectChain;
+	case ScriptChain1:	return scriptChain1;
+	case ScriptChain2:	return scriptChain2;
+	default:			jassertfalse; return nullptr;
+	}
+}
+
+const Processor * JavascriptModulatorSynth::getChildProcessor(int processorIndex) const
+{
+	switch (processorIndex)
+	{
+	case ModulatorSynth::InternalChains::MidiProcessor:	 return midiProcessorChain;
+	case ModulatorSynth::InternalChains::GainModulation: return gainChain;
+	case ModulatorSynth::InternalChains::PitchModulation:return pitchChain;
+	case ModulatorSynth::InternalChains::EffectChain:	 return effectChain;
+	case ScriptChain1:	return scriptChain1;
+	case ScriptChain2:	return scriptChain2;
+	default:			jassertfalse; return nullptr;
+	}
+}
+
+void JavascriptModulatorSynth::prepareToPlay(double sampleRate, int samplesPerBlock)
+{
+	if (sampleRate > -1.0)
+	{
+		scriptChain1Buffer = AudioSampleBuffer(1, samplesPerBlock);
+		scriptChain2Buffer = AudioSampleBuffer(1, samplesPerBlock);
+		scriptChain1->prepareToPlay(sampleRate, samplesPerBlock);
+		scriptChain2->prepareToPlay(sampleRate, samplesPerBlock);
+
+		for (int i = 0; i < sounds.size(); i++)
+		{
+			//static_cast<WavetableSound*>(getSound(i))->calculatePitchRatio(sampleRate); // Todo
+		}
+	}
+
+
+	ModulatorSynth::prepareToPlay(sampleRate, samplesPerBlock);
+}
+
+void JavascriptModulatorSynth::preMidiCallback(const MidiMessage &m)
+{
+	scriptChain1->handleMidiEvent(m);
+	scriptChain2->handleMidiEvent(m);
+
+	ModulatorSynth::preMidiCallback(m);
+}
+
+void JavascriptModulatorSynth::preStartVoice(int voiceIndex, int noteNumber)
+{
+	ModulatorSynth::preStartVoice(voiceIndex, noteNumber);
+
+	scriptChain1->startVoice(voiceIndex);
+	scriptChain2->startVoice(voiceIndex);
+}
+
+void JavascriptModulatorSynth::preVoiceRendering(int startSample, int numThisTime)
+{
+	scriptChain1->renderNextBlock(scriptChain1Buffer, startSample, numThisTime);
+	scriptChain2->renderNextBlock(scriptChain2Buffer, startSample, numThisTime);
+
+	ModulatorSynth::preVoiceRendering(startSample, numThisTime);
+
+	if (!isChainDisabled(EffectChain)) effectChain->preRenderCallback(startSample, numThisTime);
+}
+
+void JavascriptModulatorSynth::calculateScriptChainValuesForVoice(int voiceIndex, int startSample, int numSamples)
+{
+	scriptChain1->renderVoice(voiceIndex, startSample, numSamples);
+	scriptChain2->renderVoice(voiceIndex, startSample, numSamples);
+
+	float *scriptChain1Values = scriptChain1->getVoiceValues(voiceIndex);
+	float *scriptChain2Values = scriptChain2->getVoiceValues(voiceIndex);
+
+	const float* timeVariantScriptChain1Values = scriptChain1Buffer.getReadPointer(0);
+	const float* timeVariantScriptChain2Values = scriptChain2Buffer.getReadPointer(0);
+
+	FloatVectorOperations::multiply(scriptChain1Values, timeVariantScriptChain1Values, startSample + numSamples);
+	FloatVectorOperations::multiply(scriptChain2Values, timeVariantScriptChain2Values, startSample + numSamples);
+}
+
+const float * JavascriptModulatorSynth::getScriptChainValues(int chainIndex, int voiceIndex) const
+{
+	return chainIndex == 0 ? scriptChain1->getVoiceValues(voiceIndex) : scriptChain2->getVoiceValues(voiceIndex);
+}
+
+float JavascriptModulatorSynth::getAttribute(int parameterIndex) const
+{
+	if (parameterIndex < ModulatorSynth::numModulatorSynthParameters) return ModulatorSynth::getAttribute(parameterIndex);
+
+	return getControlValue(parameterIndex);
+}
+
+void JavascriptModulatorSynth::setInternalAttribute(int parameterIndex, float newValue)
+{
+	if (parameterIndex < ModulatorSynth::numModulatorSynthParameters)
+	{
+		ModulatorSynth::setInternalAttribute(parameterIndex, newValue);
+		return;
+	}
+
+	setControlValue(parameterIndex, newValue);
+}
+
+JavascriptProcessor::SnippetDocument * JavascriptModulatorSynth::getSnippet(int c)
+{
+	Callback ca = (Callback)c;
+
+	switch (ca)
+	{
+	case JavascriptModulatorSynth::Callback::onInit:		return onInitCallback;
+	case JavascriptModulatorSynth::Callback::prepareToPlay: return prepareToPlayCallback;
+	case JavascriptModulatorSynth::Callback::startVoice:	return startVoiceCallback;
+	case JavascriptModulatorSynth::Callback::renderVoice:	return renderVoiceCallback;
+	case JavascriptModulatorSynth::Callback::onNoteOn:		return onNoteOnCallback;
+	case JavascriptModulatorSynth::Callback::onNoteOff:		return onNoteOffCallback;
+	case JavascriptModulatorSynth::Callback::onController:	return onControllerCallback;
+	case JavascriptModulatorSynth::Callback::onControl:		return onControlCallback;
+	case JavascriptModulatorSynth::Callback::numCallbacks:
+	default:												break;
+	}
+
+	return nullptr;
+}
+
+const JavascriptProcessor::SnippetDocument * JavascriptModulatorSynth::getSnippet(int c) const
+{
+	Callback ca = (Callback)c;
+
+	switch (ca)
+	{
+	case JavascriptModulatorSynth::Callback::onInit:		return onInitCallback;
+	case JavascriptModulatorSynth::Callback::prepareToPlay: return prepareToPlayCallback;
+	case JavascriptModulatorSynth::Callback::startVoice:	return startVoiceCallback;
+	case JavascriptModulatorSynth::Callback::renderVoice:	return renderVoiceCallback;
+	case JavascriptModulatorSynth::Callback::onNoteOn:		return onNoteOnCallback;
+	case JavascriptModulatorSynth::Callback::onNoteOff:		return onNoteOffCallback;
+	case JavascriptModulatorSynth::Callback::onController:	return onControllerCallback;
+	case JavascriptModulatorSynth::Callback::onControl:		return onControlCallback;
+	case JavascriptModulatorSynth::Callback::numCallbacks:
+	default:												break;
+	}
+
+	return nullptr;
+}
+
+void JavascriptModulatorSynth::registerApiClasses()
+{
+	content = new ScriptingApi::Content(this);
+
+	currentMidiMessage = new ScriptingApi::Message(this);
+	engineObject = new ScriptingApi::Engine(this);
+	synthObject = new ScriptingApi::Synth(this, this);
+
+	scriptEngine->registerNativeObject("Content", content);
+	scriptEngine->registerApiClass(currentMidiMessage);
+	scriptEngine->registerApiClass(engineObject);
+	scriptEngine->registerApiClass(new ScriptingApi::Console(this));
+	scriptEngine->registerApiClass(synthObject);
+
+	scriptEngine->registerNativeObject("Libraries", new DspFactory::LibraryLoader());
+	scriptEngine->registerNativeObject("Buffer", new VariantBuffer::Factory(64));
+}
+
+
+
+void JavascriptModulatorSynth::postCompileCallback()
+{
+	prepareToPlay(getSampleRate(), getBlockSize());
+}
+
+ProcessorEditorBody* JavascriptModulatorSynth::createEditor(ProcessorEditor *parentEditor)
+{
+#if USE_BACKEND
+	return new ScriptingEditor(parentEditor);
+#else
+
+	ignoreUnused(parentEditor);
+	jassertfalse;
+
+	return nullptr;
+#endif
 }

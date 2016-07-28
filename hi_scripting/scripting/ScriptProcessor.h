@@ -51,7 +51,7 @@ public:
 
 	enum EditorStates
 	{
-		contentShown = Processor::EditorState::numEditorStates,
+		contentShown = 0,
 		onInitShown,
 		numEditorStates
 	};
@@ -63,6 +63,8 @@ public:
 		return allowObjectConstructors;
 	}
 
+	virtual int getCallbackEditorStateOffset() const { return Processor::EditorState::numEditorStates; }
+
 	ScriptingApi::Content *getScriptingContent() const
 	{
 		return content.get();
@@ -72,7 +74,9 @@ public:
 
 	float getControlValue(int index) const;
 
-	virtual void controlCallback(ScriptingApi::Content::ScriptComponent *component, var controllerValue) = 0;
+	virtual void controlCallback(ScriptingApi::Content::ScriptComponent *component, var controllerValue);
+
+	virtual int getControlCallbackIndex() const = 0;
 
 	var getSavedValue(Identifier name)
 	{
@@ -134,6 +138,8 @@ public:
 
 	const MidiMessage &getCurrentMidiMessage() const { return currentMessage; };
 
+	int getControlCallbackIndex() const override { return onControl; };
+
 protected:
 
 	WeakReference<ScriptBaseMidiProcessor>::Master masterReference;
@@ -141,36 +147,6 @@ protected:
 	
 	MidiMessage currentMessage;
 };
-
-class ScriptBaseMasterEffectProcessor : public MasterEffectProcessor,
-										public ProcessorWithScriptingContent
-{
-public:
-
-	enum Callbacks
-	{
-		onInit,
-		prepareToPlay,
-		processBlock,
-		onControl,
-		numCallbacks
-	};
-
-	ScriptBaseMasterEffectProcessor(MainController *mc, const String &id) : MasterEffectProcessor(mc, id), ProcessorWithScriptingContent(mc) {};
-	virtual ~ScriptBaseMasterEffectProcessor() { masterReference.clear(); }
-
-	float getAttribute(int index) const override { return getControlValue(index); }
-	void setInternalAttribute(int index, float newValue) override { setControlValue(index, newValue); }
-
-	ValueTree exportAsValueTree() const override { ValueTree v = MasterEffectProcessor::exportAsValueTree(); saveContent(v); return v; }
-	void restoreFromValueTree(const ValueTree &v) override { MasterEffectProcessor::restoreFromValueTree(v); restoreContent(v); }
-
-private:
-
-	WeakReference<ScriptBaseMasterEffectProcessor>::Master masterReference;
-	friend class WeakReference < ScriptBaseMasterEffectProcessor > ;
-};
-
 
 
 
@@ -405,6 +381,8 @@ public:
 
 
 protected:
+
+	friend class ProcessorWithScriptingContent;
 
 	virtual void postCompileCallback() {};
 
