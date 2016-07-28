@@ -53,7 +53,7 @@ public:
 	virtual AttributedString getDescription() const { return AttributedString(); }
 
 	/** This will be called if the user double clicks on the row. */
-	virtual void doubleClickCallback(Component* /*componentToNotify*/) {};
+	virtual void doubleClickCallback(const MouseEvent &e, Component* componentToNotify) {};
 
 	struct Helpers
 	{

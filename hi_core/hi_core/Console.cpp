@@ -183,7 +183,54 @@ void Console::mouseDown(const MouseEvent &e)
         
         m.addItem(1, "Clear Console");
         m.addItem(2, "Scroll down");
-        
+
+		
+		const String id = newTextConsole->getDocument().getLine(newTextConsole->getCaretPos().getLineNumber()).upToFirstOccurrenceOf(":", false, false);
+
+		BackendProcessorEditor *editor = findParentComponentOfClass<BackendProcessorEditor>();
+
+		JavascriptProcessor *jsp = dynamic_cast<JavascriptProcessor*>(ProcessorHelpers::getFirstProcessorWithName(editor->getMainSynthChain(), id));
+
+		const int SNIPPET_OFFSET = 1000;
+		const int FILE_OFFSET = 2000;
+
+		if (jsp != nullptr)
+		{
+			const String selectedText = newTextConsole->getTextInRange(newTextConsole->getHighlightedRegion());
+
+			int snippet = -1;
+
+			for (int i = 0; i < jsp->getNumSnippets(); i++)
+			{
+				if (jsp->getSnippet(i)->getCallbackName().toString() == selectedText)
+				{
+					snippet = i;
+					break;
+				}
+			}
+
+			if (snippet != -1)
+			{
+				m.addItem(SNIPPET_OFFSET + snippet, "Go to callback " + selectedText);
+			}
+
+			int fileIndex = -1;
+
+			for (int i = 0; i < jsp->getNumWatchedFiles(); i++)
+			{
+				if (jsp->getWatchedFile(i).getFileName() == selectedText)
+				{
+					fileIndex = i;
+					break;
+				}
+			}
+
+			if (fileIndex != -1)
+			{
+				m.addItem(FILE_OFFSET + fileIndex, "Go to file " + selectedText);
+			}
+		}
+
         const int result = m.show();
         
 		if (result == 1)
@@ -196,6 +243,26 @@ void Console::mouseDown(const MouseEvent &e)
         {
 			newTextConsole->moveCaretToEnd(false);
         }
+		else if (result >= FILE_OFFSET)
+		{
+			jsp->showPopupForFile(result - FILE_OFFSET);
+		}
+		else if (result >= SNIPPET_OFFSET)
+		{
+			Processor *js = dynamic_cast<Processor*>(jsp);
+
+			const int editorStateOffset = dynamic_cast<ProcessorWithScriptingContent*>(js)->getCallbackEditorStateOffset() + 1;
+
+			const int editorStateIndex = (result - SNIPPET_OFFSET);
+
+			for (int i = 0; i < jsp->getNumSnippets(); i++)
+			{
+				js->setEditorState(editorStateOffset + i, editorStateIndex == i, dontSendNotification);
+			}
+
+			editor->setRootProcessorWithUndo(js);
+
+		}
     }
     else if (e.mods.isAltDown())
     {
@@ -231,6 +298,11 @@ void Console::mouseMove(const MouseEvent &e)
 	{
 		setMouseCursor(MouseCursor::PointingHandCursor);
 	}
+}
+
+void Console::mouseDoubleClick(const MouseEvent& event)
+{
+	
 }
 
 void Console::logMessage(const String &t, WarningLevel warningLevel, const Processor *p, Colour c)

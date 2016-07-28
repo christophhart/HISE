@@ -95,7 +95,8 @@ public:
     
     void mouseDown(const MouseEvent &e) override;
     void mouseMove(const MouseEvent &e) override;
-    
+	void mouseDoubleClick(const MouseEvent& event) override;
+
 	void resized() override;
 
 	void buttonClicked (Button* buttonThatWasClicked) override;

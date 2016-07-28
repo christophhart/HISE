@@ -345,21 +345,27 @@ private:
 		const String fileName = "{PROJECT_FOLDER}" + currentValue.toString().removeCharacters("\"\'");
 		const String refFileName = GET_PROJECT_HANDLER(dynamic_cast<Processor*>(hiseSpecialData->processor)).getFilePath(fileName, ProjectHandler::SubDirectories::Scripts);
 
+		
+
 		File f(refFileName);
+
+		const String shortFileName = f.getFileName();
 
 		if (!f.existsAsFile())
 		{
 			throwError("File " + refFileName + " not found");
 		}
 
-		if (hiseSpecialData->includedFiles.contains(f))
+		for (int i = 0; i < hiseSpecialData->includedFiles.size(); i++)
 		{
-			throwError("File " + refFileName + " was included multiple times");
+			if (hiseSpecialData->includedFiles[i]->f == f)
+			{
+				throwError("File " + shortFileName + " was included multiple times");
+			}
 		}
 
 		String fileContent = f.loadFileAsString();
 
-        
 #else
         
         const String fileName = currentValue.toString().removeCharacters("\"\'");
@@ -383,7 +389,7 @@ private:
 		{
 #if USE_BACKEND
             
-			hiseSpecialData->includedFiles.add(refFileName);
+			hiseSpecialData->includedFiles.add(new ExternalFileData(File(refFileName)));
 #endif
 
 			try
@@ -402,6 +408,8 @@ private:
 			}
 			catch (String &errorMessage)
 			{
+				hiseSpecialData->includedFiles.getLast()->setErrorMessage(errorMessage);
+
 				throw errorMessage;
 			}
 		}

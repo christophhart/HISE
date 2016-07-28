@@ -109,7 +109,19 @@ struct HiseJavascriptEngine::RootObject::CodeLocation
 			if (*i == '\n')  { col = 1; ++line; }
 		}
 
-		throw (externalFile.isEmpty() ? "" : externalFile + ": ") + "Line " + String(line) + ", column " + String(col) + " : " + message;
+		if (!externalFile.isEmpty())
+		{
+			File f(externalFile);
+
+			throw f.getFileName() + " - Line " + String(line) + ", column " + String(col) + ": " + message;
+		}
+		else
+		{
+			throw "Line " + String(line) + ", column " + String(col) + ": " + message;
+		}
+		
+
+		
 	}
 
 	String program;
@@ -392,9 +404,20 @@ const ReferenceCountedObject* HiseJavascriptEngine::getScriptObject(const Identi
 }
 
 
-const Array<File> & HiseJavascriptEngine::getIncludedFiles() const
+int HiseJavascriptEngine::getNumIncludedFiles() const
 {
-	return root->hiseSpecialData.includedFiles;
+	return root->hiseSpecialData.includedFiles.size();
+}
+
+File HiseJavascriptEngine::getIncludedFile(int fileIndex) const
+{
+	return root->hiseSpecialData.includedFiles[fileIndex]->f;
+}
+
+
+Result HiseJavascriptEngine::getIncludedFileResult(int fileIndex) const
+{
+	return root->hiseSpecialData.includedFiles[fileIndex]->r;
 }
 
 int HiseJavascriptEngine::getNumDebugObjects() const

@@ -161,7 +161,9 @@ public:
 
 	const ReferenceCountedObject* getScriptObject(const Identifier &id) const;
 
-	const Array<File> &getIncludedFiles() const;
+	int getNumIncludedFiles() const;
+	File getIncludedFile(int fileIndex) const;
+	Result getIncludedFileResult(int fileIndex) const;
 
 	int getNumDebugObjects() const;
 
@@ -187,6 +189,22 @@ public:
 	bool isApiClassRegistered(const String& className);
 
 	const ApiClass* getApiClass(const Identifier &className) const;
+
+	struct ExternalFileData
+	{
+		ExternalFileData(const File &f_) : f(f_), r(Result::ok()) {};
+		ExternalFileData() : f(File::nonexistent), r(Result::fail("uninitialised")) {}
+
+		void setErrorMessage(const String &m)
+		{
+			r = Result::fail(m);
+		}
+
+		File f;
+		Result r;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ExternalFileData)
+	};
 
 	//==============================================================================
 	struct RootObject : public DynamicObject
@@ -341,7 +359,7 @@ public:
 				return String(percentage, 2) + "%";
 			}
 
-			void doubleClickCallback(Component* /*componentToNotify*/) override
+			void doubleClickCallback(const MouseEvent &e, Component* componentToNotify) override
 			{
 				DBG("JUMP");
 			}
@@ -396,7 +414,7 @@ public:
 
 			static Array<Identifier> hiddenProperties;
 
-			Array<File> includedFiles;
+			OwnedArray<ExternalFileData> includedFiles;
 
 			/** Call this after compiling and a dictionary of all values will be created. */
 			void createDebugInformation(DynamicObject *root);
