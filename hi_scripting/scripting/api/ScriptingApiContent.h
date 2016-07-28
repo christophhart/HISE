@@ -100,7 +100,7 @@ public:
 
 		File getExternalFile(var newValue);
 
-		ScriptComponent(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name_, int x, int y, int width, int height);
+		ScriptComponent(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name_, int x, int y, int width, int height, int numConstants=0);
 		virtual ~ScriptComponent() {};
 
 		virtual StringArray getOptionsFor(const Identifier &id);
@@ -177,6 +177,12 @@ public:
 
 		/** Adds the knob / button to a macro controller (from 0 to 7). */
 		void addToMacroControl(int macroIndex);
+
+		/** Returns the width of the component. */
+		var getWidth() const;
+
+		/** Returns the height of the component. */
+		var getHeight() const;
 
 		// End of API Methods ============================================================================================
 
@@ -629,6 +635,10 @@ public:
 		/** Loads a image which can be drawn with the paint function later on. */
 		void loadImage(String imageName, String prettyName);
 
+		void setCustom(String propertyName, var newValue);
+
+		var getCustom(String propertyName);
+
 		// ========================================================================================================
 
 		struct Wrapper;
@@ -697,6 +707,8 @@ public:
 		var paintRoutine = var::undefined();
 		var mouseRoutine = var::undefined();
 		var timerRoutine = var::undefined();
+
+		DynamicObject::Ptr customProperties;
 
 		Image paintCanvas;
 

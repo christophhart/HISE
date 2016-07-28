@@ -80,11 +80,13 @@ struct ScriptingApi::Content::ScriptComponent::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setTooltip);
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, showControl);
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, addToMacroControl);
+	API_METHOD_WRAPPER_0(ScriptComponent, getWidth);
+	API_METHOD_WRAPPER_0(ScriptComponent, getHeight);
 };
 
 
-ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name_, int x, int y, int width, int height) :
-ConstScriptingObject(base, 0),
+ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name_, int x, int y, int width, int height, int numConstants) :
+ConstScriptingObject(base, numConstants),
 name(name_),
 value(0.0),
 parent(parentContent),
@@ -144,6 +146,8 @@ changed(false)
 	ADD_API_METHOD_1(setTooltip);
 	ADD_API_METHOD_1(showControl);
 	ADD_API_METHOD_1(addToMacroControl);
+	ADD_API_METHOD_0(getWidth);
+	ADD_API_METHOD_0(getHeight);
 
 	//setName(name_.toString());
 
@@ -455,6 +459,15 @@ File ScriptingApi::Content::ScriptComponent::getExternalFile(var newValue)
 	}
 }
 
+var ScriptingApi::Content::ScriptComponent::getWidth() const
+{
+	return getScriptObjectProperty(Properties::width);
+}
+
+var ScriptingApi::Content::ScriptComponent::getHeight() const
+{
+	return getScriptObjectProperty(Properties::height);
+}
 
 struct ScriptingApi::Content::ScriptSlider::Wrapper
 {
@@ -1714,7 +1727,7 @@ struct ScriptingApi::Content::ScriptPanel::Wrapper
 };
 
 ScriptingApi::Content::ScriptPanel::ScriptPanel(ProcessorWithScriptingContent *base, Content *parentContent, Identifier panelName, int x, int y, int width, int height) :
-ScriptComponent(base, parentContent, panelName, x, y, width, height),
+ScriptComponent(base, parentContent, panelName, x, y, width, height, 1),
 graphics(new ScriptingObjects::GraphicsObject(base, this)),
 repainter(this),
 controlSender(this, base)
@@ -1725,6 +1738,7 @@ controlSender(this, base)
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::macroControl));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::enabled));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::tooltip));
+	
 
 	propertyIds.add("borderSize");		ADD_AS_SLIDER_TYPE(0, 20, 1);
 	propertyIds.add("borderRadius");	ADD_AS_SLIDER_TYPE(0, 20, 1);
@@ -1732,6 +1746,7 @@ controlSender(this, base)
 	propertyIds.add("popupMenuItems");		ADD_TO_TYPE_SELECTOR(SelectorTypes::MultilineSelector);
 	propertyIds.add("popupOnRightClick");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	propertyIds.add(Identifier("popupMenuAlign")); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	propertyIds.add("extraProperties");	
 
 	componentProperties->setProperty(getIdFor(borderSize), 0);
 	componentProperties->setProperty(getIdFor(borderRadius), 0);
@@ -1747,6 +1762,8 @@ controlSender(this, base)
 	setDefaultValue(PopupMenuItems, "");
 	setDefaultValue(PopupOnRightClick, true);
 	setDefaultValue(popupMenuAlign, false);
+	
+	addConstant("data", new DynamicObject());
 
 	ADD_API_METHOD_0(repaint);
 	ADD_API_METHOD_1(setPaintRoutine);
@@ -1905,6 +1922,7 @@ StringArray ScriptingApi::Content::ScriptPanel::getItemList() const
 
 	return sa;
 }
+
 
 void ScriptingApi::Content::ScriptPanel::AsyncControlCallbackSender::handleAsyncUpdate()
 {

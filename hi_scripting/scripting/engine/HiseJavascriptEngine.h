@@ -161,6 +161,8 @@ public:
 
 	const ReferenceCountedObject* getScriptObject(const Identifier &id) const;
 
+	const ReferenceCountedObject* getScriptObjectFromRootNamespace(const Identifier & id) const;
+
 	int getNumIncludedFiles() const;
 	File getIncludedFile(int fileIndex) const;
 	Result getIncludedFileResult(int fileIndex) const;

@@ -363,47 +363,67 @@ DebugInformation* HiseJavascriptEngine::getDebugInformation(int index)
 
 const ReferenceCountedObject* HiseJavascriptEngine::getScriptObject(const Identifier &id) const
 {
-	var v = root->getProperty(id);
+	String idAsString = id.toString();
 
-	if (v.isObject())
+	if (idAsString.containsChar('.'))
 	{
-		return v.getObject();
+		StringArray sa = StringArray::fromTokens(idAsString, ".", "");
+
+		const ReferenceCountedObject* o = getScriptObjectFromRootNamespace(Identifier(sa[0]));
+
+		if (auto dyn = dynamic_cast<const DynamicObject*>(o))
+		{
+			const ReferenceCountedObject* o2 = dyn->getProperty(Identifier(sa[1])).getObject();
+
+			return o2;
+
+		}
+		else if (auto api = dynamic_cast<const ApiClass*>(o))
+		{
+			const int index = api->getConstantIndex(Identifier(sa[1]));
+			const ReferenceCountedObject* o2 = api->getConstantValue(index).getObject();
+
+			return o2;
+		}
+
 	}
+	else
+	{
+		return getScriptObjectFromRootNamespace(id);
+	}
+}
+
+
+const ReferenceCountedObject* HiseJavascriptEngine::getScriptObjectFromRootNamespace(const Identifier & id) const
+{
+	var v = root->getProperty(id);
+	if (v.isObject())
+		return v.getObject();
 
 	v = root->hiseSpecialData.constObjects[id];
-
 	if (v.isObject())
-	{
 		return v.getObject();
-	}
 
 	int registerIndex = root->hiseSpecialData.varRegister.getRegisterIndex(id);
-
 	if (registerIndex != -1)
 	{
 		v = root->hiseSpecialData.varRegister.getFromRegister(registerIndex);
 
 		if (v.isObject())
-		{
 			return v.getObject();
-		}
 	}
 
 	DynamicObject* globals = root->hiseSpecialData.globals;
-
 	if (globals != nullptr)
 	{
 		v = globals->getProperty(id);
 
 		if (v.isObject())
-		{
 			return v.getObject();
-		}
 	}
 
 	return nullptr;
 }
-
 
 int HiseJavascriptEngine::getNumIncludedFiles() const
 {

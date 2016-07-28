@@ -147,6 +147,15 @@ struct HiseJavascriptEngine::RootObject::DotOperator : public Expression
 			if (const var* v = getPropertyPointer(o, child))
 				return *v;
 
+		if (ConstScriptingObject* o = dynamic_cast<ConstScriptingObject*>(p.getObject()))
+		{
+			const int constantIndex = o->getConstantIndex(child);
+			if (constantIndex != -1)
+			{
+				return o->getConstantValue(constantIndex);
+			}
+		}
+
 		return var::undefined();
 	}
 
