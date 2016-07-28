@@ -30,12 +30,112 @@
 *   ===========================================================================
 */
 
-Modulator::Modulator(MainController *mc, const String &id_):
+
+
+float Modulation::calcIntensityValue(float calculatedModulationValue) const noexcept
+{
+	switch (modulationMode)
+	{
+	case PitchMode: return calcPitchIntensityValue(calculatedModulationValue);
+	case GainMode: return calcGainIntensityValue(calculatedModulationValue);
+	default: jassertfalse; return -1.0f;
+	}
+}
+
+
+float Modulation::calcGainIntensityValue(float calculatedModulationValue) const noexcept
+{
+	return (1.0f - getIntensity()) + (getIntensity() * calculatedModulationValue);
+}
+
+float Modulation::calcPitchIntensityValue(float calculatedModulationValue) const noexcept
+{
+	return getIntensity() * calculatedModulationValue;
+}
+
+void Modulation::applyModulationValue(float calculatedModulationValue, float &destinationValue) const noexcept
+{
+	destinationValue *= calculatedModulationValue;
+}
+
+void Modulation::setIntensity(float newIntensity) noexcept
+{
+
+	intensity = newIntensity;
+}
+
+void Modulation::setIntensityFromSlider(float sliderValue) noexcept
+{
+	if (modulationMode == GainMode)
+	{
+		setIntensity(sliderValue);
+
+	}
+	else
+	{
+		//const float logIntensity = 
+
+		const float intensity = PitchConverters::octaveRangeToSignedNormalisedRange(sliderValue);
+
+		setIntensity(intensity);
+	}
+}
+
+bool Modulation::isBipolar() const noexcept
+{
+	return bipolar;
+}
+
+void Modulation::setIsBipolar(bool shouldBeBiPolar) noexcept
+{
+	jassert(modulationMode == PitchMode);
+
+	bipolar = shouldBeBiPolar;
+}
+
+float Modulation::getIntensity() const noexcept
+{
+	return intensity;
+}
+
+float Modulation::getDisplayIntensity() const noexcept
+{
+
+	switch (modulationMode)
+	{
+	case GainMode:			return intensity;
+	case PitchMode:			return intensity * 12.0f; // return (log(intensity) / log(2.0f)) * 12.0f;
+	default:				jassertfalse; return 0.0f;
+	}
+}
+
+Modulator::Modulator(MainController *mc, const String &id_) :
 	Processor(mc, id_),
 	attachedPlotter(nullptr),
 	colour(Colour(0x00000000))
 {		
 };
+
+Modulator::~Modulator()
+{
+	if (attachedPlotter != nullptr)
+	{
+		attachedPlotter->removePlottedModulator(this);
+	}
+
+	masterReference.clear();
+}
+
+void Modulator::setColour(Colour c)
+{
+
+	colour = c;
+
+	for (int i = 0; i < getNumChildProcessors(); i++)
+	{
+		dynamic_cast<Modulator*>(getChildProcessor(i))->setColour(c.withMultipliedAlpha(0.8f));
+	}
+}
 
 void Modulator::setPlotter(Plotter *targetPlotter)
 {
@@ -56,9 +156,129 @@ void Modulator::addValueToPlotter(float v) const
 	}
 };
 
+void TimeModulation::renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples)
+{
+	// Save the values for later
+	const int startIndex = startSample;
+	const int samplesToCopy = numSamples;
+
+	calculateBlock(startSample, numSamples);
+
+	if (shouldUpdatePlotter()) updatePlotter(internalBuffer, startIndex, samplesToCopy);
+
+	applyTimeModulation(buffer, startIndex, samplesToCopy);
+}
+
+void TimeModulation::applyTimeModulation(AudioSampleBuffer &buffer, int startIndex, int samplesToCopy)
+{
+	float *dest = buffer.getWritePointer(0, startIndex);
+	float *mod = internalBuffer.getWritePointer(0, startIndex);
+
+	FloatVectorOperations::clip(mod, mod, 0.0f, 1.0f, samplesToCopy);
+
+	switch (modulationMode)
+	{
+	case GainMode: applyGainModulation(mod, dest, getIntensity(), samplesToCopy); break;
+	case PitchMode: applyPitchModulation(mod, dest, getIntensity(), samplesToCopy); break;
+	}
+}
+
+const float * TimeModulation::getCalculatedValues(int /*voiceIndex*/)
+{
+	return internalBuffer.getReadPointer(0);
+}
+
+void TimeModulation::prepareToModulate(double /*sampleRate*/, int samplesPerBlock)
+{
+	internalBuffer = AudioSampleBuffer(1, samplesPerBlock); // should be enough
+
+	jassert(isInitialized());
+}
+
 bool TimeModulation::isInitialized() { return getProcessor()->getSampleRate() != -1.0f; };
 
-VoiceStartModulator::VoiceStartModulator(MainController *mc, const String &id, int numVoices, Modulation::Mode m):
+void TimeModulation::applyGainModulation(float *calculatedModulationValues, float *destinationValues, float fixedIntensity, int numValues) const noexcept
+{
+	const float a = 1.0f - fixedIntensity;
+
+	FloatVectorOperations::multiply(calculatedModulationValues, fixedIntensity, numValues);
+	FloatVectorOperations::add(calculatedModulationValues, a, numValues);
+	FloatVectorOperations::multiply(destinationValues, calculatedModulationValues, numValues);
+}
+
+void TimeModulation::applyGainModulation(float *calculatedModulationValues, float *destinationValues, float fixedIntensity, float *intensityValues, int numValues) const noexcept
+{
+	FloatVectorOperations::multiply(intensityValues, fixedIntensity, numValues);
+	FloatVectorOperations::multiply(calculatedModulationValues, intensityValues, numValues);
+	FloatVectorOperations::multiply(intensityValues, -1.0f, numValues);
+	FloatVectorOperations::add(intensityValues, 1.0f, numValues);
+	FloatVectorOperations::add(calculatedModulationValues, intensityValues, numValues);
+	FloatVectorOperations::multiply(destinationValues, calculatedModulationValues, numValues);
+}
+
+void TimeModulation::applyPitchModulation(float* calculatedModulationValues, float *destinationValues, float fixedIntensity, int numValues) const noexcept
+{
+	// input: modValues (0 ... 1), intensity (-1...1)
+
+	if (isBipolar())
+	{
+		FloatVectorOperations::multiply(calculatedModulationValues, 2.0f, numValues);
+		FloatVectorOperations::add(calculatedModulationValues, -1.0f, numValues);
+		FloatVectorOperations::multiply(calculatedModulationValues, fixedIntensity, numValues);
+
+		// modvalues (-1 ... -intensity ... 0 ... +intensity ... 1)
+	}
+	else
+	{
+		FloatVectorOperations::multiply(calculatedModulationValues, fixedIntensity, numValues);
+
+		// modValues ( 0 ... +-intensity ... 1 )
+	}
+
+	Modulation::PitchConverters::normalisedRangeToPitchFactor(calculatedModulationValues, numValues);
+	FloatVectorOperations::multiply(destinationValues, calculatedModulationValues, numValues);
+
+#if 0
+	const float a = fixedIntensity - 1.0f;
+
+	FloatVectorOperations::multiply(calculatedModulationValues, a, numValues);
+	FloatVectorOperations::add(calculatedModulationValues, 1.0f, numValues);
+	FloatVectorOperations::multiply(destinationValues, calculatedModulationValues, numValues);
+#endif
+}
+
+void TimeModulation::applyPitchModulation(float *calculatedModulationValues, float *destinationValues, float fixedIntensity, float *intensityValues, int numValues) const noexcept
+{
+	// input: modValues (0 ... 1), intensity (-1 ... 1), intensityValues (0.5 ... 2.0)
+
+	if (isBipolar())
+	{
+		FloatVectorOperations::multiply(intensityValues, fixedIntensity, numValues);
+		FloatVectorOperations::multiply(calculatedModulationValues, 2.0f, numValues);
+		FloatVectorOperations::add(calculatedModulationValues, -1.0f, numValues);
+		FloatVectorOperations::multiply(calculatedModulationValues, intensityValues, numValues);
+	}
+	else
+	{
+		FloatVectorOperations::multiply(intensityValues, fixedIntensity, numValues);
+		FloatVectorOperations::multiply(calculatedModulationValues, intensityValues, numValues);
+	}
+
+	Modulation::PitchConverters::normalisedRangeToPitchFactor(calculatedModulationValues, numValues);
+	FloatVectorOperations::multiply(destinationValues, calculatedModulationValues, numValues);
+}
+
+void TimeModulation::initializeBuffer(AudioSampleBuffer &bufferToBeInitialized, int startSample, int numSamples)
+{
+	jassert(bufferToBeInitialized.getNumChannels() == 1);
+	jassert(bufferToBeInitialized.getNumSamples() >= startSample + numSamples);
+
+	float *writePointer = bufferToBeInitialized.getWritePointer(0, startSample);
+
+	FloatVectorOperations::fill(writePointer, 1.0f, numSamples);
+}
+
+VoiceStartModulator::VoiceStartModulator(MainController *mc, const String &id, int numVoices, Modulation::Mode m) :
 		VoiceModulation(numVoices, m),
 		Modulator(mc, id),
 		Modulation(m),
@@ -135,3 +355,26 @@ Processor *EnvelopeModulatorFactoryType::createProcessor(int typeIndex, const St
 
 	}
 };
+
+void VoiceModulation::allNotesOff()
+{
+	for (int i = 0; i < polyManager.getVoiceAmount(); i++) stopVoice(i);
+}
+
+void VoiceModulation::PolyphonyManager::setCurrentVoice(int newCurrentVoice) noexcept
+{
+	jassert(currentVoice == -1);
+	jassert(currentVoice < voiceAmount);
+
+	currentVoice = newCurrentVoice;
+}
+
+void VoiceModulation::PolyphonyManager::setLastStartedVoice(int voiceIndex)
+{
+	lastStartedVoice = voiceIndex;
+}
+
+int VoiceModulation::PolyphonyManager::getLastStartedVoice() const
+{
+	return lastStartedVoice;
+}

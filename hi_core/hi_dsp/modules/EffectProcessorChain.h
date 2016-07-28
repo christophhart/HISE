@@ -55,9 +55,9 @@ public:
 
 	EffectProcessorChain(Processor *parentProcessor, const String &id, int numVoices);
 
-	ChainHandler *getHandler() override {return &handler;};
+	Chain::Handler *getHandler() override {return &handler;};
 
-	const ChainHandler *getHandler() const override {return &handler;};
+	const Chain::Handler *getHandler() const override {return &handler;};
 
 	Processor *getParentProcessor() override { return parentProcessor; };
 
@@ -187,11 +187,11 @@ public:
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
-	class EffectChainHandler: public ChainHandler
+	class EffectChainHandler: public Chain::Handler
 	{
 	public:
 
-		/** Creates a ChainHandler. */
+		/** Creates a Chain::Handler. */
 		EffectChainHandler(EffectProcessorChain *handledChain): chain(handledChain) {};
 
 		~EffectChainHandler() {};

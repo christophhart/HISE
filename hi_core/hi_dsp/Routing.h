@@ -33,8 +33,12 @@
 #ifndef ROUTING_H_INCLUDED
 #define ROUTING_H_INCLUDED
 
+#define RESTORE_MATRIX() {getMatrix().restoreFromValueTree(v.getChildWithName("RoutingMatrix"));}
 
-/** A processor that uses multiple audio channels can be subclassed from this class to allow handling of the routing matrix. */
+/** A Processor with flexible audio routing
+*	@ingroup processor_interfaces
+*
+*	A processor that uses multiple audio channels can be subclassed from this class to allow handling of the routing matrix. */
 class RoutableProcessor
 {
 public:
@@ -51,17 +55,12 @@ public:
 		MatrixData(RoutableProcessor *p);
 
 		void clearAllConnections();
-
 		bool resizingIsAllowed() const noexcept{ return resizeAllowed; };
-
 		void setAllowResizing(bool shouldAllowResizing) noexcept{ resizeAllowed = shouldAllowResizing; }
-
 		bool isUsed(int sourceChannel) const noexcept;;
 
 		bool toggleEnabling(int sourceChannel) noexcept;
 		bool toggleSendEnabling(int sourceChannel) noexcept;
-
-
 		bool toggleConnection(int sourceChannel, int destinationChannel) noexcept;;
 		bool addConnection(int sourceChannel, int destinationChannel) noexcept;
 		bool removeConnection(int sourceChannel, int destinationChannel) noexcept;
@@ -70,23 +69,12 @@ public:
 		bool addSendConnection(int sourceChannel, int destinationChannel) noexcept;
 		bool removeSendConnection(int sourceChannel, int destinationChannel) noexcept;
 
-
 		bool onlyEnablingAllowed() const noexcept { return allowEnablingOnly; }
 
 		int getConnectionForSourceChannel(int sourceChannel) const noexcept;
 		int getSendForSourceChannel(int sourceChannel) const noexcept;
 
-		void resetToDefault()
-		{
-			for (int i = 0; i < NUM_MAX_CHANNELS; i++)
-			{
-				channelConnections[i] = -1;
-				sendConnections[i] = -1;
-			}
-
-			channelConnections[0] = 0;
-			channelConnections[1] = 1;
-		}
+		void resetToDefault();
 
 		ValueTree exportAsValueTree() const override;
 		void restoreFromValueTree(const ValueTree &v) override;
@@ -139,9 +127,7 @@ public:
 
 		float sourceGainValues[NUM_MAX_CHANNELS];
 		float targetGainValues[NUM_MAX_CHANNELS];
-
 		int channelConnections[NUM_MAX_CHANNELS];
-
 		int sendConnections[NUM_MAX_CHANNELS];
 	};
 

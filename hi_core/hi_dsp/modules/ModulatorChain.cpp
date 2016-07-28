@@ -43,7 +43,7 @@ ModulatorChain::ModulatorChain(MainController *mc, const String &uid, int numVoi
 	setEditorState(Processor::Visible, false, dontSendNotification);
 };
 
-ChainHandler *ModulatorChain::getHandler() {return &handler;};
+Chain::Handler *ModulatorChain::getHandler() {return &handler;};
 
 
 bool ModulatorChain::shouldBeProcessed(bool checkPolyphonicModulators) const
@@ -74,23 +74,51 @@ void ModulatorChain::handleMidiEvent(const MidiMessage &m)
 
 float ModulatorChain::getConstantVoiceValue(int voiceIndex) const
 {
-	float value = 1.0f;
-
-	for (int i = 0; i < voiceStartModulators.size(); ++i)
+	if (getMode() == Modulation::GainMode)
 	{
-		const VoiceStartModulator *mod = voiceStartModulators[i];
-		if( mod->isBypassed() ) continue;
+		float value = 1.0f;
 
-		const float modValue = mod->getVoiceStartValue(voiceIndex);
-			
-		const float intensityModValue = mod->calcIntensityValue(modValue);
+		for (int i = 0; i < voiceStartModulators.size(); ++i)
+		{
+			const VoiceStartModulator *mod = voiceStartModulators[i];
+			if (mod->isBypassed()) continue;
 
-		applyModulationValue(intensityModValue, value);
+			const float modValue = mod->getVoiceStartValue(voiceIndex);
+
+			const float intensityModValue = mod->calcGainIntensityValue(modValue);
+
+			value *= intensityModValue;
+		}
+
+		return value;
 	}
+	else
+	{
+		float value = 0.0f;
 
-	
+		for (int i = 0; i < voiceStartModulators.size(); ++i)
+		{
+			const VoiceStartModulator *mod = voiceStartModulators[i];
+			if (mod->isBypassed()) continue;
 
-	return value;
+			if (mod->isBipolar())
+			{
+				const float modValue = 2.0f * mod->getVoiceStartValue(voiceIndex) - 1.0f;
+				const float intensityModValue = mod->calcPitchIntensityValue(modValue);
+
+				value += intensityModValue;
+			}
+			else
+			{
+				const float modValue = mod->getVoiceStartValue(voiceIndex);
+				const float intensityModValue = mod->calcPitchIntensityValue(modValue);
+
+				value += intensityModValue;
+			}
+		}
+
+		return Modulation::PitchConverters::normalisedRangeToPitchFactor(value);
+	}
 };
 
 void ModulatorChain::stopVoice(int voiceIndex)

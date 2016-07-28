@@ -34,6 +34,7 @@
 
 
 #include "Processor.cpp"
+#include "ProcessorInterfaces.cpp"
 
 #include "Routing.cpp"
 

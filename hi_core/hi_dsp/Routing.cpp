@@ -341,6 +341,18 @@ int RoutableProcessor::MatrixData::getSendForSourceChannel(int sourceChannel) co
 	else return -1;
 }
 
+void RoutableProcessor::MatrixData::resetToDefault()
+{
+	for (int i = 0; i < NUM_MAX_CHANNELS; i++)
+	{
+		channelConnections[i] = -1;
+		sendConnections[i] = -1;
+	}
+
+	channelConnections[0] = 0;
+	channelConnections[1] = 1;
+}
+
 ValueTree RoutableProcessor::MatrixData::exportAsValueTree() const
 {
 	ValueTree v("RoutingMatrix");

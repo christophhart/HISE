@@ -37,7 +37,7 @@
 *
 *	Modulators on ModulatorSynthChains don't get the Midi data, so it's no use for them to reside there.
 */
-class NoMidiInputConstrainer: public FactoryTypeConstrainer
+class NoMidiInputConstrainer: public FactoryType::Constrainer
 {
 public:
 
@@ -60,7 +60,7 @@ private:
 	Array<FactoryType::ProcessorEntry> forbiddenModulators;
 };
 
-class SynthGroupConstrainer : public FactoryTypeConstrainer
+class SynthGroupConstrainer : public FactoryType::Constrainer
 {
 public:
 
@@ -170,9 +170,9 @@ public:
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor) override;
 
-	ChainHandler *getHandler() override { return &handler; };
+	Chain::Handler *getHandler() override { return &handler; };
 
-	const ChainHandler *getHandler() const override {return &handler;};
+	const Chain::Handler *getHandler() const override {return &handler;};
 
 	FactoryType *getFactoryType() const override {return modulatorSynthFactory;};
 
@@ -269,7 +269,7 @@ public:
 	int getVoiceAmount() const {return numVoices;};
 
 	/** Handles the ModulatorSynthChain. */
-	class ModulatorSynthChainHandler: public ChainHandler
+	class ModulatorSynthChainHandler: public Chain::Handler
 	{
 	public:
 		ModulatorSynthChainHandler(ModulatorSynthChain *synthToHandle):
@@ -359,7 +359,7 @@ private:
 
 	ScopedPointer<FactoryType> modulatorSynthFactory;
 
-	ScopedPointer<FactoryTypeConstrainer> constrainer;
+	ScopedPointer<FactoryType::Constrainer> constrainer;
 
 	String packageName;
 };
@@ -499,9 +499,9 @@ public:
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor) override;
 
-	ChainHandler *getHandler() override { return &handler; };
+	Chain::Handler *getHandler() override { return &handler; };
 
-	const ChainHandler *getHandler() const override {return &handler;};
+	const Chain::Handler *getHandler() const override {return &handler;};
 
 	FactoryType *getFactoryType() const override {return modulatorSynthFactory;};
 
@@ -697,7 +697,7 @@ public:
 	*
 	*	It is almost the same as Modulator, but it calls setGroup() on the ModulatorSynths that are added.
 	*/
-	class ModulatorSynthGroupHandler: public ChainHandler
+	class ModulatorSynthGroupHandler: public Chain::Handler
 	{
 	public:
 		ModulatorSynthGroupHandler(ModulatorSynthGroup *synthGroupToHandle):

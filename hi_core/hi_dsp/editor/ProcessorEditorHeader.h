@@ -103,6 +103,8 @@ public:
     void sliderValueChanged (Slider* sliderThatWasMoved) override;
     void buttonClicked (Button* buttonThatWasClicked) override;
 
+	void updateBipolarIcon(bool shouldBeBipolar);
+
 	void mouseDown(const MouseEvent &e) override;
 
 	void mouseDoubleClick(const MouseEvent&) override;
@@ -158,6 +160,7 @@ private:
 	ScopedPointer<ShapeButton> addButton;
 	ScopedPointer<ShapeButton> routeButton;
     ScopedPointer<Slider> intensitySlider;
+	ScopedPointer<ShapeButton> bipolarModButton;
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ProcessorEditorHeader)

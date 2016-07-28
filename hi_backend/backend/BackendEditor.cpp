@@ -670,7 +670,7 @@ void BackendProcessorEditor::resized()
 	
 #else
 	const int breadcrumbHeight = rootEditorIsMainSynthChain ? 0 : 30;
-	const int viewportY = menuBarOffset + 8 + 24 + 8 + breadcrumbHeight;
+	const int viewportY = menuBarOffset + 8 + 24 + 8;
 #endif
 
 	

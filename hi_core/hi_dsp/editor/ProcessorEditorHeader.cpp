@@ -121,6 +121,7 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
     foldButton->addListener (this);
 
 	
+	
     
     addAndMakeVisible (deleteButton = new ShapeButton ("Delete Processor", Colours::white, Colours::white, Colours::white));
 	Path deletePath;
@@ -141,15 +142,20 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 	routeButton->addListener(this);
 	routeButton->setVisible(dynamic_cast<RoutableProcessor*>(getProcessor()) != nullptr);
 
+
+	addAndMakeVisible(bipolarModButton = new ShapeButton("Bipolar Modulation", Colours::white, Colours::white, Colours::white));
+	
+	Path bipolarPath;
+	bipolarPath.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::bipolarIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::bipolarIcon));
+	bipolarModButton->setShape(bipolarPath, true, true, true);
+	
 	addAndMakeVisible (addButton = new ShapeButton ("Add new Processor", Colours::white, Colours::white, Colours::white));
 	Path addPath;
 	addPath.loadPathFromData(HiBinaryData::headerIcons::addIcon, sizeof(HiBinaryData::headerIcons::addIcon));
 	addButton->setShape(addPath, true, true, true);
 	addButton->setToggleState(true, dontSendNotification);
 	
-
 	refreshShapeButton(addButton);
-	
 
     addButton->addListener (this);
 
@@ -166,7 +172,6 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 	intensitySlider->setColour(Slider::ColourIds::textBoxBackgroundColourId, Colour(0xfb282828));
 	intensitySlider->setColour(Label::ColourIds::outlineWhenEditingColourId, Colours::white);
 	
-
 	intensitySlider->setVelocityModeParameters(0.1, 1, 0.0, true);	
 
 
@@ -210,6 +215,7 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 
 		debugButton->setVisible(false);
 		plotButton->setVisible(false);
+		bipolarModButton->setVisible(false);
 
 		addButton->setVisible(isHeaderOfChain());
 
@@ -228,13 +234,15 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 		deleteButton->setTooltip("Delete the Modulator.");
 		bypassButton->setTooltip("Bypass the Modulator.");
 
+		bipolarModButton->setVisible(false);
 
 		if(getModulatorMode() == Modulation::PitchMode)
 		{
 			intensitySlider->setRange(-12.0, 12.0, 0.01);
 			intensitySlider->setTextValueSuffix(" st");
 			intensitySlider->setTextBoxIsEditable(true);
-			
+			bipolarModButton->setVisible(!isHeaderOfChain());
+			bipolarModButton->addListener(this);
 		};
 
 		intensitySlider->setTooltip("Set the intensity of the modulation. 0 = no effect, 1 = full range modulation.");
@@ -258,6 +266,7 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 		typeLabel->setColour (Label::textColourId, Colour (0xffFFFFFF));
 
 		plotButton->setVisible(false);
+		bipolarModButton->setVisible(false);
 
 		addButton->setVisible(isHeaderOfChain());
 		deleteButton->setVisible(!isHeaderOfChain());
@@ -274,6 +283,7 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 		bypassButton->setTooltip("Bypass the Effect.");
 
 		typeLabel->setColour (Label::textColourId, Colour (0xffFFFFFF));
+		bipolarModButton->setVisible(false);
 
 		plotButton->setVisible(false);
 		debugButton->setVisible(ProcessorHelpers::is<JavascriptProcessor>(getProcessor()));
@@ -536,6 +546,12 @@ void ProcessorEditorHeader::resized()
 		x += 3;
 	}
 	
+	if (bipolarModButton->isVisible())
+	{
+		bipolarModButton->setBounds(x, 7, 18, 18);
+		x = bipolarModButton->getRight() + 5;
+	}
+
 	intensitySlider->setBounds(x, yOffset2, 200, 20);
 
 	x = intensitySlider->getRight() + 3;
@@ -683,6 +699,15 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
 
 		checkFoldButton();
     }
+	else if (buttonThatWasClicked == bipolarModButton)
+	{
+		bool shouldBeBipolar = toggleButton(bipolarModButton);
+
+		dynamic_cast<Modulation*>(getProcessor())->setIsBipolar(shouldBeBipolar);
+		updateBipolarIcon(shouldBeBipolar);
+
+
+	}
     else if (buttonThatWasClicked == deleteButton)
 	{
         PresetHandler::setChanged(getProcessor());
@@ -709,6 +734,18 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
 	}
 }
 
+void ProcessorEditorHeader::updateBipolarIcon(bool shouldBeBipolar)
+{
+	Path p;
+
+	if (shouldBeBipolar)
+		p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::bipolarIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::bipolarIcon));
+	else
+		p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::unipolarIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::unipolarIcon));
+
+	bipolarModButton->setShape(p, false, true, true);
+}
+
 void ProcessorEditorHeader::update()
 {
 	Processor *p = getProcessor();
@@ -727,6 +764,7 @@ void ProcessorEditorHeader::update()
 
 		plotButton->setToggleState(mod->isPlotted(), dontSendNotification);
 
+		updateBipolarIcon(m->isBipolar());
 	
 	}
 	else if(isHeaderOfModulatorSynth())
@@ -935,8 +973,32 @@ void ProcessorEditorHeader::timerCallback()
 		if (isHeaderOfModulator())
 		{
 			const float outputValue = getProcessor()->getOutputValue();
-			const float value = dynamic_cast<Modulation*>(getProcessor())->getMode() == Modulation::PitchMode ? outputValue / 2.0f : outputValue;
-			valueMeter->setPeak(value, -1.0f);
+
+			Modulation* m = dynamic_cast<Modulation*>(getProcessor());
+
+			if (m->getMode() == Modulation::PitchMode)
+			{
+				
+				const float intensity = m->getIntensity();
+
+				if (m->isBipolar())
+				{
+					const float value = 0.5f + (outputValue-0.5f) * intensity;
+					valueMeter->setPeak(value, -1.0f);
+				}
+				else
+				{
+					const float value = 0.5f + 0.5f * (outputValue * intensity);
+					valueMeter->setPeak(value, -1.0f);
+				}
+			}
+			else
+			{
+				valueMeter->setPeak(outputValue, -1.0f);
+			}
+
+			
+			
 		}
 		else
 		{

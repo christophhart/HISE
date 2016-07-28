@@ -54,6 +54,7 @@
 
 
 #include "Processor.h"
+#include "ProcessorInterfaces.h"
 
 #include "Routing.h"
 

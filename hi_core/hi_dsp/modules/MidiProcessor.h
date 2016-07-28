@@ -262,9 +262,9 @@ public:
 	float getAttribute(int ) const override {return 1.0f;};
 	void setInternalAttribute(int, float) override {};
 
-	ChainHandler *getHandler() override {return &handler;};
+	Chain::Handler *getHandler() override {return &handler;};
 
-	const ChainHandler *getHandler() const override {return &handler;};
+	const Chain::Handler *getHandler() const override {return &handler;};
 
 	FactoryType *getFactoryType() const override {return midiProcessorFactory;};
 
@@ -293,7 +293,7 @@ public:
 	};
 
 	/** Handles the creation of MidiProcessors within a MidiProcessorChain. */
-	class MidiProcessorChainHandler: public ChainHandler
+	class MidiProcessorChainHandler: public Chain::Handler
 	{
 	public:
 

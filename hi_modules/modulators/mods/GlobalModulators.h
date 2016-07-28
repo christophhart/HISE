@@ -110,7 +110,7 @@ private:
 };
 
 /** Deactivates Globals (this is used in Global Containers. */
-class NoGlobalsConstrainer : public FactoryTypeConstrainer
+class NoGlobalsConstrainer : public FactoryType::Constrainer
 {
 	bool allowType(const Identifier &typeName) override
 	{
@@ -119,7 +119,7 @@ class NoGlobalsConstrainer : public FactoryTypeConstrainer
 };
 
 /** Deactivates Global Envelopes (this is used in Global Containers. */
-class NoGlobalEnvelopeConstrainer : public FactoryTypeConstrainer
+class NoGlobalEnvelopeConstrainer : public FactoryType::Constrainer
 {
 	bool allowType(const Identifier &typeName) override
 	{

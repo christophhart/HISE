@@ -46,7 +46,7 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 	intensityModulationValue(1.0f),
 	frequencyModulationValue(1.0f),
 	frequencyChain(new ModulatorChain(mc, "LFO Frequency Mod", 1, Modulation::GainMode, this)),
-	intensityChain(new ModulatorChain(mc, "LFO Intensity Mod", 1, m, this)),
+	intensityChain(new ModulatorChain(mc, "LFO Intensity Mod", 1, Modulation::GainMode, this)),
 	customTable(new SampleLookupTable()),
 	currentWaveform((Waveform)(int)getDefaultValue(WaveFormType)),
 	currentTable(nullptr),
@@ -171,7 +171,7 @@ void LfoModulator::applyTimeModulation(AudioSampleBuffer &buffer, int startIndex
 	}
 
 	float *intens = intensityBuffer.getWritePointer(0, startIndex);
-	FloatVectorOperations::multiply(intens, getIntensity(), samplesToCopy);
+	//FloatVectorOperations::multiply(intens, getIntensity(), samplesToCopy);
 
 	if(getMode() == GainMode)		TimeModulation::applyGainModulation( mod, dest, getIntensity(), intens, samplesToCopy);
 	else if(getMode() == PitchMode) TimeModulation::applyPitchModulation(mod, dest, getIntensity(), intens, samplesToCopy);

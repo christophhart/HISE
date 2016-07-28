@@ -33,6 +33,8 @@
 #ifndef MODULATORS_H_INCLUDED
 #define MODULATORS_H_INCLUDED
 
+
+
 class Plotter;
 
 class ModulatorChain;
@@ -58,8 +60,10 @@ public:
 		PitchMode 
 	};
 
-	Modulation(Mode m): intensity(1.0f), modulationMode(m), bipolar(m == PitchMode) {};
-    
+	Modulation(Mode m): 
+		intensity(m == GainMode ? 1.0f : 0.0f), 
+		modulationMode(m), 
+		bipolar(m == PitchMode) {};
     virtual ~Modulation() {};
 
 	virtual Processor *getProcessor() = 0;
@@ -72,58 +76,27 @@ public:
 	*	- In GainMode the input is supposed to be between 0.0 and 1.0. The output will be between 0.0 and 1.0 (and 1.0 if the intensity is 0.0)
 	*	- in PitchMode the input is supposed to be between 0.0 and 1.0. The output will be between -1.0 and 1.0 (and 0.0 if the intensity is 0.0)
 	*/
-	float calcIntensityValue(float calculatedModulationValue) const noexcept
-	{
-		switch(modulationMode)
-		{
-			case PitchMode: return 1.0f + (getIntensity() - 1.0f) * calculatedModulationValue;
-			case GainMode: return (1.0f - getIntensity()) + (getIntensity() * calculatedModulationValue);
-			default: jassertfalse; return -1.0f ;
-		}
-	};
+	float calcIntensityValue(float calculatedModulationValue) const noexcept;;
+
+	inline float calcGainIntensityValue(float calculatedModulationValue) const noexcept;
+
+	inline float calcPitchIntensityValue(float calculatedModulationValue) const noexcept;
 
 	/** This applies the previously calculated value to the supplied destination value depending on the modulation mode (adding or multiplying). */
-	void applyModulationValue(float calculatedModulationValue, float &destinationValue) const noexcept
-	{
-		destinationValue *= calculatedModulationValue;
-	};
+	void applyModulationValue(float calculatedModulationValue, float &destinationValue) const noexcept;;
 
 	/** Sets the intensity of the modulation. The intensity is multiplied with the outcome or added depending on the TargetMode of the owner ModulatorChain. 
 	*
 	*	In GainMode, the Intensity is between 0.0 and 1.0. In PitchMode, the Intensity can be between 0.5 and 2.0.
 	*/
-	void setIntensity(float newIntensity) noexcept
-	{ 
-		intensity = newIntensity;
-	};
+	void setIntensity(float newIntensity) noexcept;;
 
 	/** Use this method to set the intensity from the ModulatorEditorHeader's intensity slider converting linear -12 ... 12 to log 0.5 ... 2. */
-	void setIntensityFromSlider(float sliderValue) noexcept
-	{
-		if(modulationMode == GainMode)
-		{
-			setIntensity(sliderValue);
+	void setIntensityFromSlider(float sliderValue) noexcept;;
 
-		}
-		else
-		{
-			const float logIntensity = powf(2.0f, sliderValue / 12.0f);
+	bool isBipolar() const noexcept;;
 
-			setIntensity(logIntensity);
-		}
-	};
-
-	bool isBipolar() const noexcept
-	{
-		return bipolar;
-	};
-
-	void setIsBipolar(bool shouldBeBiPolar) noexcept
-	{
-		jassert(modulationMode == PitchMode);
-
-		bipolar = shouldBeBiPolar;
-	};
+	void setIsBipolar(bool shouldBeBiPolar) noexcept;;
 
 	/** Returns the intensity. This is used by the modulator chain to either multiply or add the outcome of the Modulation. 
 	*
@@ -136,17 +109,73 @@ public:
 	*		};
 	*
 	*/
-	virtual float getIntensity() const noexcept { return intensity; };
+	virtual float getIntensity() const noexcept;;
 
 	/** Returns the actual intensity of the Modulation. Use this for GUI displays, since getIntensity() could be overwritten and behave funky. */
-	float getDisplayIntensity() const noexcept
-	{ 
-		switch(modulationMode)
+	float getDisplayIntensity() const noexcept;;
+
+	struct PitchConverters
+	{
+		static inline float octaveRangeToSignedNormalisedRange(float octaveValue)
 		{
-		case GainMode:			return intensity;
-		case PitchMode:			return (log(intensity) / log(2.0f)) * 12.0f; 
-		default:				jassertfalse; return 0.0f;
+			return (octaveValue / 12.0f);
 		}
+
+		/** [-1 ... 1] => [0.5 ... 2.0] */
+		static inline float normalisedRangeToPitchFactor(float range)
+		{
+			return std::exp2(range);
+		}
+
+		static inline float octaveRangeToPitchFactor(float octaveValue)
+		{
+			return std::exp2(octaveValue / 12.0f);
+		}
+
+		static inline void octaveRangeToSignedNormalisedRange(float* octaveValues, int numValues)
+		{
+			FloatVectorOperations::multiply(octaveValues, 0.1666666666f, numValues);
+			FloatVectorOperations::add(octaveValues, 0.5f, numValues);
+		}
+
+		static inline void normalisedRangeToPitchFactor(float* rangeValues, int numValues)
+		{
+			if (numValues > 1)
+			{
+				float startValue = normalisedRangeToPitchFactor(rangeValues[0]);
+				const float endValue = normalisedRangeToPitchFactor(rangeValues[numValues - 1]);
+				float delta = (endValue - startValue);
+
+
+				if (delta < 0.0003f)
+				{
+					FloatVectorOperations::fill(rangeValues, (startValue + endValue) * 0.5f, numValues);	
+				}
+				else
+				{
+					delta /= (float)numValues;
+
+					while (--numValues >= 0)
+					{
+						*rangeValues++ = startValue;
+						startValue += delta;
+					}
+				}
+			}
+			else if (numValues == 1)
+			{
+				rangeValues[0] = normalisedRangeToPitchFactor(rangeValues[0]);
+			}
+		}
+
+		static inline void octaveRangeToPitchFactor(float* octaveValues, int numValues)
+		{
+			FloatVectorOperations::multiply(octaveValues, 0.1666666666f, numValues);
+
+		}
+
+
+		
 	};
 
 protected:
@@ -193,16 +222,7 @@ public:
 
 	/**	Creates a new modulator with the given Identifier. */
 	Modulator(MainController *m, const String &id);
-
-	virtual ~Modulator()
-	{
-		if(attachedPlotter != nullptr)
-		{
-			attachedPlotter->removePlottedModulator(this);
-		}
-
-		masterReference.clear();
-	};
+	virtual ~Modulator();;
 
 
 	// ====================================================================================================
@@ -222,16 +242,7 @@ public:
 	virtual int getNumChildProcessors() const override {return 0;};
 
 	/** Sets the colour of the modulator. */
-	virtual void setColour(Colour c) 
-	{ 
-		colour = c; 
-
-		for(int i = 0; i < getNumChildProcessors(); i++)
-		{
-			dynamic_cast<Modulator*>(getChildProcessor(i))->setColour(c.withMultipliedAlpha(0.8f));
-		}
-		
-	};
+	virtual void setColour(Colour c);;
 
 	virtual Colour getColour() const override { return colour; };
 
@@ -284,20 +295,7 @@ public:
 	*	@param numSamples the amount of samples that are processed (numSamples = buffersize - startSample)
 	*
 	*/
-	virtual void renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples)
-	{
-		// Save the values for later
-		const int startIndex = startSample;
-		const int samplesToCopy = numSamples;
-		
-		calculateBlock(startSample, numSamples);
-
-		if(shouldUpdatePlotter()) updatePlotter(internalBuffer, startIndex, samplesToCopy);
-
-		applyTimeModulation(buffer, startIndex, samplesToCopy);
-
-
-	};
+	virtual void renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples);;
 
 	/** This calculates the time modulated values and stores them in the internal buffer. 
 	*/
@@ -307,25 +305,10 @@ public:
 	*
 	*	By default, it applies one intensity value to all calculated values, but you can override it if your Modulator has a internal Chain for the intensity.
 	*/
-	virtual void applyTimeModulation(AudioSampleBuffer &buffer, int startIndex, int samplesToCopy)
-	{
-		float *dest = buffer.getWritePointer(0, startIndex);
-		float *mod = internalBuffer.getWritePointer(0, startIndex);
-
-		FloatVectorOperations::clip(mod, mod, 0.0f, 1.0f, samplesToCopy);
-
-		switch(modulationMode)
-		{
-			case GainMode: applyGainModulation(mod, dest, getIntensity(), samplesToCopy); break;
-			case PitchMode: applyPitchModulation(mod, dest, getIntensity(), samplesToCopy); break;
-		}
-	};
+	virtual void applyTimeModulation(AudioSampleBuffer &buffer, int startIndex, int samplesToCopy);;
 
 	/** Returns a read pointer to the calculated values. This is used by the global modulator system. */
-	virtual const float *getCalculatedValues(int /*voiceIndex*/)
-	{
-		return internalBuffer.getReadPointer(0);
-	}
+	virtual const float *getCalculatedValues(int /*voiceIndex*/);
 
 protected:
 
@@ -335,12 +318,7 @@ protected:
 
 	/** Creates the internal buffer with double the size of the expected buffer block size.
     */
-	virtual void prepareToModulate(double /*sampleRate*/, int samplesPerBlock)
-	{
-		internalBuffer = AudioSampleBuffer(1, samplesPerBlock); // should be enough
-		
-		jassert(isInitialized());
-	};
+	virtual void prepareToModulate(double /*sampleRate*/, int samplesPerBlock);;
 
 	/** Picks 4 values out of the processed buffer and sends it to the plotter. 
 	*
@@ -354,73 +332,33 @@ protected:
 	/** Checks if the prepareToPlay method has been called. */
 	virtual bool isInitialized();
 
-	/** a vectorized version of the calcIntensityValue() and applyModulationValue() for Pitch modulation with a fixed intensity value. 
-	*
-	*	If you need varying intensity, use the other function and pass an array with the calculated intensity values.
-	*/
-	static inline void applyPitchModulation(float* calculatedModulationValues, float *destinationValues, float fixedIntensity, int numValues) noexcept
-	{
-		jassert(fixedIntensity <= 2.0f);
-		jassert(fixedIntensity >= 0.5f);
-
-		const float a = fixedIntensity - 1.0f;
-		
-		FloatVectorOperations::multiply(calculatedModulationValues, a, numValues);
-		FloatVectorOperations::add(calculatedModulationValues, 1.0f, numValues);
-		FloatVectorOperations::multiply(destinationValues, calculatedModulationValues, numValues);
-	};
+	
 
 	/** a vectorized version of the calcIntensityValue() and applyModulationValue() for Gain modulation with a fixed intensity value. */
-	static inline void applyGainModulation(float *calculatedModulationValues, float *destinationValues, float fixedIntensity, int numValues) noexcept
-	{
-		const float a = 1.0f - fixedIntensity;
-
-		FloatVectorOperations::multiply(calculatedModulationValues, fixedIntensity, numValues);
-		FloatVectorOperations::add(calculatedModulationValues, a, numValues);
-		FloatVectorOperations::multiply(destinationValues, calculatedModulationValues, numValues);
-	}
+	void applyGainModulation(float *calculatedModulationValues, float *destinationValues, float fixedIntensity, int numValues) const noexcept;
 
 	/** A vectorized version of the calcIntensityValue() and applyModulationValue() for Gain modulation with varying intensities. 
 	*
 	*	@param fixedIntensity the intensity of the modulator. Normally you will pass the subclasses getIntensity() here.
 	*	@param intensityValues a pointer to the precalculated intensity array. It changes the array, so don't use it afterwards!
 	*/
-	static inline void applyGainModulation(float *calculatedModulationValues, float *destinationValues, float fixedIntensity, float *intensityValues, int numValues) noexcept
-	{
-		FloatVectorOperations::multiply(intensityValues, fixedIntensity, numValues);
-		FloatVectorOperations::multiply(calculatedModulationValues, intensityValues, numValues);
-		FloatVectorOperations::multiply(intensityValues, -1.0f, numValues);
-		FloatVectorOperations::add(intensityValues, 1.0f, numValues);	
-		FloatVectorOperations::add(calculatedModulationValues, intensityValues, numValues);
-		FloatVectorOperations::multiply(destinationValues, calculatedModulationValues, numValues);
-	};
+	void applyGainModulation(float *calculatedModulationValues, float *destinationValues, float fixedIntensity, float *intensityValues, int numValues) const noexcept;;
 
 	/** A vectorized version of the calcIntensityValue() and applyModulationValue() for Pitch modulation with varying intensities. 
 	*
 	*	@param fixedIntensity the intensity of the modulator. Normally you will pass the subclasses getIntensity() here.
 	*	@param intensityValues a pointer to the precalculated intensity array. It changes the array, so don't use it afterwards!
 	*/
-	static inline void applyPitchModulation(float *calculatedModulationValues, float *destinationValues, float fixedIntensity, float *intensityValues, int numValues) noexcept
-	{
-		FloatVectorOperations::multiply(intensityValues, fixedIntensity, numValues);
-		FloatVectorOperations::add(intensityValues, -1.0f, numValues);
-		FloatVectorOperations::multiply(calculatedModulationValues, intensityValues, numValues);
-		FloatVectorOperations::add(calculatedModulationValues, 1.0f, numValues);
-		FloatVectorOperations::multiply(destinationValues, calculatedModulationValues, numValues);
-	};
+	void applyPitchModulation(float *calculatedModulationValues, float *destinationValues, float fixedIntensity, float *intensityValues, int numValues) const noexcept;;
+
+	/** a vectorized version of the calcIntensityValue() and applyModulationValue() for Pitch modulation with a fixed intensity value.
+	*
+	*	If you need varying intensity, use the other function and pass an array with the calculated intensity values.
+	*/
+	void applyPitchModulation(float* calculatedModulationValues, float *destinationValues, float fixedIntensity, int numValues) const noexcept;;
 
 	// Prepares the buffer for the processing. The buffer is cleared and filled with 1.0.
-	static void initializeBuffer(AudioSampleBuffer &bufferToBeInitialized, int startSample, int numSamples)
-	{
-		
-
-		jassert(bufferToBeInitialized.getNumChannels() == 1);
-		jassert(bufferToBeInitialized.getNumSamples() >= startSample + numSamples);
-
-		float *writePointer = bufferToBeInitialized.getWritePointer(0, startSample);
-
-		FloatVectorOperations::fill(writePointer, 1.0f, numSamples);
-	};
+	static void initializeBuffer(AudioSampleBuffer &bufferToBeInitialized, int startSample, int numSamples);;
 
 	AudioSampleBuffer internalBuffer;
 
@@ -445,10 +383,7 @@ public:
 	/** Implement the stopVoice logic here. */
 	virtual void stopVoice(int voiceIndex) = 0;	
 
-	void allNotesOff()
-	{
-		for(int i = 0; i < polyManager.getVoiceAmount(); i++) stopVoice(i);
-	}
+	void allNotesOff();
 
 	/** If you subclass a Modulator from this class, it can handle multiple voices. */
 	class PolyphonyManager
@@ -469,24 +404,12 @@ public:
 		*
 		*	A call to this function must always be preceded by clearCurrentVoice() or a assertion is thrown!
 		*/
-		void setCurrentVoice(int newCurrentVoice) noexcept
-		{
-			jassert(currentVoice == -1);
-			jassert(currentVoice < voiceAmount);
+		void setCurrentVoice(int newCurrentVoice) noexcept;;
 
-			currentVoice = newCurrentVoice;
-		};
-
-		void setLastStartedVoice(int voiceIndex)
-		{
-			lastStartedVoice = voiceIndex;
-		}
+		void setLastStartedVoice(int voiceIndex);
 
 
-		int getLastStartedVoice() const
-		{
-			return lastStartedVoice;
-		}
+		int getLastStartedVoice() const;
 
 		/** Call this when you finished the processing to clear the current voice. */
 		void clearCurrentVoice() noexcept

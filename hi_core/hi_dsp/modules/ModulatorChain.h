@@ -81,9 +81,9 @@ public:
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	/** Returns the handler that is used to add / delete Modulators in the chain. Use this if you want to change the modulator. */
-	ChainHandler *getHandler() override;
+	Chain::Handler *getHandler() override;
 
-	const ChainHandler *getHandler() const override {return &handler;};
+	const Chain::Handler *getHandler() const override {return &handler;};
 
 	FactoryType *getFactoryType() const override {return modulatorFactory;};
 
@@ -215,11 +215,11 @@ public:
 	*	You can get the handler for each Modulator with ModulatorChain::getHandler().
 	*
 	*/
-	class ModulatorChainHandler : public ChainHandler
+	class ModulatorChainHandler : public Chain::Handler
 	{
 	public:
 
-		/** Creates a ChainHandler. */
+		/** Creates a Chain::Handler. */
 		ModulatorChainHandler(ModulatorChain *handledChain) : chain(handledChain) {};
 
 		~ModulatorChainHandler() {};
@@ -421,7 +421,7 @@ public:
 		}
 	}
 
-	void setConstrainer(FactoryTypeConstrainer *c, bool ownConstrainer) override
+	void setConstrainer(FactoryType::Constrainer *c, bool ownConstrainer) override
 	{
 		FactoryType::setConstrainer(c, ownConstrainer);
 
