@@ -38,7 +38,7 @@
 //==============================================================================
 ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
     : ProcessorEditorBody(p),
-      doc (dynamic_cast<JavascriptProcessor*>(getProcessor())->getDocument()),
+      doc (new CodeDocument()),
       tokenizer(new JavascriptTokeniser())
 {
 	JavascriptProcessor *sp = dynamic_cast<JavascriptProcessor*>(getProcessor());
@@ -107,8 +107,6 @@ ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
 
 	messageBox->setFont(GLOBAL_MONOSPACE_FONT());
 	
-	doc = sp->getDocument();
-
 	addAndMakeVisible(scriptContent = new ScriptContentComponent(dynamic_cast<ProcessorWithScriptingContent*>(getProcessor())));
 
 	messageBox->setLookAndFeel(&laf2);
@@ -789,6 +787,18 @@ bool ScriptingEditor::keyPressed(const KeyPress &k)
 		contentButton->triggerClick();
 		return true;
 	}
+	else if (k.getKeyCode() == KeyPress::F5Key)
+	{
+		int i = codeEditor->editor->getCaretPos().getPosition();
+
+		compileScript();
+
+		CodeDocument::Position pos(codeEditor->editor->getDocument(), i);
+
+		codeEditor->editor->moveCaretTo(pos, false);
+
+		return true;
+	}
 	if (k.isKeyCode('1') && k.getModifiers().isCtrlDown())
 	{
 		if (callbackButtons.size() > 0)
@@ -855,9 +865,6 @@ void ScriptingEditor::compileScript()
 	getProcessor()->getMainController()->setEditedScriptComponent(nullptr, this);
 
 	JavascriptProcessor::SnippetResult resultMessage = jsp->compileScript();
-
-	double x = jsp->getLastExecutionTime();
-	timeLabel->setText(String(x, 3) + " ms", dontSendNotification);
 
 	if(resultMessage.r.wasOk()) messageBox->setText("Compiled OK", false);
 	else

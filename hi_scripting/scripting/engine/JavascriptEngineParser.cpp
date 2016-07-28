@@ -223,7 +223,19 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 		ScopedPointer<BlockStatement> b(new BlockStatement(location));
 
 		while (currentType != TokenTypes::closeBrace && currentType != TokenTypes::eof)
-			b->statements.add(parseStatement());
+		{
+			ScopedPointer<Statement> s = parseStatement();
+
+			if (LockStatement* ls = dynamic_cast<LockStatement*>(s.get()))
+			{
+				b->lockStatements.add(ls);
+				s.release();
+			}
+			else
+			{
+				b->statements.add(s.release());
+			}
+		}
 
 		return b.release();
 	}
@@ -322,6 +334,8 @@ private:
 		if (matchIf(TokenTypes::semicolon))        return new Statement(location);
 		if (matchIf(TokenTypes::plusplus))         return parsePreIncDec<AdditionOp>();
 		if (matchIf(TokenTypes::minusminus))       return parsePreIncDec<SubtractionOp>();
+		if (matchIf(TokenTypes::rLock_))		   return parseLockStatement(true);
+		if (matchIf(TokenTypes::wLock_))		   return parseLockStatement(false);
 
 		if (matchesAny(TokenTypes::openParen, TokenTypes::openBracket))
 			return matchEndOfStatement(parseFactor());
@@ -515,6 +529,21 @@ private:
 
 		match(TokenTypes::semicolon);
 		return s.release();
+	}
+
+	Statement* parseLockStatement(bool isReadLock)
+	{
+	
+		ScopedPointer<LockStatement> ls = new LockStatement(location, isReadLock);
+
+		match(TokenTypes::openParen);
+
+		ls->lockedObj = parseFactor();
+
+		match(TokenTypes::closeParen);
+		match(TokenTypes::semicolon);
+
+		return ls.release();
 	}
 
 	Statement* parseGlobalAssignment()

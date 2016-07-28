@@ -910,20 +910,6 @@ bool JavascriptCodeEditor::keyPressed(const KeyPress& k)
         insertTextAtCaret(";" + getDocument().getNewLineCharacters() + lastLineIndent);
         
 	}
-
-	else if (k.getKeyCode() == KeyPress::F5Key)
-	{
-		CodeDocument::Position pos = getCaretPos();
-
-		ScriptingEditor *parent = findParentComponentOfClass<ScriptingEditor>();
-		
-		if(parent != nullptr) parent->compileScript();
-		else return false;
-
-		moveCaretTo(pos, false);
-
-		return true;
-	}
 	else if (k.isKeyCode(72) && k.getModifiers().isCommandDown()) // Ctrl + H 
 	{
 		if (currentModalWindow.getComponent() != 0)

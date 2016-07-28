@@ -89,9 +89,7 @@ public:
 	{
 		if(getHeight() != getBodyHeight()) setSize(getWidth(), getBodyHeight());
 
-		double x = dynamic_cast<JavascriptProcessor*>(getProcessor())->getLastExecutionTime();
-		timeLabel->setText(String(x, 3) + " ms", dontSendNotification);
-
+		
 		getProcessor()->setEditorState(Processor::BodyShown, true);
 
 		int editorOffset = dynamic_cast<ProcessorWithScriptingContent*>(getProcessor())->getCallbackEditorStateOffset();
@@ -185,7 +183,7 @@ public:
 
 private:
     
-	CodeDocument *doc;
+	ScopedPointer<CodeDocument> doc;
 
 	ScopedPointer<JavascriptTokeniser> tokenizer;
 

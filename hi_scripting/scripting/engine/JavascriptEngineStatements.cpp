@@ -1,10 +1,29 @@
 
+
+struct HiseJavascriptEngine::RootObject::LockStatement : public Statement
+{
+	LockStatement(CodeLocation l, bool isReadLock_) : Statement(l), isReadLock(isReadLock_), currentLock(nullptr) {};
+
+	ResultCode perform(const Scope& s, var*) const override;
+
+	ExpPtr lockedObj;
+
+	mutable ReadWriteLock* currentLock;
+
+	const bool isReadLock;
+};
+
 struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 {
-	BlockStatement(const CodeLocation& l) noexcept : Statement(l) {}
+	BlockStatement(const CodeLocation& l) noexcept : Statement(l) 
+	{
+		
+	}
 
 	ResultCode perform(const Scope& s, var* returnedValue) const override
 	{
+		ScopedBlockLock sl(s, lockStatements);
+
 		for (int i = 0; i < statements.size(); ++i)
 			if (ResultCode r = statements.getUnchecked(i)->perform(s, returnedValue))
 				return r;
@@ -12,7 +31,50 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 		return ok;
 	}
 
+	struct ScopedBlockLock
+	{
+		ScopedBlockLock(const Scope& s, const OwnedArray<LockStatement> &statements_):
+			statements(statements_),
+			numLocks(statements_.size())
+		{
+			if (numLocks == 0) return;
+
+			SpinLock::ScopedLockType sl(accessLock);
+
+			for (int i = 0; i < numLocks; i++)
+			{
+				const LockStatement* lock = statements.getUnchecked(i);
+				lock->perform(s, nullptr);
+
+				if (lock->currentLock != nullptr)
+					lock->isReadLock ? lock->currentLock->enterRead() : lock->currentLock->enterWrite();
+			}
+		}
+
+		~ScopedBlockLock()
+		{
+			if (numLocks == 0) return;
+
+			SpinLock::ScopedLockType sl(accessLock);
+
+			for (int i = 0; i < numLocks; i++)
+			{
+				const LockStatement* lock = statements.getUnchecked(i);
+
+				if (lock->currentLock != nullptr)
+					lock->isReadLock ? lock->currentLock->exitRead() : lock->currentLock->exitWrite();
+			}
+		}
+
+		const OwnedArray<LockStatement>& statements;
+		const int numLocks;
+
+		SpinLock accessLock;
+	};
+
 	OwnedArray<Statement> statements;
+	OwnedArray<LockStatement> lockStatements;
+	
 };
 
 struct HiseJavascriptEngine::RootObject::IfStatement : public Statement

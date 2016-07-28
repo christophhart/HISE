@@ -288,6 +288,7 @@ public:
 		struct ApiConstant;				struct ApiCall;				struct InlineFunction;
 		struct ConstVarStatement;		struct ConstReference;		struct ConstObjectApiCall;
 		struct GlobalVarStatement;		struct GlobalReference;		struct CallbackParameterReference;
+		struct LockStatement;
 
 		// Parser classes
 

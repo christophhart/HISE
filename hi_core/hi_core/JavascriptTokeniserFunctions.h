@@ -79,7 +79,7 @@ struct JavascriptTokeniserFunctions
 
         static const char* const keywordsOther[] =
 		{ "continue", "protected", "volatile", "undefined",
-              "function", nullptr };
+              "function", "readLock", "writeLock", nullptr };
 
         const char* const* k;
 

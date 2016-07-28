@@ -84,21 +84,22 @@ void Processor::restoreFromValueTree(const ValueTree &previouslyExportedProcesso
 	}
 };
 
-void Processor::setConstrainerForAllInternalChains(FactoryTypeConstrainer *constrainer)
+void Processor::setConstrainerForAllInternalChains(BaseConstrainer *constrainer)
 {
+	FactoryType::Constrainer* c = static_cast<FactoryType::Constrainer*>(constrainer);
+
 	for (int i = 0; i < getNumInternalChains(); i++)
 	{
 		ModulatorChain *mc = dynamic_cast<ModulatorChain*>(getChildProcessor(i));
 
 		if (mc != nullptr)
 		{
-			mc->getFactoryType()->setConstrainer(constrainer, false);
+			mc->getFactoryType()->setConstrainer(c, false);
 
 			for (int j = 0; j < mc->getNumChildProcessors(); j++)
 			{
 				mc->getChildProcessor(j)->setConstrainerForAllInternalChains(constrainer);
 			}
-
 		}
 	}
 }
@@ -233,7 +234,7 @@ Processor * ProcessorHelpers::findParentProcessor(Processor *childProcessor, boo
 			{
 				if (is<Chain>(p))
 				{
-					ChainHandler *handler = dynamic_cast<Chain*>(p)->getHandler();
+					Chain::Handler *handler = dynamic_cast<Chain*>(p)->getHandler();
 					int numChildSynths = handler->getNumProcessors();
 
 					for (int i = 0; i < numChildSynths; i++)
@@ -405,63 +406,3 @@ void AudioSampleProcessor::setRange(Range<int> newSampleRange)
 };
 
 
-
-File ExternalFileProcessor::getFileForGlobalReference(const String &reference, PresetPlayerHandler::FolderType type)
-{
-	jassert(reference.contains("{GLOBAL_FOLDER}"));
-
-	String packageName = dynamic_cast<Processor*>(this)->getMainController()->getMainSynthChain()->getPackageName();
-
-	if (packageName.isEmpty())
-	{
-		PresetHandler::showMessageWindow("Package Name not set", "Press OK to enter the package name", PresetHandler::IconType::Info);
-		packageName = PresetHandler::getCustomName("Package Name");
-
-		dynamic_cast<Processor*>(this)->getMainController()->getMainSynthChain()->setPackageName(packageName);
-
-	}
-	
-	return File(PresetPlayerHandler::getSpecialFolder(type, packageName) + reference.fromFirstOccurrenceOf("{GLOBAL_FOLDER}", false, false));
-}
-
-File ExternalFileProcessor::getFile(const String &fileNameOrReference, PresetPlayerHandler::FolderType type)
-{
-	if (isReference(fileNameOrReference))
-	{
-		File f = getFileForGlobalReference(fileNameOrReference, type);
-
-		jassert(f.existsAsFile());
-
-		return f;
-	}
-	else
-	{
-		File f(fileNameOrReference);
-
-		jassert(f.existsAsFile());
-
-		return f;
-	}
-}
-
-bool ExternalFileProcessor::isReference(const String &fileNameOrReference)
-{
-	return fileNameOrReference.contains("{GLOBAL_FOLDER}");
-}
-
-String ExternalFileProcessor::getGlobalReferenceForFile(const String &file, PresetPlayerHandler::FolderType /*type*/ /*= PresetPlayerHandler::GlobalSampleDirectory*/)
-{
-	if (isReference(file))
-	{
-		return file;
-	}
-	else
-	{
-		File f(file);
-
-		jassert(f.existsAsFile());
-
-		return "{GLOBAL_FOLDER}/" + f.getFileName();
-	}
-	
-}

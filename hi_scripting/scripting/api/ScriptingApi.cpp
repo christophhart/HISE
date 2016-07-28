@@ -172,6 +172,8 @@ void ScriptingApi::Message::setControllerNumber(int newValue)
 
 	const int value = messageHolder->getControllerValue();
 
+	ScopedWriteLock sl(apiClassLock);
+
 	*messageHolder = juce::MidiMessage::controllerEvent(1, newValue, value);
 };
 
@@ -191,6 +193,8 @@ void ScriptingApi::Message::setControllerValue(int newValue)
 #endif
 
 	const int number = messageHolder->getControllerNumber();
+
+	ScopedWriteLock sl(apiClassLock);
 
 	*messageHolder = juce::MidiMessage::controllerEvent(1, number, newValue);
 };

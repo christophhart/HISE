@@ -84,12 +84,15 @@ public:
 	Identifier getRegisterId(int index) const;
 	const var *getVarPointer(int index) const;
 
+	ReadWriteLock& getLock(int index);
+
 private:
 
 	// ================================================================================================================
 
 	var registerStack[NUM_VAR_REGISTERS];
 	Identifier registerStackIds[NUM_VAR_REGISTERS];
+	ReadWriteLock registerLocks[NUM_VAR_REGISTERS];
 
 	const var empty;
 
@@ -230,6 +233,8 @@ public:
     
     /** Returns all constant names as alphabetically sorted array. This is used by the autocomplete popup. */
 	void getAllConstants(Array<Identifier> &ids) const;
+
+	ReadWriteLock apiClassLock;
 
 private:
 

@@ -103,6 +103,11 @@ const var * VarRegister::getVarPointer(int index) const
 	return nullptr;
 }
 
+ReadWriteLock& VarRegister::getLock(int index)
+{
+	return registerLocks[index];
+}
+
 ApiClass::ApiClass(int numConstants_) :
 numConstants(numConstants_)
 {

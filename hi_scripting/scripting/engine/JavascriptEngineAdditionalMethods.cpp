@@ -57,6 +57,39 @@ hiseSpecialData(this)
 	setMethod("typeof", typeof_internal);
 }
 
+
+HiseJavascriptEngine::RootObject::Statement::ResultCode HiseJavascriptEngine::RootObject::LockStatement::perform(const Scope& s, var*) const
+{
+	if (RegisterName* r = dynamic_cast<RegisterName*>(lockedObj.get()))
+	{
+		currentLock = &s.root->hiseSpecialData.varRegister.getLock(r->indexInRegister);
+		return ResultCode::ok;
+	}
+	else if (ConstReference* cr = dynamic_cast<ConstReference*>(lockedObj.get()))
+	{
+		var* constObj = s.root->hiseSpecialData.constObjects.getVarPointerAt(cr->index);
+
+		if (ApiClass* api = dynamic_cast<ApiClass*>(constObj->getObject()))
+		{
+			currentLock = &api->apiClassLock;
+			return ResultCode::ok;
+		}
+		else
+		{
+			currentLock = nullptr;
+			location.throwError("Can't lock this object");
+		}
+	}
+	else
+	{
+		currentLock = nullptr;
+		location.throwError("Can't lock this object");
+	}
+
+	return Statement::ok;
+}
+
+
 var HiseJavascriptEngine::RootObject::Scope::findFunctionCall(const CodeLocation& location, const var& targetObject, const Identifier& functionName) const
 {
 	if (DynamicObject* o = targetObject.getDynamicObject())

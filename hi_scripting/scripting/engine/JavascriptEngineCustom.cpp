@@ -22,9 +22,9 @@ struct HiseJavascriptEngine::RootObject::RegisterAssignment : public Expression
 	{
 		var value(source->getResult(s));
 
-		s.root->hiseSpecialData.varRegister.setRegister(registerIndex, value);
+		VarRegister* reg = &s.root->hiseSpecialData.varRegister;
+		reg->setRegister(registerIndex, value);
 		return value;
-
 	}
 
 	int registerIndex;
@@ -38,12 +38,14 @@ struct HiseJavascriptEngine::RootObject::RegisterName : public Expression
 
 	var getResult(const Scope& s) const override
 	{
-		return s.root->hiseSpecialData.varRegister.getFromRegister(indexInRegister);
+		VarRegister* reg = &s.root->hiseSpecialData.varRegister;
+		return reg->getFromRegister(indexInRegister);
 	}
 
 	void assign(const Scope& s, const var& newValue) const override
 	{
-		s.root->hiseSpecialData.varRegister.setRegister(indexInRegister, newValue);
+		VarRegister* reg = &s.root->hiseSpecialData.varRegister;
+		reg->setRegister(indexInRegister, newValue);
 	}
 
 	Identifier name;

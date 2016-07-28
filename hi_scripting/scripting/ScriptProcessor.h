@@ -38,7 +38,11 @@
 class ModulatorSynthGroup;
 
 
-/** A class that has a content that can be populated with script components. */
+/** A class that has a content that can be populated with script components. 
+*	@ingroup processor_interfaces
+*
+*	This is tightly coupled with the JavascriptProcessor class (so every JavascriptProcessor must also be derived from this class).
+*/
 class ProcessorWithScriptingContent
 {
 public:
@@ -251,88 +255,57 @@ private:
 };
 
 /** The base class for modules that can be scripted. 
-*
+*	@ingroup processor_interfaces
 *	
 */
 class JavascriptProcessor :	public FileChangeListener
 {
 public:
 
+	// ================================================================================================================
+
+	/** A named document that contains a callback function. */
 	class SnippetDocument : public CodeDocument
 	{
 	public:
 
-		/** Create a snippet document. If you want to supply parameters, supply a whitespace separated list as last argument. */
+		/** Create a snippet document. 
+		*
+		*	If you want to supply parameters, supply a whitespace separated list as last argument:
+		*
+		*	SnippetDocument doc("onControl", "widget value"); // 2 parameters, 'widget' and 'value'.
+		*/
 		SnippetDocument(const Identifier &callbackName_, const String &parameters=String::empty);
 
-		const Identifier &getCallbackName() const
-		{
-			return callbackName;
-		};
+		/** Returns the name of the SnippetDocument. */
+		const Identifier &getCallbackName() const { return callbackName; };
 
-		void checkIfScriptActive()
-		{
-			isActive = true;
+		/** Checks if the document contains code. */
+		void checkIfScriptActive();
 
-			if (!getAllContent().containsNonWhitespaceChars()) isActive = false;
+		/** Returns the function text. */
+		String getSnippetAsFunction() const;
 
-			String trimmedText = getAllContent().removeCharacters(" \t\n\r");
+		/** Checks if the snippet contains any code to execute. This is a very fast operation. */
+		bool isSnippetEmpty() const { return !isActive; };
 
-			String trimmedEmptyText = emptyText.removeCharacters(" \t\n\r");
-
-			if (trimmedEmptyText == trimmedText)	isActive = false;
-		};
-
-		String getSnippetAsFunction() const
-		{
-			if (isSnippetEmpty()) return emptyText;
-			else				  return getAllContent();
-		}
-
-		bool isSnippetEmpty() const
-		{
-			return !isActive;
-		};
-
-		void setRange(int start, int end)
-		{
-			lines = Range<int>(start, end);
-		};
-
+		/** Returns the number of arguments specified in the constructor. */
 		int getNumArgs() const { return numArgs; }
-
-		void setEmptyText(const String &t)
-		{
-			emptyText = t;
-			replaceAllContent(t);
-		}
-
-		static int addLineToString(String &t, const String &lineToAdd);;
-
-		/** Adds the content of the snippet to the code and returns the number of added lines.
-		*
-		*	@param t the reference to the string
-		*	@param startLine the current line index where the snippet is inserted.
-		*/
-		int addToString(String &t, int startLine);;
 
 	private:
 
 		Identifier callbackName;
-
-		int numArgs;
-
+		
 		StringArray parameters;
+		int numArgs;
 
 		String emptyText;
 		bool isActive;
-		Range<int> lines;
 	};
 	
-	JavascriptProcessor(MainController *mc);
+	// ================================================================================================================
 
-	virtual ~JavascriptProcessor();
-
+	/** A Result object that contains the snippet. */
 	struct SnippetResult
 	{
 		SnippetResult(Result r_, int c_) : r(r_), c(c_) {};
@@ -343,6 +316,13 @@ public:
 		/** the callback */
 		int c;
 	};
+
+	// ================================================================================================================
+
+	JavascriptProcessor(MainController *mc);
+	virtual ~JavascriptProcessor();
+
+	
 
 	virtual void fileChanged() override;
 
@@ -362,59 +342,39 @@ public:
 
 	bool wasLastCompileOK() const { return lastCompileWasOK; }
 
-	double getLastExecutionTime() const noexcept{ return lastExecutionTime; };
-
 	HiseJavascriptEngine *getScriptEngine() { return scriptEngine; }
 
 	void mergeCallbacksToScript(String &x) const;
 	void parseSnippetsFromString(const String &x, bool clearUndoHistory = false);
 
-	CodeDocument *getDocument() { return doc; };
-
-	void setCompileProgress(double progress)
-	{
-		if (currentCompileThread != nullptr && mainController->isUsingBackgroundThreadForCompiling())
-		{
-			currentCompileThread->setProgress(progress);
-		}
-	}
-
+	void setCompileProgress(double progress);
 
 protected:
 
 	friend class ProcessorWithScriptingContent;
 
+	/** Overwrite this when you need to do something after the script was recompiled. */
 	virtual void postCompileCallback() {};
+
+	// ================================================================================================================
 
 	class CompileThread : public ThreadWithProgressWindow
 	{
 	public:
 
-		CompileThread(JavascriptProcessor *processor) :
-			ThreadWithProgressWindow("Compiling", true, false),
-			sp(processor),
-			result(SnippetResult(Result::ok(), 0))
-		{
-			getAlertWindow()->setLookAndFeel(&alaf);
-		}
+		CompileThread(JavascriptProcessor *processor);
 
-		void run()
-		{
-			ScopedLock sl(sp->lock);
-
-			result = sp->compileInternal();
-		}
+		void run();
 
 		JavascriptProcessor::SnippetResult result;
 
 	private:
 
 		AlertWindowLookAndFeel alaf;
-
 		JavascriptProcessor *sp;
-
-
 	};
+
+	// ================================================================================================================
 
 	Result lastResult;
 
@@ -422,14 +382,9 @@ protected:
 
 	friend class CompileThread;
 
-	CriticalSection lock;
-	CriticalSection compileLock;
-
-	double lastExecutionTime;
+	ReadWriteLock compileLock;
 
 	CompileThread *currentCompileThread;
-
-	ScopedPointer<CodeDocument> doc;
 
 	ScopedPointer<HiseJavascriptEngine> scriptEngine;
 

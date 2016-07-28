@@ -128,6 +128,8 @@ private:
 	ScopedPointer<SnippetDocument> onControlCallback;
 	ScopedPointer<SnippetDocument> onTimerCallback;
 
+	ReadWriteLock defferedMessageLock;
+
 	MidiBuffer deferredMidiMessages;
 	MidiBuffer copyBuffer;
 

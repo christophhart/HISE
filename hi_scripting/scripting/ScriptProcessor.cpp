@@ -89,7 +89,7 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 
 	scriptEngine->maximumExecutionTime = RelativeTime(0.5);
 
-	ScopedLock sl(jsp->compileLock);
+	ScopedReadLock sl(jsp->compileLock);
 
 	scriptEngine->setCallbackParameter(callbackIndex, 0, component);
 	scriptEngine->setCallbackParameter(callbackIndex, 1, controllerValue);
@@ -263,9 +263,7 @@ ValueTree FileChangeListener::collectAllScriptFiles(ModulatorSynthChain *chainTo
 
 JavascriptProcessor::JavascriptProcessor(MainController *mc) :
 mainController(mc),
-doc(new CodeDocument()),
 scriptEngine(new HiseJavascriptEngine(this)),
-lastExecutionTime(0.0),
 lastCompileWasOK(false),
 currentCompileThread(nullptr),
 lastResult(Result::ok())
@@ -278,7 +276,6 @@ lastResult(Result::ok())
 JavascriptProcessor::~JavascriptProcessor()
 {
 	scriptEngine = nullptr;
-	doc = nullptr;
 }
 
 
@@ -298,7 +295,7 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 	if (lastCompileWasOK && content != nullptr) thisAsScriptBaseProcessor->restoredContentValues = content->exportAsValueTree();
 
-	ScopedLock sl(compileLock);
+	ScopedWriteLock sl(compileLock);
 
 	scriptEngine->clearDebugInformation();
 
@@ -507,54 +504,71 @@ void JavascriptProcessor::parseSnippetsFromString(const String &x, bool clearUnd
 
 
 
+void JavascriptProcessor::setCompileProgress(double progress)
+{
+	if (currentCompileThread != nullptr && mainController->isUsingBackgroundThreadForCompiling())
+	{
+		currentCompileThread->setProgress(progress);
+	}
+}
+
 JavascriptProcessor::SnippetDocument::SnippetDocument(const Identifier &callbackName_, const String &parameters_) :
 CodeDocument(),
-lines(Range<int>()),
 isActive(false),
 callbackName(callbackName_)
 {
 	parameters = StringArray::fromTokens(parameters_, " ", "");
 	numArgs = parameters.size();
-
-	String header;
 	
-
 	if (callbackName != Identifier("onInit"))
 	{
-		header << "function " << callbackName_.toString() << "(";
+		emptyText << "function " << callbackName_.toString() << "(";
 		
 		for (int i = 0; i < numArgs; i++)
 		{
-			header << parameters[i];
-			if (i != numArgs - 1) header << ", ";
+			emptyText << parameters[i];
+			if (i != numArgs - 1) emptyText << ", ";
 		}
 		
-		header << ")\n";
-		header << "{\n";
-		header << "\t\n";
-		header << "}\n";
+		emptyText << ")\n";
+		emptyText << "{\n";
+		emptyText << "\t\n";
+		emptyText << "}\n";
 	};
-
-	setEmptyText(header);
+	
+	replaceAllContent(emptyText);
     
     getUndoManager().clearUndoHistory();
 }
 
-int JavascriptProcessor::SnippetDocument::addLineToString(String &t, const String &lineToAdd)
+void JavascriptProcessor::SnippetDocument::checkIfScriptActive()
 {
-	t << lineToAdd << "\n";
-	return 1;
-}
-
-int JavascriptProcessor::SnippetDocument::addToString(String &t, int startLine)
-{
-	t << getAllContent();
-
 	isActive = true;
 
 	if (!getAllContent().containsNonWhitespaceChars()) isActive = false;
-	if (getAllContent() == emptyText)					isActive = false;
 
-	lines = Range<int>(startLine, startLine + getNumLines());
-	return getNumLines();
+	String trimmedText = getAllContent().removeCharacters(" \t\n\r");
+
+	String trimmedEmptyText = emptyText.removeCharacters(" \t\n\r");
+
+	if (trimmedEmptyText == trimmedText)	isActive = false;
+}
+
+String JavascriptProcessor::SnippetDocument::getSnippetAsFunction() const
+{
+	if (isSnippetEmpty()) return emptyText;
+	else				  return getAllContent();
+}
+
+JavascriptProcessor::CompileThread::CompileThread(JavascriptProcessor *processor) :
+ThreadWithProgressWindow("Compiling", true, false),
+sp(processor),
+result(SnippetResult(Result::ok(), 0))
+{
+	getAlertWindow()->setLookAndFeel(&alaf);
+}
+
+void JavascriptProcessor::CompileThread::run()
+{
+	result = sp->compileInternal();
 }

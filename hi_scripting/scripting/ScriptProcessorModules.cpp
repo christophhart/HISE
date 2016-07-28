@@ -137,7 +137,7 @@ void JavascriptMidiProcessor::processMidiMessage(MidiMessage &m)
 
 		if (processThisMessage)
 		{
-			ScopedLock sl(lock);
+			ScopedWriteLock sl(defferedMessageLock);
 			deferredMidiMessages.addEvent(m, (int)m.getTimeStamp());
 		}
 
@@ -189,7 +189,7 @@ void JavascriptMidiProcessor::registerApiClasses()
 
 void JavascriptMidiProcessor::runScriptCallbacks()
 {
-	ScopedLock sl(compileLock);
+	ScopedReadLock sl(compileLock);
 
 	scriptEngine->maximumExecutionTime = isDeferred() ? RelativeTime(0.5) : RelativeTime(0.03);
 
@@ -258,7 +258,7 @@ void JavascriptMidiProcessor::runTimerCallback(int /*offsetInBuffer*//*=-1*/)
 {
 	if (isBypassed() || onTimerCallback->isSnippetEmpty()) return;
 
-	ScopedLock sl(compileLock);
+	ScopedReadLock sl(compileLock);
 
 	scriptEngine->maximumExecutionTime = isDeferred() ? RelativeTime(0.5) : RelativeTime(0.002);
 
@@ -361,7 +361,7 @@ void JavascriptMidiProcessor::handleAsyncUpdate()
 
 	if (deferredMidiMessages.getNumEvents() != 0)
 	{
-		ScopedLock sl(lock);
+		ScopedWriteLock sl(defferedMessageLock);
 
 		copyBuffer.swapWith(deferredMidiMessages);
 	}
@@ -380,7 +380,6 @@ void JavascriptMidiProcessor::handleAsyncUpdate()
 	{
 		currentMessage = m;
 		currentMidiMessage->setMidiMessage(&m);
-
 
 		runScriptCallbacks();
 	}
@@ -500,7 +499,7 @@ void JavascriptMasterEffect::postCompileCallback()
 
 void JavascriptMasterEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-	ScopedLock sl(compileLock);
+	ScopedReadLock sl(compileLock);
 
 	MasterEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 	Array<var> channelArray;
@@ -527,7 +526,7 @@ void JavascriptMasterEffect::applyEffect(AudioSampleBuffer &b, int startSample, 
 {
 	if (!processBlockCallback->isSnippetEmpty() && lastResult.wasOk())
 	{
-		ScopedLock sl(compileLock);
+		ScopedReadLock sl(compileLock);
 
 		float *l = b.getWritePointer(0, startSample);
 		float *r = b.getWritePointer(1, startSample);
@@ -606,7 +605,7 @@ void JavascriptVoiceStartModulator::handleMidiEvent(const MidiMessage &m)
 
 		if (!onVoiceStopCallback->isSnippetEmpty())
 		{
-			ScopedLock sl(compileLock);
+			ScopedReadLock sl(compileLock);
 			scriptEngine->setCallbackParameter(onVoiceStop, 0, 0);
 			scriptEngine->executeCallback(onVoiceStop, &lastResult);
 
@@ -615,7 +614,7 @@ void JavascriptVoiceStartModulator::handleMidiEvent(const MidiMessage &m)
 	}
 	else if (m.isController() && !onControllerCallback->isSnippetEmpty())
 	{
-		ScopedLock sl(compileLock);
+		ScopedReadLock sl(compileLock);
 		scriptEngine->executeCallback(onController, &lastResult);
 
 		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, onControllerCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
@@ -626,7 +625,7 @@ void JavascriptVoiceStartModulator::startVoice(int voiceIndex)
 {
 	if (!onVoiceStartCallback->isSnippetEmpty())
 	{
-		ScopedLock sl(compileLock);
+		ScopedReadLock sl(compileLock);
 
 		synthObject->setVoiceGainValue(voiceIndex, 1.0f);
 		synthObject->setVoicePitchValue(voiceIndex, 1.0f);
@@ -713,7 +712,7 @@ buffer(new VariantBuffer(0))
 
 JavascriptTimeVariantModulator::~JavascriptTimeVariantModulator()
 {
-	ScopedLock sl(compileLock);
+	ScopedWriteLock sl(compileLock);
 
 	onInitCallback = new SnippetDocument("onInit");
 	prepareToPlayCallback = new SnippetDocument("prepareToPlay", "sampleRate samplesPerBlock");
@@ -762,7 +761,7 @@ void JavascriptTimeVariantModulator::handleMidiEvent(const MidiMessage &m)
 
 		if (!onNoteOnCallback->isSnippetEmpty())
 		{
-			ScopedLock sl(compileLock);
+			ScopedReadLock sl(compileLock);
 			scriptEngine->executeCallback(onNoteOn, &lastResult);
 		}
 
@@ -774,7 +773,7 @@ void JavascriptTimeVariantModulator::handleMidiEvent(const MidiMessage &m)
 
 		if (!onNoteOffCallback->isSnippetEmpty())
 		{
-			ScopedLock sl(compileLock);
+			ScopedReadLock sl(compileLock);
 			scriptEngine->executeCallback(onNoteOff, &lastResult);
 		}
 
@@ -782,7 +781,7 @@ void JavascriptTimeVariantModulator::handleMidiEvent(const MidiMessage &m)
 	}
 	else if (m.isController() && !onControllerCallback->isSnippetEmpty())
 	{
-		ScopedLock sl(compileLock);
+		ScopedReadLock sl(compileLock);
 		scriptEngine->executeCallback(onController, &lastResult);
 
 		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, onControllerCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
@@ -801,7 +800,7 @@ void JavascriptTimeVariantModulator::prepareToPlay(double sampleRate, int sample
 
 	if (!prepareToPlayCallback->isSnippetEmpty())
 	{
-		ScopedLock sl(compileLock);
+		ScopedReadLock sl(compileLock);
 
 		scriptEngine->setCallbackParameter(Callback::prepare, 0, sampleRate);
 		scriptEngine->setCallbackParameter(Callback::prepare, 1, samplesPerBlock);
@@ -817,7 +816,7 @@ void JavascriptTimeVariantModulator::calculateBlock(int startSample, int numSamp
 	{
 		buffer->referToData(internalBuffer.getWritePointer(0, startSample), numSamples);
 
-		ScopedLock sl(compileLock);
+		ScopedReadLock sl(compileLock);
 
 		scriptEngine->setCallbackParameter(Callback::processBlock, 0, bufferVar);
 		scriptEngine->executeCallback(Callback::processBlock, &lastResult);
@@ -932,7 +931,7 @@ public:
 
 		JavascriptModulatorSynth* ownerSynth = static_cast<JavascriptModulatorSynth*>(getOwnerSynth());
 
-		ScopedLock sl(ownerSynth->compileLock);
+		ScopedReadLock sl(ownerSynth->compileLock);
 
 		ownerSynth->scriptEngine->setCallbackParameter((int)JavascriptModulatorSynth::Callback::startVoice, 0, getVoiceIndex());
 		ownerSynth->scriptEngine->setCallbackParameter((int)JavascriptModulatorSynth::Callback::startVoice, 1, midiNoteNumber);
@@ -966,7 +965,7 @@ public:
 		
 		JavascriptModulatorSynth* ownerSynth = static_cast<JavascriptModulatorSynth*>(getOwnerSynth());
 
-		ScopedLock sl(ownerSynth->compileLock);
+		ScopedReadLock sl(ownerSynth->compileLock);
 
 		ownerSynth->scriptEngine->setCallbackParameter((int)JavascriptModulatorSynth::Callback::renderVoice, 0, getVoiceIndex());
 		ownerSynth->scriptEngine->setCallbackParameter((int)JavascriptModulatorSynth::Callback::renderVoice, 1, var(channels));

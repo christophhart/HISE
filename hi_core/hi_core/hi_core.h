@@ -44,6 +44,11 @@ namespace juce
 #include "VariantBuffer.h"
 }
 
+
+/** @defgroup processor_interfaces Processor Interface Classes
+*	Interface classes that enhance the functionality of a processor.
+* */
+
 /** @defgroup core Core Classes
 *	A collection of basic classes.
 */
