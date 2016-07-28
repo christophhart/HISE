@@ -94,13 +94,17 @@ public:
 
 		getProcessor()->setEditorState(Processor::BodyShown, true);
 
-		contentButton->setToggleState(getProcessor()->getEditorState(ProcessorWithScriptingContent::EditorStates::contentShown), dontSendNotification);
+		int editorOffset = dynamic_cast<ProcessorWithScriptingContent*>(getProcessor())->getCallbackEditorStateOffset();
+
+		contentButton->setToggleState(getProcessor()->getEditorState(editorOffset + ProcessorWithScriptingContent::EditorStates::contentShown), dontSendNotification);
 
 	};
 
 	void setEditedScriptComponent(ReferenceCountedObject* component);
 
 	void mouseDown(const MouseEvent &e) override;
+
+	void mouseDoubleClick(const MouseEvent& e) override;
 
 	bool isRootEditor() const { return getEditor()->isRootEditor(); }
 
@@ -110,9 +114,11 @@ public:
 
 		JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(getProcessor());
 
+		int editorOffset = dynamic_cast<ProcessorWithScriptingContent*>(getProcessor())->getCallbackEditorStateOffset();
+
 		for(int i = 0; i < sp->getNumSnippets(); i++)
 		{
-			if(getProcessor()->getEditorState(i + ProcessorWithScriptingContent::EditorStates::onInitShown))
+			if(getProcessor()->getEditorState(editorOffset + i + ProcessorWithScriptingContent::EditorStates::onInitShown))
 			{
 				buttonClicked(getSnippetButton(i));
 				anyOpen = true;
@@ -164,24 +170,7 @@ public:
 		return callbackButtons[i];
 	}
 
-	int getBodyHeight() const override
-	{
-		if (isRootEditor())
-		{
-			return findParentComponentOfClass<Viewport>()->getHeight() - 36;
-		}
-
-		const int contentHeight = getProcessor()->getEditorState(ProcessorWithScriptingContent::EditorStates::contentShown) ? scriptContent->getContentHeight() : 0;
-
-		if (editorShown)
-		{
-			return 28 + contentHeight + codeEditor->getHeight() + 24;
-		}
-		else
-		{
-			return 28 + contentHeight;
-		}
-	};
+	int getBodyHeight() const override;;
 
     
 

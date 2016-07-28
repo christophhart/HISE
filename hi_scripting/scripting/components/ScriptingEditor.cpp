@@ -32,6 +32,9 @@
 
 #include <regex>
 
+
+
+
 //==============================================================================
 ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
     : ProcessorEditorBody(p),
@@ -61,6 +64,7 @@ ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
     messageBox->setColour (TextEditor::highlightColourId, Colour (0x40ffffff));
     messageBox->setColour (TextEditor::shadowColourId, Colour (0x00000000));
     messageBox->setText (String::empty);
+	messageBox->addMouseListener(this, true);
 
     addAndMakeVisible (timeLabel = new Label ("new label",
                                               TRANS("2.5 microseconds")));
@@ -96,6 +100,8 @@ ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
 		b->setLookAndFeel(&alaf);
 		callbackButtons.add(b);
 	}
+
+	callbackButtons.getLast()->setConnectedEdges(TextButton::ConnectedEdgeFlags::ConnectedOnLeft);
 
     timeLabel->setFont (GLOBAL_BOLD_FONT());
 
@@ -147,6 +153,29 @@ ScriptingEditor::~ScriptingEditor()
    
 }
 
+int ScriptingEditor::getBodyHeight() const
+{
+	if (isRootEditor())
+	{
+		return findParentComponentOfClass<Viewport>()->getHeight() - 36;
+	}
+
+	int editorOffset = dynamic_cast<const ProcessorWithScriptingContent*>(getProcessor())->getCallbackEditorStateOffset();
+
+	const int contentHeight = getProcessor()->getEditorState(editorOffset + ProcessorWithScriptingContent::EditorStates::contentShown) ? scriptContent->getContentHeight() : 0;
+
+	const int additionalOffset = (dynamic_cast<const JavascriptModulatorSynth*>(getProcessor()) != nullptr) ? 5 : 0;
+
+	if (editorShown)
+	{
+		return 28 + additionalOffset + contentHeight + codeEditor->getHeight() + 24;
+	}
+	else
+	{
+		return 28 + additionalOffset + contentHeight;
+	}
+}
+
 //==============================================================================
 void ScriptingEditor::paint (Graphics& g)
 {
@@ -158,11 +187,16 @@ void ScriptingEditor::paint (Graphics& g)
 
 	if(editorShown && getProcessor() != nullptr)
 	{
-		g.setColour(dynamic_cast<JavascriptProcessor*>(getProcessor())->wasLastCompileOK() ? Colour(0xff323832) : Colour(0xff383232));
-		g.fillRect (1, getHeight() - 26, getWidth()-1, 26);
+		
+		Colour c = dynamic_cast<JavascriptProcessor*>(getProcessor())->wasLastCompileOK() ? Colour(0xff323832) : Colour(0xff383232);
 
-		g.setColour(Colours::white.withAlpha(0.2f));
-		g.drawHorizontalLine(getHeight() - 25, 1.0f, (float)getWidth() - 1.0f);
+		float y = (float)codeEditor->getBottom();
+
+		g.setGradientFill(ColourGradient(c.withMultipliedBrightness(0.8f), 0.0f, y, c, 0.0f, y+6.0f, false));
+
+		g.fillRect(1, codeEditor->getBottom(), getWidth()-2, compileButton->getHeight());
+
+		
 	}
 
     //[/UserPaint]
@@ -174,7 +208,6 @@ void ScriptingEditor::resized()
     codeEditor->setBounds ((getWidth() / 2) - ((getWidth() - 90) / 2), 104, getWidth() - 90, getHeight() - 140);
     compileButton->setBounds (((getWidth() / 2) - ((getWidth() - 90) / 2)) + (getWidth() - 90) - 95, getHeight() - 24, 95, 24);
     messageBox->setBounds (((getWidth() / 2) - ((getWidth() - 90) / 2)) + 0, getHeight() - 24, getWidth() - 296, 24);
-    timeLabel->setBounds (getWidth() - 136 - 104, getHeight() - -1 - 24, 104, 24);
     
 	int buttonWidth = (getWidth()-20) / (callbackButtons.size() + 1);
 	int buttonX = 10;
@@ -193,7 +226,9 @@ void ScriptingEditor::resized()
 	int xOff = isRootEditor() ? 0 : 1;
 	int w = getWidth() - 2*xOff;
 
-	scriptContent->setVisible(getProcessor()->getEditorState(ProcessorWithScriptingContent::contentShown));
+	int editorOffset = dynamic_cast<const ProcessorWithScriptingContent*>(getProcessor())->getCallbackEditorStateOffset();
+
+	scriptContent->setVisible(getProcessor()->getEditorState(editorOffset + ProcessorWithScriptingContent::contentShown));
 
 	const int contentHeight = scriptContent->isVisible() ? scriptContent->getContentHeight() : 0;
 
@@ -213,7 +248,7 @@ void ScriptingEditor::resized()
 		codeEditor->setTopLeftPosition(0, getHeight());
 		compileButton->setTopLeftPosition(0, getHeight());
 		messageBox->setTopLeftPosition(0, getHeight());
-		timeLabel->setTopLeftPosition(0, getHeight());
+		
 	}
 	else
 	{
@@ -221,7 +256,7 @@ void ScriptingEditor::resized()
 
 		y += codeEditor->getHeight();
 
-		messageBox->setTopLeftPosition(1, y);
+		messageBox->setBounds(1, y, getWidth() - compileButton->getWidth() - 4, 24);
 
 		compileButton->setTopLeftPosition(codeEditor->getRight() - compileButton->getWidth(), y);
 	}
@@ -232,7 +267,7 @@ void ScriptingEditor::buttonClicked (Button* buttonThatWasClicked)
     
 	JavascriptProcessor *s = dynamic_cast<JavascriptProcessor*>(getProcessor());
 
-    
+	int editorOffset = dynamic_cast<const ProcessorWithScriptingContent*>(getProcessor())->getCallbackEditorStateOffset();
 
 	int callbackIndex = callbackButtons.indexOf(dynamic_cast<TextButton*>(buttonThatWasClicked));
 
@@ -254,7 +289,9 @@ void ScriptingEditor::buttonClicked (Button* buttonThatWasClicked)
 	}
     else if (buttonThatWasClicked == contentButton)
     {
-		getProcessor()->setEditorState(ProcessorWithScriptingContent::EditorStates::contentShown, !toggleButton(contentButton));
+		
+
+		getProcessor()->setEditorState(editorOffset + ProcessorWithScriptingContent::EditorStates::contentShown, !toggleButton(contentButton));
 		refreshBodySize();
 		return;
     }
@@ -266,7 +303,7 @@ void ScriptingEditor::buttonClicked (Button* buttonThatWasClicked)
 		for (int i = 0; i < callbackButtons.size(); i++)
 		{
 			callbackButtons[i]->setToggleState(false, dontSendNotification);
-			getProcessor()->setEditorState((int)ProcessorWithScriptingContent::EditorStates::onInitShown + i, false);
+			getProcessor()->setEditorState(editorOffset + (int)ProcessorWithScriptingContent::EditorStates::onInitShown + i, false);
 		}
 	}
 	else
@@ -277,7 +314,7 @@ void ScriptingEditor::buttonClicked (Button* buttonThatWasClicked)
 		{
 			const bool isShown = buttonThatWasClicked == callbackButtons[i];
 			callbackButtons[i]->setToggleState(isShown, dontSendNotification);
-			getProcessor()->setEditorState((int)ProcessorWithScriptingContent::EditorStates::onInitShown + i, isShown);
+			getProcessor()->setEditorState(editorOffset + (int)ProcessorWithScriptingContent::EditorStates::onInitShown + i, isShown);
 		}
 
 		buttonThatWasClicked->setToggleState(true, dontSendNotification);
@@ -326,7 +363,7 @@ void ScriptingEditor::setEditedScriptComponent(ReferenceCountedObject* component
 		callbackButtons[0]->setToggleState(false, dontSendNotification);
 		buttonClicked(callbackButtons[0]);
 
-		codeEditor->editor->selectText(sc->getName());
+		codeEditor->editor->selectJSONTag(sc->getName());
 	}
 }
 
@@ -338,13 +375,13 @@ void ScriptingEditor::scriptComponentChanged(ReferenceCountedObject* scriptCompo
 
 	if (sc != nullptr)
 	{
-		if (!codeEditor->editor->selectText(sc->getName()))
+		if (!codeEditor->editor->selectJSONTag(sc->getName()))
 		{
 			codeEditor->editor->selectLineAfterDefinition(sc->getName());
 		}
 		codeEditor->editor->insertTextAtCaret(CodeDragger::getText(sc));
 
-		codeEditor->editor->selectText(sc->getName());
+		codeEditor->editor->selectJSONTag(sc->getName());
 	}
 }
 
@@ -706,6 +743,28 @@ void ScriptingEditor::mouseDown(const MouseEvent &e)
 }
 }
 
+void ScriptingEditor::mouseDoubleClick(const MouseEvent& e)
+{
+	if (e.eventComponent == messageBox)
+	{
+		const String fileName = ApiHelpers::getFileNameFromErrorMessage(messageBox->getText());
+
+		if (fileName.isNotEmpty())
+		{
+			JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(getProcessor());
+
+			for (int i = 0; i < sp->getNumWatchedFiles(); i++)
+			{
+				if (sp->getWatchedFile(i).getFileName() == fileName)
+				{
+					sp->showPopupForFile(i);
+				}
+			}
+
+		}
+	}
+}
+
 bool ScriptingEditor::keyPressed(const KeyPress &k)
 {
 #if JUCE_WINDOWS
@@ -803,7 +862,30 @@ void ScriptingEditor::compileScript()
 	if(resultMessage.r.wasOk()) messageBox->setText("Compiled OK", false);
 	else
 	{
-		messageBox->setText(jsp->getSnippet(resultMessage.c)->getCallbackName().toString() + "() - " + resultMessage.r.getErrorMessage(), false);
+		const String errorMessage = resultMessage.r.getErrorMessage();
+
+		if (errorMessage.startsWith("Line"))
+		{
+			messageBox->setText(jsp->getSnippet(resultMessage.c)->getCallbackName().toString() + "() - " + errorMessage, false);
+		}
+		else
+		{
+			messageBox->setText(errorMessage, false);
+		}
+
+		TextButton* b = callbackButtons[resultMessage.c];
+		
+		if (b != nullptr && !b->getToggleState())
+			buttonClicked(b);
+
+		StringArray errorPosition = RegexFunctions::getMatches(".*Line ([0-9]*), column ([0-9]*)", errorMessage);
+
+		int l = errorPosition[1].getIntValue();
+		int c = errorPosition[2].getIntValue();
+
+		CodeDocument::Position pos = CodeDocument::Position(codeEditor->editor->getDocument(), l-1, c-1);
+
+		codeEditor->editor->moveCaretTo(pos, false);
 	}
 
     PresetHandler::setChanged(getProcessor());

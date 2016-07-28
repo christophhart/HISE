@@ -41,90 +41,6 @@ apiTree(ValueTree(ValueTree::readFromData(XmlApi::apivaluetree_dat, XmlApi::apiv
 }
 
 
-String ApiHelpers::createCodeToInsert(const ValueTree &method, const String &className)
-{
-	const String name = method.getProperty(Identifier("name")).toString();
-
-	if (name == "setMouseCallback")
-	{
-		const String argumentName = "event";
-		String functionDef = className;
-		functionDef << "." << name + "(function(" << argumentName << ")\n";
-		functionDef << "{\n\t\n});\n";
-
-		return functionDef;
-	}
-	else if (name == "setTimerCallback")
-	{
-		const String argumentName = "";
-		String functionDef = className;
-		functionDef << "." << name + "(function(" << argumentName << ")\n";
-		functionDef << "{\n\t\n});\n";
-
-		return functionDef;
-	}
-	else if (name == "setPaintRoutine")
-	{
-		const String argumentName = "g";
-		String functionDef = className;
-		functionDef << "." << name + "(function(" << argumentName << ")\n";
-		functionDef << "{\n\t\n});\n";
-		
-		return functionDef;
-	}
-	else
-	{
-		const String arguments = method.getProperty(Identifier("arguments")).toString();
-
-		return String(className + "." + name + arguments);
-	}
-}
-
-
-AttributedString ApiHelpers::createAttributedStringFromApi(const ValueTree &method, const String &/*className*/, bool multiLine, Colour textColour)
-{
-	AttributedString help;
-
-	const String name = method.getProperty(Identifier("name")).toString();
-	const String arguments = method.getProperty(Identifier("arguments")).toString();
-	const String description = method.getProperty(Identifier("description")).toString();
-	const String returnType = method.getProperty("returnType", "void");
-
-	
-	help.setWordWrap(AttributedString::byWord);
-	
-
-	if (multiLine)
-	{
-		help.setJustification(Justification::topLeft);
-		help.setLineSpacing(1.5f);
-		help.append("Name:\n  ", GLOBAL_BOLD_FONT(), textColour);
-		help.append(name, GLOBAL_MONOSPACE_FONT(), textColour.withAlpha(0.8f));
-		help.append(arguments + "\n\n", GLOBAL_MONOSPACE_FONT(), textColour.withAlpha(0.6f));
-		help.append("Description:\n  ", GLOBAL_BOLD_FONT(), textColour);
-		help.append(description + "\n\n", GLOBAL_FONT(), textColour.withAlpha(0.8f));
-
-		help.append("Return Type:\n  ", GLOBAL_BOLD_FONT(), textColour);
-		help.append(method.getProperty("returnType", "void"), GLOBAL_MONOSPACE_FONT(), textColour.withAlpha(0.8f));
-	}
-
-	else
-	{
-		help.setJustification(Justification::centredLeft);
-		help.append(description, GLOBAL_BOLD_FONT(), textColour.withAlpha(0.8f));
-		
-		const String returnType = method.getProperty("returnType", "");
-
-		if (returnType.isNotEmpty())
-		{
-			help.append("\nReturn Type: ", GLOBAL_BOLD_FONT(), textColour);
-			help.append(returnType, GLOBAL_MONOSPACE_FONT(), textColour.withAlpha(0.8f));
-		}
-	}
-
-	return help;
-}
-
 
 ApiCollection::MethodItem::MethodItem(const ValueTree &methodTree_, const String &className_) :
 Item(String(className_ + "." + methodTree_.getProperty(Identifier("name")).toString()).toLowerCase()),
@@ -187,8 +103,6 @@ void ApiCollection::MethodItem::paint(Graphics& g)
 
 }
 
-bool JavascriptCodeEditor::AutoCompletePopup::apiRowsInitialised = false;
-JavascriptCodeEditor::AutoCompletePopup::ApiRows JavascriptCodeEditor::AutoCompletePopup::apiRows(false);
 
 ApiCollection::ClassCollection::ClassCollection(const ValueTree &api) :
 classApi(api),

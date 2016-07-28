@@ -518,25 +518,16 @@ void ScriptContentContainer::scriptWasCompiled(JavascriptProcessor *)
 
 void ScriptContentContainer::checkInterfaces()
 {
-	Processor::Iterator<JavascriptMidiProcessor> iter(chain, true);
+	Processor::Iterator<JavascriptMidiProcessor> iter(chain->getChildProcessor(ModulatorSynth::InternalChains::MidiProcessor));
 
-	JavascriptMidiProcessor *sp;
-
-	while((sp = iter.getNextProcessor()) != nullptr)
+	while(auto jmp = iter.getNextProcessor())
 	{
-		if(iter.getHierarchyForCurrentProcessor() > 2) break; // only check child processors of the immediate MidiProcessorChain
-
-		// Only check Processors which are set as interface using Content.addToFront()
-		if(!sp->isFront()) continue; 
-
-		if(processorHasContent(sp)) continue;
-
-		interfaces.add(new InterfaceScriptAndButton(sp, this));
-
-
-		addAndMakeVisible(interfaces.getLast()->content);
-    }
-    
+		if (jmp->isFront() && !processorHasContent(jmp))
+		{
+			interfaces.add(new InterfaceScriptAndButton(jmp, this));
+			addAndMakeVisible(interfaces.getLast()->content);
+		}
+	}
     
 	// Check for dangling ScriptProcessors
 	for(int i = 0; i < interfaces.size(); i++)

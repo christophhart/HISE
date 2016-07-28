@@ -129,7 +129,7 @@ void ScriptWatchTable::refreshStrippedSet()
 };
 
 
-void ScriptWatchTable::mouseDoubleClick(const MouseEvent &/*e*/)
+void ScriptWatchTable::mouseDoubleClick(const MouseEvent &e)
 {
 	if (processor.get() != nullptr  && editor.getComponent() != nullptr)
 	{
@@ -146,7 +146,7 @@ void ScriptWatchTable::mouseDoubleClick(const MouseEvent &/*e*/)
 
 				if (db != nullptr)
 				{
-					db->doubleClickCallback(editor.getComponent());
+					db->doubleClickCallback(e, editor.getComponent());
 				}
 			}
 		}

@@ -43,6 +43,10 @@ public:
 
 	static void getColourAndCharForType(int type, char &c, Colour &colour);
 
+	static String getValueType(const var &v);
+
+	static String getFileNameFromErrorMessage(const String &errorMessage);
+
 	struct Api
 	{
 		Api();
@@ -53,28 +57,20 @@ public:
 	};
 };
 
-
-
 class JavascriptCodeEditor;
 
 class PopupIncludeEditor : public Component,
 						   public Timer
 {
 public:
-	
-	void timerCallback()
-	{
-		resultLabel->setColour(Label::backgroundColourId, lastCompileOk ? Colours::green.withBrightness(0.1f) : Colours::red.withBrightness((0.1f)));
-		stopTimer();
-	}
 
+	// ================================================================================================================
 
 	PopupIncludeEditor(JavascriptProcessor *s, const File &fileToEdit);
-
 	~PopupIncludeEditor();
 
+	void timerCallback();
 	bool keyPressed(const KeyPress& key) override;
-
 	void resized() override;;
 
 private:
@@ -91,80 +87,33 @@ private:
 	File file;
 
 	bool lastCompileOk;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PopupIncludeEditor);
+
+	// ================================================================================================================
 };
 
 class PopupIncludeEditorWindow: public DocumentWindow
 {
 public:
 
-	PopupIncludeEditorWindow(File f, JavascriptProcessor *s) :
-		DocumentWindow("Editing external file: " + f.getFullPathName(), Colours::black, DocumentWindow::allButtons, true),
-        file(f)
-	{
-        editor = new PopupIncludeEditor(s, f);
-        
-		setContentNonOwned(editor, true);
+	// ================================================================================================================
 
-		setUsingNativeTitleBar(true);
-
-
-		centreWithSize(800, 800);
-
-		setResizable(true, true);
-
-		setVisible(true);
-	};
+	PopupIncludeEditorWindow(File f, JavascriptProcessor *s);
     
     File getFile() const {return file;};
- 
-	void paint(Graphics &g) override
-	{
-		if (editor != nullptr)
-		{
-			g.setColour(Colour(0xFF262626));
-			g.fillAll();
-		}
-		
-	}
-    
-	bool keyPressed(const KeyPress& key)
-	{
-		if (key.isKeyCode(KeyPress::F11Key))
-		{
-			if (Desktop::getInstance().getKioskModeComponent() == this)
-			{
-				Desktop::getInstance().setKioskModeComponent(nullptr, false);
-			}
-			else
-			{
-                Desktop::getInstance().setKioskModeComponent(nullptr, false);
-				Desktop::getInstance().setKioskModeComponent(this, false);
-			}
-
-			return true;
-		}
-
-		return false;
-    };
-    
-	void closeButtonPressed() override
-	{
-        if(Desktop::getInstance().getKioskModeComponent() == this)
-        {
-            Desktop::getInstance().setKioskModeComponent(nullptr, false);
-        }
-        
-       delete this;
-	};
-
-
+	void paint(Graphics &g) override;
+	bool keyPressed(const KeyPress& key);;
+	void closeButtonPressed() override;;
 
 private:
 
     ScopedPointer<PopupIncludeEditor> editor;
-    
     const File file;
 
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PopupIncludeEditorWindow);
+
+	// ================================================================================================================
 };
 
 
@@ -183,6 +132,8 @@ class JavascriptCodeEditor: public CodeEditorComponent,
 {
 public:
 
+	// ================================================================================================================
+
 	enum DragState
 	{
 		Virgin = 0,
@@ -190,156 +141,54 @@ public:
 		NoJSONFound
 	};
 
-	JavascriptCodeEditor(CodeDocument &document, CodeTokeniser *codeTokeniser, JavascriptProcessor *p):
-		CodeEditorComponent (document, codeTokeniser),
-		scriptProcessor(p),
-		processor(dynamic_cast<Processor*>(p))
-	{
-		
-		setColour(CodeEditorComponent::backgroundColourId, Colour(0xff262626));
-		setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colour(0xFFCCCCCC));
-		setColour(CodeEditorComponent::ColourIds::lineNumberTextId, Colour(0xFFCCCCCC));
-		setColour(CodeEditorComponent::ColourIds::lineNumberBackgroundId, Colour(0xff363636));
-		setColour(CodeEditorComponent::ColourIds::highlightColourId, Colour(0xff666666));
-		setColour(CaretComponent::ColourIds::caretColourId, Colour(0xFFDDDDDD));
-		setColour(ScrollBar::ColourIds::thumbColourId, Colour(0x3dffffff));
-        
-        setFont(GLOBAL_MONOSPACE_FONT().withHeight(processor->getMainController()->getGlobalCodeFontSize()));
-        
-        processor->getMainController()->getFontSizeChangeBroadcaster().addChangeListener(this);
+	JavascriptCodeEditor(CodeDocument &document, CodeTokeniser *codeTokeniser, JavascriptProcessor *p);;
+	virtual ~JavascriptCodeEditor();
 
-        
-	};
+	// ================================================================================================================
 
-	virtual ~JavascriptCodeEditor()
-	{
-		currentPopup = nullptr;
+    void changeListenerCallback(SafeChangeBroadcaster *) override;
+	void timerCallback() override;
 
-        processor->getMainController()->getFontSizeChangeBroadcaster().removeChangeListener(this);
-        
-		scriptProcessor = nullptr;
-		processor = nullptr;
-		
-
-		currentModalWindow.deleteAndZero();
-
-		stopTimer();
-	};
-
-    void changeListenerCallback(SafeChangeBroadcaster *) override
-    {
-        float newFontSize = processor->getMainController()->getGlobalCodeFontSize();
-        
-        Font newFont = GLOBAL_MONOSPACE_FONT().withHeight(newFontSize);
-        
-        setFont(newFont);
-        
-    }
-    
     void focusGained(FocusChangeType ) override;
-    
-	virtual String getObjectTypeName() override
-	{
-		return "Script Editor";
-	}
-
-	virtual void copyAction()
-	{
-		SystemClipboard::copyTextToClipboard(getTextInRange(getHighlightedRegion()));
-	};
-
-	virtual void pasteAction()
-	{
-		getDocument().replaceSection(getSelectionStart().getPosition(), getSelectionEnd().getPosition(), SystemClipboard::getTextFromClipboard());
-	};
-
-	bool isInterestedInDragSource (const SourceDetails &dragSourceDetails) override
-	{
-		return dragSourceDetails.description.isArray() && dragSourceDetails.description.size() == 2;
-	}
-
-	void itemDropped (const SourceDetails &dragSourceDetails) override
-	{
-		String toInsert = dragSourceDetails.description[2];
-
-		insertTextAtCaret(toInsert);
-	}
-
-	void itemDragEnter(const SourceDetails &dragSourceDetails) override
-	{
-		const Identifier identifier = Identifier(dragSourceDetails.description[1].toString());
-		//const String text = dragSourceDetails.description[2];
-
-		positionFound = selectText(identifier) ? JSONFound : NoJSONFound;
-
-		repaint();
-	};
-
-	void selectLineAfterDefinition(Identifier identifier);
-
-	/** selects the text between the start and the end tag and returns true if it was found or false if not. */
-	bool selectText(const Identifier &identifier);
-
-	void itemDragMove (const SourceDetails &dragSourceDetails)
-	{
-		if(positionFound == NoJSONFound)
-		{
-			Point<int> pos = dragSourceDetails.localPosition;
-			moveCaretTo(getPositionAt(pos.x, pos.y), false);
-			
-			const int currentCharPosition = getCaretPos().getPosition();
-			setHighlightedRegion(Range<int>(currentCharPosition, currentCharPosition));
-
-			repaint();
-		}
-		if(positionFound == JSONFound) return;
-	}
-
 	void focusLost(FocusChangeType t) override;
+    
+	virtual String getObjectTypeName() override;
+	virtual void copyAction();
+	virtual void pasteAction();;
 
-	void timerCallback() override
-	{
-		if (!getCurrentTokenRange().isEmpty() && 
-			(getSelectionStart() != getSelectionEnd()) &&
-			currentPopup == nullptr)
-		{
-			showAutoCompleteNew();
-		}
+	bool isInterestedInDragSource (const SourceDetails &dragSourceDetails) override;
+	void itemDropped (const SourceDetails &dragSourceDetails) override;
+	void itemDragEnter(const SourceDetails &dragSourceDetails) override;;
+	void itemDragMove(const SourceDetails &dragSourceDetails);
 
-		stopTimer();
-	}
-
+	
 
     void addPopupMenuItems(PopupMenu &m, const MouseEvent *e) override;
-
     void performPopupMenuAction(int menuId) override;
 
-	static String getValueType(const var &v)
-	{
-		const bool isObject = v.isObject();
-		const bool isCreatableScriptObject = dynamic_cast<DynamicScriptingObject*>(v.getDynamicObject()) != nullptr;
 
-		if(v.isBool()) return "bool";
-		else if(v.isInt() || v.isInt64()) return "int";
-		else if (v.isDouble()) return "double";
-		else if (v.isString()) return "String";
-		else if (v.isArray()) return "Array";
-        else if (v.isMethod()) return "Function";
-		else if (isObject && isCreatableScriptObject)
-		{
-			DynamicScriptingObject * obj = dynamic_cast<DynamicScriptingObject*>(v.getDynamicObject());
+	void showAutoCompleteNew();
+	void closeAutoCompleteNew(const String returnString);
 
-			if(obj != nullptr) return obj->getObjectName().toString();
-			else return String::empty;
-		}
-		else return String::empty;
-	}
+	void selectLineAfterDefinition(Identifier identifier);
+	bool selectJSONTag(const Identifier &identifier);
+
+	void paintOverChildren(Graphics& g);
+
+	bool keyPressed(const KeyPress& k) override;
+	void handleReturnKey() override;;
+	void handleEscapeKey() override;
+	void insertTextAtCaret(const String& newText) override;
+
+	// ================================================================================================================
 
 	class AutoCompletePopup : public ListBoxModel,
 							  public Component
 	{
 
 	public:
+
+		// ================================================================================================================
 
 		class AllToTheEditorTraverser : public KeyboardFocusTraverser
 		{
@@ -353,103 +202,43 @@ public:
 			JavascriptCodeEditor *editor;
 		};
 
+		// ================================================================================================================
+
 		AutoCompletePopup(int fontHeight_, JavascriptCodeEditor* editor_, Range<int> tokenRange_, const String &tokenText);
+		~AutoCompletePopup();
 
 		void createVariableRows();
 		void createApiRows(const ValueTree &apiTree);
 		void createObjectPropertyRows(const ValueTree &apiTree, const String &tokenText);
 
 		void addCustomEntries(const Identifier &objectId, const ValueTree &apiTree);
-
 		void addApiConstants(const ApiClass* apiClass, const Identifier &objectId);
-
 		void addApiMethods(const ValueTree &classTree, const Identifier &objectId);
 
-		~AutoCompletePopup()
-		{
-			infoBox = nullptr;
-			listbox = nullptr;
+		KeyboardFocusTraverser* createFocusTraverser() override;
 
-			allInfo.clear();
-		}
-
-		KeyboardFocusTraverser* createFocusTraverser() override
-		{
-			return new AllToTheEditorTraverser(editor);
-		}
-
-
-		int getNumRows() override
-		{
-			return visibleInfo.size();
-		}
-
-		void paint(Graphics& g) override
-		{
-			g.setColour(Colour(0xFFBBBBBB));
-			g.fillRoundedRectangle(0.0f, 0.0f, (float)getWidth(), (float)getHeight(), 3.0f);
-		}
-
+		int getNumRows() override;
 		void paintListBoxItem(int rowNumber, Graphics &g, int width, int height, bool rowIsSelected) override;
-		
-		virtual void listBoxItemClicked(int row, const MouseEvent &)
-		{
-			selectRowInfo(row);
-		}
-			
-		virtual void listBoxItemDoubleClicked(int row, const MouseEvent &)
-		{
-			editor->closeAutoCompleteNew(visibleInfo[row]->name);
-		}
+		void listBoxItemClicked(int row, const MouseEvent &) override;
+		void listBoxItemDoubleClicked(int row, const MouseEvent &) override;
 
 		bool handleEditorKeyPress(const KeyPress& k);
 
-		
+		void paint(Graphics& g) override;
+		void resized();
 
-		void resized()
-		{
-			infoBox->setBounds(3, 3, getWidth()-6, 3*fontHeight-6);
-			listbox->setBounds(3, 3*fontHeight+3, getWidth()-6, getHeight()-3*fontHeight-6);
-		}
-
-		void selectRowInfo(int rowIndex)
-		{
-			listbox->repaintRow(currentlySelectedBox);
-
-			currentlySelectedBox = rowIndex;
-
-			listbox->selectRow(currentlySelectedBox);
-			listbox->repaintRow(currentlySelectedBox);
-			infoBox->setInfo(visibleInfo[currentlySelectedBox]);
-		}
-
-		void rebuildVisibleItems(const String &selection)
-		{
-			visibleInfo.clear();
-
-			int maxNameLength = 0;
-
-			for (int i = 0; i < allInfo.size(); i++)
-			{
-				if (allInfo[i]->matchesSelection(selection))
-				{
-					maxNameLength = jmax<int>(maxNameLength, allInfo[i]->name.length());
-					visibleInfo.add(allInfo[i]);
-				}
-			}
-
-			listbox->updateContent();
-
-			const float maxWidth = 450.0f;
-			const int height = jmin<int>(200, fontHeight * 3 + (visibleInfo.size()) * (fontHeight + 4));
-			setSize((int)maxWidth + 6, height + 6); 
-		}
+		void selectRowInfo(int rowIndex);
+		void rebuildVisibleItems(const String &selection);
 
 		bool escapeKeyHandled = false;
+
+		// ================================================================================================================
 
 	private:
 
 		SharedResourcePointer<ApiHelpers::Api> api;
+
+		// ================================================================================================================
 
 		struct RowInfo
 		{
@@ -465,48 +254,18 @@ public:
 				return name.containsIgnoreCase(selection);
 			}
 
-
 			AttributedString description;
-			String codeToInsert;
-			String name;
+			String codeToInsert, name, typeName, value;
 			int type;
-			String typeName;
-			String value;
 		};
 
-		struct ApiRows
-		{
-		public:
-
-			ApiRows(bool init=false)
-			{
-				if (init)
-				{
-					
-				}	
-			}
-
-			Array<String> a;
-		};
-
-		void initApiRows()
-		{
-			if (!apiRowsInitialised)
-			{
-				apiRows = ApiRows(true);
-				apiRowsInitialised = true;
-			}
-		}
-
-		static ApiRows apiRows;
-		static bool apiRowsInitialised;
+		// ================================================================================================================
 
 		class InfoBox : public Component
 		{
 		public:
 
 			void setInfo(RowInfo *newInfo);
-
 			void paint(Graphics &g);
 
 		private:
@@ -515,240 +274,44 @@ public:
 			RowInfo *currentInfo = nullptr;
 		};
 
+		// ================================================================================================================
+
 		OwnedArray<RowInfo> allInfo;
 		Array<RowInfo*> visibleInfo;
-
 		StringArray names;
-
 		int fontHeight;
-		
 		int currentlySelectedBox = -1;
-
 		ScopedPointer<InfoBox> infoBox;
 		ScopedPointer<ListBox> listbox;
 		JavascriptProcessor *sp;
-		
 		Range<int> tokenRange;
-
 		JavascriptCodeEditor *editor;
 
-	};
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AutoCompletePopup);
 
-	void showAutoCompleteNew();
-
-	Range<int> getCurrentTokenRange() const
-	{
-		CodeDocument::Position tokenStart = getCaretPos();
-		CodeDocument::Position tokenEnd(tokenStart);
-		getDocument().findTokenContaining(tokenStart, tokenStart, tokenEnd);
-
-		return Range<int>(tokenStart.getPosition(), tokenEnd.getPosition());
-	}
-
-	void closeAutoCompleteNew(const String returnString);
-
-	void selectFunctionParameters();
-
-	void handleEscapeKey() override;
-
-	void showAutoCompletePopup();
-
-	void addSynthParameterAutoCompleteOptions();
-
-	void addApiAutoCompleteOptions(XmlElement *api);
-
-	void paintOverChildren(Graphics& g)
-	{
-		CopyPasteTarget::paintOutlineIfSelected(g);
-	}
-
-	void addGlobalsAutoCompleteOptions();
-
-	void addDefaultAutocompleteOptions(const String &enteredText);
-
-	char getCharacterAtCaret(bool beforeCaret=false) const
-	{
-		CodeDocument::Position caretPos = getCaretPos();
-
-		if (beforeCaret)
-		{
-			if(getCaretPos().getPosition() == 0) return 0;
-
-			return (char)(getDocument().getTextBetween(caretPos.movedBy(-1), caretPos).getCharPointer()[0]);
-		}
-		else
-		{
-			if (getCaretPos().getPosition() == getDocument().getNumCharacters()-1) return 0;
-
-			return (char)(getDocument().getTextBetween(caretPos, caretPos.movedBy(1)).getCharPointer()[0]);
-		}
-	}
-
-	bool isNothingSelected() const
-	{
-		return getSelectionStart() == getSelectionEnd();
-	}
-
-	void handleDoubleCharacter(const KeyPress &k, char openCharacter, char closeCharacter)
-	{
-		
-		// Insert 
-		if ((char)k.getTextCharacter() == openCharacter)
-		{
-			char next = getCharacterAtCaret(false);
-
-			if (getDocument().getNewLineCharacters().containsChar(next))
-			{
-				insertTextAtCaret(String(&closeCharacter, 1));
-				moveCaretLeft(false, false);
-			}
-
-			CodeDocument::Iterator it(getDocument());
-
-			char c;
-
-			int numCharacters = 0;
-
-			while (!it.isEOF())
-			{
-				c = (char)it.nextChar();
-
-				if (c == openCharacter || c == closeCharacter)
-				{
-					numCharacters++;
-				}
-
-			}
-
-			if (numCharacters % 2 == 0)
-			{
-				insertTextAtCaret(String(&closeCharacter, 1));
-				moveCaretLeft(false, false);
-			}
-
-		}
-		else if ((char)k.getTextCharacter() == closeCharacter)
-		{ 
-			if (getDocument().getTextBetween(getCaretPos(), getCaretPos().movedBy(1)) == String(&closeCharacter, 1))
-			{
-				moveCaretRight(false, true); 
-				getDocument().deleteSection(getSelectionStart(), getSelectionEnd());
-			}
-		}
-
-		// Delete both characters if the bracket is empty
-		if (k.isKeyCode(KeyPress::backspaceKey) && 
-			isNothingSelected() && 
-			getCharacterAtCaret(true) == openCharacter && 
-			getCharacterAtCaret(false) == closeCharacter)
-		{
-			getDocument().deleteSection(getCaretPos(), getCaretPos().movedBy(1));
-		}
-	}
-
-	bool keyPressed(const KeyPress& k) override;
-
-	void handleReturnKey() override
-	{
-		CodeEditorComponent::handleReturnKey();
-		CodeDocument::Position pos (getCaretPos());
-
-		String blockIndent, lastLineIndent;
-		getIndentForCurrentBlock (pos, getTabString (getTabSize()), blockIndent, lastLineIndent);
-
-		const String remainderOfBrokenLine (pos.getLineText());
-		const int numLeadingWSChars = getLeadingWhitespace (remainderOfBrokenLine).length();
-
-		if (numLeadingWSChars > 0)
-			getDocument().deleteSection (pos, pos.movedBy (numLeadingWSChars));
-
-		if (remainderOfBrokenLine.trimStart().startsWithChar ('}'))
-			insertTextAtCaret (blockIndent);
-		else
-			insertTextAtCaret (lastLineIndent);
-
-		const String previousLine (pos.movedByLines (-1).getLineText());
-		const String trimmedPreviousLine (previousLine.trim());
-
-		if ((trimmedPreviousLine.startsWith ("if ")
-			  || trimmedPreviousLine.startsWith ("if(")
-			  || trimmedPreviousLine.startsWith ("for ")
-			  || trimmedPreviousLine.startsWith ("for(")
-			  || trimmedPreviousLine.startsWith ("while(")
-			  || trimmedPreviousLine.startsWith ("while "))
-			 && trimmedPreviousLine.endsWithChar (')'))
-		{
-			insertTabAtCaret();
-		}
-
-		if (trimmedPreviousLine.endsWith("{"))
-		{
-			int openedBrackets = 0;
-			CodeDocument::Iterator it(getDocument());
-
-			while (!it.isEOF())
-			{
-				juce_wchar c = it.nextChar();
-
-				if (c == '{')		openedBrackets++;
-				else if (c == '}')	openedBrackets--;
-			}
-
-			if (openedBrackets == 1)
-			{
-				CodeDocument::Position prevPos = getCaretPos();
-
-				insertTextAtCaret("\n" + blockIndent + "}");
-				moveCaretTo(prevPos, false);
-			}
-		}
-
-		resized();
-
-		
-	};
-
-	void insertTextAtCaret (const String& newText) override
-	{
-		if (getHighlightedRegion().isEmpty())
-		{
-			const CodeDocument::Position pos (getCaretPos());
-
-			if ((newText == "{" || newText == "}")
-				 && pos.getLineNumber() > 0
-				 && pos.getLineText().trim().isEmpty())
-			{
-				moveCaretToStartOfLine (true);
-
-				String blockIndent, lastLineIndent;
-				if (getIndentForCurrentBlock (pos, getTabString (getTabSize()), blockIndent, lastLineIndent))
-				{
-					insertTextAtCaret (blockIndent);
-
-					if (newText == "{")
-						insertTabAtCaret();
-				}
-			}
-		}
-        
-#if JUCE_MAC
-      
-        if (currentPopup != nullptr)
-        {
-            if(newText.length() == 1)
-            {
-                KeyPress k = KeyPress(newText.getLastCharacter());
-                
-                currentPopup->handleEditorKeyPress(k);
-            }
-        }
-        
-#endif
-
-		CodeEditorComponent::insertTextAtCaret (newText);
+		// ================================================================================================================
 	};
 
 private:
+
+	// ================================================================================================================
+
+	
+	Range<int> getCurrentTokenRange() const;
+	bool isNothingSelected() const;
+	void handleDoubleCharacter(const KeyPress &k, char openCharacter, char closeCharacter);
+
+	struct Helpers
+	{
+		static String getLeadingWhitespace(String line);
+		static int getBraceCount(String::CharPointerType line);
+		static bool getIndentForCurrentBlock(CodeDocument::Position pos, const String& tab,
+											 String& blockIndent, String& lastLineIndent);
+
+		static char getCharacterAtCaret(CodeDocument::Position pos, bool beforeCaret = false);
+		
+		static Range<int> getFunctionParameterTextRange(CodeDocument::Position pos);
+	};
 
 	Component::SafePointer<Component> currentModalWindow;
 
@@ -764,65 +327,8 @@ private:
 
 	DragState positionFound;
     
-	String getLeadingWhitespace (String line)
-    {
-        line = line.removeCharacters ("\r\n");
-        const String::CharPointerType endOfLeadingWS (line.getCharPointer().findEndOfWhitespace());
-        return String (line.getCharPointer(), endOfLeadingWS);
-    }
-
-	int getBraceCount (String::CharPointerType line)
-    {
-        int braces = 0;
-
-        for (;;)
-        {
-            const juce_wchar c = line.getAndAdvance();
-
-            if (c == 0)                         break;
-            else if (c == '{')                  ++braces;
-            else if (c == '}')                  --braces;
-            else if (c == '/')                  { if (*line == '/') break; }
-            else if (c == '"' || c == '\'')     { while (! (line.isEmpty() || line.getAndAdvance() == c)) {} }
-        }
-
-        return braces;
-    }
-
-	bool getIndentForCurrentBlock (CodeDocument::Position pos, const String& tab,
-                                   String& blockIndent, String& lastLineIndent)
-    {
-        int braceCount = 0;
-        bool indentFound = false;
-
-        while (pos.getLineNumber() > 0)
-        {
-            pos = pos.movedByLines (-1);
-
-            const String line (pos.getLineText());
-            const String trimmedLine (line.trimStart());
-
-            braceCount += getBraceCount (trimmedLine.getCharPointer());
-
-            if (braceCount > 0)
-            {
-                blockIndent = getLeadingWhitespace (line);
-                if (! indentFound)
-                    lastLineIndent = blockIndent + tab;
-
-                return true;
-            }
-
-            if ((! indentFound) && trimmedLine.isNotEmpty())
-            {
-                indentFound = true;
-                lastLineIndent = getLeadingWhitespace (line);
-            }
-        }
-
-        return false;
-    }
-	void addSamplerSoundPropertyList();
+	
+	
 };
 
 
@@ -831,67 +337,22 @@ class CodeEditorWrapper: public Component,
 {
 public:
 
-	CodeEditorWrapper(CodeDocument &document, CodeTokeniser *codeTokeniser, JavascriptProcessor *p)
-	{
-		addAndMakeVisible(editor = new JavascriptCodeEditor(document, codeTokeniser, p));
+	// ================================================================================================================
 
-		
-
-		restrainer.setMinimumHeight(50);
-		restrainer.setMaximumHeight(600);
-
-		addAndMakeVisible(dragger = new ResizableEdgeComponent(this, &restrainer, ResizableEdgeComponent::Edge::bottomEdge));
-
-		dragger->addMouseListener(this, true);
-
-		setSize(200, 340);
-
-		
-		currentHeight = getHeight();
-	}
-
-	virtual ~CodeEditorWrapper()
-	{
-		editor = nullptr;
-	}
+	CodeEditorWrapper(CodeDocument &document, CodeTokeniser *codeTokeniser, JavascriptProcessor *p);
+	virtual ~CodeEditorWrapper();
 
 	ScopedPointer<JavascriptCodeEditor> editor;
 
-	void resized() override
-	{
-		editor->setBounds(getLocalBounds());
+	void resized() override;;
+	void timerCallback();
 
-		dragger->setBounds(0, getHeight() - 5, getWidth(), 5);
-	};
-
-	void timerCallback()
-	{
-#if USE_BACKEND
-		ProcessorEditorBody *body = dynamic_cast<ProcessorEditorBody*>(getParentComponent());
-
-		resized();
-
-		if(body != nullptr)
-		{
-			currentHeight = getHeight();
-
-			body->refreshBodySize();
-		}
-#endif
-
-	}
-
-	void mouseDown(const MouseEvent &m) override
-	{
-		if(m.eventComponent == dragger) startTimer(30);
-	};
-
-	void mouseUp(const MouseEvent &) override
-	{
-		stopTimer();
-	};
+	void mouseDown(const MouseEvent &m) override;;
+	void mouseUp(const MouseEvent &) override;;
 
 	int currentHeight;
+
+	// ================================================================================================================
 
 private:
 
@@ -901,7 +362,9 @@ private:
 
 	LookAndFeel_V2 laf2;
 	
+	// ================================================================================================================
 
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CodeEditorWrapper);
 };
 
 
