@@ -169,7 +169,7 @@ void SimpleEnvelope::startVoice(int voiceIndex)
 
 	
 	state->current_state = SimpleEnvelopeState::ATTACK;
-	debugMod(" (Voice " + String(voiceIndex) + ": IDLE->ATTACK");
+	
 }
 
 void SimpleEnvelope::stopVoice(int voiceIndex)
@@ -177,7 +177,7 @@ void SimpleEnvelope::stopVoice(int voiceIndex)
 	SimpleEnvelopeState *state = static_cast<SimpleEnvelopeState*>(states[voiceIndex]);
 	//jassert(state->current_state == SimpleEnvelopeState::SUSTAIN || state->current_state == SimpleEnvelopeState::ATTACK);
 
-	debugMod(" (Voice " + String(voiceIndex) + (state->current_state == SimpleEnvelopeState::SUSTAIN ? "SUSTAIN": "ATTACK") + "->RELEASE");
+	
 	state->current_state = SimpleEnvelopeState::RELEASE;
 
 }

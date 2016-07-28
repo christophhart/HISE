@@ -880,8 +880,8 @@ class EnvelopeModulatorFactoryType: public FactoryType
 		simpleEnvelope = 0,
 		ahdsrEnvelope,
 		tableEnvelope,
-		globalEnvelope,
-		ccEnvelope
+		ccEnvelope,
+		scriptEnvelope
 	};
 
 public:

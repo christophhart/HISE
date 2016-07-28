@@ -349,8 +349,8 @@ Processor *EnvelopeModulatorFactoryType::createProcessor(int typeIndex, const St
 	case simpleEnvelope:	return new SimpleEnvelope(m, id, numVoices, mode);
 	case ahdsrEnvelope:		return new AhdsrEnvelope(m, id, numVoices, mode);
 	case tableEnvelope:		return new TableEnvelope(m, id, numVoices, mode);
-	case globalEnvelope:	return new GlobalEnvelopeModulator(m, id, numVoices, mode);
 	case ccEnvelope:		return new CCEnvelope(m, id, numVoices, mode);
+	case scriptEnvelope:	return new JavascriptEnvelopeModulator(m, id, numVoices, mode);
 	default: jassertfalse;	return nullptr;
 
 	}

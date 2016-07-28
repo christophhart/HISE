@@ -468,8 +468,8 @@ void EnvelopeModulatorFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(SimpleEnvelope);
 	ADD_NAME_TO_TYPELIST(AhdsrEnvelope);
 	ADD_NAME_TO_TYPELIST(TableEnvelope);
-	ADD_NAME_TO_TYPELIST(GlobalEnvelopeModulator);
 	ADD_NAME_TO_TYPELIST(CCEnvelope);
+	ADD_NAME_TO_TYPELIST(JavascriptEnvelopeModulator);
 }
 
 

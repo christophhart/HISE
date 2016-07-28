@@ -299,6 +299,113 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(JavascriptTimeVariantModulator)
 };
 
+
+class JavascriptEnvelopeModulator : public JavascriptProcessor,
+								    public ProcessorWithScriptingContent,
+									public EnvelopeModulator
+{
+public:
+
+	SET_PROCESSOR_NAME("ScriptEnvelopeModulator", "Script Envelope Modulator")
+
+	enum Callback
+	{
+		onInit = 0,
+		prepare,
+		renderVoice,
+		onStartVoice,
+		onStopVoice,
+		onNoteOn,
+		onNoteOff,
+		onController,
+		onControl,
+		numCallbacks
+	};
+
+	enum EditorStates
+	{
+		prepareToPlayOpen = ProcessorWithScriptingContent::EditorStates::numEditorStates,
+		renderVoiceOpen,
+		startVoiceOpen,
+		stopVoiceOpen,
+		onNoteOnOpen,
+		onNoteOffOpen,
+		onControllerOpen,
+		onControlOpen,
+		externalPopupShown,
+		numScriptEditorStates
+	};
+
+	JavascriptEnvelopeModulator(MainController *mc, const String &id, int numVoices, Modulation::Mode m);
+	~JavascriptEnvelopeModulator();
+
+	Path getSpecialSymbol() const override;
+
+	float getAttribute(int index) const override { return getControlValue(index); }
+	void setInternalAttribute(int index, float newValue) override { setControlValue(index, newValue); }
+
+	ValueTree exportAsValueTree() const override { ValueTree v = EnvelopeModulator::exportAsValueTree(); saveContent(v); saveScript(v); return v; }
+	void restoreFromValueTree(const ValueTree &v) override { EnvelopeModulator::restoreFromValueTree(v); restoreScript(v); restoreContent(v); }
+
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
+
+	void handleMidiEvent(const MidiMessage &m) override;
+	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
+	void calculateBlock(int startSample, int numSamples) override;;
+
+	void startVoice(int voiceIndex) override;
+	void stopVoice(int voiceIndex) override;
+	void reset(int voiceIndex) override;
+	bool isPlaying(int voiceIndex) const override;
+
+	Processor *getChildProcessor(int /*processorIndex*/) override final { return nullptr; };
+	const Processor *getChildProcessor(int /*processorIndex*/) const override final { return nullptr; };
+	int getNumChildProcessors() const override final { return 0; };
+
+	SnippetDocument *getSnippet(int c) override;
+	const SnippetDocument *getSnippet(int c) const override;
+	int getNumSnippets() const override { return Callback::numCallbacks; }
+	void registerApiClasses() override;
+
+	int getControlCallbackIndex() const override { return (int)Callback::onControl; };
+
+	void postCompileCallback() override;
+
+private:
+
+	struct ScriptEnvelopeState : public EnvelopeModulator::ModulatorState
+	{
+		ScriptEnvelopeState(int voiceIndex_) :
+			EnvelopeModulator::ModulatorState(voiceIndex_)
+		{};
+
+		float uptime = 0.0f;
+		bool isPlaying = false;
+		bool isRingingOff = false;
+	};
+
+	ModulatorState *createSubclassedState(int voiceIndex) const override { return new ScriptEnvelopeState(voiceIndex); };
+
+	ReferenceCountedObjectPtr<ScriptingApi::Message> currentMidiMessage;
+	ReferenceCountedObjectPtr<ScriptingApi::Engine> engineObject;
+	ScriptingApi::Synth *synthObject;
+
+	VariantBuffer::Ptr buffer;
+	var bufferVar;
+
+	ScopedPointer<SnippetDocument> onInitCallback;
+	ScopedPointer<SnippetDocument> prepareToPlayCallback;
+	ScopedPointer<SnippetDocument> renderVoiceCallback;
+	ScopedPointer<SnippetDocument> startVoiceCallback;
+	ScopedPointer<SnippetDocument> stopVoiceCallback;
+	ScopedPointer<SnippetDocument> onNoteOnCallback;
+	ScopedPointer<SnippetDocument> onNoteOffCallback;
+	ScopedPointer<SnippetDocument> onControllerCallback;
+	ScopedPointer<SnippetDocument> onControlCallback;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(JavascriptEnvelopeModulator)
+};
+
 class JavascriptModulatorSynth : public JavascriptProcessor,
 								 public ProcessorWithScriptingContent,
 								 public ModulatorSynth
