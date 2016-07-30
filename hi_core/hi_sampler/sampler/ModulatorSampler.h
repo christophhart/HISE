@@ -188,6 +188,8 @@ public:
 	*/
 	void addSamplerSound(const ValueTree &description, int index, bool forceReuse=false);
 
+	void addSamplerSounds(OwnedArray<ModulatorSamplerSound>& monolithicSounds);
+
 	SampleThreadPool *getBackgroundThreadPool();
 	String getMemoryUsage() const;;
 
@@ -218,6 +220,8 @@ public:
 	void loadSampleMap(const File &f);
 	void loadSampleMap(const ValueTree &valueTreeData);;
 	void saveSampleMap() const;
+
+	void saveSampleMapAsMonolith() const;
 
 	/** Disables the automatic cycling and allows custom setting of the used round robin group. */
 	void setUseRoundRobinLogic(bool shouldUseRoundRobinLogic) noexcept { useRoundRobinCycleLogic = shouldUseRoundRobinLogic; };

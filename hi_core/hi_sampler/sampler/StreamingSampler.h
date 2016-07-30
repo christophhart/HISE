@@ -125,8 +125,12 @@ public:
 	*/
 	StreamingSamplerSound(const String &fileNameToLoad, BigInteger midiNotes, int midiNoteForNormalPitch, ModulatorSamplerSoundPool *pool);
 
+	StreamingSamplerSound(HiseMonolithAudioFormat *info, int index);
+
 	/** Creates a new StreamingSamplerSound from a monolithic file. */
 	StreamingSamplerSound(const File &data, const String &fileName, int startInMonolithFile, int length, ModulatorSamplerSoundPool *pool);
+
+	
 
 	~StreamingSamplerSound();
 
@@ -322,6 +326,10 @@ private:
 		// ==============================================================================================================================================
 
 		void setFile(const String &fileName);
+
+		void setMonolithicInfo(HiseMonolithAudioFormat * info, int index);
+
+
 		String getFileName(bool getFullPath);
 		void checkFileReference();
 		int64 getHashCode() { return hashCode; };
@@ -360,12 +368,16 @@ private:
 		void wakeSound();
 
 		float calculatePeakValue();
-
+		
 		// ==============================================================================================================================================
 
 	private:
 
 		ModulatorSamplerSoundPool *pool;
+
+		HiseMonolithAudioFormat* monolithicInfo = nullptr;
+		int monolithicIndex = -1;
+		String monolithicName;
 
 		CriticalSection readLock;
 

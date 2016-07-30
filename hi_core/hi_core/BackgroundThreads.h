@@ -206,6 +206,8 @@ protected:
 	/** Call this method in your constructor after you created all custom methods. */
 	void addBasicComponents(bool addOkButton = true);
 	
+	double progress;
+
 private:
 
 	void handleAsyncUpdate() override;
@@ -239,7 +241,7 @@ private:
 
 	const bool synchronous;
 
-	double progress;
+	
 	bool isQuasiModal;
 	AlertWindowLookAndFeel laf;
 

@@ -254,6 +254,8 @@ public:
 	/** Saves all data with the mode depending on the file extension. */
 	void save();
 
+	void saveAsMonolith();
+
 	/** returns the default sample directory (the sample map directory + '/samples'. */
 	String getSampleDirectory() const
 	{

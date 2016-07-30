@@ -34,6 +34,7 @@
 
 #include "hi_sampler.h"
 
+#include "sampler/MonolithAudioFormat.cpp"
 #include "sampler/StreamingSampler.cpp"
 
 #include "sampler/dywapitchtrack/dywapitchtrack.c"

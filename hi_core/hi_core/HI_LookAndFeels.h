@@ -1029,7 +1029,7 @@ public:
 
 	}
 
-	static void fillPathHiStyle(Graphics &g, Path &p, int width, int height, bool drawBorders=true)
+	static void fillPathHiStyle(Graphics &g, const Path &p, int width, int height, bool drawBorders=true)
 	{
 		
 

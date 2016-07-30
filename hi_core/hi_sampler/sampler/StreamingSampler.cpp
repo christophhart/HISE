@@ -82,6 +82,31 @@ StreamingSamplerSound::StreamingSamplerSound(const File &/*data*/, const String 
 };
 
 
+StreamingSamplerSound::StreamingSamplerSound(HiseMonolithAudioFormat *info, int index):
+	fileReader(this, nullptr),
+	sampleRate(-1.0),
+	purged(false),
+	monolithOffset(0),
+	monolithLength(0),
+	preloadSize(0),
+	internalPreloadSize(0),
+	entireSampleLoaded(false),
+	sampleStart(0),
+	sampleEnd(INT_MAX),
+	sampleLength(INT_MAX),
+	sampleStartMod(0),
+	loopEnabled(false),
+	loopStart(0),
+	loopEnd(INT_MAX),
+	loopLength(0),
+	crossfadeLength(0),
+	crossfadeArea(Range<int>())
+{
+	fileReader.setMonolithicInfo(info, index);
+
+	setPreloadSize(0);
+}
+
 StreamingSamplerSound::~StreamingSamplerSound()
 { 
 	fileReader.closeFileHandles(); 
@@ -525,27 +550,34 @@ StreamingSamplerSound::FileReader::~FileReader()
 	normalReader = nullptr;
 }
 
-void StreamingSamplerSound::FileReader::setFile(const String &f)
+void StreamingSamplerSound::FileReader::setFile(const String &fileName)
 {
-    if(File::isAbsolutePath(f))
-    {
-        loadedFile = File(f);
+	monolithicInfo = nullptr;
+
+	if (File::isAbsolutePath(fileName))
+	{
+		loadedFile = File(fileName);
 
 		const String fileExtension = loadedFile.getFileExtension();
 
 		fileFormatSupportsMemoryReading = fileExtension.compareIgnoreCase(".wav") || fileExtension.startsWithIgnoreCase(".aif");
 
 		hashCode = loadedFile.hashCode64();
-    }
-    else
-    {
-        faultyFileName = f;
-        loadedFile = File::nonexistent;
-    }
+	}
+	else
+	{
+		faultyFileName = fileName;
+		loadedFile = File::nonexistent;
+	}
 }
 
 String StreamingSamplerSound::FileReader::getFileName(bool getFullPath)
 {
+	if (monolithicInfo != nullptr)
+	{
+		return monolithicName;
+	}
+
     if(faultyFileName.isNotEmpty())
     {
         if(getFullPath)
@@ -566,6 +598,8 @@ String StreamingSamplerSound::FileReader::getFileName(bool getFullPath)
 
 void StreamingSamplerSound::FileReader::checkFileReference()
 {
+	if (monolithicInfo != nullptr) return;
+
 	if(missing) missing = !loadedFile.existsAsFile();// && getReader() == nullptr;
 }
 
@@ -621,24 +655,40 @@ void StreamingSamplerSound::FileReader::openFileHandles(NotificationType notifyP
 		memoryReader = nullptr;
 		normalReader = nullptr;
 
-		if (fileFormatSupportsMemoryReading)
+		if (monolithicInfo != nullptr)
 		{
-			memoryReader = pool->afm.findFormatForFileExtension(loadedFile.getFileExtension())->createMemoryMappedReader(loadedFile);
+			memoryReader = monolithicInfo->createMonolithicReader(monolithicIndex);
 
 			if (memoryReader != nullptr)
 			{
 				memoryReader->mapSectionOfFile(Range<int64>((int64)(sound->sampleStart) + (int64)(sound->monolithOffset), (int64)(sound->sampleEnd)));
 			}
 		}
-		normalReader = pool->afm.createReaderFor(loadedFile);
+		else
+		{
+			if (fileFormatSupportsMemoryReading)
+			{
+				memoryReader = pool->afm.findFormatForFileExtension(loadedFile.getFileExtension())->createMemoryMappedReader(loadedFile);
 
-		if(notifyPool == sendNotification) pool->increaseNumOpenFileHandles();
+				if (memoryReader != nullptr)
+				{
+					memoryReader->mapSectionOfFile(Range<int64>((int64)(sound->sampleStart) + (int64)(sound->monolithOffset), (int64)(sound->sampleEnd)));
+				}
+			}
+			normalReader = pool->afm.createReaderFor(loadedFile);
+		}
+
+#if USE_BACKEND
+		if(monolithicInfo == nullptr && notifyPool == sendNotification) pool->increaseNumOpenFileHandles();
+#endif
 	}
 }
 
 
 void StreamingSamplerSound::FileReader::closeFileHandles(NotificationType notifyPool)
 {
+	if (monolithicIndex != -1) return; // don't close the reader for monolithic files...
+
 	if (voiceCount.get() == 0)
 	{
 		ScopedLock sl(readLock);
@@ -648,7 +698,7 @@ void StreamingSamplerSound::FileReader::closeFileHandles(NotificationType notify
 		memoryReader = nullptr;
 		normalReader = nullptr;
 
-        if(notifyPool == sendNotification) pool->decreaseNumOpenFileHandles();
+		if (monolithicInfo == nullptr && notifyPool == sendNotification) pool->decreaseNumOpenFileHandles();
 	}
 }
 
@@ -702,6 +752,14 @@ float StreamingSamplerSound::FileReader::calculatePeakValue()
 	return jmax<float>(maxLeft, maxRight);
 }
 
+
+void StreamingSamplerSound::FileReader::setMonolithicInfo(HiseMonolithAudioFormat * info, int index)
+{
+	monolithicInfo = info;
+	monolithicIndex = index;
+	missing = (index == -1);
+	monolithicName = info->getFileName(index);
+}
 
 // =============================================================================================================================================== SampleLoader methods
 

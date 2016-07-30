@@ -432,7 +432,7 @@ public:
 	void deleteSound(ModulatorSamplerSound *soundToDelete);;
 
 	void loadMonolithicSound(const ValueTree &soundDescription, const File& data);
-	bool loadMonolithicData(ValueTree &sampleMaps);
+	bool loadMonolithicData(const ValueTree &sampleMaps, const File& monolithicFile, OwnedArray<ModulatorSamplerSound> &sounds);
 
     void setUpdatePool(bool shouldBeUpdated)
     {
@@ -492,6 +492,8 @@ public:
 private:
 
 	// ================================================================================================================
+
+	OwnedArray<HiseMonolithAudioFormat> loadedMonoliths;
 
 	int getSoundIndexFromPool(int64 hashCode);
 

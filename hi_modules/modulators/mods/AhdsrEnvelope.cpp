@@ -48,6 +48,7 @@ AhdsrEnvelope::AhdsrEnvelope(MainController *mc, const String &id, int voiceAmou
 	Modulation(m),
 	attack(getDefaultValue(Attack)),
 	attackLevel(1.0f),
+	attackCurve(0.0),
 	hold(getDefaultValue(Hold)),
 	decay(getDefaultValue(Decay)),
 	sustain(1.0f),

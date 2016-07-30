@@ -651,6 +651,27 @@ void ModulatorSampler::addSamplerSound(const ValueTree &description, int index, 
 	sendChangeMessage();
 }
 
+
+void ModulatorSampler::addSamplerSounds(OwnedArray<ModulatorSamplerSound>& monolithicSounds)
+{
+	ScopedLock sl(lock);
+
+	jassert(sounds.size() == 0);
+
+	const int numNewSounds = monolithicSounds.size();
+
+	for (int i = 0; i < numNewSounds; i++)
+	{
+		ModulatorSamplerSound* newSound = monolithicSounds.removeAndReturn(0);
+
+		sounds.add(newSound);
+		newSound->setUndoManager(undoManager);
+		newSound->addChangeListener(sampleMap);
+	}
+
+	sendChangeMessage();
+}
+
 SampleThreadPool * ModulatorSampler::getBackgroundThreadPool()
 {
 	return getMainController()->getSampleManager().getGlobalSampleThreadPool();
@@ -825,6 +846,11 @@ void ModulatorSampler::loadSampleMap(const ValueTree &valueTreeData)
 void ModulatorSampler::saveSampleMap() const
 {
 	sampleMap->save();
+}
+
+void ModulatorSampler::saveSampleMapAsMonolith() const
+{
+	sampleMap->saveAsMonolith();
 }
 
 bool ModulatorSampler::setCurrentGroupIndex(int currentIndex)

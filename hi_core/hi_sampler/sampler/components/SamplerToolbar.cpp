@@ -60,8 +60,9 @@ void SampleMapEditorToolbarFactory::getAllToolbarItemIds(Array<int> &ids)
 	ids.add(SampleMapEditor::NewSampleMap);
 	ids.add(SampleMapEditor::LoadSampleMap);
 	ids.add(SampleMapEditor::SaveSampleMap);
+	ids.add(SampleMapEditor::SaveSampleMapAsMonolith);
 	ids.add(SampleMapEditor::ImportSfz);
-	ids.add(SampleMapEditor::ImportFiles);
+	
 
 	ids.add(spacerId);
 
@@ -323,7 +324,7 @@ Drawable *SampleMapEditorToolbarFactory::ToolbarPaths::createPath(int id, bool /
 			path.loadPathFromData (pathData, sizeof (pathData));
 			break;
 		}
-	case SampleMapEditor::ImportFiles:
+	case SampleMapEditor::SaveSampleMapAsMonolith:
 		{
 			static const unsigned char pathData[] = { 110,109,166,92,181,67,88,209,231,193,98,31,230,165,67,88,209,231,193,166,92,153,67,88,206,121,192,166,92,153,67,168,46,216,65,98,166,92,153,67,142,203,103,66,31,230,165,67,170,11,166,66,166,92,181,67,170,11,166,66,98,45,211,196,67,170,11,166,66,166,92,
 			209,67,142,203,103,66,166,92,209,67,168,46,216,65,98,166,92,209,67,88,206,121,192,45,211,196,67,88,209,231,193,166,92,181,67,88,209,231,193,99,109,166,92,181,67,88,109,101,66,108,70,135,168,67,168,46,216,65,108,230,177,176,67,168,46,216,65,108,230,177,

@@ -248,13 +248,18 @@ void SamplerSoundWaveform::setSoundToDisplay(const ModulatorSamplerSound *s)
 
 		AudioFormatReader *afr = PresetHandler::getReaderForFile(File(s->getProperty(ModulatorSamplerSound::FileName)));
 
-		jassert(afr != nullptr);
+		if (afr != nullptr)
+		{
+			preview->setReader(afr, (int64)s->getProperty(ModulatorSamplerSound::ID));
 
-		preview->setReader(afr, (int64)s->getProperty(ModulatorSamplerSound::ID));
+			numSamplesInCurrentSample = (int)afr->lengthInSamples;
 
-		numSamplesInCurrentSample = (int)afr->lengthInSamples;
+			updateRanges();
+		}
+		else jassertfalse;
+		
 
-		updateRanges();
+		
 
 	}
 	else

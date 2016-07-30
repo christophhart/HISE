@@ -688,49 +688,25 @@ void ModulatorSamplerSoundPool::loadMonolithicSound(const ValueTree &soundDescri
 	pool.add(s);
 }
 
-bool ModulatorSamplerSoundPool::loadMonolithicData(ValueTree &sampleMaps)
+bool ModulatorSamplerSoundPool::loadMonolithicData(const ValueTree &sampleMaps, const File& monolithicFile, OwnedArray<ModulatorSamplerSound> &sounds)
 {
+	loadedMonoliths.add(new HiseMonolithAudioFormat(monolithicFile));
+
+	HiseMonolithAudioFormat* hmaf = loadedMonoliths.getLast();
+
 	for (int i = 0; i < sampleMaps.getNumChildren(); i++)
 	{
-		ValueTree sampleMap = sampleMaps.getChild(i);
+		ValueTree sample = sampleMaps.getChild(i);
 
-		String fileNameString = sampleMap.getProperty("FileName", String::empty);
+		String fileName = sample.getProperty("FileName").toString().fromFirstOccurrenceOf("{PROJECT_FOLDER}", false, false);
 
-		jassert(fileNameString == String::empty);
+		File dummyFile = File::getSpecialLocation(File::SpecialLocationType::tempDirectory).getChildFile(fileName);
 
-		String productId = sampleMap.getProperty("UniqueId", String::empty);
+		StreamingSamplerSound* sound = new StreamingSamplerSound(hmaf, i);
+		
+		pool.add(sound);
 
-		String sampleMapId = sampleMap.getProperty("SampleMapIdentifier", String::empty);
-
-		String sampleFolder = PresetHandler::getSampleDataFolder(productId).getFullPathName();
-
-		if (sampleFolder.isEmpty()) return false;
-
-		File f = File(sampleFolder + "/" + sampleMapId + ".dat");
-
-		if (!f.existsAsFile())
-		{
-			f = PresetHandler::getSampleFolder(productId).getFullPathName() + "/" + sampleMapId + ".dat";
-
-
-		}
-
-		if (f.existsAsFile())
-		{
-			for (int j = 0; j < sampleMap.getNumChildren(); j++)
-			{
-				loadMonolithicSound(sampleMap.getChild(j), f);
-			}
-		}
-		else
-		{
-
-
-
-			return false;
-		}
-
-
+		sounds.add(new ModulatorSamplerSound(sound, i));
 	}
 
 	sendChangeMessage();

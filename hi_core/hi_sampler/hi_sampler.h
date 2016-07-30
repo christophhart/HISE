@@ -33,6 +33,7 @@
 #ifndef HI_SAMPLER_INCLUDED
 #define HI_SAMPLER_INCLUDED
 
+#include "sampler/MonolithAudioFormat.h"
 #include "sampler/StreamingSampler.h"
 
 #include "sampler/dywapitchtrack/dywapitchtrack.h"

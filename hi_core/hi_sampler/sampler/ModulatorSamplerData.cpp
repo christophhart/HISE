@@ -304,11 +304,11 @@ void SampleMap::clear()
 
 void SampleMap::restoreFromValueTree(const ValueTree &v)
 {
-	monolith = v.hasProperty("Monolithic");
+	mode = (SaveMode)(int)v.getProperty("SaveMode");
 
     sampleMapId = Identifier(v.getProperty("ID", "unused").toString());
     
-	if(monolith)
+	if(mode == Monolith)
 	{
 		loadSamplesFromMonolith(v);
 	}
@@ -405,6 +405,85 @@ void SampleMap::save()
 	changed = false;
 }
 
+class MonolithExporter : public ThreadWithAsyncProgressWindow
+{
+public:
+
+	MonolithExporter(File directoryFile_, const ValueTree& sampleMap_, Processor* p_) :
+		ThreadWithAsyncProgressWindow("Exporting samples as monolith"),
+		directoryFile(directoryFile_),
+		sampleMap(sampleMap_),
+		p(p_)
+	{
+		addBasicComponents(false);
+	}
+
+	void run() override
+	{
+		MonolithAudioFormatWriter writer;
+
+		String id = sampleMap.getProperty("ID").toString() + ".ch1";
+
+		directoryFile.createDirectory();
+
+		File outputFile = directoryFile.getChildFile(id);
+
+		outputFile.create();
+
+		Array<File> fileList;
+
+		showStatusMessage("Collecting Files");
+
+		for (int i = 0; i < sampleMap.getNumChildren(); i++)
+		{
+			const String fileReference = sampleMap.getChild(i).getProperty("FileName");
+
+			fileList.add(File(GET_PROJECT_HANDLER(p).getFilePath(fileReference, ProjectHandler::SubDirectories::Samples)));
+		}
+
+		writer.writeFiles(fileList, outputFile, GET_PROJECT_HANDLER(p).getSubDirectory(ProjectHandler::SubDirectories::Samples),  &progress);
+	}
+
+	void threadFinished() override
+	{
+		
+	};
+
+
+private:
+
+	const File directoryFile;
+	const ValueTree sampleMap;
+	Processor *p;
+};
+
+
+void SampleMap::saveAsMonolith()
+{
+	const String name = PresetHandler::getCustomName("Monolith Sample Map");
+
+	sampleMapId = Identifier(name);
+
+	File sampleMapDirectory = GET_PROJECT_HANDLER(sampler).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
+
+	File sampleMapFile = sampleMapDirectory.getChildFile(name + ".xml");
+
+	mode = SaveMode::Monolith;
+
+	ValueTree v = exportAsValueTree();
+	ScopedPointer<XmlElement> xml = v.createXml();
+	xml->writeToFile(sampleMapFile, "");
+
+	File monolithDirectory = sampleMapDirectory.getChildFile("MonolithSamplePacks");
+
+	MonolithExporter* exporter = new MonolithExporter(monolithDirectory, v, sampler);
+
+	exporter->showOnDesktop();
+
+	exporter->runThread();
+
+	changed = false;
+}
 
 void SampleMap::loadSamplesFromDirectory(const ValueTree &v)
 {
@@ -481,17 +560,28 @@ void SampleMap::loadSamplesFromDirectory(const ValueTree &v)
 
 void SampleMap::loadSamplesFromMonolith(const ValueTree &v)
 {
+	File monolithDirectory = GET_PROJECT_HANDLER(sampler).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps).getChildFile("MonolithSamplePacks");
 
-	//sampler->deleteAllSounds();
+	File monolithFile = monolithDirectory.getChildFile(sampleMapId.toString() + ".ch1");
 
-	for(int i = 0; i < v.getNumChildren(); i++)
+	if (monolithFile.existsAsFile())
 	{
-		jassert(v.getChild(i).hasProperty("mono_sample_start"));
+		sampler->deleteAllSounds();
 
-		sampler->addSamplerSound(v.getChild(i), i);
+		ModulatorSamplerSoundPool* pool = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
+
+		OwnedArray<ModulatorSamplerSound> newSounds;
+
+		pool->loadMonolithicData(v, monolithFile, newSounds);
+
+		for (int i = 0; i < v.getNumChildren(); i++)
+		{
+			newSounds[i]->restoreFromValueTree(v.getChild(i));
+		}
+		
+		sampler->addSamplerSounds(newSounds);
+
 	}
-
-	return;
 }
 
 void SampleMap::replaceReferencesWithGlobalFolder()

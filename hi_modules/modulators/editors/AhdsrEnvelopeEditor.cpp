@@ -92,7 +92,7 @@ void AhdsrGraph::paint(Graphics &g)
 	KnobLookAndFeel::fillPathHiStyle(g, envelopePath, getWidth(), getHeight());
 
 	g.setColour(Colours::lightgrey.withAlpha(0.3f));
-	g.strokePath (envelopePath, PathStrokeType(1.0f));
+	g.strokePath(envelopePath, PathStrokeType(1.0f));
 
 	g.setColour(Colours::lightgrey.withAlpha(0.1f));
 	g.drawRect(getLocalBounds(), 1);
