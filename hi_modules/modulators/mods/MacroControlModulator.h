@@ -102,7 +102,7 @@ public:
 private:
 
 	// Do nothing, since the data is updated anyway...
-	void updateValue() override {};
+	void updateValue(NotificationType sendAttributeChange = sendNotification) override {};
 
 	void addToMacroController(int newMacroIndex) override;
 	

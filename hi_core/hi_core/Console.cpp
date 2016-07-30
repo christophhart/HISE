@@ -114,12 +114,6 @@ void Console::timerCallback()
 
 	voiceLabel->setText("Voices: " + String(voiceAmount) + ", Tempo: " + String(hostTempo) + "BPM", dontSendNotification);
 
-	if (usage != 0)
-	{
-		ScopedLock sl(lock);
-		usage = 0;
-	}
-
 	unprintedMessages.ensureStorageAllocated(100);
 }
 

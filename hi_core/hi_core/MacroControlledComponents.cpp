@@ -201,7 +201,7 @@ void HiSlider::sliderValueChanged(Slider *s)
 
 
 
-void HiSlider::updateValue()
+void HiSlider::updateValue(NotificationType sendAttributeChange)
 {
 
 	const bool enabled = !isLocked();
@@ -223,7 +223,6 @@ void HiSlider::updateValue()
 	{
 		setValue(modeValues[mode], dontSendNotification);
 	}
-
 	
 }
 
@@ -324,7 +323,7 @@ void HiComboBox::mouseDown(const MouseEvent &e)
     }
 }
 
-void HiComboBox::updateValue()
+void HiComboBox::updateValue(NotificationType sendAttributeChange)
 {
 	const bool enabled = !isLocked();
 
@@ -365,7 +364,7 @@ void HiToggleButton::setup(Processor *p, int parameter, const String &name)
 }
 
 
-void HiToggleButton::updateValue()
+void HiToggleButton::updateValue(NotificationType sendAttributeChange)
 {
 	const bool enabled = !isLocked();
 

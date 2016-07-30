@@ -99,7 +99,7 @@ public:
 	}
 
 	/** overwrite this method and update the widget to display the current value of the controlled attribute. */
-	virtual void updateValue() = 0;
+	virtual void updateValue(NotificationType sendAttributeChange = sendNotification) = 0;
 
 	/** overwrite this method and return the range that the parameter can have. */
 	virtual NormalisableRange<double> getRange() const = 0;
@@ -180,7 +180,7 @@ public:
 
 	void setup(Processor *p, int parameter, const String &name) override;
 
-	void updateValue() override;
+	void updateValue(NotificationType sendAttributeChange = sendNotification) override;
 
 	void comboBoxChanged(ComboBox *c) override;
 
@@ -249,7 +249,7 @@ public:
 
 	void setup(Processor *p, int parameter, const String &name) override;
 
-	void updateValue() override;
+	void updateValue(NotificationType sendAttributeChange = sendNotification) override;
 
 	void buttonClicked(Button *b) override;
 
@@ -379,7 +379,7 @@ public:
 			setModeRange(min, max, mid);
 			setTextValueSuffix(getModeSuffix());
 
-			setValue(modeValues[m], sendNotification);
+			setValue(modeValues[m], dontSendNotification);
 
 			repaint();
 		}
@@ -412,7 +412,7 @@ public:
 		return useModulatedRing ? displayValue : 1.0f;
 	}
 
-	void updateValue() override;
+	void updateValue(NotificationType sendAttributeChange=sendNotification) override;
 
 	/** Overrides the slider method to display the tempo names for the TempoSync mode. */
 	String getTextFromValue(double value) override

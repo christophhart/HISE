@@ -52,8 +52,6 @@ void MidiControllerAutomationHandler::addMidiControlledParameter(Processor *inte
 
 bool MidiControllerAutomationHandler::isLearningActive() const
 {
-	ScopedLock sl(lock);
-
 	return unlearnedData.used;
 }
 
@@ -71,12 +69,9 @@ void MidiControllerAutomationHandler::deactivateMidiLearning()
 
 void MidiControllerAutomationHandler::setUnlearndedMidiControlNumber(int ccNumber)
 {
-	ScopedLock sl(lock);
-
 	jassert(isLearningActive());
 
 	automationData[ccNumber] = unlearnedData;
-
 	unlearnedData = AutomationData();
 
 	anyUsed = true;

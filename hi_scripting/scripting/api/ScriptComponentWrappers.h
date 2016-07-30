@@ -380,15 +380,19 @@ public:
 	};
 
 	class PanelWrapper : public ScriptCreatedComponentWrapper,
-                         public MouseCallbackComponent::Listener
+                         public MouseCallbackComponent::Listener,
+						 public MouseCallbackComponent::RectangleConstrainer::Listener
 	{
 	public:
 
 		PanelWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptPanel *panel, int index);
+		~PanelWrapper();
 
 		void updateComponent() override;
 
 		void mouseCallback(const var &mouseInformation) override;
+
+		void boundsChanged(const Rectangle<int> &newBounds) override;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PanelWrapper)
 	};

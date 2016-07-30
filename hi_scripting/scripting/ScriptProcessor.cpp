@@ -305,7 +305,6 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 	thisAsScriptBaseProcessor->allowObjectConstructors = true;
 
-	content->restoreFromValueTree(thisAsScriptBaseProcessor->restoredContentValues);
 
 	for (int i = 0; i < getNumSnippets(); i++)
 	{
@@ -317,7 +316,6 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 			if (!lastResult.wasOk())
 			{
-				//content->restoreFromValueTree(restoredContentValues);
 				content->endInitialization();
 				thisAsScriptBaseProcessor->allowObjectConstructors = false;
 
@@ -329,6 +327,7 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 				lastCompileWasOK = false;
 
+				scriptEngine->rebuildDebugInformation();
 				return SnippetResult(lastResult, i);
 
 			}
@@ -337,7 +336,7 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 	scriptEngine->rebuildDebugInformation();
 
-	content->restoreFromValueTree(thisAsScriptBaseProcessor->restoredContentValues);
+	content->restoreAllControlsFromPreset(thisAsScriptBaseProcessor->restoredContentValues);
 
 	content->endInitialization();
 

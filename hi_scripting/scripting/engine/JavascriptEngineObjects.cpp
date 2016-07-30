@@ -23,6 +23,7 @@ struct HiseJavascriptEngine::RootObject::ArrayClass : public DynamicObject
 		setMethod("join", join);
 		setMethod("push", push);
         setMethod("sort", sort);
+		setMethod("insert", insert);
 	}
 
 	static Identifier getClassName()   { static const Identifier i("Array"); return i; }
@@ -77,6 +78,21 @@ struct HiseJavascriptEngine::RootObject::ArrayClass : public DynamicObject
         
         return var::undefined();
     }
+
+	static var insert(Args a)
+	{
+		if (Array<var>* array = a.thisObject.getArray())
+		{
+			int index = getInt(a, 0);
+
+			for (int i = 1; i < a.numArguments; i++)
+			{
+				array->insert(index++, get(a, i));
+			}
+		}
+
+		return var::undefined();
+	}
 };
 
 //==============================================================================

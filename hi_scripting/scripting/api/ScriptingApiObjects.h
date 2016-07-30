@@ -544,10 +544,12 @@ public:
 
 	private:
 
-		void initGraphics();
-
 		Rectangle<float> getRectangleFromVar(const var &data);
 		Rectangle<int> getIntRectangleFromVar(const var &data);
+
+		void initGraphics();
+
+		Result rectangleResult;
 
 		Image *imageToDraw;
 

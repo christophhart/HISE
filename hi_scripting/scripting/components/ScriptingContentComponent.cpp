@@ -137,7 +137,7 @@ void ScriptContentComponent::updateValue(int i)
 
 	if (o != nullptr)
 	{
-		o->updateValue();
+		o->updateValue(dontSendNotification);
 	}
 
 	if (TableEditor *t = dynamic_cast<TableEditor*>(componentWrappers[i]->getComponent()))
@@ -199,20 +199,11 @@ void ScriptContentComponent::updateComponent(int i)
         return;
     }
     
-	componentWrappers[i]->getComponent()->setVisible(contentData->components[i]->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::visible));
-	
-	bool enabled = contentData->components[i]->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::enabled);
-	
-	componentWrappers[i]->getComponent()->setEnabled(enabled);
+	const bool v = contentData->components[i]->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::visible);
+	componentWrappers[i]->getComponent()->setVisible(v);
 
-	if (contentData->components[i]->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::zOrder) == "Always on top")
-	{
-		componentWrappers[i]->getComponent()->setAlwaysOnTop(true);
-	}
-	else
-	{
-		componentWrappers[i]->getComponent()->setAlwaysOnTop(false);
-	}
+	const bool e = contentData->components[i]->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::enabled);
+	componentWrappers[i]->getComponent()->setEnabled(e);
 
 	if (componentWrappers[i]->getComponent()->getLocalBounds() != contentData->components[i]->getPosition())
 	{
@@ -284,11 +275,27 @@ void ScriptContentComponent::setNewContent(ScriptingApi::Content *c)
 
 	for (int i = 0; i < contentData->components.size(); i++)
 	{
-		contentData->components[i].get()->addChangeListener(this);
+		auto sc = contentData->components[i].get();
+		
+		sc->addChangeListener(this);
 
-		componentWrappers.add(contentData->components[i].get()->createComponentWrapper(this, i));
+		componentWrappers.add(sc->createComponentWrapper(this, i));
 
-		addAndMakeVisible(componentWrappers.getLast()->getComponent());
+		const int parentIndex = sc->getParentComponentIndex();
+
+		if (parentIndex != -1)
+		{
+			Component* parentComponent = componentWrappers[parentIndex]->getComponent();
+			
+			if (parentComponent != nullptr)
+			{
+				parentComponent->addAndMakeVisible(componentWrappers.getLast()->getComponent());
+			}
+		}
+		else
+		{
+			addAndMakeVisible(componentWrappers.getLast()->getComponent());
+		}
 	}
 
 	if (getParentComponent() != nullptr)

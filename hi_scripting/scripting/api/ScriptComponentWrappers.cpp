@@ -113,7 +113,7 @@ ScriptCreatedComponentWrapper(content, index)
 		s->setMode(sc->m);
 	}
 
-	s->updateValue();
+	s->updateValue(dontSendNotification);
 
 	component = s;
 }
@@ -184,6 +184,8 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateComponent()
 	{
 		s->setDoubleClickReturnValue(true, defaultValue);
 	}
+
+	s->setValue(sc->value, dontSendNotification);
 
 	s->repaint();
 }
@@ -289,8 +291,6 @@ void ScriptCreatedComponentWrappers::ButtonWrapper::updateComponent()
     b->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, GET_OBJECT_COLOUR(bgColour));
     b->setColour(MacroControlledObject::HiBackgroundColours::upperBgColour, GET_OBJECT_COLOUR(itemColour));
     b->setColour(MacroControlledObject::HiBackgroundColours::lowerBgColour, GET_OBJECT_COLOUR(itemColour2));
-    
-
     
 	b->setTooltip(GET_SCRIPT_PROPERTY(tooltip));
 	b->setButtonText(GET_SCRIPT_PROPERTY(text));
@@ -510,6 +510,8 @@ ScriptCreatedComponentWrapper(content, index)
 	bp->setName(panel->name.toString());
 
 	bp->addMouseCallbackListener(this);
+	bp->setDraggingEnabled(panel->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::allowDragging));
+	bp->setDragBounds(panel->getDragBounds(), this);
 
 	component = bp;
 }
@@ -529,6 +531,7 @@ void ScriptCreatedComponentWrappers::PanelWrapper::updateComponent()
 	bpc->setPopupMenuItems(sc->getItemList());
 	bpc->setUseRightClickForPopup(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::PopupOnRightClick));
 	bpc->alignPopup(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::popupMenuAlign));
+	
 
 	bpc->repaint();
 
@@ -542,6 +545,26 @@ void ScriptCreatedComponentWrappers::PanelWrapper::mouseCallback(const var &mous
 	auto sp = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(getScriptComponent());
 
 	sp->mouseCallback(mouseInformation);
+}
+
+void ScriptCreatedComponentWrappers::PanelWrapper::boundsChanged(const Rectangle<int> &newBounds)
+{
+	auto sc = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(getScriptComponent());
+
+	static const Identifier x("x");
+	static const Identifier y("y");
+
+	sc->setScriptObjectPropertyWithChangeMessage(x, newBounds.getX());
+	sc->setScriptObjectPropertyWithChangeMessage(y, newBounds.getY());
+}
+
+ScriptCreatedComponentWrappers::PanelWrapper::~PanelWrapper()
+{
+	BorderPanel *bpc = dynamic_cast<BorderPanel*>(component.get());
+	auto sc = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(getScriptComponent());
+
+	bpc->removeCallbackListener(this);
+	
 }
 
 ScriptCreatedComponentWrappers::SliderPackWrapper::SliderPackWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptSliderPack *pack, int index) :

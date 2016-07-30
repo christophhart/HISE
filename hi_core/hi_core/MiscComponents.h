@@ -85,6 +85,32 @@ public:
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Listener)
 	};
 
+	struct RectangleConstrainer : public ComponentBoundsConstrainer
+	{
+		struct Listener
+		{
+			virtual ~Listener() { masterReference.clear(); }
+			virtual void boundsChanged(const Rectangle<int> &newBounds) = 0;
+
+		private:
+
+			friend class WeakReference < Listener > ;
+			WeakReference<Listener>::Master masterReference;
+		};
+
+		void checkBounds(Rectangle<int> &bounds, const Rectangle<int> &, const Rectangle<int> &, bool, bool, bool, bool) override;
+
+		void addListener(Listener *l);
+		void removeListener(Listener *l);
+
+		Rectangle<int> draggingBounds;
+
+	private:
+
+		Array<WeakReference<Listener>> listeners;
+
+	};
+
 	// ================================================================================================================
 
 	MouseCallbackComponent();;
@@ -96,6 +122,9 @@ public:
 	void setPopupMenuItems(const StringArray &newItemList);
 	void setUseRightClickForPopup(bool shouldUseRightClickForPopup);
 	void alignPopup(bool shouldBeAligned);
+
+	void setDraggingEnabled(bool shouldBeEnabled);
+	void setDragBounds(Rectangle<int> newDraggingBounds, RectangleConstrainer::Listener* rectangleListener);
 
 	void addMouseCallbackListener(Listener *l);
 	void removeCallbackListener(Listener *l);
@@ -114,6 +143,8 @@ public:
 
 private:
 
+	
+
 	void sendMessage(const MouseEvent &event, Action action, EnterState state = Nothing);
 	void sendToListeners(var clickInformation);
 
@@ -124,7 +155,11 @@ private:
 	StringArray itemList;
 	bool useRightClickForPopup = true;
 	bool popupShouldBeAligned = false;
+	bool draggingEnabled = false;
+	
 
+	ScopedPointer<RectangleConstrainer> constrainer;
+	ComponentDragger dragger;
 
 	Array<WeakReference<Listener>> listenerList;
 	DynamicObject::Ptr currentEvent;

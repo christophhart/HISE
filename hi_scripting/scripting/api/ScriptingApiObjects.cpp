@@ -804,7 +804,8 @@ struct ScriptingObjects::GraphicsObject::Wrapper
 
 ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *p, ConstScriptingObject* parent_) :
 ConstScriptingObject(p, 0),
-parent(parent_)
+parent(parent_),
+rectangleResult(Result::ok())
 {
 	ADD_API_METHOD_1(fillAll);
 	ADD_API_METHOD_1(setColour);
@@ -1073,60 +1074,27 @@ void ScriptingObjects::GraphicsObject::fillPath(var path, var area)
 	}
 }
 
-void ScriptingObjects::GraphicsObject::initGraphics()
-{
-	if (g == nullptr) reportScriptError("Graphics not initialised");
-
-}
-
-
 Rectangle<float> ScriptingObjects::GraphicsObject::getRectangleFromVar(const var &data)
 {
-	if (data.isArray())
-	{
-		Array<var>* d = data.getArray();
+	Rectangle<float>&& f = ApiHelpers::getRectangleFromVar(data, &rectangleResult);
 
-		if (d->size() == 4)
-		{
-			Rectangle<float> rectangle((float)d->getUnchecked(0), (float)d->getUnchecked(1), (float)d->getUnchecked(2), (float)d->getUnchecked(3));
+	if (rectangleResult.failed()) reportScriptError(rectangleResult.getErrorMessage());
 
-			return rectangle;
-		}
-		else
-		{
-			reportScriptError("Rectangle array needs 4 elements");
-			return Rectangle<float>();
-		}
-	}
-	else
-	{
-		reportScriptError("Rectangle data is not an array");
-		return Rectangle<float>();
-	}
+	return f;
 }
 
 Rectangle<int> ScriptingObjects::GraphicsObject::getIntRectangleFromVar(const var &data)
 {
-	if (data.isArray())
-	{
-		Array<var>* d = data.getArray();
+	Rectangle<int>&& f = ApiHelpers::getIntRectangleFromVar(data, &rectangleResult);
 
-		if (d->size() == 4)
-		{
-			Rectangle<int> rectangle((int)d->getUnchecked(0), (int)d->getUnchecked(1), (int)d->getUnchecked(2), (int)d->getUnchecked(3));
+	if (rectangleResult.failed()) reportScriptError(rectangleResult.getErrorMessage());
 
-			return rectangle;
-		}
-		else
-		{
-			reportScriptError("Rectangle array needs 4 elements");
-			return Rectangle<int>();
-		}
-	}
-	else
-	{
-		reportScriptError("Rectangle data is not an array");
-		return Rectangle<int>();
-	}
+	return f;
+}
+
+void ScriptingObjects::GraphicsObject::initGraphics()
+{
+	if (g == nullptr) reportScriptError("Graphics not initialised");
+
 }
 

@@ -92,7 +92,8 @@ value(0.0),
 parent(parentContent),
 skipRestoring(false),
 componentProperties(new DynamicObject()),
-changed(false)
+changed(false),
+parentComponentIndex(-1)
 {
 	propertyIds.add(Identifier("text"));
 	propertyIds.add(Identifier("visible"));		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
@@ -112,6 +113,7 @@ changed(false)
 	propertyIds.add(Identifier("zOrder"));
 	propertyIds.add(Identifier("saveInPreset")); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	propertyIds.add(Identifier("isPluginParameter")); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	propertyIds.add(Identifier("parentComponent"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	
 
 	deactivatedProperties.add(getIdFor(isPluginParameter));
@@ -134,6 +136,7 @@ changed(false)
 	setDefaultValue(Properties::zOrder, "Normal order");
 	setDefaultValue(Properties::saveInPreset, true);
 	setDefaultValue(Properties::isPluginParameter, false);
+	setDefaultValue(Properties::parentComponent, "");
 
 	ADD_API_METHOD_2(set);
 	ADD_API_METHOD_1(get);
@@ -174,6 +177,20 @@ StringArray ScriptingApi::Content::ScriptComponent::getOptionsFor(const Identifi
 
 		sa.add("Normal order");
 		sa.add("Always on top");
+
+		return sa;
+	}
+	else if (id == getIdFor(parentComponent))
+	{
+		auto c = getScriptProcessor()->getScriptingContent();
+
+		StringArray sa;
+
+		for (int i = 0; i < c->getNumComponents(); i++)
+		{
+			if (c->getComponent(i) == this) break;
+			sa.add(c->getComponent(i)->getName().toString());
+		}
 
 		return sa;
 	}
@@ -254,6 +271,31 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 		const int index = sa.indexOf(newValue.toString()) - 1;
 
 		if (index >= -1) addToMacroControl(index);
+	}
+	else if (id == getIdFor(parentComponent))
+	{
+		auto c = getScriptProcessor()->getScriptingContent();
+		parentComponentIndex = c->getComponentIndex(Identifier(newValue.toString()));
+
+		if (parentComponentIndex != -1)
+		{
+			if (!c->getComponent(parentComponentIndex)->addChildComponent(this))
+			{
+				// something went wrong...
+				parentComponentIndex = -1;
+			}
+		}
+		else
+		{
+			reportScriptError("parent component " + newValue.toString() + " not found.");
+		}
+
+		
+	}
+	else if (id == getIdFor(x) || id == getIdFor(y) || id == getIdFor(width) ||
+			 id == getIdFor(height) || id == getIdFor(visible) || id == getIdFor(enabled))
+	{
+		notifyChildComponents();
 	}
 
 	if (notifyEditor == sendNotification)
@@ -467,6 +509,66 @@ var ScriptingApi::Content::ScriptComponent::getWidth() const
 var ScriptingApi::Content::ScriptComponent::getHeight() const
 {
 	return getScriptObjectProperty(Properties::height);
+}
+
+int ScriptingApi::Content::ScriptComponent::getParentComponentIndex() const
+{
+	return parentComponentIndex;
+}
+
+bool ScriptingApi::Content::ScriptComponent::addChildComponent(ScriptComponent* childComponent)
+{
+	auto sc = getScriptProcessor()->getScriptingContent();
+
+	const int thisIndex = sc->getComponentIndex(getName());
+	const int childIndex = sc->getComponentIndex(childComponent->getName());
+
+	if (childIndex < thisIndex)
+	{
+		reportScriptError("Child component must be declared after parent component");
+		return false;
+	}
+
+	if (childComponent == this)
+	{
+		reportScriptError("Can't add itself as parent.");
+		return false;
+	}
+	if (childComponent->isChildComponent(this))
+	{
+		reportScriptError("Can't add a parent as child component");
+		return false;
+	}
+
+	childComponents.addIfNotAlreadyThere(childComponent);
+
+	return true;
+}
+
+bool ScriptingApi::Content::ScriptComponent::isChildComponent(ScriptComponent* childComponent)
+{
+	for (int i = 0; i < childComponents.size(); i++)
+	{
+		if (childComponents[i]->isChildComponent(childComponent))
+			return true;
+	}
+
+	return childComponents.contains(childComponent);
+}
+
+void ScriptingApi::Content::ScriptComponent::notifyChildComponents()
+{
+	for (int i = 0; i < childComponents.size(); i++)
+	{
+		ScriptComponent* c = childComponents[i].get();
+
+		if (c != nullptr)
+		{
+			childComponents[i].get()->sendChangeMessage();
+			childComponents[i].get()->notifyChildComponents();
+		}
+		else jassertfalse;
+	}
 }
 
 struct ScriptingApi::Content::ScriptSlider::Wrapper
@@ -1724,6 +1826,7 @@ struct ScriptingApi::Content::ScriptPanel::Wrapper
 	API_VOID_METHOD_WRAPPER_0(ScriptPanel, stopTimer);
 	API_VOID_METHOD_WRAPPER_0(ScriptPanel, changed);
 	API_VOID_METHOD_WRAPPER_2(ScriptPanel, loadImage);
+	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setDraggingBounds);
 };
 
 ScriptingApi::Content::ScriptPanel::ScriptPanel(ProcessorWithScriptingContent *base, Content *parentContent, Identifier panelName, int x, int y, int width, int height) :
@@ -1742,6 +1845,7 @@ controlSender(this, base)
 
 	propertyIds.add("borderSize");		ADD_AS_SLIDER_TYPE(0, 20, 1);
 	propertyIds.add("borderRadius");	ADD_AS_SLIDER_TYPE(0, 20, 1);
+	propertyIds.add("allowDragging");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	propertyIds.add("allowCallbacks");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	propertyIds.add("popupMenuItems");		ADD_TO_TYPE_SELECTOR(SelectorTypes::MultilineSelector);
 	propertyIds.add("popupOnRightClick");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
@@ -1758,6 +1862,7 @@ controlSender(this, base)
 	setDefaultValue(itemColour2, 0x30000000);
 	setDefaultValue(borderSize, 2.0f);
 	setDefaultValue(borderRadius, 6.0f);
+	setDefaultValue(allowDragging, 0);
 	setDefaultValue(allowCallbacks, 0);
 	setDefaultValue(PopupMenuItems, "");
 	setDefaultValue(PopupOnRightClick, true);
@@ -1773,6 +1878,7 @@ controlSender(this, base)
 	ADD_API_METHOD_1(startTimer);
 	ADD_API_METHOD_0(stopTimer);
 	ADD_API_METHOD_2(loadImage);
+	ADD_API_METHOD_1(setDraggingBounds);
 }
 
 StringArray ScriptingApi::Content::ScriptPanel::getOptionsFor(const Identifier &id)
@@ -1923,6 +2029,15 @@ StringArray ScriptingApi::Content::ScriptPanel::getItemList() const
 	return sa;
 }
 
+Rectangle<int> ScriptingApi::Content::ScriptPanel::getDragBounds() const
+{
+	return ApiHelpers::getIntRectangleFromVar(dragBounds);
+}
+
+void ScriptingApi::Content::ScriptPanel::setDraggingBounds(var area)
+{
+	dragBounds = area;
+}
 
 void ScriptingApi::Content::ScriptPanel::AsyncControlCallbackSender::handleAsyncUpdate()
 {
@@ -2408,6 +2523,21 @@ const ScriptingApi::Content::ScriptComponent * ScriptingApi::Content::getCompone
 	return nullptr;
 }
 
+
+int ScriptingApi::Content::getComponentIndex(const Identifier &componentName) const
+{
+	for (int i = 0; i < getNumComponents(); i++)
+	{
+		if (components[i]->name == componentName)
+		{
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+
 ScriptingApi::Content::ScriptComboBox *ScriptingApi::Content::addComboBox(Identifier boxName, int x, int y)
 {
 	return addComponent<ScriptComboBox>(boxName, x, y, 128, 32);
@@ -2603,6 +2733,7 @@ void ScriptingApi::Content::storeAllControlsAsPreset(const String &fileName)
 	}
 }
 
+
 void ScriptingApi::Content::restoreAllControlsFromPreset(const String &fileName)
 {
 #if USE_FRONTEND
@@ -2737,7 +2868,7 @@ void ScriptingApi::Content::restoreFromValueTree(const ValueTree &v)
 
 	for (int i = 0; i < components.size(); i++)
 	{
-		if (components[i]->skipRestoring || !components[i]->getScriptObjectProperty(ScriptComponent::Properties::saveInPreset)) continue;
+		if (!components[i]->getScriptObjectProperty(ScriptComponent::Properties::saveInPreset)) continue;
 
 		ValueTree child = v.getChildWithProperty("id", components[i]->name.toString());
 
@@ -2752,7 +2883,6 @@ void ScriptingApi::Content::restoreFromValueTree(const ValueTree &v)
 			components[i]->restoreFromValueTree(child);
 		}
 	}
-
 };
 
 bool ScriptingApi::Content::isEmpty()

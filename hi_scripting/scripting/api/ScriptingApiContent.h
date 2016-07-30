@@ -95,13 +95,18 @@ public:
 			zOrder,
 			saveInPreset,
 			isPluginParameter,
+			parentComponent,
 			numProperties
 		};
 
 		File getExternalFile(var newValue);
 
 		ScriptComponent(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name_, int x, int y, int width, int height, int numConstants=0);
-		virtual ~ScriptComponent() {};
+		
+		virtual ~ScriptComponent() 
+		{
+			childComponents.clear();
+		};
 
 		virtual StringArray getOptionsFor(const Identifier &id);
 		virtual ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) = 0;
@@ -132,6 +137,17 @@ public:
 		DynamicObject *getScriptObjectProperties() const { return componentProperties.get(); }
 		bool isPropertyDeactivated(Identifier &id) const;
 		Rectangle<int> getPosition() const;
+
+		int getParentComponentIndex() const;
+
+		bool addChildComponent(ScriptComponent* childComponent);
+
+		/** Checks if the component is a child component.
+		*
+		*	It also looks in the child components' child componenents ... */
+		bool isChildComponent(ScriptComponent* childComponent);
+
+		void notifyChildComponents();
 
 		// API Methods =====================================================================================================
 
@@ -208,8 +224,12 @@ public:
 
 	private:
 
+		ReferenceCountedArray<ScriptComponent> childComponents;
+
 		NamedValueSet defaultValues;
 		bool changed;
+
+		int parentComponentIndex;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptComponent);
 	};
@@ -587,6 +607,7 @@ public:
 		{
 			borderSize = ScriptComponent::numProperties,
 			borderRadius,
+			allowDragging,
 			allowCallbacks,
 			PopupMenuItems,
 			PopupOnRightClick,
@@ -635,9 +656,8 @@ public:
 		/** Loads a image which can be drawn with the paint function later on. */
 		void loadImage(String imageName, String prettyName);
 
-		void setCustom(String propertyName, var newValue);
-
-		var getCustom(String propertyName);
+		/** If `allowedDragging` is enabled, it will define the boundaries where the panel can be dragged. */
+		void setDraggingBounds(var area);
 
 		// ========================================================================================================
 
@@ -662,6 +682,8 @@ public:
 					return loadedImages[i].image;
 			}
 		};
+
+		Rectangle<int> getDragBounds() const;
 
 	private:
 
@@ -707,6 +729,8 @@ public:
 		var paintRoutine = var::undefined();
 		var mouseRoutine = var::undefined();
 		var timerRoutine = var::undefined();
+
+		var dragBounds;
 
 		DynamicObject::Ptr customProperties;
 
@@ -943,7 +967,9 @@ public:
 
 	// ================================================================================================================
 
+	// Restores the content and sets the attributes so that the macros and the control callbacks gets executed.
 	void restoreAllControlsFromPreset(const ValueTree &preset);
+
 	Colour getColour() const { return colour; };
 	void endInitialization();
 
@@ -956,6 +982,7 @@ public:
 	const ScriptComponent *getComponent(int index) const { return components[index]; };
 	ScriptComponent * getComponentWithName(const Identifier &componentName);
 	const ScriptComponent * getComponentWithName(const Identifier &componentName) const;
+	int getComponentIndex(const Identifier &componentName) const;
 
 	struct Wrapper;
 

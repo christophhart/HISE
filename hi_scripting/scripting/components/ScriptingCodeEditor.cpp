@@ -104,6 +104,56 @@ String ApiHelpers::getFileNameFromErrorMessage(const String &message)
 	return fileName;
 }
 
+Rectangle<float> ApiHelpers::getRectangleFromVar(const var &data, Result *r/*=nullptr*/)
+{
+	if (data.isArray())
+	{
+		Array<var>* d = data.getArray();
+
+		if (d->size() == 4)
+		{
+			Rectangle<float> rectangle((float)d->getUnchecked(0), (float)d->getUnchecked(1), (float)d->getUnchecked(2), (float)d->getUnchecked(3));
+
+			return rectangle;
+		}
+		else
+		{
+			if (r != nullptr) *r = Result::fail("Rectangle array needs 4 elements");
+			return Rectangle<float>();
+		}
+	}
+	else
+	{
+		if (r != nullptr) *r = Result::fail("Rectangle data is not an array");
+		return Rectangle<float>();
+	}
+}
+
+Rectangle<int> ApiHelpers::getIntRectangleFromVar(const var &data, Result* r/*=nullptr*/)
+{
+	if (data.isArray())
+	{
+		Array<var>* d = data.getArray();
+
+		if (d->size() == 4)
+		{
+			Rectangle<int> rectangle((int)d->getUnchecked(0), (int)d->getUnchecked(1), (int)d->getUnchecked(2), (int)d->getUnchecked(3));
+
+			return rectangle;
+		}
+		else
+		{
+			if (r != nullptr) *r = Result::fail("Rectangle array needs 4 elements");
+			return Rectangle<int>();
+		}
+	}
+	else
+	{
+		if (r != nullptr) *r = Result::fail("Rectangle data is not an array");
+		return Rectangle<int>();
+	}
+}
+
 AttributedString ApiHelpers::createAttributedStringFromApi(const ValueTree &method, const String &/*className*/, bool multiLine, Colour textColour)
 {
 	AttributedString help;
@@ -1233,27 +1283,6 @@ void JavascriptCodeEditor::AutoCompletePopup::createVariableRows()
 		row->typeName = info->getTextForDataType();
 		row->value = info->getTextForValue();
 		row->codeToInsert = info->getTextForName();
-
-#if 0
-
-		DebugableObject *object = info->getObject();
-
-		if (object != nullptr && false)
-		{
-			row->type = info->getType();
-			
-			row->description = object->getDescription();
-			row->name = object->getDebugName();
-			row->typeName = object->getDebugDataType();
-			row->value = object->getDebugValue();
-			row->codeToInsert = object->getDebugName();
-		}
-		else
-		{
-			
-		}
-	
-#endif
 
 		allInfo.add(row.release());
 	}

@@ -385,7 +385,7 @@ const ReferenceCountedObject* HiseJavascriptEngine::getScriptObject(const Identi
 
 			return o2;
 		}
-
+		else return nullptr;
 	}
 	else
 	{

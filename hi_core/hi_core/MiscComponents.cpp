@@ -35,7 +35,8 @@
 MouseCallbackComponent::MouseCallbackComponent() :
 callbackLevel(CallbackLevel::NoCallbacks),
 currentEvent(new DynamicObject()),
-callbackLevels(getCallbackLevels())
+callbackLevels(getCallbackLevels()),
+constrainer(new RectangleConstrainer())
 {
 
 }
@@ -91,6 +92,17 @@ void MouseCallbackComponent::alignPopup(bool shouldBeAligned)
 	popupShouldBeAligned = shouldBeAligned;
 }
 
+void MouseCallbackComponent::setDraggingEnabled(bool shouldBeEnabled)
+{
+	draggingEnabled = shouldBeEnabled;
+}
+
+void MouseCallbackComponent::setDragBounds(Rectangle<int> newDraggingBounds, RectangleConstrainer::Listener* listener)
+{
+	constrainer->draggingBounds = newDraggingBounds;
+	constrainer->addListener(listener);
+}
+
 void MouseCallbackComponent::addMouseCallbackListener(Listener *l)
 {
 	listenerList.addIfNotAlreadyThere(l);
@@ -108,6 +120,12 @@ void MouseCallbackComponent::removeAllCallbackListeners()
 
 void MouseCallbackComponent::mouseDown(const MouseEvent& event)
 {
+	if (draggingEnabled)
+	{
+		dragger.startDraggingComponent(this, event);
+		setAlwaysOnTop(true);
+	}
+
 	if (callbackLevel < CallbackLevel::PopupMenuOnly) return;
 
 	if (itemList.size() != 0)
@@ -169,6 +187,11 @@ MouseCallbackComponent::CallbackLevel MouseCallbackComponent::getCallbackLevel()
 
 void MouseCallbackComponent::mouseDrag(const MouseEvent& event)
 {
+	if (draggingEnabled)
+	{
+		dragger.dragComponent(this, event, constrainer);
+	}
+
 	if (callbackLevel < CallbackLevel::Drag) return;
 
 	sendMessage(event, Action::Dragged);
@@ -190,6 +213,13 @@ void MouseCallbackComponent::mouseExit(const MouseEvent &event)
 
 void MouseCallbackComponent::mouseUp(const MouseEvent &event)
 {
+	if (draggingEnabled)
+	{
+		
+
+		setAlwaysOnTop(false);
+	}
+
 	if (callbackLevel < CallbackLevel::ClicksOnly) return;
 
 	sendMessage(event, Action::MouseUp);
@@ -386,4 +416,33 @@ void ImageComponentWithMouseCallback::setScale(double newScale)
 
 		repaint();
 	}
+}
+
+void MouseCallbackComponent::RectangleConstrainer::checkBounds(Rectangle<int> &bounds, const Rectangle<int> &, const Rectangle<int> &, bool, bool, bool, bool)
+{
+	if (!draggingBounds.isEmpty())
+	{
+		if (bounds.getX() < draggingBounds.getX()) bounds.setX(draggingBounds.getX());
+		if (bounds.getY() < draggingBounds.getY()) bounds.setY(draggingBounds.getY());
+		if (bounds.getBottom() > draggingBounds.getBottom()) bounds.setY(draggingBounds.getBottom() - bounds.getHeight());
+		if (bounds.getRight() > draggingBounds.getRight()) bounds.setX(draggingBounds.getRight() - bounds.getWidth());
+	}
+
+	for (int i = 0; i < listeners.size(); i++)
+	{
+		if (listeners[i].get() != nullptr)
+		{
+			listeners[i]->boundsChanged(bounds);
+		}
+	}
+}
+
+void MouseCallbackComponent::RectangleConstrainer::addListener(Listener *l)
+{
+	listeners.add(l);
+}
+
+void MouseCallbackComponent::RectangleConstrainer::removeListener(Listener *l)
+{
+	listeners.removeAllInstancesOf(l);
 }

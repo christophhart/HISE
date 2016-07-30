@@ -35,7 +35,9 @@
 //#define TIMING
 #include "timing.c"
 
+#if JUCE_WINDOWS
 #define USE_SSE_WDL_CUSTOM 1
+#endif
 
 #if USE_SSE_WDL_CUSTOM
 static void WDL_CONVO_CplxMul2(WDL_FFT_COMPLEX *c, WDL_FFT_COMPLEX *a, WDL_CONVO_IMPULSEBUFCPLXf *b, int n)

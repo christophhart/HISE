@@ -248,7 +248,7 @@ public:
 	double getUptime() const noexcept { return uptime; }
 
 	/** returns the tempo as bpm. */
-	double getBpm() const noexcept { return bpm > 0.0 ? bpm : 120.0; };
+	double getBpm() const noexcept { return bpm.get() > 0.0 ? bpm.get() : 120.0; };
 
 	/** skins the given component (applies the global look and feel to it). */
     void skin(Component &c);
@@ -310,7 +310,7 @@ public:
 	virtual const ModulatorSynthChain *getMainSynthChain() const = 0;
 
 	/** Returns the time that the plugin spends in its processBlock method. */
-	int getCpuUsage() const {return usagePercent;};
+	int getCpuUsage() const {return usagePercent.get();};
 
 	/** Returns the amount of playing voices. */
 	int getNumActiveVoices() const 
@@ -498,7 +498,7 @@ private:
 
 	Component::SafePointer<Plotter> plotter;
 
-	int bufferSize;
+	Atomic<int> bufferSize;
 
 	AudioPlayHead::CurrentPositionInfo lastPosInfo;
 	
@@ -534,7 +534,7 @@ private:
 
 	Array<WeakReference<TempoListener>> tempoListeners;
 
-	int usagePercent;
+	Atomic<int> usagePercent;
 
 	bool enablePluginParameterUpdate;
 
@@ -542,7 +542,7 @@ private:
 
     double globalPitchFactor;
     
-	double bpm;
+	Atomic<double> bpm;
 	Atomic<int> voiceAmount;
 	bool allNotesOffFlag;
     
@@ -551,7 +551,7 @@ private:
     bool midiInputFlag;
 	
 	double sampleRate;
-	double temp_usage;
+	Atomic<double> temp_usage;
 	int scrollY;
 	BigInteger shownComponents;
 };

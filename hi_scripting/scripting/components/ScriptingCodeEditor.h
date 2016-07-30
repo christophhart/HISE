@@ -47,6 +47,12 @@ public:
 
 	static String getFileNameFromErrorMessage(const String &errorMessage);
 
+	static Rectangle<float> getRectangleFromVar(const var &data, Result *r=nullptr);
+
+	static Rectangle<int> getIntRectangleFromVar(const var &data, Result* r=nullptr);
+
+
+
 	struct Api
 	{
 		Api();

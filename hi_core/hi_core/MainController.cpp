@@ -210,7 +210,7 @@ void MainController::loadPreset(ValueTree &v, Component* /*mainEditor*/)
 		synthChain->setCurrentPlaybackSampleRate(-1.0);
 		synthChain->setId(v.getProperty("ID", "MainSynthChain"));
 		synthChain->restoreFromValueTree(v);
-		synthChain->prepareToPlay(sampleRate, bufferSize);
+		synthChain->prepareToPlay(sampleRate, bufferSize.get());
 		synthChain->compileAllScripts();
         synthChain->loadMacrosFromValueTree(v);
 
@@ -241,11 +241,8 @@ void MainController::removePluginParameter(PluginParameterModulator *p) { dynami
 
 void MainController::startCpuBenchmark(int bufferSize_)
 {
-	ScopedLock sl(lock);
-
-	//if(console == nullptr) return;
-	bufferSize = bufferSize_;
-	temp_usage = Time::highResolutionTicksToSeconds(Time::getHighResolutionTicks());
+	bufferSize.set(bufferSize_);
+	temp_usage.set(Time::highResolutionTicksToSeconds(Time::getHighResolutionTicks()));
 }
 
 void MainController::compileAllScripts()
@@ -262,10 +259,8 @@ void MainController::compileAllScripts()
 
 void MainController::stopCpuBenchmark()
 {
-	ScopedLock sl(lock);
-
-	const double usage = (Time::highResolutionTicksToSeconds(Time::getHighResolutionTicks()) - temp_usage) * sampleRate / bufferSize;
-	usagePercent = (int) (usage * 100);
+	const double usage = (Time::highResolutionTicksToSeconds(Time::getHighResolutionTicks()) - temp_usage.get()) * sampleRate / bufferSize.get();
+	usagePercent.set((int) (usage * 100));
 
 }
 
@@ -689,9 +684,9 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 	ModulatorSynthChain *synthChain = getMainSynthChain();
 
-	if (buffer.getNumSamples() != bufferSize)
+	if (buffer.getNumSamples() != bufferSize.get())
 	{
-		debugError(synthChain, "Block size mismatch (old: " + String(bufferSize) + ", new: " + String(buffer.getNumSamples()));
+		debugError(synthChain, "Block size mismatch (old: " + String(bufferSize.get()) + ", new: " + String(buffer.getNumSamples()));
 		prepareToPlay(sampleRate, buffer.getNumSamples());
 	}
 
@@ -770,17 +765,15 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 
 void MainController::setBpm(double bpm_)
 {
-	if(bpm != bpm_)
+	if(bpm.get() != bpm_)
 	{
-		ScopedLock sl(lock);
-
-		bpm = bpm_;	
+		bpm.set(bpm_);	
 
 		for(int i = 0; i < tempoListeners.size(); i++)
 		{
 			if(tempoListeners[i].get() != nullptr)
 			{
-				tempoListeners[i].get()->tempoChanged(bpm);
+				tempoListeners[i].get()->tempoChanged(bpm.get());
 			}
 			else
 			{
