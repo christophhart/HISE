@@ -59,7 +59,46 @@ factory(const_cast<DspFactory*>(f))
 
 			for (int i = 0; i < object->getNumConstants(); i++)
 			{
-				addConstant(object->getIdForConstant(i).toString(), object->getConstant(i));
+				char nameBuffer[64];
+				int nameLength = 0;
+
+				object->getIdForConstant(i, nameBuffer, nameLength);
+				String name(nameBuffer, (size_t)nameLength);
+
+				int intValue;
+				if (object->getConstant(i, intValue))
+				{
+					addConstant(name, var(intValue));
+					continue;
+				}
+				
+				float floatValue;
+				if (object->getConstant(i, floatValue))
+				{
+					addConstant(name, var(floatValue));
+					continue;
+				}
+				
+				char stringBuffer[512];
+				size_t stringBufferLength;
+
+				if (object->getConstant(i, stringBuffer, stringBufferLength))
+				{
+					String text(stringBuffer, stringBufferLength);
+					addConstant(name, var(text));
+					continue;
+				}
+
+				
+				float *externalData;
+				int externalDataSize;
+				
+				if (object->getConstant(i, &externalData, externalDataSize))
+				{
+					VariantBuffer::Ptr b = new VariantBuffer(externalData, externalDataSize);
+					addConstant(name, var(b));
+					continue;
+				}
 			}
 		}
 	};
@@ -174,7 +213,7 @@ var DspInstance::getInfo() const
 
 		for (int i = 0; i < object->getNumParameters(); i++)
 		{
-			const String line = String("Parameter #1: ") + object->getIdForParameter(i).toString() + String(", current value: ") + String(object->getParameter(i)) + String("\n");
+			const String line = String("Parameter #" + String(i) + ": ") + object->getIdForParameter(i).toString() + String(", current value: ") + String(object->getParameter(i)) + String("\n");
 
 			info << line;
 		}
@@ -185,7 +224,7 @@ var DspInstance::getInfo() const
 
 		for (int i = 0; i < object->getNumConstants(); i++)
 		{
-			info << "Constant #1: " << object->getIdForConstant(i) << +" = " << object->getConstant(i).toString() << "\n";
+			info << "Constant #" << String(i) << ": " << getConstantName(i).toString() << +" = " << getConstantValue(i).toString() << "\n";
 		}
 
 		return var(info);
@@ -201,6 +240,12 @@ void DspInstance::operator>>(const var &data)
 
 DspInstance::~DspInstance()
 {
+	for (int i = 0; i < object->getNumConstants(); i++)
+	{
+		if (getConstantValue(i).isBuffer())
+			getConstantValue(i).getBuffer()->referToData(nullptr, 0);
+	}
+
 	if (factory != nullptr)
 	{
 		factory->destroyDspBaseObject(object);
@@ -213,6 +258,19 @@ void DspInstance::prepareToPlay(double sampleRate, int samplesPerBlock)
 	if (object != nullptr)
 	{
 		object->prepareToPlay(sampleRate, samplesPerBlock);
+
+		for (int i = 0; i < object->getNumConstants(); i++)
+		{
+			if (getConstantValue(i).isBuffer())
+			{
+				float* data;
+				int size;
+
+				object->getConstant(i, &data, size);
+
+				getConstantValue(i).getBuffer()->referToData(data, size);
+			}
+		}
 	}
 }
 
@@ -226,7 +284,7 @@ public:
 	Handler();
 	~Handler();
 
-	DspInstance *createDspInstance(const String &factoryName, const String &moduleName);
+	DspInstance *createDspInstance(const String &factoryName, const String& factoryPassword, const String &moduleName);
 
 	template <class T> static void registerStaticFactory(Handler *instance);
     
@@ -235,7 +293,7 @@ public:
 	*	It looks for static factories first. If no static library is found, it searches for opened dynamic factories.
 	*	If no dynamic factory is found, it will open the dynamic library at the standard path and returns this instance.
 	*/
-	DspFactory *getFactory(const String &name);
+	DspFactory *getFactory(const String &name, const String& password);
 
     void getAllStaticLibraries(StringArray &libraries)
     {
@@ -274,9 +332,9 @@ public:
         ADD_DYNAMIC_METHOD(list);
 	}
 
-	var load(const String &name)
+	var load(const String &name, const String &password)
 	{
-		DspFactory *f = dynamic_cast<DspFactory*>(handler->getFactory(name));
+		DspFactory *f = dynamic_cast<DspFactory*>(handler->getFactory(name, password));
 		return var(f);
 	}
     
@@ -300,7 +358,7 @@ private:
 
 	struct Wrapper
 	{
-		DYNAMIC_METHOD_WRAPPER_WITH_RETURN(LibraryLoader, load, ARG(0).toString());
+		DYNAMIC_METHOD_WRAPPER_WITH_RETURN(LibraryLoader, load, ARG(0).toString(), ARG(1).toString());
         DYNAMIC_METHOD_WRAPPER_WITH_RETURN(LibraryLoader, list);
 	};
 
@@ -322,30 +380,70 @@ DynamicObject()
 	ADD_DYNAMIC_METHOD(getModuleList);
 }
 
-DynamicDspFactory::DynamicDspFactory(const String &name_) :
+DynamicDspFactory::DynamicDspFactory(const String &name_, const String& password) :
 name(name_)
 {
 #if JUCE_WINDOWS
 
-	const File path = File("D:\\Development\\HISE modules\\extras\\script_module_template\\Builds\\VisualStudio2013\\Debug");
+	//const File path = File("D:\\Development\\HISE modules\\extras\\script_module_template\\Builds\\VisualStudio2013\\Debug");
 
-	const String libraryName = name + ".dll";
+	const File path = File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("Hart Instruments/dll/");
 
-	const String fullLibraryPath = path.getChildFile(libraryName).getFullPathName();
+#if JUCE_32BIT
+
+	const String libraryName = name + "_x86.dll";
+
+#else
+
+	const String libraryName = name + "_x64.dll";
+
+#endif
+	
+
+
 
 
 #else
 
-	const String fullLibraryPath = name + ".dylib";
-
+    const File path = File::getSpecialLocation(File::SpecialLocationType::commonApplicationDataDirectory).getChildFile("Application Support/Hart Instruments/lib");
+    
+    const String libraryName = name + ".dylib";
+    
 #endif
+
+    const String fullLibraryPath = path.getChildFile(libraryName).getFullPathName();
+    
+	File f(fullLibraryPath);
+
+	if (!f.existsAsFile()) throw String("Library " + name + " was not found");
 
 	library = new DynamicLibrary();
 	library->open(fullLibraryPath);
 
+	using pFunc = bool(*)(const char*);
+
+	pFunc func = (pFunc)library->getFunction("matchPassword");
+
+	if (func != nullptr)
+	{
+		if (password.isEmpty())
+			throw String("This Library is locked. You need a password to open it");
+
+		const bool passwordMatches = func(password.getCharPointer());
+
+		if (!passwordMatches)
+			throw String("Wrong password for locked DLL. Abort loading");
+	}
+	
+
 	initialise();
 
 	ADD_DYNAMIC_METHOD(createModule);
+}
+
+void GlobalScriptCompileBroadcaster::createDummyLoader()
+{
+    dummyLibraryLoader = new DspFactory::LibraryLoader();
 }
 
 DspBaseObject * DynamicDspFactory::createDspBaseObject(const String &moduleName) const
@@ -475,9 +573,9 @@ DspFactory::Handler::~Handler()
 	loadedPlugins.clear();
 }
 
-DspInstance * DspFactory::Handler::createDspInstance(const String &factoryName, const String &moduleName)
+DspInstance * DspFactory::Handler::createDspInstance(const String &factoryName, const String& factoryPassword, const String &moduleName)
 {
-	return new DspInstance(getFactory(factoryName), moduleName);
+	return new DspInstance(getFactory(factoryName, factoryPassword), moduleName);
 }
 
 
@@ -491,7 +589,7 @@ void DspFactory::Handler::registerStaticFactory(Handler *instance)
 	instance->staticFactories.add(staticFactory);
 }
 
-DspFactory * DspFactory::Handler::getFactory(const String &name)
+DspFactory * DspFactory::Handler::getFactory(const String &name, const String& password)
 {
 	Identifier id(name);
 
@@ -511,11 +609,19 @@ DspFactory * DspFactory::Handler::getFactory(const String &name)
 		}
 	}
 
-	DynamicDspFactory *newLib = new DynamicDspFactory(name);
-
-	loadedPlugins.add(newLib);
-
-	return newLib;
+	try
+	{
+		ScopedPointer<DynamicDspFactory> newLib = new DynamicDspFactory(name, password);
+		loadedPlugins.add(newLib.release());
+		return newLib;
+	}
+	catch (String errorMessage)
+	{
+		throw errorMessage;
+		return nullptr;
+	}
+	
+	
 }
 
 

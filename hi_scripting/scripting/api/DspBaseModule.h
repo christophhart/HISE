@@ -30,12 +30,6 @@
 #ifndef DSPBASEMODULE_H_INCLUDED
 #define DSPBASEMODULE_H_INCLUDED
 
-#include "ScriptMacroDefinitions.h"
-
-#if HISE_DLL
-#include "BaseFactory.h"
-#endif
-
 
 /** This interface class is the base class for all modules that can be loaded as plugin into the script FX processor. 
 *
@@ -55,6 +49,8 @@
 *   that can be used as a starting point for this.
 *
 *   They can also be used as static libraries and compiled into your finished plugin to avoid DLL problems.
+*	
+*	The constants are not created witin your class. Instead
 */
 class DspBaseObject
 {
@@ -99,34 +95,47 @@ protected:
 	/** Overwrite this method if your module has constants that*/
 	virtual int getNumConstants() const { return 0; };
 
-	/** Overwrite this method and return the value of the constant. */
-	virtual var getConstant(int /*index*/) { return var::undefined(); }
+	/** Overwrite this method and write the id of the constant old-school C-style into the given char pointer (max 64 characters)
+	*
+	*	@param index: the index of the constant.
+	*	@param name: the name of the constant as plain old C-style string.
+	*	@param size: the size of the name
+	*/
+	virtual void getIdForConstant(int index, char* name, int &size) const noexcept{};
 
-	/** Overwrite this method and return the id of the constant. */
-	virtual const Identifier& getIdForConstant(int /*index*/) { return Identifier::null; }
+	/** Overwrite this method and fill in the value of the constant if the given index should be a float value. 
+	*
+	*	@returns true if the constant index is a float value.	
+	*/
+	virtual bool getConstant(int index, float& value) const noexcept{ return false; };
+
+	/** Overwrite this method and fill in the value if the given index should be an integer value.
+	*
+	*	@returns true if the constant index is a int value
+	*			 false, if it should look further in the other overloaded getConstant() functions.
+	*/
+	virtual bool getConstant(int index, int& value) const noexcept{ return false; };
+
+	/** Overwrite this method and fill in the value if the given index should be an String (max 512 characters).
+	*
+	*	@returns true if the constant index is a String value
+	*			 false, if it should look further in the other overloaded getConstant() functions.
+	*/
+	virtual bool getConstant(int index, char* text, size_t& size) const noexcept{ return false; };
+
+	/** Overwrite this method and pass a pointer to your float array data if the given index should be an float buffer. 
+	*
+	*	Unlike the other methods, this method requires that you allocate the data and pass a pointer to the data pointer back.
+	*	You must make sure you deallocate the data when the library will be destroyed.
+	*	Although this is theoretically a constant, the only thing that is constant here is the pointer to the data. That means you can
+	*	alter the float array as you like.
+	*/
+	virtual bool getConstant(int index, float** data, int &size) noexcept{ return false; };
+
 
 	// =================================================================================================================
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DspBaseObject)
 };
-
-
-#ifdef HISE_DLL
-
-#if JUCE_WINDOWS
-#define DLL_EXPORT extern "C" __declspec(dllexport)
-#else
-#define DLL_EXPORT extern "C" __attribute__((visibility("default")))
-#endif
-
-static Factory<DspBaseObject> baseObjects;
-
-DLL_EXPORT void destroyDspObject(DspBaseObject* handle) { delete handle; }
-
-DLL_EXPORT void initialise();
-
-DLL_EXPORT const void *getModuleList() { return &baseObjects.getIdList(); }
-
-#endif
 
 #endif  // DSPBASEMODULE_H_INCLUDED

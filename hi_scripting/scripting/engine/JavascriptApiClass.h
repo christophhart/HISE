@@ -185,6 +185,9 @@ public:
     /** Return the index for the given name. */
 	int getConstantIndex(const Identifier &id) const;
 
+	/** Returns the name for the constant as it is used in the scripting context. */
+	Identifier getConstantName(int index) const;
+
 	// ================================================================================================================
 
     /** Adds a function with no parameters. 

@@ -73,7 +73,7 @@ MainController::MainController():
 	toolbarProperties = FrontendBar::createDefaultProperties();
 
 	hostInfo = new DynamicObject();
-
+    
 };
 
 

@@ -68,10 +68,15 @@ public:
 		timeOut(2.0),
 		useBackgroundCompiling(false),
 		enableGlobalRecompile(true)
-	{}
+	{
+        createDummyLoader();
+    }
 
 	virtual ~GlobalScriptCompileBroadcaster()
-	{};
+	{
+        dummyLibraryLoader = nullptr;
+    
+    };
 
 	/** This sends a synchronous message to all registered listeners.
 	*
@@ -116,6 +121,8 @@ public:
 
 private:
 	
+    void createDummyLoader();
+    
 	bool useBackgroundCompiling;
 	bool enableGlobalRecompile;
 
@@ -123,6 +130,10 @@ private:
 
 	ValueTree externalScripts;
 
+    
+    DynamicObject::Ptr dummyLibraryLoader; // prevents the SharedResourcePointer from deleting the handler
+    
+    
 	Array<WeakReference<GlobalScriptCompileListener>> listenerListStart;
 	Array<WeakReference<GlobalScriptCompileListener>> listenerListEnd;
 };

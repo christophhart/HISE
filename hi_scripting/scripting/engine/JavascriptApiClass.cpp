@@ -183,7 +183,11 @@ void ApiClass::addConstant(String constantName, var value)
 
 const var ApiClass::getConstantValue(int index) const
 {
-	return constantsToUse[index].value;
+	if (index < numConstants)
+		return constantsToUse[index].value;
+
+	jassertfalse;
+	return var::undefined();
 }
 
 int ApiClass::getConstantIndex(const Identifier &id) const
@@ -194,6 +198,15 @@ int ApiClass::getConstantIndex(const Identifier &id) const
 	}
 
 	return -1;
+}
+
+Identifier ApiClass::getConstantName(int index) const
+{
+	if (index < numConstants)
+		return constantsToUse[index].id;
+
+	jassertfalse;
+	return Identifier::null;
 }
 
 void ApiClass::addFunction(const Identifier &id, call0 newFunction)

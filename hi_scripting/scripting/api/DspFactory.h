@@ -176,7 +176,7 @@ class DynamicDspFactory : public DspFactory
 {
 public:
 
-	DynamicDspFactory(const String &name_);;
+	DynamicDspFactory(const String &name_, const String& password);
 
 	DspBaseObject *createDspBaseObject(const String &moduleName) const override;
 	void destroyDspBaseObject(DspBaseObject *object) const override;

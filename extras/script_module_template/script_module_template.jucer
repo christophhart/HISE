@@ -5,49 +5,58 @@
               jucerVersion="4.1.0">
   <MAINGROUP id="QtQSLO" name="script_module_template">
     <GROUP id="{53BD8DE2-5D66-973E-AA06-1FBBD4CD640A}" name="Source">
+      <FILE id="qYbLqa" name="HiseLibraryHeader.h" compile="0" resource="0"
+            file="Source/HiseLibraryHeader.h"/>
       <FILE id="ZygCAo" name="ScriptModule.cpp" compile="1" resource="0"
             file="Source/ScriptModule.cpp"/>
       <FILE id="YV4vWu" name="ScriptModule.h" compile="0" resource="0" file="Source/ScriptModule.h"/>
     </GROUP>
   </MAINGROUP>
   <EXPORTFORMATS>
-    <XCODE_MAC targetFolder="Builds/MacOSX">
+    <XCODE_MAC targetFolder="Builds/MacOSX" postbuildCommand="strip -x &quot;$CONFIGURATION_BUILD_DIR/$EXECUTABLE_PATH&quot; ">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" osxSDK="default" osxCompatibility="default" osxArchitecture="default"
-                       isDebug="1" optimisation="1" targetName="script_module_template"/>
+                       isDebug="1" optimisation="1" targetName="gain_example"/>
         <CONFIGURATION name="Release" osxSDK="default" osxCompatibility="10.7 SDK" osxArchitecture="64BitUniversal"
-                       isDebug="0" optimisation="3" targetName="script_module_template"
-                       cppLanguageStandard="c++11" cppLibType="libc++" linkTimeOptimisation="1"/>
+                       isDebug="0" optimisation="3" targetName="gain_example" cppLanguageStandard="c++11"
+                       cppLibType="libc++" linkTimeOptimisation="1"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
-        <MODULEPATH id="juce_core" path="../../../HISE modules/JUCE/modules"/>
+        <MODULEPATH id="juce_core_amal" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </XCODE_MAC>
-    <XCODE_IPHONE targetFolder="Builds/iOS" iosScreenOrientation="portraitlandscape">
+    <XCODE_IPHONE targetFolder="Builds/iOS" iosScreenOrientation="portraitlandscape"
+                  postbuildCommand="strip -x gain_example.dylib">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" iosCompatibility="default" isDebug="1" optimisation="1"
-                       targetName="script_module_template"/>
+                       targetName="gain_example"/>
         <CONFIGURATION name="Release" iosCompatibility="default" isDebug="0" optimisation="3"
-                       targetName="script_module_template"/>
+                       targetName="gain_example"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
-        <MODULEPATH id="juce_core" path="../../../HISE modules/JUCE/modules"/>
+        <MODULEPATH id="juce_core_amal" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </XCODE_IPHONE>
     <VS2013 targetFolder="Builds/VisualStudio2013">
       <CONFIGURATIONS>
-        <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
-                       isDebug="1" optimisation="1" targetName="script_module_template"/>
         <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
-                       isDebug="0" optimisation="3" targetName="script_module_template"/>
+                       isDebug="0" optimisation="3" targetName="gain_example_x86" binaryPath="C:\Users\Christoph\AppData\Roaming\Hart Instruments\dll"/>
+        <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
+                       isDebug="0" optimisation="3" targetName="gain_example_x64" binaryPath="C:\Users\Christoph\AppData\Roaming\Hart Instruments\dll"/>
+        <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
+                       isDebug="1" optimisation="1" targetName="gain_example_debug_x64"
+                       binaryPath="C:\Users\Christoph\AppData\Roaming\Hart Instruments\dll"/>
+        <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
+                       isDebug="1" optimisation="1" targetName="gain_example_debug_x86"
+                       binaryPath="C:\Users\Christoph\AppData\Roaming\Hart Instruments\dll"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
-        <MODULEPATH id="juce_core" path="../../../HISE modules/JUCE/modules"/>
+        <MODULEPATH id="juce_core_amal" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </VS2013>
   </EXPORTFORMATS>
   <MODULES>
-    <MODULE id="juce_core" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="juce_core_amal" showAllCode="1" useLocalCopy="1"/>
   </MODULES>
-  <JUCEOPTIONS/>
+  <JUCEOPTIONS JUCE_INCLUDE_ZLIB_CODE="enabled" JUCE_USE_CURL="disabled"/>
 </JUCERPROJECT>

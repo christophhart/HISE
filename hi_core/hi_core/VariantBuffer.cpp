@@ -38,8 +38,15 @@ void VariantBuffer::referToOtherBuffer(VariantBuffer *b, int offset /*= 0*/, int
 
 void VariantBuffer::referToData(float *data, int numSamples)
 {
-	buffer.setDataToReferTo(&data, 1, numSamples);
-
+	if (data != nullptr)
+	{
+		buffer.setDataToReferTo(&data, 1, numSamples);
+	}
+	else
+	{
+		buffer.setSize(0, 0);
+	}
+	
 	size = numSamples;
 }
 
