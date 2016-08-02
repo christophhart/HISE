@@ -125,10 +125,9 @@ public:
 	*/
 	StreamingSamplerSound(const String &fileNameToLoad, BigInteger midiNotes, int midiNoteForNormalPitch, ModulatorSamplerSoundPool *pool);
 
+	/** Creates a new StreamingSamplerSound from a monolithic file. */
 	StreamingSamplerSound(HiseMonolithAudioFormat *info, int index);
 
-	/** Creates a new StreamingSamplerSound from a monolithic file. */
-	StreamingSamplerSound(const File &data, const String &fileName, int startInMonolithFile, int length, ModulatorSamplerSoundPool *pool);
 
 	
 
@@ -137,10 +136,10 @@ public:
 	// ===============================================================================================================================================
 
 	/** Checks if the note is mapped to the supplied note number. */
-	bool appliesToNote(int midiNoteNumber) noexcept override {jassertfalse; return midiNotes[midiNoteNumber]; };
+	bool appliesToNote(int midiNoteNumber) noexcept override {jassertfalse; return false; };
 
 	/** Always returns true ( can be implemented if used, but I don't need it) */
-	bool appliesToChannel(int /*midiChannel*/) noexcept override {jassertfalse; return true;};
+	bool appliesToChannel(int /*midiChannel*/) noexcept override {jassertfalse; return false;};
 
 	/** Returns the pitch factor for the note number. */
 	double getPitchFactor(int noteNumberToPitch, int rootNote) const noexcept{ return pow(2.0, (noteNumberToPitch - rootNote) / 12.0); };
@@ -293,18 +292,6 @@ public:
 	bool isPurged() const noexcept { return purged; }
 	
 	// ==============================================================================================================================================
-
-	/** The root note of the sample. 
-	*
-	*	If the sample is pitched, this note number plays back the sample with the
-	*   original samplerate, but there is a limit of three octaves up to protect the streaming (I can't think of
-	*	a musical useful purpose of transposing a sound more than 3 octaves, but you can change SAMPLER_MAX_PITCH
-	*	to allow larger values. 
-	*/
-	int rootNote;
-
-	/** The note mapping of the sound (same functionality as SamplerSound) */
-	BigInteger midiNotes;
 
 	typedef ReferenceCountedObjectPtr<StreamingSamplerSound> Ptr;
 

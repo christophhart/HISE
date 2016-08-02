@@ -664,29 +664,6 @@ void ModulatorSamplerSoundPool::deleteSound(ModulatorSamplerSound *soundToDelete
 	if(updatePool) sendChangeMessage();
 }
 
-void ModulatorSamplerSoundPool::loadMonolithicSound(const ValueTree &soundDescription, const File& data)
-{
-	jassert(data.existsAsFile());
-
-	const String fileName = soundDescription.getProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::FileName));
-
-	for (int i = 0; i < pool.size(); i++)
-	{
-		if (fileName == pool.getUnchecked(i)->getFileName(true))
-		{
-			return;
-		};
-	}
-
-	int start = soundDescription.getProperty("mono_sample_start", 0);
-	int length = soundDescription.getProperty("mono_sample_length", 0);
-
-
-
-	StreamingSamplerSound *s = new StreamingSamplerSound(data, fileName, start, length, this);
-
-	pool.add(s);
-}
 
 bool ModulatorSamplerSoundPool::loadMonolithicData(const ValueTree &sampleMaps, const File& monolithicFile, OwnedArray<ModulatorSamplerSound> &sounds)
 {

@@ -37,8 +37,6 @@ StreamingSamplerSound::StreamingSamplerSound(const String &fileNameToLoad,
 											 int midiNoteForNormalPitch,
 											 ModulatorSamplerSoundPool *pool):
 	fileReader(this, pool),
-	midiNotes(midiNotes_),
-	rootNote(midiNoteForNormalPitch),
     sampleRate(-1.0),
     purged(false),
     monolithOffset(0),
@@ -61,26 +59,6 @@ StreamingSamplerSound::StreamingSamplerSound(const String &fileNameToLoad,
 
     setPreloadSize(0);
 }
-
-StreamingSamplerSound::StreamingSamplerSound(const File &/*data*/, const String &fileName_, int start, int /*length*/, ModulatorSamplerSoundPool *pool):
-	fileReader(this, pool),
-	midiNotes(-1),
-	rootNote(-1),
-	entireSampleLoaded(false),
-	loopEnabled(false),
-	loopStart(0),
-	sampleStartMod(0),
-	monolithOffset(start),
-	monolithLength(INT_MAX),
-	crossfadeLength(0),
-	purged(false)
-{
-	fileReader.setFile(fileName_);
-
-    setPreloadSize(0);
-    
-};
-
 
 StreamingSamplerSound::StreamingSamplerSound(HiseMonolithAudioFormat *info, int index):
 	fileReader(this, nullptr),

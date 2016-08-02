@@ -848,9 +848,9 @@ void ModulatorSampler::saveSampleMap() const
 	sampleMap->save();
 }
 
-void ModulatorSampler::saveSampleMapAsMonolith() const
+void ModulatorSampler::saveSampleMapAsMonolith(Component* mainEditor) const
 {
-	sampleMap->saveAsMonolith();
+	sampleMap->saveAsMonolith(mainEditor);
 }
 
 bool ModulatorSampler::setCurrentGroupIndex(int currentIndex)

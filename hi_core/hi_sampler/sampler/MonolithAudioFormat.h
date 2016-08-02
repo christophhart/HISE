@@ -135,122 +135,6 @@ public:
 };
 
 
-class MonolithAudioFormatWriter: AudioFormatWriter
-{
-public:
-
-	MonolithAudioFormatWriter():
-		AudioFormatWriter(nullptr, "HISE Monolith Sample Format", 44100.0, 2, 16)
-	{}
-
-	class MetaDataWriter
-	{
-	public:
-
-		MetaDataWriter(const Array<File>& filesToWrite, const File &rootDirectory):
-			v("MetaData")
-		{
-			AudioFormatManager afm;
-
-			afm.registerBasicFormats();
-
-			
-			largestSample = 0;
-			int64 offset = 0;
-
-			for (int i = 0; i < filesToWrite.size(); i++)
-			{
-				AudioFormatReader* reader = afm.createReaderFor(filesToWrite[i]);
-
-				ValueTree s("Sample");
-
-				s.setProperty("file", filesToWrite[i].getRelativePathFrom(rootDirectory).replaceCharacter('\\', '/'), nullptr);
-				s.setProperty("offset", offset, nullptr);
-
-				const int64 length = reader->lengthInSamples;
-
-				largestSample = jmax<int64>(largestSample, length);
-
-				s.setProperty("length", length, nullptr);
-				s.setProperty("rate", reader->sampleRate, nullptr);
-
-				offset += length;
-
-				v.addChild(s, -1, nullptr);
-			}
-		}
-
-		void write(File &outputFile)
-		{
-			MemoryBlock mb;
-
-			MemoryOutputStream mos(mb, false);
-
-			v.writeToStream(mos);
-
-			FileOutputStream fos(outputFile);
-
-			fos.writeInt64BigEndian(mb.getSize());
-			fos.write(mb.getData(), mb.getSize());
-
-			fos.flush();
-		}
-
-		int64 largestSample;
-
-		ValueTree v;
-	};
-
-	bool write(const int** data, int numSamples) override
-	{
-		jassertfalse;
-		return false;
-	}
-
-	void writeFiles(const Array<File>& filesToWrite, File& outputFile, const File& rootDirectory=File::nonexistent, double *progressValue = nullptr)
-	{
-		outputFile.deleteFile();
-
-		MetaDataWriter metaDataWriter(filesToWrite, rootDirectory);
-
-		metaDataWriter.write(outputFile);
-
-		AudioSampleBuffer buffer(2, metaDataWriter.largestSample);
-
-		MemoryBlock tempBlock;
-
-		tempBlock.setSize(2 * 2 * metaDataWriter.largestSample);
-
-		FileOutputStream fos(outputFile);
-
-		AudioFormatManager afm;
-
-		afm.registerBasicFormats();
-
-		for (int i = 0; i < filesToWrite.size(); i++)
-		{
-			if (progressValue != nullptr)
-			{
-				*progressValue = (double)i / (double)filesToWrite.size();
-			}
-
-			AudioFormatReader* reader = afm.createReaderFor(filesToWrite[i]);
-
-			reader->read(&buffer, 0, reader->lengthInSamples, 0, true, true);
-
-			size_t bytesUsed = reader->lengthInSamples * 4;
-
-			AudioFormatWriter::WriteHelper<AudioData::Int16, AudioData::Float32, AudioData::LittleEndian>::write(tempBlock.getData(), 2, (const int* const *)buffer.getArrayOfReadPointers(), reader->lengthInSamples);
-
-			fos.write(tempBlock.getData(), bytesUsed);
-
-		}
-
-		fos.flush();
-	}
-};
-
-
 class HiseMonolithAudioFormat: public AudioFormat
 {
 public:
@@ -281,7 +165,7 @@ public:
 	}
 
 
-	Array<int> AudioFormat::getPossibleBitDepths() override
+	Array<int> getPossibleBitDepths() override
 	{
 		Array<int> a;
 		a.ensureStorageAllocated(3);

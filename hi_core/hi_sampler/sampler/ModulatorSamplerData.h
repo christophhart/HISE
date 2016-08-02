@@ -202,6 +202,10 @@ public:
 	
 	SampleMap(ModulatorSampler *sampler_);
 
+	using FileList = OwnedArray < Array<File> >;
+
+	FileList createFileList();
+
 	~SampleMap()
 	{
 		if(!monolith) saveIfNeeded();
@@ -254,7 +258,7 @@ public:
 	/** Saves all data with the mode depending on the file extension. */
 	void save();
 
-	void saveAsMonolith();
+	void saveAsMonolith(Component* mainEditor);
 
 	/** returns the default sample directory (the sample map directory + '/samples'. */
 	String getSampleDirectory() const
@@ -267,7 +271,8 @@ public:
 	/** Clears the sample map. */
     void clear();
 	
-
+	ModulatorSampler* getSampler() const { return sampler; }
+	
 	void replaceReferencesWithGlobalFolder();
 
     void setId(Identifier newIdentifier)

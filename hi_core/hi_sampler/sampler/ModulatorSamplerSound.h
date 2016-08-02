@@ -431,7 +431,6 @@ public:
 	/** Decreases the reference count of the wrapped sound in the pool and deletes it if no references are left. */
 	void deleteSound(ModulatorSamplerSound *soundToDelete);;
 
-	void loadMonolithicSound(const ValueTree &soundDescription, const File& data);
 	bool loadMonolithicData(const ValueTree &sampleMaps, const File& monolithicFile, OwnedArray<ModulatorSamplerSound> &sounds);
 
     void setUpdatePool(bool shouldBeUpdated)
