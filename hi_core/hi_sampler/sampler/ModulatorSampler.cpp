@@ -133,6 +133,17 @@ void ModulatorSampler::setNumChannels(int numNewChannels)
 
 	getMatrix().setNumSourceChannels(numChannels * 2);
 
+	if (getMatrix().getNumDestinationChannels() == 2)
+	{
+		getMatrix().loadPreset(RoutableProcessor::Presets::AllChannelsToStereo);
+	}
+	else
+	{
+		getMatrix().loadPreset(RoutableProcessor::Presets::AllChannels);
+	}
+
+	
+
 	const int prevVoiceAmount = voiceAmount;
 	const int prevVoiceLimit = (int)getAttribute(ModulatorSynth::VoiceLimit);
 

@@ -38,62 +38,10 @@ class MonolithAudioFormatReader : public MemoryMappedAudioFormatReader
 {
 public:
 
-	class MetadataReader : public AudioFormatReader
-	{
-	public:
 
-		MetadataReader(const File& f):
-			AudioFormatReader(nullptr, "HISE Monolith")
-		{
-			FileInputStream fis(f);
-
-			sizeOffset = fis.readInt64BigEndian();
-
-			MemoryBlock mb;
-
-			mb.setSize(sizeOffset);
-
-			fis.read(mb.getData(), mb.getSize());
-
-			ValueTree metadata = ValueTree::readFromData(mb.getData(), mb.getSize());
-
-			for (int i = 0; i < metadata.getNumChildren(); i++)
-			{
-				ValueTree sample = metadata.getChild(i);
-
-				SampleInfo info;
-
-				info.start = sample.getProperty("offset");
-				info.length = sample.getProperty("length");
-				info.sampleRate = sample.getProperty("rate");
-				info.fileName = sample.getProperty("file");
-
-				sampleInformation.add(info);
-			}
-
-		};
-
-		bool readSamples(int **destSamples, int numDestChannels, int startOffsetInDestBuffer, int64 startSampleInFile, int numSamples) override
-		{
-			jassertfalse;
-			return false;
-		}
-
-		struct SampleInfo
-		{
-			double sampleRate;
-			int64 length;
-			int64 start;
-			String fileName;
-		};
-
-		Array<SampleInfo> sampleInformation;
-
-		int64 sizeOffset;
-	};
-
-	MonolithAudioFormatReader(const File &f, AudioFormatReader &details, int64 start, int64 length):
-		MemoryMappedAudioFormatReader(f, details, start, length, 4)
+	MonolithAudioFormatReader(const File &f, AudioFormatReader &details, int64 start, int64 length, bool isMono):
+		MemoryMappedAudioFormatReader(f, details, start, length, (isMono ? 1 : 2) * sizeof(int16)),
+		numChannels(isMono ? 1 : 2)
 	{}
 
 	bool readSamples(int **destSamples, int numDestChannels, int startOffsetInDestBuffer, int64 startSampleInFile, int numSamples) override
@@ -107,7 +55,7 @@ public:
 			return false;
 		}
 
-		copySampleData (destSamples, startOffsetInDestBuffer, numDestChannels, sampleToPointer (startSampleInFile), numSamples);
+		copySampleData (destSamples, startOffsetInDestBuffer, numDestChannels, sampleToPointer (startSampleInFile), numChannels, numSamples);
 	}
 
 
@@ -124,14 +72,17 @@ public:
 		float** dest = &result;
 		const void* source = sampleToPointer(sample);
 
-		ReadHelper<AudioData::Float32, AudioData::Int16, AudioData::LittleEndian>::read(dest, 0, 1, source, 1, 2);	
+		ReadHelper<AudioData::Float32, AudioData::Int16, AudioData::LittleEndian>::read(dest, 0, 1, source, 2, 1);	
 	}
 
-	static void copySampleData(int* const* destSamples, int startOffsetInDestBuffer, int numDestChannels, const void* sourceData, int numSamples) noexcept
+	static void copySampleData(int* const* destSamples, int startOffsetInDestBuffer, int numDestChannels, const void* sourceData, int numChannels, int numSamples) noexcept
 	{
-		ReadHelper<AudioData::Int32, AudioData::Int16, AudioData::LittleEndian>::read(destSamples, startOffsetInDestBuffer, numDestChannels, sourceData, 2, numSamples);
+		ReadHelper<AudioData::Int32, AudioData::Int16, AudioData::LittleEndian>::read(destSamples, startOffsetInDestBuffer, numDestChannels, sourceData, numChannels, numSamples);
 	}
 
+private:
+
+	const int numChannels;
 };
 
 
@@ -139,15 +90,68 @@ class HiseMonolithAudioFormat: public AudioFormat
 {
 public:
 
-	HiseMonolithAudioFormat(const File& monoFile_):
-		AudioFormat("HISE Monolithic Sample Format", "ch1 ch2 ch3 ch4 ch5 ch6"),
-		metaDataReader(monoFile_),
-		monoFile(monoFile_)
+	HiseMonolithAudioFormat(const Array<File>& monoFiles_):
+		AudioFormat("HISE Monolithic Sample Format", "ch1 ch2 ch3 ch4 ch5 ch6")
 	{
-		metaDataReader.numChannels = 2;
-		metaDataReader.metadataValues = StringPairArray();
-		metaDataReader.bitsPerSample = 16;
-		metaDataReader.usesFloatingPointData = false;
+		monolithicFiles.reserve(monoFiles_.size());
+		
+
+		for (int i = 0; i < monoFiles_.size(); i++)
+		{
+			FileInputStream fis(monoFiles_[i]);
+			isMonoChannel[i] = fis.readBool();
+			monolithicFiles.push_back(monoFiles_[i]);
+		}
+
+		dummyReader.numChannels = 2;
+		dummyReader.bitsPerSample = 16;
+	}
+
+	void fillMetadataInfo(const ValueTree &sampleMap)
+	{
+		int numChannels = sampleMap.getChild(0).getNumChildren();
+		if (numChannels == 0) numChannels = 1;
+
+		multiChannelSampleInformation.reserve(numChannels);
+
+		for (int i = 0; i < numChannels; i++)
+		{
+			std::vector<SampleInfo> newVector;
+			newVector.reserve(sampleMap.getNumChildren());
+			multiChannelSampleInformation.push_back(newVector);
+		}
+			
+
+		for (int i = 0; i < sampleMap.getNumChildren(); i++)
+		{
+			ValueTree sample = sampleMap.getChild(i);
+
+			if (numChannels == 1)
+			{
+				SampleInfo info;
+
+				info.start = sample.getProperty("MonolithOffset");
+				info.length = sample.getProperty("MonolithLength");
+				info.sampleRate = sample.getProperty("SampleRate");
+				info.fileName = sample.getProperty("FileName");
+
+				multiChannelSampleInformation[0].push_back(info);
+			}
+			else
+			{
+				for (int channel = 0; channel < numChannels; channel++)
+				{
+					SampleInfo info;
+
+					info.start = sample.getProperty("MonolithOffset");
+					info.length = sample.getProperty("MonolithLength");
+					info.sampleRate = sample.getProperty("SampleRate");
+					info.fileName = sample.getChild(channel).getProperty("FileName");
+
+					multiChannelSampleInformation[channel].push_back(info);
+				}
+			}
+		}
 	}
 
 	Array<int> getPossibleSampleRates() override
@@ -189,19 +193,24 @@ public:
 		return nullptr;
 	}
 
-	
-
-	MemoryMappedAudioFormatReader* createMonolithicReader(int sampleIndex)
+	MemoryMappedAudioFormatReader* createMonolithicReader(int sampleIndex, int channelIndex)
 	{
-		if (sampleIndex < metaDataReader.sampleInformation.size())
+		const int sizeOfFirstChannelList = multiChannelSampleInformation[0].size();
+		const int sizeOfChannelList = multiChannelSampleInformation.size();
+
+		if (channelIndex < sizeOfChannelList && sizeOfFirstChannelList > 0 && sampleIndex < sizeOfFirstChannelList)
 		{
-			const int64 start = metaDataReader.sampleInformation[sampleIndex].start;
-			const int64 length = metaDataReader.sampleInformation[sampleIndex].length;
+			auto info = &multiChannelSampleInformation[channelIndex][sampleIndex];
 
-			metaDataReader.sampleRate = metaDataReader.sampleInformation[sampleIndex].sampleRate;
-			metaDataReader.lengthInSamples = length;
+			const int64 start = info->start;
+			const int64 length = info->length;
 
-			return new MonolithAudioFormatReader(monoFile, metaDataReader, sizeof(int64) + 4 * start + metaDataReader.sizeOffset, 4 * length);
+			dummyReader.sampleRate = info->sampleRate;
+			dummyReader.lengthInSamples = length;
+
+			size_t chunkSize = 2 * sizeof(int16);
+
+			return new MonolithAudioFormatReader(monolithicFiles[channelIndex], dummyReader, 1 + chunkSize * start, chunkSize * length, isMonoChannel[channelIndex]);
 		}
 		
 		return nullptr;
@@ -217,14 +226,44 @@ public:
 		return nullptr;
 	}
 
-	String getFileName(int sampleIndex)
+	String getFileName(int channelIndex, int sampleIndex) const
 	{
-		return metaDataReader.sampleInformation[sampleIndex].fileName;
+		return multiChannelSampleInformation[channelIndex][sampleIndex].fileName;
 	}
 
-	MonolithAudioFormatReader::MetadataReader metaDataReader;
+	struct SampleInfo
+	{
+		double sampleRate;
+		int64 length;
+		int64 start;
+		String fileName;
+	};
+
+	private:
+
+	struct DummyReader: public AudioFormatReader
+	{
+	public:
+
+		DummyReader() :
+			AudioFormatReader(nullptr, "HISE Monolith")
+		{};
+
+		bool readSamples(int **destSamples, int numDestChannels, int startOffsetInDestBuffer, int64 startSampleInFile, int numSamples) override
+		{
+			jassertfalse;
+			return false;
+		}
+
+	};
+
+	DummyReader dummyReader;
 	
-	File monoFile;
+	std::vector<std::vector<SampleInfo>> multiChannelSampleInformation;
+
+	std::vector<File> monolithicFiles;
+
+	bool isMonoChannel[6];
 };
 
 #endif  // MONOLITHAUDIOFORMAT_H_INCLUDED

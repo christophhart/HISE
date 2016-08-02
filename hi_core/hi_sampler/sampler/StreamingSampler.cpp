@@ -60,7 +60,7 @@ StreamingSamplerSound::StreamingSamplerSound(const String &fileNameToLoad,
     setPreloadSize(0);
 }
 
-StreamingSamplerSound::StreamingSamplerSound(HiseMonolithAudioFormat *info, int index):
+StreamingSamplerSound::StreamingSamplerSound(HiseMonolithAudioFormat *info, int channelIndex, int sampleIndex):
 	fileReader(this, nullptr),
 	sampleRate(-1.0),
 	purged(false),
@@ -80,7 +80,7 @@ StreamingSamplerSound::StreamingSamplerSound(HiseMonolithAudioFormat *info, int 
 	crossfadeLength(0),
 	crossfadeArea(Range<int>())
 {
-	fileReader.setMonolithicInfo(info, index);
+	fileReader.setMonolithicInfo(info, channelIndex, sampleIndex);
 
 	setPreloadSize(0);
 }
@@ -179,6 +179,11 @@ void StreamingSamplerSound::openFileHandle()
 bool StreamingSamplerSound::isOpened()
 {
 	return fileReader.isOpened();
+}
+
+bool StreamingSamplerSound::isMonolithic() const
+{
+	return fileReader.isMonolithic();
 }
 
 String StreamingSamplerSound::getSampleStateAsString() const
@@ -635,7 +640,7 @@ void StreamingSamplerSound::FileReader::openFileHandles(NotificationType notifyP
 
 		if (monolithicInfo != nullptr)
 		{
-			memoryReader = monolithicInfo->createMonolithicReader(monolithicIndex);
+			memoryReader = monolithicInfo->createMonolithicReader(monolithicIndex, monolithicChannelIndex);
 
 			if (memoryReader != nullptr)
 			{
@@ -731,12 +736,24 @@ float StreamingSamplerSound::FileReader::calculatePeakValue()
 }
 
 
-void StreamingSamplerSound::FileReader::setMonolithicInfo(HiseMonolithAudioFormat * info, int index)
+AudioFormatReader* StreamingSamplerSound::FileReader::createMonolithicReaderForPreview()
+{
+	if (monolithicInfo != nullptr)
+	{
+		auto m =  monolithicInfo->createMonolithicReader(monolithicIndex, monolithicChannelIndex);
+		m->mapSectionOfFile(Range<int64>((int64)(sound->sampleStart) + (int64)(sound->monolithOffset), (int64)(sound->sampleEnd)));
+
+		return m;
+	}
+}
+
+void StreamingSamplerSound::FileReader::setMonolithicInfo(HiseMonolithAudioFormat * info, int channelIndex, int sampleIndex)
 {
 	monolithicInfo = info;
-	monolithicIndex = index;
-	missing = (index == -1);
-	monolithicName = info->getFileName(index);
+	monolithicIndex = sampleIndex;
+	missing = (sampleIndex == -1);
+	monolithicName = info->getFileName(channelIndex, sampleIndex);
+	monolithicChannelIndex = channelIndex;
 }
 
 // =============================================================================================================================================== SampleLoader methods

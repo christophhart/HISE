@@ -283,11 +283,11 @@ void RouterComponent::mouseDown(const MouseEvent &e)
 		}
 
 		m.addSectionHeader("Set to Preset Routing");
-		m.addItem(Presets::AllChannels, "All Channels");
-		m.addItem(Presets::AllChannelsToStereo, "All Channels to Stereo");
-		m.addItem(Presets::FirstStereo, "First Stereo only");
-		m.addItem(Presets::SecondStereo, "Second Stereo only");
-		m.addItem(Presets::ThirdStereo, "Third Stereo only");
+		m.addItem((int)RoutableProcessor::Presets::AllChannels, "All Channels");
+		m.addItem((int)RoutableProcessor::Presets::AllChannelsToStereo, "All Channels to Stereo");
+		m.addItem((int)RoutableProcessor::Presets::FirstStereo, "First Stereo only");
+		m.addItem((int)RoutableProcessor::Presets::SecondStereo, "Second Stereo only");
+		m.addItem((int)RoutableProcessor::Presets::ThirdStereo, "Third Stereo only");
 
 		m.addSectionHeader("Load Save");
 		m.addItem(Copy, "Copy Channel Routing");
@@ -404,39 +404,5 @@ void RouterComponent::selectConnector(const MouseEvent & e)
 
 void RouterComponent::setToPreset(int preset)
 {
-	Presets pr = (Presets)preset;
-
-	data->clearAllConnections();
-
-	switch (pr)
-	{
-	case RouterComponent::AllChannels:
-		for (int i = 0; i < data->getNumSourceChannels(); i++)
-		{
-			data->addConnection(i, i);
-		}
-		break;
-	case RouterComponent::FirstStereo:
-		data->addConnection(0, 0);
-		data->addConnection(1, 1);
-		break;
-	case RouterComponent::SecondStereo:
-		data->addConnection(2, 2);
-		data->addConnection(3, 3);
-
-		break;
-	case RouterComponent::ThirdStereo:
-		data->addConnection(4, 4);
-		data->addConnection(5, 5);
-
-		break;
-	case RouterComponent::AllChannelsToStereo:
-		for (int i = 0; i < data->getNumSourceChannels(); i++)
-		{
-			data->addConnection(i, i % 2 != 0 ? 1 : 0);
-		}
-		break;
-	default:
-		break;
-	}
+	data->loadPreset((RoutableProcessor::Presets)preset);
 }

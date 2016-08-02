@@ -43,6 +43,15 @@ class RoutableProcessor
 {
 public:
 
+	enum class Presets
+	{
+		AllChannels = 10000,
+		FirstStereo,
+		SecondStereo,
+		ThirdStereo,
+		AllChannelsToStereo
+	};
+
 	RoutableProcessor();
 
 	virtual ~RoutableProcessor() {};
@@ -104,6 +113,8 @@ public:
 		{
 			thisAsProcessor = dynamic_cast<Processor*>(owningProcessor);
 		}
+
+		void loadPreset(Presets newPreset);
 
 	protected:
 

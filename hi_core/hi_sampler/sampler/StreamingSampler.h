@@ -126,7 +126,7 @@ public:
 	StreamingSamplerSound(const String &fileNameToLoad, BigInteger midiNotes, int midiNoteForNormalPitch, ModulatorSamplerSoundPool *pool);
 
 	/** Creates a new StreamingSamplerSound from a monolithic file. */
-	StreamingSamplerSound(HiseMonolithAudioFormat *info, int index);
+	StreamingSamplerSound(HiseMonolithAudioFormat *info, int channelIndex, int sampleIndex);
 
 
 	
@@ -234,6 +234,9 @@ public:
 	void openFileHandle();
 	bool isOpened();
 
+	bool isMonolithic() const;
+	AudioFormatReader* createReaderForPreview() { return fileReader.createMonolithicReaderForPreview(); }
+
 	// ==============================================================================================================================================
 
 	String getFileName(bool getFullPath = false) const;
@@ -314,7 +317,7 @@ private:
 
 		void setFile(const String &fileName);
 
-		void setMonolithicInfo(HiseMonolithAudioFormat * info, int index);
+		void setMonolithicInfo(HiseMonolithAudioFormat * info, int channelIndex, int sampleIndex);
 
 
 		String getFileName(bool getFullPath);
@@ -340,15 +343,19 @@ private:
 
 		// ==============================================================================================================================================
 
-		void increaseVoiceCount() { voiceCount += 1; };
-        void decreaseVoiceCount() { voiceCount -= 1; voiceCount.compareAndSetBool(0,-1); }
+		void increaseVoiceCount() { ++voiceCount; };
+		void decreaseVoiceCount() { --voiceCount; voiceCount.compareAndSetBool(0, -1); }
 
 		// ==============================================================================================================================================
 
-		bool isUsed() { return voiceCount.get() != 0; }
-		bool isOpened() { return fileHandlesOpen; }
+		bool isUsed() const noexcept { return voiceCount.get() != 0; }
+		bool isOpened() const noexcept { return fileHandlesOpen; }
+		bool isMonolithic() const noexcept{ return monolithicInfo != nullptr; }
+
 		bool isMissing() const { return missing; }
 		void setMissing() { missing = true; }
+
+		
 
 		// ==============================================================================================================================================
 
@@ -356,6 +363,8 @@ private:
 
 		float calculatePeakValue();
 		
+		AudioFormatReader* createMonolithicReaderForPreview();
+
 		// ==============================================================================================================================================
 
 	private:
@@ -364,6 +373,7 @@ private:
 
 		HiseMonolithAudioFormat* monolithicInfo = nullptr;
 		int monolithicIndex = -1;
+		int monolithicChannelIndex = -1;
 		String monolithicName;
 
 		CriticalSection readLock;

@@ -164,7 +164,7 @@ public:
 
 	void getCommandInfo (CommandID commandID, ApplicationCommandInfo &result) override
 	{
-		const bool isSelected = selection.size() > 0;
+		const bool isSelected = selection.size() > 0 && selection.getLast() != nullptr;
 
 		switch (commandID)
 		{
@@ -212,7 +212,8 @@ public:
 	{
 
 
-		selection = Array<ModulatorSamplerSound*>(selectedSoundList);
+		for (int i = 0; i < selectedSoundList.size(); i++)
+			selection.add(selectedSoundList[i]);
 
 		panSetter->setCurrentSelection(selectedSoundList);
 		volumeSetter->setCurrentSelection(selectedSoundList);
@@ -226,7 +227,7 @@ public:
 
 		samplerEditorCommandManager->commandStatusChanged();
 
-		if(selectedSoundList.size() != 0) currentWaveForm->setSoundToDisplay(selectedSoundList.getLast());
+		if(selection.size() != 0 && selection.getLast() != 0) currentWaveForm->setSoundToDisplay(selection.getLast());
 		else currentWaveForm->setSoundToDisplay(nullptr);
 	}
 
@@ -326,7 +327,7 @@ private:
 
 	ScopedPointer<SamplerSoundWaveform> currentWaveForm;
 
-	Array<ModulatorSamplerSound*> selection;
+	ReferenceCountedArray<ModulatorSamplerSound> selection;
 
 	ScopedPointer<SampleEditorToolbarFactory> toolbarFactory;
 

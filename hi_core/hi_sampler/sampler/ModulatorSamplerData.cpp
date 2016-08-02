@@ -335,6 +335,8 @@ void SampleMap::restoreFromValueTree(const ValueTree &v)
 
     sampleMapId = Identifier(v.getProperty("ID", "unused").toString());
     
+	
+
 	if(mode == Monolith)
 	{
 		loadSamplesFromMonolith(v);
@@ -533,35 +535,48 @@ private:
 	/** Writes the files and updates the samplemap with the information. */
 	void writeFiles(int channelIndex)
 	{
+		AudioFormatManager afm;
+		afm.registerBasicFormats();
+		Array<File>* channelList = filesToWrite[channelIndex];
+		
+		bool isMono = false;
+
+		if (channelList->size() > 0)
+		{
+			ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(channelList->getUnchecked(0));
+
+			isMono = reader->numChannels == 1;
+		}
+
 		String channelFileName = sampleMap->getId().toString() + ".ch" + String(channelIndex+1);
 
 		File outputFile = monolithDirectory.getChildFile(channelFileName);
 
 		outputFile.deleteFile();
 		outputFile.create();
-
-		Array<File>* channelList = filesToWrite[channelIndex];
+		FileOutputStream fos(outputFile);
+		
+		fos.writeBool(isMono);
 
 		showStatusMessage("Exporting Channel " + String(channelIndex+1));
 
-		AudioSampleBuffer buffer(2, largestSample);
+		AudioSampleBuffer buffer(isMono? 1 : 2, largestSample);
 		MemoryBlock tempBlock;
-		FileOutputStream fos(outputFile);
-		AudioFormatManager afm;
+				
+		size_t frameSize = sizeof(int16) * (isMono ? 1 : 2);
 
-		tempBlock.setSize(2 * 2 * largestSample);
-		afm.registerBasicFormats();
-
+		tempBlock.setSize(frameSize * largestSample);
+		
 		for (int i = 0; i < channelList->size(); i++)
 		{
 			setProgress((double)i / (double)numSamples);
 
-			AudioFormatReader* reader = afm.createReaderFor(channelList->getUnchecked(i));
+			ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(channelList->getUnchecked(i));
 			reader->read(&buffer, 0, reader->lengthInSamples, 0, true, true);
-			size_t bytesUsed = reader->lengthInSamples * 4;
+			size_t bytesUsed = reader->lengthInSamples * frameSize;
 
 			AudioFormatWriter::WriteHelper<AudioData::Int16, AudioData::Float32, AudioData::LittleEndian>::write(
-				tempBlock.getData(), 2, (const int* const *)buffer.getArrayOfReadPointers(), reader->lengthInSamples);
+				tempBlock.getData(), isMono ? 1 : 2, (const int* const *)buffer.getArrayOfReadPointers(), reader->lengthInSamples);
 
 			fos.write(tempBlock.getData(), bytesUsed);	
 		}
@@ -588,7 +603,7 @@ private:
 			{
 				File sampleFile = filesToWrite.getUnchecked(0)->getUnchecked(i);
 				
-				AudioFormatReader* reader = afm.createReaderFor(sampleFile);
+				ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(sampleFile);
 
 				if (reader != nullptr)
 				{
@@ -668,6 +683,9 @@ void SampleMap::loadSamplesFromDirectory(const ValueTree &v)
 
 	sampler->deleteAllSounds();
 
+	int numChannels = jmax<int>(1, v.getChild(0).getNumChildren());
+	sampler->setNumChannels(numChannels);
+
 	sampler->setShouldUpdateUI(false);
     ModulatorSamplerSoundPool *pool = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
     pool->setUpdatePool(false);
@@ -708,17 +726,28 @@ void SampleMap::loadSamplesFromMonolith(const ValueTree &v)
 {
 	File monolithDirectory = GET_PROJECT_HANDLER(sampler).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps).getChildFile("MonolithSamplePacks");
 
-	File monolithFile = monolithDirectory.getChildFile(sampleMapId.toString() + ".ch1");
-
-	if (monolithFile.existsAsFile())
+	Array<File> monolithFiles;
+	
+	for (int i = 0; i < 6; i++)
 	{
+		File f = monolithDirectory.getChildFile(sampleMapId.toString() + ".ch" + String(i+1));
+		if (f.existsAsFile()) monolithFiles.add(f);
+	}
+
+	if (!monolithFiles.isEmpty())
+	{
+
 		sampler->deleteAllSounds();
+
+		int numChannels = jmax<int>(1, v.getChild(0).getNumChildren());
+
+		sampler->setNumChannels(numChannels);
 
 		ModulatorSamplerSoundPool* pool = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
 
 		OwnedArray<ModulatorSamplerSound> newSounds;
 
-		pool->loadMonolithicData(v, monolithFile, newSounds);
+		pool->loadMonolithicData(v, monolithFiles, newSounds);
 
 		for (int i = 0; i < v.getNumChildren(); i++)
 		{

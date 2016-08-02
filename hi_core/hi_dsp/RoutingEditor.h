@@ -41,14 +41,7 @@ class RouterComponent : public Component,
 {
 public:
 
-	enum Presets
-	{
-		AllChannels = 10000,
-		FirstStereo,
-		SecondStereo,
-		ThirdStereo,
-		AllChannelsToStereo
-	};
+	
 
 	class ChannelConnector : public Component
 	{

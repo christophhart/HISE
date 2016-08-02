@@ -246,13 +246,23 @@ void SamplerSoundWaveform::setSoundToDisplay(const ModulatorSamplerSound *s)
 
 		WavAudioFormat waf;
 
-		AudioFormatReader *afr = PresetHandler::getReaderForFile(File(s->getProperty(ModulatorSamplerSound::FileName)));
+		StreamingSamplerSound::Ptr sound = s->getReferenceToSound(); // The first sample is enough
 
+		ScopedPointer<AudioFormatReader> afr;
+
+		if (sound->isMonolithic())
+		{
+			afr = sound->createReaderForPreview();
+		}
+		else
+		{
+			afr = PresetHandler::getReaderForFile(File(s->getProperty(ModulatorSamplerSound::FileName)));
+		}
+		
 		if (afr != nullptr)
 		{
-			preview->setReader(afr, (int64)s->getProperty(ModulatorSamplerSound::ID));
-
 			numSamplesInCurrentSample = (int)afr->lengthInSamples;
+			preview->setReader(afr.release(), (int64)s->getProperty(ModulatorSamplerSound::ID));
 
 			updateRanges();
 		}

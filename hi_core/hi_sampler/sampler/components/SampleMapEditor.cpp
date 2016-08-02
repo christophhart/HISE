@@ -539,7 +539,10 @@ void SampleMapEditor::refreshRootNotes()
 	map->selectedRootNotes.setRange(0, 128, false);
 	for (int i = 0; i < sounds.size(); i++)
 	{
-		map->selectedRootNotes.setBit(sounds[i]->getProperty(ModulatorSamplerSound::RootNote), true);
+		if (sounds[i].get() != nullptr)
+		{
+			map->selectedRootNotes.setBit(sounds[i]->getProperty(ModulatorSamplerSound::RootNote), true);
+		}
 	}
 
 	if (map->selectedRootNotes != previousState)

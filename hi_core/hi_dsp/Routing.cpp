@@ -447,6 +447,45 @@ void RoutableProcessor::MatrixData::setGainValues(float *numMaxChannelValues, bo
 	memcpy(isSourceValue ? sourceGainValues : targetGainValues, numMaxChannelValues, (isSourceValue ? numSourceChannels : numDestinationChannels) * sizeof(float));
 }
 
+void RoutableProcessor::MatrixData::loadPreset(Presets newPreset)
+{
+	Presets pr = (Presets)newPreset;
+
+	clearAllConnections();
+
+	switch (pr)
+	{
+	case Presets::AllChannels:
+		for (int i = 0; i < getNumSourceChannels(); i++)
+		{
+			addConnection(i, i);
+		}
+		break;
+	case Presets::FirstStereo:
+		addConnection(0, 0);
+		addConnection(1, 1);
+		break;
+	case Presets::SecondStereo:
+		addConnection(2, 2);
+		addConnection(3, 3);
+
+		break;
+	case Presets::ThirdStereo:
+		addConnection(4, 4);
+		addConnection(5, 5);
+
+		break;
+	case Presets::AllChannelsToStereo:
+		for (int i = 0; i < getNumSourceChannels(); i++)
+		{
+			addConnection(i, i % 2 != 0 ? 1 : 0);
+		}
+		break;
+	default:
+		break;
+	}
+}
+
 void RoutableProcessor::MatrixData::refreshSourceUseStates()
 {
 	for (int i = 0; i < numSourceChannels; i++)

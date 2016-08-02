@@ -665,25 +665,40 @@ void ModulatorSamplerSoundPool::deleteSound(ModulatorSamplerSound *soundToDelete
 }
 
 
-bool ModulatorSamplerSoundPool::loadMonolithicData(const ValueTree &sampleMaps, const File& monolithicFile, OwnedArray<ModulatorSamplerSound> &sounds)
+bool ModulatorSamplerSoundPool::loadMonolithicData(const ValueTree &sampleMap, const Array<File>& monolithicFiles, OwnedArray<ModulatorSamplerSound> &sounds)
 {
-	loadedMonoliths.add(new HiseMonolithAudioFormat(monolithicFile));
+	loadedMonoliths.add(new HiseMonolithAudioFormat(monolithicFiles));
 
 	HiseMonolithAudioFormat* hmaf = loadedMonoliths.getLast();
 
-	for (int i = 0; i < sampleMaps.getNumChildren(); i++)
+	hmaf->fillMetadataInfo(sampleMap);
+
+	for (int i = 0; i < sampleMap.getNumChildren(); i++)
 	{
-		ValueTree sample = sampleMaps.getChild(i);
+		ValueTree sample = sampleMap.getChild(i);
 
-		String fileName = sample.getProperty("FileName").toString().fromFirstOccurrenceOf("{PROJECT_FOLDER}", false, false);
+		if (sample.getNumChildren() == 0)
+		{
+			String fileName = sample.getProperty("FileName").toString().fromFirstOccurrenceOf("{PROJECT_FOLDER}", false, false);
+			StreamingSamplerSound* sound = new StreamingSamplerSound(hmaf, 0, i);
+			pool.add(sound);
+			sounds.add(new ModulatorSamplerSound(sound, i));
+		}
+		else
+		{
+			StreamingSamplerSoundArray multiMicArray;
 
-		File dummyFile = File::getSpecialLocation(File::SpecialLocationType::tempDirectory).getChildFile(fileName);
+			for (int j = 0; j < sample.getNumChildren(); j++)
+			{
+				StreamingSamplerSound* sound = new StreamingSamplerSound(hmaf, j, i);
+				pool.add(sound);
+				multiMicArray.add(sound);
+			}
 
-		StreamingSamplerSound* sound = new StreamingSamplerSound(hmaf, i);
+			sounds.add(new ModulatorSamplerSound(multiMicArray, i));
+		}
+
 		
-		pool.add(sound);
-
-		sounds.add(new ModulatorSamplerSound(sound, i));
 	}
 
 	sendChangeMessage();
