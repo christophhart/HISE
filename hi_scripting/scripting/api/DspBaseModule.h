@@ -58,22 +58,37 @@ public:
 
 	// ================================================================================================================
 
+	
+	/** @name Callbacks
+	*  These callbacks are used to setup and render the effect.
+	*/
+	///@{
+	
 	/** Overwrite this method and setup the processing for the given specifications. */
 	virtual void prepareToPlay(double sampleRate, int blockSize) = 0;
 
 	/** Overwrite this method and do your processing on the given sample data. */
 	virtual void processBlock(float **data, int numChannels, int numSamples) = 0;
 
+	///@}
+	
 	// =================================================================================================================
 
 	DspBaseObject() {};
-
     virtual ~DspBaseObject() {}
     
-protected:
 
-	friend class DspInstance;
-
+	/** @name Parameter API Methods
+	*  Methods for handling the Parameters.
+	*
+	*	In Javascript they can be accessed using bracket notation:
+	*
+	*	@code{.js}
+	*	effect["Gain"] = 0.5;
+	*	@endcode
+	*/
+	///@{
+	
 	/** Return the number of parameters for this module. This must be a constant. */
 	virtual int getNumParameters() const = 0;
 
@@ -90,8 +105,21 @@ protected:
 	/** This must set the parameter to your value. */
 	virtual void setParameter(int index, float newValue) = 0;
 
+	///@}
+	
 	// =================================================================================================================
 
+	/** @name Constant API Methods
+	*  Methods for handling the constants.
+	*
+	*	They can be accessed using the Javascript .dot operator:
+	*
+	*	@code{.js}
+	*	var x = Effect.maxSampleRate;
+	*	@endcode
+	*/
+	///@{
+	
 	/** Overwrite this method if your module has constants that*/
 	virtual int getNumConstants() const { return 0; };
 
@@ -132,7 +160,8 @@ protected:
 	*/
 	virtual bool getConstant(int index, float** data, int &size) noexcept{ return false; };
 
-
+	///@}
+	
 	// =================================================================================================================
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DspBaseObject)

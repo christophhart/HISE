@@ -33,3 +33,10 @@ projects/frontend_library/Builds/
 projects/frontend_library_test/lib/HISEFrontendLibrary.lib
 projects/frontend_library/JuceLibraryCode/
 projects/frontend_library_test/JuceLibraryCode/
+hi_scripting/scripting/api/latex/Makefile
+hi_scripting/scripting/api/latex/annotated.tex
+hi_scripting/scripting/api/latex/class_dsp_base_object.tex
+hi_scripting/scripting/api/latex/doxygen.sty
+hi_scripting/scripting/api/latex/make.bat
+hi_scripting/scripting/api/latex/refman.tex
+hi_scripting/scripting/api/html/
