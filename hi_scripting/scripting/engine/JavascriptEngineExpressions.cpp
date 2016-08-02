@@ -103,40 +103,7 @@ struct HiseJavascriptEngine::RootObject::ArraySubscript : public Expression
 		Expression::assign(s, newValue);
 	}
 
-	void cacheIndex(AssignableObject *instance, const Scope &s) const
-	{
-		if (cachedIndex == -1)			
-		{
-			if (dynamic_cast<LiteralValue*>(index.get()) != nullptr ||
-				dynamic_cast<ConstReference*>(index.get()) != nullptr ||
-				dynamic_cast<DotOperator*>(index.get()))
-			{
-				if (DotOperator* dot = dynamic_cast<DotOperator*>(index.get()))
-				{
-					if (ConstReference* c = dynamic_cast<ConstReference*>(dot->parent.get()))
-					{
-						const var i = instance->getCachedIndex(dot->child.toString());
-
-						
-						
-						cachedIndex = c-
-					}
-					else
-					{
-						location.throwError("[]-access using dot operator only valid with const variables as parent");
-					}
-				}
-				else
-				{
-					const var i = index->getResult(s);
-					cachedIndex = instance->getCachedIndex(i);
-
-					if (cachedIndex == -1) location.throwError("Property " + i.toString() + " not found");
-				}
-			}
-			else location.throwError("[]-access must be used with a literal or constant");
-		}
-	}
+	void cacheIndex(AssignableObject *instance, const Scope &s) const;
 
 	ExpPtr object, index;
 

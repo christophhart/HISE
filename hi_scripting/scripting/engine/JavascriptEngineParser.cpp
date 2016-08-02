@@ -213,10 +213,14 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 	ExpressionTreeBuilder(const String code, const String externalFile) :
 		TokenIterator(code, externalFile){}
 
-	void setApiData(HiseSpecialData &data)
+	void setupApiData(HiseSpecialData &data, const String& codeToPreprocess)
 	{
 		hiseSpecialData = &data;
+		
+		findGlobalVarIds(codeToPreprocess);
 	}
+
+	void findGlobalVarIds(const String& codeToPreprocess);
 
 	BlockStatement* parseStatementList()
 	{
@@ -410,7 +414,7 @@ private:
 			{
 				ExpressionTreeBuilder ftb(fileContent, refFileName);
 
-				ftb.setApiData(*hiseSpecialData);
+				ftb.setupApiData(*hiseSpecialData, fileContent);
 
 				ScopedPointer<BlockStatement> s = ftb.parseStatementList();
 
@@ -504,6 +508,7 @@ private:
 			return block.release();
 		}
 
+		jassert(hiseSpecialData->constObjects[s->name] == "undeclared");
 
 		hiseSpecialData->constObjects.set(s->name, "uninitialised"); // Will be initialied at runtime
 		
@@ -1316,12 +1321,64 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ExpressionTreeBuilder)
 };
 
+void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::findGlobalVarIds(const String& codeToPreprocess)
+{
+
+	jassert(hiseSpecialData->constObjects.size() == 0);
+
+	TokenIterator it(codeToPreprocess, "");
+
+	Array<Identifier> ids;
+
+	int braceLevel = 0;
+
+	while (it.currentType != TokenTypes::eof)
+	{
+		if (it.currentType == TokenTypes::openBrace) braceLevel++;
+		else if (it.currentType == TokenTypes::closeBrace) braceLevel--;
+
+		if (it.currentType == TokenTypes::const_)
+		{
+			it.match(TokenTypes::const_);
+			it.matchIf(TokenTypes::var);
+
+			if (braceLevel != 0)
+			{
+				it.location.throwError("const var declaration must be on global level");
+			}
+
+			const Identifier newId(it.currentValue);
+
+			if (newId.isNull())
+			{
+				it.location.throwError("Expected identifier for const var declaration");
+			}
+
+			if (ids.contains(newId))
+			{
+				it.location.throwError("Duplicate const var declaration.");
+			}
+
+			ids.add(newId);
+		}
+		else
+		{
+			it.skip();
+		}
+	}
+
+	for (int i = 0; i < ids.size(); i++)
+	{
+		hiseSpecialData->constObjects.set(ids[i], "undeclared");
+	}
+}
+
 
 var HiseJavascriptEngine::RootObject::evaluate(const String& code)
 {
 	ExpressionTreeBuilder tb(code, String());
 
-	tb.setApiData(hiseSpecialData);
+	tb.setupApiData(hiseSpecialData, code);
 
 	return ExpPtr(tb.parseExpression())->getResult(Scope(nullptr, this, this));
 }
@@ -1330,7 +1387,7 @@ void HiseJavascriptEngine::RootObject::execute(const String& code)
 {
 	ExpressionTreeBuilder tb(code, String());
 
-	tb.setApiData(hiseSpecialData);
+	tb.setupApiData(hiseSpecialData, code);
 
 	ScopedPointer<BlockStatement>(tb.parseStatementList())->perform(Scope(nullptr, this, this), nullptr);
 }
