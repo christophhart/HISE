@@ -102,8 +102,12 @@ public:
 	/** Calls the processMethod of the external module. */
 	void processBlock(const var &data);
 
-	void setParameter(int index, var newValue);
+	void setParameter(int index, float newValue);
 	var getParameter(int index) const;
+
+	void setStringParameter(int index, String value);
+
+	String getStringParameter(int index);
 
 	void assign(const int index, var newValue) override;
 	var getAssignedValue(int index) const override;

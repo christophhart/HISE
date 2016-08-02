@@ -35,8 +35,10 @@ struct DspInstance::Wrapper
 	API_VOID_METHOD_WRAPPER_1(DspInstance, processBlock);
 	API_VOID_METHOD_WRAPPER_2(DspInstance, prepareToPlay);
 	API_VOID_METHOD_WRAPPER_2(DspInstance, setParameter);
+	API_VOID_METHOD_WRAPPER_2(DspInstance, setStringParameter);
 	API_METHOD_WRAPPER_1(DspInstance, getParameter);
 	API_METHOD_WRAPPER_0(DspInstance, getInfo);
+	API_METHOD_WRAPPER_1(DspInstance, getStringParameter);
 };
 
 
@@ -55,15 +57,18 @@ factory(const_cast<DspFactory*>(f))
 			ADD_API_METHOD_2(prepareToPlay);
 			ADD_API_METHOD_2(setParameter);
 			ADD_API_METHOD_1(getParameter);
+			ADD_API_METHOD_2(setStringParameter);
+			ADD_API_METHOD_1(getStringParameter);
 			ADD_API_METHOD_0(getInfo);
 
 			for (int i = 0; i < object->getNumConstants(); i++)
 			{
 				char nameBuffer[64];
 				int nameLength = 0;
-
+				
 				object->getIdForConstant(i, nameBuffer, nameLength);
-				String name(nameBuffer, (size_t)nameLength);
+				
+				String name(nameBuffer, nameLength);
 
 				int intValue;
 				if (object->getConstant(i, intValue))
@@ -152,9 +157,9 @@ void DspInstance::processBlock(const var &data)
 	}
 }
 
-void DspInstance::setParameter(int index, var newValue)
+void DspInstance::setParameter(int index, float newValue)
 {
-	if (object != nullptr && index << object->getNumParameters())
+	if (object != nullptr && index < object->getNumParameters())
 	{
 		object->setParameter(index, newValue);
 	}
@@ -170,6 +175,32 @@ var DspInstance::getParameter(int index) const
 	return var::undefined();
 }
 
+void DspInstance::setStringParameter(int index, String value)
+{
+	if (object != nullptr)
+	{
+		object->setStringParameter(index, value.getCharPointer(), value.length());
+	}
+}
+
+String DspInstance::getStringParameter(int index)
+{
+	if (object != nullptr)
+	{
+		size_t textLength = 0;
+		const char* newText = object->getStringParameter(index, textLength);
+
+		std::string s;
+
+		s.reserve(textLength);
+
+		for (int i = 0; i < textLength; i++)
+			s.push_back(*newText++);
+
+		return String(s);
+	}
+}
+
 void DspInstance::assign(const int index, var newValue)
 {
 	setParameter(index, newValue);
@@ -182,12 +213,7 @@ var DspInstance::getAssignedValue(int index) const
 
 int DspInstance::getCachedIndex(const var &name) const
 {
-	if (object != nullptr)
-	{
-		return getConstantIndex(name.toString());
-	}
-
-	return -1;
+	return getConstantValue((int)name);
 }
 
 var DspInstance::getInfo() const

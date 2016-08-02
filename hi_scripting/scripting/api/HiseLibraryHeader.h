@@ -137,6 +137,9 @@ compatible version can be found in the Github Repository of this API.
 /** returns a static Identifier called `id`. */
 #define RETURN_STATIC_IDENTIFIER(x) const static Identifier id(x); return id;
 
+/** Adds a case statement for the enum and returns the name of the enum. */
+#define FILL_PARAMETER_ID(enumClass, enumId, size, text) case (int)enumClass::enumId: size = HelperFunctions::writeString(text, #enumId); break;
+
 // Replace this with file contents when API is in stable state...
 #include "BaseFactory.h"
 #include "DspBaseModule.h"
@@ -150,7 +153,7 @@ compatible version can be found in the Github Repository of this API.
 #define DLL_EXPORT extern "C" __attribute__((visibility("default")))
 #endif
 
-/** The Factory used to create all modules from this library. */
+// The Factory used to create all modules from this library.
 static Factory<DspBaseObject> baseObjects;
 
 
@@ -174,6 +177,20 @@ namespace HelperFunctions
 		
 		return strlen(content);
 	}
+
+	/** Creates a String from a different heap. This is rather slow because it makes a byte-wise copy of the other string, but better safe than sorry! */
+	String createStringFromChar(const char* charFromOtherHeap, size_t length)
+	{
+		std::string s;
+		s.reserve(length);
+
+		for (int i = 0; i < length; i++)
+			s.push_back(*charFromOtherHeap++);
+
+		return String(s);
+	}
+
+	
 
 	/** Registeres the module passed in as template parameter. */
 	template <class T> void registerDspModule() { baseObjects.registerType<T>(); }

@@ -145,9 +145,9 @@ public:
 
 	/** Overwrite this method and do your processing on the given sample data. 
 	*
-	*	@parameter data: a 'numChannels' sized-array of 'numSamples'-sized float arrays 
-	*	@parameter numChannels: the channel amount. This can be either '1' or '2', so you must handle both cases.
-	*	@parameter numSamples: the sample amount: this will be max. the amount specified in the last prepareToPlay() call.
+	*	@param data: a 'numChannels' sized-array of 'numSamples'-sized float arrays 
+	*	@param numChannels: the channel amount. This can be either '1' or '2', so you must handle both cases.
+	*	@param numSamples: the sample amount: this will be max. the amount specified in the last prepareToPlay() call.
 	*/
 	virtual void processBlock(float **data, int numChannels, int numSamples) = 0;
 
@@ -165,6 +165,16 @@ public:
 	/** This must set the parameter to your value. You might want to make this thread-aware by using Atomic<float> data members. */
 	virtual void setParameter(int index, float newValue) = 0;
 	
+	/** Returns a string parameter. Use this to pass text values around (eg. for file I/O). */
+	virtual const char* getStringParameter(int index, size_t& textLength) { return nullptr; };
+
+	/** Sets a string parameter. Use this to pass text values around (eg. for file I/O). 
+	*
+	*	You need to create a copy from the char pointer (because it was allocated using another heap)
+	*	@see HelperFunctions::writeString()
+	*/
+	virtual void setStringParameter(int index, const char* text, size_t textLength) {};
+
 	// =================================================================================================================
 
 	/** Overwrite this method if your module has constants that*/
@@ -191,17 +201,29 @@ public:
 
 	/** Overwrite this method and fill in the value if the given index should be an integer value.
 	*
+	*	Unlike the other getConstant() methods, the default implementation returns the index itself if the index
+	*	is a valid parameterIndex. Use this in conjunction with the macro FILL_PARAMETER_ID() to automatically
+	*	create constants that refer to their parameter slots via their enum name.
+	*
 	*	@param index: the index of the constant.
 	*	@param value: the value that this constant should hold
 	*	@returns true if the constant index is a int value
 	*			 false, if it should look further in the other overloaded getConstant() functions.
 	*/
-	virtual bool getConstant(int index, int& value) const noexcept{ return false; };
+	virtual bool getConstant(int index, int& value) const noexcept
+	{
+		if(index < getNumParameters()) 
+		{ 
+			value = index; return true; 
+		}
+
+		return false; 
+	};
 
 	/** Overwrite this method and fill in the value if the given index should be an String (max 512 characters).
 	*
 	*	@param index: the index of the constant.
-	*	@param value: the value that this constant should hold
+	*	@param text: the text that this constant should hold
 	*	@returns true if the constant index is a String value
 	*			 false, if it should look further in the other overloaded getConstant() functions.
 	*/

@@ -24,8 +24,12 @@ public:
 	enum class Parameters
 	{
 		Gain = 0,
+		Volume,
+		Frequency,
 		numParameters
 	};
+
+	GainExample() : gain(1.0f) {}
 
 	/** Overwrite this method and return the name of this module. 
     *
@@ -41,64 +45,50 @@ public:
 
 	// =================================================================================================================
 
-	int getNumParameters() const override { return 1; }
-	float getParameter(int /*index*/) const override { return gain; }
-	void setParameter(int /*index*/, float newValue) override { gain = newValue; }
+	int getNumParameters() const override { return (int)Parameters::numParameters; }
+	float getParameter(int /*index*/) const override { return gain.get(); }
+	void setParameter(int /*index*/, float newValue) override { gain.set(newValue); }
+
+	void setStringParameter(int index, const char* textToCopy, size_t lengthToCopy)
+	{
+		fileName = HelperFunctions::createStringFromChar(textToCopy, lengthToCopy);
+	}
+
+	const char* getStringParameter(int index, size_t& length) override 
+	{
+		length = fileName.length();
+		return fileName.getCharPointer(); 
+
+
+	}
+
 
 	// =================================================================================================================
 
 	
 	int getNumConstants() const { return 4; };
 
-	void getIdForConstant(int index, char* name, int &size) const noexcept override
+	void getIdForConstant(int index, char*name, int &size) const noexcept override
 	{
 		switch (index)
 		{
-		case 0: size = HelperFunctions::writeString(name, "Gain"); break;
-		case 1: size = HelperFunctions::writeString(name, "someFloatValue"); break;
-		case 2: size = HelperFunctions::writeString(name, "someText"); break;
+		FILL_PARAMETER_ID(Parameters, Gain, size, name);
+		FILL_PARAMETER_ID(Parameters, Volume, size, name);
+		FILL_PARAMETER_ID(Parameters, Frequency, size, name);
 		case 3: size = HelperFunctions::writeString(name, "internalStorage"); break;
 		}
 	};
 
-	bool getConstant(int index, float& value) const noexcept override
-	{
-		return false; 
-	};
-
 	bool getConstant(int index, int& value) const noexcept override
 	{ 
-		if (index == 0)
-		{
-			value = (int)Parameters::Gain;
-			return true;
-		}
+		RETURN_PARAMETER_IDS();
 
 		return false;
 	};
-
-	
-	bool getConstant(int index, char* text, size_t& size) const noexcept override
-	{
-		if (index == 2)
-		{
-			size = HelperFunctions::writeString(text, "Hello world");
-			return true;
-		}
-
-		return false;
-	};
-
 	
 	bool getConstant(int index, float** data, int &size) noexcept override
 	{
-		if (index == 1)
-		{
-			*data = &gain;
-			size = 1;
-			return true;
-		}
-		else if (index == 3)
+		if (index == 3)
 		{
 			*data = internalStorage.getData();
 			size = internalStorageSize;
@@ -113,7 +103,9 @@ private:
 	HeapBlock<float> internalStorage;
 	int internalStorageSize = 0;
 
-	float gain = 1.0f;
+	String fileName;
+
+	Atomic<float> gain;
 };
 
 
