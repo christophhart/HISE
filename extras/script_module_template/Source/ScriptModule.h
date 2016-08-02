@@ -14,12 +14,18 @@
 
 #include <JuceHeader.h>
 
-#include "HiseLibraryHeader.h"
+#include "../../../hi_scripting/scripting/api/HiseLibraryHeader.h"
 
 /** This is an example class of a DSP module that can be loaded in a script processor within HISE. */
 class GainExample : public DspBaseObject
 {
 public:
+
+	enum class Parameters
+	{
+		Gain = 0,
+		numParameters
+	};
 
 	/** Overwrite this method and return the name of this module. 
     *
@@ -36,7 +42,6 @@ public:
 	// =================================================================================================================
 
 	int getNumParameters() const override { return 1; }
-	const Identifier &getIdForParameter(int /*index*/) const override { RETURN_STATIC_IDENTIFIER("Gain"); }
 	float getParameter(int /*index*/) const override { return gain; }
 	void setParameter(int /*index*/, float newValue) override { gain = newValue; }
 
@@ -49,10 +54,10 @@ public:
 	{
 		switch (index)
 		{
-		case 0: SET_STRING(name, "someIntValue"); break;
-		case 1: SET_STRING(name, "Gan"); break;
-		case 2: SET_STRING(name, "someText"); break;
-		case 3: SET_STRING(name, "internalStorage"); break;
+		case 0: size = HelperFunctions::writeString(name, "Gain"); break;
+		case 1: size = HelperFunctions::writeString(name, "someFloatValue"); break;
+		case 2: size = HelperFunctions::writeString(name, "someText"); break;
+		case 3: size = HelperFunctions::writeString(name, "internalStorage"); break;
 		}
 	};
 
@@ -65,7 +70,7 @@ public:
 	{ 
 		if (index == 0)
 		{
-			value = 42;
+			value = (int)Parameters::Gain;
 			return true;
 		}
 
@@ -77,7 +82,7 @@ public:
 	{
 		if (index == 2)
 		{
-			SET_STRING(text, "Hello world");
+			size = HelperFunctions::writeString(text, "Hello world");
 			return true;
 		}
 

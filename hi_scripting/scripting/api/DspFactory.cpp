@@ -154,7 +154,7 @@ void DspInstance::processBlock(const var &data)
 
 void DspInstance::setParameter(int index, var newValue)
 {
-	if (object != nullptr)
+	if (object != nullptr && index << object->getNumParameters())
 	{
 		object->setParameter(index, newValue);
 	}
@@ -184,21 +184,10 @@ int DspInstance::getCachedIndex(const var &name) const
 {
 	if (object != nullptr)
 	{
-		for (int i = 0; i < object->getNumParameters(); i++)
-		{
-			if (name.toString() == object->getIdForParameter(i).toString())
-			{
-				return i;
-			}
-		}
+		return getConstantIndex(name.toString());
 	}
 
 	return -1;
-}
-
-void DspInstance::operator<<(var &/*data*/) const
-{
-	// DSP_TODO
 }
 
 var DspInstance::getInfo() const
@@ -213,7 +202,7 @@ var DspInstance::getInfo() const
 
 		for (int i = 0; i < object->getNumParameters(); i++)
 		{
-			const String line = String("Parameter #" + String(i) + ": ") + object->getIdForParameter(i).toString() + String(", current value: ") + String(object->getParameter(i)) + String("\n");
+			const String line = String("Parameter #" + String(i) + String(": current value: ") + String(object->getParameter(i)) + String("\n"));
 
 			info << line;
 		}
@@ -238,13 +227,22 @@ void DspInstance::operator>>(const var &data)
 	processBlock(data);
 }
 
+void DspInstance::operator<<(const var &data)
+{
+	processBlock(data);
+}
+
 DspInstance::~DspInstance()
 {
-	for (int i = 0; i < object->getNumConstants(); i++)
+	if (object != nullptr)
 	{
-		if (getConstantValue(i).isBuffer())
-			getConstantValue(i).getBuffer()->referToData(nullptr, 0);
+		for (int i = 0; i < object->getNumConstants(); i++)
+		{
+			if (getConstantValue(i).isBuffer())
+				getConstantValue(i).getBuffer()->referToData(nullptr, 0);
+		}
 	}
+	
 
 	if (factory != nullptr)
 	{
@@ -371,6 +369,7 @@ struct DspFactory::Wrapper
 {
 	DYNAMIC_METHOD_WRAPPER_WITH_RETURN(DspFactory, createModule, ARG(0).toString());
 	DYNAMIC_METHOD_WRAPPER_WITH_RETURN(DspFactory, getModuleList);
+	DYNAMIC_METHOD_WRAPPER_WITH_RETURN(DspFactory, getErrorCode);
 };
 
 DspFactory::DspFactory() :
@@ -378,9 +377,11 @@ DynamicObject()
 {
 	ADD_DYNAMIC_METHOD(createModule);
 	ADD_DYNAMIC_METHOD(getModuleList);
+	ADD_DYNAMIC_METHOD(getErrorCode);
+	
 }
 
-DynamicDspFactory::DynamicDspFactory(const String &name_, const String& password) :
+DynamicDspFactory::DynamicDspFactory(const String &name_, const String& args) :
 name(name_)
 {
 #if JUCE_WINDOWS
@@ -415,30 +416,26 @@ name(name_)
     
 	File f(fullLibraryPath);
 
-	if (!f.existsAsFile()) throw String("Library " + name + " was not found");
-
-	library = new DynamicLibrary();
-	library->open(fullLibraryPath);
-
-	using pFunc = bool(*)(const char*);
-
-	pFunc func = (pFunc)library->getFunction("matchPassword");
-
-	if (func != nullptr)
+	if (!f.existsAsFile())
 	{
-		if (password.isEmpty())
-			throw String("This Library is locked. You need a password to open it");
-
-		const bool passwordMatches = func(password.getCharPointer());
-
-		if (!passwordMatches)
-			throw String("Wrong password for locked DLL. Abort loading");
+		errorCode = (int)LoadingErrorCode::MissingLibrary;
 	}
-	
+	else
+	{
+		library = new DynamicLibrary();
+		library->open(fullLibraryPath);
 
-	initialise();
+		errorCode = initialise(args);
+	}
 
 	ADD_DYNAMIC_METHOD(createModule);
+	
+	setProperty("LoadingSuccessful", 0);
+	setProperty("Uninitialised", 1);
+	setProperty("MissingLibrary", 2);
+	setProperty("NoValidLibrary", 3);
+	setProperty("NoVersionMatch", 4);
+	setProperty("KeyInvalid", 5);
 }
 
 void GlobalScriptCompileBroadcaster::createDummyLoader()
@@ -476,9 +473,9 @@ void DynamicDspFactory::destroyDspBaseObject(DspBaseObject *object) const
 	}
 }
 
-typedef void(*init_)();
+typedef LoadingErrorCode(*init_)(const char* name);
 
-void DynamicDspFactory::initialise()
+int DynamicDspFactory::initialise(const String &args)
 {
 	if (library != nullptr)
 	{
@@ -486,14 +483,13 @@ void DynamicDspFactory::initialise()
 
 		if (d != nullptr)
 		{
-			d();
+			return (int)d(args.getCharPointer());
 		}
 		else
 		{
-			throw String("initialise() not implemented in Dynamic Library " + name);
+			return (int)LoadingErrorCode::NoValidLibrary;
 		}
 	}
-
 }
 
 var DynamicDspFactory::createModule(const String &moduleName) const
@@ -531,6 +527,16 @@ var DynamicDspFactory::getModuleList() const
 	}
 
 	return var::undefined();
+}
+
+var DynamicDspFactory::getErrorCode() const
+{
+	return var(errorCode);
+}
+
+void DynamicDspFactory::unload()
+{
+	library = nullptr;
 }
 
 DspBaseObject * StaticDspFactory::createDspBaseObject(const String &moduleName) const
@@ -613,7 +619,7 @@ DspFactory * DspFactory::Handler::getFactory(const String &name, const String& p
 	{
 		ScopedPointer<DynamicDspFactory> newLib = new DynamicDspFactory(name, password);
 		loadedPlugins.add(newLib.release());
-		return newLib;
+		return loadedPlugins.getLast();
 	}
 	catch (String errorMessage)
 	{

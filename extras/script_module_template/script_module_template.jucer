@@ -5,8 +5,6 @@
               jucerVersion="4.1.0">
   <MAINGROUP id="QtQSLO" name="script_module_template">
     <GROUP id="{53BD8DE2-5D66-973E-AA06-1FBBD4CD640A}" name="Source">
-      <FILE id="qYbLqa" name="HiseLibraryHeader.h" compile="0" resource="0"
-            file="Source/HiseLibraryHeader.h"/>
       <FILE id="ZygCAo" name="ScriptModule.cpp" compile="1" resource="0"
             file="Source/ScriptModule.cpp"/>
       <FILE id="YV4vWu" name="ScriptModule.h" compile="0" resource="0" file="Source/ScriptModule.h"/>

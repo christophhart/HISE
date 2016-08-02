@@ -108,12 +108,31 @@ struct HiseJavascriptEngine::RootObject::ArraySubscript : public Expression
 		if (cachedIndex == -1)			
 		{
 			if (dynamic_cast<LiteralValue*>(index.get()) != nullptr ||
-				dynamic_cast<ConstReference*>(index.get()) != nullptr)
+				dynamic_cast<ConstReference*>(index.get()) != nullptr ||
+				dynamic_cast<DotOperator*>(index.get()))
 			{
-				const var i = index->getResult(s);
-				cachedIndex = instance->getCachedIndex(i);
+				if (DotOperator* dot = dynamic_cast<DotOperator*>(index.get()))
+				{
+					if (ConstReference* c = dynamic_cast<ConstReference*>(dot->parent.get()))
+					{
+						const var i = instance->getCachedIndex(dot->child.toString());
 
-				if (cachedIndex == -1) location.throwError("Property " + i.toString() + " not found");
+						
+						
+						cachedIndex = c-
+					}
+					else
+					{
+						location.throwError("[]-access using dot operator only valid with const variables as parent");
+					}
+				}
+				else
+				{
+					const var i = index->getResult(s);
+					cachedIndex = instance->getCachedIndex(i);
+
+					if (cachedIndex == -1) location.throwError("Property " + i.toString() + " not found");
+				}
 			}
 			else location.throwError("[]-access must be used with a literal or constant");
 		}

@@ -199,9 +199,12 @@ struct HiseJavascriptEngine::RootObject::LeftShiftOp : public BinaryOperator
 			{
 				*buffer << *otherBuffer;
 			}
-			else if (DspInstance* instance = dynamic_cast<DspInstance*>(b.getObject()))
+		}
+		else if (DspInstance* instance = dynamic_cast<DspInstance*>(a.getObject()))
+		{
+			if (b.isBuffer())
 			{
-				*instance >> a;
+				*instance >> b;
 			}
 		}
 
@@ -232,9 +235,11 @@ struct HiseJavascriptEngine::RootObject::RightShiftOp : public BinaryOperator
 		}
 		else if (DspInstance* instance = dynamic_cast<DspInstance*>(a.getObject()))
 		{
-			*instance >> b;
+			if (b.isBuffer())
+			{
+				*instance >> b;
+			}
 		}
-		
 
 		return a;
 	}

@@ -68,6 +68,10 @@ public:
 	/** This method must return an array with all module names that can be created. */
 	virtual var getModuleList() const = 0;
 
+	virtual var getErrorCode() const { return var(0); }
+
+	virtual void unload() {};
+
 	struct Wrapper;
 	class Handler;
 	class LibraryLoader;
@@ -105,13 +109,11 @@ public:
 	var getAssignedValue(int index) const override;
 	int getCachedIndex(const var &name) const override;
 
-	/** Applies the module on the data.
-	*
-	*	The incoming data can be either a VariantBuffer or a array of VariantBuffers. */
+	/** Applies the module on the data. */
 	void operator >>(const var &data);
 
-	/** Copies the modules internal data into either the supplied multichannel array or the buffer. */
-	void operator << (var &data) const;
+	/** Applies the module on the data. */
+	void operator <<(const var &data);
 
 	var getInfo() const;
 
@@ -176,18 +178,22 @@ class DynamicDspFactory : public DspFactory
 {
 public:
 
-	DynamicDspFactory(const String &name_, const String& password);
+	DynamicDspFactory(const String &name_, const String& args);
 
 	DspBaseObject *createDspBaseObject(const String &moduleName) const override;
 	void destroyDspBaseObject(DspBaseObject *object) const override;
 
-	void initialise();
+	int initialise(const String &args);
 	var createModule(const String &moduleName) const override;
 	Identifier getId() const override { RETURN_STATIC_IDENTIFIER(name); }
 	var getModuleList() const override;
+	var getErrorCode() const override;
+
+	void unload() override;
 
 private:
 
+	int errorCode;
 	const String name;
 	ScopedPointer<DynamicLibrary> library;
 

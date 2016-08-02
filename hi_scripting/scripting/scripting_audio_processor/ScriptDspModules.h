@@ -161,8 +161,6 @@ public:
 
 		float getParameter(int /*index*/) const override { return delayTimeSamples; };
 
-		const Identifier &getIdForParameter(int /*index*/) const override { RETURN_STATIC_IDENTIFIER("DelayTime"); }
-
 		void prepareToPlay(double sampleRate, int samplesPerBlock) override
 		{
 			delayedBufferL = new VariantBuffer(samplesPerBlock);
@@ -240,8 +238,6 @@ public:
 
 		float getParameter(int /*index*/) const override { return smoothingTime; };
 
-		const Identifier &getIdForParameter(int /*index*/) const override { RETURN_STATIC_IDENTIFIER("SmoothingTime"); }
-
 		void prepareToPlay(double sampleRate, int /*samplesPerBlock*/) override
 		{
 			smootherL.prepareToPlay(sampleRate);
@@ -304,8 +300,6 @@ public:
 		int getNumParameters() const override { return 0; };
 
 		float getParameter(int /*index*/) const override { return -1; };
-
-		const Identifier &getIdForParameter(int /*index*/) const override { RETURN_STATIC_IDENTIFIER("Unused"); }
 
 		void prepareToPlay(double sampleRate, int /*samplesPerBlock*/) override { }
 
@@ -400,17 +394,6 @@ public:
             
             return -1;
         };
-        
-        const Identifier &getIdForParameter(int index) const override
-        {
-            switch((Parameters)index)
-            {
-                case Parameters::Frequency: return "Frequency";
-                case Parameters::Resonance: return "Resonance";
-            }
-
-            return Identifier::null;
-        }
         
         void prepareToPlay(double sampleRate_, int samplesPerBlock) override
 		{

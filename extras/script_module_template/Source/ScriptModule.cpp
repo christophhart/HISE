@@ -15,23 +15,29 @@ void GainExample::processBlock(float **data, int numChannels, int numSamples)
     {
 		float* ch = data[channel];
 
-		for (int i = 0; i < numSamples; i++)
+		if (numSamples <= internalStorageSize)
 		{
-			ch[i] *= internalStorage[i];
+			for (int i = 0; i < numSamples; i++)
+			{
+				ch[i] *= internalStorage[i];
+			}
+		}
+		else
+		{
+			for (int i = 0; i < numSamples; i++)
+				ch[i] *= 2;
 		}
     }
 }
 
-// This registers the GainExample class to the module factory of this library.
-// You can of course write multiple classes and register each one of them to a single library
-// so that one library can hold a collection of different effects
-void initialise()
+LoadingErrorCode initialise(const char* name)
 {
-	baseObjects.registerType<GainExample>();
-}
+	if (strcmp(name, "1234") != 0)
+	{
+		return LoadingErrorCode::KeyInvalid;
+	}
 
+	HelperFunctions::registerDspModule<GainExample>();
 
-bool matchPassword(const char* password)
-{
-	return strcmp(password, "1234") == 0;
+	return LoadingErrorCode::LoadingSuccessful;
 }

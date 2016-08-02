@@ -40,3 +40,10 @@ hi_scripting/scripting/api/latex/doxygen.sty
 hi_scripting/scripting/api/latex/make.bat
 hi_scripting/scripting/api/latex/refman.tex
 hi_scripting/scripting/api/html/
+hi_scripting/scripting/api/latex/_dsp_base_module_8h.tex
+hi_scripting/scripting/api/latex/_hise_library_header_8h.tex
+hi_scripting/scripting/api/latex/files.tex
+hi_scripting/scripting/api/latex/index.tex
+hi_scripting/scripting/api/latex/namespace_helper_functions.tex
+hi_scripting/scripting/api/latex/namespace_internal_library_functions.tex
+hi_scripting/scripting/api/latex/namespaces.tex
