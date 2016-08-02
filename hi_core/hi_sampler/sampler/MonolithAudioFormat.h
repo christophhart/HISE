@@ -77,7 +77,17 @@ public:
 
 	static void copySampleData(int* const* destSamples, int startOffsetInDestBuffer, int numDestChannels, const void* sourceData, int numChannels, int numSamples) noexcept
 	{
-		ReadHelper<AudioData::Int32, AudioData::Int16, AudioData::LittleEndian>::read(destSamples, startOffsetInDestBuffer, numDestChannels, sourceData, numChannels, numSamples);
+		jassert(numDestChannels == 2);
+
+		if (numChannels == 1)
+		{
+			ReadHelper<AudioData::Int32, AudioData::Int16, AudioData::LittleEndian>::read(destSamples, startOffsetInDestBuffer, 1, sourceData, 1, numSamples);
+			FloatVectorOperations::copy(reinterpret_cast<float*>(destSamples[1]), reinterpret_cast<float*>(destSamples[0]), numSamples);
+		}
+		else
+		{
+			ReadHelper<AudioData::Int32, AudioData::Int16, AudioData::LittleEndian>::read(destSamples, startOffsetInDestBuffer, numDestChannels, sourceData, 2, numSamples);
+		}
 	}
 
 private:
@@ -208,7 +218,7 @@ public:
 			dummyReader.sampleRate = info->sampleRate;
 			dummyReader.lengthInSamples = length;
 
-			size_t chunkSize = 2 * sizeof(int16);
+			size_t chunkSize = (isMonoChannel[channelIndex] ? 1 : 2) * sizeof(int16);
 
 			return new MonolithAudioFormatReader(monolithicFiles[channelIndex], dummyReader, 1 + chunkSize * start, chunkSize * length, isMonoChannel[channelIndex]);
 		}
