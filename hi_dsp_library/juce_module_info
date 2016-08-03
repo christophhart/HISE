@@ -1,0 +1,19 @@
+{
+  "id":             "hi_dsp_library",
+  "name":           "HISE DSP Module API",
+  "version":        "1.00",
+  "description":    "Header files for creating HISE plugin modules",
+  "website":        "http://www.hise.audio",
+  "license":        "MIT",
+
+  "include":        "hi_dsp_library.h", 
+
+  "dependencies":   [ {	"id": "juce_core" } ],
+  
+  "compile":        [ { "file": "hi_dsp_library.cpp", "target": "! xcode" },
+                      { "file": "hi_dsp_library.mm",  "target": "xcode" } ],
+
+  "browse":         [ "/*",
+					  "dsp_library/*"
+					  ]
+}

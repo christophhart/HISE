@@ -74,7 +74,8 @@
         <MODULEPATH id="hi_modules" path="../../"/>
         <MODULEPATH id="hi_core" path="../../"/>
         <MODULEPATH id="hi_backend" path="../../"/>
-        <MODULEPATH id="hi_scripting" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_scripting" path="../../"/>
+        <MODULEPATH id="hi_dsp_library" path="../../"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <VS2013 targetFolder="Builds/VisualStudio2013" vstFolder="c:\SDKs\vstsdk2.4"
@@ -113,13 +114,15 @@
         <MODULEPATH id="hi_modules" path="../../"/>
         <MODULEPATH id="hi_core" path="../../"/>
         <MODULEPATH id="hi_backend" path="../../"/>
-        <MODULEPATH id="hi_scripting" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_scripting" path="../../"/>
+        <MODULEPATH id="hi_dsp_library" path="../../"/>
       </MODULEPATHS>
     </VS2013>
   </EXPORTFORMATS>
   <MODULES>
     <MODULE id="hi_backend" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_core" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="hi_dsp_library" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_modules" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_scripting" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_audio_basics" showAllCode="1" useLocalCopy="0"/>
@@ -138,5 +141,5 @@
     <MODULES id="juce_opengl" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_tracktion_marketplace" showAllCode="1" useLocalCopy="0"/>
   </MODULES>
-  <JUCEOPTIONS JUCE_QUICKTIME="disabled"/>
+  <JUCEOPTIONS JUCE_QUICKTIME="disabled" HI_EXPORT_DSP_LIBRARY="disabled"/>
 </JUCERPROJECT>

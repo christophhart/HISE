@@ -1323,6 +1323,7 @@ private:
 
 void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::findGlobalVarIds(const String& codeToPreprocess)
 {
+	if (codeToPreprocess.isEmpty()) return;
 
 	jassert(hiseSpecialData->constObjects.size() == 0);
 
@@ -1383,11 +1384,11 @@ var HiseJavascriptEngine::RootObject::evaluate(const String& code)
 	return ExpPtr(tb.parseExpression())->getResult(Scope(nullptr, this, this));
 }
 
-void HiseJavascriptEngine::RootObject::execute(const String& code)
+void HiseJavascriptEngine::RootObject::execute(const String& code, bool allowConstDeclarations)
 {
 	ExpressionTreeBuilder tb(code, String());
 
-	tb.setupApiData(hiseSpecialData, code);
+	tb.setupApiData(hiseSpecialData, allowConstDeclarations ? code : String());
 
 	ScopedPointer<BlockStatement>(tb.parseStatementList())->perform(Scope(nullptr, this, this), nullptr);
 }

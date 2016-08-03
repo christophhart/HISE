@@ -12,9 +12,9 @@
 #define SCRIPTMODULE_H_INCLUDED
 
 
-#include <JuceHeader.h>
+#include "JuceHeader.h"
 
-#include "../../../hi_scripting/scripting/api/HiseLibraryHeader.h"
+
 
 /** This is an example class of a DSP module that can be loaded in a script processor within HISE. */
 class GainExample : public DspBaseObject
@@ -34,7 +34,7 @@ public:
 	/** Overwrite this method and return the name of this module. 
     *
     *   This will be used to identify the module within your library so it must be unique. */
-	static Identifier getName() { RETURN_STATIC_IDENTIFIER("Gain") }
+	static Identifier getName() { RETURN_STATIC_IDENTIFIER("Gain"); }
 
 	// ================================================================================================================
 
@@ -51,6 +51,7 @@ public:
 
 	void setStringParameter(int index, const char* textToCopy, size_t lengthToCopy)
 	{
+
 		fileName = HelperFunctions::createStringFromChar(textToCopy, lengthToCopy);
 	}
 
@@ -81,7 +82,11 @@ public:
 
 	bool getConstant(int index, int& value) const noexcept override
 	{ 
-		RETURN_PARAMETER_IDS();
+		if (index < getNumParameters())
+		{
+			value = index;
+			return true;
+		}
 
 		return false;
 	};

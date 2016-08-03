@@ -37,13 +37,12 @@
 
 #include <AppConfig.h>
 #include "../hi_core/hi_core.h"
+#include "../hi_dsp_library/hi_dsp_library.h"
 
 #include "scripting/api/ScriptMacroDefinitions.h"
 #include "scripting/engine/JavascriptApiClass.h"
 #include "scripting/api/ScriptingBaseObjects.h"
 
-#include "scripting/api/BaseFactory.h"
-#include "scripting/api/DspBaseModule.h"
 #include "scripting/api/DspFactory.h"
 #include "scripting/scripting_audio_processor/ScriptDspModules.h"
 #include "scripting/scripting_audio_processor/ScriptedAudioProcessor.h"

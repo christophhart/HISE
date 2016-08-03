@@ -105,7 +105,7 @@ public:
 	You can specify a maximum time for which the program is allowed to run, and
 	it'll return with an error message if this time is exceeded.
 	*/
-	Result execute(const String& javascriptCode);
+	Result execute(const String& javascriptCode, bool allowConstDeclarations=true);
 
 	/** Attempts to parse and run a javascript expression, and returns the result.
 	If there's a syntax error, or the expression can't be evaluated, the return value
@@ -220,7 +220,7 @@ public:
 
 		// HISE special storage
 
-		void execute(const String& code);
+		void execute(const String& code, bool allowConstDeclarations);
 		var evaluate(const String& code);
 
 		//==============================================================================

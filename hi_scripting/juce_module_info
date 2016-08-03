@@ -20,6 +20,7 @@
 					  {	"id": "juce_gui_basics" },
 					  {	"id": "juce_gui_extra" },
 					  {	"id": "juce_opengl" },
+					  { "id": "hi_dsp_library"},
 					  { "id": "hi_core"} ],
   
   "compile":        [ { "file": "hi_scripting.cpp", "target": "! xcode" },

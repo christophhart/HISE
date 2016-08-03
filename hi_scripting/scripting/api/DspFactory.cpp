@@ -45,8 +45,23 @@ struct DspInstance::Wrapper
 DspInstance::DspInstance(const DspFactory *f, const String &moduleName_) :
 ConstScriptingObject(nullptr, NUM_API_FUNCTION_SLOTS),
 moduleName(moduleName_),
-factory(const_cast<DspFactory*>(f))
+factory(const_cast<DspFactory*>(f)),
+object(nullptr)
 {
+}
+
+
+void DspInstance::initialise()
+{
+	if (DynamicDspFactory* dynamicFactory = dynamic_cast<DynamicDspFactory*>(factory.get()))
+	{
+		if ((int)dynamicFactory->getErrorCode() != (int)LoadingErrorCode::LoadingSuccessful)
+		{
+			object = nullptr;
+			throw String("Library is not correctly loaded. Error code: " + dynamicFactory->getErrorCode().toString());
+		}
+	}
+
 	if (factory != nullptr)
 	{
 		object = factory->createDspBaseObject(moduleName);
@@ -65,9 +80,9 @@ factory(const_cast<DspFactory*>(f))
 			{
 				char nameBuffer[64];
 				int nameLength = 0;
-				
+
 				object->getIdForConstant(i, nameBuffer, nameLength);
-				
+
 				String name(nameBuffer, nameLength);
 
 				int intValue;
@@ -76,14 +91,14 @@ factory(const_cast<DspFactory*>(f))
 					addConstant(name, var(intValue));
 					continue;
 				}
-				
+
 				float floatValue;
 				if (object->getConstant(i, floatValue))
 				{
 					addConstant(name, var(floatValue));
 					continue;
 				}
-				
+
 				char stringBuffer[512];
 				size_t stringBufferLength;
 
@@ -94,10 +109,10 @@ factory(const_cast<DspFactory*>(f))
 					continue;
 				}
 
-				
+
 				float *externalData;
 				int externalDataSize;
-				
+
 				if (object->getConstant(i, &externalData, externalDataSize))
 				{
 					VariantBuffer::Ptr b = new VariantBuffer(externalData, externalDataSize);
@@ -106,9 +121,13 @@ factory(const_cast<DspFactory*>(f))
 				}
 			}
 		}
-	};
+		else
+		{
+			throw String("The module " + moduleName + " wasn't found in the Library.");
+		}
+	}
+	
 }
-
 
 void DspInstance::processBlock(const var &data)
 {
@@ -269,12 +288,9 @@ DspInstance::~DspInstance()
 		}
 	}
 	
+	unload();
 
-	if (factory != nullptr)
-	{
-		factory->destroyDspBaseObject(object);
-		factory = nullptr;
-	}
+	
 }
 
 void DspInstance::prepareToPlay(double sampleRate, int samplesPerBlock)
@@ -295,6 +311,17 @@ void DspInstance::prepareToPlay(double sampleRate, int samplesPerBlock)
 				getConstantValue(i).getBuffer()->referToData(data, size);
 			}
 		}
+	}
+}
+
+
+void DspInstance::unload()
+{
+	if (factory != nullptr)
+	{	
+		factory->destroyDspBaseObject(object);
+		object = nullptr;
+		factory = nullptr;
 	}
 }
 
@@ -359,6 +386,7 @@ public:
 	var load(const String &name, const String &password)
 	{
 		DspFactory *f = dynamic_cast<DspFactory*>(handler->getFactory(name, password));
+
 		return var(f);
 	}
     
@@ -377,6 +405,7 @@ public:
         
         return var(output);
     }
+
 
 private:
 
@@ -407,39 +436,50 @@ DynamicObject()
 	
 }
 
-DynamicDspFactory::DynamicDspFactory(const String &name_, const String& args) :
-name(name_)
+struct DynamicDspFactory::Wrapper
+{
+	DYNAMIC_METHOD_WRAPPER_WITH_RETURN(DspFactory, createModule, ARG(0).toString());
+	DYNAMIC_METHOD_WRAPPER(DynamicDspFactory, unloadToRecompile);
+	DYNAMIC_METHOD_WRAPPER(DynamicDspFactory, reloadAfterRecompile);
+};
+
+DynamicDspFactory::DynamicDspFactory(const String &name_, const String& args_) :
+name(name_),
+args(args_)
+{
+	openDynamicLibrary();
+
+
+	ADD_DYNAMIC_METHOD(createModule);
+	ADD_DYNAMIC_METHOD(unloadToRecompile);
+	ADD_DYNAMIC_METHOD(reloadAfterRecompile);
+	
+	setProperty("LoadingSuccessful", 0);
+	setProperty("Uninitialised", 1);
+	setProperty("MissingLibrary", 2);
+	setProperty("NoValidLibrary", 3);
+	setProperty("NoVersionMatch", 4);
+	setProperty("KeyInvalid", 5);
+}
+
+void DynamicDspFactory::openDynamicLibrary()
 {
 #if JUCE_WINDOWS
-
-	//const File path = File("D:\\Development\\HISE modules\\extras\\script_module_template\\Builds\\VisualStudio2013\\Debug");
 
 	const File path = File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("Hart Instruments/dll/");
 
 #if JUCE_32BIT
-
 	const String libraryName = name + "_x86.dll";
-
 #else
-
 	const String libraryName = name + "_x64.dll";
-
 #endif
-	
-
-
-
 
 #else
-
-    const File path = File::getSpecialLocation(File::SpecialLocationType::commonApplicationDataDirectory).getChildFile("Application Support/Hart Instruments/lib");
-    
-    const String libraryName = name + ".dylib";
-    
+	const File path = File::getSpecialLocation(File::SpecialLocationType::commonApplicationDataDirectory).getChildFile("Application Support/Hart Instruments/lib");
+	const String libraryName = name + ".dylib";
 #endif
 
-    const String fullLibraryPath = path.getChildFile(libraryName).getFullPathName();
-    
+	const String fullLibraryPath = path.getChildFile(libraryName).getFullPathName();
 	File f(fullLibraryPath);
 
 	if (!f.existsAsFile())
@@ -453,15 +493,6 @@ name(name_)
 
 		errorCode = initialise(args);
 	}
-
-	ADD_DYNAMIC_METHOD(createModule);
-	
-	setProperty("LoadingSuccessful", 0);
-	setProperty("Uninitialised", 1);
-	setProperty("MissingLibrary", 2);
-	setProperty("NoValidLibrary", 3);
-	setProperty("NoVersionMatch", 4);
-	setProperty("KeyInvalid", 5);
 }
 
 void GlobalScriptCompileBroadcaster::createDummyLoader()
@@ -509,6 +540,7 @@ int DynamicDspFactory::initialise(const String &args)
 
 		if (d != nullptr)
 		{
+			isUnloadedForCompilation = false;
 			return (int)d(args.getCharPointer());
 		}
 		else
@@ -520,9 +552,43 @@ int DynamicDspFactory::initialise(const String &args)
 
 var DynamicDspFactory::createModule(const String &moduleName) const
 {
-	DspInstance *i = new DspInstance(this, moduleName);
+	if (isUnloadedForCompilation) throw String("Can't load modules for \"unloaded for recompile\" Libraries");
 
-	return var(i);
+	ScopedPointer<DspInstance> instance = new DspInstance(this, moduleName);
+
+	try
+	{
+		instance->initialise();
+	}
+	catch (String errorMessage)
+	{
+		DBG(errorMessage);
+		return var::undefined();
+	}
+
+	return var(instance.release());
+}
+
+void DynamicDspFactory::unloadToRecompile()
+{
+	if (isUnloadedForCompilation == false)
+	{
+		library->close();
+
+		isUnloadedForCompilation = true;
+	}
+}
+
+void DynamicDspFactory::reloadAfterRecompile()
+{
+	if (isUnloadedForCompilation == true)
+	{
+		jassert(library->getNativeHandle() == nullptr);
+
+		isUnloadedForCompilation = false;
+
+		openDynamicLibrary();
+	}
 }
 
 typedef const Array<Identifier> &(*getModuleList_)();
@@ -589,9 +655,19 @@ var StaticDspFactory::getModuleList() const
 
 var StaticDspFactory::createModule(const String &name) const
 {
-	DspInstance *instance = new DspInstance(this, name);
+	ScopedPointer<DspInstance> instance = new DspInstance(this, name);
 
-	return var(instance);
+	try
+	{
+		instance->initialise();
+	}
+	catch (String errorMessage)
+	{
+		DBG(errorMessage);
+		return var::undefined();
+	}
+
+	return var(instance.release());
 }
 
 

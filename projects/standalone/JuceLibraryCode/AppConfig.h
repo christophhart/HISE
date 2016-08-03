@@ -27,6 +27,7 @@
 //==============================================================================
 #define JUCE_MODULE_AVAILABLE_hi_backend                      1
 #define JUCE_MODULE_AVAILABLE_hi_core                         1
+#define JUCE_MODULE_AVAILABLE_hi_dsp_library                  1
 #define JUCE_MODULE_AVAILABLE_hi_modules                      1
 #define JUCE_MODULE_AVAILABLE_hi_scripting                    1
 #define JUCE_MODULE_AVAILABLE_juce_audio_basics               1
@@ -98,6 +99,13 @@
 
 #ifndef    ENABLE_CPU_MEASUREMENT
  #define   ENABLE_CPU_MEASUREMENT 1
+#endif
+
+//==============================================================================
+// hi_dsp_library flags:
+
+#ifndef    HI_EXPORT_DSP_LIBRARY
+ #define   HI_EXPORT_DSP_LIBRARY 0
 #endif
 
 //==============================================================================

@@ -305,6 +305,7 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 	thisAsScriptBaseProcessor->allowObjectConstructors = true;
 
+	const static Identifier onInit("onInit");
 
 	for (int i = 0; i < getNumSnippets(); i++)
 	{
@@ -312,7 +313,7 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 		if (!getSnippet(i)->isSnippetEmpty())
 		{
-			lastResult = scriptEngine->execute(getSnippet(i)->getSnippetAsFunction());
+			lastResult = scriptEngine->execute(getSnippet(i)->getSnippetAsFunction(), getSnippet(i)->getCallbackName() == onInit);
 
 			if (!lastResult.wasOk())
 			{

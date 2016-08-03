@@ -15,6 +15,9 @@ void GainExample::processBlock(float **data, int numChannels, int numSamples)
     {
 		float* ch = data[channel];
 
+
+		const float thisGain = gain.get();
+
 		if (numSamples <= internalStorageSize)
 		{
 			for (int i = 0; i < numSamples; i++)
@@ -25,7 +28,7 @@ void GainExample::processBlock(float **data, int numChannels, int numSamples)
 		else
 		{
 			for (int i = 0; i < numSamples; i++)
-				ch[i] *= 2;
+				ch[i] *= 1.0f * thisGain;
 		}
     }
 }

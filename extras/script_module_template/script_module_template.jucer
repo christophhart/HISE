@@ -20,7 +20,8 @@
                        cppLibType="libc++" linkTimeOptimisation="1"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
-        <MODULEPATH id="juce_core_amal" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_core" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_dsp_library" path="../../../HISE modules"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <XCODE_IPHONE targetFolder="Builds/iOS" iosScreenOrientation="portraitlandscape"
@@ -32,7 +33,8 @@
                        targetName="gain_example"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
-        <MODULEPATH id="juce_core_amal" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_core" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_dsp_library" path="../../../HISE modules"/>
       </MODULEPATHS>
     </XCODE_IPHONE>
     <VS2013 targetFolder="Builds/VisualStudio2013">
@@ -49,12 +51,14 @@
                        binaryPath="C:\Users\Christoph\AppData\Roaming\Hart Instruments\dll"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
-        <MODULEPATH id="juce_core_amal" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_core" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_dsp_library" path="../../../HISE modules"/>
       </MODULEPATHS>
     </VS2013>
   </EXPORTFORMATS>
   <MODULES>
-    <MODULE id="juce_core_amal" showAllCode="1" useLocalCopy="1"/>
+    <MODULE id="hi_dsp_library" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="juce_core" showAllCode="1" useLocalCopy="0"/>
   </MODULES>
-  <JUCEOPTIONS JUCE_INCLUDE_ZLIB_CODE="enabled" JUCE_USE_CURL="disabled"/>
+  <JUCEOPTIONS JUCE_INCLUDE_ZLIB_CODE="enabled" JUCE_USE_CURL="disabled" HI_EXPORT_DSP_LIBRARY="enabled"/>
 </JUCERPROJECT>

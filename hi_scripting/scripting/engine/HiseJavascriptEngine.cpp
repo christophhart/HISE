@@ -230,7 +230,7 @@ var HiseJavascriptEngine::RootObject::typeof_internal(Args a)
 var HiseJavascriptEngine::RootObject::exec(Args a)
 {
 	if (RootObject* root = dynamic_cast<RootObject*> (a.thisObject.getObject()))
-		root->execute(getString(a, 0));
+		root->execute(getString(a, 0), false);
 
 	return var::undefined();
 }
@@ -243,12 +243,12 @@ var HiseJavascriptEngine::RootObject::eval(Args a)
 	return var::undefined();
 }
 
-Result HiseJavascriptEngine::execute(const String& code)
+Result HiseJavascriptEngine::execute(const String& javascriptCode, bool allowConstDeclarations/*=true*/)
 {
 	try
 	{
 		prepareTimeout();
-		root->execute(code);
+		root->execute(javascriptCode, allowConstDeclarations);
 	}
 	catch (String& error)
 	{
