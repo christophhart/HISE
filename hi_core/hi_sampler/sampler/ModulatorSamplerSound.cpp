@@ -1097,7 +1097,7 @@ ModulatorSamplerSound * ModulatorSamplerSoundPool::addSoundWithSingleMic(const V
             }
         }
         
-		StreamingSamplerSound *s = new StreamingSamplerSound(fileName, -1, -1, this);
+		StreamingSamplerSound *s = new StreamingSamplerSound(fileName, this);
 
 		pool.add(s);
 
@@ -1148,7 +1148,7 @@ ModulatorSamplerSound * ModulatorSamplerSoundPool::addSoundWithMultiMic(const Va
             
 			else
 			{
-				StreamingSamplerSound *s = new StreamingSamplerSound(fileName, -1, -1, this);
+				StreamingSamplerSound *s = new StreamingSamplerSound(fileName, this);
 
 				multiMicArray.add(s);
 				pool.add(s);

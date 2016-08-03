@@ -225,7 +225,7 @@ void ScriptingApi::Content::ScriptComponent::restoreFromValueTree(const ValueTre
 	value = v.getProperty("value", var::undefined());
 }
 
-void ScriptingApi::Content::ScriptComponent::doubleClickCallback(const MouseEvent &e, Component* componentToNotify)
+void ScriptingApi::Content::ScriptComponent::doubleClickCallback(const MouseEvent &, Component* componentToNotify)
 {
 #if USE_BACKEND
 	getScriptProcessor()->getMainController_()->setEditedScriptComponent(this, componentToNotify);
@@ -1985,7 +1985,7 @@ void ScriptingApi::Content::ScriptPanel::loadImage(String imageName, String pret
 {
 	for (int i = 0; i < loadedImages.size(); i++)
 	{
-		if (loadedImages[i].fileName == imageName) return;
+		if (std::get<(int)NamedImageEntries::FileName>(loadedImages[i]) == imageName) return;
 	}
 
 	ImagePool *pool = getProcessor()->getMainController()->getSampleManager().getImagePool();
@@ -2008,7 +2008,7 @@ void ScriptingApi::Content::ScriptPanel::loadImage(String imageName, String pret
 
 	if (newImage != nullptr)
 	{
-		loadedImages.add(NamedImage(newImage, prettyName, imageName));
+		loadedImages.push_back(NamedImage(newImage, prettyName, imageName));
 	}
 	else
 	{
@@ -2143,18 +2143,18 @@ void ScriptingApi::Content::ModulatorMeter::setScriptProcessor(ProcessorWithScri
 
 	if (name.isEmpty()) return;
 
-	Modulator* m;
+	Identifier n(name);
 
-	while (m = it.getNextProcessor())
+	while (Modulator* m = it.getNextProcessor())
 	{
-		if (Identifier(m->getId()) == Identifier(name))
+		if (Identifier(m->getId()) == n)
 		{
 			targetMod = m;
 			break;
 		}
 	}
 
-	if (m == nullptr) debugError(mp, "Modulator " + name + " not found!");
+	if (targetMod == nullptr) debugError(mp, "Modulator " + name + " not found!");
 };
 
 

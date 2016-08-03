@@ -266,7 +266,7 @@ void PresetBrowserWindow::setPreset(int newPresetIndex)
 	repaint();
 }
 
-void PresetBrowserWindow::buttonClicked(Button */*b*/)
+void PresetBrowserWindow::buttonClicked(Button* /*b*/)
 {
 	destroy();
 }

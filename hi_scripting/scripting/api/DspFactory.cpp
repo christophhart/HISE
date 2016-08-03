@@ -218,6 +218,10 @@ String DspInstance::getStringParameter(int index)
 
 		return String(s);
 	}
+	else
+	{
+		return String();
+	}
 }
 
 void DspInstance::assign(const int index, var newValue)
@@ -547,6 +551,10 @@ int DynamicDspFactory::initialise(const String &args)
 		{
 			return (int)LoadingErrorCode::NoValidLibrary;
 		}
+	}
+	else
+	{
+		return (int)LoadingErrorCode::MissingLibrary;
 	}
 }
 

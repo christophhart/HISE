@@ -517,7 +517,7 @@ public:
 		void drawImage(String imageName, var area, int xOffset, int yOffset);
 
 		/** Draws a drop shadow around a rectangle. */
-		void drawDropShadow(var area, int colour, float radius);
+		void drawDropShadow(var area, int colour, int radius);
 
 		/** Draws a triangle rotated by the angle in radians. */
 		void drawTriangle(var area, float angle, float lineThickness);
@@ -526,7 +526,7 @@ public:
 		void fillTriangle(var area, float angle);
 
 		/** Adds a drop shadow based on the alpha values of the current image. */
-		void addDropShadowFromAlpha(int colour, float radius);
+		void addDropShadowFromAlpha(int colour, int radius);
 
 		/** Fills a Path. */
 		void fillPath(var path, var area);

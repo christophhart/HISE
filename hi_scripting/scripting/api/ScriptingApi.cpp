@@ -655,6 +655,8 @@ void ScriptingApi::Engine::loadFont(const String &fileName)
 
 	// Nothing to do here, it will be loaded on startup...
 
+	ignoreUnused(fileName);
+
 #endif
 }
 

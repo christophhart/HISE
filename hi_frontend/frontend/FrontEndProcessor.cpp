@@ -168,32 +168,9 @@ AudioProcessorEditor* FrontendProcessor::createEditor()
 	return new FrontendProcessorEditor(this);
 }
 
-void FrontendProcessor::setCurrentProgram(int index)
+void FrontendProcessor::setCurrentProgram(int /*index*/)
 {
 	return;
-
-	if (index == currentlyLoadedProgram) return;
-
-	currentlyLoadedProgram = index;
-
-	if (index == 0) return;
-
-	if (presets.getNumChildren() != 0)
-	{
-		const ValueTree child = presets.getChild(index-1);
-
-		const String name = child.getProperty("FileName");
-
-		Processor::Iterator<JavascriptMidiProcessor> iter(synthChain);
-
-		while (JavascriptMidiProcessor *sp = iter.getNextProcessor())
-		{
-			if (sp->isFront())
-			{
-				sp->getScriptingContent()->restoreAllControlsFromPreset(name);
-			}
-		}
-	}
 }
 
 void FrontendProcessor::addScriptedParameters()

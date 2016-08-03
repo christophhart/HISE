@@ -68,7 +68,7 @@ public:
 		}
 	}
 
-	void updateValue(NotificationType sendAttributeChange = sendNotification) override
+	void updateValue(NotificationType /*sendAttributeChange*/ = sendNotification) override
 	{
 		if(parameter == -1)
 		{

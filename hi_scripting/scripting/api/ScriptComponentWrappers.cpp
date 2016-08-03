@@ -561,7 +561,7 @@ void ScriptCreatedComponentWrappers::PanelWrapper::boundsChanged(const Rectangle
 ScriptCreatedComponentWrappers::PanelWrapper::~PanelWrapper()
 {
 	BorderPanel *bpc = dynamic_cast<BorderPanel*>(component.get());
-	auto sc = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(getScriptComponent());
+	
 
 	bpc->removeCallbackListener(this);
 	

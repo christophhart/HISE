@@ -630,7 +630,7 @@ public:
 	
 	void calculateVoicePitchValues(int startSample, int numSamples)
 	{
-		getOwnerSynth()->calculatePitchValuesForVoice(voiceIndex, scriptPitchValue, startSample, numSamples);
+		getOwnerSynth()->calculatePitchValuesForVoice(voiceIndex, (float)scriptPitchValue, startSample, numSamples);
 	}
 
 	const float *getVoicePitchValues() const

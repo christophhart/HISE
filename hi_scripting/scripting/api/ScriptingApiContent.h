@@ -678,9 +678,11 @@ public:
 		{
 			for (int i = 0; i < loadedImages.size(); i++)
 			{
-				if (loadedImages[i].prettyName == prettyName)
-					return loadedImages[i].image;
+				if (std::get<(int)NamedImageEntries::PrettyName>(loadedImages[i]) == prettyName)
+					return std::get<(int)NamedImageEntries::Image>(loadedImages[i]);
 			}
+
+			return nullptr;
 		};
 
 		Rectangle<int> getDragBounds() const;
@@ -710,18 +712,6 @@ public:
 
 			ScriptPanel* parent;
 		};
-
-		struct NamedImage
-		{
-			NamedImage(const Image* image_, const String &prettyName_ , const String &fileName_) : image(image_), prettyName(prettyName_), fileName(fileName_) {};
-			
-			NamedImage(): image(nullptr), fileName(String()), prettyName(String()) {}
-
-			const Image* image;
-			const String fileName;
-			const String prettyName;
-		};
-
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptPanel);
 
 		ReferenceCountedObjectPtr<ScriptingObjects::GraphicsObject> graphics;
@@ -736,7 +726,18 @@ public:
 
 		Image paintCanvas;
 
-		Array<NamedImage> loadedImages;
+		enum class NamedImageEntries
+		{
+			Image=0,
+			PrettyName,
+			FileName
+		};
+
+		using NamedImage =	std::tuple < const Image*, String, String > ;
+		
+
+		std::vector<NamedImage> loadedImages;
+
 
 		AsyncRepainter repainter;
 		AsyncControlCallbackSender controlSender;

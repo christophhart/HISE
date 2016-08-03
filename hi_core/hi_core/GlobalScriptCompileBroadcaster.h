@@ -115,7 +115,7 @@ public:
 
 	void fillExternalFileList(Array<File> &files, StringArray &processors);
 
-	void setExternalScriptData(ValueTree &collectedExternalScripts);
+	void setExternalScriptData(const ValueTree &collectedExternalScripts);
 
 	String getExternalScriptFromCollection(const String &fileName);
 

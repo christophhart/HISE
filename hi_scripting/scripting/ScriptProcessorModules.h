@@ -184,7 +184,7 @@ public:
 	
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
-	float calculateVoiceStartValue(const MidiMessage &m) override { return 0.0f; };
+	float calculateVoiceStartValue(const MidiMessage &/*m*/) override { return 0.0f; };
 	virtual void handleMidiEvent(const MidiMessage &m) override;
 
 	/** When the startNote function is called, a previously calculated value (by the handleMidiMessage function) is stored using the supplied voice index. */

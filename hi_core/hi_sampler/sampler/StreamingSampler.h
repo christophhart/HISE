@@ -123,7 +123,7 @@ public:
 	*	@param midiNotes the note map
 	*	@param midiNoteForNormalPitch the root note
 	*/
-	StreamingSamplerSound(const String &fileNameToLoad, BigInteger midiNotes, int midiNoteForNormalPitch, ModulatorSamplerSoundPool *pool);
+	StreamingSamplerSound(const String &fileNameToLoad, ModulatorSamplerSoundPool *pool);
 
 	/** Creates a new StreamingSamplerSound from a monolithic file. */
 	StreamingSamplerSound(HiseMonolithAudioFormat *info, int channelIndex, int sampleIndex);
@@ -136,7 +136,7 @@ public:
 	// ===============================================================================================================================================
 
 	/** Checks if the note is mapped to the supplied note number. */
-	bool appliesToNote(int midiNoteNumber) noexcept override {jassertfalse; return false; };
+	bool appliesToNote(int /*midiNoteNumber*/) noexcept override {jassertfalse; return false; };
 
 	/** Always returns true ( can be implemented if used, but I don't need it) */
 	bool appliesToChannel(int /*midiChannel*/) noexcept override {jassertfalse; return false;};

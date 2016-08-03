@@ -60,7 +60,7 @@ public:
 	ModalBaseWindow()
 	{
 		s.colour = Colours::black;
-		s.radius = 20.0f;
+		s.radius = 20;
 		s.offset = Point<int>();
 	}
 

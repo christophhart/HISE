@@ -78,7 +78,7 @@ public:
 
 		ConsoleEditorComponent(CodeDocument &doc, CodeTokeniser *tok);
 
-		void addPopupMenuItems(PopupMenu &menuToAddTo, const MouseEvent *m) override {};
+		void addPopupMenuItems(PopupMenu &/*menuToAddTo*/, const MouseEvent *) override {};
 
 	};
 
@@ -186,7 +186,7 @@ private:
 
 #else
 
-struct Console
+class Console
 {
 
 	virtual ~Console() { masterReference.clear(); }

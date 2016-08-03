@@ -513,7 +513,7 @@ public:
 	};
 
 
-	bool write(const int** data, int numSamples) override
+	bool write(const int** /*data*/, int /*numSamples*/) override
 	{
 		jassertfalse;
 		return false;
@@ -521,7 +521,7 @@ public:
 
 private:
 
-	bool checkSanity()
+	void checkSanity()
 	{
 		if (filesToWrite.size() != numChannels) throw String("Channel amount mismatch");
 
@@ -560,7 +560,7 @@ private:
 
 		showStatusMessage("Exporting Channel " + String(channelIndex+1));
 
-		AudioSampleBuffer buffer(isMono? 1 : 2, largestSample);
+		AudioSampleBuffer buffer(isMono? 1 : 2, (int)largestSample);
 		MemoryBlock tempBlock;
 				
 		size_t frameSize = sizeof(int16) * (isMono ? 1 : 2);
@@ -572,11 +572,11 @@ private:
 			setProgress((double)i / (double)numSamples);
 
 			ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(channelList->getUnchecked(i));
-			reader->read(&buffer, 0, reader->lengthInSamples, 0, true, true);
+			reader->read(&buffer, 0, (int)reader->lengthInSamples, 0, true, true);
 			size_t bytesUsed = reader->lengthInSamples * frameSize;
 
 			AudioFormatWriter::WriteHelper<AudioData::Int16, AudioData::Float32, AudioData::LittleEndian>::write(
-				tempBlock.getData(), isMono ? 1 : 2, (const int* const *)buffer.getArrayOfReadPointers(), reader->lengthInSamples);
+				tempBlock.getData(), isMono ? 1 : 2, (const int* const *)buffer.getArrayOfReadPointers(), (int)reader->lengthInSamples);
 
 			fos.write(tempBlock.getData(), bytesUsed);	
 		}

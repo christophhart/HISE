@@ -81,7 +81,7 @@ void GlobalScriptCompileBroadcaster::fillExternalFileList(Array<File> &files, St
 	}
 }
 
-void GlobalScriptCompileBroadcaster::setExternalScriptData(ValueTree &collectedExternalScripts)
+void GlobalScriptCompileBroadcaster::setExternalScriptData(const ValueTree &collectedExternalScripts)
 {
 	externalScripts = collectedExternalScripts;
 }

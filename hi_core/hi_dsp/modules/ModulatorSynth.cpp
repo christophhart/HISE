@@ -569,7 +569,7 @@ void ModulatorSynth::setScriptGainValue(int voiceIndex, float gainValue) noexcep
 void ModulatorSynth::setScriptPitchValue(int voiceIndex, double pitchValue) noexcept
 {
 	if (voiceIndex < voices.size())
-	static_cast<ModulatorSynthVoice*>(voices[jmax<int>(0, voiceIndex)])->setScriptPitchValue(pitchValue);
+	static_cast<ModulatorSynthVoice*>(voices[jmax<int>(0, voiceIndex)])->setScriptPitchValue((float)pitchValue);
 }
 
 int ModulatorSynth::getIndexInGroup() const

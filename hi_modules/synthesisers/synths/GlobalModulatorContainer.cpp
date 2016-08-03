@@ -245,7 +245,7 @@ void GlobalModulatorData::saveValuesToBuffer(int startIndex, int numSamples, int
 	}
 }
 
-const float * GlobalModulatorData::getModulationValues(int startIndex, int voiceIndex)
+const float * GlobalModulatorData::getModulationValues(int startIndex, int /*voiceIndex*/)
 {
 	switch (type)
 	{

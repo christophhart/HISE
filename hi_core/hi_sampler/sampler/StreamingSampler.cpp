@@ -32,10 +32,7 @@
 
 // ==================================================================================================== StreamingSamplerSound methods
 
-StreamingSamplerSound::StreamingSamplerSound(const String &fileNameToLoad,
-											 BigInteger midiNotes_, 
-											 int midiNoteForNormalPitch,
-											 ModulatorSamplerSoundPool *pool):
+StreamingSamplerSound::StreamingSamplerSound(const String &fileNameToLoad, ModulatorSamplerSoundPool *pool):
 	fileReader(this, pool),
     sampleRate(-1.0),
     purged(false),
@@ -622,6 +619,8 @@ void StreamingSamplerSound::FileReader::wakeSound()
 
 void StreamingSamplerSound::FileReader::openFileHandles(NotificationType notifyPool)
 {
+
+
 	if (fileHandlesOpen)
 	{
 		jassert(memoryReader != nullptr || normalReader != nullptr);
@@ -663,6 +662,8 @@ void StreamingSamplerSound::FileReader::openFileHandles(NotificationType notifyP
 
 #if USE_BACKEND
 		if(monolithicInfo == nullptr && notifyPool == sendNotification) pool->increaseNumOpenFileHandles();
+#else
+		ignoreUnused(notifyPool);
 #endif
 	}
 }
@@ -744,6 +745,10 @@ AudioFormatReader* StreamingSamplerSound::FileReader::createMonolithicReaderForP
 		m->mapSectionOfFile(Range<int64>((int64)(sound->sampleStart) + (int64)(sound->monolithOffset), (int64)(sound->sampleEnd)));
 
 		return m;
+	}
+	else
+	{
+		return nullptr;
 	}
 }
 

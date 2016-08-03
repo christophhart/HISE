@@ -242,7 +242,7 @@ void ScriptingObjects::ScriptingModulator::setBypassed(bool shouldBeBypassed)
 
 
 
-void ScriptingObjects::ScriptingModulator::doubleClickCallback(const MouseEvent &e, Component* componentToNotify)
+void ScriptingObjects::ScriptingModulator::doubleClickCallback(const MouseEvent &, Component* componentToNotify)
 {
 #if USE_BACKEND
 	if (objectExists() && !objectDeleted())
@@ -696,8 +696,11 @@ void ScriptingObjects::PathObject::doubleClickCallback(const MouseEvent &e, Comp
 
 	Rectangle<int> r = Rectangle<int>(ee.getMouseDownPosition(), ee.getMouseDownPosition());
 
-	CallOutBox& myBox = CallOutBox::launchAsynchronously(content, r, editor);
+	CallOutBox::launchAsynchronously(content, r, editor);
 
+#else
+
+	ignoreUnused(e, componentToNotify);
 
 #endif
 }
@@ -1001,7 +1004,7 @@ void ScriptingObjects::GraphicsObject::drawImage(String imageName, var area, int
 	};
 }
 
-void ScriptingObjects::GraphicsObject::drawDropShadow(var area, int colour, float radius)
+void ScriptingObjects::GraphicsObject::drawDropShadow(var area, int colour, int radius)
 {
 	initGraphics();
 
@@ -1048,7 +1051,7 @@ void ScriptingObjects::GraphicsObject::fillTriangle(var area, float angle)
 	g->fillPath(p);
 }
 
-void ScriptingObjects::GraphicsObject::addDropShadowFromAlpha(int colour, float radius)
+void ScriptingObjects::GraphicsObject::addDropShadowFromAlpha(int colour, int radius)
 {
 	initGraphics();
 

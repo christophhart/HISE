@@ -341,7 +341,7 @@ struct HiseJavascriptEngine::RootObject::CallbackParameterReference: public Expr
 {
 	CallbackParameterReference(const CodeLocation& l, var* data_) noexcept : Expression(l), data(data_) {}
 
-	var getResult(const Scope& s) const override
+	var getResult(const Scope& /*s*/) const override
 	{
 		return *data;
 	}

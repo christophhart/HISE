@@ -674,8 +674,8 @@ void JavascriptCodeEditor::handleDoubleCharacter(const KeyPress &k, char openCha
 	// Delete both characters if the bracket is empty
 	if (k.isKeyCode(KeyPress::backspaceKey) &&
 		isNothingSelected() &&
-		getCaretPos().movedBy(-1).getCharacter() == openCharacter &&
-		getCaretPos().getCharacter() == closeCharacter)
+		(char)getCaretPos().movedBy(-1).getCharacter() == openCharacter &&
+		(char)getCaretPos().getCharacter() == closeCharacter)
 	{
 		getDocument().deleteSection(getCaretPos(), getCaretPos().movedBy(1));
 	}
@@ -961,11 +961,11 @@ char JavascriptCodeEditor::Helpers::getCharacterAtCaret(CodeDocument::Position p
 
 		pos.moveBy(-1);
 
-		return pos.getCharacter();
+		return (char)pos.getCharacter();
 	}
 	else
 	{
-		pos.getCharacter();
+		return (char)pos.getCharacter();
 	}
 }
 

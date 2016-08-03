@@ -295,13 +295,13 @@ public:
 
 		SET_MODULE_NAME("sine");
 
-		void setParameter(int /*index*/, float newValue) override {};
+		void setParameter(int /*index*/, float /*newValue*/) override {};
 
 		int getNumParameters() const override { return 0; };
 
 		float getParameter(int /*index*/) const override { return -1; };
 
-		void prepareToPlay(double sampleRate, int /*samplesPerBlock*/) override { }
+		void prepareToPlay(double /*sampleRate*/, int /*samplesPerBlock*/) override { }
 
 		void processBlock(float **data, int numChannels, int numSamples) override
 		{
@@ -369,7 +369,7 @@ public:
             switch(p)
             {
                 case Parameters::Frequency: frequency = newValue;
-                                            freq = newValue / (0.42 * sampleRate);
+                                            freq = newValue / (float)(0.42 * sampleRate);
                                             moogL.setFrequency(freq);
                                             moogR.setFrequency(freq);
                                             break;
@@ -427,9 +427,9 @@ public:
 	private:
 
 		double sampleRate = 44100.0;
-		double freq = 20000.0;
-        double frequency = 20000.0;
-		double resonance = 0.5;
+		float freq = 20000.0;
+        float frequency = 20000.0;
+		float resonance = 0.5;
 
 		icstdsp::MoogFilter moogL;
 		icstdsp::MoogFilter moogR;

@@ -362,7 +362,7 @@ public:
 				return String(percentage, 2) + "%";
 			}
 
-			void doubleClickCallback(const MouseEvent &e, Component* componentToNotify) override
+			void doubleClickCallback(const MouseEvent &/*e*/, Component* /*componentToNotify*/) override
 			{
 				DBG("JUMP");
 			}

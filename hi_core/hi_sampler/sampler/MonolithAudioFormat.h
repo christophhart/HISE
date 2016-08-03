@@ -56,6 +56,8 @@ public:
 		}
 
 		copySampleData (destSamples, startOffsetInDestBuffer, numDestChannels, sampleToPointer (startSampleInFile), numChannels, numSamples);
+
+		return true;
 	}
 
 
@@ -195,7 +197,7 @@ public:
 
 	bool canDoStereo() override { return true; }
 
-	MemoryMappedAudioFormatReader* createMemoryMappedReader(const File &embeddedFile) override
+	MemoryMappedAudioFormatReader* createMemoryMappedReader(const File &/*embeddedFile*/) override
 	{
 		jassertfalse;
 
@@ -205,8 +207,8 @@ public:
 
 	MemoryMappedAudioFormatReader* createMonolithicReader(int sampleIndex, int channelIndex)
 	{
-		const int sizeOfFirstChannelList = multiChannelSampleInformation[0].size();
-		const int sizeOfChannelList = multiChannelSampleInformation.size();
+		const int sizeOfFirstChannelList = (int)multiChannelSampleInformation[0].size();
+		const int sizeOfChannelList = (int)multiChannelSampleInformation.size();
 
 		if (channelIndex < sizeOfChannelList && sizeOfFirstChannelList > 0 && sampleIndex < sizeOfFirstChannelList)
 		{
@@ -226,12 +228,12 @@ public:
 		return nullptr;
 	}
 
-	AudioFormatWriter* createWriterFor(OutputStream* streamToWriteTo, double sampleRateToUse, unsigned int numberOfChannels, int bitsPerSample, const StringPairArray& metadataValues, int qualityOptionIndex)
+	AudioFormatWriter* createWriterFor(OutputStream* /*streamToWriteTo*/, double /*sampleRateToUse*/, unsigned int /*numberOfChannels*/, int /*bitsPerSample*/, const StringPairArray& /*metadataValues*/, int /*qualityOptionIndex*/)
 	{
 		return nullptr;
 	}
 
-	AudioFormatReader* createReaderFor(InputStream* sourceStream, bool deleteStreamIfOpeningFails)
+	AudioFormatReader* createReaderFor(InputStream* /*sourceStream*/, bool /*deleteStreamIfOpeningFails*/)
 	{
 		return nullptr;
 	}
@@ -259,7 +261,7 @@ public:
 			AudioFormatReader(nullptr, "HISE Monolith")
 		{};
 
-		bool readSamples(int **destSamples, int numDestChannels, int startOffsetInDestBuffer, int64 startSampleInFile, int numSamples) override
+		bool readSamples(int ** /*destSamples*/, int /*numDestChannels*/, int /*startOffsetInDestBuffer*/, int64 /*startSampleInFile*/, int /*numSamples*/) override
 		{
 			jassertfalse;
 			return false;

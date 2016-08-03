@@ -295,7 +295,7 @@ void Console::mouseMove(const MouseEvent &e)
 	}
 }
 
-void Console::mouseDoubleClick(const MouseEvent& event)
+void Console::mouseDoubleClick(const MouseEvent&)
 {
 	
 }
