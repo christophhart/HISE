@@ -34,6 +34,46 @@
 #define HI_SCRIPTING_API_H_INCLUDED
 
 
+
+class ApiHelpers
+{
+public:
+
+
+	static Rectangle<float> getRectangleFromVar(const var &data, Result *r = nullptr);
+
+	static Rectangle<int> getIntRectangleFromVar(const var &data, Result* r = nullptr);
+
+	static String getFileNameFromErrorMessage(const String &errorMessage);
+
+#if USE_BACKEND
+
+	static AttributedString createAttributedStringFromApi(const ValueTree &method, const String &className, bool multiLine, Colour textColour);
+
+	static String createCodeToInsert(const ValueTree &method, const String &className);
+
+	static void getColourAndCharForType(int type, char &c, Colour &colour);
+
+	static String getValueType(const var &v);
+
+	
+
+
+
+	struct Api
+	{
+		Api();
+
+		ValueTree apiTree;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Api)
+	};
+
+#endif
+};
+
+
+
 /** This class wraps all available functions for the scripting engine provided by a ScriptProcessor.
 *	@ingroup scripting
 */

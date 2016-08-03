@@ -30,7 +30,7 @@
 *   ===========================================================================
 */
 
-
+#if USE_BACKEND
 
 Console::ConsoleEditorComponent::ConsoleEditorComponent(CodeDocument &doc, CodeTokeniser* tok) :
 CodeEditorComponent(doc, tok)
@@ -168,6 +168,7 @@ void Console::clear()
 
 void Console::mouseDown(const MouseEvent &e)
 {
+
     if(e.mods.isRightButtonDown())
     {
         PopupLookAndFeel plaf;
@@ -399,3 +400,6 @@ int Console::ConsoleTokeniser::readNextToken(CodeDocument::Iterator& source)
 		return 1;
 	}
 }
+
+
+#endif

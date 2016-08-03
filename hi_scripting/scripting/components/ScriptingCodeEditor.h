@@ -33,36 +33,6 @@
 #define SCRIPTINGCODEEDITOR_H_INCLUDED
 
 
-class ApiHelpers
-{
-public:
-
-	static AttributedString createAttributedStringFromApi(const ValueTree &method, const String &className, bool multiLine, Colour textColour);
-
-	static String createCodeToInsert(const ValueTree &method, const String &className);
-
-	static void getColourAndCharForType(int type, char &c, Colour &colour);
-
-	static String getValueType(const var &v);
-
-	static String getFileNameFromErrorMessage(const String &errorMessage);
-
-	static Rectangle<float> getRectangleFromVar(const var &data, Result *r=nullptr);
-
-	static Rectangle<int> getIntRectangleFromVar(const var &data, Result* r=nullptr);
-
-
-
-	struct Api
-	{
-		Api();
-
-		ValueTree apiTree;
-
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Api)
-	};
-};
-
 class JavascriptCodeEditor;
 
 class PopupIncludeEditor : public Component,

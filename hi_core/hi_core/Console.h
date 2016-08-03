@@ -36,6 +36,9 @@
 class Processor;
 class BaseDebugArea;
 
+
+#if USE_BACKEND
+
 /** A textbox that acts as console (read only / autoscrolling)
 *	@ingroup debugComponents
 *    
@@ -180,5 +183,20 @@ private:
 	Array<ConsoleMessage> unprintedMessages;
 
 };
+
+#else
+
+struct Console
+{
+
+	virtual ~Console() { masterReference.clear(); }
+
+private:
+
+	friend class WeakReference<Console>;
+	WeakReference<Console>::Master masterReference;
+};
+
+#endif
 
 #endif  // __CONSOLE_H_8FBBF4D7__

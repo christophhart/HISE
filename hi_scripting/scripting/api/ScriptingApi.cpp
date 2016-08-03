@@ -40,7 +40,219 @@
 #define ADD_TO_TYPE_SELECTOR(x) (ScriptComponentPropertyTypeSelector::addToTypeSelector(ScriptComponentPropertyTypeSelector::x, propertyIds.getLast()))
 #define ADD_AS_SLIDER_TYPE(min, max, interval) (ScriptComponentPropertyTypeSelector::addToTypeSelector(ScriptComponentPropertyTypeSelector::SliderSelector, propertyIds.getLast(), min, max, interval))
 
+#if USE_BACKEND
 
+ApiHelpers::Api::Api()
+{
+	apiTree = ValueTree(ValueTree::readFromData(XmlApi::apivaluetree_dat, XmlApi::apivaluetree_datSize));
+}
+
+void ApiHelpers::getColourAndCharForType(int type, char &c, Colour &colour)
+{
+
+	const float alpha = 0.6f;
+	const float brightness = 0.8f;
+
+
+	switch (type)
+	{
+	case (int)DebugInformation::Type::InlineFunction:	c = 'I'; break;
+	case (int)DebugInformation::Type::Callback:			c = 'F'; break;
+	case (int)DebugInformation::Type::Variables:		c = 'V'; break;
+	case (int)DebugInformation::Type::Globals:			c = 'G'; break;
+	case (int)DebugInformation::Type::Constant:			c = 'C'; break;
+	case (int)DebugInformation::Type::RegisterVariable:	c = 'R'; break;
+	case 7:												c = 'A'; break;
+	default:											c = 'V'; break;
+	}
+
+	switch (c)
+	{
+	case 'I': colour = Colours::blue.withAlpha(alpha).withBrightness(brightness); break;
+	case 'V': colour = Colours::cyan.withAlpha(alpha).withBrightness(brightness); break;
+	case 'G': colour = Colours::green.withAlpha(alpha).withBrightness(brightness); break;
+	case 'C': colour = Colours::yellow.withAlpha(alpha).withBrightness(brightness); break;
+	case 'R': colour = Colours::red.withAlpha(alpha).withBrightness(brightness); break;
+	case 'A': colour = Colours::orange.withAlpha(alpha).withBrightness(brightness); break;
+	case 'F': colour = Colours::purple.withAlpha(alpha).withBrightness(brightness); break;
+
+	}
+}
+
+
+
+String ApiHelpers::getValueType(const var &v)
+{
+	const bool isObject = v.isObject();
+	const bool isCreatableScriptObject = dynamic_cast<DynamicScriptingObject*>(v.getDynamicObject()) != nullptr;
+
+	if (v.isBool()) return "bool";
+	else if (v.isInt() || v.isInt64()) return "int";
+	else if (v.isDouble()) return "double";
+	else if (v.isString()) return "String";
+	else if (v.isArray()) return "Array";
+	else if (v.isMethod()) return "Function";
+	else if (isObject && isCreatableScriptObject)
+	{
+		DynamicScriptingObject * obj = dynamic_cast<DynamicScriptingObject*>(v.getDynamicObject());
+
+		if (obj != nullptr) return obj->getObjectName().toString();
+		else return String::empty;
+	}
+	else return String::empty;
+}
+
+
+AttributedString ApiHelpers::createAttributedStringFromApi(const ValueTree &method, const String &/*className*/, bool multiLine, Colour textColour)
+{
+	AttributedString help;
+
+	const String name = method.getProperty(Identifier("name")).toString();
+	const String arguments = method.getProperty(Identifier("arguments")).toString();
+	const String description = method.getProperty(Identifier("description")).toString();
+	const String returnType = method.getProperty("returnType", "void");
+
+
+	help.setWordWrap(AttributedString::byWord);
+
+
+	if (multiLine)
+	{
+		help.setJustification(Justification::topLeft);
+		help.setLineSpacing(1.5f);
+		help.append("Name:\n  ", GLOBAL_BOLD_FONT(), textColour);
+		help.append(name, GLOBAL_MONOSPACE_FONT(), textColour.withAlpha(0.8f));
+		help.append(arguments + "\n\n", GLOBAL_MONOSPACE_FONT(), textColour.withAlpha(0.6f));
+		help.append("Description:\n  ", GLOBAL_BOLD_FONT(), textColour);
+		help.append(description + "\n\n", GLOBAL_FONT(), textColour.withAlpha(0.8f));
+
+		help.append("Return Type:\n  ", GLOBAL_BOLD_FONT(), textColour);
+		help.append(method.getProperty("returnType", "void"), GLOBAL_MONOSPACE_FONT(), textColour.withAlpha(0.8f));
+	}
+
+	else
+	{
+		help.setJustification(Justification::centredLeft);
+		help.append(description, GLOBAL_BOLD_FONT(), textColour.withAlpha(0.8f));
+
+		const String returnType = method.getProperty("returnType", "");
+
+		if (returnType.isNotEmpty())
+		{
+			help.append("\nReturn Type: ", GLOBAL_BOLD_FONT(), textColour);
+			help.append(returnType, GLOBAL_MONOSPACE_FONT(), textColour.withAlpha(0.8f));
+		}
+	}
+
+	return help;
+}
+
+
+
+String ApiHelpers::createCodeToInsert(const ValueTree &method, const String &className)
+{
+	const String name = method.getProperty(Identifier("name")).toString();
+
+	if (name == "setMouseCallback")
+	{
+		const String argumentName = "event";
+		String functionDef = className;
+		functionDef << "." << name + "(function(" << argumentName << ")\n";
+		functionDef << "{\n\t\n});\n";
+
+		return functionDef;
+	}
+	else if (name == "setTimerCallback")
+	{
+		const String argumentName = "";
+		String functionDef = className;
+		functionDef << "." << name + "(function(" << argumentName << ")\n";
+		functionDef << "{\n\t\n});\n";
+
+		return functionDef;
+	}
+	else if (name == "setPaintRoutine")
+	{
+		const String argumentName = "g";
+		String functionDef = className;
+		functionDef << "." << name + "(function(" << argumentName << ")\n";
+		functionDef << "{\n\t\n});\n";
+
+		return functionDef;
+	}
+	else
+	{
+		const String arguments = method.getProperty(Identifier("arguments")).toString();
+
+		return String(className + "." + name + arguments);
+	}
+}
+
+#endif
+
+
+String ApiHelpers::getFileNameFromErrorMessage(const String &message)
+{
+	if (message.startsWith("Line")) return String();
+
+	String fileName = message.upToFirstOccurrenceOf("-", false, true);
+
+	fileName = fileName.trimEnd();
+
+	return fileName;
+}
+
+
+
+Rectangle<float> ApiHelpers::getRectangleFromVar(const var &data, Result *r/*=nullptr*/)
+{
+	if (data.isArray())
+	{
+		Array<var>* d = data.getArray();
+
+		if (d->size() == 4)
+		{
+			Rectangle<float> rectangle((float)d->getUnchecked(0), (float)d->getUnchecked(1), (float)d->getUnchecked(2), (float)d->getUnchecked(3));
+
+			return rectangle;
+		}
+		else
+		{
+			if (r != nullptr) *r = Result::fail("Rectangle array needs 4 elements");
+			return Rectangle<float>();
+		}
+	}
+	else
+	{
+		if (r != nullptr) *r = Result::fail("Rectangle data is not an array");
+		return Rectangle<float>();
+	}
+}
+
+Rectangle<int> ApiHelpers::getIntRectangleFromVar(const var &data, Result* r/*=nullptr*/)
+{
+	if (data.isArray())
+	{
+		Array<var>* d = data.getArray();
+
+		if (d->size() == 4)
+		{
+			Rectangle<int> rectangle((int)d->getUnchecked(0), (int)d->getUnchecked(1), (int)d->getUnchecked(2), (int)d->getUnchecked(3));
+
+			return rectangle;
+		}
+		else
+		{
+			if (r != nullptr) *r = Result::fail("Rectangle array needs 4 elements");
+			return Rectangle<int>();
+		}
+	}
+	else
+	{
+		if (r != nullptr) *r = Result::fail("Rectangle data is not an array");
+		return Rectangle<int>();
+	}
+}
 
 // ====================================================================================================== Message functions
 

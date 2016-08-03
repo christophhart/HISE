@@ -592,7 +592,7 @@ image(nullptr),
 minimum(0.0f),
 maximum(1.0f)
 {
-	CHECK_COPY_AND_RETURN_22(base);
+	CHECK_COPY_AND_RETURN_22(dynamic_cast<Processor*>(base));
 
 	propertyIds.add(Identifier("mode"));			ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	propertyIds.add(Identifier("style"));			ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
@@ -1996,7 +1996,7 @@ void ScriptingApi::Content::ScriptPanel::loadImage(String imageName, String pret
 
 	const Image *newImage = pool->loadFileIntoPool(poolName, false);
 
-	jassert(image != nullptr);
+	jassert(newImage != nullptr);
 
 #else
 
