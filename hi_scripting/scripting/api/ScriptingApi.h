@@ -247,12 +247,6 @@ public:
 		/** Sends an allNotesOff message at the next buffer. */
 		void allNotesOff();
 
-		/** Saves a variable into the global container. */
-		void setGlobal(int index, var valueToSave);
-		
-		/** returns a variable from the global container. */
-		var getGlobal(int index) const;
-
 		/** Returns the uptime of the engine in seconds. */
 		double getUptime() const;
 		
@@ -274,15 +268,6 @@ public:
 		/** Returns the current operating system ("OSX" or ("WIN"). */
 		String getOS();
 
-		/** Opens an editor for the included file. */
-		void openEditor(int includedFileIndex);
-
-		/** Includes the file (from the script folder). */
-		void include(const String &string);
-        
-		/** Creates some handy variables for live coding purposes (note names, some chords, etc). */
-		void createLiveCodingVariables();
-
 		/** Allows access to the data of the host (playing status, timeline, etc...). */
 		DynamicObject *getPlayHead();
 
@@ -297,9 +282,6 @@ public:
 
 		/** Imports a JSON file as object. */
 		var loadFromJSON(String fileName);
-
-		/** returns an array with all files within the user preset directory content. */
-		var getUserPresetDirectoryContent();
 
 		/** Displays the progress (0.0 to 1.0) in the progress bar of the editor. */
 		void setCompileProgress(var progress);
@@ -418,9 +400,6 @@ public:
 		/** Defers all callbacks to the message thread (midi callbacks become read-only). */
 		void deferCallbacks(bool makeAsynchronous);
 
-		/**	Changes the allowed state of one of the child synths. Works only with SynthGroups. */
-		void allowChildSynth(int synthIndex, bool shouldBeAllowed); 
-
 		/** Sends a note off message. The envelopes will tail off. */
 		void noteOff(int noteNumber);
 		
@@ -488,10 +467,10 @@ public:
 		void setModulatorAttribute(int chainId, int modulatorIndex, int attributeIndex, float newValue);
 
 		/** Returns the number of pressed keys (!= the number of playing voices!). */
-		int getNumPressedKeys() const {return numPressedKeys; };
+		int getNumPressedKeys() const {return numPressedKeys.get(); };
 
 		/** Checks if any key is pressed. */
-		bool isLegatoInterval() const { return numPressedKeys != 1; };
+		bool isLegatoInterval() const { return numPressedKeys.get() != 1; };
 
 		/** Adds a Modulator to the synth's chain. If it already exists, it returns the index. */
 		int addModulator(int chainId, const String &type, const String &id) const;
@@ -525,8 +504,8 @@ public:
 
 		// ============================================================================================================
 
-		void increaseNoteCounter() noexcept { numPressedKeys++; }
-		void decreaseNoteCounter() { numPressedKeys--; if(numPressedKeys < 0) numPressedKeys = 0; }
+		void increaseNoteCounter() noexcept { ++numPressedKeys; }
+		void decreaseNoteCounter() { --numPressedKeys; if (numPressedKeys.get() < 0) numPressedKeys.set(0); }
 		void setSustainPedal(bool shouldBeDown) { sustainState = shouldBeDown; };
 
 		struct Wrapper;
@@ -535,7 +514,7 @@ public:
 
 		OwnedArray<Message> artificialNoteOns;
 		ModulatorSynth * const owner;
-		int numPressedKeys;
+		Atomic<int> numPressedKeys;
 
 		SelectedItemSet<WeakReference<ModulatorSamplerSound>> soundSelection;
 
@@ -567,17 +546,19 @@ public:
 		void print(var debug);
 
 		/** Starts the benchmark. You can give it a name that will be displayed with the result if desired. */
-		void start(String title = String::empty) { startTime = Time::highResolutionTicksToSeconds(Time::getHighResolutionTicks()); };
+		void start() { startTime = Time::highResolutionTicksToSeconds(Time::getHighResolutionTicks()); };
 
 		/** Stops the benchmark and prints the result. */
 		void stop();
 		
+		/** Clears the console. */
+		void clear();
+
 		struct Wrapper;
 
 	private:
 
 		double startTime;
-		String benchmarkTitle;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Console)
 	};

@@ -44,6 +44,7 @@
 #include "scripting/api/ScriptingBaseObjects.h"
 
 #include "scripting/api/DspFactory.h"
+#include "scripting/api/DspInstance.h"
 #include "scripting/scripting_audio_processor/ScriptDspModules.h"
 #include "scripting/scripting_audio_processor/ScriptedAudioProcessor.h"
 

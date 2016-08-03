@@ -148,7 +148,7 @@ public:
 	void prepareToPlay (double sampleRate, int samplesPerBlock);
 	void releaseResources() 
 	{
-		writeToConsole("RELEASE_RESOURCES_CALLED", Console::Error);
+		writeToConsole("RELEASE_RESOURCES_CALLED", Console::Error, getMainSynthChain());
 	};
 
 	void getStateInformation	(MemoryBlock &destData) override

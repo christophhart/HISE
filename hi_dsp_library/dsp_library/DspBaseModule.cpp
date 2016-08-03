@@ -1,5 +1,7 @@
 
-#include "DspBaseModule.h"
+
+#pragma warning( push )
+#pragma warning( disable : 4100 )
 
 DspBaseObject::DspBaseObject() {}
 DspBaseObject::~DspBaseObject() {}
@@ -24,3 +26,5 @@ bool DspBaseObject::getConstant(int index, int& value) const noexcept
 bool DspBaseObject::getConstant(int index, char* text, size_t& size) const noexcept { return false; }
 bool DspBaseObject::getConstant(int index, float** data, int &size) noexcept		{ return false; }
 bool DspBaseObject::getConstant(int index, float& value) const noexcept				{ return false; }
+
+#pragma warning( pop )

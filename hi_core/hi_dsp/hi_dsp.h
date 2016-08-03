@@ -152,10 +152,6 @@ class ProcessorEditor;
 #include "modules/ModulatorSynthChain.h"
 #include "modules/DspCoreModules.h"
 
-#if INCLUDE_PROTOPLUG
-#include "protoplug/hi_protoplug.h"
-#endif
-
 // Plugin Parameters
 
 #include "plugin_parameter/PluginParameterProcessor.h"

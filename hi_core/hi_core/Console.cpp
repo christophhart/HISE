@@ -47,123 +47,41 @@ CodeEditorComponent(doc, tok)
 
 Console::Console(BaseDebugArea *area) :
 		AutoPopupDebugComponent(area),
-		line(0),
-		usage(0),
-		voiceAmount(0),
-		overflowProtection(false),
-		hostTempo(120),
-		popupMode(false)
+		overflowProtection(false)
 {
 	setName("Console");
 
-	addAndMakeVisible (textConsole = new TextEditor ("Text Console"));
-	textConsole->setMultiLine (true);
-	textConsole->setReturnKeyStartsNewLine (false);
-	textConsole->setReadOnly (true);
-	textConsole->setScrollbarsShown (true);
-	textConsole->setCaretVisible (true);
-	textConsole->setPopupMenuEnabled (true);
-
-	textConsole->setFont(GLOBAL_MONOSPACE_FONT());
-	
-	textConsole->setPopupMenuEnabled(false);
-    
 	doc = new CodeDocument();
 	tokeniser = new ConsoleTokeniser();
 
 	addAndMakeVisible(newTextConsole = new ConsoleEditorComponent(*doc, tokeniser));
 	newTextConsole->addMouseListener(this, true);
 
-	textConsole->setColour (TextEditor::shadowColourId, Colours::black);
-	textConsole->setColour(TextEditor::backgroundColourId, Colour(DEBUG_AREA_BACKGROUND_COLOUR));
-    textConsole->addMouseListener(this, true);
-
-
-	addAndMakeVisible (clearButton = new TextButton ("Clear"));
-	clearButton->setButtonText ("Clear");
-	clearButton->setConnectedEdges (Button::ConnectedOnLeft | Button::ConnectedOnRight);
-	clearButton->addListener (this);
-	clearButton->setColour (TextButton::buttonColourId, Colour (0xff7e7e7e));
-	clearButton->setColour (TextButton::textColourOnId, Colours::white);
-	clearButton->setColour (TextButton::textColourOffId, Colour (0xfffafafa));
-
-	addAndMakeVisible (cpuSlider = new Slider ("new slider"));
-	cpuSlider->setRange (0, 100, 1);
-	cpuSlider->setSliderStyle (Slider::LinearBar);
-	cpuSlider->setTextBoxStyle (Slider::TextBoxLeft, false, 80, 20);
-	cpuSlider->setTextValueSuffix(" %");
-	cpuSlider->setEnabled(false);
-	cpuSlider->setColour(Slider::ColourIds::backgroundColourId, Colours::black.withAlpha(0.1f));
-	cpuSlider->setColour(Slider::ColourIds::thumbColourId, Colours::darkred.withAlpha(0.5f));
-
-	addAndMakeVisible(voiceLabel = new Label());
-	voiceLabel->setFont (GLOBAL_FONT());
-	voiceLabel->setJustificationType (Justification::centredLeft);
-    voiceLabel->setEditable (false, false, false);
-    voiceLabel->setColour (Label::textColourId, Colour (0x9c000000));
-    voiceLabel->setColour (TextEditor::textColourId, Colours::black);
-    voiceLabel->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
-	voiceLabel->setText("Total voice amount: ", dontSendNotification);
-
-
 }
 
-void Console::timerCallback()
-{
-	cpuSlider->setValue(usage, dontSendNotification);
-
-	voiceLabel->setText("Voices: " + String(voiceAmount) + ", Tempo: " + String(hostTempo) + "BPM", dontSendNotification);
-
-	unprintedMessages.ensureStorageAllocated(100);
-}
 
 Console::~Console()
 {
-	stopTimer();
-
-	textConsole = nullptr;
-	clearButton = nullptr;
-	
 	newTextConsole = nullptr;
 	doc = nullptr;
 	tokeniser = nullptr;
 
 	masterReference.clear();
-
 };
 
 
 void Console::resized()
 {
 	newTextConsole->setBounds(getLocalBounds());
-
 }
 
-void Console::buttonClicked (Button* b)
-{
-	ScopedLock sl(lock);
-	{
-		tempString.clear();
-		line = 0;
-		processorLines.clear();
-	}
 
-	if (b == clearButton)
-	{
-		textConsole->clear();
-	}
-}
 
 void Console::clear()
 {
-	ScopedLock sl(lock);
-	{
-		tempString.clear();
-		line = 0;
-		processorLines.clear();
-	}
+	clearFlag = true;
 
-	textConsole->clear();
+	triggerAsyncUpdate();
 }
 
 void Console::mouseDown(const MouseEvent &e)
@@ -310,13 +228,13 @@ void Console::logMessage(const String &t, WarningLevel warningLevel, const Proce
 
 		if(unprintedMessages.size() > 10)
 		{
-			unprintedMessages.add(ConsoleMessage("Console Overflow", Error, p, c));
+			unprintedMessages.push_back(ConsoleMessage(Error, const_cast<Processor*>(p), "Console Overflow"));
 			overflowProtection = true;
 			return;
 		}
 		else
 		{
-			unprintedMessages.add(ConsoleMessage(t, warningLevel, p, c));
+			unprintedMessages.push_back(ConsoleMessage(warningLevel, const_cast<Processor*>(p), t));
 		}
 	}
 
@@ -333,20 +251,27 @@ void Console::logMessage(const String &t, WarningLevel warningLevel, const Proce
 
 void Console::handleAsyncUpdate()
 {
-	Array<ConsoleMessage> messagesForThisTime;
-	messagesForThisTime.ensureStorageAllocated(10);
+	if (clearFlag)
+	{
+		newTextConsole->getDocument().replaceAllContent("");
+		clearFlag = false;
+	}
+
+	std::vector<ConsoleMessage> messagesForThisTime;
+	messagesForThisTime.reserve(10);
 
 	if(unprintedMessages.size() != 0)
 	{
 		ScopedLock sl(lock);
-		messagesForThisTime.swapWith(unprintedMessages);
+		messagesForThisTime.swap(unprintedMessages);
 	}
+	else return;
+
+	String message;
 
 	for(int i = 0; i < messagesForThisTime.size(); i++)
 	{
-        String message;
-        
-        const Processor* processor = messagesForThisTime[i].processor.get();
+        const Processor* processor = std::get<(int)ConsoleMessageItems::Processor>(messagesForThisTime[i]).get();
         
         if(processor == nullptr)
         {
@@ -355,18 +280,15 @@ void Console::handleAsyncUpdate()
         }
         
 		message << processor->getId() << ":";
-		message << (messagesForThisTime[i].warningLevel == WarningLevel::Error ? "! " : " ");
-		message << messagesForThisTime[i].message + "\n";
-		
-		doc->insertText(doc->getNumCharacters(), message);
+		message << (std::get<(int)ConsoleMessageItems::WarningLevel>(messagesForThisTime[i]) == WarningLevel::Error ? "! " : " ");
+		message << std::get<(int)ConsoleMessageItems::Message>(messagesForThisTime[i]) << "\n";
 	}
+
+	doc->insertText(doc->getNumCharacters(), message);
 
 	int numLinesVisible = jmax<int>(0, doc->getNumLines() - (int)((float)newTextConsole->getHeight() / GLOBAL_MONOSPACE_FONT().getHeight()));
 
 	newTextConsole->scrollToLine(numLinesVisible);
-	
-	
-
 	overflowProtection = false;
 
 	return;

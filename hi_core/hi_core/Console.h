@@ -48,14 +48,44 @@ class BaseDebugArea;
 *	For Modulators there is the macro function debugMod(String &t)
 */
 class Console: public Component,
-			   public ButtonListener,
 			   public AsyncUpdater,
-			   public Timer,
 			   public AutoPopupDebugComponent
 {
 public:
 
-	class ConsoleTokeniser: public CodeTokeniser
+	
+	
+	enum WarningLevel
+	{
+		Message = 0,
+		Error = 1
+	};
+
+	Console(BaseDebugArea *area);
+	~Console();
+
+	void sendChangeMessage();
+    
+    void mouseDown(const MouseEvent &e) override;
+    void mouseMove(const MouseEvent &e) override;
+	void mouseDoubleClick(const MouseEvent& event) override;
+
+	void resized() override;
+
+    void clear();
+
+	void handleAsyncUpdate();
+
+	/** Adds a new line to the console.
+    *
+	*   This can be called in the audio thread. It stores all text in an internal String buffer and writes it periodically
+	*   on the timer callback.
+	*/
+	void logMessage(const String &t, WarningLevel warningLevel, const Processor *p, Colour c);
+
+private:
+
+	class ConsoleTokeniser : public CodeTokeniser
 	{
 	public:
 
@@ -72,6 +102,7 @@ public:
 
 	};
 
+
 	class ConsoleEditorComponent : public CodeEditorComponent
 	{
 	public:
@@ -82,105 +113,32 @@ public:
 
 	};
 
-	enum WarningLevel
+
+	enum class ConsoleMessageItems
 	{
-		Message = 0,
-		Error = 1
+		WarningLevel = 0,
+		Processor,
+		Message
 	};
 
-	Console(BaseDebugArea *area);
+	using ConsoleMessage = std::tuple < WarningLevel, const WeakReference<Processor>, String > ;
 
-	void timerCallback();;
 
-	~Console();
 
-	void sendChangeMessage();
-    
-    void mouseDown(const MouseEvent &e) override;
-    void mouseMove(const MouseEvent &e) override;
-	void mouseDoubleClick(const MouseEvent& event) override;
-
-	void resized() override;
-
-	void buttonClicked (Button* buttonThatWasClicked) override;
-
-    void clear();
-
-	void handleAsyncUpdate();
-
-	/** Adds a new line to the console.
-    *
-	*   This can be called in the audio thread. It stores all text in an internal String buffer and writes it periodically
-	*   on the timer callback.
-	*/
-	void logMessage(const String &t, WarningLevel warningLevel, const Processor *p, Colour c);
-
-private:
-
-	struct ConsoleMessage
-	{
-		ConsoleMessage(const String &m, WarningLevel w, const Processor *p, Colour c=Colours::black):
-			message(m),
-			warningLevel(w),
-			processor(const_cast<Processor*>(p)), // too stupid to get a weak reference of a const pointer...
-			colour(c)
-		{ };
-
-		ConsoleMessage():
-			message(String::empty),
-			warningLevel(Error),
-		    processor(nullptr)
-		{
-            jassertfalse;
-        };
-
-		ConsoleMessage &operator=( const ConsoleMessage&)
-		{
-            jassertfalse;
-            
-			return *this;
-		};
-
-		const String message;
-		const WeakReference<Processor> processor;
-		const WarningLevel warningLevel;
-		Colour colour;
-        
-    };
+	std::vector<ConsoleMessage> unprintedMessages;
 
 	friend class WeakReference<Console>;
 	WeakReference<Console>::Master masterReference;
 	
 	CriticalSection lock;
 
-    ScopedPointer<TextEditor> textConsole;
-    ScopedPointer<TextButton> clearButton;
-	ScopedPointer<Label> voiceLabel;
-
 	ScopedPointer<CodeDocument> doc;
 	ScopedPointer<ConsoleEditorComponent> newTextConsole;
 	ScopedPointer<CodeTokeniser> tokeniser;
 
-	bool popupMode;
 	bool overflowProtection;
 
-	int voiceAmount;
-
-	int hostTempo;
-
-	ScopedPointer<Slider> cpuSlider;
-
-	String tempString;
-
-	int line;
-	int usage;
-
-	Array<bool> errors;
-
-	Array<WeakReference<Processor>> processorLines;
-
-
-	Array<ConsoleMessage> unprintedMessages;
+	bool clearFlag;
 
 };
 

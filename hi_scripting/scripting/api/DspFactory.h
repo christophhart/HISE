@@ -163,69 +163,6 @@ private:
 
 
 
-/** This objects is a wrapper around the actual DSP module that is loaded from a plugin.
-*
-*	It contains the glue code for accessing it per Javascript and is reference counted to manage the lifetime of the external module.
-*/
-class DspInstance : public ConstScriptingObject,
-					public AssignableObject
-{
-public:
-
-	/** Creates a new instance from the given Factory with the supplied name. */
-	DspInstance(const DspFactory *f, const String &moduleName_);
-
-	void initialise();
-
-	void unload();
-
-	~DspInstance();
-
-	Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("DspModule") };
-
-	/** Calls the setup method of the external module. */
-	void prepareToPlay(double sampleRate, int samplesPerBlock);
-
-	/** Calls the processMethod of the external module. */
-	void processBlock(const var &data);
-
-	void setParameter(int index, float newValue);
-	var getParameter(int index) const;
-
-	void setStringParameter(int index, String value);
-
-	String getStringParameter(int index);
-
-	void assign(const int index, var newValue) override;
-	var getAssignedValue(int index) const override;
-	int getCachedIndex(const var &name) const override;
-
-	/** Applies the module on the data. */
-	void operator >>(const var &data);
-
-	/** Applies the module on the data. */
-	void operator <<(const var &data);
-
-	var getInfo() const;
-	
-	struct Wrapper;
-
-private:
-
-	void throwError(const String &errorMessage)
-	{
-		throw String(errorMessage);
-	}
-
-	const String moduleName;
-
-	DspBaseObject *object;
-	DspFactory::Ptr factory;
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DspInstance)
-};
-
-
 
 
 #endif  // DSPFACTORY_H_INCLUDED

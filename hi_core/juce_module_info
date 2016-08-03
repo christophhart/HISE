@@ -42,11 +42,6 @@
 					  "hi_dsp/editor/*",
 					  "hi_dsp/modules/*",
 					  "hi_dsp/plugin_parameter/*",
-					  "hi_dsp/protoplug/*",
-					  "hi_dsp/protoplug/exports/*",
-					  "hi_dsp/protoplug/guiclasses/*",
-					  "hi_dsp/protoplug/res/*",
-					  "hi_dsp/protoplug/vflib/*",
 					  "hi_sampler/*",
 					  "hi_sampler/sampler/*",
 					  "hi_sampler/sampler/components/*"

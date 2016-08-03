@@ -16,7 +16,7 @@ String HelperFunctions::createStringFromChar(const char* charFromOtherHeap, size
 	std::string s;
 	s.reserve(length);
 
-	for (int i = 0; i < length; i++)
+	for (size_t i = 0; i < length; i++)
 		s.push_back(*charFromOtherHeap++);
 
 

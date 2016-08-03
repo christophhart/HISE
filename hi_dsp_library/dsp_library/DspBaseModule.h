@@ -51,9 +51,6 @@ enum class LoadingErrorCode
 };
 
 
-#pragma warning( push )
-#pragma warning( disable : 4100 )
-
 /** This interface class is the base class for all modules that can be loaded as plugin into the script FX processor. 
 *
 *	A DspBaseObject is a extremely simple, C-API driven class that performs audio processing called from a Script Processor
@@ -243,6 +240,5 @@ public:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DspBaseObject)
 };
 
-#pragma warning( pop )
 
 #endif  // DSPBASEMODULE_H_INCLUDED

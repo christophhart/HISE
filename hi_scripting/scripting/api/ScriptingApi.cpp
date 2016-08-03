@@ -265,6 +265,8 @@ struct ScriptingApi::Message::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Message, setControllerValue);
 	API_METHOD_WRAPPER_0(Message, getNoteNumber);
 	API_METHOD_WRAPPER_0(Message, getVelocity);
+	API_METHOD_WRAPPER_0(Message, getControllerNumber);
+	API_METHOD_WRAPPER_0(Message, getControllerValue);
 	API_VOID_METHOD_WRAPPER_1(Message, ignoreEvent);
 	API_VOID_METHOD_WRAPPER_1(Message, delayEvent);
 	API_METHOD_WRAPPER_0(Message, getEventId);
@@ -286,6 +288,8 @@ eventIdCounter(0)
 	ADD_API_METHOD_1(setVelocity);
 	ADD_API_METHOD_1(setControllerNumber);
 	ADD_API_METHOD_1(setControllerValue);
+	ADD_API_METHOD_0(getControllerNumber);
+	ADD_API_METHOD_0(getControllerValue);
 	ADD_API_METHOD_0(getNoteNumber);
 	ADD_API_METHOD_0(getVelocity);
 	ADD_API_METHOD_1(ignoreEvent);
@@ -548,8 +552,6 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_0(Engine, allNotesOff);
 	API_METHOD_WRAPPER_0(Engine, getUptime);
 	API_METHOD_WRAPPER_0(Engine, getHostBpm);
-	API_VOID_METHOD_WRAPPER_2(Engine, setGlobal);
-	API_METHOD_WRAPPER_1(Engine, getGlobal);
 	API_METHOD_WRAPPER_1(Engine, getMilliSecondsForTempo);
 	API_METHOD_WRAPPER_1(Engine, getSamplesForMilliSeconds);
 	API_METHOD_WRAPPER_1(Engine, getMilliSecondsForSamples);
@@ -566,13 +568,9 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Engine, setLowestKeyToDisplay);
 	API_METHOD_WRAPPER_0(Engine, createMidiList);
 	API_METHOD_WRAPPER_0(Engine, createTimerObject);
-	API_VOID_METHOD_WRAPPER_1(Engine, openEditor);
-	API_VOID_METHOD_WRAPPER_0(Engine, createLiveCodingVariables);
-	API_VOID_METHOD_WRAPPER_1(Engine, include);
 	API_METHOD_WRAPPER_0(Engine, getPlayHead);
 	API_VOID_METHOD_WRAPPER_2(Engine, dumpAsJSON);
 	API_METHOD_WRAPPER_1(Engine, loadFromJSON);
-	API_METHOD_WRAPPER_0(Engine, getUserPresetDirectoryContent);
 	API_VOID_METHOD_WRAPPER_1(Engine, setCompileProgress);
 	API_METHOD_WRAPPER_2(Engine, matchesRegex);
 	API_METHOD_WRAPPER_2(Engine, getRegexMatches);
@@ -588,8 +586,6 @@ ApiClass(0)
 	ADD_API_METHOD_0(allNotesOff);
 	ADD_API_METHOD_0(getUptime);
 	ADD_API_METHOD_0(getHostBpm);
-	ADD_API_METHOD_2(setGlobal);
-	ADD_API_METHOD_1(getGlobal);
 	ADD_API_METHOD_1(getMilliSecondsForTempo);
 	ADD_API_METHOD_1(getSamplesForMilliSeconds);
 	ADD_API_METHOD_1(getMilliSecondsForSamples);
@@ -605,13 +601,9 @@ ApiClass(0)
 	ADD_API_METHOD_2(setKeyColour);
 	ADD_API_METHOD_1(setLowestKeyToDisplay);
 	ADD_API_METHOD_0(createMidiList);
-	ADD_API_METHOD_1(openEditor);
-	ADD_API_METHOD_0(createLiveCodingVariables);
-	ADD_API_METHOD_1(include);
 	ADD_API_METHOD_0(getPlayHead);
 	ADD_API_METHOD_2(dumpAsJSON);
 	ADD_API_METHOD_1(loadFromJSON);
-	ADD_API_METHOD_0(getUserPresetDirectoryContent);
 	ADD_API_METHOD_1(setCompileProgress);
 	ADD_API_METHOD_2(matchesRegex);
 	ADD_API_METHOD_2(getRegexMatches);
@@ -663,18 +655,7 @@ void ScriptingApi::Engine::loadFont(const String &fileName)
 double ScriptingApi::Engine::getSampleRate() const { return const_cast<MainController*>(getProcessor()->getMainController())->getMainSynthChain()->getSampleRate(); }
 double ScriptingApi::Engine::getSamplesForMilliSeconds(double milliSeconds) const { return (milliSeconds / 1000.0) * getSampleRate(); }
 
-void ScriptingApi::Engine::setGlobal(int index, var valueToSave)
-{
-	if (valueToSave.isMethod() || (valueToSave.isObject() && !valueToSave.isArray()))
-	{
-		reportScriptError("Methods and Objects can't be stored in the global container");
-		return;
-	}
 
-	getProcessor()->getMainController()->setGlobalVariable(index, valueToSave);
-}
-
-var ScriptingApi::Engine::getGlobal(int index) const { return getProcessor()->getMainController()->getGlobalVariable(index); }
 double ScriptingApi::Engine::getUptime() const		 { return getProcessor()->getMainController()->getUptime(); }
 double ScriptingApi::Engine::getHostBpm() const		 { return getProcessor()->getMainController()->getBpm(); }
 
@@ -710,81 +691,10 @@ int ScriptingApi::Engine::getMidiNoteFromName(String midiNoteName) const
 
 
 
-
-void ScriptingApi::Engine::openEditor(int includedFileIndex)
-{
-	JavascriptProcessor *sp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
-
-	if (sp != nullptr && includedFileIndex >= 0 && includedFileIndex < sp->getNumWatchedFiles())
-	{
-		dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->showPopupForFile(includedFileIndex);
-	}
-	else
-	{
-		reportScriptError("Illegal File Index");
-	}
-}
-
 void ScriptingApi::Engine::setKeyColour(int keyNumber, int colourAsHex) { getProcessor()->getMainController()->setKeyboardCoulour(keyNumber, Colour(colourAsHex));}
 void ScriptingApi::Engine::setLowestKeyToDisplay(int keyNumber) { getProcessor()->getMainController()->setLowestKeyToDisplay(keyNumber); }
 double ScriptingApi::Engine::getMilliSecondsForTempo(int tempoIndex) const { return (double)TempoSyncer::getTempoInMilliSeconds(getHostBpm(), (TempoSyncer::Tempo)tempoIndex); }
-void ScriptingApi::Engine::include(const String &/*string*/) { jassertfalse; }
 
-
-void ScriptingApi::Engine::createLiveCodingVariables()
-{
-	JavascriptMidiProcessor *sp = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor());
-
-	if (sp != nullptr)
-	{
-		NamedValueSet *s = const_cast<NamedValueSet*>(&sp->getScriptEngine()->getRootObjectProperties());
-
-		int C = 0;
-		int Db = 1;
-		int D = 2;
-		int Eb = 3;
-		int E = 4;
-		int F = 5;
-		int Gb = 6;
-		int G = 7;
-		int Ab = 8;
-		int A = 9;
-		int Bb = 10;
-		int B = 11;
-
-		s->set("C", C);
-		s->set("Db", Db);
-		s->set("D", D);
-		s->set("Eb", Eb);
-		s->set("E", E);
-		s->set("F", F);
-		s->set("Gb", Gb);
-		s->set("G", G);
-		s->set("A", A);
-		s->set("Ab", Ab);
-		s->set("Bb", Bb);
-		s->set("B", B);
-
-		var Cm[3] = { C, G, Eb + 12 };		
-		var G7[3] = { B - 12, F, D + 12 };
-		var Fm[3] = { Ab - 12, F, C + 12 };
-		var Gm[3] = { Bb - 12, G, D + 12 };
-		var Dmb5[4] = { D, F, Ab, C + 12 };
-		var Bbmaj[3] = { Bb - 12, F, D + 12 };
-		var Ebmaj[3] = { Eb, Bb, G + 12 };
-		var Abmaj[3] = { Ab - 12, Eb, C + 12 };
-
-		s->set("Cm", Array<var>(Cm, 3));
-		s->set("G7", Array<var>(G7, 3));
-		s->set("Fm", Array<var>(Fm, 3));
-		s->set("Gm", Array<var>(Gm, 3));
-		s->set("Abmaj", Array<var>(Abmaj, 3));
-		s->set("Dmb5", Array<var>(Dmb5, 3));
-		s->set("Bbmaj", Array<var>(Bbmaj, 3));
-		s->set("Ebmaj", Array<var>(Ebmaj, 3));
-		s->set("Abmaj", Array<var>(Abmaj, 3));
-	}
-}
 
 DynamicObject * ScriptingApi::Engine::getPlayHead() { return getProcessor()->getMainController()->getHostInfoObject(); }
 ScriptingObjects::MidiList *ScriptingApi::Engine::createMidiList() { return new ScriptingObjects::MidiList(getScriptProcessor()); };
@@ -825,40 +735,6 @@ var ScriptingApi::Engine::loadFromJSON(String fileName)
 		reportScriptError("File not found");
 		return var::undefined();
 	}
-}
-
-var ScriptingApi::Engine::getUserPresetDirectoryContent()
-{
-#if USE_FRONTEND
-    
-    const ValueTree v = dynamic_cast<FrontendProcessor*>(getProcessor()->getMainController())->getPresetData();
-    
-    var returnArray;
-    
-    for(int i = 0; i < v.getNumChildren(); i++)
-    {
-        returnArray.append(v.getChild(i).getProperty("FileName"));
-    }
-    
-    return returnArray;
-    
-#else
-	File presetDirectory = GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
-
-	if (presetDirectory.exists() && presetDirectory.isDirectory())
-	{
-		DirectoryIterator iter(GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets), false, "*", File::findFiles);
-		var returnArray;
-
-		while (iter.next())
-			returnArray.append(iter.getFile().getFileName());
-
-		return returnArray;
-	}
-	else
-		return var::undefined();
-
-#endif    
 }
 
 
@@ -1262,7 +1138,6 @@ void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
 
 struct ScriptingApi::Synth::Wrapper
 {
-	API_VOID_METHOD_WRAPPER_2(Synth, allowChildSynth);
 	API_METHOD_WRAPPER_0(Synth, getNumChildSynths);
 	API_VOID_METHOD_WRAPPER_1(Synth, addToFront);
 	API_VOID_METHOD_WRAPPER_1(Synth, deferCallbacks);
@@ -1294,7 +1169,6 @@ struct ScriptingApi::Synth::Wrapper
 	API_METHOD_WRAPPER_0(Synth, isLegatoInterval);
 	API_METHOD_WRAPPER_0(Synth, isSustainPedalDown);
 	API_VOID_METHOD_WRAPPER_1(Synth, setClockSpeed);
-
 };
 
 
@@ -1307,9 +1181,6 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 {
 	jassert(owner != nullptr);
 
-	
-
-	ADD_API_METHOD_2(allowChildSynth);
 	ADD_API_METHOD_0(getNumChildSynths);
 	ADD_API_METHOD_1(addToFront);
 	ADD_API_METHOD_1(deferCallbacks);
@@ -1344,16 +1215,6 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	
 };
 
-void ScriptingApi::Synth::allowChildSynth(int synthIndex, bool shouldBeAllowed)
-{
-	if(dynamic_cast<ModulatorSynthGroup*>(owner) == nullptr) 
-	{
-		reportScriptError("allowChildSynth() can only be called on SynthGroups!");
-		return;
-	}
-
-	static_cast<ModulatorSynthGroup*>(owner)->allowChildSynth(synthIndex, shouldBeAllowed);
-};
 
 int ScriptingApi::Synth::getNumChildSynths() const
 {
@@ -1377,8 +1238,7 @@ void ScriptingApi::Synth::noteOff(int noteNumber)
 }
 
 void ScriptingApi::Synth::addToFront(bool addToFront)
-{
-	
+{	
 	dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->addToFront(addToFront);
 }
 
@@ -1937,19 +1797,20 @@ int ScriptingApi::Synth::getModulatorIndex(int chain, const String &id) const
 struct ScriptingApi::Console::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_1(Console, print);
-	API_VOID_METHOD_WRAPPER_1(Console, start);
+	API_VOID_METHOD_WRAPPER_0(Console, start);
 	API_VOID_METHOD_WRAPPER_0(Console, stop);
+	API_VOID_METHOD_WRAPPER_0(Console, clear);
 };
 
 ScriptingApi::Console::Console(ProcessorWithScriptingContent *p) :
 ScriptingObject(p),
 ApiClass(0),
-startTime(0.0),
-benchmarkTitle(String::empty)
+startTime(0.0)
 {
 	ADD_API_METHOD_1(print);
-	ADD_API_METHOD_1(start);
+	ADD_API_METHOD_0(start);
 	ADD_API_METHOD_0(stop);
+	ADD_API_METHOD_0(clear);
 }
 
 
@@ -1974,13 +1835,18 @@ void ScriptingApi::Console::stop()
 	const double ms = (now - startTime) * 1000.0;
 	startTime = 0.0;
 
-	debugToConsole(getProcessor(), benchmarkTitle + " Benchmark Result: " + String(ms, 3) + " ms");
+	debugToConsole(getProcessor(), "Benchmark Result: " + String(ms, 3) + " ms");
 #endif
 }
 
 
 
 
+
+void ScriptingApi::Console::clear()
+{
+	getProcessor()->getMainController()->clearConsole();
+}
 
 #undef SEND_MESSAGE
 #undef ADD_TO_TYPE_SELECTOR

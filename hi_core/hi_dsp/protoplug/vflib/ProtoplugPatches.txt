@@ -1,7 +1,0 @@
-FreeTypeAmalgam.c line 152281 :
-
-#if !defined(__APPLE_CPP__) && !defined(__APPLE_CC__)
-typedef unsigned char  Byte;  /* 8 bits */
-#endif
-
-This fixes the compilation error on XCode 3.2

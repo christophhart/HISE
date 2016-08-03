@@ -35,6 +35,7 @@
 #include "hi_scripting.h"
 
 #include "scripting/api/DspFactory.cpp"
+#include "scripting/api/DspInstance.cpp"
 #include "scripting/engine/JavascriptApiClass.cpp"
 #include "scripting/api/ScriptingBaseObjects.cpp"
 #include "scripting/engine/DebugHelpers.cpp"

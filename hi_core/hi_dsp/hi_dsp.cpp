@@ -63,8 +63,5 @@
 #include "modules/ModulatorSynth.cpp"
 #include "modules/ModulatorSynthChain.cpp"
 
-#if INCLUDE_PROTOPLUG
-#include "protoplug/hi_protoplug.cpp"
-#endif
 
 #include "plugin_parameter/PluginParameterProcessor.cpp"

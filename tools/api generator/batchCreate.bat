@@ -16,6 +16,8 @@ xcopy "xml\class_scripting_api_1_1_math.xml" "xml\selection"
 xcopy "xml\class_scripting_api_1_1_message.xml" "xml\selection"
 xcopy "xml\class_scripting_api_1_1_synth.xml" "xml\selection"
 xcopy "xml\class_scripting_api_1_1_sampler.xml" "xml\selection"
+xcopy "xml\class_dsp_instance.xml" "xml\selection"
+
 xcopy "xml\class_scripting_objects_1_1_scripting_modulator.xml" "xml\selection"
 xcopy "xml\class_scripting_objects_1_1_midi_list.xml" "xml\selection"
 xcopy "xml\class_scripting_objects_1_1_scripting_audio_sample_processor.xml" "xml\selection"
@@ -25,8 +27,6 @@ xcopy "xml\class_scripting_objects_1_1_scripting_midi_processor.xml" "xml\select
 xcopy "xml\class_scripting_objects_1_1_scripting_preset_storage.xml" "xml\selection"
 xcopy "xml\class_scripting_objects_1_1_graphics_object.xml" "xml\selection"
 xcopy "xml\class_scripting_objects_1_1_path_object.xml" "xml\selection"
-
-
 
 xcopy "xml\struct_scripting_api_1_1_content_1_1_script_button.xml" "xml\selection"
 xcopy "xml\struct_scripting_api_1_1_content_1_1_script_combo_box.xml" "xml\selection"
@@ -48,6 +48,7 @@ ren "xml\selection\class_scripting_api_1_1_math.xml" "Math.xml"
 ren "xml\selection\class_scripting_api_1_1_message.xml" "Message.xml"
 ren "xml\selection\class_scripting_api_1_1_synth.xml" "Synth.xml"
 ren "xml\selection\class_scripting_api_1_1_sampler.xml" "Sampler.xml"
+ren "xml\selection\class_dsp_instance.xml" "DspModule.xml"
 
 ren "xml\selection\class_scripting_objects_1_1_scripting_modulator.xml" "Modulator.xml"
 ren "xml\selection\class_scripting_objects_1_1_midi_list.xml" "MidiList.xml"

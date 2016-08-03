@@ -234,7 +234,7 @@ private:
 };
 
 
-#if USE_GLITCH_DETECTION
+#if USE_GLITCH_DETECTION && !JUCE_DEBUG
 #define ADD_GLITCH_DETECTOR(x) static Identifier glitchId(x); ScopedGlitchDetector sgd(glitchId)
 #else
 #define ADD_GLITCH_DETECTOR(x)
