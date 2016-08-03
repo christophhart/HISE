@@ -31,6 +31,7 @@
 #define DSPBASEMODULE_H_INCLUDED
 
 
+/** @file */
 
 /** This status codes will be returned by the initialise method.
 *

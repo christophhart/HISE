@@ -90,16 +90,25 @@ occasional dudes trying to rip your precious algorithms, just pass a string and 
 
 If you are really protective, you might want to create a RSA Key Pair along with some hash string and go crazy on the cryptography...
 
-If something goes wrong, `ex_lib` will be `undefined` so you might want to handle this case in your scripts.
+The error code can be checked by calling
+
+@code{.js}
+if(ex_lib.getErrorCode() != ex_lib.LoadingSucessful)
+{
+	handleMissingLibrary();
+}
+@endcode
 
 ### Using the library in Javascript
 
 A library can create multiple DSP Modules. There are two functions:
 
 @code{.js}
-var moduleList = ex_lib.getModuleList();	// Returns an array containing all module IDs.
-var module = ex_lib.load("ModuleName");		// Loads the module with the given name.
+var moduleList = ex_lib.getModuleList();		// Returns an array containing all module IDs.
+const var module = ex_lib.load("ModuleName");	// Loads the module with the given name.
 @endcode
+
+Notice the const keyword when assigning a module. This allows faster code because reference to this variable will be resolved on compile time.
 
 That's it. Take a look at the DspBaseObject documentation on how to use the modules in Javascript.
 
@@ -170,6 +179,7 @@ namespace HelperFunctions
 	*
 	*	@code
 	*	int stringLength = HelperFunctions::writeString(loc, "Gain"); // stringLength will be 4...
+	*	@endcode
 	*/
 	size_t writeString(char* location, const char* content)
 	{
