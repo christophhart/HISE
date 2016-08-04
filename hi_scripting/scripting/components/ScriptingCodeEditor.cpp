@@ -157,6 +157,8 @@ JavascriptCodeEditor::~JavascriptCodeEditor()
 {
 	currentPopup = nullptr;
 
+	
+
 	processor->getMainController()->getFontSizeChangeBroadcaster().removeChangeListener(this);
 
 	scriptProcessor = nullptr;
@@ -179,13 +181,7 @@ void JavascriptCodeEditor::changeListenerCallback(SafeChangeBroadcaster *)
 
 void JavascriptCodeEditor::timerCallback()
 {
-	if (!getCurrentTokenRange().isEmpty() &&
-		(isNothingSelected()) &&
-		currentPopup == nullptr)
-	{
-		showAutoCompleteNew();
-	}
-
+	
 	stopTimer();
 }
 
@@ -596,6 +592,9 @@ void JavascriptCodeEditor::closeAutoCompleteNew(const String returnString)
 
 		if (!parameterRange.isEmpty())
 			setHighlightedRegion(parameterRange);
+
+		else if (parameterRange.getStart() != 0)
+			moveCaretTo(CodeDocument::Position(getDocument(), parameterRange.getStart()), false);
 	}
 }
 
@@ -983,8 +982,7 @@ Range<int> JavascriptCodeEditor::Helpers::getFunctionParameterTextRange(CodeDocu
 
 		if (pos.getCharacter() == '(')
 		{
-			returnRange.setStart(pos.getPosition() + 1);
-			return returnRange;
+			return Range<int>();
 		}
 		else
 		{
@@ -1025,7 +1023,7 @@ tokenRange(tokenRange_)
 
 	const ValueTree apiTree = ValueTree(ValueTree::readFromData(XmlApi::apivaluetree_dat, XmlApi::apivaluetree_datSize));
 
-	if (tokenText.getLastCharacter() == '.')
+	if (tokenText.containsChar('.'))
 	{
 		createObjectPropertyRows(apiTree, tokenText);
 	}

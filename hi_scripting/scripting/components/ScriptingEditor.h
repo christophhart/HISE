@@ -199,7 +199,7 @@ private:
 
 	LookAndFeel_V2 laf2;
 
-	OwnedArray<CodeDocument::Position> lastPositions;
+	Array<int> lastPositions;
 
     //==============================================================================
     ScopedPointer<CodeEditorWrapper> codeEditor;

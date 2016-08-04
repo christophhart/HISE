@@ -119,12 +119,12 @@ ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
 
 	if (dynamic_cast<JavascriptMidiProcessor*>(getProcessor()))
 	{
-		lastPositions.add(new CodeDocument::Position(*sp->getSnippet(JavascriptMidiProcessor::Callback::onInit), 0));
-		lastPositions.add(new CodeDocument::Position(*sp->getSnippet(JavascriptMidiProcessor::Callback::onNoteOn), 23));
-		lastPositions.add(new CodeDocument::Position(*sp->getSnippet(JavascriptMidiProcessor::Callback::onNoteOff), 24));
-		lastPositions.add(new CodeDocument::Position(*sp->getSnippet(JavascriptMidiProcessor::Callback::onController), 27));
-		lastPositions.add(new CodeDocument::Position(*sp->getSnippet(JavascriptMidiProcessor::Callback::onTimer), 22));
-		lastPositions.add(new CodeDocument::Position(*sp->getSnippet(JavascriptMidiProcessor::Callback::onControl), 37));
+		lastPositions.add(0);
+		lastPositions.add(23);
+		lastPositions.add(24);
+		lastPositions.add(27);
+		lastPositions.add(22);
+		lastPositions.add(37);
 	}
 	
     setSize (800, 500);
@@ -330,7 +330,7 @@ void ScriptingEditor::goToSavedPosition(int newCallback)
 	{
 		if (newCallback < lastPositions.size())
 		{
-			codeEditor->editor->moveCaretTo(*lastPositions[newCallback], false);
+			codeEditor->editor->moveCaretTo(CodeDocument::Position(codeEditor->editor->getDocument(), lastPositions[newCallback]), false);
 		}
 		
 		codeEditor->editor->scrollToColumn(0);
@@ -345,7 +345,7 @@ void ScriptingEditor::saveLastCallback()
 	{
 		if (lastCallback < lastPositions.size())
 		{
-			lastPositions[lastCallback]->setPosition(codeEditor->editor->getCaretPos().getPosition());
+			lastPositions.set(lastCallback, codeEditor->editor->getCaretPos().getPosition());
 		}
 	}
 }

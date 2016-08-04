@@ -333,10 +333,9 @@ void SampleMap::restoreFromValueTree(const ValueTree &v)
 {
 	mode = (SaveMode)(int)v.getProperty("SaveMode");
 
-    sampleMapId = Identifier(v.getProperty("ID", "unused").toString());
+	const String sampleMapName = v.getProperty("ID");
+	sampleMapId = sampleMapName.isEmpty() ? Identifier::null : Identifier(sampleMapName);
     
-	
-
 	if(mode == Monolith)
 	{
 		loadSamplesFromMonolith(v);
