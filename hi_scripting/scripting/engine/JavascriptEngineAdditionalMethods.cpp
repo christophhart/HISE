@@ -304,6 +304,80 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(D
 	}
 }
 
+void HiseJavascriptEngine::RootObject::HiseSpecialData::throwExistingDefinition(const Identifier &name, VariableStorageType type, CodeLocation &l)
+{
+	String typeName;
+
+	switch (type)
+	{
+	case HiseJavascriptEngine::RootObject::HiseSpecialData::VariableStorageType::Undeclared: typeName = "undeclared";
+		break;
+	case HiseJavascriptEngine::RootObject::HiseSpecialData::VariableStorageType::LocalScope: typeName = "local variable";
+		break;
+	case HiseJavascriptEngine::RootObject::HiseSpecialData::VariableStorageType::RootScope: typeName = "variable";
+		break;
+	case HiseJavascriptEngine::RootObject::HiseSpecialData::VariableStorageType::Register: typeName = "register variable";
+		break;
+	case HiseJavascriptEngine::RootObject::HiseSpecialData::VariableStorageType::ConstVariables: typeName = "const variable";
+		break;
+	case HiseJavascriptEngine::RootObject::HiseSpecialData::VariableStorageType::Globals: typeName = "global variable";
+		break;
+	default:
+		break;
+	}
+
+	l.throwError("Identifier " + name.toString() + " is already defined as " + typeName);
+}
+
+void HiseJavascriptEngine::RootObject::HiseSpecialData::checkIfExistsInOtherStorage(VariableStorageType thisType, const Identifier &name, CodeLocation& l)
+{
+	VariableStorageType type = getExistingVariableStorage(name);
+
+	switch (thisType)
+	{
+	case HiseJavascriptEngine::RootObject::HiseSpecialData::VariableStorageType::Undeclared:
+		break;
+
+	case HiseJavascriptEngine::RootObject::HiseSpecialData::VariableStorageType::LocalScope:
+		break;
+
+	case HiseJavascriptEngine::RootObject::HiseSpecialData::VariableStorageType::RootScope:
+
+		if (type == VariableStorageType::ConstVariables || type == VariableStorageType::Globals || type == VariableStorageType::Register)
+			throwExistingDefinition(name, type, l);
+		break;
+
+	case HiseJavascriptEngine::RootObject::HiseSpecialData::VariableStorageType::Register:
+
+		if (type == VariableStorageType::ConstVariables || type == VariableStorageType::Globals || type == VariableStorageType::RootScope)
+			throwExistingDefinition(name, type, l);
+		break;
+
+	case HiseJavascriptEngine::RootObject::HiseSpecialData::VariableStorageType::ConstVariables:
+
+		if (type == VariableStorageType::Register || type == VariableStorageType::Globals || type == VariableStorageType::RootScope)
+			throwExistingDefinition(name, type, l);
+		break;
+
+	case HiseJavascriptEngine::RootObject::HiseSpecialData::VariableStorageType::Globals:
+
+		if (type == VariableStorageType::RootScope || type == VariableStorageType::ConstVariables || type == VariableStorageType::Register)
+			throwExistingDefinition(name, type, l);
+		break;
+	default:
+		break;
+	}
+}
+
+HiseJavascriptEngine::RootObject::HiseSpecialData::VariableStorageType HiseJavascriptEngine::RootObject::HiseSpecialData::getExistingVariableStorage(const Identifier &name)
+{
+	if (constObjects.contains(name)) return VariableStorageType::ConstVariables;
+	else if (varRegister.getRegisterIndex(name) != -1) return VariableStorageType::Register;
+	else if (globals->getProperties().contains(name)) return VariableStorageType::Globals;
+	else if (root->getProperties().contains(name)) return VariableStorageType::RootScope;
+	else return VariableStorageType::Undeclared;
+}
+
 
 var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 {

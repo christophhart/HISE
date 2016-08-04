@@ -219,6 +219,8 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 		
 		const FunctionCall *e;
 
+		NamedValueSet localProperties;
+
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Object)
 
 	};
@@ -331,6 +333,45 @@ struct HiseJavascriptEngine::RootObject::GlobalReference : public Expression
 	}
 
 	DynamicObject::Ptr globals;
+	const Identifier id;
+
+	int index;
+};
+
+
+
+struct HiseJavascriptEngine::RootObject::LocalVarStatement : public Statement
+{
+	LocalVarStatement(const CodeLocation& l, InlineFunction::Object* parentFunction_) noexcept : Statement(l), parentFunction(parentFunction_) {}
+
+	ResultCode perform(const Scope& s, var*) const override
+	{
+		parentFunction->localProperties.set(name, initialiser->getResult(s));
+		return ok;
+	}
+
+	mutable InlineFunction::Object* parentFunction;
+	Identifier name;
+	ExpPtr initialiser;
+};
+
+
+
+struct HiseJavascriptEngine::RootObject::LocalReference : public Expression
+{
+	LocalReference(const CodeLocation& l, InlineFunction::Object *parentFunction_, const Identifier &id_) noexcept : Expression(l), parentFunction(parentFunction_), id(id_) {}
+
+	var getResult(const Scope& s) const override
+	{
+		return parentFunction->localProperties[id];
+	}
+
+	void assign(const Scope& s, const var& newValue) const override
+	{
+		parentFunction->localProperties.set(id, newValue);
+	}
+
+	InlineFunction::Object* parentFunction;
 	const Identifier id;
 
 	int index;

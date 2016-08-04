@@ -297,6 +297,8 @@ private:
 	bool currentlyParsingInlineFunction = false;
 	Identifier currentlyParsedCallback = Identifier::null;
 
+	
+
 	void throwError(const String& err) const  { location.throwError(err); }
 
 	template <typename OpType>
@@ -326,6 +328,7 @@ private:
 		if (matchIf(TokenTypes::var))              return parseVar();
 		if (matchIf(TokenTypes::register_var))	   return parseRegisterVar();
 		if (matchIf(TokenTypes::global_))		   return parseGlobalAssignment();
+		if (matchIf(TokenTypes::local_))		   return parseLocalAssignment();
 		if (matchIf(TokenTypes::if_))              return parseIf();
 		if (matchIf(TokenTypes::while_))           return parseDoOrWhileLoop(false);
 		if (matchIf(TokenTypes::do_))              return parseDoOrWhileLoop(true);
@@ -476,6 +479,9 @@ private:
 	{
 		ScopedPointer<VarStatement> s(new VarStatement(location));
 		s->name = parseIdentifier();
+
+		hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::RootScope, s->name, location);
+
 		s->initialiser = matchIf(TokenTypes::assign) ? parseExpression() : new Expression(location);
 
 		if (matchIf(TokenTypes::comma))
@@ -497,6 +503,8 @@ private:
 		ScopedPointer<ConstVarStatement> s(new ConstVarStatement(location));
 
 		s->name = parseIdentifier();
+
+		hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::ConstVariables, s->name, location);
 
 		s->initialiser = matchIf(TokenTypes::assign) ? parseExpression() : new Expression(location);
 
@@ -520,6 +528,9 @@ private:
 		ScopedPointer<RegisterVarStatement> s(new RegisterVarStatement(location));
 
 		s->name = parseIdentifier();
+
+		hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::Register, s->name, location);
+
 		hiseSpecialData->varRegister.addRegister(s->name, var::undefined());
 
 		s->initialiser = matchIf(TokenTypes::assign) ? parseExpression() : new Expression(location);
@@ -568,6 +579,38 @@ private:
 
 		match(TokenTypes::semicolon);
 		return s.release();
+	}
+
+	Statement* parseLocalAssignment()
+	{
+		if (currentlyParsingInlineFunction)
+		{
+			InlineFunction::Object::Ptr ifo = hiseSpecialData->inlineFunctions.getLast();
+
+			ScopedPointer<LocalVarStatement> s(new LocalVarStatement(location, ifo));
+			s->name = parseIdentifier();
+			
+			hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::LocalScope, s->name, location);
+
+			ifo->localProperties.set(s->name, var::undefined());
+
+			s->initialiser = matchIf(TokenTypes::assign) ? parseExpression() : new Expression(location);
+
+			if (matchIf(TokenTypes::comma))
+			{
+				ScopedPointer<BlockStatement> block(new BlockStatement(location));
+				block->statements.add(s.release());
+				block->statements.add(parseVar());
+				return block.release();
+			}
+
+			match(TokenTypes::semicolon);
+			return s.release();
+		}
+
+		throwError("Cannot define local variables outside of inline functions.");
+
+		return nullptr;
 	}
 
 	Statement* parseCallback()
@@ -685,7 +728,7 @@ private:
 
 		currentlyParsingInlineFunction = true;
 
-		InlineFunction::Object *o = new InlineFunction::Object(name, inlineArguments);
+		InlineFunction::Object::Ptr o = new InlineFunction::Object(name, inlineArguments);
 
 		o->commentDoc = lastComment;
 		clearLastComment();
@@ -1043,21 +1086,38 @@ private:
 			{
 				return parseSuffixes(new LoopStatement::IteratorName(location, parseIdentifier()));
 			}
+			else if (currentlyParsingInlineFunction)
+			{
+				DynamicObject *o = hiseSpecialData->inlineFunctions.getLast();
 
+				jassert(o != nullptr);
+
+				InlineFunction::Object* ob = dynamic_cast<InlineFunction::Object*>(o);
+
+				const int inlineParameterIndex = ob->parameterNames.indexOf(id);
+				const int localParameterIndex = ob->localProperties.indexOf(id);
+
+				if (inlineParameterIndex >= 0)
+				{
+					parseIdentifier();
+					return parseSuffixes(new InlineFunction::ParameterReference(location, ob, inlineParameterIndex));
+				}
+				if (localParameterIndex >= 0)
+				{
+					parseIdentifier();
+					return parseSuffixes(new LocalReference(location, ob, id));
+				}
+			}
+
+			InlineFunction::Object *obj = getInlineFunction(id);
 			const int registerIndex = hiseSpecialData->varRegister.getRegisterIndex(id);
 			const int apiClassIndex = hiseSpecialData->apiIds.indexOf(id);
 			const int constIndex = hiseSpecialData->constObjects.indexOf(id);
 			const int globalIndex = hiseSpecialData->globals->getProperties().indexOf(id);
 
-			InlineFunction::Object *obj = getInlineFunction(id);
-
 			if (obj != nullptr)
 			{
 				return parseSuffixes(parseInlineFunctionCall(obj));
-			}
-			else if (registerIndex != -1)
-			{
-				return parseSuffixes(new RegisterName(location, parseIdentifier(), registerIndex));
 			}
 			else if (apiClassIndex != -1)
 			{
@@ -1067,29 +1127,17 @@ private:
 			{
 				return parseSuffixes(parseConstExpression());
 			}
+			else if (registerIndex != -1)
+			{
+				return parseSuffixes(new RegisterName(location, parseIdentifier(), registerIndex));
+			}
 			else if (globalIndex != -1)
 			{
 				return parseSuffixes(new GlobalReference(location, hiseSpecialData->globals, parseIdentifier()));
 			}
 			else
 			{
-				if (currentlyParsingInlineFunction)
-				{
-					DynamicObject *o = hiseSpecialData->inlineFunctions.getLast();
-
-					jassert(o != nullptr);
-
-					InlineFunction::Object* ob = dynamic_cast<InlineFunction::Object*>(o);
-
-					const int inlineParameterIndex = ob->parameterNames.indexOf(id);
-
-					if (inlineParameterIndex >= 0)
-					{
-						parseIdentifier();
-						return parseSuffixes(new InlineFunction::ParameterReference(location, ob, inlineParameterIndex));
-					}
-				}
-				else if (!currentlyParsedCallback.isNull())
+				if (!currentlyParsedCallback.isNull())
 				{
 					Callback *c = hiseSpecialData->getCallback(currentlyParsedCallback);
 
@@ -1324,8 +1372,6 @@ private:
 void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::findGlobalVarIds(const String& codeToPreprocess)
 {
 	if (codeToPreprocess.isEmpty()) return;
-
-	jassert(hiseSpecialData->constObjects.size() == 0);
 
 	TokenIterator it(codeToPreprocess, "");
 

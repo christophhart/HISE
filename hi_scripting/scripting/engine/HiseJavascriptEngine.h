@@ -289,8 +289,8 @@ public:
 		struct RegisterVarStatement;	struct RegisterName;		struct RegisterAssignment;
 		struct ApiConstant;				struct ApiCall;				struct InlineFunction;
 		struct ConstVarStatement;		struct ConstReference;		struct ConstObjectApiCall;
-		struct GlobalVarStatement;		struct GlobalReference;		struct CallbackParameterReference;
-		struct LockStatement;
+		struct GlobalVarStatement;		struct GlobalReference;		struct LocalVarStatement;
+		struct LocalReference;			struct LockStatement;	    struct CallbackParameterReference;
 
 		// Parser classes
 
@@ -384,6 +384,16 @@ public:
 
 		struct HiseSpecialData
 		{
+			enum class VariableStorageType
+			{
+				Undeclared,
+				LocalScope,
+				RootScope,
+				Register,
+				ConstVariables,
+				Globals
+			};
+
 			HiseSpecialData(RootObject* root);
 
 			~HiseSpecialData();
@@ -448,6 +458,9 @@ public:
 				return nullptr;
 			}
 
+			void checkIfExistsInOtherStorage(VariableStorageType thisType, const Identifier &name, CodeLocation& l);;
+
+			
 			static DebugInformation *get(ReferenceCountedObject* o) { return dynamic_cast<DebugInformation*>(o); }
 
 			/** Lock this before you obtain debug objects to make sure it will not be rebuilt during access. */
@@ -457,6 +470,9 @@ public:
 			}
 
 		private:
+
+			VariableStorageType getExistingVariableStorage(const Identifier &name);
+			void throwExistingDefinition(const Identifier &name, VariableStorageType type, CodeLocation &l);
 
 			CriticalSection debugLock;
 

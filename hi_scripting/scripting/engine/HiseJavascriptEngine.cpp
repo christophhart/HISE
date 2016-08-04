@@ -52,13 +52,13 @@
     X(while_,   "while")    X(for_,    "for")    X(break_, "break")  X(continue_, "continue") X(undefined, "undefined") \
     X(function, "function") X(return_, "return") X(true_,  "true")   X(false_,    "false")    X(new_,      "new") \
     X(typeof_,  "typeof")	X(switch_, "switch") X(case_, "case")	 X(default_,  "default")  X(register_var, "reg") \
-	X(in, 		"in")		X(inline_, "inline") X(const_, "const")	 X(global_,   "global")	  X(include_,  "include") \
-	X(rLock_,   "readLock") X(wLock_,"writeLock")
+	X(in, 		"in")		X(inline_, "inline") X(const_, "const")	 X(global_,   "global")	  X(local_,	   "local") \
+	X(include_,  "include") X(rLock_,   "readLock") X(wLock_,"writeLock")
 
 namespace TokenTypes
 {
 #define JUCE_DECLARE_JS_TOKEN(name, str)  static const char* const name = str;
-	JUCE_JS_KEYWORDS(JUCE_DECLARE_JS_TOKEN)
+		JUCE_JS_KEYWORDS(JUCE_DECLARE_JS_TOKEN)
 		JUCE_JS_OPERATORS(JUCE_DECLARE_JS_TOKEN)
 		JUCE_DECLARE_JS_TOKEN(eof, "$eof")
 		JUCE_DECLARE_JS_TOKEN(literal, "$literal")
@@ -112,13 +112,27 @@ struct HiseJavascriptEngine::RootObject::CodeLocation
 
 		if (!externalFile.isEmpty())
 		{
+#if USE_BACKEND
 			File f(externalFile);
+			const String fileName = f.getFileName();
+#else
+			const String fileName = externalFile;
+#endif
 
-			throw f.getFileName() + " - Line " + String(line) + ", column " + String(col) + ": " + message;
+
+#if USE_BACKEND
+			throw fileName + " - Line " + String(line) + ", column " + String(col) + ": " + message;
+#else
+			if(message != "Execution timed-out") DBG(fileName + " - Line " + String(line) + ", column " + String(col) + ": " + message);
+#endif
 		}
 		else
 		{
+#if USE_BACKEND
 			throw "Line " + String(line) + ", column " + String(col) + ": " + message;
+#else
+			if (message != "Execution timed-out") DBG("Line " + String(line) + ", column " + String(col) + ": " + message);
+#endif
 		}
 		
 
@@ -252,6 +266,9 @@ Result HiseJavascriptEngine::execute(const String& javascriptCode, bool allowCon
 	}
 	catch (String& error)
 	{
+#if USE_FRONTEND
+		DBG(error);
+#endif
 		return Result::fail(error);
 	}
 
@@ -268,6 +285,9 @@ var HiseJavascriptEngine::evaluate(const String& code, Result* result)
 	}
 	catch (String& error)
 	{
+#if USE_FRONTEND
+		DBG(error);
+#endif
 		if (result != nullptr) *result = Result::fail(error);
 	}
 
