@@ -73,6 +73,8 @@ ValueTree Pool<FileType>::exportAsValueTree() const
 		child.setProperty("ID", d->id.toString(), nullptr);
 		child.setProperty("FileName", d->fileName, nullptr);
 
+		DBG(d->fileName);
+
 		FileInputStream fis(d->fileName);
 
 		MemoryBlock mb = MemoryBlock();
@@ -259,8 +261,10 @@ const FileType * Pool<FileType>::getDataForId(Identifier &id) const
 {
 	for (int i = 0; i < data.size(); i++)
 	{
+		DBG(data[i]->id);
 		if (data[i]->id == id)
 		{
+			
 			return data[i]->data;
 		}
 	}
@@ -287,7 +291,11 @@ Identifier Pool<FileType>::getIdForFileName(const String &absoluteFileName) cons
 	return Identifier(absoluteFileName.upToFirstOccurrenceOf(".", false, false).removeCharacters(" \n\t"));
 
 #else
-	return Identifier(File(absoluteFileName).getFileNameWithoutExtension().removeCharacters(" \n\t"));
+
+	const File root = getProjectHandler().getSubDirectory((ProjectHandler::SubDirectories)directoryType);
+
+	return Identifier(File(absoluteFileName).getRelativePathFrom(root).upToFirstOccurrenceOf(".", false, false).replaceCharacter('\\', '/'));
+
 #endif
 }
 
@@ -295,7 +303,7 @@ template class Pool < Image > ;
 template class Pool < AudioSampleBuffer > ;
 
 AudioSampleBufferPool::AudioSampleBufferPool(ProjectHandler *handler) :
-Pool<AudioSampleBuffer>(handler),
+Pool<AudioSampleBuffer>(handler, (int)ProjectHandler::SubDirectories::AudioFiles),
 sampleRateIdentifier("SampleRate")
 {
 
@@ -353,6 +361,12 @@ void AudioSampleBufferPool::reloadData(AudioSampleBuffer &dataToBeOverwritten, c
 	{
 		FloatVectorOperations::copy(dataToBeOverwritten.getWritePointer(i, 0), newBuffer->getReadPointer(i, 0), dataToBeOverwritten.getNumSamples());
 	}
+}
+
+ImagePool::ImagePool(ProjectHandler *handler) :
+Pool<Image>(handler, (int)ProjectHandler::SubDirectories::Images)
+{
+
 }
 
 Identifier ImagePool::getFileTypeName() const

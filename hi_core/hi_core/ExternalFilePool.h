@@ -70,8 +70,9 @@ template <class FileType> class Pool: public SafeChangeBroadcaster,
 {
 public:
 
-	Pool(ProjectHandler *handler_) :
-		handler(handler_)
+	Pool(ProjectHandler *handler_, int directory) :
+		handler(handler_),
+		directoryType(directory)
 	{};
 
 	virtual ~Pool() {};
@@ -153,6 +154,9 @@ private:
 	OwnedArray<PoolData> data;
 
 	ProjectHandler *handler;
+	
+
+	
 };
 
 
@@ -202,9 +206,7 @@ class ImagePool: public Pool<Image>
 {
 public:
 
-	ImagePool(ProjectHandler *handler) :
-		Pool<Image>(handler)
-	{};
+	ImagePool(ProjectHandler *handler);
 
 	Identifier getFileTypeName() const override;;
 
