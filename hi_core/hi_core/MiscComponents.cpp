@@ -66,6 +66,7 @@ StringArray MouseCallbackComponent::getCallbackPropertyNames()
 	sa.add("y");
 	sa.add("clicked");
 	sa.add("rightClick");
+	sa.add("mouseUp");
 	sa.add("drag");
 	sa.add("dragX");
 	sa.add("dragY");
@@ -241,14 +242,14 @@ void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action,
 	static const Identifier hover("hover");
 	static const Identifier mouseDownX("mouseDownX");
 	static const Identifier mouseDownY("mouseDownY");
-
+	static const Identifier mouseUp("mouseUp");
 	currentEvent->clear();
 
 	if (callbackLevel >= CallbackLevel::ClicksOnly)
 	{
 		currentEvent->setProperty(clicked, action == Action::Clicked);
 		currentEvent->setProperty(rightClick, action == Action::Clicked && event.mods.isRightButtonDown());
-		
+		currentEvent->setProperty(mouseUp, action == Action::MouseUp);
 		currentEvent->setProperty(mouseDownX, event.getMouseDownX());
 		currentEvent->setProperty(mouseDownY, event.getMouseDownY());
 		currentEvent->setProperty(x, event.getPosition().getX());
