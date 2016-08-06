@@ -11,13 +11,13 @@
     </GROUP>
   </MAINGROUP>
   <EXPORTFORMATS>
-    <XCODE_MAC targetFolder="Builds/MacOSX" postbuildCommand="strip -x &quot;$CONFIGURATION_BUILD_DIR/$EXECUTABLE_PATH&quot; ">
+    <XCODE_MAC targetFolder="Builds/MacOSX" postbuildCommand="strip -x &quot;$CONFIGURATION_BUILD_DIR/$EXECUTABLE_PATH&quot; &#10;cp &quot;$CONFIGURATION_BUILD_DIR/$EXECUTABLE_PATH&quot; &quot;/Library/Application Support/Hart Instruments/lib/$EXECUTABLE_PATH&quot; ">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" osxSDK="default" osxCompatibility="default" osxArchitecture="default"
-                       isDebug="1" optimisation="1" targetName="gain_example"/>
+                       isDebug="1" optimisation="1" targetName="gain_example" binaryPath=""/>
         <CONFIGURATION name="Release" osxSDK="default" osxCompatibility="10.7 SDK" osxArchitecture="64BitUniversal"
                        isDebug="0" optimisation="3" targetName="gain_example" cppLanguageStandard="c++11"
-                       cppLibType="libc++" linkTimeOptimisation="1"/>
+                       cppLibType="libc++" linkTimeOptimisation="1" binaryPath=""/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_core" path="../../JUCE/modules"/>
