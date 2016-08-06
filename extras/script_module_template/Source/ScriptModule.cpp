@@ -9,6 +9,7 @@ void GainExample::prepareToPlay(double sampleRate, int blockSize)
 	internalStorageSize = blockSize;
 }
 
+
 void GainExample::processBlock(float **data, int numChannels, int numSamples)
 {
     for (int channel = 0; channel < numChannels; channel++)

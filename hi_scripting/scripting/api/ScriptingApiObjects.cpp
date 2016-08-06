@@ -275,7 +275,7 @@ void ScriptingObjects::ScriptingModulator::setIntensity(float newIntensity)
 		else
 		{
 			const float value = jlimit<float>(-12.0f, 12.0f, newIntensity);
-			const float pitchFactor = powf(2.0f, value / 12.0f);
+			const float pitchFactor = value / 12.0f;
 
 			m->setIntensity(pitchFactor);
 
