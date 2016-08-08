@@ -755,7 +755,7 @@ void BackendProcessorEditor::resized()
 
     propertyDebugArea->setBounds(inspectorX, inspectorY, inspectorVisible ? sideColumnWidth : 0, heightOfSideColumns);
 
-    if(stupidRectangle != nullptr)
+    if(stupidRectangle != nullptr && currentPopupComponent.get() != nullptr)
     {
         stupidRectangle->setBounds(viewportX, viewportY, viewportWidth, viewportHeight - keyboard->getHeight());
         currentPopupComponent->setBounds(viewportX, viewportY + 40, viewportWidth, viewportHeight-40 - keyboard->getHeight());
