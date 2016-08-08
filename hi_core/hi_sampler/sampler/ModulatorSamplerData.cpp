@@ -692,9 +692,23 @@ void SampleMap::loadSamplesFromDirectory(const ValueTree &v)
 	sampler->deleteAllSounds();
 
 	int numChannels = jmax<int>(1, v.getChild(0).getNumChildren());
-	sampler->setNumChannels(numChannels);
-
-	sampler->setShouldUpdateUI(false);
+	
+    StringArray micPositions = StringArray::fromTokens(v.getProperty("MicPositions").toString(), ";", "");
+    
+    micPositions.removeEmptyStrings(true);
+    
+    if (micPositions.size() != 0)
+    {
+        sampler->setNumMicPositions(micPositions);
+    }
+    else
+    {
+        sampler->setNumChannels(numChannels);
+    }
+    
+    
+    
+    sampler->setShouldUpdateUI(false);
     ModulatorSamplerSoundPool *pool = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
     pool->setUpdatePool(false);
     

@@ -880,7 +880,7 @@ void MainController::insertStringAtLastActiveEditor(const String &string, bool s
 	if (lastActiveEditor.getComponent() != nullptr)
 	{
 		lastActiveEditor->getDocument().deleteSection(lastActiveEditor->getSelectionStart(), lastActiveEditor->getSelectionEnd());
-		lastActiveEditor->moveCaretTo(lastPosition, false);
+        lastActiveEditor->moveCaretTo(CodeDocument::Position(lastActiveEditor->getDocument(), lastCharacterPositionOfSelectedEditor), false);
 
 		lastActiveEditor->insertTextAtCaret(string);
 

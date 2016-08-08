@@ -137,7 +137,7 @@ ScriptingEditor::~ScriptingEditor()
    
 	getProcessor()->getMainController()->setEditedScriptComponent(nullptr, nullptr);
 
-	doc = nullptr;
+	
 	scriptContent = nullptr;
 
     codeEditor = nullptr;
@@ -149,6 +149,8 @@ ScriptingEditor::~ScriptingEditor()
 
 	lastPositions.clear();
    
+    doc = nullptr;
+    
 }
 
 int ScriptingEditor::getBodyHeight() const

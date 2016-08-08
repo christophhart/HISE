@@ -355,7 +355,7 @@ public:
 	void setLastActiveEditor(CodeEditorComponent *editor, CodeDocument::Position position)
 	{
 		lastActiveEditor = editor;
-		lastPosition = position;
+		lastCharacterPositionOfSelectedEditor = position.getPosition();
 	}
 
 	void insertStringAtLastActiveEditor(const String &string, bool selectArguments);
@@ -507,7 +507,7 @@ private:
 	ScopedPointer<KnobLookAndFeel> mainLookAndFeel;
 
 	Component::SafePointer<CodeEditorComponent> lastActiveEditor;
-	CodeDocument::Position lastPosition;
+	int lastCharacterPositionOfSelectedEditor;
 
     SafeChangeBroadcaster codeFontChangeNotificator;
         

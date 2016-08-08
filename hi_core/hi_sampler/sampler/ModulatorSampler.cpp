@@ -211,35 +211,10 @@ void ModulatorSampler::restoreFromValueTree(const ValueTree &v)
 	loadAttribute(SamplerRepeatMode, "SamplerRepeatMode");
 	loadAttribute(Purged, "Purged");
 
-	if(v.getChildWithName("samplemap").isValid())
-	{
-		loadSampleMap(v.getChildWithName("samplemap"));
-	}
-	else if(v.hasProperty("SampleMap") && v.getProperty("SampleMap").toString().isNotEmpty())
-	{
-		jassert(!v.hasProperty("SampleMapId"));
-
-		loadSampleMap(File(v.getProperty("SampleMap")));
-	}
-	else
-	{
-		String sampleMapId;
-
-		if (v.hasProperty("SampleMapId"))
-		{
-			sampleMapId = v.getProperty("SampleMapId");
-		}
-		else
-		{
-			sampleMapId = getId();
-		}
-
-		loadSampleMapFromMonolith(sampleMapId);
-	}
-
+    loadSampleMap(v.getChildWithName("samplemap"));
 	
-	loadAttribute(CrossfadeGroups, "CrossfadeGroups");
-	loadAttribute(RRGroupAmount, "RRGroupAmount");
+    loadAttribute(CrossfadeGroups, "CrossfadeGroups");
+    loadAttribute(RRGroupAmount, "RRGroupAmount");
 
 	if (crossfadeGroups)
 	{
