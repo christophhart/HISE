@@ -357,46 +357,46 @@ private:
 		return nullptr;
 	}
 
-	Statement* parseExternalFile()
+	String getFileContent(const String &fileNameInScript, String &refFileName)
 	{
-		match(TokenTypes::openParen);
-		
-#if USE_BACKEND
-        
-		const String fileName = "{PROJECT_FOLDER}" + currentValue.toString().removeCharacters("\"\'");
-		const String refFileName = GET_PROJECT_HANDLER(dynamic_cast<Processor*>(hiseSpecialData->processor)).getFilePath(fileName, ProjectHandler::SubDirectories::Scripts);
 
-		
+#if USE_BACKEND
+
+		const String fileName = "{PROJECT_FOLDER}" + fileNameInScript.removeCharacters("\"\'");
+		refFileName = GET_PROJECT_HANDLER(dynamic_cast<Processor*>(hiseSpecialData->processor)).getFilePath(fileName, ProjectHandler::SubDirectories::Scripts);
 
 		File f(refFileName);
 
 		const String shortFileName = f.getFileName();
 
 		if (!f.existsAsFile())
-		{
 			throwError("File " + refFileName + " not found");
-		}
 
 		for (int i = 0; i < hiseSpecialData->includedFiles.size(); i++)
 		{
 			if (hiseSpecialData->includedFiles[i]->f == f)
-			{
 				throwError("File " + shortFileName + " was included multiple times");
-			}
 		}
 
 		String fileContent = f.loadFileAsString();
 
 #else
-        
-        const String fileName = currentValue.toString().removeCharacters("\"\'");
-        const String refFileName = fileName;
-        
-		String fileContent = dynamic_cast<Processor*>(hiseSpecialData->processor)->getMainController()->getExternalScriptFromCollection(fileName);
-        
-        
+		const String fileName = currentValue.toString().removeCharacters("\"\'");
+		refFileName = fileName;
 
+		String fileContent = dynamic_cast<Processor*>(hiseSpecialData->processor)->getMainController()->getExternalScriptFromCollection(fileName);
 #endif
+
+		return fileContent;
+	};
+
+	Statement* parseExternalFile()
+	{
+		match(TokenTypes::openParen);
+		
+
+		String refFileName;
+		String fileContent = getFileContent(currentValue.toString(), refFileName);
         
 		if (fileContent.isEmpty())
 		{
@@ -1381,6 +1381,16 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::findGlobalVarIds(c
 
 	while (it.currentType != TokenTypes::eof)
 	{
+		if (it.currentType == TokenTypes::include_)
+		{
+			it.match(TokenTypes::include_);
+			it.match(TokenTypes::openParen);
+			String fileName = it.currentValue.toString();
+			String externalCode = getFileContent(it.currentValue.toString(), fileName);
+			
+			findGlobalVarIds(externalCode);
+		}
+
 		if (it.currentType == TokenTypes::openBrace) braceLevel++;
 		else if (it.currentType == TokenTypes::closeBrace) braceLevel--;
 
