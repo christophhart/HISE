@@ -237,6 +237,11 @@ public:
 	bool isMonolithic() const;
 	AudioFormatReader* createReaderForPreview() { return fileReader.createMonolithicReaderForPreview(); }
 
+    
+    int64 getMonolithOffset() const { return fileReader.getMonolithOffset(); }
+    int64 getMonolithLength() const { return fileReader.getMonolithLength(); }
+    double getMonolithSampleRate() const { return fileReader.getMonolithSampleRate(); }
+    
 	// ==============================================================================================================================================
 
 	String getFileName(bool getFullPath = false) const;
@@ -355,7 +360,35 @@ private:
 		bool isMissing() const { return missing; }
 		void setMissing() { missing = true; }
 
-		
+		int64 getMonolithOffset() const
+        {
+            if(monolithicInfo != nullptr)
+            {
+                return monolithicInfo->getMonolithOffset(monolithicIndex);
+            }
+            
+            return 0;
+        }
+        
+        int64 getMonolithLength() const
+        {
+            if(monolithicInfo != nullptr)
+            {
+                return monolithicInfo->getMonolithLength(monolithicIndex);
+            }
+            
+            return 0;
+        }
+        
+        double getMonolithSampleRate() const
+        {
+            if(monolithicInfo != nullptr)
+            {
+                return monolithicInfo->getMonolithSampleRate(monolithicIndex);
+            }
+            
+            return 0.0;
+        }
 
 		// ==============================================================================================================================================
 
@@ -371,7 +404,7 @@ private:
 
 		ModulatorSamplerSoundPool *pool;
 
-		HiseMonolithAudioFormat* monolithicInfo = nullptr;
+		ReferenceCountedObjectPtr<HiseMonolithAudioFormat> monolithicInfo = nullptr;
 		int monolithicIndex = -1;
 		int monolithicChannelIndex = -1;
 		String monolithicName;

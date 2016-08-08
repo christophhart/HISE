@@ -355,6 +355,18 @@ public:
 
 	void setNumMicPositions(StringArray &micPositions);
 	
+	String getStringForMicPositions() const
+	{
+		String saveString;
+
+		for (int i = 0; i < getNumMicPositions(); i++)
+		{
+			saveString << channelData[i].suffix << ";";
+		}
+
+		return saveString;
+	}
+
 private:
 
 	struct AsyncPurger : public AsyncUpdater,

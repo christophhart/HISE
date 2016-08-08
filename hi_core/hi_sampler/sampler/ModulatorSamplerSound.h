@@ -488,11 +488,13 @@ public:
 
 	bool isPoolSearchForced() const;
 
+	void clearUnreferencedMonoliths();
+
 private:
 
 	// ================================================================================================================
 
-	OwnedArray<HiseMonolithAudioFormat> loadedMonoliths;
+	ReferenceCountedArray<HiseMonolithAudioFormat> loadedMonoliths;
 
 	int getSoundIndexFromPool(int64 hashCode);
 

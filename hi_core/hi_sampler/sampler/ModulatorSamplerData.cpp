@@ -336,6 +336,10 @@ void SampleMap::restoreFromValueTree(const ValueTree &v)
 	const String sampleMapName = v.getProperty("ID");
 	sampleMapId = sampleMapName.isEmpty() ? Identifier::null : Identifier(sampleMapName);
     
+	const int newRoundRobinAmount = v.getProperty("RRGroupAmount", 1);
+
+	sampler->setRRGroupAmount(newRoundRobinAmount);
+
 	if(mode == Monolith)
 	{
 		loadSamplesFromMonolith(v);
@@ -373,6 +377,8 @@ ValueTree SampleMap::exportAsValueTree() const
 
     v.setProperty("ID", sampleMapId.toString(), nullptr);
 	v.setProperty("SaveMode", mode, nullptr);
+	v.setProperty("RRGroupAmount", sampler->getAttribute(ModulatorSampler::Parameters::RRGroupAmount), nullptr);
+	v.setProperty("MicPositions", sampler->getStringForMicPositions(), nullptr);
 
 	StringArray absoluteFileNames;
 
@@ -380,6 +386,9 @@ ValueTree SampleMap::exportAsValueTree() const
 	{
 		ValueTree soundTree = sampler->getSound(i)->exportAsValueTree();
 
+        
+        
+        
 		if (soundTree.getNumChildren() != 0)
 		{
 			for (int j = 0; j < soundTree.getNumChildren(); j++)
@@ -740,7 +749,18 @@ void SampleMap::loadSamplesFromMonolith(const ValueTree &v)
 
 		int numChannels = jmax<int>(1, v.getChild(0).getNumChildren());
 
-		sampler->setNumChannels(numChannels);
+		StringArray micPositions = StringArray::fromTokens(v.getProperty("MicPositions").toString(), ";", "");
+
+		micPositions.removeEmptyStrings(true);
+
+		if (micPositions.size() == numChannels)
+		{
+			sampler->setNumMicPositions(micPositions);
+		}
+		else
+		{
+			sampler->setNumChannels(1);
+		}
 
 		ModulatorSamplerSoundPool* pool = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
 

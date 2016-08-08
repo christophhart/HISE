@@ -341,6 +341,18 @@ ValueTree ModulatorSamplerSound::exportAsValueTree() const
 
 	v.setProperty("NormalizedPeak", normalizedPeak, nullptr);
 
+    if(wrappedSound.get()->isMonolithic())
+    {
+        const int64 offset = wrappedSound->getMonolithOffset();
+        const int64 length = wrappedSound->getMonolithLength();
+        const double sampleRate = wrappedSound->getMonolithSampleRate();
+        
+        v.setProperty("MonolithOffset", offset, nullptr);
+        v.setProperty("MonolithLength", length, nullptr);
+        v.setProperty("SampleRate", sampleRate, nullptr);
+    }
+    
+    
 	v.setProperty("Duplicate", wrappedSound->getReferenceCount() >= 3, nullptr);
 
 	return v;
@@ -667,6 +679,8 @@ void ModulatorSamplerSoundPool::deleteSound(ModulatorSamplerSound *soundToDelete
 
 bool ModulatorSamplerSoundPool::loadMonolithicData(const ValueTree &sampleMap, const Array<File>& monolithicFiles, OwnedArray<ModulatorSamplerSound> &sounds)
 {
+	clearUnreferencedMonoliths();
+
 	loadedMonoliths.add(new HiseMonolithAudioFormat(monolithicFiles));
 
 	HiseMonolithAudioFormat* hmaf = loadedMonoliths.getLast();
@@ -1164,4 +1178,18 @@ ModulatorSamplerSound * ModulatorSamplerSoundPool::addSoundWithMultiMic(const Va
 bool ModulatorSamplerSoundPool::isPoolSearchForced() const
 {
 	return forcePoolSearch;
+}
+
+void ModulatorSamplerSoundPool::clearUnreferencedMonoliths()
+{
+	for (int i = 0; i < loadedMonoliths.size(); i++)
+	{
+		if (loadedMonoliths[i]->getReferenceCount() == 2)
+		{
+			DBG("Remove Monolith");
+			loadedMonoliths.remove(i--);
+		}
+	}
+
+	sendChangeMessage();
 }

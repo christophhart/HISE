@@ -142,8 +142,6 @@ void ModulatorSampler::setNumChannels(int numNewChannels)
 		getMatrix().loadPreset(RoutableProcessor::Presets::AllChannels);
 	}
 
-	
-
 	const int prevVoiceAmount = voiceAmount;
 	const int prevVoiceLimit = (int)getAttribute(ModulatorSynth::VoiceLimit);
 
@@ -503,6 +501,8 @@ void ModulatorSampler::deleteAllSounds()
 	*/
 
 	getMainController()->getSampleManager().getModulatorSamplerSoundPool()->clearUnreferencedSamples();
+
+	getMainController()->getSampleManager().getModulatorSamplerSoundPool()->clearUnreferencedMonoliths();
 
 	refreshMemoryUsage();
 	sendChangeMessage();

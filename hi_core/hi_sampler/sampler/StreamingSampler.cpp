@@ -617,6 +617,7 @@ void StreamingSamplerSound::FileReader::wakeSound()
 	if (memoryReader != nullptr && !memoryReader->getMappedSection().isEmpty()) memoryReader->touchSample(sound->sampleStart + sound->monolithOffset);
 }
 
+    
 void StreamingSamplerSound::FileReader::openFileHandles(NotificationType notifyPool)
 {
 
@@ -639,12 +640,18 @@ void StreamingSamplerSound::FileReader::openFileHandles(NotificationType notifyP
 
 		if (monolithicInfo != nullptr)
 		{
-			memoryReader = monolithicInfo->createMonolithicReader(monolithicIndex, monolithicChannelIndex);
+#if USE_FALLBACK_READERS_FOR_MONOLITH
+            
+            normalReader = monolithicInfo->createFallbackReader(monolithicIndex, monolithicChannelIndex);
+#else
+            
+			normalReader = monolithicInfo->createMonolithicReader(monolithicIndex, monolithicChannelIndex);
 
-			if (memoryReader != nullptr)
-			{
-				memoryReader->mapSectionOfFile(Range<int64>((int64)(sound->sampleStart) + (int64)(sound->monolithOffset), (int64)(sound->sampleEnd)));
-			}
+			//if (memoryReader != nullptr)
+			//{
+			//	memoryReader->mapSectionOfFile(Range<int64>((int64)(sound->sampleStart) + (int64)(sound->monolithOffset), (int64)(sound->sampleEnd)));
+			//}
+#endif
 		}
 		else
 		{
@@ -741,9 +748,15 @@ AudioFormatReader* StreamingSamplerSound::FileReader::createMonolithicReaderForP
 {
 	if (monolithicInfo != nullptr)
 	{
+#if USE_FALLBACK_READERS_FOR_MONOLITH
+     
+        auto m = monolithicInfo->createFallbackReader(monolithicIndex, monolithicChannelIndex);
+#else
 		auto m =  monolithicInfo->createMonolithicReader(monolithicIndex, monolithicChannelIndex);
-		m->mapSectionOfFile(Range<int64>((int64)(sound->sampleStart) + (int64)(sound->monolithOffset), (int64)(sound->sampleEnd)));
-
+		//m->mapSectionOfFile(Range<int64>((int64)(sound->sampleStart) + (int64)(sound->monolithOffset), (int64)(sound->sampleEnd)));
+#endif
+        
+        
 		return m;
 	}
 	else

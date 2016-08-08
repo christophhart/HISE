@@ -40,6 +40,8 @@ void ModulatorSamplerVoice::startNote(int midiNoteNumber,
 	jassert(s != nullptr);
 
 	currentlyPlayingSamplerSound = static_cast<ModulatorSamplerSound*>(s);
+    
+    ADD_GLITCH_DETECTOR("start sample playback: ");
 
 	velocityXFadeValue = currentlyPlayingSamplerSound->getGainValueForVelocityXFade((int)(velocity * 127.0f));
 	const bool samePitch = !static_cast<ModulatorSampler*>(getOwnerSynth())->isPitchTrackingEnabled();
