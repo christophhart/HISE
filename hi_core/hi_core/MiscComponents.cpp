@@ -136,10 +136,67 @@ void MouseCallbackComponent::mouseDown(const MouseEvent& event)
 			PopupMenu m;
 			m.setLookAndFeel(&plaf);
 
+			std::vector<SubMenuList> subMenus;
+
 			for (int i = 0; i < itemList.size(); i++)
 			{
-				m.addItem(i + 1, itemList[i], true, false);
+				if (itemList[i].contains("::"))
+				{
+					String subMenuName = itemList[i].upToFirstOccurrenceOf("::", false, false);
+					String subMenuItem = itemList[i].fromFirstOccurrenceOf("::", false, false);
+
+					if (subMenuName.isEmpty() || subMenuItem.isEmpty()) continue;
+
+					bool subMenuExists = false;
+
+					for (int j = 0; j < subMenus.size(); j++)
+					{
+						if (std::get<0>(subMenus[j]) == subMenuName)
+						{
+							std::get<1>(subMenus[j]).add(subMenuItem);
+							subMenuExists = true;
+							break;
+						}
+					}
+
+					if (!subMenuExists)
+					{
+						StringArray sa;
+						sa.add(subMenuItem);
+						SubMenuList item(subMenuName, sa);
+						subMenus.push_back(item);
+					}
+				}
 			}
+
+
+
+			if (subMenus.size() != 0)
+			{
+				int menuIndex = 1;
+
+				for (int i = 0; i < subMenus.size(); i++)
+				{
+					PopupMenu sub;
+					
+					StringArray sa = std::get<1>(subMenus[i]);
+
+					for (int j = 0; j < sa.size(); j++)
+					{
+						sub.addItem(menuIndex++, sa[j]);
+					}
+					
+					m.addSubMenu(std::get<0>(subMenus[i]), sub);
+				}
+			}
+			else
+			{
+				for (int i = 0; i < itemList.size(); i++)
+				{
+					m.addItem(i + 1, itemList[i], true, false);
+				}
+			}
+			
 
 			int result = 0;
 				

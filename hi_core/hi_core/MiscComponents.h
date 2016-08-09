@@ -143,7 +143,7 @@ public:
 
 private:
 
-	
+	using SubMenuList = std::tuple < String, StringArray > ;
 
 	void sendMessage(const MouseEvent &event, Action action, EnterState state = Nothing);
 	void sendToListeners(var clickInformation);
