@@ -262,6 +262,11 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 {
 	jassert(propertyIds.contains(id));
 
+    if(newValue.isObject())
+    {
+        reportScriptError("You must specify the unique component name, not the object itself");
+    }
+    
 	componentProperties->setProperty(id, newValue);
 
 	if (id == getIdFor(macroControl))
@@ -1845,6 +1850,7 @@ controlSender(this, base)
 
 	propertyIds.add("borderSize");		ADD_AS_SLIDER_TYPE(0, 20, 1);
 	propertyIds.add("borderRadius");	ADD_AS_SLIDER_TYPE(0, 20, 1);
+    propertyIds.add("opaque");          ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	propertyIds.add("allowDragging");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	propertyIds.add("allowCallbacks");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	propertyIds.add("popupMenuItems");		ADD_TO_TYPE_SELECTOR(SelectorTypes::MultilineSelector);
@@ -1862,6 +1868,7 @@ controlSender(this, base)
 	setDefaultValue(itemColour2, 0x30000000);
 	setDefaultValue(borderSize, 2.0f);
 	setDefaultValue(borderRadius, 6.0f);
+    setDefaultValue(opaque, false);
 	setDefaultValue(allowDragging, 0);
 	setDefaultValue(allowCallbacks, 0);
 	setDefaultValue(PopupMenuItems, "");

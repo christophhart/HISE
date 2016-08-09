@@ -188,7 +188,7 @@ void SfzImporter::parseOpcodes()
 
 	for (int i = 0; i < fileData.size(); i++)
 	{
-		String currentLine = fileData[i].trimStart();
+		String currentLine = fileData[i].trimStart().upToFirstOccurrenceOf("//", false, false);
 
 		currentParseNumber++;
 

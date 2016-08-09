@@ -357,6 +357,12 @@ public:
 		/** Loads a new samplemap into this sampler. */
 		void loadSampleMap(const String &fileName);
 
+        /** Gets the attribute with the given index (use the constants for clearer code). */
+        var getAttribute(int index) const;
+        
+        /** Sets a attribute to the given value. */
+        void setAttribute(int index, var newValue);
+        
 		// ============================================================================================================
 
 		struct Wrapper;

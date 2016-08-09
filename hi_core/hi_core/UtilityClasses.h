@@ -216,7 +216,7 @@ public:
     /** Same as setMaxMilliSeconds, but accepts the sample rate and the buffer size as parameters to save you some calculation. */
     static void setMaxTimeOutFromBufferSize(double sampleRate, double bufferSize) noexcept
     {
-        maxMilliSeconds = (bufferSize / sampleRate) * 1000.0;
+        maxMilliSeconds = 0.7 * (bufferSize / sampleRate) * 1000.0;
     };
     
 private:

@@ -513,6 +513,8 @@ ScriptCreatedComponentWrapper(content, index)
 	bp->setDraggingEnabled(panel->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::allowDragging));
 	bp->setDragBounds(panel->getDragBounds(), this);
 
+    bp->setOpaque(panel->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::opaque));
+    
 	component = bp;
 }
 

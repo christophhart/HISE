@@ -820,6 +820,8 @@ struct ScriptingApi::Sampler::Wrapper
 	API_METHOD_WRAPPER_1(Sampler, getMicPositionName);
 	API_VOID_METHOD_WRAPPER_0(Sampler, refreshInterface);
 	API_VOID_METHOD_WRAPPER_1(Sampler, loadSampleMap);
+    API_VOID_METHOD_WRAPPER_2(Sampler, setAttribute);
+    API_METHOD_WRAPPER_1(Sampler, getAttribute);
 };
 
 
@@ -840,6 +842,8 @@ sampler(sampler_)
 	ADD_API_METHOD_1(getMicPositionName);
 	ADD_API_METHOD_0(refreshInterface);
 	ADD_API_METHOD_1(loadSampleMap);
+    ADD_API_METHOD_1(getAttribute);
+    ADD_API_METHOD_2(setAttribute);
 
 	for (int i = 1; i < ModulatorSamplerSound::numProperties; i++)
 	{
@@ -1130,6 +1134,33 @@ void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
 	}
 
 	s->setAttribute(ModulatorSampler::RRGroupAmount, (float)maxGroup, sendNotification);
+}
+
+
+var ScriptingApi::Sampler::getAttribute(int index) const
+{
+    ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+    
+    if (s == nullptr)
+    {
+        reportScriptError("loadSampleMap() only works with Samplers.");
+        return var::undefined();
+    }
+    
+    return s->getAttribute(index);
+}
+
+void ScriptingApi::Sampler::setAttribute(int index, var newValue)
+{
+    ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+    
+    if (s == nullptr)
+    {
+        reportScriptError("loadSampleMap() only works with Samplers.");
+        return;
+    }
+    
+    s->setAttribute(index, newValue, sendNotification);
 }
 
 // ====================================================================================================== Synth functions

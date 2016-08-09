@@ -607,6 +607,7 @@ public:
 		{
 			borderSize = ScriptComponent::numProperties,
 			borderRadius,
+            opaque,
 			allowDragging,
 			allowCallbacks,
 			PopupMenuItems,
