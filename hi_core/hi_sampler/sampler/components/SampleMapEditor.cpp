@@ -451,7 +451,7 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 	case NewSampleMap:		if(PresetHandler::showYesNoWindow("Clear Sample Map", "Do you want to clear the sample map?", PresetHandler::IconType::Question)) 
 								sampler->clearSampleMap(); return true;
 	case LoadSampleMap:		{
-							FileChooser f("Load new samplemap", GET_PROJECT_HANDLER(sampler).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps), "*.xml");
+							FileChooser f("Load new samplemap", GET_PROJECT_HANDLER(sampler).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps), "*.xml;*.m5p");
 							if(f.browseForFileToOpen())
 							{
 								sampler->loadSampleMap(f.getResult());

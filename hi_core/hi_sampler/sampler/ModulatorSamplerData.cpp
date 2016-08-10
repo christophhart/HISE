@@ -799,6 +799,23 @@ void SampleMap::replaceReferencesWithGlobalFolder()
 
 void SampleMap::load(const File &f)
 {
+	if (f.hasFileExtension(".m5p"))
+	{
+		StringArray layerNames = MachFiveImporter::getLayerNames(f);
+
+		if (layerNames.size() != 0)
+		{
+			ValueTree sampleMap = MachFiveImporter::getSampleMapValueTree(f, layerNames[0]);
+
+			if (sampleMap.isValid())
+			{
+				restoreFromValueTree(sampleMap);
+				changed = false;
+				return;
+			}
+		}
+	}
+
 	ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
 
 	File fileToUse = f;

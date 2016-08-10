@@ -105,6 +105,7 @@ struct HiseJavascriptEngine::RootObject::StringClass : public DynamicObject
 		setMethod("charAt", charAt);
 		setMethod("charCodeAt", charCodeAt);
 		setMethod("fromCharCode", fromCharCode);
+        setMethod("replace", replace);
 		setMethod("split", split);
 	}
 
@@ -114,6 +115,7 @@ struct HiseJavascriptEngine::RootObject::StringClass : public DynamicObject
 	static var substring(Args a)     { return a.thisObject.toString().substring(getInt(a, 0), getInt(a, 1)); }
 	static var indexOf(Args a)       { return a.thisObject.toString().indexOf(getString(a, 0)); }
 	static var charCodeAt(Args a)    { return (int)a.thisObject.toString()[getInt(a, 0)]; }
+    static var replace(Args a)       { return a.thisObject.toString().replace(getString(a, 0), getString(a, 1)); }
 	static var charAt(Args a)        { int p = getInt(a, 0); return a.thisObject.toString().substring(p, p + 1); }
 	
 	/** Splits the string with the given separator. */

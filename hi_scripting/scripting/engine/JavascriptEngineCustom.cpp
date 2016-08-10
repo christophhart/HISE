@@ -293,7 +293,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			f = nullptr;
 		}
 
-		var getResult(const Scope&) const override   { return  (f->e->parameterResults.getUnchecked(index)); }
+		var getResult(const Scope&) const override   { return  (f->e->parameterResults[index]); }
 
 		Object* f;
 		int index;

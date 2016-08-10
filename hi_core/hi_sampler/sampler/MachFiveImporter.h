@@ -19,7 +19,7 @@ public:
 	/** Gets a list of all layers (= samplemaps in HISE speak). */
 	static StringArray getLayerNames(const File &machFiveFile);
 
-	void loadIntoSampleMap(SampleMap &mapToLoadInto, const File &machFiveFile, const String &layerName);
+	static ValueTree getSampleMapValueTree(const File &machFiveFile, const String &layerName);
 
 private:
 
