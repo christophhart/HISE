@@ -43,8 +43,11 @@
 #include "scripting/engine/JavascriptApiClass.h"
 #include "scripting/api/ScriptingBaseObjects.h"
 
+#include "scripting/api/TccContext.h"
+
 #include "scripting/api/DspFactory.h"
 #include "scripting/api/DspInstance.h"
+#include "scripting/api/TccDspObject.h"
 #include "scripting/scripting_audio_processor/ScriptDspModules.h"
 #include "scripting/scripting_audio_processor/ScriptedAudioProcessor.h"
 

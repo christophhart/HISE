@@ -40,7 +40,7 @@
 *	It contains the glue code for accessing it per Javascript and is reference counted to manage the lifetime of the external module.
 */
 class DspInstance : public ConstScriptingObject,
-	public AssignableObject
+					public AssignableObject
 {
 public:
 

@@ -79,6 +79,7 @@ public:
 	typedef ReferenceCountedObjectPtr<DspFactory> Ptr;
 };
 
+
 /** This class is used to create modules.
 *
 *	Unline the DynamicDspFactory, it needs to be embedded in the main application.

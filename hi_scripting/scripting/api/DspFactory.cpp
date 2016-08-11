@@ -76,6 +76,8 @@ private:
     
 	ReferenceCountedArray<DspFactory> staticFactories;
 	ReferenceCountedArray<DspFactory> loadedPlugins;
+
+	ReferenceCountedObjectPtr<TccDspFactory> tccFactory;
 };
 
 class DspFactory::LibraryLoader : public DynamicObject
@@ -383,11 +385,13 @@ var StaticDspFactory::createModule(const String &name) const
 DspFactory::Handler::Handler()
 {
 	registerStaticFactories(this);
+	tccFactory = new TccDspFactory();
 }
 
 DspFactory::Handler::~Handler()
 {
 	loadedPlugins.clear();
+	tccFactory = nullptr;
 }
 
 DspInstance * DspFactory::Handler::createDspInstance(const String &factoryName, const String& factoryPassword, const String &moduleName)
@@ -409,6 +413,8 @@ void DspFactory::Handler::registerStaticFactory(Handler *instance)
 DspFactory * DspFactory::Handler::getFactory(const String &name, const String& password)
 {
 	Identifier id(name);
+
+	if (id == tccFactory->getId()) return tccFactory;
 
 	for (int i = 0; i < staticFactories.size(); i++)
 	{
