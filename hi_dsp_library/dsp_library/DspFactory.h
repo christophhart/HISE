@@ -119,50 +119,6 @@ private:
 };
 
 
-class DynamicDspFactory : public DspFactory
-{
-public:
-
-	DynamicDspFactory(const String &name_, const String& args);
-
-	void openDynamicLibrary();
-
-	DspBaseObject *createDspBaseObject(const String &moduleName) const override;
-	void destroyDspBaseObject(DspBaseObject *object) const override;
-
-	int initialise(const String &args);
-	var createModule(const String &moduleName) const override;
-
-	void unloadToRecompile();
-
-	void reloadAfterRecompile();
-
-	Identifier getId() const override { RETURN_STATIC_IDENTIFIER(name); }
-	var getModuleList() const override;
-	var getErrorCode() const override;
-
-	void unload() override;
-
-	
-	struct Wrapper;
-
-private:
-
-	
-	bool isUnloadedForCompilation = false;
-
-	int errorCode;
-	const String name;
-	const String args;
-	ScopedPointer<DynamicLibrary> library;
-
-	String projectPath;
-	String buildScheme;
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DynamicDspFactory)
-};
-
-
 
 
 

@@ -108,6 +108,10 @@
  #define   HI_EXPORT_DSP_LIBRARY 0
 #endif
 
+#ifndef    IS_STATIC_DSP_LIBRARY
+ //#define IS_STATIC_DSP_LIBRARY
+#endif
+
 //==============================================================================
 // juce_audio_devices flags:
 

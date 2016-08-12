@@ -30,55 +30,6 @@
 *   ===========================================================================
 */
 
-typedef DspBaseObject*(*createDspModule_)(const char *);
-
-
-class DspFactory::Handler
-{
-public:
-
-	Handler();
-	~Handler();
-
-	DspInstance *createDspInstance(const String &factoryName, const String& factoryPassword, const String &moduleName);
-
-	template <class T> static void registerStaticFactory(Handler *instance);
-    
-	/** Returns a factory with the given name.
-	*
-	*	It looks for static factories first. If no static library is found, it searches for opened dynamic factories.
-	*	If no dynamic factory is found, it will open the dynamic library at the standard path and returns this instance.
-	*/
-	DspFactory *getFactory(const String &name, const String& password);
-
-    void getAllStaticLibraries(StringArray &libraries)
-    {
-        for(int i = 0; i < staticFactories.size(); i++)
-        {
-            libraries.add(staticFactories[i]->getId().toString());
-        }
-    };
-    
-    void getAllDynamicLibraries(StringArray &libraries)
-    {
-        for(int i = 0; i < loadedPlugins.size(); i++)
-        {
-            libraries.add(loadedPlugins[i]->getId().toString());
-        }
-    }
-    
-                          
-private:
-
-	static void registerStaticFactories(Handler *instance);
-
-    
-    
-	ReferenceCountedArray<DspFactory> staticFactories;
-	ReferenceCountedArray<DspFactory> loadedPlugins;
-
-	ReferenceCountedObjectPtr<TccDspFactory> tccFactory;
-};
 
 class DspFactory::LibraryLoader : public DynamicObject
 {
@@ -400,15 +351,7 @@ DspInstance * DspFactory::Handler::createDspInstance(const String &factoryName, 
 }
 
 
-template <class T>
-void DspFactory::Handler::registerStaticFactory(Handler *instance)
-{
-	StaticDspFactory* staticFactory = new T();
 
-	staticFactory->registerModules();
-
-	instance->staticFactories.add(staticFactory);
-}
 
 DspFactory * DspFactory::Handler::getFactory(const String &name, const String& password)
 {
@@ -448,7 +391,3 @@ DspFactory * DspFactory::Handler::getFactory(const String &name, const String& p
 }
 
 
-void DspFactory::Handler::registerStaticFactories(Handler *instance)
-{
-	registerStaticFactory<HiseCoreDspFactory>(instance);
-}

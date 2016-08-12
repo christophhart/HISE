@@ -46,9 +46,19 @@ Set this to 0 if you want to load libraries created with this module.
 #define HI_EXPORT_DSP_LIBRARY 1
 #endif
 
+/** Config: IS_STATIC_DSP_LIBRARY
+
+Set this to 1 if you want to embed the libraries created with this module into your binary plugin.
+*/
+#ifndef IS_STATIC_DSP_LIBRARY
+#define IS_STATIC_DSP_LIBRARY 1
+#endif
+
+
 
 #include "dsp_library/DspBaseModule.h"
 #include "dsp_library/BaseFactory.h"
+#include "dsp_library/DspFactory.h"
 
 // Include these files in the header because the external functions won't get linked when in another object file...
 #if HI_EXPORT_DSP_LIBRARY
