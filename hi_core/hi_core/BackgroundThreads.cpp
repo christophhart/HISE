@@ -504,6 +504,7 @@ String SettingWindows::ProjectSettingWindow::getAttributeNameForSetting(int attr
 	case SettingWindows::ProjectSettingWindow::Attributes::BundleIdentifier: return "BundleIdentifier";
 	case SettingWindows::ProjectSettingWindow::Attributes::PluginCode:		 return "PluginCode";
 	case SettingWindows::ProjectSettingWindow::Attributes::EmbedAudioFiles:	 return "EmbedAudioFiles";
+	case SettingWindows::ProjectSettingWindow::Attributes::AdditionalDspLibraries:	return "AdditionalDspLibraries";
 	case SettingWindows::ProjectSettingWindow::Attributes::numAttributes:
 	default: return "";
 	}
@@ -519,6 +520,7 @@ XmlElement * SettingWindows::ProjectSettingWindow::createNewSettingsFile() const
 	addChildElement(*xml, (int)Attributes::BundleIdentifier, "", "Bundle Identifier(eg.com.myCompany.bundle)");
 	addChildElement(*xml, (int)Attributes::PluginCode, "", "a 4 character ID code(eg. 'Abcd')");
 	addChildElementWithOptions(*xml, (int)Attributes::EmbedAudioFiles, "No", "Embed Audio files in plugin", "Yes\nNo");
+	addChildElement(*xml, (int)ProjectSettingWindow::Attributes::AdditionalDspLibraries, "", "comma separated list of all static dsp factory classes");
 
 	return xml;
 }

@@ -33,11 +33,6 @@
 #ifndef BASEFACTORY_H_INCLUDED
 #define BASEFACTORY_H_INCLUDED
 
-#ifdef JUCE_CORE_H_INCLUDED
-#else
-#error "J"
-#endif
-
 #pragma warning (push)
 #pragma warning (disable: 4127)
 
@@ -88,6 +83,7 @@ private:
 	Array<Identifier> ids;
 	Array <PCreateFunc> functions;;
 };
+
 
 #pragma warning (pop)
 

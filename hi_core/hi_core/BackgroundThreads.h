@@ -396,6 +396,7 @@ public:
 			BundleIdentifier,
 			PluginCode,
 			EmbedAudioFiles,
+			AdditionalDspLibraries,
 			numAttributes
 		};
 

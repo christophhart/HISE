@@ -200,18 +200,6 @@ void CompileExporter::writeReferencedAudioFiles(ModulatorSynthChain * chainToExp
 	}
 }
 
-void CompileExporter::writeExternalScriptFiles(ModulatorSynthChain * chainToExport, const String &directoryPath)
-{
-	ValueTree externalScriptFiles = FileChangeListener::collectAllScriptFiles(chainToExport);
-	ValueTree customFonts = chainToExport->getMainController()->exportCustomFontsAsValueTree();
-
-	ValueTree externalFiles("ExternalFiles");
-	externalFiles.addChild(externalScriptFiles, -1, nullptr);
-	externalFiles.addChild(customFonts, -1, nullptr);
-
-	PresetHandler::writeValueTreeAsFile(externalFiles, File(directoryPath).getChildFile("externalFiles").getFullPathName());
-}
-
 void CompileExporter::writeUserPresetFiles(ModulatorSynthChain * chainToExport, const String &directoryPath)
 {
 	File presetDirectory = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
@@ -249,6 +237,18 @@ void CompileExporter::writeUserPresetFiles(ModulatorSynthChain * chainToExport, 
 	}
     
 	PresetHandler::writeValueTreeAsFile(userPresets, File(directoryPath).getChildFile("userPresets").getFullPathName());
+}
+
+void CompileExporter::writeExternalScriptFiles(ModulatorSynthChain * chainToExport, const String &directoryPath)
+{
+	ValueTree externalScriptFiles = FileChangeListener::collectAllScriptFiles(chainToExport);
+	ValueTree customFonts = chainToExport->getMainController()->exportCustomFontsAsValueTree();
+
+	ValueTree externalFiles("ExternalFiles");
+	externalFiles.addChild(externalScriptFiles, -1, nullptr);
+	externalFiles.addChild(customFonts, -1, nullptr);
+
+	PresetHandler::writeValueTreeAsFile(externalFiles, File(directoryPath).getChildFile("externalFiles").getFullPathName());
 }
 
 void CompileExporter::writePresetFile(ModulatorSynthChain * chainToExport, const String directoryPath, const String &/*uniqueName*/)
@@ -374,19 +374,52 @@ public:
 
 
 
-CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(ModulatorSynthChain* chainToExport, const String &solutionDirectory, const String &/*uniqueName*/, const String &/*version*/, const String &publicKey)
+CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(ModulatorSynthChain* chainToExport, 
+																		const String &solutionDirectory, 
+																		const String &/*uniqueName*/, 
+																		const String &/*version*/, 
+																		const String &publicKey)
 {
 	String pluginDataHeaderFile;
+
+	// Write the PUBLIC RSA KEY ========================================================================================
 
 	if (publicKey.isNotEmpty())
 	{
 		//pluginDataHeaderFile << "#define PUBLIC_KEY \"" << publicKey << "\"\n";
 		pluginDataHeaderFile << "\n";
 	}
+
+
+	// Write the included headers 
+
 	pluginDataHeaderFile << "#include \"JuceHeader.h\"" << "\n";
 	pluginDataHeaderFile << "#include \"PresetData.h\"\n";
 	pluginDataHeaderFile << "\n";
 	
+	// Write the static dsp factory registrations 
+
+	pluginDataHeaderFile << "REGISTER_STATIC_DSP_LIBRARIES()" << "\n";
+	pluginDataHeaderFile << "{" << "\n";
+	pluginDataHeaderFile << "\tREGISTER_STATIC_DSP_FACTORY(HiseCoreDspFactory);" << "\n";
+	
+	const String additionalDspClasses = SettingWindows::getSettingValue(
+		(int)SettingWindows::ProjectSettingWindow::Attributes::AdditionalDspLibraries, 
+		&GET_PROJECT_HANDLER(chainToExport));
+
+	if (additionalDspClasses.isNotEmpty())
+	{
+		StringArray sa = StringArray::fromTokens(additionalDspClasses, ",;", "");
+
+		for (int i = 0; i < sa.size(); i++)
+			pluginDataHeaderFile << "\tREGISTER_STATIC_DSP_FACTORY(" + sa[i] + ");" << "\n";
+	}
+
+	pluginDataHeaderFile << "}" << "\n";
+
+
+	// Write the copy protection macros 
+
 	if (publicKey.isNotEmpty())
 	{
 		pluginDataHeaderFile << "#if USE_COPY_PROTECTION" << "\n";
@@ -402,6 +435,7 @@ CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(Modulato
         pluginDataHeaderFile << "#endif" << "\n";
     }
 	
+	// Write the plugin entry point function
 	if (SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::EmbedAudioFiles, &GET_PROJECT_HANDLER(chainToExport)) == "No")
 	{
 		pluginDataHeaderFile << "AudioProcessor* JUCE_CALLTYPE createPluginFilter() { CREATE_PLUGIN; }\n";
@@ -467,6 +501,27 @@ CompileExporter::ErrorCodes CompileExporter::createResourceFile(const String &so
 #define REPLACE_WILDCARD(wildcard, settingId) (templateProject = templateProject.replace(wildcard, SettingWindows::getSettingValue((int)settingId, &GET_PROJECT_HANDLER(chainToExport))))
 
 
+struct FileHelpers
+{
+	
+	static String createAlphaNumericUID()
+	{
+		String uid;
+		const char chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+		Random r;
+
+		uid << chars[r.nextInt(52)]; // make sure the first character is always a letter
+
+		for (int i = 5; --i >= 0;)
+		{
+			r.setSeedRandomly();
+			uid << chars[r.nextInt(62)];
+		}
+
+		return uid;
+	}
+};
+
 CompileExporter::ErrorCodes CompileExporter::createIntrojucerFile(ModulatorSynthChain *chainToExport)
 {
 	MemoryInputStream mis(projectTemplate_jucer, sizeof(projectTemplate_jucer), false);
@@ -487,6 +542,27 @@ CompileExporter::ErrorCodes CompileExporter::createIntrojucerFile(ModulatorSynth
 	REPLACE_WILDCARD("%HISE_PATH%", SettingWindows::CompilerSettingWindow::Attributes::HisePath);
 	REPLACE_WILDCARD("%VSTSDK_FOLDER%", SettingWindows::CompilerSettingWindow::Attributes::VSTSDKPath);
 	REPLACE_WILDCARD("%USE_IPP%", SettingWindows::CompilerSettingWindow::Attributes::IPPInclude);
+
+	Array<File> additionalSourceFiles;
+
+	GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::AdditionalSourceCode).findChildFiles(additionalSourceFiles, File::findFiles, true);
+
+	StringArray additionalFileDefinitions;
+
+	for (int i = 0; i < additionalSourceFiles.size(); i++)
+	{
+		bool isSourceFile = additionalSourceFiles[i].hasFileExtension(".cpp");
+
+		const String relativePath = additionalSourceFiles[i].getRelativePathFrom(GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries));
+
+		String newLine;
+		newLine << "      <FILE id=\"" << FileHelpers::createAlphaNumericUID() << "\" name=\"" << additionalSourceFiles[i].getFileName() << "\" compile=\"" << (isSourceFile ? "1" : "0") << "\" resource=\"0\"\r\n";
+		newLine << "            file=\"" << relativePath << "\"/>\r\n";
+
+		additionalFileDefinitions.add(newLine);
+	}
+
+	templateProject = templateProject.replace("%ADDITIONAL_FILES%", additionalFileDefinitions.joinIntoString(""));
 
     const bool useCopyProtection = GET_PROJECT_HANDLER(chainToExport).getPublicKey().isNotEmpty();
     

@@ -69,6 +69,7 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "      <FILE id=\"esGQuC\" name=\"PresetData.cpp\" compile=\"1\" resource=\"0\" file=\"Source/PresetData.cpp\"/>\r\n"
 "      <FILE id=\"q8WZ82\" name=\"PresetData.h\" compile=\"0\" resource=\"0\" file=\"Source/PresetData.h\"/>\r\n"
 "      <FILE id=\"jjzOA2\" name=\"toggle_200.png\" compile=\"0\" resource=\"1\" file=\"Source/Images/toggle_200.png\"/>\r\n"
+"%ADDITIONAL_FILES%"	
 "    </GROUP>\r\n"
 "  </MAINGROUP>\r\n"
 "  <EXPORTFORMATS>\r\n"

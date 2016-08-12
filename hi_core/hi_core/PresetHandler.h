@@ -179,6 +179,7 @@ public:
 		Images,
 		AudioFiles,
 		SampleMaps,
+		AdditionalSourceCode,
 		numSubDirectories
 	};
 

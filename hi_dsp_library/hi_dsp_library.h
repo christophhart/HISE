@@ -65,6 +65,26 @@ Set this to 1 if you want to embed the libraries created with this module into y
 #include "dsp_library/DspBaseModule.cpp"
 #include "dsp_library/HiseLibraryHeader.h"
 #include "dsp_library/HiseLibraryHeader.cpp"
+#else
+
+
+#if HI_EXPORT_DSP_LIBRARY
+
+#else
+
+
+// Write this here and clean up later...
+namespace HelperFunctions
+{
+	size_t writeString(char* location, const char* content);
+
+	String createStringFromChar(const char* charFromOtherHeap, size_t length);
+};
+#endif
+
+
+
+
 #endif
  
 #endif

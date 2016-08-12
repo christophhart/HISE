@@ -42,5 +42,18 @@
 #else
 #include "hi_dsp_library.h"
 #include "dsp_library/DspBaseModule.cpp"
+
+size_t HelperFunctions::writeString(char* location, const char* content)
+{
+	strcpy(location, content);
+	return strlen(content);
+}
+
+String HelperFunctions::createStringFromChar(const char* charFromOtherHeap, size_t length)
+{
+	return String(charFromOtherHeap, length);
+}
+
+
 #endif
 

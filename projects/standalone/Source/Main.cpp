@@ -11,30 +11,11 @@
 #include "../JuceLibraryCode/JuceHeader.h"
 #include "MainComponent.h"
 
-#if JUCE_WINDOWS
-#if JUCE_32BIT
-#pragma comment(lib, "D:\\Projekte\\NeoSoulKeys\\VKFX\\VKFX Dynamic Library\\static_lib\\vkfx_lib_x86.lib")
-#else
-#pragma comment(lib, "D:\\Projekte\\NeoSoulKeys\\VKFX\\VKFX Dynamic Library\\static_lib\\vkfx_lib_x64.lib")
-#endif
-
-
-#else
-#endif
-
-
-class VKFxStaticFactory : public StaticDspFactory
-{
-	Identifier getId() const override;
-
-	void registerModules();;
-
-};
 
 REGISTER_STATIC_DSP_LIBRARIES()
 {
 	REGISTER_STATIC_DSP_FACTORY(HiseCoreDspFactory);
-	REGISTER_STATIC_DSP_FACTORY(VKFxStaticFactory);
+//	REGISTER_STATIC_DSP_FACTORY(VKFxStaticFactory);
 }
 
 //==============================================================================

@@ -858,6 +858,7 @@ String ProjectHandler::getIdentifier(SubDirectories dir)
 	switch (dir)
 	{
 	case ProjectHandler::SubDirectories::Scripts:			return "Scripts/";
+	case ProjectHandler::SubDirectories::AdditionalSourceCode:	return "AdditionalSourceCode/";
 	case ProjectHandler::SubDirectories::Binaries:			return "Binaries/";
 	case ProjectHandler::SubDirectories::Presets:			return "Presets/";
 	case ProjectHandler::SubDirectories::XMLPresetBackups:	return "XmlPresetBackups/";
