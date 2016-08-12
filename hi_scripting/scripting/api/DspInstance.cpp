@@ -41,6 +41,10 @@ struct DspInstance::Wrapper
 	API_METHOD_WRAPPER_1(DspInstance, getStringParameter);
 	API_VOID_METHOD_WRAPPER_1(DspInstance, setBypassed);
 	API_METHOD_WRAPPER_0(DspInstance, isBypassed);
+    API_METHOD_WRAPPER_0(DspInstance, getNumParameters);
+    API_METHOD_WRAPPER_0(DspInstance, getNumConstants);
+    API_METHOD_WRAPPER_1(DspInstance, getConstant);
+    API_METHOD_WRAPPER_1(DspInstance, getConstantId);
 };
 
 
@@ -80,6 +84,11 @@ void DspInstance::initialise()
 			ADD_API_METHOD_0(isBypassed);
 			ADD_API_METHOD_1(setBypassed);
 			ADD_API_METHOD_0(getInfo);
+            ADD_API_METHOD_0(getNumParameters);
+            ADD_API_METHOD_0(getNumConstants);
+            ADD_API_METHOD_1(getConstant);
+            ADD_API_METHOD_1(getConstantId);
+            
 
 			for (int i = 0; i < object->getNumConstants(); i++)
 			{
@@ -197,6 +206,44 @@ var DspInstance::getParameter(int index) const
 	}
 
 	return var::undefined();
+}
+
+
+
+var DspInstance::getNumParameters() const
+{
+    if (object != nullptr)
+    {
+        return object->getNumParameters();
+    }
+
+}
+
+
+var DspInstance::getNumConstants() const
+{
+    if (object != nullptr)
+    {
+        return object->getNumConstants();
+    }
+
+}
+
+
+var DspInstance::getConstantId(int index) const
+{
+    if (object != nullptr)
+    {
+        return getConstantName(index).toString();
+    }
+}
+
+var DspInstance::getConstant(int index) const
+{
+    if (object != nullptr)
+    {
+        return getConstantValue(index);
+    }
 }
 
 void DspInstance::setStringParameter(int index, String value)

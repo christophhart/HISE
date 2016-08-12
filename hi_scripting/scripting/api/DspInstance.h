@@ -65,6 +65,18 @@ public:
 	/** Returns the parameter with the given index. */
 	var getParameter(int index) const;
 
+    /** Returns the number of parameters. */
+    var getNumParameters() const;
+    
+    /** Returns the number of constants. */
+    var getNumConstants() const;
+    
+    /** Returns the name of the constant. */
+    var getConstantId(int index) const;
+    
+    /** Returns the constant at the given index. */
+    var getConstant(int index) const;
+    
 	/** Sets a String value. */
 	void setStringParameter(int index, String value);
 
