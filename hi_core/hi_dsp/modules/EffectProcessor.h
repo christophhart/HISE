@@ -53,7 +53,11 @@ public:
 	virtual void prepareToPlay(double sampleRate, int samplesPerBlock)
 	{
 		Processor::prepareToPlay(sampleRate, samplesPerBlock);
-		tailCheck = AudioSampleBuffer(2, samplesPerBlock);
+
+		if (samplesPerBlock > 0)
+		{
+			tailCheck = AudioSampleBuffer(2, samplesPerBlock);
+		}
 
 		for(int i = 0; i < getNumChildProcessors(); i++)
 		{
