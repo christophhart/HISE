@@ -8,4 +8,5 @@
   <PluginCode value="Hidp" type="TEXT" description="a 4 character ID code(eg. 'Abcd')"/>
   <EmbedAudioFiles value="Yes" type="LIST" description="Embed Audio files in plugin"
                    options="Yes&#10;No"/>
+  <AdditionalDspLibraries value="" type="TEXT" description="comma separated list of all static dsp factory classes"/>
 </ProjectSettings>

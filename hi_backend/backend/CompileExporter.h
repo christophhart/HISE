@@ -60,6 +60,7 @@ public:
 	/** Exports the main synthchain all samples, external files into a ValueTree file which can be included in a compiled FrontEndProcessor. */
 	static void exportMainSynthChainAsPackage(ModulatorSynthChain *chainToExport);
 
+
 private:
 
 	static bool checkSanity(ModulatorSynthChain *chainToExport);
@@ -76,7 +77,11 @@ private:
 
 	static void writePresetFile(ModulatorSynthChain *chainToExport, const String directoryPath, const String &uniqueName);
 
+	static void convertTccScriptsToCppClasses(ModulatorSynthChain* chainToExport);
 
+	static void createCppFileFromTccScript(File& targetDirectory, File &f, Array<File>& convertedList);
+
+	static StringArray getTccSection(const StringArray &cLines, const String &sectionName);
 
 	static ErrorCodes compileSolution(ModulatorSynthChain *chainToExport, BuildOption buildOption);
 
