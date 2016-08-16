@@ -45,6 +45,8 @@ public:
 
 	TccDspObject(const String &code);
 
+	~TccDspObject();
+
 	void prepareToPlay(double sampleRate, int blockSize) override { if (pp != nullptr) pp(sampleRate, blockSize); }
 	void processBlock(float **data, int numChannels, int numSamples) override { if (pb != nullptr) pb(data, numChannels, numSamples); }
 
@@ -74,6 +76,8 @@ private:
 
 	struct Signatures
 	{
+		using initialise = void(*)();
+		using release = void(*)();
 		using prepareToPlay = void(*)(double sampleRate, int blockSize);
 		using processBlock = void(*)(float **data, int numChannels, int numSamples);
 		using getNumParameters = int(*)();
@@ -95,6 +99,8 @@ private:
 	Signatures::getNumParameters gnp;
 	Signatures::setParameter sp;
 	Signatures::getParameter gp;
+	Signatures::initialise it;
+	Signatures::release rl;
 
 	ScopedPointer<TccContext> context;
 
@@ -105,12 +111,13 @@ class TccDspFactory : public DspFactory
 {
 public:
 
-	TccDspFactory()
+	TccDspFactory():
+		mc(nullptr)
 	{
 
 	};
 
-	Identifier getId() const override { RETURN_STATIC_IDENTIFIER("TCC"); }
+	Identifier getId() const override { RETURN_STATIC_IDENTIFIER("tcc"); }
 
 	var createModule(const String &module) const override;
 
@@ -122,6 +129,15 @@ public:
 
 	/** This method must return an array with all module names that can be created. */
 	var getModuleList() const override { return var::undefined(); }
+
+	void setMainController(MainController* mc_)
+	{
+		mc = mc_;
+	}
+
+private:
+
+	MainController* mc;
 };
 
 #endif  // TCCDSPOBJECT_H_INCLUDED

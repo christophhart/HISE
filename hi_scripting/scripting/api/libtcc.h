@@ -39,7 +39,7 @@ using tcc_add_include_path = int(*)(TCCState *s, const char *pathname);
 LIBTCCAPI int tcc_add_sysinclude_path(TCCState *s, const char *pathname);
 
 /* define preprocessor symbol 'sym'. Can put optional value */
-LIBTCCAPI void tcc_define_symbol(TCCState *s, const char *sym, const char *value);
+using tcc_define_symbol = void(*)(TCCState *s, const char *sym, const char *value);
 
 /* undefine preprocess symbol 'sym' */
 LIBTCCAPI void tcc_undefine_symbol(TCCState *s, const char *sym);

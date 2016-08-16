@@ -35,8 +35,10 @@ class DspFactory::LibraryLoader : public DynamicObject
 {
 public:
 
-	LibraryLoader()
+	LibraryLoader(MainController* mc_):
+		mc(mc_)
 	{
+		handler->setMainController(mc);
 		ADD_DYNAMIC_METHOD(load);
         ADD_DYNAMIC_METHOD(list);
 	}
@@ -74,6 +76,8 @@ private:
 	};
 
 	SharedResourcePointer<DspFactory::Handler> handler;
+
+	MainController* mc;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LibraryLoader)
 };
@@ -155,7 +159,7 @@ void DynamicDspFactory::openDynamicLibrary()
 
 void GlobalScriptCompileBroadcaster::createDummyLoader()
 {
-    dummyLibraryLoader = new DspFactory::LibraryLoader();
+    dummyLibraryLoader = new DspFactory::LibraryLoader(dynamic_cast<MainController*>(this));
 }
 
 DspBaseObject * DynamicDspFactory::createDspBaseObject(const String &moduleName) const
@@ -357,7 +361,9 @@ DspFactory * DspFactory::Handler::getFactory(const String &name, const String& p
 {
 	Identifier id(name);
 
+#if USE_BACKEND
 	if (id == tccFactory->getId()) return tccFactory;
+#endif
 
 	for (int i = 0; i < staticFactories.size(); i++)
 	{
@@ -391,3 +397,9 @@ DspFactory * DspFactory::Handler::getFactory(const String &name, const String& p
 }
 
 
+
+void DspFactory::Handler::setMainController(MainController* mc_)
+{
+	mc = mc_;
+	tccFactory->setMainController(mc);
+}

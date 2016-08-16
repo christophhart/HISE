@@ -127,13 +127,17 @@ public:
 		}
 	}
 
+	void setMainController(MainController* mc_);
 
 private:
 
 	static void registerStaticFactories(Handler *instance);
-
+	
 	ReferenceCountedArray<DspFactory> staticFactories;
 	ReferenceCountedArray<DspFactory> loadedPlugins;
+
+	MainController* mc = nullptr;
+
 
 	ReferenceCountedObjectPtr<TccDspFactory> tccFactory;
 };

@@ -48,14 +48,12 @@ pb(nullptr),
 pp(nullptr),
 sp(nullptr),
 gp(nullptr),
-gnp(nullptr)
+gnp(nullptr),
+it(nullptr),
+rl(nullptr)
 {
 	context = new TccContext();
 	context->openContext();
-
-
-	context->addFunction((void*)multiply, "vec_multiply");
-	context->addFunction((void*)multiplyScalar, "vec_mul_scalar");
 
 	if (code.isNotEmpty() && context->compile(code.getCharPointer()) == 0)
 	{
@@ -64,14 +62,22 @@ gnp(nullptr)
 		sp = (Signatures::setParameter)context->getFunction("setParameter");
 		gp = (Signatures::getParameter)context->getFunction("getParameter");
 		gnp = (Signatures::getNumParameters)context->getFunction("getNumParameters");
-
+		it = (Signatures::initialise)context->getFunction("initialise");
+		rl = (Signatures::release)context->getFunction("release");
 
 		compiledOk = true;
 	}
 
 	context->closeContext();
+
+	if(it != nullptr) it();
 }
 
+
+TccDspObject::~TccDspObject()
+{
+	if (rl != nullptr) rl();
+}
 
 var TccDspFactory::createModule(const String &module) const
 {
@@ -92,7 +98,7 @@ var TccDspFactory::createModule(const String &module) const
 
 DspBaseObject * TccDspFactory::createDspBaseObject(const String &module) const
 {
-	File f(module);
+	File f(GET_PROJECT_HANDLER(mc->getMainSynthChain()).getFilePath("{PROJECT_FOLDER}" + module + ".c", ProjectHandler::SubDirectories::Scripts));
 
 	if (f.existsAsFile())
 	{
