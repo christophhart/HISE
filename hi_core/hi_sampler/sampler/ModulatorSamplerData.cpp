@@ -452,7 +452,7 @@ public:
 		AudioFormatWriter(nullptr, "", 0.0, 0, 1),
 		sampleMap(sampleMap_),
 		sampleMapDirectory(GET_PROJECT_HANDLER(sampleMap->getSampler()).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps)),
-		monolithDirectory(sampleMapDirectory.getChildFile("MonolithSamplePacks"))
+		monolithDirectory(GET_PROJECT_HANDLER(sampleMap->getSampler()).getSubDirectory(ProjectHandler::SubDirectories::Samples))
 	{
 		if (!monolithDirectory.isDirectory()) monolithDirectory.createDirectory();
 
@@ -746,7 +746,7 @@ void SampleMap::loadSamplesFromDirectory(const ValueTree &v)
 
 void SampleMap::loadSamplesFromMonolith(const ValueTree &v)
 {
-	File monolithDirectory = GET_PROJECT_HANDLER(sampler).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps).getChildFile("MonolithSamplePacks");
+	File monolithDirectory = GET_PROJECT_HANDLER(sampler).getSubDirectory(ProjectHandler::SubDirectories::Samples);
 
 	Array<File> monolithFiles;
 	
