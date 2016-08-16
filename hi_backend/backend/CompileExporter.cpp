@@ -286,8 +286,6 @@ StringArray CompileExporter::getTccSection(const StringArray &cLines, const Stri
 
 void CompileExporter::convertTccScriptsToCppClasses(ModulatorSynthChain* chainToExport)
 {
-	File f("D:/Development/Playground/Nice.c");
-
 	File targetDirectory = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::AdditionalSourceCode);
 
 	Array<File> scriptFiles;
@@ -295,6 +293,9 @@ void CompileExporter::convertTccScriptsToCppClasses(ModulatorSynthChain* chainTo
 	Array<File> convertedCppFiles;
 
 	GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Scripts).findChildFiles(scriptFiles, File::findFiles, true, "*.c");
+
+	if (scriptFiles.size() == 0) 
+		return;
 
 	for (int i = 0; i < scriptFiles.size(); i++)
 	{
@@ -320,9 +321,6 @@ void CompileExporter::convertTccScriptsToCppClasses(ModulatorSynthChain* chainTo
 	{
 		output << "#include \"" << convertedCppFiles[i].getFileName() << "\"" << newLine;
 	}
-
-
-
 
 	output << "}" << newLine;
 	output << newLine;
@@ -539,7 +537,14 @@ CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(Modulato
 
 	pluginDataHeaderFile << "#include \"JuceHeader.h\"" << "\n";
 	pluginDataHeaderFile << "#include \"PresetData.h\"\n";
-    pluginDataHeaderFile << "#include \"../../AdditionalSourceCode/AdditionalSourceCode.h\"\n";
+
+	File addSourceFile = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::AdditionalSourceCode).getChildFile("AdditionalSourceCode.h");
+
+	if (addSourceFile.existsAsFile())
+	{
+		pluginDataHeaderFile << "#include \"../../AdditionalSourceCode/AdditionalSourceCode.h\"\n";
+	}
+
 	pluginDataHeaderFile << "\n";
 	
 	// Write the static dsp factory registrations 
@@ -547,8 +552,14 @@ CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(Modulato
 	pluginDataHeaderFile << "REGISTER_STATIC_DSP_LIBRARIES()" << "\n";
 	pluginDataHeaderFile << "{" << "\n";
 	pluginDataHeaderFile << "\tREGISTER_STATIC_DSP_FACTORY(HiseCoreDspFactory);" << "\n";
-	pluginDataHeaderFile << "\tREGISTER_STATIC_DSP_FACTORY(ConvertedTccScriptFactory);" << "\n";
-	
+
+	File tccConvertedFile = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::AdditionalSourceCode).getChildFile("ConvertedTccScriptFactory.cpp");
+
+	if (tccConvertedFile.existsAsFile())
+	{
+		pluginDataHeaderFile << "\tREGISTER_STATIC_DSP_FACTORY(ConvertedTccScriptFactory);" << "\n";
+	}
+
 	const String additionalDspClasses = SettingWindows::getSettingValue(
 		(int)SettingWindows::ProjectSettingWindow::Attributes::AdditionalDspLibraries, 
 		&GET_PROJECT_HANDLER(chainToExport));
@@ -693,28 +704,31 @@ CompileExporter::ErrorCodes CompileExporter::createIntrojucerFile(ModulatorSynth
 
 	GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::AdditionalSourceCode).findChildFiles(additionalSourceFiles, File::findFiles, true);
 
-	StringArray additionalFileDefinitions;
-
-	for (int i = 0; i < additionalSourceFiles.size(); i++)
+	if (additionalSourceFiles.size() != 0)
 	{
-		if (additionalSourceFiles[i].getFileName().startsWith("_Tcc"))
+		StringArray additionalFileDefinitions;
+
+		for (int i = 0; i < additionalSourceFiles.size(); i++)
 		{
-			// Will be included in the Factory .cpp source file
-			continue;
+			if (additionalSourceFiles[i].getFileName().startsWith("_Tcc"))
+			{
+				// Will be included in the Factory .cpp source file
+				continue;
+			}
+
+			bool isSourceFile = additionalSourceFiles[i].hasFileExtension(".cpp");
+
+			const String relativePath = additionalSourceFiles[i].getRelativePathFrom(GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries));
+
+			String newLine;
+			newLine << "      <FILE id=\"" << FileHelpers::createAlphaNumericUID() << "\" name=\"" << additionalSourceFiles[i].getFileName() << "\" compile=\"" << (isSourceFile ? "1" : "0") << "\" resource=\"0\"\r\n";
+			newLine << "            file=\"" << relativePath << "\"/>\r\n";
+
+			additionalFileDefinitions.add(newLine);
 		}
 
-		bool isSourceFile = additionalSourceFiles[i].hasFileExtension(".cpp");
-
-		const String relativePath = additionalSourceFiles[i].getRelativePathFrom(GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries));
-
-		String newLine;
-		newLine << "      <FILE id=\"" << FileHelpers::createAlphaNumericUID() << "\" name=\"" << additionalSourceFiles[i].getFileName() << "\" compile=\"" << (isSourceFile ? "1" : "0") << "\" resource=\"0\"\r\n";
-		newLine << "            file=\"" << relativePath << "\"/>\r\n";
-
-		additionalFileDefinitions.add(newLine);
+		templateProject = templateProject.replace("%ADDITIONAL_FILES%", additionalFileDefinitions.joinIntoString(""));
 	}
-
-	templateProject = templateProject.replace("%ADDITIONAL_FILES%", additionalFileDefinitions.joinIntoString(""));
 
     const bool useCopyProtection = GET_PROJECT_HANDLER(chainToExport).getPublicKey().isNotEmpty();
     
