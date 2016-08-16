@@ -1168,7 +1168,7 @@ File ProjectHandler::Frontend::getAppDataDirectory(ProjectHandler *handler/*=nul
 
 	jassert(handler != nullptr);
 
-	const String company = SettingWindows::getSettingValue((int)SettingWindows::UserSettingWindow::Attributes::Company);
+	const String company = SettingWindows::getSettingValue((int)SettingWindows::UserSettingWindow::Attributes::Company, handler);
 	const String product = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, handler);
 
 #if JUCE_MAC

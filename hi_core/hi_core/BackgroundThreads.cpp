@@ -501,6 +501,7 @@ String SettingWindows::ProjectSettingWindow::getAttributeNameForSetting(int attr
 	case SettingWindows::ProjectSettingWindow::Attributes::Name:			 return "Name";
 	case SettingWindows::ProjectSettingWindow::Attributes::Version:			 return "Version";
 	case SettingWindows::ProjectSettingWindow::Attributes::Description:		 return "Description";
+
 	case SettingWindows::ProjectSettingWindow::Attributes::BundleIdentifier: return "BundleIdentifier";
 	case SettingWindows::ProjectSettingWindow::Attributes::PluginCode:		 return "PluginCode";
 	case SettingWindows::ProjectSettingWindow::Attributes::EmbedAudioFiles:	 return "EmbedAudioFiles";
@@ -593,7 +594,7 @@ XmlElement * SettingWindows::CompilerSettingWindow::createNewSettingsFile() cons
 
 File SettingWindows::UserSettingWindow::getFile() const
 {
-	return SettingWindows::getFileForSettingsWindow(Settings::User);
+	return SettingWindows::getFileForSettingsWindow(Settings::User, handler);
 }
 
 String SettingWindows::UserSettingWindow::getAttributeName(int attribute) const
@@ -644,7 +645,7 @@ String SettingWindows::getSettingValue(int attributeIndex, ProjectHandler *handl
 	else if (attributeIndex < (int)UserSettingWindow::Attributes::numUserSettingAttributes)
 	{
 		s = Settings::User;
-		f = getFileForSettingsWindow(s);
+		f = getFileForSettingsWindow(s, handler);
 		name = UserSettingWindow::getAttributeNameForSetting(attributeIndex);
 	}
 	else
@@ -760,7 +761,8 @@ File SettingWindows::getFileForSettingsWindow(Settings s, ProjectHandler *handle
 		jassertfalse;
 		return File::nonexistent;
 		break;
-	case SettingWindows::Settings::User: return File(PresetHandler::getDataFolder()).getChildFile("user_info.xml");
+	case SettingWindows::Settings::User: 
+		if (handler != nullptr) return handler->getWorkDirectory().getChildFile("user_info.xml");
 		break;
 	case SettingWindows::Settings::Compiler: return File(PresetHandler::getDataFolder()).getChildFile("compilerSettings.xml");
 		break;

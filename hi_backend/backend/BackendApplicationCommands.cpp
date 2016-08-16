@@ -1493,7 +1493,7 @@ void BackendCommandTarget::Actions::showFileProjectSettings(BackendProcessorEdit
 
 void BackendCommandTarget::Actions::showFileUserSettings(BackendProcessorEditor * bpe)
 {
-	SettingWindows::UserSettingWindow *window = new SettingWindows::UserSettingWindow();
+	SettingWindows::UserSettingWindow *window = new SettingWindows::UserSettingWindow(&GET_PROJECT_HANDLER(bpe->getMainSynthChain()));
 
 	window->setModalBaseWindowComponent(bpe);
 }

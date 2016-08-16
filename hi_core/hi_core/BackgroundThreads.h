@@ -474,8 +474,9 @@ public:
 			numUserSettingAttributes
 		};
 
-		UserSettingWindow() :
-			BaseSettingsWindow("User")
+		UserSettingWindow(ProjectHandler *handler_) :
+			BaseSettingsWindow("User"),
+			handler(handler_)
 		{
 			setSettingsFile();
 		};
@@ -487,6 +488,8 @@ public:
 		static String getAttributeNameForSetting(int attribute);
 
 		XmlElement *createNewSettingsFile() const override;
+
+		ProjectHandler *handler;
 	};
 
 };
