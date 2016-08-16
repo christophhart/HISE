@@ -98,6 +98,8 @@ unlockCounter(0)
 	{
 		setExternalScriptData(externalFiles->getChildWithName("ExternalScripts"));
 		restoreCustomFontValueTree(externalFiles->getChildWithName("CustomFonts"));
+
+		sampleMaps = externalFiles->getChildWithName("SampleMaps");
 	}
 
 	if (impulseData != nullptr)

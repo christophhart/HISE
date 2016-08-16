@@ -54,8 +54,9 @@ void CompileExporter::exportMainSynthChainAsPackage(ModulatorSynthChain *chainTo
 
 		convertTccScriptsToCppClasses(chainToExport);
 		writePresetFile(chainToExport, directoryPath, uniqueId);
-		writeExternalScriptFiles(chainToExport, directoryPath);
+		writeEmbeddedFiles(chainToExport, directoryPath);
 		writeUserPresetFiles(chainToExport, directoryPath);
+		
 		writeReferencedAudioFiles(chainToExport, directoryPath);
 		writeReferencedImageFiles(chainToExport, directoryPath);
 
@@ -240,14 +241,17 @@ void CompileExporter::writeUserPresetFiles(ModulatorSynthChain * chainToExport, 
 	PresetHandler::writeValueTreeAsFile(userPresets, File(directoryPath).getChildFile("userPresets").getFullPathName());
 }
 
-void CompileExporter::writeExternalScriptFiles(ModulatorSynthChain * chainToExport, const String &directoryPath)
+void CompileExporter::writeEmbeddedFiles(ModulatorSynthChain * chainToExport, const String &directoryPath)
 {
 	ValueTree externalScriptFiles = FileChangeListener::collectAllScriptFiles(chainToExport);
 	ValueTree customFonts = chainToExport->getMainController()->exportCustomFontsAsValueTree();
+	ValueTree sampleMaps = collectAllSampleMapsInDirectory(chainToExport);
+
 
 	ValueTree externalFiles("ExternalFiles");
 	externalFiles.addChild(externalScriptFiles, -1, nullptr);
 	externalFiles.addChild(customFonts, -1, nullptr);
+	externalFiles.addChild(sampleMaps, -1, nullptr);
 
 	PresetHandler::writeValueTreeAsFile(externalFiles, File(directoryPath).getChildFile("externalFiles").getFullPathName());
 }
@@ -793,6 +797,30 @@ File CompileExporter::getIntrojucerProjectFile(ModulatorSynthChain *chainToExpor
 }
 
 
+
+ValueTree CompileExporter::collectAllSampleMapsInDirectory(ModulatorSynthChain * chainToExport)
+{
+	ValueTree sampleMaps("SampleMaps");
+
+	File sampleMapDirectory = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
+
+	Array<File> sampleMapFiles;
+
+	sampleMapDirectory.findChildFiles(sampleMapFiles, File::findFiles, false, "*.xml");
+
+	for (int i = 0; i < sampleMapFiles.size(); i++)
+	{
+		ScopedPointer<XmlElement> xml = XmlDocument::parse(sampleMapFiles[i]);
+
+		if (xml != nullptr)
+		{
+			ValueTree sampleMap = ValueTree::fromXml(*xml);
+			sampleMaps.addChild(sampleMap, -1, nullptr);
+		}
+	}
+
+	return sampleMaps;
+}
 
 #undef REPLACE_WILDCARD
 

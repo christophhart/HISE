@@ -1087,6 +1087,8 @@ void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
 {
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
+#if USE_BACKEND
+
 	if (s == nullptr)
 	{
 		reportScriptError("loadSampleMap() only works with Samplers.");
@@ -1125,6 +1127,31 @@ void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
 	{
 		reportScriptError("Error when loading sample map: " + doc.getLastParseError());
 	}
+
+#else
+
+	ValueTree v = dynamic_cast<FrontendProcessor*>(sampler->getMainController())->getSampleMap(fileName);
+
+	if (v.isValid())
+	{
+		static const Identifier unused = Identifier("unused");
+		const Identifier oldId = s->getSampleMap()->getId();
+		const Identifier newId = Identifier(v.getProperty("ID", "unused").toString());
+
+		if (newId != unused && newId != oldId)
+		{
+			s->loadSampleMap(v);
+			s->sendChangeMessage();
+			s->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->sendChangeMessage();
+		}
+	}
+	else
+	{
+		reportScriptError("Error when loading sample map: " + fileName);
+	}
+
+#endif
+
 
 	int maxGroup = 1;
 

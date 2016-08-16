@@ -136,10 +136,17 @@ public:
 		//return currentlyLoadedProgram;
 	}
 
+
+
 	void setCurrentProgram(int index) override;
 	
     const ValueTree &getPresetData() const { return presets; };
     
+	const ValueTree &getSampleMap(const String &sampleMapId)
+	{
+		return sampleMaps.getChildWithProperty("ID", sampleMapId);
+	}
+
 #if USE_COPY_PROTECTION
 	Unlocker unlocker;
 #endif
@@ -164,6 +171,8 @@ private:
 	int numParameters;
 
 	const ValueTree presets;
+
+	ValueTree sampleMaps;
 
 	AudioPlayHead::CurrentPositionInfo lastPosInfo;
 
