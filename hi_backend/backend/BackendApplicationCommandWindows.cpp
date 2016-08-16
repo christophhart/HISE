@@ -303,7 +303,7 @@ struct XmlBackupFunctions
 
 	static void restoreAllScripts(XmlElement &xml, ModulatorSynthChain *masterChain, const String &newId)
 	{
-		if (xml.hasTagName("Processor") && xml.getStringAttribute("Type") == "ScriptProcessor")
+		if (xml.hasTagName("Processor") && xml.getStringAttribute("Type").contains("Script"))
 		{
 			File scriptDirectory = getScriptDirectoryFor(masterChain, newId);
 
