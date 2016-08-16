@@ -75,10 +75,10 @@ tccDirectory(File::getSpecialLocation(File::userApplicationDataDirectory).getChi
 
 #else
     
-    File f = tccDirectory.getChildFile("libtcc.dylib");
+    File f("/usr/local/lib/tcc/libtcc.dylib");
     jassert(f.existsAsFile());
     
-    dll->open(tccDirectory.getChildFile("libtcc.dylib").getFullPathName());
+    dll->open(f.getFullPathName());
     
     
 #endif
@@ -115,10 +115,11 @@ void TccContext::openContext()
 
 #if JUCE_MAC
 		CALL_VOID_TCC_FUNCTION( tcc_set_options, setOptions, state, "-static -Werror");
-		addSymbolFunction(state, "__GNUC__", "5"); // Avoid compiler warning about unsupported compiler...
-        addIncludeFunction(state, "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.11.sdk/usr/include/");
-		CALL_VOID_TCC_FUNCTION(tcc_add_library, addBaseLibrary, state, "m");
-	
+		CALL_VOID_TCC_FUNCTION( tcc_define_symbol, addSymbolFunction, state, "__GNUC__", "5"); // Avoid compiler warning about unsupported compiler...
+        //addIncludeFunction(state, "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.11.sdk/usr/include/");
+		//CALL_VOID_TCC_FUNCTION(tcc_add_library, addBaseLibrary, state, "m");
+
+        
 #else
 		CALL_VOID_TCC_FUNCTION(tcc_set_options, setOptions, state, "-Werror");
 

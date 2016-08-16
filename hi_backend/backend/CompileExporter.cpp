@@ -348,7 +348,7 @@ void CompileExporter::convertTccScriptsToCppClasses(ModulatorSynthChain* chainTo
 	fos.writeText(output, false, false);
 }
 
-void CompileExporter::createCppFileFromTccScript(File& targetDirectory, File &f, Array<File>& convertedList)
+void CompileExporter::createCppFileFromTccScript(File& targetDirectory, const File &f, Array<File>& convertedList)
 {
 	String className = f.getFileNameWithoutExtension();
 

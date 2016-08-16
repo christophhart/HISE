@@ -79,7 +79,7 @@ private:
 
 	static void convertTccScriptsToCppClasses(ModulatorSynthChain* chainToExport);
 
-	static void createCppFileFromTccScript(File& targetDirectory, File &f, Array<File>& convertedList);
+	static void createCppFileFromTccScript(File& targetDirectory, const File &f, Array<File>& convertedList);
 
 	static StringArray getTccSection(const StringArray &cLines, const String &sectionName);
 

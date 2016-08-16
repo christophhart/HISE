@@ -131,7 +131,7 @@ float TccLibraryFunctions::powf(float base, float exp)
 	return std::pow(base, exp);
 }
 
-#define ADD_FUNCTION_POINTER(f) context->addFunction(f, #f)
+#define ADD_FUNCTION_POINTER(f) context->addFunction((void*)f, #f)
 
 void TccLibraryFunctions::addFunctionsToContext(TccContext* context)
 {
