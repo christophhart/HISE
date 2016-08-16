@@ -34,6 +34,14 @@
 #ifndef TCCCONTEXT_H_INCLUDED
 #define TCCCONTEXT_H_INCLUDED
 
+class TccContext;
+
+#define TCC_INCLUDE 0
+
+struct TccLibraryFunctions
+{
+#include "TccLibrary.h"
+};
 
 struct TCCState;
 
@@ -78,7 +86,8 @@ public:
 private:
 
 	static void debugTccError(void* opaque, const char* message);
-	static void print(const char* message);
+
+    static void printDataArray(float* d, int numSamples);
 
 	// ================================================================================================================
 

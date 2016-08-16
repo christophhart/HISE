@@ -33,19 +33,25 @@
 
 #include "libtcc.h"
 
+#include "TccLibrary.cpp"
+
+
 #define CALL_TCC_FUNCTION(name, variableName, rVar, ...) name variableName = (name)dll->getFunction(#name); rVar = variableName(__VA_ARGS__);
 #define CALL_VOID_TCC_FUNCTION(name, variableName, ...) name variableName = (name)dll->getFunction(#name); variableName(__VA_ARGS__);
 
-void TccContext::debugTccError(void* opaque, const char* message)
+void TccContext::debugTccError(void* , const char* message)
 {
-	Logger::writeToLog(message);
+	String errorMessage(message);
+
+	errorMessage = errorMessage.replace("<string>:", "!Line ");
+	errorMessage = errorMessage.replace("warning", "error");
+
+	errorMessage = errorMessage.replace("tcc:", "!TCC compilation ");
+
+	Logger::writeToLog(errorMessage);
 }
 
-void TccContext::print(const char* message)
-{
-	
-	Logger::writeToLog(message);
-}
+
 
 bool TccContext::activeContextExists = false;
 
@@ -103,9 +109,24 @@ void TccContext::openContext()
 		CALL_VOID_TCC_FUNCTION( tcc_set_output_type, setOutputTyoe, state, TCC_OUTPUT_MEMORY);
 		CALL_VOID_TCC_FUNCTION( tcc_set_error_func, setErrorFunc, state, NULL, debugTccError);
 		CALL_VOID_TCC_FUNCTION( tcc_add_library_path, addLibraryFunction, state, tccDirectory.getFullPathName().getCharPointer());
+        
 		CALL_VOID_TCC_FUNCTION( tcc_add_include_path, addIncludeFunction, state, tccDirectory.getFullPathName().getCharPointer());
-		CALL_VOID_TCC_FUNCTION( tcc_set_options, setOptions, state, "-bench");
-		addFunction((void*)TccContext::print, "print");
+		
+
+#if JUCE_MAC
+		CALL_VOID_TCC_FUNCTION( tcc_set_options, setOptions, state, "-static -Werror");
+		addSymbolFunction(state, "__GNUC__", "5"); // Avoid compiler warning about unsupported compiler...
+        addIncludeFunction(state, "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.11.sdk/usr/include/");
+		CALL_VOID_TCC_FUNCTION(tcc_add_library, addBaseLibrary, state, "m");
+	
+#else
+		CALL_VOID_TCC_FUNCTION(tcc_set_options, setOptions, state, "-Werror");
+
+		addIncludeFunction( state, tccDirectory.getChildFile("include").getFullPathName().getCharPointer());
+#endif
+		
+		TccLibraryFunctions::addFunctionsToContext(this);
+        
 		activeContextExists = true;
 	}
 }
@@ -165,6 +186,7 @@ int TccContext::compile(const String &code)
 				int relocationSucessful;
 				CALL_TCC_FUNCTION(tcc_relocate, relocFunc2, relocationSucessful, state, compiledData.getData());
 			}
+			else return -1;
 		}
 
 		return x;
