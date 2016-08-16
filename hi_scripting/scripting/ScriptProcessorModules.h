@@ -567,8 +567,8 @@ public:
 	float getAttribute(int index) const override { return getControlValue(index); }
 	void setInternalAttribute(int index, float newValue) override { setControlValue(index, newValue); }
 
-	ValueTree exportAsValueTree() const override { ValueTree v = MasterEffectProcessor::exportAsValueTree(); saveContent(v); return v; }
-	void restoreFromValueTree(const ValueTree &v) override { MasterEffectProcessor::restoreFromValueTree(v); restoreContent(v); }
+	ValueTree exportAsValueTree() const override { ValueTree v = MasterEffectProcessor::exportAsValueTree(); saveContent(v); saveScript(v); return v; }
+	void restoreFromValueTree(const ValueTree &v) override { MasterEffectProcessor::restoreFromValueTree(v); restoreScript(v); restoreContent(v); }
 
 	int getControlCallbackIndex() const override { return (int)Callback::onControl; };
 

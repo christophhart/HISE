@@ -486,7 +486,7 @@ void JavascriptMasterEffect::registerApiClasses()
 	scriptEngine->registerApiClass(engineObject);
 	scriptEngine->registerApiClass(new ScriptingApi::Console(this));
 
-	scriptEngine->registerNativeObject("Libraries", new DspFactory::LibraryLoader());
+	scriptEngine->registerNativeObject("Libraries", new DspFactory::LibraryLoader(getMainController()));
 	scriptEngine->registerNativeObject("Buffer", new VariantBuffer::Factory(64));
 
 }
@@ -876,7 +876,7 @@ void JavascriptTimeVariantModulator::registerApiClasses()
 	scriptEngine->registerApiClass(new ScriptingApi::ModulatorApi(this));
 	scriptEngine->registerApiClass(synthObject);
 
-	scriptEngine->registerNativeObject("Libraries", new DspFactory::LibraryLoader());
+	scriptEngine->registerNativeObject("Libraries", new DspFactory::LibraryLoader(getMainController()));
 	scriptEngine->registerNativeObject("Buffer", new VariantBuffer::Factory(64));
 }
 
@@ -1145,7 +1145,7 @@ void JavascriptEnvelopeModulator::registerApiClasses()
 	scriptEngine->registerApiClass(new ScriptingApi::ModulatorApi(this));
 	scriptEngine->registerApiClass(synthObject);
 
-	scriptEngine->registerNativeObject("Libraries", new DspFactory::LibraryLoader());
+	scriptEngine->registerNativeObject("Libraries", new DspFactory::LibraryLoader(getMainController()));
 	scriptEngine->registerNativeObject("Buffer", new VariantBuffer::Factory(64));
 }
 
@@ -1225,6 +1225,10 @@ public:
 			voicePitchValues += startSample;
 			channels[2].getBuffer()->referToData(const_cast<float*>(voicePitchValues), numSamples);
 		}
+        else
+        {
+            channels[2].getBuffer()->referToData(rightValues, numSamples);
+        }
 		
 		JavascriptModulatorSynth* ownerSynth = static_cast<JavascriptModulatorSynth*>(getOwnerSynth());
 
@@ -1475,7 +1479,7 @@ void JavascriptModulatorSynth::registerApiClasses()
 	scriptEngine->registerApiClass(new ScriptingApi::Console(this));
 	scriptEngine->registerApiClass(synthObject);
 
-	scriptEngine->registerNativeObject("Libraries", new DspFactory::LibraryLoader());
+	scriptEngine->registerNativeObject("Libraries", new DspFactory::LibraryLoader(getMainController()));
 	scriptEngine->registerNativeObject("Buffer", new VariantBuffer::Factory(64));
 }
 
