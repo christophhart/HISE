@@ -746,7 +746,11 @@ void SampleMap::loadSamplesFromDirectory(const ValueTree &v)
 
 void SampleMap::loadSamplesFromMonolith(const ValueTree &v)
 {
+#if USE_BACKEND
 	File monolithDirectory = GET_PROJECT_HANDLER(sampler).getSubDirectory(ProjectHandler::SubDirectories::Samples);
+#else
+	File monolithDirectory = ProjectHandler::Frontend::getSampleLocationForCompiledPlugin();
+#endif
 
 	Array<File> monolithFiles;
 	
