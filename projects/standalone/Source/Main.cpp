@@ -15,7 +15,6 @@
 REGISTER_STATIC_DSP_LIBRARIES()
 {
 	REGISTER_STATIC_DSP_FACTORY(HiseCoreDspFactory);
-//	REGISTER_STATIC_DSP_FACTORY(VKFxStaticFactory);
 }
 
 //==============================================================================
