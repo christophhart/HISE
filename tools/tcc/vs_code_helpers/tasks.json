@@ -4,6 +4,11 @@
     "version": "0.1.0",
     "command": "tcc",
     "isShellCommand": true,
-    "args": ["-g", "-bt 16","C:/Program Files/tcc/TccLibrary.c", "-run", "${file}"],
+
+    // Windows
+    //"args": ["-g", "-bt 16","C:/Program Files/tcc/TccLibrary.c", "-run", "${file}"],
+
+    // OSX
+    "args": ["-g", "-I/usr/local/lib/tcc/include" ,"-bt 16","/Volumes/Shared/Development/HISE modules/hi_scripting/scripting/api/TccLibrary.c", "-run", "${file}"],
     "showOutput": "always"
 }

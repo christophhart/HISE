@@ -30,103 +30,181 @@
 *   ===========================================================================
 */
 
+#ifndef USE_C_IMPLEMENTATION
+#define USE_C_IMPLEMENTATION 0
+#endif
 
-void TccLibraryFunctions::vMultiply(float* dst, const float* src, int numSamples)
+#if USE_C_IMPLEMENTATION
+#define CPP_PREFIX
+#else
+#define CPP_PREFIX TccLibraryFunctions::
+#endif
+
+void CPP_PREFIX vMultiply(float* dst, const float* src, int numSamples)
 {
-	FloatVectorOperations::multiply(dst, src, numSamples);
+#if USE_C_IMPLEMENTATION
+	for(int i = 0; i < numSamples; i++) *dst++ *= *src++;
+#else
+    FloatVectorOperations::multiply(dst, src, numSamples);
+#endif
 }
 
-void TccLibraryFunctions::vMultiplyScalar(float* dst, float scalar, int numSamples)
+void CPP_PREFIX vMultiplyScalar(float* dst, float scalar, int numSamples)
 {
+#if USE_C_IMPLEMENTATION
+	for(int i = 0; i < numSamples; i++) *dst++ *= scalar;
+#else
 	FloatVectorOperations::multiply(dst, scalar, numSamples);
+#endif
 }
 
-void TccLibraryFunctions::vAdd(float* dst, const float* src, int numSamples)
+void CPP_PREFIX vAdd(float* dst, const float* src, int numSamples)
 {
+#if USE_C_IMPLEMENTATION
+	for(int i = 0; i < numSamples; i++) *dst++ += *src++;
+#else
 	FloatVectorOperations::add(dst, src, numSamples);
-}
+#endif
 
-void TccLibraryFunctions::vAddScalar(float* dst, float a, int numSamples)
-{
-	FloatVectorOperations::add(dst, a, numSamples);
-}
-
-void TccLibraryFunctions::vSub(float* dst, const float* src, int numSamples)
-{
-	FloatVectorOperations::subtract(dst, src, numSamples);
-}
-
-void TccLibraryFunctions::vFill(float* dst, float value, int numSamples)
-{
-	FloatVectorOperations::fill(dst, value, numSamples);
-}
-
-void TccLibraryFunctions::vCopy(float* dst, const float* src, int numSamples)
-{
-	FloatVectorOperations::copy(dst, src, numSamples);
-}
-
-float TccLibraryFunctions::vMinimum(const float* data, int numSamples)
-{
-	return 0.0f;
-}
-
-float TccLibraryFunctions::vMaximum(const float* data, int numSamples)
-{
-	return 1.0f;
-}
-
-void TccLibraryFunctions::vLimit(float* data, float minimum, float maximum, int numSamples)
-{
 	
 }
 
-void TccLibraryFunctions::printString(const char* message)
+void CPP_PREFIX vAddScalar(float* dst, float a, int numSamples)
 {
+#if USE_C_IMPLEMENTATION
+	for(int i = 0; i < numSamples; i++) *dst++ += a;
+#else
+	FloatVectorOperations::add(dst, a, numSamples);
+#endif
+}
+
+void CPP_PREFIX vSub(float* dst, const float* src, int numSamples)
+{
+#if USE_C_IMPLEMENTATION
+	for(int i = 0; i < numSamples; i++) *dst++ -= *src++;
+#else
+	FloatVectorOperations::subtract(dst, src, numSamples);
+#endif
+}
+
+void CPP_PREFIX vFill(float* dst, float value, int numSamples)
+{
+#if USE_C_IMPLEMENTATION
+	for(int i = 0; i < numSamples; i++) *dst++ = value;
+#else
+	FloatVectorOperations::fill(dst, value, numSamples);
+#endif
+}
+
+void CPP_PREFIX vCopy(float* dst, const float* src, int numSamples)
+{
+#if USE_C_IMPLEMENTATION
+	for(int i = 0; i < numSamples; i++) *dst++ = *src++;
+#else
+	FloatVectorOperations::copy(dst, src, numSamples);
+#endif
+}
+
+float CPP_PREFIX vMinimum(const float* data, int numSamples)
+{
+#if USE_C_IMPLEMENTATION
+
+#else
+	
+#endif
+
+	return 0.0f;
+}
+
+float CPP_PREFIX vMaximum(const float* data, int numSamples)
+{
+#if USE_C_IMPLEMENTATION
+
+#else
+	
+#endif
+
+	return 1.0f;
+}
+
+void CPP_PREFIX vLimit(float* data, float minimum, float maximum, int numSamples)
+{
+#if USE_C_IMPLEMENTATION
+
+#else
+	
+#endif
+
+}
+
+void CPP_PREFIX printString(const char* message)
+{
+#if USE_C_IMPLEMENTATION
+	printf(message);
+#else
 	Logger::writeToLog(message);
+#endif
 }
 
-void TccLibraryFunctions::printInt(int i)
+void CPP_PREFIX printInt(int i)
 {
+#if USE_C_IMPLEMENTATION
+	printf("%i", i);
+#else
 	Logger::writeToLog(String(i));
+#endif
 }
 
-void TccLibraryFunctions::printDouble(double d)
+void CPP_PREFIX printDouble(double d)
 {
+#if USE_C_IMPLEMENTATION
+    printf("%1.4f", d);
+#else
 	Logger::writeToLog(String(d));
+#endif
+
+	
 }
 
-void TccLibraryFunctions::printFloat(float f)
+void CPP_PREFIX printFloat(float f)
 {
+#if USE_C_IMPLEMENTATION
+	printf("%1.4f", f);
+#else
 	Logger::writeToLog(String(f));
+#endif	
 }
 
-double TccLibraryFunctions::sin(double rad)
+#if USE_C_IMPLEMENTATION
+#include <math.h>
+#else
+
+double CPP_PREFIX sin(double rad)
 {
 	return std::sin(rad);
 }
 
-float TccLibraryFunctions::sinf(float rad)
+float CPP_PREFIX sinf(float rad)
 {
 	return std::sinf(rad);
 }
 
-double TccLibraryFunctions::cos(double rad)
+double CPP_PREFIX cos(double rad)
 {
 	return std::cos(rad);
 }
 
-double TccLibraryFunctions::cosf(float rad)
+double CPP_PREFIX cosf(float rad)
 {
 	return std::cos(rad);
 }
 
-float TccLibraryFunctions::pow(double base, double exp)
+float CPP_PREFIX pow(double base, double exp)
 {
 	return std::pow(base, exp);
 }
 
-float TccLibraryFunctions::powf(float base, float exp)
+float CPP_PREFIX powf(float base, float exp)
 {
 	return std::pow(base, exp);
 }
@@ -158,3 +236,6 @@ void TccLibraryFunctions::addFunctionsToContext(TccContext* context)
 	ADD_FUNCTION_POINTER(pow);
 	ADD_FUNCTION_POINTER(powf);
 }
+
+#undef ADD_FUNCTION_POINTER
+#endif

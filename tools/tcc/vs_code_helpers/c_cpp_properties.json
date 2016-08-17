@@ -4,6 +4,7 @@
             "name": "Mac",
             "includePath": ["/usr/include",
                             "/Users/christophhart/Library/Application Support/Hart Instruments/tcc",
+                            "/usr/local/lib/tcc/include",
                             "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.11.sdk/usr/include"],
 
             "browse" : {
