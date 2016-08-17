@@ -189,7 +189,11 @@ private:
 #if HISE_IOS
 		return GLOBAL_BOLD_FONT().withHeight(24.0f);
 #else
-		return GLOBAL_BOLD_FONT();
+#if USE_BACKEND
+    	return GLOBAL_BOLD_FONT();    
+#else
+		return GLOBAL_BOLD_FONT().withHeight(16.0f);
+#endif
 #endif
 	};
 

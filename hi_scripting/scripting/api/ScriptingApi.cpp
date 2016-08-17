@@ -1085,6 +1085,9 @@ void ScriptingApi::Sampler::refreshInterface()
 
 void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
 {
+    if(fileName.isEmpty()) return;
+    
+    
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
 #if USE_BACKEND
@@ -1112,7 +1115,8 @@ void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
 		ValueTree v = ValueTree::fromXml(*xml);
 
 		static const Identifier unused = Identifier("unused");
-		const Identifier oldId = s->getSampleMap()->getId();
+        
+        const Identifier oldId = s->getSampleMap()->getId();
 		const Identifier newId = Identifier(v.getProperty("ID", "unused").toString());
 
 		if (newId != unused && newId != oldId)
@@ -1141,8 +1145,6 @@ void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
 		if (newId != unused && newId != oldId)
 		{
 			s->loadSampleMap(v);
-			s->sendChangeMessage();
-			s->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->sendChangeMessage();
 		}
 	}
 	else
