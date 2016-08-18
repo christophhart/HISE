@@ -43,7 +43,7 @@ void FFTProcessor::fft(float* d, int size)
 {
 #ifdef ICSTLIB_USE_IPP
 
-	fftData->complexFFT(d, size);
+	fftData->complexFFTInplace(d, size);
 
 #if 0
 	int order = twopownton(size);
@@ -66,7 +66,7 @@ void FFTProcessor::fft(double* d, int size)
 {
 #ifdef ICSTLIB_USE_IPP
 
-	fftData->complexFFT(d, size);
+	fftData->complexFFTInplace(d, size);
 
 #if 0
 	int order = twopownton(size);
@@ -91,7 +91,7 @@ void FFTProcessor::ifft(float* d, int size)
 {
 #ifdef ICSTLIB_USE_IPP
 
-	fftData->complexInverseFFT(d, size);
+	fftData->complexFFTInverseInplace(d, size);
 
 #if 0
 	int order = twopownton(size);
@@ -114,7 +114,7 @@ void FFTProcessor::ifft(double* d, int size)
 {
 #ifdef ICSTLIB_USE_IPP
 
-	fftData->complexInverseFFT(d, size);
+	fftData->complexFFTInverseInplace(d, size);
 
 #if 0
 	int order = twopownton(size);
@@ -141,7 +141,7 @@ void FFTProcessor::realfft(float* d, int size)
 {
 #ifdef ICSTLIB_USE_IPP
 
-	fftData->realFFT(d, size);
+	fftData->realFFTInplace(d, size);
 
 #if 0
 	int order = twopownton(size);
@@ -165,7 +165,7 @@ void FFTProcessor::realfft(double* d, int size)
 {
 #ifdef ICSTLIB_USE_IPP
 
-	fftData->realFFT(d, size);
+	fftData->realFFTInplace(d, size);
 
 #if 0
 	int order = twopownton(size);
@@ -191,7 +191,7 @@ void FFTProcessor::realifft(float* d, int size)
 {
 #ifdef ICSTLIB_USE_IPP
 
-	fftData->realInverseFFT(d, size);
+	fftData->realFFTInverseInplace(d, size);
 
 #if 0
 	int order = twopownton(size);
@@ -216,7 +216,7 @@ void FFTProcessor::realifft(double* d, int size)
 {
 #ifdef ICSTLIB_USE_IPP
 
-	fftData->realInverseFFT(d, size);
+	fftData->realFFTInverseInplace(d, size);
 
 #if 0
 	int order = twopownton(size);
@@ -3733,34 +3733,33 @@ void VectorFunctions::cpxmag(float* d, float* r, int size)
 void VectorFunctions::cpxpow(float* d, float* r, int size)
 {
 	int i=0, j=0;
-#ifndef ICSTLIB_NO_SSEOPT  
-	if ((reinterpret_cast<uintptr_t>(d) | reinterpret_cast<uintptr_t>(r)) & 0xF) {
-#endif
-		for (i=0; i<size; i++) {d[i] = r[j]*r[j] + r[j+1]*r[j+1]; j+=2;}		
-#ifndef ICSTLIB_NO_SSEOPT
+
+#ifdef ICSTLIB_NO_SSEOPT  
+	
+	for (i=0; i<size; i++) {d[i] = r[j]*r[j] + r[j+1]*r[j+1]; j+=2;}		
+	
+#else
+	__m128 r0, r1, r2, r3;
+	size <<= 1;
+	while (i <= (size - 8)) {
+		r0 = _mm_load_ps(r + i);
+		r0 = _mm_mul_ps(r0, r0);
+		r2 = _mm_load_ps(r + i + 4);
+		r2 = _mm_mul_ps(r2, r2);
+		r1 = _mm_shuffle_ps(r0, r2, _MM_SHUFFLE(2, 0, 2, 0));
+		r3 = _mm_shuffle_ps(r0, r2, _MM_SHUFFLE(3, 1, 3, 1));
+		r3 = _mm_add_ps(r3, r1);
+		_mm_store_ps(d + j, r3);
+		i += 8;
+		j += 4;
 	}
-	else {
-		__m128 r0,r1,r2,r3;
-		size <<= 1;
-		while (i <= (size - 8)) {
-			r0 = _mm_load_ps(r+i);
-			r0 = _mm_mul_ps(r0 , r0);
-			r2 = _mm_load_ps(r+i+4);
-			r2 = _mm_mul_ps(r2 , r2);
-			r1 = _mm_shuffle_ps(r0 , r2 , _MM_SHUFFLE(2,0,2,0));
-			r3 = _mm_shuffle_ps(r0 , r2 , _MM_SHUFFLE(3,1,3,1));
-			r3 = _mm_add_ps(r3 , r1);
-			_mm_store_ps(d+j , r3);
-			i+=8;
-			j+=4;
-		}		
-		if (size & 4) {
-			d[j] = r[i]*r[i] + r[i+1]*r[i+1];
-			d[j+1] = r[i+2]*r[i+2] + r[i+3]*r[i+3];
-			i+=4; j+=2;
-		}
-		if (size & 2) {d[j] = r[i]*r[i] + r[i+1]*r[i+1];}
+	if (size & 4) {
+		d[j] = r[i] * r[i] + r[i + 1] * r[i + 1];
+		d[j + 1] = r[i + 2] * r[i + 2] + r[i + 3] * r[i + 3];
+		i += 4; j += 2;
 	}
+	if (size & 2) { d[j] = r[i] * r[i] + r[i + 1] * r[i + 1]; }
+	
 #endif	
 }
 

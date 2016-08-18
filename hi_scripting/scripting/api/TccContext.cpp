@@ -55,8 +55,9 @@ void TccContext::debugTccError(void* , const char* message)
 
 bool TccContext::activeContextExists = false;
 
-TccContext::TccContext() :
+TccContext::TccContext(const File &f_) :
 state(nullptr),
+f(f_),
 #if JUCE_WINDOWS
 tccDirectory(File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("Hart Instruments/tcc/"))
 #else
@@ -112,12 +113,13 @@ void TccContext::openContext()
         
 		CALL_VOID_TCC_FUNCTION( tcc_add_include_path, addIncludeFunction, state, tccDirectory.getFullPathName().getCharPointer());
 		
+        addIncludeFunction(state, f.getParentDirectory().getFullPathName().getCharPointer());
 
 #if JUCE_MAC
-		CALL_VOID_TCC_FUNCTION( tcc_set_options, setOptions, state, "-static -Werror");
-		CALL_VOID_TCC_FUNCTION( tcc_define_symbol, addSymbolFunction, state, "__GNUC__", "5"); // Avoid compiler warning about unsupported compiler...
-        //addIncludeFunction(state, "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.11.sdk/usr/include/");
-		//CALL_VOID_TCC_FUNCTION(tcc_add_library, addBaseLibrary, state, "m");
+        CALL_VOID_TCC_FUNCTION( tcc_set_options, setOptions, state, "-static ");//-Werror");
+		//CALL_VOID_TCC_FUNCTION( tcc_define_symbol, addSymbolFunction, state, "__GNUC__", "5"); // Avoid compiler warning about unsupported compiler...
+        addIncludeFunction(state, "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.11.sdk/usr/include/");
+		CALL_VOID_TCC_FUNCTION(tcc_add_library, addBaseLibrary, state, "m");
 
         
 #else

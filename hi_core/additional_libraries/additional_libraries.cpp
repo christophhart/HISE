@@ -49,3 +49,10 @@ namespace icstdsp
 	
 
 #pragma warning (pop)
+
+extern "C"
+{
+#include "kiss_fft/kiss_fft.c"
+#include "kiss_fft/kiss_fftr.c"
+}
+

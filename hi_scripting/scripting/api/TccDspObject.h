@@ -43,7 +43,7 @@ class TccDspObject : public DspBaseObject
 {
 public:
 
-	TccDspObject(const String &code);
+	TccDspObject(const File &f);
 
 	~TccDspObject();
 
@@ -103,6 +103,8 @@ private:
 	Signatures::release rl;
 
 	ScopedPointer<TccContext> context;
+
+	File f;
 
 	bool compiledOk;
 };

@@ -88,7 +88,7 @@ IppFFT::~IppFFT()
 	additionalWorkingBuffer = nullptr;
 }
 
-void IppFFT::realFFT(float *data, int size) const
+void IppFFT::realFFTInplace(float *data, int size) const
 {
 	jassert(type == DataType::RealFloat);
 
@@ -100,7 +100,7 @@ void IppFFT::realFFT(float *data, int size) const
 	}
 }
 
-void IppFFT::realFFT(double *data, int size) const
+void IppFFT::realFFTInplace(double *data, int size) const
 {
 	jassert(type == DataType::RealDouble);
 
@@ -112,7 +112,7 @@ void IppFFT::realFFT(double *data, int size) const
 	}
 }
 
-void IppFFT::realInverseFFT(float *data, int size) const
+void IppFFT::realFFTInverseInplace(float *data, int size) const
 {
 	jassert(type == DataType::RealFloat);
 
@@ -124,7 +124,7 @@ void IppFFT::realInverseFFT(float *data, int size) const
 	}
 }
 
-void IppFFT::realInverseFFT(double *data, int size) const
+void IppFFT::realFFTInverseInplace(double *data, int size) const
 {
 	jassert(type == DataType::RealDouble);
 
@@ -136,7 +136,7 @@ void IppFFT::realInverseFFT(double *data, int size) const
 	}
 }
 
-void IppFFT::complexFFT(float *data, int size) const
+void IppFFT::complexFFTInplace(float *data, int size) const
 {
 	jassert(type == DataType::ComplexFloat);
 
@@ -148,7 +148,7 @@ void IppFFT::complexFFT(float *data, int size) const
 	}
 }
 
-void IppFFT::complexFFT(double *data, int size) const
+void IppFFT::complexFFTInplace(double *data, int size) const
 {
 	jassert(type == DataType::ComplexDouble);
 
@@ -160,7 +160,7 @@ void IppFFT::complexFFT(double *data, int size) const
 	}
 }
 
-void IppFFT::complexInverseFFT(float *data, int size) const
+void IppFFT::complexFFTInverseInplace(float *data, int size) const
 {
 	jassert(type == DataType::ComplexFloat);
 
@@ -172,7 +172,7 @@ void IppFFT::complexInverseFFT(float *data, int size) const
 	}
 }
 
-void IppFFT::complexInverseFFT(double *data, int size) const
+void IppFFT::complexFFTInverseInplace(double *data, int size) const
 {
 	jassert(type == DataType::ComplexDouble);
 
@@ -182,6 +182,54 @@ void IppFFT::complexInverseFFT(double *data, int size) const
 	{
 		ippsFFTInv_CToC_64fc_I((Ipp64fc*)data, complexDoubleSpecs[N], workingBuffers[N]->getData());
 
+	}
+}
+
+void IppFFT::realFFT(const float *in, float* out, int size) const
+{
+	jassert(type == DataType::RealFloat);
+
+	const int N = getPowerOfTwo(size);
+
+	if (N > 0)
+	{
+		ippsFFTFwd_RToCCS_32f((const Ipp32f*)in, (Ipp32f*)out, realFloatSpecs[N], workingBuffers[N]->getData());
+	}
+}
+
+void IppFFT::realFFTInverse(const float *in, float* out, int size) const
+{
+	jassert(type == DataType::RealFloat);
+
+	const int N = getPowerOfTwo(size);
+
+	if (N > 0)
+	{
+		ippsFFTInv_CCSToR_32f((const Ipp32f*)in, (Ipp32f*)out, realFloatSpecs[N], workingBuffers[N]->getData());
+	}
+}
+
+void IppFFT::complexFFT(const float *in, float* out, int size) const
+{
+	jassert(type == DataType::ComplexFloat);
+
+	const int N = getPowerOfTwo(size);
+
+	if (N > 0)
+	{
+		ippsFFTFwd_CToC_32fc((const Ipp32fc*)in, (Ipp32fc*)out, complexFloatSpecs[N], workingBuffers[N]->getData());
+	}
+}
+
+void IppFFT::complexFFTInverse(const float* in, float *out, int size) const
+{
+	jassert(type == DataType::ComplexFloat);
+
+	const int N = getPowerOfTwo(size);
+
+	if (N > 0)
+	{
+		ippsFFTInv_CToC_32fc((const Ipp32fc*)in, (Ipp32fc*)out, complexFloatSpecs[N], workingBuffers[N]->getData());
 	}
 }
 

@@ -70,13 +70,12 @@ namespace icstdsp
 	#include "icst/SpecMath.h"
 }
 
+extern "C"
+{
+#include "kiss_fft/kiss_fft.h"
+#include "kiss_fft/kiss_fftr.h"
 
-
-
-
-
-
-
+}
 
 
 

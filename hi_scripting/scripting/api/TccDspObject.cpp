@@ -42,7 +42,7 @@ void multiplyScalar(float* dst, double scalar, int numValues)
 	FloatVectorOperations::multiply(dst, (float)scalar, numValues);
 }
 
-TccDspObject::TccDspObject(const String &code) :
+TccDspObject::TccDspObject(const File &f_) :
 compiledOk(false),
 pb(nullptr),
 pp(nullptr),
@@ -50,10 +50,13 @@ sp(nullptr),
 gp(nullptr),
 gnp(nullptr),
 it(nullptr),
-rl(nullptr)
+rl(nullptr),
+f(f_)
 {
-	context = new TccContext();
+	context = new TccContext(f);
 	context->openContext();
+
+	String code = f.loadFileAsString();
 
 	if (code.isNotEmpty() && context->compile(code.getCharPointer()) == 0)
 	{
@@ -98,16 +101,19 @@ var TccDspFactory::createModule(const String &module) const
 
 DspBaseObject * TccDspFactory::createDspBaseObject(const String &module) const
 {
-	File f(GET_PROJECT_HANDLER(mc->getMainSynthChain()).getFilePath("{PROJECT_FOLDER}" + module + ".c", ProjectHandler::SubDirectories::Scripts));
+	File directory = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Scripts);
+
+	File f = directory.getChildFile(module + ".c");
 
 	if (f.existsAsFile())
 	{
 		const String code = f.loadFileAsString();
 
-		return new TccDspObject(code);
+		return new TccDspObject(f);
 	}
 	else
 	{
+		throw String(module + ".c was not found");
 		return nullptr;
 	}
 }

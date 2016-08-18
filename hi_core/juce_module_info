@@ -27,6 +27,7 @@
   "browse":         [ "/*",
 					  "additional_libraries/*",
 					  "additional_libraries/icst/*",
+					  "additional_libraries/kiss_fft/*",
                       "hi_binary_data/*",
 					  "hi_components/*",
 					  "hi_components/debug_components/*",

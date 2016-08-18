@@ -49,11 +49,11 @@ void WDL_fft(WDL_FFT_COMPLEX *buf, int len, int isInverse, IppFFT &ippData)
 
 	if (isInverse)
 	{
-		ippData.complexInverseFFT((float*)buf, len);
+		ippData.complexFFTInverseInplace((float*)buf, len);
 	}
 	else
 	{
-		ippData.complexFFT((float*)buf, len);
+		ippData.complexFFTInplace((float*)buf, len);
 	}
 
 #if 0

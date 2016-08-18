@@ -55,7 +55,7 @@ public:
 	/** Creates a new TccContext. 
 	*
 	*	You must call openContext() before compiling or pushing functions to the context. */
-	TccContext();
+	TccContext(const File &f);
 
 	~TccContext();
 
@@ -98,6 +98,8 @@ private:
 	MemoryBlock compiledData;
 	
 	static bool activeContextExists;
+
+	File f;
 
 	// ================================================================================================================
 
