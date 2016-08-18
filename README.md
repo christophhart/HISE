@@ -63,3 +63,15 @@ It supports x86 and x64 on Windows, altough the 64bit version is highly recommen
 ## Licence
 
 GPL v3 or a commercial licence for closed source usage. HISE is based on JUCE, which must be separately licenced.
+
+## Included frameworks
+
+For FFT routines and some vector operations, it is recommended to build HISE against the Intel IPP library (not included).
+
+Apart from the JUCE C++ library, there are some other 3rd party frameworks and libraries included in HISE, which are all non restrictively licenced (either BSD or MIT):
+
+- **ICSTDP DSP library**: A pretty decent DSP library with some good and fast routines.   [Website](https://www.zhdk.ch/index.php?id=icst_dsplibrary)
+- **Tiny C Compiler** Awesome little compiler that translates C files into machine code within milliseconds. It is embedded into HISE as development tool. The compiler is LGPL licenced, so it is linked dynamically into HISE, but for closed source plugins, the C files will be compiled by a "real" compiler anyway.
+- **Kiss FFT**: A easy and C-only FFT library with a clean interface and acceptable performance. It is used as fallback FFT when the IPP library is not available.
+- **WDL** (just for the convolution, it might get sorted out in the future)
+- some other public domain code taken from various sources (music-dsp.org, etc.).
