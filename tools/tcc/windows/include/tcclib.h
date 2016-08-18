@@ -79,7 +79,11 @@ const char *dlerror(void);
 void *dlsym(void *handle, char *symbol);
 int dlclose(void *handle);
 
+#define true 1
+#define false 0
 
+typedef unsigned char bool;
+#define nullptr NULL
 
 
 #endif /* _TCCLIB_H */

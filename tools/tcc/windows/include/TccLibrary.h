@@ -33,10 +33,22 @@
 #ifndef TCCLIBRARY_H_INCLUDED
 #define TCCLIBRARY_H_INCLUDED
 
+#define TCC_LIBRARY_VERSION 0x0007
+
+#ifndef TCC_INCLUDE
 #define TCC_INCLUDE 1
+#endif
 
 #if TCC_INCLUDE
 #define TCCLIBDEF extern
+
+#include <tcclib.h>
+
+#if TCC_COMMAND_LINE
+#include <kiss_fft/kiss_fft.h>
+#include <kiss_fft/kiss_fftr.h>
+#endif
+
 #else
 #define TCCLIBDEF static
 #endif
@@ -98,15 +110,29 @@ TCCLIBDEF void printFloat(float f);
 *																					   *
 ***************************************************************************************/
 
-TCCLIBDEF double sin(double rad);
-TCCLIBDEF float sinf(float rad);
+TCCLIBDEF void windowFunctionBlackman(float* d, int size);
+TCCLIBDEF void windowFunctionRectangle(float* d, int size);
+TCCLIBDEF void windowFunctionHann(float* d, int size);
+TCCLIBDEF void windowFunctionBlackmanHarris(float* d, int size);
 
-TCCLIBDEF double cos(double rad);
-TCCLIBDEF double cosf(float rad);
+TCCLIBDEF void* createFFTState(int size, bool isReal, bool isInverse);
+TCCLIBDEF void destroyFFTState(void* state);
 
-TCCLIBDEF float pow(double base, double exp);
-TCCLIBDEF float powf(float base, float exp);
+TCCLIBDEF void complexFFT(void* FFTState, float* in, float* out, int fftSize);
+TCCLIBDEF void complexFFTInverse(void* FFTState, float* in, float* out, int fftSize);
+TCCLIBDEF void complexFFTInplace(void* FFTState, float* data, int fftSize);
+TCCLIBDEF void complexFFTInverseInplace(void* FFTState, float* data, int fftSize);
 
+TCCLIBDEF void realFFT(void* FFTState, float* in, float* out, int fftSize);
+TCCLIBDEF void realFFTInverse(void* FFTState, float* in, float* out, int fftSize);
 
+/** Converts real values to complex value. sizeof(c) must be 2*r. */
+TCCLIBDEF void realToComplex(float* c, float* r, int size);
+TCCLIBDEF void complexMultiply(float* d, float* r, int size);
+TCCLIBDEF void zeroPadVector(float* dst, const float* src, int size, int paddingSize);
+TCCLIBDEF int nextPowerOfTwo(int size);
+
+TCCLIBDEF void writeFloatArray(float* data, int numSamples);
+TCCLIBDEF void writeFrequencySpectrum(float* data, int numSamples);
 
 #endif  // TCCLIBRARY_H_INCLUDED
