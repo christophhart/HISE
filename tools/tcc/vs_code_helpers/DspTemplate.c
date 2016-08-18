@@ -5,8 +5,6 @@
 *	If you put the code in the correct sections, it can be automatically converted to a CPP class.
 */
 
-
-#include <tcclib.h>
 #include <TccLibrary.h>
 
 // Will be replaced by the correct CPP keyword when converting

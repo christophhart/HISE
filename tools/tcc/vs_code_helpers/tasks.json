@@ -1,14 +1,12 @@
 {
-    // See https://go.microsoft.com/fwlink/?LinkId=733558
-    // for the documentation about the tasks.json format
     "version": "0.1.0",
-    "command": "tcc",
+	"command": "tcc",   
     "isShellCommand": true,
+	"showOutput": "always",
 
-    // Windows
-    //"args": ["-g", "-bt 16","C:/Program Files/tcc/TccLibrary.c", "-run", "${file}"],
+    // Uncomment for Windows
+    "args": ["-g", "-bt 32","D:/Development/HISE modules/hi_scripting/scripting/api/TccLibrary.c", "-run", "${file}"],
 
-    // OSX
-    "args": ["-g", "-I/usr/local/lib/tcc/include" ,"-bt 16","/Volumes/Shared/Development/HISE modules/hi_scripting/scripting/api/TccLibrary.c", "-run", "${file}"],
-    "showOutput": "always"
+    // Uncomment for OSX
+    //"args": ["-g", "-I/usr/local/lib/tcc/include" ,"-bt 16","/Volumes/Shared/Development/HISE modules/hi_scripting/scripting/api/TccLibrary.c", "-run", "${file}"]
 }
