@@ -66,8 +66,6 @@ tccDirectory(File::getSpecialLocation(File::userApplicationDataDirectory).getChi
 {
 #if JUCE_WINDOWS
 
-
-
 #if JUCE_32BIT
 	dll->open(tccDirectory.getChildFile("libtcc_x86.dll").getFullPathName());
 #else
@@ -81,9 +79,10 @@ tccDirectory(File::getSpecialLocation(File::userApplicationDataDirectory).getChi
     
     dll->open(f.getFullPathName());
     
-    
 #endif
 }
+
+
 
 TccContext::~TccContext()
 {
@@ -113,7 +112,11 @@ void TccContext::openContext()
         
 		CALL_VOID_TCC_FUNCTION( tcc_add_include_path, addIncludeFunction, state, tccDirectory.getFullPathName().getCharPointer());
 		
-        addIncludeFunction(state, f.getParentDirectory().getFullPathName().getCharPointer());
+		if (f.existsAsFile())
+		{
+			addIncludeFunction(state, f.getParentDirectory().getFullPathName().getCharPointer());
+		}
+        
 
 #if JUCE_MAC
         CALL_VOID_TCC_FUNCTION( tcc_set_options, setOptions, state, "-static ");//-Werror");

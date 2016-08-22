@@ -30,7 +30,7 @@
 *   ===========================================================================
 */
 
-#define TCC_LIBRARY_C_VERSION 0x0011
+#define TCC_LIBRARY_C_VERSION 0x0013
 
 #ifndef TCC_LIBRARY_VERSION
 #error "Library Header not included"
@@ -538,6 +538,55 @@ void CPP_PREFIX destroyFFTState(void* state)
 #endif
 }
 
+bool CPP_PREFIX varToBool(void* v)
+{
+	var* va = reinterpret_cast<var*>(v);
+	return (bool)(*va);
+}
+
+int CPP_PREFIX varToInt(void* v)
+{
+	var* va = reinterpret_cast<var*>(v);
+	return (bool)(*va);
+}
+
+double CPP_PREFIX varToDouble(void* v)
+{
+	var* va = reinterpret_cast<var*>(v);
+	return (bool)(*va);
+}
+
+float CPP_PREFIX varToFloat(void* v)
+{
+	var* va = reinterpret_cast<var*>(v);
+	return (bool)(*va);
+}
+
+float* CPP_PREFIX getVarBufferData(void* v)
+{
+	var* va = reinterpret_cast<var*>(v);
+
+	if (va->isBuffer())
+	{
+		return va->getBuffer()->buffer.getWritePointer(0);
+	}
+
+	return NULL;
+}
+
+int CPP_PREFIX getVarBufferSize(void* v)
+{
+	var* va = reinterpret_cast<var*>(v);
+
+	if (va->isBuffer())
+	{
+		return va->getBuffer()->size;
+	}
+
+	return -1;
+	}
+
+
 #if USE_C_IMPLEMENTATION
 
 #else
@@ -586,6 +635,13 @@ void TccLibraryFunctions::addFunctionsToContext(TccContext* context)
 
 	ADD_FUNCTION_POINTER(writeFloatArray);
 	ADD_FUNCTION_POINTER(writeFrequencySpectrum);
+
+	ADD_FUNCTION_POINTER(varToBool);
+	ADD_FUNCTION_POINTER(varToInt);
+	ADD_FUNCTION_POINTER(varToDouble);
+	ADD_FUNCTION_POINTER(varToFloat);
+	ADD_FUNCTION_POINTER(getVarBufferData);
+	ADD_FUNCTION_POINTER(getVarBufferSize);
 
 }
 

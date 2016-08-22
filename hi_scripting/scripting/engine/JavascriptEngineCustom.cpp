@@ -389,3 +389,56 @@ struct HiseJavascriptEngine::RootObject::CallbackParameterReference: public Expr
 
 	var* data;
 };
+
+struct HiseJavascriptEngine::RootObject::ExternalCFunction: public ReferenceCountedObject
+{
+	struct FunctionCall : public Expression
+	{
+		FunctionCall(const CodeLocation& l, ExternalCFunction* cFunction_) : Expression(l), cFunction(cFunction_) {}
+
+		var getResult(const Scope& s) const override
+		{
+			var args[4];
+
+			for (int i = 0; i < cFunction->numArguments; i++)
+			{
+				args[i] = parameterExpressions[i]->getResult(s);
+			}
+
+			if (cFunction->hasReturnType)
+			{
+				
+			}
+			else
+			{
+				using voidFunc0 = void(*)();
+				using voidFunc1 = void(*)(var*);
+				using voidFunc2 = void(*)(var*, var*);
+				using voidFunc3 = void(*)(var*, var*, var*);
+				using voidFunc4 = void(*)(var*, var*, var*, var*);
+
+				switch (cFunction->numArguments)
+				{
+				case 0: ((voidFunc0)cFunction->f)(); break;
+				case 1: ((voidFunc1)cFunction->f)(args); break;
+				case 2: ((voidFunc2)cFunction->f)(args, args + 1); break;
+				case 3: ((voidFunc3)cFunction->f)(args, args + 1, args + 2); break;
+				case 4: ((voidFunc4)cFunction->f)(args, args + 1, args + 2, args + 3); break;
+				}
+			}
+			
+
+			return var::undefined();
+		}
+
+		OwnedArray<Expression> parameterExpressions;
+		ExternalCFunction* cFunction;
+	};
+
+	Identifier name;
+	bool hasReturnType;
+	Array<Identifier> arguments;
+	int numArguments;
+	void* f;
+	TccContext c;
+};

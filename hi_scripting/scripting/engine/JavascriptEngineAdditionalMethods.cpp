@@ -379,6 +379,17 @@ HiseJavascriptEngine::RootObject::HiseSpecialData::VariableStorageType HiseJavas
 }
 
 
+int HiseJavascriptEngine::RootObject::HiseSpecialData::getExternalCIndex(const Identifier& id)
+{
+	for (int i = 0; i < externalCFunctions.size(); i++)
+	{
+		if (externalCFunctions[i]->name == id) return i;
+	}
+
+	return -1;
+}
+
+
 var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 {
 	RootObject::Callback *c = root->hiseSpecialData.callbackNEW[callbackIndex];

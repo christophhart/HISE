@@ -338,6 +338,7 @@ private:
 		if (matchIf(TokenTypes::break_))           return new BreakStatement(location);
 		if (matchIf(TokenTypes::continue_))        return new ContinueStatement(location);
 		if (matchIf(TokenTypes::function))         return parseFunction();
+		if (matchIf(TokenTypes::extern_))		   return parseExternalCFunction();
 		if (matchIf(TokenTypes::semicolon))        return new Statement(location);
 		if (matchIf(TokenTypes::plusplus))         return parsePreIncDec<AdditionOp>();
 		if (matchIf(TokenTypes::minusminus))       return parsePreIncDec<SubtractionOp>();
@@ -746,6 +747,112 @@ private:
 		return new Statement(location);
 	}
 
+	Statement* parseExternalCFunction()
+	{
+		match(TokenTypes::literal);
+		match(TokenTypes::openBrace);
+
+		String::CharPointerType start = location.location;
+
+		ScopedPointer<ExternalCFunction> functionObject = new ExternalCFunction();
+
+		static const Identifier void_("void");
+
+		functionObject->hasReturnType = parseIdentifier() != void_;
+
+		functionObject->name = parseIdentifier();
+
+		match(TokenTypes::openParen);
+
+		Array<Identifier> arguments;
+
+		while (currentType != TokenTypes::closeParen)
+		{
+			match(TokenTypes::var);
+
+			functionObject->arguments.add(currentValue.toString());
+			match(TokenTypes::identifier);
+
+			if (currentType != TokenTypes::closeParen)
+				match(TokenTypes::comma);
+		}
+
+		functionObject->numArguments = functionObject->arguments.size();
+
+		match(TokenTypes::closeParen);
+
+		int braceLevel = 1;
+
+		match(TokenTypes::openBrace);
+
+		while (braceLevel > 0 && currentType != TokenTypes::eof)
+		{
+			if (currentType == TokenTypes::openBrace)
+			{
+				braceLevel++;
+			}
+			if (currentType == TokenTypes::closeBrace)
+			{
+				braceLevel--;
+			}
+
+			skip();
+		}
+
+		String::CharPointerType end = location.location;
+
+		const int numChars = end.getAddress() - start.getAddress();
+
+		match(TokenTypes::closeBrace);
+
+		String cCode = "#include <TccLibrary.h>\n";
+		cCode << "#include <math.h>\n";
+		cCode << String(start, end);
+
+		functionObject->c.openContext();
+		functionObject->c.compile(cCode);
+		functionObject->f = functionObject->c.getFunction(functionObject->name.toString());
+		functionObject->c.closeContext();
+		
+		if (functionObject->f == nullptr)
+		{
+			location.throwError("External C Function could not been parsed");
+		}
+		else
+		{
+			hiseSpecialData->externalCFunctions.add(functionObject.release());
+		}
+
+		return new Statement(location);
+	}
+
+	Expression* parseExternalCFunctionCall()
+	{
+		Identifier name = parseIdentifier();
+
+		int index = hiseSpecialData->getExternalCIndex(name);
+
+		ExternalCFunction* cFunc = hiseSpecialData->externalCFunctions[index];
+
+		ScopedPointer<ExternalCFunction::FunctionCall> fCall = new ExternalCFunction::FunctionCall(location, cFunc);
+
+		match(TokenTypes::openParen);
+
+		while (currentType != TokenTypes::closeParen)
+		{
+			fCall->parameterExpressions.add(parseExpression());
+			if (currentType != TokenTypes::closeParen)
+				match(TokenTypes::comma);
+		}
+
+		if (fCall->parameterExpressions.size() != cFunc->numArguments)
+		{
+			throwError("External C function call " + name.toString() + ": parameter amount mismatch: " + String(fCall->parameterExpressions.size()) + " (Expected: " + String(cFunc->numArguments) + ")");
+		}
+
+		return matchCloseParen(fCall.release());
+	}
+
 	Statement* parseCaseStatement()
 	{
 		const bool isNotDefaultCase = currentType == TokenTypes::case_;
@@ -1114,6 +1221,7 @@ private:
 			const int apiClassIndex = hiseSpecialData->apiIds.indexOf(id);
 			const int constIndex = hiseSpecialData->constObjects.indexOf(id);
 			const int globalIndex = hiseSpecialData->globals->getProperties().indexOf(id);
+			const int externalCIndex = hiseSpecialData->getExternalCIndex(id);
 
 			if (obj != nullptr)
 			{
@@ -1126,6 +1234,10 @@ private:
 			else if (constIndex != -1)
 			{
 				return parseSuffixes(parseConstExpression());
+			}
+			else if (externalCIndex != -1)
+			{
+				return parseSuffixes(parseExternalCFunctionCall());
 			}
 			else if (registerIndex != -1)
 			{

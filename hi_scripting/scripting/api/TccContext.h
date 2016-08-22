@@ -55,9 +55,13 @@ public:
 
 	/** Creates a new TccContext. 
 	*
-	*	You must call openContext() before compiling or pushing functions to the context. */
-	TccContext(const File &f);
+	*	You must call openContext() before compiling or pushing functions to the context. 
+	*	If you pass in a file, it will add the directory to the include path so you can include sibling header files...
+	*
+	*/
+	TccContext(const File &fileToCompile = File::nonexistent);
 
+	
 	~TccContext();
 
 	// ================================================================================================================

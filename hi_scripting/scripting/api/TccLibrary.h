@@ -47,7 +47,7 @@
  ***************************************************************************************/
 
 // Keep this number in sync to prevent version mismatch between the header and the source
-#define TCC_LIBRARY_VERSION 0x0011
+#define TCC_LIBRARY_VERSION 0x0013
 
 // Think of a cleaner way..
 #if _WIN32 || _WIN64
@@ -74,6 +74,11 @@
 
 // Makes converting to C++ easier...
 #define nullptr NULL
+
+#if TCC_CPP
+#else
+typedef void* var;
+#endif
 
 /***************************************************************************************
  *																					   *
@@ -123,11 +128,24 @@ TCCLIBDEF void printDouble(double d);
 TCCLIBDEF void printFloat(float f);
 
 /***************************************************************************************
+*																					   *
+*	Javascript / C Boundary ROUTINES												   *
+*																					   *
+***************************************************************************************/
+
+TCCLIBDEF bool varToBool(void* v);
+TCCLIBDEF int varToInt(void* v);
+TCCLIBDEF double varToDouble(void* v);
+TCCLIBDEF float varToFloat(void* v);
+TCCLIBDEF float* getVarBufferData(void* v);
+TCCLIBDEF int getVarBufferSize(void* v);
+
+/***************************************************************************************
  *																					   *
  *	MATH ROUTINES																	   *
  *																					   *
  ***************************************************************************************/
-
+ 
 TCCLIBDEF void windowFunctionBlackman(float* d, int size);
 TCCLIBDEF void windowFunctionRectangle(float* d, int size);
 TCCLIBDEF void windowFunctionHann(float* d, int size);

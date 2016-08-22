@@ -291,6 +291,7 @@ public:
 		struct ConstVarStatement;		struct ConstReference;		struct ConstObjectApiCall;
 		struct GlobalVarStatement;		struct GlobalReference;		struct LocalVarStatement;
 		struct LocalReference;			struct LockStatement;	    struct CallbackParameterReference;
+		struct ExternalCFunction;
 
 		// Parser classes
 
@@ -423,11 +424,16 @@ public:
 
 			ReferenceCountedArray<Callback> callbackNEW;
 
+			ReferenceCountedArray<ExternalCFunction> externalCFunctions;
+
 			double callbackTimes[32];
 
 			static Array<Identifier> hiddenProperties;
 
 			OwnedArray<ExternalFileData> includedFiles;
+
+
+			int getExternalCIndex(const Identifier& id);
 
 			/** Call this after compiling and a dictionary of all values will be created. */
 			void createDebugInformation(DynamicObject *root);
