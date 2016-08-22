@@ -30,14 +30,7 @@
 *   ===========================================================================
 */
 
-#include <math.h>
-
-#if USE_C_IMPLEMENTATION
-#include <assert.h>
-#endif
-
-
-#define TCC_LIBRARY_C_VERSION 0x0007
+#define TCC_LIBRARY_C_VERSION 0x0011
 
 #ifndef TCC_LIBRARY_VERSION
 #error "Library Header not included"
@@ -51,16 +44,21 @@
 #define USE_C_IMPLEMENTATION 0
 #endif
 
-#if USE_C_IMPLEMENTATION
-#define CPP_PREFIX
 
+#if USE_C_IMPLEMENTATION
+#include <assert.h>
+#include <math.h>
 #include "../../../hi_core/additional_libraries/kiss_fft/kiss_fft.c"
 #include "../../../hi_core/additional_libraries/kiss_fft/kiss_fftr.c"
-
-#else
-#define CPP_PREFIX TccLibraryFunctions::
-
 #endif
+
+#if TCC_CPP
+#define CPP_PREFIX TccLibraryFunctions::
+#else
+#define CPP_PREFIX
+#endif
+
+
 
 void CPP_PREFIX vMultiply(float* dst, const float* src, int numSamples)
 {

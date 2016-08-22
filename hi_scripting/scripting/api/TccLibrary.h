@@ -1,67 +1,85 @@
 /*  ===========================================================================
-*
-*   This file is part of HISE.
-*   Copyright 2016 Christoph Hart
-*
-*   HISE is free software: you can redistribute it and/or modify
-*   it under the terms of the GNU General Public License as published by
-*   the Free Software Foundation, either version 3 of the License, or
-*   (at your option) any later version.
-*
-*   HISE is distributed in the hope that it will be useful,
-*   but WITHOUT ANY WARRANTY; without even the implied warranty of
-*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-*   GNU General Public License for more details.
-*
-*   You should have received a copy of the GNU General Public License
-*   along with HISE.  If not, see <http://www.gnu.org/licenses/>.
-*
-*   Commercial licences for using HISE in an closed source project are
-*   available on request. Please visit the project's website to get more
-*   information about commercial licencing:
-*
-*   http://www.hartinstruments.net/hise/
-*
-*   HISE is based on the JUCE library,
-*   which also must be licenced for commercial applications:
-*
-*   http://www.juce.com
-*
-*   ===========================================================================
-*/
+ *
+ *   This file is part of HISE.
+ *   Copyright 2016 Christoph Hart
+ *
+ *   HISE is free software: you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation, either version 3 of the License, or
+ *   (at your option) any later version.
+ *
+ *   HISE is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with HISE.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *   Commercial licences for using HISE in an closed source project are
+ *   available on request. Please visit the project's website to get more
+ *   information about commercial licencing:
+ *
+ *   http://www.hartinstruments.net/hise/
+ *
+ *   HISE is based on the JUCE library,
+ *   which also must be licenced for commercial applications:
+ *
+ *   http://www.juce.com
+ *
+ *   ===========================================================================
+ */
 
 #ifndef TCCLIBRARY_H_INCLUDED
 #define TCCLIBRARY_H_INCLUDED
 
-#define TCC_LIBRARY_VERSION 0x0007
-
-#ifndef TCC_INCLUDE
-#define TCC_INCLUDE 1
-#endif
-
-#if TCC_INCLUDE
-#define TCCLIBDEF extern
-
-#include <tcclib.h>
-
-#if TCC_COMMAND_LINE
-#include <kiss_fft/kiss_fft.h>
-#include <kiss_fft/kiss_fftr.h>
-#endif
-
+#if TCC_CPP
 #else
-#define TCCLIBDEF static
+#include <tcclib.h>
+#include <stdbool.h>
 #endif
 
-#if !TCC_INCLUDE
-static void addFunctionsToContext(TccContext* context);
-#endif
 
 /***************************************************************************************
-*																					   *
-*	VECTOR OPERATIONS																   *
-*																					   *
-***************************************************************************************/
+ *																					   *
+ *	PREPROCESSORS                                                                      *
+ *																					   *
+ ***************************************************************************************/
+
+// Keep this number in sync to prevent version mismatch between the header and the source
+#define TCC_LIBRARY_VERSION 0x0011
+
+// Think of a cleaner way..
+#if _WIN32 || _WIN64
+#define TCC_OSX 0
+#define TCC_WIN 1
+#else 
+#define TCC_OSX 1
+#define TCC_WIN 0
+#endif
+
+#if TCC_HISE
+#define TCC_COMMAND_LINE 0
+#else
+#define TCC_HISE 0
+#define TCC_COMMAND_LINE 1
+#endif
+
+// correct keyword for the function definition
+#if TCC_CPP
+#define TCCLIBDEF static
+#else
+#define TCCLIBDEF extern
+#endif
+
+// Makes converting to C++ easier...
+#define nullptr NULL
+
+/***************************************************************************************
+ *																					   *
+ *	VECTOR OPERATIONS																   *
+ *																					   *
+ ***************************************************************************************/
 
 /** dst *= src */
 TCCLIBDEF void vMultiply(float* dst, const float* src, int numSamples);
@@ -94,10 +112,10 @@ TCCLIBDEF float vMaximum(const float* data, int numSamples);
 TCCLIBDEF void vLimit(float* data, float minimum, float maximum, int numSamples);
 
 /***************************************************************************************
-*																					   *
-*	DEBUG / PRINT FUNCTIONS															   *
-*																					   *
-***************************************************************************************/
+ *																					   *
+ *	DEBUG / PRINT FUNCTIONS															   *
+ *																					   *
+ ***************************************************************************************/
 
 TCCLIBDEF void printString(const char* message);
 TCCLIBDEF void printInt(int i);
@@ -105,10 +123,10 @@ TCCLIBDEF void printDouble(double d);
 TCCLIBDEF void printFloat(float f);
 
 /***************************************************************************************
-*																					   *
-*	MATH ROUTINES																	   *
-*																					   *
-***************************************************************************************/
+ *																					   *
+ *	MATH ROUTINES																	   *
+ *																					   *
+ ***************************************************************************************/
 
 TCCLIBDEF void windowFunctionBlackman(float* d, int size);
 TCCLIBDEF void windowFunctionRectangle(float* d, int size);
@@ -134,5 +152,9 @@ TCCLIBDEF int nextPowerOfTwo(int size);
 
 TCCLIBDEF void writeFloatArray(float* data, int numSamples);
 TCCLIBDEF void writeFrequencySpectrum(float* data, int numSamples);
+
+#if TCC_CPP
+static void addFunctionsToContext(TccContext* context);
+#endif
 
 #endif  // TCCLIBRARY_H_INCLUDED

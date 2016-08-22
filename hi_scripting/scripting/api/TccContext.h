@@ -36,7 +36,8 @@
 
 class TccContext;
 
-#define TCC_INCLUDE 0
+#define TCC_CPP 1
+#define TCC_HISE 1
 
 struct TccLibraryFunctions
 {
