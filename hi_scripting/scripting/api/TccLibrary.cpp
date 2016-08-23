@@ -540,30 +540,49 @@ void CPP_PREFIX destroyFFTState(void* state)
 
 bool CPP_PREFIX varToBool(void* v)
 {
+#if USE_C_IMPLEMENTATION
+    return false;
+#else
 	var* va = reinterpret_cast<var*>(v);
 	return (bool)(*va);
+#endif
 }
 
 int CPP_PREFIX varToInt(void* v)
 {
+#if USE_C_IMPLEMENTATION
+    return 0;
+#else
 	var* va = reinterpret_cast<var*>(v);
-	return (bool)(*va);
+	return (int)(*va);
+#endif
 }
 
 double CPP_PREFIX varToDouble(void* v)
 {
+#if USE_C_IMPLEMENTATION
+    return 0.0;
+#else
 	var* va = reinterpret_cast<var*>(v);
-	return (bool)(*va);
+	return (double)(*va);
+#endif
 }
 
 float CPP_PREFIX varToFloat(void* v)
 {
+#if USE_C_IMPLEMENTATION
+    return 0.0f;
+#else
 	var* va = reinterpret_cast<var*>(v);
-	return (bool)(*va);
+    return (float)(*va);
+#endif
 }
 
 float* CPP_PREFIX getVarBufferData(void* v)
 {
+#if USE_C_IMPLEMENTATION
+    return NULL;
+#else
 	var* va = reinterpret_cast<var*>(v);
 
 	if (va->isBuffer())
@@ -571,20 +590,25 @@ float* CPP_PREFIX getVarBufferData(void* v)
 		return va->getBuffer()->buffer.getWritePointer(0);
 	}
 
+#endif
 	return NULL;
+
 }
 
 int CPP_PREFIX getVarBufferSize(void* v)
 {
+#if USE_C_IMPLEMENTATION
+#else
 	var* va = reinterpret_cast<var*>(v);
 
 	if (va->isBuffer())
 	{
 		return va->getBuffer()->size;
 	}
-
+#endif
+    
 	return -1;
-	}
+}
 
 
 #if USE_C_IMPLEMENTATION

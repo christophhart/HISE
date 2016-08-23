@@ -781,11 +781,10 @@ private:
 
 		match(TokenTypes::closeParen);
 
-		int braceLevel = 1;
+		int braceLevel = 0;
 
-		match(TokenTypes::openBrace);
 
-		while (braceLevel > 0 && currentType != TokenTypes::eof)
+		while (braceLevel >= 0 && currentType != TokenTypes::eof)
 		{
 			if (currentType == TokenTypes::openBrace)
 			{
@@ -801,13 +800,9 @@ private:
 
 		String::CharPointerType end = location.location;
 
-		const int numChars = end.getAddress() - start.getAddress();
-
-		match(TokenTypes::closeBrace);
-
 		String cCode = "#include <TccLibrary.h>\n";
 		cCode << "#include <math.h>\n";
-		cCode << String(start, end);
+		cCode << String(start, end - 1);
 
 		functionObject->c.openContext();
 		functionObject->c.compile(cCode);
