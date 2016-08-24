@@ -465,7 +465,9 @@ struct JavascriptTokeniserFunctions
 
             return result;
         }
-
+		case '#':
+			skipPreprocessorLine(source);
+			return JavascriptTokeniser::tokenType_preprocessor;
         case '*':   case '%':
         case '=':   case '!':
             source.skip();
