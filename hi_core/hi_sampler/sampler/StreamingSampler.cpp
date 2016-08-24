@@ -657,11 +657,17 @@ void StreamingSamplerSound::FileReader::openFileHandles(NotificationType notifyP
 		{
 			if (fileFormatSupportsMemoryReading)
 			{
-				memoryReader = pool->afm.findFormatForFileExtension(loadedFile.getFileExtension())->createMemoryMappedReader(loadedFile);
 
-				if (memoryReader != nullptr)
+				AudioFormat* format = pool->afm.findFormatForFileExtension(loadedFile.getFileExtension());
+
+				if (format != nullptr)
 				{
-					memoryReader->mapSectionOfFile(Range<int64>((int64)(sound->sampleStart) + (int64)(sound->monolithOffset), (int64)(sound->sampleEnd)));
+					memoryReader = format->createMemoryMappedReader(loadedFile);
+
+					if (memoryReader != nullptr)
+					{
+						memoryReader->mapSectionOfFile(Range<int64>((int64)(sound->sampleStart) + (int64)(sound->monolithOffset), (int64)(sound->sampleEnd)));
+					}
 				}
 			}
 			normalReader = pool->afm.createReaderFor(loadedFile);
