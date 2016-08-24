@@ -34,6 +34,10 @@
 #define SCRIPTDSPMODULES_H_INCLUDED
 
 
+#ifndef FILL_PARAMETER_ID
+#define FILL_PARAMETER_ID(enumClass, enumId, size, text) case (int)enumClass::enumId: strcpy(text, #enumId); size = strlen(text); break;
+#endif
+
 class ScriptingDsp
 {
 public:
@@ -133,6 +137,140 @@ public:
 		}
 	};
 
+
+	class Stereo : public DspBaseObject
+	{
+	public:
+
+		enum class Parameters
+		{
+			Pan = 0,
+			Width,
+			numParameters
+		};
+
+		Stereo() :
+			DspBaseObject(),
+			mb(new VariantBuffer(0)),
+			sb(new VariantBuffer(0))
+		{};
+
+		SET_MODULE_NAME("stereo");
+		
+		int getNumParameters() const override { return 2; }
+
+		float getParameter(int index) const override
+		{
+			if (index == 0) return pan / 100.0f;
+			else return width;
+		}
+
+		void setParameter(int index, float newValue) override
+		{
+			if (index == 0) pan = newValue*100.0;
+			else width = newValue;
+			
+		}
+
+		void prepareToPlay(double sampleRate, int samplesPerBlock)
+		{
+			mb = new VariantBuffer(samplesPerBlock);
+			sb = new VariantBuffer(samplesPerBlock);
+		}
+
+		void processBlock(float** data, int numChannels, int numSamples)
+		{
+			if (numChannels == 2)
+			{
+				float *l = data[0];
+				float *r = data[1];
+
+				const float thisPan = 0.92f * pan + 0.08f * lastPan;
+				lastPan = thisPan;
+
+				const float thisWidth = 0.92f * width + 0.08f * lastWidth;
+				lastWidth = thisWidth;
+
+				FloatVectorOperations::multiply(l, BalanceCalculator::getGainFactorForBalance(lastPan, true), numSamples);
+				FloatVectorOperations::multiply(r, BalanceCalculator::getGainFactorForBalance(lastPan, false), numSamples);
+
+				const float w = 0.5f * lastWidth;
+
+#if 1
+				while (--numSamples >= 0)
+				{
+					const float m = (*l + *r) * 0.5f;
+					const float s = (*r - *l) * w;
+
+					*l = (m - s);
+					*r = (m + s);
+
+					l++;
+					r++;
+				}
+
+#else
+
+				float *s = sb->buffer.getWritePointer(0);
+				float *m = mb->buffer.getWritePointer(0);
+
+				FloatVectorOperations::copy(m, l, numSamples);
+				FloatVectorOperations::add(m, r, numSamples);
+				FloatVectorOperations::multiply(m, 0.5f, numSamples);
+
+				FloatVectorOperations::copy(r, s, numSamples);
+				FloatVectorOperations::subtract(s, l, numSamples);
+				FloatVectorOperations::multiply(s, 0.5f * width, numSamples);
+
+				FloatVectorOperations::copy(l, m, numSamples);
+				FloatVectorOperations::subtract(l, s, numSamples);
+
+				FloatVectorOperations::copy(r, m, numSamples);
+				FloatVectorOperations::add(r, s, numSamples);
+#endif
+
+			}
+		}
+
+		int getNumConstants() const override
+		{
+			return 2;
+		}
+
+		void getIdForConstant(int index, char*name, int &size) const noexcept override
+		{
+			switch (index)
+			{
+				FILL_PARAMETER_ID(Parameters, Pan, size, name);
+				FILL_PARAMETER_ID(Parameters, Width, size, name);
+			}
+		};
+
+		bool getConstant(int index, int& value) const noexcept override
+		{
+			if (index < getNumParameters())
+			{
+				value = index;
+				return true;
+			}
+
+			return false;
+		};
+
+		
+
+	private:
+
+		VariantBuffer::Ptr mb;
+		VariantBuffer::Ptr sb;
+
+		float pan = 0.0f;
+		float width = 1.0f;
+
+		float lastPan = 0.0f;
+		float lastWidth = 1.0f;
+
+	};
 
 	class Delay : public DspBaseObject
 	{
@@ -675,15 +813,18 @@ public:
 
 class HiseCoreDspFactory : public StaticDspFactory
 {
-	Identifier getId() const override { RETURN_STATIC_IDENTIFIER("Core") };
+	Identifier getId() const override { RETURN_STATIC_IDENTIFIER("core") };
 
 	void registerModules() override
 	{
 		registerDspModule<ScriptingDsp::Delay>();
 		registerDspModule<ScriptingDsp::SignalSmoother>();
+		registerDspModule<ScriptingDsp::Stereo>();
         registerDspModule<ScriptingDsp::MoogFilter>();
 		registerDspModule<ScriptingDsp::SineGenerator>();
 	}
 };
+
+#undef FILL_PARAMETER_ID
 
 #endif  // SCRIPTDSPMODULES_H_INCLUDED
