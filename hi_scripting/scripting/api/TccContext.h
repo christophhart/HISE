@@ -67,7 +67,7 @@ public:
 	// ================================================================================================================
 
 	/** Opens the context for compiling. */
-	void openContext();
+	int openContext();
 
 	/** Closes the context. after a compilation. */
 	void closeContext();

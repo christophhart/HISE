@@ -296,6 +296,13 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(D
 		debugInformation.add(new DebugableObjectInformation(o, o->name, DebugInformation::Type::InlineFunction));
 	}
 
+	for (int i = 0; i < externalCFunctions.size(); i++)
+	{
+		ExternalCFunction* cf = externalCFunctions[i];
+
+		debugInformation.add(new DebugableObjectInformation(cf, cf->name, DebugInformation::Type::ExternalFunction));
+	}
+
 	for (int i = 0; i < callbackNEW.size(); i++)
 	{
 		if (!callbackNEW[i]->isDefined()) continue;

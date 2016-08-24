@@ -217,10 +217,10 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 	{
 		hiseSpecialData = &data;
 		
-		findGlobalVarIds(codeToPreprocess);
+		findConstVarIds(codeToPreprocess);
 	}
 
-	void findGlobalVarIds(const String& codeToPreprocess);
+	void findConstVarIds(const String& codeToPreprocess);
 
 	BlockStatement* parseStatementList()
 	{
@@ -752,15 +752,15 @@ private:
 		match(TokenTypes::literal);
 		match(TokenTypes::openBrace);
 
+		
+
 		String::CharPointerType start = location.location;
 
-		ScopedPointer<ExternalCFunction> functionObject = new ExternalCFunction();
-
 		static const Identifier void_("void");
+		const bool hasReturnType = parseIdentifier() != void_;
+		const Identifier name = parseIdentifier();
 
-		functionObject->hasReturnType = parseIdentifier() != void_;
-
-		functionObject->name = parseIdentifier();
+		const String comment = lastComment;
 
 		match(TokenTypes::openParen);
 
@@ -770,53 +770,32 @@ private:
 		{
 			match(TokenTypes::var);
 
-			functionObject->arguments.add(currentValue.toString());
+			arguments.add(currentValue.toString());
 			match(TokenTypes::identifier);
 
 			if (currentType != TokenTypes::closeParen)
 				match(TokenTypes::comma);
 		}
 
-		functionObject->numArguments = functionObject->arguments.size();
-
 		match(TokenTypes::closeParen);
 
 		int braceLevel = 0;
 
-
 		while (braceLevel >= 0 && currentType != TokenTypes::eof)
 		{
-			if (currentType == TokenTypes::openBrace)
-			{
-				braceLevel++;
-			}
-			if (currentType == TokenTypes::closeBrace)
-			{
-				braceLevel--;
-			}
+			if (currentType == TokenTypes::openBrace)	braceLevel++;
+			if (currentType == TokenTypes::closeBrace)	braceLevel--;
 
 			skip();
 		}
 
 		String::CharPointerType end = location.location;
-
-		String cCode = "#include <TccLibrary.h>\n";
-		cCode << "#include <math.h>\n";
-		cCode << String(start, end - 1);
-
-		functionObject->c.openContext();
-		functionObject->c.compile(cCode);
-		functionObject->f = functionObject->c.getFunction(functionObject->name.toString());
-		functionObject->c.closeContext();
+		String cCode = String(start, end - 1); 
 		
-		if (functionObject->f == nullptr)
-		{
-			location.throwError("External C Function could not been parsed");
-		}
-		else
-		{
-			hiseSpecialData->externalCFunctions.add(functionObject.release());
-		}
+
+		ScopedPointer<ExternalCFunction> functionObject = new ExternalCFunction(location, name, hasReturnType, arguments, comment, cCode);
+
+		hiseSpecialData->externalCFunctions.add(functionObject.release());
 
 		return new Statement(location);
 	}
@@ -1476,7 +1455,7 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ExpressionTreeBuilder)
 };
 
-void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::findGlobalVarIds(const String& codeToPreprocess)
+void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::findConstVarIds(const String& codeToPreprocess)
 {
 	if (codeToPreprocess.isEmpty()) return;
 
@@ -1488,6 +1467,20 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::findGlobalVarIds(c
 
 	while (it.currentType != TokenTypes::eof)
 	{
+		// Skip extern "C" functions
+		if (it.currentType == TokenTypes::extern_)
+		{
+			while (!(it.currentType == TokenTypes::closeBrace && braceLevel == 1) && 
+				   !(it.currentType == TokenTypes::eof))
+			{
+				if (it.currentType == TokenTypes::openBrace) braceLevel++;
+				else if (it.currentType == TokenTypes::closeBrace) braceLevel--;
+
+				it.skip();
+			}
+		}
+
+		// Search in included files
 		if (it.currentType == TokenTypes::include_)
 		{
 			it.match(TokenTypes::include_);
@@ -1495,12 +1488,14 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::findGlobalVarIds(c
 			String fileName = it.currentValue.toString();
 			String externalCode = getFileContent(it.currentValue.toString(), fileName);
 			
-			findGlobalVarIds(externalCode);
+			findConstVarIds(externalCode);
 		}
 
+		// Handle the brace level
 		if (it.currentType == TokenTypes::openBrace) braceLevel++;
 		else if (it.currentType == TokenTypes::closeBrace) braceLevel--;
 
+		// Handle the keyword
 		if (it.currentType == TokenTypes::const_)
 		{
 			it.match(TokenTypes::const_);

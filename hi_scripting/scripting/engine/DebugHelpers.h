@@ -91,6 +91,7 @@ public:
 		InlineFunction,
 		Globals,
 		Callback,
+		ExternalFunction,
 		numTypes
 	};
 
@@ -123,6 +124,7 @@ public:
 		case Type::InlineFunction:	 return "InlineFunction";
 		case Type::Globals:			 return "Globals";
 		case Type::Callback:		 return "Callback";
+		case Type::ExternalFunction: return "ExternalFunction";
         case Type::numTypes:         return "";
 		}
 		return "";

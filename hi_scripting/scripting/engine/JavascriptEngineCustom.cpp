@@ -390,14 +390,62 @@ struct HiseJavascriptEngine::RootObject::CallbackParameterReference: public Expr
 	var* data;
 };
 
-struct HiseJavascriptEngine::RootObject::ExternalCFunction: public ReferenceCountedObject
+struct HiseJavascriptEngine::RootObject::ExternalCFunction: public ReferenceCountedObject,
+														    public DebugableObject
 {
+	ExternalCFunction(CodeLocation& l, const Identifier &name_, bool hasReturnType_, Array<Identifier>& arguments_, const String &comment_, const String& codeToCompile):
+	name(name_),
+	hasReturnType(hasReturnType_),
+	numArguments(arguments_.size()),
+	arguments(arguments_),
+	f(nullptr),
+	compiledOk(false),
+	commentDoc(comment_),
+	signature(codeToCompile.fromFirstOccurrenceOf(" ", false, false).upToFirstOccurrenceOf(")", true, false))
+	{
+		String cCode = "#include <TccLibrary.h>\n";
+		cCode << "#include <math.h>\n";
+		cCode << codeToCompile;
+
+
+		int dllLoading = c.openContext();
+
+		if (dllLoading != (int)LoadingErrorCode::LoadingSuccessful)
+		{
+			c.closeContext();
+			l.throwError("The TCC compiler dynamic library could not be loaded.");
+		}
+
+		compiledOk = c.compile(cCode) == 0;
+
+		if (compiledOk)
+		{
+			f = c.getFunction(name.toString());
+			c.closeContext();
+			if (f == nullptr)
+			{
+				l.throwError("The function couldn't be parsed");
+			}
+		}
+		else
+		{
+			c.closeContext();
+			l.throwError("Error at compiling external C function " + name.toString());
+		}
+	}
+
 	struct FunctionCall : public Expression
 	{
 		FunctionCall(const CodeLocation& l, ExternalCFunction* cFunction_) : Expression(l), cFunction(cFunction_) {}
 
 		var getResult(const Scope& s) const override
 		{
+			if (!cFunction->compiledOk)
+			{
+				location.throwError("Trying to call a uncompiled function.");
+				return var::undefined();
+			}
+
 			var args[4];
 
 			for (int i = 0; i < cFunction->numArguments; i++)
@@ -427,7 +475,6 @@ struct HiseJavascriptEngine::RootObject::ExternalCFunction: public ReferenceCoun
 				}
 			}
 			
-
 			return var::undefined();
 		}
 
@@ -435,10 +482,29 @@ struct HiseJavascriptEngine::RootObject::ExternalCFunction: public ReferenceCoun
 		ExternalCFunction* cFunction;
 	};
 
+
+	String getDebugValue() const override { return lastReturnValue.toString(); }
+
+	/** This will be shown as name of the object. */
+	String getDebugName() const override { return signature; }
+
+	String getDebugDataType() const override { return DebugInformation::getVarType(lastReturnValue); }
+
+	AttributedString getDescription() const override
+	{
+		return DebugableObject::Helpers::getFunctionDoc(commentDoc, arguments);
+	}
+
+	var lastReturnValue;
+
+	String signature;
+
 	Identifier name;
 	bool hasReturnType;
 	Array<Identifier> arguments;
 	int numArguments;
 	void* f;
 	TccContext c;
+	bool compiledOk;
+	String commentDoc;
 };

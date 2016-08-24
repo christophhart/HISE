@@ -93,14 +93,14 @@ TccContext::~TccContext()
 	}
 }
 
-void TccContext::openContext()
+int TccContext::openContext()
 {
 	if (activeContextExists)
 	{
 		// You must only have one active compile context open at a time...
 		jassertfalse;
 		state = nullptr;
-		return;
+		return (int)LoadingErrorCode::Uninitialised;
 	}
 
 	if (dll->getNativeHandle() != nullptr)
@@ -140,6 +140,12 @@ void TccContext::openContext()
 		TccLibraryFunctions::addFunctionsToContext(this);
         
 		activeContextExists = true;
+
+		return (int)LoadingErrorCode::LoadingSuccessful;
+	}
+	else
+	{
+		return (int)LoadingErrorCode::MissingLibrary;
 	}
 }
 
