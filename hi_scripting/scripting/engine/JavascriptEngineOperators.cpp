@@ -102,6 +102,37 @@ struct HiseJavascriptEngine::RootObject::AdditionOp : public BinaryOperator
 	var getWithDoubles(double a, double b) const override                 { return a + b; }
 	var getWithInts(int64 a, int64 b) const override                      { return a + b; }
 	var getWithStrings(const String& a, const String& b) const override   { return a + b; }
+
+	var getWithArrayOrObject(const var &a, const var& b) const override
+	{
+		if (a.isBuffer())
+		{
+			VariantBuffer* vba = a.getBuffer();
+
+			if (b.isBuffer())
+			{
+				VariantBuffer* vbb = b.getBuffer();
+
+				if (vbb->buffer.getNumSamples() != vba->buffer.getNumSamples())
+				{
+					location.throwError("Buffer size mismatch: " + String(b.getBuffer()->buffer.getNumSamples()) + " vs. " + String(a.getBuffer()->buffer.getNumSamples()));
+				}
+
+				*vba += *vbb;
+			}
+			else
+			{
+				*vba += (float)b;
+			}
+
+			return a;
+		}
+		else
+		{
+			return BinaryOperator::getWithArrayOrObject(a, b);
+		}
+	}
+
 };
 
 struct HiseJavascriptEngine::RootObject::SubtractionOp : public BinaryOperator
@@ -109,6 +140,36 @@ struct HiseJavascriptEngine::RootObject::SubtractionOp : public BinaryOperator
 	SubtractionOp(const CodeLocation& l, ExpPtr& a, ExpPtr& b) noexcept : BinaryOperator(l, a, b, TokenTypes::minus) {}
 	var getWithDoubles(double a, double b) const override { return a - b; }
 	var getWithInts(int64 a, int64 b) const override      { return a - b; }
+
+	var getWithArrayOrObject(const var &a, const var& b) const override
+	{
+		if (a.isBuffer())
+		{
+			VariantBuffer* vba = a.getBuffer();
+
+			if (b.isBuffer())
+			{
+				VariantBuffer* vbb = b.getBuffer();
+
+				if (vbb->buffer.getNumSamples() != vba->buffer.getNumSamples())
+				{
+					location.throwError("Buffer size mismatch: " + String(b.getBuffer()->buffer.getNumSamples()) + " vs. " + String(a.getBuffer()->buffer.getNumSamples()));
+				}
+
+				*vba -= *vbb;
+			}
+			else
+			{
+				*vba -= (float)b;
+			}
+
+			return a;
+		}
+		else
+		{
+			return BinaryOperator::getWithArrayOrObject(a, b);
+		}
+	}
 };
 
 struct HiseJavascriptEngine::RootObject::MultiplyOp : public BinaryOperator
@@ -131,7 +192,7 @@ struct HiseJavascriptEngine::RootObject::MultiplyOp : public BinaryOperator
 
 				if (vbb->buffer.getNumSamples() != vba->buffer.getNumSamples())
 				{
-					throw String("Buffer size mismatch: " + String(b.getBuffer()->buffer.getNumSamples()) + " vs. " + String(a.getBuffer()->buffer.getNumSamples()));
+					location.throwError("Buffer size mismatch: " + String(b.getBuffer()->buffer.getNumSamples()) + " vs. " + String(a.getBuffer()->buffer.getNumSamples()));
 				}
 
 				*vba *= *vbb;
@@ -140,6 +201,8 @@ struct HiseJavascriptEngine::RootObject::MultiplyOp : public BinaryOperator
 			{
 				*vba *= (float)b;
 			}
+
+			return a;
 		}
 		else
 		{
@@ -199,6 +262,8 @@ struct HiseJavascriptEngine::RootObject::LeftShiftOp : public BinaryOperator
 			{
 				*buffer << *otherBuffer;
 			}
+
+			return a;
 		}
 		else if (DspInstance* instance = dynamic_cast<DspInstance*>(a.getObject()))
 		{
@@ -206,6 +271,8 @@ struct HiseJavascriptEngine::RootObject::LeftShiftOp : public BinaryOperator
 			{
 				*instance >> b;
 			}
+
+			return a;
 		}
 
 		return a;

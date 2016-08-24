@@ -99,6 +99,13 @@ public:
 	VariantBuffer& operator +=(const VariantBuffer &b);
 	VariantBuffer operator +(float gain);
 	VariantBuffer& operator +=(float gain);
+
+	VariantBuffer & operator -(float value);
+	VariantBuffer & operator -=(float value);
+
+	VariantBuffer & operator -(const VariantBuffer &b);
+	VariantBuffer & operator -=(const VariantBuffer &b);
+
 	VariantBuffer& operator <<(const VariantBuffer &b);
 	VariantBuffer& operator << (float f);
 	void operator >>(VariantBuffer &destinationBuffer) const;
