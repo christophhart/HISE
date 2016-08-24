@@ -210,6 +210,10 @@ private:
         
         bool isFileSuitable(const File &file) const override
         {
+#if JUCE_WINDOWS
+			if (file.getFileName().startsWith(".")) return false; // skip OSX hidden files on windows
+#endif
+
             return file.hasFileExtension("hip") ||
                    file.hasFileExtension("js") ||
                    file.hasFileExtension("ttf") ||
