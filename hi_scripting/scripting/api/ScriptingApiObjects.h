@@ -100,7 +100,7 @@ public:
 
 	private:
 
-		int16 data[128];
+		int data[128];
 		bool empty;
 		int numValues;
 

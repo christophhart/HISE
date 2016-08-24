@@ -431,7 +431,7 @@ class BalanceCalculator
 {
 public:
 
-	/** Converts a balance value to the gain factor for the supplied channel using an equal power formula. */
+	/** Converts a balance value to the gain factor for the supplied channel using an equal power formula. Input is -100.0 ... 100.0 */
 	static float getGainFactorForBalance(float balanceValue, bool calculateLeftChannel)
 	{
 		const float balance = balanceValue / 100.0f;

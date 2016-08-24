@@ -308,6 +308,8 @@ public:
 
 	void setBypassed(bool shouldBeBypassed) noexcept override
 	{
+		ScopedLock sl(lock);
+
 		Processor::setBypassed(shouldBeBypassed);
 		
 		midiProcessorChain->sendAllNoteOffEvent();
@@ -405,6 +407,8 @@ public:
 	/** sets the balance from -1.0 (left) to 1.0 (right) and applies a equal power pan rule. */
 	void setBalance(float newBalance)
 	{
+		ScopedLock sl(lock);
+
 		balance = newBalance;
 
 		leftBalanceGain = BalanceCalculator::getGainFactorForBalance((balance * 100.0f), true);

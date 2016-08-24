@@ -69,7 +69,7 @@ var ScriptingObjects::MidiList::getAssignedValue(int index) const				 { return g
 
 void ScriptingObjects::MidiList::fill(int valueToFill)
 {
-	for (int i = 0; i < 128; i++) data[i] = (int16)valueToFill;
+	for (int i = 0; i < 128; i++) data[i] = valueToFill;
 	empty = false;
 	numValues = 128;
 }
@@ -94,7 +94,7 @@ int ScriptingObjects::MidiList::getValueAmount(int valueToCheck)
 
 	for (int i = 0; i < 128; i++)
 	{
-		if (data[i] == (int16)valueToCheck) amount++;
+		if (data[i] == valueToCheck) amount++;
 	}
 
 	return amount;
@@ -105,7 +105,7 @@ int ScriptingObjects::MidiList::getIndex(int value) const
 	if (empty) return -1;
 	for (int i = 0; i < 128; i++)
 	{
-		if (data[i] == (int16)value)
+		if (data[i] == value)
 		{
 			return i;
 		}
@@ -118,7 +118,7 @@ void ScriptingObjects::MidiList::setValue(int index, int value)
 {
 	if (index >= 0 && index < 128)
 	{
-		data[index] = (int16)value;
+		data[index] = value;
 
 		if (value == -1)
 		{
@@ -136,13 +136,13 @@ void ScriptingObjects::MidiList::setValue(int index, int value)
 String ScriptingObjects::MidiList::getBase64String() const
 {
 	MemoryOutputStream stream;
-	Base64::convertToBase64(stream, data, sizeof(int16) * 128);
+	Base64::convertToBase64(stream, data, sizeof(int) * 128);
 	return stream.toString();
 }
 
 void ScriptingObjects::MidiList::restoreFromBase64String(String base64encodedValues)
 {
-	MemoryOutputStream stream(data, sizeof(int16) * 128);
+	MemoryOutputStream stream(data, sizeof(int) * 128);
 	Base64::convertFromBase64(stream, base64encodedValues);
 }
 

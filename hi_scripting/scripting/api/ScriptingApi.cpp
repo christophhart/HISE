@@ -62,6 +62,7 @@ void ApiHelpers::getColourAndCharForType(int type, char &c, Colour &colour)
 	case (int)DebugInformation::Type::Globals:			c = 'G'; break;
 	case (int)DebugInformation::Type::Constant:			c = 'C'; break;
 	case (int)DebugInformation::Type::RegisterVariable:	c = 'R'; break;
+	case (int)DebugInformation::Type::ExternalFunction: c = 'E'; break;
 	case 7:												c = 'A'; break;
 	default:											c = 'V'; break;
 	}
@@ -75,6 +76,7 @@ void ApiHelpers::getColourAndCharForType(int type, char &c, Colour &colour)
 	case 'R': colour = Colours::red.withAlpha(alpha).withBrightness(brightness); break;
 	case 'A': colour = Colours::orange.withAlpha(alpha).withBrightness(brightness); break;
 	case 'F': colour = Colours::purple.withAlpha(alpha).withBrightness(brightness); break;
+	case 'E': colour = Colours::chocolate.withAlpha(alpha).withBrightness(brightness); break;
 
 	}
 }
