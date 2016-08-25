@@ -361,12 +361,12 @@ struct HiseJavascriptEngine::RootObject::LocalReference : public Expression
 {
 	LocalReference(const CodeLocation& l, InlineFunction::Object *parentFunction_, const Identifier &id_) noexcept : Expression(l), parentFunction(parentFunction_), id(id_) {}
 
-	var getResult(const Scope& s) const override
+	var getResult(const Scope& /*s*/) const override
 	{
 		return parentFunction->localProperties[id];
 	}
 
-	void assign(const Scope& s, const var& newValue) const override
+	void assign(const Scope& /*s*/, const var& newValue) const override
 	{
 		parentFunction->localProperties.set(id, newValue);
 	}

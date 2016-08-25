@@ -140,9 +140,9 @@ public:
 
 	void setCurrentProgram(int index) override;
 	
-    const ValueTree &getPresetData() const { return presets; };
+    const ValueTree getPresetData() const { return presets; };
     
-	const ValueTree &getSampleMap(const String &sampleMapId)
+	const ValueTree getSampleMap(const String &sampleMapId)
 	{
 		return sampleMaps.getChildWithProperty("ID", sampleMapId);
 	}

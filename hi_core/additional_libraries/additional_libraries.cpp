@@ -50,9 +50,18 @@ namespace icstdsp
 
 #pragma warning (pop)
 
+#if JUCE_MSVC
+#pragma warning (push)
+#pragma warning (disable: 4244 4127)
+
+#endif
+
 extern "C"
 {
 #include "kiss_fft/kiss_fft.c"
 #include "kiss_fft/kiss_fftr.c"
 }
 
+#if JUCE_MSVC
+#pragma warning (pop)
+#endif

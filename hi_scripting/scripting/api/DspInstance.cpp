@@ -217,6 +217,7 @@ var DspInstance::getNumParameters() const
         return object->getNumParameters();
     }
 
+	return 0;
 }
 
 
@@ -227,6 +228,7 @@ var DspInstance::getNumConstants() const
         return object->getNumConstants();
     }
 
+	return 0;
 }
 
 
@@ -236,6 +238,8 @@ var DspInstance::getConstantId(int index) const
     {
         return getConstantName(index).toString();
     }
+
+	return "";
 }
 
 var DspInstance::getConstant(int index) const
@@ -244,6 +248,8 @@ var DspInstance::getConstant(int index) const
     {
         return getConstantValue(index);
     }
+
+	return 0;
 }
 
 void DspInstance::setStringParameter(int index, String value)

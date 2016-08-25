@@ -18,7 +18,7 @@ VariantBuffer::VariantBuffer(VariantBuffer *otherBuffer, int offset /*= 0*/, int
 VariantBuffer::VariantBuffer(int samples) :
 size(samples)
 {
-	buffer = AudioSampleBuffer(1, size);
+	buffer = AudioSampleBuffer(1, jmax<int>(0, size));
 	buffer.clear();
 }
 

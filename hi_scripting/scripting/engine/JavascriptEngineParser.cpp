@@ -382,10 +382,11 @@ private:
 		String fileContent = f.loadFileAsString();
 
 #else
-		const String fileName = currentValue.toString().removeCharacters("\"\'");
-		refFileName = fileName;
+		//const String fileName = currentValue.toString().removeCharacters("\"\'");
+		//refFileName = fileName;
+		refFileName = fileNameInScript;
 
-		String fileContent = dynamic_cast<Processor*>(hiseSpecialData->processor)->getMainController()->getExternalScriptFromCollection(fileName);
+		String fileContent = dynamic_cast<Processor*>(hiseSpecialData->processor)->getMainController()->getExternalScriptFromCollection(fileNameInScript);
 #endif
 
 		return fileContent;

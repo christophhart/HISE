@@ -125,7 +125,7 @@ void CPP_PREFIX vCopy(float* dst, const float* src, int numSamples)
 #endif
 }
 
-float CPP_PREFIX vMinimum(const float* data, int numSamples)
+float CPP_PREFIX vMinimum(const float* /*data*/, int /*numSamples*/)
 {
 #if USE_C_IMPLEMENTATION
 
@@ -136,7 +136,7 @@ float CPP_PREFIX vMinimum(const float* data, int numSamples)
 	return 0.0f;
 }
 
-float CPP_PREFIX vMaximum(const float* data, int numSamples)
+float CPP_PREFIX vMaximum(const float* /*data*/, int /*numSamples*/)
 {
 #if USE_C_IMPLEMENTATION
 
@@ -147,7 +147,7 @@ float CPP_PREFIX vMaximum(const float* data, int numSamples)
 	return 1.0f;
 }
 
-void CPP_PREFIX vLimit(float* data, float minimum, float maximum, int numSamples)
+void CPP_PREFIX vLimit(float* /*data*/, float /*minimum*/, float /*maximum*/, int /*numSamples*/)
 {
 #if USE_C_IMPLEMENTATION
 
@@ -512,6 +512,8 @@ void* CPP_PREFIX createFFTState(int size, bool isReal, bool isInverse)
 		return kiss_fft_alloc(size, isInverse, 0, 0);
 	}
 #else
+
+	ignoreUnused(isInverse);
 
 	const int N = (int)log2((double)size);
 	return new IppFFT(isReal ? IppFFT::DataType::RealFloat : IppFFT::DataType::ComplexFloat, isReal ? N+2 : N+1);

@@ -35,7 +35,7 @@
 
 
 #ifndef FILL_PARAMETER_ID
-#define FILL_PARAMETER_ID(enumClass, enumId, size, text) case (int)enumClass::enumId: strcpy(text, #enumId); size = strlen(text); break;
+#define FILL_PARAMETER_ID(enumClass, enumId, size, text) case (int)enumClass::enumId: strcpy(text, #enumId); size = (int)strlen(text); break;
 #endif
 
 class ScriptingDsp
@@ -167,12 +167,12 @@ public:
 
 		void setParameter(int index, float newValue) override
 		{
-			if (index == 0) pan = newValue*100.0;
+			if (index == 0) pan = newValue*100.0f;
 			else width = newValue;
 			
 		}
 
-		void prepareToPlay(double sampleRate, int samplesPerBlock)
+		void prepareToPlay(double /*sampleRate*/, int samplesPerBlock)
 		{
 			mb = new VariantBuffer(samplesPerBlock);
 			sb = new VariantBuffer(samplesPerBlock);
