@@ -741,6 +741,8 @@ void ScriptedControlAudioParameter::setControlledScriptComponent(ScriptingApi::C
 			range.interval = 1.0f;
 			itemList = dynamic_cast<ScriptingApi::Content::ScriptComboBox*>(c)->getItemList();
 			break;
+		case ScriptedControlAudioParameter::Type::Panel:
+			break;
 		case ScriptedControlAudioParameter::Type::Unsupported:
 			// This should be taken care of before creation of this object...
 			jassertfalse;
@@ -827,6 +829,10 @@ String ScriptedControlAudioParameter::getText(float value, int) const
 		return itemList[index];
 		break;
 	}
+	case ScriptedControlAudioParameter::Type::Panel:
+	{
+		return String((int)range.convertFrom0to1(jlimit(0.0f, 1.0f, value)));
+	}
 		
 	case ScriptedControlAudioParameter::Type::Unsupported:
 	default:
@@ -850,6 +856,8 @@ float ScriptedControlAudioParameter::getValueForText(const String &text) const
 	case ScriptedControlAudioParameter::Type::ComboBox:
 		return (float)itemList.indexOf(text);
 		break;
+	case ScriptedControlAudioParameter::Type::Panel:
+		return (float)text.getIntValue();
 	case ScriptedControlAudioParameter::Type::Unsupported:
 		break;
 	default:
@@ -871,6 +879,9 @@ int ScriptedControlAudioParameter::getNumSteps() const
 		break;
 	case ScriptedControlAudioParameter::Type::ComboBox:
 		return itemList.size();
+	case ScriptedControlAudioParameter::Type::Panel:
+		return (int)range.end +1 ;
+
 	case ScriptedControlAudioParameter::Type::Unsupported:
 		break;
 	default:
@@ -891,5 +902,6 @@ ScriptedControlAudioParameter::Type ScriptedControlAudioParameter::getType(Scrip
 	if (dynamic_cast<ScriptingApi::Content::ScriptSlider*>(component)) return Type::Slider;
 	else if (dynamic_cast<ScriptingApi::Content::ScriptComboBox*>(component)) return Type::ComboBox;
 	else if (dynamic_cast<ScriptingApi::Content::ScriptButton*>(component)) return Type::Button;
+	else if (dynamic_cast<ScriptingApi::Content::ScriptPanel*>(component)) return Type::Panel;
 	else return Type::Unsupported;
 }

@@ -637,6 +637,8 @@ public:
 
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 
+		bool isAutomatable() const override { return true; }
+
 		// ======================================================================================================== API Methods
 
 		/** Triggers a repaint. */

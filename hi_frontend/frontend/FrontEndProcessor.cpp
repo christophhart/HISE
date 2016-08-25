@@ -189,7 +189,16 @@ void FrontendProcessor::addScriptedParameters()
 			{
 				ScriptingApi::Content::ScriptComponent *c = content->getComponent(i);
 
-				if (c->isAutomatable() && c->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::isPluginParameter))
+				const bool wantsAutomation = c->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::isPluginParameter);
+				const bool isAutomatable = c->isAutomatable();
+
+				if (wantsAutomation && !isAutomatable)
+				{
+					// You specified a parameter for a unsupported widget type...
+					jassertfalse;
+				}
+
+				if (wantsAutomation && isAutomatable)
 				{
 					ScriptedControlAudioParameter *newParameter = new ScriptedControlAudioParameter(content->getComponent(i), this, sp, i);
 					addParameter(newParameter);

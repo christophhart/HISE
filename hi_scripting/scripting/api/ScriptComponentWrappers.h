@@ -42,6 +42,7 @@ public:
 		Slider = 0,
 		Button,
 		ComboBox,
+		Panel,
 		Unsupported
 	};
 

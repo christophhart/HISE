@@ -1840,12 +1840,12 @@ graphics(new ScriptingObjects::GraphicsObject(base, this)),
 repainter(this),
 controlSender(this, base)
 {
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::max));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::min));
+	//deactivatedProperties.add(getIdFor(ScriptComponent::Properties::max));
+	//deactivatedProperties.add(getIdFor(ScriptComponent::Properties::min));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::bgColour));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::macroControl));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::enabled));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::tooltip));
+	//deactivatedProperties.add(getIdFor(ScriptComponent::Properties::enabled));
+	//deactivatedProperties.add(getIdFor(ScriptComponent::Properties::tooltip));
 	
 
 	propertyIds.add("borderSize");		ADD_AS_SLIDER_TYPE(0, 20, 1);
