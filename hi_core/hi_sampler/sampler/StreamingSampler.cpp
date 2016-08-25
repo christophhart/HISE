@@ -338,6 +338,25 @@ void StreamingSamplerSound::loopChanged()
 		loopEnd = jmin<int>(loopEnd, sampleEnd);
 		loopLength = loopEnd - loopStart;
 
+		if (loopLength < 4096)
+		{
+			useSmallLoopBuffer = true;
+
+			fileReader.openFileHandles();
+
+			smallLoopBuffer.setSize(2, (int)loopLength);
+
+			fileReader.readFromDisk(smallLoopBuffer, 0, loopLength, loopStart, false);
+
+			closeFileHandle();
+
+		}
+		else
+		{
+			useSmallLoopBuffer = false;
+			smallLoopBuffer.setSize(2, 0);
+		}
+
 		if(crossfadeLength != 0)
 		{
 			loopBuffer.setSize(2, (int)crossfadeLength);
@@ -407,8 +426,42 @@ void StreamingSamplerSound::fillSampleBuffer(AudioSampleBuffer &sampleBuffer, in
 
 		const int numSamplesInThisLoop = (int)(loopLength - indexInLoop);
 
+		if (useSmallLoopBuffer)
+		{
+			int numSamplesBeforeFirstWrap = 0;
+
+			if (indexInLoop < 0)
+			{
+				numSamplesBeforeFirstWrap = -indexInLoop;
+				fillInternal(sampleBuffer, numSamplesBeforeFirstWrap, uptime + (int)sampleStart, 0);
+			}
+			else
+			{
+				numSamplesBeforeFirstWrap = numSamplesInThisLoop;
+				int startSample = indexInLoop;
+
+				FloatVectorOperations::copy(sampleBuffer.getWritePointer(0, 0), smallLoopBuffer.getReadPointer(0, startSample), numSamplesBeforeFirstWrap);
+				FloatVectorOperations::copy(sampleBuffer.getWritePointer(1, 0), smallLoopBuffer.getReadPointer(1, startSample), numSamplesBeforeFirstWrap);
+			}
+
+			int numSamples = samplesToCopy - numSamplesBeforeFirstWrap;
+			int indexInSampleBuffer = numSamplesBeforeFirstWrap;
+
+			while (numSamples > (int)loopLength)
+			{
+				FloatVectorOperations::copy(sampleBuffer.getWritePointer(0, indexInSampleBuffer), smallLoopBuffer.getReadPointer(0, 0), loopLength);
+				FloatVectorOperations::copy(sampleBuffer.getWritePointer(1, indexInSampleBuffer), smallLoopBuffer.getReadPointer(1, 0), loopLength);
+
+				numSamples -= (int)loopLength;
+				indexInSampleBuffer += (int)loopLength;
+			}
+
+			FloatVectorOperations::copy(sampleBuffer.getWritePointer(0, indexInSampleBuffer), smallLoopBuffer.getReadPointer(0, 0), numSamples);
+			FloatVectorOperations::copy(sampleBuffer.getWritePointer(1, indexInSampleBuffer), smallLoopBuffer.getReadPointer(1, 0), numSamples);
+		}
+
 		// Loop is smaller than streaming buffers
-		if(loopLength < samplesToCopy)
+		else if(loopLength < samplesToCopy)
 		{
 			const int numSamplesBeforeFirstWrap = numSamplesInThisLoop;
 			

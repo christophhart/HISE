@@ -469,6 +469,10 @@ private:
 	int monolithOffset;
 	int monolithLength;
 
+	bool useSmallLoopBuffer = false;
+
+
+
 	int preloadSize;
 
 	int internalPreloadSize;
@@ -491,6 +495,8 @@ private:
 
 	// contains the precalculated crossfade
 	AudioSampleBuffer loopBuffer;
+
+	AudioSampleBuffer smallLoopBuffer;
 
 	// ==============================================================================================================================================
 
