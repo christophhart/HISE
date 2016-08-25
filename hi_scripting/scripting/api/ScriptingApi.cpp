@@ -1132,6 +1132,7 @@ void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
 	else
 	{
 		reportScriptError("Error when loading sample map: " + doc.getLastParseError());
+		return;
 	}
 
 #else
@@ -1152,6 +1153,7 @@ void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
 	else
 	{
 		reportScriptError("Error when loading sample map: " + fileName);
+		return;
 	}
 
 #endif

@@ -208,8 +208,6 @@ struct HiseJavascriptEngine::RootObject::MultiplyOp : public BinaryOperator
 		{
 			return BinaryOperator::getWithArrayOrObject(a, b);
 		}
-
-		return a;
 	}
 
 };

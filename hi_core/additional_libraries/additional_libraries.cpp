@@ -52,7 +52,7 @@ namespace icstdsp
 
 #if JUCE_MSVC
 #pragma warning (push)
-#pragma warning (disable: 4244 4127)
+#pragma warning (disable: 4244 4127 4267)
 
 #endif
 

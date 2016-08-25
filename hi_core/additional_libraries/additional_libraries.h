@@ -58,8 +58,6 @@ class IppFFT;
 #include "icst/Common.h"  	
 
 
-
-
 namespace icstdsp
 {
 	#include "icst/fftooura.h"	
