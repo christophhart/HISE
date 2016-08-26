@@ -198,7 +198,7 @@ void CompileExporter::writeReferencedAudioFiles(ModulatorSynthChain * chainToExp
 	}
 	else
 	{
-		PresetHandler::writeValueTreeAsFile(sampleTree, File(directoryPath).getChildFile("impulses").getFullPathName());
+		PresetHandler::writeValueTreeAsFile(sampleTree, File(directoryPath).getChildFile("impulses").getFullPathName(), true);
 	}
 }
 
@@ -253,7 +253,7 @@ void CompileExporter::writeEmbeddedFiles(ModulatorSynthChain * chainToExport, co
 	externalFiles.addChild(customFonts, -1, nullptr);
 	externalFiles.addChild(sampleMaps, -1, nullptr);
 
-	PresetHandler::writeValueTreeAsFile(externalFiles, File(directoryPath).getChildFile("externalFiles").getFullPathName());
+	PresetHandler::writeValueTreeAsFile(externalFiles, File(directoryPath).getChildFile("externalFiles").getFullPathName(), true);
 }
 
 void CompileExporter::writePresetFile(ModulatorSynthChain * chainToExport, const String directoryPath, const String &/*uniqueName*/)

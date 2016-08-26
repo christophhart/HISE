@@ -67,18 +67,18 @@ using namespace juce;
 #define USER_PRESET_OFFSET 8192
 
 #define CREATE_PLUGIN {ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\
-	ValueTree imageData = ValueTree::readFromData(PresetData::images, PresetData::imagesSize);\
-	ValueTree externalFiles = ValueTree::readFromData(PresetData::externalFiles, PresetData::externalFilesSize);\
-	ValueTree userPresets = ValueTree::readFromData(PresetData::userPresets, PresetData::userPresetsSize);\
+	ValueTree imageData = PresetHandler::loadValueTreeFromData(PresetData::images, PresetData::imagesSize, false);\
+	ValueTree externalFiles = PresetHandler::loadValueTreeFromData(PresetData::externalFiles, PresetData::externalFilesSize, true);\
+	ValueTree userPresets = PresetHandler::loadValueTreeFromData(PresetData::userPresets, PresetData::userPresetsSize, false);\
 	\
 	return new FrontendProcessor(presetData, &imageData, nullptr, &externalFiles, &userPresets);\
 }
 
 #define CREATE_PLUGIN_WITH_AUDIO_FILES {ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\
-	ValueTree imageData = ValueTree::readFromData(PresetData::images, PresetData::imagesSize);\
-	ValueTree impulseData = ValueTree::readFromData(PresetData::impulses, PresetData::impulsesSize);\
-	ValueTree externalFiles = ValueTree::readFromData(PresetData::externalFiles, PresetData::externalFilesSize);\
-	ValueTree userPresets = ValueTree::readFromData(PresetData::userPresets, PresetData::userPresetsSize);\
+	ValueTree imageData = PresetHandler::loadValueTreeFromData(PresetData::images, PresetData::imagesSize, false);\
+	ValueTree impulseData = PresetHandler::loadValueTreeFromData(PresetData::impulses, PresetData::impulsesSize, true); \
+	ValueTree externalFiles = PresetHandler::loadValueTreeFromData(PresetData::externalFiles, PresetData::externalFilesSize, true);\
+	ValueTree userPresets =PresetHandler::loadValueTreeFromData(PresetData::userPresets, PresetData::userPresetsSize, false);\
 	\
 	return new FrontendProcessor(presetData, &imageData, &impulseData, &externalFiles, &userPresets);\
 }

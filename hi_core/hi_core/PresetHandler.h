@@ -857,15 +857,45 @@ public:
 
     static String getDataFolder();
 
-	static void writeValueTreeAsFile(const ValueTree &v, const String &fileName)
+	static ValueTree loadValueTreeFromData(const void* data, size_t size, bool wasCompressed)
+	{
+		if (wasCompressed)
+		{
+			return ValueTree::readFromGZIPData(data, size);
+		}
+		else
+		{
+			return ValueTree::readFromData(data, size);
+		}
+	}
+
+	static void writeValueTreeAsFile(const ValueTree &v, const String &fileName, bool compressData=false)
 	{
 		File file(fileName);
 		file.deleteFile();
 		file.create();
 
-		FileOutputStream fos(file);
+		if (compressData)
+		{
+			FileOutputStream fos(file);
 
-		v.writeToStream(fos);
+			GZIPCompressorOutputStream gzos(&fos, 9, false);
+
+			MemoryOutputStream mos;
+
+			v.writeToStream(mos);
+
+			gzos.write(mos.getData(), mos.getDataSize());
+			gzos.flush();
+		}
+		else
+		{
+			FileOutputStream fos(file);
+
+			v.writeToStream(fos);
+		}
+
+		
 	}
 
 	static var writeValueTreeToMemoryBlock(const ValueTree &v)
