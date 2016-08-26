@@ -537,6 +537,7 @@ public:
 	AudioSampleBuffer internalBuffer;
 
 	MidiBuffer generatedMessages;
+	MidiBuffer outputMidiBuffer;
 
 	UpdateMerger vuMerger;
 
@@ -554,7 +555,7 @@ public:
 
 protected:
 
-	bool checkTimerCallback() const
+	bool checkTimerCallback() const noexcept
 	{
 		return nextTimerCallbackTime != 0.0 && getMainController()->getUptime() > nextTimerCallbackTime;
 	};

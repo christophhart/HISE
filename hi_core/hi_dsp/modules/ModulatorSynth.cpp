@@ -66,6 +66,9 @@ pitchModulationActive(false)
 	editorStateIdentifiers.add("PitchModulationShown");
 	editorStateIdentifiers.add("EffectChainShown");
 
+	generatedMessages.ensureSize(2048);
+	outputMidiBuffer.ensureSize(2048);
+
 	setBalance(0.0f);
 
 	pitchChain->getFactoryType()->setConstrainer(new NoGlobalEnvelopeConstrainer());
@@ -103,8 +106,8 @@ bool ModulatorSynth::processMidiBuffer(const MidiBuffer &inputBuffer, MidiBuffer
 	int ppqTimeStamp = -1;
 
 	// Check if ppqPosition should be added
-	static Identifier ppqPosition("ppqPosition");
-	static Identifier isPlaying("isPlaying");
+	static const Identifier ppqPosition("ppqPosition");
+	static const Identifier isPlaying("isPlaying");
 
 	const bool hostIsPlaying = getMainController()->getHostInfoObject()->getProperty(isPlaying);
 
@@ -140,7 +143,10 @@ bool ModulatorSynth::processMidiBuffer(const MidiBuffer &inputBuffer, MidiBuffer
 	if(emptyChain && ppqTimeStamp == -1) useOtherBuffer = false;
 	else
 	{
-		outputBuffer = MidiBuffer(inputBuffer);
+		outputBuffer.clear();
+		outputBuffer.data.addArray(inputBuffer.data);
+
+		//outputBuffer = MidiBuffer(inputBuffer);
 		// copy the buffer since you don't want to change the original buffer
 		
 		if (hostIsPlaying != wasPlayingInLastBuffer)
@@ -164,7 +170,11 @@ bool ModulatorSynth::processMidiBuffer(const MidiBuffer &inputBuffer, MidiBuffer
 
 	if(!emptyGeneratedBuffer)
 	{
-		if(emptyChain) outputBuffer = MidiBuffer(inputBuffer);
+		if (emptyChain)
+		{
+			outputBuffer.clear();
+			outputBuffer.data.addArray(inputBuffer.data);
+		}
 
 		MidiBuffer::Iterator it(generatedMessages);
 
@@ -224,17 +234,16 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 
 	initRenderCallback();
 
-	MidiBuffer midiBufferCopy;
-	const bool useNewBuffer = processMidiBuffer(inputMidiBuffer, midiBufferCopy, numSamples);
+	const bool useNewBuffer = processMidiBuffer(inputMidiBuffer, outputMidiBuffer, numSamples);
 
-	if (useNewBuffer ? !midiBufferCopy.isEmpty() : !inputMidiBuffer.isEmpty())
+	if (useNewBuffer ? !outputMidiBuffer.isEmpty() : !inputMidiBuffer.isEmpty())
 	{
 		midiInputFlag = true;
 	}
 
 	//jassert(numSamples % 4 == 0);
-    MidiBuffer::Iterator midiIterator (useNewBuffer ? midiBufferCopy : inputMidiBuffer);
-    MidiMessage m (0xf4, 0.0);
+	MidiBuffer::Iterator midiIterator(useNewBuffer ? outputMidiBuffer : inputMidiBuffer);
+	MidiMessage m(0xf4, 0.0);
 
 	int midiEventPos;
 
@@ -281,6 +290,7 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 
 	while (midiIterator.getNextEvent(m, midiEventPos))
 		handleMidiEvent(m);
+	
 
 	effectChain->renderMasterEffects(internalBuffer);
 
@@ -336,12 +346,20 @@ void ModulatorSynth::renderVoice(int startSample, int numThisTime)
 	
 void ModulatorSynth::handlePeakDisplay(int numSamplesInOutputBuffer)
 {
-#if ENABLE_ALL_PEAK_METERS == 0
-	if(this != getMainController()->getMainSynthChain()) return;
-#endif
-
+#if ENABLE_ALL_PEAK_METERS
+	
 	currentValues.outL = gain * internalBuffer.getMagnitude(0, 0, numSamplesInOutputBuffer) * leftBalanceGain;
 	currentValues.outR = gain * internalBuffer.getMagnitude(1, 0, numSamplesInOutputBuffer) * rightBalanceGain;
+	
+#else
+
+	if (this != getMainController()->getMainSynthChain())
+	{
+		currentValues.outL = gain * internalBuffer.getMagnitude(0, 0, numSamplesInOutputBuffer) * leftBalanceGain;
+		currentValues.outR = gain * internalBuffer.getMagnitude(1, 0, numSamplesInOutputBuffer) * rightBalanceGain;
+	}
+
+#endif
 }
 
 void ModulatorSynth::handleMidiEvent(const MidiMessage &m)
