@@ -572,14 +572,14 @@ public:
 	virtual ~ControlledObject();
 
 	/** Provides read-only access to the main controller. */
-	const MainController *getMainController() const
+	const MainController *getMainController() const noexcept
 	{
 		jassert(controller != nullptr);
 		return controller;
 	};
 
 	/** Provides write access to the main controller. Use this if you want to make changes. */
-	MainController *getMainController()
+	MainController *getMainController() noexcept
 	{
 		jassert(controller != nullptr);
 		return controller;

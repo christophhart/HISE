@@ -144,8 +144,10 @@ public:
         
 		FOR_EACH_MASTER_EFFECT(renderWholeBuffer(b));
 
+#if ENABLE_ALL_PEAK_METERS
 		currentValues.outL = (b.getMagnitude(0, 0, b.getNumSamples()));
 		currentValues.outR = (b.getMagnitude(1, 0, b.getNumSamples()));
+#endif
 
 	}
 

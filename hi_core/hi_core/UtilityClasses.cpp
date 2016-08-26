@@ -56,6 +56,7 @@ Identifier ScopedGlitchDetector::lastPositiveId = Identifier();
 
 void AutoSaver::timerCallback()
 {
+#if USE_BACKEND
 	Processor *mainSynthChain = mc->getMainSynthChain();
 
 	File backupFile = getAutoSaveFile();
@@ -67,6 +68,7 @@ void AutoSaver::timerCallback()
 	v.writeToStream(fos);
 
 	debugToConsole(mainSynthChain, "Autosaving as " + backupFile.getFileName());
+#endif
 }
 
 File AutoSaver::getAutoSaveFile()
