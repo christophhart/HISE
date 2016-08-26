@@ -263,7 +263,13 @@ void HiSlider::mouseDown(const MouseEvent &e)
 #if USE_FRONTEND
 		enableMidiLearnWithPopup();
 #else
-		removeParameterWithPopup();
+		const bool isOnPreview = findParentComponentOfClass<BackendProcessorEditor>() == nullptr;
+
+		if (isOnPreview)
+			enableMidiLearnWithPopup();
+
+		else
+			removeParameterWithPopup();
 #endif
 	}
 }

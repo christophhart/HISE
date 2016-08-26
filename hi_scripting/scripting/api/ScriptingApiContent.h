@@ -964,7 +964,7 @@ public:
 	void setName(const String &newName)	{ name = newName; };
 
 	/** Saves all controls that should be saved into a XML data file. */
-	void storeAllControlsAsPreset(const String &fileName);
+	void storeAllControlsAsPreset(const String &fileName, const ValueTree& automationData);
 
 	/** Restores all controls from a previously saved XML data file. */
 	void restoreAllControlsFromPreset(const String &fileName);

@@ -333,14 +333,20 @@ void UserPresetHandler::saveUserPreset(ModulatorSynthChain *chain)
             
         if(!presetFile.existsAsFile() || PresetHandler::showYesNoWindow("Confirm overwrite", "Do you want to overwrite the preset " + name + "?"))
         {
+			presetFile.deleteFile();
+
             Processor::Iterator<JavascriptMidiProcessor> iter(chain);
-                
+            
+			ValueTree autoData = chain->getMainController()->getMacroManager().getMidiControlAutomationHandler()->exportAsValueTree();
+
             while(JavascriptMidiProcessor *sp = iter.getNextProcessor())
             {
                 if(!sp->isFront()) continue;
                     
-                sp->getScriptingContent()->storeAllControlsAsPreset(presetFile.getFullPathName());
+                sp->getScriptingContent()->storeAllControlsAsPreset(presetFile.getFullPathName(), autoData);
             }
+
+			
         }
     }
 
@@ -390,6 +396,11 @@ void UserPresetHandler::loadUserPreset(ModulatorSynthChain* chain, const ValueTr
 			sp->getScriptingContent()->restoreAllControlsFromPreset(v);
 		}
 	}
+
+	ValueTree autoData = parent.getChildWithName("MidiAutomation");
+
+	if (autoData.isValid())
+		chain->getMainController()->getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(autoData);
 }
 
 File UserPresetHandler::getUserPresetFile(ModulatorSynthChain *chain, const String &fileNameWithoutExtension)

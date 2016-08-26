@@ -221,6 +221,8 @@ public:
 #endif
             MacroControlBroadcaster::saveMacrosToValueTree(v);
 
+			v.addChild(getMainController()->getMacroManager().getMidiControlAutomationHandler()->exportAsValueTree(), -1, nullptr);
+
         }
 		return v;
 	}
@@ -242,6 +244,13 @@ public:
 #if USE_BACKEND
 		ViewManager::restoreViewsFromValueTree(v);
 #endif
+
+		ValueTree autoData = v.getChildWithName("MidiAutomation");
+
+		if (autoData.isValid())
+		{
+			getMainController()->getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(autoData);
+		}
 	}
     
     void reset();

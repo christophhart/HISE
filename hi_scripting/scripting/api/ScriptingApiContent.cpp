@@ -2687,7 +2687,7 @@ void ScriptingApi::Content::setToolbarProperties(const var &toolbarProperties)
 	}
 }
 
-void ScriptingApi::Content::storeAllControlsAsPreset(const String &fileName)
+void ScriptingApi::Content::storeAllControlsAsPreset(const String &fileName, const ValueTree& automationData)
 {
 	File f;
 
@@ -2724,6 +2724,8 @@ void ScriptingApi::Content::storeAllControlsAsPreset(const String &fileName)
 
 		if (!found) preset.addChild(v, -1, nullptr);
 
+		preset.addChild(automationData, -1, nullptr);
+
 		existingData = preset.createXml();
 
 		f.replaceWithText(existingData->createDocument(""));
@@ -2733,6 +2735,8 @@ void ScriptingApi::Content::storeAllControlsAsPreset(const String &fileName)
 		ValueTree preset = ValueTree("Preset");
 
 		preset.addChild(v, -1, nullptr);
+
+		preset.addChild(automationData, -1, nullptr);
 
 		ScopedPointer<XmlElement> xml = preset.createXml();
 

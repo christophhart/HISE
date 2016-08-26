@@ -680,6 +680,8 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
     
 	ScopedNoDenormals snd;
 
+	getMacroManager().getMidiControlAutomationHandler()->handleParameterData(midiMessages);
+
 	AudioProcessor *thisAsProcessor = dynamic_cast<AudioProcessor*>(this);
 
 	ModulatorSynthChain *synthChain = getMainSynthChain();

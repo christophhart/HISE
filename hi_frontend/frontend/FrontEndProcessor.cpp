@@ -37,7 +37,7 @@ void FrontendProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer& mid
 	if (((unlockCounter & 1023) == 0) && !unlocker.isUnlocked()) return;
 #endif
 
-	getMacroManager().getMidiControlAutomationHandler()->handleParameterData(midiMessages);
+	
 
 	processBlockCommon(buffer, midiMessages);
 };
