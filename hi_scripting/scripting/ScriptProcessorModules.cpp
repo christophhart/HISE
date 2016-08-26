@@ -183,6 +183,10 @@ void JavascriptMidiProcessor::registerApiClasses()
 	scriptEngine->registerApiClass(new ScriptingApi::Colours());
 	scriptEngine->registerApiClass(synthObject);
 	scriptEngine->registerApiClass(samplerObject);
+    
+    scriptEngine->registerNativeObject("Libraries", new DspFactory::LibraryLoader(getMainController()));
+    scriptEngine->registerNativeObject("Buffer", new VariantBuffer::Factory(64));
+    
 }
 
 
