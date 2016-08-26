@@ -292,9 +292,6 @@ void IppFFT::initSpec(int N, Ipp8u *specData, Ipp8u *initData)
 {
 	IppStatus status = ippStsNoErr;
 
-
-	DBG("Type: " + String((int)type) + ", N: " + String(N));
-
 	switch (type)
 	{
 	case DataType::ComplexFloat: status = ippsFFTInit_C_32fc(&(complexFloatSpecs[N]), N, flag, ippAlgHintNone, specData, initData); break;

@@ -1186,7 +1186,6 @@ void ModulatorSamplerSoundPool::clearUnreferencedMonoliths()
 	{
 		if (loadedMonoliths[i]->getReferenceCount() == 2)
 		{
-			DBG("Remove Monolith");
 			loadedMonoliths.remove(i--);
 		}
 	}

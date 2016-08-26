@@ -73,7 +73,7 @@ ValueTree Pool<FileType>::exportAsValueTree() const
 		child.setProperty("ID", d->id.toString(), nullptr);
 		child.setProperty("FileName", d->fileName, nullptr);
 
-		DBG(d->fileName);
+		
 
 		FileInputStream fis(d->fileName);
 
@@ -261,7 +261,6 @@ const FileType * Pool<FileType>::getDataForId(Identifier &id) const
 {
 	for (int i = 0; i < data.size(); i++)
 	{
-		DBG(data[i]->id);
 		if (data[i]->id == id)
 		{
 			

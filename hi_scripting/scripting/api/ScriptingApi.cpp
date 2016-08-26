@@ -539,7 +539,7 @@ void ScriptingApi::Message::setMidiMessage(MidiMessage *m)
 				break;
 			}
 		}
-        DBG("Wrong event ID");
+        
     }
 	else
 	{
