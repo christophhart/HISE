@@ -223,7 +223,11 @@ private:
 	DspBaseObject *object;
 	DspFactory::Ptr factory;
 
+	AudioSampleBuffer bypassSwitchBuffer;
+
 	std::atomic<bool> bypassed;
+
+	bool switchBypassFlag = false;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DspInstance)
 };

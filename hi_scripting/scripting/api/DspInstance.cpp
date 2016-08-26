@@ -145,7 +145,11 @@ void DspInstance::initialise()
 
 void DspInstance::processBlock(const var &data)
 {
-	if (object != nullptr && !isBypassed())
+	bool skipProcessing = isBypassed() && !switchBypassFlag;
+
+	
+
+	if (object != nullptr && !skipProcessing)
 	{
 		if (data.isArray())
 		{
@@ -172,7 +176,44 @@ void DspInstance::processBlock(const var &data)
 				sampleData[i] = b->buffer.getWritePointer(0);
 			}
 
-			object->processBlock(sampleData, a->size(), numSamples);
+			if (switchBypassFlag)
+			{
+				float* sl = bypassSwitchBuffer.getWritePointer(0);
+				float* sr = bypassSwitchBuffer.getWritePointer(1);
+
+				const bool rampUp = !isBypassed();
+
+				FloatVectorOperations::copy(sl, sampleData[0], numSamples);
+				FloatVectorOperations::copy(sr, sampleData[1], numSamples);
+
+				object->processBlock(sampleData, a->size(), numSamples);
+
+				if (rampUp)
+				{
+					bypassSwitchBuffer.applyGainRamp(0, numSamples, 1.0f, 0.0f);
+
+					bypassSwitchBuffer.addFromWithRamp(0, 0, sampleData[0], numSamples, 0.0f, 1.0f);
+					bypassSwitchBuffer.addFromWithRamp(1, 0, sampleData[1], numSamples, 0.0f, 1.0f);
+				}
+				else
+				{
+					bypassSwitchBuffer.applyGainRamp(0, numSamples, 0.0f, 1.0f);
+
+					bypassSwitchBuffer.addFromWithRamp(0, 0, sampleData[0], numSamples, 1.0f, 0.0f);
+					bypassSwitchBuffer.addFromWithRamp(1, 0, sampleData[1], numSamples, 1.0f, 0.0f);
+				}
+
+				FloatVectorOperations::copy(sampleData[0], sl, numSamples);
+				FloatVectorOperations::copy(sampleData[1], sr, numSamples);
+
+				switchBypassFlag = false;
+
+			}
+			else
+			{
+				object->processBlock(sampleData, a->size(), numSamples);
+			}
+
 		}
 		else if (data.isBuffer())
 		{
@@ -285,6 +326,7 @@ String DspInstance::getStringParameter(int index)
 void DspInstance::setBypassed(bool shouldBeBypassed)
 {
 	bypassed.store(shouldBeBypassed);
+	switchBypassFlag = true;
 }
 
 bool DspInstance::isBypassed() const
@@ -370,6 +412,8 @@ void DspInstance::prepareToPlay(double sampleRate, int samplesPerBlock)
 	if (object != nullptr)
 	{
 		object->prepareToPlay(sampleRate, samplesPerBlock);
+
+		bypassSwitchBuffer.setSize(2, samplesPerBlock);
 
 		for (int i = 0; i < object->getNumConstants(); i++)
 		{
