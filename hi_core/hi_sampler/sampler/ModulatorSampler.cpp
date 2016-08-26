@@ -485,7 +485,7 @@ void ModulatorSampler::deleteAllSounds()
 
 void ModulatorSampler::refreshPreloadSizes()
 {
-	if (getNumSounds() != 0)
+	if (!purged && getNumSounds() != 0)
 	{
 		new SoundPreloadThread(this);
 	}
@@ -651,6 +651,9 @@ void ModulatorSampler::addSamplerSounds(OwnedArray<ModulatorSamplerSound>& monol
 		ModulatorSamplerSound* newSound = monolithicSounds.removeAndReturn(0);
 
 		sounds.add(newSound);
+
+		newSound->setPurged(purged);
+
 		newSound->setUndoManager(undoManager);
 		newSound->addChangeListener(sampleMap);
 	}
