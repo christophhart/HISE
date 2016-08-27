@@ -382,7 +382,7 @@ protected:
 
 	friend class CompileThread;
 
-	ReadWriteLock compileLock;
+	
 
 	CompileThread *currentCompileThread;
 

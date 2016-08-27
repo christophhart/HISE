@@ -417,6 +417,8 @@ public:
 	
 	void rebuildUserPresetDatabase() { userPresetData->refreshPresetFileList(); }
 
+	ReadWriteLock &getCompileLock() { return compileLock; }
+
 protected:
 
 	/** This is the main processing loop that is shared among all subclasses. */
@@ -492,6 +494,7 @@ private:
 	DynamicObject::Ptr toolbarProperties;
 
 	CriticalSection lock;
+	ReadWriteLock compileLock;
 
 	ScopedPointer<SampleManager> sampleManager;
 	MacroManager macroManager;

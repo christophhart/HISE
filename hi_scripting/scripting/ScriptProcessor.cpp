@@ -87,9 +87,9 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 	
 	HiseJavascriptEngine* scriptEngine = jsp->getScriptEngine();
 
-	scriptEngine->maximumExecutionTime = RelativeTime(0.5);
+	scriptEngine->maximumExecutionTime = RelativeTime(3.0);
 
-	ScopedReadLock sl(jsp->compileLock);
+	ScopedReadLock sl(getMainController_()->getCompileLock());
 
 	scriptEngine->setCallbackParameter(callbackIndex, 0, component);
 	scriptEngine->setCallbackParameter(callbackIndex, 1, controllerValue);
@@ -295,7 +295,7 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 	if (lastCompileWasOK && content != nullptr) thisAsScriptBaseProcessor->restoredContentValues = content->exportAsValueTree();
 
-	ScopedWriteLock sl(compileLock);
+	ScopedWriteLock sl(mainController->getCompileLock());
 
 	scriptEngine->clearDebugInformation();
 

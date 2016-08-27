@@ -145,6 +145,8 @@ void DspInstance::initialise()
 
 void DspInstance::processBlock(const var &data)
 {
+	if (!prepareToPlayWasCalled) throw String(moduleName + ": prepareToPlay must be called before processing buffers.");
+
 	bool skipProcessing = isBypassed() && !switchBypassFlag;
 
 	
@@ -427,6 +429,8 @@ void DspInstance::prepareToPlay(double sampleRate, int samplesPerBlock)
 				getConstantValue(i).getBuffer()->referToData(data, size);
 			}
 		}
+
+		prepareToPlayWasCalled = true;
 	}
 }
 
