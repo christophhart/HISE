@@ -568,7 +568,12 @@ private:
 	{
 		ScopedPointer<GlobalVarStatement> s(new GlobalVarStatement(location));
 		s->name = parseIdentifier();
-		hiseSpecialData->globals->setProperty(s->name, var::undefined());
+		
+		if (!hiseSpecialData->globals->hasProperty(s->name))
+		{
+			hiseSpecialData->globals->setProperty(s->name, var::undefined());
+		}
+		
 		s->initialiser = matchIf(TokenTypes::assign) ? parseExpression() : new Expression(location);
 		
 		if (matchIf(TokenTypes::comma))
