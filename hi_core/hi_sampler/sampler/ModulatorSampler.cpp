@@ -485,7 +485,7 @@ void ModulatorSampler::deleteAllSounds()
 
 void ModulatorSampler::refreshPreloadSizes()
 {
-	if (!purged && getNumSounds() != 0)
+	if (getNumSounds() != 0)
 	{
 		new SoundPreloadThread(this);
 	}
