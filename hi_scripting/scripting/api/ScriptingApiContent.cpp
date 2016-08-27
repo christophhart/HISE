@@ -609,6 +609,8 @@ maximum(1.0f)
 	propertyIds.add(Identifier("numStrips"));
 	propertyIds.add(Identifier("isVertical"));		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	propertyIds.add(Identifier("scaleFactor"));
+	propertyIds.add(Identifier("mouseSensitivity"));
+	propertyIds.add(Identifier("dragDirection"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 
 	deactivatedProperties.removeAllInstancesOf(getIdFor(isPluginParameter));
 
@@ -621,6 +623,8 @@ maximum(1.0f)
 	componentProperties->setProperty(getIdFor(filmstripImage), String::empty);
 	componentProperties->setProperty(getIdFor(numStrips), 0);
 	componentProperties->setProperty(getIdFor(isVertical), true);
+	componentProperties->setProperty(getIdFor(mouseSensitivity), 1.0);
+	componentProperties->setProperty(getIdFor(dragDirection), 0);
 
 	priorityProperties.add(getIdFor(Mode));
 
@@ -636,6 +640,8 @@ maximum(1.0f)
 	setDefaultValue(ScriptSlider::Properties::numStrips, 0);
 	setDefaultValue(ScriptSlider::Properties::isVertical, true);
 	setDefaultValue(ScriptSlider::Properties::scaleFactor, 1.0f);
+	setDefaultValue(ScriptSlider::Properties::mouseSensitivity, 1.0f);
+	setDefaultValue(ScriptSlider::Properties::dragDirection, "Diagonal");
 
 	setScriptObjectPropertyWithChangeMessage(getIdFor(Mode), "Linear", dontSendNotification);
 	setScriptObjectPropertyWithChangeMessage(getIdFor(Style), "Knob", dontSendNotification);
@@ -781,6 +787,11 @@ StringArray ScriptingApi::Content::ScriptSlider::getOptionsFor(const Identifier 
 		sa.add("Load new File");
 		sa.add("Use default skin");
 		sa.addArray(getProcessor()->getMainController()->getSampleManager().getImagePool()->getFileNameList());
+		break;
+	case dragDirection:
+		sa.add("Diagonal");
+		sa.add("Vertical");
+		sa.add("Horizontal");
 		break;
 	default:				sa = ScriptComponent::getOptionsFor(id);
 	}

@@ -135,11 +135,28 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateComponent()
     
 	s->setTooltip(GET_SCRIPT_PROPERTY(tooltip));
 
-
-
 	s->setName(GET_SCRIPT_PROPERTY(text));
 
-    s->setSliderStyle(sc->styleId);
+	if (sc->styleId == Slider::RotaryHorizontalVerticalDrag)
+	{
+		String direction = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::dragDirection);
+
+		if (direction == "Horizontal") s->setSliderStyle(Slider::RotaryHorizontalDrag);
+		else if (direction == "Vertical") s->setSliderStyle(Slider::RotaryVerticalDrag);
+		else s->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
+	}
+	else
+	{
+		s->setSliderStyle(sc->styleId);
+	}
+
+	double sensitivityScaler = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::mouseSensitivity);
+	
+	if (sensitivityScaler != 1.0)
+	{
+		double sensitivity = jmax<double>(1.0, 250.0 * sensitivityScaler);
+		s->setMouseDragSensitivity((int)sensitivity);
+	}
 
 	s->enableMacroControlledComponent(GET_SCRIPT_PROPERTY(enabled));
 
@@ -534,6 +551,8 @@ void ScriptCreatedComponentWrappers::PanelWrapper::updateComponent()
 	bpc->setUseRightClickForPopup(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::PopupOnRightClick));
 	bpc->alignPopup(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::popupMenuAlign));
 	
+
+	bpc->setInterceptsMouseClicks(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::enabled), true);
 
 	bpc->repaint();
 

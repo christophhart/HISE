@@ -253,6 +253,8 @@ public:
 			numStrips,
 			isVertical,
 			scaleFactor,
+			mouseSensitivity,
+			dragDirection,
 			numProperties
 		};
 
