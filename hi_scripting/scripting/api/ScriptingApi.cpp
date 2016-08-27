@@ -1414,10 +1414,11 @@ ScriptingObjects::ScriptingModulator *ScriptingApi::Synth::getModulator(const St
 		{
 			if(m->getId() == name)
 			{
-				debugToConsole(owner, m->getId() + " was found. ");
 				return new ScriptingObjects::ScriptingModulator(getScriptProcessor(), m);	
 			}
 		}
+
+		reportScriptError(name + " was not found. ");
 
 		return new ScriptingObjects::ScriptingModulator(getScriptProcessor(), nullptr);
 	}
