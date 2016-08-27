@@ -190,6 +190,13 @@ public:
 
 	void addSamplerSounds(OwnedArray<ModulatorSamplerSound>& monolithicSounds);
 
+	void renderNextBlockWithModulators(AudioSampleBuffer& outputAudio, const MidiBuffer& inputMidi)
+	{
+		if (purged) return;
+
+		ModulatorSynth::renderNextBlockWithModulators(outputAudio, inputMidi);
+	}
+
 	SampleThreadPool *getBackgroundThreadPool();
 	String getMemoryUsage() const;;
 
