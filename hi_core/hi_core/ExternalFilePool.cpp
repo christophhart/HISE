@@ -287,7 +287,7 @@ Identifier Pool<FileType>::getIdForFileName(const String &absoluteFileName) cons
 {
 #if USE_FRONTEND
 
-	return Identifier(absoluteFileName.upToFirstOccurrenceOf(".", false, false).removeCharacters(" \n\t"));
+	return Identifier(absoluteFileName.upToFirstOccurrenceOf(".", false, false)); // .removeCharacters(" \n\t"));
 
 #else
 
