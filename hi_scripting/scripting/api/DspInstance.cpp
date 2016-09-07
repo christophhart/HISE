@@ -411,7 +411,7 @@ DspInstance::~DspInstance()
 
 void DspInstance::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-	if (object != nullptr)
+	if (object != nullptr && samplesPerBlock > 0 && sampleRate > 0.0)
 	{
 		object->prepareToPlay(sampleRate, samplesPerBlock);
 
