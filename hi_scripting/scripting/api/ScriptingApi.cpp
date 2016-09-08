@@ -364,7 +364,7 @@ void ScriptingApi::Message::setVelocity(int newValue)
 	}
 #endif
 
-	messageHolder->setVelocity((float)newValue / 127.0f);
+	messageHolder->setVelocity((float)newValue);
 };
 
 
