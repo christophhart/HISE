@@ -67,6 +67,13 @@ struct HiseJavascriptEngine::RootObject::ArraySubscript : public Expression
 		else if (const Array<var>* array = result.getArray())
 			return (*array)[static_cast<int> (index->getResult(s))];
 
+        else if (const DynamicObject* obj = result.getDynamicObject())
+        {
+            const String name = index->getResult(s).toString();
+            
+            return obj->getProperty(Identifier(name));
+        }
+        
 		return var::undefined();
 	}
 
@@ -98,6 +105,13 @@ struct HiseJavascriptEngine::RootObject::ArraySubscript : public Expression
 			
 			return;
 		}
+        else if (DynamicObject* obj = result.getDynamicObject())
+        {
+            const String name = index->getResult(s).toString();
+                     
+            return obj->setProperty(Identifier(name), newValue);
+        }
+
 
 
 		Expression::assign(s, newValue);
