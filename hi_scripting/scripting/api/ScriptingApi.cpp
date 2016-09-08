@@ -280,11 +280,8 @@ struct ScriptingApi::Message::Wrapper
 ScriptingApi::Message::Message(ProcessorWithScriptingContent *p) :
 ScriptingObject(p),
 ApiClass(0),
-ignored(false),
-wrongNoteOff(false),
 messageHolder(nullptr),
-currentEventId(0),
-eventIdCounter(0)
+constMessageHolder(nullptr)
 {
 	ADD_API_METHOD_1(setNoteNumber);
 	ADD_API_METHOD_1(setVelocity);
@@ -390,9 +387,7 @@ void ScriptingApi::Message::setControllerNumber(int newValue)
 
 	const int value = messageHolder->getControllerValue();
 
-	ScopedWriteLock sl(apiClassLock);
-
-	*messageHolder = juce::MidiMessage::controllerEvent(1, newValue, value);
+	messageHolder->setControllerNumber(newValue);
 };
 
 void ScriptingApi::Message::setControllerValue(int newValue)
@@ -412,9 +407,8 @@ void ScriptingApi::Message::setControllerValue(int newValue)
 
 	const int number = messageHolder->getControllerNumber();
 
-	ScopedWriteLock sl(apiClassLock);
-
-	*messageHolder = juce::MidiMessage::controllerEvent(1, number, newValue);
+	
+	messageHolder->setControllerValue(newValue);
 };
 
 var ScriptingApi::Message::getControllerNumber() const
@@ -463,6 +457,17 @@ int ScriptingApi::Message::getVelocity() const
 	return constMessageHolder->getVelocity();
 };
 
+void ScriptingApi::Message::ignoreEvent(bool shouldBeIgnored/*=true*/)
+{
+	if (messageHolder == nullptr)
+	{
+		reportIllegalCall("ignoreEvent()", "midi event");
+		return;
+	}
+
+	messageHolder->ignoreEvent(shouldBeIgnored);
+}
+
 int ScriptingApi::Message::getChannel() const
 {
 #if ENABLE_SCRIPTING_SAFE_CHECKS
@@ -497,13 +502,17 @@ void ScriptingApi::Message::setChannel(int newValue)
 
 int ScriptingApi::Message::getEventId() const
 { 
-	if(currentEventId == -1) reportScriptError("Defective Event ID detected!");
+	//if(currentEventId == -1) reportScriptError("Defective Event ID detected!");
 
-	return currentEventId; 
+	return messageHolder->getEventId();
 }
 
 void ScriptingApi::Message::setMidiMessage(MidiMessage *m)
 {
+	jassertfalse;
+
+#if 0
+
 	messageHolder = m;
 	constMessageHolder = m;
 
@@ -545,6 +554,19 @@ void ScriptingApi::Message::setMidiMessage(MidiMessage *m)
 	{
 		currentEventId = -1;
 	}
+#endif
+}
+
+void ScriptingApi::Message::setHiseEvent(HiseEvent &m)
+{
+	messageHolder = &m;
+	constMessageHolder = messageHolder;
+}
+
+void ScriptingApi::Message::setHiseEvent(const HiseEvent& m)
+{
+	messageHolder = nullptr;
+	constMessageHolder = &m;
 }
 
 // ====================================================================================================== Engine functions
@@ -1319,8 +1341,7 @@ void ScriptingApi::Synth::playNote(int noteNumber, int velocity)
 		return;
 	}
 
-	// Set the timestamp to the future if this is called in the note off callback to prevent wrong order.
-	const int timestamp = dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor())->getCurrentMidiMessage().isNoteOff(false) ? 1 : 0;
+	int timestamp = dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor())->getCurrentHiseEvent()->isNoteOff() ? 1 : 0;
 
 	addNoteOn(1, noteNumber, velocity, timestamp);
 }
@@ -1366,11 +1387,11 @@ void ScriptingApi::Synth::sendController(int controllerNumber, int controllerVal
 {
 	if(controllerNumber == 128) owner->handlePitchWheel(1, controllerValue);
 
-	MidiMessage m = MidiMessage::controllerEvent(1, controllerNumber, controllerValue);
+	HiseEvent m = HiseEvent(HiseEvent::Type::Controller, controllerNumber, controllerValue, 1);
 
-	owner->gainChain->handleMidiEvent(m);
-	owner->pitchChain->handleMidiEvent(m);
-	owner->effectChain->handleMidiEvent(m);
+	owner->gainChain->handleHiseEvent(m);
+	owner->pitchChain->handleHiseEvent(m);
+	owner->effectChain->handleHiseEvent(m);
 };
 
 void ScriptingApi::Synth::sendControllerToChildSynths(int controllerNumber, int controllerValue)
@@ -1660,10 +1681,11 @@ void ScriptingApi::Synth::addNoteOn(int channel, int noteNumber, int velocity, i
 				{
 					if (ScriptBaseMidiProcessor* sp = dynamic_cast<ScriptBaseMidiProcessor*>(getScriptProcessor()))
 					{
-						MidiMessage m = MidiMessage::noteOn(channel, noteNumber, (uint8)velocity);
-						m.setTimeStamp(sp->getCurrentMidiMessage().getTimeStamp() + timeStampSamples);
+						HiseEvent m = HiseEvent(HiseEvent::Type::NoteOn, noteNumber, velocity, channel);
+						m.setTimeStamp(sp->getCurrentHiseEvent()->getTimeStamp() + timeStampSamples);
+						m.setArtificial();
 
-						sp->addMidiMessageToBuffer(m);
+						sp->addHiseEventToBuffer(m);
 					}
 					else reportScriptError("Only valid in MidiProcessors");
 				}
@@ -1686,12 +1708,15 @@ void ScriptingApi::Synth::addNoteOff(int channel, int noteNumber, int timeStampS
 			{
 				if (ScriptBaseMidiProcessor* sp = dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor()))
 				{
+	
 					timeStampSamples = jmax<int>(1, timeStampSamples);
 
-					MidiMessage m = MidiMessage::noteOff(channel, noteNumber);
-					m.setTimeStamp(sp->getCurrentMidiMessage().getTimeStamp() + timeStampSamples);
+					HiseEvent m = HiseEvent(HiseEvent::Type::NoteOff, noteNumber, 127, channel);
+					m.setTimeStamp(sp->getCurrentHiseEvent()->getTimeStamp() + timeStampSamples);
+					m.setArtificial();
 
-					sp->addMidiMessageToBuffer(m);
+					sp->addHiseEventToBuffer(m);
+
 				}
 			}
 			else reportScriptError("Timestamp must be > 0");
@@ -1713,10 +1738,11 @@ void ScriptingApi::Synth::addController(int channel, int number, int value, int 
 				{
 					if (ScriptBaseMidiProcessor* sp = dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor()))
 					{
-						MidiMessage m = MidiMessage::controllerEvent(channel, number, value);
-						m.setTimeStamp(sp->getCurrentMidiMessage().getTimeStamp() + timeStampSamples);
+						HiseEvent m = HiseEvent(HiseEvent::Type::Controller, number, value, channel);
+						m.setTimeStamp(sp->getCurrentHiseEvent()->getTimeStamp() + timeStampSamples);
+						m.setArtificial();
 
-						sp->addMidiMessageToBuffer(m);
+						sp->addHiseEventToBuffer(m);
 					}
 					
 				}

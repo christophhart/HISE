@@ -84,7 +84,7 @@ public:
 		transposeAmount = (int)newAmount;
 	};
 
-	void processMidiMessage(MidiMessage &m) noexcept override
+	void processHiseEvent(HiseEvent &m) noexcept override
 	{
 		if(m.isNoteOnOrOff())
 		{

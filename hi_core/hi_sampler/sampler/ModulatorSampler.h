@@ -190,7 +190,7 @@ public:
 
 	void addSamplerSounds(OwnedArray<ModulatorSamplerSound>& monolithicSounds);
 
-	void renderNextBlockWithModulators(AudioSampleBuffer& outputAudio, const MidiBuffer& inputMidi)
+	void renderNextBlockWithModulators(AudioSampleBuffer& outputAudio, const HiseEventBuffer& inputMidi) override
 	{
 		if (purged) return;
 
@@ -211,7 +211,7 @@ public:
 
 	/** Overwrites the base class method and ignores the note off event if Parameters::OneShot is enabled. */
 	void noteOff(int midiChannel, int noteNumber, float velocity, bool allowTailOff) override;;
-	void preMidiCallback(const MidiMessage &m) override;
+	void preHiseEventCallback(const HiseEvent &m) override;
 
 	bool isUsingCrossfadeGroups() const { return crossfadeGroups; }
 	Table *getTable(int tableIndex) const override { return tableIndex < crossfadeTables.size() ? crossfadeTables[tableIndex] : nullptr; }

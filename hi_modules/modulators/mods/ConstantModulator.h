@@ -70,7 +70,7 @@ public:
 	
 
 	/** Returns the 0.0f and let the intensity do it's job. */
-	float calculateVoiceStartValue(const MidiMessage &) override
+	float calculateVoiceStartValue(const HiseEvent& ) override
 	{
 		return (getMode() == GainMode) ? 0.0f : 1.0f;
 	};

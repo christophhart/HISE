@@ -141,7 +141,7 @@ public:
 		int getVelocity() const;
 
 		/** Ignores the event. */
-		void ignoreEvent(bool shouldBeIgnored=true) { ignored = shouldBeIgnored; };
+		void ignoreEvent(bool shouldBeIgnored=true);;
 
 		/** Returns the event id of the current message. */
 		int getEventId() const;
@@ -153,43 +153,23 @@ public:
 
 		void setMidiMessage(const MidiMessage *m)
 		{
-			constMessageHolder = m;
+			jassertfalse;
 		};
+
+		void setHiseEvent(HiseEvent &m);
+
+		void setHiseEvent(const HiseEvent& m);
+		
 
 		struct Wrapper;
 
 	private:
 
-		// ============================================================================================================
-
-		struct MidiMessageWithEventId
-		{
-			MidiMessageWithEventId() :m(MidiMessage::noteOn(1, 0, 1.0f)), eventId (-1) { };
-
-			MidiMessageWithEventId(MidiMessage &m_, int eventId_):	m(m_),	eventId(eventId_) { };
-
-			inline int getNoteNumber() {return m.getNoteNumber(); };
-			bool isVoid() const { return (eventId == -1); }
-			void setVoid() {eventId = -1;};
-
-			MidiMessage m;
-			int eventId;
-			static MidiMessageWithEventId empty;
-		};
-
-		// ============================================================================================================
-
 		friend class JavascriptMidiProcessor;
 		friend class HardcodedScriptProcessor;
 
-		MidiMessage const* constMessageHolder;
-		MidiMessage *messageHolder;
-
-		bool wrongNoteOff;
-		bool ignored;
-		int currentEventId;
-		int eventIdCounter;
-		MidiMessageWithEventId noteOnMessages[1024];
+		HiseEvent* messageHolder;
+		const HiseEvent* constMessageHolder;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Message);
 	};

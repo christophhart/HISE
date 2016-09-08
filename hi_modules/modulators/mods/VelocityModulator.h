@@ -116,7 +116,7 @@ public:
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 
-	float calculateVoiceStartValue(const MidiMessage &m) override
+	float calculateVoiceStartValue(const HiseEvent &m) override
 	{
 		float value = m.getFloatVelocity();
 

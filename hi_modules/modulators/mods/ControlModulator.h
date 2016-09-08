@@ -73,7 +73,7 @@ public:
 	void setInternalAttribute (int parameter_index, float newValue) override;
 
 	void calculateBlock(int startSample, int numSamples) override;;
-	void handleMidiEvent (const MidiMessage &m) override;
+	void handleHiseEvent(const HiseEvent &m) override;
 	virtual void prepareToPlay(double sampleRate, int samplesPerBlock) override;;
 
 	Table *getTable(int = 0) const override { return table; };

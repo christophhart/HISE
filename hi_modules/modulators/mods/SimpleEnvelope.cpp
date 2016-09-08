@@ -252,9 +252,9 @@ void SimpleEnvelope::calculateBlock(int startSample, int numSamples)
 	}
 }
 
-void SimpleEnvelope::handleMidiEvent(MidiMessage const &m)
+void SimpleEnvelope::handleHiseEvent(const HiseEvent &m)
 {
-	attackChain->handleMidiEvent(m);
+	attackChain->handleHiseEvent(m);
 };
 
 void SimpleEnvelope::prepareToPlay(double sampleRate, int samplesPerBlock)

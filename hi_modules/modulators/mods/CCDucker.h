@@ -69,7 +69,7 @@ public:
 	void setInternalAttribute(int parameterIndex, float newValue) override;
 
 	/** sets the new target value if the controller number matches. */
-	void handleMidiEvent(const MidiMessage &m) override;
+	void handleHiseEvent(const HiseEvent &m) override;
 
 	/** returns a pointer to the look up table. Don't delete it! */
 	Table *getTable(int = 0) const override { return table; };

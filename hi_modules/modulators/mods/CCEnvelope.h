@@ -129,7 +129,7 @@ public:
 	bool isPlaying(int voiceIndex) const override;
 
 	void calculateBlock(int startSample, int numSamples) override;;
-	void handleMidiEvent(MidiMessage const &m);
+	void handleHiseEvent(const HiseEvent& e);
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;

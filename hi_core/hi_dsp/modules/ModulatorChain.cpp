@@ -60,15 +60,15 @@ void ModulatorChain::reset(int voiceIndex)
 	for(int i = 0; i < envelopeModulators.size(); ++i) envelopeModulators[i]->reset(voiceIndex);	
 };
 
-void ModulatorChain::handleMidiEvent(const MidiMessage &m)
+void ModulatorChain::handleHiseEvent(const HiseEvent &m)
 {
-	EnvelopeModulator::handleMidiEvent(m);
+	EnvelopeModulator::handleHiseEvent(m);
 
-	for(int i = 0; i < voiceStartModulators.size(); i++) voiceStartModulators[i]->handleMidiEvent(m);
+	for(int i = 0; i < voiceStartModulators.size(); i++) voiceStartModulators[i]->handleHiseEvent(m);
 
-	for(int i = 0; i < envelopeModulators.size(); i++) envelopeModulators[i]->handleMidiEvent(m);
+	for(int i = 0; i < envelopeModulators.size(); i++) envelopeModulators[i]->handleHiseEvent(m);
 
-	for(int i = 0; i < variantModulators.size(); i++) variantModulators[i]->handleMidiEvent(m);
+	for(int i = 0; i < variantModulators.size(); i++) variantModulators[i]->handleHiseEvent(m);
 };
 
 
@@ -444,7 +444,6 @@ void TimeVariantModulatorFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(PitchwheelModulator);
 	ADD_NAME_TO_TYPELIST(MacroModulator);
     ADD_NAME_TO_TYPELIST(AudioFileEnvelope);
-	ADD_NAME_TO_TYPELIST(PluginParameterModulator);
 	ADD_NAME_TO_TYPELIST(GlobalTimeVariantModulator);
 	ADD_NAME_TO_TYPELIST(GainMatcherTimeVariantModulator);
 	ADD_NAME_TO_TYPELIST(CCDucker);

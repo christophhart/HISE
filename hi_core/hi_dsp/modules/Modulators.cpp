@@ -330,7 +330,6 @@ Processor *TimeVariantModulatorFactoryType::createProcessor(int typeIndex, const
 	case pitchWheel:					return new PitchwheelModulator(m, id, mode);
 	case macroModulator:				return new MacroModulator(m, id, mode);
 	case audioFileEnvelope:				return new AudioFileEnvelope(m, id, mode);
-	case pluginParameter:				return new PluginParameterModulator(m, id, mode);
 	case globalTimeVariantModulator:	return new GlobalTimeVariantModulator(m, id, mode);
 	case gainMatcherTimeVariantModulator:	return new GainMatcherTimeVariantModulator(m, id, mode);
 	case ccDucker:						return new CCDucker(m, id, mode);

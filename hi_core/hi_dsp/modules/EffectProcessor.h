@@ -90,11 +90,11 @@ public:
 	/** Renders the next block and applies the effect to the buffer. */
 	virtual void renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples) = 0;
 
-	virtual void handleMidiEvent(const MidiMessage &m)
+	virtual void handleHiseEvent(const HiseEvent &m)
 	{
 		for(int i = 0; i < getNumInternalChains(); i++)
 		{
-			static_cast<ModulatorChain*>(getChildProcessor(i))->handleMidiEvent(m);
+			static_cast<ModulatorChain*>(getChildProcessor(i))->handleHiseEvent(m);
 		}
 	};
 
@@ -621,16 +621,15 @@ public:
 		}
 	}
 
-	virtual void handleMidiEvent(const MidiMessage &m)
+	virtual void handleHiseEvent(const HiseEvent &m)
 	{
-		for(int i = 0; i < getNumInternalChains(); i++)
+		for (int i = 0; i < getNumInternalChains(); i++)
 		{
 			ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(i));
 			jassert(mc != nullptr);
-			mc->handleMidiEvent(m);
+			mc->handleHiseEvent(m);
 		}
 	};
-
 
 
 protected:

@@ -166,7 +166,7 @@ public:
 	};
 
 	/** Ignores midi for now. */
-	void handleMidiEvent (const MidiMessage &m) override;
+	void handleHiseEvent(const HiseEvent &m) override;
 
 	/** sets up the smoothing filter. */
 	virtual void prepareToPlay(double sampleRate, int samplesPerBlock) override;

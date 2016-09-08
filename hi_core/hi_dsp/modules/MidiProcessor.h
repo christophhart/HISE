@@ -50,11 +50,43 @@ public:
 
 	virtual ~MidiProcessor();
 
-	void addMidiMessageToBuffer(MidiMessage &m);
+	void addHiseEventToBuffer(const HiseEvent &m);
+
+	void renderNextHiseEventBuffer(HiseEventBuffer &buffer, int numSamples)
+	{
+		if (allNotesOffAtNextBuffer)
+		{
+			buffer.clear();
+			buffer.addEvent(HiseEvent(HiseEvent::Type::AllNotesOff, 0, 0, 1));
+			allNotesOffAtNextBuffer = false;
+		}
+
+		if (buffer.isEmpty() && futureEventBuffer.isEmpty()) return;
+
+		// TODO: Delayed notes...
+
+		numThisTime = numSamples;
+
+		HiseEventBuffer::Iterator it(buffer);
+
+		while (HiseEvent* e = it.getNextEventPointer(true))
+		{
+			processHiseEvent(*e);
+		}
+
+		futureEventBuffer.subtractFromTimeStamps(numSamples);
+		futureEventBuffer.moveEvents(buffer, numSamples);
+		
+		buffer.moveEventsBeyond(futureEventBuffer, numSamples);
+
+
+	}
 
 	/** call this on the MidiBuffer you want to process. The block size is assumed to be the size of the current sample chunk. */
 	void renderNextBuffer(MidiBuffer &b, int numSamples)
 	{
+		jassertfalse;
+#if 0
 		if(allNotesOffAtNextBuffer)
 		{
 			futureBuffer.clear();
@@ -97,7 +129,7 @@ public:
 
 		b.clear();
 		b.swapWith(outputBuffer);
-
+#endif
 	};
 
 	Colour getColour() const
@@ -145,8 +177,9 @@ public:
 	/** If you want an editor that is more than the header, overwrite this method and return a subclass of ProcessorEditorBody. */
 	virtual ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor) override;
 
-	/** Overwrite this method. If you want to cancel the MidiMessage, you can call ignoreEvent() within this callback. */
-	virtual void processMidiMessage(MidiMessage &m) = 0;
+	
+	/** Process the incoming event. */
+	virtual void processHiseEvent(HiseEvent &e) = 0;
 
 	/** If this method is called within processMidiMessage(), the message will be ignored. */
 	void ignoreEvent() { processThisMessage = false; };
@@ -209,6 +242,8 @@ private:
 	MidiBuffer nextFutureBuffer;
 	MidiBuffer outputBuffer;
 	
+	HiseEventBuffer futureEventBuffer;
+
 	int numThisTime;
 
 	WeakReference<MidiProcessor>::Master masterReference;
@@ -273,22 +308,14 @@ public:
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	/** Sequentially processes all processors. */
-	void processMidiMessage(MidiMessage &m) override
+	void processHiseEvent(HiseEvent &m) override
 	{
 		if(isBypassed()) return;
 		for(int i = 0; (i < processors.size()); i++)
 		{
 			if(processors[i]->isBypassed()) continue;
 
-			processors[i]->processThisMessage = true;
-
-			processors[i]->processMidiMessage(m);
-
-			if(!processors[i]->isProcessed())
-			{
-				ignoreEvent();
-				return;
-			}
+			processors[i]->processHiseEvent(m);
 		}
 	};
 

@@ -97,7 +97,7 @@ float RandomModulator::getAttribute(int parameterIndex) const
 	}
 }
 
-float RandomModulator::calculateVoiceStartValue(const MidiMessage &)
+float RandomModulator::calculateVoiceStartValue(const HiseEvent &)
 {
 	float randomValue;
 

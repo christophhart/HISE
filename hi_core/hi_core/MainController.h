@@ -229,11 +229,7 @@ public:
  							   const Identifier &typeName, 
 							   const String &id);
 
-	/** Adds a PluginParameterModulator to the parameter list of the plugin. */
-	int addPluginParameter(PluginParameterModulator *p);
 	
-	/** Removes a PluginParameterModulator from the parameter list of the plugin. */
-	void removePluginParameter(PluginParameterModulator *p);
 	
 	/** same as AudioProcessor::beginParameterGesture(). */
 	void beginParameterChangeGesture(int index);
@@ -438,17 +434,16 @@ protected:
 	void stopCpuBenchmark();
 
 	/** Checks if a connected object called allNotesOff() and replaces the content of the supplied MidiBuffer with a allNoteOff event. */
-	void checkAllNotesOff(MidiBuffer &midiMessages)
+	void checkAllNotesOff()
 	{
 		if(allNotesOffFlag)
 		{
-			midiMessages.clear();
-			midiMessages.addEvent(MidiMessage::allNotesOff(1), 0);
+			masterEventBuffer.clear();
+			masterEventBuffer.addEvent(HiseEvent(HiseEvent::Type::AllNotesOff, 0, 0, 1));
 
 			allNotesOffFlag = false;
 
 			uptime = 0.0;
-
 		}
 	};
 
@@ -471,7 +466,11 @@ protected:
     void setMidiInputFlag() {midiInputFlag = true; };
     
 
+
 private:
+
+	HiseEventBuffer masterEventBuffer;
+	HiseEventBuffer::EventIdHandler eventIdHandler;
 
 	ScopedPointer<UserPresetData> userPresetData;
 

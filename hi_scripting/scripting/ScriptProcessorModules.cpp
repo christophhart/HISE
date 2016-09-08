@@ -129,22 +129,15 @@ ProcessorEditorBody *JavascriptMidiProcessor::createEditor(ProcessorEditor *pare
 };
 
 
-void JavascriptMidiProcessor::processMidiMessage(MidiMessage &m)
+void JavascriptMidiProcessor::processHiseEvent(HiseEvent &m)
 {
 	if (isDeferred())
 	{
-		processThisMessage = true;
-
-		if (processThisMessage)
-		{
-			ScopedWriteLock sl(defferedMessageLock);
-			deferredMidiMessages.addEvent(m, (int)m.getTimeStamp());
-		}
-
-		//currentMessage = m;
-		//currentMidiMessage->setMidiMessage(&m);
-		currentMidiMessage->ignoreEvent(false);
-
+	
+		ScopedWriteLock sl(defferedMessageLock);
+		
+		deferredEvents.addEvent(m);
+		
 		triggerAsyncUpdate();
 	}
 	else
@@ -153,19 +146,14 @@ void JavascriptMidiProcessor::processMidiMessage(MidiMessage &m)
 
 		if (currentMidiMessage != nullptr)
 		{
-			currentMessage = m;
-			currentMidiMessage->setMidiMessage(&m);
-			currentMidiMessage->ignoreEvent(false);
+			currentEvent = &m;
+			currentMidiMessage->setHiseEvent(m);
 
 			runScriptCallbacks();
-
-			processThisMessage = !currentMidiMessage->ignored;
 		}
 	}
 
-
-};
-
+}
 
 void JavascriptMidiProcessor::registerApiClasses()
 {
@@ -197,7 +185,7 @@ void JavascriptMidiProcessor::runScriptCallbacks()
 
 	scriptEngine->maximumExecutionTime = isDeferred() ? RelativeTime(0.5) : RelativeTime(0.03);
 
-	if (currentMessage.isNoteOn())
+	if (currentEvent->isNoteOn())
 	{
 		synthObject->increaseNoteCounter();
 		if (onNoteOnCallback->isSnippetEmpty()) return;
@@ -207,7 +195,7 @@ void JavascriptMidiProcessor::runScriptCallbacks()
 		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, onNoteOnCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
 
 	}
-	else if (currentMessage.isNoteOff())
+	else if (currentEvent->isNoteOff())
 	{
 		synthObject->decreaseNoteCounter();
 
@@ -217,23 +205,26 @@ void JavascriptMidiProcessor::runScriptCallbacks()
 
 		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, onNoteOffCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
 	}
-	else if (currentMessage.isController() || currentMessage.isPitchWheel() || currentMessage.isAftertouch())
+	else if (currentEvent->isController() || currentEvent->isPitchWheel() || currentEvent->isAftertouch())
 	{
-		if (currentMessage.isControllerOfType(64))
+		if (currentEvent->isControllerOfType(64))
 		{
-			synthObject->setSustainPedal(currentMessage.getControllerValue() > 64);
+			synthObject->setSustainPedal(currentEvent->getControllerValue() > 64);
 		}
 
 		if (onControllerCallback->isSnippetEmpty()) return;
 
 		// All notes off are controller message, so they should not be processed, or it can lead to loop.
-		if (currentMessage.isAllNotesOff()) return;
+		if (currentEvent->isAllNotesOff()) return;
 
 		Result r = Result::ok();
 		scriptEngine->executeCallback(onController, &lastResult);
 
 		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, onControllerCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
 	}
+
+	// TODO_BUFFER: Add song position stuff
+#if 0
 	else if (currentMessage.isSongPositionPointer())
 	{
 		Result r = Result::ok();
@@ -255,6 +246,7 @@ void JavascriptMidiProcessor::runScriptCallbacks()
 
 		scriptEngine->executeWithoutAllocation(onClock, var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), args, 1), &r);
 	}
+#endif
 }
 
 
@@ -363,11 +355,14 @@ void JavascriptMidiProcessor::handleAsyncUpdate()
 
 	deferredUpdatePending = true;
 
-	if (deferredMidiMessages.getNumEvents() != 0)
+	if (!deferredEvents.isEmpty())
 	{
 		ScopedWriteLock sl(defferedMessageLock);
 
-		copyBuffer.swapWith(deferredMidiMessages);
+		copyEventBuffer.copyFrom(deferredEvents);
+		
+		deferredEvents.clear();
+
 	}
 	else
 	{
@@ -375,20 +370,18 @@ void JavascriptMidiProcessor::handleAsyncUpdate()
 		return;
 	}
 
-	MidiBuffer::Iterator iter(copyBuffer);
-
-	MidiMessage m;
-	int samplePos;
-
-	while (iter.getNextEvent(m, samplePos))
+	HiseEventBuffer::Iterator iter(copyEventBuffer);
+	
+	while (HiseEvent* m = iter.getNextEventPointer(true))
 	{
-		currentMessage = m;
-		currentMidiMessage->setMidiMessage(&m);
+		currentEvent = m;
+
+		currentMidiMessage->setHiseEvent(*m);
 
 		runScriptCallbacks();
 	}
 
-	copyBuffer.clear();
+	copyEventBuffer.clear();
 	deferredUpdatePending = false;
 
 }
@@ -595,9 +588,9 @@ ProcessorEditorBody * JavascriptVoiceStartModulator::createEditor(ProcessorEdito
 #endif
 }
 
-void JavascriptVoiceStartModulator::handleMidiEvent(const MidiMessage &m)
+void JavascriptVoiceStartModulator::handleHiseEvent(const HiseEvent& m)
 {
-	currentMidiMessage->setMidiMessage(&m);
+	currentMidiMessage->setHiseEvent(m);
 
 	if (m.isNoteOn())
 	{
@@ -755,9 +748,9 @@ ProcessorEditorBody * JavascriptTimeVariantModulator::createEditor(ProcessorEdit
 #endif
 }
 
-void JavascriptTimeVariantModulator::handleMidiEvent(const MidiMessage &m)
+void JavascriptTimeVariantModulator::handleHiseEvent(const HiseEvent &m)
 {
-	currentMidiMessage->setMidiMessage(&m);
+	currentMidiMessage->setHiseEvent(m);
 
 	if (m.isNoteOn())
 	{
@@ -950,10 +943,9 @@ ProcessorEditorBody * JavascriptEnvelopeModulator::createEditor(ProcessorEditor 
 #endif
 }
 
-void JavascriptEnvelopeModulator::handleMidiEvent(const MidiMessage &m)
+void JavascriptEnvelopeModulator::handleHiseEvent(const HiseEvent &m)
 {
-
-	currentMidiMessage->setMidiMessage(&m);
+	currentMidiMessage->setHiseEvent(m);
 
 	if (m.isNoteOn())
 	{
@@ -1363,12 +1355,12 @@ void JavascriptModulatorSynth::prepareToPlay(double sampleRate, int samplesPerBl
 	ModulatorSynth::prepareToPlay(sampleRate, samplesPerBlock);
 }
 
-void JavascriptModulatorSynth::preMidiCallback(const MidiMessage &m)
+void JavascriptModulatorSynth::preHiseEventCallback(const HiseEvent& m)
 {
-	scriptChain1->handleMidiEvent(m);
-	scriptChain2->handleMidiEvent(m);
+	scriptChain1->handleHiseEvent(m);
+	scriptChain2->handleHiseEvent(m);
 
-	ModulatorSynth::preMidiCallback(m);
+	ModulatorSynth::preHiseEventCallback(m);
 }
 
 void JavascriptModulatorSynth::preStartVoice(int voiceIndex, int noteNumber)

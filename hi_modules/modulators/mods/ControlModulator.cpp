@@ -158,9 +158,7 @@ void ControlModulator::setInternalAttribute (int parameter_index, float newValue
 		{
 		defaultValue = newValue;
 
-		MidiMessage m = MidiMessage::controllerEvent(1, controllerNumber, (int)defaultValue);
-
-		handleMidiEvent(m);
+		handleHiseEvent(HiseEvent(HiseEvent::Type::Controller, controllerNumber, (int)defaultValue, 1));
 
 		break;
 
@@ -225,7 +223,7 @@ float ControlModulator::calculateNewValue()
 }
 
 	/** sets the new target value if the controller number matches. */
-void ControlModulator::handleMidiEvent (const MidiMessage &m)
+void ControlModulator::handleHiseEvent(const HiseEvent &m)
 {
 	if (m.isNoteOff())
 	{

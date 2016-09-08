@@ -59,3 +59,4 @@ namespace juce
 #include "JavascriptTokeniser.cpp"
 #include "MacroControlledComponents.cpp"
 #include "MacroControlBroadcaster.cpp"
+#include "HiseEventBuffer.cpp"

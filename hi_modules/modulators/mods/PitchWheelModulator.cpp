@@ -118,7 +118,7 @@ float PitchwheelModulator::calculateNewValue ()
 }
 
 	/** sets the new target value if the controller number matches. */
-void PitchwheelModulator::handleMidiEvent (const MidiMessage &m)
+void PitchwheelModulator::handleHiseEvent (const HiseEvent &m)
 {
 	
 	if(m.isPitchWheel())

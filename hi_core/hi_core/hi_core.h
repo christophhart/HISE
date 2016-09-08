@@ -53,6 +53,7 @@ namespace juce
 *	A collection of basic classes.
 */
 #include "UtilityClasses.h"
+#include "HiseEventBuffer.h"
 #include "HI_LookAndFeels.h"
 #include "ThreadWithQuasiModalProgressWindow.h"
 #include "Popup.h"
@@ -80,5 +81,6 @@ namespace juce
 #include "JavascriptTokeniserFunctions.h"
 #include "MacroControlledComponents.h"
 #include "MacroControlBroadcaster.h"
+
 
 #endif  // HI_CORE_H_INCLUDED

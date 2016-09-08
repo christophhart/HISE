@@ -195,8 +195,15 @@ bool ModulatorSynth::processMidiBuffer(const MidiBuffer &inputBuffer, MidiBuffer
 		useOtherBuffer = true;
 	}
 
-
 	return useOtherBuffer;
+
+}
+
+void ModulatorSynth::processHiseEventBuffer(const HiseEventBuffer &inputBuffer, int numSamples)
+{
+	eventBuffer.copyFrom(inputBuffer);
+
+	midiProcessorChain->renderNextHiseEventBuffer(eventBuffer, numSamples);
 }
 
 void ModulatorSynth::addProcessorsWhenEmpty()
@@ -214,8 +221,9 @@ void ModulatorSynth::addProcessorsWhenEmpty()
 	}
 }
 
-void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuffer, const MidiBuffer& inputMidiBuffer)
+void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuffer, const HiseEventBuffer& inputMidiBuffer)
 {
+
     ADD_GLITCH_DETECTOR("Rendering " + getId());
     
 	const ScopedLock sl (lock);
@@ -233,6 +241,8 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 	};
 
 	initRenderCallback();
+
+#if 0 // Old
 
 	const bool useNewBuffer = processMidiBuffer(inputMidiBuffer, outputMidiBuffer, numSamples);
 
@@ -291,6 +301,62 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 	while (midiIterator.getNextEvent(m, midiEventPos))
 		handleMidiEvent(m);
 	
+#else
+
+	processHiseEventBuffer(inputMidiBuffer, numSamples);
+
+	midiInputFlag = !eventBuffer.isEmpty();
+
+	HiseEventBuffer::Iterator eventIterator(eventBuffer);
+
+	HiseEvent m;
+	int midiEventPos;
+
+	while (numSamples > 0)
+	{
+		if (!eventIterator.getNextEvent(m, midiEventPos))
+		{
+			preVoiceRendering(startSample, numSamples);
+			renderVoice(startSample, numSamples);
+			postVoiceRendering(startSample, numSamples);
+
+			break;
+		}
+
+		const int samplesToNextMidiMessage = midiEventPos - startSample;
+
+		const int delta = (samplesToNextMidiMessage % 8);
+
+		const int rastered = samplesToNextMidiMessage - delta;
+
+		if (rastered >= numSamples)
+		{
+			preVoiceRendering(startSample, numSamples);
+			renderVoice(startSample, numSamples);
+			postVoiceRendering(startSample, numSamples);
+			handleHiseEvent(m);
+			break;
+		}
+
+		if (rastered < 32)
+		{
+			handleHiseEvent(m);
+			continue;
+		}
+
+		preVoiceRendering(startSample, rastered);
+		renderVoice(startSample, rastered);
+		postVoiceRendering(startSample, rastered);
+
+		handleHiseEvent(m);
+		startSample += rastered;
+		numSamples -= rastered;
+	}
+
+	while (eventIterator.getNextEvent(m, midiEventPos))
+		handleHiseEvent(m);
+
+#endif
 
 	effectChain->renderMasterEffects(internalBuffer);
 
@@ -362,6 +428,7 @@ void ModulatorSynth::handlePeakDisplay(int numSamplesInOutputBuffer)
 #endif
 }
 
+#if 0
 void ModulatorSynth::handleMidiEvent(const MidiMessage &m)
 {
 	preMidiCallback(m);
@@ -403,22 +470,61 @@ void ModulatorSynth::handleMidiEvent(const MidiMessage &m)
 		handleProgramChange(channel, m.getProgramChangeNumber());
 	}
 }
+#endif
+
+void ModulatorSynth::handleHiseEvent(const HiseEvent& m)
+{
+	preHiseEventCallback(m);
+	
+	const int channel = 1;
+
+	if (m.isNoteOn())
+	{
+		noteOn(channel, m.getNoteNumber(), m.getFloatVelocity());
+	}
+	else if (m.isNoteOff())
+	{
+		noteOff(channel, m.getNoteNumber(), m.getFloatVelocity(), true);
+	}
+	else if (m.isAllNotesOff())
+	{
+		allNotesOff(channel, true);
+	}
+	else if (m.isPitchWheel())
+	{
+		const int wheelPos = m.getPitchWheelValue();
+		lastPitchWheelValues[channel - 1] = wheelPos;
+		handlePitchWheel(channel, wheelPos);
+	}
+	else if (m.isAftertouch())
+	{
+		handleAftertouch(channel, m.getNoteNumber(), m.getAfterTouchValue());
+	}
+	else if (m.isChannelPressure())
+	{
+		handleChannelPressure(channel, m.getChannelPressureValue());
+	}
+	else if (m.isController())
+	{
+		handleController(channel, m.getControllerNumber(), m.getControllerValue());
+	}
+}
+
+void ModulatorSynth::preHiseEventCallback(const HiseEvent &e)
+{
+	if (e.isAllNotesOff()) stopSynthTimer();
+
+	gainChain->handleHiseEvent(e);
+	pitchChain->handleHiseEvent(e);
+	effectChain->handleHiseEvent(e);
+
+}
 
 bool ModulatorSynth::soundCanBePlayed(ModulatorSynthSound *sound, int midiChannel, int midiNoteNumber, float velocity)
 {
 	return sound->appliesToMessage(midiChannel, midiNoteNumber, (int)(velocity * 127));
 };
 
-void ModulatorSynth::preMidiCallback(const MidiMessage &m)
-{
-	// Stops the timer.
-	if(m.isAllNotesOff()) stopSynthTimer();
-
-	// Send the message to the voice start modulators
-	gainChain->handleMidiEvent(m);
-	pitchChain->handleMidiEvent(m);
-	effectChain->handleMidiEvent(m);
-}
 
 
 	

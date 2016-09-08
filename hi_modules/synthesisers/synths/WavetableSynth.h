@@ -810,12 +810,11 @@ public:
 	}
 
 	
-
-	void preMidiCallback(const MidiMessage &m) override
+	void preHiseEventCallback(const HiseEvent &m) override
 	{
-		tableIndexChain->handleMidiEvent(m);
+		tableIndexChain->handleHiseEvent(m);
 
-		ModulatorSynth::preMidiCallback(m);
+		ModulatorSynth::preHiseEventCallback(m);
 	}
 
 	void preStartVoice(int voiceIndex, int noteNumber) override

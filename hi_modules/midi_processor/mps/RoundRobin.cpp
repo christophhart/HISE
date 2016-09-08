@@ -38,7 +38,7 @@ RoundRobinMidiProcessor::~RoundRobinMidiProcessor()
 	if(g != nullptr) g->setAllowStateForAllChildSynths(true);
 }
 
-void RoundRobinMidiProcessor::processMidiMessage(MidiMessage &m)
+void RoundRobinMidiProcessor::processHiseEvent(HiseEvent &m)
 {
 	ModulatorSynthGroup *group = static_cast<ModulatorSynthGroup*>(getOwnerSynth());
 

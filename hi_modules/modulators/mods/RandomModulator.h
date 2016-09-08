@@ -63,7 +63,7 @@ public:
 	float getAttribute(int parameterIndex) const override;;
 
 	/** Calculates a new random value. If the table is used, it is converted to 7bit.*/
-	float calculateVoiceStartValue(const MidiMessage &) override;;
+	float calculateVoiceStartValue(const HiseEvent& ) override;;
 
 	/** returns a pointer to the look up table. Don't delete it! */
 	Table *getTable(int=0) const override {return table; };

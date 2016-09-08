@@ -113,8 +113,7 @@ public:
 		runTimerCallback(offsetInBuffer);
 	};
 
-	/** This calls the processMidiMessage() function in the compiled Javascript code. @see ScriptingApi */
-	void processMidiMessage(MidiMessage &m) override;
+	void processHiseEvent(HiseEvent &m) override;
 
 private:
 
@@ -132,6 +131,9 @@ private:
 
 	MidiBuffer deferredMidiMessages;
 	MidiBuffer copyBuffer;
+
+	HiseEventBuffer deferredEvents;
+	HiseEventBuffer copyEventBuffer;
 
 	ReferenceCountedObjectPtr<ScriptingApi::Message> currentMidiMessage;
 	ReferenceCountedObjectPtr<ScriptingApi::Engine> engineObject;
@@ -184,8 +186,8 @@ public:
 	
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
-	float calculateVoiceStartValue(const MidiMessage &/*m*/) override { return 0.0f; };
-	virtual void handleMidiEvent(const MidiMessage &m) override;
+	float calculateVoiceStartValue(const HiseEvent &/*m*/) override { return 0.0f; };
+	virtual void handleHiseEvent(const HiseEvent &m) override;
 
 	/** When the startNote function is called, a previously calculated value (by the handleMidiMessage function) is stored using the supplied voice index. */
 	virtual void startVoice(int voiceIndex) override;;
@@ -260,7 +262,7 @@ public:
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
-	void handleMidiEvent(const MidiMessage &m) override;
+	void handleHiseEvent(const HiseEvent &m) override;
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 	void calculateBlock(int startSample, int numSamples) override;;
 
@@ -349,7 +351,7 @@ public:
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
-	void handleMidiEvent(const MidiMessage &m) override;
+	void handleHiseEvent(const HiseEvent &m) override;
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 	void calculateBlock(int startSample, int numSamples) override;;
 
@@ -465,7 +467,7 @@ public:
 	virtual const Processor *getChildProcessor(int processorIndex) const override;;
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
-	void preMidiCallback(const MidiMessage &m) override;
+	void preHiseEventCallback(const HiseEvent &m) override;
 	void preStartVoice(int voiceIndex, int noteNumber) override;;
 	void preVoiceRendering(int startSample, int numThisTime);;
 

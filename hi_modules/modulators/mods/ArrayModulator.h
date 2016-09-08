@@ -96,7 +96,7 @@ public:
 
 
 	/** Returns the 0.0f and let the intensity do it's job. */
-	float calculateVoiceStartValue(const MidiMessage &m) override
+	float calculateVoiceStartValue(const HiseEvent &m) override
 	{
         const int number = m.getNoteNumber();
         

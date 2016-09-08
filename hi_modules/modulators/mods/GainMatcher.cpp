@@ -136,7 +136,7 @@ float GainMatcherVoiceStartModulator::getAttribute(int parameterIndex) const
 	}
 }
 
-float GainMatcherVoiceStartModulator::calculateVoiceStartValue(const MidiMessage &)
+float GainMatcherVoiceStartModulator::calculateVoiceStartValue(const HiseEvent &)
 {
 
 	if (getCollector() == nullptr) return 1.0f;
@@ -268,7 +268,7 @@ float GainMatcherTimeVariantModulator::calculateNewValue()
 }
 
 /** sets the new target value if the controller number matches. */
-void GainMatcherTimeVariantModulator::handleMidiEvent(const MidiMessage &)
+void GainMatcherTimeVariantModulator::handleHiseEvent(const HiseEvent &)
 {
 	
 }

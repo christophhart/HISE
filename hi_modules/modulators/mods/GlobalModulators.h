@@ -151,7 +151,7 @@ public:
 	float getAttribute(int parameterIndex) const override;;
 
 	/** Calculates a new random value. If the table is used, it is converted to 7bit.*/
-	float calculateVoiceStartValue(const MidiMessage &) override;;
+	float calculateVoiceStartValue(const HiseEvent& ) override;;
 };
 
 class GlobalTimeVariantModulator : public TimeVariantModulator,
@@ -186,7 +186,7 @@ public:
 	void calculateBlock(int startSample, int numSamples) override;
 
 	/** sets the new target value if the controller number matches. */
-	void handleMidiEvent(const MidiMessage &/*m*/) override {};
+	void handleHiseEvent(const HiseEvent &/*m*/) override {};
 
 	virtual void prepareToPlay(double sampleRate, int samplesPerBlock) override
 	{
@@ -199,65 +199,6 @@ private:
 
 	float currentValue;
 
-};
-
-/** This Modulator gets its values from the connected modulator in the global container chain.
-*
-*	This is a quite experimental feature - do not use it on other chains than the gain chain or in combination with other envelopes - as soon as the voice indexes don't match anymore, the results are unpredictable!
-*
-*/
-class GlobalEnvelopeModulator : public EnvelopeModulator,
-								public GlobalModulator
-{
-public:
-
-	SET_PROCESSOR_NAME("GlobalEnvelopeModulator", "Global Envelope Modulator");
-
-	GlobalModulator::ModulatorType getModulatorType() const override { return GlobalModulator::Envelope; };
-
-	GlobalEnvelopeModulator(MainController *mc, const String &id, int numVoices, Modulation::Mode m);
-
-	~GlobalEnvelopeModulator() { removeFromAllContainers(); };
-
-	void restoreFromValueTree(const ValueTree &v) override;;
-
-	ValueTree exportAsValueTree() const override;
-
-	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
-
-	void setInternalAttribute(int parameterIndex, float newValue) override;;
-
-	float getAttribute(int parameterIndex) const override;;
-
-	virtual Processor *getChildProcessor(int /*processorIndex*/) override final { return nullptr; };
-
-	virtual const Processor *getChildProcessor(int /*processorIndex*/) const override final { return nullptr; };
-
-	virtual int getNumChildProcessors() const override final { return 0; };
-
-	void startVoice(int /*voiceIndex*/) override {};
-
-	void stopVoice(int /*voiceIndex*/) override {};
-
-	void calculateBlock(int startSample, int numSamples) override;;
-
-	void reset(int voiceIndex) override
-	{
-		EnvelopeModulator::reset(voiceIndex);
-	};
-
-	void prepareToPlay(double sampleRate, int samplesPerBlock) override
-	{
-		EnvelopeModulator::prepareToPlay(sampleRate, samplesPerBlock);
-	}
-
-	/** @brief returns \c true, if the envelope is not IDLE and not bypassed. */
-	bool isPlaying(int voiceIndex) const override;;
-
-	/// @brief handles note-on and note-off messages and switches the internal state
-	void handleMidiEvent(MidiMessage const &/*m*/) {};
-
-	ModulatorState *createSubclassedState(int /*voiceIndex*/) const override { return nullptr; };
 };
 
 

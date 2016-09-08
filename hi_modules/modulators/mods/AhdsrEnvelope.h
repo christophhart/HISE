@@ -113,7 +113,7 @@ public:
 
 	void calculateBlock(int startSample, int numSamples);;
 
-	void handleMidiEvent(MidiMessage const &m);
+	void handleHiseEvent(const HiseEvent &e) override;
 	
 
 	ProcessorEditorBody *createEditor(ProcessorEditor* parentEditor) override;

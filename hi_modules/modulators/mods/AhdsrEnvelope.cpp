@@ -232,11 +232,11 @@ void AhdsrEnvelope::reset(int voiceIndex)
 	state->current_value = 0.0f;
 }
 
-void AhdsrEnvelope::handleMidiEvent(MidiMessage const &m)
+void AhdsrEnvelope::handleHiseEvent(const HiseEvent &e)
 {
 	for(int i = 0; i < numInternalChains; i++)
 	{
-		internalChains[i]->handleMidiEvent(m);
+		internalChains[i]->handleHiseEvent(e);
 	}
 };
 

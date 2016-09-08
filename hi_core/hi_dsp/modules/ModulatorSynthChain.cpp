@@ -89,7 +89,7 @@ void ModulatorSynthChain::compileAllScripts()
 	}
 }
 
-void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffer, const MidiBuffer &inputMidiBuffer)
+void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffer, const HiseEventBuffer &inputMidiBuffer)
 {
 	if (isBypassed()) return;
 
@@ -108,14 +108,17 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 		synthTimerCallback();
 	};
 
+
+	processHiseEventBuffer(inputMidiBuffer, numSamples);
+
 	// Process the MidiBuffer of the ModulatorSynthChain
-	const bool useNewBuffer = processMidiBuffer(inputMidiBuffer, copy, numSamples);
+	//const bool useNewBuffer = processMidiBuffer(inputMidiBuffer, copy, numSamples);
 
 	// Shrink the internal buffer to the output buffer size 
 	internalBuffer.setSize(getMatrix().getNumSourceChannels(), numSamples, true, false, true);
 
 	// Process the Synths and add store their output in the internal buffer
-	for (int i = 0; i < synths.size(); i++) if (!synths[i]->isBypassed()) synths[i]->renderNextBlockWithModulators(internalBuffer, useNewBuffer ? copy : inputMidiBuffer);
+	for (int i = 0; i < synths.size(); i++) if (!synths[i]->isBypassed()) synths[i]->renderNextBlockWithModulators(internalBuffer, eventBuffer);
 
 	postVoiceRendering(0, numSamples);
 
@@ -458,19 +461,16 @@ float ModulatorSynthGroup::getAttribute(int index) const
 	}
 }
 
-void ModulatorSynthGroup::preMidiCallback(const MidiMessage &m)
+void ModulatorSynthGroup::preHiseEventCallback(const HiseEvent &m)
 {
-	ModulatorSynth::preMidiCallback(m);
+	ModulatorSynth::preHiseEventCallback(m);
 
 	ModulatorSynth *child;
 	ChildSynthIterator iterator(this, ChildSynthIterator::SkipUnallowedSynths);
 
 	while(iterator.getNextAllowedChild(child))
 	{
-		child->preMidiCallback(m);
-
-		//static_cast<ModulatorChain*>(child->getChildProcessor(ModulatorSynth::GainModulation))->handleMidiEvent(m);
-		//static_cast<ModulatorChain*>(child->getChildProcessor(ModulatorSynth::PitchModulation))->handleMidiEvent(m);
+		child->preHiseEventCallback(m);
 	}
 };
 

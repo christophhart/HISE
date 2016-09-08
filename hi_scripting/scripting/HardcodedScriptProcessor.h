@@ -106,7 +106,7 @@ protected:
 	ScriptingApi::Content Content;
 	ScriptingApi::Sampler Sampler;
 
-	void processMidiMessage (MidiMessage &m) override;
+	void processHiseEvent(HiseEvent &m) override;
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 	

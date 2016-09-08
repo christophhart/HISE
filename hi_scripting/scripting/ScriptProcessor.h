@@ -140,7 +140,11 @@ public:
 	ValueTree exportAsValueTree() const override { ValueTree v = MidiProcessor::exportAsValueTree(); saveContent(v); return v; }
 	void restoreFromValueTree(const ValueTree &v) override { MidiProcessor::restoreFromValueTree(v); restoreContent(v); }
 
-	const MidiMessage &getCurrentMidiMessage() const { return currentMessage; };
+	const HiseEvent* getCurrentHiseEvent() const
+	{
+		return currentEvent;
+	}
+
 
 	int getControlCallbackIndex() const override { return onControl; };
 
@@ -149,7 +153,8 @@ protected:
 	WeakReference<ScriptBaseMidiProcessor>::Master masterReference;
     friend class WeakReference<ScriptBaseMidiProcessor>;
 	
-	MidiMessage currentMessage;
+	HiseEvent* currentEvent;
+
 };
 
 

@@ -89,7 +89,7 @@ public:
 	void setInternalAttribute(int parameterIndex, float newValue) override;;
 	float getAttribute(int parameterIndex) const override;;
 
-	float calculateVoiceStartValue(const MidiMessage &) override;;
+	float calculateVoiceStartValue(const HiseEvent& ) override;;
 
 private:
 
@@ -121,7 +121,7 @@ public:
 	void setInternalAttribute(int parameter_index, float newValue) override;
 
 	void calculateBlock(int startSample, int numSamples) override;;
-	void handleMidiEvent(const MidiMessage &m) override;
+	void handleHiseEvent(const HiseEvent &m) override;
 	virtual void prepareToPlay(double sampleRate, int samplesPerBlock) override;;
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;

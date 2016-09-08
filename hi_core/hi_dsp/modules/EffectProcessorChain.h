@@ -84,10 +84,10 @@ public:
 		for(int i = 0; i < allEffects.size(); i++) allEffects[i]->prepareToPlay(sampleRate, samplesPerBlock);
 	};
 
-	void handleMidiEvent(const MidiMessage &m) override
+	void handleHiseEvent(const HiseEvent &m) override
 	{	
 		if(isBypassed()) return;
-		FOR_ALL_EFFECTS(handleMidiEvent(m)); 
+		FOR_ALL_EFFECTS(handleHiseEvent(m)); 
 	};
 
 	void preRenderCallback(int startSample, int numSamples) override

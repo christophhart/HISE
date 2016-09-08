@@ -730,13 +730,13 @@ void ModulatorSampler::noteOff(int midiChannel, int noteNumber, float velocity, 
 	}
 }
 
-void ModulatorSampler::preMidiCallback(const MidiMessage &m)
+void ModulatorSampler::preHiseEventCallback(const HiseEvent &m)
 {
-	crossFadeChain->handleMidiEvent(m);
+	crossFadeChain->handleHiseEvent(m);
 
 	if (m.isNoteOnOrOff())
 	{
-		sampleStartChain->handleMidiEvent(m);
+		sampleStartChain->handleHiseEvent(m);
 		
 
 		if (m.isNoteOn())
@@ -756,7 +756,7 @@ void ModulatorSampler::preMidiCallback(const MidiMessage &m)
 
 	if (!m.isNoteOff() || !oneShotEnabled)
 	{
-		ModulatorSynth::preMidiCallback(m);
+		ModulatorSynth::preHiseEventCallback(m);
 
 	}
 }

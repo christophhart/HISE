@@ -68,7 +68,7 @@ public:
 protected:
 
 	/** Applies the raster to the timestamp. */
-	void processMidiMessage(MidiMessage &m) override
+	void processHiseEvent(HiseEvent& m) override
 	{
 		const int t = (int)m.getTimeStamp();
 		m.setTimeStamp(roundToRaster(t));

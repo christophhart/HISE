@@ -105,7 +105,7 @@ public:
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 	void calculateBlock(int startSample, int numSamples) override;
-	void handleMidiEvent(MidiMessage const &m);
+	void handleHiseEvent(const HiseEvent& m) override;
 	
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 

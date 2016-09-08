@@ -111,14 +111,14 @@ public:
 	};
 
 	/** Calculates a new random value. If the table is used, it is converted to 7bit.*/
-	float calculateVoiceStartValue(const MidiMessage &m) override 
+	float calculateVoiceStartValue(const HiseEvent &m) override
 	{ 
 		return getTable(mode)->getReadPointer()[m.getNoteNumber()]; 
 	};
 
-	void handleMidiEvent(const MidiMessage &m) override
+	void handleHiseEvent(const HiseEvent &m) override
 	{
-		VoiceStartModulator::handleMidiEvent(m);
+		VoiceStartModulator::handleHiseEvent(m);
 
 		if(m.isNoteOnOrOff())
 		{

@@ -53,6 +53,8 @@ MainController::MainController():
 	autoSaver(this),
 	enablePluginParameterUpdate(true),
 	customTypeFaceData(ValueTree("CustomFonts")),
+	masterEventBuffer(),
+	eventIdHandler(masterEventBuffer),
 #if JUCE_WINDOWS
     globalCodeFontSize(14.0f)
 #else
@@ -235,9 +237,6 @@ void MainController::loadPreset(ValueTree &v, Component* /*mainEditor*/)
 	}
 }
 
-int MainController::addPluginParameter(PluginParameterModulator *p)		{ return dynamic_cast<PluginParameterAudioProcessor*>(this)->addPluginParameter(p); }
-	
-void MainController::removePluginParameter(PluginParameterModulator *p) { dynamic_cast<PluginParameterAudioProcessor*>(this)->removePluginParameter(p); }
 
 void MainController::startCpuBenchmark(int bufferSize_)
 {
@@ -680,8 +679,6 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
     
 	ScopedNoDenormals snd;
 
-	getMacroManager().getMidiControlAutomationHandler()->handleParameterData(midiMessages);
-
 	AudioProcessor *thisAsProcessor = dynamic_cast<AudioProcessor*>(this);
 
 	ModulatorSynthChain *synthChain = getMainSynthChain();
@@ -691,6 +688,16 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		debugError(synthChain, "Block size mismatch (old: " + String(bufferSize.get()) + ", new: " + String(buffer.getNumSamples()));
 		prepareToPlay(sampleRate, buffer.getNumSamples());
 	}
+
+	keyboardState.processNextMidiBuffer(midiMessages, 0, buffer.getNumSamples(), true);
+
+	if (!midiMessages.isEmpty()) setMidiInputFlag();
+
+	getMacroManager().getMidiControlAutomationHandler()->handleParameterData(midiMessages); // TODO_BUFFER: Move this after the next line...
+
+	masterEventBuffer.addEvents(midiMessages);
+
+	eventIdHandler.handleEventIds();
 
 #if ENABLE_HOST_INFO
 	AudioPlayHead::CurrentPositionInfo newTime;
@@ -714,19 +721,19 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		buffer.clear();
 	}
 
-	checkAllNotesOff(midiMessages);
+	checkAllNotesOff();
 
 #if USE_MIDI_CONTROLLERS_FOR_MACROS
 	handleControllersForMacroKnobs(midiMessages);
 #endif
 
-	keyboardState.processNextMidiBuffer(midiMessages, 0, buffer.getNumSamples(), true);
+	
 
-	if (!midiMessages.isEmpty()) setMidiInputFlag();
+	
 
 	multiChannelBuffer.clear();
 
-	synthChain->renderNextBlockWithModulators(multiChannelBuffer, midiMessages);
+	synthChain->renderNextBlockWithModulators(multiChannelBuffer, masterEventBuffer);
 
 	FloatVectorOperations::copy(buffer.getWritePointer(0), multiChannelBuffer.getReadPointer(0), buffer.getNumSamples());
 	FloatVectorOperations::copy(buffer.getWritePointer(1), multiChannelBuffer.getReadPointer(1), buffer.getNumSamples());

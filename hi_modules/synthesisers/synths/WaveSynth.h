@@ -532,11 +532,11 @@ public:
 		}
 	}
 
-	void preMidiCallback(const MidiMessage &m) override
+	void preHiseEventCallback(const HiseEvent &m) override
 	{
-		mixChain->handleMidiEvent(m);
+		mixChain->handleHiseEvent(m);
 
-		ModulatorSynth::preMidiCallback(m);
+		ModulatorSynth::preHiseEventCallback(m);
 	}
 
 	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;

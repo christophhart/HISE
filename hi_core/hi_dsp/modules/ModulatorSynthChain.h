@@ -273,7 +273,7 @@ public:
 	*	- applies the time-variant gain modulators (no midi support!)
 	*	- applies the gain of the chain.
 	*/
-	void renderNextBlockWithModulators(AudioSampleBuffer &buffer, const MidiBuffer &inputMidiBuffer) override;;
+	void renderNextBlockWithModulators(AudioSampleBuffer &buffer, const HiseEventBuffer &inputMidiBuffer) override;;
 
 	int getVoiceAmount() const {return numVoices;};
 
@@ -623,7 +623,7 @@ public:
 	const Processor *getParentProcessor() const {return nullptr;};
 
 	/** Passes the incoming MidiMessage only to the modulation chains of all child synths and NOT to the child synth's voices, as they get rendered by the ModulatorSynthGroupVoices. */
-	void preMidiCallback(const MidiMessage &m) override;
+	void preHiseEventCallback(const HiseEvent &m) override;
 
 	/** Prepares all ModulatorSynths for playback. */
 	void prepareToPlay (double sampleRate, int samplesPerBlock) override

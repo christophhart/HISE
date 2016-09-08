@@ -417,10 +417,10 @@ void AudioFileEnvelope::calculateBlock(int startSample, int numSamples)
 	}
 }
 
-void AudioFileEnvelope::handleMidiEvent(const MidiMessage &m)
+void AudioFileEnvelope::handleHiseEvent(const HiseEvent &m)
 {
-	intensityChain->handleMidiEvent(m);
-	frequencyChain->handleMidiEvent(m);
+	intensityChain->handleHiseEvent(m);
+	frequencyChain->handleHiseEvent(m);
 	
 	if(m.isNoteOn())
 	{

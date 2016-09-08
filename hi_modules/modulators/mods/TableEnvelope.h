@@ -122,7 +122,7 @@ public:
 	};
 
 	/// @brief handles note-on and note-off messages and switches the internal state
-	void handleMidiEvent(MidiMessage const &m);
+	void handleHiseEvent(const HiseEvent &m) override;
 	
 	float getAttribute (int parameter_index) const
 	{

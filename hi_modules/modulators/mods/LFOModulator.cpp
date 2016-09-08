@@ -302,10 +302,10 @@ void LfoModulator::prepareToPlay(double sampleRate, int samplesPerBlock)
 	intensityInterpolator.setStepAmount(samplesPerBlock);
 };
 
-void LfoModulator::handleMidiEvent (const MidiMessage &m)
+void LfoModulator::handleHiseEvent(const HiseEvent &m)
 {
-	intensityChain->handleMidiEvent(m);
-	frequencyChain->handleMidiEvent(m);
+	intensityChain->handleHiseEvent(m);
+	frequencyChain->handleHiseEvent(m);
 
 	if (m.isAllNotesOff())
 	{

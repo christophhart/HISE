@@ -56,7 +56,7 @@ public:
 	void setInternalAttribute(int, float ) override { };
 	
 	/** deactivates the child synths in a round robin cycle. */
-	void processMidiMessage(MidiMessage &m) override;
+	void processHiseEvent(HiseEvent &m) override;
 	
 private:
 

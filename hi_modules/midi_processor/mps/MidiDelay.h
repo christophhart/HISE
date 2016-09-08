@@ -47,7 +47,7 @@ public:
 		delayTime(44100)
 	{};
 
-	void processMidiMessage(MidiMessage &m) override
+	void processHiseEvent(HiseEvent &m) override
 	{
 		m.setTimeStamp(delayTime);
 	};

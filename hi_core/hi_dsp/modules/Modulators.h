@@ -233,7 +233,7 @@ public:
 	*	This is likely to be used with midi messages that do not trigger a voice start like cc-messages.
 	*	For the handling of note-on messages better use the calculateVoiceStartValue() method instead.
 	*/
-	virtual void handleMidiEvent(MidiMessage const &) = 0;
+	virtual void handleHiseEvent(const HiseEvent& ) = 0;
 
 	// ===============================================================================================
 	// Class methods
@@ -528,7 +528,7 @@ public:
 	virtual float getVoiceStartValue(int voiceIndex) const noexcept { return voiceValues.getUnchecked(voiceIndex); };
 
 	/**	If a note on is received, the voice start value is calculated and stored temporarily until startNote() is called. */
-	virtual void handleMidiEvent(const MidiMessage &m) override
+	virtual void handleHiseEvent(const HiseEvent &m) override
 	{
 		if(m.isNoteOnOrOff() && m.isNoteOn())
 		{
@@ -539,7 +539,7 @@ public:
 protected:
 
 	/** Overwrite this method to calculate the voice start value. */
-	virtual float inline calculateVoiceStartValue(const MidiMessage &m) = 0;
+	virtual float inline calculateVoiceStartValue(const HiseEvent &m) = 0;
 	
 private:
 
@@ -734,7 +734,7 @@ public:
 #endif
 	}
 
-	void handleMidiEvent(const MidiMessage &m)
+	void handleHiseEvent(const HiseEvent &m)
 	{
 		if(m.isAllNotesOff())
 		{
@@ -925,7 +925,6 @@ class TimeVariantModulatorFactoryType: public FactoryType
 		pitchWheel,
 		macroModulator,
 		audioFileEnvelope,
-		pluginParameter,
 		globalTimeVariantModulator,
 		gainMatcherTimeVariantModulator,
 		ccDucker,

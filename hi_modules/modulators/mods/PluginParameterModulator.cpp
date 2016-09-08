@@ -31,22 +31,3 @@
 */
 
 
-ProcessorEditorBody *PluginParameterModulator::createEditor(ProcessorEditor *parentEditor)
-{
-#if USE_BACKEND
-
-	return new PluginParameterEditorBody(parentEditor);
-
-	
-#else
-
-	ignoreUnused(parentEditor);
-	jassertfalse;
-
-	return nullptr;
-
-#endif
-};
-
-
-

@@ -53,17 +53,21 @@ MidiProcessor::~MidiProcessor()
 };
 
 
-void MidiProcessor::addMidiMessageToBuffer(MidiMessage &m)
+void MidiProcessor::addHiseEventToBuffer(const HiseEvent &m)
 {
 	const int timeStamp = (int)m.getTimeStamp();
 
+	jassert(m.isArtificial());
+
+	numThisTime = dynamic_cast<AudioProcessor*>(getMainController())->getBlockSize();
+
 	if (timeStamp > numThisTime)
 	{
-		ownerSynth->midiProcessorChain->futureBuffer.addEvent(m, timeStamp);
+		ownerSynth->midiProcessorChain->futureEventBuffer.addEvent(m);
 	}
 	else
 	{
-		ownerSynth->generatedMessages.addEvent(m, timeStamp);
+		ownerSynth->eventBuffer.addEvent(m);
 	}
 }
 

@@ -129,7 +129,7 @@ public:
 	*	You can't use the voice index here, since it is not guaranteed if the message starts a note.
 	*
 	*/
-	void handleMidiEvent(const MidiMessage &m) override;
+	void handleHiseEvent(const HiseEvent& m) override;
 
 	/** Checks if any of the EnvelopeModulators wants to keep the voice from being killed. 
 	*

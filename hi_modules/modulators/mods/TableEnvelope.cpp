@@ -190,10 +190,10 @@ void TableEnvelope::calculateBlock(int startSample, int numSamples)
 	}
 }
 
-void TableEnvelope::handleMidiEvent(MidiMessage const &m)
+void TableEnvelope::handleHiseEvent(const HiseEvent& m)
 {
-	attackChain->handleMidiEvent(m);
-	releaseChain->handleMidiEvent(m);
+	attackChain->handleHiseEvent(m);
+	releaseChain->handleHiseEvent(m);
 };
 
 float TableEnvelope::calculateNewValue()

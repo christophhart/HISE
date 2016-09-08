@@ -68,11 +68,12 @@ ProcessorEditorBody *HardcodedScriptProcessor::createEditor(ProcessorEditor *par
 #endif
 };
 
-void HardcodedScriptProcessor::processMidiMessage (MidiMessage &m)
+void HardcodedScriptProcessor::processHiseEvent(HiseEvent &m)
 {
-	
-	currentMessage = m;
-	Message.setMidiMessage(&m);
+	currentEvent = &m;
+
+	Message.setHiseEvent(m);
+
 	Message.ignoreEvent(false);
 
 	if(m.isNoteOn())
@@ -90,10 +91,6 @@ void HardcodedScriptProcessor::processMidiMessage (MidiMessage &m)
 	{
 		onController();
 	}
-
-	processThisMessage = !Message.ignored;
-	
-
 }
 
 void HardcodedScriptFactoryType::fillTypeNameList()

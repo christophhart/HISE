@@ -141,7 +141,7 @@ void CCDucker::setInternalAttribute(int parameterIndex, float newValue)
 	}
 }
 
-void CCDucker::handleMidiEvent(const MidiMessage &m)
+void CCDucker::handleHiseEvent(const HiseEvent &m)
 {
 	if (m.isControllerOfType(ccNumber))
 	{

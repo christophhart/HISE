@@ -176,8 +176,8 @@ void CCEnvelope::setInternalAttribute(int parameter_index, float newValue)
 	case DefaultValue:
 	{
 		defaultValue = newValue;
-		MidiMessage m = MidiMessage::controllerEvent(1, controllerNumber, (int)defaultValue);
-		handleMidiEvent(m);
+
+		handleHiseEvent(HiseEvent(HiseEvent::Type::Controller, controllerNumber, defaultValue, 1));
 		break;
 	}
 	case StartLevel:
@@ -329,51 +329,51 @@ void CCEnvelope::calculateBlock(int startSample, int numSamples)
 	}
 }
 
-void CCEnvelope::handleMidiEvent(MidiMessage const &m)
+void CCEnvelope::handleHiseEvent(const HiseEvent& e)
 {
-	holdChain->handleMidiEvent(m);
-	startLevelChain->handleMidiEvent(m);
-	endLevelChain->handleMidiEvent(m);
-	decayChain->handleMidiEvent(m);
+	holdChain->handleHiseEvent(e);
+	startLevelChain->handleHiseEvent(e);
+	endLevelChain->handleHiseEvent(e);
+	decayChain->handleHiseEvent(e);
 
 	if (learnMode)
 	{
-		if (m.isController())
+		if (e.isController())
 		{
-			controllerNumber = m.getControllerNumber();
+			controllerNumber = e.getControllerNumber();
 			disableLearnMode();
 		}
-		else if (m.isPitchWheel())
+		else if (e.isPitchWheel())
 		{
 			controllerNumber = 129;
 			disableLearnMode();
 		}
-		else if (m.isChannelPressure() || m.isAftertouch())
+		else if (e.isChannelPressure() || e.isAftertouch())
 		{
 			controllerNumber = 128;
 			disableLearnMode();
 		}
 	}
 
-	const bool isAftertouch = controllerNumber == 128 && (m.isAftertouch() || m.isChannelPressure());
+	const bool isAftertouch = controllerNumber == 128 && (e.isAftertouch() || e.isChannelPressure());
 
-	if (isAftertouch || m.isControllerOfType(controllerNumber) || m.isPitchWheel())
+	if (isAftertouch || e.isControllerOfType(controllerNumber) || e.isPitchWheel())
 	{
-		if (m.isController())
+		if (e.isController())
 		{
-			inputValue = m.getControllerValue() / 127.0f;
+			inputValue = e.getControllerValue() / 127.0f;
 		}
-		else if (controllerNumber == 129 && m.isPitchWheel())
+		else if (controllerNumber == 129 && e.isPitchWheel())
 		{
-			inputValue = m.getPitchWheelValue() / 16383.0f;
+			inputValue = e.getPitchWheelValue() / 16383.0f;
 		}
-		else if (m.isChannelPressure())
+		else if (e.isChannelPressure())
 		{
-			inputValue = m.getChannelPressureValue() / 127.0f;
+			inputValue = e.getChannelPressureValue() / 127.0f;
 		}
 		else
 		{
-			inputValue = m.getAfterTouchValue() / 127.0f;
+			inputValue = e.getAfterTouchValue() / 127.0f;
 		}
 
 		float value;

@@ -40,6 +40,8 @@ class ModulatorSynthGroup;
 class ModulatorSynthSound;
 class ModulatorSynthVoice;
 
+typedef HiseEventBuffer EVENT_BUFFER_TO_USE;
+
 /** A ModulatorSynth is a synthesiser with a ModulatorChain for volume and pitch that allows
 *	modulation of these parameters.
 *
@@ -225,8 +227,7 @@ public:
 	*	This only renders the TimeVariantModulators (like a master effect) and calculates the voice modulation, so make sure you actually apply
 	*	the voice modulation in the subclassed ModulatorSynthVoice callback.
 	*/
-	virtual void renderNextBlockWithModulators(AudioSampleBuffer& outputAudio,
-									   const MidiBuffer& inputMidi);
+	virtual void renderNextBlockWithModulators(AudioSampleBuffer& outputAudio, const HiseEventBuffer& inputMidi);
 
 	/** This method is called to handle all modulatorchains just before the voice rendering. */
 	virtual void preVoiceRendering(int startSample, int numThisTime)
@@ -286,11 +287,14 @@ public:
 
 	virtual Colour getColour() const override {	return Colours::black.withBrightness(0.45f); };
 
-	/** Same functionality as Synthesiser::handleMidiEvent(), but sends the midi event to all Modulators in the chains. */
-	void handleMidiEvent(const MidiMessage &m) final override;
+	
 
-	/** Use this to do any special handling before the midi callback gets executed. */
-	virtual void preMidiCallback(const MidiMessage &m);
+	/** Same functionality as Synthesiser::handleMidiEvent(), but sends the midi event to all Modulators in the chains. */
+	//void handleHiseEvent(const HiseEvent &m) final override;
+
+	void handleHiseEvent(const HiseEvent& e);
+
+	virtual void preHiseEventCallback(const HiseEvent &e);
 
 	/** Use this to do any special handling before the voice gets started. */
 	virtual void preStartVoice(int voiceIndex, int noteNumber);
@@ -322,7 +326,7 @@ public:
 			{
 				MidiMessage allNotesOffMessage = MidiMessage::allNotesOff(1);
 
-				chain->handleMidiEvent(allNotesOffMessage);
+				chain->handleHiseEvent(HiseEvent(HiseEvent::Type::AllNotesOff, 0, 0, 1));
 			}
 
 		}
@@ -379,7 +383,10 @@ public:
 	*
 	*	returns if the midi buffer was altered. If true, it uses the outputBuffer, otherwise, the bufferToProcess is used for further processing.
 	*/
-	virtual bool processMidiBuffer(const MidiBuffer &bufferToProcess, MidiBuffer &outputBuffer, int numSamples);
+	bool processMidiBuffer(const MidiBuffer &bufferToProcess, MidiBuffer &outputBuffer, int numSamples);
+
+	void processHiseEventBuffer(const HiseEventBuffer &inputBuffer, int numSamples);
+
 
 	/** This adds a midi message to a internal buffer which will be injected at the next buffer (at the end). */
 	void addGeneratedMidiMessageToNextBlock(const MidiMessage &m)
@@ -533,6 +540,8 @@ public:
 	float *getPitchValuesForVoice(int voiceIndex) { return pitchChain->getVoiceValues(voiceIndex);};
 
 	
+	HiseEventBuffer eventBuffer;
+
 
 	AudioSampleBuffer internalBuffer;
 

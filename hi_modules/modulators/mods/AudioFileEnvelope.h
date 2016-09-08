@@ -194,7 +194,7 @@ public:
 	void setInternalAttribute (int parameter_index, float newValue) override;
 
 	/** Ignores midi for now (if not legato)*/
-	void handleMidiEvent (const MidiMessage &m) override;
+	void handleHiseEvent (const HiseEvent &m) override;
 
 	/** sets up the smoothing filter. */
 	virtual void prepareToPlay(double sampleRate, int samplesPerBlock) override;

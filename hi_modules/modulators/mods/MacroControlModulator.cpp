@@ -164,7 +164,7 @@ void MacroModulator::macroControllerMoved(float newValue)
 	}
 }
 
-void MacroModulator::handleMidiEvent (const MidiMessage &)
+void MacroModulator::handleHiseEvent(const HiseEvent &)
 {
 	
 }
