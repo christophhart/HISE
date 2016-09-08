@@ -32,14 +32,14 @@
 
 PitchwheelModulator::PitchwheelModulator(MainController *mc, const String &id, Modulation::Mode m):
 	TimeVariantModulator(mc, id, m),
-    targetValue(1.0f),
+    targetValue(0.5f),
 	Modulation(m),
 	intensity(1.0f),
 	inverted(false),
 	useTable(false),
 	table(new MidiTable()),
 	smoothTime(200.0f),
-	currentValue(1.0f)
+	currentValue(0.5f)
 {
 	this->enableConsoleOutput(false);
 	
