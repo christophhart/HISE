@@ -965,18 +965,20 @@ void MapWithKeyboard::mouseDown(const MouseEvent &e)
 
 	const int velocity = ((getHeight() - e.getMouseDownY()) * 127) / 20;
 
-	sampler->preHiseEventCallback(HiseEvent(HiseEvent::Type::NoteOn, lastNoteNumber, velocity, 1));
-	sampler->noteOn(1, lastNoteNumber, (float)velocity / 127.0f);
+	HiseEvent m(HiseEvent::Type::NoteOn, lastNoteNumber, velocity, 1);
+
+	sampler->preHiseEventCallback(m);
+	sampler->noteOn(m);
 
 	repaint();
 }
 
 void MapWithKeyboard::mouseUp(const MouseEvent &)
 {
-	MidiMessage m = MidiMessage::noteOff(1, lastNoteNumber);
+	HiseEvent m(HiseEvent::Type::NoteOff, lastNoteNumber, 127, 1);
 
-	sampler->preHiseEventCallback(HiseEvent(HiseEvent::Type::NoteOff, lastNoteNumber, 127, 1));
-	sampler->noteOff(1, lastNoteNumber, 1.0f, true);
+	sampler->preHiseEventCallback(m);
+	sampler->noteOff(m);
 
 	lastNoteNumber = -1;
 

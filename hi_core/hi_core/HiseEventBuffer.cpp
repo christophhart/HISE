@@ -53,6 +53,15 @@ HiseEvent::HiseEvent(const MidiMessage& message)
 	cleared = false;
 }
 
+double HiseEvent::getPitchFactorForEvent() const
+{
+	if (semitones == 0 && cents == 0) return 1.0;
+
+	const float detuneFactor = (float)semitones + (float)cents / 100.0f;
+
+	return (double)Modulation::PitchConverters::octaveRangeToPitchFactor(detuneFactor);
+}
+
 HiseEventBuffer::HiseEventBuffer()
 {
 
@@ -60,16 +69,18 @@ HiseEventBuffer::HiseEventBuffer()
 
 void HiseEventBuffer::clear()
 {
-	for (int i = 0; i < HISE_EVENT_BUFFER_SIZE; i++)
-	{
-		buffer[i].clear();
-	}
-
 	numUsed = 0;
 }
 
 void HiseEventBuffer::addEvent(const HiseEvent& hiseEvent)
 {
+	if (numUsed >= HISE_EVENT_BUFFER_SIZE)
+	{
+		// Buffer full..
+		jassertfalse;
+		return;
+	}
+
 	if (numUsed == 0)
 	{
 		insertEventAtPosition(hiseEvent, 0);
@@ -80,8 +91,11 @@ void HiseEventBuffer::addEvent(const HiseEvent& hiseEvent)
 
 	bool rightPosition = false;
 
+	jassert(numUsed < HISE_EVENT_BUFFER_SIZE);
+
 	for (int i = 0; i < numUsed; i++)
 	{
+
 		if (buffer[i].getTimeStamp() > hiseEvent.getTimeStamp())
 		{
 			insertEventAtPosition(hiseEvent, i);
@@ -112,10 +126,20 @@ void HiseEventBuffer::addEvents(const MidiBuffer& otherBuffer)
 
 	while (it.getNextEvent(m, samplePos))
 	{
+		jassert(index < HISE_EVENT_BUFFER_SIZE);
+
 		buffer[index] = HiseEvent(m);
 		buffer[index].setTimeStamp(samplePos);
 
 		numUsed++;
+
+		if (numUsed >= HISE_EVENT_BUFFER_SIZE)
+		{
+			// Buffer full..
+			jassertfalse;
+			return;
+		}
+
 		index++;
 	}
 }
@@ -123,6 +147,15 @@ void HiseEventBuffer::addEvents(const MidiBuffer& otherBuffer)
 
 void HiseEventBuffer::subtractFromTimeStamps(int delta)
 {
+	if (numUsed == 0) return;
+
+	else if (numUsed >= HISE_EVENT_BUFFER_SIZE)
+	{
+		// Buffer full..
+		jassertfalse;
+		return;
+	}
+
 	for (int i = 0; i < numUsed; i++)
 	{
 		buffer[i].addToTimeStamp(-delta);
@@ -153,6 +186,9 @@ void HiseEventBuffer::moveEvents(HiseEventBuffer& otherBuffer, int numSamples)
 
 void HiseEventBuffer::moveEventsBeyond(HiseEventBuffer& otherBuffer, int numSamples)
 {
+	if (numUsed == 0) return;
+	else if (buffer[numUsed - 1].getTimeStamp() < numSamples) return;
+
 	int i;
 
 	int numRemaining = HISE_EVENT_BUFFER_SIZE;
@@ -180,7 +216,19 @@ void HiseEventBuffer::moveEventsBeyond(HiseEventBuffer& otherBuffer, int numSamp
 void HiseEventBuffer::copyFrom(const HiseEventBuffer& otherBuffer)
 {
 	memcpy(buffer, otherBuffer.buffer, sizeof(HiseEvent) * HISE_EVENT_BUFFER_SIZE);
+
+	jassert(otherBuffer.numUsed < HISE_EVENT_BUFFER_SIZE);
+
 	numUsed = otherBuffer.numUsed;
+
+#if JUCE_DEBUG
+
+	for (int i = numUsed; i < HISE_EVENT_BUFFER_SIZE; i++)
+	{
+		buffer[i] = HiseEvent();
+	}
+
+#endif
 }
 
 HiseEventBuffer::Iterator::Iterator(HiseEventBuffer &b) :
@@ -192,6 +240,12 @@ index(0)
 
 bool HiseEventBuffer::Iterator::getNextEvent(HiseEvent& b, int &samplePosition)
 {
+	while (index < buffer.numUsed && buffer.buffer[index].isIgnored())
+	{
+		index++;
+		jassert(index < HISE_EVENT_BUFFER_SIZE);
+	}
+		
 	if (index < buffer.numUsed)
 	{
 		b = buffer.buffer[index];
@@ -205,8 +259,11 @@ bool HiseEventBuffer::Iterator::getNextEvent(HiseEvent& b, int &samplePosition)
 
 HiseEvent* HiseEventBuffer::Iterator::getNextEventPointer(bool skipArtificialNotes/*=false*/)
 {
-	while (skipArtificialNotes && buffer.buffer[index].isArtificial())
+	while (index < buffer.numUsed && (skipArtificialNotes && buffer.buffer[index].isArtificial()) || buffer.buffer[index].isIgnored())
+	{
 		index++;
+		jassert(index < HISE_EVENT_BUFFER_SIZE);
+	}
 
 	if (index < buffer.numUsed)
 	{
@@ -221,10 +278,18 @@ HiseEvent* HiseEventBuffer::Iterator::getNextEventPointer(bool skipArtificialNot
 
 void HiseEventBuffer::insertEventAtPosition(const HiseEvent& e, int positionInBuffer)
 {
+	if (numUsed == 0)
+	{
+		buffer[0] = HiseEvent(e);
+		return;
+	}
+
 	if (numUsed > positionInBuffer)
 	{
-		for (int i = numUsed; i > positionInBuffer; i--)
+		for (int i = jmin<int>(numUsed-1, HISE_EVENT_BUFFER_SIZE-2); i >= positionInBuffer; i--)
 		{
+			jassert(i + 1 < HISE_EVENT_BUFFER_SIZE);
+
 			buffer[i + 1] = buffer[i];
 		}
 	}
@@ -242,15 +307,29 @@ void HiseEventBuffer::EventIdHandler::handleEventIds()
 		if (m->isNoteOn())
 		{
 			m->setEventId(currentEventId);
-			eventIds[m->getNoteNumber()] = currentEventId;
+			noteOnEvents[m->getNoteNumber()] = HiseEvent(*m);
+
 			currentEventId++;
 		}
 		else if (m->isNoteOff())
 		{
-			uint32 id = eventIds[m->getNoteNumber()];
+			uint32 id = noteOnEvents[m->getNoteNumber()].getEventId();
 			m->setEventId(id);
 		}
 	}
+}
+
+const HiseEvent* HiseEventBuffer::EventIdHandler::getNoteOnEventFor(const HiseEvent &noteOffEvent) const
+{
+	jassert(noteOffEvent.isNoteOff());
+
+	const int noteNumber = noteOffEvent.getNoteNumber();
+
+	const HiseEvent *m = &noteOnEvents[noteNumber];
+
+	jassert(noteOffEvent.getEventId() == m->getEventId());
+
+	return m;
 }
 
 int HiseEventBuffer::EventIdHandler::requestEventIdForArtificialNote() noexcept

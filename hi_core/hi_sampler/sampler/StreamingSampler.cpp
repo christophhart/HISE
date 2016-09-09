@@ -1150,6 +1150,9 @@ void StreamingSamplerVoice::startNote (int /*midiNoteNumber*/,
 
 		// Resample if sound has different samplerate than the audio sample rate
 		uptimeDelta *= (sound->getSampleRate() / getSampleRate());
+
+		uptimeDelta = jmin<double>((double)MAX_SAMPLER_PITCH, uptimeDelta);
+
 	}
 	else
 	{

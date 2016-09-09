@@ -40,6 +40,8 @@ void AudioLooperVoice::startNote(int midiNoteNumber, float /*velocity*/, Synthes
 {
 	ModulatorSynthVoice::startNote(midiNoteNumber, 0.0f, nullptr, -1);
 
+	midiNoteNumber += getTransposeAmount();
+
 	voiceUptime = 0.0;
 
 	AudioLooper *looper = dynamic_cast<AudioLooper*>(getOwnerSynth());
@@ -51,6 +53,8 @@ void AudioLooperVoice::startNote(int midiNoteNumber, float /*velocity*/, Synthes
 	const double resampleFactor = looper->getSampleRateForLoadedFile() / getSampleRate();
 
 	uptimeDelta *= resampleFactor;
+
+	uptimeDelta *= eventPitchFactor;
 
     uptimeDelta *= looper->getMainController()->getGlobalPitchFactor();
     

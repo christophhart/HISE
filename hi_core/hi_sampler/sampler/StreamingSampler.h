@@ -59,7 +59,7 @@ struct StereoChannelData
 #endif
 
 // This is the maximum value for sample pitch manipulation (this means 3 octaves, which should be more than enough
-#define MAX_SAMPLER_PITCH 4
+#define MAX_SAMPLER_PITCH 8
 
 // This is the default preload size. I defined a pretty random value here, but you can change this dynamically.
 #define PRELOAD_SIZE 8192
@@ -784,7 +784,7 @@ public:
 	{
 		if(midiNote == rootNote)
 		{
-			uptimeDelta = globalPitchFactor;
+			uptimeDelta = jmin(globalPitchFactor, (double)MAX_SAMPLER_PITCH);
 		}
 		else
 		{

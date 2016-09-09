@@ -722,11 +722,11 @@ void ModulatorSampler::handleRetriggeredNote(ModulatorSynthVoice *voice)
 	}
 }
 
-void ModulatorSampler::noteOff(int midiChannel, int noteNumber, float velocity, bool allowTailOff)
+void ModulatorSampler::noteOff(const HiseEvent &m)
 {
 	if (!oneShotEnabled)
 	{
-		Synthesiser::noteOff(midiChannel, noteNumber, velocity, allowTailOff);
+		ModulatorSynth::noteOff(m);
 	}
 }
 
@@ -750,7 +750,20 @@ void ModulatorSampler::preHiseEventCallback(const HiseEvent &m)
 			samplerDisplayValues.currentGroup = currentRRGroupIndex;
 		}
 
-		samplerDisplayValues.currentNotes[m.getNoteNumber()] = m.isNoteOn() ? m.getVelocity() : -1;
+		if (m.isNoteOn())
+		{
+			samplerDisplayValues.currentNotes[m.getNoteNumber() + m.getTransposeAmount()] = m.getVelocity();
+		}
+		else
+		{
+			const HiseEvent *noteOn = getMainController()->getNoteOnEventFor(m);
+
+			const int noteNumber = noteOn->getNoteNumber() + noteOn->getTransposeAmount();
+
+			samplerDisplayValues.currentNotes[noteNumber] = -1;
+		}
+
+		
 		sendChangeMessage();
 	}
 

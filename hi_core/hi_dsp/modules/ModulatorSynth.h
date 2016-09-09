@@ -374,7 +374,26 @@ public:
 	virtual bool soundCanBePlayed(ModulatorSynthSound *sound, int midiChannel, int midiNoteNumber, float velocity);
 
 	/** Same functionality as Synthesiser::noteOn(), but calls calculateVoiceStartValue() if a new voice is started. */
-	void noteOn (int midiChannel, int midiNoteNumber, float velocity) override; 
+	void noteOn(const HiseEvent &m);
+
+	void noteOn(int midiChannel, int midiNoteNumber, float velocity) override
+	{
+		jassertfalse;
+
+		HiseEvent m(HiseEvent::Type::NoteOn, midiNoteNumber, (uint8)(velocity * 127.0f), (uint8)midiChannel);
+
+		noteOn(m);
+	}
+
+	void noteOff(const int midiChannel,
+		const int midiNoteNumber,
+		const float velocity,
+		const bool allowTailOff) override
+	{
+		jassertfalse;
+	}
+
+	virtual void noteOff(const HiseEvent &m);
 
 	/** Returns the voice index for the voice (the index in the internal voice array). This is needed for the ModulatorChains to know which voice is started. */
 	int getVoiceIndex(const SynthesiserVoice *v) const;;
@@ -772,7 +791,14 @@ public:
 	void setScriptGainValue(float newGainValue) { scriptGainValue = newGainValue; }
 	void setScriptPitchValue(float newPitchValue) { scriptPitchValue = newPitchValue; }
 
+	void setTransposeAmount(int value) noexcept{ transposeAmount = value; };
+	int getTransposeAmount() const noexcept { return transposeAmount; };
+
+	void setEventPitchFactor(double pitchFactor) { eventPitchFactor = pitchFactor; };
+	void setEventGainFactor(float gainFactor) { eventGainFactor = gainFactor; };
+
 protected:
+
 
 	/** Returns the ModulatorSynth instance that this voice belongs to.
 	*
@@ -794,6 +820,14 @@ protected:
 
 	const int voiceIndex;
 
+	int transposeAmount = 0;
+
+	float scriptGainValue = 1.0f;
+	double scriptPitchValue = 1.0;
+
+	double eventPitchFactor = 1.0;
+	float eventGainFactor = 1.0f;
+
 private:
 
 	bool pitchModulationActive;
@@ -809,8 +843,7 @@ private:
 	
 	double startUptime;
 
-	float scriptGainValue = 1.0f;
-	double scriptPitchValue = 1.0;
+	
 
 	ModulatorSynth* const ownerSynth;
 

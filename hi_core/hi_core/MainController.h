@@ -415,6 +415,8 @@ public:
 
 	ReadWriteLock &getCompileLock() { return compileLock; }
 
+	const HiseEvent* getNoteOnEventFor(const HiseEvent& noteOffEvent) const;
+
 protected:
 
 	/** This is the main processing loop that is shared among all subclasses. */

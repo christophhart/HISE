@@ -210,7 +210,7 @@ public:
 	void handleRetriggeredNote(ModulatorSynthVoice *voice) override;
 
 	/** Overwrites the base class method and ignores the note off event if Parameters::OneShot is enabled. */
-	void noteOff(int midiChannel, int noteNumber, float velocity, bool allowTailOff) override;;
+	void noteOff(const HiseEvent &m) override;;
 	void preHiseEventCallback(const HiseEvent &m) override;
 
 	bool isUsingCrossfadeGroups() const { return crossfadeGroups; }
@@ -257,6 +257,7 @@ public:
 		double currentSampleStartPos;
 		float crossfadeTableValue;
 		int currentGroup;
+
 		int currentNotes[128];
 	};
 

@@ -146,6 +146,25 @@ public:
 		/** Returns the event id of the current message. */
 		int getEventId() const;
 
+		/** Transposes the note on. */
+		void setTransposeAmount(int tranposeValue);
+
+		/** Gets the tranpose value. */
+		int getTransposeAmount() const;
+
+		/** Sets the coarse detune amount in semitones. */
+		void setCoarseDetune(int semiToneDetune);
+
+		/** Returns the coarse detune amount in semitones. */
+		int getCoarseDetune() const;
+
+		/** Sets the fine detune amount in cents. */
+		void setFineDetune(int cents);
+
+		/** Returns the fine detune amount int cents. */
+		int getFineDetune() const;
+
+
 		// ============================================================================================================
 
 		// sets the reference to the midi message.

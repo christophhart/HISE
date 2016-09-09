@@ -480,11 +480,15 @@ void ModulatorSynth::handleHiseEvent(const HiseEvent& m)
 
 	if (m.isNoteOn())
 	{
-		noteOn(channel, m.getNoteNumber(), m.getFloatVelocity());
+		noteOn(m);
+
+		//noteOn(channel, m.getNoteNumber(), m.getFloatVelocity());
 	}
 	else if (m.isNoteOff())
 	{
-		noteOff(channel, m.getNoteNumber(), m.getFloatVelocity(), true);
+		noteOff(m);
+
+		//noteOff(channel, m.getNoteNumber(), m.getFloatVelocity(), true);
 	}
 	else if (m.isAllNotesOff())
 	{
@@ -608,18 +612,25 @@ void ModulatorSynth::numDestinationChannelsChanged()
 	}
 }
 
-void ModulatorSynth::noteOn(int midiChannel, int midiNoteNumber, float velocity)
+void ModulatorSynth::noteOn(const HiseEvent &m)
 {
     ADD_GLITCH_DETECTOR("Note on callback for " + getId());
     
     const ScopedLock sl (lock);
+
+	jassert(m.isNoteOn());
+
+	const int midiChannel = m.getChannel();
+	const int midiNoteNumber = m.getNoteNumber();
+	const int transposedMidiNoteNumber = midiNoteNumber + m.getTransposeAmount();
+	const float velocity = m.getFloatVelocity();
 
     for (int i = sounds.size(); --i >= 0;)
     {
 		SynthesiserSound *s = sounds.getUnchecked(i);
         ModulatorSynthSound *sound = static_cast<ModulatorSynthSound*>(s);
 
-		if (soundCanBePlayed(sound, midiChannel, midiNoteNumber, velocity))
+		if (soundCanBePlayed(sound, midiChannel, transposedMidiNoteNumber, velocity))
         {
             // If hitting a note that's still ringing, stop it first (it could be
             // still playing because of the sustain or sostenuto pedal).
@@ -636,7 +647,7 @@ void ModulatorSynth::noteOn(int midiChannel, int midiNoteNumber, float velocity)
 					killLastVoice();
 				}
 
-                else if (voice->getCurrentlyPlayingNote() == midiNoteNumber
+                else if (voice->getCurrentlyPlayingNote() == midiNoteNumber // Use the untransposed number for detecting repeated notes
                      && voice->isPlayingChannel (midiChannel))
 				{
 					handleRetriggeredNote(voice);
@@ -653,13 +664,51 @@ void ModulatorSynth::noteOn(int midiChannel, int midiNoteNumber, float velocity)
 
 				v->setStartUptime(getMainController()->getUptime());
 
-				preStartVoice(voiceIndex, midiNoteNumber);
+				preStartVoice(voiceIndex, transposedMidiNoteNumber);
+
+				v->setTransposeAmount(m.getTransposeAmount());
+				v->setEventPitchFactor(m.getPitchFactorForEvent());
+
 				startVoice (v, sound, midiChannel, midiNoteNumber, velocity);
 			}
 
 			// Deactivates starting of more than one voice per synth
 			//break;
         }
+	}
+}
+
+void ModulatorSynth::noteOff(const HiseEvent &m)
+{
+	const ScopedLock sl(lock);
+
+	const int midiNoteNumber = m.getNoteNumber();
+	const int transposedMidiNoteNumber = midiNoteNumber + m.getTransposeAmount();
+	float velocity = m.getFloatVelocity();
+	const int midiChannel = m.getChannel();
+
+	for (int i = voices.size(); --i >= 0;)
+	{
+		SynthesiserVoice* const voice = voices.getUnchecked(i);
+
+		if (voice->getCurrentlyPlayingNote() == midiNoteNumber
+			&& voice->isPlayingChannel(midiChannel))
+		{
+			if (SynthesiserSound* const sound = voice->getCurrentlyPlayingSound())
+			{
+				//sound->appliesToNote(transposedMidiNoteNumber) &&
+
+				if (sound->appliesToChannel(midiChannel))
+				{
+					//jassert(!voice->keyIsDown || voice->sustainPedalDown == sustainPedalsDown[midiChannel]);
+
+					voice->setKeyDown(false);
+
+					if (!(voice->isSostenutoPedalDown() || voice->isSustainPedalDown()))
+						stopVoice(voice, velocity, true);
+				}
+			}
+		}
 	}
 }
 

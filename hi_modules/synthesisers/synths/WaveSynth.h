@@ -71,9 +71,11 @@ public:
 	{
         ModulatorSynthVoice::startNote(midiNoteNumber, 0.0f, nullptr, -1);
         
+		midiNoteNumber += getTransposeAmount();
+
         const double cyclesPerSecond = MidiMessage::getMidiNoteInHertz (midiNoteNumber);
         
-        const double cyclesPerSample = cyclesPerSecond / getSampleRate() * getOwnerSynth()->getMainController()->getGlobalPitchFactor();;
+		const double cyclesPerSample = cyclesPerSecond / getSampleRate() * getOwnerSynth()->getMainController()->getGlobalPitchFactor() * eventPitchFactor;
 		
 		voiceUptime2 = 0.0;
 

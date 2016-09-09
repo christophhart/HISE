@@ -69,6 +69,8 @@ public:
 	{
 		ModulatorSynthVoice::startNote(midiNoteNumber, 0.0f, nullptr, -1);
 
+		midiNoteNumber += getTransposeAmount();
+
         voiceUptime = 0.0;
         
         const double cyclesPerSecond = MidiMessage::getMidiNoteInHertz (midiNoteNumber);
@@ -76,6 +78,8 @@ public:
 
 		uptimeDelta = cyclesPerSample * 2048.0 * octaveTransposeFactor;
         
+		uptimeDelta *= eventPitchFactor;
+
         uptimeDelta *= getOwnerSynth()->getMainController()->getGlobalPitchFactor();
     }
 

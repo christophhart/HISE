@@ -274,6 +274,12 @@ struct ScriptingApi::Message::Wrapper
 	API_METHOD_WRAPPER_0(Message, getEventId);
 	API_METHOD_WRAPPER_0(Message, getChannel);
 	API_VOID_METHOD_WRAPPER_1(Message, setChannel);
+	API_VOID_METHOD_WRAPPER_1(Message, setTransposeAmount);
+	API_METHOD_WRAPPER_0(Message, getTransposeAmount);
+	API_VOID_METHOD_WRAPPER_1(Message, setCoarseDetune);
+	API_METHOD_WRAPPER_0(Message, getCoarseDetune);
+	API_VOID_METHOD_WRAPPER_1(Message, setFineDetune);
+	API_METHOD_WRAPPER_0(Message, getFineDetune);
 };
 
 
@@ -296,12 +302,19 @@ constMessageHolder(nullptr)
 	ADD_API_METHOD_0(getEventId);
 	ADD_API_METHOD_0(getChannel);
 	ADD_API_METHOD_1(setChannel);
+	ADD_API_METHOD_1(setTransposeAmount);
+	ADD_API_METHOD_0(getTransposeAmount);
+	ADD_API_METHOD_1(setCoarseDetune);
+	ADD_API_METHOD_0(getCoarseDetune);
+	ADD_API_METHOD_1(setFineDetune);
+	ADD_API_METHOD_0(getFineDetune);
 }
 
 
 ScriptingApi::Message::~Message()
 {
 	messageHolder = nullptr;
+	constMessageHolder = nullptr;
 }
 
 int ScriptingApi::Message::getNoteNumber() const
@@ -502,9 +515,96 @@ void ScriptingApi::Message::setChannel(int newValue)
 
 int ScriptingApi::Message::getEventId() const
 { 
-	//if(currentEventId == -1) reportScriptError("Defective Event ID detected!");
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+	if (constMessageHolder == nullptr)
+	{
+		reportIllegalCall("getEventId()", "midi event");
+		return 0;
+	}
+#endif
 
-	return messageHolder->getEventId();
+	return constMessageHolder->getEventId();
+}
+
+void ScriptingApi::Message::setTransposeAmount(int tranposeValue)
+{
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+	if (messageHolder == nullptr)
+	{
+		reportIllegalCall("setTransposeAmount()", "midi event");
+		return;
+	}
+#endif
+
+	messageHolder->setTransposeAmount(tranposeValue);
+
+}
+
+int ScriptingApi::Message::getTransposeAmount() const
+{
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+	if (constMessageHolder == nullptr)
+	{
+		reportIllegalCall("getTransposeAmount()", "midi event");
+		return 0;
+	}
+#endif
+
+	return constMessageHolder->getTransposeAmount();
+}
+
+void ScriptingApi::Message::setCoarseDetune(int semiToneDetune)
+{
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+	if (messageHolder == nullptr)
+	{
+		reportIllegalCall("setCoarseDetune()", "midi event");
+		return;
+	}
+#endif
+
+	messageHolder->setCoarseDetune(semiToneDetune);
+
+}
+
+int ScriptingApi::Message::getCoarseDetune() const
+{
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+	if (constMessageHolder == nullptr)
+	{
+		reportIllegalCall("getCoarseDetune()", "midi event");
+		return 0;
+	}
+#endif
+
+	return constMessageHolder->getCoarseDetune();
+
+}
+
+void ScriptingApi::Message::setFineDetune(int cents)
+{
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+	if (messageHolder == nullptr)
+	{
+		reportIllegalCall("setFineDetune()", "midi event");
+		return;
+	}
+#endif
+
+	messageHolder->setFineDetune(cents);
+}
+
+int ScriptingApi::Message::getFineDetune() const
+{
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+	if (constMessageHolder == nullptr)
+	{
+		reportIllegalCall("getFineDetune()", "midi event");
+		return 0;
+	}
+#endif
+
+	return constMessageHolder->getFineDetune();
 }
 
 void ScriptingApi::Message::setMidiMessage(MidiMessage *m)

@@ -387,6 +387,8 @@ public:
 	{
 		ModulatorSynthVoice::startNote(midiNoteNumber, 0.0f, nullptr, -1);
 
+		midiNoteNumber += getTransposeAmount();
+
 		currentSound = static_cast<WavetableSound*>(s);
 
         voiceUptime = 0.0;
@@ -411,6 +413,8 @@ public:
 
 		uptimeDelta = currentSound->getPitchRatio();
         
+		uptimeDelta *= eventPitchFactor;
+
         uptimeDelta *= getOwnerSynth()->getMainController()->getGlobalPitchFactor();
     };
 

@@ -82,7 +82,24 @@ public:
 	void setEventId(uint32 newEventId) noexcept{ eventId = newEventId; };
 
 	void setArtificial() noexcept { artificial = true; }
-	bool isArtificial() const noexcept{ return artificial; }
+	bool isArtificial() const noexcept{ return artificial; };
+
+	void setTransposeAmount(int newTransposeValue) noexcept{ transposeValue = (int8)newTransposeValue; };
+	int getTransposeAmount() const noexcept{ return (int)transposeValue; };
+
+	/** Sets the coarse detune amount in semitones. */
+	void setCoarseDetune(int semiToneDetune) noexcept{ semitones = (int8)semiToneDetune; };
+
+	/** Returns the coarse detune amount in semitones. */
+	int getCoarseDetune() const noexcept{ return (int)semitones; }
+
+	/** Sets the fine detune amount in cents. */
+	void setFineDetune(int newCents) noexcept{ cents = (int8)newCents; };
+
+	/** Returns the fine detune amount int cents. */
+	int getFineDetune() const noexcept{ return (int)cents; };
+
+	double getPitchFactorForEvent() const;
 
 	// ========================================================================================================================== MIDI Message methods
 
@@ -135,6 +152,9 @@ private:
 	uint8 channel = 1;
 	uint8 number = 0;
 	uint8 value = 0;
+
+	int8 transposeValue = 0;
+
 	Type type = Type::NoteOn;
 
 	bool ignored = false;
@@ -147,8 +167,8 @@ private:
 
 	float gain = 1.0f;
 	
-	int8 semitones;
-	int8 cents;
+	int8 semitones = 0;
+	int8 cents = 0;
 };
 
 #define HISE_EVENT_BUFFER_SIZE 256
@@ -180,12 +200,14 @@ public:
 			masterBuffer(masterBuffer_),
 			currentEventId(1)
 		{
-			for (int i = 0; i < 128; i++) eventIds[i] = 0;
+			for (int i = 0; i < 128; i++) noteOnEvents[i] = HiseEvent(HiseEvent::Type::NoteOn, 0, 0, 0);
 		}
 
 
 		/** Fills note on / note off messages with the event id and returns the current value for external storage. */
 		void handleEventIds();
+
+		const HiseEvent* getNoteOnEventFor(const HiseEvent &noteOffEvent) const;
 
 		int requestEventIdForArtificialNote() noexcept;
 
@@ -193,7 +215,7 @@ public:
 
 		HiseEventBuffer &masterBuffer;
 
-		uint32 eventIds[128];
+		HiseEvent noteOnEvents[128];
 
 		uint32 currentEventId;
 	};

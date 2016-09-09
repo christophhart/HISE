@@ -919,6 +919,10 @@ bool MainController::checkAndResetMidiInputFlag()
 	return returnValue;
 }
 
+const HiseEvent* MainController::getNoteOnEventFor(const HiseEvent& noteOffEvent) const
+{
+	return eventIdHandler.getNoteOnEventFor(noteOffEvent);
+}
 
 
 ControlledObject::ControlledObject(MainController *m):	
