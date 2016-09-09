@@ -83,6 +83,10 @@ AhdsrEnvelope::AhdsrEnvelope(MainController *mc, const String &id, int voiceAmou
 	};
 
     setTargetRatioDR(0.0001f);
+
+	setAttackCurve(0.0f);
+	setDecayCurve(0.0f);
+
 }
 
 
