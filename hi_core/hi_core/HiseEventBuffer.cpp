@@ -50,7 +50,6 @@ HiseEvent::HiseEvent(const MidiMessage& message)
 	
 	number = data[1];
 	value = data[2];
-	cleared = false;
 }
 
 double HiseEvent::getPitchFactorForEvent() const
@@ -64,11 +63,13 @@ double HiseEvent::getPitchFactorForEvent() const
 
 HiseEventBuffer::HiseEventBuffer()
 {
-
+	clear();
 }
 
 void HiseEventBuffer::clear()
 {
+    memset(buffer, 0, HISE_EVENT_BUFFER_SIZE * sizeof(HiseEvent));
+    
 	numUsed = 0;
 }
 
@@ -93,12 +94,17 @@ void HiseEventBuffer::addEvent(const HiseEvent& hiseEvent)
 
 	jassert(numUsed < HISE_EVENT_BUFFER_SIZE);
 
-	for (int i = 0; i < numUsed; i++)
+    const int numToLookFor = jmin<int>(numUsed, HISE_EVENT_BUFFER_SIZE);
+    
+	for (int i = 0; i < numToLookFor; i++)
 	{
+		const int timestampInBuffer = buffer[i].getTimeStamp();
+		const int messageTimestamp = hiseEvent.getTimeStamp();
 
-		if (buffer[i].getTimeStamp() > hiseEvent.getTimeStamp())
+		if (messageTimestamp <= timestampInBuffer)
 		{
-			insertEventAtPosition(hiseEvent, i);
+			insertEventAtPosition(hiseEvent, timestampInBuffer == messageTimestamp ? i + 1 : i);
+			return;
 		}
 	}
 
@@ -149,90 +155,95 @@ void HiseEventBuffer::subtractFromTimeStamps(int delta)
 {
 	if (numUsed == 0) return;
 
-	else if (numUsed >= HISE_EVENT_BUFFER_SIZE)
-	{
-		// Buffer full..
-		jassertfalse;
-		return;
-	}
-
 	for (int i = 0; i < numUsed; i++)
 	{
 		buffer[i].addToTimeStamp(-delta);
 	}
 }
 
-void HiseEventBuffer::moveEvents(HiseEventBuffer& otherBuffer, int numSamples)
-{
-	int i;
-
-	for (i = 0; i < numUsed; i++)
-	{
-		if (numSamples != -1 && buffer[i].getTimeStamp() > numSamples)
-			break;
-
-		otherBuffer.addEvent(buffer[i]);
-	}
-
-	const int offset = i;
-	const int oldNumUsed = numUsed;
-	numUsed -= offset;
-
-	for (i = offset; i < oldNumUsed; i++)
-	{
-		buffer[i - offset] = buffer[i];
-	}
-}
-
-void HiseEventBuffer::moveEventsBeyond(HiseEventBuffer& otherBuffer, int numSamples)
+void HiseEventBuffer::moveEventsBelow(HiseEventBuffer& targetBuffer, int highestTimestamp)
 {
 	if (numUsed == 0) return;
-	else if (buffer[numUsed - 1].getTimeStamp() < numSamples) return;
 
-	int i;
+	HiseEventBuffer::Iterator iter(*this);
 
-	int numRemaining = HISE_EVENT_BUFFER_SIZE;
+	int numCopied = 0;
 
-	for (i = 0; i < numUsed; i++)
+	while (HiseEvent* e = iter.getNextEventPointer())
 	{
-		if (buffer[i].getTimeStamp() > numSamples)
-			numRemaining = i;
-		break;
+		if (e->getTimeStamp() < highestTimestamp)
+		{
+			targetBuffer.addEvent(*e);
+			numCopied++;
+		}
+		else
+		{
+			break;
+		}
 	}
 
-	if (numRemaining == HISE_EVENT_BUFFER_SIZE) return;
+	const int numRemaining = numUsed - numCopied;
 
-	int copyIndex = numRemaining;
+	for (int i = 0; i < numRemaining; i++)
+		buffer[i] = buffer[i + numCopied];
 
-	int numEventsToCopy = numUsed - numRemaining;
-
-	memcpy(otherBuffer.buffer + otherBuffer.numUsed, buffer + copyIndex, sizeof(HiseEvent) * numEventsToCopy);
-
-	otherBuffer.numUsed += numEventsToCopy;
+	HiseEvent::clear(buffer + numRemaining, numCopied);
 
 	numUsed = numRemaining;
 }
 
+void HiseEventBuffer::moveEventsAbove(HiseEventBuffer& targetBuffer, int lowestTimestamp)
+{
+	if (numUsed == 0 || (buffer[numUsed - 1].getTimeStamp() < lowestTimestamp)) 
+		return; // Skip the work if no events with bigger timestamps
+
+	int indexOfFirstElementToMove = -1;
+
+	for (int i = 0; i < numUsed; i++)
+	{
+		if (buffer[i].getTimeStamp() >= lowestTimestamp)
+		{
+			indexOfFirstElementToMove = i;
+			break;
+		}
+	}
+
+	if (indexOfFirstElementToMove == -1) return;
+
+	for (int i = indexOfFirstElementToMove; i < numUsed; i++)
+	{
+		targetBuffer.addEvent(buffer[i]);
+	}
+
+	HiseEvent::clear(buffer + indexOfFirstElementToMove, numUsed - indexOfFirstElementToMove);
+
+	numUsed = indexOfFirstElementToMove;
+}
+
 void HiseEventBuffer::copyFrom(const HiseEventBuffer& otherBuffer)
 {
-	memcpy(buffer, otherBuffer.buffer, sizeof(HiseEvent) * HISE_EVENT_BUFFER_SIZE);
-
+    const int eventsToCopy = jmin<int>(otherBuffer.numUsed, HISE_EVENT_BUFFER_SIZE);
+    
+	memcpy(buffer, otherBuffer.buffer, sizeof(HiseEvent) * eventsToCopy);
+    memset(buffer + eventsToCopy, 0, (HISE_EVENT_BUFFER_SIZE - eventsToCopy) * sizeof(HiseEvent));
+    
 	jassert(otherBuffer.numUsed < HISE_EVENT_BUFFER_SIZE);
 
 	numUsed = otherBuffer.numUsed;
-
-#if JUCE_DEBUG
-
-	for (int i = numUsed; i < HISE_EVENT_BUFFER_SIZE; i++)
-	{
-		buffer[i] = HiseEvent();
-	}
-
-#endif
 }
 
 HiseEventBuffer::Iterator::Iterator(HiseEventBuffer &b) :
-buffer(b),
+buffer(&b),
+constBuffer(nullptr),
+index(0)
+{
+
+}
+
+
+HiseEventBuffer::Iterator::Iterator(const HiseEventBuffer& b) :
+constBuffer(&b),
+buffer(nullptr),
 index(0)
 {
 
@@ -240,15 +251,35 @@ index(0)
 
 bool HiseEventBuffer::Iterator::getNextEvent(HiseEvent& b, int &samplePosition)
 {
-	while (index < buffer.numUsed && buffer.buffer[index].isIgnored())
+	while (index < buffer->numUsed && buffer->buffer[index].isIgnored())
 	{
 		index++;
 		jassert(index < HISE_EVENT_BUFFER_SIZE);
 	}
 		
-	if (index < buffer.numUsed)
+	if (index < buffer->numUsed)
 	{
-		b = buffer.buffer[index];
+		b = buffer->buffer[index];
+		samplePosition = b.getTimeStamp();
+		index++;
+		return true;
+	}
+	else
+		return false;
+}
+
+
+bool HiseEventBuffer::Iterator::getNextEvent(HiseEvent& b, int &samplePosition) const
+{
+	while (index < constBuffer->numUsed && constBuffer->buffer[index].isIgnored())
+	{
+		index++;
+		jassert(index < HISE_EVENT_BUFFER_SIZE);
+	}
+
+	if (index < constBuffer->numUsed)
+	{
+		b = constBuffer->buffer[index];
 		samplePosition = b.getTimeStamp();
 		index++;
 		return true;
@@ -259,15 +290,35 @@ bool HiseEventBuffer::Iterator::getNextEvent(HiseEvent& b, int &samplePosition)
 
 HiseEvent* HiseEventBuffer::Iterator::getNextEventPointer(bool skipArtificialNotes/*=false*/)
 {
-	while (index < buffer.numUsed && (skipArtificialNotes && buffer.buffer[index].isArtificial()) || buffer.buffer[index].isIgnored())
+	while (index < buffer->numUsed && (skipArtificialNotes && buffer->buffer[index].isArtificial()) || buffer->buffer[index].isIgnored())
 	{
 		index++;
 		jassert(index < HISE_EVENT_BUFFER_SIZE);
 	}
 
-	if (index < buffer.numUsed)
+	if (index < buffer->numUsed)
 	{
-		return &buffer.buffer[index++];
+		return &buffer->buffer[index++];
+
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+
+const HiseEvent* HiseEventBuffer::Iterator::getNextEventPointer(bool skipArtificialNotes /*= false*/) const
+{
+	while (index < constBuffer->numUsed && (skipArtificialNotes && constBuffer->buffer[index].isArtificial()) || constBuffer->buffer[index].isIgnored())
+	{
+		index++;
+		jassert(index < HISE_EVENT_BUFFER_SIZE);
+	}
+
+	if (index < constBuffer->numUsed)
+	{
+		return &constBuffer->buffer[index++];
 
 	}
 	else
@@ -281,6 +332,9 @@ void HiseEventBuffer::insertEventAtPosition(const HiseEvent& e, int positionInBu
 	if (numUsed == 0)
 	{
 		buffer[0] = HiseEvent(e);
+
+		numUsed = 1;
+
 		return;
 	}
 
@@ -294,9 +348,20 @@ void HiseEventBuffer::insertEventAtPosition(const HiseEvent& e, int positionInBu
 		}
 	}
 
-	buffer[positionInBuffer] = HiseEvent(e);
+    if(positionInBuffer < HISE_EVENT_BUFFER_SIZE)
+    {
+        buffer[positionInBuffer] = HiseEvent(e);
+        numUsed++;
+    }
+    else
+    {
+        jassertfalse;
+    }
+    
+    
+	
 
-	numUsed++;
+	
 }
 
 void HiseEventBuffer::EventIdHandler::handleEventIds()
@@ -336,3 +401,5 @@ int HiseEventBuffer::EventIdHandler::requestEventIdForArtificialNote() noexcept
 {
 	return currentEventId++;
 }
+
+

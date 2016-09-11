@@ -63,8 +63,6 @@ public:
 
 		if (buffer.isEmpty() && futureEventBuffer.isEmpty()) return;
 
-		// TODO: Delayed notes...
-
 		numThisTime = numSamples;
 
 		HiseEventBuffer::Iterator it(buffer);
@@ -75,9 +73,9 @@ public:
 		}
 
 		futureEventBuffer.subtractFromTimeStamps(numSamples);
-		futureEventBuffer.moveEvents(buffer, numSamples);
+		futureEventBuffer.moveEventsBelow(buffer, numSamples);
 		
-		buffer.moveEventsBeyond(futureEventBuffer, numSamples);
+		buffer.moveEventsAbove(futureEventBuffer, numSamples);
 
 
 	}

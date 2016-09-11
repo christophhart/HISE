@@ -76,6 +76,17 @@ MainController::MainController():
 
 	hostInfo = new DynamicObject();
     
+#if HI_RUN_UNIT_TESTS
+
+	UnitTestRunner runner;
+
+	runner.setAssertOnFailure(false);
+
+	runner.runAllTests();
+
+	
+
+#endif
 };
 
 

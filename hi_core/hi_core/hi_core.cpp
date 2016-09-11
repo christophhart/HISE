@@ -60,3 +60,7 @@ namespace juce
 #include "MacroControlledComponents.cpp"
 #include "MacroControlBroadcaster.cpp"
 #include "HiseEventBuffer.cpp"
+
+#if HI_RUN_UNIT_TESTS
+//#include "HiseEventBufferUnitTests.cpp"
+#endif

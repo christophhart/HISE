@@ -59,30 +59,48 @@ public:
 		type(type_),
 		number(number_),
 		value(value_),
-		channel(channel_),
-		cleared(false)
+		channel(channel_)
 	{
 
 	}
 
-	/** This marks the event as unused. It won't be deleted, but overriden when a new message is written. */
-	void clear() noexcept{ cleared = false; };
+	HiseEvent(const HiseEvent &other) noexcept
+	{
+		// Only works with struct size of 16 bytes...
+		jassert(sizeof(HiseEvent) == 16);
 
-	/** Checks if the message was cleared. */
-	bool isClear() const noexcept{ return cleared; };
+		uint64* data = reinterpret_cast<uint64*>(this);
+
+		const uint64* otherData = reinterpret_cast<const uint64*>(&other);
+
+		data[0] = otherData[0];
+		data[1] = otherData[1];
+	}
+
+	bool operator==(const HiseEvent &other) const
+	{
+		// Only works with struct size of 16 bytes...
+		jassert(sizeof(HiseEvent) == 16);
+
+		const uint64* data = reinterpret_cast<const uint64*>(this);
+
+		const uint64* otherData = reinterpret_cast<const uint64*>(&other);
+
+		return data[0] == otherData[0] && data[1] == otherData[1];
+	}
 
 	/** Checks if the message was marked as ignored (by a script). */
-	bool isIgnored() const noexcept{ return ignored; };
+    bool isIgnored() const noexcept{ return false; };//ignored; };
 
 	/** Ignores the event. Ignored events will not be processed, but remain in the buffer (they are not cleared). */
-	void ignoreEvent(bool shouldBeIgnored) noexcept{ ignored = shouldBeIgnored; };
+    void ignoreEvent(bool shouldBeIgnored) noexcept{}// ignored = shouldBeIgnored; };
 
 	uint32 getEventId() const noexcept{ return eventId; };
 
 	void setEventId(uint32 newEventId) noexcept{ eventId = newEventId; };
 
-	void setArtificial() noexcept { artificial = true; }
-	bool isArtificial() const noexcept{ return artificial; };
+    void setArtificial() noexcept {};// artificial = true; }
+    bool isArtificial() const noexcept{ return false;} //artificial; };
 
 	void setTransposeAmount(int newTransposeValue) noexcept{ transposeValue = (int8)newTransposeValue; };
 	int getTransposeAmount() const noexcept{ return (int)transposeValue; };
@@ -99,7 +117,15 @@ public:
 	/** Returns the fine detune amount int cents. */
 	int getFineDetune() const noexcept{ return (int)cents; };
 
+	/** Returns a ready to use pitchfactor (from 0.5 ... 2.0) */
 	double getPitchFactorForEvent() const;
+
+	/** Sets the gain in decibels for this note. */
+	void setGain(int decibels) noexcept{gain = decibels; };
+
+	int getGain() const noexcept{ return gain; };
+
+	float getGainFactor() const noexcept { return Decibels::decibelsToGain((float)gain); };
 
 	// ========================================================================================================================== MIDI Message methods
 
@@ -146,29 +172,36 @@ public:
 
 	bool isAllNotesOff() const noexcept{ return type == Type::AllNotesOff; };
 
+	/** This clears the events using the fast memset operation. */
+	static void clear(HiseEvent* eventToClear, int numEvents = 1)
+	{
+		memset(eventToClear, 0, sizeof(HiseEvent) * numEvents);
+	}
 
 private:
 
-	uint8 channel = 1;
+	Type type = Type::NoteOn;
+
+	uint8 channel = 0;
 	uint8 number = 0;
 	uint8 value = 0;
 
 	int8 transposeValue = 0;
 
-	Type type = Type::NoteOn;
-
-	bool ignored = false;
-	bool cleared = true;
-	bool artificial = false;
-	
-	uint32 eventId = 0;
-
-	uint32 timeStamp = 0;
-
-	float gain = 1.0f;
-	
+	int8 gain = 0;
 	int8 semitones = 0;
 	int8 cents = 0;
+
+	uint16 eventId = 0;
+	uint16 timeStamp = 0;
+
+	uint8 unused1 = 0;
+	uint8 unused2 = 0;
+
+	bool ignored = false;
+	bool artificial = false;
+	
+	
 };
 
 #define HISE_EVENT_BUFFER_SIZE 256
@@ -179,12 +212,36 @@ public:
 
 	HiseEventBuffer();
 
+	bool operator==(const HiseEventBuffer& other)
+	{
+		if (other.getNumUsed() != numUsed) return false;
+
+		const HiseEventBuffer::Iterator iter(other);
+
+		for (int i = 0; i < numUsed; i++)
+		{
+			const HiseEvent* e = iter.getNextEventPointer();
+
+			if (e == nullptr)
+			{
+				jassertfalse;
+				return false;
+			}
+
+			if (!(*e == buffer[i])) return false;
+			
+		}
+
+		return true;
+	}
+
 	void clear();
 	bool isEmpty() const noexcept{ return numUsed == 0; };
+	int getNumUsed() const { return numUsed; }
 
 	void subtractFromTimeStamps(int delta);
-	void moveEvents(HiseEventBuffer& otherBuffer, int numSamples);
-	void moveEventsBeyond(HiseEventBuffer& otherBuffer, int numSamples);
+	void moveEventsBelow(HiseEventBuffer& targetBuffer, int highestTimestamp);
+	void moveEventsAbove(HiseEventBuffer& targetBuffer, int lowestTimestamp);
 
 	void copyFrom(const HiseEventBuffer& otherBuffer);
 
@@ -220,21 +277,40 @@ public:
 		uint32 currentEventId;
 	};
 
-	
+	struct CopyHelpers
+	{
+		static void copyEvents(HiseEvent* destination, const HiseEvent* source, int numElements)
+		{
+			memcpy(destination, source, sizeof(HiseEvent) * numElements);
+		}
+
+		static void copyEvents(HiseEventBuffer &destination, int offsetInDestination, const HiseEventBuffer& source, int offsetInSource, int numElements)
+		{
+			memcpy(destination.buffer + offsetInDestination, source.buffer + offsetInSource, sizeof(HiseEvent) * numElements);
+		}
+	};
 
 	class Iterator
 	{
 	public:
 
-		Iterator(HiseEventBuffer &b);
+		Iterator(HiseEventBuffer& b);
+
+		Iterator(const HiseEventBuffer& b);
 
 		bool getNextEvent(HiseEvent& b, int &samplePosition);
 		HiseEvent* getNextEventPointer(bool skipArtificialNotes=false);
 
+		bool getNextEvent(HiseEvent& b, int &samplePosition) const;
+		const HiseEvent* getNextEventPointer(bool skipArtificialNotes = false) const;
+
 	private:
 
-		HiseEventBuffer &buffer;
-		int index;
+		HiseEventBuffer *buffer;
+
+		const HiseEventBuffer *constBuffer;
+
+		mutable int index;
 	};
 
 private:
@@ -249,6 +325,8 @@ private:
 
 	
 };
+
+
 
 
 
