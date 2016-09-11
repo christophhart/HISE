@@ -57,6 +57,7 @@ void ModulatorSamplerVoice::startNote(int midiNoteNumber,
 
 	voiceUptime = wrappedVoice.voiceUptime;
 	uptimeDelta = wrappedVoice.uptimeDelta;
+    isActive = true;
 
 	jassert(uptimeDelta < MAX_SAMPLER_PITCH);
 	
@@ -104,7 +105,7 @@ void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 	voiceUptime = wrappedVoice.voiceUptime;
 	
 
-	if (wrappedVoice.uptimeDelta == 0.0)
+	if (!wrappedVoice.isActive)
 	{
 		resetVoice();
 	}
@@ -265,6 +266,7 @@ void MultiMicModulatorSamplerVoice::startNote(int midiNoteNumber, float velocity
 
 		voiceUptime = wrappedVoices[i]->voiceUptime;
 		uptimeDelta = wrappedVoices[i]->uptimeDelta;
+        isActive = true;
 	}
 }
 
@@ -299,7 +301,7 @@ void MultiMicModulatorSamplerVoice::calculateBlock(int startSample, int numSampl
 
 		voiceUptime = wrappedVoices[i]->voiceUptime;
 
-		if (wrappedVoices[i]->uptimeDelta == 0.0)
+		if (!wrappedVoices[i]->isActive)
 		{
 			resetVoice();
 		}

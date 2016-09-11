@@ -92,6 +92,7 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
         clearCurrentNote();
         voiceUptime = 0.0;
         uptimeDelta = 0.0;
+        isActive = false;
         return;
 	}
     
@@ -108,6 +109,7 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
             clearCurrentNote();
             voiceUptime = 0.0;
             uptimeDelta = 0.0;
+            isActive = false;
             return;
         }
         

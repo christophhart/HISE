@@ -5,6 +5,8 @@
               jucerVersion="4.1.0" companyName="Hart Instruments" companyWebsite="http://hartinstruments.net/hise">
   <MAINGROUP id="yomWt4" name="HISE Standalone">
     <GROUP id="{577963C7-1A49-BB2A-D701-52DC7A5895F7}" name="Source">
+      <FILE id="EQP6SW" name="HiseEventBufferUnitTests.cpp" compile="1" resource="0"
+            file="../../hi_core/hi_core/HiseEventBufferUnitTests.cpp"/>
       <FILE id="tTUrnI" name="infoError.png" compile="0" resource="1" file="../../hi_core/hi_images/infoError.png"/>
       <FILE id="Ugx13U" name="infoInfo.png" compile="0" resource="1" file="../../hi_core/hi_images/infoInfo.png"/>
       <FILE id="rNV4cu" name="infoQuestion.png" compile="0" resource="1"

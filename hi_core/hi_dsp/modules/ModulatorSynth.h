@@ -696,6 +696,7 @@ public:
 		isTailing = false;
 		voiceUptime = 0.0;
 		uptimeDelta = 0.0;
+        isActive = true;
 	}
    
 	bool isBeingKilled() const
@@ -721,13 +722,14 @@ public:
 		jassert(uptimeDelta == 0.0);
 
 		uptimeDelta = 0.0;
+        isActive = false;
 	};
 
 	virtual void resetVoice();
 
 	bool isInactive() const noexcept
 	{
-		return uptimeDelta == 0.0f;
+        return !isActive; //uptimeDelta == 0.0;
 	};
 
 	/** This handles the voice stop. If any envelopes are active, the voice keeps playing and repeatedly call checkRelease(), until they are finished. */
@@ -811,7 +813,7 @@ protected:
 	/** The current delta value in which the uptime gets increased per calculated sample. 
 	*	The unit can change from Synth to synth (eg. angle vs. sample position ), so it must be calculated for each subclass in its startNote function. 
 	*/
-	double uptimeDelta;
+	double uptimeDelta = 0.0;
 
 	/** The total voice uptime. If you want to stop the rendering, set this to 0.0. */
 	double voiceUptime;
@@ -828,6 +830,8 @@ protected:
 	double eventPitchFactor = 1.0;
 	float eventGainFactor = 1.0f;
 
+    bool isActive = false;
+    
 private:
 
 	bool pitchModulationActive;
@@ -838,6 +842,8 @@ private:
 
 	bool isTailing;
 
+    
+    
 	float killFadeLevel;
 	float killFadeFactor;
 	

@@ -824,6 +824,7 @@ public:
 	{
 		voiceUptime = 0.0;
 		uptimeDelta = 0.0;
+        isActive = false;
 		loader.reset();
 		clearCurrentNote();
 	};
@@ -835,7 +836,7 @@ public:
 		sampleStartModValue = newValue;
 	}
 
-	
+    bool isActive = false;
 
 private:
 

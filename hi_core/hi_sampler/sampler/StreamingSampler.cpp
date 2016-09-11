@@ -1153,6 +1153,8 @@ void StreamingSamplerVoice::startNote (int /*midiNoteNumber*/,
 
 		uptimeDelta = jmin<double>((double)MAX_SAMPLER_PITCH, uptimeDelta);
 
+        isActive = true;
+        
 	}
 	else
 	{

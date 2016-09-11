@@ -783,6 +783,7 @@ void ModulatorSynthVoice::resetVoice()
 	startUptime = DBL_MAX;
 
 	isTailing = false;
+    isActive = false;
 
 	killThisVoice = false;
 	killFadeLevel = 1.0f;
@@ -934,7 +935,7 @@ void ModulatorSynth::setKillFadeOutTime(double fadeTimeMilliSeconds)
 
 void ModulatorSynthVoice::renderNextBlock (AudioSampleBuffer& outputBuffer, int startSample, int numSamples)
 {
-	if (uptimeDelta != 0.0)
+	if (isActive)
     { 
 		if(pitchModulationActive) calculateVoicePitchValues(startSample, numSamples);
 
