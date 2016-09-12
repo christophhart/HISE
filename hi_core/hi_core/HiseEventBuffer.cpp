@@ -63,12 +63,13 @@ double HiseEvent::getPitchFactorForEvent() const
 
 HiseEventBuffer::HiseEventBuffer()
 {
+	numUsed = HISE_EVENT_BUFFER_SIZE;
 	clear();
 }
 
 void HiseEventBuffer::clear()
 {
-    memset(buffer, 0, HISE_EVENT_BUFFER_SIZE * sizeof(HiseEvent));
+    memset(buffer, 0, numUsed * sizeof(HiseEvent));
     
 	numUsed = 0;
 }
@@ -151,6 +152,16 @@ void HiseEventBuffer::addEvents(const MidiBuffer& otherBuffer)
 }
 
 
+void HiseEventBuffer::addEvents(const HiseEventBuffer &otherBuffer)
+{
+	Iterator iter(otherBuffer);
+
+	while (HiseEvent* e = iter.getNextEventPointer(false, false))
+	{
+		addEvent(*e);
+	}
+}
+
 void HiseEventBuffer::subtractFromTimeStamps(int delta)
 {
 	if (numUsed == 0) return;
@@ -232,24 +243,15 @@ void HiseEventBuffer::copyFrom(const HiseEventBuffer& otherBuffer)
 	numUsed = otherBuffer.numUsed;
 }
 
-HiseEventBuffer::Iterator::Iterator(HiseEventBuffer &b) :
-buffer(&b),
-constBuffer(nullptr),
-index(0)
-{
-
-}
-
 
 HiseEventBuffer::Iterator::Iterator(const HiseEventBuffer& b) :
-constBuffer(&b),
-buffer(nullptr),
+buffer(const_cast<HiseEventBuffer*>(&b)),
 index(0)
 {
 
 }
 
-bool HiseEventBuffer::Iterator::getNextEvent(HiseEvent& b, int &samplePosition)
+bool HiseEventBuffer::Iterator::getNextEvent(HiseEvent& b, int &samplePosition, bool skipIgnoredEvents/*=false*/, bool skipArtificialEvents/*=false*/) const
 {
 	while (index < buffer->numUsed && buffer->buffer[index].isIgnored())
 	{
@@ -269,28 +271,20 @@ bool HiseEventBuffer::Iterator::getNextEvent(HiseEvent& b, int &samplePosition)
 }
 
 
-bool HiseEventBuffer::Iterator::getNextEvent(HiseEvent& b, int &samplePosition) const
-{
-	while (index < constBuffer->numUsed && constBuffer->buffer[index].isIgnored())
-	{
-		index++;
-		jassert(index < HISE_EVENT_BUFFER_SIZE);
-	}
 
-	if (index < constBuffer->numUsed)
-	{
-		b = constBuffer->buffer[index];
-		samplePosition = b.getTimeStamp();
-		index++;
-		return true;
-	}
-	else
-		return false;
+HiseEvent* HiseEventBuffer::Iterator::getNextEventPointer(bool skipIgnoredEvents/*=false*/, bool skipArtificialNotes /*= false*/)
+{
+	const HiseEvent* returnEvent = getNextConstEventPointer(skipIgnoredEvents, skipArtificialNotes);
+
+	return const_cast <HiseEvent*>(returnEvent);
 }
 
-HiseEvent* HiseEventBuffer::Iterator::getNextEventPointer(bool skipArtificialNotes/*=false*/)
+
+const HiseEvent* HiseEventBuffer::Iterator::getNextConstEventPointer(bool skipIgnoredEvents/*=false*/, bool skipArtificialNotes /*= false*/) const
 {
-	while (index < buffer->numUsed && (skipArtificialNotes && buffer->buffer[index].isArtificial()) || buffer->buffer[index].isIgnored())
+	while (index < buffer->numUsed && 
+		  (skipArtificialNotes && buffer->buffer[index].isArtificial()) || 
+		  (skipIgnoredEvents && buffer->buffer[index].isIgnored()))
 	{
 		index++;
 		jassert(index < HISE_EVENT_BUFFER_SIZE);
@@ -299,26 +293,6 @@ HiseEvent* HiseEventBuffer::Iterator::getNextEventPointer(bool skipArtificialNot
 	if (index < buffer->numUsed)
 	{
 		return &buffer->buffer[index++];
-
-	}
-	else
-	{
-		return nullptr;
-	}
-}
-
-
-const HiseEvent* HiseEventBuffer::Iterator::getNextEventPointer(bool skipArtificialNotes /*= false*/) const
-{
-	while (index < constBuffer->numUsed && (skipArtificialNotes && constBuffer->buffer[index].isArtificial()) || constBuffer->buffer[index].isIgnored())
-	{
-		index++;
-		jassert(index < HISE_EVENT_BUFFER_SIZE);
-	}
-
-	if (index < constBuffer->numUsed)
-	{
-		return &constBuffer->buffer[index++];
 
 	}
 	else

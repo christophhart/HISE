@@ -372,7 +372,7 @@ void JavascriptMidiProcessor::handleAsyncUpdate()
 
 	HiseEventBuffer::Iterator iter(copyEventBuffer);
 	
-	while (HiseEvent* m = iter.getNextEventPointer(true))
+	while (HiseEvent* m = iter.getNextEventPointer(true,true))
 	{
 		currentEvent = m;
 

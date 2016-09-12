@@ -314,7 +314,7 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 
 	while (numSamples > 0)
 	{
-		if (!eventIterator.getNextEvent(m, midiEventPos))
+		if (!eventIterator.getNextEvent(m, midiEventPos, true, false))
 		{
 			preVoiceRendering(startSample, numSamples);
 			renderVoice(startSample, numSamples);
@@ -353,7 +353,7 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 		numSamples -= rastered;
 	}
 
-	while (eventIterator.getNextEvent(m, midiEventPos))
+	while (eventIterator.getNextEvent(m, midiEventPos, true, false))
 		handleHiseEvent(m);
 
 #endif

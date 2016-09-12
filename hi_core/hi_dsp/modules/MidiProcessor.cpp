@@ -33,7 +33,6 @@
 MidiProcessor::MidiProcessor(MainController *mc, const String &id):
 		Processor(mc, id),
 		processThisMessage(true),
-		allNotesOffAtNextBuffer(false),
 		ownerSynth(nullptr),
 		numThisTime(0)
 	{
@@ -55,20 +54,9 @@ MidiProcessor::~MidiProcessor()
 
 void MidiProcessor::addHiseEventToBuffer(const HiseEvent &m)
 {
-	const int timeStamp = (int)m.getTimeStamp();
+	ownerSynth->midiProcessorChain->addArtificialEvent(m);
 
-	jassert(m.isArtificial());
-
-	numThisTime = dynamic_cast<AudioProcessor*>(getMainController())->getBlockSize();
-
-	if (timeStamp > numThisTime)
-	{
-		ownerSynth->midiProcessorChain->futureEventBuffer.addEvent(m);
-	}
-	else
-	{
-		ownerSynth->eventBuffer.addEvent(m);
-	}
+	
 }
 
 ProcessorEditorBody *MidiProcessor::createEditor(ProcessorEditor *parentEditor)
@@ -103,7 +91,56 @@ ProcessorEditorBody *MidiProcessorChain::createEditor(ProcessorEditor *parentEdi
 
 
 
-MidiProcessorFactoryType::MidiProcessorFactoryType(Processor *p):
+void MidiProcessorChain::addArtificialEvent(const HiseEvent& m)
+{
+	const int timeStamp = (int)m.getTimeStamp();
+
+	jassert(m.isArtificial());
+
+	const int numThisTime = dynamic_cast<AudioProcessor*>(getMainController())->getBlockSize();
+
+	if (timeStamp > numThisTime)
+	{
+		futureEventBuffer.addEvent(m);
+	}
+	else
+	{
+		artificialEvents.addEvent(m);
+	}
+}
+
+void MidiProcessorChain::renderNextHiseEventBuffer(HiseEventBuffer &buffer, int numSamples)
+{
+	if (allNotesOffAtNextBuffer)
+	{
+		buffer.clear();
+		buffer.addEvent(HiseEvent(HiseEvent::Type::AllNotesOff, 0, 0, 1));
+		allNotesOffAtNextBuffer = false;
+	}
+
+	if (buffer.isEmpty() && futureEventBuffer.isEmpty()) return;
+
+	
+
+	HiseEventBuffer::Iterator it(buffer);
+
+	while (HiseEvent* e = it.getNextEventPointer(true, false))
+	{
+		processHiseEvent(*e);
+	}
+
+	buffer.addEvents(artificialEvents);
+	artificialEvents.clear();
+
+
+	futureEventBuffer.subtractFromTimeStamps(numSamples);
+	futureEventBuffer.moveEventsBelow(buffer, numSamples);
+
+
+	buffer.moveEventsAbove(futureEventBuffer, numSamples);
+}
+
+MidiProcessorFactoryType::MidiProcessorFactoryType(Processor *p) :
 		FactoryType(p),
 		hardcodedScripts(new HardcodedScriptFactoryType(p))
 {
@@ -176,6 +213,7 @@ MidiProcessorChain::MidiProcessorChain(MainController *mc, const String &id, Pro
 		MidiProcessor(mc, id),
 		parentProcessor(ownerProcessor),
 		midiProcessorFactory(new MidiProcessorFactoryType(ownerProcessor)),
+		allNotesOffAtNextBuffer(false),
 		handler(this)
 {
 	setOwnerSynth(dynamic_cast<ModulatorSynth*>(ownerProcessor));

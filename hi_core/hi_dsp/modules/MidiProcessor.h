@@ -52,33 +52,7 @@ public:
 
 	void addHiseEventToBuffer(const HiseEvent &m);
 
-	void renderNextHiseEventBuffer(HiseEventBuffer &buffer, int numSamples)
-	{
-		if (allNotesOffAtNextBuffer)
-		{
-			buffer.clear();
-			buffer.addEvent(HiseEvent(HiseEvent::Type::AllNotesOff, 0, 0, 1));
-			allNotesOffAtNextBuffer = false;
-		}
-
-		if (buffer.isEmpty() && futureEventBuffer.isEmpty()) return;
-
-		numThisTime = numSamples;
-
-		HiseEventBuffer::Iterator it(buffer);
-
-		while (HiseEvent* e = it.getNextEventPointer(true))
-		{
-			processHiseEvent(*e);
-		}
-
-		futureEventBuffer.subtractFromTimeStamps(numSamples);
-		futureEventBuffer.moveEventsBelow(buffer, numSamples);
-		
-		buffer.moveEventsAbove(futureEventBuffer, numSamples);
-
-
-	}
+	
 
 	/** call this on the MidiBuffer you want to process. The block size is assumed to be the size of the current sample chunk. */
 	void renderNextBuffer(MidiBuffer &b, int numSamples)
@@ -182,10 +156,7 @@ public:
 	/** If this method is called within processMidiMessage(), the message will be ignored. */
 	void ignoreEvent() { processThisMessage = false; };
 
-	void sendAllNoteOffEvent()
-	{
-		allNotesOffAtNextBuffer = true;
-	};
+
 
 	bool isProcessed() const {return processThisMessage;};
 
@@ -208,7 +179,7 @@ protected:
 
 private:
 
-	bool allNotesOffAtNextBuffer;
+	
 
 	// Copies messages within this time frame in the current output buffer and moves all other messages to the front. */
 	void processFutureBuffer(MidiBuffer &outputBuffer, int numSamples, int offset=0)
@@ -240,7 +211,7 @@ private:
 	MidiBuffer nextFutureBuffer;
 	MidiBuffer outputBuffer;
 	
-	HiseEventBuffer futureEventBuffer;
+	
 
 	int numThisTime;
 
@@ -305,13 +276,22 @@ public:
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
+	void addArtificialEvent(const HiseEvent& m);
+
+	void sendAllNoteOffEvent()
+	{
+		allNotesOffAtNextBuffer = true;
+	};
+
+	void renderNextHiseEventBuffer(HiseEventBuffer &buffer, int numSamples);
+
 	/** Sequentially processes all processors. */
 	void processHiseEvent(HiseEvent &m) override
 	{
 		if(isBypassed()) return;
 		for(int i = 0; (i < processors.size()); i++)
 		{
-			if(processors[i]->isBypassed()) continue;
+			if(processors[i]->isBypassed() || m.isIgnored()) continue;
 
 			processors[i]->processHiseEvent(m);
 		}
@@ -370,6 +350,8 @@ public:
 
 private:
 
+
+	bool allNotesOffAtNextBuffer;
 	ScopedPointer<FactoryType> midiProcessorFactory;
 
 	Processor* parentProcessor;
@@ -379,6 +361,9 @@ private:
 	friend class MidiProcessorChainHandler;
 
 	OwnedArray<MidiProcessor> processors;
+
+	HiseEventBuffer futureEventBuffer;
+	HiseEventBuffer artificialEvents;
 
 };
 

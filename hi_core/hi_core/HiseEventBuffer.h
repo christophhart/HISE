@@ -90,17 +90,17 @@ public:
 	}
 
 	/** Checks if the message was marked as ignored (by a script). */
-    bool isIgnored() const noexcept{ return false; };//ignored; };
+    bool isIgnored() const noexcept{ return ignored; };
 
 	/** Ignores the event. Ignored events will not be processed, but remain in the buffer (they are not cleared). */
-    void ignoreEvent(bool shouldBeIgnored) noexcept{}// ignored = shouldBeIgnored; };
+    void ignoreEvent(bool shouldBeIgnored) noexcept{ ignored = shouldBeIgnored; };
 
 	uint32 getEventId() const noexcept{ return eventId; };
 
 	void setEventId(uint32 newEventId) noexcept{ eventId = newEventId; };
 
-    void setArtificial() noexcept {};// artificial = true; }
-    bool isArtificial() const noexcept{ return false;} //artificial; };
+    void setArtificial() noexcept { artificial = true; }
+    bool isArtificial() const noexcept{ return artificial; };
 
 	void setTransposeAmount(int newTransposeValue) noexcept{ transposeValue = (int8)newTransposeValue; };
 	int getTransposeAmount() const noexcept{ return (int)transposeValue; };
@@ -220,7 +220,7 @@ public:
 
 		for (int i = 0; i < numUsed; i++)
 		{
-			const HiseEvent* e = iter.getNextEventPointer();
+			const HiseEvent* e = iter.getNextConstEventPointer();
 
 			if (e == nullptr)
 			{
@@ -248,6 +248,8 @@ public:
 	void addEvent(const HiseEvent& hiseEvent);
 	void addEvent(const MidiMessage& midiMessage, int sampleNumber);
 	void addEvents(const MidiBuffer& otherBuffer);
+
+	void addEvents(const HiseEventBuffer &otherBuffer);
 
 	class EventIdHandler
 	{
@@ -294,21 +296,27 @@ public:
 	{
 	public:
 
-		Iterator(HiseEventBuffer& b);
-
+		/** Creates an iterator which allows access to the HiseEvents in the buffer. */
 		Iterator(const HiseEventBuffer& b);
 
-		bool getNextEvent(HiseEvent& b, int &samplePosition);
-		HiseEvent* getNextEventPointer(bool skipArtificialNotes=false);
+		/** Saves the next event into the given HiseEvent address. 
+		@param e - the event adress. Remember this will copy the event. If you want to alter the event in the buffer, 
+		           use the other iterator methods which return a pointer to the element in the buffer. 
+		@param samplePosition - the timestamp position. This will be sorted and compatible to the MidiBuffer::Iterator method.
+		@param skipIgnoredEvents - skips HiseEvents which are ignored.
+		@param skipArtificialNotes - skips artificial notes. Use this to avoid loops when processing HiseEventBuffers.
+		*/
+		bool getNextEvent(HiseEvent& e, int &samplePosition, bool skipIgnoredEvents=false, bool skipArtificialEvents=false) const;
 
-		bool getNextEvent(HiseEvent& b, int &samplePosition) const;
-		const HiseEvent* getNextEventPointer(bool skipArtificialNotes = false) const;
+		/** Returns a read pointer to the event in the buffer. */
+		const HiseEvent* getNextConstEventPointer(bool skipIgnoredEvents=false, bool skipArtificialNotes = false) const;
+
+		/** Returns a write pointer to the event in the buffer. */
+		HiseEvent* getNextEventPointer(bool skipIgnoredEvents=false, bool skipArtificialNotes = false);
 
 	private:
 
 		HiseEventBuffer *buffer;
-
-		const HiseEventBuffer *constBuffer;
 
 		mutable int index;
 	};

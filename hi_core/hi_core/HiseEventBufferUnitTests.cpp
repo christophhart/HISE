@@ -48,6 +48,8 @@ public:
 
 		testNoteOn();
 
+		testProperties();
+
 		testPitchWheel();
 
 		testEventBuffer();
@@ -55,6 +57,8 @@ public:
 		testEventBufferCopyMethods();
 
 		testMidiBufferCopyMethods();
+
+		testMidiBufferIterators();
 
 		testEventBufferMoveOperations();
 	}
@@ -177,6 +181,41 @@ private:
 		expect(!pitch.isController(), "Not a controller");
 	}
 
+	void testProperties()
+	{
+		beginTest("Testing HiseEvent properties");
+
+		HiseEvent e;
+
+		expect(!e.isArtificial(), "Artificial 1");
+		e.setArtificial();
+		expect(e.isArtificial(), "Artificial 2");
+
+		expect(!e.isIgnored(), "Ignored 1");
+		e.ignoreEvent(true);
+		expect(e.isIgnored(), "Ignored 2");
+
+		const int eventId = r.nextInt(UINT16_MAX);
+
+		e.setEventId(eventId);
+		expectEquals<int>(e.getEventId(), eventId, "Event ID");
+
+		e.setEventId(UINT16_MAX + 1 );
+		expectEquals<int>(e.getEventId(), 0, "Event ID overflow");
+
+		const int timestamp = r.nextInt(UINT16_MAX);
+
+		e.setTimeStamp(timestamp);
+		expectEquals<int>(e.getTimeStamp(), timestamp, "Timestamp");
+
+		e.setTimeStamp(UINT16_MAX + 1);
+		expectEquals<int>(e.getTimeStamp(), 0, "Timestamp overflow");
+
+
+
+
+	}
+
 	void testEventBuffer()
 	{
 		beginTest("Testing HiseEventBuffer");
@@ -202,7 +241,7 @@ private:
 		int timestamp = 0;
 
 
-		while (HiseEvent* e = iter.getNextEventPointer(false))
+		while (HiseEvent* e = iter.getNextEventPointer(false,false))
 		{
 			index++;
 
@@ -232,8 +271,81 @@ private:
 
 		HiseEventBuffer::Iterator iter2(b);
 
-		expect(*iter2.getNextEventPointer(false) == firstEvent);
-		expect(*iter2.getNextEventPointer(false) == secondEvent, "Correct order of insertion");
+		expect(*iter2.getNextEventPointer(false,false) == firstEvent);
+		expect(*iter2.getNextEventPointer(false,false) == secondEvent, "Correct order of insertion");
+
+	}
+
+	void testMidiBufferIterators()
+	{
+		beginTest("Testing iterators");
+
+		HiseEventBuffer b1;
+		const int numToFill = r.nextInt(HISE_EVENT_BUFFER_SIZE);
+
+		for (int i = 0; i < numToFill; i++)
+		{
+			b1.addEvent(generateRandomHiseEvent());
+		}
+
+		HiseEventBuffer::Iterator iter1(b1);
+
+		int index = 0;
+
+		while (HiseEvent* e = iter1.getNextEventPointer())
+		{
+			index++;
+		}
+
+		expectEquals<int>(index, numToFill, "Iterating all elements");
+
+
+
+		const HiseEventBuffer::Iterator constIter1(b1);
+		index = 0;
+
+		while (const HiseEvent* e = constIter1.getNextConstEventPointer())
+		{
+			index++;
+		}
+
+		expectEquals<int>(index, numToFill, "Iterating all const elements");
+
+		HiseEventBuffer::Iterator iter2(b1);
+
+		while (HiseEvent*e = iter2.getNextEventPointer())
+		{
+			e->ignoreEvent(true);
+		}
+
+		HiseEventBuffer::Iterator iter3(b1);
+
+		index = 0;
+
+		while (HiseEvent* e = iter3.getNextEventPointer(true, false))
+		{
+			index++;
+		}
+
+		expectEquals<int>(index, 0, "Skipping ignored events");
+
+		HiseEventBuffer::Iterator iter4(b1);
+
+		while (HiseEvent* e = iter4.getNextEventPointer())
+		{
+			e->setArtificial();
+		}
+
+		HiseEventBuffer::Iterator iter5(b1);
+
+		index = 0;
+
+		while (HiseEvent* e = iter5.getNextEventPointer(false, true))
+		{
+			index++;
+		}
+
+		expectEquals<int>(index, 0, "Skipping artificial events");
 
 	}
 
@@ -306,9 +418,9 @@ private:
 
 		int index = 0;
 
-		while (HiseEvent* e1 = b1iter.getNextEventPointer(false))
+		while (HiseEvent* e1 = b1iter.getNextEventPointer(false,false))
 		{
-			HiseEvent* e2 = b2iter.getNextEventPointer(false);
+			HiseEvent* e2 = b2iter.getNextEventPointer(false,false);
 
 			if (e2 != nullptr)
 			{
