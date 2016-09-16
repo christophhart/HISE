@@ -215,14 +215,35 @@ ValueTree ScriptingApi::Content::ScriptComponent::exportAsValueTree() const
 
 	v.setProperty("type", getObjectName().toString(), nullptr);
 	v.setProperty("id", getName().toString(), nullptr);
-	v.setProperty("value", value, nullptr);
+
+	if (value.isObject())
+	{
+		v.setProperty("value", "JSON" + JSON::toString(value, true), nullptr);
+	}
+	else
+	{
+		v.setProperty("value", value, nullptr);
+	}
+
+	
 	
 	return v;
 }
 
 void ScriptingApi::Content::ScriptComponent::restoreFromValueTree(const ValueTree &v)
 {
-	value = v.getProperty("value", var::undefined());
+	const var data = v.getProperty("value", var::undefined());
+
+	if (data.isString() && data.toString().startsWith("JSON"))
+	{
+		String jsonData = data.toString().fromFirstOccurrenceOf("JSON", false, false);
+
+		value = JSON::fromString(jsonData);
+	}
+	else
+	{
+		value = data;
+	}
 }
 
 void ScriptingApi::Content::ScriptComponent::doubleClickCallback(const MouseEvent &, Component* componentToNotify)
@@ -2851,7 +2872,20 @@ void ScriptingApi::Content::restoreAllControlsFromPreset(const ValueTree &preset
 	{
 		if (!components[i]->getScriptObjectProperty(ScriptComponent::Properties::saveInPreset)) continue;
 
-		getProcessor()->setAttribute(i, components[i]->getValue(), sendNotification);
+
+		var v = components[i]->getValue();
+
+		if (v.isObject())
+		{
+			getScriptProcessor()->controlCallback(components[i], v);
+		}
+		else
+		{
+			getProcessor()->setAttribute(i, components[i]->getValue(), sendNotification);
+		}
+
+
+		
 
 		const String macroName = components[i]->getScriptObjectProperty(ScriptComponent::macroControl).toString();
 
