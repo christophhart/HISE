@@ -690,6 +690,8 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
     
 	ScopedNoDenormals snd;
 
+    ScopedLock sl(getLock());
+    
 	AudioProcessor *thisAsProcessor = dynamic_cast<AudioProcessor*>(this);
 
 	ModulatorSynthChain *synthChain = getMainSynthChain();
