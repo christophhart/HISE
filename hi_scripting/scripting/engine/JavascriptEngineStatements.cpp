@@ -203,7 +203,7 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 
 			if (data->isArray())			return data->getArray()->getUnchecked(loop->index);
 			else if (data->isBuffer())		return data->getBuffer()->getSample(loop->index);
-			else if (data->isObject())		return data->getDynamicObject()->getProperties().getValueAt(loop->index);
+			else if (data->isObject())		return data->getDynamicObject()->getProperties().getName(loop->index).toString();
 			else location.throwError("Illegal iterator target");
 
 			return var::undefined();
