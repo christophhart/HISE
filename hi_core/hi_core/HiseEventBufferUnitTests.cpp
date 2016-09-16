@@ -73,7 +73,7 @@ private:
 
 		HiseEvent empty;
 
-		expect(empty.isNoteOn(), "Correct type (NoteOn)");
+		expect(empty.isEmpty(), "Correct type (Empty)");
 		expectEquals<int>(empty.getNoteNumber(), 0, "Number value");
 		expectEquals<int>(empty.getVelocity(),0, "Velocity");
 		expectEquals<int>(empty.getChannel(), 0, "Channel");
@@ -97,7 +97,7 @@ private:
 
 		HiseEvent::clear(&empty);
 
-		expect(empty.isNoteOn(), "Correct type (NoteOn)");
+		expect(empty.isEmpty(), "Correct type (Empty)");
 		expectEquals<int>(empty.getNoteNumber(), 0, "Number value");
 		expectEquals<int>(empty.getVelocity(), 0, "Velocity");
 		expectEquals<int>(empty.getChannel(), 0, "Channel");
@@ -503,7 +503,7 @@ private:
 
 	HiseEvent generateRandomHiseEvent()
 	{
-		HiseEvent e((HiseEvent::Type)r.nextInt((int)HiseEvent::Type::numTypes),
+		HiseEvent e((HiseEvent::Type)r.nextInt(Range<int>(1, (int)HiseEvent::Type::numTypes)),
 			r.nextInt(128),
 			r.nextInt(128),
 			r.nextInt(256));

@@ -40,12 +40,16 @@ public:
 
 	enum class Type : uint8
 	{
-		NoteOn = 0,
+		Empty = 0,
+		NoteOn,
 		NoteOff,
 		Controller,
 		PitchBend,
 		Aftertouch,
 		AllNotesOff,
+		SongPosition,
+		MidiStart,
+		MidiStop,
 		numTypes
 	};
 
@@ -164,13 +168,29 @@ public:
 	bool isController() const noexcept{ return type == Type::Controller; }
 	bool isControllerOfType(int controllerType) const noexcept{ return type == Type::Controller && controllerType == (int)number; };
 
-	int getControllerNumber() const noexcept{ return number; }
-	int getControllerValue() const noexcept{ return value; }
+	int getControllerNumber() const noexcept{ return number; };
+	int getControllerValue() const noexcept{ return value; };
 
-	void setControllerNumber(int controllerNumber) noexcept{ number = controllerNumber; }
-	void setControllerValue(int controllerValue) noexcept{ value = controllerValue; }
+	void setControllerNumber(int controllerNumber) noexcept{ number = controllerNumber; };
+	void setControllerValue(int controllerValue) noexcept{ value = controllerValue; };
+
+	bool isEmpty() const noexcept{ return type == Type::Empty; };
 
 	bool isAllNotesOff() const noexcept{ return type == Type::AllNotesOff; };
+
+	bool isMidiStart() const noexcept{ return type == Type::MidiStart; };
+
+	bool isMidiStop() const noexcept{ return type == Type::MidiStop; };
+
+	bool isSongPositionPointer() const noexcept{ return type == Type::SongPosition; };
+
+	int getSongPositionPointerMidiBeat() const noexcept{ return number | (value << 7); };
+
+	void setSongPositionValue(int positionInMidiBeats)
+	{
+		number = positionInMidiBeats & 127;
+		value = (positionInMidiBeats >> 7) & 127;
+	}
 
 	/** This clears the events using the fast memset operation. */
 	static void clear(HiseEvent* eventToClear, int numEvents = 1)
@@ -180,7 +200,7 @@ public:
 
 private:
 
-	Type type = Type::NoteOn;
+	Type type = Type::Empty;
 
 	uint8 channel = 0;
 	uint8 number = 0;

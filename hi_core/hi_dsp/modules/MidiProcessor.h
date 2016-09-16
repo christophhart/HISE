@@ -52,58 +52,6 @@ public:
 
 	void addHiseEventToBuffer(const HiseEvent &m);
 
-	
-
-	/** call this on the MidiBuffer you want to process. The block size is assumed to be the size of the current sample chunk. */
-	void renderNextBuffer(MidiBuffer &b, int numSamples)
-	{
-		jassertfalse;
-#if 0
-		if(allNotesOffAtNextBuffer)
-		{
-			futureBuffer.clear();
-			nextFutureBuffer.clear();
-			b.clear();
-			b.addEvent(MidiMessage::allNotesOff(1), 0);
-			allNotesOffAtNextBuffer = false;
-			return;
-		}
-
-
-		outputBuffer.clear();
-
-		numThisTime = numSamples;
-
-		// Copy the messages due in this period from the future buffer and move the timestamps
-		if( !futureBuffer.isEmpty() )
-		{
-			processFutureBuffer(outputBuffer, numSamples);
-		}
-
-		
-
-		MidiBuffer::Iterator iterator(b);
-		MidiMessage m(0xf4, 0.0);
-
-		while(iterator.getNextEvent(m, samplePos))
-		{
-			processThisMessage = true;
-
-			processMidiMessage(m);
-			
-			if(isProcessed())
-			{
-				addMidiMessageToBuffer(m);
-			}
-		};
-		
-		jassert(outputBuffer.getLastEventTime() < numSamples);
-
-		b.clear();
-		b.swapWith(outputBuffer);
-#endif
-	};
-
 	Colour getColour() const
     {
         return Colour(0xff842d20);

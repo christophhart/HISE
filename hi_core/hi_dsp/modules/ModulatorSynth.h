@@ -294,6 +294,8 @@ public:
 
 	void handleHiseEvent(const HiseEvent& e);
 
+	void handleHostInfoHiseEvents();
+
 	virtual void preHiseEventCallback(const HiseEvent &e);
 
 	/** Use this to do any special handling before the voice gets started. */

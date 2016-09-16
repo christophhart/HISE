@@ -223,28 +223,33 @@ void JavascriptMidiProcessor::runScriptCallbacks()
 		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, onControllerCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
 	}
 
-	// TODO_BUFFER: Add song position stuff
 #if 0
-	else if (currentMessage.isSongPositionPointer())
+	
+	else if (currentEvent->isSongPositionPointer())
 	{
 		Result r = Result::ok();
 
 		static const Identifier onClock("onClock");
 
-		var args[1] = { currentMessage.getSongPositionPointerMidiBeat() };
-		scriptEngine->executeWithoutAllocation(onClock, var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), args, 1), &r);
+		var args = currentEvent->getSongPositionPointerMidiBeat();
+	
+		scriptEngine->callInlineFunction(onClock, &args, 1, &r);
+		
+		//scriptEngine->executeWithoutAllocation(onClock, var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), args, 1), &r);
 
 		if (!r.wasOk()) debugError(this, r.getErrorMessage());
 	}
-	else if (currentMessage.isMidiStart() || currentMessage.isMidiStop())
+	else if (currentEvent->isMidiStart() || currentEvent->isMidiStop())
 	{
 		Result r = Result::ok();
 
-		static const Identifier onClock("onTransport");
+		static const Identifier onTransport("onTransport");
 
-		var args[1] = { currentMessage.isMidiStart() };
+		var args = currentEvent->isMidiStart();
 
-		scriptEngine->executeWithoutAllocation(onClock, var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), args, 1), &r);
+		scriptEngine->callInlineFunction(onTransport, &args, 1, &r);
+
+		//scriptEngine->executeWithoutAllocation(onClock, var::NativeFunctionArgs(dynamic_cast<ReferenceCountedObject*>(this), args, 1), &r);
 	}
 #endif
 }

@@ -97,7 +97,7 @@ ProcessorEditorBody *ModulatorSynth::createEditor(ProcessorEditor *parentEditor)
 
 bool ModulatorSynth::processMidiBuffer(const MidiBuffer &inputBuffer, MidiBuffer &outputBuffer, int numSamples)
 {
-
+#if 0
 	bool useOtherBuffer = true;
 
 	const bool emptyChain = midiProcessorChain->getHandler()->getNumProcessors() == 0;
@@ -196,12 +196,19 @@ bool ModulatorSynth::processMidiBuffer(const MidiBuffer &inputBuffer, MidiBuffer
 	}
 
 	return useOtherBuffer;
+#endif
 
+	return false;
 }
 
 void ModulatorSynth::processHiseEventBuffer(const HiseEventBuffer &inputBuffer, int numSamples)
 {
 	eventBuffer.copyFrom(inputBuffer);
+
+	if (getMainController()->getMainSynthChain() == this)
+	{
+		handleHostInfoHiseEvents();
+	}
 
 	midiProcessorChain->renderNextHiseEventBuffer(eventBuffer, numSamples);
 }
@@ -241,67 +248,6 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 	};
 
 	initRenderCallback();
-
-#if 0 // Old
-
-	const bool useNewBuffer = processMidiBuffer(inputMidiBuffer, outputMidiBuffer, numSamples);
-
-	if (useNewBuffer ? !outputMidiBuffer.isEmpty() : !inputMidiBuffer.isEmpty())
-	{
-		midiInputFlag = true;
-	}
-
-	//jassert(numSamples % 4 == 0);
-	MidiBuffer::Iterator midiIterator(useNewBuffer ? outputMidiBuffer : inputMidiBuffer);
-	MidiMessage m(0xf4, 0.0);
-
-	int midiEventPos;
-
-	while (numSamples > 0)
-	{
-		if (!midiIterator.getNextEvent(m, midiEventPos))
-		{
-			preVoiceRendering(startSample, numSamples);
-			renderVoice(startSample, numSamples);
-			postVoiceRendering(startSample, numSamples);
-
-			break;
-		}
-
-		const int samplesToNextMidiMessage = midiEventPos - startSample;
-
-		const int delta = (samplesToNextMidiMessage % 8);
-
-		const int rastered = samplesToNextMidiMessage - delta;
-
-		if (rastered >= numSamples)
-		{
-			preVoiceRendering(startSample, numSamples);
-			renderVoice(startSample, numSamples);
-			postVoiceRendering(startSample, numSamples);
-			handleMidiEvent(m);
-			break;
-		}
-
-		if (rastered < 32)
-		{
-			handleMidiEvent(m);
-			continue;
-		}
-
-		preVoiceRendering(startSample, rastered);
-		renderVoice(startSample, rastered);
-		postVoiceRendering(startSample, rastered);
-
-		handleMidiEvent(m);
-		startSample += rastered;
-		numSamples -= rastered;
-	}
-
-	while (midiIterator.getNextEvent(m, midiEventPos))
-		handleMidiEvent(m);
-	
-#else
 
 	processHiseEventBuffer(inputMidiBuffer, numSamples);
 
@@ -355,8 +301,6 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 
 	while (eventIterator.getNextEvent(m, midiEventPos, true, false))
 		handleHiseEvent(m);
-
-#endif
 
 	effectChain->renderMasterEffects(internalBuffer);
 
@@ -428,49 +372,6 @@ void ModulatorSynth::handlePeakDisplay(int numSamplesInOutputBuffer)
 #endif
 }
 
-#if 0
-void ModulatorSynth::handleMidiEvent(const MidiMessage &m)
-{
-	preMidiCallback(m);
-
-	const int channel = 1;
-
-	if (m.isNoteOn())
-	{
-		noteOn(channel, m.getNoteNumber(), m.getFloatVelocity());
-	}
-	else if (m.isNoteOff())
-	{
-		noteOff(channel, m.getNoteNumber(), m.getFloatVelocity(), true);
-	}
-	else if (m.isAllNotesOff() || m.isAllSoundOff())
-	{
-		allNotesOff(channel, true);
-	}
-	else if (m.isPitchWheel())
-	{
-		const int wheelPos = m.getPitchWheelValue();
-		lastPitchWheelValues[channel - 1] = wheelPos;
-		handlePitchWheel(channel, wheelPos);
-	}
-	else if (m.isAftertouch())
-	{
-		handleAftertouch(channel, m.getNoteNumber(), m.getAfterTouchValue());
-	}
-	else if (m.isChannelPressure())
-	{
-		handleChannelPressure(channel, m.getChannelPressureValue());
-	}
-	else if (m.isController())
-	{
-		handleController(channel, m.getControllerNumber(), m.getControllerValue());
-	}
-	else if (m.isProgramChange())
-	{
-		handleProgramChange(channel, m.getProgramChangeNumber());
-	}
-}
-#endif
 
 void ModulatorSynth::handleHiseEvent(const HiseEvent& m)
 {
@@ -481,14 +382,10 @@ void ModulatorSynth::handleHiseEvent(const HiseEvent& m)
 	if (m.isNoteOn())
 	{
 		noteOn(m);
-
-		//noteOn(channel, m.getNoteNumber(), m.getFloatVelocity());
 	}
 	else if (m.isNoteOff())
 	{
 		noteOff(m);
-
-		//noteOff(channel, m.getNoteNumber(), m.getFloatVelocity(), true);
 	}
 	else if (m.isAllNotesOff())
 	{
@@ -512,6 +409,98 @@ void ModulatorSynth::handleHiseEvent(const HiseEvent& m)
 	{
 		handleController(channel, m.getControllerNumber(), m.getControllerValue());
 	}
+}
+
+void ModulatorSynth::handleHostInfoHiseEvents()
+{
+	int ppqTimeStamp = -1;
+
+	// Check if ppqPosition should be added
+	static const Identifier ppqPosition("ppqPosition");
+	static const Identifier isPlaying("isPlaying");
+
+	const bool hostIsPlaying = getMainController()->getHostInfoObject()->getProperty(isPlaying);
+
+	if (hostIsPlaying && clockSpeed != ClockSpeed::Inactive)
+	{
+		double ppq = getMainController()->getHostInfoObject()->getProperty(ppqPosition);
+
+		const double bufferAsMilliseconds = getBlockSize() / getSampleRate();
+		const double bufferAsPPQ = bufferAsMilliseconds * (getMainController()->getBpm() / 60.0);
+		const double ppqAtEndOfBuffer = ppq + bufferAsPPQ;
+
+		const double clockSpeedMultiplier = pow(2.0, clockSpeed);
+
+		const int clockAtStartOfBuffer = (int)((ppq)* clockSpeedMultiplier);
+		const int clockAtEndOfBuffer = (int)((ppqAtEndOfBuffer)* clockSpeedMultiplier);
+
+		if (clockAtStartOfBuffer != clockAtEndOfBuffer)
+		{
+			const double remaining = (double)clockAtEndOfBuffer / clockSpeedMultiplier - ppq;
+			const double remainingTime = (60.0 / getMainController()->getBpm()) * remaining;
+			const double remainingSamples = getSampleRate() * remainingTime;
+
+			if (remainingSamples < getBlockSize())
+			{
+				ppqTimeStamp = (int)remainingSamples;
+			}
+
+			lastClockCounter = clockAtStartOfBuffer;
+		}
+	}
+
+	
+	if (hostIsPlaying != wasPlayingInLastBuffer)
+	{
+		HiseEvent m = hostIsPlaying ? HiseEvent(HiseEvent::Type::MidiStart, 0, 0) : HiseEvent(HiseEvent::Type::MidiStop, 0, 0);
+
+		eventBuffer.addEvent(m);
+	}
+
+	if (ppqTimeStamp != -1)
+	{
+		HiseEvent pos = HiseEvent(HiseEvent::Type::SongPosition, 0, 0);
+
+		pos.setSongPositionValue(ppqTimeStamp);
+		pos.setTimeStamp(ppqTimeStamp);
+
+		eventBuffer.addEvent(pos);
+	}
+
+		
+#if 0
+	wasPlayingInLastBuffer = hostIsPlaying;
+
+	if (!emptyGeneratedBuffer)
+	{
+		if (emptyChain)
+		{
+			outputBuffer.clear();
+			outputBuffer.data.addArray(inputBuffer.data);
+		}
+
+		MidiBuffer::Iterator it(generatedMessages);
+
+		MidiMessage m = MidiMessage();
+		int samplePos;
+
+		while (it.getNextEvent(m, samplePos))
+		{
+			if (m.isSongPositionPointer()) continue; // Skip the clock messages
+
+			outputBuffer.addEvent(m, samplePos);
+		}
+
+
+
+		generatedMessages.clear();
+
+		useOtherBuffer = true;
+	}
+
+
+	return useOtherBuffer;
+#endif
 }
 
 void ModulatorSynth::preHiseEventCallback(const HiseEvent &e)
