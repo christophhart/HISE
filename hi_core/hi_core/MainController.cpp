@@ -702,7 +702,9 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		prepareToPlay(sampleRate, buffer.getNumSamples());
 	}
 
+#if !FRONTEND_IS_PLUGIN
 	keyboardState.processNextMidiBuffer(midiMessages, 0, buffer.getNumSamples(), true);
+
 
 	if (!midiMessages.isEmpty()) setMidiInputFlag();
 
@@ -711,6 +713,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	masterEventBuffer.addEvents(midiMessages);
 
 	eventIdHandler.handleEventIds();
+#endif
 
 #if ENABLE_HOST_INFO
 	AudioPlayHead::CurrentPositionInfo newTime;
@@ -729,6 +732,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	startCpuBenchmark(buffer.getNumSamples());
 #endif
 
+#if !FRONTEND_IS_PLUGIN
 	if (thisAsProcessor->isSuspended())
 	{
 		buffer.clear();
@@ -736,14 +740,19 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 	checkAllNotesOff();
 
+#endif
+
+
 #if USE_MIDI_CONTROLLERS_FOR_MACROS
 	handleControllersForMacroKnobs(midiMessages);
 #endif
 
 	
+#if FRONTEND_IS_PLUGIN
 
-	
+	synthChain->renderNextBlockWithModulators(buffer, masterEventBuffer);
 
+#else
 	multiChannelBuffer.clear();
 
 	synthChain->renderNextBlockWithModulators(multiChannelBuffer, masterEventBuffer);
@@ -757,6 +766,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	}
 
 	midiMessages.clear();
+#endif
 
 #if ENABLE_CPU_MEASUREMENT
 	stopCpuBenchmark();

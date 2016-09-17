@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<Processor Type="SynthChain" ID="Demo" Bypassed="0" Gain="1" Balance="0"
+           VoiceLimit="128" KillFadeTime="20" IconColour="0" packageName=""
+           views="32.rk1bzA...zbyM2byM2byM2byM2byM2byM2byM2byM2L" currentView="-1"
+           BuildVersion="641">
+  <ChildProcessors>
+    <Processor Type="MidiProcessorChain" ID="Midi Processor" Bypassed="0">
+      <ChildProcessors>
+        <Processor Type="ScriptProcessor" ID="Velocity Editor" Bypassed="0">
+          <ChildProcessors/>
+          <Content>
+            <Control type="ScriptSlider" id="volumeSlider" value="-4.9000000953674316"/>
+            <Control type="ScriptSlider" id="delaySlider" value="-1.3999999761581421"/>
+            <Control type="ScriptLabel" id="velocityLabel" value="0"/>
+            <Control type="ScriptSlider" id="sineVolume" value="0"/>
+          </Content>
+        </Processor>
+      </ChildProcessors>
+    </Processor>
+    <Processor Type="ModulatorChain" ID="GainModulation" Bypassed="0" Intensity="1">
+      <ChildProcessors/>
+    </Processor>
+    <Processor Type="ModulatorChain" ID="PitchModulation" Bypassed="1" Intensity="1">
+      <ChildProcessors/>
+    </Processor>
+    <Processor Type="EffectChain" ID="FX" Bypassed="0">
+      <ChildProcessors>
+        <Processor Type="SimpleGain" ID="Simple Gain" Bypassed="0" Gain="-4.9000020027160645"
+                   Delay="0" Width="-2.4999973773956299" Balance="0">
+          <ChildProcessors>
+            <Processor Type="ModulatorChain" ID="Gain Modulation" Bypassed="0" Intensity="1">
+              <ChildProcessors/>
+            </Processor>
+            <Processor Type="ModulatorChain" ID="Delay Modulation" Bypassed="0" Intensity="1">
+              <ChildProcessors/>
+            </Processor>
+            <Processor Type="ModulatorChain" ID="Width Modulation" Bypassed="0" Intensity="1">
+              <ChildProcessors/>
+            </Processor>
+            <Processor Type="ModulatorChain" ID="Pan Modulation" Bypassed="0" Intensity="1">
+              <ChildProcessors/>
+            </Processor>
+          </ChildProcessors>
+          <RoutingMatrix NumSourceChannels="2" Channel0="0" Send0="-1" Channel1="1" Send1="-1"/>
+        </Processor>
+      </ChildProcessors>
+    </Processor>
+  </ChildProcessors>
+  <RoutingMatrix NumSourceChannels="2" Channel0="0" Send0="-1" Channel1="1" Send1="-1"/>
+  <macro_controls>
+    <macro name="Volume" value="120.77700042724609" midi_cc="0">
+      <controlled_parameter id="Simple Gain" parameter="0" parameter_name="Gain" min="-100"
+                            max="36" low="-100" high="0" inverted="0" readonly="1"/>
+      <controlled_parameter id="Velocity Editor" parameter="1" parameter_name="volumeSlider"
+                            min="-100" max="0" low="-100" high="0" inverted="0" readonly="0"/>
+    </macro>
+    <macro name="Delay" value="125.22200012207031" midi_cc="0">
+      <controlled_parameter id="Velocity Editor" parameter="2" parameter_name="delaySlider"
+                            min="-100" max="0" low="-100" high="0" inverted="0" readonly="0"/>
+    </macro>
+    <macro name="Macro 3" value="0" midi_cc="0"/>
+    <macro name="Macro 4" value="0" midi_cc="0"/>
+    <macro name="Macro 5" value="0" midi_cc="0"/>
+    <macro name="Macro 6" value="0" midi_cc="0"/>
+    <macro name="Macro 7" value="0" midi_cc="0"/>
+    <macro name="Macro 8" value="0" midi_cc="0"/>
+  </macro_controls>
+  <MidiAutomation/>
+</Processor>

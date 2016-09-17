@@ -98,7 +98,9 @@ public:
 		MenuFileSettingCheckSanity,
 		MenuReplaceWithClipboardContent,
 		MenuExportFileAsPlugin,
+		MenuExportFileAsEffectPlugin,
 		MenuExportFileAsPlayerLibrary,
+		
         MenuExportFileAsSnippet,
 		MenuFileQuit,
 		MenuEditOffset = 0x30000,
@@ -234,7 +236,6 @@ public:
 		static void openFile(BackendProcessorEditor *bpe);
 		static void saveFile(BackendProcessorEditor *bpe);
 		static void replaceWithClipboardContent(BackendProcessorEditor *bpe);
-		static void exportFileAsSnippet(BackendProcessorEditor* bpe);
 		static void createScriptVariableDeclaration(CopyPasteTarget *currentCopyPasteTarget);
 		static void recompileAllScripts(BackendProcessorEditor * bpe);
 		static void toggleFullscreen(BackendProcessorEditor * bpe);
@@ -264,6 +265,7 @@ public:
 		static void collectExternalFiles(BackendProcessorEditor * bpe);
 		static void saveFileAsXml(BackendProcessorEditor * bpe);
 		static void openFileFromXml(BackendProcessorEditor * bpe, const File &fileToLoad);
+		static void exportFileAsSnippet(BackendProcessorEditor* bpe);
 		static void redirectSampleFolder(Processor *processorForTheProjectHandler);
 		static void showFilePresetSettings(BackendProcessorEditor * bpe);
 		static void showFileProjectSettings(BackendProcessorEditor * bpe);

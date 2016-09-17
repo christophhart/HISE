@@ -86,7 +86,9 @@ SampleThreadPool::SampleThreadPool(const int numThreads)
 
 	jassert(numThreads > 0); // not much point having a pool without any threads!
 
+#if !FRONTEND_IS_PLUGIN
 	createThreads(numThreads);
+#endif
 }
 
 SampleThreadPool::SampleThreadPool()
@@ -96,7 +98,9 @@ SampleThreadPool::SampleThreadPool()
 		preAllocatedJobs[i] = nullptr;
 	}
 
+#if !FRONTEND_IS_PLUGIN
 	createThreads(SystemStats::getNumCpus());
+#endif
 }
 
 SampleThreadPool::~SampleThreadPool()

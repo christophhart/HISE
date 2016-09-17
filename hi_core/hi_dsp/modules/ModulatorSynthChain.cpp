@@ -93,6 +93,8 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 {
 	if (isBypassed()) return;
 
+
+
 	ADD_GLITCH_DETECTOR(getId() + " rendering");
 
 	ScopedLock sl(lock);
@@ -101,18 +103,18 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 
 	initRenderCallback();
 
-	MidiBuffer copy;
-
 	if (checkTimerCallback())
 	{
 		synthTimerCallback();
 	};
 
+#if FRONTEND_IS_PLUGIN
+
+	effectChain->renderMasterEffects(buffer);
+
+#else
 
 	processHiseEventBuffer(inputMidiBuffer, numSamples);
-
-	// Process the MidiBuffer of the ModulatorSynthChain
-	//const bool useNewBuffer = processMidiBuffer(inputMidiBuffer, copy, numSamples);
 
 	// Shrink the internal buffer to the output buffer size 
 	internalBuffer.setSize(getMatrix().getNumSourceChannels(), numSamples, true, false, true);
@@ -167,7 +169,7 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 	// Display the output
 	handlePeakDisplay(buffer.getNumSamples());
 
-	return;
+#endif
 }
 
 void ModulatorSynthChain::reset()

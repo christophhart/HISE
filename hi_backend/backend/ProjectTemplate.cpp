@@ -39,8 +39,8 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "              bundleIdentifier=\"%BUNDLE_ID%\" includeBinaryInAppConfig=\"1\" buildVST=\"1\"\r\n"
 "              buildVST3=\"0\" buildAU=\"1\" buildRTAS=\"0\" buildAAX=\"0\" pluginName=\"%NAME%\"\r\n"
 "              pluginDesc=\"%DESCRIPTION%\" pluginManufacturer=\"%COMPANY%\" pluginManufacturerCode=\"%MC%\"\r\n"
-"              pluginCode=\"%PC%\" pluginChannelConfigs=\"{0,2}\" pluginIsSynth=\"1\"\r\n"
-"              pluginWantsMidiIn=\"1\" pluginProducesMidiOut=\"0\" pluginIsMidiEffectPlugin=\"0\"\r\n"
+"              pluginCode=\"%PC%\" pluginChannelConfigs=\"%CHANNEL_CONFIG%\" pluginIsSynth=\"%PLUGINISSYNTH%\"\r\n"
+"              pluginWantsMidiIn=\"%PLUGINWANTSMIDIIN\" pluginProducesMidiOut=\"0\" pluginIsMidiEffectPlugin=\"0\"\r\n"
 "              pluginEditorRequiresKeys=\"1\" pluginAUExportPrefix=\"DemoProjectAU\"\r\n"
 "              pluginRTASCategory=\"\" aaxIdentifier=\"com.yourcompany.DemoProject\"\r\n"
 "              pluginAAXCategory=\"AAX_ePlugInCategory_Dynamics\" jucerVersion=\"4.1.0\"\r\n"
@@ -171,8 +171,8 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "    <MODULE id=\"juce_tracktion_marketplace\" showAllCode=\"1\" useLocalCopy=\"0\"/>\r\n"
 "  </MODULES>\r\n"
 "  <JUCEOPTIONS JUCE_QUICKTIME=\"disabled\" USE_BACKEND=\"disabled\" USE_FRONTEND=\"enabled\" HI_EXPORT_DSP_LIBRARY=\"disabled\" USE_COPY_PROTECTION=\"%USE_COPY_PROTECTION%\" IS_STANDALONE_APP=\"disabled\"\r\n"
-"               USE_IPP=\"enabled\" USE_GLITCH_DETECTION=\"disabled\" ENABLE_PLOTTER=\"disabled\" ENABLE_SCRIPTING_SAFE_CHECKS=\"disabled\""
-"               ENABLE_ALL_PEAK_METERS=\"disabled\" ENABLE_CONSOLE_OUTPUT=\"disabled\"/>/>\r\n"
+"               USE_IPP=\"enabled\" FRONTEND_IS_PLUGIN=\"%FRONTEND_IS_PLUGIN%\" USE_GLITCH_DETECTION=\"disabled\" ENABLE_PLOTTER=\"disabled\" ENABLE_SCRIPTING_SAFE_CHECKS=\"disabled\""
+"               ENABLE_ALL_PEAK_METERS=\"disabled\" ENABLE_CONSOLE_OUTPUT=\"disabled\"/>/>\r\n" 
 "</JUCERPROJECT>\r\n";
 
 const char* projectTemplate_jucer = (const char*)projectTemplate_jucer_lines;

@@ -60,6 +60,7 @@ public:
 	/** Exports the main synthchain all samples, external files into a ValueTree file which can be included in a compiled FrontEndProcessor. */
 	static void exportMainSynthChainAsPackage(ModulatorSynthChain *chainToExport);
 
+	static void exportMainSynthChainAsFX(ModulatorSynthChain* chainToExport);
 
 private:
 
@@ -89,7 +90,7 @@ private:
 
 	static ErrorCodes createResourceFile(const String &solutionDirectory, const String & uniqueName, const String &version);
 
-	static ErrorCodes createIntrojucerFile(ModulatorSynthChain *chainToExport);
+	static ErrorCodes createIntrojucerFile(ModulatorSynthChain *chainToExport, bool createFX=false);
 
 	static ErrorCodes copyHISEImageFiles(ModulatorSynthChain *chainToExport);
 

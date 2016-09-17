@@ -100,9 +100,12 @@ public:
 
 	virtual void processBlockBypassed (AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 	{
+#if !FRONTEND_IS_PLUGIN
 		buffer.clear();
 		midiMessages.clear();
 		allNotesOff();
+#endif
+		
 	};
 
 	void handleControllersForMacroKnobs(const MidiBuffer &midiMessages);

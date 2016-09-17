@@ -48,19 +48,6 @@ Content.setPropertiesFromJSON("volumeSlider", {
 });
 // [/JSON volumeSlider]
 
-// Adds a slider that controls the wet amount of the convolution reverb (which is a simple tap IR)
-delaySlider = Content.addKnob("delaySlider", 400, 128);
-// [JSON delaySlider]
-Content.setPropertiesFromJSON("delaySlider", {
-  "text": "Delay",
-  "min": -100,
-  "max": 0,
-  "mode": "Decibel",
-  "stepSize": 0.10000000000000001,
-  "middlePosition": -12
-});
-// [/JSON delaySlider]
-
 
 // Set the key colours randomly
 for(i = 0; i < 50; i++)
@@ -112,17 +99,4 @@ function onTimer()
 }
 function onControl(number, value)
 {
-	if(number == volumeSlider)
-	{
-		// The volume will be changed using the macro control system
-	}
-	else if(number == delaySlider)
-	{
-		// This could also be done using the macro controls, but for demo purposes, this would be the scripting way:
-		ConvolutionReverb.setAttribute(ConvolutionReverb.WetGain, value);
-	}
-	if (number == sineVolume)
-	{
-		ScriptFX.setAttribute(0, value);
-	}
 }

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<UserSettings>
+  <Company value="Hart Instruments" type="TEXT" description="Company Name"/>
+  <CompanyCode value="Hain" type="TEXT" description="Company Code (4 characters, first must be uppercase)"/>
+  <CompanyURL value="http://hise.audio" type="TEXT" description="Company Website"/>
+</UserSettings>

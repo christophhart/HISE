@@ -89,6 +89,12 @@ Use the Intel Performance Primitives Library for the convolution reverb.
 #define USE_IPP 1
 #endif
 
+/** Config: FRONTEND_IS_PLUGIN
+
+If set to 1, the compiled plugin will be a effect (stereo in / out). */
+#ifndef FRONTEND_IS_PLUGIN
+#define FRONTEND_IS_PLUGIN 0
+#endif
 
 
 /** Config: USE_GLITCH_DETECTION
@@ -184,7 +190,9 @@ For all defined variables:
 
 #include "hi_components/hi_components.h"
 #include "hi_dsp/hi_dsp.h"
+
 #include "hi_sampler/hi_sampler.h"
+
 
 
 

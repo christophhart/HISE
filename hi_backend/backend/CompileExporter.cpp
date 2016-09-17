@@ -73,6 +73,47 @@ void CompileExporter::exportMainSynthChainAsPackage(ModulatorSynthChain *chainTo
 }
 
 
+void CompileExporter::exportMainSynthChainAsFX(ModulatorSynthChain* chainToExport)
+{
+	if (!checkSanity(chainToExport)) return;
+
+	String uniqueId, version, solutionDirectory, publicKey;
+	BuildOption buildOption = showCompilePopup(publicKey, uniqueId, version, solutionDirectory);
+
+	publicKey = GET_PROJECT_HANDLER(chainToExport).getPublicKey();
+	uniqueId = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, &GET_PROJECT_HANDLER(chainToExport));
+	version = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, &GET_PROJECT_HANDLER(chainToExport));
+
+	solutionDirectory = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getFullPathName();
+
+	if (buildOption != Cancelled)
+	{
+		createPluginDataHeaderFile(chainToExport, solutionDirectory, uniqueId, version, publicKey);
+
+		copyHISEImageFiles(chainToExport);
+
+		const String directoryPath = File(solutionDirectory).getChildFile("temp/").getFullPathName();
+
+		convertTccScriptsToCppClasses(chainToExport);
+		writePresetFile(chainToExport, directoryPath, uniqueId);
+		writeEmbeddedFiles(chainToExport, directoryPath);
+		writeUserPresetFiles(chainToExport, directoryPath);
+
+		writeReferencedAudioFiles(chainToExport, directoryPath);
+		writeReferencedImageFiles(chainToExport, directoryPath);
+
+		String presetDataString("PresetData");
+
+		String sourceDirectory = solutionDirectory + "/Source";
+
+		CppBuilder::exportValueTreeAsCpp(directoryPath, sourceDirectory, presetDataString);
+
+		createIntrojucerFile(chainToExport, true);
+
+		compileSolution(chainToExport, buildOption);
+	}
+}
+
 bool CompileExporter::checkSanity(ModulatorSynthChain *chainToExport)
 {
 	// Check if a frontend script is in the main synth chain
@@ -660,7 +701,7 @@ CompileExporter::ErrorCodes CompileExporter::createResourceFile(const String &so
 }
 
 #define REPLACE_WILDCARD(wildcard, settingId) (templateProject = templateProject.replace(wildcard, SettingWindows::getSettingValue((int)settingId, &GET_PROJECT_HANDLER(chainToExport))))
-
+#define REPLACE_WILDCARD_WITH_STRING(wildcard, s) (templateProject = templateProject.replace(wildcard, s))
 
 struct FileHelpers
 {
@@ -683,7 +724,7 @@ struct FileHelpers
 	}
 };
 
-CompileExporter::ErrorCodes CompileExporter::createIntrojucerFile(ModulatorSynthChain *chainToExport)
+CompileExporter::ErrorCodes CompileExporter::createIntrojucerFile(ModulatorSynthChain *chainToExport, bool createFX/*=false*/)
 {
 	MemoryInputStream mis(projectTemplate_jucer, sizeof(projectTemplate_jucer), false);
 
@@ -694,6 +735,27 @@ CompileExporter::ErrorCodes CompileExporter::createIntrojucerFile(ModulatorSynth
 	REPLACE_WILDCARD("%DESCRIPTION%", SettingWindows::ProjectSettingWindow::Attributes::Description);
 	REPLACE_WILDCARD("%BUNDLE_ID%", SettingWindows::ProjectSettingWindow::Attributes::BundleIdentifier);
 	REPLACE_WILDCARD("%PC%", SettingWindows::ProjectSettingWindow::Attributes::PluginCode);
+
+	if (createFX)
+	{
+		REPLACE_WILDCARD_WITH_STRING("%CHANNEL_CONFIG%", "{2, 2}");
+		REPLACE_WILDCARD_WITH_STRING("%PLUGINISSYNTH%", "0");
+		REPLACE_WILDCARD_WITH_STRING("%PLUGINWANTSMIDIIN", "0");
+
+		REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "enabled");
+
+		
+
+	}
+	else
+	{
+		REPLACE_WILDCARD_WITH_STRING("%CHANNEL_CONFIG%", "{0, 2}");
+		REPLACE_WILDCARD_WITH_STRING("%PLUGINISSYNTH%", "1");
+		REPLACE_WILDCARD_WITH_STRING("%PLUGINWANTSMIDIIN", "1");
+
+		REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "disabled");
+
+	}
 
 	REPLACE_WILDCARD("%COMPANY%", SettingWindows::UserSettingWindow::Attributes::Company);
 	REPLACE_WILDCARD("%MC%", SettingWindows::UserSettingWindow::Attributes::CompanyCode);
