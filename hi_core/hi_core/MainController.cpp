@@ -154,7 +154,7 @@ void MainController::resetVoiceCounter()
 	voiceAmount.set(0);
 }
 
-const CriticalSection &MainController::getLock() const
+CriticalSection &MainController::getLock() const
 {
 #if STANDALONE_CONVOLUTION
     

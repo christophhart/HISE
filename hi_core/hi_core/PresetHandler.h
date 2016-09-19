@@ -68,6 +68,18 @@ public:
         return state;
     };
 
+	bool licenceIsNotExpired(int creationTime) override
+	{
+		uint32 now = Time::currentTimeMillis() / 1000;
+
+		int seconds = now - creationTime;
+
+		const double hours = (double)seconds / 3600.0;
+		const double days = hours / 24.0;
+
+		return seconds < 30;
+	}
+
 	String getWebsiteName() override
 	{
 		return JucePlugin_ManufacturerWebsite;
@@ -77,7 +89,7 @@ public:
 
 	URL getServerAuthenticationURL() override
 	{
-		return URL(JucePlugin_ManufacturerWebsite).getChildURL("authorize/index.php");
+		return URL(JucePlugin_ManufacturerWebsite).getChildURL("licence/key_file_generator.php");
 	}
    
     void saveState(const String &s) override
@@ -614,9 +626,7 @@ public:
 		{
 			String keyData = keyFile.loadFileAsString();
 
-			ul.applyKeyFile(keyData);
-
-			if(ul.isUnlocked())
+			if (ul.applyKeyFile(keyData))
 			{
 				return true;
 			}

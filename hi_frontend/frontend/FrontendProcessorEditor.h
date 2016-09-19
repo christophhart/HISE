@@ -54,18 +54,17 @@ public:
 		descriptionLabel->setEditable(false, false, false);
 		descriptionLabel->setJustificationType(Justification::centredTop);
 
-		addAndMakeVisible(resolveLicenceButton = new TextButton("Find Licence File"));
+		addAndMakeVisible(resolveLicenceButton = new TextButton("Use Licence File"));
 		addAndMakeVisible(resolveSamplesButton = new TextButton("Choose Sample Folder"));
-        addAndMakeVisible(createMachineIdButton = new TextButton("Show Computer ID"));
+        addAndMakeVisible(registerProductButton = new TextButton("Online authentication"));
         
-
 		resolveLicenceButton->setLookAndFeel(&alaf);
 		resolveSamplesButton->setLookAndFeel(&alaf);
-        createMachineIdButton->setLookAndFeel(&alaf);
+        registerProductButton->setLookAndFeel(&alaf);
 
 		resolveLicenceButton->addListener(this);
 		resolveSamplesButton->addListener(this);
-        createMachineIdButton->addListener(this);
+        registerProductButton->addListener(this);
 	};
 
 	void buttonClicked(Button *b);
@@ -78,7 +77,9 @@ public:
 		UserNameNotMatching,
 		EmailNotMatching,
 		MachineNumbersNotMatching,
+		LicenceExpired,
 		LicenceInvalid,
+		
 		SamplesNotFound,
 		numReasons
 	};
@@ -127,7 +128,7 @@ public:
 			return "The sample directory could not be located. \nClick below to choose the sample folder.";
 			break;
 		case DeactiveOverlay::LicenceNotFound:
-			return "The licence key could not be found.\nClick below to locate the licence key.";
+			return "This computer is not registered.\nClick below to authenticate this machine using either online authorization or by loading a licence key.";
 			break;
 		case DeactiveOverlay::ProductNotMatching:
 			return "The licence key is invalid (wrong plugin name / version).\nClick below to locate the correct licence key for this plugin / version";
@@ -143,6 +144,8 @@ public:
 			break;
 		case DeactiveOverlay::LicenceInvalid:
 			return "The licence key is malicious.\nPlease contact support.";
+		case DeactiveOverlay::LicenceExpired:
+			return "The licence key is expired. Press OK to reauthenticate (you'll need to be online for this)";
 		case DeactiveOverlay::numReasons:
 			break;
 		default:
@@ -166,19 +169,19 @@ public:
 			currentState[ProductNotMatching])
 		{
 			resolveLicenceButton->setVisible(true);
-            createMachineIdButton->setVisible(true);
+            registerProductButton->setVisible(true);
 			resolveSamplesButton->setVisible(false);
 
 			resolveLicenceButton->centreWithSize(200, 32);
-            createMachineIdButton->centreWithSize(200, 32);
+            registerProductButton->centreWithSize(200, 32);
             
-            createMachineIdButton->setTopLeftPosition(createMachineIdButton->getX(),
-                                                      createMachineIdButton->getY() + 40);
+            resolveLicenceButton->setTopLeftPosition(registerProductButton->getX(),
+                                                      registerProductButton->getY() + 40);
 		}
 		else if (currentState[SamplesNotFound])
 		{
 			resolveLicenceButton->setVisible(false);
-            createMachineIdButton->setVisible(false);
+            registerProductButton->setVisible(false);
 			resolveSamplesButton->setVisible(true);
 
 			resolveSamplesButton->centreWithSize(200, 32);
@@ -193,7 +196,7 @@ private:
 
 	ScopedPointer<TextButton> resolveLicenceButton;
 	ScopedPointer<TextButton> resolveSamplesButton;
-    ScopedPointer<TextButton> createMachineIdButton;
+    ScopedPointer<TextButton> registerProductButton;
 
 	BigInteger currentState;
 	

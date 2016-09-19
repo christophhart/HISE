@@ -257,7 +257,9 @@ public:
 
 	ApplicationCommandManager *getCommandManager() { return mainCommandManager; };
 
-    const CriticalSection &getLock() const;
+    CriticalSection &getLock() const;
+    
+    
     
 	void setKeyboardCoulour(int keyNumber, Colour colour);
 

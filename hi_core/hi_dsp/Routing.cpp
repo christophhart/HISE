@@ -432,7 +432,7 @@ void RoutableProcessor::MatrixData::setNumDestinationChannels(int newNumChannels
 
 CriticalSection & RoutableProcessor::MatrixData::getLock()
 {
-	return thisAsProcessor->getMainController()->getMainSynthChain()->getLock();
+	return thisAsProcessor->getMainController()->getLock();
 }
 
 void RoutableProcessor::MatrixData::setTargetProcessor(Processor *p)

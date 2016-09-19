@@ -75,6 +75,10 @@
  #define   USE_IPP 1
 #endif
 
+#ifndef    FRONTEND_IS_PLUGIN
+ //#define FRONTEND_IS_PLUGIN
+#endif
+
 #ifndef    USE_GLITCH_DETECTION
  #define   USE_GLITCH_DETECTION 1
 #endif

@@ -5,6 +5,7 @@
               jucerVersion="4.1.0" companyName="Hart Instruments" companyWebsite="http://hartinstruments.net/hise">
   <MAINGROUP id="yomWt4" name="HISE Standalone">
     <GROUP id="{577963C7-1A49-BB2A-D701-52DC7A5895F7}" name="Source">
+      <FILE id="bfBEgJ" name="HISE_Icon.png" compile="0" resource="1" file="../../hi_core/hi_images/HISE_Icon.png"/>
       <FILE id="EQP6SW" name="HiseEventBufferUnitTests.cpp" compile="1" resource="0"
             file="../../hi_core/hi_core/HiseEventBufferUnitTests.cpp"/>
       <FILE id="tTUrnI" name="infoError.png" compile="0" resource="1" file="../../hi_core/hi_images/infoError.png"/>
@@ -76,7 +77,7 @@
         <MODULEPATH id="hi_dsp_library" path="../../../HISE modules"/>
       </MODULEPATHS>
     </VS2013>
-    <XCODE_MAC targetFolder="Builds/MacOSX" smallIcon="DEkG64" bigIcon="DEkG64"
+    <XCODE_MAC targetFolder="Builds/MacOSX" smallIcon="bfBEgJ" bigIcon="bfBEgJ"
                extraLinkerFlags="/opt/intel/ipp/lib/libippi.a  /opt/intel/ipp/lib/libipps.a /opt/intel/ipp/lib/libippvm.a /opt/intel/ipp/lib/libippcore.a"
                customPList="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;&#10;&lt;!DOCTYPE plist PUBLIC &quot;-//Apple//DTD PLIST 1.0//EN&quot; &quot;http://www.apple.com/DTDs/PropertyList-1.0.dtd&quot;&gt;&#10;&lt;plist version=&quot;1.0&quot;&gt;&#10;&lt;dict&gt;&#10;&lt;key&gt;NSAppTransportSecurity&lt;/key&gt; &#10;&lt;dict&gt; &#10;&lt;key&gt;NSAllowsArbitraryLoads&lt;/key&gt;&lt;true/&gt;&#10;&lt;/dict&gt;&#10;&lt;/dict&gt;&#10;&lt;/plist&gt;"
                extraDefs="" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override">

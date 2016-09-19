@@ -107,6 +107,7 @@ void ThreadWithAsyncProgressWindow::addBasicComponents(bool addOKButton)
 	}
 	
 	addButton("Cancel", 0, KeyPress(KeyPress::escapeKey));
+
 }
 
 bool ThreadWithAsyncProgressWindow::threadShouldExit() const

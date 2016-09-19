@@ -70,6 +70,8 @@ AudioProcessorEditor(fp)
 		deactiveOverlay->checkLicence();
 	}
 
+
+	deactiveOverlay->setState(DeactiveOverlay::LicenceExpired, fp->unlocker.isExpired());
 	deactiveOverlay->setState(DeactiveOverlay::LicenceInvalid, !fp->unlocker.isUnlocked());
 #endif
 
@@ -110,6 +112,83 @@ void FrontendProcessorEditor::resized()
 	deactiveOverlay->setBounds(getLocalBounds());
 	loaderOverlay->setBounds(getLocalBounds());
 }
+
+
+class OnlineActivator : public ThreadWithAsyncProgressWindow
+{
+public:
+
+	OnlineActivator(Unlocker* unlocker_, DeactiveOverlay* overlay_):
+		ThreadWithAsyncProgressWindow("Online Authentication"),
+		unlocker(unlocker_),
+		overlay(overlay_)
+	{
+		addTextEditor("user", unlocker->getUserEmail(), "User Name");
+		addTextEditor("serial", "XXXX-XXXX-XXXX-XXXX", "Serial number");
+
+
+		addBasicComponents();
+
+		showStatusMessage("Please enter your user name and the serial number and press OK");
+
+	}
+
+	void run() override
+	{
+		URL url = unlocker->getServerAuthenticationURL();
+
+		StringPairArray data;
+
+		StringArray ids = unlocker->getLocalMachineIDs();
+		if (ids.size() > 0)
+		{
+			data.set("user", getTextEditorContents("user"));
+			data.set("serial", getTextEditorContents("serial"));
+			data.set("machine_id", ids[0]);
+
+			url = url.withParameters(data);
+
+			ScopedPointer<InputStream> uis = url.createInputStream(false, nullptr, nullptr);
+
+			keyFile = uis->readEntireStreamAsString();
+
+		}
+	}
+
+	void threadFinished() override
+	{
+		if (keyFile.startsWith("Keyfile for"))
+		{
+			ProjectHandler::Frontend::getLicenceKey().replaceWithText(keyFile);
+
+			PresetHandler::showMessageWindow("Authentication successfull", "The authentication was successful and the licence key was stored.\nPlease reload this plugin to finish the authentication.", PresetHandler::IconType::Info);
+
+			unlocker->applyKeyFile(keyFile);
+
+			DeactiveOverlay::State returnValue = overlay->checkLicence(keyFile);
+
+			if (returnValue != DeactiveOverlay::State::numReasons) return;
+
+			
+
+			overlay->setState(DeactiveOverlay::State::LicenceNotFound, false);
+			overlay->setState(DeactiveOverlay::State::LicenceInvalid, !unlocker->isUnlocked());
+
+		}
+		else
+		{
+			PresetHandler::showMessageWindow("Authentication failed", keyFile, PresetHandler::IconType::Error);
+		}
+	}
+
+private:
+
+	String keyFile;
+
+	Unlocker* unlocker;
+	DeactiveOverlay* overlay;
+
+};
 
 
 void DeactiveOverlay::buttonClicked(Button *b)
@@ -165,19 +244,28 @@ void DeactiveOverlay::buttonClicked(Button *b)
 			setState(SamplesNotFound, !directorySelected);
 		}
 	}
-    else if (b == createMachineIdButton)
+    else if (b == registerProductButton)
     {
 #if USE_COPY_PROTECTION
         Unlocker *ul = &dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor())->unlocker;
         
+		OnlineActivator* activator = new OnlineActivator(ul, this);
+
+
+		activator->setModalBaseWindowComponent(this);
+
+#if 0
         StringArray machineIds = ul->getLocalMachineIDs();
         
         if(machineIds.size() > 0)
         {
             SystemClipboard::copyTextToClipboard(machineIds[0]);
             
+			
+
             PresetHandler::showMessageWindow("Computer ID", "Use this ID to obtain a licence key:\n\n" +machineIds[0] + "\n\nThis ID is copied to the clipboard. If this computer is not connected to the internet, write it down somewhere and use it with another computer that has internet access.");
         }
+#endif
 #endif
     }
 }

@@ -54,7 +54,8 @@ public:
 
 	Colour getColour() const
     {
-        return Colour(0xff842d20);
+        return Colour(0xFFC67038);
+     //   return Colour(0xff842d20);
     };
 
 	static Path getSymbolPath()
