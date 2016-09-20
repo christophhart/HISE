@@ -370,10 +370,6 @@ ValueTree RoutableProcessor::MatrixData::exportAsValueTree() const
 
 void RoutableProcessor::MatrixData::restoreFromValueTree(const ValueTree &v)
 {
-#if STANDALONE_CONVOLUTION
-    return;
-#endif
-    
 	if (!(v.getType() == Identifier("RoutingMatrix"))) return;
 
 	clearAllConnections();

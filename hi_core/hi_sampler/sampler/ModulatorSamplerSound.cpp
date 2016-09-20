@@ -30,10 +30,7 @@
 *   ===========================================================================
 */
 
-#if STANDALONE_CONVOLUTION
-#else
 #include <regex>
-#endif
 
 
 ModulatorSamplerSound::ModulatorSamplerSound(StreamingSamplerSound *sound, int index_) :
@@ -554,9 +551,7 @@ void ModulatorSamplerSound::selectSoundsBasedOnRegex(const String &regexWildcard
 		set.deselectAll();
 	}
 
-	
-#if STANDALONE_CONVOLUTION
-#else
+
     try
     {
 		std::regex reg(wildcard.toStdString());
@@ -585,7 +580,6 @@ void ModulatorSamplerSound::selectSoundsBasedOnRegex(const String &regexWildcard
 	{
 		debugError(sampler, e.what());
 	}
-#endif
 }
 
 

@@ -56,7 +56,7 @@ Name: "{group}\HISE Standalone x64"; Filename: "{app}\HISE Standalone x64.exe"; 
 Root: "HKCU"; Subkey: "Software\Hart Instruments"; ValueType: string; ValueName: "Library Install Path"; ValueData: "{app}\SynthPresets"; Flags: createvalueifdoesntexist deletevalue uninsdeletekeyifempty uninsdeletevalue; Languages: english
 
 [Run]
-Filename: "http://hart-instruments.net/hise_mkdocs/index.html"; Flags: shellexec runasoriginaluser postinstall; Description: "Open the online documentation.";
+Filename: "http://hise.audio/manual/Manual.php"; Flags: shellexec runasoriginaluser postinstall; Description: "Open the online documentation.";
 
 [Code]
 var x86Page: TInputDirWizardPage;

@@ -156,12 +156,7 @@ void MainController::resetVoiceCounter()
 
 CriticalSection &MainController::getLock() const
 {
-#if STANDALONE_CONVOLUTION
-    
-    return dynamic_cast<const AudioProcessor*>(this)->getCallbackLock();
-#else
     return const_cast<ModulatorSynthChain*>(getMainSynthChain())->getLock();
-#endif
 }
 
 

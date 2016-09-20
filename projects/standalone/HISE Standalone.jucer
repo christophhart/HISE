@@ -39,7 +39,7 @@
     </GROUP>
   </MAINGROUP>
   <EXPORTFORMATS>
-    <VS2013 targetFolder="Builds/VisualStudio2013" smallIcon="DEkG64" bigIcon="DEkG64"
+    <VS2013 targetFolder="Builds/VisualStudio2013" smallIcon="bfBEgJ" bigIcon="bfBEgJ"
             useIPP="Sequential" extraCompilerFlags="">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"

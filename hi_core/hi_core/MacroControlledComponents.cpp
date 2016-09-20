@@ -128,9 +128,7 @@ bool  MacroControlledObject::isLocked()
 {
 	if (!macroControlledComponentEnabled) return true;
 
-#if STANDALONE_CONVOLUTION
-    return false;
-#endif
+
     
 	const int index = GET_MACROCHAIN()->getMacroControlIndexForProcessorParameter(getProcessor(), parameter);
 
@@ -157,17 +155,7 @@ void HiSlider::sliderValueChanged(Slider *s)
 {
 	jassert(s == this);
  
-    
-    
-#if STANDALONE_CONVOLUTION
-    
-    NormalisableRange<float> range(-100.0f, 0.0f);
-    range.skew = 5.0f;
-    
-    dynamic_cast<AudioProcessor*>(getProcessor()->getMainController())->setParameterNotifyingHost(parameter, range.convertTo0to1( (float)s->getValue() ));
-    
-#else
-    
+
 	const int index = GET_MACROCHAIN()->getMacroControlIndexForProcessorParameter(getProcessor(), parameter);
 
 
@@ -194,8 +182,6 @@ void HiSlider::sliderValueChanged(Slider *s)
 			getProcessor()->setAttribute(parameter, (float)s->getValue(), dontSendNotification);
 		}
 	}
-    
-    #endif
 }
 
 
@@ -384,13 +370,6 @@ void HiToggleButton::updateValue(NotificationType /*sendAttributeChange*/)
 void HiToggleButton::buttonClicked(Button *b)
 {
 	jassert(b == this);
-
-#if STANDALONE_CONVOLUTION
-
-    // Change this when you need another button
-    dynamic_cast<AudioProcessor*>(getProcessor()->getMainController())->setParameterNotifyingHost(2, b->getToggleState());
-    
-#else
     
 	const int index = GET_MACROCHAIN()->getMacroControlIndexForProcessorParameter(getProcessor(), parameter);
 
@@ -409,9 +388,6 @@ void HiToggleButton::buttonClicked(Button *b)
 	{
 		getProcessor()->setAttribute(parameter, b->getToggleState(), dontSendNotification);
 	}
-    
-#endif
-    
 }
 
 StringArray TempoSyncer::tempoNames = StringArray();

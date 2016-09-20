@@ -63,16 +63,6 @@
 
 #endif
 
-#ifdef STANDALONE_CONVOLUTION
-
-#define SKIP_IF_STANDALONE_CONVOLUTION() (return;)
-
-#else
-
-#define SKIP_IF_STANDALONE_CONVOLUTION() ()
-
-#endif
-
 
 #ifndef IS_STANDALONE_APP
 #define IS_STANDALONE_APP 0

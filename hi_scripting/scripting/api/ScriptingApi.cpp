@@ -30,10 +30,7 @@
 *   ===========================================================================
 */
 
-#if STANDALONE_CONVOLUTION
-#else
 #include <regex>
-#endif
 
 
 #define SEND_MESSAGE(broadcaster) {	if (MessageManager::getInstance()->isThisTheMessageThread()) broadcaster->sendSynchronousChangeMessage(); else broadcaster->sendChangeMessage();}
@@ -874,8 +871,6 @@ void ScriptingApi::Engine::setCompileProgress(var progress)
 
 bool ScriptingApi::Engine::matchesRegex(String stringToMatch, String wildcard)
 {
-#if STANDALONE_CONVOLUTION
-#else
 	try
 	{
 		std::regex reg(wildcard.toStdString());
@@ -887,13 +882,10 @@ bool ScriptingApi::Engine::matchesRegex(String stringToMatch, String wildcard)
 		debugError(getProcessor(), e.what());
 		return false;
 	}
-#endif
 }
 
 var ScriptingApi::Engine::getRegexMatches(String stringToMatch, String wildcard)
 {
-#if STANDALONE_CONVOLUTION
-#else
     try
     {
         std::string s = stringToMatch.toStdString();
@@ -919,7 +911,6 @@ var ScriptingApi::Engine::getRegexMatches(String stringToMatch, String wildcard)
     }
     
     return var::undefined();
-#endif
 }
 
 String ScriptingApi::Engine::doubleToString(double value, int digits)

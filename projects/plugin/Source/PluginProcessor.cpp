@@ -13,6 +13,11 @@
 #include "PluginProcessor.h"
 
 
+REGISTER_STATIC_DSP_LIBRARIES()
+{
+    REGISTER_STATIC_DSP_FACTORY(HiseCoreDspFactory);
+}
+
 //==============================================================================
 // This creates new instances of the plugin..
 AudioProcessor* JUCE_CALLTYPE createPluginFilter()

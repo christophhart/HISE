@@ -31,11 +31,7 @@
 */
 
 void CopyPasteTarget::grabCopyAndPasteFocus()
-{
-#if STANDALONE_CONVOLUTION
-    return;
-#endif
-    
+{   
 #if USE_BACKEND
     Component *thisAsComponent = dynamic_cast<Component*>(this);
     

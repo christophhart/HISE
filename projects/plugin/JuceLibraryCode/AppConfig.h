@@ -79,6 +79,10 @@
  //#define USE_IPP
 #endif
 
+#ifndef    FRONTEND_IS_PLUGIN
+ //#define FRONTEND_IS_PLUGIN
+#endif
+
 #ifndef    USE_GLITCH_DETECTION
  //#define USE_GLITCH_DETECTION
 #endif
@@ -112,6 +116,10 @@
 
 #ifndef    HI_EXPORT_DSP_LIBRARY
  #define   HI_EXPORT_DSP_LIBRARY 0
+#endif
+
+#ifndef    IS_STATIC_DSP_LIBRARY
+ //#define IS_STATIC_DSP_LIBRARY
 #endif
 
 //==============================================================================

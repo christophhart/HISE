@@ -471,14 +471,9 @@ void ProcessorEditorHeader::resized()
 	}
 
 
-#if STANDALONE_CONVOLUTION
-
-#else
 	foldButton->setBounds(x, yOffset, addCloseWidth, addCloseWidth);
 
 	x += addCloseWidth + 8;
-#endif
-
 
 	if ((getProcessor() == getProcessor()->getMainController()->getMainSynthChain()))
 	{
@@ -528,17 +523,9 @@ void ProcessorEditorHeader::resized()
 	{
 		x = valueMeter->getRight() + 3;
 
-#if STANDALONE_CONVOLUTION
-        
-        routeButton->setVisible(false);
-        
-#else
-        
 		routeButton->setBounds(x, yOffset, addCloseWidth, addCloseWidth);
 		
 		x = routeButton->getRight() + 5;
-        
-#endif
         
 	}
 	else
@@ -569,20 +556,9 @@ void ProcessorEditorHeader::resized()
     plotButton->setBounds (getWidth() - 101 - 50, yOffset2, 30, 20);
 	plotButton->setVisible(false);
     
-
-	
-#if STANDALONE_CONVOLUTION
-    
-    deleteButton->setVisible(false);
-    
-#else
     
 	deleteButton->setEnabled(getEditor()->getIndentationLevel() != 0);
-
-	
 	deleteButton->setBounds (getWidth() - 8 - addCloseWidth, yOffset, addCloseWidth, addCloseWidth);
-    
-#endif
     
 	if(isHeaderOfModulatorSynth())
 	{
@@ -838,10 +814,6 @@ void ProcessorEditorHeader::enableChainHeader()
 
 void ProcessorEditorHeader::checkSoloLabel()
 {
-#if STANDALONE_CONVOLUTION
-    return;
-#endif
-    
 	const bool isInMasterPanel = getEditor()->getIndentationLevel() == 0;
 	const bool isRootProcessor = getProcessor()->getMainController()->getMainSynthChain()->getRootProcessor() == getProcessor();
 
