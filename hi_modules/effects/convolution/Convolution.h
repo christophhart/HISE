@@ -108,6 +108,8 @@ public:
 
 private:
 
+	const CriticalSection& getImpulseLock() const { return lock; };
+
 	void enableProcessing(bool shouldBeProcessed);
 
 	bool rampFlag;

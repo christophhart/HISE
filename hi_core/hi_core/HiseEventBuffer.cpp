@@ -34,7 +34,7 @@ HiseEvent::HiseEvent(const MidiMessage& message)
 {
 	const uint8* data = message.getRawData();
 
-	channel = message.getChannel();
+	channel = (uint8)message.getChannel();
 
 	if (message.isNoteOn()) type = Type::NoteOn;
 	else if (message.isNoteOff()) type = Type::NoteOff;
@@ -89,10 +89,6 @@ void HiseEventBuffer::addEvent(const HiseEvent& hiseEvent)
 		return;
 	}
 
-	int currentSamplePosition = 0;
-
-	bool rightPosition = false;
-
 	jassert(numUsed < HISE_EVENT_BUFFER_SIZE);
 
     const int numToLookFor = jmin<int>(numUsed, HISE_EVENT_BUFFER_SIZE);
@@ -115,7 +111,7 @@ void HiseEventBuffer::addEvent(const HiseEvent& hiseEvent)
 void HiseEventBuffer::addEvent(const MidiMessage& midiMessage, int sampleNumber)
 {
 	HiseEvent e(midiMessage);
-	e.setTimeStamp(sampleNumber);
+	e.setTimeStamp((uint16)sampleNumber);
 
 	addEvent(e);
 }
@@ -136,7 +132,7 @@ void HiseEventBuffer::addEvents(const MidiBuffer& otherBuffer)
 		jassert(index < HISE_EVENT_BUFFER_SIZE);
 
 		buffer[index] = HiseEvent(m);
-		buffer[index].setTimeStamp(samplePos);
+		buffer[index].setTimeStamp((uint16)samplePos);
 
 		numUsed++;
 
@@ -168,7 +164,7 @@ void HiseEventBuffer::subtractFromTimeStamps(int delta)
 
 	for (int i = 0; i < numUsed; i++)
 	{
-		buffer[i].addToTimeStamp(-delta);
+		buffer[i].addToTimeStamp((int16)-delta);
 	}
 }
 
@@ -182,7 +178,7 @@ void HiseEventBuffer::moveEventsBelow(HiseEventBuffer& targetBuffer, int highest
 
 	while (HiseEvent* e = iter.getNextEventPointer())
 	{
-		if (e->getTimeStamp() < highestTimestamp)
+		if (e->getTimeStamp() < (uint32)highestTimestamp)
 		{
 			targetBuffer.addEvent(*e);
 			numCopied++;
@@ -205,14 +201,14 @@ void HiseEventBuffer::moveEventsBelow(HiseEventBuffer& targetBuffer, int highest
 
 void HiseEventBuffer::moveEventsAbove(HiseEventBuffer& targetBuffer, int lowestTimestamp)
 {
-	if (numUsed == 0 || (buffer[numUsed - 1].getTimeStamp() < lowestTimestamp)) 
+	if (numUsed == 0 || (buffer[numUsed - 1].getTimeStamp() < (uint32)lowestTimestamp)) 
 		return; // Skip the work if no events with bigger timestamps
 
 	int indexOfFirstElementToMove = -1;
 
 	for (int i = 0; i < numUsed; i++)
 	{
-		if (buffer[i].getTimeStamp() >= lowestTimestamp)
+		if (buffer[i].getTimeStamp() >= (uint32)lowestTimestamp)
 		{
 			indexOfFirstElementToMove = i;
 			break;
@@ -253,7 +249,9 @@ index(0)
 
 bool HiseEventBuffer::Iterator::getNextEvent(HiseEvent& b, int &samplePosition, bool skipIgnoredEvents/*=false*/, bool skipArtificialEvents/*=false*/) const
 {
-	while (index < buffer->numUsed && buffer->buffer[index].isIgnored())
+	while (index < buffer->numUsed && 
+		  ((skipArtificialEvents && buffer->buffer[index].isArtificial()) ||
+		  (skipIgnoredEvents && buffer->buffer[index].isIgnored())))
 	{
 		index++;
 		jassert(index < HISE_EVENT_BUFFER_SIZE);
@@ -283,8 +281,8 @@ HiseEvent* HiseEventBuffer::Iterator::getNextEventPointer(bool skipIgnoredEvents
 const HiseEvent* HiseEventBuffer::Iterator::getNextConstEventPointer(bool skipIgnoredEvents/*=false*/, bool skipArtificialNotes /*= false*/) const
 {
 	while (index < buffer->numUsed && 
-		  (skipArtificialNotes && buffer->buffer[index].isArtificial()) || 
-		  (skipIgnoredEvents && buffer->buffer[index].isIgnored()))
+		  ((skipArtificialNotes && buffer->buffer[index].isArtificial()) || 
+		  (skipIgnoredEvents && buffer->buffer[index].isIgnored())))
 	{
 		index++;
 		jassert(index < HISE_EVENT_BUFFER_SIZE);

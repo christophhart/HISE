@@ -49,7 +49,7 @@ public:
 
 	void processHiseEvent(HiseEvent &m) override
 	{
-		m.setTimeStamp(delayTime);
+		m.setTimeStamp((uint16)delayTime);
 	};
 
 	

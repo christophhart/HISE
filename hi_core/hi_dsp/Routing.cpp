@@ -426,7 +426,7 @@ void RoutableProcessor::MatrixData::setNumDestinationChannels(int newNumChannels
 	if (notifyProcessors == sendNotification) owningProcessor->numDestinationChannelsChanged();
 }
 
-CriticalSection & RoutableProcessor::MatrixData::getLock()
+const CriticalSection & RoutableProcessor::MatrixData::getLock() const
 {
 	return thisAsProcessor->getMainController()->getLock();
 }

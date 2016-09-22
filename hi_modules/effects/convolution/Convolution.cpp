@@ -79,7 +79,7 @@ void ConvolutionEffect::setImpulse()
 
 	ScopedValueSetter<bool> s(isReloading, true);
 
-	ScopedLock sl(lock);
+	ScopedLock sl(getImpulseLock());
 
 	convolutionEngine.Reset();
 
@@ -159,7 +159,7 @@ ValueTree ConvolutionEffect::exportAsValueTree() const
 
 void ConvolutionEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    ScopedLock sl(lock);
+    ScopedLock sl(getImpulseLock());
     
 	EffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 
@@ -172,14 +172,12 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 {
     ADD_GLITCH_DETECTOR("Rendering IR reverb " + getId());
     
+	ScopedLock sl(getImpulseLock());
+
 	if (startSample != 0)
 	{
 		debugError(this, "Buffer start not 0!");
 	}
-
-	
-
-	ScopedLock sl(lock);
 
 	float *l = buffer.getWritePointer(0, 0);
 	float *r = buffer.getWritePointer(1, 0);
@@ -283,7 +281,7 @@ void ConvolutionEffect::enableProcessing(bool shouldBeProcessed)
 {
 	if (processFlag != shouldBeProcessed)
 	{
-		ScopedLock sl(lock);
+		ScopedLock sl(getImpulseLock());
 
 		processFlag = shouldBeProcessed;
 

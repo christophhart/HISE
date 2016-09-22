@@ -257,7 +257,7 @@ public:
 
 	ApplicationCommandManager *getCommandManager() { return mainCommandManager; };
 
-    CriticalSection &getLock() const;
+    const CriticalSection &getLock() const;
     
     
     
@@ -496,7 +496,6 @@ private:
 	DynamicObject::Ptr hostInfo;
 	DynamicObject::Ptr toolbarProperties;
 
-	CriticalSection lock;
 	ReadWriteLock compileLock;
 
 	ScopedPointer<SampleManager> sampleManager;

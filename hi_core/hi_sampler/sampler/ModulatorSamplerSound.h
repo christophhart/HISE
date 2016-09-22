@@ -353,8 +353,9 @@ private:
 	friend class WeakReference<ModulatorSamplerSound>;
 	WeakReference<ModulatorSamplerSound>::Master masterReference;
 
-	CriticalSection lock;
+	const CriticalSection& getLock() const { return wrappedSound.get()->getSampleLock(); };
 
+	
 	float normalizedPeak;
 	bool isNormalized;
 	bool purged;

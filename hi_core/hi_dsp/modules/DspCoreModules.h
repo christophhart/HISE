@@ -35,7 +35,7 @@ public:
 
 	void prepareToPlay(double sampleRate_)
 	{
-		ScopedLock sl(lock);
+		SpinLock::ScopedLockType sl(processLock);
 
 		sampleRate = sampleRate_;
 	}
@@ -47,7 +47,7 @@ public:
 
 	void setDelayTimeSamples(int delayInSamples)
 	{
-		ScopedLock sl(lock);
+		SpinLock::ScopedLockType sl(processLock);
 
 		delayInSamples = jmin<int>(delayInSamples, DELAY_BUFFER_SIZE - 1);
 
@@ -72,11 +72,14 @@ public:
 
 	void setFadeTimeSamples(int newFadeTimeInSamples)
 	{
+		SpinLock::ScopedLockType sl(processLock);
+
 		fadeTimeSamples = newFadeTimeInSamples;
 	}
 
 	float getDelayedValue(float inputValue)
 	{
+		SpinLock::ScopedLockType sl(processLock);
 
 		delayBuffer[writeIndex++] = inputValue;
 
@@ -118,7 +121,7 @@ public:
 
 private:
 
-	CriticalSection lock;
+	SpinLock processLock;
 
 	double maxDelayTime;
 	int currentDelayTime;

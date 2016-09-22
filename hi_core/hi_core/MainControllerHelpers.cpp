@@ -41,7 +41,7 @@ mc(mc_)
 
 void MidiControllerAutomationHandler::addMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex, NormalisableRange<double> parameterRange, int macroIndex)
 {
-	ScopedLock sl(lock);
+	ScopedLock sl(mc->getLock());
 
 	unlearnedData.processor = interfaceProcessor;
 	unlearnedData.attribute = attributeIndex;
@@ -62,7 +62,7 @@ bool MidiControllerAutomationHandler::isLearningActive(Processor *interfaceProce
 
 void MidiControllerAutomationHandler::deactivateMidiLearning()
 {
-	ScopedLock sl(lock);
+	ScopedLock sl(mc->getLock());
 
 	unlearnedData = AutomationData();
 }
@@ -70,6 +70,8 @@ void MidiControllerAutomationHandler::deactivateMidiLearning()
 void MidiControllerAutomationHandler::setUnlearndedMidiControlNumber(int ccNumber)
 {
 	jassert(isLearningActive());
+
+	ScopedLock sl(mc->getLock());
 
 	automationData[ccNumber] = unlearnedData;
 	unlearnedData = AutomationData();
@@ -94,7 +96,7 @@ int MidiControllerAutomationHandler::getMidiControllerNumber(Processor *interfac
 
 void MidiControllerAutomationHandler::refreshAnyUsedState()
 {
-	ScopedLock sl(lock);
+	ScopedLock sl(mc->getLock());
 
 	anyUsed = false;
 
@@ -120,7 +122,7 @@ void MidiControllerAutomationHandler::clear()
 
 void MidiControllerAutomationHandler::removeMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex)
 {
-	ScopedLock sl(lock);
+	ScopedLock sl(mc->getLock());
 
 	for (int i = 0; i < 128; i++)
 	{
@@ -212,8 +214,6 @@ void MidiControllerAutomationHandler::handleParameterData(MidiBuffer &b)
 	const bool noCCsUsed = !anyUsed && !unlearnedData.used;
 
 	if (bufferEmpty || noCCsUsed) return;
-
-	ScopedLock sl(lock);
 
 	tempBuffer.clear();
 

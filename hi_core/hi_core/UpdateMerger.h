@@ -63,10 +63,11 @@ public:
 	/** sets a manual skip number. Use this if you don't need the fancy block -> frame conversion. */
 	void setManualCountLimit(int skipAmount)
 	{
+		SpinLock::ScopedLockType sl(processLock);
+
 		countLimit = skipAmount;
 
 		updateCounter = 0;
-
 	};
 
 	/** Call this method whenever something changes and the UpdateMerger class will check if a update is necessary.
@@ -79,7 +80,7 @@ public:
 		jassert(countLimit > 0);
 		if(++updateCounter == countLimit)
 		{
-			ScopedLock sl(lock);
+			SpinLock::ScopedLockType sl(processLock);
 			updateCounter = 0;
 			return true;
 		};
@@ -99,7 +100,7 @@ public:
 
 		if(updateCounter >= countLimit)
 		{
-			ScopedLock sl(lock);
+			SpinLock::ScopedLockType sl(processLock);
 
 			updateCounter = updateCounter % countLimit;
 			return true;
@@ -110,6 +111,10 @@ public:
 	}
 
 private:
+
+	SpinLock processLock;
+
+	
 
 	/** handy method to limit updates from sample rate level to frame rate level.
 	*	
@@ -122,7 +127,7 @@ private:
 	};
 
 	int frameRate;
-	CriticalSection lock;
+	
 	int countLimit;
 	volatile int updateCounter;
 };
@@ -205,6 +210,8 @@ public:
 	/** smooth the next sample. */
 	float smooth(float newValue)
 	{
+		SpinLock::ScopedLockType sl(spinLock);
+
 		if(! active) return newValue;
 		jassert(sampleRate > 0.0f);
 
@@ -215,10 +222,7 @@ public:
 
 		prevValue = currentValue;
 
-
-
 		return currentValue;
-
 	};
 
 	/** Returns the smoothing time in seconds. */
@@ -233,7 +237,7 @@ public:
 	*/
 	void setSmoothingTime(float newSmoothTime)
 	{
-		ScopedLock sl(lock);
+		SpinLock::ScopedLockType sl(spinLock);
 
 		active = (newSmoothTime != 0.0f);
 
@@ -261,7 +265,7 @@ public:
 
 private:
 
-	CriticalSection lock;
+	SpinLock spinLock;
 
 	JUCE_LEAK_DETECTOR(Smoother)
 

@@ -94,7 +94,7 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
     
 	if(!forceReload && (preloadSizeChanged || streamingDeactivated)) return;
 
-	ScopedLock sl(lock);
+	ScopedLock sl(getSampleLock());
 
     const bool sampleDeactivated = !hasActiveState() || newPreloadSize == 0;
     
@@ -251,7 +251,7 @@ void StreamingSamplerSound::setSampleStartModulation(int newModulationDelta)
 {
 	if(sampleStartMod != newModulationDelta)
 	{
-		ScopedLock sl(lock);
+		ScopedLock sl(getSampleLock());
 
 		sampleStartMod = newModulationDelta;
 		lengthChanged();
@@ -321,7 +321,7 @@ void StreamingSamplerSound::setSampleEnd(int newSampleEnd)
 
 void StreamingSamplerSound::lengthChanged()
 {
-	ScopedLock sl(lock);
+	ScopedLock sl(getSampleLock());
 
 	sampleLength = sampleEnd - sampleStart;
 
@@ -330,7 +330,7 @@ void StreamingSamplerSound::lengthChanged()
 
 void StreamingSamplerSound::loopChanged()
 {
-	ScopedLock sl(lock);
+	ScopedLock sl(getSampleLock());
 
 	if(loopEnabled)
 	{
@@ -414,7 +414,7 @@ float StreamingSamplerSound::calculatePeakValue()
 
 void StreamingSamplerSound::fillSampleBuffer(AudioSampleBuffer &sampleBuffer, int samplesToCopy, int uptime) const
 {
-	ScopedLock sl(lock);
+	ScopedLock sl(getSampleLock());
 
 	if (!fileReader.isUsed()) return;
 
@@ -523,7 +523,7 @@ void StreamingSamplerSound::fillInternal(AudioSampleBuffer &sampleBuffer, int sa
 
 		if(numSamplesInCrossfade > 0)
 		{
-			ScopedLock sl(lock);
+			ScopedLock sl(getSampleLock());
 
 			const int indexInLoopBuffer = jmax(0, indexInFile - crossfadeArea.getStart());
 
@@ -867,7 +867,7 @@ lastCallToRequestData(0.0)
 /** Sets the buffer size in samples. */
 void SampleLoader::setBufferSize(int newBufferSize)
 {
-	ScopedLock sl(lock);
+	ScopedLock sl(getLock());
 
 	idealBufferSize = newBufferSize;
 

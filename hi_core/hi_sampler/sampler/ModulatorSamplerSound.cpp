@@ -233,7 +233,7 @@ var ModulatorSamplerSound::getProperty(Property p) const
 
 void ModulatorSamplerSound::setProperty(Property p, int newValue, NotificationType notifyEditor/*=sendNotification*/)
 {
-	ScopedLock sl(lock);
+	ScopedLock sl(getLock());
 
 	switch (p)
 	{
@@ -314,7 +314,7 @@ void ModulatorSamplerSound::toggleBoolProperty(ModulatorSamplerSound::Property p
 
 ValueTree ModulatorSamplerSound::exportAsValueTree() const
 {
-	ScopedLock sl(lock);
+	ScopedLock sl(getLock());
 	ValueTree v("sample");
 
 	for (int i = ID; i < numProperties; i++)
@@ -408,10 +408,10 @@ void ModulatorSamplerSound::closeFileHandle()
 	FOR_EVERY_SOUND(closeFileHandle());
 }
 
-Range<int> ModulatorSamplerSound::getNoteRange() const			{ ScopedLock sl(lock); return Range<int>(midiNotes.findNextSetBit(0), midiNotes.getHighestBit() + 1); }
-Range<int> ModulatorSamplerSound::getVelocityRange() const		{ ScopedLock sl(lock); return Range<int>(velocityRange.findNextSetBit(0), velocityRange.getHighestBit() + 1); }
-float ModulatorSamplerSound::getPropertyVolume() const noexcept { ScopedLock sl(lock); return gain; }
-double ModulatorSamplerSound::getPropertyPitch() const noexcept { ScopedLock sl(lock); return pitchFactor; }
+Range<int> ModulatorSamplerSound::getNoteRange() const			{ ScopedLock sl(getLock()); return Range<int>(midiNotes.findNextSetBit(0), midiNotes.getHighestBit() + 1); }
+Range<int> ModulatorSamplerSound::getVelocityRange() const		{ ScopedLock sl(getLock()); return Range<int>(velocityRange.findNextSetBit(0), velocityRange.getHighestBit() + 1); }
+float ModulatorSamplerSound::getPropertyVolume() const noexcept { ScopedLock sl(getLock()); return gain; }
+double ModulatorSamplerSound::getPropertyPitch() const noexcept { ScopedLock sl(getLock()); return pitchFactor; }
 
 void ModulatorSamplerSound::setMaxRRGroupIndex(int newGroupLimit)
 {

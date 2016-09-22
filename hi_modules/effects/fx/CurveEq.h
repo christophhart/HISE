@@ -90,7 +90,7 @@ public:
 
 		void setEnabled(bool shouldBeEnabled)
 		{
-			ScopedLock sl(lock);
+			SpinLock::ScopedLockType sl(processLock);
 
 			enabled = shouldBeEnabled;
 		}
@@ -102,7 +102,7 @@ public:
 
 		void setType(int newType)
 		{
-			ScopedLock sl(lock);
+			SpinLock::ScopedLockType sl(processLock);
 
 			type = (FilterType)newType;
 			updateCoefficients();
@@ -116,7 +116,7 @@ public:
 
 		void setFrequency(double newFrequency)
 		{
-			ScopedLock sl(lock);
+			SpinLock::ScopedLockType sl(processLock);
 
 			frequency = newFrequency;
 
@@ -126,7 +126,7 @@ public:
 
 		void setGain(double newGain)
 		{
-			ScopedLock sl(lock);
+			SpinLock::ScopedLockType sl(processLock);
 
 			gain = (float)newGain;
 			updateCoefficients();
@@ -134,7 +134,7 @@ public:
 
 		void setQ(double newQ)
 		{
-			ScopedLock sl(lock);
+			SpinLock::ScopedLockType sl(processLock);
 
 			q = newQ;
 			updateCoefficients();
@@ -142,7 +142,7 @@ public:
 		
 		void setSampleRate(double newSampleRate)
 		{
-			ScopedLock sl(lock);
+			SpinLock::ScopedLockType sl(processLock);
 
 			sampleRate = newSampleRate;
 			updateCoefficients();
@@ -154,7 +154,7 @@ public:
 		{
 			if(!enabled) return;
 
-			ScopedLock sl(lock);
+			SpinLock::ScopedLockType sl(processLock);
 
 			leftFilter.processSamples(b.getWritePointer(0, startSample), numSamples);
 			rightFilter.processSamples(b.getWritePointer(1, startSample), numSamples);
@@ -172,7 +172,7 @@ public:
 
 	private:
 
-		CriticalSection lock;
+		SpinLock processLock;
 
 		void updateCoefficients()
 		{
@@ -228,8 +228,6 @@ public:
 
 	void applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples) override
 	{
-		ScopedLock sl(lock);
-
 		for(int i = 0; i < filterBands.size(); i++)
 		{
 			filterBands[i]->process(buffer, startSample, numSamples);
@@ -264,7 +262,7 @@ public:
 
 	void addFilterBand(double freq, double gain)
 	{
-		ScopedLock sl(lock);
+		ScopedLock sl(getLock());
 
 		StereoFilter *f = new StereoFilter();
 
@@ -283,6 +281,8 @@ public:
 
 	void removeFilterBand(int filterIndex)
 	{
+		ScopedLock sl(getLock());
+
 		filterBands.remove(filterIndex);
 
 		sendChangeMessage();
@@ -290,7 +290,7 @@ public:
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override
 	{
-		ScopedLock sl(lock);
+		ScopedLock sl(getLock());
 
 		EffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 
@@ -317,6 +317,8 @@ public:
 	void restoreFromValueTree(const ValueTree &v) override
 	{
 		MasterEffectProcessor::restoreFromValueTree(v);
+
+		ScopedLock sl(getLock());
 
 		filterBands.clear();
 
@@ -357,7 +359,7 @@ public:
 
 	const double *getExternalData()
 	{
-		ScopedLock sl(lock);
+		ScopedLock sl(getLock());
 
 		for(int i = 0; i < FFT_SIZE_FOR_EQ; i++)
 		{
@@ -381,15 +383,13 @@ public:
 
 private:
 
+	const CriticalSection& getLock() const { return getMainController()->getLock(); }
+
 	float fftData[FFT_SIZE_FOR_EQ];
 
 	double externalFftData[FFT_SIZE_FOR_EQ];
 
-	
-
 	int fftBufferIndex;
-
-	CriticalSection lock;
 
 	OwnedArray<StereoFilter> filterBands;
 

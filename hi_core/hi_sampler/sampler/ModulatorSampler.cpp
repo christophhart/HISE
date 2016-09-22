@@ -419,7 +419,7 @@ void ModulatorSampler::refreshStreamingBuffers()
 
 void ModulatorSampler::deleteSound(ModulatorSamplerSound *s)
 {
-	ScopedLock sl(lock);
+	ScopedLock sl(getMainController()->getLock());
 
 	allNotesOff(1, false);
 
@@ -455,7 +455,7 @@ void ModulatorSampler::deleteAllSounds()
 {
 	//ReferenceCountedArray<ModulatorSamplerSound> savedSounds(sounds);
 
-	ScopedLock sl(lock);
+	ScopedLock sl(getMainController()->getLock());
 
 	for (int i = 0; i < voices.size(); i++)
 	{
@@ -536,7 +536,7 @@ void ModulatorSampler::setVoiceAmount(int newVoiceAmount)
 {
 	if (newVoiceAmount != voiceAmount)
 	{
-		ScopedLock sl(lock);
+		ScopedLock sl(getSynthLock());
 
 		voiceAmount = jmin<int>(NUM_POLYPHONIC_VOICES, newVoiceAmount);
 
@@ -621,7 +621,7 @@ void ModulatorSampler::resetNotes()
 
 void ModulatorSampler::addSamplerSound(const ValueTree &description, int index, bool forceReuse)
 {
-	ScopedLock sl(lock);
+	ScopedLock sl(getMainController()->getLock());
 
 	jassert(sounds.size() == index);
 
@@ -640,7 +640,7 @@ void ModulatorSampler::addSamplerSound(const ValueTree &description, int index, 
 
 void ModulatorSampler::addSamplerSounds(OwnedArray<ModulatorSamplerSound>& monolithicSounds)
 {
-	ScopedLock sl(lock);
+	ScopedLock sl(getMainController()->getLock());
 
 	jassert(sounds.size() == 0);
 

@@ -290,7 +290,7 @@ public:
 		/** Adds a new processor to the chain. It must be owned by the chain. */
 		void add(Processor *newProcessor, Processor *siblingToInsertBefore) override
 		{
-			ScopedLock sl(synth->lock);
+			ScopedLock sl(synth->getMainController()->getLock());
 
 			ModulatorSynth *ms = dynamic_cast<ModulatorSynth*>(newProcessor);
 
@@ -310,7 +310,7 @@ public:
 		/** Deletes a processor from the chain. */
 		virtual void remove(Processor *processorToBeRemoved) override
 		{
-			ScopedLock sl(synth->lock);
+			ScopedLock sl(synth->getMainController()->getLock());
 
 			synth->synths.removeObject(dynamic_cast<ModulatorSynth*>(processorToBeRemoved));
 
@@ -337,6 +337,8 @@ public:
 
 		void clear()
 		{
+			ScopedLock sl(synth->getMainController()->getLock());
+
 			synth->synths.clear();
 
 			sendChangeMessage();
@@ -353,10 +355,6 @@ public:
 	void restoreInterfaceValues(const ValueTree &v);
 
 private:
-
-	
-	
-	CriticalSection lock;
 
 	ModulatorSynthChainHandler handler;
 
@@ -409,7 +407,7 @@ public:
 	/** This stores a reference of the child synths and a reference of the voice of the child processor with the same voice index. */
 	void addChildSynth(ModulatorSynth *childSynth)
 	{
-		ScopedLock sl(lock);
+		ScopedLock sl(ownerSynth->getSynthLock());
 
 		jassert(childSynth->getNumVoices() == ownerSynth->getNumVoices());
 
@@ -422,7 +420,7 @@ public:
 	/** This removes reference of the child synths and a reference of the voice of the child processor with the same voice index. */
 	void removeChildSynth(ModulatorSynth *childSynth)
 	{
-		ScopedLock sl(ownerSynth->getLock());
+		ScopedLock sl(ownerSynth->getSynthLock());
 
 		jassert(childSynth != nullptr);
 		jassert(childSynths.indexOf(childSynth) != -1);
@@ -445,8 +443,6 @@ public:
 
     
 private:
-
-	CriticalSection lock;
 
 	Array<ModulatorSynth*> childSynths;
 	Array<ModulatorSynthVoice*> childVoices;

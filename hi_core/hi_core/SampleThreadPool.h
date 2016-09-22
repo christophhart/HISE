@@ -131,7 +131,7 @@ private:
 
 	SampleThreadPoolJob *getFirstJob()
 	{
-		ScopedLock sl(lock);
+		ScopedLock sl(getLock());
 
 		for (int i = 0; i < 1024; i++)
 		{
@@ -143,7 +143,7 @@ private:
 
 	int getFirstFreeSlot()
 	{
-		ScopedLock sl(lock);
+		ScopedLock sl(getLock());
 		for (int i = 0; i < 1024; i++)
 		{
 			if (preAllocatedJobs[i] == nullptr) return i;
@@ -155,7 +155,7 @@ private:
 
 	int getLastFreeSlot()
 	{
-		ScopedLock sl(lock);
+		ScopedLock sl(getLock());
 		for (int i = 1024; --i >= 0;)
 		{
 			if (preAllocatedJobs[i] == nullptr) return i;
@@ -164,6 +164,8 @@ private:
 		jassertfalse;
 		return -1;
 	}
+
+	const CriticalSection& getLock() const { return lock; }
 
 	void deleteJob(SampleThreadPoolJob *job);
 

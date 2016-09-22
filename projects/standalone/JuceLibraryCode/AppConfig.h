@@ -22,8 +22,6 @@
 #define USE_IPP 1
 #include "ipp.h"
 
-#define HI_RUN_UNIT_TESTS 1
-
 // [END_USER_CODE_SECTION]
 
 //==============================================================================

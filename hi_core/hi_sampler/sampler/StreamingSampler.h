@@ -303,6 +303,9 @@ public:
 
 	typedef ReferenceCountedObjectPtr<StreamingSamplerSound> Ptr;
 
+	const CriticalSection& getSampleLock() const { return lock; };
+
+
 private:
 
 	// ==============================================================================================================================================
@@ -454,6 +457,7 @@ private:
 
 
 	// ==============================================================================================================================================
+
 
 	CriticalSection lock;
 
@@ -658,6 +662,8 @@ public:
 		return nullptr;
 	}
 	
+	const CriticalSection &getLock() const { return lock; }
+
 private:
 
     friend class Unmapper;

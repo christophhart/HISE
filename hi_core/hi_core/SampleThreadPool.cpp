@@ -136,7 +136,7 @@ void SampleThreadPool::addJob(SampleThreadPoolJob* const job, const bool /*delet
 		job->isActive = false;
 
 		{
-			const ScopedLock sl(lock);
+			const ScopedLock sl(getLock());
 
 			const int index = getFirstFreeSlot();
 
@@ -164,7 +164,7 @@ bool SampleThreadPool::contains(const SampleThreadPoolJob* const job) const
 
 bool SampleThreadPool::isJobRunning(const SampleThreadPoolJob* const job) const
 {
-	const ScopedLock sl(lock);
+	const ScopedLock sl(getLock());
 	return job->isActive && contains(job);
 }
 
@@ -216,7 +216,7 @@ bool SampleThreadPool::removeAllJobs(const bool interruptRunningJobs, const int 
 	Array <SampleThreadPoolJob*> jobsToWaitFor;
 	jobsToWaitFor.ensureStorageAllocated(1024);
 
-	const ScopedLock sl(lock);
+	const ScopedLock sl(getLock());
 
 	for (int i = 1024; --i >= 0;)
 	{
@@ -275,7 +275,7 @@ bool SampleThreadPool::setThreadPriorities(const int newPriority)
 
 SampleThreadPoolJob* SampleThreadPool::pickNextJobToRun()
 {
-	const ScopedLock sl(lock);
+	const ScopedLock sl(getLock());
 
 	for (int i = 0; i < 1024; ++i)
 	{
@@ -315,7 +315,7 @@ bool SampleThreadPool::runNextJob(SampleThreadPoolThread& thread)
 
 		thread.currentJob = nullptr;
 
-		const ScopedLock sl(lock);
+		const ScopedLock sl(getLock());
 		
 		const int index = job->indexInPool.get();
 
@@ -364,7 +364,7 @@ void SampleThreadPool::deleteJob(const int index)
 
 	if (index >= 0 && index < 1024)
 	{
-		const ScopedLock sl(lock);
+		const ScopedLock sl(getLock());
 
 		job = preAllocatedJobs[index];
 

@@ -154,9 +154,9 @@ void MainController::resetVoiceCounter()
 	voiceAmount.set(0);
 }
 
-CriticalSection &MainController::getLock() const
+const CriticalSection & MainController::getLock() const
 {
-    return const_cast<ModulatorSynthChain*>(getMainSynthChain())->getLock();
+	return dynamic_cast<AudioProcessor*>(const_cast<MainController*>(this))->getCallbackLock();
 }
 
 
@@ -198,7 +198,7 @@ void MainController::loadPreset(ValueTree &v, Component* /*mainEditor*/)
 {
 	if (v.isValid() && v.getProperty("Type", var::undefined()).toString() == "SynthChain")
 	{
-		//ScopedLock sl(lock);
+		//ScopedLock sl(getLock());
 
 		clearPreset();
 
@@ -616,7 +616,7 @@ void MainController::setGlobalVariable(int index, var newVariable)
 		return;
 	}
 
-	ScopedLock sl(lock);
+	ScopedLock sl(getLock());
 	globalVariableArray.setUnchecked(index, newVariable.clone());
 }
 
@@ -628,7 +628,7 @@ var MainController::getGlobalVariable(int index) const
 		return var::undefined();
 	}
 
-	ScopedLock sl(lock);
+	ScopedLock sl(getLock());
 	return globalVariableArray.getUnchecked(index);
 }
 
@@ -649,7 +649,7 @@ void MainController::storePlayheadIntoDynamicObject(AudioPlayHead::CurrentPositi
 	static Identifier ppqLoopEnd("ppqLoopEnd");
 	static Identifier isLooping("isLooping");
 
-	ScopedLock sl(lock);
+	ScopedLock sl(getLock());
 
 	hostInfo->setProperty(bpm, lastPosInfo.bpm);
 	hostInfo->setProperty(timeSigNumerator, lastPosInfo.timeSigNumerator);
@@ -813,13 +813,13 @@ void MainController::setBpm(double bpm_)
 
 void MainController::addTempoListener(TempoListener *t)
 {
-	ScopedLock sl(lock);
+	ScopedLock sl(getLock());
 	tempoListeners.addIfNotAlreadyThere(t);
 }
 
 void MainController::removeTempoListener(TempoListener *t)
 {
-	ScopedLock sl(lock);
+	ScopedLock sl(getLock());
 	tempoListeners.removeAllInstancesOf(t);
 }
 

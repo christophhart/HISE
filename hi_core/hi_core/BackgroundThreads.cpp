@@ -281,7 +281,7 @@ void PresetLoadingThread::threadFinished()
 {
 	ModulatorSynthChain *synthChain = mc->getMainSynthChain();
 
-	ScopedLock sl(synthChain->getLock());
+	ScopedLock sl(synthChain->getMainController()->getLock());
 
 	synthChain->prepareToPlay(sampleRate, bufferSize);
 	synthChain->compileAllScripts();

@@ -97,7 +97,7 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 
 	ADD_GLITCH_DETECTOR(getId() + " rendering");
 
-	ScopedLock sl(lock);
+	ScopedLock sl(getSynthLock());
 
 	const int numSamples = buffer.getNumSamples();
 
@@ -542,7 +542,7 @@ void ModulatorSynthGroup::checkFmState()
 
 void ModulatorSynthGroupVoice::calculateBlock(int startSample, int numSamples)
 {
-	ScopedLock sl(lock);
+	ScopedLock sl(ownerSynth->getSynthLock());
 
 	// Clear the buffer, since all child voices are added to this so it must be empty.
 	voiceBuffer.clear();

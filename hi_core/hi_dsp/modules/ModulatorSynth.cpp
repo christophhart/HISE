@@ -95,112 +95,6 @@ ProcessorEditorBody *ModulatorSynth::createEditor(ProcessorEditor *parentEditor)
 }
 
 
-bool ModulatorSynth::processMidiBuffer(const MidiBuffer &inputBuffer, MidiBuffer &outputBuffer, int numSamples)
-{
-#if 0
-	bool useOtherBuffer = true;
-
-	const bool emptyChain = midiProcessorChain->getHandler()->getNumProcessors() == 0;
-	const bool emptyGeneratedBuffer = generatedMessages.isEmpty();
-
-	int ppqTimeStamp = -1;
-
-	// Check if ppqPosition should be added
-	static const Identifier ppqPosition("ppqPosition");
-	static const Identifier isPlaying("isPlaying");
-
-	const bool hostIsPlaying = getMainController()->getHostInfoObject()->getProperty(isPlaying);
-
-	if (hostIsPlaying && clockSpeed != ClockSpeed::Inactive)
-	{
-		double ppq = getMainController()->getHostInfoObject()->getProperty(ppqPosition);
-
-		const double bufferAsMilliseconds = getBlockSize() / getSampleRate();
-		const double bufferAsPPQ = bufferAsMilliseconds * (getMainController()->getBpm() / 60.0);
-		const double ppqAtEndOfBuffer = ppq + bufferAsPPQ;
-
-		const double clockSpeedMultiplier = pow(2.0, clockSpeed);
-
-		const int clockAtStartOfBuffer = (int)((ppq)* clockSpeedMultiplier);
-		const int clockAtEndOfBuffer = (int)((ppqAtEndOfBuffer)* clockSpeedMultiplier);
-
-		if (clockAtStartOfBuffer != clockAtEndOfBuffer)
-		{
-			const double remaining = (double)clockAtEndOfBuffer/clockSpeedMultiplier - ppq;
-			const double remainingTime = (60.0 / getMainController()->getBpm()) * remaining;
-			const double remainingSamples = getSampleRate() * remainingTime;
-
-			if (remainingSamples < numSamples)
-			{
-				ppqTimeStamp = (int)remainingSamples;
-			}
-
-			lastClockCounter = clockAtStartOfBuffer;
-		}
-	}
-
-	// skip processing if the chain is empty.
-	if(emptyChain && ppqTimeStamp == -1) useOtherBuffer = false;
-	else
-	{
-		outputBuffer.clear();
-		outputBuffer.data.addArray(inputBuffer.data);
-
-		//outputBuffer = MidiBuffer(inputBuffer);
-		// copy the buffer since you don't want to change the original buffer
-		
-		if (hostIsPlaying != wasPlayingInLastBuffer)
-		{
-			MidiMessage m = hostIsPlaying ? MidiMessage::midiStart() : MidiMessage::midiStop();
-
-			outputBuffer.addEvent(m, 0);
-		}
-
-		if (ppqTimeStamp != -1)
-		{
-			MidiMessage pos = MidiMessage::songPositionPointer(ppqTimeStamp);
-
-			outputBuffer.addEvent(pos, ppqTimeStamp);
-		}
-
-		midiProcessorChain->renderNextBuffer(outputBuffer, numSamples);
-	}
-
-	wasPlayingInLastBuffer = hostIsPlaying;
-
-	if(!emptyGeneratedBuffer)
-	{
-		if (emptyChain)
-		{
-			outputBuffer.clear();
-			outputBuffer.data.addArray(inputBuffer.data);
-		}
-
-		MidiBuffer::Iterator it(generatedMessages);
-
-		MidiMessage m = MidiMessage();
-		int samplePos;
-
-		while(it.getNextEvent(m, samplePos))
-		{
-			if (m.isSongPositionPointer()) continue; // Skip the clock messages
-
-			outputBuffer.addEvent(m, samplePos);
-		}
-
-		
-
-		generatedMessages.clear();
-
-		useOtherBuffer = true;
-	}
-
-	return useOtherBuffer;
-#endif
-
-	return false;
-}
-
 void ModulatorSynth::processHiseEventBuffer(const HiseEventBuffer &inputBuffer, int numSamples)
 {
 	eventBuffer.copyFrom(inputBuffer);
@@ -230,10 +124,9 @@ void ModulatorSynth::addProcessorsWhenEmpty()
 
 void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuffer, const HiseEventBuffer& inputMidiBuffer)
 {
-
     ADD_GLITCH_DETECTOR("Rendering " + getId());
     
-	const ScopedLock sl (lock);
+	const ScopedLock sl (getSynthLock());
 
 	int numSamples = outputBuffer.getNumSamples();
 
@@ -462,45 +355,10 @@ void ModulatorSynth::handleHostInfoHiseEvents()
 		HiseEvent pos = HiseEvent(HiseEvent::Type::SongPosition, 0, 0);
 
 		pos.setSongPositionValue(ppqTimeStamp);
-		pos.setTimeStamp(ppqTimeStamp);
+		pos.setTimeStamp((uint16)ppqTimeStamp);
 
 		eventBuffer.addEvent(pos);
 	}
-
-		
-#if 0
-	wasPlayingInLastBuffer = hostIsPlaying;
-
-	if (!emptyGeneratedBuffer)
-	{
-		if (emptyChain)
-		{
-			outputBuffer.clear();
-			outputBuffer.data.addArray(inputBuffer.data);
-		}
-
-		MidiBuffer::Iterator it(generatedMessages);
-
-		MidiMessage m = MidiMessage();
-		int samplePos;
-
-		while (it.getNextEvent(m, samplePos))
-		{
-			if (m.isSongPositionPointer()) continue; // Skip the clock messages
-
-			outputBuffer.addEvent(m, samplePos);
-		}
-
-
-
-		generatedMessages.clear();
-
-		useOtherBuffer = true;
-	}
-
-
-	return useOtherBuffer;
-#endif
 }
 
 void ModulatorSynth::preHiseEventCallback(const HiseEvent &e)
@@ -534,6 +392,8 @@ void ModulatorSynth::preStartVoice(int voiceIndex, int noteNumber)
 
 void ModulatorSynth::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
+	ScopedLock sl(getSynthLock());
+
 	if(sampleRate != -1.0)
 	{
 		pitchBuffer = AudioSampleBuffer(1, samplesPerBlock); // should be enough
@@ -567,7 +427,7 @@ void ModulatorSynth::prepareToPlay(double sampleRate, int samplesPerBlock)
 	
 void ModulatorSynth::numSourceChannelsChanged()
 {
-	ScopedLock sl(lock);
+	ScopedLock sl(getSynthLock());
 
 	if (internalBuffer.getNumSamples() != 0)
 	{
@@ -605,7 +465,7 @@ void ModulatorSynth::noteOn(const HiseEvent &m)
 {
     ADD_GLITCH_DETECTOR("Note on callback for " + getId());
     
-    const ScopedLock sl (lock);
+    const ScopedLock sl (getSynthLock());
 
 	jassert(m.isNoteOn());
 
@@ -669,10 +529,10 @@ void ModulatorSynth::noteOn(const HiseEvent &m)
 
 void ModulatorSynth::noteOff(const HiseEvent &m)
 {
-	const ScopedLock sl(lock);
+	const ScopedLock sl(getSynthLock());
 
 	const int midiNoteNumber = m.getNoteNumber();
-	const int transposedMidiNoteNumber = midiNoteNumber + m.getTransposeAmount();
+	
 	float velocity = m.getFloatVelocity();
 	const int midiChannel = m.getChannel();
 
@@ -685,12 +545,8 @@ void ModulatorSynth::noteOff(const HiseEvent &m)
 		{
 			if (SynthesiserSound* const sound = voice->getCurrentlyPlayingSound())
 			{
-				//sound->appliesToNote(transposedMidiNoteNumber) &&
-
 				if (sound->appliesToChannel(midiChannel))
 				{
-					//jassert(!voice->keyIsDown || voice->sustainPedalDown == sustainPedalsDown[midiChannel]);
-
 					voice->setKeyDown(false);
 
 					if (!(voice->isSostenutoPedalDown() || voice->isSustainPedalDown()))

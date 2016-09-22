@@ -111,7 +111,7 @@ void Table::fillLookUpTable()
 		newValues.add(value);
 	};
 
-	ScopedLock sl(lock);
+	ScopedLock sl(getLock());
 	FloatVectorOperations::copy(getWritePointer(), newValues.getRawDataPointer(), getTableSize());
 };
 

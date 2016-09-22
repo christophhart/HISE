@@ -177,7 +177,7 @@ void CCEnvelope::setInternalAttribute(int parameter_index, float newValue)
 	{
 		defaultValue = newValue;
 
-		handleHiseEvent(HiseEvent(HiseEvent::Type::Controller, controllerNumber, defaultValue, 1));
+		handleHiseEvent(HiseEvent(HiseEvent::Type::Controller, (uint8)controllerNumber, (uint8)defaultValue, 1));
 		break;
 	}
 	case StartLevel:

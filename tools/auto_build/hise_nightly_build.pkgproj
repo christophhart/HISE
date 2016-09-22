@@ -1875,6 +1875,27 @@
 					<key>STATE</key>
 					<true/>
 				</dict>
+				<dict>
+					<key>BEHAVIOR</key>
+					<integer>3</integer>
+					<key>DICTIONARY</key>
+					<dict>
+						<key>IC_REQUIREMENT_DISKSPACE_MINIMUM_SIZE_UNIT</key>
+						<integer>0</integer>
+						<key>IC_REQUIREMENT_DISKSPACE_MINIMUM_SIZE_VALUE</key>
+						<integer>100</integer>
+					</dict>
+					<key>IC_REQUIREMENT_CHECK_TYPE</key>
+					<integer>1</integer>
+					<key>IDENTIFIER</key>
+					<string>fr.whitebox.Packages.requirement.diskspace</string>
+					<key>MESSAGE</key>
+					<array/>
+					<key>NAME</key>
+					<string>Available Disk Space</string>
+					<key>STATE</key>
+					<true/>
+				</dict>
 			</array>
 			<key>POSTINSTALL_PATH</key>
 			<dict/>
@@ -1883,7 +1904,7 @@
 			<key>RESOURCES</key>
 			<array/>
 			<key>ROOT_VOLUME_ONLY</key>
-			<false/>
+			<true/>
 		</dict>
 		<key>PROJECT_SETTINGS</key>
 		<dict>
@@ -2076,6 +2097,11 @@
 			<key>REFERENCE_FOLDER_PATH</key>
 			<string>/Users/christophhart</string>
 		</dict>
+	</dict>
+	<key>SHARED_GLOBAL_DATA</key>
+	<dict>
+		<key>IC_REQUIREMENT_JAVASCRIPT_SHARED_SOURCE_CODE</key>
+		<string></string>
 	</dict>
 	<key>TYPE</key>
 	<integer>0</integer>

@@ -123,6 +123,7 @@ private:
 
 	using ConsoleMessage = std::tuple < WarningLevel, const WeakReference<Processor>, String > ;
 
+	const CriticalSection &getLock() const { return lock; }
 
 
 	std::vector<ConsoleMessage> unprintedMessages;

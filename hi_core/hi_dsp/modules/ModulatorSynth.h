@@ -314,7 +314,7 @@ public:
 
 	void setBypassed(bool shouldBeBypassed) noexcept override
 	{
-		ScopedLock sl(lock);
+		ScopedLock sl(getSynthLock());
 
 		Processor::setBypassed(shouldBeBypassed);
 		
@@ -326,14 +326,9 @@ public:
 
 			if (chain != nullptr)
 			{
-				MidiMessage allNotesOffMessage = MidiMessage::allNotesOff(1);
-
 				chain->handleHiseEvent(HiseEvent(HiseEvent::Type::AllNotesOff, 0, 0, 1));
 			}
-
 		}
-			
-			
 
 		allNotesOff(1, false);
 	};
@@ -382,17 +377,9 @@ public:
 	{
 		jassertfalse;
 
-		HiseEvent m(HiseEvent::Type::NoteOn, midiNoteNumber, (uint8)(velocity * 127.0f), (uint8)midiChannel);
+		HiseEvent m(HiseEvent::Type::NoteOn, (uint8)midiNoteNumber, (uint8)(velocity * 127.0f), (uint8)midiChannel);
 
 		noteOn(m);
-	}
-
-	void noteOff(const int midiChannel,
-		const int midiNoteNumber,
-		const float velocity,
-		const bool allowTailOff) override
-	{
-		jassertfalse;
 	}
 
 	virtual void noteOff(const HiseEvent &m);
@@ -400,11 +387,7 @@ public:
 	/** Returns the voice index for the voice (the index in the internal voice array). This is needed for the ModulatorChains to know which voice is started. */
 	int getVoiceIndex(const SynthesiserVoice *v) const;;
 
-	/** This makes a copy of the incoming buffer and processes the MidiProcessorChain. You can overwrite it to do something else.
-	*
-	*	returns if the midi buffer was altered. If true, it uses the outputBuffer, otherwise, the bufferToProcess is used for further processing.
-	*/
-	bool processMidiBuffer(const MidiBuffer &bufferToProcess, MidiBuffer &outputBuffer, int numSamples);
+	
 
 	void processHiseEventBuffer(const HiseEventBuffer &inputBuffer, int numSamples);
 
@@ -428,14 +411,13 @@ public:
 	/** sets the gain of the ModulatorSynth from 0.0 to 1.0. */
 	void setGain(float newGain)
 	{
-		ScopedLock sl(lock);
 		gain = newGain;
 	};
 
 	/** sets the balance from -1.0 (left) to 1.0 (right) and applies a equal power pan rule. */
 	void setBalance(float newBalance)
 	{
-		ScopedLock sl(lock);
+		ScopedLock sl(getSynthLock());
 
 		balance = newBalance;
 
@@ -526,9 +508,10 @@ public:
 	const float *getConstantPitchValues() const { return pitchBuffer.getReadPointer(0);	};
 
 	/** returns the lock the synth is using. */
-	CriticalSection &getLock()
+	const CriticalSection &getSynthLock() const
 	{
 		return lock;
+		//return getMainController()->getLock();
 	};
 
 	/** specifies the behaviour when a note is started that is already ringing. By default, it is killed, but you can overwrite it to make something else. */

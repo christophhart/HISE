@@ -167,13 +167,7 @@ public:
 
 		// ============================================================================================================
 
-		// sets the reference to the midi message.
-		void setMidiMessage(MidiMessage *m);
-
-		void setMidiMessage(const MidiMessage *m)
-		{
-			jassertfalse;
-		};
+		
 
 		void setHiseEvent(HiseEvent &m);
 

@@ -91,7 +91,7 @@ public:
 		void setNumSourceChannels(int newNumChannels, NotificationType notifyProcessors=sendNotification);
 		void setNumDestinationChannels(int newNumChannels, NotificationType notifyProcessors = sendNotification);
 
-		CriticalSection &getLock();
+		const CriticalSection &getLock() const;
 
 		int getNumSourceChannels() const { return numSourceChannels; }
 		int getNumDestinationChannels() const { return numDestinationChannels; };

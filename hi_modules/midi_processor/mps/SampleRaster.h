@@ -71,7 +71,7 @@ protected:
 	void processHiseEvent(HiseEvent& m) override
 	{
 		const int t = (int)m.getTimeStamp();
-		m.setTimeStamp(roundToRaster(t));
+		m.setTimeStamp((uint16)roundToRaster(t));
 	};
 
 private:

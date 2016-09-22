@@ -338,7 +338,7 @@ void ScriptingApi::Message::delayEvent(int samplesToDelay)
 	}	
 #endif
 
-	messageHolder->addToTimeStamp(samplesToDelay);
+	messageHolder->addToTimeStamp((int16)samplesToDelay);
 };
 
 void ScriptingApi::Message::setNoteNumber(int newValue)
@@ -374,7 +374,7 @@ void ScriptingApi::Message::setVelocity(int newValue)
 	}
 #endif
 
-	messageHolder->setVelocity((float)newValue);
+	messageHolder->setVelocity((uint8)newValue);
 };
 
 
@@ -394,9 +394,7 @@ void ScriptingApi::Message::setControllerNumber(int newValue)
 		reportIllegalCall("setControllerNumber()", "onController");
 	}
 #endif
-
-	const int value = messageHolder->getControllerValue();
-
+	
 	messageHolder->setControllerNumber(newValue);
 };
 
@@ -415,7 +413,7 @@ void ScriptingApi::Message::setControllerValue(int newValue)
 	}
 #endif
 
-	const int number = messageHolder->getControllerNumber();
+	
 
 	
 	messageHolder->setControllerValue(newValue);
@@ -604,55 +602,6 @@ int ScriptingApi::Message::getFineDetune() const
 	return constMessageHolder->getFineDetune();
 }
 
-void ScriptingApi::Message::setMidiMessage(MidiMessage *m)
-{
-	jassertfalse;
-
-#if 0
-
-	messageHolder = m;
-	constMessageHolder = m;
-
-	if(m->isNoteOn())
-	{
-		eventIdCounter++;
-		currentEventId = eventIdCounter;
-
-		for(int i = 0; i < 1024; i++)
-		{
-			if(noteOnMessages[i].isVoid())
-			{
-				noteOnMessages[i] = MidiMessageWithEventId(*m, currentEventId);
-				break;
-			}
-		}
-	}
-	else if(m->isNoteOff())
-	{
-		currentEventId = -1;
-
-		for(int i = 0; i < 1024; i++)
-		{
-			MidiMessageWithEventId *mi = &noteOnMessages[i];
-
-			if(!mi->isVoid() && m->getNoteNumber() == mi->getNoteNumber())
-			{
-				wrongNoteOff = false;
-				currentEventId = mi->eventId;
-						
-				mi->setVoid();
-
-				break;
-			}
-		}
-        
-    }
-	else
-	{
-		currentEventId = -1;
-	}
-#endif
-}
 
 void ScriptingApi::Message::setHiseEvent(HiseEvent &m)
 {
@@ -1478,7 +1427,7 @@ void ScriptingApi::Synth::sendController(int controllerNumber, int controllerVal
 {
 	if(controllerNumber == 128) owner->handlePitchWheel(1, controllerValue);
 
-	HiseEvent m = HiseEvent(HiseEvent::Type::Controller, controllerNumber, controllerValue, 1);
+	HiseEvent m = HiseEvent(HiseEvent::Type::Controller, (uint8)controllerNumber, (uint8)controllerValue, 1);
 
 	owner->gainChain->handleHiseEvent(m);
 	owner->pitchChain->handleHiseEvent(m);
@@ -1772,8 +1721,8 @@ void ScriptingApi::Synth::addNoteOn(int channel, int noteNumber, int velocity, i
 				{
 					if (ScriptBaseMidiProcessor* sp = dynamic_cast<ScriptBaseMidiProcessor*>(getScriptProcessor()))
 					{
-						HiseEvent m = HiseEvent(HiseEvent::Type::NoteOn, noteNumber, velocity, channel);
-						m.setTimeStamp(sp->getCurrentHiseEvent()->getTimeStamp() + timeStampSamples);
+						HiseEvent m = HiseEvent(HiseEvent::Type::NoteOn, (uint8)noteNumber, (uint8)velocity, (uint8)channel);
+						m.setTimeStamp((uint16)sp->getCurrentHiseEvent()->getTimeStamp() + (uint16)timeStampSamples);
 						m.setArtificial();
 
 						sp->addHiseEventToBuffer(m);
@@ -1802,8 +1751,8 @@ void ScriptingApi::Synth::addNoteOff(int channel, int noteNumber, int timeStampS
 	
 					timeStampSamples = jmax<int>(1, timeStampSamples);
 
-					HiseEvent m = HiseEvent(HiseEvent::Type::NoteOff, noteNumber, 127, channel);
-					m.setTimeStamp(sp->getCurrentHiseEvent()->getTimeStamp() + timeStampSamples);
+					HiseEvent m = HiseEvent(HiseEvent::Type::NoteOff, (uint8)noteNumber, 127, (uint8)channel);
+					m.setTimeStamp((uint16)sp->getCurrentHiseEvent()->getTimeStamp() + (uint16)timeStampSamples);
 					m.setArtificial();
 
 					sp->addHiseEventToBuffer(m);
@@ -1829,8 +1778,8 @@ void ScriptingApi::Synth::addController(int channel, int number, int value, int 
 				{
 					if (ScriptBaseMidiProcessor* sp = dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor()))
 					{
-						HiseEvent m = HiseEvent(HiseEvent::Type::Controller, number, value, channel);
-						m.setTimeStamp(sp->getCurrentHiseEvent()->getTimeStamp() + timeStampSamples);
+						HiseEvent m = HiseEvent(HiseEvent::Type::Controller, (uint8)number, (uint8)value, (uint8)channel);
+						m.setTimeStamp((uint16)sp->getCurrentHiseEvent()->getTimeStamp() + (uint16)timeStampSamples);
 						m.setArtificial();
 
 						sp->addHiseEventToBuffer(m);

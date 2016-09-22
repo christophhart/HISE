@@ -881,7 +881,7 @@ public:
 		{
 		case HqMode:
 			{
-				ScopedLock sl(lock);
+				ScopedLock sl(getSynthLock());
 
 				hqMode = newValue == 1.0f;
 

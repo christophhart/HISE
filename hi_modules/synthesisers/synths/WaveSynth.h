@@ -150,7 +150,7 @@ public:
 
 	void setOctaveTransposeFactor(double newFactor, bool leftFactor)
 	{
-		ScopedLock sl(getOwnerSynth()->getLock());
+		ScopedLock sl(getOwnerSynth()->getSynthLock());
 
 		if(leftFactor) octaveTransposeFactor1 = newFactor;
 		else octaveTransposeFactor2 = newFactor;

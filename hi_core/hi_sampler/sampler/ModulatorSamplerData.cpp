@@ -60,7 +60,7 @@ void SoundPreloadThread::run()
 
 	ScopedValueSetter<bool> preloadLock(pool->getPreloadLockFlag(), true);
 
-    ScopedLock(sampler->getLock());
+    ScopedLock(sampler->getMainController()->getLock());
     
 	const int numSoundsToPreload = sampler->getNumSounds();
 

@@ -417,7 +417,7 @@ public:
 
 		sampler->setBypassed(true);
 
-		ScopedLock sl(sampler->getLock());
+		ScopedLock sl(sampler->getMainController()->getLock());
 
 		sampler->clearSounds();
 
@@ -848,7 +848,7 @@ void SamplerBody::SampleEditingActions::extractToSingleMicSamples(SamplerBody * 
 
 		jassert(singleList.size() == singleData.size());
 
-		ScopedLock sl(sampler->getLock());
+		ScopedLock sl(sampler->getMainController()->getLock());
 
 		sampler->clearSounds();
 

@@ -224,7 +224,7 @@ void Console::logMessage(const String &t, WarningLevel warningLevel, const Proce
 
 	else
 	{
-		ScopedLock sl(lock);
+		ScopedLock sl(getLock());
 
 		if(unprintedMessages.size() > 10)
 		{
@@ -262,7 +262,7 @@ void Console::handleAsyncUpdate()
 
 	if(unprintedMessages.size() != 0)
 	{
-		ScopedLock sl(lock);
+		ScopedLock sl(getLock());
 		messagesForThisTime.swap(unprintedMessages);
 	}
 	else return;

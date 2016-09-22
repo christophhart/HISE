@@ -629,7 +629,7 @@ void JavascriptCodeEditor::handleDoubleCharacter(const KeyPress &k, char openCha
 	// Insert 
 	if ((char)k.getTextCharacter() == openCharacter)
 	{
-		char next = getCaretPos().getCharacter();
+		juce_wchar next = getCaretPos().getCharacter();
 
 		if (getDocument().getNewLineCharacters().containsChar(next))
 		{

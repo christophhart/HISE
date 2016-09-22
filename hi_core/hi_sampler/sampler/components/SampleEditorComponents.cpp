@@ -965,7 +965,7 @@ void MapWithKeyboard::mouseDown(const MouseEvent &e)
 
 	const int velocity = ((getHeight() - e.getMouseDownY()) * 127) / 20;
 
-	HiseEvent m(HiseEvent::Type::NoteOn, lastNoteNumber, velocity, 1);
+	HiseEvent m(HiseEvent::Type::NoteOn, (uint8)lastNoteNumber, (uint8)velocity, 1);
 
 	sampler->preHiseEventCallback(m);
 	sampler->noteOn(m);

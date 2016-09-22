@@ -295,8 +295,9 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 	if (lastCompileWasOK && content != nullptr) thisAsScriptBaseProcessor->restoredContentValues = content->exportAsValueTree();
 
+	ScopedLock callbackLock(mainController->getLock());
 	ScopedWriteLock sl(mainController->getCompileLock());
-    ScopedLock sl2(mainController->getLock());
+    
 
 	scriptEngine->clearDebugInformation();
 

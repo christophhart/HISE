@@ -51,7 +51,7 @@ int PluginParameterAudioProcessor::getNumParameters()
 
 int PluginParameterAudioProcessor::addPluginParameter(PluginParameterModulator *existingModToBeAdded)
 {
-	ScopedLock sl(lock);
+	ScopedLock sl(getLock());
 
 	for(int i = 0; i < 32; i++)
 	{
@@ -70,7 +70,7 @@ int PluginParameterAudioProcessor::addPluginParameter(PluginParameterModulator *
 /** Remove the plugin parameter from the list. */
 void PluginParameterAudioProcessor::removePluginParameter(PluginParameterModulator *modToRemove)
 {
-	ScopedLock sl(lock);
+	ScopedLock sl(getLock());
 
 	for(int i = 0; i < 32; i++)
 	{
@@ -86,7 +86,7 @@ void PluginParameterAudioProcessor::removePluginParameter(PluginParameterModulat
 
 float PluginParameterAudioProcessor::getParameter (int index)
 {
-	ScopedLock sl(lock);
+	ScopedLock sl(getLock());
 
 	if( index < 32 && parameterSlots[index].get() != nullptr )
 	{
@@ -99,7 +99,7 @@ float PluginParameterAudioProcessor::getParameter (int index)
 
 void PluginParameterAudioProcessor::setParameter (int index, float newValue)
 {
-	ScopedLock sl(lock);
+	ScopedLock sl(getLock());
 
 	if(index < 32 && parameterSlots[index].get() != nullptr)
 	{
@@ -110,7 +110,7 @@ void PluginParameterAudioProcessor::setParameter (int index, float newValue)
 
 int PluginParameterAudioProcessor::getParameterFromName(String parameter_name)
 {
-	ScopedLock sl(lock);
+	ScopedLock sl(getLock());
 
 	for(int i = 0; i < 32 ; i++)
 	{

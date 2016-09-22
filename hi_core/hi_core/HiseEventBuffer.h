@@ -101,7 +101,7 @@ public:
 
 	uint32 getEventId() const noexcept{ return eventId; };
 
-	void setEventId(uint32 newEventId) noexcept{ eventId = newEventId; };
+	void setEventId(uint32 newEventId) noexcept{ eventId = (uint16)newEventId; };
 
     void setArtificial() noexcept { artificial = true; }
     bool isArtificial() const noexcept{ return artificial; };
@@ -125,7 +125,7 @@ public:
 	double getPitchFactorForEvent() const;
 
 	/** Sets the gain in decibels for this note. */
-	void setGain(int decibels) noexcept{gain = decibels; };
+	void setGain(int decibels) noexcept{ gain = (int8)decibels; };
 
 	int getGain() const noexcept{ return gain; };
 
@@ -134,13 +134,18 @@ public:
 	// ========================================================================================================================== MIDI Message methods
 
 	uint32 getTimeStamp() const noexcept{ return timeStamp; };
-	void setTimeStamp(uint32 newTimestamp) noexcept{ timeStamp = newTimestamp; };
-	void addToTimeStamp(int32 delta) noexcept{ timeStamp += delta; };
+	void setTimeStamp(uint16 newTimestamp) noexcept{ timeStamp = (uint16)newTimestamp; };
+	void addToTimeStamp(int16 delta) noexcept{ timeStamp += delta; };
 
 	int getChannel() const noexcept{ return (int)channel; };
 	void setChannel(int newChannelNumber) noexcept{ channel = (uint8)newChannelNumber; };
 
-	bool isNoteOn(bool returnTrueForVelocity0 = false) const noexcept { return type == Type::NoteOn; };
+	bool isNoteOn(bool returnTrueForVelocity0 = false) const noexcept
+	{
+		ignoreUnused(returnTrueForVelocity0);
+
+		return type == Type::NoteOn; 
+	};
 	bool isNoteOff() const noexcept { return type == Type::NoteOff; }
 	bool isNoteOnOrOff() const noexcept { return type == Type::NoteOn || type == Type::NoteOff; };
 	int getNoteNumber() const noexcept{ return (int)number; };
@@ -163,7 +168,7 @@ public:
 
 	bool isAftertouch() const noexcept { return type == Type::Aftertouch; };
 	int getAfterTouchValue() const noexcept { return (uint8)value; };
-	void setAfterTouchValue(int noteNumber, int aftertouchAmount) noexcept{ number = noteNumber; value = aftertouchAmount; };
+	void setAfterTouchValue(int noteNumber, int aftertouchAmount) noexcept{ number = (uint8)noteNumber; value = (uint8)aftertouchAmount; };
 
 	bool isController() const noexcept{ return type == Type::Controller; }
 	bool isControllerOfType(int controllerType) const noexcept{ return type == Type::Controller && controllerType == (int)number; };
@@ -171,8 +176,8 @@ public:
 	int getControllerNumber() const noexcept{ return number; };
 	int getControllerValue() const noexcept{ return value; };
 
-	void setControllerNumber(int controllerNumber) noexcept{ number = controllerNumber; };
-	void setControllerValue(int controllerValue) noexcept{ value = controllerValue; };
+	void setControllerNumber(int controllerNumber) noexcept{ number = (uint8)controllerNumber; };
+	void setControllerValue(int controllerValue) noexcept{ value = (uint8)controllerValue; };
 
 	bool isEmpty() const noexcept{ return type == Type::Empty; };
 
