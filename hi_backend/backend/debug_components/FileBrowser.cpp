@@ -336,7 +336,7 @@ bool FileBrowser::perform(const InvocationInfo &info)
 
 		for (int i = 0; i < roots.size(); i++)
 		{
-			m.addItem(VolumeOffset + 1, roots[i].getFullPathName() + " " + roots[i].getVolumeLabel());
+			m.addItem(VolumeOffset + i, roots[i].getFullPathName() + " " + roots[i].getVolumeLabel());
 		}
 
 		m.addSeparator();
