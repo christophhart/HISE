@@ -5,6 +5,8 @@
               jucerVersion="4.1.0" companyName="Hart Instruments" companyWebsite="http://hartinstruments.net/hise">
   <MAINGROUP id="yomWt4" name="HISE Standalone">
     <GROUP id="{577963C7-1A49-BB2A-D701-52DC7A5895F7}" name="Source">
+      <FILE id="yjZXfQ" name="DspUnitTests.cpp" compile="1" resource="0"
+            file="../../hi_scripting/scripting/api/DspUnitTests.cpp"/>
       <FILE id="bfBEgJ" name="HISE_Icon.png" compile="0" resource="1" file="../../hi_core/hi_images/HISE_Icon.png"/>
       <FILE id="EQP6SW" name="HiseEventBufferUnitTests.cpp" compile="1" resource="0"
             file="../../hi_core/hi_core/HiseEventBufferUnitTests.cpp"/>
@@ -73,8 +75,8 @@
         <MODULEPATH id="hi_core" path="../../"/>
         <MODULEPATH id="hi_modules" path="../../"/>
         <MODULEPATH id="hi_backend" path="../../"/>
-        <MODULEPATH id="hi_scripting" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_dsp_library" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_scripting" path="../../"/>
+        <MODULEPATH id="hi_dsp_library" path="../../"/>
       </MODULEPATHS>
     </VS2013>
     <XCODE_MAC targetFolder="Builds/MacOSX" smallIcon="bfBEgJ" bigIcon="bfBEgJ"
@@ -109,8 +111,8 @@
         <MODULEPATH id="hi_core" path="../../"/>
         <MODULEPATH id="hi_modules" path="../../"/>
         <MODULEPATH id="hi_backend" path="../../"/>
-        <MODULEPATH id="hi_scripting" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_dsp_library" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_scripting" path="../../"/>
+        <MODULEPATH id="hi_dsp_library" path="../../"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <XCODE_IPHONE targetFolder="Builds/iOS" iosScreenOrientation="landscape" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override"
@@ -142,8 +144,8 @@
         <MODULEPATH id="hi_modules" path="../../"/>
         <MODULEPATH id="hi_core" path="../../"/>
         <MODULEPATH id="hi_backend" path="../../"/>
-        <MODULEPATH id="hi_scripting" path="../../../HISE modules"/>
-        <MODULEPATH id="hi_dsp_library" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_scripting" path="../../"/>
+        <MODULEPATH id="hi_dsp_library" path="../../"/>
       </MODULEPATHS>
     </XCODE_IPHONE>
   </EXPORTFORMATS>
