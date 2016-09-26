@@ -60,6 +60,31 @@ It supports x86 and x64 on Windows, altough the 64bit version is highly recommen
 - API for adding DSP modules via dynamic libraries
 - one click C++ build system for building VST / AU / AAX plugins (based on JUCE) from within HISE (using msbuild / xcodebuild)
 
+## How to compile HISE
+
+1. Clone this repository
+
+2. Copy the JUCE fork (you don't need version control for this, this rarely changes): 
+   [JUCE 4 HISE](https://github.com/christophhart/JUCE4HISE). Put it in a sub directory of the HISE folder called "JUCE"
+
+3. Get all necessary 3rd party code:
+	- ASIO SDK for standalone support on Windows
+	- VST SDK for building VST plugins
+	- Intel Performance Primitives (this is optional but heavily increases the performance of the convolution reverb)
+
+4. Get the Introjucer (its a customized version from the original JUCE code with support for IPP): 
+    - [OS X](https://github.com/christophhart/JUCE4HISE/files/492650/Introjucer.OS.X.zip)
+    - [Windows]()
+
+5. Open the Introjucer and load the HISE project (either `projects/standalone/HISE Standalone.jucer` or `project/plugin/HISE.jucer`)
+
+6. Make sure the VST / ASIO path settings is correct on your system. If you don't have IPP installed, set the USE_IPP flag in the hi_core module to 0.
+
+7. Click on "Save Project and open in IDE" to load the project in XCode / Visual Studio
+
+8. Hit compile and wait...
+
+
 ## Licence
 
 GPL v3 or a commercial licence for closed source usage. HISE is based on JUCE, which must be separately licenced.
