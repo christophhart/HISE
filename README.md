@@ -68,9 +68,9 @@ It supports x86 and x64 on Windows, altough the 64bit version is highly recommen
    [JUCE 4 HISE](https://github.com/christophhart/JUCE4HISE). Create a sub directory in the HISE repository root folder called "JUCE" and put all files there.
 
 3. Get all necessary 3rd party code:
-	- ASIO SDK for standalone support on Windows
-	- VST SDK for building VST plugins
-	- Intel Performance Primitives (this is optional but heavily increases the performance of the convolution reverb)
+	- [ASIO SDK](http://www.steinberg.net/sdk_downloads/asiosdk2.3.zip) for standalone support on Windows.
+	- [VST SDK](http://www.steinberg.net/sdk_downloads/vstsdk366_27_06_2016_build_61.zip) for building VST plugins
+	- [Intel Performance Primitives](https://software.intel.com/en-us/articles/free-ipp) (this is optional but heavily increases the performance of the convolution reverb)
 
 4. Get the customized Introjucer (a fork from the original JUCE 4.1 code with support for IPP): 
     - [OS X](https://github.com/christophhart/JUCE4HISE/files/492650/Introjucer.OS.X.zip)
