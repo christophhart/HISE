@@ -45,17 +45,19 @@
             useIPP="Sequential" extraCompilerFlags="">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
-                       isDebug="1" optimisation="1" targetName="HISE Standalone" headerPath="C:\SDKs\ASIOSDK2.3\common&#10;&#10;"
-                       libraryPath=""/>
+                       isDebug="1" optimisation="1" targetName="HISE Standalone Debug"
+                       headerPath="C:\SDKs\ASIOSDK2.3\common&#10;&#10;" libraryPath=""
+                       useRuntimeLibDLL="0"/>
         <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
                        isDebug="0" optimisation="3" targetName="HISE Standalone" headerPath="C:\SDKs\ASIOSDK2.3\common"
-                       binaryPath="" alwaysGenerateDebugSymbols="0"/>
+                       binaryPath="" alwaysGenerateDebugSymbols="0" useRuntimeLibDLL="0"/>
         <CONFIGURATION name="Release 64bit" winWarningLevel="4" generateManifest="1"
                        winArchitecture="x64" isDebug="0" optimisation="3" targetName="HISE Standalone x64"
-                       headerPath="C:\SDKs\ASIOSDK2.3\common" binaryPath="" alwaysGenerateDebugSymbols="1"
+                       headerPath="C:\SDKs\ASIOSDK2.3\common" binaryPath="" alwaysGenerateDebugSymbols="0"
                        useRuntimeLibDLL="0" additionalXmlProperties="UseIntelIPP=Sequential"/>
         <CONFIGURATION name="Debug 64bit" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
-                       isDebug="1" optimisation="1" targetName="HISE Standalone" headerPath="C:\SDKs\ASIOSDK2.3\common"/>
+                       isDebug="1" optimisation="1" targetName="HISE Standalone x64 Debug"
+                       headerPath="C:\SDKs\ASIOSDK2.3\common" useRuntimeLibDLL="0"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_opengl" path="..\..\JUCE\modules"/>
@@ -148,6 +150,44 @@
         <MODULEPATH id="hi_dsp_library" path="../../"/>
       </MODULEPATHS>
     </XCODE_IPHONE>
+    <VS2015 targetFolder="Builds/VisualStudio2015" smallIcon="bfBEgJ" bigIcon="bfBEgJ"
+            useIPP="Sequential">
+      <CONFIGURATIONS>
+        <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
+                       isDebug="1" optimisation="1" targetName="HISE Standalone Debug"
+                       headerPath="C:\SDKs\ASIOSDK2.3\common&#10;&#10;" useRuntimeLibDLL="0"/>
+        <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
+                       isDebug="0" optimisation="3" targetName="HISE Standalone" headerPath="C:\SDKs\ASIOSDK2.3\common&#10;&#10;"
+                       useRuntimeLibDLL="0"/>
+        <CONFIGURATION name="Debug 64bit" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
+                       isDebug="1" optimisation="1" targetName="HISE Standalone x64 Debug"
+                       headerPath="C:\SDKs\ASIOSDK2.3\common&#10;&#10;" useRuntimeLibDLL="0"/>
+        <CONFIGURATION name="Release 64bit" winWarningLevel="4" generateManifest="1"
+                       winArchitecture="32-bit" isDebug="0" optimisation="3" targetName="HISE Standalone x64"
+                       headerPath="C:\SDKs\ASIOSDK2.3\common&#10;&#10;" useRuntimeLibDLL="0"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_tracktion_marketplace" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_opengl" path="..\..\JUCE\modules"/>
+        <MODULEPATH id="juce_gui_extra" path="..\..\JUCE\modules"/>
+        <MODULEPATH id="juce_gui_basics" path="..\..\JUCE\modules"/>
+        <MODULEPATH id="juce_graphics" path="..\..\JUCE\modules"/>
+        <MODULEPATH id="juce_events" path="..\..\JUCE\modules"/>
+        <MODULEPATH id="juce_data_structures" path="..\..\JUCE\modules"/>
+        <MODULEPATH id="juce_cryptography" path="..\..\JUCE\modules"/>
+        <MODULEPATH id="juce_core" path="..\..\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_utils" path="..\..\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_processors" path="..\..\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_formats" path="..\..\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_devices" path="..\..\JUCE\modules"/>
+        <MODULEPATH id="juce_audio_basics" path="..\..\JUCE/modules"/>
+        <MODULEPATH id="hi_scripting" path="../../"/>
+        <MODULEPATH id="hi_modules" path="../../"/>
+        <MODULEPATH id="hi_dsp_library" path="../../"/>
+        <MODULEPATH id="hi_core" path="../../"/>
+        <MODULEPATH id="hi_backend" path="../../"/>
+      </MODULEPATHS>
+    </VS2015>
   </EXPORTFORMATS>
   <MODULES>
     <MODULE id="hi_backend" showAllCode="1" useLocalCopy="0"/>
