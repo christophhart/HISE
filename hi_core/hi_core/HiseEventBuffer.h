@@ -50,6 +50,8 @@ public:
 		SongPosition,
 		MidiStart,
 		MidiStop,
+		VolumeFade,
+		PitchFade,
 		numTypes
 	};
 
@@ -131,6 +133,37 @@ public:
 
 	float getGainFactor() const noexcept { return Decibels::decibelsToGain((float)gain); };
 
+	static HiseEvent createVolumeFade(int16 eventId, int fadeTimeMilliseconds, int8 targetValue)
+	{
+		HiseEvent e(Type::VolumeFade, 0, 0, 1);
+
+		e.setEventId(eventId);
+		e.setGain(targetValue);
+		e.setPitchWheelValue(fadeTimeMilliseconds);
+		e.setArtificial();
+
+		return e;	
+	}
+
+	static HiseEvent createPitchFade(int16 eventId, int fadeTimeMilliseconds, int8 coarseTune, int8 fineTune)
+	{
+		HiseEvent e(Type::PitchFade, 0, 0, 1);
+
+		e.setEventId(eventId);
+		e.setCoarseDetune((int)coarseTune);
+		e.setFineDetune(fineTune);
+		e.setPitchWheelValue(fadeTimeMilliseconds);
+		e.setArtificial();
+
+		return e;
+	}
+
+	bool isVolumeFade() const noexcept{ return type == Type::VolumeFade; };
+
+	bool isPitchFade() const noexcept{ return type == Type::PitchFade; }
+
+	int getFadeTime() const noexcept{ return getPitchWheelValue(); };
+
 	// ========================================================================================================================== MIDI Message methods
 
 	uint32 getTimeStamp() const noexcept{ return timeStamp; };
@@ -160,6 +193,11 @@ public:
 	{ 
 		number = position & 127;
 		value =  (position >> 7) & 127;
+	};
+
+	void setFadeTime(int fadeTime) noexcept
+	{
+		setPitchWheelValue(fadeTime);
 	}
 
 	bool isChannelPressure() const noexcept{ return type == Type::Aftertouch; };
@@ -293,13 +331,15 @@ public:
 
 		const HiseEvent* getNoteOnEventFor(const HiseEvent &noteOffEvent) const;
 
-		int requestEventIdForArtificialNote() noexcept;
+		int requestEventIdForArtificialNote(const HiseEvent& noteOnEvent) noexcept;
 
 	private:
 
 		HiseEventBuffer &masterBuffer;
 
 		HiseEvent noteOnEvents[128];
+
+		HiseEvent artificialNoteOnEvents[128];
 
 		uint32 currentEventId;
 	};

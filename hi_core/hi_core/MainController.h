@@ -419,6 +419,8 @@ public:
 
 	const HiseEvent* getNoteOnEventFor(const HiseEvent& noteOffEvent) const;
 
+	int requestNewEventIdForArtificialNoteOn(const HiseEvent &noteOnEvent);
+
 protected:
 
 	/** This is the main processing loop that is shared among all subclasses. */

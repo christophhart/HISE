@@ -296,6 +296,10 @@ public:
 
 	void handleHostInfoHiseEvents();
 
+	void handleVolumeFade(int eventId, int fadeTimeMilliseconds, float gain);
+	
+	void handlePitchFade(int eventId, int fadeTimeMilliseconds, double pitchFactor);
+
 	virtual void preHiseEventCallback(const HiseEvent &e);
 
 	/** Use this to do any special handling before the voice gets started. */
@@ -369,6 +373,8 @@ public:
 
 	/** Checks if the message fits the sound, but can be overriden to implement other group start logic. */
 	virtual bool soundCanBePlayed(ModulatorSynthSound *sound, int midiChannel, int midiNoteNumber, float velocity);
+
+	void startVoiceWithHiseEvent(ModulatorSynthVoice* voice, SynthesiserSound *sound, const HiseEvent &e);
 
 	/** Same functionality as Synthesiser::noteOn(), but calls calculateVoiceStartValue() if a new voice is started. */
 	void noteOn(const HiseEvent &m);
@@ -672,9 +678,16 @@ public:
 		return s != nullptr;
 	};
 
+	
+	void setCurrentHiseEvent(const HiseEvent &m);
+
+	const HiseEvent &getCurrentHiseEvent() const { return currentHiseEvent; }
+
 	/** This calculates the angle delta. For this synth, it detects the sine frequency, but you can override it to make something else. */
 	virtual void startNote (int /*midiNoteNumber*/, float /*velocity*/, SynthesiserSound* , int /*currentPitchWheelPosition*/)
 	{
+		jassert(!currentHiseEvent.isEmpty());
+
 		getOwnerSynth()->getMainController()->increaseVoiceCounter();
 
 		killThisVoice = false;
@@ -708,6 +721,7 @@ public:
 
 		uptimeDelta = 0.0;
         isActive = false;
+		
 	};
 
 	virtual void resetVoice();
@@ -753,6 +767,31 @@ public:
 		}
 	}
 
+	void applyEventVolumeFade(int startSample, int numSamples)
+	{
+		while (--numSamples >= 0)
+		{
+			eventGainFactor = gainFader.getNextValue();
+
+			for (int i = 0; i < voiceBuffer.getNumChannels(); i++)
+			{
+				voiceBuffer.getWritePointer(i)[startSample] *= eventGainFactor;
+			}
+
+			startSample++;
+		}
+	}
+
+	void applyEventVolumeFactor(int startSample, int numSamples)
+	{
+		jassert(eventGainFactor >= 0.0f && eventGainFactor < 20.0f);
+
+		for (int i = 0; i < voiceBuffer.getNumChannels(); i++)
+		{
+			FloatVectorOperations::multiply(voiceBuffer.getWritePointer(i) + startSample , eventGainFactor, numSamples);
+		}
+	}
+
 	/** This checks the envelopes of the gain modulation if any envelopes are tailing off. */
 	virtual void checkRelease();
 
@@ -781,8 +820,17 @@ public:
 	void setTransposeAmount(int value) noexcept{ transposeAmount = value; };
 	int getTransposeAmount() const noexcept { return transposeAmount; };
 
-	void setEventPitchFactor(double pitchFactor) { eventPitchFactor = pitchFactor; };
-	void setEventGainFactor(float gainFactor) { eventGainFactor = gainFactor; };
+	void setVolumeFade(double fadeTimeSeconds, float targetVolume)
+	{
+		gainFader.setValue(eventGainFactor);
+		gainFader.reset(getSampleRate(), fadeTimeSeconds);
+		gainFader.setValue(targetVolume);
+	}
+
+	void setPitchFade(int fadeTimeSeconds, double targetPitch)
+	{
+		gainFader.reset(getSampleRate(), fadeTimeSeconds);
+	}
 
 protected:
 
@@ -818,6 +866,11 @@ protected:
     bool isActive = false;
     
 private:
+
+	HiseEvent currentHiseEvent;
+
+	LinearSmoothedValue<double> pitchFader;
+	LinearSmoothedValue<float> gainFader;
 
 	bool pitchModulationActive;
 

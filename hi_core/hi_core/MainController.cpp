@@ -698,6 +698,9 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	}
 
 #if !FRONTEND_IS_PLUGIN
+    
+    
+    
 	keyboardState.processNextMidiBuffer(midiMessages, 0, buffer.getNumSamples(), true);
 
 
@@ -942,6 +945,10 @@ const HiseEvent* MainController::getNoteOnEventFor(const HiseEvent& noteOffEvent
 	return eventIdHandler.getNoteOnEventFor(noteOffEvent);
 }
 
+int MainController::requestNewEventIdForArtificialNoteOn(const HiseEvent &noteOnEvent) 
+{
+	return eventIdHandler.requestEventIdForArtificialNote(noteOnEvent);
+}
 
 ControlledObject::ControlledObject(MainController *m):	
 	controller(m)	{jassert(m != nullptr);};

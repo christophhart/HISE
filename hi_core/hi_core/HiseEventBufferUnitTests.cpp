@@ -54,6 +54,8 @@ public:
 
 		testEventBuffer();
 
+		testFadeEvent();
+
 		testEventBufferCopyMethods();
 
 		testMidiBufferCopyMethods();
@@ -273,6 +275,33 @@ private:
 
 		expect(*iter2.getNextEventPointer(false,false) == firstEvent);
 		expect(*iter2.getNextEventPointer(false,false) == secondEvent, "Correct order of insertion");
+
+	}
+
+	void testFadeEvent()
+	{
+		beginTest("Testing Fade events");
+
+		HiseEvent e = HiseEvent::createVolumeFade(1292, 2000, -24);
+		
+		expectEquals<int>(e.getChannel(), 1, "Channel");
+		expectEquals<int>(e.getFadeTime(), 2000, "Fade Time");
+		expectEquals<int>(e.getGain(), -24, "Gain");
+		expect(e.isArtificial(), "Volume Artificial");
+		expect(e.isVolumeFade(), "Type");
+		expect(!e.isPitchFade(), "No Pitch Fade");
+
+		HiseEvent p = HiseEvent::createPitchFade(1298, 2100, -11, -100);
+
+		expectEquals<int>(p.getChannel(), 1, "Channel");
+		expectEquals<int>(p.getFadeTime(), 2100, "Fade Time");
+		expectEquals<int>(p.getCoarseDetune(), -11, "Coarse Detune");
+		expectEquals<int>(p.getFineDetune(), -100, "Fine Detune");
+		expectEquals<double>(p.getPitchFactorForEvent(), 0.5, "Pitch Factor");
+		expect(p.isPitchFade(), "Type");
+		expect(p.isArtificial(), "Pitch Artificial");
+		expect(!p.isVolumeFade(), "No Pitch Fade");
+
 
 	}
 

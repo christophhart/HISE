@@ -164,6 +164,9 @@ public:
 		/** Returns the fine detune amount int cents. */
 		int getFineDetune() const;
 
+		void setGain(int gainInDecibels);
+
+		int getGain() const;
 
 		// ============================================================================================================
 
@@ -405,6 +408,12 @@ public:
 		/** Plays a note. Be careful or you get stuck notes! */
 		void playNote(int noteNumber, int velocity);
 		
+		/** Fades all voices with the given event id to the target volume (in decibels). */
+		void addVolumeFade(int eventId, int fadeTimeMilliseconds, int targetVolume);
+
+		/** Adds a pitch fade to the given event ID. */
+		void addPitchFade(int eventId, int fadeTimeMilliseconds, int targetCoarsePitch, int targetFinePitch);
+
 		/** Starts the timer of the synth. */
 		void startTimer(double milliseconds);
 		

@@ -302,6 +302,14 @@ void ModulatorSynth::handleHiseEvent(const HiseEvent& m)
 	{
 		handleController(channel, m.getControllerNumber(), m.getControllerValue());
 	}
+	else if (m.isVolumeFade())
+	{
+		handleVolumeFade(m.getEventId(), m.getFadeTime(), m.getGainFactor());
+	}
+	else if (m.isPitchFade())
+	{
+		handlePitchFade(m.getEventId(), m.getFadeTime(), m.getPitchFactorForEvent());
+	}
 }
 
 void ModulatorSynth::handleHostInfoHiseEvents()
@@ -361,6 +369,36 @@ void ModulatorSynth::handleHostInfoHiseEvents()
 	}
 }
 
+void ModulatorSynth::handleVolumeFade(int eventId, int fadeTimeMilliseconds, float gain)
+{
+	const double fadeTimeSeconds = (double)fadeTimeMilliseconds / 1000.0;
+
+	for (int i = voices.size(); --i >= 0;)
+	{
+		ModulatorSynthVoice *v = static_cast<ModulatorSynthVoice*>(voices[i]);
+
+		if (!v->isInactive() && v->getCurrentHiseEvent().getEventId() == eventId)
+		{
+			v->setVolumeFade(fadeTimeSeconds, gain);
+		}
+	}
+}
+
+void ModulatorSynth::handlePitchFade(int eventId, int fadeTimeMilliseconds, double pitchFactor)
+{
+	const double fadeTimeSeconds = (double)fadeTimeMilliseconds / 1000.0;
+
+	for (int i = voices.size(); --i >= 0;)
+	{
+		ModulatorSynthVoice *v = static_cast<ModulatorSynthVoice*>(voices[i]);
+
+		if (!v->isInactive() && v->getCurrentHiseEvent().getEventId() == eventId)
+		{
+			v->setPitchFade(fadeTimeSeconds, gain);
+		}
+	}
+}
+
 void ModulatorSynth::preHiseEventCallback(const HiseEvent &e)
 {
 	if (e.isAllNotesOff()) stopSynthTimer();
@@ -379,6 +417,14 @@ bool ModulatorSynth::soundCanBePlayed(ModulatorSynthSound *sound, int midiChanne
 
 
 	
+void ModulatorSynth::startVoiceWithHiseEvent(ModulatorSynthVoice* voice, SynthesiserSound *sound, const HiseEvent &e)
+{
+	
+	voice->setCurrentHiseEvent(e);
+
+	Synthesiser::startVoice(static_cast<SynthesiserVoice*>(voice), sound, e.getChannel(), e.getNoteNumber(), e.getFloatVelocity());
+}
+
 void ModulatorSynth::preStartVoice(int voiceIndex, int noteNumber)
 {
 	lastStartedVoice = static_cast<ModulatorSynthVoice*>(getVoice(voiceIndex));
@@ -515,10 +561,7 @@ void ModulatorSynth::noteOn(const HiseEvent &m)
 
 				preStartVoice(voiceIndex, transposedMidiNoteNumber);
 
-				v->setTransposeAmount(m.getTransposeAmount());
-				v->setEventPitchFactor(m.getPitchFactorForEvent());
-
-				startVoice (v, sound, midiChannel, midiNoteNumber, velocity);
+				startVoiceWithHiseEvent (v, sound, m);
 			}
 
 			// Deactivates starting of more than one voice per synth
@@ -632,6 +675,8 @@ void ModulatorSynthVoice::resetVoice()
 
 	killThisVoice = false;
 	killFadeLevel = 1.0f;
+
+	currentHiseEvent = HiseEvent();
 
 	getOwnerSynth()->getMainController()->decreaseVoiceCounter();
 }
@@ -786,6 +831,16 @@ void ModulatorSynthVoice::renderNextBlock (AudioSampleBuffer& outputBuffer, int 
 
 		calculateBlock(startSample, numSamples);
 
+		
+		if (gainFader.isSmoothing())
+		{
+			applyEventVolumeFade(startSample, numSamples);
+		}
+		else if (eventGainFactor != 1.0f)
+		{
+			applyEventVolumeFactor(startSample, numSamples);
+		}
+
 		if(killThisVoice)
 		{
 			applyKillFadeout(startSample, numSamples);
@@ -801,6 +856,15 @@ void ModulatorSynthVoice::renderNextBlock (AudioSampleBuffer& outputBuffer, int 
 		// checks if any envelopes are active and in their release state and calls stopNote until they are finished.
 		checkRelease();
     }
+}
+
+void ModulatorSynthVoice::setCurrentHiseEvent(const HiseEvent &m)
+{
+	currentHiseEvent = m;
+
+	transposeAmount = m.getTransposeAmount();
+	eventGainFactor = m.getGainFactor();
+	eventPitchFactor = m.getPitchFactorForEvent();
 }
 
 void ModulatorSynthChainFactoryType::fillTypeNameList()

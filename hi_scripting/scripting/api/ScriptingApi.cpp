@@ -277,6 +277,8 @@ struct ScriptingApi::Message::Wrapper
 	API_METHOD_WRAPPER_0(Message, getCoarseDetune);
 	API_VOID_METHOD_WRAPPER_1(Message, setFineDetune);
 	API_METHOD_WRAPPER_0(Message, getFineDetune);
+	API_VOID_METHOD_WRAPPER_1(Message, setGain);
+	API_METHOD_WRAPPER_0(Message, getGain);
 };
 
 
@@ -299,6 +301,8 @@ constMessageHolder(nullptr)
 	ADD_API_METHOD_0(getEventId);
 	ADD_API_METHOD_0(getChannel);
 	ADD_API_METHOD_1(setChannel);
+	ADD_API_METHOD_0(getGain);
+	ADD_API_METHOD_1(setGain);
 	ADD_API_METHOD_1(setTransposeAmount);
 	ADD_API_METHOD_0(getTransposeAmount);
 	ADD_API_METHOD_1(setCoarseDetune);
@@ -602,6 +606,32 @@ int ScriptingApi::Message::getFineDetune() const
 	return constMessageHolder->getFineDetune();
 }
 
+
+void ScriptingApi::Message::setGain(int gainInDecibels)
+{
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+	if (messageHolder == nullptr)
+	{
+		reportIllegalCall("setGain()", "midi event");
+		return ;
+	}
+#endif
+
+	messageHolder->setGain(gainInDecibels);
+}
+
+int ScriptingApi::Message::getGain() const
+{
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+	if (constMessageHolder == nullptr)
+	{
+		reportIllegalCall("getGain()", "midi event");
+		return 0;
+	}
+#endif
+
+	return constMessageHolder->getGain();
+}
 
 void ScriptingApi::Message::setHiseEvent(HiseEvent &m)
 {
@@ -1273,6 +1303,8 @@ struct ScriptingApi::Synth::Wrapper
 	API_METHOD_WRAPPER_1(Synth, getAttribute);
 	API_VOID_METHOD_WRAPPER_4(Synth, addNoteOn);
 	API_VOID_METHOD_WRAPPER_3(Synth, addNoteOff);
+	API_VOID_METHOD_WRAPPER_3(Synth, addVolumeFade);
+	API_VOID_METHOD_WRAPPER_4(Synth, addPitchFade);
 	API_VOID_METHOD_WRAPPER_4(Synth, addController);
 	API_VOID_METHOD_WRAPPER_2(Synth, setVoiceGainValue);
 	API_VOID_METHOD_WRAPPER_2(Synth, setVoicePitchValue);
@@ -1316,6 +1348,8 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	ADD_API_METHOD_1(getAttribute);
 	ADD_API_METHOD_4(addNoteOn);
 	ADD_API_METHOD_3(addNoteOff);
+	ADD_API_METHOD_3(addVolumeFade);
+	ADD_API_METHOD_4(addPitchFade);
 	ADD_API_METHOD_4(addController);
 	ADD_API_METHOD_2(setVoiceGainValue);
 	ADD_API_METHOD_2(setVoicePitchValue);
@@ -1386,6 +1420,46 @@ void ScriptingApi::Synth::playNote(int noteNumber, int velocity)
 	addNoteOn(1, noteNumber, velocity, timestamp);
 }
 
+
+void ScriptingApi::Synth::addVolumeFade(int eventId, int fadeTimeMilliseconds, int targetVolume)
+{
+	if (ScriptBaseMidiProcessor* sp = dynamic_cast<ScriptBaseMidiProcessor*>(getScriptProcessor()))
+	{
+		if (eventId > 0)
+		{
+			if (fadeTimeMilliseconds > 0)
+			{
+				DBG("TUT");
+
+				HiseEvent e = HiseEvent::createVolumeFade(eventId, fadeTimeMilliseconds, targetVolume);
+
+				e.setTimeStamp(sp->getCurrentHiseEvent()->getTimeStamp() + 1);
+
+				sp->addHiseEventToBuffer(e);
+			}
+			else reportScriptError("Fade time must be positive");
+		}
+		else reportScriptError("Event ID must be positive");
+	}
+	else reportScriptError("Only valid in MidiProcessors");
+}
+
+void ScriptingApi::Synth::addPitchFade(int eventId, int fadeTimeMilliseconds, int targetCoarsePitch, int targetFinePitch)
+{
+	if (ScriptBaseMidiProcessor* sp = dynamic_cast<ScriptBaseMidiProcessor*>(getScriptProcessor()))
+	{
+		if (eventId > 0)
+		{
+			if (fadeTimeMilliseconds > 0)
+			{
+				sp->addHiseEventToBuffer(HiseEvent::createPitchFade(eventId, fadeTimeMilliseconds, targetCoarsePitch, targetFinePitch));
+			}
+			else reportScriptError("Fade time must be positive");
+		}
+		else reportScriptError("Event ID must be positive");
+	}
+	else reportScriptError("Only valid in MidiProcessors");
+}
 
 void ScriptingApi::Synth::startTimer(double intervalInSeconds)
 {
@@ -1725,6 +1799,11 @@ void ScriptingApi::Synth::addNoteOn(int channel, int noteNumber, int velocity, i
 						m.setTimeStamp((uint16)sp->getCurrentHiseEvent()->getTimeStamp() + (uint16)timeStampSamples);
 						m.setArtificial();
 
+						const int newEventId = sp->getMainController()->requestNewEventIdForArtificialNoteOn(m);
+						jassert(m.getEventId() == 0);
+						
+						m.setEventId(newEventId);
+						
 						sp->addHiseEventToBuffer(m);
 					}
 					else reportScriptError("Only valid in MidiProcessors");
@@ -1754,6 +1833,10 @@ void ScriptingApi::Synth::addNoteOff(int channel, int noteNumber, int timeStampS
 					HiseEvent m = HiseEvent(HiseEvent::Type::NoteOff, (uint8)noteNumber, 127, (uint8)channel);
 					m.setTimeStamp((uint16)sp->getCurrentHiseEvent()->getTimeStamp() + (uint16)timeStampSamples);
 					m.setArtificial();
+
+					const int eventId = sp->getMainController()->getNoteOnEventFor(m)->getEventId();
+
+					m.setEventId(eventId);
 
 					sp->addHiseEventToBuffer(m);
 

@@ -341,6 +341,9 @@ void HiseEventBuffer::EventIdHandler::handleEventIds()
 	for (int i = 0; i < masterBuffer.numUsed; i++)
 	{
 		HiseEvent* m = &masterBuffer.buffer[i];
+
+		jassert(!m->isArtificial());
+
 		if (m->isNoteOn())
 		{
 			m->setEventId(currentEventId);
@@ -362,15 +365,29 @@ const HiseEvent* HiseEventBuffer::EventIdHandler::getNoteOnEventFor(const HiseEv
 
 	const int noteNumber = noteOffEvent.getNoteNumber();
 
-	const HiseEvent *m = &noteOnEvents[noteNumber];
-
-	jassert(noteOffEvent.getEventId() == m->getEventId());
-
-	return m;
+	if (noteOffEvent.isArtificial())
+	{
+		const HiseEvent *m = &artificialNoteOnEvents[noteNumber];
+		jassert(noteOffEvent.isArtificial() == m->isArtificial());
+		return m;
+	}
+	else
+	{
+		const HiseEvent *m = &noteOnEvents[noteNumber];
+		jassert(noteOffEvent.isArtificial() == m->isArtificial());
+		return m;
+	}
 }
 
-int HiseEventBuffer::EventIdHandler::requestEventIdForArtificialNote() noexcept
+int HiseEventBuffer::EventIdHandler::requestEventIdForArtificialNote(const HiseEvent &e) noexcept
 {
+	jassert(e.isNoteOn());
+
+	jassert(e.isArtificial());
+
+	artificialNoteOnEvents[e.getNoteNumber()] = e;
+	artificialNoteOnEvents[e.getNoteNumber()].setEventId(currentEventId);
+
 	return currentEventId++;
 }
 
