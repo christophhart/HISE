@@ -57,7 +57,9 @@ public:
 
 private:
 
+#if USE_IPP
 	ScopedPointer<IppFFT> fftData;
+#endif
 
 };
 

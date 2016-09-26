@@ -25,13 +25,22 @@
 
 FFTProcessor::FFTProcessor(int fftDataType)
 {
+#if USE_IPP
 	fftData = new IppFFT((IppFFT::DataType)fftDataType);
+#else
+	jassertfalse;
+#endif
 }
 
 
 IppFFT * FFTProcessor::getFFTObject()
 {
+#if USE_IPP
 	return fftData.get();
+#else
+	jassertfalse;
+	return nullptr;
+#endif
 }
 
 //******************************************************************************
@@ -106,7 +115,7 @@ void FFTProcessor::ifft(float* d, int size)
 #endif
 #else
 	cdft(2*size, 1, d);
-	mul(d, 1.0f/static_cast<float>(size), 2*size);
+	VectorFunctions::mul(d, 1.0f / static_cast<float>(size), 2 * size);
 #endif
 }
 
@@ -156,7 +165,7 @@ void FFTProcessor::realfft(float* d, int size)
 #endif
 #else
 	rdft(size, 1, d);		
-	cpxconj(d, size>>1);	// preserve aligned processing if d aligned
+	VectorFunctions::cpxconj(d, size>>1);	// preserve aligned processing if d aligned
 	d[1] = -d[1];			//
 #endif
 }
@@ -205,8 +214,8 @@ void FFTProcessor::realifft(float* d, int size)
 	}
 #endif
 #else
-	mul(d, 2.0f/static_cast<float>(size), size);
-	cpxconj(d, size>>1);	// preserve aligned processing if d aligned
+	VectorFunctions::mul(d, 2.0f/static_cast<float>(size), size);
+	VectorFunctions::cpxconj(d, size >> 1);	// preserve aligned processing if d aligned
 	d[1] = -d[1];			//
 	rdft(size, -1, d);
 #endif

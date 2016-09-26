@@ -166,8 +166,10 @@ static bool CompareQueueToBuf(WDL_FastQueue *q, const void *data, int len)
 }
 
 
-WDL_ConvolutionEngine::WDL_ConvolutionEngine():
-fftData(IppFFT::DataType::ComplexFloat)
+WDL_ConvolutionEngine::WDL_ConvolutionEngine()
+#if USE_IPP
+	:fftData(IppFFT::DataType::ComplexFloat)
+#endif
 {
   WDL_fft_init();
   m_impulse_nch=1;

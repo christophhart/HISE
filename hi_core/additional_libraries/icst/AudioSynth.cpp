@@ -51,7 +51,7 @@ void GetAntiDenormalTable(float* d, int size)
 WaveOsc::WaveOsc(int tablesize, int tables, float maxpitch, float minpitch, 
 				 float smprate)
 {	
-	dspInstance = new FFTProcessor((int)IppFFT::DataType::RealFloat);
+	//dspInstance = new FFTProcessor((int)IppFFT::DataType::RealFloat);
 
 	// minimum frequency to which spectral components are aliased AND desired
 	// spectral components are produced if possible with specified table size

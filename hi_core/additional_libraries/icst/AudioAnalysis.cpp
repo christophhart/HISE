@@ -18,10 +18,12 @@
 
 	AudioAnalysisBase::AudioAnalysisBase()
 	{
+#if USE_IPP
 		realFloatFFTs = new FFTProcessor((int)IppFFT::DataType::RealFloat);
 		realDoubleFFTs = new FFTProcessor((int)IppFFT::DataType::RealDouble);
 		complexFloatFFTs = new FFTProcessor((int)IppFFT::DataType::ComplexFloat);
 		complexDoubleFFTs = new FFTProcessor((int)IppFFT::DataType::ComplexDouble);
+#endif
 	}
 
 	AudioAnalysisBase::~AudioAnalysisBase()

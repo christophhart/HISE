@@ -19,8 +19,6 @@
 
 // (You can add your own code in this section, and the Introjucer will not overwrite it)
 
-#define USE_IPP 1
-#include "ipp.h"
 
 // [END_USER_CODE_SECTION]
 

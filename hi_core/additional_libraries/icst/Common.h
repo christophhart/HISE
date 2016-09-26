@@ -12,9 +12,8 @@
 //#define ICSTLIB_NO_SSEOPT
 //#define ICSTLIB_DEF_ROUND
 //#define ICSTLIB_ENABLE_MFC
-#define ICSTLIB_USE_IPP 1
 
-#ifdef USE_IPP
+#if USE_IPP
 #define ICSTLIB_USE_IPP 1
 #endif
 
