@@ -196,7 +196,6 @@ public:
 
 				const float w = 0.5f * lastWidth;
 
-#if 1
 				while (--numSamples >= 0)
 				{
 					const float m = (*l + *r) * 0.5f;
@@ -208,27 +207,6 @@ public:
 					l++;
 					r++;
 				}
-
-#else
-
-				float *s = sb->buffer.getWritePointer(0);
-				float *m = mb->buffer.getWritePointer(0);
-
-				FloatVectorOperations::copy(m, l, numSamples);
-				FloatVectorOperations::add(m, r, numSamples);
-				FloatVectorOperations::multiply(m, 0.5f, numSamples);
-
-				FloatVectorOperations::copy(r, s, numSamples);
-				FloatVectorOperations::subtract(s, l, numSamples);
-				FloatVectorOperations::multiply(s, 0.5f * width, numSamples);
-
-				FloatVectorOperations::copy(l, m, numSamples);
-				FloatVectorOperations::subtract(l, s, numSamples);
-
-				FloatVectorOperations::copy(r, m, numSamples);
-				FloatVectorOperations::add(r, s, numSamples);
-#endif
-
 			}
 		}
 

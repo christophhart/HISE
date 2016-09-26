@@ -213,6 +213,10 @@ public:
 
 private:
 
+    const CriticalSection& getLock() const { return lock; };
+    
+    CriticalSection lock;
+    
 	void throwError(const String &errorMessage)
 	{
 		throw String(errorMessage);

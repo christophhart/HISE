@@ -60,6 +60,8 @@ bypassed(false)
 
 void DspInstance::initialise()
 {
+    ScopedLock sl(getLock());
+    
 	if (DynamicDspFactory* dynamicFactory = dynamic_cast<DynamicDspFactory*>(factory.get()))
 	{
 		if ((int)dynamicFactory->getErrorCode() != (int)LoadingErrorCode::LoadingSuccessful)
@@ -147,6 +149,8 @@ void DspInstance::processBlock(const var &data)
 {
 	if (!prepareToPlayWasCalled) throw String(moduleName + ": prepareToPlay must be called before processing buffers.");
 
+    ScopedLock sl(getLock());
+    
 	bool skipProcessing = isBypassed() && !switchBypassFlag;
 
 	
@@ -156,13 +160,13 @@ void DspInstance::processBlock(const var &data)
 		if (data.isArray())
 		{
 			Array<var> *a = data.getArray();
-			float *sampleData[4]; // this is an arbitrary amount, but it should be OK...
+			float *sampleData[2];
 			int numSamples = -1;
 
 			if (a == nullptr)
 				throwError("processBlock must be called on array of buffers");
 
-			for (int i = 0; i < jmin<int>(4, a->size()); i++)
+			for (int i = 0; i < jmin<int>(2, a->size()); i++)
 			{
 				VariantBuffer *b = a->getUnchecked(i).getBuffer();
 
@@ -237,6 +241,8 @@ void DspInstance::setParameter(int index, float newValue)
 {
 	if (object != nullptr && index < object->getNumParameters())
 	{
+        ScopedLock sl(getLock());
+        
 		object->setParameter(index, newValue);
 	}
 }
@@ -299,6 +305,8 @@ void DspInstance::setStringParameter(int index, String value)
 {
 	if (object != nullptr)
 	{
+        ScopedLock sl(getLock());
+        
 		object->setStringParameter(index, value.getCharPointer(), value.length());
 	}
 }
@@ -327,6 +335,8 @@ String DspInstance::getStringParameter(int index)
 
 void DspInstance::setBypassed(bool shouldBeBypassed)
 {
+    ScopedLock sl(getLock());
+    
 	bypassed.store(shouldBeBypassed);
 	switchBypassFlag = true;
 }
@@ -405,14 +415,14 @@ DspInstance::~DspInstance()
 	}
 
 	unload();
-
-
 }
 
 void DspInstance::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
 	if (object != nullptr && samplesPerBlock > 0 && sampleRate > 0.0)
 	{
+        ScopedLock sl(getLock());
+        
 		object->prepareToPlay(sampleRate, samplesPerBlock);
 
 		bypassSwitchBuffer.setSize(2, samplesPerBlock);
@@ -439,6 +449,8 @@ void DspInstance::unload()
 {
 	if (factory != nullptr)
 	{
+        ScopedLock sl(getLock());
+        
 		factory->destroyDspBaseObject(object);
 		object = nullptr;
 		factory = nullptr;

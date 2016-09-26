@@ -507,7 +507,7 @@ void JavascriptMasterEffect::prepareToPlay(double sampleRate, int samplesPerBloc
 	Array<var> channelArray;
 
 	bufferL = new VariantBuffer(0);
-	bufferR = new VariantBuffer(1);
+	bufferR = new VariantBuffer(0);
 
 	channelArray.add(var(bufferL));
 	channelArray.add(var(bufferR));
@@ -530,8 +530,10 @@ void JavascriptMasterEffect::applyEffect(AudioSampleBuffer &b, int startSample, 
 	{
 		ScopedReadLock sl(getMainController()->getCompileLock());
 
-		float *l = b.getWritePointer(0, startSample);
-		float *r = b.getWritePointer(1, startSample);
+        jassert(startSample == 0);
+        
+		float *l = b.getWritePointer(0, 0);
+		float *r = b.getWritePointer(1, 0);
 
 		bufferL->referToData(l, numSamples);
 		bufferR->referToData(r, numSamples);
