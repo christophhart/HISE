@@ -286,7 +286,7 @@ public:
 	const AudioSampleBuffer &getPreloadBuffer() const
 	{
 		// This should not happen (either its unloaded or it has some samples)...
-		jassert(preloadBuffer.getNumSamples() != 0);
+		//jassert(preloadBuffer.getNumSamples() != 0);
 
 		return preloadBuffer;
 	}

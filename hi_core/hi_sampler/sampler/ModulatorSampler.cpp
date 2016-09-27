@@ -710,9 +710,17 @@ bool ModulatorSampler::soundCanBePlayed(ModulatorSynthSound *sound, int midiChan
 {
 	const bool messageFits = ModulatorSynth::soundCanBePlayed(sound, midiChannel, midiNoteNumber, velocity);
 
+	if (!messageFits) return false;
+	
 	const bool rrGroupApplies = crossfadeGroups || static_cast<ModulatorSamplerSound*>(sound)->appliesToRRGroup(currentRRGroupIndex);
 
-	return messageFits && rrGroupApplies;
+	if (!rrGroupApplies) return false;
+
+	const bool preloadBufferIsNonZero = static_cast<ModulatorSamplerSound*>(sound)->getReferenceToSound()->getPreloadBuffer().getNumSamples() != 0;
+
+	if (!preloadBufferIsNonZero) return false;
+
+	return true;
 }
 
 void ModulatorSampler::handleRetriggeredNote(ModulatorSynthVoice *voice)
