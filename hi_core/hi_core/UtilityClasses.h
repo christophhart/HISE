@@ -34,6 +34,7 @@
 #define UTILITYCLASSES_H_INCLUDED
 
 #include <regex>
+#include <atomic>
 
 #if JUCE_IOS
 #else
@@ -252,13 +253,14 @@ class SafeChangeBroadcaster
 public:
 
 	SafeChangeBroadcaster() :
-		dispatcher(this)
+		dispatcher(this),
+        flagTimer(this)
 	{};
 
 	virtual ~SafeChangeBroadcaster()
 	{
 		dispatcher.cancelPendingUpdate();
-        //flagTimer.stopTimer();
+        flagTimer.stopTimer();
 	};
 
 	/** Sends a synchronous change message to all the registered listeners.
@@ -329,9 +331,25 @@ public:
 	*/
 	void sendChangeMessage(const String &/*identifier*/ = String::empty)
 	{
-        //flagTimer.triggerUpdate();
 		dispatcher.triggerAsyncUpdate();
 	};
+    
+    /** This will send a message without allocating a message slot.
+    *
+    *   Use this in the audio thread to prevent malloc calls, but don't overuse this feature.
+    */
+    void sendAllocationFreeChangeMessage()
+    {
+        // You need to call enableAllocationFreeMessages() first...
+        jassert(flagTimer.isTimerRunning());
+        
+        flagTimer.triggerUpdate();
+    }
+    
+    void enableAllocationFreeMessages(int timerIntervalMilliseconds)
+    {
+        flagTimer.startTimer(timerIntervalMilliseconds);
+    }
 
 private:
 
@@ -341,9 +359,10 @@ private:
         
         
         FlagTimer(SafeChangeBroadcaster *parent_):
-          parent(parent_)
+          parent(parent_),
+          send(false)
         {
-            //startTimer(50);
+           
         }
  
         ~FlagTimer()
@@ -353,20 +372,22 @@ private:
         
         void triggerUpdate()
         {
-            send = true;
+            send.store(true);
         }
         
         void timerCallback() override
         {
-            if(send)
+			const bool shouldUpdate = send.load();
+
+            if(shouldUpdate)
             {
                 parent->sendSynchronousChangeMessage();
-                send = false;
+				send.store(false);
             }
         }
         
         SafeChangeBroadcaster *parent;
-        bool send = false;
+        std::atomic<bool> send;
     };
     
 	class AsyncBroadcaster : public AsyncUpdater
@@ -386,7 +407,7 @@ private:
 	};
 
 	AsyncBroadcaster dispatcher;
-    //FlagTimer flagTimer;
+    FlagTimer flagTimer;
 
 	String currentString;
 

@@ -54,6 +54,8 @@ deactivateUIUpdate(false)
 {
 	setGain(1.0);
 
+	enableAllocationFreeMessages(50);
+
 	parameterNames.add("PreloadSize");
 	parameterNames.add("BufferSize");
 	parameterNames.add("VoiceAmount");
@@ -95,6 +97,8 @@ deactivateUIUpdate(false)
 
 	getMatrix().setAllowResizing(true);
 
+    
+    
 }
 
 
@@ -608,7 +612,7 @@ void ModulatorSampler::resetNoteDisplay(int noteNumber)
 	lastStartedVoice = nullptr;
 	samplerDisplayValues.currentNotes[noteNumber] = -1;
 	samplerDisplayValues.currentSamplePos = -1.0;
-	sendChangeMessage();
+	sendAllocationFreeChangeMessage();
 }
 
 void ModulatorSampler::resetNotes()
@@ -764,7 +768,7 @@ void ModulatorSampler::preHiseEventCallback(const HiseEvent &m)
 		}
 
 		
-		sendChangeMessage();
+        sendAllocationFreeChangeMessage();
 	}
 
 	if (!m.isNoteOff() || !oneShotEnabled)
