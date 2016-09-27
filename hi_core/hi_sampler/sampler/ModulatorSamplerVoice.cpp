@@ -51,7 +51,7 @@ void ModulatorSamplerVoice::startNote(int midiNoteNumber,
 	StreamingSamplerSound *sound = currentlyPlayingSamplerSound->getReferenceToSound();
 	const int sampleStartModulationDelta = (int)(sampleStartModValue * sound->getSampleStartModulation());
 
-	wrappedVoice.setPitchFactor(midiNoteNumber, samePitch ? midiNoteNumber : currentlyPlayingSamplerSound->getRootNote(), sound, eventPitchFactor * getOwnerSynth()->getMainController()->getGlobalPitchFactor());
+	wrappedVoice.setPitchFactor(midiNoteNumber, samePitch ? midiNoteNumber : currentlyPlayingSamplerSound->getRootNote(), sound, getOwnerSynth()->getMainController()->getGlobalPitchFactor());
 	wrappedVoice.setSampleStartModValue(sampleStartModulationDelta);
 	wrappedVoice.startNote(midiNoteNumber, velocity, sound, -1);
 
@@ -244,7 +244,7 @@ void MultiMicModulatorSamplerVoice::startNote(int midiNoteNumber, float velocity
 	const int rootNote = samePitch ? midiNoteNumber : currentlyPlayingSamplerSound->getRootNote();
 	const int sampleStartModulationDelta = (int)(sampleStartModValue * currentlyPlayingSamplerSound->getReferenceToSound()->getSampleStartModulation());
 
-	const double globalPitchFactor = eventPitchFactor * getOwnerSynth()->getMainController()->getGlobalPitchFactor();
+	const double globalPitchFactor = getOwnerSynth()->getMainController()->getGlobalPitchFactor();
     
 	for (int i = 0; i < wrappedVoices.size(); i++)
 	{

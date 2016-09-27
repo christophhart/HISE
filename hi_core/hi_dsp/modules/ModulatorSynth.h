@@ -655,16 +655,30 @@ public:
 	void calculateVoicePitchValues(int startSample, int numSamples)
 	{
 		getOwnerSynth()->calculatePitchValuesForVoice(voiceIndex, (float)scriptPitchValue, startSample, numSamples);
+
+		if (pitchFader.isSmoothing())
+		{
+			float* pitchValues = getVoicePitchValues() + startSample;
+
+			while (--numSamples >= 0)
+			{
+				eventPitchFactor = pitchFader.getNextValue();
+				*pitchValues++ *= eventPitchFactor;
+			}
+		}
+		else if (scriptPitchActive)
+		{
+			float* pitchValues = getVoicePitchValues() + startSample;
+
+			FloatVectorOperations::multiply(pitchValues, eventPitchFactor, numSamples);
+		}
 	}
 
-	const float *getVoicePitchValues() const
-	{
-		return getOwnerSynth()->getPitchValuesForVoice(voiceIndex);
-	}
+	
 
 	float *getVoicePitchValues() 
 	{
-		return pitchModulationActive ? getOwnerSynth()->getPitchValuesForVoice(voiceIndex) : nullptr;
+		return isPitchModulationActive() ? getOwnerSynth()->getPitchValuesForVoice(voiceIndex) : nullptr;
 	}
 
 	const float *getVoiceGainValues(int startSample, int numSamples)
@@ -812,7 +826,7 @@ public:
 
 	void enablePitchModulation(bool shouldBeEnabled) noexcept{ pitchModulationActive = shouldBeEnabled; }
 
-	bool isPitchModulationActive() const noexcept{ return pitchModulationActive; }
+	bool isPitchModulationActive() const noexcept{ return pitchModulationActive || scriptPitchActive; }
 
 	void setScriptGainValue(float newGainValue) { scriptGainValue = newGainValue; }
 	void setScriptPitchValue(float newPitchValue) { scriptPitchValue = newPitchValue; }
@@ -827,9 +841,12 @@ public:
 		gainFader.setValue(targetVolume);
 	}
 
-	void setPitchFade(int fadeTimeSeconds, double targetPitch)
+	void setPitchFade(double fadeTimeSeconds, double targetPitch)
 	{
-		gainFader.reset(getSampleRate(), fadeTimeSeconds);
+		scriptPitchActive = true;
+		pitchFader.setValue(eventPitchFactor);
+		pitchFader.reset(getSampleRate(), fadeTimeSeconds);
+		pitchFader.setValue(targetPitch);
 	}
 
 protected:
@@ -872,7 +889,8 @@ private:
 	LinearSmoothedValue<double> pitchFader;
 	LinearSmoothedValue<float> gainFader;
 
-	bool pitchModulationActive;
+	bool pitchModulationActive = false;
+	bool scriptPitchActive = false;
 
 	friend class ModulatorSynthGroupVoice;
 

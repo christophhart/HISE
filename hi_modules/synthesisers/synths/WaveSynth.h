@@ -75,7 +75,7 @@ public:
 
         const double cyclesPerSecond = MidiMessage::getMidiNoteInHertz (midiNoteNumber);
         
-		const double cyclesPerSample = cyclesPerSecond / getSampleRate() * getOwnerSynth()->getMainController()->getGlobalPitchFactor() * eventPitchFactor;
+		const double cyclesPerSample = cyclesPerSecond / getSampleRate() * getOwnerSynth()->getMainController()->getGlobalPitchFactor();
 		
 		voiceUptime2 = 0.0;
 

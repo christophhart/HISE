@@ -394,7 +394,7 @@ void ModulatorSynth::handlePitchFade(int eventId, int fadeTimeMilliseconds, doub
 
 		if (!v->isInactive() && v->getCurrentHiseEvent().getEventId() == eventId)
 		{
-			v->setPitchFade(fadeTimeSeconds, gain);
+			v->setPitchFade(fadeTimeSeconds, pitchFactor);
 		}
 	}
 }
@@ -827,7 +827,7 @@ void ModulatorSynthVoice::renderNextBlock (AudioSampleBuffer& outputBuffer, int 
 {
 	if (isActive)
     { 
-		if(pitchModulationActive) calculateVoicePitchValues(startSample, numSamples);
+		if(isPitchModulationActive()) calculateVoicePitchValues(startSample, numSamples);
 
 		calculateBlock(startSample, numSamples);
 
@@ -865,6 +865,7 @@ void ModulatorSynthVoice::setCurrentHiseEvent(const HiseEvent &m)
 	transposeAmount = m.getTransposeAmount();
 	eventGainFactor = m.getGainFactor();
 	eventPitchFactor = m.getPitchFactorForEvent();
+	scriptPitchActive = eventPitchFactor != 1.0;
 }
 
 void ModulatorSynthChainFactoryType::fillTypeNameList()

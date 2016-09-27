@@ -409,12 +409,8 @@ public:
 		
 		smoothSize = tableSize;
 
-		
-
 		uptimeDelta = currentSound->getPitchRatio();
         
-		uptimeDelta *= eventPitchFactor;
-
         uptimeDelta *= getOwnerSynth()->getMainController()->getGlobalPitchFactor();
     };
 

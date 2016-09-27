@@ -78,8 +78,6 @@ public:
 
 		uptimeDelta = cyclesPerSample * 2048.0 * octaveTransposeFactor;
         
-		uptimeDelta *= eventPitchFactor;
-
         uptimeDelta *= getOwnerSynth()->getMainController()->getGlobalPitchFactor();
     }
 

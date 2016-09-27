@@ -54,8 +54,6 @@ void AudioLooperVoice::startNote(int midiNoteNumber, float /*velocity*/, Synthes
 
 	uptimeDelta *= resampleFactor;
 
-	uptimeDelta *= eventPitchFactor;
-
     uptimeDelta *= looper->getMainController()->getGlobalPitchFactor();
     
 	if (looper->pitchTrackingEnabled)
