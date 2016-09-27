@@ -1392,7 +1392,14 @@ void ScriptingApi::Synth::noteOff(int noteNumber)
 	jassert(owner != nullptr);
 
 	// Set the timestamp to the future if this is called in the note off callback to prevent wrong order.
-	const int timestamp = 1;
+	int timestamp = 0;
+
+	const HiseEvent* e = dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor())->getCurrentHiseEvent();
+
+	if (e != nullptr)
+	{
+		timestamp = e->getTimeStamp();
+	}
 
 	addNoteOff(1, noteNumber, timestamp);
 }
@@ -1415,9 +1422,17 @@ void ScriptingApi::Synth::playNote(int noteNumber, int velocity)
 		return;
 	}
 
-	int timestamp = dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor())->getCurrentHiseEvent()->isNoteOff() ? 1 : 0;
+	const HiseEvent* e = dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor())->getCurrentHiseEvent();
+	
+	int timestamp = 0;
+
+	if (e != nullptr)
+	{
+		timestamp = e->getTimeStamp();
+	}
 
 	addNoteOn(1, noteNumber, velocity, timestamp);
+	
 }
 
 
@@ -1430,10 +1445,9 @@ void ScriptingApi::Synth::addVolumeFade(int eventId, int fadeTimeMilliseconds, i
 			if (fadeTimeMilliseconds > 0)
 			{
 				DBG("TUT");
-
 				HiseEvent e = HiseEvent::createVolumeFade(eventId, fadeTimeMilliseconds, targetVolume);
 
-				e.setTimeStamp(sp->getCurrentHiseEvent()->getTimeStamp() + 1);
+				e.setTimeStamp(sp->getCurrentHiseEvent()->getTimeStamp());
 
 				sp->addHiseEventToBuffer(e);
 			}
@@ -1452,7 +1466,10 @@ void ScriptingApi::Synth::addPitchFade(int eventId, int fadeTimeMilliseconds, in
 		{
 			if (fadeTimeMilliseconds > 0)
 			{
-				sp->addHiseEventToBuffer(HiseEvent::createPitchFade(eventId, fadeTimeMilliseconds, targetCoarsePitch, targetFinePitch));
+				HiseEvent e = HiseEvent::createPitchFade(eventId, fadeTimeMilliseconds, targetCoarsePitch, targetFinePitch);
+				e.setTimeStamp(sp->getCurrentHiseEvent()->getTimeStamp());
+
+				sp->addHiseEventToBuffer(e);
 			}
 			else reportScriptError("Fade time must be positive");
 		}
@@ -1796,7 +1813,17 @@ void ScriptingApi::Synth::addNoteOn(int channel, int noteNumber, int velocity, i
 					if (ScriptBaseMidiProcessor* sp = dynamic_cast<ScriptBaseMidiProcessor*>(getScriptProcessor()))
 					{
 						HiseEvent m = HiseEvent(HiseEvent::Type::NoteOn, (uint8)noteNumber, (uint8)velocity, (uint8)channel);
-						m.setTimeStamp((uint16)sp->getCurrentHiseEvent()->getTimeStamp() + (uint16)timeStampSamples);
+
+						if (sp->getCurrentHiseEvent() != nullptr)
+						{
+							m.setTimeStamp((uint16)sp->getCurrentHiseEvent()->getTimeStamp() + (uint16)timeStampSamples);
+						}
+						else
+						{
+							m.setTimeStamp((uint16)timeStampSamples);
+						}
+
+						
 						m.setArtificial();
 
 						const int newEventId = sp->getMainController()->requestNewEventIdForArtificialNoteOn(m);
@@ -1831,7 +1858,16 @@ void ScriptingApi::Synth::addNoteOff(int channel, int noteNumber, int timeStampS
 					timeStampSamples = jmax<int>(1, timeStampSamples);
 
 					HiseEvent m = HiseEvent(HiseEvent::Type::NoteOff, (uint8)noteNumber, 127, (uint8)channel);
-					m.setTimeStamp((uint16)sp->getCurrentHiseEvent()->getTimeStamp() + (uint16)timeStampSamples);
+
+					if (sp->getCurrentHiseEvent() != nullptr)
+					{
+						m.setTimeStamp((uint16)sp->getCurrentHiseEvent()->getTimeStamp() + (uint16)timeStampSamples);
+					}
+					else
+					{
+						m.setTimeStamp((uint16)timeStampSamples);
+					}
+
 					m.setArtificial();
 
 					const int eventId = sp->getMainController()->getNoteOnEventFor(m)->getEventId();
@@ -1862,7 +1898,16 @@ void ScriptingApi::Synth::addController(int channel, int number, int value, int 
 					if (ScriptBaseMidiProcessor* sp = dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor()))
 					{
 						HiseEvent m = HiseEvent(HiseEvent::Type::Controller, (uint8)number, (uint8)value, (uint8)channel);
-						m.setTimeStamp((uint16)sp->getCurrentHiseEvent()->getTimeStamp() + (uint16)timeStampSamples);
+						
+						if (sp->getCurrentHiseEvent() != nullptr)
+						{
+							m.setTimeStamp((uint16)sp->getCurrentHiseEvent()->getTimeStamp() + (uint16)timeStampSamples);
+						}
+						else
+						{
+							m.setTimeStamp((uint16)timeStampSamples);
+						}
+
 						m.setArtificial();
 
 						sp->addHiseEventToBuffer(m);

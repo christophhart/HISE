@@ -89,6 +89,8 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 
 	scriptEngine->maximumExecutionTime = RelativeTime(3.0);
 
+	
+
 	ScopedReadLock sl(getMainController_()->getCompileLock());
 
 	scriptEngine->setCallbackParameter(callbackIndex, 0, component);

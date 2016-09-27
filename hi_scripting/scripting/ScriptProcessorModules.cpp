@@ -41,6 +41,7 @@ onControllerCallback(new SnippetDocument("onController")),
 onTimerCallback(new SnippetDocument("onTimer")),
 onControlCallback(new SnippetDocument("onControl", "number value")),
 currentMidiMessage(nullptr),
+
 front(false),
 deferred(false),
 deferredUpdatePending(false)
@@ -150,6 +151,8 @@ void JavascriptMidiProcessor::processHiseEvent(HiseEvent &m)
 			currentMidiMessage->setHiseEvent(m);
 
 			runScriptCallbacks();
+
+			currentEvent = nullptr;
 		}
 	}
 
@@ -263,7 +266,12 @@ void JavascriptMidiProcessor::runTimerCallback(int /*offsetInBuffer*//*=-1*/)
 
 	scriptEngine->maximumExecutionTime = isDeferred() ? RelativeTime(0.5) : RelativeTime(0.002);
 
+	currentEvent = nullptr;
+	
+
 	scriptEngine->executeCallback(onTimer, &lastResult);
+
+	
 
 	if (isDeferred())
 	{
@@ -384,6 +392,8 @@ void JavascriptMidiProcessor::handleAsyncUpdate()
 		currentMidiMessage->setHiseEvent(*m);
 
 		runScriptCallbacks();
+
+		currentEvent = nullptr;
 	}
 
 	copyEventBuffer.clear();

@@ -98,9 +98,9 @@ void HiseEventBuffer::addEvent(const HiseEvent& hiseEvent)
 		const int timestampInBuffer = buffer[i].getTimeStamp();
 		const int messageTimestamp = hiseEvent.getTimeStamp();
 
-		if (messageTimestamp <= timestampInBuffer)
+		if (timestampInBuffer > messageTimestamp)
 		{
-			insertEventAtPosition(hiseEvent, timestampInBuffer == messageTimestamp ? i + 1 : i);
+			insertEventAtPosition(hiseEvent, i);
 			return;
 		}
 	}

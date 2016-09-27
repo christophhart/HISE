@@ -260,7 +260,7 @@ private:
 
 		expectEquals<int>(b.getNumUsed(), 0, "cleared buffer");
 
-		const int equalTimestamp = r.nextInt(16384);
+		const int equalTimestamp = r.nextInt(16300);
 
 		HiseEvent firstEvent(generateRandomHiseEvent());
 		HiseEvent secondEvent(generateRandomHiseEvent());
@@ -273,8 +273,42 @@ private:
 
 		HiseEventBuffer::Iterator iter2(b);
 
-		expect(*iter2.getNextEventPointer(false,false) == firstEvent);
+		expect(*iter2.getNextEventPointer(false,false) == firstEvent, "First inserted element");
 		expect(*iter2.getNextEventPointer(false,false) == secondEvent, "Correct order of insertion");
+
+		b.clear();
+
+		secondEvent.setTimeStamp(equalTimestamp + 5);
+		
+		b.addEvent(secondEvent);
+		b.addEvent(firstEvent);
+
+		HiseEventBuffer::Iterator iter3(b);
+
+		expect(*iter3.getNextEventPointer(false, false) == firstEvent, "First inserted element with different timestamps");
+		expect(*iter3.getNextEventPointer(false, false) == secondEvent, "Correct order of insertion with different timestamps");
+
+		b.clear();
+
+		for (int i = 0; i < 127; i++)
+		{
+
+			HiseEvent e(HiseEvent::Type::NoteOn, i, 50, 1);
+			e.setTimeStamp(256);
+			b.addEvent(e);
+		}
+		
+		HiseEventBuffer::Iterator iter4(b);
+
+		int expectedNoteNumber = 0;
+
+		while (const HiseEvent* e = iter4.getNextConstEventPointer())
+		{
+			expectEquals<int>(expectedNoteNumber, e->getNoteNumber(), "Note Number " + String(expectedNoteNumber));
+			expectedNoteNumber++;
+		}
+
+
 
 	}
 
@@ -511,7 +545,34 @@ private:
 		expectEquals<int>(b1.getNumUsed(), 0, "First buffer is empty");
 		expectEquals<int>(b2.getNumUsed(), numToFill, "Second buffer contains all items");
 
-		expect(b2 == b3, "Testing both methods");
+		expectEquals<int>(b2.getNumUsed(), b3.getNumUsed(), "buffer size is same");
+		//expect(b2 == b3, "Testing both methods");
+
+		b1.clear();
+		b2.clear();
+		b3.clear();
+
+		const int numToInsert = 5;
+
+		for (int i = 0; i < numToInsert; i++)
+		{
+			HiseEvent e = generateRandomHiseEvent();
+
+			e.setTimeStamp(r.nextBool() ? 128 : 590);
+
+			b1.addEvent(e);
+			
+		}
+		
+		b3.copyFrom(b1);
+
+		b1.moveEventsAbove(b2, 512);
+
+		b1.moveEventsBelow(b2, 512);
+
+		expect(b2 == b3, "Two timestamps");
+		
+
 
 
 	}

@@ -131,7 +131,12 @@ public:
 		numCallbacks
 	};
 
-	ScriptBaseMidiProcessor(MainController *mc, const String &id): MidiProcessor(mc, id), ProcessorWithScriptingContent(mc) {};
+	ScriptBaseMidiProcessor(MainController *mc, const String &id): 
+		MidiProcessor(mc, id), 
+		ProcessorWithScriptingContent(mc),
+		currentEvent(nullptr)
+	{};
+
 	virtual ~ScriptBaseMidiProcessor() { masterReference.clear(); }
 
 	float getAttribute(int index) const override { return getControlValue(index); }

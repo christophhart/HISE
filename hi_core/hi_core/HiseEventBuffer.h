@@ -291,7 +291,8 @@ public:
 				return false;
 			}
 
-			if (!(*e == buffer[i])) return false;
+			if (!(*e == buffer[i])) 
+				return false;
 			
 		}
 

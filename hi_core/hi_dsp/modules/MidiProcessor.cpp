@@ -120,9 +120,7 @@ void MidiProcessorChain::renderNextHiseEventBuffer(HiseEventBuffer &buffer, int 
 		allNotesOffAtNextBuffer = false;
 	}
 
-	if (buffer.isEmpty() && futureEventBuffer.isEmpty()) return;
-
-	
+	if (buffer.isEmpty() && futureEventBuffer.isEmpty() && artificialEvents.isEmpty()) return;
 
 	HiseEventBuffer::Iterator it(buffer);
 
