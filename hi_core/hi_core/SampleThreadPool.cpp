@@ -30,6 +30,12 @@
 *   ===========================================================================
 */
 
+#if NEW_THREAD_POOL_IMPLEMENTATION
+
+const String NewSampleThreadPool::errorMessage("HDD overflow");
+
+#else
+
 class SampleThreadPool::SampleThreadPoolThread : public Thread
 {
 public:
@@ -382,3 +388,5 @@ void SampleThreadPool::deleteJob(const int index)
 		job = nullptr;
 	}	
 }
+
+#endif

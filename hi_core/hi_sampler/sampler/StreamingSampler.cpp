@@ -577,7 +577,7 @@ fileHandlesOpen(false)
 
 StreamingSamplerSound::FileReader::~FileReader()
 {
-	ScopedLock sl(readLock);
+	ScopedWriteLock sl(fileAccessLock);
 
 	memoryReader = nullptr;
 	normalReader = nullptr;
@@ -684,7 +684,7 @@ void StreamingSamplerSound::FileReader::openFileHandles(NotificationType notifyP
 	{
 		jassert(memoryReader == nullptr || normalReader == nullptr);
 
-		ScopedLock sl(readLock);
+		ScopedWriteLock sl(fileAccessLock);
 
 		fileHandlesOpen = true;
 
@@ -741,7 +741,7 @@ void StreamingSamplerSound::FileReader::closeFileHandles(NotificationType notify
 
 	if (voiceCount.get() == 0)
 	{
-		ScopedLock sl(readLock);
+		ScopedWriteLock sl(fileAccessLock);
 
 		fileHandlesOpen = false;
 
@@ -757,11 +757,14 @@ void StreamingSamplerSound::FileReader::readFromDisk(AudioSampleBuffer &buffer, 
 {
 	if (!fileHandlesOpen) openFileHandles(sendNotification);
 
+    FloatVectorOperations::clear(buffer.getWritePointer(0, startSample), numSamples);
+    FloatVectorOperations::clear(buffer.getWritePointer(1, startSample), numSamples);
+    
 	if (useMemoryMappedReader)
 	{
 		if (memoryReader != nullptr && memoryReader->getMappedSection().contains(Range<int64>(readerPosition, readerPosition + numSamples)))
 		{
-			ScopedLock sl(readLock);
+			ScopedReadLock sl(fileAccessLock);
 
 			memoryReader->read(&buffer, startSample, numSamples, readerPosition, true, true);
 
@@ -771,7 +774,7 @@ void StreamingSamplerSound::FileReader::readFromDisk(AudioSampleBuffer &buffer, 
 	
 	if (normalReader != nullptr)
 	{
-		ScopedLock sl(readLock);
+		ScopedReadLock sl(fileAccessLock);
 
 		normalReader->read(&buffer, startSample, numSamples, readerPosition, true, true);
 	}
@@ -780,6 +783,23 @@ void StreamingSamplerSound::FileReader::readFromDisk(AudioSampleBuffer &buffer, 
 		// Something is wrong so clear the buffer to be safe...
 		buffer.clear(startSample, numSamples);
 	}
+
+#if JUCE_DEBUG
+
+	const float *l = buffer.getReadPointer(0) + startSample;
+	const float *r = buffer.getReadPointer(1) + startSample;
+
+	const float maxL = FloatVectorOperations::findMaximum(l, numSamples);
+	const float maxR = FloatVectorOperations::findMaximum(r, numSamples);
+
+	const float minL = FloatVectorOperations::findMinimum(l, numSamples);
+	const float minR = FloatVectorOperations::findMinimum(r, numSamples);
+
+	if (maxL > 1.0f || maxR > 1.f || minL < -1.0f || minR < -1.0f)
+	{
+		Logger::writeToLog("Glitch");
+	}
+#endif
 }
 
 
@@ -997,22 +1017,7 @@ void SampleLoader::requestNewData()
 {
     ADD_GLITCH_DETECTOR("Requesting new sample data");
 
-#if(USE_BACKGROUND_THREAD)
-
-#if JUCE_DEBUG
-    if(! backgroundPool->contains(this))
-    {
-        DBG("Job already in Pool (HDD overflow)");
-    }
-        
-#endif
-    
 	backgroundPool->addJob(this, false);
-#else
-
-	// run the thread job synchronously
-	runJob();
-#endif
 };
 
 
@@ -1191,6 +1196,8 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 			pitchData -= numSamples;
 		}
 
+        samplesForThisBlock.clear();
+        
 		// Copy the not resampled values into the voice buffer.
 		StereoChannelData data = loader.fillVoiceBuffer(samplesForThisBlock, pitchCounter + startAlpha);
 
@@ -1199,6 +1206,9 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 		float* outL = outputBuffer.getWritePointer(0, startSample);
 		float* outR = outputBuffer.getWritePointer(1, startSample);
 		
+		const int cs = startSample;
+		const int cns = numSamples;
+
 		double indexInBuffer = startAlpha;
 
 		if (pitchData != nullptr)
@@ -1259,6 +1269,10 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 		const bool enoughSamples = sound->hasEnoughSamplesForBlock((int)(voiceUptime + numSamples * MAX_SAMPLER_PITCH));
 
 		if(!enoughSamples) resetVoice();
+
+
+
+
 	}
     else
     {

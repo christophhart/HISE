@@ -33,6 +33,180 @@
 #ifndef SAMPLETHREADPOOL_H_INCLUDED
 #define SAMPLETHREADPOOL_H_INCLUDED
 
+#define NEW_THREAD_POOL_IMPLEMENTATION 1
+
+#include "../additional_libraries/lockfree_fifo/readerwriterqueue.h"
+
+#if NEW_THREAD_POOL_IMPLEMENTATION
+
+class NewSampleThreadPool : public Thread
+{
+public:
+
+	NewSampleThreadPool():
+		Thread("Sample Loading Thread"),
+		jobQueue(2048),
+		currentlyExecutedJob(nullptr),
+		diskUsage(0.0),
+		counter(0)
+	{
+		startThread(9);
+		
+	}
+
+	~NewSampleThreadPool()
+	{
+		if (Job* currentJob = currentlyExecutedJob.load())
+		{
+			currentJob->signalJobShouldExit();
+		}
+
+		stopThread(300);
+	}
+	
+
+	class Job
+	{
+	public:
+
+		Job(const String &name_) : 
+			name(name_),
+			queued(false),
+			running(false),
+			shouldStop(false)
+		{};
+
+		enum JobStatus
+		{
+			jobHasFinished = 0,
+			jobNeedsRunningAgain
+		};
+
+		virtual JobStatus runJob() = 0;
+
+		bool shouldExit() const noexcept{ return shouldStop.load(); }
+
+		void signalJobShouldExit() { shouldStop.store(true); }
+
+		bool isRunning() const noexcept{ return running.load(); };
+
+		bool isQueued() const noexcept{ return queued.load(); };
+
+	private:
+
+		friend class NewSampleThreadPool;
+
+		std::atomic<bool> queued;
+
+		std::atomic<bool> running;
+
+		std::atomic<bool> shouldStop;
+
+		const String name;
+	};
+
+	double getDiskUsage() const noexcept
+	{
+		return diskUsage.load();
+	}
+
+	void addJob(Job* jobToAdd, bool unused)
+	{
+		++counter;
+        
+		ignoreUnused(unused);
+
+#if ENABLE_CONSOLE_OUTPUT
+		if (jobToAdd->isQueued())
+		{
+			Logger::writeToLog(errorMessage);
+			Logger::writeToLog(String(counter.get()));
+		}
+#endif
+
+
+		jobToAdd->queued.store(true);
+		jobQueue.enqueue(jobToAdd);
+		
+
+		notify();
+	}
+
+	void run() override
+	{
+		while (!threadShouldExit())
+		{
+			if (Job** next = jobQueue.peek())
+			{
+				Job* j = *next;
+
+#if ENABLE_CPU_MEASUREMENT
+
+				const int64 lastEndTime = endTime;
+				startTime = Time::getHighResolutionTicks();
+#endif
+
+				currentlyExecutedJob.store(j);
+
+				j->running.store(true);
+
+				Job::JobStatus status = j->runJob();
+
+				j->running.store(false);
+
+				if (status == Job::jobHasFinished)
+				{
+					jobQueue.pop();
+					j->queued.store(false);
+                    --counter;
+				}
+					
+				currentlyExecutedJob.store(nullptr);
+
+#if ENABLE_CPU_MEASUREMENT
+				endTime = Time::getHighResolutionTicks();
+
+				const int64 idleTime = startTime - lastEndTime;
+				const int64 busyTime = endTime - startTime;
+
+				diskUsage.store((double)busyTime / (double)(idleTime + busyTime));
+#endif
+			}
+
+#if 0 // Set this to true to enable defective threading (for debugging purposes
+			wait(500);
+#else
+            else
+            {
+                wait(500);
+            }
+#endif
+            
+            
+		}
+			
+	}
+
+    Atomic<int> counter;
+    
+	std::atomic<double> diskUsage;
+
+	int64 startTime, endTime;
+
+	moodycamel::ReaderWriterQueue<Job*> jobQueue;
+
+	std::atomic<Job*> currentlyExecutedJob;
+
+	static const String errorMessage;
+};
+
+
+
+typedef NewSampleThreadPool SampleThreadPool;
+typedef NewSampleThreadPool::Job SampleThreadPoolJob;
+
+#else
+
 class SampleThreadPool;
 class SampleThreadPoolThread;
 
@@ -191,6 +365,6 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SampleThreadPool)
 };
 
-
+#endif
 
 #endif  // SAMPLETHREADPOOL_H_INCLUDED

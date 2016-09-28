@@ -109,7 +109,7 @@ MainController::SampleManager::SampleManager(MainController *mc):
 	sampleClipboard(ValueTree("clipboard")),
 	useRelativePathsToProjectFolder(true)
 {
-	samplerLoaderThreadPool->setThreadPriorities(10);
+	
 }
 
 
@@ -684,8 +684,6 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
     ADD_GLITCH_DETECTOR("MainRoutine");
     
 	ScopedNoDenormals snd;
-
-    ScopedLock sl(getLock());
     
 	AudioProcessor *thisAsProcessor = dynamic_cast<AudioProcessor*>(this);
 
@@ -731,10 +729,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 #endif
 
 #if !FRONTEND_IS_PLUGIN
-	if (thisAsProcessor->isSuspended())
-	{
-		buffer.clear();
-	}
+	buffer.clear();
 
 	checkAllNotesOff();
 
@@ -758,10 +753,34 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	FloatVectorOperations::copy(buffer.getWritePointer(0), multiChannelBuffer.getReadPointer(0), buffer.getNumSamples());
 	FloatVectorOperations::copy(buffer.getWritePointer(1), multiChannelBuffer.getReadPointer(1), buffer.getNumSamples());
 
+#if JUCE_DEBUG
+
+	const int numSamples = buffer.getNumSamples();
+	const int startSample = 0;
+
+	const float *l = buffer.getReadPointer(0) + startSample;
+	const float *r = buffer.getReadPointer(1) + startSample;
+
+	const float maxL = FloatVectorOperations::findMaximum(l, numSamples);
+	const float maxR = FloatVectorOperations::findMaximum(r, numSamples);
+
+	const float minL = FloatVectorOperations::findMinimum(l, numSamples);
+	const float minR = FloatVectorOperations::findMinimum(r, numSamples);
+
+	if (maxL > 0.8f || maxR > 1.f || minL < -1.0f || minR < -1.0f)
+	{
+		Logger::writeToLog("Glitch");
+	}
+#endif
+
+
 	for (int i = 0; i < buffer.getNumChannels(); i++)
 	{
 		FloatVectorOperations::clip(buffer.getWritePointer(i, 0), buffer.getReadPointer(i, 0), -1.0f, 1.0f, buffer.getNumSamples());
 	}
+
+
+
 
 	midiMessages.clear();
 #endif

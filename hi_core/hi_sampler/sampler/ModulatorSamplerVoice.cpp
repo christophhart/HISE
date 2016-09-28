@@ -137,6 +137,19 @@ void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 		handlePlaybackPosition(sound, sampler);
 
 	}
+
+
+
+#if JUCE_DEBUG
+
+	const float maxL = FloatVectorOperations::findMaximum(voiceBuffer.getReadPointer(0, startIndex), samplesInBlock);
+	const float maxR = FloatVectorOperations::findMaximum(voiceBuffer.getReadPointer(1, startIndex), samplesInBlock);
+
+	if (maxL > 1.0f || maxR > 1.0f)
+	{
+		Logger::writeToLog("Glitch");
+	}
+#endif
 }
 
 void ModulatorSamplerVoice::handlePlaybackPosition(const StreamingSamplerSound * sound, ModulatorSampler * sampler)

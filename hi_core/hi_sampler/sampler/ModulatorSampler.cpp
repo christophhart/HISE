@@ -497,8 +497,8 @@ void ModulatorSampler::refreshPreloadSizes()
 
 double ModulatorSampler::getDiskUsage()
 {
-	double diskUsage = 0.0;
-
+    double diskUsage = 0.0;
+    
 	for (int i = 0; i < getNumVoices(); i++)
 	{
 		diskUsage += static_cast<ModulatorSamplerVoice*>(getVoice(i))->getDiskUsage();

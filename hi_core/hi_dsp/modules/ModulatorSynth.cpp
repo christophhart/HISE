@@ -853,6 +853,7 @@ void ModulatorSynthVoice::renderNextBlock (AudioSampleBuffer& outputBuffer, int 
 			FloatVectorOperations::add(outputBuffer.getWritePointer(i, startSample), voiceBuffer.getReadPointer(i, startSample), numSamples);
 		}
 
+
 		// checks if any envelopes are active and in their release state and calls stopNote until they are finished.
 		checkRelease();
     }

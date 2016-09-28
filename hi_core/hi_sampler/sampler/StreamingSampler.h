@@ -412,7 +412,10 @@ private:
 		int monolithicChannelIndex = -1;
 		String monolithicName;
 
-		CriticalSection readLock;
+		CriticalSection readLock2;
+
+		ReadWriteLock fileAccessLock;
+
 
 		bool isReading;
 
@@ -592,7 +595,8 @@ public:
 
 			if (loader->isRunning())
 			{
-				while(!waitForJobToFinish(loader, 50));
+				jassertfalse;
+				return SampleThreadPoolJob::jobNeedsRunningAgain;
 			}
             
 			if (sound != nullptr)
@@ -616,14 +620,27 @@ public:
 	void reset()
 	{
 		const StreamingSamplerSound *currentSound = sound.get();
-
+        
 		if (currentSound != nullptr)
 		{
-			unmapper.setSoundToUnmap(currentSound);
-
-			backgroundPool->addJob(&unmapper, false);
+            const bool isMonolith = currentSound->isMonolithic();
             
-            clearLoader();
+            if(isMonolith)
+            {
+                currentSound->decreaseVoiceCount();
+                clearLoader();
+            }
+            else
+            {
+                // If the samples are not monolithic, we'll need to close the
+                // file handles on the background thread.
+                
+                unmapper.setSoundToUnmap(currentSound);
+                
+                backgroundPool->addJob(&unmapper, false);
+                
+                clearLoader();
+            }
 		}
 	}
     
@@ -647,20 +664,6 @@ public:
 		return returnValue;
 	};
 
-	Unmapper *getFreeUnmapper()
-	{
-		for (int i = 0; i < NUM_UNMAPPERS; i++)
-		{
-			if (unmappers[i].isRunning()) continue;
-
-			return &unmappers[i];
-		}
-
-		// Increase NUM_MAPPERS
-		jassertfalse;
-        
-		return nullptr;
-	}
 	
 	const CriticalSection &getLock() const { return lock; }
 
