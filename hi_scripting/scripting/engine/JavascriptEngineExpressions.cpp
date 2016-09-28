@@ -71,7 +71,12 @@ struct HiseJavascriptEngine::RootObject::ArraySubscript : public Expression
         {
             const String name = index->getResult(s).toString();
             
-            return obj->getProperty(Identifier(name));
+            if(name.isNotEmpty())
+            {
+                return obj->getProperty(Identifier(name));
+            }
+            
+            
         }
         
 		return var::undefined();
