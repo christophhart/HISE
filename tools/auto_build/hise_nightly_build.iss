@@ -105,7 +105,7 @@ begin
      x86Page.Values[0] := ExpandConstant('{pf32}\VSTPlugins');
   Result := True;
 
-  if x64Page.Values[0] = '' then
+  if (IsWin64) and (x64Page.Values[0] = '') then
      x64Page.Values[0] := ExpandConstant('{pf64}\VSTPlugins');
   Result := True;
 end;
