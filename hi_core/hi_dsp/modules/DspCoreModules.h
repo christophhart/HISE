@@ -49,25 +49,7 @@ public:
 	{
 		SpinLock::ScopedLockType sl(processLock);
 
-		delayInSamples = jmin<int>(delayInSamples, DELAY_BUFFER_SIZE - 1);
-
-		if (fadeCounter != -1)
-		{
-			lastIgnoredDelayTime = delayInSamples;
-			return;
-		}
-		else
-		{
-			lastIgnoredDelayTime = 0;
-		}
-
-		currentDelayTime = delayInSamples;
-
-		oldReadIndex = readIndex;
-
-		fadeCounter = 0;
-
-		readIndex = (writeIndex - delayInSamples) & DELAY_BUFFER_MASK;
+		setInternalDelayTime(delayInSamples);
 	}
 
 	void setFadeTimeSamples(int newFadeTimeInSamples)
@@ -111,7 +93,7 @@ public:
 				fadeCounter = -1;
 				if (lastIgnoredDelayTime != 0)
 				{
-					setDelayTimeSamples(lastIgnoredDelayTime);
+					setInternalDelayTime(lastIgnoredDelayTime);
 				}
 			}
 
@@ -120,6 +102,29 @@ public:
 	}
 
 private:
+
+	void setInternalDelayTime(int delayInSamples)
+	{
+		delayInSamples = jmin<int>(delayInSamples, DELAY_BUFFER_SIZE - 1);
+
+		if (fadeCounter != -1)
+		{
+			lastIgnoredDelayTime = delayInSamples;
+			return;
+		}
+		else
+		{
+			lastIgnoredDelayTime = 0;
+		}
+
+		currentDelayTime = delayInSamples;
+
+		oldReadIndex = readIndex;
+
+		fadeCounter = 0;
+
+		readIndex = (writeIndex - delayInSamples) & DELAY_BUFFER_MASK;
+	}
 
 	SpinLock processLock;
 
