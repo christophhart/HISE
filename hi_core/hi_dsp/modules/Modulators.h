@@ -836,7 +836,6 @@ class VoiceStartModulatorFactoryType: public FactoryType
 		keyModulator,
 		randomModulator,
 		globalVoiceStartModulator,
-		gainMatcherVoiceStartModulator,
 		arrayModulator,
 		scriptVoiceStartModulator
 	};
@@ -926,7 +925,6 @@ class TimeVariantModulatorFactoryType: public FactoryType
 		macroModulator,
 		audioFileEnvelope,
 		globalTimeVariantModulator,
-		gainMatcherTimeVariantModulator,
 		ccDucker,
 		scriptTimeVariantModulator
 	};

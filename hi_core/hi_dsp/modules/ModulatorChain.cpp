@@ -445,7 +445,6 @@ void TimeVariantModulatorFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(MacroModulator);
     ADD_NAME_TO_TYPELIST(AudioFileEnvelope);
 	ADD_NAME_TO_TYPELIST(GlobalTimeVariantModulator);
-	ADD_NAME_TO_TYPELIST(GainMatcherTimeVariantModulator);
 	ADD_NAME_TO_TYPELIST(CCDucker);
 	ADD_NAME_TO_TYPELIST(JavascriptTimeVariantModulator);
 }
@@ -457,7 +456,6 @@ void VoiceStartModulatorFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(KeyModulator);
 	ADD_NAME_TO_TYPELIST(RandomModulator);
 	ADD_NAME_TO_TYPELIST(GlobalVoiceStartModulator);
-	ADD_NAME_TO_TYPELIST(GainMatcherVoiceStartModulator);
 	ADD_NAME_TO_TYPELIST(ArrayModulator);
 	ADD_NAME_TO_TYPELIST(JavascriptVoiceStartModulator);
 }

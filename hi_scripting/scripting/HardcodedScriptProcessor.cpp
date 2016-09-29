@@ -97,13 +97,11 @@ void HardcodedScriptFactoryType::fillTypeNameList()
 {
 	ADD_NAME_TO_TYPELIST(LegatoProcessor);
 	ADD_NAME_TO_TYPELIST(CCSwapper);
-	ADD_NAME_TO_TYPELIST(LegatoIntervallPlayer);
 	ADD_NAME_TO_TYPELIST(ReleaseTriggerScriptProcessor);
 	ADD_NAME_TO_TYPELIST(CCToNoteProcessor);
 	ADD_NAME_TO_TYPELIST(ChannelFilterScriptProcessor);
 	ADD_NAME_TO_TYPELIST(ChannelSetterScriptProcessor);
 	ADD_NAME_TO_TYPELIST(MuteAllScriptProcessor);
-    ADD_NAME_TO_TYPELIST(LiveCodingNotePlayer);
 }
 
 Processor *HardcodedScriptFactoryType::createProcessor(int typeIndex, const String &id) 
@@ -116,13 +114,11 @@ Processor *HardcodedScriptFactoryType::createProcessor(int typeIndex, const Stri
 	{
 	case legatoWithRetrigger:	mp = new LegatoProcessor(m, id, owner); break;
 	case ccSwapper:				mp = new CCSwapper(m, id, owner); break;
-	case legatoIntervalPlayer:	mp = new LegatoIntervallPlayer(m, id, owner); break;
 	case releaseTrigger:		mp = new ReleaseTriggerScriptProcessor(m, id, owner); break;
 	case cc2Note:				mp = new CCToNoteProcessor(m, id, owner); break;
 	case channelFilter:			mp = new ChannelFilterScriptProcessor(m, id, owner); break;
 	case channelSetter:			mp = new ChannelSetterScriptProcessor(m, id, owner); break;
 	case muteAll:				mp = new MuteAllScriptProcessor(m, id, owner); break;
-    case liveCodingNotePlayer:  mp = new LiveCodingNotePlayer(m, id, owner); break;
 	default:					jassertfalse; break;
 	}
 

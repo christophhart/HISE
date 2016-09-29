@@ -335,11 +335,8 @@ public:
 	// private enum for handling
 	enum
 	{
-		midiDelay = 0,
-		sampleRaster,
-		scriptProcessor,
+		scriptProcessor = 0,
 		transposer,
-		roundRobin,
 		midiProcessorChain,
 		numMidiProcessors
 	};
