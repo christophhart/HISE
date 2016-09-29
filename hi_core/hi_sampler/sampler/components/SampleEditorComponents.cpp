@@ -799,7 +799,7 @@ void SamplerSoundMap::mouseDrag(const MouseEvent &e)
     refreshGraphics();
 }
 
-void SamplerSoundMap::setPressedKeys(const int *pressedKeyData)
+void SamplerSoundMap::setPressedKeys(const uint8 *pressedKeyData)
 {
 	for(int i = 0; i < 127; i++)
 	{

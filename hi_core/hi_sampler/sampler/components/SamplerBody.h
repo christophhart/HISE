@@ -86,7 +86,7 @@ public:
 
 
 
-	bool newKeysPressed(const int *currentNotes)
+	bool newKeysPressed(const uint8 *currentNotes)
 	{
 		for(int i = 0; i < 127; i++)
 		{

@@ -211,7 +211,9 @@ sampleStartModValue(0.0f),
 velocityXFadeValue(1.0f),
 sampler(dynamic_cast<ModulatorSampler*>(ownerSynth)),
 wrappedVoice(sampler->getBackgroundThreadPool())
-{};
+{
+	wrappedVoice.setTemporaryVoiceBuffer(static_cast<ModulatorSampler*>(ownerSynth)->getTemporaryVoiceBuffer());
+};
 
 
 
@@ -225,6 +227,7 @@ ModulatorSamplerVoice(ownerSynth)
 		wrappedVoices.add(new StreamingSamplerVoice(getOwnerSynth()->getMainController()->getSampleManager().getGlobalSampleThreadPool()));
 		wrappedVoices.getLast()->prepareToPlay(getOwnerSynth()->getSampleRate(), getOwnerSynth()->getBlockSize());
 		wrappedVoices.getLast()->setLoaderBufferSize((int)getOwnerSynth()->getAttribute(ModulatorSampler::BufferSize));
+		wrappedVoices.getLast()->setTemporaryVoiceBuffer(static_cast<ModulatorSampler*>(ownerSynth)->getTemporaryVoiceBuffer());
 	}
 }
 

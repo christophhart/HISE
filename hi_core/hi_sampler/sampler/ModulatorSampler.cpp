@@ -372,6 +372,8 @@ void ModulatorSampler::prepareToPlay(double sampleRate, int samplesPerBlock)
 	{
 		crossfadeBuffer = AudioSampleBuffer(1, samplesPerBlock);
 
+		StreamingSamplerVoice::initTemporaryVoiceBuffer(&temporaryVoiceBuffer, samplesPerBlock);
+
 		sampleStartChain->prepareToPlay(sampleRate, samplesPerBlock);
 		crossFadeChain->prepareToPlay(sampleRate, samplesPerBlock);
 	}
@@ -563,7 +565,10 @@ void ModulatorSampler::setVoiceAmount(int newVoiceAmount)
 				addVoice(new ModulatorSamplerVoice(this));
 			}
 
-			if (Processor::getSampleRate() != -1.0) static_cast<ModulatorSamplerVoice*>(getVoice(i))->prepareToPlay(Processor::getSampleRate(), getBlockSize());
+			if (Processor::getSampleRate() != -1.0)
+			{
+				static_cast<ModulatorSamplerVoice*>(getVoice(i))->prepareToPlay(Processor::getSampleRate(), getBlockSize());
+			}
 		};
 
 		setKillFadeOutTime((int)getAttribute(ModulatorSynth::KillFadeTime)); 

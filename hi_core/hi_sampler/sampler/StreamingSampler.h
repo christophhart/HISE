@@ -694,10 +694,6 @@ private:
 	void refreshBufferSizes();
 	// ============================================================================================ member variables
 
-
-    
-	Unmapper unmappers[NUM_UNMAPPERS];
-
 	Unmapper unmapper;
 
 	/** The class tries to be as lock free as possible (it only locks the buffer that is filled 
@@ -821,8 +817,7 @@ public:
 	{
 		if(sampleRate != -1.0)
 		{
-			samplesForThisBlock = AudioSampleBuffer(2, samplesPerBlock * MAX_SAMPLER_PITCH);
-			samplesForThisBlock.clear();
+			
 
 			loader.assertBufferSize(samplesPerBlock * MAX_SAMPLER_PITCH);
 
@@ -855,7 +850,30 @@ public:
 
     bool isActive = false;
 
+	/** Returns the sampler's temp buffer. */
+	AudioSampleBuffer *getTemporaryVoiceBuffer()
+	{
+		jassert(tvb != nullptr);
+
+		return tvb;
+	}
+
+	/** Gives the voice a reference to the sampler temp buffer. */
+	void setTemporaryVoiceBuffer(AudioSampleBuffer* buffer)
+	{
+		tvb = buffer;
+	}
+
+	/** Call this once for every sampler. */
+	static void initTemporaryVoiceBuffer(AudioSampleBuffer* bufferToUse, int samplesPerBlock)
+	{
+		*bufferToUse = AudioSampleBuffer(2, samplesPerBlock * MAX_SAMPLER_PITCH);
+		bufferToUse->clear();
+	}
+
 private:
+
+	AudioSampleBuffer* tvb = nullptr;
 
 	const float *pitchData;
 
@@ -867,8 +885,6 @@ private:
 	double uptimeDelta;
 
 	int sampleStartModValue;
-
-	AudioSampleBuffer samplesForThisBlock;
 
 	SampleLoader loader;
 };

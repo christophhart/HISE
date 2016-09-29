@@ -258,7 +258,7 @@ public:
 		float crossfadeTableValue;
 		int currentGroup;
 
-		int currentNotes[128];
+		uint8 currentNotes[128];
 	};
 
 	const SamplerDisplayValues &getSamplerDisplayValues() const { return samplerDisplayValues;	}
@@ -375,6 +375,8 @@ public:
 		return saveString;
 	}
 
+	AudioSampleBuffer* getTemporaryVoiceBuffer() { return &temporaryVoiceBuffer; }
+
 private:
 
 	struct AsyncPurger : public AsyncUpdater,
@@ -480,6 +482,9 @@ private:
 	OwnedArray<SampleLookupTable> crossfadeTables;
 
 	AudioSampleBuffer crossfadeBuffer;
+
+	AudioSampleBuffer temporaryVoiceBuffer;
+
 	float groupGainValues[8];
 
 	ChannelData channelData[NUM_MIC_POSITIONS];

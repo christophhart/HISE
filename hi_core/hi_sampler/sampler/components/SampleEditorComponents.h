@@ -371,7 +371,7 @@ public:
 	*
 	*	@param pressedKeyData the array with the velocities (-1 if the key is not pressed). @see ModulatorSampler::SamplerDisplayValues
 	*/
-	void setPressedKeys(const int *pressedKeyData);
+	void setPressedKeys(const uint8 *pressedKeyData);
 
 	/** change the selection to the supplied list of sounds. */
 	void setSelectedIds(const Array<ModulatorSamplerSound*> newSelectionList);

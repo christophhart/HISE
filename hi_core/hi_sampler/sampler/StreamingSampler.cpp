@@ -1205,10 +1205,14 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 			pitchData -= numSamples;
 		}
 
-        samplesForThisBlock.clear();
+		AudioSampleBuffer* tempVoiceBuffer = getTemporaryVoiceBuffer();
+
+		jassert(tempVoiceBuffer != nullptr);
+
+		tempVoiceBuffer->clear();
         
 		// Copy the not resampled values into the voice buffer.
-		StereoChannelData data = loader.fillVoiceBuffer(samplesForThisBlock, pitchCounter + startAlpha);
+		StereoChannelData data = loader.fillVoiceBuffer(*tempVoiceBuffer, pitchCounter + startAlpha);
 
 		const float* const inL = data.leftChannel;
 		const float* const inR = data.rightChannel;
