@@ -315,36 +315,7 @@ public:
 
 	void addEvents(const HiseEventBuffer &otherBuffer);
 
-	class EventIdHandler
-	{
-	public:
-
-		EventIdHandler(HiseEventBuffer& masterBuffer_) :
-			masterBuffer(masterBuffer_),
-			currentEventId(1)
-		{
-			for (int i = 0; i < 128; i++) noteOnEvents[i] = HiseEvent(HiseEvent::Type::NoteOn, 0, 0, 0);
-		}
-
-
-		/** Fills note on / note off messages with the event id and returns the current value for external storage. */
-		void handleEventIds();
-
-		const HiseEvent* getNoteOnEventFor(const HiseEvent &noteOffEvent) const;
-
-		int requestEventIdForArtificialNote(const HiseEvent& noteOnEvent) noexcept;
-
-	private:
-
-		HiseEventBuffer &masterBuffer;
-
-		HiseEvent noteOnEvents[128];
-
-		HiseEvent artificialNoteOnEvents[128];
-
-		uint32 currentEventId;
-	};
-
+	
 	struct CopyHelpers
 	{
 		static void copyEvents(HiseEvent* destination, const HiseEvent* source, int numElements)

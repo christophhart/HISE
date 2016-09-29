@@ -188,6 +188,7 @@ public:
 	void onInit() override
 	{
 		lastNote = -1;
+		lastEventId = -1;
 		possibleRetriggerNote = -1;		
 		lastVelo = 0;
 	}
@@ -196,14 +197,15 @@ public:
 	{
 		if(lastNote != -1)
 		{
-		
-			Synth.noteOff(lastNote);
+			Synth.noteOffByEventId(lastEventId);
 		
 			possibleRetriggerNote = lastNote;
 		}
 	
 		lastNote = Message.getNoteNumber();
 	
+		lastEventId = Message.getEventId();
+
 		lastVelo = Message.getVelocity();
 	};
 
@@ -220,7 +222,7 @@ public:
 		{
 			if(possibleRetriggerNote != -1)
 			{
-				Synth.playNote(possibleRetriggerNote, lastVelo);
+				lastEventId = Synth.playNote(possibleRetriggerNote, lastVelo);
 			
 				lastNote = possibleRetriggerNote;
 				possibleRetriggerNote = -1;
@@ -239,6 +241,7 @@ public:
 private:
 
 	int lastNote;
+	int lastEventId;
 	int possibleRetriggerNote;
 	int lastVelo;
 

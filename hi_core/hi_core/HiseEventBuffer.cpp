@@ -336,12 +336,12 @@ void HiseEventBuffer::insertEventAtPosition(const HiseEvent& e, int positionInBu
 	
 }
 
-void HiseEventBuffer::EventIdHandler::handleEventIds()
+void MainController::EventIdHandler::handleEventIds()
 {
-	for (int i = 0; i < masterBuffer.numUsed; i++)
-	{
-		HiseEvent* m = &masterBuffer.buffer[i];
+	HiseEventBuffer::Iterator it(masterBuffer);
 
+	while (HiseEvent *m = it.getNextEventPointer())
+	{
 		jassert(!m->isArtificial());
 
 		if (m->isNoteOn())
@@ -359,7 +359,7 @@ void HiseEventBuffer::EventIdHandler::handleEventIds()
 	}
 }
 
-const HiseEvent* HiseEventBuffer::EventIdHandler::getNoteOnEventFor(const HiseEvent &noteOffEvent) const
+const HiseEvent* MainController::EventIdHandler::getNoteOnEventFor(const HiseEvent &noteOffEvent) const
 {
 	jassert(noteOffEvent.isNoteOff());
 
@@ -368,18 +368,29 @@ const HiseEvent* HiseEventBuffer::EventIdHandler::getNoteOnEventFor(const HiseEv
 	if (noteOffEvent.isArtificial())
 	{
 		const HiseEvent *m = &artificialNoteOnEvents[noteNumber];
-		jassert(noteOffEvent.isArtificial() == m->isArtificial());
+		
+		if (noteOffEvent.isArtificial() != m->isArtificial())
+		{
+			Logger::writeToLog("!Note Off event type mismatch");
+		}
+
 		return m;
 	}
 	else
 	{
 		const HiseEvent *m = &noteOnEvents[noteNumber];
-		jassert(noteOffEvent.isArtificial() == m->isArtificial());
+
+		if (noteOffEvent.isArtificial() != m->isArtificial())
+		{
+			Logger::writeToLog("!Note Off event type mismatch");
+		}
+
+		
 		return m;
 	}
 }
 
-int HiseEventBuffer::EventIdHandler::requestEventIdForArtificialNote(const HiseEvent &e) noexcept
+int MainController::EventIdHandler::requestEventIdForArtificialNote(const HiseEvent &e) noexcept
 {
 	jassert(e.isNoteOn());
 

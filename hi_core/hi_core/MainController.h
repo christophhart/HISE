@@ -175,6 +175,62 @@ public:
 		MidiControllerAutomationHandler midiControllerHandler;
 	};
 
+	class EventIdHandler
+	{
+	public:
+
+		EventIdHandler(HiseEventBuffer& masterBuffer_) :
+			masterBuffer(masterBuffer_),
+			currentEventId(1)
+		{
+			for (int i = 0; i < 128; i++) noteOnEvents[i] = HiseEvent(HiseEvent::Type::NoteOn, 0, 0, 0);
+		}
+
+
+		/** Fills note on / note off messages with the event id and returns the current value for external storage. */
+		void handleEventIds();
+
+		const HiseEvent* getNoteOnEventFor(const HiseEvent &noteOffEvent) const;
+
+		int requestEventIdForArtificialNote(const HiseEvent& noteOnEvent) noexcept;
+
+		const HiseEvent* getNoteOnFromEventId(uint32 eventId) const
+		{
+			for (int i = 0; i < 128; i++)
+			{
+				if (noteOnEvents[i].isEmpty()) continue;
+
+				if (noteOnEvents[i].getEventId() == eventId)
+				{
+					return &noteOnEvents[i];
+				}
+			}
+
+			for (int i = 0; i < 128; i++)
+			{
+				if (artificialNoteOnEvents[i].isEmpty()) continue;
+
+				if (artificialNoteOnEvents[i].getEventId() == eventId)
+				{
+					return &artificialNoteOnEvents[i];
+				}
+			}
+
+			return nullptr;
+		}
+
+	private:
+
+		HiseEventBuffer &masterBuffer;
+
+		HiseEvent noteOnEvents[128];
+
+		HiseEvent artificialNoteOnEvents[128];
+
+		uint32 currentEventId;
+	};
+
+
 	MainController();
 
 	virtual ~MainController();
@@ -417,9 +473,7 @@ public:
 
 	ReadWriteLock &getCompileLock() { return compileLock; }
 
-	const HiseEvent* getNoteOnEventFor(const HiseEvent& noteOffEvent) const;
-
-	int requestNewEventIdForArtificialNoteOn(const HiseEvent &noteOnEvent);
+	EventIdHandler& getEventHandler() { return eventIdHandler; }
 
 protected:
 
@@ -476,7 +530,7 @@ protected:
 private:
 
 	HiseEventBuffer masterEventBuffer;
-	HiseEventBuffer::EventIdHandler eventIdHandler;
+	EventIdHandler eventIdHandler;
 
 	ScopedPointer<UserPresetData> userPresetData;
 

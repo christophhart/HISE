@@ -959,15 +959,6 @@ bool MainController::checkAndResetMidiInputFlag()
 	return returnValue;
 }
 
-const HiseEvent* MainController::getNoteOnEventFor(const HiseEvent& noteOffEvent) const
-{
-	return eventIdHandler.getNoteOnEventFor(noteOffEvent);
-}
-
-int MainController::requestNewEventIdForArtificialNoteOn(const HiseEvent &noteOnEvent) 
-{
-	return eventIdHandler.requestEventIdForArtificialNote(noteOnEvent);
-}
 
 ControlledObject::ControlledObject(MainController *m):	
 	controller(m)	{jassert(m != nullptr);};

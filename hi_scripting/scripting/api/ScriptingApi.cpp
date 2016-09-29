@@ -1298,10 +1298,11 @@ struct ScriptingApi::Synth::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Synth, addToFront);
 	API_VOID_METHOD_WRAPPER_1(Synth, deferCallbacks);
 	API_VOID_METHOD_WRAPPER_1(Synth, noteOff);
-	API_VOID_METHOD_WRAPPER_2(Synth, playNote);
+	API_VOID_METHOD_WRAPPER_1(Synth, noteOffByEventId);
+	API_METHOD_WRAPPER_2(Synth, playNote);
 	API_VOID_METHOD_WRAPPER_2(Synth, setAttribute);
 	API_METHOD_WRAPPER_1(Synth, getAttribute);
-	API_VOID_METHOD_WRAPPER_4(Synth, addNoteOn);
+	API_METHOD_WRAPPER_4(Synth, addNoteOn);
 	API_VOID_METHOD_WRAPPER_3(Synth, addNoteOff);
 	API_VOID_METHOD_WRAPPER_3(Synth, addVolumeFade);
 	API_VOID_METHOD_WRAPPER_4(Synth, addPitchFade);
@@ -1343,6 +1344,7 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	ADD_API_METHOD_1(addToFront);
 	ADD_API_METHOD_1(deferCallbacks);
 	ADD_API_METHOD_1(noteOff);
+	ADD_API_METHOD_1(noteOffByEventId);
 	ADD_API_METHOD_2(playNote);
 	ADD_API_METHOD_2(setAttribute);
 	ADD_API_METHOD_1(getAttribute);
@@ -1391,6 +1393,10 @@ void ScriptingApi::Synth::noteOff(int noteNumber)
 {
 	jassert(owner != nullptr);
 
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+	reportScriptError("noteOff is deprecated. Use noteOfByEventId instead");
+#endif
+
 	// Set the timestamp to the future if this is called in the note off callback to prevent wrong order.
 	int timestamp = 0;
 
@@ -1404,6 +1410,37 @@ void ScriptingApi::Synth::noteOff(int noteNumber)
 	addNoteOff(1, noteNumber, timestamp);
 }
 
+void ScriptingApi::Synth::noteOffByEventId(int eventId)
+{
+	const HiseEvent* e = getProcessor()->getMainController()->getEventHandler().getNoteOnFromEventId(eventId);
+
+	if (e != nullptr)
+	{
+		const HiseEvent* current = dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor())->getCurrentHiseEvent();
+
+		int timestamp = 0;
+
+		if (current != nullptr)
+		{
+			timestamp = e->getTimeStamp();
+		}
+
+		HiseEvent noteOff(HiseEvent::Type::NoteOff, e->getNoteNumber(), 1, e->getChannel());
+		noteOff.setEventId(eventId);
+		noteOff.setTimeStamp(timestamp);
+
+		if (e->isArtificial()) noteOff.setArtificial();
+
+		ScriptBaseMidiProcessor* sp = dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor());
+
+		if (sp != nullptr)
+		{
+			sp->addHiseEventToBuffer(noteOff);
+		}
+
+	}
+}
+
 void ScriptingApi::Synth::addToFront(bool addToFront)
 {	
 	dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->addToFront(addToFront);
@@ -1414,12 +1451,12 @@ void ScriptingApi::Synth::deferCallbacks(bool deferCallbacks)
 	dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->deferCallbacks(deferCallbacks);
 }
 
-void ScriptingApi::Synth::playNote(int noteNumber, int velocity)
+int ScriptingApi::Synth::playNote(int noteNumber, int velocity)
 {
 	if(velocity == 0)
 	{
 		reportScriptError("A velocity of 0 is not valid!");
-		return;
+		return -1;
 	}
 
 	const HiseEvent* e = dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor())->getCurrentHiseEvent();
@@ -1431,7 +1468,8 @@ void ScriptingApi::Synth::playNote(int noteNumber, int velocity)
 		timestamp = e->getTimeStamp();
 	}
 
-	addNoteOn(1, noteNumber, velocity, timestamp);
+	return addNoteOn(1, noteNumber, velocity, timestamp);
+
 	
 }
 
@@ -1800,7 +1838,7 @@ float ScriptingApi::Synth::getAttribute(int attributeIndex) const
 	return owner->getAttribute(attributeIndex);
 }
 
-void ScriptingApi::Synth::addNoteOn(int channel, int noteNumber, int velocity, int timeStampSamples)
+int ScriptingApi::Synth::addNoteOn(int channel, int noteNumber, int velocity, int timeStampSamples)
 {
 	if (channel > 0 && channel <= 16)
 	{
@@ -1826,12 +1864,14 @@ void ScriptingApi::Synth::addNoteOn(int channel, int noteNumber, int velocity, i
 						
 						m.setArtificial();
 
-						const int newEventId = sp->getMainController()->requestNewEventIdForArtificialNoteOn(m);
+						const int newEventId = sp->getMainController()->getEventHandler().requestEventIdForArtificialNote(m);
 						jassert(m.getEventId() == 0);
 						
 						m.setEventId(newEventId);
 						
 						sp->addHiseEventToBuffer(m);
+
+						return newEventId;
 					}
 					else reportScriptError("Only valid in MidiProcessors");
 				}
@@ -1842,6 +1882,8 @@ void ScriptingApi::Synth::addNoteOn(int channel, int noteNumber, int velocity, i
 		else reportScriptError("Note number must be between 0 and 127");
 	}
 	else reportScriptError("Channel must be between 1 and 16.");
+
+	return -1;
 }
 
 void ScriptingApi::Synth::addNoteOff(int channel, int noteNumber, int timeStampSamples)
@@ -1870,7 +1912,7 @@ void ScriptingApi::Synth::addNoteOff(int channel, int noteNumber, int timeStampS
 
 					m.setArtificial();
 
-					const int eventId = sp->getMainController()->getNoteOnEventFor(m)->getEventId();
+					const int eventId = sp->getMainController()->getEventHandler().getNoteOnEventFor(m)->getEventId();
 
 					m.setEventId(eventId);
 

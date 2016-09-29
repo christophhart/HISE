@@ -405,8 +405,11 @@ public:
 		/** Sends a note off message. The envelopes will tail off. */
 		void noteOff(int noteNumber);
 		
-		/** Plays a note. Be careful or you get stuck notes! */
-		void playNote(int noteNumber, int velocity);
+		/** Sends a note off message for the supplied event ID. This is more stable than the deprecated noteOff() method. */
+		void noteOffByEventId(int eventId);
+
+		/** Plays a note and returns the event id. Be careful or you get stuck notes! */
+		int playNote(int noteNumber, int velocity);
 		
 		/** Fades all voices with the given event id to the target volume (in decibels). */
 		void addVolumeFade(int eventId, int fadeTimeMilliseconds, int targetVolume);
@@ -430,7 +433,7 @@ public:
 		float getAttribute(int attributeIndex) const;
 
 		/** Adds a note on to the buffer. */
-		void addNoteOn(int channel, int noteNumber, int velocity, int timeStampSamples);
+		int addNoteOn(int channel, int noteNumber, int velocity, int timeStampSamples);
 
 		/** Adds a note off to the buffer. */
 		void addNoteOff(int channel, int noteNumber, int timeStampSamples);

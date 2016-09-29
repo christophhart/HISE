@@ -95,9 +95,7 @@ void MidiProcessorChain::addArtificialEvent(const HiseEvent& m)
 {
 	const int timeStamp = (int)m.getTimeStamp();
 
-	jassert(m.isArtificial());
-
-	
+	//jassert(m.isArtificial());
 
 	const int numThisTime = dynamic_cast<AudioProcessor*>(getMainController())->getBlockSize();
 
