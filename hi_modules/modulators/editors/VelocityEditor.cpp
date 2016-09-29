@@ -50,18 +50,24 @@ VelocityEditorBody::VelocityEditorBody (ProcessorEditor *p)
 
     addAndMakeVisible (label = new Label ("new label",
                                           TRANS("velocity")));
-    label->setFont (GLOBAL_BOLD_FONT().withHeight(26.0f));
+    label->setFont (Font ("Arial Unicode MS", 24.00f, Font::bold));
     label->setJustificationType (Justification::centredRight);
     label->setEditable (false, false, false);
     label->setColour (Label::textColourId, Colour (0x52ffffff));
     label->setColour (TextEditor::textColourId, Colours::black);
     label->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
 
+    addAndMakeVisible (decibelButton = new HiToggleButton ("new toggle button"));
+    decibelButton->setTooltip (TRANS("Use a table to calculate the value"));
+    decibelButton->setButtonText (TRANS("Decibel Mode"));
+    decibelButton->addListener (this);
+    decibelButton->setColour (ToggleButton::textColourId, Colours::white);
+
 
     //[UserPreSize]
 
     label->setFont (GLOBAL_BOLD_FONT().withHeight(26.0f));
-    
+
 	vm = static_cast<VelocityModulator*>(getProcessor());
 
 	getProcessor()->getMainController()->skin(*invertedButton);
@@ -71,6 +77,8 @@ VelocityEditorBody::VelocityEditorBody (ProcessorEditor *p)
 
 	midiTable->connectToLookupTableProcessor(getProcessor());
 
+    decibelButton->setup(getProcessor(), VelocityModulator::DecibelMode, "Decibel Mode");
+    
     //[/UserPreSize]
 
     setSize (800, 190);
@@ -91,6 +99,7 @@ VelocityEditorBody::~VelocityEditorBody()
     useTableButton = nullptr;
     invertedButton = nullptr;
     label = nullptr;
+    decibelButton = nullptr;
 
 
     //[Destructor]. You can add your own custom destruction code here..
@@ -123,6 +132,7 @@ void VelocityEditorBody::resized()
     useTableButton->setBounds ((getWidth() / 2) + -12 - 128, 12, 128, 32);
     invertedButton->setBounds ((getWidth() / 2) + 12, 12, 128, 32);
     label->setBounds (getWidth() - 315, 8, 264, 40);
+    decibelButton->setBounds ((getWidth() / 2) + -160 - 128, 12, 128, 32);
     //[UserResized] Add your own custom resize handling here..
 
 	if(!tableUsed) midiTable->setBounds ((getWidth() / 2) - ((getWidth() - 84) / 2), getHeight(), getWidth() - 84, 184);
@@ -154,6 +164,11 @@ void VelocityEditorBody::buttonClicked (Button* buttonThatWasClicked)
         //[UserButtonCode_invertedButton] -- add your button handler code here..
 		getProcessor()->setAttribute(VelocityModulator::Inverted, (float)buttonThatWasClicked->getToggleState(), dontSendNotification);
         //[/UserButtonCode_invertedButton]
+    }
+    else if (buttonThatWasClicked == decibelButton)
+    {
+        //[UserButtonCode_decibelButton] -- add your button handler code here..
+        //[/UserButtonCode_decibelButton]
     }
 
     //[UserbuttonClicked_Post]
@@ -200,6 +215,11 @@ BEGIN_JUCER_METADATA
          edTextCol="ff000000" edBkgCol="0" labelText="velocity" editableSingleClick="0"
          editableDoubleClick="0" focusDiscardsChanges="0" fontname="Arial Unicode MS"
          fontsize="24" bold="1" italic="0" justification="34"/>
+  <TOGGLEBUTTON name="new toggle button" id="d21c61c589ffef85" memberName="decibelButton"
+                virtualName="HiToggleButton" explicitFocusOrder="0" pos="-160Cr 12 128 32"
+                tooltip="Use a table to calculate the value" txtcol="ffffffff"
+                buttonText="Decibel Mode" connectedEdges="0" needsCallback="1" radioGroupId="0"
+                state="0"/>
 </JUCER_COMPONENT>
 
 END_JUCER_METADATA

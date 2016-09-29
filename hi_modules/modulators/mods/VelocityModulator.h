@@ -51,6 +51,7 @@ public:
 	{
 		Inverted = 0, ///< On, **Off** | if `true`, then the modulator works inverted, so that high velocity values are damped.
 		UseTable, ///< On, **Off** | if `true` then a look up table is used to calculate the value
+        DecibelMode,
 		numTotalParameters
 	};
 
@@ -59,10 +60,12 @@ public:
 		Modulation(m),
 		tableUsed(false),
 		inverted(false),
+        decibelMode(false),
 		velocityTable(new MidiTable())
 	{ 
 		parameterNames.add("Inverted");
 		parameterNames.add("UseTable");
+        parameterNames.add("DecibelMode");
 	};
 
 	void restoreFromValueTree(const ValueTree &v) override
@@ -71,6 +74,7 @@ public:
 
 		loadAttribute(UseTable, "UseTable");
 		loadAttribute(Inverted, "Inverted");
+        loadAttribute(DecibelMode, "DecibelMode");
 
 		if(tableUsed) loadTable(velocityTable, "VelocityTableData");
 		
@@ -82,6 +86,7 @@ public:
 
 		saveAttribute(UseTable, "UseTable");
 		saveAttribute(Inverted, "Inverted");
+        saveAttribute(DecibelMode, "DecibelMode");
 
 		if(tableUsed) saveTable(velocityTable, "VelocityTableData");
 
@@ -98,6 +103,10 @@ public:
 		case UseTable:
 			tableUsed = newValue == 1.0f;
 			break;
+        case DecibelMode:
+            decibelMode = newValue >= 0.5f;
+            break;
+                
 		}
 	}
 
@@ -107,6 +116,7 @@ public:
 		{
 		case Inverted:	return inverted;
 		case UseTable:	return tableUsed;
+        case DecibelMode: return decibelMode ? 1.0f : 0.0f;
 
 		// This should not happen!
 		default: jassertfalse; return 0.0f;
@@ -133,6 +143,12 @@ public:
 			
 		debugMod(String(value, 2));
 
+        if(decibelMode)
+        {
+            const float decibelValue = -100.0f + 100.0f * value;
+            value = Decibels::decibelsToGain(decibelValue);
+        }
+        
 		return value;
 	};
 
@@ -158,6 +174,8 @@ private:
 	bool tableUsed;
 
 	bool inverted;
+    
+    bool decibelMode;
 
 	ScopedPointer<XmlElement> tableGraph;
 

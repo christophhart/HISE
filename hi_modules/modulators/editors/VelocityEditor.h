@@ -50,6 +50,7 @@ public:
 
 		tableUsed = vm->getAttribute(VelocityModulator::UseTable) == 1.0f;
 
+        decibelButton->updateValue();
 		useTableButton->setToggleState(tableUsed, dontSendNotification);
 		invertedButton->setToggleState(vm->getAttribute(VelocityModulator::Inverted) == 1.0f, dontSendNotification);
 	};
@@ -63,9 +64,9 @@ public:
 
     //[/UserMethods]
 
-    void paint (Graphics& g);
-    void resized();
-    void buttonClicked (Button* buttonThatWasClicked);
+    void paint (Graphics& g) override;
+    void resized() override;
+    void buttonClicked (Button* buttonThatWasClicked) override;
 
 
 
@@ -84,6 +85,7 @@ private:
     ScopedPointer<ToggleButton> useTableButton;
     ScopedPointer<ToggleButton> invertedButton;
     ScopedPointer<Label> label;
+    ScopedPointer<HiToggleButton> decibelButton;
 
 
     //==============================================================================
