@@ -264,7 +264,11 @@ public:
 			jassert(dynamic_cast<MidiProcessor*>(processorToBeRemoved) != nullptr);
 			for(int i = 0; i < chain->processors.size(); i++)
 			{
-				if(chain->processors[i] == processorToBeRemoved) chain->processors.remove(i);
+				if (chain->processors[i] == processorToBeRemoved)
+				{
+					chain->processors.remove(i);
+					break;
+				}
 			}
 
 			sendChangeMessage();

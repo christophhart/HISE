@@ -59,7 +59,12 @@ public:
 
 	void sliderDragStarted(Slider *)
 	{
-		static_cast<MidiProcessorChain*>(getProcessor())->sendAllNoteOffEvent();
+		MidiProcessorChain* chain = dynamic_cast<MidiProcessorChain*>(ProcessorHelpers::findParentProcessor(getProcessor(), false));
+
+		if (chain != nullptr)
+		{
+			chain->sendAllNoteOffEvent();
+		}
 	}
 
     //[/UserMethods]

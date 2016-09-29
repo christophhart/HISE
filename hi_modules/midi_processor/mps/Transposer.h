@@ -46,8 +46,14 @@ public:
 
 	Transposer(MainController *mc, const String &id):
 		MidiProcessor(mc, id),
-		transposeAmount(36)
+		transposeAmount(0)
 	{};
+
+
+	~Transposer()
+	{
+		transposeAmount = 0;
+	}
 
 	enum SpecialParameters
 	{
