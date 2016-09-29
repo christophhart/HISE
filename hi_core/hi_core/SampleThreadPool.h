@@ -75,6 +75,8 @@ public:
 			running(false),
 			shouldStop(false)
 		{};
+        
+        virtual ~Job() { masterReference.clear(); }
 
 		enum JobStatus
 		{
@@ -95,6 +97,9 @@ public:
 	private:
 
 		friend class NewSampleThreadPool;
+        
+        friend class WeakReference<Job>;
+        WeakReference<Job>::Master masterReference;
 
 		std::atomic<bool> queued;
 
@@ -136,33 +141,37 @@ public:
 	{
 		while (!threadShouldExit())
 		{
-			if (Job** next = jobQueue.peek())
+			if (WeakReference<Job>* next = jobQueue.peek())
 			{
-				Job* j = *next;
+                Job* j = next->get();
 
 #if ENABLE_CPU_MEASUREMENT
 
 				const int64 lastEndTime = endTime;
 				startTime = Time::getHighResolutionTicks();
 #endif
-
-				currentlyExecutedJob.store(j);
-
-				j->running.store(true);
-
-				Job::JobStatus status = j->runJob();
-
-				j->running.store(false);
-
-				if (status == Job::jobHasFinished)
-				{
-					jobQueue.pop();
-					j->queued.store(false);
-                    --counter;
-				}
-					
-				currentlyExecutedJob.store(nullptr);
-
+                
+                if(j != nullptr)
+                {
+                    currentlyExecutedJob.store(j);
+                    
+                    j->running.store(true);
+                    
+                    Job::JobStatus status = j->runJob();
+                    
+                    j->running.store(false);
+                    
+                    if (status == Job::jobHasFinished)
+                    {
+                        jobQueue.pop();
+                        j->queued.store(false);
+                        --counter;
+                    }
+                    
+                    currentlyExecutedJob.store(nullptr);
+                }
+                
+                
 #if ENABLE_CPU_MEASUREMENT
 				endTime = Time::getHighResolutionTicks();
 
@@ -173,7 +182,7 @@ public:
 #endif
 			}
 
-#if 0 // Set this to true to enable defective threading (for debugging purposes
+#if 1 // Set this to true to enable defective threading (for debugging purposes)
 			wait(500);
 #else
             else
@@ -193,7 +202,7 @@ public:
 
 	int64 startTime, endTime;
 
-	moodycamel::ReaderWriterQueue<Job*> jobQueue;
+	moodycamel::ReaderWriterQueue<WeakReference<Job>> jobQueue;
 
 	std::atomic<Job*> currentlyExecutedJob;
 

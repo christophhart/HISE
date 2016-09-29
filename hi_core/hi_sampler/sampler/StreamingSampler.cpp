@@ -593,7 +593,7 @@ void StreamingSamplerSound::FileReader::setFile(const String &fileName)
 
 		const String fileExtension = loadedFile.getFileExtension();
 
-		fileFormatSupportsMemoryReading = fileExtension.compareIgnoreCase(".wav") || fileExtension.startsWithIgnoreCase(".aif");
+		fileFormatSupportsMemoryReading = fileExtension.contains("wav") || fileExtension.contains("aif");
 
 		hashCode = loadedFile.hashCode64();
 	}
@@ -783,23 +783,6 @@ void StreamingSamplerSound::FileReader::readFromDisk(AudioSampleBuffer &buffer, 
 		// Something is wrong so clear the buffer to be safe...
 		buffer.clear(startSample, numSamples);
 	}
-
-#if JUCE_DEBUG
-
-	const float *l = buffer.getReadPointer(0) + startSample;
-	const float *r = buffer.getReadPointer(1) + startSample;
-
-	const float maxL = FloatVectorOperations::findMaximum(l, numSamples);
-	const float maxR = FloatVectorOperations::findMaximum(r, numSamples);
-
-	const float minL = FloatVectorOperations::findMinimum(l, numSamples);
-	const float minR = FloatVectorOperations::findMinimum(r, numSamples);
-
-	if (maxL > 1.0f || maxR > 1.f || minL < -1.0f || minR < -1.0f)
-	{
-		Logger::writeToLog("Glitch");
-	}
-#endif
 }
 
 
@@ -998,7 +981,7 @@ StereoChannelData SampleLoader::fillVoiceBuffer(AudioSampleBuffer &voiceBuffer, 
 	}
 }
 
-void SampleLoader::advanceReadIndex(double delta)
+bool SampleLoader::advanceReadIndex(double delta)
 {
 	const int numSamplesInBuffer = readBuffer.get()->getNumSamples();
 	readIndexDouble += delta;
@@ -1009,20 +992,46 @@ void SampleLoader::advanceReadIndex(double delta)
 		readIndexDouble -= (double)numSamplesInBuffer;
 
 		swapBuffers();
-		requestNewData();
+		const bool queueIsFree = requestNewData();
+        
+        return queueIsFree;
 	}
+    
+    return true;
 }
 
-void SampleLoader::requestNewData()
+bool SampleLoader::requestNewData()
 {
     ADD_GLITCH_DETECTOR("Requesting new sample data");
 
-	backgroundPool->addJob(this, false);
+#if KILL_VOICES_WHEN_STREAMING_IS_BLOCKED
+    if(this->isQueued())
+    {
+        writeBuffer.get()->clear();
+        cancelled = true;
+        backgroundPool->notify();
+        return false;
+    }
+    else
+    {
+        backgroundPool->addJob(this, false);
+        return true;
+    }
+#else
+    backgroundPool->addJob(this, false);
+    return true;
+#endif
 };
 
 
 SampleThreadPoolJob::JobStatus SampleLoader::runJob()
 {
+    if(cancelled)
+    {
+        cancelled = false;
+        return SampleThreadPoolJob::jobHasFinished;
+    }
+    
     const double readStart = Time::highResolutionTicksToSeconds(Time::getHighResolutionTicks());
 
 	if (writeBufferIsBeingFilled)
@@ -1264,7 +1273,13 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 		}
 		
 		voiceUptime += pitchCounter;
-		loader.advanceReadIndex(pitchCounter);
+		
+        if(!loader.advanceReadIndex(pitchCounter))
+        {
+            Logger::writeToLog("Streaming failure with sound " + sound->getFileName());
+            resetVoice();
+            return;
+        }
 
 		const bool enoughSamples = sound->hasEnoughSamplesForBlock((int)(voiceUptime + numSamples * MAX_SAMPLER_PITCH));
 

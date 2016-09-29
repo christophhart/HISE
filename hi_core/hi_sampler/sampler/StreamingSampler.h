@@ -74,6 +74,9 @@ struct StereoChannelData
 // which is not the smartest thing to do, but it comes to good use for debugging.
 #define USE_BACKGROUND_THREAD 1
 
+// If the streaming background thread is blocked, it will kill the voice to exit gracefully.
+#define KILL_VOICES_WHEN_STREAMING_IS_BLOCKED 1
+
 // By default, every voice adds its output to the supplied buffer. Depending on your architecture, it could be more practical to
 // set (overwrite) the buffer. In this case, set this to 1.
 #if STANDALONE
@@ -557,7 +560,8 @@ public:
 
 	StereoChannelData fillVoiceBuffer(AudioSampleBuffer &voiceBuffer, double numSamples);
 
-	void advanceReadIndex(double delta);
+    /** Advances the read index and returns `false` if the streaming thread is blocked. */
+	bool advanceReadIndex(double delta);
 
 	/** Call this whenever a sound was started.
 	*
@@ -650,6 +654,7 @@ public:
         diskUsage = 0.0f;
         readPointerLeft = nullptr;
         readPointerRight = nullptr;
+        cancelled = false;
     }
 
 	/** Calculates and returns the disk usage.
@@ -667,6 +672,7 @@ public:
 	
 	const CriticalSection &getLock() const { return lock; }
 
+    
 private:
 
     friend class Unmapper;
@@ -680,7 +686,7 @@ private:
 		return b1.getNumSamples();
 	}
 
-	void requestNewData();
+	bool requestNewData();
 	
 	bool swapBuffers();
 
@@ -738,6 +744,8 @@ private:
 	// the internal buffers
 
 	AudioSampleBuffer b1, b2;
+    
+    bool cancelled = false;
 };
 
 
