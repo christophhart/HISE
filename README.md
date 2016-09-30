@@ -25,6 +25,8 @@ It supports x86 and x64 on Windows, altough the 64bit version is highly recommen
 ### Sampler engine
 
 - fast disk streaming sampler engine using memory mapped files
+- Import SFZ files, Mach5 files or AIFFs with metadata from Keymap Pro
+- File name parser for automapping samples
 - multi mic sample support (with purging of single mic channels)
 - looping with crossfades
 - sample start modulation
@@ -50,6 +52,7 @@ It supports x86 and x64 on Windows, altough the 64bit version is highly recommen
 
 - superset of Javascript built for real time usage (no allocations, low overhead function calls)
 - write MIDI processing scripts
+- change voice properties (volume & pitch)
 - create plugin interfaces with a WYSIWYG editor
 - built in IDE features (autocomplete / API reference, variable watch, console debugging)
 - combine DSP routines for custom effects
@@ -99,4 +102,5 @@ Apart from the JUCE C++ library, there are some other 3rd party frameworks and l
 - **Tiny C Compiler** Awesome little compiler that translates C files into machine code within milliseconds. It is embedded into HISE as development tool. The compiler is LGPL licenced, so it is linked dynamically into HISE, but for closed source plugins, the C files will be compiled by a "real" compiler anyway.
 - **Kiss FFT**: A easy and C-only FFT library with a clean interface and acceptable performance. It is used as fallback FFT when the IPP library is not available.
 - **WDL** (just for the convolution, it might get sorted out in the future)
+- **MDA Plugins**: a collection of audio effects recently published as open source project.
 - some other public domain code taken from various sources (music-dsp.org, etc.).
