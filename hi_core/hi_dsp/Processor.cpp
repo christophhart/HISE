@@ -310,7 +310,7 @@ String ProcessorHelpers::getScriptVariableDeclaration(const Processor *p, bool c
 	String name = p->getId();
 	String id = name.removeCharacters(" \n\t\"\'!$%&/()");
 	
-	code << id << " = Synth.get" << typeName << "(\"" << name << "\");";
+	code << "const var " << id << " = Synth.get" << typeName << "(\"" << name << "\");";
 
 	if (copyToClipboard)
 	{
