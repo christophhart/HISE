@@ -1639,11 +1639,12 @@ ScriptingObjects::ScriptingMidiProcessor *ScriptingApi::Synth::getMidiProcessor(
 		{
 			if(mp->getId() == name)
 			{
-				debugToConsole(owner, mp->getId() + " was found. ");
 				return new ScriptingObjects::ScriptingMidiProcessor(getScriptProcessor(), mp);	
 			}
 		}
 
+        reportScriptError(owner, mp->getId() + " was not found. ");
+        
 		return new ScriptMidiProcessor(getScriptProcessor(), nullptr);
 	}
 	else
@@ -1669,10 +1670,11 @@ ScriptingObjects::ScriptingSynth *ScriptingApi::Synth::getChildSynth(const Strin
 		{
 			if(m->getId() == name)
 			{
-				debugToConsole(owner, m->getId() + " was found. ");
 				return new ScriptingObjects::ScriptingSynth(getScriptProcessor(), m);	
 			}
 		}
+        
+        reportScriptError(owner, m->getId() + " was not found. ");
 
 		return new ScriptingObjects::ScriptingSynth(getScriptProcessor(), nullptr);
 	}
@@ -1698,11 +1700,12 @@ ScriptingObjects::ScriptingEffect *ScriptingApi::Synth::getEffect(const String &
 		{
 			if(fx->getId() == name)
 			{
-				debugToConsole(owner, fx->getId() + " was found. ");
 				return new ScriptEffect(getScriptProcessor(), fx);	
 			}
 		}
 
+        reportScriptError(owner, fx->getId() + " was not found. ");
+        
 		return new ScriptEffect(getScriptProcessor(), nullptr);
 	}
 	else
@@ -1727,11 +1730,12 @@ ScriptingObjects::ScriptingAudioSampleProcessor * ScriptingApi::Synth::getAudioS
 		{
 			if (dynamic_cast<Processor*>(asp)->getId() == name)
 			{
-				debugToConsole(owner, dynamic_cast<Processor*>(asp)->getId() + " was found. ");
 				return new ScriptAudioSampleProcessor(getScriptProcessor(), asp);
 			}
 		}
 
+        reportScriptError(owner, dynamic_cast<Processor*>(asp)->getId() + " was not found. ");
+        
 		return new ScriptAudioSampleProcessor(getScriptProcessor(), nullptr);
 	}
 	else
@@ -1754,11 +1758,13 @@ ScriptingObjects::ScriptingTableProcessor *ScriptingApi::Synth::getTableProcesso
 		{
 			if (dynamic_cast<Processor*>(lut)->getId() == name)
 			{
-				debugToConsole(owner, dynamic_cast<Processor*>(lut)->getId() + " was found. ");
+				
 				return new ScriptTableProcessor(getScriptProcessor(), lut);
 			}
 		}
 
+        reportScriptError(owner, dynamic_cast<Processor*>(lut)->getId() + " was not found. ");
+        
 		return new ScriptTableProcessor(getScriptProcessor(), nullptr);
 	}
 	else
@@ -1779,11 +1785,13 @@ ScriptingApi::Sampler * ScriptingApi::Synth::getSampler(const String &name)
 		{
 			if (s->getId() == name)
 			{
-				debugToConsole(owner, s->getId() + " was found. ");
+				
 				return new Sampler(getScriptProcessor(), s);
 			}
 		}
 
+        reportScriptError(owner, s->getId() + " was not found. ");
+        
 		return new Sampler(getScriptProcessor(), nullptr);
 	}
 	else

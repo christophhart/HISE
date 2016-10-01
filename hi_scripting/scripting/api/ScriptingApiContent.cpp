@@ -1440,7 +1440,7 @@ void ScriptingApi::Content::ScriptTable::connectToOtherTable(const String &other
 		{
 			useOtherTable = true;
 
-			debugToConsole(getProcessor(), otherTableId + " was found.");
+			
 
 			referencedTable = dynamic_cast<LookupTableProcessor*>(p)->getTable(index);
 			connectedProcessor = p;
@@ -1450,6 +1450,8 @@ void ScriptingApi::Content::ScriptTable::connectToOtherTable(const String &other
 
 	}
 
+    reportScriptError(getProcessor(), otherTableId + " was not found.");
+    
 	useOtherTable = false;
 	referencedTable = nullptr;
 
@@ -1597,12 +1599,14 @@ void ScriptingApi::Content::ScriptSliderPack::connectToOtherSliderPack(const Str
 		{
 			existingData = dynamic_cast<SliderPackProcessor*>(p)->getSliderPackData(0);
 
-			debugToConsole(getProcessor(), otherPackId + " was found.");
+			
 
 			return;
 		}
 	}
 
+    reportScriptError(getProcessor(), otherPackId + " was not found.");
+    
 	existingData = nullptr;
 }
 
@@ -2260,8 +2264,6 @@ void ScriptingApi::Content::ScriptAudioWaveform::connectToAudioSampleProcessor(S
 	{
 		if (dynamic_cast<AudioSampleProcessor*>(p) != nullptr && p->getId() == processorId)
 		{
-			debugToConsole(getProcessor(), processorId + " was found.");
-
 			connectedProcessor = p;
 
 			return;
@@ -2269,6 +2271,8 @@ void ScriptingApi::Content::ScriptAudioWaveform::connectToAudioSampleProcessor(S
 
 	}
 
+    reportScriptError(getProcessor(), processorId + " was not found.");
+    
 	connectedProcessor = nullptr;
 }
 
@@ -2379,12 +2383,13 @@ void ScriptingApi::Content::ScriptPluginEditor::connectToAudioProcessorWrapper(S
 	{
 		if (p->getId() == processorId)
 		{
-			debugToConsole(getProcessor(), processorId + " was found.");
 			connectedProcessor = p;
 			return;
 		}
 	}
 
+    reportScriptError(getProcessor(), processorId + " was not found.");
+    
 	connectedProcessor = nullptr;
 }
 
