@@ -248,8 +248,24 @@ void JavascriptCodeEditor::itemDragMove(const SourceDetails &dragSourceDetails)
 
 void JavascriptCodeEditor::selectLineAfterDefinition(Identifier identifier)
 {
-    try
-    {
+    const String regexp = "(const)?\\s*(global|var|reg)?\\s*" + identifier.toString() + "\\s*=\\s*.*;[\\n\\r]";
+		
+	const String allText = getDocument().getAllContent();
+
+	StringArray sa = RegexFunctions::getMatches(regexp, allText, nullptr);
+
+	if(sa.size() > 0)
+	{
+		const String match = sa[0];
+
+		int startIndex = allText.indexOf(match) + match.length();
+
+		CodeDocument::Position pos(getDocument(), startIndex);
+
+		moveCaretTo(pos, false);
+	}
+
+#if 0
         String regex = "(var )?" + identifier.toString() + " *= *";
         std::regex reg(regex.toStdString());
         
@@ -273,13 +289,9 @@ void JavascriptCodeEditor::selectLineAfterDefinition(Identifier identifier)
         
         const int currentCharPosition = getCaretPos().getPosition();
         setHighlightedRegion(Range<int>(currentCharPosition, currentCharPosition));
+#endif
         
-        
-    }
-    catch (std::regex_error e)
-    {
-        //debugError(sampler, e.what());
-    }
+  
 
 }
 
@@ -290,6 +302,26 @@ bool JavascriptCodeEditor::selectJSONTag(const Identifier &identifier)
 
 	String endLine;
 	endLine << "// [/JSON " << identifier.toString() << "]";
+
+
+	String allText = getDocument().getAllContent();
+
+	const int startIndex = allText.indexOf(startLine);
+
+	if (startIndex == -1) return false;
+
+	const int endIndex = allText.indexOf(endLine);
+
+	if (endIndex == -1)
+	{
+		return false;
+	}
+
+	setHighlightedRegion(Range<int>(startIndex, endIndex + endLine.length()));
+
+	return true;
+
+#if 0
 
 	int startLineIndex = -1;
 	CodeDocument::Position startPosition;
@@ -332,6 +364,7 @@ bool JavascriptCodeEditor::selectJSONTag(const Identifier &identifier)
 	}
 
 	return false;
+#endif
 }
 
 void JavascriptCodeEditor::focusLost(FocusChangeType )
