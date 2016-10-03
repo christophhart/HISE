@@ -1643,7 +1643,7 @@ ScriptingObjects::ScriptingMidiProcessor *ScriptingApi::Synth::getMidiProcessor(
 			}
 		}
 
-        reportScriptError(mp->getId() + " was not found. ");
+        reportScriptError(name + " was not found. ");
         
 		return new ScriptMidiProcessor(getScriptProcessor(), nullptr);
 	}
@@ -1674,7 +1674,7 @@ ScriptingObjects::ScriptingSynth *ScriptingApi::Synth::getChildSynth(const Strin
 			}
 		}
         
-        reportScriptError(m->getId() + " was not found. ");
+        reportScriptError(name + " was not found. ");
 
 		return new ScriptingObjects::ScriptingSynth(getScriptProcessor(), nullptr);
 	}
@@ -1704,7 +1704,7 @@ ScriptingObjects::ScriptingEffect *ScriptingApi::Synth::getEffect(const String &
 			}
 		}
 
-        reportScriptError(fx->getId() + " was not found. ");
+        reportScriptError(name + " was not found. ");
         
 		return new ScriptEffect(getScriptProcessor(), nullptr);
 	}
@@ -1734,7 +1734,7 @@ ScriptingObjects::ScriptingAudioSampleProcessor * ScriptingApi::Synth::getAudioS
 			}
 		}
 
-        reportScriptError(dynamic_cast<Processor*>(asp)->getId() + " was not found. ");
+        reportScriptError(name + " was not found. ");
         
 		return new ScriptAudioSampleProcessor(getScriptProcessor(), nullptr);
 	}
