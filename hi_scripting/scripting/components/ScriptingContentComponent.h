@@ -141,7 +141,7 @@ public:
 
 	ScriptingApi::Content::ScriptComponent *getEditedComponent();
 
-	void setEditedScriptComponent(ScriptingApi::Content::ScriptComponent *sc);
+	Component* setEditedScriptComponent(ScriptingApi::Content::ScriptComponent *sc);
 
 	bool keyPressed(const KeyPress &key) override;
 
@@ -169,6 +169,8 @@ public:
 	void resized();
 
 private:
+
+	
 
 	friend class ScriptCreatedComponentWrapper;
 

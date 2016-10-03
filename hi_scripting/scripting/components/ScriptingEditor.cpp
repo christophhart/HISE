@@ -129,7 +129,11 @@ ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
 		lastPositions.add(37);
 	}
 	
+	addAndMakeVisible(dragOverlay = new DragOverlay());
+
     setSize (800, 500);
+
+	
 
 	editorInitialized();
 }
@@ -267,6 +271,11 @@ void ScriptingEditor::resized()
 
 		compileButton->setTopLeftPosition(codeEditor->getRight() - compileButton->getWidth(), y);
 	}
+
+	dragOverlay->setBounds(scriptContent->getBounds());
+
+	dragOverlay->setVisible(isInEditMode());
+
 }
 
 void ScriptingEditor::buttonClicked (Button* buttonThatWasClicked)
@@ -359,11 +368,52 @@ void ScriptingEditor::saveLastCallback()
 	}
 }
 
+void ScriptingEditor::changePositionOfComponent(ScriptingApi::Content::ScriptComponent* sc, int newX, int newY)
+{
+	const String regexMonster = "(Content\\.add\\w+\\s*\\(\\s*\\\"(" + sc->getName().toString() +
+		")\\\"\\s*,\\s*)(-?\\d+)(\\s*,\\s*)(-?\\d+)(\\s*\\);)|(create\\w+\\s*\\(\\s*\\\"(" + sc->getName().toString() +
+		")\\\"\\s*,\\s*)(-?\\d+)(\\s*,\\s*)(-?\\d+)(\\s*.*\\);)";
+
+	CodeDocument* onInitC = dynamic_cast<JavascriptProcessor*>(getProcessor())->getSnippet(0);
+
+	String allText = onInitC->getAllContent();
+
+	StringArray matches = RegexFunctions::getMatches(regexMonster, allText);
+
+	const bool isContentDefinition = matches[1].isNotEmpty();
+	const bool isInlineDefinition = matches[7].isNotEmpty();
+
+	if ((isContentDefinition || isInlineDefinition) && matches.size() > 12)
+	{
+		const String oldLine = matches[0];
+		String replaceLine;
+
+		if (isContentDefinition)
+		{
+			replaceLine << matches[1] << String(newX) << matches[4] << String(newY) << matches[6];
+		}
+		else
+		{
+
+			replaceLine << matches[7] << String(newX) << matches[10] << String(newY) << matches[12];
+		}
+
+		const int start = allText.indexOf(oldLine);
+		const int end = start + oldLine.length();
+
+		onInitC->replaceSection(start, end, replaceLine);
+
+		sc->setDefaultPosition(newX, newY);
+	}
+}
+
 void ScriptingEditor::setEditedScriptComponent(ReferenceCountedObject* component)
 {
 	ScriptingApi::Content::ScriptComponent *sc = dynamic_cast<ScriptingApi::Content::ScriptComponent*>(component);
 
-	scriptContent->setEditedScriptComponent(sc);
+	Component* scc = scriptContent->setEditedScriptComponent(sc);
+
+	dragOverlay->dragger->setDraggedControl(scc, sc);
 
 	if(component != nullptr)
 	{
@@ -924,16 +974,7 @@ void ScriptingEditor::mouseDown(const MouseEvent &e)
 		ScopedPointer<PopupLookAndFeel> luf = new PopupLookAndFeel();
 		m.setLookAndFeel(luf);
 
-		m.addSectionHeader("Export whole script:");
-		m.addItem(1, "Save Script To File");
-		m.addItem(2, "Load Script From File");
-		m.addSeparator();
-		m.addItem(3, "Save Script to Clipboard");
-		m.addItem(4, "Load Script from Clipboard");
-
-		m.addSeparator();
-
-		PopupMenu widgets;
+		ScriptingApi::Content::ScriptComponent *sc = scriptContent->getScriptComponentFor(e.getEventRelativeTo(scriptContent).getPosition());
 
 		enum Widgets
 		{
@@ -952,32 +993,56 @@ void ScriptingEditor::mouseDown(const MouseEvent &e)
 			numWidgets
 		};
 
-		widgets.addItem(Knob, "Add new Slider");
-		widgets.addItem(Button, "Add new Button");
-		widgets.addItem(Table, "Add new Table");
-		widgets.addItem(ComboBox, "Add new ComboBox");
-		widgets.addItem(Label, "Add new Label");
-		widgets.addItem(Image, "Add new Image");
-		widgets.addItem(Plotter, "Add new Plotter");
-		widgets.addItem(ModulatorMeter, "Add new ModulatorMeter");
-		widgets.addItem(Panel, "Add new Panel");
-		widgets.addItem(AudioWaveform, "Add new AudioWaveform");
-		widgets.addItem(SliderPack, "Add new SliderPack");
 
-		m.addSubMenu("Add new Control", widgets, true);
-
-		m.addItem(duplicateWidget, "Duplicate selected component", scriptContent->getEditedComponent() != nullptr);
-
-		m.addItem(numWidgets, "Enable Component Select Mode", true, useComponentSelectMode);
-
-		ScriptingApi::Content::ScriptComponent *sc = scriptContent->getScriptComponentFor(e.getEventRelativeTo(scriptContent).getPosition());
-
-		if(sc != nullptr)
+		if (useComponentSelectMode)
 		{
-			m.addSeparator();
-			m.addItem(5, "Edit \"" + sc->getName().toString() + "\" in Panel");
-			m.addItem(6, "Connect to Module Parameter");
+			
+			m.addSectionHeader("Create new widget");
+			m.addItem(Knob, "Add new Slider");
+			m.addItem(Button, "Add new Button");
+			m.addItem(Table, "Add new Table");
+			m.addItem(ComboBox, "Add new ComboBox");
+			m.addItem(Label, "Add new Label");
+			m.addItem(Image, "Add new Image");
+			m.addItem(Plotter, "Add new Plotter");
+			m.addItem(ModulatorMeter, "Add new ModulatorMeter");
+			m.addItem(Panel, "Add new Panel");
+			m.addItem(AudioWaveform, "Add new AudioWaveform");
+			m.addItem(SliderPack, "Add new SliderPack");
+
+
+			m.addItem(duplicateWidget, "Duplicate selected component", scriptContent->getEditedComponent() != nullptr);
+
+
+			
+
+			if (sc != nullptr)
+			{
+				m.addSeparator();
+				m.addItem(5, "Edit \"" + sc->getName().toString() + "\" in Panel");
+				m.addItem(6, "Connect to Module Parameter");
+			}
+
 		}
+		else
+		{
+			m.addSectionHeader("Export whole script:");
+			m.addItem(1, "Save Script To File");
+			m.addItem(2, "Load Script From File");
+			m.addSeparator();
+			m.addItem(3, "Save Script to Clipboard");
+			m.addItem(4, "Load Script from Clipboard");
+
+			m.addSeparator();
+
+
+		}
+
+		
+
+		PopupMenu widgets;
+
+		
 
 		int result = m.show();
 
@@ -1121,11 +1186,17 @@ void ScriptingEditor::mouseDown(const MouseEvent &e)
 		}
 		else if (result == numWidgets) // Component Select Mode
 		{
-			useComponentSelectMode = !useComponentSelectMode;
+			toggleComponentSelectMode(!useComponentSelectMode);
 
-			scriptContent->setInterceptsMouseClicks(false, !useComponentSelectMode);
 		}
 }
+}
+
+void ScriptingEditor::toggleComponentSelectMode(bool shouldSelectOnClick)
+{
+	useComponentSelectMode = shouldSelectOnClick;
+
+	scriptContent->setInterceptsMouseClicks(false, !useComponentSelectMode);
 }
 
 void ScriptingEditor::mouseDoubleClick(const MouseEvent& e)
@@ -1331,4 +1402,118 @@ void ScriptingEditor::checkActiveSnippets()
 			}
 		}
 	}
+}
+
+ScriptingEditor::DragOverlay::DragOverlay()
+{
+	addAndMakeVisible(dragger = new Dragger());
+
+	setInterceptsMouseClicks(false, true);
+
+	addAndMakeVisible(dragModeButton = new ShapeButton("Drag Mode", Colours::black.withAlpha(0.3f), Colours::black.withAlpha(0.8f), Colours::black.withAlpha(0.8f)));
+
+	static const unsigned char dragShape[] = { 110, 109, 64, 217, 192, 67, 0, 218, 36, 67, 108, 64, 42, 173, 67, 0, 218, 81, 67, 108, 0, 144, 188, 67, 0, 218, 81, 67, 108, 0, 144, 188, 67, 128, 141, 118, 67, 108, 0, 77, 171, 67, 128, 141, 118, 67, 108, 0, 77, 171, 67, 0, 9, 87, 67, 108, 0, 205, 148, 67, 128, 102, 126, 67, 108, 0, 77, 171, 67, 0, 226, 146, 67, 108, 0, 77,
+		171, 67, 192, 198, 130, 67, 108, 0, 144, 188, 67, 192, 198, 130, 67, 108, 0, 144, 188, 67, 128, 140, 149, 67, 108, 192, 223, 171, 67, 128, 140, 149, 67, 108, 128, 142, 191, 67, 128, 12, 172, 67, 108, 64, 61, 211, 67, 128, 140, 149, 67, 108, 0, 16, 196, 67, 128, 140, 149, 67, 108, 0, 16, 196, 67, 192, 198, 130, 67, 108,
+		64, 112, 214, 67, 192, 198, 130, 67, 108, 64, 112, 214, 67, 0, 200, 146, 67, 108, 64, 240, 236, 67, 128, 50, 126, 67, 108, 64, 112, 214, 67, 0, 213, 86, 67, 108, 64, 112, 214, 67, 128, 141, 118, 67, 108, 0, 16, 196, 67, 128, 141, 118, 67, 108, 0, 16, 196, 67, 0, 218, 81, 67, 108, 0, 136, 212, 67, 0, 218, 81, 67, 108, 64,
+		217, 192, 67, 0, 218, 36, 67, 99, 101, 0, 0 };
+
+	Path path;
+	path.loadPathFromData(dragShape, sizeof(dragShape));
+
+	dragModeButton->setShape(path, true, true, false);
+
+	dragModeButton->addListener(this);
+
+	dragMode = false;
+}
+
+void ScriptingEditor::DragOverlay::resized()
+{
+	dragModeButton->setBounds(getWidth() - 20, 4, 18, 18);
+}
+
+void ScriptingEditor::DragOverlay::buttonClicked(Button* buttonThatWasClicked)
+{
+	dragMode = !dragMode;
+
+
+
+	buttonThatWasClicked->setToggleState(dragMode, dontSendNotification);
+
+	Colour c = dragMode ? Colours::white : Colours::black;
+
+	dragModeButton->setColours(c.withAlpha(0.3f), c.withAlpha(0.8f), c.withAlpha(0.8f));
+
+	findParentComponentOfClass<ScriptingEditor>()->toggleComponentSelectMode(dragMode);
+
+	if (dragMode == false)
+	{
+		dragger->setDraggedControl(nullptr, nullptr);
+	}
+
+	repaint();
+}
+
+void ScriptingEditor::DragOverlay::paint(Graphics& g)
+{
+	if (dragMode)
+	{
+		for (int x = 10; x < getWidth(); x += 10)
+		{
+			g.setColour(Colours::black.withAlpha((x % 100 == 0) ? 0.12f : 0.05f));
+
+			g.drawVerticalLine(x, 0, getHeight());
+		}
+
+		for (int y = 10; y < getHeight(); y += 10)
+		{
+			g.setColour(Colours::black.withAlpha(((y) % 100 == 0) ? 0.1f : 0.05f));
+			g.drawHorizontalLine(y, 0.0f, getWidth());
+		}
+	}
+
+	Colour c = dragMode ? Colours::white : Colours::black;
+
+	g.setColour(c.withAlpha(0.2f));
+
+	g.setFont(GLOBAL_BOLD_FONT());
+	g.drawText(dragMode ? "Drag Mode" : "Test Mode", getWidth() - 133, 5, 110, 20, Justification::centredRight);
+}
+
+ScriptingEditor::DragOverlay::Dragger::Dragger()
+{
+	constrainer.setMinimumOnscreenAmounts(0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF);
+
+
+
+	addAndMakeVisible(resizer = new ResizableCornerComponent(this, &constrainer));
+
+	resizer->addMouseListener(this, true);
+
+	setWantsKeyboardFocus(true);
+}
+
+ScriptingEditor::DragOverlay::Dragger::~Dragger()
+{
+	setDraggedControl(nullptr, nullptr);
+}
+
+void ScriptingEditor::DragOverlay::Dragger::paint(Graphics &g)
+{
+	g.fillAll(Colours::black.withAlpha(0.2f));
+	g.setColour(Colours::white.withAlpha(0.5f));
+
+	g.drawRect(getLocalBounds(), 1.0f);
+}
+
+void ScriptingEditor::DragOverlay::Dragger::mouseDown(const MouseEvent& e)
+{
+	if (e.eventComponent == this)
+		dragger.startDraggingComponent(this, e);
+}
+
+void ScriptingEditor::DragOverlay::Dragger::mouseDrag(const MouseEvent& e)
+{
+	if (e.eventComponent == this)
+		dragger.dragComponent(this, e, &constrainer);
 }

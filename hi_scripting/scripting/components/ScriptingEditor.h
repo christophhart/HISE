@@ -43,6 +43,9 @@ public:
 
 	{
 		addAndMakeVisible(contentComponent = new ScriptContentComponent(static_cast<ScriptBaseMidiProcessor*>(getProcessor())));
+        
+        
+        
 		contentComponent->refreshMacroIndexes();
 
 
@@ -102,6 +105,8 @@ public:
 
 	void mouseDown(const MouseEvent &e) override;
 
+	void toggleComponentSelectMode(bool shouldSelectOnClick);
+
 	void mouseDoubleClick(const MouseEvent& e) override;
 
 	bool isRootEditor() const { return getEditor()->isRootEditor(); }
@@ -137,6 +142,12 @@ public:
 
 	void compileScript();
 
+	bool isInEditMode() const
+	{
+		return editorShown && scriptContent->isVisible() && (getActiveCallback() == 0);
+	}
+
+	
 	void checkContent()
 	{
 		const bool contentEmpty = scriptContent->getContentHeight() == 0;
@@ -179,10 +190,218 @@ public:
 	void goToSavedPosition(int newCallback);
 	void saveLastCallback();
 
+	void changePositionOfComponent(ScriptingApi::Content::ScriptComponent* sc, int newX, int newY);
+    
+	class DragOverlay : public Component,
+						public ButtonListener
+	{
+	public:
+
+		DragOverlay();
+
+
+		void resized();
+
+		void buttonClicked(Button* buttonThatWasClicked);
+
+		void paint(Graphics& g) override;
+
+
+		class Dragger : public Component
+		{
+		public:
+
+			Dragger();
+
+			~Dragger();
+
+			void paint(Graphics &g) override;
+
+			void mouseDown(const MouseEvent& e);
+
+			void mouseDrag(const MouseEvent& e);
+
+			void mouseUp(const MouseEvent& e)
+			{
+				ScriptingApi::Content::ScriptComponent *sc = currentScriptComponent;
+
+				if (sc != nullptr)
+				{
+					if (e.eventComponent == this) // just moving
+					{
+						ScriptingEditor* editor = findParentComponentOfClass<ScriptingEditor>();
+
+						const int oldX = sc->getPosition().getX();
+						const int oldY = sc->getPosition().getY();
+
+						const int newX = oldX + e.getDistanceFromDragStartX();
+						const int newY = oldY + e.getDistanceFromDragStartY();
+
+						if (editor != nullptr)
+						{
+							editor->changePositionOfComponent(sc, newX, newY);
+						}
+					}
+					else 
+					{
+						sc->setScriptObjectPropertyWithChangeMessage(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::width), getWidth(), dontSendNotification);
+						sc->setScriptObjectPropertyWithChangeMessage(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::height), getHeight(), sendNotification);
+						sc->setChanged();
+
+						ScriptingEditor* editor = findParentComponentOfClass<ScriptingEditor>();
+
+						if (editor != nullptr)
+						{
+							editor->scriptComponentChanged(sc, sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::width));
+						}
+					}
+				}
+			}
+
+			void resized()
+			{
+				resizer->setBounds(getWidth() - 10, getHeight() - 10, 10, 10);
+			}
+
+			bool keyPressed(const KeyPress &key) override
+			{
+				if (currentlyDraggedComponent == nullptr) return false;
+
+				ScriptingApi::Content::ScriptComponent *sc = currentScriptComponent;
+
+				if (sc == nullptr) return false;
+
+				const int keyCode = key.getKeyCode();
+
+				const int delta = key.getModifiers().isCommandDown() ? 10 : 1;
+
+				const int horizontalProperty = key.getModifiers().isShiftDown() ? ScriptingApi::Content::ScriptComponent::width : ScriptingApi::Content::ScriptComponent::x;
+				const int verticalProperty = key.getModifiers().isShiftDown() ? ScriptingApi::Content::ScriptComponent::height : ScriptingApi::Content::ScriptComponent::y;
+
+				int x = sc->getScriptObjectProperty(horizontalProperty);
+				int y = sc->getScriptObjectProperty(verticalProperty);
+
+				if (keyCode == KeyPress::upKey)
+				{
+					sc->setScriptObjectPropertyWithChangeMessage(sc->getIdFor(verticalProperty), y - delta, sendNotification);
+					sc->setChanged();
+
+
+
+					return true;
+				}
+				else if (keyCode == KeyPress::downKey)
+				{
+					sc->setScriptObjectPropertyWithChangeMessage(sc->getIdFor(verticalProperty), y + delta, sendNotification);
+					sc->setChanged();
+					return true;
+				}
+				else if (keyCode == KeyPress::leftKey)
+				{
+					sc->setScriptObjectPropertyWithChangeMessage(sc->getIdFor(horizontalProperty), x - delta, sendNotification);
+					sc->setChanged();
+					return true;
+				}
+				else if (keyCode == KeyPress::rightKey)
+				{
+					sc->setScriptObjectPropertyWithChangeMessage(sc->getIdFor(horizontalProperty), x + delta, sendNotification);
+					sc->setChanged();
+					return true;
+				}
+
+				return false;
+			}
+
+			
+
+			void setDraggedControl(Component* componentToDrag, ScriptingApi::Content::ScriptComponent* sc)
+			{
+				if (componentToDrag != nullptr && componentToDrag != currentlyDraggedComponent.getComponent())
+				{
+					currentScriptComponent = sc;
+					currentlyDraggedComponent = componentToDrag;
+
+					currentMovementWatcher = new MovementWatcher(componentToDrag, this);
+
+					Component* p = componentToDrag->getParentComponent();
+
+					setBounds(getParentComponent()->getLocalArea(p, componentToDrag->getBounds()));
+					setVisible(true);
+					setWantsKeyboardFocus(true);
+					
+					
+
+					setAlwaysOnTop(true);
+					grabKeyboardFocus();
+				}
+				else if (componentToDrag == nullptr)
+				{
+					currentScriptComponent = nullptr;
+					currentlyDraggedComponent = nullptr;
+					currentMovementWatcher = nullptr;
+					setBounds(Rectangle<int>());
+					setVisible(false);
+					setWantsKeyboardFocus(false);
+					setAlwaysOnTop(false);
+				}
+
+			};
+
+		private:
+
+			class MovementWatcher : public ComponentMovementWatcher
+			{
+			public:
+
+				MovementWatcher(Component* c, Component* dragComponent_) :
+					ComponentMovementWatcher(c),
+					dragComponent(dragComponent_)
+				{};
+
+				void componentMovedOrResized(bool wasMoved, bool wasResized) override
+				{
+					Component* p = getComponent()->getParentComponent();
+
+					dragComponent->setBounds(dragComponent->getParentComponent()->getLocalArea(p, getComponent()->getBounds()));
+
+					//dragComponent->setBounds(getComponent()->getBounds());
+				}
+
+				void componentPeerChanged()  override {}
+				void componentVisibilityChanged() override {};
+
+				Component* dragComponent;
+			};
+
+
+			Component::SafePointer<Component> currentlyDraggedComponent;
+			ScriptingApi::Content::ScriptComponent* currentScriptComponent;
+
+			ScopedPointer<MovementWatcher> currentMovementWatcher;
+
+			ComponentDragger dragger;
+
+			ComponentBoundsConstrainer constrainer;
+
+			ScopedPointer<ResizableCornerComponent> resizer;
+
+			
+			
+		};
+
+		bool dragMode;
+
+		ScopedPointer<Dragger> dragger;
+
+		ScopedPointer<ShapeButton> dragModeButton;
+	};
+
 
 
 private:
-    
+
+	ScopedPointer<DragOverlay> dragOverlay;
+
 	ScopedPointer<CodeDocument> doc;
 
 	ScopedPointer<JavascriptTokeniser> tokenizer;

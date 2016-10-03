@@ -55,6 +55,10 @@ editedComponent(-1)
 
 	p->addChangeListener(this);
 	p->getMainController()->addScriptListener(this, true);
+
+	
+
+	
 }
 
 
@@ -343,7 +347,7 @@ ScriptingApi::Content::ScriptComponent * ScriptContentComponent::getEditedCompon
 	return nullptr;
 }
 
-void ScriptContentComponent::setEditedScriptComponent(ScriptingApi::Content::ScriptComponent *sc)
+Component* ScriptContentComponent::setEditedScriptComponent(ScriptingApi::Content::ScriptComponent *sc)
 {
 	if (sc == nullptr)
 	{
@@ -352,7 +356,7 @@ void ScriptContentComponent::setEditedScriptComponent(ScriptingApi::Content::Scr
 		setWantsKeyboardFocus(false);
 
 		repaint();
-		return;
+		return nullptr;
 
 	}
 
@@ -372,64 +376,25 @@ void ScriptContentComponent::setEditedScriptComponent(ScriptingApi::Content::Scr
 		{
 			editedComponent = i;
 
+			
+
 			setWantsKeyboardFocus(true);
 			grabKeyboardFocus();
 
 			repaint();
-			return;
+			return componentWrappers[i]->getComponent();
 		}
 	}
 
 	editedComponent = -1;
+
 	repaint();
+
+	return nullptr;
 }
 
 bool ScriptContentComponent::keyPressed(const KeyPress &key)
 {
-	if (editedComponent == -1) return false;
-
-	if (contentData.get() == nullptr) return false;
-
-	ScriptingApi::Content::ScriptComponent *sc = contentData->getComponent(editedComponent);
-
-	if (sc == nullptr) return false;
-
-	const int keyCode = key.getKeyCode();
-
-	const int delta = key.getModifiers().isCommandDown() ? 10 : 1;
-
-	const int horizontalProperty = key.getModifiers().isShiftDown() ? ScriptingApi::Content::ScriptComponent::width : ScriptingApi::Content::ScriptComponent::x;
-	const int verticalProperty = key.getModifiers().isShiftDown() ? ScriptingApi::Content::ScriptComponent::height : ScriptingApi::Content::ScriptComponent::y;
-
-	int x = sc->getScriptObjectProperty(horizontalProperty);
-	int y = sc->getScriptObjectProperty(verticalProperty);
-
-	if (keyCode == KeyPress::upKey)
-	{
-		sc->setScriptObjectPropertyWithChangeMessage(sc->getIdFor(verticalProperty), y - delta, sendNotification);
-		sc->setChanged();
-
-		return true;
-	}
-	else if (keyCode == KeyPress::downKey)
-	{
-		sc->setScriptObjectPropertyWithChangeMessage(sc->getIdFor(verticalProperty), y + delta, sendNotification);
-		sc->setChanged();
-		return true;
-	}
-	else if (keyCode == KeyPress::leftKey)
-	{
-		sc->setScriptObjectPropertyWithChangeMessage(sc->getIdFor(horizontalProperty), x - delta, sendNotification);
-		sc->setChanged();
-		return true;
-	}
-	else if (keyCode == KeyPress::rightKey)
-	{
-		sc->setScriptObjectPropertyWithChangeMessage(sc->getIdFor(horizontalProperty), x + delta, sendNotification);
-		sc->setChanged();
-		return true;
-	}
-
 	return false;
 }
 
@@ -439,11 +404,12 @@ void ScriptContentComponent::paintOverChildren(Graphics &g)
 	{
 
 		Component *c = componentWrappers[editedComponent]->getComponent();
+		Component* p = c->getParentComponent();
 
 		g.setColour(Colours::white.withAlpha(0.2f));
 
 
-		g.drawRect(c->getBounds(), 2);
+		g.drawRect(getLocalArea(p, c->getBounds()), 2);
 	}
 }
 
@@ -466,10 +432,24 @@ ScriptingApi::Content::ScriptComponent * ScriptContentComponent::getScriptCompon
 {
 	for (int i = componentWrappers.size() - 1; i >= 0; --i)
 	{
+#if 0
 		if (componentWrappers[i]->getComponent()->getBounds().contains(pos))
 		{
 			return contentData->getComponent(i);
 		}
+#endif
+
+		Component* c = componentWrappers[i]->getComponent();
+
+		if (!c->isVisible()) continue;
+
+		Component* p = c->getParentComponent();
+
+		if (getLocalArea(p, c->getBounds()).contains(pos))
+		{
+			return contentData->getComponent(i);
+		}
+
 	}
 
 	return nullptr;
