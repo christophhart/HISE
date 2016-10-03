@@ -109,6 +109,8 @@ ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
 	
 	addAndMakeVisible(scriptContent = new ScriptContentComponent(dynamic_cast<ProcessorWithScriptingContent*>(getProcessor())));
 
+    scriptContent->addMouseListenersForComponentWrappers();
+    
 	messageBox->setLookAndFeel(&laf2);
 
 	messageBox->setColour(Label::ColourIds::textColourId, Colours::white);
@@ -230,6 +232,8 @@ void ScriptingEditor::resized()
 
 	scriptContent->setVisible(getProcessor()->getEditorState(editorOffset + ProcessorWithScriptingContent::contentShown));
 
+    
+    
 	const int contentHeight = scriptContent->isVisible() ? scriptContent->getContentHeight() : 0;
 
 	scriptContent->setBounds(xOff, y, w, scriptContent->getContentHeight());
@@ -241,6 +245,8 @@ void ScriptingEditor::resized()
 
 	codeEditor->setSize(w, editorHeight);
 
+    setWantsKeyboardFocus(editorShown);
+    
 	if(!editorShown)
 	{
 		codeEditor->setBounds(0, y, getWidth(), codeEditor->getHeight());
@@ -248,6 +254,7 @@ void ScriptingEditor::resized()
 		codeEditor->setTopLeftPosition(0, getHeight());
 		compileButton->setTopLeftPosition(0, getHeight());
 		messageBox->setTopLeftPosition(0, getHeight());
+        
 		
 	}
 	else
@@ -386,7 +393,8 @@ void ScriptingEditor::scriptComponentChanged(ReferenceCountedObject* scriptCompo
 }
 
 class ParameterConnector: public ThreadWithAsyncProgressWindow,
-						  public ComboBoxListener
+						  public ComboBoxListener,
+						  public Timer
 {
 public:
 
@@ -420,6 +428,9 @@ public:
 			addComboBox("Processors", processorIdList, "Module");
 
 			getComboBoxComponent("Processors")->addListener(this);
+
+			
+
 			addComboBox("Parameters", StringArray(), "Parameters");
 
 			getComboBoxComponent("Parameters")->addListener(this);
@@ -428,6 +439,8 @@ public:
 			addBasicComponents();
 
 			showStatusMessage("Choose a module and its parameter and press OK");
+
+			startTimer(50);
 		}
 		else
 		{
@@ -435,6 +448,54 @@ public:
 		}
 
 		
+	}
+
+	void timerCallback()
+	{
+		selectProcessor();
+		stopTimer();
+	}
+
+	void selectProcessor()
+	{
+		const String controlCode = sp->getSnippet(JavascriptMidiProcessor::onControl)->getAllContent();
+
+		const String switchStatement = containsSwitchStatement(controlCode);
+
+		if (switchStatement.isNotEmpty())
+		{
+			const String caseStatement = containsCaseStatement(switchStatement);
+
+			if (switchStatement.isNotEmpty())
+			{
+				const String oldProcessorName = getOldProcessorName(caseStatement);
+				const String oldParameterName = getOldParameterName(caseStatement, oldProcessorName).fromFirstOccurrenceOf(".", false, false);
+
+				if (oldProcessorName.isNotEmpty())
+				{
+					ComboBox *b = getComboBoxComponent("Processors");
+
+					for (int i = 0; i < b->getNumItems(); i++)
+					{
+						if (b->getItemText(i).removeCharacters(" \n\t\"\'!$%&/()") == oldProcessorName)
+						{
+							b->setSelectedItemIndex(i, dontSendNotification);
+							comboBoxChanged(b);
+							break;
+						}
+					}
+				}
+
+				if (oldParameterName.isNotEmpty())
+				{
+					ComboBox *b = getComboBoxComponent("Parameters");
+
+					b->setText(oldParameterName, dontSendNotification);
+					comboBoxChanged(b);
+					
+				}
+			}
+		}
 	}
 
 	void comboBoxChanged(ComboBox* comboBoxThatHasChanged)
@@ -476,7 +537,7 @@ public:
 
 		String onInitText = sp->getSnippet(JavascriptMidiProcessor::onInit)->getAllContent();
 		String declaration = ProcessorHelpers::getScriptVariableDeclaration(processorToAdd, false);
-		String processorId = declaration.upToFirstOccurrenceOf(" ", false, false);
+		String processorId = declaration.fromFirstOccurrenceOf("const var ", false, false).upToFirstOccurrenceOf(" ", false, false);
 
 		if (!onInitText.contains(declaration))
 		{
@@ -484,35 +545,359 @@ public:
 			sp->getSnippet(JavascriptMidiProcessor::onInit)->replaceAllContent(onInitText);
 		}
 
-		String onControlText = sp->getSnippet(JavascriptMidiProcessor::onControl)->getAllContent();
-		const String controlStatement = ("if(number == ") + sc->getName() + ")";
-        
-        const String body = processorId + ".setAttribute(" + processorId + "." + processorToAdd->getIdentifierForParameterIndex(parameterIndexToAdd).toString() + ", value);\n\n";
+		const String onControlText = sp->getSnippet(JavascriptMidiProcessor::onControl)->getAllContent();
 
-        if(onControlText.contains(controlStatement))
-        {
-            const String replaceString = onControlText.fromFirstOccurrenceOf(controlStatement, true, false).upToFirstOccurrenceOf("\n", true, false);
-            
-            
-            
-            sp->getSnippet(JavascriptMidiProcessor::onControl)->replaceAllContent(onControlText.replace(replaceString, controlStatement + " " + body));
-            
-            editor->compileScript();
-        }
-        else
-        {
+		const String switchStatement = containsSwitchStatement(onControlText);
 
-            
-            sp->getSnippet(JavascriptMidiProcessor::onControl)->replaceAllContent(onControlText.upToLastOccurrenceOf("}", false, false) +             (onControlText.contains("if(") ? "\telse " : "\t") + controlStatement + " " + body + onControlText.fromLastOccurrenceOf("}", true, false));
-            
-            editor->compileScript();
-        }
-        
-		
+		if (switchStatement.isNotEmpty())
+		{
+			String caseStatement = containsCaseStatement(switchStatement);
 
+			if (caseStatement.isNotEmpty())
+			{
+				modifyCaseStatement(caseStatement, processorId, processorToAdd);
+			}
+			else
+			{
+				int index = getCaseStatementIndex(onControlText);
+				addCaseStatement(index, processorId, processorToAdd);
+			}
+		}
+		else
+		{
+			addSwitchStatementWithCaseStatement(onControlText, processorId, processorToAdd);
+		}
+
+		editor->compileScript();
     };
 
 private:
+
+	String containsSwitchStatement(const String &controlCode)
+	{
+		try
+		{
+			HiseJavascriptEngine::RootObject::TokenIterator it(controlCode, "");
+
+			int braceLevel = 0;
+
+			it.match(TokenTypes::function);
+			it.match(TokenTypes::identifier);
+			it.match(TokenTypes::openParen);
+			it.match(TokenTypes::identifier);
+
+			const Identifier widgetParameterName = Identifier(it.currentValue);
+
+			it.match(TokenTypes::comma);
+			it.match(TokenTypes::identifier);
+			it.match(TokenTypes::closeParen);
+			it.match(TokenTypes::openBrace);
+
+			while (it.currentType != TokenTypes::eof)
+			{
+				if (it.currentType == TokenTypes::switch_)
+				{
+					it.match(TokenTypes::switch_);
+					it.match(TokenTypes::openParen);
+
+					if (it.currentType == TokenTypes::identifier && Identifier(it.currentValue) == widgetParameterName)
+					{
+						it.match(TokenTypes::identifier);
+						it.match(TokenTypes::closeParen);
+						
+						auto start = it.location.location;
+
+						it.match(TokenTypes::openBrace);
+
+						int braceLevel = 1;
+
+						while (it.currentType != TokenTypes::eof && braceLevel > 0)
+						{
+							if (it.currentType == TokenTypes::openBrace) braceLevel++;
+							else if (it.currentType == TokenTypes::closeBrace) braceLevel--;
+							
+							it.skip();
+						}
+
+
+						return String(start, it.location.location);
+					}
+				}
+
+				it.skip();
+			}
+
+			return String::empty;
+		}
+		catch (String error)
+		{
+			PresetHandler::showMessageWindow("Error at parsing the control statement", error, PresetHandler::IconType::Error);
+
+			return String::empty;
+		}
+	}
+
+	String containsCaseStatement(const String &switchStatement)
+	{
+		try
+		{
+			HiseJavascriptEngine::RootObject::TokenIterator it(switchStatement, "");
+			
+			it.match(TokenTypes::openBrace);
+			
+			while (it.currentType != TokenTypes::eof)
+			{
+				if (it.currentType == TokenTypes::case_)
+				{
+					it.match(TokenTypes::case_);
+
+					const Identifier caseId = Identifier(it.currentValue.toString());
+
+					it.match(TokenTypes::identifier);
+
+					if (caseId == sc->getName())
+					{
+						it.match(TokenTypes::colon);
+
+						auto start = it.location.location;
+
+						while (it.currentType != TokenTypes::eof && it.currentType != TokenTypes::case_)
+						{
+							it.skip();
+						}
+
+						return String(start, it.location.location);
+					}
+
+				}
+				
+				it.skip();
+				
+			}
+
+			return String::empty;
+
+		}
+		catch (String errorMessage)
+		{
+			PresetHandler::showMessageWindow("Error at parsing the case statement", errorMessage, PresetHandler::IconType::Error);
+
+			return String::empty;
+		}
+
+	}
+
+	String getOldProcessorName(const String &caseStatement)
+	{
+		try
+		{
+			HiseJavascriptEngine::RootObject::TokenIterator it(caseStatement, "");
+
+			while (it.currentType != TokenTypes::eof)
+			{
+				if (it.currentValue == "setAttribute")
+				{
+					it.match(TokenTypes::identifier);
+					it.match(TokenTypes::openParen);
+					
+					return it.currentValue.toString();
+
+				}
+
+				it.skip();
+			}
+
+			return String::empty;
+		}
+		catch (String error)
+		{
+			PresetHandler::showMessageWindow("Error at modifying the case statement", error, PresetHandler::IconType::Error);
+
+			return String::empty;
+		}
+	}
+
+	String getOldParameterName(const String &caseStatement, const String &processorName)
+	{
+		try
+		{
+			HiseJavascriptEngine::RootObject::TokenIterator it(caseStatement, "");
+
+			while (it.currentType != TokenTypes::eof)
+			{
+				if (it.currentValue == processorName)
+				{
+					
+
+					it.match(TokenTypes::identifier);
+					it.match(TokenTypes::dot);
+
+					if (it.currentValue == "setAttribute")
+					{
+						it.match(TokenTypes::identifier);
+						it.match(TokenTypes::openParen);
+						it.match(TokenTypes::identifier);
+						it.match(TokenTypes::dot);
+
+						return processorName + "." + it.currentValue.toString();
+						break;
+					}
+				}
+
+				it.skip();
+			}
+
+			return String::empty;
+
+		}
+		catch (String error)
+		{
+			PresetHandler::showMessageWindow("Error at modifying the case statement", error, PresetHandler::IconType::Error);
+			return String::empty;
+		}
+	}
+
+	void modifyCaseStatement(const String &caseStatement, String processorId, Processor * processorToAdd)
+	{
+		String newStatement = String(caseStatement);
+
+		const String newParameterName = processorId + "." + processorToAdd->getIdentifierForParameterIndex(parameterIndexToAdd).toString();
+		
+		const String oldProcessorName = getOldProcessorName(caseStatement);
+		const String oldParameterName = getOldParameterName(caseStatement, oldProcessorName);
+
+		if (oldParameterName.isNotEmpty())
+		{
+			newStatement = caseStatement.replace(oldParameterName, newParameterName);
+			newStatement = newStatement.replace(oldProcessorName, processorId);
+
+			CodeDocument* doc = sp->getSnippet(JavascriptMidiProcessor::onControl);
+
+			String allCode = doc->getAllContent();
+
+			doc->replaceAllContent(allCode.replace(caseStatement, newStatement));
+		}
+	}
+
+	void addCaseStatement(int &index, String processorId, Processor * processorToAdd)
+	{
+		String codeToInsert;
+
+		codeToInsert << "\t\tcase " << sc->getName().toString() << ":\n\t\t{\n\t\t\t";
+		codeToInsert << processorId << ".setAttribute(" << processorId << "." << processorToAdd->getIdentifierForParameterIndex(parameterIndexToAdd).toString();
+		codeToInsert << ", value);\n";
+		codeToInsert << "\t\t\tbreak;\n\t\t}\n";
+
+		sp->getSnippet(JavascriptMidiProcessor::onControl)->insertText(index, codeToInsert);
+
+		index += codeToInsert.length();
+	}
+
+	void addSwitchStatementWithCaseStatement(const String &onControlText, String processorId, Processor * processorToAdd)
+	{
+		const String switchStart = "\tswitch(number)\n\t{\n";
+
+		const String switchEnd = "\t};\n";
+
+		try
+		{
+			HiseJavascriptEngine::RootObject::TokenIterator it(onControlText, "");
+
+			int braceLevel = 0;
+
+			it.match(TokenTypes::function);
+			it.match(TokenTypes::identifier);
+			it.match(TokenTypes::openParen);
+			it.match(TokenTypes::identifier);
+
+			const Identifier widgetParameterName = Identifier(it.currentValue);
+
+			it.match(TokenTypes::comma);
+			it.match(TokenTypes::identifier);
+			it.match(TokenTypes::closeParen);
+			it.match(TokenTypes::openBrace);
+
+			int index = it.location.location - onControlText.getCharPointer();
+
+
+			sp->getSnippet(JavascriptMidiProcessor::onControl)->insertText(index, switchStart);
+
+			index += switchStart.length();
+
+			addCaseStatement(index, processorId, processorToAdd);
+
+			sp->getSnippet(JavascriptMidiProcessor::onControl)->insertText(index, switchEnd);
+
+
+		}
+		catch (String error)
+		{
+			PresetHandler::showMessageWindow("Error at adding the switch & case statement", error, PresetHandler::IconType::Error);
+		}
+
+		
+
+	}
+
+	int getCaseStatementIndex(const String &onControlText)
+	{
+		try
+		{
+			HiseJavascriptEngine::RootObject::TokenIterator it(onControlText, "");
+
+			while (it.currentType != TokenTypes::eof)
+			{
+				if (it.currentType == TokenTypes::switch_)
+				{
+					it.match(TokenTypes::switch_);
+					it.match(TokenTypes::openParen);
+					
+					if (it.currentValue == "number")
+					{
+						it.match(TokenTypes::identifier);
+
+
+						it.match(TokenTypes::closeParen);
+						it.match(TokenTypes::openBrace);
+
+						int braceLevel = 1;
+
+						while (it.currentType != TokenTypes::eof && braceLevel > 0)
+						{
+							if (it.currentType == TokenTypes::openBrace) braceLevel++;
+							
+							else if (it.currentType == TokenTypes::closeBrace)
+							{
+								braceLevel--;
+								if (braceLevel == 0)
+								{
+									return it.location.location - onControlText.getCharPointer() - 1;
+								}
+							}
+
+							it.skip();
+						}
+
+					}
+				}
+
+				it.skip();
+			}
+
+			return -1;
+
+		}
+		catch (String error)
+		{
+			PresetHandler::showMessageWindow("Error at finding the case statement location", error, PresetHandler::IconType::Error);
+			return -1;
+		}
+	}
+
+
+
+
+
 
 	Processor *processorToAdd;
 	int parameterIndexToAdd;

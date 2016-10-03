@@ -130,6 +130,7 @@ public:
 	/** Recreates all components based on the supplied Content object and restores its values. */
 	void setNewContent(ScriptingApi::Content *c);
 
+    void addMouseListenersForComponentWrappers();
 	
 	void deleteAllScriptComponents()
 	{
