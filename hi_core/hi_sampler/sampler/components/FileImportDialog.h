@@ -70,9 +70,9 @@ public:
 		}
 	};
 
-	bool useVelocityAutomap() const
+	bool useMetadata() const
 	{
-		return autoMapVelocity;
+		return useMetadataForMapping;
 	}
 
     //[/UserMethods]
@@ -86,13 +86,13 @@ public:
 private:
     //[UserVariables]   -- You can add your own custom variables in this section.
 	ImportMode mode;
-	bool autoMapVelocity;
+	bool useMetadataForMapping;
 
 	AlertWindowLookAndFeel laf;
     //[/UserVariables]
 
     //==============================================================================
-    ScopedPointer<ToggleButton> velocityButton;
+    ScopedPointer<ToggleButton> metadataButton;
     ScopedPointer<ToggleButton> fileNameButton;
     ScopedPointer<ToggleButton> pitchDetectionButton;
     ScopedPointer<ToggleButton> dropPointButton;

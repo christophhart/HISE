@@ -32,33 +32,33 @@ FileImportDialog::FileImportDialog (Processor *p)
     //[Constructor_pre] You can add your own custom stuff here..
     //[/Constructor_pre]
 
-    addAndMakeVisible (velocityButton = new ToggleButton ("new toggle button"));
-    velocityButton->setButtonText (TRANS("Automap velocity based on volume"));
-    velocityButton->addListener (this);
-    velocityButton->setToggleState (true, dontSendNotification);
-    velocityButton->setColour (ToggleButton::textColourId, Colours::white);
+    addAndMakeVisible (metadataButton = new ToggleButton ("new toggle button"));
+    metadataButton->setButtonText (TRANS("Extract Metadata for mapping"));
+    metadataButton->addListener (this);
+    metadataButton->setToggleState (true, dontSendNotification);
+    metadataButton->setColour (ToggleButton::textColourId, Colours::white);
 
     addAndMakeVisible (fileNameButton = new ToggleButton ("new toggle button"));
-    fileNameButton->setButtonText (TRANS("Automap root based on file name"));
+    fileNameButton->setButtonText (TRANS("Filename Token Parser"));
     fileNameButton->setRadioGroupId (1);
     fileNameButton->addListener (this);
     fileNameButton->setColour (ToggleButton::textColourId, Colours::white);
 
     addAndMakeVisible (pitchDetectionButton = new ToggleButton ("new toggle button"));
-    pitchDetectionButton->setButtonText (TRANS("Automap root based on pitch detection"));
+    pitchDetectionButton->setButtonText (TRANS("Root Note Pitch Detection"));
     pitchDetectionButton->setRadioGroupId (1);
     pitchDetectionButton->addListener (this);
     pitchDetectionButton->setColour (ToggleButton::textColourId, Colours::white);
 
     addAndMakeVisible (dropPointButton = new ToggleButton ("new toggle button"));
-    dropPointButton->setButtonText (TRANS("Automap root based on drop point"));
+    dropPointButton->setButtonText (TRANS("Drop Point"));
     dropPointButton->setRadioGroupId (1);
     dropPointButton->addListener (this);
     dropPointButton->setColour (ToggleButton::textColourId, Colours::white);
 
     addAndMakeVisible (descriptionLabel = new Label ("new label",
-                                                     TRANS("Note automap")));
-    descriptionLabel->setFont (Font ("Khmer UI", 13.00f, Font::plain));
+                                                     TRANS("Automap Type")));
+    descriptionLabel->setFont (GLOBAL_BOLD_FONT());
     descriptionLabel->setJustificationType (Justification::centred);
     descriptionLabel->setEditable (false, false, false);
     descriptionLabel->setColour (Label::textColourId, Colours::white);
@@ -66,8 +66,8 @@ FileImportDialog::FileImportDialog (Processor *p)
     descriptionLabel->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
 
     addAndMakeVisible (descriptionLabel2 = new Label ("new label",
-                                                      TRANS("Velocity Automap")));
-    descriptionLabel2->setFont (Font ("Khmer UI", 13.00f, Font::plain));
+                                                      TRANS("Extract Metadata")));
+    descriptionLabel2->setFont (GLOBAL_BOLD_FONT());
     descriptionLabel2->setJustificationType (Justification::centred);
     descriptionLabel2->setEditable (false, false, false);
     descriptionLabel2->setColour (Label::textColourId, Colours::white);
@@ -79,10 +79,10 @@ FileImportDialog::FileImportDialog (Processor *p)
 
 	setLookAndFeel(&laf);
 
-	descriptionLabel->setFont (GLOBAL_FONT());
-	descriptionLabel2->setFont (GLOBAL_FONT());
+	descriptionLabel->setFont (GLOBAL_BOLD_FONT());
+	descriptionLabel2->setFont (GLOBAL_BOLD_FONT());
 
-	p->getMainController()->skin(*velocityButton);
+	p->getMainController()->skin(*metadataButton);
 	p->getMainController()->skin(*pitchDetectionButton);
 	p->getMainController()->skin(*dropPointButton);
 	p->getMainController()->skin(*fileNameButton);
@@ -102,7 +102,7 @@ FileImportDialog::~FileImportDialog()
     //[Destructor_pre]. You can add your own custom destruction code here..
     //[/Destructor_pre]
 
-    velocityButton = nullptr;
+    metadataButton = nullptr;
     fileNameButton = nullptr;
     pitchDetectionButton = nullptr;
     dropPointButton = nullptr;
@@ -130,7 +130,7 @@ void FileImportDialog::resized()
     //[UserPreResize] Add your own custom resize code here..
     //[/UserPreResize]
 
-    velocityButton->setBounds (136, 160, 256, 32);
+    metadataButton->setBounds (136, 160, 256, 32);
     fileNameButton->setBounds (136, 32, 256, 32);
     pitchDetectionButton->setBounds (136, 64, 256, 32);
     dropPointButton->setBounds (136, 96, 256, 32);
@@ -145,10 +145,10 @@ void FileImportDialog::buttonClicked (Button* buttonThatWasClicked)
     //[UserbuttonClicked_Pre]
     //[/UserbuttonClicked_Pre]
 
-    if (buttonThatWasClicked == velocityButton)
+    if (buttonThatWasClicked == metadataButton)
     {
         //[UserButtonCode_velocityButton] -- add your button handler code here..
-		autoMapVelocity = velocityButton->getToggleState();
+		useMetadataForMapping = metadataButton->getToggleState();
         //[/UserButtonCode_velocityButton]
     }
     else if (buttonThatWasClicked == fileNameButton)
@@ -181,50 +181,6 @@ void FileImportDialog::buttonClicked (Button* buttonThatWasClicked)
 
 
 //==============================================================================
-#if 0
-/*  -- Introjucer information section --
-
-    This is where the Introjucer stores the metadata that describe this GUI layout, so
-    make changes in here at your peril!
-
-BEGIN_JUCER_METADATA
-
-<JUCER_COMPONENT documentType="Component" className="FileImportDialog" componentName=""
-                 parentClasses="public Component" constructorParams="Processor *p"
-                 variableInitialisers="" snapPixels="8" snapActive="1" snapShown="1"
-                 overlayOpacity="0.330" fixedSize="1" initialWidth="500" initialHeight="210">
-  <BACKGROUND backgroundColour="222222"/>
-  <TOGGLEBUTTON name="new toggle button" id="e6345feaa3cb5bea" memberName="velocityButton"
-                virtualName="" explicitFocusOrder="0" pos="136 160 256 32" posRelativeX="410a230ddaa2f2e8"
-                txtcol="ffffffff" buttonText="Automap velocity based on volume"
-                connectedEdges="0" needsCallback="1" radioGroupId="0" state="1"/>
-  <TOGGLEBUTTON name="new toggle button" id="2b8888708307f364" memberName="fileNameButton"
-                virtualName="" explicitFocusOrder="0" pos="136 32 256 32" posRelativeX="410a230ddaa2f2e8"
-                txtcol="ffffffff" buttonText="Automap root based on file name"
-                connectedEdges="0" needsCallback="1" radioGroupId="1" state="0"/>
-  <TOGGLEBUTTON name="new toggle button" id="a454d36c9fd5b599" memberName="pitchDetectionButton"
-                virtualName="" explicitFocusOrder="0" pos="136 64 256 32" posRelativeX="410a230ddaa2f2e8"
-                txtcol="ffffffff" buttonText="Automap root based on pitch detection"
-                connectedEdges="0" needsCallback="1" radioGroupId="1" state="0"/>
-  <TOGGLEBUTTON name="new toggle button" id="a2fde6f5c299e4a6" memberName="dropPointButton"
-                virtualName="" explicitFocusOrder="0" pos="136 96 256 32" posRelativeX="410a230ddaa2f2e8"
-                txtcol="ffffffff" buttonText="Automap root based on drop point"
-                connectedEdges="0" needsCallback="1" radioGroupId="1" state="0"/>
-  <LABEL name="new label" id="7be2ed43072326c4" memberName="descriptionLabel"
-         virtualName="" explicitFocusOrder="0" pos="0Cc 0 100% 24" textCol="ffffffff"
-         edTextCol="ff000000" edBkgCol="0" labelText="Note automap" editableSingleClick="0"
-         editableDoubleClick="0" focusDiscardsChanges="0" fontname="Khmer UI"
-         fontsize="13" bold="0" italic="0" justification="36"/>
-  <LABEL name="new label" id="1df0f7d610f33029" memberName="descriptionLabel2"
-         virtualName="" explicitFocusOrder="0" pos="0Cc 130 100% 24" textCol="ffffffff"
-         edTextCol="ff000000" edBkgCol="0" labelText="Velocity Automap"
-         editableSingleClick="0" editableDoubleClick="0" focusDiscardsChanges="0"
-         fontname="Khmer UI" fontsize="13" bold="0" italic="0" justification="36"/>
-</JUCER_COMPONENT>
-
-END_JUCER_METADATA
-*/
-#endif
 
 
 //[EndFile] You can add extra defines here...

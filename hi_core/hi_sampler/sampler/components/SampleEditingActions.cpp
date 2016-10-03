@@ -877,11 +877,13 @@ void SamplerBody::SampleEditingActions::extractToSingleMicSamples(SamplerBody * 
 
 #define SET_PROPERTY_FROM_METADATA_STRING(string, prop) if (string.isNotEmpty()) sound->setProperty(prop, string.getIntValue(), sendNotification);
 
-void setSoundPropertiesFromMetadata(ModulatorSamplerSound *sound, const StringPairArray &metadata)
+bool setSoundPropertiesFromMetadata(ModulatorSamplerSound *sound, const StringPairArray &metadata)
 {
 	const String format = metadata.getValue("MetaDataSource", "");
-
+	
 	String lowVel, hiVel, loKey, hiKey, root, start, end, loopEnabled, loopStart, loopEnd;
+
+	DBG(metadata.getDescription());
 
 	if (format == "AIFF")
 	{
@@ -896,6 +898,12 @@ void setSoundPropertiesFromMetadata(ModulatorSamplerSound *sound, const StringPa
 		loopStart = metadata.getValue("Cue2Offset", "");
 		loopEnd = metadata.getValue("Cue3Offset", "");
 	}
+	else if (format == "WAV")
+	{
+		loopStart = metadata.getValue("Loop0Start", "");
+		loopEnd = metadata.getValue("Loop0End", "");
+		loopEnabled = (loopStart.isNotEmpty() && loopStart != "0" && loopEnd.isNotEmpty() && loopEnd != "0") ? "1" : "";
+	}
 
 	SET_PROPERTY_FROM_METADATA_STRING(lowVel, ModulatorSamplerSound::VeloLow);
 	SET_PROPERTY_FROM_METADATA_STRING(hiVel, ModulatorSamplerSound::VeloHigh);
@@ -908,17 +916,37 @@ void setSoundPropertiesFromMetadata(ModulatorSamplerSound *sound, const StringPa
 	SET_PROPERTY_FROM_METADATA_STRING(loopStart, ModulatorSamplerSound::LoopStart);
 	SET_PROPERTY_FROM_METADATA_STRING(loopEnd, ModulatorSamplerSound::LoopEnd);
 
+	return 	lowVel != "" ||
+		hiVel != "" ||
+		loKey != "" ||
+		hiKey != "" ||
+		root != "" ||
+		start != "" ||
+		end != "" ||
+		loopEnabled != "" ||
+		loopStart != "" ||
+		loopEnd != "";
 }
 
 #undef SET_PROPERTY_FROM_METADATA_STRING
 
 void SamplerBody::SampleEditingActions::automapUsingMetadata(SamplerBody * body)
 {
-	const Array<WeakReference<ModulatorSamplerSound>> sounds = body->getSelection().getItemArray();
+	Array<WeakReference<ModulatorSamplerSound>> sounds = body->getSelection().getItemArray();
 
 	ModulatorSampler *sampler = dynamic_cast<ModulatorSampler*>(body->getProcessor());
 
+	if (sounds.size() == 0)
+	{
+		for (int i = 0; i < sampler->getNumSounds(); i++)
+		{
+			sounds.add(sampler->getSound(i));
+		}
+	}
+
 	AudioFormatManager *afm = &(sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->afm);
+
+	bool metadataWasFound = false;
 
 	for (int i = 0; i < sounds.size(); i++)
 	{
@@ -929,7 +957,12 @@ void SamplerBody::SampleEditingActions::automapUsingMetadata(SamplerBody * body)
 
 		if (reader != nullptr)
 		{
-			setSoundPropertiesFromMetadata(sounds[i].get(), reader->metadataValues);
+			if (setSoundPropertiesFromMetadata(sounds[i].get(), reader->metadataValues))
+			{
+				metadataWasFound = true;
+			}
 		}
 	}
+
+	if (metadataWasFound) debugToConsole(sampler, "Metadata was found for imported samples");
 }

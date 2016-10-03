@@ -170,26 +170,36 @@ void SampleImporter::importNewAudioFiles(Component *childComponentOfMainEditor, 
 		case FileImportDialog::FileName:		SampleImporter::loadAudioFilesUsingFileName(childComponentOfMainEditor,
 																							sampler,
 																							fileNames,
-																							fid->useVelocityAutomap());
+																							fid->useMetadata());
 												break;
 		case FileImportDialog::PitchDetection:	SampleImporter::loadAudioFilesUsingPitchDetection(childComponentOfMainEditor,
 																									sampler,
 																									fileNames,
-																									fid->useVelocityAutomap());
+																									fid->useMetadata());
 												break;
 		case FileImportDialog::DropPoint:		jassert(draggedRootNotes != 0);
 												SampleImporter::loadAudioFilesUsingDropPoint(childComponentOfMainEditor,
 																								sampler,
 																								fileNames,
-																								draggedRootNotes);
+																								draggedRootNotes, fid->useMetadata());
 												break;
         case FileImportDialog::numImportModes:  break;
 
 		}
+
+		if (fid->useMetadata())
+		{
+			SamplerBody* body = childComponentOfMainEditor->findParentComponentOfClass<SamplerBody>();
+
+			if (body != nullptr)
+			{
+				SamplerBody::SampleEditingActions::automapUsingMetadata(body);
+			}
+		}
 	}
 }
 
-void SampleImporter::loadAudioFilesUsingDropPoint(Component* /*childComponentOfMainEditor*/, ModulatorSampler *sampler, const StringArray &fileNames, BigInteger rootNotes)
+void SampleImporter::loadAudioFilesUsingDropPoint(Component *childComponentOfMainEditor, ModulatorSampler *sampler, const StringArray &fileNames, BigInteger rootNotes, bool useMetadata)
 {
 	const int startIndex = sampler->getNumSounds();
 
@@ -242,6 +252,8 @@ void SampleImporter::loadAudioFilesUsingDropPoint(Component* /*childComponentOfM
 
 	sampler->refreshPreloadSizes();
 	sampler->refreshMemoryUsage();
+
+	
 }
 
 void SampleImporter::loadAudioFilesUsingFileName(Component *childComponentOfMainEditor, ModulatorSampler *sampler, const StringArray &fileNames, bool /*useVelocityAutomap*/)
