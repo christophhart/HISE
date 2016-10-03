@@ -1643,7 +1643,7 @@ ScriptingObjects::ScriptingMidiProcessor *ScriptingApi::Synth::getMidiProcessor(
 			}
 		}
 
-        reportScriptError(owner, mp->getId() + " was not found. ");
+        reportScriptError(mp->getId() + " was not found. ");
         
 		return new ScriptMidiProcessor(getScriptProcessor(), nullptr);
 	}
@@ -1674,7 +1674,7 @@ ScriptingObjects::ScriptingSynth *ScriptingApi::Synth::getChildSynth(const Strin
 			}
 		}
         
-        reportScriptError(owner, m->getId() + " was not found. ");
+        reportScriptError(m->getId() + " was not found. ");
 
 		return new ScriptingObjects::ScriptingSynth(getScriptProcessor(), nullptr);
 	}
@@ -1704,7 +1704,7 @@ ScriptingObjects::ScriptingEffect *ScriptingApi::Synth::getEffect(const String &
 			}
 		}
 
-        reportScriptError(owner, fx->getId() + " was not found. ");
+        reportScriptError(fx->getId() + " was not found. ");
         
 		return new ScriptEffect(getScriptProcessor(), nullptr);
 	}
@@ -1734,7 +1734,7 @@ ScriptingObjects::ScriptingAudioSampleProcessor * ScriptingApi::Synth::getAudioS
 			}
 		}
 
-        reportScriptError(owner, dynamic_cast<Processor*>(asp)->getId() + " was not found. ");
+        reportScriptError(dynamic_cast<Processor*>(asp)->getId() + " was not found. ");
         
 		return new ScriptAudioSampleProcessor(getScriptProcessor(), nullptr);
 	}
@@ -1763,7 +1763,7 @@ ScriptingObjects::ScriptingTableProcessor *ScriptingApi::Synth::getTableProcesso
 			}
 		}
 
-        reportScriptError(owner, dynamic_cast<Processor*>(lut)->getId() + " was not found. ");
+        reportScriptError(name + " was not found. ");
         
 		return new ScriptTableProcessor(getScriptProcessor(), nullptr);
 	}
@@ -1790,7 +1790,7 @@ ScriptingApi::Sampler * ScriptingApi::Synth::getSampler(const String &name)
 			}
 		}
 
-        reportScriptError(owner, s->getId() + " was not found. ");
+        reportScriptError(name + " was not found. ");
         
 		return new Sampler(getScriptProcessor(), nullptr);
 	}

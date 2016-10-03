@@ -1450,7 +1450,7 @@ void ScriptingApi::Content::ScriptTable::connectToOtherTable(const String &other
 
 	}
 
-    reportScriptError(getProcessor(), otherTableId + " was not found.");
+    reportScriptError(otherTableId + " was not found.");
     
 	useOtherTable = false;
 	referencedTable = nullptr;
@@ -1605,7 +1605,7 @@ void ScriptingApi::Content::ScriptSliderPack::connectToOtherSliderPack(const Str
 		}
 	}
 
-    reportScriptError(getProcessor(), otherPackId + " was not found.");
+    reportScriptError(otherPackId + " was not found.");
     
 	existingData = nullptr;
 }
@@ -2271,7 +2271,7 @@ void ScriptingApi::Content::ScriptAudioWaveform::connectToAudioSampleProcessor(S
 
 	}
 
-    reportScriptError(getProcessor(), processorId + " was not found.");
+    reportScriptError(processorId + " was not found.");
     
 	connectedProcessor = nullptr;
 }
@@ -2388,7 +2388,7 @@ void ScriptingApi::Content::ScriptPluginEditor::connectToAudioProcessorWrapper(S
 		}
 	}
 
-    reportScriptError(getProcessor(), processorId + " was not found.");
+    reportScriptError(processorId + " was not found.");
     
 	connectedProcessor = nullptr;
 }

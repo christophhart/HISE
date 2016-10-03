@@ -49,7 +49,7 @@ processor(p_),
 p(dynamic_cast<Processor*>(p_)),
 editedComponent(-1)
 {
-	setNewContent(processor->getScriptingContent());
+    setNewContent(processor->getScriptingContent());
 
 	setInterceptsMouseClicks(false, true);
 
@@ -298,20 +298,25 @@ void ScriptContentComponent::setNewContent(ScriptingApi::Content *c)
 		}
 	}
 
-	if (getParentComponent() != nullptr)
-	{
-		for (int i = 0; i < componentWrappers.size(); i++)
-		{
-			componentWrappers[i]->getComponent()->addMouseListener(getParentComponent(), true);
-		}
-	}
-
 	refreshMacroIndexes();
 	refreshContentButton();
 
 	if (getWidth() != 0) setSize(getWidth(), getContentHeight());
 
 	updateContent();
+    
+    addMouseListenersForComponentWrappers();
+}
+
+void ScriptContentComponent::addMouseListenersForComponentWrappers()
+{
+    if (getParentComponent() != nullptr)
+    {
+        for (int i = 0; i < componentWrappers.size(); i++)
+        {
+            componentWrappers[i]->getComponent()->addMouseListener(getParentComponent(), true);
+        }
+    }
 }
 
 void ScriptContentComponent::refreshContentButton()
