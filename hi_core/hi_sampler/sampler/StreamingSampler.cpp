@@ -432,7 +432,7 @@ void StreamingSamplerSound::fillSampleBuffer(AudioSampleBuffer &sampleBuffer, in
 
 			if (indexInLoop < 0)
 			{
-				numSamplesBeforeFirstWrap = -indexInLoop;
+				numSamplesBeforeFirstWrap = loopStart - (uptime+sampleStart);
 				fillInternal(sampleBuffer, numSamplesBeforeFirstWrap, uptime + (int)sampleStart, 0);
 			}
 			else
