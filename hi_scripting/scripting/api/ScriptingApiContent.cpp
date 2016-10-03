@@ -362,9 +362,14 @@ String ScriptingApi::Content::ScriptComponent::getScriptObjectPropertiesAsJSON()
 
 	for (int i = 0; i < defaultValues.size(); i++)
 	{
-		if (clone->getProperty(getIdFor(i)) == defaultValues[getIdFor(i)])
+		const Identifier id = getIdFor(i);
+
+		var a = clone->getProperty(id);
+		var b = defaultValues[id];
+
+		if (a == b)
 		{
-			clone->removeProperty(getIdFor(i));
+			clone->removeProperty(id);
 		}
 	}
 

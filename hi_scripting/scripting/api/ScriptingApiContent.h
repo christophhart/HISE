@@ -138,6 +138,13 @@ public:
 		bool isPropertyDeactivated(Identifier &id) const;
 		Rectangle<int> getPosition() const;
 
+		void setDefaultPosition(int newX, int newY)
+		{
+			setDefaultValue(Properties::x, newX);
+			setDefaultValue(Properties::y, newY);
+			sendChangeMessage();
+		}
+
 		int getParentComponentIndex() const;
 
 		bool addChildComponent(ScriptComponent* childComponent);

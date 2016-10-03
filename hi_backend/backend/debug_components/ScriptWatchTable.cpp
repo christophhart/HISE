@@ -633,7 +633,12 @@ String CodeDragger::getText(ReferenceCountedObject*scriptComponent)
 		text << getTag(scriptComponent, false) << "\n";
 
 		text << "Content.setPropertiesFromJSON(\"" << name << "\", ";
-		text << sc->getScriptObjectPropertiesAsJSON();
+
+		const String jsonProperties = sc->getScriptObjectPropertiesAsJSON();
+
+		if (jsonProperties == "{\r\n}") return String::empty;
+
+		text << jsonProperties;
 		text << ");\n";
 
 		sc->setChanged(false);
