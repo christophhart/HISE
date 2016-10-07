@@ -2502,6 +2502,7 @@ colour(Colour(0xff777777))
 	setMethod("setToolbarProperties", Wrapper::setToolbarProperties);
 	setMethod("setHeight", Wrapper::setHeight);
 	setMethod("setWidth", Wrapper::setWidth);
+    setMethod("makeFrontInterface", Wrapper::makeFrontInterface);
 	setMethod("setName", Wrapper::setName);
 	setMethod("setPropertiesFromJSON", Wrapper::setPropertiesFromJSON);
 	setMethod("storeAllControlsAsPreset", Wrapper::storeAllControlsAsPreset);
@@ -2714,6 +2715,14 @@ void ScriptingApi::Content::setWidth(int newWidth) noexcept
 	width = newWidth;
 };
 
+void ScriptingApi::Content::makeFrontInterface(int newWidth, int newHeight)
+{
+    width = newWidth;
+    height = newHeight;
+    
+    dynamic_cast<JavascriptMidiProcessor*>(getProcessor())->addToFront(true);
+    
+}
 
 void ScriptingApi::Content::setToolbarProperties(const var &toolbarProperties)
 {

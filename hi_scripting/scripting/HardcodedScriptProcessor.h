@@ -687,7 +687,7 @@ class HardcodedScriptFactoryType: public FactoryType
 	// private enum for handling
 	enum
 	{
-		legatoWithRetrigger = MidiProcessorFactoryType::midiProcessorChain,
+        legatoWithRetrigger = MidiProcessorFactoryType::numMidiProcessors,
 		ccSwapper,
 		releaseTrigger,
 		cc2Note,

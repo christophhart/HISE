@@ -86,6 +86,7 @@ struct ScriptingApi::Content::Wrapper
 	static var setHeight(const var::NativeFunctionArgs& args);
 	static var setWidth(const var::NativeFunctionArgs& args);
 	static var setName(const var::NativeFunctionArgs& args);
+    static var makeFrontInterface(const var::NativeFunctionArgs& args);
 	static var addItem(const var::NativeFunctionArgs& args);
 	static var setColour(const var::NativeFunctionArgs& args);
 	static var setTooltip(const var::NativeFunctionArgs& args);
@@ -446,6 +447,19 @@ var ScriptingApi::Content::Wrapper::setName (const var::NativeFunctionArgs& args
 
 	return var::undefined();
 };
+
+var ScriptingApi::Content::Wrapper::makeFrontInterface (const var::NativeFunctionArgs& args)
+{
+    if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
+    {
+        CHECK_ARGUMENTS("setName()", 2);
+        
+        thisObject->makeFrontInterface((int)args.arguments[0], (int)args.arguments[1]);
+    }
+    
+    return var::undefined();
+};
+
 
 var ScriptingApi::Content::Wrapper::setPropertiesFromJSON (const var::NativeFunctionArgs& args)
 {
