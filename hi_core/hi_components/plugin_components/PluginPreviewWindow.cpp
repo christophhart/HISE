@@ -72,7 +72,7 @@ mainSynthChain(editor->getMainSynthChain())
     
     DynamicObject::Ptr toolbarSettings = editor->getMainSynthChain()->getMainController()->getToolbarPropertiesObject();
     
-    const bool showKeyboard = toolbarSettings->getProperty("keyboard");
+    const bool showKeyboard = (bool)toolbarSettings->hasProperty("keyboard") ? (bool)toolbarSettings->getProperty("keyboard") : true;
     
     addAndMakeVisible(keyboard = new CustomKeyboard(editor->getBackendProcessor()->getKeyboardState()));
     keyboard->setAvailableRange(editor->getBackendProcessor()->getKeyboardState().getLowestKeyToDisplay(), 127);

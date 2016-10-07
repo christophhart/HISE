@@ -179,6 +179,8 @@ void FrontendBar::resized()
 		const int presetHeight = 28;
 
 		presetSelector->setBounds(leftX + spaceX, (getHeight() - presetHeight) / 2, 150, presetHeight);
+        
+        leftX = presetSelector->getRight();
 
 	}
 	
