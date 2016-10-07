@@ -24,6 +24,8 @@ struct HiseJavascriptEngine::RootObject::ArrayClass : public DynamicObject
 		setMethod("push", push);
         setMethod("sort", sort);
 		setMethod("insert", insert);
+        setMethod("indexOf", indexOf);
+        setMethod("isArray", isArray);
 	}
 
 	static Identifier getClassName()   { static const Identifier i("Array"); return i; }
@@ -93,6 +95,22 @@ struct HiseJavascriptEngine::RootObject::ArrayClass : public DynamicObject
 
 		return var::undefined();
 	}
+    
+    static var indexOf(Args a)
+    {
+        if (Array<var>* array = a.thisObject.getArray())
+        {
+            return array->indexOf(get(a, 0));
+        }
+        
+        return var::undefined();
+    }
+    
+    static var isArray(Args a)
+    {
+        return get(a, 0).isArray();
+    }
+    
 };
 
 //==============================================================================
