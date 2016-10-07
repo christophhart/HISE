@@ -159,6 +159,76 @@ ScriptingEditor::~ScriptingEditor()
     
 }
 
+void ScriptingEditor::createNewComponent(Widgets componentType, int x, int y)
+{
+	String widgetType;
+
+	switch (componentType)
+	{
+	case Widgets::Knob:				widgetType = "Knob"; break;
+	case Widgets::Button:			widgetType = "Button"; break;
+	case Widgets::Table:				widgetType = "Table"; break;
+	case Widgets::ComboBox:			widgetType = "ComboBox"; break;
+	case Widgets::Label:				widgetType = "Label"; break;
+	case Widgets::Image:				widgetType = "Image"; break;
+	case Widgets::Plotter:			widgetType = "Plotter"; break;
+	case Widgets::ModulatorMeter:	widgetType = "ModulatorMeter"; break;
+	case Widgets::Panel:				widgetType = "Panel"; break;
+	case Widgets::AudioWaveform:		widgetType = "AudioWaveform"; break;
+	case Widgets::SliderPack:		widgetType = "SliderPack"; break;
+	case Widgets::duplicateWidget:
+	{
+		widgetType = scriptContent->getEditedComponent()->getObjectName().toString();
+		widgetType = widgetType.replace("Scripted", "");
+		widgetType = widgetType.replace("Script", "");
+		widgetType = widgetType.replace("Slider", "Knob");
+		break;
+	}
+	}
+
+	String id = PresetHandler::getCustomName(widgetType);
+
+	bool wrongName = id.isEmpty() || !Identifier::isValidIdentifier(id);
+
+	while (wrongName && PresetHandler::showYesNoWindow("Wrong variable name", "Press 'OK' to re-enter a valid variable name (no funky characters, no whitespace) or 'Cancel' to abort", PresetHandler::IconType::Warning))
+	{
+		id = PresetHandler::getCustomName(widgetType);
+		wrongName = id.isEmpty() || !Identifier::isValidIdentifier(id);
+	}
+
+	if (wrongName) return;
+
+	String textToInsert;
+
+	textToInsert << "\nconst var " << id << " = Content.add" << widgetType << "(\"" << id << "\", " << x << ", " << y << ");\n";
+
+	if (componentType == Widgets::duplicateWidget)
+	{
+		const int xOfOriginal = scriptContent->getEditedComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::x);
+		const int yOfOriginal = scriptContent->getEditedComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::y);
+
+		const String originalId = scriptContent->getEditedComponent()->getName().toString();
+
+		String jsonDataOfNewComponent = CodeDragger::getText(scriptContent->getEditedComponent());
+
+		jsonDataOfNewComponent = jsonDataOfNewComponent.replace(originalId, id); // change the id of the component
+		jsonDataOfNewComponent = jsonDataOfNewComponent.replace("\"x\": " + String(xOfOriginal), "\"x\": " + String(x)); // change the id of the component
+		jsonDataOfNewComponent = jsonDataOfNewComponent.replace("\"y\": " + String(yOfOriginal), "\"y\": " + String(y)); // change the id of the component
+
+		textToInsert << jsonDataOfNewComponent;
+	}
+
+	if (getActiveCallback() != 0)
+	{
+		buttonClicked(callbackButtons[0]); // we need synchronous execution here
+	}
+
+	codeEditor->editor->moveCaretToEnd(false);
+
+	codeEditor->editor->insertTextAtCaret(textToInsert);
+	compileScript();
+}
+
 int ScriptingEditor::getBodyHeight() const
 {
 	if (isRootEditor())
@@ -976,45 +1046,23 @@ void ScriptingEditor::mouseDown(const MouseEvent &e)
 
 		ScriptingApi::Content::ScriptComponent *sc = scriptContent->getScriptComponentFor(e.getEventRelativeTo(scriptContent).getPosition());
 
-		enum Widgets
-		{
-			Knob = 0x1000,
-			Button,
-			Table,
-			ComboBox,
-			Label,
-			Image,
-			Plotter,
-			ModulatorMeter,
-			Panel,
-			AudioWaveform,
-			SliderPack,
-			duplicateWidget,
-			numWidgets
-		};
-
-
 		if (useComponentSelectMode)
 		{
 			
 			m.addSectionHeader("Create new widget");
-			m.addItem(Knob, "Add new Slider");
-			m.addItem(Button, "Add new Button");
-			m.addItem(Table, "Add new Table");
-			m.addItem(ComboBox, "Add new ComboBox");
-			m.addItem(Label, "Add new Label");
-			m.addItem(Image, "Add new Image");
-			m.addItem(Plotter, "Add new Plotter");
-			m.addItem(ModulatorMeter, "Add new ModulatorMeter");
-			m.addItem(Panel, "Add new Panel");
-			m.addItem(AudioWaveform, "Add new AudioWaveform");
-			m.addItem(SliderPack, "Add new SliderPack");
+			m.addItem((int)Widgets::Knob, "Add new Slider");
+			m.addItem((int)Widgets::Button, "Add new Button");
+			m.addItem((int)Widgets::Table, "Add new Table");
+			m.addItem((int)Widgets::ComboBox, "Add new ComboBox");
+			m.addItem((int)Widgets::Label, "Add new Label");
+			m.addItem((int)Widgets::Image, "Add new Image");
+			m.addItem((int)Widgets::Plotter, "Add new Plotter");
+			m.addItem((int)Widgets::ModulatorMeter, "Add new ModulatorMeter");
+			m.addItem((int)Widgets::Panel, "Add new Panel");
+			m.addItem((int)Widgets::AudioWaveform, "Add new AudioWaveform");
+			m.addItem((int)Widgets::SliderPack, "Add new SliderPack");
 
-
-			m.addItem(duplicateWidget, "Duplicate selected component", scriptContent->getEditedComponent() != nullptr);
-
-
-			
+			m.addItem((int)Widgets::duplicateWidget, "Duplicate selected component", scriptContent->getEditedComponent() != nullptr);
 
 			if (sc != nullptr)
 			{
@@ -1026,16 +1074,7 @@ void ScriptingEditor::mouseDown(const MouseEvent &e)
 		}
 		else
 		{
-			m.addSectionHeader("Export whole script:");
-			m.addItem(1, "Save Script To File");
-			m.addItem(2, "Load Script From File");
-			m.addSeparator();
-			m.addItem(3, "Save Script to Clipboard");
-			m.addItem(4, "Load Script from Clipboard");
-
-			m.addSeparator();
-
-
+			return;
 		}
 
 		
@@ -1111,80 +1150,16 @@ void ScriptingEditor::mouseDown(const MouseEvent &e)
 				comp->setModalBaseWindowComponent(findParentComponentOfClass<BackendProcessorEditor>());
 			}
 		}
-		else if (result >= Knob && result < numWidgets)
+		else if (result >= (int)Widgets::Knob && result < (int)Widgets::numWidgets)
 		{
-			String widgetType;
+			const int insertX = e.getEventRelativeTo(scriptContent).getMouseDownPosition().getX();
+			const int insertY = e.getEventRelativeTo(scriptContent).getMouseDownPosition().getY();
 
-			switch (result)
-			{
-			case Knob:				widgetType = "Knob"; break;
-			case Button:			widgetType = "Button"; break;
-			case Table:				widgetType = "Table"; break;
-			case ComboBox:			widgetType = "ComboBox"; break;
-			case Label:				widgetType = "Label"; break;
-			case Image:				widgetType = "Image"; break;
-			case Plotter:			widgetType = "Plotter"; break;
-			case ModulatorMeter:	widgetType = "ModulatorMeter"; break;
-			case Panel:				widgetType = "Panel"; break;
-			case AudioWaveform:		widgetType = "AudioWaveform"; break;
-			case SliderPack:		widgetType = "SliderPack"; break;
-			case duplicateWidget:
-			{
-				widgetType = scriptContent->getEditedComponent()->getObjectName().toString();
-				widgetType = widgetType.replace("Scripted", "");
-				widgetType = widgetType.replace("Script", "");
-				widgetType = widgetType.replace("Slider", "Knob");
-				break;
-			}
-			}
+			createNewComponent((Widgets)result, insertX, insertY);
 
-			String id = PresetHandler::getCustomName(widgetType);
-
-			bool wrongName = id.isEmpty() || !Identifier::isValidIdentifier(id);
-
-			while (wrongName && PresetHandler::showYesNoWindow("Wrong variable name", "Press 'OK' to re-enter a valid variable name (no funky characters, no whitespace) or 'Cancel' to abort", PresetHandler::IconType::Warning))
-			{
-				id = PresetHandler::getCustomName(widgetType);
-				wrongName = id.isEmpty() || !Identifier::isValidIdentifier(id);
-			}
-
-			if (wrongName) return;
-
-			String textToInsert;
-
-			int insertX = e.getEventRelativeTo(scriptContent).getMouseDownPosition().getX();
-			int insertY = e.getEventRelativeTo(scriptContent).getMouseDownPosition().getY();
-
-			textToInsert << "\nconst var " << id << " = Content.add" << widgetType << "(\"" << id << "\", " << insertX << ", " << insertY << ");\n";
-
-			if (result == duplicateWidget)
-			{
-
-				const int xOfOriginal = scriptContent->getEditedComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::x);
-				const int yOfOriginal = scriptContent->getEditedComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::x);
-
-				const String originalId = scriptContent->getEditedComponent()->getName().toString();
-
-				String jsonDataOfNewComponent = CodeDragger::getText(scriptContent->getEditedComponent());
-
-				jsonDataOfNewComponent = jsonDataOfNewComponent.replace(originalId, id); // change the id of the component
-				jsonDataOfNewComponent = jsonDataOfNewComponent.replace("\"x\": " + String(xOfOriginal), "\"x\": " + String(insertX)); // change the id of the component
-				jsonDataOfNewComponent = jsonDataOfNewComponent.replace("\"y\": " + String(yOfOriginal), "\"y\": " + String(insertY)); // change the id of the component
-
-				textToInsert << jsonDataOfNewComponent;
-			}
-
-			if (getActiveCallback() != 0)
-			{
-				buttonClicked(callbackButtons[0]); // we need synchronous execution here
-			}
-
-			codeEditor->editor->moveCaretToEnd(false);
-
-			codeEditor->editor->insertTextAtCaret(textToInsert);
-			compileScript();
+			
 		}
-		else if (result == numWidgets) // Component Select Mode
+		else if (result == (int)Widgets::numWidgets) // Component Select Mode
 		{
 			toggleComponentSelectMode(!useComponentSelectMode);
 
@@ -1503,17 +1478,126 @@ void ScriptingEditor::DragOverlay::Dragger::paint(Graphics &g)
 	g.fillAll(Colours::black.withAlpha(0.2f));
 	g.setColour(Colours::white.withAlpha(0.5f));
 
+	if(!snapShot.isNull()) g.drawImageAt(snapShot, 0, 0);
+
+	if (copyMode)
+	{
+		g.setFont(GLOBAL_BOLD_FONT().withHeight(20.0f));
+		g.drawText("+", getLocalBounds(), Justification::centred);
+	}
+
 	g.drawRect(getLocalBounds(), 1.0f);
 }
 
 void ScriptingEditor::DragOverlay::Dragger::mouseDown(const MouseEvent& e)
 {
+	constrainer.setStartPosition(getBounds());
+
+	
 	if (e.eventComponent == this)
+	{
+		snapShot = currentlyDraggedComponent->createComponentSnapshot(currentlyDraggedComponent->getLocalBounds());
+
 		dragger.startDraggingComponent(this, e);
+	}
 }
 
 void ScriptingEditor::DragOverlay::Dragger::mouseDrag(const MouseEvent& e)
 {
+	constrainer.setRasteredMovement(e.mods.isCtrlDown());
+	constrainer.setLockedMovement(e.mods.isShiftDown());
+
+	copyMode = e.mods.isAltDown();
+
 	if (e.eventComponent == this)
 		dragger.dragComponent(this, e, &constrainer);
+}
+
+void ScriptingEditor::DragOverlay::Dragger::mouseUp(const MouseEvent& e)
+{
+	ScriptingApi::Content::ScriptComponent *sc = currentScriptComponent;
+
+	snapShot = Image();
+
+	if (copyMode)
+	{
+		ScriptingEditor* editor = findParentComponentOfClass<ScriptingEditor>();
+
+		if (editor != nullptr)
+		{
+			const int oldX = sc->getPosition().getX();
+			const int oldY = sc->getPosition().getY();
+
+			const int newX = oldX + constrainer.getDeltaX();
+			const int newY = oldY + constrainer.getDeltaY();
+
+			editor->createNewComponent(Widgets::duplicateWidget, newX, newY);
+		}
+		
+
+		copyMode = false;
+
+		repaint();
+		return;
+	}
+
+	
+
+	
+
+	repaint();
+
+	if (sc != nullptr)
+	{
+		undoManager.beginNewTransaction();
+
+		if (e.eventComponent == this)
+		{
+			undoManager.perform(new OverlayAction(this, false, constrainer.getDeltaX(), constrainer.getDeltaY()));
+		}
+		else
+		{
+			undoManager.perform(new OverlayAction(this, true, constrainer.getDeltaWidth(), constrainer.getDeltaHeight()));
+		}
+	}
+}
+
+void ScriptingEditor::DragOverlay::Dragger::moveOverlayedComponent(int deltaX, int deltaY)
+{
+	ScriptingApi::Content::ScriptComponent *sc = currentScriptComponent;
+
+	ScriptingEditor* editor = findParentComponentOfClass<ScriptingEditor>();
+
+	const int oldX = sc->getPosition().getX();
+	const int oldY = sc->getPosition().getY();
+
+	const int newX = oldX + deltaX;
+	const int newY = oldY + deltaY;
+
+	if (editor != nullptr)
+	{
+		editor->changePositionOfComponent(sc, newX, newY);
+	}
+}
+
+void ScriptingEditor::DragOverlay::Dragger::resizeOverlayedComponent(int deltaX, int deltaY)
+{
+	ScriptingApi::Content::ScriptComponent *sc = currentScriptComponent;
+
+	const int oldWidth = sc->getPosition().getWidth();
+	const int oldHeight = sc->getPosition().getHeight();
+
+	const int newWidth = oldWidth + deltaX;
+	const int newHeight = oldHeight + deltaY;
+
+	sc->setScriptObjectPropertyWithChangeMessage(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::width), newWidth, dontSendNotification);
+	sc->setScriptObjectPropertyWithChangeMessage(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::height), newHeight, sendNotification);
+	sc->setChanged();
+
+	ScriptingEditor* editor = findParentComponentOfClass<ScriptingEditor>();
+
+	if (editor != nullptr)
+	{
+		editor->scriptComponentChanged(sc, sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::width));
+	}
 }

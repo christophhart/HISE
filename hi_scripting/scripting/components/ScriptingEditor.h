@@ -80,11 +80,30 @@ class ScriptingEditor  : public ProcessorEditorBody,
 {
 public:
     //==============================================================================
+
+	enum class Widgets
+	{
+		Knob = 0x1000,
+		Button,
+		Table,
+		ComboBox,
+		Label,
+		Image,
+		Plotter,
+		ModulatorMeter,
+		Panel,
+		AudioWaveform,
+		SliderPack,
+		duplicateWidget,
+		numWidgets
+	};
+
     ScriptingEditor (ProcessorEditor *p);
     ~ScriptingEditor();
 
     //==============================================================================
    
+	void createNewComponent(Widgets componentType, int x, int y);
 
 	void scriptComponentChanged(ReferenceCountedObject *scriptComponent, Identifier /*propertyThatWasChanged*/) override;
 
@@ -221,47 +240,16 @@ public:
 
 			void mouseDrag(const MouseEvent& e);
 
-			void mouseUp(const MouseEvent& e)
-			{
-				ScriptingApi::Content::ScriptComponent *sc = currentScriptComponent;
-
-				if (sc != nullptr)
-				{
-					if (e.eventComponent == this) // just moving
-					{
-						ScriptingEditor* editor = findParentComponentOfClass<ScriptingEditor>();
-
-						const int oldX = sc->getPosition().getX();
-						const int oldY = sc->getPosition().getY();
-
-						const int newX = oldX + e.getDistanceFromDragStartX();
-						const int newY = oldY + e.getDistanceFromDragStartY();
-
-						if (editor != nullptr)
-						{
-							editor->changePositionOfComponent(sc, newX, newY);
-						}
-					}
-					else 
-					{
-						sc->setScriptObjectPropertyWithChangeMessage(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::width), getWidth(), dontSendNotification);
-						sc->setScriptObjectPropertyWithChangeMessage(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::height), getHeight(), sendNotification);
-						sc->setChanged();
-
-						ScriptingEditor* editor = findParentComponentOfClass<ScriptingEditor>();
-
-						if (editor != nullptr)
-						{
-							editor->scriptComponentChanged(sc, sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::width));
-						}
-					}
-				}
-			}
+			void mouseUp(const MouseEvent& e);
 
 			void resized()
 			{
 				resizer->setBounds(getWidth() - 10, getHeight() - 10, 10, 10);
 			}
+
+			void moveOverlayedComponent(int deltaX, int deltaY);
+
+			void resizeOverlayedComponent(int deltaX, int deltaY);
 
 			bool keyPressed(const KeyPress &key) override
 			{
@@ -272,40 +260,70 @@ public:
 				if (sc == nullptr) return false;
 
 				const int keyCode = key.getKeyCode();
-
 				const int delta = key.getModifiers().isCommandDown() ? 10 : 1;
+				const bool resizeComponent = key.getModifiers().isShiftDown();
 
-				const int horizontalProperty = key.getModifiers().isShiftDown() ? ScriptingApi::Content::ScriptComponent::width : ScriptingApi::Content::ScriptComponent::x;
-				const int verticalProperty = key.getModifiers().isShiftDown() ? ScriptingApi::Content::ScriptComponent::height : ScriptingApi::Content::ScriptComponent::y;
-
-				int x = sc->getScriptObjectProperty(horizontalProperty);
-				int y = sc->getScriptObjectProperty(verticalProperty);
-
-				if (keyCode == KeyPress::upKey)
+				if (keyCode == KeyPress::leftKey)
 				{
-					sc->setScriptObjectPropertyWithChangeMessage(sc->getIdFor(verticalProperty), y - delta, sendNotification);
-					sc->setChanged();
+					if (resizeComponent)
+					{
+						undoManager.perform(new OverlayAction(this, false, -delta, 0));
+						undoManager.perform(new OverlayAction(this, true, delta, 0));
+					}
+					else
+					{
+						undoManager.perform(new OverlayAction(this, false, -delta, 0));
+					}
 
+					return true;
+				}
+				else if (keyCode == KeyPress::rightKey)
+				{
+					if (resizeComponent)
+					{
+						undoManager.perform(new OverlayAction(this, true, delta, 0));
+					}
+					else
+					{
+						undoManager.perform(new OverlayAction(this, false, delta, 0));
+					}
+
+
+					return true;
+				}
+				else if (keyCode == KeyPress::upKey)
+				{
+					if (resizeComponent)
+					{
+						moveOverlayedComponent(0, -delta);
+						resizeOverlayedComponent(0, delta);
+					}
+					else
+					{
+						moveOverlayedComponent(0, -delta);
+					}
 
 
 					return true;
 				}
 				else if (keyCode == KeyPress::downKey)
 				{
-					sc->setScriptObjectPropertyWithChangeMessage(sc->getIdFor(verticalProperty), y + delta, sendNotification);
-					sc->setChanged();
+					if (resizeComponent)
+					{
+						resizeOverlayedComponent(0, delta);
+					}
+					else
+					{
+						moveOverlayedComponent(0, delta);
+					}
+
+
 					return true;
 				}
-				else if (keyCode == KeyPress::leftKey)
+				else if (keyCode == 'Z' && key.getModifiers().isCommandDown())
 				{
-					sc->setScriptObjectPropertyWithChangeMessage(sc->getIdFor(horizontalProperty), x - delta, sendNotification);
-					sc->setChanged();
-					return true;
-				}
-				else if (keyCode == KeyPress::rightKey)
-				{
-					sc->setScriptObjectPropertyWithChangeMessage(sc->getIdFor(horizontalProperty), x + delta, sendNotification);
-					sc->setChanged();
+					DBG("Undo");
+					undoManager.undo();
 					return true;
 				}
 
@@ -349,6 +367,127 @@ public:
 
 		private:
 
+			class Constrainer : public ComponentBoundsConstrainer
+			{
+			public:
+
+				void checkBounds(Rectangle<int>& bounds, const Rectangle<int>& previousBounds, const Rectangle<int>& limits, bool isStretchingTop, bool isStretchingLeft, bool isStretchingBottom, bool isStretchingRight)
+				{
+					const bool isResizing = isStretchingRight || isStretchingBottom;
+
+					if (rasteredMovement)
+					{
+						if (isResizing)
+						{
+							bounds.setWidth((bounds.getWidth() / 10) * 10);
+							bounds.setHeight((bounds.getHeight() / 10) * 10);
+						}
+						else
+						{
+							bounds.setX((bounds.getX() / 10) * 10);
+							bounds.setY((bounds.getY() / 10) * 10);
+						}
+					}
+
+					if (lockMovement)
+					{
+						if (isResizing)
+						{
+							const bool lockHorizontally = abs(bounds.getWidth() - startPosition.getWidth()) > abs(bounds.getHeight() - startPosition.getHeight());
+
+							if (lockHorizontally)
+							{
+								bounds.setHeight(startPosition.getHeight());
+							}
+							else
+							{
+								bounds.setWidth(startPosition.getWidth());
+							}
+						}
+						else
+						{
+							const bool lockHorizontally = abs(bounds.getX() - startPosition.getX()) > abs(bounds.getY() - startPosition.getY());
+
+							if (lockHorizontally)
+							{
+								bounds.setY(startPosition.getY());
+							}
+							else
+							{
+								bounds.setX(startPosition.getX());
+							}
+						}
+					}
+
+					if (bounds.getX() < limits.getX())
+					{
+						bounds.setX(limits.getX());
+					}
+					if (bounds.getRight() > limits.getRight())
+					{
+						bounds.setX(limits.getRight() - bounds.getWidth());
+					}
+					if (bounds.getY() < limits.getY())
+					{
+						bounds.setY(limits.getY());
+					}
+					if (bounds.getBottom() > limits.getBottom())
+					{
+						bounds.setY(limits.getBottom() - bounds.getHeight());
+					}
+
+					currentPosition = Rectangle<int>(bounds);
+				}
+
+
+				void setStartPosition(const Rectangle<int>& startPos)
+				{
+					startPosition = Rectangle<int>(startPos);
+					currentPosition = Rectangle<int>(startPos);
+				}
+
+				int getDeltaX() const
+				{
+					return currentPosition.getX() - startPosition.getX();
+				}
+
+				int getDeltaY() const
+				{
+					return currentPosition.getY() - startPosition.getY();
+				}
+
+				int getDeltaWidth() const
+				{
+					return currentPosition.getWidth() - startPosition.getWidth();
+				}
+
+				int getDeltaHeight() const
+				{
+					return currentPosition.getHeight() - startPosition.getHeight();
+				}
+
+
+
+
+				void setRasteredMovement(bool shouldBeRastered)
+				{
+					rasteredMovement = shouldBeRastered;
+				}
+
+				void setLockedMovement(bool shouldBeLocked)
+				{
+					lockMovement = shouldBeLocked;
+				}
+
+			private:
+
+				bool rasteredMovement = false;
+				bool lockMovement = false;
+
+				Rectangle<int> startPosition;
+				Rectangle<int> currentPosition;
+			};
+
 			class MovementWatcher : public ComponentMovementWatcher
 			{
 			public:
@@ -373,6 +512,71 @@ public:
 				Component* dragComponent;
 			};
 
+			class OverlayAction: public UndoableAction
+			{
+			public:
+
+				OverlayAction(Dragger* overlay_, bool isResized_, int deltaX_, int deltaY_):
+					overlay(overlay_),
+					draggedComponent(overlay_->currentlyDraggedComponent),
+					isResized(isResized_),
+					deltaX(deltaX_),
+					deltaY(deltaY_)
+				{}
+
+				bool perform() override
+				{
+					if (overlay.getComponent() != nullptr)
+					{
+						if (isResized)
+						{
+							overlay->resizeOverlayedComponent(deltaX, deltaY);
+						}
+						else
+						{
+							overlay->moveOverlayedComponent(deltaX, deltaY);
+						}
+
+						return true;
+					}
+
+					return false;
+
+				}
+
+				bool undo() override
+				{
+					if (draggedComponent.getComponent() != nullptr &&
+						overlay.getComponent() != nullptr &&
+						overlay->currentlyDraggedComponent.getComponent() == draggedComponent.getComponent())
+					{
+						if (isResized)
+						{
+							overlay->resizeOverlayedComponent(-deltaX, -deltaY);
+						}
+						else
+						{
+							overlay->moveOverlayedComponent(-deltaX, -deltaY);
+						}
+
+						return true;
+					}
+
+					return false;
+
+				}
+
+			private:
+
+				Component::SafePointer<Dragger> overlay;
+				Component::SafePointer<Component> draggedComponent;
+
+				const bool isResized;
+				const int deltaX;
+				const int deltaY;
+
+			};
+
 
 			Component::SafePointer<Component> currentlyDraggedComponent;
 			ScriptingApi::Content::ScriptComponent* currentScriptComponent;
@@ -381,16 +585,21 @@ public:
 
 			ComponentDragger dragger;
 
-			ComponentBoundsConstrainer constrainer;
+			UndoManager undoManager;
+
+			Constrainer constrainer;
 
 			ScopedPointer<ResizableCornerComponent> resizer;
 
-			
+			Image snapShot;
+			bool copyMode = false;
+
 			
 		};
 
 		bool dragMode;
 
+		
 		ScopedPointer<Dragger> dragger;
 
 		ScopedPointer<ShapeButton> dragModeButton;
