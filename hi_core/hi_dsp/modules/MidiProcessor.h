@@ -337,7 +337,6 @@ public:
 	{
 		scriptProcessor = 0,
 		transposer,
-		midiProcessorChain,
 		numMidiProcessors
 	};
 
@@ -348,7 +347,7 @@ public:
 		typeNames.clear();
 	};
 
-	int fillPopupMenu(PopupMenu &m, int startIndex=1) override;
+	int fillPopupMenu(PopupMenu &m, int startIndex=0) override;
 	
 	bool allowType(const Identifier &typeName) const override;
 

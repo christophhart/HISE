@@ -154,7 +154,7 @@ int MidiProcessorFactoryType::fillPopupMenu(PopupMenu &m, int startIndex)
 
 	int index = startIndex;
 
-	for(int i = 0; i < midiProcessorChain; i++)
+	for(int i = 0; i < numMidiProcessors; i++)
 	{
 		m.addItem(i+startIndex, types[i].name);
 
@@ -164,7 +164,7 @@ int MidiProcessorFactoryType::fillPopupMenu(PopupMenu &m, int startIndex)
 
 	PopupMenu hardcodedScriptMenu;
 
-	index = hardcodedScripts->fillPopupMenu(hardcodedScriptMenu, midiProcessorChain);
+	index = hardcodedScripts->fillPopupMenu(hardcodedScriptMenu, numMidiProcessors + startIndex);
 
 	m.addSubMenu("Hardcoded Scripts", hardcodedScriptMenu);
 
@@ -178,7 +178,7 @@ Processor *MidiProcessorFactoryType::createProcessor(int typeIndex, const String
 
 	MidiProcessor *mp = nullptr;
 
-	if(typeIndex >= midiProcessorChain)
+	if(typeIndex >= numMidiProcessors)
 	{
 		mp = dynamic_cast<MidiProcessor*>(hardcodedScripts->createProcessor(typeIndex, id));
 	}
@@ -188,7 +188,6 @@ Processor *MidiProcessorFactoryType::createProcessor(int typeIndex, const String
 		{
 			case scriptProcessor:		mp = new JavascriptMidiProcessor(m, id); break;
 			case transposer:			mp = new Transposer(m, id); break;
-			case midiProcessorChain:	jassertfalse; mp = new MidiProcessorChain(m, id, getOwnerProcessor()); break;
 			default:					jassertfalse; return nullptr;
 		}
 
