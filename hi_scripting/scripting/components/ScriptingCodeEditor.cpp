@@ -387,6 +387,31 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &m, const MouseEvent *e)
 #if USE_BACKEND
     m.setLookAndFeel(&plaf);
 
+
+	m.addSectionHeader("Code Bookmarks");
+
+	StringArray all = StringArray::fromLines(getDocument().getAllContent());
+
+	bookmarks.clear();
+
+	for (int i = 0; i < all.size(); i++)
+	{
+		if (all[i].startsWith("//!"))
+		{
+			bookmarks.add(Bookmarks(all[i], i));
+		}
+	}
+
+	if (bookmarks.size() != 0)
+	{
+		for (int i = 0; i < bookmarks.size(); i++)
+		{
+			m.addItem(bookmarkOffset + i, bookmarks[i].title);
+		}
+
+		m.addSeparator();
+	}
+
 	String s = getTextInRange(getHighlightedRegion()); 
 	
 	if (s == "include")
@@ -553,6 +578,16 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
         }
         
     }
+	else if (menuId >= bookmarkOffset)
+	{
+		const int index = menuId - bookmarkOffset;
+
+		const int lineNumber = bookmarks[index].line;
+
+		CodeDocument::Position pos(getDocument(), lineNumber, 0);
+
+		moveCaretTo(pos, false);
+	}
     else CodeEditorComponent::performPopupMenuAction(menuId);
 #else 
 	ignoreUnused(menuId);

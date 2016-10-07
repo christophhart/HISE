@@ -303,7 +303,26 @@ private:
 
 	DragState positionFound;
     
-	
+	const int bookmarkOffset = 0xffff;
+
+	struct Bookmarks
+	{
+		Bookmarks() :
+			title(""),
+			line(-1)
+		{};
+
+		Bookmarks(const String& lineText, int lineNumber)
+		{
+			title = lineText.removeCharacters("/!=-_");
+			line = lineNumber;
+		};
+
+		String title;
+		int line;
+	};
+
+	Array<Bookmarks> bookmarks;
 	
 };
 
