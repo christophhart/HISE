@@ -812,7 +812,7 @@ void SamplerSoundMap::setPressedKeys(const uint8 *pressedKeyData)
 		{
 			for(int i = 0; i < sampleComponents.size(); i++)
 			{
-				if(sampleComponents[i]->isVisible() &&
+				if(sampleComponents[i]->isVisible() && sampleComponents[i]->getSound() != nullptr &&
 					sampleComponents[i]->getSound()->appliesToMessage(1, number, velocity) &&
 					sampleComponents[i]->getSound()->appliesToRRGroup(ownerSampler->getSamplerDisplayValues().currentGroup))
 				{
