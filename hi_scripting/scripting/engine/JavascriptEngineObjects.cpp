@@ -98,12 +98,31 @@ struct HiseJavascriptEngine::RootObject::ArrayClass : public DynamicObject
     
     static var indexOf(Args a)
     {
-        if (Array<var>* array = a.thisObject.getArray())
+        if (const Array<var>* array = a.thisObject.getArray())
         {
-            return array->indexOf(get(a, 0));
+            const int typeStrictness = getInt(a, 2);
+            
+            const var target (get (a, 0));
+            
+            for (int i = (a.numArguments > 1 ? getInt (a, 1) : 0); i < array->size(); ++i)
+            {
+                if(typeStrictness)
+                {
+                    if (array->getReference(i).equalsWithSameType(target))
+                    {
+                        return i;
+                    }
+                }
+                else
+                {
+                    if (array->getReference(i) == target)
+                        return i;
+                }
+            }
         }
         
-        return var::undefined();
+        return -1;
+        
     }
     
     static var isArray(Args a)
