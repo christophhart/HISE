@@ -267,8 +267,8 @@ public:
 				{
 					if (resizeComponent)
 					{
-						undoManager.perform(new OverlayAction(this, false, -delta, 0));
-						undoManager.perform(new OverlayAction(this, true, delta, 0));
+						
+						undoManager.perform(new OverlayAction(this, true, -delta, 0));
 					}
 					else
 					{
@@ -293,28 +293,27 @@ public:
 				}
 				else if (keyCode == KeyPress::upKey)
 				{
-					if (resizeComponent)
-					{
-						moveOverlayedComponent(0, -delta);
-						resizeOverlayedComponent(0, delta);
-					}
-					else
-					{
-						moveOverlayedComponent(0, -delta);
-					}
-
-
-					return true;
+                    if (resizeComponent)
+                    {
+                        undoManager.perform(new OverlayAction(this, true, 0, -delta));
+                    }
+                    else
+                    {
+                        undoManager.perform(new OverlayAction(this, false, 0, -delta));
+                    }
+                    
+                    
+                    return true;
 				}
 				else if (keyCode == KeyPress::downKey)
 				{
 					if (resizeComponent)
 					{
-						resizeOverlayedComponent(0, delta);
+						undoManager.perform(new OverlayAction(this, true, 0, delta));
 					}
 					else
 					{
-						moveOverlayedComponent(0, delta);
+						undoManager.perform(new OverlayAction(this, false, 0, delta));
 					}
 
 

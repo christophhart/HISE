@@ -186,7 +186,7 @@ void KnobLookAndFeel::drawComboBox(Graphics &g, int width, int height, bool isBu
 {
 	c.setColour(ComboBox::ColourIds::textColourId, Colours::white);
 
-	drawHiBackground(g, 2, 2, width - 4, height - 4, dynamic_cast<ComboBox*>(&c), isButtonDown);
+	drawHiBackground(g, 0, 0, width, height - 2, dynamic_cast<ComboBox*>(&c), isButtonDown);
 
 	static const unsigned char pathData[] = { 110, 109, 0, 0, 130, 67, 92, 174, 193, 67, 108, 0, 0, 140, 67, 92, 174, 193, 67, 108, 0, 0, 135, 67, 92, 174, 198, 67, 99, 109, 0, 0, 130, 67, 92, 46, 191, 67, 108, 0, 0, 140, 67, 92, 46, 191, 67, 108, 0, 0, 135, 67, 92, 46, 186, 67, 99, 101, 0, 0 };
 
@@ -201,7 +201,7 @@ void KnobLookAndFeel::drawComboBox(Graphics &g, int width, int height, bool isBu
 
 void KnobLookAndFeel::drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, int width, int height, float /*sliderPosProportional*/, float /*rotaryStartAngle*/, float /*rotaryEndAngle*/, Slider &s)
 {
-	s.setTextBoxStyle (Slider::TextBoxRight, false, 80, 24);
+	s.setTextBoxStyle (Slider::TextBoxRight, false, 80, 28);
 
 			if(!s.isEnabled()) g.setOpacity(0.4f);
 
@@ -209,7 +209,7 @@ void KnobLookAndFeel::drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, int wi
 	height = s.getHeight();
 	width = s.getWidth();
 
-	drawHiBackground(g, 12, 6, width-18, 32, dynamic_cast<HiSlider*>(&s));
+	drawHiBackground(g, 12, 10, width-12, 30, dynamic_cast<HiSlider*>(&s));
 		
 	const double value = s.getValue();
     const double normalizedValue = (value - s.getMinimum()) / (s.getMaximum() - s.getMinimum());
@@ -223,7 +223,7 @@ void KnobLookAndFeel::drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, int wi
 	Image clip = cachedImage_smalliKnob_png.getClippedImage(Rectangle<int>(0, offset, filmstripHeight, filmstripHeight));
 
     g.setColour (Colours::black.withAlpha(s.isEnabled() ? 1.0f : 0.5f));
-    g.drawImage (clip, 0, 0, 48, 48, 0, 0, filmstripHeight, filmstripHeight); 
+    g.drawImage (clip, 0, 3, 48, 48, 0, 0, filmstripHeight, filmstripHeight);
 
 	float displayValue = 1.0f;
 
@@ -244,13 +244,13 @@ void KnobLookAndFeel::drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, int wi
 	Image clipRing = imageToUse->getClippedImage(Rectangle<int>(0, (int)(stripIndex * displayValue) * filmstripHeight, filmstripHeight, filmstripHeight));
 	
     g.setColour (Colours::black.withAlpha(s.isEnabled() ? 1.0f : 0.5f));
-	g.drawImage(clipRing, 0, 0, 48, 48, 0, 0, filmstripHeight, filmstripHeight); 
+	g.drawImage(clipRing, 0, 3, 48, 48, 0, 0, filmstripHeight, filmstripHeight);
 
 
 	g.setColour(Colours::white.withAlpha(0.7f));
 	g.setFont (GLOBAL_BOLD_FONT());
 	g.drawText (s.getName(),
-				41, 10, (int)((0.5391f) * width) + 10, 12,
+				45 , 13, (int)((0.5391f) * width) + 10, 12,
 				Justification::centred, true);
 
 
@@ -264,7 +264,7 @@ void KnobLookAndFeel::drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, int wi
 
 void KnobLookAndFeel::drawToggleButton (Graphics &g, ToggleButton &b, bool isMouseOverButton, bool /*isButtonDown*/)
 {
-	drawHiBackground(g, 6, 4, b.getWidth()-12, b.getHeight() - 8, dynamic_cast<HiToggleButton*>(&b), isMouseOverButton);
+	drawHiBackground(g, 0, 0, b.getWidth(), b.getHeight() - 2, dynamic_cast<HiToggleButton*>(&b), isMouseOverButton);
 
 	const int filmStripHeight = cachedImage_toggle_png.getHeight() / 2;
 
@@ -280,7 +280,7 @@ void KnobLookAndFeel::drawToggleButton (Graphics &g, ToggleButton &b, bool isMou
 				Justification::centredLeft, true);
 		
 	g.setColour (Colours::black.withAlpha( (b.isEnabled() ? 1.0f : 0.5f) ));
-	g.drawImage(clip, 12, 8, 16, 16, 0, 0, filmStripHeight, filmStripHeight);
+	g.drawImage(clip, 7, 7, 16, 16, 0, 0, filmStripHeight, filmStripHeight);
 }
 
 

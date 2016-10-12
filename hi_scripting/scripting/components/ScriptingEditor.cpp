@@ -344,7 +344,7 @@ void ScriptingEditor::resized()
 
 	dragOverlay->setBounds(scriptContent->getBounds());
 
-	dragOverlay->setVisible(isInEditMode());
+	dragOverlay->setVisible(true);
 
 }
 
@@ -1379,21 +1379,32 @@ void ScriptingEditor::checkActiveSnippets()
 	}
 }
 
+
+
+namespace OverlayIcons
+{
+    static const unsigned char lockShape[] = { 110,109,41,100,31,68,33,48,94,67,98,156,188,33,68,33,48,94,67,248,163,35,68,211,205,101,67,248,163,35,68,92,47,111,67,108,248,163,35,68,223,111,184,67,98,248,163,35,68,164,32,189,67,139,188,33,68,125,239,192,67,41,100,31,68,125,239,192,67,108,37,182,
+        213,67,125,239,192,67,98,96,5,209,67,125,239,192,67,135,54,205,67,164,32,189,67,135,54,205,67,223,111,184,67,108,135,54,205,67,92,47,111,67,98,135,54,205,67,211,205,101,67,96,5,209,67,33,48,94,67,37,182,213,67,33,48,94,67,108,41,100,31,68,33,48,94,67,
+        99,109,166,91,248,67,68,11,76,67,108,166,171,219,67,68,11,76,67,108,166,171,219,67,160,186,20,67,108,137,129,219,67,160,186,20,67,108,137,129,219,67,184,126,20,67,98,137,129,219,67,254,20,196,66,172,252,239,67,229,80,100,66,84,155,4,68,229,80,100,66,
+        98,98,56,17,68,229,80,100,66,227,117,27,68,254,20,196,66,227,117,27,68,184,126,20,67,108,227,117,27,68,160,186,20,67,108,49,112,27,68,160,186,20,67,108,49,112,27,68,193,234,76,67,108,41,28,13,68,193,234,76,67,108,41,28,13,68,160,186,20,67,108,229,24,
+        13,68,160,186,20,67,98,229,24,13,68,168,166,20,67,246,24,13,68,176,146,20,67,246,24,13,68,184,126,20,67,98,246,24,13,68,0,192,1,67,242,74,9,68,98,16,229,66,84,155,4,68,98,16,229,66,98,35,235,255,67,98,16,229,66,133,91,248,67,66,128,1,67,231,59,248,67,
+        180,8,20,67,108,166,91,248,67,180,8,20,67,108,166,91,248,67,68,11,76,67,99,101,0,0 };
+    
+    static const unsigned char penShape[] = { 110,109,96,69,112,67,182,243,141,64,108,154,73,133,67,143,194,240,65,98,158,95,136,67,201,118,16,66,59,111,136,67,92,15,56,66,172,108,133,67,125,191,80,66,108,51,179,122,67,100,123,137,66,108,240,7,74,67,172,28,170,65,108,20,46,90,67,82,184,150,64,98,
+        51,51,96,67,12,2,187,191,88,25,106,67,131,192,202,191,96,69,112,67,182,243,141,64,99,109,14,173,62,67,164,240,1,66,108,113,29,111,67,213,120,159,66,108,127,42,171,66,0,32,109,67,108,117,147,20,66,190,223,61,67,108,14,173,62,67,164,240,1,66,99,109,236,
+        81,200,65,121,9,75,67,108,123,148,145,66,53,158,121,67,108,0,0,0,0,74,60,138,67,108,236,81,200,65,121,9,75,67,99,101,0,0 };
+};
+
 ScriptingEditor::DragOverlay::DragOverlay()
 {
 	addAndMakeVisible(dragger = new Dragger());
 
 	setInterceptsMouseClicks(false, true);
 
-	addAndMakeVisible(dragModeButton = new ShapeButton("Drag Mode", Colours::black.withAlpha(0.3f), Colours::black.withAlpha(0.8f), Colours::black.withAlpha(0.8f)));
-
-	static const unsigned char dragShape[] = { 110, 109, 64, 217, 192, 67, 0, 218, 36, 67, 108, 64, 42, 173, 67, 0, 218, 81, 67, 108, 0, 144, 188, 67, 0, 218, 81, 67, 108, 0, 144, 188, 67, 128, 141, 118, 67, 108, 0, 77, 171, 67, 128, 141, 118, 67, 108, 0, 77, 171, 67, 0, 9, 87, 67, 108, 0, 205, 148, 67, 128, 102, 126, 67, 108, 0, 77, 171, 67, 0, 226, 146, 67, 108, 0, 77,
-		171, 67, 192, 198, 130, 67, 108, 0, 144, 188, 67, 192, 198, 130, 67, 108, 0, 144, 188, 67, 128, 140, 149, 67, 108, 192, 223, 171, 67, 128, 140, 149, 67, 108, 128, 142, 191, 67, 128, 12, 172, 67, 108, 64, 61, 211, 67, 128, 140, 149, 67, 108, 0, 16, 196, 67, 128, 140, 149, 67, 108, 0, 16, 196, 67, 192, 198, 130, 67, 108,
-		64, 112, 214, 67, 192, 198, 130, 67, 108, 64, 112, 214, 67, 0, 200, 146, 67, 108, 64, 240, 236, 67, 128, 50, 126, 67, 108, 64, 112, 214, 67, 0, 213, 86, 67, 108, 64, 112, 214, 67, 128, 141, 118, 67, 108, 0, 16, 196, 67, 128, 141, 118, 67, 108, 0, 16, 196, 67, 0, 218, 81, 67, 108, 0, 136, 212, 67, 0, 218, 81, 67, 108, 64,
-		217, 192, 67, 0, 218, 36, 67, 99, 101, 0, 0 };
+	addAndMakeVisible(dragModeButton = new ShapeButton("Drag Mode", Colours::black.withAlpha(0.6f), Colours::black.withAlpha(0.8f), Colours::black.withAlpha(0.8f)));
 
 	Path path;
-	path.loadPathFromData(dragShape, sizeof(dragShape));
+    path.loadPathFromData(OverlayIcons::lockShape, sizeof(OverlayIcons::lockShape));
 
 	dragModeButton->setShape(path, true, true, false);
 
@@ -1404,35 +1415,50 @@ ScriptingEditor::DragOverlay::DragOverlay()
 
 void ScriptingEditor::DragOverlay::resized()
 {
-	dragModeButton->setBounds(getWidth() - 20, 4, 18, 18);
+	dragModeButton->setBounds(getWidth() - 28, 12, 16, 16);
 }
+
 
 void ScriptingEditor::DragOverlay::buttonClicked(Button* buttonThatWasClicked)
 {
 	dragMode = !dragMode;
 
-
-
 	buttonThatWasClicked->setToggleState(dragMode, dontSendNotification);
-
-	Colour c = dragMode ? Colours::white : Colours::black;
-
-	dragModeButton->setColours(c.withAlpha(0.3f), c.withAlpha(0.8f), c.withAlpha(0.8f));
 
 	findParentComponentOfClass<ScriptingEditor>()->toggleComponentSelectMode(dragMode);
 
+    Path p;
+    
+    
 	if (dragMode == false)
 	{
+        p.loadPathFromData(OverlayIcons::lockShape, sizeof(OverlayIcons::lockShape));
 		dragger->setDraggedControl(nullptr, nullptr);
 	}
+    else
+    {
+        p.loadPathFromData(OverlayIcons::penShape, sizeof(OverlayIcons::penShape));
+    }
 
+    dragModeButton->setShape(p, true, true, false);
+    
+    resized();
+    
 	repaint();
+}
+
+Rectangle<float> getFloatRectangle(const Rectangle<int> &r)
+{
+    return Rectangle<float>((float)r.getX(), (float)r.getY(), (float)r.getWidth(), (float)r.getHeight());
 }
 
 void ScriptingEditor::DragOverlay::paint(Graphics& g)
 {
 	if (dragMode)
 	{
+        g.setColour(Colours::white.withAlpha(0.05f));
+        g.fillAll();
+        
 		for (int x = 10; x < getWidth(); x += 10)
 		{
 			g.setColour(Colours::black.withAlpha((x % 100 == 0) ? 0.12f : 0.05f));
@@ -1447,12 +1473,11 @@ void ScriptingEditor::DragOverlay::paint(Graphics& g)
 		}
 	}
 
-	Colour c = dragMode ? Colours::white : Colours::black;
+	Colour c = Colours::white;
 
 	g.setColour(c.withAlpha(0.2f));
-
-	g.setFont(GLOBAL_BOLD_FONT());
-	g.drawText(dragMode ? "Drag Mode" : "Test Mode", getWidth() - 133, 5, 110, 20, Justification::centredRight);
+    
+    g.fillRoundedRectangle(getFloatRectangle(dragModeButton->getBounds().expanded(3)), 3.0f);
 }
 
 ScriptingEditor::DragOverlay::Dragger::Dragger()
@@ -1480,13 +1505,14 @@ void ScriptingEditor::DragOverlay::Dragger::paint(Graphics &g)
 
 	if(!snapShot.isNull()) g.drawImageAt(snapShot, 0, 0);
 
+	g.drawRect(getLocalBounds(), 1.0f);
+    
 	if (copyMode)
 	{
-		g.setFont(GLOBAL_BOLD_FONT().withHeight(20.0f));
-		g.drawText("+", getLocalBounds(), Justification::centred);
+        g.setColour(Colours::white.withAlpha(0.8f));
+		g.setFont(GLOBAL_BOLD_FONT().withHeight(28.0f));
+		g.drawText("+", getLocalBounds().withTrimmedLeft(2).expanded(0, 4), Justification::topLeft);
 	}
-
-	g.drawRect(getLocalBounds(), 1.0f);
 }
 
 void ScriptingEditor::DragOverlay::Dragger::mouseDown(const MouseEvent& e)
@@ -1504,7 +1530,7 @@ void ScriptingEditor::DragOverlay::Dragger::mouseDown(const MouseEvent& e)
 
 void ScriptingEditor::DragOverlay::Dragger::mouseDrag(const MouseEvent& e)
 {
-	constrainer.setRasteredMovement(e.mods.isCtrlDown());
+	constrainer.setRasteredMovement(e.mods.isCommandDown());
 	constrainer.setLockedMovement(e.mods.isShiftDown());
 
 	copyMode = e.mods.isAltDown();
