@@ -293,7 +293,24 @@ Identifier Pool<FileType>::getIdForFileName(const String &absoluteFileName) cons
 
 	const File root = getProjectHandler().getSubDirectory((ProjectHandler::SubDirectories)directoryType);
 
-	return Identifier(File(absoluteFileName).getRelativePathFrom(root).upToFirstOccurrenceOf(".", false, false).replaceCharacter('\\', '/'));
+    if(root.isDirectory() && File(absoluteFileName).isAChildOf(root))
+    {
+        const String id = File(absoluteFileName).getRelativePathFrom(root).upToFirstOccurrenceOf(".", false, false).replaceCharacter('\\', '/');
+        
+        if(id.isEmpty()) return Identifier();
+        else return Identifier(id);
+    }
+    else
+    {
+        String id = absoluteFileName.upToFirstOccurrenceOf(".", false, false);
+        id = id.replaceCharacter('\\', '/');
+        id = id.fromLastOccurrenceOf("/", false, false);
+        
+        if(id.isEmpty()) return Identifier();
+        else return Identifier(id);
+    }
+    
+    
 
 #endif
 }
