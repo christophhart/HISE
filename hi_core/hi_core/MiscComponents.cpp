@@ -73,6 +73,10 @@ StringArray MouseCallbackComponent::getCallbackPropertyNames()
 	sa.add("hover");
 	sa.add("result");
 	sa.add("itemText");
+    sa.add("shiftDown");
+    sa.add("cmdDown");
+    sa.add("altDown");
+    sa.add("ctrlDown");
 
 	return sa;
 }
@@ -300,6 +304,12 @@ void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action,
 	static const Identifier mouseDownX("mouseDownX");
 	static const Identifier mouseDownY("mouseDownY");
 	static const Identifier mouseUp("mouseUp");
+    
+    static const Identifier shiftDown("shiftDown");
+    static const Identifier cmdDown("cmdDown");
+    static const Identifier altDown("altDown");
+    static const Identifier ctrlDown("ctrlDown");
+    
 	currentEvent->clear();
 
 	if (callbackLevel >= CallbackLevel::ClicksOnly)
@@ -311,6 +321,11 @@ void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action,
 		currentEvent->setProperty(mouseDownY, event.getMouseDownY());
 		currentEvent->setProperty(x, event.getPosition().getX());
 		currentEvent->setProperty(y, event.getPosition().getY());
+        currentEvent->setProperty(shiftDown, event.mods.isShiftDown());
+        currentEvent->setProperty(cmdDown, event.mods.isCommandDown());
+        currentEvent->setProperty(altDown, event.mods.isAltDown());
+        currentEvent->setProperty(ctrlDown, event.mods.isCtrlDown());
+        
 	}
 
 	if (callbackLevel >= CallbackLevel::ClicksAndEnter)
