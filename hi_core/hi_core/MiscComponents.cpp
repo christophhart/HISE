@@ -304,7 +304,6 @@ void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action,
 	static const Identifier mouseDownX("mouseDownX");
 	static const Identifier mouseDownY("mouseDownY");
 	static const Identifier mouseUp("mouseUp");
-    
     static const Identifier shiftDown("shiftDown");
     static const Identifier cmdDown("cmdDown");
     static const Identifier altDown("altDown");
