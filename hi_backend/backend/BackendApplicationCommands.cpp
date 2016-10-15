@@ -201,7 +201,7 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case Settings:
 
 #if IS_STANDALONE_APP
-		setCommandTarget(result, "Show Audio Device Settings", true, bpe->currentDialog == nullptr, 'X', false);
+		setCommandTarget(result, "Show Audio Device Settings", true, false, 'X', false);
 #else
 		setCommandTarget(result, "Show Audio Device Settings (disabled for plugins)", false, bpe->currentDialog == nullptr, '8');
 #endif
@@ -324,7 +324,8 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
         setCommandTarget(result, "Close all chains", clipBoardNotEmpty(), false, 'X', false);
         break;
 	case MenuToolsRecompile:
-        setCommandTarget(result, "Recompile all scripts", true, false, 'X', false);
+                         setCommandTarget(result, "Recompile all scripts", true, false, 'X', false);
+                         result.addDefaultKeypress(KeyPress::F5Key, ModifierKeys::shiftModifier);
         break;
 	case MenuToolsSetCompileTimeOut:
 		setCommandTarget(result, "Change compile time out duration", true, false, 'X', false);
