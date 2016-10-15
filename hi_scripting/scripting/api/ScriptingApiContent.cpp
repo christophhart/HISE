@@ -1885,6 +1885,7 @@ controlSender(this, base)
 	//deactivatedProperties.add(getIdFor(ScriptComponent::Properties::min));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::bgColour));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::macroControl));
+    deactivatedProperties.add(getIdFor(ScriptComponent::Properties::text));
 	//deactivatedProperties.add(getIdFor(ScriptComponent::Properties::enabled));
 	//deactivatedProperties.add(getIdFor(ScriptComponent::Properties::tooltip));
 	
@@ -1897,8 +1898,7 @@ controlSender(this, base)
 	propertyIds.add("popupMenuItems");		ADD_TO_TYPE_SELECTOR(SelectorTypes::MultilineSelector);
 	propertyIds.add("popupOnRightClick");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	propertyIds.add(Identifier("popupMenuAlign")); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-	propertyIds.add("extraProperties");	
-
+	
 	componentProperties->setProperty(getIdFor(borderSize), 0);
 	componentProperties->setProperty(getIdFor(borderRadius), 0);
 	componentProperties->setProperty(getIdFor(allowCallbacks), 0);
