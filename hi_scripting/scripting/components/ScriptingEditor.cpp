@@ -280,7 +280,6 @@ void ScriptingEditor::paint (Graphics& g)
 
 void ScriptingEditor::resized()
 {
-    
     codeEditor->setBounds ((getWidth() / 2) - ((getWidth() - 90) / 2), 104, getWidth() - 90, getHeight() - 140);
     compileButton->setBounds (((getWidth() / 2) - ((getWidth() - 90) / 2)) + (getWidth() - 90) - 95, getHeight() - 24, 95, 24);
     messageBox->setBounds (((getWidth() / 2) - ((getWidth() - 90) / 2)) + 0, getHeight() - 24, getWidth() - 296, 24);
@@ -306,8 +305,6 @@ void ScriptingEditor::resized()
 
 	scriptContent->setVisible(getProcessor()->getEditorState(editorOffset + ProcessorWithScriptingContent::contentShown));
 
-    
-    
 	const int contentHeight = scriptContent->isVisible() ? scriptContent->getContentHeight() : 0;
 
 	scriptContent->setBounds(xOff, y, w, scriptContent->getContentHeight());
@@ -343,9 +340,10 @@ void ScriptingEditor::resized()
 	}
 
 	dragOverlay->setBounds(scriptContent->getBounds());
-
 	dragOverlay->setVisible(true);
 
+    // The editor gets weirdly disabled occasionally, so this is a hacky fix for this...
+    setEnabled(true);
 }
 
 void ScriptingEditor::buttonClicked (Button* buttonThatWasClicked)
