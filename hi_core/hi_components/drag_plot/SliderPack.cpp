@@ -36,6 +36,8 @@ nextIndexToDisplay(-1),
 showValueOverlay(true),
 flashActive(true)
 {
+    enableAllocationFreeMessages(50);
+    
 	sliderRange = Range<double>(0.0, 1.0);
 }
 

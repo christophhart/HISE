@@ -76,7 +76,7 @@ ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
     timeLabel->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
 
 	addAndMakeVisible(contentButton = new TextButton("new button"));
-	contentButton->setButtonText(TRANS("Content"));
+	contentButton->setButtonText(TRANS("Interface"));
 	contentButton->setConnectedEdges(Button::ConnectedOnRight);
 	contentButton->addListener(this);
 	contentButton->setColour(TextButton::buttonColourId, Colour(0x4c4b4b4b));

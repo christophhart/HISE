@@ -46,14 +46,18 @@ front(false),
 deferred(false),
 deferredUpdatePending(false)
 {
+    editorStateIdentifiers.add("contentShown");
 	editorStateIdentifiers.add("onInitOpen");
 	editorStateIdentifiers.add("onNoteOnOpen");
 	editorStateIdentifiers.add("onNoteOffOpen");
 	editorStateIdentifiers.add("onControllerOpen");
 	editorStateIdentifiers.add("onTimerOpen");
 	editorStateIdentifiers.add("onControlOpen");
-	editorStateIdentifiers.add("contentShown");
+	
 	editorStateIdentifiers.add("externalPopupShown");
+    
+    setEditorState(Identifier("contentShown"), true);
+    setEditorState(Identifier("onInitOpen"), true);
 }
 
 
