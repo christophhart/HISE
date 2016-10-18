@@ -267,7 +267,7 @@ public:
 	double getSampleRate() const noexcept { return sampleRate; };
 
 	/** Returns the length of the loaded audio file in samples. */
-	int getLengthInSamples() const noexcept { return monolithLength; };
+	int getLengthInSamples() const noexcept { return fileReader.getSampleLength(); };
 
 	/** Gets the sound into active memory.
 	*
@@ -386,6 +386,11 @@ private:
             return 0;
         }
         
+        int64 getSampleLength() const
+        {
+            return sampleLength;
+        }
+        
         double getMonolithSampleRate() const
         {
             if(monolithicInfo != nullptr)
@@ -422,7 +427,7 @@ private:
 
 		bool isReading;
 
-        
+        int64 sampleLength;
         
 		File loadedFile;
         

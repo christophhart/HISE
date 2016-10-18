@@ -705,6 +705,9 @@ void StreamingSamplerSound::FileReader::openFileHandles(NotificationType notifyP
 			//	memoryReader->mapSectionOfFile(Range<int64>((int64)(sound->sampleStart) + (int64)(sound->monolithOffset), (int64)(sound->sampleEnd)));
 			//}
 #endif
+            
+            sampleLength = getMonolithLength();
+            
 		}
 		else
 		{
@@ -720,10 +723,16 @@ void StreamingSamplerSound::FileReader::openFileHandles(NotificationType notifyP
 					if (memoryReader != nullptr)
 					{
 						memoryReader->mapSectionOfFile(Range<int64>((int64)(sound->sampleStart) + (int64)(sound->monolithOffset), (int64)(sound->sampleEnd)));
+                        
+                        sampleLength = memoryReader->getMappedSection().getLength();
+                        
 					}
 				}
 			}
 			normalReader = pool->afm.createReaderFor(loadedFile);
+            
+            sampleLength = normalReader->lengthInSamples;
+            
 		}
 
 #if USE_BACKEND
