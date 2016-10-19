@@ -286,7 +286,7 @@ public:
 	{
 		if(!zoomOut)
 		{
-			zoomFactor = jmin(16.0f, zoomFactor * 1.5f); resized();
+			zoomFactor = jmin(64.0f, zoomFactor * 1.5f); resized();
 		}
 		else
 		{
