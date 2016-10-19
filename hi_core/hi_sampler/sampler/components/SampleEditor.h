@@ -210,7 +210,7 @@ public:
 
 	void soundsSelected(const Array<ModulatorSamplerSound*>  &selectedSoundList) override
 	{
-
+		selection.clear();
 
 		for (int i = 0; i < selectedSoundList.size(); i++)
 			selection.add(selectedSoundList[i]);
@@ -227,7 +227,7 @@ public:
 
 		samplerEditorCommandManager->commandStatusChanged();
 
-		if(selection.size() != 0 && selection.getLast() != 0) currentWaveForm->setSoundToDisplay(selection.getLast());
+		if(selectedSoundList.size() != 0 && selectedSoundList.getLast() != nullptr) currentWaveForm->setSoundToDisplay(selectedSoundList.getLast());
 		else currentWaveForm->setSoundToDisplay(nullptr);
 	}
 
