@@ -1401,6 +1401,9 @@ int JavascriptCodeEditor::AutoCompletePopup::getNumRows()
 void JavascriptCodeEditor::AutoCompletePopup::paintListBoxItem(int rowNumber, Graphics &g, int width, int height, bool rowIsSelected)
 {
 	RowInfo *info = visibleInfo[rowNumber];
+
+	if (info == nullptr) return;
+
 	Colour c = (rowIsSelected ? Colour(0xff333333) : Colours::transparentBlack);
 
 	g.setColour(c);
