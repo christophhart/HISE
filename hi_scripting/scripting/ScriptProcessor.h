@@ -355,7 +355,7 @@ public:
 	HiseJavascriptEngine *getScriptEngine() { return scriptEngine; }
 
 	void mergeCallbacksToScript(String &x) const;
-	void parseSnippetsFromString(const String &x, bool clearUndoHistory = false);
+	bool parseSnippetsFromString(const String &x, bool clearUndoHistory = false);
 
 	void setCompileProgress(double progress);
 

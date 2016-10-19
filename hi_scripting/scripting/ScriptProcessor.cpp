@@ -383,8 +383,6 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileScript()
 	{
 		String x;
 		mergeCallbacksToScript(x);
-		parseSnippetsFromString(x);
-
 	}
 	clearFileWatchers();
 
@@ -474,7 +472,7 @@ void JavascriptProcessor::mergeCallbacksToScript(String &x) const
 	}
 }
 
-void JavascriptProcessor::parseSnippetsFromString(const String &x, bool clearUndoHistory)
+bool JavascriptProcessor::parseSnippetsFromString(const String &x, bool clearUndoHistory /*= false*/)
 {
 	String codeToCut = String(x);
 
@@ -482,14 +480,18 @@ void JavascriptProcessor::parseSnippetsFromString(const String &x, bool clearUnd
 	{
 		SnippetDocument *s = getSnippet(i-1);
 		
-		String filter = "function " + s->getCallbackName().toString() + "(";
+		const String filter = "function " + s->getCallbackName().toString() + "(";
+
+		if (!x.contains(filter))
+		{
+			PresetHandler::showMessageWindow("Invalid script", "The script you are trying to load is not a valid HISE script file.\nThe callback " + s->getCallbackName().toString() + " is not defined.", PresetHandler::IconType::Error);
+			debugError(dynamic_cast<Processor*>(this), s->getCallbackName().toString() + " could not be parsed!");
+			return false;
+		}
 
 		String code = codeToCut.fromLastOccurrenceOf(filter, true, false);
 
-		if (!code.containsNonWhitespaceChars())
-		{
-			debugError(dynamic_cast<Processor*>(this), s->getCallbackName().toString() + " could not be parsed!");
-		}
+		
 
 		s->replaceAllContent(code);
         
@@ -504,6 +506,8 @@ void JavascriptProcessor::parseSnippetsFromString(const String &x, bool clearUnd
 	getSnippet(0)->replaceAllContent(codeToCut);
 
 	debugToConsole(dynamic_cast<Processor*>(this), "All callbacks sucessfuly parsed");
+
+	return true;
 }
 
 
