@@ -50,6 +50,8 @@ SamplerSoundWaveform::SamplerSoundWaveform(const ModulatorSampler *ownerSampler)
 	areas[PlayArea]->addAndMakeVisible(areas[LoopArea]);
 	areas[PlayArea]->addAndMakeVisible(areas[LoopCrossfadeArea]);
 	
+	areas[PlayArea]->setAreaEnabled(true);
+
 	areas[SampleStartArea]->leftEdge->setVisible(false);
 	areas[LoopCrossfadeArea]->rightEdge->setVisible(false);
 
