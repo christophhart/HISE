@@ -142,7 +142,7 @@ public:
 		{
 			setDefaultValue(Properties::x, newX);
 			setDefaultValue(Properties::y, newY);
-			sendChangeMessage();
+			sendSynchronousChangeMessage();
 		}
 
 		int getParentComponentIndex() const;
@@ -999,6 +999,8 @@ public:
 	ScriptComponent * getComponentWithName(const Identifier &componentName);
 	const ScriptComponent * getComponentWithName(const Identifier &componentName) const;
 	int getComponentIndex(const Identifier &componentName) const;
+
+	int getContentHeight() const { return height; }
 
 	struct Wrapper;
 

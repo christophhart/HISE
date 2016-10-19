@@ -149,6 +149,8 @@ public:
 
 	ScriptingApi::Content::ScriptComponent *getScriptComponentFor(Point<int> pos);
 
+	void getScriptComponentsFor(Array<ScriptingApi::Content::ScriptComponent*> &arrayToFill, Point<int> pos);
+
 	void refreshMacroIndexes();
 
 	String getContentTooltip() const;

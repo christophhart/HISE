@@ -492,9 +492,13 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
         if (scriptLoader.browseForFileToOpen())
         {
             String script = scriptLoader.getResult().loadFileAsString().removeCharacters("\r");
-            s->parseSnippetsFromString(script);
-            editor->compileScript();
-            debugToConsole(p, "Script loaded from " + scriptLoader.getResult().getFullPathName());
+            const bool success = s->parseSnippetsFromString(script);
+
+			if (success)
+			{
+				editor->compileScript();
+				debugToConsole(p, "Script loaded from " + scriptLoader.getResult().getFullPathName());
+			}
         }
     }
     else if (editor != nullptr && menuId == 103) // COPY
@@ -511,8 +515,12 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
         
         if (x.containsNonWhitespaceChars() && PresetHandler::showYesNoWindow("Replace Script?", "Do you want to replace the script?"))
         {
-            s->parseSnippetsFromString(x);
-            editor->compileScript();
+            const bool success = s->parseSnippetsFromString(x);
+
+			if (success)
+			{
+				editor->compileScript();
+			}
         }
     }
 	else if (menuId == 110)

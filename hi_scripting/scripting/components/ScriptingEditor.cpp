@@ -236,15 +236,17 @@ int ScriptingEditor::getBodyHeight() const
 		return findParentComponentOfClass<Viewport>()->getHeight() - 36;
 	}
 
-	int editorOffset = dynamic_cast<const ProcessorWithScriptingContent*>(getProcessor())->getCallbackEditorStateOffset();
+	const ProcessorWithScriptingContent* pwsc = dynamic_cast<const ProcessorWithScriptingContent*>(getProcessor());
 
-	const int contentHeight = getProcessor()->getEditorState(editorOffset + ProcessorWithScriptingContent::EditorStates::contentShown) ? scriptContent->getContentHeight() : 0;
+	int editorOffset = pwsc->getCallbackEditorStateOffset();
+
+	const int contentHeight = getProcessor()->getEditorState(editorOffset + ProcessorWithScriptingContent::EditorStates::contentShown) ? pwsc->getScriptingContent()->getContentHeight() : 0;
 
 	const int additionalOffset = (dynamic_cast<const JavascriptModulatorSynth*>(getProcessor()) != nullptr) ? 5 : 0;
 
 	if (editorShown)
 	{
-		return 28 + additionalOffset + contentHeight + codeEditor->getHeight() + 24;
+		return 28 + additionalOffset + contentHeight + codeEditor->currentHeight + 24;
 	}
 	else
 	{
@@ -256,7 +258,6 @@ int ScriptingEditor::getBodyHeight() const
 void ScriptingEditor::paint (Graphics& g)
 {
     //[UserPrePaint] Add your own custom painting code here..
-	g.fillAll(Colours::transparentBlack);
     //[/UserPrePaint]
 
     //[UserPaint] Add your own custom painting code here..
@@ -1038,11 +1039,16 @@ void ScriptingEditor::mouseDown(const MouseEvent &e)
 
 	if(editorShown && e.mods.isRightButtonDown())
 	{
+		
+		const int editComponentOffset = 109;
+
 		PopupMenu m;
 		ScopedPointer<PopupLookAndFeel> luf = new PopupLookAndFeel();
 		m.setLookAndFeel(luf);
 
-		ScriptingApi::Content::ScriptComponent *sc = scriptContent->getScriptComponentFor(e.getEventRelativeTo(scriptContent).getPosition());
+		Array<ScriptingApi::Content::ScriptComponent*> components;
+		
+		scriptContent->getScriptComponentsFor(components, e.getEventRelativeTo(scriptContent).getPosition());
 
 		if (useComponentSelectMode)
 		{
@@ -1062,11 +1068,27 @@ void ScriptingEditor::mouseDown(const MouseEvent &e)
 
 			m.addItem((int)Widgets::duplicateWidget, "Duplicate selected component", scriptContent->getEditedComponent() != nullptr);
 
-			if (sc != nullptr)
+			if (components.size() != 0)
 			{
 				m.addSeparator();
-				m.addItem(5, "Edit \"" + sc->getName().toString() + "\" in Panel");
+
 				m.addItem(6, "Connect to Module Parameter");
+
+				if (components.size() == 1)
+				{
+					m.addItem(editComponentOffset, "Edit \"" + components[0]->getName().toString() + "\" in Panel");
+				}
+				else
+				{
+					PopupMenu comp;
+
+					for (int i = 0; i < components.size(); i++)
+					{
+						comp.addItem(editComponentOffset + i, components[i]->getName().toString());
+					}
+
+					m.addSubMenu("Select Component to edit", comp, components.size() != 0);
+				}
 			}
 
 		}
@@ -1075,70 +1097,14 @@ void ScriptingEditor::mouseDown(const MouseEvent &e)
 			return;
 		}
 
-		
-
-		PopupMenu widgets;
-
-		
-
 		int result = m.show();
 
 		JavascriptProcessor *s = dynamic_cast<JavascriptProcessor*>(getProcessor());
 
-		if (result == 1) // SAVE
+		if (result == 6)
 		{
-			FileChooser scriptSaver("Save script as",
-				File(GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::Scripts)),
-				"*.js");
+			ScriptingApi::Content::ScriptComponent* sc = components.getFirst();
 
-			if (scriptSaver.browseForFileToSave(true))
-			{
-				String script;
-				s->mergeCallbacksToScript(script);
-				scriptSaver.getResult().replaceWithText(script);
-				debugToConsole(getProcessor(), "Script saved to " + scriptSaver.getResult().getFullPathName());
-			}
-		}
-		else if (result == 2) // LOAD
-		{
-			FileChooser scriptLoader("Please select the script you want to load",
-				File(GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::Scripts)),
-				"*.js");
-
-			if (scriptLoader.browseForFileToOpen())
-			{
-				String script = scriptLoader.getResult().loadFileAsString().removeCharacters("\r");
-				s->parseSnippetsFromString(script);
-				compileScript();
-				debugToConsole(getProcessor(), "Script loaded from " + scriptLoader.getResult().getFullPathName());
-			}
-		}
-		else if (result == 3) // COPY
-		{
-			String x;
-			s->mergeCallbacksToScript(x);
-			SystemClipboard::copyTextToClipboard(x);
-
-			debugToConsole(getProcessor(), "Script exported to Clipboard.");
-		}
-		else if (result == 4) // PASTE
-		{
-			String x = String(SystemClipboard::getTextFromClipboard()).removeCharacters("\r");
-
-			if (x.containsNonWhitespaceChars() && AlertWindow::showOkCancelBox(AlertWindow::QuestionIcon, "Replace Script?", "Do you want to replace the script?"))
-			{
-				s->parseSnippetsFromString(x);
-				compileScript();
-			}
-		}
-		else if (result == 5) // EDIT IN PANEL
-		{
-			jassert(sc != nullptr);
-
-			getProcessor()->getMainController()->setEditedScriptComponent(sc, this);
-		}
-		else if (result == 6)
-		{
 			jassert(sc != nullptr);
 
 			if (ProcessorHelpers::is<JavascriptMidiProcessor>(getProcessor()))
@@ -1154,15 +1120,15 @@ void ScriptingEditor::mouseDown(const MouseEvent &e)
 			const int insertY = e.getEventRelativeTo(scriptContent).getMouseDownPosition().getY();
 
 			createNewComponent((Widgets)result, insertX, insertY);
-
-			
 		}
-		else if (result == (int)Widgets::numWidgets) // Component Select Mode
+		else if (result >= editComponentOffset) // EDIT IN PANEL
 		{
-			toggleComponentSelectMode(!useComponentSelectMode);
+			ReferenceCountedObject* s = components[result - editComponentOffset];
 
+			getProcessor()->getMainController()->setEditedScriptComponent(s, this);
 		}
-}
+		
+	}
 }
 
 void ScriptingEditor::toggleComponentSelectMode(bool shouldSelectOnClick)
@@ -1523,6 +1489,13 @@ void ScriptingEditor::DragOverlay::Dragger::mouseDown(const MouseEvent& e)
 		snapShot = currentlyDraggedComponent->createComponentSnapshot(currentlyDraggedComponent->getLocalBounds());
 
 		dragger.startDraggingComponent(this, e);
+	}
+
+	ScriptingEditor* editor = findParentComponentOfClass<ScriptingEditor>();
+
+	if (editor != nullptr && e.mods.isRightButtonDown())
+	{
+		editor->mouseDown(e);
 	}
 }
 

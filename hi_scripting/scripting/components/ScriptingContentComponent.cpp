@@ -209,7 +209,11 @@ void ScriptContentComponent::updateComponent(int i)
 	const bool e = contentData->components[i]->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::enabled);
 	componentWrappers[i]->getComponent()->setEnabled(e);
 
-	if (componentWrappers[i]->getComponent()->getLocalBounds() != contentData->components[i]->getPosition())
+	const Rectangle<int> localBounds = componentWrappers[i]->getComponent()->getBoundsInParent();
+	const Rectangle<int> currentPosition = contentData->components[i]->getPosition();
+
+
+	if (localBounds != currentPosition)
 	{
 		componentWrappers[i]->getComponent()->setBounds(contentData->components[i]->getPosition());
 	}
@@ -432,13 +436,6 @@ ScriptingApi::Content::ScriptComponent * ScriptContentComponent::getScriptCompon
 {
 	for (int i = componentWrappers.size() - 1; i >= 0; --i)
 	{
-#if 0
-		if (componentWrappers[i]->getComponent()->getBounds().contains(pos))
-		{
-			return contentData->getComponent(i);
-		}
-#endif
-
 		Component* c = componentWrappers[i]->getComponent();
 
 		if (!c->isVisible()) continue;
@@ -449,10 +446,26 @@ ScriptingApi::Content::ScriptComponent * ScriptContentComponent::getScriptCompon
 		{
 			return contentData->getComponent(i);
 		}
-
 	}
 
 	return nullptr;
+}
+
+void ScriptContentComponent::getScriptComponentsFor(Array<ScriptingApi::Content::ScriptComponent*> &arrayToFill, Point<int> pos)
+{
+	for (int i = componentWrappers.size() - 1; i >= 0; --i)
+	{
+		Component* c = componentWrappers[i]->getComponent();
+
+		if (!c->isVisible()) continue;
+
+		Component* p = c->getParentComponent();
+
+		if (getLocalArea(p, c->getBounds()).contains(pos))
+		{
+			arrayToFill.add(contentData->getComponent(i));
+		}
+	}
 }
 
 ScriptContentContainer::ScriptContentContainer(ModulatorSynthChain* chain_, ModulatorSynthChainBody *editor_) :
