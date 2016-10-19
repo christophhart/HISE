@@ -372,6 +372,9 @@ public:
 
 				void checkBounds(Rectangle<int>& bounds, const Rectangle<int>& previousBounds, const Rectangle<int>& limits, bool isStretchingTop, bool isStretchingLeft, bool isStretchingBottom, bool isStretchingRight)
 				{
+					bounds.setWidth(jmax<int>(10, bounds.getWidth()));
+					bounds.setHeight(jmax<int>(10, bounds.getHeight()));
+
 					const bool isResizing = isStretchingRight || isStretchingBottom;
 
 					if (rasteredMovement)
@@ -424,7 +427,16 @@ public:
 					}
 					if (bounds.getRight() > limits.getRight())
 					{
-						bounds.setX(limits.getRight() - bounds.getWidth());
+						if (isResizing)
+						{
+							bounds.setWidth(limits.getRight() - bounds.getX());
+						}
+						else
+						{
+							bounds.setX(limits.getRight() - bounds.getWidth());
+						}
+
+						
 					}
 					if (bounds.getY() < limits.getY())
 					{
@@ -432,7 +444,15 @@ public:
 					}
 					if (bounds.getBottom() > limits.getBottom())
 					{
-						bounds.setY(limits.getBottom() - bounds.getHeight());
+						if (isResizing)
+						{
+							bounds.setHeight(limits.getBottom() - bounds.getY());
+						}
+						else
+						{
+							bounds.setY(limits.getBottom() - bounds.getHeight());
+						}
+						
 					}
 
 					currentPosition = Rectangle<int>(bounds);
