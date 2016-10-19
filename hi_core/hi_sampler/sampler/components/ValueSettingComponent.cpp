@@ -99,6 +99,35 @@ ValueSettingComponent::~ValueSettingComponent()
     //[/Destructor]
 }
 
+void ValueSettingComponent::setPropertyForAllSelectedSounds(ModulatorSamplerSound::Property p, int newValue)
+{
+	if (currentSelection.size() != 0)
+	{
+		currentSelection[0]->startPropertyChange(p, newValue);
+	};
+
+	for (int i = 0; i < currentSelection.size(); i++)
+	{
+		const int low = currentSelection[i]->getPropertyRange(soundProperty).getStart();
+		const int high = currentSelection[i]->getPropertyRange(soundProperty).getEnd();
+
+		const int clippedValue = jlimit(low, high, newValue);
+
+		currentSelection[i]->setPropertyWithUndo(p, clippedValue);
+
+
+	}
+
+	SampleEditor* editor = findParentComponentOfClass<SampleEditor>();
+
+	if (editor != nullptr)
+	{
+		editor->updateWaveform();
+	}
+
+	updateValue();
+}
+
 //==============================================================================
 void ValueSettingComponent::paint (Graphics& g)
 {
