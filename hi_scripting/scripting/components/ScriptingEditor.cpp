@@ -188,15 +188,17 @@ void ScriptingEditor::createNewComponent(Widgets componentType, int x, int y)
 
 	String id = PresetHandler::getCustomName(widgetType);
 
-	bool wrongName = id.isEmpty() || !Identifier::isValidIdentifier(id);
+	String errorMessage = isValidWidgetName(id);
 
-	while (wrongName && PresetHandler::showYesNoWindow("Wrong variable name", "Press 'OK' to re-enter a valid variable name (no funky characters, no whitespace) or 'Cancel' to abort", PresetHandler::IconType::Warning))
+	while (errorMessage.isNotEmpty() && PresetHandler::showYesNoWindow("Wrong variable name", errorMessage + "\nPress 'OK' to re-enter a valid variable name or 'Cancel' to abort", PresetHandler::IconType::Warning))
 	{
 		id = PresetHandler::getCustomName(widgetType);
-		wrongName = id.isEmpty() || !Identifier::isValidIdentifier(id);
+		errorMessage = isValidWidgetName(id);
 	}
 
-	if (wrongName) return;
+	errorMessage = isValidWidgetName(id);
+
+	if (errorMessage.isNotEmpty()) return;
 
 	String textToInsert;
 
@@ -227,6 +229,23 @@ void ScriptingEditor::createNewComponent(Widgets componentType, int x, int y)
 
 	codeEditor->editor->insertTextAtCaret(textToInsert);
 	compileScript();
+}
+
+String ScriptingEditor::isValidWidgetName(const String &id)
+{
+	if (id.isEmpty()) return "Identifier must not be empty";
+
+	if (!Identifier::isValidIdentifier(id)) return "Identifier must not contain whitespace or weird characters";
+
+	ScriptingApi::Content* content = dynamic_cast<ProcessorWithScriptingContent*>(getProcessor())->getScriptingContent();
+
+	for (int i = 0; i < content->getNumComponents(); i++)
+	{
+		if (content->getComponentWithName(Identifier(id)) != nullptr)
+			return  "Identifier " + id + " already exists";
+	}
+
+	return String::empty;
 }
 
 int ScriptingEditor::getBodyHeight() const
@@ -627,10 +646,22 @@ public:
 
 			parameterBox->clear();
 
-			for (int i = 0; i < selectedProcessor->getNumParameters(); i++)
+			if (ProcessorWithScriptingContent* pwsc = dynamic_cast<ProcessorWithScriptingContent*>(selectedProcessor))
 			{
-				parameterBox->addItem(selectedProcessor->getIdentifierForParameterIndex(i).toString(), i+1);
+				for (int i = 0; i < pwsc->getScriptingContent()->getNumComponents(); i++)
+				{
+					parameterBox->addItem("ScriptedParameters." + pwsc->getScriptingContent()->getComponent(i)->getName().toString(), i + 1);
+				}
 			}
+			else
+			{
+				for (int i = 0; i < selectedProcessor->getNumParameters(); i++)
+				{
+					parameterBox->addItem(selectedProcessor->getIdentifierForParameterIndex(i).toString(), i + 1);
+				}
+			}
+
+			
 
 			setProgress(0.5);
 		}
@@ -657,6 +688,7 @@ public:
 		String onInitText = sp->getSnippet(JavascriptMidiProcessor::onInit)->getAllContent();
 		String declaration = ProcessorHelpers::getScriptVariableDeclaration(processorToAdd, false);
 		String processorId = declaration.fromFirstOccurrenceOf("const var ", false, false).upToFirstOccurrenceOf(" ", false, false);
+		const String parameterId = getComboBoxComponent("Parameters")->getText();
 
 		if (!onInitText.contains(declaration))
 		{
@@ -674,17 +706,17 @@ public:
 
 			if (caseStatement.isNotEmpty())
 			{
-				modifyCaseStatement(caseStatement, processorId, processorToAdd);
+				modifyCaseStatement(caseStatement, processorId, parameterId);
 			}
 			else
 			{
 				int index = getCaseStatementIndex(onControlText);
-				addCaseStatement(index, processorId, processorToAdd);
+				addCaseStatement(index, processorId, parameterId);
 			}
 		}
 		else
 		{
-			addSwitchStatementWithCaseStatement(onControlText, processorId, processorToAdd);
+			addSwitchStatementWithCaseStatement(onControlText, processorId, parameterId);
 		}
 
 		editor->compileScript();
@@ -811,18 +843,20 @@ private:
 		try
 		{
 			HiseJavascriptEngine::RootObject::TokenIterator it(caseStatement, "");
+            
+            String previous2;
+            String previous1;
 
 			while (it.currentType != TokenTypes::eof)
 			{
 				if (it.currentValue == "setAttribute")
 				{
-					it.match(TokenTypes::identifier);
-					it.match(TokenTypes::openParen);
-					
-					return it.currentValue.toString();
-
+					return previous1;
 				}
 
+                previous2 = previous1;
+                previous1 = it.currentValue.toString();
+                
 				it.skip();
 			}
 
@@ -840,14 +874,14 @@ private:
 	{
 		try
 		{
+            
+            
 			HiseJavascriptEngine::RootObject::TokenIterator it(caseStatement, "");
 
 			while (it.currentType != TokenTypes::eof)
 			{
 				if (it.currentValue == processorName)
 				{
-					
-
 					it.match(TokenTypes::identifier);
 					it.match(TokenTypes::dot);
 
@@ -855,11 +889,18 @@ private:
 					{
 						it.match(TokenTypes::identifier);
 						it.match(TokenTypes::openParen);
-						it.match(TokenTypes::identifier);
-						it.match(TokenTypes::dot);
-
-						return processorName + "." + it.currentValue.toString();
-						break;
+                        
+                        if(it.currentValue == processorName)
+                        {
+                            it.match(TokenTypes::identifier);
+                            it.match(TokenTypes::dot);
+                            
+                            return processorName + "." + it.currentValue.toString();
+                        }
+                        else
+                        {
+                            return String::empty;
+                        }
 					}
 				}
 
@@ -876,11 +917,11 @@ private:
 		}
 	}
 
-	void modifyCaseStatement(const String &caseStatement, String processorId, Processor * processorToAdd)
+	void modifyCaseStatement(const String &caseStatement, const String &processorId, const String &parameterId)
 	{
 		String newStatement = String(caseStatement);
 
-		const String newParameterName = processorId + "." + processorToAdd->getIdentifierForParameterIndex(parameterIndexToAdd).toString();
+		const String newParameterName = processorId + "." + parameterId;
 		
 		const String oldProcessorName = getOldProcessorName(caseStatement);
 		const String oldParameterName = getOldParameterName(caseStatement, oldProcessorName);
@@ -898,12 +939,12 @@ private:
 		}
 	}
 
-	void addCaseStatement(int &index, String processorId, Processor * processorToAdd)
+	void addCaseStatement(int &index, const String &processorId, const String &parameterId)
 	{
 		String codeToInsert;
 
 		codeToInsert << "\t\tcase " << sc->getName().toString() << ":\n\t\t{\n\t\t\t";
-		codeToInsert << processorId << ".setAttribute(" << processorId << "." << processorToAdd->getIdentifierForParameterIndex(parameterIndexToAdd).toString();
+		codeToInsert << processorId << ".setAttribute(" << processorId << "." << parameterId;
 		codeToInsert << ", value);\n";
 		codeToInsert << "\t\t\tbreak;\n\t\t}\n";
 
@@ -912,7 +953,7 @@ private:
 		index += codeToInsert.length();
 	}
 
-	void addSwitchStatementWithCaseStatement(const String &onControlText, String processorId, Processor * processorToAdd)
+	void addSwitchStatementWithCaseStatement(const String &onControlText, const String &processorId, const String &parameterId)
 	{
 		const String switchStart = "\tswitch(number)\n\t{\n";
 
@@ -943,7 +984,7 @@ private:
 
 			index += switchStart.length();
 
-			addCaseStatement(index, processorId, processorToAdd);
+			addCaseStatement(index, processorId, parameterId);
 
 			sp->getSnippet(JavascriptMidiProcessor::onControl)->insertText(index, switchEnd);
 
@@ -1374,6 +1415,8 @@ ScriptingEditor::DragOverlay::DragOverlay()
 
 	dragModeButton->addListener(this);
 
+    dragModeButton->setTooltip("Toggle between Edit / Performance mode");
+    
 	dragMode = false;
 }
 

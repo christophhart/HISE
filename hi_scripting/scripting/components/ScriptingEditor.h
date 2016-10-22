@@ -105,6 +105,8 @@ public:
    
 	void createNewComponent(Widgets componentType, int x, int y);
 
+	String isValidWidgetName(const String &id);
+
 	void scriptComponentChanged(ReferenceCountedObject *scriptComponent, Identifier /*propertyThatWasChanged*/) override;
 
 	void updateGui() override

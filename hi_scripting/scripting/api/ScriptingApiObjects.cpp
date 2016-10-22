@@ -146,6 +146,21 @@ void ScriptingObjects::MidiList::restoreFromBase64String(String base64encodedVal
 	Base64::convertFromBase64(stream, base64encodedValues);
 }
 
+void addScriptParameters(ConstScriptingObject* this_, Processor* p)
+{
+	DynamicObject::Ptr scriptedParameters = new DynamicObject();
+
+	if (ProcessorWithScriptingContent* pwsc = dynamic_cast<ProcessorWithScriptingContent*>(p))
+	{
+		for (int i = 0; i < pwsc->getScriptingContent()->getNumComponents(); i++)
+		{
+			scriptedParameters->setProperty(pwsc->getScriptingContent()->getComponent(i)->getName(), var(i));
+		}
+	}
+
+	this_->addConstant("ScriptParameters", var(scriptedParameters.get()));
+}
+
 // ScriptingModulator ===========================================================================================================
 
 struct ScriptingObjects::ScriptingModulator::Wrapper
@@ -156,7 +171,7 @@ struct ScriptingObjects::ScriptingModulator::Wrapper
 };
 
 ScriptingObjects::ScriptingModulator::ScriptingModulator(ProcessorWithScriptingContent *p, Modulator *m_) :
-ConstScriptingObject(p, m_ != nullptr ? m_->getNumParameters() : 0),
+ConstScriptingObject(p, m_ != nullptr ? m_->getNumParameters() + 1 : 1),
 mod(m_),
 m(nullptr)
 {
@@ -165,6 +180,8 @@ m(nullptr)
 		m = dynamic_cast<Modulation*>(m_);
 
 		setName(mod->getId());
+
+		addScriptParameters(this, mod.get());
 
 		for (int i = 0; i < mod->getNumParameters(); i++)
 		{
@@ -295,12 +312,14 @@ struct ScriptingObjects::ScriptingEffect::Wrapper
 };
 
 ScriptingObjects::ScriptingEffect::ScriptingEffect(ProcessorWithScriptingContent *p, EffectProcessor *fx) :
-ConstScriptingObject(p, fx != nullptr ? fx->getNumParameters() : 0),
+ConstScriptingObject(p, fx != nullptr ? fx->getNumParameters()+1 : 1),
 effect(fx)
 {
 	if (fx != nullptr)
 	{
 		setName(fx->getId());
+
+		addScriptParameters(this, effect.get());
 
 		for (int i = 0; i < fx->getNumParameters(); i++)
 		{
@@ -344,12 +363,14 @@ struct ScriptingObjects::ScriptingSynth::Wrapper
 };
 
 ScriptingObjects::ScriptingSynth::ScriptingSynth(ProcessorWithScriptingContent *p, ModulatorSynth *synth_) :
-ConstScriptingObject(p, synth_ != nullptr ? synth_->getNumParameters(): 0),
+ConstScriptingObject(p, synth_ != nullptr ? synth_->getNumParameters()+1: 1),
 synth(synth_)
 {
 	if (synth != nullptr)
 	{
 		setName(synth->getId());
+
+		addScriptParameters(this, synth.get());
 
 		for (int i = 0; i < synth->getNumParameters(); i++)
 		{
@@ -391,12 +412,14 @@ struct ScriptingObjects::ScriptingMidiProcessor::Wrapper
 };
 
 ScriptingObjects::ScriptingMidiProcessor::ScriptingMidiProcessor(ProcessorWithScriptingContent *p, MidiProcessor *mp_) :
-ConstScriptingObject(p, mp_ != nullptr ? mp_->getNumParameters() : 0),
+ConstScriptingObject(p, mp_ != nullptr ? mp_->getNumParameters()+1 : 1),
 mp(mp_)
 {
 	if (mp != nullptr)
 	{
 		setName(mp->getId());
+
+		addScriptParameters(this, mp.get());
 
 		for (int i = 0; i < mp->getNumParameters(); i++)
 		{

@@ -240,6 +240,15 @@ private:
 
 		
 	}
+    
+    virtual void 	drawTooltip (Graphics &g, const String &text, int width, int height)
+    {
+        g.fillAll(Colour(0xFF444444));
+        g.setColour(Colours::white.withAlpha(0.8f));
+        g.drawRect(0, 0, width, height, 1);
+        g.setFont(GLOBAL_BOLD_FONT());
+        g.drawText(text, 0, 0, width, height, Justification::centred);
+    }
 
 	void drawPopupMenuBackground(Graphics& g, int width, int height) override
 	{
