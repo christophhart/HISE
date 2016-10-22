@@ -336,7 +336,7 @@ void StreamingSamplerSound::loopChanged()
 	{
 		loopStart = jmax<int>(loopStart, sampleStart);
 		loopEnd = jmin<int>(loopEnd, sampleEnd);
-		loopLength = loopEnd - loopStart;
+		loopLength = jmax<int>(0, loopEnd - loopStart);
 
 		if (loopLength < 4096)
 		{
