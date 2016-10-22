@@ -471,19 +471,15 @@ void ProcessorEditorHeader::resized()
 	}
 
 
-	foldButton->setBounds(x, yOffset, addCloseWidth, addCloseWidth);
-
-	x += addCloseWidth + 8;
-
-	if ((getProcessor() == getProcessor()->getMainController()->getMainSynthChain()))
-	{
-	}
-	else
-	{
-		chainIcon->setBounds(x, yOffset-1, chainIcon->drawIcon() ? 16 : 0, 16);
-
-		x = chainIcon->getRight() + 3;
-	}
+    if(getProcessor()->getMainController()->getMainSynthChain() != getProcessor())
+    {
+        foldButton->setBounds(x, yOffset, addCloseWidth, addCloseWidth);
+        x += addCloseWidth + 8;
+        
+        chainIcon->setBounds(x, yOffset-1, chainIcon->drawIcon() ? 16 : 0, 16);
+        
+        x = chainIcon->getRight() + 3;
+    }
 
 	if (isInternalChain)
 	{
@@ -519,7 +515,7 @@ void ProcessorEditorHeader::resized()
 		x = valueMeter->getRight() + 3;
 	}
 
-	if (dynamic_cast<RoutableProcessor*>(getProcessor()))
+	if (dynamic_cast<RoutableProcessor*>(getProcessor()) && dynamic_cast<GlobalModulatorContainer*>(getProcessor()) == nullptr)
 	{
 		x = valueMeter->getRight() + 3;
 
@@ -530,6 +526,7 @@ void ProcessorEditorHeader::resized()
 	}
 	else
 	{
+        routeButton->setVisible(false);
 		x += 3;
 	}
 	
