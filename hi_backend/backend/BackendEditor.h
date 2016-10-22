@@ -378,6 +378,8 @@ private:
 
 	bool rootEditorIsMainSynthChain;
 
+    SharedResourcePointer<TooltipWindow> tooltipWindow;
+    
 #if HISE_IOS
 
 	ScopedPointer<Component> menuRuler;

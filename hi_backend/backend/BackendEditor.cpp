@@ -40,6 +40,9 @@ BackendCommandTarget(static_cast<BackendProcessor*>(ownerProcessor)),
 owner(static_cast<BackendProcessor*>(getAudioProcessor())),
 rootEditorIsMainSynthChain(true)
 {
+    tooltipWindow->setLookAndFeel(&plaf);
+    tooltipWindow->setMillisecondsBeforeTipAppears(1500);
+    
 	setOpaque(true);
 
 	setEditor(this);
