@@ -451,7 +451,6 @@ void SampleEditorToolbarFactory::getAllToolbarItemIds(Array<int> &ids)
 
 	ids.add(spacerId);
 		
-	ids.add(SampleEditor::ToggleLoopView);
 	ids.add(SampleEditor::SelectWithMidi);
 
 	ids.add(spacerId);

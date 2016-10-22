@@ -126,9 +126,6 @@ public:
 		// Undo / Redo
 		ZoomIn = 0x3000,
 		ZoomOut,
-
-		ToggleLoopView,
-
 		EnableSampleStartArea,
 		EnableLoopArea,
 		EnablePlayArea,
@@ -150,7 +147,7 @@ public:
 	{
 		const CommandID id[] = {ZoomIn,
 								ZoomOut,
-								ToggleLoopView,
+								
 								EnableSampleStartArea,
 								EnableLoopArea,
 								EnablePlayArea,
@@ -175,10 +172,6 @@ public:
 		case ZoomOut:			result.setInfo("Zoom Out", "Zoom out the sample map", "Zooming", 0);
 								result.addDefaultKeypress('-', ModifierKeys::commandModifier);
 								result.setActive(isSelected && zoomFactor != 1.0f);
-								break;
-		case ToggleLoopView:   result.setInfo("Toggle Loop View", "Toggle between linear and loop start / end view", "Zooming", 0);
-								result.addDefaultKeypress('-', ModifierKeys::commandModifier);
-								result.setActive(isSelected && selection.getLast()->getProperty(ModulatorSamplerSound::LoopEnabled));
 								break;
 		case EnableSampleStartArea:	result.setInfo("Enable SampleStart Dragging", "Enable Sample Start Modulation Area Dragging", "Areas", 0);
 									result.setActive(isSelected && (int)selection.getLast()->getProperty(ModulatorSamplerSound::SampleStartMod) != 0);
