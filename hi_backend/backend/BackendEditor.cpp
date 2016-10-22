@@ -607,8 +607,7 @@ bool BackendProcessorEditor::isPluginPreviewShown() const
 
 bool BackendProcessorEditor::isPluginPreviewCreatable() const
 {
-    // TODO: Reenable this
-    return true;
+    return owner->synthChain->hasDefinedFrontInterface();
 }
 
 void BackendProcessorEditor::paint(Graphics &g)

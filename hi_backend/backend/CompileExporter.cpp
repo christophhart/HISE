@@ -118,21 +118,7 @@ bool CompileExporter::checkSanity(ModulatorSynthChain *chainToExport)
 {
 	// Check if a frontend script is in the main synth chain
 
-	MidiProcessorChain *mc = dynamic_cast<MidiProcessorChain*>(chainToExport->getChildProcessor(ModulatorSynth::MidiProcessor));
-
-	bool frontWasFound = false;
-
-	for (int i = 0; i < mc->getNumChildProcessors(); i++)
-	{
-		if (JavascriptMidiProcessor *sp = dynamic_cast<JavascriptMidiProcessor*>(mc->getChildProcessor(i)))
-		{
-			if (sp->isFront())
-			{
-				frontWasFound = true;
-				break;
-			}
-		}
-	}
+    const bool frontWasFound = chainToExport->hasDefinedFrontInterface();
 
 	if (!frontWasFound)
 	{

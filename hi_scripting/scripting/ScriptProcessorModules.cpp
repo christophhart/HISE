@@ -165,6 +165,7 @@ void JavascriptMidiProcessor::processHiseEvent(HiseEvent &m)
 void JavascriptMidiProcessor::registerApiClasses()
 {
 	content = new ScriptingApi::Content(this);
+    front = false;
 
 	currentMidiMessage = new ScriptingApi::Message(this);
 	engineObject = new ScriptingApi::Engine(this);

@@ -266,7 +266,9 @@ public:
 	*/
 	void compileAllScripts();
 
-	/** This renders the child synths:
+    bool hasDefinedFrontInterface() const;
+    
+    /** This renders the child synths:
 	*
 	*	- processes the MidiBuffer of the ModulatorSynthChain
 	*	- calls the renderNextBlockWithModulators on the child synths

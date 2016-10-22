@@ -244,6 +244,23 @@ void ModulatorSynthChain::restoreInterfaceValues(const ValueTree &v)
 	}
 }
 
+bool ModulatorSynthChain::hasDefinedFrontInterface() const
+{
+    
+    for (int i = 0; i < midiProcessorChain->getNumChildProcessors(); i++)
+    {
+        if (JavascriptMidiProcessor *sp = dynamic_cast<JavascriptMidiProcessor*>(midiProcessorChain->getChildProcessor(i)))
+        {
+            if (sp->isFront())
+            {
+                return true;
+            }
+        }
+    }
+    
+    return false;
+}
+
 ProcessorEditorBody *ModulatorSynthGroup::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
