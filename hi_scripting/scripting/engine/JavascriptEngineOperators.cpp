@@ -250,15 +250,15 @@ struct HiseJavascriptEngine::RootObject::LeftShiftOp : public BinaryOperator
 
 	var getWithArrayOrObject(const var& a, const var&b) const override
 	{
-		if (VariantBuffer *buffer = dynamic_cast<VariantBuffer*>(a.getDynamicObject()))
+		if (a.isBuffer())
 		{
 			if (isNumericOrUndefined(b))
 			{
-				*buffer << (float)b;
+				*a.getBuffer() << (float)b;
 			}
-			else if (VariantBuffer *otherBuffer = dynamic_cast<VariantBuffer*>(b.getDynamicObject()))
+			else if (b.isBuffer())
 			{
-				*buffer << *otherBuffer;
+				*a.getBuffer() << *b.getBuffer();
 			}
 
 			return a;
@@ -286,20 +286,21 @@ struct HiseJavascriptEngine::RootObject::RightShiftOp : public BinaryOperator
 	{
 		if (isNumericOrUndefined(a))
 		{
-			if (VariantBuffer *buffer = dynamic_cast<VariantBuffer*>(b.getDynamicObject()))
+			if (b.isBuffer())
 			{
-				(float)a >> *buffer;
+				(float)a >> *b.getBuffer();
 			}
 		}
-		else if (VariantBuffer *buffer = dynamic_cast<VariantBuffer*>(a.getDynamicObject()))
+		else if (a.isBuffer())
 		{
-			if (VariantBuffer *otherBuffer = dynamic_cast<VariantBuffer*>(b.getDynamicObject()))
+			if (b.isBuffer())
 			{
-				*buffer >> *otherBuffer;
+				*a.getBuffer() >> *b.getBuffer();
 			}
 		}
 		else if (DspInstance* instance = dynamic_cast<DspInstance*>(a.getObject()))
 		{
+            
 			if (b.isBuffer() || b.isArray())
 			{
 				*instance >> b;
