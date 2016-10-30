@@ -1152,6 +1152,14 @@ ModulatorSamplerSound * ModulatorSamplerSoundPool::addSoundWithMultiMic(const Va
                     multiMicArray.add(pool[i]);
                     continue;
                 }
+				else
+				{
+					StreamingSamplerSound *s = new StreamingSamplerSound(fileName, this);
+
+					multiMicArray.add(s);
+					pool.add(s);
+					continue;
+				}
             }
             
 			else
