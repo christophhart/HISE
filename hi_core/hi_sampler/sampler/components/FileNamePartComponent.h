@@ -65,7 +65,6 @@ public:
         HighVelocity, ///< the upper velocity limit
 		SingleKey, ///< Set to single Key: maps the value to RootNote, KeyLow and KeyHigh. SampleImporter::fillGaps might come in handy after this.
 		Group, ///< RRGroup: moves the sound into the specified group.
-		MultiMic, ///< Use this if you want this token to load the files into multiple mic position slots (it must be the last token to work).
 		Ignore, ///< Do nothing with this token. Use this for every token that does not contain special information (it is the default value anyway).
 		numTokenProperties
 	};
@@ -94,7 +93,6 @@ public:
             case HighVelocity:    return Number;
             case Group:			  return Custom;
             case SingleKey:		  return NoteName;
-            case MultiMic:		  return Custom;
             case Ignore:		  return Ignored;
             default:			  jassertfalse; return Ignored;
         }
@@ -112,7 +110,6 @@ public:
         case HighVelocity:    return "High Velocity";
 		case Group:			  return "RR Group";
 		case SingleKey:		  return "Single Key";
-		case MultiMic:		  return "MultiMic";
 		case Ignore:		  return "Ignore Token";
 		default:			  jassertfalse; return "";
 		}
@@ -189,8 +186,6 @@ public:
 								data.hiVelocity = 127;
 								break;
 								}
-		case MultiMic:			data.multiMic = value; 
-								collection.multiMicTokens.addIfNotAlreadyThere(currentToken);
 		case Ignore:			break;
 		default:				jassertfalse; return;
 

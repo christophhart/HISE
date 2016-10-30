@@ -166,7 +166,6 @@ FileNamePartComponent::FileNamePartComponent (const String &token)
     
 	propertyLabel->addOption("Single Key", "maps the value to RootNote, KeyLow and KeyHigh.");
 	propertyLabel->addOption("RR Group", "Puts the sound into the specified group.");
-	propertyLabel->addOption("MultiMic", "Use this if you want this token to load the files into multiple mic position slots (it must be the last token to work)");
 	propertyLabel->addOption("Ignore", "Do nothing with this token (default). Use this for every token that does not contain special information");
 
 	dataLabel->addOption("Number", "A simple integer number that can be directly read without further processing.");
