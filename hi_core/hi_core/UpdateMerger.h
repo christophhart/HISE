@@ -225,6 +225,19 @@ public:
 		return currentValue;
 	};
 
+	void smoothBuffer(float* data, int numSamples)
+	{
+		if (!active) return;
+
+		jassert(sampleRate > 0.0);
+
+		for (int i = 0; i < numSamples; i++)
+		{
+			currentValue = a0 * data[i] - b0 * prevValue;
+			prevValue = currentValue;
+		}
+	}
+
 	/** Returns the smoothing time in seconds. */
 	float getSmoothingTime() const
 	{
@@ -243,18 +256,22 @@ public:
 
 		smoothTime = newSmoothTime;
 
-		const float freq = 1000.0f / newSmoothTime;
+		if (sampleRate > 0.0)
+		{
+			const float freq = 1000.0f / newSmoothTime;
 
-		x = expf(-2.0f * float_Pi * freq / sampleRate);
-		a0 = 1.0f - x;
-		b0 = -x;
-
+			x = expf(-2.0f * float_Pi * freq / sampleRate);
+			a0 = 1.0f - x;
+			b0 = -x;
+		}
 	};
 
 	/** Sets the internal sample rate. Call this method before setting the smooth time. */
 	void prepareToPlay(double sampleRate_)
 	{
 		sampleRate = (float)sampleRate_;
+
+		setSmoothingTime(smoothTime);
 	};
 
 	/** Sets the internal value to the given number. Use this to prevent clicks for the first smoothing operation (default is 0.0) */
