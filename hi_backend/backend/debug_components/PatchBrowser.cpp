@@ -668,9 +668,11 @@ lastMouseDown(0)
 {
     addAndMakeVisible(idLabel = new Label());
     
-    idLabel->setEditable(false);
-    idLabel->addMouseListener(this, true);
+    //idLabel->setEditable(false);
+    //idLabel->addMouseListener(this, true);
     
+	idLabel->setInterceptsMouseClicks(false, true);
+
 	setSize(380 - 16, ITEM_HEIGHT);
 
 	setUsePopupMenu(true);
@@ -703,6 +705,18 @@ void PatchBrowser::PatchItem::fillPopupMenu(PopupMenu &m)
 	m.addItem((int)ModuleDragTarget::ViewSettings::Bypassed, "Bypass module", true, getProcessor()->isBypassed());
 	m.addItem((int)ModuleDragTarget::ViewSettings::Copy, "Copy module to clipboard", true, false);
 	m.addItem((int)ModuleDragTarget::ViewSettings::CreateScriptVariableDeclaration, "Create script variable declaration", true, false);
+
+	if (Chain *c = dynamic_cast<Chain*>(getProcessor()))
+	{
+		FactoryType* t = c->getFactoryType();
+
+		String clipBoardName = PresetHandler::getProcessorNameFromClipboard(t);
+
+		if (clipBoardName != String::empty)
+		{
+			m.addItem((int)ModuleDragTarget::ViewSettings::PasteProcessorFromClipboard, "Paste " + clipBoardName + " from clipboard", true, false);
+		}
+	}
 
 	m.addSeparator();
 
@@ -761,6 +775,45 @@ void PatchBrowser::PatchItem::popupCallback(int menuIndex)
 	case PatchBrowser::ModuleDragTarget::ViewSettings::CreateScriptVariableDeclaration:
 		ProcessorHelpers::getScriptVariableDeclaration(getProcessor(), true);
 		break;
+	case PatchBrowser::ModuleDragTarget::ViewSettings::PasteProcessorFromClipboard:
+	{
+		Chain* c = dynamic_cast<Chain*>(getProcessor());
+
+		Processor* newProcessor = PresetHandler::createProcessorFromClipBoard(getProcessor());
+
+		c->getHandler()->add(newProcessor, nullptr);
+
+		ProcessorEditorContainer *rootContainer = findParentComponentOfClass<BackendProcessorEditor>()->getRootContainer();
+
+		jassert(rootContainer != nullptr);
+
+		ProcessorEditor *editorOfParent = nullptr;
+		ProcessorEditor *editorOfChain = nullptr;
+
+		if (ProcessorHelpers::is<ModulatorSynth>(getProcessor()))
+		{
+			editorOfParent = rootContainer->getFirstEditorOf(getProcessor());
+			editorOfChain = editorOfParent;
+		}
+		else
+		{
+			editorOfParent = rootContainer->getFirstEditorOf(ProcessorHelpers::findParentProcessor(getProcessor(), true));
+			editorOfChain = rootContainer->getFirstEditorOf(getProcessor());
+		}
+
+
+		if (editorOfParent != nullptr)
+		{
+			editorOfParent->getChainBar()->refreshPanel();
+			editorOfParent->sendResizedMessage();
+			editorOfChain->changeListenerCallback(editorOfChain->getProcessor());
+			editorOfChain->childEditorAmountChanged();
+		}
+
+		findParentComponentOfClass<PatchBrowser>()->rebuildModuleList(true);
+
+		break;
+	}
 	case PatchBrowser::ModuleDragTarget::ViewSettings::numViewSettings:
 		break;
 	default:

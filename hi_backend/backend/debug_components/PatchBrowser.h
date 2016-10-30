@@ -97,6 +97,7 @@ private:
 			Bypassed,
 			Copy,
 			CreateScriptVariableDeclaration,
+			PasteProcessorFromClipboard,
 			numViewSettings
 		};
 
@@ -204,21 +205,19 @@ private:
 		virtual Processor *getProcessor() override { return processor.get(); };
 		virtual const Processor *getProcessor() const override { return processor.get(); };
 
-        void mouseDown(const MouseEvent &) override
+        void mouseDown(const MouseEvent &e) override
         {
-            const uint32 thisTime = Time::getMillisecondCounter();
             
             const bool isEditable = dynamic_cast<Chain*>(processor.get()) == nullptr ||
                                     dynamic_cast<ModulatorSynth*>(processor.get()) != nullptr;
             
-            const int interval = (int)(thisTime - lastMouseDown);
-            
-            if(isEditable && interval < 900 && interval > MouseEvent::getDoubleClickTimeout())
+            if(isEditable && e.mods.isShiftDown())
             {
                 idLabel->showEditor();
             }
-            
-            lastMouseDown = thisTime;
+
+			Item::mouseDown(e);
+
         }
         
         void labelTextChanged(Label *l) override
