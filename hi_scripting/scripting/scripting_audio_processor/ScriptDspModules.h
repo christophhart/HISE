@@ -367,25 +367,15 @@ public:
 				float *inL = data[0];
 				float *inR = data[1];
 
-				while (--numSamples >= 0)
-				{
-					*inL = smootherL.smooth(*inL);
-					*inR = smootherR.smooth(*inR);
+				smootherL.smoothBuffer(inL, numSamples);
+				smootherR.smoothBuffer(inR, numSamples);
 
-					inL++;
-					inR++;
-				}
 			}
 			else
 			{
 				float *inL = data[0];
 				
-				while (--numSamples >= 0)
-				{
-					*inL = smootherL.smooth(*inL);
-					
-					inL++;
-				}
+				smootherL.smoothBuffer(inL, numSamples);
 			}
 		}
 
@@ -403,59 +393,85 @@ public:
 	{
 	public:
 
+		enum class Parameters
+		{
+			ResetPhase = 0,
+			Frequency,
+			Phase,
+			Amplitude,
+			numParameters
+		};
+
 		SineGenerator() :
-			DspBaseObject()
+			DspBaseObject(),
+			uptime(0.0),
+			uptimeDelta(0.0),
+			gain(1.0),
+			phaseOffset(0.0)
 		{
 
 		}
 
 		SET_MODULE_NAME("sine");
 
-		void setParameter(int /*index*/, float /*newValue*/) override {};
+		void setParameter(int index, float newValue) override 
+		{
+			Parameters p = (Parameters)index;
 
-		int getNumParameters() const override { return 0; };
+			switch (p)
+			{
+			case ScriptingDsp::SineGenerator::Parameters::ResetPhase: uptime = 0.0;
+				break;
+			case ScriptingDsp::SineGenerator::Parameters::Frequency: uptimeDelta = newValue / sampleRate * double_Pi;
+				break;
+			case ScriptingDsp::SineGenerator::Parameters::Phase: phaseOffset = newValue;
+				break;
+			case ScriptingDsp::SineGenerator::Parameters::Amplitude: gain = newValue;
+				break;
+			case ScriptingDsp::SineGenerator::Parameters::numParameters:
+				break;
+			default:
+				break;
+			}
+		};
+
+		int getNumParameters() const override { return (int)Parameters::numParameters; };
 
 		float getParameter(int /*index*/) const override { return -1; };
 
-		void prepareToPlay(double /*sampleRate*/, int /*samplesPerBlock*/) override { }
+		void prepareToPlay(double sampleRate_, int /*samplesPerBlock*/) override 
+		{
+			sampleRate = sampleRate_;
+		}
 
 		void processBlock(float **data, int numChannels, int numSamples) override
 		{
+			float* inL = data[0];
+
+			const int samplesToCopy = numSamples;
+
+			while (--numSamples >= 0)
+			{
+				*inL++ = std::sin(uptime + phaseOffset) * gain;
+				uptime += uptimeDelta;
+			}
+
 			if (numChannels == 2)
 			{
-				float *inL = data[0];
-				float *pitch = data[1];
-				float phase = pitch[0];
-
-				while (--numSamples >= 0)
-				{
-					*inL = std::sin(phase);
-					pitch++;
-					phase += *pitch;
-					inL++;
-				}
-			}
-			else if (numChannels == 3)
-			{
-				float *inL = data[0];
-				float *inR = data[1];
-				float *pitch = data[2];
-				float phase = pitch[0];
-
-				const int samplesToCopy = numSamples;
-
-				while (--numSamples >= 0)
-				{
-					*inL = std::sin(phase);
-					pitch++;
-					phase += *pitch;
-					inL++;
-				}
-
-				FloatVectorOperations::copy(inR, inL, samplesToCopy);
+				FloatVectorOperations::copy(data[1], data[0], samplesToCopy);
 			}
 		}
 
+
+	private:
+
+		float gain;
+		double phaseOffset;
+
+		double uptimeDelta;
+		double uptime;
+		
+		double sampleRate;
 	};
 
 

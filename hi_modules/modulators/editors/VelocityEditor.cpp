@@ -53,7 +53,7 @@ VelocityEditorBody::VelocityEditorBody (ProcessorEditor *p)
     label->setFont (Font ("Arial Unicode MS", 24.00f, Font::bold));
     label->setJustificationType (Justification::centredRight);
     label->setEditable (false, false, false);
-    label->setColour (Label::textColourId, Colour (0x52ffffff));
+    label->setColour (Label::textColourId, Colour (0x99ffffff));
     label->setColour (TextEditor::textColourId, Colours::black);
     label->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
 
@@ -111,14 +111,14 @@ void VelocityEditorBody::paint (Graphics& g)
 {
     //[UserPrePaint] Add your own custom painting code here..
 	g.fillAll(Colours::transparentBlack);
+    
+    g.setColour (Colour (0x30000000));
+    g.fillRoundedRectangle (static_cast<float> ((getWidth() / 2) - ((getWidth() - 84) / 2)), 3.0f, static_cast<float> (getWidth() - 84), static_cast<float> (getHeight() - 6), 3.000f);
+    
+
     //[/UserPrePaint]
 
-    g.setColour (Colour (0x30000000));
-    g.fillRoundedRectangle (static_cast<float> ((getWidth() / 2) - ((getWidth() - 84) / 2)), 3.0f, static_cast<float> (getWidth() - 84), static_cast<float> (getHeight() - 6), 6.000f);
-
-    g.setColour (Colour (0x25ffffff));
-    g.drawRoundedRectangle (static_cast<float> ((getWidth() / 2) - ((getWidth() - 84) / 2)), 3.0f, static_cast<float> (getWidth() - 84), static_cast<float> (getHeight() - 6), 6.000f, 2.000f);
-
+    
     //[UserPaint] Add your own custom painting code here..
     //[/UserPaint]
 }

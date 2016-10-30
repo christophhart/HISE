@@ -303,7 +303,7 @@ public:
 	bool isPurged() const noexcept{ return purged; };
 	void setPurged(bool shouldBePurged);
 	void checkFileReference();
-	bool isMissing() const noexcept{ return wrappedSound->isMissing(); };
+	bool isMissing() const noexcept{ return wrappedSound.get() ? wrappedSound->isMissing() : true; };
 
 	// ====================================================================================================================
 

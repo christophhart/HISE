@@ -81,9 +81,12 @@ deactivateUIUpdate(false)
 
 	sampleStartChain->setFactoryType(new VoiceStartModulatorFactoryType(numVoices, Modulation::GainMode, sampleStartChain));
 
-	sampleStartChain->setColour(Colour(0xFF413C75));
+    
+    
+    
+	sampleStartChain->setColour(Colour(0xFF73C638).withMultipliedBrightness(0.8f));
 
-	crossFadeChain->setColour(Colour(0xFFEB8A3B));
+	crossFadeChain->setColour(Colour(0xFFC638B4));
 
 	for (int i = 0; i < 127; i++) samplerDisplayValues.currentNotes[i] = -1;
 

@@ -294,11 +294,9 @@ void AhdsrEnvelopeEditor::paint (Graphics& g)
     //[/UserPrePaint]
 
     g.setColour (Colour (0x30000000));
-    g.fillRoundedRectangle (static_cast<float> ((getWidth() / 2) - (710 / 2)), 6.0f, 710.0f, static_cast<float> (getHeight() - 12), 6.000f);
+    g.fillRoundedRectangle (static_cast<float> ((getWidth() / 2) - (710 / 2)), 6.0f, 710.0f, static_cast<float> (getHeight() - 12), 3.000f);
 
-    g.setColour (Colour (0x25ffffff));
-    g.drawRoundedRectangle (static_cast<float> ((getWidth() / 2) - (710 / 2)), 6.0f, 710.0f, static_cast<float> (getHeight() - 12), 6.000f, 2.000f);
-
+    
     //[UserPaint] Add your own custom painting code here..
 
 	//KnobLookAndFeel::drawHiBackground(g, ahdsrGraph->getX() - 16, ahdsrGraph->getY() - 8, ahdsrGraph->getWidth() + 32, ahdsrGraph->getHeight() + 16, nullptr, false);

@@ -92,7 +92,7 @@ public:
 		if(Modulator::getColour() != Colours::transparentBlack) return Modulator::getColour();
 		else
             //return getMode() == GainMode ? Colour(0xffD9A450) : Colour(0xff628214);
-            return getMode() == GainMode ? Colour(0xFFC6B138) : Colour(0xFF4A3188);
+            return getMode() == GainMode ? Colour(0xFFCA9E23) : Colour(0xFF6141B7);
 	};
 
 	void setFactoryType(FactoryType *newFactoryType) override {modulatorFactory = newFactoryType;};

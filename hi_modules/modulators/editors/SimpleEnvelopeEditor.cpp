@@ -119,7 +119,7 @@ void SimpleEnvelopeEditorBody::paint (Graphics& g)
     //[UserPaint] Add your own custom painting code here..
     
     g.setColour (Colour (0x30000000));
-    g.fillRoundedRectangle ((float)((getWidth() / 2) - ((getWidth() - 84) / 2)), 6.0f, (float)(getWidth() - 84), (float)(getHeight() - 12), 6.000f);
+    g.fillRoundedRectangle ((float)((getWidth() / 2) - ((getWidth() - 84) / 2)), 6.0f, (float)(getWidth() - 84), (float)(getHeight() - 12), 3.000f);
     
     g.setColour (Colour (0x30ffffff));
     //g.drawRoundedRectangle (static_cast<float> ((getWidth() / 2) - ((getWidth() - 84) / 2)), 6.0f, static_cast<float> (getWidth() - 84), static_cast<float> (getHeight() - 12), 6.000f, 1.000f);
