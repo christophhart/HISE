@@ -298,6 +298,19 @@ public:
 	bool isChannelPurged(int channelIndex) const;;
 	void setChannelPurged(int channelIndex, bool shouldBePurged);
 
+	bool preloadBufferIsNonZero() const noexcept
+	{
+		for (int i = 0; i < wrappedSounds.size(); i++)
+		{
+			if (!wrappedSounds[i]->isPurged() && wrappedSounds[i]->getPreloadBuffer().getNumSamples() != 0)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	// ====================================================================================================================
 
 	bool isPurged() const noexcept{ return purged; };

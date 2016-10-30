@@ -724,7 +724,7 @@ bool ModulatorSampler::soundCanBePlayed(ModulatorSynthSound *sound, int midiChan
 
 	if (!rrGroupApplies) return false;
 
-	const bool preloadBufferIsNonZero = static_cast<ModulatorSamplerSound*>(sound)->getReferenceToSound()->getPreloadBuffer().getNumSamples() != 0;
+	const bool preloadBufferIsNonZero = static_cast<ModulatorSamplerSound*>(sound)->preloadBufferIsNonZero();
 
 	if (!preloadBufferIsNonZero) return false;
 
