@@ -387,9 +387,6 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &m, const MouseEvent *e)
 #if USE_BACKEND
     m.setLookAndFeel(&plaf);
 
-
-	m.addSectionHeader("Code Bookmarks");
-
 	StringArray all = StringArray::fromLines(getDocument().getAllContent());
 
 	bookmarks.clear();
@@ -404,6 +401,8 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &m, const MouseEvent *e)
 
 	if (bookmarks.size() != 0)
 	{
+		m.addSectionHeader("Code Bookmarks");
+
 		for (int i = 0; i < bookmarks.size(); i++)
 		{
 			m.addItem(bookmarkOffset + i, bookmarks[i].title);
@@ -439,7 +438,8 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &m, const MouseEvent *e)
     if(editor != nullptr)
     {
 		
-
+		m.addSeparator();
+		m.addItem(105, "Search & replace");
         m.addSeparator();
         m.addSectionHeader("Import / Export");
         m.addItem(101, "Save Script To File");
@@ -523,6 +523,20 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 			}
         }
     }
+	else if (menuId == 105)
+	{
+		if (currentModalWindow.getComponent() != 0)
+		{
+			currentModalWindow.deleteAndZero();
+		}
+
+		CodeReplacer * replacer = new CodeReplacer(this);
+
+		currentModalWindow = replacer;
+
+		replacer->setModalBaseWindowComponent(this);
+		
+	}
 	else if (menuId == 110)
 	{
 		CodeDocument::Position start = getSelectionEnd().movedBy(2);
@@ -838,7 +852,7 @@ bool JavascriptCodeEditor::keyPressed(const KeyPress& k)
 
 		currentModalWindow = replacer;
 
-		replacer->showOnDesktop();
+		replacer->setModalBaseWindowComponent(this);
 	}
 	else if (k.isKeyCode(KeyPress::F4Key))
 	{
