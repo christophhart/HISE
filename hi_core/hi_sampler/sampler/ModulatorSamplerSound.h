@@ -300,9 +300,9 @@ public:
 
 	bool preloadBufferIsNonZero() const noexcept
 	{
-		for (int i = 0; i < wrappedSounds.size(); i++)
+		for (int i = 0; i < soundList.size(); i++)
 		{
-			if (!wrappedSounds[i]->isPurged() && wrappedSounds[i]->getPreloadBuffer().getNumSamples() != 0)
+			if (!soundList[i]->isPurged() && soundList[i]->getPreloadBuffer().getNumSamples() != 0)
 			{
 				return true;
 			}
