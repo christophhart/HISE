@@ -40,14 +40,16 @@
     <VS2013 targetFolder="Builds/VisualStudio2013">
       <CONFIGURATIONS>
         <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
-                       isDebug="0" optimisation="3" targetName="gain_example_x86" binaryPath="C:\Users\Christoph\AppData\Roaming\Hart Instruments\dll"/>
+                       isDebug="0" optimisation="3" targetName="stereo_widener_x86"
+                       binaryPath="C:\Users\Christoph\AppData\Roaming\Hart Instruments\dll"/>
         <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
-                       isDebug="0" optimisation="3" targetName="gain_example_x64" binaryPath="C:\Users\Christoph\AppData\Roaming\Hart Instruments\dll"/>
+                       isDebug="0" optimisation="3" targetName="stereo_widener_x64"
+                       binaryPath="C:\Users\Christoph\AppData\Roaming\Hart Instruments\dll"/>
         <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
-                       isDebug="1" optimisation="1" targetName="gain_example_debug_x64"
+                       isDebug="1" optimisation="1" targetName="stereo_widener_debug_x64"
                        binaryPath="C:\Users\Christoph\AppData\Roaming\Hart Instruments\dll"/>
         <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
-                       isDebug="1" optimisation="1" targetName="gain_example_debug_x86"
+                       isDebug="1" optimisation="1" targetName="stereo_widener_debug_x86"
                        binaryPath="C:\Users\Christoph\AppData\Roaming\Hart Instruments\dll"/>
       </CONFIGURATIONS>
       <MODULEPATHS>

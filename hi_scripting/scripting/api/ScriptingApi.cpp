@@ -1397,17 +1397,7 @@ void ScriptingApi::Synth::noteOff(int noteNumber)
 	reportScriptError("noteOff is deprecated. Use noteOfByEventId instead");
 #endif
 
-	// Set the timestamp to the future if this is called in the note off callback to prevent wrong order.
-	int timestamp = 0;
-
-	const HiseEvent* e = dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor())->getCurrentHiseEvent();
-
-	if (e != nullptr)
-	{
-		timestamp = e->getTimeStamp();
-	}
-
-	addNoteOff(1, noteNumber, timestamp);
+	addNoteOff(1, noteNumber, 0);
 }
 
 void ScriptingApi::Synth::noteOffByEventId(int eventId)
@@ -1461,14 +1451,7 @@ int ScriptingApi::Synth::playNote(int noteNumber, int velocity)
 
 	const HiseEvent* e = dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor())->getCurrentHiseEvent();
 	
-	int timestamp = 0;
-
-	if (e != nullptr)
-	{
-		timestamp = e->getTimeStamp();
-	}
-
-	return addNoteOn(1, noteNumber, velocity, timestamp);
+	return addNoteOn(1, noteNumber, velocity, 0); // the timestamp will be added from the current event
 
 	
 }
