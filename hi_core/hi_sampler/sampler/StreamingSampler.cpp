@@ -338,7 +338,7 @@ void StreamingSamplerSound::loopChanged()
 		loopEnd = jmin<int>(loopEnd, sampleEnd);
 		loopLength = jmax<int>(0, loopEnd - loopStart);
 
-		if (loopLength < 4096)
+		if (loopLength < 8192)
 		{
 			useSmallLoopBuffer = true;
 
@@ -449,6 +449,8 @@ void StreamingSamplerSound::fillSampleBuffer(AudioSampleBuffer &sampleBuffer, in
 
 			while (numSamples > (int)loopLength)
 			{
+				jassert(indexInSampleBuffer < sampleBuffer.getNumSamples());
+
 				FloatVectorOperations::copy(sampleBuffer.getWritePointer(0, indexInSampleBuffer), smallLoopBuffer.getReadPointer(0, 0), loopLength);
 				FloatVectorOperations::copy(sampleBuffer.getWritePointer(1, indexInSampleBuffer), smallLoopBuffer.getReadPointer(1, 0), loopLength);
 
@@ -468,7 +470,7 @@ void StreamingSamplerSound::fillSampleBuffer(AudioSampleBuffer &sampleBuffer, in
 			int numSamples = samplesToCopy - numSamplesBeforeFirstWrap;
 			int startSample = numSamplesBeforeFirstWrap;
 
-			const int indexToUse = indexInLoop > 0 ? (int)indexInLoop : uptime + (int)sampleStart;
+			const int indexToUse = indexInLoop > 0 ? ((int)indexInLoop + (int)loopStart) : uptime + (int)sampleStart;
 			fillInternal(sampleBuffer, numSamplesBeforeFirstWrap, indexToUse, 0);
 
 			while(numSamples > (int)loopLength)
