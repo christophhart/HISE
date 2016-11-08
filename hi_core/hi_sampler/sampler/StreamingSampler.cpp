@@ -729,9 +729,11 @@ void StreamingSamplerSound::FileReader::openFileHandles(NotificationType notifyP
 					}
 				}
 			}
+            
+            
 			normalReader = pool->afm.createReaderFor(loadedFile);
             
-            sampleLength = normalReader->lengthInSamples;
+            sampleLength = normalReader != nullptr ? normalReader->lengthInSamples : 0;
             
 		}
 
