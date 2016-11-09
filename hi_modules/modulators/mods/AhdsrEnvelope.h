@@ -139,7 +139,8 @@ public:
 			current_state(IDLE),
 			holdCounter(0),
 			envelope(ownerEnvelope),
-			current_value(0.0f)
+			current_value(0.0f),
+			lastSustainValue(1.0f)
 		{
 			for(int i = 0; i < numInternalChains; i++) modValues[i] = 1.0f;
 		};
@@ -183,6 +184,8 @@ public:
 		float releaseCoef;
 		float releaseBase;
 		float release_delta;
+
+		float lastSustainValue;
 
 		EnvelopeState current_state;
 	};

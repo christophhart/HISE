@@ -151,6 +151,7 @@ void AhdsrEnvelope::setSustainLevel(float level)
 {
     sustain = level;
     decayBase = (sustain - targetRatioDR) * (1.0f - decayCoef);
+	
 }
 
 void AhdsrEnvelope::setTargetRatioDR(float targetRatio) {
@@ -187,6 +188,7 @@ void AhdsrEnvelope::startVoice(int voiceIndex)
 
 	state->current_value = 0.0f;
 
+	state->lastSustainValue = sustain * state->modValues[SustainLevelChain];
 }
 
 void AhdsrEnvelope::stopVoice(int voiceIndex)
@@ -204,8 +206,30 @@ void AhdsrEnvelope::calculateBlock(int startSample, int numSamples)
 
 	if (isSustain)
 	{
-		FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), (sustain * state->modValues[SustainLevelChain]), numSamples);
-		startSample += numSamples;
+		const float thisSustainValue = sustain * state->modValues[SustainLevelChain];
+		const float lastSustainValue = state->lastSustainValue;
+		
+		if (abs(thisSustainValue - lastSustainValue) > 0.001f)
+		{
+			const float stepSize = (thisSustainValue - lastSustainValue) / (float)numSamples;
+			float* bufferPointer = internalBuffer.getWritePointer(0, startSample);
+			float rampedGain = lastSustainValue;
+
+			for (int i = 0; i < numSamples; i++)
+			{
+				bufferPointer[i] = rampedGain;
+				rampedGain += stepSize;
+				startSample++;
+			}
+		}
+		else
+		{
+			FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), thisSustainValue, numSamples);
+			startSample += numSamples;
+		}
+
+		state->lastSustainValue = thisSustainValue;
+		state->current_value = thisSustainValue;
 	}
 	else
 	{
@@ -378,9 +402,9 @@ float AhdsrEnvelope::calculateNewValue()
 			if (decay != 0.0f)
 			{
 				state->current_value = state->decayBase + state->current_value * state->decayCoef;
-				if (state->current_value <= thisSustain)
+				if ((state->current_value - thisSustain) < 0.001f)
 				{
-					state->current_value = thisSustain;
+					state->lastSustainValue = state->current_value;
 					state->current_state = AhdsrEnvelopeState::SUSTAIN;
 
 					if (thisSustain == 0.0f)  state->current_state = AhdsrEnvelopeState::IDLE;
@@ -395,7 +419,7 @@ float AhdsrEnvelope::calculateNewValue()
 			}
 			break;
 		}
-        case AhdsrEnvelopeState::SUSTAIN: state->current_value = thisSustain;
+		case AhdsrEnvelopeState::SUSTAIN: state->current_value = thisSustain; break;
 		case AhdsrEnvelopeState::RELEASE:
 		{
 			if (release != 0.0f)
