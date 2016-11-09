@@ -40,6 +40,8 @@ ModulatorChain::ModulatorChain(MainController *mc, const String &uid, int numVoi
 	activeVoices.setRange(0, numVoices, false);
 	setFactoryType(new ModulatorChainFactoryType(numVoices, m, p));
 
+	FloatVectorOperations::fill(lastVoiceValues, 1.0, NUM_POLYPHONIC_VOICES);
+
 	setEditorState(Processor::Visible, false, dontSendNotification);
 };
 
@@ -120,6 +122,30 @@ float ModulatorChain::getConstantVoiceValue(int voiceIndex) const
 		return Modulation::PitchConverters::normalisedRangeToPitchFactor(value);
 	}
 };
+
+void ModulatorChain::startVoice(int voiceIndex)
+{
+	activeVoices.setBit(voiceIndex, true);
+
+
+	polyManager.setLastStartedVoice(voiceIndex);
+
+	for (int i = 0; i < voiceStartModulators.size(); i++) voiceStartModulators[i]->startVoice(voiceIndex);
+
+	for (int i = 0; i < envelopeModulators.size(); i++)
+	{
+		envelopeModulators[i]->startVoice(voiceIndex);
+		envelopeModulators[i]->polyManager.setLastStartedVoice(voiceIndex);
+	}
+
+	const float startValue = getConstantVoiceValue(voiceIndex);
+
+	lastVoiceValues[voiceIndex] = startValue;
+
+	setOutputValue(startValue);
+}
+
+
 
 void ModulatorChain::stopVoice(int voiceIndex)
 {
@@ -356,10 +382,27 @@ void ModulatorChain::renderVoice(int voiceIndex, int startSample, int numSamples
 
 	if( shouldBeProcessed(true))
 	{
-
 		const float constantVoiceValue = getConstantVoiceValue(voiceIndex);
+		const float lastVoiceValue = lastVoiceValues[voiceIndex];
 
-		FloatVectorOperations::multiply(internalBuffer.getWritePointer(0, startSample), constantVoiceValue, numSamples);
+		if (abs(constantVoiceValue - lastVoiceValue) > 0.001f)
+		{
+			const float stepSize = (constantVoiceValue - lastVoiceValue) / (float)numSamples;
+			float* bufferPointer = internalBuffer.getWritePointer(0, startSample);
+			float rampedGain = lastVoiceValue;
+
+			for (int i = 0; i < numSamples; i++)
+			{
+				bufferPointer[i] *= rampedGain;
+				rampedGain += stepSize;
+			}
+		}
+		else
+		{
+			FloatVectorOperations::multiply(internalBuffer.getWritePointer(0, startSample), constantVoiceValue, numSamples);
+		}
+
+		lastVoiceValues[voiceIndex] = constantVoiceValue;
 
 		for(int i = 0; i < envelopeModulators.size(); i++)
 		{

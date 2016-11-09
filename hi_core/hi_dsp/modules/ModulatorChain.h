@@ -140,23 +140,7 @@ public:
 	bool isPlaying(int voiceIndex) const override;
 
 	/** Calls the start voice function for all voice start modulators and envelope modulators and sends a display message. */
-	void startVoice(int voiceIndex) override
-	{
-		activeVoices.setBit(voiceIndex, true);
-
-
-		polyManager.setLastStartedVoice(voiceIndex);
-
-		for (int i = 0; i < voiceStartModulators.size(); i++) voiceStartModulators[i]->startVoice(voiceIndex);
-
-		for (int i = 0; i < envelopeModulators.size(); i++)
-		{
-			envelopeModulators[i]->startVoice(voiceIndex);
-			envelopeModulators[i]->polyManager.setLastStartedVoice(voiceIndex);
-		}
-
-		setOutputValue(getConstantVoiceValue(voiceIndex));
-	};
+	void startVoice(int voiceIndex) override;;
 
 	/** Iterates all voice start modulators and returns the value either between 0.0 and 1.0 (GainMode) or -1.0 ... 1.0 (Pitch Mode). */
 	float getConstantVoiceValue(int voiceIndex) const;
@@ -355,6 +339,8 @@ private:
 	float envelopeOutputValue2;
 	float envelopeOutputValue3;
 	float envelopeOutputValue4;
+
+	float lastVoiceValues[NUM_POLYPHONIC_VOICES];
 
 	bool isVoiceStartChain;
 
