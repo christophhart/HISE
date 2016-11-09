@@ -373,8 +373,6 @@ void ModulatorChain::renderVoice(int voiceIndex, int startSample, int numSamples
 
 			m->renderNextBlock(envelopeTempBuffer, startSample, numSamples);
 
-			m->saveValuesForGlobalModulator(envelopeTempBuffer, startSample, numSamples, voiceIndex);
-
 			FloatVectorOperations::multiply(internalBuffer.getWritePointer(0, startSample), envelopeTempBuffer.getReadPointer(0, startSample), numSamples);
 
 			m->polyManager.clearCurrentVoice();
