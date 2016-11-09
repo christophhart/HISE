@@ -1181,84 +1181,10 @@ void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
 {
     if(fileName.isEmpty()) return;
     
-    
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
-#if USE_BACKEND
+	s->loadSampleMapFromIdAsync(fileName);
 
-	if (s == nullptr)
-	{
-		reportScriptError("loadSampleMap() only works with Samplers.");
-		return;
-	}
-
-	File f = GET_PROJECT_HANDLER(s).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps).getChildFile(fileName + ".xml");
-
-	if (!f.existsAsFile())
-	{
-		reportScriptError("Samplemap " + f.getFileName() + " not found.");
-		return;
-	}
-
-	XmlDocument doc(f);
-
-	ScopedPointer<XmlElement> xml = doc.getDocumentElement();
-
-	if (xml != nullptr)
-	{
-		ValueTree v = ValueTree::fromXml(*xml);
-
-		static const Identifier unused = Identifier("unused");
-        
-        const Identifier oldId = s->getSampleMap()->getId();
-		const Identifier newId = Identifier(v.getProperty("ID", "unused").toString());
-
-		if (newId != unused && newId != oldId)
-		{
-			s->loadSampleMap(v);
-			s->sendChangeMessage();
-			s->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->sendChangeMessage();
-		}
-
-	}
-	else
-	{
-		reportScriptError("Error when loading sample map: " + doc.getLastParseError());
-		return;
-	}
-
-#else
-
-	ValueTree v = dynamic_cast<FrontendProcessor*>(sampler->getMainController())->getSampleMap(fileName);
-
-	if (v.isValid())
-	{
-		static const Identifier unused = Identifier("unused");
-		const Identifier oldId = s->getSampleMap()->getId();
-		const Identifier newId = Identifier(v.getProperty("ID", "unused").toString());
-
-		if (newId != unused && newId != oldId)
-		{
-			s->loadSampleMap(v);
-		}
-	}
-	else
-	{
-		reportScriptError("Error when loading sample map: " + fileName);
-		return;
-	}
-
-#endif
-
-
-	int maxGroup = 1;
-
-	for (int i = 0; i < s->getNumSounds(); i++)
-	{
-		maxGroup = jmax<int>(maxGroup, s->getSound(i)->getProperty(ModulatorSamplerSound::RRGroup));
-	}
-
-	s->setAttribute(ModulatorSampler::RRGroupAmount, (float)maxGroup, sendNotification);
 }
 
 

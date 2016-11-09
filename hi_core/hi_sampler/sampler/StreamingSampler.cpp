@@ -84,6 +84,7 @@ StreamingSamplerSound::StreamingSamplerSound(HiseMonolithAudioFormat *info, int 
 
 StreamingSamplerSound::~StreamingSamplerSound()
 { 
+	masterReference.clear();
 	fileReader.closeFileHandles(); 
 }
 

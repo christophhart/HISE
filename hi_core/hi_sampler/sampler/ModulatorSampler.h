@@ -192,9 +192,16 @@ public:
 
 	void renderNextBlockWithModulators(AudioSampleBuffer& outputAudio, const HiseEventBuffer& inputMidi) override
 	{
-		if (purged) return;
+		if (purged)
+		{
+			fadeOutVoicesAndKillThemAll(false);
+			return;
+		}
 
 		ModulatorSynth::renderNextBlockWithModulators(outputAudio, inputMidi);
+
+
+		
 	}
 
 	SampleThreadPool *getBackgroundThreadPool();
@@ -223,9 +230,12 @@ public:
 
 	SampleMap *getSampleMap() {	return sampleMap; };
 	void clearSampleMap();
-	void loadSampleMapFromMonolith(const String &sampleMapId);
+	
 	void loadSampleMap(const File &f);
-	void loadSampleMap(const ValueTree &valueTreeData);;
+	void loadSampleMap(const ValueTree &valueTreeData);
+	void loadSampleMapFromIdAsync(const String& sampleMapId);
+	void loadSampleMapFromId(const String& sampleMapId);
+
 	void saveSampleMap() const;
 
 	void saveSampleMapAsMonolith (Component* mainEditor) const;
@@ -446,13 +456,49 @@ private:
         ModulatorSampler *sampler;
     };
     
+	struct AsyncSampleMapLoader : public AsyncUpdater,
+								  public Timer
+	{
+		AsyncSampleMapLoader(ModulatorSampler* s) :
+			sampler(s)
+		{};
+
+		void timerCallback()
+		{
+			triggerAsyncUpdate();
+			stopTimer();
+		}
+
+		void handleAsyncUpdate()
+		{
+			if (sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->isPreloading() ||
+				!sampler->globalKillSuccessfull())
+			{
+				startTimer(100);
+				return;
+			}
+
+			sampler->loadSampleMapFromId(sampleMapId);
+		}
+
+		void loadSampleMap(const String& newSampleMapId)
+		{
+			sampleMapId = newSampleMapId;
+			startTimer(50);
+		}
+
+		String sampleMapId;
+
+		ModulatorSampler *sampler;
+	};
+
     /** Sets the streaming buffer and preload buffer sizes. */
     void setPreloadSize(int newPreloadSize);
     
     AsyncPreloader asyncPreloader;
-
 	AsyncPurger asyncPurger;
-    
+	AsyncSampleMapLoader asyncSampleMapLoader;
+
 	void refreshCrossfadeTables();
 
 	RoundRobinMap roundRobinMap;

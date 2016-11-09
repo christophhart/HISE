@@ -35,7 +35,7 @@
 
 typedef ReferenceCountedArray<StreamingSamplerSound> StreamingSamplerSoundArray;
 
-#define FOR_EVERY_SOUND(x) {for (int i = 0; i < soundList.size(); i++) soundList[i]->x;}
+#define FOR_EVERY_SOUND(x) {for (int i = 0; i < soundList.size(); i++) if(soundList[i].get() != nullptr) soundList[i]->x;}
 
 // ====================================================================================================================
 
@@ -377,7 +377,7 @@ private:
 
 	StreamingSamplerSoundArray wrappedSounds;
 	StreamingSamplerSound::Ptr wrappedSound;
-	Array<StreamingSamplerSound*> soundList;
+	Array<WeakReference<StreamingSamplerSound>> soundList;
 
 	int upperVeloXFadeValue;
 	int lowerVeloXFadeValue;

@@ -36,6 +36,7 @@ preloadSize(PRELOAD_SIZE),
 undoManager(new UndoManager()),
 asyncPreloader(this),
 asyncPurger(this),
+asyncSampleMapLoader(this),
 soundCache(new AudioThumbnailCache(512)),
 sampleStartChain(new ModulatorChain(mc, "Sample Start", numVoices, Modulation::GainMode, this)),
 crossFadeChain(new ModulatorChain(mc, "Group Fade", numVoices, Modulation::GainMode, this)),
@@ -830,18 +831,6 @@ void ModulatorSampler::clearSampleMap()
 	sampleMap->clear();
 }
 
-void ModulatorSampler::loadSampleMapFromMonolith(const String &sampleMapId)
-{
-	setBypassed(true);
-
-	const ValueTree loadedMap = getMainController()->getSampleManager().getLoadedSampleMap(sampleMapId);
-
-	jassert(loadedMap.isValid());
-
-	sampleMap->restoreFromValueTree(loadedMap);
-
-	setBypassed(false);
-}
 
 void ModulatorSampler::loadSampleMap(const File &f)
 {
@@ -863,6 +852,90 @@ void ModulatorSampler::loadSampleMap(const ValueTree &valueTreeData)
 	sampleMap->restoreFromValueTree(valueTreeData);
 
 	setBypassed(false);
+}
+
+void ModulatorSampler::loadSampleMapFromIdAsync(const String& sampleMapId)
+{
+	ScopedLock sl(getMainController()->getLock());
+
+	getMainController()->allNotesOff();
+
+	asyncSampleMapLoader.loadSampleMap(sampleMapId);
+	
+}
+
+void ModulatorSampler::loadSampleMapFromId(const String& sampleMapId)
+{
+
+#if USE_BACKEND
+
+	File f = GET_PROJECT_HANDLER(this).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps).getChildFile(sampleMapId + ".xml");
+
+	if (!f.existsAsFile())
+	{
+		Logger::writeToLog("!Samplemap " + f.getFileName() + " not found.");
+		return;
+	}
+
+	XmlDocument doc(f);
+
+	ScopedPointer<XmlElement> xml = doc.getDocumentElement();
+
+	if (xml != nullptr)
+	{
+		ValueTree v = ValueTree::fromXml(*xml);
+
+		static const Identifier unused = Identifier("unused");
+
+		const Identifier oldId = getSampleMap()->getId();
+		const Identifier newId = Identifier(v.getProperty("ID", "unused").toString());
+
+		if (newId != unused && newId != oldId)
+		{
+			loadSampleMap(v);
+			sendChangeMessage();
+			getMainController()->getSampleManager().getModulatorSamplerSoundPool()->sendChangeMessage();
+		}
+
+	}
+	else
+	{
+		Logger::writeToLog("!Error when loading sample map: " + doc.getLastParseError());
+		return;
+	}
+
+#else
+
+	ValueTree v = dynamic_cast<FrontendProcessor*>(getMainController())->getSampleMap(fileName);
+
+	if (v.isValid())
+	{
+		static const Identifier unused = Identifier("unused");
+		const Identifier oldId = getSampleMap()->getId();
+		const Identifier newId = Identifier(v.getProperty("ID", "unused").toString());
+
+		if (newId != unused && newId != oldId)
+		{
+			loadSampleMap(v);
+		}
+	}
+	else
+	{
+		Logger::writeToLog("!Error when loading sample map: " + sampleMapId);
+		return;
+	}
+
+#endif
+
+
+	int maxGroup = 1;
+
+	for (int i = 0; i < getNumSounds(); i++)
+	{
+		maxGroup = jmax<int>(maxGroup, getSound(i)->getProperty(ModulatorSamplerSound::RRGroup));
+	}
+
+	setAttribute(ModulatorSampler::RRGroupAmount, (float)maxGroup, sendNotification);
 }
 
 void ModulatorSampler::saveSampleMap() const

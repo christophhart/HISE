@@ -80,7 +80,7 @@ purgeChannels(0)
 	for (int i = 1; i < soundArray.size(); i++)
 	{
 		wrappedSounds.add(soundArray[i]);
-		soundList.add(soundArray[i]);
+		soundList.add(soundArray[i].get());
 	}
 
 	

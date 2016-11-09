@@ -58,6 +58,8 @@ void SoundPreloadThread::run()
     
 	ModulatorSamplerSoundPool *pool = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
 
+	jassert(!pool->getPreloadLockFlag());
+
 	ScopedValueSetter<bool> preloadLock(pool->getPreloadLockFlag(), true);
 
     ScopedLock(sampler->getMainController()->getLock());
@@ -80,6 +82,8 @@ void SoundPreloadThread::run()
         if(threadShouldExit()) break;
 
 		setProgress(i / (double)numSoundsToPreload);
+
+		if (sampler->getSound(i) == nullptr) continue;
 
 		sampler->getSound(i)->checkFileReference();
 
