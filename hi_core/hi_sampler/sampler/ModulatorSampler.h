@@ -194,14 +194,10 @@ public:
 	{
 		if (purged)
 		{
-			fadeOutVoicesAndKillThemAll(false);
 			return;
 		}
 
 		ModulatorSynth::renderNextBlockWithModulators(outputAudio, inputMidi);
-
-
-		
 	}
 
 	SampleThreadPool *getBackgroundThreadPool();
@@ -471,8 +467,7 @@ private:
 
 		void handleAsyncUpdate()
 		{
-			if (sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->isPreloading() ||
-				!sampler->globalKillSuccessfull())
+			if (sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->isPreloading())
 			{
 				startTimer(100);
 				return;
