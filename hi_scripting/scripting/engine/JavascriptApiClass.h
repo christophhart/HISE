@@ -83,6 +83,7 @@ public:
 	int getNumUsedRegisters() const;
 	Identifier getRegisterId(int index) const;
 	const var *getVarPointer(int index) const;
+	var *getVarPointer(int index);
 
 	ReadWriteLock& getLock(int index);
 

@@ -5,9 +5,11 @@ struct HiseJavascriptEngine::RootObject::RegisterVarStatement : public Statement
 
 	ResultCode perform(const Scope& s, var*) const override
 	{
-		s.root->hiseSpecialData.varRegister.addRegister(name, initialiser->getResult(s));
+		varRegister->addRegister(name, initialiser->getResult(s));
 		return ok;
 	}
+
+	VarRegister* varRegister = nullptr;
 
 	Identifier name;
 	ExpPtr initialiser;
@@ -34,22 +36,35 @@ struct HiseJavascriptEngine::RootObject::RegisterAssignment : public Expression
 
 struct HiseJavascriptEngine::RootObject::RegisterName : public Expression
 {
-	RegisterName(const CodeLocation& l, const Identifier& n, int registerIndex) noexcept : Expression(l), name(n), indexInRegister(registerIndex) {}
+	RegisterName(const CodeLocation& l, const Identifier& n, VarRegister* rootRegister_, int indexInRegister_, var* data_) noexcept : 
+	  Expression(l), 
+	  rootRegister(rootRegister_),
+	  indexInRegister(indexInRegister_),
+      name(n), 
+	  data(data_) {}
 
 	var getResult(const Scope& s) const override
 	{
-		VarRegister* reg = &s.root->hiseSpecialData.varRegister;
-		return reg->getFromRegister(indexInRegister);
+		return *data;
+
+		//VarRegister* reg = &s.root->hiseSpecialData.varRegister;
+		//return reg->getFromRegister(indexInRegister);
 	}
 
 	void assign(const Scope& s, const var& newValue) const override
 	{
-		VarRegister* reg = &s.root->hiseSpecialData.varRegister;
-		reg->setRegister(indexInRegister, newValue);
+		*data = newValue;
+
+		//VarRegister* reg = &s.root->hiseSpecialData.varRegister;
+		//reg->setRegister(indexInRegister, newValue);
 	}
 
-	Identifier name;
+	VarRegister* rootRegister;
 	int indexInRegister;
+
+	var* data;
+
+	Identifier name;
 };
 
 

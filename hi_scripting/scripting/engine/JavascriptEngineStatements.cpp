@@ -179,9 +179,22 @@ struct HiseJavascriptEngine::RootObject::ConstVarStatement : public Statement
 
 	ResultCode perform(const Scope& s, var*) const override
 	{
-		s.root->hiseSpecialData.constObjects.set(name, initialiser->getResult(s));
-		return ok;
+		if (data != nullptr)
+		{
+			*data = initialiser->getResult(s);
+			return ok;
+		}
+		else
+		{
+			location.throwError("Internal Error");
+			
+		}
+
+		//s.root->hiseSpecialData.constObjects.set(name, initialiser->getResult(s));
+		
 	}
+
+	var* data = nullptr;
 
 	Identifier name;
 	ExpPtr initialiser;

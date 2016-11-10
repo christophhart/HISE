@@ -62,12 +62,12 @@ HiseJavascriptEngine::RootObject::Statement::ResultCode HiseJavascriptEngine::Ro
 {
 	if (RegisterName* r = dynamic_cast<RegisterName*>(lockedObj.get()))
 	{
-		currentLock = &s.root->hiseSpecialData.varRegister.getLock(r->indexInRegister);
+		currentLock = &r->rootRegister->getLock(r->indexInRegister);
 		return ResultCode::ok;
 	}
 	else if (ConstReference* cr = dynamic_cast<ConstReference*>(lockedObj.get()))
 	{
-		var* constObj = s.root->hiseSpecialData.constObjects.getVarPointerAt(cr->index);
+		var* constObj = cr->data;
 
 		if (ApiClass* api = dynamic_cast<ApiClass*>(constObj->getObject()))
 		{
@@ -259,6 +259,21 @@ HiseJavascriptEngine::RootObject::Callback *HiseJavascriptEngine::RootObject::Hi
 }
 
 
+HiseJavascriptEngine::RootObject::JavascriptNamespace* HiseJavascriptEngine::RootObject::HiseSpecialData::getNamespace(const Identifier &id) const
+{
+	for (int i = 0; i < namespaces.size(); i++)
+	{
+		if (namespaces[i]->id == id)
+		{
+			return namespaces[i].get();
+		}
+	}
+
+	return nullptr;
+}
+
+
+
 
 void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(DynamicObject *root)
 {
@@ -268,13 +283,13 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(D
 
 	for (int i = 0; i < constObjects.size(); i++)
 	{
-		debugInformation.add(new FixedVarPointerInformation(constObjects.getVarPointerAt(i), constObjects.getName(i), DebugInformation::Type::Constant));
+		debugInformation.add(new FixedVarPointerInformation(constObjects.getVarPointerAt(i), constObjects.getName(i), Identifier(), DebugInformation::Type::Constant));
 	}
 
 	const int numRegisters = varRegister.getNumUsedRegisters();
 
 	for (int i = 0; i < numRegisters; i++)
-		debugInformation.add(new FixedVarPointerInformation(varRegister.getVarPointer(i), varRegister.getRegisterId(i), DebugInformation::Type::RegisterVariable));
+		debugInformation.add(new FixedVarPointerInformation(varRegister.getVarPointer(i), varRegister.getRegisterId(i), Identifier(), DebugInformation::Type::RegisterVariable));
 
 	DynamicObject *globals = root->getProperty("Globals").getDynamicObject();
 
@@ -287,6 +302,18 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(D
 		if (hiddenProperties.contains(id)) continue;
 
 		debugInformation.add(new DynamicObjectDebugInformation(root, id, DebugInformation::Type::Variables));
+	}
+
+	for (int i = 0; i < namespaces.size(); i++)
+	{
+		JavascriptNamespace* ns = namespaces[i];
+
+		debugInformation.add(new DebugableObjectInformation(ns, ns->id, DebugInformation::Type::Namespace));
+
+		const int numRegisters = ns->varRegister.getNumUsedRegisters();
+
+		for (int i = 0; i < numRegisters; i++)
+			debugInformation.add(new FixedVarPointerInformation(ns->varRegister.getVarPointer(i), ns->varRegister.getRegisterId(i), ns->id, DebugInformation::Type::RegisterVariable));
 	}
 
 	for (int i = 0; i < inlineFunctions.size(); i++)

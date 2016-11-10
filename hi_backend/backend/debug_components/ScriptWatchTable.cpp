@@ -221,6 +221,7 @@ void ScriptWatchTable::paintCell (Graphics& g, int rowNumber, int columnId,
 			case 'R': g.setColour(Colours::red.withAlpha(alpha).withBrightness(brightness)); break;
 			case 'F': g.setColour(Colours::orange.withAlpha(alpha).withBrightness(brightness)); break;
 			case 'E': g.setColour(Colours::chocolate.withAlpha(alpha).withBrightness(brightness)); break;
+			case 'N': g.setColour(Colours::pink.withAlpha(alpha).withBrightness(brightness)); break;
 			}
 
 			g.fillRoundedRectangle(area, 5.0f);

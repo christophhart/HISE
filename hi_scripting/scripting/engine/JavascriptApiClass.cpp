@@ -103,6 +103,15 @@ const var * VarRegister::getVarPointer(int index) const
 	return nullptr;
 }
 
+var * VarRegister::getVarPointer(int index)
+{
+
+	if (index < NUM_VAR_REGISTERS)
+		return registerStack + index;
+
+	return nullptr;
+}
+
 ReadWriteLock& VarRegister::getLock(int index)
 {
 	return registerLocks[index];

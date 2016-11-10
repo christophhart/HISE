@@ -296,8 +296,7 @@ private:
 
 	bool currentlyParsingInlineFunction = false;
 	Identifier currentlyParsedCallback = Identifier::null;
-
-	
+	Identifier currentlyParsedNamespace = Identifier::null;
 
 	void throwError(const String& err) const  { location.throwError(err); }
 
@@ -329,6 +328,7 @@ private:
 		if (matchIf(TokenTypes::register_var))	   return parseRegisterVar();
 		if (matchIf(TokenTypes::global_))		   return parseGlobalAssignment();
 		if (matchIf(TokenTypes::local_))		   return parseLocalAssignment();
+		if (matchIf(TokenTypes::namespace_))	   return parseNamespace();
 		if (matchIf(TokenTypes::if_))              return parseIf();
 		if (matchIf(TokenTypes::while_))           return parseDoOrWhileLoop(false);
 		if (matchIf(TokenTypes::do_))              return parseDoOrWhileLoop(true);
@@ -518,10 +518,35 @@ private:
 			return block.release();
 		}
 
-		jassert(hiseSpecialData->constObjects[s->name] == "undeclared");
+		if (currentlyParsedNamespace.isNull())
+		{
+			jassert(hiseSpecialData->preparsedconstVariableNames->getProperty("root").getDynamicObject()->getProperties().contains(s->name));
 
-		hiseSpecialData->constObjects.set(s->name, "uninitialised"); // Will be initialied at runtime
+			//jassert(hiseSpecialData->constObjects[s->name] == "undeclared");
+
+			hiseSpecialData->constObjects.set(s->name, "uninitialised"); // Will be initialied at runtime
+		}
+		else
+		{
+			JavascriptNamespace* ns = hiseSpecialData->getNamespace(currentlyParsedNamespace);
+
+			if (ns != nullptr)
+			{
+				DynamicObject* obj = hiseSpecialData->preparsedconstVariableNames->getProperty(currentlyParsedNamespace).getDynamicObject();
+
+				jassert(obj->getProperties().contains(s->name));
+
+				ns->nameSpaceConstObjects.set(s->name, "uninitialised"); // Will be initialied at runtime
+			}
+		}
 		
+		JavascriptNamespace* ns = hiseSpecialData->getNamespace(currentlyParsedNamespace);
+
+		const var index = getConstIndex(s->name, ns);
+		var* data = getConstData(index, ns);
+
+		s->data = data;
+
 		return s.release();
 	}
 
@@ -533,8 +558,18 @@ private:
 
 		hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::Register, s->name, location);
 
-		hiseSpecialData->varRegister.addRegister(s->name, var::undefined());
-
+		if (currentlyParsedNamespace.isNull())
+		{
+			hiseSpecialData->varRegister.addRegister(s->name, var::undefined());
+			s->varRegister = &hiseSpecialData->varRegister;
+		}
+		else
+		{
+			JavascriptNamespace* ns = hiseSpecialData->getNamespace(currentlyParsedNamespace);
+			ns->varRegister.addRegister(s->name, var::undefined());
+			s->varRegister = &ns->varRegister;
+		}
+		
 		s->initialiser = matchIf(TokenTypes::assign) ? parseExpression() : new Expression(location);
 
 		if (matchIf(TokenTypes::comma))
@@ -592,7 +627,7 @@ private:
 	{
 		if (currentlyParsingInlineFunction)
 		{
-			InlineFunction::Object::Ptr ifo = hiseSpecialData->inlineFunctions.getLast();
+			InlineFunction::Object::Ptr ifo = dynamic_cast<InlineFunction::Object*>(getCurrentInlineFunction());
 
 			ScopedPointer<LocalVarStatement> s(new LocalVarStatement(location, ifo));
 			s->name = parseIdentifier();
@@ -673,6 +708,23 @@ private:
 		return new Statement(location);
 	}
 
+	Statement* parseNamespace()
+	{
+		Identifier namespaceId = parseIdentifier();
+
+		ScopedPointer<JavascriptNamespace> ns = new JavascriptNamespace(namespaceId);
+
+		hiseSpecialData->namespaces.add(ns.release());
+
+		currentlyParsedNamespace = namespaceId;
+		ScopedPointer<BlockStatement> block = parseBlock();
+		currentlyParsedNamespace = Identifier();
+
+		
+
+		return block.release();
+	}
+
 	Statement* parseFunction()
 	{
 		Identifier name;
@@ -693,23 +745,98 @@ private:
 		return new Assignment(location, nm, value);
 	}
 
-	InlineFunction::Object *getInlineFunction(Identifier &id)
+	InlineFunction::Object *getInlineFunction(Identifier &id, JavascriptNamespace* ns=nullptr)
 	{
-		for (int i = 0; i < hiseSpecialData->inlineFunctions.size(); i++)
+		if (ns == nullptr)
 		{
-			DynamicObject *o = hiseSpecialData->inlineFunctions.getUnchecked(i);
+			for (int i = 0; i < hiseSpecialData->inlineFunctions.size(); i++)
+			{
+				DynamicObject *o = hiseSpecialData->inlineFunctions.getUnchecked(i);
 
-			InlineFunction::Object *obj = dynamic_cast<InlineFunction::Object*>(o);
+				InlineFunction::Object *obj = dynamic_cast<InlineFunction::Object*>(o);
 
-			jassert(obj != nullptr);
+				jassert(obj != nullptr);
 
-			if (obj->name == id) return obj;
+				if (obj->name == id) return obj;
+			}
+		}
+		else
+		{
+			for (int i = 0; i < ns->inlineFunctions.size(); i++)
+			{
+				DynamicObject *o = ns->inlineFunctions.getUnchecked(i);
+
+				InlineFunction::Object *obj = dynamic_cast<InlineFunction::Object*>(o);
+
+				jassert(obj != nullptr);
+
+				if (obj->name == id) return obj;
+			}
 		}
 
 		return nullptr;
 	}
 
+	int getRegisterIndex(const Identifier& id, JavascriptNamespace* ns = nullptr)
+	{
+		if (ns == nullptr)
+		{
+			return hiseSpecialData->varRegister.getRegisterIndex(id);
+		}
+		else
+		{
+			return ns->varRegister.getRegisterIndex(id);
+		}
+	}
+
+	var* getRegisterData(int index, JavascriptNamespace* ns = nullptr)
+	{
+		if (ns == nullptr)
+		{
+			return hiseSpecialData->varRegister.getVarPointer(index);
+		}
+		else
+		{
+			return ns->varRegister.getVarPointer(index);
+		}
+	}
+
+	int getConstIndex(const Identifier& id, JavascriptNamespace* ns = nullptr)
+	{
+		if (ns == nullptr)
+		{
+			return hiseSpecialData->constObjects.indexOf(id);
+		}
+		else
+		{
+			return ns->nameSpaceConstObjects.indexOf(id);
+		}
+	}
 	
+	var* getConstData(int index, JavascriptNamespace* ns = nullptr)
+	{
+		if (ns == nullptr)
+		{
+			return hiseSpecialData->constObjects.getVarPointerAt(index);
+		}
+		else
+		{
+			return ns->nameSpaceConstObjects.getVarPointerAt(index);
+		}
+	}
+
+	DynamicObject* getCurrentInlineFunction()
+	{
+		if (currentlyParsedNamespace.isNull())
+		{
+			return hiseSpecialData->inlineFunctions.getLast();
+		}
+		else
+		{
+			JavascriptNamespace* ns = hiseSpecialData->getNamespace(currentlyParsedNamespace);
+			return ns->inlineFunctions.getLast();
+		}
+	}
 
 	Expression* parseInlineFunctionCall(InlineFunction::Object *obj)
 	{
@@ -764,7 +891,23 @@ private:
 		o->commentDoc = lastComment;
 		clearLastComment();
 
-		hiseSpecialData->inlineFunctions.add(o);
+		if (currentlyParsedNamespace.isNull())
+		{
+			hiseSpecialData->inlineFunctions.add(o);
+		}
+		else
+		{
+			JavascriptNamespace* ns = hiseSpecialData->getNamespace(currentlyParsedNamespace);
+
+			if (ns != nullptr)
+			{
+				ns->inlineFunctions.add(o);
+			}
+			else
+			{
+				throwError("Namespace can't be resolved");
+			}
+		}
 
 		ScopedPointer<BlockStatement> body = parseBlock();
 
@@ -1119,31 +1262,28 @@ private:
 		return matchCloseParen(s.release());
 	}
 
-	Expression* parseConstExpression()
+	Expression* parseConstExpression(JavascriptNamespace* ns=nullptr)
 	{
 		const Identifier constId = parseIdentifier();
-		const int index = hiseSpecialData->constObjects.indexOf(constId);
-
-#if 0
-		var v = hiseSpecialData->constObjects[constId];
+		const int index = getConstIndex(constId, ns);
 
 		if (currentType == TokenTypes::dot)
 		{
 			match(TokenTypes::dot);
 			const Identifier memberName = parseIdentifier();
 
-			return parseConstObjectApiCall(constId, memberName);
+			return parseConstObjectApiCall(constId, memberName, ns);
 		}
-#endif
-		
-		return new ConstReference(location, index);
+
+		return new ConstReference(location, getConstData(index, ns));
 	}
 
-	Expression* parseConstObjectApiCall(const Identifier& objectName, const Identifier& functionName)
+	Expression* parseConstObjectApiCall(const Identifier& objectName, const Identifier& functionName, JavascriptNamespace* ns=nullptr)
 	{
 		const String prettyName = objectName.toString() + "." + functionName.toString();
 
-		var *v = hiseSpecialData->constObjects.getVarPointer(objectName);
+		const int index = getConstIndex(objectName, ns);
+		var *v = getConstData(index, ns);
 
 		ScopedPointer<ConstObjectApiCall> s = new ConstObjectApiCall(location, v, functionName);
 
@@ -1187,11 +1327,16 @@ private:
 		return input.release();
 	}
 
-	Expression* parseFactor()
+	Expression* parseFactor(JavascriptNamespace* ns=nullptr)
 	{
 		if (currentType == TokenTypes::identifier)
 		{
 			Identifier id = Identifier(currentValue.toString());
+
+			if (!currentlyParsedNamespace.isNull())
+			{
+				ns = hiseSpecialData->getNamespace(currentlyParsedNamespace);
+			}
 
 			if (id == currentIterator)
 			{
@@ -1199,7 +1344,16 @@ private:
 			}
 			else if (currentlyParsingInlineFunction)
 			{
-				DynamicObject *o = hiseSpecialData->inlineFunctions.getLast();
+				DynamicObject *o = nullptr;
+
+				if (ns != nullptr)
+				{
+					o = ns->inlineFunctions.getLast();
+				}
+				else
+				{
+					o = hiseSpecialData->inlineFunctions.getLast();
+				}
 
 				jassert(o != nullptr);
 
@@ -1220,68 +1374,83 @@ private:
 				}
 			}
 
-			InlineFunction::Object *obj = getInlineFunction(id);
-			const int registerIndex = hiseSpecialData->varRegister.getRegisterIndex(id);
-			const int apiClassIndex = hiseSpecialData->apiIds.indexOf(id);
-			const int constIndex = hiseSpecialData->constObjects.indexOf(id);
-			const int globalIndex = hiseSpecialData->globals->getProperties().indexOf(id);
-			const int externalCIndex = hiseSpecialData->getExternalCIndex(id);
+			// Only resolve one level of namespaces
+			JavascriptNamespace* namespaceForId = (ns == nullptr) ? hiseSpecialData->getNamespace(id) : nullptr;
 
-			if (obj != nullptr)
+			if (namespaceForId != nullptr)
 			{
-				return parseSuffixes(parseInlineFunctionCall(obj));
-			}
-			else if (apiClassIndex != -1)
-			{
-				return parseSuffixes(parseApiExpression());
-			}
-			else if (constIndex != -1)
-			{
-				return parseSuffixes(parseConstExpression());
-			}
-			else if (externalCIndex != -1)
-			{
-				return parseSuffixes(parseExternalCFunctionCall());
-			}
-			else if (registerIndex != -1)
-			{
-				return parseSuffixes(new RegisterName(location, parseIdentifier(), registerIndex));
-			}
-			else if (globalIndex != -1)
-			{
-				return parseSuffixes(new GlobalReference(location, hiseSpecialData->globals, parseIdentifier()));
+				match(TokenTypes::identifier);
+				match(TokenTypes::dot);
+				
+				return parseFactor(namespaceForId);
 			}
 			else
 			{
-				if (!currentlyParsedCallback.isNull())
+				InlineFunction::Object *obj = getInlineFunction(id, ns);
+				const int registerIndex = getRegisterIndex(id, ns);
+				const int apiClassIndex = hiseSpecialData->apiIds.indexOf(id);
+				const int constIndex = getConstIndex(id, ns);
+				const int globalIndex = hiseSpecialData->globals->getProperties().indexOf(id);
+				const int externalCIndex = hiseSpecialData->getExternalCIndex(id);
+
+				if (obj != nullptr)
 				{
-					Callback *c = hiseSpecialData->getCallback(currentlyParsedCallback);
-
-					if (c != nullptr)
-					{
-						var* callbackParameter = c->getVarPointer(id);
-
-						if (callbackParameter != nullptr)
-						{
-							parseIdentifier();
-							return parseSuffixes(new CallbackParameterReference(location, callbackParameter));
-						}
-
-						var* localParameter = c->localProperties.getVarPointer(id);
-
-						if (localParameter != nullptr)
-						{
-							parseIdentifier();
-							return parseSuffixes(new CallbackLocalReference(location, localParameter));
-						}
-					}
-					else
-					{
-						jassertfalse;
-					}
+					return parseSuffixes(parseInlineFunctionCall(obj));
 				}
+				else if (apiClassIndex != -1)
+				{
+					return parseSuffixes(parseApiExpression());
+				}
+				else if (constIndex != -1)
+				{
+					return parseSuffixes(parseConstExpression(ns));
+				}
+				else if (externalCIndex != -1)
+				{
+					return parseSuffixes(parseExternalCFunctionCall());
+				}
+				else if (registerIndex != -1)
+				{
+					VarRegister* rootRegister = (ns != nullptr) ? &ns->varRegister : &hiseSpecialData->varRegister;
 
-				return parseSuffixes(new UnqualifiedName(location, parseIdentifier()));
+					return parseSuffixes(new RegisterName(location, parseIdentifier(), rootRegister, registerIndex, getRegisterData(registerIndex, ns)));
+				}
+				else if (globalIndex != -1)
+				{
+					return parseSuffixes(new GlobalReference(location, hiseSpecialData->globals, parseIdentifier()));
+				}
+				else
+				{
+					if (!currentlyParsedCallback.isNull())
+					{
+						Callback *c = hiseSpecialData->getCallback(currentlyParsedCallback);
+
+						if (c != nullptr)
+						{
+							var* callbackParameter = c->getVarPointer(id);
+
+							if (callbackParameter != nullptr)
+							{
+								parseIdentifier();
+								return parseSuffixes(new CallbackParameterReference(location, callbackParameter));
+							}
+
+							var* localParameter = c->localProperties.getVarPointer(id);
+
+							if (localParameter != nullptr)
+							{
+								parseIdentifier();
+								return parseSuffixes(new CallbackLocalReference(location, localParameter));
+							}
+						}
+						else
+						{
+							jassertfalse;
+						}
+					}
+
+					return parseSuffixes(new UnqualifiedName(location, parseIdentifier()));
+				}
 			}
 		}
 		if (matchIf(TokenTypes::openParen))        return parseSuffixes(matchCloseParen(parseExpression()));
@@ -1493,9 +1662,16 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ExpressionTreeBuilder)
 };
 
+
 void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::findConstVarIds(const String& codeToPreprocess)
 {
 	if (codeToPreprocess.isEmpty()) return;
+
+	DynamicObject* rootScope = hiseSpecialData->preparsedconstVariableNames->getProperty(Identifier("root")).getDynamicObject();
+
+	DynamicObject* currentConstVariableScope = rootScope;
+
+	jassert(currentConstVariableScope != nullptr);
 
 	TokenIterator it(codeToPreprocess, "");
 
@@ -1505,6 +1681,23 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::findConstVarIds(co
 
 	while (it.currentType != TokenTypes::eof)
 	{
+		if (it.currentType == TokenTypes::namespace_)
+		{
+			for (int i = 0; i < ids.size(); i++)
+			{
+				currentConstVariableScope->setProperty(ids[i], "undeclared");
+			}
+			ids.clear();
+
+			it.match(TokenTypes::namespace_);
+
+
+
+			currentConstVariableScope = new DynamicObject();
+
+			hiseSpecialData->preparsedconstVariableNames->setProperty(Identifier(it.currentValue), currentConstVariableScope);
+		}
+
 		// Skip extern "C" functions
 		if (it.currentType == TokenTypes::extern_)
 		{
@@ -1531,7 +1724,20 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::findConstVarIds(co
 
 		// Handle the brace level
 		if (it.currentType == TokenTypes::openBrace) braceLevel++;
-		else if (it.currentType == TokenTypes::closeBrace) braceLevel--;
+		else if (it.currentType == TokenTypes::closeBrace)
+		{
+			braceLevel--;
+			if (braceLevel == 0 && (rootScope != currentConstVariableScope))
+			{
+				for (int i = 0; i < ids.size(); i++)
+				{
+					currentConstVariableScope->setProperty(ids[i], "undeclared");
+				}
+				ids.clear();
+
+				currentConstVariableScope = rootScope;
+			}
+		}
 
 		// Handle the keyword
 		if (it.currentType == TokenTypes::const_)
@@ -1539,7 +1745,7 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::findConstVarIds(co
 			it.match(TokenTypes::const_);
 			it.matchIf(TokenTypes::var);
 
-			if (braceLevel != 0)
+			if ((rootScope == currentConstVariableScope) && braceLevel != 0)
 			{
 				it.location.throwError("const var declaration must be on global level");
 			}
@@ -1564,9 +1770,11 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::findConstVarIds(co
 		}
 	}
 
+	jassert(rootScope == currentConstVariableScope);
+
 	for (int i = 0; i < ids.size(); i++)
 	{
-		hiseSpecialData->constObjects.set(ids[i], "undeclared");
+		currentConstVariableScope->setProperty(ids[i], "undeclared");
 	}
 }
 
@@ -1574,6 +1782,9 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::findConstVarIds(co
 var HiseJavascriptEngine::RootObject::evaluate(const String& code)
 {
 	ExpressionTreeBuilder tb(code, String());
+
+	hiseSpecialData.preparsedconstVariableNames = new DynamicObject();
+	hiseSpecialData.preparsedconstVariableNames->setProperty("root", new DynamicObject());
 
 	tb.setupApiData(hiseSpecialData, code);
 
@@ -1584,6 +1795,9 @@ void HiseJavascriptEngine::RootObject::execute(const String& code, bool allowCon
 {
 	ExpressionTreeBuilder tb(code, String());
 
+	hiseSpecialData.preparsedconstVariableNames = new DynamicObject();
+	hiseSpecialData.preparsedconstVariableNames->setProperty("root", new DynamicObject());
+
 	tb.setupApiData(hiseSpecialData, allowConstDeclarations ? code : String());
 
 	ScopedPointer<BlockStatement>(tb.parseStatementList())->perform(Scope(nullptr, this, this), nullptr);
@@ -1592,5 +1806,6 @@ void HiseJavascriptEngine::RootObject::execute(const String& code, bool allowCon
 HiseJavascriptEngine::RootObject::FunctionObject::FunctionObject(const FunctionObject& other) : DynamicObject(), functionCode(other.functionCode)
 {
 	ExpressionTreeBuilder tb(functionCode, String());
+
 	tb.parseFunctionParamsAndBody(*this);
 }

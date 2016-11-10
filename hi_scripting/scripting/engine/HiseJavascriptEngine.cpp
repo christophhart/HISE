@@ -53,7 +53,7 @@ X(rightShiftUnsigned, ">>>") X(rightShiftEquals, ">>=") X(rightShift,   ">>")   
     X(function, "function") X(return_, "return") X(true_,  "true")   X(false_,    "false")    X(new_,      "new") \
     X(typeof_,  "typeof")	X(switch_, "switch") X(case_, "case")	 X(default_,  "default")  X(register_var, "reg") \
 	X(in, 		"in")		X(inline_, "inline") X(const_, "const")	 X(global_,   "global")	  X(local_,	   "local") \
-	X(include_,  "include") X(rLock_,   "readLock") X(wLock_,"writeLock") 	X(extern_, "extern")
+	X(include_,  "include") X(rLock_,   "readLock") X(wLock_,"writeLock") 	X(extern_, "extern") X(namespace_, "namespace");
 namespace TokenTypes
 {
 #define JUCE_DECLARE_JS_TOKEN(name, str)  static const char* const name = str;
@@ -420,6 +420,10 @@ const ReferenceCountedObject* HiseJavascriptEngine::getScriptObjectFromRootNames
 		return v.getObject();
 
 	v = root->hiseSpecialData.constObjects[id];
+	if (v.isObject())
+		return v.getObject();
+
+	v = root->hiseSpecialData.getNamespace(id);
 	if (v.isObject())
 		return v.getObject();
 

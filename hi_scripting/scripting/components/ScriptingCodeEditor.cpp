@@ -1308,6 +1308,7 @@ void JavascriptCodeEditor::AutoCompletePopup::createObjectPropertyRows(const Val
 				info->type = (int)DebugInformation::Type::Constant;
 				info->typeName = DebugInformation::getVarType(value);
 				info->value = value;
+				
 
 				allInfo.add(info);
 			}
@@ -1324,6 +1325,22 @@ void JavascriptCodeEditor::AutoCompletePopup::createObjectPropertyRows(const Val
 				info->codeToInsert = info->name;
 				info->typeName = DebugInformation::getVarType(prop);
 				info->value = prop.toString();
+
+				allInfo.add(info);
+			}
+		}
+		else if (const HiseJavascriptEngine::RootObject::JavascriptNamespace* ns = dynamic_cast<const HiseJavascriptEngine::RootObject::JavascriptNamespace*>(o))
+		{
+			for (int i = 0; i < ns->getNumDebugObjects(); i++)
+			{
+				const ScopedPointer<DebugInformation> obj = ns->createDebugInformation(i);
+				RowInfo *info = new RowInfo();
+
+				info->name = obj->getTextForName();
+				info->codeToInsert = info->name;
+				info->typeName = obj->getTextForDataType();
+				info->type = obj->getType();
+				info->value = obj->getTextForValue();
 
 				allInfo.add(info);
 			}

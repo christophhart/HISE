@@ -92,6 +92,7 @@ public:
 		Globals,
 		Callback,
 		ExternalFunction,
+		Namespace,
 		numTypes
 	};
 
@@ -125,6 +126,7 @@ public:
 		case Type::Globals:			 return "Globals";
 		case Type::Callback:		 return "Callback";
 		case Type::ExternalFunction: return "ExternalFunction";
+		case Type::Namespace:		 return "Namespace";
         case Type::numTypes:         return "";
 		}
 		return "";
@@ -226,19 +228,27 @@ public:
 class FixedVarPointerInformation : public DebugInformation
 {
 public:
-	FixedVarPointerInformation(const var* v, const Identifier &id_, Type t):
+	FixedVarPointerInformation(const var* v, const Identifier &id_, const Identifier& namespaceId_, Type t):
 		DebugInformation(t),
 		value(v),
+		namespaceId(namespaceId_),
 		id(id_)
 	{}
 
 	String getTextForDataType() const override { return getVarType(*value); }
-	String getTextForName() const override { return id.toString(); }
+	
+	String getTextForName() const override 
+	{ 
+		return namespaceId.isNull() ? id.toString() :
+									  namespaceId.toString() + "." + id.toString(); 
+	}
+
 	String getTextForValue() const override { return getVarValue(*value); }
 	DebugableObject *getObject() override { return getDebugableObject(*value); }
 
 	const var *value;
 	const Identifier id;
+	const Identifier namespaceId;
 };
 
 

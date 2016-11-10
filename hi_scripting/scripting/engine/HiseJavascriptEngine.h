@@ -292,6 +292,7 @@ public:
 		struct GlobalVarStatement;		struct GlobalReference;		struct LocalVarStatement;
 		struct LocalReference;			struct LockStatement;	    struct CallbackParameterReference;
 		struct CallbackLocalStatement;  struct CallbackLocalReference;  struct ExternalCFunction;
+		
 
 		// Parser classes
 
@@ -396,6 +397,34 @@ public:
 			bool isCallbackDefined = false;
 		};
 
+		struct JavascriptNamespace: public ReferenceCountedObject,
+									public DebugableObject
+		{
+			JavascriptNamespace(const Identifier &id_):
+				id(id_)
+			{}
+
+			String getDebugDataType() const override { return "Namespace"; };
+			String getDebugName() const override { return id.toString(); };
+			String getDebugValue() const override { return id.toString(); };
+
+			int getNumDebugObjects() const
+			{
+				return varRegister.getNumUsedRegisters();
+			}
+
+			DebugInformation* createDebugInformation(int index) const
+			{
+				return new FixedVarPointerInformation(varRegister.getVarPointer(index), varRegister.getRegisterId(index), id, DebugInformation::Type::RegisterVariable);
+			}
+
+			const Identifier id;
+			ReferenceCountedArray<DynamicObject> inlineFunctions;
+			NamedValueSet nameSpaceRoot;
+			NamedValueSet nameSpaceConstObjects;
+			VarRegister	varRegister;
+		};
+
 		struct HiseSpecialData
 		{
 			enum class VariableStorageType
@@ -416,6 +445,8 @@ public:
             
             Callback *getCallback(const Identifier &id);
             
+			JavascriptNamespace* getNamespace(const Identifier &id) const;
+
 			void setProcessor(JavascriptProcessor *p) noexcept { processor = p; }
 
 			static bool initHiddenProperties;
@@ -426,6 +457,7 @@ public:
 			ReferenceCountedArray<DynamicObject> inlineFunctions;
 			NamedValueSet constObjects;
 
+			ReferenceCountedArray<JavascriptNamespace> namespaces;
 
 			RootObject* root;
 
@@ -434,6 +466,8 @@ public:
 			JavascriptProcessor* processor;
 
 			DynamicObject::Ptr globals;
+
+			DynamicObject::Ptr preparsedconstVariableNames;
 
 			ReferenceCountedArray<Callback> callbackNEW;
 
