@@ -70,8 +70,6 @@ AudioProcessorEditor(fp)
 		deactiveOverlay->checkLicence();
 	}
 
-
-	deactiveOverlay->setState(DeactiveOverlay::LicenceExpired, fp->unlocker.isExpired());
 	deactiveOverlay->setState(DeactiveOverlay::LicenceInvalid, !fp->unlocker.isUnlocked());
 #endif
 
@@ -113,6 +111,7 @@ void FrontendProcessorEditor::resized()
 	loaderOverlay->setBounds(getLocalBounds());
 }
 
+#if USE_COPY_PROTECTION
 
 class OnlineActivator : public ThreadWithAsyncProgressWindow
 {
@@ -190,6 +189,7 @@ private:
 
 };
 
+#endif
 
 void DeactiveOverlay::buttonClicked(Button *b)
 {
@@ -248,24 +248,8 @@ void DeactiveOverlay::buttonClicked(Button *b)
     {
 #if USE_COPY_PROTECTION
         Unlocker *ul = &dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor())->unlocker;
-        
 		OnlineActivator* activator = new OnlineActivator(ul, this);
-
-
 		activator->setModalBaseWindowComponent(this);
-
-#if 0
-        StringArray machineIds = ul->getLocalMachineIDs();
-        
-        if(machineIds.size() > 0)
-        {
-            SystemClipboard::copyTextToClipboard(machineIds[0]);
-            
-			
-
-            PresetHandler::showMessageWindow("Computer ID", "Use this ID to obtain a licence key:\n\n" +machineIds[0] + "\n\nThis ID is copied to the clipboard. If this computer is not connected to the internet, write it down somewhere and use it with another computer that has internet access.");
-        }
-#endif
 #endif
     }
 }

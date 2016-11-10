@@ -68,18 +68,6 @@ public:
         return state;
     };
 
-	bool licenceIsNotExpired(int creationTime) override
-	{
-		uint32 now = Time::currentTimeMillis() / 1000;
-
-		int seconds = now - creationTime;
-
-		const double hours = (double)seconds / 3600.0;
-		const double days = hours / 24.0;
-
-		return seconds < 30;
-	}
-
 	String getWebsiteName() override
 	{
 		return JucePlugin_ManufacturerWebsite;
