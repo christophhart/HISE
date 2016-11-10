@@ -722,6 +722,19 @@ CompileExporter::ErrorCodes CompileExporter::createIntrojucerFile(ModulatorSynth
 	REPLACE_WILDCARD("%BUNDLE_ID%", SettingWindows::ProjectSettingWindow::Attributes::BundleIdentifier);
 	REPLACE_WILDCARD("%PC%", SettingWindows::ProjectSettingWindow::Attributes::PluginCode);
 
+	const bool isUsingVisualStudio2015 = SettingWindows::getSettingValue((int)SettingWindows::CompilerSettingWindow::Attributes::VisualStudioVersion, &GET_PROJECT_HANDLER(chainToExport)) == "Visual Studio 2015";
+
+	if (isUsingVisualStudio2015)
+	{
+		REPLACE_WILDCARD_WITH_STRING("%VS_VERSION%", "VS2015");
+		REPLACE_WILDCARD_WITH_STRING("%TARGET_FOLDER%", "VisualStudio2015");
+	}
+	else
+	{
+		REPLACE_WILDCARD_WITH_STRING("%VS_VERSION%", "VS2013");
+		REPLACE_WILDCARD_WITH_STRING("%TARGET_FOLDER%", "VisualStudio2013");
+	}
+
 	if (createFX)
 	{
 		REPLACE_WILDCARD_WITH_STRING("%CHANNEL_CONFIG%", "{2, 2}");
@@ -1027,6 +1040,7 @@ void CompileExporter::BatchFileCreator::createBatchFile(ModulatorSynthChain *cha
 
     batchFile.deleteFile();
     
+	
 
 	const String buildPath = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getFullPathName();
 
@@ -1036,7 +1050,12 @@ void CompileExporter::BatchFileCreator::createBatchFile(ModulatorSynthChain *cha
     
 #if JUCE_WINDOWS
     
-	const String msbuildPath = "\"C:\\Program Files (x86)\\MSBuild\\14.0\\Bin\\MsBuild.exe\"";
+	const bool isUsingVisualStudio2015 = SettingWindows::getSettingValue((int)SettingWindows::CompilerSettingWindow::Attributes::VisualStudioVersion, &GET_PROJECT_HANDLER(chainToExport)) == "Visual Studio 2015";
+
+
+
+	const String msbuildPath = isUsingVisualStudio2015 ? "\"C:\\Program Files (x86)\\MSBuild\\14.0\\Bin\\MsBuild.exe\"" :
+														 "\"C:\\Program Files (x86)\\MSBuild\\12.0\\Bin\\MsBuild.exe\"";
 
     const String introjucerPath = File(SettingWindows::getSettingValue((int)SettingWindows::CompilerSettingWindow::Attributes::IntrojucerPath)).getChildFile("The Introjucer.exe").getFullPathName();
 
@@ -1050,9 +1069,27 @@ void CompileExporter::BatchFileCreator::createBatchFile(ModulatorSynthChain *cha
 	if (buildOption == VSTx86 || buildOption == VSTx64x86)
 	{
 		ADD_LINE("echo Compiling 32bit Plugin %project% ...");
-		ADD_LINE("set VisualStudioVersion=14.0");
+
+		if (isUsingVisualStudio2015)
+		{
+			ADD_LINE("set VisualStudioVersion=14.0");
+		}
+		else
+		{
+			ADD_LINE("set VisualStudioVersion=12.0");
+		}
+
 		ADD_LINE("set Platform=Win32");
-		ADD_LINE(msbuildPath << " \"Builds\\VisualStudio2015\\%project%.sln\" /p:Configuration=\"Release\" /verbosity:minimal");
+
+		if (isUsingVisualStudio2015)
+		{
+			ADD_LINE(msbuildPath << " \"Builds\\VisualStudio2015\\%project%.sln\" /p:Configuration=\"Release\" /verbosity:minimal");
+		}
+		else
+		{
+			ADD_LINE(msbuildPath << " \"Builds\\VisualStudio2013\\%project%.sln\" /p:Configuration=\"Release\" /verbosity:minimal");
+		}
+
 		ADD_LINE("");
 		ADD_LINE("echo Compiling finished.Cleaning up...");
 		ADD_LINE("del \"Compiled\\%project%.exp\"");
@@ -1063,9 +1100,27 @@ void CompileExporter::BatchFileCreator::createBatchFile(ModulatorSynthChain *cha
 	if (buildOption == VSTx64 || buildOption == VSTx64x86)
 	{
 		ADD_LINE("echo Compiling 64bit Plugin %project% ...");
-		ADD_LINE("set VisualStudioVersion=14.0");
+		
+		if (isUsingVisualStudio2015)
+		{
+			ADD_LINE("set VisualStudioVersion=14.0");
+		}
+		else
+		{
+			ADD_LINE("set VisualStudioVersion=12.0");
+		}
+
 		ADD_LINE("set Platform=X64");
-		ADD_LINE(msbuildPath << " \"Builds\\VisualStudio2015\\%project%.sln\" /p:Configuration=\"Release 64bit\" /verbosity:minimal");
+		
+		if (isUsingVisualStudio2015)
+		{
+			ADD_LINE(msbuildPath << " \"Builds\\VisualStudio2015\\%project%.sln\" /p:Configuration=\"Release\" /verbosity:minimal");
+		}
+		else
+		{
+			ADD_LINE(msbuildPath << " \"Builds\\VisualStudio2013\\%project%.sln\" /p:Configuration=\"Release\" /verbosity:minimal");
+		}
+
 		ADD_LINE("");
 		ADD_LINE("echo Compiling finished.Cleaning up...");
 		ADD_LINE("del \"Compiled\\%project% x64.exp\"");

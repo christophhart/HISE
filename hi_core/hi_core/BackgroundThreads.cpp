@@ -583,7 +583,7 @@ XmlElement * SettingWindows::CompilerSettingWindow::createNewSettingsFile() cons
 	addFileAsChildElement(*xml, (int)Attributes::HisePath, "", "Path to HISE modules");
 	addFileAsChildElement(*xml, (int)Attributes::IntrojucerPath, "", "Path to Introjucer");
 	addFileAsChildElement(*xml, (int)Attributes::VSTSDKPath, VstPath, "Path to VST SDK");
-	addChildElementWithOptions(*xml, (int)Attributes::VisualStudioVersion, "Visual Studio 2013", "Installed VisualStudio version", "Visual Studio 2010\nVisual Studio 2012\nVisual Studio 2013\nVisual Studio 2015");
+	addChildElementWithOptions(*xml, (int)Attributes::VisualStudioVersion, "Visual Studio 2013", "Installed VisualStudio version", "Visual Studio 2013\nVisual Studio 2015");
 	addChildElementWithOptions(*xml, (int)Attributes::UseIPP, "Yes", "Use IPP", "Yes\nNo");
 	addChildElement(*xml, (int)Attributes::IPPLinker, IPPLinkerFlags, "IPP Linker flags");
 	addChildElement(*xml, (int)Attributes::IPPInclude, IPPHeaderPaths, "IPP Include path");
