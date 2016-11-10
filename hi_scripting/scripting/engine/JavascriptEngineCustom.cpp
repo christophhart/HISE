@@ -378,9 +378,37 @@ struct HiseJavascriptEngine::RootObject::LocalReference : public Expression
 };
 
 
+
 struct HiseJavascriptEngine::RootObject::CallbackParameterReference: public Expression
 {
 	CallbackParameterReference(const CodeLocation& l, var* data_) noexcept : Expression(l), data(data_) {}
+
+	var getResult(const Scope& /*s*/) const override
+	{
+		return *data;
+	}
+
+	var* data;
+};
+
+struct HiseJavascriptEngine::RootObject::CallbackLocalStatement : public Statement
+{
+	CallbackLocalStatement(const CodeLocation& l, Callback* parentCallback_) noexcept : Statement(l), parentCallback(parentCallback_) {}
+
+	ResultCode perform(const Scope& s, var*) const override
+	{
+		parentCallback->localProperties.set(name, initialiser->getResult(s));
+		return ok;
+	}
+
+	mutable Callback* parentCallback;
+	Identifier name;
+	ExpPtr initialiser;
+};
+
+struct HiseJavascriptEngine::RootObject::CallbackLocalReference : public Expression
+{
+	CallbackLocalReference(const CodeLocation& l, var* data_) noexcept : Expression(l), data(data_) {}
 
 	var getResult(const Scope& /*s*/) const override
 	{

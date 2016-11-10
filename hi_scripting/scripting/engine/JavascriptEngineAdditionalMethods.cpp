@@ -413,9 +413,13 @@ var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 		}
 		catch (String &error)
 		{
+			c->cleanLocalProperties();
+
 			if (result != nullptr) *result = Result::fail(error);
 		}
 	}
+
+	c->cleanLocalProperties();
 
 	return var::undefined();
 }

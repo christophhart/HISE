@@ -614,8 +614,32 @@ private:
 			match(TokenTypes::semicolon);
 			return s.release();
 		}
+		else if (!currentlyParsedCallback.isNull())
+		{
+			Callback* callback = hiseSpecialData->getCallback(currentlyParsedCallback);
 
-		throwError("Cannot define local variables outside of inline functions.");
+			ScopedPointer<CallbackLocalStatement> s(new CallbackLocalStatement(location, callback));
+			s->name = parseIdentifier();
+			
+			hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::LocalScope, s->name, location);
+
+			callback->localProperties.set(s->name, var());
+
+			s->initialiser = matchIf(TokenTypes::assign) ? parseExpression() : new Expression(location);
+
+			if (matchIf(TokenTypes::comma))
+			{
+				ScopedPointer<BlockStatement> block(new BlockStatement(location));
+				block->statements.add(s.release());
+				block->statements.add(parseVar());
+				return block.release();
+			}
+
+			match(TokenTypes::semicolon);
+			return s.release();
+		}
+
+		throwError("Cannot define local variables outside of inline functions or callbacks.");
 
 		return nullptr;
 	}
@@ -1241,6 +1265,14 @@ private:
 						{
 							parseIdentifier();
 							return parseSuffixes(new CallbackParameterReference(location, callbackParameter));
+						}
+
+						var* localParameter = c->localProperties.getVarPointer(id);
+
+						if (localParameter != nullptr)
+						{
+							parseIdentifier();
+							return parseSuffixes(new CallbackLocalReference(location, localParameter));
 						}
 					}
 					else

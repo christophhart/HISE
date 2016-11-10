@@ -291,7 +291,7 @@ public:
 		struct ConstVarStatement;		struct ConstReference;		struct ConstObjectApiCall;
 		struct GlobalVarStatement;		struct GlobalReference;		struct LocalVarStatement;
 		struct LocalReference;			struct LockStatement;	    struct CallbackParameterReference;
-		struct ExternalCFunction;
+		struct CallbackLocalStatement;  struct CallbackLocalReference;  struct ExternalCFunction;
 
 		// Parser classes
 
@@ -368,8 +368,21 @@ public:
 				DBG("JUMP");
 			}
 
+			void cleanLocalProperties()
+			{
+				if (!localProperties.isEmpty())
+				{
+					for (int i = 0; i < localProperties.size(); i++)
+					{
+						*localProperties.getVarPointerAt(i) = var();
+					}
+				}
+			}
+
 			Identifier parameters[4];
 			var parameterValues[4];
+
+			NamedValueSet localProperties;
 
 		private:
 
