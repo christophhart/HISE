@@ -1036,11 +1036,10 @@ void CompileExporter::BatchFileCreator::createBatchFile(ModulatorSynthChain *cha
     
 #if JUCE_WINDOWS
     
-	const String msbuildPath = "C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\MsBuild.exe";
+	const String msbuildPath = "\"C:\\Program Files (x86)\\MSBuild\\14.0\\Bin\\MsBuild.exe\"";
 
     const String introjucerPath = File(SettingWindows::getSettingValue((int)SettingWindows::CompilerSettingWindow::Attributes::IntrojucerPath)).getChildFile("The Introjucer.exe").getFullPathName();
 
-    
 	ADD_LINE("@echo off");
 	ADD_LINE("set project=" << projectName);
 	ADD_LINE("");
@@ -1051,9 +1050,9 @@ void CompileExporter::BatchFileCreator::createBatchFile(ModulatorSynthChain *cha
 	if (buildOption == VSTx86 || buildOption == VSTx64x86)
 	{
 		ADD_LINE("echo Compiling 32bit Plugin %project% ...");
-		ADD_LINE("set VisualStudioVersion=12.0");
+		ADD_LINE("set VisualStudioVersion=14.0");
 		ADD_LINE("set Platform=Win32");
-		ADD_LINE(msbuildPath << " \"Builds\\VisualStudio2013\\%project%.sln\" /p:Configuration=\"Release\" /verbosity:minimal");
+		ADD_LINE(msbuildPath << " \"Builds\\VisualStudio2015\\%project%.sln\" /p:Configuration=\"Release\" /verbosity:minimal");
 		ADD_LINE("");
 		ADD_LINE("echo Compiling finished.Cleaning up...");
 		ADD_LINE("del \"Compiled\\%project%.exp\"");
@@ -1064,9 +1063,9 @@ void CompileExporter::BatchFileCreator::createBatchFile(ModulatorSynthChain *cha
 	if (buildOption == VSTx64 || buildOption == VSTx64x86)
 	{
 		ADD_LINE("echo Compiling 64bit Plugin %project% ...");
-		ADD_LINE("set VisualStudioVersion=12.0");
+		ADD_LINE("set VisualStudioVersion=14.0");
 		ADD_LINE("set Platform=X64");
-		ADD_LINE(msbuildPath << " \"Builds\\VisualStudio2013\\%project%.sln\" /p:Configuration=\"Release 64bit\" /verbosity:minimal");
+		ADD_LINE(msbuildPath << " \"Builds\\VisualStudio2015\\%project%.sln\" /p:Configuration=\"Release 64bit\" /verbosity:minimal");
 		ADD_LINE("");
 		ADD_LINE("echo Compiling finished.Cleaning up...");
 		ADD_LINE("del \"Compiled\\%project% x64.exp\"");

@@ -906,7 +906,7 @@ void ModulatorSampler::loadSampleMapFromId(const String& sampleMapId)
 
 #else
 
-	ValueTree v = dynamic_cast<FrontendProcessor*>(getMainController())->getSampleMap(fileName);
+	ValueTree v = dynamic_cast<FrontendProcessor*>(getMainController())->getSampleMap(sampleMapId);
 
 	if (v.isValid())
 	{
