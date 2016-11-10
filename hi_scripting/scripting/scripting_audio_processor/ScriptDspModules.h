@@ -145,13 +145,16 @@ public:
 		{
 			Gain = 0,
 			SmoothingTime,
+			FastMode,
 			numParameters
 		};
 
 		SmoothedGainer() :
 			DspBaseObject(),
 			gain(1.0f),
-			smoothingTime(200.0f)
+			smoothingTime(200.0f),
+			fastMode(true),
+			lastValue(0.0f)
 		{
 			smoother.setDefaultValue(1.0f);
 		};
@@ -185,32 +188,71 @@ public:
 			{
 				float *l = data[0];
 				
-				while (--numSamples >= 0)
+				if (fastMode)
 				{
-					const float smoothedGain = smoother.smooth(gain);
+					const float a = 0.99f;
+					const float invA = 1.0f - a;
 
-					*l++ *= smoothedGain;
+					while (--numSamples >= 0)
+					{
+						const float smoothedGain = lastValue * a + gain * invA;
+						lastValue = smoothedGain;
+
+						*l++ *= smoothedGain;
+					}
 				}
+				else
+				{
+					while (--numSamples >= 0)
+					{
+						const float smoothedGain = smoother.smooth(gain);
+
+						*l++ *= smoothedGain;
+					}
+				}
+
+				
 			}
 
 			else if (numChannels == 2)
 			{
-				float *l = data[0];
-				float *r = data[1];
-
-				while (--numSamples >= 0)
+				if (fastMode)
 				{
-					const float smoothedGain = smoother.smooth(gain);
+					const float a = 0.99f;
+					const float invA = 1.0f - a;
 
-					*l++ *= smoothedGain;
-					*r++ *= smoothedGain;
+					float *l = data[0];
+					float *r = data[1];
+
+					while (--numSamples >= 0)
+					{
+						const float smoothedGain = lastValue * a + gain * invA;
+						lastValue = smoothedGain;
+
+						*l++ *= smoothedGain;
+						*r++ *= smoothedGain;
+					}
 				}
+				else
+				{
+					float *l = data[0];
+					float *r = data[1];
+
+					while (--numSamples >= 0)
+					{
+						const float smoothedGain = smoother.smooth(gain);
+
+						*l++ *= smoothedGain;
+						*r++ *= smoothedGain;
+					}
+				}
+				
 			}
 		}
 
 		int getNumConstants() const override
 		{
-			return 2;
+			return (int)Parameters::numParameters;
 		}
 
 		void getIdForConstant(int index, char*name, int &size) const noexcept override
@@ -219,6 +261,7 @@ public:
 			{
 				FILL_PARAMETER_ID(Parameters, Gain, size, name);
 				FILL_PARAMETER_ID(Parameters, SmoothingTime, size, name);
+				FILL_PARAMETER_ID(Parameters, FastMode, size, name);
 			}
 		};
 
@@ -237,6 +280,9 @@ public:
 
 		float gain;
 		float smoothingTime;
+		bool fastMode;
+
+		float lastValue;
 
 		Smoother smoother;
 	};
