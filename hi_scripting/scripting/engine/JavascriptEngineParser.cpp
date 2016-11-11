@@ -216,7 +216,9 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 	void setupApiData(HiseSpecialData &data, const String& codeToPreprocess)
 	{
 		hiseSpecialData = &data;
+		currentNamespace = hiseSpecialData;
 		
+
 		findConstVarIds(codeToPreprocess);
 	}
 
@@ -296,7 +298,15 @@ private:
 
 	bool currentlyParsingInlineFunction = false;
 	Identifier currentlyParsedCallback = Identifier::null;
-	Identifier currentlyParsedNamespace = Identifier::null;
+
+	JavascriptNamespace* currentNamespace = nullptr;
+
+	JavascriptNamespace* getCurrentNamespace()
+	{
+		jassert(currentNamespace != nullptr);
+
+		return currentNamespace;
+	}
 
 	void throwError(const String& err) const  { location.throwError(err); }
 
@@ -319,13 +329,13 @@ private:
 	Statement* parseStatement()
 	{
 		if (matchIf(TokenTypes::include_))		   return parseExternalFile();
-		if (matchIf(TokenTypes::inline_))		   return parseInlineFunction();
+		if (matchIf(TokenTypes::inline_))		   return parseInlineFunction(getCurrentNamespace());
 
 		if (currentType == TokenTypes::openBrace)   return parseBlock();
 
-		if (matchIf(TokenTypes::const_))		   return parseConstVar();
+		if (matchIf(TokenTypes::const_))		   return parseConstVar(getCurrentNamespace());
 		if (matchIf(TokenTypes::var))              return parseVar();
-		if (matchIf(TokenTypes::register_var))	   return parseRegisterVar();
+		if (matchIf(TokenTypes::register_var))	   return parseRegisterVar(getCurrentNamespace());
 		if (matchIf(TokenTypes::global_))		   return parseGlobalAssignment();
 		if (matchIf(TokenTypes::local_))		   return parseLocalAssignment();
 		if (matchIf(TokenTypes::namespace_))	   return parseNamespace();
@@ -498,7 +508,7 @@ private:
 		return s.release();
 	}
 
-	Statement* parseConstVar()
+	Statement* parseConstVar(JavascriptNamespace* ns)
 	{
 		matchIf(TokenTypes::var);
 
@@ -518,39 +528,16 @@ private:
 			return block.release();
 		}
 
-		if (currentlyParsedNamespace.isNull())
-		{
-			jassert(hiseSpecialData->preparsedconstVariableNames->getProperty("root").getDynamicObject()->getProperties().contains(s->name));
+		jassert(ns->constObjects.contains(s->name));
 
-			//jassert(hiseSpecialData->constObjects[s->name] == "undeclared");
-
-			hiseSpecialData->constObjects.set(s->name, "uninitialised"); // Will be initialied at runtime
-		}
-		else
-		{
-			JavascriptNamespace* ns = hiseSpecialData->getNamespace(currentlyParsedNamespace);
-
-			if (ns != nullptr)
-			{
-				DynamicObject* obj = hiseSpecialData->preparsedconstVariableNames->getProperty(currentlyParsedNamespace).getDynamicObject();
-
-				jassert(obj->getProperties().contains(s->name));
-
-				ns->nameSpaceConstObjects.set(s->name, "uninitialised"); // Will be initialied at runtime
-			}
-		}
-		
-		JavascriptNamespace* ns = hiseSpecialData->getNamespace(currentlyParsedNamespace);
-
-		const var index = getConstIndex(s->name, ns);
-		var* data = getConstData(index, ns);
-
-		s->data = data;
+		static const var uninitialised("uninitialised");
+		ns->constObjects.set(s->name, uninitialised); // Will be initialied at runtime
+		s->ns = ns;
 
 		return s.release();
 	}
 
-	Statement *parseRegisterVar()
+	Statement *parseRegisterVar(JavascriptNamespace* ns)
 	{
 		ScopedPointer<RegisterVarStatement> s(new RegisterVarStatement(location));
 
@@ -558,18 +545,9 @@ private:
 
 		hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::Register, s->name, location);
 
-		if (currentlyParsedNamespace.isNull())
-		{
-			hiseSpecialData->varRegister.addRegister(s->name, var::undefined());
-			s->varRegister = &hiseSpecialData->varRegister;
-		}
-		else
-		{
-			JavascriptNamespace* ns = hiseSpecialData->getNamespace(currentlyParsedNamespace);
-			ns->varRegister.addRegister(s->name, var::undefined());
-			s->varRegister = &ns->varRegister;
-		}
-		
+		ns->varRegister.addRegister(s->name, var::undefined());
+		s->varRegister = &ns->varRegister;
+
 		s->initialiser = matchIf(TokenTypes::assign) ? parseExpression() : new Expression(location);
 
 		if (matchIf(TokenTypes::comma))
@@ -716,11 +694,11 @@ private:
 
 		hiseSpecialData->namespaces.add(ns.release());
 
-		currentlyParsedNamespace = namespaceId;
-		ScopedPointer<BlockStatement> block = parseBlock();
-		currentlyParsedNamespace = Identifier();
+		currentNamespace = hiseSpecialData->namespaces.getLast();
 
+		ScopedPointer<BlockStatement> block = parseBlock();
 		
+		currentNamespace = hiseSpecialData;
 
 		return block.release();
 	}
@@ -809,7 +787,7 @@ private:
 		}
 		else
 		{
-			return ns->nameSpaceConstObjects.indexOf(id);
+			return ns->constObjects.indexOf(id);
 		}
 	}
 	
@@ -821,21 +799,13 @@ private:
 		}
 		else
 		{
-			return ns->nameSpaceConstObjects.getVarPointerAt(index);
+			return ns->constObjects.getVarPointerAt(index);
 		}
 	}
 
 	DynamicObject* getCurrentInlineFunction()
 	{
-		if (currentlyParsedNamespace.isNull())
-		{
-			return hiseSpecialData->inlineFunctions.getLast();
-		}
-		else
-		{
-			JavascriptNamespace* ns = hiseSpecialData->getNamespace(currentlyParsedNamespace);
-			return ns->inlineFunctions.getLast();
-		}
+		return getCurrentNamespace()->inlineFunctions.getLast();
 	}
 
 	Expression* parseInlineFunctionCall(InlineFunction::Object *obj)
@@ -863,7 +833,7 @@ private:
 		
 	}
 
-	Statement *parseInlineFunction()
+	Statement *parseInlineFunction(JavascriptNamespace* ns)
 	{
 		if (currentlyParsingInlineFunction) throwError("No nested inline functions allowed.");
 
@@ -891,23 +861,7 @@ private:
 		o->commentDoc = lastComment;
 		clearLastComment();
 
-		if (currentlyParsedNamespace.isNull())
-		{
-			hiseSpecialData->inlineFunctions.add(o);
-		}
-		else
-		{
-			JavascriptNamespace* ns = hiseSpecialData->getNamespace(currentlyParsedNamespace);
-
-			if (ns != nullptr)
-			{
-				ns->inlineFunctions.add(o);
-			}
-			else
-			{
-				throwError("Namespace can't be resolved");
-			}
-		}
+		ns->inlineFunctions.add(o);
 
 		ScopedPointer<BlockStatement> body = parseBlock();
 
@@ -1267,6 +1221,7 @@ private:
 		const Identifier constId = parseIdentifier();
 		const int index = getConstIndex(constId, ns);
 
+#if 0
 		if (currentType == TokenTypes::dot)
 		{
 			match(TokenTypes::dot);
@@ -1274,8 +1229,11 @@ private:
 
 			return parseConstObjectApiCall(constId, memberName, ns);
 		}
+#endif
 
-		return new ConstReference(location, getConstData(index, ns));
+		ns = (ns != nullptr) ? ns : hiseSpecialData;
+
+		return new ConstReference(location, ns, index);
 	}
 
 	Expression* parseConstObjectApiCall(const Identifier& objectName, const Identifier& functionName, JavascriptNamespace* ns=nullptr)
@@ -1333,9 +1291,10 @@ private:
 		{
 			Identifier id = Identifier(currentValue.toString());
 
-			if (!currentlyParsedNamespace.isNull())
+			// Allow direct referencing of namespaced variables within the namespace
+			if (getCurrentNamespace() != hiseSpecialData)
 			{
-				ns = hiseSpecialData->getNamespace(currentlyParsedNamespace);
+				ns = getCurrentNamespace();
 			}
 
 			if (id == currentIterator)
@@ -1667,11 +1626,11 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::findConstVarIds(co
 {
 	if (codeToPreprocess.isEmpty()) return;
 
-	DynamicObject* rootScope = hiseSpecialData->preparsedconstVariableNames->getProperty(Identifier("root")).getDynamicObject();
+	static const var undeclared("undeclared");
 
-	DynamicObject* currentConstVariableScope = rootScope;
+	JavascriptNamespace* root = hiseSpecialData;
 
-	jassert(currentConstVariableScope != nullptr);
+	JavascriptNamespace* cns = root;
 
 	TokenIterator it(codeToPreprocess, "");
 
@@ -1685,17 +1644,24 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::findConstVarIds(co
 		{
 			for (int i = 0; i < ids.size(); i++)
 			{
-				currentConstVariableScope->setProperty(ids[i], "undeclared");
+				cns->constObjects.set(ids[i], undeclared);
 			}
 			ids.clear();
 
 			it.match(TokenTypes::namespace_);
 
+			Identifier namespaceId = Identifier(it.currentValue);
 
+			if (hiseSpecialData->getNamespace(namespaceId) == nullptr)
+			{
+				ScopedPointer<JavascriptNamespace> newNamespace = new JavascriptNamespace(namespaceId);
 
-			currentConstVariableScope = new DynamicObject();
-
-			hiseSpecialData->preparsedconstVariableNames->setProperty(Identifier(it.currentValue), currentConstVariableScope);
+				hiseSpecialData->namespaces.add(newNamespace.release());
+			}
+			else
+			{
+				location.throwError("Duplicate namespace " + namespaceId.toString());
+			}
 		}
 
 		// Skip extern "C" functions
@@ -1727,15 +1693,15 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::findConstVarIds(co
 		else if (it.currentType == TokenTypes::closeBrace)
 		{
 			braceLevel--;
-			if (braceLevel == 0 && (rootScope != currentConstVariableScope))
+			if (braceLevel == 0 && (root != cns))
 			{
 				for (int i = 0; i < ids.size(); i++)
 				{
-					currentConstVariableScope->setProperty(ids[i], "undeclared");
+					cns->constObjects.set(ids[i], undeclared);
 				}
 				ids.clear();
 
-				currentConstVariableScope = rootScope;
+				cns = root;
 			}
 		}
 
@@ -1745,7 +1711,7 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::findConstVarIds(co
 			it.match(TokenTypes::const_);
 			it.matchIf(TokenTypes::var);
 
-			if ((rootScope == currentConstVariableScope) && braceLevel != 0)
+			if ((root == cns) && braceLevel != 0)
 			{
 				it.location.throwError("const var declaration must be on global level");
 			}
@@ -1770,11 +1736,14 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::findConstVarIds(co
 		}
 	}
 
-	jassert(rootScope == currentConstVariableScope);
+	if (root != cns)
+	{
+		it.location.throwError("Parsing error (open namespace)");
+	}
 
 	for (int i = 0; i < ids.size(); i++)
 	{
-		currentConstVariableScope->setProperty(ids[i], "undeclared");
+		cns->constObjects.set(ids[i], undeclared);
 	}
 }
 
@@ -1782,9 +1751,6 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::findConstVarIds(co
 var HiseJavascriptEngine::RootObject::evaluate(const String& code)
 {
 	ExpressionTreeBuilder tb(code, String());
-
-	hiseSpecialData.preparsedconstVariableNames = new DynamicObject();
-	hiseSpecialData.preparsedconstVariableNames->setProperty("root", new DynamicObject());
 
 	tb.setupApiData(hiseSpecialData, code);
 
@@ -1794,9 +1760,6 @@ var HiseJavascriptEngine::RootObject::evaluate(const String& code)
 void HiseJavascriptEngine::RootObject::execute(const String& code, bool allowConstDeclarations)
 {
 	ExpressionTreeBuilder tb(code, String());
-
-	hiseSpecialData.preparsedconstVariableNames = new DynamicObject();
-	hiseSpecialData.preparsedconstVariableNames->setProperty("root", new DynamicObject());
 
 	tb.setupApiData(hiseSpecialData, allowConstDeclarations ? code : String());
 

@@ -412,19 +412,18 @@ public:
 			{
 				return varRegister.getNumUsedRegisters() + 
 					   inlineFunctions.size() + 
-					   nameSpaceConstObjects.size();
+					   constObjects.size();
 			}
 
 			DebugInformation* createDebugInformation(int index) const;
 
 			const Identifier id;
 			ReferenceCountedArray<DynamicObject> inlineFunctions;
-			NamedValueSet nameSpaceRoot;
-			NamedValueSet nameSpaceConstObjects;
+			NamedValueSet constObjects;
 			VarRegister	varRegister;
 		};
 
-		struct HiseSpecialData
+		struct HiseSpecialData: public JavascriptNamespace
 		{
 			enum class VariableStorageType
 			{
@@ -444,18 +443,17 @@ public:
             
             Callback *getCallback(const Identifier &id);
             
-			JavascriptNamespace* getNamespace(const Identifier &id) const;
+			JavascriptNamespace* getNamespace(const Identifier &id);
+
+			const JavascriptNamespace* getNamespace(const Identifier &id) const;
 
 			void setProcessor(JavascriptProcessor *p) noexcept { processor = p; }
 
 			static bool initHiddenProperties;
 
-			VarRegister varRegister;
 			ReferenceCountedArray<ApiClass> apiClasses;
 			Array<Identifier> apiIds;
-			ReferenceCountedArray<DynamicObject> inlineFunctions;
-			NamedValueSet constObjects;
-
+			
 			ReferenceCountedArray<JavascriptNamespace> namespaces;
 
 			RootObject* root;
@@ -477,7 +475,6 @@ public:
 			static Array<Identifier> hiddenProperties;
 
 			OwnedArray<ExternalFileData> includedFiles;
-
 
 			int getExternalCIndex(const Identifier& id);
 

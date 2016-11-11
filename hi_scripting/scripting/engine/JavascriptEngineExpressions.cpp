@@ -29,12 +29,11 @@ struct HiseJavascriptEngine::RootObject::UnqualifiedName : public Expression
 
 struct HiseJavascriptEngine::RootObject::ConstReference : public Expression
 {
-	ConstReference(const CodeLocation& l, var* data_) noexcept : Expression(l), data(data_) {}
+	ConstReference(const CodeLocation& l, JavascriptNamespace* ns_, int index_ ) noexcept : Expression(l), ns(ns_), index(index_) {}
 
 	var getResult(const Scope& /*s*/) const override
 	{
-		return *data;
-		//return s.root->hiseSpecialData.constObjects.getValueAt(index);
+		return ns->constObjects.getValueAt(index);
 	}
 
 	void assign(const Scope& /*s*/, const var& /*newValue*/) const override
@@ -42,7 +41,9 @@ struct HiseJavascriptEngine::RootObject::ConstReference : public Expression
 		location.throwError("Can't assign to this expression!");
 	}
 
-	var* data;
+	JavascriptNamespace* ns;
+	int index;
+
 };
 
 

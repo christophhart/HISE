@@ -67,7 +67,7 @@ HiseJavascriptEngine::RootObject::Statement::ResultCode HiseJavascriptEngine::Ro
 	}
 	else if (ConstReference* cr = dynamic_cast<ConstReference*>(lockedObj.get()))
 	{
-		var* constObj = cr->data;
+		var* constObj = cr->ns->constObjects.getVarPointerAt(cr->index);
 
 		if (ApiClass* api = dynamic_cast<ApiClass*>(constObj->getObject()))
 		{
@@ -197,6 +197,7 @@ Array<Identifier> HiseJavascriptEngine::RootObject::HiseSpecialData::hiddenPrope
 bool HiseJavascriptEngine::RootObject::HiseSpecialData::initHiddenProperties = true;
 
 HiseJavascriptEngine::RootObject::HiseSpecialData::HiseSpecialData(RootObject* root_) :
+JavascriptNamespace("root"),
 root(root_)
 {
 	if (initHiddenProperties)
@@ -259,8 +260,17 @@ HiseJavascriptEngine::RootObject::Callback *HiseJavascriptEngine::RootObject::Hi
 }
 
 
-HiseJavascriptEngine::RootObject::JavascriptNamespace* HiseJavascriptEngine::RootObject::HiseSpecialData::getNamespace(const Identifier &id) const
+const HiseJavascriptEngine::RootObject::JavascriptNamespace* HiseJavascriptEngine::RootObject::HiseSpecialData::getNamespace(const Identifier &id) const
 {
+	return const_cast<HiseSpecialData*>(this)->getNamespace(id);
+}
+
+HiseJavascriptEngine::RootObject::JavascriptNamespace* HiseJavascriptEngine::RootObject::HiseSpecialData::getNamespace(const Identifier &id)
+{
+	static const Identifier r("root");
+
+	if (id == r) return this;
+
 	for (int i = 0; i < namespaces.size(); i++)
 	{
 		if (namespaces[i]->id == id)
@@ -310,10 +320,12 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(D
 
 		debugInformation.add(new DebugableObjectInformation(ns, ns->id, DebugInformation::Type::Namespace));
 
-		const int numRegisters = ns->varRegister.getNumUsedRegisters();
+		const int numNamespaceObjects = ns->getNumDebugObjects();
 
-		for (int i = 0; i < numRegisters; i++)
-			debugInformation.add(new FixedVarPointerInformation(ns->varRegister.getVarPointer(i), ns->varRegister.getRegisterId(i), ns->id, DebugInformation::Type::RegisterVariable));
+		for (int j = 0; j < numNamespaceObjects; j++)
+		{
+			debugInformation.add(ns->createDebugInformation(j));
+		}
 	}
 
 	for (int i = 0; i < inlineFunctions.size(); i++)
@@ -358,17 +370,17 @@ DebugInformation* HiseJavascriptEngine::RootObject::JavascriptNamespace::createD
 
 		InlineFunction::Object *o = dynamic_cast<InlineFunction::Object*>(inlineFunctions.getUnchecked(inlineIndex).get());
 
-		return new DebugableObjectInformation(o, o->name, DebugInformation::Type::InlineFunction);
+		return new DebugableObjectInformation(o, o->name, DebugInformation::Type::InlineFunction, id);
 	}
 
 	prevLimit = upperLimit;
-	upperLimit += nameSpaceConstObjects.size();
+	upperLimit += constObjects.size();
 
 	if (index < upperLimit)
 	{
 		const int constIndex = index - prevLimit;
 
-		return new FixedVarPointerInformation(nameSpaceConstObjects.getVarPointerAt(constIndex), nameSpaceConstObjects.getName(constIndex), id, DebugInformation::Type::Constant);
+		return new FixedVarPointerInformation(constObjects.getVarPointerAt(constIndex), constObjects.getName(constIndex), id, DebugInformation::Type::Constant);
 	}
 
 	return nullptr;

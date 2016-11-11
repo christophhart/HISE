@@ -255,14 +255,19 @@ public:
 class DebugableObjectInformation : public DebugInformation
 {
 public:
-	DebugableObjectInformation(DebugableObject *object_, const Identifier &id_, Type t) :
+	DebugableObjectInformation(DebugableObject *object_, const Identifier &id_, Type t, const Identifier& namespaceId_=Identifier()) :
 		DebugInformation(t),
 		object(object_),
-		id(id_)
+		id(id_),
+		namespaceId(namespaceId_)
 	{};
 
 	String getTextForDataType() const override { return object->getDebugDataType(); }
-	String getTextForName() const override { return object->getDebugName(); }
+	String getTextForName() const override 
+	{ 
+		return namespaceId.isNull() ? object->getDebugName() :
+									  namespaceId.toString() + "." + object->getDebugName(); 
+	}
 	String getTextForValue() const override { return object->getDebugValue(); }
 	AttributedString getDescription() const override { return object->getDescription(); }
 
@@ -270,6 +275,7 @@ public:
 
 	DebugableObject *object;
 	const Identifier id;
+	const Identifier namespaceId;
 };
 
 #endif  // DEBUGHELPERS_H_INCLUDED
