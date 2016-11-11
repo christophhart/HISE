@@ -410,13 +410,12 @@ public:
 
 			int getNumDebugObjects() const
 			{
-				return varRegister.getNumUsedRegisters();
+				return varRegister.getNumUsedRegisters() + 
+					   inlineFunctions.size() + 
+					   nameSpaceConstObjects.size();
 			}
 
-			DebugInformation* createDebugInformation(int index) const
-			{
-				return new FixedVarPointerInformation(varRegister.getVarPointer(index), varRegister.getRegisterId(index), id, DebugInformation::Type::RegisterVariable);
-			}
+			DebugInformation* createDebugInformation(int index) const;
 
 			const Identifier id;
 			ReferenceCountedArray<DynamicObject> inlineFunctions;

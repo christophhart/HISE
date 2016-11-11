@@ -338,6 +338,43 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(D
 	}
 }
 
+
+DebugInformation* HiseJavascriptEngine::RootObject::JavascriptNamespace::createDebugInformation(int index) const
+{
+	int prevLimit = 0;
+	int upperLimit = varRegister.getNumUsedRegisters();
+
+	if (index < upperLimit)
+	{
+		return new FixedVarPointerInformation(varRegister.getVarPointer(index), varRegister.getRegisterId(index), id, DebugInformation::Type::RegisterVariable);
+	}
+
+	prevLimit = upperLimit;
+	upperLimit += inlineFunctions.size();
+
+	if (index < upperLimit)
+	{
+		const int inlineIndex = index - prevLimit;
+
+		InlineFunction::Object *o = dynamic_cast<InlineFunction::Object*>(inlineFunctions.getUnchecked(inlineIndex).get());
+
+		return new DebugableObjectInformation(o, o->name, DebugInformation::Type::InlineFunction);
+	}
+
+	prevLimit = upperLimit;
+	upperLimit += nameSpaceConstObjects.size();
+
+	if (index < upperLimit)
+	{
+		const int constIndex = index - prevLimit;
+
+		return new FixedVarPointerInformation(nameSpaceConstObjects.getVarPointerAt(constIndex), nameSpaceConstObjects.getName(constIndex), id, DebugInformation::Type::Constant);
+	}
+
+	return nullptr;
+}
+
+
 void HiseJavascriptEngine::RootObject::HiseSpecialData::throwExistingDefinition(const Identifier &name, VariableStorageType type, CodeLocation &l)
 {
 	String typeName;
