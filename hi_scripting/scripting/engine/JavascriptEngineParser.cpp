@@ -537,29 +537,40 @@ private:
 		return s.release();
 	}
 
-	Statement *parseRegisterVar(JavascriptNamespace* ns)
+	Statement *parseRegisterVar(JavascriptNamespace* ns, TokenIterator* preparser=nullptr)
 	{
-		ScopedPointer<RegisterVarStatement> s(new RegisterVarStatement(location));
-
-		s->name = parseIdentifier();
-
-		hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::Register, s->name, location);
-
-		ns->varRegister.addRegister(s->name, var::undefined());
-		s->varRegister = &ns->varRegister;
-
-		s->initialiser = matchIf(TokenTypes::assign) ? parseExpression() : new Expression(location);
-
-		if (matchIf(TokenTypes::comma))
+		if (preparser)
 		{
-			ScopedPointer<BlockStatement> block(new BlockStatement(location));
-			block->statements.add(s.release());
-			block->statements.add(parseVar());
-			return block.release();
-		}
+			Identifier name = preparser->currentValue.toString();
 
-		match(TokenTypes::semicolon);
-		return s.release();
+			ns->varRegister.addRegister(name, var::undefined);
+
+			return nullptr;
+		}
+		else
+		{
+			ScopedPointer<RegisterVarStatement> s(new RegisterVarStatement(location));
+
+			s->name = parseIdentifier();
+
+			hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::Register, s->name, location);
+
+			const int index = ns->varRegister.getRegisterIndex(s->name);
+			s->varRegister = &ns->varRegister;
+
+			s->initialiser = matchIf(TokenTypes::assign) ? parseExpression() : new Expression(location);
+
+			if (matchIf(TokenTypes::comma))
+			{
+				ScopedPointer<BlockStatement> block(new BlockStatement(location));
+				block->statements.add(s.release());
+				block->statements.add(parseVar());
+				return block.release();
+			}
+
+			match(TokenTypes::semicolon);
+			return s.release();
+		}
 	}
 
 	Statement* parseLockStatement(bool isReadLock)
@@ -833,45 +844,82 @@ private:
 		
 	}
 
-	Statement *parseInlineFunction(JavascriptNamespace* ns)
+	Statement *parseInlineFunction(JavascriptNamespace* ns, TokenIterator *preparser=nullptr)
 	{
-		if (currentlyParsingInlineFunction) throwError("No nested inline functions allowed.");
-
-		match(TokenTypes::function);
-
-		Identifier name = parseIdentifier();
-
-		match(TokenTypes::openParen);
-
-		Array<Identifier> inlineArguments;
-
-		while (currentType != TokenTypes::closeParen)
+		if (preparser != nullptr)
 		{
-			inlineArguments.add(parseIdentifier());
-			if (currentType != TokenTypes::closeParen)
-				match(TokenTypes::comma);
+			preparser->match(TokenTypes::function);
+			Identifier name = preparser->currentValue.toString();
+			preparser->match(TokenTypes::identifier);
+			preparser->match(TokenTypes::openParen);
+
+			Array<Identifier> inlineArguments;
+
+			while (preparser->currentType != TokenTypes::closeParen)
+			{
+				inlineArguments.add(preparser->currentValue.toString());
+				preparser->match(TokenTypes::identifier);
+				if (preparser->currentType != TokenTypes::closeParen)
+					preparser->match(TokenTypes::comma);
+			}
+
+			preparser->match(TokenTypes::closeParen);
+			ns->inlineFunctions.add(new InlineFunction::Object(name, inlineArguments));
+			preparser->matchIf(TokenTypes::semicolon);
+
+			return nullptr;
 		}
-		
-		match(TokenTypes::closeParen);
+		else
+		{
+			if (currentlyParsingInlineFunction) throwError("No nested inline functions allowed.");
 
-		currentlyParsingInlineFunction = true;
+			match(TokenTypes::function);
 
-		InlineFunction::Object::Ptr o = new InlineFunction::Object(name, inlineArguments);
+			Identifier name = parseIdentifier();
 
-		o->commentDoc = lastComment;
-		clearLastComment();
+			match(TokenTypes::openParen);
 
-		ns->inlineFunctions.add(o);
+			while (currentType != TokenTypes::closeParen) skip();
 
-		ScopedPointer<BlockStatement> body = parseBlock();
+			match(TokenTypes::closeParen);
 
-		o->body = body.release();
+			currentlyParsingInlineFunction = true;
 
-		currentlyParsingInlineFunction = false;
+			InlineFunction::Object::Ptr o = nullptr;
 
-		matchIf(TokenTypes::semicolon);
-		
-		return new Statement(location);
+			for (int i = 0; i < ns->inlineFunctions.size(); i++)
+			{
+				if (o = dynamic_cast<InlineFunction::Object*>(ns->inlineFunctions[i].get()))
+				{
+					if (o->name == name)
+					{
+						break;
+					}
+				}
+			}
+
+			if (o != nullptr)
+			{
+				o->commentDoc = lastComment;
+				clearLastComment();
+
+				ScopedPointer<BlockStatement> body = parseBlock();
+
+				o->body = body.release();
+
+				currentlyParsingInlineFunction = false;
+
+				matchIf(TokenTypes::semicolon);
+
+				return new Statement(location);
+			}
+			else
+			{
+				currentlyParsingInlineFunction = false;
+
+				location.throwError("Error at inline function parsing");
+			}
+		}
 	}
 
 	Statement* parseExternalCFunction()
@@ -1688,6 +1736,8 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::findConstVarIds(co
 			findConstVarIds(externalCode);
 		}
 
+		
+
 		// Handle the brace level
 		if (it.currentType == TokenTypes::openBrace) braceLevel++;
 		else if (it.currentType == TokenTypes::closeBrace)
@@ -1703,6 +1753,16 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::findConstVarIds(co
 
 				cns = root;
 			}
+		}
+
+		if (it.matchIf(TokenTypes::inline_))
+		{	
+			parseInlineFunction(cns, &it);
+		}
+
+		if (it.matchIf(TokenTypes::register_var))
+		{
+			parseRegisterVar(cns, &it);
 		}
 
 		// Handle the keyword
