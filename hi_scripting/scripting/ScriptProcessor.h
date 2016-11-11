@@ -352,6 +352,8 @@ public:
 
 	bool wasLastCompileOK() const { return lastCompileWasOK; }
 
+	Result getLastErrorMessage() const { return lastResult; }
+
 	HiseJavascriptEngine *getScriptEngine() { return scriptEngine; }
 
 	void mergeCallbacksToScript(String &x) const;

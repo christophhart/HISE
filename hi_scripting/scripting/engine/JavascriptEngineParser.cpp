@@ -429,7 +429,10 @@ private:
 			{
 				ExpressionTreeBuilder ftb(fileContent, refFileName);
 
-				ftb.setupApiData(*hiseSpecialData, fileContent);
+				ftb.hiseSpecialData = hiseSpecialData;
+				ftb.currentNamespace = hiseSpecialData;
+
+				//ftb.setupApiData(*hiseSpecialData, fileContent);
 
 				ScopedPointer<BlockStatement> s = ftb.parseStatementList();
 
@@ -701,11 +704,12 @@ private:
 	{
 		Identifier namespaceId = parseIdentifier();
 
-		ScopedPointer<JavascriptNamespace> ns = new JavascriptNamespace(namespaceId);
+		currentNamespace = hiseSpecialData->getNamespace(namespaceId);
 
-		hiseSpecialData->namespaces.add(ns.release());
-
-		currentNamespace = hiseSpecialData->namespaces.getLast();
+		if (currentNamespace == nullptr)
+		{
+			location.throwError("Error at parsing namespace");
+		}
 
 		ScopedPointer<BlockStatement> block = parseBlock();
 		
@@ -1677,9 +1681,7 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::findConstVarIds(co
 	static const var undeclared("undeclared");
 
 	JavascriptNamespace* root = hiseSpecialData;
-
 	JavascriptNamespace* cns = root;
-
 	TokenIterator it(codeToPreprocess, "");
 
 	Array<Identifier> ids;
@@ -1690,25 +1692,28 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::findConstVarIds(co
 	{
 		if (it.currentType == TokenTypes::namespace_)
 		{
-			for (int i = 0; i < ids.size(); i++)
+			if (cns != root)
 			{
-				cns->constObjects.set(ids[i], undeclared);
+				it.location.throwError("Nesting of namespaces is not allowed");
 			}
+
+			for (int i = 0; i < ids.size(); i++)
+				cns->constObjects.set(ids[i], undeclared);
+			
 			ids.clear();
-
 			it.match(TokenTypes::namespace_);
-
 			Identifier namespaceId = Identifier(it.currentValue);
 
 			if (hiseSpecialData->getNamespace(namespaceId) == nullptr)
 			{
 				ScopedPointer<JavascriptNamespace> newNamespace = new JavascriptNamespace(namespaceId);
-
+				cns = newNamespace;
 				hiseSpecialData->namespaces.add(newNamespace.release());
+				continue;
 			}
 			else
 			{
-				location.throwError("Duplicate namespace " + namespaceId.toString());
+				it.location.throwError("Duplicate namespace " + namespaceId.toString());
 			}
 		}
 
@@ -1734,35 +1739,41 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::findConstVarIds(co
 			String externalCode = getFileContent(it.currentValue.toString(), fileName);
 			
 			findConstVarIds(externalCode);
+
+			continue;
 		}
 
-		
-
 		// Handle the brace level
-		if (it.currentType == TokenTypes::openBrace) braceLevel++;
-		else if (it.currentType == TokenTypes::closeBrace)
+		if (it.matchIf(TokenTypes::openBrace))
+		{
+			braceLevel++;
+			continue;
+		}
+		else if (it.matchIf(TokenTypes::closeBrace))
 		{
 			braceLevel--;
 			if (braceLevel == 0 && (root != cns))
 			{
 				for (int i = 0; i < ids.size(); i++)
-				{
 					cns->constObjects.set(ids[i], undeclared);
-				}
+				
 				ids.clear();
-
 				cns = root;
 			}
+			
+			continue;
 		}
 
 		if (it.matchIf(TokenTypes::inline_))
 		{	
 			parseInlineFunction(cns, &it);
+			continue;
 		}
 
 		if (it.matchIf(TokenTypes::register_var))
 		{
 			parseRegisterVar(cns, &it);
+			continue;
 		}
 
 		// Handle the keyword
@@ -1771,24 +1782,15 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::findConstVarIds(co
 			it.match(TokenTypes::const_);
 			it.matchIf(TokenTypes::var);
 
-			if ((root == cns) && braceLevel != 0)
-			{
-				it.location.throwError("const var declaration must be on global level");
-			}
-
 			const Identifier newId(it.currentValue);
 
-			if (newId.isNull())
-			{
-				it.location.throwError("Expected identifier for const var declaration");
-			}
-
-			if (ids.contains(newId))
-			{
-				it.location.throwError("Duplicate const var declaration.");
-			}
+			if ((root == cns) && braceLevel != 0) it.location.throwError("const var declaration must be on global level");
+			if (newId.isNull())					  it.location.throwError("Expected identifier for const var declaration");
+			if (ids.contains(newId))			  it.location.throwError("Duplicate const var declaration.");
 
 			ids.add(newId);
+
+			continue;
 		}
 		else
 		{

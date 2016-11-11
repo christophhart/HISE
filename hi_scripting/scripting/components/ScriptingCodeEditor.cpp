@@ -1690,13 +1690,11 @@ bool PopupIncludeEditor::keyPressed(const KeyPress& key)
 		file.replaceWithText(editorContent);
 		sp->compileScript();
 
-		Result r = sp->getWatchedResult(0);
-
-		lastCompileOk = r.wasOk();
+		lastCompileOk = sp->wasLastCompileOK();
 
 		resultLabel->setColour(Label::backgroundColourId, Colours::white);
 		resultLabel->setColour(Label::ColourIds::textColourId, Colours::white);
-		resultLabel->setText(r.wasOk() ? "Compiled OK" : r.getErrorMessage(), dontSendNotification);
+		resultLabel->setText(lastCompileOk ? "Compiled OK" : sp->getLastErrorMessage().getErrorMessage(), dontSendNotification);
 
 		startTimer(200);
 
