@@ -217,9 +217,16 @@ void MainController::loadPreset(ValueTree &v, Component* /*mainEditor*/)
 		// Reset the sample rate so that prepareToPlay does not get called in restoreFromValueTree
 		synthChain->setCurrentPlaybackSampleRate(-1.0);
 		synthChain->setId(v.getProperty("ID", "MainSynthChain"));
+
+		skipCompilingAtPresetLoad = true;
+
 		synthChain->restoreFromValueTree(v);
+
+		skipCompilingAtPresetLoad = false;
+
 		synthChain->prepareToPlay(sampleRate, bufferSize.get());
 		synthChain->compileAllScripts();
+
         synthChain->loadMacrosFromValueTree(v);
 
 		getSampleManager().getAudioSampleBufferPool()->clearData();

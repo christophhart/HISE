@@ -454,12 +454,14 @@ void JavascriptProcessor::restoreScript(const ValueTree &v)
 	String x = v.getProperty("Script", String::empty);
 	parseSnippetsFromString(x, true);
 
-	if (ProcessorHelpers::findParentProcessor(dynamic_cast<Processor*>(this), true) != nullptr)
+	if (Processor* parent = ProcessorHelpers::findParentProcessor(dynamic_cast<Processor*>(this), true))
 	{
-		compileScript();
+		if (!parent->getMainController()->shouldSkipCompiling())
+		{
+			compileScript();
+		}
 	}
 	else jassertfalse;
-	
 }
 
 void JavascriptProcessor::mergeCallbacksToScript(String &x) const

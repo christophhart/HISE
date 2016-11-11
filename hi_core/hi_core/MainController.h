@@ -475,6 +475,11 @@ public:
 
 	EventIdHandler& getEventHandler() { return eventIdHandler; }
 
+	bool shouldSkipCompiling() const
+	{
+		return skipCompilingAtPresetLoad;
+	}
+
 protected:
 
 	/** This is the main processing loop that is shared among all subclasses. */
@@ -528,6 +533,8 @@ protected:
 
 
 private:
+
+	bool skipCompilingAtPresetLoad = false;
 
 	HiseEventBuffer masterEventBuffer;
 	EventIdHandler eventIdHandler;
