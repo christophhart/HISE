@@ -294,12 +294,17 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(D
 	for (int i = 0; i < constObjects.size(); i++)
 	{
 		debugInformation.add(new FixedVarPointerInformation(constObjects.getVarPointerAt(i), constObjects.getName(i), Identifier(), DebugInformation::Type::Constant));
+		debugInformation.getLast()->location = constLocations[i];
 	}
 
 	const int numRegisters = varRegister.getNumUsedRegisters();
 
 	for (int i = 0; i < numRegisters; i++)
+	{
 		debugInformation.add(new FixedVarPointerInformation(varRegister.getVarPointer(i), varRegister.getRegisterId(i), Identifier(), DebugInformation::Type::RegisterVariable));
+		debugInformation.getLast()->location = registerLocations[i];
+	}
+		
 
 	DynamicObject *globals = root->getProperty("Globals").getDynamicObject();
 
@@ -358,7 +363,9 @@ DebugInformation* HiseJavascriptEngine::RootObject::JavascriptNamespace::createD
 
 	if (index < upperLimit)
 	{
-		return new FixedVarPointerInformation(varRegister.getVarPointer(index), varRegister.getRegisterId(index), id, DebugInformation::Type::RegisterVariable);
+		DebugInformation* di = new FixedVarPointerInformation(varRegister.getVarPointer(index), varRegister.getRegisterId(index), id, DebugInformation::Type::RegisterVariable);
+		di->location = registerLocations[index];
+		return di;
 	}
 
 	prevLimit = upperLimit;
@@ -380,7 +387,10 @@ DebugInformation* HiseJavascriptEngine::RootObject::JavascriptNamespace::createD
 	{
 		const int constIndex = index - prevLimit;
 
-		return new FixedVarPointerInformation(constObjects.getVarPointerAt(constIndex), constObjects.getName(constIndex), id, DebugInformation::Type::Constant);
+		DebugInformation* di = new FixedVarPointerInformation(constObjects.getVarPointerAt(constIndex), constObjects.getName(constIndex), id, DebugInformation::Type::Constant);
+		di->location = constLocations[constIndex];
+	
+		return di;
 	}
 
 	return nullptr;

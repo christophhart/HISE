@@ -212,6 +212,11 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 		String getDebugDataType() const override { return DebugInformation::getVarType(lastReturnValue); }
 
+		void doubleClickCallback(const MouseEvent &event, Component* ed)
+		{
+			DebugableObject::Helpers::gotoLocation(ed, location);
+		}
+
 		AttributedString getDescription() const override 
 		{ 
 			return DebugableObject::Helpers::getFunctionDoc(commentDoc, parameterNames); 
@@ -235,6 +240,8 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 		const FunctionCall *e;
 
 		NamedValueSet localProperties;
+
+		Location location;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Object)
 

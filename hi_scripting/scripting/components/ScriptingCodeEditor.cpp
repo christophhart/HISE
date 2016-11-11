@@ -606,9 +606,7 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 
 		const int lineNumber = bookmarks[index].line;
 
-		CodeDocument::Position pos(getDocument(), lineNumber, 0);
-
-		moveCaretTo(pos, false);
+		scrollToLine(lineNumber);
 	}
     else CodeEditorComponent::performPopupMenuAction(menuId);
 #else 
@@ -1710,6 +1708,13 @@ void PopupIncludeEditor::resized()
 	resultLabel->setBounds(0, getHeight() - 18, getWidth(), 18);
 }
 
+void PopupIncludeEditor::gotoChar(int characters)
+{
+	CodeDocument::Position pos(*doc, characters);
+
+	editor->scrollToLine(jmax<int>(0, pos.getLineNumber()-1));
+}
+
 PopupIncludeEditorWindow::PopupIncludeEditorWindow(File f, JavascriptProcessor *s) :
 DocumentWindow("Editing external file: " + f.getFullPathName(), Colours::black, DocumentWindow::allButtons, true),
 file(f)
@@ -1765,6 +1770,11 @@ void PopupIncludeEditorWindow::closeButtonPressed()
 	}
 
 	delete this;
+}
+
+void PopupIncludeEditorWindow::gotoChar(int character)
+{
+	editor->gotoChar(character);
 }
 
 CodeEditorWrapper::CodeEditorWrapper(CodeDocument &document, CodeTokeniser *codeTokeniser, JavascriptProcessor *p)

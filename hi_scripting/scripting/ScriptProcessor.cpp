@@ -189,7 +189,7 @@ File FileChangeListener::getWatchedFile(int index) const
 	else return File::nonexistent;
 }
 
-void FileChangeListener::showPopupForFile(int index)
+void FileChangeListener::showPopupForFile(int index, int charNumberToDisplay/*=0*/)
 {
 #if USE_BACKEND
 	const File watchedFile = getWatchedFile(index);
@@ -215,6 +215,12 @@ void FileChangeListener::showPopupForFile(int index)
 	currentPopups.add(popup);
 
 	popup->addToDesktop();
+
+	if (charNumberToDisplay != 0)
+	{
+		popup->gotoChar(charNumberToDisplay);
+	}
+
 #else
 	ignoreUnused(index);
 #endif

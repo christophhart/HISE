@@ -124,6 +124,10 @@ public:
 
 	void setEditedScriptComponent(ReferenceCountedObject* component);
 
+	void showOnInitCallback();
+
+	void gotoChar(int character);
+
 	void mouseDown(const MouseEvent &e) override;
 
 	void toggleComponentSelectMode(bool shouldSelectOnClick);

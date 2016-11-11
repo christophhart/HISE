@@ -35,10 +35,18 @@
 
 
 
+
+
 /** Overwrite this method if you want to add debugging functionality to a object. */
 class DebugableObject
 {
 public:
+
+	struct Location
+	{
+		String fileName = String();
+		int charNumber = 0;
+	};
 
     virtual ~DebugableObject() {};
     
@@ -73,7 +81,10 @@ public:
 
 			return info;
 		}
+
+		static void gotoLocation(Component* ed, const Location& location);
 	};
+
 };
 
 
@@ -140,6 +151,8 @@ public:
 
 	virtual DebugableObject *getObject() { return nullptr; }
 
+	virtual DebugableObject::Location getLocation() { return DebugableObject::Location(); }
+
 	int getType() const { return (int)type; }
 
 	String getTextForRow(Row r);
@@ -167,6 +180,8 @@ public:
 
 		return "undefined";
 	}
+
+	DebugableObject::Location location;
 
 protected:
 	
@@ -222,6 +237,8 @@ public:
 
 	DynamicObject::Ptr obj;
 	const Identifier id;
+
+	
 };
 
 
@@ -249,6 +266,7 @@ public:
 	const var *value;
 	const Identifier id;
 	const Identifier namespaceId;
+	
 };
 
 

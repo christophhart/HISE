@@ -421,6 +421,9 @@ public:
 			ReferenceCountedArray<DynamicObject> inlineFunctions;
 			NamedValueSet constObjects;
 			VarRegister	varRegister;
+
+			Array<DebugableObject::Location> registerLocations;
+			Array<DebugableObject::Location> constLocations;
 		};
 
 		struct HiseSpecialData: public JavascriptNamespace

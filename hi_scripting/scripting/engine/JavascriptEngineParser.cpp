@@ -218,11 +218,10 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 		hiseSpecialData = &data;
 		currentNamespace = hiseSpecialData;
 		
-
-		findConstVarIds(codeToPreprocess);
+		preprocessCode(codeToPreprocess);
 	}
 
-	void findConstVarIds(const String& codeToPreprocess);
+	void preprocessCode(const String& codeToPreprocess, const String& externalFileName="");
 
 	BlockStatement* parseStatementList()
 	{
@@ -548,6 +547,17 @@ private:
 
 			ns->varRegister.addRegister(name, var::undefined);
 
+			const int index = ns->varRegister.getRegisterIndex(name);
+
+			DebugableObject::Location loc;
+
+			loc.fileName = preparser->location.externalFile;
+			loc.charNumber = preparser->location.location - preparser->location.program.getCharPointer();
+
+			ns->registerLocations.add(loc);
+
+			jassert(ns->registerLocations.size() == ns->varRegister.getNumUsedRegisters());
+
 			return nullptr;
 		}
 		else
@@ -852,6 +862,9 @@ private:
 	{
 		if (preparser != nullptr)
 		{
+			int charNumber = preparser->location.location - preparser->location.program.getCharPointer();
+			String fileName = preparser->location.externalFile;
+
 			preparser->match(TokenTypes::function);
 			Identifier name = preparser->currentValue.toString();
 			preparser->match(TokenTypes::identifier);
@@ -868,7 +881,13 @@ private:
 			}
 
 			preparser->match(TokenTypes::closeParen);
-			ns->inlineFunctions.add(new InlineFunction::Object(name, inlineArguments));
+
+			ScopedPointer<InlineFunction::Object> o = new InlineFunction::Object(name, inlineArguments);
+
+			o->location.charNumber = charNumber;
+			o->location.fileName = fileName;
+
+			ns->inlineFunctions.add(o.release());
 			preparser->matchIf(TokenTypes::semicolon);
 
 			return nullptr;
@@ -1674,7 +1693,7 @@ private:
 };
 
 
-void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::findConstVarIds(const String& codeToPreprocess)
+void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::preprocessCode(const String& codeToPreprocess, const String& externalFileName)
 {
 	if (codeToPreprocess.isEmpty()) return;
 
@@ -1682,7 +1701,7 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::findConstVarIds(co
 
 	JavascriptNamespace* root = hiseSpecialData;
 	JavascriptNamespace* cns = root;
-	TokenIterator it(codeToPreprocess, "");
+	TokenIterator it(codeToPreprocess, externalFileName);
 
 	Array<Identifier> ids;
 
@@ -1738,7 +1757,7 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::findConstVarIds(co
 			String fileName = it.currentValue.toString();
 			String externalCode = getFileContent(it.currentValue.toString(), fileName);
 			
-			findConstVarIds(externalCode);
+			preprocessCode(externalCode, fileName);
 
 			continue;
 		}
@@ -1790,6 +1809,13 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::findConstVarIds(co
 
 			ids.add(newId);
 
+			DebugableObject::Location loc;
+
+			loc.fileName = it.location.externalFile;
+			loc.charNumber = it.location.location - it.location.program.getCharPointer();
+
+			cns->constLocations.add(loc);
+
 			continue;
 		}
 		else
@@ -1807,6 +1833,8 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::findConstVarIds(co
 	{
 		cns->constObjects.set(ids[i], undeclared);
 	}
+
+	jassert(cns->constObjects.size() == cns->constLocations.size());
 }
 
 

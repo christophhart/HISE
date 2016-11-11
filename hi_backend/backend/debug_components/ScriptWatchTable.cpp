@@ -148,6 +148,10 @@ void ScriptWatchTable::mouseDoubleClick(const MouseEvent &e)
 				{
 					db->doubleClickCallback(e, editor.getComponent());
 				}
+				else
+				{
+					DebugableObject::Helpers::gotoLocation(editor.getComponent(), info->location);
+				}
 			}
 		}
 	}

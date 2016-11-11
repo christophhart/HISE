@@ -49,6 +49,9 @@ public:
 	bool keyPressed(const KeyPress& key) override;
 	void resized() override;;
 
+	void gotoChar(int character);
+
+
 private:
 
 	int fontSize;
@@ -81,6 +84,8 @@ public:
 	void paint(Graphics &g) override;
 	bool keyPressed(const KeyPress& key);;
 	void closeButtonPressed() override;;
+
+	void gotoChar(int character);
 
 private:
 

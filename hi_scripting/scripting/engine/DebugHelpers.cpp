@@ -91,3 +91,27 @@ String DebugInformation::toString()
 }
 
 
+void DebugableObject::Helpers::gotoLocation(Component* ed, const Location& location)
+{
+	ScriptingEditor* editor = dynamic_cast<ScriptingEditor*>(ed);
+
+	JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(editor->getProcessor());
+
+	File file = File(location.fileName);
+
+	if (file.existsAsFile())
+	{
+		for (int i = 0; i < sp->getNumWatchedFiles(); i++)
+		{
+			if (sp->getWatchedFile(i) == file)
+			{
+				sp->showPopupForFile(i, location.charNumber);
+			}
+		}
+	}
+	else
+	{
+		editor->showOnInitCallback();
+		editor->gotoChar(location.charNumber);
+	}
+}

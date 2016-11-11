@@ -197,7 +197,7 @@ public:
 		currentPopups.add(window);
 	}
 
-	void showPopupForFile(int index);
+	void showPopupForFile(int index, int charNumberToDisplay=0);
 
 	static ValueTree collectAllScriptFiles(ModulatorSynthChain *synthChainToExport);
 

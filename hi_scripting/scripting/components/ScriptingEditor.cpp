@@ -505,11 +505,25 @@ void ScriptingEditor::setEditedScriptComponent(ReferenceCountedObject* component
 
 	if(component != nullptr)
 	{
-		callbackButtons[0]->setToggleState(false, dontSendNotification);
-		buttonClicked(callbackButtons[0]);
+		showOnInitCallback();
 
 		codeEditor->editor->selectJSONTag(sc->getName());
 	}
+}
+
+void ScriptingEditor::showOnInitCallback()
+{
+	callbackButtons[0]->setToggleState(false, dontSendNotification);
+	buttonClicked(callbackButtons[0]);
+}
+
+void ScriptingEditor::gotoChar(int character)
+{
+	CodeDocument::Position pos(codeEditor->editor->getDocument(), character);
+
+	showOnInitCallback();
+
+	codeEditor->editor->scrollToLine(jmax<int>(0, pos.getLineNumber()));
 }
 
 void ScriptingEditor::scriptComponentChanged(ReferenceCountedObject* scriptComponent, Identifier /*propertyThatWasChanged*/)
