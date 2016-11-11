@@ -156,7 +156,7 @@ private:
 	bool useRightClickForPopup = true;
 	bool popupShouldBeAligned = false;
 	bool draggingEnabled = false;
-	
+	bool currentlyShowingPopup = false;
 
 	ScopedPointer<RectangleConstrainer> constrainer;
 	ComponentDragger dragger;

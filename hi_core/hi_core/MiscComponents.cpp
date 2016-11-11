@@ -142,6 +142,8 @@ void MouseCallbackComponent::mouseDown(const MouseEvent& event)
 
 			std::vector<SubMenuList> subMenus;
 
+			ScopedValueSetter<bool>(currentlyShowingPopup, true, false);
+
 			for (int i = 0; i < itemList.size(); i++)
 			{
 				if (itemList[i].contains("::"))
@@ -219,7 +221,9 @@ void MouseCallbackComponent::mouseDown(const MouseEvent& event)
 
 			static const Identifier r("result");
 			static const Identifier itemText("itemText");
+			static const Identifier rightClick("rightClick");
 
+			obj->setProperty(rightClick, event.mods.isRightButtonDown());
 			obj->setProperty(r, result);
 			obj->setProperty(itemText, name);
 
@@ -277,11 +281,11 @@ void MouseCallbackComponent::mouseUp(const MouseEvent &event)
 {
 	if (draggingEnabled)
 	{
-		
-
 		setAlwaysOnTop(false);
 	}
 
+
+	if (currentlyShowingPopup) return;
 	if (callbackLevel < CallbackLevel::ClicksOnly) return;
 
 	sendMessage(event, Action::MouseUp);
@@ -314,7 +318,8 @@ void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action,
 	if (callbackLevel >= CallbackLevel::ClicksOnly)
 	{
 		currentEvent->setProperty(clicked, action == Action::Clicked);
-		currentEvent->setProperty(rightClick, action == Action::Clicked && event.mods.isRightButtonDown());
+		currentEvent->setProperty(rightClick, (action == Action::Clicked && event.mods.isRightButtonDown()) ||
+											  (action == Action::MouseUp && event.mods.isRightButtonDown()));
 		currentEvent->setProperty(mouseUp, action == Action::MouseUp);
 		currentEvent->setProperty(mouseDownX, event.getMouseDownX());
 		currentEvent->setProperty(mouseDownY, event.getMouseDownY());
