@@ -142,6 +142,10 @@ struct HiseJavascriptEngine::RootObject::SwitchStatement : public Statement
 					caseFound = true;
 					break;
 				}
+				else if (caseResult == Statement::returnWasHit)
+				{
+					return Statement::returnWasHit;
+				}
 			}
 		}
 
