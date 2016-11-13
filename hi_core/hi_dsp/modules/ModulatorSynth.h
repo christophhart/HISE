@@ -836,17 +836,32 @@ public:
 
 	void setVolumeFade(double fadeTimeSeconds, float targetVolume)
 	{
-		gainFader.setValue(eventGainFactor);
-		gainFader.reset(getSampleRate(), fadeTimeSeconds);
-		gainFader.setValue(targetVolume);
+		if (fadeTimeSeconds == 0.0)
+		{
+			eventGainFactor = targetVolume;
+		}
+		else
+		{
+			gainFader.setValue(eventGainFactor);
+			gainFader.reset(getSampleRate(), fadeTimeSeconds);
+			gainFader.setValue(targetVolume);
+		}
 	}
 
 	void setPitchFade(double fadeTimeSeconds, double targetPitch)
 	{
-		scriptPitchActive = true;
-		pitchFader.setValue(eventPitchFactor);
-		pitchFader.reset(getSampleRate(), fadeTimeSeconds);
-		pitchFader.setValue(targetPitch);
+		if (fadeTimeSeconds == 0.0)
+		{
+			scriptPitchActive = true;
+			eventPitchFactor = targetPitch;
+		}
+		else
+		{
+			scriptPitchActive = true;
+			pitchFader.setValue(eventPitchFactor);
+			pitchFader.reset(getSampleRate(), fadeTimeSeconds);
+			pitchFader.setValue(targetPitch);
+		}
 	}
 
 protected:

@@ -1390,9 +1390,8 @@ void ScriptingApi::Synth::addVolumeFade(int eventId, int fadeTimeMilliseconds, i
 	{
 		if (eventId > 0)
 		{
-			if (fadeTimeMilliseconds > 0)
+			if (fadeTimeMilliseconds >= 0)
 			{
-				DBG("TUT");
 				HiseEvent e = HiseEvent::createVolumeFade(eventId, fadeTimeMilliseconds, targetVolume);
 
 				e.setTimeStamp(sp->getCurrentHiseEvent()->getTimeStamp());
@@ -1412,7 +1411,7 @@ void ScriptingApi::Synth::addPitchFade(int eventId, int fadeTimeMilliseconds, in
 	{
 		if (eventId > 0)
 		{
-			if (fadeTimeMilliseconds > 0)
+			if (fadeTimeMilliseconds >= 0)
 			{
 				HiseEvent e = HiseEvent::createPitchFade(eventId, fadeTimeMilliseconds, targetCoarsePitch, targetFinePitch);
 				e.setTimeStamp(sp->getCurrentHiseEvent()->getTimeStamp());
