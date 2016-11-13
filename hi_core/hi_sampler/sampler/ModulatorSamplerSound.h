@@ -262,7 +262,7 @@ public:
 	// ====================================================================================================================
 
 	StreamingSamplerSound *getReferenceToSound() const { return wrappedSound.getObject(); };
-	StreamingSamplerSound *getReferenceToSound(int multiMicIndex) const { return isMultiMicSound ? soundList[multiMicIndex] : wrappedSound.getObject(); };
+	StreamingSamplerSound *getReferenceToSound(int multiMicIndex) const { return isMultiMicSound ? soundList[multiMicIndex].get() : wrappedSound.getObject(); };
 
 	// ====================================================================================================================
 

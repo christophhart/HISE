@@ -399,9 +399,11 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &m, const MouseEvent *e)
 		}
 	}
 
+	m.addSectionHeader("Code Bookmarks");
+
 	if (bookmarks.size() != 0)
 	{
-		m.addSectionHeader("Code Bookmarks");
+		
 
 		for (int i = 0; i < bookmarks.size(); i++)
 		{
@@ -410,6 +412,10 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &m, const MouseEvent *e)
 
 		m.addSeparator();
 	}
+
+	m.addItem(106, "Add code bookmark");
+
+	m.addSeparator();
 
 	String s = getTextInRange(getHighlightedRegion()); 
 	
@@ -536,6 +542,28 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 
 		replacer->setModalBaseWindowComponent(this);
 		
+	}
+	else if (menuId == 106) // Add bookmark
+	{
+		const String bookmarkName = PresetHandler::getCustomName("Bookmark");
+
+		if (bookmarkName.isNotEmpty())
+		{
+			String bookmarkLine = "//! ";
+
+			int numChars = bookmarkLine.length() + bookmarkName.length();
+
+			for (int i = numChars; i < 80; i++)
+			{
+				bookmarkLine << '=';
+			}
+
+			bookmarkLine << " " << bookmarkName << "\r\n";
+
+			moveCaretToStartOfLine(false);
+
+			getDocument().insertText(getCaretPos(), bookmarkLine);
+		}
 	}
 	else if (menuId == 110)
 	{
@@ -877,6 +905,28 @@ bool JavascriptCodeEditor::keyPressed(const KeyPress& k)
 #endif
 
 	if(k != KeyPress::escapeKey) startTimer(800);
+
+#if 0
+	const bool multiLineMode = false;
+
+	if (multiLineMode)
+	{
+		CodeDocument::Position nextPos(getDocument(), getCaretPos().getLineNumber() + 1, getCaretPos().getIndexInLine());
+
+		if (k.getTextCharacter() >= ' ')
+		{
+			
+
+			getDocument().insertText(nextPos, String::charToString(k.getTextCharacter()));
+		}
+		else if (k == KeyPress::backspaceKey)
+		{
+			
+			getDocument().deleteSection(nextPos.movedBy(-1), nextPos);
+		}
+	}
+#endif
+	
 
 	return CodeEditorComponent::keyPressed(k);
 }
