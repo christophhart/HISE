@@ -288,6 +288,8 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 			f->lastReturnValue = returnVar;
 
+			f->setFunctionCall(nullptr);
+
 			if (c == Statement::returnWasHit) return returnVar;
 			else return var::undefined();
 		}
@@ -315,7 +317,17 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			f = nullptr;
 		}
 
-		var getResult(const Scope&) const override   { return  (f->e->parameterResults[index]); }
+		var getResult(const Scope&) const override 
+		{
+			if (f->e != nullptr)
+			{
+				return  (f->e->parameterResults[index]);
+			}
+			else
+			{
+				location.throwError("Accessing parameter reference outside the function call");
+			}
+		}
 
 		Object* f;
 		int index;
