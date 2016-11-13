@@ -15,7 +15,6 @@ struct HiseJavascriptEngine::RootObject::TokenIterator
 		return loc;
 	}
 
-
 	void skip()
 	{
 		skipWhitespaceAndComments();
@@ -309,6 +308,8 @@ private:
 	bool currentlyParsingInlineFunction = false;
 	Identifier currentlyParsedCallback = Identifier::null;
 
+	DynamicObject* currentInlineFunction = nullptr;
+
 	JavascriptNamespace* currentNamespace = nullptr;
 
 	JavascriptNamespace* getCurrentNamespace()
@@ -414,9 +415,13 @@ private:
 
 	Statement* parseExternalFile()
 	{
+		if (getCurrentNamespace() != hiseSpecialData)
+		{
+			location.throwError("Including files inside namespaces is not supported");
+		}
+
 		match(TokenTypes::openParen);
 		
-
 		String refFileName;
 		String fileContent = getFileContent(currentValue.toString(), refFileName);
         
@@ -502,6 +507,13 @@ private:
 
 	Statement* parseVar()
 	{
+#if 0
+		if (getCurrentNamespace() != hiseSpecialData)
+		{
+			location.throwError("No var definitions inside namespaces (use reg or const var instead)");
+		}
+#endif
+
 		ScopedPointer<VarStatement> s(new VarStatement(location));
 		s->name = parseIdentifier();
 
@@ -633,10 +645,8 @@ private:
 
 	Statement* parseLocalAssignment()
 	{
-		if (currentlyParsingInlineFunction)
+		if (InlineFunction::Object::Ptr ifo = dynamic_cast<InlineFunction::Object*>(getCurrentInlineFunction()))
 		{
-			InlineFunction::Object::Ptr ifo = dynamic_cast<InlineFunction::Object*>(getCurrentInlineFunction());
-
 			ScopedPointer<LocalVarStatement> s(new LocalVarStatement(location, ifo));
 			s->name = parseIdentifier();
 			
@@ -880,7 +890,7 @@ private:
 
 	DynamicObject* getCurrentInlineFunction()
 	{
-		return getCurrentNamespace()->inlineFunctions.getLast();
+		return currentInlineFunction;
 	}
 
 	Expression* parseInlineFunctionCall(InlineFunction::Object *obj)
@@ -942,7 +952,7 @@ private:
 		}
 		else
 		{
-			if (currentlyParsingInlineFunction) throwError("No nested inline functions allowed.");
+			if (getCurrentInlineFunction() != nullptr) throwError("No nested inline functions allowed.");
 
 			match(TokenTypes::function);
 
@@ -953,8 +963,6 @@ private:
 			while (currentType != TokenTypes::closeParen) skip();
 
 			match(TokenTypes::closeParen);
-
-			currentlyParsingInlineFunction = true;
 
 			InlineFunction::Object::Ptr o = nullptr;
 
@@ -969,6 +977,8 @@ private:
 				}
 			}
 
+			currentInlineFunction = o;
+
 			if (o != nullptr)
 			{
 				o->commentDoc = lastComment;
@@ -978,7 +988,7 @@ private:
 
 				o->body = body.release();
 
-				currentlyParsingInlineFunction = false;
+				currentInlineFunction = nullptr;
 
 				matchIf(TokenTypes::semicolon);
 
@@ -986,7 +996,7 @@ private:
 			}
 			else
 			{
-				currentlyParsingInlineFunction = false;
+				currentInlineFunction = nullptr;
 
 				location.throwError("Error at inline function parsing");
 			}
@@ -1428,22 +1438,9 @@ private:
 			{
 				return parseSuffixes(new LoopStatement::IteratorName(location, parseIdentifier()));
 			}
-			else if (currentlyParsingInlineFunction)
+			else if (currentInlineFunction != nullptr)
 			{
-				DynamicObject *o = nullptr;
-
-				if (ns != nullptr)
-				{
-					o = ns->inlineFunctions.getLast();
-				}
-				else
-				{
-					o = hiseSpecialData->inlineFunctions.getLast();
-				}
-
-				jassert(o != nullptr);
-
-				InlineFunction::Object* ob = dynamic_cast<InlineFunction::Object*>(o);
+				InlineFunction::Object* ob = dynamic_cast<InlineFunction::Object*>(currentInlineFunction);
 
 				const int inlineParameterIndex = ob->parameterNames.indexOf(id);
 				const int localParameterIndex = ob->localProperties.indexOf(id);
@@ -1796,8 +1793,6 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::preprocessCode(con
 	JavascriptNamespace* cns = root;
 	TokenIterator it(codeToPreprocess, externalFileName);
 
-	Array<Identifier> ids;
-
 	int braceLevel = 0;
 
 	while (it.currentType != TokenTypes::eof)
@@ -1809,10 +1804,6 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::preprocessCode(con
 				it.location.throwError("Nesting of namespaces is not allowed");
 			}
 
-			for (int i = 0; i < ids.size(); i++)
-				cns->constObjects.set(ids[i], undeclared);
-			
-			ids.clear();
 			it.match(TokenTypes::namespace_);
 			Identifier namespaceId = Identifier(it.currentValue);
 
@@ -1867,10 +1858,6 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::preprocessCode(con
 			braceLevel--;
 			if (braceLevel == 0 && (root != cns))
 			{
-				for (int i = 0; i < ids.size(); i++)
-					cns->constObjects.set(ids[i], undeclared);
-				
-				ids.clear();
 				cns = root;
 			}
 			
@@ -1899,10 +1886,9 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::preprocessCode(con
 
 			if ((root == cns) && braceLevel != 0) it.location.throwError("const var declaration must be on global level");
 			if (newId.isNull())					  it.location.throwError("Expected identifier for const var declaration");
-			if (ids.contains(newId))			  it.location.throwError("Duplicate const var declaration.");
+			if (cns->constObjects.contains(newId))			  it.location.throwError("Duplicate const var declaration.");
 
-			ids.add(newId);
-
+			cns->constObjects.set(newId, undeclared);
 			cns->constLocations.add(it.createDebugLocation());
 
 			continue;
@@ -1918,12 +1904,10 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::preprocessCode(con
 		it.location.throwError("Parsing error (open namespace)");
 	}
 
-	for (int i = 0; i < ids.size(); i++)
+	if (cns->constObjects.size() != cns->constLocations.size())
 	{
-		cns->constObjects.set(ids[i], undeclared);
+		jassertfalse;
 	}
-
-	jassert(cns->constObjects.size() == cns->constLocations.size());
 }
 
 
