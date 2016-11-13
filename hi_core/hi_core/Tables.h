@@ -262,8 +262,14 @@ public:
 	{
 		sampleLength = (int)newSampleLength;
 
-		coefficient = ((double)SAMPLE_LOOKUP_TABLE_SIZE / (double)sampleLength);
-
+		if (newSampleLength == 0.0)
+		{
+			coefficient = 0.0;
+		}
+		else
+		{
+			coefficient = ((double)SAMPLE_LOOKUP_TABLE_SIZE / (double)sampleLength);
+		}
 	};
 
 	float getFirstValue() const

@@ -103,7 +103,19 @@ void TableEnvelope::startVoice(int voiceIndex)
 	
 	state->uptime = 0.0f;
 
-	state->current_state = TableEnvelopeState::ATTACK;
+	if (attack == 0.0f)
+	{
+		state->current_value = 1.0f;
+		state->current_state = TableEnvelopeState::SUSTAIN;
+	}
+	else
+	{
+		state->current_state = TableEnvelopeState::ATTACK;
+	}
+
+	
+
+
 	debugMod(" (Voice " + String(voiceIndex) + ": IDLE->ATTACK");
 }
 
@@ -220,8 +232,6 @@ float TableEnvelope::calculateNewValue()
 			{
 				stopVoice(voiceIndex);
 				
-				debugMod(" (voiceIndex = " + String(voiceIndex) + "): ATTACK->RELEASE");
-
 			}
 			else
 			{
