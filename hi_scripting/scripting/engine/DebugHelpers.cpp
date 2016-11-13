@@ -115,3 +115,4 @@ void DebugableObject::Helpers::gotoLocation(Component* ed, const Location& locat
 		editor->gotoChar(location.charNumber);
 	}
 }
+

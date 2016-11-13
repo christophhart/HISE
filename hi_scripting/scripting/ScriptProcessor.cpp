@@ -206,6 +206,12 @@ void FileChangeListener::showPopupForFile(int index, int charNumberToDisplay/*=0
 		if (dynamic_cast<PopupIncludeEditorWindow*>(currentPopups[i].getComponent())->getFile() == watchedFile)
 		{
 			currentPopups[i]->toFront(true);
+
+			if (charNumberToDisplay != 0)
+			{
+				dynamic_cast<PopupIncludeEditorWindow*>(currentPopups[i].getComponent())->gotoChar(charNumberToDisplay);
+			}
+
 			return;
 		}
 	}

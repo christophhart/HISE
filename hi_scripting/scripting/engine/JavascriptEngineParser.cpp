@@ -5,6 +5,17 @@ struct HiseJavascriptEngine::RootObject::TokenIterator
 {
 	TokenIterator(const String& code, const String &externalFile) : location(code, externalFile), p(code.getCharPointer()) { skip(); }
 
+	DebugableObject::Location createDebugLocation()
+	{
+		DebugableObject::Location loc;
+
+		loc.fileName = location.externalFile;
+		loc.charNumber = location.location - location.program.getCharPointer();
+
+		return loc;
+	}
+
+
 	void skip()
 	{
 		skipWhitespaceAndComments();
@@ -549,12 +560,7 @@ private:
 
 			const int index = ns->varRegister.getRegisterIndex(name);
 
-			DebugableObject::Location loc;
-
-			loc.fileName = preparser->location.externalFile;
-			loc.charNumber = preparser->location.location - preparser->location.program.getCharPointer();
-
-			ns->registerLocations.add(loc);
+			ns->registerLocations.add(preparser->createDebugLocation());
 
 			jassert(ns->registerLocations.size() == ns->varRegister.getNumUsedRegisters());
 
@@ -780,6 +786,50 @@ private:
 		return nullptr;
 	}
 
+	JavascriptNamespace* getNamespaceForStorageType(JavascriptNamespace::StorageType storageType, JavascriptNamespace* currentNamespace, const Identifier &id)
+	{
+		switch (storageType)
+		{
+		case HiseJavascriptEngine::RootObject::JavascriptNamespace::StorageType::Register:
+			if (currentNamespace != nullptr && currentNamespace->varRegister.getRegisterIndex(id) != -1) return currentNamespace;
+			if (hiseSpecialData->varRegister.getRegisterIndex(id) != -1) return hiseSpecialData;
+			break;
+
+		case HiseJavascriptEngine::RootObject::JavascriptNamespace::StorageType::ConstVariable:
+			if (currentNamespace != nullptr && currentNamespace->constObjects.contains(id)) return currentNamespace;
+			if (hiseSpecialData->constObjects.contains(id)) return hiseSpecialData;
+			break;
+
+		case HiseJavascriptEngine::RootObject::JavascriptNamespace::StorageType::InlineFunction:
+		{
+			if (currentNamespace != nullptr)
+			{
+				for (int i = 0; i < currentNamespace->inlineFunctions.size(); i++)
+				{
+					if (dynamic_cast<InlineFunction::Object*>(currentNamespace->inlineFunctions[i].get())->name == id)
+						return currentNamespace;
+				}
+			}
+
+			for (int i = 0; i < hiseSpecialData->inlineFunctions.size(); i++)
+			{
+				if (dynamic_cast<InlineFunction::Object*>(hiseSpecialData->inlineFunctions[i].get())->name == id)
+					return hiseSpecialData;
+			}
+			break;
+
+		}
+			
+		case HiseJavascriptEngine::RootObject::JavascriptNamespace::StorageType::numStorageTypes:
+			break;
+		default:
+			break;
+		}
+
+		return nullptr;
+	}
+
+	
 	int getRegisterIndex(const Identifier& id, JavascriptNamespace* ns = nullptr)
 	{
 		if (ns == nullptr)
@@ -862,8 +912,7 @@ private:
 	{
 		if (preparser != nullptr)
 		{
-			int charNumber = preparser->location.location - preparser->location.program.getCharPointer();
-			String fileName = preparser->location.externalFile;
+			DebugableObject::Location loc = preparser->createDebugLocation();
 
 			preparser->match(TokenTypes::function);
 			Identifier name = preparser->currentValue.toString();
@@ -884,8 +933,7 @@ private:
 
 			ScopedPointer<InlineFunction::Object> o = new InlineFunction::Object(name, inlineArguments);
 
-			o->location.charNumber = charNumber;
-			o->location.fileName = fileName;
+			o->location = loc;
 
 			ns->inlineFunctions.add(o.release());
 			preparser->matchIf(TokenTypes::semicolon);
@@ -1363,9 +1411,17 @@ private:
 			Identifier id = Identifier(currentValue.toString());
 
 			// Allow direct referencing of namespaced variables within the namespace
-			if (getCurrentNamespace() != hiseSpecialData)
+			if (getCurrentNamespace() != hiseSpecialData && ns == nullptr)
 			{
 				ns = getCurrentNamespace();
+
+				// Allow usage of namespace prefix within namespace
+				if (ns->id == id)
+				{
+					match(TokenTypes::identifier);
+					match(TokenTypes::dot);
+					id = currentValue.toString();
+				}
 			}
 
 			if (id == currentIterator)
@@ -1405,7 +1461,7 @@ private:
 			}
 
 			// Only resolve one level of namespaces
-			JavascriptNamespace* namespaceForId = (ns == nullptr) ? hiseSpecialData->getNamespace(id) : nullptr;
+			JavascriptNamespace* namespaceForId = hiseSpecialData->getNamespace(id);
 
 			if (namespaceForId != nullptr)
 			{
@@ -1416,35 +1472,38 @@ private:
 			}
 			else
 			{
-				InlineFunction::Object *obj = getInlineFunction(id, ns);
-				const int registerIndex = getRegisterIndex(id, ns);
+				if (JavascriptNamespace* inlineNamespace = getNamespaceForStorageType(JavascriptNamespace::StorageType::InlineFunction, ns, id))
+				{
+					InlineFunction::Object *obj = getInlineFunction(id, inlineNamespace);
+					return parseSuffixes(parseInlineFunctionCall(obj));
+				}
+				else if (JavascriptNamespace* constNamespace = getNamespaceForStorageType(JavascriptNamespace::StorageType::ConstVariable, ns, id))
+				{
+					return parseSuffixes(parseConstExpression(constNamespace));
+				}
+				else if (JavascriptNamespace* regNamespace = getNamespaceForStorageType(JavascriptNamespace::StorageType::Register, ns, id))
+				{
+					VarRegister* rootRegister = &regNamespace->varRegister;
+
+					const int registerIndex = rootRegister->getRegisterIndex(id);
+
+					return parseSuffixes(new RegisterName(location, parseIdentifier(), rootRegister, registerIndex, getRegisterData(registerIndex, regNamespace)));
+				}
+
 				const int apiClassIndex = hiseSpecialData->apiIds.indexOf(id);
-				const int constIndex = getConstIndex(id, ns);
 				const int globalIndex = hiseSpecialData->globals->getProperties().indexOf(id);
 				const int externalCIndex = hiseSpecialData->getExternalCIndex(id);
 
-				if (obj != nullptr)
-				{
-					return parseSuffixes(parseInlineFunctionCall(obj));
-				}
-				else if (apiClassIndex != -1)
+				if (apiClassIndex != -1)
 				{
 					return parseSuffixes(parseApiExpression());
 				}
-				else if (constIndex != -1)
-				{
-					return parseSuffixes(parseConstExpression(ns));
-				}
+				
 				else if (externalCIndex != -1)
 				{
 					return parseSuffixes(parseExternalCFunctionCall());
 				}
-				else if (registerIndex != -1)
-				{
-					VarRegister* rootRegister = (ns != nullptr) ? &ns->varRegister : &hiseSpecialData->varRegister;
-
-					return parseSuffixes(new RegisterName(location, parseIdentifier(), rootRegister, registerIndex, getRegisterData(registerIndex, ns)));
-				}
+				
 				else if (globalIndex != -1)
 				{
 					return parseSuffixes(new GlobalReference(location, hiseSpecialData->globals, parseIdentifier()));
@@ -1544,12 +1603,7 @@ private:
 
 		if (matchIf(TokenTypes::new_))
 		{
-			ExpPtr name(new UnqualifiedName(location, parseIdentifier()));
-
-			while (matchIf(TokenTypes::dot))
-				name = new DotOperator(location, name, parseIdentifier());
-
-			return parseFunctionCall(new NewOperator(location), name);
+			return parseNewOperator();
 		}
 
 		throwError("Found " + getTokenName(currentType) + " when expecting an expression");
@@ -1589,6 +1643,45 @@ private:
 		if (matchIf(TokenTypes::typeof_))     return parseTypeof();
 
 		return parseFactor();
+	}
+
+	Expression* parseNewOperator()
+	{
+		ExpPtr nameExp = nullptr; 
+		
+		Identifier name = currentValue.toString();
+
+		JavascriptNamespace* ns = hiseSpecialData->getNamespace(name);
+
+		if (ns != nullptr)
+		{
+			match(TokenTypes::identifier);
+			match(TokenTypes::dot);
+			name = currentValue.toString();
+		}
+
+		if (JavascriptNamespace* constNamespace = getNamespaceForStorageType(JavascriptNamespace::StorageType::ConstVariable, ns, name))
+		{
+			nameExp = parseConstExpression(constNamespace);
+		}
+		else if (JavascriptNamespace* regNamespace = getNamespaceForStorageType(JavascriptNamespace::StorageType::Register, ns, name))
+		{
+			VarRegister* rootRegister = &regNamespace->varRegister;
+			const int registerIndex = rootRegister->getRegisterIndex(name);
+
+			nameExp = new RegisterName(location, parseIdentifier(), rootRegister, registerIndex, getRegisterData(registerIndex, regNamespace));
+		}
+		else
+		{
+			nameExp = new UnqualifiedName(location, parseIdentifier());
+		}
+
+		
+
+		while (matchIf(TokenTypes::dot))
+			nameExp = new DotOperator(location, nameExp, parseIdentifier());
+
+		return parseFunctionCall(new NewOperator(location), nameExp);
 	}
 
 	Expression* parseMultiplyDivide()
@@ -1726,6 +1819,7 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::preprocessCode(con
 			if (hiseSpecialData->getNamespace(namespaceId) == nullptr)
 			{
 				ScopedPointer<JavascriptNamespace> newNamespace = new JavascriptNamespace(namespaceId);
+				newNamespace->namespaceLocation = it.createDebugLocation();
 				cns = newNamespace;
 				hiseSpecialData->namespaces.add(newNamespace.release());
 				continue;
@@ -1809,12 +1903,7 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::preprocessCode(con
 
 			ids.add(newId);
 
-			DebugableObject::Location loc;
-
-			loc.fileName = it.location.externalFile;
-			loc.charNumber = it.location.location - it.location.program.getCharPointer();
-
-			cns->constLocations.add(loc);
+			cns->constLocations.add(it.createDebugLocation());
 
 			continue;
 		}

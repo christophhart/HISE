@@ -400,6 +400,14 @@ public:
 		struct JavascriptNamespace: public ReferenceCountedObject,
 									public DebugableObject
 		{
+			enum class StorageType
+			{
+				Register=0,
+				ConstVariable,
+				InlineFunction,
+				numStorageTypes
+			};
+
 			JavascriptNamespace(const Identifier &id_):
 				id(id_)
 			{}
@@ -407,6 +415,11 @@ public:
 			String getDebugDataType() const override { return "Namespace"; };
 			String getDebugName() const override { return id.toString(); };
 			String getDebugValue() const override { return id.toString(); };
+
+			void doubleClickCallback(const MouseEvent &, Component* e)
+			{
+				DebugableObject::Helpers::gotoLocation(e, namespaceLocation);
+			}
 
 			int getNumDebugObjects() const
 			{
@@ -424,6 +437,8 @@ public:
 
 			Array<DebugableObject::Location> registerLocations;
 			Array<DebugableObject::Location> constLocations;
+
+			DebugableObject::Location namespaceLocation;
 		};
 
 		struct HiseSpecialData: public JavascriptNamespace

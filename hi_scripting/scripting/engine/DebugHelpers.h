@@ -83,6 +83,8 @@ public:
 		}
 
 		static void gotoLocation(Component* ed, const Location& location);
+
+		
 	};
 
 };
