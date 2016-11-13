@@ -16,6 +16,7 @@ xcopy "xml\class_scripting_api_1_1_math.xml" "xml\selection"
 xcopy "xml\class_scripting_api_1_1_message.xml" "xml\selection"
 xcopy "xml\class_scripting_api_1_1_synth.xml" "xml\selection"
 xcopy "xml\class_scripting_api_1_1_sampler.xml" "xml\selection"
+xcopy "xml\struct_hise_javascript_engine_1_1_root_object_1_1_math_class.xml" "xml\selection"
 xcopy "xml\class_dsp_instance.xml" "xml\selection"
 
 xcopy "xml\class_scripting_objects_1_1_scripting_modulator.xml" "xml\selection"
@@ -44,7 +45,7 @@ ren "xml\selection\class_scripting_api_1_1_colours.xml" "Colours.xml"
 ren "xml\selection\class_scripting_api_1_1_console.xml" "Console.xml"
 ren "xml\selection\class_scripting_api_1_1_content.xml" "Content.xml"
 ren "xml\selection\class_scripting_api_1_1_engine.xml" "Engine.xml"
-ren "xml\selection\class_scripting_api_1_1_math.xml" "Math.xml"
+ren "xml\selection\struct_hise_javascript_engine_1_1_root_object_1_1_math_class.xml" "Math.xml"
 ren "xml\selection\class_scripting_api_1_1_message.xml" "Message.xml"
 ren "xml\selection\class_scripting_api_1_1_synth.xml" "Synth.xml"
 ren "xml\selection\class_scripting_api_1_1_sampler.xml" "Sampler.xml"
@@ -76,7 +77,7 @@ ApiExtractor.exe xml\selection xml\selection
 
 del xml\selection\*.xml /Q
 
-BinaryBuilder.exe xml\selection "..\..\hi_scripting\scripting\api" XmlApi
+ BinaryBuilder.exe xml\selection "..\..\hi_scripting\scripting\api" XmlApi
 
 del "xml\selection" /Q
 REM #rd "xml\selection"

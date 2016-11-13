@@ -32,6 +32,7 @@
 
 
 //==============================================================================
+/** The Math Object. */
 struct HiseJavascriptEngine::RootObject::MathClass : public ApiClass
 {
 	MathClass() :
@@ -70,6 +71,12 @@ struct HiseJavascriptEngine::RootObject::MathClass : public ApiClass
 
 		addConstant("PI", double_Pi);
 		addConstant("E", exp(1.0));
+		addConstant("SQRT2", sqrt(2.0));
+		addConstant("SQRT1_2", sqrt(0.5));
+		addConstant("LN2", log(2.0));  
+		addConstant("LN10", log(10.0));
+		addConstant("LOG2E", std::log2((double)exp(1.0)));
+		addConstant("LOG10E", log10(exp(1.0)));
 	}
 
 	Identifier getName() const override { static const Identifier i("Math"); return i; }

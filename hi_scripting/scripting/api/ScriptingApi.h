@@ -164,8 +164,10 @@ public:
 		/** Returns the fine detune amount int cents. */
 		int getFineDetune() const;
 
+		/** Sets the volume of the note (-100 = silence). */
 		void setGain(int gainInDecibels);
 
+		/** Returns the volume of the note. */
 		int getGain() const;
 
 		// ============================================================================================================
