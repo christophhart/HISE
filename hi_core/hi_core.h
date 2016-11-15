@@ -96,6 +96,12 @@ If set to 1, the compiled plugin will be a effect (stereo in / out). */
 #define FRONTEND_IS_PLUGIN 0
 #endif
 
+/** Config: USE_CUSTOM_FRONTEND_TOOLBAR
+
+If set to 1, you can specify a customized toolbar class which will be used instead of the default one. */
+#ifndef USE_CUSTOM_FRONTEND_TOOLBAR
+#define USE_CUSTOM_FRONTEND_TOOLBAR 0
+#endif
 
 /** Config: USE_GLITCH_DETECTION
 

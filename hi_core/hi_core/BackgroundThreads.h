@@ -397,6 +397,7 @@ public:
 			PluginCode,
 			EmbedAudioFiles,
 			AdditionalDspLibraries,
+			CustomToolbarClassName,
 			numAttributes
 		};
 

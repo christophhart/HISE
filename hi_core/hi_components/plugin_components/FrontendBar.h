@@ -34,8 +34,18 @@
 #define __FRONTENDBAR_H_INCLUDED
 
 
+class BaseFrontendBar : public Component
+{
+public:
+
+	static BaseFrontendBar* createFrontendBar(MainController* mc);
+};
+
+#define CREATE_FRONTEND_BAR(ClassName) BaseFrontendBar* BaseFrontendBar::createFrontendBar(MainController* mc) { return new ClassName(mc); }
+
+
 /** The bar that is displayed for every FrontendProcessorEditor */
-class FrontendBar  : public Component,
+class DefaultFrontendBar  : public BaseFrontendBar,
                      public Timer,
 					 public SliderListener,
 					 public SettableTooltipClient
@@ -44,8 +54,8 @@ public:
     
 	// ================================================================================================================
 
-    FrontendBar (MainController *p);
-    ~FrontendBar();
+    DefaultFrontendBar (MainController *p);
+    ~DefaultFrontendBar();
 
 	void sliderValueChanged(Slider* slider) override;
 
@@ -60,6 +70,11 @@ public:
     void resized();
 
 	bool isOverlaying() const { return overlaying; }
+
+	static BaseFrontendBar* createFrontendBar(MainController* mc)
+	{
+		return new DefaultFrontendBar(mc);
+	}
 
 private:
 
@@ -96,7 +111,7 @@ private:
 
 	ScopedPointer<VuMeter> outMeter;
 
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FrontendBar)
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DefaultFrontendBar)
 };
 
 

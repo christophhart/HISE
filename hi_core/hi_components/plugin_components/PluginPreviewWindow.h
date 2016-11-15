@@ -64,7 +64,7 @@ public:
 	private:
 
 		Component::SafePointer<BackendProcessorEditor> editor;
-		ScopedPointer<FrontendBar> frontendBar;
+		ScopedPointer<DefaultFrontendBar> frontendBar;
 		ScopedPointer<ScriptContentContainer> container;
 		ModulatorSynthChain *mainSynthChain;
 		ScopedPointer<CustomKeyboard> keyboard;

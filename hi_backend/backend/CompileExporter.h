@@ -92,6 +92,8 @@ private:
 
 	static ErrorCodes createIntrojucerFile(ModulatorSynthChain *chainToExport, bool createFX=false);
 
+	static void handleAdditionalSourceCode(ModulatorSynthChain * chainToExport, String &templateProject);
+
 	static ErrorCodes copyHISEImageFiles(ModulatorSynthChain *chainToExport);
 
 	static File getIntrojucerProjectFile(ModulatorSynthChain *chainToExport);

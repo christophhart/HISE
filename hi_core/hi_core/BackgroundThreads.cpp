@@ -507,6 +507,7 @@ String SettingWindows::ProjectSettingWindow::getAttributeNameForSetting(int attr
 	case SettingWindows::ProjectSettingWindow::Attributes::PluginCode:		 return "PluginCode";
 	case SettingWindows::ProjectSettingWindow::Attributes::EmbedAudioFiles:	 return "EmbedAudioFiles";
 	case SettingWindows::ProjectSettingWindow::Attributes::AdditionalDspLibraries:	return "AdditionalDspLibraries";
+	case SettingWindows::ProjectSettingWindow::Attributes::CustomToolbarClassName: return "CustomToolbarClassName";
 	case SettingWindows::ProjectSettingWindow::Attributes::numAttributes:
 	default: return "";
 	}
@@ -523,6 +524,7 @@ XmlElement * SettingWindows::ProjectSettingWindow::createNewSettingsFile() const
 	addChildElement(*xml, (int)Attributes::PluginCode, "", "a 4 character ID code(eg. 'Abcd')");
 	addChildElementWithOptions(*xml, (int)Attributes::EmbedAudioFiles, "No", "Embed Audio files in plugin", "Yes\nNo");
 	addChildElement(*xml, (int)ProjectSettingWindow::Attributes::AdditionalDspLibraries, "", "comma separated list of all static dsp factory classes");
+	addChildElement(*xml, (int)ProjectSettingWindow::Attributes::CustomToolbarClassName, "", "Class name for the custom toolbar (leave empty to use the default one");
 
 	return xml;
 }

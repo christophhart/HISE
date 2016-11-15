@@ -63,7 +63,7 @@ mainSynthChain(editor->getMainSynthChain())
 {
 
 	addAndMakeVisible(container = new ScriptContentContainer(mainSynthChain));
-	addAndMakeVisible(frontendBar = new FrontendBar(editor->getBackendProcessor()));
+	addAndMakeVisible(frontendBar = new DefaultFrontendBar(editor->getBackendProcessor()));
 
 	container->checkInterfaces();
 	container->setIsFrontendContainer(true);

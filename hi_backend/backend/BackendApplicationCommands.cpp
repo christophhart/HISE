@@ -1626,7 +1626,7 @@ void BackendCommandTarget::Actions::createDummyLicenceFile(BackendProcessorEdito
 
 void BackendCommandTarget::Actions::createDefaultToolbarJSON(BackendProcessorEditor * bpe)
 {
-	String json = FrontendBar::createJSONString(bpe->getBackendProcessor()->getToolbarPropertiesObject());
+	String json = DefaultFrontendBar::createJSONString(bpe->getBackendProcessor()->getToolbarPropertiesObject());
 
 	String clipboard = "var toolbarData = ";
 	

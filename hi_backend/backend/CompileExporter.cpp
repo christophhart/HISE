@@ -606,6 +606,8 @@ CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(Modulato
 	pluginDataHeaderFile << "}" << "\n";
 
 
+	
+
 	// Write the copy protection macros 
 
 	if (publicKey.isNotEmpty())
@@ -635,6 +637,11 @@ CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(Modulato
 		pluginDataHeaderFile << "\n";
 	}
 
+	String customToolbarName = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::CustomToolbarClassName, &GET_PROJECT_HANDLER(chainToExport));
+
+	if (customToolbarName.isEmpty()) customToolbarName = "DefaultFrontendBar";
+
+	pluginDataHeaderFile << "\nCREATE_FRONTEND_BAR(" + customToolbarName + ")\n\n";
 	
 	File pluginDataHeader = File(solutionDirectory).getChildFile("Source/Plugin.cpp");
 	
@@ -740,10 +747,7 @@ CompileExporter::ErrorCodes CompileExporter::createIntrojucerFile(ModulatorSynth
 		REPLACE_WILDCARD_WITH_STRING("%CHANNEL_CONFIG%", "{2, 2}");
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINISSYNTH%", "0");
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINWANTSMIDIIN", "0");
-
 		REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "enabled");
-
-		
 
 	}
 	else
@@ -751,9 +755,7 @@ CompileExporter::ErrorCodes CompileExporter::createIntrojucerFile(ModulatorSynth
 		REPLACE_WILDCARD_WITH_STRING("%CHANNEL_CONFIG%", "{0, 2}");
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINISSYNTH%", "1");
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINWANTSMIDIIN", "1");
-
 		REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "disabled");
-
 	}
 
 	REPLACE_WILDCARD("%COMPANY%", SettingWindows::UserSettingWindow::Attributes::Company);
@@ -765,40 +767,12 @@ CompileExporter::ErrorCodes CompileExporter::createIntrojucerFile(ModulatorSynth
 	REPLACE_WILDCARD("%VSTSDK_FOLDER%", SettingWindows::CompilerSettingWindow::Attributes::VSTSDKPath);
 	REPLACE_WILDCARD("%USE_IPP%", SettingWindows::CompilerSettingWindow::Attributes::IPPInclude);
 
-	Array<File> additionalSourceFiles;
+	handleAdditionalSourceCode(chainToExport, templateProject);
 
-	GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::AdditionalSourceCode).findChildFiles(additionalSourceFiles, File::findFiles, true);
+	const bool useCopyProtection = GET_PROJECT_HANDLER(chainToExport).getPublicKey().isNotEmpty();
 
-	if (additionalSourceFiles.size() != 0)
-	{
-		StringArray additionalFileDefinitions;
+	templateProject = templateProject.replace("%USE_COPY_PROTECTION%", useCopyProtection ? "enabled" : "disabled");
 
-		for (int i = 0; i < additionalSourceFiles.size(); i++)
-		{
-			if (additionalSourceFiles[i].getFileName().startsWith("_Tcc"))
-			{
-				// Will be included in the Factory .cpp source file
-				continue;
-			}
-
-			bool isSourceFile = additionalSourceFiles[i].hasFileExtension(".cpp");
-
-			const String relativePath = additionalSourceFiles[i].getRelativePathFrom(GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries));
-
-			String newLine;
-			newLine << "      <FILE id=\"" << FileHelpers::createAlphaNumericUID() << "\" name=\"" << additionalSourceFiles[i].getFileName() << "\" compile=\"" << (isSourceFile ? "1" : "0") << "\" resource=\"0\"\r\n";
-			newLine << "            file=\"" << relativePath << "\"/>\r\n";
-
-			additionalFileDefinitions.add(newLine);
-		}
-
-		templateProject = templateProject.replace("%ADDITIONAL_FILES%", additionalFileDefinitions.joinIntoString(""));
-	}
-
-    const bool useCopyProtection = GET_PROJECT_HANDLER(chainToExport).getPublicKey().isNotEmpty();
-    
-    templateProject = templateProject.replace("%USE_COPY_PROTECTION%", useCopyProtection ? "enabled" : "disabled");
-    
 #if JUCE_MAC
     
     REPLACE_WILDCARD("%IPP_COMPILER_FLAGS%", SettingWindows::CompilerSettingWindow::Attributes::IPPLinker);
@@ -830,6 +804,57 @@ CompileExporter::ErrorCodes CompileExporter::createIntrojucerFile(ModulatorSynth
 	}
     
     return ErrorCodes::OK;
+}
+
+void CompileExporter::handleAdditionalSourceCode(ModulatorSynthChain * chainToExport, String &templateProject)
+{
+	Array<File> additionalSourceFiles;
+
+	File additionalSourceCodeDirectory = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::AdditionalSourceCode);
+
+	File additionalMainHeaderFile = additionalSourceCodeDirectory.getChildFile("AdditionalSourceCode.h");
+
+	if (additionalMainHeaderFile.existsAsFile())
+	{
+		additionalSourceFiles.add(additionalMainHeaderFile);
+	}
+
+	
+	//additionalSourceCodeDirectory.findChildFiles(additionalSourceFiles, File::findFiles, true);
+
+	if (additionalSourceFiles.size() != 0)
+	{
+		StringArray additionalFileDefinitions;
+
+		for (int i = 0; i < additionalSourceFiles.size(); i++)
+		{
+			if (additionalSourceFiles[i].getFileName().startsWith("_Tcc"))
+			{
+				// Will be included in the Factory .cpp source file
+				continue;
+			}
+
+			bool isSourceFile = additionalSourceFiles[i].hasFileExtension(".cpp");
+
+			const String relativePath = additionalSourceFiles[i].getRelativePathFrom(GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries));
+
+			String newLine;
+			newLine << "      <FILE id=\"" << FileHelpers::createAlphaNumericUID() << "\" name=\"" << additionalSourceFiles[i].getFileName() << "\" compile=\"" << (isSourceFile ? "1" : "0") << "\" resource=\"0\"\r\n";
+			newLine << "            file=\"" << relativePath << "\"/>\r\n";
+
+			additionalFileDefinitions.add(newLine);
+		}
+
+		templateProject = templateProject.replace("%ADDITIONAL_FILES%", additionalFileDefinitions.joinIntoString(""));
+
+		if (additionalMainHeaderFile.existsAsFile())
+		{
+			const String customToolbarName = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::CustomToolbarClassName, &GET_PROJECT_HANDLER(chainToExport));
+
+			templateProject = templateProject.replace("%USE_CUSTOM_FRONTEND_TOOLBAR%", customToolbarName.isNotEmpty() ? "enabled" : "disabled");
+		}
+	}
+
 }
 
 CompileExporter::ErrorCodes CompileExporter::copyHISEImageFiles(ModulatorSynthChain *chainToExport)

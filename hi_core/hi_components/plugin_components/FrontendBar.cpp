@@ -31,7 +31,7 @@
 */
 
 
-FrontendBar::FrontendBar(MainController *mc_) : mc(mc_),
+DefaultFrontendBar::DefaultFrontendBar(MainController *mc_) : mc(mc_),
 												height(32),
 												overlaying(false)
 {
@@ -140,7 +140,7 @@ FrontendBar::FrontendBar(MainController *mc_) : mc(mc_),
 	START_TIMER();
 }
 
-FrontendBar::~FrontendBar()
+DefaultFrontendBar::~DefaultFrontendBar()
 {
 	
 	presetSelector = nullptr;
@@ -151,7 +151,7 @@ FrontendBar::~FrontendBar()
 }
 
 
-void FrontendBar::paint (Graphics& g)
+void DefaultFrontendBar::paint (Graphics& g)
 {
 	if (!isOverlaying())
 	{
@@ -162,7 +162,7 @@ void FrontendBar::paint (Graphics& g)
 	}
 }
 
-void FrontendBar::resized()
+void DefaultFrontendBar::resized()
 {
 	int leftX = 0;
 	const int spaceX = 6;
@@ -219,7 +219,7 @@ void FrontendBar::resized()
 }
 
 
-void FrontendBar::sliderValueChanged(Slider* slider)
+void DefaultFrontendBar::sliderValueChanged(Slider* slider)
 {
 	if (slider == volumeSlider)
 	{
@@ -241,7 +241,7 @@ void FrontendBar::sliderValueChanged(Slider* slider)
 	tooltipBar->repaint();
 }
 
-void FrontendBar::timerCallback()
+void DefaultFrontendBar::timerCallback()
 {
 	const float l = mc->getMainSynthChain()->getDisplayValues().outL;
 	const float r = mc->getMainSynthChain()->getDisplayValues().outR;
@@ -255,7 +255,7 @@ void FrontendBar::timerCallback()
 	}
 }
 
-void FrontendBar::setProperties(DynamicObject *p)
+void DefaultFrontendBar::setProperties(DynamicObject *p)
 {
 	const NamedValueSet *set = &p->getProperties();
 
@@ -297,7 +297,7 @@ void FrontendBar::setProperties(DynamicObject *p)
 	resized();
 }
 
-const Image * FrontendBar::getFilmStripImageFromString(const String &fileReference) const
+const Image * DefaultFrontendBar::getFilmStripImageFromString(const String &fileReference) const
 {
 #if USE_FRONTEND
 
@@ -314,7 +314,7 @@ const Image * FrontendBar::getFilmStripImageFromString(const String &fileReferen
 	return image;
 }
 
-DynamicObject * FrontendBar::createDefaultProperties()
+DynamicObject * DefaultFrontendBar::createDefaultProperties()
 {
 	DynamicObject *properties = new DynamicObject();
 
@@ -334,7 +334,8 @@ DynamicObject * FrontendBar::createDefaultProperties()
 	return properties;
 }
 
-String FrontendBar::createJSONString(DynamicObject *p/*=nullptr*/)
+String DefaultFrontendBar::createJSONString(DynamicObject *p/*=nullptr*/)
 {
 	return JSON::toString((p == nullptr ? createDefaultProperties() : p), false);
 }
+
