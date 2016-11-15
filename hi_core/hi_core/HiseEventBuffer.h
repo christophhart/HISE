@@ -33,6 +33,7 @@
 #ifndef HISEEVENTBUFFER_H_INCLUDED
 #define HISEEVENTBUFFER_H_INCLUDED
 
+
 /** This is a replacement of the standard midi message with more data. */
 class HiseEvent
 {
@@ -240,6 +241,49 @@ public:
 	{
 		memset(eventToClear, 0, sizeof(HiseEvent) * numEvents);
 	}
+
+	struct ChannelFilterData
+	{
+		ChannelFilterData():
+			enableAllChannels(true)
+		{
+			for (int i = 0; i < 16; i++) activeChannels[i] = false;
+		}
+
+		void restoreFromData(int data)
+		{
+			BigInteger d(data);
+
+			enableAllChannels = d[0];
+			for (int i = 0; i < 16; i++) activeChannels[i] = d[i + 1];
+		}
+		
+		int exportData() const
+		{
+			BigInteger d;
+
+			d.setBit(0, enableAllChannels);
+			for (int i = 0; i < 16; i++) d.setBit(i + 1, activeChannels[i]);
+
+			return d.toInteger();
+		}
+
+		void setEnableAllChannels(bool shouldBeEnabled) noexcept { enableAllChannels = shouldBeEnabled; }
+		bool areAllChannelsEnabled() const noexcept { return enableAllChannels; }
+
+		void setEnableMidiChannel(int channelIndex, bool shouldBeEnabled) noexcept
+		{
+			activeChannels[channelIndex] = shouldBeEnabled;
+		}
+
+		bool isChannelEnabled(int channelIndex) const noexcept
+		{
+			return activeChannels[channelIndex];
+		}
+
+		bool activeChannels[16];
+		bool enableAllChannels;
+	};
 
 private:
 

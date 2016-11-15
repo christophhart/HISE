@@ -72,6 +72,8 @@ public:
 
 		synthChain->saveInterfaceValues(v);
 		
+		v.setProperty("MidiChannelFilterData", getMainSynthChain()->getActiveChannelData()->exportData(), nullptr);
+
 		v.setProperty("Program", currentlyLoadedProgram, nullptr);
 
 		v.writeToStream(output);
@@ -88,7 +90,9 @@ public:
 
 			getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(v.getChildWithName("MidiAutomation"));
 
-			//synthChain->loadMacroValuesFromValueTree(v);
+			const int channelData = v.getProperty("MidiChannelFilterData", -1);
+			if (channelData != -1) synthChain->getActiveChannelData()->restoreFromData(channelData);
+			
 
 			synthChain->restoreInterfaceValues(v.getChildWithName("InterfaceData"));
 		}
@@ -165,7 +169,7 @@ private:
 	void addScriptedParameters();
 
 	friend class FrontendProcessorEditor;
-	friend class FrontendBar;
+	friend class DefaultFrontendBar;
 
 	bool samplesCorrectlyLoaded;
 

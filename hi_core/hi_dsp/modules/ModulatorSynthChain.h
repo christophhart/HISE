@@ -216,6 +216,8 @@ public:
         {
             v.setProperty("packageName", packageName, nullptr);
             
+			
+
 #if USE_BACKEND
             ViewManager::saveViewsToValueTree(v);
 #endif
@@ -356,7 +358,16 @@ public:
 
 	void restoreInterfaceValues(const ValueTree &v);
 
+	void setActiveChannels(const HiseEvent::ChannelFilterData& newActiveChannels)
+	{
+		activeChannels = newActiveChannels;
+	}
+
+	HiseEvent::ChannelFilterData* getActiveChannelData() { return &activeChannels; }
+
 private:
+
+	HiseEvent::ChannelFilterData activeChannels;
 
 	ModulatorSynthChainHandler handler;
 

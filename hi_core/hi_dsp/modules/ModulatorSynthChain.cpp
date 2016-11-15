@@ -93,11 +93,23 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 {
 	if (isBypassed()) return;
 
-
-
 	ADD_GLITCH_DETECTOR(getId() + " rendering");
 
 	ScopedLock sl(getSynthLock());
+
+	if (!activeChannels.areAllChannelsEnabled() && getMainController()->getMainSynthChain() == this)
+	{
+		HiseEventBuffer::Iterator it(inputMidiBuffer);
+
+		while (HiseEvent* e = it.getNextEventPointer())
+		{
+			const int channelIndex = e->getChannel() - 1;
+			const bool ignoreThisEvent = !activeChannels.isChannelEnabled(channelIndex);
+
+			if (ignoreThisEvent)
+				e->ignoreEvent(true);
+		}
+	}
 
 	const int numSamples = buffer.getNumSamples();
 
@@ -200,6 +212,8 @@ void ModulatorSynthChain::reset()
 void ModulatorSynthChain::saveInterfaceValues(ValueTree &v)
 {
 	ValueTree interfaceData("InterfaceData");
+
+	
 
 	for (int i = 0; i < midiProcessorChain->getNumChildProcessors(); i++)
 	{

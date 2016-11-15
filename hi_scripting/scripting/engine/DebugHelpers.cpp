@@ -93,6 +93,7 @@ String DebugInformation::toString()
 
 void DebugableObject::Helpers::gotoLocation(Component* ed, const Location& location)
 {
+#if USE_BACKEND
 	ScriptingEditor* editor = dynamic_cast<ScriptingEditor*>(ed);
 
 	JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(editor->getProcessor());
@@ -114,5 +115,6 @@ void DebugableObject::Helpers::gotoLocation(Component* ed, const Location& locat
 		editor->showOnInitCallback();
 		editor->gotoChar(location.charNumber);
 	}
+#endif
 }
 

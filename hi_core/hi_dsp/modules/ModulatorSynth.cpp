@@ -99,6 +99,7 @@ void ModulatorSynth::processHiseEventBuffer(const HiseEventBuffer &inputBuffer, 
 {
 	eventBuffer.copyFrom(inputBuffer);
 
+
 	if (getMainController()->getMainSynthChain() == this)
 	{
 		handleHostInfoHiseEvents();

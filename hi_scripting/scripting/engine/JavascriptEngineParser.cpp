@@ -568,7 +568,7 @@ private:
 		{
 			Identifier name = preparser->currentValue.toString();
 
-			ns->varRegister.addRegister(name, var::undefined);
+			ns->varRegister.addRegister(name, var::undefined());
 
 			const int index = ns->varRegister.getRegisterIndex(name);
 
