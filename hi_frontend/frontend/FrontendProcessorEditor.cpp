@@ -44,7 +44,7 @@ AudioProcessorEditor(fp)
 
 #if INCLUDE_BAR
 
-	addAndMakeVisible(mainBar = new FrontendBar(fp));
+	addAndMakeVisible(mainBar = BaseFrontendBar::createFrontendBar(fp));
 
 #endif
 

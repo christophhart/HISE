@@ -128,7 +128,20 @@ void DynamicDspFactory::openDynamicLibrary()
 {
 #if JUCE_WINDOWS
 
+#if USE_BACKEND
+	
 	const File path = File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("Hart Instruments/dll/");
+#else
+
+	const File path = ProjectHandler::Frontend::getAppDataDirectory().getChildFile("dll/");
+
+	if (!path.isDirectory())
+	{
+		errorCode = (int)LoadingErrorCode::MissingLibrary;
+		return;
+	}
+
+#endif
 
 #if JUCE_32BIT
 	const String libraryName = name + "_x86.dll";

@@ -242,11 +242,11 @@ public:
 
 private:
 
-	friend class FrontendBar;
+	friend class BaseFrontendBar;
 
 	ScopedPointer<ScriptContentContainer> interfaceComponent;
 
-	ScopedPointer<FrontendBar> mainBar;
+	ScopedPointer<BaseFrontendBar> mainBar;
 
 	ScopedPointer<CustomKeyboard> keyboard;
 
