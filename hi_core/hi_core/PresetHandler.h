@@ -427,7 +427,7 @@ class UserPresetHandler
 {
 public:
     
-    static void saveUserPreset(ModulatorSynthChain *chain);
+    static void saveUserPreset(ModulatorSynthChain *chain, const String& targetFile=String::empty);
     
     static void loadUserPreset(ModulatorSynthChain *chain, const File &fileToLoad);
 

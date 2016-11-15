@@ -307,7 +307,7 @@ void UserPresetData::refreshPresetFileList()
 
 
 
-void UserPresetHandler::saveUserPreset(ModulatorSynthChain *chain)
+void UserPresetHandler::saveUserPreset(ModulatorSynthChain *chain, const String& targetFile/*=String::empty*/)
 {
 #if USE_BACKEND
 
@@ -321,13 +321,29 @@ void UserPresetHandler::saveUserPreset(ModulatorSynthChain *chain)
 
 #endif
 
-    String name = PresetHandler::getCustomName("User Preset");
-        
-    if(name.isNotEmpty())
-    {
-        File presetFile = userPresetDir.getChildFile(name + ".preset");
-            
-        if(!presetFile.existsAsFile() || PresetHandler::showYesNoWindow("Confirm overwrite", "Do you want to overwrite the preset " + name + "?"))
+	File presetFile;
+	bool doit = false;
+
+
+	if (targetFile.isNotEmpty())
+	{
+		presetFile = File(targetFile);
+		doit = true;
+	}
+	else
+	{
+		String name = PresetHandler::getCustomName("User Preset");
+
+		if (name.isNotEmpty())
+		{
+			File presetFile = userPresetDir.getChildFile(name + ".preset");
+			doit = true;
+		}
+	}
+
+	if (doit)
+    {       
+        if(!presetFile.existsAsFile() || PresetHandler::showYesNoWindow("Confirm overwrite", "Do you want to overwrite the preset?"))
         {
 			presetFile.deleteFile();
 
@@ -341,12 +357,8 @@ void UserPresetHandler::saveUserPreset(ModulatorSynthChain *chain)
                     
                 sp->getScriptingContent()->storeAllControlsAsPreset(presetFile.getFullPathName(), autoData);
             }
-
-			
         }
     }
-
-	
 }
 
 void UserPresetHandler::loadUserPreset(ModulatorSynthChain *chain, const File &fileToLoad)
