@@ -77,7 +77,7 @@ AudioProcessorEditor(fp)
 	loaderOverlay->setDialog(nullptr);
 	fp->setOverlay(loaderOverlay);
 
-    overlayToolbar = fp->getToolbarPropertiesObject()->getProperty("overlaying");
+    overlayToolbar = dynamic_cast<DefaultFrontendBar*>(mainBar.get()) != nullptr && fp->getToolbarPropertiesObject()->getProperty("overlaying");
     
     setSize(interfaceComponent->getContentWidth(), ((mainBar != nullptr && !overlayToolbar) ? mainBar->getHeight() : 0) + interfaceComponent->getContentHeight() + (showKeyboard ? 72 : 0));
 

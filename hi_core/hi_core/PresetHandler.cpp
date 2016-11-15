@@ -364,13 +364,16 @@ void UserPresetHandler::saveUserPreset(ModulatorSynthChain *chain, const String&
 void UserPresetHandler::loadUserPreset(ModulatorSynthChain *chain, const File &fileToLoad)
 {
 	ScopedPointer<XmlElement> xml = XmlDocument::parse(fileToLoad);
-	ValueTree parent = ValueTree::fromXml(*xml);
-
-	if (parent.isValid())
-	{
-		loadUserPreset(chain, parent);
-	}
-
+    
+    if(xml != nullptr)
+    {
+        ValueTree parent = ValueTree::fromXml(*xml);
+        
+        if (parent.isValid())
+        {
+            loadUserPreset(chain, parent);
+        }
+    }
 }
 
 void UserPresetHandler::loadUserPreset(ModulatorSynthChain* chain, const ValueTree &parent)

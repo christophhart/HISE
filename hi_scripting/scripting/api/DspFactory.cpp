@@ -150,7 +150,24 @@ void DynamicDspFactory::openDynamicLibrary()
 #endif
 
 #else
+    
+    
+#if USE_BACKEND
+    
 	const File path = File::getSpecialLocation(File::SpecialLocationType::commonApplicationDataDirectory).getChildFile("Application Support/Hart Instruments/lib");
+    
+#else
+    
+    const File path = ProjectHandler::Frontend::getAppDataDirectory().getChildFile("lib/");
+    
+    if (!path.isDirectory())
+    {
+        errorCode = (int)LoadingErrorCode::MissingLibrary;
+        return;
+    }
+    
+#endif
+    
 	const String libraryName = name + ".dylib";
 #endif
 
