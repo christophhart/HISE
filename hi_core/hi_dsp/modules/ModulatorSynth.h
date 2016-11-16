@@ -201,7 +201,9 @@ public:
 
 		synthTimerInterval = interval;
 
-		if(interval != 0.0) nextTimerCallbackTime = getMainController()->getUptime() + synthTimerInterval;
+		const double thisUptime = getMainController()->getUptime();
+
+		if (interval != 0.0) nextTimerCallbackTime = thisUptime + synthTimerInterval;
 	};
 
 	virtual void stopSynthTimer()
@@ -576,7 +578,10 @@ protected:
 
 	bool checkTimerCallback() const noexcept
 	{
-		return nextTimerCallbackTime != 0.0 && getMainController()->getUptime() > nextTimerCallbackTime;
+		const double thisUptime = getMainController()->getUptime();
+
+
+		return nextTimerCallbackTime != 0.0 && (thisUptime > nextTimerCallbackTime);
 	};
 	
 	// Used to display the playing position

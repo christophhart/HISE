@@ -307,7 +307,9 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 	ScriptingApi::Content* content = thisAsScriptBaseProcessor->getScriptingContent();
 
-	if (lastCompileWasOK && content != nullptr) thisAsScriptBaseProcessor->restoredContentValues = content->exportAsValueTree();
+	const bool saveThisContent = lastCompileWasOK && content != nullptr && !useStoredContentData;
+
+	if (saveThisContent) thisAsScriptBaseProcessor->restoredContentValues = content->exportAsValueTree();
 
 	ScopedLock callbackLock(mainController->getLock());
 	ScopedWriteLock sl(mainController->getCompileLock());
@@ -354,6 +356,8 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 	scriptEngine->rebuildDebugInformation();
 
 	content->restoreAllControlsFromPreset(thisAsScriptBaseProcessor->restoredContentValues);
+
+	useStoredContentData = false; // From now on it's normal;
 
 	content->endInitialization();
 
@@ -468,7 +472,12 @@ void JavascriptProcessor::restoreScript(const ValueTree &v)
 
 	if (Processor* parent = ProcessorHelpers::findParentProcessor(dynamic_cast<Processor*>(this), true))
 	{
-		if (!parent->getMainController()->shouldSkipCompiling())
+		if (parent->getMainController()->shouldSkipCompiling())
+		{
+			dynamic_cast<ProcessorWithScriptingContent*>(this)->restoredContentValues = v.getChildWithName("Content");
+			useStoredContentData = true;
+		}
+		else
 		{
 			compileScript();
 		}

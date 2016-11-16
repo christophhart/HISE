@@ -403,6 +403,7 @@ protected:
 	MainController* mainController;
 
 	bool lastCompileWasOK;
+	bool useStoredContentData = false;
 };
 
 
