@@ -82,9 +82,6 @@ void ModulatorSynthChain::compileAllScripts()
 		while ((sp = it.getNextProcessor()) != 0)
 		{
 			sp->compileScript();
-            
-            //ValueTree v = dynamic_cast<Processor*>(sp)->exportAsValueTree();
-			//dynamic_cast<Processor*>(sp)->restoreFromValueTree(v);
 		}
 	}
 }

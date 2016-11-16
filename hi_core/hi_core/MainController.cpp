@@ -220,6 +220,7 @@ void MainController::loadPreset(ValueTree &v, Component* /*mainEditor*/)
 
 		skipCompilingAtPresetLoad = true;
 
+
 		synthChain->restoreFromValueTree(v);
 
 		skipCompilingAtPresetLoad = false;

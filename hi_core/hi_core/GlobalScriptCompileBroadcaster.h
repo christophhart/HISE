@@ -65,7 +65,7 @@ class GlobalScriptCompileBroadcaster
 public:
 
 	GlobalScriptCompileBroadcaster() :
-		timeOut(2.0),
+		timeOut(5.0),
 		useBackgroundCompiling(false),
 		enableGlobalRecompile(true)
 	{
