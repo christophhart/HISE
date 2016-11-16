@@ -228,7 +228,8 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 		hiseSpecialData = &data;
 		currentNamespace = hiseSpecialData;
 		
-		preprocessCode(codeToPreprocess);
+		if(codeToPreprocess.isNotEmpty())
+			preprocessCode(codeToPreprocess);
 	}
 
 	void preprocessCode(const String& codeToPreprocess, const String& externalFileName="");
