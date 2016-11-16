@@ -494,7 +494,7 @@ void ScriptCreatedComponentWrappers::ImageWrapper::updateComponent()
 		const bool allowCallbacks = ic->getCallbackLevel() != MouseCallbackComponent::CallbackLevel::NoCallbacks;
 		const bool showPopupMenu = sa.size() != 0;
 
-        ic->setInterceptsMouseClicks(allowCallbacks || showPopupMenu, false);
+        ic->setInterceptsMouseClicks(true, false);
         
 		ic->setPopupMenuItems(si->getItemList());
 		ic->setUseRightClickForPopup(si->getScriptObjectProperty(ScriptingApi::Content::ScriptImage::PopupOnRightClick));
