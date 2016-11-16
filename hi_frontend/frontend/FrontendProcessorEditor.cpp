@@ -85,6 +85,15 @@ AudioProcessorEditor(fp)
 
 }
 
+FrontendProcessorEditor::~FrontendProcessorEditor()
+{
+	mainBar = nullptr;
+	interfaceComponent = nullptr;
+	keyboard = nullptr;
+	aboutPage = nullptr;
+	loaderOverlay = nullptr;
+}
+
 void FrontendProcessorEditor::resized()
 {
 	int y = 0;

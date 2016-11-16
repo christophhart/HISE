@@ -75,6 +75,10 @@
  //#define FRONTEND_IS_PLUGIN
 #endif
 
+#ifndef    USE_CUSTOM_FRONTEND_TOOLBAR
+ //#define USE_CUSTOM_FRONTEND_TOOLBAR
+#endif
+
 #ifndef    USE_GLITCH_DETECTION
  #define   USE_GLITCH_DETECTION 1
 #endif

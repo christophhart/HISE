@@ -36,45 +36,6 @@
 
 class BackendProcessor;
 
-class AudioDeviceDialog: public Component,
-						 public ButtonListener
-{
-public:
-
-	AudioDeviceDialog(BackendProcessor *ownerProcessor_);
-
-	void resized() override
-	{
-		selector->setBounds(0, 0, getWidth(), getHeight() - 36);
-		cancelButton->setBounds(getWidth() - 100, getHeight() - 36, 80, 32);
-		applyAndCloseButton->setBounds(20, getHeight() - 36, 200, 32);
-	}
-
-	void buttonClicked(Button *b);
-
-	void paint(Graphics &g) override
-	{
-		g.fillAll(Colour(0xFF444444));
-	}
-
-	~AudioDeviceDialog();
-
-
-private:
-
-	ScopedPointer<AudioDeviceSelectorComponent> selector;
-
-	ScopedPointer<TextButton> applyAndCloseButton;
-	ScopedPointer<TextButton> cancelButton;
-
-	BackendProcessor *ownerProcessor;
-
-	HiPropertyPanelLookAndFeel pplaf;
-	AlertWindowLookAndFeel alaf;
-
-};
-
-
 
 /** This is the main audio processor for the backend application. 
 *
@@ -84,6 +45,7 @@ private:
 *	It also acts as global MainController to allow every child object to get / set certain global information
 */
 class BackendProcessor: public PluginParameterAudioProcessor,
+					    public AudioProcessorDriver,
 						public MainController
 {
 public:
@@ -117,30 +79,6 @@ public:
 			}
 			
 		}
-	}
-
-	static XmlElement *getSettings()
-	{
-#if JUCE_WINDOWS
-
-		String parentDirectory = File::getSpecialLocation(File::SpecialLocationType::userApplicationDataDirectory).getFullPathName() + "/Hart Instruments";
-
-#else
-
-
-#if HISE_IOS        
-        String parentDirectory = File::getSpecialLocation(File::SpecialLocationType::userApplicationDataDirectory).getFullPathName();
-#else
-        
-        String parentDirectory = File::getSpecialLocation(File::SpecialLocationType::currentExecutableFile).getParentDirectory().getFullPathName();
-#endif
-      
-
-#endif
-
-		File savedDeviceData = File(parentDirectory + "/DeviceSettings.xml");
-
-		return XmlDocument::parse(savedDeviceData);
 	}
 
 	
@@ -193,16 +131,6 @@ public:
 
 	void handleControllersForMacroKnobs(const MidiBuffer &midiMessages);
 
-	void initialiseAudioDriver(XmlElement *deviceData)
-	{
-		if (deviceData != nullptr && deviceManager->initialise(0, 2, deviceData, false) == String::empty)
-		{
-			callback->setProcessor(this);
-
-			deviceManager->addAudioCallback(callback);
-			deviceManager->addMidiInputCallback(String::empty, callback);
-		}
-	}
  
 	AudioProcessorEditor* createEditor();
 	bool hasEditor() const {return true;};
@@ -254,19 +182,15 @@ public:
 	void setEditorState(ValueTree &editorState);
 private:
 
-	friend class AudioDeviceDialog;
+	
 	friend class BackendProcessorEditor;
 	friend class BackendCommandTarget;
 	friend class CombinedDebugArea;
 
 	ScopedPointer<ModulatorSynthChain> synthChain;
 
-	AudioDeviceManager *deviceManager;
-	AudioProcessorPlayer *callback;
 	
 	ScopedPointer<UndoManager> viewUndoManager;
-
-	
 
 	ValueTree editorInformation;
 

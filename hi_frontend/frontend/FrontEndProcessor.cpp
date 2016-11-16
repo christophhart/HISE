@@ -73,8 +73,9 @@ void FrontendProcessor::handleControllersForMacroKnobs(const MidiBuffer &midiMes
 
 }
 
-FrontendProcessor::FrontendProcessor(ValueTree &synthData, ValueTree *imageData_/*=nullptr*/, ValueTree *impulseData/*=nullptr*/, ValueTree *externalFiles/*=nullptr*/, ValueTree *userPresets) :
+FrontendProcessor::FrontendProcessor(ValueTree &synthData, AudioDeviceManager* manager, AudioProcessorPlayer* callback_, ValueTree *imageData_/*=nullptr*/, ValueTree *impulseData/*=nullptr*/, ValueTree *externalFiles/*=nullptr*/, ValueTree *userPresets) :
 MainController(),
+AudioProcessorDriver(manager, callback_),
 synthChain(new ModulatorSynthChain(this, "Master Chain", NUM_POLYPHONIC_VOICES)),
 samplesCorrectlyLoaded(true),
 keyFileCorrectlyLoaded(true),
@@ -221,4 +222,15 @@ void FrontendProcessor::setScriptedPluginParameter(Identifier id, float newValue
 			}
 		}
 	}
+}
+
+
+const String FrontendStandaloneApplication::getApplicationName()
+{
+	return ProjectInfo::projectName;
+}
+
+const String FrontendStandaloneApplication::getApplicationVersion()
+{
+	return ProjectInfo::versionString;
 }

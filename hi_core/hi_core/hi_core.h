@@ -81,6 +81,6 @@ namespace juce
 #include "JavascriptTokeniserFunctions.h"
 #include "MacroControlledComponents.h"
 #include "MacroControlBroadcaster.h"
-
+#include "StandaloneProcessor.h"
 
 #endif  // HI_CORE_H_INCLUDED

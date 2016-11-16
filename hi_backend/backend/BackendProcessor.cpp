@@ -30,79 +30,9 @@
 *   ===========================================================================
 */
 
-AudioDeviceDialog::AudioDeviceDialog(BackendProcessor *ownerProcessor_) :
-ownerProcessor(ownerProcessor_)
-{
-	setOpaque(true);
-
-	selector = new AudioDeviceSelectorComponent(*ownerProcessor->deviceManager, 0, 0, 2, 2, true, false, true, false);
-
-	setLookAndFeel(&alaf);
-
-	selector->setLookAndFeel(&pplaf);
-
-	addAndMakeVisible(cancelButton = new TextButton("Cancel"));
-	addAndMakeVisible(applyAndCloseButton = new TextButton("Apply changes & close window"));
-
-	cancelButton->addListener(this);
-	applyAndCloseButton->addListener(this);
-
-	addAndMakeVisible(selector);
-}
-
-
-void AudioDeviceDialog::buttonClicked(Button *b)
-{
-	if (b == applyAndCloseButton)
-	{
-		ScopedPointer<XmlElement> deviceData = ownerProcessor->deviceManager->createStateXml();
-
-		if (deviceData != nullptr)
-		{
-			
-
-#if JUCE_WINDOWS
-			String parentDirectory = File::getSpecialLocation(File::SpecialLocationType::userApplicationDataDirectory).getFullPathName() + "/Hart Instruments";
-
-			File parent(parentDirectory);
-
-			if (!parent.isDirectory())
-			{
-				parent.createDirectory();
-			}
-
-#else
-            
-#if HISE_IOS
-    
-            String parentDirectory = File::getSpecialLocation(File::SpecialLocationType::userApplicationDataDirectory).getFullPathName();
-#else
-            
-			String parentDirectory = File::getSpecialLocation(File::SpecialLocationType::currentExecutableFile).getParentDirectory().getFullPathName();
-#endif
-#endif
-
-
-			File savedDeviceData = File(parentDirectory + "/DeviceSettings.xml");
-
-			deviceData->writeToFile(savedDeviceData, "");
-		}
-
-		ownerProcessor->initialiseAudioDriver(deviceData);
-	}
-
-	dynamic_cast<BackendProcessorEditor*>(getParentComponent())->showSettingsWindow();
-}
-
-AudioDeviceDialog::~AudioDeviceDialog()
-{
-	
-}
-
 BackendProcessor::BackendProcessor(AudioDeviceManager *deviceManager_/*=nullptr*/, AudioProcessorPlayer *callback_/*=nullptr*/) :
 MainController(),
-deviceManager(deviceManager_),
-callback(callback_),
+AudioProcessorDriver(deviceManager_, callback_),
 viewUndoManager(new UndoManager()),
 synthChain(nullptr)
 {

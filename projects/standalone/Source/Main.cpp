@@ -17,6 +17,12 @@ REGISTER_STATIC_DSP_LIBRARIES()
 	REGISTER_STATIC_DSP_FACTORY(HiseCoreDspFactory);
 }
 
+AudioProcessor* StandaloneProcessor::createProcessor()
+{
+	return new BackendProcessor(deviceManager, callback);
+}
+
+
 //==============================================================================
 class HISEStandaloneApplication  : public JUCEApplication
 {

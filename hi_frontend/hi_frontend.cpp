@@ -37,7 +37,9 @@
 #include "frontend/FrontEndProcessor.cpp"
 #include "frontend/FrontendProcessorEditor.cpp"
 
+#if 0
 AudioProcessor* createPlugin(ValueTree &presetData, ValueTree &imageData, ValueTree &externalScripts, ValueTree &userPresets)
 {
 	return new FrontendProcessor(presetData, &imageData, nullptr, &externalScripts, &userPresets);
 }
+#endif

@@ -38,6 +38,8 @@ class BaseFrontendBar : public Component
 {
 public:
 
+	virtual ~BaseFrontendBar() {};
+
 	static BaseFrontendBar* createFrontendBar(MainController* mc);
 };
 

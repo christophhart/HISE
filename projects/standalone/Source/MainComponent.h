@@ -10,7 +10,7 @@
 #define MAINCOMPONENT_H_INCLUDED
 
 #include "../JuceLibraryCode/JuceHeader.h"
-#include "StandaloneProcessor.h"
+
 
 //==============================================================================
 /*
@@ -29,7 +29,7 @@ public:
 
 private:
 
-	ScopedPointer<BackendProcessorEditor> editor;
+	ScopedPointer<AudioProcessorEditor> editor;
 	ScopedPointer<StandaloneProcessor> standaloneProcessor;
 
 	OpenGLContext open;

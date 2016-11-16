@@ -214,6 +214,8 @@ public:
 
 	FrontendProcessorEditor(FrontendProcessor *fp);;
 
+	~FrontendProcessorEditor();
+
 	void timerCallback()
 	{
 #if USE_COPY_PROTECTION

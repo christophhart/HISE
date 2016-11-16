@@ -30,10 +30,6 @@
       <FILE id="R0Hdz6" name="knobUnmodulated_200.png" compile="0" resource="1"
             file="../../hi_core/hi_images/knobUnmodulated_200.png"/>
       <FILE id="hSh2fs" name="toggle_200.png" compile="0" resource="1" file="../../hi_core/hi_images/toggle_200.png"/>
-      <FILE id="phFU1O" name="StandaloneProcessor.cpp" compile="1" resource="0"
-            file="Source/StandaloneProcessor.cpp"/>
-      <FILE id="p0QcSN" name="StandaloneProcessor.h" compile="0" resource="0"
-            file="Source/StandaloneProcessor.h"/>
       <FILE id="OAAVOx" name="MainComponent.cpp" compile="1" resource="0"
             file="Source/MainComponent.cpp"/>
       <FILE id="h7HW4R" name="MainComponent.h" compile="0" resource="0" file="Source/MainComponent.h"/>

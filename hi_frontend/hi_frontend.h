@@ -66,21 +66,21 @@ using namespace juce;
 
 #define USER_PRESET_OFFSET 8192
 
-#define CREATE_PLUGIN {ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\
+#define CREATE_PLUGIN(deviceManager, callback) {ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\
 	ValueTree imageData = PresetHandler::loadValueTreeFromData(PresetData::images, PresetData::imagesSize, false);\
 	ValueTree externalFiles = PresetHandler::loadValueTreeFromData(PresetData::externalFiles, PresetData::externalFilesSize, true);\
 	ValueTree userPresets = PresetHandler::loadValueTreeFromData(PresetData::userPresets, PresetData::userPresetsSize, false);\
 	\
-	return new FrontendProcessor(presetData, &imageData, nullptr, &externalFiles, &userPresets);\
+	return new FrontendProcessor(presetData, deviceManager, callback, &imageData, nullptr, &externalFiles, &userPresets);\
 }
 
-#define CREATE_PLUGIN_WITH_AUDIO_FILES {ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\
+#define CREATE_PLUGIN_WITH_AUDIO_FILES(deviceManager, callback) {ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\
 	ValueTree imageData = PresetHandler::loadValueTreeFromData(PresetData::images, PresetData::imagesSize, false);\
 	ValueTree impulseData = PresetHandler::loadValueTreeFromData(PresetData::impulses, PresetData::impulsesSize, true); \
 	ValueTree externalFiles = PresetHandler::loadValueTreeFromData(PresetData::externalFiles, PresetData::externalFilesSize, true);\
 	ValueTree userPresets =PresetHandler::loadValueTreeFromData(PresetData::userPresets, PresetData::userPresetsSize, false);\
 	\
-	return new FrontendProcessor(presetData, &imageData, &impulseData, &externalFiles, &userPresets);\
+	return new FrontendProcessor(presetData, deviceManager, callback, &imageData, &impulseData, &externalFiles, &userPresets);\
 }
 
 

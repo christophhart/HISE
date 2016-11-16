@@ -40,10 +40,11 @@
 *	It also checks for a licence file to allow minimal protection against the most stupid crackers.
 */
 class FrontendProcessor: public AudioProcessor,
+						 public AudioProcessorDriver,
 						 public MainController
 {
 public:
-	FrontendProcessor(ValueTree &synthData, ValueTree *imageData_=nullptr, ValueTree *impulseData=nullptr, ValueTree *externalScriptData=nullptr, ValueTree *userPresets=nullptr);
+	FrontendProcessor(ValueTree &synthData, AudioDeviceManager* manager, AudioProcessorPlayer* callback_, ValueTree *imageData_ = nullptr, ValueTree *impulseData = nullptr, ValueTree *externalScriptData = nullptr, ValueTree *userPresets = nullptr);
 
 	const String getName(void) const override;
 
@@ -197,5 +198,88 @@ private:
 };
 
 
+
+class FrontendStandaloneApplication : public JUCEApplication
+{
+public:
+	//==============================================================================
+	FrontendStandaloneApplication() {}
+
+	const String getApplicationName() override;
+	const String getApplicationVersion() override;
+	bool moreThanOneInstanceAllowed() override       { return true; }
+
+
+	void initialise(const String& commandLine) override { mainWindow = new MainWindow(getApplicationName()); }
+	void shutdown() override { mainWindow = nullptr; }
+	void systemRequestedQuit() override { quit(); }
+
+	void anotherInstanceStarted(const String& commandLine) override {}
+
+	class AudioWrapper : public Component
+	{
+	public:
+
+		AudioWrapper()
+		{
+			standaloneProcessor = new StandaloneProcessor();
+
+			addAndMakeVisible(editor = standaloneProcessor->createEditor());
+			setSize(editor->getWidth(), editor->getHeight());
+		}
+
+		~AudioWrapper()
+		{
+			editor = nullptr;
+			standaloneProcessor = nullptr;
+
+		}
+
+		void resized()
+		{
+			editor->setTopLeftPosition(0, 0);
+		}
+
+	private:
+
+		ScopedPointer<AudioProcessorEditor> editor;
+		ScopedPointer<StandaloneProcessor> standaloneProcessor;
+	};
+
+
+	class MainWindow : public DocumentWindow
+	{
+	public:
+		MainWindow(String name) : DocumentWindow(name,
+			Colours::lightgrey,
+			DocumentWindow::allButtons)
+		{
+			setUsingNativeTitleBar(true);
+			setContentOwned(new AudioWrapper(), true);
+			setResizable(false, false);
+
+			centreWithSize(getWidth(), getHeight());
+			setVisible(true);
+		}
+
+		~MainWindow() { audioWrapper = nullptr; }
+
+		void closeButtonPressed() override
+		{
+			JUCEApplication::getInstance()->systemRequestedQuit();
+		}
+
+	private:
+
+		ScopedPointer<AudioWrapper> audioWrapper;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainWindow)
+	};
+
+
+private:
+
+	ScopedPointer<MainWindow> mainWindow;
+};
 
 #endif  // FRONTENDPROCESSOR_H_INCLUDED
