@@ -507,8 +507,6 @@ protected:
 			masterEventBuffer.addEvent(HiseEvent(HiseEvent::Type::AllNotesOff, 0, 0, 1));
 
 			allNotesOffFlag = false;
-
-			uptime = 0.0;
 		}
 	};
 
