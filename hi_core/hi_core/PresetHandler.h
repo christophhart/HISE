@@ -57,7 +57,7 @@ public:
         state(String::empty)
     {}
 
-	String getProductID() override { return String(JucePlugin_Name) + " " + String(JucePlugin_VersionString); };
+	String getProductID() override;;
 
 	bool doesProductIDMatch(const String& returnedIDFromServer) override { return returnedIDFromServer == getProductID(); };
 
@@ -68,17 +68,11 @@ public:
         return state;
     };
 
-	String getWebsiteName() override
-	{
-		return JucePlugin_ManufacturerWebsite;
-	}
+	String getWebsiteName() override;
 
 	String readReplyFromWebserver(const String &/*email*/, const String &/*password*/) override { return ""; };
 
-	URL getServerAuthenticationURL() override
-	{
-		return URL(JucePlugin_ManufacturerWebsite).getChildURL("licence/key_file_generator.php");
-	}
+	URL getServerAuthenticationURL() override;
    
     void saveState(const String &s) override
     {
@@ -266,6 +260,11 @@ public:
 		
 		static void setSampleLocation(const File &newLocation);
 		static File getUserPresetDirectory();
+		
+		static String getProjectName();
+		static String getCompanyName();
+		static String getCompanyWebsiteName();
+		static String getVersionString();
 	};
 
 private:
@@ -785,9 +784,7 @@ public:
 		return settings;
 	}
 
-	/** This returns the folder where the samples of the library are stored. If it doesn't find the folder, it checks for it and saves the new path. */
-	static File getSampleDataFolder(const String &libraryName);
-    
+	
     static String getSettingsValue(const String &settingId)
     {
         ScopedPointer<XmlElement> xml = XmlDocument::parse(File(getDataFolder()).getChildFile("settings.xml"));

@@ -149,7 +149,7 @@ unlockCounter(0)
 
 const String FrontendProcessor::getName(void) const
 {
-	return JucePlugin_Name;
+	return ProjectHandler::Frontend::getProjectName();
 }
 
 void FrontendProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)

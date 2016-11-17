@@ -546,6 +546,8 @@ String SettingWindows::CompilerSettingWindow::getAttributeNameForSetting(int att
 	case Attributes::JucePath: return "JucePath";
 	case Attributes::HisePath: return "HisePath";
 	case Attributes::IntrojucerPath: return "IntrojucerPath";
+	case Attributes::UseASIO: return "UseASIO";
+	case Attributes::ASIOSDKPath: return "ASIOSDKPath";
 	case Attributes::VSTSDKPath: return "VSTSDKPath";
 	case Attributes::VisualStudioVersion: return "VisualStudioVersion";
 	case Attributes::UseIPP: return "UseIPP";
@@ -567,6 +569,7 @@ XmlElement * SettingWindows::CompilerSettingWindow::createNewSettingsFile() cons
 	const String IPPLinkerFlags = "/opt/intel/ipp/lib/libippi.a  /opt/intel/ipp/lib/libipps.a /opt/intel/ipp/lib/libippvm.a /opt/intel/ipp/lib/libippcore.a";
 
 	const String VstPath = "c:/SDKs/vstsdk2.4";
+	const String AsioSDKPath = "C:/SDKs/ASIOSDK2.3/common";
 
 #else
 	// See: https://software.intel.com/en-us/articles/intel-integrated-performance-primitives-for-mac-os-how-to-link-to-the-intel-ipp-for-mac-os-x-libraries-in-application
@@ -576,6 +579,7 @@ XmlElement * SettingWindows::CompilerSettingWindow::createNewSettingsFile() cons
 	const String IPPLinkerFlags = "/opt/intel/ipp/lib/libippi.a  /opt/intel/ipp/lib/libipps.a /opt/intel/ipp/lib/libippvm.a /opt/intel/ipp/lib/libippcore.a";
 
 	const String VstPath = "c:/SDKs/vstsdk2.4";
+	const String AsioSDKPath = "C:/SDKs/ASIOSDK2.3/common";
 
 #endif
 
@@ -585,8 +589,11 @@ XmlElement * SettingWindows::CompilerSettingWindow::createNewSettingsFile() cons
 	addFileAsChildElement(*xml, (int)Attributes::HisePath, "", "Path to HISE modules");
 	addFileAsChildElement(*xml, (int)Attributes::IntrojucerPath, "", "Path to Introjucer");
 	addFileAsChildElement(*xml, (int)Attributes::VSTSDKPath, VstPath, "Path to VST SDK");
+	addFileAsChildElement(*xml, (int)Attributes::ASIOSDKPath, AsioSDKPath, "Path to ASIO SDK");
+	addChildElementWithOptions(*xml, (int)Attributes::UseASIO, "Yes", "Use ASIO", "Yes\nNo");
 	addChildElementWithOptions(*xml, (int)Attributes::VisualStudioVersion, "Visual Studio 2013", "Installed VisualStudio version", "Visual Studio 2013\nVisual Studio 2015");
 	addChildElementWithOptions(*xml, (int)Attributes::UseIPP, "Yes", "Use IPP", "Yes\nNo");
+	
 	addChildElement(*xml, (int)Attributes::IPPLinker, IPPLinkerFlags, "IPP Linker flags");
 	addChildElement(*xml, (int)Attributes::IPPInclude, IPPHeaderPaths, "IPP Include path");
 	addChildElement(*xml, (int)Attributes::IPPLibrary, IPPLinkerFlags, "IPP Library path");

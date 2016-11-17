@@ -31,50 +31,24 @@
 */
 
 
-void CompileExporter::exportMainSynthChainAsPackage(ModulatorSynthChain *chainToExport)
+void CompileExporter::exportMainSynthChainAsInstrument(ModulatorSynthChain *chainToExport)
 {
-	if (!checkSanity(chainToExport)) return;
-
-	String uniqueId, version, solutionDirectory, publicKey;
-	BuildOption buildOption = showCompilePopup(publicKey, uniqueId, version, solutionDirectory);
-
-	publicKey = GET_PROJECT_HANDLER(chainToExport).getPublicKey();
-	uniqueId = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, &GET_PROJECT_HANDLER(chainToExport));
-	version = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, &GET_PROJECT_HANDLER(chainToExport));
-
-	solutionDirectory = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getFullPathName();
-
-	if (buildOption != Cancelled)
-	{
-		createPluginDataHeaderFile(chainToExport, solutionDirectory, uniqueId, version, publicKey);
-		
-		copyHISEImageFiles(chainToExport);
-
-		const String directoryPath = File(solutionDirectory).getChildFile("temp/").getFullPathName();
-
-		convertTccScriptsToCppClasses(chainToExport);
-		writePresetFile(chainToExport, directoryPath, uniqueId);
-		writeEmbeddedFiles(chainToExport, directoryPath);
-		writeUserPresetFiles(chainToExport, directoryPath);
-		
-		writeReferencedAudioFiles(chainToExport, directoryPath);
-		writeReferencedImageFiles(chainToExport, directoryPath);
-
-		String presetDataString("PresetData");
-
-		String sourceDirectory = solutionDirectory + "/Source";
-
-		CppBuilder::exportValueTreeAsCpp(directoryPath, sourceDirectory, presetDataString);
-
-		createIntrojucerFile(chainToExport);
-
-		compileSolution(chainToExport, buildOption);
-	}
+	exportInternal(chainToExport, TargetTypes::InstrumentPlugin);
 }
 
 
 void CompileExporter::exportMainSynthChainAsFX(ModulatorSynthChain* chainToExport)
 {
+	exportInternal(chainToExport, TargetTypes::EffectPlugin);
+}
+
+void CompileExporter::exportMainSynthChainAsStandaloneApp(ModulatorSynthChain * chainToExport)
+{
+	exportInternal(chainToExport, TargetTypes::StandaloneApplication);
+}
+
+void CompileExporter::exportInternal(ModulatorSynthChain* chainToExport, TargetTypes type)
+{
 	if (!checkSanity(chainToExport)) return;
 
 	String uniqueId, version, solutionDirectory, publicKey;
@@ -88,7 +62,14 @@ void CompileExporter::exportMainSynthChainAsFX(ModulatorSynthChain* chainToExpor
 
 	if (buildOption != Cancelled)
 	{
-		createPluginDataHeaderFile(chainToExport, solutionDirectory, uniqueId, version, publicKey);
+		if (type != TargetTypes::StandaloneApplication)
+		{
+			createPluginDataHeaderFile(chainToExport, solutionDirectory, uniqueId, version, publicKey);
+		}
+		else
+		{
+			createStandaloneAppHeaderFile(chainToExport, solutionDirectory, uniqueId, version, publicKey);
+		}
 
 		copyHISEImageFiles(chainToExport);
 
@@ -108,9 +89,16 @@ void CompileExporter::exportMainSynthChainAsFX(ModulatorSynthChain* chainToExpor
 
 		CppBuilder::exportValueTreeAsCpp(directoryPath, sourceDirectory, presetDataString);
 
-		createIntrojucerFile(chainToExport, true);
+		if (type == TargetTypes::StandaloneApplication)
+		{
+			createStandaloneAppIntrojucerFile(chainToExport);
+		}
+		else
+		{
+			createPluginIntrojucerFile(chainToExport, type);
+		}
 
-		compileSolution(chainToExport, buildOption);
+		compileSolution(chainToExport, buildOption, type);
 	}
 }
 
@@ -435,9 +423,9 @@ void CompileExporter::createCppFileFromTccScript(File& targetDirectory, const Fi
 	fos.writeText(output, false, false);
 }
 
-CompileExporter::ErrorCodes CompileExporter::compileSolution(ModulatorSynthChain *chainToExport, BuildOption buildOption)
+CompileExporter::ErrorCodes CompileExporter::compileSolution(ModulatorSynthChain *chainToExport, BuildOption buildOption, TargetTypes type)
 {
-	BatchFileCreator::createBatchFile(chainToExport, buildOption);
+	BatchFileCreator::createBatchFile(chainToExport, buildOption, type);
 
 	File batchFile = BatchFileCreator::getBatchFile(chainToExport);
     
@@ -547,7 +535,9 @@ public:
 
 
 
-CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(ModulatorSynthChain* chainToExport, 
+
+
+CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(ModulatorSynthChain* chainToExport,
 																		const String &solutionDirectory, 
 																		const String &/*uniqueName*/, 
 																		const String &/*version*/, 
@@ -555,100 +545,58 @@ CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(Modulato
 {
 	String pluginDataHeaderFile;
 
-	// Write the PUBLIC RSA KEY ========================================================================================
+	HeaderHelpers::addBasicIncludeLines(pluginDataHeaderFile);
 
-	if (publicKey.isNotEmpty())
-	{
-		//pluginDataHeaderFile << "#define PUBLIC_KEY \"" << publicKey << "\"\n";
-		pluginDataHeaderFile << "\n";
-	}
+	HeaderHelpers::addAdditionalSourceCodeHeaderLines(chainToExport, pluginDataHeaderFile);
+	HeaderHelpers::addStaticDspFactoryRegistration(pluginDataHeaderFile, chainToExport);
+	HeaderHelpers::addCopyProtectionHeaderLines(publicKey, pluginDataHeaderFile);
 
-
-	// Write the included headers 
-
-	pluginDataHeaderFile << "#include \"JuceHeader.h\"" << "\n";
-	pluginDataHeaderFile << "#include \"PresetData.h\"\n";
-
-	File addSourceFile = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::AdditionalSourceCode).getChildFile("AdditionalSourceCode.h");
-
-	if (addSourceFile.existsAsFile())
-	{
-		pluginDataHeaderFile << "#include \"../../AdditionalSourceCode/AdditionalSourceCode.h\"\n";
-	}
-
-	pluginDataHeaderFile << "\n";
-	
-	// Write the static dsp factory registrations 
-
-	pluginDataHeaderFile << "REGISTER_STATIC_DSP_LIBRARIES()" << "\n";
-	pluginDataHeaderFile << "{" << "\n";
-	pluginDataHeaderFile << "\tREGISTER_STATIC_DSP_FACTORY(HiseCoreDspFactory);" << "\n";
-
-	File tccConvertedFile = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::AdditionalSourceCode).getChildFile("ConvertedTccScriptFactory.cpp");
-
-	if (tccConvertedFile.existsAsFile())
-	{
-		pluginDataHeaderFile << "\tREGISTER_STATIC_DSP_FACTORY(ConvertedTccScriptFactory);" << "\n";
-	}
-
-	const String additionalDspClasses = SettingWindows::getSettingValue(
-		(int)SettingWindows::ProjectSettingWindow::Attributes::AdditionalDspLibraries, 
-		&GET_PROJECT_HANDLER(chainToExport));
-
-	if (additionalDspClasses.isNotEmpty())
-	{
-		StringArray sa = StringArray::fromTokens(additionalDspClasses, ",;", "");
-
-		for (int i = 0; i < sa.size(); i++)
-			pluginDataHeaderFile << "\tREGISTER_STATIC_DSP_FACTORY(" + sa[i] + ");" << "\n";
-	}
-
-	pluginDataHeaderFile << "}" << "\n";
-
-
-	
-
-	// Write the copy protection macros 
-
-	if (publicKey.isNotEmpty())
-	{
-		pluginDataHeaderFile << "#if USE_COPY_PROTECTION" << "\n";
-		
-		pluginDataHeaderFile << StringObfuscater::generateObfuscatedStringCode(publicKey);
-		//pluginDataHeaderFile << "RSAKey Unlocker::getPublicKey() { return RSAKey(String(PUBLIC_KEY)); };" << "\n"; 
-		pluginDataHeaderFile << "#endif" << "\n";
-	}
-    else
-    {
-        pluginDataHeaderFile << "#if USE_COPY_PROTECTION" << "\n";
-        pluginDataHeaderFile << "RSAKey Unlocker::getPublicKey() { return RSAKey(\"\"); };" << "\n";
-        pluginDataHeaderFile << "#endif" << "\n";
-    }
-	
-	// Write the plugin entry point function
 	if (SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::EmbedAudioFiles, &GET_PROJECT_HANDLER(chainToExport)) == "No")
 	{
-		pluginDataHeaderFile << "AudioProcessor* JUCE_CALLTYPE createPluginFilter() { CREATE_PLUGIN; }\n";
+		pluginDataHeaderFile << "AudioProcessor* JUCE_CALLTYPE createPluginFilter() { CREATE_PLUGIN(nullptr, nullptr); }\n";
 		pluginDataHeaderFile << "\n";
 	}
 	else
 	{
-		pluginDataHeaderFile << "AudioProcessor* JUCE_CALLTYPE createPluginFilter() { CREATE_PLUGIN_WITH_AUDIO_FILES; }\n";
+		pluginDataHeaderFile << "AudioProcessor* JUCE_CALLTYPE createPluginFilter() { CREATE_PLUGIN_WITH_AUDIO_FILES(nullptr, nullptr); }\n";
 		pluginDataHeaderFile << "\n";
 	}
 
-	String customToolbarName = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::CustomToolbarClassName, &GET_PROJECT_HANDLER(chainToExport));
+	pluginDataHeaderFile << "AudioProcessor* StandaloneProcessor::createProcessor() { return nullptr; }\n";
 
-	if (customToolbarName.isEmpty()) customToolbarName = "DefaultFrontendBar";
-
-	pluginDataHeaderFile << "\nCREATE_FRONTEND_BAR(" + customToolbarName + ")\n\n";
-	
-	File pluginDataHeader = File(solutionDirectory).getChildFile("Source/Plugin.cpp");
-	
-	pluginDataHeader.create();
-	pluginDataHeader.replaceWithText(pluginDataHeaderFile);
+	HeaderHelpers::addProjectInfoLines(chainToExport, pluginDataHeaderFile);
+	HeaderHelpers::addCustomToolbarRegistration(chainToExport, pluginDataHeaderFile);
+	HeaderHelpers::writeHeaderFile(solutionDirectory, pluginDataHeaderFile);
 
 	return ErrorCodes::OK;
+}
+
+void CompileExporter::createStandaloneAppHeaderFile(ModulatorSynthChain* chainToExport, const String& solutionDirectory, const String& uniqueId, const String& version, String publicKey)
+{
+	String pluginDataHeaderFile;
+
+	HeaderHelpers::addBasicIncludeLines(pluginDataHeaderFile);
+
+	HeaderHelpers::addAdditionalSourceCodeHeaderLines(chainToExport, pluginDataHeaderFile);
+	HeaderHelpers::addStaticDspFactoryRegistration(pluginDataHeaderFile, chainToExport);
+	HeaderHelpers::addCopyProtectionHeaderLines(publicKey, pluginDataHeaderFile);
+
+	if (SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::EmbedAudioFiles, &GET_PROJECT_HANDLER(chainToExport)) == "No")
+	{
+		pluginDataHeaderFile << "AudioProcessor* StandaloneProcessor::createProcessor() { CREATE_PLUGIN_WITH_AUDIO_FILES(deviceManager, callback); }\n";
+		pluginDataHeaderFile << "\n";
+		pluginDataHeaderFile << "START_JUCE_APPLICATION(FrontendStandaloneApplication)\n";
+	}
+	else
+	{
+		pluginDataHeaderFile << "AudioProcessor* StandaloneProcessor::createProcessor() { CREATE_PLUGIN(deviceManager, callback); }\n";
+		pluginDataHeaderFile << "\n";
+		pluginDataHeaderFile << "START_JUCE_APPLICATION(FrontendStandaloneApplication)\n";
+	}
+
+	HeaderHelpers::addProjectInfoLines(chainToExport, pluginDataHeaderFile);
+	HeaderHelpers::addCustomToolbarRegistration(chainToExport, pluginDataHeaderFile);
+	HeaderHelpers::writeHeaderFile(solutionDirectory, pluginDataHeaderFile);
 }
 
 CompileExporter::ErrorCodes CompileExporter::createResourceFile(const String &solutionDirectory, const String & uniqueName, const String &version)
@@ -717,10 +665,10 @@ struct FileHelpers
 	}
 };
 
-CompileExporter::ErrorCodes CompileExporter::createIntrojucerFile(ModulatorSynthChain *chainToExport, bool createFX/*=false*/)
-{
-	MemoryInputStream mis(projectTemplate_jucer, sizeof(projectTemplate_jucer), false);
 
+
+CompileExporter::ErrorCodes CompileExporter::createPluginIntrojucerFile(ModulatorSynthChain *chainToExport, CompileExporter::TargetTypes type)
+{
 	String templateProject = String(projectTemplate_jucer);
 
 	REPLACE_WILDCARD("%NAME%", SettingWindows::ProjectSettingWindow::Attributes::Name);
@@ -729,7 +677,89 @@ CompileExporter::ErrorCodes CompileExporter::createIntrojucerFile(ModulatorSynth
 	REPLACE_WILDCARD("%BUNDLE_ID%", SettingWindows::ProjectSettingWindow::Attributes::BundleIdentifier);
 	REPLACE_WILDCARD("%PC%", SettingWindows::ProjectSettingWindow::Attributes::PluginCode);
 
-	const bool isUsingVisualStudio2015 = SettingWindows::getSettingValue((int)SettingWindows::CompilerSettingWindow::Attributes::VisualStudioVersion, &GET_PROJECT_HANDLER(chainToExport)) == "Visual Studio 2015";
+	ProjectTemplateHelpers::handleVisualStudioVersion(chainToExport, templateProject);
+
+	if (type == TargetTypes::EffectPlugin)
+	{
+		REPLACE_WILDCARD_WITH_STRING("%CHANNEL_CONFIG%", "{2, 2}");
+		REPLACE_WILDCARD_WITH_STRING("%PLUGINISSYNTH%", "0");
+		REPLACE_WILDCARD_WITH_STRING("%PLUGINWANTSMIDIIN", "0");
+		REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "enabled");
+	}
+	else
+	{
+		REPLACE_WILDCARD_WITH_STRING("%CHANNEL_CONFIG%", "{0, 2}");
+		REPLACE_WILDCARD_WITH_STRING("%PLUGINISSYNTH%", "1");
+		REPLACE_WILDCARD_WITH_STRING("%PLUGINWANTSMIDIIN", "1");
+		REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "disabled");
+	}
+
+	REPLACE_WILDCARD_WITH_STRING("%IS_STANDALONE_FRONTEND%", "disabled");
+
+	ProjectTemplateHelpers::handleCompanyInfo(chainToExport, templateProject);
+
+	REPLACE_WILDCARD("%VSTSDK_FOLDER%", SettingWindows::CompilerSettingWindow::Attributes::VSTSDKPath);
+
+	ProjectTemplateHelpers::handleCompilerInfo(chainToExport, templateProject);
+
+	ProjectTemplateHelpers::handleAdditionalSourceCode(chainToExport, templateProject);
+	ProjectTemplateHelpers::handleCopyProtectionInfo(chainToExport, templateProject);
+
+	return HelperClasses::saveIntrojucerFile(templateProject, chainToExport);
+}
+
+CompileExporter::ErrorCodes CompileExporter::createStandaloneAppIntrojucerFile(ModulatorSynthChain* chainToExport)
+{
+	String templateProject = String(projectStandaloneTemplate_jucer);
+
+	REPLACE_WILDCARD("%NAME%", SettingWindows::ProjectSettingWindow::Attributes::Name);
+	REPLACE_WILDCARD("%VERSION%", SettingWindows::ProjectSettingWindow::Attributes::Version);
+	REPLACE_WILDCARD("%BUNDLE_ID%", SettingWindows::ProjectSettingWindow::Attributes::BundleIdentifier);
+
+
+	const bool useAsio = SettingWindows::getSettingValue((int)SettingWindows::CompilerSettingWindow::Attributes::UseASIO) == "Yes";
+
+	REPLACE_WILDCARD("%ASIO_SDK_PATH%", SettingWindows::CompilerSettingWindow::Attributes::ASIOSDKPath);
+	REPLACE_WILDCARD_WITH_STRING("%USE_ASIO%", useAsio ? "enabled" : "disabled");
+	REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "disabled");
+	REPLACE_WILDCARD_WITH_STRING("%IS_STANDALONE_FRONTEND%", "enabled");
+
+	ProjectTemplateHelpers::handleVisualStudioVersion(chainToExport, templateProject);
+
+	ProjectTemplateHelpers::handleCompanyInfo(chainToExport, templateProject);
+	ProjectTemplateHelpers::handleCompilerInfo(chainToExport, templateProject);
+
+	ProjectTemplateHelpers::handleAdditionalSourceCode(chainToExport, templateProject);
+	ProjectTemplateHelpers::handleCopyProtectionInfo(chainToExport, templateProject);
+
+	return HelperClasses::saveIntrojucerFile(templateProject, chainToExport);
+}
+
+
+
+void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(ModulatorSynthChain* chainToExport, String& templateProject)
+{
+	REPLACE_WILDCARD("%JUCE_PATH%", SettingWindows::CompilerSettingWindow::Attributes::JucePath);
+	REPLACE_WILDCARD("%HISE_PATH%", SettingWindows::CompilerSettingWindow::Attributes::HisePath);
+	REPLACE_WILDCARD("%USE_IPP%", SettingWindows::CompilerSettingWindow::Attributes::IPPInclude);
+
+#if JUCE_MAC
+	REPLACE_WILDCARD("%IPP_COMPILER_FLAGS%", SettingWindows::CompilerSettingWindow::Attributes::IPPLinker);
+	REPLACE_WILDCARD("%IPP_HEADER%", SettingWindows::CompilerSettingWindow::Attributes::IPPInclude);
+	REPLACE_WILDCARD("%IPP_LIBRARY%", SettingWindows::CompilerSettingWindow::Attributes::IPPLibrary);
+#endif
+}
+
+void CompileExporter::ProjectTemplateHelpers::handleCompanyInfo(ModulatorSynthChain* chainToExport, String& templateProject)
+{
+	REPLACE_WILDCARD("%COMPANY%", SettingWindows::UserSettingWindow::Attributes::Company);
+	REPLACE_WILDCARD("%MC%", SettingWindows::UserSettingWindow::Attributes::CompanyCode);
+	REPLACE_WILDCARD("%COMPANY_WEBSITE%", SettingWindows::UserSettingWindow::Attributes::CompanyURL);
+}
+
+void CompileExporter::ProjectTemplateHelpers::handleVisualStudioVersion(ModulatorSynthChain * chainToExport, String& templateProject)
+{
+	const bool isUsingVisualStudio2015 = HelperClasses::isUsingVisualStudio2015(chainToExport);
 
 	if (isUsingVisualStudio2015)
 	{
@@ -741,72 +771,11 @@ CompileExporter::ErrorCodes CompileExporter::createIntrojucerFile(ModulatorSynth
 		REPLACE_WILDCARD_WITH_STRING("%VS_VERSION%", "VS2013");
 		REPLACE_WILDCARD_WITH_STRING("%TARGET_FOLDER%", "VisualStudio2013");
 	}
-
-	if (createFX)
-	{
-		REPLACE_WILDCARD_WITH_STRING("%CHANNEL_CONFIG%", "{2, 2}");
-		REPLACE_WILDCARD_WITH_STRING("%PLUGINISSYNTH%", "0");
-		REPLACE_WILDCARD_WITH_STRING("%PLUGINWANTSMIDIIN", "0");
-		REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "enabled");
-
-	}
-	else
-	{
-		REPLACE_WILDCARD_WITH_STRING("%CHANNEL_CONFIG%", "{0, 2}");
-		REPLACE_WILDCARD_WITH_STRING("%PLUGINISSYNTH%", "1");
-		REPLACE_WILDCARD_WITH_STRING("%PLUGINWANTSMIDIIN", "1");
-		REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "disabled");
-	}
-
-	REPLACE_WILDCARD("%COMPANY%", SettingWindows::UserSettingWindow::Attributes::Company);
-	REPLACE_WILDCARD("%MC%", SettingWindows::UserSettingWindow::Attributes::CompanyCode);
-	REPLACE_WILDCARD("%COMPANY_WEBSITE%", SettingWindows::UserSettingWindow::Attributes::CompanyURL);
-
-	REPLACE_WILDCARD("%JUCE_PATH%", SettingWindows::CompilerSettingWindow::Attributes::JucePath);
-	REPLACE_WILDCARD("%HISE_PATH%", SettingWindows::CompilerSettingWindow::Attributes::HisePath);
-	REPLACE_WILDCARD("%VSTSDK_FOLDER%", SettingWindows::CompilerSettingWindow::Attributes::VSTSDKPath);
-	REPLACE_WILDCARD("%USE_IPP%", SettingWindows::CompilerSettingWindow::Attributes::IPPInclude);
-
-	handleAdditionalSourceCode(chainToExport, templateProject);
-
-	const bool useCopyProtection = GET_PROJECT_HANDLER(chainToExport).getPublicKey().isNotEmpty();
-
-	templateProject = templateProject.replace("%USE_COPY_PROTECTION%", useCopyProtection ? "enabled" : "disabled");
-
-#if JUCE_MAC
-    
-    REPLACE_WILDCARD("%IPP_COMPILER_FLAGS%", SettingWindows::CompilerSettingWindow::Attributes::IPPLinker);
-    REPLACE_WILDCARD("%IPP_HEADER%", SettingWindows::CompilerSettingWindow::Attributes::IPPInclude);
-    REPLACE_WILDCARD("%IPP_LIBRARY%", SettingWindows::CompilerSettingWindow::Attributes::IPPLibrary);
-    
-#endif
-    
-	XmlDocument doc(templateProject);
-
-	
-
-	ScopedPointer<XmlElement> xml = doc.getDocumentElement();
-
-	jassert(xml != nullptr);
-
-	if (xml != nullptr)
-	{
-		File projectFile = getIntrojucerProjectFile(chainToExport);
-
-		projectFile.create();
-
-		projectFile.replaceWithText(xml->createDocument(""));
-	}
-	else
-	{
-		PresetHandler::showMessageWindow("Invalid XML", doc.getLastParseError(), PresetHandler::IconType::Error);
-		return ErrorCodes::ProjectXmlInvalid;
-	}
-    
-    return ErrorCodes::OK;
 }
 
-void CompileExporter::handleAdditionalSourceCode(ModulatorSynthChain * chainToExport, String &templateProject)
+
+
+void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(ModulatorSynthChain * chainToExport, String &templateProject)
 {
 	Array<File> additionalSourceFiles;
 
@@ -855,6 +824,13 @@ void CompileExporter::handleAdditionalSourceCode(ModulatorSynthChain * chainToEx
 		}
 	}
 
+}
+
+void CompileExporter::ProjectTemplateHelpers::handleCopyProtectionInfo(ModulatorSynthChain * chainToExport, String &templateProject)
+{
+	const bool useCopyProtection = GET_PROJECT_HANDLER(chainToExport).getPublicKey().isNotEmpty();
+
+	templateProject = templateProject.replace("%USE_COPY_PROTECTION%", useCopyProtection ? "enabled" : "disabled");
 }
 
 CompileExporter::ErrorCodes CompileExporter::copyHISEImageFiles(ModulatorSynthChain *chainToExport)
@@ -907,6 +883,11 @@ ValueTree CompileExporter::collectAllSampleMapsInDirectory(ModulatorSynthChain *
 
 	return sampleMaps;
 }
+
+
+
+
+
 
 #undef REPLACE_WILDCARD
 
@@ -1051,7 +1032,7 @@ int CppBuilder::exportValueTreeAsCpp(const File &sourceDirectory, const File &de
 
 #define ADD_LINE(x) (batchContent << x << NewLine::getDefault())
 
-void CompileExporter::BatchFileCreator::createBatchFile(ModulatorSynthChain *chainToExport, BuildOption buildOption)
+void CompileExporter::BatchFileCreator::createBatchFile(ModulatorSynthChain *chainToExport, BuildOption buildOption, TargetTypes types)
 {
 	File batchFile = getBatchFile(chainToExport);
 
@@ -1073,6 +1054,15 @@ void CompileExporter::BatchFileCreator::createBatchFile(ModulatorSynthChain *cha
     
     const String projectName = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, &GET_PROJECT_HANDLER(chainToExport));
     
+	String projectType;
+
+	switch (types)
+	{
+	case CompileExporter::TargetTypes::InstrumentPlugin: projectType = "Instrument plugin"; break;
+	case CompileExporter::TargetTypes::EffectPlugin: projectType = "FX plugin"; break;
+	case CompileExporter::TargetTypes::StandaloneApplication: projectType = "Standalone application"; break;
+	}
+
 #if JUCE_WINDOWS
     
 	const bool isUsingVisualStudio2015 = SettingWindows::getSettingValue((int)SettingWindows::CompilerSettingWindow::Attributes::VisualStudioVersion, &GET_PROJECT_HANDLER(chainToExport)) == "Visual Studio 2015";
@@ -1091,9 +1081,11 @@ void CompileExporter::BatchFileCreator::createBatchFile(ModulatorSynthChain *cha
 	ADD_LINE("\"" << introjucerPath << "\" --resave AutogeneratedProject.jucer");
 	ADD_LINE("");
 
+	
+
 	if (buildOption == VSTx86 || buildOption == VSTx64x86)
 	{
-		ADD_LINE("echo Compiling 32bit Plugin %project% ...");
+		ADD_LINE("echo Compiling 32bit " << projectType << " %project% ...");
 
 		if (isUsingVisualStudio2015)
 		{
@@ -1124,7 +1116,7 @@ void CompileExporter::BatchFileCreator::createBatchFile(ModulatorSynthChain *cha
 	
 	if (buildOption == VSTx64 || buildOption == VSTx64x86)
 	{
-		ADD_LINE("echo Compiling 64bit Plugin %project% ...");
+		ADD_LINE("echo Compiling 64bit " << projectType << " %project% ...");
 		
 		if (isUsingVisualStudio2015)
 		{
@@ -1164,7 +1156,7 @@ void CompileExporter::BatchFileCreator::createBatchFile(ModulatorSynthChain *cha
     ADD_LINE("cd \"`dirname \"$0\"`\"");
     ADD_LINE("\"" << introjucerPath << "\" --resave AutogeneratedProject.jucer");
     ADD_LINE("");
-    ADD_LINE("echo Compiling VST / AU Plugin " << projectName << " ...");
+	ADD_LINE("echo Compiling " << projectType << " " << projectName << " ...");
     ADD_LINE("xcodebuild -project \"Builds/MacOSX/" << projectName << ".xcodeproj\" -configuration \"Release\"");
     ADD_LINE("echo Compiling finished. Cleaning up...");
     
@@ -1191,4 +1183,130 @@ File CompileExporter::BatchFileCreator::getBatchFile(ModulatorSynthChain *chainT
 #else
     return GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getChildFile("batchCompileOSX");
 #endif
+}
+
+bool CompileExporter::HelperClasses::isUsingVisualStudio2015(ModulatorSynthChain* chain)
+{
+	return SettingWindows::getSettingValue((int)SettingWindows::CompilerSettingWindow::Attributes::VisualStudioVersion, &GET_PROJECT_HANDLER(chain)) == "Visual Studio 2015";
+}
+
+CompileExporter::ErrorCodes CompileExporter::HelperClasses::saveIntrojucerFile(String templateProject, ModulatorSynthChain * chainToExport)
+{
+	XmlDocument doc(templateProject);
+
+	ScopedPointer<XmlElement> xml = doc.getDocumentElement();
+
+	jassert(xml != nullptr);
+
+	if (xml != nullptr)
+	{
+		File projectFile = getIntrojucerProjectFile(chainToExport);
+
+		projectFile.create();
+
+		projectFile.replaceWithText(xml->createDocument(""));
+	}
+	else
+	{
+		PresetHandler::showMessageWindow("Invalid XML", doc.getLastParseError(), PresetHandler::IconType::Error);
+		return ErrorCodes::ProjectXmlInvalid;
+	}
+
+	return ErrorCodes::OK;
+}
+
+void CompileExporter::HeaderHelpers::addBasicIncludeLines(String& pluginDataHeaderFile)
+{
+	pluginDataHeaderFile << "\n";
+
+	pluginDataHeaderFile << "#include \"JuceHeader.h\"" << "\n";
+	pluginDataHeaderFile << "#include \"PresetData.h\"\n";
+}
+
+void CompileExporter::HeaderHelpers::addAdditionalSourceCodeHeaderLines(ModulatorSynthChain* chainToExport, String& pluginDataHeaderFile)
+{
+	File addSourceFile = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::AdditionalSourceCode).getChildFile("AdditionalSourceCode.h");
+
+	if (addSourceFile.existsAsFile())
+	{
+		pluginDataHeaderFile << "#include \"../../AdditionalSourceCode/AdditionalSourceCode.h\"\n";
+	}
+
+	pluginDataHeaderFile << "\n";
+}
+
+void CompileExporter::HeaderHelpers::addStaticDspFactoryRegistration(String& pluginDataHeaderFile, ModulatorSynthChain* chainToExport)
+{
+	pluginDataHeaderFile << "REGISTER_STATIC_DSP_LIBRARIES()" << "\n";
+	pluginDataHeaderFile << "{" << "\n";
+	pluginDataHeaderFile << "\tREGISTER_STATIC_DSP_FACTORY(HiseCoreDspFactory);" << "\n";
+
+	File tccConvertedFile = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::AdditionalSourceCode).getChildFile("ConvertedTccScriptFactory.cpp");
+
+	if (tccConvertedFile.existsAsFile())
+	{
+		pluginDataHeaderFile << "\tREGISTER_STATIC_DSP_FACTORY(ConvertedTccScriptFactory);" << "\n";
+	}
+
+	const String additionalDspClasses = SettingWindows::getSettingValue(
+		(int)SettingWindows::ProjectSettingWindow::Attributes::AdditionalDspLibraries,
+		&GET_PROJECT_HANDLER(chainToExport));
+
+	if (additionalDspClasses.isNotEmpty())
+	{
+		StringArray sa = StringArray::fromTokens(additionalDspClasses, ",;", "");
+
+		for (int i = 0; i < sa.size(); i++)
+			pluginDataHeaderFile << "\tREGISTER_STATIC_DSP_FACTORY(" + sa[i] + ");" << "\n";
+	}
+
+	pluginDataHeaderFile << "}" << "\n";
+}
+
+void CompileExporter::HeaderHelpers::addCopyProtectionHeaderLines(const String &publicKey, String& pluginDataHeaderFile)
+{
+	if (publicKey.isNotEmpty())
+	{
+		pluginDataHeaderFile << "#if USE_COPY_PROTECTION" << "\n";
+
+		pluginDataHeaderFile << StringObfuscater::generateObfuscatedStringCode(publicKey);
+		//pluginDataHeaderFile << "RSAKey Unlocker::getPublicKey() { return RSAKey(String(PUBLIC_KEY)); };" << "\n"; 
+		pluginDataHeaderFile << "#endif" << "\n";
+	}
+	else
+	{
+		pluginDataHeaderFile << "#if USE_COPY_PROTECTION" << "\n";
+		pluginDataHeaderFile << "RSAKey Unlocker::getPublicKey() { return RSAKey(\"\"); };" << "\n";
+		pluginDataHeaderFile << "#endif" << "\n";
+	}
+}
+
+void CompileExporter::HeaderHelpers::addCustomToolbarRegistration(ModulatorSynthChain* chainToExport, String& pluginDataHeaderFile)
+{
+	String customToolbarName = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::CustomToolbarClassName, &GET_PROJECT_HANDLER(chainToExport));
+
+	if (customToolbarName.isEmpty()) customToolbarName = "DefaultFrontendBar";
+
+	pluginDataHeaderFile << "\nCREATE_FRONTEND_BAR(" + customToolbarName + ")\n\n";
+}
+
+void CompileExporter::HeaderHelpers::addProjectInfoLines(ModulatorSynthChain* chainToExport, String& pluginDataHeaderFile)
+{
+	const String companyName = SettingWindows::getSettingValue((int)SettingWindows::UserSettingWindow::Attributes::Company, &GET_PROJECT_HANDLER(chainToExport));
+	const String companyWebsiteName = SettingWindows::getSettingValue((int)SettingWindows::UserSettingWindow::Attributes::CompanyURL, &GET_PROJECT_HANDLER(chainToExport));
+	const String projectName = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, &GET_PROJECT_HANDLER(chainToExport));
+	const String versionString = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, &GET_PROJECT_HANDLER(chainToExport));
+
+	pluginDataHeaderFile << "String ProjectHandler::Frontend::getProjectName() { return \"" << projectName << "\"; };\n";
+	pluginDataHeaderFile << "String ProjectHandler::Frontend::getCompanyName() { return \"" << companyName << "\"; };\n";
+	pluginDataHeaderFile << "String ProjectHandler::Frontend::getCompanyWebsiteName() { return \"" << companyWebsiteName << "\"; };\n";
+	pluginDataHeaderFile << "String ProjectHandler::Frontend::getVersionString() { return \"" << versionString << "\"; };\n";
+}
+
+void CompileExporter::HeaderHelpers::writeHeaderFile(const String & solutionDirectory, const String& pluginDataHeaderFile)
+{
+	File pluginDataHeader = File(solutionDirectory).getChildFile("Source/Plugin.cpp");
+
+	pluginDataHeader.create();
+	pluginDataHeader.replaceWithText(pluginDataHeaderFile);
 }

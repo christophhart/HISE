@@ -48,6 +48,14 @@ public:
 		numBuildOptions
 	};
 
+	enum class TargetTypes
+	{
+		InstrumentPlugin,
+		EffectPlugin,
+		StandaloneApplication,
+		numTargetTypes
+	};
+
 	enum ErrorCodes
 	{
 		OK = 0,
@@ -58,11 +66,22 @@ public:
 	};
 
 	/** Exports the main synthchain all samples, external files into a ValueTree file which can be included in a compiled FrontEndProcessor. */
-	static void exportMainSynthChainAsPackage(ModulatorSynthChain *chainToExport);
+	static void exportMainSynthChainAsInstrument(ModulatorSynthChain *chainToExport);
 
 	static void exportMainSynthChainAsFX(ModulatorSynthChain* chainToExport);
 
+	static void exportMainSynthChainAsStandaloneApp(ModulatorSynthChain * chainToExport);
+
 private:
+
+	struct HelperClasses
+	{
+		static bool isUsingVisualStudio2015(ModulatorSynthChain* chain);
+
+		static ErrorCodes saveIntrojucerFile(String templateProject, ModulatorSynthChain * chainToExport);
+	};
+
+	static void exportInternal(ModulatorSynthChain* chainToExport, TargetTypes type);
 
 	static bool checkSanity(ModulatorSynthChain *chainToExport);
 
@@ -84,24 +103,44 @@ private:
 
 	static StringArray getTccSection(const StringArray &cLines, const String &sectionName);
 
-	static ErrorCodes compileSolution(ModulatorSynthChain *chainToExport, BuildOption buildOption);
+	static ErrorCodes compileSolution(ModulatorSynthChain *chainToExport, BuildOption buildOption, TargetTypes types);
 
 	static ErrorCodes createPluginDataHeaderFile(ModulatorSynthChain* chainToExport, const String &solutionDirectory, const String &uniqueName, const String &version, const String &publicKey);
 
 	static ErrorCodes createResourceFile(const String &solutionDirectory, const String & uniqueName, const String &version);
 
-	static ErrorCodes createIntrojucerFile(ModulatorSynthChain *chainToExport, bool createFX=false);
+	static ErrorCodes createPluginIntrojucerFile(ModulatorSynthChain *chainToExport, TargetTypes type);
 
-	static void handleAdditionalSourceCode(ModulatorSynthChain * chainToExport, String &templateProject);
+	struct ProjectTemplateHelpers
+	{
+		static void handleCompilerInfo(ModulatorSynthChain* chainToExport, String& templateProject);
+		static void handleCompanyInfo(ModulatorSynthChain* chainToExport, String& templateProject);
+		static void handleVisualStudioVersion(ModulatorSynthChain * chainToExport, String& templateProject);
+		static void handleAdditionalSourceCode(ModulatorSynthChain * chainToExport, String &templateProject);
+		static void handleCopyProtectionInfo(ModulatorSynthChain * chainToExport, String &templateProject);
+	};
+
+	struct HeaderHelpers
+	{
+		static void addBasicIncludeLines(String& pluginDataHeaderFile);
+		static void addAdditionalSourceCodeHeaderLines(ModulatorSynthChain* chainToExport, String& pluginDataHeaderFile);
+		static void addStaticDspFactoryRegistration(String& pluginDataHeaderFile, ModulatorSynthChain* chainToExport);
+		static void addCopyProtectionHeaderLines(const String &publicKey, String& pluginDataHeaderFile);
+		static void addCustomToolbarRegistration(ModulatorSynthChain* chainToExport, String& pluginDataHeaderFile);
+		static void addProjectInfoLines(ModulatorSynthChain* chainToExport, String& pluginDataHeaderFile);
+
+		static void writeHeaderFile(const String & solutionDirectory, const String& pluginDataHeaderFile);
+	};
 
 	static ErrorCodes copyHISEImageFiles(ModulatorSynthChain *chainToExport);
 
 	static File getIntrojucerProjectFile(ModulatorSynthChain *chainToExport);
 	static ValueTree collectAllSampleMapsInDirectory(ModulatorSynthChain * chainToExport);
-
+	static void createStandaloneAppHeaderFile(ModulatorSynthChain* chainToExport, const String& solutionDirectory, const String& uniqueId, const String& version, String publicKey);
+	static CompileExporter::ErrorCodes createStandaloneAppIntrojucerFile(ModulatorSynthChain* chainToExport);
 	struct BatchFileCreator
 	{
-		static void createBatchFile(ModulatorSynthChain *chainToExport, BuildOption buildOption);
+		static void createBatchFile(ModulatorSynthChain *chainToExport, BuildOption buildOption, TargetTypes types);
 
 		static File getBatchFile(ModulatorSynthChain *chainToExport);
 	};

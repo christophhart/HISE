@@ -433,6 +433,8 @@ public:
 			HisePath,
 			IntrojucerPath,
 			VSTSDKPath,
+			UseASIO,
+			ASIOSDKPath,
 			VisualStudioVersion,
 			UseIPP,
 			IPPLinker,

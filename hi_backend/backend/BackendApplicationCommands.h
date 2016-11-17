@@ -99,6 +99,7 @@ public:
 		MenuReplaceWithClipboardContent,
 		MenuExportFileAsPlugin,
 		MenuExportFileAsEffectPlugin,
+		MenuExportFileAsStandaloneApp,
 		MenuExportFileAsPlayerLibrary,
 		
         MenuExportFileAsSnippet,

@@ -279,7 +279,7 @@ bool DeactiveOverlay::check(State s, const String &value/*=String::empty*/)
 		return ProjectHandler::Frontend::getLicenceKey().existsAsFile();
 		break;
 	case DeactiveOverlay::ProductNotMatching:
-		compareValue = String(JucePlugin_Name) + String(" ") + String(JucePlugin_VersionString);
+		compareValue = ProjectHandler::Frontend::getProjectName() + String(" ") + ProjectHandler::Frontend::getVersionString();
 		return value == compareValue;
 		break;
 	case DeactiveOverlay::UserNameNotMatching:

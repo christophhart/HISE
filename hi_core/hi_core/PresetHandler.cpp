@@ -30,6 +30,25 @@
 *   ===========================================================================
 */
 
+#if USE_COPY_PROTECTION
+
+String Unlocker::getProductID()
+{
+	return String(ProjectHandler::Frontend::getProjectName()) + " " + String(ProjectHandler::Frontend::getVersionString());
+}
+
+String Unlocker::getWebsiteName()
+{
+	return ProjectHandler::Frontend::getCompanyWebsiteName();
+}
+
+URL Unlocker::getServerAuthenticationURL()
+{
+	return URL(ProjectHandler::Frontend::getCompanyWebsiteName()).getChildURL("licence/key_file_generator.php");
+}
+
+#endif
+
 void CopyPasteTarget::grabCopyAndPasteFocus()
 {   
 #if USE_BACKEND
@@ -1182,9 +1201,9 @@ File ProjectHandler::Frontend::getAppDataDirectory(ProjectHandler *handler/*=nul
 	ignoreUnused(handler);
 
 #if JUCE_MAC
-    return File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("Application Support/" + String(JucePlugin_Manufacturer) + "/" + String(JucePlugin_Name));
+    return File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("Application Support/" + getCompanyName() + "/" + getProjectName());
 #else
-	return File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile(String(JucePlugin_Manufacturer) + "/" + String(JucePlugin_Name));
+	return File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile(getCompanyName() + "/" + getProjectName());
 #endif
 #else
 
@@ -1206,7 +1225,7 @@ File ProjectHandler::Frontend::getLicenceKey()
 {
 #if USE_FRONTEND
 
-	return getAppDataDirectory().getChildFile(String(JucePlugin_Name) + getLicenceKeyExtension());
+	return getAppDataDirectory().getChildFile(getProjectName() + getLicenceKeyExtension());
 
 #else
 
@@ -1271,6 +1290,10 @@ File ProjectHandler::Frontend::getUserPresetDirectory()
 
 	return presetDir;
 }
+
+
+
+
 
 StringArray ProjectHandler::recentWorkDirectories = StringArray();
 
@@ -1761,77 +1784,6 @@ XmlElement * PresetHandler::buildFactory(FactoryType *t, const String &factoryNa
 	return xml;
 }
 
-File PresetHandler::getSampleDataFolder(const String &libraryName)
-{
-#if JUCE_WINDOWS && USE_BACKEND == 0 // Compiled Plugins store their sample folder into the registry
-
-	libraryName.upToFirstOccurrenceOf("\n", true, true); // stupid command to prevent warning...
-
-	String key = "HKEY_CURRENT_USER\\Software\\Hart Instruments";
-	String dataName = String(JucePlugin_Name) + " SamplePath";
-
-	if (WindowsRegistry::keyExists(key))
-	{
-		if (WindowsRegistry::valueExists(key + "\\" + dataName))
-		{
-			String sampleLocation = WindowsRegistry::getValue(key + "\\" + dataName);
-
-			File f(sampleLocation);
-
-			if (f.exists())
-			{
-				return f;
-			}
-		}
-	}
-
-	File sampleFolder = getSampleFolder(JucePlugin_Name);
-
-	WindowsRegistry::setValue(String(key + "\\" + dataName), sampleFolder.getFullPathName());
-
-	return sampleFolder;
-
-#elif JUCE_MAC_OSX && USE_BACKEND == 0
-
-
-	File directory(getDataFolder() + "/" + PRODUCT_ID + " Samples");
-
-	jassert(directory.exists());
-
-	return directory;
-
-
-#else
-
-	File settings = getSampleDataSettingsFile(libraryName);
-
-	jassert(settings.existsAsFile());
-
-	FileInputStream fis(settings);
-
-	File libraryPath = File(fis.readEntireStreamAsString());
-
-	if (libraryPath.exists())
-	{
-		return libraryPath;
-	}
-	else
-	{
-		File sampleFolder = getSampleFolder(libraryName);
-
-		settings.deleteFile();
-
-		FileOutputStream fos(settings);
-		fos.writeText(sampleFolder.getFullPathName(), false, false);
-
-		fos.flush();
-
-		return sampleFolder;
-	}
-
-#endif
-}
-
 String PresetHandler::getGlobalSampleFolder()
 {
 	checkDirectory(false);
@@ -1965,6 +1917,7 @@ void AboutPage::refreshText()
 
 	Colour bright(0xFF999999);
 
+#if 0
 	infoData.append("Product: ", bold, bright);
 	infoData.append(JucePlugin_Name, normal, bright);
 	infoData.append("\nVersion: ", bold, bright);
@@ -1975,6 +1928,7 @@ void AboutPage::refreshText()
 	infoData.append(Time::getCompilationDate().toString(true, false, false, true), normal, bright);
 	infoData.append("\nCreated by: ", bold, bright);
 	infoData.append(JucePlugin_Manufacturer, normal, bright);
+#endif
 
 #if USE_COPY_PROTECTION
 

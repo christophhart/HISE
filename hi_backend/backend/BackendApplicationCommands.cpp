@@ -104,6 +104,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuReplaceWithClipboardContent,
 		MenuExportFileAsPlugin,
 		MenuExportFileAsEffectPlugin,
+		MenuExportFileAsStandaloneApp,
 		MenuExportFileAsSnippet,
 		MenuFileQuit,
 		MenuEditCopy,
@@ -251,10 +252,13 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
         setCommandTarget(result, "Save current state as new User Preset", true, false, 'X', false);
         break;
     case MenuExportFileAsPlugin:
-        setCommandTarget(result, "Export as VST/AU plugin", true, false, 'X', false);
+        setCommandTarget(result, "Export as Instrument (VSTi / AUi) plugin", true, false, 'X', false);
         break;
 	case MenuExportFileAsEffectPlugin:
 		setCommandTarget(result, "Export as FX plugin", true, false, 'X', false);
+		break;
+	case MenuExportFileAsStandaloneApp:
+		setCommandTarget(result, "Export as Standalone Application", true, false, 'X', false);
 		break;
 	case MenuExportFileAsSnippet:
 		setCommandTarget(result, "Export as pasteable web snippet", true, false, 'X', false);
@@ -495,8 +499,9 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuViewShowPluginPopupPreview: Actions::togglePluginPopupWindow(bpe); updateCommands(); return true;
     case MenuViewIncreaseCodeFontSize:  Actions::changeCodeFontSize(bpe, true); return true;
     case MenuViewDecreaseCodeFontSize:   Actions::changeCodeFontSize(bpe, false); return true;
-    case MenuExportFileAsPlugin:        CompileExporter::exportMainSynthChainAsPackage(owner->getMainSynthChain()); return true;
+    case MenuExportFileAsPlugin:        CompileExporter::exportMainSynthChainAsInstrument(owner->getMainSynthChain()); return true;
 	case MenuExportFileAsEffectPlugin:	CompileExporter::exportMainSynthChainAsFX(owner->getMainSynthChain()); return true;
+	case MenuExportFileAsStandaloneApp: CompileExporter::exportMainSynthChainAsStandaloneApp(owner->getMainSynthChain()); return true;
     case MenuExportFileAsSnippet:       Actions::exportFileAsSnippet(bpe); return true;
     case MenuAddView:                   Actions::addView(bpe); updateCommands();return true;
     case MenuDeleteView:                Actions::deleteView(bpe); updateCommands();return true;
@@ -648,6 +653,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 
         exportSub.addCommandItem(mainCommandManager, MenuExportFileAsPlugin);
 		exportSub.addCommandItem(mainCommandManager, MenuExportFileAsEffectPlugin);
+		exportSub.addCommandItem(mainCommandManager, MenuExportFileAsStandaloneApp);
 		exportSub.addItem(4, "Export as HISE Player library");
         exportSub.addCommandItem(mainCommandManager, MenuExportFileAsSnippet);
 

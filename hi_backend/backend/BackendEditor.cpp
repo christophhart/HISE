@@ -964,7 +964,7 @@ void BackendProcessorEditor::mouseDown(const MouseEvent &m)
 			}
 		}
 		else if (result == SaveCurrentMainSynthChain) PresetHandler::saveProcessorAsPreset(owner->getMainSynthChain());
-		else if (result == ExportAsPackage) CompileExporter::exportMainSynthChainAsPackage(owner->getMainSynthChain());
+		else if (result == ExportAsPackage) CompileExporter::exportMainSynthChainAsInstrument(owner->getMainSynthChain());
 		else if (result == Recompile) owner->compileAllScripts();
 		else if (result == MidiPanic) owner->getMainSynthChain()->getMainController()->allNotesOff();
 	}

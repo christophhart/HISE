@@ -56,4 +56,5 @@
 #include "backend/BackendEditor.cpp"
 
 #include "backend/ProjectTemplate.cpp"
+#include "backend/StandaloneProjectTemplate.cpp"
 #include "backend/CompileExporter.cpp"
