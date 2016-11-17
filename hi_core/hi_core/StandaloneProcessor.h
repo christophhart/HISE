@@ -22,7 +22,10 @@ public:
 
 	virtual ~AudioProcessorDriver()
 	{
-		saveDeviceSettingsAsXml();
+        if(deviceManager != nullptr)
+        {
+            saveDeviceSettingsAsXml();
+        }
 
 		deviceManager = nullptr;
 		callback = nullptr;

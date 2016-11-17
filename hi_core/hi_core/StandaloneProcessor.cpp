@@ -58,7 +58,7 @@ File AudioProcessorDriver::getDeviceSettingsFile()
 	String parentDirectory = File::getSpecialLocation(File::SpecialLocationType::currentExecutableFile).getParentDirectory().getFullPathName();
 #endif
 #else
-	String parentDirectory = ProjectHandler::Frontend::getAppDataDirectory();
+	String parentDirectory = ProjectHandler::Frontend::getAppDataDirectory().getFullPathName();
 #endif
 
 	File parent(parentDirectory);
