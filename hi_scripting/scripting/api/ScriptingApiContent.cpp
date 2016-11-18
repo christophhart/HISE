@@ -1890,14 +1890,15 @@ controlSender(this, base)
 	//deactivatedProperties.add(getIdFor(ScriptComponent::Properties::tooltip));
 	
 
-	propertyIds.add("borderSize");		ADD_AS_SLIDER_TYPE(0, 20, 1);
-	propertyIds.add("borderRadius");	ADD_AS_SLIDER_TYPE(0, 20, 1);
-    propertyIds.add("opaque");          ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-	propertyIds.add("allowDragging");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-	propertyIds.add("allowCallbacks");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
-	propertyIds.add("popupMenuItems");		ADD_TO_TYPE_SELECTOR(SelectorTypes::MultilineSelector);
-	propertyIds.add("popupOnRightClick");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-	propertyIds.add(Identifier("popupMenuAlign")); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	propertyIds.add("borderSize");					ADD_AS_SLIDER_TYPE(0, 20, 1);
+	propertyIds.add("borderRadius");				ADD_AS_SLIDER_TYPE(0, 20, 1);
+    propertyIds.add("opaque");						ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	propertyIds.add("allowDragging");				ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	propertyIds.add("allowCallbacks");				ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	propertyIds.add("popupMenuItems");				ADD_TO_TYPE_SELECTOR(SelectorTypes::MultilineSelector);
+	propertyIds.add("popupOnRightClick");			ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	propertyIds.add(Identifier("popupMenuAlign"));  ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	propertyIds.add(Identifier("stepSize"));		
 	
 	componentProperties->setProperty(getIdFor(borderSize), 0);
 	componentProperties->setProperty(getIdFor(borderRadius), 0);
@@ -1915,6 +1916,7 @@ controlSender(this, base)
 	setDefaultValue(PopupMenuItems, "");
 	setDefaultValue(PopupOnRightClick, true);
 	setDefaultValue(popupMenuAlign, false);
+	setDefaultValue(stepSize, 0.0);
 	
 	addConstant("data", new DynamicObject());
 

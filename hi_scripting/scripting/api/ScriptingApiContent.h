@@ -622,6 +622,7 @@ public:
 			PopupMenuItems,
 			PopupOnRightClick,
 			popupMenuAlign,
+			stepSize,
 			numProperties
 		};
 

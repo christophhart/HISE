@@ -755,12 +755,14 @@ void ScriptedControlAudioParameter::setControlledScriptComponent(ScriptingApi::C
 			break;
 		}
 		case ScriptedControlAudioParameter::Type::Button:
+			range.interval = 1.0f;
 			break;
 		case ScriptedControlAudioParameter::Type::ComboBox:
 			range.interval = 1.0f;
 			itemList = dynamic_cast<ScriptingApi::Content::ScriptComboBox*>(c)->getItemList();
 			break;
 		case ScriptedControlAudioParameter::Type::Panel:
+			range.interval = c->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::Properties::stepSize);
 			break;
 		case ScriptedControlAudioParameter::Type::Unsupported:
 			// This should be taken care of before creation of this object...
@@ -798,7 +800,15 @@ void ScriptedControlAudioParameter::setValue(float newValue)
 		{
 			ScopedValueSetter<bool> setter(*enableUpdate, false, true);
 
-			scriptProcessor->setAttribute(componentIndex, range.convertFrom0to1(newValue), sendNotification);
+			const float convertedValue = range.convertFrom0to1(newValue);
+			const float snappedValue = range.snapToLegalValue(convertedValue);
+
+			if (!lastValueInitialised || lastValue != snappedValue)
+			{
+				lastValue = snappedValue;
+				lastValueInitialised = true;
+				scriptProcessor->setAttribute(componentIndex, snappedValue, sendNotification);
+			}
 		}
 	}
 	else
@@ -899,8 +909,9 @@ int ScriptedControlAudioParameter::getNumSteps() const
 	case ScriptedControlAudioParameter::Type::ComboBox:
 		return itemList.size();
 	case ScriptedControlAudioParameter::Type::Panel:
-		return (int)range.end +1 ;
 
+		return range.interval != 0.0 ? (int)((float)range.getRange().getLength() / range.interval) :
+									   (int)range.getRange().getLength();
 	case ScriptedControlAudioParameter::Type::Unsupported:
 		break;
 	default:
