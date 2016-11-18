@@ -64,11 +64,11 @@ processFlag(true)
 	parameterNames.add("ImpulseLength");
 	parameterNames.add("ProcessInput");
 
-	
+	smoothedGainerWet.setParameter((int)ScriptingDsp::SmoothedGainer::Parameters::FastMode, 1.0f);
+	smoothedGainerDry.setParameter((int)ScriptingDsp::SmoothedGainer::Parameters::FastMode, 1.0f);
 
-	
-	
-
+	smoothedGainerWet.setParameter((int)ScriptingDsp::SmoothedGainer::Parameters::Gain, 1.0f);
+	smoothedGainerDry.setParameter((int)ScriptingDsp::SmoothedGainer::Parameters::Gain, 0.0f);
 }
 
 void ConvolutionEffect::setImpulse()
@@ -116,8 +116,12 @@ void ConvolutionEffect::setInternalAttribute(int parameterIndex, float newValue)
 {
 	switch (parameterIndex)
 	{
-	case DryGain:		dryGain = Decibels::decibelsToGain(newValue); break;
-	case WetGain:		wetGain = Decibels::decibelsToGain(newValue); break;
+	case DryGain:		dryGain = Decibels::decibelsToGain(newValue); 
+						smoothedGainerDry.setParameter((int)ScriptingDsp::SmoothedGainer::Parameters::Gain, dryGain); 
+						break;
+	case WetGain:		wetGain = Decibels::decibelsToGain(newValue);
+						smoothedGainerWet.setParameter((int)ScriptingDsp::SmoothedGainer::Parameters::Gain, wetGain);
+						break;
 	case Latency:		latency = (int)newValue;
 		jassert(isPowerOfTwo(latency));
 		setImpulse();
@@ -163,7 +167,10 @@ void ConvolutionEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
     
 	EffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 
+	smoothedGainerWet.prepareToPlay(sampleRate, samplesPerBlock);
+	smoothedGainerDry.prepareToPlay(sampleRate, samplesPerBlock);
 
+	wetBuffer = AudioSampleBuffer(2, samplesPerBlock);
 
 	convolutionEngine.Reset();
 }
@@ -188,8 +195,7 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 
 	if (isReloading || (!processFlag && !rampFlag))
 	{
-		FloatVectorOperations::multiply(l, dryGain, numSamples);
-		FloatVectorOperations::multiply(r, dryGain, numSamples);
+		smoothedGainerDry.processBlock(channels, 2, numSamples);
 
 		currentValues.inL = FloatVectorOperations::findMaximum(l, numSamples);
 		currentValues.inR = FloatVectorOperations::findMaximum(l, numSamples);
@@ -199,8 +205,7 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 
 	convolutionEngine.Add(channels, numSamples, 2);
 
-	FloatVectorOperations::multiply(l, dryGain, numSamples);
-	FloatVectorOperations::multiply(r, dryGain, numSamples);
+	smoothedGainerDry.processBlock(channels, 2, numSamples);
 
 	currentValues.inL = FloatVectorOperations::findMaximum(l, numSamples);
 	currentValues.inR = FloatVectorOperations::findMaximum(l, numSamples);
@@ -250,8 +255,13 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 		else
 		{
 
-			FloatVectorOperations::addWithMultiply(l, convolutedL, wetGain, availableSamples);
-			FloatVectorOperations::addWithMultiply(r, convolutedR, wetGain, availableSamples);
+			FloatVectorOperations::copy(wetBuffer.getWritePointer(0), convolutedL, availableSamples);
+			FloatVectorOperations::copy(wetBuffer.getWritePointer(1), convolutedR, availableSamples);
+
+			smoothedGainerWet.processBlock(wetBuffer.getArrayOfWritePointers(), 2, availableSamples);
+
+			FloatVectorOperations::add(l, wetBuffer.getReadPointer(0), availableSamples);
+			FloatVectorOperations::add(r, wetBuffer.getReadPointer(1), availableSamples);
 
 			convolutionEngine.Advance(availableSamples);
 		}

@@ -51,6 +51,134 @@ namespace wdl
 #endif
 
 
+class GainSmoother
+{
+public:
+
+	enum class Parameters
+	{
+		Gain = 0,
+		SmoothingTime,
+		FastMode,
+		numParameters
+	};
+
+	GainSmoother() :
+		gain(1.0f),
+		smoothingTime(200.0f),
+		fastMode(true),
+		lastValue(0.0f)
+	{
+		smoother.setDefaultValue(1.0f);
+	};
+
+
+	int getNumParameters() const { return (int)Parameters::numParameters; }
+
+	float getParameter(int index) const 
+	{
+		if (index == 0) return gain;
+		else if (index == 1) return smoothingTime;
+		else return -1;
+	}
+
+	void setParameter(int index, float newValue) 
+	{
+		if (index == 0) gain = newValue;
+		else if (index == 1) smoothingTime = newValue;
+	}
+
+	void prepareToPlay(double sampleRate, int /*samplesPerBlock*/)
+	{
+		smoother.prepareToPlay(sampleRate);
+		smoother.setSmoothingTime(smoothingTime);
+	}
+
+	void processBlock(float** data, int numChannels, int numSamples)
+	{
+		if (numChannels == 1)
+		{
+			float *l = data[0];
+
+			if (fastMode)
+			{
+				const float a = 0.99f;
+				const float invA = 1.0f - a;
+
+				while (--numSamples >= 0)
+				{
+					const float smoothedGain = lastValue * a + gain * invA;
+					lastValue = smoothedGain;
+
+					*l++ *= smoothedGain;
+				}
+			}
+			else
+			{
+				while (--numSamples >= 0)
+				{
+					const float smoothedGain = smoother.smooth(gain);
+
+					*l++ *= smoothedGain;
+				}
+			}
+
+
+		}
+
+		else if (numChannels == 2)
+		{
+			if (fastMode)
+			{
+				const float a = 0.99f;
+				const float invA = 1.0f - a;
+
+				float *l = data[0];
+				float *r = data[1];
+
+				while (--numSamples >= 0)
+				{
+					const float smoothedGain = lastValue * a + gain * invA;
+					lastValue = smoothedGain;
+
+					*l++ *= smoothedGain;
+					*r++ *= smoothedGain;
+				}
+			}
+			else
+			{
+				float *l = data[0];
+				float *r = data[1];
+
+				while (--numSamples >= 0)
+				{
+					const float smoothedGain = smoother.smooth(gain);
+
+					*l++ *= smoothedGain;
+					*r++ *= smoothedGain;
+				}
+			}
+
+		}
+	}
+
+	int getNumConstants() const 
+	{
+		return (int)Parameters::numParameters;
+	}
+
+private:
+
+	float gain;
+	float smoothingTime;
+	bool fastMode;
+
+	float lastValue;
+
+	Smoother smoother;
+};
+
+
 
 /** @brief A convolution reverb using zero-latency convolution
 *	@ingroup effectTypes
@@ -107,6 +235,11 @@ public:
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 private:
+
+	GainSmoother smoothedGainerWet;
+	GainSmoother smoothedGainerDry;
+
+	AudioSampleBuffer wetBuffer;
 
 	const CriticalSection& getImpulseLock() const { return lock; };
 
