@@ -171,6 +171,14 @@ Set this to 0 to deactivate the CPU peak meter.
 #endif
 
 
+/** Config: USE_HARD_CLIPPER
+
+Set this to 1 to enable hard clipping of the output (brickwall everything over 1.0)
+*/
+#ifndef USE_HARD_CLIPPER
+#define USE_HARD_CLIPPER 0
+#endif
+
 #if JUCE_IOS
 #ifndef HISE_IOS
 #define HISE_IOS 1
