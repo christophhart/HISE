@@ -22,9 +22,10 @@ REGISTER_STATIC_DSP_LIBRARIES()
 // This creates new instances of the plugin..
 AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
-
 	AudioProcessorWrapper::addAudioProcessorToList("GainProcessor", &GainProcessor::create);
 	AudioProcessorWrapper::addAudioProcessorToList("Spatializer", &Spatializer::create);
 
 	return new BackendProcessor();	
 };
+
+AudioProcessor* StandaloneProcessor::createProcessor(void) { return nullptr; }

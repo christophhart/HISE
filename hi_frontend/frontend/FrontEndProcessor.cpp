@@ -109,13 +109,18 @@ unlockCounter(0)
 	}
 	else
 	{
-		FileInputStream fis(ProjectHandler::Frontend::getAppDataDirectory().getChildFile("AudioResources.dat"));
+		File audioResourceFile(ProjectHandler::Frontend::getAppDataDirectory().getChildFile("AudioResources.dat"));
 
-		ValueTree impulseDataFile = ValueTree::readFromStream(fis);
-
-		if (impulseDataFile.isValid())
+		if (audioResourceFile.existsAsFile())
 		{
-			getSampleManager().getAudioSampleBufferPool()->restoreFromValueTree(impulseDataFile);
+			FileInputStream fis(audioResourceFile);
+
+			ValueTree impulseDataFile = ValueTree::readFromStream(fis);
+
+			if (impulseDataFile.isValid())
+			{
+				getSampleManager().getAudioSampleBufferPool()->restoreFromValueTree(impulseDataFile);
+			}
 		}
 	}
 
