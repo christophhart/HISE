@@ -749,6 +749,13 @@ void ScriptedControlAudioParameter::setControlledScriptComponent(ScriptingApi::C
 			if (range.getRange().contains(midPoint))
 			{
 				range.skew = (float)HiSlider::getSkewFactorFromMidPoint((double)min, (double)max, (double)midPoint);
+
+				if (range.skew == 0.0f)
+				{
+					// You have some weird ranges going on here...
+					jassertfalse;
+					range.skew = 1.0f;
+				}
 			}
 
 			suffix = c->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::suffix);

@@ -34,7 +34,7 @@
 #define ADD_TO_TYPE_SELECTOR(x) (ScriptComponentPropertyTypeSelector::addToTypeSelector(ScriptComponentPropertyTypeSelector::x, propertyIds.getLast()))
 #define ADD_AS_SLIDER_TYPE(min, max, interval) (ScriptComponentPropertyTypeSelector::addToTypeSelector(ScriptComponentPropertyTypeSelector::SliderSelector, propertyIds.getLast(), min, max, interval))
 
-
+#include <cmath>
 
 
 
@@ -419,6 +419,13 @@ void ScriptingApi::Content::ScriptComponent::setValue(var controlValue)
     
 #endif
     
+	if (!controlValue.isObject())
+	{
+		const float value = (float)controlValue;
+
+		jassert(!std::isnan(value));
+	}
+
 	if (parent != nullptr)
 	{
 		ScopedLock sl(parent->lock);
