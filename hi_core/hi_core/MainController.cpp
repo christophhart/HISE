@@ -55,6 +55,8 @@ MainController::MainController():
 	customTypeFaceData(ValueTree("CustomFonts")),
 	masterEventBuffer(),
 	eventIdHandler(masterEventBuffer),
+	userPresetHandler(this),
+	presetLoadRampFlag(0),
 #if JUCE_WINDOWS
     globalCodeFontSize(14.0f)
 #else
@@ -768,7 +770,23 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	}
 #endif
 
-
+	if (presetLoadRampFlag.get() != 0)
+	{
+		if (presetLoadRampFlag.get() == -1)
+		{
+			buffer.applyGainRamp(0, buffer.getNumSamples(), 1.0f, 0.0f);
+			presetLoadRampFlag.set(-2);
+		}
+		else if (presetLoadRampFlag.get() == -2)
+		{
+			buffer.clear();
+		}
+		else if (presetLoadRampFlag.get() == 1)
+		{
+			buffer.applyGainRamp(0, buffer.getNumSamples(), 0.0f, 1.0f);
+			presetLoadRampFlag.set(0);
+		}
+	}
 
 	midiMessages.clear();
 #endif
@@ -959,3 +977,41 @@ ControlledObject::~ControlledObject()
 	masterReference.clear();
 	
 };
+
+void MainController::UserPresetHandler::loadPresetInternal()
+{
+#if USE_BACKEND
+	if (!GET_PROJECT_HANDLER(mc->getMainSynthChain()).isActive()) return;
+#endif
+
+	Processor::Iterator<JavascriptMidiProcessor> iter(mc->getMainSynthChain());
+
+	while (JavascriptMidiProcessor *sp = iter.getNextProcessor())
+	{
+		if (!sp->isFront()) continue;
+
+		ValueTree v;
+
+		for (int i = 0; i < currentPreset.getNumChildren(); i++)
+		{
+			if (currentPreset.getChild(i).getProperty("Processor") == sp->getId())
+			{
+				v = currentPreset.getChild(i);
+				break;
+			}
+		}
+
+		if (v.isValid())
+		{
+			sp->getScriptingContent()->restoreAllControlsFromPreset(v);
+		}
+	}
+
+	ValueTree autoData = currentPreset.getChildWithName("MidiAutomation");
+
+	if (autoData.isValid())
+		mc->getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(autoData);
+
+	mc->presetLoadRampFlag.set(1);
+
+}

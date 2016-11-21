@@ -230,6 +230,33 @@ public:
 		uint32 currentEventId;
 	};
 
+	class UserPresetHandler : public Timer
+	{
+	public:
+
+		UserPresetHandler(MainController* mc_): mc(mc_)	{}
+
+		void timerCallback()
+		{
+			loadPresetInternal();
+			stopTimer();
+		}
+
+		void loadUserPreset(const ValueTree& presetToLoad)
+		{
+			currentPreset = presetToLoad;
+			startTimer(50);
+		}
+
+	private:
+
+		void loadPresetInternal();
+
+		MainController* mc;
+
+		ValueTree currentPreset;
+
+	};
 
 	MainController();
 
@@ -480,6 +507,13 @@ public:
 		return skipCompilingAtPresetLoad;
 	}
 
+	void loadUserPresetAsync(const ValueTree& v)
+	{
+		allNotesOff();
+		presetLoadRampFlag.set(-1);
+		userPresetHandler.loadUserPreset(v);
+	}
+
 protected:
 
 	/** This is the main processing loop that is shared among all subclasses. */
@@ -528,14 +562,17 @@ protected:
 	
     void setMidiInputFlag() {midiInputFlag = true; };
     
-
+	
 
 private:
+
+	friend class UserPresetHandler;
 
 	bool skipCompilingAtPresetLoad = false;
 
 	HiseEventBuffer masterEventBuffer;
 	EventIdHandler eventIdHandler;
+	UserPresetHandler userPresetHandler;
 
 	ScopedPointer<UserPresetData> userPresetData;
 
@@ -565,6 +602,8 @@ private:
 	Component::SafePointer<Plotter> plotter;
 
 	Atomic<int> bufferSize;
+
+	Atomic<int> presetLoadRampFlag;
 
 	AudioPlayHead::CurrentPositionInfo lastPosInfo;
 	

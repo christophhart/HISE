@@ -397,40 +397,10 @@ void UserPresetHandler::loadUserPreset(ModulatorSynthChain *chain, const File &f
 
 void UserPresetHandler::loadUserPreset(ModulatorSynthChain* chain, const ValueTree &parent)
 {
+	chain->getMainController()->loadUserPresetAsync(parent);
 
-#if USE_BACKEND
 
-	if (!GET_PROJECT_HANDLER(chain).isActive()) return;
-
-#endif
-
-	Processor::Iterator<JavascriptMidiProcessor> iter(chain);
-
-	while (JavascriptMidiProcessor *sp = iter.getNextProcessor())
-	{
-		if (!sp->isFront()) continue;
-
-		ValueTree v;
-
-		for (int i = 0; i < parent.getNumChildren(); i++)
-		{
-			if (parent.getChild(i).getProperty("Processor") == sp->getId())
-			{
-				v = parent.getChild(i);
-				break;
-			}
-		}
-
-		if (v.isValid())
-		{
-			sp->getScriptingContent()->restoreAllControlsFromPreset(v);
-		}
-	}
-
-	ValueTree autoData = parent.getChildWithName("MidiAutomation");
-
-	if (autoData.isValid())
-		chain->getMainController()->getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(autoData);
+	
 }
 
 File UserPresetHandler::getUserPresetFile(ModulatorSynthChain *chain, const String &fileNameWithoutExtension)
