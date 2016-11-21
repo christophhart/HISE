@@ -469,7 +469,8 @@ struct HiseJavascriptEngine::RootObject::ExternalCFunction: public ReferenceCoun
 		cCode << "#include <math.h>\n";
 		cCode << codeToCompile;
 
-
+#if JUCE_IOS
+#else
 		int dllLoading = c.openContext();
 
 		if (dllLoading != (int)LoadingErrorCode::LoadingSuccessful)
@@ -494,6 +495,7 @@ struct HiseJavascriptEngine::RootObject::ExternalCFunction: public ReferenceCoun
 			c.closeContext();
 			l.throwError("Error at compiling external C function " + name.toString());
 		}
+#endif
 	}
 
 	struct FunctionCall : public Expression
@@ -566,7 +568,11 @@ struct HiseJavascriptEngine::RootObject::ExternalCFunction: public ReferenceCoun
 	Array<Identifier> arguments;
 	int numArguments;
 	void* f;
+    
+#if JUCE_IOS
+#else
 	TccContext c;
+#endif
 	bool compiledOk;
 	String commentDoc;
 };

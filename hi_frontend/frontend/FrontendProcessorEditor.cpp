@@ -61,6 +61,7 @@ AudioProcessorEditor(fp)
 
 	addAndMakeVisible(deactiveOverlay = new DeactiveOverlay());
 
+    
 	deactiveOverlay->setState(DeactiveOverlay::SamplesNotFound, !ProjectHandler::Frontend::getSampleLocationForCompiledPlugin().isDirectory());
 
 #if USE_COPY_PROTECTION
@@ -73,7 +74,11 @@ AudioProcessorEditor(fp)
 	deactiveOverlay->setState(DeactiveOverlay::LicenceInvalid, !fp->unlocker.isUnlocked());
 #endif
 
+    
+    deactiveOverlay->setVisible(false);
+    
 	addAndMakeVisible(loaderOverlay = new ThreadWithQuasiModalProgressWindow::Overlay());
+    
 	loaderOverlay->setDialog(nullptr);
 	fp->setOverlay(loaderOverlay);
 
@@ -116,7 +121,9 @@ void FrontendProcessorEditor::resized()
     }
 	
 	aboutPage->setBoundsInset(BorderSize<int>(80));
-	deactiveOverlay->setBounds(getLocalBounds());
+	
+    deactiveOverlay->setBounds(getLocalBounds());
+
 	loaderOverlay->setBounds(getLocalBounds());
 }
 

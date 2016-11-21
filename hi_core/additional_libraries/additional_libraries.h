@@ -69,12 +69,17 @@ namespace icstdsp
 #pragma warning (disable: 4244 4127 4267)
 #endif
 
+#if JUCE_IOS
+#else
 extern "C"
 {
 #include "kiss_fft/kiss_fft.h"
 #include "kiss_fft/kiss_fftr.h"
-
+    
 }
+
+#endif
+
 
 #if JUCE_MSVC
 #pragma warning (pop)

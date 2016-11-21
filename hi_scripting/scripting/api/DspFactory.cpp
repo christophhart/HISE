@@ -370,13 +370,20 @@ var StaticDspFactory::createModule(const String &name) const
 DspFactory::Handler::Handler()
 {
 	registerStaticFactories(this);
+    
+#if JUCE_IOS
+#else
 	tccFactory = new TccDspFactory();
+#endif
 }
 
 DspFactory::Handler::~Handler()
 {
 	loadedPlugins.clear();
+#if JUCE_IOS
+#else
 	tccFactory = nullptr;
+#endif
 }
 
 DspInstance * DspFactory::Handler::createDspInstance(const String &factoryName, const String& factoryPassword, const String &moduleName)
@@ -391,7 +398,7 @@ DspFactory * DspFactory::Handler::getFactory(const String &name, const String& p
 {
 	Identifier id(name);
 
-#if USE_BACKEND
+#if USE_BACKEND && !JUCE_IOS
 	if (id == tccFactory->getId()) return tccFactory;
 #endif
 
@@ -431,5 +438,9 @@ DspFactory * DspFactory::Handler::getFactory(const String &name, const String& p
 void DspFactory::Handler::setMainController(MainController* mc_)
 {
 	mc = mc_;
+    
+#if JUCE_IOS
+#else
 	tccFactory->setMainController(mc);
+#endif
 }

@@ -757,8 +757,12 @@ void ChainBarButtonLookAndFeel::drawButtonText(Graphics& g, TextButton& button, 
 
 	const String wholeButtonText = button.getButtonText();
 
+#if USE_BACKEND
 	const bool isMainBar = button.findParentComponentOfClass<ProcessorEditorChainBar>() != nullptr;
-
+#else
+    const bool isMainBar = false;
+#endif
+    
 	if (isMainBar && wholeButtonText.contains(" ") && wholeButtonText.length() > 8)
 	{
 		StringArray lines = StringArray::fromTokens(wholeButtonText, " ", "");

@@ -807,6 +807,7 @@ void VectorFunctions::randsse(float* d, int size, int n)
 // noise, uniformly distributed (-1..1) 
 void VectorFunctions::unoise(float* d, int size)
 {
+#if 0
 #ifdef ICSTLIB_NO_SSEOPT
 	static CriticalSection cs;
 	static unsigned int x = 1;
@@ -825,6 +826,7 @@ void VectorFunctions::unoise(float* d, int size)
 #else
 	randsse(d, size, 1);
 #endif
+#endif
 }
 
 // noise, gaussian with variance 1
@@ -838,6 +840,7 @@ void VectorFunctions::gnoise(float* d, int size, int apxorder)
 	static CriticalSection cs;
 	static unsigned int x = 1;
 
+#if 0
 	cs.Enter();							// single thread access on
 
 	int i,j,temp;
@@ -853,7 +856,7 @@ void VectorFunctions::gnoise(float* d, int size, int apxorder)
 	}
 
 	cs.Leave();							// single thread access off
-
+#endif
 #else
 	randsse(d, size, apxorder);
 	mul(d, scl, size);

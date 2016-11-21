@@ -1201,7 +1201,21 @@ File ProjectHandler::Frontend::getAppDataDirectory(ProjectHandler *handler/*=nul
 	ignoreUnused(handler);
 
 #if JUCE_MAC
+#if JUCE_IOS
+    
+    File f = File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("Application Support/" + getCompanyName() + "/" + getProjectName());
+    
+    if(!f.isDirectory())
+    {
+        f.createDirectory();
+    }
+    
+#else
+    
+    
+    
     return File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("Application Support/" + getCompanyName() + "/" + getProjectName());
+#endif
 #else
 	return File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile(getCompanyName() + "/" + getProjectName());
 #endif

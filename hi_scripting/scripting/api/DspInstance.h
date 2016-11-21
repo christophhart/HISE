@@ -138,8 +138,10 @@ private:
 
 	MainController* mc = nullptr;
 
-
+#if JUCE_IOS
+#else
 	ReferenceCountedObjectPtr<TccDspFactory> tccFactory;
+#endif
 };
 
 /** This objects is a wrapper around the actual DSP module that is loaded from a plugin.

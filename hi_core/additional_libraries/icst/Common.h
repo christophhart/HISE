@@ -9,7 +9,10 @@
 #define _ICST_DSPLIB_COMMON_INCLUDED
 
 // for testing purposes only
-//#define ICSTLIB_NO_SSEOPT
+
+#if JUCE_IOS
+#define ICSTLIB_NO_SSEOPT
+#endif
 //#define ICSTLIB_DEF_ROUND
 //#define ICSTLIB_ENABLE_MFC
 
@@ -24,7 +27,7 @@ class FFTProcessor;
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
-#ifndef ICSTLIB_NO_SSEOPT 	
+#ifndef ICSTLIB_NO_SSEOPT 
 	#include <emmintrin.h>	// SSE2 intrinsics
 #endif
 #ifdef _WIN32

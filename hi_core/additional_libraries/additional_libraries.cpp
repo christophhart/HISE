@@ -56,12 +56,15 @@ namespace icstdsp
 
 #endif
 
+
+#if HISE_IOS
+#else
 extern "C"
 {
 #include "kiss_fft/kiss_fft.c"
 #include "kiss_fft/kiss_fftr.c"
 }
-
+#endif
 
 
 #if JUCE_MSVC

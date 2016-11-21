@@ -34,8 +34,11 @@
 
 #include "hi_scripting.h"
 
+#if JUCE_IOS
+#else
 #include "scripting/api/TccContext.cpp"
 #include "scripting/api/TccDspObject.cpp"
+#endif
 #include "scripting/api/DspFactory.cpp"
 #include "scripting/api/DspInstance.cpp"
 

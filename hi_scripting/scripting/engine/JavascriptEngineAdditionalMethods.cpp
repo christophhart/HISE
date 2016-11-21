@@ -340,12 +340,15 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(D
 		debugInformation.add(new DebugableObjectInformation(o, o->name, DebugInformation::Type::InlineFunction));
 	}
 
+#if JUCE_IOS
+#else
 	for (int i = 0; i < externalCFunctions.size(); i++)
 	{
 		ExternalCFunction* cf = externalCFunctions[i];
 
 		debugInformation.add(new DebugableObjectInformation(cf, cf->name, DebugInformation::Type::ExternalFunction));
 	}
+#endif
 
 	for (int i = 0; i < callbackNEW.size(); i++)
 	{

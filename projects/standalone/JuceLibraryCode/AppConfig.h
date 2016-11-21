@@ -79,6 +79,10 @@
  //#define USE_CUSTOM_FRONTEND_TOOLBAR
 #endif
 
+#ifndef    IS_STANDALONE_FRONTEND
+ //#define IS_STANDALONE_FRONTEND
+#endif
+
 #ifndef    USE_GLITCH_DETECTION
  #define   USE_GLITCH_DETECTION 1
 #endif
@@ -105,6 +109,10 @@
 
 #ifndef    ENABLE_CPU_MEASUREMENT
  #define   ENABLE_CPU_MEASUREMENT 1
+#endif
+
+#ifndef    USE_HARD_CLIPPER
+ //#define USE_HARD_CLIPPER
 #endif
 
 //==============================================================================
