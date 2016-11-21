@@ -242,7 +242,7 @@ void ScriptingApi::Content::ScriptComponent::restoreFromValueTree(const ValueTre
 	}
 	else
 	{
-		value = data;
+		value = (double)data;
 	}
 }
 
@@ -410,6 +410,15 @@ void ScriptingApi::Content::ScriptComponent::set(String propertyName, var value)
 
 void ScriptingApi::Content::ScriptComponent::setValue(var controlValue)
 {
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+    
+    if (controlValue.isString())
+    {
+        reportScriptError("You must not store Strings as value. Use either numbers or an Object");
+    }
+    
+#endif
+    
 	if (parent != nullptr)
 	{
 		ScopedLock sl(parent->lock);

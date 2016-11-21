@@ -165,7 +165,11 @@ public:
 		void set(String propertyName, var value);;
 
 		/** Returns the current value. */
-		virtual var getValue() const { return value; }
+		virtual var getValue() const
+        {
+            jassert(!value.isString());
+            return value;
+        }
 
 		/** Sets the current value
 		*

@@ -264,7 +264,6 @@ void CPP_PREFIX complexFFTInverse(void* FFTState, float* in, float* out, int fft
 #else
 	static_cast<IppFFT*>(FFTState)->complexFFTInverse(in, out, fftSize);
 #endif
-
 }
 
 void CPP_PREFIX complexFFTInplace(void* FFTState, float* data, int fftSize)
