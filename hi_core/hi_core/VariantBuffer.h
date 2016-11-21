@@ -30,6 +30,8 @@
 *   ===========================================================================
 */
 
+#include <cmath>
+
 #ifndef VARIANTBUFFER_H_INCLUDED
 #define VARIANTBUFFER_H_INCLUDED
 
@@ -83,6 +85,37 @@ public:
 
 	static Identifier getName() { RETURN_STATIC_IDENTIFIER("Buffer") };
 
+    static void sanitizeFloatArray(float** channels, int numChannels, int numSamples, float maxLevel=8.0f)
+    {
+        if(numChannels == 2)
+        {
+            float* l = channels[0];
+            float* r = channels[1];
+            
+            Range<float> l_r = FloatVectorOperations::findMinAndMax(l, numSamples);
+            Range<float> r_r = FloatVectorOperations::findMinAndMax(r, numSamples);
+            
+            if(std::isnan(l_r.getStart()) || std::isnan(l_r.getEnd()))
+            {
+                FloatVectorOperations::clear(l, numSamples);
+            }
+            
+            if(std::isnan(r_r.getStart()) || std::isnan(r_r.getEnd()))
+            {
+                FloatVectorOperations::clear(r, numSamples);
+            }
+        }
+        {
+            while(--numSamples >= 0)
+            {
+                
+            }
+        }
+        
+        
+        
+    }
+    
 	// ================================================================================================================
 
 	void referToOtherBuffer(VariantBuffer *b, int offset = 0, int numSamples = -1);

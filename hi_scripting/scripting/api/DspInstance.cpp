@@ -182,6 +182,8 @@ void DspInstance::processBlock(const var &data)
 				sampleData[i] = b->buffer.getWritePointer(0);
 			}
 
+
+            
 			if (switchBypassFlag)
 			{
 				float* sl = bypassSwitchBuffer.getWritePointer(0);
@@ -217,6 +219,8 @@ void DspInstance::processBlock(const var &data)
 			}
 			else
 			{
+
+                
 				object->processBlock(sampleData, a->size(), numSamples);
 			}
 

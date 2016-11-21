@@ -546,7 +546,8 @@ void JavascriptMasterEffect::applyEffect(AudioSampleBuffer &b, int startSample, 
         
 		float *l = b.getWritePointer(0, 0);
 		float *r = b.getWritePointer(1, 0);
-
+        
+        
 		bufferL->referToData(l, numSamples);
 		bufferR->referToData(r, numSamples);
 
