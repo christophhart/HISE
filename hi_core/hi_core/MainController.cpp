@@ -102,7 +102,8 @@ MainController::~MainController()
 }
 
 
-MainController::SampleManager::SampleManager(MainController *mc):
+MainController::SampleManager::SampleManager(MainController *mc_):
+	mc(mc_),
 	samplerLoaderThreadPool(new SampleThreadPool()),
 	projectHandler(),
 	globalSamplerSoundPool(new ModulatorSamplerSoundPool(mc)),
@@ -372,6 +373,22 @@ const ValueTree MainController::SampleManager::getLoadedSampleMap(const String &
 	}
 
 	return ValueTree::invalid;
+}
+
+void MainController::SampleManager::setDiskMode(DiskMode mode) noexcept
+{
+	mc->allNotesOff();
+
+	hddMode = mode == DiskMode::HDD;
+
+	const int multplier = hddMode ? 2 : 1;
+
+	Processor::Iterator<ModulatorSampler> it(mc->getMainSynthChain());
+
+	while (ModulatorSampler* sampler = it.getNextProcessor())
+	{
+		sampler->setPreloadMultiplier(multplier);
+	}
 }
 
 Processor *MainController::createProcessor(FactoryType *factory,

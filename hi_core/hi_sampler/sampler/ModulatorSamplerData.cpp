@@ -66,7 +66,7 @@ void SoundPreloadThread::run()
     
 	const int numSoundsToPreload = sampler->getNumSounds();
 
-	const int preloadSize = (int)sampler->getAttribute(ModulatorSampler::PreloadSize);
+	const int preloadSize = (int)sampler->getAttribute(ModulatorSampler::PreloadSize) * sampler->getPreloadScaleFactor();
 
 	sampler->resetNotes();
 

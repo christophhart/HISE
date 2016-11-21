@@ -73,9 +73,6 @@ AudioProcessorEditor(fp)
 
 	deactiveOverlay->setState(DeactiveOverlay::LicenceInvalid, !fp->unlocker.isUnlocked());
 #endif
-
-    
-    deactiveOverlay->setVisible(false);
     
 	addAndMakeVisible(loaderOverlay = new ThreadWithQuasiModalProgressWindow::Overlay());
     

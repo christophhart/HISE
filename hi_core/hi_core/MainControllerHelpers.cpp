@@ -118,6 +118,10 @@ void MidiControllerAutomationHandler::clear()
 	{
 		automationData[i] = AutomationData();
 	};
+
+	unlearnedData = AutomationData();
+
+	anyUsed = false;
 }
 
 void MidiControllerAutomationHandler::removeMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex)

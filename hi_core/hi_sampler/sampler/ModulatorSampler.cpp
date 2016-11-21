@@ -43,6 +43,7 @@ crossFadeChain(new ModulatorChain(mc, "Group Fade", numVoices, Modulation::GainM
 sampleMap(new SampleMap(this)),
 rrGroupAmount(1),
 bufferSize(4096),
+preloadScaleFactor(1),
 currentRRGroupIndex(1),
 useRoundRobinCycleLogic(true),
 pitchTrackingEnabled(true),
@@ -423,7 +424,7 @@ void ModulatorSampler::refreshStreamingBuffers()
 	{
 		SynthesiserVoice *v = getVoice(i);
 		static_cast<ModulatorSamplerVoice*>(v)->resetVoice();
-		static_cast<ModulatorSamplerVoice*>(v)->setLoaderBufferSize(bufferSize);
+		static_cast<ModulatorSamplerVoice*>(v)->setLoaderBufferSize(bufferSize * preloadScaleFactor);
 	}
 }
 

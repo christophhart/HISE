@@ -366,6 +366,23 @@ public:
 		refreshPreloadSizes();
 		refreshMemoryUsage();
 	}
+	
+	void setPreloadMultiplier(int newPreloadScaleFactor)
+	{
+		if (newPreloadScaleFactor != preloadScaleFactor)
+		{
+			preloadScaleFactor = jmax<int>(1, newPreloadScaleFactor);
+
+			if(getNumSounds() != 0) refreshPreloadSizes();
+			refreshStreamingBuffers();
+			refreshMemoryUsage();
+		}
+	}
+
+	int getPreloadScaleFactor() const
+	{
+		return preloadScaleFactor;
+	}
 
 	void setNumMicPositions(StringArray &micPositions);
 	
@@ -509,6 +526,7 @@ private:
 	bool useRoundRobinCycleLogic;
 	RepeatMode repeatMode;
 	int voiceAmount;
+	int preloadScaleFactor;
 
 	mutable SamplerDisplayValues samplerDisplayValues;
 

@@ -63,9 +63,33 @@ public:
 
 	void saveDeviceSettingsAsXml();
 
-	void setAudioDevice(const String deviceName)
+	void setAudioDeviceType(const String deviceName)
 	{
 		deviceManager->setCurrentAudioDeviceType(deviceName, true);
+	}
+
+	void setDiskMode(int mode);
+
+	void setOutputChannelName(const int channelIndex)
+	{
+		AudioDeviceManager::AudioDeviceSetup currentSetup;
+
+		deviceManager->getAudioDeviceSetup(currentSetup);
+		
+		BigInteger thisChannels = 0;
+		thisChannels.setBit(channelIndex);
+		currentSetup.outputChannels = thisChannels;
+
+		deviceManager->setAudioDeviceSetup(currentSetup, true);
+	}
+
+	void setAudioDevice(const String &deviceName)
+	{
+		AudioDeviceManager::AudioDeviceSetup currentSetup;
+
+		deviceManager->getAudioDeviceSetup(currentSetup);
+		currentSetup.outputDeviceName = deviceName;
+		deviceManager->setAudioDeviceSetup(currentSetup, true);
 	}
 
 	void toggleMidiInput(const String &midiInputName, bool enableInput)
@@ -75,6 +99,8 @@ public:
 			deviceManager->setMidiInputEnabled(midiInputName, enableInput);
 		}
 	}
+
+	int diskMode = 0;
 
 	XmlElement *getSettings();
 
@@ -139,8 +165,6 @@ public:
 		deviceManager->removeMidiInputCallback(String::empty, callback);
         deviceManager->closeAudioDevice();
         
-		
-
 		callback = nullptr;
 		wrappedProcessor = nullptr;
 		deviceManager = nullptr;

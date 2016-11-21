@@ -49,6 +49,13 @@ public:
 	{
 	public:
 
+		enum class DiskMode
+		{
+			SSD = 0,
+			HDD,
+			numDiskModes
+		};
+
 		SampleManager(MainController *mc);
 
 		void setLoadedSampleMaps(ValueTree &v) { sampleMaps = v; };
@@ -95,11 +102,17 @@ public:
 
 		ProjectHandler &getProjectHandler() { return projectHandler; }
 
+		void setDiskMode(DiskMode mode) noexcept;
+
 		const ProjectHandler &getProjectHandler() const { return projectHandler; }
+
+		bool isUsingHddMode() const noexcept{ return hddMode; };
 
 	private:
 
 		ProjectHandler projectHandler;
+
+		MainController* mc;
 
 		ValueTree sampleClipboard;
 		ValueTree sampleMaps;
@@ -107,6 +120,8 @@ public:
 		ScopedPointer<ImagePool> globalImagePool;
 		ScopedPointer<ModulatorSamplerSoundPool> globalSamplerSoundPool;
 		ScopedPointer<SampleThreadPool> samplerLoaderThreadPool;
+
+		bool hddMode = false;
 
 		bool useRelativePathsToProjectFolder;
 

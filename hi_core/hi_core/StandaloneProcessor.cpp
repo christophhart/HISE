@@ -73,9 +73,21 @@ void AudioProcessorDriver::saveDeviceSettingsAsXml()
 {
 	ScopedPointer<XmlElement> deviceData = deviceManager->createStateXml();
 
+	deviceData->setAttribute("DISK_MODE", diskMode);
+
 	if (deviceData != nullptr)
 	{
 		deviceData->writeToFile(getDeviceSettingsFile(), "");
+	}
+}
+
+void AudioProcessorDriver::setDiskMode(int mode)
+{
+	diskMode = mode;
+
+	if (MainController* mc = dynamic_cast<MainController*>(callback->getCurrentProcessor()))
+	{
+		mc->getSampleManager().setDiskMode((MainController::SampleManager::DiskMode)mode);
 	}
 }
 
@@ -93,6 +105,12 @@ StandaloneProcessor::StandaloneProcessor()
 	wrappedProcessor = createProcessor();
 
 	ScopedPointer<XmlElement> deviceData = dynamic_cast<AudioProcessorDriver*>(wrappedProcessor.get())->getSettings();
+
+	int diskMode = deviceData->getIntAttribute("DISK_MODE");
+
+	dynamic_cast<AudioProcessorDriver*>(wrappedProcessor.get())->diskMode = diskMode;
+
+	dynamic_cast<MainController*>(wrappedProcessor.get())->getSampleManager().setDiskMode((MainController::SampleManager::DiskMode)diskMode);
 
 	dynamic_cast<AudioProcessorDriver*>(wrappedProcessor.get())->initialiseAudioDriver(deviceData);
 }
