@@ -34,6 +34,7 @@
 #define FRONTENDPROCESSOR_H_INCLUDED
 
 
+
 /** This class lets you take your exported HISE presets and wrap them into a hardcoded plugin (VST / AU, x86/x64, Win / OSX)
 *
 *	It is connected to a FrontendProcessorEditor, which will display all script interfaces that are brought to the front using 'Synth.addToFront(true)'.
@@ -226,10 +227,12 @@ public:
 
 			addAndMakeVisible(editor = standaloneProcessor->createEditor());
 			setSize(editor->getWidth(), editor->getHeight());
+            //open.attachTo(*editor);
 		}
 
 		~AudioWrapper()
 		{
+            //open.detach();
 			editor = nullptr;
 			standaloneProcessor = nullptr;
 
@@ -242,8 +245,12 @@ public:
 
 	private:
 
+        
 		ScopedPointer<AudioProcessorEditor> editor;
 		ScopedPointer<StandaloneProcessor> standaloneProcessor;
+        
+        
+        
 	};
 
 
@@ -262,7 +269,11 @@ public:
 			setVisible(true);
 		}
 
-		~MainWindow() { audioWrapper = nullptr; }
+		~MainWindow()
+        {
+            
+            audioWrapper = nullptr;
+        }
 
 		void closeButtonPressed() override
 		{
@@ -271,6 +282,8 @@ public:
 
 	private:
 
+        
+        
 		ScopedPointer<AudioWrapper> audioWrapper;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainWindow)

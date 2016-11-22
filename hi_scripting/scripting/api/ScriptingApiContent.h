@@ -190,6 +190,12 @@ public:
 		/** sets the colour of the component (BG, IT1, IT2, TXT). */
 		void setColour(int colourId, int colourAs32bitHex);
 
+        /** Returns the absolute x-position relative to the interface. */
+        int getGlobalPositionX();
+        
+        /** Returns the absolute y-position relative to the interface. */
+        int getGlobalPositionY();
+        
 		/** Restores all properties from a JSON object. */
 		void setPropertiesFromJSON(const var &jsonData);
 

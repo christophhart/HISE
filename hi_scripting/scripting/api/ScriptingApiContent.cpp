@@ -82,6 +82,8 @@ struct ScriptingApi::Content::ScriptComponent::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, addToMacroControl);
 	API_METHOD_WRAPPER_0(ScriptComponent, getWidth);
 	API_METHOD_WRAPPER_0(ScriptComponent, getHeight);
+    API_METHOD_WRAPPER_0(ScriptComponent, getGlobalPositionX);
+    API_METHOD_WRAPPER_0(ScriptComponent, getGlobalPositionY);
 };
 
 
@@ -151,6 +153,8 @@ parentComponentIndex(-1)
 	ADD_API_METHOD_1(addToMacroControl);
 	ADD_API_METHOD_0(getWidth);
 	ADD_API_METHOD_0(getHeight);
+    ADD_API_METHOD_0(getGlobalPositionX);
+    ADD_API_METHOD_0(getGlobalPositionY);
 
 	//setName(name_.toString());
 
@@ -478,6 +482,38 @@ void ScriptingApi::Content::ScriptComponent::setPropertiesFromJSON(const var &js
 	}
 
 	SEND_MESSAGE(this);
+}
+
+int ScriptingApi::Content::ScriptComponent::getGlobalPositionX()
+{
+    const int thisX = getScriptObjectProperty(ScriptComponent::Properties::x);
+    
+    if(parentComponentIndex == -1)
+    {
+        return thisX;
+    }
+    else
+    {
+        ScriptComponent* parentComponent = parent->getComponent(parentComponentIndex);
+        
+        return thisX + parentComponent->getGlobalPositionX();
+    }
+}
+
+int ScriptingApi::Content::ScriptComponent::getGlobalPositionY()
+{
+    const int thisY = getScriptObjectProperty(ScriptComponent::Properties::y);
+    
+    if(parentComponentIndex == -1)
+    {
+        return thisY;
+    }
+    else
+    {
+        ScriptComponent* parentComponent = parent->getComponent(parentComponentIndex);
+        
+        return thisY + parentComponent->getGlobalPositionY();
+    }
 }
 
 void ScriptingApi::Content::ScriptComponent::setPosition(int x, int y, int w, int h)
