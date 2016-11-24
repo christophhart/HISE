@@ -307,7 +307,7 @@ float PolyFilterEffect::getAttribute(int parameterIndex) const
 {
 	switch (parameterIndex)
 	{
-	case MonoFilterEffect::Gain:		return gain;
+	case MonoFilterEffect::Gain:		return Decibels::gainToDecibels(gain);
 	case MonoFilterEffect::Frequency:	return (float)freq;
 	case MonoFilterEffect::Q:			return (float)q;
 	case MonoFilterEffect::Mode:		return (float)mode;
