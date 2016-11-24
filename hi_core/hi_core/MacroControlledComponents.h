@@ -320,7 +320,7 @@ public:
 							
 		case Time:			return NormalisableRange<double>(0.0, 20000.0, 1);
 							
-		case TempoSync:		return NormalisableRange<double>(0, TempoSyncer::numTempos, 1);
+		case TempoSync:		return NormalisableRange<double>(0, TempoSyncer::numTempos-1, 1);
 							
 		case Pan:			return NormalisableRange<double>(-100.0, 100.0, 1);
 							

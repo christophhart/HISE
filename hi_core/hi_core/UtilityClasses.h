@@ -564,13 +564,15 @@ public:
 	{
 		Whole = 0, ///< a whole note
 		Half, ///< a half note
-		Quarter, ///< a quarter note
-		Eighth, ///< a eighth note
-		Sixteenth, ///< a sixteenth note
 		HalfTriplet, ///< a half triplet note
+		Quarter, ///< a quarter note
 		QuarterTriplet, ///< a quarter triplet note
+		Eighth, ///< a eighth note
 		EighthTriplet, ///< a eighth triplet note
+		Sixteenth, ///< a sixteenth note
 		SixteenthTriplet, ///< a sixteenth triplet
+		ThirtyTwo,
+		ThirtyTwoTriplet,
 		numTempos
 	};
 
@@ -617,13 +619,15 @@ public:
 	{
 		tempoNames.add("1/1");		tempoFactors[Whole] = 4.0f;
 		tempoNames.add("1/2");		tempoFactors[Half] = 2.0f;
-		tempoNames.add("1/4");		tempoFactors[Quarter] = 1.0f;
-		tempoNames.add("1/8");		tempoFactors[Eighth] = 0.5f;
-		tempoNames.add("1/16");		tempoFactors[Sixteenth] = 0.25f;
 		tempoNames.add("1/2T");		tempoFactors[HalfTriplet] = 4.0f / 3.0f;
+		tempoNames.add("1/4");		tempoFactors[Quarter] = 1.0f;
 		tempoNames.add("1/4T");		tempoFactors[QuarterTriplet] = 2.0f / 3.0f;
+		tempoNames.add("1/8");		tempoFactors[Eighth] = 0.5f;
 		tempoNames.add("1/8T");		tempoFactors[EighthTriplet] = 1.0f / 3.0f;
+		tempoNames.add("1/16");		tempoFactors[Sixteenth] = 0.25f;
 		tempoNames.add("1/16T");	tempoFactors[SixteenthTriplet] = 0.5f / 3.0f;
+		tempoNames.add("1/32");		tempoFactors[ThirtyTwo] = 0.125f;
+		tempoNames.add("1/32T");	tempoFactors[ThirtyTwoTriplet] = 0.25f / 3.0f;
 	}
 
 private:
