@@ -485,6 +485,9 @@ public:
 		/** Checks if any key is pressed. */
 		bool isLegatoInterval() const { return numPressedKeys.get() != 1; };
 
+		/** Checks if the given key is pressed. */
+		bool isKeyDown(int noteNumber) { return keyDown[noteNumber]; };
+
 		/** Adds a Modulator to the synth's chain. If it already exists, it returns the index. */
 		int addModulator(int chainId, const String &type, const String &id) const;
 
@@ -517,8 +520,17 @@ public:
 
 		// ============================================================================================================
 
-		void increaseNoteCounter() noexcept { ++numPressedKeys; }
-		void decreaseNoteCounter() { --numPressedKeys; if (numPressedKeys.get() < 0) numPressedKeys.set(0); }
+		void increaseNoteCounter(int noteNumber) noexcept 
+		{ 
+			++numPressedKeys; 
+			keyDown.setBit(noteNumber, true);
+		}
+		
+		void decreaseNoteCounter(int noteNumber) 
+		{ 
+			--numPressedKeys; if (numPressedKeys.get() < 0) numPressedKeys.set(0); 
+			keyDown.setBit(noteNumber, false);
+		}
 		void setSustainPedal(bool shouldBeDown) { sustainState = shouldBeDown; };
 
 		struct Wrapper;
@@ -528,6 +540,7 @@ public:
 		OwnedArray<Message> artificialNoteOns;
 		ModulatorSynth * const owner;
 		Atomic<int> numPressedKeys;
+		BigInteger keyDown;
 
 		SelectedItemSet<WeakReference<ModulatorSamplerSound>> soundSelection;
 

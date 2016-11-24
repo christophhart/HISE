@@ -78,13 +78,13 @@ void HardcodedScriptProcessor::processHiseEvent(HiseEvent &m)
 
 	if(m.isNoteOn())
 	{
-		Synth.increaseNoteCounter();
+		Synth.increaseNoteCounter(m.getNoteNumber());
 		onNoteOn();
 		
 	}
 	else if (m.isNoteOff())
 	{
-		Synth.decreaseNoteCounter();
+		Synth.decreaseNoteCounter(m.getNoteNumber());
 		onNoteOff();
 	}
 	else if (m.isController())

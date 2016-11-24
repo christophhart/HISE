@@ -1254,6 +1254,7 @@ struct ScriptingApi::Synth::Wrapper
 	API_METHOD_WRAPPER_0(Synth, getNumPressedKeys);
 	API_METHOD_WRAPPER_0(Synth, isLegatoInterval);
 	API_METHOD_WRAPPER_0(Synth, isSustainPedalDown);
+	API_METHOD_WRAPPER_1(Synth, isKeyDown);
 	API_VOID_METHOD_WRAPPER_1(Synth, setClockSpeed);
 };
 
@@ -1263,9 +1264,12 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	ApiClass(0),
 	owner(ownerSynth),
 	numPressedKeys(0),
+	keyDown(0),
 	sustainState(false)
 {
 	jassert(owner != nullptr);
+
+	keyDown.setRange(0, 128, false);
 
 	ADD_API_METHOD_0(getNumChildSynths);
 	ADD_API_METHOD_1(addToFront);
@@ -1300,6 +1304,7 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	ADD_API_METHOD_0(getNumPressedKeys);
 	ADD_API_METHOD_0(isLegatoInterval);
 	ADD_API_METHOD_0(isSustainPedalDown);
+	ADD_API_METHOD_1(isKeyDown);
 	ADD_API_METHOD_1(setClockSpeed);
 	
 };

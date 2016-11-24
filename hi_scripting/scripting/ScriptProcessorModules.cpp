@@ -195,7 +195,8 @@ void JavascriptMidiProcessor::runScriptCallbacks()
 
 	if (currentEvent->isNoteOn())
 	{
-		synthObject->increaseNoteCounter();
+		synthObject->increaseNoteCounter(currentEvent->getNoteNumber());
+		
 		if (onNoteOnCallback->isSnippetEmpty()) return;
 
 		scriptEngine->executeCallback(onNoteOn, &lastResult);
@@ -205,7 +206,7 @@ void JavascriptMidiProcessor::runScriptCallbacks()
 	}
 	else if (currentEvent->isNoteOff())
 	{
-		synthObject->decreaseNoteCounter();
+		synthObject->decreaseNoteCounter(currentEvent->getNoteNumber());
 
 		if (onNoteOffCallback->isSnippetEmpty()) return;
 
@@ -614,11 +615,11 @@ void JavascriptVoiceStartModulator::handleHiseEvent(const HiseEvent& m)
 
 	if (m.isNoteOn())
 	{
-		synthObject->increaseNoteCounter();
+		synthObject->increaseNoteCounter(m.getNoteNumber());
 	}
 	else if (m.isNoteOff())
 	{
-		synthObject->decreaseNoteCounter();
+		synthObject->decreaseNoteCounter(m.getNoteNumber());
 
 		if (!onVoiceStopCallback->isSnippetEmpty())
 		{
@@ -774,7 +775,7 @@ void JavascriptTimeVariantModulator::handleHiseEvent(const HiseEvent &m)
 
 	if (m.isNoteOn())
 	{
-		synthObject->increaseNoteCounter();
+		synthObject->increaseNoteCounter(m.getNoteNumber());
 
 		if (!onNoteOnCallback->isSnippetEmpty())
 		{
@@ -786,7 +787,7 @@ void JavascriptTimeVariantModulator::handleHiseEvent(const HiseEvent &m)
 	}
 	else if (m.isNoteOff())
 	{
-		synthObject->decreaseNoteCounter();
+		synthObject->decreaseNoteCounter(m.getNoteNumber());
 
 		if (!onNoteOffCallback->isSnippetEmpty())
 		{
@@ -969,7 +970,7 @@ void JavascriptEnvelopeModulator::handleHiseEvent(const HiseEvent &m)
 
 	if (m.isNoteOn())
 	{
-		synthObject->increaseNoteCounter();
+		synthObject->increaseNoteCounter(m.getNoteNumber());
 
 		if (!onNoteOnCallback->isSnippetEmpty())
 		{
@@ -981,7 +982,7 @@ void JavascriptEnvelopeModulator::handleHiseEvent(const HiseEvent &m)
 	}
 	else if (m.isNoteOff())
 	{
-		synthObject->decreaseNoteCounter();
+		synthObject->decreaseNoteCounter(m.getNoteNumber());
 
 		if (!onNoteOffCallback->isSnippetEmpty())
 		{
