@@ -153,6 +153,8 @@ public:
 
 	void selectLineAfterDefinition(Identifier identifier);
 	bool selectJSONTag(const Identifier &identifier);
+	bool componentIsDefinedWithFactoryMethod(const Identifier& identifier);
+	String createNewDefinitionWithFactoryMethod(const String &oldId, const String &newId, int newX, int newY);
 
 	void paintOverChildren(Graphics& g);
 

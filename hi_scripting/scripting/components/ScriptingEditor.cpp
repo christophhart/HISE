@@ -211,13 +211,22 @@ void ScriptingEditor::createNewComponent(Widgets componentType, int x, int y)
 
 		const String originalId = scriptContent->getEditedComponent()->getName().toString();
 
-		String jsonDataOfNewComponent = CodeDragger::getText(scriptContent->getEditedComponent());
+		if (codeEditor->editor->componentIsDefinedWithFactoryMethod(originalId))
+		{
+			textToInsert = codeEditor->editor->createNewDefinitionWithFactoryMethod(originalId, id, x, y);
+		}
+		else
+		{
+			
 
-		jsonDataOfNewComponent = jsonDataOfNewComponent.replace(originalId, id); // change the id of the component
-		jsonDataOfNewComponent = jsonDataOfNewComponent.replace("\"x\": " + String(xOfOriginal), "\"x\": " + String(x)); // change the id of the component
-		jsonDataOfNewComponent = jsonDataOfNewComponent.replace("\"y\": " + String(yOfOriginal), "\"y\": " + String(y)); // change the id of the component
+			String jsonDataOfNewComponent = CodeDragger::getText(scriptContent->getEditedComponent());
 
-		textToInsert << jsonDataOfNewComponent;
+			jsonDataOfNewComponent = jsonDataOfNewComponent.replace(originalId, id); // change the id of the component
+			jsonDataOfNewComponent = jsonDataOfNewComponent.replace("\"x\": " + String(xOfOriginal), "\"x\": " + String(x)); // change the id of the component
+			jsonDataOfNewComponent = jsonDataOfNewComponent.replace("\"y\": " + String(yOfOriginal), "\"y\": " + String(y)); // change the id of the component
+
+			textToInsert << jsonDataOfNewComponent;
+		}
 	}
 
 	if (getActiveCallback() != 0)
@@ -534,6 +543,10 @@ void ScriptingEditor::scriptComponentChanged(ReferenceCountedObject* scriptCompo
 
 	if (sc != nullptr)
 	{
+		const bool scriptComponentIsDefinedWithFactoryMethod = codeEditor->editor->componentIsDefinedWithFactoryMethod(sc->getName());
+
+		if (scriptComponentIsDefinedWithFactoryMethod) return;
+
 		if (!codeEditor->editor->selectJSONTag(sc->getName()))
 		{
 			codeEditor->editor->selectLineAfterDefinition(sc->getName());

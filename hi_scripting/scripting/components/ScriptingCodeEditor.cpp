@@ -105,6 +105,66 @@ public:
 
 	}
 
+	static String createFactoryMethod(const String& definition)
+	{
+		StringArray lines = StringArray::fromLines(definition);
+
+		for (int i = 0; i < lines.size(); i++)
+		{
+			lines.set(i, lines[i].upToFirstOccurrenceOf("//", false, false));
+		}
+
+		if (lines.size() != 0)
+		{
+			const String firstLineRegex = "(const var )(\\w+)\\s*=\\s*(Content.add\\w+)\\(\\s*(\"\\w+\"),\\s*(\\d+),\\s*(\\d+)";
+			//const String firstLineRegex = "(const var)\\s+(\\w*)\\s*=\\s*(Content.add\\w+)\\(\\s*(\"\\w+\"),\\s*(\\d+),\\s*(\\d+)";
+			const StringArray firstLineData = RegexFunctions::getMatches(firstLineRegex, lines[0]);
+
+			if (firstLineData.size() == 7)
+			{
+
+				const String componentName = firstLineData[2];
+				const String componentType = firstLineData[3];
+				const String componentId = firstLineData[4];
+				const String componentX = firstLineData[5];
+				const String componentY = firstLineData[6];
+
+				StringArray newLines;
+
+				String functionName = PresetHandler::getCustomName("Factory Method");
+
+				const String inlineDefinition = "inline function " + functionName + "(name, x, y)\n{";
+
+				newLines.add(inlineDefinition);
+
+				const String newFirstLine = "\tlocal widget = " + componentType + "(name, x, y);";
+
+				newLines.add(newFirstLine);
+
+				for (int i = 1; i < lines.size(); i++)
+				{
+					newLines.add("    " + lines[i].replace(componentId, "name").replace(componentName + ".", "widget."));
+				}
+
+				newLines.add("    return widget;\n};\n");
+
+				const String newWidgetDefinition = "const var " + componentName + " = " + 
+																  functionName + "(" + 
+																  componentId + ", " + 
+																  componentX + ", " + 
+					                                              componentY + ");\n";
+
+				newLines.add(newWidgetDefinition);
+
+				return newLines.joinIntoString("\n");
+			}
+
+			
+		}
+
+		return definition;
+	}
+
 private:
 
 	void goToNextMatch()
@@ -264,35 +324,6 @@ void JavascriptCodeEditor::selectLineAfterDefinition(Identifier identifier)
 
 		moveCaretTo(pos, false);
 	}
-
-#if 0
-        String regex = "(var )?" + identifier.toString() + " *= *";
-        std::regex reg(regex.toStdString());
-        
-        const int docSize = getDocument().getNumCharacters();
-        
-        int index = docSize;
-        
-        while (!std::regex_search(getTextInRange(Range<int>(index, docSize)).toStdString(), reg) && (index > 0))
-        {
-            index--;
-        }
-        
-        const int lineStartIndex = index;
-        
-        while (!getTextInRange(Range<int>(lineStartIndex, index)).containsChar('\n') && (index < docSize))
-        {
-            index++;
-        }
-        
-        moveCaretTo(CodeDocument::Position(getDocument(), index), false);
-        
-        const int currentCharPosition = getCaretPos().getPosition();
-        setHighlightedRegion(Range<int>(currentCharPosition, currentCharPosition));
-#endif
-        
-  
-
 }
 
 bool JavascriptCodeEditor::selectJSONTag(const Identifier &identifier)
@@ -302,7 +333,6 @@ bool JavascriptCodeEditor::selectJSONTag(const Identifier &identifier)
 
 	String endLine;
 	endLine << "// [/JSON " << identifier.toString() << "]";
-
 
 	String allText = getDocument().getAllContent();
 
@@ -320,51 +350,42 @@ bool JavascriptCodeEditor::selectJSONTag(const Identifier &identifier)
 	setHighlightedRegion(Range<int>(startIndex, endIndex + endLine.length()));
 
 	return true;
+}
 
-#if 0
+bool JavascriptCodeEditor::componentIsDefinedWithFactoryMethod(const Identifier& identifier)
+{
+	const String regexp = "(const)?\\s*(global|var|reg)?\\s*" + identifier.toString() + "\\s*=\\s*(.*)\\(.*;";
 
-	int startLineIndex = -1;
-	CodeDocument::Position startPosition;
-	CodeDocument::Position endPosition;
+	const String allText = getDocument().getAllContent();
 
+	StringArray sa = RegexFunctions::getMatches(regexp, allText, nullptr);
 
-
-	for (int i = 0; i < getDocument().getNumLines(); i++)
+	if (sa.size() == 4)
 	{
-		String line = getDocument().getLine(i);
-
-		if (line.contains(startLine))
-		{
-			startLineIndex = i;
-
-			const int startPositionOfCommentBlock = line.indexOf(startLine);
-
-			startPosition = CodeDocument::Position(getDocument(), i, startPositionOfCommentBlock);
-
-			moveCaretTo(startPosition, false);
-			break;
-		}
-	}
-
-	if (startLineIndex == -1) return false;
-
-	for(int i = startLineIndex; i < getDocument().getNumLines(); i++)
-	{
-		String line = getDocument().getLine(i);
-
-		if(line.contains(endLine))
-		{
-			CodeDocument::Position endPosition(getDocument(), i, 0);
-			
-			moveCaretTo(endPosition, true);
-			moveCaretToEndOfLine(true);
-
-			return true;
-		}
+		const String def = sa[3];
+		return !sa[3].contains("Content.add");
 	}
 
 	return false;
-#endif
+}
+
+String JavascriptCodeEditor::createNewDefinitionWithFactoryMethod(const String &oldId, const String &newId, int newX, int newY)
+{
+	const String regexp = "(const)?\\s*(global|var|reg)?\\s*" + oldId + "\\s*=\\s*([\\w\.]+)\\(\\\"(\\w+)\\\"\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)(.*)\\);";
+	const String allText = getDocument().getAllContent();
+	StringArray sa = RegexFunctions::getMatches(regexp, allText, nullptr);
+
+	if (sa.size() == 8)
+	{
+		const String factoryMethodName = sa[3];
+
+		const String additionalParameters = sa[7];
+
+		String line = "\nconst var " + newId + " = " + factoryMethodName + "(\"" + newId + "\", " + String(newX) + ", " + String(newY) + additionalParameters +  ");\n";
+		return line;
+	}
+
+	return String();
 }
 
 void JavascriptCodeEditor::focusLost(FocusChangeType )
@@ -445,7 +466,13 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &m, const MouseEvent *e)
     {
 		
 		m.addSeparator();
+		m.addSectionHeader("Refactoring");
 		m.addItem(105, "Search & replace");
+
+		const String selection = getTextInRange(getHighlightedRegion()).trimEnd().trimStart();
+		const bool isUIDefinitionSelected = selection.startsWith("const var");
+
+		m.addItem(107, "Create UI factory method from selection", isUIDefinitionSelected);
         m.addSeparator();
         m.addSectionHeader("Import / Export");
         m.addItem(101, "Save Script To File");
@@ -454,7 +481,7 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &m, const MouseEvent *e)
         m.addItem(103, "Save Script to Clipboard");
         m.addItem(104, "Load Script from Clipboard");
         m.addSeparator();
-
+		
 		
     }
     
@@ -564,6 +591,14 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 
 			getDocument().insertText(getCaretPos(), bookmarkLine);
 		}
+	}
+	else if (menuId == 107) // Create Factory method
+	{
+		const String selection = getTextInRange(getHighlightedRegion()).trimEnd().trimStart();
+
+		const String newText = CodeReplacer::createFactoryMethod(selection);
+
+		insertTextAtCaret(newText);
 	}
 	else if (menuId == 110)
 	{
