@@ -678,6 +678,8 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_2(Engine, doubleToString);
 	API_METHOD_WRAPPER_0(Engine, getOS);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadFont);
+	API_VOID_METHOD_WRAPPER_0(Engine, undo);
+	API_VOID_METHOD_WRAPPER_0(Engine, redo);
 };
 
 ScriptingApi::Engine::Engine(ProcessorWithScriptingContent *p) :
@@ -712,6 +714,8 @@ ApiClass(0)
 	ADD_API_METHOD_0(getOS);
 	ADD_API_METHOD_0(createTimerObject);
 	ADD_API_METHOD_1(loadFont);
+	ADD_API_METHOD_0(undo);
+	ADD_API_METHOD_0(redo);
 }
 
 
@@ -896,6 +900,16 @@ var ScriptingApi::Engine::getRegexMatches(String stringToMatch, String wildcard)
 String ScriptingApi::Engine::doubleToString(double value, int digits)
 {
     return String(value, digits);
+}
+
+void ScriptingApi::Engine::undo()
+{
+	getProcessor()->getMainController()->getControlUndoManager()->undo();
+}
+
+void ScriptingApi::Engine::redo()
+{
+	getProcessor()->getMainController()->getControlUndoManager()->redo();
 }
 
 // ====================================================================================================== Sampler functions

@@ -526,6 +526,8 @@ public:
 		userPresetHandler.loadUserPreset(v);
 	}
 
+	UndoManager* getControlUndoManager() { return controlUndoManager; }
+
 protected:
 
 	/** This is the main processing loop that is shared among all subclasses. */
@@ -577,6 +579,8 @@ protected:
 	
 
 private:
+
+	ScopedPointer<UndoManager> controlUndoManager;
 
 	friend class UserPresetHandler;
     friend class PresetLoadingThread;

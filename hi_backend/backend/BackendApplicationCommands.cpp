@@ -107,6 +107,8 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuExportFileAsStandaloneApp,
 		MenuExportFileAsSnippet,
 		MenuFileQuit,
+		MenuEditUndo,
+		MenuEditRedo,
 		MenuEditCopy,
 		MenuEditPaste,
 		MenuEditMoveUp,
@@ -283,6 +285,12 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		break;
 	case MenuFileQuit:
 		setCommandTarget(result, "Quit", true, false, 'X', false); break;
+	case MenuEditUndo:
+		setCommandTarget(result, "Undo: " + bpe->owner->getControlUndoManager()->getUndoDescription(), bpe->owner->getControlUndoManager()->canUndo(), false, 'Z', true, ModifierKeys::commandModifier);
+		break;
+	case MenuEditRedo:
+		setCommandTarget(result, "Redo: " + bpe->owner->getControlUndoManager()->getRedoDescription(), bpe->owner->getControlUndoManager()->canRedo(), false, 'Y', true, ModifierKeys::commandModifier);
+		break;
 	case MenuEditCopy:
 		setCommandTarget(result, "Copy", currentCopyPasteTarget.get() != nullptr, false, 'C');
 		break;
@@ -472,6 +480,8 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuReplaceWithClipboardContent: Actions::replaceWithClipboardContent(bpe); return true;
 	case MenuFileQuit:                  if (PresetHandler::showYesNoWindow("Quit Application", "Do you want to quit?"))
                                             JUCEApplicationBase::quit(); return true;
+	case MenuEditUndo:					bpe->owner->getControlUndoManager()->undo(); updateCommands(); return true;
+	case MenuEditRedo:					bpe->owner->getControlUndoManager()->redo(); updateCommands(); return true;
 	case MenuEditCopy:                  if (currentCopyPasteTarget) currentCopyPasteTarget->copyAction(); return true;
 	case MenuEditPaste:                 if (currentCopyPasteTarget) currentCopyPasteTarget->pasteAction(); return true;
 	case MenuEditMoveUp:				if (currentCopyPasteTarget) Actions::moveModule(currentCopyPasteTarget, true); return true;
@@ -664,15 +674,16 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 
 		break; }
 	case BackendCommandTarget::EditMenu:
+
+		ADD_ALL_PLATFORMS(MenuEditUndo);
+		ADD_ALL_PLATFORMS(MenuEditRedo);
+		p.addSeparator();
+
         if(dynamic_cast<JavascriptCodeEditor*>(bpe->currentCopyPasteTarget.get()))
         {
             dynamic_cast<JavascriptCodeEditor*>(bpe->currentCopyPasteTarget.get())->addPopupMenuItems(p, nullptr);
             
         }
-		else if (dynamic_cast<SampleMapEditor*>(mainCommandManager->getFirstCommandTarget(SampleMapEditor::Undo)))
-		{
-			dynamic_cast<SampleMapEditor*>(mainCommandManager->getFirstCommandTarget(SampleMapEditor::Undo))->fillPopupMenu(p);
-		}
         else
         {
             ADD_ALL_PLATFORMS(MenuEditCopy);

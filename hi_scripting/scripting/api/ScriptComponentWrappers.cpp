@@ -73,6 +73,7 @@ ScriptCreatedComponentWrapper(content, index)
 	s = new HiSlider(sc->name.toString());
 
 	
+	
 
 	s->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
 	s->setTextBoxStyle(Slider::TextBoxRight, true, 80, 20);
@@ -123,6 +124,8 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateComponent()
 	HiSlider *s = dynamic_cast<HiSlider*>(getComponent());
 
 	jassert(s != nullptr);
+
+	s->setUseUndoManagerForEvents(GET_SCRIPT_PROPERTY(useUndoManager));
 
     FilmstripLookAndFeel *fslaf = dynamic_cast<FilmstripLookAndFeel*>(&s->getLookAndFeel());
 
@@ -249,6 +252,8 @@ void ScriptCreatedComponentWrappers::ComboBoxWrapper::updateComponent()
 {
 	HiComboBox *cb = dynamic_cast<HiComboBox*>(component.get());
 
+	cb->setUseUndoManagerForEvents(GET_SCRIPT_PROPERTY(useUndoManager));
+
 	cb->setTooltip(GET_SCRIPT_PROPERTY(tooltip));
 
 	cb->enableMacroControlledComponent(GET_SCRIPT_PROPERTY(enabled));
@@ -297,6 +302,7 @@ void ScriptCreatedComponentWrappers::ButtonWrapper::updateComponent()
 
 	b->enableMacroControlledComponent(GET_SCRIPT_PROPERTY(enabled));
 
+	b->setUseUndoManagerForEvents(GET_SCRIPT_PROPERTY(useUndoManager));
     
     FilmstripLookAndFeel *fslaf = dynamic_cast<FilmstripLookAndFeel*>(&b->getLookAndFeel());
     

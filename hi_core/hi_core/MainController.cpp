@@ -57,6 +57,7 @@ MainController::MainController():
 	eventIdHandler(masterEventBuffer),
 	userPresetHandler(this),
 	presetLoadRampFlag(0),
+	controlUndoManager(new UndoManager()),
 #if JUCE_WINDOWS
     globalCodeFontSize(14.0f)
 #else

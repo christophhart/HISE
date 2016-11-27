@@ -60,13 +60,9 @@ public:
 	/** All application commands are collected here. */
 	enum SampleMapCommands
 	{
-		// Undo / Redo
-		Undo = 0x12000,
-		Redo,
-
 		// View
 
-		ZoomIn,
+		ZoomIn = 0x12000,
 		ZoomOut,
 		ToggleVerticalSize,
 		PopOutMap,
@@ -105,9 +101,7 @@ public:
 
 	void getAllCommands (Array<CommandID>& commands) override
 	{
-		const CommandID id[] = {Undo,
-								Redo,
-								ZoomIn,
+		const CommandID id[] = {ZoomIn,
 								ZoomOut,
 								ToggleVerticalSize,
 								PopOutMap,
@@ -405,8 +399,6 @@ public:
 	{
 		ModulatorSampler *s = sampler;
 
-		UndoManager *u = s->getUndoManager();
-
 		ApplicationCommandManager *a = getCommandManager();
 
 		p.addSectionHeader("Sample Map Handling");
@@ -425,11 +417,6 @@ public:
 		p.addCommandItem(a, ImportFiles);
 
 		p.addSectionHeader("Sample Editing");
-
-		p.addCommandItem(a, Undo, "Undo: " + u->getUndoDescription());
-		p.addCommandItem(a, Redo, "Redo: " + u->getRedoDescription());
-
-		p.addSeparator();
 
 		PopupMenu toolsMenu;
 

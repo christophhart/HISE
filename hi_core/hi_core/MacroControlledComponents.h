@@ -46,6 +46,23 @@ class MacroControlledObject
 {
 public:
 	
+	class UndoableControlEvent: public UndoableAction
+	{
+	public:
+		UndoableControlEvent(Processor* p_, int parameterIndex_, float oldValue_, float newValue_);
+
+		bool perform() override;
+
+		bool undo() override;
+
+	private:
+
+		WeakReference<Processor> processor;
+		int parameterIndex;
+		float newValue;
+		float oldValue;
+	};
+
 	/** Creates a new MacroControlledObject. 
 	*
 	*	You have to call setup() before you use the object!
@@ -71,6 +88,10 @@ public:
 
 	/** returns the name. */
 	const String getName() const noexcept { return name; };
+
+	void setAttributeWithUndo(float newValue, bool useCustomOldValue=false, float customOldValue=-1.0f);
+
+	void setUseUndoManagerForEvents(bool shouldUseUndo) { useUndoManagerForEvents = shouldUseUndo; }
 
 	/** Initializes the control widget.
 	*
@@ -148,6 +169,8 @@ protected:
 	ScopedPointer<NumberTag> numberTag;
 
 private:
+
+	bool useUndoManagerForEvents = true;
 
 	WeakReference<Processor> processor;
 	
@@ -390,6 +413,10 @@ public:
 
 	void sliderValueChanged(Slider *s) override;
 
+	void sliderDragStarted(Slider* s) override;
+
+	void sliderDragEnded(Slider* s) override;
+
 	/** If the slider represents a modulated attribute (eg. LFO Frequency), this can be used to set the displayed value. 
 	*
 	*	In order to use this functionality, add a timer callback to your editor and update the value using the ModulatorChain's getOutputValue().
@@ -528,6 +555,8 @@ private:
 	bool useModulatedRing;
 
 	double modeValues[numModes];
+
+	double dragStartValue = 0.0f;
 
 	float displayValue;
 

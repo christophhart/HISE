@@ -613,6 +613,28 @@ void ProcessorEditorHeader::sliderValueChanged (Slider* sliderThatWasMoved)
 	}
 }
 
+void ProcessorEditorHeader::sliderDragStarted(Slider* s)
+{
+	dragStartValue = s->getValue();
+}
+
+void ProcessorEditorHeader::sliderDragEnded(Slider* s)
+{
+	if (s == intensitySlider)
+	{
+		const float oldValue = Decibels::decibelsToGain((float)dragStartValue);
+		const float newValue = Decibels::decibelsToGain((float)s->getValue());
+
+		MacroControlledObject::UndoableControlEvent* newEvent = new MacroControlledObject::UndoableControlEvent(getProcessor(), ModulatorSynth::Parameters::Gain, oldValue, newValue);
+
+		String undoName = getProcessor()->getId();
+		undoName << " - " << "Volume" << ": " << String(s->getValue(), 2);
+
+		getProcessor()->getMainController()->getControlUndoManager()->beginNewTransaction(undoName);
+		getProcessor()->getMainController()->getControlUndoManager()->perform(newEvent);
+	}
+}
+
 void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
 {
     if (buttonThatWasClicked == debugButton)

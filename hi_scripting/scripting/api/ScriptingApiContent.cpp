@@ -74,6 +74,7 @@ struct ScriptingApi::Content::ScriptComponent::Wrapper
 	API_METHOD_WRAPPER_0(ScriptComponent, getValue);
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setValue);
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setValueNormalized);
+	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setValueWithUndo);
 	API_METHOD_WRAPPER_0(ScriptComponent, getValueNormalized);
 	API_VOID_METHOD_WRAPPER_2(ScriptComponent, setColour);
 	API_VOID_METHOD_WRAPPER_4(ScriptComponent, setPosition);
@@ -115,6 +116,7 @@ parentComponentIndex(-1)
 	propertyIds.add(Identifier("zOrder"));
 	propertyIds.add(Identifier("saveInPreset")); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	propertyIds.add(Identifier("isPluginParameter")); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	propertyIds.add(Identifier("useUndoManager"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	propertyIds.add(Identifier("parentComponent"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	
 
@@ -138,6 +140,7 @@ parentComponentIndex(-1)
 	setDefaultValue(Properties::zOrder, "Normal order");
 	setDefaultValue(Properties::saveInPreset, true);
 	setDefaultValue(Properties::isPluginParameter, false);
+	setDefaultValue(Properties::useUndoManager, false);
 	setDefaultValue(Properties::parentComponent, "");
 
 	ADD_API_METHOD_2(set);
@@ -145,6 +148,7 @@ parentComponentIndex(-1)
 	ADD_API_METHOD_0(getValue);
 	ADD_API_METHOD_1(setValue);
 	ADD_API_METHOD_1(setValueNormalized);
+	ADD_API_METHOD_1(setValueWithUndo);
 	ADD_API_METHOD_0(getValueNormalized);
 	ADD_API_METHOD_2(setColour);
 	ADD_API_METHOD_4(setPosition);
@@ -650,6 +654,20 @@ void ScriptingApi::Content::ScriptComponent::notifyChildComponents()
 		}
 		else jassertfalse;
 	}
+}
+
+void ScriptingApi::Content::ScriptComponent::setValueWithUndo(var newValue)
+{
+	const int parameterIndex = parent->getComponentIndex(name);
+	const float oldValue = (float)getValue();
+	
+	MacroControlledObject::UndoableControlEvent* newEvent = new MacroControlledObject::UndoableControlEvent(getProcessor(), parameterIndex, oldValue, (float)newValue);
+
+	String undoName = getProcessor()->getId();
+	undoName << " - " << getProcessor()->getIdentifierForParameterIndex(parameterIndex).toString() << ": " << String((float)newValue, 2);
+
+	getProcessor()->getMainController()->getControlUndoManager()->beginNewTransaction(undoName);
+	getProcessor()->getMainController()->getControlUndoManager()->perform(newEvent);
 }
 
 struct ScriptingApi::Content::ScriptSlider::Wrapper

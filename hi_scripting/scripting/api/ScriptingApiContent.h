@@ -95,6 +95,7 @@ public:
 			zOrder,
 			saveInPreset,
 			isPluginParameter,
+			useUndoManager,
 			parentComponent,
 			numProperties
 		};
@@ -184,7 +185,10 @@ public:
 		/** Sets the current value from a range 0.0 ... 1.0. */
 		virtual void setValueNormalized(double normalizedValue) { setValue(normalizedValue); };
 
-		/** Returns the normalited value. */
+		/** Sets the current value and adds it to the undo list. Don't call this from onControl! */
+		void setValueWithUndo(var newValue);
+
+		/** Returns the normalized value. */
 		virtual double getValueNormalized() const { return getValue(); };
 
 		/** sets the colour of the component (BG, IT1, IT2, TXT). */

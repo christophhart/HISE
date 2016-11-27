@@ -124,6 +124,26 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 	}
 }
 
+void MacroControlledObject::setAttributeWithUndo(float newValue, bool useCustomOldValue/*=false*/, float customOldValue/*=-1.0f*/)
+{
+	if (useUndoManagerForEvents)
+	{
+		const float oldValue = useCustomOldValue ? customOldValue : getProcessor()->getAttribute(parameter);
+
+		UndoableControlEvent* newEvent = new UndoableControlEvent(getProcessor(), parameter, oldValue, newValue);
+
+		String undoName = getProcessor()->getId();
+		undoName << " - " << getProcessor()->getIdentifierForParameterIndex(parameter).toString() << ": " << String(newValue, 2);
+
+		getProcessor()->getMainController()->getControlUndoManager()->beginNewTransaction(undoName);
+		getProcessor()->getMainController()->getControlUndoManager()->perform(newEvent);
+	}
+	else
+	{
+		getProcessor()->setAttribute(parameter, newValue, dontSendNotification);
+	}
+}
+
 bool  MacroControlledObject::isLocked()
 {
 	if (!macroControlledComponentEnabled) return true;
@@ -186,6 +206,16 @@ void HiSlider::sliderValueChanged(Slider *s)
 
 
 
+
+void HiSlider::sliderDragStarted(Slider* s)
+{
+	dragStartValue = s->getValue();
+}
+
+void HiSlider::sliderDragEnded(Slider* s)
+{
+	setAttributeWithUndo((float)s->getValue(), true, (float)dragStartValue);
+}
 
 void HiSlider::updateValue(NotificationType /*sendAttributeChange*/)
 {
@@ -342,7 +372,9 @@ void HiComboBox::comboBoxChanged(ComboBox *c)
 
 	if(!checkLearnMode())
 	{
-		getProcessor()->setAttribute(parameter, (float)index, dontSendNotification);
+		setAttributeWithUndo((float)index);
+
+		//getProcessor()->setAttribute(parameter, (float)index, dontSendNotification);
 	}
 };
 
@@ -382,10 +414,14 @@ void HiToggleButton::buttonClicked(Button *b)
 	}
 
 
-    
 	if(!checkLearnMode())
 	{
-		getProcessor()->setAttribute(parameter, b->getToggleState(), dontSendNotification);
+		const float newValue = b->getToggleState() ? 1.0f : 0.0f;
+		const float oldValue = 1.0f - newValue;
+
+		setAttributeWithUndo(newValue);
+
+		//getProcessor()->setAttribute(parameter, b->getToggleState(), dontSendNotification);
 	}
 }
 
@@ -394,3 +430,32 @@ StringArray TempoSyncer::tempoNames = StringArray();
 float TempoSyncer::tempoFactors[numTempos];
 
 #undef GET_MACROCHAIN
+
+MacroControlledObject::UndoableControlEvent::UndoableControlEvent(Processor* p_, int parameterIndex_, float oldValue_, float newValue_) :
+	processor(p_),
+	parameterIndex(parameterIndex_),
+	oldValue(oldValue_),
+	newValue(newValue_)
+{
+
+}
+
+bool MacroControlledObject::UndoableControlEvent::perform()
+{
+	if (processor.get() != nullptr)
+	{
+		processor->setAttribute(parameterIndex, newValue, sendNotification);
+		return true;
+	}
+	else return false;
+}
+
+bool MacroControlledObject::UndoableControlEvent::undo()
+{
+	if (processor.get() != nullptr)
+	{
+		processor->setAttribute(parameterIndex, oldValue, sendNotification);
+		return true;
+	}
+	else return false;
+}

@@ -298,15 +298,6 @@ void SampleMapEditor::getCommandInfo(CommandID commandID, ApplicationCommandInfo
 {
 	switch (commandID)
 	{
-	case Undo:				result.setInfo("Undo", "Undo the last sample change", "Undo / Redo", 0);
-		result.addDefaultKeypress('z', ModifierKeys::commandModifier);
-		result.setActive(true);
-		result.setActive(sampler->getUndoManager()->canUndo());
-		break;
-	case Redo:				result.setInfo("Redo", "Redo the last sample change", "Undo / Redo", 0);
-		result.addDefaultKeypress('y', ModifierKeys::commandModifier);
-		result.setActive(sampler->getUndoManager()->canRedo());
-		break;
 	case ZoomIn:			result.setInfo("Zoom In", "Zoom in the sample map", "Zooming", 0);
 		result.addDefaultKeypress('+', ModifierKeys::commandModifier);
 		result.setActive(zoomFactor != 6.0f);
@@ -442,8 +433,6 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 	case SelectAllSamples:	SamplerBody::SampleEditingActions::selectAllSamples(body); return true;
 	case MergeIntoMultisamples:		SamplerBody::SampleEditingActions::mergeIntoMultiSamples(body); return true;
 	case ExtractToSingleMicSamples:	SamplerBody::SampleEditingActions::extractToSingleMicSamples(body); return true;
-	case Undo:				sampler->getUndoManager()->undo(); return true;
-	case Redo:				sampler->getUndoManager()->redo(); return true;
 	case ZoomIn:			zoom(false); return true;
 	case ZoomOut:			zoom(true); return true;
 	case ToggleVerticalSize:toggleVerticalSize(); return true;

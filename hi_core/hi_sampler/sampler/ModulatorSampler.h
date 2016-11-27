@@ -222,7 +222,7 @@ public:
 	void calculateCrossfadeModulationValuesForVoice(int voiceIndex, int startSample, int numSamples, int groupIndex);
 	const float *getCrossfadeModValues(int voiceIndex) const {	return crossFadeChain->getVoiceValues(voiceIndex);	}
 
-	UndoManager *getUndoManager() {	return undoManager;	};
+	UndoManager *getUndoManager() {	return getMainController()->getControlUndoManager();	};
 
 	SampleMap *getSampleMap() {	return sampleMap; };
 	void clearSampleMap();
@@ -553,7 +553,7 @@ private:
 	ScopedPointer<ModulatorChain> sampleStartChain;
 	ScopedPointer<ModulatorChain> crossFadeChain;
 	ScopedPointer<AudioThumbnailCache> soundCache;
-	ScopedPointer<UndoManager> undoManager;
+	
 };
 
 

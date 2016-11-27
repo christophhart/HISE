@@ -33,7 +33,6 @@
 ModulatorSampler::ModulatorSampler(MainController *mc, const String &id, int numVoices) :
 ModulatorSynth(mc, id, numVoices),
 preloadSize(PRELOAD_SIZE),
-undoManager(new UndoManager()),
 asyncPreloader(this),
 asyncPurger(this),
 asyncSampleMapLoader(this),
@@ -645,7 +644,7 @@ void ModulatorSampler::addSamplerSound(const ValueTree &description, int index, 
 	newSound->restoreFromValueTree(description);
 
 	sounds.add(newSound);
-	newSound->setUndoManager(undoManager);
+	newSound->setUndoManager(getMainController()->getControlUndoManager());
 	newSound->addChangeListener(sampleMap);
 
 	sendChangeMessage();
@@ -668,7 +667,7 @@ void ModulatorSampler::addSamplerSounds(OwnedArray<ModulatorSamplerSound>& monol
 
 		newSound->setPurged(purged);
 
-		newSound->setUndoManager(undoManager);
+		newSound->setUndoManager(getMainController()->getControlUndoManager());
 		newSound->addChangeListener(sampleMap);
 	}
 

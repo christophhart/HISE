@@ -73,6 +73,7 @@ SimpleEnvelope::SimpleEnvelope(MainController *mc, const String &id, int voiceAm
 {
 	parameterNames.add("Attack");
 	parameterNames.add("Release");
+	parameterNames.add("LinearMode");
 
 	editorStateIdentifiers.add("AttackChainShown");
 	//editorStateIdentifiers.add("ReleaseChainShown");

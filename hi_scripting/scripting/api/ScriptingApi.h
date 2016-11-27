@@ -293,6 +293,12 @@ public:
         /** Returns a string of the value with the supplied number of digits. */
         String doubleToString(double value, int digits);
         
+		/** Reverts the last controller change. */
+		void undo();
+
+		/** Redo the last controller change. */
+		void redo();
+
 		// ============================================================================================================
 
 		struct Wrapper;

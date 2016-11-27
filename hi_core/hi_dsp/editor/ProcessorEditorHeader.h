@@ -101,6 +101,10 @@ public:
     void paint (Graphics& g) override;
     void resized() override;
     void sliderValueChanged (Slider* sliderThatWasMoved) override;
+
+	void sliderDragStarted(Slider* s) override;
+	void sliderDragEnded(Slider* s) override;
+
     void buttonClicked (Button* buttonThatWasClicked) override;
 
 	void updateBipolarIcon(bool shouldBeBipolar);
@@ -134,6 +138,7 @@ private:
 	bool isSoloHeader;
 	String parentName;
 	
+	double dragStartValue = 0.0;
 
 	ScopedPointer<ProcessorEditorHeaderLookAndFeel> luf;
 	PopupLookAndFeel plaf;

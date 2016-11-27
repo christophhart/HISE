@@ -105,6 +105,8 @@ public:
         MenuExportFileAsSnippet,
 		MenuFileQuit,
 		MenuEditOffset = 0x30000,
+		MenuEditUndo,
+		MenuEditRedo,
 		MenuEditCopy,
 		MenuEditPaste,
 		MenuEditMoveUp,
