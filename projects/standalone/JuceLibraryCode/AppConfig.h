@@ -19,6 +19,7 @@
 
 // (You can add your own code in this section, and the Introjucer will not overwrite it)
 
+#define NUM_DIGITS_FOR_DOUBLE_VAR_TO_STRING 8
 
 // [END_USER_CODE_SECTION]
 
