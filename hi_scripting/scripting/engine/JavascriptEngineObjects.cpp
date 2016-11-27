@@ -192,6 +192,10 @@ struct HiseJavascriptEngine::RootObject::IntegerClass : public DynamicObject
 
 	static var parseInt(Args a)
 	{
+		var v = get(a, 0);
+
+		if (v.isDouble()) { return (int)v; }
+
 		const String s(getString(a, 0).trim());
 
 		return s[0] == '0' ? (s[1] == 'x' ? s.substring(2).getHexValue64() : getOctalValue(s))
