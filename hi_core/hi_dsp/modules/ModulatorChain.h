@@ -378,21 +378,21 @@ public:
 		typeNames.addArray(envelopeFactory->getAllowedTypes());
 	}
 	
-	int fillPopupMenu(PopupMenu &m, int startIndex=1) override
+	int fillPopupMenu(PopupMenu &menu, int startIndex=1) override
 	{
 		int index = startIndex;
 
 		PopupMenu voiceMenu;
 		index = voiceStartFactory->fillPopupMenu(voiceMenu, index);
-		m.addSubMenu("VoiceStart", voiceMenu);
+		menu.addSubMenu("VoiceStart", voiceMenu);
 
 		PopupMenu timeMenu;
 		index = timeVariantFactory->fillPopupMenu(timeMenu, index);
-		m.addSubMenu("TimeVariant", timeMenu);
+		menu.addSubMenu("TimeVariant", timeMenu);
 
 		PopupMenu envelopes;
 		index = envelopeFactory->fillPopupMenu(envelopes, index);
-		m.addSubMenu("Envelopes", envelopes);
+		menu.addSubMenu("Envelopes", envelopes);
 
 		return index;
 	}

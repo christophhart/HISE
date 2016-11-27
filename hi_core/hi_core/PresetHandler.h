@@ -693,7 +693,8 @@ public:
     */
 	static File getPresetFolder() 
 	{ 
-		
+
+        jassertfalse;
 
 #if JUCE_WINDOWS
         
@@ -814,12 +815,10 @@ public:
         }
         else
         {
-            ScopedPointer<XmlElement> xml = XmlDocument::parse(f);
+            xml = XmlDocument::parse(f);
         }
         
         jassert(xml != nullptr);
-        
-
         
         if(xml != nullptr)
         {

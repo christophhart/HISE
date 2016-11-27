@@ -318,8 +318,8 @@ public:
 		{
 			if (numChannels == 2)
 			{
-				delayL = getDelayCoefficient(1.0 + 0.9 * stereoAmount);
-				delayR = getDelayCoefficient(1.0 - 0.9 * stereoAmount);
+				delayL = getDelayCoefficient(1.0f + 0.9f * stereoAmount);
+				delayR = getDelayCoefficient(1.0f - 0.9f * stereoAmount);
 
 				const float a = 0.99f;
 				const float invA = 1.0f - a;
@@ -361,7 +361,10 @@ public:
 			{
 			case Parameters::Width: return width;
 			case Parameters::PseudoStereoAmount: return stereoAmount;
+            case Parameters::numParameters: return 0.0f;
 			}
+
+			return 0.0f;
 		}
 
 		void setParameter(int index, float newValue) override
@@ -370,6 +373,7 @@ public:
 			{
 			case Parameters::Width: width = newValue; break;
 			case Parameters::PseudoStereoAmount: stereoAmount = jlimit<float>(0.0f, 0.9f, newValue); break;
+            case Parameters::numParameters: break;
 			}
 		}
 
@@ -398,7 +402,7 @@ public:
 			return false;
 		};
 
-		bool getConstant(int index, float** data, int &size) noexcept override
+		bool getConstant(int /*index*/, float** /*data*/, int &/*size*/) noexcept override
 		{
 			return false;
 		};
@@ -442,13 +446,13 @@ public:
 		float width;
 		float stereoAmount;
 
-		float currentValueL = 0.0;
-		float currentValueR = 0.0;
+		float currentValueL = 0.0f;
+		float currentValueR = 0.0f;
 		float delayL = 0.0f;
 		float delayR = 0.0f;
-		float delaySamplesL = 0.1;
-		float delaySamplesR = 1.9;
-		float leftGain = 0.0;
+		float delaySamplesL = 0.1f;
+		float delaySamplesR = 1.9f;
+		float leftGain = 0.0f;
 
 		float lastWidth = 1.0f;
 		float lastStereoAmount = 0.0f;
@@ -775,7 +779,7 @@ public:
 
 			while (--numSamples >= 0)
 			{
-				*inL++ = std::sin(uptime + phaseOffset) * gain;
+				*inL++ = (float)std::sin(uptime + phaseOffset) * gain;
 				uptime += uptimeDelta;
 			}
 
@@ -832,6 +836,7 @@ public:
                                             moogL.setResonance(resonance);
                                             moogR.setFrequency(resonance);
                                             break;
+                case Parameters::numParameters: break;
             }
         };
         
@@ -845,6 +850,7 @@ public:
             {
                 case Parameters::Frequency: return frequency;
                 case Parameters::Resonance: return resonance;
+                case Parameters::numParameters: return 0.0f;
             }
             
             return -1;

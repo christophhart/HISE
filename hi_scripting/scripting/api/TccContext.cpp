@@ -57,7 +57,7 @@ bool TccContext::activeContextExists = false;
 
 TccContext::TccContext(const File &f_) :
 state(nullptr),
-f(f_),
+sourceFile(f_),
 #if JUCE_WINDOWS
 tccDirectory(File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("Hart Instruments/tcc/"))
 #else
@@ -112,9 +112,9 @@ int TccContext::openContext()
         
 		CALL_VOID_TCC_FUNCTION( tcc_add_include_path, addIncludeFunction, state, tccDirectory.getFullPathName().getCharPointer());
 		
-		if (f.existsAsFile())
+		if (sourceFile.existsAsFile())
 		{
-			addIncludeFunction(state, f.getParentDirectory().getFullPathName().getCharPointer());
+			addIncludeFunction(state, sourceFile.getParentDirectory().getFullPathName().getCharPointer());
 		}
         
 

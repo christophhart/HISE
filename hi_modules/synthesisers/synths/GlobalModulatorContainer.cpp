@@ -138,13 +138,13 @@ void GlobalModulatorContainer::postVoiceRendering(int startSample, int numThisTi
 	}
 }
 
-void GlobalModulatorContainer::prepareToPlay(double sampleRate, int samplesPerBlock)
+void GlobalModulatorContainer::prepareToPlay(double newSampleRate, int samplesPerBlock)
 {
-	ModulatorSynth::prepareToPlay(sampleRate, samplesPerBlock);
+	ModulatorSynth::prepareToPlay(newSampleRate, samplesPerBlock);
 
 	for (int i = 0; i < data.size(); i++)
 	{
-		data[i]->prepareToPlay(sampleRate, samplesPerBlock);
+		data[i]->prepareToPlay(newSampleRate, samplesPerBlock);
 	}
 }
 
@@ -190,15 +190,7 @@ void GlobalModulatorContainerVoice::calculateBlock(int startSample, int numSampl
 GlobalModulatorData::GlobalModulatorData(Processor *modulator_):
 modulator(modulator_)
 {
-	if (getEnvelopeModulator() != nullptr)
-	{
-		type = GlobalModulator::Envelope;
-		constantVoiceValues = Array<float>();
-
-		numVoices = getEnvelopeModulator()->polyManager.getVoiceAmount();
-
-	}
-	else if (getTimeVariantModulator() != nullptr)
+	if (getTimeVariantModulator() != nullptr)
 	{
 		type = GlobalModulator::TimeVariant;
 		numVoices = 1;

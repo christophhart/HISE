@@ -139,10 +139,10 @@ void EffectProcessorChain::EffectChainHandler::add(Processor *newProcessor, Proc
 		const int index = chain->masterEffects.indexOf(dynamic_cast<MasterEffectProcessor*>(siblingToInsertBefore));
 		chain->masterEffects.insert(index, mep);
 	}
-	else if (MonophonicEffectProcessor* mep = dynamic_cast<MonophonicEffectProcessor*>(newProcessor))
+	else if (MonophonicEffectProcessor* moep = dynamic_cast<MonophonicEffectProcessor*>(newProcessor))
 	{
 		const int index = chain->monoEffects.indexOf(dynamic_cast<MonophonicEffectProcessor*>(siblingToInsertBefore));
-		chain->monoEffects.insert(index, mep);
+		chain->monoEffects.insert(index, moep);
 
 	}
 	else jassertfalse;

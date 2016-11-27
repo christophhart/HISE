@@ -76,9 +76,6 @@ public:
 		/** returns the fixed streaming buffer size. */
 		int getStreamingBufferSize() const { return 4096; };
 
-		/** This saves all referenced samples to a subfolder in the global sample folder with the name of the main synth chain. */
-		void saveAllSamplesToGlobalFolder(const String &folderName);
-
 		/** Returns the ValueTree that represents the samplemap with the specified file name.
 		*
 		*	This is used when a sample map is loaded - it checks if the name already exists in the loaded monolithic data
@@ -207,7 +204,7 @@ public:
 
 		const HiseEvent* getNoteOnEventFor(const HiseEvent &noteOffEvent) const;
 
-		int requestEventIdForArtificialNote(const HiseEvent& noteOnEvent) noexcept;
+		uint16 requestEventIdForArtificialNote(const HiseEvent& noteOnEvent) noexcept;
 
 		const HiseEvent* getNoteOnFromEventId(uint32 eventId) const
 		{
@@ -242,7 +239,7 @@ public:
 
 		HiseEvent artificialNoteOnEvents[128];
 
-		uint32 currentEventId;
+		uint16 currentEventId;
 	};
 
 	class UserPresetHandler : public Timer
@@ -582,6 +579,7 @@ protected:
 private:
 
 	friend class UserPresetHandler;
+    friend class PresetLoadingThread;
 
 	bool skipCompilingAtPresetLoad = false;
 

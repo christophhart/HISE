@@ -86,7 +86,7 @@ public:
 
 
 
-	bool newKeysPressed(const uint8 *currentNotes)
+	bool newKeysPressed(const int8 *currentNotes)
 	{
 		for(int i = 0; i < 127; i++)
 		{
@@ -224,23 +224,20 @@ public:
 		{
 			for(int i = 0; i < selectedSamplerSounds.getNumSelected(); i++)
 			{
-				ModulatorSamplerSound *s = selectedSamplerSounds.getSelectedItem(i);
+				ModulatorSamplerSound *sound = selectedSamplerSounds.getSelectedItem(i);
 
 				if(direction == SamplerSoundMap::Right)
 				{
-					changeProperty(s, ModulatorSamplerSound::KeyHigh, 1);
-					changeProperty(s, ModulatorSamplerSound::KeyLow, 1);
-					changeProperty(s, ModulatorSamplerSound::RootNote, 1);
+					changeProperty(sound, ModulatorSamplerSound::KeyHigh, 1);
+					changeProperty(sound, ModulatorSamplerSound::KeyLow, 1);
+					changeProperty(sound, ModulatorSamplerSound::RootNote, 1);
 				}
 				else
 				{
-					changeProperty(s, ModulatorSamplerSound::KeyLow, -1);
-					changeProperty(s, ModulatorSamplerSound::KeyHigh, -1);
-					changeProperty(s, ModulatorSamplerSound::RootNote, -1);
-
+					changeProperty(sound, ModulatorSamplerSound::KeyLow, -1);
+					changeProperty(sound, ModulatorSamplerSound::KeyHigh, -1);
+					changeProperty(sound, ModulatorSamplerSound::RootNote, -1);
 				}
-
-
 			}
 			break;
 		}
@@ -249,15 +246,13 @@ public:
 		{
 			for(int i = 0; i < selectedSamplerSounds.getNumSelected(); i++)
 			{
-				ModulatorSamplerSound *s = selectedSamplerSounds.getSelectedItem(i);
+				ModulatorSamplerSound *sound = selectedSamplerSounds.getSelectedItem(i);
 
-				changeProperty(s, ModulatorSamplerSound::VeloHigh, direction == SamplerSoundMap::Up ? 1 : -1);
-				changeProperty(s, ModulatorSamplerSound::VeloLow, direction == SamplerSoundMap::Up ? 1 : -1);
-
+				changeProperty(sound, ModulatorSamplerSound::VeloHigh, direction == SamplerSoundMap::Up ? 1 : -1);
+				changeProperty(sound, ModulatorSamplerSound::VeloLow, direction == SamplerSoundMap::Up ? 1 : -1);
 			}
 			break;
 		}
-
 		}
 	}
 

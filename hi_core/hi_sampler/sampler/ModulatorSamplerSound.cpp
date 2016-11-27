@@ -784,7 +784,7 @@ public:
 
 			remainingSounds = numMissingSounds;
 
-			String text = "Remaining missing sounds: " + String(remainingSounds) + " / " + String(numMissingSounds) + " missing sounds.";
+			String textToShow = "Remaining missing sounds: " + String(remainingSounds) + " / " + String(numMissingSounds) + " missing sounds.";
 
             addCustomComponent(spacer = new HorizontalSpacer());
 
@@ -810,7 +810,7 @@ public:
             
             
             
-            showStatusMessage(text);
+            showStatusMessage(textToShow);
 		}
         
 
@@ -1127,11 +1127,11 @@ ModulatorSamplerSound * ModulatorSamplerSoundPool::addSoundWithMultiMic(const Va
 		if (forceReuse)
 		{
             int64 hash = fileName.hashCode64();
-			int i = getSoundIndexFromPool(hash);
+			int j = getSoundIndexFromPool(hash);
 
-			jassert(i != -1);
+			jassert(j != -1);
 
-			multiMicArray.add(pool[i]);
+			multiMicArray.add(pool[j]);
 			if(updatePool) sendChangeMessage();
 		}
 		else
@@ -1145,11 +1145,11 @@ ModulatorSamplerSound * ModulatorSamplerSoundPool::addSoundWithMultiMic(const Va
 			if (searchThisSampleInPool)
             {
                 int64 hash = fileName.hashCode64();
-                int i = getSoundIndexFromPool(hash);
+                int j = getSoundIndexFromPool(hash);
                 
-                if (i != -1)
+                if (j != -1)
                 {
-                    multiMicArray.add(pool[i]);
+                    multiMicArray.add(pool[j]);
                     continue;
                 }
 				else

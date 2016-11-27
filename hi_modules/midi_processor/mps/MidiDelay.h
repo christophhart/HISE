@@ -69,11 +69,11 @@ private:
 			{
 				if(events[i].m.getNoteNumber() == noteOff.getNoteNumber())
 				{
-					const int id = events[i].eventId;
+					const int thisId = events[i].eventId;
 
 					if(deleteIfMatched) events.remove(i);
 
-					return id;
+					return thisId;
 				}
 
 			};

@@ -189,9 +189,9 @@ public:
 			++startSample;
 		}
 
-		const float inputValue = ((int)(uptime) % SAMPLE_LOOKUP_TABLE_SIZE) / (float)SAMPLE_LOOKUP_TABLE_SIZE;
+		const float newInputValue = ((int)(uptime) % SAMPLE_LOOKUP_TABLE_SIZE) / (float)SAMPLE_LOOKUP_TABLE_SIZE;
 
-		if (inputMerger.shouldUpdate() && currentWaveform == Custom) sendTableIndexChangeMessage(false, customTable, inputValue);
+		if (inputMerger.shouldUpdate() && currentWaveform == Custom) sendTableIndexChangeMessage(false, customTable, newInputValue);
 	};
 
 	/** This overwrites the TimeModulation callback to render the intensity chain. */

@@ -102,9 +102,9 @@ public:
 	/** Ignores the event. Ignored events will not be processed, but remain in the buffer (they are not cleared). */
     void ignoreEvent(bool shouldBeIgnored) noexcept{ ignored = shouldBeIgnored; };
 
-	uint32 getEventId() const noexcept{ return eventId; };
+	uint16 getEventId() const noexcept{ return eventId; };
 
-	void setEventId(uint32 newEventId) noexcept{ eventId = (uint16)newEventId; };
+	void setEventId(uint16 newEventId) noexcept{ eventId = (uint16)newEventId; };
 
     void setArtificial() noexcept { artificial = true; }
     bool isArtificial() const noexcept{ return artificial; };
@@ -134,7 +134,7 @@ public:
 
 	float getGainFactor() const noexcept { return Decibels::decibelsToGain((float)gain); };
 
-	static HiseEvent createVolumeFade(int16 eventId, int fadeTimeMilliseconds, int8 targetValue)
+	static HiseEvent createVolumeFade(uint16 eventId, int fadeTimeMilliseconds, int8 targetValue)
 	{
 		HiseEvent e(Type::VolumeFade, 0, 0, 1);
 
@@ -146,7 +146,7 @@ public:
 		return e;	
 	}
 
-	static HiseEvent createPitchFade(int16 eventId, int fadeTimeMilliseconds, int8 coarseTune, int8 fineTune)
+	static HiseEvent createPitchFade(uint16 eventId, int fadeTimeMilliseconds, int8 coarseTune, int8 fineTune)
 	{
 		HiseEvent e(Type::PitchFade, 0, 0, 1);
 
@@ -167,7 +167,7 @@ public:
 
 	// ========================================================================================================================== MIDI Message methods
 
-	uint32 getTimeStamp() const noexcept{ return timeStamp; };
+	uint16 getTimeStamp() const noexcept{ return timeStamp; };
 	void setTimeStamp(uint16 newTimestamp) noexcept{ timeStamp = (uint16)newTimestamp; };
 	void addToTimeStamp(int16 delta) noexcept{ timeStamp += delta; };
 

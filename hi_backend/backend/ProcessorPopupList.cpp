@@ -67,7 +67,7 @@ void ProcessorPopupItem::mouseDown(const MouseEvent &m)
 #else
     if(m.mods.isRightButtonDown())
 	{
-		PopupMenu m;
+		PopupMenu menu;
 
 		enum
 		{
@@ -76,10 +76,10 @@ void ProcessorPopupItem::mouseDown(const MouseEvent &m)
 
 		PopupLookAndFeel plaf;
 
-		m.setLookAndFeel(&plaf);
-		m.addItem(CreateScriptVariable, "Create Script Variable Declaration");
+		menu.setLookAndFeel(&plaf);
+		menu.addItem(CreateScriptVariable, "Create Script Variable Declaration");
 
-		int result = m.show();
+		int result = menu.show();
 
 		if (result == CreateScriptVariable)
 		{

@@ -320,9 +320,9 @@ public:
 	{
 		for(int i = 0; i < dragComponents.size(); i++)
 		{
-			Point<int> p = getPosition(i);
+			Point<int> point = getPosition(i);
 
-			dragComponents[i]->setTopLeftPosition(p.x - 12, p.y - 12);
+			dragComponents[i]->setTopLeftPosition(point.x - 12, point.y - 12);
 		}
 	}
 
@@ -365,12 +365,12 @@ public:
 
 		void paint(Graphics &g)
 		{
-			Rectangle<float> bounds = Rectangle<float>(0.0f, 0.0f, (float)getWidth(), (float)getHeight());
+			Rectangle<float> thisBounds = Rectangle<float>(0.0f, 0.0f, (float)getWidth(), (float)getHeight());
 
-			bounds.reduce(6.0f, 6.0f);
+			thisBounds.reduce(6.0f, 6.0f);
 
 			g.setColour(Colours::black.withAlpha(0.3f));
-			g.fillRoundedRectangle(bounds, 3.0f);
+			g.fillRoundedRectangle(thisBounds, 3.0f);
 
 			const bool enabled = eq->getFilterBand(index)->isEnabled();
 
@@ -380,7 +380,7 @@ public:
 
 
 
-			g.drawRoundedRectangle(bounds, 3.0f, selected ? 2.0f : 1.0f);
+			g.drawRoundedRectangle(thisBounds, 3.0f, selected ? 2.0f : 1.0f);
 
 			g.setFont(GLOBAL_BOLD_FONT().withHeight(11.0f));
 			g.drawText(String(index), getLocalBounds(), Justification::centred, false);

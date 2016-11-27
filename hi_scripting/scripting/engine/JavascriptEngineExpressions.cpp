@@ -410,9 +410,9 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 		return result;
 	}
 
-	void createFunctionDefinition(const Identifier &name)
+	void createFunctionDefinition(const Identifier &functionName)
 	{
-		functionDef = name.toString();
+		functionDef = functionName.toString();
 		functionDef << "(";
 
 		for (int i = 0; i < parameters.size(); i++)
@@ -458,14 +458,14 @@ var HiseJavascriptEngine::RootObject::FunctionCall::invokeFunction(const Scope& 
 
 	var argVars[16];
 
-	const int numArgs = jmin<int>(16, arguments.size());
+	const int thisNumArgs = jmin<int>(16, arguments.size());
 
-	for (int i = 0; i < numArgs; i++)
+	for (int i = 0; i < thisNumArgs; i++)
 	{
 		argVars[i] = arguments.getUnchecked(i)->getResult(s);
 	}
 
-	const var::NativeFunctionArgs args(thisObject, argVars, numArgs);
+	const var::NativeFunctionArgs args(thisObject, argVars, thisNumArgs);
 
 
 	if (var::NativeFunction nativeFunction = function.getNativeFunction())

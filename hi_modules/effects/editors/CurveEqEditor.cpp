@@ -291,9 +291,9 @@ void FilterDragOverlay::setEq(CurveEqEditor* editor_, CurveEq* eq_)
 
 	for(int i = 0; i < eq->getNumFilterBands(); i++)
 	{
-		Point<int> p = getPosition(i);
+		Point<int> point = getPosition(i);
 
-		addFilter(p.x, p.y);
+		addFilter(point.x, point.y);
 	}
 }
 

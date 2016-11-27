@@ -86,33 +86,33 @@ void TooltipBar::timerCallback()
 
 	Point<float> thisPosition = mouseSource.getScreenPosition();
 
-	const bool newPosition = thisPosition != lastMousePosition;
+	const bool positionHasChanged = thisPosition != lastMousePosition;
 
 	lastMousePosition = thisPosition;
 
 	Component* const newComp = mouseSource.isMouse() ? mouseSource.getComponentUnderMouse() : nullptr;
 
-    Component *parentComponent = nullptr;
+    Component *parent = nullptr;
     
 #if USE_BACKEND
     
-    parentComponent = findParentComponentOfClass<BackendProcessorEditor>();
+    parent = findParentComponentOfClass<BackendProcessorEditor>();
     
-    if(parentComponent == nullptr)
+    if(parent == nullptr)
     {
-        parentComponent = findParentComponentOfClass<PluginPreviewWindow>();
+        parent = findParentComponentOfClass<PluginPreviewWindow>();
     }
     
 #else
     
-    parentComponent = findParentComponentOfClass<FrontendProcessorEditor>();
+    parent = findParentComponentOfClass<FrontendProcessorEditor>();
     
 #endif
     
-    jassert(parentComponent != nullptr);
+    jassert(parent != nullptr);
     
 	// Deactivate tooltips for multiple instances!
-	if (parentComponent == nullptr || !parentComponent->isParentOf(newComp))
+	if (parent == nullptr || !parent->isParentOf(newComp))
 		return;
 
 	TooltipClient *client = dynamic_cast<TooltipClient*>(newComp);
@@ -133,7 +133,7 @@ void TooltipBar::timerCallback()
 		clearText();
 	}
 
-	if(!newPosition && keyClient != nullptr)
+	if(!positionHasChanged && keyClient != nullptr)
 	{
 		setText(keyClient->getTooltip());
 	}

@@ -174,14 +174,14 @@ public:
 	{
 		KeyModulator::Mode m = (KeyModulator::Mode)(int)getProcessor()->getAttribute(KeyModulator::TableMode);
 
-		const bool keyMode = m == KeyModulator::KeyMode;
+		const bool useKeyMode = m == KeyModulator::KeyMode;
 
-		discreteTableEditor->setVisible(keyMode);
-		keyGraph->setVisible(keyMode);
-		selectionSlider->setVisible(keyMode);
-		controlButton->setEnabled(keyMode);
-		scrollButton->setEnabled(keyMode);
-		midiTable->setVisible(!keyMode);
+		discreteTableEditor->setVisible(useKeyMode);
+		keyGraph->setVisible(useKeyMode);
+		selectionSlider->setVisible(useKeyMode);
+		controlButton->setEnabled(useKeyMode);
+		scrollButton->setEnabled(useKeyMode);
+		midiTable->setVisible(!useKeyMode);
 	}
 
 	void updateGui() override

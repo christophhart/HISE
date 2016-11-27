@@ -208,24 +208,26 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 			FloatVectorOperations::addWithMultiply(outputBuffer.getWritePointer(destinationChannel, 0), internalBuffer.getReadPointer(i, 0), thisGain, outputBuffer.getNumSamples());
 		}
 
-		if (getMatrix().isEditorShown())
+		
+	}
+
+	if (getMatrix().isEditorShown())
+	{
+		float gainValues[NUM_MAX_CHANNELS];
+
+		for (int i = 0; i < internalBuffer.getNumChannels(); i++)
 		{
-			float gainValues[NUM_MAX_CHANNELS];
-
-			for (int i = 0; i < internalBuffer.getNumChannels(); i++)
-			{
-				gainValues[i] = internalBuffer.getMagnitude(i, 0, internalBuffer.getNumSamples());
-			}
-
-			getMatrix().setGainValues(gainValues, true);
-
-			for (int i = 0; i < outputBuffer.getNumChannels(); i++)
-			{
-				gainValues[i] = outputBuffer.getMagnitude(i, 0, outputBuffer.getNumSamples());
-			}
-
-			getMatrix().setGainValues(gainValues, false);
+			gainValues[i] = internalBuffer.getMagnitude(i, 0, internalBuffer.getNumSamples());
 		}
+
+		getMatrix().setGainValues(gainValues, true);
+
+		for (int i = 0; i < outputBuffer.getNumChannels(); i++)
+		{
+			gainValues[i] = outputBuffer.getMagnitude(i, 0, outputBuffer.getNumSamples());
+		}
+
+		getMatrix().setGainValues(gainValues, false);
 	}
 
 	handlePeakDisplay(outputBuffer.getNumSamples());
@@ -370,7 +372,7 @@ void ModulatorSynth::handleHostInfoHiseEvents()
 	}
 }
 
-void ModulatorSynth::handleVolumeFade(int eventId, int fadeTimeMilliseconds, float gain)
+void ModulatorSynth::handleVolumeFade(int eventId, int fadeTimeMilliseconds, float targetGain)
 {
 	const double fadeTimeSeconds = (double)fadeTimeMilliseconds / 1000.0;
 
@@ -380,12 +382,12 @@ void ModulatorSynth::handleVolumeFade(int eventId, int fadeTimeMilliseconds, flo
 
 		if (!v->isInactive() && v->getCurrentHiseEvent().getEventId() == eventId)
 		{
-			v->setVolumeFade(fadeTimeSeconds, gain);
+			v->setVolumeFade(fadeTimeSeconds, targetGain);
 		}
 	}
 }
 
-void ModulatorSynth::handlePitchFade(int eventId, int fadeTimeMilliseconds, double pitchFactor)
+void ModulatorSynth::handlePitchFade(uint16 eventId, int fadeTimeMilliseconds, double pitchFactor)
 {
 	const double fadeTimeSeconds = (double)fadeTimeMilliseconds / 1000.0;
 
@@ -437,11 +439,11 @@ void ModulatorSynth::preStartVoice(int voiceIndex, int noteNumber)
 	effectChain->startVoice(voiceIndex, noteNumber);
 }
 
-void ModulatorSynth::prepareToPlay(double sampleRate, int samplesPerBlock)
+void ModulatorSynth::prepareToPlay(double newSampleRate, int samplesPerBlock)
 {
 	ScopedLock sl(getSynthLock());
 
-	if(sampleRate != -1.0)
+	if(newSampleRate != -1.0)
 	{
 		pitchBuffer = AudioSampleBuffer(1, samplesPerBlock); // should be enough
 		internalBuffer = AudioSampleBuffer(getMatrix().getNumSourceChannels(), samplesPerBlock);
@@ -450,22 +452,22 @@ void ModulatorSynth::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 		for(int i = 0; i < getNumVoices(); i++)
 		{
-			static_cast<ModulatorSynthVoice*>(getVoice(i))->prepareToPlay(sampleRate, samplesPerBlock);
+			static_cast<ModulatorSynthVoice*>(getVoice(i))->prepareToPlay(newSampleRate, samplesPerBlock);
 		}
 
-		vuMerger.limitFromBlockSizeToFrameRate(sampleRate, samplesPerBlock);
+		vuMerger.limitFromBlockSizeToFrameRate(newSampleRate, samplesPerBlock);
 
-		Synthesiser::setCurrentPlaybackSampleRate(sampleRate);
+		Synthesiser::setCurrentPlaybackSampleRate(newSampleRate);
 
-		Processor::prepareToPlay(sampleRate, samplesPerBlock);
+		Processor::prepareToPlay(newSampleRate, samplesPerBlock);
 		
-		midiProcessorChain->prepareToPlay(sampleRate, samplesPerBlock);
-		gainChain->prepareToPlay(sampleRate, samplesPerBlock);
-		pitchChain->prepareToPlay(sampleRate, samplesPerBlock);
+		midiProcessorChain->prepareToPlay(newSampleRate, samplesPerBlock);
+		gainChain->prepareToPlay(newSampleRate, samplesPerBlock);
+		pitchChain->prepareToPlay(newSampleRate, samplesPerBlock);
 
 		CHECK_COPY_AND_RETURN_12(effectChain);
 
-		effectChain->prepareToPlay(sampleRate, samplesPerBlock);
+		effectChain->prepareToPlay(newSampleRate, samplesPerBlock);
 
 		setKillFadeOutTime(killFadeTime);
 	}

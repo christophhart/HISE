@@ -33,6 +33,8 @@
 #ifndef MODULATORS_H_INCLUDED
 #define MODULATORS_H_INCLUDED
 
+#pragma warning( push )
+#pragma warning( disable: 4589 )
 
 
 class Plotter;
@@ -315,6 +317,8 @@ protected:
 	TimeModulation(Modulation::Mode m):
 		Modulation(m)
 	{};
+
+
 
 	/** Creates the internal buffer with double the size of the expected buffer block size.
     */
@@ -754,8 +758,6 @@ public:
 		globalSaveValues.clear();
 	}
 
-	void saveValuesForGlobalModulator(const AudioSampleBuffer &internalBuffer, int startSample, int numSamples, int voiceIndex);
-
 	const float *getCalculatedValues(int voiceIndex) override { return globalSaveValues.getReadPointer(voiceIndex); }
 
 protected:
@@ -953,5 +955,7 @@ private:
 
 	Modulation::Mode mode;
 };
+
+#pragma warning (pop)
 
 #endif  // MODULATORS_H_INCLUDED

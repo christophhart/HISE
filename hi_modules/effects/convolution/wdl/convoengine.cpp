@@ -317,8 +317,8 @@ int WDL_ConvolutionEngine::SetImpulse(WDL_ImpulseBuffer *impulse, int fft_size, 
 
         if (smallerSizeMode)
         {
-          int x,n=fft_size*2;
-          for(x=0;x<n;x++) impout[x]=(WDL_CONVO_IMPULSEBUFf)imptmp[x];
+          int x2,n=fft_size*2;
+          for(x2=0;x2<n;x2++) impout[x2]=(WDL_CONVO_IMPULSEBUFf)imptmp[x2];
         }
       }
       else *zbuf++=0;

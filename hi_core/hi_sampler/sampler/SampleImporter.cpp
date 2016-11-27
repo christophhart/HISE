@@ -181,7 +181,7 @@ void SampleImporter::importNewAudioFiles(Component *childComponentOfMainEditor, 
 												SampleImporter::loadAudioFilesUsingDropPoint(childComponentOfMainEditor,
 																								sampler,
 																								fileNames,
-																								draggedRootNotes, fid->useMetadata());
+																								draggedRootNotes);
 												break;
         case FileImportDialog::numImportModes:  break;
 
@@ -199,7 +199,7 @@ void SampleImporter::importNewAudioFiles(Component *childComponentOfMainEditor, 
 	}
 }
 
-void SampleImporter::loadAudioFilesUsingDropPoint(Component *childComponentOfMainEditor, ModulatorSampler *sampler, const StringArray &fileNames, BigInteger rootNotes, bool useMetadata)
+void SampleImporter::loadAudioFilesUsingDropPoint(Component* /*childComponentOfMainEditor*/, ModulatorSampler *sampler, const StringArray &fileNames, BigInteger rootNotes)
 {
 	const int startIndex = sampler->getNumSounds();
 

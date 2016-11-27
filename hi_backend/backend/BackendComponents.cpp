@@ -140,13 +140,13 @@ void MacroComponent::mouseDown(const MouseEvent &e)
 			{
 				const String name = popupData[i].chain->getMacroControlData(popupData[i].macroIndex)->getMacroName();
 
-				const int index = macroKnobs.indexOf(dynamic_cast<Slider*>(e.eventComponent));
+				const int macroIndex = macroKnobs.indexOf(dynamic_cast<Slider*>(e.eventComponent));
 
-				debugToConsole(synthChain, "Adding " + name + " from " + popupData[i].chain->getId() + " to macro slot " + String(index));
+				debugToConsole(synthChain, "Adding " + name + " from " + popupData[i].chain->getId() + " to macro slot " + String(macroIndex));
 
-				synthChain->replaceMacroControlData(index, popupData[i].chain->getMacroControlData(popupData[i].macroIndex), popupData[i].chain);
+				synthChain->replaceMacroControlData(macroIndex, popupData[i].chain->getMacroControlData(popupData[i].macroIndex), popupData[i].chain);
 
-				macroNames[index]->setText(name, dontSendNotification);
+				macroNames[macroIndex]->setText(name, dontSendNotification);
 
 			}
 		}

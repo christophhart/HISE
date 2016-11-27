@@ -173,9 +173,9 @@ public:
 
 	Identifier getFileTypeName() const override;
 
-	virtual size_t getFileSize(const AudioSampleBuffer *data) const override
+	virtual size_t getFileSize(const AudioSampleBuffer *buffer) const override
 	{
-		return (size_t)data->getNumSamples() * (size_t)data->getNumChannels() * sizeof(float);
+		return (size_t)buffer->getNumSamples() * (size_t)buffer->getNumChannels() * sizeof(float);
 	}
 
 	AudioThumbnailCache *getCache() { return cache; }
@@ -210,9 +210,9 @@ public:
 
 	Identifier getFileTypeName() const override;;
 
-	virtual size_t getFileSize(const Image *data) const override
+	virtual size_t getFileSize(const Image *image) const override
 	{
-		return (size_t)data->getWidth() * (size_t)data->getHeight() * sizeof(uint32);
+		return (size_t)image->getWidth() * (size_t)image->getHeight() * sizeof(uint32);
 	}
 
 	static Image getEmptyImage(int width, int height);

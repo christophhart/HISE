@@ -400,11 +400,11 @@ public:
 	*/
 	void refreshBodySize()
 	{ 
-		ProcessorEditor *parentEditor = dynamic_cast<ProcessorEditor*>(getParentComponent());
+		ProcessorEditor *parent = dynamic_cast<ProcessorEditor*>(getParentComponent());
 
-		if (parentEditor != nullptr)
+		if (parent != nullptr)
 		{
-			parentEditor->sendResizedMessage();
+			parent->sendResizedMessage();
 		}
 	};
 

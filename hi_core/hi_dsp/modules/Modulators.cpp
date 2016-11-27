@@ -73,11 +73,9 @@ void Modulation::setIntensityFromSlider(float sliderValue) noexcept
 	}
 	else
 	{
-		//const float logIntensity = 
+		const float thisIntensity = PitchConverters::octaveRangeToSignedNormalisedRange(sliderValue);
 
-		const float intensity = PitchConverters::octaveRangeToSignedNormalisedRange(sliderValue);
-
-		setIntensity(intensity);
+		setIntensity(thisIntensity);
 	}
 }
 
@@ -278,6 +276,10 @@ void TimeModulation::initializeBuffer(AudioSampleBuffer &bufferToBeInitialized, 
 	FloatVectorOperations::fill(writePointer, 1.0f, numSamples);
 }
 
+#pragma warning( push )
+#pragma warning( disable: 4589 )
+
+
 VoiceStartModulator::VoiceStartModulator(MainController *mc, const String &id, int numVoices, Modulation::Mode m) :
 		VoiceModulation(numVoices, m),
 		Modulator(mc, id),
@@ -296,10 +298,7 @@ EnvelopeModulator::EnvelopeModulator(MainController *mc, const String &id, int v
 	globalSaveValues = AudioSampleBuffer(voiceAmount_, 1);
 };
 
-void EnvelopeModulator::saveValuesForGlobalModulator(const AudioSampleBuffer &internalBuffer, int startSample, int numSamples, int voiceIndex)
-{
-	FloatVectorOperations::copy(globalSaveValues.getWritePointer(voiceIndex, startSample), internalBuffer.getReadPointer(0, startSample), numSamples);
-}
+#pragma warning( pop )
 
 Processor *VoiceStartModulatorFactoryType::createProcessor(int typeIndex, const String &id)
 {

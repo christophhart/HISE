@@ -675,9 +675,9 @@ String SettingWindows::getSettingValue(int attributeIndex, ProjectHandler *handl
 		XmlElement *child = xml->getChildByName(name);
 		if (child != nullptr)
 		{
-			String s = child->getStringAttribute("value");
+			String valueText = child->getStringAttribute("value");
 
-			return s;
+			return valueText;
 		}
 		else
 		{

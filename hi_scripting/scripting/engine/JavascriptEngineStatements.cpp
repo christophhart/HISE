@@ -214,7 +214,7 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 			else if (data->isObject())		return data->getDynamicObject()->getProperties().getName(loop->index).toString();
 			else location.throwError("Illegal iterator target");
 
-			return var::undefined();
+			return var();
 		}
 
 		void assign(const Scope& s, const var& newValue) const override

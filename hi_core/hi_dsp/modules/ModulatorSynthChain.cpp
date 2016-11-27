@@ -218,11 +218,11 @@ void ModulatorSynthChain::saveInterfaceValues(ValueTree &v)
 
 		if (sp != nullptr && sp->isFront())
 		{
-			ValueTree data = sp->getScriptingContent()->exportAsValueTree();
+			ValueTree spv = sp->getScriptingContent()->exportAsValueTree();
 
-			data.setProperty("Processor", sp->getId(), nullptr);
+			spv.setProperty("Processor", sp->getId(), nullptr);
 
-			interfaceData.addChild(data, -1, nullptr);
+			interfaceData.addChild(spv, -1, nullptr);
 		}
 	}
 
@@ -339,9 +339,9 @@ void ModulatorSynthGroupVoice::startNote (int midiNoteNumber, float velocity, Sy
 
 			ModulatorSynthSound *soundToPlay = nullptr;
 
-			for(int i = 0; i < childSynth->getNumSounds(); i++)
+			for(int j = 0; j < childSynth->getNumSounds(); j++)
 			{
-				ModulatorSynthSound *s = static_cast<ModulatorSynthSound*>(childSynth->getSound(i));
+				ModulatorSynthSound *s = static_cast<ModulatorSynthSound*>(childSynth->getSound(j));
 
 				if(s->appliesToMessage(1, midiNoteNumber, (int)(velocity * 127)))
 				{

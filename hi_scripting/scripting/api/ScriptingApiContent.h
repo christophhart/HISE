@@ -232,7 +232,7 @@ public:
 	protected:
 
 		void setDefaultValue(int p, const var &defaultValue);
-		void setScriptObjectProperty(int p, var value) { componentProperties->setProperty(getIdFor(p), value); }
+		void setScriptObjectProperty(int p, var newValue) { componentProperties->setProperty(getIdFor(p), newValue); }
 
 		Array<Identifier> propertyIds;
 		Array<Identifier> deactivatedProperties;

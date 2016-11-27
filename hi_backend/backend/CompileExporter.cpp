@@ -571,7 +571,7 @@ CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(Modulato
 	return ErrorCodes::OK;
 }
 
-void CompileExporter::createStandaloneAppHeaderFile(ModulatorSynthChain* chainToExport, const String& solutionDirectory, const String& uniqueId, const String& version, String publicKey)
+void CompileExporter::createStandaloneAppHeaderFile(ModulatorSynthChain* chainToExport, const String& solutionDirectory, const String& /*uniqueId*/, const String& /*version*/, String publicKey)
 {
 	String pluginDataHeaderFile;
 
@@ -807,11 +807,11 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Modulat
 
 			const String relativePath = additionalSourceFiles[i].getRelativePathFrom(GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries));
 
-			String newLine;
-			newLine << "      <FILE id=\"" << FileHelpers::createAlphaNumericUID() << "\" name=\"" << additionalSourceFiles[i].getFileName() << "\" compile=\"" << (isSourceFile ? "1" : "0") << "\" resource=\"0\"\r\n";
-			newLine << "            file=\"" << relativePath << "\"/>\r\n";
+			String newAditionalSourceLine;
+			newAditionalSourceLine << "      <FILE id=\"" << FileHelpers::createAlphaNumericUID() << "\" name=\"" << additionalSourceFiles[i].getFileName() << "\" compile=\"" << (isSourceFile ? "1" : "0") << "\" resource=\"0\"\r\n";
+			newAditionalSourceLine << "            file=\"" << relativePath << "\"/>\r\n";
 
-			additionalFileDefinitions.add(newLine);
+			additionalFileDefinitions.add(newAditionalSourceLine);
 		}
 
 		templateProject = templateProject.replace("%ADDITIONAL_FILES%", additionalFileDefinitions.joinIntoString(""));
@@ -1061,6 +1061,7 @@ void CompileExporter::BatchFileCreator::createBatchFile(ModulatorSynthChain *cha
 	case CompileExporter::TargetTypes::InstrumentPlugin: projectType = "Instrument plugin"; break;
 	case CompileExporter::TargetTypes::EffectPlugin: projectType = "FX plugin"; break;
 	case CompileExporter::TargetTypes::StandaloneApplication: projectType = "Standalone application"; break;
+    case CompileExporter::TargetTypes::numTargetTypes: break;
 	}
 
 #if JUCE_WINDOWS

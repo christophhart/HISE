@@ -58,7 +58,13 @@ hiseSpecialData(this)
 }
 
 
-HiseJavascriptEngine::RootObject::Statement::ResultCode HiseJavascriptEngine::RootObject::LockStatement::perform(const Scope& s, var*) const
+#if JUCE_MSVC
+#pragma warning (push)
+#pragma warning (disable : 4702)
+#endif
+
+
+HiseJavascriptEngine::RootObject::Statement::ResultCode HiseJavascriptEngine::RootObject::LockStatement::perform(const Scope& /*s*/, var*) const
 {
 	if (RegisterName* r = dynamic_cast<RegisterName*>(lockedObj.get()))
 	{
@@ -78,16 +84,21 @@ HiseJavascriptEngine::RootObject::Statement::ResultCode HiseJavascriptEngine::Ro
 		{
 			currentLock = nullptr;
 			location.throwError("Can't lock this object");
+			return Statement::ok;
 		}
 	}
 	else
 	{
 		currentLock = nullptr;
 		location.throwError("Can't lock this object");
+		return Statement::ok;
 	}
-
-	return Statement::ok;
 }
+
+#if JUCE_MSVC
+#pragma warning (pop)
+#endif
+
 
 
 void HiseJavascriptEngine::RootObject::ArraySubscript::cacheIndex(AssignableObject *instance, const Scope &s) const
@@ -100,7 +111,7 @@ void HiseJavascriptEngine::RootObject::ArraySubscript::cacheIndex(AssignableObje
 		{
 			if (DotOperator* dot = dynamic_cast<DotOperator*>(index.get()))
 			{
-				if (ConstReference* c = dynamic_cast<ConstReference*>(dot->parent.get()))
+				if (dynamic_cast<ConstReference*>(dot->parent.get()) != nullptr)
 				{
 					if (ConstScriptingObject* cso = dynamic_cast<ConstScriptingObject*>(dot->parent->getResult(s).getObject()))
 					{
@@ -246,11 +257,11 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::clear()
 	globals = nullptr;
 }
 
-HiseJavascriptEngine::RootObject::Callback *HiseJavascriptEngine::RootObject::HiseSpecialData::getCallback(const Identifier &id)
+HiseJavascriptEngine::RootObject::Callback *HiseJavascriptEngine::RootObject::HiseSpecialData::getCallback(const Identifier &callbackId)
 {
 	for (int i = 0; i < callbackNEW.size(); i++)
 	{
-		if (callbackNEW[i]->getName() == id)
+		if (callbackNEW[i]->getName() == callbackId)
 		{
 			return callbackNEW[i];
 		}
@@ -260,20 +271,20 @@ HiseJavascriptEngine::RootObject::Callback *HiseJavascriptEngine::RootObject::Hi
 }
 
 
-const HiseJavascriptEngine::RootObject::JavascriptNamespace* HiseJavascriptEngine::RootObject::HiseSpecialData::getNamespace(const Identifier &id) const
+const HiseJavascriptEngine::RootObject::JavascriptNamespace* HiseJavascriptEngine::RootObject::HiseSpecialData::getNamespace(const Identifier &namespaceId) const
 {
-	return const_cast<HiseSpecialData*>(this)->getNamespace(id);
+	return const_cast<HiseSpecialData*>(this)->getNamespace(namespaceId);
 }
 
-HiseJavascriptEngine::RootObject::JavascriptNamespace* HiseJavascriptEngine::RootObject::HiseSpecialData::getNamespace(const Identifier &id)
+HiseJavascriptEngine::RootObject::JavascriptNamespace* HiseJavascriptEngine::RootObject::HiseSpecialData::getNamespace(const Identifier &namespaceId)
 {
 	static const Identifier r("root");
 
-	if (id == r) return this;
+	if (namespaceId == r) return this;
 
 	for (int i = 0; i < namespaces.size(); i++)
 	{
-		if (namespaces[i]->id == id)
+		if (namespaces[i]->id == namespaceId)
 		{
 			return namespaces[i].get();
 		}
@@ -285,7 +296,7 @@ HiseJavascriptEngine::RootObject::JavascriptNamespace* HiseJavascriptEngine::Roo
 
 
 
-void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(DynamicObject *root)
+void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(DynamicObject *rootObject)
 {
 	ScopedLock sl(debugLock);
 
@@ -306,17 +317,17 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(D
 	}
 		
 
-	DynamicObject *globals = root->getProperty("Globals").getDynamicObject();
+	DynamicObject *globalObject = rootObject->getProperty("Globals").getDynamicObject();
 
-	for (int i = 0; i < globals->getProperties().size(); i++)
-		debugInformation.add(new DynamicObjectDebugInformation(globals, globals->getProperties().getName(i), DebugInformation::Type::Globals));
+	for (int i = 0; i < globalObject->getProperties().size(); i++)
+		debugInformation.add(new DynamicObjectDebugInformation(globalObject, globalObject->getProperties().getName(i), DebugInformation::Type::Globals));
 
-	for (int i = 0; i < root->getProperties().size(); i++)
+	for (int i = 0; i < rootObject->getProperties().size(); i++)
 	{
-		const Identifier id = root->getProperties().getName(i);
-		if (hiddenProperties.contains(id)) continue;
+		const Identifier propertyId = rootObject->getProperties().getName(i);
+		if (hiddenProperties.contains(propertyId)) continue;
 
-		debugInformation.add(new DynamicObjectDebugInformation(root, id, DebugInformation::Type::Variables));
+		debugInformation.add(new DynamicObjectDebugInformation(rootObject, propertyId, DebugInformation::Type::Variables));
 	}
 
 	for (int i = 0; i < namespaces.size(); i++)
@@ -475,11 +486,11 @@ HiseJavascriptEngine::RootObject::HiseSpecialData::VariableStorageType HiseJavas
 }
 
 
-int HiseJavascriptEngine::RootObject::HiseSpecialData::getExternalCIndex(const Identifier& id)
+int HiseJavascriptEngine::RootObject::HiseSpecialData::getExternalCIndex(const Identifier& functionId)
 {
 	for (int i = 0; i < externalCFunctions.size(); i++)
 	{
-		if (externalCFunctions[i]->name == id) return i;
+		if (externalCFunctions[i]->name == functionId) return i;
 	}
 
 	return -1;

@@ -197,11 +197,11 @@ public:
 	};
 
 	/** Prepares all ModulatorSynths for playback. */
-	void prepareToPlay (double sampleRate, int samplesPerBlock) override
+	void prepareToPlay (double newSampleRate, int samplesPerBlock) override
 	{
-		ModulatorSynth::prepareToPlay(sampleRate, samplesPerBlock);
+		ModulatorSynth::prepareToPlay(newSampleRate, samplesPerBlock);
 
-		for(int i = 0; i < synths.size(); i++) synths[i]->prepareToPlay(sampleRate, samplesPerBlock);
+		for(int i = 0; i < synths.size(); i++) synths[i]->prepareToPlay(newSampleRate, samplesPerBlock);
 	};
 
 	void numSourceChannelsChanged() override;
@@ -635,22 +635,22 @@ public:
 	void preHiseEventCallback(const HiseEvent &m) override;
 
 	/** Prepares all ModulatorSynths for playback. */
-	void prepareToPlay (double sampleRate, int samplesPerBlock) override
+	void prepareToPlay (double newSampleRate, int samplesPerBlock) override
 	{
-		if (sampleRate != -1.0)
+		if (newSampleRate != -1.0)
 		{
 			modSynthGainValues = AudioSampleBuffer(1, samplesPerBlock);
 
-			ModulatorSynth::prepareToPlay(sampleRate, samplesPerBlock);
+			ModulatorSynth::prepareToPlay(newSampleRate, samplesPerBlock);
 
-			sampleStartChain->prepareToPlay(sampleRate, samplesPerBlock);
+			sampleStartChain->prepareToPlay(newSampleRate, samplesPerBlock);
 
 			ChildSynthIterator iterator(this, ChildSynthIterator::IterateAllSynths);
 			ModulatorSynth *childSynth;
 
 			while (iterator.getNextAllowedChild(childSynth))
 			{
-				childSynth->prepareToPlay(sampleRate, samplesPerBlock);
+				childSynth->prepareToPlay(newSampleRate, samplesPerBlock);
 			}
 		}
 		

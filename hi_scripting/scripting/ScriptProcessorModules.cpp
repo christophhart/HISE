@@ -539,6 +539,8 @@ void JavascriptMasterEffect::prepareToPlay(double sampleRate, int samplesPerBloc
 
 void JavascriptMasterEffect::applyEffect(AudioSampleBuffer &b, int startSample, int numSamples)
 {
+	ignoreUnused(startSample);
+
 	if (!processBlockCallback->isSnippetEmpty() && lastResult.wasOk())
 	{
 		ScopedReadLock sl(getMainController()->getCompileLock());
@@ -1209,18 +1211,18 @@ public:
 	{
 		ModulatorSynthVoice::startNote(midiNoteNumber, 0.0f, nullptr, -1);
 
-		JavascriptModulatorSynth* ownerSynth = static_cast<JavascriptModulatorSynth*>(getOwnerSynth());
+		JavascriptModulatorSynth* jms = static_cast<JavascriptModulatorSynth*>(getOwnerSynth());
 
-		ScopedReadLock sl(ownerSynth->mainController->getCompileLock());
+		ScopedReadLock sl(jms->mainController->getCompileLock());
 
-		ownerSynth->scriptEngine->setCallbackParameter((int)JavascriptModulatorSynth::Callback::startVoice, 0, getVoiceIndex());
-		ownerSynth->scriptEngine->setCallbackParameter((int)JavascriptModulatorSynth::Callback::startVoice, 1, midiNoteNumber);
-		ownerSynth->scriptEngine->setCallbackParameter((int)JavascriptModulatorSynth::Callback::startVoice, 2, velocity);
+		jms->scriptEngine->setCallbackParameter((int)JavascriptModulatorSynth::Callback::startVoice, 0, getVoiceIndex());
+		jms->scriptEngine->setCallbackParameter((int)JavascriptModulatorSynth::Callback::startVoice, 1, midiNoteNumber);
+		jms->scriptEngine->setCallbackParameter((int)JavascriptModulatorSynth::Callback::startVoice, 2, velocity);
 
 		voiceUptime = 0.0;
-		uptimeDelta = (double)ownerSynth->scriptEngine->executeCallback((int)JavascriptModulatorSynth::Callback::startVoice, &ownerSynth->lastResult);
+		uptimeDelta = (double)jms->scriptEngine->executeCallback((int)JavascriptModulatorSynth::Callback::startVoice, &jms->lastResult);
 
-		BACKEND_ONLY(if (!ownerSynth->lastResult.wasOk()) debugError(ownerSynth, ownerSynth->startVoiceCallback->getCallbackName().toString() + ": " + ownerSynth->lastResult.getErrorMessage()));
+		BACKEND_ONLY(if (!jms->lastResult.wasOk()) debugError(jms, jms->startVoiceCallback->getCallbackName().toString() + ": " + jms->lastResult.getErrorMessage()));
 	}
 
 	void calculateBlock(int startSample, int numSamples) override
@@ -1247,16 +1249,16 @@ public:
             channels[2].getBuffer()->referToData(rightValues, numSamples);
         }
 		
-		JavascriptModulatorSynth* ownerSynth = static_cast<JavascriptModulatorSynth*>(getOwnerSynth());
+		JavascriptModulatorSynth* jms = static_cast<JavascriptModulatorSynth*>(getOwnerSynth());
 
-		ScopedReadLock sl(ownerSynth->getMainController()->getCompileLock());
+		ScopedReadLock sl(jms->getMainController()->getCompileLock());
 
-		ownerSynth->scriptEngine->setCallbackParameter((int)JavascriptModulatorSynth::Callback::renderVoice, 0, getVoiceIndex());
-		ownerSynth->scriptEngine->setCallbackParameter((int)JavascriptModulatorSynth::Callback::renderVoice, 1, var(channels));
+		jms->scriptEngine->setCallbackParameter((int)JavascriptModulatorSynth::Callback::renderVoice, 0, getVoiceIndex());
+		jms->scriptEngine->setCallbackParameter((int)JavascriptModulatorSynth::Callback::renderVoice, 1, var(channels));
 
-		voiceUptime += (double)ownerSynth->scriptEngine->executeCallback((int)JavascriptModulatorSynth::Callback::renderVoice, &ownerSynth->lastResult);
+		voiceUptime += (double)jms->scriptEngine->executeCallback((int)JavascriptModulatorSynth::Callback::renderVoice, &jms->lastResult);
 
-		BACKEND_ONLY(if (!ownerSynth->lastResult.wasOk()) debugError(ownerSynth, ownerSynth->renderVoiceCallback->getCallbackName().toString() + ": " + ownerSynth->lastResult.getErrorMessage()));
+		BACKEND_ONLY(if (!jms->lastResult.wasOk()) debugError(jms, jms->renderVoiceCallback->getCallbackName().toString() + ": " + jms->lastResult.getErrorMessage()));
 
 		getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesToCopy);
 
@@ -1357,14 +1359,14 @@ const Processor * JavascriptModulatorSynth::getChildProcessor(int processorIndex
 	}
 }
 
-void JavascriptModulatorSynth::prepareToPlay(double sampleRate, int samplesPerBlock)
+void JavascriptModulatorSynth::prepareToPlay(double newSampleRate, int samplesPerBlock)
 {
-	if (sampleRate > -1.0)
+	if (newSampleRate > -1.0)
 	{
 		scriptChain1Buffer = AudioSampleBuffer(1, samplesPerBlock);
 		scriptChain2Buffer = AudioSampleBuffer(1, samplesPerBlock);
-		scriptChain1->prepareToPlay(sampleRate, samplesPerBlock);
-		scriptChain2->prepareToPlay(sampleRate, samplesPerBlock);
+		scriptChain1->prepareToPlay(newSampleRate, samplesPerBlock);
+		scriptChain2->prepareToPlay(newSampleRate, samplesPerBlock);
 
 		for (int i = 0; i < sounds.size(); i++)
 		{
@@ -1373,7 +1375,7 @@ void JavascriptModulatorSynth::prepareToPlay(double sampleRate, int samplesPerBl
 	}
 
 
-	ModulatorSynth::prepareToPlay(sampleRate, samplesPerBlock);
+	ModulatorSynth::prepareToPlay(newSampleRate, samplesPerBlock);
 }
 
 void JavascriptModulatorSynth::preHiseEventCallback(const HiseEvent& m)

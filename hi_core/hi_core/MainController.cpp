@@ -348,22 +348,6 @@ void MainController::SampleManager::copySamplesToClipboard(const Array<WeakRefer
 
 const ValueTree &MainController::SampleManager::getSamplesFromClipboard() const { return sampleClipboard;}
 
-void MainController::SampleManager::saveAllSamplesToGlobalFolder(const String &packageName)
-{
-	StringArray filesInAudioPool =  getAudioSampleBufferPool()->getFileNameList();
-	SampleMapExporter audioFileExporter(filesInAudioPool, true, PresetPlayerHandler::AudioFiles);
-	audioFileExporter.exportSamples(PresetPlayerHandler::getSpecialFolder(PresetPlayerHandler::AudioFiles, packageName), packageName, true);
-	
-	StringArray filesInSamplerPool = getModulatorSamplerSoundPool()->getFileNameList();
-	SampleMapExporter sampleExporter(filesInSamplerPool, true, PresetPlayerHandler::StreamedSampleFolder);
-	sampleExporter.exportSamples(PresetPlayerHandler::getSpecialFolder(PresetPlayerHandler::StreamedSampleFolder, packageName), packageName, true);
-
-	StringArray filesInImagePool = getImagePool()->getFileNameList();
-	SampleMapExporter imageExporter(filesInImagePool, true, PresetPlayerHandler::ImageResources);
-	imageExporter.exportSamples(PresetPlayerHandler::getSpecialFolder(PresetPlayerHandler::ImageResources, packageName), packageName, true);
-
-}
-
 const ValueTree MainController::SampleManager::getLoadedSampleMap(const String &fileName) const
 {
 	for (int i = 0; i < sampleMaps.getNumChildren(); i++)
@@ -659,39 +643,39 @@ var MainController::getGlobalVariable(int index) const
 	return globalVariableArray.getUnchecked(index);
 }
 
-void MainController::storePlayheadIntoDynamicObject(AudioPlayHead::CurrentPositionInfo &lastPosInfo)
+void MainController::storePlayheadIntoDynamicObject(AudioPlayHead::CurrentPositionInfo &newPosition)
 {
-	static Identifier bpm("bpm");
-	static Identifier timeSigNumerator("timeSigNumerator");
-	static Identifier timeSigDenominator("timeSigDenominator");
-	static Identifier timeInSamples("timeInSamples");
-	static Identifier timeInSeconds("timeInSeconds");
-	static Identifier editOriginTime("editOriginTime");
-	static Identifier ppqPosition("ppqPosition");
-	static Identifier ppqPositionOfLastBarStart("ppqPositionOfLastBarStart");
-	static Identifier frameRate("frameRate");
-	static Identifier isPlaying("isPlaying");
-	static Identifier isRecording("isRecording");
-	static Identifier ppqLoopStart("ppqLoopStart");
-	static Identifier ppqLoopEnd("ppqLoopEnd");
-	static Identifier isLooping("isLooping");
+	static const Identifier bpmId("bpm");
+	static const Identifier timeSigNumerator("timeSigNumerator");
+	static const Identifier timeSigDenominator("timeSigDenominator");
+	static const Identifier timeInSamples("timeInSamples");
+	static const Identifier timeInSeconds("timeInSeconds");
+	static const Identifier editOriginTime("editOriginTime");
+	static const Identifier ppqPosition("ppqPosition");
+	static const Identifier ppqPositionOfLastBarStart("ppqPositionOfLastBarStart");
+	static const Identifier frameRate("frameRate");
+	static const Identifier isPlaying("isPlaying");
+	static const Identifier isRecording("isRecording");
+	static const Identifier ppqLoopStart("ppqLoopStart");
+	static const Identifier ppqLoopEnd("ppqLoopEnd");
+	static const Identifier isLooping("isLooping");
 
 	ScopedLock sl(getLock());
 
-	hostInfo->setProperty(bpm, lastPosInfo.bpm);
-	hostInfo->setProperty(timeSigNumerator, lastPosInfo.timeSigNumerator);
-	hostInfo->setProperty(timeSigDenominator, lastPosInfo.timeSigDenominator);
-	hostInfo->setProperty(timeInSamples, lastPosInfo.timeInSamples);
-	hostInfo->setProperty(timeInSeconds, lastPosInfo.timeInSeconds);
-	hostInfo->setProperty(editOriginTime, lastPosInfo.editOriginTime);
-	hostInfo->setProperty(ppqPosition, lastPosInfo.ppqPosition);
-	hostInfo->setProperty(ppqPositionOfLastBarStart, lastPosInfo.ppqPositionOfLastBarStart);
-	hostInfo->setProperty(frameRate, lastPosInfo.frameRate);
-	hostInfo->setProperty(isPlaying, lastPosInfo.isPlaying);
-	hostInfo->setProperty(isRecording, lastPosInfo.isRecording);
-	hostInfo->setProperty(ppqLoopStart, lastPosInfo.ppqLoopStart);
-	hostInfo->setProperty(ppqLoopEnd, lastPosInfo.ppqLoopEnd);
-	hostInfo->setProperty(isLooping, lastPosInfo.isLooping);
+	hostInfo->setProperty(bpmId, newPosition.bpm);
+	hostInfo->setProperty(timeSigNumerator, newPosition.timeSigNumerator);
+	hostInfo->setProperty(timeSigDenominator, newPosition.timeSigDenominator);
+	hostInfo->setProperty(timeInSamples, newPosition.timeInSamples);
+	hostInfo->setProperty(timeInSeconds, newPosition.timeInSeconds);
+	hostInfo->setProperty(editOriginTime, newPosition.editOriginTime);
+	hostInfo->setProperty(ppqPosition, newPosition.ppqPosition);
+	hostInfo->setProperty(ppqPositionOfLastBarStart, newPosition.ppqPositionOfLastBarStart);
+	hostInfo->setProperty(frameRate, newPosition.frameRate);
+	hostInfo->setProperty(isPlaying, newPosition.isPlaying);
+	hostInfo->setProperty(isRecording, newPosition.isRecording);
+	hostInfo->setProperty(ppqLoopStart, newPosition.ppqLoopStart);
+	hostInfo->setProperty(ppqLoopEnd, newPosition.ppqLoopEnd);
+	hostInfo->setProperty(isLooping, newPosition.isLooping);
 }
 
 #if USE_BACKEND

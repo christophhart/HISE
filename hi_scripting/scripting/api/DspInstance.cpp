@@ -99,19 +99,19 @@ void DspInstance::initialise()
 
 				object->getIdForConstant(i, nameBuffer, nameLength);
 
-				String name(nameBuffer, nameLength);
+				String thisName(nameBuffer, nameLength);
 
 				int intValue;
 				if (object->getConstant(i, intValue))
 				{
-					addConstant(name, var(intValue));
+					addConstant(thisName, var(intValue));
 					continue;
 				}
 
 				float floatValue;
 				if (object->getConstant(i, floatValue))
 				{
-					addConstant(name, var(floatValue));
+					addConstant(thisName, var(floatValue));
 					continue;
 				}
 
@@ -121,7 +121,7 @@ void DspInstance::initialise()
 				if (object->getConstant(i, stringBuffer, stringBufferLength))
 				{
 					String text(stringBuffer, stringBufferLength);
-					addConstant(name, var(text));
+					addConstant(thisName, var(text));
 					continue;
 				}
 
@@ -132,7 +132,7 @@ void DspInstance::initialise()
 				if (object->getConstant(i, &externalData, externalDataSize))
 				{
 					VariantBuffer::Ptr b = new VariantBuffer(externalData, externalDataSize);
-					addConstant(name, var(b));
+					addConstant(thisName, var(b));
 					continue;
 				}
 			}
@@ -186,13 +186,13 @@ void DspInstance::processBlock(const var &data)
             
 			if (switchBypassFlag)
 			{
-				float* sl = bypassSwitchBuffer.getWritePointer(0);
-				float* sr = bypassSwitchBuffer.getWritePointer(1);
+				float* leftSamples = bypassSwitchBuffer.getWritePointer(0);
+				float* rightSamples = bypassSwitchBuffer.getWritePointer(1);
 
 				const bool rampUp = !isBypassed();
 
-				FloatVectorOperations::copy(sl, sampleData[0], numSamples);
-				FloatVectorOperations::copy(sr, sampleData[1], numSamples);
+				FloatVectorOperations::copy(leftSamples, sampleData[0], numSamples);
+				FloatVectorOperations::copy(rightSamples, sampleData[1], numSamples);
 
 				object->processBlock(sampleData, a->size(), numSamples);
 
@@ -211,8 +211,8 @@ void DspInstance::processBlock(const var &data)
 					bypassSwitchBuffer.addFromWithRamp(1, 0, sampleData[1], numSamples, 1.0f, 0.0f);
 				}
 
-				FloatVectorOperations::copy(sampleData[0], sl, numSamples);
-				FloatVectorOperations::copy(sampleData[1], sr, numSamples);
+				FloatVectorOperations::copy(sampleData[0], leftSamples, numSamples);
+				FloatVectorOperations::copy(sampleData[1], rightSamples, numSamples);
 
 				switchBypassFlag = false;
 
@@ -360,9 +360,9 @@ var DspInstance::getAssignedValue(int index) const
 	return getParameter(index);
 }
 
-int DspInstance::getCachedIndex(const var &name) const
+int DspInstance::getCachedIndex(const var &constantName) const
 {
-	return getConstantValue((int)name);
+	return getConstantValue((int)constantName);
 }
 
 var DspInstance::getInfo() const

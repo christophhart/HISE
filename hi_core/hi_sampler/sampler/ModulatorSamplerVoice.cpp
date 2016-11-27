@@ -82,8 +82,6 @@ void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
     
     ADD_GLITCH_DETECTOR("Rendering sample" + sound->getFileName());
     
-	ModulatorSampler *sampler = static_cast<ModulatorSampler*>(getOwnerSynth());
-
 	const int startIndex = startSample;
 	const int samplesInBlock = numSamples;
 
@@ -93,8 +91,6 @@ void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 	const float *modValues = getVoiceGainValues(startSample, numSamples);
 
 	wrappedVoice.setPitchValues(voicePitchValues);
-
-	
 
 	voiceBuffer.clear();
 
@@ -134,12 +130,12 @@ void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 
 	if (sampler->isLastStartedVoice(this))
 	{
-		handlePlaybackPosition(sound, sampler);
+		handlePlaybackPosition(sound);
 
 	}
 }
 
-void ModulatorSamplerVoice::handlePlaybackPosition(const StreamingSamplerSound * sound, ModulatorSampler * sampler)
+void ModulatorSamplerVoice::handlePlaybackPosition(const StreamingSamplerSound * sound)
 {
     if(sound == nullptr) return;
     
@@ -352,7 +348,7 @@ void MultiMicModulatorSamplerVoice::calculateBlock(int startSample, int numSampl
 	{
 		if (wrappedVoices.size() != 0 && wrappedVoices[0]->getLoadedSound() != nullptr)
 		{
-			handlePlaybackPosition(wrappedVoices[0]->getLoadedSound(), sampler);
+			handlePlaybackPosition(wrappedVoices[0]->getLoadedSound());
 		}
 	}
 }

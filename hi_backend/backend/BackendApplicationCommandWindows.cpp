@@ -151,7 +151,7 @@ public:
 
 			mb.setSize(8192);
 
-			ScopedPointer<ScopedTempFile> tempFile = new ScopedTempFile(File(target.getFullPathName() + "temp"));
+			tempFile = new ScopedTempFile(File(target.getFullPathName() + "temp"));
 
 			ScopedPointer<FileOutputStream> fos = new FileOutputStream(tempFile->f);
 

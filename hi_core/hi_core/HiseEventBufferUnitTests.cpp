@@ -120,7 +120,7 @@ private:
 
 		const uint8 noteNumber = (uint8)r.nextInt(128);
 		const uint8 velocity = (uint8)r.nextInt(128);
-		const uint8 channel = r.nextInt(Range<int>(1, 17));
+		const uint8 channel = (uint8)r.nextInt(Range<int>(1, 17));
 
 		MidiMessage no = MidiMessage::noteOn(channel, noteNumber, (uint8)velocity);
 
@@ -136,7 +136,7 @@ private:
 		expectEquals<int>(noe.getCoarseDetune(), 0, "Coarse Detune");
 		expectEquals<int>(noe.getFineDetune(), 0, "Fine Detune");
 
-		const int timeStamp = r.nextInt(4096);
+		const uint16 timeStamp = (uint16)r.nextInt(4096);
 
 		noe.setTimeStamp(timeStamp);
 
@@ -197,25 +197,15 @@ private:
 		e.ignoreEvent(true);
 		expect(e.isIgnored(), "Ignored 2");
 
-		const int eventId = r.nextInt(UINT16_MAX);
+		const uint16 eventId = (uint16)r.nextInt(UINT16_MAX);
 
 		e.setEventId(eventId);
-		expectEquals<int>(e.getEventId(), eventId, "Event ID");
+		expectEquals<int>((int)e.getEventId(), (int)eventId, "Event ID");
 
-		e.setEventId(UINT16_MAX + 1 );
-		expectEquals<int>(e.getEventId(), 0, "Event ID overflow");
-
-		const int timestamp = r.nextInt(UINT16_MAX);
+		const uint16 timestamp = (uint16)r.nextInt(UINT16_MAX);
 
 		e.setTimeStamp(timestamp);
-		expectEquals<int>(e.getTimeStamp(), timestamp, "Timestamp");
-
-		e.setTimeStamp(UINT16_MAX + 1);
-		expectEquals<int>(e.getTimeStamp(), 0, "Timestamp overflow");
-
-
-
-
+		expectEquals<int>((int)e.getTimeStamp(), (int)timestamp, "Timestamp");
 	}
 
 	void testEventBuffer()
@@ -260,7 +250,7 @@ private:
 
 		expectEquals<int>(b.getNumUsed(), 0, "cleared buffer");
 
-		const int equalTimestamp = r.nextInt(16300);
+		const uint16 equalTimestamp = (uint16)r.nextInt(16300);
 
 		HiseEvent firstEvent(generateRandomHiseEvent());
 		HiseEvent secondEvent(generateRandomHiseEvent());
@@ -290,7 +280,7 @@ private:
 
 		b.clear();
 
-		for (int i = 0; i < 127; i++)
+		for (uint8 i = 0; i < 127; i++)
 		{
 
 			HiseEvent e(HiseEvent::Type::NoteOn, i, 50, 1);
@@ -355,7 +345,7 @@ private:
 
 		int index = 0;
 
-		while (HiseEvent* e = iter1.getNextEventPointer())
+		while (iter1.getNextEventPointer() != nullptr)
 		{
 			index++;
 		}
@@ -367,7 +357,7 @@ private:
 		const HiseEventBuffer::Iterator constIter1(b1);
 		index = 0;
 
-		while (const HiseEvent* e = constIter1.getNextConstEventPointer())
+		while (constIter1.getNextConstEventPointer() != nullptr)
 		{
 			index++;
 		}
@@ -385,7 +375,7 @@ private:
 
 		index = 0;
 
-		while (HiseEvent* e = iter3.getNextEventPointer(true, false))
+		while (iter3.getNextEventPointer(true, false) != nullptr)
 		{
 			index++;
 		}
@@ -403,7 +393,7 @@ private:
 
 		index = 0;
 
-		while (HiseEvent* e = iter5.getNextEventPointer(false, true))
+		while (iter5.getNextEventPointer(false, true) != nullptr)
 		{
 			index++;
 		}
@@ -594,12 +584,12 @@ private:
 	HiseEvent generateRandomHiseEvent()
 	{
 		HiseEvent e((HiseEvent::Type)r.nextInt(Range<int>(1, (int)HiseEvent::Type::numTypes)),
-			r.nextInt(128),
-			r.nextInt(128),
-			r.nextInt(256));
+			(uint8)r.nextInt(128),
+			(uint8)r.nextInt(128),
+			(uint8)r.nextInt(256));
 
-		e.setTimeStamp(r.nextInt(1024));
-		e.setEventId(r.nextInt(UINT16_MAX));
+		e.setTimeStamp((uint16)r.nextInt(1024));
+		e.setEventId((uint16)r.nextInt(UINT16_MAX));
 
 		if(r.nextBool()) e.setArtificial();
 		e.ignoreEvent(r.nextBool());

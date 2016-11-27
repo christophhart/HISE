@@ -228,7 +228,7 @@ void FileChangeListener::showPopupForFile(int index, int charNumberToDisplay/*=0
 	}
 
 #else
-	ignoreUnused(index);
+	ignoreUnused(index, charNumberToDisplay);
 #endif
 }
 

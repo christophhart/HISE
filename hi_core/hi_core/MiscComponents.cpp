@@ -418,13 +418,13 @@ void MultilineLabel::setMultiline(bool shouldBeMultiline)
 
 TextEditor * MultilineLabel::createEditorComponent()
 {
-	TextEditor *editor = Label::createEditorComponent();
+	TextEditor *textEditor = Label::createEditorComponent();
 
-	editor->setMultiLine(multiline, true);
+	textEditor->setMultiLine(multiline, true);
 
-	editor->setReturnKeyStartsNewLine(multiline);
+	textEditor->setReturnKeyStartsNewLine(multiline);
 
-	return editor;
+	return textEditor;
 }
 
 ImageComponentWithMouseCallback::ImageComponentWithMouseCallback() :
@@ -495,21 +495,21 @@ void ImageComponentWithMouseCallback::setScale(double newScale)
 	}
 }
 
-void MouseCallbackComponent::RectangleConstrainer::checkBounds(Rectangle<int> &bounds, const Rectangle<int> &, const Rectangle<int> &, bool, bool, bool, bool)
+void MouseCallbackComponent::RectangleConstrainer::checkBounds(Rectangle<int> &newBounds, const Rectangle<int> &, const Rectangle<int> &, bool, bool, bool, bool)
 {
 	if (!draggingBounds.isEmpty())
 	{
-		if (bounds.getX() < draggingBounds.getX()) bounds.setX(draggingBounds.getX());
-		if (bounds.getY() < draggingBounds.getY()) bounds.setY(draggingBounds.getY());
-		if (bounds.getBottom() > draggingBounds.getBottom()) bounds.setY(draggingBounds.getBottom() - bounds.getHeight());
-		if (bounds.getRight() > draggingBounds.getRight()) bounds.setX(draggingBounds.getRight() - bounds.getWidth());
+		if (newBounds.getX() < draggingBounds.getX()) newBounds.setX(draggingBounds.getX());
+		if (newBounds.getY() < draggingBounds.getY()) newBounds.setY(draggingBounds.getY());
+		if (newBounds.getBottom() > draggingBounds.getBottom()) newBounds.setY(draggingBounds.getBottom() - newBounds.getHeight());
+		if (newBounds.getRight() > draggingBounds.getRight()) newBounds.setX(draggingBounds.getRight() - newBounds.getWidth());
 	}
 
 	for (int i = 0; i < listeners.size(); i++)
 	{
 		if (listeners[i].get() != nullptr)
 		{
-			listeners[i]->boundsChanged(bounds);
+			listeners[i]->boundsChanged(newBounds);
 		}
 	}
 }

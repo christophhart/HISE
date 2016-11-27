@@ -385,7 +385,7 @@ void ModulatorChain::renderVoice(int voiceIndex, int startSample, int numSamples
 		const float constantVoiceValue = getConstantVoiceValue(voiceIndex);
 		const float lastVoiceValue = lastVoiceValues[voiceIndex];
 
-		if (abs(constantVoiceValue - lastVoiceValue) > 0.001f)
+		if (std::abs(constantVoiceValue - lastVoiceValue) > 0.001f)
 		{
 			const float stepSize = (constantVoiceValue - lastVoiceValue) / (float)numSamples;
 			float* bufferPointer = internalBuffer.getWritePointer(0, startSample);

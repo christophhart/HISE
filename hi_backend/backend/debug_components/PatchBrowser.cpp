@@ -362,14 +362,14 @@ void PatchBrowser::ModuleDragTarget::timerCallback()
 
 void PatchBrowser::ModuleDragTarget::buttonClicked(Button *b)
 {
-	BackendProcessorEditor *editor = dynamic_cast<Component*>(this)->findParentComponentOfClass<BackendProcessorEditor>();
+	BackendProcessorEditor *mainEditor = dynamic_cast<Component*>(this)->findParentComponentOfClass<BackendProcessorEditor>();
 
 	if (b == soloButton)
 	{
 		const bool isSolo = getProcessor()->getEditorState(Processor::EditorState::Solo);
 
-		if (!isSolo) editor->addProcessorToPanel(getProcessor());
-		else		 editor->removeProcessorFromPanel(getProcessor());
+		if (!isSolo) mainEditor->addProcessorToPanel(getProcessor());
+		else		 mainEditor->removeProcessorFromPanel(getProcessor());
 
 		refreshButtonState(soloButton, !isSolo);
 	}
@@ -381,7 +381,7 @@ void PatchBrowser::ModuleDragTarget::buttonClicked(Button *b)
 		getProcessor()->setEditorState(Processor::Visible, !isHidden, sendNotification);
 		getProcessor()->sendChangeMessage();
 
-		editor->getRootContainer()->refreshSize(false);
+		mainEditor->getRootContainer()->refreshSize(false);
 		
 		refreshButtonState(hideButton, !isHidden);
 	}
@@ -617,9 +617,9 @@ void PatchBrowser::PatchCollection::buttonClicked(Button *b)
 {
 	if (b == foldButton)
 	{
-		const bool folded = getProcessor()->getEditorState(getProcessor()->getEditorStateForIndex(ModulatorSynth::OverviewFolded));
+		const bool wasFolded = getProcessor()->getEditorState(getProcessor()->getEditorStateForIndex(ModulatorSynth::OverviewFolded));
 
-		getProcessor()->setEditorState(getProcessor()->getEditorStateForIndex(ModulatorSynth::OverviewFolded), !folded);
+		getProcessor()->setEditorState(getProcessor()->getEditorStateForIndex(ModulatorSynth::OverviewFolded), !wasFolded);
 
 		refreshFoldButton();
 	}
@@ -738,7 +738,7 @@ void PatchBrowser::PatchItem::popupCallback(int menuIndex)
 {
 	ViewSettings setting = (ViewSettings)menuIndex;
 
-	BackendProcessorEditor *editor = dynamic_cast<Component*>(this)->findParentComponentOfClass<BackendProcessorEditor>();
+	BackendProcessorEditor *mainEditor = dynamic_cast<Component*>(this)->findParentComponentOfClass<BackendProcessorEditor>();
 
 	switch (setting)
 	{
@@ -751,15 +751,15 @@ void PatchBrowser::PatchItem::popupCallback(int menuIndex)
 	case PatchBrowser::ModuleDragTarget::ViewSettings::Visible:
 		getProcessor()->toggleEditorState(Processor::Visible, sendNotification);
 		getProcessor()->sendChangeMessage();
-		editor->getRootContainer()->refreshSize(false);	
+		mainEditor->getRootContainer()->refreshSize(false);	
 		break;
 	case PatchBrowser::ModuleDragTarget::ViewSettings::Solo:
 		getProcessor()->toggleEditorState(Processor::Solo, sendNotification);
 
 		if (getProcessor()->getEditorState(Processor::EditorState::Solo))
-			editor->addProcessorToPanel(getProcessor());
+			mainEditor->addProcessorToPanel(getProcessor());
 		else
-			editor->removeProcessorFromPanel(getProcessor());
+			mainEditor->removeProcessorFromPanel(getProcessor());
 		break;
 	case PatchBrowser::ModuleDragTarget::ViewSettings::Root:
 		findParentComponentOfClass<BackendProcessorEditor>()->setRootProcessorWithUndo(processor);

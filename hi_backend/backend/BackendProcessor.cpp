@@ -71,11 +71,11 @@ void BackendProcessor::handleControllersForMacroKnobs(const MidiBuffer &/*midiMe
 }
 
 
-void BackendProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
+void BackendProcessor::prepareToPlay(double newSampleRate, int samplesPerBlock)
 {
-    setRateAndBufferSizeDetails(sampleRate, samplesPerBlock);
+    setRateAndBufferSizeDetails(newSampleRate, samplesPerBlock);
     
-	MainController::prepareToPlay(sampleRate, samplesPerBlock);
+	MainController::prepareToPlay(newSampleRate, samplesPerBlock);
 };
 
 AudioProcessorEditor* BackendProcessor::createEditor()

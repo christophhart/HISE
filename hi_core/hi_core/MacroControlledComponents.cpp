@@ -43,13 +43,13 @@ int MacroControlledObject::getMacroIndex() const
 
 bool MacroControlledObject::checkLearnMode()
 {
-	const int macroIndex = getProcessor()->getMainController()->getMacroManager().getMacroControlLearnMode();
+	const int currentlyActiveLearnIndex = getProcessor()->getMainController()->getMacroManager().getMacroControlLearnMode();
 
-	if(macroIndex != -1)
+	if(currentlyActiveLearnIndex != -1)
 	{
-		addToMacroController(macroIndex);
+		addToMacroController(currentlyActiveLearnIndex);
 
-		GET_MACROCHAIN()->addControlledParameter(macroIndex, getProcessor()->getId(), parameter, name, getRange());
+		GET_MACROCHAIN()->addControlledParameter(currentlyActiveLearnIndex, getProcessor()->getId(), parameter, name, getRange());
 			
 		return true;
 	}
@@ -212,9 +212,9 @@ void HiSlider::updateValue(NotificationType /*sendAttributeChange*/)
 	
 }
 
-void HiSlider::setup(Processor *p, int parameter, const String &name)
+void HiSlider::setup(Processor *p, int parameterIndex, const String &parameterName)
 {
-	MacroControlledObject::setup(p, parameter, name);
+	MacroControlledObject::setup(p, parameterIndex, parameterName);
 
 	p->getMainController()->skin(*this);
 	
@@ -223,10 +223,9 @@ void HiSlider::setup(Processor *p, int parameter, const String &name)
 		modeValues[i] = 0.0;
 	}
 
-	setDoubleClickReturnValue(true, (double)p->getDefaultValue(parameter));
+	setDoubleClickReturnValue(true, (double)p->getDefaultValue(parameterIndex));
 
-	setName(name);
-	
+	setName(parameterName);
 }
 
 void HiSlider::setLookAndFeelOwned(LookAndFeel *laf_)
@@ -286,9 +285,9 @@ void HiToggleButton::mouseDown(const MouseEvent &e)
     }
 }
 
-void HiComboBox::setup(Processor *p, int parameter, const String &name)
+void HiComboBox::setup(Processor *p, int parameterIndex, const String &parameterName)
 {
-	MacroControlledObject::setup(p, parameter, name);
+	MacroControlledObject::setup(p, parameterIndex, parameterName);
 
 	p->getMainController()->skin(*this);
 }
@@ -332,13 +331,13 @@ void HiComboBox::comboBoxChanged(ComboBox *c)
     
 	if(index == 0) return;
 
-	const int macroIndex = getProcessor()->getMainController()->getMacroManager().getMacroChain()->getMacroControlIndexForProcessorParameter(getProcessor(), parameter);
+	const int thisMacroIndex = getProcessor()->getMainController()->getMacroManager().getMacroChain()->getMacroControlIndexForProcessorParameter(getProcessor(), parameter);
 
-	if (macroIndex != -1 && !isReadOnly())
+	if (thisMacroIndex != -1 && !isReadOnly())
 	{
 		const float v = (float)getRange().convertTo0to1(index);
 
-		GET_MACROCHAIN()->setMacroControl(macroIndex,v * 127.0f, sendNotification);
+		GET_MACROCHAIN()->setMacroControl(thisMacroIndex,v * 127.0f, sendNotification);
 	}
 
 	if(!checkLearnMode())
@@ -348,9 +347,9 @@ void HiComboBox::comboBoxChanged(ComboBox *c)
 };
 
 
-void HiToggleButton::setup(Processor *p, int parameter, const String &name)
+void HiToggleButton::setup(Processor *p, int parameterIndex, const String &parameterName)
 {
-	MacroControlledObject::setup(p, parameter, name);
+	MacroControlledObject::setup(p, parameterIndex, parameterName);
 
 	p->getMainController()->skin(*this);
 }

@@ -81,7 +81,7 @@ public:
 	*
 	*	Since all samples are mapped along the note scale, the velocity automap is not possible.
 	*/
-	static void loadAudioFilesUsingDropPoint(Component *childComponentOfMainEditor, ModulatorSampler *sampler, const StringArray &fileNames, BigInteger rootNotes, bool useMetadata);
+	static void loadAudioFilesUsingDropPoint(Component *childComponentOfMainEditor, ModulatorSampler *sampler, const StringArray &fileNames, BigInteger rootNotes);
 
 	/** Loads audio files into the sampler by using a pitch detection algorithm that sets the root note automatically. */
 	static void loadAudioFilesUsingPitchDetection(Component *childComponentOfMainEditor, ModulatorSampler *sampler, const StringArray &fileNames, bool useVelocityAutomap);

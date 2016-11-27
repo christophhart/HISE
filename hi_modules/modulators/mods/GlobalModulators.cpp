@@ -106,7 +106,6 @@ StringArray GlobalModulator::getListOfAllModulatorsWithType()
 			{
 			case VoiceStart: matches = dynamic_cast<VoiceStartModulator*>(chain->getHandler()->getProcessor(i)) != nullptr; break;
 			case TimeVariant: matches = dynamic_cast<TimeVariantModulator*>(chain->getHandler()->getProcessor(i)) != nullptr; break;
-			case Envelope: matches = dynamic_cast<EnvelopeModulator*>(chain->getHandler()->getProcessor(i)) != nullptr; break;
             case numTypes: jassertfalse; break;
 			}
 
@@ -338,7 +337,7 @@ void GlobalTimeVariantModulator::calculateBlock(int startSample, int numSamples)
 		{
 			const float *data = getConnectedContainer()->getModulationValuesForModulator(getOriginalModulator(), startSample);
 
-			const float inputValue = data[0];
+			const float thisInputValue = data[0];
 
 			int i = 0;
 
@@ -352,7 +351,7 @@ void GlobalTimeVariantModulator::calculateBlock(int startSample, int numSamples)
 			}
 
 			setOutputValue(internalBuffer.getSample(0, startIndex));
-			sendTableIndexChangeMessage(false, table, inputValue);
+			sendTableIndexChangeMessage(false, table, thisInputValue);
 
 		}
 		else

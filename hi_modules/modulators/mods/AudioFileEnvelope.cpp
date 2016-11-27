@@ -412,8 +412,8 @@ void AudioFileEnvelope::calculateBlock(int startSample, int numSamples)
 
 	if (length != 0 && inputMerger.shouldUpdate())
 	{
-		const float inputValue = (float)((int)uptime % length) / (float)length;
-		setInputValue(inputValue, dontSendNotification);
+		const float thisInput = (float)((int)uptime % length) / (float)length;
+		setInputValue(thisInput, dontSendNotification);
 	}
 }
 

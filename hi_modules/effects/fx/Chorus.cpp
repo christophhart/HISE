@@ -114,18 +114,18 @@ void ChorusEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 	calculateInternalValues();
 }
 
-void ChorusEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples)
+void ChorusEffect::applyEffect(AudioSampleBuffer &b, int startSample, int numSamples)
 {
-	FloatVectorOperations::copy(tempBuffer.getWritePointer(0, 0), buffer.getReadPointer(0, startSample), numSamples);
-	FloatVectorOperations::copy(tempBuffer.getWritePointer(1, 0), buffer.getReadPointer(1, startSample), numSamples);
+	FloatVectorOperations::copy(tempBuffer.getWritePointer(0, 0), b.getReadPointer(0, startSample), numSamples);
+	FloatVectorOperations::copy(tempBuffer.getWritePointer(1, 0), b.getReadPointer(1, startSample), numSamples);
 
 	const float *inputL = tempBuffer.getReadPointer(0, 0);
 	const float *inputR = tempBuffer.getReadPointer(1, 0);
 
 	const float *inputs[2] = { inputL, inputR };
 	
-	float *outputL = buffer.getWritePointer(0, startSample);
-	float *outputR = buffer.getWritePointer(1, startSample);
+	float *outputL = b.getWritePointer(0, startSample);
+	float *outputR = b.getWritePointer(1, startSample);
 
 	float *outputs[2] = { outputL, outputR };
 

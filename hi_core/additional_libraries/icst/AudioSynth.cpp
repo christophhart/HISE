@@ -991,14 +991,14 @@ void ChambFilter::processInplace(float *data, int numSamples)
 
 // audio and control update, purely linear
 void ChambFilter::Update(	float* data, int samples, float invsmp,
-							float freq, float res					)
+							float frequency, float resonance					)
 {
 	int i; float dfc,dd,c,x,in,fcorr,r,f;
 
 	// control processing
-	r = 1.1313708f*(1.25f - __max(0,__min(1.0f,res)));
+	r = 1.1313708f*(1.25f - __max(0,__min(1.0f,resonance)));
 	r *= r;
-	x = fscl1*SpecMath::qdexp(fscl2*__max(0,__min(1.0f,freq)));
+	x = fscl1*SpecMath::qdexp(fscl2*__max(0,__min(1.0f,frequency)));
 	fcorr = x*(1.1045361f - 0.1045361f*__min(1.0f,r));
 	r = __min(r, 2.0f-x*x);
 	dfc = invsmp*(fcorr - fc);
@@ -1096,14 +1096,14 @@ void ChambFilter::Update(	float* data, int samples, float invsmp,
 // quasi-linear compression, resonance up to self-oscillation
 // !!! input/output/power detector gain subject to fine tuning !!!
 void ChambFilter::UpdateCmp(float* data, int samples, float invsmp,
-							float freq, float res)
+							float frequency, float resonance)
 {
 	int i; float dfc,dd,c,x,inscl,fcorr,r,deff,f;
 
 	// control processing
-	r = 1.4f*(1.0f - __max(0,__min(1.0f,res)));
+	r = 1.4f*(1.0f - __max(0,__min(1.0f,resonance)));
 	r = r*r - 0.016f; 
-	x = fscl1*SpecMath::qdexp(fscl2*__max(0,__min(1.0f,freq)));
+	x = fscl1*SpecMath::qdexp(fscl2*__max(0,__min(1.0f,frequency)));
 	fcorr = x*(1.1045361f - 0.1045361f*__min(1.0f,r));
 	r = __min(r, 2.0f-x*x);
 	dfc = invsmp*(fcorr - fc);

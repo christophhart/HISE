@@ -371,7 +371,7 @@ bool JavascriptCodeEditor::componentIsDefinedWithFactoryMethod(const Identifier&
 
 String JavascriptCodeEditor::createNewDefinitionWithFactoryMethod(const String &oldId, const String &newId, int newX, int newY)
 {
-	const String regexp = "(const)?\\s*(global|var|reg)?\\s*" + oldId + "\\s*=\\s*([\\w\.]+)\\(\\\"(\\w+)\\\"\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)(.*)\\);";
+	const String regexp = "(const)?\\s*(global|var|reg)?\\s*" + oldId + "\\s*=\\s*([\\w\\.]+)\\(\\\"(\\w+)\\\"\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)(.*)\\);";
 	const String allText = getDocument().getAllContent();
 	StringArray sa = RegexFunctions::getMatches(regexp, allText, nullptr);
 
@@ -403,10 +403,10 @@ void JavascriptCodeEditor::focusLost(FocusChangeType )
 #endif
 }
 
-void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &m, const MouseEvent *e)
+void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &menu, const MouseEvent *e)
 {
 #if USE_BACKEND
-    m.setLookAndFeel(&plaf);
+    menu.setLookAndFeel(&plaf);
 
 	StringArray all = StringArray::fromLines(getDocument().getAllContent());
 
@@ -420,7 +420,7 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &m, const MouseEvent *e)
 		}
 	}
 
-	m.addSectionHeader("Code Bookmarks");
+	menu.addSectionHeader("Code Bookmarks");
 
 	if (bookmarks.size() != 0)
 	{
@@ -428,15 +428,15 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &m, const MouseEvent *e)
 
 		for (int i = 0; i < bookmarks.size(); i++)
 		{
-			m.addItem(bookmarkOffset + i, bookmarks[i].title);
+			menu.addItem(bookmarkOffset + i, bookmarks[i].title);
 		}
 
-		m.addSeparator();
+		menu.addSeparator();
 	}
 
-	m.addItem(106, "Add code bookmark");
+	menu.addItem(106, "Add code bookmark");
 
-	m.addSeparator();
+	menu.addSeparator();
 
 	String s = getTextInRange(getHighlightedRegion()); 
 	
@@ -452,11 +452,11 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &m, const MouseEvent *e)
 
 		String fileName = getTextInRange(Range<int>(start.getPosition(), end.getPosition()));
 
-		m.addItem(110, "Open " + fileName + " in editor popup");
-		m.addSeparator();
+		menu.addItem(110, "Open " + fileName + " in editor popup");
+		menu.addSeparator();
 	}
 
-    CodeEditorComponent::addPopupMenuItems(m, e);
+    CodeEditorComponent::addPopupMenuItems(menu, e);
     
     
     
@@ -465,22 +465,22 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &m, const MouseEvent *e)
     if(editor != nullptr)
     {
 		
-		m.addSeparator();
-		m.addSectionHeader("Refactoring");
-		m.addItem(105, "Search & replace");
+		menu.addSeparator();
+		menu.addSectionHeader("Refactoring");
+		menu.addItem(105, "Search & replace");
 
 		const String selection = getTextInRange(getHighlightedRegion()).trimEnd().trimStart();
 		const bool isUIDefinitionSelected = selection.startsWith("const var");
 
-		m.addItem(107, "Create UI factory method from selection", isUIDefinitionSelected);
-        m.addSeparator();
-        m.addSectionHeader("Import / Export");
-        m.addItem(101, "Save Script To File");
-        m.addItem(102, "Load Script From File");
-        m.addSeparator();
-        m.addItem(103, "Save Script to Clipboard");
-        m.addItem(104, "Load Script from Clipboard");
-        m.addSeparator();
+		menu.addItem(107, "Create UI factory method from selection", isUIDefinitionSelected);
+        menu.addSeparator();
+        menu.addSectionHeader("Import / Export");
+        menu.addItem(101, "Save Script To File");
+        menu.addItem(102, "Load Script From File");
+        menu.addSeparator();
+        menu.addItem(103, "Save Script to Clipboard");
+        menu.addItem(104, "Load Script from Clipboard");
+        menu.addSeparator();
 		
 		
     }
@@ -488,7 +488,7 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &m, const MouseEvent *e)
 
 #else
 
-	ignoreUnused(m, e);
+	ignoreUnused(menu, e);
 
 #endif
 };
@@ -622,9 +622,9 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 	}
     else if(menuId == 99)
     {
-        String s = getTextInRange(getHighlightedRegion());
+        String selectedText = getTextInRange(getHighlightedRegion());
         
-        Identifier selection = Identifier(s);
+        Identifier selection = Identifier(selectedText);
         
         NamedValueSet set = scriptProcessor->getScriptEngine()->getRootObjectProperties();
         
@@ -651,7 +651,7 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
         {
             String newValue = nameWindow->getTextEditorContents("Name");
             
-            String code = s << " = " << newValue << ";";
+            String code = selectedText << " = " << newValue << ";";
             
             Result r = scriptProcessor->getScriptEngine()->execute(code);
             
@@ -703,12 +703,12 @@ void JavascriptCodeEditor::showAutoCompleteNew()
 			CodeDocument::Position current = getCaretPos();
 			moveCaretTo(CodeDocument::Position(getDocument(), tokenRange.getStart()), false);
 
-			Rectangle<int> caret = editor->getLocalArea(this, getCaretRectangle());
-			Point<int> topLeft = caret.getBottomLeft();
+			Rectangle<int> caretArea = editor->getLocalArea(this, getCaretRectangle());
+			Point<int> topLeft = caretArea.getBottomLeft();
 
-			if (caret.getY() > editor->getHeight() - currentPopup->getHeight())
+			if (caretArea.getY() > editor->getHeight() - currentPopup->getHeight())
 			{
-				topLeft = Point<int>(topLeft.getX(), jmax<int>(0, caret.getY() - currentPopup->getHeight()));
+				topLeft = Point<int>(topLeft.getX(), jmax<int>(0, caretArea.getY() - currentPopup->getHeight()));
 			}
 
 			moveCaretTo(current, false);
@@ -864,17 +864,17 @@ bool JavascriptCodeEditor::keyPressed(const KeyPress& k)
 
 		bool isCommented = getDocument().getLine(startLine).startsWith("//");
 
-		CodeDocument::Position caret = getCaretPos();
+		CodeDocument::Position currentCaretPosition = getCaretPos();
 
-		StringArray lines = StringArray::fromLines(getDocument().getAllContent());
+		StringArray allLines = StringArray::fromLines(getDocument().getAllContent());
 
 		for(int i = startLine; i <= endLine; i++)
 		{
-			if (isCommented) lines.set(i, lines[i].trimCharactersAtStart("/"));
-			else lines.set(i, "//" + lines[i]);
+			if (isCommented) allLines.set(i, allLines[i].trimCharactersAtStart("/"));
+			else allLines.set(i, "//" + allLines[i]);
 		}
 
-		getDocument().replaceAllContent(lines.joinIntoString(getDocument().getNewLineCharacters()));
+		getDocument().replaceAllContent(allLines.joinIntoString(getDocument().getNewLineCharacters()));
 
 		CodeDocument::Position startP = CodeDocument::Position(getDocument(), startLine, 0);
 		CodeDocument::Position endP = CodeDocument::Position(getDocument(), endLine, 0);
@@ -1362,10 +1362,10 @@ void JavascriptCodeEditor::AutoCompletePopup::createObjectPropertyRows(const Val
 					int numArgs, functionIndex;
 					cow->getIndexAndNumArgsForFunction(id, functionIndex, numArgs);
 
-					for (int i = 0; i < numArgs; i++)
+					for (int j = 0; j < numArgs; j++)
 					{
-						info->codeToInsert << "arg" + String(i + 1);
-						if (i != (numArgs - 1)) info->codeToInsert << ", ";
+						info->codeToInsert << "arg" + String(j + 1);
+						if (j != (numArgs - 1)) info->codeToInsert << ", ";
 					}
 					
 					info->codeToInsert << ")";
@@ -1416,14 +1416,14 @@ void JavascriptCodeEditor::AutoCompletePopup::createObjectPropertyRows(const Val
 		{
 			for (int i = 0; i < ns->getNumDebugObjects(); i++)
 			{
-				const ScopedPointer<DebugInformation> obj = ns->createDebugInformation(i);
+				const ScopedPointer<DebugInformation> dbg = ns->createDebugInformation(i);
 				RowInfo *info = new RowInfo();
 
-				info->name = obj->getTextForName();
+				info->name = dbg->getTextForName();
 				info->codeToInsert = info->name;
-				info->typeName = obj->getTextForDataType();
-				info->type = obj->getType();
-				info->value = obj->getTextForValue();
+				info->typeName = dbg->getTextForDataType();
+				info->type = dbg->getType();
+				info->value = dbg->getTextForValue();
 
 				allInfo.add(info);
 			}
@@ -1453,16 +1453,16 @@ void JavascriptCodeEditor::AutoCompletePopup::addCustomEntries(const Identifier 
 	}
 	else if (objectId.toString() == "event")
 	{
-		StringArray names = MouseCallbackComponent::getCallbackPropertyNames();
+		StringArray eventProperties = MouseCallbackComponent::getCallbackPropertyNames();
 
-		for (int i = 0; i < names.size(); i++)
+		for (int i = 0; i < eventProperties.size(); i++)
 		{
 			RowInfo *info = new RowInfo();
 
-			info->name = objectId.toString() + "." + names[i];
+			info->name = objectId.toString() + "." + eventProperties[i];
 			info->codeToInsert = info->name;
 			info->typeName = "int";
-			info->value = names[i];
+			info->value = eventProperties[i];
 			info->type = (int)DebugInformation::Type::Variables;
 
 			allInfo.add(info);

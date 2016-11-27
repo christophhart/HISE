@@ -42,11 +42,11 @@ void PopupLabel::showPopup()
 
 void PopupLabel::mouseDown(const MouseEvent &)
 {
-    ProcessorEditor *editor = findParentComponentOfClass<ProcessorEditor>();
+    ProcessorEditor *pEditor = findParentComponentOfClass<ProcessorEditor>();
     
-    if(editor != nullptr)
+    if(pEditor != nullptr)
     {
-        PresetHandler::setChanged(editor->getProcessor());
+        PresetHandler::setChanged(pEditor->getProcessor());
     }
     
 	if(isEnabled())
@@ -799,7 +799,7 @@ void SamplerSoundMap::mouseDrag(const MouseEvent &e)
     refreshGraphics();
 }
 
-void SamplerSoundMap::setPressedKeys(const uint8 *pressedKeyData)
+void SamplerSoundMap::setPressedKeys(const int8 *pressedKeyData)
 {
 	for(int i = 0; i < 127; i++)
 	{
@@ -810,13 +810,13 @@ void SamplerSoundMap::setPressedKeys(const uint8 *pressedKeyData)
 
 		if(newNote)
 		{
-			for(int i = 0; i < sampleComponents.size(); i++)
+			for(int j = 0; j < sampleComponents.size(); j++)
 			{
-				if(sampleComponents[i]->isVisible() && sampleComponents[i]->getSound() != nullptr &&
-					sampleComponents[i]->getSound()->appliesToMessage(1, number, velocity) &&
-					sampleComponents[i]->getSound()->appliesToRRGroup(ownerSampler->getSamplerDisplayValues().currentGroup))
+				if(sampleComponents[j]->isVisible() && sampleComponents[j]->getSound() != nullptr &&
+					sampleComponents[j]->getSound()->appliesToMessage(1, number, velocity) &&
+					sampleComponents[j]->getSound()->appliesToRRGroup(ownerSampler->getSamplerDisplayValues().currentGroup))
 				{
-					sampleComponents[i]->triggerNoteOnAnimation(velocity);
+					sampleComponents[j]->triggerNoteOnAnimation(velocity);
 				}
 			}
 		}
@@ -975,7 +975,7 @@ void MapWithKeyboard::mouseDown(const MouseEvent &e)
 
 void MapWithKeyboard::mouseUp(const MouseEvent &)
 {
-	HiseEvent m(HiseEvent::Type::NoteOff, lastNoteNumber, 127, 1);
+	HiseEvent m(HiseEvent::Type::NoteOff, (uint8)lastNoteNumber, 127, 1);
 
 	sampler->preHiseEventCallback(m);
 	sampler->noteOff(m);

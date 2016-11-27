@@ -329,11 +329,6 @@ void HiseEventBuffer::insertEventAtPosition(const HiseEvent& e, int positionInBu
     {
         jassertfalse;
     }
-    
-    
-	
-
-	
 }
 
 void MainController::EventIdHandler::handleEventIds()
@@ -353,7 +348,7 @@ void MainController::EventIdHandler::handleEventIds()
 		}
 		else if (m->isNoteOff())
 		{
-			uint32 id = noteOnEvents[m->getNoteNumber()].getEventId();
+			uint16 id = noteOnEvents[m->getNoteNumber()].getEventId();
 			m->setEventId(id);
 		}
 	}
@@ -390,16 +385,16 @@ const HiseEvent* MainController::EventIdHandler::getNoteOnEventFor(const HiseEve
 	}
 }
 
-int MainController::EventIdHandler::requestEventIdForArtificialNote(const HiseEvent &e) noexcept
+uint16 MainController::EventIdHandler::requestEventIdForArtificialNote(const HiseEvent& noteOnEvent) noexcept
 {
-	jassert(e.isNoteOn());
+	jassert(noteOnEvent.isNoteOn());
 
-	jassert(e.isArtificial());
+	jassert(noteOnEvent.isArtificial());
 
-	artificialNoteOnEvents[e.getNoteNumber()] = e;
-	artificialNoteOnEvents[e.getNoteNumber()].setEventId(currentEventId);
+	artificialNoteOnEvents[noteOnEvent.getNoteNumber()] = noteOnEvent;
+	artificialNoteOnEvents[noteOnEvent.getNoteNumber()].setEventId(currentEventId);
 
-	return currentEventId++;
+	return (uint16)currentEventId++;
 }
 
 

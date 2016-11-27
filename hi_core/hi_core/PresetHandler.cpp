@@ -230,9 +230,9 @@ void UserPresetData::loadNextPreset() const
 			loadPreset(currentCategoryIndex, nextPresetIndex);
 		else
 		{
-			const PresetCategory* c = getPresetCategory(currentCategoryIndex + 1);
+			const PresetCategory* category = getPresetCategory(currentCategoryIndex + 1);
 
-			if (c != nullptr)
+			if (category != nullptr)
 				loadPreset(currentCategoryIndex + 1, 0);
 		}
 	}
@@ -251,10 +251,10 @@ void UserPresetData::loadPreviousPreset() const
 
 		else
 		{
-			const PresetCategory* c = getPresetCategory(currentCategoryIndex - 1);
+			const PresetCategory* category = getPresetCategory(currentCategoryIndex - 1);
 
-			if (c != nullptr)
-				loadPreset(currentCategoryIndex - 1, c->presets.size() - 1);
+			if (category != nullptr)
+				loadPreset(currentCategoryIndex - 1, category->presets.size() - 1);
 		}
 	}
 }
@@ -305,18 +305,18 @@ void UserPresetData::refreshPresetFileList()
 	}
 
 	File userPresetDirectory = ProjectHandler::Frontend::getUserPresetDirectory();
-	Array<File> userPresets;
-	userPresetDirectory.findChildFiles(userPresets, File::findFiles, false, "*.preset");
+	Array<File> newUserPresets;
+	userPresetDirectory.findChildFiles(newUserPresets, File::findFiles, false, "*.preset");
 
-	for (int i = 0; i < userPresets.size(); i++)
+	for (int i = 0; i < newUserPresets.size(); i++)
 	{
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(userPresets[i]);
+		ScopedPointer<XmlElement> xml = XmlDocument::parse(newUserPresets[i]);
 
 		if (xml != nullptr)
 		{
 			ValueTree v = ValueTree::fromXml(*xml);
 
-			addUserPreset(userPresets[i].getFileNameWithoutExtension(), i, v);
+			addUserPreset(newUserPresets[i].getFileNameWithoutExtension(), i, v);
 		}
 	}
 
@@ -355,7 +355,7 @@ void UserPresetHandler::saveUserPreset(ModulatorSynthChain *chain, const String&
 
 		if (name.isNotEmpty())
 		{
-			File presetFile = userPresetDir.getChildFile(name + ".preset");
+			presetFile = userPresetDir.getChildFile(name + ".preset");
 			doit = true;
 		}
 	}
@@ -1637,9 +1637,9 @@ void PresetHandler::setUniqueIdsForProcessor(Processor * p)
 			{
 				Processor *cp = childChain->getHandler()->getProcessor(j);
 
-				const String uniqueId = FactoryType::getUniqueName(cp);
+				const String newUniqueId = FactoryType::getUniqueName(cp);
 
-				cp->setId(uniqueId);
+				cp->setId(newUniqueId);
 			}
 		}
 	}

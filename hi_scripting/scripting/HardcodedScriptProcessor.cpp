@@ -107,24 +107,24 @@ void HardcodedScriptFactoryType::fillTypeNameList()
 Processor *HardcodedScriptFactoryType::createProcessor(int typeIndex, const String &id) 
 {
 	MainController *m = getOwnerProcessor()->getMainController();
-	ModulatorSynth *owner = dynamic_cast<ModulatorSynth*>(getOwnerProcessor());
+	ModulatorSynth *ownerAsSynth = dynamic_cast<ModulatorSynth*>(getOwnerProcessor());
 	MidiProcessor *mp = nullptr;
 
 	switch(typeIndex)
 	{
-	case legatoWithRetrigger:	mp = new LegatoProcessor(m, id, owner); break;
-	case ccSwapper:				mp = new CCSwapper(m, id, owner); break;
-	case releaseTrigger:		mp = new ReleaseTriggerScriptProcessor(m, id, owner); break;
-	case cc2Note:				mp = new CCToNoteProcessor(m, id, owner); break;
-	case channelFilter:			mp = new ChannelFilterScriptProcessor(m, id, owner); break;
-	case channelSetter:			mp = new ChannelSetterScriptProcessor(m, id, owner); break;
-	case muteAll:				mp = new MuteAllScriptProcessor(m, id, owner); break;
+	case legatoWithRetrigger:	mp = new LegatoProcessor(m, id, ownerAsSynth); break;
+	case ccSwapper:				mp = new CCSwapper(m, id, ownerAsSynth); break;
+	case releaseTrigger:		mp = new ReleaseTriggerScriptProcessor(m, id, ownerAsSynth); break;
+	case cc2Note:				mp = new CCToNoteProcessor(m, id, ownerAsSynth); break;
+	case channelFilter:			mp = new ChannelFilterScriptProcessor(m, id, ownerAsSynth); break;
+	case channelSetter:			mp = new ChannelSetterScriptProcessor(m, id, ownerAsSynth); break;
+	case muteAll:				mp = new MuteAllScriptProcessor(m, id, ownerAsSynth); break;
 	default:					jassertfalse; break;
 	}
 
 	if(mp != nullptr)
 	{
-		mp->setOwnerSynth(owner);
+		mp->setOwnerSynth(ownerAsSynth);
 	}
 
 	return mp;

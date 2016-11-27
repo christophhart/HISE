@@ -188,9 +188,9 @@ private:
 
 	float calculateNewValue();
 
-	float getSmoothedCCValue(float targetValue)
+	float getSmoothedCCValue(float newTargetValue)
 	{
-		smoothedCCValue = smoother.smooth(targetValue);
+		smoothedCCValue = smoother.smooth(newTargetValue);
 
 		return smoothedCCValue;
 	}

@@ -267,7 +267,7 @@ public:
 	double getSampleRate() const noexcept { return sampleRate; };
 
 	/** Returns the length of the loaded audio file in samples. */
-	int getLengthInSamples() const noexcept { return fileReader.getSampleLength(); };
+	int64 getLengthInSamples() const noexcept { return fileReader.getSampleLength(); };
 
 	/** Gets the sound into active memory.
 	*

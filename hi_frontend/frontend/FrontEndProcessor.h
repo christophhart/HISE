@@ -211,11 +211,11 @@ public:
 	bool moreThanOneInstanceAllowed() override       { return true; }
 
 
-	void initialise(const String& commandLine) override { mainWindow = new MainWindow(getApplicationName()); }
+	void initialise(const String& /*commandLine*/) override { mainWindow = new MainWindow(getApplicationName()); }
 	void shutdown() override { mainWindow = nullptr; }
 	void systemRequestedQuit() override { quit(); }
 
-	void anotherInstanceStarted(const String& commandLine) override {}
+	void anotherInstanceStarted(const String& /*commandLine*/) override {}
 
 	class AudioWrapper : public Component
 	{

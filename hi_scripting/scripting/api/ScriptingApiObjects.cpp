@@ -1013,13 +1013,13 @@ void ScriptingObjects::GraphicsObject::drawImage(String imageName, var area, int
 
 	auto sc = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(parent);
 
-	const Image *imageToDraw = sc->getLoadedImage(imageName);
+	const Image *img = sc->getLoadedImage(imageName);
 
-	if (imageToDraw != nullptr && imageToDraw->isValid())
+	if (img != nullptr && img->isValid())
 	{
 		Rectangle<float> r = getRectangleFromVar(area);
 
-		g->drawImage(*imageToDraw, (int)r.getX(), (int)r.getY(), (int)r.getWidth(), (int)r.getHeight(), xOffset, yOffset, (int)r.getWidth(), (int)r.getHeight());
+		g->drawImage(*img, (int)r.getX(), (int)r.getY(), (int)r.getWidth(), (int)r.getHeight(), xOffset, yOffset, (int)r.getWidth(), (int)r.getHeight());
 	}
 	else
 	{

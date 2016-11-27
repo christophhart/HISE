@@ -397,17 +397,17 @@ Rectangle<int> ScriptingApi::Content::ScriptComponent::getPosition() const
 	return Rectangle<int>(x, y, w, h);
 }
 
-void ScriptingApi::Content::ScriptComponent::set(String propertyName, var value)
+void ScriptingApi::Content::ScriptComponent::set(String propertyName, var newValue)
 {
-	Identifier name = Identifier(propertyName);
+	Identifier propertyId = Identifier(propertyName);
 
-	if (!componentProperties->hasProperty(name))
+	if (!componentProperties->hasProperty(propertyId))
 	{
 		reportScriptError("the property does not exist");
 		return;
 	}
 
-	setScriptObjectPropertyWithChangeMessage(name, value, parent->allowGuiCreation ? dontSendNotification : sendNotification);
+	setScriptObjectPropertyWithChangeMessage(propertyId, newValue, parent->allowGuiCreation ? dontSendNotification : sendNotification);
 }
 
 
@@ -425,12 +425,10 @@ void ScriptingApi::Content::ScriptComponent::setValue(var controlValue)
     
 	if (!controlValue.isObject())
 	{
-		const float value = (float)controlValue;
-
-		jassert(!std::isnan(value));
+		value = controlValue;
+		jassert(!std::isnan((float)value));
 	}
-
-	if (parent != nullptr)
+	else if (parent != nullptr)
 	{
 		ScopedLock sl(parent->lock);
 		value = controlValue;
@@ -473,11 +471,11 @@ void ScriptingApi::Content::ScriptComponent::setPropertiesFromJSON(const var &js
 
 		for (int i = 0; i < dataSet.size(); i++)
 		{
-			Identifier name = dataSet.getName(i);
+			Identifier propertyId = dataSet.getName(i);
 
-			if (priorityProperties.contains(name)) continue;
+			if (priorityProperties.contains(propertyId)) continue;
 
-			setScriptObjectPropertyWithChangeMessage(name, dataSet.getValueAt(i), dontSendNotification);
+			setScriptObjectPropertyWithChangeMessage(propertyId, dataSet.getValueAt(i), dontSendNotification);
 		}
 	}
 
@@ -961,11 +959,11 @@ double ScriptingApi::Content::ScriptSlider::getMaxValue() const
 	}
 }
 
-bool ScriptingApi::Content::ScriptSlider::contains(double value)
+bool ScriptingApi::Content::ScriptSlider::contains(double valueToCheck)
 {
 	if (styleId == Slider::TwoValueHorizontal)
 	{
-		return minimum <= value && maximum >= value;
+		return minimum <= valueToCheck && maximum >= valueToCheck;
 	}
 	else
 	{
@@ -991,9 +989,9 @@ void ScriptingApi::Content::ScriptSlider::setValueNormalized(double normalizedVa
 
 		NormalisableRange<double> range = NormalisableRange<double>(minValue, maxValue, step, skew);
 
-		const double value = range.convertFrom0to1(normalizedValue);
+		const double actualValue = range.convertFrom0to1(normalizedValue);
 
-		setValue(value);
+		setValue(actualValue);
 	}
 	else
 	{
@@ -1025,9 +1023,9 @@ double ScriptingApi::Content::ScriptSlider::getValueNormalized() const
 
 		NormalisableRange<double> range = NormalisableRange<double>(minValue, maxValue, step, skew);
 
-		const double value = getValue();
+		const double unNormalizedValue = getValue();
 
-		return range.convertTo0to1(value);
+		return range.convertTo0to1(unNormalizedValue);
 	}
 	else
 	{
@@ -1330,12 +1328,12 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptComboBox::createCom
 
 void ScriptingApi::Content::ScriptComboBox::addItem(const String &itemName)
 {
-	String name = getScriptObjectProperty(Items);
+	String newItemList = getScriptObjectProperty(Items);
 
-	name.append("\n", 1);
-	name.append(itemName, 128);
+	newItemList.append("\n", 1);
+	newItemList.append(itemName, 128);
 
-	setScriptObjectProperty(Items, name);
+	setScriptObjectProperty(Items, newItemList);
 
 	int size = getScriptObjectProperty(max);
 
@@ -1604,9 +1602,9 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptSliderPack::createC
 	return new ScriptCreatedComponentWrappers::SliderPackWrapper(content, this, index);
 }
 
-void ScriptingApi::Content::ScriptSliderPack::setSliderAtIndex(int index, double value)
+void ScriptingApi::Content::ScriptSliderPack::setSliderAtIndex(int index, double newValue)
 {
-	getSliderPackData()->setValue(index, (float)value, sendNotification);
+	getSliderPackData()->setValue(index, (float)newValue, sendNotification);
 }
 
 double ScriptingApi::Content::ScriptSliderPack::getSliderValueAt(int index)
@@ -1620,7 +1618,7 @@ double ScriptingApi::Content::ScriptSliderPack::getSliderValueAt(int index)
 	return (double)dataToUse->getValue(index);
 }
 
-void ScriptingApi::Content::ScriptSliderPack::setAllValues(double value)
+void ScriptingApi::Content::ScriptSliderPack::setAllValues(double newValue)
 {
 	SliderPackData *dataToUse = getSliderPackData();
 
@@ -1628,7 +1626,7 @@ void ScriptingApi::Content::ScriptSliderPack::setAllValues(double value)
 
 	for (int i = 0; i < dataToUse->getNumSliders(); i++)
 	{
-		dataToUse->setValue(i, (float)value, dontSendNotification);
+		dataToUse->setValue(i, (float)newValue, dontSendNotification);
 	}
 
 	getSliderPackData()->sendChangeMessage();
@@ -2241,11 +2239,11 @@ void ScriptingApi::Content::ModulatorMeter::setScriptProcessor(ProcessorWithScri
 
 	Processor::Iterator<Modulator> it(mp->getOwnerSynth(), true);
 
-	String name = getScriptObjectProperty(ModulatorId);
+	String modulatorName = getScriptObjectProperty(ModulatorId);
 
-	if (name.isEmpty()) return;
+	if (modulatorName.isEmpty()) return;
 
-	Identifier n(name);
+	Identifier n(modulatorName);
 
 	while (Modulator* m = it.getNextProcessor())
 	{
@@ -2256,7 +2254,7 @@ void ScriptingApi::Content::ModulatorMeter::setScriptProcessor(ProcessorWithScri
 		}
 	}
 
-	if (targetMod == nullptr) debugError(mp, "Modulator " + name + " not found!");
+	if (targetMod == nullptr) debugError(mp, "Modulator " + modulatorName + " not found!");
 };
 
 
@@ -2350,15 +2348,15 @@ ValueTree ScriptingApi::Content::ScriptAudioWaveform::exportAsValueTree() const
 {
 	ValueTree v = ScriptComponent::exportAsValueTree();
 
-	const AudioSampleProcessor *processor = dynamic_cast<const AudioSampleProcessor*>(connectedProcessor.get());
+	const AudioSampleProcessor *asp = dynamic_cast<const AudioSampleProcessor*>(connectedProcessor.get());
 
-	if (processor != nullptr)
+	if (asp != nullptr)
 	{
 		v.setProperty("Processor", connectedProcessor->getId(), nullptr);
 
-		v.setProperty("rangeStart", processor->getRange().getStart(), nullptr);
-		v.setProperty("rangeEnd", processor->getRange().getEnd(), nullptr);
-		v.setProperty("fileName", processor->getFileName(), nullptr);
+		v.setProperty("rangeStart", asp->getRange().getStart(), nullptr);
+		v.setProperty("rangeEnd", asp->getRange().getEnd(), nullptr);
+		v.setProperty("fileName", asp->getFileName(), nullptr);
 	}
 
 	return v;
@@ -2468,13 +2466,13 @@ void ScriptingApi::Content::ScriptPluginEditor::setScriptObjectPropertyWithChang
 ValueTree ScriptingApi::Content::ScriptPluginEditor::exportAsValueTree() const
 {
 	ValueTree v = ScriptComponent::exportAsValueTree();
-	const AudioProcessorWrapper *processor = dynamic_cast<const AudioProcessorWrapper*>(connectedProcessor.get());
+	const AudioProcessorWrapper *apw = dynamic_cast<const AudioProcessorWrapper*>(connectedProcessor.get());
 
-	if (processor != nullptr)
+	if (apw != nullptr)
 	{
 		v.setProperty("Processor", connectedProcessor->getId(), nullptr);
 
-		if (const AudioProcessor *audioProcessor = processor->getWrappedAudioProcessor())
+		if (const AudioProcessor *audioProcessor = apw->getWrappedAudioProcessor())
 		{
 			MemoryBlock data;
 			const_cast<AudioProcessor*>(audioProcessor)->getStateInformation(data);
@@ -2494,11 +2492,11 @@ void ScriptingApi::Content::ScriptPluginEditor::restoreFromValueTree(const Value
 		if (connectedProcessor.get() == nullptr || connectedProcessor.get()->getId() != id)
 			connectToAudioProcessorWrapper(id);
 
-		AudioProcessorWrapper *processor = dynamic_cast<AudioProcessorWrapper*>(connectedProcessor.get());
+		AudioProcessorWrapper *apw = dynamic_cast<AudioProcessorWrapper*>(connectedProcessor.get());
 
-		if (processor != nullptr)
+		if (apw != nullptr)
 		{
-			if (AudioProcessor *audioProcessor = processor->getWrappedAudioProcessor())
+			if (AudioProcessor *audioProcessor = apw->getWrappedAudioProcessor())
 			{
 				MemoryBlock data;
 				const String dataString = v.getProperty("PluginData", "").toString();
@@ -2716,11 +2714,13 @@ ScriptingApi::Content::ScriptComponent * ScriptingApi::Content::getComponent(int
 	return components[index];
 }
 
-void ScriptingApi::Content::setPropertiesFromJSON(const Identifier &name, const var &jsonData)
+void ScriptingApi::Content::setPropertiesFromJSON(const Identifier &componentName, const var &jsonData)
 {
+	Identifier componentId(componentName);
+
 	for (int i = 0; i < components.size(); i++)
 	{
-		if (components[i]->getName() == name)
+		if (components[i]->getName() == componentId)
 		{
 			components[i]->setPropertiesFromJSON(jsonData);
 		}

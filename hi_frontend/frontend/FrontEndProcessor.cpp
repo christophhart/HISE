@@ -157,14 +157,14 @@ const String FrontendProcessor::getName(void) const
 	return ProjectHandler::Frontend::getProjectName();
 }
 
-void FrontendProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
+void FrontendProcessor::prepareToPlay(double newSampleRate, int samplesPerBlock)
 {
 	suspendProcessing(true);
 
 	CHECK_COPY_AND_RETURN_1(synthChain);
 		
-	MainController::prepareToPlay(sampleRate, samplesPerBlock);
-	synthChain->prepareToPlay(sampleRate, samplesPerBlock);
+	MainController::prepareToPlay(newSampleRate, samplesPerBlock);
+	synthChain->prepareToPlay(newSampleRate, samplesPerBlock);
 
 	suspendProcessing(false);
 };

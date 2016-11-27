@@ -391,9 +391,9 @@ public:
 		{
 			addBasicComponents(false);
 
-			String errorMessage = getErrorMessage();
+			String currentErrorMessage = getErrorMessage();
 
-			showStatusMessage(errorMessage);
+			showStatusMessage(currentErrorMessage);
 		}
 	}
 

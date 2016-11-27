@@ -155,30 +155,26 @@ public:
 		FloatVectorOperations::copy(inputBuffer.getWritePointer(0, startSample), buffer.getReadPointer(0, startSample), numSamples);
 		FloatVectorOperations::copy(inputBuffer.getWritePointer(1, startSample), buffer.getReadPointer(1, startSample), numSamples);
 
-		float *input[2];
+		float *inputData[2];
 
-		
+		inputData[0] = inputBuffer.getWritePointer(0, startSample);
+		inputData[1] = inputBuffer.getWritePointer(1, startSample);
 
-		input[0] = inputBuffer.getWritePointer(0, startSample);
-		input[1] = inputBuffer.getWritePointer(1, startSample);
+		currentValues.inL = FloatVectorOperations::findMaximum(inputData[0], numSamples);
+		currentValues.inR = FloatVectorOperations::findMaximum(inputData[1], numSamples);
 
-		
+		float *outputData[2];
 
-		currentValues.inL = FloatVectorOperations::findMaximum(input[0], numSamples);
-		currentValues.inR = FloatVectorOperations::findMaximum(input[1], numSamples);
+		outputData[0] = buffer.getWritePointer(0, startSample);
+		outputData[1] = buffer.getWritePointer(1, startSample);
 
-		float *output[2];
+		currentValues.outL = outputData[0][startSample];
+		currentValues.outR = outputData[1][startSample];
 
-		output[0] = buffer.getWritePointer(0, startSample);
-		output[1] = buffer.getWritePointer(1, startSample);
+		effect->processReplacing(inputData, outputData, numSamples);
 
-		currentValues.outL = output[0][startSample];
-		currentValues.outR = output[1][startSample];
-
-		effect->processReplacing(input, output, numSamples);
-
-		currentValues.outL = FloatVectorOperations::findMaximum(output[0], numSamples);
-		currentValues.outR = FloatVectorOperations::findMaximum(output[1], numSamples);
+		currentValues.outL = FloatVectorOperations::findMaximum(outputData[0], numSamples);
+		currentValues.outR = FloatVectorOperations::findMaximum(outputData[1], numSamples);
 
 		//sendChangeMessage();
 	};
@@ -337,17 +333,17 @@ public:
 		FloatVectorOperations::copy(inputBuffer.getWritePointer(0, startSample), buffer.getReadPointer(0, startSample), numSamples);
 		FloatVectorOperations::copy(inputBuffer.getWritePointer(1, startSample), buffer.getReadPointer(1, startSample), numSamples);
 
-		float *input[2];
+		float *inputData[2];
 
-		input[0] = inputBuffer.getWritePointer(0, startSample);
-		input[1] = inputBuffer.getWritePointer(1, startSample);
+		inputData[0] = inputBuffer.getWritePointer(0, startSample);
+		inputData[1] = inputBuffer.getWritePointer(1, startSample);
 
-		float *output[2];
+		float *outputData[2];
 
-		output[0] = buffer.getWritePointer(0, startSample);
-		output[1] = buffer.getWritePointer(1, startSample);
+		outputData[0] = buffer.getWritePointer(0, startSample);
+		outputData[1] = buffer.getWritePointer(1, startSample);
 
-		effect->processReplacing(input, output, numSamples);
+		effect->processReplacing(inputData, outputData, numSamples);
 
 		float *dryWetModValues = dryWetBuffer.getWritePointer(0, startSample);
 		FloatVectorOperations::multiply(dryWetModValues, dryWet, numSamples);
@@ -358,11 +354,11 @@ public:
 		FloatVectorOperations::multiply(dryWetModValues, -1.0f, numSamples);
 		FloatVectorOperations::add(dryWetModValues, 1.0f, numSamples);
 
-		FloatVectorOperations::multiply(input[0], dryWetModValues, numSamples);
-		FloatVectorOperations::multiply(input[1], dryWetModValues, numSamples);
+		FloatVectorOperations::multiply(inputData[0], dryWetModValues, numSamples);
+		FloatVectorOperations::multiply(inputData[1], dryWetModValues, numSamples);
 
-		FloatVectorOperations::add(buffer.getWritePointer(0, startSample), input[0], numSamples);
-		FloatVectorOperations::add(buffer.getWritePointer(1, startSample), input[1], numSamples);
+		FloatVectorOperations::add(buffer.getWritePointer(0, startSample), inputData[0], numSamples);
+		FloatVectorOperations::add(buffer.getWritePointer(1, startSample), inputData[1], numSamples);
 
 	};
 

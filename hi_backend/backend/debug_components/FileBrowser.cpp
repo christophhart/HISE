@@ -397,11 +397,11 @@ bool FileBrowser::perform(const InvocationInfo &info)
 		}
 		else if (result >= VolumeOffset)
 		{
-			Array<File> roots;
+			Array<File> rootFiles;
 
-			File::findFileSystemRoots(roots);
+			File::findFileSystemRoots(rootFiles);
 
-			goToDirectory(roots[result - VolumeOffset], true);
+			goToDirectory(rootFiles[result - VolumeOffset], true);
 		}
 		else
 		{
@@ -485,7 +485,7 @@ void FileBrowser::mouseDown(const MouseEvent& e)
 	}
     else
     {
-        PopupLookAndFeel plaf;
+        
         PopupMenu m;
         
         m.setLookAndFeel(&plaf);

@@ -264,7 +264,7 @@ public:
 		float crossfadeTableValue;
 		int currentGroup;
 
-		uint8 currentNotes[128];
+		int8 currentNotes[128];
 	};
 
 	const SamplerDisplayValues &getSamplerDisplayValues() const { return samplerDisplayValues;	}

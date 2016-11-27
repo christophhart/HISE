@@ -464,15 +464,15 @@ public:
 		}
 	};
 
-	void onControl(ScriptingApi::Content::ScriptComponent * controller, var value) override
+	void onControl(ScriptingApi::Content::ScriptComponent * controllerThatWasMoved, var value) override
 	{
 		rrAmount = (int)Synth.getAttribute(7);
 
-		if (controller == bypassButton)
+		if (controllerThatWasMoved == bypassButton)
 		{
 			Sampler.enableRoundRobin((double)value > 0.5);
 		}
-		else if (controller == ccSelector)
+		else if (controllerThatWasMoved == ccSelector)
 		{
 			selectorValue = (int)value;
 		}

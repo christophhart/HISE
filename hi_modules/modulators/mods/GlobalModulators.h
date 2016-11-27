@@ -54,7 +54,6 @@ public:
 	{
 		VoiceStart,
 		TimeVariant,
-		Envelope,
 		numTypes
 	};
 

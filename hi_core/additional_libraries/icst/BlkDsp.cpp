@@ -807,12 +807,11 @@ void VectorFunctions::randsse(float* d, int size, int n)
 // noise, uniformly distributed (-1..1) 
 void VectorFunctions::unoise(float* d, int size)
 {
-#if 0
 #ifdef ICSTLIB_NO_SSEOPT
-	static CriticalSection cs;
+	
 	static unsigned int x = 1;
 
-	cs.Enter();							// single thread access on
+	
 
 	union {float ftmp; unsigned int uitmp;};
 	for (int i=0; i<size; i++) {
@@ -821,11 +820,8 @@ void VectorFunctions::unoise(float* d, int size)
 		d[i] = ftmp - 3.0f;
 	}
 
-	cs.Leave();							// single thread access off
-
 #else
 	randsse(d, size, 1);
-#endif
 #endif
 }
 
@@ -6744,6 +6740,9 @@ float VectorFunctions::ckend(float* x, float* y, int size)
 	return 2.0f*static_cast<float>(sum)/(a*a - a);
 }
 
+#pragma warning( push )
+#pragma warning( disable: 4706 )
+
 // linear regression
 // get weights c so that y is approximated by yest in a least-square sense
 // yest[0..size-1] = c[0] + sum(i=1..n){c[i]*x[(i-1)*size..i*size-1]}
@@ -6762,6 +6761,7 @@ Complex VectorFunctions::linreg(	float* c, float* x, float* y, int size, int n,
 	float* a = new float[n];
 	int i,j,v,q; float df1,df2,tmp,tmp2; Complex r;
 	bool usecov=false, savecov=false;
+
 	if (cov) {savecov = !(usecov = (cov[0] > 0));}
 
 	// calculate regression coefficients
@@ -6857,6 +6857,8 @@ Complex VectorFunctions::linreg(	float* c, float* x, float* y, int size, int n,
 	delete[] a; delete[] m;
 	return r;
 }
+
+#pragma warning( pop )
 
 // fill c with coefficients of least squares polynomial approximation
 // ye(x) = sum(i=0..d){c[i]*x^i} of value pairs (x,y)[0..size-1] weighted

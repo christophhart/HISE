@@ -153,18 +153,18 @@ void SfzImporter::parseOpcode(const String &opcode)
 
 	if(opcodeTokens.size() == 2)
 	{
-		const int opcode = getOpcode(opcodeTokens[0]);
+		const int opcodeIndex = getOpcode(opcodeTokens[0]);
 
-		if(opcode == Opcode::groupName)
+		if(opcodeIndex == Opcode::groupName)
 		{
 			if(dynamic_cast<Group*>(currentTarget) != nullptr) dynamic_cast<Group*>(currentTarget)->groupName = opcodeTokens[1];
 			else throw SfzParsingError(currentParseNumber, "group name opcode outside of group definition");
 		}
-		else if(opcode != -1)
+		else if(opcodeIndex != -1)
 		{
 			if(currentTarget != nullptr)
 			{
-				currentTarget->setOpcodeValue(opcode, getOpcodeValue((Opcode)opcode, opcodeTokens[1]));
+				currentTarget->setOpcodeValue(opcodeIndex, getOpcodeValue((Opcode)opcodeIndex, opcodeTokens[1]));
 			}
 			else
 			{

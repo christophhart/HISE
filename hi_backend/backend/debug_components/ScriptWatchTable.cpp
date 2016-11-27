@@ -267,7 +267,7 @@ void ScriptWatchTable::resized()
 void ScriptComponentEditPanel::addSectionToPanel(const Array<Identifier> &idList, const String &sectionName)
 {
 	ScriptingApi::Content::ScriptComponent *sc = dynamic_cast<ScriptingApi::Content::ScriptComponent *>(editedComponent.get());
-	DynamicObject *properties = sc->getScriptObjectProperties();
+	DynamicObject *scriptProperties = sc->getScriptObjectProperties();
 
 	Array<PropertyComponent*> propertyPanelList;
 
@@ -279,7 +279,7 @@ void ScriptComponentEditPanel::addSectionToPanel(const Array<Identifier> &idList
 
 		StringArray options = sc->getOptionsFor(id);
 
-		addProperty(propertyPanelList, properties, id, options);
+		addProperty(propertyPanelList, scriptProperties, id, options);
 	}
 
 	panel->addSection(sectionName, propertyPanelList, true);

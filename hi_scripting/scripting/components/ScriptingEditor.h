@@ -376,10 +376,10 @@ public:
 			{
 			public:
 
-				void checkBounds(Rectangle<int>& bounds, const Rectangle<int>& previousBounds, const Rectangle<int>& limits, bool isStretchingTop, bool isStretchingLeft, bool isStretchingBottom, bool isStretchingRight)
+				void checkBounds(Rectangle<int>& newBounds, const Rectangle<int>& /*previousBounds*/, const Rectangle<int>& limits, bool /*isStretchingTop*/, bool /*isStretchingLeft*/, bool isStretchingBottom, bool isStretchingRight)
 				{
-					bounds.setWidth(jmax<int>(10, bounds.getWidth()));
-					bounds.setHeight(jmax<int>(10, bounds.getHeight()));
+					newBounds.setWidth(jmax<int>(10, newBounds.getWidth()));
+					newBounds.setHeight(jmax<int>(10, newBounds.getHeight()));
 
 					const bool isResizing = isStretchingRight || isStretchingBottom;
 
@@ -387,13 +387,13 @@ public:
 					{
 						if (isResizing)
 						{
-							bounds.setWidth((bounds.getWidth() / 10) * 10);
-							bounds.setHeight((bounds.getHeight() / 10) * 10);
+							newBounds.setWidth((newBounds.getWidth() / 10) * 10);
+							newBounds.setHeight((newBounds.getHeight() / 10) * 10);
 						}
 						else
 						{
-							bounds.setX((bounds.getX() / 10) * 10);
-							bounds.setY((bounds.getY() / 10) * 10);
+							newBounds.setX((newBounds.getX() / 10) * 10);
+							newBounds.setY((newBounds.getY() / 10) * 10);
 						}
 					}
 
@@ -401,67 +401,67 @@ public:
 					{
 						if (isResizing)
 						{
-							const bool lockHorizontally = abs(bounds.getWidth() - startPosition.getWidth()) > abs(bounds.getHeight() - startPosition.getHeight());
+							const bool lockHorizontally = abs(newBounds.getWidth() - startPosition.getWidth()) > abs(newBounds.getHeight() - startPosition.getHeight());
 
 							if (lockHorizontally)
 							{
-								bounds.setHeight(startPosition.getHeight());
+								newBounds.setHeight(startPosition.getHeight());
 							}
 							else
 							{
-								bounds.setWidth(startPosition.getWidth());
+								newBounds.setWidth(startPosition.getWidth());
 							}
 						}
 						else
 						{
-							const bool lockHorizontally = abs(bounds.getX() - startPosition.getX()) > abs(bounds.getY() - startPosition.getY());
+							const bool lockHorizontally = abs(newBounds.getX() - startPosition.getX()) > abs(newBounds.getY() - startPosition.getY());
 
 							if (lockHorizontally)
 							{
-								bounds.setY(startPosition.getY());
+								newBounds.setY(startPosition.getY());
 							}
 							else
 							{
-								bounds.setX(startPosition.getX());
+								newBounds.setX(startPosition.getX());
 							}
 						}
 					}
 
-					if (bounds.getX() < limits.getX())
+					if (newBounds.getX() < limits.getX())
 					{
-						bounds.setX(limits.getX());
+						newBounds.setX(limits.getX());
 					}
-					if (bounds.getRight() > limits.getRight())
+					if (newBounds.getRight() > limits.getRight())
 					{
 						if (isResizing)
 						{
-							bounds.setWidth(limits.getRight() - bounds.getX());
+							newBounds.setWidth(limits.getRight() - newBounds.getX());
 						}
 						else
 						{
-							bounds.setX(limits.getRight() - bounds.getWidth());
+							newBounds.setX(limits.getRight() - newBounds.getWidth());
 						}
 
 						
 					}
-					if (bounds.getY() < limits.getY())
+					if (newBounds.getY() < limits.getY())
 					{
-						bounds.setY(limits.getY());
+						newBounds.setY(limits.getY());
 					}
-					if (bounds.getBottom() > limits.getBottom())
+					if (newBounds.getBottom() > limits.getBottom())
 					{
 						if (isResizing)
 						{
-							bounds.setHeight(limits.getBottom() - bounds.getY());
+							newBounds.setHeight(limits.getBottom() - newBounds.getY());
 						}
 						else
 						{
-							bounds.setY(limits.getBottom() - bounds.getHeight());
+							newBounds.setY(limits.getBottom() - newBounds.getHeight());
 						}
 						
 					}
 
-					currentPosition = Rectangle<int>(bounds);
+					currentPosition = Rectangle<int>(newBounds);
 				}
 
 
@@ -522,7 +522,7 @@ public:
 					dragComponent(dragComponent_)
 				{};
 
-				void componentMovedOrResized(bool wasMoved, bool wasResized) override
+				void componentMovedOrResized(bool /*wasMoved*/, bool /*wasResized*/) override
 				{
 					Component* p = getComponent()->getParentComponent();
 

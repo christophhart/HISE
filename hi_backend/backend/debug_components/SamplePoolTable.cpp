@@ -145,10 +145,9 @@ void SamplePoolTable::mouseDown(const MouseEvent &e)
 {
 	if (e.mods.isLeftButtonDown()) return;
 
-	PopupLookAndFeel laf;
 	PopupMenu m;
 
-	m.setLookAndFeel(&laf);
+	m.setLookAndFeel(&plaf);
 
 	enum 
 	{

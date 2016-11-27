@@ -85,7 +85,8 @@ public:
 
 	static Identifier getName() { RETURN_STATIC_IDENTIFIER("Buffer") };
 
-    static void sanitizeFloatArray(float** channels, int numChannels, int numSamples, float maxLevel=8.0f)
+	/** Removes Nan numbers from a array of float data. */
+    static void sanitizeFloatArray(float** channels, int numChannels, int numSamples)
     {
         if(numChannels == 2)
         {

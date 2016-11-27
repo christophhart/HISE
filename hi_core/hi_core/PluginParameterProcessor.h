@@ -113,7 +113,6 @@ public:
 
     virtual bool acceptsMidi() const = 0;
     virtual bool producesMidi() const = 0;
-    virtual bool silenceInProducesSilenceOut() const = 0;
     virtual double getTailLengthSeconds() const = 0;
 
     //==============================================================================

@@ -136,6 +136,7 @@ private:
 	
 
 	ScopedPointer<ProcessorEditorHeaderLookAndFeel> luf;
+	PopupLookAndFeel plaf;
 
 	VUSliderLookAndFeel vulaf;
 

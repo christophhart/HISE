@@ -369,18 +369,18 @@ const Processor * ModulatorSampler::getChildProcessor(int processorIndex) const
 
 
 
-void ModulatorSampler::prepareToPlay(double sampleRate, int samplesPerBlock)
+void ModulatorSampler::prepareToPlay(double newSampleRate, int samplesPerBlock)
 {
-	ModulatorSynth::prepareToPlay(sampleRate, samplesPerBlock);
+	ModulatorSynth::prepareToPlay(newSampleRate, samplesPerBlock);
 
-	if (sampleRate != -1.0)
+	if (newSampleRate != -1.0)
 	{
 		crossfadeBuffer = AudioSampleBuffer(1, samplesPerBlock);
 
 		StreamingSamplerVoice::initTemporaryVoiceBuffer(&temporaryVoiceBuffer, samplesPerBlock);
 
-		sampleStartChain->prepareToPlay(sampleRate, samplesPerBlock);
-		crossFadeChain->prepareToPlay(sampleRate, samplesPerBlock);
+		sampleStartChain->prepareToPlay(newSampleRate, samplesPerBlock);
+		crossFadeChain->prepareToPlay(newSampleRate, samplesPerBlock);
 	}
 }
 

@@ -115,6 +115,8 @@ void DebugableObject::Helpers::gotoLocation(Component* ed, const Location& locat
 		editor->showOnInitCallback();
 		editor->gotoChar(location.charNumber);
 	}
+#else
+	ignoreUnused(ed, location);
 #endif
 }
 

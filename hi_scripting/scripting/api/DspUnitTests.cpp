@@ -102,13 +102,13 @@ public:
 		DspInstance* stereoModule = dynamic_cast<DspInstance*>(sm.getObject());
 		expect(stereoModule != nullptr, "Stereo Module creation");
 
-		VariantBuffer::Ptr l = new VariantBuffer(256);
-		VariantBuffer::Ptr r = new VariantBuffer(256);
+		VariantBuffer::Ptr lData = new VariantBuffer(256);
+		VariantBuffer::Ptr rData = new VariantBuffer(256);
 
 		Array<var> channels;
 
-		channels.add(var(l));
-		channels.add(var(r));
+		channels.add(var(lData));
+		channels.add(var(rData));
 
 		try
 		{

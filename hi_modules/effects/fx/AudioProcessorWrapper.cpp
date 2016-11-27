@@ -102,11 +102,11 @@ void AudioProcessorWrapper::restoreFromValueTree(const ValueTree &v)
 
 	if (wrappedAudioProcessor != nullptr)
 	{
-		MemoryBlock data;
+		MemoryBlock mb;
 
-		data.fromBase64Encoding(v.getProperty("AudioProcessorData", "").toString());
+		mb.fromBase64Encoding(v.getProperty("AudioProcessorData", "").toString());
 
-		wrappedAudioProcessor->setStateInformation(data.getData(), (int)data.getSize());
+		wrappedAudioProcessor->setStateInformation(mb.getData(), (int)mb.getSize());
 	}
 }
 
@@ -118,11 +118,11 @@ ValueTree AudioProcessorWrapper::exportAsValueTree() const
 
 	if (wrappedAudioProcessor != nullptr)
 	{
-		MemoryBlock data;
+		MemoryBlock mb;
 
-		wrappedAudioProcessor->getStateInformation(data);
+		wrappedAudioProcessor->getStateInformation(mb);
 
-		const String dataAsString = data.toBase64Encoding();
+		const String dataAsString = mb.toBase64Encoding();
 
 		v.setProperty("AudioProcessorData", dataAsString, nullptr);
 	}
@@ -209,13 +209,13 @@ void AudioProcessorWrapper::addAudioProcessorToList(const Identifier id, createA
 	numRegisteredProcessors++;
 }
 
-void AudioProcessorWrapper::setAudioProcessor(const Identifier id)
+void AudioProcessorWrapper::setAudioProcessor(const Identifier& processorId)
 {
 	ScopedLock sl(wrapperLock);
 
 	for (int i = 0; i < numRegisteredProcessors; i++)
 	{
-		if (!id.isNull() && registeredAudioProcessors[i].id == id)
+		if (!processorId.isNull() && registeredAudioProcessors[i].id == processorId)
 		{
 			wrappedAudioProcessor = nullptr;
 
@@ -230,18 +230,18 @@ void AudioProcessorWrapper::setAudioProcessor(const Identifier id)
 					wrappedAudioProcessor->prepareToPlay(getSampleRate(), getBlockSize());
 				}
 
-				loadedProcessorId = id;
+				loadedProcessorId = processorId;
 
-				for (int i = 0; i < connectedEditors.size(); i++)
+				for (int j = 0; j < connectedEditors.size(); j++)
 				{
-					if (connectedEditors[i].getComponent() != nullptr)
+					if (connectedEditors[j].getComponent() != nullptr)
 					{
-						dynamic_cast<WrappedAudioProcessorEditorContent*>(connectedEditors[i].getComponent())->setAudioProcessor(wrappedAudioProcessor);
+						dynamic_cast<WrappedAudioProcessorEditorContent*>(connectedEditors[j].getComponent())->setAudioProcessor(wrappedAudioProcessor);
 					}
 					else
 					{
-						connectedEditors.remove(i);
-						i--;
+						connectedEditors.remove(j);
+						j--;
 					}
 				}
 			}

@@ -37,10 +37,7 @@ MidiProcessor::MidiProcessor(MainController *mc, const String &id):
 		numThisTime(0)
 	{
 
-		outputBuffer.ensureSize(1024);
-		futureBuffer.ensureSize(1024);
-		nextFutureBuffer.ensureSize(1024);
-
+		
 		
 
 	};
@@ -97,9 +94,9 @@ void MidiProcessorChain::addArtificialEvent(const HiseEvent& m)
 
 	//jassert(m.isArtificial());
 
-	const int numThisTime = dynamic_cast<AudioProcessor*>(getMainController())->getBlockSize();
+	const int thisBlockSize = dynamic_cast<AudioProcessor*>(getMainController())->getBlockSize();
 
-	if (timeStamp > numThisTime)
+	if (timeStamp > thisBlockSize)
 	{
 		futureEventBuffer.addEvent(m);
 	}

@@ -59,7 +59,7 @@ public:
 	void calculateBlock(int startSample, int numSamples) override;
 	void resetVoice() override;
 
-	void handlePlaybackPosition(const StreamingSamplerSound * sound, ModulatorSampler * sampler);
+	void handlePlaybackPosition(const StreamingSamplerSound * sound);
 
 	// ================================================================================================================
 

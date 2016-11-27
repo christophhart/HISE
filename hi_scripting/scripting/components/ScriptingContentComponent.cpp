@@ -262,9 +262,9 @@ void ScriptContentComponent::resized()
 	}
 }
 
-void ScriptContentComponent::scriptWasCompiled(JavascriptProcessor *p)
+void ScriptContentComponent::scriptWasCompiled(JavascriptProcessor *jp)
 {
-	if (p == getScriptProcessor())
+	if (jp == getScriptProcessor())
 	{
 		setNewContent(processor->getScriptingContent());
 		updateContent();
@@ -293,11 +293,11 @@ void ScriptContentComponent::setNewContent(ScriptingApi::Content *c)
 
 		if (parentIndex != -1)
 		{
-			Component* parentComponent = componentWrappers[parentIndex]->getComponent();
+			Component* parentComponentOfSc = componentWrappers[parentIndex]->getComponent();
 			
-			if (parentComponent != nullptr)
+			if (parentComponentOfSc != nullptr)
 			{
-				parentComponent->addAndMakeVisible(componentWrappers.getLast()->getComponent());
+				parentComponentOfSc->addAndMakeVisible(componentWrappers.getLast()->getComponent());
 			}
 		}
 		else
@@ -397,7 +397,7 @@ Component* ScriptContentComponent::setEditedScriptComponent(ScriptingApi::Conten
 	return nullptr;
 }
 
-bool ScriptContentComponent::keyPressed(const KeyPress &key)
+bool ScriptContentComponent::keyPressed(const KeyPress &/*key*/)
 {
 	return false;
 }
@@ -408,12 +408,12 @@ void ScriptContentComponent::paintOverChildren(Graphics &g)
 	{
 
 		Component *c = componentWrappers[editedComponent]->getComponent();
-		Component* p = c->getParentComponent();
+		Component* parentOfC = c->getParentComponent();
 
 		g.setColour(Colours::white.withAlpha(0.2f));
 
 
-		g.drawRect(getLocalArea(p, c->getBounds()), 2);
+		g.drawRect(getLocalArea(parentOfC, c->getBounds()), 2);
 	}
 }
 
@@ -440,9 +440,9 @@ ScriptingApi::Content::ScriptComponent * ScriptContentComponent::getScriptCompon
 
 		if (!c->isVisible()) continue;
 
-		Component* p = c->getParentComponent();
+		Component* parentOfC = c->getParentComponent();
 
-		if (getLocalArea(p, c->getBounds()).contains(pos))
+		if (getLocalArea(parentOfC, c->getBounds()).contains(pos))
 		{
 			return contentData->getComponent(i);
 		}
@@ -459,9 +459,9 @@ void ScriptContentComponent::getScriptComponentsFor(Array<ScriptingApi::Content:
 
 		if (!c->isVisible()) continue;
 
-		Component* p = c->getParentComponent();
+		Component* parentOfC = c->getParentComponent();
 
-		if (getLocalArea(p, c->getBounds()).contains(pos))
+		if (getLocalArea(parentOfC, c->getBounds()).contains(pos))
 		{
 			arrayToFill.add(contentData->getComponent(i));
 		}

@@ -91,8 +91,8 @@ public:
 		consoleEnabled(false),
 		bypassed(false),
 		visible(true),
-		sampleRate(-1.0),
-		samplesPerBlock(-1),
+		samplerate(-1.0),
+		blockSize(-1),
 		inputValue(0.0f),
 		outputValue(0.0f),
 		editorState(0),
@@ -360,17 +360,17 @@ public:
 	/** Sets the sample rate and the block size. */
 	virtual void prepareToPlay(double sampleRate_, int samplesPerBlock_)
 	{
-		sampleRate = sampleRate_;
-		samplesPerBlock = samplesPerBlock_;
+		samplerate = sampleRate_;
+		blockSize = samplesPerBlock_;
 	}
 
 	/** Returns the sample rate. */
-	double getSampleRate() const { return sampleRate; };
+	double getSampleRate() const { return samplerate; };
 
 	/** Returns the block size. */
 	int getBlockSize() const
     {   
-        return samplesPerBlock;
+        return blockSize;
     };
 
 	
@@ -414,9 +414,9 @@ public:
 		}
 	};
 
-	const var getEditorState(Identifier id) const
+	const var getEditorState(Identifier editorStateId) const
 	{
-		return editorStateValueSet[id];
+		return editorStateValueSet[editorStateId];
 	}
 
 	void setEditorState(Identifier state, var stateValue, NotificationType notifyView=sendNotification)
@@ -738,8 +738,8 @@ private:
 	bool bypassed;
 	bool visible;
 
-	double sampleRate;
-	int samplesPerBlock;
+	double samplerate;
+	int blockSize;
 
 	OwnedArray<Chain> chains;
 

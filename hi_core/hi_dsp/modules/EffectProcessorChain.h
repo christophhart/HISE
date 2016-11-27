@@ -217,7 +217,7 @@ public:
 
 			if(VoiceEffectProcessor* vep = dynamic_cast<VoiceEffectProcessor*>(processorToBeRemoved)) chain->voiceEffects.removeObject(vep);
 			else if (MasterEffectProcessor* mep = dynamic_cast<MasterEffectProcessor*>(processorToBeRemoved)) chain->masterEffects.removeObject(mep);
-			else if (MonophonicEffectProcessor* mep = dynamic_cast<MonophonicEffectProcessor*>(processorToBeRemoved)) chain->monoEffects.removeObject(mep);
+			else if (MonophonicEffectProcessor* moep = dynamic_cast<MonophonicEffectProcessor*>(processorToBeRemoved)) chain->monoEffects.removeObject(moep);
 			else jassertfalse;
 
 			jassert(chain->allEffects.size() == (chain->masterEffects.size() + chain->voiceEffects.size() + chain->monoEffects.size()));

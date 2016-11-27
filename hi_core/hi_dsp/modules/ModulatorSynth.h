@@ -300,7 +300,7 @@ public:
 
 	void handleVolumeFade(int eventId, int fadeTimeMilliseconds, float gain);
 	
-	void handlePitchFade(int eventId, int fadeTimeMilliseconds, double pitchFactor);
+	void handlePitchFade(uint16 eventId, int fadeTimeMilliseconds, double pitchFactor);
 
 	virtual void preHiseEventCallback(const HiseEvent &e);
 
@@ -529,10 +529,10 @@ public:
 	const float *calculateGainValuesForVoice(int voiceIndex, float scriptGainValue, int startSample, int numSamples)
 	{
 		gainChain->renderVoice(voiceIndex, startSample, numSamples);
-		float *data = gainChain->getVoiceValues(voiceIndex);
-		if (scriptGainValue != 1.0f) FloatVectorOperations::multiply(data + startSample, scriptGainValue, numSamples);
+		float *gainData = gainChain->getVoiceValues(voiceIndex);
+		if (scriptGainValue != 1.0f) FloatVectorOperations::multiply(gainData + startSample, scriptGainValue, numSamples);
 
-		return data;
+		return gainData;
 	};
 
 	/** calculates the voice pitch values. You can get the values with getPitchValues for voice. */
@@ -665,17 +665,19 @@ public:
 		{
 			float* pitchValues = getVoicePitchValues() + startSample;
 
+			float eventPitchFactorFloat = (float)eventPitchFactor;
+
 			while (--numSamples >= 0)
 			{
 				eventPitchFactor = pitchFader.getNextValue();
-				*pitchValues++ *= eventPitchFactor;
+				*pitchValues++ *= eventPitchFactorFloat;
 			}
 		}
 		else if (scriptPitchActive)
 		{
 			float* pitchValues = getVoicePitchValues() + startSample;
 
-			FloatVectorOperations::multiply(pitchValues, eventPitchFactor, numSamples);
+			FloatVectorOperations::multiply(pitchValues, (float)eventPitchFactor, numSamples);
 		}
 	}
 

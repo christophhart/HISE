@@ -85,6 +85,8 @@ private:
 
 	ModulatorSamplerSoundPool *pool;
 	ScopedPointer<TableHeaderLookAndFeel> laf;
+	PopupLookAndFeel plaf;
+
     int numRows;            // The number of rows of data we've got
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SamplePoolTable)
@@ -168,6 +170,8 @@ private:
 
 	
 	ScopedPointer<TableHeaderLookAndFeel> laf;
+	PopupLookAndFeel plaf;
+
     int numRows;            // The number of rows of data we've got
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ExternalFileTable)

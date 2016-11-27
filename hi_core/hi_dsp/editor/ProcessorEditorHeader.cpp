@@ -380,11 +380,11 @@ bool ProcessorEditorHeader::isHeaderOfEmptyChain() const
 //==============================================================================
 void ProcessorEditorHeader::paint (Graphics& g)
 {
-    ProcessorEditor *parentEditor = getEditor()->getParentEditor();
+    ProcessorEditor *pEditor = getEditor()->getParentEditor();
     
-    if(parentEditor != nullptr)
+    if(pEditor != nullptr)
     {
-        g.setColour(parentEditor->getProcessor()->getColour());
+        g.setColour(pEditor->getProcessor()->getColour());
     }
     else
     {
@@ -1025,10 +1025,8 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 			numMenuItems
 		};
 
-
-		ScopedPointer<PopupLookAndFeel> luf = new PopupLookAndFeel();
 		PopupMenu m;
-		m.setLookAndFeel(luf);
+		m.setLookAndFeel(&plaf);
 
 		const bool isMainSynthChain = getProcessor()->getMainController()->getMainSynthChain() == getProcessor();
 
@@ -1063,7 +1061,6 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 			m.addSectionHeader("Root Container Tools");
 			m.addItem(CheckForDuplicate, "Check children for duplicate IDs");
 			m.addItem(ReplaceWithClipboardContent, "Replace With Clipboard Content");
-			m.addItem(SaveAllSamplesToGlobalFolder, "Save all samples to global folder");
 			
 			m.addSubMenu("Replace Root Container", PresetHandler::getAllSavedPresets(PRESET_MENU_ITEM_DELTA, getProcessor()), true);
 			m.addSeparator();
@@ -1089,9 +1086,9 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 
 		else if (result == InsertBefore)
 		{
-			ProcessorEditor *parentEditor = getEditor()->getParentEditor();
+			ProcessorEditor *pEditor = getEditor()->getParentEditor();
 
-			ProcessorEditorHeader *parentHeader = parentEditor->getHeader();
+			ProcessorEditorHeader *parentHeader = pEditor->getHeader();
 
 			parentHeader->createProcessorFromPopup(getProcessor());
 		}
@@ -1109,23 +1106,6 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 		{
 			ProcessorHelpers::getScriptVariableDeclaration(getEditor()->getProcessor());
 		}
-		else if (result == SaveAllSamplesToGlobalFolder)
-		{
-			String packageName = PresetHandler::getCustomName("PackageName");
-
-			PresetPlayerHandler::addInstrumentToPackageXml(getProcessor()->getId(), packageName);
-
-			getProcessor()->getMainController()->getSampleManager().saveAllSamplesToGlobalFolder(packageName);
-
-			getProcessor()->getMainController()->getMainSynthChain()->setPackageName(packageName);
-
-			getProcessor()->getMainController()->replaceReferencesToGlobalFolder();
-
-			
-
-			PresetHandler::saveProcessorAsPreset(getProcessor(), PresetPlayerHandler::getSpecialFolder(PresetPlayerHandler::PackageDirectory, packageName));
-		}
-
 		else if (result == ReplaceWithClipboardContent)
 		{
 			

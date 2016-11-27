@@ -149,9 +149,9 @@ float SimpleEnvelope::getAttribute(int parameter_index) const
 
 void SimpleEnvelope::startVoice(int voiceIndex)
 {
-	SimpleEnvelopeState *state = static_cast<SimpleEnvelopeState*>(states[voiceIndex]);
+	SimpleEnvelopeState *thisState = static_cast<SimpleEnvelopeState*>(states[voiceIndex]);
 
-	if(state->current_state != SimpleEnvelopeState::IDLE)
+	if(thisState->current_state != SimpleEnvelopeState::IDLE)
 	{
 		reset(voiceIndex);
 	}
@@ -160,7 +160,7 @@ void SimpleEnvelope::startVoice(int voiceIndex)
 
 	if (linearMode)
 	{
-		state->attackDelta = this->calcCoefficient(attack * attackChain->getConstantVoiceValue(voiceIndex));
+		thisState->attackDelta = this->calcCoefficient(attack * attackChain->getConstantVoiceValue(voiceIndex));
 	}
 	else
 	{
@@ -168,17 +168,17 @@ void SimpleEnvelope::startVoice(int voiceIndex)
 	}
 
 	
-	state->current_state = SimpleEnvelopeState::ATTACK;
+	thisState->current_state = SimpleEnvelopeState::ATTACK;
 	
 }
 
 void SimpleEnvelope::stopVoice(int voiceIndex)
 {
-	SimpleEnvelopeState *state = static_cast<SimpleEnvelopeState*>(states[voiceIndex]);
+	SimpleEnvelopeState *thisState = static_cast<SimpleEnvelopeState*>(states[voiceIndex]);
 	//jassert(state->current_state == SimpleEnvelopeState::SUSTAIN || state->current_state == SimpleEnvelopeState::ATTACK);
 
 	
-	state->current_state = SimpleEnvelopeState::RELEASE;
+	thisState->current_state = SimpleEnvelopeState::RELEASE;
 
 }
 
@@ -186,16 +186,16 @@ void SimpleEnvelope::reset(int voiceIndex)
 {
 	EnvelopeModulator::reset(voiceIndex);
 
-	SimpleEnvelopeState *state = static_cast<SimpleEnvelopeState*>(states[voiceIndex]);
+	SimpleEnvelopeState *thisState = static_cast<SimpleEnvelopeState*>(states[voiceIndex]);
 
-	state->current_state = SimpleEnvelopeState::IDLE;
-	state->current_value = 0.0f;
+	thisState->current_state = SimpleEnvelopeState::IDLE;
+	thisState->current_value = 0.0f;
 }
 
 bool SimpleEnvelope::isPlaying(int voiceIndex) const
 {
-	SimpleEnvelopeState *state = static_cast<SimpleEnvelopeState*>(states[voiceIndex]);
-	return state->current_state != SimpleEnvelopeState::IDLE;
+	SimpleEnvelopeState *thisState = static_cast<SimpleEnvelopeState*>(states[voiceIndex]);
+	return thisState->current_state != SimpleEnvelopeState::IDLE;
 }
 
 void SimpleEnvelope::calculateBlock(int startSample, int numSamples)
@@ -383,19 +383,19 @@ void SimpleEnvelope::setAttackRate(float rate, int voiceIndex/*=-1*/) {
 	}
 	else
 	{
-		SimpleEnvelopeState *state = static_cast<SimpleEnvelopeState*>(states[voiceIndex]);
+		SimpleEnvelopeState *thisState = static_cast<SimpleEnvelopeState*>(states[voiceIndex]);
 
 		if (linearMode)
 		{
-			state->expAttackCoef = 0.0f;
-			state->expAttackBase = 1.0f;
+			thisState->expAttackCoef = 0.0f;
+			thisState->expAttackBase = 1.0f;
 		}
 		else
 		{
 			const float targetRatioA = 0.3f;
 
-			state->expAttackCoef = calcCoefficient(rate, targetRatioA);
-			state->expAttackBase = (1.0f + targetRatioA) * (1.0f - state->expAttackCoef);
+			thisState->expAttackCoef = calcCoefficient(rate, targetRatioA);
+			thisState->expAttackBase = (1.0f + targetRatioA) * (1.0f - thisState->expAttackCoef);
 		}
 	}
 }

@@ -1233,9 +1233,6 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 		float* outL = outputBuffer.getWritePointer(0, startSample);
 		float* outR = outputBuffer.getWritePointer(1, startSample);
 		
-		const int cs = startSample;
-		const int cns = numSamples;
-
 		double indexInBuffer = startAlpha;
 
 		if (pitchData != nullptr)

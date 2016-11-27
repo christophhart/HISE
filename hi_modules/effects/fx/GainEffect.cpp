@@ -180,8 +180,8 @@ void GainEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, int num
 	{
 		numSamples = samplesToCopy;
 
-		float *l = buffer.getWritePointer(0, startIndex);
-		float *r = buffer.getWritePointer(1, startIndex);
+		l = buffer.getWritePointer(0, startIndex);
+		r = buffer.getWritePointer(1, startIndex);
 
 		if (!widthChain->isBypassed() && widthChain->getNumChildProcessors() != 0)
 		{

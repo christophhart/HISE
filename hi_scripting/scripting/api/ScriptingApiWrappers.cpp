@@ -475,13 +475,7 @@ var ScriptingApi::Content::Wrapper::setPropertiesFromJSON (const var::NativeFunc
 
 var ScriptingApi::Content::Wrapper::setColour (const var::NativeFunctionArgs& args)
 {
-	if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
-	{
-		CHECK_ARGUMENTS("setColour()", 3);
-
-		thisObject->setColour((int)args.arguments[0], (int)args.arguments[1], (int)args.arguments[2]);
-	}
-	else if (ScriptingApi::Content::ScriptComponent* thisObject = GET_OBJECT(Content::ScriptComponent))
+	if (ScriptingApi::Content::ScriptComponent* thisObject = GET_OBJECT(Content::ScriptComponent))
 	{
 		CHECK_ARGUMENTS("setColour()", 2);
 

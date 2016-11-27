@@ -10,7 +10,7 @@ struct HiseJavascriptEngine::RootObject::TokenIterator
 		DebugableObject::Location loc;
 
 		loc.fileName = location.externalFile;
-		loc.charNumber = location.location - location.program.getCharPointer();
+		loc.charNumber = (int)(location.location - location.program.getCharPointer());
 
 		return loc;
 	}
@@ -570,10 +570,7 @@ private:
 			Identifier name = preparser->currentValue.toString();
 
 			ns->varRegister.addRegister(name, var::undefined());
-
-			const int index = ns->varRegister.getRegisterIndex(name);
-
-			ns->registerLocations.add(preparser->createDebugLocation());
+            ns->registerLocations.add(preparser->createDebugLocation());
 
 			jassert(ns->registerLocations.size() == ns->varRegister.getNumUsedRegisters());
 
@@ -584,12 +581,8 @@ private:
 			ScopedPointer<RegisterVarStatement> s(new RegisterVarStatement(location));
 
 			s->name = parseIdentifier();
-
 			hiseSpecialData->checkIfExistsInOtherStorage(HiseSpecialData::VariableStorageType::Register, s->name, location);
-
-			const int index = ns->varRegister.getRegisterIndex(s->name);
 			s->varRegister = &ns->varRegister;
-
 			s->initialiser = matchIf(TokenTypes::assign) ? parseExpression() : new Expression(location);
 
 			if (matchIf(TokenTypes::comma))
@@ -797,28 +790,28 @@ private:
 		return nullptr;
 	}
 
-	JavascriptNamespace* getNamespaceForStorageType(JavascriptNamespace::StorageType storageType, JavascriptNamespace* currentNamespace, const Identifier &id)
+	JavascriptNamespace* getNamespaceForStorageType(JavascriptNamespace::StorageType storageType, JavascriptNamespace* nameSpaceToLook, const Identifier &id)
 	{
 		switch (storageType)
 		{
 		case HiseJavascriptEngine::RootObject::JavascriptNamespace::StorageType::Register:
-			if (currentNamespace != nullptr && currentNamespace->varRegister.getRegisterIndex(id) != -1) return currentNamespace;
+			if (nameSpaceToLook != nullptr && nameSpaceToLook->varRegister.getRegisterIndex(id) != -1) return nameSpaceToLook;
 			if (hiseSpecialData->varRegister.getRegisterIndex(id) != -1) return hiseSpecialData;
 			break;
 
 		case HiseJavascriptEngine::RootObject::JavascriptNamespace::StorageType::ConstVariable:
-			if (currentNamespace != nullptr && currentNamespace->constObjects.contains(id)) return currentNamespace;
+			if (nameSpaceToLook != nullptr && nameSpaceToLook->constObjects.contains(id)) return nameSpaceToLook;
 			if (hiseSpecialData->constObjects.contains(id)) return hiseSpecialData;
 			break;
 
 		case HiseJavascriptEngine::RootObject::JavascriptNamespace::StorageType::InlineFunction:
 		{
-			if (currentNamespace != nullptr)
+			if (nameSpaceToLook != nullptr)
 			{
-				for (int i = 0; i < currentNamespace->inlineFunctions.size(); i++)
+				for (int i = 0; i < nameSpaceToLook->inlineFunctions.size(); i++)
 				{
-					if (dynamic_cast<InlineFunction::Object*>(currentNamespace->inlineFunctions[i].get())->name == id)
-						return currentNamespace;
+					if (dynamic_cast<InlineFunction::Object*>(nameSpaceToLook->inlineFunctions[i].get())->name == id)
+						return nameSpaceToLook;
 				}
 			}
 
@@ -969,7 +962,7 @@ private:
 
 			for (int i = 0; i < ns->inlineFunctions.size(); i++)
 			{
-				if (o = dynamic_cast<InlineFunction::Object*>(ns->inlineFunctions[i].get()))
+				if ((o = dynamic_cast<InlineFunction::Object*>(ns->inlineFunctions[i].get())))
 				{
 					if (o->name == name)
 					{
@@ -1000,6 +993,8 @@ private:
 				currentInlineFunction = nullptr;
 
 				location.throwError("Error at inline function parsing");
+
+				return nullptr;
 			}
 		}
 	}
@@ -1790,8 +1785,8 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::preprocessCode(con
 
 	static const var undeclared("undeclared");
 
-	JavascriptNamespace* root = hiseSpecialData;
-	JavascriptNamespace* cns = root;
+	JavascriptNamespace* rootNamespace = hiseSpecialData;
+	JavascriptNamespace* cns = rootNamespace;
 	TokenIterator it(codeToPreprocess, externalFileName);
 
 	int braceLevel = 0;
@@ -1800,7 +1795,7 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::preprocessCode(con
 	{
 		if (it.currentType == TokenTypes::namespace_)
 		{
-			if (cns != root)
+			if (cns != rootNamespace)
 			{
 				it.location.throwError("Nesting of namespaces is not allowed");
 			}
@@ -1857,9 +1852,9 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::preprocessCode(con
 		else if (it.matchIf(TokenTypes::closeBrace))
 		{
 			braceLevel--;
-			if (braceLevel == 0 && (root != cns))
+			if (braceLevel == 0 && (rootNamespace != cns))
 			{
-				cns = root;
+				cns = rootNamespace;
 			}
 			
 			continue;
@@ -1885,7 +1880,7 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::preprocessCode(con
 
 			const Identifier newId(it.currentValue);
 
-			if ((root == cns) && braceLevel != 0) it.location.throwError("const var declaration must be on global level");
+			if ((rootNamespace == cns) && braceLevel != 0) it.location.throwError("const var declaration must be on global level");
 			if (newId.isNull())					  it.location.throwError("Expected identifier for const var declaration");
 			if (cns->constObjects.contains(newId))			  it.location.throwError("Duplicate const var declaration.");
 
@@ -1900,7 +1895,7 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::preprocessCode(con
 		}
 	}
 
-	if (root != cns)
+	if (rootNamespace != cns)
 	{
 		it.location.throwError("Parsing error (open namespace)");
 	}

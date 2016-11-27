@@ -675,11 +675,11 @@ void SampleMap::loadSamplesFromDirectory(const ValueTree &v)
 
 		for (int i = 0; i < globalTree.getNumChildren(); i++)
 		{
-			const String fileName = v.getChild(i).getProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::FileName), String::empty);
+			const String sampleFileName = v.getChild(i).getProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::FileName), String::empty);
 
-			jassert(sampler->isReference(fileName));
+			jassert(sampler->isReference(sampleFileName));
 
-			globalTree.getChild(i).setProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::FileName), sampler->getFile(fileName, PresetPlayerHandler::StreamedSampleFolder).getFullPathName(), nullptr);
+			globalTree.getChild(i).setProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::FileName), sampler->getFile(sampleFileName, PresetPlayerHandler::StreamedSampleFolder).getFullPathName(), nullptr);
 		}
 
 		treeToUse = &globalTree;

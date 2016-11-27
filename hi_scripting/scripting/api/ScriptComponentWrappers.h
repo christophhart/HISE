@@ -410,7 +410,7 @@ public:
 
 		void updateComponent() override;
 
-		void sliderPackChanged(SliderPack *, int index) override { changed(index); };
+		void sliderPackChanged(SliderPack *, int newIndex) override { changed(newIndex); };
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SliderPackWrapper)
 	};

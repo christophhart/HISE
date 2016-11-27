@@ -330,7 +330,7 @@ public:
 	{
 		map->map->clearDragPosition();
 	}
-	void setPressedKeys(const uint8 *pressedKeyData)
+	void setPressedKeys(const int8 *pressedKeyData)
 	{
 		map->map->setPressedKeys(pressedKeyData);
 

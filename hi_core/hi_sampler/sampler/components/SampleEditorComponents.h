@@ -198,11 +198,11 @@ public:
 		startTimer(30);
 	}
 
-	Colour getColourForSound(bool outline) const
+	Colour getColourForSound(bool wantsOutlineColour) const
 	{
         if(sound.get() == nullptr) return Colours::transparentBlack;
         
-		if (selected) return outline ? Colours::red : Colours::red.withBrightness(transparency).withAlpha(0.6f);
+		if (selected) return wantsOutlineColour ? Colours::red : Colours::red.withBrightness(transparency).withAlpha(0.6f);
 
 		if (sound->isMissing())
 		{
@@ -212,7 +212,7 @@ public:
 		else
 		{
 			if (sound->isPurged()) return Colours::green.withAlpha(0.3f);
-			else return outline ? Colours::white.withAlpha(0.7f) : Colours::white.withAlpha(transparency);
+			else return wantsOutlineColour ? Colours::white.withAlpha(0.7f) : Colours::white.withAlpha(transparency);
 		}
 	}
 
@@ -371,7 +371,7 @@ public:
 	*
 	*	@param pressedKeyData the array with the velocities (-1 if the key is not pressed). @see ModulatorSampler::SamplerDisplayValues
 	*/
-	void setPressedKeys(const uint8 *pressedKeyData);
+	void setPressedKeys(const int8 *pressedKeyData);
 
 	/** change the selection to the supplied list of sounds. */
 	void setSelectedIds(const Array<ModulatorSamplerSound*> newSelectionList);

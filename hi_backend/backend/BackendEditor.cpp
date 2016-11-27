@@ -929,9 +929,9 @@ void BackendProcessorEditor::mouseDown(const MouseEvent &m)
 
 	if (m.mods.isRightButtonDown())
 	{
-		PopupMenu m;
+		PopupMenu menu;
 
-		m.setLookAndFeel(&plaf);
+		menu.setLookAndFeel(&plaf);
 
 		enum
 		{
@@ -943,13 +943,13 @@ void BackendProcessorEditor::mouseDown(const MouseEvent &m)
 
 		};
 
-		m.addItem(LoadPresetIntoMainSynthChain, "Load preset into MainSynthChain");
-		m.addItem(SaveCurrentMainSynthChain, "Save Current MainSynthChain");
-		m.addItem(ExportAsPackage, "Export as package");
-		m.addItem(Recompile, "Recompile all scripts");
-		m.addItem(MidiPanic, "MIDI Panic");
+		menu.addItem(LoadPresetIntoMainSynthChain, "Load preset into MainSynthChain");
+		menu.addItem(SaveCurrentMainSynthChain, "Save Current MainSynthChain");
+		menu.addItem(ExportAsPackage, "Export as package");
+		menu.addItem(Recompile, "Recompile all scripts");
+		menu.addItem(MidiPanic, "MIDI Panic");
 
-		const int result = m.show();
+		const int result = menu.show();
 
 		if (result == LoadPresetIntoMainSynthChain)
 		{

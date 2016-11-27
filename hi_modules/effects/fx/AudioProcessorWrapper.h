@@ -117,7 +117,7 @@ public:
 	}
 
 	/** Loads a registered AudioProcessor and starts processing it. */
-	void setAudioProcessor(const Identifier id);
+	void setAudioProcessor(const Identifier& processorId);
 
 	void addEditor(Component *editor)
 	{

@@ -96,6 +96,11 @@ struct HiseJavascriptEngine::RootObject::GreaterThanOrEqualOp : public BinaryOpe
 	var getWithStrings(const String& a, const String& b) const override   { return a >= b; }
 };
 
+#if JUCE_MSVC
+#pragma warning (push)
+#pragma warning (disable : 4702)
+#endif
+
 struct HiseJavascriptEngine::RootObject::AdditionOp : public BinaryOperator
 {
 	AdditionOp(const CodeLocation& l, ExpPtr& a, ExpPtr& b) noexcept : BinaryOperator(l, a, b, TokenTypes::plus) {}
@@ -172,6 +177,7 @@ struct HiseJavascriptEngine::RootObject::SubtractionOp : public BinaryOperator
 	}
 };
 
+
 struct HiseJavascriptEngine::RootObject::MultiplyOp : public BinaryOperator
 {
 	MultiplyOp(const CodeLocation& l, ExpPtr& a, ExpPtr& b) noexcept : BinaryOperator(l, a, b, TokenTypes::times) {}
@@ -211,6 +217,11 @@ struct HiseJavascriptEngine::RootObject::MultiplyOp : public BinaryOperator
 	}
 
 };
+
+#if JUCE_MSVC
+#pragma warning (pop)
+#endif
+
 
 struct HiseJavascriptEngine::RootObject::DivideOp : public BinaryOperator
 {

@@ -335,11 +335,11 @@ void SliderPack::mouseDrag(const MouseEvent &e)
 	int x = e.getEventRelativeTo(this).getPosition().getX();
 	int y = e.getEventRelativeTo(this).getPosition().getY();
 
-	Rectangle<int> bounds(0, 0, getWidth(), getHeight());
+	Rectangle<int> thisBounds(0, 0, getWidth(), getHeight());
 
 	if (e.mods.isLeftButtonDown())
 	{
-		if (!bounds.contains(Point<int>(x, y)))
+		if (!thisBounds.contains(Point<int>(x, y)))
 		{
 			if (x > getWidth()) x = getWidth();
 
@@ -374,7 +374,7 @@ void SliderPack::mouseDrag(const MouseEvent &e)
 	}
 	else
 	{
-		if (!bounds.contains(Point<int>(x, y)))
+		if (!thisBounds.contains(Point<int>(x, y)))
 		{
 			if (x > getWidth()) x = getWidth();
 

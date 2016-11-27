@@ -224,7 +224,7 @@ void DynamicDspFactory::destroyDspBaseObject(DspBaseObject *object) const
 
 typedef LoadingErrorCode(*init_)(const char* name);
 
-int DynamicDspFactory::initialise(const String &args)
+int DynamicDspFactory::initialise(const String &arguments)
 {
 	if (library != nullptr)
 	{
@@ -233,7 +233,7 @@ int DynamicDspFactory::initialise(const String &args)
 		if (d != nullptr)
 		{
 			isUnloadedForCompilation = false;
-			return (int)d(args.getCharPointer());
+			return (int)d(arguments.getCharPointer());
 		}
 		else
 		{

@@ -121,46 +121,10 @@ public:
 
 protected:
 
-	
-
 	/** the sample position within the processBlock. */
 	int samplePos;
 
 private:
-
-	
-
-	// Copies messages within this time frame in the current output buffer and moves all other messages to the front. */
-	void processFutureBuffer(MidiBuffer &outputBuffer, int numSamples, int offset=0)
-	{
-		MidiBuffer::Iterator futureIterator(futureBuffer);
-		MidiMessage m(0xf4, 0.0);
-
-		while(futureIterator.getNextEvent(m, samplePos))
-		{
-			m.addToTimeStamp(offset);
-
-			if(m.getTimeStamp() < numSamples)
-			{
-					
-				outputBuffer.addEvent(m, (int)m.getTimeStamp());
-			}
-			else
-			{
-				m.addToTimeStamp((int)-numSamples);
-				nextFutureBuffer.addEvent(m, (int)m.getTimeStamp());
-			}
-		};
-
-		futureBuffer.clear();
-		futureBuffer.swapWith(nextFutureBuffer);
-	};
-
-	MidiBuffer futureBuffer;
-	MidiBuffer nextFutureBuffer;
-	MidiBuffer outputBuffer;
-	
-	
 
 	int numThisTime;
 

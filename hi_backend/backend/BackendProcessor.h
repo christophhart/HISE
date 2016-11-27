@@ -137,7 +137,7 @@ public:
 
 	bool acceptsMidi() const {return true;};
 	bool producesMidi() const {return false;};
-	bool silenceInProducesSilenceOut() const {return false;};
+	
 	double getTailLengthSeconds() const {return 0.0;};
 
 	ModulatorSynthChain *getMainSynthChain() override {return synthChain; };

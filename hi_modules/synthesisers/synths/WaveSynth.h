@@ -521,16 +521,16 @@ public:
 		ModulatorSynth::postVoiceRendering(startSample, numSamples);
 	};
 
-	void prepareToPlay(double sampleRate, int samplesPerBlock) override
+	void prepareToPlay(double newSampleRate, int samplesPerBlock) override
 	{
-		ModulatorSynth::prepareToPlay(sampleRate, samplesPerBlock);
+		ModulatorSynth::prepareToPlay(newSampleRate, samplesPerBlock);
 
-		if(sampleRate != -1.0)
+		if(newSampleRate != -1.0)
 		{
 			tempBuffer = AudioSampleBuffer(2, samplesPerBlock);
 			mixBuffer = AudioSampleBuffer(1, samplesPerBlock);
 
-			mixChain->prepareToPlay(sampleRate, samplesPerBlock);
+			mixChain->prepareToPlay(newSampleRate, samplesPerBlock);
 		}
 	}
 

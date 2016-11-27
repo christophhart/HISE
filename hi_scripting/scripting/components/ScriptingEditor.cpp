@@ -184,6 +184,7 @@ void ScriptingEditor::createNewComponent(Widgets componentType, int x, int y)
 		widgetType = widgetType.replace("Slider", "Knob");
 		break;
 	}
+    case Widgets::numWidgets: break;
 	}
 
 	String id = PresetHandler::getCustomName(widgetType);
@@ -757,7 +758,7 @@ private:
 		{
 			HiseJavascriptEngine::RootObject::TokenIterator it(controlCode, "");
 
-			int braceLevel = 0;
+			
 
 			it.match(TokenTypes::function);
 			it.match(TokenTypes::identifier);
@@ -983,14 +984,11 @@ private:
 	void addSwitchStatementWithCaseStatement(const String &onControlText, const String &processorId, const String &parameterId)
 	{
 		const String switchStart = "\tswitch(number)\n\t{\n";
-
 		const String switchEnd = "\t};\n";
 
 		try
 		{
 			HiseJavascriptEngine::RootObject::TokenIterator it(onControlText, "");
-
-			int braceLevel = 0;
 
 			it.match(TokenTypes::function);
 			it.match(TokenTypes::identifier);
@@ -1004,26 +1002,17 @@ private:
 			it.match(TokenTypes::closeParen);
 			it.match(TokenTypes::openBrace);
 
-			int index = it.location.location - onControlText.getCharPointer();
-
+			int index = (int)(it.location.location - onControlText.getCharPointer());
 
 			sp->getSnippet(JavascriptMidiProcessor::onControl)->insertText(index, switchStart);
-
 			index += switchStart.length();
-
 			addCaseStatement(index, processorId, parameterId);
-
 			sp->getSnippet(JavascriptMidiProcessor::onControl)->insertText(index, switchEnd);
-
-
 		}
 		catch (String error)
 		{
 			PresetHandler::showMessageWindow("Error at adding the switch & case statement", error, PresetHandler::IconType::Error);
 		}
-
-		
-
 	}
 
 	int getCaseStatementIndex(const String &onControlText)
@@ -1058,7 +1047,7 @@ private:
 								braceLevel--;
 								if (braceLevel == 0)
 								{
-									return it.location.location - onControlText.getCharPointer() - 1;
+									return (int)(it.location.location - onControlText.getCharPointer() - 1);
 								}
 							}
 
@@ -1082,10 +1071,6 @@ private:
 	}
 
 
-
-
-
-
 	Processor *processorToAdd;
 	int parameterIndexToAdd;
 
@@ -1093,7 +1078,6 @@ private:
 	ScriptingEditor *editor;
 	JavascriptMidiProcessor *sp;
 	Array<WeakReference<Processor>> processorList;
-
 };
 
 void ScriptingEditor::mouseDown(const MouseEvent &e)
@@ -1107,7 +1091,6 @@ void ScriptingEditor::mouseDown(const MouseEvent &e)
 
 	if(editorShown && e.mods.isRightButtonDown())
 	{
-		
 		const int editComponentOffset = 109;
 
 		PopupMenu m;
@@ -1120,7 +1103,6 @@ void ScriptingEditor::mouseDown(const MouseEvent &e)
 
 		if (useComponentSelectMode)
 		{
-			
 			m.addSectionHeader("Create new widget");
 			m.addItem((int)Widgets::Knob, "Add new Slider");
 			m.addItem((int)Widgets::Button, "Add new Button");
@@ -1167,8 +1149,6 @@ void ScriptingEditor::mouseDown(const MouseEvent &e)
 
 		int result = m.show();
 
-		JavascriptProcessor *s = dynamic_cast<JavascriptProcessor*>(getProcessor());
-
 		if (result == 6)
 		{
 			ScriptingApi::Content::ScriptComponent* sc = components.getFirst();
@@ -1191,9 +1171,9 @@ void ScriptingEditor::mouseDown(const MouseEvent &e)
 		}
 		else if (result >= editComponentOffset) // EDIT IN PANEL
 		{
-			ReferenceCountedObject* s = components[result - editComponentOffset];
+			ReferenceCountedObject* sc = components[result - editComponentOffset];
 
-			getProcessor()->getMainController()->setEditedScriptComponent(s, this);
+			getProcessor()->getMainController()->setEditedScriptComponent(sc, this);
 		}
 		
 	}
@@ -1373,11 +1353,11 @@ int ScriptingEditor::getActiveCallback() const
 
 	if (codeEditor == nullptr) return sp->getNumSnippets();
 
-	const CodeDocument &doc = codeEditor->editor->getDocument();
+	const CodeDocument &codeDoc = codeEditor->editor->getDocument();
 
 	for (int i = 0; i < sp->getNumSnippets(); i++)
 	{
-		if (&doc == sp->getSnippet(i))
+		if (&codeDoc == sp->getSnippet(i))
 		{
 			return i;
 		}
@@ -1497,13 +1477,13 @@ void ScriptingEditor::DragOverlay::paint(Graphics& g)
 		{
 			g.setColour(Colours::black.withAlpha((x % 100 == 0) ? 0.12f : 0.05f));
 
-			g.drawVerticalLine(x, 0, getHeight());
+			g.drawVerticalLine(x, 0.0f, (float)getHeight());
 		}
 
 		for (int y = 10; y < getHeight(); y += 10)
 		{
 			g.setColour(Colours::black.withAlpha(((y) % 100 == 0) ? 0.1f : 0.05f));
-			g.drawHorizontalLine(y, 0.0f, getWidth());
+			g.drawHorizontalLine(y, 0.0f, (float)getWidth());
 		}
 	}
 
@@ -1539,7 +1519,7 @@ void ScriptingEditor::DragOverlay::Dragger::paint(Graphics &g)
 
 	if(!snapShot.isNull()) g.drawImageAt(snapShot, 0, 0);
 
-	g.drawRect(getLocalBounds(), 1.0f);
+	g.drawRect(getLocalBounds(), 1);
     
 	if (copyMode)
 	{

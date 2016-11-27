@@ -135,12 +135,12 @@ AttributedString ApiHelpers::createAttributedStringFromApi(const ValueTree &meth
 		help.setJustification(Justification::centredLeft);
 		help.append(description, GLOBAL_BOLD_FONT(), textColour.withAlpha(0.8f));
 
-		const String returnType = method.getProperty("returnType", "");
+		const String oneLineReturnType = method.getProperty("returnType", "");
 
-		if (returnType.isNotEmpty())
+		if (oneLineReturnType.isNotEmpty())
 		{
 			help.append("\nReturn Type: ", GLOBAL_BOLD_FONT(), textColour);
-			help.append(returnType, GLOBAL_MONOSPACE_FONT(), textColour.withAlpha(0.8f));
+			help.append(oneLineReturnType, GLOBAL_MONOSPACE_FONT(), textColour.withAlpha(0.8f));
 		}
 	}
 
@@ -1340,15 +1340,15 @@ void ScriptingApi::Synth::noteOffByEventId(int eventId)
 	{
 		const HiseEvent* current = dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor())->getCurrentHiseEvent();
 
-		int timestamp = 0;
+		uint16 timestamp = 0;
 
 		if (current != nullptr)
 		{
 			timestamp = e->getTimeStamp();
 		}
 
-		HiseEvent noteOff(HiseEvent::Type::NoteOff, e->getNoteNumber(), 1, e->getChannel());
-		noteOff.setEventId(eventId);
+		HiseEvent noteOff(HiseEvent::Type::NoteOff, (uint8)e->getNoteNumber(), 1, (uint8)e->getChannel());
+		noteOff.setEventId((uint16)eventId);
 		noteOff.setTimeStamp(timestamp);
 
 		if (e->isArtificial()) noteOff.setArtificial();
@@ -1381,11 +1381,7 @@ int ScriptingApi::Synth::playNote(int noteNumber, int velocity)
 		return -1;
 	}
 
-	const HiseEvent* e = dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor())->getCurrentHiseEvent();
-	
 	return addNoteOn(1, noteNumber, velocity, 0); // the timestamp will be added from the current event
-
-	
 }
 
 
@@ -1397,7 +1393,7 @@ void ScriptingApi::Synth::addVolumeFade(int eventId, int fadeTimeMilliseconds, i
 		{
 			if (fadeTimeMilliseconds >= 0)
 			{
-				HiseEvent e = HiseEvent::createVolumeFade(eventId, fadeTimeMilliseconds, targetVolume);
+				HiseEvent e = HiseEvent::createVolumeFade((uint16)eventId, fadeTimeMilliseconds, (uint8)targetVolume);
 
 				e.setTimeStamp(sp->getCurrentHiseEvent()->getTimeStamp());
 
@@ -1418,7 +1414,7 @@ void ScriptingApi::Synth::addPitchFade(int eventId, int fadeTimeMilliseconds, in
 		{
 			if (fadeTimeMilliseconds >= 0)
 			{
-				HiseEvent e = HiseEvent::createPitchFade(eventId, fadeTimeMilliseconds, targetCoarsePitch, targetFinePitch);
+				HiseEvent e = HiseEvent::createPitchFade((uint16)eventId, fadeTimeMilliseconds, (uint8)targetCoarsePitch, (uint8)targetFinePitch);
 				e.setTimeStamp(sp->getCurrentHiseEvent()->getTimeStamp());
 
 				sp->addHiseEventToBuffer(e);
@@ -1786,7 +1782,7 @@ int ScriptingApi::Synth::addNoteOn(int channel, int noteNumber, int velocity, in
 						
 						m.setArtificial();
 
-						const int newEventId = sp->getMainController()->getEventHandler().requestEventIdForArtificialNote(m);
+						const uint16 newEventId = sp->getMainController()->getEventHandler().requestEventIdForArtificialNote(m);
 						jassert(m.getEventId() == 0);
 						
 						m.setEventId(newEventId);
@@ -1834,7 +1830,7 @@ void ScriptingApi::Synth::addNoteOff(int channel, int noteNumber, int timeStampS
 
 					m.setArtificial();
 
-					const int eventId = sp->getMainController()->getEventHandler().getNoteOnEventFor(m)->getEventId();
+					const uint16 eventId = sp->getMainController()->getEventHandler().getNoteOnEventFor(m)->getEventId();
 
 					m.setEventId(eventId);
 

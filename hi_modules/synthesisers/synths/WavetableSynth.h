@@ -784,22 +784,22 @@ public:
 	};
 
 
-	void prepareToPlay(double sampleRate, int samplesPerBlock) override
+	void prepareToPlay(double newSampleRate, int samplesPerBlock) override
 	{
-		if(sampleRate > -1.0)
+		if(newSampleRate > -1.0)
 		{
 			tableBuffer = AudioSampleBuffer(1, samplesPerBlock);
 
 
-			tableIndexChain->prepareToPlay(sampleRate, samplesPerBlock);
+			tableIndexChain->prepareToPlay(newSampleRate, samplesPerBlock);
 
 			for(int i = 0; i < sounds.size(); i++)
 			{
-				static_cast<WavetableSound*>(getSound(i))->calculatePitchRatio(sampleRate);
+				static_cast<WavetableSound*>(getSound(i))->calculatePitchRatio(newSampleRate);
 			}
 		}
 
-		ModulatorSynth::prepareToPlay(sampleRate, samplesPerBlock);
+		ModulatorSynth::prepareToPlay(newSampleRate, samplesPerBlock);
 
 		
 	}

@@ -43,20 +43,14 @@ struct HiseJavascriptEngine::RootObject::RegisterName : public Expression
       name(n), 
 	  data(data_) {}
 
-	var getResult(const Scope& s) const override
+	var getResult(const Scope& /*s*/) const override
 	{
 		return *data;
-
-		//VarRegister* reg = &s.root->hiseSpecialData.varRegister;
-		//return reg->getFromRegister(indexInRegister);
 	}
 
-	void assign(const Scope& s, const var& newValue) const override
+	void assign(const Scope& /*s*/, const var& newValue) const override
 	{
 		*data = newValue;
-
-		//VarRegister* reg = &s.root->hiseSpecialData.varRegister;
-		//reg->setRegister(indexInRegister, newValue);
 	}
 
 	VarRegister* rootRegister;
@@ -212,7 +206,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 		String getDebugDataType() const override { return DebugInformation::getVarType(lastReturnValue); }
 
-		void doubleClickCallback(const MouseEvent &event, Component* ed)
+		void doubleClickCallback(const MouseEvent &/*event*/, Component* ed)
 		{
 			DebugableObject::Helpers::gotoLocation(ed, location);
 		}
@@ -326,6 +320,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			else
 			{
 				location.throwError("Accessing parameter reference outside the function call");
+				return var();
 			}
 		}
 
@@ -507,7 +502,7 @@ struct HiseJavascriptEngine::RootObject::ExternalCFunction: public ReferenceCoun
 			if (!cFunction->compiledOk)
 			{
 				location.throwError("Trying to call a uncompiled function.");
-				return var::undefined();
+				return var();
 			}
 
 			var args[4];
@@ -539,7 +534,7 @@ struct HiseJavascriptEngine::RootObject::ExternalCFunction: public ReferenceCoun
 				}
 			}
 			
-			return var::undefined();
+			return var();
 		}
 
 		OwnedArray<Expression> parameterExpressions;
