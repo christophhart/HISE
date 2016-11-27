@@ -39,7 +39,7 @@ class ScriptComponentEditListener;
 class AutoPopupDebugComponent;
 
 
-
+class DebugInformation;
 class ScriptingEditor;
 
 
@@ -49,7 +49,9 @@ class ScriptingEditor;
 class ScriptWatchTable      : public Component,
 public TableListBoxModel,
 public Timer,
-public AutoPopupDebugComponent
+public AutoPopupDebugComponent,
+public TextEditor::Listener,
+public GlobalScriptCompileListener
 {
 public:
     
@@ -62,21 +64,29 @@ public:
         numColumns
     };
     
+	enum class RefreshEvent
+	{
+		timerCallback = 0,
+		filterTextChanged,
+		recompiled,
+		numRefreshEvents
+	};
+
     ScriptWatchTable(MainController *controller, BaseDebugArea *area) ;
     
-    ~ScriptWatchTable()
-    {
-        controller = nullptr;
-        renderedSet.clear();
-        processor = nullptr;
-        editor = nullptr;
-        table = nullptr;
-    }
+    ~ScriptWatchTable();
     
     void timerCallback();
     
+	void scriptWasCompiled(JavascriptProcessor *processor);
+
     void setScriptProcessor(JavascriptProcessor *p, ScriptingEditor *editor);
     
+	void textEditorTextChanged(TextEditor& )
+	{
+		applySearchFilter();
+	}
+
     int getNumRows() override;
     void paintRowBackground (Graphics& g, int rowNumber, int /*width*/, int /*height*/, bool rowIsSelected) override;
     void selectedRowsChanged(int /*lastRowSelected*/) override;
@@ -85,13 +95,26 @@ public:
     String getHeadline() const;
     void resized() override;
     
-    void refreshStrippedSet();
+    void refreshChangeStatus();
     void mouseDoubleClick(const MouseEvent &e) override;
     
+	void paint(Graphics &g) override;
+
+	DebugInformation* getDebugInformationForRow(int rowIndex);
+
 private:
     
+	void rebuildLines();
+
+	void applySearchFilter();
+
+	ScopedPointer<TextEditor> fuzzySearchBox;
+
+	int numFilteredDebugObjects = 0;
+
     TableHeaderLookAndFeel laf;
-	Array<StringArray> renderedSet;
+	Array<StringArray> allVariableLines;
+	Array<int> filteredIndexes;
     BigInteger changed;
     MainController *controller;
     WeakReference<Processor> processor;
