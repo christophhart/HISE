@@ -326,6 +326,7 @@ DynamicObject * DefaultFrontendBar::createDefaultProperties()
 	v->set("cpuTempoVoicesShown", true);
 	v->set("presetShown", true);
 	v->set("tooltipBarShown", true);
+    v->set("keyboard", true);
 	v->set("knobsShown", true);
 	v->set("knobFilmStrip", String());
 	v->set("knobNumFilmStrips", 0);
