@@ -271,8 +271,11 @@ void PresetLoadingThread::run()
 
 	showStatusMessage("Loading modules");
 
+    
+    mc->skipCompilingAtPresetLoad = true;
 	synthChain->restoreFromValueTree(v);
-
+    mc->skipCompilingAtPresetLoad = false;
+    
 	if (threadShouldExit()) return;
 
 }
