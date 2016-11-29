@@ -156,6 +156,8 @@ public:
 	bool componentIsDefinedWithFactoryMethod(const Identifier& identifier);
 	String createNewDefinitionWithFactoryMethod(const String &oldId, const String &newId, int newX, int newY);
 
+	void createMissingCaseStatementsForComponents();
+
 	void paintOverChildren(Graphics& g);
 
 	bool keyPressed(const KeyPress& k) override;

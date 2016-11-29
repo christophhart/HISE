@@ -388,6 +388,65 @@ String JavascriptCodeEditor::createNewDefinitionWithFactoryMethod(const String &
 	return String();
 }
 
+void JavascriptCodeEditor::createMissingCaseStatementsForComponents()
+{
+	const String allText = getDocument().getAllContent();
+
+	if (allText.startsWith("function onControl"))
+	{
+		const int switchIndex = allText.indexOf("switch");
+
+		if (switchIndex != -1)
+		{
+			auto c = allText.getCharPointer();
+			c += switchIndex;
+
+			while (*c != '{') 
+				c++;
+
+			c++;
+
+			const int startIndex = c - allText.getCharPointer();
+
+			CodeDocument::Position insertPos(getDocument(), startIndex);
+
+			ProcessorWithScriptingContent* ps = dynamic_cast<ProcessorWithScriptingContent*>(findParentComponentOfClass<ScriptingEditor>()->getProcessor());
+
+			ScriptingApi::Content* content = ps->getScriptingContent();
+
+			int count = 0;
+
+			for (int i = 0; i < content->getNumComponents(); i++)
+			{
+				const String componentName = content->getComponent(i)->getName().toString();
+
+                const String reg = "case " + componentName;
+
+                const bool hasCaseStatement = allText.contains(reg);
+
+				if (!hasCaseStatement)
+				{
+					moveCaretTo(insertPos, false);
+
+					String newCaseStatement = "\n\t\tcase " + componentName + ":\n\t\t{\n";
+                    newCaseStatement << "\t\t\t// Insert logic here...\n\t\t\tbreak;\n\t\t}";
+
+					insertTextAtCaret(newCaseStatement);
+					count++;
+				}
+			}
+            
+            PresetHandler::showMessageWindow(String(count) + " case statements added", "", PresetHandler::IconType::Info);
+            
+		}
+	}
+	else
+	{
+		PresetHandler::showMessageWindow("Not in the onControl callback", "Case statements can only be created in the onControl callback", PresetHandler::IconType::Warning);
+	}
+
+}
+
 void JavascriptCodeEditor::focusLost(FocusChangeType )
 {
 #if USE_BACKEND
@@ -473,6 +532,7 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &menu, const MouseEvent *
 		const bool isUIDefinitionSelected = selection.startsWith("const var");
 
 		menu.addItem(107, "Create UI factory method from selection", isUIDefinitionSelected);
+		menu.addItem(108, "Add missing case statements", true);
         menu.addSeparator();
         menu.addSectionHeader("Import / Export");
         menu.addItem(101, "Save Script To File");
@@ -599,6 +659,10 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 		const String newText = CodeReplacer::createFactoryMethod(selection);
 
 		insertTextAtCaret(newText);
+	}
+	else if (menuId == 108)
+	{
+		createMissingCaseStatementsForComponents();
 	}
 	else if (menuId == 110)
 	{

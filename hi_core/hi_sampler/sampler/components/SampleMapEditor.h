@@ -397,8 +397,6 @@ public:
 
 	void fillPopupMenu(PopupMenu &p)
 	{
-		ModulatorSampler *s = sampler;
-
 		ApplicationCommandManager *a = getCommandManager();
 
 		p.addSectionHeader("Sample Map Handling");
