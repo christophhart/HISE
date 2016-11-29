@@ -145,6 +145,7 @@ public:
 		MenuToolsUseBackgroundThreadForCompile,
 		MenuToolsRecompileScriptsOnReload,
 		MenuToolsCreateToolbarPropertyDefinition,
+		MenuToolsCreateExternalScriptFile,
 		MenuToolsExternalScriptFileOffset,
 		
 		MenuToolsResolveMissingSamples = 0x60000,
@@ -285,6 +286,7 @@ public:
 		static void downloadNewProject(BackendProcessorEditor * bpe);
 		static void showMainMenu(BackendProcessorEditor * bpe);
 		static void moveModule(CopyPasteTarget *currentCopyPasteTarget, bool moveUp);
+		static void createExternalScriptFile(BackendProcessorEditor * bpe);
 	};
 
 private:

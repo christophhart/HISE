@@ -124,6 +124,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsUseBackgroundThreadForCompile,
 		MenuToolsRecompileScriptsOnReload,
 		MenuToolsCreateToolbarPropertyDefinition,
+		MenuToolsCreateExternalScriptFile,
 		MenuToolsResolveMissingSamples,
 		MenuToolsDeleteMissingSamples,
 		MenuToolsUseRelativePaths,
@@ -351,6 +352,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuToolsCreateToolbarPropertyDefinition:
 		setCommandTarget(result, "Create default Toolbar JSON definition", true, false, 'X', false);
 		break;
+	case MenuToolsCreateExternalScriptFile:
+		setCommandTarget(result, "Create external script file", true, false, 'X', false);
+		break;
 	case MenuToolsDeleteMissingSamples:
 		setCommandTarget(result, "Delete missing samples", true, false, 'X', false);
 		break;
@@ -494,6 +498,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsUseBackgroundThreadForCompile: Actions::toggleUseBackgroundThreadsForCompiling(bpe); updateCommands(); return true;
 	case MenuToolsRecompileScriptsOnReload: Actions::toggleCompileScriptsOnPresetLoad(bpe); updateCommands(); return true;
 	case MenuToolsCreateToolbarPropertyDefinition:	Actions::createDefaultToolbarJSON(bpe); return true;
+	case MenuToolsCreateExternalScriptFile:	Actions::createExternalScriptFile(bpe); updateCommands(); return true;
     case MenuToolsCheckDuplicate:       Actions::checkDuplicateIds(bpe); return true;
 	case MenuToolsDeleteMissingSamples: Actions::deleteMissingSamples(bpe); return true;
 	case MenuToolsResolveMissingSamples:Actions::resolveMissingSamples(bpe); return true;
@@ -721,6 +726,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuToolsSetCompileTimeOut);
 		ADD_DESKTOP_ONLY(MenuToolsUseBackgroundThreadForCompile);
 		ADD_DESKTOP_ONLY(MenuToolsCreateToolbarPropertyDefinition);
+		ADD_DESKTOP_ONLY(MenuToolsCreateExternalScriptFile);
 
 		PopupMenu sub;
 
@@ -1743,6 +1749,32 @@ void BackendCommandTarget::Actions::moveModule(CopyPasteTarget *currentCopyPaste
 
 			BackendProcessorEditor *bpe = editor->findParentComponentOfClass<BackendProcessorEditor>();
 			bpe->refreshContainer(processor);
+		}
+	}
+}
+
+void BackendCommandTarget::Actions::createExternalScriptFile(BackendProcessorEditor * bpe)
+{
+	File scriptDirectory = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Scripts);
+
+	String newScriptName = PresetHandler::getCustomName("Script File");
+
+	if (newScriptName.isNotEmpty())
+	{
+		File newScriptFile = scriptDirectory.getChildFile(newScriptName + ".js");
+
+		if (newScriptFile.exists())
+		{
+			PresetHandler::showMessageWindow("File already exists", "The file you are trying to create already exists", PresetHandler::IconType::Warning);
+		}
+		else
+		{
+			newScriptFile.create();
+			newScriptFile.replaceWithText("/** External Script File " + newScriptName + " */\n\n");
+
+			SystemClipboard::copyTextToClipboard("include(\"" + newScriptFile.getFileName() + "\");");
+
+			PresetHandler::showMessageWindow("File created", "The file " + newScriptFile.getFullPathName() + " was successfully created.\nThe include statement was copied into the clipboard.");
 		}
 	}
 }
