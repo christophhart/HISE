@@ -515,6 +515,8 @@ var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 		{
 			c->cleanLocalProperties();
 
+			
+
 			if (result != nullptr) *result = Result::fail(error);
 		}
 	}
@@ -555,3 +557,27 @@ AttributedString DynamicObjectDebugInformation::getDescription() const
 {
 	return AttributedString();
 }
+
+
+
+#pragma warning( push )
+#pragma warning( disable : 4100)
+
+void ScriptingObject::reportScriptError(const String &errorMessage) const
+{
+#if USE_BACKEND // needs to be customized because of the colour!
+
+	const DynamicObject* rootObject = dynamic_cast<JavascriptProcessor*>(const_cast<ProcessorWithScriptingContent*>(getScriptProcessor()))->getScriptEngine()->getRootObject();
+
+	HiseJavascriptEngine::RootObject::CodeLocation* loc = dynamic_cast<const HiseJavascriptEngine::RootObject*>(rootObject)->currentLocation;
+
+	if (loc != nullptr)
+	{
+		const String formattedMessage = loc->getCallbackName() + ": " + loc->getErrorMessage(errorMessage);
+		const_cast<MainController*>(getProcessor()->getMainController())->writeToConsole(formattedMessage, 1, getProcessor(), getScriptProcessor()->getScriptingContent()->getColour());
+	}
+
+#endif
+}
+
+#pragma warning( pop ) 

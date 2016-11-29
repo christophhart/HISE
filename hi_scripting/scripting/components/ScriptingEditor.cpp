@@ -521,17 +521,40 @@ void ScriptingEditor::setEditedScriptComponent(ReferenceCountedObject* component
 	}
 }
 
+void ScriptingEditor::showCallback(int callbackIndex, int lineToScroll/*=-1*/)
+{
+	if (callbackIndex < callbackButtons.size())
+	{
+		callbackButtons[callbackIndex]->setToggleState(false, dontSendNotification);
+		buttonClicked(callbackButtons[callbackIndex]);
+
+		if (lineToScroll != -1)
+		{
+			CodeDocument::Position pos(codeEditor->editor->getDocument(), lineToScroll, 0);
+			codeEditor->editor->scrollToLine(jmax<int>(0, lineToScroll));
+
+			Array<Range<int>> underlines;
+
+			underlines.add(Range<int>(0, 6));
+
+			codeEditor->editor->moveCaretTo(pos, false);
+			codeEditor->editor->moveCaretToEndOfLine(true);
+
+			//codeEditor->editor->setTemporaryUnderlining(underlines);
+		}
+	}
+}
+
 void ScriptingEditor::showOnInitCallback()
 {
-	callbackButtons[0]->setToggleState(false, dontSendNotification);
-	buttonClicked(callbackButtons[0]);
+	showCallback(0);
 }
 
 void ScriptingEditor::gotoChar(int character)
 {
-	CodeDocument::Position pos(codeEditor->editor->getDocument(), character);
-
 	showOnInitCallback();
+
+	CodeDocument::Position pos(codeEditor->editor->getDocument(), character);
 
 	codeEditor->editor->scrollToLine(jmax<int>(0, pos.getLineNumber()));
 }

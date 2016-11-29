@@ -547,6 +547,8 @@ public:
 		};
 
 		HiseSpecialData hiseSpecialData;
+
+		CodeLocation* currentLocation = nullptr;
 	};
 
 

@@ -78,20 +78,6 @@ int ScriptingObject::checkValidArguments(const var::NativeFunctionArgs &args)
 
 
 
-#pragma warning( push )
-#pragma warning( disable : 4100)
-
-void ScriptingObject::reportScriptError(const String &errorMessage) const
-{
-#if USE_BACKEND // needs to be customized because of the colour!
-	const_cast<MainController*>(getProcessor()->getMainController())->writeToConsole(errorMessage, 1, getProcessor(), getScriptProcessor()->getScriptingContent()->getColour());
-
-	
-#endif
-}
-
-#pragma warning( pop ) 
-
 bool ScriptingObject::checkIfSynchronous(const Identifier &methodName) const
 {
 	const JavascriptMidiProcessor *sp = dynamic_cast<const JavascriptMidiProcessor*>(getScriptProcessor());

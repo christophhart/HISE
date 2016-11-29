@@ -101,8 +101,8 @@ void Console::mouseDown(const MouseEvent &e)
 		const String id = newTextConsole->getDocument().getLine(newTextConsole->getCaretPos().getLineNumber()).upToFirstOccurrenceOf(":", false, false);
 
 		BackendProcessorEditor *editor = findParentComponentOfClass<BackendProcessorEditor>();
-
 		JavascriptProcessor *jsp = dynamic_cast<JavascriptProcessor*>(ProcessorHelpers::getFirstProcessorWithName(editor->getMainSynthChain(), id));
+
 
 		const int SNIPPET_OFFSET = 1000;
 		const int FILE_OFFSET = 2000;
@@ -213,9 +213,64 @@ void Console::mouseMove(const MouseEvent &e)
 	}
 }
 
-void Console::mouseDoubleClick(const MouseEvent&)
+void Console::mouseDoubleClick(const MouseEvent& e)
 {
+	CodeDocument::Position selectionStart = newTextConsole->getSelectionStart();
+
+	const String line = newTextConsole->getDocument().getLine(selectionStart.getLineNumber());
+
+	const String reg = "(.+):! (\\w*): (.* - )?Line (\\d+), column (\\d+): (\\w+)";
+
+	StringArray matches = RegexFunctions::getMatches(reg, line);
 	
+	if (matches.size() == 7)
+	{
+		const String id = matches[1];
+		const Identifier callback = matches[2].isNotEmpty() ? Identifier(matches[2]) : Identifier();
+		const String fileName = matches[3].upToFirstOccurrenceOf(" - ", false, false);
+		const String lineNumber = matches[4];
+		const String charNumber = matches[5];
+
+		BackendProcessorEditor *editor = findParentComponentOfClass<BackendProcessorEditor>();
+		JavascriptProcessor *jsp = dynamic_cast<JavascriptProcessor*>(ProcessorHelpers::getFirstProcessorWithName(editor->getMainSynthChain(), id));
+
+		if (fileName.isNotEmpty())
+		{
+			for (int i = 0; i < jsp->getNumWatchedFiles(); i++)
+			{
+				if (jsp->getWatchedFile(i).getFileName() == fileName)
+				{
+					StringArray lines;
+					jsp->getWatchedFile(i).readLines(lines);
+
+					int charIndex = jmax<int>(0, charNumber.getIntValue());
+					int lineIndex = jmax<int>(0, lineNumber.getIntValue());
+
+					jsp->showPopupForFile(i, charIndex, lineIndex);
+				}
+			}
+		}
+		else
+		{
+			jassert(!callback.isNull());
+
+			ProcessorEditor* pEditor = editor->getRootContainer()->getFirstEditorOf(dynamic_cast<Processor*>(jsp));
+
+			if (pEditor != nullptr)
+			{
+				ScriptingEditor* scriptEditor = dynamic_cast<ScriptingEditor*>(pEditor->getBody());
+
+				for (int i = 0; i < jsp->getNumSnippets(); i++)
+				{
+					if (jsp->getSnippet(i)->getCallbackName() == callback)
+					{
+						scriptEditor->showCallback(i, lineNumber.getIntValue() - 1);
+						break;
+					}
+				}
+			}
+		}
+	}
 }
 
 void Console::logMessage(const String &t, WarningLevel warningLevel, const Processor *p, Colour c)

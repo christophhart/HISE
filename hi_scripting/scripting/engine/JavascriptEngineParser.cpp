@@ -715,6 +715,8 @@ private:
 
 		ScopedPointer<BlockStatement> s = parseBlock();
 
+		
+
 		c->setStatements(s.release());
 
 		return new Statement(location);

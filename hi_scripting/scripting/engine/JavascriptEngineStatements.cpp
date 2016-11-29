@@ -25,8 +25,15 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 		ScopedBlockLock sl(s, lockStatements);
 
 		for (int i = 0; i < statements.size(); ++i)
+		{
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+			s.root->currentLocation = &statements.getUnchecked(i)->location;
+#endif
+
 			if (ResultCode r = statements.getUnchecked(i)->perform(s, returnedValue))
 				return r;
+		}
+			
 
 		return ok;
 	}
@@ -74,7 +81,6 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 
 	OwnedArray<Statement> statements;
 	OwnedArray<LockStatement> lockStatements;
-	
 };
 
 struct HiseJavascriptEngine::RootObject::IfStatement : public Statement

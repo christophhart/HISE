@@ -406,7 +406,7 @@ void JavascriptCodeEditor::createMissingCaseStatementsForComponents()
 
 			c++;
 
-			const int startIndex = c - allText.getCharPointer();
+			const int startIndex = (int)(c - allText.getCharPointer());
 
 			CodeDocument::Position insertPos(getDocument(), startIndex);
 
@@ -418,9 +418,9 @@ void JavascriptCodeEditor::createMissingCaseStatementsForComponents()
 
 			for (int i = 0; i < content->getNumComponents(); i++)
 			{
-				const String componentName = content->getComponent(i)->getName().toString();
+				const String widgetName = content->getComponent(i)->getName().toString();
 
-                const String reg = "case " + componentName;
+                const String reg = "case " + widgetName;
 
                 const bool hasCaseStatement = allText.contains(reg);
 
@@ -428,7 +428,7 @@ void JavascriptCodeEditor::createMissingCaseStatementsForComponents()
 				{
 					moveCaretTo(insertPos, false);
 
-					String newCaseStatement = "\n\t\tcase " + componentName + ":\n\t\t{\n";
+					String newCaseStatement = "\n\t\tcase " + widgetName + ":\n\t\t{\n";
                     newCaseStatement << "\t\t\t// Insert logic here...\n\t\t\tbreak;\n\t\t}";
 
 					insertTextAtCaret(newCaseStatement);
@@ -1857,11 +1857,17 @@ void PopupIncludeEditor::resized()
 	resultLabel->setBounds(0, getHeight() - 18, getWidth(), 18);
 }
 
-void PopupIncludeEditor::gotoChar(int characters)
+void PopupIncludeEditor::gotoChar(int character, int lineNumber/*=-1*/)
 {
-	CodeDocument::Position pos(*doc, characters);
+	CodeDocument::Position pos;
+	
+	pos = lineNumber != -1 ? CodeDocument::Position(*doc, lineNumber, character) :
+							 CodeDocument::Position(*doc, character);
 
 	editor->scrollToLine(jmax<int>(0, pos.getLineNumber()-1));
+	editor->moveCaretTo(pos, false);
+	editor->moveCaretToStartOfLine(false);
+	editor->moveCaretToEndOfLine(true);
 }
 
 PopupIncludeEditorWindow::PopupIncludeEditorWindow(File f, JavascriptProcessor *s) :
@@ -1921,9 +1927,9 @@ void PopupIncludeEditorWindow::closeButtonPressed()
 	delete this;
 }
 
-void PopupIncludeEditorWindow::gotoChar(int character)
+void PopupIncludeEditorWindow::gotoChar(int character, int lineNumber/*=-1*/)
 {
-	editor->gotoChar(character);
+	editor->gotoChar(character, lineNumber);
 }
 
 CodeEditorWrapper::CodeEditorWrapper(CodeDocument &document, CodeTokeniser *codeTokeniser, JavascriptProcessor *p)

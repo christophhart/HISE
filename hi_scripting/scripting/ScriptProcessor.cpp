@@ -189,7 +189,7 @@ File FileChangeListener::getWatchedFile(int index) const
 	else return File::nonexistent;
 }
 
-void FileChangeListener::showPopupForFile(int index, int charNumberToDisplay/*=0*/)
+void FileChangeListener::showPopupForFile(int index, int charNumberToDisplay/*=0*/, int lineNumberToDisplay/*=-1*/)
 {
 #if USE_BACKEND
 	const File watchedFile = getWatchedFile(index);
@@ -209,7 +209,7 @@ void FileChangeListener::showPopupForFile(int index, int charNumberToDisplay/*=0
 
 			if (charNumberToDisplay != 0)
 			{
-				dynamic_cast<PopupIncludeEditorWindow*>(currentPopups[i].getComponent())->gotoChar(charNumberToDisplay);
+				dynamic_cast<PopupIncludeEditorWindow*>(currentPopups[i].getComponent())->gotoChar(charNumberToDisplay, lineNumberToDisplay);
 			}
 
 			return;
@@ -224,7 +224,7 @@ void FileChangeListener::showPopupForFile(int index, int charNumberToDisplay/*=0
 
 	if (charNumberToDisplay != 0)
 	{
-		popup->gotoChar(charNumberToDisplay);
+		popup->gotoChar(charNumberToDisplay, lineNumberToDisplay);
 	}
 
 #else

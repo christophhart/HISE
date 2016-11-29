@@ -124,6 +124,8 @@ public:
 
 	void setEditedScriptComponent(ReferenceCountedObject* component);
 
+	void showCallback(int callbackIndex, int charToScroll=-1);
+
 	void showOnInitCallback();
 
 	void gotoChar(int character);

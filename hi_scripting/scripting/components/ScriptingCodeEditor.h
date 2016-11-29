@@ -49,7 +49,7 @@ public:
 	bool keyPressed(const KeyPress& key) override;
 	void resized() override;;
 
-	void gotoChar(int character);
+	void gotoChar(int character, int lineNumber=-1);
 
 
 private:
@@ -85,7 +85,7 @@ public:
 	bool keyPressed(const KeyPress& key);;
 	void closeButtonPressed() override;;
 
-	void gotoChar(int character);
+	void gotoChar(int character, int lineNumber=-1);
 
 private:
 

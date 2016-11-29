@@ -99,14 +99,34 @@ struct HiseJavascriptEngine::RootObject::CodeLocation
 	CodeLocation(const String& code, const String &externalFile_) noexcept        : program(code), location(program.getCharPointer()), externalFile(externalFile_) {}
 	CodeLocation(const CodeLocation& other) noexcept : program(other.program), location(other.location), externalFile(other.externalFile) {}
 
-	void throwError(const String& message) const
+	String getCallbackName() const
+	{
+		if (program.startsWith("function"))
+		{
+			return program.fromFirstOccurrenceOf("function ", false, false).upToFirstOccurrenceOf("(", false, false);
+		}
+		else
+		{
+			if (externalFile.isNotEmpty())
+			{
+				return "";
+			}
+			else
+			{
+				return "onInit";
+			}
+		}
+		
+	}
+
+	String getErrorMessage(const String &message) const
 	{
 		int col = 1, line = 1;
 
 		for (String::CharPointerType i(program.getCharPointer()); i < location && !i.isEmpty(); ++i)
 		{
 			++col;
-			if (*i == '\n')  { col = 1; ++line; }
+			if (*i == '\n') { col = 1; ++line; }
 		}
 
 		if (!externalFile.isEmpty())
@@ -118,24 +138,19 @@ struct HiseJavascriptEngine::RootObject::CodeLocation
 			const String fileName = externalFile;
 #endif
 
+			return fileName + " - Line " + String(line) + ", column " + String(col) + ": " + message;
 
-#if USE_BACKEND
-			throw fileName + " - Line " + String(line) + ", column " + String(col) + ": " + message;
-#else
-			if(message != "Execution timed-out") DBG(fileName + " - Line " + String(line) + ", column " + String(col) + ": " + message);
-#endif
 		}
-		else
-		{
-#if USE_BACKEND
-			throw "Line " + String(line) + ", column " + String(col) + ": " + message;
-#else
-			if (message != "Execution timed-out") DBG("Line " + String(line) + ", column " + String(col) + ": " + message);
-#endif
-		}
-		
+		else return "Line " + String(line) + ", column " + String(col) + ": " + message;
+	}
 
-		
+	void throwError(const String& message) const
+	{
+#if USE_BACKEND
+		throw getErrorMessage(message);
+#else
+		DBG(getErrorMessage(message));
+#endif
 	}
 
 	String program;
