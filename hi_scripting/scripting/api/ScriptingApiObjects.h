@@ -144,6 +144,9 @@ public:
 		/** Sets the attribute of the Modulator. You can look up the specific parameter indexes in the manual. */
 		void setAttribute(int index, float value);
 
+        /** Returns the attribute with the given index. */
+        float getAttribute(int index);
+        
 		/** Bypasses the Modulator. */
 		void setBypassed(bool shouldBeBypassed);;
 
@@ -187,6 +190,9 @@ public:
 		/** Changes one of the Parameter. Look in the manual for the index numbers of each effect. */
 		void setAttribute(int parameterIndex, float newValue);
 
+        /** Returns the attribute with the given index. */
+        float getAttribute(int index);
+        
 		/** Bypasses the effect. */
 		void setBypassed(bool shouldBeBypassed);
 
@@ -226,6 +232,10 @@ public:
 		/** Changes one of the Parameter. Look in the manual for the index numbers of each effect. */
 		void setAttribute(int parameterIndex, float newValue);;
 
+        /** Returns the attribute with the given index. */
+        float getAttribute(int index);
+
+        
 		/** Bypasses the effect. */
 		void setBypassed(bool shouldBeBypassed);
 
@@ -269,6 +279,9 @@ public:
 		/** Sets the attribute of the MidiProcessor. If it is a script, then the index of the component is used. */
 		void setAttribute(int index, float value);
 
+        /** Returns the attribute with the given index. */
+        float getAttribute(int index);
+        
 		/** Bypasses the MidiProcessor. */
 		void setBypassed(bool shouldBeBypassed);;
 
@@ -306,6 +319,9 @@ public:
 		/** Changes one of the Parameter. Look in the manual for the index numbers of each effect. */
 		void setAttribute(int parameterIndex, float newValue);;
 
+        /** Returns the attribute with the given index. */
+        float getAttribute(int index);
+        
 		/** Bypasses the effect. */
 		void setBypassed(bool shouldBeBypassed);
 

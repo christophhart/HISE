@@ -166,6 +166,7 @@ void addScriptParameters(ConstScriptingObject* this_, Processor* p)
 struct ScriptingObjects::ScriptingModulator::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_2(ScriptingModulator, setAttribute);
+    API_METHOD_WRAPPER_1(ScriptingModulator, getAttribute);
 	API_VOID_METHOD_WRAPPER_1(ScriptingModulator, setBypassed);
 	API_VOID_METHOD_WRAPPER_1(ScriptingModulator, setIntensity);
 };
@@ -196,6 +197,7 @@ m(nullptr)
 	ADD_API_METHOD_2(setAttribute);
 	ADD_API_METHOD_1(setBypassed);
 	ADD_API_METHOD_1(setIntensity);
+    ADD_API_METHOD_1(getAttribute);
 }
 
 String ScriptingObjects::ScriptingModulator::getDebugName() const
@@ -246,6 +248,14 @@ void ScriptingObjects::ScriptingModulator::setAttribute(int index, float value)
 {
 	if (checkValidObject())
 		mod->setAttribute(index, value, sendNotification);
+}
+
+float ScriptingObjects::ScriptingModulator::getAttribute(int parameterIndex)
+{
+    if (checkValidObject())
+    {
+        return mod->getAttribute(parameterIndex);
+    }
 }
 
 void ScriptingObjects::ScriptingModulator::setBypassed(bool shouldBeBypassed)
@@ -308,6 +318,7 @@ void ScriptingObjects::ScriptingModulator::setIntensity(float newIntensity)
 struct ScriptingObjects::ScriptingEffect::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_2(ScriptingEffect, setAttribute);
+    API_METHOD_WRAPPER_1(ScriptingEffect, getAttribute);
 	API_VOID_METHOD_WRAPPER_1(ScriptingEffect, setBypassed);
 };
 
@@ -333,6 +344,7 @@ effect(fx)
 
 	ADD_API_METHOD_2(setAttribute);
 	ADD_API_METHOD_1(setBypassed);
+    ADD_API_METHOD_1(getAttribute);
 };
 
 
@@ -342,6 +354,14 @@ void ScriptingObjects::ScriptingEffect::setAttribute(int parameterIndex, float n
 	{
 		effect->setAttribute(parameterIndex, newValue, sendNotification);
 	}
+}
+
+float ScriptingObjects::ScriptingEffect::getAttribute(int parameterIndex)
+{
+    if (checkValidObject())
+    {
+        return effect->getAttribute(parameterIndex);
+    }
 }
 
 void ScriptingObjects::ScriptingEffect::setBypassed(bool shouldBeBypassed)
@@ -359,6 +379,7 @@ void ScriptingObjects::ScriptingEffect::setBypassed(bool shouldBeBypassed)
 struct ScriptingObjects::ScriptingSynth::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_2(ScriptingSynth, setAttribute);
+    API_METHOD_WRAPPER_1(ScriptingSynth, getAttribute);
 	API_VOID_METHOD_WRAPPER_1(ScriptingSynth, setBypassed);
 };
 
@@ -383,6 +404,7 @@ synth(synth_)
 	}
 
 	ADD_API_METHOD_2(setAttribute);
+    ADD_API_METHOD_1(getAttribute);
 	ADD_API_METHOD_1(setBypassed);
 };
 
@@ -392,6 +414,14 @@ void ScriptingObjects::ScriptingSynth::setAttribute(int parameterIndex, float ne
 	{
 		synth->setAttribute(parameterIndex, newValue, sendNotification);
 	}
+}
+
+float ScriptingObjects::ScriptingSynth::getAttribute(int parameterIndex)
+{
+    if (checkValidObject())
+    {
+        return synth->getAttribute(parameterIndex);
+    }
 }
 
 void ScriptingObjects::ScriptingSynth::setBypassed(bool shouldBeBypassed)
@@ -408,6 +438,7 @@ void ScriptingObjects::ScriptingSynth::setBypassed(bool shouldBeBypassed)
 struct ScriptingObjects::ScriptingMidiProcessor::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_2(ScriptingMidiProcessor, setAttribute);
+    API_METHOD_WRAPPER_1(ScriptingMidiProcessor, getAttribute);
 	API_VOID_METHOD_WRAPPER_1(ScriptingMidiProcessor, setBypassed);
 };
 
@@ -432,6 +463,7 @@ mp(mp_)
 	}
 
 	ADD_API_METHOD_2(setAttribute);
+    ADD_API_METHOD_1(getAttribute);
 	ADD_API_METHOD_1(setBypassed);
 }
 
@@ -468,6 +500,14 @@ void ScriptingObjects::ScriptingMidiProcessor::setAttribute(int index, float val
 	}
 }
 
+float ScriptingObjects::ScriptingMidiProcessor::getAttribute(int parameterIndex)
+{
+    if (checkValidObject())
+    {
+        return mp->getAttribute(parameterIndex);
+    }
+}
+
 void ScriptingObjects::ScriptingMidiProcessor::setBypassed(bool shouldBeBypassed)
 {
 	if (checkValidObject())
@@ -482,6 +522,7 @@ void ScriptingObjects::ScriptingMidiProcessor::setBypassed(bool shouldBeBypassed
 struct ScriptingObjects::ScriptingAudioSampleProcessor::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_2(ScriptingAudioSampleProcessor, setAttribute);
+    API_METHOD_WRAPPER_1(ScriptingAudioSampleProcessor, getAttribute);
 	API_VOID_METHOD_WRAPPER_1(ScriptingAudioSampleProcessor, setBypassed);
 	API_METHOD_WRAPPER_0(ScriptingAudioSampleProcessor, getSampleLength);
 	API_VOID_METHOD_WRAPPER_2(ScriptingAudioSampleProcessor, setSampleRange);
@@ -508,6 +549,7 @@ audioSampleProcessor(dynamic_cast<Processor*>(sampleProcessor))
 	}
 
 	ADD_API_METHOD_2(setAttribute);
+    ADD_API_METHOD_1(getAttribute);
 	ADD_API_METHOD_1(setBypassed);
 	ADD_API_METHOD_0(getSampleLength);
 	ADD_API_METHOD_2(setSampleRange);
@@ -522,6 +564,14 @@ void ScriptingObjects::ScriptingAudioSampleProcessor::setAttribute(int parameter
 	{
 		audioSampleProcessor->setAttribute(parameterIndex, newValue, sendNotification);
 	}
+}
+
+float ScriptingObjects::ScriptingAudioSampleProcessor::getAttribute(int parameterIndex)
+{
+    if (checkValidObject())
+    {
+        return audioSampleProcessor->getAttribute(parameterIndex);
+    }
 }
 
 void ScriptingObjects::ScriptingAudioSampleProcessor::setBypassed(bool shouldBeBypassed)
