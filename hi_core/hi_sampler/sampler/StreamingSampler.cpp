@@ -149,7 +149,42 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 		}
 	}
 
-	fileReader.readFromDisk(preloadBuffer, 0, internalPreloadSize, sampleStart + monolithOffset, true);
+	if (loopEnabled && (loopEnd - loopStart > 0) && sampleLength < internalPreloadSize)
+	{
+		int samplesToFill = internalPreloadSize;
+		int offsetInPreloadBuffer = 0;
+
+		fileReader.readFromDisk(preloadBuffer, 0, sampleEnd, sampleStart + monolithOffset, true);
+
+		const int samplesPerFillOp = (loopEnd - loopStart);
+		const int loopStartPosition = loopStart;
+
+		if (samplesPerFillOp > 0)
+		{
+			offsetInPreloadBuffer += sampleEnd;
+			samplesToFill -= sampleEnd;
+
+			while (samplesToFill > 0)
+			{
+				const int samplesThisTime = jmin<int>(samplesToFill, samplesPerFillOp);
+
+				fileReader.readFromDisk(preloadBuffer, offsetInPreloadBuffer, samplesThisTime, loopStart, true);
+
+				offsetInPreloadBuffer += samplesThisTime;
+				samplesToFill -= samplesThisTime;
+			}
+
+			jassert(samplesToFill == 0);
+		}
+		else
+		{
+			jassertfalse;
+		}
+	}
+	else
+	{
+		fileReader.readFromDisk(preloadBuffer, 0, internalPreloadSize, sampleStart + monolithOffset, true);
+	}
 }
 
 
