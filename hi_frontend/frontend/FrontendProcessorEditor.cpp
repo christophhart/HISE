@@ -81,7 +81,14 @@ AudioProcessorEditor(fp)
 
     overlayToolbar = dynamic_cast<DefaultFrontendBar*>(mainBar.get()) != nullptr && fp->getToolbarPropertiesObject()->getProperty("overlaying");
     
-    setSize(interfaceComponent->getContentWidth(), ((mainBar != nullptr && !overlayToolbar) ? mainBar->getHeight() : 0) + interfaceComponent->getContentHeight() + (showKeyboard ? 72 : 0));
+    
+#if HISE_IOS
+    const int keyboardHeight = 210;
+#else
+    const int keyboardHeight = 72;
+#endif
+    
+    setSize(interfaceComponent->getContentWidth(), ((mainBar != nullptr && !overlayToolbar) ? mainBar->getHeight() : 0) + interfaceComponent->getContentHeight() + (showKeyboard ? keyboardHeight : 0));
 
 	startTimer(4125);
 
@@ -112,9 +119,15 @@ void FrontendProcessorEditor::resized()
 
 	y = interfaceComponent->getBottom();
 
+#if HISE_IOS
+    const int keyboardHeight = 210;
+#else
+    const int keyboardHeight = 72;
+#endif
+    
     if(keyboard->isVisible())
     {
-        keyboard->setBounds(0, y, getWidth(), 72);
+        keyboard->setBounds(0, y, getWidth(), keyboardHeight);
     }
 	
 	aboutPage->setBoundsInset(BorderSize<int>(80));

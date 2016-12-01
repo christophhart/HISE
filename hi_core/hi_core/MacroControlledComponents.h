@@ -207,10 +207,11 @@ public:
 
 	void comboBoxChanged(ComboBox *c) override;
 
+#if USE_BACKEND
 	void paint(Graphics &g) override
 	{
 		ComboBox::paint(g);
-
+        
 		Image img(Image::PixelFormat::ARGB, getWidth(), getHeight(), true);
 
 		numberTag->applyEffect(img, g, 1.0f, 1.0f);
@@ -218,6 +219,7 @@ public:
 		g.drawImageAt(img, 0, 0);
 
 	}
+#endif
 
 	static void comboBoxPopupMenuFinishedCallback(int result, HiComboBox* combo)
 	{
@@ -285,17 +287,15 @@ public:
 
     void mouseDown(const MouseEvent &e) override;
 
+#if USE_BACKEND
 	void paint(Graphics &g) override
 	{
 		ToggleButton::paint(g);
-
 		Image img(Image::PixelFormat::ARGB, getWidth(), getHeight(), true);
-
 		numberTag->applyEffect(img, g, 1.0f, 1.0f);
-
 		g.drawImageAt(img, 0, 0);
-
 	}
+#endif
 
 	NormalisableRange<double> getRange() const override { return NormalisableRange<double>(0.0, 1.0); };
 	
@@ -380,18 +380,15 @@ public:
 	
 	void mouseDown(const MouseEvent &e) override;
 
+#if USE_BACKEND
 	void paint(Graphics &g) override
 	{
 		Slider::paint(g);
-
 		Image img(Image::PixelFormat::ARGB, getWidth(), getHeight(), true);
-
 		numberTag->applyEffect(img, g, 1.0f, 1.0f);
-
 		g.drawImageAt(img, 0, 0);
-
 	}
-	
+#endif
 
 	/** sets the mode. */
 	void setMode(Mode m, double min=-1.0, double max=-1.0, double mid=0.5) 
