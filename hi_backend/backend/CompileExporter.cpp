@@ -788,6 +788,12 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Modulat
 		additionalSourceFiles.add(additionalMainHeaderFile);
 	}
 
+    File iconFile = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("Icon.png");
+    
+    if(iconFile.existsAsFile())
+    {
+        additionalSourceFiles.add(iconFile);
+    }
 	
 	//additionalSourceCodeDirectory.findChildFiles(additionalSourceFiles, File::findFiles, true);
 
@@ -808,12 +814,25 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Modulat
 			const String relativePath = additionalSourceFiles[i].getRelativePathFrom(GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries));
 
 			String newAditionalSourceLine;
-			newAditionalSourceLine << "      <FILE id=\"" << FileHelpers::createAlphaNumericUID() << "\" name=\"" << additionalSourceFiles[i].getFileName() << "\" compile=\"" << (isSourceFile ? "1" : "0") << "\" resource=\"0\"\r\n";
+            
+            
+            String fileId = FileHelpers::createAlphaNumericUID();
+            
+            if(additionalSourceFiles[i].getFileName() == "Icon.png")
+            {
+                templateProject = templateProject.replace("%ICON_FILE%", "smallIcon=\"" + fileId + "\" bigIcon=\"" + fileId + "\"");
+            }
+            
+			newAditionalSourceLine << "      <FILE id=\"" << fileId << "\" name=\"" << additionalSourceFiles[i].getFileName() << "\" compile=\"" << (isSourceFile ? "1" : "0") << "\" resource=\"0\"\r\n";
 			newAditionalSourceLine << "            file=\"" << relativePath << "\"/>\r\n";
 
 			additionalFileDefinitions.add(newAditionalSourceLine);
+            
+            
 		}
 
+        templateProject = templateProject.replace("%ICON_FILE%", "");
+        
 		templateProject = templateProject.replace("%ADDITIONAL_FILES%", additionalFileDefinitions.joinIntoString(""));
 
 		if (additionalMainHeaderFile.existsAsFile())
@@ -1249,6 +1268,7 @@ void CompileExporter::HeaderHelpers::addStaticDspFactoryRegistration(String& plu
 		pluginDataHeaderFile << "\tREGISTER_STATIC_DSP_FACTORY(ConvertedTccScriptFactory);" << "\n";
 	}
 
+#if JUCE_MAC
 	const String additionalDspClasses = SettingWindows::getSettingValue(
 		(int)SettingWindows::ProjectSettingWindow::Attributes::AdditionalDspLibraries,
 		&GET_PROJECT_HANDLER(chainToExport));
@@ -1260,7 +1280,8 @@ void CompileExporter::HeaderHelpers::addStaticDspFactoryRegistration(String& plu
 		for (int i = 0; i < sa.size(); i++)
 			pluginDataHeaderFile << "\tREGISTER_STATIC_DSP_FACTORY(" + sa[i] + ");" << "\n";
 	}
-
+#endif
+    
 	pluginDataHeaderFile << "}" << "\n";
 }
 
