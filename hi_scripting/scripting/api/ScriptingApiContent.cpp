@@ -2027,10 +2027,14 @@ void ScriptingApi::Content::ScriptPanel::setPaintRoutine(var paintFunction)
 
 void ScriptingApi::Content::ScriptPanel::internalRepaint()
 {
-	paintCanvas = Image(Image::PixelFormat::ARGB, (int)getScriptObjectProperty(ScriptComponent::Properties::width), (int)getScriptObjectProperty(ScriptComponent::Properties::height), true);
+    const double scaleFactor = Desktop::getInstance().getDisplays().getMainDisplay().scale;
+    
+	paintCanvas = Image(Image::PixelFormat::ARGB, (int)(scaleFactor * (double)getScriptObjectProperty(ScriptComponent::Properties::width)), (int)(scaleFactor * (double)getScriptObjectProperty(ScriptComponent::Properties::height)), true);
 
 	Graphics g(paintCanvas);
 
+	g.addTransform(AffineTransform::scale(scaleFactor));
+	
 	var arguments = var(graphics);
 	var::NativeFunctionArgs args(this, &arguments, 1);
 

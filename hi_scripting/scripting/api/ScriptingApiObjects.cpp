@@ -947,8 +947,6 @@ void ScriptingObjects::GraphicsObject::drawRoundedRectangle(var area, float corn
 {
 	initGraphics();
 
-
-
 	g->drawRoundedRectangle(getRectangleFromVar(area), cornerSize, borderSize);
 }
 
@@ -1057,7 +1055,7 @@ void ScriptingObjects::GraphicsObject::fillEllipse(var area)
 	g->fillEllipse(getRectangleFromVar(area));
 }
 
-void ScriptingObjects::GraphicsObject::drawImage(String imageName, var area, int xOffset, int yOffset)
+void ScriptingObjects::GraphicsObject::drawImage(String imageName, var area, int /*xOffset*/, int yOffset)
 {
 	initGraphics();
 
@@ -1069,7 +1067,14 @@ void ScriptingObjects::GraphicsObject::drawImage(String imageName, var area, int
 	{
 		Rectangle<float> r = getRectangleFromVar(area);
 
-		g->drawImage(*img, (int)r.getX(), (int)r.getY(), (int)r.getWidth(), (int)r.getHeight(), xOffset, yOffset, (int)r.getWidth(), (int)r.getHeight());
+        if(r.getWidth() != 0)
+        {
+            const double scaleFactor = (double)img->getWidth() / (double)r.getWidth();
+            
+            g->drawImage(*img, (int)r.getX(), (int)r.getY(), (int)r.getWidth(), (int)r.getHeight(), 0, yOffset, (int)img->getWidth(), (int)r.getHeight() * scaleFactor);
+        }
+        
+        
 	}
 	else
 	{
@@ -1134,7 +1139,13 @@ void ScriptingObjects::GraphicsObject::addDropShadowFromAlpha(int colour, int ra
 	shadow.radius = radius;
 
 
-	shadow.drawForImage(*g, *imageToDraw);
+    const double scaleFactor = Desktop::getInstance().getDisplays().getMainDisplay().scale;
+    
+    Graphics g2(*imageToDraw);
+    
+    g2.addTransform(AffineTransform::scale(1.0 / scaleFactor));
+    
+	shadow.drawForImage(g2, *imageToDraw);
 }
 
 void ScriptingObjects::GraphicsObject::fillPath(var path, var area)
