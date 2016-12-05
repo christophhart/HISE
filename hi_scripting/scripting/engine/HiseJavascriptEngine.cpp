@@ -431,15 +431,15 @@ const ReferenceCountedObject* HiseJavascriptEngine::getScriptObject(const Identi
 const ReferenceCountedObject* HiseJavascriptEngine::getScriptObjectFromRootNamespace(const Identifier & id) const
 {
 	var v = root->getProperty(id);
-	if (v.isObject())
+	if (v.getObject() != nullptr)
 		return v.getObject();
 
 	v = root->hiseSpecialData.constObjects[id];
-	if (v.isObject())
+	if (v.getObject() != nullptr)
 		return v.getObject();
 
 	v = root->hiseSpecialData.getNamespace(id);
-	if (v.isObject())
+	if (v.getObject() != nullptr)
 		return v.getObject();
 
 	int registerIndex = root->hiseSpecialData.varRegister.getRegisterIndex(id);
@@ -456,7 +456,7 @@ const ReferenceCountedObject* HiseJavascriptEngine::getScriptObjectFromRootNames
 	{
 		v = globals->getProperty(id);
 
-		if (v.isObject())
+		if (v.getObject() != nullptr)
 			return v.getObject();
 	}
 
