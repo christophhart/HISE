@@ -42,33 +42,97 @@ public:
 		ThreadWithAsyncProgressWindow("Search & Replace"),
 		editor(editor_)
 	{
-		addTextEditor("search", SystemClipboard::getTextFromClipboard().removeCharacters("\n\r"), "Search for");
+		addTextEditor("search", editor->getTextInRange(editor->getHighlightedRegion()), "Search for");
 		getTextEditor("search")->addListener(this);
+
+		StringArray regexList; regexList.add("Yes"); regexList.add("No");
+
+		addComboBox("useRegex", regexList, "RegEx");
 
 		addTextEditor("replace", SystemClipboard::getTextFromClipboard().removeCharacters("\n\r"), "Replace with");
 
 		addButton("Next", 3, KeyPress(KeyPress::rightKey));
-		addButton("Replace", 4, KeyPress(KeyPress::returnKey));
+		addButton("Replace Next", 4, KeyPress(KeyPress::returnKey));
+		addButton("Replace All", 5);
+		
 
 		addBasicComponents(false);
 	}
 
+	~CodeReplacer()
+	{
+		editor = nullptr;
+	}
+
+	void resized()
+	{
+		
+	}
+
+	Array<JavascriptCodeEditor::CodeRegion> getRegionsFor(const String &searchTerm)
+	{
+		const String allText = editor->getDocument().getAllContent();
+
+		String analyseString = allText;
+		String search = searchTerm;
+		Array<JavascriptCodeEditor::CodeRegion> newHighlight;
+
+		const bool useRegex = false;
+
+		if (useRegex)
+		{
+			Array<StringArray> matches = RegexFunctions::findSubstringsThatMatchWildcard(search, allText);
+
+			for (auto m:matches)
+			{
+				search = m[0];
+
+				analyseString = analyseString.fromFirstOccurrenceOf(search, false, false);
+
+				const int index = allText.length() - analyseString.length() - search.length();
+
+				JavascriptCodeEditor::CodeRegion newRegion;
+				newRegion.setStart(index);
+				newRegion.setLength(search.length());
+
+				newHighlight.add(newRegion);
+			}
+		}
+		else
+		{
+			while (search.isNotEmpty() && analyseString.contains(search))
+			{
+				analyseString = analyseString.fromFirstOccurrenceOf(search, false, false);
+
+				const int index = allText.length() - analyseString.length() - search.length();
+
+				JavascriptCodeEditor::CodeRegion newRegion;
+				newRegion.setStart(index);
+				newRegion.setLength(search.length());
+
+				newHighlight.add(newRegion);
+			}
+
+		}
+		
+		return newHighlight;
+	}
+
 	void textEditorTextChanged(TextEditor& e)
 	{
-		String analyseString = editor->getDocument().getAllContent();
+		const String allText = editor->getDocument().getAllContent();
+
+		String analyseString = allText;
 
 		String search = e.getText();
 
-		int numOccurences = 0;
+		Array<JavascriptCodeEditor::CodeRegion> newHighlight = getRegionsFor(search);
 
-		while (search.isNotEmpty() && analyseString.contains(search))
-		{
-			analyseString = analyseString.fromFirstOccurrenceOf(search, false, false);
+		showStatusMessage(String(newHighlight.size()) + "matches.");
 
-			numOccurences++;
-		}
+		editor->rebuildHighlightedSelection(newHighlight);
 
-		showStatusMessage(String(numOccurences) + "matches.");
+		
 	}
 
 	void resultButtonClicked(const String &name)
@@ -78,7 +142,7 @@ public:
 			goToNextMatch();
 
 		}
-		else if (name == "Replace")
+		else if (name == "Replace Next")
 		{
 			const String search = getTextEditor("search")->getText();
 			const String replace = getTextEditor("replace")->getText();
@@ -91,6 +155,23 @@ public:
 			}
 
 			goToNextMatch();
+		}
+		else if (name == "Replace All")
+		{
+			const String search = getTextEditor("search")->getText();
+			const String replace = getTextEditor("replace")->getText();
+
+			const String allText = editor->getDocument().getAllContent();
+			editor->getDocument().replaceAllContent(allText.replace(search, replace, false));
+
+            Array<JavascriptCodeEditor::CodeRegion> regions = getRegionsFor(replace);
+			editor->rebuildHighlightedSelection(regions);
+		}
+		else if (name == "Cancel")
+		{
+            Array<JavascriptCodeEditor::CodeRegion> emptyRegions = Array<JavascriptCodeEditor::CodeRegion>();
+            
+			editor->rebuildHighlightedSelection(emptyRegions);
 		}
 	}
 
@@ -179,12 +260,14 @@ private:
 
 		if (offset == -1)
 		{
-			PresetHandler::showMessageWindow("Finished searching", "Find reached the end of the file.", PresetHandler::IconType::Info);
+			editor->moveCaretToTop(false);
+
+			remainingText = editor->getDocument().getAllContent();
+			offset = remainingText.indexOf(search);
 		}
 		else
 		{
 			editor->moveCaretTo(editor->getCaretPos().movedBy(offset), false);
-
 			editor->moveCaretTo(editor->getCaretPos().movedBy(search.length()), true);
 		}
 	}
@@ -390,11 +473,24 @@ String JavascriptCodeEditor::createNewDefinitionWithFactoryMethod(const String &
 
 void JavascriptCodeEditor::createMissingCaseStatementsForComponents()
 {
-	const String allText = getDocument().getAllContent();
+	String allText = getDocument().getAllContent();
 
 	if (allText.startsWith("function onControl"))
 	{
-		const int switchIndex = allText.indexOf("switch");
+		int switchIndex = allText.indexOf("switch");
+
+		if (switchIndex == -1)
+		{
+			const String switchStatement = "switch(number)\r\n\t{\r\n\t}";
+
+			CodeDocument::Position(getDocument(), 2, 0);
+
+			insertTextAtCaret(switchStatement);
+
+			allText = getDocument().getAllContent();
+
+			switchIndex = allText.indexOf("switch");
+		}
 
 		if (switchIndex != -1)
 		{
@@ -410,13 +506,13 @@ void JavascriptCodeEditor::createMissingCaseStatementsForComponents()
 
 			CodeDocument::Position insertPos(getDocument(), startIndex);
 
-			ProcessorWithScriptingContent* ps = dynamic_cast<ProcessorWithScriptingContent*>(findParentComponentOfClass<ScriptingEditor>()->getProcessor());
+			ProcessorWithScriptingContent* ps = dynamic_cast<ProcessorWithScriptingContent*>(scriptProcessor);
 
 			ScriptingApi::Content* content = ps->getScriptingContent();
 
 			int count = 0;
 
-			for (int i = 0; i < content->getNumComponents(); i++)
+			for (int i = content->getNumComponents()-1; i >= 0 ; i--)
 			{
 				const String widgetName = content->getComponent(i)->getName().toString();
 
@@ -473,7 +569,7 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &menu, const MouseEvent *
 
 	for (int i = 0; i < all.size(); i++)
 	{
-		if (all[i].startsWith("//!"))
+		if (all[i].trim().startsWith("//!"))
 		{
 			bookmarks.add(Bookmarks(all[i], i));
 		}
@@ -515,13 +611,15 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &menu, const MouseEvent *
 		menu.addSeparator();
 	}
 
+	menu.addItem(111, "Open in external window", true, false);
+
     CodeEditorComponent::addPopupMenuItems(menu, e);
     
     
     
     ScriptingEditor *editor = findParentComponentOfClass<ScriptingEditor>();
     
-    if(editor != nullptr)
+    if(true)
     {
 		
 		menu.addSeparator();
@@ -618,16 +716,13 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
     }
 	else if (menuId == 105)
 	{
-		if (currentModalWindow.getComponent() != 0)
-		{
-			currentModalWindow.deleteAndZero();
-		}
-
 		CodeReplacer * replacer = new CodeReplacer(this);
 
 		currentModalWindow = replacer;
 
 		replacer->setModalBaseWindowComponent(this);
+		replacer->getTextEditor("search")->grabKeyboardFocus();
+		
 		
 	}
 	else if (menuId == 106) // Add bookmark
@@ -681,6 +776,18 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 			if (scriptProcessor->getWatchedFile(i).getFileName() == fileName)
 			{
 				scriptProcessor->showPopupForFile(i);
+			}
+		}
+	}
+	else if (menuId == 111) // Open in external window
+	{
+		const CodeDocument* thisDocument = &getDocument();
+
+		for (int i = 0; i < scriptProcessor->getNumSnippets(); i++)
+		{
+			if (scriptProcessor->getSnippet(i) == thisDocument)
+			{
+				scriptProcessor->showPopupForCallback(scriptProcessor->getSnippet(i)->getCallbackName(), getCaretPos().getIndexInLine(), getCaretPos().getLineNumber());
 			}
 		}
 	}
@@ -816,13 +923,15 @@ void JavascriptCodeEditor::closeAutoCompleteNew(const String returnString)
 
 void JavascriptCodeEditor::handleEscapeKey()
 {
-	if (currentPopup == nullptr)
+	if (highlightedSelection.size() != 0)
 	{
-		showAutoCompleteNew();
+		highlightedSelection.clear();
+		repaint();
 	}
 	else
 	{
-		closeAutoCompleteNew(String());
+		if (currentPopup == nullptr) showAutoCompleteNew();
+		else						 closeAutoCompleteNew(String());
 	}
 }
 
@@ -830,6 +939,34 @@ void JavascriptCodeEditor::handleEscapeKey()
 void JavascriptCodeEditor::paintOverChildren(Graphics& g)
 {
 	CopyPasteTarget::paintOutlineIfSelected(g);
+
+	if (highlightedSelection.size() != 0)
+	{
+		const int firstLine = getFirstLineOnScreen();
+		const int numLinesShown = getNumLinesOnScreen();
+		Range<int> lineRange(firstLine, firstLine + numLinesShown);
+
+		for (int i = 0; i < highlightedSelection.size(); i++)
+		{
+			CodeDocument::Position pos(getDocument(), highlightedSelection[i].getStart());
+
+			const int lineIndex = pos.getLineNumber();
+			
+			if (lineRange.contains(lineIndex))
+			{
+				const int x = getCharacterBounds(pos).getX();
+                const int y = getCharacterBounds(pos).getY();
+                
+				const int w = getCharWidth() * highlightedSelection[i].getLength();
+				const int h = getLineHeight();
+
+				g.setColour(Colours::green.withAlpha(0.4f));
+				g.fillRoundedRectangle((float)x-1.0f, (float)y, (float)w+2.0f, (float)h, 2.0f);
+                g.setColour(Colours::white.withAlpha(0.5f));
+                g.drawRoundedRectangle((float)x-1.0f, (float)y, (float)w+2.0f, (float)h, 2.0f, 1.0f);
+			}
+		}
+	}
 }
 
 
@@ -893,6 +1030,40 @@ void JavascriptCodeEditor::handleDoubleCharacter(const KeyPress &k, char openCha
 	{
 		getDocument().deleteSection(getCaretPos(), getCaretPos().movedBy(1));
 	}
+}
+
+void JavascriptCodeEditor::increaseMultiSelectionForCurrentToken()
+{
+	const auto selectedRange = getHighlightedRegion();
+	
+	if (!selectedRange.isEmpty() && highlightedSelection.size() == 0)
+	{
+		highlightedSelection.add(selectedRange);
+
+		moveCaretTo(getSelectionStart(), false);
+
+		repaint();
+		return;
+	}
+
+	int startIndex = highlightedSelection.getLast().getEnd();
+	
+	const String currentToken = getTextInRange(highlightedSelection.getLast());
+	const String allText = getDocument().getAllContent().substring(startIndex);
+
+	const int nextIndex = allText.indexOf(currentToken);
+	
+	if (nextIndex != -1)
+	{
+		CodeRegion nextRegion;
+		
+		nextRegion.setStart(startIndex + nextIndex);
+		nextRegion.setLength(highlightedSelection.getFirst().getLength());
+
+		highlightedSelection.addIfNotAlreadyThere(nextRegion);
+	}
+
+	repaint();
 }
 
 bool JavascriptCodeEditor::keyPressed(const KeyPress& k)
@@ -968,16 +1139,18 @@ bool JavascriptCodeEditor::keyPressed(const KeyPress& k)
 	}
 	else if (k.isKeyCode(72) && k.getModifiers().isCommandDown()) // Ctrl + H 
 	{
-		if (currentModalWindow.getComponent() != 0)
-		{
-			currentModalWindow.deleteAndZero();
-		}
-
 		CodeReplacer * replacer = new CodeReplacer(this);
 
 		currentModalWindow = replacer;
 
 		replacer->setModalBaseWindowComponent(this);
+		replacer->getTextEditor("search")->grabKeyboardFocus();
+		return true;
+	}
+	else if (k.isKeyCode('D') && k.getModifiers().isCommandDown())
+	{
+		increaseMultiSelectionForCurrentToken();
+		return true;
 	}
 	else if (k.isKeyCode(KeyPress::F4Key))
 	{
@@ -1005,27 +1178,36 @@ bool JavascriptCodeEditor::keyPressed(const KeyPress& k)
 
 	if(k != KeyPress::escapeKey) startTimer(800);
 
-#if 0
-	const bool multiLineMode = false;
+    if (k == KeyPress::backspaceKey && highlightedSelection.size() != 0)
+    {
+        Range<int> firstSelectedPosition = highlightedSelection.getFirst();
+        
+        firstSelectedPosition.setEnd(firstSelectedPosition.getEnd() + 1);
+        
+        if (firstSelectedPosition.contains(getCaretPos().getPosition()))
+        {
+            const int offsetInSelection = getCaretPos().getPosition() - firstSelectedPosition.getStart();
+            
+            for (int i = 0; i < highlightedSelection.size(); i++)
+            {
+                CodeRegion* r = &highlightedSelection.getRawDataPointer()[i];
+                
+                r->setStart(r->getStart() - i);
+                r->setLength(firstSelectedPosition.getLength() - 2);
+                
+                CodeDocument::Position nextPos(getDocument(), r->getStart() + offsetInSelection + 1);
+                
+                if (i != 0)
+                {
+                    getDocument().deleteSection(nextPos.movedBy(-1), nextPos);
+                }
+            }
+            
+            repaint();
+        }
+    }
 
-	if (multiLineMode)
-	{
-		CodeDocument::Position nextPos(getDocument(), getCaretPos().getLineNumber() + 1, getCaretPos().getIndexInLine());
-
-		if (k.getTextCharacter() >= ' ')
-		{
-			
-
-			getDocument().insertText(nextPos, String::charToString(k.getTextCharacter()));
-		}
-		else if (k == KeyPress::backspaceKey)
-		{
-			
-			getDocument().deleteSection(nextPos.movedBy(-1), nextPos);
-		}
-	}
-#endif
-	
+    
 
 	return CodeEditorComponent::keyPressed(k);
 }
@@ -1113,9 +1295,37 @@ void JavascriptCodeEditor::insertTextAtCaret(const String& newText)
 		}
 	}
 
+    if (highlightedSelection.size() != 0)
+    {
+        Range<int> firstSelectedPosition = highlightedSelection.getFirst();
+        
+        firstSelectedPosition.setEnd(firstSelectedPosition.getEnd() + 1);
+        
+        if (firstSelectedPosition.contains(getCaretPos().getPosition()))
+        {
+            const int offsetInSelection = getCaretPos().getPosition() - firstSelectedPosition.getStart();
+            
+            for (int i = 0; i < highlightedSelection.size(); i++)
+            {
+                CodeRegion* r = &highlightedSelection.getRawDataPointer()[i];
+                
+                r->setStart(r->getStart() + i);
+                r->setLength(firstSelectedPosition.getLength());
+                
+                if (i != 0)
+                {
+                    CodeDocument::Position nextPos(getDocument(), r->getStart() + offsetInSelection - 1);
+                    getDocument().insertText(nextPos, newText);
+                }
+            }
+            
+            repaint();
+        }
+    }
+    
 #if JUCE_MAC
-
-	if (currentPopup != nullptr)
+    
+    if (currentPopup != nullptr)
 	{
 		if (newText.length() == 1)
 		{
@@ -1780,11 +1990,12 @@ void JavascriptCodeEditor::AutoCompletePopup::InfoBox::paint(Graphics &g)
 
 PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor *s, const File &fileToEdit) :
 sp(s),
-file(fileToEdit)
+file(fileToEdit),
+callback(Identifier())
 {
 	Processor *p = dynamic_cast<Processor*>(sp);
 
-	doc = new CodeDocument();
+	doc.setOwned(new CodeDocument());
 
 	doc->replaceAllContent(file.loadFileAsString());
 
@@ -1805,10 +2016,62 @@ file(fileToEdit)
 	setSize(800, 800);
 }
 
+PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor* s, const Identifier &callback_):
+	sp(s),
+	file(File()),
+	callback(callback_)
+{
+	Processor *p = dynamic_cast<Processor*>(sp);
+
+	doc.setNonOwned(sp->getSnippet(callback_));
+
+
+	tokeniser = new JavascriptTokeniser();
+	addAndMakeVisible(editor = new JavascriptCodeEditor(*doc, tokeniser, s));
+
+	addAndMakeVisible(resultLabel = new Label());
+
+	resultLabel->setFont(GLOBAL_MONOSPACE_FONT());
+	resultLabel->setColour(Label::ColourIds::backgroundColourId, Colours::darkgrey);
+	resultLabel->setColour(Label::ColourIds::textColourId, Colours::white);
+	resultLabel->setEditable(false, false, false);
+
+	setSize(800, 800);
+}
+
+PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor* s):
+	sp(s),
+	file(File()),
+	callback(Identifier())
+{
+	Processor *p = dynamic_cast<Processor*>(sp);
+
+	doc.setOwned(new CodeDocument());
+
+	String allCode;
+	sp->mergeCallbacksToScript(allCode);
+
+	doc->replaceAllContent(allCode);
+	doc->clearUndoHistory();
+	doc->setSavePoint();
+
+	tokeniser = new JavascriptTokeniser();
+	addAndMakeVisible(editor = new JavascriptCodeEditor(*doc, tokeniser, s));
+
+	addAndMakeVisible(resultLabel = new Label());
+
+	resultLabel->setFont(GLOBAL_MONOSPACE_FONT());
+	resultLabel->setColour(Label::ColourIds::backgroundColourId, Colours::darkgrey);
+	resultLabel->setColour(Label::ColourIds::textColourId, Colours::white);
+	resultLabel->setEditable(false, false, false);
+
+	setSize(800, 800);
+}
+
 PopupIncludeEditor::~PopupIncludeEditor()
 {
 	editor = nullptr;
-	doc = nullptr;
+	doc.clear();
 	tokeniser = nullptr;
 
 	Processor *p = dynamic_cast<Processor*>(sp);
@@ -1830,12 +2093,22 @@ bool PopupIncludeEditor::keyPressed(const KeyPress& key)
 {
 	if (key.isKeyCode(KeyPress::F5Key))
 	{
-		CodeDocument::Position pos = editor->getCaretPos();
+		if (file.existsAsFile())
+		{
+			String editorContent = doc->getAllContent();
+			file.replaceWithText(editorContent);
+		}
+		
+		if (isWholeScriptEditor())
+		{
+			sp->parseSnippetsFromString(doc->getAllContent());
+			doc->setSavePoint();
+			sp->setCompileScriptAsWhole(true);
 
-		String editorContent = doc->getAllContent();
-
-		file.replaceWithText(editorContent);
+		}
+		
 		sp->compileScript();
+		sp->setCompileScriptAsWhole(false);
 
 		lastCompileOk = sp->wasLastCompileOK();
 
@@ -1880,11 +2153,41 @@ file(f)
 
 	setUsingNativeTitleBar(true);
 
+	centreWithSize(800, 800);
+	setResizable(true, true);
+	setVisible(true);
+}
+
+PopupIncludeEditorWindow::PopupIncludeEditorWindow(const Identifier& callbackName, JavascriptProcessor* s):
+	DocumentWindow("Editing callback : " + callbackName.toString(), Colours::black, DocumentWindow::allButtons, true),
+	file(File()),
+	callback(callbackName)
+{
+	editor = new PopupIncludeEditor(s, callback);
+
+	setContentNonOwned(editor, true);
+
+	setUsingNativeTitleBar(true);
 
 	centreWithSize(800, 800);
-
 	setResizable(true, true);
+	setVisible(true);
+}
 
+PopupIncludeEditorWindow::PopupIncludeEditorWindow(Component* se, JavascriptProcessor* s) :
+	DocumentWindow("Editing script : " + dynamic_cast<Processor*>(s)->getId(), Colours::black, DocumentWindow::allButtons, true),
+	file(File()),
+	callback(Identifier()),
+	parentEditorBody(se)
+{
+	editor = new PopupIncludeEditor(s);
+
+	setContentNonOwned(editor, true);
+
+	setUsingNativeTitleBar(true);
+
+	centreWithSize(800, 800);
+	setResizable(true, true);
 	setVisible(true);
 }
 
@@ -1924,7 +2227,27 @@ void PopupIncludeEditorWindow::closeButtonPressed()
 		Desktop::getInstance().setKioskModeComponent(nullptr, false);
 	}
 
-	delete this;
+	if (parentEditorBody.getComponent() != nullptr)
+	{
+		ScriptingEditor* se = dynamic_cast<ScriptingEditor*>(parentEditorBody.getComponent());
+
+		if (editor->editor->getDocument().hasChangedSinceSavePoint())
+		{
+			if (PresetHandler::showYesNoWindow("Apply changes", "The script was edited. Do you want to apply the changes before closing?"))
+			{
+				JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(se->getProcessor());
+
+				sp->parseSnippetsFromString(editor->editor->getDocument().getAllContent());
+				sp->compileScript();
+			}
+		}
+
+		dynamic_cast<ScriptingEditor*>(parentEditorBody.getComponent())->closeAllPopup();
+	}
+	else
+	{
+		delete this;
+	}
 }
 
 void PopupIncludeEditorWindow::gotoChar(int character, int lineNumber/*=-1*/)

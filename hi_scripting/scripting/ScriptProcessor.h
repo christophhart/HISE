@@ -347,6 +347,9 @@ public:
 	virtual const SnippetDocument *getSnippet(int c) const = 0;
 	virtual int getNumSnippets() const = 0;
 
+	SnippetDocument *getSnippet(const Identifier& id);
+	const SnippetDocument *getSnippet(const Identifier& id) const;
+
 	void saveScript(ValueTree &v) const;
 	void restoreScript(const ValueTree &v);
 
@@ -361,7 +364,13 @@ public:
 
 	void setCompileProgress(double progress);
 
+	void showPopupForCallback(const Identifier& callback, int charNumber, int lineNumber);
+
+	void setCompileScriptAsWhole(bool shouldCompileWholeScript) { compileScriptAsWhole = shouldCompileWholeScript; }
+
 protected:
+
+	void clearExternalWindows();
 
 	friend class ProcessorWithScriptingContent;
 
@@ -404,6 +413,12 @@ protected:
 
 	bool lastCompileWasOK;
 	bool useStoredContentData = false;
+
+	bool compileScriptAsWhole = false;
+
+private:
+
+	Array<Component::SafePointer<DocumentWindow>> callbackPopups;
 };
 
 

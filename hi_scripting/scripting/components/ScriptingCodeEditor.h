@@ -43,6 +43,8 @@ public:
 	// ================================================================================================================
 
 	PopupIncludeEditor(JavascriptProcessor *s, const File &fileToEdit);
+	PopupIncludeEditor(JavascriptProcessor* s, const Identifier &callback);
+	PopupIncludeEditor(JavascriptProcessor* s);
 	~PopupIncludeEditor();
 
 	void timerCallback();
@@ -51,19 +53,26 @@ public:
 
 	void gotoChar(int character, int lineNumber=-1);
 
+	
 
 private:
+
+	friend class PopupIncludeEditorWindow;
+
+	bool isCallbackEditor() { return !callback.isNull(); }
+	bool isWholeScriptEditor() { return callback.isNull() && !file.existsAsFile(); }
 
 	int fontSize;
 
 	ScopedPointer<JavascriptTokeniser> tokeniser;
 	ScopedPointer < JavascriptCodeEditor > editor;
-	ScopedPointer <CodeDocument> doc;
+	OptionalScopedPointer<CodeDocument> doc;
 	
 	ScopedPointer<Label> resultLabel;	
 
 	JavascriptProcessor *sp;
 	File file;
+	const Identifier callback;
 
 	bool lastCompileOk;
 
@@ -72,7 +81,8 @@ private:
 	// ================================================================================================================
 };
 
-class PopupIncludeEditorWindow: public DocumentWindow
+class PopupIncludeEditorWindow: public DocumentWindow,
+								public ModalBaseWindow
 {
 public:
 
@@ -80,7 +90,13 @@ public:
 
 	PopupIncludeEditorWindow(File f, JavascriptProcessor *s);
     
+	PopupIncludeEditorWindow(const Identifier& callbackName, JavascriptProcessor* s);
+
+	PopupIncludeEditorWindow(Component* scriptingEditor, JavascriptProcessor* s);
+
     File getFile() const {return file;};
+	Identifier getCallback() const { return callback; }
+
 	void paint(Graphics &g) override;
 	bool keyPressed(const KeyPress& key);;
 	void closeButtonPressed() override;;
@@ -89,8 +105,10 @@ public:
 
 private:
 
+	Component::SafePointer<Component> parentEditorBody;
     ScopedPointer<PopupIncludeEditor> editor;
     const File file;
+	const Identifier callback;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PopupIncludeEditorWindow);
 
@@ -121,6 +139,10 @@ public:
 		JSONFound,
 		NoJSONFound
 	};
+
+	typedef Range<int> CodeRegion;
+
+	// ================================================================================================================
 
 	JavascriptCodeEditor(CodeDocument &document, CodeTokeniser *codeTokeniser, JavascriptProcessor *p);;
 	virtual ~JavascriptCodeEditor();
@@ -160,6 +182,8 @@ public:
 
 	void paintOverChildren(Graphics& g);
 
+	void rebuildHighlightedSelection(Array<CodeRegion> &newArray) { highlightedSelection.swapWith(newArray); repaint(); }
+
 	bool keyPressed(const KeyPress& k) override;
 	void handleReturnKey() override;;
 	void handleEscapeKey() override;
@@ -180,9 +204,18 @@ public:
 		public:
 			AllToTheEditorTraverser(JavascriptCodeEditor *editor_): editor(editor_) {};
 
-			virtual Component* getNextComponent(Component* /*current*/) { return editor; }
-			virtual Component* getPreviousComponent(Component* /*current*/) { return editor; }
-			virtual Component* getDefaultComponent(Component* /*parentComponent*/) { return editor; }
+			virtual Component* getNextComponent(Component* /*current*/)
+			{ 
+				return editor; 
+			}
+			virtual Component* getPreviousComponent(Component* /*current*/) 
+			{ 
+				return editor; 
+			}
+			virtual Component* getDefaultComponent(Component* /*parentComponent*/)
+			{ 
+				return editor; 
+			}
 
 			JavascriptCodeEditor *editor;
 		};
@@ -277,10 +310,15 @@ public:
 		// ================================================================================================================
 	};
 
+	
+
 private:
+
+	
 
 	// ================================================================================================================
 
+	Array<CodeRegion> highlightedSelection;
 	
 	Range<int> getCurrentTokenRange() const;
 	bool isNothingSelected() const;
@@ -333,6 +371,7 @@ private:
 
 	Array<Bookmarks> bookmarks;
 	
+	void increaseMultiSelectionForCurrentToken();
 };
 
 

@@ -232,6 +232,43 @@ void FileChangeListener::showPopupForFile(int index, int charNumberToDisplay/*=0
 #endif
 }
 
+void JavascriptProcessor::showPopupForCallback(const Identifier& callback, int charNumberToDisplay, int lineNumberToDisplay)
+{
+#if USE_BACKEND
+	for (int i = 0; i < callbackPopups.size(); i++)
+	{
+		if (callbackPopups[i] == nullptr)
+		{
+			callbackPopups.remove(i--);
+			continue;
+		}
+
+		if (dynamic_cast<PopupIncludeEditorWindow*>(callbackPopups[i].getComponent())->getCallback() == callback)
+		{
+			callbackPopups[i]->toFront(true);
+
+			if (charNumberToDisplay != 0)
+			{
+				dynamic_cast<PopupIncludeEditorWindow*>(callbackPopups[i].getComponent())->gotoChar(charNumberToDisplay, lineNumberToDisplay);
+			}
+
+			return;
+		}
+	}
+
+	PopupIncludeEditorWindow *popup = new PopupIncludeEditorWindow(callback, dynamic_cast<JavascriptProcessor*>(this));
+
+	callbackPopups.add(popup);
+
+	popup->addToDesktop();
+
+	if (charNumberToDisplay != 0)
+	{
+		popup->gotoChar(charNumberToDisplay, lineNumberToDisplay);
+	}
+#endif
+}
+
 ValueTree FileChangeListener::collectAllScriptFiles(ModulatorSynthChain *chainToExport)
 {
 	Processor::Iterator<JavascriptProcessor> iter(chainToExport);
@@ -289,6 +326,7 @@ lastResult(Result::ok())
 
 JavascriptProcessor::~JavascriptProcessor()
 {
+	
 	scriptEngine = nullptr;
 }
 
@@ -300,6 +338,23 @@ void JavascriptProcessor::fileChanged()
 
 
 
+
+void JavascriptProcessor::clearExternalWindows()
+{
+	if (callbackPopups.size() != 0)
+	{
+		for (int i = 0; i < callbackPopups.size(); i++)
+		{
+			if (callbackPopups[i].getComponent() != nullptr)
+			{
+				callbackPopups[i]->closeButtonPressed();
+			}
+
+		}
+
+		callbackPopups.clear();
+	}
+}
 
 JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 {
@@ -325,30 +380,57 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 	const static Identifier onInit("onInit");
 
-	for (int i = 0; i < getNumSnippets(); i++)
+	if (compileScriptAsWhole)
 	{
-		getSnippet(i)->checkIfScriptActive();
-
-		if (!getSnippet(i)->isSnippetEmpty())
+		// Check the rest of the snippets or they will be deleted on failed compile...
+		for (int i = 0; i < getNumSnippets(); i++)
 		{
-			lastResult = scriptEngine->execute(getSnippet(i)->getSnippetAsFunction(), getSnippet(i)->getCallbackName() == onInit);
+			getSnippet(i)->checkIfScriptActive();
+		}
 
-			if (!lastResult.wasOk())
+		String wholeScript;
+		mergeCallbacksToScript(wholeScript);
+
+		lastResult = scriptEngine->execute(wholeScript, true);
+
+		if (!lastResult.wasOk())
+		{
+			content->endInitialization();
+			thisAsScriptBaseProcessor->allowObjectConstructors = false;
+
+			lastCompileWasOK = false;
+
+			scriptEngine->rebuildDebugInformation();
+			return SnippetResult(lastResult, 0);
+		}
+	}
+	else
+	{
+		for (int i = 0; i < getNumSnippets(); i++)
+		{
+			getSnippet(i)->checkIfScriptActive();
+
+			if (!getSnippet(i)->isSnippetEmpty())
 			{
-				content->endInitialization();
-				thisAsScriptBaseProcessor->allowObjectConstructors = false;
+				lastResult = scriptEngine->execute(getSnippet(i)->getSnippetAsFunction(), getSnippet(i)->getCallbackName() == onInit);
 
-				// Check the rest of the snippets or they will be deleted on failed compile...
-				for (int j = i; j < getNumSnippets(); j++)
+				if (!lastResult.wasOk())
 				{
-					getSnippet(j)->checkIfScriptActive();
+					content->endInitialization();
+					thisAsScriptBaseProcessor->allowObjectConstructors = false;
+
+					// Check the rest of the snippets or they will be deleted on failed compile...
+					for (int j = i; j < getNumSnippets(); j++)
+					{
+						getSnippet(j)->checkIfScriptActive();
+					}
+
+					lastCompileWasOK = false;
+
+					scriptEngine->rebuildDebugInformation();
+					return SnippetResult(lastResult, i);
+
 				}
-
-				lastCompileWasOK = false;
-
-				scriptEngine->rebuildDebugInformation();
-				return SnippetResult(lastResult, i);
-
 			}
 		}
 	}
@@ -458,6 +540,26 @@ void JavascriptProcessor::registerCallbacks()
 }
 
 
+JavascriptProcessor::SnippetDocument * JavascriptProcessor::getSnippet(const Identifier& id)
+{
+	for (int i = 0; i < getNumSnippets(); i++)
+	{
+		if (getSnippet(i)->getCallbackName() == id) return getSnippet(i);
+	}
+
+	return nullptr;
+}
+
+const JavascriptProcessor::SnippetDocument * JavascriptProcessor::getSnippet(const Identifier& id) const
+{
+	for (int i = 0; i < getNumSnippets(); i++)
+	{
+		if (getSnippet(i)->getCallbackName() == id) return getSnippet(i);
+	}
+
+	return nullptr;
+}
+
 void JavascriptProcessor::saveScript(ValueTree &v) const
 {
 	String x;
@@ -542,6 +644,8 @@ void JavascriptProcessor::setCompileProgress(double progress)
 		currentCompileThread->setProgress(progress);
 	}
 }
+
+
 
 JavascriptProcessor::SnippetDocument::SnippetDocument(const Identifier &callbackName_, const String &parameters_) :
 CodeDocument(),

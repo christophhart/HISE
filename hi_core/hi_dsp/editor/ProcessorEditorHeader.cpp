@@ -1043,7 +1043,7 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 			CreateScriptVariable,
 			ReplaceWithClipboardContent,
 			SaveAllSamplesToGlobalFolder,
-			OpenIncludedFileInPopup,
+			OpenAllScriptsInPopup,
 			numMenuItems
 		};
 
@@ -1092,7 +1092,7 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 		{
 			m.addSeparator();
 			m.addSectionHeader("Script Processor Tools");
-			m.addItem(OpenIncludedFileInPopup, "Open Included File in Popup Window", sp->getNumWatchedFiles() != 0);
+			m.addItem(OpenAllScriptsInPopup, "Open Script in Popup Window", true);
 		}
 
 		int result = m.show();
@@ -1146,15 +1146,9 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 			
 			PresetHandler::showMessageWindow("Invalid Preset", "The clipboard does not contain a valid container.", PresetHandler::IconType::Warning);
 		}
-		else if (result == OpenIncludedFileInPopup)
+		else if (result == OpenAllScriptsInPopup)
 		{
-			JavascriptProcessor *sp = dynamic_cast<JavascriptProcessor*>(getProcessor());
-
-			if (sp->getNumWatchedFiles() == 1)
-			{
-				sp->showPopupForFile(0);
-
-			}
+			dynamic_cast<ScriptingEditor*>(getEditor()->getBody())->editInAllPopup();
 		}
 		else
 		{

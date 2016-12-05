@@ -48,6 +48,29 @@ class RegexFunctions
 {
 public:
     
+	static Array<StringArray> findSubstringsThatMatchWildcard(const String &regexWildCard, const String &stringToTest)
+	{
+		Array<StringArray> matches;
+
+		String remainingText = stringToTest;
+
+		StringArray m = getMatches(regexWildCard, remainingText);
+
+		while (m.size() != 0 && m[0].length() != 0)
+		{
+			remainingText = remainingText.fromFirstOccurrenceOf(m[0], false, false);
+			matches.add(m);
+			m = getMatches(regexWildCard, remainingText);
+		}
+
+		return matches;
+	}
+
+	static String replace(const String &regexWildcard, const String &originalString)
+	{
+		
+	}
+
     static StringArray getMatches(const String &wildcard, const String &stringToTest, const Processor* /*processorForErrorOutput*/=nullptr)
     {
         try

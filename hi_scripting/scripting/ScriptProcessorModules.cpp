@@ -64,6 +64,15 @@ deferredUpdatePending(false)
 
 JavascriptMidiProcessor::~JavascriptMidiProcessor()
 {
+	clearExternalWindows();
+
+	onInitCallback = nullptr;
+	onNoteOnCallback = nullptr;
+	onNoteOffCallback = nullptr;
+	onControllerCallback = nullptr;
+	onTimerCallback = nullptr;
+	onControlCallback = nullptr;
+
 #if USE_BACKEND
 	if (consoleEnabled)
 	{
@@ -425,6 +434,8 @@ onControlCallback(new SnippetDocument("onControl", "number value"))
 
 JavascriptMasterEffect::~JavascriptMasterEffect()
 {
+	clearExternalWindows();
+
 	bufferL = nullptr;
 	bufferR = nullptr;
 
@@ -584,6 +595,8 @@ ProcessorWithScriptingContent(mc)
 
 JavascriptVoiceStartModulator::~JavascriptVoiceStartModulator()
 {
+	clearExternalWindows();
+
 #if USE_BACKEND
 	if (consoleEnabled)
 	{
@@ -732,6 +745,8 @@ buffer(new VariantBuffer(0))
 
 JavascriptTimeVariantModulator::~JavascriptTimeVariantModulator()
 {
+	clearExternalWindows();
+
 	ScopedWriteLock sl(mainController->getCompileLock());
 
 	onInitCallback = new SnippetDocument("onInit");
@@ -944,7 +959,7 @@ buffer(new VariantBuffer(0))
 
 JavascriptEnvelopeModulator::~JavascriptEnvelopeModulator()
 {
-
+	clearExternalWindows();
 }
 
 Path JavascriptEnvelopeModulator::getSpecialSymbol() const
@@ -1321,6 +1336,8 @@ onControlCallback(new SnippetDocument("onControl", "number value"))
 
 JavascriptModulatorSynth::~JavascriptModulatorSynth()
 {
+	clearExternalWindows();
+
 #if USE_BACKEND
 	if (consoleEnabled)
 	{

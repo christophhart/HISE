@@ -128,6 +128,9 @@ public:
 
 	void showOnInitCallback();
 
+	void editInAllPopup();
+	void closeAllPopup();
+
 	void gotoChar(int character);
 
 	void mouseDown(const MouseEvent &e) override;
@@ -428,41 +431,44 @@ public:
 							}
 						}
 					}
-
-					if (newBounds.getX() < limits.getX())
-					{
-						newBounds.setX(limits.getX());
-					}
-					if (newBounds.getRight() > limits.getRight())
-					{
-						if (isResizing)
-						{
-							newBounds.setWidth(limits.getRight() - newBounds.getX());
-						}
-						else
-						{
-							newBounds.setX(limits.getRight() - newBounds.getWidth());
-						}
-
-						
-					}
-					if (newBounds.getY() < limits.getY())
-					{
-						newBounds.setY(limits.getY());
-					}
-					if (newBounds.getBottom() > limits.getBottom())
-					{
-						if (isResizing)
-						{
-							newBounds.setHeight(limits.getBottom() - newBounds.getY());
-						}
-						else
-						{
-							newBounds.setY(limits.getBottom() - newBounds.getHeight());
-						}
-						
-					}
-
+                    
+                    if(newBounds.getWidth() < limits.getWidth()) // Skip limiting if the component is bigger than the editor
+                    {
+                        if (newBounds.getX() < limits.getX())
+                        {
+                            newBounds.setX(limits.getX());
+                        }
+                        if (newBounds.getRight() > limits.getRight())
+                        {
+                            if (isResizing)
+                            {
+                                newBounds.setWidth(limits.getRight() - newBounds.getX());
+                            }
+                            else
+                            {
+                                newBounds.setX(limits.getRight() - newBounds.getWidth());
+                            }
+                            
+                            
+                        }
+                        if (newBounds.getY() < limits.getY())
+                        {
+                            newBounds.setY(limits.getY());
+                        }
+                        if (newBounds.getBottom() > limits.getBottom())
+                        {
+                            if (isResizing)
+                            {
+                                newBounds.setHeight(limits.getBottom() - newBounds.getY());
+                            }
+                            else
+                            {
+                                newBounds.setY(limits.getBottom() - newBounds.getHeight());
+                            }
+                            
+                        }
+                    }
+                    
 					currentPosition = Rectangle<int>(newBounds);
 				}
 
@@ -630,6 +636,7 @@ public:
 		ScopedPointer<Dragger> dragger;
 
 		ScopedPointer<ShapeButton> dragModeButton;
+
 	};
 
 
@@ -641,6 +648,8 @@ private:
 	ScopedPointer<CodeDocument> doc;
 
 	ScopedPointer<JavascriptTokeniser> tokenizer;
+
+	ScopedPointer<PopupIncludeEditorWindow> allEditor;
 
 	bool editorShown;
 
