@@ -77,7 +77,7 @@ void CompileExporter::exportInternal(ModulatorSynthChain* chainToExport, TargetT
 
 		convertTccScriptsToCppClasses(chainToExport);
 		writePresetFile(chainToExport, directoryPath, uniqueId);
-		writeEmbeddedFiles(chainToExport, directoryPath);
+		writeEmbeddedFiles(chainToExport, directoryPath, type);
 		writeUserPresetFiles(chainToExport, directoryPath);
 
 		writeReferencedAudioFiles(chainToExport, directoryPath);
@@ -256,17 +256,20 @@ void CompileExporter::writeUserPresetFiles(ModulatorSynthChain * chainToExport, 
 	PresetHandler::writeValueTreeAsFile(userPresets, File(directoryPath).getChildFile("userPresets").getFullPathName());
 }
 
-void CompileExporter::writeEmbeddedFiles(ModulatorSynthChain * chainToExport, const String &directoryPath)
+void CompileExporter::writeEmbeddedFiles(ModulatorSynthChain * chainToExport, const String &directoryPath, TargetTypes types)
 {
 	ValueTree externalScriptFiles = FileChangeListener::collectAllScriptFiles(chainToExport);
 	ValueTree customFonts = chainToExport->getMainController()->exportCustomFontsAsValueTree();
-	ValueTree sampleMaps = collectAllSampleMapsInDirectory(chainToExport);
+    ValueTree sampleMaps;
+    
+    if(types != TargetTypes::EffectPlugin) sampleMaps = collectAllSampleMapsInDirectory(chainToExport);
 
 
 	ValueTree externalFiles("ExternalFiles");
 	externalFiles.addChild(externalScriptFiles, -1, nullptr);
 	externalFiles.addChild(customFonts, -1, nullptr);
-	externalFiles.addChild(sampleMaps, -1, nullptr);
+	
+    if(types != TargetTypes::EffectPlugin) externalFiles.addChild(sampleMaps, -1, nullptr);
 
 	PresetHandler::writeValueTreeAsFile(externalFiles, File(directoryPath).getChildFile("externalFiles").getFullPathName(), true);
 }

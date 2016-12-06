@@ -91,7 +91,7 @@ private:
 
 	static void writeReferencedAudioFiles(ModulatorSynthChain * chainToExport, const String directoryPath);
 
-	static void writeEmbeddedFiles(ModulatorSynthChain * chainToExport, const String &directoryPath);
+	static void writeEmbeddedFiles(ModulatorSynthChain * chainToExport, const String &directoryPath, TargetTypes types);
 
 	static void writeUserPresetFiles(ModulatorSynthChain * chainToExport, const String &directoryPath);
 
