@@ -113,7 +113,7 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "    <XCODE_MAC targetFolder=\"Builds/MacOSX\"  vstFolder=\"%VSTSDK_FOLDER%\" extraCompilerFlags=\"-Wno-reorder -Wno-inconsistent-missing-override\"\r\n"
 "               customPList=\"&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;&#10;&lt;!DOCTYPE plist PUBLIC &quot;-//Apple//DTD PLIST 1.0//EN&quot; &quot;http://www.apple.com/DTDs/PropertyList-1.0.dtd&quot;&gt;&#10;&lt;plist version=&"
 "quot;1.0&quot;&gt;&#10;&lt;dict&gt;&#10;&lt;key&gt;NSAppTransportSecurity&lt;/key&gt; &#10;&lt;dict&gt; &#10;&lt;key&gt;NSAllowsArbitraryLoads&lt;/key&gt;&lt;true/&gt;&#10;&lt;/dict&gt;&#10;&lt;/dict&gt;&#10;&lt;/plist&gt;\"\r\n"
-"               extraLinkerFlags=\"%IPP_COMPILER_FLAGS%\">\r\n"
+"               extraLinkerFlags=\"%IPP_COMPILER_FLAGS% %OSX_STATIC_LIBS%\">\r\n"
 "                \r\n"
 "      <CONFIGURATIONS>\r\n"
 "        <CONFIGURATION name=\"Debug\" osxSDK=\"default\" osxCompatibility=\"10.7 SDK\" osxArchitecture=\"64BitUniversal\"\r\n"

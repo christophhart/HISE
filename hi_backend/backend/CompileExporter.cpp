@@ -834,6 +834,10 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Modulat
             
 		}
 
+        const String additionalStaticLibs = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::OSXStaticLibs, &GET_PROJECT_HANDLER(chainToExport));
+        
+        templateProject = templateProject.replace("%OSX_STATIC_LIBS%", additionalStaticLibs);
+        
         templateProject = templateProject.replace("%ICON_FILE%", "");
         
 		templateProject = templateProject.replace("%ADDITIONAL_FILES%", additionalFileDefinitions.joinIntoString(""));

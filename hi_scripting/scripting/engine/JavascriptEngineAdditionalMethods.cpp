@@ -567,16 +567,26 @@ void ScriptingObject::reportScriptError(const String &errorMessage) const
 {
 #if USE_BACKEND // needs to be customized because of the colour!
 
-	const DynamicObject* rootObject = dynamic_cast<JavascriptProcessor*>(const_cast<ProcessorWithScriptingContent*>(getScriptProcessor()))->getScriptEngine()->getRootObject();
-
-	HiseJavascriptEngine::RootObject::CodeLocation* loc = dynamic_cast<const HiseJavascriptEngine::RootObject*>(rootObject)->currentLocation;
-
-	if (loc != nullptr)
-	{
-		const String formattedMessage = loc->getCallbackName() + ": " + loc->getErrorMessage(errorMessage);
-		const_cast<MainController*>(getProcessor()->getMainController())->writeToConsole(formattedMessage, 1, getProcessor(), getScriptProcessor()->getScriptingContent()->getColour());
-	}
-
+    
+    JavascriptProcessor* jp = const_cast<JavascriptProcessor*>(dynamic_cast<const JavascriptProcessor*>(getScriptProcessor()));
+    
+    if(jp != nullptr)
+    {
+        const DynamicObject* rootObject = jp->getScriptEngine()->getRootObject();
+        
+        HiseJavascriptEngine::RootObject::CodeLocation* loc = dynamic_cast<const HiseJavascriptEngine::RootObject*>(rootObject)->currentLocation;
+        
+        if (loc != nullptr)
+        {
+            const String formattedMessage = loc->getCallbackName() + ": " + loc->getErrorMessage(errorMessage);
+            const_cast<MainController*>(getProcessor()->getMainController())->writeToConsole(formattedMessage, 1, getProcessor(), getScriptProcessor()->getScriptingContent()->getColour());
+        }
+    }
+    else
+    {
+        const_cast<MainController*>(getProcessor()->getMainController())->writeToConsole(errorMessage, 1, getProcessor());
+    }
+    
 #endif
 }
 

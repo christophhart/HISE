@@ -398,6 +398,7 @@ public:
 			EmbedAudioFiles,
 			AdditionalDspLibraries,
 			CustomToolbarClassName,
+            OSXStaticLibs,
 			numAttributes
 		};
 
