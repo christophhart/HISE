@@ -139,7 +139,7 @@ static const unsigned char projectStandaloneTemplate_jucer_lines[] =
 "      </MODULEPATHS>\r\n"
 "    </XCODE_MAC>\r\n"
 "    <XCODE_IPHONE targetFolder=\"Builds/iOS\" iosScreenOrientation=\"landscape\" extraCompilerFlags=\"-Wno-reorder -Wno-inconsistent-missing-override\" extraLinkerFlags=\"%OSX_STATIC_LIBS%\" extraDefs=\"USE_IPP=0&#10;HISE_IOS=1\" %ICON_FILE% \r\n"
-"                  UIStatusBarHidden=\"1\" iosBackgroundAudio=\"1\" iosBackgroundBle=\"1\">\r\n"
+"                  UIStatusBarHidden=\"1\" iosBackgroundAudio=\"1\" iosBackgroundBle=\"1\" customXcodeResourceFolders=\"%IOS_SAMPLE_FOLDER%\">\r\n"
 "      <CONFIGURATIONS>\r\n"
 "        <CONFIGURATION name=\"Debug\" iosCompatibility=\"8.0\" isDebug=\"1\" optimisation=\"1\"\r\n"
 "                       targetName=\"%NAME%\" cppLanguageStandard=\"c++11\" cppLibType=\"libc++\"/>\r\n"

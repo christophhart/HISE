@@ -1141,6 +1141,18 @@ const String ProjectHandler::getFileReference(const String &absoluteFileName, Su
 File ProjectHandler::Frontend::getSampleLocationForCompiledPlugin()
 {
 #if USE_FRONTEND
+    
+#if HISE_IOS
+    
+    File f = File::getSpecialLocation(File::SpecialLocationType::currentApplicationFile).getChildFile("iOS_Samples/");
+    
+    
+    return f;
+    
+#endif
+    
+    
+    
 	File appDataDir = getAppDataDirectory();
 
 	// The installer should take care of creating the app data directory...

@@ -727,6 +727,10 @@ CompileExporter::ErrorCodes CompileExporter::createStandaloneAppIntrojucerFile(M
 	REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "disabled");
 	REPLACE_WILDCARD_WITH_STRING("%IS_STANDALONE_FRONTEND%", "enabled");
 
+    const String iosResourceFile = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Samples).getChildFile("iOS_Samples").getFullPathName();
+    
+    REPLACE_WILDCARD_WITH_STRING("%IOS_SAMPLE_FOLDER%", iosResourceFile);
+    
 	ProjectTemplateHelpers::handleVisualStudioVersion(chainToExport, templateProject);
 
 	ProjectTemplateHelpers::handleCompanyInfo(chainToExport, templateProject);
@@ -797,9 +801,15 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Modulat
     {
         additionalSourceFiles.add(iconFile);
     }
+    else
+    {
+        templateProject = templateProject.replace("%ICON_FILE%", "");
+    }
 	
-	//additionalSourceCodeDirectory.findChildFiles(additionalSourceFiles, File::findFiles, true);
-
+    const String additionalStaticLibs = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::OSXStaticLibs, &GET_PROJECT_HANDLER(chainToExport));
+    templateProject = templateProject.replace("%OSX_STATIC_LIBS%", additionalStaticLibs);
+    
+    
 	if (additionalSourceFiles.size() != 0)
 	{
 		StringArray additionalFileDefinitions;
@@ -834,11 +844,9 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Modulat
             
 		}
 
-        const String additionalStaticLibs = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::OSXStaticLibs, &GET_PROJECT_HANDLER(chainToExport));
         
-        templateProject = templateProject.replace("%OSX_STATIC_LIBS%", additionalStaticLibs);
         
-        templateProject = templateProject.replace("%ICON_FILE%", "");
+        
         
 		templateProject = templateProject.replace("%ADDITIONAL_FILES%", additionalFileDefinitions.joinIntoString(""));
 
@@ -849,6 +857,10 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Modulat
 			templateProject = templateProject.replace("%USE_CUSTOM_FRONTEND_TOOLBAR%", customToolbarName.isNotEmpty() ? "enabled" : "disabled");
 		}
 	}
+    else
+    {
+        templateProject = templateProject.replace("%ADDITIONAL_FILES%", "");
+    }
 
 }
 
