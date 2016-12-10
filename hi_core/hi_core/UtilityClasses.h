@@ -68,7 +68,7 @@ public:
 
 	static String replace(const String &regexWildcard, const String &originalString)
 	{
-		
+
 	}
 
     static StringArray getMatches(const String &wildcard, const String &stringToTest, const Processor* /*processorForErrorOutput*/=nullptr)

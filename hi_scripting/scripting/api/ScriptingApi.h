@@ -49,16 +49,9 @@ public:
 #if USE_BACKEND
 
 	static AttributedString createAttributedStringFromApi(const ValueTree &method, const String &className, bool multiLine, Colour textColour);
-
 	static String createCodeToInsert(const ValueTree &method, const String &className);
-
 	static void getColourAndCharForType(int type, char &c, Colour &colour);
-
 	static String getValueType(const var &v);
-
-	
-
-
 
 	struct Api
 	{
@@ -169,6 +162,8 @@ public:
 
 		/** Returns the volume of the note. */
 		int getGain() const;
+
+		int getTimestamp() const;
 
 		// ============================================================================================================
 
@@ -426,7 +421,7 @@ public:
 		void addPitchFade(int eventId, int fadeTimeMilliseconds, int targetCoarsePitch, int targetFinePitch);
 
 		/** Starts the timer of the synth. */
-		void startTimer(double milliseconds);
+		void startTimer(double seconds);
 		
 		/** Sets an attribute of the parent synth. */
 		void setAttribute(int attributeIndex, float newAttribute);
@@ -454,6 +449,12 @@ public:
 
 		/** Stops the timer of the synth. You can call this also in the timer callback. */
 		void stopTimer();
+
+		/** Checks if the timer for this script is running. */
+		bool isTimerRunning() const;
+
+		/** Returns the current timer interval in seconds. */
+		double getTimerInterval() const;
 
 		/** Sets one of the eight macro controllers to the newValue.
 		*

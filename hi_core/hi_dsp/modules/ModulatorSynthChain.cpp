@@ -112,10 +112,8 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 
 	initRenderCallback();
 
-	if (checkTimerCallback())
-	{
-		synthTimerCallback();
-	};
+	
+
 
 #if FRONTEND_IS_PLUGIN
 

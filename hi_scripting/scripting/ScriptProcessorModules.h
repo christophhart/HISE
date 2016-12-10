@@ -70,7 +70,7 @@ public:
 		numScriptEditorStates
 	};
 
-	JavascriptMidiProcessor(MainController *mc, const String &id);;
+	JavascriptMidiProcessor(MainController *mc, const String &id);
 	~JavascriptMidiProcessor();;
 
 	Path getSpecialSymbol() const override;
@@ -101,17 +101,13 @@ public:
 
 	void handleAsyncUpdate() override;
 
+	
+
 	void timerCallback() override
 	{
 		jassert(isDeferred());
 		runTimerCallback();
 	}
-
-	void synthTimerCallback(int offsetInBuffer) override
-	{
-		jassert(!isDeferred());
-		runTimerCallback(offsetInBuffer);
-	};
 
 	void processHiseEvent(HiseEvent &m) override;
 
@@ -142,6 +138,8 @@ private:
 	ScriptingApi::Synth *synthObject;
 
 	bool front, deferred, deferredUpdatePending;
+
+	
 };
 
 class JavascriptVoiceStartModulator : public JavascriptProcessor,

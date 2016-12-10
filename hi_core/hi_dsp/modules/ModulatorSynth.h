@@ -177,38 +177,72 @@ public:
         }
     }
 
-	virtual void synthTimerCallback()
+	int getFreeTimerSlot()
 	{
-        ADD_GLITCH_DETECTOR(getId() + " timer callback");
+		if (synthTimerIntervals[0] == 0.0) return 0;
+		if (synthTimerIntervals[1] == 0.0) return 1;
+		if (synthTimerIntervals[2] == 0.0) return 2;
+		if (synthTimerIntervals[3] == 0.0) return 3;
 
-		const int offsetInBuffer = (int)((getMainController()->getUptime() - nextTimerCallbackTime) * getSampleRate());
-
-		midiProcessorChain->synthTimerCallback(offsetInBuffer);
-
-		if(nextTimerCallbackTime != 0.0) startSynthTimer(synthTimerInterval);
+		return -1;
 	}
 
-	virtual void startSynthTimer(double interval)
+	void synthTimerCallback(int index)
 	{
-		
+		if (index >= 0)
+		{
+			ADD_GLITCH_DETECTOR(getId() + " timer callback");
+
+			const double thisUptime = getMainController()->getUptime() - (getBlockSize() / getSampleRate());
+			int offsetInBuffer = (int)((nextTimerCallbackTimes[index] - thisUptime) * getSampleRate());
+
+			while (synthTimerIntervals[index] > 0.0 && offsetInBuffer < getBlockSize())
+			{
+				eventBuffer.addEvent(HiseEvent::createTimerEvent(index, offsetInBuffer));
+				nextTimerCallbackTimes[index] += synthTimerIntervals[index];
+				offsetInBuffer = (int)((nextTimerCallbackTimes[index] - thisUptime) * getSampleRate());
+			}
+		}
+		else jassertfalse;
+	}
+
+	virtual void startSynthTimer(int index, double interval, int timeStamp)
+	{
 		if(interval < 0.04)
 		{
-			nextTimerCallbackTime = 0.0;
+			nextTimerCallbackTimes[index] = 0.0;
 			jassertfalse;
 			debugToConsole(this, "Go easy on the timer!");
 			return;
 		};
 
-		synthTimerInterval = interval;
+		if (index >= 0)
+		{
+			synthTimerIntervals[index] = interval;
 
-		const double thisUptime = getMainController()->getUptime();
+			const double thisUptime = getMainController()->getUptime();
+			const double timeStampSeconds = getSampleRate() > 0.0 ? (double)timeStamp / getSampleRate() : 0.0;
 
-		if (interval != 0.0) nextTimerCallbackTime = thisUptime + synthTimerInterval;
+			if (interval != 0.0) nextTimerCallbackTimes[index] = thisUptime + timeStampSeconds + synthTimerIntervals[index];
+		}
+		else jassertfalse;
+		
 	};
 
-	virtual void stopSynthTimer()
+	virtual void stopSynthTimer(int index)
 	{
-		nextTimerCallbackTime = 0.0;
+		if (index >= 0)
+		{
+			nextTimerCallbackTimes[index] = 0.0;
+			synthTimerIntervals[index] = 0.0;
+		}
+	}
+
+	double getTimerInterval(int index) const noexcept
+	{
+		if (index >= 0) return synthTimerIntervals[index];
+
+		return 0.0;
 	}
 
 	bool isLastStartedVoice(ModulatorSynthVoice *voice)
@@ -576,12 +610,9 @@ public:
 
 protected:
 
-	bool checkTimerCallback() const noexcept
+	bool checkTimerCallback(int timerIndex) const noexcept
 	{
-		const double thisUptime = getMainController()->getUptime();
-
-
-		return nextTimerCallbackTime != 0.0 && (thisUptime > nextTimerCallbackTime);
+		return nextTimerCallbackTimes[timerIndex] != 0.0 && (getMainController()->getUptime() > nextTimerCallbackTimes[timerIndex]);
 	};
 	
 	// Used to display the playing position
@@ -598,8 +629,8 @@ private:
 	int voiceLimit;
 
 	double synthUptime;
-	double synthTimerInterval;
-	double nextTimerCallbackTime;
+	double synthTimerIntervals[4];
+	double nextTimerCallbackTimes[4];
 
 	ModulatorSynthGroup *group;
 

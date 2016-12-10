@@ -93,10 +93,7 @@ protected:
 		onControl(component, controllerValue);
 	}
 
-	void synthTimerCallback (int offsetInBuffer) override
-	{
-		onTimer(offsetInBuffer);
-	};
+	
 
 
 	ScriptingApi::Message Message;

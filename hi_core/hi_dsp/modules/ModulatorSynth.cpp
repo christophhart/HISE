@@ -43,7 +43,6 @@ gain(0.25f),
 killFadeTime(20.0f),
 vuValue(0.0f),
 synthUptime(0.0),
-nextTimerCallbackTime(0.0),
 lastStartedVoice(nullptr),
 group(nullptr),
 voiceLimit(numVoices),
@@ -53,6 +52,12 @@ lastClockCounter(0),
 wasPlayingInLastBuffer(false),
 pitchModulationActive(false)
 {
+	for (int i = 0; i < 4; i++)
+	{
+		nextTimerCallbackTimes[i] = 0.0;
+		synthTimerIntervals[i] = 0.0;
+	}
+
 	getMatrix().init();
 
 	parameterNames.add("Gain");
@@ -99,6 +104,10 @@ void ModulatorSynth::processHiseEventBuffer(const HiseEventBuffer &inputBuffer, 
 {
 	eventBuffer.copyFrom(inputBuffer);
 
+	if (checkTimerCallback(0)) synthTimerCallback(0);
+	if (checkTimerCallback(1)) synthTimerCallback(1);
+	if (checkTimerCallback(2)) synthTimerCallback(2);
+	if (checkTimerCallback(3)) synthTimerCallback(3);
 
 	if (getMainController()->getMainSynthChain() == this)
 	{
@@ -136,10 +145,7 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 
 	int startSample = 0;
 
-	if(checkTimerCallback())
-	{
-		synthTimerCallback();
-	};
+	
 
 	initRenderCallback();
 
@@ -404,7 +410,13 @@ void ModulatorSynth::handlePitchFade(uint16 eventId, int fadeTimeMilliseconds, d
 
 void ModulatorSynth::preHiseEventCallback(const HiseEvent &e)
 {
-	if (e.isAllNotesOff()) stopSynthTimer();
+	if (e.isAllNotesOff())
+	{
+		stopSynthTimer(0);
+		stopSynthTimer(1);
+		stopSynthTimer(2);
+		stopSynthTimer(3);
+	}
 
 	gainChain->handleHiseEvent(e);
 	pitchChain->handleHiseEvent(e);

@@ -242,8 +242,6 @@ void MidiProcessorChain::MidiProcessorChainHandler::add(Processor *newProcessor,
 
 	MidiProcessor *m = dynamic_cast<MidiProcessor*>(newProcessor);
 
-	//m->setColour(chain->getColour().withMultipliedBrightness(0.6f));
-
 	jassert(m != nullptr);
 
 	const int index = siblingToInsertBefore == nullptr ? -1 : chain->processors.indexOf(dynamic_cast<MidiProcessor*>(siblingToInsertBefore));
@@ -252,8 +250,8 @@ void MidiProcessorChain::MidiProcessorChainHandler::add(Processor *newProcessor,
 
 	newProcessor->prepareToPlay(chain->getSampleRate(), chain->getBlockSize());
 
-	if (JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(newProcessor))
-	{
+	if (JavascriptMidiProcessor* sp = dynamic_cast<JavascriptMidiProcessor*>(newProcessor))
+	{	
 		sp->compileScript();
 	}
 

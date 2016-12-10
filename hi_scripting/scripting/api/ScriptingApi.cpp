@@ -280,6 +280,7 @@ struct ScriptingApi::Message::Wrapper
 	API_METHOD_WRAPPER_0(Message, getFineDetune);
 	API_VOID_METHOD_WRAPPER_1(Message, setGain);
 	API_METHOD_WRAPPER_0(Message, getGain);
+	API_METHOD_WRAPPER_0(Message, getTimestamp);
 };
 
 
@@ -310,6 +311,7 @@ constMessageHolder(nullptr)
 	ADD_API_METHOD_0(getCoarseDetune);
 	ADD_API_METHOD_1(setFineDetune);
 	ADD_API_METHOD_0(getFineDetune);
+	ADD_API_METHOD_0(getTimestamp);
 }
 
 
@@ -632,6 +634,19 @@ int ScriptingApi::Message::getGain() const
 #endif
 
 	return constMessageHolder->getGain();
+}
+
+int ScriptingApi::Message::getTimestamp() const
+{
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+	if (constMessageHolder == nullptr)
+	{
+		reportIllegalCall("getGain()", "midi event");
+		return 0;
+	}
+#endif
+
+	return constMessageHolder->getTimeStamp();
 }
 
 void ScriptingApi::Message::setHiseEvent(HiseEvent &m)
@@ -1252,6 +1267,8 @@ struct ScriptingApi::Synth::Wrapper
 	API_VOID_METHOD_WRAPPER_2(Synth, setVoicePitchValue);
 	API_VOID_METHOD_WRAPPER_1(Synth, startTimer);
 	API_VOID_METHOD_WRAPPER_0(Synth, stopTimer);
+	API_METHOD_WRAPPER_0(Synth, isTimerRunning);
+	API_METHOD_WRAPPER_0(Synth, getTimerInterval);
 	API_VOID_METHOD_WRAPPER_2(Synth, setMacroControl);
 	API_VOID_METHOD_WRAPPER_2(Synth, sendController);
 	API_VOID_METHOD_WRAPPER_2(Synth, sendControllerToChildSynths);
@@ -1302,6 +1319,8 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	ADD_API_METHOD_2(setVoicePitchValue);
 	ADD_API_METHOD_1(startTimer);
 	ADD_API_METHOD_0(stopTimer);
+	ADD_API_METHOD_0(isTimerRunning);
+	ADD_API_METHOD_0(getTimerInterval);
 	ADD_API_METHOD_2(setMacroControl);
 	ADD_API_METHOD_2(sendController);
 	ADD_API_METHOD_2(sendControllerToChildSynths);
@@ -1429,7 +1448,9 @@ void ScriptingApi::Synth::addPitchFade(int eventId, int fadeTimeMilliseconds, in
 			if (fadeTimeMilliseconds >= 0)
 			{
 				HiseEvent e = HiseEvent::createPitchFade((uint16)eventId, fadeTimeMilliseconds, (uint8)targetCoarsePitch, (uint8)targetFinePitch);
-				e.setTimeStamp(sp->getCurrentHiseEvent()->getTimeStamp());
+				
+				if(sp->getCurrentHiseEvent())
+					e.setTimeStamp(sp->getCurrentHiseEvent()->getTimeStamp());
 
 				sp->addHiseEventToBuffer(e);
 			}
@@ -1442,22 +1463,38 @@ void ScriptingApi::Synth::addPitchFade(int eventId, int fadeTimeMilliseconds, in
 
 void ScriptingApi::Synth::startTimer(double intervalInSeconds)
 {
+#if ENABLE_SCRIPTING_SAFE_CHECKS
 	if(intervalInSeconds < 0.04)
 	{
 		reportScriptError("Go easy on the timer!");
 		return;
 	}
+#endif
 
 	JavascriptMidiProcessor *p = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor());
 
-	if(p != nullptr && p->isDeferred())
+	if (p == nullptr) return;
+
+	if(p->isDeferred())
 	{
-		owner->stopSynthTimer();
+		owner->stopSynthTimer(p->getIndexInChain());
 		p->startTimer((int)(intervalInSeconds * 1000));
+		p->setIndexInChain(-1);
 	}
 	else
 	{
-		owner->startSynthTimer(intervalInSeconds);
+		int freeTimerSlot = p->getIndexInChain() != -1 ? p->getIndexInChain() : owner->getFreeTimerSlot();
+
+		if (freeTimerSlot == -1)
+		{
+			reportScriptError("All 4 timers are used");
+			return;
+		}
+
+		p->setIndexInChain(freeTimerSlot);
+
+		owner->startSynthTimer(p->getIndexInChain(), intervalInSeconds, p->getCurrentHiseEvent() != nullptr ? p->getCurrentHiseEvent()->getTimeStamp() : 0);
+		
 	}
 }
 
@@ -1467,12 +1504,42 @@ void ScriptingApi::Synth::stopTimer()
 
 	if(p != nullptr && p->isDeferred())
 	{
-		owner->stopSynthTimer();
+		owner->stopSynthTimer(p->getIndexInChain());
 		p->stopTimer();
 	}
 	else
 	{
-		owner->stopSynthTimer();
+		if(p != nullptr) owner->stopSynthTimer(p->getIndexInChain());
+		dynamic_cast<MidiProcessor*>(getScriptProcessor())->setIndexInChain(-1);
+	}
+}
+
+bool ScriptingApi::Synth::isTimerRunning() const
+{
+	const JavascriptMidiProcessor *p = dynamic_cast<const JavascriptMidiProcessor*>(getScriptProcessor());
+
+	if (p != nullptr && p->isDeferred())
+	{
+		return p->isTimerRunning();
+
+	}
+	else
+	{
+		if (p != nullptr) return owner->getTimerInterval(p->getIndexInChain()) != 0.0;
+	}
+}
+
+double ScriptingApi::Synth::getTimerInterval() const
+{
+	const JavascriptMidiProcessor *p = dynamic_cast<const JavascriptMidiProcessor*>(getScriptProcessor());
+
+	if (p != nullptr && p->isDeferred())
+	{
+		return (double)p->getTimerInterval() / 1000.0;
+	}
+	else
+	{
+		if (p != nullptr) return owner->getTimerInterval(p->getIndexInChain());
 	}
 }
 

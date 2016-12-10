@@ -47,8 +47,10 @@ public:
 
 	/** Creates a new MidiProcessor. You can supply a ModulatorSynth which owns the MidiProcessor to allow the processor to change its properties. */
 	MidiProcessor(MainController *m, const String &id);
-
 	virtual ~MidiProcessor();
+
+	void setIndexInChain(int chainIndex) noexcept { indexInChain = chainIndex; }
+	int getIndexInChain() const noexcept { return indexInChain; }
 
 	void addHiseEventToBuffer(const HiseEvent &m);
 
@@ -83,9 +85,6 @@ public:
 	{
 		return getSymbolPath();
 	};
-
-	/** This is a synchronous timer in the audio thread that can be used to do timing stuff. */
-	virtual void synthTimerCallback(int /*offsetInBuffer*/) {};
 
 	/** Normally a MidiProcessor has no child processors, but it is virtual for the MidiProcessorChain. */
 	virtual Processor *getChildProcessor(int /*processorIndex*/) override {return nullptr;};
@@ -127,6 +126,7 @@ protected:
 private:
 
 	int numThisTime;
+	int indexInChain = -1;
 
 	WeakReference<MidiProcessor>::Master masterReference;
     friend class WeakReference<MidiProcessor>;
@@ -168,14 +168,6 @@ public:
 
 	const Processor *getChildProcessor(int processorIndex) const override { return handler.getProcessor(processorIndex);	};
 
-	void synthTimerCallback(int offsetInBuffer) override
-	{
-		for(int i = 0; i < processors.size(); i++)
-		{
-			processors[i]->synthTimerCallback(offsetInBuffer);
-		}
-	};
-
 	float getAttribute(int ) const override {return 1.0f;};
 	void setInternalAttribute(int, float) override {};
 
@@ -201,10 +193,23 @@ public:
 	/** Sequentially processes all processors. */
 	void processHiseEvent(HiseEvent &m) override
 	{
-		if(isBypassed()) return;
+		if (isBypassed())
+		{
+			if (m.isTimerEvent()) m.ignoreEvent(true);
+			return;
+		}
 		for(int i = 0; (i < processors.size()); i++)
 		{
-			if(processors[i]->isBypassed() || m.isIgnored()) continue;
+			if (processors[i]->isBypassed())
+			{
+				if(m.isIgnored()) continue;
+
+				if (m.isTimerEvent() && processors[i]->getIndexInChain() == m.getTimerIndex())
+				{
+					m.ignoreEvent(true);
+					continue;
+				}
+			}
 
 			processors[i]->processHiseEvent(m);
 		}

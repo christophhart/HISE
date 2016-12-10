@@ -53,6 +53,7 @@ public:
 		MidiStop,
 		VolumeFade,
 		PitchFade,
+		TimerEvent,
 		numTypes
 	};
 
@@ -95,6 +96,8 @@ public:
 
 		return data[0] == otherData[0] && data[1] == otherData[1];
 	}
+
+	Type getType() const noexcept { return type; }
 
 	/** Checks if the message was marked as ignored (by a script). */
     bool isIgnored() const noexcept{ return ignored; };
@@ -159,11 +162,23 @@ public:
 		return e;
 	}
 
-	bool isVolumeFade() const noexcept{ return type == Type::VolumeFade; };
+	static HiseEvent createTimerEvent(int timerIndex, int offset)
+	{
+		HiseEvent e(Type::TimerEvent, 0, 0, timerIndex);
 
+		e.setArtificial();
+		e.setTimeStamp(offset);
+
+		return e;
+	}
+
+	bool isVolumeFade() const noexcept{ return type == Type::VolumeFade; };
 	bool isPitchFade() const noexcept{ return type == Type::PitchFade; }
 
 	int getFadeTime() const noexcept{ return getPitchWheelValue(); };
+
+	bool isTimerEvent() const noexcept { return type == Type::TimerEvent; };
+	int getTimerIndex() const noexcept { return channel; }	
 
 	// ========================================================================================================================== MIDI Message methods
 

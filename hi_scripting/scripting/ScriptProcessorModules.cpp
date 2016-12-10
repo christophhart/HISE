@@ -202,18 +202,21 @@ void JavascriptMidiProcessor::runScriptCallbacks()
 
 	scriptEngine->maximumExecutionTime = isDeferred() ? RelativeTime(0.5) : RelativeTime(0.03);
 
-	if (currentEvent->isNoteOn())
+	switch (currentEvent->getType())
+	{
+	case HiseEvent::Type::NoteOn:
 	{
 		synthObject->increaseNoteCounter(currentEvent->getNoteNumber());
-		
+
 		if (onNoteOnCallback->isSnippetEmpty()) return;
 
 		scriptEngine->executeCallback(onNoteOn, &lastResult);
 
 		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, onNoteOnCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
 
+		break;
 	}
-	else if (currentEvent->isNoteOff())
+	case HiseEvent::Type::NoteOff:
 	{
 		synthObject->decreaseNoteCounter(currentEvent->getNoteNumber());
 
@@ -222,8 +225,12 @@ void JavascriptMidiProcessor::runScriptCallbacks()
 		scriptEngine->executeCallback(onNoteOff, &lastResult);
 
 		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, onNoteOffCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
+
+		break;
 	}
-	else if (currentEvent->isController() || currentEvent->isPitchWheel() || currentEvent->isAftertouch())
+	case HiseEvent::Type::Controller:
+	case HiseEvent::Type::PitchBend:
+	case HiseEvent::Type::Aftertouch:
 	{
 		if (currentEvent->isControllerOfType(64))
 		{
@@ -239,8 +246,20 @@ void JavascriptMidiProcessor::runScriptCallbacks()
 		scriptEngine->executeCallback(onController, &lastResult);
 
 		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, onControllerCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
+		break;
+	}
+	case HiseEvent::Type::TimerEvent:
+	{
+		if (!currentEvent->isIgnored() && currentEvent->getChannel() == getIndexInChain())
+		{
+			runTimerCallback(currentEvent->getTimeStamp());
+			currentEvent->ignoreEvent(true); 
+		}
+		break;
+	}
 	}
 
+	
 #if 0
 	
 	else if (currentEvent->isSongPositionPointer())
@@ -281,8 +300,6 @@ void JavascriptMidiProcessor::runTimerCallback(int /*offsetInBuffer*//*=-1*/)
 
 	scriptEngine->maximumExecutionTime = isDeferred() ? RelativeTime(0.5) : RelativeTime(0.002);
 
-	currentEvent = nullptr;
-
 	scriptEngine->executeCallback(onTimer, &lastResult);
 
 	if (isDeferred())
@@ -298,7 +315,7 @@ void JavascriptMidiProcessor::deferCallbacks(bool addToFront_)
 	deferred = addToFront_;
 	if (deferred)
 	{
-		getOwnerSynth()->stopSynthTimer();
+		getOwnerSynth()->stopSynthTimer(getIndexInChain());
 	}
 	else
 	{

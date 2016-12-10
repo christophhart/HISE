@@ -76,20 +76,30 @@ void HardcodedScriptProcessor::processHiseEvent(HiseEvent &m)
 
 	Message.ignoreEvent(false);
 
-	if(m.isNoteOn())
+	switch (m.getType())
 	{
-		Synth.increaseNoteCounter(m.getNoteNumber());
+	case HiseEvent::Type::NoteOn: Synth.increaseNoteCounter(m.getNoteNumber());
 		onNoteOn();
-		
-	}
-	else if (m.isNoteOff())
-	{
-		Synth.decreaseNoteCounter(m.getNoteNumber());
+		break;
+
+	case HiseEvent::Type::NoteOff: Synth.decreaseNoteCounter(m.getNoteNumber());
 		onNoteOff();
-	}
-	else if (m.isController())
+		break;
+
+	case HiseEvent::Type::Controller:
+	case HiseEvent::Type::PitchBend:
+	case HiseEvent::Type::Aftertouch: onController();
+		break;
+
+	case HiseEvent::Type::TimerEvent:
 	{
-		onController();
+		if (m.getTimerIndex() == getIndexInChain())
+		{
+			onTimer(m.getTimeStamp());
+			m.ignoreEvent(true);
+			break;
+		}
+	}
 	}
 }
 
