@@ -776,7 +776,17 @@ double ScriptingApi::Engine::getSampleRate() const { return const_cast<MainContr
 double ScriptingApi::Engine::getSamplesForMilliSeconds(double milliSeconds) const { return (milliSeconds / 1000.0) * getSampleRate(); }
 
 
-double ScriptingApi::Engine::getUptime() const		 { return getProcessor()->getMainController()->getUptime(); }
+double ScriptingApi::Engine::getUptime() const		 
+{
+	const ScriptBaseMidiProcessor* jmp = dynamic_cast<const ScriptBaseMidiProcessor*>(getProcessor());
+
+	if (jmp->getCurrentHiseEvent() != nullptr)
+	{
+		return jmp->getMainController()->getUptime() + jmp->getCurrentHiseEvent()->getTimeStamp() / jmp->getSampleRate();
+	}
+
+	return getProcessor()->getMainController()->getUptime(); 
+}
 double ScriptingApi::Engine::getHostBpm() const		 { return getProcessor()->getMainController()->getBpm(); }
 
 String ScriptingApi::Engine::getMacroName(int index)
@@ -1494,7 +1504,6 @@ void ScriptingApi::Synth::startTimer(double intervalInSeconds)
 		p->setIndexInChain(freeTimerSlot);
 
 		owner->startSynthTimer(p->getIndexInChain(), intervalInSeconds, p->getCurrentHiseEvent() != nullptr ? p->getCurrentHiseEvent()->getTimeStamp() : 0);
-		
 	}
 }
 
