@@ -383,13 +383,19 @@ private:
 	String getFileContent(const String &fileNameInScript, String &refFileName)
 	{
 
+		const String cleanedFileName = fileNameInScript.removeCharacters("\"\'");
+
 #if USE_BACKEND
 
-		const String fileName = "{PROJECT_FOLDER}" + fileNameInScript.removeCharacters("\"\'");
-		refFileName = GET_PROJECT_HANDLER(dynamic_cast<Processor*>(hiseSpecialData->processor)).getFilePath(fileName, ProjectHandler::SubDirectories::Scripts);
+		if (File::isAbsolutePath(cleanedFileName)) 
+			refFileName = cleanedFileName;
+		else
+		{
+			const String fileName = "{PROJECT_FOLDER}" + cleanedFileName;
+			refFileName = GET_PROJECT_HANDLER(dynamic_cast<Processor*>(hiseSpecialData->processor)).getFilePath(fileName, ProjectHandler::SubDirectories::Scripts);
+		}
 
 		File f(refFileName);
-
 		const String shortFileName = f.getFileName();
 
 		if (!f.existsAsFile())
@@ -401,17 +407,22 @@ private:
 				throwError("File " + shortFileName + " was included multiple times");
 		}
 
-		String fileContent = f.loadFileAsString();
+		return f.loadFileAsString();
 
 #else
-		//const String fileName = currentValue.toString().removeCharacters("\"\'");
-		//refFileName = fileName;
-		refFileName = fileNameInScript;
+		
+		refFileName = cleanedFileName;
 
-		String fileContent = dynamic_cast<Processor*>(hiseSpecialData->processor)->getMainController()->getExternalScriptFromCollection(fileNameInScript);
+		if (File::isAbsolutePath(refFileName))
+		{
+			File f(refFileName);
+			return f.loadFileAsString();
+		}
+		else
+		{
+			return dynamic_cast<Processor*>(hiseSpecialData->processor)->getMainController()->getExternalScriptFromCollection(fileNameInScript);
+		}
 #endif
-
-		return fileContent;
 	};
 
 	Statement* parseExternalFile()
