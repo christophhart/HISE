@@ -643,7 +643,7 @@ int ScriptingApi::Message::getTimestamp() const
 #if ENABLE_SCRIPTING_SAFE_CHECKS
 	if (constMessageHolder == nullptr)
 	{
-		reportIllegalCall("getGain()", "midi event");
+		reportIllegalCall("getTimestamp()", "midi event");
 		return 0;
 	}
 #endif
@@ -1406,9 +1406,16 @@ void ScriptingApi::Synth::noteOff(int noteNumber)
 
 void ScriptingApi::Synth::noteOffByEventId(int eventId)
 {
-	const HiseEvent* e = getProcessor()->getMainController()->getEventHandler().getNoteOnFromEventId(eventId);
+	const HiseEvent e = getProcessor()->getMainController()->getEventHandler().popNoteOnFromEventId((uint16)eventId);
 
-	if (e != nullptr)
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+	if (!e.isArtificial())
+	{
+		reportScriptError("Hell breaks loose if you kill real events artificially!");
+	}
+#endif
+
+	if (!e.isEmpty())
 	{
 		const HiseEvent* current = dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor())->getCurrentHiseEvent();
 
@@ -1416,14 +1423,14 @@ void ScriptingApi::Synth::noteOffByEventId(int eventId)
 
 		if (current != nullptr)
 		{
-			timestamp = e->getTimeStamp();
+			timestamp = e.getTimeStamp();
 		}
 
-		HiseEvent noteOff(HiseEvent::Type::NoteOff, (uint8)e->getNoteNumber(), 1, (uint8)e->getChannel());
+		HiseEvent noteOff(HiseEvent::Type::NoteOff, (uint8)e.getNoteNumber(), 1, (uint8)e.getChannel());
 		noteOff.setEventId((uint16)eventId);
 		noteOff.setTimeStamp(timestamp);
 
-		if (e->isArtificial()) noteOff.setArtificial();
+		if (e.isArtificial()) noteOff.setArtificial();
 
 		ScriptBaseMidiProcessor* sp = dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor());
 
@@ -1432,6 +1439,10 @@ void ScriptingApi::Synth::noteOffByEventId(int eventId)
 			sp->addHiseEventToBuffer(noteOff);
 		}
 
+	}
+	else
+	{
+		reportScriptError("NoteOff with ID" + String(eventId) + " wasn't found");
 	}
 }
 
@@ -1608,6 +1619,7 @@ bool ScriptingApi::Synth::isTimerRunning() const
 	else
 	{
 		if (p != nullptr) return owner->getTimerInterval(p->getIndexInChain()) != 0.0;
+		else return false;
 	}
 }
 
@@ -1622,6 +1634,7 @@ double ScriptingApi::Synth::getTimerInterval() const
 	else
 	{
 		if (p != nullptr) return owner->getTimerInterval(p->getIndexInChain());
+		else return 0.0;
 	}
 }
 
@@ -1945,14 +1958,10 @@ int ScriptingApi::Synth::addNoteOn(int channel, int noteNumber, int velocity, in
 						
 						m.setArtificial();
 
-						const uint16 newEventId = sp->getMainController()->getEventHandler().requestEventIdForArtificialNote(m);
-						jassert(m.getEventId() == 0);
-						
-						m.setEventId(newEventId);
-						
+						sp->getMainController()->getEventHandler().pushArtificialNoteOn(m);
 						sp->addHiseEventToBuffer(m);
 
-						return newEventId;
+						return m.getEventId();
 					}
 					else reportScriptError("Only valid in MidiProcessors");
 				}
@@ -1993,7 +2002,7 @@ void ScriptingApi::Synth::addNoteOff(int channel, int noteNumber, int timeStampS
 
 					m.setArtificial();
 
-					const uint16 eventId = sp->getMainController()->getEventHandler().getNoteOnEventFor(m)->getEventId();
+					const uint16 eventId = sp->getMainController()->getEventHandler().popNoteOn(m).getEventId();
 
 					m.setEventId(eventId);
 

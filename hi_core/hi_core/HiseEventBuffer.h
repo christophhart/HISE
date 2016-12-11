@@ -85,6 +85,8 @@ public:
 		data[1] = otherData[1];
 	}
 
+	
+
 	bool operator==(const HiseEvent &other) const
 	{
 		// Only works with struct size of 16 bytes...
@@ -97,7 +99,29 @@ public:
 		return data[0] == otherData[0] && data[1] == otherData[1];
 	}
 
+	void swapWith(HiseEvent &other)
+	{
+		// Only works with struct size of 16 bytes...
+		jassert(sizeof(HiseEvent) == 16);
+
+		uint64* data = reinterpret_cast<uint64*>(this);
+
+		const uint64 first = data[0];
+		const uint64 second = data[1];
+
+		uint64* otherData = reinterpret_cast<uint64*>(&other);
+
+		*data++ = *otherData;
+		*data = otherData[1];
+		*otherData++ = first;
+		*otherData = second;
+	}
+
 	Type getType() const noexcept { return type; }
+
+	String getTypeAsString() const noexcept;
+
+	void setType(Type t) noexcept { type = t; }
 
 	/** Checks if the message was marked as ignored (by a script). */
     bool isIgnored() const noexcept{ return ignored; };
@@ -162,7 +186,7 @@ public:
 		return e;
 	}
 
-	static HiseEvent createTimerEvent(int timerIndex, int offset)
+	static HiseEvent createTimerEvent(uint8 timerIndex, uint16 offset)
 	{
 		HiseEvent e(Type::TimerEvent, 0, 0, timerIndex);
 
@@ -332,6 +356,109 @@ class HiseEventBuffer
 {
 public:
 
+	/** A simple stack type with 16 slots. */
+	class EventStack
+	{
+	public:
+
+		EventStack()
+		{
+			clear();
+		}
+
+		/** Inserts an event. */
+		void push(const HiseEvent &newEvent)
+		{
+			size = jmin<int>(16, size + 1);
+
+			data[size-1] = HiseEvent(newEvent);
+
+		}
+
+		/** Removes and returns an event. */
+		HiseEvent pop()
+		{
+			if (size == 0) return HiseEvent();
+
+			HiseEvent returnEvent = data[size - 1];
+			data[size - 1] = HiseEvent();
+
+			size = jmax<int>(0, size-1);
+
+			return returnEvent;
+		}
+
+		bool peekNoteOnForEventId(uint16 eventId, HiseEvent& eventToFill)
+		{
+			for (int i = 0; i < size; i++)
+			{
+				if (data[i].getEventId() == eventId)
+				{
+					eventToFill = data[i];
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		bool popNoteOnForEventId(uint16 eventId, HiseEvent& eventToFill)
+		{
+			int thisIndex = -1;
+
+			for (int i = 0; i < size; i++)
+			{
+				if (data[i].getEventId() == eventId)
+				{
+					thisIndex = i;
+					break;
+				}
+			}
+
+			if (thisIndex == -1) return false;
+			
+			eventToFill = data[thisIndex];
+
+			for (int i = thisIndex; i < size-1; i++)
+			{
+				data[i] = data[i + 1];
+			}
+
+			data[size-1] = HiseEvent();
+			size--;
+
+			return true;
+		}
+
+		void clear()
+		{
+			for (int i = 0; i < 16; i++)
+				data[i] = HiseEvent();
+			size = 0;
+		}
+
+		const HiseEvent* peek() const
+		{
+			if (size == 0) return nullptr;
+
+			return &data[size - 1];
+		}
+
+		HiseEvent* peek()
+		{ 
+			if (size == 0) return nullptr;
+
+			return &data[size - 1];
+		}
+
+		int getNumUsed() { return size; };
+
+	private:
+
+		HiseEvent data[16];
+		int size = 0;
+	};
+
 	HiseEventBuffer();
 
 	bool operator==(const HiseEventBuffer& other)
@@ -361,6 +488,8 @@ public:
 	void clear();
 	bool isEmpty() const noexcept{ return numUsed == 0; };
 	int getNumUsed() const { return numUsed; }
+
+	HiseEvent getEvent(int index) const;
 
 	void subtractFromTimeStamps(int delta);
 	void moveEventsBelow(HiseEventBuffer& targetBuffer, int highestTimestamp);

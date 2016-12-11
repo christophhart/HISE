@@ -163,16 +163,16 @@ public:
 		/** Returns the volume of the note. */
 		int getGain() const;
 
+		/** Returns the timestamp of the message. */
 		int getTimestamp() const;
+
+		/** Stores a copy of the current event into the given holder object. */
+		void store(var messageEventHolder) const;
 
 		// ============================================================================================================
 
-		
-
 		void setHiseEvent(HiseEvent &m);
-
-		void setHiseEvent(const HiseEvent& m);
-		
+		void setHiseEvent(const HiseEvent& m);		
 
 		struct Wrapper;
 
@@ -269,6 +269,9 @@ public:
 
 		/** Creates a new timer object. */
 		ScriptingObjects::TimerObject* createTimerObject();
+
+		/** Creates a storage object for Message events. */
+		ScriptingObjects::ScriptingMessageHolder* createMessageHolder();
 
 		/** Exports an object as JSON. */
 		void dumpAsJSON(var object, String fileName);
@@ -419,6 +422,9 @@ public:
 
 		/** Adds a pitch fade to the given event ID. */
 		void addPitchFade(int eventId, int fadeTimeMilliseconds, int targetCoarsePitch, int targetFinePitch);
+
+		/** Adds the event from the given holder and returns a event id for note ons. */
+		int addEventFromHolder(var messageHolder);
 
 		/** Starts the timer of the synth. */
 		void startTimer(double seconds);

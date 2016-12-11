@@ -195,48 +195,32 @@ public:
 			masterBuffer(masterBuffer_),
 			currentEventId(1)
 		{
-			for (int i = 0; i < 128; i++) noteOnEvents[i] = HiseEvent(HiseEvent::Type::NoteOn, 0, 0, 0);
+			for (int i = 0; i < 128; i++) 
+				realNoteOnEvents[i] = HiseEvent();
 		}
-
 
 		/** Fills note on / note off messages with the event id and returns the current value for external storage. */
 		void handleEventIds();
 
-		const HiseEvent* getNoteOnEventFor(const HiseEvent &noteOffEvent) const;
+		/** Removes the matching noteOn event for the given noteOff event. */
+		HiseEvent popNoteOn(const HiseEvent &noteOffEvent);
 
-		uint16 requestEventIdForArtificialNote(const HiseEvent& noteOnEvent) noexcept;
+		/** Returns the matching note on event for the given note off event (but doesn't remove it). */
+		HiseEvent peekNoteOn(const HiseEvent& noteOffEvent);
 
-		const HiseEvent* getNoteOnFromEventId(uint32 eventId) const
-		{
-			for (int i = 0; i < 128; i++)
-			{
-				if (noteOnEvents[i].isEmpty()) continue;
+		/** Adds the artificial event to the internal stack array. */
+		void pushArtificialNoteOn(HiseEvent& noteOnEvent) noexcept;
 
-				if (noteOnEvents[i].getEventId() == eventId)
-				{
-					return &noteOnEvents[i];
-				}
-			}
-
-			for (int i = 0; i < 128; i++)
-			{
-				if (artificialNoteOnEvents[i].isEmpty()) continue;
-
-				if (artificialNoteOnEvents[i].getEventId() == eventId)
-				{
-					return &artificialNoteOnEvents[i];
-				}
-			}
-
-			return nullptr;
-		}
+		/** Searches all active note on events and returns the one with the given event id. */
+		HiseEvent popNoteOnFromEventId(uint16 eventId);
 
 	private:
 
 		HiseEventBuffer &masterBuffer;
 
-		HiseEvent noteOnEvents[128];
+		HiseEventBuffer::EventStack artificialNoteOnStacks[128];
 
+		HiseEvent realNoteOnEvents[128];
 		HiseEvent artificialNoteOnEvents[128];
 
 		uint16 currentEventId;

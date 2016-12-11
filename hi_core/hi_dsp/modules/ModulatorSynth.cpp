@@ -594,11 +594,17 @@ void ModulatorSynth::noteOff(const HiseEvent &m)
 	float velocity = m.getFloatVelocity();
 	const int midiChannel = m.getChannel();
 
+	const uint16 eventId = m.getEventId();
+
+	jassert(eventId != 0);
+
 	for (int i = voices.size(); --i >= 0;)
 	{
 		SynthesiserVoice* const voice = voices.getUnchecked(i);
 
-		if (voice->getCurrentlyPlayingNote() == midiNoteNumber
+		ModulatorSynthVoice* const mvoice = static_cast<ModulatorSynthVoice*>(voices.getUnchecked(i));
+
+		if (mvoice->getCurrentHiseEvent().getEventId() == eventId //voice->getCurrentlyPlayingNote() == midiNoteNumber
 			&& voice->isPlayingChannel(midiChannel))
 		{
 			if (SynthesiserSound* const sound = voice->getCurrentlyPlayingSound())

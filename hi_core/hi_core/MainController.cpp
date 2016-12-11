@@ -709,8 +709,6 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 #if !FRONTEND_IS_PLUGIN
     
-    
-    
 	keyboardState.processNextMidiBuffer(midiMessages, 0, buffer.getNumSamples(), true);
 
 
@@ -721,6 +719,8 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	masterEventBuffer.addEvents(midiMessages);
 
 	eventIdHandler.handleEventIds();
+#else
+	ignoreUnused(midiMessages);
 #endif
 
 #if ENABLE_HOST_INFO

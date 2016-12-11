@@ -45,27 +45,19 @@ public:
 	void runTest() override
 	{
 		testConstructors();
-
 		testNoteOn();
-
 		testProperties();
-
 		testPitchWheel();
-
 		testEventBuffer();
-
 		testFadeEvent();
-
 		testEventBufferCopyMethods();
-
 		testMidiBufferCopyMethods();
-
 		testMidiBufferIterators();
-
 		testEventBufferMoveOperations();
+		testEventHandler();
+		testEventBufferStack();
+		
 	}
-
-	
 
 private:
 
@@ -112,6 +104,17 @@ private:
 		expect(empty.getEventId() == 0, "Event ID");
 		expect(empty.getTransposeAmount() == 0, "Transpose Amount");
 		expect(empty.getPitchFactorForEvent() == 1.0, "Pitch Factor");
+
+		HiseEvent f1 = generateRandomHiseEvent();
+		HiseEvent f2 = HiseEvent(f1);
+		HiseEvent f3;
+
+		f1.swapWith(f3);
+
+		expect(f2 == f3, "SwapTest");
+		expect(f1.isEmpty(), "SwapTest2");
+
+
 	}
 
 	void testNoteOn()
@@ -160,6 +163,70 @@ private:
 		expectEquals<int>(noe2.getCoarseDetune(), 0, "Coarse Detune");
 		expectEquals<int>(noe2.getFineDetune(), 0, "Fine Detune");
 		expectEquals<int>(noe2.getTimeStamp(), timeStamp, "Timestamp of copied message");
+	}
+
+	void testEventBufferStack()
+	{
+
+		HiseEventBuffer::EventStack stack;
+
+		beginTest("Testing Default Behaviour");
+
+		HiseEvent e1 = generateRandomHiseEvent();
+		HiseEvent e2 = generateRandomHiseEvent();
+		HiseEvent e3 = generateRandomHiseEvent();
+		HiseEvent e4 = generateRandomHiseEvent();
+		HiseEvent e5 = generateRandomHiseEvent();
+		HiseEvent e6 = generateRandomHiseEvent();
+		HiseEvent e7 = generateRandomHiseEvent();
+
+		stack.push(e1);
+		stack.push(e2);
+		stack.push(e3);
+		stack.push(e4);
+
+		expect(stack.getNumUsed() == 4, "NumUsed");
+
+		expect(e4 == stack.pop(), "1");
+		expect(e3 == stack.pop(), "2");
+		expect(e2 == stack.pop(), "3");
+		expect(e1 == stack.pop(), "4");
+		expect(HiseEvent() == stack.pop(), "Empty");
+
+		stack.clear();
+
+		expect(stack.getNumUsed() == 0, "Clear");
+		expect(stack.pop() == HiseEvent(), "PopIllegal");
+		expect(stack.getNumUsed() == 0, "NumAfterPop");
+
+		stack.push(e1);
+		stack.push(e2);
+		stack.pop();
+		stack.push(e3);
+		
+		expect(stack.getNumUsed() == 2, "Mix");
+		expect(stack.pop() == e3, "1b");
+		expect(stack.pop() == e1, "2b");
+
+		expect(stack.getNumUsed() == 0);
+
+		stack.clear();
+
+		stack.push(e1);
+		stack.push(e2);
+		stack.push(e3);
+		stack.push(e4);
+		
+		HiseEvent e3b;
+		expect(stack.popNoteOnForEventId(e3.getEventId(), e3b), "PopEvent1");
+		expect(e3b == e3, "PopEvent2");
+		expect(stack.getNumUsed() == 3, "PopEvent3");
+
+		expect(stack.pop() == e4, "1c");
+		expect(stack.pop() == e2, "2c");
+		expect(stack.pop() == e1, "3c");
+
+		expect(stack.getNumUsed() == 0);
 	}
 
 	void testPitchWheel()
@@ -581,9 +648,14 @@ private:
 		}
 	}
 
-	HiseEvent generateRandomHiseEvent()
+	HiseEvent generateRandomHiseEvent(HiseEvent::Type t = HiseEvent::Type::numTypes)
 	{
-		HiseEvent e((HiseEvent::Type)r.nextInt(Range<int>(1, (int)HiseEvent::Type::numTypes)),
+		if (t == HiseEvent::Type::numTypes)
+		{
+			t = (HiseEvent::Type)r.nextInt(Range<int>(1, (int)HiseEvent::Type::numTypes));
+		}
+
+		HiseEvent e(t,
 			(uint8)r.nextInt(128),
 			(uint8)r.nextInt(128),
 			(uint8)r.nextInt(256));
@@ -601,6 +673,68 @@ private:
 		e.setTransposeAmount(r.nextInt(Range<int>(-24, 24)));
 
 		return e;
+	}
+
+	void testEventHandler()
+	{
+		beginTest("Testing normal event ID handling");
+
+		HiseEventBuffer b;
+
+		MainController::EventIdHandler handler(b);
+
+		b.addEvent(HiseEvent(HiseEvent::Type::NoteOn, 24, 24, 1));
+		b.addEvent(HiseEvent(HiseEvent::Type::NoteOn, 36, 24, 1));
+		b.addEvent(HiseEvent(HiseEvent::Type::NoteOn, 34, 24, 1));
+		b.addEvent(HiseEvent(HiseEvent::Type::NoteOn, 22, 24, 1));
+
+		handler.handleEventIds();
+
+		HiseEventBuffer::Iterator i1(b);
+		uint16 eventId = 1;
+
+		while (const HiseEvent* e = i1.getNextConstEventPointer())
+			expectEquals<int>(e->getEventId(), eventId++, "EventIdOff");
+
+		b.clear();
+
+		b.addEvent(HiseEvent(HiseEvent::Type::NoteOff, 24, 24, 1));
+		b.addEvent(HiseEvent(HiseEvent::Type::NoteOff, 36, 24, 1));
+		b.addEvent(HiseEvent(HiseEvent::Type::NoteOff, 34, 24, 1));
+		b.addEvent(HiseEvent(HiseEvent::Type::NoteOff, 22, 24, 1));
+
+		handler.handleEventIds();
+
+		HiseEventBuffer::Iterator i2(b);
+		eventId = 1;
+
+		while (const HiseEvent* e = i1.getNextConstEventPointer())
+			expectEquals<int>(e->getEventId(), eventId++, "EventIdOff");
+
+		b.clear();
+
+		b.addEvent(HiseEvent(HiseEvent::Type::NoteOn, 24, 24, 1));
+		b.addEvent(HiseEvent(HiseEvent::Type::NoteOff, 24, 24, 1));
+
+		handler.handleEventIds();
+
+		HiseEventBuffer::Iterator iter2(b);
+
+		HiseEvent* on = iter2.getNextEventPointer();
+		HiseEvent* off = iter2.getNextEventPointer();
+
+		expectEquals<int>(on->getEventId(), off->getEventId(), "EventIdMatch");
+
+		b.clear();
+
+		b.addEvent(HiseEvent(HiseEvent::Type::NoteOn, 37, 24, 1));
+		handler.handleEventIds();
+		
+		HiseEvent on1 = b.getEvent(0);
+		HiseEvent on2 = handler.popNoteOn(HiseEvent(HiseEvent::Type::NoteOff, 37, 24, 1));
+		
+		expect(on1 == on2, "NoteOnEvent");
+		expect(handler.popNoteOn(HiseEvent(HiseEvent::Type::NoteOff, 37, 24, 1)) == HiseEvent(), "RemovedNoteOnEvent");
 	}
 
 	Random r;
