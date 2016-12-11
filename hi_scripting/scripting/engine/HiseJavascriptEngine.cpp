@@ -149,6 +149,7 @@ struct HiseJavascriptEngine::RootObject::CodeLocation
 #if USE_BACKEND
 		throw getErrorMessage(message);
 #else
+		ignoreUnused(message);
 		DBG(getErrorMessage(message));
 #endif
 	}

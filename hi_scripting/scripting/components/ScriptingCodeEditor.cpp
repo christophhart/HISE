@@ -615,13 +615,8 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &menu, const MouseEvent *
 
     CodeEditorComponent::addPopupMenuItems(menu, e);
     
-    
-    
-    ScriptingEditor *editor = findParentComponentOfClass<ScriptingEditor>();
-    
     if(true)
     {
-		
 		menu.addSeparator();
 		menu.addSectionHeader("Refactoring");
 		menu.addItem(105, "Search & replace");
@@ -638,12 +633,9 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &menu, const MouseEvent *
         menu.addSeparator();
         menu.addItem(103, "Save Script to Clipboard");
         menu.addItem(104, "Load Script from Clipboard");
-        menu.addSeparator();
-		
-		
+        menu.addSeparator();		
     }
     
-
 #else
 
 	ignoreUnused(menu, e);
@@ -957,7 +949,7 @@ void JavascriptCodeEditor::paintOverChildren(Graphics& g)
 				const int x = getCharacterBounds(pos).getX();
                 const int y = getCharacterBounds(pos).getY();
                 
-				const int w = getCharWidth() * highlightedSelection[i].getLength();
+				const int w = (int)(getCharWidth() * (float)highlightedSelection[i].getLength());
 				const int h = getLineHeight();
 
 				g.setColour(Colours::green.withAlpha(0.4f));
@@ -2021,10 +2013,7 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor* s, const Identifier 
 	file(File()),
 	callback(callback_)
 {
-	Processor *p = dynamic_cast<Processor*>(sp);
-
 	doc.setNonOwned(sp->getSnippet(callback_));
-
 
 	tokeniser = new JavascriptTokeniser();
 	addAndMakeVisible(editor = new JavascriptCodeEditor(*doc, tokeniser, s));
@@ -2044,8 +2033,6 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor* s):
 	file(File()),
 	callback(Identifier())
 {
-	Processor *p = dynamic_cast<Processor*>(sp);
-
 	doc.setOwned(new CodeDocument());
 
 	String allCode;

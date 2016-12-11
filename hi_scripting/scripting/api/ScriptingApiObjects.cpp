@@ -256,6 +256,8 @@ float ScriptingObjects::ScriptingModulator::getAttribute(int parameterIndex)
     {
         return mod->getAttribute(parameterIndex);
     }
+
+	return 0.0f;
 }
 
 void ScriptingObjects::ScriptingModulator::setBypassed(bool shouldBeBypassed)
@@ -362,6 +364,8 @@ float ScriptingObjects::ScriptingEffect::getAttribute(int parameterIndex)
     {
         return effect->getAttribute(parameterIndex);
     }
+
+	return 0.0f;
 }
 
 void ScriptingObjects::ScriptingEffect::setBypassed(bool shouldBeBypassed)
@@ -422,6 +426,8 @@ float ScriptingObjects::ScriptingSynth::getAttribute(int parameterIndex)
     {
         return synth->getAttribute(parameterIndex);
     }
+
+	return 0.0f;
 }
 
 void ScriptingObjects::ScriptingSynth::setBypassed(bool shouldBeBypassed)
@@ -506,6 +512,8 @@ float ScriptingObjects::ScriptingMidiProcessor::getAttribute(int parameterIndex)
     {
         return mp->getAttribute(parameterIndex);
     }
+
+	return 0.0f;
 }
 
 void ScriptingObjects::ScriptingMidiProcessor::setBypassed(bool shouldBeBypassed)
@@ -572,6 +580,8 @@ float ScriptingObjects::ScriptingAudioSampleProcessor::getAttribute(int paramete
     {
         return audioSampleProcessor->getAttribute(parameterIndex);
     }
+
+	return 0.0f;
 }
 
 void ScriptingObjects::ScriptingAudioSampleProcessor::setBypassed(bool shouldBeBypassed)
@@ -725,8 +735,8 @@ ScriptingObjects::TimerObject::~TimerObject()
 void ScriptingObjects::TimerObject::timerCallback()
 {
 	var undefinedArgs = var::undefined();
-	
-	var::NativeFunctionArgs args(this, &undefinedArgs, 0);
+	var thisObject(this);
+	var::NativeFunctionArgs args(thisObject, &undefinedArgs, 0);
 
 	Result r = Result::ok();
 
@@ -1071,10 +1081,8 @@ void ScriptingObjects::GraphicsObject::drawImage(String imageName, var area, int
         {
             const double scaleFactor = (double)img->getWidth() / (double)r.getWidth();
             
-            g->drawImage(*img, (int)r.getX(), (int)r.getY(), (int)r.getWidth(), (int)r.getHeight(), 0, yOffset, (int)img->getWidth(), (int)r.getHeight() * scaleFactor);
-        }
-        
-        
+            g->drawImage(*img, (int)r.getX(), (int)r.getY(), (int)r.getWidth(), (int)r.getHeight(), 0, yOffset, (int)img->getWidth(), (int)((double)r.getHeight() * scaleFactor));
+        }        
 	}
 	else
 	{
@@ -1143,7 +1151,7 @@ void ScriptingObjects::GraphicsObject::addDropShadowFromAlpha(int colour, int ra
     
     Graphics g2(*imageToDraw);
     
-    g2.addTransform(AffineTransform::scale(1.0 / scaleFactor));
+    g2.addTransform(AffineTransform::scale((float)(1.0 / scaleFactor)));
     
 	shadow.drawForImage(g2, *imageToDraw);
 }

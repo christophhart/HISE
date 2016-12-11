@@ -110,6 +110,8 @@ public:
 		buffer.clear();
 		midiMessages.clear();
 		allNotesOff();
+#else
+		ignoreUnused(buffer, midiMessages);
 #endif
 		
 	};

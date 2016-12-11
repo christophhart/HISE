@@ -213,7 +213,7 @@ void Console::mouseMove(const MouseEvent &e)
 	}
 }
 
-void Console::mouseDoubleClick(const MouseEvent& e)
+void Console::mouseDoubleClick(const MouseEvent& /*e*/)
 {
 	CodeDocument::Position selectionStart = newTextConsole->getSelectionStart();
 

@@ -187,20 +187,20 @@ public:
 		return -1;
 	}
 
-	void synthTimerCallback(int index)
+	void synthTimerCallback(uint8 index)
 	{
 		if (index >= 0)
 		{
 			ADD_GLITCH_DETECTOR(getId() + " timer callback");
 
 			const double thisUptime = getMainController()->getUptime() - (getBlockSize() / getSampleRate());
-			int offsetInBuffer = (int)((nextTimerCallbackTimes[index] - thisUptime) * getSampleRate());
+			uint16 offsetInBuffer = (uint16)((nextTimerCallbackTimes[index] - thisUptime) * getSampleRate());
 
 			while (synthTimerIntervals[index] > 0.0 && offsetInBuffer < getBlockSize())
 			{
 				eventBuffer.addEvent(HiseEvent::createTimerEvent(index, offsetInBuffer));
 				nextTimerCallbackTimes[index] += synthTimerIntervals[index];
-				offsetInBuffer = (int)((nextTimerCallbackTimes[index] - thisUptime) * getSampleRate());
+				offsetInBuffer = (uint16)((nextTimerCallbackTimes[index] - thisUptime) * getSampleRate());
 			}
 		}
 		else jassertfalse;

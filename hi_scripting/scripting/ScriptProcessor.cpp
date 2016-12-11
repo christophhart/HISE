@@ -228,7 +228,7 @@ void FileChangeListener::showPopupForFile(int index, int charNumberToDisplay/*=0
 	}
 
 #else
-	ignoreUnused(index, charNumberToDisplay);
+	ignoreUnused(index, charNumberToDisplay, lineNumberToDisplay);
 #endif
 }
 
@@ -266,6 +266,9 @@ void JavascriptProcessor::showPopupForCallback(const Identifier& callback, int c
 	{
 		popup->gotoChar(charNumberToDisplay, lineNumberToDisplay);
 	}
+#else
+	ignoreUnused(callback, charNumberToDisplay, lineNumberToDisplay);
+
 #endif
 }
 

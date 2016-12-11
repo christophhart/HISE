@@ -199,15 +199,21 @@ public:
 			possibleRetriggerNote = lastNote;
 		}
 	
-		lastNote = Message.getNoteNumber();
-	
-		lastEventId = Message.getEventId();
+		Message.ignoreEvent(true);
+		lastEventId = Synth.playNote(Message.getNoteNumber(), Message.getVelocity());
 
+		lastNote = Message.getNoteNumber();
 		lastVelo = Message.getVelocity();
 	};
 
 	void onNoteOff() override
 	{
+		if (Message.getNoteNumber() == lastNote)
+		{
+			Message.ignoreEvent(true);
+			Synth.noteOffByEventId(lastEventId);
+		}
+
 		int number = Message.getNoteNumber();
 	
 		if(number == possibleRetriggerNote)

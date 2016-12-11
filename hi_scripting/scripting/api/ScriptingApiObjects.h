@@ -673,7 +673,7 @@ public:
 
 		Result rectangleResult;
 
-		Image *imageToDraw;
+		Image *imageToDraw = nullptr;
 
 		Graphics *g = nullptr;
 
@@ -682,7 +682,7 @@ public:
 		ColourGradient currentGradient;
 		bool useGradient = false;
 
-		ConstScriptingObject* parent;
+		ConstScriptingObject* parent = nullptr;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GraphicsObject);
 

@@ -777,9 +777,8 @@ void ModulatorSampler::preHiseEventCallback(const HiseEvent &m)
 		}
 		else
 		{
-			const HiseEvent *noteOn = getMainController()->getEventHandler().getNoteOnEventFor(m);
-
-			const int noteNumber = noteOn->getNoteNumber() + noteOn->getTransposeAmount();
+			const HiseEvent noteOn = getMainController()->getEventHandler().peekNoteOn(m);
+			const int noteNumber = noteOn.getNoteNumber() + noteOn.getTransposeAmount();
 
 			samplerDisplayValues.currentNotes[noteNumber] = -1;
 		}
