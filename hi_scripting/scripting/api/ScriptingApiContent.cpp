@@ -2033,16 +2033,19 @@ void ScriptingApi::Content::ScriptPanel::internalRepaint()
 
 	Graphics g(paintCanvas);
 
-	g.addTransform(AffineTransform::scale(scaleFactor));
+	g.addTransform(AffineTransform::scale((float)scaleFactor));
 	
+	var thisObject(this);
 	var arguments = var(graphics);
-	var::NativeFunctionArgs args(this, &arguments, 1);
+	var::NativeFunctionArgs args(thisObject, &arguments, 1);
 
 	graphics->setGraphics(&g, &paintCanvas);
 
 	Result r = Result::ok();
 
-	dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine()->callExternalFunction(paintRoutine, args, &r);
+	HiseJavascriptEngine* engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
+
+	engine->callExternalFunction(paintRoutine, args, &r);
 
 	if (r.failed())
 	{
@@ -2063,7 +2066,9 @@ void ScriptingApi::Content::ScriptPanel::mouseCallback(var mouseInformation)
 {
 	if (!mouseRoutine.isUndefined())
 	{
-		var::NativeFunctionArgs args(this, &mouseInformation, 1);
+		var thisObject(this);
+
+		var::NativeFunctionArgs args(thisObject, &mouseInformation, 1);
 
 		Result r = Result::ok();
 
@@ -2085,7 +2090,8 @@ void ScriptingApi::Content::ScriptPanel::timerCallback()
 {
 	if (!timerRoutine.isUndefined())
 	{
-		var::NativeFunctionArgs args(this, nullptr, 0);
+		var thisObject(this);
+		var::NativeFunctionArgs args(thisObject, nullptr, 0);
 
 		Result r = Result::ok();
 
@@ -2163,7 +2169,10 @@ void ScriptingApi::Content::ScriptPanel::setDraggingBounds(var area)
 
 void ScriptingApi::Content::ScriptPanel::AsyncControlCallbackSender::handleAsyncUpdate()
 {
-	p->controlCallback(parent, parent->getValue());
+	if (parent.get() != nullptr)
+	{
+		p->controlCallback(parent, parent->getValue());
+	}
 }
 
 

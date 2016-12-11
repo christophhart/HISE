@@ -643,13 +643,13 @@ public:
 		ScriptPanel(ProcessorWithScriptingContent *base, Content *parentContent, Identifier panelName, int x, int y, int width, int height);;
 		~ScriptPanel()
 		{
+			masterReference.clear();
+			
 			graphics = nullptr;
 
 			timerRoutine = var::undefined();
 			mouseRoutine = var::undefined();
 			paintRoutine = var::undefined();
-
-			
 		}
 
 		// ========================================================================================================
@@ -716,6 +716,10 @@ public:
 
 	private:
 
+		friend class WeakReference<ScriptPanel>;
+
+		WeakReference<ScriptPanel>::Master masterReference;
+
 		void internalRepaint();
 
 		struct AsyncControlCallbackSender : public AsyncUpdater
@@ -724,7 +728,7 @@ public:
 
 			void handleAsyncUpdate();
 
-			ScriptPanel* parent;
+			WeakReference<ScriptPanel> parent;
 			ProcessorWithScriptingContent* p;
 		};
 
@@ -734,11 +738,15 @@ public:
 
 			void handleAsyncUpdate()
 			{
-				parent->internalRepaint();
+				if (parent.get() != nullptr)
+				{
+					parent->internalRepaint();
+				}
 			}
 
-			ScriptPanel* parent;
+			WeakReference<ScriptPanel> parent;
 		};
+
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptPanel);
 
 		ReferenceCountedObjectPtr<ScriptingObjects::GraphicsObject> graphics;
