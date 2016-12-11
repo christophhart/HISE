@@ -1185,3 +1185,106 @@ void ScriptingObjects::GraphicsObject::initGraphics()
 
 }
 
+struct ScriptingObjects::ScriptingMessageHolder::Wrapper
+{
+	API_VOID_METHOD_WRAPPER_1(ScriptingMessageHolder, setNoteNumber);
+	API_VOID_METHOD_WRAPPER_1(ScriptingMessageHolder, setVelocity);
+	API_VOID_METHOD_WRAPPER_1(ScriptingMessageHolder, setControllerNumber);
+	API_VOID_METHOD_WRAPPER_1(ScriptingMessageHolder, setControllerValue);
+	API_METHOD_WRAPPER_0(ScriptingMessageHolder, getNoteNumber);
+	API_METHOD_WRAPPER_0(ScriptingMessageHolder, getVelocity);
+	API_METHOD_WRAPPER_0(ScriptingMessageHolder, getControllerNumber);
+	API_METHOD_WRAPPER_0(ScriptingMessageHolder, getControllerValue);
+	API_VOID_METHOD_WRAPPER_1(ScriptingMessageHolder, ignoreEvent);
+	API_METHOD_WRAPPER_0(ScriptingMessageHolder, getEventId);
+	API_METHOD_WRAPPER_0(ScriptingMessageHolder, getChannel);
+	API_VOID_METHOD_WRAPPER_1(ScriptingMessageHolder, setChannel);
+	API_VOID_METHOD_WRAPPER_1(ScriptingMessageHolder, setTransposeAmount);
+	API_METHOD_WRAPPER_0(ScriptingMessageHolder, getTransposeAmount);
+	API_VOID_METHOD_WRAPPER_1(ScriptingMessageHolder, setCoarseDetune);
+	API_METHOD_WRAPPER_0(ScriptingMessageHolder, getCoarseDetune);
+	API_VOID_METHOD_WRAPPER_1(ScriptingMessageHolder, setFineDetune);
+	API_METHOD_WRAPPER_0(ScriptingMessageHolder, getFineDetune);
+	API_VOID_METHOD_WRAPPER_1(ScriptingMessageHolder, setGain);
+	API_METHOD_WRAPPER_0(ScriptingMessageHolder, getGain);
+	API_METHOD_WRAPPER_0(ScriptingMessageHolder, getTimestamp);
+	API_METHOD_WRAPPER_0(ScriptingMessageHolder, dump);
+};
+
+ScriptingObjects::ScriptingMessageHolder::ScriptingMessageHolder(ProcessorWithScriptingContent* pwsc) :
+	ConstScriptingObject(pwsc, (int)HiseEvent::Type::numTypes)
+{
+	ADD_API_METHOD_1(setNoteNumber);
+	ADD_API_METHOD_1(setVelocity);
+	ADD_API_METHOD_1(setControllerNumber);
+	ADD_API_METHOD_1(setControllerValue);
+	ADD_API_METHOD_0(getControllerNumber);
+	ADD_API_METHOD_0(getControllerValue);
+	ADD_API_METHOD_0(getNoteNumber);
+	ADD_API_METHOD_0(getVelocity);
+	ADD_API_METHOD_1(ignoreEvent);
+	ADD_API_METHOD_0(getEventId);
+	ADD_API_METHOD_0(getChannel);
+	ADD_API_METHOD_1(setChannel);
+	ADD_API_METHOD_0(getGain);
+	ADD_API_METHOD_1(setGain);
+	ADD_API_METHOD_1(setTransposeAmount);
+	ADD_API_METHOD_0(getTransposeAmount);
+	ADD_API_METHOD_1(setCoarseDetune);
+	ADD_API_METHOD_0(getCoarseDetune);
+	ADD_API_METHOD_1(setFineDetune);
+	ADD_API_METHOD_0(getFineDetune);
+	ADD_API_METHOD_0(getTimestamp);
+	ADD_API_METHOD_0(dump);
+
+	addConstant("Empty", 0);
+	addConstant("NoteOn", 1);
+	addConstant("NoteOff", 2);
+	addConstant("Controller", 3);
+	addConstant("PitchBend", 4);
+	addConstant("Aftertouch", 5);
+	addConstant("AllNotesOff", 6);
+	addConstant("SongPosition", 7);
+	addConstant("MidiStart", 8);
+	addConstant("MidiStop", 9);
+	addConstant("VolumeFade", 10);
+	addConstant("PitchFade", 11);
+	addConstant("TimerEvent", 12);
+}
+
+int ScriptingObjects::ScriptingMessageHolder::getNoteNumber() const { return (int)e.getNoteNumber(); }
+var ScriptingObjects::ScriptingMessageHolder::getControllerNumber() const { return (int)e.getControllerNumber(); }
+var ScriptingObjects::ScriptingMessageHolder::getControllerValue() const { return (int)e.getControllerNumber(); }
+int ScriptingObjects::ScriptingMessageHolder::getChannel() const { return (int)e.getChannel(); }
+void ScriptingObjects::ScriptingMessageHolder::setChannel(int newChannel) { e.setChannel(newChannel); }
+void ScriptingObjects::ScriptingMessageHolder::setNoteNumber(int newNoteNumber) { e.setNoteNumber(newNoteNumber); }
+void ScriptingObjects::ScriptingMessageHolder::setVelocity(int newVelocity) { e.setVelocity((uint8)newVelocity); }
+void ScriptingObjects::ScriptingMessageHolder::setControllerNumber(int newControllerNumber) { e.setControllerNumber(newControllerNumber);}
+void ScriptingObjects::ScriptingMessageHolder::setControllerValue(int newControllerValue) { e.setControllerValue(newControllerValue); }
+int ScriptingObjects::ScriptingMessageHolder::getVelocity() const { return e.getVelocity(); }
+void ScriptingObjects::ScriptingMessageHolder::ignoreEvent(bool shouldBeIgnored /*= true*/) { e.ignoreEvent(shouldBeIgnored); }
+int ScriptingObjects::ScriptingMessageHolder::getEventId() const { return (int)e.getEventId(); }
+void ScriptingObjects::ScriptingMessageHolder::setTransposeAmount(int tranposeValue) { e.setTransposeAmount(tranposeValue); }
+int ScriptingObjects::ScriptingMessageHolder::getTransposeAmount() const { return (int)e.getTransposeAmount(); }
+void ScriptingObjects::ScriptingMessageHolder::setCoarseDetune(int semiToneDetune) { e.setCoarseDetune(semiToneDetune); }
+int ScriptingObjects::ScriptingMessageHolder::getCoarseDetune() const { return (int)e.getCoarseDetune(); }
+void ScriptingObjects::ScriptingMessageHolder::setFineDetune(int cents) { e.setFineDetune(cents); }
+int ScriptingObjects::ScriptingMessageHolder::getFineDetune() const { return (int)e.getFineDetune(); }
+void ScriptingObjects::ScriptingMessageHolder::setGain(int gainInDecibels) { e.setGain(gainInDecibels); }
+int ScriptingObjects::ScriptingMessageHolder::getGain() const { return (int)e.getGain(); }
+int ScriptingObjects::ScriptingMessageHolder::getTimestamp() const { return (int)e.getTimeStamp(); }
+void ScriptingObjects::ScriptingMessageHolder::setTimestamp(int timestampSamples) { e.setTimeStamp((uint16)timestampSamples);}
+void ScriptingObjects::ScriptingMessageHolder::addToTimestamp(int deltaSamples) { e.addToTimeStamp((int16)deltaSamples); }
+
+String ScriptingObjects::ScriptingMessageHolder::dump() const
+{
+	String x;
+	x << "Type: " << e.getTypeAsString() << ", ";
+	x << "Number: " << String(e.getNoteNumber()) << ", ";
+	x << "Value: " << String(e.getVelocity()) << ", ";
+	x << "Channel: " << String(e.getChannel()) << ", ";
+	x << "EventId: " << String(e.getEventId()) << ", ";
+	x << "Timestamp: " << String(e.getTimeStamp()) << ", ";
+
+	return x;
+}

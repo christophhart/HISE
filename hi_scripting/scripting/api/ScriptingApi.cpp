@@ -281,6 +281,7 @@ struct ScriptingApi::Message::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Message, setGain);
 	API_METHOD_WRAPPER_0(Message, getGain);
 	API_METHOD_WRAPPER_0(Message, getTimestamp);
+	API_VOID_METHOD_WRAPPER_1(Message, store);
 };
 
 
@@ -312,6 +313,7 @@ constMessageHolder(nullptr)
 	ADD_API_METHOD_1(setFineDetune);
 	ADD_API_METHOD_0(getFineDetune);
 	ADD_API_METHOD_0(getTimestamp);
+	ADD_API_METHOD_1(store);
 }
 
 
@@ -649,6 +651,24 @@ int ScriptingApi::Message::getTimestamp() const
 	return constMessageHolder->getTimeStamp();
 }
 
+void ScriptingApi::Message::store(var messageEventHolder) const
+{
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+	if (constMessageHolder == nullptr)
+	{
+		reportIllegalCall("store()", "midi event");
+		return;
+	}
+#endif
+
+	ScriptingObjects::ScriptingMessageHolder* holder = dynamic_cast<ScriptingObjects::ScriptingMessageHolder*>(messageEventHolder.getObject());
+
+	if (holder != nullptr && constMessageHolder != nullptr)
+	{
+		holder->setMessage(*constMessageHolder);
+	}
+}
+
 void ScriptingApi::Message::setHiseEvent(HiseEvent &m)
 {
 	messageHolder = &m;
@@ -684,6 +704,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Engine, setLowestKeyToDisplay);
 	API_METHOD_WRAPPER_0(Engine, createMidiList);
 	API_METHOD_WRAPPER_0(Engine, createTimerObject);
+	API_METHOD_WRAPPER_0(Engine, createMessageHolder);
 	API_METHOD_WRAPPER_0(Engine, getPlayHead);
 	API_VOID_METHOD_WRAPPER_2(Engine, dumpAsJSON);
 	API_METHOD_WRAPPER_1(Engine, loadFromJSON);
@@ -728,6 +749,7 @@ ApiClass(0)
 	ADD_API_METHOD_2(doubleToString);
 	ADD_API_METHOD_0(getOS);
 	ADD_API_METHOD_0(createTimerObject);
+	ADD_API_METHOD_0(createMessageHolder);
 	ADD_API_METHOD_1(loadFont);
 	ADD_API_METHOD_0(undo);
 	ADD_API_METHOD_0(redo);
@@ -829,6 +851,11 @@ double ScriptingApi::Engine::getMilliSecondsForTempo(int tempoIndex) const { ret
 DynamicObject * ScriptingApi::Engine::getPlayHead() { return getProcessor()->getMainController()->getHostInfoObject(); }
 ScriptingObjects::MidiList *ScriptingApi::Engine::createMidiList() { return new ScriptingObjects::MidiList(getScriptProcessor()); };
 ScriptingObjects::TimerObject* ScriptingApi::Engine::createTimerObject() { return new ScriptingObjects::TimerObject(getScriptProcessor()); }
+
+ScriptingObjects::ScriptingMessageHolder* ScriptingApi::Engine::createMessageHolder()
+{
+	return new ScriptingObjects::ScriptingMessageHolder(getScriptProcessor());
+}
 
 void ScriptingApi::Engine::dumpAsJSON(var object, String fileName)
 {
@@ -1273,6 +1300,7 @@ struct ScriptingApi::Synth::Wrapper
 	API_VOID_METHOD_WRAPPER_3(Synth, addVolumeFade);
 	API_VOID_METHOD_WRAPPER_4(Synth, addPitchFade);
 	API_VOID_METHOD_WRAPPER_4(Synth, addController);
+	API_METHOD_WRAPPER_1(Synth, addEventFromHolder);
 	API_VOID_METHOD_WRAPPER_2(Synth, setVoiceGainValue);
 	API_VOID_METHOD_WRAPPER_2(Synth, setVoicePitchValue);
 	API_VOID_METHOD_WRAPPER_1(Synth, startTimer);
@@ -1325,6 +1353,7 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	ADD_API_METHOD_3(addVolumeFade);
 	ADD_API_METHOD_4(addPitchFade);
 	ADD_API_METHOD_4(addController);
+	ADD_API_METHOD_1(addEventFromHolder);
 	ADD_API_METHOD_2(setVoiceGainValue);
 	ADD_API_METHOD_2(setVoicePitchValue);
 	ADD_API_METHOD_1(startTimer);
@@ -1469,6 +1498,50 @@ void ScriptingApi::Synth::addPitchFade(int eventId, int fadeTimeMilliseconds, in
 		else reportScriptError("Event ID must be positive");
 	}
 	else reportScriptError("Only valid in MidiProcessors");
+}
+
+int ScriptingApi::Synth::addEventFromHolder(var messageHolder)
+{
+	if (ScriptBaseMidiProcessor* sp = dynamic_cast<ScriptBaseMidiProcessor*>(getScriptProcessor()))
+	{
+		ScriptingObjects::ScriptingMessageHolder* m = dynamic_cast<ScriptingObjects::ScriptingMessageHolder*>(messageHolder.getObject());
+
+		if (m != 0)
+		{
+			HiseEvent e = m->getMessage();
+
+			if (e.getType() != HiseEvent::Type::Empty)
+			{
+				e.setArtificial();
+
+				if (e.isNoteOn())
+				{
+					sp->getMainController()->getEventHandler().pushArtificialNoteOn(e);
+					sp->addHiseEventToBuffer(e);
+					return e.getEventId();
+				}
+				else if (e.isNoteOff())
+				{
+					const HiseEvent no = sp->getMainController()->getEventHandler().popNoteOn(e);
+
+					e.setEventId(no.getEventId());	
+
+					sp->addHiseEventToBuffer(e);
+					return e.getTimeStamp();
+				}
+				else
+				{
+					sp->addHiseEventToBuffer(e);
+					return 0;
+				}
+			}
+			else reportScriptError("Event is empty");
+		}
+		else reportScriptError("Not a message holder");
+	}
+	else reportScriptError("Only valid in MidiProcessors");
+
+	return 0;
 }
 
 void ScriptingApi::Synth::startTimer(double intervalInSeconds)

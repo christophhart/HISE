@@ -109,6 +109,112 @@ public:
 		// ============================================================================================================
 	};
 
+	class ScriptingMessageHolder : public ConstScriptingObject,
+								   public DebugableObject
+	{
+	public:
+
+		// ============================================================================================================
+
+		ScriptingMessageHolder(ProcessorWithScriptingContent* content);
+		~ScriptingMessageHolder() {};
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Message"); }
+
+		String getDebugName() const override { return "MessageHolder"; };
+		String getDebugValue() const override { return e.getTypeAsString() + "[" + String(e.getNoteNumber()) + "," + String(e.getVelocity()) + "," + String(e.getChannel()) + "]"; };
+		
+		// ============================================================================================================
+
+		/** Return the note number. This can be called only on midi event callbacks. */
+		int getNoteNumber() const;
+
+		/** returns the controller number or 'undefined', if the message is neither controller nor pitch wheel nor aftertouch.
+		*
+		*	You can also check for pitch wheel values and aftertouch messages.
+		*	Pitchwheel has number 128, Aftertouch has number 129.
+		*/
+		var getControllerNumber() const;
+
+		/** Returns the value of the controller. */
+		var getControllerValue() const;
+
+		/** Returns the MIDI Channel from 1 to 16. */
+		int getChannel() const;
+
+		/** Changes the MIDI channel from 1 to 16. */
+		void setChannel(int newChannel);
+
+		/** Changes the note number. */
+		void setNoteNumber(int newNoteNumber);
+
+		/** Changes the velocity (range 1 - 127). */
+		void setVelocity(int newVelocity);
+
+		/** Changes the ControllerNumber. */
+		void setControllerNumber(int newControllerNumber);
+
+		/** Changes the controller value (range 0 - 127). */
+		void setControllerValue(int newControllerValue);
+
+		/** Returns the Velocity. */
+		int getVelocity() const;
+
+		/** Ignores the event. */
+		void ignoreEvent(bool shouldBeIgnored = true);;
+
+		/** Returns the event id of the current message. */
+		int getEventId() const;
+
+		/** Transposes the note on. */
+		void setTransposeAmount(int tranposeValue);
+
+		/** Gets the tranpose value. */
+		int getTransposeAmount() const;
+
+		/** Sets the coarse detune amount in semitones. */
+		void setCoarseDetune(int semiToneDetune);
+
+		/** Returns the coarse detune amount in semitones. */
+		int getCoarseDetune() const;
+
+		/** Sets the fine detune amount in cents. */
+		void setFineDetune(int cents);
+
+		/** Returns the fine detune amount int cents. */
+		int getFineDetune() const;
+
+		/** Sets the volume of the note (-100 = silence). */
+		void setGain(int gainInDecibels);
+
+		/** Returns the volume of the note. */
+		int getGain() const;
+
+		/** Returns the current timestamp. */
+		int getTimestamp() const;
+
+		/** Sets the timestamp in samples. */
+		void setTimestamp(int timestampSamples);
+
+		/** Adds the given sample amount to the current timestamp. */
+		void addToTimestamp(int deltaSamples);
+
+		/** Creates a info string for debugging. */
+		String dump() const;
+
+		// ============================================================================================================
+
+		void setMessage(const HiseEvent &newEvent) { e = HiseEvent(newEvent); }
+
+		HiseEvent getMessage() const { return e; }
+
+	private:
+
+		struct Wrapper;
+
+		HiseEvent e;
+	};
+
 	/** A scripting objects that wraps an existing Modulator.
 	*/
 	class ScriptingModulator : public ConstScriptingObject,
