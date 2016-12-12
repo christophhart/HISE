@@ -169,6 +169,12 @@ public:
 		/** Stores a copy of the current event into the given holder object. */
 		void store(var messageEventHolder) const;
 
+		/** Creates a artificial copy of this event and returns the new event ID. */
+		int makeArtificial();
+
+		/** Checks if the event was created by a script earlier. */
+		bool isArtificial() const;
+
 		// ============================================================================================================
 
 		void setHiseEvent(HiseEvent &m);
@@ -183,6 +189,8 @@ public:
 
 		HiseEvent* messageHolder;
 		const HiseEvent* constMessageHolder;
+
+		uint16 artificialNoteOnIds[128];
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Message);
 	};
@@ -424,7 +432,7 @@ public:
 		void addPitchFade(int eventId, int fadeTimeMilliseconds, int targetCoarsePitch, int targetFinePitch);
 
 		/** Adds the event from the given holder and returns a event id for note ons. */
-		int addEventFromHolder(var messageHolder);
+		int addMessageFromHolder(var messageHolder);
 
 		/** Starts the timer of the synth. */
 		void startTimer(double seconds);

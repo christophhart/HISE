@@ -282,6 +282,8 @@ struct ScriptingApi::Message::Wrapper
 	API_METHOD_WRAPPER_0(Message, getGain);
 	API_METHOD_WRAPPER_0(Message, getTimestamp);
 	API_VOID_METHOD_WRAPPER_1(Message, store);
+	API_METHOD_WRAPPER_0(Message, makeArtificial);
+	API_METHOD_WRAPPER_0(Message, isArtificial);
 };
 
 
@@ -291,6 +293,8 @@ ApiClass(0),
 messageHolder(nullptr),
 constMessageHolder(nullptr)
 {
+	memset(artificialNoteOnIds, 0, sizeof(uint16) * 128);
+
 	ADD_API_METHOD_1(setNoteNumber);
 	ADD_API_METHOD_1(setVelocity);
 	ADD_API_METHOD_1(setControllerNumber);
@@ -314,6 +318,8 @@ constMessageHolder(nullptr)
 	ADD_API_METHOD_0(getFineDetune);
 	ADD_API_METHOD_0(getTimestamp);
 	ADD_API_METHOD_1(store);
+	ADD_API_METHOD_0(makeArtificial);
+	ADD_API_METHOD_0(isArtificial);
 }
 
 
@@ -667,6 +673,47 @@ void ScriptingApi::Message::store(var messageEventHolder) const
 	{
 		holder->setMessage(*constMessageHolder);
 	}
+}
+
+int ScriptingApi::Message::makeArtificial()
+{
+	if (messageHolder != nullptr)
+	{
+		if (messageHolder->isArtificial()) return messageHolder->getEventId();
+
+		HiseEvent copy(*messageHolder);
+
+		copy.setArtificial();
+
+		if (copy.isNoteOn())
+		{
+			getScriptProcessor()->getMainController_()->getEventHandler().pushArtificialNoteOn(copy);
+			artificialNoteOnIds[copy.getNoteNumber()] = copy.getEventId();
+
+		}
+		else if (copy.isNoteOff())
+		{
+			getScriptProcessor()->getMainController_()->getEventHandler().popNoteOnFromEventId(artificialNoteOnIds[copy.getNoteNumber()]);
+			copy.setEventId(artificialNoteOnIds[copy.getNoteNumber()]);
+			artificialNoteOnIds[copy.getNoteNumber()] = 0;
+		}
+
+		copy.swapWith(*messageHolder);
+
+		return messageHolder->getEventId();
+	}
+
+	return 0;
+}
+
+bool ScriptingApi::Message::isArtificial() const
+{
+	if (constMessageHolder != nullptr)
+	{
+		return constMessageHolder->isArtificial();
+	}
+
+	return false;
 }
 
 void ScriptingApi::Message::setHiseEvent(HiseEvent &m)
@@ -1300,7 +1347,7 @@ struct ScriptingApi::Synth::Wrapper
 	API_VOID_METHOD_WRAPPER_3(Synth, addVolumeFade);
 	API_VOID_METHOD_WRAPPER_4(Synth, addPitchFade);
 	API_VOID_METHOD_WRAPPER_4(Synth, addController);
-	API_METHOD_WRAPPER_1(Synth, addEventFromHolder);
+	API_METHOD_WRAPPER_1(Synth, addMessageFromHolder);
 	API_VOID_METHOD_WRAPPER_2(Synth, setVoiceGainValue);
 	API_VOID_METHOD_WRAPPER_2(Synth, setVoicePitchValue);
 	API_VOID_METHOD_WRAPPER_1(Synth, startTimer);
@@ -1353,7 +1400,7 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	ADD_API_METHOD_3(addVolumeFade);
 	ADD_API_METHOD_4(addPitchFade);
 	ADD_API_METHOD_4(addController);
-	ADD_API_METHOD_1(addEventFromHolder);
+	ADD_API_METHOD_1(addMessageFromHolder);
 	ADD_API_METHOD_2(setVoiceGainValue);
 	ADD_API_METHOD_2(setVoicePitchValue);
 	ADD_API_METHOD_1(startTimer);
@@ -1511,7 +1558,7 @@ void ScriptingApi::Synth::addPitchFade(int eventId, int fadeTimeMilliseconds, in
 	else reportScriptError("Only valid in MidiProcessors");
 }
 
-int ScriptingApi::Synth::addEventFromHolder(var messageHolder)
+int ScriptingApi::Synth::addMessageFromHolder(var messageHolder)
 {
 	if (ScriptBaseMidiProcessor* sp = dynamic_cast<ScriptBaseMidiProcessor*>(getScriptProcessor()))
 	{
