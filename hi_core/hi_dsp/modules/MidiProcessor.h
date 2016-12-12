@@ -202,13 +202,12 @@ public:
 		{
 			if (processors[i]->isBypassed())
 			{
-				if(m.isIgnored()) continue;
-
 				if (m.isTimerEvent() && processors[i]->getIndexInChain() == m.getTimerIndex())
 				{
 					m.ignoreEvent(true);
-					continue;
 				}
+
+				continue;
 			}
 
 			processors[i]->processHiseEvent(m);
