@@ -1455,15 +1455,14 @@ void ScriptingApi::Synth::noteOffByEventId(int eventId)
 {
 	const HiseEvent e = getProcessor()->getMainController()->getEventHandler().popNoteOnFromEventId((uint16)eventId);
 
-#if ENABLE_SCRIPTING_SAFE_CHECKS
-	if (!e.isArtificial())
-	{
-		reportScriptError("Hell breaks loose if you kill real events artificially!");
-	}
-#endif
-
 	if (!e.isEmpty())
 	{
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+        if (!e.isArtificial())
+        {
+            reportScriptError("Hell breaks loose if you kill real events artificially!");
+        }
+#endif
 		const HiseEvent* current = dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor())->getCurrentHiseEvent();
 
 		uint16 timestamp = 0;
