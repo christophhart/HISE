@@ -1297,8 +1297,10 @@ void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
     
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
-	s->loadSampleMapFromIdAsync(fileName);
-
+	if (s != nullptr)
+	{
+		s->loadSampleMapFromIdAsync(fileName);
+	}
 }
 
 
