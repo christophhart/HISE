@@ -851,7 +851,7 @@ double ScriptingApi::Engine::getUptime() const
 
 	if (jmp->getCurrentHiseEvent() != nullptr)
 	{
-		return jmp->getMainController()->getUptime() + jmp->getCurrentHiseEvent()->getTimeStamp() / jmp->getSampleRate();
+		return jmp->getMainController()->getUptime() + jmp->getCurrentHiseEvent()->getTimeStamp() / getSampleRate();
 	}
 
 	return getProcessor()->getMainController()->getUptime(); 
