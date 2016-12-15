@@ -136,8 +136,6 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 {
     ADD_GLITCH_DETECTOR("Rendering " + getId());
     
-	const ScopedLock sl (getSynthLock());
-
 	int numSamples = outputBuffer.getNumSamples();
 
 	// The buffer must be initialized. Did you forget to call the base class prepareToPlay()
@@ -453,7 +451,7 @@ void ModulatorSynth::preStartVoice(int voiceIndex, int noteNumber)
 
 void ModulatorSynth::prepareToPlay(double newSampleRate, int samplesPerBlock)
 {
-	ScopedLock sl(getSynthLock());
+	const ScopedLock sl(getSynthLock());
 
 	if(newSampleRate != -1.0)
 	{
@@ -526,9 +524,7 @@ void ModulatorSynth::noteOn(const HiseEvent &m)
 {
     ADD_GLITCH_DETECTOR("Note on callback for " + getId());
     
-    const ScopedLock sl (getSynthLock());
-
-	jassert(m.isNoteOn());
+    jassert(m.isNoteOn());
 
 	const int midiChannel = m.getChannel();
 	const int midiNoteNumber = m.getNoteNumber();
@@ -587,8 +583,6 @@ void ModulatorSynth::noteOn(const HiseEvent &m)
 
 void ModulatorSynth::noteOff(const HiseEvent &m)
 {
-	const ScopedLock sl(getSynthLock());
-
 	const int midiNoteNumber = m.getNoteNumber();
 	
 	float velocity = m.getFloatVelocity();
@@ -604,7 +598,7 @@ void ModulatorSynth::noteOff(const HiseEvent &m)
 
 		ModulatorSynthVoice* const mvoice = static_cast<ModulatorSynthVoice*>(voices.getUnchecked(i));
 
-		if (mvoice->getCurrentHiseEvent().getEventId() == eventId //voice->getCurrentlyPlayingNote() == midiNoteNumber
+		if (mvoice->getCurrentHiseEvent().getEventId() == eventId
 			&& voice->isPlayingChannel(midiChannel))
 		{
 			if (SynthesiserSound* const sound = voice->getCurrentlyPlayingSound())

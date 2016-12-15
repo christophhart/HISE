@@ -94,7 +94,7 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 
 	ScopedLock sl(getSynthLock());
 
-	if (!activeChannels.areAllChannelsEnabled() && getMainController()->getMainSynthChain() == this)
+	if (getMainController()->getMainSynthChain() == this && !activeChannels.areAllChannelsEnabled())
 	{
 		HiseEventBuffer::Iterator it(inputMidiBuffer);
 

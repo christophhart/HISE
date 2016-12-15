@@ -215,9 +215,9 @@ public:
 
 private:
 
-    const CriticalSection& getLock() const { return lock; };
+    const SpinLock& getLock() const { return lock; };
     
-    CriticalSection lock;
+    SpinLock lock;
     
 	void throwError(const String &errorMessage)
 	{

@@ -967,6 +967,7 @@ void MapWithKeyboard::mouseDown(const MouseEvent &e)
 
 	HiseEvent m(HiseEvent::Type::NoteOn, (uint8)lastNoteNumber, (uint8)velocity, 1);
 
+    ScopedLock sl(sampler->getSynthLock());
 	sampler->preHiseEventCallback(m);
 	sampler->noteOn(m);
 
@@ -978,6 +979,8 @@ void MapWithKeyboard::mouseUp(const MouseEvent &)
 	HiseEvent m(HiseEvent::Type::NoteOff, (uint8)lastNoteNumber, 127, 1);
 
 	sampler->preHiseEventCallback(m);
+    
+    ScopedLock sl(sampler->getSynthLock());
 	sampler->noteOff(m);
 
 	lastNoteNumber = -1;

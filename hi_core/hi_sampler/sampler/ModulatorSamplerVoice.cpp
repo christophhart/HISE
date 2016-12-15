@@ -35,7 +35,9 @@ void ModulatorSamplerVoice::startNote(int midiNoteNumber,
 	SynthesiserSound* s,
 	int /*currentPitchWheelPosition*/)
 {
-	ModulatorSynthVoice::startNote(midiNoteNumber, 0.0f, nullptr, -1);
+    ADD_GLITCH_DETECTOR("start sample playback: ");
+    
+    ModulatorSynthVoice::startNote(midiNoteNumber, 0.0f, nullptr, -1);
 
 	midiNoteNumber += getTransposeAmount();
 
@@ -43,7 +45,7 @@ void ModulatorSamplerVoice::startNote(int midiNoteNumber,
 
 	currentlyPlayingSamplerSound = static_cast<ModulatorSamplerSound*>(s);
     
-    ADD_GLITCH_DETECTOR("start sample playback: ");
+
 
 	velocityXFadeValue = currentlyPlayingSamplerSound->getGainValueForVelocityXFade((int)(velocity * 127.0f));
 	const bool samePitch = !static_cast<ModulatorSampler*>(getOwnerSynth())->isPitchTrackingEnabled();
@@ -75,8 +77,6 @@ void ModulatorSamplerVoice::stopNote(float velocity, bool allowTailoff)
 
 void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 {
-    
-    
     const StreamingSamplerSound *sound = wrappedVoice.getLoadedSound();
     jassert(sound != nullptr);
     

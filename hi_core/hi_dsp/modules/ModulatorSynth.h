@@ -552,8 +552,7 @@ public:
 	/** returns the lock the synth is using. */
 	const CriticalSection &getSynthLock() const
 	{
-		return lock;
-		//return getMainController()->getLock();
+        return getMainController()->getLock();
 	};
 
 	/** specifies the behaviour when a note is started that is already ringing. By default, it is killed, but you can overwrite it to make something else. */

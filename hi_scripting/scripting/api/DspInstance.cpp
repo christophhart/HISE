@@ -60,7 +60,7 @@ bypassed(false)
 
 void DspInstance::initialise()
 {
-    ScopedLock sl(getLock());
+    const SpinLock::ScopedLockType sl(getLock());
     
 	if (DynamicDspFactory* dynamicFactory = dynamic_cast<DynamicDspFactory*>(factory.get()))
 	{
@@ -149,7 +149,7 @@ void DspInstance::processBlock(const var &data)
 {
 	if (!prepareToPlayWasCalled) throw String(moduleName + ": prepareToPlay must be called before processing buffers.");
 
-    ScopedLock sl(getLock());
+    const SpinLock::ScopedLockType sl(getLock());
     
 	bool skipProcessing = isBypassed() && !switchBypassFlag;
 
@@ -245,7 +245,7 @@ void DspInstance::setParameter(int index, float newValue)
 {
 	if (object != nullptr && index < object->getNumParameters())
 	{
-        ScopedLock sl(getLock());
+        const SpinLock::ScopedLockType sl(getLock());
         
 		object->setParameter(index, newValue);
 	}
@@ -255,6 +255,8 @@ var DspInstance::getParameter(int index) const
 {
 	if (object != nullptr)
 	{
+        const SpinLock::ScopedLockType sl(getLock());
+        
 		return object->getParameter(index);
 	}
 
@@ -309,7 +311,7 @@ void DspInstance::setStringParameter(int index, String value)
 {
 	if (object != nullptr)
 	{
-        ScopedLock sl(getLock());
+        SpinLock::ScopedLockType sl(getLock());
         
 		object->setStringParameter(index, value.getCharPointer(), value.length());
 	}
@@ -339,7 +341,7 @@ String DspInstance::getStringParameter(int index)
 
 void DspInstance::setBypassed(bool shouldBeBypassed)
 {
-    ScopedLock sl(getLock());
+    const SpinLock::ScopedLockType sl(getLock());
     
 	bypassed.store(shouldBeBypassed);
 	switchBypassFlag = true;
@@ -425,7 +427,7 @@ void DspInstance::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
 	if (object != nullptr && samplesPerBlock > 0 && sampleRate > 0.0)
 	{
-        ScopedLock sl(getLock());
+        const SpinLock::ScopedLockType sl(getLock());
         
 		object->prepareToPlay(sampleRate, samplesPerBlock);
 
@@ -453,7 +455,7 @@ void DspInstance::unload()
 {
 	if (factory != nullptr)
 	{
-        ScopedLock sl(getLock());
+        const SpinLock::ScopedLockType sl(getLock());
         
 		factory->destroyDspBaseObject(object);
 		object = nullptr;
