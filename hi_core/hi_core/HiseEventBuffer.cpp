@@ -412,7 +412,7 @@ void MainController::EventIdHandler::handleEventIds()
 	}
 }
 
-HiseEvent MainController::EventIdHandler::popNoteOn(const HiseEvent &noteOffEvent)
+uint16 MainController::EventIdHandler::getEventIdForNoteOff(const HiseEvent &noteOffEvent)
 {
 	jassert(noteOffEvent.isNoteOff());
 
@@ -420,57 +420,18 @@ HiseEvent MainController::EventIdHandler::popNoteOn(const HiseEvent &noteOffEven
 
 	if (!noteOffEvent.isArtificial())
 	{
-		HiseEvent e;
-		e.swapWith(realNoteOnEvents[noteNumber]);
-		return e;
+		return realNoteOnEvents[noteNumber].getEventId();
 	}
 	else
 	{
 		const uint16 eventId = noteOffEvent.getEventId();
 
-		if (eventId != 0) // The note off has a dedicated event id
-		{
-			HiseEvent e;
-			artificialNoteOnStacks[noteNumber].popNoteOnForEventId(eventId, e);
-			return e;
-		}
-		else if (!realNoteOnEvents[noteNumber].isEmpty()) // there is a real note off
-		{
-			HiseEvent e;
-			e.swapWith(realNoteOnEvents[noteNumber]);
-			return e;
-		}
-		else // take the next best artificial note
-		{
-			return artificialNoteOnStacks[noteNumber].pop();
-		}
+		if (eventId != 0)
+			return eventId;
+
+		else 
+			return lastArtificialEventIds[noteOffEvent.getNoteNumber()];
 	}
-
-#if 0
-	if (noteOffEvent.isArtificial())
-	{
-		const HiseEvent *m = &artificialNoteOnEvents[noteNumber];
-		
-		if (noteOffEvent.isArtificial() != m->isArtificial())
-		{
-			Logger::writeToLog("!Note Off event type mismatch");
-		}
-
-		return m;
-	}
-	else
-	{
-		const HiseEvent *m = &noteOnEvents[noteNumber];
-
-		if (noteOffEvent.isArtificial() != m->isArtificial())
-		{
-			Logger::writeToLog("!Note Off event type mismatch");
-		}
-
-		
-		return m;
-	}
-#endif
 }
 
 void MainController::EventIdHandler::pushArtificialNoteOn(HiseEvent& noteOnEvent) noexcept
@@ -479,7 +440,8 @@ void MainController::EventIdHandler::pushArtificialNoteOn(HiseEvent& noteOnEvent
 	jassert(noteOnEvent.isArtificial());
 
 	noteOnEvent.setEventId(currentEventId);
-	artificialNoteOnStacks[noteOnEvent.getNoteNumber()].push(noteOnEvent);
+	artificialEvents[currentEventId % HISE_EVENT_ID_ARRAY_SIZE] = noteOnEvent;
+	lastArtificialEventIds[noteOnEvent.getNoteNumber()] = currentEventId;
 
 	currentEventId++;
 }
@@ -489,10 +451,19 @@ HiseEvent MainController::EventIdHandler::peekNoteOn(const HiseEvent& noteOffEve
 {
 	if (noteOffEvent.isArtificial())
 	{
-		HiseEvent e;
+		if (noteOffEvent.getEventId() != 0)
+		{
+			return artificialEvents[noteOffEvent.getEventId() % HISE_EVENT_ID_ARRAY_SIZE];
+		}
+		else
+		{
+			jassertfalse;
+			
+			return HiseEvent();
 
-		artificialNoteOnStacks[noteOffEvent.getNoteNumber()].peekNoteOnForEventId(noteOffEvent.getEventId(), e);
-		return e;
+			const int eventId = lastArtificialEventIds[noteOffEvent.getNoteNumber()];
+			return artificialEvents[eventId % HISE_EVENT_ID_ARRAY_SIZE];
+		}
 	}
 	else
 	{
@@ -503,21 +474,7 @@ HiseEvent MainController::EventIdHandler::peekNoteOn(const HiseEvent& noteOffEve
 HiseEvent MainController::EventIdHandler::popNoteOnFromEventId(uint16 eventId)
 {
 	HiseEvent e;
-
-	for (int i = 0; i < 128; i++)
-	{
-		if (artificialNoteOnStacks[i].popNoteOnForEventId(eventId, e))
-			break;
-
-#if ENABLE_SCRIPTING_SAFE_CHECKS // This is only used for error reporting...
-		if (realNoteOnEvents[i].getEventId() == eventId)
-		{
-			e = realNoteOnEvents[i];
-			realNoteOnEvents[i] = HiseEvent();
-			break;
-		}
-#endif
-	}
+	e.swapWith(artificialEvents[eventId % HISE_EVENT_ID_ARRAY_SIZE]);
 
 	return e;
 }

@@ -33,6 +33,7 @@
 #ifndef HISEEVENTBUFFER_H_INCLUDED
 #define HISEEVENTBUFFER_H_INCLUDED
 
+#define HISE_EVENT_ID_ARRAY_SIZE 16384
 
 /** This is a replacement of the standard midi message with more data. */
 class HiseEvent

@@ -731,10 +731,10 @@ private:
 		handler.handleEventIds();
 		
 		HiseEvent on1 = b.getEvent(0);
-		HiseEvent on2 = handler.popNoteOn(HiseEvent(HiseEvent::Type::NoteOff, 37, 24, 1));
+		//HiseEvent on2 = handler.getEventIdForNoteOff(HiseEvent(HiseEvent::Type::NoteOff, 37, 24, 1));
 		
-		expect(on1 == on2, "NoteOnEvent");
-		expect(handler.popNoteOn(HiseEvent(HiseEvent::Type::NoteOff, 37, 24, 1)) == HiseEvent(), "RemovedNoteOnEvent");
+		//expect(on1 == on2, "NoteOnEvent");
+		expect(handler.getEventIdForNoteOff(HiseEvent(HiseEvent::Type::NoteOff, 37, 24, 1)) == 0, "RemovedNoteOnEvent");
 	}
 
 	Random r;

@@ -693,9 +693,15 @@ int ScriptingApi::Message::makeArtificial()
 		}
 		else if (copy.isNoteOff())
 		{
-			getScriptProcessor()->getMainController_()->getEventHandler().popNoteOnFromEventId(artificialNoteOnIds[copy.getNoteNumber()]);
+			HiseEvent e = getScriptProcessor()->getMainController_()->getEventHandler().popNoteOnFromEventId(artificialNoteOnIds[copy.getNoteNumber()]);
+			
+			if (e.isEmpty())
+			{
+				artificialNoteOnIds[copy.getNoteNumber()] = 0;
+				copy.ignoreEvent(true);
+			}
+			
 			copy.setEventId(artificialNoteOnIds[copy.getNoteNumber()]);
-			artificialNoteOnIds[copy.getNoteNumber()] = 0;
 		}
 
 		copy.swapWith(*messageHolder);
@@ -1581,9 +1587,7 @@ int ScriptingApi::Synth::addMessageFromHolder(var messageHolder)
 				}
 				else if (e.isNoteOff())
 				{
-					const HiseEvent no = sp->getMainController()->getEventHandler().popNoteOn(e);
-
-					e.setEventId(no.getEventId());	
+					e.setEventId(sp->getMainController()->getEventHandler().getEventIdForNoteOff(e));
 
 					sp->addHiseEventToBuffer(e);
 					return e.getTimeStamp();
@@ -2050,7 +2054,7 @@ void ScriptingApi::Synth::addNoteOff(int channel, int noteNumber, int timeStampS
 
 					m.setArtificial();
 
-					const uint16 eventId = sp->getMainController()->getEventHandler().popNoteOn(m).getEventId();
+					const uint16 eventId = sp->getMainController()->getEventHandler().getEventIdForNoteOff(m);
 
 					m.setEventId(eventId);
 

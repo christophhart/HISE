@@ -197,13 +197,15 @@ public:
 		{
 			for (int i = 0; i < 128; i++) 
 				realNoteOnEvents[i] = HiseEvent();
+
+			artificialEvents.calloc(HISE_EVENT_ID_ARRAY_SIZE, sizeof(HiseEvent));
 		}
 
 		/** Fills note on / note off messages with the event id and returns the current value for external storage. */
 		void handleEventIds();
 
 		/** Removes the matching noteOn event for the given noteOff event. */
-		HiseEvent popNoteOn(const HiseEvent &noteOffEvent);
+		uint16 getEventIdForNoteOff(const HiseEvent &noteOffEvent);
 
 		/** Returns the matching note on event for the given note off event (but doesn't remove it). */
 		HiseEvent peekNoteOn(const HiseEvent& noteOffEvent);
@@ -216,12 +218,11 @@ public:
 
 	private:
 
-		HiseEventBuffer &masterBuffer;
+		const HiseEventBuffer &masterBuffer;
 
-		HiseEventBuffer::EventStack artificialNoteOnStacks[128];
-
+		HeapBlock<HiseEvent> artificialEvents;
+		uint16 lastArtificialEventIds[128];
 		HiseEvent realNoteOnEvents[128];
-		HiseEvent artificialNoteOnEvents[128];
 
 		uint16 currentEventId;
 	};
