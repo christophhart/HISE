@@ -561,8 +561,6 @@ void StreamingSamplerSound::fillInternal(AudioSampleBuffer &sampleBuffer, int sa
 
 		if(numSamplesInCrossfade > 0)
 		{
-			ScopedLock sl(getSampleLock());
-
 			const int indexInLoopBuffer = jmax(0, indexInFile - crossfadeArea.getStart());
 
 			FloatVectorOperations::copy(sampleBuffer.getWritePointer(0, numSamplesBeforeCrossfade), loopBuffer.getReadPointer(0, indexInLoopBuffer), numSamplesInCrossfade);

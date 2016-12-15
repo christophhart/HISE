@@ -183,7 +183,7 @@ String ModulatorSamplerSound::getPropertyAsString(Property p) const
 	case VeloHigh:		return String(velocityRange.getHighestBit());
 	case VeloLow:		return String(velocityRange.findNextSetBit(0));
 	case RRGroup:		return String(rrGroup);
-	case Volume:		return String(Decibels::gainToDecibels(gain), 1) + " dB";
+	case Volume:		return String(Decibels::gainToDecibels(gain.get()), 1) + " dB";
 	case Pan:			return BalanceCalculator::getBalanceAsString(pan);
 	case Normalized:	return isNormalized ? "Enabled" : "Disabled";
 	case Pitch:			return String(centPitch, 0) + " ct";
@@ -213,7 +213,7 @@ var ModulatorSamplerSound::getProperty(Property p) const
 	case VeloHigh:		return var(velocityRange.getHighestBit());
 	case VeloLow:		return var(velocityRange.findNextSetBit(0));
 	case RRGroup:		return var(rrGroup);
-	case Volume:		return var(Decibels::gainToDecibels(gain));
+	case Volume:		return var(Decibels::gainToDecibels(gain.get()));
 	case Pan:			return var(pan);
 	case Normalized:	return var(isNormalized);
 	case Pitch:			return var(centPitch);
@@ -256,7 +256,7 @@ void ModulatorSamplerSound::setProperty(Property p, int newValue, NotificationTy
 	case Normalized:	isNormalized = newValue == 1; 
 						if (isNormalized && normalizedPeak < 0.0f) calculateNormalizedPeak();
 						break;
-	case Volume:	{	gain = Decibels::decibelsToGain((float)newValue);
+	case Volume:	{	gain.set(Decibels::decibelsToGain((float)newValue));
 		break;
 	}
 	case Pan:		{
@@ -266,7 +266,7 @@ void ModulatorSamplerSound::setProperty(Property p, int newValue, NotificationTy
 		break;
 	}
 	case Pitch:		{	centPitch = newValue;
-		pitchFactor = powf(2.0f, (float)centPitch / 1200.f);
+		pitchFactor.set(powf(2.0f, (float)centPitch / 1200.f));
 		break;
 	};
 	case SampleStart:	FOR_EVERY_SOUND(setSampleStart(newValue)); break;
@@ -314,7 +314,7 @@ void ModulatorSamplerSound::toggleBoolProperty(ModulatorSamplerSound::Property p
 
 ValueTree ModulatorSamplerSound::exportAsValueTree() const
 {
-	ScopedLock sl(getLock());
+	const ScopedLock sl(getLock());
 	ValueTree v("sample");
 
 	for (int i = ID; i < numProperties; i++)
@@ -357,6 +357,8 @@ ValueTree ModulatorSamplerSound::exportAsValueTree() const
 
 void ModulatorSamplerSound::restoreFromValueTree(const ValueTree &v)
 {
+    const ScopedLock sl(getLock());
+    
     normalizedPeak = v.getProperty("NormalizedPeak", -1.0f);
     
 	for (int i = RootNote; i < numProperties; i++) // ID and filename must be passed to the constructor!
@@ -408,10 +410,10 @@ void ModulatorSamplerSound::closeFileHandle()
 	FOR_EVERY_SOUND(closeFileHandle());
 }
 
-Range<int> ModulatorSamplerSound::getNoteRange() const			{ ScopedLock sl(getLock()); return Range<int>(midiNotes.findNextSetBit(0), midiNotes.getHighestBit() + 1); }
-Range<int> ModulatorSamplerSound::getVelocityRange() const		{ ScopedLock sl(getLock()); return Range<int>(velocityRange.findNextSetBit(0), velocityRange.getHighestBit() + 1); }
-float ModulatorSamplerSound::getPropertyVolume() const noexcept { ScopedLock sl(getLock()); return gain; }
-double ModulatorSamplerSound::getPropertyPitch() const noexcept { ScopedLock sl(getLock()); return pitchFactor; }
+Range<int> ModulatorSamplerSound::getNoteRange() const			{ return Range<int>(midiNotes.findNextSetBit(0), midiNotes.getHighestBit() + 1); }
+Range<int> ModulatorSamplerSound::getVelocityRange() const		{ return Range<int>(velocityRange.findNextSetBit(0), velocityRange.getHighestBit() + 1); }
+float ModulatorSamplerSound::getPropertyVolume() const noexcept { return gain.get(); }
+double ModulatorSamplerSound::getPropertyPitch() const noexcept { return pitchFactor.get(); }
 
 void ModulatorSamplerSound::setMaxRRGroupIndex(int newGroupLimit)
 {

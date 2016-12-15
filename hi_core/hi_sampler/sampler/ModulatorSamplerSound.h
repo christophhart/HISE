@@ -391,9 +391,9 @@ private:
 	int maxRRGroup;
 	int rrGroup;
 
-	float gain;
+	Atomic<float> gain;
 	double centPitch;
-	double pitchFactor;
+	Atomic<double> pitchFactor;
 	int pan;
 
 	float leftBalanceGain;
