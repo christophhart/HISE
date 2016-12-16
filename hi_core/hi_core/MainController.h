@@ -94,7 +94,6 @@ public:
 		AudioSampleBufferPool *getAudioSampleBufferPool() {	return globalAudioSampleBufferPool; };
 
 		ImagePool *getImagePool() {return globalImagePool;};
-
 		const ImagePool *getImagePool() const {return globalImagePool;};
 
 		ProjectHandler &getProjectHandler() { return projectHandler; }
@@ -119,9 +118,7 @@ public:
 		ScopedPointer<SampleThreadPool> samplerLoaderThreadPool;
 
 		bool hddMode = false;
-
 		bool useRelativePathsToProjectFolder;
-
 	};
 
 	/** Contains methods for handling macros. */
@@ -130,48 +127,37 @@ public:
 	public:
 
 		MacroManager(MainController *mc_);
+		~MacroManager() {};
+
+		// ===========================================================================================================
 
 		ModulatorSynthChain *getMacroChain() { return macroChain; };
-
 		const ModulatorSynthChain *getMacroChain() const {return macroChain; };
-
 		void setMacroChain(ModulatorSynthChain *chain) { macroChain = chain; }
 
-		bool midiMacroControlActive() const;
-
+		// ===========================================================================================================
+		
 		void setMidiControllerForMacro(int midiControllerNumber);
-
 		void setMidiControllerForMacro(int macroIndex, int midiControllerNumber);;
-
 		void setMacroControlMidiLearnMode(ModulatorSynthChain *chain, int index);
-
 		int getMacroControlForMidiController(int midiController);
-
 		int getMidiControllerForMacro(int macroIndex);
 
+		bool midiMacroControlActive() const;
 		bool midiControlActiveForMacro(int macroIndex) const;;
-
-		void removeMidiController(int macroIndex);
-
 		bool macroControlMidiLearnModeActive() { return macroIndexForCurrentMidiLearnMode != -1; }
 
 		void setMacroControlLearnMode(ModulatorSynthChain *chain, int index);
-
 		int getMacroControlLearnMode() const;;
 
+		void removeMidiController(int macroIndex);
 		void removeMacroControlsFor(Processor *p);
-
 		void removeMacroControlsFor(Processor *p, Identifier name);
 	
-		MidiControllerAutomationHandler *getMidiControlAutomationHandler()
-		{
-			return &midiControllerHandler;
-		};
+		MidiControllerAutomationHandler *getMidiControlAutomationHandler();;
+		const MidiControllerAutomationHandler *getMidiControlAutomationHandler() const;;
 
-		const MidiControllerAutomationHandler *getMidiControlAutomationHandler() const
-		{
-			return &midiControllerHandler;
-		};
+		// ===========================================================================================================
 
 	private:
 
@@ -181,25 +167,25 @@ public:
 
 		ModulatorSynthChain *macroChain;
 		int macroIndexForCurrentLearnMode;
-
 		int macroIndexForCurrentMidiLearnMode;
 
 		MidiControllerAutomationHandler midiControllerHandler;
+
+		// ===========================================================================================================
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MacroManager)
 	};
 
 	class EventIdHandler
 	{
 	public:
 
-		EventIdHandler(HiseEventBuffer& masterBuffer_) :
-			masterBuffer(masterBuffer_),
-			currentEventId(1)
-		{
-			for (int i = 0; i < 128; i++) 
-				realNoteOnEvents[i] = HiseEvent();
+		// ===========================================================================================================
 
-			artificialEvents.calloc(HISE_EVENT_ID_ARRAY_SIZE, sizeof(HiseEvent));
-		}
+		EventIdHandler(HiseEventBuffer& masterBuffer_);
+		~EventIdHandler();
+
+		// ===========================================================================================================
 
 		/** Fills note on / note off messages with the event id and returns the current value for external storage. */
 		void handleEventIds();
@@ -216,15 +202,19 @@ public:
 		/** Searches all active note on events and returns the one with the given event id. */
 		HiseEvent popNoteOnFromEventId(uint16 eventId);
 
+		// ===========================================================================================================
+
 	private:
 
 		const HiseEventBuffer &masterBuffer;
-
 		HeapBlock<HiseEvent> artificialEvents;
 		uint16 lastArtificialEventIds[128];
 		HiseEvent realNoteOnEvents[128];
-
 		uint16 currentEventId;
+
+		// ===========================================================================================================
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(EventIdHandler)
 	};
 
 	class UserPresetHandler : public Timer
@@ -232,26 +222,23 @@ public:
 	public:
 
 		UserPresetHandler(MainController* mc_): mc(mc_)	{}
+		~UserPresetHandler() { stopTimer(); }
 
-		void timerCallback()
-		{
-			loadPresetInternal();
-			stopTimer();
-		}
+		// ===========================================================================================================
 
-		void loadUserPreset(const ValueTree& presetToLoad)
-		{
-			currentPreset = presetToLoad;
-			startTimer(50);
-		}
+		void timerCallback();
+		void loadUserPreset(const ValueTree& presetToLoad);
+
+		// ===========================================================================================================
 
 	private:
 
 		void loadPresetInternal();
 
 		MainController* mc;
-
 		ValueTree currentPreset;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(UserPresetHandler)
 
 	};
 
@@ -259,14 +246,13 @@ public:
 
 	virtual ~MainController();
 
-	SampleManager &getSampleManager() {return *sampleManager;};
+	SampleManager &getSampleManager() {return *sampleManager; };
+	const SampleManager &getSampleManager() const { return *sampleManager; };
 
 	MacroManager &getMacroManager() {return macroManager;};
-
 	const MacroManager &getMacroManager() const {return macroManager;};
 
 	AutoSaver &getAutoSaver() { return autoSaver; }
-
 	const AutoSaver &getAutoSaver() const { return autoSaver; }
 
 #if USE_BACKEND
@@ -274,19 +260,8 @@ public:
 	void writeToConsole(const String &message, int warningLevel, const Processor *p=nullptr, Colour c=Colours::transparentBlack);
 #endif
 
-	/** increases the voice counter. */
-	void increaseVoiceCounter();
-
-	/** Decreases the voice counter. */
-	void decreaseVoiceCounter();
-
-	/** Resets the voice counter. */
-	void resetVoiceCounter();
-
 	void loadPreset(const File &f, Component *mainEditor=nullptr);
-
 	void loadPreset(ValueTree &v, Component *mainEditor=nullptr);
-
     void clearPreset();
     
 	/** Compiles all scripts in the main synth chain */
@@ -391,10 +366,7 @@ public:
 	int getCpuUsage() const {return usagePercent.get();};
 
 	/** Returns the amount of playing voices. */
-	int getNumActiveVoices() const 
-	{ 
-		return voiceAmount.get(); 
-	};
+	int getNumActiveVoices() const;;
 
 	void replaceReferencesToGlobalFolder();
 
@@ -425,10 +397,7 @@ public:
 		
 	};
 
-
     void clearConsole();
-
-
 
 	void setLastActiveEditor(CodeEditorComponent *editor, CodeDocument::Position position)
 	{
@@ -448,7 +417,6 @@ public:
     bool checkAndResetMidiInputFlag();
     bool isChanged() const { return changed; }
     void setChanged() { changed = true; }
- 
     
     float getGlobalCodeFontSize() const {return globalCodeFontSize; };
     
@@ -561,8 +529,6 @@ protected:
 	
     void setMidiInputFlag() {midiInputFlag = true; };
     
-	
-
 private:
 
 	ScopedPointer<UndoManager> controlUndoManager;
@@ -661,46 +627,6 @@ private:
 	Atomic<double> temp_usage;
 	int scrollY;
 	BigInteger shownComponents;
-};
-
-/** A base class for all objects that need access to a MainController.
-*	@ingroup core
-*
-*	If you want to have access to the main controller object, derive the class from this object and pass a pointer to the MainController
-*	instance in the constructor.
-*/
-class ControlledObject
-{
-public:
-
-	/** Creates a new ControlledObject. The MainController must be supplied. */
-	ControlledObject(MainController *m);
-
-	virtual ~ControlledObject();
-
-	/** Provides read-only access to the main controller. */
-	const MainController *getMainController() const noexcept
-	{
-		jassert(controller != nullptr);
-		return controller;
-	};
-
-	/** Provides write access to the main controller. Use this if you want to make changes. */
-	MainController *getMainController() noexcept
-	{
-		jassert(controller != nullptr);
-		return controller;
-	}
-
-private:
-
-	friend class WeakReference<ControlledObject>;
-	WeakReference<ControlledObject>::Master masterReference;
-
-	MainController* const controller;
-
-	friend class MainController;
-	friend class ProcessorFactory;
 };
 
 

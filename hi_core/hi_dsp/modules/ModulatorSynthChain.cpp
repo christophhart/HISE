@@ -204,11 +204,21 @@ void ModulatorSynthChain::reset()
     sendChangeMessage();
 }
 
+int ModulatorSynthChain::getNumActiveVoices() const
+{
+	int totalVoices = 0;
+
+	for (int i = 0; i < handler.getNumProcessors(); i++)
+	{
+		totalVoices += dynamic_cast<const ModulatorSynth*>(handler.getProcessor(i))->getNumActiveVoices();
+	}
+
+	return totalVoices;
+}
+
 void ModulatorSynthChain::saveInterfaceValues(ValueTree &v)
 {
 	ValueTree interfaceData("InterfaceData");
-
-	
 
 	for (int i = 0; i < midiProcessorChain->getNumChildProcessors(); i++)
 	{
@@ -254,8 +264,7 @@ void ModulatorSynthChain::restoreInterfaceValues(const ValueTree &v)
 }
 
 bool ModulatorSynthChain::hasDefinedFrontInterface() const
-{
-    
+{   
     for (int i = 0; i < midiProcessorChain->getNumChildProcessors(); i++)
     {
         if (JavascriptMidiProcessor *sp = dynamic_cast<JavascriptMidiProcessor*>(midiProcessorChain->getChildProcessor(i)))
@@ -321,11 +330,8 @@ void ModulatorSynthGroupVoice::startNote (int midiNoteNumber, float velocity, Sy
 	// The uptime is not used, but it must be > 0, or the voice is not rendered.
 	uptimeDelta = 1.0;
 
-	
-	
 	ModulatorSynthGroup::ChildSynthIterator iterator(static_cast<ModulatorSynthGroup*>(ownerSynth), ModulatorSynthGroup::ChildSynthIterator::IterateAllSynths);
 	ModulatorSynth *childSynth;
-
 
 	for(int i = 0; i < childSynths.size(); i++)
 	{

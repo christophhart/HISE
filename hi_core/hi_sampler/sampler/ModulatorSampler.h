@@ -162,6 +162,15 @@ public:
 	/** Scans all sounds and voices and adds their memory usage. */
 	void refreshMemoryUsage();
 
+	int getNumActiveVoices() const override
+	{
+		if (purged) return 0;
+
+		int currentVoiceAmount = ModulatorSynth::getNumActiveVoices();
+
+		return currentVoiceAmount * numChannels * 2;
+	}
+
 	/** Allows dynamically changing the voice amount.
 	*
 	*	This is a ModulatorSampler specific function, because all other synths can have the full voice amount with almost no overhead,

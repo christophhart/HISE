@@ -133,6 +133,8 @@ public:
 	bool isLastStartedVoice(ModulatorSynthVoice *voice);;
 	ModulatorSynthVoice* getLastStartedVoice() const;
 
+	virtual int getNumActiveVoices() const;
+
 	// ===================================================================================================================
 
 	virtual ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
@@ -497,8 +499,6 @@ public:
 	virtual void startNote (int /*midiNoteNumber*/, float /*velocity*/, SynthesiserSound* , int /*currentPitchWheelPosition*/)
 	{
 		jassert(!currentHiseEvent.isEmpty());
-
-		getOwnerSynth()->getMainController()->increaseVoiceCounter();
 
 		killThisVoice = false;
 		isTailing = false;

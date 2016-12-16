@@ -282,3 +282,15 @@ void ConsoleLogger::logMessage(const String &message)
 	
 }
 
+ControlledObject::ControlledObject(MainController *m) :
+	controller(m) {
+	jassert(m != nullptr);
+};
+
+ControlledObject::~ControlledObject()
+{
+	// Oops, this ControlledObject was not connected to a MainController
+	jassert(controller != nullptr);
+
+	masterReference.clear();
+};

@@ -103,66 +103,10 @@ MainController::~MainController()
 }
 
 
-MainController::SampleManager::SampleManager(MainController *mc_):
-	mc(mc_),
-	samplerLoaderThreadPool(new SampleThreadPool()),
-	projectHandler(),
-	globalSamplerSoundPool(new ModulatorSamplerSoundPool(mc)),
-	globalAudioSampleBufferPool(new AudioSampleBufferPool(&projectHandler)),
-	globalImagePool(new ImagePool(&projectHandler)),
-	sampleClipboard(ValueTree("clipboard")),
-	useRelativePathsToProjectFolder(true)
-{
-	
-}
-
-
-MainController::MacroManager::MacroManager(MainController *mc_) :
-	macroIndexForCurrentLearnMode(-1),
-	macroChain(nullptr),
-	mc(mc_),
-	midiControllerHandler(mc_)
-{
-	for(int i = 0; i < 8; i++)
-	{
-		macroControllerNumbers[i] = -1;
-	};
-}
-
-#if USE_BACKEND
-void MainController::writeToConsole(const String &message, int warningLevel, const Processor *p, Colour c)
-{
-	CHECK_KEY(this);
-
-	Console *currentConsole = usePopupConsole ? popupConsole.get() : console.get();
-
-	if (currentConsole != nullptr) currentConsole->logMessage(message, (Console::WarningLevel)warningLevel, p, (p != nullptr && c.isTransparent()) ? p->getColour() : c);
-
-
-}
-#endif
-
-void MainController::increaseVoiceCounter()
-{
-	voiceAmount.set(voiceAmount.get() + 1);
-}
-
-void MainController::decreaseVoiceCounter()
-{
-	voiceAmount.set(voiceAmount.get() - 1);
-	if (voiceAmount.get() < 0) voiceAmount.set(0);
-}
-
-void MainController::resetVoiceCounter()
-{
-	voiceAmount.set(0);
-}
-
 const CriticalSection & MainController::getLock() const
 {
 	return dynamic_cast<AudioProcessor*>(const_cast<MainController*>(this))->getCallbackLock();
 }
-
 
 void MainController::loadPreset(const File &f, Component *mainEditor)
 {
@@ -309,6 +253,11 @@ void MainController::showConsole(bool consoleShouldBeShown)
 #endif
 }
 
+int MainController::getNumActiveVoices() const
+{
+	return getMainSynthChain()->getNumActiveVoices();
+}
+
 void MainController::replaceReferencesToGlobalFolder()
 {
 	ModulatorSynthChain *root = getMainSynthChain();
@@ -329,53 +278,6 @@ void MainController::endParameterChangeGesture(int index)			{ dynamic_cast<Plugi
 
 void MainController::setPluginParameter(int index, float newValue)  { dynamic_cast<PluginParameterAudioProcessor*>(this)->setParameterNotifyingHost(index, newValue); }
 
-void MainController::SampleManager::copySamplesToClipboard(const Array<WeakReference<ModulatorSamplerSound>> &soundsToCopy)
-{
-	sampleClipboard.removeAllChildren(nullptr);
-
-	for(int i = 0; i < soundsToCopy.size(); i++)
-	{
-		if(soundsToCopy[i].get() != nullptr)
-		{
-            ValueTree soundTree = soundsToCopy[i]->exportAsValueTree();
-            
-            static Identifier duplicate("Duplicate");
-            soundTree.setProperty(duplicate, true, nullptr);
-            
-			sampleClipboard.addChild(soundTree, -1, nullptr);
-		}
-	}
-}
-
-const ValueTree &MainController::SampleManager::getSamplesFromClipboard() const { return sampleClipboard;}
-
-const ValueTree MainController::SampleManager::getLoadedSampleMap(const String &fileName) const
-{
-	for (int i = 0; i < sampleMaps.getNumChildren(); i++)
-	{
-		String childFileName = sampleMaps.getChild(i).getProperty("SampleMapIdentifier", String::empty);
-		if (childFileName == fileName) return sampleMaps.getChild(i);
-	}
-
-	return ValueTree::invalid;
-}
-
-void MainController::SampleManager::setDiskMode(DiskMode mode) noexcept
-{
-	mc->allNotesOff();
-
-	hddMode = mode == DiskMode::HDD;
-
-	const int multplier = hddMode ? 2 : 1;
-
-	Processor::Iterator<ModulatorSampler> it(mc->getMainSynthChain());
-
-	while (ModulatorSampler* sampler = it.getNextProcessor())
-	{
-		sampler->setPreloadMultiplier(multplier);
-	}
-}
-
 Processor *MainController::createProcessor(FactoryType *factory,
 											 const Identifier &typeName,
 											 const String &id)
@@ -389,133 +291,6 @@ Processor *MainController::createProcessor(FactoryType *factory,
 	return p;
 };
 
-void MainController::MacroManager::removeMacroControlsFor(Processor *p)
-{
-	if(p == macroChain) return; // it will delete itself
-
-	if(macroChain == nullptr) return;
-
-	for(int i = 0; i < 8; i++)
-	{
-		macroChain->getMacroControlData(i)->removeAllParametersWithProcessor(p);
-	}
-
-	macroChain->sendSynchronousChangeMessage();
-}
-
-void MainController::MacroManager::removeMacroControlsFor(Processor *p, Identifier name)
-{
-	if(p == macroChain) return; // it will delete itself
-
-	if(macroChain == nullptr) return;
-
-	for(int i = 0; i < 8; i++)
-	{
-		MacroControlBroadcaster::MacroControlData *data = macroChain->getMacroControlData(i);
-
-		for(int j = 0; j < data->getNumParameters(); j++)
-		{
-			if(data->getParameter(j)->getParameterName() == name.toString() && data->getParameter(j)->getProcessor() == p)
-			{
-				data->removeParameter(j);
-				macroChain->sendChangeMessage();
-				return;
-			}
-		}
-	}
-
-	macroChain->sendSynchronousChangeMessage();
-}
-
-void MainController::MacroManager::setMidiControllerForMacro(int midiControllerNumber)
-{
-	if(macroIndexForCurrentMidiLearnMode >= 0 && macroIndexForCurrentMidiLearnMode < 8)
-	{
-		macroControllerNumbers[macroIndexForCurrentMidiLearnMode] = midiControllerNumber;
-			
-		getMacroChain()->getMacroControlData(macroIndexForCurrentMidiLearnMode)->setMidiController(midiControllerNumber);
-
-		macroIndexForCurrentMidiLearnMode = -1;
-	}
-}
-
-void MainController::MacroManager::setMidiControllerForMacro(int macroIndex, int midiControllerNumber)
-{
-	if (macroIndex < 8)
-	{
-		macroControllerNumbers[macroIndex] = midiControllerNumber;
-	}
-}
-
-bool MainController::MacroManager::midiMacroControlActive() const
-{
-	for (int i = 0; i < 8; i++)
-	{
-		if (macroControllerNumbers[i] != -1) return true;
-	}
-
-	return false;
-}
-
-void MainController::MacroManager::setMacroControlMidiLearnMode(ModulatorSynthChain *chain, int index)
-{
-	macroChain = chain;
-	macroIndexForCurrentMidiLearnMode = index;
-}
-
-int MainController::MacroManager::getMacroControlForMidiController(int midiController)
-{
-	for (int i = 0; i < 8; i++)
-	{
-		if (macroControllerNumbers[i] == midiController) return i;
-	}
-
-	return -1;
-}
-
-int MainController::MacroManager::getMidiControllerForMacro(int macroIndex)
-{
-	if (macroIndex < 8)
-	{
-		return macroControllerNumbers[macroIndex];
-	}
-	else
-	{
-		return -1;
-	}
-}
-
-bool MainController::MacroManager::midiControlActiveForMacro(int macroIndex) const
-{
-	if (macroIndex < 8)
-	{
-		return macroControllerNumbers[macroIndex] != -1;
-	}
-	else
-	{
-		jassertfalse;
-		return false;
-	}
-}
-
-void MainController::MacroManager::removeMidiController(int macroIndex)
-{
-	if (macroIndex < 8)
-	{
-		macroControllerNumbers[macroIndex] = -1;
-	}
-}
-
-void MainController::MacroManager::setMacroControlLearnMode(ModulatorSynthChain *chain, int index)
-{
-	macroChain = chain;
-	macroIndexForCurrentLearnMode = index;
-}
-
-int MainController::MacroManager::getMacroControlLearnMode() const
-{
-	return macroIndexForCurrentLearnMode;
-}
 
 void MainController::setKeyboardCoulour(int keyNumber, Colour colour)
 {
@@ -548,48 +323,6 @@ void MainController::removePlottedModulator(Modulator *m)
 	}
 };
 
-#if USE_BACKEND
-void MainController::setWatchedScriptProcessor(JavascriptProcessor *p, Component *editor)
-{
-	if(scriptWatchTable.getComponent() != nullptr)
-	{
-		scriptWatchTable->setScriptProcessor(p, dynamic_cast<ScriptingEditor*>(editor));
-	}
-};
-
-
-void MainController::setEditedScriptComponent(ReferenceCountedObject* c, Component *listener)
-{
-
-
-	ScriptingApi::Content::ScriptComponent *sc = dynamic_cast<ScriptingApi::Content::ScriptComponent *>(c);
-	
-
-	if(scriptComponentEditPanel.getComponent() != nullptr)
-	{
-		scriptComponentEditPanel->setEditedComponent(sc);
-
-		ScriptComponentEditListener *l = dynamic_cast<ScriptComponentEditListener *>(listener);
-
-		if(l != nullptr)
-		{
-			scriptComponentEditPanel->removeAllListeners();
-			scriptComponentEditPanel->addListener(l);
-		}
-
-		ScriptingEditor *editor = dynamic_cast<ScriptingEditor *>(listener);
-
-		if(editor != nullptr)
-		{
-			editor->setEditedScriptComponent(sc);
-		}
-	}
-	
-
-
-
-};
-#endif
 
 
 void MainController::setPlotter(Plotter *p)
@@ -678,18 +411,6 @@ void MainController::storePlayheadIntoDynamicObject(AudioPlayHead::CurrentPositi
 	hostInfo->setProperty(ppqLoopEnd, newPosition.ppqLoopEnd);
 	hostInfo->setProperty(isLooping, newPosition.isLooping);
 }
-
-#if USE_BACKEND
-void MainController::setScriptWatchTable(ScriptWatchTable *table)
-{
-	scriptWatchTable = table;
-}
-
-void MainController::setScriptComponentEditPanel(ScriptComponentEditPanel *panel)
-{
-	scriptComponentEditPanel = panel;
-}
-#endif
 
 void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &midiMessages)
 {
@@ -967,53 +688,64 @@ bool MainController::checkAndResetMidiInputFlag()
 	return returnValue;
 }
 
-
-ControlledObject::ControlledObject(MainController *m):	
-	controller(m)	{jassert(m != nullptr);};
-
-ControlledObject::~ControlledObject()	
-{ 
-	// Oops, this ControlledObject was not connected to a MainController
-	jassert(controller != nullptr);
-
-	masterReference.clear();
-	
-};
-
-void MainController::UserPresetHandler::loadPresetInternal()
-{
 #if USE_BACKEND
-	if (!GET_PROJECT_HANDLER(mc->getMainSynthChain()).isActive()) return;
-#endif
 
-	Processor::Iterator<JavascriptMidiProcessor> iter(mc->getMainSynthChain());
+void MainController::writeToConsole(const String &message, int warningLevel, const Processor *p, Colour c)
+{
+	CHECK_KEY(this);
 
-	while (JavascriptMidiProcessor *sp = iter.getNextProcessor())
-	{
-		if (!sp->isFront()) continue;
+	Console *currentConsole = usePopupConsole ? popupConsole.get() : console.get();
 
-		ValueTree v;
+	if (currentConsole != nullptr) currentConsole->logMessage(message, (Console::WarningLevel)warningLevel, p, (p != nullptr && c.isTransparent()) ? p->getColour() : c);
 
-		for (int i = 0; i < currentPreset.getNumChildren(); i++)
-		{
-			if (currentPreset.getChild(i).getProperty("Processor") == sp->getId())
-			{
-				v = currentPreset.getChild(i);
-				break;
-			}
-		}
-
-		if (v.isValid())
-		{
-			sp->getScriptingContent()->restoreAllControlsFromPreset(v);
-		}
-	}
-
-	ValueTree autoData = currentPreset.getChildWithName("MidiAutomation");
-
-	if (autoData.isValid())
-		mc->getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(autoData);
-
-	mc->presetLoadRampFlag.set(1);
 
 }
+
+void MainController::setWatchedScriptProcessor(JavascriptProcessor *p, Component *editor)
+{
+	if (scriptWatchTable.getComponent() != nullptr)
+	{
+		scriptWatchTable->setScriptProcessor(p, dynamic_cast<ScriptingEditor*>(editor));
+	}
+};
+
+
+void MainController::setEditedScriptComponent(ReferenceCountedObject* c, Component *listener)
+{
+
+
+	ScriptingApi::Content::ScriptComponent *sc = dynamic_cast<ScriptingApi::Content::ScriptComponent *>(c);
+
+
+	if (scriptComponentEditPanel.getComponent() != nullptr)
+	{
+		scriptComponentEditPanel->setEditedComponent(sc);
+
+		ScriptComponentEditListener *l = dynamic_cast<ScriptComponentEditListener *>(listener);
+
+		if (l != nullptr)
+		{
+			scriptComponentEditPanel->removeAllListeners();
+			scriptComponentEditPanel->addListener(l);
+		}
+
+		ScriptingEditor *editor = dynamic_cast<ScriptingEditor *>(listener);
+
+		if (editor != nullptr)
+		{
+			editor->setEditedScriptComponent(sc);
+		}
+	}
+};
+
+void MainController::setScriptWatchTable(ScriptWatchTable *table)
+{
+	scriptWatchTable = table;
+}
+
+void MainController::setScriptComponentEditPanel(ScriptComponentEditPanel *panel)
+{
+	scriptComponentEditPanel = panel;
+}
+
+#endif

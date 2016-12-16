@@ -260,6 +260,21 @@ ModulatorSynthVoice* ModulatorSynth::getLastStartedVoice() const
 	return lastStartedVoice;
 }
 
+int ModulatorSynth::getNumActiveVoices() const
+{
+	int numCurrentVoices = 0;
+
+	for (int i = 0; i < getNumVoices(); i++)
+	{
+		if (!static_cast<ModulatorSynthVoice*>(getVoice(i))->isInactive())
+		{
+			numCurrentVoices++;
+		}
+	}
+
+	return numCurrentVoices;
+}
+
 ProcessorEditorBody *ModulatorSynth::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
@@ -941,8 +956,6 @@ void ModulatorSynthVoice::resetVoice()
 	killFadeLevel = 1.0f;
 
 	currentHiseEvent = HiseEvent();
-
-	getOwnerSynth()->getMainController()->decreaseVoiceCounter();
 }
 
 void ModulatorSynthVoice::checkRelease()

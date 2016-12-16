@@ -281,6 +281,8 @@ public:
 
 	int getVoiceAmount() const {return numVoices;};
 
+	int getNumActiveVoices() const override;
+
 	/** Handles the ModulatorSynthChain. */
 	class ModulatorSynthChainHandler: public Chain::Handler
 	{

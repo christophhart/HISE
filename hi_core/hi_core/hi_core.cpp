@@ -50,6 +50,7 @@ namespace juce
 #include "GlobalScriptCompileBroadcaster.cpp"
 #include "MainControllerHelpers.cpp"
 #include "MainController.cpp"
+#include "MainControllerSubclasses.cpp"
 #include "PresetHandler.cpp"
 #include "SampleExporter.cpp"
 #include "Popup.cpp"
