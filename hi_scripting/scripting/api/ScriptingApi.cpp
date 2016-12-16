@@ -1571,7 +1571,7 @@ int ScriptingApi::Synth::addMessageFromHolder(var messageHolder)
 	{
 		ScriptingObjects::ScriptingMessageHolder* m = dynamic_cast<ScriptingObjects::ScriptingMessageHolder*>(messageHolder.getObject());
 
-		if (m != 0)
+		if (m != nullptr)
 		{
 			HiseEvent e = m->getMessage();
 
@@ -1692,23 +1692,28 @@ double ScriptingApi::Synth::getTimerInterval() const
 
 void ScriptingApi::Synth::sendController(int controllerNumber, int controllerValue)
 {
-	if(controllerNumber == 128) owner->handlePitchWheel(1, controllerValue);
+	if (ScriptBaseMidiProcessor* sp = dynamic_cast<ScriptBaseMidiProcessor*>(getScriptProcessor()))
+	{
+		if (controllerNumber > 0)
+		{
+			if (controllerValue >= 0)
+			{
+				HiseEvent e = HiseEvent(HiseEvent::Type::Controller, controllerNumber, controllerValue);
 
-	HiseEvent m = HiseEvent(HiseEvent::Type::Controller, (uint8)controllerNumber, (uint8)controllerValue, 1);
+				e.setTimeStamp(sp->getCurrentHiseEvent()->getTimeStamp());
 
-	owner->gainChain->handleHiseEvent(m);
-	owner->pitchChain->handleHiseEvent(m);
-	owner->effectChain->handleHiseEvent(m);
+				sp->addHiseEventToBuffer(e);
+			}
+			else reportScriptError("CC value must be positive");
+		}
+		else reportScriptError("CC number must be positive");
+	}
+	else reportScriptError("Only valid in MidiProcessors");
 };
 
 void ScriptingApi::Synth::sendControllerToChildSynths(int controllerNumber, int controllerValue)
 {
-	
-
-	MidiMessage m = MidiMessage::controllerEvent(1, controllerNumber, controllerValue);
-
-	owner->addGeneratedMidiMessageToNextBlock(m);
-
+	sendController(controllerNumber, controllerValue);
 };
 
 
@@ -1727,7 +1732,6 @@ void ScriptingApi::Synth::setMacroControl(int macroIndex, float newValue)
 	{
 		reportScriptError("setMacroControl() can only be called on ModulatorSynthChains");
 	}
-
 }
 
 ScriptingObjects::ScriptingModulator *ScriptingApi::Synth::getModulator(const String &name)
@@ -1747,15 +1751,12 @@ ScriptingObjects::ScriptingModulator *ScriptingApi::Synth::getModulator(const St
 		}
 
 		reportScriptError(name + " was not found. ");
-
 		return new ScriptingObjects::ScriptingModulator(getScriptProcessor(), nullptr);
 	}
 	else
 	{
 		reportIllegalCall("getModulator()", "onInit");
-
 		return new ScriptingObjects::ScriptingModulator(getScriptProcessor(), nullptr);
-
 	}	
 }
 

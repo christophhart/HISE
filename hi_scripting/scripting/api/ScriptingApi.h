@@ -478,13 +478,10 @@ public:
 		void setMacroControl(int macroIndex, float newValue);
 		
 
-		/** Sends a controller event to the synth.
-		*
-		*	The message will be only sent to the internal ModulatorChains (the MidiProcessorChain will be bypassed)
-		*/
+		/** Sends a controller event to the synth. */
 		void sendController(int controllerNumber, int controllerValue);
 
-		/** Sends a controller event to all Child synths. Works only if the script sits in a ModulatorSynthChain. */
+		/** The same as sendController (for backwards compatibility) */
 		void sendControllerToChildSynths(int controllerNumber, int controllerValue);
 
 		/** Returns the number of child synths. Works with SynthGroups and SynthChains. */
