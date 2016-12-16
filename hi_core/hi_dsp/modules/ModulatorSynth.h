@@ -46,13 +46,16 @@ typedef HiseEventBuffer EVENT_BUFFER_TO_USE;
 *	modulation of these parameters.
 *
 *	Instead of renderNextBlock(), simply call renderNextBlockWithModulators() and it processes the chains.
-*	Also you have to subclass the used voice type from ModulatorSynthVoice and make sure it uses the voice modulation values in its renderNextBlock().
+*	Also you have to subclass the used voice type from ModulatorSynthVoice and make sure it uses the voice modulation 
+*	values in its renderNextBlock().
 */
 class ModulatorSynth: public Synthesiser,
 					  public Processor,
 					  public RoutableProcessor
 {
 public:
+
+	// ===================================================================================================================
 
 	enum Parameters
 	{
@@ -69,7 +72,6 @@ public:
 		MidiProcessor = 0,
 		GainModulation,
 		PitchModulation,
-		
 		EffectChain,
 		numInternalChains
 	};
@@ -80,7 +82,6 @@ public:
 		MidiProcessorShown,
 		GainModulationShown,
 		PitchModulationShown,
-		
 		EffectChainShown,
 		numEditorStates
 	};
@@ -96,165 +97,43 @@ public:
 		Bar = -2
 	};
 
-	ModulatorSynth(MainController *mc, const String &id, int numVoices);;
+	// ===================================================================================================================
 
-	virtual ~ModulatorSynth()
-	{
-		midiProcessorChain = nullptr;
-		gainChain = nullptr;
-		pitchChain = nullptr;
-		effectChain = nullptr;
-	};
+	ModulatorSynth(MainController *mc, const String &id, int numVoices);
+	~ModulatorSynth();
 
-	virtual void restoreFromValueTree(const ValueTree &v) override
-	{
-		
+	// ===================================================================================================================
 
-		RESTORE_MATRIX();
+	ValueTree exportAsValueTree() const override;
+	void restoreFromValueTree(const ValueTree &v) override;
 
-		loadAttribute(Gain, "Gain");
-		loadAttribute(Balance, "Balance");
-		loadAttribute(VoiceLimit, "VoiceLimit");
-		loadAttribute(KillFadeTime, "KillFadeTime");
+	// ===================================================================================================================
 
-		iconColour = Colour::fromString(v.getProperty("IconColour", Colours::transparentBlack.toString()).toString());
+	virtual float getAttribute(int parameterIndex) const override;
+	virtual void setInternalAttribute(int parameterIndex, float newValue) override;;
+    virtual float getDefaultValue(int parameterIndex) const override;
 
-		Processor::restoreFromValueTree(v);
-	};
+	// ===================================================================================================================
 
-	
+	Processor *getChildProcessor(int processorIndex) override;
+	const Processor *getChildProcessor(int processorIndex) const override;
+	int getNumChildProcessors() const override { return numInternalChains; };
+	int getNumInternalChains() const override { return numInternalChains; };
 
-	virtual ValueTree exportAsValueTree() const override
-	{
-		// must be named 'v' for the macros
-		ValueTree v = Processor::exportAsValueTree(); 
-		
-		v.addChild(getMatrix().exportAsValueTree(), -1, nullptr);
+	// ===================================================================================================================
 
-		saveAttribute(Gain, "Gain");
-		saveAttribute(Balance, "Balance");
-		saveAttribute(VoiceLimit, "VoiceLimit");
-		saveAttribute(KillFadeTime, "KillFadeTime");
+	int getFreeTimerSlot();
+	void synthTimerCallback(uint8 index);
+	void startSynthTimer(int index, double interval, int timeStamp);
+	void stopSynthTimer(int index);
+	double getTimerInterval(int index) const noexcept;
 
-		v.setProperty("IconColour", iconColour.toString(), nullptr);
+	// ===================================================================================================================
 
-		return v;
-	};
+	bool isLastStartedVoice(ModulatorSynthVoice *voice);;
+	ModulatorSynthVoice* getLastStartedVoice() const;
 
-	virtual float getAttribute(int parameterIndex) const override
-	{
-		switch(parameterIndex)
-		{
-		case Gain:			return gain;
-		case Balance:		return balance;
-		case VoiceLimit:	return (float)voiceLimit;
-		case KillFadeTime:	return killFadeTime;
-		default:			jassertfalse; return 0.0f;
-		}
-	}
-
-	virtual void setInternalAttribute(int parameterIndex, float newValue) override
-	{
-		switch(parameterIndex)
-		{
-		case Gain:			setGain(newValue); break;
-		case Balance:		setBalance(newValue); break;
-		case VoiceLimit:	setVoiceLimit((int)newValue); break;
-		case KillFadeTime:	setKillFadeOutTime((double)newValue); break;
-		default:			jassertfalse; return;
-		}
-	};
-    
-    virtual float getDefaultValue(int parameterIndex) const override
-    {
-        switch(parameterIndex)
-        {
-            case Gain:			return 1.0;
-            case Balance:		return 0.0;
-            case VoiceLimit:	return (float)64;
-            case KillFadeTime:	return 20;
-            default:			jassertfalse; return 0.0f;
-        }
-    }
-
-	int getFreeTimerSlot()
-	{
-		if (synthTimerIntervals[0] == 0.0) return 0;
-		if (synthTimerIntervals[1] == 0.0) return 1;
-		if (synthTimerIntervals[2] == 0.0) return 2;
-		if (synthTimerIntervals[3] == 0.0) return 3;
-
-		return -1;
-	}
-
-	void synthTimerCallback(uint8 index)
-	{
-		if (index >= 0)
-		{
-			ADD_GLITCH_DETECTOR(getId() + " timer callback");
-
-			const double thisUptime = getMainController()->getUptime() - (getBlockSize() / getSampleRate());
-			uint16 offsetInBuffer = (uint16)((nextTimerCallbackTimes[index] - thisUptime) * getSampleRate());
-
-			while (synthTimerIntervals[index] > 0.0 && offsetInBuffer < getBlockSize())
-			{
-				eventBuffer.addEvent(HiseEvent::createTimerEvent(index, offsetInBuffer));
-				nextTimerCallbackTimes[index] += synthTimerIntervals[index];
-				offsetInBuffer = (uint16)((nextTimerCallbackTimes[index] - thisUptime) * getSampleRate());
-			}
-		}
-		else jassertfalse;
-	}
-
-	virtual void startSynthTimer(int index, double interval, int timeStamp)
-	{
-		if(interval < 0.04)
-		{
-			nextTimerCallbackTimes[index] = 0.0;
-			jassertfalse;
-			debugToConsole(this, "Go easy on the timer!");
-			return;
-		};
-
-		if (index >= 0)
-		{
-			synthTimerIntervals[index] = interval;
-
-			const double thisUptime = getMainController()->getUptime();
-			const double timeStampSeconds = getSampleRate() > 0.0 ? (double)timeStamp / getSampleRate() : 0.0;
-
-			if (interval != 0.0) nextTimerCallbackTimes[index] = thisUptime + timeStampSeconds + synthTimerIntervals[index];
-		}
-		else jassertfalse;
-		
-	};
-
-	virtual void stopSynthTimer(int index)
-	{
-		if (index >= 0)
-		{
-			nextTimerCallbackTimes[index] = 0.0;
-			synthTimerIntervals[index] = 0.0;
-		}
-	}
-
-	double getTimerInterval(int index) const noexcept
-	{
-		if (index >= 0) return synthTimerIntervals[index];
-
-		return 0.0;
-	}
-
-	bool isLastStartedVoice(ModulatorSynthVoice *voice)
-	{
-		return voice == lastStartedVoice;
-	};
-
-
-	ModulatorSynthVoice* getLastStartedVoice() const
-	{
-		return lastStartedVoice;
-	}
+	// ===================================================================================================================
 
 	virtual ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
@@ -266,28 +145,7 @@ public:
 	virtual void renderNextBlockWithModulators(AudioSampleBuffer& outputAudio, const HiseEventBuffer& inputMidi);
 
 	/** This method is called to handle all modulatorchains just before the voice rendering. */
-	virtual void preVoiceRendering(int startSample, int numThisTime)
-	{
-		// calculate the variant pitch values before the voices are rendered.
-		pitchChain->renderNextBlock(pitchBuffer, startSample, numThisTime);
-
-		if( !isChainDisabled(EffectChain)) effectChain->preRenderCallback(startSample, numThisTime);
-	};
-
-	void setIconColour(Colour newIconColour)
-	{
-		iconColour = newIconColour;
-	};
-
-	Colour getIconColour() const
-	{
-		return iconColour;
-	}
-
-	double getSampleRate() const
-	{
-		return Processor::getSampleRate();
-	}
+	virtual void preVoiceRendering(int startSample, int numThisTime);;
 
 	/** This method is called to actually render all voices. It operates on the internal buffer of the ModulatorSynth. */
 	virtual void renderVoice(int startSample, int numThisTime);
@@ -296,49 +154,30 @@ public:
 	*
 	*	The rendered buffer is supplied as reference to be able to apply changes here after all voices are rendered (eg. gain).
 	*/
-	virtual void postVoiceRendering(int startSample, int numThisTime)
-	{
+	virtual void postVoiceRendering(int startSample, int numThisTime);;
 
-		// Calculate the timeVariant modulators
-		gainChain->renderNextBlock(gainBuffer, startSample, numThisTime);
-
-		// Apply all gain modulators to the rendered voices
-		for (int i = 0; i < internalBuffer.getNumChannels(); i++)
-		{
-			FloatVectorOperations::multiply(internalBuffer.getWritePointer(i, startSample), gainBuffer.getReadPointer(0, startSample), numThisTime);
-		}
-
-		if( !isChainDisabled(EffectChain) ) effectChain->renderNextBlock(internalBuffer, startSample, numThisTime);		
-	};
+	// ===================================================================================================================
 
 	virtual void handlePeakDisplay(int numSamplesInOutputBuffer);
+	void setPeakValues(float l, float r);
 
-	void setPeakValues(float l, float r)
-	{
-		currentValues.outL = l;
-		currentValues.outR = r;
-	}
+	// ===================================================================================================================
 
+	void setIconColour(Colour newIconColour) { iconColour = newIconColour; };
+	Colour getIconColour() const { return iconColour; }
+	Colour getColour() const override {	return Colours::black.withBrightness(0.45f); };
 
-
-	virtual Colour getColour() const override {	return Colours::black.withBrightness(0.45f); };
-
-	
+	// ===================================================================================================================
 
 	/** Same functionality as Synthesiser::handleMidiEvent(), but sends the midi event to all Modulators in the chains. */
 	//void handleHiseEvent(const HiseEvent &m) final override;
 
 	void handleHiseEvent(const HiseEvent& e);
-
 	void handleHostInfoHiseEvents();
-
 	void handleVolumeFade(int eventId, int fadeTimeMilliseconds, float gain);
-	
 	void handlePitchFade(uint16 eventId, int fadeTimeMilliseconds, double pitchFactor);
 
 	virtual void preHiseEventCallback(const HiseEvent &e);
-
-	/** Use this to do any special handling before the voice gets started. */
 	virtual void preStartVoice(int voiceIndex, int noteNumber);
 
 	/** This sets up the synth and the ModulatorChains. 
@@ -348,44 +187,23 @@ public:
 	*/
 	virtual void prepareToPlay(double sampleRate, int samplesPerBlock);
 
-	void numSourceChannelsChanged() override;
+	// ===================================================================================================================
 
+	void numSourceChannelsChanged() override;
 	void numDestinationChannelsChanged() override;
 
-	void setBypassed(bool shouldBeBypassed) noexcept override
-	{
-		ScopedLock sl(getSynthLock());
+	// ===================================================================================================================
 
-		Processor::setBypassed(shouldBeBypassed);
-		
-		midiProcessorChain->sendAllNoteOffEvent();
-		
-		for (int i = 0; i < getNumInternalChains(); i++)
-		{
-			ModulatorChain *chain = dynamic_cast<ModulatorChain*>(getChildProcessor(i));
+	void setBypassed(bool shouldBeBypassed) noexcept override;;
+	void disableChain(InternalChains chainToDisable, bool shouldBeDisabled);
+	bool isChainDisabled(InternalChains chain) const;;
 
-			if (chain != nullptr)
-			{
-				chain->handleHiseEvent(HiseEvent(HiseEvent::Type::AllNotesOff, 0, 0, 1));
-			}
-		}
-
-		allNotesOff(1, false);
-	};
-
-	void disableChain(InternalChains chainToDisable, bool shouldBeDisabled)
-	{
-		disabledChains.setBit(chainToDisable, shouldBeDisabled);
-	}
-
-	bool isChainDisabled(InternalChains chain) const
-	{
-		return disabledChains[chain];
-	};
+	// ===================================================================================================================
 
 	void enablePitchModulation(bool shouldBeEnabled);
+	bool isPitchModulationActive() const noexcept;
 
-	bool isPitchModulationActive() const noexcept{ return pitchModulationActive; }
+	// ===================================================================================================================
 
 	/** Kills the note with the specified note number. 
 	*
@@ -397,13 +215,7 @@ public:
 	/** Kills the voice that is playing for the longest time. */
 	void killLastVoice();
 
-	void setVoiceLimit(int newVoiceLimit)
-	{
-		// The voice limit must be smaller than the total amount of voices!
-		//jassert(voices.size() == 0 || newVoiceLimit <= voices.size());
-
-		voiceLimit = jmin<int>(newVoiceLimit, NUM_POLYPHONIC_VOICES);
-	}
+	void setVoiceLimit(int newVoiceLimit);
 
 	void setKillFadeOutTime(double fadeTimeSeconds);
 
@@ -415,31 +227,15 @@ public:
 	/** Same functionality as Synthesiser::noteOn(), but calls calculateVoiceStartValue() if a new voice is started. */
 	void noteOn(const HiseEvent &m);
 
-	void noteOn(int midiChannel, int midiNoteNumber, float velocity) override
-	{
-		jassertfalse;
+	void noteOn(int midiChannel, int midiNoteNumber, float velocity) override;
 
-		HiseEvent m(HiseEvent::Type::NoteOn, (uint8)midiNoteNumber, (uint8)(velocity * 127.0f), (uint8)midiChannel);
-
-		noteOn(m);
-	}
 
 	virtual void noteOff(const HiseEvent &m);
 
 	/** Returns the voice index for the voice (the index in the internal voice array). This is needed for the ModulatorChains to know which voice is started. */
 	int getVoiceIndex(const SynthesiserVoice *v) const;;
 
-	
-
 	void processHiseEventBuffer(const HiseEventBuffer &inputBuffer, int numSamples);
-
-
-	/** This adds a midi message to a internal buffer which will be injected at the next buffer (at the end). */
-	void addGeneratedMidiMessageToNextBlock(const MidiMessage &m)
-	{
-		generatedMessages.clear();
-		generatedMessages.addEvent(m, 0);
-	}
 
 	/** Adds a SimpleEnvelope to a empty ModulatorSynth to prevent clicks. */
 	virtual void addProcessorsWhenEmpty();
@@ -511,40 +307,6 @@ public:
 		return !(isGroup || isInGroup());
 	}
 
-	/** Returns the specified chain. You have to static_cast it to the subclass in most cases, since it can be both MidiProcessorChains or ModulatorChains. */
-	virtual Processor *getChildProcessor(int processorIndex) override
-	{
-		jassert(processorIndex < numInternalChains);
-
-		switch(processorIndex)
-		{
-		case GainModulation:	return gainChain;
-		case PitchModulation:	return pitchChain;
-		case MidiProcessor:		return midiProcessorChain;
-		case EffectChain:		return effectChain;
-		default:				jassertfalse; return nullptr;
-		}
-	};
-
-	/** Returns the specified chain. You have to static_cast it to the subclass in most cases, since it can be both MidiProcessorChains or ModulatorChains. */
-	virtual const Processor *getChildProcessor(int processorIndex) const override
-	{
-		jassert(processorIndex < numInternalChains);
-
-		switch(processorIndex)
-		{
-		case GainModulation:	return gainChain;
-		case PitchModulation:	return pitchChain;
-		case MidiProcessor:		return midiProcessorChain;
-		case EffectChain:		return effectChain;
-		default:				jassertfalse; return nullptr;
-		}
-	};
-
-	/** Returns 4 (the number of internal chains), but can be overriden. */
-	virtual int getNumChildProcessors() const override { return numInternalChains;	};
-
-	virtual int getNumInternalChains() const override {return numInternalChains; };
 
 	/** Returns the pointer to the calculated pitch buffers for the ModulatorSynthVoice's render callback. */
 	const float *getConstantPitchValues() const { return pitchBuffer.getReadPointer(0);	};
@@ -554,6 +316,8 @@ public:
 	{
         return getMainController()->getLock();
 	};
+
+	double getSampleRate() const { return Processor::getSampleRate(); }
 
 	/** specifies the behaviour when a note is started that is already ringing. By default, it is killed, but you can overwrite it to make something else. */
 	virtual void handleRetriggeredNote(ModulatorSynthVoice *voice);
@@ -584,14 +348,8 @@ public:
 	/** Returns a read pointer to the calculated pitch values. Used by Synthgroups to render their pitch values on the voice value. */
 	float *getPitchValuesForVoice(int voiceIndex) { return pitchChain->getVoiceValues(voiceIndex);};
 
-	
 	HiseEventBuffer eventBuffer;
-
-
 	AudioSampleBuffer internalBuffer;
-
-	MidiBuffer generatedMessages;
-	MidiBuffer outputMidiBuffer;
 
 	UpdateMerger vuMerger;
 
@@ -619,6 +377,8 @@ protected:
 
 private:
 
+	// ===================================================================================================================
+
 	Colour iconColour;
 
 	ClockSpeed clockSpeed;
@@ -627,29 +387,28 @@ private:
 
 	int voiceLimit;
 
-	double synthUptime;
-	double synthTimerIntervals[4];
-	double nextTimerCallbackTimes[4];
+	std::atomic<double> synthTimerIntervals[4];
+	std::atomic<double> nextTimerCallbackTimes[4];
 
 	ModulatorSynthGroup *group;
 
 	bool midiInputFlag;
-
 	bool wasPlayingInLastBuffer;
 	bool pitchModulationActive;
 
-	float gain;
+	std::atomic<float> gain;
 
-	float balance;
+	std::atomic<float> balance;
 	float leftBalanceGain;
 	float rightBalanceGain;
 
-	float vuValue;
+	std::atomic<float> vuValue;
 
-	float killFadeTime;
+	std::atomic<float> killFadeTime;
 	
+	// ===================================================================================================================
 
-	// this stores the variant pitch values to be retrieved within ModulatorSynthVoice::renderNextBlock()
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ModulatorSynth)
 	
 };
 

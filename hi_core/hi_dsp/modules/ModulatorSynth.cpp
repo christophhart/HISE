@@ -42,7 +42,6 @@ effectChain(new EffectProcessorChain(this, "FX", numVoices)),
 gain(0.25f),
 killFadeTime(20.0f),
 vuValue(0.0f),
-synthUptime(0.0),
 lastStartedVoice(nullptr),
 group(nullptr),
 voiceLimit(numVoices),
@@ -71,9 +70,6 @@ pitchModulationActive(false)
 	editorStateIdentifiers.add("PitchModulationShown");
 	editorStateIdentifiers.add("EffectChainShown");
 
-	generatedMessages.ensureSize(2048);
-	outputMidiBuffer.ensureSize(2048);
-
 	setBalance(0.0f);
 
 	pitchChain->getFactoryType()->setConstrainer(new NoGlobalEnvelopeConstrainer());
@@ -82,6 +78,186 @@ pitchModulationActive(false)
 	disableChain(PitchModulation, false);
 	disableChain(MidiProcessor, false);
 	disableChain(EffectChain, false);
+}
+
+ModulatorSynth::~ModulatorSynth()
+{
+	midiProcessorChain = nullptr;
+	gainChain = nullptr;
+	pitchChain = nullptr;
+	effectChain = nullptr;
+}
+
+ValueTree ModulatorSynth::exportAsValueTree() const
+{
+	// must be named 'v' for the macros
+	ValueTree v = Processor::exportAsValueTree();
+
+	v.addChild(getMatrix().exportAsValueTree(), -1, nullptr);
+
+	saveAttribute(Gain, "Gain");
+	saveAttribute(Balance, "Balance");
+	saveAttribute(VoiceLimit, "VoiceLimit");
+	saveAttribute(KillFadeTime, "KillFadeTime");
+
+	v.setProperty("IconColour", iconColour.toString(), nullptr);
+
+	return v;
+}
+
+void ModulatorSynth::restoreFromValueTree(const ValueTree &v)
+{
+	RESTORE_MATRIX();
+
+	loadAttribute(Gain, "Gain");
+	loadAttribute(Balance, "Balance");
+	loadAttribute(VoiceLimit, "VoiceLimit");
+	loadAttribute(KillFadeTime, "KillFadeTime");
+
+	iconColour = Colour::fromString(v.getProperty("IconColour", Colours::transparentBlack.toString()).toString());
+
+	Processor::restoreFromValueTree(v);
+}
+
+float ModulatorSynth::getAttribute(int parameterIndex) const
+{
+	switch (parameterIndex)
+	{
+	case Gain:			return gain;
+	case Balance:		return balance;
+	case VoiceLimit:	return (float)voiceLimit;
+	case KillFadeTime:	return killFadeTime;
+	default:			jassertfalse; return 0.0f;
+	}
+}
+
+void ModulatorSynth::setInternalAttribute(int parameterIndex, float newValue)
+{
+	switch (parameterIndex)
+	{
+	case Gain:			setGain(newValue); break;
+	case Balance:		setBalance(newValue); break;
+	case VoiceLimit:	setVoiceLimit((int)newValue); break;
+	case KillFadeTime:	setKillFadeOutTime((double)newValue); break;
+	default:			jassertfalse; return;
+	}
+}
+
+float ModulatorSynth::getDefaultValue(int parameterIndex) const
+{
+	switch (parameterIndex)
+	{
+	case Gain:			return 1.0;
+	case Balance:		return 0.0;
+	case VoiceLimit:	return (float)64;
+	case KillFadeTime:	return 20;
+	default:			jassertfalse; return 0.0f;
+	}
+}
+
+Processor * ModulatorSynth::getChildProcessor(int processorIndex)
+{
+	jassert(processorIndex < numInternalChains);
+
+	switch (processorIndex)
+	{
+	case GainModulation:	return gainChain;
+	case PitchModulation:	return pitchChain;
+	case MidiProcessor:		return midiProcessorChain;
+	case EffectChain:		return effectChain;
+	default:				jassertfalse; return nullptr;
+	}
+}
+
+const Processor * ModulatorSynth::getChildProcessor(int processorIndex) const
+{
+	jassert(processorIndex < numInternalChains);
+
+	switch (processorIndex)
+	{
+	case GainModulation:	return gainChain;
+	case PitchModulation:	return pitchChain;
+	case MidiProcessor:		return midiProcessorChain;
+	case EffectChain:		return effectChain;
+	default:				jassertfalse; return nullptr;
+	}
+}
+
+int ModulatorSynth::getFreeTimerSlot()
+{
+	if (synthTimerIntervals[0] == 0.0) return 0;
+	if (synthTimerIntervals[1] == 0.0) return 1;
+	if (synthTimerIntervals[2] == 0.0) return 2;
+	if (synthTimerIntervals[3] == 0.0) return 3;
+
+	return -1;
+}
+
+void ModulatorSynth::synthTimerCallback(uint8 index)
+{
+	if (index >= 0)
+	{
+		ADD_GLITCH_DETECTOR(getId() + " timer callback");
+
+		const double thisUptime = getMainController()->getUptime() - (getBlockSize() / getSampleRate());
+		uint16 offsetInBuffer = (uint16)((nextTimerCallbackTimes[index] - thisUptime) * getSampleRate());
+
+		while (synthTimerIntervals[index] > 0.0 && offsetInBuffer < getBlockSize())
+		{
+			eventBuffer.addEvent(HiseEvent::createTimerEvent(index, offsetInBuffer));
+			nextTimerCallbackTimes[index].store(nextTimerCallbackTimes[index].load() + synthTimerIntervals[index].load());
+			offsetInBuffer = (uint16)((nextTimerCallbackTimes[index] - thisUptime) * getSampleRate());
+		}
+	}
+	else jassertfalse;
+}
+
+void ModulatorSynth::startSynthTimer(int index, double interval, int timeStamp)
+{
+	if (interval < 0.04)
+	{
+		nextTimerCallbackTimes[index] = 0.0;
+		jassertfalse;
+		debugToConsole(this, "Go easy on the timer!");
+		return;
+	};
+
+	if (index >= 0)
+	{
+		synthTimerIntervals[index] = interval;
+
+		const double thisUptime = getMainController()->getUptime();
+		const double timeStampSeconds = getSampleRate() > 0.0 ? (double)timeStamp / getSampleRate() : 0.0;
+
+		if (interval != 0.0) nextTimerCallbackTimes[index] = thisUptime + timeStampSeconds + synthTimerIntervals[index];
+	}
+	else jassertfalse;
+}
+
+void ModulatorSynth::stopSynthTimer(int index)
+{
+	if (index >= 0)
+	{
+		nextTimerCallbackTimes[index] = 0.0;
+		synthTimerIntervals[index] = 0.0;
+	}
+}
+
+double ModulatorSynth::getTimerInterval(int index) const noexcept
+{
+	if (index >= 0) return synthTimerIntervals[index];
+
+	return 0.0;
+}
+
+bool ModulatorSynth::isLastStartedVoice(ModulatorSynthVoice *voice)
+{
+	return voice == lastStartedVoice;
+}
+
+ModulatorSynthVoice* ModulatorSynth::getLastStartedVoice() const
+{
+	return lastStartedVoice;
 }
 
 ProcessorEditorBody *ModulatorSynth::createEditor(ProcessorEditor *parentEditor)
@@ -208,7 +384,7 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 		
 		if (destinationChannel >= 0 && destinationChannel < outputBuffer.getNumChannels())
 		{
-			const float thisGain = gain * (i % 2 == 0 ? leftBalanceGain : rightBalanceGain);
+			const float thisGain = gain.load() * (i % 2 == 0 ? leftBalanceGain : rightBalanceGain);
 			FloatVectorOperations::addWithMultiply(outputBuffer.getWritePointer(destinationChannel, 0), internalBuffer.getReadPointer(i, 0), thisGain, outputBuffer.getNumSamples());
 		}
 
@@ -237,6 +413,14 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 	handlePeakDisplay(outputBuffer.getNumSamples());
 }
 
+void ModulatorSynth::preVoiceRendering(int startSample, int numThisTime)
+{
+	// calculate the variant pitch values before the voices are rendered.
+	pitchChain->renderNextBlock(pitchBuffer, startSample, numThisTime);
+
+	if (!isChainDisabled(EffectChain)) effectChain->preRenderCallback(startSample, numThisTime);
+}
+
 void ModulatorSynth::renderVoice(int startSample, int numThisTime)
 {
     ADD_GLITCH_DETECTOR("Rendering voices for " + getId());
@@ -254,6 +438,20 @@ void ModulatorSynth::renderVoice(int startSample, int numThisTime)
 };
 
 	
+void ModulatorSynth::postVoiceRendering(int startSample, int numThisTime)
+{
+	// Calculate the timeVariant modulators
+	gainChain->renderNextBlock(gainBuffer, startSample, numThisTime);
+
+	// Apply all gain modulators to the rendered voices
+	for (int i = 0; i < internalBuffer.getNumChannels(); i++)
+	{
+		FloatVectorOperations::multiply(internalBuffer.getWritePointer(i, startSample), gainBuffer.getReadPointer(0, startSample), numThisTime);
+	}
+
+	if (!isChainDisabled(EffectChain)) effectChain->renderNextBlock(internalBuffer, startSample, numThisTime);
+}
+
 void ModulatorSynth::handlePeakDisplay(int numSamplesInOutputBuffer)
 {
 #if ENABLE_ALL_PEAK_METERS
@@ -272,6 +470,12 @@ void ModulatorSynth::handlePeakDisplay(int numSamplesInOutputBuffer)
 #endif
 }
 
+
+void ModulatorSynth::setPeakValues(float l, float r)
+{
+	currentValues.outL = l;
+	currentValues.outR = r;
+}
 
 void ModulatorSynth::handleHiseEvent(const HiseEvent& m)
 {
@@ -520,6 +724,37 @@ void ModulatorSynth::numDestinationChannelsChanged()
 	}
 }
 
+void ModulatorSynth::setBypassed(bool shouldBeBypassed) noexcept
+{
+	ScopedLock sl(getSynthLock());
+
+	Processor::setBypassed(shouldBeBypassed);
+
+	midiProcessorChain->sendAllNoteOffEvent();
+
+	for (int i = 0; i < getNumInternalChains(); i++)
+	{
+		ModulatorChain *chain = dynamic_cast<ModulatorChain*>(getChildProcessor(i));
+
+		if (chain != nullptr)
+		{
+			chain->handleHiseEvent(HiseEvent(HiseEvent::Type::AllNotesOff, 0, 0, 1));
+		}
+	}
+
+	allNotesOff(1, false);
+}
+
+void ModulatorSynth::disableChain(InternalChains chainToDisable, bool shouldBeDisabled)
+{
+	disabledChains.setBit(chainToDisable, shouldBeDisabled);
+}
+
+bool ModulatorSynth::isChainDisabled(InternalChains chain) const
+{
+	return disabledChains[chain];
+}
+
 void ModulatorSynth::noteOn(const HiseEvent &m)
 {
     ADD_GLITCH_DETECTOR("Note on callback for " + getId());
@@ -581,6 +816,15 @@ void ModulatorSynth::noteOn(const HiseEvent &m)
 	}
 }
 
+void ModulatorSynth::noteOn(int midiChannel, int midiNoteNumber, float velocity)
+{
+	jassertfalse;
+
+	HiseEvent m(HiseEvent::Type::NoteOn, (uint8)midiNoteNumber, (uint8)(velocity * 127.0f), (uint8)midiChannel);
+
+	noteOn(m);
+}
+
 void ModulatorSynth::noteOff(const HiseEvent &m)
 {
 	const int midiNoteNumber = m.getNoteNumber();
@@ -634,6 +878,11 @@ void ModulatorSynth::enablePitchModulation(bool shouldBeEnabled)
 	}
 }
 
+
+bool ModulatorSynth::isPitchModulationActive() const noexcept
+{
+	return pitchModulationActive;
+}
 
 void ModulatorSynth::setScriptGainValue(int voiceIndex, float gainValue) noexcept
 {
@@ -823,6 +1072,14 @@ void ModulatorSynth::killLastVoice()
 		return;
 	}
 };
+
+void ModulatorSynth::setVoiceLimit(int newVoiceLimit)
+{
+	// The voice limit must be smaller than the total amount of voices!
+	//jassert(voices.size() == 0 || newVoiceLimit <= voices.size());
+
+	voiceLimit = jmin<int>(newVoiceLimit, NUM_POLYPHONIC_VOICES);
+}
 
 void ModulatorSynth::setKillFadeOutTime(double fadeTimeMilliSeconds)
 {
