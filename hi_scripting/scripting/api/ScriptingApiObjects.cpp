@@ -203,9 +203,9 @@ m(nullptr)
 String ScriptingObjects::ScriptingModulator::getDebugName() const
 {
 	if (objectExists() && !objectDeleted())
-		return mod->getType().toString();
+		return mod->getId();
 
-	return String("Deleted");
+	return String("Invalid");
 }
 
 String ScriptingObjects::ScriptingModulator::getDebugValue() const
@@ -385,6 +385,7 @@ struct ScriptingObjects::ScriptingSynth::Wrapper
 	API_VOID_METHOD_WRAPPER_2(ScriptingSynth, setAttribute);
     API_METHOD_WRAPPER_1(ScriptingSynth, getAttribute);
 	API_VOID_METHOD_WRAPPER_1(ScriptingSynth, setBypassed);
+	API_METHOD_WRAPPER_1(ScriptingSynth, getChildSynthByIndex);
 };
 
 ScriptingObjects::ScriptingSynth::ScriptingSynth(ProcessorWithScriptingContent *p, ModulatorSynth *synth_) :
@@ -410,7 +411,9 @@ synth(synth_)
 	ADD_API_METHOD_2(setAttribute);
     ADD_API_METHOD_1(getAttribute);
 	ADD_API_METHOD_1(setBypassed);
+	ADD_API_METHOD_1(getChildSynthByIndex);
 };
+
 
 void ScriptingObjects::ScriptingSynth::setAttribute(int parameterIndex, float newValue)
 {
@@ -436,6 +439,28 @@ void ScriptingObjects::ScriptingSynth::setBypassed(bool shouldBeBypassed)
 	{
 		synth->setBypassed(shouldBeBypassed);
 		synth->sendChangeMessage();
+	}
+}
+
+ScriptingObjects::ScriptingSynth* ScriptingObjects::ScriptingSynth::getChildSynthByIndex(int index)
+{
+	if (getScriptProcessor()->objectsCanBeCreated())
+	{
+		if (Chain* c = dynamic_cast<Chain*>(synth.get()))
+		{
+			if (index >= 0 && index < c->getHandler()->getNumProcessors())
+			{
+				return new ScriptingObjects::ScriptingSynth(getScriptProcessor(), dynamic_cast<ModulatorSynth*>(c->getHandler()->getProcessor(index)));
+			}
+		}
+
+		return new ScriptingObjects::ScriptingSynth(getScriptProcessor(), nullptr);
+	}
+	else
+	{
+		reportIllegalCall("getChildSynth()", "onInit");
+
+		return new ScriptingObjects::ScriptingSynth(getScriptProcessor(), nullptr);
 	}
 }
 

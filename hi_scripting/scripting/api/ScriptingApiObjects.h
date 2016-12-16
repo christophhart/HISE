@@ -234,6 +234,7 @@ public:
 
 		String getDebugName() const override;
 		String getDebugValue() const override;
+		String getDebugDataType() const override { return getObjectName().toString(); }
 		void doubleClickCallback(const MouseEvent &e, Component* componentToNotify) override;
 
 		// ============================================================================================================
@@ -275,7 +276,8 @@ public:
 
 
 
-	class ScriptingEffect : public ConstScriptingObject
+	class ScriptingEffect : public ConstScriptingObject,
+							public DebugableObject
 	{
 	public:
 
@@ -287,6 +289,13 @@ public:
 		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Effect"); }
 		bool objectDeleted() const override { return effect.get() == nullptr; }
 		bool objectExists() const override { return effect != nullptr; }
+
+		// ============================================================================================================ 
+
+		String getDebugName() const override { return effect.get() != nullptr ? effect->getId() : "Invalid"; };
+		String getDebugDataType() const override { return getObjectName().toString(); }
+		String getDebugValue() const override { return String(); }
+		void doubleClickCallback(const MouseEvent &, Component* ) override {};
 
 		// ============================================================================================================ API Methods
 
@@ -317,7 +326,8 @@ public:
 
 
 
-	class ScriptingSynth : public ConstScriptingObject
+	class ScriptingSynth : public ConstScriptingObject,
+						   public DebugableObject
 	{
 	public:
 
@@ -329,6 +339,13 @@ public:
 		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("ChildSynth"); };
 		bool objectDeleted() const override { return synth.get() == nullptr; };
 		bool objectExists() const override { return synth != nullptr; };
+
+		// ============================================================================================================ 
+
+		String getDebugName() const override { return synth.get() != nullptr ? synth->getId() : "Invalid"; };
+		String getDebugDataType() const override { return getObjectName().toString(); }
+		String getDebugValue() const override { return String(synth.get() != nullptr ? dynamic_cast<ModulatorSynth*>(synth.get())->getNumActiveVoices() : 0) + String(" voices"); }
+		void doubleClickCallback(const MouseEvent &, Component* ) override {};
 
 		// ============================================================================================================ API Methods
 
@@ -345,6 +362,9 @@ public:
 		/** Bypasses the effect. */
 		void setBypassed(bool shouldBeBypassed);
 
+		/** Returns the child synth with the given index. */
+		ScriptingSynth* getChildSynthByIndex(int index);
+
 		// ============================================================================================================ 
 
 		struct Wrapper;
@@ -360,7 +380,8 @@ public:
 
 
 	class ScriptingMidiProcessor : public ConstScriptingObject,
-								   public AssignableObject
+								   public AssignableObject,
+								   public DebugableObject
 	{
 	public:
 
@@ -372,6 +393,10 @@ public:
 		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("MidiProcessor"); }
 		bool objectDeleted() const override { return mp.get() == nullptr; }
 		bool objectExists() const override { return mp != nullptr; }
+
+		String getDebugName() const override { return mp.get() != nullptr ? mp->getId() : "Invalid"; };
+		String getDebugValue() const override { return String(); }
+		void doubleClickCallback(const MouseEvent &, Component* ) override {};
 
 		int getCachedIndex(const var &indexExpression) const override;
 		void assign(const int index, var newValue) override;

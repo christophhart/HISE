@@ -521,6 +521,9 @@ public:
 		/** Returns the child synth with the supplied name. */
 		ScriptSynth * getChildSynth(const String &name);
 
+		/** Returns the child synth with the given index. */
+		ScriptSynth* getChildSynthByIndex(int index);
+
 		/** Returns the child synth with the supplied name. */
 		ScriptAudioSampleProcessor * getAudioSampleProcessor(const String &name);
 

@@ -1374,6 +1374,7 @@ struct ScriptingApi::Synth::Wrapper
 	API_METHOD_WRAPPER_1(Synth, getEffect);
 	API_METHOD_WRAPPER_1(Synth, getMidiProcessor);
 	API_METHOD_WRAPPER_1(Synth, getChildSynth);
+	API_METHOD_WRAPPER_1(Synth, getChildSynthByIndex);
 	API_METHOD_WRAPPER_2(Synth, getModulatorIndex);
 	API_METHOD_WRAPPER_0(Synth, getNumPressedKeys);
 	API_METHOD_WRAPPER_0(Synth, isLegatoInterval);
@@ -1427,6 +1428,7 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	ADD_API_METHOD_1(getEffect);
 	ADD_API_METHOD_1(getMidiProcessor);
 	ADD_API_METHOD_1(getChildSynth);
+	ADD_API_METHOD_1(getChildSynthByIndex);
 	ADD_API_METHOD_2(getModulatorIndex);
 	ADD_API_METHOD_0(getNumPressedKeys);
 	ADD_API_METHOD_0(isLegatoInterval);
@@ -1698,7 +1700,7 @@ void ScriptingApi::Synth::sendController(int controllerNumber, int controllerVal
 		{
 			if (controllerValue >= 0)
 			{
-				HiseEvent e = HiseEvent(HiseEvent::Type::Controller, controllerNumber, controllerValue);
+				HiseEvent e = HiseEvent(HiseEvent::Type::Controller, (uint8)controllerNumber, (uint8)controllerValue);
 
 				e.setTimeStamp(sp->getCurrentHiseEvent()->getTimeStamp());
 
@@ -1824,6 +1826,28 @@ ScriptingObjects::ScriptingSynth *ScriptingApi::Synth::getChildSynth(const Strin
 		return new ScriptingObjects::ScriptingSynth(getScriptProcessor(), nullptr);
 
 	}	
+}
+
+ScriptingApi::Synth::ScriptSynth* ScriptingApi::Synth::getChildSynthByIndex(int index)
+{
+	if (getScriptProcessor()->objectsCanBeCreated())
+	{
+		if (Chain* c = dynamic_cast<Chain*>(owner))
+		{
+			if (index >= 0 && index < c->getHandler()->getNumProcessors())
+			{
+				return new ScriptingObjects::ScriptingSynth(getScriptProcessor(), dynamic_cast<ModulatorSynth*>(c->getHandler()->getProcessor(index)));
+			}
+		}
+
+		return new ScriptingObjects::ScriptingSynth(getScriptProcessor(), nullptr);
+	}
+	else
+	{
+		reportIllegalCall("getChildSynth()", "onInit");
+
+		return new ScriptingObjects::ScriptingSynth(getScriptProcessor(), nullptr);
+	}
 }
 
 ScriptingObjects::ScriptingEffect *ScriptingApi::Synth::getEffect(const String &name)
