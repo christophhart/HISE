@@ -74,7 +74,9 @@
 
 #if USE_BACKEND
 
+#include "scripting/components/PopupEditors.h"
 #include "scripting/components/ScriptingCodeEditor.h"
+#include "scripting/components/AutoCompletePopup.h"
 #include "scripting/components/ScriptingEditor.h"
 
 #endif 

@@ -33,88 +33,6 @@
 #define SCRIPTINGCODEEDITOR_H_INCLUDED
 
 
-class JavascriptCodeEditor;
-
-class PopupIncludeEditor : public Component,
-						   public Timer
-{
-public:
-
-	// ================================================================================================================
-
-	PopupIncludeEditor(JavascriptProcessor *s, const File &fileToEdit);
-	PopupIncludeEditor(JavascriptProcessor* s, const Identifier &callback);
-	PopupIncludeEditor(JavascriptProcessor* s);
-	~PopupIncludeEditor();
-
-	void timerCallback();
-	bool keyPressed(const KeyPress& key) override;
-	void resized() override;;
-
-	void gotoChar(int character, int lineNumber=-1);
-
-	
-
-private:
-
-	friend class PopupIncludeEditorWindow;
-
-	bool isCallbackEditor() { return !callback.isNull(); }
-	bool isWholeScriptEditor() { return callback.isNull() && !file.existsAsFile(); }
-
-	int fontSize;
-
-	ScopedPointer<JavascriptTokeniser> tokeniser;
-	ScopedPointer < JavascriptCodeEditor > editor;
-	OptionalScopedPointer<CodeDocument> doc;
-	
-	ScopedPointer<Label> resultLabel;	
-
-	JavascriptProcessor *sp;
-	File file;
-	const Identifier callback;
-
-	bool lastCompileOk;
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PopupIncludeEditor);
-
-	// ================================================================================================================
-};
-
-class PopupIncludeEditorWindow: public DocumentWindow,
-								public ModalBaseWindow
-{
-public:
-
-	// ================================================================================================================
-
-	PopupIncludeEditorWindow(File f, JavascriptProcessor *s);
-    
-	PopupIncludeEditorWindow(const Identifier& callbackName, JavascriptProcessor* s);
-
-	PopupIncludeEditorWindow(Component* scriptingEditor, JavascriptProcessor* s);
-
-    File getFile() const {return file;};
-	Identifier getCallback() const { return callback; }
-
-	void paint(Graphics &g) override;
-	bool keyPressed(const KeyPress& key);;
-	void closeButtonPressed() override;;
-
-	void gotoChar(int character, int lineNumber=-1);
-
-private:
-
-	Component::SafePointer<Component> parentEditorBody;
-    ScopedPointer<PopupIncludeEditor> editor;
-    const File file;
-	const Identifier callback;
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PopupIncludeEditorWindow);
-
-	// ================================================================================================================
-};
-
 
 /** A subclass of CodeEditorComponent which improves working with Javascript scripts.
 *	@ingroup scripting
@@ -191,130 +109,9 @@ public:
 
 	// ================================================================================================================
 
-	class AutoCompletePopup : public ListBoxModel,
-							  public Component
-	{
-
-	public:
-
-		// ================================================================================================================
-
-		class AllToTheEditorTraverser : public KeyboardFocusTraverser
-		{
-		public:
-			AllToTheEditorTraverser(JavascriptCodeEditor *editor_): editor(editor_) {};
-
-			virtual Component* getNextComponent(Component* /*current*/)
-			{ 
-				return editor; 
-			}
-			virtual Component* getPreviousComponent(Component* /*current*/) 
-			{ 
-				return editor; 
-			}
-			virtual Component* getDefaultComponent(Component* /*parentComponent*/)
-			{ 
-				return editor; 
-			}
-
-			JavascriptCodeEditor *editor;
-		};
-
-		// ================================================================================================================
-
-		AutoCompletePopup(int fontHeight_, JavascriptCodeEditor* editor_, Range<int> tokenRange_, const String &tokenText);
-		~AutoCompletePopup();
-
-		void createVariableRows();
-		void createApiRows(const ValueTree &apiTree);
-		void createObjectPropertyRows(const ValueTree &apiTree, const String &tokenText);
-
-		void addCustomEntries(const Identifier &objectId, const ValueTree &apiTree);
-		void addApiConstants(const ApiClass* apiClass, const Identifier &objectId);
-		void addApiMethods(const ValueTree &classTree, const Identifier &objectId);
-
-		KeyboardFocusTraverser* createFocusTraverser() override;
-
-		int getNumRows() override;
-		void paintListBoxItem(int rowNumber, Graphics &g, int width, int height, bool rowIsSelected) override;
-		void listBoxItemClicked(int row, const MouseEvent &) override;
-		void listBoxItemDoubleClicked(int row, const MouseEvent &) override;
-
-		bool handleEditorKeyPress(const KeyPress& k);
-
-		void paint(Graphics& g) override;
-		void resized();
-
-		void selectRowInfo(int rowIndex);
-		void rebuildVisibleItems(const String &selection);
-
-		bool escapeKeyHandled = false;
-
-		// ================================================================================================================
-
-	private:
-
-		SharedResourcePointer<ApiHelpers::Api> api;
-
-		// ================================================================================================================
-
-		struct RowInfo
-		{
-			enum class Type
-			{
-				ApiClass = (int)DebugInformation::Type::numTypes,
-				ApiMethod,
-				numTypes
-			};
-
-			bool matchesSelection(const String &selection)
-			{
-				return name.containsIgnoreCase(selection);
-			}
-
-			AttributedString description;
-			String codeToInsert, name, typeName, value;
-			int type;
-		};
-
-		// ================================================================================================================
-
-		class InfoBox : public Component
-		{
-		public:
-
-			void setInfo(RowInfo *newInfo);
-			void paint(Graphics &g);
-
-		private:
-
-			AttributedString infoText;
-			RowInfo *currentInfo = nullptr;
-		};
-
-		// ================================================================================================================
-
-		OwnedArray<RowInfo> allInfo;
-		Array<RowInfo*> visibleInfo;
-		StringArray names;
-		int fontHeight;
-		int currentlySelectedBox = -1;
-		ScopedPointer<InfoBox> infoBox;
-		ScopedPointer<ListBox> listbox;
-		JavascriptProcessor *sp;
-		Range<int> tokenRange;
-		JavascriptCodeEditor *editor;
-
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AutoCompletePopup);
-
-		// ================================================================================================================
-	};
-
-	
-
 private:
 
-	
+	class AutoCompletePopup;
 
 	// ================================================================================================================
 
@@ -373,6 +170,7 @@ private:
 	
 	void increaseMultiSelectionForCurrentToken();
 };
+
 
 
 class CodeEditorWrapper: public Component,

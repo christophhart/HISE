@@ -75,6 +75,9 @@
 
 #if USE_BACKEND
 
+#include "scripting/components/PopupEditors.cpp"
+#include "scripting/components/AutoCompletePopup.cpp"
+#include "scripting/components/ScriptingCodeEditorHelpers.cpp"
 #include "scripting/components/ScriptingCodeEditor.cpp"
 #include "scripting/components/ScriptingEditor.cpp"
 
