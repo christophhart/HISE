@@ -382,7 +382,6 @@ private:
 
 	String getFileContent(const String &fileNameInScript, String &refFileName)
 	{
-
 		const String cleanedFileName = fileNameInScript.removeCharacters("\"\'");
 
 #if USE_BACKEND
@@ -404,7 +403,11 @@ private:
 		for (int i = 0; i < hiseSpecialData->includedFiles.size(); i++)
 		{
 			if (hiseSpecialData->includedFiles[i]->f == f)
-				throwError("File " + shortFileName + " was included multiple times");
+			{
+				debugToConsole(dynamic_cast<Processor*>(hiseSpecialData->processor), "File " + shortFileName + " was included multiple times");
+				return String();
+			}
+				
 		}
 
 		return f.loadFileAsString();
@@ -416,10 +419,30 @@ private:
 		if (File::isAbsolutePath(refFileName))
 		{
 			File f(refFileName);
+
+			for (int i = 0; i < hiseSpecialData->includedFiles.size(); i++)
+			{
+				if (hiseSpecialData->includedFiles[i]->f == f)
+				{
+					DBG("File " + refFileName + " was included multiple times");
+					return String();
+				}
+
+			}
+
 			return f.loadFileAsString();
 		}
 		else
 		{
+			for (int i = 0; i < hiseSpecialData->includedFiles.size(); i++)
+			{
+				if (hiseSpecialData->includedFiles[i]->scriptName == refFileName)
+				{
+					DBG("Script " + refFileName + " was included multiple times");
+					return String();
+				}
+			}
+
 			return dynamic_cast<Processor*>(hiseSpecialData->processor)->getMainController()->getExternalScriptFromCollection(fileNameInScript);
 		}
 #endif
@@ -449,7 +472,14 @@ private:
 		{
 #if USE_BACKEND
             
-			hiseSpecialData->includedFiles.add(new ExternalFileData(File(refFileName)));
+			hiseSpecialData->includedFiles.add(new ExternalFileData(ExternalFileData::Type::RelativeFile, File(refFileName), String()));
+#else
+
+			if (File::isAbsolutePath(refFileName)) 
+				hiseSpecialData->includedFiles.add(new ExternalFileData(ExternalFileData::Type::AbsoluteFile, File(refFileName), String()));
+			else
+				hiseSpecialData->includedFiles.add(new ExternalFileData(ExternalFileData::Type::AbsoluteFile, File(), refFileName));
+
 #endif
 
 			try

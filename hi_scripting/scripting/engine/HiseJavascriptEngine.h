@@ -194,7 +194,34 @@ public:
 
 	struct ExternalFileData
 	{
-		ExternalFileData(const File &f_) : f(f_), r(Result::ok()) {};
+		enum class Type
+		{
+			RelativeFile,
+			AbsoluteFile,
+			EmbeddedScript,
+			numTypes
+		};
+
+		ExternalFileData(Type t_, const File &f_, String& name_) : t(t_), f(f_), r(Result::ok())
+		{
+			switch (t_)
+			{
+			case HiseJavascriptEngine::ExternalFileData::Type::RelativeFile:
+				scriptName = f.getFileName();
+				break;
+			case HiseJavascriptEngine::ExternalFileData::Type::AbsoluteFile:
+				scriptName = f.getFullPathName();
+				break;
+			case HiseJavascriptEngine::ExternalFileData::Type::EmbeddedScript:
+				scriptName = name_;
+				break;
+			case HiseJavascriptEngine::ExternalFileData::Type::numTypes:
+				break;
+			default:
+				break;
+			}
+		};
+
 		ExternalFileData() : f(File::nonexistent), r(Result::fail("uninitialised")) {}
 
 		void setErrorMessage(const String &m)
@@ -203,7 +230,9 @@ public:
 		}
 
 		File f;
+		String scriptName;
 		Result r;
+		Type t;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ExternalFileData)
 	};
