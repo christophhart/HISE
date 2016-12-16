@@ -44,6 +44,7 @@ HiseEvent::HiseEvent(const MidiMessage& message)
 	else if (message.isAllNotesOff() || message.isAllSoundOff()) type = Type::AllNotesOff;
 	else
 	{
+		type = Type::Empty;
 		// unsupported Message type, add another...
 		jassertfalse;
 	}
@@ -95,9 +96,12 @@ HiseEventBuffer::HiseEventBuffer()
 
 void HiseEventBuffer::clear()
 {
-    memset(buffer, 0, numUsed * sizeof(HiseEvent));
-    
-	numUsed = 0;
+	if (numUsed != 0)
+	{
+		memset(buffer, 0, numUsed * sizeof(HiseEvent));
+
+		numUsed = 0;
+	}
 }
 
 void HiseEventBuffer::addEvent(const HiseEvent& hiseEvent)
@@ -157,7 +161,12 @@ void HiseEventBuffer::addEvents(const MidiBuffer& otherBuffer)
 	{
 		jassert(index < HISE_EVENT_BUFFER_SIZE);
 
-		buffer[index] = HiseEvent(m);
+		HiseEvent e(m);
+
+		if (e.isEmpty()) continue;
+
+		e.swapWith(buffer[index]);
+
 		buffer[index].setTimeStamp((uint16)samplePos);
 
 		numUsed++;
