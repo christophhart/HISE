@@ -192,7 +192,7 @@ void ApiClass::addConstant(String constantName, var value)
 
 const var ApiClass::getConstantValue(int index) const
 {
-	if (index < numConstants)
+	if (index >= 0 && index < numConstants)
 		return constantsToUse[index].value;
 
 	jassertfalse;
