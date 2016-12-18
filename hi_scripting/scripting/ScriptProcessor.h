@@ -386,7 +386,7 @@ public:
 
 	HiseJavascriptEngine *getScriptEngine() { return scriptEngine; }
 
-	void mergeCallbacksToScript(String &x) const;
+	void mergeCallbacksToScript(String &x, const String& sepString=String::empty) const;
 	bool parseSnippetsFromString(const String &x, bool clearUndoHistory = false);
 
 	void setCompileProgress(double progress);
@@ -450,9 +450,8 @@ private:
 	struct Helpers
 	{
 		static String resolveIncludeStatements(String& x, Array<File>& includedFiles, const JavascriptProcessor* p);
-
 		static String stripUnusedNamespaces(const String &code);
-
+		static String uglify(const String& prettyCode);
 
 	};
 

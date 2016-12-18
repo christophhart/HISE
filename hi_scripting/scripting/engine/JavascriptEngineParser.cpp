@@ -274,7 +274,7 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 
 	String removeUnneededNamespaces();
 
-
+	String uglify();
 
 	void parseFunctionParamsAndBody(FunctionObject& fo)
 	{
@@ -2013,6 +2013,57 @@ String HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::removeUnneededNa
 	}
 
 	return returnCode;
+}
+
+String HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::uglify()
+{
+	String uglyCode;
+
+	while (currentType != TokenTypes::eof)
+	{
+		if (currentType == TokenTypes::identifier)
+		{
+			uglyCode << currentValue.toString();
+		}
+		else if (currentType == TokenTypes::literal)
+		{
+			if (currentValue.isString())
+			{
+				uglyCode << "\"" << currentValue.toString().replace("\n", "\\n") << "\"";
+			}
+			else
+			{
+				uglyCode << currentValue.toString();
+			}
+		}
+		else
+		{
+			uglyCode << currentType;
+		}
+
+		if (currentType == TokenTypes::namespace_ ||
+			currentType == TokenTypes::function ||
+			currentType == TokenTypes::const_ || 
+			currentType == TokenTypes::extern_ ||
+			currentType == TokenTypes::case_ ||
+			currentType == TokenTypes::const_ ||
+			currentType == TokenTypes::local_ ||
+			currentType == TokenTypes::var ||
+			currentType == TokenTypes::inline_ ||
+			currentType == TokenTypes::return_ ||
+			currentType == TokenTypes::typeof_ ||
+			currentType == TokenTypes::register_var ||
+			currentType == TokenTypes::new_ ||
+			currentType == TokenTypes::else_ ||
+			currentType == TokenTypes::global_)
+		{
+			uglyCode << ' ';
+		}
+
+		skip();
+	}
+
+	return uglyCode;
 }
 
 

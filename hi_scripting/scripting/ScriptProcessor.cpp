@@ -635,14 +635,32 @@ String JavascriptProcessor::Helpers::stripUnusedNamespaces(const String &code)
 	}
 }
 
+String JavascriptProcessor::Helpers::uglify(const String& prettyCode)
+{
+	HiseJavascriptEngine::RootObject::ExpressionTreeBuilder it(prettyCode, "");
+
+	try
+	{
+		String returnString = it.uglify();
+		return returnString;
+	}
+	catch (String &e)
+	{
+		Logger::getCurrentLogger()->writeToLog(e);
+		return prettyCode;
+	}
+}
+
 String JavascriptProcessor::getBase64CompressedScript() const
 {
 	String x;
-	mergeCallbacksToScript(x);
+	mergeCallbacksToScript(x, NewLine::getDefault());
 
 	Array<File> includedFiles;
 	String everything = Helpers::resolveIncludeStatements(x, includedFiles, this);
 	String stripped = Helpers::stripUnusedNamespaces(everything);
+	if(PresetHandler::showYesNoWindow("Uglify Script", "Do you want to strip comments & whitespace before compressing?"))
+		stripped = Helpers::uglify(stripped);
 
 	MemoryOutputStream mos;
 	GZIPCompressorOutputStream gos(&mos, 9);
@@ -652,13 +670,13 @@ String JavascriptProcessor::getBase64CompressedScript() const
 	return mos.getMemoryBlock().toBase64Encoding();
 }
 
-void JavascriptProcessor::mergeCallbacksToScript(String &x) const
+void JavascriptProcessor::mergeCallbacksToScript(String &x, const String& sepString/*=String::empty*/) const
 {
 	for (int i = 0; i < getNumSnippets(); i++)
 	{
 		const SnippetDocument *s = getSnippet(i);
 
-		x << s->getSnippetAsFunction();
+		x << s->getSnippetAsFunction() << sepString;
 	}
 }
 
