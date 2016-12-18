@@ -103,6 +103,8 @@ public:
 
 	float getVoiceStartValueFor(const Processor *voiceStartModulator);
 
+    int getNumActiveVoices() const override { return 0; };
+    
 	GlobalModulatorContainer(MainController *mc, const String &id, int numVoices);;
 
 	void restoreFromValueTree(const ValueTree &v) override;

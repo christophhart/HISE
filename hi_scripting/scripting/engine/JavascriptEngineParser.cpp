@@ -472,13 +472,16 @@ private:
 		{
 #if USE_BACKEND
             
-			hiseSpecialData->includedFiles.add(new ExternalFileData(ExternalFileData::Type::RelativeFile, File(refFileName), String()));
+            File f(refFileName);
+            
+            
+            hiseSpecialData->includedFiles.add(new ExternalFileData(ExternalFileData::Type::RelativeFile, f, String::empty));
 #else
 
 			if (File::isAbsolutePath(refFileName)) 
-				hiseSpecialData->includedFiles.add(new ExternalFileData(ExternalFileData::Type::AbsoluteFile, File(refFileName), String()));
+                hiseSpecialData->includedFiles.add(new ExternalFileData(ExternalFileData::Type::AbsoluteFile, File(refFileName), String::empty));
 			else
-				hiseSpecialData->includedFiles.add(new ExternalFileData(ExternalFileData::Type::AbsoluteFile, File(), refFileName));
+                hiseSpecialData->includedFiles.add(new ExternalFileData(ExternalFileData::Type::AbsoluteFile, File::nonexistent, refFileName));
 
 #endif
 

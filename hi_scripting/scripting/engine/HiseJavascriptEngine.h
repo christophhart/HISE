@@ -202,7 +202,7 @@ public:
 			numTypes
 		};
 
-		ExternalFileData(Type t_, const File &f_, String& name_) : t(t_), f(f_), r(Result::ok())
+		ExternalFileData(Type t_, const File &f_, const String& name_) : t(t_), f(f_), r(Result::ok())
 		{
 			switch (t_)
 			{

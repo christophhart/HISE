@@ -177,6 +177,8 @@ public:
 	/** Sets the progressbar during job execution. */
 	void setProgress(double progressValue) { progress = progressValue; };
 
+	double& getProgressCounter() { return progress; }
+
 	void buttonClicked(Button* b) override;
 
 	/** If you want to use a button for anything else than starting or cancelling, you can override this method and do whatever you need.
