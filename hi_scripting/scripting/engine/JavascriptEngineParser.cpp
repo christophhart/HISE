@@ -22,6 +22,21 @@ struct HiseJavascriptEngine::RootObject::TokenIterator
 		currentType = matchNextToken();
 	}
 
+	void skipBlock()
+	{
+		match(TokenTypes::openBrace);
+
+		int braceCount = 1;
+
+		while (currentType != TokenTypes::eof && braceCount > 0)
+		{
+			if (currentType == TokenTypes::openBrace) braceCount++;
+			else if (currentType == TokenTypes::closeBrace) braceCount--;
+
+			skip();
+		}
+	}
+
 	void match(TokenType expected)
 	{
 		if (currentType != expected)
@@ -256,6 +271,11 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 		return b.release();
 	}
 
+
+	String removeUnneededNamespaces();
+
+
+
 	void parseFunctionParamsAndBody(FunctionObject& fo)
 	{
 		match(TokenTypes::openParen);
@@ -337,6 +357,8 @@ private:
 		match(TokenTypes::closeBrace);
 		return b.release();
 	}
+
+	
 
 	Statement* parseStatement()
 	{
@@ -1077,15 +1099,7 @@ private:
 
 		match(TokenTypes::closeParen);
 
-		int braceLevel = 0;
-
-		while (braceLevel >= 0 && currentType != TokenTypes::eof)
-		{
-			if (currentType == TokenTypes::openBrace)	braceLevel++;
-			if (currentType == TokenTypes::closeBrace)	braceLevel--;
-
-			skip();
-		}
+		skipBlock();
 
 		String::CharPointerType end = location.location;
 		String cCode = String(start, end - 1); 
@@ -1950,6 +1964,55 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::preprocessCode(con
 	{
 		jassertfalse;
 	}
+}
+
+String HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::removeUnneededNamespaces()
+{
+	StringArray namespaces;
+	
+	while (currentType != TokenTypes::eof)
+	{
+		if (currentType != TokenTypes::namespace_) skip();
+		else
+		{
+			auto start = location.location;
+
+			match(TokenTypes::namespace_);
+			match(TokenTypes::identifier);
+			skipBlock();
+			matchIf(TokenTypes::semicolon);
+
+			auto end = location.location;
+			
+			namespaces.add(String(start, end));
+		}
+	}
+
+	String returnCode = location.program;
+
+	for (int i = namespaces.size() - 1; i >= 0; i--)
+	{
+		const String namespaceId = RegexFunctions::getFirstMatch("namespace\\s+(\\w+)", namespaces[i])[1];
+		const String remainingCode = returnCode.fromFirstOccurrenceOf(namespaces[i], false, false);
+		TokenIterator it(remainingCode, "");
+		bool found = false;
+
+		while (it.currentType != TokenTypes::eof)
+		{
+			if (it.currentType == TokenTypes::identifier && it.currentValue == namespaceId)
+			{
+				found = true;
+				break;
+			}
+
+			it.skip();
+		}
+		
+		if (!found)
+			returnCode = returnCode.replace(namespaces[i], "");
+	}
+
+	return returnCode;
 }
 
 

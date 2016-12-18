@@ -202,12 +202,10 @@ public:
 	static ValueTree collectAllScriptFiles(ModulatorSynthChain *synthChainToExport);
 
 	/** This includes every external script, compresses it and returns a base64 encoded string that can be shared without further dependencies. */
-	String getBase64CompressedScript() const;
+
+	
 
 private:
-
-	String resolveIncludeStatements(String& x, Array<File>& includedFiles) const;
-
 
 	friend class FileWatcher;
 	friend class WeakReference < FileChangeListener > ;
@@ -380,6 +378,8 @@ public:
 	void saveScript(ValueTree &v) const;
 	void restoreScript(const ValueTree &v);
 
+	String getBase64CompressedScript() const;
+
 	bool wasLastCompileOK() const { return lastCompileWasOK; }
 
 	Result getLastErrorMessage() const { return lastResult; }
@@ -446,6 +446,29 @@ protected:
 	bool compileScriptAsWhole = false;
 
 private:
+
+	struct Helpers
+	{
+		static String resolveIncludeStatements(String& x, Array<File>& includedFiles, const JavascriptProcessor* p);
+
+		static String stripUnusedNamespaces(const String &code)
+		{
+			HiseJavascriptEngine::RootObject::ExpressionTreeBuilder it(code, "");
+
+			try
+			{
+				String returnString = it.removeUnneededNamespaces();
+				return returnString;
+			}
+			catch (String &e)
+			{
+				Logger::getCurrentLogger()->writeToLog(e);
+				return code;
+			}
+		}
+
+
+	};
 
 	Array<Component::SafePointer<DocumentWindow>> callbackPopups;
 };

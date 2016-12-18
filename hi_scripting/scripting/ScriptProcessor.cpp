@@ -314,63 +314,6 @@ ValueTree FileChangeListener::collectAllScriptFiles(ModulatorSynthChain *chainTo
 	return externalScriptFiles;
 }
 
-
-String FileChangeListener::getBase64CompressedScript() const
-{
-	const JavascriptProcessor* sp = dynamic_cast<const JavascriptProcessor*>(this);
-
-	jassert(sp != nullptr);
-
-	if (sp != nullptr)
-	{
-		String x;
-		sp->mergeCallbacksToScript(x);
-
-		Array<File> includedFiles;
-		String everything = resolveIncludeStatements(x, includedFiles);
-
-		MemoryOutputStream mos;
-		GZIPCompressorOutputStream gos(&mos, 9);
-		gos.writeString(everything);
-		gos.flush();
-
-		return mos.getMemoryBlock().toBase64Encoding();
-	}
-
-	return String::empty;
-}
-
-String FileChangeListener::resolveIncludeStatements(String& x, Array<File>& includedFiles) const
-{
-	String regex("include\\(\"([\\w\\s]+\\.\\w+)\"\\);");
-	StringArray results = RegexFunctions::search(regex, x, 0);
-	StringArray fileNames = RegexFunctions::search(regex, x, 1);
-	StringArray includedContents;
-
-	for (int i = 0; i < fileNames.size(); i++)
-	{
-		File f = File::isAbsolutePath(fileNames[i]) ? File(fileNames[i]) :
-				GET_PROJECT_HANDLER(dynamic_cast<const Processor*>(this)).getSubDirectory(ProjectHandler::SubDirectories::Scripts).getChildFile(fileNames[i]);
-
-		if (includedFiles.contains(f)) // skip multiple inclusions...
-		{
-			includedContents.add("");
-			continue;
-		}
-
-		includedFiles.add(f);
-		String content = f.loadFileAsString();
-		includedContents.add(resolveIncludeStatements(content, includedFiles));
-	}
-
-	for (int i = 0; i < results.size(); i++)
-	{
-		x = x.replace(results[i], includedContents[i]);
-	}
-
-	return x;
-}
-
 JavascriptProcessor::JavascriptProcessor(MainController *mc) :
 mainController(mc),
 scriptEngine(new HiseJavascriptEngine(this)),
@@ -645,6 +588,70 @@ void JavascriptProcessor::restoreScript(const ValueTree &v)
 	else jassertfalse;
 }
 
+String JavascriptProcessor::Helpers::resolveIncludeStatements(String& x, Array<File>& includedFiles, const JavascriptProcessor* p)
+{
+	String regex("include\\(\"([\\w\\s]+\\.\\w+)\"\\);");
+	StringArray results = RegexFunctions::search(regex, x, 0);
+	StringArray fileNames = RegexFunctions::search(regex, x, 1);
+	StringArray includedContents;
+
+	for (int i = 0; i < fileNames.size(); i++)
+	{
+		File f = File::isAbsolutePath(fileNames[i]) ? File(fileNames[i]) :
+			GET_PROJECT_HANDLER(dynamic_cast<const Processor*>(p)).getSubDirectory(ProjectHandler::SubDirectories::Scripts).getChildFile(fileNames[i]);
+
+		if (includedFiles.contains(f)) // skip multiple inclusions...
+		{
+			includedContents.add("");
+			continue;
+		}
+
+		includedFiles.add(f);
+		String content = f.loadFileAsString();
+		includedContents.add(resolveIncludeStatements(content, includedFiles));
+	}
+
+	for (int i = 0; i < results.size(); i++)
+	{
+		x = x.replace(results[i], includedContents[i]);
+	}
+
+	return x;
+}
+
+String JavascriptProcessor::Helpers::stripUnusedNamespaces(const String &code)
+{
+	HiseJavascriptEngine::RootObject::ExpressionTreeBuilder it(code, "");
+
+	try
+	{
+		String returnString = it.removeUnneededNamespaces();
+		return returnString;
+	}
+	catch (String &e)
+	{
+		Logger::getCurrentLogger()->writeToLog(e);
+		return code;
+	}
+}
+
+String JavascriptProcessor::getBase64CompressedScript() const
+{
+	String x;
+	mergeCallbacksToScript(x);
+
+	Array<File> includedFiles;
+	String everything = Helpers::resolveIncludeStatements(x, includedFiles, this);
+	String stripped = Helpers::stripUnusedNamespaces(everything);
+
+	MemoryOutputStream mos;
+	GZIPCompressorOutputStream gos(&mos, 9);
+	gos.writeString(stripped);
+	gos.flush();
+
+	return mos.getMemoryBlock().toBase64Encoding();
+}
+
 void JavascriptProcessor::mergeCallbacksToScript(String &x) const
 {
 	for (int i = 0; i < getNumSnippets(); i++)
@@ -765,3 +772,5 @@ void JavascriptProcessor::CompileThread::run()
 {
 	result = sp->compileInternal();
 }
+
+

@@ -61,17 +61,17 @@ public:
 	enum ContextActions
 	{
 		SaveScriptFile = 101,
-		LoadScriptFile = 102,
-		SaveScriptClipboard = 103,
-		LoadScriptClipboard = 104,
-		SearchReplace = 105,
-		AddCodeBookmark = 106,
-		CreateUiFactoryMethod = 107,
-		AddMissingCaseStatements = 108,
-		OpenExternalFile = 110,
-		OpenInPopup = 111,
-		ExportAsCompressedScript = 112,
-		ImportCompressedScript = 113,
+		LoadScriptFile,
+		SaveScriptClipboard,
+		LoadScriptClipboard,
+		SearchReplace,
+		AddCodeBookmark,
+		CreateUiFactoryMethod,
+		AddMissingCaseStatements,
+		OpenExternalFile,
+		OpenInPopup,
+		ExportAsCompressedScript,
+		ImportCompressedScript
 	};
 
 
