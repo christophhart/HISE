@@ -608,7 +608,7 @@ String JavascriptProcessor::Helpers::resolveIncludeStatements(String& x, Array<F
 
 		includedFiles.add(f);
 		String content = f.loadFileAsString();
-		includedContents.add(resolveIncludeStatements(content, includedFiles));
+		includedContents.add(resolveIncludeStatements(content, includedFiles, p));
 	}
 
 	for (int i = 0; i < results.size(); i++)

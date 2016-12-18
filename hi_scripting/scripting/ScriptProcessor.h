@@ -451,21 +451,7 @@ private:
 	{
 		static String resolveIncludeStatements(String& x, Array<File>& includedFiles, const JavascriptProcessor* p);
 
-		static String stripUnusedNamespaces(const String &code)
-		{
-			HiseJavascriptEngine::RootObject::ExpressionTreeBuilder it(code, "");
-
-			try
-			{
-				String returnString = it.removeUnneededNamespaces();
-				return returnString;
-			}
-			catch (String &e)
-			{
-				Logger::getCurrentLogger()->writeToLog(e);
-				return code;
-			}
-		}
+		static String stripUnusedNamespaces(const String &code);
 
 
 	};
