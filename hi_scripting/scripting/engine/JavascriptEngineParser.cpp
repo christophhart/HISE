@@ -2019,8 +2019,12 @@ String HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::uglify()
 {
 	String uglyCode;
 
+	int tokenCounter = 0;
+
 	while (currentType != TokenTypes::eof)
 	{
+		if (currentType == TokenTypes::in) uglyCode << ' '; // the only keyword that needs a leading space...
+
 		if (currentType == TokenTypes::identifier)
 		{
 			uglyCode << currentValue.toString();
@@ -2049,6 +2053,7 @@ String HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::uglify()
 			currentType == TokenTypes::const_ ||
 			currentType == TokenTypes::local_ ||
 			currentType == TokenTypes::var ||
+			currentType == TokenTypes::in ||
 			currentType == TokenTypes::inline_ ||
 			currentType == TokenTypes::return_ ||
 			currentType == TokenTypes::typeof_ ||
@@ -2059,6 +2064,10 @@ String HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::uglify()
 		{
 			uglyCode << ' ';
 		}
+
+		tokenCounter++;
+
+		if (tokenCounter % 256 == 0) uglyCode << NewLine::getDefault(); // one single line is too slow for the code editor...
 
 		skip();
 	}
