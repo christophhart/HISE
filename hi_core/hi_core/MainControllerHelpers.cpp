@@ -161,7 +161,7 @@ ValueTree MidiControllerAutomationHandler::exportAsValueTree() const
 	for (int i = 0; i < 128; i++)
 	{
 		const AutomationData *a = automationData + i;
-		if (a->used)
+		if (a->used && a->processor != nullptr)
 		{
 			ValueTree cc("Controller");
 
