@@ -450,7 +450,7 @@ private:
 	struct Helpers
 	{
 		static String resolveIncludeStatements(String& x, Array<File>& includedFiles, const JavascriptProcessor* p);
-		static String stripUnusedNamespaces(const String &code);
+		static String stripUnusedNamespaces(const String &code, int& counter);
 		static String uglify(const String& prettyCode);
 
 	};

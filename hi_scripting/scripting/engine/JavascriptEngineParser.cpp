@@ -272,7 +272,7 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 	}
 
 
-	String removeUnneededNamespaces();
+	String removeUnneededNamespaces(int& counter);
 
 	String uglify();
 
@@ -1966,7 +1966,7 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::preprocessCode(con
 	}
 }
 
-String HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::removeUnneededNamespaces()
+String HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::removeUnneededNamespaces(int& counter)
 {
 	StringArray namespaces;
 	
@@ -2009,7 +2009,10 @@ String HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::removeUnneededNa
 		}
 		
 		if (!found)
+		{
 			returnCode = returnCode.replace(namespaces[i], "");
+			counter++;
+		}
 	}
 
 	return returnCode;

@@ -619,13 +619,13 @@ String JavascriptProcessor::Helpers::resolveIncludeStatements(String& x, Array<F
 	return x;
 }
 
-String JavascriptProcessor::Helpers::stripUnusedNamespaces(const String &code)
+String JavascriptProcessor::Helpers::stripUnusedNamespaces(const String &code, int& counter)
 {
 	HiseJavascriptEngine::RootObject::ExpressionTreeBuilder it(code, "");
 
 	try
 	{
-		String returnString = it.removeUnneededNamespaces();
+		String returnString = it.removeUnneededNamespaces(counter);
 		return returnString;
 	}
 	catch (String &e)
@@ -656,9 +656,14 @@ String JavascriptProcessor::getBase64CompressedScript() const
 	String x;
 	mergeCallbacksToScript(x, NewLine::getDefault());
 
+	int counter = 0;
+
 	Array<File> includedFiles;
 	String everything = Helpers::resolveIncludeStatements(x, includedFiles, this);
-	String stripped = Helpers::stripUnusedNamespaces(everything);
+	String stripped = Helpers::stripUnusedNamespaces(everything, counter);
+
+	if (counter != 0) PresetHandler::showMessageWindow("Unneeded namespaces detected", String(counter) + " namespaces will be removed before exporting");
+
 	if(PresetHandler::showYesNoWindow("Uglify Script", "Do you want to strip comments & whitespace before compressing?"))
 		stripped = Helpers::uglify(stripped);
 
