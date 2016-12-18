@@ -221,7 +221,7 @@ void Console::mouseDoubleClick(const MouseEvent& /*e*/)
 
 	const String reg = "(.+):! (\\w*): (.* - )?Line (\\d+), column (\\d+): (\\w+)";
 
-	StringArray matches = RegexFunctions::getMatches(reg, line);
+	StringArray matches = RegexFunctions::getFirstMatch(reg, line);
 	
 	if (matches.size() == 7)
 	{

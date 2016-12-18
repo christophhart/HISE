@@ -477,7 +477,7 @@ void ScriptingEditor::changePositionOfComponent(ScriptingApi::Content::ScriptCom
 
 	String allText = onInitC->getAllContent();
 
-	StringArray matches = RegexFunctions::getMatches(regexMonster, allText);
+	StringArray matches = RegexFunctions::getFirstMatch(regexMonster, allText);
 
 	const bool isContentDefinition = matches[1].isNotEmpty();
 	const bool isInlineDefinition = matches[7].isNotEmpty();
@@ -1381,7 +1381,7 @@ void ScriptingEditor::compileScript()
 		if (b != nullptr && !b->getToggleState())
 			buttonClicked(b);
 
-		StringArray errorPosition = RegexFunctions::getMatches(".*Line ([0-9]*), column ([0-9]*)", errorMessage);
+		StringArray errorPosition = RegexFunctions::getFirstMatch(".*Line ([0-9]*), column ([0-9]*)", errorMessage);
 
 		int l = errorPosition[1].getIntValue();
 		int c = errorPosition[2].getIntValue();

@@ -201,7 +201,13 @@ public:
 
 	static ValueTree collectAllScriptFiles(ModulatorSynthChain *synthChainToExport);
 
+	/** This includes every external script, compresses it and returns a base64 encoded string that can be shared without further dependencies. */
+	String getBase64CompressedScript() const;
+
 private:
+
+	String resolveIncludeStatements(String& x, Array<File>& includedFiles) const;
+
 
 	friend class FileWatcher;
 	friend class WeakReference < FileChangeListener > ;
@@ -261,6 +267,27 @@ private:
 
 	File fileToWatch;
 	const Time lastModifiedTime;
+
+};
+
+
+class CompressedScriptProcessor
+{
+public:
+	CompressedScriptProcessor() {}
+	virtual ~CompressedScriptProcessor() {};
+
+	
+
+	/** Gets a list of all available compressed scripts at the default location. */
+	StringArray getListOfAvailableCompressedScripts() const;
+
+	/** Loads the given string into the script processor. */
+	void setCompressedScript(const String& compressedScriptContent);
+
+private:
+
+	
 
 };
 
@@ -369,6 +396,8 @@ public:
 	void setCompileScriptAsWhole(bool shouldCompileWholeScript) { compileScriptAsWhole = shouldCompileWholeScript; }
 
 protected:
+
+
 
 	void clearExternalWindows();
 

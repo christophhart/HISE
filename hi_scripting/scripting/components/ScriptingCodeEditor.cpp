@@ -152,7 +152,7 @@ void JavascriptCodeEditor::selectLineAfterDefinition(Identifier identifier)
 		
 	const String allText = getDocument().getAllContent();
 
-	StringArray sa = RegexFunctions::getMatches(regexp, allText, nullptr);
+	StringArray sa = RegexFunctions::getFirstMatch(regexp, allText, nullptr);
 
 	if(sa.size() > 0)
 	{
@@ -198,7 +198,7 @@ bool JavascriptCodeEditor::componentIsDefinedWithFactoryMethod(const Identifier&
 
 	const String allText = getDocument().getAllContent();
 
-	StringArray sa = RegexFunctions::getMatches(regexp, allText, nullptr);
+	StringArray sa = RegexFunctions::getFirstMatch(regexp, allText, nullptr);
 
 	if (sa.size() == 4)
 	{
@@ -213,7 +213,7 @@ String JavascriptCodeEditor::createNewDefinitionWithFactoryMethod(const String &
 {
 	const String regexp = "(const)?\\s*(global|var|reg)?\\s*" + oldId + "\\s*=\\s*([\\w\\.]+)\\(\\\"(\\w+)\\\"\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)(.*)\\);";
 	const String allText = getDocument().getAllContent();
-	StringArray sa = RegexFunctions::getMatches(regexp, allText, nullptr);
+	StringArray sa = RegexFunctions::getFirstMatch(regexp, allText, nullptr);
 
 	if (sa.size() == 8)
 	{
@@ -318,6 +318,7 @@ void JavascriptCodeEditor::focusLost(FocusChangeType )
 void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &menu, const MouseEvent *e)
 {
 #if USE_BACKEND
+
     menu.setLookAndFeel(&plaf);
 
 	StringArray all = StringArray::fromLines(getDocument().getAllContent());
@@ -336,8 +337,6 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &menu, const MouseEvent *
 
 	if (bookmarks.size() != 0)
 	{
-		
-
 		for (int i = 0; i < bookmarks.size(); i++)
 		{
 			menu.addItem(bookmarkOffset + i, bookmarks[i].title);
@@ -346,8 +345,7 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &menu, const MouseEvent *
 		menu.addSeparator();
 	}
 
-	menu.addItem(106, "Add code bookmark");
-
+	menu.addItem(ContextActions::AddCodeBookmark, "Add code bookmark");
 	menu.addSeparator();
 
 	String s = getTextInRange(getHighlightedRegion()); 
@@ -364,11 +362,11 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &menu, const MouseEvent *
 
 		String fileName = getTextInRange(Range<int>(start.getPosition(), end.getPosition()));
 
-		menu.addItem(110, "Open " + fileName + " in editor popup");
+		menu.addItem(ContextActions::OpenExternalFile, "Open " + fileName + " in editor popup");
 		menu.addSeparator();
 	}
 
-	menu.addItem(111, "Open in external window", true, false);
+	menu.addItem(ContextActions::OpenInPopup, "Open in external window", true, false);
 
     CodeEditorComponent::addPopupMenuItems(menu, e);
     
@@ -376,21 +374,23 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &menu, const MouseEvent *
     {
 		menu.addSeparator();
 		menu.addSectionHeader("Refactoring");
-		menu.addItem(105, "Search & replace");
+		menu.addItem(ContextActions::SearchReplace, "Search & replace");
 
 		const String selection = getTextInRange(getHighlightedRegion()).trimEnd().trimStart();
 		const bool isUIDefinitionSelected = selection.startsWith("const var");
 
-		menu.addItem(107, "Create UI factory method from selection", isUIDefinitionSelected);
-		menu.addItem(108, "Add missing case statements", true);
+		menu.addItem(ContextActions::CreateUiFactoryMethod, "Create UI factory method from selection", isUIDefinitionSelected);
+		menu.addItem(ContextActions::AddMissingCaseStatements, "Add missing case statements", true);
         menu.addSeparator();
         menu.addSectionHeader("Import / Export");
-        menu.addItem(101, "Save Script To File");
-        menu.addItem(102, "Load Script From File");
+        menu.addItem(ContextActions::SaveScriptFile, "Save Script To File");
+        menu.addItem(ContextActions::LoadScriptFile, "Load Script From File");
         menu.addSeparator();
-        menu.addItem(103, "Save Script to Clipboard");
-        menu.addItem(104, "Load Script from Clipboard");
-        menu.addSeparator();		
+        menu.addItem(ContextActions::SaveScriptClipboard, "Save Script to Clipboard");
+        menu.addItem(ContextActions::LoadScriptClipboard, "Load Script from Clipboard");
+        menu.addSeparator();
+		menu.addItem(ContextActions::ExportAsCompressedScript, "Export as compressed script");
+		menu.addItem(ContextActions::ImportCompressedScript, "Import compressed script");
     }
     
 #else
@@ -409,61 +409,11 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 
     ScriptingEditor *editor = findParentComponentOfClass<ScriptingEditor>();
     
-    if(editor != nullptr && menuId == 101) // SAVE
-    {
-        FileChooser scriptSaver("Save script as",
-                                File(GET_PROJECT_HANDLER(p).getSubDirectory(ProjectHandler::SubDirectories::Scripts)),
-                                "*.js");
-        
-        if (scriptSaver.browseForFileToSave(true))
-        {
-            String script;
-            s->mergeCallbacksToScript(script);
-            scriptSaver.getResult().replaceWithText(script);
-			debugToConsole(p, "Script saved to " + scriptSaver.getResult().getFullPathName());
-        }
-    }
-    else if (editor != nullptr && menuId == 102) // LOAD
-    {
-        FileChooser scriptLoader("Please select the script you want to load",
-                                 File(GET_PROJECT_HANDLER(p).getSubDirectory(ProjectHandler::SubDirectories::Scripts)),
-                                 "*.js");
-        
-        if (scriptLoader.browseForFileToOpen())
-        {
-            String script = scriptLoader.getResult().loadFileAsString().removeCharacters("\r");
-            const bool success = s->parseSnippetsFromString(script);
+	ContextActions action = (ContextActions)menuId;
 
-			if (success)
-			{
-				editor->compileScript();
-				debugToConsole(p, "Script loaded from " + scriptLoader.getResult().getFullPathName());
-			}
-        }
-    }
-    else if (editor != nullptr && menuId == 103) // COPY
-    {
-        String x;
-        s->mergeCallbacksToScript(x);
-        SystemClipboard::copyTextToClipboard(x);
-        
-        debugToConsole(p, "Script exported to Clipboard.");
-    }
-    else if (menuId == 104) // PASTE
-    {
-        String x = String(SystemClipboard::getTextFromClipboard()).removeCharacters("\r");
-        
-        if (x.containsNonWhitespaceChars() && PresetHandler::showYesNoWindow("Replace Script?", "Do you want to replace the script?"))
-        {
-            const bool success = s->parseSnippetsFromString(x);
-
-			if (success)
-			{
-				editor->compileScript();
-			}
-        }
-    }
-	else if (menuId == 105)
+	switch (action)
+	{
+	case JavascriptCodeEditor::SearchReplace:
 	{
 		CodeReplacer * replacer = new CodeReplacer(this);
 
@@ -471,44 +421,152 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 
 		replacer->setModalBaseWindowComponent(this);
 		replacer->getTextEditor("search")->grabKeyboardFocus();
-		
-		
+
+		return;
 	}
-	else if (menuId == 106) // Add bookmark
+	case JavascriptCodeEditor::CreateUiFactoryMethod:
+	{
+		const String selection = getTextInRange(getHighlightedRegion()).trimEnd().trimStart();
+		const String newText = CodeReplacer::createFactoryMethod(selection);
+
+		insertTextAtCaret(newText);
+
+		return;
+	}
+	case JavascriptCodeEditor::AddMissingCaseStatements:
+	{
+		createMissingCaseStatementsForComponents();
+		return;
+	}
+		
+	case JavascriptCodeEditor::SaveScriptFile:
+	{
+		if (editor != nullptr)
+		{
+			FileChooser scriptSaver("Save script as",
+				File(GET_PROJECT_HANDLER(p).getSubDirectory(ProjectHandler::SubDirectories::Scripts)),
+				"*.js");
+
+			if (scriptSaver.browseForFileToSave(true))
+			{
+				String script;
+				s->mergeCallbacksToScript(script);
+				scriptSaver.getResult().replaceWithText(script);
+				debugToConsole(p, "Script saved to " + scriptSaver.getResult().getFullPathName());
+			}
+		}
+
+		return;
+	}
+	case JavascriptCodeEditor::LoadScriptFile:
+	{
+		FileChooser scriptLoader("Please select the script you want to load",
+			File(GET_PROJECT_HANDLER(p).getSubDirectory(ProjectHandler::SubDirectories::Scripts)),
+			"*.js");
+
+		if (scriptLoader.browseForFileToOpen())
+		{
+			String script = scriptLoader.getResult().loadFileAsString().removeCharacters("\r");
+			const bool success = s->parseSnippetsFromString(script);
+
+			if (success)
+			{
+				editor->compileScript();
+				debugToConsole(p, "Script loaded from " + scriptLoader.getResult().getFullPathName());
+			}
+		}
+
+		return;
+	}
+	case JavascriptCodeEditor::ExportAsCompressedScript:
+	{
+		const String compressedScript = s->getBase64CompressedScript();
+		const String scriptName = PresetHandler::getCustomName("Compressed Script") + ".cjs";
+		File f = GET_PROJECT_HANDLER(p).getSubDirectory(ProjectHandler::SubDirectories::Scripts).getChildFile(scriptName);
+
+		if (!f.existsAsFile() || PresetHandler::showYesNoWindow("Overwrite", "The file " + scriptName + " already exists. Do you want to overwrite it?"))
+		{
+			f.deleteFile();
+			f.replaceWithText(compressedScript);
+		}
+
+		return;
+	}
+	case JavascriptCodeEditor::ImportCompressedScript:
+	{
+		FileChooser scriptLoader("Please select the compressed script you want to load",
+			File(GET_PROJECT_HANDLER(p).getSubDirectory(ProjectHandler::SubDirectories::Scripts)),
+			"*.cjs");
+
+		if (scriptLoader.browseForFileToOpen())
+		{
+			String compressedScript = scriptLoader.getResult().loadFileAsString();
+
+			MemoryBlock mb;
+
+			mb.fromBase64Encoding(compressedScript);
+
+			MemoryInputStream mis(mb, false);
+
+			GZIPDecompressorInputStream gis(mis);
+
+			String script = gis.readEntireStreamAsString();
+
+			const bool success = s->parseSnippetsFromString(script);
+
+			if (success)
+			{
+				editor->compileScript();
+				debugToConsole(p, "Compressed Script loaded from " + scriptLoader.getResult().getFullPathName());
+			}
+		}
+
+		return;
+	}
+	case JavascriptCodeEditor::SaveScriptClipboard:
+	{
+		String x;
+		s->mergeCallbacksToScript(x);
+		SystemClipboard::copyTextToClipboard(x);
+
+		debugToConsole(p, "Script exported to Clipboard.");
+
+		return;
+	}
+	case JavascriptCodeEditor::LoadScriptClipboard:
+	{
+		String x = String(SystemClipboard::getTextFromClipboard()).removeCharacters("\r");
+
+		if (x.containsNonWhitespaceChars() && PresetHandler::showYesNoWindow("Replace Script?", "Do you want to replace the script?"))
+		{
+			const bool success = s->parseSnippetsFromString(x);
+
+			if (success)
+				editor->compileScript();
+		}
+
+		return;
+	}
+	case JavascriptCodeEditor::AddCodeBookmark:
 	{
 		const String bookmarkName = PresetHandler::getCustomName("Bookmark");
 
 		if (bookmarkName.isNotEmpty())
 		{
 			String bookmarkLine = "//! ";
+			const int numChars = bookmarkLine.length() + bookmarkName.length();
 
-			int numChars = bookmarkLine.length() + bookmarkName.length();
-
-			for (int i = numChars; i < 80; i++)
-			{
+			for (int i = numChars; i < 80; i++) 
 				bookmarkLine << '=';
-			}
 
 			bookmarkLine << " " << bookmarkName << "\r\n";
-
 			moveCaretToStartOfLine(false);
-
 			getDocument().insertText(getCaretPos(), bookmarkLine);
 		}
-	}
-	else if (menuId == 107) // Create Factory method
-	{
-		const String selection = getTextInRange(getHighlightedRegion()).trimEnd().trimStart();
 
-		const String newText = CodeReplacer::createFactoryMethod(selection);
-
-		insertTextAtCaret(newText);
+		return;
 	}
-	else if (menuId == 108)
-	{
-		createMissingCaseStatementsForComponents();
-	}
-	else if (menuId == 110)
+	case JavascriptCodeEditor::OpenExternalFile:
 	{
 		CodeDocument::Position start = getSelectionEnd().movedBy(2);
 		CodeDocument::Position end = start;
@@ -527,8 +585,10 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 				scriptProcessor->showPopupForFile(i);
 			}
 		}
+
+		return;
 	}
-	else if (menuId == 111) // Open in external window
+	case JavascriptCodeEditor::OpenInPopup:
 	{
 		const CodeDocument* thisDocument = &getDocument();
 
@@ -539,59 +599,26 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 				scriptProcessor->showPopupForCallback(scriptProcessor->getSnippet(i)->getCallbackName(), getCaretPos().getIndexInLine(), getCaretPos().getLineNumber());
 			}
 		}
+
+		return;
 	}
-    else if(menuId == 99)
-    {
-        String selectedText = getTextInRange(getHighlightedRegion());
-        
-        Identifier selection = Identifier(selectedText);
-        
-        NamedValueSet set = scriptProcessor->getScriptEngine()->getRootObjectProperties();
-        
-        var v;
-        
-        if(set.contains(selection))
-        {
-            m.addSeparator();
-            
-            int index = set.indexOf(selection);
-            
-            v = set.getValueAt(index);
-        }
-        
-        ScopedPointer<AlertWindow> nameWindow = new AlertWindow("Change a variable", "Set the variable to a new value", AlertWindow::AlertIconType::NoIcon);
-        
-        
-        
-        nameWindow->addTextEditor("Name", v.toString() );
-        nameWindow->addButton("OK", 1, KeyPress(KeyPress::returnKey));
-        nameWindow->addButton("Cancel", 0, KeyPress(KeyPress::escapeKey));
-        
-        if(nameWindow->runModalLoop())
-        {
-            String newValue = nameWindow->getTextEditorContents("Name");
-            
-            String code = selectedText << " = " << newValue << ";";
-            
-            Result r = scriptProcessor->getScriptEngine()->execute(code);
-            
-            if(r != Result::ok())
-            {
-                AlertWindow::showMessageBox(AlertWindow::NoIcon, "Error parsing expression", "The expression you entered is not valid.");
-            }
-            
-        }
-        
-    }
-	else if (menuId >= bookmarkOffset)
+	default:
+		break;
+	}
+
+	if (menuId >= bookmarkOffset)
 	{
 		const int index = menuId - bookmarkOffset;
 
 		const int lineNumber = bookmarks[index].line;
 
 		scrollToLine(lineNumber);
+
+		return;
 	}
-    else CodeEditorComponent::performPopupMenuAction(menuId);
+    
+	
+	CodeEditorComponent::performPopupMenuAction(menuId);
 #else 
 	ignoreUnused(menuId);
 

@@ -197,7 +197,7 @@ public:
 		{
 			const String firstLineRegex = "(const var )(\\w+)\\s*=\\s*(Content.add\\w+)\\(\\s*(\"\\w+\"),\\s*(\\d+),\\s*(\\d+)";
 			//const String firstLineRegex = "(const var)\\s+(\\w*)\\s*=\\s*(Content.add\\w+)\\(\\s*(\"\\w+\"),\\s*(\\d+),\\s*(\\d+)";
-			const StringArray firstLineData = RegexFunctions::getMatches(firstLineRegex, lines[0]);
+			const StringArray firstLineData = RegexFunctions::getFirstMatch(firstLineRegex, lines[0]);
 
 			if (firstLineData.size() == 7)
 			{

@@ -58,6 +58,23 @@ public:
 		NoJSONFound
 	};
 
+	enum ContextActions
+	{
+		SaveScriptFile = 101,
+		LoadScriptFile = 102,
+		SaveScriptClipboard = 103,
+		LoadScriptClipboard = 104,
+		SearchReplace = 105,
+		AddCodeBookmark = 106,
+		CreateUiFactoryMethod = 107,
+		AddMissingCaseStatements = 108,
+		OpenExternalFile = 110,
+		OpenInPopup = 111,
+		ExportAsCompressedScript = 112,
+		ImportCompressedScript = 113,
+	};
+
+
 	typedef Range<int> CodeRegion;
 
 	// ================================================================================================================
@@ -82,11 +99,8 @@ public:
 	void itemDragEnter(const SourceDetails &dragSourceDetails) override;;
 	void itemDragMove(const SourceDetails &dragSourceDetails);
 
-	
-
-    void addPopupMenuItems(PopupMenu &m, const MouseEvent *e) override;
+	void addPopupMenuItems(PopupMenu &m, const MouseEvent *e) override;
     void performPopupMenuAction(int menuId) override;
-
 
 	void showAutoCompleteNew();
 	void closeAutoCompleteNew(const String returnString);
