@@ -41,19 +41,18 @@
             useIPP="Sequential" extraCompilerFlags="" IPPLibrary="Sequential">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
-                       isDebug="1" optimisation="1" targetName="HISE Standalone Debug"
-                       headerPath="C:\SDKs\ASIOSDK2.3\common&#10;&#10;" libraryPath=""
-                       useRuntimeLibDLL="0"/>
+                       isDebug="1" optimisation="1" targetName="HISE x86 Debug" headerPath="C:\SDKs\ASIOSDK2.3\common&#10;&#10;"
+                       libraryPath="" useRuntimeLibDLL="0"/>
         <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
-                       isDebug="0" optimisation="3" targetName="HISE Standalone" headerPath="C:\SDKs\ASIOSDK2.3\common"
+                       isDebug="0" optimisation="3" targetName="HISE x86" headerPath="C:\SDKs\ASIOSDK2.3\common"
                        binaryPath="" alwaysGenerateDebugSymbols="0" useRuntimeLibDLL="0"/>
         <CONFIGURATION name="Release 64bit" winWarningLevel="4" generateManifest="1"
-                       winArchitecture="x64" isDebug="0" optimisation="3" targetName="HISE Standalone x64"
+                       winArchitecture="x64" isDebug="0" optimisation="3" targetName="HISE"
                        headerPath="C:\SDKs\ASIOSDK2.3\common" binaryPath="" alwaysGenerateDebugSymbols="0"
                        useRuntimeLibDLL="0" additionalXmlProperties="UseIntelIPP=Sequential"/>
         <CONFIGURATION name="Debug 64bit" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
-                       isDebug="1" optimisation="1" targetName="HISE Standalone x64 Debug"
-                       headerPath="C:\SDKs\ASIOSDK2.3\common" useRuntimeLibDLL="0"/>
+                       isDebug="1" optimisation="1" targetName="HISE Debug" headerPath="C:\SDKs\ASIOSDK2.3\common"
+                       useRuntimeLibDLL="0"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_opengl" path="..\..\JUCE\modules"/>
@@ -150,16 +149,16 @@
             useIPP="Sequential" IPPLibrary="Sequential">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
-                       isDebug="1" optimisation="1" targetName="HISE Standalone Debug"
-                       headerPath="C:\SDKs\ASIOSDK2.3\common&#10;&#10;" useRuntimeLibDLL="0"/>
+                       isDebug="1" optimisation="1" targetName="HISE x86 Debug" headerPath="C:\SDKs\ASIOSDK2.3\common&#10;&#10;"
+                       useRuntimeLibDLL="0"/>
         <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
-                       isDebug="0" optimisation="3" targetName="HISE Standalone" headerPath="C:\SDKs\ASIOSDK2.3\common&#10;&#10;"
+                       isDebug="0" optimisation="3" targetName="HISE x86" headerPath="C:\SDKs\ASIOSDK2.3\common&#10;&#10;"
                        useRuntimeLibDLL="0" enableIncrementalLinking="1"/>
         <CONFIGURATION name="Debug 64bit" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
-                       isDebug="1" optimisation="1" targetName="HISE Standalone x64 Debug"
-                       headerPath="C:\SDKs\ASIOSDK2.3\common&#10;&#10;" useRuntimeLibDLL="0"/>
+                       isDebug="1" optimisation="1" targetName="HISE Debug" headerPath="C:\SDKs\ASIOSDK2.3\common&#10;&#10;"
+                       useRuntimeLibDLL="0"/>
         <CONFIGURATION name="Release 64bit" winWarningLevel="4" generateManifest="1"
-                       winArchitecture="x64" isDebug="0" optimisation="3" targetName="HISE Standalone x64"
+                       winArchitecture="x64" isDebug="0" optimisation="3" targetName="HISE"
                        headerPath="C:\SDKs\ASIOSDK2.3\common&#10;&#10;" useRuntimeLibDLL="0"
                        enableIncrementalLinking="1"/>
       </CONFIGURATIONS>

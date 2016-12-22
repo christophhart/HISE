@@ -31,28 +31,32 @@
 */
 
 
-void CompileExporter::exportMainSynthChainAsInstrument(ModulatorSynthChain *chainToExport)
+CompileExporter::ErrorCodes CompileExporter::exportMainSynthChainAsInstrument(ModulatorSynthChain *chainToExport, BuildOption option/*=BuildOption::Cancelled*/)
 {
-	exportInternal(chainToExport, TargetTypes::InstrumentPlugin);
+	return exportInternal(chainToExport, TargetTypes::InstrumentPlugin, option);
 }
 
 
-void CompileExporter::exportMainSynthChainAsFX(ModulatorSynthChain* chainToExport)
+CompileExporter::ErrorCodes CompileExporter::exportMainSynthChainAsFX(ModulatorSynthChain* chainToExport, BuildOption option/*=BuildOption::Cancelled*/)
 {
-	exportInternal(chainToExport, TargetTypes::EffectPlugin);
+	return exportInternal(chainToExport, TargetTypes::EffectPlugin, option);
 }
 
-void CompileExporter::exportMainSynthChainAsStandaloneApp(ModulatorSynthChain * chainToExport)
+CompileExporter::ErrorCodes CompileExporter::exportMainSynthChainAsStandaloneApp(ModulatorSynthChain * chainToExport, BuildOption option/*=BuildOption::Cancelled*/)
 {
-	exportInternal(chainToExport, TargetTypes::StandaloneApplication);
+	return exportInternal(chainToExport, TargetTypes::StandaloneApplication, option);
 }
 
-void CompileExporter::exportInternal(ModulatorSynthChain* chainToExport, TargetTypes type)
+CompileExporter::ErrorCodes CompileExporter::exportInternal(ModulatorSynthChain* chainToExport, TargetTypes type, BuildOption option)
 {
-	if (!checkSanity(chainToExport)) return;
+	if (!checkSanity(chainToExport)) return ErrorCodes::PresetIsInvalid;
+
+	ErrorCodes result = ErrorCodes::OK;
 
 	String uniqueId, version, solutionDirectory, publicKey;
-	BuildOption buildOption = showCompilePopup(publicKey, uniqueId, version, solutionDirectory, type);
+	if(option == BuildOption::Cancelled) option = showCompilePopup(type);
+
+	if (option == BuildOption::Cancelled) return ErrorCodes::UserAbort;
 
 	publicKey = GET_PROJECT_HANDLER(chainToExport).getPublicKey();
 	uniqueId = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, &GET_PROJECT_HANDLER(chainToExport));
@@ -60,15 +64,19 @@ void CompileExporter::exportInternal(ModulatorSynthChain* chainToExport, TargetT
 
 	solutionDirectory = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getFullPathName();
 
-	if (buildOption != Cancelled)
+	if (option != Cancelled)
 	{
 		if (type != TargetTypes::StandaloneApplication)
 		{
-			createPluginDataHeaderFile(chainToExport, solutionDirectory, uniqueId, version, publicKey);
+			result = createPluginDataHeaderFile(chainToExport, solutionDirectory, uniqueId, version, publicKey);
+
+			if (result != ErrorCodes::OK) return result;
 		}
 		else
 		{
-			createStandaloneAppHeaderFile(chainToExport, solutionDirectory, uniqueId, version, publicKey);
+			result = createStandaloneAppHeaderFile(chainToExport, solutionDirectory, uniqueId, version, publicKey);
+
+			if (result != ErrorCodes::OK) return result;
 		}
 
 		copyHISEImageFiles(chainToExport);
@@ -91,14 +99,20 @@ void CompileExporter::exportInternal(ModulatorSynthChain* chainToExport, TargetT
 
 		if (type == TargetTypes::StandaloneApplication)
 		{
-			createStandaloneAppProjucerFile(chainToExport);
+			result = createStandaloneAppProjucerFile(chainToExport);
+
+			if (result != ErrorCodes::OK) return result;
 		}
 		else
 		{
-			createPluginProjucerFile(chainToExport, type, buildOption);
+			createPluginProjucerFile(chainToExport, type, option);
+
+			if (result != ErrorCodes::OK) return result;
 		}
 
-		compileSolution(chainToExport, buildOption, type);
+		result = compileSolution(chainToExport, option, type);
+
+		return result;
 	}
 }
 
@@ -129,16 +143,14 @@ bool CompileExporter::checkSanity(ModulatorSynthChain *chainToExport)
 	return true;
 }
 
-CompileExporter::BuildOption CompileExporter::showCompilePopup(String &publicKey, String &uniqueId, String &version, String &solutionDirectory, TargetTypes type)
+CompileExporter::BuildOption CompileExporter::showCompilePopup(TargetTypes type)
 {
 	AlertWindowLookAndFeel pplaf;
 
 	AlertWindow w("Compile Patch as plugin", String(), AlertWindow::AlertIconType::NoIcon);
 
 	w.setLookAndFeel(&pplaf);
-
 	w.setUsingNativeTitleBar(true);
-
 	w.setColour(AlertWindow::backgroundColourId, Colour(0xff222222));
 	w.setColour(AlertWindow::textColourId, Colours::white);
 	w.addComboBox("buildOption", StringArray(), "Plugin Format");
@@ -492,9 +504,7 @@ CompileExporter::ErrorCodes CompileExporter::compileSolution(ModulatorSynthChain
 
 	if (returnType != 0)
 	{
-		PresetHandler::showMessageWindow("Compile Export Error", "The Project is invalid or the Projucer could not be found.", PresetHandler::IconType::Error);
-
-		return ErrorCodes::ProjectXmlInvalid;
+		return ErrorCodes::CompileError;
 	}
 
 	batchFile.getParentDirectory().getChildFile("temp/").deleteRecursively();
@@ -617,7 +627,7 @@ CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(Modulato
 	return ErrorCodes::OK;
 }
 
-void CompileExporter::createStandaloneAppHeaderFile(ModulatorSynthChain* chainToExport, const String& solutionDirectory, const String& /*uniqueId*/, const String& /*version*/, String publicKey)
+CompileExporter::ErrorCodes CompileExporter::createStandaloneAppHeaderFile(ModulatorSynthChain* chainToExport, const String& solutionDirectory, const String& uniqueId, const String& version, String publicKey)
 {
 	String pluginDataHeaderFile;
 
@@ -643,6 +653,8 @@ void CompileExporter::createStandaloneAppHeaderFile(ModulatorSynthChain* chainTo
 	HeaderHelpers::addProjectInfoLines(chainToExport, pluginDataHeaderFile);
 	HeaderHelpers::addCustomToolbarRegistration(chainToExport, pluginDataHeaderFile);
 	HeaderHelpers::writeHeaderFile(solutionDirectory, pluginDataHeaderFile);
+
+	return ErrorCodes::OK;
 }
 
 CompileExporter::ErrorCodes CompileExporter::createResourceFile(const String &solutionDirectory, const String & uniqueName, const String &version)
@@ -748,9 +760,9 @@ CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(ModulatorS
 	const bool buildVST = BuildOptionHelpers::isVST(option);
 	const bool buildAAX = BuildOptionHelpers::isAAX(option);
 
-	REPLACE_WILDCARD_WITH_STRING("%BUILD_AU", buildAU ? "1" : "0");
-	REPLACE_WILDCARD_WITH_STRING("%BUILD_VST", buildVST ? "1" : "0");
-	REPLACE_WILDCARD_WITH_STRING("%BUILD_AAX", buildAAX ? "1" : "0");
+	REPLACE_WILDCARD_WITH_STRING("%BUILD_AU%", buildAU ? "1" : "0");
+	REPLACE_WILDCARD_WITH_STRING("%BUILD_VST%", buildVST ? "1" : "0");
+	REPLACE_WILDCARD_WITH_STRING("%BUILD_AAX%", buildAAX ? "1" : "0");
 
 	if (buildVST)
 		REPLACE_WILDCARD("%VSTSDK_FOLDER%", SettingWindows::CompilerSettingWindow::Attributes::VSTSDKPath);
@@ -814,6 +826,131 @@ CompileExporter::ErrorCodes CompileExporter::createStandaloneAppProjucerFile(Mod
 
 
 
+CompileExporter::ErrorCodes CompileExporter::compileFromCommandLine(const String& commandLine)
+{
+	String options = commandLine.fromFirstOccurrenceOf("-c ", false, false);
+
+	StringArray args = StringArray::fromTokens(options, true);
+
+	ErrorCodes result = ErrorCodes::OK;
+
+	if (args.size() > 2)
+	{
+		File presetFile = File(args[0].trimCharactersAtStart("\"").trimCharactersAtEnd("\""));
+
+		if (!presetFile.existsAsFile())
+		{
+			return ErrorCodes::PresetIsInvalid;
+		}
+
+		File projectDirectory = presetFile.getParentDirectory().getParentDirectory();
+
+		std::cout << "Loading the preset...";
+
+		ScopedPointer<StandaloneProcessor> processor = new StandaloneProcessor();
+		ScopedPointer<BackendProcessorEditor> editor = dynamic_cast<BackendProcessorEditor*>(processor->createEditor());
+
+		ModulatorSynthChain* mainSynthChain = editor->getBackendProcessor()->getMainSynthChain();
+
+		File currentProjectFolder = GET_PROJECT_HANDLER(mainSynthChain).getWorkDirectory();
+
+		bool switchBack = false;
+
+		if (currentProjectFolder != projectDirectory)
+		{
+			switchBack = true;
+			GET_PROJECT_HANDLER(mainSynthChain).setWorkingProject(projectDirectory);
+		}
+
+		if (presetFile.getFileExtension() == ".hip")
+		{
+			editor->getBackendProcessor()->loadPreset(presetFile, editor);
+		}
+		else if (presetFile.getFileExtension() == ".xml")
+		{
+			BackendCommandTarget::Actions::openFileFromXml(editor, presetFile);
+		}
+
+		std::cout << "DONE" << std::endl << std::endl;
+
+		BuildOption b = getBuildOptionFromCommandLine(args);
+
+		if (BuildOptionHelpers::isEffect(b)) result = exportMainSynthChainAsFX(editor->getBackendProcessor()->getMainSynthChain(), b);
+		else if (BuildOptionHelpers::isInstrument(b)) result = exportMainSynthChainAsInstrument(editor->getBackendProcessor()->getMainSynthChain(), b);
+		else if (BuildOptionHelpers::isStandalone(b)) result = exportMainSynthChainAsStandaloneApp(editor->getBackendProcessor()->getMainSynthChain(), b);
+		else result = ErrorCodes::BuildOptionInvalid;
+
+		if (switchBack)
+		{
+			GET_PROJECT_HANDLER(mainSynthChain).setWorkingProject(currentProjectFolder);
+		}
+
+		editor = nullptr;
+		processor = nullptr;
+
+		return result;
+	}
+	else
+	{
+		return ErrorCodes::MissingArguments;
+	}
+}
+
+CompileExporter::BuildOption CompileExporter::getBuildOptionFromCommandLine(StringArray &args)
+{
+	int type = 0;
+	int plugin = 0;
+	int architecture = 0;
+
+#if JUCE_WINDOWS
+	const int os = 0x1000;
+#else
+#if HISE_IOS
+	const int os = 0x4000;
+#else
+	const int os = 0x2000;
+#endif
+#endif
+
+	for (int i = 1; i < args.size(); i++)
+	{
+		if (args[i].startsWith("-a"))
+		{
+			const String architectureName = args[i].fromFirstOccurrenceOf("-a:", false, true);
+
+			if (architectureName == "x86") architecture = 0x0001;
+			else if (architectureName == "x64") architecture = 0x0002;
+			else if (architectureName == "x86x64") architecture = 0x0004;
+			else return BuildOption::Cancelled;
+		}
+		if (args[i].startsWith("-p"))
+		{
+			const String pluginName = args[i].fromFirstOccurrenceOf("-p:", false, true);
+
+			if (pluginName == "VST") plugin = 0x0010;
+			else if (pluginName == "AU") plugin = 0x0020;
+			else if (pluginName == "VSTAU") plugin = 0x0040;
+			else if (pluginName == "AAX") plugin = 0x0080;
+			else return BuildOption::Cancelled;
+		}
+		if (args[i].startsWith("-t"))
+		{
+			const String typeName = args[i].fromFirstOccurrenceOf("-t:", false, true);
+
+			if (typeName == "standalone") type = 0x0100;
+			else if (typeName == "instrument") type = 0x0200;
+			else if (typeName == "effect") type = 0x0400;
+			else return BuildOption::Cancelled;
+		}
+	}
+
+#if JUCE_MAC
+	architecture = 0x0004;
+#endif
+
+	return (BuildOption)(os | type | plugin | architecture);
+}
+
 void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(ModulatorSynthChain* chainToExport, String& templateProject)
 {
 	REPLACE_WILDCARD("%JUCE_PATH%", SettingWindows::CompilerSettingWindow::Attributes::JucePath);
@@ -824,6 +961,10 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(ModulatorSynthC
 	REPLACE_WILDCARD("%IPP_COMPILER_FLAGS%", SettingWindows::CompilerSettingWindow::Attributes::IPPLinker);
 	REPLACE_WILDCARD("%IPP_HEADER%", SettingWindows::CompilerSettingWindow::Attributes::IPPInclude);
 	REPLACE_WILDCARD("%IPP_LIBRARY%", SettingWindows::CompilerSettingWindow::Attributes::IPPLibrary);
+#else
+	REPLACE_WILDCARD_WITH_STRING("%IPP_COMPILER_FLAGS%", String());
+	REPLACE_WILDCARD_WITH_STRING("%IPP_HEADER%", String());
+	REPLACE_WILDCARD_WITH_STRING("%IPP_LIBRARY%", String());
 #endif
 }
 
@@ -1306,7 +1447,6 @@ CompileExporter::ErrorCodes CompileExporter::HelperClasses::saveProjucerFile(Str
 		File projectFile = getProjucerProjectFile(chainToExport);
 
 		projectFile.create();
-
 		projectFile.replaceWithText(xml->createDocument(""));
 	}
 	else
@@ -1428,6 +1568,7 @@ void CompileExporter::BuildOptionHelpers::runUnitTests()
 	jassert(BuildOptionHelpers::isOSX(AUimacOS));
 	jassert(BuildOptionHelpers::isInstrument(VSTimacOS));
 	jassert(BuildOptionHelpers::isVST(VSTiAUimacOS));
+	jassert(BuildOptionHelpers::isAAX(AAXWindowsx64));
 	jassert(BuildOptionHelpers::isStandalone(StandaloneWindowsx64));
 	jassert(BuildOptionHelpers::is32Bit(StandaloneWindowsx64x86));
 	jassert(BuildOptionHelpers::is64Bit(StandaloneWindowsx64x86));

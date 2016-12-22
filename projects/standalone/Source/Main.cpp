@@ -35,15 +35,43 @@ public:
     bool moreThanOneInstanceAllowed() override       { return true; }
 
     //==============================================================================
-    void initialise (const String& ) override
+    void initialise (const String& commandLine) override
     {
-        // This method is where you should put your application's initialisation code..
-		//AudioProcessorWrapper::addAudioProcessorToList("GainProcessor", &GainProcessor::create);
-		//AudioProcessorWrapper::addAudioProcessorToList("Spatializer", &Spatializer::create);
+        if (commandLine.startsWith("-c"))
+		{
+			CompileExporter::ErrorCodes result = CompileExporter::compileFromCommandLine(commandLine);
 
-        mainWindow = new MainWindow();
-		mainWindow->setUsingNativeTitleBar(true);
-		mainWindow->toFront(true);
+			if (result != CompileExporter::OK)
+			{
+				exit((int)result);
+			}
+			
+			quit();
+			return;
+		}
+		else if (commandLine.startsWith("--help"))
+		{
+			std::cout << std::endl;
+			std::cout << "HISE Command Line Tool" << std::endl;
+			std::cout << "----------------------" << std::endl << std::endl;
+			std::cout << "Usage: " << std::endl << std::endl;
+			std::cout << "HISE -c \"File.hip\" -t:TYPE [-p:PLUGIN_TYPE] [-a:ARCHITECTURE]" << std::endl << std::endl;
+			std::cout << "Options: " << std::endl << std::endl;
+			std::cout << "-t: sets the project type (standalone | instrument | effect)" << std::endl;
+			std::cout << "-p: sets the plugin type (VST | AU | VST_AU | AAX)" << std::endl;
+			std::cout << "    (Leave empty for standalone export)" << std::endl;
+			std::cout << "-a: sets the architecture (x86, x64, x86x64)." << std::endl;
+			std::cout << "    (Leave empty on OSX for Universal binary.)" << std::endl << std::endl;
+
+			quit();
+			return;
+		}
+		else
+		{
+			mainWindow = new MainWindow(commandLine);
+			mainWindow->setUsingNativeTitleBar(true);
+			mainWindow->toFront(true);
+		}
     }
 
     void shutdown() override
@@ -76,11 +104,11 @@ public:
     class MainWindow    : public DocumentWindow
     {
     public:
-        MainWindow()  : DocumentWindow ("HISE Backend Standalone",
+        MainWindow(const String &commandLine)  : DocumentWindow ("HISE Backend Standalone",
                                         Colours::lightgrey,
 										DocumentWindow::TitleBarButtons::closeButton | DocumentWindow::maximiseButton | DocumentWindow::TitleBarButtons::minimiseButton)
         {
-            setContentOwned (new MainContentComponent(), true);
+            setContentOwned (new MainContentComponent(commandLine), true);
 
 #if JUCE_IOS
             

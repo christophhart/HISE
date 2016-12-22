@@ -76,7 +76,7 @@ public:
 	{
 		static bool isVST(BuildOption option) { return (option & 0x0010) != 0 || (option & 0x0040) != 0; };
 		static bool isAU(BuildOption option) { return (option & 0x0020) != 0 || (option & 0x0040) != 0; };
-		static bool isAAX(BuildOption option) { return (option & 0x0040) != 0 || (option & 0x0040) != 0; };
+		static bool isAAX(BuildOption option) { return (option & 0x0080) != 0; };
 		static bool is32Bit(BuildOption option) { return (option & 0x0001) != 0 || (option & 0x0004) != 0; };
 		static bool is64Bit(BuildOption option) { return (option & 0x0002) != 0 || (option & 0x0004) != 0; };
 		static bool isIOS(BuildOption option) { return (option & 0x4000) != 0; };
@@ -99,18 +99,27 @@ public:
 	enum ErrorCodes
 	{
 		OK = 0,
+		PresetIsInvalid,
 		ProjectXmlInvalid,
 		HISEImageDirectoryNotFound,
 		IntrojucerNotFound,
+		UserAbort,
+		MissingArguments,
+		BuildOptionInvalid,
+		CompileError,
 		numErrorCodes
 	};
 
 	/** Exports the main synthchain all samples, external files into a ValueTree file which can be included in a compiled FrontEndProcessor. */
-	static void exportMainSynthChainAsInstrument(ModulatorSynthChain *chainToExport);
+	static ErrorCodes exportMainSynthChainAsInstrument(ModulatorSynthChain *chainToExport, BuildOption option=BuildOption::Cancelled);
 
-	static void exportMainSynthChainAsFX(ModulatorSynthChain* chainToExport);
+	static ErrorCodes exportMainSynthChainAsFX(ModulatorSynthChain* chainToExport, BuildOption option=BuildOption::Cancelled);
 
-	static void exportMainSynthChainAsStandaloneApp(ModulatorSynthChain * chainToExport);
+	static ErrorCodes exportMainSynthChainAsStandaloneApp(ModulatorSynthChain * chainToExport, BuildOption option=BuildOption::Cancelled);
+
+	static ErrorCodes compileFromCommandLine(const String& commandLine);
+
+	static BuildOption getBuildOptionFromCommandLine(StringArray &args);
 
 private:
 
@@ -121,11 +130,11 @@ private:
 		static ErrorCodes saveProjucerFile(String templateProject, ModulatorSynthChain * chainToExport);
 	};
 
-	static void exportInternal(ModulatorSynthChain* chainToExport, TargetTypes type);
+	static ErrorCodes exportInternal(ModulatorSynthChain* chainToExport, TargetTypes type, BuildOption option);
 
 	static bool checkSanity(ModulatorSynthChain *chainToExport);
 
-	static BuildOption showCompilePopup(String &publicKey, String &uniqueId, String &version, String &solutionDirectory, TargetTypes type);
+	static BuildOption showCompilePopup(TargetTypes type);
 
 	static void writeReferencedImageFiles(ModulatorSynthChain * chainToExport, const String directoryPath);
 
@@ -176,7 +185,7 @@ private:
 
 	static File getProjucerProjectFile(ModulatorSynthChain *chainToExport);
 	static ValueTree collectAllSampleMapsInDirectory(ModulatorSynthChain * chainToExport);
-	static void createStandaloneAppHeaderFile(ModulatorSynthChain* chainToExport, const String& solutionDirectory, const String& uniqueId, const String& version, String publicKey);
+	static ErrorCodes createStandaloneAppHeaderFile(ModulatorSynthChain* chainToExport, const String& solutionDirectory, const String& uniqueId, const String& version, String publicKey);
 	static CompileExporter::ErrorCodes createStandaloneAppProjucerFile(ModulatorSynthChain* chainToExport);
 	struct BatchFileCreator
 	{
@@ -184,7 +193,6 @@ private:
 
 		static File getBatchFile(ModulatorSynthChain *chainToExport);
 	};
-
 };
 
 /** A cheap rip-off of Juce's Binary Builder to convert the exported valuetrees into a cpp file. */

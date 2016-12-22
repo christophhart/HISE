@@ -12,19 +12,15 @@
 #define SCALE_2 0
 
 //==============================================================================
-MainContentComponent::MainContentComponent()
+MainContentComponent::MainContentComponent(const String &commandLine)
 {
 	standaloneProcessor = new StandaloneProcessor();
 
 	addAndMakeVisible(editor = standaloneProcessor->createEditor());
 
-#if SCALE_2
-    editor->setTransform(AffineTransform::scale(0.5f));
-#endif
-    
-	//open.attachTo(*editor);
-
 	setSize(editor->getWidth(), editor->getHeight());
+
+	handleCommandLineArguments(commandLine);
 }
 
 MainContentComponent::~MainContentComponent()
