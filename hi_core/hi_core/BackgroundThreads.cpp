@@ -550,10 +550,11 @@ String SettingWindows::CompilerSettingWindow::getAttributeNameForSetting(int att
 	{
 	case Attributes::JucePath: return "JucePath";
 	case Attributes::HisePath: return "HisePath";
-	case Attributes::IntrojucerPath: return "IntrojucerPath";
+	case Attributes::ProjucerPath: return "ProjucerPath";
 	case Attributes::UseASIO: return "UseASIO";
 	case Attributes::ASIOSDKPath: return "ASIOSDKPath";
 	case Attributes::VSTSDKPath: return "VSTSDKPath";
+	case Attributes::AAXPath: return "AAXPath";
 	case Attributes::VisualStudioVersion: return "VisualStudioVersion";
 	case Attributes::UseIPP: return "UseIPP";
 	case Attributes::IPPLinker: return "IPPLinker";
@@ -592,9 +593,10 @@ XmlElement * SettingWindows::CompilerSettingWindow::createNewSettingsFile() cons
 
 	addFileAsChildElement(*xml, (int)Attributes::JucePath, "", "Path to JUCE modules");
 	addFileAsChildElement(*xml, (int)Attributes::HisePath, "", "Path to HISE modules");
-	addFileAsChildElement(*xml, (int)Attributes::IntrojucerPath, "", "Path to Introjucer");
+	addFileAsChildElement(*xml, (int)Attributes::ProjucerPath, "", "Path to Projucer");
 	addFileAsChildElement(*xml, (int)Attributes::VSTSDKPath, VstPath, "Path to VST SDK");
 	addFileAsChildElement(*xml, (int)Attributes::ASIOSDKPath, AsioSDKPath, "Path to ASIO SDK");
+	addFileAsChildElement(*xml, (int)Attributes::AAXPath, "", "Path to the AAX SDK");
 	addChildElementWithOptions(*xml, (int)Attributes::UseASIO, "Yes", "Use ASIO", "Yes\nNo");
 	addChildElementWithOptions(*xml, (int)Attributes::VisualStudioVersion, "Visual Studio 2013", "Installed VisualStudio version", "Visual Studio 2013\nVisual Studio 2015");
 	addChildElementWithOptions(*xml, (int)Attributes::UseIPP, "Yes", "Use IPP", "Yes\nNo");

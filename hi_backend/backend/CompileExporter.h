@@ -78,7 +78,7 @@ private:
 	{
 		static bool isUsingVisualStudio2015(ModulatorSynthChain* chain);
 
-		static ErrorCodes saveIntrojucerFile(String templateProject, ModulatorSynthChain * chainToExport);
+		static ErrorCodes saveProjucerFile(String templateProject, ModulatorSynthChain * chainToExport);
 	};
 
 	static void exportInternal(ModulatorSynthChain* chainToExport, TargetTypes type);
@@ -109,7 +109,7 @@ private:
 
 	static ErrorCodes createResourceFile(const String &solutionDirectory, const String & uniqueName, const String &version);
 
-	static ErrorCodes createPluginIntrojucerFile(ModulatorSynthChain *chainToExport, TargetTypes type);
+	static ErrorCodes createPluginProjucerFile(ModulatorSynthChain *chainToExport, TargetTypes type);
 
 	struct ProjectTemplateHelpers
 	{
@@ -134,10 +134,10 @@ private:
 
 	static ErrorCodes copyHISEImageFiles(ModulatorSynthChain *chainToExport);
 
-	static File getIntrojucerProjectFile(ModulatorSynthChain *chainToExport);
+	static File getProjucerProjectFile(ModulatorSynthChain *chainToExport);
 	static ValueTree collectAllSampleMapsInDirectory(ModulatorSynthChain * chainToExport);
 	static void createStandaloneAppHeaderFile(ModulatorSynthChain* chainToExport, const String& solutionDirectory, const String& uniqueId, const String& version, String publicKey);
-	static CompileExporter::ErrorCodes createStandaloneAppIntrojucerFile(ModulatorSynthChain* chainToExport);
+	static CompileExporter::ErrorCodes createStandaloneAppProjucerFile(ModulatorSynthChain* chainToExport);
 	struct BatchFileCreator
 	{
 		static void createBatchFile(ModulatorSynthChain *chainToExport, BuildOption buildOption, TargetTypes types);

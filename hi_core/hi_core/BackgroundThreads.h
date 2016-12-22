@@ -434,10 +434,11 @@ public:
 		{
 			JucePath = (int)ProjectSettingWindow::Attributes::numAttributes,
 			HisePath,
-			IntrojucerPath,
+			ProjucerPath,
 			VSTSDKPath,
 			UseASIO,
 			ASIOSDKPath,
+			AAXPath,
 			VisualStudioVersion,
 			UseIPP,
 			IPPLinker,

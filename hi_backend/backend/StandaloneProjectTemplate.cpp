@@ -66,7 +66,7 @@ static const unsigned char projectStandaloneTemplate_jucer_lines[] =
 "    </GROUP>\r\n"
 "  </MAINGROUP>\r\n"
 "  <EXPORTFORMATS>\r\n"
-"    <%VS_VERSION% targetFolder=\"Builds/%TARGET_FOLDER%/\" useIPP=\"Sequential\" %ICON_FILE%>\r\n"
+"    <%VS_VERSION% targetFolder=\"Builds/%TARGET_FOLDER%/\" IPPLibrary=\"Sequential\" %ICON_FILE%>\r\n"
 "      <CONFIGURATIONS>\r\n"
 "        <CONFIGURATION name=\"Debug\" winWarningLevel=\"4\" generateManifest=\"1\" winArchitecture=\"32-bit\"\r\n"
 "                       isDebug=\"1\" optimisation=\"1\" targetName=\"%NAME%_Debug x86\"\r\n"
