@@ -52,7 +52,7 @@ void CompileExporter::exportInternal(ModulatorSynthChain* chainToExport, TargetT
 	if (!checkSanity(chainToExport)) return;
 
 	String uniqueId, version, solutionDirectory, publicKey;
-	BuildOption buildOption = showCompilePopup(publicKey, uniqueId, version, solutionDirectory);
+	BuildOption buildOption = showCompilePopup(publicKey, uniqueId, version, solutionDirectory, type);
 
 	publicKey = GET_PROJECT_HANDLER(chainToExport).getPublicKey();
 	uniqueId = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, &GET_PROJECT_HANDLER(chainToExport));
@@ -95,7 +95,7 @@ void CompileExporter::exportInternal(ModulatorSynthChain* chainToExport, TargetT
 		}
 		else
 		{
-			createPluginProjucerFile(chainToExport, type);
+			createPluginProjucerFile(chainToExport, type, buildOption);
 		}
 
 		compileSolution(chainToExport, buildOption, type);
@@ -129,7 +129,7 @@ bool CompileExporter::checkSanity(ModulatorSynthChain *chainToExport)
 	return true;
 }
 
-CompileExporter::BuildOption CompileExporter::showCompilePopup(String &/*publicKey*/, String &/*uniqueId*/, String &/*version*/, String &/*solutionDirectory*/)
+CompileExporter::BuildOption CompileExporter::showCompilePopup(String &publicKey, String &uniqueId, String &version, String &solutionDirectory, TargetTypes type)
 {
 	AlertWindowLookAndFeel pplaf;
 
@@ -141,23 +141,66 @@ CompileExporter::BuildOption CompileExporter::showCompilePopup(String &/*publicK
 
 	w.setColour(AlertWindow::backgroundColourId, Colour(0xff222222));
 	w.setColour(AlertWindow::textColourId, Colours::white);
+	w.addComboBox("buildOption", StringArray(), "Plugin Format");
 
-	StringArray items;
+	ComboBox* b = w.getComboBoxComponent("buildOption");
 
 #if JUCE_WINDOWS
-    
-	items.add("32bit VST");
-	items.add("64bit VST");
-	items.add("32bit & 64bit VSTs");
 
+	switch (type)
+	{
+	case CompileExporter::TargetTypes::InstrumentPlugin:
+		b->addItem("VSTi 64bit", BuildOption::VSTiWindowsx64);
+		b->addItem("VSTi 32bit", BuildOption::VSTiWindowsx86);
+		b->addItem("VSTi 32bit/64bit", BuildOption::VSTiWindowsx64x86);
+		b->addItem("AAX 64bit", BuildOption::AAXWindowsx64);
+		b->addItem("AAX 32bit", BuildOption::AAXWindowsx86);
+		b->addItem("AAX 32bit/64bit", BuildOption::AAXWindowsx86x64);
+		break;
+	case CompileExporter::TargetTypes::EffectPlugin:
+		b->addItem("VST 64bit", BuildOption::VSTWindowsx64);
+		b->addItem("VST 32bit", BuildOption::VSTWindowsx86);
+		b->addItem("VST 32bit/64bit", BuildOption::VSTWindowsx64x86);
+		b->addItem("AAX 64bit", BuildOption::AAXWindowsx64);
+		b->addItem("AAX 32bit", BuildOption::AAXWindowsx86);
+		b->addItem("AAX 32bit/64bit", BuildOption::AAXWindowsx86x64);
+		break;
+	case CompileExporter::TargetTypes::StandaloneApplication:
+		b->addItem("Standalone 64bit", BuildOption::StandaloneWindowsx64);
+		b->addItem("Standalone 32bit", BuildOption::StandaloneWindowsx86);
+		b->addItem("Standalone 32bit/64bit", BuildOption::StandaloneWindowsx64x86);
+		break;
+	case CompileExporter::TargetTypes::numTargetTypes:
+		break;
+	default:
+		break;
+	}
 #else
+	switch (type)
+	{
+	case CompileExporter::TargetTypes::InstrumentPlugin:
+		b->addItem("AUi", BuildOption::AUimacOS);
+		b->addItem("AAX", BuildOption::AAXmacOS);
+		b->addItem("VSTi", BuildOption::VSTimacOS);
+		b->addItem("VSTi + AUi", BuildOption::VSTiAUimacOS);
+		break;
+	case CompileExporter::TargetTypes::EffectPlugin:
+		b->addItem("AU", BuildOption::AUmacOS);
+		b->addItem("AAX", BuildOption::AAXmacOS);
+		b->addItem("VST", BuildOption::VSTmacOS);
+		b->addItem("VST + AU", BuildOption::VSTAUmacOS);
+		break;
+	case CompileExporter::TargetTypes::StandaloneApplication:
+		b->addItem("Standalone macOS", BuildOption::StandalonemacOS);
+		b->addItem("Standalone iOS", BuildOption::StandaloneiOS);
+		break;
+	case CompileExporter::TargetTypes::numTargetTypes:
+		break;
+	default:
+		break;
+	}
 
-    items.add("VST / AU");
-    
 #endif
-    
-	w.addComboBox("buildOption", items, "Plugin Format");
-
 
 	w.addButton("OK", 1, KeyPress(KeyPress::returnKey));
 	w.addButton("Cancel", 0, KeyPress(KeyPress::escapeKey));
@@ -166,7 +209,7 @@ CompileExporter::BuildOption CompileExporter::showCompilePopup(String &/*publicK
 
 	if (w.runModalLoop())
 	{
-		int i = w.getComboBoxComponent("buildOption")->getSelectedItemIndex() + 1;
+		int i = w.getComboBoxComponent("buildOption")->getSelectedId();
 
 		return (BuildOption)i;
 	}
@@ -670,7 +713,7 @@ struct FileHelpers
 
 
 
-CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(ModulatorSynthChain *chainToExport, CompileExporter::TargetTypes type)
+CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(ModulatorSynthChain *chainToExport, TargetTypes type, BuildOption option)
 {
 	String templateProject = String(projectTemplate_jucer);
 
@@ -701,14 +744,34 @@ CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(ModulatorS
 
 	ProjectTemplateHelpers::handleCompanyInfo(chainToExport, templateProject);
 
-	REPLACE_WILDCARD("%VSTSDK_FOLDER%", SettingWindows::CompilerSettingWindow::Attributes::VSTSDKPath);
+	const bool buildAU = BuildOptionHelpers::isAU(option);
+	const bool buildVST = BuildOptionHelpers::isVST(option);
+	const bool buildAAX = BuildOptionHelpers::isAAX(option);
 
-	const String aaxPath = SettingWindows::getSettingValue((int)SettingWindows::CompilerSettingWindow::Attributes::AAXPath);
+	REPLACE_WILDCARD_WITH_STRING("%BUILD_AU", buildAU ? "1" : "0");
+	REPLACE_WILDCARD_WITH_STRING("%BUILD_VST", buildVST ? "1" : "0");
+	REPLACE_WILDCARD_WITH_STRING("%BUILD_AAX", buildAAX ? "1" : "0");
 
-	REPLACE_WILDCARD_WITH_STRING("%AAX_PATH%", aaxPath);
-	REPLACE_WILDCARD_WITH_STRING("%BUILD_AAX", aaxPath.isEmpty() ? "0" : "1");
-	REPLACE_WILDCARD_WITH_STRING("%AAX_RELEASE_LIB%", aaxPath.isEmpty() ? "" : File(aaxPath).getChildFile("Libs/Release/").getFullPathName());
-	REPLACE_WILDCARD_WITH_STRING("%AAX_DEBUG_LIB%", aaxPath.isEmpty() ? "" : File(aaxPath).getChildFile("Libs/Debug/").getFullPathName());
+	if (buildVST)
+		REPLACE_WILDCARD("%VSTSDK_FOLDER%", SettingWindows::CompilerSettingWindow::Attributes::VSTSDKPath);
+	else
+		REPLACE_WILDCARD_WITH_STRING("%VSTSDK_FOLDER", String());
+
+	if (buildAAX)
+	{
+		const String aaxPath = SettingWindows::getSettingValue((int)SettingWindows::CompilerSettingWindow::Attributes::AAXPath);
+
+		REPLACE_WILDCARD_WITH_STRING("%AAX_PATH%", aaxPath);
+		REPLACE_WILDCARD_WITH_STRING("%BUILD_AAX", aaxPath.isEmpty() ? "0" : "1");
+		REPLACE_WILDCARD_WITH_STRING("%AAX_RELEASE_LIB%", aaxPath.isEmpty() ? String() : File(aaxPath).getChildFile("Libs/Release/").getFullPathName());
+		REPLACE_WILDCARD_WITH_STRING("%AAX_DEBUG_LIB%", aaxPath.isEmpty() ? String() : File(aaxPath).getChildFile("Libs/Debug/").getFullPathName());
+	}
+	else
+	{
+		REPLACE_WILDCARD_WITH_STRING("%AAX_PATH%", String());
+		REPLACE_WILDCARD_WITH_STRING("%AAX_RELEASE_LIB%", String());
+		REPLACE_WILDCARD_WITH_STRING("%AAX_DEBUG_LIB%", String());
+	}
 
 	ProjectTemplateHelpers::handleCompilerInfo(chainToExport, templateProject);
 
@@ -1091,8 +1154,6 @@ void CompileExporter::BatchFileCreator::createBatchFile(ModulatorSynthChain *cha
 
     batchFile.deleteFile();
     
-	
-
 	const String buildPath = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getFullPathName();
 
     String batchContent;
@@ -1113,8 +1174,6 @@ void CompileExporter::BatchFileCreator::createBatchFile(ModulatorSynthChain *cha
     
 	const bool isUsingVisualStudio2015 = SettingWindows::getSettingValue((int)SettingWindows::CompilerSettingWindow::Attributes::VisualStudioVersion, &GET_PROJECT_HANDLER(chainToExport)) == "Visual Studio 2015";
 
-
-
 	const String msbuildPath = isUsingVisualStudio2015 ? "\"C:\\Program Files (x86)\\MSBuild\\14.0\\Bin\\MsBuild.exe\"" :
 														 "\"C:\\Program Files (x86)\\MSBuild\\12.0\\Bin\\MsBuild.exe\"";
 
@@ -1127,9 +1186,7 @@ void CompileExporter::BatchFileCreator::createBatchFile(ModulatorSynthChain *cha
 	ADD_LINE("\"" << projucerPath << "\" --resave AutogeneratedProject.jucer");
 	ADD_LINE("");
 
-	
-
-	if (buildOption == VSTx86 || buildOption == VSTx64x86)
+	if (BuildOptionHelpers::is32Bit(buildOption))
 	{
 		ADD_LINE("echo Compiling 32bit " << projectType << " %project% ...");
 
@@ -1160,7 +1217,7 @@ void CompileExporter::BatchFileCreator::createBatchFile(ModulatorSynthChain *cha
 		ADD_LINE("");
 	}
 	
-	if (buildOption == VSTx64 || buildOption == VSTx64x86)
+	if (BuildOptionHelpers::is64Bit(buildOption))
 	{
 		ADD_LINE("echo Compiling 64bit " << projectType << " %project% ...");
 		
@@ -1357,4 +1414,22 @@ void CompileExporter::HeaderHelpers::writeHeaderFile(const String & solutionDire
 
 	pluginDataHeader.create();
 	pluginDataHeader.replaceWithText(pluginDataHeaderFile);
+}
+
+void CompileExporter::BuildOptionHelpers::runUnitTests()
+{
+	jassert(BuildOptionHelpers::is32Bit(VSTWindowsx86));
+	jassert(!BuildOptionHelpers::is64Bit(VSTWindowsx86));
+	jassert(BuildOptionHelpers::isVST(VSTWindowsx64x86));
+	jassert(!BuildOptionHelpers::isStandalone(VSTWindowsx64x86));
+	jassert(BuildOptionHelpers::isEffect(VSTWindowsx64x86));
+	jassert(BuildOptionHelpers::is64Bit(VSTWindowsx64x86));
+	jassert(!BuildOptionHelpers::isStandalone(AUmacOS));
+	jassert(BuildOptionHelpers::isOSX(AUimacOS));
+	jassert(BuildOptionHelpers::isInstrument(VSTimacOS));
+	jassert(BuildOptionHelpers::isVST(VSTiAUimacOS));
+	jassert(BuildOptionHelpers::isStandalone(StandaloneWindowsx64));
+	jassert(BuildOptionHelpers::is32Bit(StandaloneWindowsx64x86));
+	jassert(BuildOptionHelpers::is64Bit(StandaloneWindowsx64x86));
+	jassert(BuildOptionHelpers::isStandalone(StandaloneWindowsx64x86));
 }

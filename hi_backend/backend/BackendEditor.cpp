@@ -40,6 +40,8 @@ BackendCommandTarget(static_cast<BackendProcessor*>(ownerProcessor)),
 owner(static_cast<BackendProcessor*>(getAudioProcessor())),
 rootEditorIsMainSynthChain(true)
 {
+	CompileExporter::BuildOptionHelpers::runUnitTests();
+
     setOpaque(true);
 
 	setEditor(this);

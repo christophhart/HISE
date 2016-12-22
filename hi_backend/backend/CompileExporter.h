@@ -38,14 +38,54 @@ class CompileExporter
 {
 public:
 
+	/** 0xABCD
+	*
+	*	A = OS (1 = Windows / 2 = OSX / 4 = iOS)
+	*	B = type (1 = Standalone, 2 = Instrument, 4 = Effect)
+	*	C = platform (0 = void, 1 = VST, 2 = AU, 4 = VST / AU, 8 = AAX);
+	*	D = bit (1 = 32bit, 2 = 64bit, 4 = both) 
+	*/
 	enum BuildOption
 	{
 		Cancelled = 0,
-		VSTx86,
-		VSTx64,
-		VSTx64x86,
-		AU,
+		VSTWindowsx86 = 0x1411,
+		VSTWindowsx64 = 0x1412,
+		VSTWindowsx64x86 = 0x1414,
+		VSTiWindowsx86 = 0x1211,
+		VSTiWindowsx64 = 0x1212,
+		VSTiWindowsx64x86 = 0x1214,
+		AUmacOS = 0x2422,
+		VSTmacOS = 0x2412,
+		VSTAUmacOS = 0x2442,
+		AUimacOS = 0x2222,
+		VSTimacOS = 0x2212,
+		VSTiAUimacOS = 0x2242,
+		AAXWindowsx86 = 0x1281,
+		AAXWindowsx64 = 0x1282,
+		AAXWindowsx86x64 = 0x1284,
+		AAXmacOS = 0x2284,
+		StandaloneWindowsx86 = 0x1101,
+		StandaloneWindowsx64 = 0x1102,
+		StandaloneWindowsx64x86 = 0x1104,
+		StandaloneiOS = 0x4104,
+		StandalonemacOS = 0x2104,
 		numBuildOptions
+	};
+
+	struct BuildOptionHelpers
+	{
+		static bool isVST(BuildOption option) { return (option & 0x0010) != 0 || (option & 0x0040) != 0; };
+		static bool isAU(BuildOption option) { return (option & 0x0020) != 0 || (option & 0x0040) != 0; };
+		static bool isAAX(BuildOption option) { return (option & 0x0040) != 0 || (option & 0x0040) != 0; };
+		static bool is32Bit(BuildOption option) { return (option & 0x0001) != 0 || (option & 0x0004) != 0; };
+		static bool is64Bit(BuildOption option) { return (option & 0x0002) != 0 || (option & 0x0004) != 0; };
+		static bool isIOS(BuildOption option) { return (option & 0x4000) != 0; };
+		static bool isWindows(BuildOption option) { return (option & 0x1000) != 0; };
+		static bool isOSX(BuildOption option) { return (option & 0x2000) != 0; }
+		static bool isStandalone(BuildOption option) { return (option & 0x0100) != 0; }
+		static bool isInstrument(BuildOption option) { return (option & 0x0200) != 0; }
+		static bool isEffect(BuildOption option) { return (option & 0x0400) != 0; }
+		static void runUnitTests();
 	};
 
 	enum class TargetTypes
@@ -85,7 +125,7 @@ private:
 
 	static bool checkSanity(ModulatorSynthChain *chainToExport);
 
-	static BuildOption showCompilePopup(String &publicKey, String &uniqueId, String &version, String &solutionDirectory);
+	static BuildOption showCompilePopup(String &publicKey, String &uniqueId, String &version, String &solutionDirectory, TargetTypes type);
 
 	static void writeReferencedImageFiles(ModulatorSynthChain * chainToExport, const String directoryPath);
 
@@ -109,7 +149,7 @@ private:
 
 	static ErrorCodes createResourceFile(const String &solutionDirectory, const String & uniqueName, const String &version);
 
-	static ErrorCodes createPluginProjucerFile(ModulatorSynthChain *chainToExport, TargetTypes type);
+	static ErrorCodes createPluginProjucerFile(ModulatorSynthChain *chainToExport, TargetTypes type, BuildOption option);
 
 	struct ProjectTemplateHelpers
 	{

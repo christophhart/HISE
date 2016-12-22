@@ -114,7 +114,7 @@ static const unsigned char projectStandaloneTemplate_jucer_lines[] =
 "        <CONFIGURATION name=\"Release\" osxSDK=\"default\" osxCompatibility=\"10.7 SDK\" osxArchitecture=\"64BitUniversal\"\r\n"
 "                       isDebug=\"0\" optimisation=\"3\" targetName=\"%NAME%\" headerPath=\"%IPP_HEADER%\"\r\n"
 "                       libraryPath=\"%IPP_LIBRARY%\" cppLibType=\"libc++\" linkTimeOptimisation=\"1\"\r\n"
-"                       cppLanguageStandard=\"c++11\" binaryPath=\"Compiled/\"/>\r\n"
+"                       cppLanguageStandard=\"c++11\" binaryPath=\"Compiled/\" stripLocalSymbols=\"1\"/>\r\n"
 "      </CONFIGURATIONS>\r\n"
 "      <MODULEPATHS>\r\n"
 "        <MODULEPATH id=\"juce_tracktion_marketplace\" path=\"%JUCE_PATH%\"/>\r\n"
