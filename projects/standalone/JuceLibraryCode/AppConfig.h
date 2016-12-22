@@ -17,8 +17,6 @@
 //==============================================================================
 // [BEGIN_USER_CODE_SECTION]
 
-#define JUCE_ALLOW_STATIC_NULL_VARIABLES 0
-
 // (You can add your own code in this section, and the Projucer will not overwrite it)
 
 // [END_USER_CODE_SECTION]

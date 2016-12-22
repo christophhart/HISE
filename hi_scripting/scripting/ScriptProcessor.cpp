@@ -45,6 +45,23 @@ void ProcessorWithScriptingContent::setControlValue(int index, float newValue)
 		{
 			c->setValue(newValue);
 
+			if (auto b = dynamic_cast<ScriptingApi::Content::ScriptButton*>(c))
+			{
+				if (int group = b->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::Properties::radioGroup))
+				{
+					for (int i = 0; i < content->getNumComponents(); i++)
+					{
+						if (i == index) continue;
+						
+						if (auto other = dynamic_cast<ScriptingApi::Content::ScriptButton*>(content->getComponent(i)))
+						{
+							if ((int)other->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::Properties::radioGroup) == group)
+								other->setValue(0);
+						}
+					}
+				}
+			}
+
 #if USE_FRONTEND
 			if (c->isAutomatable() &&
 				c->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::isPluginParameter) &&

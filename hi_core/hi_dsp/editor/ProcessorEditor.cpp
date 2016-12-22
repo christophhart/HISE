@@ -69,9 +69,8 @@ void ProcessorEditor::changeListenerCallback(SafeChangeBroadcaster *b)
 		return;
 	}
 
-	header->update();
-	
-	body->updateGui();
+	if (header != nullptr) header->update();
+	if (body != nullptr)  body->updateGui();
 }
 
 
