@@ -1026,7 +1026,7 @@ private:
 
 			match(TokenTypes::closeParen);
 
-			InlineFunction::Object::Ptr o = nullptr;
+			InlineFunction::Object::Ptr o;
 
 			for (int i = 0; i < ns->inlineFunctions.size(); i++)
 			{
@@ -1700,7 +1700,7 @@ private:
 
 	Expression* parseNewOperator()
 	{
-		ExpPtr nameExp = nullptr; 
+		ExpPtr nameExp; 
 		
 		Identifier name = currentValue.toString();
 

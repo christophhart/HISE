@@ -58,9 +58,8 @@ public:
 
 	virtual ~PluginParameterAudioProcessor() {};
 
-	
-
-	/** Add the plugin parameter modulator to the list and return the index. */
+    
+    /** Add the plugin parameter modulator to the list and return the index. */
 	virtual int addPluginParameter(PluginParameterModulator *existingModToBeAdded);
 
 	/** Remove the plugin parameter from the list. */
@@ -105,11 +104,6 @@ public:
 
 	/// @brief returns a converted and labeled string that represents the current value
     virtual const String getParameterText (int index);
-
-	const String getInputChannelName (int channelIndex) const {return channelIndex == 1 ? "Right" : "Left";};
-    const String getOutputChannelName (int channelIndex) const {return channelIndex == 1 ? "Right" : "Left";};;
-	bool isInputChannelStereoPair (int ) const {return true;};
-	bool isOutputChannelStereoPair (int ) const {return true;};
 
     virtual bool acceptsMidi() const = 0;
     virtual bool producesMidi() const = 0;

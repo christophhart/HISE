@@ -30,6 +30,24 @@
 *   ===========================================================================
 */
 
+/******************************************************************************
+
+BEGIN_JUCE_MODULE_DECLARATION
+
+  ID:               hi_dsp_library
+  vendor:           Hart Instruments
+  version:          0.999
+  name:             HISE DSP Library module
+  description:      The module for building DSP modules
+  website:          http://hise.audio
+  license:          MIT
+
+  dependencies:     juce_core
+
+END_JUCE_MODULE_DECLARATION
+
+******************************************************************************/
+
 #ifndef HI_DSP_LIBRARY_H_INCLUDED
 #define HI_DSP_LIBRARY_H_INCLUDED
 

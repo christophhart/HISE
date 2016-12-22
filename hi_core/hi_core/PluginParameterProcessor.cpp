@@ -31,7 +31,8 @@
 */
 
 //==============================================================================
-PluginParameterAudioProcessor::PluginParameterAudioProcessor(const String &pluginName):	
+PluginParameterAudioProcessor::PluginParameterAudioProcessor(const String &pluginName):
+    AudioProcessor (BusesProperties().withOutput ("Output", AudioChannelSet::stereo()))
 	name(pluginName)
 {
 	for(int i = 0; i < 32; i++)

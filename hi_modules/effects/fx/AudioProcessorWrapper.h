@@ -298,7 +298,7 @@ private:
 	OwnedArray<Label> paramLabels;
 };
 
-
+#if 0
 //==============================================================================
 /**
 */
@@ -527,6 +527,6 @@ private:
 		//==============================================================================
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Spatializer)
 };
-
+#endif
 
 #endif  // AUDIOPROCESSORWRAPPER_H_INCLUDED

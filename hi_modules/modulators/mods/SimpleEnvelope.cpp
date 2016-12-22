@@ -68,8 +68,7 @@ SimpleEnvelope::SimpleEnvelope(MainController *mc, const String &id, int voiceAm
 		attack(getDefaultValue(Attack)),
 		release(getDefaultValue(Release)),
 		release_delta(-1.0f),
-		linearMode(getDefaultValue(LinearMode) == 1.0f ? true : false),
-		attackChain(nullptr)
+		linearMode(getDefaultValue(LinearMode) == 1.0f ? true : false)
 {
 	parameterNames.add("Attack");
 	parameterNames.add("Release");

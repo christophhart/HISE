@@ -80,9 +80,8 @@ public:
 
 		v.writeToStream(output);
 	};
-
-
-	void setStateInformation(const void *data,int sizeInBytes) override
+    
+    void setStateInformation(const void *data,int sizeInBytes) override
 	{
 		if(samplesCorrectlyLoaded)
 		{

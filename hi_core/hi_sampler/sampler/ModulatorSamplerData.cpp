@@ -150,7 +150,6 @@ ThreadWithQuasiModalProgressWindow("Generating Audio Thumbnails for " + String(f
 fileNamesToLoad(fileNames),
 directory(directoryToLoad),
 sampler(s),
-writeCache(nullptr),
 addThumbNailsToExistingCache(true)
 {
 	getAlertWindow()->setLookAndFeel(&laf);
@@ -160,7 +159,6 @@ ThumbnailHandler::ThumbnailHandler(const File &directoryToLoad, ModulatorSampler
 ThreadWithQuasiModalProgressWindow("Generating Audio Thumbnails for directory " + directoryToLoad.getFullPathName(), true, true, s->getMainController()),
 directory(directoryToLoad),
 sampler(s),
-writeCache(nullptr),
 addThumbNailsToExistingCache(false)
 {
 	getAlertWindow()->setLookAndFeel(&laf);

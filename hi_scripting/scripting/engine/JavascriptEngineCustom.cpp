@@ -111,7 +111,6 @@ struct HiseJavascriptEngine::RootObject::ConstObjectApiCall : public Expression
 {
 	ConstObjectApiCall(const CodeLocation &l, var *objectPointer_, const Identifier& functionName_) noexcept:
 	Expression(l),
-		object(nullptr),
 		objectPointer(objectPointer_),
 		functionName(functionName_),
 		expectedNumArguments(-1),
@@ -175,7 +174,6 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 	public:
 
 		Object(Identifier &n, const Array<Identifier> &p) : 
-			body(nullptr) ,
 			name(n),
 			e(nullptr)
 		{

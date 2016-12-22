@@ -127,8 +127,7 @@ String ExternalFileProcessor::getGlobalReferenceForFile(const String &file, Pres
 FactoryType::FactoryType(Processor *owner_) :
 owner(owner_),
 baseClassCalled(false),
-constrainer(nullptr),
-ownedConstrainer(nullptr)
+constrainer(nullptr)
 {
 
 }

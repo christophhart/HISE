@@ -82,7 +82,7 @@ public:
 	int getNumPrograms() {return 1;};
 	int getCurrentProgram() {return 0;};
 	void setCurrentProgram (int ) {};
-	const String getProgramName (int ) {return String::empty;};
+	const String getProgramName (int ) {return "Default";};
 	void changeProgramName (int , const String& ) {};
     
 	String name;

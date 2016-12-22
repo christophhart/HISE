@@ -40,8 +40,6 @@ onNoteOffCallback(new SnippetDocument("onNoteOff")),
 onControllerCallback(new SnippetDocument("onController")),
 onTimerCallback(new SnippetDocument("onTimer")),
 onControlCallback(new SnippetDocument("onControl", "number value")),
-currentMidiMessage(nullptr),
-
 front(false),
 deferred(false),
 deferredUpdatePending(false)

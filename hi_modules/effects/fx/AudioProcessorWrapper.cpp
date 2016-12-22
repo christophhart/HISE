@@ -253,7 +253,7 @@ AudioProcessorWrapper::ListEntry AudioProcessorWrapper::registeredAudioProcessor
 int AudioProcessorWrapper::numRegisteredProcessors = 0;
 
 
-
+#if 0
 // this needs at least c++11
 Array<Spatializer::SpeakerLayout> Spatializer::speakerPositions =
 {
@@ -261,4 +261,4 @@ Array<Spatializer::SpeakerLayout> Spatializer::speakerPositions =
 	Spatializer::SpeakerLayout{ AudioChannelSet::quadraphonic(), { SpeakerPosition{ 1.0f, -0.25f * float_Pi }, SpeakerPosition{ 1.0f, 0.25f * float_Pi }, SpeakerPosition{ 1.0f, -0.75f * float_Pi }, SpeakerPosition{ 1.0f, 0.75f * float_Pi } } },
 	Spatializer::SpeakerLayout{ AudioChannelSet::create5point0(), { SpeakerPosition{ 1.0f, 0.0f }, SpeakerPosition{ 1.0f, -0.25f * float_Pi }, SpeakerPosition{ 1.0f, 0.25f * float_Pi }, SpeakerPosition{ 1.0f, -0.75f * float_Pi }, SpeakerPosition{ 1.0f, 0.75f * float_Pi } } }
 };
-
+#endif

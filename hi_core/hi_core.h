@@ -30,6 +30,24 @@
 *   ===========================================================================
 */
 
+/******************************************************************************
+
+BEGIN_JUCE_MODULE_DECLARATION
+
+  ID:               hi_core
+  vendor:           Hart Instruments
+  version:          0.999
+  name:             HISE Core module
+  description:      The core classes for HISE
+  website:          http://hise.audio
+  license:          GPL / Commercial
+
+  dependencies:      juce_audio_basics, juce_audio_devices, juce_audio_formats, juce_audio_processors, juce_core, juce_cryptography, juce_data_structures, juce_events, juce_graphics, juce_gui_basics, juce_gui_extra, juce_opengl	
+
+END_JUCE_MODULE_DECLARATION
+
+******************************************************************************/
+
 #ifndef HI_CORE_INCLUDED
 #define HI_CORE_INCLUDED
 
