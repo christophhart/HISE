@@ -19,7 +19,6 @@ projects/standalone/JuceLibraryCode/JuceHeader.h
 projects/standalone/JuceLibraryCode/ReadMe.txt
 extras/demo_project/Binaries/
 changelog*
-JUCE/
 *.licence
 Autosave*
 extras/demo_project/thumbnails.dat
