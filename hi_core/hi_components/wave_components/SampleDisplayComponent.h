@@ -545,7 +545,7 @@ public:
 
 	void mouseDrag(const MouseEvent &) override
 	{
-		startDragging(currentFileName, this, Image::null, true);
+		startDragging(currentFileName, this, Image(), true);
 	}
 
 	void mouseDown(const MouseEvent &e) override;

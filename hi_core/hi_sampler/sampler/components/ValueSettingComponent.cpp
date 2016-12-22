@@ -30,7 +30,7 @@
 ValueSettingComponent::ValueSettingComponent ()
 {
     addAndMakeVisible (valueLabel = new Label ("new label",
-                                               String::empty));
+                                               String()));
     valueLabel->setFont (Font ("Khmer UI", 14.00f, Font::plain));
     valueLabel->setJustificationType (Justification::centred);
     valueLabel->setEditable (true, true, false);

@@ -98,6 +98,6 @@ File AutoSaver::getAutoSaveFile()
 	}
 	else
 	{
-		return File::nonexistent;
+		return File();
 	}
 }

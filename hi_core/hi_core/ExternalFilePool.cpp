@@ -39,11 +39,11 @@ void Pool<FileType>::restoreFromValueTree(const ValueTree &v)
 	{
 		ValueTree child = v.getChild(i);
 
-		String fileName = child.getProperty("FileName", String::empty).toString();
+		String fileName = child.getProperty("FileName", String()).toString();
 
 		jassert(fileName.isNotEmpty());
 
-		Identifier id = Identifier(child.getProperty("ID", String::empty).toString());
+		Identifier id = Identifier(child.getProperty("ID", String()).toString());
 
 		if (getDataForId(id) != nullptr) continue;
 
@@ -279,7 +279,7 @@ const String Pool<FileType>::getFileNameForId(Identifier identifier)
 		if (data[i]->id == identifier) return data[i]->fileName;
 	}
 
-	return String::empty;
+	return String();
 }
 
 template <class FileType>

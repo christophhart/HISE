@@ -326,7 +326,7 @@ void UserPresetData::refreshPresetFileList()
 
 
 
-void UserPresetHandler::saveUserPreset(ModulatorSynthChain *chain, const String& targetFile/*=String::empty*/)
+void UserPresetHandler::saveUserPreset(ModulatorSynthChain *chain, const String& targetFile/*=String()*/)
 {
 #if USE_BACKEND
 
@@ -415,7 +415,7 @@ File UserPresetHandler::getUserPresetFile(ModulatorSynthChain *chain, const Stri
 #endif
 }
 
-void PresetHandler::saveProcessorAsPreset(Processor *p, const String &directoryPath/*=String::empty*/)
+void PresetHandler::saveProcessorAsPreset(Processor *p, const String &directoryPath/*=String()*/)
 {
 	const bool hasCustomName = p->getName() != p->getId();
 
@@ -446,12 +446,12 @@ void PresetHandler::saveProcessorAsPreset(Processor *p, const String &directoryP
 
 String PresetHandler::getProcessorNameFromClipboard(const FactoryType *t)
 {
-	if(SystemClipboard::getTextFromClipboard() == String::empty) return String::empty;
+	if(SystemClipboard::getTextFromClipboard() == String()) return String();
 
 	String x = SystemClipboard::getTextFromClipboard();
 	ScopedPointer<XmlElement> xml = XmlDocument::parse(x);
 
-	if(xml == nullptr) return String::empty;
+	if(xml == nullptr) return String();
 	
 #if USE_OLD_FILE_FORMAT
 
@@ -467,16 +467,16 @@ String PresetHandler::getProcessorNameFromClipboard(const FactoryType *t)
 
 	String id = xml->getStringAttribute("ID");
 	
-	if(!isProcessor || type == String::empty || id == String::empty) return String::empty;
+	if(!isProcessor || type == String() || id == String()) return String();
 
 	if (t->allowType(type)) return id;
-				else		return String::empty;
+				else		return String();
 }
 
 void PresetHandler::copyProcessorToClipboard(Processor *p)
 {
 	ScopedPointer<XmlElement> xml = p->exportAsValueTree().createXml();
-	String x = xml->createDocument(String::empty);
+	String x = xml->createDocument(String());
 	SystemClipboard::copyTextToClipboard(x);
 
 	debugToConsole(p, p->getId() + " was copied to clipboard.");
@@ -569,7 +569,7 @@ String PresetHandler::getCustomName(const String &typeName)
 	nameWindow->addButton("Cancel", 0, KeyPress(KeyPress::escapeKey));
 
 	if(nameWindow->runModalLoop()) return nameWindow->getTextEditorContents("Name");
-	else return String::empty;
+	else return String();
 };
 
 bool PresetHandler::showYesNoWindow(const String &title, const String &message, PresetHandler::IconType type)
@@ -735,7 +735,7 @@ void ProjectHandler::restoreWorkingProjects()
 
 bool ProjectHandler::isValidProjectFolder(const File &file) const
 {
-	if (file == File::nonexistent) return true;
+	if (file == File()) return true;
 
 	const bool isDirectory = file.exists() && file.isDirectory();
 
@@ -835,7 +835,7 @@ File ProjectHandler::checkSubDirectory(SubDirectories dir)
 		const String fileExtension = subDirectory.getFileExtension();
 		jassertfalse;
 
-		return File::nonexistent;
+		return File();
 	}
 }
 
@@ -879,7 +879,7 @@ String ProjectHandler::getIdentifier(SubDirectories dir)
 	case ProjectHandler::SubDirectories::UserPresets:		return "UserPresets/";
 	case ProjectHandler::SubDirectories::SampleMaps:		return "SampleMaps/";
 	case ProjectHandler::SubDirectories::numSubDirectories: 
-	default:												jassertfalse; return String::empty;
+	default:												jassertfalse; return String();
 	}
 }
 
@@ -1022,7 +1022,7 @@ String ProjectHandler::getPrivateKey() const
 
 bool ProjectHandler::isActive() const
 {
-	return currentWorkDirectory != File::nonexistent;
+	return currentWorkDirectory != File();
 }
 
 bool ProjectHandler::isRedirected(ProjectHandler::SubDirectories dir) const
@@ -1169,10 +1169,10 @@ File ProjectHandler::Frontend::getSampleLocationForCompiledPlugin()
 		return File(childFile.loadFileAsString());
 	}
 
-	return File::nonexistent;
+	return File();
 
 #else
-	return File::nonexistent;
+	return File();
 #endif
 }
 
@@ -1225,7 +1225,7 @@ File ProjectHandler::Frontend::getLicenceKey()
 
 #else
 
-	return File::nonexistent;
+	return File();
 
 #endif
 }
@@ -1383,7 +1383,7 @@ File PresetHandler::getDirectory(Processor *p)
 		else if (dynamic_cast<Modulator*>(p) != nullptr)			typeName = "Modulators";
 		else if (dynamic_cast<MidiProcessor*>(p) != nullptr)		typeName = "MidiProcessors";
 		else if (dynamic_cast<EffectProcessor*>(p) != nullptr)		typeName = "EffectProcessors";
-		else														{ jassertfalse; return File::nonexistent; }
+		else														{ jassertfalse; return File(); }
 
 		File directory((getPresetFolder().getFullPathName() + "/" + typeName));
         
@@ -1406,9 +1406,9 @@ File PresetHandler::checkFile(const String &pathName)
 		{
 			return fc.getResult();
 		}
-		else return File::nonexistent;	
+		else return File();	
 #else
-		return File::nonexistent;
+		return File();
 #endif
 
 	}
@@ -1425,11 +1425,11 @@ File PresetHandler::checkFile(const String &pathName)
 			{
 				return fc.getResult();
 			}
-			else return File::nonexistent;
+			else return File();
 		}
 		else return f;
 #else
-		return File::nonexistent;
+		return File();
 #endif
 	}
 }
@@ -1444,7 +1444,7 @@ File PresetHandler::checkDirectory(const String &pathName)
 		{
 			return fc.getResult();
 		}
-		else return File::nonexistent;		
+		else return File();		
 	}
 	else
 	{
@@ -1458,7 +1458,7 @@ File PresetHandler::checkDirectory(const String &pathName)
 			{
 				return fc.getResult();
 			}
-			else return File::nonexistent;
+			else return File();
 		}
 		else return f;
 
@@ -1539,7 +1539,7 @@ File PresetHandler::getPresetFileFromMenu(int menuIndexDelta, Processor *parent)
 		}
 	}
 
-	return File::nonexistent;
+	return File();
 }
 
 
@@ -1578,7 +1578,7 @@ Processor* PresetHandler::createProcessorFromClipBoard(Processor *parent)
 		ScopedPointer<XmlElement> parsedXml = XmlDocument::parse(x);
 		ValueTree v = ValueTree::fromXml(*parsedXml);
 
-		if(parsedXml->getStringAttribute("ID") != v.getProperty("ID", String::empty).toString() )
+		if(parsedXml->getStringAttribute("ID") != v.getProperty("ID", String()).toString() )
 		{
 			jassertfalse;
 			debugToConsole(parent, "Clipboard could not be loaded");
@@ -1590,7 +1590,7 @@ Processor* PresetHandler::createProcessorFromClipBoard(Processor *parent)
 #if USE_OLD_FILE_FORMAT
 		Identifier type = v.getType();
 #else
-		Identifier type = v.getProperty("Type", String::empty).toString();
+		Identifier type = v.getProperty("Type", String()).toString();
 #endif
 
 		FactoryType *t = dynamic_cast<Chain*>(parent)->getFactoryType();
@@ -1676,7 +1676,7 @@ Processor *PresetHandler::loadProcessorFromFile(File fileName, Processor *parent
 
 #if USE_OLD_FILE_FORMAT
 
-	if(fileName.getFileNameWithoutExtension() != v.getProperty("ID", String::empty).toString() )
+	if(fileName.getFileNameWithoutExtension() != v.getProperty("ID", String()).toString() )
 	{
 
 		jassertfalse;
@@ -1689,7 +1689,7 @@ Processor *PresetHandler::loadProcessorFromFile(File fileName, Processor *parent
 																			name);
 #else
 	Processor *p = MainController::createProcessor(dynamic_cast<Chain*>(parent)->getFactoryType(), 
-																			Identifier(v.getProperty("Type", String::empty)).toString(), 
+																			Identifier(v.getProperty("Type", String())).toString(), 
 																			name);
 #endif
 
@@ -1951,7 +1951,7 @@ void AboutPage::buttonClicked(Button *)
 
 }
 
-String PresetPlayerHandler::getSpecialFolder(FolderType type, const String &packageName /*= String::empty*/, bool ignoreMissingDirectory)
+String PresetPlayerHandler::getSpecialFolder(FolderType type, const String &packageName /*= String()*/, bool ignoreMissingDirectory)
 {
 	IGNORE_UNUSED_IN_RELEASE(ignoreMissingDirectory);
 

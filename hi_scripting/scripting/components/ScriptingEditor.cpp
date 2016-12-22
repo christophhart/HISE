@@ -63,7 +63,7 @@ ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
     messageBox->setColour (TextEditor::backgroundColourId, Colour (0x00ffffff));
     messageBox->setColour (TextEditor::highlightColourId, Colour (0x40ffffff));
     messageBox->setColour (TextEditor::shadowColourId, Colour (0x00000000));
-    messageBox->setText (String::empty);
+    messageBox->setText (String());
 	messageBox->addMouseListener(this, true);
 
     addAndMakeVisible (timeLabel = new Label ("new label",
@@ -256,7 +256,7 @@ String ScriptingEditor::isValidWidgetName(const String &id)
 			return  "Identifier " + id + " already exists";
 	}
 
-	return String::empty;
+	return String();
 }
 
 int ScriptingEditor::getBodyHeight() const
@@ -857,13 +857,13 @@ private:
 				it.skip();
 			}
 
-			return String::empty;
+			return String();
 		}
 		catch (String error)
 		{
 			PresetHandler::showMessageWindow("Error at parsing the control statement", error, PresetHandler::IconType::Error);
 
-			return String::empty;
+			return String();
 		}
 	}
 
@@ -905,14 +905,14 @@ private:
 				
 			}
 
-			return String::empty;
+			return String();
 
 		}
 		catch (String errorMessage)
 		{
 			PresetHandler::showMessageWindow("Error at parsing the case statement", errorMessage, PresetHandler::IconType::Error);
 
-			return String::empty;
+			return String();
 		}
 
 	}
@@ -939,13 +939,13 @@ private:
 				it.skip();
 			}
 
-			return String::empty;
+			return String();
 		}
 		catch (String error)
 		{
 			PresetHandler::showMessageWindow("Error at modifying the case statement", error, PresetHandler::IconType::Error);
 
-			return String::empty;
+			return String();
 		}
 	}
 
@@ -978,7 +978,7 @@ private:
                         }
                         else
                         {
-                            return String::empty;
+                            return String();
                         }
 					}
 				}
@@ -986,13 +986,13 @@ private:
 				it.skip();
 			}
 
-			return String::empty;
+			return String();
 
 		}
 		catch (String error)
 		{
 			PresetHandler::showMessageWindow("Error at modifying the case statement", error, PresetHandler::IconType::Error);
-			return String::empty;
+			return String();
 		}
 	}
 

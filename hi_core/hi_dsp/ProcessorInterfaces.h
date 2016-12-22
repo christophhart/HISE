@@ -461,7 +461,7 @@ public:
 	*
 	*	It scans all Processors and returns something like "Processor12" if there are 11 other Processors with the same ID
 	*/
-	static String getUniqueName(Processor *id, String name = String::empty);
+	static String getUniqueName(Processor *id, String name = String());
 
 
 	/** Returns a string array with all allowed types that this factory can produce. */

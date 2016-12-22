@@ -257,7 +257,7 @@ private:
 				return content;
 			}
 
-			return String::empty;
+			return String();
 		}
 		else
 		{
@@ -327,7 +327,7 @@ struct XmlBackupFunctions
 		}
 	}
 
-	static File getScriptDirectoryFor(ModulatorSynthChain *masterChain, const String &chainId = String::empty)
+	static File getScriptDirectoryFor(ModulatorSynthChain *masterChain, const String &chainId = String())
 	{
 		if (chainId.isEmpty())
 		{
@@ -482,7 +482,7 @@ public:
 
 #else
 
-		targetFile = new FilenameComponent("Target folder", File::nonexistent, true, true, true, "", "", "Choose target folder");
+		targetFile = new FilenameComponent("Target folder", File(), true, true, true, "", "", "Choose target folder");
 		targetFile->setSize(300, 24);
 		addCustomComponent(targetFile);
 

@@ -97,7 +97,7 @@ void SampleMapSearcher::searchInternal(ValueTree &treeToSearch, bool stripPath)
 				return;
 			}
 
-			fileNames.add(treeToSearch.getProperty("SampleMap", String::empty));	
+			fileNames.add(treeToSearch.getProperty("SampleMap", String()));	
 		}
 	}
 

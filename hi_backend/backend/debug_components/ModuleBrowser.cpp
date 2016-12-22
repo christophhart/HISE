@@ -82,7 +82,7 @@ void ModuleBrowser::ModuleItem::paint(Graphics& g)
 
 void ModuleBrowser::ModuleItem::mouseDrag(const MouseEvent&)
 {
-	startDragging(id.toString() + "::" + name, this, Image::null, true);
+	startDragging(id.toString() + "::" + name, this, Image(), true);
 }
 
 void ModuleBrowser::ModuleItem::mouseEnter(const MouseEvent&)

@@ -384,7 +384,7 @@ public:
 	*	The message will be delivered asynchronously by the main message thread, so this method will return immediately.
 	*	To call the listeners synchronously use sendSynchronousChangeMessage().
 	*/
-	void sendChangeMessage(const String &/*identifier*/ = String::empty)
+	void sendChangeMessage(const String &/*identifier*/ = String())
 	{
 		dispatcher.triggerAsyncUpdate();
 	};

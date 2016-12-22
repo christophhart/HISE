@@ -222,7 +222,7 @@ public:
 			}
 		};
 
-		ExternalFileData() : f(File::nonexistent), r(Result::fail("uninitialised")) {}
+		ExternalFileData() : f(File()), r(Result::fail("uninitialised")) {}
 
 		void setErrorMessage(const String &m)
 		{

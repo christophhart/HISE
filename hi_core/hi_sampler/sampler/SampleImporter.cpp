@@ -145,7 +145,7 @@ void SampleImporter::importNewAudioFiles(Component *childComponentOfMainEditor, 
 {
 	AlertWindowLookAndFeel laf;
 
-	AlertWindow w("Wave File Import Settings", String::empty, AlertWindow::AlertIconType::NoIcon);
+	AlertWindow w("Wave File Import Settings", String(), AlertWindow::AlertIconType::NoIcon);
 
 	w.setLookAndFeel(&laf);
 	w.setUsingNativeTitleBar(true);

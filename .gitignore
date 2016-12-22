@@ -50,3 +50,6 @@ hi_scripting/scripting/api/latex/namespaces.tex
 hi_dsp_library/doc/html
 extras/stereo effect project/Builds
 extras/stereo effect project/JuceLibraryCode/modules
+JUCE old/
+projects/plugin/JuceLibraryCode/
+projects/standalone/JuceLibraryCode/

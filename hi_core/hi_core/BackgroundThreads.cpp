@@ -73,7 +73,7 @@ void QuasiModalComponent::destroy()
 
 
 ThreadWithAsyncProgressWindow::ThreadWithAsyncProgressWindow(const String &title, bool synchronous_) :
-AlertWindow(title, String::empty, AlertWindow::AlertIconType::NoIcon),
+AlertWindow(title, String(), AlertWindow::AlertIconType::NoIcon),
 progress(0.0),
 isQuasiModal(false),
 synchronous(synchronous_)
@@ -776,7 +776,7 @@ File SettingWindows::getFileForSettingsWindow(Settings s, ProjectHandler *handle
 		
 		// You must specify the project handler for this directory!
 		jassertfalse;
-		return File::nonexistent;
+		return File();
 		break;
 	case SettingWindows::Settings::User: 
 		if (handler != nullptr) return handler->getWorkDirectory().getChildFile("user_info.xml");
@@ -789,5 +789,5 @@ File SettingWindows::getFileForSettingsWindow(Settings s, ProjectHandler *handle
 		break;
 	}
 
-	return File::nonexistent;
+	return File();
 }

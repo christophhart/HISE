@@ -151,7 +151,7 @@ void GlobalModulator::connectToGlobalModulator(const String &itemEntry)
 
 String GlobalModulator::getItemEntryFor(const GlobalModulatorContainer *c, const Processor *p)
 {
-	if (c == nullptr || p == nullptr) return String::empty;
+	if (c == nullptr || p == nullptr) return String();
 
 	return c->getId() + ":" + p->getId();
 }

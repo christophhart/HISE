@@ -742,7 +742,7 @@ String CodeDragger::getTextFromPanel()
 	}
 
 
-	return String::empty;
+	return String();
 }
 
 String CodeDragger::getText(ReferenceCountedObject*scriptComponent)
@@ -761,7 +761,7 @@ String CodeDragger::getText(ReferenceCountedObject*scriptComponent)
 
 		const String jsonProperties = sc->getScriptObjectPropertiesAsJSON();
 
-		if (jsonProperties == "{\r\n}") return String::empty;
+		if (jsonProperties == "{\r\n}") return String();
 
 		text << jsonProperties;
 		text << ");\n";
@@ -772,7 +772,7 @@ String CodeDragger::getText(ReferenceCountedObject*scriptComponent)
 
 		return text;
 	}
-	else return String::empty;
+	else return String();
 
 	
 
@@ -842,7 +842,7 @@ String CodeDragger::getTag(ReferenceCountedObject*scriptComponent, bool getEndTa
 	else
 	{
 		jassertfalse;
-		return String::empty;
+		return String();
 	}
 
 }
@@ -860,7 +860,7 @@ String CodeDragger::getNameFromPanel()
 		return text;
 	}
 
-	return String::empty;
+	return String();
 }
 
 ScriptComponentEditPanel::HiTextPropertyComponent::HiTextPropertyComponent(DynamicObject *properties_, Identifier id_, ScriptComponentEditPanel *panel_, bool useMultiLine_):

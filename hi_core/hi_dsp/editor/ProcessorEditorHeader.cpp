@@ -875,10 +875,10 @@ void ProcessorEditorHeader::createProcessorFromPopup(Processor *insertBeforeSibl
 
 		String clipBoardName = PresetHandler::getProcessorNameFromClipboard(t);
 
-		if(clipBoardName != String::empty)  m.addItem(CLIPBOARD_ITEM_MENU_INDEX, "Add " + clipBoardName + " from Clipboard");
+		if(clipBoardName != String())  m.addItem(CLIPBOARD_ITEM_MENU_INDEX, "Add " + clipBoardName + " from Clipboard");
 		else								m.addItem(-1, "No compatible Processor in clipboard.", false);
 
-		clipBoard = clipBoardName != String::empty;
+		clipBoard = clipBoardName != String();
 
 		m.addSeparator();
 		m.addSectionHeader("Add from Preset-Folder:");

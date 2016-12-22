@@ -714,7 +714,7 @@ maximum(1.0f)
 	componentProperties->setProperty(getIdFor(middlePosition), 0);
 	componentProperties->setProperty(getIdFor(defaultValue), 0);
 	componentProperties->setProperty(getIdFor(suffix), 0);
-	componentProperties->setProperty(getIdFor(filmstripImage), String::empty);
+	componentProperties->setProperty(getIdFor(filmstripImage), String());
 	componentProperties->setProperty(getIdFor(numStrips), 0);
 	componentProperties->setProperty(getIdFor(isVertical), true);
 	componentProperties->setProperty(getIdFor(mouseSensitivity), 1.0);
@@ -1549,7 +1549,7 @@ void ScriptingApi::Content::ScriptTable::restoreFromValueTree(const ValueTree &v
 {
 	ScriptComponent::restoreFromValueTree(v);
 
-	getTable()->restoreData(v.getProperty("data", String::empty));
+	getTable()->restoreData(v.getProperty("data", String()));
 
 	getTable()->sendChangeMessage();
 }
@@ -1746,7 +1746,7 @@ void ScriptingApi::Content::ScriptSliderPack::restoreFromValueTree(const ValueTr
 {
 	ScriptComponent::restoreFromValueTree(v);
 
-	getSliderPackData()->fromBase64(v.getProperty("data", String::empty));
+	getSliderPackData()->fromBase64(v.getProperty("data", String()));
 	getSliderPackData()->sendChangeMessage();
 }
 
@@ -1798,7 +1798,7 @@ image(nullptr)
 
 	setDefaultValue(ScriptComponent::Properties::saveInPreset, false);
 	setDefaultValue(Alpha, 1.0f);
-	setDefaultValue(FileName, String::empty);
+	setDefaultValue(FileName, String());
 	setDefaultValue(Offset, 0);
 	setDefaultValue(Scale, 1.0);
 	setDefaultValue(AllowCallbacks, false);
@@ -2565,7 +2565,7 @@ ScriptingApi::Content::Content(ProcessorWithScriptingContent *p) :
 ScriptingObject(p),
 height(50),
 width(-1),
-name(String::empty),
+name(String()),
 allowGuiCreation(true),
 colour(Colour(0xff777777))
 {

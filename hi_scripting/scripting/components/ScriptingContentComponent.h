@@ -108,7 +108,7 @@ public:
 	/** returns the script name that was set with Content.setName(). */
 	String getScriptName() const
 	{
-		return contentData != nullptr ? contentData->name : String::empty;
+		return contentData != nullptr ? contentData->name : String();
 	};
 
 	/** Checks if the content is valid (recompiling the script invalidates it. */

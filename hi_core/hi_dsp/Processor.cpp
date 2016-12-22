@@ -46,9 +46,9 @@ void Processor::restoreFromValueTree(const ValueTree &previouslyExportedProcesso
 
 	const ValueTree &v = previouslyExportedProcessorState;
 
-	jassert(Identifier(v.getProperty("Type", String::empty)) == getType());
+	jassert(Identifier(v.getProperty("Type", String())) == getType());
 
-	jassert(v.getProperty("ID", String::empty) == getId());
+	jassert(v.getProperty("ID", String()) == getId());
 	setBypassed(v.getProperty("Bypassed", false));
 
 	ScopedPointer<XmlElement> editorValueSet = v.getChildWithName("EditorStates").createXml();
@@ -128,7 +128,7 @@ bool Chain::restoreChain(const ValueTree &v)
 		else
 		{
 
-			Processor *p = MainController::createProcessor(getFactoryType(), v.getChild(i).getProperty("Type", String::empty).toString(), v.getChild(i).getProperty("ID"));
+			Processor *p = MainController::createProcessor(getFactoryType(), v.getChild(i).getProperty("Type", String()).toString(), v.getChild(i).getProperty("ID"));
 			
 			if(p == nullptr)
 			{
@@ -178,7 +178,7 @@ bool FactoryType::countProcessorsWithSameId(int &index, const Processor *p, Proc
 }
 
 
-String FactoryType::getUniqueName(Processor *id, String name/*=String::empty*/)
+String FactoryType::getUniqueName(Processor *id, String name/*=String()*/)
 {
 	ModulatorSynthChain *chain = id->getMainController()->getMainSynthChain();
 
@@ -303,7 +303,7 @@ String ProcessorHelpers::getScriptVariableDeclaration(const Processor *p, bool c
 	else if (is<Modulator>(p)) typeName = "Modulator";
 	else if (is<MidiProcessor>(p)) typeName = "MidiProcessor";
 	else if (is<EffectProcessor>(p)) typeName = "Effect";
-	else return String::empty;
+	else return String();
 
 	String code;
 

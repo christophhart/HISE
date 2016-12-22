@@ -120,7 +120,7 @@ String ModulatorSamplerSound::getPropertyName(Property p)
 	case UpperVelocityXFade:	return "UpperVelocityXFade";
 	case LowerVelocityXFade:	return "LowerVelocityXFade";
 	case SampleState:	return "SampleState";
-	default:			jassertfalse; return String::empty;
+	default:			jassertfalse; return String();
 	}
 }
 
@@ -197,7 +197,7 @@ String ModulatorSamplerSound::getPropertyAsString(Property p) const
 	case UpperVelocityXFade: return String(upperVeloXFadeValue);
 	case LowerVelocityXFade: return String(lowerVeloXFadeValue);
 	case SampleState:	return wrappedSound->getSampleStateAsString();
-	default:			jassertfalse; return String::empty;
+	default:			jassertfalse; return String();
 	}
 }
 

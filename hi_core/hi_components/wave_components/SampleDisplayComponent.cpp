@@ -565,11 +565,11 @@ void AudioSampleBufferComponent::mouseDown(const MouseEvent &e)
 		}
 		else
 		{
-			searchDirectory = File::nonexistent;
+			searchDirectory = File();
 		}
 		
 #else
-		File searchDirectory = File::nonexistent;
+		File searchDirectory = File();
 #endif
 
 		FileChooser fc("Load File", searchDirectory, patterns, true);

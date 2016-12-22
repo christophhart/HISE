@@ -331,7 +331,7 @@ var ScriptingApi::Content::Wrapper::storeAllControlsAsPreset(const var::NativeFu
 	{
 		CHECK_ARGUMENTS("storeAllControlsAsPreset()", 1);
 
-		thisObject->storeAllControlsAsPreset(args.arguments[0].toString(), ValueTree::invalid);
+		thisObject->storeAllControlsAsPreset(args.arguments[0].toString(), ValueTree());
 	}
 
 	return var::undefined();

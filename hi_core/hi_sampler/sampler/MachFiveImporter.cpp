@@ -101,5 +101,5 @@ ValueTree MachFiveImporter::getSampleMapValueTree(const File &machFiveFile, cons
 		}		
 	}
 
-	return ValueTree::invalid;
+	return ValueTree();
 }

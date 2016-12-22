@@ -68,7 +68,7 @@ public:
 
 		tokens.clear();
 
-		tokens.addTokens(firstName, separator, String::empty);
+		tokens.addTokens(firstName, separator, String());
 
 		fileNameEditor->setText(firstName, dontSendNotification);
 		propertiesEditor->setText(String(tokens.size()), dontSendNotification);
@@ -121,7 +121,7 @@ public:
 
 			StringArray currentTokens;
 
-			currentTokens.addTokens(relativeFileNames[i], currentSeparator, String::empty);
+			currentTokens.addTokens(relativeFileNames[i], currentSeparator, String());
 
 			for(int t = 0; t < tokenPanels.size(); t++)
 			{

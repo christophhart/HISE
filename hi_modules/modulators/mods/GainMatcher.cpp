@@ -50,7 +50,7 @@ String GainMatcherModulator::getConnectedCollectorId() const
 	{
 		return connectedCollector.get()->getId();
 	}
-	else return String::empty;
+	else return String();
 }
 
 void GainMatcherModulator::setConnectedCollectorId(const String &newId)

@@ -186,7 +186,7 @@ File FileChangeListener::getWatchedFile(int index) const
 		return watchers[index]->getFile();
 
 	}
-	else return File::nonexistent;
+	else return File();
 }
 
 void FileChangeListener::showPopupForFile(int index, int charNumberToDisplay/*=0*/, int lineNumberToDisplay/*=-1*/)
@@ -570,7 +570,7 @@ void JavascriptProcessor::saveScript(ValueTree &v) const
 
 void JavascriptProcessor::restoreScript(const ValueTree &v)
 {
-	String x = v.getProperty("Script", String::empty);
+	String x = v.getProperty("Script", String());
 	parseSnippetsFromString(x, true);
 
 	if (Processor* parent = ProcessorHelpers::findParentProcessor(dynamic_cast<Processor*>(this), true))
@@ -675,7 +675,7 @@ String JavascriptProcessor::getBase64CompressedScript() const
 	return mos.getMemoryBlock().toBase64Encoding();
 }
 
-void JavascriptProcessor::mergeCallbacksToScript(String &x, const String& sepString/*=String::empty*/) const
+void JavascriptProcessor::mergeCallbacksToScript(String &x, const String& sepString/*=String()*/) const
 {
 	for (int i = 0; i < getNumSnippets(); i++)
 	{

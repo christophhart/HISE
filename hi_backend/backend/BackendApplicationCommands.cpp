@@ -1474,7 +1474,7 @@ void BackendCommandTarget::Actions::closeProject(BackendProcessorEditor *bpe)
     
     if (!shouldDiscard) return;
     
-	GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(File::nonexistent);
+	GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(File());
 
 
 	bpe->getBackendProcessor()->createUserPresetData();
@@ -1685,7 +1685,7 @@ void BackendCommandTarget::Actions::archiveProject(BackendProcessorEditor * bpe)
 			return;
 	}
 
-	FileChooser fc("Select archive destination", File::nonexistent, "*.zip");
+	FileChooser fc("Select archive destination", File(), "*.zip");
 
 	if (fc.browseForFileToSave(true))
 	{

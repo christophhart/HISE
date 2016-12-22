@@ -32,7 +32,7 @@ SfzGroupSelectorComponent::SfzGroupSelectorComponent ()
     addAndMakeVisible (rrGroupSelector = new ComboBox ("new combo box"));
     rrGroupSelector->setEditableText (false);
     rrGroupSelector->setJustificationType (Justification::centredLeft);
-    rrGroupSelector->setTextWhenNothingSelected (String::empty);
+    rrGroupSelector->setTextWhenNothingSelected (String());
     rrGroupSelector->setTextWhenNoChoicesAvailable (TRANS("(no choices)"));
     rrGroupSelector->addListener (this);
 

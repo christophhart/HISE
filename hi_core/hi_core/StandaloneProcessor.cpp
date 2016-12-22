@@ -127,12 +127,12 @@ XmlElement * AudioProcessorDriver::getSettings()
 
 void AudioProcessorDriver::initialiseAudioDriver(XmlElement *deviceData)
 {
-	if (deviceData != nullptr && deviceManager->initialise(0, 2, deviceData, false) == String::empty)
+	if (deviceData != nullptr && deviceManager->initialise(0, 2, deviceData, false) == String())
 	{
 		callback->setProcessor(dynamic_cast<AudioProcessor*>(this));
 
 		deviceManager->addAudioCallback(callback);
-		deviceManager->addMidiInputCallback(String::empty, callback);
+		deviceManager->addMidiInputCallback(String(), callback);
 	}
 	else
 	{
@@ -141,6 +141,6 @@ void AudioProcessorDriver::initialiseAudioDriver(XmlElement *deviceData)
 		callback->setProcessor(dynamic_cast<AudioProcessor*>(this));
 
 		deviceManager->addAudioCallback(callback);
-		deviceManager->addMidiInputCallback(String::empty, callback);
+		deviceManager->addMidiInputCallback(String(), callback);
 	}
 }

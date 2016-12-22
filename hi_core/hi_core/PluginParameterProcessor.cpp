@@ -134,7 +134,7 @@ const String PluginParameterAudioProcessor::getParameterText (int index)
 			
 		return pm->getParameterAsText();
 	}
-	else return String::empty;
+	else return String();
 }
 
 //==============================================================================

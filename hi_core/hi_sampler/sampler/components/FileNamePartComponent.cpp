@@ -63,7 +63,7 @@ FileNamePartComponent::FileNamePartComponent (const String &token)
     displayGroupLabel->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
 
     addAndMakeVisible (propertyLabel = new PopupLabel ("new label",
-                                                       String::empty));
+                                                       String()));
     propertyLabel->setTooltip (TRANS("A selection of useful properties that can be set via the filename token."));
     propertyLabel->setFont (Font ("Khmer UI", 14.00f, Font::plain));
     propertyLabel->setJustificationType (Justification::centred);
@@ -85,7 +85,7 @@ FileNamePartComponent::FileNamePartComponent (const String &token)
     displayGroupLabel2->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
 
     addAndMakeVisible (dataLabel = new PopupLabel ("new label",
-                                                   String::empty));
+                                                   String()));
     dataLabel->setTooltip (TRANS("Specifies the type of data which this token contains."));
     dataLabel->setFont (Font ("Khmer UI", 14.00f, Font::plain));
     dataLabel->setJustificationType (Justification::centred);
@@ -107,7 +107,7 @@ FileNamePartComponent::FileNamePartComponent (const String &token)
     displayGroupLabel3->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
 
     addAndMakeVisible (itemLabel = new Label ("new label",
-                                              String::empty));
+                                              String()));
     itemLabel->setTooltip (TRANS("Enter all existing items"));
     itemLabel->setFont (Font ("Khmer UI", 14.00f, Font::plain));
     itemLabel->setJustificationType (Justification::centred);
@@ -129,7 +129,7 @@ FileNamePartComponent::FileNamePartComponent (const String &token)
     displayGroupLabel4->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
 
     addAndMakeVisible (valueLabel = new Label ("new label",
-                                               String::empty));
+                                               String()));
     valueLabel->setTooltip (TRANS("enter the value list that are associated to the item list"));
     valueLabel->setFont (Font ("Khmer UI", 14.00f, Font::plain));
     valueLabel->setJustificationType (Justification::centred);

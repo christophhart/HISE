@@ -56,7 +56,7 @@ ViewInfo::ViewInfo(ModulatorSynthChain *synthChain, Processor *rootProcessor_, c
 			pv->parentId = c->getParentProcessor()->getId();
 		}
 		else
-			pv->parentId = String::empty;
+			pv->parentId = String();
 
 		states.add(pv);
 	}

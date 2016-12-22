@@ -222,11 +222,11 @@ const ValueTree MainController::SampleManager::getLoadedSampleMap(const String &
 {
 	for (int i = 0; i < sampleMaps.getNumChildren(); i++)
 	{
-		String childFileName = sampleMaps.getChild(i).getProperty("SampleMapIdentifier", String::empty);
+		String childFileName = sampleMaps.getChild(i).getProperty("SampleMapIdentifier", String());
 		if (childFileName == fileName) return sampleMaps.getChild(i);
 	}
 
-	return ValueTree::invalid;
+	return ValueTree();
 }
 
 void MainController::SampleManager::setDiskMode(DiskMode mode) noexcept

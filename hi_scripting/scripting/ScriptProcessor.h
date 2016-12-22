@@ -310,7 +310,7 @@ public:
 		*
 		*	SnippetDocument doc("onControl", "widget value"); // 2 parameters, 'widget' and 'value'.
 		*/
-		SnippetDocument(const Identifier &callbackName_, const String &parameters=String::empty);
+		SnippetDocument(const Identifier &callbackName_, const String &parameters=String());
 
 		/** Returns the name of the SnippetDocument. */
 		const Identifier &getCallbackName() const { return callbackName; };
@@ -386,7 +386,7 @@ public:
 
 	HiseJavascriptEngine *getScriptEngine() { return scriptEngine; }
 
-	void mergeCallbacksToScript(String &x, const String& sepString=String::empty) const;
+	void mergeCallbacksToScript(String &x, const String& sepString=String()) const;
 	bool parseSnippetsFromString(const String &x, bool clearUndoHistory = false);
 
 	void setCompileProgress(double progress);

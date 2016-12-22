@@ -260,7 +260,7 @@ private:
         
         for(int i = 0; i < v.getNumChildren(); i++)
         {
-            favorites.add(new Favorite("", File::nonexistent));
+            favorites.add(new Favorite("", File()));
         
             favorites.getLast()->restoreFromValueTree(v.getChild(i));
         }

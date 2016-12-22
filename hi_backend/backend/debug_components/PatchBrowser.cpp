@@ -712,7 +712,7 @@ void PatchBrowser::PatchItem::fillPopupMenu(PopupMenu &m)
 
 		String clipBoardName = PresetHandler::getProcessorNameFromClipboard(t);
 
-		if (clipBoardName != String::empty)
+		if (clipBoardName != String())
 		{
 			m.addItem((int)ModuleDragTarget::ViewSettings::PasteProcessorFromClipboard, "Paste " + clipBoardName + " from clipboard", true, false);
 		}

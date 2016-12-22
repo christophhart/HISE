@@ -226,7 +226,7 @@ public:
 	*/
 	bool hasUnsavedChanges() const
 	{
-		return false; //fileOnDisk == File::nonexistent || changed;
+		return false; //fileOnDisk == File() || changed;
 	}
 
 	/** Returns the file on the disk. */
@@ -263,7 +263,7 @@ public:
 	/** returns the default sample directory (the sample map directory + '/samples'. */
 	String getSampleDirectory() const
 	{
-		if(fileOnDisk == File::nonexistent) return String::empty;
+		if(fileOnDisk == File()) return String();
 
 		return fileOnDisk.getParentDirectory().getFullPathName() + "/samples/";
 	};

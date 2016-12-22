@@ -54,7 +54,7 @@ class Unlocker: public OnlineUnlockStatus
 {
 public:
     Unlocker():
-        state(String::empty)
+        state(String())
     {}
 
 	String getProductID() override;;
@@ -281,7 +281,7 @@ private:
 		FolderReference() :
 			directoryType(SubDirectories::numSubDirectories),
 			isReference(false),
-			file(File::nonexistent)
+			file(File())
 		{};
 
 		FolderReference(const FolderReference& other) noexcept:
@@ -426,7 +426,7 @@ class UserPresetHandler
 {
 public:
     
-    static void saveUserPreset(ModulatorSynthChain *chain, const String& targetFile=String::empty);
+    static void saveUserPreset(ModulatorSynthChain *chain, const String& targetFile=String());
     
     static void loadUserPreset(ModulatorSynthChain *chain, const File &fileToLoad);
 
@@ -453,7 +453,7 @@ public:
 	};
 
 	/** Saves the Processor into a subfolder of the directory provided with getPresetFolder(). */
-	static void saveProcessorAsPreset(Processor *p, const String &directory=String::empty);
+	static void saveProcessorAsPreset(Processor *p, const String &directory=String());
 	
 	static void copyProcessorToClipboard(Processor *p);
 
@@ -499,14 +499,14 @@ public:
     {
 		jassert(extension.isEmpty() || extension.startsWith("*"));
 
-        FileChooser fc("Load File", File::nonexistent, extension, true);
+        FileChooser fc("Load File", File(), extension, true);
         
         if(fc.browseForFileToOpen())
         {
             
             return fc.getResult();
         }
-        return File::nonexistent;
+        return File();
     }
     
 	
@@ -515,7 +515,7 @@ public:
     {
 		jassert(extension.isEmpty() || extension.startsWith("*"));
 
-        FileChooser fc("Save File", File::nonexistent, extension);
+        FileChooser fc("Save File", File(), extension);
         
         if(fc.browseForFileToSave(true))
         {
@@ -582,7 +582,7 @@ public:
 			newTree.addChild(editorStateValueTree, -1, nullptr);
 		}
 
-		ScopedPointer<XmlElement> macroControlData = XmlDocument::parse(v.getProperty("MacroControls", String::empty));
+		ScopedPointer<XmlElement> macroControlData = XmlDocument::parse(v.getProperty("MacroControls", String()));
 
 		if(macroControlData != nullptr)
 		{
@@ -748,7 +748,7 @@ public:
 		}
 		
 
-		return File::nonexistent;
+		return File();
 		
 		
 	}
@@ -795,11 +795,11 @@ public:
             XmlElement *setting = xml->getChildByName(settingId);
             
             if(setting != nullptr) return setting->getStringAttribute("value");
-            else return String::empty;
+            else return String();
         }
     
         jassertfalse;
-        return String::empty;
+        return String();
     }
     
     static void setSettingsValue(const String &settingId, const String &value)
@@ -943,7 +943,7 @@ public:
 	};
 
 	/** This returns the folder for the package structure. */
-	static String getSpecialFolder(FolderType type, const String &packageName = String::empty, bool ignoreNonExistingDirectory=false);
+	static String getSpecialFolder(FolderType type, const String &packageName = String(), bool ignoreNonExistingDirectory=false);
 
 	static void checkAndCreatePackage(const String &packageName);
 

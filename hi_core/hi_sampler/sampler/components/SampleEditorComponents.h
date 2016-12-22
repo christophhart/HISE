@@ -126,13 +126,13 @@ public:
 
 	};
 
-	PopupLabel(const String &name=String::empty, const String &initialText=String::empty):
+	PopupLabel(const String &name=String(), const String &initialText=String()):
 		Label(name, initialText),
 		currentIndex(0)
 	{};
 
 	/** Adds an option to the popup menu. */
-	void addOption(const String &newOption, const String &toolTip = String::empty) { options.add(newOption); toolTips.add(toolTip); };
+	void addOption(const String &newOption, const String &toolTip = String()) { options.add(newOption); toolTips.add(toolTip); };
 
 	void setTickedState(BigInteger state)
 	{

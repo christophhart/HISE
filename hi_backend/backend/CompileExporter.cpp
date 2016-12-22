@@ -133,7 +133,7 @@ CompileExporter::BuildOption CompileExporter::showCompilePopup(String &/*publicK
 {
 	AlertWindowLookAndFeel pplaf;
 
-	AlertWindow w("Compile Patch as plugin", String::empty, AlertWindow::AlertIconType::NoIcon);
+	AlertWindow w("Compile Patch as plugin", String(), AlertWindow::AlertIconType::NoIcon);
 
 	w.setLookAndFeel(&pplaf);
 

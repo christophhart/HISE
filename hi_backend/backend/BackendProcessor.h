@@ -106,7 +106,7 @@ public:
 	{
 		ValueTree v = ValueTree::readFromData(data, sizeInBytes);
 
-		String fileName = v.getProperty("ProjectRootFolder", String::empty);
+		String fileName = v.getProperty("ProjectRootFolder", String());
 
 		if (fileName.isNotEmpty())
 		{

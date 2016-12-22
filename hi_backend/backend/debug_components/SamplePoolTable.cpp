@@ -260,7 +260,7 @@ template <class FileType> String ExternalFileTable<FileType>::getTextForTableCel
 	{
 		return info[columnNumber-1];
 	}
-	else return String::empty;
+	else return String();
 
 	
 }

@@ -481,11 +481,11 @@ public:
 		case Decibel:		return " dB";
 		case Time:			return " ms";
 		case Pan:			return panValue > 0.0 ? "R" : "L";
-		case TempoSync:		return String::empty;
-		case Linear:		return String::empty;
-		case Discrete:		return String::empty;
+		case TempoSync:		return String();
+		case Linear:		return String();
+		case Discrete:		return String();
 		case NormalizedPercentage:	return "%";
-		default:			return String::empty;
+		default:			return String();
 		}
 	}
 

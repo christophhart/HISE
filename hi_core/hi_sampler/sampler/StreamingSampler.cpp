@@ -636,7 +636,7 @@ void StreamingSamplerSound::FileReader::setFile(const String &fileName)
 	else
 	{
 		faultyFileName = fileName;
-		loadedFile = File::nonexistent;
+		loadedFile = File();
 	}
 }
 
@@ -678,7 +678,7 @@ void StreamingSamplerSound::FileReader::refreshFileInformation()
 
 	if (!missing)
 	{
-        faultyFileName = String::empty;
+        faultyFileName = String();
         
 		const String fileExtension = loadedFile.getFileExtension();
 

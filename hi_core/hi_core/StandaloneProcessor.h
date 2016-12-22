@@ -162,7 +162,7 @@ public:
 	{
 		
 		deviceManager->removeAudioCallback(callback);
-		deviceManager->removeMidiInputCallback(String::empty, callback);
+		deviceManager->removeMidiInputCallback(String(), callback);
         deviceManager->closeAudioDevice();
         
 		callback = nullptr;

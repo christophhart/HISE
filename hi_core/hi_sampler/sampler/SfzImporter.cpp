@@ -309,7 +309,7 @@ void SfzImporter::importSfzFile()
 
 	if (globalSfzObject->groups.size() > 1)
 	{
-		AlertWindow w("Group Import Settings", String::empty, AlertWindow::AlertIconType::NoIcon);
+		AlertWindow w("Group Import Settings", String(), AlertWindow::AlertIconType::NoIcon);
 
 		ScopedPointer<Viewport> viewport = new Viewport();
 

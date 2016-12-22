@@ -97,9 +97,9 @@ String ApiHelpers::getValueType(const var &v)
 		DynamicScriptingObject * obj = dynamic_cast<DynamicScriptingObject*>(v.getDynamicObject());
 
 		if (obj != nullptr) return obj->getObjectName().toString();
-		else return String::empty;
+		else return String();
 	}
-	else return String::empty;
+	else return String();
 }
 
 

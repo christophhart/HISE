@@ -134,7 +134,7 @@ public:
 		if(!isClear)
 		{
 			isClear = true;
-			currentText = String::empty;
+			currentText = String();
 			counterSinceLastTextChange = 0;
 			repaint();
 		}

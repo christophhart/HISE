@@ -120,7 +120,7 @@ String ScriptContentComponent::getContentTooltip() const
 	{
 		return contentData->tooltip;
 	}
-	else return String::empty;
+	else return String();
 }
 
 Colour ScriptContentComponent::getContentColour()

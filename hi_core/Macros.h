@@ -80,7 +80,7 @@ static juce::Typeface::Ptr sourceCodeProBoldTypeFace = juce::Typeface::createSys
 
 #define GET_PROJECT_HANDLER(x)(x->getMainController()->getSampleManager().getProjectHandler())
 
-#define loadTable(tableVariableName, nameAsString) { const var savedData = v.getProperty(nameAsString, var::null); tableVariableName->restoreData(savedData); }
+#define loadTable(tableVariableName, nameAsString) { const var savedData = v.getProperty(nameAsString, var()); tableVariableName->restoreData(savedData); }
 #define saveTable(tableVariableName, nameAsString) ( v.setProperty(nameAsString, tableVariableName->exportData(), nullptr) )
 
 #if JUCE_DEBUG

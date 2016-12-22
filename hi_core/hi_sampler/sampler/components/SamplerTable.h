@@ -28,8 +28,8 @@ class RetriggerLabel : public Label
 
 public:
 
-	RetriggerLabel(const String& componentName = String::empty,
-		const String& labelText = String::empty) :
+	RetriggerLabel(const String& componentName = String(),
+		const String& labelText = String()) :
 		Label(componentName, labelText),
 		notifyIfNothingChanges(false)
 	{}

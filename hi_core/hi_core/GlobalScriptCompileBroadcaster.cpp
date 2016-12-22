@@ -100,5 +100,5 @@ String GlobalScriptCompileBroadcaster::getExternalScriptFromCollection(const Str
 
 	// Hitting this assert means you try to get a script that wasn't exported.
 	jassertfalse;
-	return String::empty;
+	return String();
 }

@@ -278,7 +278,7 @@ void SampleWriter::run()
 
 SampleMap::SampleMap(ModulatorSampler *sampler_):
 	sampler(sampler_),
-	fileOnDisk(File::nonexistent),
+	fileOnDisk(File()),
 	changed(false),
 	mode(Undefined)
 {
@@ -323,7 +323,7 @@ void SampleMap::changeListenerCallback(SafeChangeBroadcaster *)
 void SampleMap::clear()
 {
     mode = Undefined;
-    fileOnDisk = File::nonexistent;
+    fileOnDisk = File();
     sampleMapId = Identifier("unused");
     changed = false;
     
@@ -373,7 +373,7 @@ void SampleMap::saveIfNeeded()
 ValueTree SampleMap::exportAsValueTree() const
 {
 	// The file must be set before exporting the samplemap!
-	//jassert(!saveRelativePaths && fileOnDisk != File::nonexistent);
+	//jassert(!saveRelativePaths && fileOnDisk != File());
 
 	ValueTree v("samplemap");
 
@@ -415,13 +415,13 @@ void SampleMap::replaceFileReferences(ValueTree &soundTree) const
 {
 	if (sampler->getMainController()->getSampleManager().shouldUseRelativePathToProjectFolder())
 	{
-		const String reference = GET_PROJECT_HANDLER(sampler).getFileReference(soundTree.getProperty("FileName", String::empty), ProjectHandler::SubDirectories::Samples);
+		const String reference = GET_PROJECT_HANDLER(sampler).getFileReference(soundTree.getProperty("FileName", String()), ProjectHandler::SubDirectories::Samples);
 
 		soundTree.setProperty("FileName", reference, nullptr);
 	}
 	else if (sampler->useGlobalFolderForSaving())
 	{
-		soundTree.setProperty("FileName", sampler->getGlobalReferenceForFile(soundTree.getProperty("FileName", String::empty)), nullptr);
+		soundTree.setProperty("FileName", sampler->getGlobalReferenceForFile(soundTree.getProperty("FileName", String())), nullptr);
 	}
 }
 
@@ -660,7 +660,7 @@ void SampleMap::loadSamplesFromDirectory(const ValueTree &v)
 {
 	jassert(!v.hasProperty("Monolithic"));
 
-	String fileName = v.getProperty("FileName", String::empty);
+	String fileName = v.getProperty("FileName", String());
 
 	const ValueTree *treeToUse;
 
@@ -673,7 +673,7 @@ void SampleMap::loadSamplesFromDirectory(const ValueTree &v)
 
 		for (int i = 0; i < globalTree.getNumChildren(); i++)
 		{
-			const String sampleFileName = v.getChild(i).getProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::FileName), String::empty);
+			const String sampleFileName = v.getChild(i).getProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::FileName), String());
 
 			jassert(sampler->isReference(sampleFileName));
 
@@ -734,9 +734,9 @@ void SampleMap::loadSamplesFromDirectory(const ValueTree &v)
 	sampler->setShouldUpdateUI(true);
 	sampler->sendChangeMessage();
 
-	if(fileOnDisk != File::nonexistent && (treeToUse->getNumChildren() != 0))
+	if(fileOnDisk != File() && (treeToUse->getNumChildren() != 0))
 	{
-		String firstFileName = treeToUse->getChild(0).getProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::FileName), String::empty);
+		String firstFileName = treeToUse->getChild(0).getProperty(ModulatorSamplerSound::getPropertyName(ModulatorSamplerSound::FileName), String());
 
 		File sampleDirectory = File(GET_PROJECT_HANDLER(sampler).getFilePath(firstFileName, ProjectHandler::SubDirectories::Samples)).getParentDirectory();
 
