@@ -380,11 +380,7 @@ void BorderPanel::paint(Graphics &g)
 	{
 		g.setColour(Colours::black);
 		g.setOpacity(1.0f);
-		//g.setImageResamplingQuality(Graphics::lowResamplingQuality);
-
-        const double scaleFactor = Desktop::getInstance().getDisplays().getMainDisplay().scale;
-
-        
+		
         g.drawImageWithin(image, 0, 0, getWidth() , getHeight(), RectanglePlacement::centred);
 	}
 	else

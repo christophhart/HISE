@@ -417,11 +417,8 @@ void HiToggleButton::buttonClicked(Button *b)
 	if(!checkLearnMode())
 	{
 		const float newValue = b->getToggleState() ? 1.0f : 0.0f;
-		const float oldValue = 1.0f - newValue;
-
+		
 		setAttributeWithUndo(newValue);
-
-		//getProcessor()->setAttribute(parameter, b->getToggleState(), dontSendNotification);
 	}
 }
 

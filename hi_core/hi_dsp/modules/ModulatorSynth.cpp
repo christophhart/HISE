@@ -842,8 +842,6 @@ void ModulatorSynth::noteOn(int midiChannel, int midiNoteNumber, float velocity)
 
 void ModulatorSynth::noteOff(const HiseEvent &m)
 {
-	const int midiNoteNumber = m.getNoteNumber();
-	
 	float velocity = m.getFloatVelocity();
 	const int midiChannel = m.getChannel();
 

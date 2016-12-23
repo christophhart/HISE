@@ -1073,7 +1073,7 @@ String ProjectHandler::getFilePath(const String &pathToFile, SubDirectories subD
 
     static String id = "{PROJECT_FOLDER}";
 
-	static int idLength = id.length();
+
  
 #if USE_FRONTEND
 
@@ -1084,6 +1084,7 @@ String ProjectHandler::getFilePath(const String &pathToFile, SubDirectories subD
 	return Frontend::getSampleLocationForCompiledPlugin().getChildFile(pathToFile.replace(id, "")).getFullPathName();
 #else
 
+    static int idLength = id.length();
 
 #if JUCE_MAC
     String pathToUse = pathToFile.replace("\\", "/");

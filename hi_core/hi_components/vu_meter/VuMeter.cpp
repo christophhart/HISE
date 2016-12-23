@@ -52,6 +52,8 @@ void VuMeter::paint(Graphics &g)
 	case MonoVertical:		drawMonoMeter(g); break;
 	case StereoHorizontal:	drawStereoMeter(g); break;
 	case StereoVertical:	drawStereoMeter(g); break;
+    case MultiChannelVertical:
+    case MultiChannelHorizontal:
 	case numTypes:          break;
 	}
 }
