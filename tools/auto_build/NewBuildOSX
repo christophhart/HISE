@@ -86,7 +86,7 @@ fi
 
 echo "Compiling VST / AU Plugins..."
 
-xcodebuild -project "$plugin_folder/Builds/MacOSX/HISE.xcodeproj" -configuration "Release"
+xcodebuild -project "$plugin_folder/Builds/MacOSX/HISE.xcodeproj" -configuration "Release" | xcpretty
 
 if [ $? != "0" ];
 then
@@ -99,7 +99,7 @@ echo "OK"
 
 echo "Compiling Standalone App..."
 
-xcodebuild -project "$standalone_folder/Builds/MacOSX/HISE Standalone.xcodeproj" -configuration "Release"
+xcodebuild -project "$standalone_folder/Builds/MacOSX/HISE Standalone.xcodeproj" -configuration "Release" | xcpretty
 
 if [ $? != "0" ];
 then
