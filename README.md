@@ -1,9 +1,11 @@
 # HISE
 
-**HISE is a cross-platform open source audio application for building virtual instruments.**
 
-It emphasizes on sampling, but includes some basic synthesis features for making hybrid instruments. 
-You can build patches, design a custom interface and compile them as VST / AU plugin or iOS app. 
+**The open source framework for sample based instruments.**
+
+HISE is a cross-platform open source audio application for building virtual instruments. 
+It emphasizes on sampling, but includes some basic synthesis features for making hybrid instruments as well as audio effects. 
+You can export the instruments as VST / AU / AAX plugins or as standalone application for Windows / macOS or iOS.
 
 More information:
 
@@ -17,6 +19,7 @@ HISE is tested on Windows and OSX with the following hosts:
 - Ableton Live
 - Logic
 - Reaper
+- Protools
 
 It supports x86 and x64 on Windows, altough the 64bit version is highly recommended.
 
@@ -63,34 +66,36 @@ It supports x86 and x64 on Windows, altough the 64bit version is highly recommen
 - API for adding DSP modules via dynamic libraries
 - one click C++ build system for building VST / AU / AAX plugins (based on JUCE) from within HISE (using msbuild / xcodebuild)
 
+### Export
+
+- export HISE patches as plugin or standalone application
+- supported plugin architectures: AAX / VST / AU
+- supported platforms: Windows / macOS / iOS (I can't offer actual Linux support because of my Linux-noobness, but feel free to try compiling it and let me know if something doesn't work)
+
 ## How to compile HISE
 
-1. Clone this repository
-
-2. Copy the JUCE fork (you don't need version control for this, this rarely changes): 
-   [JUCE 4 HISE](https://github.com/christophhart/JUCE4HISE). Create a sub directory in the HISE repository root folder called "JUCE" and put all files there.
+1. Clone this repository. It also includes the (slightly modified) JUCE source code, so it might take a while.
 
 3. Get all necessary 3rd party code:
 	- [ASIO SDK](http://www.steinberg.net/sdk_downloads/asiosdk2.3.zip) for standalone support on Windows.
 	- [VST SDK](http://www.steinberg.net/sdk_downloads/vstsdk366_27_06_2016_build_61.zip) for building VST plugins
 	- [Intel Performance Primitives](https://software.intel.com/en-us/articles/free-ipp) (this is optional but heavily increases the performance of the convolution reverb)
 
-4. Get the customized Introjucer (a fork from the original JUCE 4.1 code with support for IPP): 
-    - [OS X](https://github.com/christophhart/JUCE4HISE/files/492650/Introjucer.OS.X.zip)
-    - [Windows](https://github.com/christophhart/JUCE4HISE/files/492662/The.Introjucer.Windows.zip)
+4. Get the Projucer from ROLI. You can build it yourself or just use these compiled binaries: 
+    - [macOS](https://github.com/christophhart/JUCE4HISE/releases/download/projucer/Projucer_macOS.zip)
+    - [Windows](https://github.com/christophhart/JUCE4HISE/releases/download/projucer/Projucer.exe)
 
-5. Open the Introjucer and load the HISE project (either `projects/standalone/HISE Standalone.jucer` or `project/plugin/HISE.jucer`)
+5. Open the Projucer and load the HISE project (either `projects/standalone/HISE Standalone.jucer` or `project/plugin/HISE.jucer`)
 
 6. Make sure the VST / ASIO path settings is correct on your system. If you don't have IPP installed, set the USE_IPP flag in the hi_core module to 0.
 
-7. Click on "Save Project and open in IDE" to load the project in XCode / Visual Studio
+7. Click on "Save Project and open in IDE" to load the project in XCode / Visual Studio. 
 
 8. Hit compile and wait...
 
-
 ## Licence
 
-GPL v3 or a commercial licence for closed source usage. HISE is based on JUCE, which must be separately licenced.
+HISE is licenced under the GPL v3, but there will be a commercial licence for closed source usage. Every instrument you'll build will inheritate this licence so in order to release a closed source product you'll have to obtain a HISE commercial licence as well as a JUCE commercial licence. Please get in touch with me for further informations.
 
 ## Included frameworks
 
