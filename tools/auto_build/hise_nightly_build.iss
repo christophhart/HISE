@@ -40,15 +40,15 @@ Name: "Standalone64bit"; Description: "64bit Standalone application"; ExtraDiskS
 Name: "Standalone32bit"; Description: "32bit Standalone application"; ExtraDiskSpaceRequired: 9000
 
 [Files]
-Source: "..\..\projects\standalone\Builds\VisualStudio2013\x64\Release 64bit\HISE Standalone x64.exe"; DestDir: "{app}"; Flags: 64bit; Components: Standalone64bit
-Source: "..\..\projects\standalone\Builds\VisualStudio2013\Release\HISE Standalone.exe"; DestDir: "{app}"; Flags: 32bit; Components: Standalone32bit
+Source: "..\..\projects\standalone\Builds\VisualStudio2015\x64\Release 64bit\HISE.exe"; DestDir: "{app}"; Flags: 64bit; Components: Standalone64bit
+Source: "..\..\projects\standalone\Builds\VisualStudio2015\Release\HISE x86.exe"; DestDir: "{app}"; Flags: 32bit; Components: Standalone32bit
 Source: "C:\Program Files\VST Plugins\HISE x64.dll"; DestDir: "{code:Getx64bitDir}"; Flags: 64bit; Components: x64Plugin
-Source: "..\..\projects\plugin\Builds\VisualStudio2013\Release\HISE x86.dll"; DestDir: "{code:Getx86bitDir}"; Flags: 32bit; Components: x86Plugin
+Source: "..\..\projects\plugin\Builds\VisualStudio2015\Release\HISE x86.dll"; DestDir: "{code:Getx86bitDir}"; Flags: 32bit; Components: x86Plugin
 
 [Icons]
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"; 
-Name: "{group}\HISE Standalone"; Filename: "{app}\HISE Standalone.exe"; WorkingDir: "{app}"; IconFilename: "{app}\HISE Standalone.exe"; IconIndex: 0; Components: Standalone32bit
-Name: "{group}\HISE Standalone x64"; Filename: "{app}\HISE Standalone x64.exe"; WorkingDir: "{app}"; IconFilename: "{app}\HISE Standalone x64.exe"; IconIndex: 0; Components: Standalone64bit
+Name: "{group}\HISE x86"; Filename: "{app}\HISE x86.exe"; WorkingDir: "{app}"; IconFilename: "{app}\HISE x86.exe"; IconIndex: 0; Components: Standalone32bit
+Name: "{group}\HISE"; Filename: "{app}\HISE.exe"; WorkingDir: "{app}"; IconFilename: "{app}\HISE.exe"; IconIndex: 0; Components: Standalone64bit
 
 [Dirs]
 

@@ -86,11 +86,13 @@ if %build_version% NEQ %prev_version% (
 REM ===========================================================
 REM Compiling
 
-call "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" x86
 
 echo Compiling 32bit VST Plugins
 
-msbuild.exe %plugin_project% /t:Build /p:Configuration=Release;Platform=Win32
+
+set VisualStudioVersion=14.0
+set Platform=X86 
+"C:\Program Files (x86)\MSBuild\14.0\Bin\MsBuild.exe" %plugin_project% /t:Build /p:Configuration=Release;Platform=Win32 /verbosity:minimal
 
 if %errorlevel% NEQ 0 (
 	echo ========================================================================
@@ -104,7 +106,7 @@ echo OK
 
 echo Compiling 32bit Standalone App...
 
-msbuild.exe %standalone_project% /t:Build /p:Configuration=Release;Platform=Win32
+"C:\Program Files (x86)\MSBuild\14.0\Bin\MsBuild.exe"  %standalone_project% /t:Build /p:Configuration=Release;Platform=Win32
 
 if %errorlevel% NEQ 0 (
 	echo ========================================================================
@@ -116,9 +118,9 @@ if %errorlevel% NEQ 0 (
 
 echo Compiling 64bit VST Plugins
 
-call "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat"
+set Platform=X64
 
-msbuild.exe %plugin_project% /t:Build /p:Configuration="Release 64bit";Platform=x64 /v:m
+"C:\Program Files (x86)\MSBuild\14.0\Bin\MsBuild.exe"  %plugin_project% /t:Build /p:Configuration="Release 64bit";Platform=x64 /v:m
 
 if %errorlevel% NEQ 0 (
 	echo ========================================================================
@@ -132,7 +134,7 @@ echo OK
 
 echo Compiling 64bit Standalone App...
 
-msbuild.exe %standalone_project% /t:Build /p:Configuration="Release 64bit";Platform=x64 /v:m
+"C:\Program Files (x86)\MSBuild\14.0\Bin\MsBuild.exe"  %standalone_project% /t:Build /p:Configuration="Release 64bit";Platform=x64 /v:m
 
 if %errorlevel% NEQ 0 (
 	echo ========================================================================
