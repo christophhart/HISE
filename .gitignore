@@ -8,6 +8,7 @@ tools/api generator/xml/
 changelog.rtf
 projects/plugin/Builds/
 projects/standalone/Builds/
+!projects/standalone/Builds/LinuxMakefile/Makefile
 projects/standalone/JuceLibraryCode/modules/
 projects/plugin/JuceLibraryCode/modules/
 projects/plugin/JuceLibraryCode/BinaryData.cpp
