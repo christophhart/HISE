@@ -27,7 +27,7 @@ before_install:
     - sudo apt-get update -qq
 
 compiler:
-    - clang
+    - clang 
 
 branches:
     only:
