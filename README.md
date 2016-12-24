@@ -13,6 +13,13 @@ More information:
 
 ## System requirements
 
+Supported OS:
+
+- Windows 7-10
+- OSX 10.7 - 10.12
+- iOS 8.0
+- Linux (experimental, tested on Ubuntu 16.04 LTS)
+
 HISE is tested on Windows and OSX with the following hosts:
 
 - Cubase
@@ -21,7 +28,7 @@ HISE is tested on Windows and OSX with the following hosts:
 - Reaper
 - Protools
 
-It supports x86 and x64 on Windows, altough the 64bit version is highly recommended.
+It supports x86 and x64 on Windows, altough the 64bit version is highly recommended (it uses memory mapping for accessing samples and because of the limitations of the 32bit memory address space it needs a slower fallback solution).
 
 ## Highlights
 
@@ -74,6 +81,8 @@ It supports x86 and x64 on Windows, altough the 64bit version is highly recommen
 
 ## How to compile HISE
 
+### Windows / OSX
+
 1. Clone this repository. It also includes the (slightly modified) JUCE source code, so it might take a while.
 
 3. Get all necessary 3rd party code:
@@ -92,6 +101,31 @@ It supports x86 and x64 on Windows, altough the 64bit version is highly recommen
 7. Click on "Save Project and open in IDE" to load the project in XCode / Visual Studio. 
 
 8. Hit compile and wait...
+
+### Linux
+
+1. Get these dependencies (taken from the JUCE forum):
+
+```
+sudo apt-get -y install llvm
+sudo apt-get -y install clang
+sudo apt-get -y install libfreetype6-dev
+sudo apt-get -y install libx11-dev
+sudo apt-get -y install libxinerama-dev
+sudo apt-get -y install libxrandr-dev
+sudo apt-get -y install libxcursor-dev
+sudo apt-get -y install mesa-common-dev
+sudo apt-get -y install libasound2-dev
+sudo apt-get -y install freeglut3-dev
+sudo apt-get -y install libxcomposite-dev
+sudo apt-get -y install libcurl4-gnutls-dev
+```
+
+2. Clone this repository.
+
+3. Open the terminal and navigate to this subdirectory: `projects/standalone/Builds/LinuxMakefile`
+
+4. `make` and wait. 
 
 ## Licence
 
