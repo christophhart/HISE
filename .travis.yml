@@ -12,7 +12,6 @@ before_install:
     - sudo apt-get install -qq
         clang
         libfreetype6-dev
-        libc++-dev
         libx11-dev
         libxinerama-dev
         libxrandr-dev
@@ -28,7 +27,7 @@ before_install:
     - sudo apt-get update -qq
 
 compiler:
-    - clang 
+    - gcc
 
 branches:
     only:
