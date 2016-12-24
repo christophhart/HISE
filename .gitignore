@@ -7,7 +7,6 @@ changelog.txt
 tools/api generator/xml/
 changelog.rtf
 projects/plugin/Builds/
-projects/standalone/Builds/
 !projects/standalone/Builds/LinuxMakefile/Makefile
 projects/standalone/JuceLibraryCode/modules/
 projects/plugin/JuceLibraryCode/modules/
@@ -53,4 +52,8 @@ extras/stereo effect project/Builds
 extras/stereo effect project/JuceLibraryCode/modules
 JUCE old/
 projects/plugin/JuceLibraryCode/
-projects/standalone/JuceLibraryCode/
+projects/standalone/JuceLibraryCode
+projects/standalone/Builds/iOS
+projects/standalone/Builds/MacOSX
+projects/standalone/Builds/VisualStudio2013
+projects/standalone/Builds/VisualStudio2015
