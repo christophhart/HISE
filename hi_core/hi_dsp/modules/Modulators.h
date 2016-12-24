@@ -543,7 +543,7 @@ public:
 protected:
 
 	/** Overwrite this method to calculate the voice start value. */
-	virtual float inline calculateVoiceStartValue(const HiseEvent &m) = 0;
+	virtual float calculateVoiceStartValue(const HiseEvent &m) = 0;
 	
 private:
 

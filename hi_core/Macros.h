@@ -68,6 +68,9 @@
 #define SET_CHANGED_FROM_PARENT_EDITOR()
 #endif
 
+
+#if JUCE_WINDOWS || JUCE_MAC
+
 static juce::Typeface::Ptr oxygenBoldTypeFace = juce::Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::oxygen_bold_ttf, HiBinaryData::FrontendBinaryData::oxygen_bold_ttfSize);
 static juce::Typeface::Ptr oxygenTypeFace = juce::Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::oxygen_regular_ttf, HiBinaryData::FrontendBinaryData::oxygen_regular_ttfSize);
 static juce::Typeface::Ptr sourceCodeProTypeFace = juce::Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::SourceCodeProRegular_otf, HiBinaryData::FrontendBinaryData::SourceCodeProRegular_otfSize);
@@ -76,6 +79,14 @@ static juce::Typeface::Ptr sourceCodeProBoldTypeFace = juce::Typeface::createSys
 #define GLOBAL_FONT() (Font(oxygenTypeFace).withHeight(13.0f))
 #define GLOBAL_BOLD_FONT() (Font(oxygenBoldTypeFace).withHeight(14.0f))
 #define GLOBAL_MONOSPACE_FONT() (Font(sourceCodeProTypeFace).withHeight(14.0f))
+
+#else
+
+#define GLOBAL_FONT() (Font().withHeight(13.0f))
+#define GLOBAL_BOLD_FONT() (Font().boldened().withHeight(13.0f))
+#define GLOBAL_MONOSPACE_FONT() (Font(Font::getDefaultMonospacedFontName(), 13.0f, Font::plain))
+
+#endif
 
 
 #define GET_PROJECT_HANDLER(x)(x->getMainController()->getSampleManager().getProjectHandler())

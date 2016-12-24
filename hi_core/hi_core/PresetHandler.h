@@ -707,7 +707,7 @@ public:
 
 		return returnPath;
 
-#else
+#elif JUCE_MAC
         
 #if HISE_IOS
       
@@ -724,6 +724,11 @@ public:
 
 		return returnPath;
 #endif
+
+#else
+
+		return File();
+
 #endif
 	};
 

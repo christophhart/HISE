@@ -33,7 +33,7 @@
 #include "modulators/editors/ControlEditor.cpp"
 #include "modulators/editors/CCDuckerEditor.cpp"
 #include "modulators/editors/CCEnvelopeEditor.cpp"
-#include "modulators/editors/LFOEditor.cpp"
+#include "modulators/editors/LfoEditor.cpp"
 #include "modulators/editors/AudioFileEnvelopeEditor.cpp"
 #include "modulators/editors/KeyEditor.cpp"
 #include "modulators/editors/MacroControlModulatorEditor.cpp"

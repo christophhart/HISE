@@ -1806,14 +1806,22 @@ String PresetHandler::getDataFolder()
 
     return File::getSpecialLocation(File::userApplicationDataDirectory).getFullPathName() + "/Hart Instruments";
 
-#else
+#elif JUCE_MAC
 
 #if HISE_IOS
     return File::getSpecialLocation(File::userApplicationDataDirectory).getFullPathName();
 #else
     return File::getSpecialLocation(File::userApplicationDataDirectory).getFullPathName() + "/Application Support/Hart Instruments";
 #endif
-    
+
+#else
+
+    File f = File::getSpecialLocation(File::SpecialLocationType::userHomeDirectory).getChildFile(".hise/");
+
+    if(!f.isDirectory()) f.createDirectory();
+
+    return f.getFullPathName();
+
 #endif
     
 }

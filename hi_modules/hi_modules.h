@@ -86,7 +86,7 @@ END_JUCE_MODULE_DECLARATION
 #include "modulators/editors/ControlEditor.h"
 #include "modulators/editors/CCDuckerEditor.h"
 #include "modulators/editors/CCEnvelopeEditor.h"
-#include "modulators/editors/LFOEditor.h"
+#include "modulators/editors/LfoEditor.h"
 #include "modulators/editors/AudioFileEnvelopeEditor.h"
 #include "modulators/editors/KeyEditor.h"
 #include "modulators/editors/MacroControlModulatorEditor.h"

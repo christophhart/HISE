@@ -4,7 +4,7 @@
 // under the 2-clause BSD license. Copyright (c) 2008-2010, Zurich
 // University of the Arts, Beat Frei. All rights reserved.
 
-#include "common.h"
+#include "Common.h"
 
 #if DONT_INCLUDE_HEADERS_IN_CPP
 #else

@@ -1,5 +1,6 @@
 .*
 !/.gitignore
+!/.vscode/*
 api generator/xml
 changelog.md
 changelog.txt
