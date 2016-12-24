@@ -16,6 +16,10 @@ ifndef CONFIG
   CONFIG=Debug
 endif
 
+CXX = clang++
+
+$(info $$CXX is [${CXX}])
+
 ifeq ($(CONFIG),Debug)
   JUCE_BINDIR := build
   JUCE_LIBDIR := build
