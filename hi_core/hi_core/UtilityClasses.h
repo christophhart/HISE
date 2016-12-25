@@ -68,6 +68,9 @@ public:
 	*	You can specify and index of a capture group (if not, the entire match will be used). */
 	static StringArray search(const String& wildcard, const String &stringToTest, int indexInMatch=0)
 	{
+#if TRAVIS_CI
+        return StringArray(); // Travis CI seems to have a problem with libc++...
+#else
 		try
 		{
 			StringArray searchResults;
@@ -99,11 +102,16 @@ public:
 			DBG(e.what());
 			return StringArray();
 		}
+#endif
 	}
 
 	/** Returns the first match of the given wildcard in the test string. The first entry will be the whole match, followed by capture groups. */
     static StringArray getFirstMatch(const String &wildcard, const String &stringToTest, const Processor* /*processorForErrorOutput*/=nullptr)
     {
+#if TRAVIS_CI
+        return StringArray(); // Travis CI seems to have a problem with libc++...
+#else
+        
         try
         {
             std::regex reg(wildcard.toStdString());
@@ -132,11 +140,16 @@ public:
 			DBG(e.what());
             return StringArray();
         }
+#endif
     }
     
 	/** Checks if the given string matches the regex wildcard. */
     static bool matchesWildcard(const String &wildcard, const String &stringToTest, const Processor* /*processorForErrorOutput*/=nullptr)
     {
+#if TRAVIS_CI
+        return false; // Travis CI seems to have a problem with libc++...
+#else
+        
         try
         {
             std::regex reg(wildcard.toStdString());
@@ -150,6 +163,7 @@ public:
             return false;
         }
     }
+#endif
 };
 
 
