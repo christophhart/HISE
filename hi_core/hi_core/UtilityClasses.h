@@ -162,8 +162,9 @@ public:
             
             return false;
         }
-    }
 #endif
+    }
+
 };
 
 
