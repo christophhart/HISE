@@ -1,5 +1,6 @@
 # HISE
 
+[![Build Status](https://travis-ci.org/christophhart/HISE.svg?branch=master)](https://travis-ci.org/christophhart/HISE)
 
 **The open source framework for sample based instruments.**
 
