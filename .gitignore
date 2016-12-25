@@ -53,4 +53,6 @@ projects/plugin/JuceLibraryCode/
 projects/standalone/Builds/iOS
 projects/standalone/Builds/MacOSX
 projects/standalone/Builds/VisualStudio2013
-projects/standalone/Builds/VisualStudio2015
+projects/standalone/Builds/VisualStudio2015/Release
+projects/standalone/Builds/VisualStudio2015/x64
+HISE Standalone.VC.db
