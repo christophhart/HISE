@@ -235,9 +235,11 @@ public:
 
 	void showPopup() override
 	{
-		PopupMenu menu;
+		PopupMenu menu = *getRootMenu();
 		menu.setLookAndFeel(&getLookAndFeel());
 		addItemsToMenu(menu);
+
+		
 
 		menu.showMenuAsync(PopupMenu::Options().withTargetComponent(this)
 			.withItemThatMustBeVisible(getSelectedId())
