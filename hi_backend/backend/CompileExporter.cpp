@@ -629,6 +629,8 @@ CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(Modulato
 
 CompileExporter::ErrorCodes CompileExporter::createStandaloneAppHeaderFile(ModulatorSynthChain* chainToExport, const String& solutionDirectory, const String& uniqueId, const String& version, String publicKey)
 {
+	ignoreUnused(version, uniqueId);
+
 	String pluginDataHeaderFile;
 
 	HeaderHelpers::addBasicIncludeLines(pluginDataHeaderFile);

@@ -55,3 +55,6 @@ projects/standalone/Builds/MacOSX
 projects/standalone/Builds/VisualStudio2013
 projects/standalone/Builds/VisualStudio2015
 
+tools/SDK/VST3 SDK/
+tools/SDK/ASIOSDK2.3/common/asiodrvr.cpp
+tools/SDK/ASIOSDK2.3/

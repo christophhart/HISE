@@ -46,11 +46,11 @@
         <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
                        isDebug="0" optimisation="3" targetName="HISE x86" headerPath="C:\SDKs\ASIOSDK2.3\common"
                        binaryPath="" alwaysGenerateDebugSymbols="0" useRuntimeLibDLL="0"/>
-        <CONFIGURATION name="Release 64bit" winWarningLevel="4" generateManifest="1"
-                       winArchitecture="x64" isDebug="0" optimisation="3" targetName="HISE"
-                       headerPath="C:\SDKs\ASIOSDK2.3\common" binaryPath="" alwaysGenerateDebugSymbols="0"
-                       useRuntimeLibDLL="0" additionalXmlProperties="UseIntelIPP=Sequential"/>
-        <CONFIGURATION name="Debug 64bit" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
+        <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
+                       isDebug="0" optimisation="3" targetName="HISE" headerPath="C:\SDKs\ASIOSDK2.3\common"
+                       binaryPath="" alwaysGenerateDebugSymbols="0" useRuntimeLibDLL="0"
+                       additionalXmlProperties="UseIntelIPP=Sequential"/>
+        <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
                        isDebug="1" optimisation="1" targetName="HISE Debug" headerPath="C:\SDKs\ASIOSDK2.3\common"
                        useRuntimeLibDLL="0"/>
       </CONFIGURATIONS>
@@ -149,18 +149,20 @@
             useIPP="Sequential" IPPLibrary="Sequential">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
-                       isDebug="1" optimisation="1" targetName="HISE x86 Debug" headerPath="C:\SDKs\ASIOSDK2.3\common&#10;&#10;"
+                       isDebug="1" optimisation="1" targetName="HISE x86 Debug" headerPath="../../../../tools/SDK/ASIOSDK2.3/common"
                        useRuntimeLibDLL="0"/>
         <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
-                       isDebug="0" optimisation="3" targetName="HISE x86" headerPath="C:\SDKs\ASIOSDK2.3\common&#10;&#10;"
+                       isDebug="0" optimisation="3" targetName="HISE x86" headerPath="../../../../tools/SDK/ASIOSDK2.3/common"
                        useRuntimeLibDLL="0" enableIncrementalLinking="1"/>
-        <CONFIGURATION name="Debug 64bit" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
-                       isDebug="1" optimisation="1" targetName="HISE Debug" headerPath="C:\SDKs\ASIOSDK2.3\common&#10;&#10;"
+        <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
+                       isDebug="1" optimisation="1" targetName="HISE Debug" headerPath="../../../../tools/SDK/ASIOSDK2.3/common"
                        useRuntimeLibDLL="0"/>
-        <CONFIGURATION name="Release 64bit" winWarningLevel="4" generateManifest="1"
-                       winArchitecture="x64" isDebug="0" optimisation="3" targetName="HISE"
-                       headerPath="C:\SDKs\ASIOSDK2.3\common&#10;&#10;" useRuntimeLibDLL="0"
-                       enableIncrementalLinking="1"/>
+        <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
+                       isDebug="0" optimisation="3" targetName="HISE" headerPath="../../../../tools/SDK/ASIOSDK2.3/common"
+                       useRuntimeLibDLL="0" enableIncrementalLinking="1"/>
+        <CONFIGURATION name="CI" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
+                       isDebug="0" optimisation="3" targetName="HISE" headerPath="../../../../tools/SDK/ASIOSDK2.3/common"
+                       useRuntimeLibDLL="0" defines="USE_IPP=0"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_tracktion_marketplace" path="../../JUCE/modules"/>
@@ -189,6 +191,8 @@
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="HISE Standalone"/>
         <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="HISE Standalone"/>
+        <CONFIGURATION name="TravisCI" isDebug="1" optimisation="1" targetName="HISE Standalone"
+                       defines="TRAVIS_CI=1"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_tracktion_marketplace" path="../../JUCE/modules"/>
