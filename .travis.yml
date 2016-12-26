@@ -13,6 +13,7 @@ before_install:
         clang
         libfreetype6-dev
         libx11-dev
+        libstdc++6
         libxinerama-dev
         libxrandr-dev
         libxcursor-dev
