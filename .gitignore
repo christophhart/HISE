@@ -6,55 +6,23 @@ api generator/xml
 changelog.md
 changelog.txt
 tools/api generator/xml/
-changelog.rtf
-projects/plugin/Builds/
-!projects/standalone/Builds/LinuxMakefile/Makefile
-
-projects/plugin/JuceLibraryCode/modules/
-projects/plugin/JuceLibraryCode/BinaryData.cpp
-projects/plugin/JuceLibraryCode/BinaryData.h
-projects/plugin/JuceLibraryCode/JuceHeader.h
-projects/plugin/JuceLibraryCode/ReadMe.txt
-
-extras/demo_project/Binaries/
 changelog*
+projects/plugin/Builds/
+projects/plugin/JuceLibraryCode/
+projects/standalone/Builds/
+projects/standalone/JuceLibraryCode/
+extras/demo_project/Binaries/
 *.licence
 Autosave*
-extras/demo_project/thumbnails.dat
+thumbnails.dat
 *.hip
 extras/script_module_template/Builds
 extras/script_module_template/JuceLibraryCode
-projects/frontend_library_test/Builds/
-projects/frontend_library/Builds/VisualStudio2013/Release/HISE Fro.A9694304.tlog/lib.command.1.tlog
-projects/frontend_library/Builds/VisualStudio2013/HISE Frontend Library.v12.suo
-projects/frontend_library/Builds/
-projects/frontend_library_test/lib/HISEFrontendLibrary.lib
-projects/frontend_library/JuceLibraryCode/
-projects/frontend_library_test/JuceLibraryCode/
-hi_scripting/scripting/api/latex/Makefile
-hi_scripting/scripting/api/latex/annotated.tex
-hi_scripting/scripting/api/latex/class_dsp_base_object.tex
-hi_scripting/scripting/api/latex/doxygen.sty
-hi_scripting/scripting/api/latex/make.bat
-hi_scripting/scripting/api/latex/refman.tex
+hi_scripting/scripting/api/latex/
 hi_scripting/scripting/api/html/
-hi_scripting/scripting/api/latex/_dsp_base_module_8h.tex
-hi_scripting/scripting/api/latex/_hise_library_header_8h.tex
-hi_scripting/scripting/api/latex/files.tex
-hi_scripting/scripting/api/latex/index.tex
-hi_scripting/scripting/api/latex/namespace_helper_functions.tex
-hi_scripting/scripting/api/latex/namespace_internal_library_functions.tex
-hi_scripting/scripting/api/latex/namespaces.tex
 hi_dsp_library/doc/html
 extras/stereo effect project/Builds
-extras/stereo effect project/JuceLibraryCode/modules
+extras/stereo effect project/JuceLibraryCode
 JUCE old/
-projects/plugin/JuceLibraryCode/
-projects/standalone/Builds/iOS
-projects/standalone/Builds/MacOSX
-projects/standalone/Builds/VisualStudio2013
-projects/standalone/Builds/VisualStudio2015
-
 tools/SDK/VST3 SDK/
-tools/SDK/ASIOSDK2.3/common/asiodrvr.cpp
 tools/SDK/ASIOSDK2.3/
