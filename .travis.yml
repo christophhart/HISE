@@ -34,4 +34,5 @@ branches:
         - master
 
 script:
+    - tools/projucer/Projucer --resave "projects/standalone/HISE Standalone.jucer"
     - make -C projects/standalone/Builds/LinuxMakefile
