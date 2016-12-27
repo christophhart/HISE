@@ -11,6 +11,8 @@
 #ifndef STANDALONEPROCESSOR_H_INCLUDED
 #define STANDALONEPROCESSOR_H_INCLUDED
 
+class ToggleButtonList;
+
 class AudioProcessorDriver
 {
 public:
@@ -99,6 +101,8 @@ public:
 			deviceManager->setMidiInputEnabled(midiInputName, enableInput);
 		}
 	}
+
+	static void updateMidiToggleList(MainController* mc, ToggleButtonList* listToUpdate);
 
 	int diskMode = 0;
 

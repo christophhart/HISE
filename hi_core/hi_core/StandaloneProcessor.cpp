@@ -150,3 +150,29 @@ void AudioProcessorDriver::initialiseAudioDriver(XmlElement *deviceData)
 		deviceManager->addMidiInputCallback(String(), callback);
 	}
 }
+
+
+void AudioProcessorDriver::updateMidiToggleList(MainController* mc, ToggleButtonList* listToUpdate)
+{
+	ScopedPointer<XmlElement> midiSourceXml = dynamic_cast<AudioProcessorDriver*>(mc)->deviceManager->createStateXml();
+
+	StringArray midiInputs = MidiInput::getDevices();
+
+	if (midiSourceXml != nullptr)
+	{
+		for (int i = 0; i < midiSourceXml->getNumChildElements(); i++)
+		{
+			if (midiSourceXml->getChildElement(i)->hasTagName("MIDIINPUT"))
+			{
+				const String activeInputName = midiSourceXml->getChildElement(i)->getStringAttribute("name");
+
+				const int activeInputIndex = midiInputs.indexOf(activeInputName);
+
+				if (activeInputIndex != -1)
+				{
+					listToUpdate->setValue(activeInputIndex, true, dontSendNotification);
+				}
+			}
+		}
+	}
+}

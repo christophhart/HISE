@@ -1424,5 +1424,18 @@ private:
 };
 
 
+class BlackTextButtonLookAndFeel : public LookAndFeel_V3
+{
+	void drawButtonBackground(Graphics& g, Button& button, const Colour& /*backgroundColour*/,
+		bool isMouseOverButton, bool /*isButtonDown*/)
+	{
+		g.setGradientFill(ColourGradient(Colours::white.withAlpha(isMouseOverButton ? 0.4f : 0.2f), 0.0f, 0.0f,
+			Colours::white.withAlpha(0.1f), 0.0f, (float)button.getHeight(), false));
+
+
+		g.fillRoundedRectangle(0.0f, 0.0f, (float)button.getWidth(), (float)button.getHeight(), 4.0f);
+	}
+};
+
 
 #endif

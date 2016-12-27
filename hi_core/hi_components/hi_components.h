@@ -47,6 +47,7 @@
 #include "keyboard/CustomKeyboard.h"
 #include "plugin_components/VoiceCpuBpmComponent.h"
 #include "plugin_components/PresetComponents.h"
+#include "plugin_components/StandalonePopupComponents.h"
 #include "plugin_components/FrontendBar.h"
 
 #if USE_BACKEND

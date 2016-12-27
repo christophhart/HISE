@@ -280,7 +280,7 @@ void KnobLookAndFeel::drawToggleButton (Graphics &g, ToggleButton &b, bool isMou
 				Justification::centredLeft, true);
 		
 	g.setColour (Colours::black.withAlpha( (b.isEnabled() ? 1.0f : 0.5f) ));
-	g.drawImage(clip, 7, 7, 16, 16, 0, 0, filmStripHeight, filmStripHeight);
+	g.drawImage(clip, 7, (b.getHeight() - 16) / 2, 16, 16, 0, 0, filmStripHeight, filmStripHeight);
 }
 
 

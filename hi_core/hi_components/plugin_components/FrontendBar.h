@@ -46,11 +46,13 @@ public:
 #define CREATE_FRONTEND_BAR(ClassName) BaseFrontendBar* BaseFrontendBar::createFrontendBar(MainController* mc) { return new ClassName(mc); }
 
 
+
 /** The bar that is displayed for every FrontendProcessorEditor */
 class DefaultFrontendBar  : public BaseFrontendBar,
                      public Timer,
 					 public SliderListener,
-					 public SettableTooltipClient
+					 public SettableTooltipClient,
+				     public ButtonListener
 {
 public:
     
@@ -70,6 +72,7 @@ public:
 	void timerCallback();
     void paint (Graphics& g);
     void resized();
+	void buttonClicked(Button* b) override;
 
 	bool isOverlaying() const { return overlaying; }
 
@@ -112,6 +115,8 @@ private:
 	
 
 	ScopedPointer<VuMeter> outMeter;
+
+	ScopedPointer<ShapeButton> deviceSettingsButton;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DefaultFrontendBar)
 };
