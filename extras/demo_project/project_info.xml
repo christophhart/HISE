@@ -10,4 +10,5 @@
                    options="Yes&#10;No"/>
   <AdditionalDspLibraries value="" type="TEXT" description="comma separated list of all static dsp factory classes"/>
   <CustomToolbarClassName value="" type="TEXT" description="Class name for the custom toolbar (leave empty to use the default one"/>
+  <OSXStaticLibs value="" type="TEXT" description="Additional static libs (OSX only)"/>
 </ProjectSettings>
