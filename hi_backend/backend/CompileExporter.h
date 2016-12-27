@@ -131,6 +131,7 @@ public:
 	
 	File hisePath;
 	ModulatorSynthChain* chainToExport;
+    bool useIpp;
 
 	void printErrorMessage(const String& title, const String &message);
 

@@ -74,7 +74,7 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "  </MAINGROUP>\r\n"
 "  <EXPORTFORMATS>\r\n"
 "    <%VS_VERSION% targetFolder=\"Builds/%TARGET_FOLDER%\" vstFolder=\"%VSTSDK_FOLDER%\" aaxFolder=\"%AAX_PATH%\" \r\n"
-"            IPPLibrary=\"Sequential\">\r\n"
+"            IPPLibrary=\"%IPP_WIN_SETTING%\">\r\n"
 "      <CONFIGURATIONS>\r\n"
 "        <CONFIGURATION name=\"Debug\" winWarningLevel=\"4\" generateManifest=\"1\" winArchitecture=\"32-bit\"\r\n"
 "                       libraryPath=\"%AAX_DEBUG_LIB%\" isDebug=\"1\" optimisation=\"1\" targetName=\"%NAME%_Debug.dll\" binaryPath=\"Compiled/\"/>\r\n"
@@ -171,7 +171,7 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "    <MODULE id=\"juce_tracktion_marketplace\" showAllCode=\"1\" useLocalCopy=\"0\"/>\r\n"
 "  </MODULES>\r\n"
 "  <JUCEOPTIONS JUCE_QUICKTIME=\"disabled\" USE_BACKEND=\"disabled\" USE_FRONTEND=\"enabled\" HI_EXPORT_DSP_LIBRARY=\"disabled\" USE_COPY_PROTECTION=\"%USE_COPY_PROTECTION%\" IS_STANDALONE_APP=\"disabled\"\r\n"
-"               USE_IPP=\"enabled\" FRONTEND_IS_PLUGIN=\"%FRONTEND_IS_PLUGIN%\" USE_CUSTOM_FRONTEND_TOOLBAR=\"%USE_CUSTOM_FRONTEND_TOOLBAR%\" IS_STANDALONE_FRONTEND=\"%IS_STANDALONE_FRONTEND%\" USE_GLITCH_DETECTION = \"disabled\" ENABLE_PLOTTER=\"disabled\" ENABLE_SCRIPTING_SAFE_CHECKS=\"disabled\""
+"               USE_IPP=\"%USE_IPP%\" FRONTEND_IS_PLUGIN=\"%FRONTEND_IS_PLUGIN%\" USE_CUSTOM_FRONTEND_TOOLBAR=\"%USE_CUSTOM_FRONTEND_TOOLBAR%\" IS_STANDALONE_FRONTEND=\"%IS_STANDALONE_FRONTEND%\" USE_GLITCH_DETECTION = \"disabled\" ENABLE_PLOTTER=\"disabled\" ENABLE_SCRIPTING_SAFE_CHECKS=\"disabled\""
 "               ENABLE_ALL_PEAK_METERS=\"disabled\" ENABLE_CONSOLE_OUTPUT=\"disabled\"/>/>\r\n" 
 "</JUCERPROJECT>\r\n";
 
