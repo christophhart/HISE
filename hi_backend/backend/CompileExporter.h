@@ -38,6 +38,10 @@ class CompileExporter
 {
 public:
 
+	CompileExporter(ModulatorSynthChain* chainToExport);
+
+	~CompileExporter() { globalCommandLineExport = false; }
+
 	/** 0xABCD
 	*
 	*	A = OS (1 = Windows / 2 = OSX / 4 = iOS)
@@ -107,91 +111,114 @@ public:
 		MissingArguments,
 		BuildOptionInvalid,
 		CompileError,
+		VSTSDKMissing,
+		AAXSDKMissing,
+		ASIOSDKMissing,
+		HISEPathNotSpecified,
 		numErrorCodes
+		
 	};
 
 	/** Exports the main synthchain all samples, external files into a ValueTree file which can be included in a compiled FrontEndProcessor. */
-	static ErrorCodes exportMainSynthChainAsInstrument(ModulatorSynthChain *chainToExport, BuildOption option=BuildOption::Cancelled);
-
-	static ErrorCodes exportMainSynthChainAsFX(ModulatorSynthChain* chainToExport, BuildOption option=BuildOption::Cancelled);
-
-	static ErrorCodes exportMainSynthChainAsStandaloneApp(ModulatorSynthChain * chainToExport, BuildOption option=BuildOption::Cancelled);
+	ErrorCodes exportMainSynthChainAsInstrument(BuildOption option=BuildOption::Cancelled);
+	ErrorCodes exportMainSynthChainAsFX(BuildOption option=BuildOption::Cancelled);
+	ErrorCodes exportMainSynthChainAsStandaloneApp(BuildOption option=BuildOption::Cancelled);
 
 	static ErrorCodes compileFromCommandLine(const String& commandLine);
 
-	static BuildOption getBuildOptionFromCommandLine(StringArray &args);
+	BuildOption getBuildOptionFromCommandLine(StringArray &args);
+
+	
+	File hisePath;
+	ModulatorSynthChain* chainToExport;
+
+	void printErrorMessage(const String& title, const String &message);
+
+	static String getCompileResult(ErrorCodes result);
+
+	int getBuildOptionPart(const String& argument);
+
+	static void setExportingFromCommandLine()
+	{
+		globalCommandLineExport = true;
+	};
+
+	static bool isExportingFromCommandLine() { return globalCommandLineExport; }
 
 private:
 
+	static bool globalCommandLineExport;
+	
+
 	struct HelperClasses
 	{
-		static bool isUsingVisualStudio2015(ModulatorSynthChain* chain);
+		static bool isUsingVisualStudio2015();
 
-		static ErrorCodes saveProjucerFile(String templateProject, ModulatorSynthChain * chainToExport);
+		static ErrorCodes saveProjucerFile(String templateProject, CompileExporter* exporter);
 	};
 
-	static ErrorCodes exportInternal(ModulatorSynthChain* chainToExport, TargetTypes type, BuildOption option);
+	ErrorCodes exportInternal(TargetTypes type, BuildOption option);
 
-	static bool checkSanity(ModulatorSynthChain *chainToExport);
+	bool checkSanity();
 
-	static BuildOption showCompilePopup(TargetTypes type);
+	BuildOption showCompilePopup(TargetTypes type);
 
-	static void writeReferencedImageFiles(ModulatorSynthChain * chainToExport, const String directoryPath);
+	void writeReferencedImageFiles(const String directoryPath);
 
-	static void writeReferencedAudioFiles(ModulatorSynthChain * chainToExport, const String directoryPath);
+	void writeReferencedAudioFiles(const String directoryPath);
 
-	static void writeEmbeddedFiles(ModulatorSynthChain * chainToExport, const String &directoryPath, TargetTypes types);
+	void writeEmbeddedFiles(const String &directoryPath, TargetTypes types);
 
-	static void writeUserPresetFiles(ModulatorSynthChain * chainToExport, const String &directoryPath);
+	void writeUserPresetFiles(const String &directoryPath);
 
-	static void writePresetFile(ModulatorSynthChain *chainToExport, const String directoryPath, const String &uniqueName);
+	void writePresetFile(const String directoryPath);
 
-	static void convertTccScriptsToCppClasses(ModulatorSynthChain* chainToExport);
+	void convertTccScriptsToCppClasses();
 
-	static void createCppFileFromTccScript(File& targetDirectory, const File &f, Array<File>& convertedList);
+	void createCppFileFromTccScript(File& targetDirectory, const File &f, Array<File>& convertedList);
 
-	static StringArray getTccSection(const StringArray &cLines, const String &sectionName);
+	StringArray getTccSection(const StringArray &cLines, const String &sectionName);
 
-	static ErrorCodes compileSolution(ModulatorSynthChain *chainToExport, BuildOption buildOption, TargetTypes types);
+	ErrorCodes compileSolution(BuildOption buildOption, TargetTypes types);
 
-	static ErrorCodes createPluginDataHeaderFile(ModulatorSynthChain* chainToExport, const String &solutionDirectory, const String &uniqueName, const String &version, const String &publicKey);
+	ErrorCodes createPluginDataHeaderFile(const String &solutionDirectory, const String &publicKey);
 
-	static ErrorCodes createResourceFile(const String &solutionDirectory, const String & uniqueName, const String &version);
+	ErrorCodes createResourceFile(const String &solutionDirectory, const String & uniqueName, const String &version);
 
-	static ErrorCodes createPluginProjucerFile(ModulatorSynthChain *chainToExport, TargetTypes type, BuildOption option);
+	ErrorCodes createPluginProjucerFile(TargetTypes type, BuildOption option);
 
 	struct ProjectTemplateHelpers
 	{
-		static void handleCompilerInfo(ModulatorSynthChain* chainToExport, String& templateProject);
-		static void handleCompanyInfo(ModulatorSynthChain* chainToExport, String& templateProject);
-		static void handleVisualStudioVersion(ModulatorSynthChain * chainToExport, String& templateProject);
-		static void handleAdditionalSourceCode(ModulatorSynthChain * chainToExport, String &templateProject);
-		static void handleCopyProtectionInfo(ModulatorSynthChain * chainToExport, String &templateProject);
+		static void handleCompilerInfo(CompileExporter* exporter, String& templateProject);
+		static void handleCompanyInfo(CompileExporter* exporter, String& templateProject);
+		static void handleVisualStudioVersion(String& templateProject);
+		static void handleAdditionalSourceCode(CompileExporter* exporter, String &templateProject);
+		static void handleCopyProtectionInfo(CompileExporter* exporter, String &templateProject);
 	};
 
 	struct HeaderHelpers
 	{
 		static void addBasicIncludeLines(String& pluginDataHeaderFile);
-		static void addAdditionalSourceCodeHeaderLines(ModulatorSynthChain* chainToExport, String& pluginDataHeaderFile);
-		static void addStaticDspFactoryRegistration(String& pluginDataHeaderFile, ModulatorSynthChain* chainToExport);
+		static void addAdditionalSourceCodeHeaderLines(CompileExporter* exporter, String& pluginDataHeaderFile);
+		static void addStaticDspFactoryRegistration(String& pluginDataHeaderFile, CompileExporter* exporter);
 		static void addCopyProtectionHeaderLines(const String &publicKey, String& pluginDataHeaderFile);
-		static void addCustomToolbarRegistration(ModulatorSynthChain* chainToExport, String& pluginDataHeaderFile);
-		static void addProjectInfoLines(ModulatorSynthChain* chainToExport, String& pluginDataHeaderFile);
+		static void addCustomToolbarRegistration(CompileExporter* exporter, String& pluginDataHeaderFile);
+		static void addProjectInfoLines(CompileExporter* exporter, String& pluginDataHeaderFile);
 
 		static void writeHeaderFile(const String & solutionDirectory, const String& pluginDataHeaderFile);
 	};
 
-	static ErrorCodes copyHISEImageFiles(ModulatorSynthChain *chainToExport);
+	ErrorCodes copyHISEImageFiles();
 
-	static File getProjucerProjectFile(ModulatorSynthChain *chainToExport);
-	static ValueTree collectAllSampleMapsInDirectory(ModulatorSynthChain * chainToExport);
-	static ErrorCodes createStandaloneAppHeaderFile(ModulatorSynthChain* chainToExport, const String& solutionDirectory, const String& uniqueId, const String& version, String publicKey);
-	static CompileExporter::ErrorCodes createStandaloneAppProjucerFile(ModulatorSynthChain* chainToExport);
+	File getProjucerProjectFile();
+	ValueTree collectAllSampleMapsInDirectory();
+	ErrorCodes createStandaloneAppHeaderFile(const String& solutionDirectory, const String& uniqueId, const String& version, String publicKey);
+	CompileExporter::ErrorCodes createStandaloneAppProjucerFile();
+
 	struct BatchFileCreator
 	{
-		static void createBatchFile(ModulatorSynthChain *chainToExport, BuildOption buildOption, TargetTypes types);
-
-		static File getBatchFile(ModulatorSynthChain *chainToExport);
+		static void createBatchFile(CompileExporter* exporter, BuildOption buildOption, TargetTypes types);
+		static File getBatchFile(CompileExporter* exporter);
 	};
 };
 

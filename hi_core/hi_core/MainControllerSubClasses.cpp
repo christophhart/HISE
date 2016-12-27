@@ -406,9 +406,6 @@ HiseEvent MainController::EventIdHandler::peekNoteOn(const HiseEvent& noteOffEve
 			jassertfalse;
 
 			return HiseEvent();
-
-			const int eventId = lastArtificialEventIds[noteOffEvent.getNoteNumber()];
-			return artificialEvents[eventId % HISE_EVENT_ID_ARRAY_SIZE];
 		}
 	}
 	else

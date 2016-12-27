@@ -114,7 +114,13 @@ StandaloneProcessor::StandaloneProcessor()
         dynamic_cast<MainController*>(wrappedProcessor.get())->getSampleManager().setDiskMode((MainController::SampleManager::DiskMode)diskMode);
     }
     
+#if USE_BACKEND
+	if(!CompileExporter::isExportingFromCommandLine()) 
+		dynamic_cast<AudioProcessorDriver*>(wrappedProcessor.get())->initialiseAudioDriver(deviceData);
+#else
 	dynamic_cast<AudioProcessorDriver*>(wrappedProcessor.get())->initialiseAudioDriver(deviceData);
+#endif
+		
 }
 
 

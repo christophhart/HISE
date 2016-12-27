@@ -446,6 +446,8 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 
 bool BackendCommandTarget::perform(const InvocationInfo &info)
 {
+	CompileExporter exporter(bpe->getMainSynthChain());
+
 	switch (info.commandID)
 	{
 	case HamburgerMenu:					Actions::showMainMenu(bpe);  return true;
@@ -514,9 +516,9 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuViewShowPluginPopupPreview: Actions::togglePluginPopupWindow(bpe); updateCommands(); return true;
     case MenuViewIncreaseCodeFontSize:  Actions::changeCodeFontSize(bpe, true); return true;
     case MenuViewDecreaseCodeFontSize:   Actions::changeCodeFontSize(bpe, false); return true;
-    case MenuExportFileAsPlugin:        CompileExporter::exportMainSynthChainAsInstrument(owner->getMainSynthChain()); return true;
-	case MenuExportFileAsEffectPlugin:	CompileExporter::exportMainSynthChainAsFX(owner->getMainSynthChain()); return true;
-	case MenuExportFileAsStandaloneApp: CompileExporter::exportMainSynthChainAsStandaloneApp(owner->getMainSynthChain()); return true;
+	case MenuExportFileAsPlugin:        exporter.exportMainSynthChainAsInstrument(); return true;
+	case MenuExportFileAsEffectPlugin:	exporter.exportMainSynthChainAsFX(); return true;
+	case MenuExportFileAsStandaloneApp: exporter.exportMainSynthChainAsStandaloneApp(); return true;
     case MenuExportFileAsSnippet:       Actions::exportFileAsSnippet(bpe); return true;
     case MenuAddView:                   Actions::addView(bpe); updateCommands();return true;
     case MenuDeleteView:                Actions::deleteView(bpe); updateCommands();return true;

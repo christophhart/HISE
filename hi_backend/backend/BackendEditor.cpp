@@ -920,61 +920,6 @@ void BackendProcessorEditor::showProcessorPopup(Processor *p, Processor *parent)
 
 }
 
-void BackendProcessorEditor::mouseDown(const MouseEvent &m)
-{
-	Rectangle<int> infoArea(tooltipBar->getX(), tooltipBar->getY(), tooltipBar->getHeight(), tooltipBar->getHeight());
-
-	
-
-	if (m.mods.isRightButtonDown())
-	{
-		PopupMenu menu;
-
-		menu.setLookAndFeel(&plaf);
-
-		enum
-		{
-			LoadPresetIntoMainSynthChain = 1,
-			SaveCurrentMainSynthChain,
-			ExportAsPackage,
-			Recompile,
-			MidiPanic,
-
-		};
-
-		menu.addItem(LoadPresetIntoMainSynthChain, "Load preset into MainSynthChain");
-		menu.addItem(SaveCurrentMainSynthChain, "Save Current MainSynthChain");
-		menu.addItem(ExportAsPackage, "Export as package");
-		menu.addItem(Recompile, "Recompile all scripts");
-		menu.addItem(MidiPanic, "MIDI Panic");
-
-		const int result = menu.show();
-
-		if (result == LoadPresetIntoMainSynthChain)
-		{
-			FileChooser fc("Load Preset File");
-
-			if (fc.browseForFileToOpen())
-			{
-				File f = fc.getResult();
-
-				loadNewContainer(f);
-
-			}
-		}
-		else if (result == SaveCurrentMainSynthChain) PresetHandler::saveProcessorAsPreset(owner->getMainSynthChain());
-		else if (result == ExportAsPackage) CompileExporter::exportMainSynthChainAsInstrument(owner->getMainSynthChain());
-		else if (result == Recompile) owner->compileAllScripts();
-		else if (result == MidiPanic) owner->getMainSynthChain()->getMainController()->allNotesOff();
-	}
-
-	if (currentPopupComponent != nullptr || ownedPopupComponent != nullptr)
-	{
-		clearPopup();
-		return;
-	}
-}
-
 void BackendProcessorEditor::loadNewContainer(const File &f)
 {
     getBackendProcessor()->suspendProcessing(true);

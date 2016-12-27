@@ -200,8 +200,6 @@ public:
 	
 	void showProcessorPopup(Processor *p, Processor *parent);
 	
-	void mouseDown(const MouseEvent &m);
-
     void labelTextChanged(Label *) override
     {
         owner->setChanged();

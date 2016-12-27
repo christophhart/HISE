@@ -574,6 +574,14 @@ String PresetHandler::getCustomName(const String &typeName)
 
 bool PresetHandler::showYesNoWindow(const String &title, const String &message, PresetHandler::IconType type)
 {
+#if USE_BACKEND
+	if (CompileExporter::isExportingFromCommandLine())
+	{
+		return true; // surpress Popups in commandline mode
+	}
+#endif
+
+
 #if HISE_IOS
     return NativeMessageBox::showOkCancelBox(AlertWindow::AlertIconType::NoIcon, title, message);
     

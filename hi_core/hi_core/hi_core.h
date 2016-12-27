@@ -68,6 +68,7 @@ namespace juce
 #include "UpdateMerger.h"
 #include "ExternalFilePool.h"
 #include "BackgroundThreads.h"
+#include "SettingsWindows.h"
 #include "SampleThreadPool.h"
 #include "PresetHandler.h"
 #include "GlobalScriptCompileBroadcaster.h"
