@@ -10,7 +10,6 @@ changelog*
 projects/plugin/Builds/
 projects/plugin/JuceLibraryCode/
 projects/standalone/Builds/
-projects/standalone/JuceLibraryCode/
 extras/demo_project/Binaries/
 *.licence
 Autosave*

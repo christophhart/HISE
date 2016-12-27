@@ -35,6 +35,5 @@ branches:
         - master
 
 script:
-    - make -C JUCE/extras/Projucer/Builds/LinuxMakefile
-    - JUCE/extras/Projucer/Builds/LinuxMakefile/build/Projucer --resave "projects/standalone/HISE Standalone.jucer"
+    - make -C projects/standalone/TravisCI/LinuxMakefile/
 

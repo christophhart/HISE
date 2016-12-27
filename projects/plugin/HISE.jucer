@@ -2,7 +2,7 @@
 
 <JUCERPROJECT id="TQ3pmU" name="HISE" projectType="audioplug" version="0.983"
               bundleIdentifier="com.hartinstruments.HISE" includeBinaryInAppConfig="1"
-              buildVST="0" buildVST3="0" buildAU="0" buildRTAS="0" buildAAX="1"
+              buildVST="1" buildVST3="0" buildAU="0" buildRTAS="0" buildAAX="0"
               pluginName="HISE" pluginDesc="HISE" pluginManufacturer="Hart Instruments"
               pluginManufacturerCode="Hain" pluginCode="Hise" pluginChannelConfigs=""
               pluginIsSynth="1" pluginWantsMidiIn="1" pluginProducesMidiOut="0"
@@ -117,6 +117,35 @@
         <MODULEPATH id="hi_dsp_library" path="../../"/>
       </MODULEPATHS>
     </VS2013>
+    <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="">
+      <CONFIGURATIONS>
+        <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="HISE" defines="USE_IPP=0"/>
+        <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="HISE"
+                       defines="USE_IPP=0"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_tracktion_marketplace" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_gui_extra" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_graphics" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_events" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_data_structures" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_cryptography" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_core" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_utils" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_processors" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_plugin_client" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_basics" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_scripting" path="../../"/>
+        <MODULEPATH id="hi_modules" path="../../"/>
+        <MODULEPATH id="hi_dsp_library" path="../../"/>
+        <MODULEPATH id="hi_core" path="../../"/>
+        <MODULEPATH id="hi_backend" path="../../"/>
+      </MODULEPATHS>
+    </LINUX_MAKE>
   </EXPORTFORMATS>
   <MODULES>
     <MODULE id="hi_backend" showAllCode="1" useLocalCopy="0"/>
@@ -140,7 +169,13 @@
     <MODULES id="juce_opengl" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_tracktion_marketplace" showAllCode="1" useLocalCopy="0"/>
   </MODULES>
-  <JUCEOPTIONS JUCE_QUICKTIME="disabled" HI_EXPORT_DSP_LIBRARY="disabled"/>
+  <JUCEOPTIONS JUCE_QUICKTIME="disabled" HI_EXPORT_DSP_LIBRARY="disabled" ENABLE_CONSOLE_OUTPUT="enabled"
+               USE_BACKEND="enabled" USE_FRONTEND="disabled" IS_STANDALONE_APP="disabled"
+               USE_COPY_PROTECTION="disabled" USE_CUSTOM_FRONTEND_TOOLBAR="disabled"
+               IS_STANDALONE_FRONTEND="disabled" USE_GLITCH_DETECTION="enabled"
+               ENABLE_PLOTTER="enabled" ENABLE_SCRIPTING_SAFE_CHECKS="enabled"
+               ENABLE_ALL_PEAK_METERS="enabled" ENABLE_HOST_INFO="enabled" ENABLE_CPU_MEASUREMENT="enabled"
+               USE_HARD_CLIPPER="enabled"/>
   <LIVE_SETTINGS>
     <OSX/>
   </LIVE_SETTINGS>
