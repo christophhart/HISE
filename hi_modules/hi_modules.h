@@ -51,7 +51,7 @@ END_JUCE_MODULE_DECLARATION
 #ifndef HI_MODULES_INCLUDED
 #define HI_MODULES_INCLUDED
 
-#include <AppConfig.h>
+#include "AppConfig.h"
 #include "../hi_scripting/hi_scripting.h"
 
 /** @defgroup modulatorTypes ModulatorTypes =========================================================================

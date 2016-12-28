@@ -51,7 +51,7 @@ END_JUCE_MODULE_DECLARATION
 #ifndef HI_DSP_LIBRARY_H_INCLUDED
 #define HI_DSP_LIBRARY_H_INCLUDED
 
-#include <AppConfig.h>
+#include "AppConfig.h"
 #include "../JUCE/modules/juce_core/juce_core.h"
 
 using namespace juce;

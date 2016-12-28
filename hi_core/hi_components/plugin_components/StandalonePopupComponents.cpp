@@ -458,5 +458,7 @@ void CombinedSettingsWindow::periodicCheckCallback(ToggleButtonList* list)
 	{
 		list->rebuildList(devices);
 		numMidiDevices = devices.size();
+
+		AudioProcessorDriver::updateMidiToggleList(mc, midiSources);
 	}
 }

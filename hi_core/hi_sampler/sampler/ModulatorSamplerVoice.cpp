@@ -168,7 +168,7 @@ double ModulatorSamplerVoice::limitPitchDataToMaxSamplerPitch(float * pitchData,
 	if (pitchData == nullptr) pitchCounter = uptimeDelta * (double)numSamples;
 	else
 	{
-		const float uptimeDeltaFloat = uptimeDelta;
+		const float uptimeDeltaFloat = (float)uptimeDelta;
 
 		pitchCounter = 0.0;
 		pitchData += startSample;

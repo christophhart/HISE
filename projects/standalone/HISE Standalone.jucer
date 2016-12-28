@@ -159,7 +159,7 @@
                        useRuntimeLibDLL="0"/>
         <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
                        isDebug="0" optimisation="3" targetName="HISE" headerPath="../../../../tools/SDK/ASIOSDK2.3/common"
-                       useRuntimeLibDLL="0" enableIncrementalLinking="1"/>
+                       useRuntimeLibDLL="0" enableIncrementalLinking="1" alwaysGenerateDebugSymbols="0"/>
         <CONFIGURATION name="CI" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
                        isDebug="0" optimisation="3" targetName="HISE" headerPath="../../../../tools/SDK/ASIOSDK2.3/common"
                        useRuntimeLibDLL="0" defines="USE_IPP=0"/>
@@ -246,4 +246,7 @@
                ENABLE_ALL_PEAK_METERS="enabled" ENABLE_CONSOLE_OUTPUT="enabled"
                ENABLE_HOST_INFO="enabled" ENABLE_CPU_MEASUREMENT="enabled" HI_EXPORT_DSP_LIBRARY="disabled"
                JUCE_ALSA="enabled" JUCE_JACK="enabled"/>
+  <LIVE_SETTINGS>
+    <OSX defines="USE_IPP=0"/>
+  </LIVE_SETTINGS>
 </JUCERPROJECT>

@@ -51,7 +51,7 @@ END_JUCE_MODULE_DECLARATION
 #ifndef HI_CORE_INCLUDED
 #define HI_CORE_INCLUDED
 
-#include <AppConfig.h>
+#include "AppConfig.h"
 
 #include "../JUCE/modules/juce_core/juce_core.h"
 #include "../JUCE/modules/juce_audio_basics/juce_audio_basics.h"

@@ -53,7 +53,7 @@ END_JUCE_MODULE_DECLARATION
 
 #define MAX_SCRIPT_HEIGHT 700
 
-#include <AppConfig.h>
+#include "AppConfig.h"
 #include "../hi_core/hi_core.h"
 #include "../hi_dsp_library/hi_dsp_library.h"
 
