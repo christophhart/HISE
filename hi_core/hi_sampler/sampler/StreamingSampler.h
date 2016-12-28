@@ -59,7 +59,7 @@ struct StereoChannelData
 #endif
 
 // This is the maximum value for sample pitch manipulation (this means 3 octaves, which should be more than enough
-#define MAX_SAMPLER_PITCH 8
+#define MAX_SAMPLER_PITCH 16
 
 // This is the default preload size. I defined a pretty random value here, but you can change this dynamically.
 #define PRELOAD_SIZE 8192
@@ -879,7 +879,11 @@ public:
 		bufferToUse->clear();
 	}
 
+	void setPitchCounterForThisBlock(double p) noexcept { pitchCounter = p; }
+
 private:
+
+	double pitchCounter = 0.0;
 
 	AudioSampleBuffer* tvb = nullptr;
 

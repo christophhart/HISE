@@ -1235,21 +1235,7 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
         
 		const double startAlpha = fmod(voiceUptime, 1.0);
 		
-		double pitchCounter;
-
-		if (pitchData == nullptr) pitchCounter = uptimeDelta * (double)numSamples;
-		else
-		{
-			pitchCounter = 0.0;
-			pitchData += startSample;
-
-			for (int i = 0; i < numSamples; i++)
-			{
-				pitchCounter += uptimeDelta * (double)*pitchData++;
-			}
-
-			pitchData -= numSamples;
-		}
+		jassert(pitchCounter != 0);
 
 		AudioSampleBuffer* tempVoiceBuffer = getTemporaryVoiceBuffer();
 
@@ -1269,6 +1255,8 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 
 		if (pitchData != nullptr)
 		{
+			pitchData += startSample;
+
 			float indexInBufferFloat = (float)indexInBuffer;
 			const float uptimeDeltaFloat = (float)uptimeDelta;
 
@@ -1288,7 +1276,9 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 
 					jassert(r >= -1.0f);
 
-					indexInBufferFloat += (uptimeDeltaFloat * *pitchData++);
+					jassert(uptimeDeltaFloat * *pitchData <= (float)MAX_SAMPLER_PITCH);
+
+					indexInBufferFloat += uptimeDeltaFloat * *pitchData++;
 				}
 				numSamples -= 4;
 			}
@@ -1331,10 +1321,6 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 		const bool enoughSamples = sound->hasEnoughSamplesForBlock((int)(voiceUptime + numSamples * MAX_SAMPLER_PITCH));
 
 		if(!enoughSamples) resetVoice();
-
-
-
-
 	}
     else
     {

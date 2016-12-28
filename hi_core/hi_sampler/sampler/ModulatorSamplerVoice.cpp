@@ -85,11 +85,14 @@ void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 	const int startIndex = startSample;
 	const int samplesInBlock = numSamples;
 
-	const float *voicePitchValues = isPitchModulationActive() ? getVoicePitchValues() : nullptr;
+	float *voicePitchValues = isPitchModulationActive() ? getVoicePitchValues() : nullptr;
 	const double propertyPitch = currentlyPlayingSamplerSound->getPropertyPitch();
-
+	
+	const double pitchCounter = limitPitchDataToMaxSamplerPitch(voicePitchValues, uptimeDelta * propertyPitch, startSample, numSamples);
+	
 	const float *modValues = getVoiceGainValues(startSample, numSamples);
 
+	wrappedVoice.setPitchCounterForThisBlock(pitchCounter);
 	wrappedVoice.setPitchValues(voicePitchValues);
 
 	voiceBuffer.clear();
@@ -100,7 +103,6 @@ void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 
 	voiceUptime = wrappedVoice.voiceUptime;
 	
-
 	if (!wrappedVoice.isActive)
 	{
 		resetVoice();
@@ -113,12 +115,13 @@ void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 
 	const float propertyGain = currentlyPlayingSamplerSound->getPropertyVolume();
 	const float normalizationGain = currentlyPlayingSamplerSound->getNormalizedPeak();
-
 	const float lGain = currentlyPlayingSamplerSound->getBalance(false);
 	const float rGain = currentlyPlayingSamplerSound->getBalance(true);
+	const float totalL = propertyGain * normalizationGain * lGain * velocityXFadeValue;
+	const float totalR = propertyGain * normalizationGain * rGain * velocityXFadeValue;
 
-	FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), propertyGain * normalizationGain * lGain * velocityXFadeValue, samplesInBlock);
-	FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), propertyGain * normalizationGain * rGain * velocityXFadeValue, samplesInBlock);
+	if (totalL != 1.0f) FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), totalL, samplesInBlock);
+	if (totalR != 1.0f) FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), totalR, samplesInBlock);
 
 	if (sampler->isUsingCrossfadeGroups())
 	{
@@ -128,11 +131,12 @@ void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), crossFadeValues + startIndex, samplesInBlock);
 	}
 
+#if USE_BACKEND
 	if (sampler->isLastStartedVoice(this))
 	{
 		handlePlaybackPosition(sound);
-
 	}
+#endif
 }
 
 void ModulatorSamplerVoice::handlePlaybackPosition(const StreamingSamplerSound * sound)
@@ -155,6 +159,37 @@ void ModulatorSamplerVoice::handlePlaybackPosition(const StreamingSamplerSound *
 		const double normalizedPosition = voiceUptime / (double)sound->getSampleLength();
 		sampler->setCurrentPlayingPosition(normalizedPosition);
 	}
+}
+
+double ModulatorSamplerVoice::limitPitchDataToMaxSamplerPitch(float * pitchData, double uptimeDelta, int startSample, int numSamples)
+{
+	double pitchCounter = 0.0;
+
+	if (pitchData == nullptr) pitchCounter = uptimeDelta * (double)numSamples;
+	else
+	{
+		const float uptimeDeltaFloat = uptimeDelta;
+
+		const float maxPitchModLevel = (float)MAX_SAMPLER_PITCH / uptimeDeltaFloat;
+
+		pitchCounter = 0.0;
+		pitchData += startSample;
+
+#if USE_IPP
+		float pitchSum = 0.0f;
+		ippsThreshold_32f_I(pitchData, numSamples, maxPitchModLevel, ippCmpGreater);
+		ippsSum_32f(pitchData, numSamples, &pitchSum, ippAlgHintAccurate);
+		pitchCounter = pitchSum * uptimeDeltaFloat;
+#else
+		for (int i = 0; i < numSamples; i++)
+		{
+			pitchCounter += jmin<double>((double)MAX_SAMPLER_PITCH, uptimeDelta * (double)*pitchData++);
+	}
+		pitchData -= numSamples;
+#endif			
+}
+
+	return pitchCounter;
 }
 
 void ModulatorSamplerVoice::prepareToPlay(double sampleRate, int samplesPerBlock)
@@ -274,8 +309,9 @@ void MultiMicModulatorSamplerVoice::calculateBlock(int startSample, int numSampl
 	const int startIndex = startSample;
 	const int samplesInBlock = numSamples;
 
-	const float *voicePitchValues = isPitchModulationActive() ? getVoicePitchValues() : nullptr;
+	float *voicePitchValues = isPitchModulationActive() ? getVoicePitchValues() : nullptr;
 	const double propertyPitch = (float)currentlyPlayingSamplerSound->getPropertyPitch();
+	const double pitchCounter = limitPitchDataToMaxSamplerPitch(voicePitchValues, uptimeDelta * propertyPitch, startSample, numSamples);
 
 	const float *modValues = getVoiceGainValues(startSample, numSamples);
 
@@ -288,6 +324,7 @@ void MultiMicModulatorSamplerVoice::calculateBlock(int startSample, int numSampl
 		if (sound == nullptr) continue;
 
 		wrappedVoices[i]->setPitchValues(voicePitchValues);
+		wrappedVoices[i]->setPitchCounterForThisBlock(pitchCounter);
 		wrappedVoices[i]->uptimeDelta = uptimeDelta * propertyPitch;
 
 		float *leftChannel = voiceBuffer.getWritePointer(2*i);

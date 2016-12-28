@@ -61,6 +61,8 @@ public:
 
 	void handlePlaybackPosition(const StreamingSamplerSound * sound);
 
+	static double limitPitchDataToMaxSamplerPitch(float * pitchData, double uptimeDelta, int startSample, int numSamples);
+
 	// ================================================================================================================
 
 	virtual void setLoaderBufferSize(int newBufferSize);

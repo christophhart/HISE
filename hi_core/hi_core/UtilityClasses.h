@@ -525,11 +525,13 @@ public:
 	/** Converts a balance value to the gain factor for the supplied channel using an equal power formula. Input is -100.0 ... 100.0 */
 	static float getGainFactorForBalance(float balanceValue, bool calculateLeftChannel)
 	{
+		if (balanceValue == 0.0f) return 1.0f;
+
 		const float balance = balanceValue / 100.0f;
 
 		float panValue = (float_Pi * (balance + 1.0f)) * 0.25f;
 
-		return 1.4142f * (calculateLeftChannel ? cosf(panValue) : sinf(panValue));
+		return 1.41421356237309504880f * (calculateLeftChannel ? cosf(panValue) : sinf(panValue));
 	};
 
 	/** Processes a stereo buffer with an array of balance values (from 0...1) - typically the output of a modulation chain. 
