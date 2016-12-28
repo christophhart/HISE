@@ -1536,7 +1536,10 @@ void ScriptingApi::Synth::addVolumeFade(int eventId, int fadeTimeMilliseconds, i
 			{
 				HiseEvent e = HiseEvent::createVolumeFade((uint16)eventId, fadeTimeMilliseconds, (uint8)targetVolume);
 
-				e.setTimeStamp(sp->getCurrentHiseEvent()->getTimeStamp());
+				if (const HiseEvent* current = sp->getCurrentHiseEvent())
+				{
+					e.setTimeStamp(current->getTimeStamp());
+				}
 
 				sp->addHiseEventToBuffer(e);
 			}
@@ -1704,7 +1707,10 @@ void ScriptingApi::Synth::sendController(int controllerNumber, int controllerVal
 			{
 				HiseEvent e = HiseEvent(HiseEvent::Type::Controller, (uint8)controllerNumber, (uint8)controllerValue);
 
-				e.setTimeStamp(sp->getCurrentHiseEvent()->getTimeStamp());
+				if (const HiseEvent* current = sp->getCurrentHiseEvent())
+				{
+					e.setTimeStamp(current->getTimeStamp());
+				}
 
 				sp->addHiseEventToBuffer(e);
 			}
