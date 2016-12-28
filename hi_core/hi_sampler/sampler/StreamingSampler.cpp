@@ -1258,8 +1258,7 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 			pitchData += startSample;
 
 			float indexInBufferFloat = (float)indexInBuffer;
-			const float uptimeDeltaFloat = (float)uptimeDelta;
-
+			
 			while (numSamples > 0)
 			{
 				for (int i = 0; i < 4; i++)
@@ -1276,9 +1275,9 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 
 					jassert(r >= -1.0f);
 
-					jassert(uptimeDeltaFloat * *pitchData <= (float)MAX_SAMPLER_PITCH);
+					jassert(*pitchData <= (float)MAX_SAMPLER_PITCH);
 
-					indexInBufferFloat += uptimeDeltaFloat * *pitchData++;
+					indexInBufferFloat += *pitchData++;
 				}
 				numSamples -= 4;
 			}

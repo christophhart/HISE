@@ -170,22 +170,24 @@ double ModulatorSamplerVoice::limitPitchDataToMaxSamplerPitch(float * pitchData,
 	{
 		const float uptimeDeltaFloat = uptimeDelta;
 
-		const float maxPitchModLevel = (float)MAX_SAMPLER_PITCH / uptimeDeltaFloat;
-
 		pitchCounter = 0.0;
 		pitchData += startSample;
 
+		FloatVectorOperations::multiply(pitchData, uptimeDeltaFloat, numSamples);
+
 #if USE_IPP
 		float pitchSum = 0.0f;
-		ippsThreshold_32f_I(pitchData, numSamples, maxPitchModLevel, ippCmpGreater);
+		ippsThreshold_32f_I(pitchData, numSamples, (float)MAX_SAMPLER_PITCH, ippCmpGreater);
 		ippsSum_32f(pitchData, numSamples, &pitchSum, ippAlgHintAccurate);
-		pitchCounter = pitchSum * uptimeDeltaFloat;
+		
+		pitchCounter = (double)pitchSum;
+
 #else
 		for (int i = 0; i < numSamples; i++)
 		{
-			pitchCounter += jmin<double>((double)MAX_SAMPLER_PITCH, uptimeDelta * (double)*pitchData++);
+			pitchCounter += jmin<double>((double)MAX_SAMPLER_PITCH, (double)*pitchData++);
 	}
-		pitchData -= numSamples;
+		
 #endif			
 }
 
