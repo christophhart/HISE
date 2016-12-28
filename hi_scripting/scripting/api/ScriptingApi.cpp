@@ -1375,6 +1375,7 @@ struct ScriptingApi::Synth::Wrapper
 	API_METHOD_WRAPPER_1(Synth, getMidiProcessor);
 	API_METHOD_WRAPPER_1(Synth, getChildSynth);
 	API_METHOD_WRAPPER_1(Synth, getChildSynthByIndex);
+	API_METHOD_WRAPPER_1(Synth, getIdList);
 	API_METHOD_WRAPPER_2(Synth, getModulatorIndex);
 	API_METHOD_WRAPPER_0(Synth, getNumPressedKeys);
 	API_METHOD_WRAPPER_0(Synth, isLegatoInterval);
@@ -1429,6 +1430,7 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	ADD_API_METHOD_1(getMidiProcessor);
 	ADD_API_METHOD_1(getChildSynth);
 	ADD_API_METHOD_1(getChildSynthByIndex);
+	ADD_API_METHOD_1(getIdList);
 	ADD_API_METHOD_2(getModulatorIndex);
 	ADD_API_METHOD_0(getNumPressedKeys);
 	ADD_API_METHOD_0(isLegatoInterval);
@@ -1847,6 +1849,28 @@ ScriptingApi::Synth::ScriptSynth* ScriptingApi::Synth::getChildSynthByIndex(int 
 		reportIllegalCall("getChildSynth()", "onInit");
 
 		return new ScriptingObjects::ScriptingSynth(getScriptProcessor(), nullptr);
+	}
+}
+
+var ScriptingApi::Synth::getIdList(const String &type)
+{
+	if (getScriptProcessor()->objectsCanBeCreated())
+	{
+		Processor::Iterator<Processor> it(owner);
+
+		Array<var> idList;
+
+		while (Processor* p = it.getNextProcessor())
+		{
+			if (p->getName() == type)
+				idList.add(p->getId());
+		}
+
+		return var(idList);
+	}
+	else
+	{
+		return var();
 	}
 }
 

@@ -524,6 +524,9 @@ public:
 		/** Returns the child synth with the given index. */
 		ScriptSynth* getChildSynthByIndex(int index);
 
+		/** Searches the child processors and returns a list with every ID of the given type. */
+		var getIdList(const String &type);
+
 		/** Returns the child synth with the supplied name. */
 		ScriptAudioSampleProcessor * getAudioSampleProcessor(const String &name);
 
