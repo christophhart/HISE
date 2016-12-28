@@ -67,6 +67,10 @@ DefaultFrontendBar::DefaultFrontendBar(MainController *mc_) : mc(mc_),
 	deviceSettingsButton->setShape(settingsPath, true, true, true);
 	deviceSettingsButton->addListener(this);
 
+#if USE_BACKEND
+	deviceSettingsButton->setVisible(false);
+#endif
+
 	addAndMakeVisible(voiceCpuComponent = new VoiceCpuBpmComponent(mc));
 
 	addAndMakeVisible(tooltipBar = new TooltipBar());
