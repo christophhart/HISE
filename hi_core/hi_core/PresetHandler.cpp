@@ -687,10 +687,10 @@ void ProjectHandler::setWorkingProject(const File &workingDirectory)
 
 		if (numTooMuch > 0)
 		{
-			recentWorkDirectories.removeRange(0, numTooMuch);
+			recentWorkDirectories.removeRange(12, numTooMuch);
 		}
 
-		recentWorkDirectories.addIfNotAlreadyThere(workingDirectory.getFullPathName());
+		recentWorkDirectories.insert(0, workingDirectory.getFullPathName());
 	}
 	else
 	{
