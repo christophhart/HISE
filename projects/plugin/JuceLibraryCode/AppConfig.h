@@ -17,15 +17,7 @@
 //==============================================================================
 // [BEGIN_USER_CODE_SECTION]
 
-// (You can add your own code in this section, and the Introjucer will not overwrite it)
-
-#define USE_BACKEND 1
-#define HISE_STANDALONE 0
-#define LAPTOP 1
-#define IS_STANDALONE_APP 0
-#define HI_WINDOWS 1
-#define INCLUDE_PROTOPLUG 0
-#define USE_IPP 1
+// (You can add your own code in this section, and the Projucer will not overwrite it)
 
 // [END_USER_CODE_SECTION]
 
@@ -66,19 +58,19 @@
 // hi_core flags:
 
 #ifndef    USE_BACKEND
- //#define USE_BACKEND
+ #define   USE_BACKEND 1
 #endif
 
 #ifndef    USE_FRONTEND
- //#define USE_FRONTEND
+ #define   USE_FRONTEND 0
 #endif
 
 #ifndef    IS_STANDALONE_APP
- //#define IS_STANDALONE_APP
+ #define   IS_STANDALONE_APP 0
 #endif
 
 #ifndef    USE_COPY_PROTECTION
- //#define USE_COPY_PROTECTION
+ #define   USE_COPY_PROTECTION 0
 #endif
 
 #ifndef    USE_IPP
@@ -90,43 +82,43 @@
 #endif
 
 #ifndef    USE_CUSTOM_FRONTEND_TOOLBAR
- //#define USE_CUSTOM_FRONTEND_TOOLBAR
+ #define   USE_CUSTOM_FRONTEND_TOOLBAR 0
 #endif
 
 #ifndef    IS_STANDALONE_FRONTEND
- //#define IS_STANDALONE_FRONTEND
+ #define   IS_STANDALONE_FRONTEND 0
 #endif
 
 #ifndef    USE_GLITCH_DETECTION
- //#define USE_GLITCH_DETECTION
+ #define   USE_GLITCH_DETECTION 1
 #endif
 
 #ifndef    ENABLE_PLOTTER
- //#define ENABLE_PLOTTER
+ #define   ENABLE_PLOTTER 1
 #endif
 
 #ifndef    ENABLE_SCRIPTING_SAFE_CHECKS
- //#define ENABLE_SCRIPTING_SAFE_CHECKS
+ #define   ENABLE_SCRIPTING_SAFE_CHECKS 1
 #endif
 
 #ifndef    ENABLE_ALL_PEAK_METERS
- //#define ENABLE_ALL_PEAK_METERS
+ #define   ENABLE_ALL_PEAK_METERS 1
 #endif
 
 #ifndef    ENABLE_CONSOLE_OUTPUT
- //#define ENABLE_CONSOLE_OUTPUT
+ #define   ENABLE_CONSOLE_OUTPUT 1
 #endif
 
 #ifndef    ENABLE_HOST_INFO
- //#define ENABLE_HOST_INFO
+ #define   ENABLE_HOST_INFO 1
 #endif
 
 #ifndef    ENABLE_CPU_MEASUREMENT
- //#define ENABLE_CPU_MEASUREMENT
+ #define   ENABLE_CPU_MEASUREMENT 1
 #endif
 
 #ifndef    USE_HARD_CLIPPER
- //#define USE_HARD_CLIPPER
+ #define   USE_HARD_CLIPPER 1
 #endif
 
 //==============================================================================
@@ -312,7 +304,7 @@
 // Audio plugin settings..
 
 #ifndef  JucePlugin_Build_VST
- #define JucePlugin_Build_VST              0
+ #define JucePlugin_Build_VST              1
 #endif
 #ifndef  JucePlugin_Build_VST3
  #define JucePlugin_Build_VST3             0
@@ -327,7 +319,7 @@
  #define JucePlugin_Build_RTAS             0
 #endif
 #ifndef  JucePlugin_Build_AAX
- #define JucePlugin_Build_AAX              1
+ #define JucePlugin_Build_AAX              0
 #endif
 #ifndef  JucePlugin_Build_STANDALONE
  #define JucePlugin_Build_STANDALONE       0
