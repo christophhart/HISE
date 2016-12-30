@@ -120,7 +120,11 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 
 	rebuildMenus(true, true);
 
+#if HISE_IOS
+    setSize(250, 180);
+#else
 	setSize(250, 300);
+#endif
 }
 
 CustomSettingsWindow::~CustomSettingsWindow()
@@ -351,9 +355,12 @@ void CustomSettingsWindow::paint(Graphics& g)
 	g.setColour(Colours::white);
 
 	g.setFont(GLOBAL_FONT());
+    
+#if !HISE_IOS
 	g.drawText("Driver", 0, 0, getWidth() / 2 - 30, 30, Justification::centredRight);
 	g.drawText("Device", 0, 40, getWidth() / 2 - 30, 30, Justification::centredRight);
 	g.drawText("Output", 0, 80, getWidth() / 2 - 30, 30, Justification::centredRight);
+#endif
 	g.drawText("Buffer Size", 0, 120, getWidth() / 2 - 30, 30, Justification::centredRight);
 	g.drawText("Sample Rate", 0, 160, getWidth() / 2 - 30, 30, Justification::centredRight);
 	g.drawText("Streaming Mode", 0, 200, getWidth() / 2 - 30, 30, Justification::centredRight);
@@ -361,13 +368,23 @@ void CustomSettingsWindow::paint(Graphics& g)
 
 void CustomSettingsWindow::resized()
 {
-	deviceSelector->setBounds(getWidth() / 2 - 20, 0, getWidth() / 2, 30);
-	soundCardSelector->setBounds(getWidth() / 2 - 20, 40, getWidth() / 2, 30);
-	outputSelector->setBounds(getWidth() / 2 - 20, 80, getWidth() / 2, 30);
-	bufferSelector->setBounds(getWidth() / 2 - 20, 120, getWidth() / 2, 30);
-	sampleRateSelector->setBounds(getWidth() / 2 - 20, 160, getWidth() / 2, 30);
-	diskModeSelector->setBounds(getWidth() / 2 - 20, 200, getWidth() / 2, 30);
-	clearMidiLearn->setBounds(10, 240, getWidth() - 20, 30);
+    int y = 0;
+    
+#if !HISE_IOS
+	deviceSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
+    y+= 40;
+	soundCardSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
+    y+= 40;
+	outputSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
+    y+= 40;
+#endif
+	bufferSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
+    y+= 40;
+	sampleRateSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
+    y+= 40;
+	diskModeSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
+    y+= 40;
+	clearMidiLearn->setBounds(10, y, getWidth() - 20, 30);
 }
 
 CombinedSettingsWindow::CombinedSettingsWindow(MainController* mc_):
@@ -394,7 +411,11 @@ CombinedSettingsWindow::CombinedSettingsWindow(MainController* mc_):
 
 	AudioProcessorDriver::updateMidiToggleList(mc, midiSources);
 
-	setSize(600, settings->getHeight() + midiSources->getHeight() + 70);
+#if HISE_IOS
+	setSize(400, settings->getHeight() + midiSources->getHeight() + 70);
+#else
+    setSize(600, settings->getHeight() + midiSources->getHeight() + 70);
+#endif
 
 	closeButton->setTooltip("Close this dialog");
 

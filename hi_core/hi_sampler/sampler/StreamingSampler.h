@@ -240,6 +240,7 @@ public:
 	bool isMonolithic() const;
 	AudioFormatReader* createReaderForPreview() { return fileReader.createMonolithicReaderForPreview(); }
 
+	AudioFormatReader* createReaderForAnalysis();
     
     int64 getMonolithOffset() const { return fileReader.getMonolithOffset(); }
     int64 getMonolithLength() const { return fileReader.getMonolithLength(); }

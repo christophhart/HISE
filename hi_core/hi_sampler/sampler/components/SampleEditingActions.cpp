@@ -966,3 +966,62 @@ void SamplerBody::SampleEditingActions::automapUsingMetadata(SamplerBody * body)
 
 	if (metadataWasFound) debugToConsole(sampler, "Metadata was found for imported samples");
 }
+
+
+void SamplerBody::SampleEditingActions::trimSampleStart(SamplerBody * body)
+{
+	Array<WeakReference<ModulatorSamplerSound>> sounds = body->getSelection().getItemArray();
+
+	ModulatorSampler *sampler = dynamic_cast<ModulatorSampler*>(body->getProcessor());
+
+	sampler->getUndoManager()->beginNewTransaction();
+
+	AudioSampleBuffer analyseBuffer;
+
+	for (int i = 0; i < sounds.size(); i++)
+	{
+		if (sounds[i].get() != nullptr)
+		{
+			AudioFormatReader* reader = sounds[i]->getReferenceToSound()->createReaderForAnalysis();
+
+			if (reader != nullptr)
+			{
+				const int numSamples = reader->lengthInSamples;
+
+				if (numSamples != 0)
+				{
+					analyseBuffer.setSize(2, numSamples, false, true, true);
+
+					reader->read(&analyseBuffer, 0, numSamples, 0, true, true);
+
+					float lLow, lHigh, rLow, rHigh;
+
+					reader->readMaxLevels(0, numSamples, lLow, lHigh, rLow, rHigh);
+
+					const float maxLevel = jmax<float>(std::fabs(lLow), std::fabs(lHigh), std::fabs(rLow), std::fabs(rHigh));
+					const float threshHoldLevel = 0.015625f * maxLevel; // -36dB normalized threshhold
+
+					int sample = sounds[i]->getProperty(ModulatorSamplerSound::SampleStart);
+
+					for (; sample < numSamples; sample++)
+					{
+						float l = analyseBuffer.getSample(0, sample);
+						float r = analyseBuffer.getSample(0, sample);
+
+						if (l > threshHoldLevel || r > threshHoldLevel)
+						{
+							break;
+						}
+					}
+
+					jassert(sample < numSamples - 1);
+
+					sounds[i]->setPropertyWithUndo(ModulatorSamplerSound::SampleStart, var(sample));
+					sounds[i]->sendChangeMessage();
+				}
+			}
+		}
+
+		
+	}
+}

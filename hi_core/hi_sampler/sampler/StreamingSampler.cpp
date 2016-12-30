@@ -218,6 +218,11 @@ bool StreamingSamplerSound::isMonolithic() const
 	return fileReader.isMonolithic();
 }
 
+AudioFormatReader* StreamingSamplerSound::createReaderForAnalysis()
+{
+	return fileReader.getReader();
+}
+
 String StreamingSamplerSound::getSampleStateAsString() const
 {
 	if (isMissing())

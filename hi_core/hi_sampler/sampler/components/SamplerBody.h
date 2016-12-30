@@ -157,6 +157,7 @@ public:
 		static void extractToSingleMicSamples(SamplerBody * body);
 		static void normalizeSamples(SamplerBody *body);
 		static void automapUsingMetadata(SamplerBody * body);
+		static void trimSampleStart(SamplerBody * body);
 	};
 
 

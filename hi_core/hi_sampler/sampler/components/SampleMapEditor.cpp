@@ -413,6 +413,9 @@ void SampleMapEditor::getCommandInfo(CommandID commandID, ApplicationCommandInfo
 	case AutomapUsingMetadata:  result.setInfo("Automap using Metadata", "Automaps the sample using the metadata that is found in the sample file.", "Sample Editing", 0);
 		result.setActive(selectionIsNotEmpty);
 		break;
+	case TrimSampleStart: result.setInfo("Trim Sample Start", "Removes the silence at the beginning of samples", "Sample Editing", 0);
+		result.setActive(selectionIsNotEmpty);
+		break;
 	}
 
 
@@ -510,6 +513,8 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 	case RefreshVelocityXFade:	SamplerBody::SampleEditingActions::refreshCrossfades(body);
 							return true;
 	case AutomapUsingMetadata: SamplerBody::SampleEditingActions::automapUsingMetadata(body);
+							return true;
+	case TrimSampleStart:	SamplerBody::SampleEditingActions::trimSampleStart(body);
 							return true;
 	}
 	return false;
