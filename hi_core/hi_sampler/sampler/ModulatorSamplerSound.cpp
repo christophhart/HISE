@@ -266,7 +266,7 @@ void ModulatorSamplerSound::setProperty(Property p, int newValue, NotificationTy
 		break;
 	}
 	case Pitch:		{	centPitch = newValue;
-		pitchFactor.set(powf(2.0f, (float)centPitch / 1200.f));
+		pitchFactor.store(powf(2.0f, (float)centPitch / 1200.f));
 		break;
 	};
 	case SampleStart:	FOR_EVERY_SOUND(setSampleStart(newValue)); break;
@@ -413,7 +413,7 @@ void ModulatorSamplerSound::closeFileHandle()
 Range<int> ModulatorSamplerSound::getNoteRange() const			{ return Range<int>(midiNotes.findNextSetBit(0), midiNotes.getHighestBit() + 1); }
 Range<int> ModulatorSamplerSound::getVelocityRange() const		{ return Range<int>(velocityRange.findNextSetBit(0), velocityRange.getHighestBit() + 1); }
 float ModulatorSamplerSound::getPropertyVolume() const noexcept { return gain.get(); }
-double ModulatorSamplerSound::getPropertyPitch() const noexcept { return pitchFactor.get(); }
+double ModulatorSamplerSound::getPropertyPitch() const noexcept { return pitchFactor.load(); }
 
 void ModulatorSamplerSound::setMaxRRGroupIndex(int newGroupLimit)
 {

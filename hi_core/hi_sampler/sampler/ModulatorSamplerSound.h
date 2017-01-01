@@ -393,7 +393,7 @@ private:
 
 	Atomic<float> gain;
 	double centPitch;
-	Atomic<double> pitchFactor;
+    std::atomic<double> pitchFactor;
 	int pan;
 
 	float leftBalanceGain;

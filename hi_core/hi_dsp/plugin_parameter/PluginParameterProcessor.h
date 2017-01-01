@@ -61,6 +61,7 @@ public:
     
 	/** You have to create and add all PluginParameters here in order to ensure compatibility with most hosts */
 	PluginParameterAudioProcessor(const String &name_ = "Untitled"):
+		AudioProcessor(BusesProperties().withOutput("Output", AudioChannelSet::stereo())), 
 		name(name_)
 	{
 

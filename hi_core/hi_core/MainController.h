@@ -299,7 +299,9 @@ public:
 	double getUptime() const noexcept { return uptime; }
 
 	/** returns the tempo as bpm. */
-	double getBpm() const noexcept { return bpm.get() > 0.0 ? bpm.get() : 120.0; };
+    double getBpm() const noexcept { return 120;
+        //bpm.get() > 0.0 ? bpm.get() : 120.0;
+    };
 
 	/** skins the given component (applies the global look and feel to it). */
     void skin(Component &c);
@@ -615,7 +617,7 @@ private:
 
     double globalPitchFactor;
     
-	Atomic<double> bpm;
+    std::atomic<double> bpm;
 	Atomic<int> voiceAmount;
 	bool allNotesOffFlag;
     
@@ -624,7 +626,7 @@ private:
     bool midiInputFlag;
 	
 	double sampleRate;
-	Atomic<double> temp_usage;
+    std::atomic<double> temp_usage;
 	int scrollY;
 	BigInteger shownComponents;
 };
