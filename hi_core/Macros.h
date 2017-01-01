@@ -82,9 +82,47 @@ static juce::Typeface::Ptr sourceCodeProBoldTypeFace = juce::Typeface::createSys
 
 #else
 
-#define GLOBAL_FONT() (Font().withHeight(13.0f))
-#define GLOBAL_BOLD_FONT() (Font().boldened().withHeight(13.0f))
-#define GLOBAL_MONOSPACE_FONT() (Font(Font::getDefaultMonospacedFontName(), 13.0f, Font::plain))
+class LinuxFontHandler
+{
+    public:
+
+    LinuxFontHandler()
+    {
+        juce::Typeface::Ptr oxygenBoldTypeFace = juce::Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::oxygen_bold_ttf, HiBinaryData::FrontendBinaryData::oxygen_bold_ttfSize);
+        juce::Typeface::Ptr oxygenTypeFace = juce::Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::oxygen_regular_ttf, HiBinaryData::FrontendBinaryData::oxygen_regular_ttfSize);
+        juce::Typeface::Ptr sourceCodeProTypeFace = juce::Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::SourceCodeProRegular_otf, HiBinaryData::FrontendBinaryData::SourceCodeProRegular_otfSize);
+        juce::Typeface::Ptr sourceCodeProBoldTypeFace = juce::Typeface::createSystemTypefaceFor(HiBinaryData::FrontendBinaryData::SourceCodeProBold_otf, HiBinaryData::FrontendBinaryData::SourceCodeProBold_otfSize);
+
+        globalFont = Font(oxygenTypeFace).withHeight(13.0f);
+        globalBoldFont = Font(oxygenBoldTypeFace).withHeight(14.0f);
+        monospaceFont = Font(sourceCodeProTypeFace).withHeight(14.0f);
+    }
+
+    
+
+    Font globalFont;
+    Font globalBoldFont;
+    Font monospaceFont;
+
+    class Instance
+    {
+    public:
+
+        Instance() {};
+
+        Font getGlobalFont() {return data->globalFont;};
+        Font getGlobalBoldFont() {return data->globalBoldFont;};
+        Font getGlobalMonospaceFont() {return data->monospaceFont; }
+
+    private:
+
+        SharedResourcePointer<LinuxFontHandler> data;
+    };
+};
+
+#define GLOBAL_FONT() (LinuxFontHandler::Instance().getGlobalFont())
+#define GLOBAL_BOLD_FONT() (LinuxFontHandler::Instance().getGlobalBoldFont())
+#define GLOBAL_MONOSPACE_FONT() (LinuxFontHandler::Instance().getGlobalMonospaceFont())
 
 #endif
 
