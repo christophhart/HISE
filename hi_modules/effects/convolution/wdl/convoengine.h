@@ -126,11 +126,8 @@ public:
 #endif
   void AddSilenceToOutput(int len, int nch);
 
-#if USE_IPP
 
-  IppFFT fftData;
-
-#endif
+  HiseFFTType fftData;
 
 } WDL_FIXALIGN;
 

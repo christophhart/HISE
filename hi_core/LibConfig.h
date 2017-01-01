@@ -53,9 +53,9 @@
 
 #else
 
-#define USE_VDSP_FOR_CONVOLUTION 1
-
 #endif
+
+
 
 #define HI_USE_BACKWARD_COMPATIBILITY 1
 

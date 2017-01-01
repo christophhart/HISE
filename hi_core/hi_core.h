@@ -42,7 +42,9 @@ BEGIN_JUCE_MODULE_DECLARATION
   website:          http://hise.audio
   license:          GPL / Commercial
 
-  dependencies:      juce_audio_basics, juce_audio_devices, juce_audio_formats, juce_audio_processors, juce_core, juce_cryptography, juce_data_structures, juce_events, juce_graphics, juce_gui_basics, juce_gui_extra, juce_opengl	
+  dependencies:      juce_audio_basics, juce_audio_devices, juce_audio_formats, juce_audio_processors, juce_core, juce_cryptography, juce_data_structures, juce_events, juce_graphics, juce_gui_basics, juce_gui_extra, juce_opengl
+  OSXFrameworks:    Accelerate
+  iOSFrameworks:    Accelerate
 
 END_JUCE_MODULE_DECLARATION
 
@@ -63,7 +65,6 @@ END_JUCE_MODULE_DECLARATION
 
 #include "hi_binary_data/hi_binary_data.h"
 
-#include "LibConfig.h"
 
 
 //=============================================================================
@@ -105,6 +106,14 @@ Use the Intel Performance Primitives Library for the convolution reverb.
 */
 #ifndef USE_IPP
 #define USE_IPP 1
+#endif
+
+/** Config: USE_VDSP_FFT
+*
+* Use the vDsp FFT on Apple devices.
+*/
+#ifndef USE_VDSP_FFT
+#define USE_VDSP_FFT 1
 #endif
 
 /** Config: FRONTEND_IS_PLUGIN
@@ -222,6 +231,8 @@ For all defined variables:
 *	New files must be added in the specific subfolder header / .cpp file.
 */
 
+
+#include "LibConfig.h"
 
 #include "Macros.h"
 

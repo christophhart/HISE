@@ -29,9 +29,21 @@
 */
 
 
-// this is based on djbfft
 
-#if USE_IPP
+#if USE_IPP || USE_VDSP_FFT
+
+void WDL_fft(WDL_FFT_COMPLEX *buf, int len, int isInverse, HiseFFTType &fftData, bool unpack)
+{
+    if (isInverse)
+    {
+        fftData.complexFFTInverseInplace((float*)buf, len);
+    }
+    else
+    {
+        fftData.complexFFTInplace((float*)buf, len, unpack);
+    }
+}
+
 
 void WDL_fft_init()
 {
@@ -40,57 +52,11 @@ void WDL_fft_init()
 	if(!ffttabinit)
 	{
 		ffttabinit = 1;
+#if USE_IPP
 		ippInit();
+#endif
 	}
 };
-
-void WDL_fft(WDL_FFT_COMPLEX *buf, int len, int isInverse, IppFFT &ippData)
-{
-
-	if (isInverse)
-	{
-		ippData.complexFFTInverseInplace((float*)buf, len);
-	}
-	else
-	{
-		ippData.complexFFTInplace((float*)buf, len);
-	}
-
-#if 0
-
-	//Set the size
-	const int N = len;
-	const int order = (int)(log((double)N) / log(2.0));
-
-	// Spec and working buffers
-	IppsFFTSpec_C_32fc *pFFTSpec = 0;
-
-	Ipp32fc *pSrc = reinterpret_cast<Ipp32fc*>(buf);// ippsMalloc_32fc(N);
-
-	// Query to get buffer sizes
-	int sizeFFTSpec, sizeFFTInitBuf, sizeFFTWorkBuf;
-	ippsFFTGetSize_C_32fc(order, IPP_FFT_NODIV_BY_ANY,
-		ippAlgHintFast, &sizeFFTSpec, &sizeFFTInitBuf, &sizeFFTWorkBuf);
-
-
-	ippData.ensureSize(sizeFFTSpec, sizeFFTInitBuf, sizeFFTWorkBuf);
-
-	// Initialize FFT
-	ippsFFTInit_C_32fc(&pFFTSpec, order, IPP_FFT_NODIV_BY_ANY,
-		ippAlgHintFast, ippData.pFFTSpecBuf, ippData.pFFTInitBuf);
-
-
-	if (isInverse)
-	{
-		ippsFFTInv_CToC_32fc_I(pSrc, pFFTSpec, ippData.pFFTWorkBuf);
-	}
-	else
-	{
-		ippsFFTFwd_CToC_32fc_I(pSrc, pFFTSpec, ippData.pFFTWorkBuf);
-	}
-
-#endif
-}
 
 #else
 
@@ -421,7 +387,7 @@ static WDL_FFT_COMPLEX d32768[4095];
   b1 = t4; \
   }
 
-#if USE_IPP
+#if USE_IPP || USE_VDSP_FFT
 #else
 static void c2(register WDL_FFT_COMPLEX *a)
 {
@@ -683,7 +649,7 @@ static void cpassbig(register WDL_FFT_COMPLEX *a,register const WDL_FFT_COMPLEX 
   } while (k -= 2);
 }
 
-#if USE_IPP
+#if USE_IPP || USE_VDSP_FFT
 #else
 
 static void c1024(register WDL_FFT_COMPLEX *a)
@@ -737,26 +703,6 @@ static void c32768(register WDL_FFT_COMPLEX *a)
 }
 #endif
 
-#if 0
-static void mulr4(WDL_FFT_REAL *a,WDL_FFT_REAL *b)
-{
-  register WDL_FFT_REAL t1, t2, t3, t4, t5, t6;
-
-  t1 = a[2] * b[2];
-  t2 = a[3] * b[3];
-  t3 = a[3] * b[2];
-  t4 = a[2] * b[3];
-  t5 = a[0] * b[0];
-  t6 = a[1] * b[1];
-  t1 -= t2;
-  t3 += t4;
-  a[0] = t5;
-  a[1] = t6;
-  a[2] = t1;
-  a[3] = t3;
-}
-
-#endif
 /* n even, n > 0 */
 void WDL_fft_complexmul(WDL_FFT_COMPLEX *a,WDL_FFT_COMPLEX *b,int n)
 {
@@ -1092,7 +1038,7 @@ static void upassbig(register WDL_FFT_COMPLEX *a,register const WDL_FFT_COMPLEX 
   } while (k -= 2);
 }
 
-#if USE_IPP
+#if USE_IPP || USE_VDSP_FFT
 
 #else
 
@@ -1185,7 +1131,7 @@ static unsigned int fftfreq_c(unsigned int i,unsigned int n)
 
 static int _idxperm[2<<FFT_MAXBITLEN];
 
-#if USE_IPP
+#if USE_IPP || USE_VDSP_FFT
 #else
 static void idx_perm_calc(int offs, int n)
 {
@@ -1211,7 +1157,6 @@ int WDL_fft_permute(int fftsize, int idx)
 void WDL_fft_init()
 {
 	static int ffttabinit;
-
 
     
 #if USE_IPP

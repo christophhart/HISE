@@ -203,7 +203,7 @@ void MainController::loadPreset(ValueTree &v, Component* /*mainEditor*/)
 void MainController::startCpuBenchmark(int bufferSize_)
 {
 	bufferSize.set(bufferSize_);
-	temp_usage.set(Time::highResolutionTicksToSeconds(Time::getHighResolutionTicks()));
+	temp_usage = (Time::highResolutionTicksToSeconds(Time::getHighResolutionTicks()));
 }
 
 void MainController::compileAllScripts()
@@ -220,7 +220,7 @@ void MainController::compileAllScripts()
 
 void MainController::stopCpuBenchmark()
 {
-	const double usage = (Time::highResolutionTicksToSeconds(Time::getHighResolutionTicks()) - temp_usage.get()) * sampleRate / bufferSize.get();
+	const double usage = (Time::highResolutionTicksToSeconds(Time::getHighResolutionTicks()) - temp_usage) * sampleRate / bufferSize.get();
 	usagePercent.set((int) (usage * 100));
 
 }
@@ -543,15 +543,17 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 
 void MainController::setBpm(double bpm_)
 {
-	if(bpm.get() != bpm_)
+    
+    
+	if(bpm != bpm_)
 	{
-		bpm.set(bpm_);	
+		bpm = bpm_;
 
 		for(int i = 0; i < tempoListeners.size(); i++)
 		{
 			if(tempoListeners[i].get() != nullptr)
 			{
-				tempoListeners[i].get()->tempoChanged(bpm.get());
+				tempoListeners[i].get()->tempoChanged(bpm);
 			}
 			else
 			{

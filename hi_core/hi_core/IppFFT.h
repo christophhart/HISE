@@ -59,7 +59,7 @@ public:
 	// =============================================================================================================================
 
 	/** Creates a IPP FFT object. The initialisation time is rather slow, but then it will unleash its power because it allocates all necessary buffers once. */
-	IppFFT(DataType typeToUse, int maxPowerOfTwo = IPP_FFT_MAX_POWER_OF_TWO, const int flagToUse = IPP_FFT_NODIV_BY_ANY);
+    IppFFT(DataType typeToUse=DataType::ComplexFloat, int maxPowerOfTwo = IPP_FFT_MAX_POWER_OF_TWO, const int flagToUse = IPP_FFT_NODIV_BY_ANY);
 	~IppFFT();
 
 	// ==================================================================================================================================== float FFTs

@@ -888,4 +888,31 @@ private:
 };
 
 
+
+
+#define MAX_VDSP_FFT_SIZE 13
+
+class VDspFFT
+{
+public:
+    
+    VDspFFT(int maxN=16);
+    
+    ~VDspFFT();
+    
+    void complexFFTInplace(float* data, int size, bool unpack=true);
+    
+    void complexFFTInverseInplace(float* data, int size);
+    
+    void multiplyComplex(float* output, float* in1, int in1Offset, float* in2, int in2Offset, int numSamples, bool addToOutput);
+    
+private:
+    
+    class Pimpl;
+    
+    ScopedPointer<Pimpl> pimpl;
+};
+
+
+
 #endif  // UTILITYCLASSES_H_INCLUDED

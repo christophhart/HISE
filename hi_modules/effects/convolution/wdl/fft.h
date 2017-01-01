@@ -30,6 +30,15 @@
 #ifndef _WDL_FFT_H_
 #define _WDL_FFT_H_
 
+#if HISE_IOS || (JUCE_MAC && USE_VDSP_FFT)
+#define HiseFFTType VDspFFT
+#elif USE_IPP
+#define HiseFFTType IppFFT
+#else
+class HiseFFTType {};
+#endif
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -52,127 +61,11 @@ typedef struct {
 } WDL_FFT_COMPLEX;
 
 extern void WDL_fft_init();
-
 extern void WDL_fft_complexmul(WDL_FFT_COMPLEX *dest, WDL_FFT_COMPLEX *src, int len);
 extern void WDL_fft_complexmul2(WDL_FFT_COMPLEX *dest, WDL_FFT_COMPLEX *src, WDL_FFT_COMPLEX *src2, int len);
 extern void WDL_fft_complexmul3(WDL_FFT_COMPLEX *destAdd, WDL_FFT_COMPLEX *src, WDL_FFT_COMPLEX *src2, int len);
 
-#if USE_IPP
-
-#define MAX_FFT_SPEC_BUF_SIZE 65536
-#define MAX_FFT_INIT_BUF_SIZE 65536
-#define MAX_FFT_WORKING_BUF_SIZE 65536
-
-struct FFTData
-{
-	FFTData()
-	{
-		fftSpec.malloc(sizeof(Ipp8u) * MAX_FFT_INIT_BUF_SIZE);
-		fftInit.malloc(sizeof(Ipp8u) * MAX_FFT_INIT_BUF_SIZE);
-		fftWorker.malloc(sizeof(Ipp8u) * MAX_FFT_INIT_BUF_SIZE);
-
-
- 		//pFFTSpecBuf = ippsMalloc_8u(MAX_FFT_SPEC_BUF_SIZE);
- 		//pFFTInitBuf = ippsMalloc_8u(MAX_FFT_INIT_BUF_SIZE);
- 		//pFFTWorkBuf = ippsMalloc_8u(MAX_FFT_WORKING_BUF_SIZE);
-
-		sizeFFTSpec = MAX_FFT_SPEC_BUF_SIZE;
-		sizeFFTInitBuf = MAX_FFT_INIT_BUF_SIZE;
-		sizeFFTWorkBuf = MAX_FFT_WORKING_BUF_SIZE;
-
-		pFFTInitBuf = fftInit.getData();
-		pFFTSpecBuf = fftSpec.getData();
-		pFFTWorkBuf = fftWorker.getData();
-
-		
-	}
-
-	~FFTData()
-	{
-		fftSpec.free();
-		fftInit.free();
-		fftWorker.free();
-
-		pFFTInitBuf = pFFTSpecBuf = pFFTWorkBuf = nullptr;
-
- 		//if(pFFTWorkBuf) ippFree(pFFTWorkBuf);
- 		//if(pFFTInitBuf) ippFree(pFFTInitBuf);
- 		//if(pFFTWorkBuf) ippFree(pFFTWorkBuf);
-	}
-
-	void ensureSize(int sizeFFTSpec_, int sizeFFTInitBuf_, int sizeFFTWorkBuf_)
-	{
-		if (sizeFFTWorkBuf_ > sizeFFTWorkBuf)
-		{
-			if(fftWorker.getData() != nullptr) fftWorker.free();
-			fftWorker.malloc(sizeFFTWorkBuf_);
-			pFFTWorkBuf = fftWorker.getData();
-
-			//if (pFFTWorkBuf) ippFree(pFFTWorkBuf);
-			//pFFTWorkBuf = ippsMalloc_8u(sizeFFTWorkBuf_);
-
-
-			sizeFFTWorkBuf = sizeFFTWorkBuf_;
-		}
-
-		if (sizeFFTInitBuf_ > sizeFFTInitBuf)
-		{
-			if (fftInit.getData() != nullptr) fftInit.free();
-			fftInit.malloc(sizeFFTInitBuf_);
-			pFFTInitBuf = fftInit.getData();
-
-			//if (pFFTInitBuf) ippFree(pFFTInitBuf);
-			//pFFTInitBuf = ippsMalloc_8u(sizeFFTInitBuf_);
-
-			sizeFFTInitBuf = sizeFFTInitBuf_;
-		}
-
-		if (sizeFFTSpec_ > sizeFFTSpec)
-		{
-			if (fftSpec.getData() != nullptr) fftSpec.free();
-			fftSpec.malloc(sizeFFTSpec_);
-			pFFTSpecBuf = fftSpec.getData();
-
-			//if (pFFTSpecBuf) ippFree(pFFTSpecBuf);
-			//pFFTSpecBuf = ippsMalloc_8u(sizeFFTSpec_);
-
-			sizeFFTSpec = sizeFFTSpec_;
-		}
-	}
-
-	Ipp8u *pFFTSpecBuf, *pFFTInitBuf, *pFFTWorkBuf;
-
-private:
-
-	int sizeFFTSpec;
-	int sizeFFTInitBuf;
-	int sizeFFTWorkBuf;
-
-	HeapBlock<Ipp8u> fftSpec;
-	HeapBlock<Ipp8u> fftInit;
-	HeapBlock<Ipp8u> fftWorker;
-
-	
-};
-
-//extern void WDL_fft(WDL_FFT_COMPLEX *, int len, int isInverse, FFTData &data);
-
-extern void WDL_fft(WDL_FFT_COMPLEX *, int len, int isInverse, IppFFT &data);
-
-#else
-
-extern void WDL_fft(WDL_FFT_COMPLEX *, int len, int isInverse);
-
-#endif
-
-
-
-
-
-#if 0 // these dont work right!
-extern void WDL_fft_realmul(WDL_FFT_REAL *dest, WDL_FFT_REAL *src, int len);
-extern void WDL_real_fft(WDL_FFT_REAL *, int len, int isInverse);
-#endif
+extern void WDL_fft(WDL_FFT_COMPLEX *, int len, int isInverse, HiseFFTType &data, bool unpack=true);
 
 int WDL_fft_permute(int fftsize, int idx);
 

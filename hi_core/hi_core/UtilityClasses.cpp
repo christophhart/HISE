@@ -101,3 +101,207 @@ File AutoSaver::getAutoSaveFile()
 		return File();
 	}
 }
+
+
+class VDspFFT::Pimpl
+{
+public:
+    Pimpl(int maxOrder=MAX_VDSP_FFT_SIZE):
+    maxN(maxOrder)
+    {
+        setup = vDSP_create_fftsetup(maxOrder, kFFTRadix2); /* supports up to 2048 (2**11) points  */
+        
+        const int maxLength = 1 << maxN;
+        
+        temp.setSize(2, maxLength);
+        temp.clear();
+        
+        tempBuffer.realp = temp.getWritePointer(0);
+        tempBuffer.imagp = temp.getWritePointer(1);
+        
+        temp2.setSize(2, maxLength);
+        temp2.clear();
+        
+        tempBuffer2.realp = temp2.getWritePointer(0);
+        tempBuffer2.imagp = temp2.getWritePointer(1);
+        
+        temp3.setSize(2, maxLength);
+        temp3.clear();
+        
+        tempBuffer3.realp = temp3.getWritePointer(0);
+        tempBuffer3.imagp = temp3.getWritePointer(1);
+    }
+    
+    ~Pimpl()
+    {
+        vDSP_destroy_fftsetup(setup);
+    }
+    
+    void complexFFTInplace(float* data, int size, bool unpack=true)
+    {
+        const int N = (int)log2(size);
+        jassert(N <= maxN);
+        const int thisLength = size;
+        
+        if(unpack)
+        {
+            vDSP_ctoz((COMPLEX *) data, 2, &tempBuffer, 1, thisLength);
+        }
+        else
+        {
+            tempBuffer.realp = data;
+            tempBuffer.imagp = data + size;
+        }
+        
+        vDSP_fft_zip(setup, &tempBuffer, 1, N, FFT_FORWARD);
+        //vDSP_ztoc(&tempBuffer, 1, (COMPLEX *) data, 2, thisLength);
+        
+        if(unpack)
+        {
+            FloatVectorOperations::copy(data, tempBuffer.realp, thisLength);
+            FloatVectorOperations::copy(data + thisLength, tempBuffer.imagp, thisLength);
+        }
+    }
+    
+    void complexFFTInverseInplace(float* data, int size)
+    {
+        const int N = (int)log2(size);
+        jassert(N <= maxN);
+        const int thisLength = size;
+        
+        FloatVectorOperations::copy(temp3.getWritePointer(0), data, size*2);
+        
+        COMPLEX_SPLIT s;
+        s.realp = temp3.getWritePointer(0);
+        s.imagp = temp3.getWritePointer(0)+size;
+        
+        //vDSP_ctoz((COMPLEX *) data, 2, &tempBuffer, 1, thisLength);
+        vDSP_fft_zip(setup, &s, 1, N, FFT_INVERSE);
+        
+        
+        
+        
+        vDSP_ztoc(&s, 1, (COMPLEX *) data, 2, thisLength);
+    }
+    
+    
+    void multiplyComplex(float* output, float* in1, int in1Offset, float* in2, int in2Offset, int numSamples, bool addToOutput)
+    {
+        COMPLEX_SPLIT i1;
+        i1.realp = in1+in1Offset;
+        i1.imagp = in1+in1Offset + numSamples;
+        
+        COMPLEX_SPLIT i2;
+        i2.realp = in2+in2Offset;
+        i2.imagp = in2+in2Offset + numSamples;
+        
+        COMPLEX_SPLIT o;
+        o.realp = output;
+        o.imagp = output + numSamples;
+        
+        if(addToOutput)
+            vDSP_zvma(&i1, 1, &i2, 1, &o, 1, &o, 1, numSamples);
+        
+        else
+            vDSP_zvmul(&i1, 1, &i2, 1, &o, 1, numSamples, 1);
+    }
+    
+    
+    /** Convolves the signal with the impulse response.
+     *
+     *   The signal is a complex float array in the form [i0, r0, i1, r1, ... ].
+     *   The ir is already FFT transformed in COMPLEX_SPLIT form
+     */
+    void convolveComplex(float* signal, const COMPLEX_SPLIT &ir, int N)
+    {
+        const int thisLength = 1 << N;
+        
+        vDSP_ctoz((COMPLEX *) signal, 2, &tempBuffer, 1, thisLength/2);
+        vDSP_fft_zrip(setup, &tempBuffer, 1, N, FFT_FORWARD);
+        
+        float preserveIRNyq = ir.imagp[0];
+        ir.imagp[0] = 0;
+        float preserveSigNyq = tempBuffer.imagp[0];
+        tempBuffer.imagp[0] = 0;
+        vDSP_zvmul(&tempBuffer, 1, &ir, 1, &tempBuffer, 1, N, 1);
+        tempBuffer.imagp[0] = preserveIRNyq * preserveSigNyq;
+        ir.imagp[0] = preserveIRNyq;
+        vDSP_fft_zrip(setup, &tempBuffer, 1, N, FFT_INVERSE);
+        
+        vDSP_ztoc(&tempBuffer, 1, (COMPLEX *)signal, 2, N);
+        
+        //float scale = 1.0 / (8*N);
+        
+        //FloatVectorOperations::multiply(signal, scale, thisLength);
+    }
+    
+    /** Creates a complex split structure from two float arrays. */
+    static COMPLEX_SPLIT createComplexSplit(float* real, float* img)
+    {
+        COMPLEX_SPLIT s;
+        s.imagp = img;
+        s.realp = real;
+        
+        return s;
+    }
+    
+    /** Creates a partial complex split structure from another one. */
+    static COMPLEX_SPLIT createComplexSplit(COMPLEX_SPLIT& other, int offset)
+    {
+        COMPLEX_SPLIT s;
+        s.imagp = other.imagp + offset;
+        s.realp = other.realp + offset;
+    }
+    
+    static COMPLEX_SPLIT createComplexSplit(juce::AudioSampleBuffer &buffer)
+    {
+        COMPLEX_SPLIT s;
+        s.realp = buffer.getWritePointer(0);
+        s.imagp = buffer.getWritePointer(1);
+        
+        return s;
+    }
+    
+private:
+    
+    FFTSetup setup;
+    
+    COMPLEX_SPLIT tempBuffer;
+    juce::AudioSampleBuffer temp;
+    
+    juce::AudioSampleBuffer temp2;
+    COMPLEX_SPLIT tempBuffer2;
+    
+    COMPLEX_SPLIT tempBuffer3;
+    juce::AudioSampleBuffer temp3;
+    
+    int maxN;
+    
+};
+
+VDspFFT::VDspFFT(int maxN)
+{
+    pimpl = new Pimpl(maxN);
+}
+
+VDspFFT::~VDspFFT()
+{
+    pimpl = nullptr;
+}
+
+void VDspFFT::complexFFTInplace(float* data, int size, bool unpack)
+{
+    pimpl->complexFFTInplace(data, size, unpack);
+}
+
+void VDspFFT::complexFFTInverseInplace(float* data, int size)
+{
+    pimpl->complexFFTInverseInplace(data, size);
+}
+
+void VDspFFT::multiplyComplex(float* output, float* in1, int in1Offset, float* in2, int in2Offset, int numSamples, bool addToOutput)
+{
+    pimpl->multiplyComplex(output, in1, in1Offset, in2, in2Offset, numSamples, addToOutput);
+    
+}
+

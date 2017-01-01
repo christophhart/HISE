@@ -1,5 +1,14 @@
+#define Point DummyPoint
+#define Component DummyComponent
+#define MemoryBlock DummyMB
+#include <Accelerate/Accelerate.h>
+#undef Point
+#undef Component
+#undef MemoryBlock
+
 
 #include "hi_core.h"
+
 
 #include "additional_libraries/additional_libraries.cpp"
 #include "hi_binary_data/hi_binary_data.cpp"
