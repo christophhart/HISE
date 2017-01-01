@@ -207,9 +207,9 @@ String CompileExporter::getCompileResult(ErrorCodes result)
 }
 
 
-void CompileExporter::writeValueTreeToTemporaryFile(const ValueTree& v, const String &tempFolder, const String& childFile)
+void CompileExporter::writeValueTreeToTemporaryFile(const ValueTree& v, const String &tempFolder, const String& childFile, bool compress)
 {
-	PresetHandler::writeValueTreeAsFile(v, File(tempFolder).getChildFile(childFile).getFullPathName()); ;
+	PresetHandler::writeValueTreeAsFile(v, File(tempFolder).getChildFile(childFile).getFullPathName(), compress); ;
 }
 
 
@@ -456,7 +456,7 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 
 		convertTccScriptsToCppClasses();
 		writeValueTreeToTemporaryFile(exportPresetFile(), directoryPath, "preset");
-		writeValueTreeToTemporaryFile(exportEmbeddedFiles(type != TargetTypes::EffectPlugin), directoryPath, "externalFiles");
+		writeValueTreeToTemporaryFile(exportEmbeddedFiles(type != TargetTypes::EffectPlugin), directoryPath, "externalFiles", true);
 		writeValueTreeToTemporaryFile(exportUserPresetFiles(), directoryPath, "userPresets");
 
 		if (SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::EmbedAudioFiles, &GET_PROJECT_HANDLER(chainToExport)) == "No")

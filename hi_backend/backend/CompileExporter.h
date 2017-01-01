@@ -160,7 +160,7 @@ public:
 
 	static String getCompileResult(ErrorCodes result);
 
-	void writeValueTreeToTemporaryFile(const ValueTree& v, const String &tempFolder, const String& childFile);
+	void writeValueTreeToTemporaryFile(const ValueTree& v, const String &tempFolder, const String& childFile, bool compress=false);
 
 	int getBuildOptionPart(const String& argument);
 
