@@ -88,8 +88,16 @@ AudioProcessorEditor(fp)
     const int keyboardHeight = 72;
 #endif
     
+    
+#if HISE_IOS
+    
+    setSize(568, 320);
+    
+#else
+    
     setSize(interfaceComponent->getContentWidth(), ((mainBar != nullptr && !overlayToolbar) ? mainBar->getHeight() : 0) + interfaceComponent->getContentHeight() + (showKeyboard ? keyboardHeight : 0));
-
+#endif
+    
 	startTimer(4125);
 
 }
