@@ -476,7 +476,7 @@ void ModulatorSynth::handlePeakDisplay(int numSamplesInOutputBuffer)
 	
 #else
 
-	if (this != getMainController()->getMainSynthChain())
+	if (this == getMainController()->getMainSynthChain())
 	{
 		currentValues.outL = gain * internalBuffer.getMagnitude(0, 0, numSamplesInOutputBuffer) * leftBalanceGain;
 		currentValues.outR = gain * internalBuffer.getMagnitude(1, 0, numSamplesInOutputBuffer) * rightBalanceGain;
