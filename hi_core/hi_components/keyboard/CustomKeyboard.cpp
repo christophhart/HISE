@@ -61,7 +61,34 @@ Component * MidiKeyboardFocusTraverser::getDefaultComponent(Component *parentCom
 }
 
 
+CustomKeyboardLookAndFeel::CustomKeyboardLookAndFeel()
+{
+	cachedImage_black_key_off_png = ImageCache::getFromMemory(black_key_off_png, black_key_off_pngSize);
+	cachedImage_black_key_on_png = ImageCache::getFromMemory(black_key_on_png, black_key_on_pngSize);
+	cachedImage_white_key_off_png = ImageCache::getFromMemory(white_key_off_png, white_key_off_pngSize);
+	cachedImage_white_key_on_png = ImageCache::getFromMemory(white_key_on_png, white_key_on_pngSize);
+}
 
+
+void CustomKeyboardLookAndFeel::drawKeyboardBackground(Graphics &g, int width, int height)
+{
+	g.setColour(Colours::darkred);
+	g.drawLine(0.0f, 0.0f, (float)width, 0.0f, 3.0f);
+
+	g.setGradientFill(ColourGradient(Colour(0x7d000000),
+		0.0f, 80.0f,
+		Colour(0x00008000),
+		5.0f, 80.0f,
+		false));
+	g.fillRect(0, 0, 16, height);
+
+	g.setGradientFill(ColourGradient(Colour(0x7d000000),
+		(float)width, 80.0f,
+		Colour(0x00008000),
+		(float)width - 5.0f, 80.0f,
+		false));
+	g.fillRect(width - 16, 0, 16, height);
+}
 
 //==============================================================================
 CustomKeyboard::CustomKeyboard (CustomKeyboardState &state_):
@@ -71,10 +98,9 @@ CustomKeyboard::CustomKeyboard (CustomKeyboardState &state_):
     lowKey(36)
 {
 	state->addChangeListener(this);
-    cachedImage_black_key_off_png = ImageCache::getFromMemory (black_key_off_png, black_key_off_pngSize);
-    cachedImage_black_key_on_png = ImageCache::getFromMemory (black_key_on_png, black_key_on_pngSize);
-    cachedImage_white_key_off_png = ImageCache::getFromMemory (white_key_off_png, white_key_off_pngSize);
-    cachedImage_white_key_on_png = ImageCache::getFromMemory (white_key_on_png, white_key_on_pngSize);
+   
+	setLookAndFeel(&laf);
+
 
 #if HISE_IOS
 
@@ -100,17 +126,27 @@ CustomKeyboard::~CustomKeyboard()
 	state->removeChangeListener(this);
 }
 
-void CustomKeyboard::drawWhiteNote (int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &/*lineColour*/, const Colour &/*textColour*/)
+void CustomKeyboard::drawWhiteNote(int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &lineColour, const Colour &textColour)
+{
+	dynamic_cast<CustomKeyboardLookAndFeel*>(&getLookAndFeel())->drawWhiteNote(state, midiNoteNumber, g, x, y, w, h, isDown, isOver, lineColour, textColour);
+}
+
+void CustomKeyboard::drawBlackNote(int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &noteFillColour)
+{
+	dynamic_cast<CustomKeyboardLookAndFeel*>(&getLookAndFeel())->drawBlackNote(state, midiNoteNumber, g, x, y, w, h, isDown, isOver, noteFillColour);
+}
+
+void CustomKeyboardLookAndFeel::drawWhiteNote(CustomKeyboardState* state, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &/*lineColour*/, const Colour &/*textColour*/)
 {
 #if HISE_IOS
 
-	g.setColour(Colour(BACKEND_BG_COLOUR_BRIGHT));
+	g.setColour(lineColour(BACKEND_BG_COLOUR_BRIGHT));
 	g.fillRect(x, y, w, h);
 
 	const int off = midiNoteNumber % 12;
 
-	g.setGradientFill(ColourGradient(Colour(0xFFEEEEEE), 0.0f, 0.0f,
-									 Colour(0xFFCCCCCC), 0.0f, (float)(y+h), false));
+	g.setGradientFill(ColourGradient(lineColour(0xFFEEEEEE), 0.0f, 0.0f,
+									 lineColour(0xFFCCCCCC), 0.0f, (float)(y+h), false));
 
 	g.fillRoundedRectangle((float)x+1.f,(float)y-5.0f,(float)w-2.f,(float)h+5.0f, 5.0f);
 
@@ -126,7 +162,7 @@ void CustomKeyboard::drawWhiteNote (int midiNoteNumber, Graphics &g, int x, int 
 
 	g.fillRect(x, y, w, 8);
 
-	g.setColour(Colour(BACKEND_BG_COLOUR_BRIGHT));
+	g.setColour(lineColour(BACKEND_BG_COLOUR_BRIGHT));
 	g.drawLine(x, y, x + w, y, 2);
 
 
@@ -175,13 +211,13 @@ void CustomKeyboard::drawWhiteNote (int midiNoteNumber, Graphics &g, int x, int 
 #endif
 }
 
-void CustomKeyboard::drawBlackNote (int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &/*noteFillColour*/)
+void CustomKeyboardLookAndFeel::drawBlackNote(CustomKeyboardState* state, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &/*noteFillColour*/)
 {
 	
 #if HISE_IOS
 
-	g.setGradientFill(ColourGradient(Colour(0xFF444444), 0.0f, 0.0f,
-									 Colour(0xFF222222), 0.0f, (float)h, false));
+	g.setGradientFill(ColourGradient(noteFillColour(0xFF444444), 0.0f, 0.0f,
+									 noteFillColour(0xFF222222), 0.0f, (float)h, false));
 
 	Rectangle<float> keyArea((float)x, (float)y-5.0f, (float)w, (float)(h - 5.0f)*0.9f);
 
@@ -193,7 +229,7 @@ void CustomKeyboard::drawBlackNote (int midiNoteNumber, Graphics &g, int x, int 
 		g.fillRoundedRectangle(keyArea, 5.0f);
 	}
 
-	g.setColour(Colour(BACKEND_BG_COLOUR_BRIGHT));
+	g.setColour(noteFillColour(BACKEND_BG_COLOUR_BRIGHT));
 
 	g.drawRoundedRectangle(keyArea, 5.0f, 2.0f);
 
@@ -222,8 +258,6 @@ void CustomKeyboard::drawBlackNote (int midiNoteNumber, Graphics &g, int x, int 
                  0, 0, cachedImage_black_key_off_png.getWidth(), cachedImage_black_key_off_png.getHeight());
 
 	}
-
-	
 
 	if(isOver)
 	{
@@ -276,8 +310,8 @@ static const unsigned char resource_CustomKeyboard_black_key_off_png[] = { 137,8
 252,215,66,12,171,121,208,65,83,106,149,27,42,86,120,188,42,55,224,18,143,207,232,231,56,62,33,60,135,87,232,47,8,186,69,127,47,52,135,34,237,255,191,236,125,11,48,0,180,52,119,18,1,213,108,244,0,0,0,
 0,73,69,78,68,174,66,96,130,0,0};
 
-const char* CustomKeyboard::black_key_off_png = (const char*) resource_CustomKeyboard_black_key_off_png;
-const int CustomKeyboard::black_key_off_pngSize = 1340;
+const char* CustomKeyboardLookAndFeel::black_key_off_png = (const char*) resource_CustomKeyboard_black_key_off_png;
+const int CustomKeyboardLookAndFeel::black_key_off_pngSize = 1340;
 
 // JUCER_RESOURCE: black_key_on_png, 1422, "C:/Users/Chrisboy/Documents/black_key_on.png"
 static const unsigned char resource_CustomKeyboard_black_key_on_png[] = { 137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,0,0,0,20,0,0,0,92,8,6,0,0,0,110,130,149,12,0,0,0,25,116,69,88,116,83,111,102,116,
@@ -306,8 +340,8 @@ static const unsigned char resource_CustomKeyboard_black_key_on_png[] = { 137,80
 48,125,138,250,162,173,61,119,192,21,188,190,69,109,163,22,80,62,229,115,140,146,35,106,183,139,58,70,157,33,240,218,1,9,176,140,90,71,45,161,230,224,110,206,148,21,17,234,39,234,123,162,43,4,106,7,116,
 175,79,53,81,158,67,155,56,164,89,220,117,114,181,110,148,249,91,128,1,0,181,142,155,127,61,200,145,56,0,0,0,0,73,69,78,68,174,66,96,130,0,0};
 
-const char* CustomKeyboard::black_key_on_png = (const char*) resource_CustomKeyboard_black_key_on_png;
-const int CustomKeyboard::black_key_on_pngSize = 1422;
+const char* CustomKeyboardLookAndFeel::black_key_on_png = (const char*) resource_CustomKeyboard_black_key_on_png;
+const int CustomKeyboardLookAndFeel::black_key_on_pngSize = 1422;
 
 // JUCER_RESOURCE: white_key_off_png, 2028, "C:/Users/Chrisboy/Documents/white_key_off.png"
 static const unsigned char resource_CustomKeyboard_white_key_off_png[] = { 137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,0,0,0,27,0,0,0,150,8,6,0,0,0,47,250,243,83,0,0,0,25,116,69,88,116,83,111,102,116,
@@ -347,8 +381,8 @@ static const unsigned char resource_CustomKeyboard_white_key_off_png[] = { 137,8
 137,6,253,62,122,151,151,242,123,239,226,226,167,156,179,27,46,209,238,206,206,236,33,174,181,219,198,234,165,224,60,77,104,142,51,253,37,152,213,196,85,116,222,186,156,190,112,149,189,87,147,9,161,107,
 11,102,99,78,39,237,118,251,7,239,103,252,79,128,1,0,187,116,90,111,116,168,228,14,0,0,0,0,73,69,78,68,174,66,96,130,0,0};
 
-const char* CustomKeyboard::white_key_off_png = (const char*) resource_CustomKeyboard_white_key_off_png;
-const int CustomKeyboard::white_key_off_pngSize = 2028;
+const char* CustomKeyboardLookAndFeel::white_key_off_png = (const char*) resource_CustomKeyboard_white_key_off_png;
+const int CustomKeyboardLookAndFeel::white_key_off_pngSize = 2028;
 
 // JUCER_RESOURCE: white_key_on_png, 1611, "C:/Users/Chrisboy/Documents/white_key_on.png"
 static const unsigned char resource_CustomKeyboard_white_key_on_png[] = { 137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,0,0,0,27,0,0,0,151,8,6,0,0,0,228,166,32,246,0,0,0,25,116,69,88,116,83,111,102,116,
@@ -381,6 +415,6 @@ static const unsigned char resource_CustomKeyboard_white_key_on_png[] = { 137,80
 246,45,131,86,171,5,215,117,193,212,193,234,151,59,59,57,121,253,181,156,77,101,132,116,102,82,206,211,122,189,222,237,247,251,248,45,192,0,66,57,226,65,2,160,50,223,0,0,0,0,73,69,78,68,174,66,96,130,
 0,0};
 
-const char* CustomKeyboard::white_key_on_png = (const char*) resource_CustomKeyboard_white_key_on_png;
-const int CustomKeyboard::white_key_on_pngSize = 1611;
+const char* CustomKeyboardLookAndFeel::white_key_on_png = (const char*) resource_CustomKeyboard_white_key_on_png;
+const int CustomKeyboardLookAndFeel::white_key_on_pngSize = 1611;
 

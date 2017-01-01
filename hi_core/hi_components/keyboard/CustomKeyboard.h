@@ -48,6 +48,36 @@ public:
 
 
 
+class CustomKeyboardLookAndFeel: public LookAndFeel_V3
+{
+public:
+
+	CustomKeyboardLookAndFeel();
+
+	virtual void drawKeyboardBackground(Graphics &g, int width, int height);
+
+	virtual void drawWhiteNote(CustomKeyboardState* state, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &lineColour, const Colour &textColour);
+	virtual void drawBlackNote(CustomKeyboardState* state, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &noteFillColour);
+
+	// Binary resources:
+	static const char* black_key_off_png;
+	static const int black_key_off_pngSize;
+	static const char* black_key_on_png;
+	static const int black_key_on_pngSize;
+	static const char* white_key_off_png;
+	static const int white_key_off_pngSize;
+	static const char* white_key_on_png;
+	static const int white_key_on_pngSize;
+
+private:
+
+	//==============================================================================
+	Image cachedImage_black_key_off_png;
+	Image cachedImage_black_key_on_png;
+	Image cachedImage_white_key_off_png;
+	Image cachedImage_white_key_on_png;
+
+};
 
 
 class CustomKeyboard : public MidiKeyboardComponent,
@@ -78,34 +108,10 @@ public:
 	void paint(Graphics &g) override
 	{
 		MidiKeyboardComponent::paint(g);
-		g.setColour(Colours::darkred);
-		g.drawLine(0.0f, 0.0f, (float)getWidth(), 0.0f, 3.0f);
-
-		g.setGradientFill (ColourGradient (Colour (0x7d000000),
-										   0.0f, 80.0f,
-										   Colour (0x00008000),
-										   5.0f, 80.0f,
-										   false));
-		g.fillRect (0, 0, 16, proportionOfHeight (1.0000f));
-
-		g.setGradientFill (ColourGradient (Colour (0x7d000000),
-										   (float)getWidth(), 80.0f,
-										   Colour (0x00008000),
-										   (float)getWidth()-5.0f, 80.0f,
-										   false));
-		g.fillRect (getWidth()-16, 0, 16, proportionOfHeight (1.0000f));
-
+		
+		dynamic_cast<CustomKeyboardLookAndFeel*>(&getLookAndFeel())->drawKeyboardBackground(g, getWidth(), getHeight());
 	};
 
-    // Binary resources:
-    static const char* black_key_off_png;
-    static const int black_key_off_pngSize;
-    static const char* black_key_on_png;
-    static const int black_key_on_pngSize;
-    static const char* white_key_off_png;
-    static const int white_key_off_pngSize;
-    static const char* white_key_on_png;
-    static const int white_key_on_pngSize;
 
 	void changeListenerCallback(SafeChangeBroadcaster *) override
 	{
@@ -122,19 +128,13 @@ protected:
 
 private:
 
+	CustomKeyboardLookAndFeel laf;
 
 	CustomKeyboardState *state;
  
     bool narrowKeys;
     
     int lowKey;
-    
-    //==============================================================================
-    Image cachedImage_black_key_off_png;
-    Image cachedImage_black_key_on_png;
-    Image cachedImage_white_key_off_png;
-    Image cachedImage_white_key_on_png;
-
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CustomKeyboard)
