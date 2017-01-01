@@ -231,6 +231,12 @@ For all defined variables:
 *	New files must be added in the specific subfolder header / .cpp file.
 */
 
+#if !JUCE_MAC
+#ifdef USE_VDSP_FFT
+#undef USE_VDSP_FFT
+#endif
+#define USE_VDSP_FFT 0
+#endif
 
 #include "LibConfig.h"
 
