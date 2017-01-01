@@ -1,5 +1,5 @@
-#if JUCE_MAC && USE_VDSP_FFT 
 
+#if JUCE_MAC && USE_VDSP_FFT
 // This deactivates some duplicate classes in the Apple API
 #define Point DummyPoint
 #define Component DummyComponent
@@ -8,7 +8,6 @@
 #undef Point
 #undef Component
 #undef MemoryBlock
-
 #endif
 
 #include "hi_core.h"

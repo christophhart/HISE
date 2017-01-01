@@ -260,9 +260,9 @@ void DefaultFrontendBar::buttonClicked(Button* b)
 {
 	if (b == deviceSettingsButton)
 	{
-		ModalBaseWindow* b = findParentComponentOfClass<ModalBaseWindow>();
+		ModalBaseWindow* bw = findParentComponentOfClass<ModalBaseWindow>();
 
-		b->setModalComponent(new CombinedSettingsWindow(mc), 200);
+		bw->setModalComponent(new CombinedSettingsWindow(mc), 0);
 	}
 }
 

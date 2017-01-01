@@ -92,22 +92,7 @@ void TooltipBar::timerCallback()
 
 	Component* const newComp = mouseSource.isMouse() ? mouseSource.getComponentUnderMouse() : nullptr;
 
-    Component *parent = nullptr;
-    
-#if USE_BACKEND
-    
-    parent = findParentComponentOfClass<BackendProcessorEditor>();
-    
-    if(parent == nullptr)
-    {
-        parent = findParentComponentOfClass<PluginPreviewWindow>();
-    }
-    
-#else
-    
-    parent = findParentComponentOfClass<FrontendProcessorEditor>();
-    
-#endif
+    Component *parent = dynamic_cast<Component*>(findParentComponentOfClass<ModalBaseWindow>());
     
     jassert(parent != nullptr);
     

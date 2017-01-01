@@ -35,63 +35,18 @@
 
 #include "BuildVersion.h"
 
-#if USE_IPP
-#include "ipp.h"
-#endif
 
-#if USE_BACKEND || USE_FRONTEND == 0
-
-#ifndef WARN_MISSING_FILE
-#define WARN_MISSING_FILE 1
-#endif
-
-#if JUCE_WINDOWS
-
-#ifndef USE_IPP
-#define USE_IPP 1
-#endif
-
-#else
-
-#endif
-
-
-
+#define USE_OLD_FILE_FORMAT 0
 #define HI_USE_BACKWARD_COMPATIBILITY 1
-
-
-
-#endif
-
-
-#ifndef IS_STANDALONE_APP
-#define IS_STANDALONE_APP 0
-#endif
 
 #define NUM_POLYPHONIC_VOICES 128
 #define NUM_GLOBAL_VARIABLES 128
 #define NUM_MIC_POSITIONS 6
 #define NUM_MAX_CHANNELS 16
 
-#if USE_BACKEND
+#if USE_BACKEND // make sure it's either backend or frontend...
+#undef USE_FRONTEND
 #define USE_FRONTEND 0
 #endif
-
-
-#if JUCE_MAC_OSX
-#ifndef HI_WINDOWS
-#define HI_WINDOWS 0
-#endif
-#else
-#ifndef HI_WINDOWS
-#define HI_WINDOWS 1
-#endif
-#endif
-
-#ifndef INCLUDE_PROTOPLUG
-#define INCLUDE_PROTOPLUG 0
-#endif
-#define USE_OLD_FILE_FORMAT 0
-
 
 #endif

@@ -28,6 +28,7 @@ FFTProcessor::FFTProcessor(int fftDataType)
 #if USE_IPP
 	fftData = new IppFFT((IppFFT::DataType)fftDataType);
 #else
+	ignoreUnused(fftDataType);
 	jassertfalse;
 #endif
 }

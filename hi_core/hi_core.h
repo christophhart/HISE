@@ -65,8 +65,6 @@ END_JUCE_MODULE_DECLARATION
 
 #include "hi_binary_data/hi_binary_data.h"
 
-
-
 //=============================================================================
 /** Config: USE_BACKEND
 
@@ -113,7 +111,7 @@ Use the Intel Performance Primitives Library for the convolution reverb.
 * Use the vDsp FFT on Apple devices.
 */
 #ifndef USE_VDSP_FFT
-#define USE_VDSP_FFT 1
+#define USE_VDSP_FFT 0
 #endif
 
 /** Config: FRONTEND_IS_PLUGIN
@@ -231,27 +229,18 @@ For all defined variables:
 *	New files must be added in the specific subfolder header / .cpp file.
 */
 
-#if !JUCE_MAC
-#ifdef USE_VDSP_FFT
-#undef USE_VDSP_FFT
-#endif
-#define USE_VDSP_FFT 0
+
+#if USE_IPP
+#include "ipp.h"
 #endif
 
 #include "LibConfig.h"
-
 #include "Macros.h"
-
 
 #include "hi_core/hi_core.h"
 #include "additional_libraries/additional_libraries.h"
-
 #include "hi_components/hi_components.h"
 #include "hi_dsp/hi_dsp.h"
-
 #include "hi_sampler/hi_sampler.h"
-
-
-
 
 #endif   // HI_CORE_INCLUDED
