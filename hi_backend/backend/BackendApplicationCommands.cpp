@@ -1792,7 +1792,17 @@ void BackendCommandTarget::Actions::createExternalScriptFile(BackendProcessorEdi
 
 void BackendCommandTarget::Actions::exportMainSynthChainAsPlayerLibrary(BackendProcessorEditor * bpe)
 {
-	PresetHandler::showMessageWindow("Coming soon :)", "The exporter will be added soon...");
+	
+	FileChooser fc("Export as HisePlayerLibrary", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getWorkDirectory(), "*.hpl");
+
+	if (fc.browseForFileToSave(true))
+	{
+		File s = fc.getResult();
+
+		new HisePlayerExporter(bpe->getMainSynthChain(), s);
+	}
+	
+	
 }
 
 void BackendCommandTarget::Actions::cleanBuildDirectory(BackendProcessorEditor * bpe)

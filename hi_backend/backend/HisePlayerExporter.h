@@ -30,33 +30,28 @@
 *   ===========================================================================
 */
 
+#ifndef HISEPLAYEREXPORTER_H_INCLUDED
+#define HISEPLAYEREXPORTER_H_INCLUDED
 
-#include "hi_backend.h"
+class HisePlayerExporter: public BaseExporter,
+						  public ThreadWithQuasiModalProgressWindow
+{
+public:
+	
+	HisePlayerExporter(ModulatorSynthChain* chainToExport, const File& file);
 
-#include "backend/BackendBinaryData.cpp"
+	void run() override;
+
+private:
 
 
-#include "backend/debug_components/SamplePoolTable.cpp"
-#include "backend/debug_components/MacroEditTable.cpp"
-#include "backend/debug_components/ScriptWatchTable.cpp"
-#include "backend/debug_components/ProcessorCollection.cpp"
-#include "backend/debug_components/ApiBrowser.cpp"
-#include "backend/debug_components/ModuleBrowser.cpp"
-#include "backend/debug_components/PatchBrowser.cpp"
-#include "backend/debug_components/FileBrowser.cpp"
-#include "backend/debug_components/DebugArea.cpp"
+	AlertWindowLookAndFeel laf;
 
-#include "backend/BackendProcessor.cpp"
-#include "backend/BackendComponents.cpp"
-#include "backend/BackendToolbar.cpp"
-#include "backend/ProcessorPopupList.cpp"
-#include "backend/MainMenuComponent.cpp"
-#include "backend/BackendApplicationCommandWindows.cpp"
-#include "backend/BackendApplicationCommands.cpp"
-#include "backend/BackendEditor.cpp"
 
-#include "backend/ProjectTemplate.cpp"
-#include "backend/StandaloneProjectTemplate.cpp"
+	File libraryFile;
+	
+};
 
-#include "backend/CompileExporter.cpp"
-#include "backend/HisePlayerExporter.cpp"
+
+
+#endif  // HISEPLAYEREXPORTER_H_INCLUDED
