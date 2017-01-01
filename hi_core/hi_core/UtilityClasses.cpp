@@ -102,6 +102,7 @@ File AutoSaver::getAutoSaveFile()
 	}
 }
 
+#if USE_VDSP_FFT
 
 class VDspFFT::Pimpl
 {
@@ -305,3 +306,4 @@ void VDspFFT::multiplyComplex(float* output, float* in1, int in1Offset, float* i
     
 }
 
+#endif

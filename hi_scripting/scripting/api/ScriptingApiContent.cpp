@@ -2887,7 +2887,7 @@ void ScriptingApi::Content::restoreAllControlsFromPreset(const String &fileName)
 
 	CHECK_COPY_AND_RETURN_23(getProcessor());
 
-	const ValueTree parent = dynamic_cast<FrontendProcessor*>(getProcessor()->getMainController())->getPresetData();
+	const ValueTree parent = dynamic_cast<FrontendDataHolder*>(getProcessor()->getMainController())->getValueTree(ProjectHandler::SubDirectories::UserPresets);
 
 	ValueTree v;
 

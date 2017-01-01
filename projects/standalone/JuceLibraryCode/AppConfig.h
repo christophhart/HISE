@@ -76,6 +76,10 @@
  #define   USE_IPP 1
 #endif
 
+#ifndef    USE_VDSP_FFT
+ #define   USE_VDSP_FFT 0
+#endif
+
 #ifndef    FRONTEND_IS_PLUGIN
  //#define FRONTEND_IS_PLUGIN
 #endif

@@ -684,7 +684,7 @@ void SampleMap::loadSamplesFromDirectory(const ValueTree &v)
 	}
 	else
 	{
-		if (fileName.isNotEmpty()) fileOnDisk = PresetHandler::checkFile(fileName);
+		if (fileName.isNotEmpty()) fileOnDisk = File(fileName);
 
 		mode = (SaveMode)(int)v.getProperty("SaveMode", (int)Undefined);
 
@@ -750,8 +750,10 @@ void SampleMap::loadSamplesFromMonolith(const ValueTree &v)
 {
 #if USE_BACKEND
 	File monolithDirectory = GET_PROJECT_HANDLER(sampler).getSubDirectory(ProjectHandler::SubDirectories::Samples);
+
 #else
-	File monolithDirectory = ProjectHandler::Frontend::getSampleLocationForCompiledPlugin();
+
+	File monolithDirectory = dynamic_cast<FrontendDataHolder*>(sampler->getMainController())->getSampleLocation();
 
 	if (!monolithDirectory.isDirectory())
 	{

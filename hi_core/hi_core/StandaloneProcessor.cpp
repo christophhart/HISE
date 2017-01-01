@@ -154,6 +154,7 @@ void AudioProcessorDriver::initialiseAudioDriver(XmlElement *deviceData)
 
 void AudioProcessorDriver::updateMidiToggleList(MainController* mc, ToggleButtonList* listToUpdate)
 {
+    
 	ScopedPointer<XmlElement> midiSourceXml = dynamic_cast<AudioProcessorDriver*>(mc)->deviceManager->createStateXml();
 
 	StringArray midiInputs = MidiInput::getDevices();

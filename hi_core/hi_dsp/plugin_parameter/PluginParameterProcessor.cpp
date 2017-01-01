@@ -1,3 +1,4 @@
+
 /*  ===========================================================================
 *
 *   This file is part of HISE.
@@ -29,3 +30,64 @@
 *
 *   ===========================================================================
 */
+
+PluginParameterAudioProcessor::PluginParameterAudioProcessor(const String &name_ /*= "Untitled"*/) :
+	AudioProcessor(BusesProperties().withOutput("Output", AudioChannelSet::stereo())),
+	name(name_)
+{
+
+}
+
+
+
+void PluginParameterAudioProcessor::addScriptedParameters()
+{
+	ModulatorSynthChain* synthChain = dynamic_cast<MainController*>(this)->getMainSynthChain();
+
+	jassert(synthChain != nullptr);
+
+	Processor::Iterator<JavascriptMidiProcessor> iter(synthChain);
+
+	while (JavascriptMidiProcessor *sp = iter.getNextProcessor())
+	{
+		if (sp->isFront())
+		{
+			ScriptingApi::Content *content = sp->getScriptingContent();
+
+			for (int i = 0; i < content->getNumComponents(); i++)
+			{
+				ScriptingApi::Content::ScriptComponent *c = content->getComponent(i);
+
+				const bool wantsAutomation = c->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::isPluginParameter);
+				const bool isAutomatable = c->isAutomatable();
+
+				if (wantsAutomation && !isAutomatable)
+				{
+					// You specified a parameter for a unsupported widget type...
+					jassertfalse;
+				}
+
+				if (wantsAutomation && isAutomatable)
+				{
+					ScriptedControlAudioParameter *newParameter = new ScriptedControlAudioParameter(content->getComponent(i), this, sp, i);
+					addParameter(newParameter);
+				}
+			}
+		}
+	}
+}
+
+void PluginParameterAudioProcessor::setScriptedPluginParameter(Identifier id, float newValue)
+{
+	for (int i = 0; i < getNumParameters(); i++)
+	{
+		if (ScriptedControlAudioParameter * sp = static_cast<ScriptedControlAudioParameter*>(getParameters().getUnchecked(i)))
+		{
+			if (sp->getId() == id)
+			{
+				sp->setParameterNotifyingHost(i, newValue);
+
+			}
+		}
+	}
+}

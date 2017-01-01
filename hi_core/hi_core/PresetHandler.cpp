@@ -290,9 +290,7 @@ void UserPresetData::refreshPresetFileList()
 
 #else
 
-	FrontendProcessor *fp = dynamic_cast<FrontendProcessor*>(mc);
-
-	ValueTree factoryPresets = fp->getPresetData();
+	ValueTree factoryPresets = dynamic_cast<FrontendDataHolder*>(mc)->getValueTree(ProjectHandler::SubDirectories::UserPresets);
 
 	factoryPresetCategories.clear();
 	userPresets->presets.clear();
@@ -1089,7 +1087,10 @@ String ProjectHandler::getFilePath(const String &pathToFile, SubDirectories subD
 	jassert(subDir == ProjectHandler::SubDirectories::Samples);
 	ignoreUnused(subDir);
 
-	return Frontend::getSampleLocationForCompiledPlugin().getChildFile(pathToFile.replace(id, "")).getFullPathName();
+	File sampleFolder = dynamic_cast<FrontendDataHolder*>(mc)->getSampleLocation()
+
+	return sampleFolder.getChildFile(pathToFile.replace(id, "")).getFullPathName();
+
 #else
 
     static int idLength = id.length();
@@ -1153,7 +1154,7 @@ File ProjectHandler::Frontend::getSampleLocationForCompiledPlugin()
     
 #if HISE_IOS
     
-    File f = File::getSpecialLocation(File::SpecialLocationType::currentApplicationFile).getChildFile("iOS_Samples/");
+    File f = File::getSpecialLocation(File::SpecialLocationType::currentApplicationFile).getChildFile("Samples/");
     
     
     return f;
@@ -1403,45 +1404,6 @@ File PresetHandler::getDirectory(Processor *p)
 	}
 }
 
-File PresetHandler::checkFile(const String &pathName)
-{
-
-	if(!ProjectHandler::isAbsolutePathCrossPlatform(pathName))
-	{
-#if WARN_MISSING_FILE
-		FileChooser fc("Resolve missing reference for " + pathName);
-
-		if(fc.browseForFileToOpen())
-		{
-			return fc.getResult();
-		}
-		else return File();	
-#else
-		return File();
-#endif
-
-	}
-	else
-	{
-#if WARN_MISSING_FILE
-		File f = File(pathName);
-
-		if(!f.existsAsFile())
-		{
-			FileChooser fc("Resolve missing reference for " + pathName);
-
-			if(fc.browseForFileToOpen())
-			{
-				return fc.getResult();
-			}
-			else return File();
-		}
-		else return f;
-#else
-		return File();
-#endif
-	}
-}
 
 File PresetHandler::checkDirectory(const String &pathName)
 {

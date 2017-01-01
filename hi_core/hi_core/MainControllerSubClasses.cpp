@@ -187,7 +187,7 @@ int MainController::MacroManager::getMacroControlLearnMode() const
 MainController::SampleManager::SampleManager(MainController *mc_) :
 	mc(mc_),
 	samplerLoaderThreadPool(new SampleThreadPool()),
-	projectHandler(),
+	projectHandler(mc_),
 	globalSamplerSoundPool(new ModulatorSamplerSoundPool(mc)),
 	globalAudioSampleBufferPool(new AudioSampleBufferPool(&projectHandler)),
 	globalImagePool(new ImagePool(&projectHandler)),

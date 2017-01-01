@@ -155,7 +155,8 @@ class ProjectHandler
 {
 public:
 
-	ProjectHandler()
+	ProjectHandler(MainController* mc_):
+		mc(mc_)
 	{
 #if USE_BACKEND
 		restoreWorkingProjects();
@@ -180,6 +181,10 @@ public:
 	void createNewProject(const File &workingDirectory);
 
 	void setWorkingProject(const File &workingDirectory);
+
+	void setPlayerLibraryFile(const File& f) { libraryFile = f; }
+
+	File getPlayerLibraryFile() const { return libraryFile; }
 
 	static const StringArray &getRecentWorkDirectories() { return recentWorkDirectories; }
 
@@ -318,12 +323,41 @@ private:
 
 	File checkSubDirectory(SubDirectories dir);
 	void checkSettingsFile();
+
+private:
+
+	MainController* mc;
+
 	File currentWorkDirectory;
+	File libraryFile;
 
 	static StringArray recentWorkDirectories;
 
 	Component::SafePointer<Component> window;
 };
+
+
+
+/** This base class handles the data logic for different targets.
+*
+*	Subclasses need to override the methods and return a valid ValueTree containing the data typically found in the project's folder subdirectory
+*/
+class FrontendDataHolder
+{
+public:
+
+	virtual ~FrontendDataHolder() {};
+
+	/** Override this method and supply the given data as ValueTree. */
+	virtual const ValueTree getValueTree(ProjectHandler::SubDirectories type) const = 0;
+
+	/** returns the sample map with the given ID. This is just a shortcut function. */
+	const ValueTree getSampleMap(const String& sampleMapId) const { return getValueTree(ProjectHandler::SubDirectories::SampleMaps).getChildWithProperty("ID", sampleMapId); }
+
+	/** Overwrite this and return the location of the samples. */
+	virtual File getSampleLocation() const = 0;
+};
+
 
 
 class UserPresetData
@@ -472,9 +506,6 @@ public:
 
 	/** Returns a popupmenu with all suiting Processors for the supplied FactoryType. */
 	static PopupMenu getAllSavedPresets(int minIndex, Processor *parentChain);
-
-	/** Checks if the file exists and returns it or opens a dialog to point to the missing file. */
-	static File checkFile(const String &pathName);
 
 	/** Checks if the directory exists and returns it or opens a dialog to point to the directory. */
 	static File checkDirectory(const String &directoryName);
@@ -893,17 +924,32 @@ public:
 
 			v.writeToStream(fos);
 		}
-
-		
 	}
 
-	static var writeValueTreeToMemoryBlock(const ValueTree &v)
+	static var writeValueTreeToMemoryBlock(const ValueTree &v, bool compressData=false)
 	{
-		MemoryBlock mb;
 
-		MemoryOutputStream mos(mb, false);
+        juce::MemoryBlock mb;
 
-		v.writeToStream(mos);
+		if (compressData)
+		{
+			MemoryOutputStream mos(mb, false);
+
+			GZIPCompressorOutputStream gzos(&mos, 9, false);
+
+			MemoryOutputStream internalMos;
+
+			v.writeToStream(internalMos);
+
+			gzos.write(internalMos.getData(), internalMos.getDataSize());
+			gzos.flush();
+		}
+		else
+		{
+			MemoryOutputStream mos(mb, false);
+
+			v.writeToStream(mos);
+		}
 
 		return var(mb.getData(), mb.getSize());
 	}

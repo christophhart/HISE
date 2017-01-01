@@ -69,12 +69,14 @@ public:
 
 	virtual ~PluginParameterAudioProcessor() {};
 
-	
+	void setScriptedPluginParameter(Identifier id, float newValue);
+	void addScriptedParameters();
+
     //==============================================================================
 	const String getName() const {return name;};
 
 	const String getInputChannelName (int channelIndex) const {return channelIndex == 1 ? "Right" : "Left";};
-    const String getOutputChannelName (int channelIndex) const {return channelIndex == 1 ? "Right" : "Left";};;
+    const String getOutputChannelName (int channelIndex) const {return channelIndex == 1 ? "Right" : "Left";};
 	bool isInputChannelStereoPair (int ) const {return true;};
 	bool isOutputChannelStereoPair (int ) const {return true;};
 

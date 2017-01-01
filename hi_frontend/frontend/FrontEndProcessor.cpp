@@ -75,7 +75,7 @@ void FrontendProcessor::handleControllersForMacroKnobs(const MidiBuffer &midiMes
 
 FrontendProcessor::FrontendProcessor(ValueTree &synthData, AudioDeviceManager* manager, AudioProcessorPlayer* callback_, ValueTree *imageData_/*=nullptr*/, ValueTree *impulseData/*=nullptr*/, ValueTree *externalFiles/*=nullptr*/, ValueTree *userPresets) :
 MainController(),
-AudioProcessor (BusesProperties().withOutput ("Output", AudioChannelSet::stereo())),
+PluginParameterAudioProcessor(ProjectHandler::Frontend::getProjectName()),
 AudioProcessorDriver(manager, callback_),
 synthChain(new ModulatorSynthChain(this, "Master Chain", NUM_POLYPHONIC_VOICES)),
 samplesCorrectlyLoaded(true),
@@ -180,54 +180,6 @@ AudioProcessorEditor* FrontendProcessor::createEditor()
 void FrontendProcessor::setCurrentProgram(int /*index*/)
 {
 	return;
-}
-
-void FrontendProcessor::addScriptedParameters()
-{
-	Processor::Iterator<JavascriptMidiProcessor> iter(synthChain);
-
-	while (JavascriptMidiProcessor *sp = iter.getNextProcessor())
-	{
-		if (sp->isFront())
-		{
-			ScriptingApi::Content *content = sp->getScriptingContent();
-
-			for (int i = 0; i < content->getNumComponents(); i++)
-			{
-				ScriptingApi::Content::ScriptComponent *c = content->getComponent(i);
-
-				const bool wantsAutomation = c->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::isPluginParameter);
-				const bool isAutomatable = c->isAutomatable();
-
-				if (wantsAutomation && !isAutomatable)
-				{
-					// You specified a parameter for a unsupported widget type...
-					jassertfalse;
-				}
-
-				if (wantsAutomation && isAutomatable)
-				{
-					ScriptedControlAudioParameter *newParameter = new ScriptedControlAudioParameter(content->getComponent(i), this, sp, i);
-					addParameter(newParameter);
-				}
-			}
-		}
-	}
-}
-
-void FrontendProcessor::setScriptedPluginParameter(Identifier id, float newValue)
-{
-	for (int i = 0; i < getNumParameters(); i++)
-	{
-		if (ScriptedControlAudioParameter * sp = static_cast<ScriptedControlAudioParameter*>(getParameters().getUnchecked(i)))
-		{
-			if (sp->getId() == id)
-			{
-				sp->setParameterNotifyingHost(i, newValue);
-				
-			}
-		}
-	}
 }
 
 

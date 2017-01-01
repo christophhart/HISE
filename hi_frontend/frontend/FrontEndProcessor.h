@@ -34,15 +34,15 @@
 #define FRONTENDPROCESSOR_H_INCLUDED
 
 
-
 /** This class lets you take your exported HISE presets and wrap them into a hardcoded plugin (VST / AU, x86/x64, Win / OSX)
 *
 *	It is connected to a FrontendProcessorEditor, which will display all script interfaces that are brought to the front using 'Synth.addToFront(true)'.
 *	It also checks for a licence file to allow minimal protection against the most stupid crackers.
 */
-class FrontendProcessor: public AudioProcessor,
+class FrontendProcessor: public PluginParameterAudioProcessor,
 						 public AudioProcessorDriver,
-						 public MainController
+						 public MainController,
+						 public FrontendDataHolder
 {
 public:
 	FrontendProcessor(ValueTree &synthData, AudioDeviceManager* manager, AudioProcessorPlayer* callback_, ValueTree *imageData_ = nullptr, ValueTree *impulseData = nullptr, ValueTree *externalScriptData = nullptr, ValueTree *userPresets = nullptr);
@@ -57,9 +57,7 @@ public:
 	};
 
 	void prepareToPlay (double sampleRate, int samplesPerBlock);
-	void releaseResources() 
-	{
-	};
+	void releaseResources() {};
 
 	void getStateInformation	(MemoryBlock &destData) override
 	{
@@ -99,7 +97,7 @@ public:
 		}
 	}
 
-	void setScriptedPluginParameter(Identifier id, float newValue);
+	
 
 	void processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiMessages);
 
@@ -146,20 +144,22 @@ public:
 		//return currentlyLoadedProgram;
 	}
 
-
+	File getSampleLocation() const override { return ProjectHandler::Frontend::getSampleLocationForCompiledPlugin(); }
 
 	void setCurrentProgram(int index) override;
 	
-    const ValueTree getPresetData() const { return presets; };
     
-	const ValueTree getSampleMap(const String &sampleMapId)
-	{
-		return sampleMaps.getChildWithProperty("ID", sampleMapId);
-	}
 
 #if USE_COPY_PROTECTION
 	Unlocker unlocker;
 #endif
+
+	const ValueTree getValueTree(ProjectHandler::SubDirectories type) const override
+	{
+		if (type == ProjectHandler::SubDirectories::SampleMaps) return sampleMaps;
+		else if (type == ProjectHandler::SubDirectories::UserPresets) return presets;
+		else return ValueTree();
+	}
 
 private:
 
@@ -169,8 +169,7 @@ private:
 
 		getSampleManager().getImagePool()->restoreFromValueTree(*imageData);
 	}
-	void addScriptedParameters();
-
+	
 	friend class FrontendProcessorEditor;
 	friend class DefaultFrontendBar;
 
