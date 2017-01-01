@@ -31,6 +31,142 @@
 */
 
 
+
+ValueTree BaseExporter::exportReferencedImageFiles()
+{
+	// Export the interface
+
+	ImagePool *imagePool = chainToExport->getMainController()->getSampleManager().getImagePool();
+	ValueTree imageTree = imagePool->exportAsValueTree();
+
+	return imageTree;
+
+	
+}
+
+ValueTree BaseExporter::exportReferencedAudioFiles()
+{
+	// Search for impulse responses
+
+	DirectoryIterator iter(GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles), false);
+
+	AudioSampleBufferPool *samplePool = chainToExport->getMainController()->getSampleManager().getAudioSampleBufferPool();
+
+	while (iter.next())
+	{
+#if JUCE_WINDOWS
+
+		// Skip OSX hidden files on windows...
+		if (iter.getFile().getFileName().startsWith(".")) continue;
+
+#endif
+		samplePool->loadFileIntoPool(iter.getFile().getFullPathName());
+	}
+
+	return samplePool->exportAsValueTree();
+
+	
+}
+
+ValueTree BaseExporter::exportUserPresetFiles()
+{
+	File presetDirectory = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
+
+	DirectoryIterator iter(presetDirectory, true, "*", File::findFiles);
+
+	ValueTree userPresets("UserPresets");
+
+	while (iter.next())
+	{
+		File f = iter.getFile();
+
+		XmlDocument doc(f);
+
+		ScopedPointer<XmlElement> xml = doc.getDocumentElement();
+
+		if (xml != nullptr)
+		{
+			File pd = f.getParentDirectory();
+
+			const String category = pd == presetDirectory ? "" : pd.getFileName();
+
+			xml->setAttribute("FileName", f.getFileNameWithoutExtension());
+			xml->setAttribute("Category", category);
+
+			ValueTree v = ValueTree::fromXml(*xml);
+
+			userPresets.addChild(v, -1, nullptr);
+		}
+		else
+		{
+			// The presets must be valid XML files!
+			jassertfalse;
+		}
+	}
+
+	return userPresets;
+
+	
+}
+
+ValueTree BaseExporter::exportEmbeddedFiles(bool includeSampleMaps)
+{
+	ValueTree externalScriptFiles = FileChangeListener::collectAllScriptFiles(chainToExport);
+	ValueTree customFonts = chainToExport->getMainController()->exportCustomFontsAsValueTree();
+	
+	ValueTree externalFiles("ExternalFiles");
+	externalFiles.addChild(externalScriptFiles, -1, nullptr);
+	externalFiles.addChild(customFonts, -1, nullptr);
+
+	if (includeSampleMaps)
+	{
+		ValueTree sampleMaps = collectAllSampleMapsInDirectory();
+		externalFiles.addChild(sampleMaps, -1, nullptr);
+	}
+
+	return externalFiles;
+
+	
+}
+
+ValueTree BaseExporter::exportPresetFile()
+{
+	ValueTree preset = chainToExport->exportAsValueTree();
+
+	PresetHandler::stripViewsFromPreset(preset);
+
+	return preset;
+
+	
+}
+
+
+ValueTree BaseExporter::collectAllSampleMapsInDirectory()
+{
+	ValueTree sampleMaps("SampleMaps");
+
+	File sampleMapDirectory = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
+
+	Array<File> sampleMapFiles;
+
+	sampleMapDirectory.findChildFiles(sampleMapFiles, File::findFiles, false, "*.xml");
+
+	for (int i = 0; i < sampleMapFiles.size(); i++)
+	{
+		ScopedPointer<XmlElement> xml = XmlDocument::parse(sampleMapFiles[i]);
+
+		if (xml != nullptr)
+		{
+			ValueTree sampleMap = ValueTree::fromXml(*xml);
+			sampleMaps.addChild(sampleMap, -1, nullptr);
+		}
+	}
+
+	return sampleMaps;
+}
+
+bool CompileExporter::globalCommandLineExport = false;
+
 void CompileExporter::printErrorMessage(const String& title, const String &message)
 {
 	if (isExportingFromCommandLine())
@@ -70,10 +206,15 @@ String CompileExporter::getCompileResult(ErrorCodes result)
 	return "OK";
 }
 
-bool CompileExporter::globalCommandLineExport = false;
+
+void CompileExporter::writeValueTreeToTemporaryFile(const ValueTree& v, const String &tempFolder, const String& childFile)
+{
+	PresetHandler::writeValueTreeAsFile(v, File(tempFolder).getChildFile(childFile).getFullPathName()); ;
+}
+
 
 CompileExporter::CompileExporter(ModulatorSynthChain* chainToExport_):
-	chainToExport(chainToExport_),
+	BaseExporter(chainToExport_),
 	hisePath(File()),
     useIpp(false)
 {}
@@ -314,12 +455,21 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 		const String directoryPath = File(solutionDirectory).getChildFile("temp/").getFullPathName();
 
 		convertTccScriptsToCppClasses();
-		writePresetFile(directoryPath);
-		writeEmbeddedFiles(directoryPath, type);
-		writeUserPresetFiles(directoryPath);
+		writeValueTreeToTemporaryFile(exportPresetFile(), directoryPath, "preset");
+		writeValueTreeToTemporaryFile(exportEmbeddedFiles(type != TargetTypes::EffectPlugin), directoryPath, "externalFiles");
+		writeValueTreeToTemporaryFile(exportUserPresetFiles(), directoryPath, "userPresets");
 
-		writeReferencedAudioFiles(directoryPath);
-		writeReferencedImageFiles(directoryPath);
+		if (SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::EmbedAudioFiles, &GET_PROJECT_HANDLER(chainToExport)) == "No")
+		{
+			File appFolder = ProjectHandler::Frontend::getAppDataDirectory(&GET_PROJECT_HANDLER(chainToExport)).getChildFile("AudioResources.dat");
+			PresetHandler::writeValueTreeAsFile(exportReferencedAudioFiles(), appFolder.getFullPathName());
+		}
+		else
+		{
+			writeValueTreeToTemporaryFile(exportReferencedAudioFiles(), directoryPath, "impulses");
+		}
+
+		writeValueTreeToTemporaryFile(exportReferencedImageFiles(), directoryPath, "images");
 
 		String presetDataString("PresetData");
 
@@ -462,114 +612,6 @@ CompileExporter::BuildOption CompileExporter::showCompilePopup(TargetTypes type)
 		return Cancelled;
 	}
 
-}
-
-void CompileExporter::writeReferencedImageFiles(const String directoryPath)
-{
-	// Export the interface
-
-	ImagePool *imagePool = chainToExport->getMainController()->getSampleManager().getImagePool();
-	ValueTree imageTree = imagePool->exportAsValueTree();
-	PresetHandler::writeValueTreeAsFile(imageTree, directoryPath + "/images");
-}
-
-void CompileExporter::writeReferencedAudioFiles(const String directoryPath)
-{
-	// Search for impulse responses
-
-    DirectoryIterator iter(GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles), false);
-    
-    AudioSampleBufferPool *samplePool = chainToExport->getMainController()->getSampleManager().getAudioSampleBufferPool();
-    
-    while(iter.next())
-    {
-#if JUCE_WINDOWS
-
-		// Skip OSX hidden files on windows...
-		if (iter.getFile().getFileName().startsWith(".")) continue;
-
-#endif
-        samplePool->loadFileIntoPool(iter.getFile().getFullPathName());
-    }
-    
-	ValueTree sampleTree = samplePool->exportAsValueTree();
-
-	if (SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::EmbedAudioFiles, &GET_PROJECT_HANDLER(chainToExport)) == "No")
-	{
-		PresetHandler::writeValueTreeAsFile(sampleTree, ProjectHandler::Frontend::getAppDataDirectory(&GET_PROJECT_HANDLER(chainToExport)).getChildFile("AudioResources.dat").getFullPathName());
-	}
-	else
-	{
-		PresetHandler::writeValueTreeAsFile(sampleTree, File(directoryPath).getChildFile("impulses").getFullPathName(), true);
-	}
-}
-
-void CompileExporter::writeUserPresetFiles(const String &directoryPath)
-{
-	File presetDirectory = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
-
-	DirectoryIterator iter(presetDirectory, true, "*", File::findFiles);
-
-	ValueTree userPresets("UserPresets");
-
-	while (iter.next())
-	{
-		File f = iter.getFile();
-
-		XmlDocument doc(f);
-
-		ScopedPointer<XmlElement> xml = doc.getDocumentElement();
-
-		if (xml != nullptr)
-		{
-			File pd = f.getParentDirectory();
-
-			const String category = pd == presetDirectory ? "" : pd.getFileName();
-
-			xml->setAttribute("FileName", f.getFileNameWithoutExtension());
-			xml->setAttribute("Category", category);
-
-			ValueTree v = ValueTree::fromXml(*xml);
-
-			userPresets.addChild(v, -1, nullptr);
-		}
-		else
-		{
-			// The presets must be valid XML files!
-			jassertfalse;
-		}
-	}
-    
-	PresetHandler::writeValueTreeAsFile(userPresets, File(directoryPath).getChildFile("userPresets").getFullPathName());
-}
-
-void CompileExporter::writeEmbeddedFiles(const String &directoryPath, TargetTypes types)
-{
-	ValueTree externalScriptFiles = FileChangeListener::collectAllScriptFiles(chainToExport);
-	ValueTree customFonts = chainToExport->getMainController()->exportCustomFontsAsValueTree();
-    ValueTree sampleMaps;
-    
-    if(types != TargetTypes::EffectPlugin) sampleMaps = collectAllSampleMapsInDirectory();
-
-
-	ValueTree externalFiles("ExternalFiles");
-	externalFiles.addChild(externalScriptFiles, -1, nullptr);
-	externalFiles.addChild(customFonts, -1, nullptr);
-	
-    if(types != TargetTypes::EffectPlugin) externalFiles.addChild(sampleMaps, -1, nullptr);
-
-	PresetHandler::writeValueTreeAsFile(externalFiles, File(directoryPath).getChildFile("externalFiles").getFullPathName(), true);
-}
-
-void CompileExporter::writePresetFile(const String directoryPath)
-{
-	ValueTree preset = chainToExport->exportAsValueTree();
-
-	PresetHandler::stripViewsFromPreset(preset);
-
-	File presetFile(directoryPath + "/preset");
-
-	ReferenceSearcher::writeValueTreeToFile(preset, presetFile);
 }
 
 StringArray CompileExporter::getTccSection(const StringArray &cLines, const String &sectionName)
@@ -1061,9 +1103,25 @@ CompileExporter::ErrorCodes CompileExporter::createStandaloneAppProjucerFile()
 	REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "disabled");
 	REPLACE_WILDCARD_WITH_STRING("%IS_STANDALONE_FRONTEND%", "enabled");
 
-    const String iosResourceFile = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Samples).getChildFile("iOS_Samples").getFullPathName();
+    const File sampleFolder = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Samples);
     
-    REPLACE_WILDCARD_WITH_STRING("%IOS_SAMPLE_FOLDER%", iosResourceFile);
+    String iOSResourceFile;
+    
+    bool hasCustomiOSFolder = sampleFolder.getChildFile("iOS").isDirectory();
+    
+    if(hasCustomiOSFolder)
+    {
+        bool hasCustomiOSSampleFolder = sampleFolder.getChildFile("Samples").isDirectory();
+        
+        if(hasCustomiOSSampleFolder)
+            iOSResourceFile = sampleFolder.getChildFile("iOS/Samples").getFullPathName();
+        else
+            iOSResourceFile = sampleFolder.getFullPathName();
+    }
+    else
+        iOSResourceFile = sampleFolder.getFullPathName();
+    
+    REPLACE_WILDCARD_WITH_STRING("%IOS_SAMPLE_FOLDER%", iOSResourceFile);
     
 	ProjectTemplateHelpers::handleVisualStudioVersion(templateProject);
 
@@ -1252,29 +1310,7 @@ File CompileExporter::getProjucerProjectFile()
 
 
 
-ValueTree CompileExporter::collectAllSampleMapsInDirectory()
-{
-	ValueTree sampleMaps("SampleMaps");
 
-	File sampleMapDirectory = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
-
-	Array<File> sampleMapFiles;
-
-	sampleMapDirectory.findChildFiles(sampleMapFiles, File::findFiles, false, "*.xml");
-
-	for (int i = 0; i < sampleMapFiles.size(); i++)
-	{
-		ScopedPointer<XmlElement> xml = XmlDocument::parse(sampleMapFiles[i]);
-
-		if (xml != nullptr)
-		{
-			ValueTree sampleMap = ValueTree::fromXml(*xml);
-			sampleMaps.addChild(sampleMap, -1, nullptr);
-		}
-	}
-
-	return sampleMaps;
-}
 
 
 
@@ -1545,9 +1581,17 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
     ADD_LINE("cd \"`dirname \"$0\"`\"");
     ADD_LINE("\"" << projucerPath << "\" --resave AutogeneratedProject.jucer");
     ADD_LINE("");
-	ADD_LINE("echo Compiling " << projectType << " " << projectName << " ...");
-    ADD_LINE("xcodebuild -project \"Builds/MacOSX/" << projectName << ".xcodeproj\" -configuration \"Release\" | xcpretty");
-    ADD_LINE("echo Compiling finished. Cleaning up...");
+    
+    if(BuildOptionHelpers::isIOS(buildOption))
+    {
+        ADD_LINE("echo Sucessfully exported. Open XCode to compile and transfer to your iOS device.");
+    }
+    else
+    {
+        ADD_LINE("echo Compiling " << projectType << " " << projectName << " ...");
+        ADD_LINE("xcodebuild -project \"Builds/MacOSX/" << projectName << ".xcodeproj\" -configuration \"Release\" | xcpretty");
+        ADD_LINE("echo Compiling finished. Cleaning up...");
+    }
     
     File tempFile = batchFile.getSiblingFile("tempBatch");
     

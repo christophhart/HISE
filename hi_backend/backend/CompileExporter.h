@@ -33,8 +33,33 @@
 #ifndef COMPILEEXPORTER_H_INCLUDED
 
 
+class BaseExporter
+{
+public:
 
-class CompileExporter
+	
+	virtual ~BaseExporter() {};
+
+	ModulatorSynthChain* chainToExport;
+
+protected:
+
+	ValueTree exportReferencedImageFiles();
+	ValueTree exportReferencedAudioFiles();
+	ValueTree exportEmbeddedFiles(bool includeSampleMaps);
+	ValueTree exportUserPresetFiles();
+	ValueTree exportPresetFile();
+	
+	BaseExporter(ModulatorSynthChain* chainToExport_) : chainToExport(chainToExport_) {}
+	
+private:
+
+	ValueTree collectAllSampleMapsInDirectory();
+
+};
+
+
+class CompileExporter: public BaseExporter
 {
 public:
 
@@ -116,7 +141,6 @@ public:
 		ASIOSDKMissing,
 		HISEPathNotSpecified,
 		numErrorCodes
-		
 	};
 
 	/** Exports the main synthchain all samples, external files into a ValueTree file which can be included in a compiled FrontEndProcessor. */
@@ -128,14 +152,15 @@ public:
 
 	BuildOption getBuildOptionFromCommandLine(StringArray &args);
 
-	
 	File hisePath;
-	ModulatorSynthChain* chainToExport;
+	
     bool useIpp;
 
 	void printErrorMessage(const String& title, const String &message);
 
 	static String getCompileResult(ErrorCodes result);
+
+	void writeValueTreeToTemporaryFile(const ValueTree& v, const String &tempFolder, const String& childFile);
 
 	int getBuildOptionPart(const String& argument);
 
@@ -163,16 +188,6 @@ private:
 	bool checkSanity();
 
 	BuildOption showCompilePopup(TargetTypes type);
-
-	void writeReferencedImageFiles(const String directoryPath);
-
-	void writeReferencedAudioFiles(const String directoryPath);
-
-	void writeEmbeddedFiles(const String &directoryPath, TargetTypes types);
-
-	void writeUserPresetFiles(const String &directoryPath);
-
-	void writePresetFile(const String directoryPath);
 
 	void convertTccScriptsToCppClasses();
 
@@ -212,7 +227,7 @@ private:
 	ErrorCodes copyHISEImageFiles();
 
 	File getProjucerProjectFile();
-	ValueTree collectAllSampleMapsInDirectory();
+	
 	ErrorCodes createStandaloneAppHeaderFile(const String& solutionDirectory, const String& uniqueId, const String& version, String publicKey);
 	CompileExporter::ErrorCodes createStandaloneAppProjucerFile();
 

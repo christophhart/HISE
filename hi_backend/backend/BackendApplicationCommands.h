@@ -96,12 +96,12 @@ public:
 		MenuFileSettingsCompiler,
 		MenuFileSettingsUser,
 		MenuFileSettingCheckSanity,
+		MenuFileSettingsCleanBuildDirectory,
 		MenuReplaceWithClipboardContent,
 		MenuExportFileAsPlugin,
 		MenuExportFileAsEffectPlugin,
 		MenuExportFileAsStandaloneApp,
 		MenuExportFileAsPlayerLibrary,
-		
         MenuExportFileAsSnippet,
 		MenuFileQuit,
 		MenuEditOffset = 0x30000,
@@ -287,6 +287,8 @@ public:
 		static void showMainMenu(BackendProcessorEditor * bpe);
 		static void moveModule(CopyPasteTarget *currentCopyPasteTarget, bool moveUp);
 		static void createExternalScriptFile(BackendProcessorEditor * bpe);
+		static void exportMainSynthChainAsPlayerLibrary(BackendProcessorEditor * bpe);
+		static void cleanBuildDirectory(BackendProcessorEditor * bpe);
 	};
 
 private:

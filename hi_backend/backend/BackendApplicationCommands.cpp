@@ -101,10 +101,12 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuFileSettingsUser,
 		MenuFileSettingsCompiler,
 		MenuFileSettingCheckSanity,
+		MenuFileSettingsCleanBuildDirectory,
 		MenuReplaceWithClipboardContent,
 		MenuExportFileAsPlugin,
 		MenuExportFileAsEffectPlugin,
 		MenuExportFileAsStandaloneApp,
+		MenuExportFileAsPlayerLibrary,
 		MenuExportFileAsSnippet,
 		MenuFileQuit,
 		MenuEditUndo,
@@ -263,6 +265,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuExportFileAsStandaloneApp:
 		setCommandTarget(result, "Export as Standalone Application", true, false, 'X', false);
 		break;
+	case MenuExportFileAsPlayerLibrary:
+		setCommandTarget(result, "Export as HISE Player Library", true, false, 'X', false);
+		break;
 	case MenuExportFileAsSnippet:
 		setCommandTarget(result, "Export as pasteable web snippet", true, false, 'X', false);
 		break;
@@ -280,6 +285,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		break;
 	case MenuFileSettingCheckSanity:
 		setCommandTarget(result, "Check for missing properties", true, false, 'X', false);
+		break;
+	case MenuFileSettingsCleanBuildDirectory:
+		setCommandTarget(result, "Clean Build directory", true, false, 'X', false);
 		break;
 	case MenuReplaceWithClipboardContent:
 		setCommandTarget(result, "Replace with clipboard content", true, false, 'X', false);
@@ -483,6 +491,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuFileSettingsUser:			Actions::showFileUserSettings(bpe); return true;
 	case MenuFileSettingsCompiler:		Actions::showFileCompilerSettings(bpe); return true;
 	case MenuFileSettingCheckSanity:	Actions::checkSettingSanity(bpe); return true;
+	case MenuFileSettingsCleanBuildDirectory:	Actions::cleanBuildDirectory(bpe); return true;
 	case MenuReplaceWithClipboardContent: Actions::replaceWithClipboardContent(bpe); return true;
 	case MenuFileQuit:                  if (PresetHandler::showYesNoWindow("Quit Application", "Do you want to quit?"))
                                             JUCEApplicationBase::quit(); return true;
@@ -520,6 +529,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuExportFileAsEffectPlugin:	exporter.exportMainSynthChainAsFX(); return true;
 	case MenuExportFileAsStandaloneApp: exporter.exportMainSynthChainAsStandaloneApp(); return true;
     case MenuExportFileAsSnippet:       Actions::exportFileAsSnippet(bpe); return true;
+	case MenuExportFileAsPlayerLibrary: Actions::exportMainSynthChainAsPlayerLibrary(bpe); return true;
     case MenuAddView:                   Actions::addView(bpe); updateCommands();return true;
     case MenuDeleteView:                Actions::deleteView(bpe); updateCommands();return true;
     case MenuRenameView:                Actions::renameView(bpe); updateCommands();return true;
@@ -662,6 +672,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		settingsSub.addCommandItem(mainCommandManager, MenuFileSettingsCompiler);
 		settingsSub.addSeparator();
 		settingsSub.addCommandItem(mainCommandManager, MenuFileSettingCheckSanity);
+		settingsSub.addCommandItem(mainCommandManager, MenuFileSettingsCleanBuildDirectory);
 
 		p.addSubMenu("Settings", settingsSub);
 
@@ -671,7 +682,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
         exportSub.addCommandItem(mainCommandManager, MenuExportFileAsPlugin);
 		exportSub.addCommandItem(mainCommandManager, MenuExportFileAsEffectPlugin);
 		exportSub.addCommandItem(mainCommandManager, MenuExportFileAsStandaloneApp);
-		exportSub.addItem(4, "Export as HISE Player library");
+		exportSub.addCommandItem(mainCommandManager, MenuExportFileAsPlayerLibrary);
         exportSub.addCommandItem(mainCommandManager, MenuExportFileAsSnippet);
 
 		p.addSubMenu("Export", exportSub);
@@ -1775,6 +1786,34 @@ void BackendCommandTarget::Actions::createExternalScriptFile(BackendProcessorEdi
 			SystemClipboard::copyTextToClipboard("include(\"" + newScriptFile.getFileName() + "\");");
 
 			PresetHandler::showMessageWindow("File created", "The file " + newScriptFile.getFullPathName() + " was successfully created.\nThe include statement was copied into the clipboard.");
+		}
+	}
+}
+
+void BackendCommandTarget::Actions::exportMainSynthChainAsPlayerLibrary(BackendProcessorEditor * bpe)
+{
+	PresetHandler::showMessageWindow("Coming soon :)", "The exporter will be added soon...");
+}
+
+void BackendCommandTarget::Actions::cleanBuildDirectory(BackendProcessorEditor * bpe)
+{
+	if (!GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive()) return;
+
+	File buildDirectory = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Binaries);
+
+	if (buildDirectory.isDirectory())
+	{
+		const bool cleanEverything = PresetHandler::showYesNoWindow("Clean whole directory", "Do you want to delete all files in the build directory?\nPress Cancel to just delete the autogenerated IDE projects & include files", PresetHandler::IconType::Question);
+
+		if (cleanEverything)
+		{
+			buildDirectory.deleteRecursively();
+			buildDirectory.createDirectory();
+		}
+		else
+		{
+			buildDirectory.getChildFile("Builds").deleteRecursively();
+			buildDirectory.getChildFile("JuceLibraryCode").deleteRecursively();
 		}
 	}
 }
