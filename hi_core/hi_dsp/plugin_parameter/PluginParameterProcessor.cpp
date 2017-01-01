@@ -31,15 +31,6 @@
 *   ===========================================================================
 */
 
-PluginParameterAudioProcessor::PluginParameterAudioProcessor(const String &name_ /*= "Untitled"*/) :
-	AudioProcessor(BusesProperties().withOutput("Output", AudioChannelSet::stereo())),
-	name(name_)
-{
-
-}
-
-
-
 void PluginParameterAudioProcessor::addScriptedParameters()
 {
 	ModulatorSynthChain* synthChain = dynamic_cast<MainController*>(this)->getMainSynthChain();

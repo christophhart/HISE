@@ -52,7 +52,7 @@ public:
 	void paint(Graphics& g) override;
 	void paintOverChildren(Graphics& g) override;
 
-	void setMainControllers(Array<MainController*> &newMainControllers)
+	void setMainControllers(Array<WeakReference<MainController>> &newMainControllers)
 	{
 		mainControllers.swapWith(newMainControllers);
 	}
@@ -61,7 +61,7 @@ private:
 
 	// ================================================================================================================
 
-	Array<MainController*> mainControllers;
+	Array<WeakReference<MainController>> mainControllers;
 
 	ScopedPointer<ShapeButton> panicButton;
 	ScopedPointer<ShapeButton> midiButton;

@@ -182,10 +182,6 @@ public:
 
 	void setWorkingProject(const File &workingDirectory);
 
-	void setPlayerLibraryFile(const File& f) { libraryFile = f; }
-
-	File getPlayerLibraryFile() const { return libraryFile; }
-
 	static const StringArray &getRecentWorkDirectories() { return recentWorkDirectories; }
 
 	/** Returns the subdirectory. */
@@ -329,8 +325,7 @@ private:
 	MainController* mc;
 
 	File currentWorkDirectory;
-	File libraryFile;
-
+	
 	static StringArray recentWorkDirectories;
 
 	Component::SafePointer<Component> window;

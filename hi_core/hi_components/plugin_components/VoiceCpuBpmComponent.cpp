@@ -111,6 +111,12 @@ void VoiceCpuBpmComponent::buttonClicked(Button *)
 {
 	for (int i = 0; i < mainControllers.size(); i++)
 	{
+		if (mainControllers[i].get() == nullptr)
+		{
+			mainControllers.remove(i--);
+			continue;
+		}
+
 		mainControllers[i]->allNotesOff();
 	}
 
@@ -127,6 +133,12 @@ void VoiceCpuBpmComponent::timerCallback()
 
 	for (int i = 0; i < mainControllers.size(); i++)
 	{
+		if (mainControllers[i].get() == nullptr)
+		{
+			mainControllers.remove(i--);
+			continue;
+		}	
+
 		totalUsage += mainControllers[i]->getCpuUsage() / 100.0f;
 		totalVoiceAmount += mainControllers[i]->getNumActiveVoices();
 	}
@@ -200,6 +212,12 @@ void VoiceCpuBpmComponent::paintOverChildren(Graphics& g)
 
 	for (int i = 0; i < mainControllers.size(); i++)
 	{
+		if (mainControllers[i].get() == nullptr)
+		{
+			mainControllers.remove(i--);
+			continue;
+		}
+
 		cpuUsage += mainControllers[i]->getCpuUsage();
 	}
 
