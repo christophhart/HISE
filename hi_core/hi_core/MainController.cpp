@@ -433,12 +433,14 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	keyboardState.processNextMidiBuffer(midiMessages, 0, buffer.getNumSamples(), true);
 
 
-	if (!midiMessages.isEmpty()) setMidiInputFlag();
+
 
 	getMacroManager().getMidiControlAutomationHandler()->handleParameterData(midiMessages); // TODO_BUFFER: Move this after the next line...
 
 	masterEventBuffer.addEvents(midiMessages);
 
+    if (!masterEventBuffer.isEmpty()) setMidiInputFlag();
+    
 	eventIdHandler.handleEventIds();
 #else
 	ignoreUnused(midiMessages);
