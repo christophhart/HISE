@@ -462,7 +462,8 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 #endif
 
 #if !FRONTEND_IS_PLUGIN
-	buffer.clear();
+
+	if(replaceBufferContent) buffer.clear();
 
 	checkAllNotesOff();
 
@@ -483,8 +484,16 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 	synthChain->renderNextBlockWithModulators(multiChannelBuffer, masterEventBuffer);
 
-	FloatVectorOperations::copy(buffer.getWritePointer(0), multiChannelBuffer.getReadPointer(0), buffer.getNumSamples());
-	FloatVectorOperations::copy(buffer.getWritePointer(1), multiChannelBuffer.getReadPointer(1), buffer.getNumSamples());
+	if (replaceBufferContent)
+	{
+		FloatVectorOperations::copy(buffer.getWritePointer(0), multiChannelBuffer.getReadPointer(0), buffer.getNumSamples());
+		FloatVectorOperations::copy(buffer.getWritePointer(1), multiChannelBuffer.getReadPointer(1), buffer.getNumSamples());
+	}
+	else
+	{
+		FloatVectorOperations::add(buffer.getWritePointer(0), multiChannelBuffer.getReadPointer(0), buffer.getNumSamples());
+		FloatVectorOperations::add(buffer.getWritePointer(1), multiChannelBuffer.getReadPointer(1), buffer.getNumSamples());
+	}
 
 #if USE_HARD_CLIPPER
 	for (int i = 0; i < buffer.getNumChannels(); i++)
@@ -511,7 +520,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		}
 	}
 
-	midiMessages.clear();
+	//midiMessages.clear();
 #endif
 
 #if ENABLE_CPU_MEASUREMENT

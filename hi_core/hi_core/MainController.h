@@ -531,6 +531,11 @@ protected:
 	
     void setMidiInputFlag() {midiInputFlag = true; };
     
+	void setReplaceBufferContent(bool shouldReplaceContent)
+	{
+		replaceBufferContent = shouldReplaceContent;
+	}
+
 private:
 
 	ScopedPointer<UndoManager> controlUndoManager;
@@ -539,6 +544,8 @@ private:
     friend class PresetLoadingThread;
 
 	bool skipCompilingAtPresetLoad = false;
+
+	bool replaceBufferContent = true;
 
 	HiseEventBuffer masterEventBuffer;
 	EventIdHandler eventIdHandler;

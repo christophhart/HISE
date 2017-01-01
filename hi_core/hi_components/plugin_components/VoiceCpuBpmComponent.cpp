@@ -31,9 +31,11 @@
 */
 
 
-VoiceCpuBpmComponent::VoiceCpuBpmComponent(MainController *mc_) :
-mc(mc_)
+VoiceCpuBpmComponent::VoiceCpuBpmComponent(MainController *mc_)
 {
+	if (mc_ != nullptr)
+		mainControllers.add(mc_);
+
 	addAndMakeVisible(cpuSlider = new VuMeter());
 
 	cpuSlider->setColour(VuMeter::backgroundColour, Colours::transparentBlack);
@@ -107,26 +109,47 @@ mc(mc_)
 
 void VoiceCpuBpmComponent::buttonClicked(Button *)
 {
-	mc->allNotesOff();
+	for (int i = 0; i < mainControllers.size(); i++)
+	{
+		mainControllers[i]->allNotesOff();
+	}
+
 }
 
 
 void VoiceCpuBpmComponent::timerCallback()
 {
 	cpuSlider->setColour(VuMeter::backgroundColour, findColour(Slider::backgroundColourId));
-
 	voiceLabel->setColour(Label::ColourIds::backgroundColourId, findColour(Slider::backgroundColourId));
+	
+	double totalUsage = 0.0;
+	int totalVoiceAmount = 0;
 
-	cpuSlider->setPeak(mc->getCpuUsage() / 100.0f);
-	voiceLabel->setText(String(mc->getNumActiveVoices()), dontSendNotification);
-	bpmLabel->setText(String(mc->getBpm(), 0), dontSendNotification);
+	for (int i = 0; i < mainControllers.size(); i++)
+	{
+		totalUsage += mainControllers[i]->getCpuUsage() / 100.0f;
+		totalVoiceAmount += mainControllers[i]->getNumActiveVoices();
+	}
 
-	const bool midiFlag = mc->checkAndResetMidiInputFlag();
+	cpuSlider->setPeak((float)totalUsage);
+	voiceLabel->setText(String(totalVoiceAmount), dontSendNotification);
 
-	Colour c = midiFlag ? Colours::white : Colours::white.withAlpha(0.6f);
+	if (mainControllers.size() != 0)
+	{
+		MainController* mc = mainControllers.getFirst();
 
-	midiButton->setColours(c, c, c);
-	midiButton->repaint();
+		bpmLabel->setText(String(mc->getBpm(), 0), dontSendNotification);
+
+		const bool midiFlag = mc->checkAndResetMidiInputFlag();
+
+		Colour c = midiFlag ? Colours::white : Colours::white.withAlpha(0.6f);
+
+		midiButton->setColours(c, c, c);
+		midiButton->repaint();
+	}
+
+
+	
 }
 
 void VoiceCpuBpmComponent::resized()
@@ -172,5 +195,13 @@ void VoiceCpuBpmComponent::paintOverChildren(Graphics& g)
 {
 	g.setColour(Colours::white.withAlpha(0.7f));
 	g.setFont(GLOBAL_FONT().withHeight(10.0f));
-	g.drawText(String(mc->getCpuUsage()) + "%", cpuSlider->getBounds(), Justification::centred, true);
+
+	double cpuUsage = 0.0;
+
+	for (int i = 0; i < mainControllers.size(); i++)
+	{
+		cpuUsage += mainControllers[i]->getCpuUsage();
+	}
+
+	g.drawText(String(cpuUsage) + "%", cpuSlider->getBounds(), Justification::centred, true);
 }

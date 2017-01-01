@@ -52,11 +52,16 @@ public:
 	void paint(Graphics& g) override;
 	void paintOverChildren(Graphics& g) override;
 
+	void setMainControllers(Array<MainController*> &newMainControllers)
+	{
+		mainControllers.swapWith(newMainControllers);
+	}
+
 private:
 
 	// ================================================================================================================
 
-	MainController *mc;
+	Array<MainController*> mainControllers;
 
 	ScopedPointer<ShapeButton> panicButton;
 	ScopedPointer<ShapeButton> midiButton;
