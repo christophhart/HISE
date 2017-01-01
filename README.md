@@ -123,7 +123,7 @@ sudo apt-get -y install libcurl4-gnutls-dev
 
 2. Clone this repository.
 
-3. Open the terminal and navigate to this subdirectory: `projects/standalone/Builds/LinuxMakefile`
+3. Open the terminal and navigate to this subdirectory: `projects/standalone/TravisCI/LinuxMakefile`
 
 4. `make` and wait. 
 
