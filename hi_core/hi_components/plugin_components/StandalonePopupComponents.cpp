@@ -356,14 +356,19 @@ void CustomSettingsWindow::paint(Graphics& g)
 
 	g.setFont(GLOBAL_FONT());
     
-#if !HISE_IOS
+#if HISE_IOS
+    g.drawText("Buffer Size", 0, 0, getWidth() / 2 - 30, 30, Justification::centredRight);
+    g.drawText("Sample Rate", 0, 40, getWidth() / 2 - 30, 30, Justification::centredRight);
+    g.drawText("Streaming Mode", 0, 80, getWidth() / 2 - 30, 30, Justification::centredRight);
+#else
 	g.drawText("Driver", 0, 0, getWidth() / 2 - 30, 30, Justification::centredRight);
 	g.drawText("Device", 0, 40, getWidth() / 2 - 30, 30, Justification::centredRight);
 	g.drawText("Output", 0, 80, getWidth() / 2 - 30, 30, Justification::centredRight);
+    g.drawText("Buffer Size", 0, 120, getWidth() / 2 - 30, 30, Justification::centredRight);
+    g.drawText("Sample Rate", 0, 160, getWidth() / 2 - 30, 30, Justification::centredRight);
+    g.drawText("Streaming Mode", 0, 200, getWidth() / 2 - 30, 30, Justification::centredRight);
 #endif
-	g.drawText("Buffer Size", 0, 120, getWidth() / 2 - 30, 30, Justification::centredRight);
-	g.drawText("Sample Rate", 0, 160, getWidth() / 2 - 30, 30, Justification::centredRight);
-	g.drawText("Streaming Mode", 0, 200, getWidth() / 2 - 30, 30, Justification::centredRight);
+	
 }
 
 void CustomSettingsWindow::resized()
@@ -459,14 +464,14 @@ void CombinedSettingsWindow::paint(Graphics &g)
 	g.drawText("MIDI Inputs", title2, Justification::centred);
 }
 
-void CombinedSettingsWindow::toggleButtonWasClicked(ToggleButtonList* list, int index, bool value)
+void CombinedSettingsWindow::toggleButtonWasClicked(ToggleButtonList* /*list*/, int index, bool value)
 {
 	const String midiName = MidiInput::getDevices()[index];
 
 	dynamic_cast<AudioProcessorDriver*>(mc)->toggleMidiInput(midiName, value);
 }
 
-void CombinedSettingsWindow::buttonClicked(Button* b)
+void CombinedSettingsWindow::buttonClicked(Button* )
 {
 	findParentComponentOfClass<ModalBaseWindow>()->clearModalComponent();
 }
