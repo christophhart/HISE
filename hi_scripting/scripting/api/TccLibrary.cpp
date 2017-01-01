@@ -248,6 +248,8 @@ void CPP_PREFIX windowFunctionBlackmanHarris(float* d, int size)
 void CPP_PREFIX complexFFT(void* FFTState, float* in, float* out, int fftSize)
 {
 #if USE_C_IMPLEMENTATION || !USE_IPP
+	ignoreUnused(fftSize);
+
 	kiss_fft((kiss_fft_cfg)FFTState, (kiss_fft_cpx*)in, (kiss_fft_cpx*)out);
 #else
 	static_cast<IppFFT*>(FFTState)->complexFFT(in, out, fftSize);
@@ -257,6 +259,8 @@ void CPP_PREFIX complexFFT(void* FFTState, float* in, float* out, int fftSize)
 void CPP_PREFIX complexFFTInverse(void* FFTState, float* in, float* out, int fftSize)
 {
 #if USE_C_IMPLEMENTATION || !USE_IPP
+
+	ignoreUnused(fftSize)
 
 	kiss_fft_cfg s = (kiss_fft_cfg)FFTState;
 	//assert(s->inverse == 1);
@@ -284,6 +288,8 @@ void CPP_PREFIX complexFFTInverseInplace(void* FFTState, float* data, int fftSiz
 #if USE_C_IMPLEMENTATION || !USE_IPP
 	size_t s = sizeof(float) * (size_t)fftSize * 2;
 
+	ignoreUnused(fftSize);
+
 	kiss_fft_cfg st = (kiss_fft_cfg)FFTState;
 	//assert(st->inverse == 1);
 	//assert(pow(2.0, st->nfft) == fftSize);
@@ -303,6 +309,8 @@ void CPP_PREFIX realFFT(void* FFTState, float* in, float* out, int fftSize)
 {
 #if USE_C_IMPLEMENTATION || !USE_IPP
 
+	ignoreUnused(fftSize);
+
 	kiss_fftr_cfg st = (kiss_fftr_cfg)FFTState;
 	
 
@@ -316,6 +324,7 @@ void CPP_PREFIX realFFTInverse(void* FFTState, float* in, float* out, int fftSiz
 {
 #if USE_C_IMPLEMENTATION || !USE_IPP
 	
+	ignoreUnused(fftSize);
 
 	kiss_fftr_cfg st = (kiss_fftr_cfg)FFTState;
 	//assert(st->substate->inverse == 1);

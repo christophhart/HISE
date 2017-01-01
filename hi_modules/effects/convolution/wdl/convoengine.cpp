@@ -306,11 +306,7 @@ int WDL_ConvolutionEngine::SetImpulse(WDL_ImpulseBuffer *impulse, int fft_size, 
       {
         *zbuf++=mv>1.0e-14 ? 2 : 1; // 1 means only second channel has content
 
-#if USE_IPP || USE_VDSP_FFT
 		WDL_fft((WDL_FFT_COMPLEX*)impout,fft_size,0, fftData);
-#else
-		WDL_fft((WDL_FFT_COMPLEX*)impout, fft_size, 0);
-#endif
 
         if (smallerSizeMode)
         {
@@ -653,11 +649,7 @@ int WDL_ConvolutionEngine::Avail(int want)
       m_zl_fftcnt++;
 #endif
 
-#if USE_IPP || USE_VDSP_FFT
 	  if (nonzflag) WDL_fft((WDL_FFT_COMPLEX*)optr, m_fft_size, 0, fftData);
-#else
-	  if (nonzflag) WDL_fft((WDL_FFT_COMPLEX*)optr, m_fft_size, 0);
-#endif
 
       if (useSilentList) useSilentList[histpos]=nonzflag ? (mono_input_mode ? 1 : 2) : 0;
     
@@ -741,11 +733,7 @@ int WDL_ConvolutionEngine::Avail(int want)
         memset(workbuf2,0,m_fft_size*2*sizeof(WDL_FFT_REAL));
 	  else
 	  {
-#if USE_IPP || USE_VDSP_FFT
 		  WDL_fft((WDL_FFT_COMPLEX*)workbuf2, m_fft_size, 1, fftData);
-#else
-		  WDL_fft((WDL_FFT_COMPLEX*)workbuf2, m_fft_size, 1);
-#endif
 	  }
 
       WDL_FFT_REAL *olhist=m_overlaphist[ch].Get(); // errors from last time

@@ -889,6 +889,7 @@ private:
 
 
 
+#if USE_VDSP_FFT
 
 #define MAX_VDSP_FFT_SIZE 13
 
@@ -913,6 +914,6 @@ private:
     ScopedPointer<Pimpl> pimpl;
 };
 
-
+#endif
 
 #endif  // UTILITYCLASSES_H_INCLUDED

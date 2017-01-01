@@ -642,9 +642,8 @@ void ModulatorSynthGroupVoice::calculateBlock(int startSample, int numSamples)
 		// This is the magic FM command
 		FloatVectorOperations::multiply(carrierPitchValues + startSample, fmModBuffer, numSamples);
         
-#if HI_WINDOWS
+#if JUCE_WINDOWS
 		FloatVectorOperations::clip(carrierPitchValues + startSample, carrierPitchValues + startSample, 0.00000001f, 1000.0f, numSamples);
-
 #endif
 		carrierVoice->calculateBlock(startSample, numSamples);
 
