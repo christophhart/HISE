@@ -123,9 +123,27 @@ sudo apt-get -y install libcurl4-gnutls-dev
 
 2. Clone this repository.
 
-3. Open the terminal and navigate to this subdirectory: `projects/standalone/Builds/LinuxMakefile`
+3. Open the Projucer (a precompiled Linux binary can be found at `tools/projucer`). Load the project `projects/standalone/HISE Standalone.jucer` and resave the project (this will generate the Makefile with correct Linux paths).
 
-4. `make` and wait. 
+4. Open the terminal and navigate to this subdirectory: `projects/standalone/Builds/LinuxMakefile`
+
+5. If you want to compile an optimized version of HISE, change these lines in the makefile:
+
+	```makefile
+	ifndef CONFIG
+	  CONFIG=Debug
+	endif
+	```
+
+	to
+
+	```makefile
+	ifndef CONFIG
+	  CONFIG=Release
+	endif
+	```
+
+6. type `make` and wait. 
 
 ## Licence
 
