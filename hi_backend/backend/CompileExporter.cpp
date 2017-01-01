@@ -1137,8 +1137,6 @@ CompileExporter::ErrorCodes CompileExporter::createStandaloneAppProjucerFile()
 
 void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter* exporter, String& templateProject)
 {
-	ModulatorSynthChain* chainToExport = exporter->chainToExport;
-	
 	const File jucePath = exporter->hisePath.getChildFile("JUCE/modules");
 
 	REPLACE_WILDCARD_WITH_STRING("%HISE_PATH%", exporter->hisePath.getFullPathName());

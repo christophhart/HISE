@@ -986,7 +986,7 @@ void SamplerBody::SampleEditingActions::trimSampleStart(SamplerBody * body)
 
 			if (reader != nullptr)
 			{
-				const int numSamples = reader->lengthInSamples;
+				const int numSamples = (int)reader->lengthInSamples;
 
 				if (numSamples != 0)
 				{
