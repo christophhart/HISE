@@ -732,10 +732,21 @@ public:
 			ProcessorWithScriptingContent* p;
 		};
 
-		struct AsyncRepainter : public AsyncUpdater
+		struct AsyncRepainter : public Timer
 		{
 			AsyncRepainter(ScriptPanel* parent_) : parent(parent_){}
 
+            void triggerAsyncUpdate()
+            {
+                if(!isTimerRunning()) startTimer(30);
+            }
+            
+            void timerCallback() override
+            {
+                handleAsyncUpdate();
+                stopTimer();
+            }
+            
 			void handleAsyncUpdate()
 			{
 				if (parent.get() != nullptr)

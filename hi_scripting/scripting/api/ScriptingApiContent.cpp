@@ -30,7 +30,15 @@
 *   ===========================================================================
 */
 
+#if JUCE_MAC
+#define SEND_MESSAGE(broadcaster) {	broadcaster->sendAllocationFreeChangeMessage(); }
+#else
 #define SEND_MESSAGE(broadcaster) {	if (MessageManager::getInstance()->isThisTheMessageThread()) broadcaster->sendSynchronousChangeMessage(); else broadcaster->sendChangeMessage();}
+#endif
+
+
+
+
 #define ADD_TO_TYPE_SELECTOR(x) (ScriptComponentPropertyTypeSelector::addToTypeSelector(ScriptComponentPropertyTypeSelector::x, propertyIds.getLast()))
 #define ADD_AS_SLIDER_TYPE(min, max, interval) (ScriptComponentPropertyTypeSelector::addToTypeSelector(ScriptComponentPropertyTypeSelector::SliderSelector, propertyIds.getLast(), min, max, interval))
 
@@ -162,6 +170,9 @@ parentComponentIndex(-1)
 
 	//setName(name_.toString());
 
+
+    enableAllocationFreeMessages(30);
+    
 	SEND_MESSAGE(this);
 }
 
@@ -411,6 +422,8 @@ void ScriptingApi::Content::ScriptComponent::set(String propertyName, var newVal
 		return;
 	}
 
+    
+    
 	setScriptObjectPropertyWithChangeMessage(propertyId, newValue, parent->allowGuiCreation ? dontSendNotification : sendNotification);
 }
 
@@ -443,7 +456,7 @@ void ScriptingApi::Content::ScriptComponent::setValue(var controlValue)
 		skipRestoring = true;
 	}
 
-	sendChangeMessage();
+    sendAllocationFreeChangeMessage();
 };
 
 void ScriptingApi::Content::ScriptComponent::setColour(int colourId, int colourAs32bitHex)
@@ -456,7 +469,7 @@ void ScriptingApi::Content::ScriptComponent::setColour(int colourId, int colourA
 	case 3:	setScriptObjectProperty(textColour, (int64)colourAs32bitHex); break;
 	}
 
-	sendChangeMessage();
+	sendAllocationFreeChangeMessage();
 }
 
 void ScriptingApi::Content::ScriptComponent::setPropertiesFromJSON(const var &jsonData)
@@ -525,7 +538,7 @@ void ScriptingApi::Content::ScriptComponent::setPosition(int x, int y, int w, in
 	componentProperties->setProperty("width", w);
 	componentProperties->setProperty("height", h);
 
-	sendChangeMessage();
+	sendAllocationFreeChangeMessage();
 }
 
 
@@ -649,7 +662,7 @@ void ScriptingApi::Content::ScriptComponent::notifyChildComponents()
 
 		if (c != nullptr)
 		{
-			childComponents[i].get()->sendChangeMessage();
+			childComponents[i].get()->sendAllocationFreeChangeMessage();
 			childComponents[i].get()->notifyChildComponents();
 		}
 		else jassertfalse;
@@ -2054,7 +2067,7 @@ void ScriptingApi::Content::ScriptPanel::internalRepaint()
 
 	graphics->setGraphics(nullptr, nullptr);
 
-	sendChangeMessage();
+	sendAllocationFreeChangeMessage();
 }
 
 void ScriptingApi::Content::ScriptPanel::setMouseCallback(var mouseCallbackFunction)
