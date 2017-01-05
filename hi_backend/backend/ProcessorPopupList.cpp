@@ -422,6 +422,7 @@ StupidRectangle::StupidRectangle()
 	deletePath.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon));
 	closeButton->setShape(deletePath, true, true, true);
 	closeButton->setToggleState(true, dontSendNotification);
+    closeButton->addListener(this);
 	
 }
 
@@ -483,6 +484,11 @@ void StupidRectangle::paint(Graphics &g)
 	g.setColour(Colours::white);
 
 	g.drawText(path, 8, 8, getWidth() - 20, 24, Justification::centred, true);
+}
+
+void StupidRectangle::buttonClicked(Button* b)
+{
+    findParentComponentOfClass<BackendProcessorEditor>()->clearPopup();
 }
 
 void StupidRectangle::resized()

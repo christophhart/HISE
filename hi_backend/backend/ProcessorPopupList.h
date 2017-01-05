@@ -110,7 +110,8 @@ private:
 };
 
 
-class StupidRectangle : public Component
+class StupidRectangle : public Component,
+                        public ButtonListener
 {
 public:
 
@@ -123,6 +124,8 @@ public:
 
 	void resized();
 
+    void buttonClicked(Button* b) override;
+    
 private:
 
 	ScopedPointer<ShapeButton> closeButton;
