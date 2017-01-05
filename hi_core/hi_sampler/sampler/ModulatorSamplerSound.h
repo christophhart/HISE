@@ -214,6 +214,8 @@ public:
 	/** Opens the file handle for all samples of this sound. */
 	void closeFileHandle();
 
+	
+
 	// ====================================================================================================================
 
 	void loadData(int preloadSize) { wrappedSound->setPreloadSize(preloadSize, true); };
@@ -367,7 +369,8 @@ private:
 	WeakReference<ModulatorSamplerSound>::Master masterReference;
 
 	const CriticalSection& getLock() const { return wrappedSound.get()->getSampleLock(); };
-
+	
+	CriticalSection exportLock;
 	
 	float normalizedPeak;
 	bool isNormalized;

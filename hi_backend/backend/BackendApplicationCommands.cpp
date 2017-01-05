@@ -133,6 +133,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsCollectExternalFiles,
         MenuToolsRedirectSampleFolder,
 		MenuToolsForcePoolSearch,
+		MenuToolsConvertAllSamplesToMonolith,
 		MenuToolsEnableAutoSaving,
 		MenuToolsCreateRSAKeys,
 		MenuToolsCreateDummyLicenceFile,
@@ -382,6 +383,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuToolsForcePoolSearch:
 		setCommandTarget(result, "Force duplicate search in pool when loading samples", true, bpe->getBackendProcessor()->getSampleManager().getModulatorSamplerSoundPool()->isPoolSearchForced(), 'X', false);
 		break;
+	case MenuToolsConvertAllSamplesToMonolith:
+		setCommandTarget(result, "Convert all samples to Monolith + Samplemap", true, false, 'X', false);
+		break;
 	case MenuToolsEnableAutoSaving:
 		setCommandTarget(result, "Enable Autosaving", true, bpe->owner->getAutoSaver().isAutoSaving(), 'X', false);
 		break;
@@ -517,6 +521,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsCollectExternalFiles:	Actions::collectExternalFiles(bpe); return true;
     case MenuToolsRedirectSampleFolder: Actions::redirectSampleFolder(bpe->getMainSynthChain()); updateCommands(); return true;
 	case MenuToolsForcePoolSearch:		Actions::toggleForcePoolSearch(bpe); updateCommands(); return true;
+	case MenuToolsConvertAllSamplesToMonolith:	Actions::convertAllSamplesToMonolith(bpe); return true;
 	case MenuToolsCreateRSAKeys:		Actions::createRSAKeys(bpe); return true;
 	case MenuToolsCreateDummyLicenceFile: Actions::createDummyLicenceFile(bpe); return true;
     case MenuViewFullscreen:            Actions::toggleFullscreen(bpe); updateCommands(); return true;
@@ -763,6 +768,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuToolsCollectExternalFiles);
 		ADD_DESKTOP_ONLY(MenuToolsRedirectSampleFolder);
 		ADD_DESKTOP_ONLY(MenuToolsForcePoolSearch);
+		ADD_DESKTOP_ONLY(MenuToolsConvertAllSamplesToMonolith);
 		ADD_DESKTOP_ONLY(MenuToolsEnableAutoSaving);
 		p.addSeparator();
 		p.addSectionHeader("Licence Management");
@@ -1825,6 +1831,22 @@ void BackendCommandTarget::Actions::cleanBuildDirectory(BackendProcessorEditor *
 			buildDirectory.getChildFile("Builds").deleteRecursively();
 			buildDirectory.getChildFile("JuceLibraryCode").deleteRecursively();
 		}
+	}
+}
+
+void BackendCommandTarget::Actions::convertAllSamplesToMonolith(BackendProcessorEditor * bpe)
+{
+	ModulatorSampler* sampler = dynamic_cast<ModulatorSampler*>(ProcessorHelpers::getFirstProcessorWithName(bpe->getMainSynthChain(), "ConvertSampler"));
+
+	if (sampler != nullptr)
+	{
+		MonolithConverter *converter = new MonolithConverter(bpe);
+
+		converter->setModalBaseWindowComponent(bpe);
+	}
+	else
+	{
+		PresetHandler::showMessageWindow("Missing convert sampler", "You need a sampler with the name 'ConvertSampler' in the Master Chain!", PresetHandler::IconType::Error);
 	}
 }
 

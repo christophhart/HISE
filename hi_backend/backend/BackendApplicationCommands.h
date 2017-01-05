@@ -154,6 +154,7 @@ public:
 		MenuToolsCollectExternalFiles,
         MenuToolsRedirectSampleFolder,
 		MenuToolsForcePoolSearch,
+		MenuToolsConvertAllSamplesToMonolith,
 		MenuToolsCreateRSAKeys,
 		MenuToolsCreateDummyLicenceFile,
 		MenuToolsEnableAutoSaving,
@@ -289,6 +290,7 @@ public:
 		static void createExternalScriptFile(BackendProcessorEditor * bpe);
 		static void exportMainSynthChainAsPlayerLibrary(BackendProcessorEditor * bpe);
 		static void cleanBuildDirectory(BackendProcessorEditor * bpe);
+		static void convertAllSamplesToMonolith(BackendProcessorEditor * bpe);
 	};
 
 private:

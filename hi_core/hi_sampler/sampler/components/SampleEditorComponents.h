@@ -200,8 +200,10 @@ public:
 
 	Colour getColourForSound(bool wantsOutlineColour) const
 	{
-        if(sound.get() == nullptr) return Colours::transparentBlack;
+		if(sound.get() == nullptr) return Colours::transparentBlack;
         
+		
+
 		if (selected) return wantsOutlineColour ? Colours::red : Colours::red.withBrightness(transparency).withAlpha(0.6f);
 
 		if (sound->isMissing())
@@ -400,6 +402,8 @@ public:
     
     void drawSoundMap(Graphics &g);
     
+	const ModulatorSampler* getSampler() const { return ownerSampler; }
+
 private:
 
 	/** A POD object containing data for a dragged sound. */

@@ -260,6 +260,8 @@ public:
 
 	void saveAsMonolith(Component* mainEditor);
 
+	void setIsMonolith() noexcept { mode = SaveMode::Monolith; }
+
 	/** returns the default sample directory (the sample map directory + '/samples'. */
 	String getSampleDirectory() const
 	{
@@ -330,5 +332,73 @@ private:
 	char internalData[128][128];
 
 };
+
+
+class MonolithExporter : public ThreadWithAsyncProgressWindow,
+						 public AudioFormatWriter
+{
+public:
+
+	MonolithExporter(SampleMap* sampleMap_);
+
+	MonolithExporter(const String &name, ModulatorSynthChain* chain) :
+		ThreadWithAsyncProgressWindow(name),
+		AudioFormatWriter(nullptr, "", 0.0, 0, 1),
+		sampleMapDirectory(GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps)),
+		monolithDirectory(GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::Samples)),
+		sampleMap(nullptr)
+	{
+	}
+
+	static void collectFiles()
+	{
+
+	}
+
+	void run() override;
+
+	void exportCurrentSampleMap(bool overwriteExistingData, bool exportSamples, bool exportSampleMap);
+
+	void setSampleMap(SampleMap* samplemapToExport)
+	{
+		sampleMap = samplemapToExport;
+	}
+
+	
+
+	void writeSampleMapFile(bool overwriteExistingFile);
+
+	void threadFinished() override;;
+
+
+	bool write(const int** /*data*/, int /*numSamples*/) override
+	{
+		jassertfalse;
+		return false;
+	}
+
+private:
+
+	void checkSanity();
+
+
+	/** Writes the files and updates the samplemap with the information. */
+	void writeFiles(int channelIndex, bool overwriteExistingData);
+
+	void updateSampleMap();
+
+	int64 largestSample;
+
+	ValueTree v;
+	SampleMap* sampleMap;
+	SampleMap::FileList filesToWrite;
+	int numChannels;
+	int numSamples;
+	File sampleMapDirectory;
+	const File monolithDirectory;
+
+	String error;
+};
+
 
 #endif  // MODULATORSAMPLERDATA_H_INCLUDED

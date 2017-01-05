@@ -86,6 +86,9 @@ public:
 	/** Loads audio files into the sampler by using a pitch detection algorithm that sets the root note automatically. */
 	static void loadAudioFilesUsingPitchDetection(Component *childComponentOfMainEditor, ModulatorSampler *sampler, const StringArray &fileNames, bool useVelocityAutomap);
 
+	/** Loads audio files without any mapping. */
+	static void loadAudioFilesRaw(Component* childComponentOfMainEditor, ModulatorSampler* sampler, const StringArray& fileNames);
+
 	/** Imports audio files into the sampler. It opens an dialog which lets the user specify the import mode.
 	*
 	*	@param sampler the sampler that loads the files

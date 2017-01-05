@@ -126,6 +126,8 @@ void SampleComponent::drawSampleRectangle(Graphics &g, Rectangle<int> areaInt)
 {
     if(sound.get() == nullptr) return;
     
+	ScopedLock sl(map->getSampler()->getExportLock());
+
     Rectangle<float> area((float)areaInt.getX(), (float)areaInt.getY(), (float)areaInt.getWidth(), (float)areaInt.getHeight());
     
     const int lowerXFade = sound->getProperty(ModulatorSamplerSound::LowerVelocityXFade);

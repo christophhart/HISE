@@ -257,6 +257,8 @@ public:
 
 	CriticalSection &getSamplerLock() {	return lock; }
 	
+	const CriticalSection& getExportLock() const { return exportLock; }
+
 	bool useGlobalFolderForSaving() const;
 	void setUseGlobalFolderForSaving() { useGlobalFolder = true; };
 	void replaceReferencesWithGlobalFolder() override;
@@ -516,6 +518,8 @@ private:
     /** Sets the streaming buffer and preload buffer sizes. */
     void setPreloadSize(int newPreloadSize);
     
+	CriticalSection exportLock;
+
     AsyncPreloader asyncPreloader;
 	AsyncPurger asyncPurger;
 	AsyncSampleMapLoader asyncSampleMapLoader;

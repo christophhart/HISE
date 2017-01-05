@@ -115,7 +115,7 @@ bool SampleImporter::createSoundAndAddToSampler(ModulatorSampler *sampler, const
 	{
 		File f(basicData.fileNames[i]);
 
-		jassert(allowedWildcards.contains(f.getFileExtension()));
+		jassert(allowedWildcards.containsIgnoreCase(f.getFileExtension()));
 
 		ValueTree fileChild("file");
 
@@ -193,7 +193,7 @@ void SampleImporter::importNewAudioFiles(Component *childComponentOfMainEditor, 
 
 			if (body != nullptr)
 			{
-				SamplerBody::SampleEditingActions::automapUsingMetadata(body);
+				SamplerBody::SampleEditingActions::automapUsingMetadata(body, sampler);
 			}
 		}
 	}
@@ -326,6 +326,31 @@ void SampleImporter::loadAudioFilesUsingPitchDetection(Component* /*childCompone
 
 	sampler->refreshPreloadSizes();
 	sampler->refreshMemoryUsage();
+}
+
+void SampleImporter::loadAudioFilesRaw(Component* childComponentOfMainEditor, ModulatorSampler* sampler, const StringArray& fileNames)
+{
+	const int startIndex = sampler->getNumSounds();
+
+	for (int i = 0; i < fileNames.size(); i++)
+	{
+		SamplerSoundBasicData data;
+
+		data.fileNames.add(fileNames[i]);
+		data.index = startIndex + i;
+		data.rootNote = i % 127;
+		data.lowKey = i % 127;
+
+		data.hiKey = i % 127;
+		data.lowVelocity = 0;
+		data.hiVelocity = 127;
+	
+		createSoundAndAddToSampler(sampler, data);
+	}
+
+	//sampler->refreshPreloadSizes();
+	//sampler->refreshMemoryUsage();
+
 }
 
 XmlElement *SampleImporter::createXmlDescriptionForFile(const File &f, int index)

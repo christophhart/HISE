@@ -156,7 +156,7 @@ public:
 		static void mergeIntoMultiSamples(SamplerBody * body);
 		static void extractToSingleMicSamples(SamplerBody * body);
 		static void normalizeSamples(SamplerBody *body);
-		static void automapUsingMetadata(SamplerBody * body);
+		static void automapUsingMetadata(SamplerBody * body, ModulatorSampler* sampler);
 		static void trimSampleStart(SamplerBody * body);
 	};
 

@@ -512,7 +512,7 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 							return true;
 	case RefreshVelocityXFade:	SamplerBody::SampleEditingActions::refreshCrossfades(body);
 							return true;
-	case AutomapUsingMetadata: SamplerBody::SampleEditingActions::automapUsingMetadata(body);
+	case AutomapUsingMetadata: SamplerBody::SampleEditingActions::automapUsingMetadata(body, sampler);
 							return true;
 	case TrimSampleStart:	SamplerBody::SampleEditingActions::trimSampleStart(body);
 							return true;

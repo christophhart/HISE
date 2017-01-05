@@ -453,6 +453,205 @@ private:
 	File projectDirectory;
 };
 
+class MonolithConverter : public MonolithExporter
+{
+public:
+
+	enum ExportOptions
+	{
+		ExportAll,
+		ExportSampleMapsAndJSON,
+		ExportJSON,
+		numExportOptions
+	};
+
+	MonolithConverter(BackendProcessorEditor* bpe_) :
+		MonolithExporter("Convert samples to Monolith + Samplemap", bpe_->getMainSynthChain()),
+		bpe(bpe_),
+		chain(bpe_->getMainSynthChain())
+	{
+
+		sampler = dynamic_cast<ModulatorSampler*>(ProcessorHelpers::getFirstProcessorWithName(chain, "ConvertSampler"));
+		sampleFolder = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::Samples);
+
+		jassert(sampler != nullptr);
+
+		StringArray directoryDepth;
+		directoryDepth.add("1");
+		directoryDepth.add("2");
+		directoryDepth.add("3");
+		directoryDepth.add("4");
+
+		addComboBox("directoryDepth", directoryDepth, "Directory Depth");
+
+		StringArray yesNo;
+
+		yesNo.add("Yes");
+		yesNo.add("No"); // best code I've ever written...
+
+		addComboBox("overwriteFiles", yesNo, "Overwrite existing files");
+		
+		StringArray option;
+		option.add("Export all");
+		option.add("Skip monolith file creation");
+		option.add("Only create JSON data file");
+
+		addComboBox("option", option, "Export Depth");
+
+		addTextEditor("directorySeparator", "::", "Directory separation character");
+
+		addBasicComponents(true);
+	};
+
+	void getDepth(const File& rootFile, const File& childFile, int& counter)
+	{
+		jassert(childFile.isAChildOf(rootFile));
+
+		if (childFile.getParentDirectory() == rootFile)
+		{
+			return;
+		}
+
+		counter++;
+
+		getDepth(rootFile, childFile.getParentDirectory(), counter);
+	}
+
+	void convertSampleMap(const File& sampleDirectory, bool overwriteExistingData, bool exportSamples, bool exportSampleMap)
+	{
+		if (!exportSamples && !exportSampleMap) return;
+
+#if JUCE_WINDOWS
+		const String slash = "\\";
+#else
+		const String slash = "/";
+#endif
+
+		const String sampleMapId = sampleDirectory.getRelativePathFrom(sampleFolder).replace(slash, "_");
+
+		
+
+		showStatusMessage("Importing " + sampleMapId);
+
+		Array<File> samples;
+
+		sampleDirectory.findChildFiles(samples, File::findFiles, true, "*.wav;*.aif;*.aif;*.WAV;*.AIF;*.AIFF");
+
+		StringArray fileNames;
+
+		for (int i = 0; i < samples.size(); i++)
+		{
+			if (samples[i].isHidden() || samples[i].getFileName().startsWith("."))
+				continue;
+
+			fileNames.add(samples[i].getFullPathName());
+		}
+
+		{
+			ScopedLock sl(sampler->getExportLock());
+			sampler->clearSampleMap();
+			SampleImporter::loadAudioFilesRaw(bpe, sampler, fileNames);
+		}
+
+		SamplerBody::SampleEditingActions::automapUsingMetadata(nullptr, sampler);
+
+
+
+		sampler->getSampleMap()->setId(sampleMapId);
+		sampler->getSampleMap()->setIsMonolith();
+
+		setSampleMap(sampler->getSampleMap());
+
+		exportCurrentSampleMap(overwriteExistingData, exportSamples, exportSampleMap);
+	}
+
+	void run() override
+	{		
+		generateDirectoryList();
+
+		showStatusMessage("Writing JSON list");
+
+		const String data = JSON::toString(fileNameList);
+		File f = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Scripts).getChildFile("samplemaps.js");
+		f.replaceWithText(data);
+
+		ExportOptions optionIndex = (ExportOptions)getComboBoxComponent("option")->getSelectedItemIndex();
+
+		const bool exportSamples = (optionIndex == ExportAll);
+		const bool exportSampleMap = (optionIndex == ExportSampleMapsAndJSON) || (optionIndex == ExportAll);
+		const bool overwriteData = getComboBoxComponent("overwriteFiles")->getSelectedItemIndex() == 0;
+
+		
+
+		for (int i = 0; i < fileList.size(); i++)
+		{
+			if (threadShouldExit())
+			{
+				break;
+			}
+
+			setProgress((double)i / (double)fileList.size());
+			convertSampleMap(fileList[i], overwriteData, exportSamples, exportSampleMap);
+		}
+
+	}
+
+	void generateDirectoryList()
+	{
+		sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->setUpdatePool(false);
+
+		Array<File> allDirectories;
+
+		const int depth = getComboBoxComponent("directoryDepth")->getText().getIntValue();
+
+
+		sampleFolder.findChildFiles(allDirectories, File::findDirectories, true);
+		const String separator = getTextEditor("directorySeparator")->getText();
+
+		for (int i = 0; i < allDirectories.size(); i++)
+		{
+			int thisDepth = 1;
+
+			getDepth(sampleFolder, allDirectories[i], thisDepth);
+
+			if (thisDepth == depth)
+			{
+				fileList.add(allDirectories[i]);
+			}
+		}
+
+		for (int i = 0; i < fileList.size(); i++)
+		{
+
+#if JUCE_WINDOWS
+			const String slash = "\\";
+#else
+			const String slash = "/";
+#endif
+
+			String s = fileList[i].getRelativePathFrom(sampleFolder).replace(slash, separator);
+
+			fileNameList.add(var(s));
+
+		}
+	}
+
+	void threadFinished() override
+	{
+
+	};
+
+private:
+
+	Array<var> fileNameList;
+	Array<File> fileList;
+
+	File sampleFolder;
+	BackendProcessorEditor* bpe;
+	ModulatorSampler* sampler;
+	ModulatorSynthChain* chain;
+};
+
 class ProjectDownloader : public ThreadWithAsyncProgressWindow,
 	public TextEditor::Listener
 {

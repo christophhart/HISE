@@ -444,206 +444,6 @@ void SampleMap::save()
 	changed = false;
 }
 
-class MonolithExporter : public ThreadWithAsyncProgressWindow,
-						 public AudioFormatWriter
-{
-public:
-
-	MonolithExporter(SampleMap* sampleMap_) :
-		ThreadWithAsyncProgressWindow("Exporting samples as monolith"),
-		AudioFormatWriter(nullptr, "", 0.0, 0, 1),
-		sampleMap(sampleMap_),
-		sampleMapDirectory(GET_PROJECT_HANDLER(sampleMap->getSampler()).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps)),
-		monolithDirectory(GET_PROJECT_HANDLER(sampleMap->getSampler()).getSubDirectory(ProjectHandler::SubDirectories::Samples))
-	{
-		if (!monolithDirectory.isDirectory()) monolithDirectory.createDirectory();
-
-		addTextEditor("id", sampleMap->getId().toString(), "Sample Map Name");
-
-		addBasicComponents(true);
-	}
-
-	void run() override
-	{
-		sampleMap->setId(getTextEditorContents("id"));
-	
-		showStatusMessage("Collecting files");
-
-		filesToWrite = sampleMap->createFileList();
-
-		v = sampleMap->exportAsValueTree();
-		numSamples = v.getNumChildren();
-		numChannels = jmax<int>(1, v.getChild(0).getNumChildren());
-
-		try
-		{
-			checkSanity();
-		}
-		catch (String errorMessage)
-		{
-			error = errorMessage;
-			return;
-		}
-		
-
-		updateSampleMap();
-
-		writeSampleMapFile();
-
-		for (int i = 0; i < numChannels; i++)
-		{
-			if (threadShouldExit())
-			{
-				error = "Export aborted by user";
-				return;
-			}
-			writeFiles(i);
-		}
-		
-	}
-
-
-	void writeSampleMapFile()
-	{
-		File sampleMapFile = sampleMapDirectory.getChildFile(sampleMap->getId().toString() + ".xml");
-		ScopedPointer<XmlElement> xml = v.createXml();
-		xml->writeToFile(sampleMapFile, "");
-	}
-
-	void threadFinished() override
-	{
-		if (error.isEmpty())
-		{
-			PresetHandler::showMessageWindow("Error at exporting", error, PresetHandler::IconType::Error);
-		}
-		else
-		{
-			PresetHandler::showMessageWindow("Exporting successful", "All samples were successfully written as monolithic file.", PresetHandler::IconType::Info);
-		}
-	};
-
-
-	bool write(const int** /*data*/, int /*numSamples*/) override
-	{
-		jassertfalse;
-		return false;
-	}
-
-private:
-
-	void checkSanity()
-	{
-		if (filesToWrite.size() != numChannels) throw String("Channel amount mismatch");
-
-		for (int i = 0; i < filesToWrite.size(); i++)
-		{
-			if (filesToWrite[i]->size() != numSamples) throw("Sample amount mismatch for Channel " + String(i + 1));
-		}
-	}
-
-
-	/** Writes the files and updates the samplemap with the information. */
-	void writeFiles(int channelIndex)
-	{
-		AudioFormatManager afm;
-		afm.registerBasicFormats();
-		Array<File>* channelList = filesToWrite[channelIndex];
-		
-		bool isMono = false;
-
-		if (channelList->size() > 0)
-		{
-			ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(channelList->getUnchecked(0));
-
-			isMono = reader->numChannels == 1;
-		}
-
-		String channelFileName = sampleMap->getId().toString() + ".ch" + String(channelIndex+1);
-
-		File outputFile = monolithDirectory.getChildFile(channelFileName);
-
-		outputFile.deleteFile();
-		outputFile.create();
-		FileOutputStream fos(outputFile);
-		
-		fos.writeBool(isMono);
-
-		showStatusMessage("Exporting Channel " + String(channelIndex+1));
-
-		AudioSampleBuffer buffer(isMono? 1 : 2, (int)largestSample);
-		MemoryBlock tempBlock;
-				
-		size_t frameSize = sizeof(int16) * (isMono ? 1 : 2);
-
-		tempBlock.setSize(frameSize * largestSample);
-		
-		for (int i = 0; i < channelList->size(); i++)
-		{
-			setProgress((double)i / (double)numSamples);
-
-			ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(channelList->getUnchecked(i));
-			reader->read(&buffer, 0, (int)reader->lengthInSamples, 0, true, true);
-			size_t bytesUsed = reader->lengthInSamples * frameSize;
-
-			AudioFormatWriter::WriteHelper<AudioData::Int16, AudioData::Float32, AudioData::LittleEndian>::write(
-				tempBlock.getData(), isMono ? 1 : 2, (const int* const *)buffer.getArrayOfReadPointers(), (int)reader->lengthInSamples);
-
-			fos.write(tempBlock.getData(), bytesUsed);	
-		}
-
-		fos.flush();
-	}
-
-	void updateSampleMap()
-	{
-		checkSanity();
-
-		AudioFormatManager afm;
-
-		afm.registerBasicFormats();
-
-		largestSample = 0;
-		int64 offset = 0;
-
-		for (int i = 0; i < numSamples; i++)
-		{
-			ValueTree s = v.getChild(i);
-
-			if(numChannels > 0)
-			{
-				File sampleFile = filesToWrite.getUnchecked(0)->getUnchecked(i);
-				
-				ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(sampleFile);
-
-				if (reader != nullptr)
-				{
-					const int64 length = reader->lengthInSamples;
-
-					largestSample = jmax<int64>(largestSample, length);
-
-					s.setProperty("MonolithOffset", offset, nullptr);
-					s.setProperty("MonolithLength", length, nullptr);
-					s.setProperty("SampleRate", reader->sampleRate, nullptr);
-
-					offset += length;
-				}
-			}
-		}
-	}
-
-	int64 largestSample;
-
-	ValueTree v;
-	SampleMap* sampleMap;
-	SampleMap::FileList filesToWrite;
-	int numChannels;
-	int numSamples;
-	File sampleMapDirectory;
-	const File monolithDirectory;
-
-	String error;
-};
-
 
 void SampleMap::saveAsMonolith(Component* mainEditor)
 {
@@ -922,4 +722,199 @@ int RoundRobinMap::getRRGroupsForMessage(int noteNumber, int velocity)
 	}
 	else return -1;
 	
+}
+
+MonolithExporter::MonolithExporter(SampleMap* sampleMap_) :
+	ThreadWithAsyncProgressWindow("Exporting samples as monolith"),
+	AudioFormatWriter(nullptr, "", 0.0, 0, 1),
+	sampleMapDirectory(GET_PROJECT_HANDLER(sampleMap->getSampler()).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps)),
+	monolithDirectory(GET_PROJECT_HANDLER(sampleMap->getSampler()).getSubDirectory(ProjectHandler::SubDirectories::Samples))
+{
+	setSampleMap(sampleMap_);
+
+	if (!monolithDirectory.isDirectory()) monolithDirectory.createDirectory();
+
+	addTextEditor("id", sampleMap->getId().toString(), "Sample Map Name");
+
+	addBasicComponents(true);
+}
+
+void MonolithExporter::run()
+{
+	sampleMap->setId(getTextEditorContents("id"));
+
+	exportCurrentSampleMap(true, true, true);
+}
+
+void MonolithExporter::exportCurrentSampleMap(bool overwriteExistingData, bool exportSamples, bool exportSampleMap)
+{
+	jassert(sampleMap != nullptr);
+
+	showStatusMessage("Collecting files");
+
+	filesToWrite = sampleMap->createFileList();
+
+	v = sampleMap->exportAsValueTree();
+	numSamples = v.getNumChildren();
+	numChannels = jmax<int>(1, v.getChild(0).getNumChildren());
+
+	try
+	{
+		checkSanity();
+	}
+	catch (String errorMessage)
+	{
+		error = errorMessage;
+		return;
+	}
+
+	updateSampleMap();
+
+	if(exportSampleMap)
+		writeSampleMapFile(overwriteExistingData);
+
+	if (exportSamples)
+	{
+		for (int i = 0; i < numChannels; i++)
+		{
+			if (threadShouldExit())
+			{
+				error = "Export aborted by user";
+				return;
+			}
+
+			writeFiles(i, overwriteExistingData);
+		}
+	}
+}
+
+void MonolithExporter::writeSampleMapFile(bool overwriteExistingFile)
+{
+	File sampleMapFile = sampleMapDirectory.getChildFile(sampleMap->getId().toString() + ".xml");
+	ScopedPointer<XmlElement> xml = v.createXml();
+	xml->writeToFile(sampleMapFile, "");
+}
+
+void MonolithExporter::threadFinished()
+{
+	if (error.isEmpty())
+	{
+		PresetHandler::showMessageWindow("Error at exporting", error, PresetHandler::IconType::Error);
+	}
+	else
+	{
+		PresetHandler::showMessageWindow("Exporting successful", "All samples were successfully written as monolithic file.", PresetHandler::IconType::Info);
+	}
+}
+
+void MonolithExporter::checkSanity()
+{
+	if (filesToWrite.size() != numChannels) throw String("Channel amount mismatch");
+
+	for (int i = 0; i < filesToWrite.size(); i++)
+	{
+		if (filesToWrite[i]->size() != numSamples) throw("Sample amount mismatch for Channel " + String(i + 1));
+	}
+}
+
+void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
+{
+	AudioFormatManager afm;
+	afm.registerBasicFormats();
+	Array<File>* channelList = filesToWrite[channelIndex];
+
+	bool isMono = false;
+
+	if (channelList->size() > 0)
+	{
+		ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(channelList->getUnchecked(0));
+
+		isMono = reader->numChannels == 1;
+	}
+
+	String channelFileName = sampleMap->getId().toString() + ".ch" + String(channelIndex + 1);
+
+	File outputFile = monolithDirectory.getChildFile(channelFileName);
+
+	if (!outputFile.existsAsFile() || overwriteExistingData)
+	{
+
+		outputFile.deleteFile();
+		outputFile.create();
+		FileOutputStream fos(outputFile);
+
+		fos.writeBool(isMono);
+
+		showStatusMessage("Exporting Channel " + String(channelIndex + 1));
+
+		AudioSampleBuffer buffer(isMono ? 1 : 2, (int)largestSample);
+		MemoryBlock tempBlock;
+
+		size_t frameSize = sizeof(int16) * (isMono ? 1 : 2);
+
+		tempBlock.setSize(frameSize * largestSample);
+
+		for (int i = 0; i < channelList->size(); i++)
+		{
+			setProgress((double)i / (double)numSamples);
+
+			ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(channelList->getUnchecked(i));
+
+			if (reader == nullptr)
+			{
+				DBG("Can't create reader for " + channelList->getUnchecked(i).getFullPathName());
+				jassertfalse;
+				break;
+			}
+
+			reader->read(&buffer, 0, (int)reader->lengthInSamples, 0, true, true);
+			size_t bytesUsed = reader->lengthInSamples * frameSize;
+
+			AudioFormatWriter::WriteHelper<AudioData::Int16, AudioData::Float32, AudioData::LittleEndian>::write(
+				tempBlock.getData(), isMono ? 1 : 2, (const int* const *)buffer.getArrayOfReadPointers(), (int)reader->lengthInSamples);
+
+			fos.write(tempBlock.getData(), bytesUsed);
+		}
+
+		fos.flush();
+	}
+}
+
+void MonolithExporter::updateSampleMap()
+{
+	checkSanity();
+
+	sampleMap->setIsMonolith();
+
+	AudioFormatManager afm;
+
+	afm.registerBasicFormats();
+
+	largestSample = 0;
+	int64 offset = 0;
+
+	for (int i = 0; i < numSamples; i++)
+	{
+		ValueTree s = v.getChild(i);
+
+		if (numChannels > 0)
+		{
+			File sampleFile = filesToWrite.getUnchecked(0)->getUnchecked(i);
+
+			ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(sampleFile);
+
+			if (reader != nullptr)
+			{
+				const int64 length = reader->lengthInSamples;
+
+				largestSample = jmax<int64>(largestSample, length);
+
+				s.setProperty("MonolithOffset", offset, nullptr);
+				s.setProperty("MonolithLength", length, nullptr);
+				s.setProperty("SampleRate", reader->sampleRate, nullptr);
+
+				offset += length;
+			}
+		}
+	}
 }
