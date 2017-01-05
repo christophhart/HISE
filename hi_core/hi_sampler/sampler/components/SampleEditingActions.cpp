@@ -892,11 +892,49 @@ bool setSoundPropertiesFromMetadata(ModulatorSamplerSound *sound, const StringPa
 		loKey = metadata.getValue("LowNote", "");
 		hiKey = metadata.getValue("HighNote", "");
 		root = metadata.getValue("MidiUnityNote", "");
-		start = metadata.getValue("Cue0Offset", "");
-		end = metadata.getValue("Cue1Offset", "");
+
 		loopEnabled = metadata.getValue("Loop0Type", "");
-		loopStart = metadata.getValue("Cue2Offset", "");
-		loopEnd = metadata.getValue("Cue3Offset", "");
+
+		const static String loopStartTag = "LoopStart";
+		const static String loopEndTag = "LoopEnd";
+		const static String startTag = "Start";
+		const static String endTag = "End";
+
+		const int numCuePoints = metadata.getValue("NumCuePoints", "0").getIntValue();
+
+		bool loopStartAlreadyThere = false;
+
+		for (int i = 0; i < numCuePoints; i++)
+		{
+			const String thisId = "CueLabel" + String(i) + "Text";
+			const String thisValue = metadata.getValue(thisId, "");
+
+			if (thisValue == startTag) start = metadata.getValue("Cue" + String(i) + "Offset", "");
+			else if (thisValue == endTag) end = metadata.getValue("Cue" + String(i) + "Offset", "");
+			else if (thisValue == loopStartTag)
+			{
+				if (!loopStartAlreadyThere)
+				{
+					loopStart = metadata.getValue("Cue" + String(i) + "Offset", "");
+					loopStartAlreadyThere = true;
+				}
+				else
+				{
+					// Somehow the LoopEnd tag is wrong on some Aiffs...
+
+					loopEnd = metadata.getValue("Cue" + String(i) + "Offset", "");
+					if (loopEnabled == "1")
+						end = loopEnd;
+
+				}
+			}
+			else if (thisValue == loopEndTag)
+			{
+				loopEnd = metadata.getValue("Cue" + String(i) + "Offset", "");
+				if (loopEnabled == "1")
+					end = loopEnd;
+			}
+		}
 	}
 	else if (format == "WAV")
 	{
@@ -930,11 +968,14 @@ bool setSoundPropertiesFromMetadata(ModulatorSamplerSound *sound, const StringPa
 
 #undef SET_PROPERTY_FROM_METADATA_STRING
 
-void SamplerBody::SampleEditingActions::automapUsingMetadata(SamplerBody * body)
+void SamplerBody::SampleEditingActions::automapUsingMetadata(SamplerBody * body, ModulatorSampler* sampler)
 {
-	Array<WeakReference<ModulatorSamplerSound>> sounds = body->getSelection().getItemArray();
-
-	ModulatorSampler *sampler = dynamic_cast<ModulatorSampler*>(body->getProcessor());
+	Array<WeakReference<ModulatorSamplerSound>> sounds;
+	
+	if (body != nullptr)
+	{
+		sounds = body->getSelection().getItemArray();
+	}
 
 	if (sounds.size() == 0)
 	{
@@ -999,7 +1040,10 @@ void SamplerBody::SampleEditingActions::trimSampleStart(SamplerBody * body)
 					reader->readMaxLevels(0, numSamples, lLow, lHigh, rLow, rHigh);
 
 					const float maxLevel = jmax<float>(std::fabs(lLow), std::fabs(lHigh), std::fabs(rLow), std::fabs(rHigh));
-					const float threshHoldLevel = 0.015625f * maxLevel; // -36dB normalized threshhold
+                    
+                    const float dBThreshhold = -18.0f;
+                    
+                    const float threshHoldLevel = Decibels::decibelsToGain(dBThreshhold) * maxLevel;
 
 					int sample = sounds[i]->getProperty(ModulatorSamplerSound::SampleStart);
 
