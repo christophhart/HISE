@@ -1221,9 +1221,13 @@ private:
 	{
 		match(TokenTypes::openParen);
 
+		const Identifier previousIteratorName = currentIterator;
+
 		const bool isVarInitialiser = matchIf(TokenTypes::var);
 		
 		Expression *iter = parseExpression();
+
+		
 
 		if (!isVarInitialiser && currentType == TokenTypes::closeParen)
 		{
@@ -1238,6 +1242,9 @@ private:
 			match(TokenTypes::closeParen);
 
 			s->body = parseStatement();
+
+			currentIterator = previousIteratorName;
+
 			return s.release();
 		}
 		else
