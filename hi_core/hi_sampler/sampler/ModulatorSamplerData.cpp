@@ -427,21 +427,30 @@ void SampleMap::replaceFileReferences(ValueTree &soundTree) const
 
 void SampleMap::save()
 {
-	const String name = PresetHandler::getCustomName("Sample Map");
-
-    sampleMapId = Identifier(name);
-    
+    if(sampleMapId.toString().isEmpty())
+    {
+        const String name = PresetHandler::getCustomName("Sample Map");
+        
+        sampleMapId = Identifier(name);
+        
+        mode = SaveMode::MultipleFiles;
+        
+    }
+	
 	File sampleMapDirectory = GET_PROJECT_HANDLER(sampler).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
+	File sampleMapFile = sampleMapDirectory.getChildFile(sampleMapId.toString() + ".xml");
 
-	File sampleMapFile = sampleMapDirectory.getChildFile(name + ".xml");
-
-	mode = SaveMode::MultipleFiles;
-
-	ValueTree v = exportAsValueTree();
-	ScopedPointer<XmlElement> xml = v.createXml();
-	xml->writeToFile(sampleMapFile, "");
-
-	changed = false;
+    if(!sampleMapFile.existsAsFile() || PresetHandler::showYesNoWindow("Overwrite Samplemap", "Do you want to overwrite the samplemap\n" + sampleMapId.toString()))
+    {
+        sampleMapFile.deleteFile();
+        
+        ValueTree v = exportAsValueTree();
+        ScopedPointer<XmlElement> xml = v.createXml();
+        xml->writeToFile(sampleMapFile, "");
+     
+        
+        changed = false;
+    }
 }
 
 
@@ -727,8 +736,8 @@ int RoundRobinMap::getRRGroupsForMessage(int noteNumber, int velocity)
 MonolithExporter::MonolithExporter(SampleMap* sampleMap_) :
 	ThreadWithAsyncProgressWindow("Exporting samples as monolith"),
 	AudioFormatWriter(nullptr, "", 0.0, 0, 1),
-	sampleMapDirectory(GET_PROJECT_HANDLER(sampleMap->getSampler()).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps)),
-	monolithDirectory(GET_PROJECT_HANDLER(sampleMap->getSampler()).getSubDirectory(ProjectHandler::SubDirectories::Samples))
+	sampleMapDirectory(GET_PROJECT_HANDLER(sampleMap_->getSampler()).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps)),
+	monolithDirectory(GET_PROJECT_HANDLER(sampleMap_->getSampler()).getSubDirectory(ProjectHandler::SubDirectories::Samples))
 {
 	setSampleMap(sampleMap_);
 
