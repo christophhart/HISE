@@ -473,6 +473,12 @@ void CombinedSettingsWindow::toggleButtonWasClicked(ToggleButtonList* /*list*/, 
 
 void CombinedSettingsWindow::buttonClicked(Button* )
 {
+    
+    dynamic_cast<AudioProcessorDriver*>(mc)->saveDeviceSettingsAsXml();
+    ScopedPointer<XmlElement> deviceData = dynamic_cast<AudioProcessorDriver*>(mc)->deviceManager->createStateXml();
+    dynamic_cast<AudioProcessorDriver*>(mc)->initialiseAudioDriver(deviceData);
+
+    
 	findParentComponentOfClass<ModalBaseWindow>()->clearModalComponent();
 }
 
