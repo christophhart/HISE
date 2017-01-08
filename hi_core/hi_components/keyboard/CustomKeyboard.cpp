@@ -136,17 +136,17 @@ void CustomKeyboard::drawBlackNote(int midiNoteNumber, Graphics &g, int x, int y
 	dynamic_cast<CustomKeyboardLookAndFeel*>(&getLookAndFeel())->drawBlackNote(state, midiNoteNumber, g, x, y, w, h, isDown, isOver, noteFillColour);
 }
 
-void CustomKeyboardLookAndFeel::drawWhiteNote(CustomKeyboardState* state, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &/*lineColour*/, const Colour &/*textColour*/)
+void CustomKeyboardLookAndFeel::drawWhiteNote(CustomKeyboardState* state, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &lineColour, const Colour &/*textColour*/)
 {
 #if HISE_IOS
 
-	g.setColour(lineColour(BACKEND_BG_COLOUR_BRIGHT));
+	g.setColour(Colour(BACKEND_BG_COLOUR_BRIGHT));
 	g.fillRect(x, y, w, h);
 
 	const int off = midiNoteNumber % 12;
 
-	g.setGradientFill(ColourGradient(lineColour(0xFFEEEEEE), 0.0f, 0.0f,
-									 lineColour(0xFFCCCCCC), 0.0f, (float)(y+h), false));
+	g.setGradientFill(ColourGradient(Colour(0xFFEEEEEE), 0.0f, 0.0f,
+									 Colour(0xFFCCCCCC), 0.0f, (float)(y+h), false));
 
 	g.fillRoundedRectangle((float)x+1.f,(float)y-5.0f,(float)w-2.f,(float)h+5.0f, 5.0f);
 
@@ -162,12 +162,14 @@ void CustomKeyboardLookAndFeel::drawWhiteNote(CustomKeyboardState* state, int mi
 
 	g.fillRect(x, y, w, 8);
 
-	g.setColour(lineColour(BACKEND_BG_COLOUR_BRIGHT));
+	g.setColour(Colour(BACKEND_BG_COLOUR_BRIGHT));
 	g.drawLine(x, y, x + w, y, 2);
 
 
 #else
 
+    ignoreUnused(lineColour);
+    
 	const int off = midiNoteNumber % 12;
 
 	g.setOpacity(1.0f);
@@ -211,13 +213,13 @@ void CustomKeyboardLookAndFeel::drawWhiteNote(CustomKeyboardState* state, int mi
 #endif
 }
 
-void CustomKeyboardLookAndFeel::drawBlackNote(CustomKeyboardState* state, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &/*noteFillColour*/)
+void CustomKeyboardLookAndFeel::drawBlackNote(CustomKeyboardState* state, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &noteFillColour)
 {
 	
 #if HISE_IOS
 
-	g.setGradientFill(ColourGradient(noteFillColour(0xFF444444), 0.0f, 0.0f,
-									 noteFillColour(0xFF222222), 0.0f, (float)h, false));
+	g.setGradientFill(ColourGradient(Colour(0xFF444444), 0.0f, 0.0f,
+									 Colour(0xFF222222), 0.0f, (float)h, false));
 
 	Rectangle<float> keyArea((float)x, (float)y-5.0f, (float)w, (float)(h - 5.0f)*0.9f);
 
@@ -229,12 +231,14 @@ void CustomKeyboardLookAndFeel::drawBlackNote(CustomKeyboardState* state, int mi
 		g.fillRoundedRectangle(keyArea, 5.0f);
 	}
 
-	g.setColour(noteFillColour(BACKEND_BG_COLOUR_BRIGHT));
+	g.setColour(Colour(BACKEND_BG_COLOUR_BRIGHT));
 
 	g.drawRoundedRectangle(keyArea, 5.0f, 2.0f);
 
 #else
 
+    ignoreUnused(noteFillColour);
+    
 	const int offset[12] = {0, 2, 0, 0, 0, 0, 4, 0, 2, 0, -1, 0};
 
 	const int off = midiNoteNumber % 12;

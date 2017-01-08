@@ -652,64 +652,8 @@ public:
 	/** checks if one of the needed directories exists. */
 	static bool checkDirectory(bool checkPresetDirectory=true)
 	{
-		const String keyName = checkPresetDirectory ? "Library Install Path" : "GlobalSampleFolder";
-
-#if JUCE_WINDOWS
-
-		if (WindowsRegistry::valueExists("HKEY_CURRENT_USER\\Software\\Hart Instruments\\" + keyName) && WindowsRegistry::getValue("HKEY_CURRENT_USER\\Software\\Hart Instruments\\" + keyName).isNotEmpty())
-		{
-			return true;
-		}
-		
-		if(AlertWindow::showNativeDialogBox(keyName + " not found!", "Press OK to choose the " + keyName, false))
-		{
-			FileChooser fc("Select " + keyName);
-			if (fc.browseForDirectory())
-			{
-				File directory = fc.getResult();
-
-				if (checkPresetDirectory && directory.getFileNameWithoutExtension() != "SynthPresets") return false;
-				
-				WindowsRegistry::setValue("HKEY_CURRENT_USER\\Software\\Hart Instruments\\" + keyName, directory.getFullPathName());
-				return true;
-
-			}
-			else return false;
-
-		}
-
-		return false;
-			
-#else
-        
-        if(checkPresetDirectory) return true; // The Preset directory must exist in OSX in "Library/Application Support/Hart Instruments"
-		
-        String path = getSettingsValue(keyName);
-        
-        if(path.isEmpty())
-        {
-            if(AlertWindow::showNativeDialogBox(keyName + " not found!", "Press OK to choose the " + keyName, false))
-            {
-                FileChooser fc("Select " + keyName);
-                if (fc.browseForDirectory())
-                {
-                    File directory = fc.getResult();
-                    
-                    setSettingsValue(keyName, directory.getFullPathName());
-                    return true;
-                    
-                }
-                else return false;
-                
-            }
-        }
-        else
-        {
-            return true;
-        }
-        
         return true;
-#endif
+      
 	};
 
 	/** Returns the Preset Folder.
