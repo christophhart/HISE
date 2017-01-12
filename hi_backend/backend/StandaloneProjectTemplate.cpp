@@ -138,7 +138,7 @@ static const unsigned char projectStandaloneTemplate_jucer_lines[] =
 "        <MODULEPATH id=\"hi_core\" path=\"%HISE_PATH%\"/>\r\n"
 "      </MODULEPATHS>\r\n"
 "    </XCODE_MAC>\r\n"
-"    <XCODE_IPHONE targetFolder=\"Builds/iOS\" iosScreenOrientation=\"landscape\" extraCompilerFlags=\"-Wno-reorder -Wno-inconsistent-missing-override\" extraLinkerFlags=\"%OSX_STATIC_LIBS%\" extraDefs=\"USE_IPP=0&#10;HISE_IOS=1\" %ICON_FILE% \r\n"
+"    <XCODE_IPHONE targetFolder=\"Builds/iOS\" iosScreenOrientation=\"landscape\" extraCompilerFlags=\"-Wno-reorder -Wno-inconsistent-missing-override\" extraLinkerFlags=\"%OSX_STATIC_LIBS%\" extraDefs=\"USE_IPP=0&#10;HISE_IOS=1&#10;USE_VDSP_FFT=1\" %ICON_FILE% \r\n"
 "                  UIStatusBarHidden=\"1\" iosBackgroundAudio=\"1\" iosBackgroundBle=\"1\" customXcodeResourceFolders=\"%IOS_SAMPLE_FOLDER%\">\r\n"
 "      <CONFIGURATIONS>\r\n"
 "        <CONFIGURATION name=\"Debug\" iosCompatibility=\"8.0\" isDebug=\"1\" optimisation=\"1\"\r\n"
