@@ -173,7 +173,11 @@ public:
 		void setParameter(int index, float newValue) override
 		{
 			if (index == 0) gain = newValue;
-			else if (index == 1) smoothingTime = newValue;
+			else if (index == 1)
+            {
+                smoothingTime = newValue;
+                smoother.setSmoothingTime(smoothingTime);
+            }
 		}
 
 		void prepareToPlay(double sampleRate, int /*samplesPerBlock*/)
