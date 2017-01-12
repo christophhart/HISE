@@ -19,6 +19,8 @@
 
 // (You can add your own code in this section, and the Projucer will not overwrite it)
 
+#define DOUBLE_TO_STRING_DIGITS 8
+
 // [END_USER_CODE_SECTION]
 
 //==============================================================================
