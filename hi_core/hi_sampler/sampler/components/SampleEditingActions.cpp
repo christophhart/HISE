@@ -278,9 +278,16 @@ void SamplerBody::SampleEditingActions::selectAllSamples(SamplerBody * body)
 
 	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(body->getProcessor());
 
+	int thisIndex = body->map->getCurrentRRGroup();
+
 	for (int i = 0; i < s->getNumSounds(); i++)
 	{
-		body->getSelection().addToSelection(s->getSound(i));
+		ModulatorSamplerSound* sound = s->getSound(i);
+
+		if (thisIndex == -1 || sound->getRRGroup() == thisIndex)
+		{
+			body->getSelection().addToSelection(s->getSound(i));
+		}
 	}
 }
 

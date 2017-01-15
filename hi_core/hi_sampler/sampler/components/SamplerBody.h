@@ -271,6 +271,8 @@ public:
 			{
 				int index = map->getCurrentRRGroup();
 
+				if (index == -1) index = 0;
+
 				index++;
 
 				map->setCurrentRRGroup(index);

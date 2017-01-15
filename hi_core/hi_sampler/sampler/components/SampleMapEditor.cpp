@@ -277,9 +277,7 @@ void SampleMapEditor::labelTextChanged (Label* labelThatHasChanged)
     {
         //[UserLabelCode_groupDisplay] -- add your label text handling code here..
 
-		int index = groupDisplay->getCurrentIndex();
-
-		if(index == 0) index = -1; // display all values;
+		int index = getCurrentRRGroup();
 
 		map->map->soloGroup(index);
         //[/UserLabelCode_groupDisplay]

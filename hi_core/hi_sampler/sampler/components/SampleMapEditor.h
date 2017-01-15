@@ -389,7 +389,11 @@ public:
 
 	int getCurrentRRGroup() const
 	{
-		return groupDisplay->getCurrentIndex();
+		int index = groupDisplay->getCurrentIndex();
+
+		if (index == 0) index = -1; // display all values;
+
+		return index;
 	}
 
 	void setCurrentRRGroup(int newGroupIndex)
@@ -524,6 +528,8 @@ private:
 
 	bool isDraggingFolder;
 	StringArray filesInFolder;
+
+	
 
     //[/UserVariables]
 
