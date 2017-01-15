@@ -361,6 +361,12 @@ public:
 		/** Returns the name of the channel with the given index (Multimic samples only. */
 		String getMicPositionName(int channelIndex);
 
+		/** Returns the number of mic positions. */
+		int getNumMicPositions() const;
+
+		/** Checks if the mic position is purged. */
+		bool isMicPositionPurged(int micIndex);
+
 		/** Refreshes the interface. Call this after you changed the properties. */
 		void refreshInterface();
 

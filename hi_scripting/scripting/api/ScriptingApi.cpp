@@ -1031,6 +1031,8 @@ struct ScriptingApi::Sampler::Wrapper
 	API_METHOD_WRAPPER_2(Sampler, getSoundProperty);
 	API_VOID_METHOD_WRAPPER_3(Sampler, setSoundProperty);
 	API_VOID_METHOD_WRAPPER_2(Sampler, purgeMicPosition);
+	API_METHOD_WRAPPER_0(Sampler, getNumMicPositions);
+	API_METHOD_WRAPPER_1(Sampler, isMicPositionPurged);
 	API_METHOD_WRAPPER_1(Sampler, getMicPositionName);
 	API_VOID_METHOD_WRAPPER_0(Sampler, refreshInterface);
 	API_VOID_METHOD_WRAPPER_1(Sampler, loadSampleMap);
@@ -1054,6 +1056,8 @@ sampler(sampler_)
 	ADD_API_METHOD_3(setSoundProperty);
 	ADD_API_METHOD_2(purgeMicPosition);
 	ADD_API_METHOD_1(getMicPositionName);
+	ADD_API_METHOD_0(getNumMicPositions);
+	ADD_API_METHOD_1(isMicPositionPurged);
 	ADD_API_METHOD_0(refreshInterface);
 	ADD_API_METHOD_1(loadSampleMap);
     ADD_API_METHOD_1(getAttribute);
@@ -1075,7 +1079,7 @@ void ScriptingApi::Sampler::enableRoundRobin(bool shouldUseRoundRobin)
 	}
 	else
 	{
-		reportScriptError("setActiveGroup() only works with Samplers.");
+		reportScriptError("enableRoundRobin() only works with Samplers.");
 	}
 }
 
@@ -1147,7 +1151,7 @@ void ScriptingApi::Sampler::selectSounds(String regexWildcard)
 
 	if (s == nullptr)
 	{
-		reportScriptError("selectSamplerSounds() only works with Samplers.");
+		reportScriptError("selectSounds() only works with Samplers.");
 		return;
 	}
 
@@ -1160,7 +1164,7 @@ int ScriptingApi::Sampler::getNumSelectedSounds()
 
 	if (s == nullptr)
 	{
-		reportScriptError("getNumSelectedSamplerSounds() only works with Samplers.");
+		reportScriptError("getNumSelectedSounds() only works with Samplers.");
 		return -1;
 	}
 
@@ -1220,7 +1224,7 @@ void ScriptingApi::Sampler::setSoundProperty(int soundIndex, int propertyIndex, 
 
 	if (s == nullptr)
 	{
-		reportScriptError("ssetSoundProperty() only works with Samplers.");
+		reportScriptError("setSoundProperty() only works with Samplers.");
 	}
 
 	ModulatorSamplerSound *sound = soundSelection.getSelectedItem(soundIndex);
@@ -1270,17 +1274,49 @@ String ScriptingApi::Sampler::getMicPositionName(int channelIndex)
 
 	if (s == nullptr)
 	{
-		reportScriptError("purgeMicPosition() only works with Samplers.");
+		reportScriptError("getMicPositionName() only works with Samplers.");
 		return "";
 	}
 
 	if (s->getNumMicPositions() == 1)
 	{
-		reportScriptError("purgeMicPosition() only works with multi mic Samplers.");
+		reportScriptError("getMicPositionName() only works with multi mic Samplers.");
 		return "";
 	}
 
 	return s->getChannelData(channelIndex).suffix;
+}
+
+int ScriptingApi::Sampler::getNumMicPositions() const
+{
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+	{
+		reportScriptError("getNumMicPositions() only works with Samplers.");
+		return 0;
+	}
+
+	return s->getNumMicPositions();
+}
+
+bool ScriptingApi::Sampler::isMicPositionPurged(int micIndex)
+{
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+	{
+		reportScriptError("isMicPositionPurged() only works with Samplers.");
+		return false;
+	}
+
+	if (micIndex >= 0 && micIndex < s->getNumMicPositions())
+	{
+		return !s->getChannelData(micIndex).enabled;
+	}
+	else return false;
+
+	
 }
 
 void ScriptingApi::Sampler::refreshInterface()
@@ -1289,7 +1325,7 @@ void ScriptingApi::Sampler::refreshInterface()
 
 	if (s == nullptr)
 	{
-		reportScriptError("purgeMicPosition() only works with Samplers.");
+		reportScriptError("refreshInterface() only works with Samplers.");
 		return;
 	}
 
@@ -1316,7 +1352,7 @@ var ScriptingApi::Sampler::getAttribute(int index) const
     
     if (s == nullptr)
     {
-        reportScriptError("loadSampleMap() only works with Samplers.");
+        reportScriptError("getAttribute() only works with Samplers.");
         return var::undefined();
     }
     
@@ -1329,7 +1365,7 @@ void ScriptingApi::Sampler::setAttribute(int index, var newValue)
     
     if (s == nullptr)
     {
-        reportScriptError("loadSampleMap() only works with Samplers.");
+        reportScriptError("setAttribute() only works with Samplers.");
         return;
     }
     
