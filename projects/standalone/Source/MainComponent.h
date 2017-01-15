@@ -41,7 +41,7 @@ public:
                 if ((currentProjectFolder != projectDirectory) &&
                     PresetHandler::showYesNoWindow("Switch Project", "The file you are about to load is in a different project. Do you want to switch projects?", PresetHandler::IconType::Question))
                 {
-                    GET_PROJECT_HANDLER(mainSynthChain).setWorkingProject(projectDirectory);
+                    GET_PROJECT_HANDLER(mainSynthChain).setWorkingProject(projectDirectory, nullptr);
                 }
                 
                 if (presetFile.getFileExtension() == ".hip")

@@ -418,7 +418,7 @@ public:
 
     bool checkAndResetMidiInputFlag();
     bool isChanged() const { return changed; }
-    void setChanged() { changed = true; }
+    void setChanged(bool shouldBeChanged=true) { changed = shouldBeChanged; }
     
     float getGlobalCodeFontSize() const {return globalCodeFontSize; };
     

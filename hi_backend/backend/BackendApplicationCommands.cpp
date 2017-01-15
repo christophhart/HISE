@@ -906,7 +906,7 @@ void BackendCommandTarget::menuItemSelected(int menuItemID, int topLevelMenuInde
 
 			bpe->clearPreset();
 
-			GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(file);
+			GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(file, bpe);
             
             menuItemsChanged();
 #endif
@@ -1446,7 +1446,7 @@ void BackendCommandTarget::Actions::createNewProject(BackendProcessorEditor *bpe
 	{
 		File f = fc.getResult();
 
-		GET_PROJECT_HANDLER(bpe->getMainSynthChain()).createNewProject(f);
+		GET_PROJECT_HANDLER(bpe->getMainSynthChain()).createNewProject(f, bpe);
 
 		bpe->getBackendProcessor()->createUserPresetData();
 	}
@@ -1478,7 +1478,7 @@ void BackendCommandTarget::Actions::loadProject(BackendProcessorEditor *bpe)
 	{
 		File f = fc.getResult();
 
-		GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(f);
+		GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(f, bpe);
 
 		bpe->getBackendProcessor()->createUserPresetData();
 	}
@@ -1491,7 +1491,7 @@ void BackendCommandTarget::Actions::closeProject(BackendProcessorEditor *bpe)
     
     if (!shouldDiscard) return;
     
-	GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(File());
+	GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(File(), bpe);
 
 
 	bpe->getBackendProcessor()->createUserPresetData();

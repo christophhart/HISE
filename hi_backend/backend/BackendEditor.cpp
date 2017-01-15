@@ -40,7 +40,7 @@ BackendCommandTarget(static_cast<BackendProcessor*>(ownerProcessor)),
 owner(static_cast<BackendProcessor*>(getAudioProcessor())),
 rootEditorIsMainSynthChain(true)
 {
-	CompileExporter::BuildOptionHelpers::runUnitTests();
+	
 
     setOpaque(true);
 
@@ -163,8 +163,9 @@ rootEditorIsMainSynthChain(true)
     
 	keyboard->grabKeyboardFocus();
 
-
     updateCommands();
+
+	startTimer(1000);
 };
 
 BackendProcessorEditor::~BackendProcessorEditor()
@@ -467,6 +468,20 @@ void BackendProcessorEditor::setRootProcessorWithUndo(Processor *p)
         owner->viewUndoManager->perform(new ViewBrowsing(owner->synthChain, this, viewport->viewport->getViewPositionY(), p));
         updateCommands();
     }
+}
+
+void BackendProcessorEditor::timerCallback()
+{
+	stopTimer();
+
+	if (!GET_PROJECT_HANDLER(getMainSynthChain()).isActive() && PresetHandler::showYesNoWindow("Welcome to HISE", "Do you want to create a new project?\nA project is a folder which contains all external files needed for a sample library."))
+	{
+		owner->setChanged(false);
+
+		BackendCommandTarget::Actions::createNewProject(this);
+
+		
+	}
 }
 
 bool BackendProcessorEditor::getIndexPath(Array<int> &path, Processor *p, const int searchIndex, int &counter)
@@ -930,7 +945,7 @@ void BackendProcessorEditor::loadNewContainer(const File &f)
 
 	if (f.getParentDirectory().getFileName() == "Presets")
 	{
-		GET_PROJECT_HANDLER(getMainSynthChain()).setWorkingProject(f.getParentDirectory().getParentDirectory());
+		GET_PROJECT_HANDLER(getMainSynthChain()).setWorkingProject(f.getParentDirectory().getParentDirectory(), this);
 	}
 
 	getBackendProcessor()->getMainSynthChain()->setBypassed(true);

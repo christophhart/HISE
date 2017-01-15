@@ -53,7 +53,8 @@ void QuasiModalComponent::showOnDesktop()
 
 	isQuasiModal = false;
 	t->setVisible(true);
-	t->addToDesktop(ComponentPeer::StyleFlags::windowHasCloseButton);
+	t->setOpaque(true);
+	t->addToDesktop(ComponentPeer::windowHasCloseButton);
 }
 
 void QuasiModalComponent::destroy()

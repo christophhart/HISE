@@ -639,7 +639,7 @@ struct CountedProcessorId
 };
 
 
-void ProjectHandler::createNewProject(const File &workingDirectory)
+void ProjectHandler::createNewProject(const File &workingDirectory, Component* mainEditor)
 {
 	if (workingDirectory.exists() && workingDirectory.isDirectory())
 	{
@@ -655,12 +655,15 @@ void ProjectHandler::createNewProject(const File &workingDirectory)
 		File subDirectory = workingDirectory.getChildFile(getIdentifier((SubDirectories)i));
 
 		subDirectory.createDirectory();
+
+		
+
 	}
 
-	setWorkingProject(workingDirectory);
+	setWorkingProject(workingDirectory, mainEditor);
 }
 
-void ProjectHandler::setWorkingProject(const File &workingDirectory)
+void ProjectHandler::setWorkingProject(const File &workingDirectory, Component* mainEditor)
 {
 	if (workingDirectory == currentWorkDirectory) return;
 
@@ -674,7 +677,7 @@ void ProjectHandler::setWorkingProject(const File &workingDirectory)
 
 	if (!workingDirectory.exists()) return;
 
-	checkSettingsFile();
+	checkSettingsFile(mainEditor);
 	checkSubDirectories();
 
 	jassert(currentWorkDirectory.exists() && currentWorkDirectory.isDirectory());
@@ -731,7 +734,7 @@ void ProjectHandler::restoreWorkingProjects()
 			recentWorkDirectories.add(xml->getChildElement(i)->getStringAttribute("path"));
 		}
 
-		setWorkingProject(current);
+		setWorkingProject(current, nullptr);
 
 		jassert(currentWorkDirectory.exists() && currentWorkDirectory.isDirectory());
 
@@ -845,12 +848,13 @@ File ProjectHandler::checkSubDirectory(SubDirectories dir)
 	}
 }
 
-void ProjectHandler::checkSettingsFile()
+void ProjectHandler::checkSettingsFile(Component* mainEditor/*=nullptr*/)
 {
 	if (!getWorkDirectory().getChildFile("project_info.xml").existsAsFile())
 	{
-		setProjectSettings();
+		setProjectSettings(mainEditor);
 	}
+
 }
 
 File ProjectHandler::getSubDirectory(SubDirectories dir) const
@@ -864,7 +868,7 @@ File ProjectHandler::getWorkDirectory() const
 {
 	if (!isActive())
 	{
-		return PresetHandler::getPresetFolder();
+		return File();
 	}
 
 	else return currentWorkDirectory;
@@ -1024,6 +1028,11 @@ String ProjectHandler::getPrivateKey() const
     if(xml == nullptr) return "";
     
 	return xml->getChildByName("PrivateKey")->getStringAttribute("value", "");
+}
+
+void ProjectHandler::checkActiveProject()
+{
+	throw std::logic_error("The method or operation is not implemented.");
 }
 
 bool ProjectHandler::isActive() const
@@ -1387,52 +1396,7 @@ File PresetHandler::getDirectory(Processor *p)
 	}
 	else
 	{
-		String typeName;
-
-		if (dynamic_cast<ModulatorSynth*>(p) != nullptr)		typeName = "ModulatorSynths";
-		else if (dynamic_cast<Modulator*>(p) != nullptr)			typeName = "Modulators";
-		else if (dynamic_cast<MidiProcessor*>(p) != nullptr)		typeName = "MidiProcessors";
-		else if (dynamic_cast<EffectProcessor*>(p) != nullptr)		typeName = "EffectProcessors";
-		else														{ jassertfalse; return File(); }
-
-		File directory((getPresetFolder().getFullPathName() + "/" + typeName));
-        
-		jassert(directory.exists());
-		jassert(directory.isDirectory());
-
-		return directory;
-	}
-}
-
-
-File PresetHandler::checkDirectory(const String &pathName)
-{
-	if(!ProjectHandler::isAbsolutePathCrossPlatform(pathName))
-	{
-		FileChooser fc("Resolve missing reference for " + pathName);
-
-		if(fc.browseForDirectory())
-		{
-			return fc.getResult();
-		}
-		else return File();		
-	}
-	else
-	{
-		File f = File(pathName);
-
-		if(!f.exists() || !f.isDirectory())
-		{
-			FileChooser fc("Resolve missing reference for " + pathName);
-
-			if(fc.browseForDirectory())
-			{
-				return fc.getResult();
-			}
-			else return File();
-		}
-		else return f;
-
+		return File();
 	}
 }
 
@@ -1753,21 +1717,7 @@ XmlElement * PresetHandler::buildFactory(FactoryType *t, const String &factoryNa
 
 String PresetHandler::getGlobalSampleFolder()
 {
-	checkDirectory(false);
-
-#if JUCE_WINDOWS
-
-	String returnString = WindowsRegistry::getValue("HKEY_CURRENT_USER\\Software\\Hart Instruments\\GlobalSampleFolder");
-
-	jassert(returnString.isNotEmpty());
-
-	return returnString;
-
-#else
-    
-	return getSettingsValue("GlobalSampleFolder");
-
-#endif
+	return String();
 }
 
 String PresetHandler::getDataFolder()

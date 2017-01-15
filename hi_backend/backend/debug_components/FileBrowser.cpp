@@ -343,9 +343,7 @@ bool FileBrowser::perform(const InvocationInfo &info)
 
 		m.addSectionHeader("HISE Folders");
 
-		m.addItem(PresetFolder, "Preset Folder");
 		m.addItem(ProjectFolder, "Current Project Folder");
-		m.addItem(GlobalSampleFolder, "Global Sample Folder");
 
 		m.addSeparator();
 
@@ -379,17 +377,9 @@ bool FileBrowser::perform(const InvocationInfo &info)
 				}
 			}
 		}
-		else if (result == PresetFolder)
-		{
-			goToDirectory(PresetHandler::getPresetFolder(), true);
-		}
 		else if (result == ProjectFolder)
 		{
 			goToDirectory(GET_PROJECT_HANDLER(findParentComponentOfClass<BackendProcessorEditor>()->getMainSynthChain()).getWorkDirectory(), true);
-		}
-		else if (result == GlobalSampleFolder)
-		{
-			goToDirectory(PresetHandler::getGlobalSampleFolder(), true);
 		}
 		else if (result >= FavoriteOffset)
 		{

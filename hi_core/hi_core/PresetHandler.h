@@ -178,9 +178,9 @@ public:
 		numSubDirectories
 	};
 
-	void createNewProject(const File &workingDirectory);
+	void createNewProject(const File &workingDirectory, Component* mainEditor);
 
-	void setWorkingProject(const File &workingDirectory);
+	void setWorkingProject(const File &workingDirectory, Component* mainEditor);
 
 	static const StringArray &getRecentWorkDirectories() { return recentWorkDirectories; }
 
@@ -227,6 +227,8 @@ public:
 
 	String getPrivateKey() const;
 
+	void checkActiveProject();
+
     /** checks if this is a absolute path (including absolute win paths on OSX and absolute OSX paths on windows); */
     static bool isAbsolutePathCrossPlatform(const String &pathName)
     {
@@ -268,6 +270,7 @@ public:
 		static String getVersionString();
 	};
 
+	
 private:
 
 
@@ -318,7 +321,7 @@ private:
 	void checkSubDirectories();
 
 	File checkSubDirectory(SubDirectories dir);
-	void checkSettingsFile();
+	void checkSettingsFile(Component* mainEditor=nullptr);
 
 private:
 
@@ -502,9 +505,6 @@ public:
 	/** Returns a popupmenu with all suiting Processors for the supplied FactoryType. */
 	static PopupMenu getAllSavedPresets(int minIndex, Processor *parentChain);
 
-	/** Checks if the directory exists and returns it or opens a dialog to point to the directory. */
-	static File checkDirectory(const String &directoryName);
-
 	/** Removes all view info from a ValueTree. */
 	static void stripViewsFromPreset(ValueTree &preset)
 	{
@@ -649,60 +649,6 @@ public:
 	};
 #endif
 
-	/** checks if one of the needed directories exists. */
-	static bool checkDirectory(bool checkPresetDirectory=true)
-	{
-        return true;
-      
-	};
-
-	/** Returns the Preset Folder.
-    *
-    *   On Windows it returns the folder set in the registry. On Mac OSX it returns the folder "SynthPresets" in the User's Document
-    *   Directory.
-    */
-	static File getPresetFolder() 
-	{ 
-
-        jassertfalse;
-
-#if JUCE_WINDOWS
-        
-		File returnPath = File(File::getSpecialLocation(File::SpecialLocationType::userDocumentsDirectory).getFullPathName() + "/Hart Instruments/SynthPresets/");
-		
-		if (!returnPath.exists())
-		{
-			showMessageWindow("The Preset Folder was not found", "The preset folder 'Hart Instruments/SynthPresets' was not found. It must be in the user documentation folder.", IconType::Error);
-		}
-
-		return returnPath;
-
-#elif JUCE_MAC
-        
-#if HISE_IOS
-      
-        return File::getSpecialLocation(File::SpecialLocationType::userDocumentsDirectory);
-        
-#else
-        
-        File returnPath = File(File::getSpecialLocation(File::userApplicationDataDirectory).getFullPathName() + "/Application Support/Hart Instruments/SynthPresets/");
-
-		if (!returnPath.exists())
-		{
-			showMessageWindow("The Preset Folder was not found", "The preset folder 'Hart Instruments/SynthPresets' was not found. It must be in the user's 'Library/Application Support' folder.", IconType::Error);
-		}
-
-		return returnPath;
-#endif
-
-#else
-
-		return File();
-
-#endif
-	};
-
-	
 	/** Opens a file dialog and saves the new path into the library's setting file. */
 	static File getSampleFolder(const String &libraryName)
 	{

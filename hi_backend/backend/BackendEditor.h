@@ -53,7 +53,8 @@ class BackendProcessorEditor: public AudioProcessorEditor,
 							  public GlobalScriptCompileListener,
                               public ComponentWithKeyboard,
                               public Label::Listener,
-							  public ModalBaseWindow
+							  public ModalBaseWindow,
+							  public Timer
 {
 public:
 
@@ -104,6 +105,8 @@ public:
 
 		return v;
 	}
+
+	void timerCallback() override;
 
 	void restoreFromValueTree(const ValueTree &v) override
 	{

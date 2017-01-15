@@ -113,7 +113,7 @@ public:
 			File root(fileName);
 			if (root.exists() && root.isDirectory())
 			{
-				GET_PROJECT_HANDLER(synthChain).setWorkingProject(root);
+				GET_PROJECT_HANDLER(synthChain).setWorkingProject(root, nullptr);
 			}
 		}
 

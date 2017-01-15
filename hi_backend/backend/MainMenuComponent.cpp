@@ -217,7 +217,7 @@ void FileMenuItem::perform()
 	switch (actionToDo)
 	{
 	case FileMenuItem::Action::OpenProject:
-		GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(file);
+		GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(file, bpe);
 		break;
 	case FileMenuItem::Action::OpenXmlPreset:
 		BackendCommandTarget::Actions::openFileFromXml(bpe, file);

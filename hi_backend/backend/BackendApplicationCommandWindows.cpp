@@ -845,7 +845,7 @@ public:
 		case ProjectDownloader::ErrorCodes::OK:
 			if (PresetHandler::showYesNoWindow("Switch projects", "Do you want to switch to the downloaded project?", PresetHandler::IconType::Question))
 			{
-				GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(targetDirectory);
+				GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(targetDirectory, bpe);
 			}
 			break;
 		case ProjectDownloader::ErrorCodes::InvalidURL:
