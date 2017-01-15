@@ -529,7 +529,10 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	stopCpuBenchmark();
 #endif
 
-	uptime += double(buffer.getNumSamples()) / sampleRate;
+    if(sampleRate > 0.0)
+    {
+        uptime += double(buffer.getNumSamples()) / sampleRate;
+    }
 }
 
 void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)

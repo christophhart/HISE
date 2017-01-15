@@ -77,6 +77,10 @@
  //#define USE_IPP
 #endif
 
+#ifndef    USE_VDSP_FFT
+ //#define USE_VDSP_FFT
+#endif
+
 #ifndef    FRONTEND_IS_PLUGIN
  //#define FRONTEND_IS_PLUGIN
 #endif
@@ -310,7 +314,7 @@
  #define JucePlugin_Build_VST3             0
 #endif
 #ifndef  JucePlugin_Build_AU
- #define JucePlugin_Build_AU               0
+ #define JucePlugin_Build_AU               1
 #endif
 #ifndef  JucePlugin_Build_AUv3
  #define JucePlugin_Build_AUv3             0
@@ -425,6 +429,15 @@
 #endif
 #ifndef  JucePlugin_AAXDisableMultiMono
  #define JucePlugin_AAXDisableMultiMono    0
+#endif
+#ifndef  JucePlugin_MaxNumInputChannels
+ #define JucePlugin_MaxNumInputChannels    0
+#endif
+#ifndef  JucePlugin_MaxNumOutputChannels
+ #define JucePlugin_MaxNumOutputChannels   2
+#endif
+#ifndef  JucePlugin_PreferredChannelConfigurations
+ #define JucePlugin_PreferredChannelConfigurations  {0,2}
 #endif
 
 #endif  // __JUCE_APPCONFIG_TQ3PMU__
