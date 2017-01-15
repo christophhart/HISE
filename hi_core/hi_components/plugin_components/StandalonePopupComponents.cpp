@@ -73,9 +73,11 @@ void ToggleButtonList::resized()
 {
 	int y = 0;
 
+	int width = getWidth();
+
 	for (int i = 0; i < buttons.size(); i++)
 	{
-		buttons[i]->setTopLeftPosition(0, y);
+		buttons[i]->setBounds(0, y, width, buttons[i]->getHeight());
 		y = buttons[i]->getBottom() + 2;
 	}
 }
@@ -99,6 +101,7 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 	addAndMakeVisible(sampleRateSelector = new ComboBox("Sample Rate"));
 	addAndMakeVisible(diskModeSelector = new ComboBox("Hard Disk"));
 	addAndMakeVisible(clearMidiLearn = new TextButton("Clear MIDI CC"));
+	addAndMakeVisible(relocateButton = new TextButton("Change sample folder location"));
 
 	deviceSelector->addListener(this);
 	soundCardSelector->addListener(this);
@@ -107,6 +110,7 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 	sampleRateSelector->addListener(this);
 	diskModeSelector->addListener(this);
 	clearMidiLearn->addListener(this);
+	relocateButton->addListener(this);
 
 	deviceSelector->setLookAndFeel(&plaf);
 	soundCardSelector->setLookAndFeel(&plaf);
@@ -118,12 +122,16 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 	clearMidiLearn->setColour(TextButton::ColourIds::textColourOffId, Colours::white);
 	clearMidiLearn->setColour(TextButton::ColourIds::textColourOnId, Colours::white);
 
+	relocateButton->setLookAndFeel(&blaf);
+	relocateButton->setColour(TextButton::ColourIds::textColourOffId, Colours::white);
+	relocateButton->setColour(TextButton::ColourIds::textColourOnId, Colours::white);
+
 	rebuildMenus(true, true);
 
 #if HISE_IOS
     setSize(250, 180);
 #else
-	setSize(250, 300);
+	setSize(320, 390);
 #endif
 }
 
@@ -135,6 +143,7 @@ CustomSettingsWindow::~CustomSettingsWindow()
 	soundCardSelector->removeListener(this);
 	outputSelector->removeListener(this);
 	clearMidiLearn->removeListener(this);
+	relocateButton->removeListener(this);
 	diskModeSelector->removeListener(this);
 
 	deviceSelector = nullptr;
@@ -142,6 +151,7 @@ CustomSettingsWindow::~CustomSettingsWindow()
 	sampleRateSelector = nullptr;
 	diskModeSelector = nullptr;
 	clearMidiLearn = nullptr;
+	relocateButton = nullptr;
 }
 
 void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDevices)
@@ -235,11 +245,37 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
 	diskModeSelector->setSelectedItemIndex(driver->diskMode, dontSendNotification);
 }
 
-void CustomSettingsWindow::buttonClicked(Button* /*b*/)
+void CustomSettingsWindow::buttonClicked(Button* b)
 {
-	ScopedLock sl(mc->getLock());
+	if (b == relocateButton)
+	{
+#if USE_FRONTEND
 
-	mc->getMacroManager().getMidiControlAutomationHandler()->clear();
+		File oldLocation = ProjectHandler::Frontend::getSampleLocationForCompiledPlugin();
+
+		FileChooser fc("Select new Sample folder", oldLocation);
+
+		if (fc.browseForDirectory())
+		{
+			File newLocation = fc.getResult();
+
+			if (newLocation.isDirectory())
+			{
+				ProjectHandler::Frontend::setSampleLocation(newLocation);
+				PresetHandler::showMessageWindow("Sample Folder relocated", "You need to reload the plugin to complete this step", PresetHandler::IconType::Info);
+			}
+		}
+
+#else
+		PresetHandler::showMessageWindow("Only useful in compiled plugin", "This button only works for the compiled plugin");
+#endif
+	}
+	else if (b == clearMidiLearn)
+	{
+		ScopedLock sl(mc->getLock());
+
+		mc->getMacroManager().getMidiControlAutomationHandler()->clear();
+	}
 }
 
 void CustomSettingsWindow::flipEnablement(AudioDeviceManager* manager, const int row)
@@ -354,7 +390,7 @@ void CustomSettingsWindow::paint(Graphics& g)
 {
 	g.setColour(Colours::white);
 
-	g.setFont(GLOBAL_FONT());
+	g.setFont(GLOBAL_BOLD_FONT());
     
 #if HISE_IOS
     g.drawText("Buffer Size", 0, 0, getWidth() / 2 - 30, 30, Justification::centredRight);
@@ -367,6 +403,19 @@ void CustomSettingsWindow::paint(Graphics& g)
     g.drawText("Buffer Size", 0, 120, getWidth() / 2 - 30, 30, Justification::centredRight);
     g.drawText("Sample Rate", 0, 160, getWidth() / 2 - 30, 30, Justification::centredRight);
     g.drawText("Streaming Mode", 0, 200, getWidth() / 2 - 30, 30, Justification::centredRight);
+	
+#if USE_BACKEND
+	const String samplePath = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Samples).getFullPathName();
+#else
+	const String samplePath = ProjectHandler::Frontend::getSampleLocationForCompiledPlugin().getFullPathName();
+#endif
+	
+	g.setFont(GLOBAL_BOLD_FONT());
+
+	g.drawText("Sample Location:", 15, 280, getWidth() - 30, 30, Justification::centredTop);
+
+	g.setFont(GLOBAL_FONT());
+	g.drawText(samplePath, 10, 280, getWidth()-20, 30, Justification::centredBottom);
 #endif
 	
 }
@@ -390,6 +439,12 @@ void CustomSettingsWindow::resized()
 	diskModeSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
     y+= 40;
 	clearMidiLearn->setBounds(10, y, getWidth() - 20, 30);
+
+#if !HISE_IOS
+	y += 80;
+	relocateButton->setBounds(10, y, getWidth() - 20, 30);
+#endif
+
 }
 
 CombinedSettingsWindow::CombinedSettingsWindow(MainController* mc_):
@@ -439,7 +494,7 @@ void CombinedSettingsWindow::resized()
 {
 	closeButton->setBounds(getWidth() - 24, 2, 20, 20);
 	settings->setTopLeftPosition((getWidth() - settings->getWidth()) / 2, 40);
-	midiSources->setTopLeftPosition((getWidth() - settings->getWidth()) / 2, settings->getBottom() + 15);
+	midiSources->setBounds((getWidth() - settings->getWidth()) / 2, settings->getBottom() + 15, settings->getWidth(), midiSources->getHeight());
 }
 
 void CombinedSettingsWindow::paint(Graphics &g)

@@ -117,6 +117,8 @@ private:
 	ScopedPointer<ComboBox> sampleRateSelector;
 	ScopedPointer<ComboBox> diskModeSelector;
 	ScopedPointer<TextButton> clearMidiLearn;
+	ScopedPointer<TextButton> relocateButton;
+	
 };
 
 class CombinedSettingsWindow : public Component,
