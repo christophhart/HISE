@@ -1402,7 +1402,10 @@ struct ScriptingApi::Synth::Wrapper
 	API_VOID_METHOD_WRAPPER_2(Synth, sendController);
 	API_VOID_METHOD_WRAPPER_2(Synth, sendControllerToChildSynths);
 	API_VOID_METHOD_WRAPPER_4(Synth, setModulatorAttribute);
-	API_VOID_METHOD_WRAPPER_3(Synth, addModulator);
+	API_METHOD_WRAPPER_3(Synth, addModulator);
+	API_METHOD_WRAPPER_1(Synth, removeModulator);
+	API_METHOD_WRAPPER_3(Synth, addEffect);
+	API_METHOD_WRAPPER_1(Synth, removeEffect);
 	API_METHOD_WRAPPER_1(Synth, getModulator);
 	API_METHOD_WRAPPER_1(Synth, getAudioSampleProcessor);
 	API_METHOD_WRAPPER_1(Synth, getTableProcessor);
@@ -1421,9 +1424,10 @@ struct ScriptingApi::Synth::Wrapper
 };
 
 
-ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *ownerSynth):
+ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *ownerSynth) :
 	ScriptingObject(p),
 	ApiClass(0),
+	moduleHandler(this),
 	owner(ownerSynth),
 	numPressedKeys(0),
 	keyDown(0),
@@ -1458,6 +1462,9 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	ADD_API_METHOD_2(sendControllerToChildSynths);
 	ADD_API_METHOD_4(setModulatorAttribute);
 	ADD_API_METHOD_3(addModulator);
+	ADD_API_METHOD_3(addEffect);
+	ADD_API_METHOD_1(removeEffect);
+	ADD_API_METHOD_1(removeModulator);
 	ADD_API_METHOD_1(getModulator);
 	ADD_API_METHOD_1(getAudioSampleProcessor);
 	ADD_API_METHOD_1(getTableProcessor);
@@ -2264,8 +2271,120 @@ void ScriptingApi::Synth::setModulatorAttribute(int chain, int modulatorIndex, i
 }
 
 
+ScriptingApi::Synth::ModuleHandler::ModuleHandler(Synth* parent_) :
+	parent(parent_)
+{
+#if USE_BACKEND
+	mainEditor = parent->getScriptProcessor()->getMainController_()->getConsole()->findParentComponentOfClass<BackendProcessorEditor>();
+	jassert(mainEditor != nullptr);
+#else
+	mainEditor = nullptr;
+#endif
+}
 
-int ScriptingApi::Synth::addModulator(int chain, const String &type, const String &id) const
+bool ScriptingApi::Synth::ModuleHandler::removeModule(Processor* p)
+{
+	if (!MessageManager::getInstance()->isThisTheMessageThread())
+	{
+		parent->reportScriptError("Effects can't be removed from the audio thread!");
+		return false;
+	}
+
+	if (p != nullptr)
+	{
+		Chain* c = dynamic_cast<Chain*>(ProcessorHelpers::findParentProcessor(p, false));
+
+		if (mainEditor != nullptr)
+		{
+			BackendProcessorEditor* bpe = dynamic_cast<BackendProcessorEditor*>(mainEditor);
+
+			if (bpe == nullptr) return true;
+
+			ProcessorEditorContainer* container = bpe->getRootContainer();
+
+			if (container == nullptr) return true;
+
+			ProcessorEditor* editor = container->getFirstEditorOf(dynamic_cast<Processor*>(c));
+
+			if (editor != nullptr)
+			{
+				editor->getPanel()->removeProcessorEditor(p);
+			}
+
+			dynamic_cast<BackendProcessorEditor*>(mainEditor)->rebuildModuleList(false);
+		}
+		else
+		{
+			c->getHandler()->remove(p);
+		}
+	}
+}
+
+Processor* ScriptingApi::Synth::ModuleHandler::addModule(Chain* c, const String& type, const String& id, int index /*= -1*/)
+{
+	if (!MessageManager::getInstance()->isThisTheMessageThread())
+	{
+		parent->reportScriptError("Modules can't be added from the audio thread!");
+		return false;
+	}
+	
+	Processor* p = nullptr;
+	
+	for (int i = 0; i < c->getHandler()->getNumProcessors(); i++)
+	{
+		if (c->getHandler()->getProcessor(i)->getId() == id)
+			p = c->getHandler()->getProcessor(i);
+	}
+
+	if (p != nullptr) 
+		return p;
+	else
+		p = parent->getProcessor()->getMainController()->createProcessor(c->getFactoryType(), type, id);
+
+	if (p == nullptr)
+	{
+		parent->reportScriptError("Module with type " + type + " could not be generated.");
+		return nullptr;
+	}
+
+	if (index >= 0 && index < c->getHandler()->getNumProcessors())
+	{
+		Processor* sibling = c->getHandler()->getProcessor(index);
+		c->getHandler()->add(p, sibling);
+	}
+	else
+	{
+		c->getHandler()->add(p, nullptr);
+	}
+
+	
+
+	if (mainEditor != nullptr)
+	{
+		BackendProcessorEditor* bpe = dynamic_cast<BackendProcessorEditor*>(mainEditor);
+
+		if (bpe == nullptr) return p;
+		
+		ProcessorEditorContainer* container = bpe->getRootContainer();
+
+		if (container == nullptr) return p;
+
+		ProcessorEditor* editor = container->getFirstEditorOf(dynamic_cast<Processor*>(c));
+
+		if (editor != nullptr)
+		{
+			editor->changeListenerCallback(dynamic_cast<Processor*>(c));
+			editor->childEditorAmountChanged();
+		}
+
+		dynamic_cast<BackendProcessorEditor*>(mainEditor)->rebuildModuleList(false);
+	}
+	
+	return p;
+}
+
+
+ScriptingObjects::ScriptingModulator* ScriptingApi::Synth::addModulator(int chain, const String &type, const String &id)
 {
 	ModulatorChain *c = nullptr;
 
@@ -2273,35 +2392,42 @@ int ScriptingApi::Synth::addModulator(int chain, const String &type, const Strin
 	{
 	case ModulatorSynth::GainModulation:	c = owner->gainChain; break;
 	case ModulatorSynth::PitchModulation:	c = owner->pitchChain; break;
-	default: jassertfalse; reportScriptError("No valid chainType - 1= GainModulation, 2=PitchModulation"); return -1;
+	default: jassertfalse; reportScriptError("No valid chainType - 1= GainModulation, 2=PitchModulation"); return nullptr;
 	}
 
-	for(int i = 0; i < c->getHandler()->getNumProcessors(); i++)
+	Processor* p = moduleHandler.addModule(c, type, id, -1);
+
+	return new ScriptingObjects::ScriptingModulator(getScriptProcessor(), dynamic_cast<Modulator*>(p));
+}
+
+bool ScriptingApi::Synth::removeModulator(var mod)
+{
+	if (auto m = dynamic_cast<ScriptingObjects::ScriptingModulator*>(mod.getObject()))
 	{
-		if(c->getHandler()->getProcessor(i)->getId() == id) return i;
+		Modulator* modToRemove = m->getModulator();
+		return moduleHandler.removeModule(modToRemove);
 	}
 
-	Processor *p = getProcessor()->getMainController()->createProcessor(c->getFactoryType(), type, id);
+	return false;
+}
 
-	if(p == nullptr)
+ScriptingApi::Synth::ScriptEffect* ScriptingApi::Synth::addEffect(const String &type, const String &id, int index)
+{
+	EffectProcessorChain* c = owner->effectChain;
+	Processor* p = moduleHandler.addModule(c, type, id, index);
+
+	return new ScriptingObjects::ScriptingEffect(getScriptProcessor(), dynamic_cast<EffectProcessor*>(p));
+}
+
+bool ScriptingApi::Synth::removeEffect(var effect)
+{
+	if (auto fx = dynamic_cast<ScriptingObjects::ScriptingEffect*>(effect.getObject()))
 	{
-		reportScriptError("Modulator with type " + type + " could not be generated.");
-		return -1;
+		EffectProcessor* effectToRemove = fx->getEffect();
+		return moduleHandler.removeModule(effectToRemove);
 	}
 
-	jassert(dynamic_cast<Modulator*>(p) != nullptr);
-
-	c->getHandler()->add(p, nullptr);
-
-	SEND_MESSAGE(c);
-
-	int index = c->getHandler()->getNumProcessors() - 1;
-
-#if USE_BACKEND
-	p->getMainController()->writeToConsole("Modulator " + id + " added to " + c->getId() + " at index " + String(index), 0, p, getScriptProcessor()->getScriptingContent()->getColour());
-#endif
-
-	return index;
+	return false;
 }
 
 int ScriptingApi::Synth::getModulatorIndex(int chain, const String &id) const
@@ -2323,7 +2449,6 @@ int ScriptingApi::Synth::getModulatorIndex(int chain, const String &id) const
 	reportScriptError("Modulator " + id + " was not found in " + c->getId());
 
 	return -1;
-
 }
 
 // ====================================================================================================== Console functions
@@ -2551,4 +2676,45 @@ int ScriptingApi::Colours::withAlpha(int colour, float alpha)
 	Colour c((uint32)colour);
 
 	return (int)c.withAlpha(alpha).getARGB();
+}
+
+ScriptingApi::ModuleIds::ModuleIds(ModulatorSynth* s):
+	ApiClass(getTypeList(s).size()),
+	ownerSynth(s)
+{
+	auto list = getTypeList(ownerSynth);
+
+	list.sort();
+
+	for (int i = 0; i < list.size(); i++)
+	{
+		addConstant(list[i].toString(), list[i].toString());
+	}
+}
+
+Array<Identifier> ScriptingApi::ModuleIds::getTypeList(ModulatorSynth* s)
+{
+	Array<Identifier> ids;
+	
+	for (int i = 0; i < s->getNumInternalChains(); i++)
+	{
+		Chain* c = dynamic_cast<Chain*>(s->getChildProcessor(i));
+
+		
+
+		jassert(c != nullptr);
+
+		if (c != nullptr)
+		{
+			FactoryType* t = c->getFactoryType();
+			auto list = t->getAllowedTypes();
+			
+			for (int j = 0; j < list.size(); j++)
+			{
+				ids.addIfNotAlreadyThere(list[j].type);
+			}
+		}
+	}
+
+	return ids;
 }

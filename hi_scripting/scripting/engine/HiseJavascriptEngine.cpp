@@ -461,7 +461,7 @@ var HiseJavascriptEngine::getScriptVariableFromRootNamespace(const Identifier & 
 			return v;
 	}
 
-	return nullptr;
+	return var();
 }
 
 int HiseJavascriptEngine::getNumIncludedFiles() const

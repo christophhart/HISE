@@ -322,6 +322,8 @@ struct ScriptingObjects::ScriptingEffect::Wrapper
 	API_VOID_METHOD_WRAPPER_2(ScriptingEffect, setAttribute);
     API_METHOD_WRAPPER_1(ScriptingEffect, getAttribute);
 	API_VOID_METHOD_WRAPPER_1(ScriptingEffect, setBypassed);
+	API_METHOD_WRAPPER_0(ScriptingEffect, exportState);
+	API_VOID_METHOD_WRAPPER_1(ScriptingEffect, restoreState);
 };
 
 ScriptingObjects::ScriptingEffect::ScriptingEffect(ProcessorWithScriptingContent *p, EffectProcessor *fx) :
@@ -347,6 +349,8 @@ effect(fx)
 	ADD_API_METHOD_2(setAttribute);
 	ADD_API_METHOD_1(setBypassed);
     ADD_API_METHOD_1(getAttribute);
+	ADD_API_METHOD_0(exportState);
+	ADD_API_METHOD_1(restoreState);
 };
 
 
@@ -377,6 +381,41 @@ void ScriptingObjects::ScriptingEffect::setBypassed(bool shouldBeBypassed)
 	}
 }
 
+
+String ScriptingObjects::ScriptingEffect::exportState()
+{
+	if (checkValidObject())
+	{
+		MemoryOutputStream internalMos;
+
+		GZIPCompressorOutputStream gzos(&internalMos, 9, false);
+
+		MemoryOutputStream mos;
+
+		ValueTree v = effect->exportAsValueTree();
+
+		v.writeToStream(mos);
+
+		gzos.write(mos.getData(), mos.getDataSize());
+		gzos.flush();
+
+		return internalMos.getMemoryBlock().toBase64Encoding();
+	}
+}
+
+void ScriptingObjects::ScriptingEffect::restoreState(String base64State)
+{
+	if (checkValidObject())
+	{
+		MemoryBlock mb;
+
+		mb.fromBase64Encoding(base64State);
+
+		ValueTree v = ValueTree::readFromGZIPData(mb.getData(), mb.getSize());
+
+		effect->restoreFromValueTree(v);
+	}
+}
 
 // ScriptingSynth ==============================================================================================================
 

@@ -264,6 +264,8 @@ public:
 
 		struct Wrapper;
 		
+		Modulator* getModulator() { return mod.get(); }
+
 	private:
 
 		WeakReference<Modulator> mod;
@@ -311,9 +313,17 @@ public:
 		/** Bypasses the effect. */
 		void setBypassed(bool shouldBeBypassed);
 
+		/** Exports the state as base64 string. */
+		String exportState();
+
+		/** Restores the state from a base64 string. */
+		void restoreState(String base64State);
+
 		// ============================================================================================================
 
 		struct Wrapper;
+
+		EffectProcessor* getEffect() { return dynamic_cast<EffectProcessor*>(effect.get()); }
 
 	private:
 

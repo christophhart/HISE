@@ -513,7 +513,16 @@ public:
 		bool isKeyDown(int noteNumber) { return keyDown[noteNumber]; };
 
 		/** Adds a Modulator to the synth's chain. If it already exists, it returns the index. */
-		int addModulator(int chainId, const String &type, const String &id) const;
+		ScriptModulator* addModulator(int chainId, const String &type, const String &id);
+
+		/** Removes the modulator. */
+		bool removeModulator(var mod);
+
+		/** Adds a effect (index = -1 to append it at the end). */
+		ScriptEffect* addEffect(const String &type, const String &id, int index);
+
+		/** Removes the given effect. */
+		bool removeEffect(var effect);
 
 		/** Returns the Modulator with the supplied name. Can be only called in onInit. It looks also in all child processors. */
 		ScriptModulator *getModulator(const String &name);
@@ -567,10 +576,31 @@ public:
 
 	private:
 
+		class ModuleHandler
+		{
+		public:
+
+			ModuleHandler(Synth* parent_);
+
+			bool removeModule(Processor* p_);
+
+			Processor* addModule(Chain* chainToAdd, const String& type_, const String& id_, int index_ = -1);
+
+		private:
+
+			Synth* parent;
+
+			Component* mainEditor;
+		};
+
+		friend class ModuleHandler;
+		
 		OwnedArray<Message> artificialNoteOns;
 		ModulatorSynth * const owner;
 		Atomic<int> numPressedKeys;
 		BigInteger keyDown;
+
+		ModuleHandler moduleHandler;
 
 		SelectedItemSet<WeakReference<ModulatorSamplerSound>> soundSelection;
 
@@ -621,6 +651,23 @@ public:
 
 	class Content;
 
+	/** A list with all available modules. */
+	class ModuleIds : public ApiClass
+	{
+	public:
+
+		ModuleIds(ModulatorSynth* s);
+
+		/** Returns the name. */
+		Identifier getName() const override { RETURN_STATIC_IDENTIFIER("ModuleIds"); }
+
+	private:
+
+		static Array<Identifier> getTypeList(ModulatorSynth* s);
+
+		ModulatorSynth* ownerSynth;
+	};
+
 	class Colours: public ApiClass
 	{
 	public:
@@ -648,6 +695,7 @@ public:
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Colours);
 	};
 
+	
 	class ModulatorApi : public ApiClass
 	{
 	public:

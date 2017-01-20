@@ -399,6 +399,8 @@ public:
 		
 	};
 
+	Console* getConsole() { return console; }
+
     void clearConsole();
 
 	void setLastActiveEditor(CodeEditorComponent *editor, CodeDocument::Position position)

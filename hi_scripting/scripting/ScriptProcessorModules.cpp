@@ -177,6 +177,9 @@ void JavascriptMidiProcessor::registerApiClasses()
 	currentMidiMessage = new ScriptingApi::Message(this);
 	engineObject = new ScriptingApi::Engine(this);
 	synthObject = new ScriptingApi::Synth(this, getOwnerSynth());
+
+	scriptEngine->registerApiClass(new ScriptingApi::ModuleIds(getOwnerSynth()));
+
 	samplerObject = new ScriptingApi::Sampler(this, dynamic_cast<ModulatorSampler*>(getOwnerSynth()));
 
 	scriptEngine->registerNativeObject("Content", content);
