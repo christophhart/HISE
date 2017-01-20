@@ -413,7 +413,7 @@ var HiseJavascriptEngine::getScriptObject(const Identifier &id) const
 		else if (auto api = dynamic_cast<const ApiClass*>(v.getObject()))
 		{
 			const int index = api->getConstantIndex(Identifier(sa[1]));
-			return api->getConstantValue(index)
+			return api->getConstantValue(index);
 		}
 		else return var();
 	}

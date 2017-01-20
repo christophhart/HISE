@@ -2294,6 +2294,7 @@ bool ScriptingApi::Synth::ModuleHandler::removeModule(Processor* p)
 	{
 		Chain* c = dynamic_cast<Chain*>(ProcessorHelpers::findParentProcessor(p, false));
 
+#if USE_BACKEND
 		if (mainEditor != nullptr)
 		{
 			BackendProcessorEditor* bpe = dynamic_cast<BackendProcessorEditor*>(mainEditor);
@@ -2317,6 +2318,9 @@ bool ScriptingApi::Synth::ModuleHandler::removeModule(Processor* p)
 		{
 			c->getHandler()->remove(p);
 		}
+#else
+		c->getHandler()->remove(p);
+#endif
 	}
 
 	return true;
@@ -2360,7 +2364,7 @@ Processor* ScriptingApi::Synth::ModuleHandler::addModule(Chain* c, const String&
 	}
 
 	
-
+#if USE_BACKEND
 	if (mainEditor != nullptr)
 	{
 		BackendProcessorEditor* bpe = dynamic_cast<BackendProcessorEditor*>(mainEditor);
@@ -2381,6 +2385,7 @@ Processor* ScriptingApi::Synth::ModuleHandler::addModule(Chain* c, const String&
 
 		dynamic_cast<BackendProcessorEditor*>(mainEditor)->rebuildModuleList(false);
 	}
+#endif
 	
 	return p;
 }

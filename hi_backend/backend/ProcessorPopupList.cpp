@@ -486,7 +486,7 @@ void StupidRectangle::paint(Graphics &g)
 	g.drawText(path, 8, 8, getWidth() - 20, 24, Justification::centred, true);
 }
 
-void StupidRectangle::buttonClicked(Button* b)
+void StupidRectangle::buttonClicked(Button* /*b*/)
 {
     findParentComponentOfClass<BackendProcessorEditor>()->clearPopup();
 }

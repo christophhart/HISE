@@ -328,7 +328,7 @@ void SampleImporter::loadAudioFilesUsingPitchDetection(Component* /*childCompone
 	sampler->refreshMemoryUsage();
 }
 
-void SampleImporter::loadAudioFilesRaw(Component* childComponentOfMainEditor, ModulatorSampler* sampler, const StringArray& fileNames)
+void SampleImporter::loadAudioFilesRaw(Component* /*childComponentOfMainEditor*/, ModulatorSampler* sampler, const StringArray& fileNames)
 {
 	const int startIndex = sampler->getNumSounds();
 

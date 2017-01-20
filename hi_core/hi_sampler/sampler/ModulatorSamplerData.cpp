@@ -797,7 +797,7 @@ void MonolithExporter::exportCurrentSampleMap(bool overwriteExistingData, bool e
 	}
 }
 
-void MonolithExporter::writeSampleMapFile(bool overwriteExistingFile)
+void MonolithExporter::writeSampleMapFile(bool /*overwriteExistingFile*/)
 {
 	File sampleMapFile = sampleMapDirectory.getChildFile(sampleMap->getId().toString() + ".xml");
 	ScopedPointer<XmlElement> xml = v.createXml();
