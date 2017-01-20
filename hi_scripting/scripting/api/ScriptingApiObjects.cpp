@@ -401,6 +401,8 @@ String ScriptingObjects::ScriptingEffect::exportState()
 
 		return internalMos.getMemoryBlock().toBase64Encoding();
 	}
+
+	return String();
 }
 
 void ScriptingObjects::ScriptingEffect::restoreState(String base64State)

@@ -408,18 +408,14 @@ var HiseJavascriptEngine::getScriptObject(const Identifier &id) const
 
 		if (auto dyn = dynamic_cast<const DynamicObject*>(v.getObject()))
 		{
-			const ReferenceCountedObject* o2 = dyn->getProperty(Identifier(sa[1])).getObject();
-
-			return o2;
+			return dyn->getProperty(Identifier(sa[1]));
 		}
 		else if (auto api = dynamic_cast<const ApiClass*>(v.getObject()))
 		{
 			const int index = api->getConstantIndex(Identifier(sa[1]));
-			const ReferenceCountedObject* o2 = api->getConstantValue(index).getObject();
-
-			return o2;
+			return api->getConstantValue(index)
 		}
-		else return nullptr;
+		else return var();
 	}
 	else
 	{

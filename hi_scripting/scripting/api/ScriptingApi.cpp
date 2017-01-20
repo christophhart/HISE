@@ -2318,6 +2318,8 @@ bool ScriptingApi::Synth::ModuleHandler::removeModule(Processor* p)
 			c->getHandler()->remove(p);
 		}
 	}
+
+	return true;
 }
 
 Processor* ScriptingApi::Synth::ModuleHandler::addModule(Chain* c, const String& type, const String& id, int index /*= -1*/)
@@ -2325,7 +2327,7 @@ Processor* ScriptingApi::Synth::ModuleHandler::addModule(Chain* c, const String&
 	if (!MessageManager::getInstance()->isThisTheMessageThread())
 	{
 		parent->reportScriptError("Modules can't be added from the audio thread!");
-		return false;
+		return nullptr;
 	}
 	
 	Processor* p = nullptr;
