@@ -260,6 +260,12 @@ public:
 		/** Changes the Intensity of the Modulator. Ranges: Gain Mode 0 ... 1, PitchMode -12 ... 12. */
 		void setIntensity(float newIntensity);
 
+		/** Exports the state as base64 string. */
+		String exportState();
+
+		/** Restores the state from a base64 string. */
+		void restoreState(String base64State);
+
 		// ============================================================================================================
 
 		struct Wrapper;

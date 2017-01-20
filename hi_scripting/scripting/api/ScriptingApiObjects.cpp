@@ -169,6 +169,8 @@ struct ScriptingObjects::ScriptingModulator::Wrapper
     API_METHOD_WRAPPER_1(ScriptingModulator, getAttribute);
 	API_VOID_METHOD_WRAPPER_1(ScriptingModulator, setBypassed);
 	API_VOID_METHOD_WRAPPER_1(ScriptingModulator, setIntensity);
+	API_METHOD_WRAPPER_0(ScriptingModulator, exportState);
+	API_VOID_METHOD_WRAPPER_1(ScriptingModulator, restoreState);
 };
 
 ScriptingObjects::ScriptingModulator::ScriptingModulator(ProcessorWithScriptingContent *p, Modulator *m_) :
@@ -198,6 +200,8 @@ m(nullptr)
 	ADD_API_METHOD_1(setBypassed);
 	ADD_API_METHOD_1(setIntensity);
     ADD_API_METHOD_1(getAttribute);
+	ADD_API_METHOD_0(exportState);
+	ADD_API_METHOD_1(restoreState);
 }
 
 String ScriptingObjects::ScriptingModulator::getDebugName() const
@@ -314,6 +318,43 @@ void ScriptingObjects::ScriptingModulator::setIntensity(float newIntensity)
 };
 
 
+
+String ScriptingObjects::ScriptingModulator::exportState()
+{
+	if (checkValidObject())
+	{
+		MemoryOutputStream internalMos;
+
+		GZIPCompressorOutputStream gzos(&internalMos, 9, false);
+
+		MemoryOutputStream mos;
+
+		ValueTree v = mod->exportAsValueTree();
+
+		v.writeToStream(mos);
+
+		gzos.write(mos.getData(), mos.getDataSize());
+		gzos.flush();
+
+		return internalMos.getMemoryBlock().toBase64Encoding();
+	}
+
+	return String();
+}
+
+void ScriptingObjects::ScriptingModulator::restoreState(String base64State)
+{
+	if (checkValidObject())
+	{
+		MemoryBlock mb;
+
+		mb.fromBase64Encoding(base64State);
+
+		ValueTree v = ValueTree::readFromGZIPData(mb.getData(), mb.getSize());
+
+		mod->restoreFromValueTree(v);
+	}
+}
 
 // ScriptingEffect ==============================================================================================================
 
