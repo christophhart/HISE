@@ -159,9 +159,9 @@ public:
 
 	DebugInformation*getDebugInformation(int index);
 
-	const ReferenceCountedObject* getScriptObject(const Identifier &id) const;
+	var getScriptObject(const Identifier &id) const;
 
-	const ReferenceCountedObject* getScriptObjectFromRootNamespace(const Identifier & id) const;
+	var getScriptVariableFromRootNamespace(const Identifier & id) const;
 
 	int getNumIncludedFiles() const;
 	File getIncludedFile(int fileIndex) const;

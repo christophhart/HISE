@@ -1,4 +1,6 @@
 
+
+
 //==============================================================================
 struct HiseJavascriptEngine::RootObject::ObjectClass : public DynamicObject
 {
@@ -13,6 +15,8 @@ struct HiseJavascriptEngine::RootObject::ObjectClass : public DynamicObject
 	static var cloneFn(Args a)        { return a.thisObject.clone(); }
 };
 
+
+
 //==============================================================================
 struct HiseJavascriptEngine::RootObject::ArrayClass : public DynamicObject
 {
@@ -26,6 +30,7 @@ struct HiseJavascriptEngine::RootObject::ArrayClass : public DynamicObject
 		setMethod("insert", insert);
         setMethod("indexOf", indexOf);
         setMethod("isArray", isArray);
+		setMethod("reverse", reverse);
 	}
 
 	static Identifier getClassName()   { static const Identifier i("Array"); return i; }
@@ -43,7 +48,7 @@ struct HiseJavascriptEngine::RootObject::ArrayClass : public DynamicObject
 		if (Array<var>* array = a.thisObject.getArray())
 			array->removeAllInstancesOf(get(a, 0));
 
-		return var::undefined();
+		return var();
 	}
 
 	static var join(Args a)
@@ -67,9 +72,26 @@ struct HiseJavascriptEngine::RootObject::ArrayClass : public DynamicObject
 			return array->size();
 		}
 
-		return var::undefined();
+		return var();
 	}
     
+	static var reverse(Args a)
+	{
+		if (Array<var>* array = a.thisObject.getArray())
+		{
+			Array<var> reversedArray;
+
+			for (int i = array->size()-1; i >= 0; --i)
+			{
+				reversedArray.add(array->getUnchecked(i));
+			}
+
+			array->swapWith(reversedArray);
+		}
+
+		return var();
+	}
+
     static var sort(Args a)
     {
         if (Array<var>* array = a.thisObject.getArray())
@@ -78,7 +100,7 @@ struct HiseJavascriptEngine::RootObject::ArrayClass : public DynamicObject
             array->sort(comparator);
         }
         
-        return var::undefined();
+        return var();
     }
 
 	static var insert(Args a)
@@ -93,7 +115,7 @@ struct HiseJavascriptEngine::RootObject::ArrayClass : public DynamicObject
 			}
 		}
 
-		return var::undefined();
+		return var();
 	}
     
     static var indexOf(Args a)
@@ -132,7 +154,41 @@ struct HiseJavascriptEngine::RootObject::ArrayClass : public DynamicObject
     
 };
 
+/** This is a dummy class that contains the array functions. */
+class DoxygenArrayFunctions
+{
+public:
+
+	/** Searches for the element in the array. */
+	bool contains(var elementToLookFor) { return false; }
+
+	/** Removes all instances of the given element. */
+	var remove(var elementToRemove) { return var(); }
+
+	/** Reverses the order of the elements in the array. */
+	void reverse() {}
+
+	/** Joins the array into a string with the given separator. */
+	String join(var separatorString) { return String(); }
+
+	/** Adds the given element at the end and returns the size. */
+	int push(var elementToInsert) { return 0; }
+
+	/** Sorts the array. */
+	void sort() {}
+
+	/** Inserts the given arguments at the firstIndex. */
+	void insert(int firstIndex, var argumentList) {}
+
+	/** Searches the array and returns the first index. */
+	int indexOf(var elementToLookFor, int startOffset, int typeStrictness) {return -1;}
+
+	/** Checks if the given variable is an array. */
+	bool isArray(var variableToTest) { return false; }
+};
+
 //==============================================================================
+
 struct HiseJavascriptEngine::RootObject::StringClass : public DynamicObject
 {
 	StringClass()
@@ -144,18 +200,41 @@ struct HiseJavascriptEngine::RootObject::StringClass : public DynamicObject
 		setMethod("fromCharCode", fromCharCode);
         setMethod("replace", replace);
 		setMethod("split", split);
+		setMethod("lastIndexOf", lastIndexOf);
+		setMethod("toLowerCase", toLowerCase);
+		setMethod("toUpperCase", toUpperCase);
+		setMethod("trim", trim);
+		setMethod("concat", concat);
 	}
 
 	static Identifier getClassName()  { static const Identifier i("String"); return i; }
 
+	
 	static var fromCharCode(Args a)  { return String::charToString(getInt(a, 0)); }
 	static var substring(Args a)     { return a.thisObject.toString().substring(getInt(a, 0), getInt(a, 1)); }
 	static var indexOf(Args a)       { return a.thisObject.toString().indexOf(getString(a, 0)); }
+	static var lastIndexOf(Args a)		 { return a.thisObject.toString().lastIndexOf(getString(a, 0)); }
 	static var charCodeAt(Args a)    { return (int)a.thisObject.toString()[getInt(a, 0)]; }
     static var replace(Args a)       { return a.thisObject.toString().replace(getString(a, 0), getString(a, 1)); }
 	static var charAt(Args a)        { int p = getInt(a, 0); return a.thisObject.toString().substring(p, p + 1); }
 	
-	/** Splits the string with the given separator. */
+	static var toUpperCase(Args a) { return a.thisObject.toString().toUpperCase(); };
+	static var toLowerCase(Args a) { return a.thisObject.toString().toLowerCase(); };
+
+	static var trim(Args a) { return a.thisObject.toString().trim(); };
+
+	static var concat(Args a)
+	{
+		String r = a.thisObject.toString();
+
+		for (int i = 0; i < a.numArguments; i++)
+		{
+			r << getString(a, i);
+		}
+
+		return var(r);
+	}
+
 	static var split(Args a)
 	{
 		const String str(a.thisObject.toString());
@@ -175,6 +254,49 @@ struct HiseJavascriptEngine::RootObject::StringClass : public DynamicObject
 		return array;
 	}
 };
+
+#define Array Array<var>
+
+/** Doxy functions for String operations. */
+class DoxygenStringFunctions
+{
+public:
+
+	/** Returns the substring in the given range. */
+	String substring(int startIndex, int endIndex) { return String(); }
+
+	/** Returns the position of the first found occurrence of a specified value in a string. */
+	int indexOf(var substring) { return 0; }
+
+	/**	Returns the position of the last found occurrence of a specified value in a string. */
+	int lastIndexOf(var substring) { return 0; }
+
+	/** Returns the character at the given position as ASCII number. */
+	int charCodeAt(var index) { return 0; }
+
+	/** Returns a copy of the string and replaces all occurences of `a` with `b`. */
+	String replace(var substringToLookFor, var replacement) { return String(); }
+	
+	/** Returns the character at the given index. */
+	String charAt(int index) { return String(); }
+
+	/** Splits the string into an array with the given separator. */
+	Array split(var separatorString) { return Array(); }
+
+	/** Converts a string to lowercase letters. */
+	String toLowerCase() { return String(); }
+
+	/** Converts a string to uppercase letters. */
+	String toUpperCase() { return String(); }
+
+	/** Returns a copy of this string with any whitespace characters removed from the start and end. */
+	String trim() { return String(); }
+
+	/** Joins two or more strings, and returns a new joined strings. */
+	String concat(var stringlist) { return String(); }
+};
+
+#undef Array
 
 //==============================================================================
 struct HiseJavascriptEngine::RootObject::JSONClass : public DynamicObject

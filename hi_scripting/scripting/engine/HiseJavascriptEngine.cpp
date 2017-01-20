@@ -396,7 +396,7 @@ DebugInformation* HiseJavascriptEngine::getDebugInformation(int index)
 }
 
 
-const ReferenceCountedObject* HiseJavascriptEngine::getScriptObject(const Identifier &id) const
+var HiseJavascriptEngine::getScriptObject(const Identifier &id) const
 {
 	String idAsString = id.toString();
 
@@ -404,16 +404,15 @@ const ReferenceCountedObject* HiseJavascriptEngine::getScriptObject(const Identi
 	{
 		StringArray sa = StringArray::fromTokens(idAsString, ".", "");
 
-		const ReferenceCountedObject* o = getScriptObjectFromRootNamespace(Identifier(sa[0]));
+		var v = getScriptVariableFromRootNamespace(Identifier(sa[0]));
 
-		if (auto dyn = dynamic_cast<const DynamicObject*>(o))
+		if (auto dyn = dynamic_cast<const DynamicObject*>(v.getObject()))
 		{
 			const ReferenceCountedObject* o2 = dyn->getProperty(Identifier(sa[1])).getObject();
 
 			return o2;
-
 		}
-		else if (auto api = dynamic_cast<const ApiClass*>(o))
+		else if (auto api = dynamic_cast<const ApiClass*>(v.getObject()))
 		{
 			const int index = api->getConstantIndex(Identifier(sa[1]));
 			const ReferenceCountedObject* o2 = api->getConstantValue(index).getObject();
@@ -424,32 +423,33 @@ const ReferenceCountedObject* HiseJavascriptEngine::getScriptObject(const Identi
 	}
 	else
 	{
-		return getScriptObjectFromRootNamespace(id);
+		return getScriptVariableFromRootNamespace(id);
 	}
 }
 
 
-const ReferenceCountedObject* HiseJavascriptEngine::getScriptObjectFromRootNamespace(const Identifier & id) const
+var HiseJavascriptEngine::getScriptVariableFromRootNamespace(const Identifier & id) const
 {
 	var v = root->getProperty(id);
-	if (v.getObject() != nullptr)
-		return v.getObject();
+
+	if (!v.isVoid())
+		return v;
 
 	v = root->hiseSpecialData.constObjects[id];
-	if (v.getObject() != nullptr)
-		return v.getObject();
+	if (!v.isVoid())
+		return v;
 
 	v = root->hiseSpecialData.getNamespace(id);
 	if (v.getObject() != nullptr)
-		return v.getObject();
+		return v;
 
 	int registerIndex = root->hiseSpecialData.varRegister.getRegisterIndex(id);
 	if (registerIndex != -1)
 	{
 		v = root->hiseSpecialData.varRegister.getFromRegister(registerIndex);
 
-		if (v.isObject())
-			return v.getObject();
+		if (!v.isVoid())
+			return v;
 	}
 
 	DynamicObject* globals = root->hiseSpecialData.globals;
@@ -457,8 +457,8 @@ const ReferenceCountedObject* HiseJavascriptEngine::getScriptObjectFromRootNames
 	{
 		v = globals->getProperty(id);
 
-		if (v.getObject() != nullptr)
-			return v.getObject();
+		if (!v.isVoid())
+			return v;
 	}
 
 	return nullptr;

@@ -17,6 +17,9 @@ xcopy "xml\class_scripting_api_1_1_message.xml" "xml\selection"
 xcopy "xml\class_scripting_api_1_1_synth.xml" "xml\selection"
 xcopy "xml\class_scripting_api_1_1_sampler.xml" "xml\selection"
 xcopy "xml\struct_hise_javascript_engine_1_1_root_object_1_1_math_class.xml" "xml\selection"
+xcopy "xml\class_doxygen_array_functions.xml" "xml\selection"
+xcopy "xml\class_doxygen_string_functions.xml" "xml\selection"
+
 xcopy "xml\class_dsp_instance.xml" "xml\selection"
 
 xcopy "xml\class_scripting_objects_1_1_scripting_modulator.xml" "xml\selection"
@@ -51,6 +54,8 @@ ren "xml\selection\class_scripting_api_1_1_message.xml" "Message.xml"
 ren "xml\selection\class_scripting_api_1_1_synth.xml" "Synth.xml"
 ren "xml\selection\class_scripting_api_1_1_sampler.xml" "Sampler.xml"
 ren "xml\selection\class_dsp_instance.xml" "DspModule.xml"
+ren "xml\selection\class_doxygen_string_functions.xml" "String.xml"
+ren "xml\selection\class_doxygen_array_functions.xml" "Array.xml"
 
 ren "xml\selection\class_scripting_objects_1_1_scripting_modulator.xml" "Modulator.xml"
 ren "xml\selection\class_scripting_objects_1_1_midi_list.xml" "MidiList.xml"

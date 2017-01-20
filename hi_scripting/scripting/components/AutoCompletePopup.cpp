@@ -129,7 +129,9 @@ void JavascriptCodeEditor::AutoCompletePopup::createObjectPropertyRows(const Val
 	const Identifier objectId = Identifier(tokenText.upToLastOccurrenceOf(String("."), false, true));
 
 	HiseJavascriptEngine *engine = sp->getScriptEngine();
-	const ReferenceCountedObject* o = engine->getScriptObject(objectId);
+	
+	var v = engine->getScriptObject(objectId);
+	const ReferenceCountedObject* o = v.getObject();
 
 	const ApiClass* apiClass = engine->getApiClass(objectId);
 
@@ -278,6 +280,16 @@ void JavascriptCodeEditor::AutoCompletePopup::createObjectPropertyRows(const Val
 			}
 		}
 	}
+	else if (v.isString())
+	{
+		ValueTree stringApi = apiTree.getChildWithName("String");
+		addApiMethods(stringApi, objectId);
+	}
+	else if (v.isArray())
+	{
+		ValueTree arrayApi = apiTree.getChildWithName("Array");
+		addApiMethods(arrayApi, objectId);
+	}
 	else if (apiClass != nullptr)
 	{
 		ValueTree classTree = apiTree.getChildWithName(apiClass->getName());
@@ -287,7 +299,6 @@ void JavascriptCodeEditor::AutoCompletePopup::createObjectPropertyRows(const Val
 	}
 
 	addCustomEntries(objectId, apiTree);
-
 }
 
 void JavascriptCodeEditor::AutoCompletePopup::addCustomEntries(const Identifier &objectId, const ValueTree &apiTree)
