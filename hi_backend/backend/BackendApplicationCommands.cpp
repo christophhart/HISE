@@ -87,6 +87,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuNewFile,
 		MenuOpenFile,
 		MenuSaveFile,
+		MenuSaveFileAs,
 		MenuSaveFileAsXmlBackup,
 		MenuOpenXmlBackup,
 		MenuProjectNew,
@@ -224,6 +225,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		break;
 	case MenuSaveFile:
 		setCommandTarget(result, "Save", true, false, 'S');
+		break;
+	case MenuSaveFileAs:
+		setCommandTarget(result, "Save As", true, false, 'X', false);
 		break;
 	case MenuSaveFileAsXmlBackup:
 		setCommandTarget(result, "Save File as XML Backup", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
@@ -478,7 +482,8 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuNewFile:                   if (PresetHandler::showYesNoWindow("New File", "Do you want to start a new preset?"))
                                             bpe->clearPreset(); return true;
 	case MenuOpenFile:                  Actions::openFile(bpe); return true;
-	case MenuSaveFile:                  Actions::saveFile(bpe); return true;
+	case MenuSaveFile:                  Actions::saveFile(bpe, false); return true;
+	case MenuSaveFileAs:				Actions::saveFile(bpe, true); return true;
     case MenuSaveFileAsXmlBackup:		Actions::saveFileAsXml(bpe); updateCommands(); return true;
     case MenuOpenXmlBackup:             { FileChooser fc("Select XML file to load",
                                                          GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::XMLPresetBackups), "*.xml", true);
@@ -567,6 +572,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 
 		ADD_DESKTOP_ONLY(MenuOpenFile);
 		ADD_ALL_PLATFORMS(MenuSaveFile);
+		ADD_ALL_PLATFORMS(MenuSaveFileAs);
 		ADD_ALL_PLATFORMS(MenuReplaceWithClipboardContent);
 
 		PopupMenu filesInProject;
@@ -1056,10 +1062,23 @@ void BackendCommandTarget::Actions::openFile(BackendProcessorEditor *bpe)
 #endif
 }
 
-void BackendCommandTarget::Actions::saveFile(BackendProcessorEditor *bpe)
+void BackendCommandTarget::Actions::saveFile(BackendProcessorEditor *bpe, bool forceRename)
 {
-	if (PresetHandler::showYesNoWindow("Save " + bpe->owner->getMainSynthChain()->getId(), "Do you want to save this preset?"))
+	if (forceRename || PresetHandler::showYesNoWindow("Save " + bpe->owner->getMainSynthChain()->getId(), "Do you want to save this preset?"))
 	{
+		const bool hasDefaultName = bpe->owner->getMainSynthChain()->getId() == "Master Chain";
+
+		if (forceRename || hasDefaultName)
+		{
+			const String newName = PresetHandler::getCustomName("Preset");
+
+			if (newName.isNotEmpty())
+			{
+				bpe->owner->getMainSynthChain()->setId(newName);
+			}
+			else return;
+		}
+
 		PresetHandler::saveProcessorAsPreset(bpe->owner->getMainSynthChain());
 	}
 }

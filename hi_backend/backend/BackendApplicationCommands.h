@@ -77,6 +77,7 @@ public:
 		MenuOpenFile,
 		MenuOpenFileFromProjectOffset,
 		MenuSaveFile = 0x23000,
+		MenuSaveFileAs,
 		MenuSaveFileAsXmlBackup,
 		MenuOpenXmlBackup,
         MenuFileXmlBackupMenuOffset,
@@ -239,7 +240,7 @@ public:
 		static bool hasProcessorInClipboard();
 		static bool hasSnippetInClipboard();
 		static void openFile(BackendProcessorEditor *bpe);
-		static void saveFile(BackendProcessorEditor *bpe);
+		static void saveFile(BackendProcessorEditor *bpe, bool forceRename);
 		static void replaceWithClipboardContent(BackendProcessorEditor *bpe);
 		static void createScriptVariableDeclaration(CopyPasteTarget *currentCopyPasteTarget);
 		static void recompileAllScripts(BackendProcessorEditor * bpe);
