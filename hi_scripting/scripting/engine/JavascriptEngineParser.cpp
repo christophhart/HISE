@@ -961,23 +961,29 @@ private:
 
 		parseIdentifier();
 
-		match(TokenTypes::openParen);
-
-		while (currentType != TokenTypes::closeParen)
+		if (currentType == TokenTypes::openParen)
 		{
-			f->addParameter(parseExpression());
-			if (currentType != TokenTypes::closeParen)
-				match(TokenTypes::comma);
-		}
+			match(TokenTypes::openParen);
 
-		if (f->numArgs != f->parameterExpressions.size())
+			while (currentType != TokenTypes::closeParen)
+			{
+				f->addParameter(parseExpression());
+				if (currentType != TokenTypes::closeParen)
+					match(TokenTypes::comma);
+			}
+
+			if (f->numArgs != f->parameterExpressions.size())
+			{
+
+				throwError("Inline function call " + obj->name + ": parameter amount mismatch: " + String(f->parameterExpressions.size()) + " (Expected: " + String(f->numArgs) + ")");
+			}
+
+			return matchCloseParen(f.release());
+		}
+		else
 		{
-
-			throwError("Inline function call " + obj->name + ": parameter amount mismatch: " + String(f->parameterExpressions.size()) + " (Expected: " + String(f->numArgs) + ")");
+			return new LiteralValue(location, var(obj));
 		}
-
-		return matchCloseParen(f.release());
-		
 	}
 
 	Statement *parseInlineFunction(JavascriptNamespace* ns, TokenIterator *preparser=nullptr)
@@ -987,6 +993,7 @@ private:
 			DebugableObject::Location loc = preparser->createDebugLocation();
 
 			preparser->match(TokenTypes::function);
+			
 			Identifier name = preparser->currentValue.toString();
 			preparser->match(TokenTypes::identifier);
 			preparser->match(TokenTypes::openParen);

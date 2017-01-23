@@ -189,12 +189,17 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			}
 
 			functionDef << ")";
+
+			CodeLocation lo = CodeLocation("", "");
+
+			dynamicFunctionCall = new FunctionCall(lo, this, false);
 		}
 
 		~Object()
 		{
 			parameterNames.clear();
 			body = nullptr;
+			dynamicFunctionCall = nullptr;
 		}
 
 		String getDebugValue() const override { return lastReturnValue.toString(); }
@@ -219,6 +224,28 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			e = e_;
 		}
 
+		var performDynamically(const Scope& s, var* args, int numArgs)
+		{
+			setFunctionCall(dynamicFunctionCall);
+
+			for (int i = 0; i < numArgs; i++)
+			{
+				dynamicFunctionCall->parameterResults.setUnchecked(i, args[i]);
+			}
+
+			Statement::ResultCode c = body->perform(s, &lastReturnValue);
+
+			for (int i = 0; i < numArgs; i++)
+			{
+				dynamicFunctionCall->parameterResults.setUnchecked(i, var::undefined());
+			}
+
+			setFunctionCall(nullptr);
+
+			if (c == Statement::returnWasHit) return lastReturnValue;
+			else return var::undefined();
+		}
+
 		Identifier name;
 		Array<Identifier> parameterNames;
 		typedef ReferenceCountedObjectPtr<Object> Ptr;
@@ -231,6 +258,8 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 		
 		const FunctionCall *e;
 
+		ScopedPointer<FunctionCall> dynamicFunctionCall;
+
 		NamedValueSet localProperties;
 
 		Location location;
@@ -241,11 +270,16 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 	struct FunctionCall : public Expression
 	{
-		FunctionCall(const CodeLocation &l, Object *referredFunction) : 
+		FunctionCall(const CodeLocation &l, Object *referredFunction, bool storeReferenceToObject = true) :
 			Expression(l),
 			f(referredFunction),
 			numArgs(f->parameterNames.size())
 		{
+			if (storeReferenceToObject)
+			{
+				referenceToObject = referredFunction;
+			}
+
 			for (int i = 0; i < numArgs; i++)
 			{
 				parameterResults.add(var::undefined());
@@ -255,6 +289,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 		~FunctionCall()
 		{
 			f = nullptr;
+			referenceToObject = nullptr;
 		}
 
 		void addParameter(Expression *e)
@@ -286,7 +321,9 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			else return var::undefined();
 		}
 
-		Object::Ptr f;
+		Object::Ptr referenceToObject;
+
+		Object* f;
 
 		OwnedArray<Expression> parameterExpressions;
 		mutable Array<var> parameterResults;

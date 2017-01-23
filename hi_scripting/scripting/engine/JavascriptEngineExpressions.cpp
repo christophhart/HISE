@@ -231,67 +231,7 @@ struct HiseJavascriptEngine::RootObject::FunctionCall : public Expression
 {
 	FunctionCall(const CodeLocation& l) noexcept : Expression(l) {}
 
-	var getResult(const Scope& s) const override
-	{
-		if (!initialised)
-		{
-			initialised = true;
-
-			if (DotOperator* dot = dynamic_cast<DotOperator*> (object.get()))
-			{
-				parentIsConstReference = dynamic_cast<ConstReference*>(dot->parent.get()) != nullptr;
-
-				if (parentIsConstReference)
-				{
-					constObject = dynamic_cast<ConstScriptingObject*>(dot->parent->getResult(s).getObject());
-
-					if (constObject != nullptr)
-					{
-						constObject->getIndexAndNumArgsForFunction(dot->child, functionIndex, numArgs);
-						isConstObjectApiFunction = true;
-
-						CHECK_CONDITION_WITH_LOCATION(functionIndex != -1, "function not found");
-						CHECK_CONDITION_WITH_LOCATION(numArgs == arguments.size(), "argument amount mismatch: " + String(arguments.size()) + ", Expected: " + String(numArgs));
-					}
-				}
-			}
-		}
-
-		if (isConstObjectApiFunction)
-		{
-			var parameters[5];
-
-			for (int i = 0; i < arguments.size(); i++)
-				parameters[i] = arguments[i]->getResult(s);
-
-			return constObject->callFunction(functionIndex, parameters, numArgs);
-		}
-
-		if (DotOperator* dot = dynamic_cast<DotOperator*> (object.get()))
-		{
-			var thisObject(dot->parent->getResult(s));
-
-			if (ConstScriptingObject* c = dynamic_cast<ConstScriptingObject*>(thisObject.getObject()))
-			{
-				c->getIndexAndNumArgsForFunction(dot->child, functionIndex, numArgs);
-
-				CHECK_CONDITION_WITH_LOCATION(functionIndex != -1, "function not found");
-				CHECK_CONDITION_WITH_LOCATION(numArgs == arguments.size(), "argument amount mismatch: " + String(arguments.size()) + ", Expected: " + String(numArgs));
-
-				var parameters[5];
-
-				for (int i = 0; i < arguments.size(); i++)
-					parameters[i] = arguments[i]->getResult(s);
-
-				return c->callFunction(functionIndex, parameters, numArgs);
-			}
-
-			return invokeFunction(s, s.findFunctionCall(location, thisObject, dot->child), thisObject);
-		}
-
-		var function(object->getResult(s));
-		return invokeFunction(s, function, var(s.scope));
-	}
+	var getResult(const Scope& s) const override;
 
 	var invokeFunction(const Scope& s, const var& function, const var& thisObject) const;
 
