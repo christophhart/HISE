@@ -572,9 +572,7 @@ public:
 				voiceBuffer.setSample (0, startSample, sample);
 				voiceBuffer.setSample (1, startSample, sample);
 
-				jassert(voicePitchValues[startSample] > 0.0f);
-
-				const double delta = (uptimeDelta * voicePitchValues[startSample]);
+                const double delta = (voicePitchValues != nullptr) ? (uptimeDelta * voicePitchValues[startSample]) : uptimeDelta;
 
 				voiceUptime += delta;
 
