@@ -60,6 +60,7 @@ inline function createVolumeSlider(name, x, y)
       "text": "Volume",
       "min": -100,
       "max": 0,
+      "middlePosition": -12,
       "mode": "Decibel",
       "stepSize": 0.10000000000000000555,
       "suffix": " dB"

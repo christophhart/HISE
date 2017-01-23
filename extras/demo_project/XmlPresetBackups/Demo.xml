@@ -2,7 +2,7 @@
 
 <Processor Type="SynthChain" ID="Demo" Bypassed="0" Gain="1" Balance="0"
            VoiceLimit="128" KillFadeTime="20" IconColour="0" packageName=""
-           views="32.rk1bzA.....a.DF.0AfY.zF.kAfa.vO............" currentView="-1"
+           views="32.rk1bzA....cAObb+4e..vH..yw8m+A..PTQve+4eB.." currentView="-1"
            BuildVersion="647">
   <ChildProcessors>
     <Processor Type="MidiProcessorChain" ID="Midi Processor" Bypassed="0">
@@ -10,7 +10,7 @@
         <Processor Type="ScriptProcessor" ID="MainInterface" Bypassed="0">
           <ChildProcessors/>
           <Content>
-            <Control type="ScriptSlider" id="volumeSlider" value="-47.200000762939453125"/>
+            <Control type="ScriptSlider" id="volumeSlider" value="-12.1"/>
             <Control type="ScriptTable" id="velocityTable" value="0" data="24...............vO...f+....9C...vO"/>
           </Content>
         </Processor>
@@ -24,8 +24,8 @@
     </Processor>
     <Processor Type="EffectChain" ID="FX" Bypassed="0">
       <ChildProcessors>
-        <Processor Type="SimpleGain" ID="Simple Gain" Bypassed="0" Gain="-47.20000457763671875"
-                   Delay="0" Width="-2.4999973773956298828" Balance="0">
+        <Processor Type="SimpleGain" ID="Simple Gain" Bypassed="0" Gain="-12.1"
+                   Delay="0" Width="-2.4999974" Balance="0">
           <ChildProcessors>
             <Processor Type="ModulatorChain" ID="Gain Modulation" Bypassed="0" Intensity="1">
               <ChildProcessors/>
@@ -46,7 +46,7 @@
     </Processor>
     <Processor Type="StreamingSampler" ID="Sampler" Bypassed="0" Gain="1" Balance="0"
                VoiceLimit="128" KillFadeTime="20" IconColour="0" PreloadSize="8192"
-               BufferSize="4096" VoiceAmount="128" SamplerRepeatMode="-2147483648"
+               BufferSize="4096" VoiceAmount="128" SamplerRepeatMode="2.1474836e+09"
                RRGroupAmount="1" PitchTracking="1" OneShot="0" CrossfadeGroups="0"
                Purged="0" NumChannels="1" SampleMap="">
       <ChildProcessors>
@@ -92,7 +92,7 @@
                 HiKey="89" LoKey="50" LoVel="0" HiVel="127" RRGroup="1" Volume="0"
                 Pan="0" Normalized="0" Pitch="0" SampleStart="0" SampleEnd="44100"
                 SampleStartMod="0" LoopStart="0" LoopEnd="44100" LoopXFade="0"
-                LoopEnabled="0" LowerVelocityXFade="0" UpperVelocityXFade="0"
+                LoopEnabled="1" LowerVelocityXFade="0" UpperVelocityXFade="0"
                 SampleState="0" NormalizedPeak="-1" Duplicate="0"/>
       </samplemap>
     </Processor>
