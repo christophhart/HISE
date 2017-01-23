@@ -144,6 +144,23 @@ private:
 
 		static char getCharacterAtCaret(CodeDocument::Position pos, bool beforeCaret = false);
 		
+		static void findAdvancedTokenRange(const CodeDocument::Position& pos, CodeDocument::Position& start, CodeDocument::Position& end)
+		{
+			end = pos;
+			while (isAdvancedTokenCharacter(end.getCharacter()))
+				end.moveBy(1);
+
+			start = end;
+			while (start.getIndexInLine() > 0
+				&& isAdvancedTokenCharacter(start.movedBy(-1).getCharacter()))
+				start.moveBy(-1);
+		}
+
+		static bool isAdvancedTokenCharacter(juce_wchar c)
+		{
+			return CharacterFunctions::isLetterOrDigit(c) || c == '.' || c == '_' || c == '(' || c == ')' || c == '[' || c == ']';
+		}
+
 		static Range<int> getFunctionParameterTextRange(CodeDocument::Position pos);
 	};
 

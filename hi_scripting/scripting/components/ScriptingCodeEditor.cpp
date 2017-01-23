@@ -669,7 +669,7 @@ Range<int> JavascriptCodeEditor::getCurrentTokenRange() const
 {
 	CodeDocument::Position tokenStart = getCaretPos();
 	CodeDocument::Position tokenEnd(tokenStart);
-	getDocument().findTokenContaining(tokenStart, tokenStart, tokenEnd);
+	Helpers::findAdvancedTokenRange(tokenStart, tokenStart, tokenEnd);
 
 	return Range<int>(tokenStart.getPosition(), tokenEnd.getPosition());
 }

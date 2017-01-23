@@ -400,6 +400,16 @@ var HiseJavascriptEngine::getScriptObject(const Identifier &id) const
 {
 	String idAsString = id.toString();
 
+	if (idAsString.contains("(") || idAsString.contains("["))
+	{
+		Result r = Result::ok();
+
+		var ev = const_cast<HiseJavascriptEngine*>(this)->evaluate(idAsString, &r);
+
+		if (!r.failed() && !ev.isVoid())
+			return ev;
+	}
+
 	if (idAsString.containsChar('.'))
 	{
 		StringArray sa = StringArray::fromTokens(idAsString, ".", "");
