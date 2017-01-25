@@ -369,6 +369,17 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 	{
 		Identifier id = Identifier::isValidIdentifier(currentValue.toString()) ? Identifier(currentValue.toString()) : Identifier::null;
 
+		bool skipConsoleCalls = false;
+
+#if !ENABLE_SCRIPTING_SAFE_CHECKS
+		static const Identifier c("Console");
+		
+		if (id == c)
+		{
+			skipConsoleCalls = true;
+		}
+#endif
+
 		ExpPtr lhs(parseLogicOperator());
 
 		if (matchIf(TokenTypes::in))
@@ -386,6 +397,11 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 		if (matchIf(TokenTypes::minusEquals))       return parseInPlaceOpExpression<SubtractionOp>(lhs);
 		if (matchIf(TokenTypes::leftShiftEquals))   return parseInPlaceOpExpression<LeftShiftOp>(lhs);
 		if (matchIf(TokenTypes::rightShiftEquals))  return parseInPlaceOpExpression<RightShiftOp>(lhs);
+
+		if (skipConsoleCalls)
+		{
+			return new Expression(location);
+		}
 
 		return lhs.release();
 	}
