@@ -259,7 +259,7 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 
 		if (localId.isValid())
 		{
-			if (auto obj = hiseSpecialData->getCallback(localId))
+			if (hiseSpecialData->getCallback(localId) != nullptr)
 			{
 				currentlyParsedCallback = localId;
 			}
@@ -292,7 +292,10 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 
 			for (int i = 0; i < breakpoints.size(); i++)
 			{
-				if (!fileId.isNull() && breakpoints[i].snippetId != fileId)
+				const bool isOtherFile = !fileId.isNull() && breakpoints[i].snippetId != fileId;
+				const bool isFileButOnInit = fileId.isNull() && breakpoints[i].snippetId.toString().startsWith("File");
+
+				if (isOtherFile || isFileButOnInit)
 					continue;
 
 				if (breakpoints[i].found)
