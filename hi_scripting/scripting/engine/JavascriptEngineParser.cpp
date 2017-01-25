@@ -253,6 +253,25 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 		hiseSpecialData = &data;
 		currentNamespace = hiseSpecialData;
 		
+#if ENABLE_SCRIPTING_BREAKPOINTS
+
+		Identifier localId = hiseSpecialData->getBreakpointLocalIdentifier();
+
+		if (localId.isValid())
+		{
+			if (auto obj = hiseSpecialData->getCallback(localId))
+			{
+				currentlyParsedCallback = localId;
+			}
+			else if (auto obj = hiseSpecialData->getInlineFunction(localId))
+			{
+				currentInlineFunction = obj;
+				currentlyParsingInlineFunction = true;
+			}
+
+		}
+#endif
+
 		if(codeToPreprocess.isNotEmpty())
 			preprocessCode(codeToPreprocess);
 	}
@@ -281,10 +300,29 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 
 				if (r.contains(breakpoints[i].charNumber))
 				{
-					s->breakpointIndex = breakpoints[i].index;
+					if (currentInlineFunction != nullptr)
+					{
+						if (getCurrentNamespace() != hiseSpecialData)
+						{
+							const String combination = currentNamespace->id.toString() + "." + dynamic_cast<InlineFunction::Object*>(currentInlineFunction)->name.toString();
+
+							s->breakpointReference.localScopeId = Identifier(combination);
+
+						}
+						else
+						{
+							s->breakpointReference.localScopeId = dynamic_cast<InlineFunction::Object*>(currentInlineFunction)->name;
+						}
+					}
+						
+					else if (currentlyParsedCallback.isValid())
+					{
+						s->breakpointReference.localScopeId = currentlyParsedCallback;
+					}
+					
+					s->breakpointReference.index = breakpoints[i].index;
 					breakpoints.getReference(i).found = true;
 					break;
-
 				}
 			}
 #else
@@ -2137,6 +2175,8 @@ var HiseJavascriptEngine::RootObject::evaluate(const String& code)
 
 	tb.setupApiData(hiseSpecialData, code);
 
+	
+
 	return ExpPtr(tb.parseExpression())->getResult(Scope(nullptr, this, this));
 }
 
@@ -2146,6 +2186,7 @@ void HiseJavascriptEngine::RootObject::execute(const String& code, bool allowCon
 
 #if ENABLE_SCRIPTING_BREAKPOINTS
 	tb.breakpoints.swapWith(breakpoints);
+	hiseSpecialData.setBreakpointLocalIdentifier(Identifier());
 #endif
 
 	tb.setupApiData(hiseSpecialData, allowConstDeclarations ? code : String());

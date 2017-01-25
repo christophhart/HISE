@@ -289,6 +289,18 @@ var HiseJavascriptEngine::callExternalFunction(var function, const var::NativeFu
 
 		if (errorMessage != nullptr) *errorMessage = Result::fail(error);
 	}
+	catch (Breakpoint bp)
+	{
+
+#if ENABLE_SCRIPTING_BREAKPOINTS
+		root->hiseSpecialData.setBreakpointLocalIdentifier(bp.snippetId);
+		sendBreakpointMessage(bp.index);
+		if (errorMessage != nullptr) *errorMessage = Result::fail("Breakpoint Nr. " + String(bp.index + 1) + " was hit");
+#else
+		// This should not happen
+		jassertfalse;
+#endif
+	}
 
 	return returnVal;
 }
@@ -501,6 +513,43 @@ DebugInformation* HiseJavascriptEngine::RootObject::JavascriptNamespace::createD
 }
 
 
+DynamicObject* HiseJavascriptEngine::RootObject::HiseSpecialData::getInlineFunction(const Identifier &id)
+{
+	const String idAsString = id.toString();
+
+	if (idAsString.contains("."))
+	{
+		Identifier ns(idAsString.upToFirstOccurrenceOf(".", false, false));
+		Identifier fn(idAsString.fromFirstOccurrenceOf(".", false, false));
+
+		JavascriptNamespace* n = getNamespace(Identifier(ns));
+
+		if (n != nullptr)
+		{
+			for (int i = 0; i < n->inlineFunctions.size(); i++)
+			{
+				if (dynamic_cast<InlineFunction::Object*>(n->inlineFunctions[i].get())->name == fn)
+				{
+					return n->inlineFunctions[i].get();
+				}
+			}
+		}
+	}
+	else
+	{
+		for (int i = 0; i < inlineFunctions.size(); i++)
+		{
+			if (dynamic_cast<InlineFunction::Object*>(inlineFunctions[i].get())->name == id)
+			{
+				return inlineFunctions[i].get();
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+
 void HiseJavascriptEngine::RootObject::HiseSpecialData::throwExistingDefinition(const Identifier &name, VariableStorageType type, CodeLocation &l)
 {
 	String typeName;
@@ -591,6 +640,10 @@ var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 {
 	RootObject::Callback *c = root->hiseSpecialData.callbackNEW[callbackIndex];
 
+#if ENABLE_SCRIPTING_BREAKPOINTS
+	root->hiseSpecialData.setBreakpointLocalIdentifier(Identifier());
+#endif
+
 	// You need to register the callback correctly...
 	jassert(c != nullptr);
 
@@ -600,20 +653,24 @@ var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 		{
 			prepareTimeout();
 
-			return c->perform(root);
+			var returnVal = c->perform(root);
+
+			c->cleanLocalProperties();
+
+			return returnVal;
 		}
 		catch (String &error)
 		{
-			c->cleanLocalProperties();
-
 			if (result != nullptr) *result = Result::fail(error);
 		}
 		catch (Breakpoint bp)
 		{
 #if ENABLE_SCRIPTING_BREAKPOINTS
-			c->cleanLocalProperties();
+			root->hiseSpecialData.setBreakpointLocalIdentifier(bp.snippetId);
 			sendBreakpointMessage(bp.index);
 			*result = Result::fail("Breakpoint Nr. " + String((int)bp.index + 1) + " was hit");
+
+			return var::undefined();
 #else
 			// This should not happen...
 			jassertfalse;

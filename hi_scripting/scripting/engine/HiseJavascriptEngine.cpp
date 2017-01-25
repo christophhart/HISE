@@ -239,7 +239,7 @@ struct HiseJavascriptEngine::RootObject::Statement
 
 	CodeLocation location;
 
-	int breakpointIndex = -1;
+	Breakpoint::Reference breakpointReference;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Statement)
 };
@@ -303,6 +303,8 @@ Result HiseJavascriptEngine::execute(const String& javascriptCode, bool allowCon
 	catch (Breakpoint bp)
 	{
 #if ENABLE_SCRIPTING_BREAKPOINTS
+		
+		root->hiseSpecialData.setBreakpointLocalIdentifier(bp.snippetId);
 		sendBreakpointMessage(bp.index);
 		return Result::fail("Breakpoint Nr. " + String(bp.index + 1) + " was hit");
 #else

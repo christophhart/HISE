@@ -31,10 +31,9 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 #endif
 
 #if ENABLE_SCRIPTING_BREAKPOINTS
-			if (statements.getUnchecked(i)->breakpointIndex != -1)
+			if (statements.getUnchecked(i)->breakpointReference.index != -1)
 			{
-				Breakpoint bp = Breakpoint(Identifier(), -1, -1, statements.getUnchecked(i)->breakpointIndex);
-
+				Breakpoint bp = Breakpoint(statements.getUnchecked(i)->breakpointReference.localScopeId, -1, -1, statements.getUnchecked(i)->breakpointReference.index);
 				throw bp;
 			}
 #endif

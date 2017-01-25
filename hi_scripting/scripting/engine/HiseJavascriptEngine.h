@@ -103,6 +103,12 @@ public:
 	{
 	public:
 
+		struct Reference
+		{
+			Identifier localScopeId;
+			int index = -1;
+		};
+
 		class Listener
 		{
 		public:
@@ -522,6 +528,8 @@ public:
 					   constObjects.size();
 			}
 
+			
+
 			DebugInformation* createDebugInformation(int index) const;
 
 			const Identifier id;
@@ -558,6 +566,8 @@ public:
 			JavascriptNamespace* getNamespace(const Identifier &id);
 
 			const JavascriptNamespace* getNamespace(const Identifier &id) const;
+
+			DynamicObject* getInlineFunction(const Identifier &id);
 
 			void setProcessor(JavascriptProcessor *p) noexcept { processor = p; }
 
@@ -630,7 +640,19 @@ public:
 				return debugLock;
 			}
 
+			void setBreakpointLocalIdentifier(Identifier id)
+			{
+				breakpointLocalId = id;
+			}
+
+			Identifier getBreakpointLocalIdentifier() const
+			{
+				return breakpointLocalId;
+			}
+
 		private:
+
+			Identifier breakpointLocalId;
 
 			VariableStorageType getExistingVariableStorage(const Identifier &name);
 			void throwExistingDefinition(const Identifier &name, VariableStorageType type, CodeLocation &l);
