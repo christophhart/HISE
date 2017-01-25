@@ -74,9 +74,55 @@ private:
 
 };
 
+class DebugConsoleTextEditor : public TextEditor
+{
+public:
+
+	DebugConsoleTextEditor(const String& name) :
+		TextEditor(name) {};
+
+	bool keyPressed(const KeyPress& k) override
+	{
+		if (k == KeyPress::upKey)
+		{
+			currentHistoryIndex = jmax<int>(0, currentHistoryIndex - 1);
+
+			setText(history[currentHistoryIndex], dontSendNotification);
+
+			return true;
+		}
+		else if (k == KeyPress::downKey)
+		{
+			currentHistoryIndex = jmin<int>(history.size() - 1, currentHistoryIndex + 1);
+			setText(history[currentHistoryIndex], dontSendNotification);
+		}
+
+		return TextEditor::keyPressed(k);
+	}
+
+	void addToHistory(const String& s)
+	{
+		if (!history.contains(s))
+		{
+			history.add(s);
+			currentHistoryIndex = history.size() - 1;
+		}
+		else
+		{
+			history.move(history.indexOf(s), history.size() - 1);
+		}
+	}
+
+private:
+
+	StringArray history;
+	int currentHistoryIndex;
+};
+
 class ScriptingEditor  : public ProcessorEditorBody,
                          public ScriptComponentEditListener,
-                         public ButtonListener
+                         public ButtonListener,
+						 public TextEditor::Listener
 {
 public:
     //==============================================================================
@@ -108,6 +154,28 @@ public:
 	String isValidWidgetName(const String &id);
 
 	void scriptComponentChanged(ReferenceCountedObject *scriptComponent, Identifier /*propertyThatWasChanged*/) override;
+
+	void textEditorReturnKeyPressed(TextEditor& t)
+	{
+		String codeToEvaluate = t.getText();
+
+		dynamic_cast<DebugConsoleTextEditor*>(&t)->addToHistory(codeToEvaluate);
+
+		if (codeToEvaluate.startsWith("> "))
+		{
+			codeToEvaluate = codeToEvaluate.substring(2);
+		}
+
+		HiseJavascriptEngine* engine = dynamic_cast<JavascriptProcessor*>(getProcessor())->getScriptEngine();
+
+		if (engine != nullptr)
+		{
+			var returnValue = engine->evaluate(codeToEvaluate);
+
+			debugToConsole(getProcessor(), "> " + returnValue.toString());
+		}
+	}
+
 
 	void updateGui() override
 	{
@@ -668,7 +736,7 @@ private:
     //==============================================================================
     ScopedPointer<CodeEditorWrapper> codeEditor;
     ScopedPointer<TextButton> compileButton;
-    ScopedPointer<TextEditor> messageBox;
+    ScopedPointer<DebugConsoleTextEditor> messageBox;
     ScopedPointer<Label> timeLabel;
 
 	ScopedPointer<TextButton> contentButton;

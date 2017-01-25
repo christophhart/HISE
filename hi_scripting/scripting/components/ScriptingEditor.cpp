@@ -43,7 +43,9 @@ ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
 {
 	JavascriptProcessor *sp = dynamic_cast<JavascriptProcessor*>(getProcessor());
 
-    addAndMakeVisible (codeEditor = new CodeEditorWrapper (*doc, tokenizer, sp));
+	static const Identifier empty("empty");
+
+    addAndMakeVisible (codeEditor = new CodeEditorWrapper (*doc, tokenizer, sp, empty));
     codeEditor->setName ("new component");
 
     addAndMakeVisible (compileButton = new TextButton ("new button"));
@@ -52,19 +54,20 @@ ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
     compileButton->addListener (this);
     compileButton->setColour (TextButton::buttonColourId, Colour (0xa2616161));
 
-    addAndMakeVisible (messageBox = new TextEditor ("new text editor"));
+    addAndMakeVisible (messageBox = new DebugConsoleTextEditor("new text editor"));
     messageBox->setMultiLine (false);
     messageBox->setReturnKeyStartsNewLine (false);
-    messageBox->setReadOnly (true);
     messageBox->setScrollbarsShown (false);
-    messageBox->setCaretVisible (false);
     messageBox->setPopupMenuEnabled (false);
     messageBox->setColour (TextEditor::textColourId, Colours::white);
+	messageBox->setColour(CaretComponent::ColourIds::caretColourId, Colours::white);
     messageBox->setColour (TextEditor::backgroundColourId, Colour (0x00ffffff));
     messageBox->setColour (TextEditor::highlightColourId, Colour (0x40ffffff));
     messageBox->setColour (TextEditor::shadowColourId, Colour (0x00000000));
+	messageBox->setColour(TextEditor::ColourIds::focusedOutlineColourId, Colours::white.withAlpha(0.1f));
     messageBox->setText (String());
 	messageBox->addMouseListener(this, true);
+	messageBox->addListener(this);
 
     addAndMakeVisible (timeLabel = new Label ("new label",
                                               TRANS("2.5 microseconds")));
@@ -390,7 +393,7 @@ void ScriptingEditor::buttonClicked (Button* buttonThatWasClicked)
 	{
 		saveLastCallback();
 
-		addAndMakeVisible(codeEditor = new CodeEditorWrapper(*s->getSnippet(callbackIndex), tokenizer, dynamic_cast<JavascriptProcessor*>(getProcessor())));
+		addAndMakeVisible(codeEditor = new CodeEditorWrapper(*s->getSnippet(callbackIndex), tokenizer, dynamic_cast<JavascriptProcessor*>(getProcessor()), s->getSnippet(callbackIndex)->getCallbackName()));
 		goToSavedPosition(callbackIndex);
 
 	}
@@ -1133,6 +1136,11 @@ private:
 
 void ScriptingEditor::mouseDown(const MouseEvent &e)
 {
+	if (e.eventComponent == messageBox)
+	{
+		messageBox->setText("> ", dontSendNotification);
+	}
+
 	if (e.mods.isLeftButtonDown() && useComponentSelectMode)
 	{
 		ScriptingApi::Content::ScriptComponent *sc = scriptContent->getScriptComponentFor(e.getEventRelativeTo(scriptContent).getPosition());
