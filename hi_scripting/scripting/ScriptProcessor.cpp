@@ -159,22 +159,12 @@ ScriptingApi::Content::ScriptComponent * ProcessorWithScriptingContent::checkCon
 
 FileChangeListener::~FileChangeListener()
 {
+	
+
 	watchers.clear();
 	masterReference.clear();
 
-	if (currentPopups.size() != 0)
-	{
-		for (int i = 0; i < currentPopups.size(); i++)
-		{
-			if (currentPopups[i].getComponent() != nullptr)
-			{
-				currentPopups[i]->closeButtonPressed();
-			}
-
-		}
-
-		currentPopups.clear();
-	}
+	
 }
 
 void FileChangeListener::addFileWatcher(const File &file)
@@ -347,7 +337,8 @@ lastResult(Result::ok())
 
 JavascriptProcessor::~JavascriptProcessor()
 {
-	
+	deleteAllPopups();
+
 	scriptEngine = nullptr;
 }
 
