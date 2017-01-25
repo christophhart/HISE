@@ -479,6 +479,11 @@ struct HiseJavascriptEngine::RootObject::CallbackLocalReference : public Express
 		return *data;
 	}
 
+	void assign(const Scope& /*s*/, const var& newValue) const
+	{ 
+		*data = newValue;
+	}
+
 	var* data;
 };
 
