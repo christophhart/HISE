@@ -34,11 +34,16 @@
 
 
 
-JavascriptCodeEditor::JavascriptCodeEditor(CodeDocument &document, CodeTokeniser *codeTokeniser, JavascriptProcessor *p) :
+JavascriptCodeEditor::JavascriptCodeEditor(CodeDocument &document, CodeTokeniser *codeTokeniser, JavascriptProcessor *p, const Identifier& snippetId_) :
 CodeEditorComponent(document, codeTokeniser),
 scriptProcessor(p),
-processor(dynamic_cast<Processor*>(p))
+processor(dynamic_cast<Processor*>(p)),
+snippetId(snippetId_)
 {
+
+	p->addEditor(this);
+
+	getGutterComponent()->addMouseListener(this, true);
 
 	setColour(CodeEditorComponent::backgroundColourId, Colour(0xff262626));
 	setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colour(0xFFCCCCCC));
@@ -57,7 +62,7 @@ JavascriptCodeEditor::~JavascriptCodeEditor()
 {
 	currentPopup = nullptr;
 
-	
+	scriptProcessor->removeEditor(this);
 
 	processor->getMainController()->getFontSizeChangeBroadcaster().removeChangeListener(this);
 
@@ -746,12 +751,12 @@ void JavascriptCodeEditor::paintOverChildren(Graphics& g)
 {
 	CopyPasteTarget::paintOutlineIfSelected(g);
 
+	const int firstLine = getFirstLineOnScreen();
+	const int numLinesShown = getNumLinesOnScreen();
+	Range<int> lineRange(firstLine, firstLine + numLinesShown);
+
 	if (highlightedSelection.size() != 0)
 	{
-		const int firstLine = getFirstLineOnScreen();
-		const int numLinesShown = getNumLinesOnScreen();
-		Range<int> lineRange(firstLine, firstLine + numLinesShown);
-
 		for (int i = 0; i < highlightedSelection.size(); i++)
 		{
 			CodeDocument::Position pos(getDocument(), highlightedSelection[i].getStart());
@@ -773,6 +778,37 @@ void JavascriptCodeEditor::paintOverChildren(Graphics& g)
 			}
 		}
 	}
+
+#if ENABLE_SCRIPTING_BREAKPOINTS
+	if (scriptProcessor->anyBreakpointsActive())
+	{
+
+		int startLine = getFirstLineOnScreen();
+
+		int endLine = startLine + getNumLinesOnScreen();
+
+		for (int i = startLine; i < endLine; i++)
+		{
+			HiseJavascriptEngine::Breakpoint bp = scriptProcessor->getBreakpointForLine(snippetId, i);
+
+			if(bp.lineNumber != -1)
+			{
+				const float x = 5.0f;
+				const float y = (float)((bp.lineNumber - getFirstLineOnScreen()) * getLineHeight() + 1);
+
+				const float w = (float)(getLineHeight() - 2);
+				const float h = w;
+
+				g.setColour(Colours::darkred.withAlpha(bp.hit ? 1.0f : 0.3f));
+				g.fillEllipse(x, y, w, h);
+				g.setColour(Colours::white.withAlpha(bp.hit ? 1.0f : 0.5f));
+				g.drawEllipse(x, y, w, h, 1.0f);
+				g.setFont(GLOBAL_MONOSPACE_FONT().withHeight((float)(getLineHeight() - 3)));
+				g.drawText(String(bp.index+1), (int)x, (int)y, (int)w, (int)h, Justification::centred);
+			}
+		}
+	}
+#endif
 }
 
 
@@ -871,6 +907,7 @@ void JavascriptCodeEditor::increaseMultiSelectionForCurrentToken()
 
 	repaint();
 }
+
 
 bool JavascriptCodeEditor::keyPressed(const KeyPress& k)
 {
@@ -1147,9 +1184,51 @@ void JavascriptCodeEditor::insertTextAtCaret(const String& newText)
 }
 
 
-CodeEditorWrapper::CodeEditorWrapper(CodeDocument &document, CodeTokeniser *codeTokeniser, JavascriptProcessor *p)
+void JavascriptCodeEditor::mouseDown(const MouseEvent& e)
 {
-	addAndMakeVisible(editor = new JavascriptCodeEditor(document, codeTokeniser, p));
+	CodeEditorComponent::mouseDown(e);
+
+#if ENABLE_SCRIPTING_BREAKPOINTS
+	if (e.x < 35)
+	{
+		if (e.mods.isShiftDown())
+		{
+			scriptProcessor->removeAllBreakpoints();
+		}
+		else
+		{
+			int lineNumber = e.y / getLineHeight() + getFirstLineOnScreen();
+			CodeDocument::Position start(getDocument(), lineNumber, 0);
+
+			int charNumber = start.getPosition();
+
+			const String content = getDocument().getAllContent().substring(charNumber);
+
+			HiseJavascriptEngine::RootObject::TokenIterator it(content, "");
+
+			try
+			{
+				it.skipWhitespaceAndComments();
+			}
+			catch (String &)
+			{
+
+			}
+
+			const int offsetToFirstToken = (int)(it.location.location - content.getCharPointer());
+
+			CodeDocument::Position tokenStart(getDocument(), charNumber + offsetToFirstToken);
+
+			scriptProcessor->toggleBreakpoint(snippetId, tokenStart.getLineNumber(), tokenStart.getPosition());
+			repaint();
+		}
+	}
+#endif
+}
+
+CodeEditorWrapper::CodeEditorWrapper(CodeDocument &document, CodeTokeniser *codeTokeniser, JavascriptProcessor *p, const Identifier& snippetId)
+{
+	addAndMakeVisible(editor = new JavascriptCodeEditor(document, codeTokeniser, p, snippetId));
 
 	restrainer.setMinimumHeight(50);
 	restrainer.setMaximumHeight(600);

@@ -64,6 +64,7 @@ public:
 		LoadScriptFile,
 		SaveScriptClipboard,
 		LoadScriptClipboard,
+		JumpToDefinition,
 		SearchReplace,
 		AddCodeBookmark,
 		CreateUiFactoryMethod,
@@ -79,7 +80,7 @@ public:
 
 	// ================================================================================================================
 
-	JavascriptCodeEditor(CodeDocument &document, CodeTokeniser *codeTokeniser, JavascriptProcessor *p);;
+	JavascriptCodeEditor(CodeDocument &document, CodeTokeniser *codeTokeniser, JavascriptProcessor *p, const Identifier& snippetId_);
 	virtual ~JavascriptCodeEditor();
 
 	// ================================================================================================================
@@ -121,7 +122,11 @@ public:
 	void handleEscapeKey() override;
 	void insertTextAtCaret(const String& newText) override;
 
+	void mouseDown(const MouseEvent& e) override;
+
 	// ================================================================================================================
+
+	
 
 private:
 
@@ -173,6 +178,7 @@ private:
 
 	PopupMenu m;
 	
+	const Identifier snippetId;
 
 	PopupLookAndFeel plaf;
 
@@ -211,7 +217,7 @@ public:
 
 	// ================================================================================================================
 
-	CodeEditorWrapper(CodeDocument &document, CodeTokeniser *codeTokeniser, JavascriptProcessor *p);
+	CodeEditorWrapper(CodeDocument &document, CodeTokeniser *codeTokeniser, JavascriptProcessor *p, const Identifier& snippetId);
 	virtual ~CodeEditorWrapper();
 
 	ScopedPointer<JavascriptCodeEditor> editor;

@@ -263,6 +263,8 @@ public:
         lineNumberTextId            = 0x1004505,  /**< The colour to use for drawing the line numbers. */
     };
 
+	Component* getGutterComponent();
+
     //==============================================================================
     /** Changes the size of the scrollbars. */
     void setScrollbarThickness (int thickness);

@@ -599,15 +599,25 @@ var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 		try
 		{
 			prepareTimeout();
+
 			return c->perform(root);
 		}
 		catch (String &error)
 		{
 			c->cleanLocalProperties();
 
-			
-
 			if (result != nullptr) *result = Result::fail(error);
+		}
+		catch (Breakpoint bp)
+		{
+#if ENABLE_SCRIPTING_BREAKPOINTS
+			c->cleanLocalProperties();
+			sendBreakpointMessage(bp.index);
+			*result = Result::fail("Breakpoint Nr. " + String((int)bp.index + 1) + " was hit");
+#else
+			// This should not happen...
+			jassertfalse;
+#endif
 		}
 	}
 

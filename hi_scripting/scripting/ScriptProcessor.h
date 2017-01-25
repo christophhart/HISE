@@ -293,7 +293,8 @@ private:
 *	@ingroup processor_interfaces
 *	
 */
-class JavascriptProcessor :	public FileChangeListener
+class JavascriptProcessor :	public FileChangeListener,
+							public HiseJavascriptEngine::Breakpoint::Listener
 {
 public:
 
@@ -303,6 +304,8 @@ public:
 	class SnippetDocument : public CodeDocument
 	{
 	public:
+
+		
 
 		/** Create a snippet document. 
 		*
@@ -357,7 +360,25 @@ public:
 	JavascriptProcessor(MainController *mc);
 	virtual ~JavascriptProcessor();
 
-	
+	void breakpointWasHit(int index) override
+	{
+		for (int i = 0; i < breakpoints.size(); i++)
+		{
+			breakpoints.getReference(i).hit = (i == index);
+		}
+
+		repaintUpdater.triggerAsyncUpdate();
+	}
+
+	void addEditor(Component* editor)
+	{
+		repaintUpdater.editors.add(editor);
+	}
+
+	void removeEditor(Component* editor)
+	{
+		repaintUpdater.editors.removeAllInstancesOf(editor);
+	}
 
 	virtual void fileChanged() override;
 
@@ -395,9 +416,58 @@ public:
 
 	void setCompileScriptAsWhole(bool shouldCompileWholeScript) { compileScriptAsWhole = shouldCompileWholeScript; }
 
+	void toggleBreakpoint(const Identifier& snippetId, int lineNumber, int charNumber)
+	{
+		HiseJavascriptEngine::Breakpoint bp(snippetId, lineNumber, charNumber, breakpoints.size());
+
+		int index = breakpoints.indexOf(bp);
+
+		if (index != -1)
+		{
+			breakpoints.remove(index);
+		}
+		else
+		{
+			breakpoints.add(bp);
+		}
+
+		compileScript();
+	}
+
+	HiseJavascriptEngine::Breakpoint getBreakpointForLine(const Identifier &id, int lineIndex)
+	{
+		for (int i = 0; i < breakpoints.size(); i++)
+		{
+			if (breakpoints[i].snippetId == id && breakpoints[i].lineNumber == lineIndex)
+				return breakpoints[i];
+		}
+
+		return HiseJavascriptEngine::Breakpoint();
+	}
+
+	void getBreakPointsForDisplayedRange(const Identifier& snippetId, Range<int> displayedLineNumbers, Array<int> &lineNumbers)
+	{
+		for (int i = 0; i < breakpoints.size(); i++)
+		{
+			if (breakpoints[i].snippetId != snippetId) continue;
+
+			if (displayedLineNumbers.contains(breakpoints[i].lineNumber))
+			{
+				lineNumbers.add(breakpoints[i].lineNumber);
+			}
+		}
+	}
+
+	bool anyBreakpointsActive() const { return breakpoints.size() != 0; }
+
+	void removeAllBreakpoints()
+	{
+		breakpoints.clear();
+
+		compileScript();
+	}
+
 protected:
-
-
 
 	void clearExternalWindows();
 
@@ -455,7 +525,28 @@ private:
 
 	};
 
+	struct RepaintUpdater : public AsyncUpdater
+	{
+		void handleAsyncUpdate()
+		{
+			for (int i = 0; i < editors.size(); i++)
+			{
+				editors[i]->repaint();
+			}
+		}
+
+		Array<Component::SafePointer<Component>> editors;
+	};
+
+	RepaintUpdater repaintUpdater;
+
+	Array<HiseJavascriptEngine::Breakpoint> breakpoints;
+
 	Array<Component::SafePointer<DocumentWindow>> callbackPopups;
+
+	
+
+	
 };
 
 

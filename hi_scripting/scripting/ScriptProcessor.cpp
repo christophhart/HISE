@@ -432,7 +432,22 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 			if (!getSnippet(i)->isSnippetEmpty())
 			{
-				lastResult = scriptEngine->execute(getSnippet(i)->getSnippetAsFunction(), getSnippet(i)->getCallbackName() == onInit);
+				const Identifier callbackId = getSnippet(i)->getCallbackName();
+
+#if ENABLE_SCRIPTING_BREAKPOINTS
+				Array<HiseJavascriptEngine::Breakpoint> breakpointsForCallback;
+
+				for (int k = 0; k < breakpoints.size(); k++)
+				{
+					if (breakpoints[k].snippetId == callbackId || breakpoints[k].snippetId.toString().startsWith("File_"))
+						breakpointsForCallback.add(breakpoints[k]);
+				}
+
+				if (!breakpointsForCallback.isEmpty())
+					scriptEngine->setBreakpoints(breakpointsForCallback);
+#endif
+
+				lastResult = scriptEngine->execute(getSnippet(i)->getSnippetAsFunction(), callbackId == onInit);
 
 				if (!lastResult.wasOk())
 				{
@@ -536,6 +551,9 @@ void JavascriptProcessor::setupApi()
 	clearFileWatchers();
 
 	scriptEngine = new HiseJavascriptEngine(this);
+
+	scriptEngine->addBreakpointListener(this);
+
 	scriptEngine->maximumExecutionTime = RelativeTime(mainController->getCompileTimeOut());
 
 	registerApiClasses();

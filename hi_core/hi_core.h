@@ -163,6 +163,14 @@ Set this to 0 to deactivate the safe checks for scripting
 #define ENABLE_SCRIPTING_SAFE_CHECKS 1
 #endif
 
+
+/** Config: ENABLE_SCRIPTING_BREAKPOINTS
+
+*/
+#ifndef ENABLE_SCRIPTING_BREAKPOINTS
+#define ENABLE_SCRIPTING_BREAKPOINTS 0
+#endif
+
 /** Config: ENABLE_ALL_PEAK_METERS
 
 Set this to 0 to deactivate peak collection for any other processor than the main synth chain

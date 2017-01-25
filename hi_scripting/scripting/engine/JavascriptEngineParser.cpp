@@ -60,6 +60,36 @@ struct HiseJavascriptEngine::RootObject::TokenIterator
 
 	String lastComment;
 
+	void skipWhitespaceAndComments()
+	{
+		for (;;)
+		{
+			p = p.findEndOfWhitespace();
+
+			if (*p == '/')
+			{
+				const juce_wchar c2 = p[1];
+
+				if (c2 == '/') { p = CharacterFunctions::find(p, (juce_wchar) '\n'); continue; }
+
+				if (c2 == '*')
+				{
+					location.location = p;
+
+					lastComment = String(p).upToFirstOccurrenceOf("*/", false, false).fromFirstOccurrenceOf("/**", false, false).trim();
+
+					p = CharacterFunctions::find(p + 2, CharPointer_ASCII("*/"));
+
+
+					if (p.isEmpty()) location.throwError("Unterminated '/*' comment");
+					p += 2; continue;
+				}
+			}
+
+			break;
+		}
+	}
+
 private:
 	String::CharPointerType p;
 
@@ -108,35 +138,7 @@ private:
 	}
 
 
-	void skipWhitespaceAndComments()
-	{
-		for (;;)
-		{
-			p = p.findEndOfWhitespace();
-
-			if (*p == '/')
-			{
-				const juce_wchar c2 = p[1];
-
-				if (c2 == '/')  { p = CharacterFunctions::find(p, (juce_wchar) '\n'); continue; }
-
-				if (c2 == '*')
-				{
-					location.location = p;
-
-					lastComment = String(p).upToFirstOccurrenceOf("*/", false, false).fromFirstOccurrenceOf("/**", false, false).trim();
-					
-					p = CharacterFunctions::find(p + 2, CharPointer_ASCII("*/"));
-
-					
-					if (p.isEmpty()) location.throwError("Unterminated '/*' comment");
-					p += 2; continue;
-				}
-			}
-
-			break;
-		}
-	}
+	
 
 	bool parseStringLiteral(juce_wchar quoteType)
 	{
@@ -236,7 +238,15 @@ private:
 struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIterator
 {
 	ExpressionTreeBuilder(const String code, const String externalFile) :
-		TokenIterator(code, externalFile){}
+		TokenIterator(code, externalFile)
+	{
+		if (externalFile.isNotEmpty())
+		{
+			fileId = Identifier("File_" + File(externalFile).getFileNameWithoutExtension());
+		}
+
+		
+	}
 
 	void setupApiData(HiseSpecialData &data, const String& codeToPreprocess)
 	{
@@ -255,7 +265,31 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 
 		while (currentType != TokenTypes::closeBrace && currentType != TokenTypes::eof)
 		{
+#if ENABLE_SCRIPTING_BREAKPOINTS
+			const int64 charactersBeforeToken = (location.location - location.program.getCharPointer());
 			ScopedPointer<Statement> s = parseStatement();
+			const int64 charactersAfterToken = (location.location - location.program.getCharPointer());
+			Range<int64> r(charactersBeforeToken, charactersAfterToken);
+
+			for (int i = 0; i < breakpoints.size(); i++)
+			{
+				if (!fileId.isNull() && breakpoints[i].snippetId != fileId)
+					continue;
+
+				if (breakpoints[i].found)
+					continue;
+
+				if (r.contains(breakpoints[i].charNumber))
+				{
+					s->breakpointIndex = breakpoints[i].index;
+					breakpoints.getReference(i).found = true;
+					break;
+
+				}
+			}
+#else
+			ScopedPointer<Statement> s = parseStatement();
+#endif
 
 			if (LockStatement* ls = dynamic_cast<LockStatement*>(s.get()))
 			{
@@ -318,16 +352,16 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 		return lhs.release();
 	}
 
-	
+	Array<Breakpoint> breakpoints;
 
 private:
-
-	
 
 	HiseSpecialData *hiseSpecialData;
 
 	bool currentlyParsingInlineFunction = false;
 	Identifier currentlyParsedCallback = Identifier::null;
+
+	Identifier fileId;
 
 	DynamicObject* currentInlineFunction = nullptr;
 
@@ -510,6 +544,10 @@ private:
 			try
 			{
 				ExpressionTreeBuilder ftb(fileContent, refFileName);
+
+#if ENABLE_SCRIPTING_BREAKPOINTS
+				ftb.breakpoints.addArray(breakpoints);
+#endif
 
 				ftb.hiseSpecialData = hiseSpecialData;
 				ftb.currentNamespace = hiseSpecialData;
@@ -2105,6 +2143,10 @@ var HiseJavascriptEngine::RootObject::evaluate(const String& code)
 void HiseJavascriptEngine::RootObject::execute(const String& code, bool allowConstDeclarations)
 {
 	ExpressionTreeBuilder tb(code, String());
+
+#if ENABLE_SCRIPTING_BREAKPOINTS
+	tb.breakpoints.swapWith(breakpoints);
+#endif
 
 	tb.setupApiData(hiseSpecialData, allowConstDeclarations ? code : String());
 

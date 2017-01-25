@@ -46,7 +46,7 @@ public:
     CodeDocument();
 
     /** Destructor. */
-    ~CodeDocument();
+    virtual ~CodeDocument();
 
     //==============================================================================
     /** A position in a code document.

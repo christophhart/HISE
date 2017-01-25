@@ -501,6 +501,11 @@ void CodeEditorComponent::paint (Graphics& g)
         lines.getUnchecked(i)->draw (*this, g, font, rightClip, x, lineHeight * i, lineHeight, charWidth);
 }
 
+Component* CodeEditorComponent::getGutterComponent()
+{
+	return gutter;
+}
+
 void CodeEditorComponent::setScrollbarThickness (const int thickness)
 {
     if (scrollbarThickness != thickness)

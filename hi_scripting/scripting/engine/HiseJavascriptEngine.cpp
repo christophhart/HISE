@@ -75,7 +75,16 @@ HiseJavascriptEngine::~HiseJavascriptEngine()
 {
 	root->hiseSpecialData.clear();
 	root = nullptr;
+	breakpointListeners.clear();
 }
+
+
+void HiseJavascriptEngine::setBreakpoints(Array<Breakpoint> &breakpoints)
+{
+	root->breakpoints.clear();
+	root->breakpoints.addArray(breakpoints);
+}
+
 
 void HiseJavascriptEngine::prepareTimeout() const noexcept{ root->timeout = Time::getCurrentTime() + maximumExecutionTime; }
 
@@ -225,10 +234,13 @@ struct HiseJavascriptEngine::RootObject::Statement
 	Statement(const CodeLocation& l) noexcept : location(l) {}
 	virtual ~Statement() {}
 
-	enum ResultCode  { ok = 0, returnWasHit, breakWasHit, continueWasHit };
+	enum ResultCode  { ok = 0, returnWasHit, breakWasHit, continueWasHit, breakpointWasHit };
 	virtual ResultCode perform(const Scope&, var*) const  { return ok; }
 
 	CodeLocation location;
+
+	int breakpointIndex = -1;
+
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Statement)
 };
 
@@ -278,6 +290,8 @@ Result HiseJavascriptEngine::execute(const String& javascriptCode, bool allowCon
 	{
 		prepareTimeout();
 		root->execute(javascriptCode, allowConstDeclarations);
+
+		
 	}
 	catch (String& error)
 	{
@@ -285,6 +299,16 @@ Result HiseJavascriptEngine::execute(const String& javascriptCode, bool allowCon
 		DBG(error);
 #endif
 		return Result::fail(error);
+	}
+	catch (Breakpoint bp)
+	{
+#if ENABLE_SCRIPTING_BREAKPOINTS
+		sendBreakpointMessage(bp.index);
+		return Result::fail("Breakpoint Nr. " + String(bp.index + 1) + " was hit");
+#else
+		// This should not happen
+		jassertfalse;
+#endif
 	}
 
 	return Result::ok();
@@ -304,6 +328,10 @@ var HiseJavascriptEngine::evaluate(const String& code, Result* result)
 		DBG(error);
 #endif
 		if (result != nullptr) *result = Result::fail(error);
+	}
+	catch (Breakpoint bp)
+	{
+		return "Breakpoint was hit";
 	}
 
 	return var::undefined();

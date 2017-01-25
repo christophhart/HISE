@@ -99,6 +99,69 @@ public:
 	/** Destructor. */
 	~HiseJavascriptEngine();
 
+	struct Breakpoint
+	{
+	public:
+
+		class Listener
+		{
+		public:
+			virtual void breakpointWasHit(int breakpointIndex) = 0;
+
+			~Listener()
+			{
+				masterReference.clear();
+			}
+
+		private:
+			
+			friend class WeakReference<Listener>;
+
+			WeakReference<Listener>::Master masterReference;
+		};
+
+		Breakpoint() : snippetId(Identifier()), lineNumber(-1), charNumber(-1), index(-1) {}
+		Breakpoint(const Identifier& snippetId_, int lineNumber_, int charNumber_, int index_) : snippetId(snippetId_), lineNumber(lineNumber_), charNumber(charNumber_), index(index_) {};
+
+		bool operator ==(const Breakpoint& other) const
+		{
+			return snippetId == other.snippetId && lineNumber == other.lineNumber;
+		}
+
+		const Identifier snippetId;
+		const int lineNumber;
+		const int charNumber;
+		const int index;
+
+		bool found = false;
+		bool hit = false;
+	};
+
+	
+
+	void setBreakpoints(Array<Breakpoint> &breakpoints);
+
+	void addBreakpointListener(Breakpoint::Listener* listener)
+	{
+		breakpointListeners.add(listener);
+	}
+
+	void removeBreakpointListener(Breakpoint::Listener* listener)
+	{
+		breakpointListeners.removeAllInstancesOf(listener);
+	}
+
+	void sendBreakpointMessage(int breakpointIndex)
+	{
+		for (int i = 0; i < breakpointListeners.size(); i++)
+		{
+			if (breakpointListeners[i].get() != nullptr)
+			{
+				breakpointListeners[i]->breakpointWasHit(breakpointIndex);
+			}
+		}
+	}
+
 	/** Attempts to parse and run a block of javascript code.
 	If there's a parse or execution error, the error description is returned in
 	the result.
@@ -243,6 +306,8 @@ public:
 		RootObject();
 
 		Time timeout;
+
+		Array<Breakpoint> breakpoints;
 
 		typedef const var::NativeFunctionArgs& Args;
 		typedef const char* TokenType;
@@ -447,7 +512,7 @@ public:
 
 			void doubleClickCallback(const MouseEvent &, Component* e)
 			{
-				DebugableObject::Helpers::gotoLocation(e, namespaceLocation);
+				DebugableObject::Helpers::gotoLocation(e, nullptr, namespaceLocation);
 			}
 
 			int getNumDebugObjects() const
@@ -586,6 +651,8 @@ private:
 	ReferenceCountedObjectPtr<RootObject> root;
 	void prepareTimeout() const noexcept;
 	
+	Array<WeakReference<Breakpoint::Listener>> breakpointListeners;
+
 	DynamicObject::Ptr unneededScope;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HiseJavascriptEngine)

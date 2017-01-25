@@ -43,8 +43,10 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor *s, const File &fileT
 
 	doc->replaceAllContent(file.loadFileAsString());
 
+	const Identifier snippetId = Identifier("File_" + fileToEdit.getFileNameWithoutExtension());
+
 	tokeniser = new JavascriptTokeniser();
-	addAndMakeVisible(editor = new JavascriptCodeEditor(*doc, tokeniser, s));
+	addAndMakeVisible(editor = new JavascriptCodeEditor(*doc, tokeniser, s, snippetId));
 
 	addAndMakeVisible(resultLabel = new Label());
 
@@ -68,7 +70,7 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor* s, const Identifier 
 	doc.setNonOwned(sp->getSnippet(callback_));
 
 	tokeniser = new JavascriptTokeniser();
-	addAndMakeVisible(editor = new JavascriptCodeEditor(*doc, tokeniser, s));
+	addAndMakeVisible(editor = new JavascriptCodeEditor(*doc, tokeniser, s, callback));
 
 	addAndMakeVisible(resultLabel = new Label());
 
@@ -94,8 +96,10 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor* s) :
 	doc->clearUndoHistory();
 	doc->setSavePoint();
 
+	static const Identifier empty("empty");
+
 	tokeniser = new JavascriptTokeniser();
-	addAndMakeVisible(editor = new JavascriptCodeEditor(*doc, tokeniser, s));
+	addAndMakeVisible(editor = new JavascriptCodeEditor(*doc, tokeniser, s, empty));
 
 	addAndMakeVisible(resultLabel = new Label());
 

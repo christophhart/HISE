@@ -30,6 +30,15 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 			s.root->currentLocation = &statements.getUnchecked(i)->location;
 #endif
 
+#if ENABLE_SCRIPTING_BREAKPOINTS
+			if (statements.getUnchecked(i)->breakpointIndex != -1)
+			{
+				Breakpoint bp = Breakpoint(Identifier(), -1, -1, statements.getUnchecked(i)->breakpointIndex);
+
+				throw bp;
+			}
+#endif
+
 			if (ResultCode r = statements.getUnchecked(i)->perform(s, returnedValue))
 				return r;
 		}
