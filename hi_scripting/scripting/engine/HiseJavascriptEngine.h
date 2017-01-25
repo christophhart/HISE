@@ -640,9 +640,9 @@ public:
 				return debugLock;
 			}
 
-			void setBreakpointLocalIdentifier(Identifier id)
+			void setBreakpointLocalIdentifier(Identifier localId)
 			{
-				breakpointLocalId = id;
+				breakpointLocalId = localId;
 			}
 
 			Identifier getBreakpointLocalIdentifier() const

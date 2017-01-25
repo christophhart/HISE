@@ -62,13 +62,14 @@ JavascriptCodeEditor::~JavascriptCodeEditor()
 {
 	currentPopup = nullptr;
 
-	scriptProcessor->removeEditor(this);
-
-	processor->getMainController()->getFontSizeChangeBroadcaster().removeChangeListener(this);
+	if (processor.get() != nullptr)
+	{
+		dynamic_cast<JavascriptProcessor*>(processor.get())->removeEditor(this);
+		processor->getMainController()->getFontSizeChangeBroadcaster().removeChangeListener(this);
+	}
 
 	scriptProcessor = nullptr;
 	processor = nullptr;
-
 
 	currentModalWindow.deleteAndZero();
 
@@ -268,7 +269,7 @@ void JavascriptCodeEditor::createMissingCaseStatementsForComponents()
 
 			CodeDocument::Position insertPos(getDocument(), startIndex);
 
-			ProcessorWithScriptingContent* ps = dynamic_cast<ProcessorWithScriptingContent*>(scriptProcessor);
+			ProcessorWithScriptingContent* ps = dynamic_cast<ProcessorWithScriptingContent*>(processor.get());
 
 			ScriptingApi::Content* content = ps->getScriptingContent();
 

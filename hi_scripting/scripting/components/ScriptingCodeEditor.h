@@ -173,8 +173,8 @@ private:
 
 	ScopedPointer<AutoCompletePopup> currentPopup;
 
-	JavascriptProcessor *scriptProcessor;
-	Processor *processor;
+	JavascriptProcessor* scriptProcessor;
+	WeakReference<Processor> processor;
 
 	PopupMenu m;
 	

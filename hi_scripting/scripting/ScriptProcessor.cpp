@@ -108,7 +108,9 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 
 	scriptEngine->maximumExecutionTime = RelativeTime(3.0);
 
-	
+#if ENABLE_SCRIPTING_BREAKPOINTS
+	jsp->breakpointWasHit(-1);
+#endif
 
 	ScopedReadLock sl(getMainController_()->getCompileLock());
 
@@ -436,9 +438,15 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 				if (!breakpointsForCallback.isEmpty())
 					scriptEngine->setBreakpoints(breakpointsForCallback);
+
+				
 #endif
 
+				
+
 				lastResult = scriptEngine->execute(getSnippet(i)->getSnippetAsFunction(), callbackId == onInit);
+
+				
 
 				if (!lastResult.wasOk())
 				{

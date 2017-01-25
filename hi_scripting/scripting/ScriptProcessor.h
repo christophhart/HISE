@@ -197,6 +197,23 @@ public:
 		currentPopups.add(window);
 	}
 
+	void deleteAllPopups()
+	{
+		if (currentPopups.size() != 0)
+		{
+			for (int i = 0; i < currentPopups.size(); i++)
+			{
+				if (currentPopups[i].getComponent() != nullptr)
+				{
+					currentPopups[i]->closeButtonPressed();
+				}
+
+			}
+
+			currentPopups.clear();
+		}
+	}
+
 	void showPopupForFile(int index, int charNumberToDisplay=0, int lineNumberToDisplay=-1);
 
 	static ValueTree collectAllScriptFiles(ModulatorSynthChain *synthChainToExport);

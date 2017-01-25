@@ -2990,6 +2990,18 @@ void ScriptingApi::Content::restoreAllControlsFromPreset(const ValueTree &preset
 		if (!components[i]->getScriptObjectProperty(ScriptComponent::Properties::saveInPreset)) continue;
 
 
+#if ENABLE_SCRIPTING_BREAKPOINTS
+		if (auto jsp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor()))
+		{
+			if (jsp->getLastErrorMessage().getErrorMessage().startsWith("Breakpoint"))
+			{
+				break;
+			}
+		}
+#endif
+
+
+
 		var v = components[i]->getValue();
 
 		if (v.isObject())
@@ -3000,9 +3012,6 @@ void ScriptingApi::Content::restoreAllControlsFromPreset(const ValueTree &preset
 		{
 			getProcessor()->setAttribute(i, components[i]->getValue(), sendNotification);
 		}
-
-
-		
 
 		const String macroName = components[i]->getScriptObjectProperty(ScriptComponent::macroControl).toString();
 

@@ -201,6 +201,10 @@ void JavascriptMidiProcessor::runScriptCallbacks()
 {
 	ScopedReadLock sl(mainController->getCompileLock());
 
+#if ENABLE_SCRIPTING_BREAKPOINTS
+	breakpointWasHit(-1);
+#endif
+
 	scriptEngine->maximumExecutionTime = isDeferred() ? RelativeTime(0.5) : RelativeTime(0.03);
 
 	switch (currentEvent->getType())
@@ -309,6 +313,8 @@ void JavascriptMidiProcessor::runTimerCallback(int /*offsetInBuffer*//*=-1*/)
 	ScopedReadLock sl(mainController->getCompileLock());
 
 	scriptEngine->maximumExecutionTime = isDeferred() ? RelativeTime(0.5) : RelativeTime(0.002);
+
+	if (lastResult.failed()) return;
 
 	scriptEngine->executeCallback(onTimer, &lastResult);
 
