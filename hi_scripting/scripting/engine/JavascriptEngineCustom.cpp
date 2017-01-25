@@ -211,7 +211,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 		void doubleClickCallback(const MouseEvent &/*event*/, Component* ed)
 		{
-			DebugableObject::Helpers::gotoLocation(ed, location);
+			DebugableObject::Helpers::gotoLocation(ed, nullptr, location);
 		}
 
 		AttributedString getDescription() const override 

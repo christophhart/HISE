@@ -368,6 +368,8 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &menu, const MouseEvent *
 
 	menu.addItem(ContextActions::OpenInPopup, "Open in external window", true, false);
 
+	menu.addItem(ContextActions::JumpToDefinition, "Jump to definition", true, false);
+
     CodeEditorComponent::addPopupMenuItems(menu, e);
     
     if(true)
@@ -436,6 +438,34 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 	case JavascriptCodeEditor::AddMissingCaseStatements:
 	{
 		createMissingCaseStatementsForComponents();
+		return;
+	}
+	case JavascriptCodeEditor::JumpToDefinition:
+	{
+		CodeDocument::Position start = getCaretPos();
+		CodeDocument::Position end = start;
+
+		getDocument().findTokenContaining(start, start, end);
+
+		const String token = getDocument().getTextBetween(start, end);
+
+		if (token.isNotEmpty())
+		{
+			Result result = Result::ok();
+
+			var t = s->getScriptEngine()->evaluate(token, &result);
+
+			if (result.wasOk())
+			{
+				if (auto obj = dynamic_cast<HiseJavascriptEngine::RootObject::InlineFunction::Object*>(t.getObject()))
+				{
+					auto parent = findParentComponentOfClass<ScriptingEditor>();
+
+					DebugableObject::Helpers::gotoLocation(parent, s, obj->location);
+				}
+			}
+		}
+
 		return;
 	}
 		

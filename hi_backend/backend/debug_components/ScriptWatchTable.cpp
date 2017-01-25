@@ -221,7 +221,7 @@ void ScriptWatchTable::mouseDoubleClick(const MouseEvent &e)
 			}
 			else
 			{
-				DebugableObject::Helpers::gotoLocation(editor.getComponent(), info->location);
+				DebugableObject::Helpers::gotoLocation(editor.getComponent(), dynamic_cast<JavascriptProcessor*>(processor.get()), info->location);
 			}
 		}
 	}

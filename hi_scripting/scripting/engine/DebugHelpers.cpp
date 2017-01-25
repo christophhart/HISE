@@ -91,12 +91,22 @@ String DebugInformation::toString()
 }
 
 
-void DebugableObject::Helpers::gotoLocation(Component* ed, const Location& location)
+void DebugableObject::Helpers::gotoLocation(Component* ed, JavascriptProcessor* sp, const Location& location)
 {
 #if USE_BACKEND
 	ScriptingEditor* editor = dynamic_cast<ScriptingEditor*>(ed);
 
-	JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(editor->getProcessor());
+	if (sp == nullptr && editor != nullptr)
+	{
+		sp = dynamic_cast<JavascriptProcessor*>(editor->getProcessor());
+	}
+
+	if (sp == nullptr)
+	{
+		// You have to somehow manage to pass the processor here...
+		jassertfalse;
+		return;
+	}
 
 	File file = File(location.fileName);
 
@@ -116,7 +126,7 @@ void DebugableObject::Helpers::gotoLocation(Component* ed, const Location& locat
 		editor->gotoChar(location.charNumber);
 	}
 #else
-	ignoreUnused(ed, location);
+	ignoreUnused(ed, sp, location);
 #endif
 }
 

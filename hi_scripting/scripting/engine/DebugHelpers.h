@@ -82,7 +82,7 @@ public:
 			return info;
 		}
 
-		static void gotoLocation(Component* ed, const Location& location);
+		static void gotoLocation(Component* ed, JavascriptProcessor* sp, const Location& location);
 
 		
 	};
