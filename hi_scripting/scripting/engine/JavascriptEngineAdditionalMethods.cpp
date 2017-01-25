@@ -655,6 +655,8 @@ var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 
 			var returnVal = c->perform(root);
 
+			if (result != nullptr) *result = Result::ok();
+
 			c->cleanLocalProperties();
 
 			return returnVal;
