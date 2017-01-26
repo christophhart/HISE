@@ -80,6 +80,11 @@ ValueTree BaseExporter::exportUserPresetFiles()
 	{
 		File f = iter.getFile();
 
+#if JUCE_WINDOWS
+		if (f.getFileName().startsWith("."))
+			continue;
+#endif
+
 		XmlDocument doc(f);
 
 		ScopedPointer<XmlElement> xml = doc.getDocumentElement();

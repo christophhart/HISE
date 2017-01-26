@@ -240,11 +240,12 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 	ExpressionTreeBuilder(const String code, const String externalFile) :
 		TokenIterator(code, externalFile)
 	{
+#if ENABLE_SCRIPTING_BREAKPOINTS
 		if (externalFile.isNotEmpty())
 		{
 			fileId = Identifier("File_" + File(externalFile).getFileNameWithoutExtension());
 		}
-
+#endif
 		
 	}
 

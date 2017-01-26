@@ -405,6 +405,8 @@ public:
 
 	bool isConnectedToExternalFile() const { return connectedFileReference.isNotEmpty(); }
 
+	const String& getConnectedFileReference() const { return connectedFileReference; }
+
 	void disconnectFromFile();
 
 	void reloadFromFile();

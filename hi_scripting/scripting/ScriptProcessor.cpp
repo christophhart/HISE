@@ -291,7 +291,37 @@ ValueTree FileChangeListener::collectAllScriptFiles(ModulatorSynthChain *chainTo
 
 	while (JavascriptProcessor *sp = iter.getNextProcessor())
 	{
-		for (int i = 0; i < sp->getNumWatchedFiles(); i++)
+		if (sp->isConnectedToExternalFile())
+		{
+			const String fileNameReference = sp->getConnectedFileReference();
+			
+			bool exists = false;
+
+			for (int j = 0; j < externalScriptFiles.getNumChildren(); j++)
+			{
+				if (externalScriptFiles.getChild(j).getProperty("FileName").toString() == fileNameReference)
+				{
+					exists = true;
+					break;
+				}
+			}
+
+			if (!exists)
+			{
+				String code;
+
+				sp->mergeCallbacksToScript(code);
+
+				ValueTree script("Script");
+
+				script.setProperty("FileName", fileNameReference, nullptr);
+				script.setProperty("Content", code, nullptr);
+
+				externalScriptFiles.addChild(script, -1, nullptr);
+			}
+		}
+
+        for (int i = 0; i < sp->getNumWatchedFiles(); i++)
 		{
 			File scriptFile = sp->getWatchedFile(i);
 			String fileName = scriptFile.getRelativePathFrom(GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Scripts));
