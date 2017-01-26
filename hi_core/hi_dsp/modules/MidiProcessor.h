@@ -210,6 +210,9 @@ public:
 				continue;
 			}
 
+            if(m.isIgnored())
+                continue;
+            
 			processors[i]->processHiseEvent(m);
 		}
 	};
