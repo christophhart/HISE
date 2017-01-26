@@ -293,7 +293,12 @@ struct XmlBackupFunctions
 
 	static void removeAllScripts(XmlElement &xml)
 	{
-		xml.removeAttribute("Script");
+		const String t = xml.getStringAttribute("Script");
+
+		if (!t.startsWith("{EXTERNAL_SCRIPT}"))
+		{
+			xml.removeAttribute("Script");
+		}
 
 		for (int i = 0; i < xml.getNumChildElements(); i++)
 		{

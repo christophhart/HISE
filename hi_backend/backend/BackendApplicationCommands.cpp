@@ -1389,6 +1389,14 @@ void BackendCommandTarget::Actions::saveFileAsXml(BackendProcessorEditor * bpe)
 
 		if (fc.browseForFileToSave(true))
 		{
+			const bool hasDefaultName = bpe->owner->getMainSynthChain()->getId() == "Master Chain";
+
+			if (hasDefaultName)
+			{
+				const String newName = fc.getResult().getFileNameWithoutExtension();
+				bpe->owner->getMainSynthChain()->setId(newName);
+			}
+
 			ValueTree v = bpe->owner->getMainSynthChain()->exportAsValueTree();
 
             v.setProperty("BuildVersion", BUILD_SUB_VERSION, nullptr);
@@ -1412,6 +1420,9 @@ void BackendCommandTarget::Actions::saveFileAsXml(BackendProcessorEditor * bpe)
 
 				while (JavascriptProcessor *sp = iter.getNextProcessor())
 				{
+					if (sp->isConnectedToExternalFile())
+						continue;
+
 					String content;
 
 					sp->mergeCallbacksToScript(content);
