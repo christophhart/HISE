@@ -538,17 +538,7 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 		{
 			String compressedScript = scriptLoader.getResult().loadFileAsString();
 
-			MemoryBlock mb;
-
-			mb.fromBase64Encoding(compressedScript);
-
-			MemoryInputStream mis(mb, false);
-
-			GZIPDecompressorInputStream gis(mis);
-
-			String script = gis.readEntireStreamAsString();
-
-			const bool success = s->parseSnippetsFromString(script);
+			const bool success = s->restoreBase64CompressedScript(compressedScript);
 
 			if (success)
 			{

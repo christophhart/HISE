@@ -179,9 +179,19 @@ public:
 
 	void updateGui() override
 	{
+		JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(getProcessor());
+
+		const bool nowConnected = sp->isConnectedToExternalFile();
+
+		if (nowConnected != isConnectedToExternalScript)
+		{
+			isConnectedToExternalScript = nowConnected;
+			useComponentSelectMode = false;
+			refreshBodySize();
+		}
+
 		if(getHeight() != getBodyHeight()) setSize(getWidth(), getBodyHeight());
 
-		
 		getProcessor()->setEditorState(Processor::BodyShown, true);
 
 		int editorOffset = dynamic_cast<ProcessorWithScriptingContent*>(getProcessor())->getCallbackEditorStateOffset();
@@ -710,6 +720,8 @@ public:
 
 
 private:
+
+	bool isConnectedToExternalScript = false;
 
 	ScopedPointer<DragOverlay> dragOverlay;
 

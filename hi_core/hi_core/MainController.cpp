@@ -214,7 +214,14 @@ void MainController::compileAllScripts()
 		
 	while((sp = it.getNextProcessor()) != nullptr)
 	{
-		sp->compileScript();
+		if (sp->isConnectedToExternalFile())
+		{
+			sp->reloadFromFile();
+		}
+		else
+		{
+			sp->compileScript();
+		}
 	}
 };
 

@@ -1044,6 +1044,9 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 			ReplaceWithClipboardContent,
 			SaveAllSamplesToGlobalFolder,
 			OpenAllScriptsInPopup,
+			ConnectToScriptFile,
+			ReloadFromExternalScript,
+			DisconnectFromScriptFile,
 			numMenuItems
 		};
 
@@ -1092,7 +1095,10 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 		{
 			m.addSeparator();
 			m.addSectionHeader("Script Processor Tools");
-			m.addItem(OpenAllScriptsInPopup, "Open Script in Popup Window", true);
+			m.addItem(OpenAllScriptsInPopup, "Open Script in Popup Window", !sp->isConnectedToExternalFile());
+			m.addItem(ConnectToScriptFile, "Connect to external script", true, sp->isConnectedToExternalFile());
+			m.addItem(ReloadFromExternalScript, "Reload external script", sp->isConnectedToExternalFile(), false);
+			m.addItem(DisconnectFromScriptFile, "Disconnect from external script", sp->isConnectedToExternalFile(), false);
 		}
 
 		int result = m.show();
@@ -1149,6 +1155,30 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 		else if (result == OpenAllScriptsInPopup)
 		{
 			dynamic_cast<ScriptingEditor*>(getEditor()->getBody())->editInAllPopup();
+		}
+		else if (result == ConnectToScriptFile)
+		{
+			FileChooser fc("Select external script", GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::Scripts));
+
+			if (fc.browseForFileToOpen())
+			{
+				File scriptFile = fc.getResult();
+
+				const String scriptReference = GET_PROJECT_HANDLER(getProcessor()).getFileReference(scriptFile.getFullPathName(), ProjectHandler::SubDirectories::Scripts);
+
+				dynamic_cast<JavascriptProcessor*>(getProcessor())->setConnectedFile(scriptReference);
+			}
+		}
+		else if (result == ReloadFromExternalScript)
+		{
+			dynamic_cast<JavascriptProcessor*>(getProcessor())->reloadFromFile();
+		}
+		else if (result == DisconnectFromScriptFile)
+		{
+			if (PresetHandler::showYesNoWindow("Disconnect from script file", "Do you want to disconnect the script from the connected file?\nAny changes you make here won't be saved in the file"))
+			{
+				dynamic_cast<JavascriptProcessor*>(getProcessor())->disconnectFromFile();
+			}
 		}
 		else
 		{

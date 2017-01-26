@@ -286,25 +286,6 @@ private:
 };
 
 
-class CompressedScriptProcessor
-{
-public:
-	CompressedScriptProcessor() {}
-	virtual ~CompressedScriptProcessor() {};
-
-	
-
-	/** Gets a list of all available compressed scripts at the default location. */
-	StringArray getListOfAvailableCompressedScripts() const;
-
-	/** Loads the given string into the script processor. */
-	void setCompressedScript(const String& compressedScriptContent);
-
-private:
-
-	
-
-};
 
 /** The base class for modules that can be scripted. 
 *	@ingroup processor_interfaces
@@ -418,6 +399,16 @@ public:
 
 	String getBase64CompressedScript() const;
 
+	bool restoreBase64CompressedScript(const String &base64compressedScript);
+
+	void setConnectedFile(const String& fileReference, bool compileScriptAfterLoad=true);
+
+	bool isConnectedToExternalFile() const { return connectedFileReference.isNotEmpty(); }
+
+	void disconnectFromFile();
+
+	void reloadFromFile();
+
 	bool wasLastCompileOK() const { return lastCompileWasOK; }
 
 	Result getLastErrorMessage() const { return lastResult; }
@@ -519,7 +510,7 @@ protected:
 
 	friend class CompileThread;
 
-	
+	String connectedFileReference;
 
 	CompileThread *currentCompileThread;
 

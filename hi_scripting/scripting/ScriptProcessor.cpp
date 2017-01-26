@@ -600,14 +600,33 @@ const JavascriptProcessor::SnippetDocument * JavascriptProcessor::getSnippet(con
 void JavascriptProcessor::saveScript(ValueTree &v) const
 {
 	String x;
-	mergeCallbacksToScript(x);
+
+	if (isConnectedToExternalFile())
+	{
+		x = "{EXTERNAL_SCRIPT}" + connectedFileReference;
+	}
+	else
+	{
+		mergeCallbacksToScript(x);
+	}
+
 	v.setProperty("Script", x, nullptr);
 }
 
 void JavascriptProcessor::restoreScript(const ValueTree &v)
 {
 	String x = v.getProperty("Script", String());
-	parseSnippetsFromString(x, true);
+
+	if (x.startsWith("{EXTERNAL_SCRIPT}"))
+	{
+		String fileReference = x.fromFirstOccurrenceOf("{EXTERNAL_SCRIPT}", false, false);
+
+		setConnectedFile(fileReference, false);
+	}
+	else
+	{
+		parseSnippetsFromString(x, true);
+	}
 
 	if (Processor* parent = ProcessorHelpers::findParentProcessor(dynamic_cast<Processor*>(this), true))
 	{
@@ -621,7 +640,6 @@ void JavascriptProcessor::restoreScript(const ValueTree &v)
 			compileScript();
 		}
 	}
-	else jassertfalse;
 }
 
 String JavascriptProcessor::Helpers::resolveIncludeStatements(String& x, Array<File>& includedFiles, const JavascriptProcessor* p)
@@ -709,6 +727,66 @@ String JavascriptProcessor::getBase64CompressedScript() const
 	gos.flush();
 
 	return mos.getMemoryBlock().toBase64Encoding();
+}
+
+bool JavascriptProcessor::restoreBase64CompressedScript(const String &base64compressedScript)
+{
+	MemoryBlock mb;
+
+	mb.fromBase64Encoding(base64compressedScript);
+
+	MemoryInputStream mis(mb, false);
+
+	GZIPDecompressorInputStream gis(mis);
+
+	String script = gis.readEntireStreamAsString();
+
+	return parseSnippetsFromString(script);
+}
+
+void JavascriptProcessor::setConnectedFile(const String& fileReference, bool compileScriptAfterLoad/*=true*/)
+{
+	if (fileReference.isNotEmpty())
+	{
+		connectedFileReference = fileReference;
+
+#if USE_BACKEND
+		const File f = GET_PROJECT_HANDLER(dynamic_cast<const Processor*>(this)).getFilePath(fileReference, ProjectHandler::SubDirectories::Scripts);
+		const String code = f.loadFileAsString();
+#else
+		const String code = dynamic_cast<Processor*>(this)->getMainController()->getExternalScriptFromCollection(fileReference);
+
+#endif
+
+		if (fileReference.endsWith(".cjs"))
+		{
+			restoreBase64CompressedScript(code);
+		}
+		else
+		{
+			parseSnippetsFromString(code, true);
+		}
+
+		if(compileScriptAfterLoad)
+			compileScript();
+
+		dynamic_cast<Processor*>(this)->sendChangeMessage();
+	}
+}
+
+void JavascriptProcessor::disconnectFromFile()
+{
+	connectedFileReference = String();
+
+	dynamic_cast<Processor*>(this)->sendChangeMessage();
+}
+
+void JavascriptProcessor::reloadFromFile()
+{
+	if (isConnectedToExternalFile())
+	{
+		setConnectedFile(connectedFileReference);
+	}
 }
 
 void JavascriptProcessor::mergeCallbacksToScript(String &x, const String& sepString/*=String()*/) const

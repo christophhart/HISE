@@ -271,19 +271,26 @@ int ScriptingEditor::getBodyHeight() const
 
 	const ProcessorWithScriptingContent* pwsc = dynamic_cast<const ProcessorWithScriptingContent*>(getProcessor());
 
-	int editorOffset = pwsc->getCallbackEditorStateOffset();
-
-	const int contentHeight = getProcessor()->getEditorState(editorOffset + ProcessorWithScriptingContent::EditorStates::contentShown) ? pwsc->getScriptingContent()->getContentHeight() : 0;
-
-	const int additionalOffset = (dynamic_cast<const JavascriptModulatorSynth*>(getProcessor()) != nullptr) ? 5 : 0;
-
-	if (editorShown)
+	if (isConnectedToExternalScript)
 	{
-		return 28 + additionalOffset + contentHeight + codeEditor->currentHeight + 24;
+		return pwsc->getScriptingContent()->getContentHeight();
 	}
 	else
 	{
-		return 28 + additionalOffset + contentHeight;
+		int editorOffset = pwsc->getCallbackEditorStateOffset();
+
+		const int contentHeight = getProcessor()->getEditorState(editorOffset + ProcessorWithScriptingContent::EditorStates::contentShown) ? pwsc->getScriptingContent()->getContentHeight() : 0;
+
+		const int additionalOffset = (dynamic_cast<const JavascriptModulatorSynth*>(getProcessor()) != nullptr) ? 5 : 0;
+
+		if (editorShown)
+		{
+			return 28 + additionalOffset + contentHeight + codeEditor->currentHeight + 24;
+		}
+		else
+		{
+			return 28 + additionalOffset + contentHeight;
+		}
 	}
 }
 
@@ -295,7 +302,7 @@ void ScriptingEditor::paint (Graphics& g)
 
     //[UserPaint] Add your own custom painting code here..
 
-	if(editorShown && getProcessor() != nullptr)
+	if(!isConnectedToExternalScript && editorShown && getProcessor() != nullptr)
 	{
 		
 		Colour c = dynamic_cast<JavascriptProcessor*>(getProcessor())->wasLastCompileOK() ? Colour(0xff323832) : Colour(0xff383232);
@@ -314,6 +321,24 @@ void ScriptingEditor::paint (Graphics& g)
 
 void ScriptingEditor::resized()
 {
+	codeEditor->setVisible(!isConnectedToExternalScript);
+	codeEditor->setVisible(!isConnectedToExternalScript);
+	messageBox->setVisible(!isConnectedToExternalScript);
+	dragOverlay->setVisible(!isConnectedToExternalScript);
+	contentButton->setVisible(!isConnectedToExternalScript);
+
+	for (int i = 0; i < callbackButtons.size(); i++)
+		callbackButtons[i]->setVisible(!isConnectedToExternalScript);
+
+	if (isConnectedToExternalScript)
+	{
+		
+
+		scriptContent->setVisible(true);
+		scriptContent->setBounds(0, 0, getWidth(), scriptContent->getContentHeight());
+		return;
+	}
+
     codeEditor->setBounds ((getWidth() / 2) - ((getWidth() - 90) / 2), 104, getWidth() - 90, getHeight() - 140);
     compileButton->setBounds (((getWidth() / 2) - ((getWidth() - 90) / 2)) + (getWidth() - 90) - 95, getHeight() - 24, 95, 24);
     messageBox->setBounds (((getWidth() / 2) - ((getWidth() - 90) / 2)) + 0, getHeight() - 24, getWidth() - 296, 24);
