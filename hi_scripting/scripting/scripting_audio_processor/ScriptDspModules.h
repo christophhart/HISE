@@ -291,27 +291,187 @@ public:
 		Smoother smoother;
 	};
 
-
-	class StereoWidener : public DspBaseObject
+	class Allpass : public DspBaseObject
 	{
 	public:
 
 		enum class Parameters
 		{
-			Width = 0,
-			PseudoStereoAmount,
+			DelayLeft,
+			DelayRight,
+			SmoothingTime,
 			numParameters
 		};
 
-		StereoWidener() :
-			width(1.0f),
-			stereoAmount(0.0f)
+		Allpass() :
+			DspBaseObject(),
+			dl(0.0f),
+			dr(0.0f)
+		{
+			delayL.setDelay(0.0f);
+			delayR.setDelay(0.0f);
+
+			
+		};
+
+		SET_MODULE_NAME("allpass");
+
+		int getNumParameters() const override { return (int)Parameters::numParameters; }
+
+		float getParameter(int index) const override
+		{
+			if (index == 0) return dl;
+			else if (index == 1) return dr;
+			else return -1;
+		}
+
+		void setParameter(int index, float newValue) override
+		{
+			if (index == 0)
+			{
+				l.setValue(newValue);
+				dl = newValue; 
+			}
+			else if (index == 1)
+			{
+				r.setValue(newValue);
+				dr = newValue;
+			}
+			else if (index == 2)
+			{
+				smoothingTime = newValue;
+				smootherL.setSmoothingTime(smoothingTime);
+				smootherR.setSmoothingTime(smoothingTime);
+			}
+		}
+
+		void prepareToPlay(double sampleRate, int samplesPerBlock)
+		{
+			smootherL.prepareToPlay(sampleRate);
+			smootherR.prepareToPlay(sampleRate);
+
+			smootherL.setSmoothingTime(smoothingTime);
+			smootherR.setSmoothingTime(smoothingTime);
+
+			l.reset(sampleRate / (double)samplesPerBlock, 0.3);
+			r.reset(sampleRate / (double)samplesPerBlock, 0.3);
+		}
+
+		void processBlock(float** data, int numChannels, int numSamples)
+		{
+			if (numChannels == 1)
+			{
+				float *ld = data[0];
+
+				delayL.setDelay(dl);
+
+				while (--numSamples >= 0)
+				{
+					*ld++ = delayL.getNextSample(*ld);
+				}
+			}
+
+			else if (numChannels == 2)
+			{
+				float *ld = data[0];
+				float *rd = data[1];
+
+				delayL.setDelay(l.getNextValue());
+				delayR.setDelay(r.getNextValue());
+
+				while (--numSamples >= 0)
+				{
+					*ld++ = delayL.getNextSample(*ld);
+					*rd++ = delayR.getNextSample(*rd);
+				}
+			}
+		}
+
+		int getNumConstants() const override
+		{
+			return (int)Parameters::numParameters;
+		}
+
+		void getIdForConstant(int index, char*name, int &size) const noexcept override
+		{
+			switch (index)
+			{
+				FILL_PARAMETER_ID(Parameters, DelayLeft, size, name);
+				FILL_PARAMETER_ID(Parameters, DelayRight, size, name);
+				FILL_PARAMETER_ID(Parameters, SmoothingTime, size, name);
+			}
+		};
+
+		bool getConstant(int index, int& value) const noexcept override
+		{
+			if (index < getNumParameters())
+			{
+				value = index;
+				return true;
+			}
+
+			return false;
+		};
+
+	private:
+
+		class AllpassDelay
+		{
+		public:
+			AllpassDelay() :
+				delay(0.f),
+				currentValue(0.f)
+			{}
+
+			static float getDelayCoefficient(float delaySamples)
+			{
+				return (1.f - delaySamples) / (1.f + delaySamples);
+			}
+
+			void setDelay(float newDelay) noexcept { delay = jmin<float>(0.999f, newDelay); };
+
+			float getNextSample(float input) noexcept
+			{
+				float y = input * -delay + currentValue;
+				currentValue = y * delay + input;
+
+				return y;
+			}
+
+		private:
+			float delay, currentValue;
+		};
+
+		AllpassDelay delayL;
+		AllpassDelay delayR;
+
+		Smoother smootherL;
+		Smoother smootherR;
+
+		LinearSmoothedValue<float> l;
+		LinearSmoothedValue<float> r;
+
+		float dl, dr, smoothingTime;
+	};
+
+	class MidSideEncoder : public DspBaseObject
+	{
+	public:
+
+		enum Parameters
+		{
+			Width,
+			numParameters
+		};
+
+		MidSideEncoder() :
+			width(1.0f)
 		{}
 
 		/** Overwrite this method and return the name of this module.
 		*
 		*   This will be used to identify the module within your library so it must be unique. */
-		static Identifier getName() { RETURN_STATIC_IDENTIFIER("stereo"); }
+		static Identifier getName() { RETURN_STATIC_IDENTIFIER("ms_encoder"); }
 
 		// ================================================================================================================
 
@@ -322,35 +482,20 @@ public:
 		{
 			if (numChannels == 2)
 			{
-				delayL = getDelayCoefficient(1.0f + 0.9f * stereoAmount);
-				delayR = getDelayCoefficient(1.0f - 0.9f * stereoAmount);
-
-				const float a = 0.99f;
-				const float invA = 1.0f - a;
-
 				float* l = data[0];
 				float* r = data[1];
 
-				const float leftGainBuffer = (1.0f - stereoAmount) * 0.5f + 0.5f;
+				FloatVectorOperations::multiply(l, 0.5f, numSamples);
+				FloatVectorOperations::multiply(r, 0.5f, numSamples);
 
-				for (int i = 0; i < numSamples; i++)
+				while (--numSamples >= 0)
 				{
-					const float thisL = getDelayedValueL(l[i] + currentValueL * 0.5f);
-					const float thisR = getDelayedValueR(r[i] + currentValueR * 0.5f);
+					const float m = *l + *r;
+					const float s = width * (*r - *l);
 
-					const float thisM = thisL + thisR;
-					const float thisS = thisL - thisR;
+					*l++ = m - s;
+					*r++ = m + s;
 
-					const float thisWidth = a * lastWidth + invA * width;
-					lastWidth = thisWidth;
-
-					l[i] = 0.25f * (thisM + thisWidth * thisS);
-					r[i] = 0.25f * (thisM - thisWidth * thisS);
-
-					const float thisLeftGain = a * lastLeftGain + invA * leftGainBuffer;
-					lastLeftGain = thisLeftGain;
-
-					r[i] *= thisLeftGain;
 				}
 			}
 
@@ -364,8 +509,8 @@ public:
 			switch ((Parameters)index)
 			{
 			case Parameters::Width: return width;
-			case Parameters::PseudoStereoAmount: return stereoAmount;
-            case Parameters::numParameters: return 0.0f;
+			
+			case Parameters::numParameters: return 0.0f;
 			}
 
 			return 0.0f;
@@ -376,7 +521,153 @@ public:
 			switch ((Parameters)index)
 			{
 			case Parameters::Width: width = newValue; break;
-			case Parameters::PseudoStereoAmount: stereoAmount = jlimit<float>(0.0f, 0.9f, newValue); break;
+			
+			case Parameters::numParameters: break;
+			}
+		}
+
+		// =================================================================================================================
+
+
+		int getNumConstants() const { return (int)Parameters::numParameters; };
+
+		void getIdForConstant(int index, char*name, int &size) const noexcept override
+		{
+			switch (index)
+			{
+				FILL_PARAMETER_ID(Parameters, Width, size, name);
+			}
+		};
+
+		bool getConstant(int index, int& value) const noexcept override
+		{
+			if (index < getNumParameters())
+			{
+				value = index;
+				return true;
+			}
+
+			return false;
+		};
+
+		bool getConstant(int /*index*/, float** /*data*/, int &/*size*/) noexcept override
+		{
+			return false;
+		};
+
+	private:
+
+		float width;
+
+		
+
+	};
+
+	class StereoWidener : public DspBaseObject
+	{
+	public:
+
+		enum class Parameters
+		{
+			Width = 0,
+			PseudoStereoAmount,
+			numParameters
+		};
+
+		StereoWidener() :
+			width(0.5f),
+			pseudoStereo(0.0f)
+		{
+			f1 = f2 = f3 = f4 = f5 = f6 = 0.0f;
+
+			
+
+			delay1.setParameter(0, 0.0f);
+			delay1.setParameter(1, 0.0f);
+			delay2.setParameter(0, 0.0f);
+			delay2.setParameter(1, 0.0f);
+			delay3.setParameter(0, 0.0f);
+			delay3.setParameter(1, 0.0f);
+			delay1.setParameter(2, 20.0f);
+			delay2.setParameter(2, 20.0f);
+			delay3.setParameter(2, 20.0f);
+		}
+
+		/** Overwrite this method and return the name of this module.
+		*
+		*   This will be used to identify the module within your library so it must be unique. */
+		static Identifier getName() { RETURN_STATIC_IDENTIFIER("stereo"); }
+
+		// ================================================================================================================
+
+		void prepareToPlay(double sampleRate_, int blockSize) override
+		{
+			sampleRate = sampleRate_;
+
+			delay1.prepareToPlay(sampleRate, blockSize);
+			delay2.prepareToPlay(sampleRate, blockSize);
+			delay3.prepareToPlay(sampleRate, blockSize);
+			msEncoder.prepareToPlay(sampleRate, blockSize);
+		}
+
+		/** Overwrite this method and do your processing on the given sample data. */
+		void processBlock(float **data, int numChannels, int numSamples) override
+		{
+			if (numChannels == 2)
+			{
+				VariantBuffer::sanitizeFloatArray(data, numChannels, numSamples);
+
+				uptime += (double)numSamples / sampleRate;
+
+				delay1.setParameter(0, f1 + sin(uptime * 0.84) * sinAmount);
+				delay1.setParameter(1, f2 + sin(uptime * 0.53) * sinAmount);
+				delay2.setParameter(0, f3 + sin(uptime * 0.74) * sinAmount);
+				delay2.setParameter(1, f4 + sin(uptime * 0.33) * sinAmount);
+				delay3.setParameter(0, f5 + sin(uptime * 0.24) * sinAmount);
+				delay3.setParameter(1, f6 + sin(uptime * 0.07) * sinAmount);
+
+				delay1.processBlock(data, numChannels, numSamples);
+				delay2.processBlock(data, numChannels, numSamples);
+				delay3.processBlock(data, numChannels, numSamples);
+				msEncoder.processBlock(data, numChannels, numSamples);
+			}
+
+		}
+
+		// =================================================================================================================
+
+		int getNumParameters() const override { return (int)Parameters::numParameters; }
+		float getParameter(int index) const override
+		{
+			switch ((Parameters)index)
+			{
+			case Parameters::Width: return width;
+			case Parameters::PseudoStereoAmount: return pseudoStereo;
+            case Parameters::numParameters: return 0.0f;
+			}
+
+			return 0.0f;
+		}
+
+		void setParameter(int index, float newValue) override
+		{
+			switch ((Parameters)index)
+			{
+			case Parameters::Width: 
+				width = newValue;
+				msEncoder.setParameter(0, newValue);
+				break;
+			case Parameters::PseudoStereoAmount: 
+				pseudoStereo = jlimit<float>(0.0f, 1.0f, newValue);
+				f1 = pseudoStereo * 0.4f;
+				f2 = pseudoStereo * 0.87f;
+				f3 = pseudoStereo * 0.93f;
+				f4 = pseudoStereo * 0.83f;
+				f5 = pseudoStereo * 0.23f;
+				f6 = pseudoStereo * 0.7f;
+				sinAmount = pseudoStereo * 0.013f;
+				break;
+
             case Parameters::numParameters: break;
 			}
 		}
@@ -413,58 +704,22 @@ public:
 
 	private:
 
+		Allpass delay1;
+		Allpass delay2;
+		Allpass delay3;
+		MidSideEncoder msEncoder;
 
-		inline float getDelayCoefficient(float delaySamples) const
-		{
-			return (1 - delaySamples) / (1 + delaySamples);
-		};
-
-		inline float getDelayedValueL(float input)
-		{
-			const float a = 0.99f;
-			const float invA = 1.0f - a;
-
-			const float thisDelay = lastDelayL * a + delayL * invA;
-			lastDelayL = thisDelay;
-
-			const float y = input * -thisDelay + currentValueL;
-			currentValueL = y * thisDelay + input;
-
-			return y;
-		}
-
-		inline float getDelayedValueR(float input)
-		{
-			const float a = 0.99f;
-			const float invA = 1.0f - a;
-
-			const float thisDelay = lastDelayR * a + delayR * invA;
-			lastDelayR = thisDelay;
-
-			const float y = input * -thisDelay + currentValueR;
-			currentValueR = y * thisDelay + input;
-
-			return y;
-		}
+		double sampleRate;
 
 		float width;
-		float stereoAmount;
+		float pseudoStereo;
 
-		float currentValueL = 0.0f;
-		float currentValueR = 0.0f;
-		float delayL = 0.0f;
-		float delayR = 0.0f;
-		float delaySamplesL = 0.1f;
-		float delaySamplesR = 1.9f;
-		float leftGain = 0.0f;
+		float f1, f2, f3, f4, f5, f6;
 
-		float lastWidth = 1.0f;
-		float lastStereoAmount = 0.0f;
+		double uptime = 0.0;
 
-		float lastDelayL = 1.0f;
-		float lastDelayR = 1.0f;
+		float sinAmount = 0.0f;
 
-		float lastLeftGain = 1.0f;
 	};
 
 #if 0
@@ -558,15 +813,15 @@ public:
 		{
 			if (index < getNumParameters())
 			{
-				value = index;
-				return true;
-			}
 
 			return false;
 		};
 
 		
 
+				value = index;
+				return true;
+			}
 	private:
 
 		VariantBuffer::Ptr mb;
@@ -1150,6 +1405,8 @@ class HiseCoreDspFactory : public StaticDspFactory
 		registerDspModule<ScriptingDsp::StereoWidener>();
         registerDspModule<ScriptingDsp::MoogFilter>();
 		registerDspModule<ScriptingDsp::SineGenerator>();
+		registerDspModule<ScriptingDsp::Allpass>();
+		registerDspModule<ScriptingDsp::MidSideEncoder>();
 	}
 };
 
