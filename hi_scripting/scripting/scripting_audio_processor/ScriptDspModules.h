@@ -619,12 +619,12 @@ public:
 
 				uptime += (double)numSamples / sampleRate;
 
-				delay1.setParameter(0, f1 + sin(uptime * 0.84) * sinAmount);
-				delay1.setParameter(1, f2 + sin(uptime * 0.53) * sinAmount);
-				delay2.setParameter(0, f3 + sin(uptime * 0.74) * sinAmount);
-				delay2.setParameter(1, f4 + sin(uptime * 0.33) * sinAmount);
-				delay3.setParameter(0, f5 + sin(uptime * 0.24) * sinAmount);
-				delay3.setParameter(1, f6 + sin(uptime * 0.07) * sinAmount);
+				delay1.setParameter(0, f1 + (float)sin(uptime * 0.84) * sinAmount);
+				delay1.setParameter(1, f2 + (float)sin(uptime * 0.53) * sinAmount);
+				delay2.setParameter(0, f3 + (float)sin(uptime * 0.74) * sinAmount);
+				delay2.setParameter(1, f4 + (float)sin(uptime * 0.33) * sinAmount);
+				delay3.setParameter(0, f5 + (float)sin(uptime * 0.24) * sinAmount);
+				delay3.setParameter(1, f6 + (float)sin(uptime * 0.07) * sinAmount);
 
 				delay1.processBlock(data, numChannels, numSamples);
 				delay2.processBlock(data, numChannels, numSamples);

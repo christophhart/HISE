@@ -104,6 +104,12 @@ public:
 
 		bool isUsingHddMode() const noexcept{ return hddMode; };
 
+		bool shouldSkipPreloading() const { return skipPreloading; };
+
+		void setShouldSkipPreloading(bool skip) { skipPreloading = skip; }
+
+		void preloadEverything();
+
 	private:
 
 		ProjectHandler projectHandler;
@@ -119,6 +125,7 @@ public:
 
 		bool hddMode = false;
 		bool useRelativePathsToProjectFolder;
+		bool skipPreloading = false;
 	};
 
 	/** Contains methods for handling macros. */

@@ -495,7 +495,7 @@ void ModulatorSampler::deleteAllSounds()
 
 void ModulatorSampler::refreshPreloadSizes()
 {
-	if (getNumSounds() != 0)
+	if (!getMainController()->getSampleManager().shouldSkipPreloading() &&  getNumSounds() != 0)
 	{
 		new SoundPreloadThread(this);
 	}

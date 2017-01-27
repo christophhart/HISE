@@ -772,3 +772,16 @@ void MainController::setScriptComponentEditPanel(ScriptComponentEditPanel *panel
 }
 
 #endif
+
+void MainController::SampleManager::preloadEverything()
+{
+	// This makes no sense...
+	jassert(!skipPreloading);
+
+	Processor::Iterator<ModulatorSampler> it(mc->getMainSynthChain());
+
+	while (ModulatorSampler* s = it.getNextProcessor())
+	{
+		s->refreshPreloadSizes();
+	}
+}

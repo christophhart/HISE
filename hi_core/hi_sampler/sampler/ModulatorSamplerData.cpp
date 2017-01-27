@@ -58,11 +58,11 @@ void SoundPreloadThread::run()
     
 	ModulatorSamplerSoundPool *pool = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
 
+	dynamic_cast<AudioProcessor*>(sampler->getMainController())->suspendProcessing(true);
+
 	jassert(!pool->getPreloadLockFlag());
 
 	ScopedValueSetter<bool> preloadLock(pool->getPreloadLockFlag(), true);
-
-    ScopedLock(sampler->getMainController()->getLock());
     
 	const int numSoundsToPreload = sampler->getNumSounds();
 
@@ -90,7 +90,7 @@ void SoundPreloadThread::run()
 		if (sampler->getNumMicPositions() == 1)
 		{
 			StreamingSamplerSound *s = sampler->getSound(i)->getReferenceToSound();
-			preloadSample(s, preloadSize);
+			preloadSample(s, preloadSize, i);
 
 		}
 		else
@@ -103,7 +103,7 @@ void SoundPreloadThread::run()
                 {
                     StreamingSamplerSound *s = sound->getReferenceToSound(j);
                     
-                    if(s != nullptr) preloadSample(s, preloadSize);
+                    if(s != nullptr) preloadSample(s, preloadSize, i);
                 }
 			}
 		}
@@ -115,15 +115,16 @@ void SoundPreloadThread::run()
 	sampler->sendChangeMessage();
 	sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->setUpdatePool(true);
 	sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->sendChangeMessage();
+	dynamic_cast<AudioProcessor*>(sampler->getMainController())->suspendProcessing(false);
 };
 
-void SoundPreloadThread::preloadSample(StreamingSamplerSound * s, const int preloadSize)
+void SoundPreloadThread::preloadSample(StreamingSamplerSound * s, const int preloadSize, int soundIndex)
 {
 	jassert(s != nullptr);
 
 	String fileName = s->getFileName(false);
 
-	setStatusMessage(fileName);
+	setStatusMessage("Loading sample " + String(soundIndex) + "/" + String(sampler->getNumSounds()));
 
 	try
 	{

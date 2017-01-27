@@ -93,35 +93,42 @@ void ToggleButtonList::setValue(int index, bool value, NotificationType notify /
 CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 	mc(mc_)
 {
+#if IS_STANDALONE_FRONTEND
 	addAndMakeVisible(deviceSelector = new ComboBox("Driver"));
 	addAndMakeVisible(soundCardSelector = new ComboBox("Device"));
 	addAndMakeVisible(outputSelector = new ComboBox("Output"));
 	addAndMakeVisible(sampleRateSelector = new ComboBox("Sample Rate"));
 	addAndMakeVisible(bufferSelector = new ComboBox("Buffer Sizes"));
 	addAndMakeVisible(sampleRateSelector = new ComboBox("Sample Rate"));
+#endif
 	addAndMakeVisible(diskModeSelector = new ComboBox("Hard Disk"));
 	addAndMakeVisible(clearMidiLearn = new TextButton("Clear MIDI CC"));
 	addAndMakeVisible(relocateButton = new TextButton("Change sample folder location"));
 
+#if IS_STANDALONE_FRONTEND
 	deviceSelector->addListener(this);
 	soundCardSelector->addListener(this);
 	outputSelector->addListener(this);
 	bufferSelector->addListener(this);
 	sampleRateSelector->addListener(this);
+#endif 
+
 	diskModeSelector->addListener(this);
 	clearMidiLearn->addListener(this);
 	relocateButton->addListener(this);
 
+#if IS_STANDALONE_FRONTEND
 	deviceSelector->setLookAndFeel(&plaf);
 	soundCardSelector->setLookAndFeel(&plaf);
 	outputSelector->setLookAndFeel(&plaf);
 	bufferSelector->setLookAndFeel(&plaf);
 	sampleRateSelector->setLookAndFeel(&plaf);
+#endif
+
 	diskModeSelector->setLookAndFeel(&plaf);
 	clearMidiLearn->setLookAndFeel(&blaf);
 	clearMidiLearn->setColour(TextButton::ColourIds::textColourOffId, Colours::white);
 	clearMidiLearn->setColour(TextButton::ColourIds::textColourOnId, Colours::white);
-
 	relocateButton->setLookAndFeel(&blaf);
 	relocateButton->setColour(TextButton::ColourIds::textColourOffId, Colours::white);
 	relocateButton->setColour(TextButton::ColourIds::textColourOnId, Colours::white);
@@ -131,17 +138,26 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 #if HISE_IOS
     setSize(250, 180);
 #else
+
+#if IS_STANDALONE_FRONTEND
 	setSize(320, 390);
+#else
+	setSize(320, 180);
+#endif
+
 #endif
 }
 
 CustomSettingsWindow::~CustomSettingsWindow()
 {
+#if IS_STANDALONE_FRONTEND
 	deviceSelector->removeListener(this);
 	sampleRateSelector->removeListener(this);
 	bufferSelector->removeListener(this);
 	soundCardSelector->removeListener(this);
 	outputSelector->removeListener(this);
+#endif
+
 	clearMidiLearn->removeListener(this);
 	relocateButton->removeListener(this);
 	diskModeSelector->removeListener(this);
@@ -157,6 +173,7 @@ CustomSettingsWindow::~CustomSettingsWindow()
 void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDevices)
 {
 	AudioProcessorDriver* driver = dynamic_cast<AudioProcessorDriver*>(mc);
+#if IS_STANDALONE_FRONTEND
 	const OwnedArray<AudioIODeviceType> *devices = &driver->deviceManager->getAvailableDeviceTypes();
 
 	bufferSelector->clear();
@@ -226,7 +243,17 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
 
 		bufferSelector->setSelectedItemIndex(bufferSizes.indexOf(thisBufferSize), dontSendNotification);
 
+        
+#if 0
 		Array<double> samplerates = currentDevice->getAvailableSampleRates();
+#else
+        Array<double> samplerates;
+        
+        samplerates.add(22050.0);
+        samplerates.add(32000.0);
+        samplerates.add(44100.0);
+        samplerates.add(48000.0);
+#endif
 
 		for (int i = 0; i < samplerates.size(); i++)
 		{
@@ -237,6 +264,7 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
 
 		sampleRateSelector->setSelectedItemIndex(samplerates.indexOf(thisSampleRate), dontSendNotification);
 	}
+#endif
 
 	diskModeSelector->clear();
 	diskModeSelector->addItem("Fast - SSD", 1);
@@ -397,12 +425,24 @@ void CustomSettingsWindow::paint(Graphics& g)
     g.drawText("Sample Rate", 0, 40, getWidth() / 2 - 30, 30, Justification::centredRight);
     g.drawText("Streaming Mode", 0, 80, getWidth() / 2 - 30, 30, Justification::centredRight);
 #else
-	g.drawText("Driver", 0, 0, getWidth() / 2 - 30, 30, Justification::centredRight);
-	g.drawText("Device", 0, 40, getWidth() / 2 - 30, 30, Justification::centredRight);
-	g.drawText("Output", 0, 80, getWidth() / 2 - 30, 30, Justification::centredRight);
-    g.drawText("Buffer Size", 0, 120, getWidth() / 2 - 30, 30, Justification::centredRight);
-    g.drawText("Sample Rate", 0, 160, getWidth() / 2 - 30, 30, Justification::centredRight);
-    g.drawText("Streaming Mode", 0, 200, getWidth() / 2 - 30, 30, Justification::centredRight);
+
+	int y = 0;
+
+#if IS_STANDALONE_FRONTEND
+	g.drawText("Driver", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
+	y += 40;
+	g.drawText("Device", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
+	y += 40;
+	g.drawText("Output", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
+	y += 40;
+    g.drawText("Buffer Size", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
+	y += 40;
+    g.drawText("Sample Rate", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
+	y += 40;
+#endif
+
+    g.drawText("Streaming Mode", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
+	y += 80;
 	
 #if USE_BACKEND
 	const String samplePath = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Samples).getFullPathName();
@@ -412,10 +452,10 @@ void CustomSettingsWindow::paint(Graphics& g)
 	
 	g.setFont(GLOBAL_BOLD_FONT());
 
-	g.drawText("Sample Location:", 15, 280, getWidth() - 30, 30, Justification::centredTop);
+	g.drawText("Sample Location:", 15, y, getWidth() - 30, 30, Justification::centredTop);
 
 	g.setFont(GLOBAL_FONT());
-	g.drawText(samplePath, 10, 280, getWidth()-20, 30, Justification::centredBottom);
+	g.drawText(samplePath, 10, y, getWidth()-20, 30, Justification::centredBottom);
 #endif
 	
 }
@@ -424,6 +464,7 @@ void CustomSettingsWindow::resized()
 {
     int y = 0;
     
+#if IS_STANDALONE_FRONTEND
 #if !HISE_IOS
 	deviceSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
     y+= 40;
@@ -436,6 +477,8 @@ void CustomSettingsWindow::resized()
     y+= 40;
 	sampleRateSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
     y+= 40;
+#endif
+
 	diskModeSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
     y+= 40;
 	clearMidiLearn->setBounds(10, y, getWidth() - 20, 30);

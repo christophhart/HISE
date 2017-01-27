@@ -513,9 +513,9 @@ DebugInformation* HiseJavascriptEngine::RootObject::JavascriptNamespace::createD
 }
 
 
-DynamicObject* HiseJavascriptEngine::RootObject::HiseSpecialData::getInlineFunction(const Identifier &id)
+DynamicObject* HiseJavascriptEngine::RootObject::HiseSpecialData::getInlineFunction(const Identifier &inlineFunctionId)
 {
-	const String idAsString = id.toString();
+	const String idAsString = inlineFunctionId.toString();
 
 	if (idAsString.contains("."))
 	{
@@ -539,7 +539,7 @@ DynamicObject* HiseJavascriptEngine::RootObject::HiseSpecialData::getInlineFunct
 	{
 		for (int i = 0; i < inlineFunctions.size(); i++)
 		{
-			if (dynamic_cast<InlineFunction::Object*>(inlineFunctions[i].get())->name == id)
+			if (dynamic_cast<InlineFunction::Object*>(inlineFunctions[i].get())->name == inlineFunctionId)
 			{
 				return inlineFunctions[i].get();
 			}

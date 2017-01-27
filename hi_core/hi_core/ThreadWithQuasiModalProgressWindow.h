@@ -96,6 +96,7 @@ public:
 			addAndMakeVisible(totalProgressBar = new ProgressBar(totalProgress));
 
 			totalProgressBar->setLookAndFeel(&alaf);
+			totalProgressBar->setOpaque(true);
 		}
 
 		void setDialog(AlertWindow *newWindow)
@@ -124,18 +125,33 @@ public:
 			}
 		}
 
-		void incTotalTasks()
+		void setTotalTasks(int numTasks)
 		{
-			totalTasks++;
+			totalTasks = jmax<int>(totalTasks, numTasks);
 
-			totalProgress = (double(currentTaskIndex-1) / (double)totalTasks);
+			if (totalTasks == 0)
+			{
+				totalProgress = 0.0;
+			}
+			else
+			{
+				totalProgress = (double(currentTaskIndex - 1) / (double)totalTasks);
+			}
 		}
+
 
 		void incCurrentIndex()
 		{
 			currentTaskIndex++;
 
-			totalProgress = (double(currentTaskIndex-1) / (double)totalTasks);
+			if (totalTasks == 0.0)
+			{
+				totalProgress = 0.0;
+			}
+			else
+			{
+				totalProgress = (double(currentTaskIndex - 1) / (double)totalTasks);
+			}
 		}
 
 		void clearIndexes()
@@ -143,10 +159,12 @@ public:
 			currentTaskIndex = 0;
 			totalTasks = 0;
 			totalProgress = 0.0;
+			parentSnapshot = Image();
 		}
 
+#if USE_BACKEND
 		void paint(Graphics &g) override 
-		{ 
+		{
 			g.fillAll(Colours::grey.withAlpha(0.5f));
 
 			if (window.getComponent() != nullptr)
@@ -168,8 +186,11 @@ public:
 				g.drawText("Task: " + String(currentTaskIndex) + "/" + String(totalTasks), textArea, Justification::centred);
 			}
 		};
+#endif
 
 	private:
+
+		Image parentSnapshot;
 
 		int currentTaskIndex;
 		int totalTasks;
@@ -198,7 +219,8 @@ public:
 	public:
 
 		Holder():
-			overlay(nullptr)
+			overlay(nullptr),
+			delayer(*this)
 		{
 			
 		}
@@ -220,25 +242,62 @@ public:
 
 		Overlay *getOverlay() { return overlay.getComponent(); }
 
+		void showDialog()
+		{
+			ThreadWithQuasiModalProgressWindow *window = queue.getFirst();
+
+			if (getOverlay() && window != nullptr)
+			{
+				getOverlay()->setTotalTasks(queue.size());
+				getOverlay()->incCurrentIndex();
+
+				AlertWindow *w = window->getAlertWindow();
+				getCancelButton(w)->addListener(this);
+				getOverlay()->setDialog(w);
+			}
+
+		}
+
         void handleAsyncUpdate()
         {
             ThreadWithQuasiModalProgressWindow *window = queue[0];
             
-            if (getOverlay())
-            {
-                clearDialog();
-                
-                getOverlay()->incCurrentIndex();
-                
-                AlertWindow *w = window->getAlertWindow();
-                getCancelButton(w)->addListener(this);
-                getOverlay()->setDialog(w);
-            }
-            
+			
+
+			showDialog();
+
             window->runThread();
         }
         
 	private:
+
+		class WindowDelayer : private Timer
+		{
+		public:
+			WindowDelayer(ThreadWithQuasiModalProgressWindow::Holder &parent_):
+				parent(parent_)
+			{
+
+			}
+
+			void postDelayMessage()
+			{
+				if (!isTimerRunning())
+				{
+					startTimer(200);
+				}
+			};
+
+			void timerCallback() override
+			{
+				parent.showDialog();
+				stopTimer();
+			};
+
+		private:
+
+			ThreadWithQuasiModalProgressWindow::Holder &parent;
+		};
 
 		friend class ThreadWithQuasiModalProgressWindow;
 
@@ -266,9 +325,11 @@ public:
 		{
 			queue.remove(0, true);
 
-			clearDialog();
-
-			if (queue.size() != 0)
+			if (queue.size() == 0)
+			{
+				clearDialog();
+			}
+			else
 			{
 				runNextThread();
 			}
@@ -283,11 +344,6 @@ public:
 		{
 			queue.add(window);
 
-			if (getOverlay())
-			{
-				getOverlay()->incTotalTasks();
-			}
-
 			if (queue.size() == 1)
 			{
                 runNextThread();
@@ -296,7 +352,7 @@ public:
 
 		void runNextThread()
 		{
-            triggerAsyncUpdate();
+			triggerAsyncUpdate();
 		}
 
 		/** AlertWindow, Y U no giving cancel button? */
@@ -315,6 +371,8 @@ public:
 		}
 
 		OwnedArray<ThreadWithQuasiModalProgressWindow> queue;
+
+		WindowDelayer delayer;
 
 		Component::SafePointer<Overlay> overlay;
 	};

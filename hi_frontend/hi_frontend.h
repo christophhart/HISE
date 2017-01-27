@@ -89,7 +89,10 @@ using namespace juce;
 	ValueTree externalFiles = PresetHandler::loadValueTreeFromData(PresetData::externalFiles, PresetData::externalFilesSize, true);\
 	ValueTree userPresets = PresetHandler::loadValueTreeFromData(PresetData::userPresets, PresetData::userPresetsSize, false);\
 	\
-	return new FrontendProcessor(presetData, deviceManager, callback, &imageData, nullptr, &externalFiles, &userPresets);\
+	FrontendProcessor* fp = new FrontendProcessor(presetData, deviceManager, callback, &imageData, nullptr, &externalFiles, &userPresets);\
+	AudioProcessorDriver::restoreSettings(fp);\
+	fp->loadSamplesAfterSetup();\
+	return fp;\
 }
 
 #define CREATE_PLUGIN_WITH_AUDIO_FILES(deviceManager, callback) {ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\
@@ -98,7 +101,10 @@ using namespace juce;
 	ValueTree externalFiles = PresetHandler::loadValueTreeFromData(PresetData::externalFiles, PresetData::externalFilesSize, true);\
 	ValueTree userPresets =PresetHandler::loadValueTreeFromData(PresetData::userPresets, PresetData::userPresetsSize, false);\
 	\
-	return new FrontendProcessor(presetData, deviceManager, callback, &imageData, &impulseData, &externalFiles, &userPresets);\
+	FrontendProcessor* fp = new FrontendProcessor(presetData, deviceManager, callback, &imageData, &impulseData, &externalFiles, &userPresets);\
+	AudioProcessorDriver::restoreSettings(fp);\
+	fp->loadSamplesAfterSetup();\
+	return fp;\
 }
 
 

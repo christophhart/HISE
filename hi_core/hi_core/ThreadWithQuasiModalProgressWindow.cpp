@@ -47,8 +47,12 @@ ThreadWithQuasiModalProgressWindow::ThreadWithQuasiModalProgressWindow (const St
     // if there are no buttons, we won't allow the user to interrupt the thread.
     alertWindow->setEscapeKeyCancels (false);
 
-    if (hasProgressBar)
-        alertWindow->addProgressBarComponent (progress);
+	alertWindow->setOpaque(true);
+
+	if (hasProgressBar)
+	{
+		alertWindow->addProgressBarComponent(progress);
+	}
 
 	holder->addThreadToQueue(this);
 }

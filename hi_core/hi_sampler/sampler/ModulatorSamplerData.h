@@ -57,7 +57,7 @@ public:
 	/** preloads either all sounds from the sampler or the list of sounds that was passed in the constructor. */
 	void run() override;
 
-	void preloadSample(StreamingSamplerSound * s, const int preloadSize);
+	void preloadSample(StreamingSamplerSound * s, const int preloadSize, int soundIndex);
 
 private:
 

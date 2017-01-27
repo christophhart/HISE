@@ -59,6 +59,14 @@ public:
 	void prepareToPlay (double sampleRate, int samplesPerBlock);
 	void releaseResources() {};
 
+	
+
+	void loadSamplesAfterSetup()
+	{
+		getSampleManager().setShouldSkipPreloading(false);
+		getSampleManager().preloadEverything();
+	}
+
 	void getStateInformation	(MemoryBlock &destData) override
 	{
 		MemoryOutputStream output(destData, false);

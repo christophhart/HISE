@@ -51,14 +51,15 @@ File AudioProcessorDriver::getDeviceSettingsFile()
 
 #else
 
-#if USE_BACKEND
 #if HISE_IOS
-	String parentDirectory = File::getSpecialLocation(File::SpecialLocationType::userApplicationDataDirectory).getFullPathName();
+    String parentDirectory = File::getSpecialLocation(File::SpecialLocationType::userApplicationDataDirectory).getFullPathName();
 #else
+    
+#if USE_BACKEND
 	String parentDirectory = File::getSpecialLocation(File::SpecialLocationType::currentExecutableFile).getParentDirectory().getFullPathName();
-#endif
 #else
 	String parentDirectory = ProjectHandler::Frontend::getAppDataDirectory().getFullPathName();
+#endif
 #endif
 
 	File parent(parentDirectory);
@@ -67,6 +68,25 @@ File AudioProcessorDriver::getDeviceSettingsFile()
 	File savedDeviceData = parent.getChildFile("DeviceSettings.xml");
 
 	return savedDeviceData;
+}
+
+
+void AudioProcessorDriver::restoreSettings(MainController* mc)
+{
+	ScopedPointer<XmlElement> deviceData = getSettings();
+
+	if (deviceData != nullptr)
+	{
+		int diskMode = deviceData->getIntAttribute("DISK_MODE");
+
+#if HISE_IOS
+		deviceData->setAttribute("audioDeviceBufferSize", 512);
+#endif
+
+		dynamic_cast<AudioProcessorDriver*>(mc)->diskMode = diskMode;
+
+		mc->getSampleManager().setDiskMode((MainController::SampleManager::DiskMode)diskMode);
+	}
 }
 
 void AudioProcessorDriver::saveDeviceSettingsAsXml()
@@ -103,23 +123,16 @@ StandaloneProcessor::StandaloneProcessor()
 
 	wrappedProcessor = createProcessor();
 
-	ScopedPointer<XmlElement> deviceData = dynamic_cast<AudioProcessorDriver*>(wrappedProcessor.get())->getSettings();
-
-	if(deviceData != nullptr)
-    {
-        int diskMode = deviceData->getIntAttribute("DISK_MODE");
-        
-        dynamic_cast<AudioProcessorDriver*>(wrappedProcessor.get())->diskMode = diskMode;
-        
-        dynamic_cast<MainController*>(wrappedProcessor.get())->getSampleManager().setDiskMode((MainController::SampleManager::DiskMode)diskMode);
-    }
-    
 #if USE_BACKEND
 	if(!CompileExporter::isExportingFromCommandLine()) 
-		dynamic_cast<AudioProcessorDriver*>(wrappedProcessor.get())->initialiseAudioDriver(deviceData);
+		dynamic_cast<AudioProcessorDriver*>(wrappedProcessor.get())->initialiseAudioDriver(AudioProcessorDriver::getSettings());
 #else
-	dynamic_cast<AudioProcessorDriver*>(wrappedProcessor.get())->initialiseAudioDriver(deviceData);
+	dynamic_cast<AudioProcessorDriver*>(wrappedProcessor.get())->initialiseAudioDriver(AudioProcessorDriver::getSettings());
+	dynamic_cast<FrontendProcessor*>(wrappedProcessor.get())->loadSamplesAfterSetup();
+
 #endif
+
+	
 		
 }
 

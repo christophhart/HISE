@@ -30,6 +30,17 @@
 *   ===========================================================================
 */
 
+#if USE_VDSP_FFT
+#define Point DummyPoint
+#define Component DummyComponent
+#define MemoryBlock DummyMB
+#include <Accelerate/Accelerate.h>
+#undef Point
+#undef Component
+#undef MemoryBlock
+#endif
+
+
 #include "hi_core.h"
 
 namespace juce

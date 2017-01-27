@@ -126,7 +126,7 @@ public:
 	{
 		buffer.clear();
 		midiMessages.clear();
-		allNotesOff();
+		//allNotesOff();
 	};
 
 	void handleControllersForMacroKnobs(const MidiBuffer &midiMessages);

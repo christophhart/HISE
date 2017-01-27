@@ -61,7 +61,9 @@ public:
 		deviceManager->setAudioDeviceSetup(currentSetup, true);
 	}
 
-	File getDeviceSettingsFile();
+	static File getDeviceSettingsFile();
+
+	static void restoreSettings(MainController* mc);
 
 	void saveDeviceSettingsAsXml();
 
@@ -106,7 +108,7 @@ public:
 
 	int diskMode = 0;
 
-	XmlElement *getSettings();
+	static XmlElement *getSettings();
 
 	void initialiseAudioDriver(XmlElement *deviceData);
 
