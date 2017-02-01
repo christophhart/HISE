@@ -120,6 +120,12 @@ public:
 	static StringArray getCallbackPropertyNames();
 
 	void setPopupMenuItems(const StringArray &newItemList);
+
+	void setActivePopupItem(int menuId)
+	{
+		activePopupId = menuId;
+	}
+
 	void setUseRightClickForPopup(bool shouldUseRightClickForPopup);
 	void alignPopup(bool shouldBeAligned);
 
@@ -157,6 +163,8 @@ private:
 	bool popupShouldBeAligned = false;
 	bool draggingEnabled = false;
 	bool currentlyShowingPopup = false;
+
+	int activePopupId = 0;
 
 	ScopedPointer<RectangleConstrainer> constrainer;
 	ComponentDragger dragger;

@@ -226,7 +226,7 @@ public:
 #endif
 	}
 
-	KeyboardFocusTraverser *createFocusTraverser() override { return new MidiKeyboardFocusTraverser(); };
+	KeyboardFocusTraverser *createFocusTraverser() override { return keyboard->isVisible() ? new MidiKeyboardFocusTraverser() : nullptr; };
 
 	void paint(Graphics &g) override
 	{
