@@ -72,6 +72,13 @@ AudioProcessorEditor(fp)
 	}
 
 	deactiveOverlay->setState(DeactiveOverlay::LicenceInvalid, !fp->unlocker.isUnlocked());
+
+#elif USE_TURBO_ACTIVATE
+
+	deactiveOverlay->setState(DeactiveOverlay::State::LicenceNotFound, !fp->unlocker.licenceWasFound());
+	deactiveOverlay->setState(DeactiveOverlay::State::LicenceExpired, fp->unlocker.licenceExpired());
+	deactiveOverlay->setState(DeactiveOverlay::State::LicenceInvalid, !fp->unlocker.isUnlocked());
+
 #endif
     
 	addAndMakeVisible(loaderOverlay = new ThreadWithQuasiModalProgressWindow::Overlay());
@@ -346,6 +353,7 @@ currentState.setBit(state, false);}
 
 DeactiveOverlay::State DeactiveOverlay::checkLicence(const String &keyContent)
 {
+#if USE_COPY_PROTECTION
 	String key = keyContent;
 
 	if (keyContent.isEmpty())
@@ -370,6 +378,9 @@ DeactiveOverlay::State DeactiveOverlay::checkLicence(const String &keyContent)
 	CHECK_LICENCE_PARAMETER(MachineNumbersNotMatching, keyFileMachineId);
 
     return numReasons;
+#else
+	return numReasons;
+#endif
 }
 
 #undef CHECK_LICENCE_PARAMETER

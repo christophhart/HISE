@@ -34,6 +34,55 @@
 #define FRONTENDPROCESSOR_H_INCLUDED
 
 
+
+
+class TurboActivateUnlocker
+{
+public:
+
+	enum class State
+	{
+		Activated,
+		ActivatedButFailedToConnect,
+		TrialExpired,
+		Trial,
+		Invalid,
+		LicenceNotFound,
+		numStates
+	};
+
+	TurboActivateUnlocker();
+
+	~TurboActivateUnlocker()
+	{
+		delete p;
+	}
+
+	bool isUnlocked() const noexcept
+	{
+		return unlockState == State::Activated || unlockState == State::ActivatedButFailedToConnect || unlockState == State::Trial;
+	}
+
+	bool licenceWasFound() const noexcept
+	{
+		return unlockState != State::LicenceNotFound;
+	}
+
+	bool licenceExpired() const noexcept
+	{
+		return unlockState == State::TrialExpired;
+	}
+
+	State unlockState;
+
+	class Pimpl;
+
+	Pimpl *p;
+
+};
+
+
+
 /** This class lets you take your exported HISE presets and wrap them into a hardcoded plugin (VST / AU, x86/x64, Win / OSX)
 *
 *	It is connected to a FrontendProcessorEditor, which will display all script interfaces that are brought to the front using 'Synth.addToFront(true)'.
@@ -160,6 +209,10 @@ public:
 
 #if USE_COPY_PROTECTION
 	Unlocker unlocker;
+#endif
+
+#if USE_TURBO_ACTIVATE
+	TurboActivateUnlocker unlocker;
 #endif
 
 	const ValueTree getValueTree(ProjectHandler::SubDirectories type) const override

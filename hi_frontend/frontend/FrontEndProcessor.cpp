@@ -33,8 +33,8 @@
 
 void FrontendProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {
-#if USE_COPY_PROTECTION
-	if (((unlockCounter & 1023) == 0) && !unlocker.isUnlocked()) return;
+#if USE_COPY_PROTECTION || USE_TURBO_ACTIVATE
+	if (((unlockCounter++ & 1023) == 0) && !unlocker.isUnlocked()) return;
 #endif
 
 	
@@ -92,7 +92,14 @@ unlockCounter(0)
 	{
 		keyFileCorrectlyLoaded = false;
 	}
+#elif USE_TURBO_ACTIVATE
+	
+	keyFileCorrectlyLoaded = !unlocker.isUnlocked();
+
 #endif
+
+
+
 
 	loadImages(imageData_);
 
