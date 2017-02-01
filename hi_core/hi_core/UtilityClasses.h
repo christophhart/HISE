@@ -753,9 +753,7 @@ public:
 
 
 
-				Colour outlineColour = Colour(0x77b9d2d6);
-				Colour transparentColour = outlineColour.withAlpha(0.0f);
-
+				Colour outlineColour = Colour(SIGNAL_COLOUR).withAlpha(0.3f);
 				
 				g.setColour(outlineColour);
 

@@ -72,7 +72,7 @@ public:
 		processor(nullptr),
 		macroIndex(-1),
 		name(""),
-		numberTag(new NumberTag(3, 14.0f, Colours::darkred)),
+		numberTag(new NumberTag(3, 14.0f, Colour(SIGNAL_COLOUR))),
 		macroControlledComponentEnabled(true)
 	{};
     
@@ -377,6 +377,8 @@ public:
         setColour(HiBackgroundColours::upperBgColour, Colour(0x66333333));
         setColour(HiBackgroundColours::lowerBgColour, Colour(0xfb111111));
         setColour(HiBackgroundColours::outlineBgColour, Colours::white.withAlpha(0.3f));
+        setColour (TextEditor::highlightColourId, Colour (SIGNAL_COLOUR).withAlpha(0.5f));
+        setColour (TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
 	};
 
 	

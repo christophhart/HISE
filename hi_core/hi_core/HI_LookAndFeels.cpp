@@ -299,7 +299,7 @@ KnobLookAndFeel::KnobLookAndFeel()
 	cachedImage_slider_strip2_png = ImageCache::getFromMemory (slider_strip2_png, slider_strip2_pngSize);
 	cachedImage_slider2_bipolar_png = ImageCache::getFromMemory (slider2_bipolar_png, slider2_bipolar_pngSize);
 
-	setColour(PopupMenu::highlightedBackgroundColourId, Colour(0xff680000));
+	setColour(PopupMenu::highlightedBackgroundColourId, Colour(SIGNAL_COLOUR));
 
 	Colour dark(0xFF252525);
 
@@ -629,7 +629,7 @@ void ConcertinaPanelHeaderLookAndFeel::drawConcertinaPanelHeader(Graphics& g, co
     g.drawFittedText(panel.getName(), area.getHeight(), 0, area.getWidth() - 6, area.getHeight(), Justification::centredLeft, 1);
     
 	path.scaleToFit(3.0f, 3.0f, (float)area.getHeight() - 6.0f, (float)area.getHeight() - 6.0f, true);
-	g.setColour(Colours::white);
+    g.setColour(Colours::white);
 	g.fillPath(path);
     
 #else

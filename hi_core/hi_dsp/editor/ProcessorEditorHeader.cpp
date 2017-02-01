@@ -62,13 +62,15 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
     idLabel->setColour (Label::backgroundColourId, Colour (0x00000000));
     idLabel->setColour (Label::textColourId, Colours::black.withAlpha(0.7f));
     idLabel->setColour (Label::outlineColourId, Colour (0x00ffffff));
-	idLabel->setColour (Label::textWhenEditingColourId, isHeaderOfModulatorSynth() ? Colours::black : Colours::white);
-	idLabel->setColour (Label::ColourIds::backgroundWhenEditingColourId, idLabel->findColour(Label::textWhenEditingColourId).contrasting());
+    idLabel->setColour (Label::textWhenEditingColourId, Colours::black);
+    idLabel->setColour (Label::ColourIds::backgroundWhenEditingColourId, Colours::transparentBlack);
 	idLabel->setColour(TextEditor::ColourIds::highlightedTextColourId, idLabel->findColour(Label::textWhenEditingColourId));
-	idLabel->setColour(TextEditor::ColourIds::highlightColourId, Colour(0xFF888888));
+	idLabel->setColour(TextEditor::ColourIds::highlightColourId, Colour(SIGNAL_COLOUR));
     idLabel->setColour (TextEditor::textColourId, Colours::black);
     idLabel->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
-
+    idLabel->setColour(TextEditor::ColourIds::focusedOutlineColourId, Colours::transparentBlack);
+    idLabel->setColour(CaretComponent::ColourIds::caretColourId, isHeaderOfModulatorSynth() ? Colours::black : Colours::white);
+    
 	idLabel->addListener(this);
 	
 	idLabel->setEditable(!isHeaderOfChain() || isHeaderOfModulatorSynth());

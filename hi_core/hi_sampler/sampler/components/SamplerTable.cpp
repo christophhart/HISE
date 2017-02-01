@@ -48,6 +48,8 @@ SamplerTable::SamplerTable (ModulatorSampler *s, SamplerBody *b)
     searchLabel->setColour (Label::backgroundColourId, Colour (0x13ffffff));
     searchLabel->setColour (TextEditor::textColourId, Colours::black);
     searchLabel->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
+    searchLabel->setColour (TextEditor::highlightColourId, Colour (SIGNAL_COLOUR).withAlpha(0.5f));
+    searchLabel->setColour (TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
     searchLabel->addListener (this);
 
 

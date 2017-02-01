@@ -39,6 +39,8 @@ ValueSettingComponent::ValueSettingComponent ()
     valueLabel->setColour (TextEditor::textColourId, Colours::black);
     valueLabel->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
     valueLabel->setColour (TextEditor::highlightColourId, Colour (0x407a0000));
+    valueLabel->setColour (TextEditor::highlightColourId, Colour (SIGNAL_COLOUR).withAlpha(0.5f));
+    valueLabel->setColour (TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
     valueLabel->addListener (this);
 
     addAndMakeVisible (descriptionLabel = new Label ("new label",

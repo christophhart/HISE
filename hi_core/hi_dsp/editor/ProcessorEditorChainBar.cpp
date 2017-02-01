@@ -45,7 +45,7 @@ ProcessorEditorChainBar::ProcessorEditorChainBar (ProcessorEditor *p):
 		t->setConnectedEdges (Button::ConnectedOnLeft | Button::ConnectedOnRight);
 		t->addListener (this);
 		t->setColour (TextButton::buttonColourId, Colour (0x4c000000));
-		t->setColour (TextButton::buttonOnColourId, Colours::white.withAlpha(0.7f));
+		t->setColour (TextButton::buttonOnColourId, Colours::white);
 		t->setColour (TextButton::textColourOnId, Colour (0xCC000000));
 		t->setColour (TextButton::textColourOffId, Colour (0xCCffffff));
 
@@ -86,7 +86,7 @@ ProcessorEditorChainBar::ProcessorEditorChainBar (ProcessorEditor *p):
 		t->setConnectedEdges (Button::ConnectedOnLeft | Button::ConnectedOnRight);
 		t->addListener (this);
 		t->setColour (TextButton::buttonColourId, Colour (0x884b4b4b));
-		t->setColour (TextButton::buttonOnColourId, Colours::white.withAlpha(0.7f));
+		t->setColour (TextButton::buttonOnColourId, Colours::white);
 		t->setColour (TextButton::textColourOnId, Colour (0xaa000000));
 		t->setColour (TextButton::textColourOffId, Colour (0x99ffffff));
 		t->setColour(ChainBarButtonLookAndFeel::ColourIds::IconColour, Colour(0xaa000000));

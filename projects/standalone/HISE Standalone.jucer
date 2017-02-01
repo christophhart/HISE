@@ -5,6 +5,7 @@
               jucerVersion="4.3.0" companyName="Hart Instruments" companyWebsite="http://hartinstruments.net/hise">
   <MAINGROUP id="yomWt4" name="HISE Standalone">
     <GROUP id="{577963C7-1A49-BB2A-D701-52DC7A5895F7}" name="Source">
+      <FILE id="S7ANvW" name="logo_new.png" compile="0" resource="1" file="../../hi_core/hi_images/logo_new.png"/>
       <FILE id="yjZXfQ" name="DspUnitTests.cpp" compile="1" resource="0"
             file="../../hi_scripting/scripting/api/DspUnitTests.cpp"/>
       <FILE id="bfBEgJ" name="HISE_Icon.png" compile="0" resource="1" file="../../hi_core/hi_images/HISE_Icon.png"/>
@@ -76,7 +77,7 @@
         <MODULEPATH id="hi_dsp_library" path="../../"/>
       </MODULEPATHS>
     </VS2013>
-    <XCODE_MAC targetFolder="Builds/MacOSX" smallIcon="bfBEgJ" bigIcon="bfBEgJ"
+    <XCODE_MAC targetFolder="Builds/MacOSX" smallIcon="S7ANvW" bigIcon="S7ANvW"
                extraLinkerFlags="/opt/intel/ipp/lib/libippi.a  /opt/intel/ipp/lib/libipps.a /opt/intel/ipp/lib/libippvm.a /opt/intel/ipp/lib/libippcore.a"
                customPList="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;&#10;&lt;!DOCTYPE plist PUBLIC &quot;-//Apple//DTD PLIST 1.0//EN&quot; &quot;http://www.apple.com/DTDs/PropertyList-1.0.dtd&quot;&gt;&#10;&lt;plist version=&quot;1.0&quot;&gt;&#10;&lt;dict&gt;&#10;&lt;key&gt;NSAppTransportSecurity&lt;/key&gt; &#10;&lt;dict&gt; &#10;&lt;key&gt;NSAllowsArbitraryLoads&lt;/key&gt;&lt;true/&gt;&#10;&lt;/dict&gt;&#10;&lt;/dict&gt;&#10;&lt;/plist&gt;"
                extraDefs="" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override">
@@ -113,7 +114,7 @@
       </MODULEPATHS>
     </XCODE_MAC>
     <XCODE_IPHONE targetFolder="Builds/iOS" iosScreenOrientation="landscape" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override"
-                  extraLinkerFlags="" smallIcon="DEkG64" bigIcon="DEkG64" iosBackgroundAudio="1"
+                  extraLinkerFlags="" smallIcon="BNfj8p" bigIcon="BNfj8p" iosBackgroundAudio="1"
                   UIStatusBarHidden="1" extraDefs="USE_IPP=0&#10;HISE_IOS=1" customPList="&lt;key&gt;NSAppTransportSecurity&lt;/key&gt;&#10;&lt;dict&gt;&#10;    &lt;key&gt;NSAllowsArbitraryLoads&lt;/key&gt;&#10;    &lt;true/&gt;&#10;&lt;/dict&gt;">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" iosCompatibility="8.0" isDebug="1" optimisation="1"
@@ -145,7 +146,7 @@
         <MODULEPATH id="hi_dsp_library" path="../../"/>
       </MODULEPATHS>
     </XCODE_IPHONE>
-    <VS2015 targetFolder="Builds/VisualStudio2015" smallIcon="bfBEgJ" bigIcon="bfBEgJ"
+    <VS2015 targetFolder="Builds/VisualStudio2015" smallIcon="BNfj8p" bigIcon="BNfj8p"
             useIPP="Sequential" IPPLibrary="Sequential">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"

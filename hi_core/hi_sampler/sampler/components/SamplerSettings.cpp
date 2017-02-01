@@ -41,7 +41,9 @@ SamplerSettings::SamplerSettings (ModulatorSampler *s)
     fadeTimeLabel->setColour (Label::textColourId, Colours::white);
     fadeTimeLabel->setColour (TextEditor::textColourId, Colours::black);
     fadeTimeLabel->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
-
+    fadeTimeLabel->setColour (TextEditor::highlightColourId, Colour (SIGNAL_COLOUR).withAlpha(0.5f));
+    fadeTimeLabel->setColour (TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
+    
     addAndMakeVisible (voiceAmountLabel = new Label ("new label",
                                                      TRANS("Amount")));
     voiceAmountLabel->setFont (Font ("Arial", 12.00f, Font::plain));
@@ -50,6 +52,8 @@ SamplerSettings::SamplerSettings (ModulatorSampler *s)
     voiceAmountLabel->setColour (Label::textColourId, Colours::white);
     voiceAmountLabel->setColour (TextEditor::textColourId, Colours::black);
     voiceAmountLabel->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
+    voiceAmountLabel->setColour (TextEditor::highlightColourId, Colour (SIGNAL_COLOUR).withAlpha(0.5f));
+    voiceAmountLabel->setColour (TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
 
     addAndMakeVisible (label2 = new Label ("new label",
                                            TRANS("Preload Size")));
@@ -95,7 +99,10 @@ SamplerSettings::SamplerSettings (ModulatorSampler *s)
     fadeTimeLabel2->setColour (Label::textColourId, Colours::white);
     fadeTimeLabel2->setColour (TextEditor::textColourId, Colours::black);
     fadeTimeLabel2->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
-
+    fadeTimeLabel2->setColour (TextEditor::highlightColourId, Colour (SIGNAL_COLOUR).withAlpha(0.5f));
+    fadeTimeLabel2->setColour (TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
+    
+    
     addAndMakeVisible (voiceLimitLabel = new Label ("new label",
                                                     TRANS("Soft Limit")));
     voiceLimitLabel->setFont (Font ("Khmer UI", 13.00f, Font::plain));
@@ -104,7 +111,9 @@ SamplerSettings::SamplerSettings (ModulatorSampler *s)
     voiceLimitLabel->setColour (Label::textColourId, Colours::white);
     voiceLimitLabel->setColour (TextEditor::textColourId, Colours::black);
     voiceLimitLabel->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
-
+    voiceLimitLabel->setColour (TextEditor::highlightColourId, Colour (SIGNAL_COLOUR).withAlpha(0.5f));
+    voiceLimitLabel->setColour (TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
+    
     addAndMakeVisible (bufferSizeEditor = new Label ("new label",
                                                      TRANS("100000")));
     bufferSizeEditor->setFont (Font ("Khmer UI", 14.00f, Font::plain));
@@ -114,7 +123,8 @@ SamplerSettings::SamplerSettings (ModulatorSampler *s)
     bufferSizeEditor->setColour (Label::outlineColourId, Colour (0x38ffffff));
     bufferSizeEditor->setColour (TextEditor::textColourId, Colours::black);
     bufferSizeEditor->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
-    bufferSizeEditor->setColour (TextEditor::highlightColourId, Colour (0x407a0000));
+    bufferSizeEditor->setColour (TextEditor::highlightColourId, Colour (SIGNAL_COLOUR).withAlpha(0.5f));
+    bufferSizeEditor->setColour (TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
     bufferSizeEditor->addListener (this);
 
     addAndMakeVisible (preloadBufferEditor = new Label ("new label",
@@ -127,6 +137,8 @@ SamplerSettings::SamplerSettings (ModulatorSampler *s)
     preloadBufferEditor->setColour (TextEditor::textColourId, Colours::black);
     preloadBufferEditor->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
     preloadBufferEditor->setColour (TextEditor::highlightColourId, Colour (0x40750000));
+    preloadBufferEditor->setColour (TextEditor::highlightColourId, Colour (SIGNAL_COLOUR).withAlpha(0.5f));
+    preloadBufferEditor->setColour (TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
     preloadBufferEditor->addListener (this);
 
     addAndMakeVisible (memoryUsageLabel = new Label ("new label",
@@ -145,7 +157,7 @@ SamplerSettings::SamplerSettings (ModulatorSampler *s)
     diskSlider->setSliderStyle (Slider::LinearBar);
     diskSlider->setTextBoxStyle (Slider::TextBoxLeft, true, 80, 20);
     diskSlider->setColour (Slider::backgroundColourId, Colour (0x38ffffff));
-    diskSlider->setColour (Slider::thumbColourId, Colour (0xb3680000));
+    diskSlider->setColour (Slider::thumbColourId, Colour (SIGNAL_COLOUR).withAlpha(0.5f));
     diskSlider->setColour (Slider::rotarySliderOutlineColourId, Colours::black);
     diskSlider->setColour (Slider::textBoxOutlineColourId, Colour (0x38ffffff));
     diskSlider->addListener (this);
@@ -160,6 +172,8 @@ SamplerSettings::SamplerSettings (ModulatorSampler *s)
     voiceAmountEditor->setColour (TextEditor::textColourId, Colours::black);
     voiceAmountEditor->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
     voiceAmountEditor->setColour (TextEditor::highlightColourId, Colour (0x407a0000));
+    voiceAmountEditor->setColour (TextEditor::highlightColourId, Colour (SIGNAL_COLOUR).withAlpha(0.5f));
+    voiceAmountEditor->setColour (TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
     voiceAmountEditor->addListener (this);
 
     addAndMakeVisible (voiceLimitEditor = new Label ("new label",
@@ -172,6 +186,8 @@ SamplerSettings::SamplerSettings (ModulatorSampler *s)
     voiceLimitEditor->setColour (TextEditor::textColourId, Colours::black);
     voiceLimitEditor->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
     voiceLimitEditor->setColour (TextEditor::highlightColourId, Colour (0x40750000));
+    voiceLimitEditor->setColour (TextEditor::highlightColourId, Colour (SIGNAL_COLOUR).withAlpha(0.5f));
+    voiceLimitEditor->setColour (TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
     voiceLimitEditor->addListener (this);
 
     addAndMakeVisible (fadeTimeEditor = new Label ("new label",
@@ -184,6 +200,8 @@ SamplerSettings::SamplerSettings (ModulatorSampler *s)
     fadeTimeEditor->setColour (TextEditor::textColourId, Colours::black);
     fadeTimeEditor->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
     fadeTimeEditor->setColour (TextEditor::highlightColourId, Colour (0x407a0000));
+    fadeTimeEditor->setColour (TextEditor::highlightColourId, Colour (SIGNAL_COLOUR).withAlpha(0.5f));
+    fadeTimeEditor->setColour (TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
     fadeTimeEditor->addListener (this);
 
     addAndMakeVisible (retriggerEditor = new PopupLabel ("new label",
@@ -216,6 +234,8 @@ SamplerSettings::SamplerSettings (ModulatorSampler *s)
     rrGroupEditor->setColour (TextEditor::textColourId, Colours::black);
     rrGroupEditor->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
     rrGroupEditor->setColour (TextEditor::highlightColourId, Colour (0x407a0000));
+    rrGroupEditor->setColour (TextEditor::highlightColourId, Colour (SIGNAL_COLOUR).withAlpha(0.5f));
+    rrGroupEditor->setColour (TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
     rrGroupEditor->addListener (this);
 
     addAndMakeVisible (playbackModeDescription = new Label ("new label",

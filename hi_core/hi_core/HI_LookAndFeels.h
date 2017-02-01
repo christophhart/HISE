@@ -164,7 +164,7 @@ class PopupLookAndFeel : public LookAndFeel_V3
 public:
 	PopupLookAndFeel()
 	{
-		setColour(PopupMenu::highlightedBackgroundColourId, Colour(0xff680000));
+		setColour(PopupMenu::highlightedBackgroundColourId, Colour(SIGNAL_COLOUR));
 
 		Colour dark(0xFF333333);
 
@@ -421,7 +421,7 @@ public:
 
 	HiPropertyPanelLookAndFeel()
 	{
-		setColour(PopupMenu::highlightedBackgroundColourId, Colour(0xff680000));
+		setColour(PopupMenu::highlightedBackgroundColourId, Colour(SIGNAL_COLOUR));
 
 		Colour dark(0xFF333333);
 
@@ -432,6 +432,8 @@ public:
 		setColour(PopupMenu::ColourIds::highlightedBackgroundColourId, bright);
 		setColour(PopupMenu::ColourIds::highlightedTextColourId, dark);
 		setColour(PopupMenu::ColourIds::headerTextColourId, bright);
+        setColour (TextEditor::highlightColourId, Colour (SIGNAL_COLOUR).withAlpha(0.5f));
+        setColour (TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
 
 	};
 
@@ -796,6 +798,11 @@ public:
 		setColour(PopupMenu::ColourIds::highlightedBackgroundColourId, bright);
 		setColour(PopupMenu::ColourIds::highlightedTextColourId, dark);
 		setColour(PopupMenu::ColourIds::headerTextColourId, dark);
+        
+        
+        setColour (TextEditor::highlightColourId, Colour (SIGNAL_COLOUR).withAlpha(0.5f));
+        setColour (TextEditor::ColourIds::focusedOutlineColourId, Colour (SIGNAL_COLOUR));
+                                  
 	}
 
 	Font getAlertWindowMessageFont () override

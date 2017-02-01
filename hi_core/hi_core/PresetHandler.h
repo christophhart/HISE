@@ -140,7 +140,6 @@ private:
 	AlertWindowLookAndFeel alaf;
     
     Image aboutHeader;
-
 };
 
 class ModulatorSynthChain;

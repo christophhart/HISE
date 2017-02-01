@@ -204,7 +204,7 @@ public:
         
 		
 
-		if (selected) return wantsOutlineColour ? Colours::red : Colours::red.withBrightness(transparency).withAlpha(0.6f);
+		if (selected) return wantsOutlineColour ? Colour(SIGNAL_COLOUR) : Colour(SIGNAL_COLOUR).withBrightness(transparency).withAlpha(0.6f);
 
 		if (sound->isMissing())
 		{
@@ -213,7 +213,7 @@ public:
 		}
 		else
 		{
-			if (sound->isPurged()) return Colours::green.withAlpha(0.3f);
+			if (sound->isPurged()) return Colours::brown.withAlpha(0.3f);
 			else return wantsOutlineColour ? Colours::white.withAlpha(0.7f) : Colours::white.withAlpha(transparency);
 		}
 	}
@@ -373,7 +373,7 @@ public:
 	*
 	*	@param pressedKeyData the array with the velocities (-1 if the key is not pressed). @see ModulatorSampler::SamplerDisplayValues
 	*/
-	void setPressedKeys(const int8 *pressedKeyData);
+	void setPressedKeys(const uint8 *pressedKeyData);
 
 	/** change the selection to the supplied list of sounds. */
 	void setSelectedIds(const Array<ModulatorSamplerSound*> newSelectionList);
@@ -439,7 +439,7 @@ private:
 	int currentDragDeltaY;
 	int semiTonesPerNote;
 
-	int pressedKeys[128];
+	uint8 pressedKeys[128];
 	int notePosition;
 	int veloPosition;
 	

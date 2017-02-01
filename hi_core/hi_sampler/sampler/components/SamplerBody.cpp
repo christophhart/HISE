@@ -43,7 +43,7 @@ SamplerBody::SamplerBody (ProcessorEditor *p)
     waveFormButton->setButtonText (TRANS("Sample Editor"));
     waveFormButton->setConnectedEdges (Button::ConnectedOnLeft | Button::ConnectedOnRight);
     waveFormButton->addListener (this);
-    waveFormButton->setColour (TextButton::buttonColourId, Colour (0xff606060));
+    waveFormButton->setColour (TextButton::buttonColourId, Colours::white);
     waveFormButton->setColour (TextButton::buttonOnColourId, Colour (0xff680000));
     waveFormButton->setColour (TextButton::textColourOnId, Colour (0x99ffffff));
     waveFormButton->setColour (TextButton::textColourOffId, Colours::white);
@@ -130,28 +130,28 @@ SamplerBody::SamplerBody (ProcessorEditor *p)
 	Button *t = waveFormButton;
 
 	t->setColour (TextButton::buttonColourId, Colour (0x884b4b4b));
-	t->setColour (TextButton::buttonOnColourId, Colours::white.withAlpha(0.9f));
+	t->setColour (TextButton::buttonOnColourId, Colour(Colours::white));
 	t->setColour (TextButton::textColourOnId, Colour (0xaa000000));
 	t->setColour (TextButton::textColourOffId, Colour (0x99ffffff));
 
 	t = mapButton;
 
 	t->setColour (TextButton::buttonColourId, Colour (0x884b4b4b));
-	t->setColour (TextButton::buttonOnColourId, Colours::white.withAlpha(0.9f));
+	t->setColour (TextButton::buttonOnColourId, Colour(Colours::white));
 	t->setColour (TextButton::textColourOnId, Colour (0xaa000000));
 	t->setColour (TextButton::textColourOffId, Colour (0x99ffffff));
 
 	t = tableButton;
 
 	t->setColour (TextButton::buttonColourId, Colour (0x884b4b4b));
-	t->setColour (TextButton::buttonOnColourId, Colours::white.withAlpha(0.9f));
+	t->setColour (TextButton::buttonOnColourId, Colour(Colours::white));
 	t->setColour (TextButton::textColourOnId, Colour (0xaa000000));
 	t->setColour (TextButton::textColourOffId, Colour (0x99ffffff));
 
 	t = settingsView;
 
 	t->setColour (TextButton::buttonColourId, Colour (0x884b4b4b));
-	t->setColour (TextButton::buttonOnColourId, Colours::white.withAlpha(0.9f));
+	t->setColour (TextButton::buttonOnColourId, Colour(Colours::white));
 	t->setColour (TextButton::textColourOnId, Colour (0xaa000000));
 	t->setColour (TextButton::textColourOffId, Colour (0x99ffffff));
 

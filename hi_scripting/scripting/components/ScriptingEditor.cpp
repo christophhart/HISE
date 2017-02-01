@@ -1599,7 +1599,7 @@ ScriptingEditor::DragOverlay::Dragger::~Dragger()
 void ScriptingEditor::DragOverlay::Dragger::paint(Graphics &g)
 {
 	g.fillAll(Colours::black.withAlpha(0.2f));
-	g.setColour(Colours::white.withAlpha(0.5f));
+	g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.5f));
 
 	if(!snapShot.isNull()) g.drawImageAt(snapShot, 0, 0);
 
@@ -1607,7 +1607,7 @@ void ScriptingEditor::DragOverlay::Dragger::paint(Graphics &g)
     
 	if (copyMode)
 	{
-        g.setColour(Colours::white.withAlpha(0.8f));
+        g.setColour(Colour(SIGNAL_COLOUR));
 		g.setFont(GLOBAL_BOLD_FONT().withHeight(28.0f));
 		g.drawText("+", getLocalBounds().withTrimmedLeft(2).expanded(0, 4), Justification::topLeft);
 	}

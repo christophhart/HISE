@@ -153,6 +153,8 @@ class LinuxFontHandler
 #define BACKEND_ICON_COLOUR_ON 0xCCFFFFFF
 #define BACKEND_ICON_COLOUR_OFF 0xFF333333
 
+#define SIGNAL_COLOUR 0xFF90FFB1
+
 #define DEBUG_BG_COLOUR 0xff636363
 
 #include "copyProtectionMacros.h"

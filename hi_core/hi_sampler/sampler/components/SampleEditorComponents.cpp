@@ -19,6 +19,8 @@ void PopupLabel::showPopup()
 	ScopedPointer<PopupLookAndFeel> plaf = new PopupLookAndFeel();
 	p.setLookAndFeel(plaf);
 
+    plaf->setColour (PopupMenu::ColourIds::highlightedBackgroundColourId , Colour(SIGNAL_COLOUR));
+    
 	for (int i = 0; i < options.size(); i++)
 	{
 		if (isTicked == 0)
@@ -480,14 +482,14 @@ void SamplerSoundMap::paintOverChildren(Graphics &g)
     
     for(int i = 0; i < 127; i++)
     {
-        if(pressedKeys[i] != -1)
+        if(pressedKeys[i] != 0)
         {
             float x = (float)i*noteWidth;
             float w = noteWidth;
             float y = (float)(getHeight() - (pressedKeys[i] * velocityHeight) - 2.0f);
             float h = 4.0f;
             
-            g.setColour(Colours::red);
+            g.setColour(Colour(SIGNAL_COLOUR));
             g.fillRect(x, y, w, h);
         }
     }
@@ -801,7 +803,7 @@ void SamplerSoundMap::mouseDrag(const MouseEvent &e)
     refreshGraphics();
 }
 
-void SamplerSoundMap::setPressedKeys(const int8 *pressedKeyData)
+void SamplerSoundMap::setPressedKeys(const uint8 *pressedKeyData)
 {
 	for(int i = 0; i < 127; i++)
 	{
@@ -940,10 +942,11 @@ void MapWithKeyboard::paint(Graphics &g)
 
 	for(int i = 0; i < 128; i++)
 	{
-		Colour keyColour = selectedRootNotes[i] ? blackKeys[i % 12] ? Colours::darkred : Colours::red :
+		Colour keyColour = selectedRootNotes[i] ? blackKeys[i % 12] ? Colour(SIGNAL_COLOUR).withMultipliedBrightness(0.5f) :
+                                                                      Colour(SIGNAL_COLOUR) :
 													blackKeys[i % 12] ? Colours::black : Colours::white;
 
-		if(i == lastNoteNumber) keyColour = Colours::red;
+		if(i == lastNoteNumber) keyColour = Colour(SIGNAL_COLOUR);
 
 		g.setColour(keyColour.withAlpha(0.4f));
 		g.fillRect(x + i * noteWidth, (float)y, noteWidth, height);
@@ -1060,27 +1063,46 @@ bool SamplerSoundTable::broadcasterIsSelection(ChangeBroadcaster *b) const
 }
 
 	
-void SamplerSoundTable::paintRowBackground (Graphics& g, int rowNumber, int /*width*/, int /*height*/, bool rowIsSelected)
+void SamplerSoundTable::paintRowBackground (Graphics& g, int rowNumber, int width, int height, bool rowIsSelected)
 {
 	if(rowNumber % 2) g.fillAll(Colours::white.withAlpha(0.05f));
 
     if (rowIsSelected)
-        g.fillAll (Colour(0xaa680000));
+    {
+        g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.6f));
+        g.fillAll();
+        g.setColour(Colours::black.withAlpha(0.1f));
+        g.drawHorizontalLine(height-1, 0.0, (float)width);
+        
+    }
+    
 }
 
 void SamplerSoundTable::paintCell (Graphics& g, int rowNumber, int columnId,
-                int width, int height, bool /*rowIsSelected*/) 
+                int width, int height, bool rowIsSelected)
 {
 
 	if (rowNumber < sortedSoundList.size())
 	{
-		g.setColour(Colours::white.withAlpha(.8f));
-		g.setFont(font);
+        if(rowIsSelected)
+        {
+            g.setFont(GLOBAL_BOLD_FONT());
+            g.setColour(Colours::black.withAlpha(.8f));
+        }
+        else
+        {
+            g.setFont(font);
+            g.setColour(Colours::white.withAlpha(.8f));
+        }
+		
+		
 
 
 
 		String text(sortedSoundList[rowNumber]->getPropertyAsString((ModulatorSamplerSound::Property)columnId));
 
+        
+        
 		g.drawText(text, 2, 0, width - 4, height, Justification::centred, true);
 
 		g.setColour(Colours::black.withAlpha(0.2f));

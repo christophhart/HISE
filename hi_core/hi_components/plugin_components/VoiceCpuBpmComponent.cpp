@@ -62,7 +62,7 @@ VoiceCpuBpmComponent::VoiceCpuBpmComponent(MainController *mc_)
 
 	bpmLabel->setEditable(false);
 
-	addAndMakeVisible(panicButton = new ShapeButton("Panic", Colours::white.withAlpha(0.6f), Colours::white.withAlpha(0.8f), Colours::white));
+	addAndMakeVisible(panicButton = new ShapeButton("Panic", Colours::white.withAlpha(0.6f), Colours::white.withAlpha(0.8f), Colour(SIGNAL_COLOUR)));
 
 	Path panicPath;
 	panicPath.loadPathFromData(HiBinaryData::FrontendBinaryData::panicButtonShape, sizeof(HiBinaryData::FrontendBinaryData::panicButtonShape));
@@ -154,7 +154,7 @@ void VoiceCpuBpmComponent::timerCallback()
 
 		const bool midiFlag = mc->checkAndResetMidiInputFlag();
 
-		Colour c = midiFlag ? Colours::white : Colours::white.withAlpha(0.6f);
+		Colour c = midiFlag ? Colour(SIGNAL_COLOUR) : Colours::white.withAlpha(0.6f);
 
 		midiButton->setColours(c, c, c);
 		midiButton->repaint();

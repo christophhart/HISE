@@ -345,9 +345,12 @@ void MainController::EventIdHandler::handleEventIds()
 		{
 			if (!realNoteOnEvents[m->getNoteNumber()].isEmpty())
 			{
-				uint16 id = realNoteOnEvents[m->getNoteNumber()].getEventId();
+                HiseEvent* on = &realNoteOnEvents[m->getNoteNumber()];
+                
+				uint16 id = on->getEventId();
 				m->setEventId(id);
-				realNoteOnEvents[m->getNoteNumber()] = HiseEvent();
+                m->setTransposeAmount(on->getTransposeAmount());
+                *on = HiseEvent();
 			}
 			else
 			{

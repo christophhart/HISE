@@ -267,7 +267,7 @@ public:
 	{
 		SamplerDisplayValues() : currentSamplePos(0.0)
 		{
-			for (int i = 0; i < 127; i++) currentNotes[i] = -1;
+            memset(currentNotes, 0, 128);
 		};
 
 		double currentSamplePos;
@@ -275,7 +275,7 @@ public:
 		float crossfadeTableValue;
 		int currentGroup;
 
-		int8 currentNotes[128];
+		uint8 currentNotes[128];
 	};
 
 	const SamplerDisplayValues &getSamplerDisplayValues() const { return samplerDisplayValues;	}

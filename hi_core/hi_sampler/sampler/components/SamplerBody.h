@@ -86,11 +86,11 @@ public:
 
 
 
-	bool newKeysPressed(const int8 *currentNotes)
+	bool newKeysPressed(const uint8 *currentNotes)
 	{
 		for(int i = 0; i < 127; i++)
 		{
-			if(currentNotes[i] != -1) return true;
+			if(currentNotes[i] != 0) return true;
 		}
 		return false;
 	}
@@ -115,7 +115,7 @@ public:
 
 			for(int i = 0; i < 127; i++)
 			{
-				if(x.currentNotes[i] != -1)
+				if(x.currentNotes[i] != 0)
 				{
 					const int noteNumber = i;
 					const int velocity = x.currentNotes[i];
