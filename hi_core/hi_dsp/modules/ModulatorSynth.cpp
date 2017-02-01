@@ -1154,15 +1154,15 @@ void ModulatorSynthVoice::setCurrentHiseEvent(const HiseEvent &m)
 
 void ModulatorSynthChainFactoryType::fillTypeNameList()
 {
-	ADD_NAME_TO_TYPELIST(SineSynth);
+    ADD_NAME_TO_TYPELIST(ModulatorSampler);
+    ADD_NAME_TO_TYPELIST(SineSynth);
+    ADD_NAME_TO_TYPELIST(ModulatorSynthChain);
+    ADD_NAME_TO_TYPELIST(GlobalModulatorContainer);
 	ADD_NAME_TO_TYPELIST(WaveSynth);
 	ADD_NAME_TO_TYPELIST(NoiseSynth);
 	ADD_NAME_TO_TYPELIST(WavetableSynth);
 	ADD_NAME_TO_TYPELIST(AudioLooper);
-	ADD_NAME_TO_TYPELIST(ModulatorSampler);
-	ADD_NAME_TO_TYPELIST(ModulatorSynthChain);
 	ADD_NAME_TO_TYPELIST(ModulatorSynthGroup);
-	ADD_NAME_TO_TYPELIST(GlobalModulatorContainer);
 	ADD_NAME_TO_TYPELIST(JavascriptModulatorSynth);
 }
 

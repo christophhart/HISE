@@ -596,6 +596,11 @@ public:
 	{
 		jassert(eventGainFactor >= 0.0f && eventGainFactor < 20.0f);
 
+        if(eventGainFactor == 0.0f)
+        {
+            killVoice();
+        }
+        
 		for (int i = 0; i < voiceBuffer.getNumChannels(); i++)
 		{
 			FloatVectorOperations::multiply(voiceBuffer.getWritePointer(i) + startSample , eventGainFactor, numSamples);
@@ -744,15 +749,16 @@ public:
 
 	enum
 	{
-		sineSynth = 0,
+        streamingSampler=0,
+        sineSynth,
+        modulatorSynthChain,
+        globalModulatorContainer,
+		
 		waveSynth,
 		noise,
 		wavetableSynth,
 		audioLooper,
-		streamingSampler,
-		modulatorSynthChain,
 		modulatorSynthGroup,
-		globalModulatorContainer,
 		scriptSynth
 	};
 
