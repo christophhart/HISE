@@ -114,7 +114,7 @@ public:
 		public:
 			virtual void breakpointWasHit(int breakpointIndex) = 0;
 
-			~Listener()
+			virtual ~Listener()
 			{
 				masterReference.clear();
 			}

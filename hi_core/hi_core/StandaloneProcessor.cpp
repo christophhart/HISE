@@ -123,11 +123,13 @@ StandaloneProcessor::StandaloneProcessor()
 
 	wrappedProcessor = createProcessor();
 
+    ScopedPointer<XmlElement> xml = AudioProcessorDriver::getSettings();
+    
 #if USE_BACKEND
 	if(!CompileExporter::isExportingFromCommandLine()) 
-		dynamic_cast<AudioProcessorDriver*>(wrappedProcessor.get())->initialiseAudioDriver(AudioProcessorDriver::getSettings());
+		dynamic_cast<AudioProcessorDriver*>(wrappedProcessor.get())->initialiseAudioDriver(xml);
 #else
-	dynamic_cast<AudioProcessorDriver*>(wrappedProcessor.get())->initialiseAudioDriver(AudioProcessorDriver::getSettings());
+	dynamic_cast<AudioProcessorDriver*>(wrappedProcessor.get())->initialiseAudioDriver(xml);
 	dynamic_cast<FrontendProcessor*>(wrappedProcessor.get())->loadSamplesAfterSetup();
 
 #endif
