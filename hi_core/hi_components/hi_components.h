@@ -46,6 +46,7 @@
 #include "drag_plot/TableEditor.h"
 #include "keyboard/CustomKeyboard.h"
 #include "plugin_components/VoiceCpuBpmComponent.h"
+#include "plugin_components/PresetBrowser.h"
 #include "plugin_components/PresetComponents.h"
 #include "plugin_components/StandalonePopupComponents.h"
 #include "plugin_components/FrontendBar.h"

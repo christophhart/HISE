@@ -397,8 +397,16 @@ void PresetBox::mouseDown(const MouseEvent& /*event*/)
 	}
 	else
 	{
-		PresetBrowserWindow* pr = new PresetBrowserWindow(data);
+		auto r = dynamic_cast<const Component*>(mbw)->getBounds();
 
+		MultiColumnPresetBrowser* pr = new MultiColumnPresetBrowser(mc, r.getWidth() - 80, r.getHeight()-80);
+		
+		pr->setShowCloseButton(true);
+        
+        Colour c2 = Colours::black.withAlpha(0.8f);
+        Colour c = Colour(SIGNAL_COLOUR);
+        
+		pr->setHighlightColourAndFont(c, c2, GLOBAL_BOLD_FONT());
 		pr->setModalBaseWindowComponent(this, 300);
 	}
 }
