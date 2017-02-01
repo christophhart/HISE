@@ -111,7 +111,7 @@ public:
 			
 			Label *l = new Label ("", synthChain->getMacroControlData(i)->getMacroName());
 
-			l->setFont (GLOBAL_FONT());
+			l->setFont (GLOBAL_BOLD_FONT());
 			l->setJustificationType (Justification::centred);
 			l->setEditable (false, true, false);
 			l->setColour (Label::backgroundColourId, Colours::black.withAlpha(0.1f));
@@ -618,7 +618,7 @@ private:
 			slider->setSliderStyle (Slider::LinearBar);
 			slider->setTextBoxStyle (Slider::TextBoxLeft, true, 80, 20);
 			slider->setColour (Slider::backgroundColourId, Colour (0x38ffffff));
-			slider->setColour (Slider::thumbColourId, Colour (0x55680000));
+			slider->setColour (Slider::thumbColourId, Colour (SIGNAL_COLOUR));
 			slider->setColour (Slider::rotarySliderOutlineColourId, Colours::black);
 			slider->setColour (Slider::textBoxOutlineColourId, Colour (0x38ffffff));
 			slider->setColour (Slider::textBoxTextColourId, Colours::black);

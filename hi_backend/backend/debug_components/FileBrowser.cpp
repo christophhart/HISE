@@ -212,7 +212,7 @@ directorySearcher("Directory Scanner")
 	textEditor->setFont(GLOBAL_BOLD_FONT());
 	textEditor->addListener(this);
     textEditor->setColour(TextEditor::ColourIds::backgroundColourId, Colours::white.withAlpha(0.2f));
-	textEditor->setColour(TextEditor::ColourIds::focusedOutlineColourId, Colours::black.withAlpha(0.5f));
+	textEditor->setColour(TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
 
 	directoryList = new DirectoryContentsList(fileFilter, directorySearcher);
 

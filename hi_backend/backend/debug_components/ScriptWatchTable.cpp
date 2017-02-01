@@ -55,6 +55,7 @@ ScriptWatchTable::ScriptWatchTable(MainController *mc, BaseDebugArea *area) :
 	addAndMakeVisible(fuzzySearchBox = new TextEditor());
 	fuzzySearchBox->addListener(this);
 	fuzzySearchBox->setColour(TextEditor::ColourIds::backgroundColourId, Colours::white.withAlpha(0.2f));
+    fuzzySearchBox->setColour(TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
 	fuzzySearchBox->setFont(GLOBAL_FONT());
 	fuzzySearchBox->setSelectAllWhenFocused(true);
 
@@ -177,7 +178,7 @@ void ScriptWatchTable::refreshChangeStatus()
 	else
 	{
 		HiseJavascriptEngine *engine = dynamic_cast<JavascriptProcessor*>(processor.get())->getScriptEngine();
-		const int numRows = engine->getNumDebugObjects();
+        
 		BigInteger lastChanged = changed;
 		changed = 0;
 

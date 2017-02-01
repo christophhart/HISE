@@ -81,7 +81,7 @@ rootEditorIsMainSynthChain(true)
 	mainToolbar->setStyle(Toolbar::ToolbarItemStyle::iconsOnly);
 	mainToolbar->addDefaultItems(*toolbarFactory);
 	mainToolbar->setColour(Toolbar::ColourIds::backgroundColourId, Colours::transparentBlack);
-	mainToolbar->setColour(Toolbar::ColourIds::buttonMouseOverBackgroundColourId, Colours::white.withAlpha(0.5f));
+	mainToolbar->setColour(Toolbar::ColourIds::buttonMouseOverBackgroundColourId, Colours::white.withAlpha(0.2f));
 	mainToolbar->setColour(Toolbar::ColourIds::buttonMouseDownBackgroundColourId, Colours::white.withAlpha(0.7f));
 
 #if HISE_IOS

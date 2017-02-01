@@ -162,13 +162,13 @@ void MacroComponent::buttonClicked(Button *b)
 		macroKnobs[i]->setEnabled(!b->getToggleState());
 
 
-		editButtons[i]->setColours(Colours::black.withAlpha(0.5f), Colours::black.withAlpha(0.7f), Colour(0xff680000));
+		editButtons[i]->setColours(Colours::black.withAlpha(0.5f), Colours::black.withAlpha(0.7f), Colour(SIGNAL_COLOUR));
 
 	}
 
 	if(b->getToggleState())
 	{
-		dynamic_cast<ShapeButton*>(b)->setColours(Colour(0xff680000), Colour(0xff990000), Colour(0xffAA0000));
+		dynamic_cast<ShapeButton*>(b)->setColours(Colour(SIGNAL_COLOUR), Colour(SIGNAL_COLOUR), Colour(SIGNAL_COLOUR));
 
 		for(int i = 0; i < editButtons.size(); i++)
 		{
@@ -178,8 +178,8 @@ void MacroComponent::buttonClicked(Button *b)
 			{
 				checkActiveButtons();
 
-				macroNames[i]->setColour(Label::ColourIds::backgroundColourId, Colour(0x77680000));	
-				macroNames[i]->setColour(Label::ColourIds::textColourId, Colours::white);	
+				macroNames[i]->setColour(Label::ColourIds::backgroundColourId, Colour(SIGNAL_COLOUR).withAlpha(0.5f));
+					
 
 				processor->getMacroManager().setMacroControlLearnMode(processor->getMainSynthChain(), i);
 
