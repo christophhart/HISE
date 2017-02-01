@@ -54,7 +54,11 @@ public:
 		descriptionLabel->setEditable(false, false, false);
 		descriptionLabel->setJustificationType(Justification::centredTop);
 
-		addAndMakeVisible(resolveLicenceButton = new TextButton("Use Licence File"));
+#if USE_TURBO_ACTIVATE
+		addAndMakeVisible(resolveLicenceButton = new TextButton("Register Product Key"));
+#else
+        addAndMakeVisible(resolveLicenceButton = new TextButton("Use Licence File"));
+#endif
 		addAndMakeVisible(resolveSamplesButton = new TextButton("Choose Sample Folder"));
         addAndMakeVisible(registerProductButton = new TextButton("Online authentication"));
         
@@ -145,7 +149,13 @@ public:
 		case DeactiveOverlay::LicenceInvalid:
 			return "The licence key is malicious.\nPlease contact support.";
 		case DeactiveOverlay::LicenceExpired:
-			return "The licence key is expired. Press OK to reauthenticate (you'll need to be online for this)";
+#if USE_COPY_PROTECTION
+            return "The licence key is expired. Press OK to reauthenticate (you'll need to be online for this)";
+#elif USE_TURBO_ACTIVATE
+			return "The trial version is expired. You'll have to enter a valid Product key to unlock the full version.";
+#else
+            return "";
+#endif
 		case DeactiveOverlay::numReasons:
 			break;
 		default:
@@ -186,6 +196,10 @@ public:
 
 			resolveSamplesButton->centreWithSize(200, 32);
 		}
+        
+#if USE_TURBO_ACTIVATE
+        registerProductButton->setVisible(false);
+#endif
 	}
 
 private:
@@ -226,7 +240,7 @@ public:
 #endif
 	}
 
-	KeyboardFocusTraverser *createFocusTraverser() override { return keyboard->isVisible() ? new MidiKeyboardFocusTraverser() : nullptr; };
+	KeyboardFocusTraverser *createFocusTraverser() override { return keyboard->isVisible() ? new MidiKeyboardFocusTraverser() : new KeyboardFocusTraverser(); };
 
 	void paint(Graphics &g) override
 	{

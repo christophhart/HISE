@@ -35,50 +35,48 @@
 
 
 
-
 class TurboActivateUnlocker
 {
 public:
-
-	enum class State
-	{
-		Activated,
-		ActivatedButFailedToConnect,
-		TrialExpired,
-		Trial,
-		Invalid,
-		LicenceNotFound,
-		numStates
-	};
-
-	TurboActivateUnlocker();
-
-	~TurboActivateUnlocker()
-	{
-		delete p;
-	}
-
-	bool isUnlocked() const noexcept
-	{
-		return unlockState == State::Activated || unlockState == State::ActivatedButFailedToConnect || unlockState == State::Trial;
-	}
-
-	bool licenceWasFound() const noexcept
-	{
-		return unlockState != State::LicenceNotFound;
-	}
-
-	bool licenceExpired() const noexcept
-	{
-		return unlockState == State::TrialExpired;
-	}
-
-	State unlockState;
-
-	class Pimpl;
-
-	Pimpl *p;
-
+    
+    enum class State
+    {
+        Activated,
+        ActivatedButFailedToConnect,
+        TrialExpired,
+        Trial,
+        Invalid,
+        LicenceNotFound,
+        numStates
+    };
+    
+    TurboActivateUnlocker(const char* pathToLicenceFile);
+    
+    ~TurboActivateUnlocker();
+    
+    bool isUnlocked() const noexcept
+    {
+        return unlockState == State::Activated || unlockState == State::ActivatedButFailedToConnect || unlockState == State::Trial;
+    }
+    
+    bool licenceWasFound() const noexcept
+    {
+        return unlockState != State::LicenceNotFound;
+    }
+    
+    bool licenceExpired() const noexcept
+    {
+        return unlockState == State::TrialExpired;
+    }
+    
+    void activateWithKey(const char* key);
+    
+    State unlockState;
+    
+    class Pimpl;
+    
+    Pimpl *p;
+    
 };
 
 
@@ -108,12 +106,25 @@ public:
 	void prepareToPlay (double sampleRate, int samplesPerBlock);
 	void releaseResources() {};
 
-	
+	void loadSamplesAfterRegistration()
+    {
+        keyFileCorrectlyLoaded = unlocker.isUnlocked();
+        
+        loadSamplesAfterSetup();
+    }
 
 	void loadSamplesAfterSetup()
 	{
-		getSampleManager().setShouldSkipPreloading(false);
-		getSampleManager().preloadEverything();
+        if(keyFileCorrectlyLoaded)
+        {
+            suspendProcessing(false);
+            getSampleManager().setShouldSkipPreloading(false);
+            getSampleManager().preloadEverything();
+        }
+        else
+        {
+            suspendProcessing(true);
+        }
 	}
 
 	void getStateInformation	(MemoryBlock &destData) override
@@ -236,7 +247,7 @@ private:
 
 	bool samplesCorrectlyLoaded;
 
-	bool keyFileCorrectlyLoaded;
+    bool keyFileCorrectlyLoaded = true;
 
 	int numParameters;
 

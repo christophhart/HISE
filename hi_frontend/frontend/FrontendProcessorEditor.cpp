@@ -265,6 +265,26 @@ void DeactiveOverlay::buttonClicked(Button *b)
             
             PresetHandler::showMessageWindow("Valid key file found.", "You found a valid key file. Please reload this instance to activate the plugin.");
 		}
+#else if USE_TURBO_ACTIVATE
+        
+        const String key = PresetHandler::getCustomName("Product Key");
+        
+        TurboActivateUnlocker *ul = &dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor())->unlocker;
+        
+        ul->activateWithKey(key.getCharPointer());
+        
+        setState(DeactiveOverlay::State::LicenceNotFound, !ul->licenceWasFound());
+        setState(DeactiveOverlay::State::LicenceExpired, ul->licenceExpired());
+        setState(DeactiveOverlay::State::LicenceInvalid, !ul->isUnlocked());
+        
+        if(ul->isUnlocked())
+        {
+            PresetHandler::showMessageWindow("Registration successful", "The software is now unlocked and ready to use.");
+            
+            FrontendProcessor* fp =  dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor());
+            
+            fp->loadSamplesAfterRegistration();
+        }
 #endif
 	}
 	else if (b == resolveSamplesButton)
@@ -379,6 +399,7 @@ DeactiveOverlay::State DeactiveOverlay::checkLicence(const String &keyContent)
 
     return numReasons;
 #else
+	ignoreUnused(keyContent);
 	return numReasons;
 #endif
 }

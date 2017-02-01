@@ -1150,6 +1150,8 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
     REPLACE_WILDCARD_WITH_STRING("%USE_IPP%", exporter->useIpp ? "enabled" : "disabled");
     REPLACE_WILDCARD_WITH_STRING("%IPP_WIN_SETTING%", exporter->useIpp ? "Sequential" : String());
     
+	
+
 #if JUCE_MAC
 
 	REPLACE_WILDCARD_WITH_STRING("%IPP_COMPILER_FLAGS%", "/opt/intel/ipp/lib/libippi.a  /opt/intel/ipp/lib/libipps.a /opt/intel/ipp/lib/libippvm.a /opt/intel/ipp/lib/libippcore.a");
@@ -1204,6 +1206,20 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
 		additionalSourceFiles.add(additionalMainHeaderFile);
 	}
 
+
+	File copyProtectionCppFile = additionalSourceCodeDirectory.getChildFile("CopyProtection.cpp");
+
+	File copyProtectionTargetFile = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getChildFile("Source/CopyProtection.cpp");
+
+	if (copyProtectionCppFile.existsAsFile())
+	{
+		copyProtectionCppFile.copyFileTo(copyProtectionTargetFile);
+	}
+	else
+	{
+		copyProtectionTargetFile.create();
+	}
+
     File iconFile = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("Icon.png");
     
     if(iconFile.existsAsFile())
@@ -1215,9 +1231,28 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
         templateProject = templateProject.replace("%ICON_FILE%", "");
     }
 	
+
 #if JUCE_MAC
     const String additionalStaticLibs = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::OSXStaticLibs, &GET_PROJECT_HANDLER(chainToExport));
     templateProject = templateProject.replace("%OSX_STATIC_LIBS%", additionalStaticLibs);
+#else
+
+	const File additionalStaticLibFolder = File(SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::WindowsStaticLibFolder, &GET_PROJECT_HANDLER(chainToExport)));
+
+	if (additionalStaticLibFolder.isDirectory())
+	{
+		REPLACE_WILDCARD_WITH_STRING("%WIN_STATIC_LIB_FOLDER_D64%", additionalStaticLibFolder.getChildFile("Debug_x64").getFullPathName());
+		REPLACE_WILDCARD_WITH_STRING("%WIN_STATIC_LIB_FOLDER_R64%", additionalStaticLibFolder.getChildFile("Release_x64").getFullPathName());
+		REPLACE_WILDCARD_WITH_STRING("%WIN_STATIC_LIB_FOLDER_D32%", additionalStaticLibFolder.getChildFile("Debug_x86").getFullPathName());
+		REPLACE_WILDCARD_WITH_STRING("%WIN_STATIC_LIB_FOLDER_R32%", additionalStaticLibFolder.getChildFile("Release_x86").getFullPathName());
+	}
+	else
+	{
+		REPLACE_WILDCARD_WITH_STRING("%WIN_STATIC_LIB_FOLDER_D64%", "");
+		REPLACE_WILDCARD_WITH_STRING("%WIN_STATIC_LIB_FOLDER_R64%", "");
+		REPLACE_WILDCARD_WITH_STRING("%WIN_STATIC_LIB_FOLDER_D32%", "");
+		REPLACE_WILDCARD_WITH_STRING("%WIN_STATIC_LIB_FOLDER_R32%", "");
+	}
 #endif
     
 	if (additionalSourceFiles.size() != 0)

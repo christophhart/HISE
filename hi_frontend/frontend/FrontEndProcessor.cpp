@@ -82,7 +82,10 @@ samplesCorrectlyLoaded(true),
 keyFileCorrectlyLoaded(true),
 presets(*userPresets),
 currentlyLoadedProgram(0),
-unlockCounter(0)
+unlockCounter(0),
+#if USE_TURBO_ACTIVATE
+unlocker(ProjectHandler::Frontend::getAppDataDirectory().getFullPathName().getCharPointer())
+#endif
 {
 #if USE_COPY_PROTECTION
 	if (PresetHandler::loadKeyFile(unlocker))
@@ -94,9 +97,10 @@ unlockCounter(0)
 	}
 #elif USE_TURBO_ACTIVATE
 	
-	keyFileCorrectlyLoaded = !unlocker.isUnlocked();
+	keyFileCorrectlyLoaded = unlocker.isUnlocked();
 
 #endif
+
 
 
 

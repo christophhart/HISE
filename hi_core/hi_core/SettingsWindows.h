@@ -154,6 +154,7 @@ public:
 			AdditionalDspLibraries,
 			CustomToolbarClassName,
 			OSXStaticLibs,
+			WindowsStaticLibFolder,
 			numAttributes
 		};
 

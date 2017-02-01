@@ -89,7 +89,7 @@ deactivateUIUpdate(false)
 
 	crossFadeChain->setColour(Colour(0xFFC638B4));
 
-	for (int i = 0; i < 127; i++) samplerDisplayValues.currentNotes[i] = -1;
+	for (int i = 0; i < 127; i++) samplerDisplayValues.currentNotes[i] = 0;
 
 	setVoiceAmount(numVoices);
 
@@ -619,7 +619,7 @@ void ModulatorSampler::setCrossfadeTableValue(float newValue)
 void ModulatorSampler::resetNoteDisplay(int noteNumber)
 {
 	lastStartedVoice = nullptr;
-	samplerDisplayValues.currentNotes[noteNumber] = -1;
+	samplerDisplayValues.currentNotes[noteNumber] = 0;
 	samplerDisplayValues.currentSamplePos = -1.0;
 	sendAllocationFreeChangeMessage();
 }
