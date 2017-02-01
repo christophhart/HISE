@@ -324,7 +324,7 @@ public:
 		searchBar->setColour(PresetBrowserSearchBar::ColourIds::highlightColourId, findColour(PresetBrowserSearchBar::ColourIds::highlightColourId));
 	}
 
-	void buttonClicked(Button* b) override
+	void buttonClicked(Button* /*b*/) override
 	{
 		destroy();
 	}

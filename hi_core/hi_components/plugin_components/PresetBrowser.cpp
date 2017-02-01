@@ -488,7 +488,7 @@ void MultiColumnPresetBrowser::resized()
 	
 }
 
-void MultiColumnPresetBrowser::selectionChanged(int columnIndex, int rowIndex, const File& file, bool /*doubleClick*/)
+void MultiColumnPresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const File& file, bool /*doubleClick*/)
 {
 	if (columnIndex == 0)
 	{
@@ -524,7 +524,7 @@ void MultiColumnPresetBrowser::renameEntry(int columnIndex, int rowIndex, const 
 {
 	if (columnIndex == 0)
 	{
-		File bankToDelete = PresetBrowserColumn::getChildDirectory(rootFile, 1, rowIndex);
+		File bankToDelete = f;
 
 		categoryColumn->setNewRootDirectory(File::nonexistent);
 		presetColumn->setNewRootDirectory(File::nonexistent);
@@ -543,11 +543,11 @@ void MultiColumnPresetBrowser::renameEntry(int columnIndex, int rowIndex, const 
 	}
 }
 
-void MultiColumnPresetBrowser::deleteEntry(int columnIndex, int rowIndex, const File& f, bool /*doubleClick*/)
+void MultiColumnPresetBrowser::deleteEntry(int columnIndex, int /*rowIndex*/, const File& f, bool /*doubleClick*/)
 {
 	if (columnIndex == 0)
 	{
-		File bankToDelete = PresetBrowserColumn::getChildDirectory(rootFile, 1, rowIndex);
+		File bankToDelete = f;
 
 		bankToDelete.deleteRecursively();
 
@@ -557,7 +557,7 @@ void MultiColumnPresetBrowser::deleteEntry(int columnIndex, int rowIndex, const 
 	}
 	else if (columnIndex == 1)
 	{
-		File categoryToDelete = PresetBrowserColumn::getChildDirectory(currentBankFile, 2, rowIndex);
+		File categoryToDelete = f;
 
 		categoryToDelete.deleteRecursively();
 
@@ -566,7 +566,7 @@ void MultiColumnPresetBrowser::deleteEntry(int columnIndex, int rowIndex, const 
 	}
 	else if (columnIndex == 2)
 	{
-		File presetFile = PresetBrowserColumn::getChildDirectory(currentCategoryFile, 3, rowIndex);
+		File presetFile = f;
 
 		presetFile.deleteFile();
 		presetColumn->setNewRootDirectory(currentCategoryFile);
