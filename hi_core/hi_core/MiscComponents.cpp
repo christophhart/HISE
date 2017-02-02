@@ -189,9 +189,8 @@ void MouseCallbackComponent::mouseDown(const MouseEvent& event)
 
 					for (int j = 0; j < sa.size(); j++)
 					{
+						sub.addItem(menuIndex, sa[j], true, (menuIndex-1) == activePopupId);
 						menuIndex++;
-
-						sub.addItem(menuIndex, sa[j], true, menuIndex == activePopupId);
 					}
 					
 					m.addSubMenu(std::get<0>(subMenus[i]), sub);
@@ -201,7 +200,7 @@ void MouseCallbackComponent::mouseDown(const MouseEvent& event)
 			{
 				for (int i = 0; i < itemList.size(); i++)
 				{
-					m.addItem(i + 1, itemList[i], true, (i+1) == activePopupId);
+					m.addItem(i + 1, itemList[i], true, (i) == activePopupId);
 				}
 			}
 			
