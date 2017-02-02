@@ -563,6 +563,208 @@ public:
 
 	};
 
+	class PeakMeter : public DspBaseObject
+	{
+
+	public:
+
+		enum Parameters
+		{
+			EnablePeak,
+			EnableRMS,
+			StereoMode,
+			PeakDecayFactor,
+			RMSDecayFactor,
+			PeakLevelLeft,
+			PeakLevelRight,
+			RMSLevelLeft,
+			RMSLevelRight,
+			numParameters
+		};
+
+		PeakMeter() {};
+
+		/** Overwrite this method and return the name of this module.
+		*
+		*   This will be used to identify the module within your library so it must be unique. */
+		static Identifier getName() { RETURN_STATIC_IDENTIFIER("peak_meter"); }
+
+		// ================================================================================================================
+
+		void prepareToPlay(double sampleRate, int blockSize) override
+		{
+			if (blockSize != 0)
+			{
+				bufferLength = (double)blockSize / sampleRate;
+			}
+			
+			recalcDecayCoefficents();
+		}
+
+		/** Overwrite this method and do your processing on the given sample data. */
+		void processBlock(float **data, int numChannels, int numSamples) override
+		{
+			AudioSampleBuffer b = AudioSampleBuffer(data, numChannels, numSamples);
+
+			if (enablePeak)
+			{
+				const float thisPeakL = b.getMagnitude(0, 0, numSamples);
+
+				if (thisPeakL > peakLevelLeft)
+					peakLevelLeft = thisPeakL;
+				else
+					peakLevelLeft = jmax<float>(peakLevelLeft * internalPeakDecay, thisPeakL);
+
+				if (stereoMode && numChannels == 2)
+				{
+					const float thisPeakR = b.getMagnitude(1, 0, numSamples);
+
+					if (thisPeakR > peakLevelRight)
+						peakLevelRight = thisPeakR;
+					else
+						peakLevelRight = jmax<float>(peakLevelRight * internalPeakDecay, thisPeakR);
+				}
+			}
+			if (enableRMS)
+			{
+				const float thisRMSL = b.getRMSLevel(0, 0, numSamples);
+
+				if (thisRMSL > rmsLevelLeft)
+					rmsLevelLeft = thisRMSL;
+				else
+					rmsLevelLeft = jmax<float>(rmsLevelLeft * internalRmsDecay, thisRMSL);
+
+				if (stereoMode && numChannels == 2)
+				{
+					const float thisRMSR = b.getRMSLevel(1, 0, numSamples);
+
+					if (thisRMSR > rmsLevelRight)
+						rmsLevelRight = thisRMSR;
+					else
+						rmsLevelRight = jmax<float>(rmsLevelRight * internalRmsDecay, thisRMSR);
+				}
+			}
+		}
+
+		// =================================================================================================================
+
+		int getNumParameters() const override { return (int)Parameters::numParameters; }
+
+		float getParameter(int index) const override
+		{
+			switch ((Parameters)index)
+			{
+			case Parameters::EnablePeak:		return enablePeak;
+			case Parameters::EnableRMS:			return enableRMS;
+			case Parameters::PeakLevelLeft:		return peakLevelLeft;
+			case Parameters::PeakLevelRight:	return peakLevelRight;
+			case Parameters::RMSLevelLeft:		return rmsLevelLeft;
+			case Parameters::RMSLevelRight:		return rmsLevelRight;
+			case Parameters::StereoMode:		return stereoMode;
+			case Parameters::RMSDecayFactor:	return rmsDecayFactor;
+			case Parameters::PeakDecayFactor:	return peakLevelDecayFactor;	
+			}
+
+			return 0.0f;
+		}
+
+		void setParameter(int index, float newValue) override
+		{
+			switch ((Parameters)index)
+			{
+			case Parameters::EnablePeak:		enablePeak = newValue > 0.5f;
+												peakLevelLeft = 0.0f; 
+												peakLevelRight = 0.0f;
+												break;
+			case Parameters::EnableRMS:			enableRMS = newValue > 0.5f; break;
+												rmsLevelLeft = 0.0f;
+												rmsLevelRight = 0.0f;
+												break;
+			case Parameters::PeakLevelLeft:			
+			case Parameters::PeakLevelRight:		
+			case Parameters::RMSLevelLeft:			
+			case Parameters::RMSLevelRight:		break;
+			case Parameters::StereoMode:		stereoMode = newValue > 0.5f; break;
+			case Parameters::RMSDecayFactor:	rmsDecayFactor = newValue; recalcDecayCoefficents(); break;
+			case Parameters::PeakDecayFactor:	peakLevelDecayFactor = newValue; recalcDecayCoefficents(); break;
+			case Parameters::numParameters:		break;
+			}
+		}
+
+		// =================================================================================================================
+
+
+		int getNumConstants() const { return getNumParameters(); };
+
+		void getIdForConstant(int index, char*name, int &size) const noexcept override
+		{
+			switch (index)
+			{
+				FILL_PARAMETER_ID(Parameters, EnablePeak, size, name);
+				FILL_PARAMETER_ID(Parameters, EnableRMS, size, name);
+				FILL_PARAMETER_ID(Parameters, StereoMode, size, name);
+				FILL_PARAMETER_ID(Parameters, PeakDecayFactor, size, name);
+				FILL_PARAMETER_ID(Parameters, RMSDecayFactor, size, name);
+				FILL_PARAMETER_ID(Parameters, PeakLevelLeft, size, name);
+				FILL_PARAMETER_ID(Parameters, PeakLevelRight, size, name);
+				FILL_PARAMETER_ID(Parameters, RMSLevelLeft, size, name);
+				FILL_PARAMETER_ID(Parameters, RMSLevelRight, size, name);
+			}
+		};
+
+		bool getConstant(int index, int& value) const noexcept override
+		{
+			if (index < getNumParameters())
+			{
+				value = index;
+				return true;
+			}
+
+			return false;
+		};
+
+		bool getConstant(int /*index*/, float** /*data*/, int &/*size*/) noexcept override
+		{
+			return false;
+		};
+
+	private:
+
+		void recalcDecayCoefficents()
+		{
+			if (bufferLength > 0.0)
+			{
+				var inputFactor = 0.8;
+
+				const double baseBufferLength = 512.0 / 44100.0;
+				const double baseCoef = log(baseBufferLength) / log(2.0);
+				const double coef = log(bufferLength) / log(2.0);
+
+				const double diff = coef - baseCoef;
+				const double exp = pow(2.0, diff);
+				
+				internalPeakDecay = pow(peakLevelDecayFactor, exp);
+				internalRmsDecay =  pow(rmsDecayFactor, exp);
+			}
+		}
+
+		bool enablePeak = true;
+		bool enableRMS = false;
+		bool stereoMode = true;
+		float rmsDecayFactor = 0.5f;
+		float peakLevelDecayFactor = 0.3f;
+		float peakLevelLeft = 0.0f;
+		float peakLevelRight = 0.0f;
+		float rmsLevelLeft = 0.0f;
+		float rmsLevelRight = 0.0f;
+		
+		float internalPeakDecay = 0.0f;
+		float internalRmsDecay = 0.0f;
+			
+		double bufferLength = 0.0;
+		
+	};
+
 	class StereoWidener : public DspBaseObject
 	{
 	public:
@@ -1407,6 +1609,7 @@ class HiseCoreDspFactory : public StaticDspFactory
 		registerDspModule<ScriptingDsp::SineGenerator>();
 		registerDspModule<ScriptingDsp::Allpass>();
 		registerDspModule<ScriptingDsp::MidSideEncoder>();
+		registerDspModule<ScriptingDsp::PeakMeter>();
 	}
 };
 
