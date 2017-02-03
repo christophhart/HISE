@@ -265,7 +265,7 @@ void DeactiveOverlay::buttonClicked(Button *b)
             
             PresetHandler::showMessageWindow("Valid key file found.", "You found a valid key file. Please reload this instance to activate the plugin.");
 		}
-#else if USE_TURBO_ACTIVATE
+#elif USE_TURBO_ACTIVATE
         
         const String key = PresetHandler::getCustomName("Product Key");
         

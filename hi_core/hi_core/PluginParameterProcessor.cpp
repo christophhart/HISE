@@ -32,7 +32,11 @@
 
 //==============================================================================
 PluginParameterAudioProcessor::PluginParameterAudioProcessor(const String &pluginName):
+#if FRONTEND_IS_PLUGIN
+    AudioProcessor (BusesProperties().withInput("Input", AudioChannelSet::stereo()).withOutput ("Output", AudioChannelSet::stereo()))
+#else
     AudioProcessor (BusesProperties().withOutput ("Output", AudioChannelSet::stereo()))
+#endif
 	name(pluginName)
 {
 	for(int i = 0; i < 32; i++)

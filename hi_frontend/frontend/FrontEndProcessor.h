@@ -108,7 +108,11 @@ public:
 
 	void loadSamplesAfterRegistration()
     {
+#if USE_COPY_PROTECTION || USE_TURBO_ACTIVATE
         keyFileCorrectlyLoaded = unlocker.isUnlocked();
+#else
+        keyFileCorrectlyLoaded = true;
+#endif
         
         loadSamplesAfterSetup();
     }

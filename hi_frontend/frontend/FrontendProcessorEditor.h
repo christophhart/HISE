@@ -240,7 +240,7 @@ public:
 #endif
 	}
 
-	KeyboardFocusTraverser *createFocusTraverser() override { return keyboard->isVisible() ? new MidiKeyboardFocusTraverser() : new KeyboardFocusTraverser(); };
+	KeyboardFocusTraverser *createFocusTraverser() override { return (keyboard != nullptr && keyboard->isVisible()) ? new MidiKeyboardFocusTraverser() : new KeyboardFocusTraverser(); };
 
 	void paint(Graphics &g) override
 	{

@@ -82,9 +82,12 @@ samplesCorrectlyLoaded(true),
 keyFileCorrectlyLoaded(true),
 presets(*userPresets),
 currentlyLoadedProgram(0),
-unlockCounter(0),
+
 #if USE_TURBO_ACTIVATE
+unlockCounter(0),
 unlocker(ProjectHandler::Frontend::getAppDataDirectory().getFullPathName().getCharPointer())
+#else
+unlockCounter(0)
 #endif
 {
 #if USE_COPY_PROTECTION
