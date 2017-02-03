@@ -163,7 +163,7 @@ private:
 
 		static bool isAdvancedTokenCharacter(juce_wchar c)
 		{
-			return CharacterFunctions::isLetterOrDigit(c) || c == '.' || c == '_' || c == '(' || c == ')' || c == '[' || c == ']';
+			return CharacterFunctions::isLetterOrDigit(c) || c == '.' || c == '_' || c == '[' || c == ']';
 		}
 
 		static Range<int> getFunctionParameterTextRange(CodeDocument::Position pos);
