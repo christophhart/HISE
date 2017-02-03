@@ -124,6 +124,7 @@ parentComponentIndex(-1)
 	propertyIds.add(Identifier("zOrder"));
 	propertyIds.add(Identifier("saveInPreset")); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	propertyIds.add(Identifier("isPluginParameter")); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	propertyIds.add(Identifier("pluginParameterName"));
 	propertyIds.add(Identifier("useUndoManager"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	propertyIds.add(Identifier("parentComponent"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	
@@ -148,6 +149,7 @@ parentComponentIndex(-1)
 	setDefaultValue(Properties::zOrder, "Normal order");
 	setDefaultValue(Properties::saveInPreset, true);
 	setDefaultValue(Properties::isPluginParameter, false);
+	setDefaultValue(Properties::pluginParameterName, "");
 	setDefaultValue(Properties::useUndoManager, false);
 	setDefaultValue(Properties::parentComponent, "");
 
@@ -1979,6 +1981,7 @@ controlSender(this, base)
 	propertyIds.add("popupMenuItems");				ADD_TO_TYPE_SELECTOR(SelectorTypes::MultilineSelector);
 	propertyIds.add("popupOnRightClick");			ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	propertyIds.add(Identifier("popupMenuAlign"));  ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	propertyIds.add(Identifier("selectedPopupIndex"));
 	propertyIds.add(Identifier("stepSize"));		
 	
 	componentProperties->setProperty(getIdFor(borderSize), 0);
@@ -1997,6 +2000,7 @@ controlSender(this, base)
 	setDefaultValue(PopupMenuItems, "");
 	setDefaultValue(PopupOnRightClick, true);
 	setDefaultValue(popupMenuAlign, false);
+	setDefaultValue(selectedPopupIndex, -1);
 	setDefaultValue(stepSize, 0.0);
 	
 	addConstant("data", new DynamicObject());

@@ -72,7 +72,7 @@ public:
 
 	static String getNameForComponent(ScriptingApi::Content::ScriptComponent *component)
 	{
-		const String givenName = component->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::text);
+		const String givenName = component->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::pluginParameterName);
 
 		if (givenName.isEmpty()) return component->getName().toString();
 		else return givenName;

@@ -95,6 +95,7 @@ public:
 			zOrder,
 			saveInPreset,
 			isPluginParameter,
+			pluginParameterName,
 			useUndoManager,
 			parentComponent,
 			numProperties
@@ -636,6 +637,7 @@ public:
 			PopupMenuItems,
 			PopupOnRightClick,
 			popupMenuAlign,
+			selectedPopupIndex,
 			stepSize,
 			numProperties
 		};

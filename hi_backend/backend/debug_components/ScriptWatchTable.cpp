@@ -425,11 +425,20 @@ void ScriptComponentEditPanel::fillPanel()
 		basicIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::enabled));
 		basicIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::visible));
 		basicIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::tooltip));
-		basicIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::macroControl));
 		basicIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::zOrder));
-		basicIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::saveInPreset));
-
+		basicIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::parentComponent));
+		basicIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::useUndoManager));
+		
 		addSectionToPanel(basicIds, "Basic Properties");
+
+		Array<Identifier> parameterIds;
+
+		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::macroControl));
+		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::saveInPreset));
+		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::isPluginParameter));
+		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::pluginParameterName));
+
+		addSectionToPanel(parameterIds, "Parameter Properties");
 
 		Array<Identifier> positionIds;
 
@@ -455,7 +464,7 @@ void ScriptComponentEditPanel::fillPanel()
 		{
 			Identifier id = sc->getIdFor(i);
 
-			if(basicIds.contains(id) || positionIds.contains(id) || colourIds.contains(id)) continue;
+			if(basicIds.contains(id) || parameterIds.contains(id) || positionIds.contains(id) || colourIds.contains(id)) continue;
 
 			specialProperties.add(id);
 		}
