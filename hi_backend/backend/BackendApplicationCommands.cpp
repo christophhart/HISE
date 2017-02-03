@@ -135,6 +135,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
         MenuToolsRedirectSampleFolder,
 		MenuToolsForcePoolSearch,
 		MenuToolsConvertAllSamplesToMonolith,
+		MenuToolsConvertSfzToSampleMaps,
 		MenuToolsEnableAutoSaving,
 		MenuToolsCreateRSAKeys,
 		MenuToolsCreateDummyLicenceFile,
@@ -390,6 +391,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuToolsConvertAllSamplesToMonolith:
 		setCommandTarget(result, "Convert all samples to Monolith + Samplemap", true, false, 'X', false);
 		break;
+	case MenuToolsConvertSfzToSampleMaps:
+		setCommandTarget(result, "Convert SFZ files to SampleMaps", true, false, 'X', false);
+		break;
 	case MenuToolsEnableAutoSaving:
 		setCommandTarget(result, "Enable Autosaving", true, bpe->owner->getAutoSaver().isAutoSaving(), 'X', false);
 		break;
@@ -527,6 +531,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
     case MenuToolsRedirectSampleFolder: Actions::redirectSampleFolder(bpe->getMainSynthChain()); updateCommands(); return true;
 	case MenuToolsForcePoolSearch:		Actions::toggleForcePoolSearch(bpe); updateCommands(); return true;
 	case MenuToolsConvertAllSamplesToMonolith:	Actions::convertAllSamplesToMonolith(bpe); return true;
+	case MenuToolsConvertSfzToSampleMaps:	Actions::convertSfzFilesToSampleMaps(bpe); return true;
 	case MenuToolsCreateRSAKeys:		Actions::createRSAKeys(bpe); return true;
 	case MenuToolsCreateDummyLicenceFile: Actions::createDummyLicenceFile(bpe); return true;
     case MenuViewFullscreen:            Actions::toggleFullscreen(bpe); updateCommands(); return true;
@@ -775,6 +780,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuToolsRedirectSampleFolder);
 		ADD_DESKTOP_ONLY(MenuToolsForcePoolSearch);
 		ADD_DESKTOP_ONLY(MenuToolsConvertAllSamplesToMonolith);
+		ADD_DESKTOP_ONLY(MenuToolsConvertSfzToSampleMaps);
 		ADD_DESKTOP_ONLY(MenuToolsEnableAutoSaving);
 		p.addSeparator();
 		p.addSectionHeader("Licence Management");
@@ -1866,7 +1872,7 @@ void BackendCommandTarget::Actions::cleanBuildDirectory(BackendProcessorEditor *
 
 void BackendCommandTarget::Actions::convertAllSamplesToMonolith(BackendProcessorEditor * bpe)
 {
-	ModulatorSampler* sampler = dynamic_cast<ModulatorSampler*>(ProcessorHelpers::getFirstProcessorWithName(bpe->getMainSynthChain(), "ConvertSampler"));
+	ModulatorSampler* sampler = dynamic_cast<ModulatorSampler*>(ProcessorHelpers::getFirstProcessorWithName(bpe->getMainSynthChain(), "Sampler"));
 
 	if (sampler != nullptr)
 	{
@@ -1876,7 +1882,43 @@ void BackendCommandTarget::Actions::convertAllSamplesToMonolith(BackendProcessor
 	}
 	else
 	{
-		PresetHandler::showMessageWindow("Missing convert sampler", "You need a sampler with the name 'ConvertSampler' in the Master Chain!", PresetHandler::IconType::Error);
+		PresetHandler::showMessageWindow("Missing convert sampler", "You need a sampler with the name 'Sampler' in the Master Chain!", PresetHandler::IconType::Error);
+	}
+}
+
+void BackendCommandTarget::Actions::convertSfzFilesToSampleMaps(BackendProcessorEditor * bpe)
+{
+	ModulatorSampler* sampler = dynamic_cast<ModulatorSampler*>(ProcessorHelpers::getFirstProcessorWithName(bpe->getMainSynthChain(), "Sampler"));
+
+	if (sampler != nullptr)
+	{
+		FileChooser fc("Select SFZ files to convert", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Samples), "*.sfz;*.SFZ");
+
+		if (fc.browseForMultipleFilesToOpen())
+		{
+			auto files = fc.getResults();
+
+			for (auto f : files)
+			{
+				SfzImporter importer(sampler, f);
+
+				importer.importSfzFile();
+
+				const String id = f.getFileNameWithoutExtension();
+
+				sampler->getSampleMap()->setId(f.getFileNameWithoutExtension());
+				ValueTree sampleMap = sampler->getSampleMap()->exportAsValueTree();
+
+				File sampleMapFile = GET_PROJECT_HANDLER(sampler).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps).getChildFile(id + ".xml");
+
+				ScopedPointer<XmlElement> xml = sampleMap.createXml();
+				xml->writeToFile(sampleMapFile, "");
+			}
+		}
+	}
+	else
+	{
+		PresetHandler::showMessageWindow("Missing convert sampler", "You need a sampler with the name 'Sampler' in the Master Chain!", PresetHandler::IconType::Error);
 	}
 }
 

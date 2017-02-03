@@ -1036,6 +1036,7 @@ struct ScriptingApi::Sampler::Wrapper
 	API_METHOD_WRAPPER_1(Sampler, getMicPositionName);
 	API_VOID_METHOD_WRAPPER_0(Sampler, refreshInterface);
 	API_VOID_METHOD_WRAPPER_1(Sampler, loadSampleMap);
+	API_METHOD_WRAPPER_0(Sampler, getSampleMapList);
     API_VOID_METHOD_WRAPPER_2(Sampler, setAttribute);
     API_METHOD_WRAPPER_1(Sampler, getAttribute);
 };
@@ -1060,6 +1061,7 @@ sampler(sampler_)
 	ADD_API_METHOD_1(isMicPositionPurged);
 	ADD_API_METHOD_0(refreshInterface);
 	ADD_API_METHOD_1(loadSampleMap);
+	ADD_API_METHOD_0(getSampleMapList);
     ADD_API_METHOD_1(getAttribute);
     ADD_API_METHOD_2(setAttribute);
 
@@ -1345,6 +1347,38 @@ void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
 	}
 }
 
+
+var ScriptingApi::Sampler::getSampleMapList() const
+{
+	Array<var> sampleMapNames;
+
+#if USE_BACKEND
+	File rootDir = GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
+
+	Array<File> childFiles;
+
+	rootDir.findChildFiles(childFiles, File::findFiles, true, "*.xml");
+
+	for (int i = 0; i < childFiles.size(); i++)
+	{
+		sampleMapNames.add(childFiles[i].getFileNameWithoutExtension());
+	}
+
+#else
+
+	ValueTree v = dynamic_cast<const FrontendDataHolder*>(getProcessor()->getMainController())->getValueTree(ProjectHandler::SubDirectories::SampleMaps);
+
+	static const Identifier id("ID");
+
+	for (int i = 0; i < v.getNumChildren(); i++)
+	{
+		sampleMapNames.add(v.getChild(i).getProperty(id));
+	}
+
+#endif
+
+	return var(sampleMapNames);
+}
 
 var ScriptingApi::Sampler::getAttribute(int index) const
 {

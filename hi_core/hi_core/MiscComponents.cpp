@@ -174,9 +174,6 @@ void MouseCallbackComponent::mouseDown(const MouseEvent& event)
 					}
 				}
 			}
-
-
-
 			if (subMenus.size() != 0)
 			{
 				int menuIndex = 1;

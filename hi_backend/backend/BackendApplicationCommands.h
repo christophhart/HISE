@@ -156,6 +156,7 @@ public:
         MenuToolsRedirectSampleFolder,
 		MenuToolsForcePoolSearch,
 		MenuToolsConvertAllSamplesToMonolith,
+		MenuToolsConvertSfzToSampleMaps,
 		MenuToolsCreateRSAKeys,
 		MenuToolsCreateDummyLicenceFile,
 		MenuToolsEnableAutoSaving,
@@ -292,6 +293,7 @@ public:
 		static void exportMainSynthChainAsPlayerLibrary(BackendProcessorEditor * bpe);
 		static void cleanBuildDirectory(BackendProcessorEditor * bpe);
 		static void convertAllSamplesToMonolith(BackendProcessorEditor * bpe);
+		static void convertSfzFilesToSampleMaps(BackendProcessorEditor * bpe);
 	};
 
 private:

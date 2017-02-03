@@ -373,6 +373,9 @@ public:
 		/** Loads a new samplemap into this sampler. */
 		void loadSampleMap(const String &fileName);
 
+		/** Returns an array with all available sample maps. */
+		var getSampleMapList() const;
+
         /** Gets the attribute with the given index (use the constants for clearer code). */
         var getAttribute(int index) const;
         
