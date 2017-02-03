@@ -415,11 +415,11 @@ void PresetBox::buttonClicked(Button *b)
 {
 	if (b == nextButton)
 	{
-		data->loadNextPreset();
+		
 	}
 	else if (b == previousButton)
 	{
-		data->loadPreviousPreset();
+		
 	}
 	else if (b == presetSaveButton)
 	{

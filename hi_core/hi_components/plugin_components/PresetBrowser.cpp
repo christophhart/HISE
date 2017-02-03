@@ -507,6 +507,8 @@ void MultiColumnPresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*
 		presetColumn->setNewRootDirectory(currentCategoryFile);
         
         presetColumn->setEditMode(false);
+		presetColumn->setSelectedFile(allPresets[currentlyLoadedPreset]);
+
         bankColumn->setEditMode(false);
         
 	}

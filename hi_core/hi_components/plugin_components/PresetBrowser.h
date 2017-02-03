@@ -195,6 +195,11 @@ public:
         
         void setTotalRoot(const File& totalRoot_) {totalRoot = totalRoot_;}
         
+		int getIndexForFile(const File& f) const
+		{
+			return entries.indexOf(f);
+		}
+
         String wildcard;
         
 		Colour highlightColour;
@@ -266,6 +271,20 @@ public:
 	    listbox->repaint();
     }
 	
+	void setSelectedFile(const File& file)
+	{
+		const int rowIndex = listModel->getIndexForFile(file);
+
+		if (rowIndex >= 0)
+		{
+			selectedFile = file;
+
+			SparseSet<int> s;
+			s.addRange(Range<int>(rowIndex, rowIndex + 1));
+			listbox->setSelectedRows(s, dontSendNotification);
+		}
+	}
+
 private:
 
 	// ============================================================================================
@@ -279,6 +298,8 @@ private:
 	int index;
 
 	File currentRoot;
+
+	File selectedFile;
 
 	ButtonLookAndFeel blaf;
 
@@ -409,6 +430,8 @@ public:
 		if (newIndex != currentlyLoadedPreset)
 		{
 			currentlyLoadedPreset = newIndex;
+
+			presetColumn->setSelectedFile(allPresets[currentlyLoadedPreset]);
 
 			loadPreset(allPresets[currentlyLoadedPreset]);
 		}
