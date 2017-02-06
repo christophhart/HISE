@@ -49,7 +49,7 @@ namespace BinaryData
     const int            knobModulated_200_pngSize = 289754;
 
     extern const char*   knobUnmodulated_200_png;
-    const int            knobUnmodulated_200_pngSize = 483133;
+    const int            knobUnmodulated_200_pngSize = 289283;
 
     extern const char*   toggle_200_png;
     const int            toggle_200_pngSize = 2427;

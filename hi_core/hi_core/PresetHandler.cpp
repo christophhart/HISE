@@ -1218,7 +1218,16 @@ File ProjectHandler::Frontend::getAppDataDirectory(ProjectHandler *handler/*=nul
     return File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("Application Support/" + getCompanyName() + "/" + getProjectName());
 #endif
 #else
-	return File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile(getCompanyName() + "/" + getProjectName());
+
+	File f = File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile(getCompanyName() + "/" + getProjectName());
+
+	if (!f.isDirectory())
+	{
+		f.createDirectory();
+	}
+
+	return f;
+
 #endif
 #else
 

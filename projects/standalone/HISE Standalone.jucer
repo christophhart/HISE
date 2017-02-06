@@ -38,7 +38,7 @@
     </GROUP>
   </MAINGROUP>
   <EXPORTFORMATS>
-    <VS2013 targetFolder="Builds/VisualStudio2013" smallIcon="bfBEgJ" bigIcon="bfBEgJ"
+    <VS2013 targetFolder="Builds/VisualStudio2013" smallIcon="S7ANvW" bigIcon="S7ANvW"
             useIPP="Sequential" extraCompilerFlags="" IPPLibrary="Sequential">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
@@ -146,7 +146,7 @@
         <MODULEPATH id="hi_dsp_library" path="../../"/>
       </MODULEPATHS>
     </XCODE_IPHONE>
-    <VS2015 targetFolder="Builds/VisualStudio2015" smallIcon="BNfj8p" bigIcon="BNfj8p"
+    <VS2015 targetFolder="Builds/VisualStudio2015" smallIcon="S7ANvW" bigIcon="S7ANvW"
             useIPP="Sequential" IPPLibrary="Sequential">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
