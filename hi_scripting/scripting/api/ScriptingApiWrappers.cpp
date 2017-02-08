@@ -307,23 +307,6 @@ var ScriptingApi::Content::Wrapper::addSliderPack(const var::NativeFunctionArgs&
 }
 
 
-var ScriptingApi::Content::Wrapper::addPluginEditor(const var::NativeFunctionArgs& args)
-{
-	if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
-	{
-		if (args.numArguments == 1)
-		{
-			return thisObject->addPluginEditor(Identifier(args.arguments[0]), 0, 0);
-		}
-
-		CHECK_ARGUMENTS("addPluginEditor()", 3);
-
-		return thisObject->addPluginEditor(Identifier(args.arguments[0]), args.arguments[1], args.arguments[2]);
-	}
-
-	return var::undefined();
-}
-
 
 var ScriptingApi::Content::Wrapper::storeAllControlsAsPreset(const var::NativeFunctionArgs& args)
 {

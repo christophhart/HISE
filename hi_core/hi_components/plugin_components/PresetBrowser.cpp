@@ -125,12 +125,7 @@ void PresetBrowserColumn::ColumnListModel::listBoxItemClicked(int row, const Mou
 		}
 		else
 		{
-			const String customName = PresetHandler::getCustomName(title);
-
-			if (customName.isNotEmpty() && listener != nullptr)
-			{
-				listener->renameEntry(index, row, entries[row], false);
-			}
+			listener->renameEntry(index, row, entries[row], false);
 		}
 	}
 	else
@@ -541,7 +536,17 @@ void MultiColumnPresetBrowser::renameEntry(int columnIndex, int rowIndex, const 
 	{
 		File presetFile = PresetBrowserColumn::getChildDirectory(currentCategoryFile, 3, rowIndex);
 
-		loadPreset(presetFile);
+		const String customName = PresetHandler::getCustomName(presetFile.getFileNameWithoutExtension(), "Enter the new Preset Name");
+
+		if (customName.isNotEmpty())
+		{
+			File newFile = presetFile.getSiblingFile(customName + ".preset");
+
+			presetFile.moveFileTo(newFile);
+			presetColumn->setNewRootDirectory(currentCategoryFile);
+		}
+
+		rebuildAllPresets();
 	}
 }
 
@@ -569,6 +574,8 @@ void MultiColumnPresetBrowser::deleteEntry(int columnIndex, int /*rowIndex*/, co
 	else if (columnIndex == 2)
 	{
 		File presetFile = f;
+
+		
 
 		presetFile.deleteFile();
 		presetColumn->setNewRootDirectory(currentCategoryFile);

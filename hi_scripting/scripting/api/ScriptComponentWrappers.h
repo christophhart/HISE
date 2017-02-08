@@ -430,16 +430,7 @@ public:
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioWaveformWrapper)
 	};
 
-	class PluginEditorWrapper : public ScriptCreatedComponentWrapper
-	{
-	public:
-
-		PluginEditorWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptPluginEditor *editor, int index);
-
-		void updateComponent() override;
-
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginEditorWrapper);
-	};
+	
 
 };
 

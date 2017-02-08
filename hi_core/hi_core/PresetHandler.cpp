@@ -545,12 +545,20 @@ private:
 	Image image;
 };
 
-String PresetHandler::getCustomName(const String &typeName)
+String PresetHandler::getCustomName(const String &typeName, const String& thisMessage/*=String()*/)
 {
 	String message;
-	message << "Enter the unique Name for the ";
-	message << typeName;
-	message << ".\nCamelCase is recommended.";
+
+	if (thisMessage.isEmpty())
+	{
+		message << "Enter the unique Name for the ";
+		message << typeName;
+		message << ".\nCamelCase is recommended.";
+	}
+	else
+	{
+		message << thisMessage;
+	}
 
 	AlertWindowLookAndFeel laf;
 

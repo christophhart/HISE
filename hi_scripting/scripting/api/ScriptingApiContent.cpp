@@ -2597,7 +2597,6 @@ colour(Colour(0xff777777))
 	setMethod("addPanel", Wrapper::addPanel);
 	setMethod("addAudioWaveform", Wrapper::addAudioWaveform);
 	setMethod("addSliderPack", Wrapper::addSliderPack);
-	setMethod("addPluginEditor", Wrapper::addPluginEditor);
 	setMethod("setContentTooltip", Wrapper::setContentTooltip);
 	setMethod("setToolbarProperties", Wrapper::setToolbarProperties);
 	setMethod("setHeight", Wrapper::setHeight);
@@ -2750,10 +2749,7 @@ ScriptingApi::Content::ScriptSliderPack * ScriptingApi::Content::addSliderPack(I
 	return addComponent<ScriptSliderPack>(sliderPackName, x, y, 200, 100);
 }
 
-ScriptingApi::Content::ScriptPluginEditor * ScriptingApi::Content::addPluginEditor(Identifier pluginEditorName, int x, int y)
-{
-	return addComponent<ScriptPluginEditor>(pluginEditorName, x, y);
-}
+
 
 ScriptingApi::Content::ScriptComponent * ScriptingApi::Content::getComponent(int index)
 {

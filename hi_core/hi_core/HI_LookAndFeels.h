@@ -1434,9 +1434,9 @@ private:
 class BlackTextButtonLookAndFeel : public LookAndFeel_V3
 {
 	void drawButtonBackground(Graphics& g, Button& button, const Colour& /*backgroundColour*/,
-		bool isMouseOverButton, bool /*isButtonDown*/)
+		bool /*isMouseOverButton*/, bool isButtonDown)
 	{
-		g.setGradientFill(ColourGradient(Colours::white.withAlpha(isMouseOverButton ? 0.4f : 0.2f), 0.0f, 0.0f,
+		g.setGradientFill(ColourGradient(Colours::white.withAlpha(isButtonDown ? 0.4f : 0.2f), 0.0f, 0.0f,
 			Colours::white.withAlpha(0.1f), 0.0f, (float)button.getHeight(), false));
 
 

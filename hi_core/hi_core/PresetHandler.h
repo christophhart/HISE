@@ -489,7 +489,7 @@ public:
 	static void copyProcessorToClipboard(Processor *p);
 
 	/** Opens a modal window that allow renaming of a Processor. */
-	static String getCustomName(const String &typeName);
+	static String getCustomName(const String &typeName, const String& message=String());
 
 	/** Opens a Yes/No box (HI Style) */
 	static bool showYesNoWindow(const String &title, const String &message, IconType icon=IconType::Question);

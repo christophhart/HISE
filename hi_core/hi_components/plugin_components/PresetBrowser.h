@@ -406,7 +406,7 @@ public:
 		}
 	}
 
-	void incPreset(bool next)
+	void incPreset(bool next, bool stayInSameDirectory=false)
 	{
 		int newIndex = -1;
 
@@ -414,6 +414,22 @@ public:
 		{
             newIndex = (currentlyLoadedPreset + 1) % (allPresets.size());
             
+			const bool differentDirectories = allPresets[currentlyLoadedPreset].getParentDirectory() != allPresets[newIndex].getParentDirectory();
+
+			if (stayInSameDirectory && differentDirectories)
+			{
+				// Get the first file of the directory
+				File oldParentDirectory = allPresets[currentlyLoadedPreset].getParentDirectory();
+
+				for (int i = 0; i < allPresets.size(); i++)
+				{
+					if (allPresets[i].getParentDirectory() == oldParentDirectory)
+					{
+						newIndex = i;
+						break;
+					}
+				}
+			}
 		}
 		else
 		{
@@ -425,6 +441,24 @@ public:
 			{
 				newIndex = (currentlyLoadedPreset - 1) % allPresets.size();
 			}
+
+			const bool differentDirectories = allPresets[currentlyLoadedPreset].getParentDirectory() != allPresets[newIndex].getParentDirectory();
+
+			if (stayInSameDirectory && differentDirectories)
+			{
+				// Get the last file of the directory
+				File oldParentDirectory = allPresets[currentlyLoadedPreset].getParentDirectory();
+
+				for (int i = allPresets.size() - 1; i >= 0; i--)
+				{
+					if (allPresets[i].getParentDirectory() == oldParentDirectory)
+					{
+						newIndex = i;
+						break;
+					}
+				}
+			}
+
 		}
 
 		if (newIndex != currentlyLoadedPreset)
@@ -434,6 +468,23 @@ public:
 			presetColumn->setSelectedFile(allPresets[currentlyLoadedPreset]);
 
 			loadPreset(allPresets[currentlyLoadedPreset]);
+		}
+	}
+
+	void setCurrentPreset(const File& f, NotificationType sendNotification)
+	{
+		int newIndex = allPresets.indexOf(f);
+
+		if (newIndex != -1)
+		{
+			currentlyLoadedPreset = newIndex;
+			
+			presetColumn->setSelectedFile(allPresets[currentlyLoadedPreset]);
+
+			if (listener != nullptr && sendNotification)
+			{
+				listener->presetChanged(f.getFileNameWithoutExtension());
+			}
 		}
 	}
 

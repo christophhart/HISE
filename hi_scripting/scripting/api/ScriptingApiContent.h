@@ -896,39 +896,6 @@ public:
 	};
 
 
-	struct ScriptPluginEditor : public ScriptComponent
-	{
-		// ========================================================================================================
-
-		enum Properties
-		{
-			processorId = ScriptComponent::numProperties,
-			numProperties
-		};
-
-		ScriptPluginEditor(ProcessorWithScriptingContent *base, Content*parentContent, Identifier name, int x, int y, int width, int height);
-		~ScriptPluginEditor();
-
-		// ========================================================================================================
-
-		virtual Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("ScriptPluginEditor") };
-		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
-		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification) override;
-		StringArray getOptionsFor(const Identifier &id) override;
-		void connectToAudioProcessorWrapper(String processorId);
-		ValueTree exportAsValueTree() const override;
-		void restoreFromValueTree(const ValueTree &v) override;
-		AudioProcessorWrapper *getProcessor();
-
-		// ========================================================================================================
-
-	private:
-
-		WeakReference<Processor> connectedProcessor;
-
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptPluginEditor)
-	};
-
 	// ================================================================================================================
 
 	Content(ProcessorWithScriptingContent *p);;
@@ -980,9 +947,6 @@ public:
 
 	/** Adds a slider pack. */
 	ScriptSliderPack *addSliderPack(Identifier sliderPackName, int x, int y);
-
-	/** Adds a plugin editor window. */
-	ScriptPluginEditor *addPluginEditor(Identifier pluginEditorName, int x, int y);
 
 	/** Restore the widget from a JSON object. */
 	void setPropertiesFromJSON(const Identifier &name, const var &jsonData);
