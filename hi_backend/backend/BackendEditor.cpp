@@ -46,7 +46,7 @@ rootEditorIsMainSynthChain(true)
 
 	setEditor(this);
     
-	PresetHandler::buildProcessorDataBase(owner->getMainSynthChain());
+	
 
 	setLookAndFeel(&lookAndFeelV3);
 
@@ -60,6 +60,8 @@ rootEditorIsMainSynthChain(true)
 	addAndMakeVisible(tooltipBar = new TooltipBar());
 	addAndMakeVisible(cpuVoiceComponent = new VoiceCpuBpmComponent(owner));
 
+    PresetHandler::buildProcessorDataBase(owner->getMainSynthChain());
+    
 	cpuVoiceComponent->setColour(Slider::backgroundColourId, Colour(BACKEND_BG_COLOUR));
 	cpuVoiceComponent->setOpaque(true);
 

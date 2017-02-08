@@ -398,7 +398,7 @@ public:
 	void onInit() override
 	{
 		lastNote = -1;
-		rrAmount = (int)Synth.getAttribute(7);
+        rrAmount = 1;
 		lastGroup = 0;
 		thisGroup = 0;
 		selectorValue = 0;

@@ -2310,7 +2310,6 @@ ScriptingApi::Synth::ModuleHandler::ModuleHandler(Synth* parent_) :
 {
 #if USE_BACKEND
 	mainEditor = parent->getScriptProcessor()->getMainController_()->getConsole()->findParentComponentOfClass<BackendProcessorEditor>();
-	jassert(mainEditor != nullptr);
 #else
 	mainEditor = nullptr;
 #endif

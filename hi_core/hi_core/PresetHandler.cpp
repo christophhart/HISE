@@ -1740,28 +1740,27 @@ String PresetHandler::getGlobalSampleFolder()
 String PresetHandler::getDataFolder()
 {
 #if JUCE_WINDOWS
-
-    return File::getSpecialLocation(File::userApplicationDataDirectory).getFullPathName() + "/Hart Instruments";
-
+    // Windows
+    File f = File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("Hart Instruments");
 #elif JUCE_MAC
-
 #if HISE_IOS
-    return File::getSpecialLocation(File::userApplicationDataDirectory).getFullPathName();
+    // iOS
+    File f = File::getSpecialLocation(File::userApplicationDataDirectory);
 #else
-    return File::getSpecialLocation(File::userApplicationDataDirectory).getFullPathName() + "/Application Support/Hart Instruments";
+    // OS X
+    File f = File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("Application Support/Hart Instruments");
 #endif
-
 #else
-
+    // Linux
     File f = File::getSpecialLocation(File::SpecialLocationType::userHomeDirectory).getChildFile(".hise/");
-
-    if(!f.isDirectory()) f.createDirectory();
-
-    return f.getFullPathName();
-
 #endif
     
+    if(!f.isDirectory()) f.createDirectory();
+    
+    return f.getFullPathName();
 }
+
+
 
 void PresetHandler::writeSampleMapsToValueTree(ValueTree &sampleMapTree, ValueTree &preset)
 {

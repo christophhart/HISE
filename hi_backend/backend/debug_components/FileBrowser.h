@@ -243,7 +243,7 @@ private:
             v.addChild(favorites[i]->exportAsValueTree(), -1, nullptr);
         }
         
-        File favoritesFile(PresetHandler::getDataFolder() + "/Favorites.xml");
+        File favoritesFile = File(PresetHandler::getDataFolder()).getChildFile("Favorites.xml");
         
         favoritesFile.replaceWithText(v.toXmlString());
     }
