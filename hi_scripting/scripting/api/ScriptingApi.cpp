@@ -766,6 +766,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_2(Engine, getRegexMatches);
 	API_METHOD_WRAPPER_2(Engine, doubleToString);
 	API_METHOD_WRAPPER_0(Engine, getOS);
+	API_METHOD_WRAPPER_0(Engine, getVersion);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadFont);
 	API_VOID_METHOD_WRAPPER_0(Engine, undo);
 	API_VOID_METHOD_WRAPPER_0(Engine, redo);
@@ -801,6 +802,7 @@ ApiClass(0)
 	ADD_API_METHOD_2(getRegexMatches);
 	ADD_API_METHOD_2(doubleToString);
 	ADD_API_METHOD_0(getOS);
+	ADD_API_METHOD_0(getVersion);
 	ADD_API_METHOD_0(createTimerObject);
 	ADD_API_METHOD_0(createMessageHolder);
 	ADD_API_METHOD_1(loadFont);
@@ -882,6 +884,17 @@ String ScriptingApi::Engine::getOS()
 #else
 	return "OSX";
 #endif
+}
+
+String ScriptingApi::Engine::getVersion()
+{
+#if USE_BACKEND
+	return SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, &GET_PROJECT_HANDLER(getProcessor()));
+#else
+	return ProjectHandler::Frontend::getVersionString();
+#endif
+
+
 }
 
 int ScriptingApi::Engine::getMidiNoteFromName(String midiNoteName) const

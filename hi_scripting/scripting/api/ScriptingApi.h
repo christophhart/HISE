@@ -257,6 +257,8 @@ public:
 		/** Changes the lowest visible key on the on screen keyboard. */
 		void setLowestKeyToDisplay(int keyNumber);
 
+        
+        
 		/** Returns the millisecond value for the supplied tempo (HINT: Use "TempoSync" mode from Slider!) */
 		double getMilliSecondsForTempo(int tempoIndex) const;;
 
@@ -269,6 +271,9 @@ public:
 		/** Returns the current operating system ("OSX" or ("WIN"). */
 		String getOS();
 
+        /** Returns the product version (not the HISE version!). */
+        String getVersion();
+        
 		/** Allows access to the data of the host (playing status, timeline, etc...). */
 		DynamicObject *getPlayHead();
 
