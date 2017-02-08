@@ -65,6 +65,7 @@ StringArray MouseCallbackComponent::getCallbackPropertyNames()
 	sa.add("x");
 	sa.add("y");
 	sa.add("clicked");
+    sa.add("doubleClick");
 	sa.add("rightClick");
 	sa.add("mouseUp");
 	sa.add("drag");
@@ -121,6 +122,13 @@ void MouseCallbackComponent::removeCallbackListener(Listener *l)
 void MouseCallbackComponent::removeAllCallbackListeners()
 {
 	listenerList.clear();
+}
+
+void MouseCallbackComponent::mouseDoubleClick(const MouseEvent &event)
+{
+    if (callbackLevel < CallbackLevel::ClicksOnly) return;
+    
+    sendMessage(event, Action::DoubleClicked);
 }
 
 void MouseCallbackComponent::mouseDown(const MouseEvent& event)
@@ -298,6 +306,7 @@ void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action,
 	static const Identifier x("x");
 	static const Identifier y("y");
 	static const Identifier clicked("clicked");
+    static const Identifier doubleClick("doubleClick");
 	static const Identifier rightClick("rightClick");
 	static const Identifier drag("drag");
 	static const Identifier dragX("dragX");
@@ -316,6 +325,7 @@ void MouseCallbackComponent::sendMessage(const MouseEvent &event, Action action,
 	if (callbackLevel >= CallbackLevel::ClicksOnly)
 	{
 		currentEvent->setProperty(clicked, action == Action::Clicked);
+        currentEvent->setProperty(doubleClick, action == Action::DoubleClicked);
 		currentEvent->setProperty(rightClick, (action == Action::Clicked && event.mods.isRightButtonDown()) ||
 											  (action == Action::MouseUp && event.mods.isRightButtonDown()));
 		currentEvent->setProperty(mouseUp, action == Action::MouseUp);
@@ -369,8 +379,6 @@ borderSize(1.0f)
 {
 
 }
-
-
 
 void BorderPanel::paint(Graphics &g)
 {

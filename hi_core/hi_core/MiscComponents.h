@@ -50,6 +50,7 @@ class MouseCallbackComponent : public Component
 		Moved,
 		Dragged,
 		Clicked,
+        DoubleClicked,
 		MouseUp,
 		Entered,
 		Nothing
@@ -141,6 +142,7 @@ public:
 	void mouseEnter(const MouseEvent &event) override;
 	void mouseExit(const MouseEvent &event) override;
 	void mouseUp(const MouseEvent &event) override;
+    void mouseDoubleClick(const MouseEvent &event) override;
 
 	void setAllowCallback(const String &newCallbackLevel) noexcept;
 	CallbackLevel getCallbackLevel() const;
