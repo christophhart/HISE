@@ -152,7 +152,7 @@ public:
 #if USE_COPY_PROTECTION
             return "The licence key is expired. Press OK to reauthenticate (you'll need to be online for this)";
 #elif USE_TURBO_ACTIVATE
-			return "The trial version is expired. You'll have to enter a valid Product key to unlock the full version.";
+			return "This computer is not activated. You'll have to enter a valid Product key to activate it.";
 #else
             return "";
 #endif

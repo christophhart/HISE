@@ -43,6 +43,7 @@ public:
     {
         Activated,
         ActivatedButFailedToConnect,
+		Deactivated,
         TrialExpired,
         Trial,
         Invalid,
@@ -63,14 +64,18 @@ public:
     {
         return unlockState != State::LicenceNotFound;
     }
-    
+
     bool licenceExpired() const noexcept
     {
-        return unlockState == State::TrialExpired;
+        return unlockState == State::Deactivated;
     }
     
+	std::string getProductKey() const;
+
     void activateWithKey(const char* key);
     
+	void deactivateThisComputer();
+
     State unlockState;
     
     class Pimpl;

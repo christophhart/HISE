@@ -267,14 +267,14 @@ void DeactiveOverlay::buttonClicked(Button *b)
 		}
 #elif USE_TURBO_ACTIVATE
         
-        const String key = PresetHandler::getCustomName("Product Key");
+        const String key = PresetHandler::getCustomName("Product Key", "Enter the product key that you've received along with the download link\nIt should have this format: XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX");
         
         TurboActivateUnlocker *ul = &dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor())->unlocker;
         
         ul->activateWithKey(key.getCharPointer());
         
         setState(DeactiveOverlay::State::LicenceNotFound, !ul->licenceWasFound());
-        setState(DeactiveOverlay::State::LicenceExpired, ul->licenceExpired());
+		setState(DeactiveOverlay::State::LicenceExpired, ul->unlockState == TurboActivateUnlocker::State::Deactivated);
         setState(DeactiveOverlay::State::LicenceInvalid, !ul->isUnlocked());
         
         if(ul->isUnlocked())

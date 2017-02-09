@@ -80,6 +80,9 @@ ValueTree BaseExporter::exportUserPresetFiles()
 	{
 		File f = iter.getFile();
 
+        if(f.isHidden())
+            continue;
+        
 #if JUCE_WINDOWS
 		if (f.getFileName().startsWith("."))
 			continue;

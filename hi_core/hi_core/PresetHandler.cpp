@@ -549,7 +549,9 @@ String PresetHandler::getCustomName(const String &typeName, const String& thisMe
 {
 	String message;
 
-	if (thisMessage.isEmpty())
+    const bool useCustomMessage = thisMessage.isNotEmpty();
+    
+	if (!useCustomMessage)
 	{
 		message << "Enter the unique Name for the ";
 		message << typeName;
@@ -564,7 +566,7 @@ String PresetHandler::getCustomName(const String &typeName, const String& thisMe
 
 	ScopedPointer<MessageWithIcon> comp = new MessageWithIcon(PresetHandler::IconType::Question, message);
 
-	ScopedPointer<AlertWindow> nameWindow = new AlertWindow("Enter name for " + typeName, "", AlertWindow::AlertIconType::NoIcon);
+    ScopedPointer<AlertWindow> nameWindow = new AlertWindow(useCustomMessage ? ("Enter " + typeName) : ("Enter name for " + typeName), "", AlertWindow::AlertIconType::NoIcon);
 
 	nameWindow->setLookAndFeel(&laf);
 
