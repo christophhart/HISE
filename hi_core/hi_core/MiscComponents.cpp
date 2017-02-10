@@ -194,8 +194,22 @@ void MouseCallbackComponent::mouseDown(const MouseEvent& event)
 
 					for (int j = 0; j < sa.size(); j++)
 					{
-						sub.addItem(menuIndex, sa[j], true, (menuIndex-1) == activePopupId);
-						menuIndex++;
+                        if(sa[j].startsWith("**") && sa[j].endsWith("**"))
+                        {
+                            sub.addSectionHeader(sa[j].replace("**", ""));
+                            continue;
+                        }
+                        
+                        if(sa[j] == "___")
+                        {
+                            sub.addSeparator();
+                            continue;
+                        }
+                        
+                        const bool isDeactivated = sa[j].startsWith("~~") && sa[j].endsWith("~~");
+                        const String itemText = isDeactivated ? sa[j].replace("~~", "") : sa[j];
+                        sub.addItem(menuIndex, itemText, !isDeactivated, (menuIndex-1) == activePopupId);
+                        menuIndex++;
 					}
 					
 					m.addSubMenu(std::get<0>(subMenus[i]), sub);
@@ -203,9 +217,26 @@ void MouseCallbackComponent::mouseDown(const MouseEvent& event)
 			}
 			else
 			{
+                int menuIndex = 0;
+                
 				for (int i = 0; i < itemList.size(); i++)
 				{
-					m.addItem(i + 1, itemList[i], true, (i) == activePopupId);
+                    if(itemList[i].startsWith("**") && itemList[i].endsWith("**"))
+                    {
+                        m.addSectionHeader(itemList[i].replace("**", ""));
+                        continue;
+                    }
+                    
+                    if(itemList[i] == "___")
+                    {
+                        m.addSeparator();
+                        continue;
+                    }
+                    
+                    const bool isDeactivated = itemList[i].startsWith("~~") && itemList[i].endsWith("~~");
+                    const String itemText = isDeactivated ? itemList[i].replace("~~", "") : itemList[i];
+                    m.addItem(menuIndex + 1, itemText, !isDeactivated, (menuIndex) == activePopupId);
+                    menuIndex++;
 				}
 			}
 			
