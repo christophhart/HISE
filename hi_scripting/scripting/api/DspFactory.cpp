@@ -154,7 +154,7 @@ void DynamicDspFactory::openDynamicLibrary()
     
 #if USE_BACKEND
     
-	const File path = File::getSpecialLocation(File::SpecialLocationType::commonApplicationDataDirectory).getChildFile("Application Support/Hart Instruments/lib");
+    const File path = File(PresetHandler::getDataFolder()).getChildFile("lib/");
     
 #else
     
