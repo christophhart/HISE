@@ -493,7 +493,7 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 		}
 		else
 		{
-			createPluginProjucerFile(type, option);
+			result = createPluginProjucerFile(type, option);
 
 			if (result != ErrorCodes::OK) return result;
 		}
