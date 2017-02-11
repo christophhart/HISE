@@ -754,6 +754,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, getMidiNoteFromName);
 	API_METHOD_WRAPPER_1(Engine, getMacroName);
 	API_VOID_METHOD_WRAPPER_2(Engine, setKeyColour);
+	API_VOID_METHOD_WRAPPER_2(Engine, showErrorMessage);
 	API_VOID_METHOD_WRAPPER_1(Engine, setLowestKeyToDisplay);
 	API_METHOD_WRAPPER_0(Engine, createMidiList);
 	API_METHOD_WRAPPER_0(Engine, createTimerObject);
@@ -792,6 +793,7 @@ ApiClass(0)
 	ADD_API_METHOD_1(getMidiNoteFromName);
 	ADD_API_METHOD_1(getMacroName);
 	ADD_API_METHOD_2(setKeyColour);
+	ADD_API_METHOD_2(showErrorMessage);
 	ADD_API_METHOD_1(setLowestKeyToDisplay);
 	ADD_API_METHOD_0(createMidiList);
 	ADD_API_METHOD_0(getPlayHead);
@@ -911,6 +913,26 @@ int ScriptingApi::Engine::getMidiNoteFromName(String midiNoteName) const
 
 void ScriptingApi::Engine::setKeyColour(int keyNumber, int colourAsHex) { getProcessor()->getMainController()->setKeyboardCoulour(keyNumber, Colour(colourAsHex));}
 void ScriptingApi::Engine::setLowestKeyToDisplay(int keyNumber) { getProcessor()->getMainController()->setLowestKeyToDisplay(keyNumber); }
+
+void ScriptingApi::Engine::showErrorMessage(String message, bool isCritical)
+{
+#if USE_FRONTEND
+	getProcessor()->getMainController()->sendOverlayMessage(isCritical ? DeactiveOverlay::State::CriticalCustomErrorMessage :
+																		 DeactiveOverlay::State::CustomErrorMessage,
+																		 message);
+
+
+#else
+	reportScriptError(message);
+
+#endif
+
+	if (isCritical)
+	{
+		throw message;
+	}
+}
+
 double ScriptingApi::Engine::getMilliSecondsForTempo(int tempoIndex) const { return (double)TempoSyncer::getTempoInMilliSeconds(getHostBpm(), (TempoSyncer::Tempo)tempoIndex); }
 
 

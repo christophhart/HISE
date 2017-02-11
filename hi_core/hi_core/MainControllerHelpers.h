@@ -161,6 +161,94 @@ private:
 };
 
 
+class OverlayMessageBroadcaster
+{
+public:
+
+	class Listener
+	{
+	public:
+
+		virtual void overlayMessageSent(int state, const String& message) = 0;
+
+		virtual ~Listener()
+		{
+			masterReference.clear();
+		}
+
+	private:
+
+		friend class WeakReference<Listener>;
+
+		WeakReference<Listener>::Master masterReference;
+	};
+
+	OverlayMessageBroadcaster() :
+		internalUpdater(this)
+	{
+
+	}
+
+	void addOverlayListener(Listener *listener)
+	{
+		listeners.add(listener);
+	}
+
+	void removeOverlayListener(Listener* listener)
+	{
+		listeners.removeAllInstancesOf(listener);
+	}
+
+	void sendOverlayMessage(int newState, const String& newCustomMessage=String())
+	{
+#if USE_BACKEND
+
+		ignoreUnused(newState);
+
+		// Just print it on the console
+		Logger::getCurrentLogger()->writeToLog(newCustomMessage);
+#else
+		currentState = newState;
+		customMessage = newCustomMessage;
+
+		internalUpdater.triggerAsyncUpdate();
+#endif
+	}
+
+private:
+
+	struct InternalAsyncUpdater: public AsyncUpdater
+	{
+		InternalAsyncUpdater(OverlayMessageBroadcaster *parent_): parent(parent_) {}
+
+		void handleAsyncUpdate() override
+		{
+			for (int i = 0; i < parent->listeners.size(); i++)
+			{
+				if (parent->listeners[i].get() != nullptr)
+				{
+					parent->listeners[i]->overlayMessageSent(parent->currentState, parent->customMessage);
+				}
+				else
+				{
+					parent->listeners.remove(i--);
+				}
+			}
+		}
+
+		OverlayMessageBroadcaster* parent;
+	};
+
+	int currentState = 0;
+
+	String customMessage;
+
+	InternalAsyncUpdater internalUpdater;
+
+	Array<WeakReference<Listener>> listeners;
+};
+
+
 class ConsoleLogger : public Logger
 {
 public:

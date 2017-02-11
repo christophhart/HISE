@@ -40,6 +40,7 @@
 *
 */
 class MainController: public GlobalScriptCompileBroadcaster,
+					  public OverlayMessageBroadcaster,
 					  public ThreadWithQuasiModalProgressWindow::Holder
 {
 public:

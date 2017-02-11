@@ -61,14 +61,17 @@ public:
 #endif
 		addAndMakeVisible(resolveSamplesButton = new TextButton("Choose Sample Folder"));
         addAndMakeVisible(registerProductButton = new TextButton("Online authentication"));
-        
+		addAndMakeVisible(ignoreButton = new TextButton("Ignore"));
+
 		resolveLicenceButton->setLookAndFeel(&alaf);
 		resolveSamplesButton->setLookAndFeel(&alaf);
         registerProductButton->setLookAndFeel(&alaf);
+		ignoreButton->setLookAndFeel(&alaf);
 
 		resolveLicenceButton->addListener(this);
 		resolveSamplesButton->addListener(this);
         registerProductButton->addListener(this);
+		ignoreButton->addListener(this);
 	};
 
 	void buttonClicked(Button *b);
@@ -83,8 +86,9 @@ public:
 		MachineNumbersNotMatching,
 		LicenceExpired,
 		LicenceInvalid,
-		
+		CriticalCustomErrorMessage,
 		SamplesNotFound,
+		CustomErrorMessage,
 		numReasons
 	};
 
@@ -105,9 +109,14 @@ public:
 		resized();
 	}
 
-	bool check(State s, const String &value=String::empty);
+	void setCustomMessage(const String newCustomMessage)
+	{
+		customMessage = newCustomMessage;
+	}
 
-	State checkLicence(const String &keyContent=String::empty);
+	bool check(State s, const String &value=String());
+
+	State checkLicence(const String &keyContent=String());
 
 	void refreshLabel()
 	{
@@ -123,6 +132,16 @@ public:
 
 	String getTextForError(State s) const
 	{
+		if (customMessage.isNotEmpty())
+		{
+			if (s == DeactiveOverlay::numReasons)
+				return String();
+			else
+			{
+				return customMessage;
+			}
+		}
+
 		switch (s)
 		{
 		case DeactiveOverlay::AppDataDirectoryNotFound:
@@ -181,6 +200,7 @@ public:
 			resolveLicenceButton->setVisible(true);
             registerProductButton->setVisible(true);
 			resolveSamplesButton->setVisible(false);
+			ignoreButton->setVisible(false);
 
 			resolveLicenceButton->centreWithSize(200, 32);
             registerProductButton->centreWithSize(200, 32);
@@ -193,8 +213,22 @@ public:
 			resolveLicenceButton->setVisible(false);
             registerProductButton->setVisible(false);
 			resolveSamplesButton->setVisible(true);
+			ignoreButton->setVisible(true);
 
 			resolveSamplesButton->centreWithSize(200, 32);
+			ignoreButton->centreWithSize(200, 32);
+
+			ignoreButton->setTopLeftPosition(ignoreButton->getX(),
+				resolveSamplesButton->getY() + 40);
+		}
+		else if (currentState[CustomErrorMessage])
+		{
+			resolveLicenceButton->setVisible(false);
+			registerProductButton->setVisible(false);
+			resolveSamplesButton->setVisible(false);
+			ignoreButton->setVisible(true);
+
+			ignoreButton->centreWithSize(200, 32);
 		}
         
 #if USE_TURBO_ACTIVATE
@@ -206,11 +240,14 @@ private:
 
 	AlertWindowLookAndFeel alaf;
 
+	String customMessage;
+
 	ScopedPointer<Label> descriptionLabel;
 
 	ScopedPointer<TextButton> resolveLicenceButton;
 	ScopedPointer<TextButton> resolveSamplesButton;
     ScopedPointer<TextButton> registerProductButton;
+	ScopedPointer<TextButton> ignoreButton;
 
 	BigInteger currentState;
 	
@@ -220,7 +257,8 @@ private:
 class FrontendProcessorEditor: public AudioProcessorEditor,
 							   public Timer,
 							   public ComponentWithKeyboard,
-							   public ModalBaseWindow
+							   public ModalBaseWindow,
+							   public OverlayMessageBroadcaster::Listener
 
 
 {
@@ -229,6 +267,15 @@ public:
 	FrontendProcessorEditor(FrontendProcessor *fp);;
 
 	~FrontendProcessorEditor();
+
+	void overlayMessageSent(int state, const String& message) override
+	{
+		if (deactiveOverlay != nullptr)
+		{
+			deactiveOverlay->setCustomMessage(message);
+			deactiveOverlay->setState((DeactiveOverlay::State)state, true);
+		}
+	}
 
 	void timerCallback()
 	{

@@ -42,6 +42,8 @@ AudioProcessorEditor(fp)
 	interfaceComponent->refreshContentBounds();
 	interfaceComponent->setIsFrontendContainer(true);
 
+	fp->addOverlayListener(this);
+
 #if INCLUDE_BAR
 
 	addAndMakeVisible(mainBar = BaseFrontendBar::createFrontendBar(fp));
@@ -111,6 +113,8 @@ AudioProcessorEditor(fp)
 
 FrontendProcessorEditor::~FrontendProcessorEditor()
 {
+	dynamic_cast<OverlayMessageBroadcaster*>(getAudioProcessor())->removeOverlayListener(this);
+
 	mainBar = nullptr;
 	interfaceComponent = nullptr;
 	keyboard = nullptr;
@@ -237,7 +241,7 @@ void DeactiveOverlay::buttonClicked(Button *b)
 	if (b == resolveLicenceButton)
 	{
 #if USE_COPY_PROTECTION
-		FileChooser fc("Load Licence key file", File::nonexistent, "*" + ProjectHandler::Frontend::getLicenceKeyExtension(), true);
+		FileChooser fc("Load Licence key file", File(), "*" + ProjectHandler::Frontend::getLicenceKeyExtension(), true);
 
 		if (fc.browseForFileToOpen())
 		{
@@ -289,7 +293,7 @@ void DeactiveOverlay::buttonClicked(Button *b)
 	}
 	else if (b == resolveSamplesButton)
 	{
-		FileChooser fc("Select Sample Location", File::nonexistent, "*.*", true);
+		FileChooser fc("Select Sample Location", ProjectHandler::Frontend::getSampleLocationForCompiledPlugin(), "*.*", true);
 
 		if (fc.browseForDirectory())
 		{
@@ -313,9 +317,20 @@ void DeactiveOverlay::buttonClicked(Button *b)
 		activator->setModalBaseWindowComponent(this);
 #endif
     }
+	else if (b == ignoreButton)
+	{
+		if (currentState[CustomErrorMessage])
+		{
+			setState(CustomErrorMessage, false);
+		}
+		else if (currentState[SamplesNotFound])
+		{
+			setState(SamplesNotFound, false);
+		}
+	}
 }
 
-bool DeactiveOverlay::check(State s, const String &value/*=String::empty*/)
+bool DeactiveOverlay::check(State s, const String &value/*=String()*/)
 {
 #if USE_COPY_PROTECTION
 	Unlocker *ul = &dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor())->unlocker;
