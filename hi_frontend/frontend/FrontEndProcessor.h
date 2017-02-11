@@ -106,6 +106,9 @@ public:
 	~FrontendProcessor()
 	{
 		synthChain = nullptr;
+
+		setAllSamplesFound(samplesCorrectlyLoaded);
+
 	};
 
 	void prepareToPlay (double sampleRate, int samplesPerBlock);
@@ -124,7 +127,7 @@ public:
 
 	void loadSamplesAfterSetup()
 	{
-        if(keyFileCorrectlyLoaded)
+        if(keyFileCorrectlyLoaded && samplesCorrectlyLoaded)
         {
             suspendProcessing(false);
             getSampleManager().setShouldSkipPreloading(false);
@@ -158,20 +161,17 @@ public:
     
     void setStateInformation(const void *data,int sizeInBytes) override
 	{
-		if(samplesCorrectlyLoaded)
-		{
-			ValueTree v = ValueTree::readFromData(data, sizeInBytes);
+		ValueTree v = ValueTree::readFromData(data, sizeInBytes);
 
-			currentlyLoadedProgram = v.getProperty("Program");
+		currentlyLoadedProgram = v.getProperty("Program");
 
-			getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(v.getChildWithName("MidiAutomation"));
+		getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(v.getChildWithName("MidiAutomation"));
 
-			const int channelData = v.getProperty("MidiChannelFilterData", -1);
-			if (channelData != -1) synthChain->getActiveChannelData()->restoreFromData(channelData);
+		const int channelData = v.getProperty("MidiChannelFilterData", -1);
+		if (channelData != -1) synthChain->getActiveChannelData()->restoreFromData(channelData);
 			
 
-			synthChain->restoreInterfaceValues(v.getChildWithName("InterfaceData"));
-		}
+		synthChain->restoreInterfaceValues(v.getChildWithName("InterfaceData"));
 	}
 
 	
@@ -242,6 +242,11 @@ public:
 		else return ValueTree();
 	}
 
+	void setAllSampleReferencesCorrect();
+
+	void checkAllSampleReferences();
+	bool areSampleReferencesCorrect() const;
+
 private:
 
 	void loadImages(ValueTree *imageData)
@@ -276,7 +281,7 @@ private:
 	
 	int unlockCounter;
 
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FrontendProcessor)
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FrontendProcessor)	
 };
 
 

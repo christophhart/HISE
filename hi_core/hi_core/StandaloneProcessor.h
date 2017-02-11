@@ -74,6 +74,11 @@ public:
 
 	void setDiskMode(int mode);
 
+	void setAllSamplesFound(bool areFound) noexcept
+	{
+		allSamplesFound = areFound;
+	}
+
 	void setOutputChannelName(const int channelIndex)
 	{
 		AudioDeviceManager::AudioDeviceSetup currentSetup;
@@ -107,6 +112,8 @@ public:
 	static void updateMidiToggleList(MainController* mc, ToggleButtonList* listToUpdate);
 
 	int diskMode = 0;
+
+	bool allSamplesFound = false;
 
 	static XmlElement *getSettings();
 

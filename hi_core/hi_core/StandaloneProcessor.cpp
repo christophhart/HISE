@@ -86,6 +86,19 @@ void AudioProcessorDriver::restoreSettings(MainController* mc)
 		dynamic_cast<AudioProcessorDriver*>(mc)->diskMode = diskMode;
 
 		mc->getSampleManager().setDiskMode((MainController::SampleManager::DiskMode)diskMode);
+
+#if USE_FRONTEND
+		bool allSamplesThere = deviceData->getBoolAttribute("SAMPLES_FOUND");
+
+		if (!allSamplesThere)
+		{
+			dynamic_cast<FrontendProcessor*>(mc)->checkAllSampleReferences();
+		}
+		else
+		{
+			dynamic_cast<FrontendProcessor*>(mc)->setAllSampleReferencesCorrect();
+		}
+#endif
 	}
 }
 
@@ -96,6 +109,11 @@ void AudioProcessorDriver::saveDeviceSettingsAsXml()
 	if (deviceData != nullptr)
 	{
         deviceData->setAttribute("DISK_MODE", diskMode);
+
+#if USE_FRONTEND
+		deviceData->setAttribute("SAMPLES_FOUND", allSamplesFound);
+#endif
+
 		deviceData->writeToFile(getDeviceSettingsFile(), "");
 	}
 }

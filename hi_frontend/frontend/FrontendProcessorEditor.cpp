@@ -303,10 +303,23 @@ void DeactiveOverlay::buttonClicked(Button *b)
 
 			if (directorySelected)
 			{
-				PresetHandler::showMessageWindow("Sample Folder changed", "The sample folder was relocated, but you'll need to open a new instance of this plugin before it can be used.");
+				FrontendProcessor* fp = dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor());
+
+				fp->checkAllSampleReferences();
+
+				if (fp->areSampleReferencesCorrect())
+				{
+					PresetHandler::showMessageWindow("Sample Folder changed", "The sample folder was relocated, but you'll need to open a new instance of this plugin before it can be used.");
+				}
+				
+				setState(SamplesNotFound, !fp->areSampleReferencesCorrect());
+			}
+			else
+			{
+				setState(SamplesNotFound, true);
 			}
 
-			setState(SamplesNotFound, !directorySelected);
+			
 		}
 	}
     else if (b == registerProductButton)

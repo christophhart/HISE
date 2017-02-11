@@ -143,7 +143,7 @@ unlockCounter(0)
 
 	getMacroManager().setMacroChain(synthChain);
 
-	synthChain->setId(synthData.getProperty("ID", String::empty));
+	synthChain->setId(synthData.getProperty("ID", String()));
 
 	suspendProcessing(true);
 
@@ -198,6 +198,30 @@ void FrontendProcessor::setCurrentProgram(int /*index*/)
 	return;
 }
 
+
+void FrontendProcessor::setAllSampleReferencesCorrect()
+{
+	samplesCorrectlyLoaded = true;
+}
+
+void FrontendProcessor::checkAllSampleReferences()
+{
+	ValueTree sampleMaps = getValueTree(ProjectHandler::SubDirectories::SampleMaps);
+
+	const String missingSampleName = ProjectHandler::Frontend::checkSampleReferences(sampleMaps);
+
+	samplesCorrectlyLoaded = missingSampleName.isEmpty();
+
+	if (missingSampleName.isNotEmpty())
+	{
+		sendOverlayMessage(DeactiveOverlay::State::SamplesNotFound, "The sample " + missingSampleName + " was not found.");
+	}
+}
+
+bool FrontendProcessor::areSampleReferencesCorrect() const
+{
+	return samplesCorrectlyLoaded;
+}
 
 const String FrontendStandaloneApplication::getApplicationName()
 {
