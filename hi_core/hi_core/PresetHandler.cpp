@@ -384,6 +384,17 @@ void UserPresetHandler::loadUserPreset(ModulatorSynthChain *chain, const File &f
     
     if(xml != nullptr)
     {
+		if (!checkVersionNumber(chain, *xml))
+		{
+			if (PresetHandler::showYesNoWindow("Update user preset", "This user preset was built with a previous version. Do you want to update it?", PresetHandler::IconType::Question))
+			{
+				addMissingControlsToUserPreset(chain, fileToLoad);
+				updateVersionNumber(chain, fileToLoad);
+
+				xml = XmlDocument::parse(fileToLoad);
+			}
+		}
+
         ValueTree parent = ValueTree::fromXml(*xml);
         
         if (parent.isValid())
@@ -399,6 +410,107 @@ void UserPresetHandler::loadUserPreset(ModulatorSynthChain* chain, const ValueTr
 
 
 	
+}
+
+int UserPresetHandler::addMissingControlsToUserPreset(ModulatorSynthChain* chain, const File& fileToUpdate)
+{
+	static const Identifier type("type");
+	static const Identifier id("id");
+	static const Identifier value("value");
+
+	ScopedPointer<XmlElement> xml = XmlDocument::parse(fileToUpdate);
+
+	int numAddedControls = 0;
+
+	if (xml != nullptr)
+	{
+		ValueTree thisPreset = ValueTree::fromXml(*xml);
+		ValueTree contentData = thisPreset.getChild(0);
+		jassert(contentData.hasType("Content"));
+		const String interfaceId = contentData.getProperty("Processor").toString();
+		auto pwsc = dynamic_cast<ProcessorWithScriptingContent*>(ProcessorHelpers::getFirstProcessorWithName(chain, interfaceId));
+
+		if (pwsc == nullptr)
+		{
+			PresetHandler::showMessageWindow("Invalid User Preset", "The user preset " + fileToUpdate.getFileNameWithoutExtension() + " is not associated with the current instrument", PresetHandler::IconType::Error);
+			return -1;
+		}
+
+		auto content = pwsc->getScriptingContent();
+
+		for (int i = 0; i < content->getNumComponents(); i++)
+		{
+			auto control = content->getComponent(i);
+			bool isPresetControl = (int)control->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::saveInPreset) > 0;
+
+			if (!isPresetControl)
+				continue;
+
+			ValueTree controlData = control->exportAsValueTree();
+			ValueTree existingControlData = contentData.getChildWithProperty(id, controlData.getProperty(id));
+
+			if (existingControlData.isValid())
+			{
+				continue;
+			}
+
+			numAddedControls++;
+
+			var defaultValue = dynamic_cast<ScriptingApi::Content::ScriptSlider*>(control) ?
+				control->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::defaultValue) :
+				var(0.0f);
+
+			controlData.setProperty(value, defaultValue, nullptr);
+			contentData.addChild(controlData, -1, nullptr);
+		}
+
+		if (numAddedControls != 0)
+		{
+			xml = thisPreset.createXml();
+
+			fileToUpdate.replaceWithText(xml->createDocument(""));
+		}
+
+		return numAddedControls;
+	}
+
+	return -1;
+}
+
+bool UserPresetHandler::updateVersionNumber(ModulatorSynthChain* chain, const File& fileToUpdate)
+{
+	ScopedPointer<XmlElement> xml = XmlDocument::parse(fileToUpdate);
+
+	const String thisVersion = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, &GET_PROJECT_HANDLER(chain));
+
+	if (xml != nullptr)
+	{
+		const String presetVersion = xml->getStringAttribute("Version");
+
+		if (presetVersion != thisVersion)
+		{
+			xml->setAttribute("Version", thisVersion);
+
+			fileToUpdate.replaceWithText(xml->createDocument(""));
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool UserPresetHandler::checkVersionNumber(ModulatorSynthChain* chain, XmlElement& element)
+{
+#if USE_BACKEND
+	const String thisVersion = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, &GET_PROJECT_HANDLER(chain));
+#else
+	const String thisVersion = ProjectHandler::Frontend::getVersionString();
+#endif
+
+	const String presetVersion = element.getStringAttribute("Version");
+
+	return thisVersion == presetVersion;
 }
 
 File UserPresetHandler::getUserPresetFile(ModulatorSynthChain *chain, const String &fileNameWithoutExtension)

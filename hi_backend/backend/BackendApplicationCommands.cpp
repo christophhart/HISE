@@ -128,6 +128,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsRecompileScriptsOnReload,
 		MenuToolsCreateToolbarPropertyDefinition,
 		MenuToolsCreateExternalScriptFile,
+		MenuToolsValidateUserPresets,
 		MenuToolsResolveMissingSamples,
 		MenuToolsDeleteMissingSamples,
 		MenuToolsCheckAllSampleMaps,
@@ -370,6 +371,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuToolsCreateExternalScriptFile:
 		setCommandTarget(result, "Create external script file", true, false, 'X', false);
 		break;
+	case MenuToolsValidateUserPresets:
+		setCommandTarget(result, "Validate User Presets", true, false, 'X', false);
+		break;
 	case MenuToolsDeleteMissingSamples:
 		setCommandTarget(result, "Delete missing samples", true, false, 'X', false);
 		break;
@@ -528,6 +532,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsCreateToolbarPropertyDefinition:	Actions::createDefaultToolbarJSON(bpe); return true;
 	case MenuToolsCreateExternalScriptFile:	Actions::createExternalScriptFile(bpe); updateCommands(); return true;
     case MenuToolsCheckDuplicate:       Actions::checkDuplicateIds(bpe); return true;
+	case MenuToolsValidateUserPresets:	Actions::validateUserPresets(bpe); return true;
 	case MenuToolsDeleteMissingSamples: Actions::deleteMissingSamples(bpe); return true;
 	case MenuToolsResolveMissingSamples:Actions::resolveMissingSamples(bpe); return true;
 	case MenuToolsUseRelativePaths:		Actions::toggleRelativePath(bpe); updateCommands();  return true;
@@ -761,6 +766,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuToolsUseBackgroundThreadForCompile);
 		ADD_DESKTOP_ONLY(MenuToolsCreateToolbarPropertyDefinition);
 		ADD_DESKTOP_ONLY(MenuToolsCreateExternalScriptFile);
+		ADD_DESKTOP_ONLY(MenuToolsValidateUserPresets);
 
 		PopupMenu sub;
 
@@ -778,6 +784,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 
 		p.addSeparator();
 		p.addSectionHeader("Sample Management");
+		
 		ADD_DESKTOP_ONLY(MenuToolsResolveMissingSamples);
 		ADD_DESKTOP_ONLY(MenuToolsDeleteMissingSamples);
 		ADD_DESKTOP_ONLY(MenuToolsUseRelativePaths);
@@ -1931,6 +1938,68 @@ void BackendCommandTarget::Actions::convertSfzFilesToSampleMaps(BackendProcessor
 void BackendCommandTarget::Actions::checkAllSamplemaps(BackendProcessorEditor * bpe)
 {
 	GET_PROJECT_HANDLER(bpe->getMainSynthChain()).checkAllSampleMaps();
+}
+
+void removeHiddenFilesFromList(Array<File> &list)
+{
+	for (int i = 0; i < list.size(); i++)
+	{
+		if (list[i].isHidden() || list[i].getFileName().startsWith("."))
+		{
+			list.remove(i--);
+		}
+	}
+}
+
+void BackendCommandTarget::Actions::validateUserPresets(BackendProcessorEditor * bpe)
+{
+	MainController* mc = bpe->getBackendProcessor();
+	File userPresetDirectory = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
+	Array<File> userPresets;
+	userPresetDirectory.findChildFiles(userPresets, File::findFiles, true, "*.preset");
+	removeHiddenFilesFromList(userPresets);
+
+	if (PresetHandler::showYesNoWindow("Update for missing controls", "Do you want to add default values if controls are missing?"))
+	{
+		int numChangedPresets = 0;
+		int maxNumChangedControls = 0;
+
+		for (auto f : userPresets)
+		{
+			const int numControlsForThisFile = UserPresetHandler::addMissingControlsToUserPreset(mc->getMainSynthChain(), f);
+
+			if (numControlsForThisFile == -1)
+			{
+				PresetHandler::showMessageWindow("Error at validating", "Aborting...", PresetHandler::IconType::Error);
+			}
+
+			if (numControlsForThisFile > 0)
+			{
+				maxNumChangedControls = jmax<int>(maxNumChangedControls, numControlsForThisFile);
+				numChangedPresets++;
+			}
+		}
+
+		if (numChangedPresets != 0)
+			PresetHandler::showMessageWindow("Presets changed", String(numChangedPresets) + " user presets were modified and up to " + String(maxNumChangedControls) + " controls were added.", PresetHandler::IconType::Info);
+
+		int numWrongVersionedFiles = 0;
+
+		if (PresetHandler::showYesNoWindow("Validate version", "Do you want to check / update the version", PresetHandler::IconType::Question))
+		{
+			for (auto f : userPresets)
+			{
+				if (UserPresetHandler::updateVersionNumber(mc->getMainSynthChain(), f))
+					numWrongVersionedFiles++;
+			}
+		}
+
+		if (numWrongVersionedFiles != 0)
+			PresetHandler::showMessageWindow("Version updated", String(numWrongVersionedFiles) + " user presets were updated to the recent version", PresetHandler::IconType::Info);
+
+		if (numChangedPresets == 0 && numWrongVersionedFiles == 0)
+			PresetHandler::showMessageWindow("Nothing to do", "All user presets are up to date.");
+	}
 }
 
 #undef ADD_ALL_PLATFORMS

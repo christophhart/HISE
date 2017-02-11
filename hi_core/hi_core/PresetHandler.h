@@ -466,6 +466,12 @@ public:
 
 	static void loadUserPreset(ModulatorSynthChain* chain, const ValueTree &v);
     
+	static int addMissingControlsToUserPreset(ModulatorSynthChain* chain, const File& fileToUpdate);
+
+	static bool updateVersionNumber(ModulatorSynthChain* chain, const File& fileToUpdate);
+
+	static bool checkVersionNumber(ModulatorSynthChain* chain, XmlElement& element);
+
     static File getUserPresetFile(ModulatorSynthChain *chain, const String &fileNameWithoutExtension);
 };
 

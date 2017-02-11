@@ -147,8 +147,8 @@ public:
 		MenuToolsRecompileScriptsOnReload,
 		MenuToolsCreateToolbarPropertyDefinition,
 		MenuToolsCreateExternalScriptFile,
+		MenuToolsValidateUserPresets,
 		MenuToolsExternalScriptFileOffset,
-		
 		MenuToolsResolveMissingSamples = 0x60000,
 		MenuToolsDeleteMissingSamples,
 		MenuToolsCheckAllSampleMaps,
@@ -296,6 +296,7 @@ public:
 		static void convertAllSamplesToMonolith(BackendProcessorEditor * bpe);
 		static void convertSfzFilesToSampleMaps(BackendProcessorEditor * bpe);
 		static void checkAllSamplemaps(BackendProcessorEditor * bpe);
+		static void validateUserPresets(BackendProcessorEditor * bpe);
 	};
 
 private:
