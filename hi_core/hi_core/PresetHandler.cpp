@@ -1105,7 +1105,9 @@ String ProjectHandler::Frontend::checkSampleReferences(const ValueTree &sampleMa
 
 	for (int i = 0; i < sampleMaps.getNumChildren(); i++)
 	{
-		falseName = SampleMap::checkReferences(sampleMaps.getChild(i), sampleLocation, sampleList);
+		ValueTree child = sampleMaps.getChild(i);
+		
+		falseName = SampleMap::checkReferences(child, sampleLocation, sampleList);
 
 		if (falseName.isNotEmpty())
 			return falseName;
