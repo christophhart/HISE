@@ -39,7 +39,7 @@ File AudioProcessorDriver::getDeviceSettingsFile()
 
 #if JUCE_WINDOWS
 #if USE_BACKEND
-	String parentDirectory = File::getSpecialLocation(File::SpecialLocationType::userApplicationDataDirectory).getFullPathName() + "/Hart Instruments";
+	String parentDirectory = File(PresetHandler::getDataFolder()).getFullPathName();
 #else
 	String parentDirectory = ProjectHandler::Frontend::getAppDataDirectory().getFullPathName();
 #endif
@@ -56,7 +56,7 @@ File AudioProcessorDriver::getDeviceSettingsFile()
 #else
     
 #if USE_BACKEND
-	String parentDirectory = File::getSpecialLocation(File::SpecialLocationType::currentExecutableFile).getParentDirectory().getFullPathName();
+	String parentDirectory = File(PresetHandler::getDataFolder()).getFullPathName();
 #else
 	String parentDirectory = ProjectHandler::Frontend::getAppDataDirectory().getFullPathName();
 #endif

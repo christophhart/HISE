@@ -1279,6 +1279,13 @@ File ProjectHandler::Frontend::getSampleLocationForCompiledPlugin()
 
 File ProjectHandler::Frontend::getAppDataDirectory(ProjectHandler *handler/*=nullptr*/)
 {
+
+#if USE_COMMON_APP_DATA_FOLDER
+	const File::SpecialLocationType appDataDirectoryToUse = File::commonApplicationDataDirectory;
+#else
+	const File::SpecialLocationType appDataDirectoryToUse = File::userApplicationDataDirectory;
+#endif
+
 #if USE_FRONTEND
     
 	ignoreUnused(handler);
@@ -1286,7 +1293,7 @@ File ProjectHandler::Frontend::getAppDataDirectory(ProjectHandler *handler/*=nul
 #if JUCE_MAC
 #if JUCE_IOS
     
-    File f = File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("Application Support/" + getCompanyName() + "/" + getProjectName());
+    File f = File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support/" + getCompanyName() + "/" + getProjectName());
     
     if(!f.isDirectory())
     {
@@ -1297,11 +1304,11 @@ File ProjectHandler::Frontend::getAppDataDirectory(ProjectHandler *handler/*=nul
     
     
     
-    return File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("Application Support/" + getCompanyName() + "/" + getProjectName());
+    return File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support/" + getCompanyName() + "/" + getProjectName());
 #endif
 #else
 
-	File f = File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile(getCompanyName() + "/" + getProjectName());
+	File f = File::getSpecialLocation(appDataDirectoryToUse).getChildFile(getCompanyName() + "/" + getProjectName());
 
 	if (!f.isDirectory())
 	{
@@ -1319,9 +1326,9 @@ File ProjectHandler::Frontend::getAppDataDirectory(ProjectHandler *handler/*=nul
 	const String product = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, handler);
 
 #if JUCE_MAC
-	return File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("Application Support/" + company + "/" + product);
+	return File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support/" + company + "/" + product);
 #else
-	return File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile(company + "/" + String(product));
+	return File::getSpecialLocation(appDataDirectoryToUse).getChildFile(company + "/" + String(product));
 #endif
 
 #endif
@@ -1813,16 +1820,23 @@ String PresetHandler::getGlobalSampleFolder()
 
 String PresetHandler::getDataFolder()
 {
+#if USE_COMMON_APP_DATA_FOLDER
+	const File::SpecialLocationType appDataDirectoryToUse = File::commonApplicationDataDirectory;
+#else
+	const File::SpecialLocationType appDataDirectoryToUse = File::userApplicationDataDirectory;
+#endif
+
+
 #if JUCE_WINDOWS
     // Windows
-    File f = File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("Hart Instruments");
+    File f = File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Hart Instruments");
 #elif JUCE_MAC
 #if HISE_IOS
     // iOS
-    File f = File::getSpecialLocation(File::userApplicationDataDirectory);
+    File f = File::getSpecialLocation(appDataDirectoryToUse);
 #else
     // OS X
-    File f = File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("Application Support/Hart Instruments");
+    File f = File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support/Hart Instruments");
 #endif
 #else
     // Linux

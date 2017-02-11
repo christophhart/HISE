@@ -129,8 +129,7 @@ void DynamicDspFactory::openDynamicLibrary()
 #if JUCE_WINDOWS
 
 #if USE_BACKEND
-	
-	const File path = File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("Hart Instruments/dll/");
+	const File path = File(PresetHandler::getDataFolder()).getChildFile("dll/");
 #else
 
 	const File path = ProjectHandler::Frontend::getAppDataDirectory().getChildFile("dll/");

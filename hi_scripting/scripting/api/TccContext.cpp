@@ -58,11 +58,7 @@ bool TccContext::activeContextExists = false;
 TccContext::TccContext(const File &f_) :
 state(nullptr),
 sourceFile(f_),
-#if JUCE_WINDOWS
-tccDirectory(File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("Hart Instruments/tcc/"))
-#else
-tccDirectory(File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("Application Support/Hart Instruments/tcc/"))
-#endif
+tccDirectory(File(PresetHandler::getDataFolder()).getChildFile("tcc/"))
 {
 #if JUCE_WINDOWS
 
