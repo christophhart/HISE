@@ -130,6 +130,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsCreateExternalScriptFile,
 		MenuToolsResolveMissingSamples,
 		MenuToolsDeleteMissingSamples,
+		MenuToolsCheckAllSampleMaps,
 		MenuToolsUseRelativePaths,
 		MenuToolsCollectExternalFiles,
         MenuToolsRedirectSampleFolder,
@@ -378,6 +379,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuToolsUseRelativePaths:
 		setCommandTarget(result, "Use relative paths to project folder", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), bpe->getBackendProcessor()->getSampleManager().shouldUseRelativePathToProjectFolder(), 'X', false);
 		break;
+	case MenuToolsCheckAllSampleMaps:
+		setCommandTarget(result, "Check all sample maps", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
+		break;
 	case MenuToolsCollectExternalFiles:
 		setCommandTarget(result, "Collect external files into Project folder", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
 		break;
@@ -534,6 +538,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsConvertSfzToSampleMaps:	Actions::convertSfzFilesToSampleMaps(bpe); return true;
 	case MenuToolsCreateRSAKeys:		Actions::createRSAKeys(bpe); return true;
 	case MenuToolsCreateDummyLicenceFile: Actions::createDummyLicenceFile(bpe); return true;
+	case MenuToolsCheckAllSampleMaps:	Actions::checkAllSamplemaps(bpe); return true;
     case MenuViewFullscreen:            Actions::toggleFullscreen(bpe); updateCommands(); return true;
 	case MenuViewBack:					bpe->getViewUndoManager()->undo(); updateCommands(); return true;
 	case MenuViewForward:				bpe->getViewUndoManager()->redo(); updateCommands(); return true;
@@ -776,6 +781,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuToolsResolveMissingSamples);
 		ADD_DESKTOP_ONLY(MenuToolsDeleteMissingSamples);
 		ADD_DESKTOP_ONLY(MenuToolsUseRelativePaths);
+		ADD_DESKTOP_ONLY(MenuToolsCheckAllSampleMaps);
 		ADD_DESKTOP_ONLY(MenuToolsCollectExternalFiles);
 		ADD_DESKTOP_ONLY(MenuToolsRedirectSampleFolder);
 		ADD_DESKTOP_ONLY(MenuToolsForcePoolSearch);
@@ -1920,6 +1926,11 @@ void BackendCommandTarget::Actions::convertSfzFilesToSampleMaps(BackendProcessor
 	{
 		PresetHandler::showMessageWindow("Missing convert sampler", "You need a sampler with the name 'Sampler' in the Master Chain!", PresetHandler::IconType::Error);
 	}
+}
+
+void BackendCommandTarget::Actions::checkAllSamplemaps(BackendProcessorEditor * bpe)
+{
+	GET_PROJECT_HANDLER(bpe->getMainSynthChain()).checkAllSampleMaps();
 }
 
 #undef ADD_ALL_PLATFORMS

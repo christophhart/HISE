@@ -228,6 +228,8 @@ public:
 
 	void checkActiveProject();
 
+	void checkAllSampleMaps();
+
     /** checks if this is a absolute path (including absolute win paths on OSX and absolute OSX paths on windows); */
     static bool isAbsolutePathCrossPlatform(const String &pathName)
     {
@@ -267,6 +269,7 @@ public:
 		static String getCompanyName();
 		static String getCompanyWebsiteName();
 		static String getVersionString();
+		static String checkSampleReferences(const ValueTree &sampleMaps);
 	};
 
 	

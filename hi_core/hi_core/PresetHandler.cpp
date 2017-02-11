@@ -1045,6 +1045,76 @@ void ProjectHandler::checkActiveProject()
 	throw std::logic_error("The method or operation is not implemented.");
 }
 
+
+
+
+void ProjectHandler::checkAllSampleMaps()
+{
+	Array<File> sampleMaps;
+	Array<File> samples;
+
+	getSubDirectory(SubDirectories::Samples).findChildFiles(samples, File::findFiles, true);
+	getSubDirectory(SubDirectories::SampleMaps).findChildFiles(sampleMaps, File::findFiles, true, "*.xml;*.XML");
+
+	String falseName;
+
+	for (int i = 0; i < sampleMaps.size(); i++)
+	{
+		ScopedPointer<XmlElement> xml = XmlDocument::parse(sampleMaps[i]);
+
+		if (xml != nullptr)
+		{
+			ValueTree v = ValueTree::fromXml(*xml);
+
+			const String id = v.getProperty("ID").toString();
+
+			if (id != sampleMaps[i].getFileNameWithoutExtension())
+			{
+				PresetHandler::showMessageWindow("Mismatching SampleMap ID", "The SampleMap " + sampleMaps[i].getFileName() + " does not have the correct ID", PresetHandler::IconType::Error);
+				return;
+			}
+
+			falseName = SampleMap::checkReferences(v, getSubDirectory(SubDirectories::Samples), samples);
+
+			if (falseName.isNotEmpty())
+			{
+				break;
+			}
+		}
+	}
+
+	if (falseName.isEmpty())
+	{
+		PresetHandler::showMessageWindow("All sample references are valid", "All sample maps have been scanned", PresetHandler::IconType::Info);
+	}
+	else
+	{
+		PresetHandler::showMessageWindow("Missing samples found", "The sample " + falseName + " wasn't found.", PresetHandler::IconType::Error);
+	}
+}
+
+String ProjectHandler::Frontend::checkSampleReferences(const ValueTree &sampleMaps)
+{
+	Array<File> sampleList;
+
+	const File sampleLocation = getSampleLocationForCompiledPlugin();
+
+	sampleLocation.findChildFiles(sampleList, File::findFiles, true);
+
+	String falseName;
+
+	for (int i = 0; i < sampleMaps.getNumChildren(); i++)
+	{
+		falseName = SampleMap::checkReferences(sampleMaps.getChild(i), sampleLocation, sampleList);
+
+		if (falseName.isNotEmpty())
+			return falseName;
+	}
+
+	return String();
+}
+
+
 bool ProjectHandler::isActive() const
 {
 	return currentWorkDirectory != File();

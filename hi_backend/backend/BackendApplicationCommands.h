@@ -151,6 +151,7 @@ public:
 		
 		MenuToolsResolveMissingSamples = 0x60000,
 		MenuToolsDeleteMissingSamples,
+		MenuToolsCheckAllSampleMaps,
 		MenuToolsUseRelativePaths,
 		MenuToolsCollectExternalFiles,
         MenuToolsRedirectSampleFolder,
@@ -294,6 +295,7 @@ public:
 		static void cleanBuildDirectory(BackendProcessorEditor * bpe);
 		static void convertAllSamplesToMonolith(BackendProcessorEditor * bpe);
 		static void convertSfzFilesToSampleMaps(BackendProcessorEditor * bpe);
+		static void checkAllSamplemaps(BackendProcessorEditor * bpe);
 	};
 
 private:

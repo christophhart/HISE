@@ -622,6 +622,89 @@ void SampleMap::replaceReferencesWithGlobalFolder()
 	
 }
 
+String SampleMap::checkReferences(ValueTree& v, const File& sampleRootFolder, Array<File>& sampleList)
+{
+	const bool isMonolith = (int)v.getProperty("SaveMode") == (int)SaveMode::Monolith;
+
+	const std::string channelNames = v.getProperty("MicPositions").toString().toStdString();
+	const int numChannels = std::count(channelNames.begin(), channelNames.end(), ';');
+
+	const String sampleMapName = v.getProperty("ID");
+
+	if (isMonolith)
+	{
+		for (int i = 0; i < numChannels; i++)
+		{
+			const String fileName = sampleMapName + ".ch" + String(i + 1);
+
+			File f = sampleRootFolder.getChildFile(fileName);
+
+			if (!f.existsAsFile())
+			{
+				return f.getFullPathName();
+			}
+		}
+	}
+	else
+	{
+		static const String wc("{PROJECT_FOLDER}");
+
+		if (numChannels == 1)
+		{
+			for (int i = 0; i < v.getNumChildren(); i++)
+			{
+				ValueTree sample = v.getChild(i);
+
+				const String fileReference = sample.getProperty("FileName");
+
+				if (!fileReference.startsWith(wc))
+				{
+					PresetHandler::showMessageWindow("Absolute File path detected", "The sample " + fileReference + " is a absolute path which will not be resolved when using the library on another system", PresetHandler::IconType::Error);
+					return fileReference;
+				}
+
+				const String strippedFileReference = fileReference.fromFirstOccurrenceOf(wc, false, false);
+
+				File sampleLocation = sampleRootFolder.getChildFile(strippedFileReference);
+
+				if (!sampleList.contains(sampleLocation))
+				{
+					return sampleLocation.getFullPathName();
+				}
+			}
+		}
+		else
+		{
+			for (int i = 0; i < v.getNumChildren(); i++)
+			{
+				ValueTree sample = v.getChild(i);
+
+				for (int j = 0; j < sample.getNumChildren(); j++)
+				{
+					const String fileReference = sample.getChild(j).getProperty("FileName");
+
+					if (!fileReference.startsWith(wc))
+					{
+						PresetHandler::showMessageWindow("Absolute File path detected", "The sample " + fileReference + " is a absolute path which will not be resolved when using the library on another system", PresetHandler::IconType::Error);
+						return fileReference;
+					}
+
+					const String strippedFileReference = fileReference.fromFirstOccurrenceOf(wc, false, false);
+
+					File sampleLocation = sampleRootFolder.getChildFile(strippedFileReference);
+
+					if (!sampleList.contains(sampleLocation))
+					{
+						return sampleLocation.getFullPathName();
+					}
+				}
+			}
+		}
+	}
+
+	return String();
+}
+
 void SampleMap::load(const File &f)
 {
 #if USE_BACKEND

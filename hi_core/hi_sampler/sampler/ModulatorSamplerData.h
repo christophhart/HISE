@@ -284,6 +284,8 @@ public:
     
     Identifier getId() const { return sampleMapId; };
     
+	static String checkReferences(ValueTree& v, const File& sampleRootFolder, Array<File>& sampleList);
+
 private:
 
 	void resolveMissingFiles(ValueTree &treeToUse);
