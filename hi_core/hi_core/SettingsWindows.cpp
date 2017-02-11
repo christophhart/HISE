@@ -189,6 +189,8 @@ void SettingWindows::BaseSettingsWindow::setSettingsFile()
 		else if (type == ValueTypes::Text)
 		{
 			addTextEditor(tag, value, description);
+
+			
 		}
 		else if (type == ValueTypes::File)
 		{
@@ -231,6 +233,9 @@ String SettingWindows::ProjectSettingWindow::getAttributeNameForSetting(int attr
 	case SettingWindows::ProjectSettingWindow::Attributes::CustomToolbarClassName: return "CustomToolbarClassName";
 	case SettingWindows::ProjectSettingWindow::Attributes::OSXStaticLibs:   return "OSXStaticLibs";
 	case SettingWindows::ProjectSettingWindow::Attributes::WindowsStaticLibFolder: return "WindowsStaticLibFolder";
+	case SettingWindows::ProjectSettingWindow::Attributes::ExtraDefinitionsOSX: return "ExtraDefinitionsOSX";
+	case SettingWindows::ProjectSettingWindow::Attributes::ExtraDefinitionsWindows: return "ExtraDefinitionsWindows";
+	case SettingWindows::ProjectSettingWindow::Attributes::ExtraDefinitionsIOS: return "ExtraDefinitionsIOS";
 	case SettingWindows::ProjectSettingWindow::Attributes::numAttributes:
 	default: return "";
 	}
@@ -250,6 +255,9 @@ XmlElement * SettingWindows::ProjectSettingWindow::createNewSettingsFile() const
 	addChildElement(*xml, (int)ProjectSettingWindow::Attributes::CustomToolbarClassName, "", "Class name for the custom toolbar (leave empty to use the default one");
 	addChildElement(*xml, (int)ProjectSettingWindow::Attributes::WindowsStaticLibFolder, "", "Windows static library folder");
 	addChildElement(*xml, (int)ProjectSettingWindow::Attributes::OSXStaticLibs, "", "Additional static libs (OSX only)");
+	addChildElement(*xml, (int)ProjectSettingWindow::Attributes::ExtraDefinitionsWindows, "", "Extra preprocessor definitions for Windows");
+	addChildElement(*xml, (int)ProjectSettingWindow::Attributes::ExtraDefinitionsOSX, "", "Extra preprocessor definitions for OSX");
+	addChildElement(*xml, (int)ProjectSettingWindow::Attributes::ExtraDefinitionsIOS, "", "Extra preprocessor definitions for IOS");
 
 	return xml;
 }

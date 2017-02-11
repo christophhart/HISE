@@ -155,6 +155,9 @@ public:
 			CustomToolbarClassName,
 			OSXStaticLibs,
 			WindowsStaticLibFolder,
+			ExtraDefinitionsWindows,
+			ExtraDefinitionsOSX,
+			ExtraDefinitionsIOS,
 			numAttributes
 		};
 

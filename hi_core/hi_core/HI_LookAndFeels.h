@@ -882,7 +882,7 @@ public:
  
 	Font getAlertWindowFont () override
 	{
-		return GLOBAL_BOLD_FONT().withHeight(18.0f);
+		return GLOBAL_BOLD_FONT();
 	};
 
 	void setColourIdsForAlertWindow(AlertWindow &window)

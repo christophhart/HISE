@@ -290,7 +290,15 @@ void CustomSettingsWindow::buttonClicked(Button* b)
 			if (newLocation.isDirectory())
 			{
 				ProjectHandler::Frontend::setSampleLocation(newLocation);
-				PresetHandler::showMessageWindow("Sample Folder relocated", "You need to reload the plugin to complete this step", PresetHandler::IconType::Info);
+
+				auto fp = dynamic_cast<FrontendProcessor*>(mc);
+				
+				fp->checkAllSampleReferences();
+				
+				if (fp->areSampleReferencesCorrect())
+				{
+					PresetHandler::showMessageWindow("Sample Folder relocated", "You need to reload the plugin to complete this step", PresetHandler::IconType::Info);
+				}
 			}
 		}
 

@@ -45,7 +45,7 @@ void PresetBrowserColumn::ButtonLookAndFeel::drawButtonText(Graphics& g, TextBut
 }
 
 PresetBrowserColumn::ColumnListModel::ColumnListModel(int index_, Listener* listener_) :
-root(File::nonexistent),
+root(File()),
 index(index_),
 listener(listener_)
 {
@@ -229,7 +229,7 @@ index(index_)
 
 File PresetBrowserColumn::getChildDirectory(File& root, int level, int index)
 {
-	if (!root.isDirectory()) return File::nonexistent;
+	if (!root.isDirectory()) return File();
 
 	if (level == 0) return root;
 
@@ -490,7 +490,7 @@ void MultiColumnPresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*
 		currentBankFile = file;
 
 		categoryColumn->setNewRootDirectory(currentBankFile);
-		presetColumn->setNewRootDirectory(File::nonexistent);
+		presetColumn->setNewRootDirectory(File());
         
         categoryColumn->setEditMode(false);
         presetColumn->setEditMode(false);
@@ -523,8 +523,8 @@ void MultiColumnPresetBrowser::renameEntry(int columnIndex, int rowIndex, const 
 	{
 		File bankToDelete = f;
 
-		categoryColumn->setNewRootDirectory(File::nonexistent);
-		presetColumn->setNewRootDirectory(File::nonexistent);
+		categoryColumn->setNewRootDirectory(File());
+		presetColumn->setNewRootDirectory(File());
 	}
 	else if (columnIndex == 1)
 	{
@@ -559,8 +559,8 @@ void MultiColumnPresetBrowser::deleteEntry(int columnIndex, int /*rowIndex*/, co
 		bankToDelete.deleteRecursively();
 
 		bankColumn->setNewRootDirectory(rootFile);
-		categoryColumn->setNewRootDirectory(File::nonexistent);
-		presetColumn->setNewRootDirectory(File::nonexistent);
+		categoryColumn->setNewRootDirectory(File());
+		presetColumn->setNewRootDirectory(File());
 	}
 	else if (columnIndex == 1)
 	{
@@ -569,7 +569,7 @@ void MultiColumnPresetBrowser::deleteEntry(int columnIndex, int /*rowIndex*/, co
 		categoryToDelete.deleteRecursively();
 
 		categoryColumn->setNewRootDirectory(currentBankFile);
-		presetColumn->setNewRootDirectory(File::nonexistent);
+		presetColumn->setNewRootDirectory(File());
 	}
 	else if (columnIndex == 2)
 	{

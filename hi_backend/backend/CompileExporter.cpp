@@ -1145,6 +1145,8 @@ CompileExporter::ErrorCodes CompileExporter::createStandaloneAppProjucerFile()
 
 void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter* exporter, String& templateProject)
 {
+	ModulatorSynthChain* chainToExport = exporter->chainToExport;
+
 	const File jucePath = exporter->hisePath.getChildFile("JUCE/modules");
 
 	REPLACE_WILDCARD_WITH_STRING("%HISE_PATH%", exporter->hisePath.getFullPathName());
@@ -1154,6 +1156,10 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
     REPLACE_WILDCARD_WITH_STRING("%IPP_WIN_SETTING%", exporter->useIpp ? "Sequential" : String());
     
 	
+	REPLACE_WILDCARD("%EXTRA_DEFINES_WIN%", SettingWindows::ProjectSettingWindow::Attributes::ExtraDefinitionsWindows);
+	REPLACE_WILDCARD("%EXTRA_DEFINES_OSX%", SettingWindows::ProjectSettingWindow::Attributes::ExtraDefinitionsOSX);
+	REPLACE_WILDCARD("%EXTRA_DEFINES_IOS%", SettingWindows::ProjectSettingWindow::Attributes::ExtraDefinitionsIOS);
+
 
 #if JUCE_MAC
 
@@ -1728,7 +1734,6 @@ void CompileExporter::HeaderHelpers::addStaticDspFactoryRegistration(String& plu
 		pluginDataHeaderFile << "\tREGISTER_STATIC_DSP_FACTORY(ConvertedTccScriptFactory);" << "\n";
 	}
 
-#if JUCE_MAC
 	const String additionalDspClasses = SettingWindows::getSettingValue(
 		(int)SettingWindows::ProjectSettingWindow::Attributes::AdditionalDspLibraries,
 		&GET_PROJECT_HANDLER(chainToExport));
@@ -1740,7 +1745,6 @@ void CompileExporter::HeaderHelpers::addStaticDspFactoryRegistration(String& plu
 		for (int i = 0; i < sa.size(); i++)
 			pluginDataHeaderFile << "\tREGISTER_STATIC_DSP_FACTORY(" + sa[i] + ");" << "\n";
 	}
-#endif
     
 	pluginDataHeaderFile << "}" << "\n";
 }
