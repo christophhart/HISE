@@ -103,6 +103,22 @@ public:
 
 	void resized() override;
 
+	void enableScaleFactorSelector(bool shouldBeEnabled)
+	{
+		if (shouldBeEnabled)
+		{
+			scaleFactorSelector->setVisible(true);
+			setSize(getWidth(), getHeight() + 40);
+			resized();
+		}
+		else
+		{
+			scaleFactorSelector->setVisible(false);
+			setSize(getWidth(), getHeight() - 40);
+			resized();
+		}
+	}
+
 private:
 
 	PopupLookAndFeel plaf;
@@ -116,6 +132,7 @@ private:
 	ScopedPointer<ComboBox> bufferSelector;
 	ScopedPointer<ComboBox> sampleRateSelector;
 	ScopedPointer<ComboBox> diskModeSelector;
+	ScopedPointer<ComboBox> scaleFactorSelector;
 	ScopedPointer<TextButton> clearMidiLearn;
 	ScopedPointer<TextButton> relocateButton;
 	

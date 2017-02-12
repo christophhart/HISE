@@ -84,7 +84,11 @@ void AudioProcessorDriver::restoreSettings(MainController* mc)
 #endif
 
 		dynamic_cast<AudioProcessorDriver*>(mc)->diskMode = diskMode;
+		dynamic_cast<AudioProcessorDriver*>(mc)->scaleFactor = deviceData->getDoubleAttribute("SCALE_FACTOR", 1.0);
+		double microTuning = deviceData->getDoubleAttribute("MICRO_TUNING", 0.0);
+		dynamic_cast<AudioProcessorDriver*>(mc)->microTuning = microTuning;
 
+		mc->setGlobalPitchFactor(microTuning);
 		mc->getSampleManager().setDiskMode((MainController::SampleManager::DiskMode)diskMode);
 
 #if USE_FRONTEND
@@ -109,6 +113,9 @@ void AudioProcessorDriver::saveDeviceSettingsAsXml()
 	if (deviceData != nullptr)
 	{
         deviceData->setAttribute("DISK_MODE", diskMode);
+		deviceData->setAttribute("SCALE_FACTOR", scaleFactor);
+		deviceData->setAttribute("MICRO_TUNING", microTuning);
+
 
 #if USE_FRONTEND
 		deviceData->setAttribute("SAMPLES_FOUND", allSamplesFound);
@@ -143,6 +150,11 @@ StandaloneProcessor::StandaloneProcessor()
 
     ScopedPointer<XmlElement> xml = AudioProcessorDriver::getSettings();
     
+	if (xml != nullptr)
+	{
+		scaleFactor = (float)xml->getDoubleAttribute("SCALE_FACTOR", 1.0);
+	}
+
 #if USE_BACKEND
 	if(!CompileExporter::isExportingFromCommandLine()) 
 		dynamic_cast<AudioProcessorDriver*>(wrappedProcessor.get())->initialiseAudioDriver(xml);
@@ -184,6 +196,11 @@ void AudioProcessorDriver::initialiseAudioDriver(XmlElement *deviceData)
 	}
 }
 
+
+void AudioProcessorDriver::setGlobalScaleFactor(double newScaleFactor)
+{
+	scaleFactor = newScaleFactor;
+}
 
 void AudioProcessorDriver::updateMidiToggleList(MainController* mc, ToggleButtonList* listToUpdate)
 {

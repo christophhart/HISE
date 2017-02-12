@@ -311,8 +311,10 @@ public:
 		{
 			standaloneProcessor = new StandaloneProcessor();
 
+			float sf = standaloneProcessor->getScaleFactor();
+
 			addAndMakeVisible(editor = standaloneProcessor->createEditor());
-			setSize(editor->getWidth(), editor->getHeight());
+			setSize((int)((float)editor->getWidth()*sf), (int)((float)editor->getHeight() * sf));
             //open.attachTo(*editor);
 		}
 
@@ -349,9 +351,11 @@ public:
 		{
 			setUsingNativeTitleBar(true);
 			setContentOwned(new AudioWrapper(), true);
+			centreWithSize(getWidth(), getHeight());
+			
 			setResizable(false, false);
 
-			centreWithSize(getWidth(), getHeight());
+			
 			setVisible(true);
 		}
 

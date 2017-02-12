@@ -109,11 +109,19 @@ public:
 		}
 	}
 
+	void setGlobalScaleFactor(double scaleFactor);
+
 	static void updateMidiToggleList(MainController* mc, ToggleButtonList* listToUpdate);
 
 	int diskMode = 0;
 
 	bool allSamplesFound = false;
+
+	double scaleFactor = 1.0;
+
+	double microTuning = 0.0;
+
+	int transposeValue = 0;
 
 	static XmlElement *getSettings();
 
@@ -121,6 +129,7 @@ public:
 
 	AudioDeviceManager *deviceManager;
 	AudioProcessorPlayer *callback;
+	
 };
 
 class AudioDeviceDialog : public Component,
@@ -190,11 +199,22 @@ public:
 		return wrappedProcessor->createEditor();
 	}
 
+	float getScaleFactor() const 
+	{ 
+#if USE_BACKEND
+		return 1.0;
+#else
+		return scaleFactor; 
+#endif
+	}
+
 private:
 
 	ScopedPointer<AudioProcessor> wrappedProcessor;
 	ScopedPointer<AudioDeviceManager> deviceManager;
 	ScopedPointer<AudioProcessorPlayer> callback;
+	
+	float scaleFactor = 1.0;
 
 };
 

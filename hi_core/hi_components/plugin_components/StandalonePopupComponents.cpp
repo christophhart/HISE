@@ -101,6 +101,8 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 	addAndMakeVisible(bufferSelector = new ComboBox("Buffer Sizes"));
 	addAndMakeVisible(sampleRateSelector = new ComboBox("Sample Rate"));
 #endif
+    
+    addAndMakeVisible(scaleFactorSelector = new ComboBox("Scale Factor"));
 	addAndMakeVisible(diskModeSelector = new ComboBox("Hard Disk"));
 	addAndMakeVisible(clearMidiLearn = new TextButton("Clear MIDI CC"));
 	addAndMakeVisible(relocateButton = new TextButton("Change sample folder location"));
@@ -113,6 +115,7 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 	sampleRateSelector->addListener(this);
 #endif 
 
+	scaleFactorSelector->addListener(this);
 	diskModeSelector->addListener(this);
 	clearMidiLearn->addListener(this);
 	relocateButton->addListener(this);
@@ -125,6 +128,7 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 	sampleRateSelector->setLookAndFeel(&plaf);
 #endif
 
+	scaleFactorSelector->setLookAndFeel(&plaf);
 	diskModeSelector->setLookAndFeel(&plaf);
 	clearMidiLearn->setLookAndFeel(&blaf);
 	clearMidiLearn->setColour(TextButton::ColourIds::textColourOffId, Colours::white);
@@ -133,6 +137,8 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 	relocateButton->setColour(TextButton::ColourIds::textColourOffId, Colours::white);
 	relocateButton->setColour(TextButton::ColourIds::textColourOnId, Colours::white);
 
+	scaleFactorSelector->setVisible(false);
+	
 	rebuildMenus(true, true);
 
 #if HISE_IOS
@@ -161,6 +167,7 @@ CustomSettingsWindow::~CustomSettingsWindow()
 	clearMidiLearn->removeListener(this);
 	relocateButton->removeListener(this);
 	diskModeSelector->removeListener(this);
+	scaleFactorSelector->removeListener(this);
 
 	deviceSelector = nullptr;
 	bufferSelector = nullptr;
@@ -179,7 +186,10 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
 	bufferSelector->clear();
 	sampleRateSelector->clear();
 	outputSelector->clear();
+	scaleFactorSelector->clear();
 
+	scaleFactorSelector->addItem("100%", 1);
+	scaleFactorSelector->addItem("75%", 2);
 
 	if (rebuildDeviceTypes)
 	{
@@ -276,6 +286,7 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
 	diskModeSelector->addItem("Slow - HDD", 2);
 
 	diskModeSelector->setSelectedItemIndex(driver->diskMode, dontSendNotification);
+	scaleFactorSelector->setSelectedItemIndex(driver->scaleFactor == 1.0 ? 0 : 1, dontSendNotification);
 }
 
 void CustomSettingsWindow::buttonClicked(Button* b)
@@ -379,6 +390,8 @@ void CustomSettingsWindow::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
 {
 	AudioProcessorDriver* driver = dynamic_cast<AudioProcessorDriver*>(mc);
 
+	
+
 	if (comboBoxThatHasChanged == deviceSelector)
 	{
 		const String deviceName = deviceSelector->getText();
@@ -417,6 +430,22 @@ void CustomSettingsWindow::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
 		const double sampleRate = (double)sampleRateSelector->getText().getIntValue();
 		driver->setCurrentSampleRate(sampleRate);
 	}
+	else if (comboBoxThatHasChanged == scaleFactorSelector)
+	{
+		double scaleFactor = (scaleFactorSelector->getSelectedItemIndex() == 0) ? 1.0 : 0.85;
+
+		driver->setGlobalScaleFactor(scaleFactor);
+
+#if USE_FRONTEND
+
+		auto fpe = findParentComponentOfClass<FrontendProcessorEditor>();
+
+		fpe->setGlobalScaleFactor(scaleFactor);
+
+#endif
+
+
+	}
 	else if (comboBoxThatHasChanged == diskModeSelector)
 	{
 		const int index = diskModeSelector->getSelectedItemIndex();
@@ -453,6 +482,12 @@ void CustomSettingsWindow::paint(Graphics& g)
     g.drawText("Sample Rate", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
 	y += 40;
 #endif
+
+	if (scaleFactorSelector->isVisible())
+	{
+		g.drawText("Scale Factor", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
+		y += 40;
+	}
 
     g.drawText("Streaming Mode", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
 	y += 80;
@@ -491,6 +526,12 @@ void CustomSettingsWindow::resized()
 	sampleRateSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
     y+= 40;
 #endif
+
+	if (scaleFactorSelector->isVisible())
+	{
+		scaleFactorSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
+		y += 40;
+	}
 
 	diskModeSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
     y+= 40;

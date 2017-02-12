@@ -294,6 +294,32 @@ public:
 		g.fillAll(Colours::black);
 	};
 
+	void setGlobalScaleFactor(float newScaleFactor)
+	{
+		if (newScaleFactor > 0.2 && (scaleFactor != newScaleFactor))
+		{
+			scaleFactor = newScaleFactor;
+
+			if (scaleFactor != 1.0)
+			{
+				setTransform(AffineTransform::scale(scaleFactor));
+			}
+			else
+			{
+				setTransform(AffineTransform());
+			}
+
+			
+
+			auto tl = findParentComponentOfClass<TopLevelWindow>();
+
+			if (tl != nullptr)
+			{
+				tl->setSize((int)((float)originalSizeX * scaleFactor), (int)((float)originalSizeY * scaleFactor));
+			}
+		}
+	}
+
 	void resized() override;
 
 	void resetInterface()
@@ -319,6 +345,10 @@ private:
 
 	ScopedPointer<ThreadWithQuasiModalProgressWindow::Overlay> loaderOverlay;
     
+	float scaleFactor = 1.0f;
+
+	int originalSizeX, originalSizeY;
+
     bool overlayToolbar;
 };
 

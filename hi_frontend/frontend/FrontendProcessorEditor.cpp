@@ -109,6 +109,10 @@ AudioProcessorEditor(fp)
     
 	startTimer(4125);
 
+	originalSizeX = getWidth();
+	originalSizeY = getHeight();
+
+	setGlobalScaleFactor(fp->scaleFactor);
 }
 
 FrontendProcessorEditor::~FrontendProcessorEditor()
