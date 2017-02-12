@@ -243,16 +243,21 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
 
 		bufferSelector->setSelectedItemIndex(bufferSizes.indexOf(thisBufferSize), dontSendNotification);
 
-        
-#if 0
-		Array<double> samplerates = currentDevice->getAvailableSampleRates();
+#if IOS
+		samplerates.add(44100.0);
+		samplerates.add(48000.0);
+		samplerates.add(88200.0);
+		samplerates.add(96000.0);
 #else
+		Array<double> allSamplerates = currentDevice->getAvailableSampleRates();
         Array<double> samplerates;
         
-        samplerates.add(22050.0);
-        samplerates.add(32000.0);
-        samplerates.add(44100.0);
-        samplerates.add(48000.0);
+        if(allSamplerates.contains(44100.0)) samplerates.add(44100.0);
+		if (allSamplerates.contains(48000.0)) samplerates.add(48000.0);
+		if (allSamplerates.contains(88200.0)) samplerates.add(88200.0);
+		if (allSamplerates.contains(96000.0)) samplerates.add(96000.0);
+		if (allSamplerates.contains(176400.0)) samplerates.add(176400.0);
+		if (allSamplerates.contains(192000.0)) samplerates.add(192000.0);
 #endif
 
 		for (int i = 0; i < samplerates.size(); i++)
