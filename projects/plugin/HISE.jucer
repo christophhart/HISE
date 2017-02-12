@@ -2,7 +2,7 @@
 
 <JUCERPROJECT id="TQ3pmU" name="HISE" projectType="audioplug" version="0.983"
               bundleIdentifier="com.hartinstruments.HISE" includeBinaryInAppConfig="1"
-              buildVST="1" buildVST3="0" buildAU="1" buildRTAS="0" buildAAX="0"
+              buildVST="0" buildVST3="0" buildAU="0" buildRTAS="0" buildAAX="1"
               pluginName="HISE" pluginDesc="HISE" pluginManufacturer="Hart Instruments"
               pluginManufacturerCode="Hain" pluginCode="Hise" pluginChannelConfigs="{0,2}"
               pluginIsSynth="1" pluginWantsMidiIn="1" pluginProducesMidiOut="0"
@@ -43,8 +43,8 @@
     <XCODE_MAC targetFolder="Builds/MacOSX" vstFolder="/Volumes/Shared/Development/SDKs/vstsdk2.4"
                postbuildCommand="" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override"
                customPList="" extraLinkerFlags="/opt/intel/ipp/lib/libippi.a  /opt/intel/ipp/lib/libipps.a /opt/intel/ipp/lib/libippvm.a /opt/intel/ipp/lib/libippcore.a&#10;"
-               aaxFolder="/Volumes/Shared/Development/SDKs/AAX" smallIcon=""
-               bigIcon="">
+               aaxFolder="/Volumes/Shared/Development/HISE modules/tools/SDK/AAX"
+               smallIcon="" bigIcon="">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" osxSDK="default" osxCompatibility="10.7 SDK" osxArchitecture="64BitUniversal"
                        isDebug="1" optimisation="1" targetName="HISE" cppLanguageStandard="c++11"
@@ -175,7 +175,8 @@
                IS_STANDALONE_FRONTEND="disabled" USE_GLITCH_DETECTION="enabled"
                ENABLE_PLOTTER="enabled" ENABLE_SCRIPTING_SAFE_CHECKS="enabled"
                ENABLE_ALL_PEAK_METERS="enabled" ENABLE_HOST_INFO="enabled" ENABLE_CPU_MEASUREMENT="enabled"
-               USE_HARD_CLIPPER="enabled"/>
+               USE_HARD_CLIPPER="enabled" USE_IPP="enabled" USE_VDSP_FFT="disabled"
+               ENABLE_SCRIPTING_BREAKPOINTS="enabled"/>
   <LIVE_SETTINGS>
     <OSX/>
   </LIVE_SETTINGS>

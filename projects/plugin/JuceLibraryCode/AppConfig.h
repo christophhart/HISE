@@ -74,11 +74,11 @@
 #endif
 
 #ifndef    USE_IPP
- //#define USE_IPP
+ #define   USE_IPP 1
 #endif
 
 #ifndef    USE_VDSP_FFT
- //#define USE_VDSP_FFT
+ #define   USE_VDSP_FFT 0
 #endif
 
 #ifndef    FRONTEND_IS_PLUGIN
@@ -106,7 +106,7 @@
 #endif
 
 #ifndef    ENABLE_SCRIPTING_BREAKPOINTS
- //#define ENABLE_SCRIPTING_BREAKPOINTS
+ #define   ENABLE_SCRIPTING_BREAKPOINTS 1
 #endif
 
 #ifndef    ENABLE_ALL_PEAK_METERS
@@ -312,13 +312,13 @@
 // Audio plugin settings..
 
 #ifndef  JucePlugin_Build_VST
- #define JucePlugin_Build_VST              1
+ #define JucePlugin_Build_VST              0
 #endif
 #ifndef  JucePlugin_Build_VST3
  #define JucePlugin_Build_VST3             0
 #endif
 #ifndef  JucePlugin_Build_AU
- #define JucePlugin_Build_AU               1
+ #define JucePlugin_Build_AU               0
 #endif
 #ifndef  JucePlugin_Build_AUv3
  #define JucePlugin_Build_AUv3             0
@@ -327,7 +327,7 @@
  #define JucePlugin_Build_RTAS             0
 #endif
 #ifndef  JucePlugin_Build_AAX
- #define JucePlugin_Build_AAX              0
+ #define JucePlugin_Build_AAX              1
 #endif
 #ifndef  JucePlugin_Build_STANDALONE
  #define JucePlugin_Build_STANDALONE       0
