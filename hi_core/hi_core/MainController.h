@@ -210,6 +210,9 @@ public:
 		/** Searches all active note on events and returns the one with the given event id. */
 		HiseEvent popNoteOnFromEventId(uint16 eventId);
 
+		/** You can specify a global transpose value here that will be added to all note on / note off messages. */
+		void setGlobalTransposeValue(int transposeValue);
+
 		// ===========================================================================================================
 
 	private:
@@ -219,6 +222,8 @@ public:
 		uint16 lastArtificialEventIds[128];
 		HiseEvent realNoteOnEvents[128];
 		uint16 currentEventId;
+
+		int transposeValue = 0;
 
 		// ===========================================================================================================
 

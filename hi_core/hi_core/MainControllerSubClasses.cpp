@@ -315,6 +315,18 @@ MainController::EventIdHandler::~EventIdHandler()
 
 void MainController::EventIdHandler::handleEventIds()
 {
+	if (transposeValue != 0)
+	{
+		HiseEventBuffer::Iterator transposer(masterBuffer);
+
+		while (HiseEvent* m = transposer.getNextEventPointer())
+		{
+			int newNoteNumber = jlimit<int>(0, 127, m->getNoteNumber() + transposeValue);
+
+			m->setNoteNumber(newNoteNumber);
+		}
+	}
+
 	HiseEventBuffer::Iterator it(masterBuffer);
 
 	while (HiseEvent *m = it.getNextEventPointer())
