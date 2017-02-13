@@ -804,7 +804,7 @@ void ModulatorSynth::noteOn(const HiseEvent &m)
 				}
 
                 else if (voice->getCurrentlyPlayingNote() == midiNoteNumber // Use the untransposed number for detecting repeated notes
-                     && voice->isPlayingChannel (midiChannel))
+                     && voice->isPlayingChannel (midiChannel) && !(voice->getCurrentHiseEvent() == m))
 				{
 					handleRetriggeredNote(voice);
 				}
