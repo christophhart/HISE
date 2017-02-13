@@ -481,8 +481,12 @@ bool UserPresetHandler::updateVersionNumber(ModulatorSynthChain* chain, const Fi
 {
 	ScopedPointer<XmlElement> xml = XmlDocument::parse(fileToUpdate);
 
+#if USE_FRONTEND
+    const String thisVersion = ProjectHandler::Frontend::getVersionString();
+#else
 	const String thisVersion = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, &GET_PROJECT_HANDLER(chain));
-
+#endif
+    
 	if (xml != nullptr)
 	{
 		const String presetVersion = xml->getStringAttribute("Version");
