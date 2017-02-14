@@ -168,7 +168,15 @@ public:
 
 		int currentVoiceAmount = ModulatorSynth::getNumActiveVoices();
 
-		return currentVoiceAmount * numChannels;
+        int activeChannels = 0;
+        
+        for(int i = 0; i < numChannels; i++)
+        {
+            if(channelData[i].enabled)
+                activeChannels++;
+        }
+        
+		return currentVoiceAmount * activeChannels;
 	}
 
 	/** Allows dynamically changing the voice amount.
