@@ -204,6 +204,8 @@ void ModulatorSampler::restoreFromValueTree(const ValueTree &v)
 		setNumChannels(newNumChannels);
 	}
 
+    loadSampleMap(v.getChildWithName("samplemap"));
+    
 	ValueTree channels = v.getChildWithName("channels");
 
 	if (v.getChildWithName("channels").isValid())
@@ -219,7 +221,7 @@ void ModulatorSampler::restoreFromValueTree(const ValueTree &v)
 	loadAttribute(SamplerRepeatMode, "SamplerRepeatMode");
 	loadAttribute(Purged, "Purged");
 
-    loadSampleMap(v.getChildWithName("samplemap"));
+    
 	
     loadAttribute(CrossfadeGroups, "CrossfadeGroups");
     loadAttribute(RRGroupAmount, "RRGroupAmount");
@@ -841,12 +843,14 @@ void ModulatorSampler::loadSampleMap(const File &f)
 
 void ModulatorSampler::loadSampleMap(const ValueTree &valueTreeData)
 {
+    bool wasBypassed = isBypassed();
+    
 	setBypassed(true);
 
 	clearSampleMap();
 	sampleMap->restoreFromValueTree(valueTreeData);
 
-	setBypassed(false);
+	setBypassed(wasBypassed);
 }
 
 void ModulatorSampler::loadSampleMapFromIdAsync(const String& sampleMapId)
