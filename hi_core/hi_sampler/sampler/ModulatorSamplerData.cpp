@@ -68,6 +68,8 @@ void SoundPreloadThread::run()
 
 	const int preloadSize = (int)sampler->getAttribute(ModulatorSampler::PreloadSize) * sampler->getPreloadScaleFactor();
 
+    const bool wasBypassed = sampler->isBypassed();
+    
 	sampler->resetNotes();
 
 	sampler->setBypassed(true);
@@ -110,7 +112,7 @@ void SoundPreloadThread::run()
 
 	}
 
-	sampler->setBypassed(false);
+	sampler->setBypassed(wasBypassed);
 	sampler->setShouldUpdateUI(true);
 	sampler->sendChangeMessage();
 	sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->setUpdatePool(true);
