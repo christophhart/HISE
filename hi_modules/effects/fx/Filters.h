@@ -258,7 +258,7 @@ public:
     
     virtual ~FilterEffect() {};
 
-	virtual IIRCoefficients getCurrentCoefficients() const {return currentCoefficients;};
+	virtual IIRCoefficients getCurrentCoefficients() const { return currentCoefficients; };
 
 protected:
 
@@ -339,6 +339,33 @@ public:
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 	
 	static IIRCoefficients makeResoLowPass(double sampleRate, double cutoff, double q);;
+
+	IIRCoefficients getCurrentCoefficients() const override
+	{
+		switch (mode)
+		{
+		case MonoFilterEffect::LowPass: return currentCoefficients;
+			break;
+		case MonoFilterEffect::HighPass: return currentCoefficients;
+			break;
+		case MonoFilterEffect::LowShelf: return currentCoefficients;
+			break;
+		case MonoFilterEffect::HighShelf: return currentCoefficients;
+			break;
+		case MonoFilterEffect::Peak: return currentCoefficients;
+			break;
+		case MonoFilterEffect::ResoLow: return currentCoefficients;
+			break;
+		case MonoFilterEffect::StateVariableLP: return makeResoLowPass(getSampleRate(), freq, q);
+			break;
+		case MonoFilterEffect::StateVariableHP: return IIRCoefficients::makeHighPass(getSampleRate(), freq);
+			break;
+		case MonoFilterEffect::MoogLP:  return makeResoLowPass(getSampleRate(), freq, q);
+			break;
+		default:
+			break;
+		}
+	}
 
 private:
 

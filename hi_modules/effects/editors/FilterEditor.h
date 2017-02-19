@@ -56,6 +56,21 @@ public:
 		gainSlider->updateValue();
 		qSlider->updateValue();
 
+		MonoFilterEffect::FilterMode m = (MonoFilterEffect::FilterMode)(int)(getProcessor()->getAttribute(MonoFilterEffect::Mode));
+
+		switch (m)
+		{
+		case MonoFilterEffect::LowPass:			qSlider->setEnabled(false); break;
+		case MonoFilterEffect::HighPass:		qSlider->setEnabled(false); break;
+		case MonoFilterEffect::LowShelf:		qSlider->setEnabled(true); break;
+		case MonoFilterEffect::HighShelf:		qSlider->setEnabled(true); break;
+		case MonoFilterEffect::Peak:			qSlider->setEnabled(true); break;
+		case MonoFilterEffect::ResoLow:			qSlider->setEnabled(true); break;
+		case MonoFilterEffect::StateVariableLP: qSlider->setEnabled(true); break;
+		case MonoFilterEffect::StateVariableHP: qSlider->setEnabled(true); break;
+		case MonoFilterEffect::MoogLP:			qSlider->setEnabled(true); break;
+		default:								break;
+		}
 	};
 
 	void timerCallback() override

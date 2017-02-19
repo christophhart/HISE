@@ -159,7 +159,7 @@ void FilterEditor::resized()
     freqSlider->setBounds ((getWidth() / 2) + -73 - (128 / 2), 118, 128, 48);
     qSlider->setBounds (((getWidth() / 2) + -73 - (128 / 2)) + 128 - -16, 118, 128, 48);
     gainSlider->setBounds (((getWidth() / 2) + -73 - (128 / 2)) + -16 - 128, 118, 128, 48);
-    modeSelector->setBounds ((((getWidth() / 2) + -73 - (128 / 2)) + 128 - -16) + 128 - -23, 82, 128, 24);
+    modeSelector->setBounds ((((getWidth() / 2) + -73 - (128 / 2)) + 128 - -16) + 128 - -23, 82, 128, 28);
     filterGraph->setBounds ((getWidth() / 2) + -69 - (proportionOfWidth (0.5075f) / 2), 16, proportionOfWidth (0.5075f), 88);
     label->setBounds ((getWidth() / 2) + 242 - (100 / 2), 7, 100, 40);
     //[UserResized] Add your own custom resize handling here..
