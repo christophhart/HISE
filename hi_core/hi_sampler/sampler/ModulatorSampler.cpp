@@ -162,7 +162,7 @@ void ModulatorSampler::setNumChannels(int numNewChannels)
 
 	for (int i = 0; i < NUM_MIC_POSITIONS; i++)
 	{
-		channelData[i].enabled = i <= numChannels;
+		channelData[i].enabled = (channelData[i].enabled && i <= numChannels);
 		channelData[i].suffix = "";
 		channelData[i].level = channelData[i].enabled ? 1.0f : 0.0f;
 	}
@@ -204,7 +204,7 @@ void ModulatorSampler::restoreFromValueTree(const ValueTree &v)
 		setNumChannels(newNumChannels);
 	}
 
-    loadSampleMap(v.getChildWithName("samplemap"));
+    
     
 	ValueTree channels = v.getChildWithName("channels");
 
@@ -221,7 +221,7 @@ void ModulatorSampler::restoreFromValueTree(const ValueTree &v)
 	loadAttribute(SamplerRepeatMode, "SamplerRepeatMode");
 	loadAttribute(Purged, "Purged");
 
-    
+    loadSampleMap(v.getChildWithName("samplemap"));
 	
     loadAttribute(CrossfadeGroups, "CrossfadeGroups");
     loadAttribute(RRGroupAmount, "RRGroupAmount");

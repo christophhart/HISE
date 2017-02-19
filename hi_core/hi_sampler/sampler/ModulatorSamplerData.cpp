@@ -99,13 +99,26 @@ void SoundPreloadThread::run()
 		{
 			for (int j = 0; j < sampler->getNumMicPositions(); j++)
 			{
+                const bool isEnabled = sampler->getChannelData(j).enabled;
+                
                 ModulatorSamplerSound *sound = sampler->getSound(i);
                 
                 if(sound != nullptr)
                 {
                     StreamingSamplerSound *s = sound->getReferenceToSound(j);
                     
-                    if(s != nullptr) preloadSample(s, preloadSize, i);
+                    if(s != nullptr)
+                    {
+                        if(isEnabled)
+                        {
+                            preloadSample(s, preloadSize, i);
+                        }
+                        else
+                        {
+                            s->setPurged(true);
+                        }
+                     
+                    }
                 }
 			}
 		}
