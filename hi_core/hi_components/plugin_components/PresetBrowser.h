@@ -189,12 +189,16 @@ public:
 		void listBoxItemClicked(int row, const MouseEvent &) override;
 		void paintListBoxItem(int rowNumber, Graphics &g, int width, int height, bool rowIsSelected) override;
 
+		void sendRowChangeMessage(int row);
+
 		void returnKeyPressed(int row) override;
 
         void setEditMode(bool on) { editMode = on; }
         
         void setTotalRoot(const File& totalRoot_) {totalRoot = totalRoot_;}
         
+		
+
 		int getIndexForFile(const File& f) const
 		{
 			return entries.indexOf(f);
@@ -271,7 +275,7 @@ public:
 	    listbox->repaint();
     }
 	
-	void setSelectedFile(const File& file)
+	void setSelectedFile(const File& file, NotificationType notifyListeners=dontSendNotification)
 	{
 		const int rowIndex = listModel->getIndexForFile(file);
 
@@ -282,6 +286,11 @@ public:
 			SparseSet<int> s;
 			s.addRange(Range<int>(rowIndex, rowIndex + 1));
 			listbox->setSelectedRows(s, dontSendNotification);
+		}
+
+		if (notifyListeners == sendNotification)
+		{
+			listModel->sendRowChangeMessage(rowIndex);
 		}
 	}
 
@@ -465,7 +474,13 @@ public:
 		{
 			currentlyLoadedPreset = newIndex;
 
-			presetColumn->setSelectedFile(allPresets[currentlyLoadedPreset]);
+			File pFile = allPresets[currentlyLoadedPreset];
+			File cFile = pFile.getParentDirectory();
+			File bFile = cFile.getParentDirectory();
+
+			bankColumn->setSelectedFile(bFile, sendNotification);
+			categoryColumn->setSelectedFile(cFile, sendNotification);
+			presetColumn->setSelectedFile(pFile, dontSendNotification);
 
 			loadPreset(allPresets[currentlyLoadedPreset]);
 		}

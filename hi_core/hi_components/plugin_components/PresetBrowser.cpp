@@ -182,6 +182,14 @@ void PresetBrowserColumn::ColumnListModel::paintListBoxItem(int rowNumber, Graph
 	}
 }
 
+void PresetBrowserColumn::ColumnListModel::sendRowChangeMessage(int row)
+{
+	if (listener != nullptr)
+	{
+		listener->selectionChanged(index, row, entries[row], false);
+	}
+}
+
 PresetBrowserColumn::PresetBrowserColumn(MainController* mc_, int index_, File& rootDirectory, ColumnListModel::Listener* listener) :
 mc(mc_),
 index(index_)
@@ -279,12 +287,10 @@ void PresetBrowserColumn::buttonClicked(Button* b)
 			newDirectory.createDirectory();
 
 			setNewRootDirectory(currentRoot);
-            
-            
 		}
 		else
 		{
-			const String newPresetName = PresetHandler::getCustomName("Preset");
+			const String newPresetName = PresetHandler::getCustomName("User Preset", "Enter a name for the user preset");
 
 			if (newPresetName.isNotEmpty())
 			{
@@ -303,16 +309,10 @@ void PresetBrowserColumn::paint(Graphics& g)
 {
 	Rectangle<int> textArea(0, 0, getWidth(), 40);
 
-
-	
-
 	g.setColour(Colours::white.withAlpha(0.2f));
 	g.drawRect(0, 40, getWidth(), getHeight() - 40, 1);
-
     g.setColour(Colours::white.withAlpha(0.02f));
-    
     g.fillRect(textArea);
-    
 	g.setColour(Colours::white);
 
 	String name;
@@ -331,14 +331,12 @@ void PresetBrowserColumn::paint(Graphics& g)
 		g.setColour(Colours::white.withAlpha(0.3f));
 		g.drawText("Select a " + String(index == 1 ? "Bank" : "Category"), 0, 0, getWidth(), getHeight(), Justification::centred);
 	}
-
 	else if (listModel->getNumRows() == 0)
 	{
 		g.setFont(font);
 		g.setColour(Colours::white.withAlpha(0.3f));
 		g.drawText("Add a " + name, 0, 0, getWidth(), getHeight(), Justification::centred);
 	}
-
 }
 
 void PresetBrowserColumn::resized()
@@ -351,8 +349,6 @@ void PresetBrowserColumn::resized()
 MultiColumnPresetBrowser::MultiColumnPresetBrowser(MainController* mc_, int width, int height) :
 mc(mc_)
 {
-	
-
 #if USE_BACKEND
 	rootFile = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
 #else
@@ -363,11 +359,9 @@ mc(mc_)
 	addAndMakeVisible(categoryColumn = new PresetBrowserColumn(mc, 1, rootFile, this));
 	addAndMakeVisible(presetColumn = new PresetBrowserColumn(mc, 2, rootFile, this));
 	addAndMakeVisible(searchBar = new PresetBrowserSearchBar());
-
 	addChildComponent(closeButton = new ShapeButton("Close", Colours::white.withAlpha(0.5f), Colours::white.withAlpha(0.8f), Colours::white));
 
 	closeButton->addListener(this);
-
 	Path closeShape;
 	closeShape.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon));
 	closeButton->setShape(closeShape, true, true, true);
