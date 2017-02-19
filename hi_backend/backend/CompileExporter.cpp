@@ -161,6 +161,9 @@ ValueTree BaseExporter::collectAllSampleMapsInDirectory()
 
 	for (int i = 0; i < sampleMapFiles.size(); i++)
 	{
+        if(sampleMapFiles[i].isHidden() || sampleMapFiles[i].getFileName().startsWith("."))
+            continue;
+        
 		ScopedPointer<XmlElement> xml = XmlDocument::parse(sampleMapFiles[i]);
 
 		if (xml != nullptr)
