@@ -38,6 +38,11 @@
 
 class ScriptContentContainer;
 
+class FrontendEditorHolder: public Component
+{
+    
+};
+
 
 class DeactiveOverlay : public Component,
 						public ButtonListener
@@ -79,13 +84,13 @@ public:
 	enum State
 	{
 		AppDataDirectoryNotFound,
-		LicenceNotFound,
+		LicenseNotFound,
 		ProductNotMatching,
 		UserNameNotMatching,
 		EmailNotMatching,
 		MachineNumbersNotMatching,
-		LicenceExpired,
-		LicenceInvalid,
+		LicenseExpired,
+		LicenseInvalid,
 		CriticalCustomErrorMessage,
 		SamplesNotFound,
 		CustomErrorMessage,
@@ -103,9 +108,7 @@ public:
 		currentState.setBit(s, value);
 
 		setVisible(currentState != 0);
-
 		refreshLabel();
-
 		resized();
 	}
 
@@ -130,59 +133,7 @@ public:
 		}
 	}
 
-	String getTextForError(State s) const
-	{
-		if (customMessage.isNotEmpty())
-		{
-			if (s == DeactiveOverlay::numReasons)
-				return String();
-			else
-			{
-				return customMessage;
-			}
-		}
-
-		switch (s)
-		{
-		case DeactiveOverlay::AppDataDirectoryNotFound:
-			return "The application directory is not found. (The installation seems to be broken. Please reinstall this software.)";
-			break;
-		case DeactiveOverlay::SamplesNotFound:
-			return "The sample directory could not be located. \nClick below to choose the sample folder.";
-			break;
-		case DeactiveOverlay::LicenceNotFound:
-			return "This computer is not registered.\nClick below to authenticate this machine using either online authorization or by loading a licence key.";
-			break;
-		case DeactiveOverlay::ProductNotMatching:
-			return "The licence key is invalid (wrong plugin name / version).\nClick below to locate the correct licence key for this plugin / version";
-			break;
-		case DeactiveOverlay::MachineNumbersNotMatching:
-			return "The machine ID is invalid / not matching.\nClick below to load the correct licence key for this computer (or request a new licence key for this machine through support.";
-			break;
-		case DeactiveOverlay::UserNameNotMatching:
-			return "The user name is invalid.\nThis means usually a corrupt or rogued licence key file. Please contact support to get a new licence key.";
-			break;
-		case DeactiveOverlay::EmailNotMatching:
-			return "The email name is invalid.\nThis means usually a corrupt or rogued licence key file. Please contact support to get a new licence key.";
-			break;
-		case DeactiveOverlay::LicenceInvalid:
-			return "The licence key is malicious.\nPlease contact support.";
-		case DeactiveOverlay::LicenceExpired:
-#if USE_COPY_PROTECTION
-            return "The licence key is expired. Press OK to reauthenticate (you'll need to be online for this)";
-#elif USE_TURBO_ACTIVATE
-			return "This computer is not activated. You'll have to enter a valid Product key to activate it.";
-#else
-            return "";
-#endif
-		case DeactiveOverlay::numReasons:
-			break;
-		default:
-			break;
-		}
-
-		return String();
-	}
+	String getTextForError(State s) const;
 
 	void resized()
 	{
@@ -191,8 +142,8 @@ public:
 			descriptionLabel->centreWithSize(getWidth() - 20, 150);
 		}
 
-		if (currentState[LicenceNotFound] || 
-			currentState[LicenceInvalid] || 
+		if (currentState[LicenseNotFound] || 
+			currentState[LicenseInvalid] || 
 			currentState[MachineNumbersNotMatching] || 
 			currentState[UserNameNotMatching] || 
 			currentState[ProductNotMatching])
@@ -294,31 +245,7 @@ public:
 		g.fillAll(Colours::black);
 	};
 
-	void setGlobalScaleFactor(float newScaleFactor)
-	{
-		if (newScaleFactor > 0.2 && (scaleFactor != newScaleFactor))
-		{
-			scaleFactor = newScaleFactor;
-
-			if (scaleFactor != 1.0)
-			{
-				setTransform(AffineTransform::scale(scaleFactor));
-			}
-			else
-			{
-				setTransform(AffineTransform());
-			}
-
-			
-
-			auto tl = findParentComponentOfClass<TopLevelWindow>();
-
-			if (tl != nullptr)
-			{
-				tl->setSize((int)((float)originalSizeX * scaleFactor), (int)((float)originalSizeY * scaleFactor));
-			}
-		}
-	}
+    void setGlobalScaleFactor(float newScaleFactor);
 
 	void resized() override;
 
@@ -331,23 +258,21 @@ public:
 
 private:
 
+    ScopedPointer<FrontendEditorHolder> container;
+    
 	friend class BaseFrontendBar;
 
 	ScopedPointer<ScriptContentContainer> interfaceComponent;
-
 	ScopedPointer<BaseFrontendBar> mainBar;
-
 	ScopedPointer<CustomKeyboard> keyboard;
-
 	ScopedPointer<AboutPage> aboutPage;
-
 	ScopedPointer<DeactiveOverlay> deactiveOverlay;
-
 	ScopedPointer<ThreadWithQuasiModalProgressWindow::Overlay> loaderOverlay;
     
 	float scaleFactor = 1.0f;
 
-	int originalSizeX, originalSizeY;
+    int originalSizeX = 0;
+    int originalSizeY = 0;
 
     bool overlayToolbar;
 };

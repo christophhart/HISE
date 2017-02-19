@@ -250,7 +250,7 @@ struct Viewport::DragToScrollListener   : private MouseListener,
             isDragging = false;
         }
 
-        jassert (numTouches >= 0);
+        
     }
 
     Viewport& viewport;

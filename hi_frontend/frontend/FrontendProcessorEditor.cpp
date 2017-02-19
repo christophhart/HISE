@@ -34,8 +34,10 @@
 FrontendProcessorEditor::FrontendProcessorEditor(FrontendProcessor *fp) :
 AudioProcessorEditor(fp)
 {
-
-	addAndMakeVisible(interfaceComponent = new ScriptContentContainer(fp->getMainSynthChain(), nullptr));
+    addAndMakeVisible(container = new FrontendEditorHolder());
+    
+    
+	container->addAndMakeVisible(interfaceComponent = new ScriptContentContainer(fp->getMainSynthChain(), nullptr));
 	interfaceComponent->checkInterfaces();
 
 	interfaceComponent->setCurrentContent(0, dontSendNotification);
@@ -46,11 +48,11 @@ AudioProcessorEditor(fp)
 
 #if INCLUDE_BAR
 
-	addAndMakeVisible(mainBar = BaseFrontendBar::createFrontendBar(fp));
+	container->addAndMakeVisible(mainBar = BaseFrontendBar::createFrontendBar(fp));
 
 #endif
 
-	addAndMakeVisible(keyboard = new CustomKeyboard(fp->getKeyboardState()));
+	container->addAndMakeVisible(keyboard = new CustomKeyboard(fp->getKeyboardState()));
 
     keyboard->setAvailableRange(fp->getKeyboardState().getLowestKeyToDisplay(), 127);
     
@@ -58,13 +60,14 @@ AudioProcessorEditor(fp)
 
     keyboard->setVisible(showKeyboard);
 
-	addAndMakeVisible(aboutPage = new AboutPage());
+	container->addAndMakeVisible(aboutPage = new AboutPage());
 	aboutPage->setVisible(false);
 
-	addAndMakeVisible(deactiveOverlay = new DeactiveOverlay());
+	container->addAndMakeVisible(deactiveOverlay = new DeactiveOverlay());
 
-    
+#if !FRONTEND_IS_PLUGIN
 	deactiveOverlay->setState(DeactiveOverlay::SamplesNotFound, !ProjectHandler::Frontend::getSampleLocationForCompiledPlugin().isDirectory());
+#endif
 
 #if USE_COPY_PROTECTION
 
@@ -73,23 +76,22 @@ AudioProcessorEditor(fp)
 		deactiveOverlay->checkLicence();
 	}
 
-	deactiveOverlay->setState(DeactiveOverlay::LicenceInvalid, !fp->unlocker.isUnlocked());
+	deactiveOverlay->setState(DeactiveOverlay::LicenseInvalid, !fp->unlocker.isUnlocked());
 
 #elif USE_TURBO_ACTIVATE
 
-	deactiveOverlay->setState(DeactiveOverlay::State::LicenceNotFound, !fp->unlocker.licenceWasFound());
-	deactiveOverlay->setState(DeactiveOverlay::State::LicenceExpired, fp->unlocker.licenceExpired());
-	deactiveOverlay->setState(DeactiveOverlay::State::LicenceInvalid, !fp->unlocker.isUnlocked());
+	deactiveOverlay->setState(DeactiveOverlay::State::LicenseNotFound, !fp->unlocker.licenceWasFound());
+	deactiveOverlay->setState(DeactiveOverlay::State::LicenseExpired, fp->unlocker.licenceExpired());
+	deactiveOverlay->setState(DeactiveOverlay::State::LicenseInvalid, !fp->unlocker.isUnlocked());
 
 #endif
     
-	addAndMakeVisible(loaderOverlay = new ThreadWithQuasiModalProgressWindow::Overlay());
+	container->addAndMakeVisible(loaderOverlay = new ThreadWithQuasiModalProgressWindow::Overlay());
     
 	loaderOverlay->setDialog(nullptr);
 	fp->setOverlay(loaderOverlay);
 
     overlayToolbar = dynamic_cast<DefaultFrontendBar*>(mainBar.get()) != nullptr && fp->getToolbarPropertiesObject()->getProperty("overlaying");
-    
     
 #if HISE_IOS
     const int keyboardHeight = 210;
@@ -97,11 +99,8 @@ AudioProcessorEditor(fp)
     const int keyboardHeight = 72;
 #endif
     
-    
 #if HISE_IOS
-    
     setSize(568, 320);
-    
 #else
     
     setSize(interfaceComponent->getContentWidth(), ((mainBar != nullptr && !overlayToolbar) ? mainBar->getHeight() : 0) + interfaceComponent->getContentHeight() + (showKeyboard ? keyboardHeight : 0));
@@ -126,19 +125,47 @@ FrontendProcessorEditor::~FrontendProcessorEditor()
 	loaderOverlay = nullptr;
 }
 
+void FrontendProcessorEditor::setGlobalScaleFactor(float newScaleFactor)
+{
+    if (newScaleFactor > 0.2 && (scaleFactor != newScaleFactor))
+    {
+        scaleFactor = newScaleFactor;
+        
+        AffineTransform scaler = AffineTransform::scale(scaleFactor);
+        
+        container->setTransform(scaler);
+        
+        auto tl = findParentComponentOfClass<TopLevelWindow>();
+        
+        if (tl != nullptr)
+        {
+            tl->setSize((int)((float)originalSizeX * scaleFactor), (int)((float)originalSizeY * scaleFactor));
+        }
+        else
+        {
+            setSize((int)((float)originalSizeX * scaleFactor), (int)((float)originalSizeY * scaleFactor));
+        }
+    }
+}
+
 void FrontendProcessorEditor::resized()
 {
 	int y = 0;
 	
+    int width = originalSizeX != 0 ? originalSizeX : getWidth();
+    int height = originalSizeY != 0 ? originalSizeY : getHeight();
+    
+    container->setBounds(0, 0, width, height);
+    
 	if (mainBar != nullptr)
 	{
-		mainBar->setBounds(0, y, getWidth(), mainBar->getHeight());
+		mainBar->setBounds(0, y, width, mainBar->getHeight());
 		
         if(!overlayToolbar)
             y += mainBar->getHeight();
 	}
 
-	interfaceComponent->setBounds(0, y, getWidth(), interfaceComponent->getContentHeight());
+	interfaceComponent->setBounds(0, y, width, interfaceComponent->getContentHeight());
 
 	y = interfaceComponent->getBottom();
 
@@ -150,14 +177,14 @@ void FrontendProcessorEditor::resized()
     
     if(keyboard->isVisible())
     {
-        keyboard->setBounds(0, y, getWidth(), keyboardHeight);
+        keyboard->setBounds(0, y, width, keyboardHeight);
     }
 	
 	aboutPage->setBoundsInset(BorderSize<int>(80));
 	
-    deactiveOverlay->setBounds(getLocalBounds());
+    deactiveOverlay->setBounds(0, 0, width, height);
 
-	loaderOverlay->setBounds(getLocalBounds());
+	loaderOverlay->setBounds(0, 0, width, height);
 }
 
 #if USE_COPY_PROTECTION
@@ -219,8 +246,8 @@ public:
 
 			
 
-			overlay->setState(DeactiveOverlay::State::LicenceNotFound, false);
-			overlay->setState(DeactiveOverlay::State::LicenceInvalid, !unlocker->isUnlocked());
+			overlay->setState(DeactiveOverlay::State::LicenseNotFound, false);
+			overlay->setState(DeactiveOverlay::State::LicenseInvalid, !unlocker->isUnlocked());
 
 		}
 		else
@@ -258,7 +285,7 @@ void DeactiveOverlay::buttonClicked(Button *b)
 
 			State returnValue = checkLicence(keyContent);
 
-			if (returnValue == numReasons || returnValue == LicenceNotFound)
+			if (returnValue == numReasons || returnValue == LicenseNotFound)
 			{
 				f.copyFileTo(ProjectHandler::Frontend::getLicenceKey());
 
@@ -269,7 +296,7 @@ void DeactiveOverlay::buttonClicked(Button *b)
             
 			if (returnValue != numReasons) return;
 
-			setState(LicenceInvalid, !ul->isUnlocked());
+			setState(LicenseInvalid, !ul->isUnlocked());
             
             PresetHandler::showMessageWindow("Valid key file found.", "You found a valid key file. Please reload this instance to activate the plugin.");
 		}
@@ -281,9 +308,9 @@ void DeactiveOverlay::buttonClicked(Button *b)
         
         ul->activateWithKey(key.getCharPointer());
         
-        setState(DeactiveOverlay::State::LicenceNotFound, !ul->licenceWasFound());
-		setState(DeactiveOverlay::State::LicenceExpired, ul->unlockState == TurboActivateUnlocker::State::Deactivated);
-        setState(DeactiveOverlay::State::LicenceInvalid, !ul->isUnlocked());
+        setState(DeactiveOverlay::State::LicenseNotFound, !ul->licenceWasFound());
+		setState(DeactiveOverlay::State::LicenseExpired, ul->unlockState == TurboActivateUnlocker::State::Deactivated);
+        setState(DeactiveOverlay::State::LicenseInvalid, !ul->isUnlocked());
         
         if(ul->isUnlocked())
         {
@@ -359,7 +386,7 @@ bool DeactiveOverlay::check(State s, const String &value/*=String()*/)
 	case DeactiveOverlay::AppDataDirectoryNotFound:
 		return ProjectHandler::Frontend::getAppDataDirectory().isDirectory();
 		break;
-	case DeactiveOverlay::LicenceNotFound:
+	case DeactiveOverlay::LicenseNotFound:
 		return ProjectHandler::Frontend::getLicenceKey().existsAsFile();
 		break;
 	case DeactiveOverlay::ProductNotMatching:
@@ -376,7 +403,7 @@ bool DeactiveOverlay::check(State s, const String &value/*=String()*/)
 		return ids.contains(value);
 		break;
 	}
-	case DeactiveOverlay::LicenceInvalid:
+	case DeactiveOverlay::LicenseInvalid:
 		return ul->isUnlocked();
 		break;
 	case DeactiveOverlay::SamplesNotFound:
@@ -415,13 +442,13 @@ DeactiveOverlay::State DeactiveOverlay::checkLicence(const String &keyContent)
 
 	StringArray lines = StringArray::fromLines(key);
 
-	if (!check(AppDataDirectoryNotFound) || !check(LicenceNotFound) || lines.size() < 4)
+	if (!check(AppDataDirectoryNotFound) || !check(LicenseNotFound) || lines.size() < 4)
 	{
-		setState(LicenceNotFound, true);
-		return LicenceNotFound;
+		setState(LicenseNotFound, true);
+		return LicenseNotFound;
 	}
 
-	currentState.setBit(LicenceNotFound, false);
+	currentState.setBit(LicenseNotFound, false);
 
 	const String productName = lines[0].fromFirstOccurrenceOf("Keyfile for ", false, false);
 	CHECK_LICENCE_PARAMETER(ProductNotMatching, productName);
@@ -434,6 +461,82 @@ DeactiveOverlay::State DeactiveOverlay::checkLicence(const String &keyContent)
 	ignoreUnused(keyContent);
 	return numReasons;
 #endif
+}
+
+String DeactiveOverlay::getTextForError(State s) const
+{
+	if (customMessage.isNotEmpty())
+	{
+		if (s == DeactiveOverlay::numReasons)
+			return String();
+		else
+		{
+			return customMessage;
+		}
+	}
+
+	switch (s)
+	{
+	case DeactiveOverlay::AppDataDirectoryNotFound:
+		return "The application directory is not found. (The installation seems to be broken. Please reinstall this software.)";
+		break;
+	case DeactiveOverlay::SamplesNotFound:
+		return "The sample directory could not be located. \nClick below to choose the sample folder.";
+		break;
+	case DeactiveOverlay::LicenseNotFound:
+	{
+#if USE_COPY_PROTECTION
+		return "This computer is not registered.\nClick below to authenticate this machine using either online authorization or by loading a license key.";
+		break;
+#elif USE_TURBO_ACTIVATE
+		auto ul = &dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor())->unlocker;
+		return ul->getErrorMessage();
+#else
+		return "";
+#endif
+	}
+		
+	case DeactiveOverlay::ProductNotMatching:
+		return "The license key is invalid (wrong plugin name / version).\nClick below to locate the correct license key for this plugin / version";
+		break;
+	case DeactiveOverlay::MachineNumbersNotMatching:
+		return "The machine ID is invalid / not matching.\nClick below to load the correct license key for this computer (or request a new license key for this machine through support.";
+		break;
+	case DeactiveOverlay::UserNameNotMatching:
+		return "The user name is invalid.\nThis means usually a corrupt or rogued license key file. Please contact support to get a new license key.";
+		break;
+	case DeactiveOverlay::EmailNotMatching:
+		return "The email name is invalid.\nThis means usually a corrupt or rogued license key file. Please contact support to get a new license key.";
+		break;
+	case DeactiveOverlay::LicenseInvalid:
+	{
+#if USE_COPY_PROTECTION
+		return "The license key is malicious.\nPlease contact support.";
+#elif USE_TURBO_ACTIVATE
+		auto ul = &dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor())->unlocker;
+		return ul->getErrorMessage();
+#else
+		return "";
+#endif
+	}
+	case DeactiveOverlay::LicenseExpired:
+	{
+#if USE_COPY_PROTECTION
+		return "The license key is expired. Press OK to reauthenticate (you'll need to be online for this)";
+#elif USE_TURBO_ACTIVATE
+		auto ul = &dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor())->unlocker;
+		return ul->getErrorMessage();
+#else
+		return "";
+#endif
+	}
+	case DeactiveOverlay::numReasons:
+		break;
+	default:
+		break;
+	}
+
+	return String();
 }
 
 #undef CHECK_LICENCE_PARAMETER

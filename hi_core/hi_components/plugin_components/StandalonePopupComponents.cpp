@@ -186,10 +186,7 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
 	bufferSelector->clear();
 	sampleRateSelector->clear();
 	outputSelector->clear();
-	scaleFactorSelector->clear();
-
-	scaleFactorSelector->addItem("100%", 1);
-	scaleFactorSelector->addItem("75%", 2);
+	
 
 	if (rebuildDeviceTypes)
 	{
@@ -281,6 +278,10 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
 	}
 #endif
 
+    scaleFactorSelector->clear();
+    scaleFactorSelector->addItem("100%", 1);
+    scaleFactorSelector->addItem("75%", 2);
+    
 	diskModeSelector->clear();
 	diskModeSelector->addItem("Fast - SSD", 1);
 	diskModeSelector->addItem("Slow - HDD", 2);

@@ -72,9 +72,13 @@ public:
     
 	std::string getProductKey() const;
 
+	std::string getErrorMessage() const;
+
     void activateWithKey(const char* key);
     
 	void deactivateThisComputer();
+
+	void reactivate();
 
     State unlockState;
     
