@@ -564,6 +564,8 @@ private:
 			channelNames.addIfNotAlreadyThere(thisChannel);
 		}
 
+        channelNames.sort(false);
+        
 		showStatusMessage(String(channelNames.size()) + " channels found: " + channelNames.joinIntoString(", "));
 	}
 
