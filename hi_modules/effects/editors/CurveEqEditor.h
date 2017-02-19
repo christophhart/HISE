@@ -516,6 +516,7 @@ public:
 		qSlider->updateValue();
 		enableBandButton->updateValue();
 		typeSelector->updateValue();
+        dragOverlay->updatePositions();
 	};
 
 	void checkEnabledBands()
