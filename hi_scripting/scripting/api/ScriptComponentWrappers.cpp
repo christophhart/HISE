@@ -802,6 +802,9 @@ void ScriptedControlAudioParameter::setValue(float newValue)
 
 float ScriptedControlAudioParameter::getDefaultValue() const
 {
+    return 0.0f;
+    
+#if 0 // Implement this!
 	if (scriptProcessor.get() != nullptr && type == Type::Slider)
 	{
 		return range.convertTo0to1(scriptProcessor->getDefaultValue(componentIndex));
@@ -810,6 +813,7 @@ float ScriptedControlAudioParameter::getDefaultValue() const
 	{
 		return 0.0f;
 	}
+#endif
 }
 
 
