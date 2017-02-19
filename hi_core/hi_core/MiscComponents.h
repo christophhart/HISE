@@ -138,6 +138,9 @@ public:
 	void removeAllCallbackListeners();
 
 	void mouseDown(const MouseEvent& event) override;
+
+	void fillPopupMenu(const MouseEvent &event);
+
 	void mouseDrag(const MouseEvent& event) override;
 	void mouseEnter(const MouseEvent &event) override;
 	void mouseExit(const MouseEvent &event) override;
