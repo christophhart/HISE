@@ -341,7 +341,6 @@ void UserPresetHandler::saveUserPreset(ModulatorSynthChain *chain, const String&
 	File presetFile;
 	bool doit = false;
 
-
 	if (targetFile.isNotEmpty())
 	{
 		presetFile = File(targetFile);
@@ -349,7 +348,7 @@ void UserPresetHandler::saveUserPreset(ModulatorSynthChain *chain, const String&
 	}
 	else
 	{
-		String name = PresetHandler::getCustomName("User Preset");
+		String name = PresetHandler::getCustomName("User Preset", "Enter a name for the user preset");
 
 		if (name.isNotEmpty())
 		{
@@ -362,8 +361,6 @@ void UserPresetHandler::saveUserPreset(ModulatorSynthChain *chain, const String&
     {       
         if(!presetFile.existsAsFile() || PresetHandler::showYesNoWindow("Confirm overwrite", "Do you want to overwrite the preset?"))
         {
-			presetFile.deleteFile();
-
             Processor::Iterator<JavascriptMidiProcessor> iter(chain);
             
 			ValueTree autoData = chain->getMainController()->getMacroManager().getMidiControlAutomationHandler()->exportAsValueTree();
@@ -372,7 +369,21 @@ void UserPresetHandler::saveUserPreset(ModulatorSynthChain *chain, const String&
             {
                 if(!sp->isFront()) continue;
                     
-                sp->getScriptingContent()->storeAllControlsAsPreset(presetFile.getFullPathName(), autoData);
+				ValueTree v = sp->getScriptingContent()->exportAsValueTree();
+
+				v.setProperty("Processor", sp->getId(), nullptr);
+
+				ValueTree preset = ValueTree("Preset");
+
+				preset.setProperty("Version", getCurrentVersionNumber(chain), nullptr);
+				preset.addChild(v, -1, nullptr);
+				preset.addChild(autoData, -1, nullptr);
+
+				ScopedPointer<XmlElement> xml = preset.createXml();
+
+				presetFile.replaceWithText(xml->createDocument(""));
+
+				return;
             }
         }
     }
@@ -481,12 +492,8 @@ bool UserPresetHandler::updateVersionNumber(ModulatorSynthChain* chain, const Fi
 {
 	ScopedPointer<XmlElement> xml = XmlDocument::parse(fileToUpdate);
 
-#if USE_FRONTEND
-    const String thisVersion = ProjectHandler::Frontend::getVersionString();
-#else
-	const String thisVersion = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, &GET_PROJECT_HANDLER(chain));
-#endif
-    
+	const String thisVersion = getCurrentVersionNumber(chain);
+
 	if (xml != nullptr)
 	{
 		const String presetVersion = xml->getStringAttribute("Version");
@@ -506,15 +513,18 @@ bool UserPresetHandler::updateVersionNumber(ModulatorSynthChain* chain, const Fi
 
 bool UserPresetHandler::checkVersionNumber(ModulatorSynthChain* chain, XmlElement& element)
 {
-#if USE_BACKEND
-	const String thisVersion = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, &GET_PROJECT_HANDLER(chain));
-#else
-	const String thisVersion = ProjectHandler::Frontend::getVersionString();
-#endif
-
 	const String presetVersion = element.getStringAttribute("Version");
 
-	return thisVersion == presetVersion;
+	return getCurrentVersionNumber(chain) == presetVersion;
+}
+
+String UserPresetHandler::getCurrentVersionNumber(ModulatorSynthChain* chain)
+{
+#if USE_BACKEND
+	return SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, &GET_PROJECT_HANDLER(chain));
+#else
+	return ProjectHandler::Frontend::getVersionString();
+#endif
 }
 
 File UserPresetHandler::getUserPresetFile(ModulatorSynthChain *chain, const String &fileNameWithoutExtension)

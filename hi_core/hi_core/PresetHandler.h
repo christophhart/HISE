@@ -472,6 +472,8 @@ public:
 
 	static bool checkVersionNumber(ModulatorSynthChain* chain, XmlElement& element);
 
+	static String getCurrentVersionNumber(ModulatorSynthChain* chain);
+
     static File getUserPresetFile(ModulatorSynthChain *chain, const String &fileNameWithoutExtension);
 };
 
