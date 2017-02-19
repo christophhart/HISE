@@ -1033,6 +1033,7 @@ CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(TargetType
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINISSYNTH%", "0");
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINWANTSMIDIIN", "0");
 		REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "enabled");
+        REPLACE_WILDCARD_WITH_STRING("%AAX_CATEGORY%", "AAX_ePlugInCategory_Modulation");
 	}
 	else
 	{
@@ -1040,6 +1041,7 @@ CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(TargetType
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINISSYNTH%", "1");
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINWANTSMIDIIN", "1");
 		REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "disabled");
+        REPLACE_WILDCARD_WITH_STRING("%AAX_CATEGORY%", "AAX_ePlugInCategory_SWGenerators");
 	}
 
 	REPLACE_WILDCARD_WITH_STRING("%IS_STANDALONE_FRONTEND%", "disabled");
