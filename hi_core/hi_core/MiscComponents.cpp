@@ -145,126 +145,7 @@ void MouseCallbackComponent::mouseDown(const MouseEvent& event)
 	{
 		if (event.mods.isRightButtonDown() == useRightClickForPopup)
 		{
-			PopupMenu m;
-			m.setLookAndFeel(&plaf);
-
-			std::vector<SubMenuList> subMenus;
-
-			ScopedValueSetter<bool>(currentlyShowingPopup, true, false);
-
-			for (int i = 0; i < itemList.size(); i++)
-			{
-				if (itemList[i].contains("::"))
-				{
-					String subMenuName = itemList[i].upToFirstOccurrenceOf("::", false, false);
-					String subMenuItem = itemList[i].fromFirstOccurrenceOf("::", false, false);
-
-					if (subMenuName.isEmpty() || subMenuItem.isEmpty()) continue;
-
-					bool subMenuExists = false;
-
-					for (int j = 0; j < subMenus.size(); j++)
-					{
-						if (std::get<0>(subMenus[j]) == subMenuName)
-						{
-							std::get<1>(subMenus[j]).add(subMenuItem);
-							subMenuExists = true;
-							break;
-						}
-					}
-
-					if (!subMenuExists)
-					{
-						StringArray sa;
-						sa.add(subMenuItem);
-						SubMenuList item(subMenuName, sa);
-						subMenus.push_back(item);
-					}
-				}
-			}
-			if (subMenus.size() != 0)
-			{
-				int menuIndex = 1;
-
-				for (int i = 0; i < subMenus.size(); i++)
-				{
-					PopupMenu sub;
-					
-					StringArray sa = std::get<1>(subMenus[i]);
-
-					for (int j = 0; j < sa.size(); j++)
-					{
-                        if(sa[j].startsWith("**") && sa[j].endsWith("**"))
-                        {
-                            sub.addSectionHeader(sa[j].replace("**", ""));
-                            continue;
-                        }
-                        
-                        if(sa[j] == "___")
-                        {
-                            sub.addSeparator();
-                            continue;
-                        }
-                        
-                        const bool isDeactivated = sa[j].startsWith("~~") && sa[j].endsWith("~~");
-                        const String itemText = isDeactivated ? sa[j].replace("~~", "") : sa[j];
-                        sub.addItem(menuIndex, itemText, !isDeactivated, (menuIndex-1) == activePopupId);
-                        menuIndex++;
-					}
-					
-					m.addSubMenu(std::get<0>(subMenus[i]), sub);
-				}
-			}
-			else
-			{
-                int menuIndex = 0;
-                
-				for (int i = 0; i < itemList.size(); i++)
-				{
-                    if(itemList[i].startsWith("**") && itemList[i].endsWith("**"))
-                    {
-                        m.addSectionHeader(itemList[i].replace("**", ""));
-                        continue;
-                    }
-                    
-                    if(itemList[i] == "___")
-                    {
-                        m.addSeparator();
-                        continue;
-                    }
-                    
-                    const bool isDeactivated = itemList[i].startsWith("~~") && itemList[i].endsWith("~~");
-                    const String itemText = isDeactivated ? itemList[i].replace("~~", "") : itemList[i];
-                    m.addItem(menuIndex + 1, itemText, !isDeactivated, (menuIndex) == activePopupId);
-                    menuIndex++;
-				}
-			}
-			
-
-			int result = 0;
-				
-			if (popupShouldBeAligned)
-			{
-				result = m.showAt(this, 0, getWidth());
-			}
-			else
-			{
-				result = m.show();
-			}
-
-			String name = result != 0 ? itemList[result-1] : "";
-
-			DynamicObject::Ptr obj = new DynamicObject();
-
-			static const Identifier r("result");
-			static const Identifier itemText("itemText");
-			static const Identifier rightClick("rightClick");
-
-			obj->setProperty(rightClick, event.mods.isRightButtonDown());
-			obj->setProperty(r, result);
-			obj->setProperty(itemText, name);
-
-			sendToListeners(var(obj));
+			fillPopupMenu(event);
 
 			return;
 		}
@@ -274,6 +155,139 @@ void MouseCallbackComponent::mouseDown(const MouseEvent& event)
 	{
 		sendMessage(event, Action::Clicked);
 	}
+}
+
+void MouseCallbackComponent::fillPopupMenu(const MouseEvent &event)
+{
+	PopupMenu m;
+	m.setLookAndFeel(&plaf);
+
+	std::vector<SubMenuList> subMenus;
+
+	ScopedValueSetter<bool>(currentlyShowingPopup, true, false);
+
+	for (int i = 0; i < itemList.size(); i++)
+	{
+		if (itemList[i].contains("::"))
+		{
+			String subMenuName = itemList[i].upToFirstOccurrenceOf("::", false, false);
+			String subMenuItem = itemList[i].fromFirstOccurrenceOf("::", false, false);
+
+			if (subMenuName.isEmpty() || subMenuItem.isEmpty()) continue;
+
+			bool subMenuExists = false;
+
+			for (int j = 0; j < subMenus.size(); j++)
+			{
+				if (std::get<0>(subMenus[j]) == subMenuName)
+				{
+					std::get<1>(subMenus[j]).add(subMenuItem);
+					subMenuExists = true;
+					break;
+				}
+			}
+
+			if (!subMenuExists)
+			{
+				StringArray sa;
+				sa.add(subMenuItem);
+				SubMenuList item(subMenuName, sa);
+				subMenus.push_back(item);
+			}
+		}
+	}
+	if (subMenus.size() != 0)
+	{
+		int menuIndex = 1;
+
+		for (int i = 0; i < subMenus.size(); i++)
+		{
+			PopupMenu sub;
+
+			StringArray sa = std::get<1>(subMenus[i]);
+
+			bool subIsTicked = false;
+
+			for (int j = 0; j < sa.size(); j++)
+			{
+				if (sa[j].startsWith("**") && sa[j].endsWith("**"))
+				{
+					sub.addSectionHeader(sa[j].replace("**", ""));
+					continue;
+				}
+
+				if (sa[j] == "___")
+				{
+					sub.addSeparator();
+					continue;
+				}
+
+				const bool isDeactivated = sa[j].startsWith("~~") && sa[j].endsWith("~~");
+				const String itemText = isDeactivated ? sa[j].replace("~~", "") : sa[j];
+
+				const bool isTicked = (menuIndex - 1) == activePopupId;
+
+				if (isTicked) subIsTicked = true;
+
+				sub.addItem(menuIndex, itemText, !isDeactivated, isTicked);
+
+
+				menuIndex++;
+			}
+
+			m.addSubMenu(std::get<0>(subMenus[i]), sub, true, nullptr, subIsTicked);
+		}
+	}
+	else
+	{
+		int menuIndex = 0;
+
+		for (int i = 0; i < itemList.size(); i++)
+		{
+			if (itemList[i].startsWith("**") && itemList[i].endsWith("**"))
+			{
+				m.addSectionHeader(itemList[i].replace("**", ""));
+				continue;
+			}
+
+			if (itemList[i] == "___")
+			{
+				m.addSeparator();
+				continue;
+			}
+
+			const bool isDeactivated = itemList[i].startsWith("~~") && itemList[i].endsWith("~~");
+			const String itemText = isDeactivated ? itemList[i].replace("~~", "") : itemList[i];
+			m.addItem(menuIndex + 1, itemText, !isDeactivated, (menuIndex) == activePopupId);
+			menuIndex++;
+		}
+	}
+
+
+	int result = 0;
+
+	if (popupShouldBeAligned)
+	{
+		result = m.showAt(this, 0, getWidth());
+	}
+	else
+	{
+		result = m.show();
+	}
+
+	String name = result != 0 ? itemList[result - 1] : "";
+
+	DynamicObject::Ptr obj = new DynamicObject();
+
+	static const Identifier r("result");
+	static const Identifier itemText("itemText");
+	static const Identifier rightClick("rightClick");
+
+	obj->setProperty(rightClick, event.mods.isRightButtonDown());
+	obj->setProperty(r, result);
+	obj->setProperty(itemText, name);
+
+	sendToListeners(var(obj));
 }
 
 void MouseCallbackComponent::setAllowCallback(const String &newCallbackLevel) noexcept
