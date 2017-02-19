@@ -540,13 +540,15 @@ CompileExporter::BuildOption CompileExporter::showCompilePopup(TargetTypes type)
 {
 	AlertWindowLookAndFeel pplaf;
 
-	AlertWindow w("Compile Patch as plugin", String(), AlertWindow::AlertIconType::NoIcon);
+    const String n = (type == CompileExporter::TargetTypes::StandaloneApplication) ? "Standalone App" : "Plugin";
+    
+	AlertWindow w("Compile Patch as " + n, String(), AlertWindow::AlertIconType::NoIcon);
 
 	w.setLookAndFeel(&pplaf);
 	w.setUsingNativeTitleBar(true);
 	w.setColour(AlertWindow::backgroundColourId, Colour(0xff222222));
 	w.setColour(AlertWindow::textColourId, Colours::white);
-	w.addComboBox("buildOption", StringArray(), "Plugin Format");
+	w.addComboBox("buildOption", StringArray(), "Export Format");
 
 	ComboBox* b = w.getComboBoxComponent("buildOption");
 
@@ -561,6 +563,7 @@ CompileExporter::BuildOption CompileExporter::showCompilePopup(TargetTypes type)
 		b->addItem("AAX 64bit", BuildOption::AAXWindowsx64);
 		b->addItem("AAX 32bit", BuildOption::AAXWindowsx86);
 		b->addItem("AAX 32bit/64bit", BuildOption::AAXWindowsx86x64);
+        b->addItem("All platforms", BuildOption::AllPluginFormatsInstrument);
 		break;
 	case CompileExporter::TargetTypes::EffectPlugin:
 		b->addItem("VST 64bit", BuildOption::VSTWindowsx64);
@@ -569,6 +572,7 @@ CompileExporter::BuildOption CompileExporter::showCompilePopup(TargetTypes type)
 		b->addItem("AAX 64bit", BuildOption::AAXWindowsx64);
 		b->addItem("AAX 32bit", BuildOption::AAXWindowsx86);
 		b->addItem("AAX 32bit/64bit", BuildOption::AAXWindowsx86x64);
+        b->addItem("All Platforms", BuildOption::AllPluginFormatsFX);
 		break;
 	case CompileExporter::TargetTypes::StandaloneApplication:
 		b->addItem("Standalone 64bit", BuildOption::StandaloneWindowsx64);
@@ -588,12 +592,14 @@ CompileExporter::BuildOption CompileExporter::showCompilePopup(TargetTypes type)
 		b->addItem("AAX", BuildOption::AAXmacOS);
 		b->addItem("VSTi", BuildOption::VSTimacOS);
 		b->addItem("VSTi + AUi", BuildOption::VSTiAUimacOS);
+        b->addItem("All platforms", BuildOption::AllPluginFormatsInstrument);
 		break;
 	case CompileExporter::TargetTypes::EffectPlugin:
 		b->addItem("AU", BuildOption::AUmacOS);
 		b->addItem("AAX", BuildOption::AAXmacOS);
 		b->addItem("VST", BuildOption::VSTmacOS);
 		b->addItem("VST + AU", BuildOption::VSTAUmacOS);
+        b->addItem("All Platforms", BuildOption::AllPluginFormatsFX);
 		break;
 	case CompileExporter::TargetTypes::StandaloneApplication:
 		b->addItem("Standalone macOS", BuildOption::StandalonemacOS);

@@ -98,14 +98,16 @@ public:
 		StandaloneWindowsx64x86 = 0x1104,
 		StandaloneiOS = 0x4104,
 		StandalonemacOS = 0x2104,
+        AllPluginFormatsFX = 0x10404,
+        AllPluginFormatsInstrument = 0x10204,
 		numBuildOptions
 	};
 
 	struct BuildOptionHelpers
 	{
-		static bool isVST(BuildOption option) { return (option & 0x0010) != 0 || (option & 0x0040) != 0; };
-		static bool isAU(BuildOption option) { return (option & 0x0020) != 0 || (option & 0x0040) != 0; };
-		static bool isAAX(BuildOption option) { return (option & 0x0080) != 0; };
+        static bool isVST(BuildOption option) { return ((option & 0x10000) != 0) || (option & 0x0010) != 0 || (option & 0x0040) != 0; };
+		static bool isAU(BuildOption option) { return ((option & 0x10000) != 0) || (option & 0x0020) != 0 || (option & 0x0040) != 0; };
+		static bool isAAX(BuildOption option) { return ((option & 0x10000) != 0) || (option & 0x0080) != 0; };
 		static bool is32Bit(BuildOption option) { return (option & 0x0001) != 0 || (option & 0x0004) != 0; };
 		static bool is64Bit(BuildOption option) { return (option & 0x0002) != 0 || (option & 0x0004) != 0; };
 		static bool isIOS(BuildOption option) { return (option & 0x4000) != 0; };
