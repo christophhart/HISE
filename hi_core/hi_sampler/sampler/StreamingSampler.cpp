@@ -954,9 +954,11 @@ void SampleLoader::startNote(StreamingSamplerSound const *s, int startTime)
 	readBuffer = localReadBuffer;
 	writeBuffer = localWriteBuffer;
 
+    lastSwapPosition = 0.0;
+    
 	readIndex = startTime;
 	readIndexDouble = (double)startTime;
-
+    
 	readPointerLeft = localReadBuffer->getReadPointer(0, sampleStartModValue);
 	readPointerRight = localReadBuffer->getReadPointer(1, sampleStartModValue);
 
@@ -971,7 +973,7 @@ void SampleLoader::startNote(StreamingSamplerSound const *s, int startTime)
 	requestNewData();
 };
 
-StereoChannelData SampleLoader::fillVoiceBuffer(AudioSampleBuffer &voiceBuffer, double numSamples)
+StereoChannelData SampleLoader::fillVoiceBuffer(AudioSampleBuffer &voiceBuffer, double numSamples) const
 {
 	const AudioSampleBuffer *localReadBuffer = readBuffer.get();
 	AudioSampleBuffer *localWriteBuffer = writeBuffer.get();
@@ -1032,17 +1034,18 @@ StereoChannelData SampleLoader::fillVoiceBuffer(AudioSampleBuffer &voiceBuffer, 
 	}
 }
 
-bool SampleLoader::advanceReadIndex(double delta)
+bool SampleLoader::advanceReadIndex(double uptime)
 {
 	const int numSamplesInBuffer = readBuffer.get()->getNumSamples();
-	readIndexDouble += delta;
-
-	if (readIndexDouble >= numSamplesInBuffer)
+    readIndexDouble = uptime - lastSwapPosition;
+    
+    if(readIndexDouble >= numSamplesInBuffer)
 	{
+        lastSwapPosition = (double)positionInSampleFile;
 		positionInSampleFile += getNumSamplesForStreamingBuffers();
-		readIndexDouble -= (double)numSamplesInBuffer;
-
-		swapBuffers();
+        readIndexDouble = uptime - lastSwapPosition;
+        
+        swapBuffers();
 		const bool queueIsFree = requestNewData();
         
         return queueIsFree;

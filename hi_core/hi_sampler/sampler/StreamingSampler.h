@@ -567,10 +567,10 @@ public:
 		return b1.getNumSamples() * 2 * 2;
 	}
 
-	StereoChannelData fillVoiceBuffer(AudioSampleBuffer &voiceBuffer, double numSamples);
+	StereoChannelData fillVoiceBuffer(AudioSampleBuffer &voiceBuffer, double numSamples) const;
 
     /** Advances the read index and returns `false` if the streaming thread is blocked. */
-	bool advanceReadIndex(double delta);
+	bool advanceReadIndex(double uptime);
 
 	/** Call this whenever a sound was started.
 	*
@@ -718,6 +718,8 @@ private:
 
 	double readIndexDouble;
 
+    double lastSwapPosition = 0.0;
+    
 	Atomic<StreamingSamplerSound const *> sound;
 
 	int readIndex;
