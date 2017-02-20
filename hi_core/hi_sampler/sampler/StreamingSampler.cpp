@@ -436,13 +436,10 @@ void StreamingSamplerSound::loopChanged()
 	}
 }
 
-void StreamingSamplerSound::wakeSound() const
-{
-	fileReader.wakeSound();
-}
+void StreamingSamplerSound::wakeSound() const {	fileReader.wakeSound(); }
 
 
-bool StreamingSamplerSound::hasEnoughSamplesForBlock(int maxSampleIndexInFile) const noexcept
+bool StreamingSamplerSound::hasEnoughSamplesForBlock(int maxSampleIndexInFile) const 
 {
 	return (loopEnabled && loopLength != 0) || maxSampleIndexInFile < sampleLength;
 }
@@ -804,10 +801,33 @@ void StreamingSamplerSound::FileReader::closeFileHandles(NotificationType notify
 }
 
 
+    
+
 void StreamingSamplerSound::FileReader::readFromDisk(AudioSampleBuffer &buffer, int startSample, int numSamples, int readerPosition, bool useMemoryMappedReader)
 {
 	if (!fileHandlesOpen) openFileHandles(sendNotification);
 
+    
+#if USE_SAMPLE_DEBUG_COUNTER
+    
+    float* l = buffer.getWritePointer(0, startSample);
+    float* r = buffer.getWritePointer(1, startSample);
+    
+    int v = readerPosition;
+    
+    for(int i = 0; i < numSamples; i++)
+    {
+        l[i] = (float)v;
+        r[i] = (float)v;
+        
+        v++;
+    }
+    
+    return;
+#endif
+    
+    
+    
     FloatVectorOperations::clear(buffer.getWritePointer(0, startSample), numSamples);
     FloatVectorOperations::clear(buffer.getWritePointer(1, startSample), numSamples);
     
@@ -983,7 +1003,7 @@ StereoChannelData SampleLoader::fillVoiceBuffer(AudioSampleBuffer &voiceBuffer, 
 
 	if (maxSampleIndexForFillOperation >= numSamplesInBuffer) // Check because of preloadbuffer style
 	{
-		const int indexBeforeWrap = jmax<int>(0, (int)readIndexDouble);
+		const int indexBeforeWrap = jmax<int>(0, (int)(readIndexDouble));
 		const int numSamplesInFirstBuffer = localReadBuffer->getNumSamples() - indexBeforeWrap;
 
 		jassert(numSamplesInFirstBuffer >= 0);
@@ -1019,6 +1039,28 @@ StereoChannelData SampleLoader::fillVoiceBuffer(AudioSampleBuffer &voiceBuffer, 
 		returnData.leftChannel = voiceBuffer.getReadPointer(0);
 		returnData.rightChannel = voiceBuffer.getReadPointer(1);
 
+#if USE_SAMPLE_DEBUG_COUNTER
+      
+        const float *l = voiceBuffer.getReadPointer(0, 0);
+        const float *r = voiceBuffer.getReadPointer(1, 0);
+        
+        float ll = l[0];
+        float lr = r[0];
+        
+        for(int i = 1; i < voiceBuffer.getNumSamples(); i++)
+        {
+            const float tl = l[i];
+            const float tr = r[i];
+            
+            jassert(tl == tr);
+            jassert(tl - ll == 1.0f);
+            ll = tl;
+            lr = tr;
+        }
+        
+        
+#endif
+        
 		return returnData;
 	}
 	else
@@ -1142,6 +1184,32 @@ void SampleLoader::fillInactiveBuffer()
 		{
 			writeBuffer.get()->clear();
 		}
+        
+#if USE_SAMPLE_DEBUG_COUNTER
+      
+        DBG(positionInSampleFile);
+        
+        const float *l = writeBuffer.get()->getReadPointer(0);
+        const float *r = writeBuffer.get()->getReadPointer(1);
+        
+        int co = (int)positionInSampleFile;
+        
+        for(int i = 0; i < writeBuffer.get()->getNumSamples(); i++)
+        {
+            
+            const float tl = l[i];
+            const float tr = r[i];
+            const float expected = (float)co;
+            
+            jassert(tl == tr);
+            jassert(tl == 0.0f || (abs(expected-tl) < 0.00001f));
+            
+            co++;
+            
+        }
+        
+#endif
+        
 	}
 };
 	
@@ -1233,10 +1301,13 @@ void StreamingSamplerVoice::startNote (int /*midiNoteNumber*/,
 
 void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int startSample, int numSamples)
 {
-    
-    
 	const StreamingSamplerSound *sound = loader.getLoadedSound();
 
+#if USE_SAMPLE_DEBUG_COUNTER
+    const int startDebug = startSample;
+    const int numDebug = numSamples;
+#endif
+    
 	if(sound != nullptr)
 	{
         ADD_GLITCH_DETECTOR("Rendering sample " + sound->getFileName());
@@ -1259,6 +1330,10 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 		float* outL = outputBuffer.getWritePointer(0, startSample);
 		float* outR = outputBuffer.getWritePointer(1, startSample);
 		
+#if USE_SAMPLE_DEBUG_COUNTER
+        jassert((int)voiceUptime == data.leftChannel[0]);
+#endif
+        
 		double indexInBuffer = startAlpha;
 
 		if (pitchData != nullptr)
@@ -1292,9 +1367,10 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 		}
 		else
 		{
+            
 			float indexInBufferFloat = (float)indexInBuffer;
 			const float uptimeDeltaFloat = (float)uptimeDelta;
-
+            
 			while (numSamples > 0)
 			{
 				for (int i = 0; i < 4; i++)
@@ -1302,7 +1378,7 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 					const int pos = int(indexInBufferFloat);
 					const float alpha = indexInBufferFloat - (float)pos;
 					const float invAlpha = 1.0f - alpha;
-
+                    
 					float l = (inL[pos] * invAlpha + inL[pos + 1] * alpha);
 					float r = (inR[pos] * invAlpha + inR[pos + 1] * alpha);
 
@@ -1315,10 +1391,27 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 				numSamples -= 4;
 			}
 		}
-		
-		voiceUptime += pitchCounter;
-		
-        if(!loader.advanceReadIndex(pitchCounter))
+        
+#if USE_SAMPLE_DEBUG_COUNTER 
+        
+        for(int i = startDebug; i < numDebug; i++)
+        {
+            const float l = outputBuffer.getSample(0, i);
+            const float r = outputBuffer.getSample(1, i);
+            
+            jassert(l == r);
+            jassert((abs(l - voiceUptime) < 0.000001) || l == 0.0f);
+            
+            voiceUptime += uptimeDelta;
+            
+        }
+        
+        outputBuffer.clear();
+#else
+        voiceUptime += pitchCounter;
+#endif
+        
+        if(!loader.advanceReadIndex(voiceUptime))
         {
             Logger::writeToLog("Streaming failure with sound " + sound->getFileName());
             resetVoice();

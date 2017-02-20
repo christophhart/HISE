@@ -58,6 +58,9 @@ struct StereoChannelData
 #include <JuceHeader.h>
 #endif
 
+// Set this to 1 to replace the sample content with indexes for debugging purposes (it will also mute the sound)
+#define USE_SAMPLE_DEBUG_COUNTER 0
+
 // This is the maximum value for sample pitch manipulation (this means 3 octaves, which should be more than enough
 #define MAX_SAMPLER_PITCH 16
 
@@ -280,7 +283,7 @@ public:
 	*
 	*	Call this before you call fillSampleBuffer() to check if the audio file has enough samples.
 	*/
-	bool hasEnoughSamplesForBlock(int maxSampleIndexInFile) const noexcept ;
+	bool hasEnoughSamplesForBlock(int maxSampleIndexInFile) const;
 
 	/** Returns read only access to the preload buffer.
 	*
@@ -487,10 +490,7 @@ private:
 
 	bool useSmallLoopBuffer = false;
 
-
-
 	int preloadSize;
-
 	int internalPreloadSize;
 
 	bool entireSampleLoaded;
@@ -727,7 +727,7 @@ private:
 	int minimumBufferSizeForSamplesPerBlock;
 
 	int positionInSampleFile;
-
+    
 	bool isReadingFromPreloadBuffer;
 
     bool voiceCounterWasIncreased;
