@@ -941,3 +941,14 @@ void JavascriptProcessor::CompileThread::run()
 }
 
 
+float ScriptBaseMidiProcessor::getDefaultValue(int index) const
+{
+	auto c = getScriptingContent()->getComponent(index);
+
+	if (dynamic_cast<ScriptingApi::Content::ScriptSlider*>(c) != nullptr)
+	{
+		return c->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::defaultValue);
+	}
+	else
+		return 0.0f;
+}
