@@ -42,7 +42,7 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "              pluginCode=\"%PC%\" pluginChannelConfigs=\"%CHANNEL_CONFIG%\" pluginIsSynth=\"%PLUGINISSYNTH%\"\r\n"
 "              pluginWantsMidiIn=\"%PLUGINWANTSMIDIIN\" pluginProducesMidiOut=\"0\" pluginIsMidiEffectPlugin=\"0\"\r\n"
 "              pluginEditorRequiresKeys=\"1\" pluginAUExportPrefix=\"DemoProjectAU\"\r\n"
-"              pluginRTASCategory=\"\" aaxIdentifier=\"%BUNDLE_ID%\"\r\n"
+"              pluginRTASCategory=\"\" aaxIdentifier=\"%AAX_IDENTIFIER%\"\r\n"
 "              pluginAAXCategory=\"%AAX_CATEGORY%\" jucerVersion=\"4.1.0\"\r\n"
 "              companyName=\"%COMPANY%\" companyWebsite=\"%COMPANY_WEBSITE%\">\r\n"
 "  <MAINGROUP id=\"SLR7uY\" name=\"%NAME%\">\r\n"

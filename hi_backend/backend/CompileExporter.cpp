@@ -1080,12 +1080,19 @@ CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(TargetType
 		REPLACE_WILDCARD_WITH_STRING("%AAX_PATH%", aaxPath.getFullPathName());
 		REPLACE_WILDCARD_WITH_STRING("%AAX_RELEASE_LIB%", aaxPath.getChildFile("Libs/Release/").getFullPathName());
 		REPLACE_WILDCARD_WITH_STRING("%AAX_DEBUG_LIB%", aaxPath.getChildFile("Libs/Debug/").getFullPathName());
+		
+		String aaxIdentifier = "com.";
+		aaxIdentifier << SettingWindows::getSettingValue((int)SettingWindows::UserSettingWindow::Attributes::Company, &GET_PROJECT_HANDLER(chainToExport)).removeCharacters(" -_.,;");
+		aaxIdentifier << "." << SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, &GET_PROJECT_HANDLER(chainToExport)).removeCharacters(" -_.,;");
+
+		REPLACE_WILDCARD_WITH_STRING("%AAX_IDENTIFIER%", aaxIdentifier);
 	}
 	else
 	{
 		REPLACE_WILDCARD_WITH_STRING("%AAX_PATH%", String());
 		REPLACE_WILDCARD_WITH_STRING("%AAX_RELEASE_LIB%", String());
 		REPLACE_WILDCARD_WITH_STRING("%AAX_DEBUG_LIB%", String());
+		REPLACE_WILDCARD_WITH_STRING("%AAX_IDENTIFIER%", String());
 	}
 
 	ProjectTemplateHelpers::handleCompilerInfo(this, templateProject);
