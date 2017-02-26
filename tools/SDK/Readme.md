@@ -33,3 +33,12 @@ tools/SDK/ASIOSDK2.3/common
 
 HISE doesn't use VST3, but you'll need to get the VST3SDK because it includes the VST 2.4 SDK.
 
+Extract them so you end up with this directory structure:
+
+You need this directory structure:
+
+```
+tools/SDK/VST3 SDK/plugininterfaces
+tools/SDK/VST3 SDK/public.sdk
+```
+
