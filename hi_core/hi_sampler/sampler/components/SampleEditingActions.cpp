@@ -594,7 +594,12 @@ private:
 
 			const String thisFileName = sampler->getSound(i)->getReferenceToSound()->getFileName();
 
-			if (thisFileName.contains(channelNames[0]))
+            const bool matchesChannel = thisFileName.startsWith(channelNames[0] + separator) ||
+                                        thisFileName.contains(separator + channelNames[0] + separator) ||
+                                        thisFileName.endsWith(separator + channelNames[0]);
+            
+            
+			if (matchesChannel)
 			{
 				const String thisFileNameWithoutToken = thisFileName.replace(channelNames[0], "", true);
 
@@ -614,7 +619,11 @@ private:
 
 				const String thisFileName = sampler->getSound(i)->getReferenceToSound()->getFileName();
 
-				if (thisFileName.contains(channelNames[channels]))
+                const bool matchesChannel = thisFileName.startsWith(channelNames[channels] + separator) ||
+                                            thisFileName.contains(separator + channelNames[channels] + separator) ||
+                                            thisFileName.endsWith(separator + channelNames[channels]);
+                
+				if (matchesChannel)
 				{
 					const String thisFileNameWithoutToken = thisFileName.replace(channelNames[channels], "", true);
 
