@@ -764,6 +764,10 @@ NoMidiInputConstrainer::NoMidiInputConstrainer()
 
 	ADD_NAME_TO_TYPELIST(ControlModulator);
 	ADD_NAME_TO_TYPELIST(PitchwheelModulator);
+    
+    ADD_NAME_TO_TYPELIST(PolyFilterEffect);
+    ADD_NAME_TO_TYPELIST(HarmonicFilter);
+    ADD_NAME_TO_TYPELIST(StereoEffect);
 
 	forbiddenModulators.addArray(typeNames);
 
