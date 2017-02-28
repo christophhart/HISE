@@ -28,3 +28,6 @@ tools/SDK/ASIOSDK2.3/
 JUCE/extras/Projucer/Builds
 tools/SDK/vstsdk2.4/
 tools/SDK/AAX/
+projects/native_jit_test/Builds/MacOSX/NativeJIT Test.xcodeproj/project.xcworkspace/xcuserdata/christophhart.xcuserdatad/UserInterfaceState.xcuserstate
+projects/native_jit_test/Builds/
+projects/native_jit_test/JuceLibraryCode/
