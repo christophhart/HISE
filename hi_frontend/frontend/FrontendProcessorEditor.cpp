@@ -302,19 +302,30 @@ void DeactiveOverlay::buttonClicked(Button *b)
 		}
 #elif USE_TURBO_ACTIVATE
         
+		
+
+
+
         const String key = PresetHandler::getCustomName("Product Key", "Enter the product key that you've received along with the download link\nIt should have this format: XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX");
         
         TurboActivateUnlocker *ul = &dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor())->unlocker;
         
+		setCustomMessage("Waiting for activation");
+		setState(DeactiveOverlay::State::CustomErrorMessage, true);
+
+		
         ul->activateWithKey(key.getCharPointer());
         
+		setState(DeactiveOverlay::CustomErrorMessage, false);
+		setCustomMessage(String());
+
         setState(DeactiveOverlay::State::LicenseNotFound, !ul->licenceWasFound());
 		setState(DeactiveOverlay::State::LicenseExpired, ul->unlockState == TurboActivateUnlocker::State::Deactivated);
         setState(DeactiveOverlay::State::LicenseInvalid, !ul->isUnlocked());
         
         if(ul->isUnlocked())
         {
-            PresetHandler::showMessageWindow("Registration successful", "The software is now unlocked and ready to use.");
+			PresetHandler::showMessageWindow("Registration successful", "The software is now unlocked and ready to use.");
             
             FrontendProcessor* fp =  dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor());
             

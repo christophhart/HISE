@@ -48,6 +48,7 @@ public:
         Trial,
         Invalid,
         LicenceNotFound,
+		NoInternet,
         numStates
     };
     

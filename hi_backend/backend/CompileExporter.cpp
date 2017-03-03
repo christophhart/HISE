@@ -60,6 +60,7 @@ ValueTree BaseExporter::exportReferencedAudioFiles()
 		if (iter.getFile().getFileName().startsWith(".")) continue;
 
 #endif
+
 		samplePool->loadFileIntoPool(iter.getFile().getFullPathName());
 	}
 
