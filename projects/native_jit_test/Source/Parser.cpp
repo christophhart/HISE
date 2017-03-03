@@ -9,19 +9,33 @@
 */
 
 
-template <typename T> String NativeJITTypeHelpers::getTypeName() { return String(typeid(T).name()); }
+template <typename T> String NativeJITTypeHelpers::getTypeName() { return getTypeName(typeid(T)); }
 String NativeJITTypeHelpers::getTypeName(const String &t) { return String(getTypeForLiteral(t).name()); }
+
+
+String NativeJITTypeHelpers::getTypeName(const TypeInfo& info)
+{
+	return info.name();
+}
 
 template <typename ActualType, typename ExpectedType>
 String NativeJITTypeHelpers::getTypeMismatchErrorMessage()
 {
+	return getTypeMismatchErrorMessage<ExpectedType>(typeid(ActualType));
+}
+
+
+template <typename ExpectedType>
+String NativeJITTypeHelpers::getTypeMismatchErrorMessage(const TypeInfo& actualType)
+{
 	String message = "Type mismatch: ";
-	message << getTypeName<ActualType>();
+	message << getTypeName(actualType);
 	message << ", Expected: ";
 	message << getTypeName<ExpectedType>();
 
 	return message;
 }
+
 
 TypeInfo NativeJITTypeHelpers::getTypeForLiteral(const String &t)
 {

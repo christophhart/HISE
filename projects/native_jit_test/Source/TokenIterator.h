@@ -130,7 +130,8 @@ public:
 
 #define NATIVE_JIT_KEYWORDS(X) \
     X(float_,      "float")      X(int_, "int")     X(double_,  "double")   X(bool_, "bool") \
-    X(return_, "return")		X(true_,  "true")   X(false_,    "false")	X(const_, "const")
+    X(return_, "return")		X(true_,  "true")   X(false_,    "false")	X(const_, "const") \
+	X(void_, "void")		
 
 namespace NativeJitTokens
 {
@@ -142,11 +143,6 @@ namespace NativeJitTokens
 	DECLARE_NATIVE_JIT_TOKEN(identifier, "$identifier")
 }
 
-
-template <typename T> T divideOp(T a, T b)
-{
-	return a / b;
-}
 
 struct ParserHelpers
 {
@@ -180,7 +176,10 @@ struct ParserHelpers
 
 	struct TokenIterator
 	{
-		TokenIterator(const String& code) : location(code), p(code.getCharPointer()) { skip(); }
+		TokenIterator(const String& code) :
+			location(code),
+			p(code.getCharPointer())
+		{ skip(); }
 
 		void skip()
 		{
@@ -205,7 +204,11 @@ struct ParserHelpers
 		TokenType currentType;
 		var currentValue;
 
+		String program;
+
 		String currentString;
+
+		int offset = 0;
 
 		String::CharPointerType p;
 

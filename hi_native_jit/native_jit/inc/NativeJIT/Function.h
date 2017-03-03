@@ -79,6 +79,7 @@ namespace NativeJIT
         ParameterNode<P1>& GetP1() const;
         ParameterNode<P2>& GetP2() const;
         ParameterNode<P3>& GetP3() const;
+		ParameterNode<P1>& GetP4() const { return *m_p1; };
 
         typedef R (*FunctionType)(P1, P2, P3);
 
@@ -101,6 +102,8 @@ namespace NativeJIT
 
         ParameterNode<P1>& GetP1() const;
         ParameterNode<P2>& GetP2() const;
+		ParameterNode<P1>& GetP3() const { return *m_p1; };
+		ParameterNode<P1>& GetP4() const { return *m_p1; };
 
         typedef R (*FunctionType)(P1, P2);
 
@@ -121,6 +124,9 @@ namespace NativeJIT
         Function(Allocators::IAllocator& allocator, FunctionBuffer& code);
 
         ParameterNode<P1>& GetP1() const;
+		ParameterNode<P1>& GetP2() const { return *m_p1; };
+		ParameterNode<P1>& GetP3() const { return *m_p1; };
+		ParameterNode<P1>& GetP4() const { return *m_p1; };
 
         typedef R (*FunctionType)(P1);
 
@@ -139,11 +145,18 @@ namespace NativeJIT
     public:
         Function(Allocators::IAllocator& allocator, FunctionBuffer& code);
 
+		ParameterNode<R>& GetP1() const { return *m_p1; };
+		ParameterNode<R>& GetP2() const { return *m_p1; };
+		ParameterNode<R>& GetP3() const { return *m_p1; };
+		ParameterNode<R>& GetP4() const { return *m_p1; };
+
         typedef R (*FunctionType)();
 
         FunctionType Compile(Node<R>& expression);
 
         FunctionType GetEntryPoint() const;
+
+		ParameterNode<R>* m_p1;
     };
 
 

@@ -5,6 +5,7 @@
               jucerVersion="4.3.0">
   <MAINGROUP id="iVJxiV" name="NativeJIT Test">
     <GROUP id="{53F95F75-8C5A-4692-F77C-979AE04AD8C9}" name="Source">
+      <FILE id="XQuK89" name="GlobalParser.h" compile="0" resource="0" file="Source/GlobalParser.h"/>
       <FILE id="DWaRN1" name="TokenIterator.h" compile="0" resource="0" file="Source/TokenIterator.h"/>
       <FILE id="HhHLfn" name="Parser.cpp" compile="0" resource="0" file="Source/Parser.cpp"/>
       <FILE id="kpt1JM" name="Parser.h" compile="0" resource="0" file="Source/Parser.h"/>
@@ -19,9 +20,12 @@
                extraCompilerFlags="-mpopcnt -msse4.2">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="NativeJIT Test"
-                       cppLanguageStandard="c++11" cppLibType="" osxCompatibility="default"
-                       osxArchitecture="64BitUniversal" osxSDK="default"/>
-        <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="NativeJIT Test"/>
+                       cppLanguageStandard="c++11" cppLibType="libc++" osxCompatibility="default"
+                       osxArchitecture="64BitIntel" osxSDK="default"/>
+        <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="NativeJIT Test"
+                       linkTimeOptimisation="1" osxSDK="default" osxCompatibility="10.7 SDK"
+                       osxArchitecture="32BitUniversal" cppLanguageStandard="c++11"
+                       cppLibType="libc++"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_core" path="../../JUCE/modules"/>

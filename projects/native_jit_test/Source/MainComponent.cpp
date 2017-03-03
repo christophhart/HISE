@@ -13,6 +13,123 @@
 #include <map>
 
 
+class HardcodedDspModule
+{
+public:
+    
+    HardcodedDspModule()
+    {
+        init();
+    }
+    
+    double uptime = 0.0;
+    double uptimeDelta = 0.01;
+    
+    float a1;
+    float a2;
+    float a3;
+    float a4;
+    
+    void init()
+    {
+        a1 = 1.0f;
+        a2 = 0.8f;
+        a3 = 0.6f;
+        a4 = 0.3f;
+    };
+    
+    float process(float input)
+    {
+        const float x1 = a1 * sinf((float)uptime);
+        const float x2 = a2 * sinf(2.0f * (float)uptime);
+        const float x3 = a3 * sinf(3.0f * (float)uptime);
+        const float x4 = a4 * sinf(4.0f * (float)uptime);
+        
+        uptime += uptimeDelta;
+        
+        return x1 + x2 + x3 + x4;
+    };
+    
+    void processBlock(float* data, int numSamples)
+    {
+        for (int i = 0; i < numSamples; i++)
+        {
+            data[i] = process(data[i]);
+        }
+    };
+    
+};
+
+class JitDspModule: public DynamicObject
+{
+public:
+
+	typedef float(*processFunction)(float);
+
+	typedef int(*initFunction)();
+
+	typedef int(*prepareFunction)(double, int);
+
+	JitDspModule(const String& code)
+	{
+		setProperty("code", code);
+		setProperty("scope", new GlobalScope());
+	}
+
+	void compile()
+	{
+		const String code = getProperty("code");
+
+		auto scope = dynamic_cast<GlobalScope*>(getProperty("scope").getDynamicObject());
+
+		GlobalParser parser(code, scope);
+
+		parser.parseStatementList();
+
+		pf = scope->getCompiledFunction1<float, float>("process");
+		
+		//pp = scope->getCompiledFunction2<int, double, int>("prepareToPlay");
+		
+		initf = scope->getCompiledFunction0<int>("init");
+       
+        
+        compiledOk = pf != nullptr;// && pp != nullptr;
+	}
+
+	void prepareToPlay(double sampleRate, int samplesPerBlock)
+	{
+		
+	}
+
+	void init()
+	{
+		if (initf != nullptr)
+		{
+			initf();
+		}
+	}
+
+	void processBlock(float* data, int numSamples)
+	{
+		if (compiledOk)
+		{
+			for (int i = 0; i < numSamples; i++)
+			{
+				data[i] = pf(data[i]);
+			}
+		}
+	}
+
+private:
+
+	processFunction pf;
+
+	prepareFunction pp;
+
+	initFunction initf;
+
+	bool compiledOk = false;
+};
 
 struct LP
 {
@@ -30,22 +147,41 @@ struct LP
 	}
 };
 
+struct Buffer
+{
+    float getSample(Buffer& b, int index)
+    {
+#if 0
+#if !ENABLE_SCRIPTING_SAFECHECKS
+        return b.buffer.buffer.getReadPointer()[index];
+#else
+        return b.buffer.get() != nullptr ? b.getSample(index) : 0.0f;
+#endif
+#endif
+        return 0.0f;
+    };
+    
+    template<typename R> R setSample(Buffer& b, int index, float value)
+    {
+#if 0
+#if !ENABLE_SCRIPTING_SAFECHECKS
+        b.buffer.buffer.getWritePointer()[index] = value;
+#else
+        if(b.buffer.get() != nullptr) b.setSample(index, value);
+#endif
+#endif
+        
+        return R();
+    }
+    
+    DynamicObject::Ptr buffer;
+};
+
 
 
 //==============================================================================
 MainContentComponent::MainContentComponent()
 {
-
-	ScopedPointer<GlobalBase> b = GlobalBase::create<double>("dudel");
-
-	GlobalBase::store<double>(b, 24.8);
-
-	jassert(GlobalBase::get<double>(b) == 24.8);
-
-	
-
-#if 0
-
 	LP filter;
 
 	filter.process(1.0f);
@@ -64,15 +200,19 @@ MainContentComponent::MainContentComponent()
 
 	std::map<Identifier, NativeJIT::NodeBase*> lines;
 
+	
 
-	auto& e24 = f1.StackVariable<float>();
+
+	auto& e24 = f1.StackVariable<double>();
 
 	
-	auto& e25 = f1.Immediate(storeInStack<float>);
+	auto& e25 = f1.Immediate(storeInStack<double>);
 
 
 	
-	auto& e36 = f1.Call(e25, e24, f1.Immediate(2.0f));
+	auto& e36 = f1.Call(e25, e24, f1.Immediate(2.0));
+
+#if 0
 
 	auto& wrapped = f1.Dependent(e36, e24);
 
@@ -194,22 +334,47 @@ void MainContentComponent::buttonClicked(Button* b)
 {
 	const String code = doc->getAllContent();
 
-	
-	NativeJIT::ExecutionBuffer codeAllocator(8192);
-	NativeJIT::Allocator allocator(8192);
-	NativeJIT::FunctionBuffer fb(codeAllocator, 8192);
-
 	try
 	{
-		FunctionParser<float, float> l1(code, allocator, fb);
+        float data[2048];
+        FloatVectorOperations::fill(data, 0.5f, 2048);
 
-		l1.parseFunctionBody();
+        PreprocessorParser preprocessor(code);
+        
+		JitDspModule module(preprocessor.process());
 
-		auto l = l1.compileFunction();
+		
+		module.compile();
 
-		const float result = l(2.0f);
+        module.init();
 
-		messageBox->setText("Result: " + String(result), dontSendNotification);
+        
+		module.prepareToPlay(44100.0, 128);
+
+
+		double start = Time::getMillisecondCounterHiRes();
+
+		module.processBlock(data, 2048);
+
+		double end = Time::getMillisecondCounterHiRes();
+
+		double delta = end - start;
+        
+        HardcodedDspModule hc;
+        
+        double hstart = Time::getMillisecondCounterHiRes();
+
+        hc.processBlock(data, 2048);
+        
+        double hend = Time::getMillisecondCounterHiRes();
+        
+        double hdelta = hend - hstart;
+        
+        float d = 1.0f;
+        
+        module.processBlock(&d, 1);
+        
+        messageBox->setText("Result: " + String(d, 4) + ", JIT: " + String(delta, 5) + " ms, Native: " + String(hdelta, 5) + " ms", dontSendNotification);
 
 	}
 	catch (String s)
