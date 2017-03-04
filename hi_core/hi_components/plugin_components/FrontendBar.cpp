@@ -219,7 +219,8 @@ void DefaultFrontendBar::resized()
 
 	deviceSettingsButton->setBounds(rightX, 2, getHeight() - 4, getHeight() - 4);
 	rightX = deviceSettingsButton->getX() - 26 - spaceX;
-
+#else
+    deviceSettingsButton->setVisible(false);
 #endif
 
 	if (outMeter->isVisible())
