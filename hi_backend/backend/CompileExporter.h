@@ -130,6 +130,7 @@ public:
 	enum ErrorCodes
 	{
 		OK = 0,
+        SanityCheckFailed,
 		PresetIsInvalid,
 		ProjectXmlInvalid,
 		HISEImageDirectoryNotFound,
@@ -187,7 +188,7 @@ private:
 
 	ErrorCodes exportInternal(TargetTypes type, BuildOption option);
 
-	bool checkSanity();
+	bool checkSanity(TargetTypes type, BuildOption option);
 
 	BuildOption showCompilePopup(TargetTypes type);
 

@@ -197,6 +197,7 @@ String CompileExporter::getCompileResult(ErrorCodes result)
 	switch (result)
 	{
 	case CompileExporter::OK: return "OK";
+    case CompileExporter::SanityCheckFailed: return "The sanity check failed. Aborting export...";
 	case CompileExporter::PresetIsInvalid:  return "Preset file not found";
 	case CompileExporter::ProjectXmlInvalid: return "Project XML invalid";
 	case CompileExporter::HISEImageDirectoryNotFound: return "HISE image directory not found";
@@ -430,7 +431,7 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 	if(!hisePath.isDirectory()) hisePath = File(SettingWindows::getSettingValue((int)SettingWindows::CompilerSettingWindow::Attributes::HisePath));
 	if (!hisePath.isDirectory()) return ErrorCodes::HISEPathNotSpecified;
 
-	if (!checkSanity()) return ErrorCodes::PresetIsInvalid;
+	if (!checkSanity(type, option)) return ErrorCodes::SanityCheckFailed;
 
 	ErrorCodes result = ErrorCodes::OK;
 
@@ -510,7 +511,32 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 	return ErrorCodes::UserAbort;
 }
 
-bool CompileExporter::checkSanity()
+String checkSampleReferences(ModulatorSynthChain* chainToExport)
+{
+    Processor::Iterator<ModulatorSampler> iter(chainToExport);
+    
+    const File sampleFolder = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Samples);
+    
+    Array<File> sampleFiles;
+    
+    sampleFolder.findChildFiles(sampleFiles, File::findFiles, true);
+    
+    while(ModulatorSampler* sampler = iter.getNextProcessor())
+    {
+        auto map = sampler->getSampleMap();
+        
+        auto v = map->exportAsValueTree();
+        
+        const String faulty = map->checkReferences(v, sampleFolder, sampleFiles);
+        
+        if(faulty.isNotEmpty())
+            return faulty;
+    }
+    
+    return String();
+}
+
+bool CompileExporter::checkSanity(TargetTypes type, BuildOption option)
 {
 	// Check if a frontend script is in the main synth chain
 
@@ -528,12 +554,105 @@ bool CompileExporter::checkSanity()
 
 	const String productName = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, handler);
 
-	if (!productName.containsOnly("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890 _-"))
-	{
-		printErrorMessage("Illegal Project name", "The Project name must not contain exotic characters");
-		return false;
-	}
+    if(productName.isEmpty())
+    {
+        printErrorMessage("Empty Project Name", "You have to specify a project name via File -> Settings -> Project Settings");
+        return false;
+    }
+    
+    
+    if (!productName.containsOnly("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890 _-"))
+    {
+        printErrorMessage("Illegal Project name", "The Project name must not contain exotic characters");
+        return false;
+    }
+    
+    const String companyName = SettingWindows::getSettingValue((int)SettingWindows::UserSettingWindow::Attributes::Company, handler);
+    
+    if(companyName.isEmpty())
+    {
+        printErrorMessage("Empty Company Name", "You have to specify a company name via File -> Settings -> User Settings");
+        return false;
+    }
+    
+    if (!companyName.containsOnly("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890 _-"))
+    {
+        printErrorMessage("Illegal Project name", "The Company name must not contain exotic characters");
+        return false;
+    }
+    
+    const String pluginCode = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::PluginCode, handler);
 
+    const String codeWildcard = "[A-Z][a-z][a-z][a-z]";
+    
+    if(!RegexFunctions::matchesWildcard(codeWildcard, pluginCode))
+    {
+        printErrorMessage("Illegal Project code", "The Plugin Code must have this structure: 'Abcd'");
+        return false;
+    }
+
+    const String companyCode = SettingWindows::getSettingValue((int)SettingWindows::UserSettingWindow::Attributes::CompanyCode, handler);
+    
+    if(!RegexFunctions::matchesWildcard(codeWildcard, companyCode))
+    {
+        printErrorMessage("Illegal Company code", "The Company Code must have this structure: 'Abcd'");
+        return false;
+    }
+    
+    const File hiseDirectory = File(SettingWindows::getSettingValue((int)SettingWindows::CompilerSettingWindow::Attributes::HisePath));
+
+    if(!hiseDirectory.isDirectory() || !hiseDirectory.getChildFile("hi_core/").isDirectory())
+    {
+        printErrorMessage("HISE path is not valid", "You need to set the correct path to the HISE SDK at File -> Settings -> Compiler Settings");
+        return false;
+    };
+    
+    if(BuildOptionHelpers::isVST(option))
+    {
+        const File vstSDKDirectory = hiseDirectory.getChildFile("tools/SDK/VST3 SDK/public.sdk/");
+        
+        if(!vstSDKDirectory.isDirectory())
+        {
+            printErrorMessage("VST SDK not found", "You need to download the VST SDK and copy it to '%HISE_SDK%/tools/SDK/VST3 SDK/'");
+            return false;
+        }
+    }
+    
+#if JUCE_WINDOWS
+    if(BuildOptionHelpers::isStandalone(option))
+    {
+        const File asioSDK = hiseDirectory.getChildFile("tools/SDK/ASIOSDK2.3/common");
+        
+        if(!asioSDK.isDirectory())
+        {
+            printErrorMessage("ASIO SDK not found", "You need to download the ASIO SDK and copy it to '%HISE_SDK%/tools/SDK/ASIOSDK2.3/'");
+            return false;
+        }
+    }
+#endif
+    
+    if(BuildOptionHelpers::isAAX(option))
+    {
+        const File asioSDK = hiseDirectory.getChildFile("tools/SDK/AAX/Libs");
+        
+        if(!asioSDK.isDirectory())
+        {
+            printErrorMessage("AAX SDK not found", "You need to get the AAX SDK from Avid and copy it to '%HISE_SDK%/tools/SDK/AAX/'");
+            return false;
+        }
+    }
+    
+    if(PresetHandler::showYesNoWindow("Check Sample references", "Do you want to validate all sample references"))
+    {
+        const String faultySample = checkSampleReferences(chainToExport);
+        
+        if(faultySample.isNotEmpty())
+        {
+            printErrorMessage("Wrong / missing sample reference", "The sample " + faultySample + " is missing or an absolute path");
+            return false;
+        }
+    }
+    
 	return true;
 }
 
