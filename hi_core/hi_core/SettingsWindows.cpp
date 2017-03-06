@@ -30,6 +30,7 @@
 *   ===========================================================================
 */
 
+#define GET_VALUE_FROM_XML(attribute) xmlSettings.getChildByName(getAttributeNameForSetting((int)attribute))->getStringAttribute("value");
 
 void SettingWindows::BaseSettingsWindow::run()
 {
@@ -53,11 +54,19 @@ void SettingWindows::BaseSettingsWindow::run()
 		{
 			jassertfalse;
 		}
-
-
 	}
 
 	settingsFile.replaceWithText(settings->createDocument(""));
+}
+
+void SettingWindows::BaseSettingsWindow::threadFinished()
+{
+	const String sanityCheckResult = sanityCheck(*settings);
+
+	if (sanityCheckResult.isNotEmpty())
+	{
+		PresetHandler::showMessageWindow("Warning", sanityCheckResult, PresetHandler::IconType::Warning);
+	}
 }
 
 void SettingWindows::BaseSettingsWindow::resultButtonClicked(const String &name)
@@ -246,10 +255,10 @@ XmlElement * SettingWindows::ProjectSettingWindow::createNewSettingsFile() const
 	XmlElement *xml = new XmlElement("ProjectSettings");
 
 	addChildElement(*xml, (int)Attributes::Name, handler->getWorkDirectory().getFileName(), "Project Name");
-	addChildElement(*xml, (int)Attributes::Version, "0.0", "Project version");
+	addChildElement(*xml, (int)Attributes::Version, "0.1.0", "Project version");
 	addChildElement(*xml, (int)Attributes::Description, "", "Project description");
-	addChildElement(*xml, (int)Attributes::BundleIdentifier, "", "Bundle Identifier(eg.com.myCompany.bundle)");
-	addChildElement(*xml, (int)Attributes::PluginCode, "", "a 4 character ID code(eg. 'Abcd')");
+	addChildElement(*xml, (int)Attributes::BundleIdentifier, "com.myCompany.product", "Bundle Identifier(eg.com.myCompany.bundle)");
+	addChildElement(*xml, (int)Attributes::PluginCode, "Abcd", "a 4 character ID code(eg. 'Abcd')");
 	addChildElementWithOptions(*xml, (int)Attributes::EmbedAudioFiles, "No", "Embed Audio files in plugin", "Yes\nNo");
 	addChildElement(*xml, (int)ProjectSettingWindow::Attributes::AdditionalDspLibraries, "", "comma separated list of all static dsp factory classes");
 	addChildElement(*xml, (int)ProjectSettingWindow::Attributes::CustomToolbarClassName, "", "Class name for the custom toolbar (leave empty to use the default one");
@@ -260,6 +269,40 @@ XmlElement * SettingWindows::ProjectSettingWindow::createNewSettingsFile() const
 	addChildElement(*xml, (int)ProjectSettingWindow::Attributes::ExtraDefinitionsIOS, "", "Extra preprocessor definitions for IOS");
 
 	return xml;
+}
+
+
+
+String SettingWindows::ProjectSettingWindow::sanityCheck(const XmlElement& xmlSettings)
+{
+	const String version = GET_VALUE_FROM_XML(ProjectSettingWindow::Attributes::Version);
+
+	SemanticVersionChecker versionChecker(version, version);
+
+	if (!versionChecker.newVersionNumberIsValid())
+	{
+		return "The version number is not a valid semantic version number. Use something like 1.0.0.\n " \
+			   "This is required for the user presets to detect whether it should ask for updating the presets after a version bump.";
+	};
+
+	const String pluginCode = GET_VALUE_FROM_XML(ProjectSettingWindow::Attributes::PluginCode);
+	const String codeWildcard = "[A-Z][a-z][a-z][a-z]";
+
+	if (!RegexFunctions::matchesWildcard(codeWildcard, pluginCode))
+	{
+		return "The plugin code doesn't match the required formula. Use something like 'Abcd'\n" \
+			   "This is required for exported AU plugins to pass the AU validation.";
+	};
+
+	const String projectName = GET_VALUE_FROM_XML(ProjectSettingWindow::Attributes::Name);
+
+	if (!projectName.containsOnly("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890 _-"))
+	{
+		return "Illegal Project name\n" \
+			   "The Project name must not contain exotic characters";
+	}
+
+	return String();
 }
 
 File SettingWindows::CompilerSettingWindow::getFile() const
@@ -286,8 +329,6 @@ String SettingWindows::CompilerSettingWindow::getAttributeNameForSetting(int att
 
 XmlElement * SettingWindows::CompilerSettingWindow::createNewSettingsFile() const
 {
-
-
 	XmlElement *xml = new XmlElement("CompilerSettings");
 
 	addFileAsChildElement(*xml, (int)Attributes::HisePath, "", "Path to HISE modules");
@@ -323,8 +364,8 @@ XmlElement * SettingWindows::UserSettingWindow::createNewSettingsFile() const
 {
 	XmlElement *xml = new XmlElement("UserSettings");
 
-	addChildElement(*xml, (int)Attributes::Company, "", "Company Name");
-	addChildElement(*xml, (int)Attributes::CompanyCode, "", "Company Code (4 characters, first must be uppercase)");
+	addChildElement(*xml, (int)Attributes::Company, "My Company", "Company Name");
+	addChildElement(*xml, (int)Attributes::CompanyCode, "Abcd", "Company Code (4 characters, first must be uppercase)");
 	addChildElement(*xml, (int)Attributes::CompanyURL, "http://yourcompany.com", "Company Website");
 
 	return xml;
@@ -479,3 +520,5 @@ File SettingWindows::getFileForSettingsWindow(Settings s, ProjectHandler *handle
 
 	return File();
 }
+
+#undef GET_VALUE_FROM_XML

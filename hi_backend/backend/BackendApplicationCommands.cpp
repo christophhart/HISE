@@ -692,7 +692,6 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 
 		PopupMenu settingsSub;
 
-		settingsSub.addCommandItem(mainCommandManager, MenuFileSettingsPreset);
 		settingsSub.addCommandItem(mainCommandManager, MenuFileSettingsProject);
 		settingsSub.addCommandItem(mainCommandManager, MenuFileSettingsUser);
 		settingsSub.addCommandItem(mainCommandManager, MenuFileSettingsCompiler);

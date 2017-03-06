@@ -79,10 +79,17 @@ private:
 		/** Saves the file to the disk. */
 		void run() override;
 
-		void threadFinished() override {}
+		void threadFinished() override;
 
 		/** Reveals the file in the explorer / finder. */
 		void resultButtonClicked(const String &name);
+
+		
+		/** This method will be called before the XML file is saved.
+		*
+		*	You can add some checks here and return an error message if something is wrong.
+		*	If everything is OK, just return an empty String. */
+		virtual String sanityCheck(const XmlElement& /*xmlSettings*/) { return String(); }
 
 	protected:
 
@@ -175,6 +182,8 @@ public:
 		static String getAttributeNameForSetting(int attribute);
 
 		XmlElement *createNewSettingsFile() const override;
+
+		String sanityCheck(const XmlElement& xmlSettings) override;
 
 	private:
 

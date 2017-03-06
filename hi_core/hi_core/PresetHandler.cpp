@@ -328,6 +328,16 @@ void UserPresetHandler::saveUserPreset(ModulatorSynthChain *chain, const String&
 {
 #if USE_BACKEND
 
+	const String version = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version);
+
+	SemanticVersionChecker versionChecker(version, version);
+
+	if (versionChecker.newVersionNumberIsValid())
+	{
+		PresetHandler::showMessageWindow("Invalid version number", "You need semantic versioning (something like 1.0.0) in order to support user presets", PresetHandler::IconType::Error);
+		return;
+	}
+
 	if (!GET_PROJECT_HANDLER(chain).isActive()) return;
 
 	File userPresetDir = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
