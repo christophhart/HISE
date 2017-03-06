@@ -101,12 +101,16 @@ public:
 
 		void setDialog(AlertWindow *newWindow)
 		{
+			toFront(false);
+
 			setVisible(newWindow != nullptr);
 
 			window = newWindow;
 
 			if (window != nullptr)
 			{
+				window->toFront(false);
+
 				removeAllChildren();
 				addAndMakeVisible(window); 
 				addAndMakeVisible(totalProgressBar);
