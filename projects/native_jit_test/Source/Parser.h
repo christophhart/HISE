@@ -1102,6 +1102,8 @@ public:
 
 		if (matchIf(NativeJitTokens::identifier))	return parseSymbol<T>();
 		else if (matchIf(NativeJitTokens::literal))	return parseLiteral<T>();
+
+
 	}
 
 	template <typename T> NativeJIT::Node<T>& getNodeForLine(NamedNode* r)
