@@ -61,9 +61,11 @@ BackendProcessor::~BackendProcessor()
 	handleEditorData(true);
 }
 
+
+
 void BackendProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {
-	processBlockCommon(buffer, midiMessages);
+	getDelayedRenderer().processWrapped(buffer, midiMessages);
 };
 
 void BackendProcessor::handleControllersForMacroKnobs(const MidiBuffer &/*midiMessages*/)
@@ -74,9 +76,9 @@ void BackendProcessor::handleControllersForMacroKnobs(const MidiBuffer &/*midiMe
 
 void BackendProcessor::prepareToPlay(double newSampleRate, int samplesPerBlock)
 {
-    setRateAndBufferSizeDetails(newSampleRate, samplesPerBlock);
-    
-	MainController::prepareToPlay(newSampleRate, samplesPerBlock);
+	setRateAndBufferSizeDetails(newSampleRate, samplesPerBlock);
+ 
+	getDelayedRenderer().prepareToPlayWrapped(newSampleRate, samplesPerBlock);
 };
 
 AudioProcessorEditor* BackendProcessor::createEditor()
@@ -88,4 +90,3 @@ void BackendProcessor::setEditorState(ValueTree &editorState)
 {
 	editorInformation = ValueTree(editorState);
 }
-

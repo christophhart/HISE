@@ -268,6 +268,9 @@ public:
 	AutoSaver &getAutoSaver() { return autoSaver; }
 	const AutoSaver &getAutoSaver() const { return autoSaver; }
 
+	DelayedRenderer& getDelayedRenderer() { return delayedRenderer; };
+	const DelayedRenderer& getDelayedRenderer() const { return delayedRenderer; };
+
 #if USE_BACKEND
 	/** Writes to the console. */
 	void writeToConsole(const String &message, int warningLevel, const Processor *p=nullptr, Colour c=Colours::transparentBlack);
@@ -498,13 +501,15 @@ public:
 
 	UndoManager* getControlUndoManager() { return controlUndoManager; }
 
-protected:
+private: // Never call this directly, but wrap it through DelayedRenderer...
 
 	/** This is the main processing loop that is shared among all subclasses. */
 	void processBlockCommon(AudioSampleBuffer &b, MidiBuffer &mb);
 
 	/** Sets the sample rate for the cpu meter. */
 	void prepareToPlay(double sampleRate_, int samplesPerBlock);
+
+protected:
 
 
 	/** sets the new BPM and sends a message to all registered tempo listeners if the tempo changed. */
@@ -551,12 +556,17 @@ protected:
 		replaceBufferContent = shouldReplaceContent;
 	}
 
+	
+
 private:
 
 	ScopedPointer<UndoManager> controlUndoManager;
 
 	friend class UserPresetHandler;
     friend class PresetLoadingThread;
+	friend class DelayedRenderer;
+
+	DelayedRenderer delayedRenderer;
 
 	bool skipCompilingAtPresetLoad = false;
 

@@ -51,6 +51,7 @@ MainController::MainController():
     midiInputFlag(false),
 	macroManager(this),
 	autoSaver(this),
+	delayedRenderer(this),
 	enablePluginParameterUpdate(true),
 	customTypeFaceData(ValueTree("CustomFonts")),
 	masterEventBuffer(),

@@ -37,9 +37,7 @@ void FrontendProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer& mid
 	if (((unlockCounter++ & 1023) == 0) && !unlocker.isUnlocked()) return;
 #endif
 
-	
-
-	processBlockCommon(buffer, midiMessages);
+	getDelayedRenderer().processWrapped(buffer, midiMessages);
 };
 
 void FrontendProcessor::handleControllersForMacroKnobs(const MidiBuffer &midiMessages)
@@ -180,16 +178,13 @@ void FrontendProcessor::prepareToPlay(double newSampleRate, int samplesPerBlock)
 
 	CHECK_COPY_AND_RETURN_1(synthChain);
 		
-	MainController::prepareToPlay(newSampleRate, samplesPerBlock);
-	synthChain->prepareToPlay(newSampleRate, samplesPerBlock);
+	getDelayedRenderer().prepareToPlayWrapped(newSampleRate, samplesPerBlock);
 
 	suspendProcessing(false);
 };
 
 AudioProcessorEditor* FrontendProcessor::createEditor()
 {
-	
-
 	return new FrontendProcessorEditor(this);
 }
 

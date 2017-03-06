@@ -265,6 +265,51 @@ private:
 
 };
 
+namespace juce
+{
+	class PluginHostType;
+}
+
+/** This introduces an artificial delay of max 256 samples and calls the internal processing loop with a fixed number of samples.
+*
+*	This is supposed to offer a rather ugly fallback solution for hosts who change their processing size constantly (eg. FL Studio).
+*/
+class DelayedRenderer
+{
+public:
+
+	DelayedRenderer(MainController* mc);
+
+	/** Checks whether this should be used. It currently is only activated on FL Studio. */
+	bool shouldDelayRendering() const;
+
+	/** Wraps the processing and delays the processing if necessary. */
+	void processWrapped(AudioSampleBuffer& inputBuffer, MidiBuffer& midiBuffer);
+
+	/** Calls prepareToPlay with either 256 samples or a smaller buffer size (if the block size is smaller). It correctly reports the latency to the host. */
+	void prepareToPlayWrapped(double sampleRate, int samplesPerBlock);
+
+private:
+
+#if !(IS_STANDALONE_APP || IS_STANDALONE_FRONTEND)
+	ScopedPointer<juce::PluginHostType> hostType;
+#endif
+
+	MainController* mc;
+
+	AudioSampleBuffer b1;
+	AudioSampleBuffer b2;
+
+	AudioSampleBuffer* readBuffer = nullptr;
+	AudioSampleBuffer* writeBuffer = nullptr;
+
+	int fullBlockSize;
+
+	int sampleIndex;
+
+	MidiBuffer delayedMidiBuffer;
+};
+
 
 
 #endif  // MAINCONTROLLERHELPERS_H_INCLUDED

@@ -30,6 +30,8 @@
 *   ===========================================================================
 */
 
+
+
 MidiControllerAutomationHandler::MidiControllerAutomationHandler(MainController *mc_) :
 anyUsed(false),
 mc(mc_)
@@ -294,3 +296,115 @@ ControlledObject::~ControlledObject()
 
 	masterReference.clear();
 };
+
+
+DelayedRenderer::DelayedRenderer(MainController* mc_) :
+#if !(IS_STANDALONE_APP || IS_STANDALONE_FRONTEND)
+	hostType(new PluginHostType()),
+#endif
+	mc(mc_)
+{
+
+}
+
+bool DelayedRenderer::shouldDelayRendering() const
+{
+#if IS_STANDALONE_APP || IS_STANDALONE_FRONTEND
+	return false;
+#else
+	return hostType->isFruityLoops();
+#endif
+}
+
+void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
+{
+	if (shouldDelayRendering())
+	{
+		const int thisNumSamples = buffer.getNumSamples();
+		const int sampleIndexAfterProcess = sampleIndex + thisNumSamples;
+		const int blockSize = writeBuffer->getNumSamples();
+		const bool bufferOverflow = sampleIndex + thisNumSamples >= blockSize;
+
+		if (bufferOverflow)
+		{
+			const int remainingSamples = blockSize - sampleIndex;
+
+#if FRONTEND_IS_PLUGIN
+			FloatVectorOperations::copy(writeBuffer->getWritePointer(0, sampleIndex), buffer.getReadPointer(0, 0), remainingSamples);
+			FloatVectorOperations::copy(writeBuffer->getWritePointer(1, sampleIndex), buffer.getReadPointer(1, 0), remainingSamples);
+#else
+			delayedMidiBuffer.addEvents(midiMessages, 0, remainingSamples, sampleIndex);
+#endif
+
+			FloatVectorOperations::copy(buffer.getWritePointer(0, 0), readBuffer->getReadPointer(0, sampleIndex), remainingSamples);
+			FloatVectorOperations::copy(buffer.getWritePointer(1, 0), readBuffer->getReadPointer(1, sampleIndex), remainingSamples);
+			
+
+			mc->processBlockCommon(*writeBuffer, delayedMidiBuffer);
+
+			AudioSampleBuffer* temp = readBuffer;
+			readBuffer = writeBuffer;
+			writeBuffer = temp;
+			delayedMidiBuffer.clear();
+			sampleIndex = 0;
+
+			const int samplesAfterWrap = thisNumSamples - remainingSamples;
+
+			if (samplesAfterWrap > 0)
+			{
+				FloatVectorOperations::copy(buffer.getWritePointer(0, remainingSamples), readBuffer->getReadPointer(0, 0), samplesAfterWrap);
+				FloatVectorOperations::copy(buffer.getWritePointer(1, remainingSamples), readBuffer->getReadPointer(1, 0), samplesAfterWrap);
+			}
+
+			sampleIndex += samplesAfterWrap;
+		}
+		else
+		{
+
+#if FRONTEND_IS_PLUGIN
+			FloatVectorOperations::copy(writeBuffer->getWritePointer(0, sampleIndex), buffer.getReadPointer(0, 0), thisNumSamples);
+			FloatVectorOperations::copy(writeBuffer->getWritePointer(1, sampleIndex), buffer.getReadPointer(1, 0), thisNumSamples);
+#else
+			delayedMidiBuffer.addEvents(midiMessages, 0, thisNumSamples, sampleIndex);
+#endif
+
+			FloatVectorOperations::copy(buffer.getWritePointer(0, 0), readBuffer->getReadPointer(0, sampleIndex), thisNumSamples);
+			FloatVectorOperations::copy(buffer.getWritePointer(1, 0), readBuffer->getReadPointer(1, sampleIndex), thisNumSamples);
+			
+			sampleIndex += thisNumSamples;
+		}
+	}
+	else
+	{
+		mc->processBlockCommon(buffer, midiMessages);
+	}
+}
+
+void DelayedRenderer::prepareToPlayWrapped(double sampleRate, int samplesPerBlock)
+{
+	if (shouldDelayRendering())
+	{
+		fullBlockSize = jmin<int>(256, samplesPerBlock);
+
+		b1.setSize(2, fullBlockSize);
+		b2.setSize(2, fullBlockSize);
+
+		b1.clear();
+		b2.clear();
+
+		delayedMidiBuffer.ensureSize(1024);
+
+		readBuffer = &b1;
+		writeBuffer = &b2;
+
+		sampleIndex = 0;
+
+		dynamic_cast<AudioProcessor*>(mc)->setLatencySamples(fullBlockSize);
+
+		mc->prepareToPlay(sampleRate, fullBlockSize);
+	}
+	else
+	{
+		mc->prepareToPlay(sampleRate, samplesPerBlock);
+	}
+}
