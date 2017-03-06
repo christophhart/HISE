@@ -344,26 +344,16 @@ public:
 	{
 		switch (mode)
 		{
-		case MonoFilterEffect::LowPass: return currentCoefficients;
-			break;
-		case MonoFilterEffect::HighPass: return currentCoefficients;
-			break;
-		case MonoFilterEffect::LowShelf: return currentCoefficients;
-			break;
-		case MonoFilterEffect::HighShelf: return currentCoefficients;
-			break;
-		case MonoFilterEffect::Peak: return currentCoefficients;
-			break;
-		case MonoFilterEffect::ResoLow: return currentCoefficients;
-			break;
+		case MonoFilterEffect::LowPass:			return currentCoefficients;
+		case MonoFilterEffect::HighPass:		return currentCoefficients;
+		case MonoFilterEffect::LowShelf:		return currentCoefficients;
+		case MonoFilterEffect::HighShelf:		return currentCoefficients;
+		case MonoFilterEffect::Peak:			return currentCoefficients;
+		case MonoFilterEffect::ResoLow:			return currentCoefficients;
 		case MonoFilterEffect::StateVariableLP: return makeResoLowPass(getSampleRate(), freq, q);
-			break;
 		case MonoFilterEffect::StateVariableHP: return IIRCoefficients::makeHighPass(getSampleRate(), freq);
-			break;
-		case MonoFilterEffect::MoogLP:  return makeResoLowPass(getSampleRate(), freq, q);
-			break;
-		default:
-			break;
+		case MonoFilterEffect::MoogLP:			return makeResoLowPass(getSampleRate(), freq, q);
+		default:								return currentCoefficients;
 		}
 	}
 

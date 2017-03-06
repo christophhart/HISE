@@ -182,13 +182,11 @@ public:
 	void setEditorState(ValueTree &editorState);
 private:
 
-	
 	friend class BackendProcessorEditor;
 	friend class BackendCommandTarget;
 	friend class CombinedDebugArea;
 
 	ScopedPointer<ModulatorSynthChain> synthChain;
-
 	
 	ScopedPointer<UndoManager> viewUndoManager;
 

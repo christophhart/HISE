@@ -276,6 +276,8 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
 
 		sampleRateSelector->setSelectedItemIndex(samplerates.indexOf(thisSampleRate), dontSendNotification);
 	}
+#else
+	ignoreUnused(rebuildDevices, rebuildDeviceTypes);
 #endif
 
     scaleFactorSelector->clear();
@@ -441,7 +443,7 @@ void CustomSettingsWindow::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
 
 		auto fpe = findParentComponentOfClass<FrontendProcessorEditor>();
 
-		fpe->setGlobalScaleFactor(scaleFactor);
+		fpe->setGlobalScaleFactor((float)scaleFactor);
 
 #endif
 

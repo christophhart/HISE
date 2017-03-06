@@ -81,7 +81,9 @@ void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
     jassert(sound != nullptr);
     
     ADD_GLITCH_DETECTOR("Rendering sample" + sound->getFileName());
-    
+ 
+	ignoreUnused(sound);
+
 	const int startIndex = startSample;
 	const int samplesInBlock = numSamples;
 

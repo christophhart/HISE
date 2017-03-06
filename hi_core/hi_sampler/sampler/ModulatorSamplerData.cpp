@@ -960,7 +960,7 @@ void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 
 		size_t frameSize = sizeof(int16) * (isMono ? 1 : 2);
 
-		tempBlock.setSize(frameSize * largestSample);
+		tempBlock.setSize(frameSize * (size_t)largestSample);
 
 		for (int i = 0; i < channelList->size(); i++)
 		{
@@ -976,7 +976,7 @@ void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 			}
 
 			reader->read(&buffer, 0, (int)reader->lengthInSamples, 0, true, true);
-			size_t bytesUsed = reader->lengthInSamples * frameSize;
+			size_t bytesUsed = (size_t)reader->lengthInSamples * frameSize;
 
 			AudioFormatWriter::WriteHelper<AudioData::Int16, AudioData::Float32, AudioData::LittleEndian>::write(
 				tempBlock.getData(), isMono ? 1 : 2, (const int* const *)buffer.getArrayOfReadPointers(), (int)reader->lengthInSamples);

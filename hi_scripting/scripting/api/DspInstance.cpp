@@ -328,7 +328,7 @@ String DspInstance::getStringParameter(int index)
 
 		s.reserve(textLength);
 
-		for (int i = 0; i < textLength; i++)
+		for (size_t i = 0; i < textLength; i++)
 			s.push_back(*newText++);
 
 		return String(s);

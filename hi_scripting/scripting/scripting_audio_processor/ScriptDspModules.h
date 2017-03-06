@@ -676,7 +676,7 @@ public:
 												peakLevelLeft = 0.0f; 
 												peakLevelRight = 0.0f;
 												break;
-			case Parameters::EnableRMS:			enableRMS = newValue > 0.5f; break;
+			case Parameters::EnableRMS:			enableRMS = newValue > 0.5f;
 												rmsLevelLeft = 0.0f;
 												rmsLevelRight = 0.0f;
 												break;
@@ -743,8 +743,8 @@ public:
 				const double diff = coef - baseCoef;
 				const double exp = pow(2.0, diff);
 				
-				internalPeakDecay = pow(peakLevelDecayFactor, exp);
-				internalRmsDecay =  pow(rmsDecayFactor, exp);
+				internalPeakDecay = powf(peakLevelDecayFactor, (float)exp);
+				internalRmsDecay =  powf(rmsDecayFactor, (float)exp);
 			}
 		}
 

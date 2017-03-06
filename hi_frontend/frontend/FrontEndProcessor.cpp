@@ -206,9 +206,9 @@ void FrontendProcessor::setAllSampleReferencesCorrect()
 
 void FrontendProcessor::checkAllSampleReferences()
 {
-	ValueTree sampleMaps = getValueTree(ProjectHandler::SubDirectories::SampleMaps);
+	ValueTree sampleMapTree = getValueTree(ProjectHandler::SubDirectories::SampleMaps);
 
-	const String missingSampleName = ProjectHandler::Frontend::checkSampleReferences(sampleMaps);
+	const String missingSampleName = ProjectHandler::Frontend::checkSampleReferences(sampleMapTree);
 
 	samplesCorrectlyLoaded = missingSampleName.isEmpty();
 

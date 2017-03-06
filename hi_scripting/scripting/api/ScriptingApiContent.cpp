@@ -2128,7 +2128,7 @@ void ScriptingApi::Content::ScriptPanel::changed()
 
 void ScriptingApi::Content::ScriptPanel::loadImage(String imageName, String prettyName)
 {
-	for (int i = 0; i < loadedImages.size(); i++)
+	for (size_t i = 0; i < loadedImages.size(); i++)
 	{
 		if (std::get<(int)NamedImageEntries::FileName>(loadedImages[i]) == imageName) return;
 	}

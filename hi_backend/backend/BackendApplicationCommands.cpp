@@ -1196,6 +1196,8 @@ void BackendCommandTarget::Actions::toggleFullscreen(BackendProcessorEditor * bp
         bpe->resized();
         
     }
+#else 
+	ignoreUnused(bpe);
 #endif
 }
 

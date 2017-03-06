@@ -177,7 +177,7 @@ void MouseCallbackComponent::fillPopupMenu(const MouseEvent &event)
 
 			bool subMenuExists = false;
 
-			for (int j = 0; j < subMenus.size(); j++)
+			for (size_t j = 0; j < subMenus.size(); j++)
 			{
 				if (std::get<0>(subMenus[j]) == subMenuName)
 				{
@@ -200,7 +200,7 @@ void MouseCallbackComponent::fillPopupMenu(const MouseEvent &event)
 	{
 		int menuIndex = 1;
 
-		for (int i = 0; i < subMenus.size(); i++)
+		for (size_t i = 0; i < subMenus.size(); i++)
 		{
 			PopupMenu sub;
 

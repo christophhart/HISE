@@ -202,9 +202,9 @@ SamplerSoundMap::SamplerSoundMap(ModulatorSampler *ownerSampler_, SamplerBody *b
 	sampleLasso(new LassoComponent<WeakReference<SampleComponent>>())
 {
 
-	for (int i = 0; i < 128; i++)
+	for (uint8 i = 0; i < 128; i++)
 	{
-		pressedKeys[i] = -1;
+		pressedKeys[i] = 255;
 	}
 
 	selectedSounds->addChangeListener(this);

@@ -324,7 +324,7 @@ void Console::handleAsyncUpdate()
 
 	String message;
 
-	for(int i = 0; i < messagesForThisTime.size(); i++)
+	for(size_t i = 0; i < messagesForThisTime.size(); i++)
 	{
         const Processor* processor = std::get<(int)ConsoleMessageItems::Processor>(messagesForThisTime[i]).get();
         

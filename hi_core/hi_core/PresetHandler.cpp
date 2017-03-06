@@ -582,6 +582,7 @@ String UserPresetHandler::getCurrentVersionNumber(ModulatorSynthChain* chain)
 #if USE_BACKEND
 	return SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, &GET_PROJECT_HANDLER(chain));
 #else
+	ignoreUnused(chain);
 	return ProjectHandler::Frontend::getVersionString();
 #endif
 }
@@ -2107,7 +2108,7 @@ void AboutPage::paint(Graphics &g)
     
     g.setColour(Colours::white);
     g.setFont(GLOBAL_FONT().withHeight(26.0f));
-    g.drawText("The open source framework for sample based instruments", 0.0f, 240.0f, (float)getWidth(), 30.0f, Justification::centred);
+    g.drawText("The open source framework for sample based instruments", 0, 240, getWidth(), 30, Justification::centred);
     
 #else
 

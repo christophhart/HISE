@@ -705,7 +705,7 @@ public:
 
 		const Image* getLoadedImage(const String &prettyName) const
 		{
-			for (int i = 0; i < loadedImages.size(); i++)
+			for (size_t i = 0; i < loadedImages.size(); i++)
 			{
 				if (std::get<(int)NamedImageEntries::PrettyName>(loadedImages[i]) == prettyName)
 					return std::get<(int)NamedImageEntries::Image>(loadedImages[i]);
