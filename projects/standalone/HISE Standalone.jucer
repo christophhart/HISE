@@ -75,6 +75,7 @@
         <MODULEPATH id="hi_backend" path="../../"/>
         <MODULEPATH id="hi_scripting" path="../../"/>
         <MODULEPATH id="hi_dsp_library" path="../../"/>
+        <MODULEPATH id="juce_audio_plugin_client" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </VS2013>
     <XCODE_MAC targetFolder="Builds/MacOSX" smallIcon="S7ANvW" bigIcon="S7ANvW"
@@ -111,6 +112,7 @@
         <MODULEPATH id="hi_backend" path="../../"/>
         <MODULEPATH id="hi_scripting" path="../../"/>
         <MODULEPATH id="hi_dsp_library" path="../../"/>
+        <MODULEPATH id="juce_audio_plugin_client" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <XCODE_IPHONE targetFolder="Builds/iOS" iosScreenOrientation="landscape" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override"
@@ -144,6 +146,7 @@
         <MODULEPATH id="hi_backend" path="../../"/>
         <MODULEPATH id="hi_scripting" path="../../"/>
         <MODULEPATH id="hi_dsp_library" path="../../"/>
+        <MODULEPATH id="juce_audio_plugin_client" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </XCODE_IPHONE>
     <VS2015 targetFolder="Builds/VisualStudio2015" smallIcon="S7ANvW" bigIcon="S7ANvW"
@@ -185,6 +188,7 @@
         <MODULEPATH id="hi_dsp_library" path="../../"/>
         <MODULEPATH id="hi_core" path="../../"/>
         <MODULEPATH id="hi_backend" path="../../"/>
+        <MODULEPATH id="juce_audio_plugin_client" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </VS2015>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="USE_IPP=0" smallIcon="bfBEgJ"
@@ -215,6 +219,7 @@
         <MODULEPATH id="hi_dsp_library" path="../../"/>
         <MODULEPATH id="hi_core" path="../../"/>
         <MODULEPATH id="hi_backend" path="../../"/>
+        <MODULEPATH id="juce_audio_plugin_client" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </LINUX_MAKE>
   </EXPORTFORMATS>
@@ -227,6 +232,7 @@
     <MODULES id="juce_audio_basics" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_audio_devices" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_audio_formats" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="juce_audio_plugin_client" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_audio_processors" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_audio_utils" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_core" showAllCode="1" useLocalCopy="0"/>

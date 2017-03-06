@@ -78,7 +78,8 @@
       </MODULEPATHS>
     </XCODE_MAC>
     <VS2015 targetFolder="Builds/VisualStudio2015" vstFolder="c:\SDKs\vstsdk2.4"
-            smallIcon="" useIPP="Sequential" aaxFolder="D:\Development\SDKs\AAX">
+            smallIcon="" useIPP="Sequential" aaxFolder="D:\Development\SDKs\AAX"
+            IPPLibrary="Sequential">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
                        isDebug="1" optimisation="1" targetName="HISE x86 Debug" binaryPath=""

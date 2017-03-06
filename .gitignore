@@ -31,3 +31,4 @@ tools/SDK/AAX/
 projects/native_jit_test/Builds/MacOSX/NativeJIT Test.xcodeproj/project.xcworkspace/xcuserdata/christophhart.xcuserdatad/UserInterfaceState.xcuserstate
 projects/native_jit_test/Builds/
 projects/native_jit_test/JuceLibraryCode/
+projects/standalone/JuceLibraryCode/
