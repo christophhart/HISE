@@ -35,6 +35,9 @@
 #include <x86intrin.h> // For __lzcnt64.
 #endif
 
+inline unsigned __int64 popcnt64x86(unsigned __int64 value);
+
+
 // http://stackoverflow.com/questions/2039861/how-to-get-gcc-to-generate-bts-instruction-for-x86-64-from-standard-c
 // https://developer.apple.com/library/ios/documentation/System/Conceptual/ManPages_iPhoneOS/man3/atomic.3.html
 // https://chessprogramming.wikispaces.com/x86-64
@@ -59,6 +62,9 @@ namespace NativeJIT
     // checks for valid input range or similar are performed.
     namespace BitOp
     {
+
+		
+
         extern const bool c_isPopCntSupported;
         extern char const * const c_bitsSetInByte;
 
@@ -96,7 +102,11 @@ namespace NativeJIT
         inline
         uint8_t GetNonZeroBitCount(uint64_t value)
         {
+#if NATIVE_JIT_64_BIT
             return static_cast<uint8_t>(_mm_popcnt_u64(value));
+#else
+			return popcnt64x86(value);
+#endif
         }
 
 
@@ -108,10 +118,18 @@ namespace NativeJIT
         bool GetLowestBitSet(uint64_t value, unsigned* lowestBitSetIndex)
         {
 #ifdef _MSC_VER
+
+#if NATIVE_JIT_64_BIT
+
             return _BitScanForward64(SameTargetSizeCast<BitScanType32>(lowestBitSetIndex),
                                      value)
                    ? true
                    : false;
+
+#else
+			return _BitScanForward(SameTargetSizeCast<BitScanType32>(lowestBitSetIndex), value) ? true : false;
+#endif
+
 #else
             *lowestBitSetIndex =
                 static_cast<unsigned>(ffsll(static_cast<int64_t>(value)));
@@ -129,11 +147,12 @@ namespace NativeJIT
         bool GetHighestBitSet(uint64_t value, unsigned* highestBitSetIndex)
         {
 #ifdef _MSC_VER
-        // VC++ provides _BitScanReverse64()
-            return _BitScanReverse64(SameTargetSizeCast<BitScanType32>(highestBitSetIndex),
-                                     value)
-                   ? true
-                   : false;
+
+#if NATIVE_JIT_64_BIT
+            return _BitScanReverse64(SameTargetSizeCast<BitScanType32>(highestBitSetIndex), value) ? true : false;
+#else
+			return  _BitScanReverse(SameTargetSizeCast<BitScanType32>(highestBitSetIndex), value) ? true : false;
+#endif
 #else
     #ifdef __LZCNT__
             *highestBitSetIndex = __lzcnt64(value);
@@ -154,10 +173,13 @@ namespace NativeJIT
         bool TestBit(uint64_t value, unsigned bitIndex)
         {
 #ifdef _MSC_VER
-            return _bittest64(SameTargetSizeCast<const BitTestType64>(&value),
-                              bitIndex)
-                   ? true
-                   : false;
+#if NATIVE_JIT_64_BIT
+            return _bittest64(SameTargetSizeCast<const BitTestType64>(&value), bitIndex) ? true : false;
+#else
+			long* v_p = reinterpret_cast<long*>(&value);
+			if (bitIndex < 32) return _bittest(SameTargetSizeCast<BitTestType32>(v_p), bitIndex) ? true : false;
+			else _bittest(SameTargetSizeCast<BitTestType32>(v_p+1), bitIndex-32) ? true : false;
+#endif
 #else
             return (value & (static_cast<uint64_t>(1) << bitIndex)) ? true : false;
 #endif

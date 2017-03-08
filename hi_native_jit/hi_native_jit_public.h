@@ -18,7 +18,7 @@
 *	After compilation, this object will contain all functions and storage for the global variables of one instance.
 *
 */
-class NativeJITScope : public DynamicObject
+class NativeJITScope : public juce::DynamicObject
 {
 public:
 
@@ -31,13 +31,13 @@ public:
 	int getNumGlobalVariables() const;
 
 	/** Returns the value of the global variable as var. */
-	var getGlobalVariableValue(int globalIndex) const;
+	juce::var getGlobalVariableValue(int globalIndex) const;
 
 	/** Returns the type of the global variable. */
 	TypeInfo getGlobalVariableType(int globalIndex) const;
 
 	/** Get the name of the variable at the given index. */
-	Identifier getGlobalVariableName(int globalIndex) const;
+	juce::Identifier getGlobalVariableName(int globalIndex) const;
 
 	/** Returns a typed pointer to a compiled function with the given name.
 	*
@@ -49,9 +49,9 @@ public:
 	*		func f = getCompiledFunction<int, double, float>(Identifier("testFunction");
 	*
 	*/
-	template <typename ReturnType, typename... ParameterTypes> ReturnType(*getCompiledFunction(const Identifier& id))(ParameterTypes...);
+	template <typename ReturnType, typename... ParameterTypes> ReturnType(*getCompiledFunction(const juce::Identifier& id))(ParameterTypes...);
 
-	typedef ReferenceCountedObjectPtr<NativeJITScope> Ptr;
+	typedef juce::ReferenceCountedObjectPtr<NativeJITScope> Ptr;
 
 	class Pimpl;
 
@@ -59,7 +59,9 @@ private:
 
 	friend class GlobalParser;
 
-	ScopedPointer<Pimpl> pimpl;
+#if JUCE_64BIT
+	juce::ScopedPointer<Pimpl> pimpl;
+#endif
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NativeJITScope)
 };
@@ -108,7 +110,7 @@ private:
 *		int i1 = f1(2.0, 1);
 *		int i2 = f2(2.0, 0);
 */
-class NativeJITCompiler : public DynamicObject
+class NativeJITCompiler : public juce::DynamicObject
 {
 public:
 
@@ -116,7 +118,7 @@ public:
 	*
 	*	It just preprocesses the code on creation. In order to actually compile, call compileAndReturnScope()
 	*/
-	NativeJITCompiler(const String& codeToCompile);
+	NativeJITCompiler(const juce::String& codeToCompile);
 
 	/** Destroys the compiler. The lifetime of created scopes are independent. */
 	~NativeJITCompiler();
@@ -128,13 +130,13 @@ public:
 	bool wasCompiledOK() const;
 
 	/** Get the error message for compilation errors. */
-	String getErrorMessage() const;
+	juce::String getErrorMessage() const;
 
 private:
 
 	class Pimpl;
 
-	ScopedPointer<Pimpl> pimpl;
+	juce::ScopedPointer<Pimpl> pimpl;
 };
 
 /** This class wraps a JIT compiler to process a buffer of float arrays. 
@@ -147,7 +149,7 @@ private:
 *
 *	From C++, you can then call processBlock and it will iterate over the float array and call the processing function for each sample.
 */
-class NativeJITDspModule : public DynamicObject
+class NativeJITDspModule : public juce::DynamicObject
 {
 public:
 

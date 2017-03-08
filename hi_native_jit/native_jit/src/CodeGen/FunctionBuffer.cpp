@@ -78,6 +78,7 @@ namespace NativeJIT
                        "RUNTIME_FUNCTION must be DWORD aligned");
 
 #ifdef NATIVEJIT_PLATFORM_WINDOWS
+#if NATIVE_JIT_64_BIT
 
         // Register a callback to return the RUNTIME_FUNCTION when Windows
         // asks for it during exception handling.
@@ -91,12 +92,14 @@ namespace NativeJIT
             throw std::runtime_error("Couldn't install function table callback");
         }
 #endif
+#endif
     }
 
 
     FunctionBuffer::~FunctionBuffer()
     {
 #ifdef NATIVEJIT_PLATFORM_WINDOWS
+#if NATIVE_JIT_64_BIT
         // From MSDN about the argument to RtlDeleteFunctionTable: "A pointer to
         // ... or an identifier previously passed to RtlInstallFunctionTableCallback."
         // TODO: return code not checked as there's nothing else to do on error but
@@ -104,6 +107,7 @@ namespace NativeJIT
         auto entry = reinterpret_cast<RUNTIME_FUNCTION*>(
             UnwindUtils::MakeFunctionTableIdentifier(this));
         RtlDeleteFunctionTable(entry);
+#endif
 #endif
     }
 

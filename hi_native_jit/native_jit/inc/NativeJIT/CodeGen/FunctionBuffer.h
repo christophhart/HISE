@@ -25,6 +25,16 @@
 
 #ifdef NATIVEJIT_PLATFORM_WINDOWS
 #include <windows.h>                                // RUNTIME_FUNCTION embedded.
+
+#if NATIVE_JIT_32_BIT
+typedef struct
+{
+	DWORD BeginAddress;
+	DWORD EndAddress;
+	DWORD UnwindData;
+} RUNTIME_FUNCTION;
+#endif
+
 #else
 #include <cstdint>
 typedef uint32_t DWORD;

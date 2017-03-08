@@ -254,7 +254,7 @@ public:
 		{
 			if (!NativeJITTypeHelpers::matchesType<ExpectedType>(b->getTypeForParameter(parameterIndex)))
 			{
-				throw String("Parameter " + String(parameterIndex+1) + " type of function \"" + b->functionName + "\" does not match. ") + NativeJITTypeHelpers::getTypeMismatchErrorMessage<ExpectedType>(b->getReturnType());
+				throw String("Parameter " + String(parameterIndex + 1) + " type of function \"" + b->functionName + "\" does not match. ") + NativeJITTypeHelpers::getTypeMismatchErrorMessage<ExpectedType>(b->getReturnType());
 			}
 		}
 	}
@@ -275,14 +275,14 @@ public:
 		if (b != nullptr)
 		{
 			checkTypeMatch<ReturnType>(b, -1);
-			
+
 			return (ReturnType(*)(Other...))b->func;
 		}
 
 		return nullptr;
 	}
 
-	template <typename ReturnType, typename ParamType1, typename... Other> ReturnType (*getCompiledFunction1(const Identifier& id))(ParamType1, Other...)
+	template <typename ReturnType, typename ParamType1, typename... Other> ReturnType(*getCompiledFunction1(const Identifier& id))(ParamType1, Other...)
 	{
 		if (sizeof...(Other) != 0) return nullptr;
 

@@ -57,6 +57,27 @@ END_JUCE_MODULE_DECLARATION
 
 
 
+#ifdef _WIN64
+#define NATIVE_JIT_64_BIT 1
+#define NATIVE_JIT_32_BIT 0
+#else
+#ifdef _WIN32
+#define NATIVE_JIT_64_BIT 0
+#define NATIVE_JIT_32_BIT 1
+#endif
+
+#ifdef __LP64__
+#define NATIVE_JIT_64_BIT 1
+#define NATIVE_JIT_32_BIT 0
+#else
+#define NATIVE_JIT_64_BIT 0
+#define NATIVE_JIT_32_BIT 1
+#endif
+#endif
+
+
+
+#if NATIVE_JIT_64_BIT
 #include "native_jit/inc/Temporary/Allocator.h"
 #include "native_jit/inc/Temporary/AllocatorOperations.h"
 #include "native_jit/inc/NativeJIT/AllocatorVector.h"
@@ -74,6 +95,7 @@ END_JUCE_MODULE_DECLARATION
 #include "native_jit/inc/Temporary/StlAllocator.h"
 #include "native_jit/inc/NativeJIT/CodeGen/ValuePredicates.h"
 #include "native_jit/inc/NativeJIT/CodeGen/X64CodeGenerator.h"
+#endif
 
 #include "../JUCE/modules/juce_core/juce_core.h"
 
@@ -82,10 +104,7 @@ END_JUCE_MODULE_DECLARATION
 typedef std::type_index TypeInfo;
 
 
-namespace juce
-{
 #include "hi_native_jit_public.h"
-}
 
 
 
