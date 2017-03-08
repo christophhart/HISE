@@ -387,6 +387,7 @@ void DeactiveOverlay::buttonClicked(Button *b)
     }
 	else if (b == useActivationResponseButton)
 	{
+#if USE_TURBO_ACTIVATE
 		FileChooser fc("Load activation response file", File::getSpecialLocation(File::SpecialLocationType::userDesktopDirectory), "*.xml", true);
 
 		if (fc.browseForFileToOpen())
@@ -417,8 +418,9 @@ void DeactiveOverlay::buttonClicked(Button *b)
 				PresetHandler::showMessageWindow("Registration successful", "The software is now unlocked and ready to use.");
 				fp->loadSamplesAfterRegistration();
 			}
-			
+
 		}
+#endif
 	}
 	else if (b == ignoreButton)
 	{
