@@ -642,7 +642,7 @@ String SampleMap::checkReferences(ValueTree& v, const File& sampleRootFolder, Ar
 	const bool isMonolith = (int)v.getProperty("SaveMode") == (int)SaveMode::Monolith;
 
 	const std::string channelNames = v.getProperty("MicPositions").toString().toStdString();
-	const int numChannels = std::count(channelNames.begin(), channelNames.end(), ';');
+	const size_t numChannels = std::count(channelNames.begin(), channelNames.end(), ';');
 
 	const String sampleMapName = v.getProperty("ID");
 

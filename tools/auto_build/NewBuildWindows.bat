@@ -120,7 +120,7 @@ echo Compiling 64bit VST Plugins
 
 set Platform=X64
 
-"C:\Program Files (x86)\MSBuild\14.0\Bin\MsBuild.exe"  %plugin_project% /t:Build /p:Configuration="Release 64bit";Platform=x64 /v:m
+"C:\Program Files (x86)\MSBuild\14.0\Bin\MsBuild.exe"  %plugin_project% /t:Build /p:Configuration="Release";Platform=x64 /v:m
 
 if %errorlevel% NEQ 0 (
 	echo ========================================================================
@@ -134,7 +134,7 @@ echo OK
 
 echo Compiling 64bit Standalone App...
 
-"C:\Program Files (x86)\MSBuild\14.0\Bin\MsBuild.exe"  %standalone_project% /t:Build /p:Configuration="Release 64bit";Platform=x64 /v:m
+"C:\Program Files (x86)\MSBuild\14.0\Bin\MsBuild.exe"  %standalone_project% /t:Build /p:Configuration="Release";Platform=x64 /v:m
 
 if %errorlevel% NEQ 0 (
 	echo ========================================================================

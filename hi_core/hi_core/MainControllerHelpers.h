@@ -265,10 +265,6 @@ private:
 
 };
 
-namespace juce
-{
-	class PluginHostType;
-}
 
 /** This introduces an artificial delay of max 256 samples and calls the internal processing loop with a fixed number of samples.
 *
@@ -279,6 +275,8 @@ class DelayedRenderer
 public:
 
 	DelayedRenderer(MainController* mc);
+
+	~DelayedRenderer();
 
 	/** Checks whether this should be used. It currently is only activated on FL Studio. */
 	bool shouldDelayRendering() const;
@@ -291,9 +289,9 @@ public:
 
 private:
 
-#if !(IS_STANDALONE_APP || IS_STANDALONE_FRONTEND)
-	ScopedPointer<juce::PluginHostType> hostType;
-#endif
+	class Pimpl;
+
+	ScopedPointer<Pimpl> pimpl;
 
 	MainController* mc;
 

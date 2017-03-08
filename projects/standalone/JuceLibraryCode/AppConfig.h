@@ -21,6 +21,7 @@
 
 #define DOUBLE_TO_STRING_DIGITS 8
 
+
 // [END_USER_CODE_SECTION]
 
 //==============================================================================
@@ -32,7 +33,6 @@
 #define JUCE_MODULE_AVAILABLE_juce_audio_basics               1
 #define JUCE_MODULE_AVAILABLE_juce_audio_devices              1
 #define JUCE_MODULE_AVAILABLE_juce_audio_formats              1
-#define JUCE_MODULE_AVAILABLE_juce_audio_plugin_client        1
 #define JUCE_MODULE_AVAILABLE_juce_audio_processors           1
 #define JUCE_MODULE_AVAILABLE_juce_audio_utils                1
 #define JUCE_MODULE_AVAILABLE_juce_core                       1
@@ -194,17 +194,6 @@
 
 #ifndef    JUCE_USE_WINDOWS_MEDIA_FORMAT
  //#define JUCE_USE_WINDOWS_MEDIA_FORMAT
-#endif
-
-//==============================================================================
-// juce_audio_plugin_client flags:
-
-#ifndef    JUCE_FORCE_USE_LEGACY_PARAM_IDS
- //#define JUCE_FORCE_USE_LEGACY_PARAM_IDS
-#endif
-
-#ifndef    JUCE_USE_STUDIO_ONE_COMPATIBLE_PARAMETERS
- //#define JUCE_USE_STUDIO_ONE_COMPATIBLE_PARAMETERS
 #endif
 
 //==============================================================================

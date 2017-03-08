@@ -297,23 +297,42 @@ ControlledObject::~ControlledObject()
 	masterReference.clear();
 };
 
+class DelayedRenderer::Pimpl
+{
+public:
+
+	Pimpl() {}
+
+	bool shouldDelayRendering() const 
+	{
+#if IS_STANDALONE_APP || IS_STANDALONE_FRONTEND
+		return false;
+#else
+		return hostType.isFruityLoops();
+#endif
+	}
+
+#if !(IS_STANDALONE_APP || IS_STANDALONE_FRONTEND)
+	PluginHostType hostType;
+#endif
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Pimpl)
+};
 
 DelayedRenderer::DelayedRenderer(MainController* mc_) :
-#if !(IS_STANDALONE_APP || IS_STANDALONE_FRONTEND)
-	hostType(new PluginHostType()),
-#endif
+	pimpl(new Pimpl()),
 	mc(mc_)
 {
+}
 
+DelayedRenderer::~DelayedRenderer()
+{
+	pimpl = nullptr;
 }
 
 bool DelayedRenderer::shouldDelayRendering() const
 {
-#if IS_STANDALONE_APP || IS_STANDALONE_FRONTEND
-	return false;
-#else
-	return hostType->isFruityLoops();
-#endif
+	return pimpl->shouldDelayRendering();
 }
 
 void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
