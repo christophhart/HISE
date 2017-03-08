@@ -10,6 +10,26 @@
 
 #include <map>
 
+
+const char* emptyText = "// Uncomment this line to disable bounds checking\n" \
+"//#define DISABLE_SAFE_BUFFER_ACCESS 1\n" \
+"\n" \
+"void init()\n" \
+"{\n" \
+"    \n" \
+"};\n" \
+"\n" \
+"void prepareToPlay(double sampleRate, int blockSize)\n" \
+"{\n" \
+"    \n" \
+"};\n" \
+"\n" \
+"float process(float input)\n" \
+"{\n" \
+"    return 1.0f;\n" \
+"};";
+
+
 class HardcodedDspModule
 {
 public:
@@ -34,6 +54,11 @@ public:
         a3 = 0.6f;
         a4 = 0.3f;
     };
+    
+    void prepareToPlay(double sampleRate, int samplesPerBlock)
+    {
+        
+    }
     
     float process(float /*input*/)
     {
@@ -90,6 +115,8 @@ MainContentComponent::MainContentComponent()
 	addAndMakeVisible(messageBox = new Label());
 	addAndMakeVisible(table = new TableListBox());
 
+    editor->getDocument().replaceAllContent(String(emptyText));
+    
 	tableModel = new VariableTableModel(this);
 
 	table->setModel(tableModel);

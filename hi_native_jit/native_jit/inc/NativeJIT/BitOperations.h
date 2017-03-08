@@ -35,7 +35,9 @@
 #include <x86intrin.h> // For __lzcnt64.
 #endif
 
-inline unsigned __int64 popcnt64x86(unsigned __int64 value);
+
+
+
 
 
 // http://stackoverflow.com/questions/2039861/how-to-get-gcc-to-generate-bts-instruction-for-x86-64-from-standard-c

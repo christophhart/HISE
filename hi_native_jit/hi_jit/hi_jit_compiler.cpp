@@ -24,6 +24,7 @@ struct PreprocessorParser
 {
 	PreprocessorParser(const String& code) {};
 	String process() { return String(); };
+    bool shouldUseSafeBufferFunctions() {return true;};
 };
 #endif
 
@@ -224,6 +225,7 @@ TypeInfo NativeJITScope::getGlobalVariableType(int globalIndex) const { return t
 Identifier NativeJITScope::getGlobalVariableName(int globalIndex) const { return Identifier(); }
 template <typename ReturnType, typename...ParameterTypes> ReturnType(*NativeJITScope::getCompiledFunction(const Identifier& id))(ParameterTypes...) { return nullptr; }
 int NativeJITScope::isBufferOverflow(int globalIndex) const { return -1; }
+
 #endif
 
 NativeJITDspModule::NativeJITDspModule(const NativeJITCompiler* compiler)

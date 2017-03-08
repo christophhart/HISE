@@ -27,13 +27,14 @@
 #include "../../inc/NativeJIT/CodeGen/X64CodeGenerator.h"
 #include "../../inc/Temporary/Assert.h"
 
-
+#if 0
 inline unsigned __int64 popcnt64x86(unsigned __int64 value)
 {
 	const unsigned int* v_int = reinterpret_cast<unsigned int*>(&value);
 
 	return (unsigned __int64)(__popcnt(v_int[0]) + __popcnt(v_int[1]));
 }
+#endif
 
 namespace NativeJIT
 {

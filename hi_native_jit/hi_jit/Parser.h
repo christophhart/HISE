@@ -194,7 +194,9 @@ struct GlobalBase
 
 		jassert(typeid(T) != typeid(Buffer*));
 
-		*reinterpret_cast<T*>(&b->data) = newValue;
+        T* castedData = reinterpret_cast<T*>(&b->data);
+        
+        *castedData = newValue;
 
 		return T();
 	}

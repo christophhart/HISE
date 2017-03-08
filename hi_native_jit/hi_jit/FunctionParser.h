@@ -43,7 +43,7 @@ public:
 
 		for (int i = 0; i < getNumGlobalNodes(); i++)
 		{
-			auto& zero = getGlobalNode(i)->getAssignmentNodeForReturnStatement<R>(&expr);
+			auto& zero = getGlobalNode(i)->template getAssignmentNodeForReturnStatement<R>(&expr);
 
 			returnStatement = &expr.Add(*returnStatement, zero);
 		}
