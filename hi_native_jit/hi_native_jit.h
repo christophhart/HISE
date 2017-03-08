@@ -97,7 +97,13 @@ END_JUCE_MODULE_DECLARATION
 #include "native_jit/inc/NativeJIT/CodeGen/X64CodeGenerator.h"
 #endif
 
-#include "../JUCE/modules/juce_core/juce_core.h"
+#include "../JUCE/modules/juce_audio_basics/juce_audio_basics.h"
+
+namespace juce
+{
+	#include "../hi_core/hi_core/VariantBuffer.h"
+};
+
 
 #include <typeindex>
 

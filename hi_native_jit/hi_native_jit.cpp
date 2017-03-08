@@ -19,4 +19,10 @@
 #include "native_jit/src/CodeGen/X64CodeGenerator.cpp"
 #endif
 
+namespace juce
+{
+#include "../hi_core/hi_core/VariantBuffer.cpp"
+};
+
+
 #include "hi_jit/hi_jit_compiler.cpp"

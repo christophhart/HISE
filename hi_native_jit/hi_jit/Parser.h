@@ -71,38 +71,114 @@ private:
 
 
 
-struct Buffer: public ReferenceCountedObject
+struct BufferHolder
 {
-	Buffer() : buffer(new AudioSampleBuffer()) {};
+	BufferHolder(juce::VariantBuffer* buffer) :
+		b(buffer)
+	{};
 
+	BufferHolder():
+		b(nullptr)
+	{}
+
+	BufferHolder(int size) :
+		b(new juce::VariantBuffer(size))
+	{}
+
+	~BufferHolder()
+	{
+		b = nullptr;
+	}
+
+	void setBuffer(juce::VariantBuffer* newBuffer)
+	{
+		b = newBuffer;
+	}
+
+	juce::VariantBuffer::Ptr b;
+
+	int overflowError = -1;
+
+private:
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BufferHolder);
+};
+
+
+typedef BufferHolder Buffer;
+
+struct BufferOperations
+{
 	static float getSample(Buffer* b, int index)
 	{
-		return b->buffer->getSample(0, index);
+		if (b->b.get() == nullptr)
+			return 0.0f;
+
+		auto& vb = *b->b.get();
+
+		if (isPositiveAndBelow(index, vb.size))
+		{
+			return vb.buffer.getReadPointer(0)[index];
+		}
+		else
+		{
+			b->overflowError = index;
+			return 0.0f;
+		}
 	};
+
+	static float getSampleRaw(Buffer*b, int index)
+	{
+		return b->b->buffer.getReadPointer(0)[index];
+	}
+
+	template <typename DummyReturn> static DummyReturn setSampleRaw(Buffer* b, int index, float value)
+	{
+		b->b->buffer.getWritePointer(0)[index] = value;
+		return DummyReturn();
+	}
 
 	template <typename DummyReturn> static DummyReturn setSample(Buffer* b, int index, float value)
 	{
-		b->buffer->setSample(0, index, value);
+		if (b->b.get() == nullptr)
+			return DummyReturn();
 
-		return DummyReturn();
+		auto& vb = *b->b.get();
+
+		if (isPositiveAndBelow(index, vb.size))
+		{
+			vb.buffer.getWritePointer(0)[index] = value;
+		}
+		else
+		{
+			b->overflowError = index;
+			return DummyReturn();
+		}
 	}
 
 	template <typename DummyReturn> static DummyReturn setSize(Buffer* b, int newSize)
 	{
-		b->buffer->setSize(1, newSize);
+		b->b = new juce::VariantBuffer(newSize);
 
 		return DummyReturn();
 	}
 
-	ScopedPointer<AudioSampleBuffer> buffer;
+	
 };
 
+constexpr size_t getGlobalDataSize()
+{
+	return sizeof(double) > sizeof(juce::VariantBuffer::Ptr) ? sizeof(double) : sizeof(juce::VariantBuffer::Ptr);
+}
 
 struct GlobalBase
 {
+	
+
 	GlobalBase(const Identifier& id_, TypeInfo type_) :
 		id(id_),
-		type(type_)
+		type(type_),
+		data(0.0)
 	{
 		
 	};
@@ -116,7 +192,9 @@ struct GlobalBase
 	{
 		jassert(NativeJITTypeHelpers::matchesType<T>(b->type));
 
-		*reinterpret_cast<T*>(&b->value) = newValue;
+		jassert(typeid(T) != typeid(Buffer*));
+
+		*reinterpret_cast<T*>(&b->data) = newValue;
 
 		return T();
 	}
@@ -125,7 +203,7 @@ struct GlobalBase
 	{
 		jassert(NativeJITTypeHelpers::matchesType<T>(b->type));
 
-		return *reinterpret_cast<T*>(&b->value);
+		return *reinterpret_cast<T*>(&b->data);
 	}
 
 	TypeInfo getType() const noexcept { return type; }
@@ -135,13 +213,39 @@ struct GlobalBase
 		return new GlobalBase(id, typeid(T));
 	}
 
+	void setBuffer(juce::VariantBuffer* b)
+	{
+		jassert(NativeJITTypeHelpers::matchesType<Buffer*>(type));
+
+		ownedBuffer.setBuffer(b);
+	}
+	
+	static Buffer* getBuffer(GlobalBase* b)
+	{
+		jassert(NativeJITTypeHelpers::matchesType<Buffer*>(b->type));
+
+		return &b->ownedBuffer;
+	}
+
+	int hasOverflowError() const
+	{
+		if (NativeJITTypeHelpers::matchesType<Buffer*>(type))
+		{
+			return ownedBuffer.overflowError;
+		}
+		else
+		{
+			return -1;
+		}
+	}
+
 	TypeInfo type;
 	Identifier id;
 	
-	double value = 0.0;
-	
+	double data = 0.0;
 
-	ScopedPointer<Buffer> bufferHolder;
+	Buffer ownedBuffer;
+
 };
 
 
@@ -226,6 +330,30 @@ public:
 		}
 
 		return nullptr;
+	}
+
+	void setGlobalVariable(const juce::Identifier& id, juce::var value)
+	{
+		if (auto g = getGlobal(id))
+		{
+			TypeInfo t = g->getType();
+
+			if (value.isInt64() || value.isDouble() || value.isInt())
+			{
+				if (NativeJITTypeHelpers::matchesType<float>(t)) GlobalBase::store<float>(g, (float)value);
+				else if (NativeJITTypeHelpers::matchesType<double>(t)) GlobalBase::store<double>(g, (double)value);
+				else if (NativeJITTypeHelpers::matchesType<int>(t)) GlobalBase::store<int>(g, (int)value);
+				else throw String(id.toString() + " - var type mismatch: " + value.toString());
+			}
+			else if (value.isBuffer() && NativeJITTypeHelpers::matchesType<Buffer*>(t))
+			{
+				g->setBuffer(value.getBuffer());
+			}
+			else
+			{
+				throw String(id.toString() + " - var type mismatch: " + value.toString());
+			}
+		}
 	}
 
 	BaseFunction* getCompiledBaseFunction(const Identifier& id)
@@ -452,6 +580,8 @@ struct FunctionInfo
 	int offset = 0;
 
 	int parameterAmount = 0;
+
+	bool useSafeBufferFunctions = true;
 };
 
 

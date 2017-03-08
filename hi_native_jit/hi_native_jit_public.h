@@ -39,6 +39,15 @@ public:
 	/** Get the name of the variable at the given index. */
 	juce::Identifier getGlobalVariableName(int globalIndex) const;
 
+	int isBufferOverflow(int globalIndex) const;
+
+	/** Use this to set a global variable from the outside world. 
+	*
+	*	It accepts a var, and numbers / Buffers will be automatically converted to the given type.
+	*	If you try to pass it a String, a non-Buffer Object or an Array, it will throw an error message.
+	*/
+	void setGlobalVariable(const juce::Identifier& id, juce::var value);
+
 	/** Returns a typed pointer to a compiled function with the given name.
 	*
 	*	The template arguments are the return type and the parameters (supports up to two parameters)
@@ -173,6 +182,8 @@ public:
 	/** Returns the NativeJITScope of this module. You can use it to hook it up to another scripting language. */
 	const NativeJITScope* getScope() const;
 
+	void enableOverflowCheck(bool shouldCheckForOverflow);
+
 private:
 
 	typedef float(*processFunction)(float);
@@ -189,6 +200,9 @@ private:
 
 	bool compiledOk = false;
 	bool allFunctionsDefined;
+	
+	bool overFlowCheckEnabled;
+	int overflowIndex = -1;
 };
 
 

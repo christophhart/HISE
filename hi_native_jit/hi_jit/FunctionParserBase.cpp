@@ -99,6 +99,7 @@ FunctionParserBase::FunctionParserBase(NativeJITScope::Pimpl* scope_, const Func
 	missingOperatorFunctions(new MissingOperatorFunctions())
 {
 
+	
 }
 
 void FunctionParserBase::parseFunctionBody()
@@ -492,7 +493,7 @@ NativeJIT::Node<Buffer*>& FunctionParserBase::getBufferNode(const Identifier& id
 {
 	auto r = scope->getGlobal(id);
 
-	auto& e1 = exprBase->Immediate(GlobalBase::get<Buffer*>);
+	auto& e1 = exprBase->Immediate(GlobalBase::getBuffer);
 	auto& g = exprBase->Immediate<GlobalBase*>(r);
 
 	return exprBase->Call(e1, g);
@@ -505,9 +506,16 @@ NativeJIT::Node<float>& FunctionParserBase::parseBufferAccess(const Identifier &
 	auto& index = parseSum<int>();
 	match(NativeJitTokens::closeBracket);
 
-	auto& r = exprBase->Immediate(Buffer::getSample);
-
-	return exprBase->Call(r, b, index);
+	if (info.useSafeBufferFunctions)
+	{
+		auto& r = exprBase->Immediate(BufferOperations::getSample);
+		return exprBase->Call(r, b, index);
+	}
+	else
+	{
+		auto& r = exprBase->Immediate(BufferOperations::getSampleRaw);
+		return exprBase->Call(r, b, index);
+	}
 }
 
 TYPED_NODE FunctionParserBase::parseBufferFunction(const Identifier& id)
@@ -519,7 +527,7 @@ TYPED_NODE FunctionParserBase::parseBufferFunction(const Identifier& id)
 	if (functionName == setSize)
 	{
 		auto& b = getBufferNode(id);
-		auto& f = exprBase->Immediate(Buffer::setSize<T>);
+		auto& f = exprBase->Immediate(BufferOperations::setSize<T>);
 
 		match(NativeJitTokens::openParen);
 		auto& s = parseSum<int>();
@@ -542,9 +550,16 @@ TYPED_NODE FunctionParserBase::parseBufferAssignment(const Identifier &id)
 
 	auto& value = parseSum<float>();
 
-	auto& f = exprBase->Immediate(Buffer::setSample<T>);
-
-	return exprBase->Call(f, b, index, value);
+	if (info.useSafeBufferFunctions)
+	{
+		auto& f = exprBase->Immediate(BufferOperations::setSample<T>);
+		return exprBase->Call(f, b, index, value);
+	}
+	else
+	{
+		auto& f = exprBase->Immediate(BufferOperations::setSampleRaw<T>);
+		return exprBase->Call(f, b, index, value);
+	}
 }
 
 TYPED_NODE FunctionParserBase::getGlobalReference(const Identifier& id)

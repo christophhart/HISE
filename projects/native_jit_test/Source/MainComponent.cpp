@@ -156,32 +156,40 @@ void MainContentComponent::buttonClicked(Button* /*b*/)
 	float data[2048];
 	FloatVectorOperations::fill(data, 0.5f, 2048);
 
-	module->init();
+	module->enableOverflowCheck(true);
 
-	module->prepareToPlay(44100.0, 128);
+	try
+	{
+		module->init();
 
-	double start = Time::getMillisecondCounterHiRes();
+		module->prepareToPlay(44100.0, 128);
 
-	module->processBlock(data, 2048);
+		double start = Time::getMillisecondCounterHiRes();
 
-	double end = Time::getMillisecondCounterHiRes();
+		module->processBlock(data, 2048);
 
-	double delta = end - start;
+		double end = Time::getMillisecondCounterHiRes();
 
-	HardcodedDspModule hc;
+		double delta = end - start;
 
-	double hstart = Time::getMillisecondCounterHiRes();
+		HardcodedDspModule hc;
 
-	hc.processBlock(data, 2048);
+		double hstart = Time::getMillisecondCounterHiRes();
 
-	double hend = Time::getMillisecondCounterHiRes();
+		hc.processBlock(data, 2048);
 
-	double hdelta = hend - hstart;
+		double hend = Time::getMillisecondCounterHiRes();
 
-	float d = 1.0f;
+		double hdelta = hend - hstart;
 
-	module->processBlock(&d, 1);
+		float d = 1.0f;
 
-	messageBox->setText("Result: " + String(d, 4) + ", JIT: " + String(delta, 5) + " ms, Native: " + String(hdelta, 5) + " ms", dontSendNotification);
+		module->processBlock(&d, 1);
 
+		messageBox->setText("Result: " + String(d, 4) + ", JIT: " + String(delta, 5) + " ms, Native: " + String(hdelta, 5) + " ms", dontSendNotification);
+	}
+	catch (String e)
+	{
+		messageBox->setText(e, dontSendNotification);
+	}
 }

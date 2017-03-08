@@ -34,7 +34,8 @@ public:
 	Pimpl(const String& codeToCompile) :
 		preprocessor(codeToCompile),
 		code(preprocessor.process()),
-		compiledOK(false)
+		compiledOK(false),
+		useSafeFunctions(preprocessor.shouldUseSafeBufferFunctions())
 	{
 
 	};
@@ -46,7 +47,7 @@ public:
 #if JUCE_64BIT
 		ScopedPointer<NativeJITScope> scope = new NativeJITScope();
 
-		GlobalParser globalParser(code, scope);
+		GlobalParser globalParser(code, scope, useSafeFunctions);
 
 		try
 		{
@@ -95,6 +96,8 @@ private:
 	const String code;
 	bool compiledOK;
 	String errorMessage;
+
+	bool useSafeFunctions;
 };
 
 
@@ -151,7 +154,7 @@ var NativeJITScope::getGlobalVariableValue(int globalIndex) const
 		if (NativeJITTypeHelpers::matchesType<float>(g->getType())) return var(GlobalBase::get<float>(g));
 		if (NativeJITTypeHelpers::matchesType<double>(g->getType())) return var(GlobalBase::get<double>(g));
 		if (NativeJITTypeHelpers::matchesType<int>(g->getType())) return var(GlobalBase::get<int>(g));
-		if (NativeJITTypeHelpers::matchesType<Buffer*>(g->getType())) return GlobalBase::get<Buffer*>(g)->buffer->getNumSamples();
+		if (NativeJITTypeHelpers::matchesType<Buffer*>(g->getType())) return var("Buffer"); // GlobalBase::get<Buffer*>(g)->getObject()->size;
 	}
 
 	return var();
@@ -177,6 +180,13 @@ Identifier NativeJITScope::getGlobalVariableName(int globalIndex) const
 	return Identifier();
 }
 
+
+void NativeJITScope::setGlobalVariable(const juce::Identifier& id, juce::var value)
+{
+	pimpl->setGlobalVariable(id, value);
+}
+
+
 template <typename ReturnType, typename...ParameterTypes> ReturnType(*NativeJITScope::getCompiledFunction(const Identifier& id))(ParameterTypes...)
 {
 	int parameterAmount = sizeof...(ParameterTypes);
@@ -197,6 +207,13 @@ template <typename ReturnType, typename...ParameterTypes> ReturnType(*NativeJITS
 	return nullptr;
 }
 
+
+int NativeJITScope::isBufferOverflow(int globalIndex) const
+{
+	return pimpl->globals[globalIndex]->hasOverflowError();
+}
+
+
 #else
 
 NativeJITScope::NativeJITScope() {}
@@ -206,7 +223,7 @@ var NativeJITScope::getGlobalVariableValue(int /*globalIndex*/) const { return v
 TypeInfo NativeJITScope::getGlobalVariableType(int globalIndex) const { return typeid(void); }
 Identifier NativeJITScope::getGlobalVariableName(int globalIndex) const { return Identifier(); }
 template <typename ReturnType, typename...ParameterTypes> ReturnType(*NativeJITScope::getCompiledFunction(const Identifier& id))(ParameterTypes...) { return nullptr; }
-
+int NativeJITScope::isBufferOverflow(int globalIndex) const { return -1; }
 #endif
 
 NativeJITDspModule::NativeJITDspModule(const NativeJITCompiler* compiler)
@@ -263,6 +280,20 @@ void NativeJITDspModule::processBlock(float* data, int numSamples)
 		{
 			data[i] = pf(data[i]);
 		}
+
+		if (overFlowCheckEnabled)
+		{
+			overflowIndex = -1;
+
+			for (int i = 0; i < scope->getNumGlobalVariables(); i++)
+			{
+				overflowIndex = jmax<int>(overflowIndex, scope->isBufferOverflow(i));
+				if (overflowIndex != -1)
+				{
+					throw String("Buffer overflow for " + scope->getGlobalVariableName(i) + " at index " + String(overflowIndex));
+				}
+			}
+		}
 	}
 }
 
@@ -272,3 +303,8 @@ bool NativeJITDspModule::allOK() const
 }
 
 
+void NativeJITDspModule::enableOverflowCheck(bool shouldCheckForOverflow)
+{
+	overFlowCheckEnabled = shouldCheckForOverflow;
+	overflowIndex = -1;
+}

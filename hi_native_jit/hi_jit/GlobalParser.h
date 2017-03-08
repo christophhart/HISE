@@ -53,6 +53,11 @@ public:
                     
                     definitions.set(name, value);
                     
+					if (name == "DISABLE_SAFE_BUFFER_ACCESS")
+					{
+						useSafeBufferFunctions = false;
+					}
+
                     for(int j = i; j < lines.size(); j++)
                     {
                         lines.set(j, lines[j].replace(name, value));
@@ -134,8 +139,15 @@ public:
         return processedCode;
     }
     
+	bool shouldUseSafeBufferFunctions() const
+	{
+		return useSafeBufferFunctions;
+	}
+
 private:
     
+	bool useSafeBufferFunctions = true;
+
     const String& code;
     
     NamedValueSet definitions;
@@ -146,9 +158,10 @@ class GlobalParser : public ParserHelpers::TokenIterator
 {
 public:
 
-	GlobalParser(const String& code, NativeJITScope* scope_) :
+	GlobalParser(const String& code, NativeJITScope* scope_, bool useSafeBufferFunctions_) :
 		ParserHelpers::TokenIterator(code.getCharPointer()),
-		scope(scope_->pimpl)
+		scope(scope_->pimpl),
+		useSafeBufferFunctions(useSafeBufferFunctions_)
 	{
 
 	}
@@ -224,7 +237,16 @@ public:
 
 		ScopedPointer<GlobalBase> g = new GlobalBase(id, typeid(Buffer*));
 
-		GlobalBase::store<Buffer*>(g, new Buffer());
+		int size = 0;
+
+		if (matchIf(NativeJitTokens::openParen))
+		{
+			size = (int)currentValue;
+			match(NativeJitTokens::literal);
+			match(NativeJitTokens::closeParen);
+		}
+
+		g->setBuffer(new VariantBuffer(size));
 
 		scope->globals.add(g.release());
 
@@ -285,6 +307,8 @@ public:
 		FunctionInfo info;
 		
 		info.program = location.program;
+
+		info.useSafeBufferFunctions = useSafeBufferFunctions;
 
 		if (addVoidReturnStatement)
 		{
@@ -440,6 +464,8 @@ public:
 private:
 
 	NativeJITScope::Pimpl* scope;
+
+	bool useSafeBufferFunctions;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GlobalParser)
 };
