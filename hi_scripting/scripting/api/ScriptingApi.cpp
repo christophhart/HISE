@@ -1593,7 +1593,7 @@ void ScriptingApi::Synth::noteOffByEventId(int eventId)
 
 		if (current != nullptr)
 		{
-			timestamp = e.getTimeStamp();
+			timestamp = current->getTimeStamp();
 		}
 
 		HiseEvent noteOff(HiseEvent::Type::NoteOff, (uint8)e.getNoteNumber(), 1, (uint8)e.getChannel());
@@ -1612,7 +1612,7 @@ void ScriptingApi::Synth::noteOffByEventId(int eventId)
 	}
 	else
 	{
-		reportScriptError("NoteOff with ID" + String(eventId) + " wasn't found");
+		reportScriptError("NoteOn with ID" + String(eventId) + " wasn't found");
 	}
 }
 
@@ -1654,6 +1654,47 @@ void ScriptingApi::Synth::addVolumeFade(int eventId, int fadeTimeMilliseconds, i
 				}
 
 				sp->addHiseEventToBuffer(e);
+                
+                if(targetVolume == -100)
+                {
+                    HiseEvent no = getProcessor()->getMainController()->getEventHandler().popNoteOnFromEventId((uint16)eventId);
+                    
+                    if (!no.isEmpty())
+                    {
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+                        if (!no.isArtificial())
+                        {
+                            reportScriptError("Hell breaks loose if you kill real events artificially!");
+                        }
+#endif
+                        const uint16 timeStampOffset = (uint16)(1.0 + (double)fadeTimeMilliseconds / 1000.0 * getProcessor()->getSampleRate());
+                        
+                        uint16 timestamp = timeStampOffset;
+                        
+                        const HiseEvent* current = dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor())->getCurrentHiseEvent();
+                        
+                        if (current != nullptr)
+                        {
+                            timestamp += current->getTimeStamp();
+                        }
+                        
+                        HiseEvent noteOff(HiseEvent::Type::NoteOff, (uint8)no.getNoteNumber(), 1, (uint8)no.getChannel());
+                        noteOff.setEventId((uint16)eventId);
+                        noteOff.setTimeStamp(timestamp);
+                        noteOff.setArtificial();
+                        
+                        ScriptBaseMidiProcessor* sp = dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor());
+                        
+                        if (sp != nullptr)
+                            sp->addHiseEventToBuffer(noteOff);
+                        
+                    }
+                    else
+                    {
+                        reportScriptError("NoteOn with ID" + String(eventId) + " wasn't found");
+                    }
+                }
+                
 			}
 			else reportScriptError("Fade time must be positive");
 		}
