@@ -12,6 +12,14 @@
 #define GLOBALPARSER_H_INCLUDED
 
 
+void clearStringArrayLines(StringArray& sa, int startIndex, int endIndex)
+{
+	for (int i = startIndex; i < endIndex; i++)
+	{
+		sa.set(i, String());
+	}
+}
+
 class PreprocessorParser
 {
 public:
@@ -50,7 +58,8 @@ public:
                         lines.set(j, lines[j].replace(name, value));
                     }
                     
-                    lines.remove(i--);
+					lines.set(i, String());
+
                     continue;
                 }
                 else if (op == "#if")
@@ -78,16 +87,17 @@ public:
                     
                     if(elseIndex != -1 && endifIndex != -1)
                     {
-                        lines.remove(endifIndex);
-                        
+                        lines.set(endifIndex, String());
+						lines.set(elseIndex, String());
+
                         if(condition)
                         {
-                            lines.removeRange(elseIndex, endifIndex-elseIndex);
-                            lines.remove(i--);
+							clearStringArrayLines(lines, elseIndex, endifIndex);
+                            lines.set(i, String());
                         }
                         else
                         {
-                            lines.removeRange(i, elseIndex+1-i);
+							clearStringArrayLines(lines, i, elseIndex+1);
                         }
                         
                         continue;
@@ -96,17 +106,13 @@ public:
                     {
                         if(condition)
                         {
-                            lines.remove(endifIndex);
-                            lines.remove(i);
-                            
-                            i--;
+                            lines.set(endifIndex, String());
+                            lines.set(i, String());
                         }
                         else
                         {
-                            lines.removeRange(i, endifIndex+1-i);
-                            i--;
+							clearStringArrayLines(lines, i, endifIndex+1);
                         }
-                        
                         
                         continue;
                     }
@@ -114,8 +120,6 @@ public:
             }
             
         }
-        
-        
         
         String processedCode = lines.joinIntoString("\n");
         
@@ -142,29 +146,44 @@ class GlobalParser : public ParserHelpers::TokenIterator
 {
 public:
 
-	GlobalParser(const String& code, GlobalScope* scope_) :
-		ParserHelpers::TokenIterator(code),
-		scope(scope_)
+	GlobalParser(const String& code, NativeJITScope* scope_) :
+		ParserHelpers::TokenIterator(code.getCharPointer()),
+		scope(scope_->pimpl)
 	{
 
 	}
 
 	void parseStatementList()
 	{
-		while (currentType != NativeJitTokens::eof)
+		try
 		{
-			if (NativeJITTypeHelpers::matchesToken<float>(currentType)) parseStatement<float>();
-			else if (NativeJITTypeHelpers::matchesToken<double>(currentType)) parseStatement<double>();
-			else if (NativeJITTypeHelpers::matchesToken<int>(currentType)) parseStatement<int>();
-			else if (currentType == NativeJitTokens::void_)
+			while (currentType != NativeJitTokens::eof)
 			{
-				parseVoidFunction();
+				if (NativeJITTypeHelpers::matchesToken<float>(currentType)) parseStatement<float>();
+				else if (NativeJITTypeHelpers::matchesToken<double>(currentType)) parseStatement<double>();
+				else if (NativeJITTypeHelpers::matchesToken<int>(currentType)) parseStatement<int>();
+				else if (NativeJITTypeHelpers::matchesToken<Buffer>(currentType)) parseBufferDefinition();
+				else if (currentType == NativeJitTokens::void_)
+				{
+					parseVoidFunction();
 
+				}
+				else
+				{
+					location.throwError("Unexpected Token");
+				}
 			}
-			else
+		}
+		catch (ParserHelpers::CodeLocation::Error e)
+		{
+			int thisOffset = (int)(e.location - location.program);
+
+			if (location.program != e.program)
 			{
-				location.throwError("Unexpected Token");
+				e.offsetFromStart = thisOffset;
 			}
+
+			throw e;
 		}
 	}
 
@@ -193,6 +212,21 @@ public:
             }
         }
 		else parseVariableDeclaration<LineType>(id);
+
+		match(NativeJitTokens::semicolon);
+	}
+
+	void parseBufferDefinition()
+	{
+		skip();
+
+		const Identifier id = parseIdentifier();
+
+		ScopedPointer<GlobalBase> g = new GlobalBase(id, typeid(Buffer*));
+
+		GlobalBase::store<Buffer*>(g, new Buffer());
+
+		scope->globals.add(g.release());
 
 		match(NativeJitTokens::semicolon);
 	}
@@ -282,7 +316,7 @@ public:
 		//NativeJIT::FunctionBuffer& fb = scope->createFunctionBuffer();
 
 		auto start = location.location;
-		info.offset = (int)(location.location - location.program.getCharPointer());
+		info.offset = (int)(location.location - location.program);
 		
 		while (currentType != NativeJitTokens::closeBrace && currentType != NativeJitTokens::eof)
 		{
@@ -291,7 +325,8 @@ public:
 		
 		auto end = location.location;
 
-		info.code = String(start, end);
+		info.code = start;
+		info.length = (int)(location.location - start);
 
 		match(NativeJitTokens::closeBrace);
 
@@ -404,10 +439,13 @@ public:
 
 private:
 
-	GlobalScope::Ptr scope;
+	NativeJITScope::Pimpl* scope;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GlobalParser)
 };
+
+
+
 
 
 

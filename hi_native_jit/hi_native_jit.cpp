@@ -17,3 +17,6 @@
 #include "native_jit/src/CodeGen/ValuePredicates.cpp"
 #include "native_jit/src/CodeGen/X64CodeGenerator.cpp"
 
+#include "../JUCE/modules/juce_core/juce_core.h"
+
+#include "hi_jit/hi_jit_compiler.cpp"

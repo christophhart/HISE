@@ -47,4 +47,14 @@ TypeInfo NativeJITTypeHelpers::getTypeForLiteral(const String &t)
 
 template <typename ExpectedType> bool NativeJITTypeHelpers::matchesType(const TypeInfo& actualType) { return actualType == typeid(ExpectedType); }
 template <typename ExpectedType> bool NativeJITTypeHelpers::matchesType(const String& t) { return getTypeForLiteral(t) == typeid(ExpectedType); }
+
+TypeInfo NativeJITTypeHelpers::getTypeForToken(const char* token)
+{
+	if (String(token) == String(NativeJitTokens::double_)) return typeid(double);
+	else if (String(token) == String(NativeJitTokens::int_))  return typeid(int);
+	else if (String(token) == String(NativeJitTokens::float_))  return typeid(float);
+	else if (String(token) == String(NativeJitTokens::buffer_)) return typeid(Buffer);
+	else return typeid(void);
+}
+
 template <typename R1, typename R2> bool NativeJITTypeHelpers::is() { return typeid(R1) == typeid(R2); }

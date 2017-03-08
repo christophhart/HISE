@@ -77,5 +77,16 @@ END_JUCE_MODULE_DECLARATION
 
 #include "../JUCE/modules/juce_core/juce_core.h"
 
+#include <typeindex>
+
+typedef std::type_index TypeInfo;
+
+
+namespace juce
+{
+#include "hi_native_jit_public.h"
+}
+
+
 
 #endif   // HI_CORE_INCLUDED

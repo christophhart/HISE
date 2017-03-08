@@ -5,10 +5,6 @@
               jucerVersion="4.3.0">
   <MAINGROUP id="iVJxiV" name="NativeJIT Test">
     <GROUP id="{53F95F75-8C5A-4692-F77C-979AE04AD8C9}" name="Source">
-      <FILE id="XQuK89" name="GlobalParser.h" compile="0" resource="0" file="Source/GlobalParser.h"/>
-      <FILE id="DWaRN1" name="TokenIterator.h" compile="0" resource="0" file="Source/TokenIterator.h"/>
-      <FILE id="HhHLfn" name="Parser.cpp" compile="0" resource="0" file="Source/Parser.cpp"/>
-      <FILE id="kpt1JM" name="Parser.h" compile="0" resource="0" file="Source/Parser.h"/>
       <FILE id="nU9JQP" name="MainComponent.cpp" compile="1" resource="0"
             file="Source/MainComponent.cpp"/>
       <FILE id="NjRz64" name="MainComponent.h" compile="0" resource="0" file="Source/MainComponent.h"/>

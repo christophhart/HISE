@@ -11,107 +11,7 @@
 #ifndef TOKENITERATOR_H_INCLUDED
 #define TOKENITERATOR_H_INCLUDED
 
-
-
-#include "JuceHeader.h"
 #include <typeindex>
-
-class BaseLine {
-private:
-
-	typedef void(*runFunction)(void* const);
-
-	typedef var(*valueFunction)(void* const);
-
-	runFunction m_pfnRun_T;
-	valueFunction m_v_T;
-
-	template<typename T> static	void executeInternal(void* const pObj)
-	{
-		*static_cast<T*>(pObj)->valuePointer = static_cast<T*>(pObj)->func();
-	}
-
-	template<typename T> static var getValueInternal(void* const pObj)
-	{
-		return var(*static_cast<T*>(pObj)->valuePointer);
-	}
-
-protected:
-
-	template<typename T>  void Init()
-	{
-		m_pfnRun_T = (runFunction)&executeInternal<T>;
-		m_v_T = (valueFunction)&getValueInternal<T>;
-	}
-
-public:
-
-	template<typename T> const T* getAs() const
-	{
-		return dynamic_cast<const T*>(this);
-	}
-
-	var getValueAsVar()
-	{
-		return (*m_v_T)(this);
-	}
-
-	BaseLine() : m_pfnRun_T(0) {};
-
-	virtual ~BaseLine() {}
-
-	void execute()
-	{
-		//assert(m_pfnRun_T); // Make sure Init() was called.
-		(*m_pfnRun_T)(this);
-	}
-};
-
-
-/** This struct holds the value of a globally accessible variable. */
-template <typename T> struct GlobalVariable
-{
-	static T set(GlobalVariable<T>* var, T newValue)
-	{
-		var->value = newValue;
-		return newValue;
-	}
-
-	T value;
-};
-
-
-/** This struct holds the compiled function, the expression and the intermediate value.
-*   Every line will be a function that takes a float (the `input`) and stores it result in `value`.
-*
-*/
-template <typename T> class CodeLine : public BaseLine
-{
-	friend class BaseLine;
-
-public:
-
-	CodeLine()
-	{
-		valuePointer = &lineValue;
-		BaseLine::Init<CodeLine<T>>();
-	}
-
-	~CodeLine() {}
-
-	T lineValue;
-	T* valuePointer;
-
-	T(*func)();
-
-	void referTo(T* otherVariable)
-	{
-		valuePointer = otherVariable;
-	}
-
-	Identifier variableName;
-};
-
 
 #define NATIVE_JIT_OPERATORS(X) \
     X(semicolon,     ";")        X(dot,          ".")       X(comma,        ",") \
@@ -131,7 +31,7 @@ public:
 #define NATIVE_JIT_KEYWORDS(X) \
     X(float_,      "float")      X(int_, "int")     X(double_,  "double")   X(bool_, "bool") \
     X(return_, "return")		X(true_,  "true")   X(false_,    "false")	X(const_, "const") \
-	X(void_, "void")		
+	X(void_, "void")			X(buffer_, "Buffer")
 
 namespace NativeJitTokens
 {
@@ -154,31 +54,41 @@ struct ParserHelpers
 
 	struct CodeLocation
 	{
-		CodeLocation(const String& code) noexcept        : program(code), location(program.getCharPointer()) {}
+		struct Error
+		{
+			Error(const String::CharPointerType &program_, const String::CharPointerType &location_) : program(program_), location(location_) {};
+
+			int offsetFromStart = 0;
+			String errorMessage;
+			const String::CharPointerType program;
+			String::CharPointerType location;
+
+		};
+
+		CodeLocation(const String::CharPointerType& code) noexcept        : program(code), location(program) {}
 		CodeLocation(const CodeLocation& other) noexcept : program(other.program), location(other.location) {}
 
 		void throwError(const String& message) const
 		{
-			int col = 1, line = 1;
+			Error e(program, location);
 
-			for (String::CharPointerType i(program.getCharPointer()); i < location && !i.isEmpty(); ++i)
-			{
-				++col;
-				if (*i == '\n') { col = 1; ++line; }
-			}
+			e.errorMessage = message;
+			e.offsetFromStart = (int)(location - program);
 
-			throw "Line " + String(line) + ", column " + String(col) + " : " + message;
+			throw e;
 		}
 
-		String program;
+		String::CharPointerType program;
 		String::CharPointerType location;
 	};
 
 	struct TokenIterator
 	{
-		TokenIterator(const String& code) :
+		TokenIterator(const String::CharPointerType& code, int length_=-1) :
 			location(code),
-			p(code.getCharPointer())
+			p(code),
+			length(length_),
+			endPointer(length_ > 0 ? p + length_ : String::CharPointerType(nullptr))
 		{ skip(); }
 
 		void skip()
@@ -212,11 +122,16 @@ struct ParserHelpers
 
 		String::CharPointerType p;
 
+		String::CharPointerType endPointer;
+		int length = -1;
+
 		static bool isIdentifierStart(const juce_wchar c) noexcept { return CharacterFunctions::isLetter(c) || c == '_'; }
 		static bool isIdentifierBody(const juce_wchar c) noexcept { return CharacterFunctions::isLetterOrDigit(c) || c == '_'; }
 
 		TokenType matchNextToken()
 		{
+			if (length > 0 && p > endPointer) return NativeJitTokens::eof;
+
 			if (isIdentifierStart(*p))
 			{
 				String::CharPointerType end(p);
@@ -411,6 +326,46 @@ struct ParserHelpers
 
 
 
+struct NativeJITTypeHelpers
+{
+	/** Returns a pretty name for the given Type. */
+	template <typename T> static String getTypeName();
+
+	/** Returns a pretty name for the given String literal. */
+	static String getTypeName(const String &t);
+
+	static String getTypeName(const TypeInfo& info);
+
+	/** Creates a error message if the types don't match. */
+	template <typename ActualType, typename ExpectedType> static String getTypeMismatchErrorMessage();
+
+	template <typename ExpectedType> static String getTypeMismatchErrorMessage(const TypeInfo& actualType);
+
+	/** Returns the type ID for the given String literal. Currently supported: double, float & int. */
+	static TypeInfo getTypeForLiteral(const String &t);;
+
+	/** Checks if the given type ID matches the expected type. */
+	template <typename ExpectedType> static bool matchesType(const TypeInfo& actualType);
+
+	/** Checks if the given string matches the expected type. */
+	template <typename ExpectedType> static bool matchesType(const String& t);;
+
+	/** Checks if the given token matches the type. */
+	template <typename ExpectedType> static bool matchesToken(const char* token)
+	{
+		return matchesType<ExpectedType>(getTypeForToken(token));
+	}
+
+	template <typename ExpectedType> static bool matchesToken(const Identifier& tokenName)
+	{
+		return matchesType<ExpectedType>(getTypeForToken(tokenName.toString().getCharPointer()));
+	}
+
+	static TypeInfo getTypeForToken(const char* token);
+
+	/** Compares two types. */
+	template <typename R1, typename R2> static bool is();;
+};
 
 
 #endif  // TOKENITERATOR_H_INCLUDED
