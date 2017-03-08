@@ -66,7 +66,7 @@ AudioProcessorEditor(fp)
 	container->addAndMakeVisible(deactiveOverlay = new DeactiveOverlay());
 
 #if !FRONTEND_IS_PLUGIN
-	deactiveOverlay->setState(DeactiveOverlay::SamplesNotFound, !ProjectHandler::Frontend::getSampleLocationForCompiledPlugin().isDirectory());
+	deactiveOverlay->setState(DeactiveOverlay::SamplesNotFound, !fp->areSamplesLoadedCorrectly());
 #endif
 
 #if USE_COPY_PROTECTION
@@ -80,9 +80,7 @@ AudioProcessorEditor(fp)
 
 #elif USE_TURBO_ACTIVATE
 
-	deactiveOverlay->setState(DeactiveOverlay::State::LicenseNotFound, !fp->unlocker.licenceWasFound());
-	deactiveOverlay->setState(DeactiveOverlay::State::LicenseExpired, fp->unlocker.licenceExpired());
-	deactiveOverlay->setState(DeactiveOverlay::State::LicenseInvalid, !fp->unlocker.isUnlocked());
+	deactiveOverlay->setState(DeactiveOverlay::State::CopyProtectionError, !fp->unlocker.isUnlocked());
 
 #endif
     
@@ -302,10 +300,6 @@ void DeactiveOverlay::buttonClicked(Button *b)
 		}
 #elif USE_TURBO_ACTIVATE
         
-		
-
-
-
         const String key = PresetHandler::getCustomName("Product Key", "Enter the product key that you've received along with the download link\nIt should have this format: XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX");
         
         TurboActivateUnlocker *ul = &dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor())->unlocker;
@@ -313,15 +307,12 @@ void DeactiveOverlay::buttonClicked(Button *b)
 		setCustomMessage("Waiting for activation");
 		setState(DeactiveOverlay::State::CustomErrorMessage, true);
 
-		
         ul->activateWithKey(key.getCharPointer());
         
 		setState(DeactiveOverlay::CustomErrorMessage, false);
 		setCustomMessage(String());
 
-        setState(DeactiveOverlay::State::LicenseNotFound, !ul->licenceWasFound());
-		setState(DeactiveOverlay::State::LicenseExpired, ul->unlockState == TurboActivateUnlocker::State::Deactivated);
-        setState(DeactiveOverlay::State::LicenseInvalid, !ul->isUnlocked());
+        setState(DeactiveOverlay::State::CopyProtectionError, !ul->isUnlocked());
         
         if(ul->isUnlocked())
         {
@@ -370,8 +361,65 @@ void DeactiveOverlay::buttonClicked(Button *b)
         Unlocker *ul = &dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor())->unlocker;
 		OnlineActivator* activator = new OnlineActivator(ul, this);
 		activator->setModalBaseWindowComponent(this);
+#elif USE_TURBO_ACTIVATE
+
+		FileChooser fc("Save activation request file", File::getSpecialLocation(File::SpecialLocationType::userDesktopDirectory), "*.xml", true);
+
+		if (fc.browseForFileToSave(true))
+		{
+			File f = fc.getResult();
+
+#if JUCE_WINDOWS
+			TurboActivateCharPointerType path = f.getFullPathName().toUTF16().getAddress();
+#else
+			TurboActivateCharPointerType path = f.getFullPathName().toUTF8().getAddress();
+#endif
+
+			FrontendProcessor* fp = dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor());
+			TurboActivateUnlocker* ul = &fp->unlocker;
+
+			ul->writeActivationFile(ul->getProductKey().c_str(), path);
+
+			PresetHandler::showMessageWindow("Activation file created", "Use this file to activate this machine on a computer with internet connection", PresetHandler::IconType::Info);
+		}
+
 #endif
     }
+	else if (b == useActivationResponseButton)
+	{
+		FileChooser fc("Load activation response file", File::getSpecialLocation(File::SpecialLocationType::userDesktopDirectory), "*.xml", true);
+
+		if (fc.browseForFileToOpen())
+		{
+			File f = fc.getResult();
+
+#if JUCE_WINDOWS
+			TurboActivateCharPointerType path = f.getFullPathName().toUTF16().getAddress();
+#else
+			TurboActivateCharPointerType path = f.getFullPathName().toUTF8().getAddress();
+#endif
+
+			FrontendProcessor* fp = dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor());
+			TurboActivateUnlocker* ul = &fp->unlocker;
+
+			setCustomMessage("Waiting for activation");
+			setState(DeactiveOverlay::State::CustomErrorMessage, true);
+
+			ul->activateWithFile(path);
+
+			setState(DeactiveOverlay::CustomErrorMessage, false);
+			setCustomMessage(String());
+
+			setState(DeactiveOverlay::State::CopyProtectionError, !ul->isUnlocked());
+
+			if (ul->isUnlocked())
+			{
+				PresetHandler::showMessageWindow("Registration successful", "The software is now unlocked and ready to use.");
+				fp->loadSamplesAfterRegistration();
+			}
+			
+		}
+	}
 	else if (b == ignoreButton)
 	{
 		if (currentState[CustomErrorMessage])
@@ -499,9 +547,6 @@ String DeactiveOverlay::getTextForError(State s) const
 #if USE_COPY_PROTECTION
 		return "This computer is not registered.\nClick below to authenticate this machine using either online authorization or by loading a license key.";
 		break;
-#elif USE_TURBO_ACTIVATE
-		auto ul = &dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor())->unlocker;
-		return ul->getErrorMessage();
 #else
 		return "";
 #endif
@@ -519,13 +564,19 @@ String DeactiveOverlay::getTextForError(State s) const
 	case DeactiveOverlay::EmailNotMatching:
 		return "The email name is invalid.\nThis means usually a corrupt or rogued license key file. Please contact support to get a new license key.";
 		break;
+	case DeactiveOverlay::CopyProtectionError:
+	{
+#if USE_TURBO_ACTIVATE
+		auto ul = &dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor())->unlocker;
+		return ul->getErrorMessage();
+#else
+		return "";
+#endif
+	}
 	case DeactiveOverlay::LicenseInvalid:
 	{
 #if USE_COPY_PROTECTION
 		return "The license key is malicious.\nPlease contact support.";
-#elif USE_TURBO_ACTIVATE
-		auto ul = &dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor())->unlocker;
-		return ul->getErrorMessage();
 #else
 		return "";
 #endif
@@ -534,9 +585,6 @@ String DeactiveOverlay::getTextForError(State s) const
 	{
 #if USE_COPY_PROTECTION
 		return "The license key is expired. Press OK to reauthenticate (you'll need to be online for this)";
-#elif USE_TURBO_ACTIVATE
-		auto ul = &dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor())->unlocker;
-		return ul->getErrorMessage();
 #else
 		return "";
 #endif

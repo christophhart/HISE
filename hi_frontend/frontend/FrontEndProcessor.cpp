@@ -76,14 +76,18 @@ MainController(),
 PluginParameterAudioProcessor(ProjectHandler::Frontend::getProjectName()),
 AudioProcessorDriver(manager, callback_),
 synthChain(new ModulatorSynthChain(this, "Master Chain", NUM_POLYPHONIC_VOICES)),
-samplesCorrectlyLoaded(true),
+samplesCorrectlyLoaded(false),
 keyFileCorrectlyLoaded(true),
 presets(*userPresets),
 currentlyLoadedProgram(0),
 
 #if USE_TURBO_ACTIVATE
 unlockCounter(0),
-unlocker(ProjectHandler::Frontend::getAppDataDirectory().getFullPathName().getCharPointer())
+#if JUCE_WINDOWS
+unlocker(ProjectHandler::Frontend::getAppDataDirectory().getFullPathName().toUTF16().getAddress())
+#else
+unlocker(ProjectHandler::Frontend::getAppDataDirectory().getFullPathName().toUTF8().getAddress())
+#endif
 #else
 unlockCounter(0)
 #endif
@@ -101,9 +105,6 @@ unlockCounter(0)
 	keyFileCorrectlyLoaded = unlocker.isUnlocked();
 
 #endif
-
-
-
 
 
 	loadImages(imageData_);

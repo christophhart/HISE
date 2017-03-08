@@ -34,6 +34,13 @@
 #define FRONTENDPROCESSOR_H_INCLUDED
 
 
+#ifdef _WIN32
+typedef std::wstring TurboActivateStringType;
+typedef const wchar_t* TurboActivateCharPointerType;
+#else
+typedef std::string TurboActivateStringType;
+typedef const char* TurboActivateCharPointerType;
+#endif
 
 class TurboActivateUnlocker
 {
@@ -52,13 +59,13 @@ public:
         numStates
     };
     
-    TurboActivateUnlocker(const char* pathToLicenceFile);
+    TurboActivateUnlocker(TurboActivateCharPointerType pathToLicenceFile);
     
     ~TurboActivateUnlocker();
     
     bool isUnlocked() const noexcept
     {
-        return unlockState == State::Activated || unlockState == State::ActivatedButFailedToConnect || unlockState == State::Trial;
+        return unlockState == State::Activated || unlockState == State::ActivatedButFailedToConnect;
     }
     
     bool licenceWasFound() const noexcept
@@ -75,9 +82,15 @@ public:
 
 	std::string getErrorMessage() const;
 
-    void activateWithKey(const char* key);
+	void activateWithKey(const char* key);
     
+	void activateWithFile(TurboActivateCharPointerType filePath);
+
+	void writeActivationFile(const char* key, TurboActivateCharPointerType fileName);
+
 	void deactivateThisComputer();
+
+	void deactivateWithFile(TurboActivateCharPointerType path);
 
 	void reactivate();
 
@@ -143,6 +156,8 @@ public:
             suspendProcessing(true);
         }
 	}
+
+	bool areSamplesLoadedCorrectly() const { return samplesCorrectlyLoaded; }
 
 	void getStateInformation	(MemoryBlock &destData) override
 	{
@@ -264,7 +279,7 @@ private:
 	friend class FrontendProcessorEditor;
 	friend class DefaultFrontendBar;
 
-	bool samplesCorrectlyLoaded;
+	bool samplesCorrectlyLoaded = false;
 
     bool keyFileCorrectlyLoaded = true;
 

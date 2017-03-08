@@ -61,21 +61,27 @@ public:
 
 #if USE_TURBO_ACTIVATE
 		addAndMakeVisible(resolveLicenceButton = new TextButton("Register Product Key"));
+		addAndMakeVisible(registerProductButton = new TextButton("Request offline activation file"));
+		addAndMakeVisible(useActivationResponseButton = new TextButton("Activate with activation response file"));
 #else
         addAndMakeVisible(resolveLicenceButton = new TextButton("Use Licence File"));
+		addAndMakeVisible(registerProductButton = new TextButton("Online authentication"));
+		addAndMakeVisible(useActivationResponseButton = new TextButton("Activate with activation response file"));
 #endif
 		addAndMakeVisible(resolveSamplesButton = new TextButton("Choose Sample Folder"));
-        addAndMakeVisible(registerProductButton = new TextButton("Online authentication"));
+        
 		addAndMakeVisible(ignoreButton = new TextButton("Ignore"));
 
 		resolveLicenceButton->setLookAndFeel(&alaf);
 		resolveSamplesButton->setLookAndFeel(&alaf);
         registerProductButton->setLookAndFeel(&alaf);
+		useActivationResponseButton->setLookAndFeel(&alaf);
 		ignoreButton->setLookAndFeel(&alaf);
 
 		resolveLicenceButton->addListener(this);
 		resolveSamplesButton->addListener(this);
         registerProductButton->addListener(this);
+		useActivationResponseButton->addListener(this);
 		ignoreButton->addListener(this);
 	};
 
@@ -91,6 +97,7 @@ public:
 		MachineNumbersNotMatching,
 		LicenseExpired,
 		LicenseInvalid,
+		CopyProtectionError,
 		CriticalCustomErrorMessage,
 		SamplesNotFound,
 		CustomErrorMessage,
@@ -131,12 +138,16 @@ public:
 				return;
 			}
 		}
+
+		resized();
 	}
 
 	String getTextForError(State s) const;
 
 	void resized()
 	{
+		useActivationResponseButton->setVisible(false);
+
 		if (currentState != 0)
 		{
 			descriptionLabel->centreWithSize(getWidth() - 20, 150);
@@ -172,6 +183,33 @@ public:
 			ignoreButton->setTopLeftPosition(ignoreButton->getX(),
 				resolveSamplesButton->getY() + 40);
 		}
+		else if (currentState[CopyProtectionError])
+		{
+			resolveLicenceButton->setVisible(true);
+			
+			resolveSamplesButton->setVisible(false);
+			ignoreButton->setVisible(false);
+
+			String text = descriptionLabel->getText();
+
+			if (text == "Connection to the server failed.")
+			{
+				registerProductButton->setVisible(true);
+				resolveLicenceButton->setVisible(false);
+				useActivationResponseButton->setVisible(true);
+
+				registerProductButton->centreWithSize(200, 32);
+				useActivationResponseButton->centreWithSize(200, 32);
+
+				useActivationResponseButton->setTopLeftPosition(registerProductButton->getX(), registerProductButton->getY() + 40);
+				
+			}
+			else
+			{
+				registerProductButton->setVisible(false);
+				resolveLicenceButton->centreWithSize(200, 32);
+			}
+		}
 		else if (currentState[CustomErrorMessage])
 		{
 			resolveLicenceButton->setVisible(false);
@@ -181,10 +219,6 @@ public:
 
 			ignoreButton->centreWithSize(200, 32);
 		}
-        
-#if USE_TURBO_ACTIVATE
-        registerProductButton->setVisible(false);
-#endif
 	}
 
 private:
@@ -198,6 +232,7 @@ private:
 	ScopedPointer<TextButton> resolveLicenceButton;
 	ScopedPointer<TextButton> resolveSamplesButton;
     ScopedPointer<TextButton> registerProductButton;
+	ScopedPointer<TextButton> useActivationResponseButton;
 	ScopedPointer<TextButton> ignoreButton;
 
 	BigInteger currentState;

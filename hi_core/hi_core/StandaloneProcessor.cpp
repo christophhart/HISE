@@ -110,19 +110,21 @@ void AudioProcessorDriver::saveDeviceSettingsAsXml()
 {
 	ScopedPointer<XmlElement> deviceData = deviceManager->createStateXml();
 
-	if (deviceData != nullptr)
+	if (deviceData == nullptr)
 	{
-        deviceData->setAttribute("DISK_MODE", diskMode);
-		deviceData->setAttribute("SCALE_FACTOR", scaleFactor);
-		deviceData->setAttribute("MICRO_TUNING", microTuning);
+		deviceData = new XmlElement("DEVICESETUP");
+	}
+
+	deviceData->setAttribute("DISK_MODE", diskMode);
+	deviceData->setAttribute("SCALE_FACTOR", scaleFactor);
+	deviceData->setAttribute("MICRO_TUNING", microTuning);
 
 
 #if USE_FRONTEND
-		deviceData->setAttribute("SAMPLES_FOUND", allSamplesFound);
+	deviceData->setAttribute("SAMPLES_FOUND", allSamplesFound);
 #endif
 
-		deviceData->writeToFile(getDeviceSettingsFile(), "");
-	}
+	deviceData->writeToFile(getDeviceSettingsFile(), "");
 }
 
 void AudioProcessorDriver::setDiskMode(int mode)
@@ -178,7 +180,7 @@ XmlElement * AudioProcessorDriver::getSettings()
 
 void AudioProcessorDriver::initialiseAudioDriver(XmlElement *deviceData)
 {
-	if (deviceData != nullptr && deviceManager->initialise(0, 2, deviceData, false) == String())
+	if (deviceData != nullptr && deviceData->hasTagName("deviceType") && deviceManager->initialise(0, 2, deviceData, false) == String())
 	{
 		callback->setProcessor(dynamic_cast<AudioProcessor*>(this));
 

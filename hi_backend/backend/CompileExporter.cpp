@@ -431,7 +431,7 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 	if(!hisePath.isDirectory()) hisePath = File(SettingWindows::getSettingValue((int)SettingWindows::CompilerSettingWindow::Attributes::HisePath));
 	if (!hisePath.isDirectory()) return ErrorCodes::HISEPathNotSpecified;
 
-	if (!checkSanity(type, option)) return ErrorCodes::SanityCheckFailed;
+	if (!checkSanity(option)) return ErrorCodes::SanityCheckFailed;
 
 	ErrorCodes result = ErrorCodes::OK;
 
@@ -536,7 +536,7 @@ String checkSampleReferences(ModulatorSynthChain* chainToExport)
     return String();
 }
 
-bool CompileExporter::checkSanity(TargetTypes type, BuildOption option)
+bool CompileExporter::checkSanity(BuildOption option)
 {
 	// Check if a frontend script is in the main synth chain
 

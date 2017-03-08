@@ -188,7 +188,7 @@ private:
 
 	ErrorCodes exportInternal(TargetTypes type, BuildOption option);
 
-	bool checkSanity(TargetTypes type, BuildOption option);
+	bool checkSanity(BuildOption option);
 
 	BuildOption showCompilePopup(TargetTypes type);
 
