@@ -204,6 +204,10 @@ Set this to 0 to deactivate the CPU peak meter.
 #endif
 
 
+#ifndef ENABLE_APPLE_SANDBOX
+#define ENABLE_APPLE_SANDBOX 0
+#endif
+
 /** Config: USE_HARD_CLIPPER
 
 Set this to 1 to enable hard clipping of the output (brickwall everything over 1.0)

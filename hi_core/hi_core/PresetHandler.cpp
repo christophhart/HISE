@@ -1425,11 +1425,8 @@ File ProjectHandler::Frontend::getSampleLocationForCompiledPlugin()
 File ProjectHandler::Frontend::getAppDataDirectory(ProjectHandler *handler/*=nullptr*/)
 {
 
-#if USE_COMMON_APP_DATA_FOLDER
-	const File::SpecialLocationType appDataDirectoryToUse = File::commonApplicationDataDirectory;
-#else
-	const File::SpecialLocationType appDataDirectoryToUse = File::userApplicationDataDirectory;
-#endif
+    const File::SpecialLocationType appDataDirectoryToUse = File::userApplicationDataDirectory;
+
 
 #if USE_FRONTEND
     
@@ -1447,9 +1444,12 @@ File ProjectHandler::Frontend::getAppDataDirectory(ProjectHandler *handler/*=nul
     
 #else
     
-    
-    
+#if ENABLE_APPLE_SANDBOX
+    return File::getSpecialLocation(File::userMusicDirectory).getChildFile(getCompanyName() + "/" + getProjectName());
+#else
     return File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support/" + getCompanyName() + "/" + getProjectName());
+#endif
+    
 #endif
 #else
 
