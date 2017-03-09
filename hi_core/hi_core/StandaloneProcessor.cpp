@@ -90,25 +90,28 @@ void AudioProcessorDriver::restoreSettings(MainController* mc)
 
 		mc->setGlobalPitchFactor(microTuning);
 		mc->getSampleManager().setDiskMode((MainController::SampleManager::DiskMode)diskMode);
-
-#if USE_FRONTEND
-		bool allSamplesThere = deviceData->getBoolAttribute("SAMPLES_FOUND");
-
-		if (!allSamplesThere)
-		{
-			dynamic_cast<FrontendProcessor*>(mc)->checkAllSampleReferences();
-		}
-		else
-		{
-			dynamic_cast<FrontendProcessor*>(mc)->setAllSampleReferencesCorrect();
-		}
-#endif
 	}
+    
+#if USE_FRONTEND
+    bool allSamplesThere = deviceData != nullptr && deviceData->getBoolAttribute("SAMPLES_FOUND");
+    
+    if (!allSamplesThere)
+    {
+        dynamic_cast<FrontendProcessor*>(mc)->checkAllSampleReferences();
+    }
+    else
+    {
+        dynamic_cast<FrontendProcessor*>(mc)->setAllSampleReferencesCorrect();
+    }
+#endif
 }
 
 void AudioProcessorDriver::saveDeviceSettingsAsXml()
 {
-	ScopedPointer<XmlElement> deviceData = deviceManager->createStateXml();
+    
+	ScopedPointer<XmlElement> deviceData = deviceManager != nullptr ?
+                                           deviceManager->createStateXml():
+                                           nullptr;
 
 	if (deviceData == nullptr)
 	{
