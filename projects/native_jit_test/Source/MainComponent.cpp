@@ -11,6 +11,8 @@
 #include <map>
 
 
+
+
 const char* emptyText = "// Uncomment this line to disable bounds checking\n" \
 "//#define DISABLE_SAFE_BUFFER_ACCESS 1\n" \
 "\n" \
@@ -100,12 +102,14 @@ struct LP
 };
 
 
-
-
 //==============================================================================
 MainContentComponent::MainContentComponent()
 {
-	
+    UnitTestRunner runner;
+    
+    runner.setAssertOnFailure(false);
+    runner.runAllTests();
+    
 	doc = new CodeDocument();
 
 	tokeniser = new CPlusPlusCodeTokeniser();

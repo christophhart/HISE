@@ -310,3 +310,201 @@ void NativeJITDspModule::enableOverflowCheck(bool shouldCheckForOverflow)
 	overFlowCheckEnabled = shouldCheckForOverflow;
 	overflowIndex = -1;
 }
+
+
+template <typename T> class NativeJITTestCase
+{
+public:
+    
+    NativeJITTestCase(const String& stringToTest):
+    code(stringToTest)
+    {
+        compiler = new NativeJITCompiler(code);
+        scope = compiler->compileAndReturnScope();
+    }
+    
+    T getResult(T input)
+    {
+        if(!compiler->wasCompiledOK())
+        {
+            DBG(compiler->getErrorMessage());
+            return T();
+        }
+        
+        auto t = scope->getCompiledFunction<T, T>("test");
+        
+        return t(input);
+    };
+    
+    void setup()
+    {
+        if(!compiler->wasCompiledOK())
+        {
+            DBG(compiler->getErrorMessage());
+            return;
+        }
+        
+        auto t = scope->getCompiledFunction<T, T>("setup");
+        
+        t(1.0f);
+    }
+    
+private:
+    
+    String code;
+    
+    ScopedPointer<NativeJITCompiler> compiler;
+    ScopedPointer<NativeJITScope> scope;
+    
+};
+
+
+
+
+#define CREATE_TEST(x) test = new NativeJITTestCase<float>(x);
+#define CREATE_TYPED_TEST(x) test = new NativeJITTestCase<T>(x);
+#define CREATE_TEST_SETUP(x) test = new NativeJITTestCase<float>(x); test->setup();
+
+#define EXPECT(testName, input, result) expectEquals<float>(test->getResult(input), result, testName);
+#define EXPECT_TYPED(testName, input, result) expectEquals<T>(test->getResult(input), result, testName);
+
+#define T_A + getLiteral<T>(a) +
+#define T_B + getLiteral<T>(b) +
+#define T_1 + getLiteral<T>(1.0) +
+#define T_0 + getLiteral<T>(0.0) +
+
+class NativeJITUnitTest: public UnitTest
+{
+public:
+    
+    NativeJITUnitTest(): UnitTest("NativeJIT UnitTest") {}
+    
+    void runTest() override
+    {
+        testOperations<float>();
+        testOperations<double>();
+        testOperations<int>();
+        
+        testGlobals();
+        
+        testFunctionCalls();
+        
+    }
+    
+private:
+    
+    void testGlobals()
+    {
+        beginTest("Testing Global variables");
+        
+        ScopedPointer<NativeJITTestCase<float>> test;
+        
+        
+        CREATE_TEST("float x; float test(float i){ x=7.0f; return x; };")
+        EXPECT("Global float", 2.0f, 7.0f)
+        
+        CREATE_TEST("float x=2.0f;float test(float i){return x*2.0f;};")
+        EXPECT("Global float with operation", 2.0f, 4.0f)
+        
+        CREATE_TEST("int x=2;float test(float i){return (float)x;};")
+        EXPECT("Global cast", 2.0f, 2.0f)
+        
+        CREATE_TEST_SETUP("Buffer b(11);float setup(float i){b[10]=3.0f;return 1.0f;};float test(float i){return b[10];};")
+        EXPECT("Buffer test", 2.0f, 3.0f)
+        
+        CREATE_TEST("int c=0;float test(float i){c+=1;c+=1;c+=1;return (float)c;};")
+        EXPECT("Incremental", 0.0f, 3.0f)
+        
+        CREATE_TEST("Buffer b(2); float test(float i){ return b[7];};")
+        EXPECT("Buffer Overflow", 0.0f, 0.0f)
+    }
+    
+    template <typename T> String getTypeName() const
+    {
+        if(NativeJITTypeHelpers::is<T, float>()) return "float";
+        if(NativeJITTypeHelpers::is<T, double>()) return "double";
+        if(NativeJITTypeHelpers::is<T, int>()) return "int";
+        if(NativeJITTypeHelpers::is<T, Buffer*>()) return "Buffer";
+    }
+    
+    template <typename T> String getTestSignature()
+    {
+        return getTypeName<T>() + " test(" + getTypeName<T>() + " input){%BODY%};";
+    }
+    
+    template <typename T> String getTestFunction(const String& body)
+    {
+        String x = getTestSignature<T>();
+        return x.replace("%BODY%", body);
+    }
+    
+    template <typename T> String getLiteral(double value)
+    {
+        if(NativeJITTypeHelpers::is<T, float>()) return String((float)value) + ".f";
+        if(NativeJITTypeHelpers::is<T, double>()) return String((double)value, 5);
+        if(NativeJITTypeHelpers::is<T, int>()) return String((int)value);
+    }
+    
+    
+    template <typename T> void testOperations()
+    {
+        beginTest("Testing operations for " + NativeJITTypeHelpers::getTypeName<T>());
+        
+        Random r;
+        
+        double a = (double)r.nextInt(25);
+        double b = (double)r.nextInt(62);
+        
+        ScopedPointer<NativeJITTestCase<T>> test;
+        
+        CREATE_TYPED_TEST(getTestFunction<T>("return " T_A "+" T_B ";"));
+        EXPECT_TYPED(NativeJITTypeHelpers::getTypeName<T>() + " Addition", T(), (T)(a+b));
+        
+        CREATE_TYPED_TEST(getTestFunction<T>("return " T_A "-" T_B ";"));
+        EXPECT_TYPED(NativeJITTypeHelpers::getTypeName<T>() + " Subtraction", T(), (T)(a-b));
+        
+        CREATE_TYPED_TEST(getTestFunction<T>("return " T_A "*" T_B ";"));
+        EXPECT_TYPED(NativeJITTypeHelpers::getTypeName<T>() + " Multiplication", T(), (T)a*(T)b);
+        
+        if(NativeJITTypeHelpers::is<T, int>())
+        {
+            CREATE_TYPED_TEST(getTestFunction<T>("return " T_A "%" T_B ";"));
+            EXPECT_TYPED(NativeJITTypeHelpers::getTypeName<T>() + " Modulo", 0, (int)a%(int)b);
+        }
+        
+        CREATE_TYPED_TEST(getTestFunction<T>("return " T_A "/" T_B ";"));
+        EXPECT_TYPED(NativeJITTypeHelpers::getTypeName<T>() + " Division", T(), (T)(a/b));
+        
+        CREATE_TYPED_TEST(getTestFunction<T>("return " T_A ">" T_B " ? " T_1 ":" T_0 ";"));
+        EXPECT_TYPED(NativeJITTypeHelpers::getTypeName<T>() + " Conditional", T(), (T)(a>b?1:0));
+        
+        CREATE_TYPED_TEST(getTestFunction<T>("return (" T_A "+" T_B ")*" T_A ";"));
+        EXPECT_TYPED(NativeJITTypeHelpers::getTypeName<T>() + " Parenthesis", T(), ((T)a+(T)b)*(T)a );
+    }
+    
+    void testFunctionCalls()
+    {
+        beginTest("Function Calls");
+        
+        ScopedPointer<NativeJITTestCase<float>> test;
+        
+        Random r;
+        
+        const float v = r.nextFloat() * 122.0f;
+        
+        CREATE_TEST(getTestFunction<float>("return sinf(input);"))
+        EXPECT("sinf", v, sinf(v));
+        
+        CREATE_TEST("float square(float input){return input*input;}; float test(float input){ return square(input);};")
+        EXPECT("JIT Function call", v, v*v);
+        
+        CREATE_TEST("float a(){return 2.0f;}; float b(){ return 4.0f;}; float test(float input){ const float x = (input > 50.0f) ? 2.0f : 4.0f; return x;};")
+        EXPECT("JIT Conditional function call", v, v > 50.0f ? 2.0f : 4.0f);
+    }
+};
+
+static NativeJITUnitTest njut;
+
+#undef CREATE_TEST
+#undef CREATE_TEST_SETUP
+#undef EXPECT
