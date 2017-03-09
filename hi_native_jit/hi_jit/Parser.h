@@ -188,6 +188,11 @@ struct GlobalBase
 		
 	}
 
+    template<typename T> static T returnSameValue(T value)
+    {
+        return value;
+    }
+    
 	template<typename T> static T store(GlobalBase* b, T newValue)
 	{
 		jassert(NativeJITTypeHelpers::matchesType<T>(b->type));

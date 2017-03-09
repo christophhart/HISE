@@ -20,7 +20,7 @@
                        osxArchitecture="64BitIntel" osxSDK="default"/>
         <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="NativeJIT Test"
                        linkTimeOptimisation="1" osxSDK="default" osxCompatibility="10.7 SDK"
-                       osxArchitecture="32BitUniversal" cppLanguageStandard="c++11"
+                       osxArchitecture="64BitUniversal" cppLanguageStandard="c++11"
                        cppLibType="libc++"/>
       </CONFIGURATIONS>
       <MODULEPATHS>

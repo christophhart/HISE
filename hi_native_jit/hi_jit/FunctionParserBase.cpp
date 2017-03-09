@@ -548,7 +548,13 @@ TYPED_NODE FunctionParserBase::parseBufferAssignment(const Identifier &id)
 
 	match(NativeJitTokens::assign_);
 
+#if JUCE_WINDOWS
 	auto& value = parseSum<float>();
+#else
+    auto& unwrapped = parseSum<float>();
+    auto& dummyF = exprBase->Immediate(GlobalBase::returnSameValue<float>);
+    auto& value = exprBase->Call(dummyF, unwrapped);
+#endif
 
 	if (info.useSafeBufferFunctions)
 	{
@@ -817,8 +823,16 @@ void FunctionParserBase::parseGlobalAssignment(GlobalBase* g)
 
 	auto& exp = parseExpression<T>();
 
-	NativeJIT::Node<T>* newNode = &exp;
-
+#if JUCE_MAC
+    
+    // OSX returns wrong values for double / floats if the expression is not wrapped into a dummy function call
+    auto& dummyReturn = exprBase->Immediate(GlobalBase::returnSameValue<T>);
+    auto& exp2 = exprBase->Call(dummyReturn, exp);
+	NativeJIT::Node<T>* newNode = &exp2;
+#else
+    NativeJIT::Node<T>* newNode = &exp;
+#endif
+    
 	NativeJIT::Node<T>* old = nullptr;
 
 	auto existingNode = getGlobalNode(g->id);
