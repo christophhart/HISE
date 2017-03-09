@@ -102,11 +102,17 @@ struct LP
 };
 
 
+
+
+
+
+
 //==============================================================================
 MainContentComponent::MainContentComponent()
 {
     UnitTestRunner runner;
     
+
     runner.setAssertOnFailure(false);
     runner.runAllTests();
     

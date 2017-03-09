@@ -273,11 +273,14 @@ template <typename T> NativeJIT::Node<T>& FunctionParserBase::parseCondition()
 	return getEmptyNode<T>();
 }
 
-template <typename T, typename ConditionType, NativeJIT::JccType compareFlag> NativeJIT::Node<T>& FunctionParserBase::parseBranches(NativeJIT::Node<ConditionType>& left)
+template <typename T, typename ConditionType, NativeJIT::JccType compareFlag> NativeJIT::Node<T>& FunctionParserBase::parseBranches(NativeJIT::Node<ConditionType>& left, bool hasOpenParen)
 {
 	auto& right = parseTerm<ConditionType>();
+    
 	auto& a = exprBase->template Compare<compareFlag>(left, right);
 
+    matchIf(NativeJitTokens::closeParen);
+    
 	match(NativeJitTokens::question);
 
 	auto& true_b = parseTerm<T>();
@@ -289,45 +292,98 @@ template <typename T, typename ConditionType, NativeJIT::JccType compareFlag> Na
 	return exprBase->Conditional(a, true_b, false_b);
 }
 
+bool isCompareOperator(const char* token)
+{
+    return token == NativeJitTokens::greaterThan;
+}
+
 template <typename T, typename ConditionType> NativeJIT::Node<T>& FunctionParserBase::parseTernaryOperator()
 {
-	auto& left = parseTerm<ConditionType>();
+    
+    
+    auto& left = parseTerm<ConditionType>();
 
-	if (matchIf(NativeJitTokens::greaterThan))
-	{
-		return parseBranches<T, ConditionType, NativeJIT::JccType::JG>(left);
-	}
-	else if (matchIf(NativeJitTokens::greaterThanOrEqual))
-	{
-		return parseBranches<T, ConditionType, NativeJIT::JccType::JGE>(left);
-	}
-	else if (matchIf(NativeJitTokens::lessThan))
-	{
-		return parseBranches<T, ConditionType, NativeJIT::JccType::JL>(left);
-	}
-	else if (matchIf(NativeJitTokens::lessThanOrEqual))
-	{
-		return parseBranches<T, ConditionType, NativeJIT::JccType::JLE>(left);
-	}
-	else if (matchIf(NativeJitTokens::equals))
-	{
-		return parseBranches<T, ConditionType, NativeJIT::JccType::JE>(left);
-	}
-	else if (matchIf(NativeJitTokens::notEquals))
-	{
-		return parseBranches<T, ConditionType, NativeJIT::JccType::JNE>(left);
-	}
-	else
-	{
-		if (NativeJITTypeHelpers::is<T, ConditionType>())
-		{
-			return *dynamic_cast<NativeJIT::Node<T>*>(&left);
-		}
-		else
-		{
-			location.throwError(NativeJITTypeHelpers::getTypeMismatchErrorMessage<T, ConditionType>());
-		}
-	}
+    bool hasOpenParen = true;
+    
+    if (NativeJITTypeHelpers::is<ConditionType, int>())
+    {
+        if (matchIf(NativeJitTokens::greaterThan))
+        {
+            return parseBranches<T, ConditionType, NativeJIT::JccType::JG>(left, hasOpenParen);
+        }
+        else if (matchIf(NativeJitTokens::greaterThanOrEqual))
+        {
+            return parseBranches<T, ConditionType, NativeJIT::JccType::JGE>(left, hasOpenParen);
+        }
+        else if (matchIf(NativeJitTokens::lessThan))
+        {
+            return parseBranches<T, ConditionType, NativeJIT::JccType::JL>(left, hasOpenParen);
+        }
+        else if (matchIf(NativeJitTokens::lessThanOrEqual))
+        {
+            return parseBranches<T, ConditionType, NativeJIT::JccType::JLE>(left, hasOpenParen);
+        }
+        else if (matchIf(NativeJitTokens::equals))
+        {
+            return parseBranches<T, ConditionType, NativeJIT::JccType::JE>(left, hasOpenParen);
+        }
+        else if (matchIf(NativeJitTokens::notEquals))
+        {
+            return parseBranches<T, ConditionType, NativeJIT::JccType::JNE>(left, hasOpenParen);
+        }
+        else
+        {
+            if (NativeJITTypeHelpers::is<T, ConditionType>())
+            {
+                return *dynamic_cast<NativeJIT::Node<T>*>(&left);
+            }
+            else
+            {
+                location.throwError(NativeJITTypeHelpers::getTypeMismatchErrorMessage<T, ConditionType>());
+            }
+        }
+    }
+    else
+    {
+        if (matchIf(NativeJitTokens::greaterThan))
+        {
+            return parseBranches<T, ConditionType, NativeJIT::JccType::JA>(left, hasOpenParen);
+        }
+        else if (matchIf(NativeJitTokens::greaterThanOrEqual))
+        {
+            return parseBranches<T, ConditionType, NativeJIT::JccType::JAE>(left, hasOpenParen);
+        }
+        else if (matchIf(NativeJitTokens::lessThan))
+        {
+            return parseBranches<T, ConditionType, NativeJIT::JccType::JB>(left, hasOpenParen);
+        }
+        else if (matchIf(NativeJitTokens::lessThanOrEqual))
+        {
+            return parseBranches<T, ConditionType, NativeJIT::JccType::JBE>(left, hasOpenParen);
+        }
+        else if (matchIf(NativeJitTokens::equals))
+        {
+            return parseBranches<T, ConditionType, NativeJIT::JccType::JE>(left, hasOpenParen);
+        }
+        else if (matchIf(NativeJitTokens::notEquals))
+        {
+            return parseBranches<T, ConditionType, NativeJIT::JccType::JNE>(left, hasOpenParen);
+        }
+        else
+        {
+            if (NativeJITTypeHelpers::is<T, ConditionType>())
+            {
+                return *dynamic_cast<NativeJIT::Node<T>*>(&left);
+            }
+            else
+            {
+                location.throwError(NativeJITTypeHelpers::getTypeMismatchErrorMessage<T, ConditionType>());
+            }
+        }
+    }
+    
+    
+	
 
 	return getEmptyNode<T>();
 }
@@ -382,14 +438,40 @@ TYPED_NODE FunctionParserBase::parseTerm()
 			return result;
 		}
 	}
-	else if (currentType == NativeJitTokens::identifier || currentType == NativeJitTokens::literal)
-		return parseFactor<T>();
-	else
-	{
-		location.throwError("Parsing error");
-	}
+    else
+    {
+        return parseUnary<T>();
+    }
 
 	return getEmptyNode<T>();
+}
+
+TYPED_NODE FunctionParserBase::parseUnary()
+{
+    if (currentType == NativeJitTokens::identifier ||
+        currentType == NativeJitTokens::literal)
+    {
+        return parseFactor<T>();
+    }
+    else if (matchIf(NativeJitTokens::minus))
+    {
+        if(!NativeJITTypeHelpers::is<T, Buffer*>())
+        {
+            auto& minus1 = exprBase->Immediate(static_cast<T>(-1.0));
+            auto& negate = exprBase->Mul(minus1, parseFactor<T>());
+            return negate;
+        }
+        else
+        {
+            location.throwError("Can't negate a buffer");
+        }
+    }
+    else
+    {
+        location.throwError("Parsing error");
+    }
+    
+    return getEmptyNode<T>();
 }
 
 TYPED_NODE FunctionParserBase::parseFactor()
@@ -897,7 +979,8 @@ TypeInfo FunctionParserBase::peekFirstType()
 
 	TokenIterator peeker(location.location);
 
-	while (peeker.currentType == NativeJitTokens::openParen)
+	while (peeker.currentType == NativeJitTokens::openParen ||
+           peeker.currentType == NativeJitTokens::minus)
 		peeker.skip();
 
 	if (peeker.currentType == NativeJitTokens::identifier)

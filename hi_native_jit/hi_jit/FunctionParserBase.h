@@ -55,12 +55,13 @@ private:
 	TYPED_NODE parseCondition();
 	TYPED_NODE getEmptyNode() { return exprBase->Immediate(T()); }
 
-	template <typename T, typename ConditionType, NativeJIT::JccType compareFlag> NativeJIT::Node<T>& parseBranches(NativeJIT::Node<ConditionType>& left);
+	template <typename T, typename ConditionType, NativeJIT::JccType compareFlag> NativeJIT::Node<T>& parseBranches(NativeJIT::Node<ConditionType>& left, bool hasOpenParen);
 	template <typename T, typename ConditionType> NativeJIT::Node<T>& parseTernaryOperator();
 	template <typename TargetType, typename ExpectedType> NativeJIT::Node<TargetType>& parseCast();
 
 	TYPED_NODE parseTerm();
 	TYPED_NODE parseFactor();
+    TYPED_NODE parseUnary();
 	TYPED_NODE parseSymbolOrLiteral();
 	TYPED_NODE getNodeForLine(NamedNode* r);
 	TYPED_NODE parseSymbol();

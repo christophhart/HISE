@@ -452,33 +452,36 @@ private:
         
         Random r;
         
-        double a = (double)r.nextInt(25);
-        double b = (double)r.nextInt(62);
+        double a = (double)r.nextInt(25) * (r.nextBool() ? 1.0 : -1.0);
+        double b = (double)r.nextInt(62) * (r.nextBool() ? 1.0 : -1.0);
         
         ScopedPointer<NativeJITTestCase<T>> test;
         
-        CREATE_TYPED_TEST(getTestFunction<T>("return " T_A "+" T_B ";"));
+        CREATE_TYPED_TEST(getTestFunction<T>("return " T_A " + " T_B ";"));
         EXPECT_TYPED(NativeJITTypeHelpers::getTypeName<T>() + " Addition", T(), (T)(a+b));
         
-        CREATE_TYPED_TEST(getTestFunction<T>("return " T_A "-" T_B ";"));
+        CREATE_TYPED_TEST(getTestFunction<T>("return " T_A " - " T_B ";"));
         EXPECT_TYPED(NativeJITTypeHelpers::getTypeName<T>() + " Subtraction", T(), (T)(a-b));
         
-        CREATE_TYPED_TEST(getTestFunction<T>("return " T_A "*" T_B ";"));
+        CREATE_TYPED_TEST(getTestFunction<T>("return " T_A " * " T_B ";"));
         EXPECT_TYPED(NativeJITTypeHelpers::getTypeName<T>() + " Multiplication", T(), (T)a*(T)b);
         
         if(NativeJITTypeHelpers::is<T, int>())
         {
-            CREATE_TYPED_TEST(getTestFunction<T>("return " T_A "%" T_B ";"));
+            CREATE_TYPED_TEST(getTestFunction<T>("return " T_A " % " T_B ";"));
             EXPECT_TYPED(NativeJITTypeHelpers::getTypeName<T>() + " Modulo", 0, (int)a%(int)b);
         }
         
-        CREATE_TYPED_TEST(getTestFunction<T>("return " T_A "/" T_B ";"));
+        CREATE_TYPED_TEST(getTestFunction<T>("return " T_A " / " T_B ";"));
         EXPECT_TYPED(NativeJITTypeHelpers::getTypeName<T>() + " Division", T(), (T)(a/b));
         
-        CREATE_TYPED_TEST(getTestFunction<T>("return " T_A ">" T_B " ? " T_1 ":" T_0 ";"));
+        CREATE_TYPED_TEST(getTestFunction<T>("return " T_A " > " T_B " ? " T_1 ":" T_0 ";"));
         EXPECT_TYPED(NativeJITTypeHelpers::getTypeName<T>() + " Conditional", T(), (T)(a>b?1:0));
         
-        CREATE_TYPED_TEST(getTestFunction<T>("return (" T_A "+" T_B ")*" T_A ";"));
+        CREATE_TYPED_TEST(getTestFunction<T>("return (" T_A " > " T_B ") ? " T_1 ":" T_0 ");"));
+        EXPECT_TYPED(NativeJITTypeHelpers::getTypeName<T>() + " Conditional with Parenthesis", T(), (T)(((T)a>(T)b)?1:0));
+        
+        CREATE_TYPED_TEST(getTestFunction<T>("return (" T_A " + " T_B ") * " T_A ";"));
         EXPECT_TYPED(NativeJITTypeHelpers::getTypeName<T>() + " Parenthesis", T(), ((T)a+(T)b)*(T)a );
     }
     
@@ -490,7 +493,7 @@ private:
         
         Random r;
         
-        const float v = r.nextFloat() * 122.0f;
+        const float v = r.nextFloat() * 122.0f * r.nextBool() ? 1.0f : -1.0f;
         
         CREATE_TEST(getTestFunction<float>("return sinf(input);"))
         EXPECT("sinf", v, sinf(v));
@@ -498,7 +501,7 @@ private:
         CREATE_TEST("float square(float input){return input*input;}; float test(float input){ return square(input);};")
         EXPECT("JIT Function call", v, v*v);
         
-        CREATE_TEST("float a(){return 2.0f;}; float b(){ return 4.0f;}; float test(float input){ const float x = (input > 50.0f) ? 2.0f : 4.0f; return x;};")
+        CREATE_TEST("float a(){return 2.0f;}; float b(){ return 4.0f;}; float test(float input){ const float x = input > 50.0f ? a() : b(); return x;};")
         EXPECT("JIT Conditional function call", v, v > 50.0f ? 2.0f : 4.0f);
     }
 };
