@@ -590,18 +590,32 @@ void SampleMap::loadSamplesFromMonolith(const ValueTree &v)
 
 	Array<File> monolithFiles;
 	
-	for (int i = 0; i < 6; i++)
+    int numChannels = jmax<int>(1, v.getChild(0).getNumChildren());
+    
+	for (int i = 0; i < numChannels; i++)
 	{
 		File f = monolithDirectory.getChildFile(sampleMapId.toString() + ".ch" + String(i+1));
-		if (f.existsAsFile()) monolithFiles.add(f);
+		if (f.existsAsFile())
+        {
+             monolithFiles.add(f);
+        }
+        else
+        {
+#if USE_FRONTEND
+            sampler->getMainController()->sendOverlayMessage(DeactiveOverlay::State::SamplesNotFound,
+                                                             "The sample " + f.getFileName() + " wasn't found");
+            
+            sampler->deleteAllSounds();
+            
+            return;
+#endif
+        }
 	}
 
 	if (!monolithFiles.isEmpty())
 	{
 
 		sampler->deleteAllSounds();
-
-		int numChannels = jmax<int>(1, v.getChild(0).getNumChildren());
 
 		StringArray micPositions = StringArray::fromTokens(v.getProperty("MicPositions").toString(), ";", "");
 
@@ -630,6 +644,7 @@ void SampleMap::loadSamplesFromMonolith(const ValueTree &v)
 		sampler->addSamplerSounds(newSounds);
 
 	}
+    
 }
 
 void SampleMap::replaceReferencesWithGlobalFolder()
