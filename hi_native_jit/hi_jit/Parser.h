@@ -353,7 +353,7 @@ public:
 		return nullptr;
 	}
 
-	void setGlobalVariable(const juce::Identifier& id, juce::var value)
+	void setGlobalVariable(const juce::Identifier& id, const juce::var& value)
 	{
 		if (auto g = getGlobal(id))
 		{

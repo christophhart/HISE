@@ -110,9 +110,12 @@ struct LP
 //==============================================================================
 MainContentComponent::MainContentComponent()
 {
-    UnitTestRunner runner;
-    
+	fileLogger = new FileLogger(File::getSpecialLocation(File::currentApplicationFile).getParentDirectory().getChildFile("UnitTests.log"), "Unit Test Log");
 
+	Logger::setCurrentLogger(fileLogger);
+
+	UnitTestRunner runner;
+    
     runner.setAssertOnFailure(false);
     runner.runAllTests();
     
@@ -158,6 +161,11 @@ MainContentComponent::~MainContentComponent()
 	editor = nullptr;
 	doc = nullptr;
 	tokeniser = nullptr;
+
+	Logger::setCurrentLogger(nullptr);
+
+	fileLogger = nullptr;
+
 
 }
 

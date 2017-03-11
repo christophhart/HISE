@@ -102,6 +102,8 @@ private:
 	ScopedPointer<TableListBox> table;
 	ScopedPointer<TableListBoxModel> tableModel;
 
+	ScopedPointer<FileLogger> fileLogger;
+
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainContentComponent)
 };

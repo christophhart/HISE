@@ -201,7 +201,7 @@ Identifier NativeJITScope::getGlobalVariableName(int globalIndex) const
 }
 
 
-void NativeJITScope::setGlobalVariable(const juce::Identifier& id, juce::var value)
+void NativeJITScope::setGlobalVariable(const juce::Identifier& id, const juce::var& value)
 {
 	pimpl->setGlobalVariable(id, value);
 }
@@ -1245,12 +1245,20 @@ private:
 		ADD_CODE_LINE("int a = -2;");
 		ADD_CODE_LINE("float b = 24.0f;");
 		ADD_CODE_LINE("double c = 14.0;");
+		ADD_CODE_LINE("Buffer buffer;");
 		ADD_CODE_LINE("int getA() { return a; };");
 		ADD_CODE_LINE("float getB(int input) { return input > 1 ? b : b / 2.0f; };");
 		ADD_CODE_LINE("double getC() { return c; };");
 		ADD_CODE_LINE("void setA(int newValue) { a = newValue; };");
 		ADD_CODE_LINE("void setB(float newValue) { b = newValue; };");
 		ADD_CODE_LINE("void setC(double newValue) { c = newValue; };");
+		ADD_CODE_LINE("float getBufferValue(int index) { return buffer[index]; };");
+		ADD_CODE_LINE("float getInterpolatedValue(float i) {");
+		ADD_CODE_LINE("    const int index = (int)i;");
+		ADD_CODE_LINE("    const float alpha = i - (float)index;");
+		ADD_CODE_LINE("    const float invAlpha = 1.0f - alpha;");
+		ADD_CODE_LINE("    return alpha * buffer[index] + invAlpha * buffer[index + 1];");
+		ADD_CODE_LINE("};");
 
 		ScopedPointer<NativeJITCompiler> compiler = new NativeJITCompiler(code);
 
@@ -1267,6 +1275,8 @@ private:
 		expectEquals<float>(scope.call("getB", 0), 24.0f / 2.0f, "float getMethod");
 		expectEquals<double>(scope.call("getC"), 14.0f, "double getMethod");
 
+		
+
 		scope.getDynamicObject()->setProperty("a", -6);
 		scope.getDynamicObject()->setProperty("b", -40.2f);
 		scope.getDynamicObject()->setProperty("c", -62.0);
@@ -1282,6 +1292,17 @@ private:
 		expectEquals<int>(scope["a"], 7, "int property after set method");
 		expectEquals<float>(scope["b"], (float)8, "float property after setMethod");
 		expectEquals<double>(scope["c"], (double)9, "double property after setMethod");
+
+		VariantBuffer::Ptr bf = new VariantBuffer(250);
+		bf->setSample(12, 0.6f);
+		scope.getDynamicObject()->setProperty("buffer", var(bf));
+
+		expectEquals<float>(scope.call("getBufferValue", 12), 0.6f, "Buffer Access");
+
+		expectEquals<float>(scope.call("getBufferValue"), 0.0f, "Buffer Access without argument");
+
+		expectEquals<float>(scope.call("getInterpolatedValue", 12.5), 0.3f, "JITted Linear interpolation");
+
 	}
 
 
@@ -1323,8 +1344,6 @@ private:
 
 		expectEquals(result, 9.0f, "Testing reallocation of Function buffers");
 	}
-
-
 };
 
 static NativeJITUnitTest njut;

@@ -1181,24 +1181,6 @@ void FunctionParserBase::parseGlobalAssignment(GlobalBase* g)
 	NativeJIT::NodeBase* newNode = parseExpression();
 	
     TypeInfo newType = getTypeForNode(newNode);
-
-#if JUCE_MAC
-    
-    // OSX returns wrong values for double / floats if the expression is not wrapped into a dummy function call
-    
-#define GET_DUMMY_NODE(type) if (TYPE_MATCH(type, newType)) newNode = getOSXDummyNode<type>(newNode);
-
-    GET_DUMMY_NODE(double);
-    GET_DUMMY_NODE(float);
-    GET_DUMMY_NODE(int);
-    GET_DUMMY_NODE(BooleanType);
-    GET_DUMMY_NODE(Buffer*);
-    
-#undef GET_DUMMY_NODE
-    
-    
-
-#endif
     
 	NativeJIT::NodeBase* old = nullptr;
 
@@ -1212,6 +1194,26 @@ void FunctionParserBase::parseGlobalAssignment(GlobalBase* g)
 		newNode = createBinaryNode(old, newNode, assignType);
 	}
 
+    
+#if JUCE_MAC
+    
+    // OSX returns wrong values for double / floats if the expression is not wrapped into a dummy function call
+    
+#define GET_DUMMY_NODE(type) if (TYPE_MATCH(type, newType)) newNode = getOSXDummyNode<type>(newNode);
+    
+    GET_DUMMY_NODE(double);
+    GET_DUMMY_NODE(float);
+    GET_DUMMY_NODE(int);
+    GET_DUMMY_NODE(BooleanType);
+    GET_DUMMY_NODE(Buffer*);
+    
+#undef GET_DUMMY_NODE
+    
+    
+    
+#endif
+
+    
 	match(NativeJitTokens::semicolon);
 
 	

@@ -58,7 +58,7 @@ public:
 	*	It accepts a var, and numbers / Buffers will be automatically converted to the given type.
 	*	If you try to pass it a String, a non-Buffer Object or an Array, it will throw an error message.
 	*/
-	void setGlobalVariable(const juce::Identifier& id, juce::var value);
+	void setGlobalVariable(const juce::Identifier& id, const juce::var& value);
 
 	/** Returns a typed pointer to a compiled function with the given name.
 	*
