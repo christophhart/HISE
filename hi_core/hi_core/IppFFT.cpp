@@ -302,7 +302,13 @@ void IppFFT::initSpec(int N, Ipp8u *specData, Ipp8u *initData)
 
 	if (status != ippStsNoErr)
 	{
-		DBG("ERROR at initialisizing " + String(N) + ": " + String(status));
+        const String error ="ERROR at initialisizing " + String(N) + ": " + String(status);
+        
+		DBG(error);
+        
+#if ENABLE_FILE_LOGGING
+        Logger::writeToLog(error);
+#endif
 	}
 }
 

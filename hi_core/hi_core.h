@@ -163,6 +163,14 @@ Set this to 0 to deactivate the safe checks for scripting
 #define ENABLE_SCRIPTING_SAFE_CHECKS 1
 #endif
 
+/** Config: ENABLE_FILE_LOGGING
+ 
+Set this to 1 to write all messages to a file.
+*/
+#ifndef ENABLE_FILE_LOGGING
+#define ENABLE_FILE_LOGGING 0
+#endif
+
 
 /** Config: ENABLE_SCRIPTING_BREAKPOINTS
 

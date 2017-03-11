@@ -430,6 +430,11 @@ void DeactiveOverlay::buttonClicked(Button *b)
 		}
 		else if (currentState[SamplesNotFound])
 		{
+            FrontendProcessor* fp = dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor());
+            
+            // Allows partial sample loading the next time
+            fp->setAllSampleReferencesCorrect();
+            
 			setState(SamplesNotFound, false);
 		}
 	}

@@ -105,7 +105,7 @@ unlockCounter(0)
 	keyFileCorrectlyLoaded = unlocker.isUnlocked();
 
 #endif
-
+    
 
 	loadImages(imageData_);
 
@@ -150,6 +150,17 @@ unlockCounter(0)
 
 	synthChain->restoreFromValueTree(synthData);
 
+    
+#if ENABLE_FILE_LOGGING
+    
+    const String name = ProjectHandler::Frontend::getCompanyName() + " " + ProjectHandler::Frontend::getProjectName();
+    const String version = " Version " + ProjectHandler::Frontend::getVersionString();
+    
+    Logger::setCurrentLogger(new FileLogger(ProjectHandler::Frontend::getAppDataDirectory().getChildFile("log.txt"), "Log file for " + name + version));
+    
+#endif
+
+    
 	synthChain->compileAllScripts();
 
 	synthChain->loadMacrosFromValueTree(synthData);

@@ -726,7 +726,6 @@ void ScriptingObject::reportScriptError(const String &errorMessage) const
 {
 #if USE_BACKEND // needs to be customized because of the colour!
 
-    
     JavascriptProcessor* jp = const_cast<JavascriptProcessor*>(dynamic_cast<const JavascriptProcessor*>(getScriptProcessor()));
     
     if(jp != nullptr)
@@ -745,6 +744,15 @@ void ScriptingObject::reportScriptError(const String &errorMessage) const
     {
         const_cast<MainController*>(getProcessor()->getMainController())->writeToConsole(errorMessage, 1, getProcessor());
     }
+    
+#else
+    
+    
+#if ENABLE_FILE_LOGGING
+    
+    Logger::writeToLog(errorMessage);
+    
+#endif
     
 #endif
 }

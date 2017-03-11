@@ -578,6 +578,10 @@ void SampleMap::loadSamplesFromMonolith(const ValueTree &v)
 
 #else
 
+#if ENABLE_FILE_LOGGING
+    Logger::writeToLog("Loading samplemap " + sampleMapId.toString());
+#endif
+    
 	File monolithDirectory = dynamic_cast<FrontendDataHolder*>(sampler->getMainController())->getSampleLocation();
 
 	if (!monolithDirectory.isDirectory())

@@ -258,6 +258,11 @@ var DynamicDspFactory::createModule(const String &moduleName) const
 	catch (String errorMessage)
 	{
 		DBG(errorMessage);
+        
+#if ENABLE_FILE_LOGGING
+        Logger::writeToLog(errorMessage);
+#endif
+        
 		return var::undefined();
 	}
 
@@ -359,6 +364,11 @@ var StaticDspFactory::createModule(const String &name) const
 	catch (String errorMessage)
 	{
 		DBG(errorMessage);
+        
+#if ENABLE_FILE_LOGGING
+        Logger::writeToLog(errorMessage);
+#endif
+        
 		return var::undefined();
 	}
 
