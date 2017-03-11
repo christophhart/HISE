@@ -27,6 +27,18 @@ public:
 
 	~NativeJITScope();
 
+	bool hasProperty(const juce::Identifier& propertyName) const override;
+
+	const juce::var& getProperty(const juce::Identifier& propertyName) const override;
+
+	void setProperty(const juce::Identifier& propertyName, const juce::var& newValue) override;
+
+	void removeProperty(const juce::Identifier& propertyName) override;
+
+	bool hasMethod(const juce::Identifier& methodName) const override;
+
+	juce::var invokeMethod(juce::Identifier methodName, const juce::var::NativeFunctionArgs& args) override;
+
 	/** Get the number of global variables. */
 	int getNumGlobalVariables() const;
 
@@ -66,6 +78,8 @@ public:
 
 private:
 
+	mutable juce::NamedValueSet cachedValues;
+
 	friend class GlobalParser;
 
 #if JUCE_64BIT
@@ -74,6 +88,7 @@ private:
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NativeJITScope)
 };
+
 
 /** A JIT compiler for a C language subset based on NativeJIT.
 *
@@ -141,12 +156,19 @@ public:
 	/** Get the error message for compilation errors. */
 	juce::String getErrorMessage() const;
 
+	/** Returns the code the compiler will be using to create scopes. */
+	juce::String getCode(bool getPreprocessedCode) const;
+
 private:
 
 	class Pimpl;
 
 	juce::ScopedPointer<Pimpl> pimpl;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NativeJITCompiler)
 };
+
+
 
 /** This class wraps a JIT compiler to process a buffer of float arrays. 
 *
@@ -203,6 +225,8 @@ private:
 	
 	bool overFlowCheckEnabled;
 	int overflowIndex = -1;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NativeJITDspModule)
 };
 
 

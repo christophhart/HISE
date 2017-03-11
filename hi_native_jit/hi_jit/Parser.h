@@ -14,8 +14,6 @@
 
 #include <type_traits>
 
-
-
 class BaseFunction
 {
 public:
@@ -104,8 +102,8 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BufferHolder);
 };
 
-
 typedef BufferHolder Buffer;
+
 
 struct BufferOperations
 {
@@ -303,10 +301,25 @@ class NativeJITScope::Pimpl : public DynamicObject
 public:
 
 	Pimpl() :
-		codeAllocator(32768),
 		allocator(32768)
 	{
+		codeAllocators.add(new NativeJIT::ExecutionBuffer(32768));
+
 		addExposedFunctions();
+	}
+
+	~Pimpl()
+	{
+		functionBuffers.clear();
+
+		for (int i = 0; i < codeAllocators.size(); i++)
+		{
+			codeAllocators[i]->Reset();
+		}
+
+		codeAllocators.clear();
+
+		allocator.Reset();
 	}
 
 	void addExposedFunctions()
@@ -314,6 +327,7 @@ public:
 		NATIVE_JIT_ADD_C_FUNCTION_1(float, sinf, float);
 		NATIVE_JIT_ADD_C_FUNCTION_0(double, getSampleRate);
 		NATIVE_JIT_ADD_C_FUNCTION_2(float, powf, float, float);
+		NATIVE_JIT_ADD_C_FUNCTION_1(float, fabsf, float);
 	}
 
 	BaseFunction* getExposedFunction(const Identifier& id)
@@ -454,8 +468,17 @@ public:
 
 	NativeJIT::FunctionBuffer* createFunctionBuffer()
 	{
-		functionBuffers.add(new NativeJIT::FunctionBuffer(codeAllocator, 8192));
+		try
+		{
+			functionBuffers.add(new NativeJIT::FunctionBuffer(*codeAllocators.getLast(), 8192));
+		}
+		catch (std::runtime_error e)
+		{
+			codeAllocators.add(new NativeJIT::ExecutionBuffer(32768));
 
+			functionBuffers.add(new NativeJIT::FunctionBuffer(*codeAllocators.getLast(), 8192));
+		}
+		
 		return functionBuffers.getLast();
 	}
 
@@ -465,11 +488,11 @@ public:
 
 	OwnedArray<BaseFunction> exposedFunctions;
 
-	Array<NativeJIT::FunctionBuffer*> functionBuffers;
+	OwnedArray<NativeJIT::FunctionBuffer> functionBuffers;
 
 	typedef ReferenceCountedObjectPtr<NativeJITScope> Ptr;
 
-	NativeJIT::ExecutionBuffer codeAllocator;
+	OwnedArray<NativeJIT::ExecutionBuffer> codeAllocators;
 	NativeJIT::Allocator allocator;
 };
 
@@ -488,7 +511,7 @@ public:
 		return b->id == id;
 	}
 
-	template <typename T> void checkType(NativeJIT::Node<T>& /*n*/)
+	template <typename T> void checkType()
 	{
 		if (!NativeJITTypeHelpers::matchesType<T>(b->type))
 		{
@@ -496,20 +519,22 @@ public:
 		}
 	}
 
-	template <typename T> void addNode(NativeJIT::ExpressionNodeFactory* expr, NativeJIT::Node<T>& newNode)
+	template <typename T> void addNode(NativeJIT::ExpressionNodeFactory* expr, NativeJIT::NodeBase* newNode)
 	{
-		checkType(newNode);
+		checkType<T>();
+
+		auto typed = dynamic_cast<NativeJIT::Node<T>*>(newNode);
 
 		if (nodes.size() == 0)
 		{
-			nodes.add(&newNode);
+			nodes.add(newNode);
 		}
 		else
 		{
 			auto& lastNode = getLastNode<T>();
 			auto& zero = expr->template Immediate<T>(0);
 			auto& zeroed = expr->Mul(lastNode, zero);
-			auto& added = expr->template Add<T>(zeroed, newNode);
+			auto& added = expr->template Add<T>(zeroed, *typed);
 
 			nodes.add(&added);
 		}
@@ -538,6 +563,7 @@ public:
 
 	template <typename T> NativeJIT::Node<T>& getLastNode() const
 	{
+
 		auto n = dynamic_cast<NativeJIT::Node<T>*>(nodes.getLast());
 
 		if (n == nullptr)
@@ -547,6 +573,21 @@ public:
 
 		return *n;
 	}
+
+	NativeJIT::NodeBase* getLastNodeUntyped() const
+	{
+		if (nodes.size() != 0)
+		{
+			return nodes.getLast();
+		}
+		else
+		{
+			throw "Global Node not found";
+		}
+
+		return nodes.getLast();
+	}
+
 
 	template <typename R> NativeJIT::Node<R>& getAssignmentNodeForReturnStatement(NativeJIT::ExpressionNodeFactory* expr)
 	{

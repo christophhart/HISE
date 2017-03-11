@@ -8,7 +8,8 @@
   ==============================================================================
 */
 
-
+// Handy macro. Use this to #define a if statement that returns a typed node and undef it afterwards...
+#define MATCH_AND_RETURN_ALL_TYPES() MATCH_TYPE_AND_RETURN(float) MATCH_TYPE_AND_RETURN(double) MATCH_TYPE_AND_RETURN(int) MATCH_TYPE_AND_RETURN(Buffer*) MATCH_TYPE_AND_RETURN(BooleanType)
 
 struct FunctionParserBase::MissingOperatorFunctions
 {
@@ -111,20 +112,21 @@ void FunctionParserBase::parseFunctionBody()
 
 		if (currentType == NativeJitTokens::identifier)
 		{
-			const Identifier id = parseIdentifier();
+			const Identifier id = Identifier(currentValue);
 
 			auto g = scope->getGlobal(id);
 
-			if (g != nullptr)
+			if (auto g = scope->getGlobal(id))
 			{
 				if (NativeJITTypeHelpers::matchesType<float>(g->type)) parseGlobalAssignment<float>(g);
 				if (NativeJITTypeHelpers::matchesType<double>(g->type)) parseGlobalAssignment<double>(g);
 				if (NativeJITTypeHelpers::matchesType<int>(g->type)) parseGlobalAssignment<int>(g);
+				if (NativeJITTypeHelpers::matchesType<BooleanType>(g->type)) parseGlobalAssignment<BooleanType>(g);
 				if (NativeJITTypeHelpers::matchesType<Buffer*>(g->type)) parseBufferLine(id);
 			}
 			else
 			{
-				location.throwError("Global variable not found");
+				parseUntypedLine();
 			}
 		}
 		else if (matchIf(NativeJitTokens::const_))
@@ -132,14 +134,20 @@ void FunctionParserBase::parseFunctionBody()
 			if (matchIf(NativeJitTokens::float_))		parseLine<float>(true);
 			else if (matchIf(NativeJitTokens::int_))	parseLine<int>(true);
 			else if (matchIf(NativeJitTokens::double_))	parseLine<double>(true);
+			else if (matchIf(NativeJitTokens::bool_))	parseLine<BooleanType>(true);
 
 		}
 		else if (matchIf(NativeJitTokens::float_))		parseLine<float>(false);
 		else if (matchIf(NativeJitTokens::int_))	parseLine<int>(false);
 		else if (matchIf(NativeJitTokens::double_))	parseLine<double>(false);
+		else if (matchIf(NativeJitTokens::bool_))	parseLine<BooleanType>(false);
 		else if (matchIf(NativeJitTokens::return_)) parseReturn();
+		else
+		{
+			parseUntypedLine();
+		}
 
-		else match(NativeJitTokens::eof);
+		//else match(NativeJitTokens::eof);
 
 	}
 }
@@ -162,31 +170,26 @@ void FunctionParserBase::parseLine(bool isConst)
 	}
 
 	match(NativeJitTokens::assign_);
-	auto& r = parseExpression<T>();
+	auto& r = parseTypedExpression<T>();
+	
+
+	lines.add(new NamedNode(id, &r, isConst, typeid(T)));
+
 	match(NativeJitTokens::semicolon);
-
-	auto lastLine = getLine(lastParsedLine);
-
-	if (isConst)
-	{
-		if (lastLine != nullptr)
-		{
-			auto& wrapped = exprBase->Dependent(r, *lastLine->node);
-			lines.add(new NamedNode(id, &wrapped, isConst, typeid(T)));
-		}
-		else
-		{
-			lines.add(new NamedNode(id, &r, isConst, typeid(T)));
-		}
-	}
-
-	lastParsedLine = id;
 }
 
 
-template <typename LineType> NativeJIT::Node<LineType>& FunctionParserBase::parseExpression()
+void FunctionParserBase::parseUntypedLine()
 {
-	return parseSum<LineType>();
+	anonymousLines.add(parseExpression());
+	match(NativeJitTokens::semicolon);
+}
+
+BASE_NODE FunctionParserBase::parseExpression()
+{
+	auto r = parseTernaryOperator();
+
+	return r;
 }
 
 void FunctionParserBase::checkAllLinesReferenced()
@@ -200,19 +203,19 @@ void FunctionParserBase::checkAllLinesReferenced()
 	}
 }
 
-template <typename T> NativeJIT::Node<T>& FunctionParserBase::parseSum()
+BASE_NODE FunctionParserBase::parseSum()
 {
-	auto& left = parseProduct<T>();
+	auto left = parseProduct();
 
-	if (matchIf(NativeJitTokens::plus))
+	if (currentType == NativeJitTokens::plus || currentType == NativeJitTokens::minus)
 	{
-		auto& right = parseSum<T>();
-		return exprBase->Add(left, right);
-	}
-	else if (matchIf(NativeJitTokens::minus))
-	{
-		auto& right = parseSum<T>();
-		return exprBase->Sub(left, right);
+		TokenType op = currentType;
+		skip();
+
+		auto right = parseSum();
+
+		return createBinaryNode(left, right, op);
+		
 	}
 	else
 	{
@@ -220,355 +223,596 @@ template <typename T> NativeJIT::Node<T>& FunctionParserBase::parseSum()
 	}
 }
 
-template <typename T> NativeJIT::Node<T>& FunctionParserBase::parseProduct()
+BASE_NODE FunctionParserBase::parseProduct()
 {
-	auto& left = parseCondition<T>();
+	auto left = parseTerm();
 
-	if (matchIf(NativeJitTokens::times))
+	if (currentType == NativeJitTokens::times ||
+		currentType == NativeJitTokens::divide ||
+		currentType == NativeJitTokens::modulo)
 	{
-		auto& right = parseProduct<T>();
-		return exprBase->Mul(left, right);
+		TokenType op = currentType;
+		skip();
+
+		auto right = parseProduct();
+
+		return createBinaryNode(left, right, op);
 	}
-	else if (matchIf(NativeJitTokens::divide))
+	else
 	{
-
-		auto& right = parseProduct<T>();
-		auto& f1 = missingOperatorFunctions->template getDivideFunction<T>(exprBase);
-
-		return exprBase->Call(f1, left, right);
+		return left;
 	}
-	else if (matchIf(NativeJitTokens::modulo))
+}
+
+
+BASE_NODE FunctionParserBase::parseTernaryOperator()
+{
+	auto condition = parseBool();
+
+	if (matchIf(NativeJitTokens::question))
 	{
-		if (NativeJITTypeHelpers::is<T, int>())
+		jassert(yes != nullptr);
+
+		auto conditionTyped = dynamic_cast<NativeJIT::Node<BooleanType>*>(condition);
+
+		if (conditionTyped != nullptr)
 		{
-			auto& right = parseProduct<T>();
+			auto& flag = exprBase->Compare<NativeJIT::JccType::JE>(*conditionTyped, *yes);
 
-			auto& f1 = missingOperatorFunctions->getModuloFunction(exprBase);
+			auto left = parseExpression();
 
-			auto castedLeft = dynamic_cast<NativeJIT::Node<int>*>(&left);
-			auto castedRight = dynamic_cast<NativeJIT::Node<int>*>(&right);
+			match(NativeJitTokens::colon);
 
-			auto& result = exprBase->Call(f1, *castedLeft, *castedRight);
+			auto right = parseExpression();
 
-			return *dynamic_cast<NativeJIT::Node<T>*>(&result);
+			TypeInfo tl = getTypeForNode(left);
+			TypeInfo tr = getTypeForNode(right);
+
+			if (tr == tl)
+			{
+
+#define MATCH_TYPE_AND_RETURN(type) if(NativeJITTypeHelpers::matchesType<type>(tl)) return &exprBase->Conditional(flag, getTypedNode<type>(left), getTypedNode<type>(right));
+
+				MATCH_AND_RETURN_ALL_TYPES()
+
+#undef MATCH_TYPE_AND_RETURN
+			}
+			else
+			{
+				location.throwError(NativeJITTypeHelpers::getTypeMismatchErrorMessage(tl, tr));
+			}
 		}
 		else
 		{
-			throw String("Modulo operation on " + NativeJITTypeHelpers::getTypeName<T>() + " type");
+			location.throwError("Condition must be a bool");
 		}
+
 	}
 	else
 	{
-		return left;
+		return condition;
+
 	}
 }
 
-template <typename T> NativeJIT::Node<T>& FunctionParserBase::parseCondition()
+
+
+template <typename ExpectedType> NativeJIT::NodeBase* FunctionParserBase::parseCast()
 {
-	if (NativeJITTypeHelpers::matchesType<float>(peekFirstType()))		 return parseTernaryOperator<T, float>();
-	else if (NativeJITTypeHelpers::matchesType<double>(peekFirstType())) return parseTernaryOperator<T, double>();
-	else if (NativeJITTypeHelpers::matchesType<int>(peekFirstType()))	 return parseTernaryOperator<T, int>();
-	else location.throwError("Parsing error");
-
-	return getEmptyNode<T>();
-}
-
-template <typename T, typename ConditionType, NativeJIT::JccType compareFlag> NativeJIT::Node<T>& FunctionParserBase::parseBranches(NativeJIT::Node<ConditionType>& left, bool hasOpenParen)
-{
-	auto& right = parseTerm<ConditionType>();
-    
-	auto& a = exprBase->template Compare<compareFlag>(left, right);
-
-    matchIf(NativeJitTokens::closeParen);
-    
-	match(NativeJitTokens::question);
-
-	auto& true_b = parseTerm<T>();
-
-	match(NativeJitTokens::colon);
-
-	auto& false_b = parseTerm<T>();
-
-	return exprBase->Conditional(a, true_b, false_b);
-}
-
-bool isCompareOperator(const char* token)
-{
-    return token == NativeJitTokens::greaterThan;
-}
-
-template <typename T, typename ConditionType> NativeJIT::Node<T>& FunctionParserBase::parseTernaryOperator()
-{
-    
-    
-    auto& left = parseTerm<ConditionType>();
-
-    bool hasOpenParen = true;
-    
-    if (NativeJITTypeHelpers::is<ConditionType, int>())
-    {
-        if (matchIf(NativeJitTokens::greaterThan))
-        {
-            return parseBranches<T, ConditionType, NativeJIT::JccType::JG>(left, hasOpenParen);
-        }
-        else if (matchIf(NativeJitTokens::greaterThanOrEqual))
-        {
-            return parseBranches<T, ConditionType, NativeJIT::JccType::JGE>(left, hasOpenParen);
-        }
-        else if (matchIf(NativeJitTokens::lessThan))
-        {
-            return parseBranches<T, ConditionType, NativeJIT::JccType::JL>(left, hasOpenParen);
-        }
-        else if (matchIf(NativeJitTokens::lessThanOrEqual))
-        {
-            return parseBranches<T, ConditionType, NativeJIT::JccType::JLE>(left, hasOpenParen);
-        }
-        else if (matchIf(NativeJitTokens::equals))
-        {
-            return parseBranches<T, ConditionType, NativeJIT::JccType::JE>(left, hasOpenParen);
-        }
-        else if (matchIf(NativeJitTokens::notEquals))
-        {
-            return parseBranches<T, ConditionType, NativeJIT::JccType::JNE>(left, hasOpenParen);
-        }
-        else
-        {
-            if (NativeJITTypeHelpers::is<T, ConditionType>())
-            {
-                return *dynamic_cast<NativeJIT::Node<T>*>(&left);
-            }
-            else
-            {
-                location.throwError(NativeJITTypeHelpers::getTypeMismatchErrorMessage<T, ConditionType>());
-            }
-        }
-    }
-    else
-    {
-        if (matchIf(NativeJitTokens::greaterThan))
-        {
-            return parseBranches<T, ConditionType, NativeJIT::JccType::JA>(left, hasOpenParen);
-        }
-        else if (matchIf(NativeJitTokens::greaterThanOrEqual))
-        {
-            return parseBranches<T, ConditionType, NativeJIT::JccType::JAE>(left, hasOpenParen);
-        }
-        else if (matchIf(NativeJitTokens::lessThan))
-        {
-            return parseBranches<T, ConditionType, NativeJIT::JccType::JB>(left, hasOpenParen);
-        }
-        else if (matchIf(NativeJitTokens::lessThanOrEqual))
-        {
-            return parseBranches<T, ConditionType, NativeJIT::JccType::JBE>(left, hasOpenParen);
-        }
-        else if (matchIf(NativeJitTokens::equals))
-        {
-            return parseBranches<T, ConditionType, NativeJIT::JccType::JE>(left, hasOpenParen);
-        }
-        else if (matchIf(NativeJitTokens::notEquals))
-        {
-            return parseBranches<T, ConditionType, NativeJIT::JccType::JNE>(left, hasOpenParen);
-        }
-        else
-        {
-            if (NativeJITTypeHelpers::is<T, ConditionType>())
-            {
-                return *dynamic_cast<NativeJIT::Node<T>*>(&left);
-            }
-            else
-            {
-                location.throwError(NativeJITTypeHelpers::getTypeMismatchErrorMessage<T, ConditionType>());
-            }
-        }
-    }
-    
-    
-	
-
-	return getEmptyNode<T>();
-}
-
-
-template <typename TargetType, typename ExpectedType> NativeJIT::Node<TargetType>& FunctionParserBase::parseCast()
-{
-	if (!NativeJITTypeHelpers::is<TargetType, ExpectedType>())
-	{
-		location.throwError(NativeJITTypeHelpers::getTypeMismatchErrorMessage<ExpectedType, TargetType>());
-	}
-
 	match(NativeJitTokens::closeParen);
 
-	auto sourceType = peekFirstType();
+	auto source = parseTerm();
 
-	if (NativeJITTypeHelpers::matchesType<float>(sourceType))
-	{
-		auto &e1 = parseTerm<float>();
-		return exprBase->template Cast<TargetType>(e1);
-	}
-	else if (NativeJITTypeHelpers::matchesType<double>(sourceType))
-	{
-		auto &e1 = parseTerm<double>();
-		return exprBase->template Cast<TargetType>(e1);
-	}
-	else if (NativeJITTypeHelpers::matchesType<int>(sourceType))
-	{
-		auto &e1 = parseTerm<int>();
-		return exprBase->template Cast<TargetType>(e1);
-	}
-	else
-	{
-		location.throwError("Unsupported type");
-	}
+	TypeInfo sourceType = getTypeForNode(source);
 
-	return getEmptyNode<TargetType>();
+#define MATCH_TYPE_AND_RETURN(type) if (NativeJITTypeHelpers::matchesType<type>(sourceType)) return &exprBase->Cast<ExpectedType, type>(getTypedNode<type>(source));
+	
+	MATCH_AND_RETURN_ALL_TYPES();
+	
+#undef MATCH_TYPE_AND_RETURN
+	
+	location.throwError("Unsupported type for cast");
+	
 }
 
 
-TYPED_NODE FunctionParserBase::parseTerm()
+
+
+BASE_NODE FunctionParserBase::parseTerm()
 {
 	if (matchIf(NativeJitTokens::openParen))
 	{
-		if (matchIf(NativeJitTokens::float_))       return parseCast<T, float>();
-		else if (matchIf(NativeJitTokens::int_))    return parseCast<T, int>();
-		else if (matchIf(NativeJitTokens::double_)) return parseCast<T, double>();
+		if (matchIf(NativeJitTokens::float_))  return parseCast<float>();
+		if (matchIf(NativeJitTokens::int_))    return parseCast<int>();
+		if (matchIf(NativeJitTokens::double_)) return parseCast<double>();
 		else
 		{
-			auto& result = parseSum<T>();
-			match(NativeJitTokens::closeParen);
-			return result;
+			auto result = parseExpression();
+            match(NativeJitTokens::closeParen);
+            return result;
 		}
 	}
     else
     {
-        return parseUnary<T>();
+        return parseUnary();
     }
 
-	return getEmptyNode<T>();
+	return nullptr;
 }
 
-TYPED_NODE FunctionParserBase::parseUnary()
+BASE_NODE FunctionParserBase::parseUnary()
 {
     if (currentType == NativeJitTokens::identifier ||
-        currentType == NativeJitTokens::literal)
+        currentType == NativeJitTokens::literal ||
+		currentType == NativeJitTokens::minus)
     {
-        return parseFactor<T>();
+        return parseFactor();
     }
-    else if (matchIf(NativeJitTokens::minus))
-    {
-        if(!NativeJITTypeHelpers::is<T, Buffer*>())
-        {
-            auto& minus1 = exprBase->Immediate(static_cast<T>(-1.0));
-            auto& negate = exprBase->Mul(minus1, parseFactor<T>());
-            return negate;
-        }
-        else
-        {
-            location.throwError("Can't negate a buffer");
-        }
-    }
-    else
+	else if (matchIf(NativeJitTokens::true_))
+	{
+		return yes;
+	}
+	else if (matchIf(NativeJitTokens::false_))
+	{
+		return no;
+	}
+	else
     {
         location.throwError("Parsing error");
     }
     
-    return getEmptyNode<T>();
+	return nullptr;
 }
 
-TYPED_NODE FunctionParserBase::parseFactor()
+BASE_NODE FunctionParserBase::parseFactor()
 {
-	TypeInfo t = peekFirstType();
+	
+	const bool isMinus = matchIf(NativeJitTokens::minus);
+	
+	auto expr = parseSymbolOrLiteral();
 
-	if (NativeJITTypeHelpers::matchesType<T>(t))
+	if(isMinus)
 	{
-		auto& e = parseSymbolOrLiteral<T>();
+		TypeInfo type = getTypeForNode(expr);
 
-		return e;
+		if (NativeJITTypeHelpers::matchesType<int>(type))
+		{
+			auto& minus1 = exprBase->Immediate(static_cast<int>(-1.0));
+			auto& negate = exprBase->Mul(minus1, getTypedNode<int>(expr));
+			return &negate;
+		}
+		if (NativeJITTypeHelpers::matchesType<double>(type))
+		{
+			auto& minus1 = exprBase->Immediate(static_cast<double>(-1.0));
+			auto& negate = exprBase->Mul(minus1, getTypedNode<double>(expr));
+			return &negate;
+		}
+		if (NativeJITTypeHelpers::matchesType<float>(type))
+		{
+			auto& minus1 = exprBase->Immediate(static_cast<float>(-1.0));
+			auto& negate = exprBase->Mul(minus1, getTypedNode<float>(expr));
+			return &negate;
+
+		}
+		else
+		{
+			location.throwError("Can't multiply a buffer or bool with -1");
+		}
 	}
 	else
 	{
-		location.throwError("Parsing error");
+		return expr;
 	}
 
-	return getEmptyNode<T>();
 }
 
-TYPED_NODE FunctionParserBase::parseSymbolOrLiteral()
+BASE_NODE FunctionParserBase::parseSymbolOrLiteral()
 {
-	if (matchIf(NativeJitTokens::identifier))	return parseSymbol<T>();
+	if (matchIf(NativeJitTokens::identifier))	return parseSymbol();
 	else
 	{
 		match(NativeJitTokens::literal);
-		return parseLiteral<T>();
+		return parseLiteral();
 	}
 }
 
-TYPED_NODE FunctionParserBase::getNodeForLine(NamedNode* r)
+BASE_NODE FunctionParserBase::getNodeForLine(NamedNode* r)
 {
-	if (NativeJIT::Node<T>* n = dynamic_cast<NativeJIT::Node<T>*>(r->node))
-		return *n;
-	else
-		location.throwError("Type mismatch for Identifier " + currentValue.toString());
-
-	return getEmptyNode<T>();
+	return r->node;
 }
 
-TYPED_NODE FunctionParserBase::parseSymbol()
+BASE_NODE FunctionParserBase::parseSymbol()
 {
 	Identifier symbolId = Identifier(currentValue);
 
-	if (info.parameterNames.indexOf(symbolId) != -1)		return parseParameterReference<T>(symbolId);
-	if (auto r = getLine(symbolId))					return getNodeForLine<T>(r);
-	else if (auto gn = getGlobalNode(symbolId))				return gn->template getLastNode<T>();
-	else if (auto g = scope->getGlobal(symbolId))			return NativeJITTypeHelpers::matchesType<Buffer*>(g->getType()) ?
-		parseBufferOperation<T>(symbolId) :
-		getGlobalReference<T>(symbolId);
-	else if (auto b = scope->getExposedFunction(symbolId))	return parseFunctionCall<T>(b);
-	else if (auto cf = scope->getCompiledBaseFunction(symbolId)) return parseFunctionCall<T>(cf);
+	if (info.parameterNames.indexOf(symbolId) != -1)		return parseParameterReference(symbolId);
+	if (auto r = getLine(symbolId))							return getNodeForLine(r);
+	else if (auto gn = getGlobalNode(symbolId))				return gn->getLastNodeUntyped();
+	else if (auto g = scope->getGlobal(symbolId))
+	{
+		if (NativeJITTypeHelpers::matchesType<Buffer*>(g->getType()))
+		{
+			return parseBufferOperation(symbolId);
+		}
+		else
+		{
+			return getGlobalReference(symbolId);
+		}	
+	}
+	else if (auto b = scope->getExposedFunction(symbolId))	return parseFunctionCall(b);
+	else if (auto cf = scope->getCompiledBaseFunction(symbolId))
+	{
+#define MATCH_TYPE_AND_RETURN(type) if(NativeJITTypeHelpers::matchesType<type>(cf->getReturnType())) return parseFunctionCall(cf);
+
+		MATCH_TYPE_AND_RETURN(int);
+		MATCH_TYPE_AND_RETURN(double);
+		MATCH_TYPE_AND_RETURN(float);
+		MATCH_TYPE_AND_RETURN(BooleanType);
+		
+#undef MATCH_TYPE_AND_RETURN
+
+	}
 	else
 	{
 		location.throwError("Unknown identifier " + symbolId.toString());
 	}
 
-	return getEmptyNode<T>();
+	return nullptr;
 }
 
-TYPED_NODE FunctionParserBase::parseParameterReference(const Identifier &id)
+BASE_NODE FunctionParserBase::parseParameterReference(const Identifier &id)
 {
-	auto x = parseParameterReferenceTyped(id);
-
-	if (auto t = dynamic_cast<NativeJIT::Node<T>*>(x))
-	{
-		return *t;
-	}
-	else
-	{
-		location.throwError("Parameter type mismatch: " + NativeJITTypeHelpers::getTypeName<T>());
-	}
-
-	return getEmptyNode<T>();
+	return parseParameterReferenceTyped(id);
 }
 
-TYPED_NODE FunctionParserBase::parseBufferOperation(const Identifier &id)
+BASE_NODE FunctionParserBase::parseBufferOperation(const Identifier &id)
 {
 	if (matchIf(NativeJitTokens::openBracket))
 	{
-		if (NativeJITTypeHelpers::is<float, T>())
-		{
-			return *dynamic_cast<NativeJIT::Node<T>*>(&parseBufferAccess(id));
-		}
-		else
-		{
-			location.throwError(NativeJITTypeHelpers::getTypeMismatchErrorMessage<T, float>());
-		}
-
-		return getEmptyNode<T>();
+		return &parseBufferAccess(id);
 	}
 	else
 	{
 		match(NativeJitTokens::dot);
 
-		return parseBufferFunction<T>(id);
+		return parseBufferFunction<float>(id);
 	}
+}
+
+
+NativeJIT::NodeBase* FunctionParserBase::createBinaryNode(NativeJIT::NodeBase* a, NativeJIT::NodeBase* b, TokenType op)
+{
+	TypeInfo ta = getTypeForNode(a);
+	TypeInfo tb = getTypeForNode(b);
+
+	if (ta != tb)
+	{
+		location.throwError("Type mismatch for binary operation " + String(op));
+	}
+	
+#define MATCH_TYPE_AND_RETURN(type) if (NativeJITTypeHelpers::matchesType<type>(ta)) return createTypedBinaryNode(getTypedNode<type>(a), getTypedNode<type>(b), op);
+
+	MATCH_AND_RETURN_ALL_TYPES()
+
+#undef MATCH_TYPE_AND_RETURN
+}
+
+
+
+template <typename T> BASE_NODE FunctionParserBase::createTypedBinaryNode(NativeJIT::Node<T>& left, NativeJIT::Node<T>& right, TokenType op)
+{
+	if (op == NativeJitTokens::plus)
+	{
+		return &exprBase->Add(left, right);
+	}
+	if (op == NativeJitTokens::minus)
+	{
+		return &exprBase->Sub(left, right);
+	}
+	if (op == NativeJitTokens::times)
+	{
+		return &exprBase->Mul(left, right);
+	}
+	if (op == NativeJitTokens::divide)
+	{
+		auto& div = missingOperatorFunctions->template getDivideFunction<T>(exprBase);
+		return &exprBase->Call(div, left, right);
+	}
+	if (op == NativeJitTokens::modulo)
+	{
+		if (NativeJITTypeHelpers::is<T, int>())
+		{
+			auto& mod = missingOperatorFunctions->getModuloFunction(exprBase);
+
+			auto castedLeft = dynamic_cast<NativeJIT::Node<int>*>(&left);
+			auto castedRight = dynamic_cast<NativeJIT::Node<int>*>(&right);
+
+			return &exprBase->Call(mod, *castedLeft, *castedRight);
+		}
+		else
+		{
+			throw String("Modulo operation on " + NativeJITTypeHelpers::getTypeName<T>() + " type");
+		}
+
+		return &getEmptyNode<T>();
+	}
+	else if (op == NativeJitTokens::greaterThan)
+	{
+		const bool isFPType = NativeJITTypeHelpers::is<T, float>() || NativeJITTypeHelpers::is<T, double>();
+
+		if (isFPType)
+		{
+			auto& flag = exprBase->Compare<NativeJIT::JccType::JA>(left, right);
+			return &exprBase->Conditional(flag, *yes, *no);
+		}
+		else
+		{
+			auto& flag = exprBase->Compare<NativeJIT::JccType::JG>(left, right);
+			return &exprBase->Conditional(flag, *yes, *no);
+		}
+	}
+	else if (op == NativeJitTokens::greaterThanOrEqual)
+	{
+		const bool isFPType = NativeJITTypeHelpers::is<T, float>() || NativeJITTypeHelpers::is<T, double>();
+
+		if (isFPType)
+		{
+			auto& flag = exprBase->Compare<NativeJIT::JccType::JAE>(left, right);
+			return &exprBase->Conditional(flag, *yes, *no);
+		}
+		else
+		{
+			auto& flag = exprBase->Compare<NativeJIT::JccType::JGE>(left, right);
+			return &exprBase->Conditional(flag, *yes, *no);
+		}
+	}
+	else if (op == NativeJitTokens::lessThan)
+	{
+		const bool isFPType = NativeJITTypeHelpers::is<T, float>() || NativeJITTypeHelpers::is<T, double>();
+
+		if (isFPType)
+		{
+			auto& flag = exprBase->Compare<NativeJIT::JccType::JB>(left, right);
+			return &exprBase->Conditional(flag, *yes, *no);
+		}
+		else
+		{
+			auto& flag = exprBase->Compare<NativeJIT::JccType::JL>(left, right);
+			return &exprBase->Conditional(flag, *yes, *no);
+		}
+	}
+	else if (op == NativeJitTokens::lessThanOrEqual)
+	{
+		const bool isFPType = NativeJITTypeHelpers::is<T, float>() || NativeJITTypeHelpers::is<T, double>();
+
+		if (isFPType)
+		{
+			auto& flag = exprBase->Compare<NativeJIT::JccType::JBE>(left, right);
+			return &exprBase->Conditional(flag, *yes, *no);
+		}
+		else
+		{
+			auto& flag = exprBase->Compare<NativeJIT::JccType::JLE>(left, right);
+			return &exprBase->Conditional(flag, *yes, *no);
+		}
+	}
+	else if (op == NativeJitTokens::equals)
+	{
+		auto& flag = exprBase->Compare<NativeJIT::JccType::JE>(left, right);
+		return &exprBase->Conditional(flag, *yes, *no);
+		
+	}
+	else if (op == NativeJitTokens::notEquals)
+	{
+		auto& flag = exprBase->Compare<NativeJIT::JccType::JNE>(left, right);
+		return &exprBase->Conditional(flag, *yes, *no);
+	}
+	else if (op == NativeJitTokens::logicalAnd)
+	{
+		auto leftAsBool = dynamic_cast<NativeJIT::Node<BooleanType>*>(&left);
+		auto rightAsBool = dynamic_cast<NativeJIT::Node<BooleanType>*>(&right);
+
+		if (leftAsBool != nullptr && rightAsBool != nullptr)
+		{
+			auto& sum = exprBase->Add(*leftAsBool, *rightAsBool);
+
+			if (and_ == nullptr)
+			{
+				and_ = &exprBase->Immediate<BooleanType>((BooleanType)2);
+			}
+
+			auto& flag = exprBase->Compare<NativeJIT::JccType::JE>(sum, *and_);
+
+			jassert(yes != nullptr);
+			jassert(no != nullptr);
+
+			return &exprBase->Conditional(flag, *yes, *no);
+		}
+		else
+		{
+			location.throwError("Can't use logic operators on non boolean expressions");
+		}
+	}
+	else if (op == NativeJitTokens::logicalOr)
+	{
+		auto leftAsBool = dynamic_cast<NativeJIT::Node<BooleanType>*>(&left);
+		auto rightAsBool = dynamic_cast<NativeJIT::Node<BooleanType>*>(&right);
+
+		if (leftAsBool != nullptr && rightAsBool != nullptr)
+		{
+			auto& sum = exprBase->Add(*leftAsBool, *rightAsBool);
+
+			jassert(yes != nullptr);
+			jassert(no != nullptr);
+
+			auto& flag = exprBase->Compare<NativeJIT::JccType::JE>(sum, *yes);
+
+			return &exprBase->Conditional(flag, *yes, *no);
+		}
+		else
+		{
+			location.throwError("Can't use logic operators on non boolean expressions");
+		}
+	}
+}
+
+TYPED_NODE FunctionParserBase::getTypedNode(NativeJIT::NodeBase* node)
+{
+	auto r = dynamic_cast<NativeJIT::Node<T>*>(node);
+
+	if (r != nullptr)
+	{
+		return *r;
+	}
+	else
+	{
+		location.throwError("Critical error in internal cast");
+	}
+
+	return getEmptyNode<T>();
+}
+
+
+
+TYPED_NODE FunctionParserBase::getCastedNode(NativeJIT::NodeBase* node)
+{
+	TypeInfo nodeType = getTypeForNode(node);
+
+	if (TYPE_MATCH(Buffer*, nodeType)) 
+	{
+		return getEmptyNode<T>();
+	}
+
+	// Skip cast if not required
+	if (TYPE_MATCH(T, nodeType)) return getTypedNode<T>(node);
+
+
+#define MATCH_TYPE_AND_RETURN(type) if (TYPE_MATCH(type, nodeType)) return exprBase->Cast<T, type>(getTypedNode<type>(node));
+
+	MATCH_TYPE_AND_RETURN(int);
+	MATCH_TYPE_AND_RETURN(float);
+	MATCH_TYPE_AND_RETURN(double);
+	MATCH_TYPE_AND_RETURN(BooleanType);
+
+#undef MATCH_TYPE_AND_RETURN
+	
+
+	location.throwError("No cast possible");
+	return getEmptyNode<T>();
+}
+
+TypeInfo FunctionParserBase::getTypeForNode(NativeJIT::NodeBase* node)
+{
+#define MATCH_TYPE_AND_RETURN(type) if (auto r = dynamic_cast<NativeJIT::Node<type>*>(node)) return typeid(type);
+
+	MATCH_AND_RETURN_ALL_TYPES()
+
+#undef MATCH_TYPE_AND_RETURN
+
+	else location.throwError("Unknown type");
+
+	return typeid(int);
+}
+
+bool FunctionParserBase::nodesHaveSameType(NativeJIT::NodeBase* a, NativeJIT::NodeBase* b)
+{
+	return getTypeForNode(a) == getTypeForNode(b);
+}
+
+TYPED_NODE FunctionParserBase::parseTypedExpression()
+{
+	auto e = parseExpression();
+
+	auto typed = dynamic_cast<NativeJIT::Node<T>*>(e);
+
+	if (typed != nullptr)
+	{
+		return *typed;
+	}
+	else
+	{
+		location.throwError("Expression type mismatch: Expected " + NativeJITTypeHelpers::getTypeName<T>());
+	}
+
+	return getEmptyNode<T>();
+}
+
+BASE_NODE FunctionParserBase::parseBool()
+{
+	const bool isInverted = matchIf(NativeJitTokens::logicalNot);
+
+	if (yes == nullptr) // Create them the first time they are used
+	{
+		yes = &exprBase->Immediate<BooleanType>((BooleanType)1);
+		no = &exprBase->Immediate<BooleanType>((BooleanType)0);
+	}
+
+	auto result = parseLogicOperation();
+
+	if (!isInverted)
+	{
+		return result;
+	}
+	else
+	{
+		auto resultTyped = dynamic_cast<NativeJIT::Node<BooleanType>*>(result);
+
+		if (resultTyped != nullptr)
+		{
+			return &exprBase->Sub(*yes, *resultTyped);
+		}
+		else
+		{
+			location.throwError("Can't negate non boolean expressions");
+		}
+	}
+}
+
+
+BASE_NODE FunctionParserBase::parseLogicOperation()
+{
+	auto left = parseComparation();
+
+	if (matchIf(NativeJitTokens::logicalAnd))
+	{
+		auto right = parseLogicOperation();
+		return createBinaryNode(left, right, NativeJitTokens::logicalAnd);
+	}
+	else if (matchIf(NativeJitTokens::logicalOr))
+	{
+		auto right = parseLogicOperation();
+		return createBinaryNode(left, right, NativeJitTokens::logicalOr);
+	}
+	else
+	{
+		return left;
+	}
+}
+
+
+BASE_NODE FunctionParserBase::parseComparation()
+{
+	auto left = parseSum();
+
+	if (currentType == NativeJitTokens::greaterThan ||
+		currentType == NativeJitTokens::greaterThanOrEqual ||
+		currentType == NativeJitTokens::lessThan ||
+		currentType == NativeJitTokens::lessThanOrEqual ||
+		currentType == NativeJitTokens::equals ||
+		currentType == NativeJitTokens::notEquals)
+	{
+		TokenType op = currentType;
+		skip();
+		auto right = parseSum();
+		return createBinaryNode(left, right, op);
+
+	}
+	else
+	{
+		return left;
+	}
+
+	return nullptr;
 }
 
 NativeJIT::Node<Buffer*>& FunctionParserBase::getBufferNode(const Identifier& id)
@@ -585,7 +829,7 @@ NativeJIT::Node<float>& FunctionParserBase::parseBufferAccess(const Identifier &
 {
 	auto& b = getBufferNode(id);
 
-	auto& index = parseSum<int>();
+	auto& index = parseTypedExpression<int>();
 	match(NativeJitTokens::closeBracket);
 
 	if (info.useSafeBufferFunctions)
@@ -600,7 +844,7 @@ NativeJIT::Node<float>& FunctionParserBase::parseBufferAccess(const Identifier &
 	}
 }
 
-TYPED_NODE FunctionParserBase::parseBufferFunction(const Identifier& id)
+template <typename T> BASE_NODE FunctionParserBase::parseBufferFunction(const Identifier& id)
 {
 	const Identifier functionName = parseIdentifier();
 
@@ -612,28 +856,28 @@ TYPED_NODE FunctionParserBase::parseBufferFunction(const Identifier& id)
 		auto& f = exprBase->Immediate(BufferOperations::setSize<T>);
 
 		match(NativeJitTokens::openParen);
-		auto& s = parseSum<int>();
+		auto& s = parseTypedExpression<int>();
 		match(NativeJitTokens::closeParen);
 
-		return exprBase->Call(f, b, s);
+		return &exprBase->Call(f, b, s);
 	}
 
-	return getEmptyNode<T>();
+	return &getEmptyNode<T>();
 }
 
-TYPED_NODE FunctionParserBase::parseBufferAssignment(const Identifier &id)
+template <typename T> BASE_NODE FunctionParserBase::parseBufferAssignment(const Identifier &id)
 {
 	auto& b = getBufferNode(id);
 
-	auto& index = parseSum<int>();
+	auto& index = parseTypedExpression<int>();
 	match(NativeJitTokens::closeBracket);
 
 	match(NativeJitTokens::assign_);
 
 #if JUCE_WINDOWS
-	auto& value = parseSum<float>();
+	auto& value = parseTypedExpression<float>();
 #else
-    auto& unwrapped = parseSum<float>();
+    auto& unwrapped = parseTypedExpression<float>();
     auto& dummyF = exprBase->Immediate(GlobalBase::returnSameValue<float>);
     auto& value = exprBase->Call(dummyF, unwrapped);
 #endif
@@ -641,16 +885,32 @@ TYPED_NODE FunctionParserBase::parseBufferAssignment(const Identifier &id)
 	if (info.useSafeBufferFunctions)
 	{
 		auto& f = exprBase->Immediate(BufferOperations::setSample<T>);
-		return exprBase->Call(f, b, index, value);
+		return &exprBase->Call(f, b, index, value);
 	}
 	else
 	{
 		auto& f = exprBase->Immediate(BufferOperations::setSampleRaw<T>);
-		return exprBase->Call(f, b, index, value);
+		return &exprBase->Call(f, b, index, value);
 	}
 }
 
-TYPED_NODE FunctionParserBase::getGlobalReference(const Identifier& id)
+
+template <typename T> BASE_NODE FunctionParserBase::getGlobalNodeGetFunction(const Identifier &id)
+{
+	auto r = scope->getGlobal(id);
+
+	if (!NativeJITTypeHelpers::matchesType<T>(r->type))
+	{
+		location.throwError(NativeJITTypeHelpers::getTypeMismatchErrorMessage<T>(r->type));
+	}
+
+	auto& e1 = exprBase->Immediate(GlobalBase::get<T>);
+	auto& g = exprBase->Immediate(r);
+
+	return &exprBase->Call(e1, g);
+}
+
+BASE_NODE FunctionParserBase::getGlobalReference(const Identifier& id)
 {
 	auto existingNode = getGlobalNode(id);
 
@@ -658,107 +918,111 @@ TYPED_NODE FunctionParserBase::getGlobalReference(const Identifier& id)
 
 	if (globalWasChanged)
 	{
-		return existingNode->template getLastNode<T>();
+		return existingNode->getLastNodeUntyped();
 	}
 	else
 	{
-		auto r = scope->getGlobal(id);
+		auto g = scope->getGlobal(id);
 
-		if (!NativeJITTypeHelpers::matchesType<T>(r->type))
-		{
-			location.throwError(NativeJITTypeHelpers::getTypeMismatchErrorMessage<T>(r->type));
-		}
+#define MATCH_TYPE_AND_RETURN(type) if (NativeJITTypeHelpers::matchesType<type>(g->getType())) return getGlobalNodeGetFunction<type>(id);
 
-		auto& e1 = exprBase->Immediate(GlobalBase::get<T>);
-		auto& g = exprBase->Immediate(r);
+		MATCH_AND_RETURN_ALL_TYPES()
 
-		return exprBase->Call(e1, g);
+#undef MATCH_TYPE_AND_RETURN
 	}
 }
 
-TYPED_NODE FunctionParserBase::parseLiteral()
+BASE_NODE FunctionParserBase::parseLiteral()
 {
-	T value = (T)currentValue;
+	TypeInfo t = NativeJITTypeHelpers::getTypeForLiteral(currentString);
 
-	if (!NativeJITTypeHelpers::matchesType<T>(currentString))
-	{
-		location.throwError("Type mismatch: " + NativeJITTypeHelpers::getTypeName(currentString) + ", Expected: " + NativeJITTypeHelpers::getTypeName<T>());
-	}
+#define MATCH_TYPE_AND_RETURN(type) if (NativeJITTypeHelpers::matchesType<type>(t)) return &exprBase->Immediate((type)currentValue);
 
-	return exprBase->Immediate(value);
+	MATCH_TYPE_AND_RETURN(int);
+	MATCH_TYPE_AND_RETURN(double);
+	MATCH_TYPE_AND_RETURN(float);
+	
+#undef MATCH_TYPE_AND_RETURN
+
+	location.throwError("Type mismatch at parsing literal: " + NativeJITTypeHelpers::getTypeName(currentString));
 }
 
-TYPED_NODE FunctionParserBase::parseFunctionCall(BaseFunction* b)
+#define PARAMETER_IS_TYPE(type, index) NativeJITTypeHelpers::matchesType<type>(pi.types[index])
+
+#define CHECK_AND_CREATE_FUNCTION_0(returnType) if (NativeJITTypeHelpers::matchesType<returnType>(pi.returnType)) return parseFunctionParameterList<returnType>();
+
+#define CHECK_AND_CREATE_FUNCTION_1(p1Type) if (NativeJITTypeHelpers::matchesType<p1Type>(pi.types[0])) return parseFunctionParameterList<T, p1Type>(b, pi.nodes[0]);
+
+
+
+
+BASE_NODE FunctionParserBase::parseFunctionCall(BaseFunction* b)
 {
 	jassert(b != nullptr);
 
 	match(NativeJitTokens::openParen);
 
-	Array<NativeJIT::NodeBase*> parameterNodes;
-	std::vector<TypeInfo> parameterTypes;
+	ParameterInfo pi(b->getReturnType());
 
 	while (currentType != NativeJitTokens::closeParen)
 	{
-		auto t = peekFirstType();
+		auto e = parseExpression();
 
-		parameterTypes.push_back(t);
+		TypeInfo t = getTypeForNode(e);
 
-		if (NativeJITTypeHelpers::matchesType<float>(t)) parameterNodes.add(&parseSum<float>());
-		else if (NativeJITTypeHelpers::matchesType<double>(t)) parameterNodes.add(&parseSum<double>());
-		else if (NativeJITTypeHelpers::matchesType<int>(t)) parameterNodes.add(&parseSum<int>());
-		else location.throwError("Type unknown");
-
+		pi.types.push_back(t);
+		pi.nodes.add(e);
+		
 		matchIf(NativeJitTokens::comma);
 	}
 
-	switch (parameterTypes.size())
+	switch (pi.types.size())
 	{
 	case 0:
 	{
-		return parseFunctionParameterList<T>(b);
+#define MATCH_TYPE_AND_RETURN(type) if (TYPE_MATCH(type, pi.returnType)) return parseFunctionParameterList<type>(b);
+		MATCH_AND_RETURN_ALL_TYPES();
+#undef MATCH_TYPE_AND_RETURN;
+
 	}
 	case 1:
 	{
-		if (NativeJITTypeHelpers::matchesType<float>(parameterTypes[0])) return parseFunctionParameterList<T, float>(b, parameterNodes[0]);
-		else if (NativeJITTypeHelpers::matchesType<int>(parameterTypes[0])) return parseFunctionParameterList<T, int>(b, parameterNodes[0]);
-		else if (NativeJITTypeHelpers::matchesType<double>(parameterTypes[0])) return parseFunctionParameterList<T, double>(b, parameterNodes[0]);
-		else
-		{
-			location.throwError("No type deducted");
-		}
+
+
+#define FUNCTION_CHECK_WITH_1_ARGUMENT(rt, p1Type) if (TYPE_MATCH(rt, pi.returnType) && TYPE_MATCH(p1Type, pi.types[0])) return parseFunctionParameterList<rt, p1Type>(b, pi.nodes[0]);
+
+#define MATCH_TYPE_AND_RETURN(type) FUNCTION_CHECK_WITH_1_ARGUMENT(float, type)
+		MATCH_AND_RETURN_ALL_TYPES();
+#undef MATCH_TYPE_AND_RETURN
+
+#define MATCH_TYPE_AND_RETURN(type) FUNCTION_CHECK_WITH_1_ARGUMENT(double, type)
+		MATCH_AND_RETURN_ALL_TYPES();
+#undef MATCH_TYPE_AND_RETURN
+
+#define MATCH_TYPE_AND_RETURN(type) FUNCTION_CHECK_WITH_1_ARGUMENT(int, type)
+		MATCH_AND_RETURN_ALL_TYPES();
+#undef MATCH_TYPE_AND_RETURN
+
+#define MATCH_TYPE_AND_RETURN(type) FUNCTION_CHECK_WITH_1_ARGUMENT(Buffer*, type)
+		MATCH_AND_RETURN_ALL_TYPES();
+#undef MATCH_TYPE_AND_RETURN
+
+#define MATCH_TYPE_AND_RETURN(type) FUNCTION_CHECK_WITH_1_ARGUMENT(BooleanType, type)
+		MATCH_AND_RETURN_ALL_TYPES();
+#undef MATCH_TYPE_AND_RETURN
+
+		location.throwError("No type deducted");
 	}
 	case 2:
 	{
-		if (NativeJITTypeHelpers::matchesType<float>(parameterTypes[0]))
-		{
-			if (NativeJITTypeHelpers::matchesType<float>(parameterTypes[1])) return parseFunctionParameterList<T, float, float>(b, parameterNodes[0], parameterNodes[1]);
-			else if (NativeJITTypeHelpers::matchesType<int>(parameterTypes[1])) return parseFunctionParameterList<T, float, int>(b, parameterNodes[0], parameterNodes[1]);
-			else if (NativeJITTypeHelpers::matchesType<double>(parameterTypes[1])) return parseFunctionParameterList<T, float, double>(b, parameterNodes[0], parameterNodes[1]);
-			else
-			{
-				location.throwError("No type deducted");
-			}
-		}
-		else if (NativeJITTypeHelpers::matchesType<int>(parameterTypes[0]))
-		{
-			if (NativeJITTypeHelpers::matchesType<float>(parameterTypes[1])) return parseFunctionParameterList<T, int, float>(b, parameterNodes[0], parameterNodes[1]);
-			else if (NativeJITTypeHelpers::matchesType<int>(parameterTypes[1])) return parseFunctionParameterList<T, int, int>(b, parameterNodes[0], parameterNodes[1]);
-			else if (NativeJITTypeHelpers::matchesType<double>(parameterTypes[1])) return parseFunctionParameterList<T, int, double>(b, parameterNodes[0], parameterNodes[1]);
-			else
-			{
-				location.throwError("No type deducted");
-			}
-		}
-		else if (NativeJITTypeHelpers::matchesType<double>(parameterTypes[0]))
-		{
-			if (NativeJITTypeHelpers::matchesType<float>(parameterTypes[1])) return parseFunctionParameterList<T, double, float>(b, parameterNodes[0], parameterNodes[1]);
-			else if (NativeJITTypeHelpers::matchesType<int>(parameterTypes[1])) return parseFunctionParameterList<T, double, int>(b, parameterNodes[0], parameterNodes[1]);
-			else if (NativeJITTypeHelpers::matchesType<double>(parameterTypes[1])) return parseFunctionParameterList<T, double, double>(b, parameterNodes[0], parameterNodes[1]);
-			else
-			{
-				location.throwError("No type deducted");
-			}
-		}
+
+#define FUNCTION_CHECK_WITH_2_ARGUMENTS(rt, p1, p2) if (TYPE_MATCH(rt, pi.returnType) && TYPE_MATCH(p1, pi.types[0]) && TYPE_MATCH(p2, pi.types[1])) return parseFunctionParameterList<rt, p1, p2>(b, pi.nodes[0], pi.nodes[1]);
+
+#define MATCH_TYPE_AND_RETURN(type) FUNCTION_CHECK_WITH_2_ARGUMENTS(int, int, double);
+		MATCH_AND_RETURN_ALL_TYPES()
+#undef	MATCH_TYPE_AND_RETURN
+
+
 	}
 	default:
 	{
@@ -766,10 +1030,10 @@ TYPED_NODE FunctionParserBase::parseFunctionCall(BaseFunction* b)
 	}
 	}
 
-	return getEmptyNode<T>();
+	return nullptr;
 }
 
-template <typename R> NativeJIT::Node<R>& FunctionParserBase::parseFunctionParameterList(BaseFunction* b)
+template <typename R> BASE_NODE FunctionParserBase::parseFunctionParameterList(BaseFunction* b)
 {
 	typedef R(*f_p)();
 
@@ -780,19 +1044,18 @@ template <typename R> NativeJIT::Node<R>& FunctionParserBase::parseFunctionParam
 		auto& e2 = exprBase->Immediate(function);
 		auto& e3 = exprBase->Call(e2);
 		match(NativeJitTokens::closeParen);
-		return e3;
+		return &e3;
 	}
 	else
 	{
 		location.throwError("Function type mismatch");
 	}
 
-
-	return getEmptyNode<R>();
+	nullptr;
 }
 
 
-template <typename R, typename ParamType> NativeJIT::Node<R>& FunctionParserBase::parseFunctionParameterList(BaseFunction* b, NativeJIT::NodeBase* param1)
+template <typename R, typename ParamType> NativeJIT::NodeBase* FunctionParserBase::parseFunctionParameterList(BaseFunction* b, NativeJIT::NodeBase* param1)
 {
 	checkParameterType<ParamType>(b, 0);
 
@@ -809,7 +1072,7 @@ template <typename R, typename ParamType> NativeJIT::Node<R>& FunctionParserBase
 		{
 			auto& e3 = exprBase->template Call<R, ParamType>(e1, *e2);
 			match(NativeJitTokens::closeParen);
-			return e3;
+			return &e3;
 		}
 		else
 		{
@@ -822,11 +1085,14 @@ template <typename R, typename ParamType> NativeJIT::Node<R>& FunctionParserBase
 	}
 
 
-	return getEmptyNode<R>();
+	return &getEmptyNode<R>();
 }
 
 
-template <typename R, typename ParamType1, typename ParamType2> NativeJIT::Node<R>& FunctionParserBase::parseFunctionParameterList(BaseFunction* b, NativeJIT::NodeBase* param1, NativeJIT::NodeBase* param2)
+
+
+
+template <typename R, typename ParamType1, typename ParamType2> NativeJIT::NodeBase* FunctionParserBase::parseFunctionParameterList(BaseFunction* b, NativeJIT::NodeBase* param1, NativeJIT::NodeBase* param2)
 {
 	checkParameterType<ParamType1>(b, 0);
 	checkParameterType<ParamType2>(b, 1);
@@ -852,7 +1118,7 @@ template <typename R, typename ParamType1, typename ParamType2> NativeJIT::Node<
 		{
 			auto& e4 = exprBase->Call(e1, *e2, *e3);
 			match(NativeJitTokens::closeParen);
-			return e4;
+			return &e4;
 		}
 		else
 		{
@@ -865,7 +1131,7 @@ template <typename R, typename ParamType1, typename ParamType2> NativeJIT::Node<
 	}
 
 
-	return getEmptyNode<R>();
+	return &getEmptyNode<R>();
 }
 
 TYPED_NODE_VOID FunctionParserBase::checkParameterType(BaseFunction* b, int parameterIndex)
@@ -874,6 +1140,13 @@ TYPED_NODE_VOID FunctionParserBase::checkParameterType(BaseFunction* b, int para
 	{
 		location.throwError("Parameter " + String(parameterIndex + 1) + " type mismatch: " + NativeJITTypeHelpers::getTypeName<T>() + ", Expected: " + b->getTypeForParameter(parameterIndex).name());
 	}
+}
+
+template <typename T> BASE_NODE FunctionParserBase::getOSXDummyNode(NativeJIT::NodeBase* node)
+{
+    auto& dummyReturn = exprBase->Immediate(GlobalBase::returnSameValue<T>);
+    auto& exp2 = exprBase->Call(dummyReturn, *dynamic_cast<NativeJIT::Node<T>*>(node));
+    return &exp2;
 }
 
 template <typename T>
@@ -890,65 +1163,78 @@ void FunctionParserBase::parseGlobalAssignment(GlobalBase* g)
 		numAssignTypes
 	};
 
-	AssignType assignType;
+	parseIdentifier();
 
-	if (matchIf(NativeJitTokens::minusEquals)) assignType = Sub;
-	else if (matchIf(NativeJitTokens::divideEquals)) assignType = Div;
-	else if (matchIf(NativeJitTokens::timesEquals)) assignType = Mul;
-	else if (matchIf(NativeJitTokens::plusEquals)) assignType = Add;
-	else if (matchIf(NativeJitTokens::moduloEquals)) assignType = Mod;
+	TokenType assignType;
+
+	if (matchIf(NativeJitTokens::minusEquals)) assignType = NativeJitTokens::minus;
+	else if (matchIf(NativeJitTokens::divideEquals)) assignType = NativeJitTokens::divide;
+	else if (matchIf(NativeJitTokens::timesEquals)) assignType = NativeJitTokens::times;
+	else if (matchIf(NativeJitTokens::plusEquals)) assignType = NativeJitTokens::plus;
+	else if (matchIf(NativeJitTokens::moduloEquals)) assignType = NativeJitTokens::modulo;
 	else
 	{
 		match(NativeJitTokens::assign_);
-		assignType = Assign;
+		assignType = NativeJitTokens::assign_;
 	}
 
-	auto& exp = parseExpression<T>();
+	NativeJIT::NodeBase* newNode = parseExpression();
+	
+    TypeInfo newType = getTypeForNode(newNode);
 
 #if JUCE_MAC
     
     // OSX returns wrong values for double / floats if the expression is not wrapped into a dummy function call
-    auto& dummyReturn = exprBase->Immediate(GlobalBase::returnSameValue<T>);
-    auto& exp2 = exprBase->Call(dummyReturn, exp);
-	NativeJIT::Node<T>* newNode = &exp2;
-#else
-    NativeJIT::Node<T>* newNode = &exp;
+    
+#define GET_DUMMY_NODE(type) if (TYPE_MATCH(type, newType)) newNode = getOSXDummyNode<type>(newNode);
+
+    GET_DUMMY_NODE(double);
+    GET_DUMMY_NODE(float);
+    GET_DUMMY_NODE(int);
+    GET_DUMMY_NODE(BooleanType);
+    GET_DUMMY_NODE(Buffer*);
+    
+#undef GET_DUMMY_NODE
+    
+    
+
 #endif
     
-	NativeJIT::Node<T>* old = nullptr;
+	NativeJIT::NodeBase* old = nullptr;
 
 	auto existingNode = getGlobalNode(g->id);
 
-	if (existingNode == nullptr) old = &getGlobalReference<T>(g->id);
-	else						 old = &existingNode->template getLastNode<T>();
+	if (existingNode == nullptr) old = getGlobalReference(g->id);
+	else						 old = existingNode->getLastNodeUntyped();
 
-	switch (assignType)
+	if (assignType != NativeJitTokens::assign_)
 	{
-
-	case Add:	newNode = &exprBase->Add(*old, *newNode); break;
-	case Sub:	newNode = &exprBase->Sub(*old, *newNode); break;
-	case Mul:	newNode = &exprBase->Add(*old, *newNode); break;
-	case Div:	newNode = &exprBase->Call(missingOperatorFunctions->template getDivideFunction<T>(exprBase), *old, *newNode); break;
-	case Mod:	newNode = dynamic_cast<NativeJIT::Node<T>*>(&exprBase->Call(missingOperatorFunctions->getModuloFunction(exprBase), *dynamic_cast<NativeJIT::Node<int>*>(old), *dynamic_cast<NativeJIT::Node<int>*>(newNode))); break;
-	case numAssignTypes:
-	case Assign:
-	default:
-		break;
+		newNode = createBinaryNode(old, newNode, assignType);
 	}
 
 	match(NativeJitTokens::semicolon);
 
-	if (existingNode != nullptr)
-	{
-		existingNode->template addNode<T>(exprBase, *newNode);
-	}
-	else
-	{
-		ScopedPointer<GlobalNode> newGlobalNode = new GlobalNode(g);
+	
+	OptionalScopedPointer<GlobalNode> pointerToUse;
+	
+	if (existingNode != nullptr) pointerToUse.setNonOwned(existingNode);
+	else pointerToUse.setOwned(new GlobalNode(g));
 
-		newGlobalNode->template addNode<T>(exprBase, *newNode);
+	
 
-		globalNodes.add(newGlobalNode.release());
+#define ADD_IF_MATCH(type) if (TYPE_MATCH(type, newType)) pointerToUse->addNode<type>(exprBase, newNode)
+
+	ADD_IF_MATCH(double);
+	ADD_IF_MATCH(float);
+	ADD_IF_MATCH(int);
+	ADD_IF_MATCH(Buffer*);
+	ADD_IF_MATCH(BooleanType);
+
+#undef ADD_IF_MATCH
+
+	if (existingNode == nullptr)
+	{
+		globalNodes.add(pointerToUse.release());
 	}
 }
 
@@ -961,6 +1247,35 @@ GlobalNode* FunctionParserBase::getGlobalNode(const Identifier& id)
 	}
 
 	return nullptr;
+
+
+}
+
+
+TYPED_NODE FunctionParserBase::getAnonymousLine(int index)
+{
+	NativeJIT::NodeBase* untyped = anonymousLines[index];
+
+	if (untyped == nullptr)
+	{
+		location.throwError("Anonymous line not found");
+		return getEmptyNode<T>();
+	}
+
+	TypeInfo type = getTypeForNode(untyped);
+
+	if (TYPE_MATCH(T, type))
+	{
+		auto& l = getTypedNode<T>(untyped);
+		auto& r = exprBase->Immediate<T>((T)0);
+		return exprBase->Add(l, r);
+	}
+	else
+	{
+		auto& castedL = getCastedNode<T>(untyped);
+		auto& r = exprBase->Immediate<T>((T)0);
+		return exprBase->Add(castedL, r);
+	}
 }
 
 FunctionParserBase::NamedNode* FunctionParserBase::getLine(const Identifier& id)
@@ -993,15 +1308,19 @@ TypeInfo FunctionParserBase::peekFirstType()
 		{
 			Identifier typeId = info.parameterTypes[pIndex];
 
+
+
 			if (typeId.toString() == NativeJitTokens::float_) return typeid(float);
 			if (typeId.toString() == NativeJitTokens::double_) return typeid(double);
 			if (typeId.toString() == NativeJitTokens::int_) return typeid(int);
+			if (typeId.toString() == NativeJitTokens::bool_) return typeid(BooleanType);
 		}
 		if (auto r = getLine(currentId))
 		{
 			if (dynamic_cast<NativeJIT::Node<float>*>(r->node)) return typeid(float);
 			if (dynamic_cast<NativeJIT::Node<double>*>(r->node)) return typeid(double);
 			if (dynamic_cast<NativeJIT::Node<int>*>(r->node)) return typeid(int);
+			if (dynamic_cast<NativeJIT::Node<BooleanType>*>(r->node)) return typeid(BooleanType);
 		}
 
 		if (auto f = scope->getExposedFunction(currentId))
@@ -1027,6 +1346,8 @@ TypeInfo FunctionParserBase::peekFirstType()
 	if (peeker.currentType == NativeJitTokens::double_) return typeid(double);
 	if (peeker.currentType == NativeJitTokens::int_) return typeid(int);
 	if (peeker.currentType == NativeJitTokens::float_) return typeid(float);
+	if (peeker.currentType == NativeJitTokens::true_) return typeid(BooleanType);
+	if (peeker.currentType == NativeJitTokens::false_) return typeid(BooleanType);
 
 	return NativeJITTypeHelpers::getTypeForLiteral(peeker.currentString);
 }

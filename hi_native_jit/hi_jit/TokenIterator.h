@@ -341,6 +341,8 @@ struct NativeJITTypeHelpers
 
 	template <typename ExpectedType> static String getTypeMismatchErrorMessage(const TypeInfo& actualType);
 
+	static String getTypeMismatchErrorMessage(const TypeInfo& type1, const TypeInfo& type2);
+
 	/** Returns the type ID for the given String literal. Currently supported: double, float & int. */
 	static TypeInfo getTypeForLiteral(const String &t);;
 
@@ -367,5 +369,6 @@ struct NativeJITTypeHelpers
 	template <typename R1, typename R2> static bool is();;
 };
 
+#define TYPE_MATCH(typeclass, typeinfo) NativeJITTypeHelpers::matchesType<typeclass>(typeinfo)
 
 #endif  // TOKENITERATOR_H_INCLUDED

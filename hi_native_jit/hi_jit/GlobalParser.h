@@ -175,6 +175,7 @@ public:
 				if (NativeJITTypeHelpers::matchesToken<float>(currentType)) parseStatement<float>();
 				else if (NativeJITTypeHelpers::matchesToken<double>(currentType)) parseStatement<double>();
 				else if (NativeJITTypeHelpers::matchesToken<int>(currentType)) parseStatement<int>();
+				else if (NativeJITTypeHelpers::matchesToken<BooleanType>(currentType)) parseStatement<BooleanType>();
 				else if (NativeJITTypeHelpers::matchesToken<Buffer>(currentType)) parseBufferDefinition();
 				else if (currentType == NativeJitTokens::void_)
 				{
@@ -290,12 +291,14 @@ public:
 
 	template <typename LineType> LineType parseLiteral()
 	{
+        bool isMinus = matchIf(NativeJitTokens::minus);
+        
 		if (!NativeJITTypeHelpers::matchesType<LineType>(currentString))
 		{
 			location.throwError("Type mismatch: " + NativeJITTypeHelpers::getTypeName(currentString) + ", Expected: " + NativeJITTypeHelpers::getTypeName<LineType>());
 		}
 
-		LineType v = (LineType)currentValue;
+        LineType v = (LineType)(double)(isMinus ? ((double)currentValue * -1.0) : (double)(currentValue));
 
 		match(NativeJitTokens::literal);
 
@@ -368,20 +371,28 @@ public:
 			if (compileFunction1<LineType, float>(id, info, addVoidReturnStatement)) return;
 			if (compileFunction1<LineType, int>(id, info, addVoidReturnStatement)) return;
 			if (compileFunction1<LineType, double>(id, info, addVoidReturnStatement)) return;
+			if (compileFunction1<LineType, Buffer*>(id, info, addVoidReturnStatement)) return;
+			if (compileFunction1<LineType, BooleanType>(id, info, addVoidReturnStatement)) return;
 		}
 		case 2:
 		{
 			if (compileFunction2<LineType, float, float>(id, info, addVoidReturnStatement)) return;
 			if (compileFunction2<LineType, float, double>(id, info, addVoidReturnStatement)) return;
 			if (compileFunction2<LineType, float, int>(id, info, addVoidReturnStatement)) return;
+			if (compileFunction2<LineType, float, Buffer*>(id, info, addVoidReturnStatement)) return;
+			if (compileFunction2<LineType, float, BooleanType>(id, info, addVoidReturnStatement)) return;
 
 			if (compileFunction2<LineType, double, float>(id, info, addVoidReturnStatement)) return;
 			if (compileFunction2<LineType, double, double>(id, info, addVoidReturnStatement)) return;
 			if (compileFunction2<LineType, double, int>(id, info, addVoidReturnStatement)) return;
+			if (compileFunction2<LineType, double, Buffer*>(id, info, addVoidReturnStatement)) return;
+			if (compileFunction2<LineType, double, BooleanType>(id, info, addVoidReturnStatement)) return;
 
 			if (compileFunction2<LineType, int, float>(id, info, addVoidReturnStatement)) return;
 			if (compileFunction2<LineType, int, double>(id, info, addVoidReturnStatement)) return;
 			if (compileFunction2<LineType, int, int>(id, info, addVoidReturnStatement)) return;
+			if (compileFunction2<LineType, int, Buffer*>(id, info, addVoidReturnStatement)) return;
+			if (compileFunction2<LineType, int, BooleanType>(id, info, addVoidReturnStatement)) return;
 		}
 		}
 	}

@@ -21,20 +21,27 @@ String NativeJITTypeHelpers::getTypeName(const TypeInfo& info)
 template <typename ActualType, typename ExpectedType>
 String NativeJITTypeHelpers::getTypeMismatchErrorMessage()
 {
-	return getTypeMismatchErrorMessage<ExpectedType>(typeid(ActualType));
+	return getTypeMismatchErrorMessage(typeid(ActualType), typeid(ExpectedType));
 }
 
 
 template <typename ExpectedType>
 String NativeJITTypeHelpers::getTypeMismatchErrorMessage(const TypeInfo& actualType)
 {
+	return getTypeMismatchErrorMessage(actualType, typeid(ExpectedType));
+}
+
+
+String NativeJITTypeHelpers::getTypeMismatchErrorMessage(const TypeInfo& actualType, const TypeInfo& expectedType)
+{
 	String message = "Type mismatch: ";
 	message << getTypeName(actualType);
 	message << ", Expected: ";
-	message << getTypeName<ExpectedType>();
+	message << getTypeName(expectedType);
 
 	return message;
 }
+
 
 
 TypeInfo NativeJITTypeHelpers::getTypeForLiteral(const String &t)
@@ -54,6 +61,7 @@ TypeInfo NativeJITTypeHelpers::getTypeForToken(const char* token)
 	else if (String(token) == String(NativeJitTokens::int_))  return typeid(int);
 	else if (String(token) == String(NativeJitTokens::float_))  return typeid(float);
 	else if (String(token) == String(NativeJitTokens::buffer_)) return typeid(Buffer);
+	else if (String(token) == String(NativeJitTokens::bool_)) return typeid(BooleanType);
 	else return typeid(void);
 }
 

@@ -16,6 +16,7 @@
 #include <typeindex>
 
 typedef std::type_index TypeInfo;
+typedef uint16 BooleanType;
 
 
 #include "hi_native_jit_public.h"

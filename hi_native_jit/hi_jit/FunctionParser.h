@@ -30,6 +30,11 @@ public:
 		setExpressionNodeFactory(&expr);
 	}
 
+	~FunctionParser()
+	{
+		
+	}
+
 	void addVoidReturnStatement() override
 	{
 		returnStatement = &expr.template Immediate<R>(R());
@@ -48,6 +53,11 @@ public:
 			returnStatement = &expr.Add(*returnStatement, zero);
 		}
 
+		for (int i = 0; i < getNumAnonymousLines(); i++)
+		{
+			returnStatement = &expr.Add(*returnStatement, getAnonymousLine<R>(i));
+		}
+
 		for (int i = 0; i < bufferAssignmentNodes.size(); i++)
 		{
 			returnStatement = &expr.Add(*returnStatement, *bufferAssignmentNodes[i]);
@@ -57,7 +67,7 @@ public:
 
 	void parseReturn() override
 	{
-		returnStatement = &parseExpression<R>();
+		returnStatement = &parseTypedExpression<R>();
 		match(NativeJitTokens::semicolon);
 	}
 
@@ -81,16 +91,18 @@ public:
 
 	void parseBufferLine(const Identifier &id) override
 	{
+		parseIdentifier();
+
 		if (matchIf(NativeJitTokens::openBracket))
 		{
-			auto& r = parseBufferAssignment<R>(id);
-			bufferAssignmentNodes.add(&r);
+			auto r = parseBufferAssignment<R>(id);
+			bufferAssignmentNodes.add(dynamic_cast<NativeJIT::Node<R>*>(r));
 		}
 
 		if (matchIf(NativeJitTokens::dot))
 		{
-			auto& r = parseBufferFunction<R>(id);
-			bufferAssignmentNodes.add(&r);
+			auto r = parseBufferFunction<R>(id);
+			bufferAssignmentNodes.add(dynamic_cast<NativeJIT::Node<R>*>(r));
 		}
 
 		match(NativeJitTokens::semicolon);
@@ -114,11 +126,7 @@ public:
 
 private:
 
-
-
 	NativeJIT::Node<R>* returnStatement = nullptr;
-
-
 };
 
 
