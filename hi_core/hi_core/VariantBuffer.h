@@ -145,6 +145,8 @@ public:
 	void operator >>(VariantBuffer &destinationBuffer) const;
 	
 	
+	const float &operator [](int sampleIndex) const;
+
 	float &operator [](int sampleIndex);
 
 	var getSample(int sampleIndex);

@@ -178,8 +178,6 @@ VariantBuffer& VariantBuffer::operator*=(float gain)
 
 VariantBuffer VariantBuffer::operator*(float gain)
 {
-	FloatVectorOperations::multiply(buffer.getWritePointer(0), gain, size);
-
 	buffer.applyGain(gain);
 
 	return *this;
@@ -207,6 +205,12 @@ float &VariantBuffer::operator [](int sampleIndex)
 {
 	CHECK_CONDITION(isPositiveAndBelow(sampleIndex, buffer.getNumSamples()), getName() + ": Invalid sample index" + String(sampleIndex));
 	return buffer.getWritePointer(0)[sampleIndex];
+}
+
+const float & VariantBuffer::operator[](int sampleIndex) const
+{
+	CHECK_CONDITION(isPositiveAndBelow(sampleIndex, buffer.getNumSamples()), getName() + ": Invalid sample index" + String(sampleIndex));
+	return buffer.getReadPointer(0)[sampleIndex];
 }
 
 VariantBuffer::Factory::Factory(int stackSize_) :
