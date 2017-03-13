@@ -86,7 +86,22 @@ fi
 
 echo "Compiling VST / AU Plugins..."
 
+echo "Compiling stereo version..."
+
 xcodebuild -project "$plugin_folder/Builds/MacOSX/HISE.xcodeproj" -configuration "Release" | xcpretty
+
+if [ $? != "0" ];
+then
+	echo "========================================================================"
+	echo "Error at compiling. Aborting..."
+    exit
+fi
+
+echo "OK"
+
+echo "Compiling multichannel version..."
+
+xcodebuild -project "$plugin_folder/Builds/MacOSX/HISE.xcodeproj" -configuration "Release MultiChannel" | xcpretty
 
 if [ $? != "0" ];
 then
@@ -109,6 +124,8 @@ then
 fi
 
 echo "OK"
+
+
 
 # Building Installer
 
