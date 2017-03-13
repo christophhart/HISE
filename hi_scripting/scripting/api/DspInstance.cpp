@@ -163,6 +163,9 @@ void DspInstance::processBlock(const var &data)
 			float *sampleData[2];
 			int numSamples = -1;
 
+			sampleData[0] = nullptr;
+			sampleData[1] = nullptr;
+
 			if (a == nullptr)
 				throwError("processBlock must be called on array of buffers");
 
@@ -176,16 +179,21 @@ void DspInstance::processBlock(const var &data)
 						throwError("Buffer size mismatch");
 
 					numSamples = b->size;
+
+					sampleData[i] = b->buffer.getWritePointer(0);
 				}
 				else throwError("processBlock must be called on array of buffers");
-
-				sampleData[i] = b->buffer.getWritePointer(0);
 			}
 
 
             
 			if (switchBypassFlag)
 			{
+				if (sampleData[0] == nullptr || sampleData[1] == nullptr)
+				{
+					throwError("Array wasn't initialized correctly");
+				}
+
 				float* leftSamples = bypassSwitchBuffer.getWritePointer(0);
 				float* rightSamples = bypassSwitchBuffer.getWritePointer(1);
 
