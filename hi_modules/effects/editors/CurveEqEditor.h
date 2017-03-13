@@ -392,12 +392,11 @@ public:
 		{
 			jassert(e != nullptr);
 
-			MouseEvent newEvent = e->getEventRelativeTo(this);
-
-			mouseDown(newEvent);
-
-
-			//dragger.startDraggingComponent (this, newEvent);
+			if (e != nullptr)
+			{
+				MouseEvent newEvent = e->getEventRelativeTo(this);
+				mouseDown(newEvent);
+			}
 		}
 
 		void setIndex(int newIndex)

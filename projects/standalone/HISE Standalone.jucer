@@ -38,45 +38,6 @@
     </GROUP>
   </MAINGROUP>
   <EXPORTFORMATS>
-    <VS2013 targetFolder="Builds/VisualStudio2013" smallIcon="S7ANvW" bigIcon="S7ANvW"
-            useIPP="Sequential" extraCompilerFlags="" IPPLibrary="Sequential">
-      <CONFIGURATIONS>
-        <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
-                       isDebug="1" optimisation="1" targetName="HISE x86 Debug" headerPath="C:\SDKs\ASIOSDK2.3\common&#10;&#10;"
-                       libraryPath="" useRuntimeLibDLL="0"/>
-        <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
-                       isDebug="0" optimisation="3" targetName="HISE x86" headerPath="C:\SDKs\ASIOSDK2.3\common"
-                       binaryPath="" alwaysGenerateDebugSymbols="0" useRuntimeLibDLL="0"/>
-        <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
-                       isDebug="0" optimisation="3" targetName="HISE" headerPath="C:\SDKs\ASIOSDK2.3\common"
-                       binaryPath="" alwaysGenerateDebugSymbols="0" useRuntimeLibDLL="0"
-                       additionalXmlProperties="UseIntelIPP=Sequential"/>
-        <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
-                       isDebug="1" optimisation="1" targetName="HISE Debug" headerPath="C:\SDKs\ASIOSDK2.3\common"
-                       useRuntimeLibDLL="0"/>
-      </CONFIGURATIONS>
-      <MODULEPATHS>
-        <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_gui_extra" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_gui_basics" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_graphics" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_events" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_data_structures" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_cryptography" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_core" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_audio_utils" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_audio_processors" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_audio_formats" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_audio_devices" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_audio_basics" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_tracktion_marketplace" path="../../JUCE/modules"/>
-        <MODULEPATH id="hi_core" path="../../"/>
-        <MODULEPATH id="hi_modules" path="../../"/>
-        <MODULEPATH id="hi_backend" path="../../"/>
-        <MODULEPATH id="hi_scripting" path="../../"/>
-        <MODULEPATH id="hi_dsp_library" path="../../"/>
-      </MODULEPATHS>
-    </VS2013>
     <XCODE_MAC targetFolder="Builds/MacOSX" smallIcon="S7ANvW" bigIcon="S7ANvW"
                extraLinkerFlags="/opt/intel/ipp/lib/libippi.a  /opt/intel/ipp/lib/libipps.a /opt/intel/ipp/lib/libippvm.a /opt/intel/ipp/lib/libippcore.a"
                customPList="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;&#10;&lt;!DOCTYPE plist PUBLIC &quot;-//Apple//DTD PLIST 1.0//EN&quot; &quot;http://www.apple.com/DTDs/PropertyList-1.0.dtd&quot;&gt;&#10;&lt;plist version=&quot;1.0&quot;&gt;&#10;&lt;dict&gt;&#10;&lt;key&gt;NSAppTransportSecurity&lt;/key&gt; &#10;&lt;dict&gt; &#10;&lt;key&gt;NSAllowsArbitraryLoads&lt;/key&gt;&lt;true/&gt;&#10;&lt;/dict&gt;&#10;&lt;/dict&gt;&#10;&lt;/plist&gt;"

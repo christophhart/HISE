@@ -345,7 +345,7 @@ var ApiClass::callFunction(int index, var *args, int numArgs)
 {
 	if (index > NUM_API_FUNCTION_SLOTS)
 	{
-		return var::undefined();
+		return var();
 	}
 
 	switch (numArgs)
@@ -358,7 +358,7 @@ var ApiClass::callFunction(int index, var *args, int numArgs)
 	case 5: { auto f = functions5[index]; return f(this, args[0], args[1], args[2], args[3], args[4]); }
 	}
 
-	return var::undefined();
+	return var();
 }
 
 void ApiClass::getAllFunctionNames(Array<Identifier> &ids) const

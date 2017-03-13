@@ -441,10 +441,15 @@ public:
 		jassert(childSynth != nullptr);
 		jassert(childSynths.indexOf(childSynth) != -1);
 
-		childSynths.removeAllInstancesOf(childSynth);
-		childVoices.removeAllInstancesOf(static_cast<ModulatorSynthVoice*>(childSynth->getVoice(voiceIndex)));
+		if (childSynth != nullptr)
+		{
+			childSynths.removeAllInstancesOf(childSynth);
+			childVoices.removeAllInstancesOf(static_cast<ModulatorSynthVoice*>(childSynth->getVoice(voiceIndex)));
 
-		jassert(childSynths.size() == childVoices.size());
+			jassert(childSynths.size() == childVoices.size());
+		}
+
+		
 	};
 
 	/** Calls the base class startNote() for the group itself and all child synths.  */

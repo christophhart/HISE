@@ -1683,8 +1683,6 @@ void ScriptingApi::Synth::addVolumeFade(int eventId, int fadeTimeMilliseconds, i
                         noteOff.setTimeStamp(timestamp);
                         noteOff.setArtificial();
                         
-                        ScriptBaseMidiProcessor* sp = dynamic_cast<ScriptBaseMidiProcessor*>(getProcessor());
-                        
                         if (sp != nullptr)
                             sp->addHiseEventToBuffer(noteOff);
                         

@@ -24,7 +24,6 @@ DefaultGroupName={#MyAppName}
 LicenseFile="..\..\license.txt"
 ArchitecturesInstallIn64BitMode=x64
 SetupLogging=yes
-AllowNoIcons=yes
 OutputBaseFilename=RenameInstaller
 Compression=lzma
 SolidCompression=yes
@@ -50,8 +49,8 @@ Source: "..\..\projects\plugin\Builds\VisualStudio2015\Release MultiChannel\HISE
 
 [Icons]
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"; 
-Name: "{group}\HISE x86"; Filename: "{app}\HISE x86.exe"; WorkingDir: "{app}"; IconFilename: "{app}\HISE x86.exe"; IconIndex: 0; Components: Standalone32bit
-Name: "{group}\HISE"; Filename: "{app}\HISE.exe"; WorkingDir: "{app}"; IconFilename: "{app}\HISE.exe"; IconIndex: 0; Components: Standalone64bit
+Name: "{group}\HISE x86"; Filename: "{app}\HISE x86.exe"; Components: Standalone32bit
+Name: "{group}\HISE"; Filename: "{app}\HISE.exe"; Components: Standalone64bit
 
 [Dirs]
 

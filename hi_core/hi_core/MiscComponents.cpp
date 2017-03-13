@@ -289,7 +289,7 @@ void MouseCallbackComponent::fillPopupMenu(const MouseEvent &event)
 		result = m.show();
 	}
 
-	String name = result != 0 ? itemList[result - 1] : "";
+	String itemName = result != 0 ? itemList[result - 1] : "";
 
 	DynamicObject::Ptr obj = new DynamicObject();
 
@@ -299,7 +299,7 @@ void MouseCallbackComponent::fillPopupMenu(const MouseEvent &event)
 
 	obj->setProperty(rightClick, event.mods.isRightButtonDown());
 	obj->setProperty(r, result);
-	obj->setProperty(itemText, name);
+	obj->setProperty(itemText, itemName);
 
 	sendToListeners(var(obj));
 }
