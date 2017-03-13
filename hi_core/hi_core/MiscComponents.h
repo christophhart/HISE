@@ -33,7 +33,8 @@
 #ifndef MISCCOMPONENTS_H_INCLUDED
 #define MISCCOMPONENTS_H_INCLUDED
 
-class MouseCallbackComponent : public Component
+class MouseCallbackComponent : public Component,
+							   public MacroControlledObject
 {
 	// ================================================================================================================
 
@@ -150,9 +151,36 @@ public:
 	void setAllowCallback(const String &newCallbackLevel) noexcept;
 	CallbackLevel getCallbackLevel() const;
 
+
+	/** overwrite this method and update the widget to display the current value of the controlled attribute. */
+	virtual void updateValue(NotificationType sendAttributeChange = sendNotification)
+	{
+		repaint();
+	};
+
+	/** overwrite this method and return the range that the parameter can have. */
+	virtual NormalisableRange<double> getRange() const
+	{
+		return range;
+	};
+
+	void setRange(NormalisableRange<double> &newRange)
+	{
+		range = newRange;
+	}
+
+	void setMidiLearnEnabled(bool shouldBeEnabled)
+	{
+		midiLearnEnabled = shouldBeEnabled;
+	}
+
 	// ================================================================================================================
 
 private:
+
+	NormalisableRange<double> range;
+
+	bool midiLearnEnabled = false;
 
 	using SubMenuList = std::tuple < String, StringArray > ;
 

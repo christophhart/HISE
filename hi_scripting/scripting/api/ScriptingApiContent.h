@@ -639,6 +639,7 @@ public:
 			popupMenuAlign,
 			selectedPopupIndex,
 			stepSize,
+			enableMidiLearn,
 			numProperties
 		};
 

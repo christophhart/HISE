@@ -251,7 +251,14 @@ public:
 
     void mouseDown(const MouseEvent &e);
 
-	NormalisableRange<double> getRange() const override { return NormalisableRange<double>(1.0, (double)getNumItems()); };
+	NormalisableRange<double> getRange() const override 
+	{ 
+		NormalisableRange<double> r(1.0, (double)getNumItems()); 
+
+		r.interval = 1.0;
+
+		return r;
+	};
 	
 };
 
@@ -299,7 +306,13 @@ public:
 	}
 #endif
 
-	NormalisableRange<double> getRange() const override { return NormalisableRange<double>(0.0, 1.0); };
+	NormalisableRange<double> getRange() const override 
+	{ 
+		NormalisableRange<double> r(0.0, 1.0); 
+		r.interval = 1.0;
+
+		return r;
+	};
 	
 private:
 

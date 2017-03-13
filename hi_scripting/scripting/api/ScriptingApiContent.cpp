@@ -1982,7 +1982,8 @@ controlSender(this, base)
 	propertyIds.add("popupOnRightClick");			ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	propertyIds.add(Identifier("popupMenuAlign"));  ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	propertyIds.add(Identifier("selectedPopupIndex"));
-	propertyIds.add(Identifier("stepSize"));		
+	propertyIds.add(Identifier("stepSize"));
+	propertyIds.add(Identifier("enableMidiLearn"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	
 	componentProperties->setProperty(getIdFor(borderSize), 0);
 	componentProperties->setProperty(getIdFor(borderRadius), 0);
@@ -2002,6 +2003,7 @@ controlSender(this, base)
 	setDefaultValue(popupMenuAlign, false);
 	setDefaultValue(selectedPopupIndex, -1);
 	setDefaultValue(stepSize, 0.0);
+	setDefaultValue(enableMidiLearn, false);
 	
 	addConstant("data", new DynamicObject());
 

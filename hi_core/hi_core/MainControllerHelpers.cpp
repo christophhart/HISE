@@ -247,7 +247,10 @@ void MidiControllerAutomationHandler::handleParameterData(MidiBuffer &b)
 			{
 				jassert(a->processor.get() != nullptr);
 
-				const float value = (float)a->parameterRange.convertFrom0to1((double)m.getControllerValue() / 127.0);
+
+				const double value = a->parameterRange.convertFrom0to1((double)m.getControllerValue() / 127.0);
+
+				const float snappedValue = (float)a->parameterRange.snapToLegalValue(value);
 
 				if (a->macroIndex != -1)
 				{
@@ -255,7 +258,12 @@ void MidiControllerAutomationHandler::handleParameterData(MidiBuffer &b)
 				}
 				else
 				{
-					a->processor->setAttribute(a->attribute, value, sendNotification);
+					if (a->lastValue != snappedValue)
+					{
+						a->processor->setAttribute(a->attribute, snappedValue, sendNotification);
+						a->lastValue = snappedValue;
+					}
+					
 				}
 
 				consumed = true;

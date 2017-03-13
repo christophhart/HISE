@@ -533,6 +533,8 @@ ScriptCreatedComponentWrapper(content, index)
 
     bp->setOpaque(panel->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::opaque));
     
+	bp->setup(getProcessor(), getIndex(), panel->name.toString());
+
 	component = bp;
 }
 
@@ -553,11 +555,25 @@ void ScriptCreatedComponentWrappers::PanelWrapper::updateComponent()
 	bpc->setUseRightClickForPopup(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::PopupOnRightClick));
 	bpc->alignPopup(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::popupMenuAlign));
 
+	bpc->setMidiLearnEnabled(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::enableMidiLearn));
+
+
+	const double min = GET_SCRIPT_PROPERTY(min);
+	const double max = GET_SCRIPT_PROPERTY(max);
+	const double stepSize = getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::stepSize);
+
+	NormalisableRange<double> r(min, max);
+	r.interval = stepSize;
+
+	bpc->setRange(r);
+
 	bpc->setInterceptsMouseClicks(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::enabled), true);
 
 	bpc->repaint();
 
 	bpc->setAllowCallback(getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::allowCallbacks).toString());
+
+	
 
 	contentComponent->repaint();
 }

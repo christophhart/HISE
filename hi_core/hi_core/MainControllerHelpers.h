@@ -137,6 +137,7 @@ public:
 		WeakReference<Processor> processor;
 		int attribute;
 		NormalisableRange<double> parameterRange;
+		float lastValue = -1.0f;
 		int macroIndex;
 		bool used;
 	};

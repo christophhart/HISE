@@ -76,19 +76,12 @@ namespace juce
 #include "MainController.h"
 #include "SampleExporter.h"
 #include "Console.h"
-#include "MiscComponents.h"
-
-#ifdef INCLUDE_INSTALLER
-
-#include "Installer.h"
-
-#endif
-
 
 #include "JavascriptTokeniser.h"
 #include "JavascriptTokeniserFunctions.h"
 #include "MacroControlledComponents.h"
 #include "MacroControlBroadcaster.h"
+#include "MiscComponents.h"
 #include "StandaloneProcessor.h"
 
 #endif  // HI_CORE_H_INCLUDED

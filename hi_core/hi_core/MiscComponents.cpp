@@ -133,6 +133,20 @@ void MouseCallbackComponent::mouseDoubleClick(const MouseEvent &event)
 
 void MouseCallbackComponent::mouseDown(const MouseEvent& event)
 {
+	if (midiLearnEnabled && event.mods.isRightButtonDown())
+	{
+#if USE_FRONTEND
+		enableMidiLearnWithPopup();
+#else
+		const bool isOnPreview = findParentComponentOfClass<BackendProcessorEditor>() == nullptr;
+
+		if (isOnPreview)
+			enableMidiLearnWithPopup();
+#endif
+
+		return;
+	}
+
 	if (draggingEnabled)
 	{
 		dragger.startDraggingComponent(this, event);
