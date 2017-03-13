@@ -183,7 +183,7 @@ XmlElement * AudioProcessorDriver::getSettings()
 
 void AudioProcessorDriver::initialiseAudioDriver(XmlElement *deviceData)
 {
-	if (deviceData != nullptr && deviceData->hasTagName("deviceType") && deviceManager->initialise(0, 2, deviceData, false) == String())
+	if (deviceData != nullptr && deviceData->hasTagName("DEVICESETUP") && deviceManager->initialise(0, 2, deviceData, false) == String())
 	{
 		callback->setProcessor(dynamic_cast<AudioProcessor*>(this));
 
