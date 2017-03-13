@@ -110,9 +110,11 @@ struct LP
 //==============================================================================
 MainContentComponent::MainContentComponent()
 {
-	fileLogger = new FileLogger(File::getSpecialLocation(File::currentApplicationFile).getParentDirectory().getChildFile("UnitTests.log"), "Unit Test Log");
+#if !JUCE_DEBUG
 
+	fileLogger = new FileLogger(File::getSpecialLocation(File::currentApplicationFile).getParentDirectory().getChildFile("UnitTests.log"), "Unit Test Log");
 	Logger::setCurrentLogger(fileLogger);
+#endif
 
 	UnitTestRunner runner;
     

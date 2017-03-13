@@ -543,6 +543,12 @@ public:
 		processBody = body;
 	}
 
+	void setCode(const String& code_)
+	{
+		code = code_;
+		compiler = new NativeJITCompiler(code);
+	}
+
 	void merge()
 	{
 		code = String();
@@ -913,6 +919,7 @@ private:
 		testDspSimpleGain();
 		testDspSimpleSine();
 		testDspSimpleLP();
+		testDspSimpleLP2();
 		testDspAdditiveSynthesis();
 		testDspSaturator();
 		testDspExternalGain();
@@ -1168,6 +1175,70 @@ private:
 		expectBufferWithSameValues(b1, b2);
 	}
 
+	void testDspSimpleLP2()
+	{
+		ScopedPointer<NativeJITTestModule> m = new NativeJITTestModule();
+
+		beginTest("Test Simple LP2");
+
+		String code;
+
+		ADD_CODE_LINE("double _g0 = 0.0;");
+		ADD_CODE_LINE("double _y0 = 0.0;");
+		ADD_CODE_LINE("double freq = 1.4;");
+		ADD_CODE_LINE("");
+		ADD_CODE_LINE("void init()");
+		ADD_CODE_LINE("{");
+		ADD_CODE_LINE("    ");
+		ADD_CODE_LINE("};");
+		ADD_CODE_LINE("");
+		ADD_CODE_LINE("void prepareToPlay(double sampleRate, int blockSize)");
+		ADD_CODE_LINE("{");
+		ADD_CODE_LINE("    ");
+		ADD_CODE_LINE("};");
+		ADD_CODE_LINE("");
+		ADD_CODE_LINE("float process(float input)");
+		ADD_CODE_LINE("{");
+		ADD_CODE_LINE("	const double g1 = freq;");
+		ADD_CODE_LINE("	const double y1 = _g0 * g1 * (_y0 - (double)input) + (double)input;");
+		ADD_CODE_LINE("	_g0 = g1;");
+		ADD_CODE_LINE("	_y0 = y1;");
+		ADD_CODE_LINE("	return (float)y1;");
+		ADD_CODE_LINE("};");
+
+		m->setCode(code);
+
+		VariantBuffer b1 = VariantBuffer(VAR_BUFFER_TEST_SIZE);
+		VariantBuffer b2 = VariantBuffer(VAR_BUFFER_TEST_SIZE);
+
+		fillBufferWithNoise(b1);
+
+		b1 >> b2;
+
+		m->process(b1);
+		expectCompileOK(m->compiler);
+
+		double _g0 = 0.0;
+		double _y0 = 0.0;
+		double freq = 1.0;
+
+		START_BENCHMARK;
+
+		for(int i = 0; i < b2.size; i++)
+		{
+
+			const double g1 = freq;
+			const double y1 = _g0 * g1 * (_y0 - (double)b2[i]) + (double)b2[i];
+			_g0 = g1;
+			_y0 = y1;
+			b2[i] = (float)y1;
+		};
+
+		STOP_BENCHMARK_AND_LOG;
+
+		expectBufferWithSameValues(b1, b2);
+	}
+
 	void fillBufferWithNoise(VariantBuffer& b)
 	{
 		Random r;
@@ -1274,8 +1345,6 @@ private:
 		expectEquals<float>(scope.call("getB", 2), 24.0f, "float getMethod");
 		expectEquals<float>(scope.call("getB", 0), 24.0f / 2.0f, "float getMethod");
 		expectEquals<double>(scope.call("getC"), 14.0f, "double getMethod");
-
-		
 
 		scope.getDynamicObject()->setProperty("a", -6);
 		scope.getDynamicObject()->setProperty("b", -40.2f);
