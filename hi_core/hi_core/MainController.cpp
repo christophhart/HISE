@@ -494,16 +494,46 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 	synthChain->renderNextBlockWithModulators(multiChannelBuffer, masterEventBuffer);
 
-	if (replaceBufferContent)
+	const bool isUsingMultiChannel = buffer.getNumChannels() != 2;
+
+	if (!isUsingMultiChannel)
 	{
-		FloatVectorOperations::copy(buffer.getWritePointer(0), multiChannelBuffer.getReadPointer(0), buffer.getNumSamples());
-		FloatVectorOperations::copy(buffer.getWritePointer(1), multiChannelBuffer.getReadPointer(1), buffer.getNumSamples());
+		if (replaceBufferContent)
+		{
+			FloatVectorOperations::copy(buffer.getWritePointer(0), multiChannelBuffer.getReadPointer(0), buffer.getNumSamples());
+			FloatVectorOperations::copy(buffer.getWritePointer(1), multiChannelBuffer.getReadPointer(1), buffer.getNumSamples());
+		}
+		else
+		{
+			FloatVectorOperations::add(buffer.getWritePointer(0), multiChannelBuffer.getReadPointer(0), buffer.getNumSamples());
+			FloatVectorOperations::add(buffer.getWritePointer(1), multiChannelBuffer.getReadPointer(1), buffer.getNumSamples());
+		}
 	}
 	else
 	{
-		FloatVectorOperations::add(buffer.getWritePointer(0), multiChannelBuffer.getReadPointer(0), buffer.getNumSamples());
-		FloatVectorOperations::add(buffer.getWritePointer(1), multiChannelBuffer.getReadPointer(1), buffer.getNumSamples());
+		auto& matrix = getMainSynthChain()->getMatrix();
+
+		for (int i = 0; i < matrix.getNumSourceChannels(); i++)
+		{
+			const int sourceChannel = i;
+			const int destinationChannel = matrix.getConnectionForSourceChannel(i);
+
+			if (destinationChannel == -1)
+				continue;
+
+			if (replaceBufferContent)
+			{
+				FloatVectorOperations::copy(buffer.getWritePointer(destinationChannel), multiChannelBuffer.getReadPointer(i), buffer.getNumSamples());
+			}
+			else
+			{
+				FloatVectorOperations::add(buffer.getWritePointer(destinationChannel), multiChannelBuffer.getReadPointer(i), buffer.getNumSamples());
+			}
+			
+		}
 	}
+
+	
 
 #if USE_HARD_CLIPPER
 	for (int i = 0; i < buffer.getNumChannels(); i++)
@@ -559,7 +589,14 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 #endif
 #endif
     
-	multiChannelBuffer.setSize(getMainSynthChain()->getMatrix().getNumDestinationChannels(), samplesPerBlock);
+	multiChannelBuffer.setSize(getMainSynthChain()->getMatrix().getNumSourceChannels(), samplesPerBlock);
+
+#if IS_STANDALONE_APP || IS_STANDALONE_FRONTEND
+	getMainSynthChain()->getMatrix().setNumDestinationChannels(2);
+#else
+	getMainSynthChain()->getMatrix().setNumDestinationChannels(JucePlugin_MaxNumOutputChannels);
+#endif
+
     getMainSynthChain()->prepareToPlay(sampleRate, samplesPerBlock);
 }
 

@@ -92,6 +92,9 @@ echo Compiling 32bit VST Plugins
 
 set VisualStudioVersion=14.0
 set Platform=X86 
+
+echo Compiling Stereo Version...
+
 "C:\Program Files (x86)\MSBuild\14.0\Bin\MsBuild.exe" %plugin_project% /t:Build /p:Configuration=Release;Platform=Win32 /verbosity:minimal
 
 if %errorlevel% NEQ 0 (
@@ -103,6 +106,21 @@ if %errorlevel% NEQ 0 (
 )
 
 echo OK
+
+echo Compiling Multichannel Version...
+
+"C:\Program Files (x86)\MSBuild\14.0\Bin\MsBuild.exe" %plugin_project% /t:Build /p:Configuration="Release MultiChannel";Platform=Win32 /verbosity:minimal
+
+if %errorlevel% NEQ 0 (
+	echo ========================================================================
+	echo Error at compiling. Aborting...
+	cd tools\auto_build
+	pause
+    goto:eof
+)
+
+echo OK
+
 
 echo Compiling 32bit Standalone App...
 
@@ -120,6 +138,8 @@ echo Compiling 64bit VST Plugins
 
 set Platform=X64
 
+echo Compiling Stereo Version...
+
 "C:\Program Files (x86)\MSBuild\14.0\Bin\MsBuild.exe"  %plugin_project% /t:Build /p:Configuration="Release";Platform=x64 /v:m
 
 if %errorlevel% NEQ 0 (
@@ -131,6 +151,22 @@ if %errorlevel% NEQ 0 (
 )
 
 echo OK
+
+
+echo Compiling Multichannel Version...
+
+"C:\Program Files (x86)\MSBuild\14.0\Bin\MsBuild.exe" %plugin_project% /t:Build /p:Configuration="Release MultiChannel";Platform=x64 /verbosity:minimal
+
+if %errorlevel% NEQ 0 (
+	echo ========================================================================
+	echo Error at compiling. Aborting...
+	cd tools\auto_build
+	pause
+    goto:eof
+)
+
+echo OK
+
 
 echo Compiling 64bit Standalone App...
 
