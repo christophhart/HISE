@@ -496,7 +496,7 @@ void ModulatorSynth::handleHiseEvent(const HiseEvent& m)
 {
 	preHiseEventCallback(m);
 	
-	const int channel = 1;
+	const int channel = m.getChannel();
 
 	if (m.isNoteOn())
 	{
@@ -513,7 +513,7 @@ void ModulatorSynth::handleHiseEvent(const HiseEvent& m)
 	else if (m.isPitchWheel())
 	{
 		const int wheelPos = m.getPitchWheelValue();
-		lastPitchWheelValues[channel - 1] = wheelPos;
+		lastPitchWheelValues[(channel - 1) % 16] = wheelPos;
 		handlePitchWheel(channel, wheelPos);
 	}
 	else if (m.isAftertouch())
@@ -526,7 +526,15 @@ void ModulatorSynth::handleHiseEvent(const HiseEvent& m)
 	}
 	else if (m.isController())
 	{
-		handleController(channel, m.getControllerNumber(), m.getControllerValue());
+		const int controllerNumber = m.getControllerNumber();
+
+		switch (controllerNumber)
+		{
+		case 0x40:  handleSustainPedal(channel, m.getControllerValue() >= 64); break;
+		case 0x42:  handleSostenutoPedal(channel, m.getControllerValue() >= 64); break;
+		case 0x43:  handleSoftPedal(channel, m.getControllerValue() >= 64); break;
+		default:    break;
+		}
 	}
 	else if (m.isVolumeFade())
 	{
