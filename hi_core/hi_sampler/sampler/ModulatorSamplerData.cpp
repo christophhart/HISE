@@ -587,7 +587,6 @@ void SampleMap::loadSamplesFromMonolith(const ValueTree &v)
 	if (!monolithDirectory.isDirectory())
 	{
 		jassertfalse;
-		return;
 	}
 
 #endif
