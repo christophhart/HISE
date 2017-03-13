@@ -47,7 +47,7 @@
                smallIcon="" bigIcon="">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" osxSDK="default" osxCompatibility="10.7 SDK" osxArchitecture="64BitUniversal"
-                       isDebug="1" optimisation="1" targetName="HISE" cppLanguageStandard="c++11"
+                       isDebug="1" optimisation="1" targetName="HISE Debug" cppLanguageStandard="c++11"
                        cppLibType="libc++" headerPath="/opt/intel/ipp/include" libraryPath="/opt/intel/ipp/lib"/>
         <CONFIGURATION name="Release" osxSDK="default" osxCompatibility="10.7 SDK" osxArchitecture="64BitUniversal"
                        isDebug="0" optimisation="3" targetName="HISE" linkTimeOptimisation="1"
@@ -55,12 +55,12 @@
                        libraryPath="/opt/intel/ipp/lib&#10;"/>
         <CONFIGURATION name="Debug MultiChannel" osxSDK="default" osxCompatibility="10.7 SDK"
                        osxArchitecture="64BitUniversal" isDebug="1" optimisation="1"
-                       targetName="HISE" cppLanguageStandard="c++11" cppLibType="libc++"
+                       targetName="HISE Debug 16 Out" cppLanguageStandard="c++11" cppLibType="libc++"
                        headerPath="/opt/intel/ipp/include" libraryPath="/opt/intel/ipp/lib"
                        defines="JucePlugin_MaxNumOutputChannels=16&#10;JucePlugin_PreferredChannelConfigurations={0\,16}"/>
         <CONFIGURATION name="Release MultiChannel" osxSDK="default" osxCompatibility="10.7 SDK"
                        osxArchitecture="64BitUniversal" isDebug="0" optimisation="3"
-                       targetName="HISE" linkTimeOptimisation="1" cppLanguageStandard="c++11"
+                       targetName="HISE 16 Out" linkTimeOptimisation="1" cppLanguageStandard="c++11"
                        cppLibType="libc++" headerPath="/opt/intel/ipp/include" libraryPath="/opt/intel/ipp/lib&#10;"
                        defines="JucePlugin_MaxNumOutputChannels=16&#10;JucePlugin_PreferredChannelConfigurations={0\,16}"/>
       </CONFIGURATIONS>

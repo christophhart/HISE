@@ -2,7 +2,7 @@
 
 <ProjectSettings>
   <Name value="Demo Project" type="TEXT" description="Project Name"/>
-  <Version value="1.0" type="TEXT" description="Project version"/>
+  <Version value="1.0.0" type="TEXT" description="Project version"/>
   <Description value="The most simple HISE project" type="TEXT" description="Project description"/>
   <BundleIdentifier value="com.HISEDemoProject.pkg" type="TEXT" description="Bundle Identifier(eg.com.myCompany.bundle)"/>
   <PluginCode value="Hidp" type="TEXT" description="a 4 character ID code(eg. 'Abcd')"/>
@@ -11,4 +11,8 @@
   <AdditionalDspLibraries value="" type="TEXT" description="comma separated list of all static dsp factory classes"/>
   <CustomToolbarClassName value="" type="TEXT" description="Class name for the custom toolbar (leave empty to use the default one"/>
   <OSXStaticLibs value="" type="TEXT" description="Additional static libs (OSX only)"/>
+  <WindowsStaticLibFolder value="" type="TEXT" description="Windows static library folder"/>
+  <ExtraDefinitionsWindows value="" type="TEXT" description="Extra preprocessor definitions for Windows"/>
+  <ExtraDefinitionsOSX value="" type="TEXT" description="Extra preprocessor definitions for OSX"/>
+  <ExtraDefinitionsIOS value="" type="TEXT" description="Extra preprocessor definitions for IOS"/>
 </ProjectSettings>

@@ -4,7 +4,7 @@
 #define MyAppName "HISE"
 #define MyAppVersion "0.99 beta"
 #define MyAppPublisher "Hart Instruments"
-#define MyAppURL "http://hartinstruments.net"
+#define MyAppURL "http://hise.audio"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application.
@@ -23,12 +23,11 @@ DefaultDirName={pf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 LicenseFile="..\..\license.txt"
 ArchitecturesInstallIn64BitMode=x64
-
+SetupLogging=yes
 AllowNoIcons=yes
 OutputBaseFilename=RenameInstaller
 Compression=lzma
 SolidCompression=yes
-PrivilegesRequired=lowest
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -47,7 +46,7 @@ Source: "..\..\projects\standalone\Builds\VisualStudio2015\Release\HISE x86.exe"
 Source: "C:\Program Files\VST Plugins\HISE x64.dll"; DestDir: "{code:Getx64bitDir}"; Flags: 64bit; Components: x64Plugin
 Source: "C:\Program Files\VST Plugins\HISE x64 16 Out.dll"; DestDir: "{code:Getx64bitDir}"; Flags: 64bit; Components: x64PluginMC
 Source: "..\..\projects\plugin\Builds\VisualStudio2015\Release\HISE x86.dll"; DestDir: "{code:Getx86bitDir}"; Flags: 32bit; Components: x86Plugin
-Source: "..\..\projects\plugin\Builds\VisualStudio2015\Release\HISE x86 16 Out.dll"; DestDir: "{code:Getx86bitDir}"; Flags: 32bit; Components: x86PluginMC
+Source: "..\..\projects\plugin\Builds\VisualStudio2015\Release MultiChannel\HISE x86 16 Out.dll"; DestDir: "{code:Getx86bitDir}"; Flags: 32bit; Components: x86PluginMC
 
 [Icons]
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"; 
@@ -55,9 +54,6 @@ Name: "{group}\HISE x86"; Filename: "{app}\HISE x86.exe"; WorkingDir: "{app}"; I
 Name: "{group}\HISE"; Filename: "{app}\HISE.exe"; WorkingDir: "{app}"; IconFilename: "{app}\HISE.exe"; IconIndex: 0; Components: Standalone64bit
 
 [Dirs]
-
-[Run]
-Filename: "http://hise.audio/manual/Manual.php"; Flags: shellexec runasoriginaluser postinstall; Description: "Open the online documentation.";
 
 [Code]
 var x86Page: TInputDirWizardPage;
