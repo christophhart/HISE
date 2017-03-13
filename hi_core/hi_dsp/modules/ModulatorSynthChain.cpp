@@ -129,6 +129,18 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 	// Process the Synths and add store their output in the internal buffer
 	for (int i = 0; i < synths.size(); i++) if (!synths[i]->isBypassed()) synths[i]->renderNextBlockWithModulators(internalBuffer, eventBuffer);
 
+	HiseEventBuffer::Iterator eventIterator(eventBuffer);
+
+	while (auto e = eventIterator.getNextConstEventPointer(true, false))
+	{
+		if (!(e->isController() || e->isPitchWheel()))
+		{
+			continue;
+		}
+
+		handleHiseEvent(*e);
+	}
+
 	postVoiceRendering(0, numSamples);
 
 	effectChain->renderMasterEffects(internalBuffer);
@@ -762,9 +774,6 @@ NoMidiInputConstrainer::NoMidiInputConstrainer()
 {
 	Array<FactoryType::ProcessorEntry> typeNames;
 
-	ADD_NAME_TO_TYPELIST(ControlModulator);
-	ADD_NAME_TO_TYPELIST(PitchwheelModulator);
-    
     ADD_NAME_TO_TYPELIST(PolyFilterEffect);
     ADD_NAME_TO_TYPELIST(HarmonicFilter);
     ADD_NAME_TO_TYPELIST(StereoEffect);

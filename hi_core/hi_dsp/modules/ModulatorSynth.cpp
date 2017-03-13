@@ -359,9 +359,7 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 		}
 
 		const int samplesToNextMidiMessage = midiEventPos - startSample;
-
 		const int delta = (samplesToNextMidiMessage % 8);
-
 		const int rastered = samplesToNextMidiMessage - delta;
 
 		if (rastered >= numSamples)

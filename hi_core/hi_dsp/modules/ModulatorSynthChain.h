@@ -204,6 +204,7 @@ public:
 		for(int i = 0; i < synths.size(); i++) synths[i]->prepareToPlay(newSampleRate, samplesPerBlock);
 	};
 
+
 	void numSourceChannelsChanged() override;
 
 	void numDestinationChannelsChanged() override;
