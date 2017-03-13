@@ -265,6 +265,42 @@ private:
 
 #endif
 
+DeactiveOverlay::DeactiveOverlay() :
+	currentState(0)
+{
+	addAndMakeVisible(descriptionLabel = new Label());
+
+	descriptionLabel->setFont(GLOBAL_BOLD_FONT());
+	descriptionLabel->setColour(Label::ColourIds::textColourId, Colours::white);
+	descriptionLabel->setEditable(false, false, false);
+	descriptionLabel->setJustificationType(Justification::centredTop);
+
+#if USE_TURBO_ACTIVATE
+	addAndMakeVisible(resolveLicenceButton = new TextButton("Register Product Key"));
+	addAndMakeVisible(registerProductButton = new TextButton("Request offline activation file"));
+	addAndMakeVisible(useActivationResponseButton = new TextButton("Activate with activation response file"));
+#else
+	addAndMakeVisible(resolveLicenceButton = new TextButton("Use Licence File"));
+	addAndMakeVisible(registerProductButton = new TextButton("Online authentication"));
+	addAndMakeVisible(useActivationResponseButton = new TextButton("Activate with activation response file"));
+#endif
+	addAndMakeVisible(resolveSamplesButton = new TextButton("Choose Sample Folder"));
+
+	addAndMakeVisible(ignoreButton = new TextButton("Ignore"));
+
+	resolveLicenceButton->setLookAndFeel(&alaf);
+	resolveSamplesButton->setLookAndFeel(&alaf);
+	registerProductButton->setLookAndFeel(&alaf);
+	useActivationResponseButton->setLookAndFeel(&alaf);
+	ignoreButton->setLookAndFeel(&alaf);
+
+	resolveLicenceButton->addListener(this);
+	resolveSamplesButton->addListener(this);
+	registerProductButton->addListener(this);
+	useActivationResponseButton->addListener(this);
+	ignoreButton->addListener(this);
+}
+
 void DeactiveOverlay::buttonClicked(Button *b)
 {
 	if (b == resolveLicenceButton)
@@ -603,6 +639,100 @@ String DeactiveOverlay::getTextForError(State s) const
 	}
 
 	return String();
+}
+
+void DeactiveOverlay::resized()
+{
+	useActivationResponseButton->setVisible(false);
+
+	if (currentState != 0)
+	{
+		descriptionLabel->centreWithSize(getWidth() - 20, 150);
+	}
+
+	
+	
+	if (currentState[CustomErrorMessage])
+	{
+		resolveLicenceButton->setVisible(false);
+		registerProductButton->setVisible(false);
+		resolveSamplesButton->setVisible(false);
+		ignoreButton->setVisible(true);
+
+		ignoreButton->centreWithSize(200, 32);
+	}
+
+	if (currentState[SamplesNotFound])
+	{
+		resolveLicenceButton->setVisible(false);
+		registerProductButton->setVisible(false);
+		resolveSamplesButton->setVisible(true);
+		ignoreButton->setVisible(true);
+
+		resolveSamplesButton->centreWithSize(200, 32);
+		ignoreButton->centreWithSize(200, 32);
+
+		ignoreButton->setTopLeftPosition(ignoreButton->getX(),
+			resolveSamplesButton->getY() + 40);
+	}
+	
+	if (currentState[LicenseNotFound] ||
+		currentState[LicenseInvalid] ||
+		currentState[MachineNumbersNotMatching] ||
+		currentState[UserNameNotMatching] ||
+		currentState[ProductNotMatching])
+	{
+		resolveLicenceButton->setVisible(true);
+		registerProductButton->setVisible(true);
+		resolveSamplesButton->setVisible(false);
+		ignoreButton->setVisible(false);
+
+		resolveLicenceButton->centreWithSize(200, 32);
+		registerProductButton->centreWithSize(200, 32);
+
+		resolveLicenceButton->setTopLeftPosition(registerProductButton->getX(),
+			registerProductButton->getY() + 40);
+	}
+	else if (currentState[CopyProtectionError])
+	{
+		resolveLicenceButton->setVisible(true);
+
+		resolveSamplesButton->setVisible(false);
+		ignoreButton->setVisible(false);
+
+		String text = descriptionLabel->getText();
+
+		if (text == "Connection to the server failed.")
+		{
+			registerProductButton->setVisible(true);
+			resolveLicenceButton->setVisible(false);
+			useActivationResponseButton->setVisible(true);
+
+			registerProductButton->centreWithSize(200, 32);
+			useActivationResponseButton->centreWithSize(200, 32);
+
+			useActivationResponseButton->setTopLeftPosition(registerProductButton->getX(), registerProductButton->getY() + 40);
+
+		}
+		else
+		{
+			registerProductButton->setVisible(false);
+			resolveLicenceButton->centreWithSize(200, 32);
+		}
+
+		if (text.contains("TurboActivate.dat"))
+		{
+			resolveLicenceButton->setVisible(false);
+		}
+	}
+	
+	if (currentState[CriticalCustomErrorMessage])
+	{
+		resolveLicenceButton->setVisible(false);
+		registerProductButton->setVisible(false);
+		resolveSamplesButton->setVisible(false);
+		ignoreButton->setVisible(false);
+	}
 }
 
 #undef CHECK_LICENCE_PARAMETER
