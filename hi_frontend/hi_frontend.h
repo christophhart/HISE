@@ -91,6 +91,7 @@ using namespace juce;
 	\
 	FrontendProcessor* fp = new FrontendProcessor(presetData, deviceManager, callback, &imageData, nullptr, &externalFiles, &userPresets);\
 	AudioProcessorDriver::restoreSettings(fp);\
+	GlobalSettingManager::restoreGlobalSettings(fp); \
 	fp->loadSamplesAfterSetup();\
 	return fp;\
 }
@@ -103,6 +104,7 @@ using namespace juce;
 	\
 	FrontendProcessor* fp = new FrontendProcessor(presetData, deviceManager, callback, &imageData, &impulseData, &externalFiles, &userPresets);\
 	AudioProcessorDriver::restoreSettings(fp);\
+	GlobalSettingManager::restoreGlobalSettings(fp); \
 	fp->loadSamplesAfterSetup();\
 	return fp;\
 }

@@ -37,33 +37,7 @@ void AudioDeviceDialog::buttonClicked(Button *b)
 File AudioProcessorDriver::getDeviceSettingsFile()
 {
 
-#if JUCE_WINDOWS
-#if USE_BACKEND
-	String parentDirectory = File(PresetHandler::getDataFolder()).getFullPathName();
-#else
-	String parentDirectory = ProjectHandler::Frontend::getAppDataDirectory().getFullPathName();
-#endif
-
-	File parent(parentDirectory);
-
-	if (!parent.isDirectory())
-		parent.createDirectory();
-
-#else
-
-#if HISE_IOS
-    String parentDirectory = File::getSpecialLocation(File::SpecialLocationType::userApplicationDataDirectory).getFullPathName();
-#else
-    
-#if USE_BACKEND
-	String parentDirectory = File(PresetHandler::getDataFolder()).getFullPathName();
-#else
-	String parentDirectory = ProjectHandler::Frontend::getAppDataDirectory().getFullPathName();
-#endif
-#endif
-
-	File parent(parentDirectory);
-#endif
+	File parent = getSettingDirectory();
 
 	File savedDeviceData = parent.getChildFile("DeviceSettings.xml");
 
@@ -77,19 +51,13 @@ void AudioProcessorDriver::restoreSettings(MainController* mc)
 
 	if (deviceData != nullptr)
 	{
-		int diskMode = deviceData->getIntAttribute("DISK_MODE");
+		
 
 #if HISE_IOS
 		deviceData->setAttribute("audioDeviceBufferSize", 512);
 #endif
 
-		dynamic_cast<AudioProcessorDriver*>(mc)->diskMode = diskMode;
-		dynamic_cast<AudioProcessorDriver*>(mc)->scaleFactor = deviceData->getDoubleAttribute("SCALE_FACTOR", 1.0);
-		double microTuning = deviceData->getDoubleAttribute("MICRO_TUNING", 0.0);
-		dynamic_cast<AudioProcessorDriver*>(mc)->microTuning = microTuning;
-
-		mc->setGlobalPitchFactor(microTuning);
-		mc->getSampleManager().setDiskMode((MainController::SampleManager::DiskMode)diskMode);
+		
 	}
     
 #if USE_FRONTEND
@@ -113,28 +81,19 @@ void AudioProcessorDriver::saveDeviceSettingsAsXml()
                                            deviceManager->createStateXml():
                                            nullptr;
 
-	if (deviceData == nullptr)
+	if (deviceData != nullptr)
 	{
-		deviceData = new XmlElement("DEVICESETUP");
+		deviceData->writeToFile(getDeviceSettingsFile(), "");
+
+		
 	}
-
-	deviceData->setAttribute("DISK_MODE", diskMode);
-	deviceData->setAttribute("SCALE_FACTOR", scaleFactor);
-	deviceData->setAttribute("MICRO_TUNING", microTuning);
-
-
-#if USE_FRONTEND
-	deviceData->setAttribute("SAMPLES_FOUND", allSamplesFound);
-#endif
-
-	deviceData->writeToFile(getDeviceSettingsFile(), "");
 }
 
-void AudioProcessorDriver::setDiskMode(int mode)
+void GlobalSettingManager::setDiskMode(int mode)
 {
 	diskMode = mode;
 
-	if (MainController* mc = dynamic_cast<MainController*>(callback->getCurrentProcessor()))
+	if (MainController* mc = dynamic_cast<MainController*>(this))
 	{
 		mc->getSampleManager().setDiskMode((MainController::SampleManager::DiskMode)mode);
 	}
@@ -153,12 +112,8 @@ StandaloneProcessor::StandaloneProcessor()
 
 	wrappedProcessor = createProcessor();
 
-    ScopedPointer<XmlElement> xml = AudioProcessorDriver::getSettings();
     
-	if (xml != nullptr)
-	{
-		scaleFactor = (float)xml->getDoubleAttribute("SCALE_FACTOR", 1.0);
-	}
+	ScopedPointer<XmlElement> xml = AudioProcessorDriver::getSettings();
 
 #if USE_BACKEND
 	if(!CompileExporter::isExportingFromCommandLine()) 
@@ -169,6 +124,7 @@ StandaloneProcessor::StandaloneProcessor()
 
 #endif
 
+	
 	
 		
 }
@@ -202,7 +158,7 @@ void AudioProcessorDriver::initialiseAudioDriver(XmlElement *deviceData)
 }
 
 
-void AudioProcessorDriver::setGlobalScaleFactor(double newScaleFactor)
+void GlobalSettingManager::setGlobalScaleFactor(double newScaleFactor)
 {
 	scaleFactor = newScaleFactor;
 }
@@ -231,4 +187,92 @@ void AudioProcessorDriver::updateMidiToggleList(MainController* mc, ToggleButton
 			}
 		}
 	}
+}
+
+
+GlobalSettingManager::GlobalSettingManager()
+{
+	ScopedPointer<XmlElement> xml = AudioProcessorDriver::getSettings();
+
+	if (xml != nullptr)
+	{
+		scaleFactor = (float)xml->getDoubleAttribute("SCALE_FACTOR", 1.0);
+	}
+}
+
+void GlobalSettingManager::saveSettingsAsXml()
+{
+	ScopedPointer<XmlElement> settings = new XmlElement("GLOBAL_SETTINGS");
+
+	settings->setAttribute("DISK_MODE", diskMode);
+	settings->setAttribute("SCALE_FACTOR", scaleFactor);
+	settings->setAttribute("MICRO_TUNING", microTuning);
+	settings->setAttribute("TRANSPOSE", transposeValue);
+	settings->setAttribute("SUSTAIN_CC", ccSustainValue);
+
+#if USE_FRONTEND
+	settings->setAttribute("SAMPLES_FOUND", allSamplesFound);
+#endif
+
+	settings->writeToFile(getGlobalSettingsFile(), "");
+
+}
+
+File GlobalSettingManager::getSettingDirectory()
+{
+
+#if JUCE_WINDOWS
+#if USE_BACKEND
+	String parentDirectory = File(PresetHandler::getDataFolder()).getFullPathName();
+#else
+	String parentDirectory = ProjectHandler::Frontend::getAppDataDirectory().getFullPathName();
+#endif
+
+	File parent(parentDirectory);
+
+	if (!parent.isDirectory())
+		parent.createDirectory();
+
+#else
+
+#if HISE_IOS
+	String parentDirectory = File::getSpecialLocation(File::SpecialLocationType::userApplicationDataDirectory).getFullPathName();
+#else
+
+#if USE_BACKEND
+	String parentDirectory = File(PresetHandler::getDataFolder()).getFullPathName();
+#else
+	String parentDirectory = ProjectHandler::Frontend::getAppDataDirectory().getFullPathName();
+#endif
+#endif
+
+	File parent(parentDirectory);
+#endif
+
+	return parent;
+
+}
+
+void GlobalSettingManager::restoreGlobalSettings(MainController* mc)
+{
+	File savedDeviceData = getGlobalSettingsFile();
+
+	ScopedPointer<XmlElement> globalSettings = XmlDocument::parse(savedDeviceData);
+
+	
+
+	GlobalSettingManager* gm = dynamic_cast<GlobalSettingManager*>(mc);
+
+	gm->diskMode = globalSettings->getIntAttribute("DISK_MODE");
+	gm->scaleFactor = globalSettings->getDoubleAttribute("SCALE_FACTOR", 1.0);
+	gm->microTuning = globalSettings->getDoubleAttribute("MICRO_TUNING", 0.0);
+	gm->transposeValue = globalSettings->getIntAttribute("TRANSPOSE", 0);
+	gm->ccSustainValue = globalSettings->getIntAttribute("SUSTAIN_CC", 64);
+
+	mc->setGlobalPitchFactor(gm->microTuning);
+
+	mc->getEventHandler().setGlobalTransposeValue(gm->transposeValue);
+
+	mc->getEventHandler().addCCRemap(gm->ccSustainValue, 64);
+	mc->getSampleManager().setDiskMode((MainController::SampleManager::DiskMode)gm->diskMode);
 }

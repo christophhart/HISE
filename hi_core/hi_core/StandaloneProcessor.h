@@ -13,11 +13,56 @@
 
 class ToggleButtonList;
 
-class AudioProcessorDriver
+
+class GlobalSettingManager
+{
+
+public:
+
+	GlobalSettingManager();
+
+	virtual ~GlobalSettingManager()
+	{
+		saveSettingsAsXml();
+	}
+
+	
+
+	static File getGlobalSettingsFile()
+	{
+		return getSettingDirectory().getChildFile("GeneralSettings.xml");
+	}
+
+	void setDiskMode(int mode);
+
+	void setAllSamplesFound(bool areFound) noexcept
+	{
+		allSamplesFound = areFound;
+	}
+
+	void setGlobalScaleFactor(double scaleFactor);
+
+	static File getSettingDirectory();
+
+	static void restoreGlobalSettings(MainController* mc);
+
+	void saveSettingsAsXml();
+
+	int diskMode = 0;
+	bool allSamplesFound = false;
+	double scaleFactor = 1.0;
+	double microTuning = 0.0;
+	int transposeValue = 0;
+	int ccSustainValue = 64;
+
+};
+
+class AudioProcessorDriver: public GlobalSettingManager
 {
 public:
 
 	AudioProcessorDriver(AudioDeviceManager* manager, AudioProcessorPlayer* callback_) :
+		GlobalSettingManager(),
 		callback(callback_),
 		deviceManager(manager)
 	{};
@@ -70,12 +115,7 @@ public:
 		deviceManager->setCurrentAudioDeviceType(deviceName, true);
 	}
 
-	void setDiskMode(int mode);
-
-	void setAllSamplesFound(bool areFound) noexcept
-	{
-		allSamplesFound = areFound;
-	}
+	
 
 	void setOutputChannelName(const int channelIndex)
 	{
@@ -107,20 +147,11 @@ public:
 		}
 	}
 
-	void setGlobalScaleFactor(double scaleFactor);
+	
 
 	static void updateMidiToggleList(MainController* mc, ToggleButtonList* listToUpdate);
 
-	int diskMode = 0;
-
-	bool allSamplesFound = false;
-
-	double scaleFactor = 1.0;
-
-	double microTuning = 0.0;
-
-	int transposeValue = 0;
-
+	
 	static XmlElement *getSettings();
 
 	void initialiseAudioDriver(XmlElement *deviceData);
