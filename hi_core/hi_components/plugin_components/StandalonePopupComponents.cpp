@@ -213,6 +213,8 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
 
 		Array<int> bufferSizes = currentDevice->getAvailableBufferSizes();
 
+		
+
 		if (bufferSizes.size() > 7)
 		{
 			Array<int> powerOfTwoBufferSizes;
@@ -225,6 +227,12 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
 
 			bufferSizes.swapWith(powerOfTwoBufferSizes);
 		}
+
+		int defaultBufferSize = currentDevice->getDefaultBufferSize();
+
+		bufferSizes.addIfNotAlreadyThere(defaultBufferSize);
+
+		bufferSizes.sort();
 
 		outputSelector->addItemList(getChannelPairs(currentDevice), 1);
 		const int thisOutputName = (currentDevice->getActiveOutputChannels().getHighestBit() - 1) / 2;

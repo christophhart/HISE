@@ -584,10 +584,7 @@ void SampleMap::loadSamplesFromMonolith(const ValueTree &v)
     
 	File monolithDirectory = dynamic_cast<FrontendDataHolder*>(sampler->getMainController())->getSampleLocation();
 
-	if (!monolithDirectory.isDirectory())
-	{
-		jassertfalse;
-	}
+	
 
 #endif
 

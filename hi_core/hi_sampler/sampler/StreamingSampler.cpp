@@ -1342,7 +1342,7 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 
 			float indexInBufferFloat = (float)indexInBuffer;
 			
-			while (numSamples > 0)
+			while (numSamples >= 4)
 			{
 				for (int i = 0; i < 4; i++)
 				{
@@ -1364,6 +1364,27 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 				}
 				numSamples -= 4;
 			}
+
+			while (numSamples > 0)
+			{
+				const int pos = int(indexInBufferFloat);
+				const float alpha = indexInBufferFloat - (float)pos;
+				const float invAlpha = 1.0f - alpha;
+
+				float l = (inL[pos] * invAlpha + inL[pos + 1] * alpha);
+				float r = (inR[pos] * invAlpha + inR[pos + 1] * alpha);
+
+				*outL++ = l;
+				*outR++ = r;
+
+				jassert(r >= -1.0f);
+
+				jassert(*pitchData <= (float)MAX_SAMPLER_PITCH);
+
+				indexInBufferFloat += *pitchData++;
+
+				numSamples--;
+			}
 		}
 		else
 		{
@@ -1371,7 +1392,7 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 			float indexInBufferFloat = (float)indexInBuffer;
 			const float uptimeDeltaFloat = (float)uptimeDelta;
             
-			while (numSamples > 0)
+			while (numSamples >= 4)
 			{
 				for (int i = 0; i < 4; i++)
 				{
@@ -1389,6 +1410,23 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 				}
 				
 				numSamples -= 4;
+			}
+
+			while (numSamples > 0)
+			{
+				const int pos = int(indexInBufferFloat);
+				const float alpha = indexInBufferFloat - (float)pos;
+				const float invAlpha = 1.0f - alpha;
+
+				float l = (inL[pos] * invAlpha + inL[pos + 1] * alpha);
+				float r = (inR[pos] * invAlpha + inR[pos + 1] * alpha);
+
+				*outL++ = l;
+				*outR++ = r;
+
+				indexInBufferFloat += uptimeDeltaFloat;
+
+				numSamples--;
 			}
 		}
         

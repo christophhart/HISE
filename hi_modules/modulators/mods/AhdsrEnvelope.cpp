@@ -233,7 +233,7 @@ void AhdsrEnvelope::calculateBlock(int startSample, int numSamples)
 	}
 	else
 	{
-		while (numSamples > 0)
+		while (numSamples >= 4)
 		{
 			for (int i = 0; i < 4; i++)
 			{
@@ -242,6 +242,13 @@ void AhdsrEnvelope::calculateBlock(int startSample, int numSamples)
 			}
 
 			numSamples -= 4;
+		}
+
+		while (numSamples > 0)
+		{
+			internalBuffer.setSample(0, startSample, calculateNewValue());
+			++startSample;
+			numSamples--;
 		}
 	}
 
