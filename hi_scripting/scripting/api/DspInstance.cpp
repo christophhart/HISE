@@ -232,6 +232,27 @@ void DspInstance::processBlock(const var &data)
 				object->processBlock(sampleData, a->size(), numSamples);
 			}
 
+
+#if ENABLE_FILE_LOGGING
+			for (int i = 0; i < numSamples; i++)
+			{
+				bool found = false;
+
+				if (sampleData[0][i] > 20.0f || sampleData[0][i] < -20.0f)
+				{
+					Logger::writeToLog("Burst error on channel 0 at rendering " + moduleName);
+					found = true;
+				}
+				if (sampleData[1][i] > 20.0f || sampleData[1][i] < -20.0f)
+				{
+					Logger::writeToLog("Burst error on channel 1 at rendering " + moduleName);
+					found = true;
+				}
+
+				if (found) break;
+			}
+#endif
+
 		}
 		else if (data.isBuffer())
 		{
@@ -247,6 +268,8 @@ void DspInstance::processBlock(const var &data)
 		}
 		else throwError("Data Buffer is not valid");
 	}
+
+
 }
 
 void DspInstance::setParameter(int index, float newValue)
