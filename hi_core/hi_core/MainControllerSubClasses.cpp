@@ -301,6 +301,9 @@ MainController::EventIdHandler::EventIdHandler(HiseEventBuffer& masterBuffer_) :
 	masterBuffer(masterBuffer_),
 	currentEventId(1)
 {
+    firstCC.store(-1);
+    secondCC.store(-1);
+    
 	for (int i = 0; i < 128; i++)
 		realNoteOnEvents[i] = HiseEvent();
 

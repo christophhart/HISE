@@ -220,8 +220,8 @@ public:
 
 	private:
 
-		std::atomic<int> firstCC = -1;
-		std::atomic<int> secondCC = -1;
+        std::atomic<int> firstCC;
+        std::atomic<int> secondCC;
 
 		const HiseEventBuffer &masterBuffer;
 		HeapBlock<HiseEvent> artificialEvents;
