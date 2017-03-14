@@ -567,16 +567,6 @@ DeactiveOverlay::State DeactiveOverlay::checkLicence(const String &keyContent)
 
 String DeactiveOverlay::getTextForError(State s) const
 {
-	if (customMessage.isNotEmpty())
-	{
-		if (s == DeactiveOverlay::numReasons)
-			return String();
-		else
-		{
-			return customMessage;
-		}
-	}
-
 	switch (s)
 	{
 	case DeactiveOverlay::AppDataDirectoryNotFound:
@@ -632,6 +622,10 @@ String DeactiveOverlay::getTextForError(State s) const
 		return "";
 #endif
 	}
+    case DeactiveOverlay::CustomErrorMessage:
+        return customMessage;
+    case DeactiveOverlay::CriticalCustomErrorMessage:
+        return customMessage;
 	case DeactiveOverlay::numReasons:
 		break;
 	default:
@@ -700,7 +694,7 @@ void DeactiveOverlay::resized()
 		resolveSamplesButton->setVisible(false);
 		ignoreButton->setVisible(false);
 
-		String text = descriptionLabel->getText();
+        String text = getTextForError(DeactiveOverlay::State::CopyProtectionError);
 
 		if (text == "Connection to the server failed.")
 		{
@@ -723,6 +717,7 @@ void DeactiveOverlay::resized()
 		if (text.contains("TurboActivate.dat"))
 		{
 			resolveLicenceButton->setVisible(false);
+            registerProductButton->setVisible(false);
 		}
 	}
 	
