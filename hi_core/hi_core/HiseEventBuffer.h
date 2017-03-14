@@ -223,7 +223,11 @@ public:
 	bool isNoteOff() const noexcept { return type == Type::NoteOff; }
 	bool isNoteOnOrOff() const noexcept { return type == Type::NoteOn || type == Type::NoteOff; };
 	int getNoteNumber() const noexcept{ return (int)number; };
-	void setNoteNumber(int newNoteNumber) noexcept { number = jmin<uint8>((uint8)newNoteNumber, 127); };
+	void setNoteNumber(int newNoteNumber) noexcept
+	{ 
+		jassert(isNoteOnOrOff());
+		number = jmin<uint8>((uint8)newNoteNumber, 127); 
+	};
 	uint8 getVelocity() const noexcept{ return value; };
 	float getFloatVelocity() const noexcept{ return (float)value / 127.0f; }
 	void setVelocity(uint8 newVelocity) noexcept{ value = newVelocity; };

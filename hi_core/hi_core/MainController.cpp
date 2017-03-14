@@ -824,7 +824,3 @@ void MainController::SampleManager::preloadEverything()
 	}
 }
 
-void MainController::EventIdHandler::setGlobalTransposeValue(int newTransposeValue)
-{
-	transposeValue = newTransposeValue;
-}

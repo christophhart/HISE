@@ -321,9 +321,14 @@ void MainController::EventIdHandler::handleEventIds()
 
 		while (HiseEvent* m = transposer.getNextEventPointer())
 		{
-			int newNoteNumber = jlimit<int>(0, 127, m->getNoteNumber() + transposeValue);
+			if (m->isNoteOnOrOff())
+			{
+				int newNoteNumber = jlimit<int>(0, 127, m->getNoteNumber() + transposeValue);
 
-			m->setNoteNumber(newNoteNumber);
+				m->setNoteNumber(newNoteNumber);
+			}
+
+			
 		}
 	}
 
@@ -368,6 +373,19 @@ void MainController::EventIdHandler::handleEventIds()
 			{
 				// There is something fishy here so deactivate this event
 				m->ignoreEvent(true);
+			}
+		}
+		else if (firstCC != -1 && m->isController())
+		{
+			const int ccNumber = m->getControllerNumber();
+
+			if (ccNumber == firstCC)
+			{
+				m->setControllerNumber(secondCC);
+			}
+			else if (ccNumber == secondCC)
+			{
+				m->setControllerNumber(firstCC);
 			}
 		}
 	}
@@ -437,3 +455,19 @@ HiseEvent MainController::EventIdHandler::popNoteOnFromEventId(uint16 eventId)
 	return e;
 }
 
+void MainController::EventIdHandler::setGlobalTransposeValue(int newTransposeValue)
+{
+	transposeValue = newTransposeValue;
+}
+
+void MainController::EventIdHandler::addCCRemap(int firstCC_, int secondCC_)
+{
+	firstCC = firstCC_;
+	secondCC = secondCC_;
+
+	if (firstCC_ == secondCC_)
+	{
+		firstCC_ = -1;
+		secondCC_ = -1;
+	}
+}
