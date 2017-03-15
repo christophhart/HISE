@@ -122,4 +122,94 @@ private:
 };
 
 
+
+
+class DeactiveOverlay : public Component,
+	public ButtonListener
+{
+public:
+
+	DeactiveOverlay();;
+
+	void buttonClicked(Button *b);
+
+	enum State
+	{
+		AppDataDirectoryNotFound,
+		LicenseNotFound,
+		ProductNotMatching,
+		UserNameNotMatching,
+		EmailNotMatching,
+		MachineNumbersNotMatching,
+		LicenseExpired,
+		LicenseInvalid,
+		CopyProtectionError,
+		CriticalCustomErrorMessage,
+		SamplesNotFound,
+		CustomErrorMessage,
+		numReasons
+	};
+
+	void paint(Graphics &g)
+	{
+		g.setColour(Colours::black.withAlpha(0.8f));
+		g.fillAll();
+	}
+
+	void setState(State s, bool value)
+	{
+		currentState.setBit(s, value);
+
+		setVisible(currentState != 0);
+		refreshLabel();
+		resized();
+	}
+
+	void setCustomMessage(const String newCustomMessage)
+	{
+		customMessage = newCustomMessage;
+	}
+
+	bool check(State s, const String &value = String());
+
+	State checkLicence(const String &keyContent = String());
+
+	void refreshLabel()
+	{
+		for (int i = 0; i < numReasons; i++)
+		{
+			if (currentState[i])
+			{
+				descriptionLabel->setText(getTextForError((State)i), dontSendNotification);
+				return;
+			}
+		}
+
+		resized();
+	}
+
+	String getTextForError(State s) const;
+
+	void resized();
+
+private:
+
+	AlertWindowLookAndFeel alaf;
+
+	String customMessage;
+
+	ScopedPointer<Label> descriptionLabel;
+
+	ScopedPointer<TextButton> resolveLicenceButton;
+	ScopedPointer<TextButton> resolveSamplesButton;
+	ScopedPointer<TextButton> registerProductButton;
+	ScopedPointer<TextButton> useActivationResponseButton;
+	ScopedPointer<TextButton> ignoreButton;
+
+	BigInteger currentState;
+
+};
+
+
+
 #endif  

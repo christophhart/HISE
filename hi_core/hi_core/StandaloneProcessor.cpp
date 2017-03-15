@@ -65,11 +65,11 @@ void AudioProcessorDriver::restoreSettings(MainController* mc)
     
     if (!allSamplesThere)
     {
-        dynamic_cast<FrontendProcessor*>(mc)->checkAllSampleReferences();
+        dynamic_cast<FrontendSampleManager*>(mc)->checkAllSampleReferences();
     }
     else
     {
-        dynamic_cast<FrontendProcessor*>(mc)->setAllSampleReferencesCorrect();
+        dynamic_cast<FrontendSampleManager*>(mc)->setAllSampleReferencesCorrect();
     }
 #endif
 }
@@ -120,7 +120,7 @@ StandaloneProcessor::StandaloneProcessor()
 		dynamic_cast<AudioProcessorDriver*>(wrappedProcessor.get())->initialiseAudioDriver(xml);
 #else
 	dynamic_cast<AudioProcessorDriver*>(wrappedProcessor.get())->initialiseAudioDriver(xml);
-	dynamic_cast<FrontendProcessor*>(wrappedProcessor.get())->loadSamplesAfterSetup();
+	dynamic_cast<FrontendSampleManager*>(wrappedProcessor.get())->loadSamplesAfterSetup();
 
 #endif
 

@@ -35,7 +35,7 @@ public:
 
 	void setDiskMode(int mode);
 
-	void setAllSamplesFound(bool areFound) noexcept
+	void storeAllSamplesFound(bool areFound) noexcept
 	{
 		allSamplesFound = areFound;
 	}

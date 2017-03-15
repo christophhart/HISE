@@ -76,7 +76,6 @@ MainController(),
 PluginParameterAudioProcessor(ProjectHandler::Frontend::getProjectName()),
 AudioProcessorDriver(manager, callback_),
 synthChain(new ModulatorSynthChain(this, "Master Chain", NUM_POLYPHONIC_VOICES)),
-samplesCorrectlyLoaded(false),
 keyFileCorrectlyLoaded(true),
 presets(*userPresets),
 currentlyLoadedProgram(0),
@@ -203,31 +202,6 @@ AudioProcessorEditor* FrontendProcessor::createEditor()
 void FrontendProcessor::setCurrentProgram(int /*index*/)
 {
 	return;
-}
-
-
-void FrontendProcessor::setAllSampleReferencesCorrect()
-{
-	samplesCorrectlyLoaded = true;
-}
-
-void FrontendProcessor::checkAllSampleReferences()
-{
-	ValueTree sampleMapTree = getValueTree(ProjectHandler::SubDirectories::SampleMaps);
-
-	const String missingSampleName = ProjectHandler::Frontend::checkSampleReferences(sampleMapTree, true);
-
-	samplesCorrectlyLoaded = missingSampleName.isEmpty();
-
-	if (missingSampleName.isNotEmpty())
-	{
-		sendOverlayMessage(DeactiveOverlay::State::SamplesNotFound, "The sample " + missingSampleName + " was not found.");
-	}
-}
-
-bool FrontendProcessor::areSampleReferencesCorrect() const
-{
-	return samplesCorrectlyLoaded;
 }
 
 const String FrontendStandaloneApplication::getApplicationName()

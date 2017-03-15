@@ -329,7 +329,7 @@ void CustomSettingsWindow::buttonClicked(Button* b)
 			{
 				ProjectHandler::Frontend::setSampleLocation(newLocation);
 
-				auto fp = dynamic_cast<FrontendProcessor*>(mc);
+				auto fp = dynamic_cast<FrontendSampleManager*>(mc);
 				
 				fp->checkAllSampleReferences();
 				
@@ -470,8 +470,10 @@ void CustomSettingsWindow::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
 
 		auto fpe = findParentComponentOfClass<FrontendProcessorEditor>();
 
-		fpe->setGlobalScaleFactor((float)scaleFactor);
-
+		if (fpe != nullptr)
+		{
+			fpe->setGlobalScaleFactor((float)scaleFactor);
+		}
 #endif
 
 

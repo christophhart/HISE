@@ -358,6 +358,30 @@ public:
 	virtual File getSampleLocation() const = 0;
 };
 
+/** This base class handles missing samples. */
+class FrontendSampleManager
+{
+public:
+
+	virtual ~FrontendSampleManager() {};
+
+	void loadSamplesAfterSetup();
+
+	virtual bool shouldLoadSamplesAfterSetup() const { return samplesCorrectlyLoaded; };
+
+	bool areSamplesLoadedCorrectly() const { return samplesCorrectlyLoaded; }
+
+
+	void setAllSampleReferencesCorrect();
+
+	void checkAllSampleReferences();
+	bool areSampleReferencesCorrect() const;
+
+private:
+
+	bool samplesCorrectlyLoaded = false;
+
+};
 
 
 class UserPresetData

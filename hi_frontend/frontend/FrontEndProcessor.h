@@ -112,7 +112,8 @@ public:
 class FrontendProcessor: public PluginParameterAudioProcessor,
 						 public AudioProcessorDriver,
 						 public MainController,
-						 public FrontendDataHolder
+						 public FrontendDataHolder,
+						 public FrontendSampleManager
 {
 public:
 	FrontendProcessor(ValueTree &synthData, AudioDeviceManager* manager, AudioProcessorPlayer* callback_, ValueTree *imageData_ = nullptr, ValueTree *impulseData = nullptr, ValueTree *externalScriptData = nullptr, ValueTree *userPresets = nullptr);
@@ -125,9 +126,13 @@ public:
 	{
 		synthChain = nullptr;
 
-		setAllSamplesFound(samplesCorrectlyLoaded);
+		storeAllSamplesFound(areSamplesLoadedCorrectly());
 
 	};
+
+	bool shouldLoadSamplesAfterSetup() {
+		return areSamplesLoadedCorrectly() && keyFileCorrectlyLoaded;
+	}
 
 	void prepareToPlay (double sampleRate, int samplesPerBlock);
 	void releaseResources() {};
@@ -142,22 +147,6 @@ public:
         
         loadSamplesAfterSetup();
     }
-
-	void loadSamplesAfterSetup()
-	{
-        if(keyFileCorrectlyLoaded && samplesCorrectlyLoaded)
-        {
-            suspendProcessing(false);
-            getSampleManager().setShouldSkipPreloading(false);
-            getSampleManager().preloadEverything();
-        }
-        else
-        {
-            suspendProcessing(true);
-        }
-	}
-
-	bool areSamplesLoadedCorrectly() const { return samplesCorrectlyLoaded; }
 
 	void getStateInformation	(MemoryBlock &destData) override
 	{
@@ -262,10 +251,6 @@ public:
 		else return ValueTree();
 	}
 
-	void setAllSampleReferencesCorrect();
-
-	void checkAllSampleReferences();
-	bool areSampleReferencesCorrect() const;
 
 private:
 
@@ -279,7 +264,7 @@ private:
 	friend class FrontendProcessorEditor;
 	friend class DefaultFrontendBar;
 
-	bool samplesCorrectlyLoaded = false;
+	
 
     bool keyFileCorrectlyLoaded = true;
 

@@ -2268,3 +2268,43 @@ void PresetPlayerHandler::addInstrumentToPackageXml(const String &instrumentFile
 
 }
 
+void FrontendSampleManager::loadSamplesAfterSetup()
+{
+	if (shouldLoadSamplesAfterSetup())
+	{
+		dynamic_cast<AudioProcessor*>(this)->suspendProcessing(false);
+		dynamic_cast<MainController*>(this)->getSampleManager().setShouldSkipPreloading(false);
+		dynamic_cast<MainController*>(this)->getSampleManager().preloadEverything();
+	}
+	else
+	{
+		dynamic_cast<AudioProcessor*>(this)->suspendProcessing(true);
+	}
+}
+
+
+
+
+void FrontendSampleManager::setAllSampleReferencesCorrect()
+{
+	samplesCorrectlyLoaded = true;
+}
+
+void FrontendSampleManager::checkAllSampleReferences()
+{
+	ValueTree sampleMapTree = dynamic_cast<FrontendDataHolder*>(this)->getValueTree(ProjectHandler::SubDirectories::SampleMaps);
+
+	const String missingSampleName = ProjectHandler::Frontend::checkSampleReferences(sampleMapTree, true);
+
+	samplesCorrectlyLoaded = missingSampleName.isEmpty();
+
+	if (missingSampleName.isNotEmpty())
+	{
+		dynamic_cast<MainController*>(this)->sendOverlayMessage(DeactiveOverlay::State::SamplesNotFound, "The sample " + missingSampleName + " was not found.");
+	}
+}
+
+bool FrontendSampleManager::areSampleReferencesCorrect() const
+{
+	return samplesCorrectlyLoaded;
+}

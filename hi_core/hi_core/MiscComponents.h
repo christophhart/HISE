@@ -153,7 +153,7 @@ public:
 
 
 	/** overwrite this method and update the widget to display the current value of the controlled attribute. */
-	virtual void updateValue(NotificationType sendAttributeChange/*=sendNotification*/)
+	virtual void updateValue(NotificationType /*sendAttributeChange=sendNotification*/)
 	{
 		repaint();
 	};
