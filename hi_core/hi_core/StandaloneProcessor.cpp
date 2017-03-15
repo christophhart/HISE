@@ -259,20 +259,21 @@ void GlobalSettingManager::restoreGlobalSettings(MainController* mc)
 
 	ScopedPointer<XmlElement> globalSettings = XmlDocument::parse(savedDeviceData);
 
-	
-
-	GlobalSettingManager* gm = dynamic_cast<GlobalSettingManager*>(mc);
-
-	gm->diskMode = globalSettings->getIntAttribute("DISK_MODE");
-	gm->scaleFactor = globalSettings->getDoubleAttribute("SCALE_FACTOR", 1.0);
-	gm->microTuning = globalSettings->getDoubleAttribute("MICRO_TUNING", 0.0);
-	gm->transposeValue = globalSettings->getIntAttribute("TRANSPOSE", 0);
-	gm->ccSustainValue = globalSettings->getIntAttribute("SUSTAIN_CC", 64);
-
-	mc->setGlobalPitchFactor(gm->microTuning);
-
-	mc->getEventHandler().setGlobalTransposeValue(gm->transposeValue);
-
-	mc->getEventHandler().addCCRemap(gm->ccSustainValue, 64);
-	mc->getSampleManager().setDiskMode((MainController::SampleManager::DiskMode)gm->diskMode);
+	if(globalSettings != nullptr)
+    {
+        GlobalSettingManager* gm = dynamic_cast<GlobalSettingManager*>(mc);
+        
+        gm->diskMode = globalSettings->getIntAttribute("DISK_MODE");
+        gm->scaleFactor = globalSettings->getDoubleAttribute("SCALE_FACTOR", 1.0);
+        gm->microTuning = globalSettings->getDoubleAttribute("MICRO_TUNING", 0.0);
+        gm->transposeValue = globalSettings->getIntAttribute("TRANSPOSE", 0);
+        gm->ccSustainValue = globalSettings->getIntAttribute("SUSTAIN_CC", 64);
+        
+        mc->setGlobalPitchFactor(gm->microTuning);
+        
+        mc->getEventHandler().setGlobalTransposeValue(gm->transposeValue);
+        
+        mc->getEventHandler().addCCRemap(gm->ccSustainValue, 64);
+        mc->getSampleManager().setDiskMode((MainController::SampleManager::DiskMode)gm->diskMode);
+    }
 }

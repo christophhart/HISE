@@ -102,6 +102,7 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 	addAndMakeVisible(sampleRateSelector = new ComboBox("Sample Rate"));
 #endif
     
+	addAndMakeVisible(ccSustainSelector = new ComboBox("Sustain CC"));
     addAndMakeVisible(scaleFactorSelector = new ComboBox("Scale Factor"));
 	addAndMakeVisible(diskModeSelector = new ComboBox("Hard Disk"));
 	addAndMakeVisible(clearMidiLearn = new TextButton("Clear MIDI CC"));
@@ -115,6 +116,7 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 	sampleRateSelector->addListener(this);
 #endif 
 
+	ccSustainSelector->addListener(this);
 	scaleFactorSelector->addListener(this);
 	diskModeSelector->addListener(this);
 	clearMidiLearn->addListener(this);
@@ -128,6 +130,7 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 	sampleRateSelector->setLookAndFeel(&plaf);
 #endif
 
+	ccSustainSelector->setLookAndFeel(&plaf);
 	scaleFactorSelector->setLookAndFeel(&plaf);
 	diskModeSelector->setLookAndFeel(&plaf);
 	clearMidiLearn->setLookAndFeel(&blaf);
@@ -146,9 +149,9 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 #else
 
 #if IS_STANDALONE_FRONTEND
-	setSize(320, 390);
+	setSize(320, 430);
 #else
-	setSize(320, 180);
+	setSize(320, 220);
 #endif
 
 #endif
@@ -296,6 +299,14 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
 	diskModeSelector->addItem("Fast - SSD", 1);
 	diskModeSelector->addItem("Slow - HDD", 2);
 
+	ccSustainSelector->clear(dontSendNotification);
+
+	for (int i = 1; i < 127; i++)
+	{
+		ccSustainSelector->addItem(String("CC ") + String(i), i);
+	}
+
+	ccSustainSelector->setSelectedId(driver->ccSustainValue, dontSendNotification);
 	diskModeSelector->setSelectedItemIndex(driver->diskMode, dontSendNotification);
 	scaleFactorSelector->setSelectedItemIndex(driver->scaleFactor == 1.0 ? 0 : 1, dontSendNotification);
 }
@@ -441,6 +452,14 @@ void CustomSettingsWindow::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
 		const double sampleRate = (double)sampleRateSelector->getText().getIntValue();
 		driver->setCurrentSampleRate(sampleRate);
 	}
+	else if (comboBoxThatHasChanged == ccSustainSelector)
+	{
+		int newSustainCC = comboBoxThatHasChanged->getSelectedId();
+
+		driver->ccSustainValue = newSustainCC;
+
+		mc->getEventHandler().addCCRemap(newSustainCC, 64);
+	}
 	else if (comboBoxThatHasChanged == scaleFactorSelector)
 	{
 		double scaleFactor = (scaleFactorSelector->getSelectedItemIndex() == 0) ? 1.0 : 0.85;
@@ -494,6 +513,8 @@ void CustomSettingsWindow::paint(Graphics& g)
 	y += 40;
 #endif
 
+
+
 	if (scaleFactorSelector->isVisible())
 	{
 		g.drawText("Scale Factor", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
@@ -501,8 +522,11 @@ void CustomSettingsWindow::paint(Graphics& g)
 	}
 
     g.drawText("Streaming Mode", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
-	y += 80;
+	y += 40;
 	
+	g.drawText("Sustain CC", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
+	y += 80;
+
 #if USE_BACKEND
 	const String samplePath = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Samples).getFullPathName();
 #else
@@ -546,6 +570,10 @@ void CustomSettingsWindow::resized()
 
 	diskModeSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
     y+= 40;
+
+	ccSustainSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
+	y += 40;
+
 	clearMidiLearn->setBounds(10, y, getWidth() - 20, 30);
 
 #if !HISE_IOS

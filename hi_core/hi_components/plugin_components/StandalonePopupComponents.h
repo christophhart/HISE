@@ -133,6 +133,7 @@ private:
 	ScopedPointer<ComboBox> sampleRateSelector;
 	ScopedPointer<ComboBox> diskModeSelector;
 	ScopedPointer<ComboBox> scaleFactorSelector;
+	ScopedPointer<ComboBox> ccSustainSelector;
 	ScopedPointer<TextButton> clearMidiLearn;
 	ScopedPointer<TextButton> relocateButton;
 	
