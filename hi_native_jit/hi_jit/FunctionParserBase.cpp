@@ -1018,11 +1018,111 @@ BASE_NODE FunctionParserBase::parseFunctionCall(BaseFunction* b)
 
 #define FUNCTION_CHECK_WITH_2_ARGUMENTS(rt, p1, p2) if (TYPE_MATCH(rt, pi.returnType) && TYPE_MATCH(p1, pi.types[0]) && TYPE_MATCH(p2, pi.types[1])) return parseFunctionParameterList<rt, p1, p2>(b, pi.nodes[0], pi.nodes[1]);
 
-#define MATCH_TYPE_AND_RETURN(type) FUNCTION_CHECK_WITH_2_ARGUMENTS(int, int, double);
+#define MATCH_TYPE_AND_RETURN(type) FUNCTION_CHECK_WITH_2_ARGUMENTS(float, float, type);
 		MATCH_AND_RETURN_ALL_TYPES()
 #undef	MATCH_TYPE_AND_RETURN
-
-
+        
+#define MATCH_TYPE_AND_RETURN(type) FUNCTION_CHECK_WITH_2_ARGUMENTS(float, double, type);
+        MATCH_AND_RETURN_ALL_TYPES()
+#undef	MATCH_TYPE_AND_RETURN
+        
+#define MATCH_TYPE_AND_RETURN(type) FUNCTION_CHECK_WITH_2_ARGUMENTS(float, int, type);
+        MATCH_AND_RETURN_ALL_TYPES()
+#undef	MATCH_TYPE_AND_RETURN
+        
+#define MATCH_TYPE_AND_RETURN(type) FUNCTION_CHECK_WITH_2_ARGUMENTS(float, Buffer*, type);
+        MATCH_AND_RETURN_ALL_TYPES()
+#undef	MATCH_TYPE_AND_RETURN
+        
+#define MATCH_TYPE_AND_RETURN(type) FUNCTION_CHECK_WITH_2_ARGUMENTS(float, BooleanType, type);
+        MATCH_AND_RETURN_ALL_TYPES()
+#undef	MATCH_TYPE_AND_RETURN
+        
+        
+#define MATCH_TYPE_AND_RETURN(type) FUNCTION_CHECK_WITH_2_ARGUMENTS(double, float, type);
+        MATCH_AND_RETURN_ALL_TYPES()
+#undef	MATCH_TYPE_AND_RETURN
+        
+#define MATCH_TYPE_AND_RETURN(type) FUNCTION_CHECK_WITH_2_ARGUMENTS(double, double, type);
+        MATCH_AND_RETURN_ALL_TYPES()
+#undef	MATCH_TYPE_AND_RETURN
+        
+#define MATCH_TYPE_AND_RETURN(type) FUNCTION_CHECK_WITH_2_ARGUMENTS(double, int, type);
+        MATCH_AND_RETURN_ALL_TYPES()
+#undef	MATCH_TYPE_AND_RETURN
+        
+#define MATCH_TYPE_AND_RETURN(type) FUNCTION_CHECK_WITH_2_ARGUMENTS(double, Buffer*, type);
+        MATCH_AND_RETURN_ALL_TYPES()
+#undef	MATCH_TYPE_AND_RETURN
+        
+#define MATCH_TYPE_AND_RETURN(type) FUNCTION_CHECK_WITH_2_ARGUMENTS(double, BooleanType, type);
+        MATCH_AND_RETURN_ALL_TYPES()
+#undef	MATCH_TYPE_AND_RETURN
+        
+        
+#define MATCH_TYPE_AND_RETURN(type) FUNCTION_CHECK_WITH_2_ARGUMENTS(int, float, type);
+        MATCH_AND_RETURN_ALL_TYPES()
+#undef	MATCH_TYPE_AND_RETURN
+        
+#define MATCH_TYPE_AND_RETURN(type) FUNCTION_CHECK_WITH_2_ARGUMENTS(int, double, type);
+        MATCH_AND_RETURN_ALL_TYPES()
+#undef	MATCH_TYPE_AND_RETURN
+        
+#define MATCH_TYPE_AND_RETURN(type) FUNCTION_CHECK_WITH_2_ARGUMENTS(int, int, type);
+        MATCH_AND_RETURN_ALL_TYPES()
+#undef	MATCH_TYPE_AND_RETURN
+        
+#define MATCH_TYPE_AND_RETURN(type) FUNCTION_CHECK_WITH_2_ARGUMENTS(int, Buffer*, type);
+        MATCH_AND_RETURN_ALL_TYPES()
+#undef	MATCH_TYPE_AND_RETURN
+        
+#define MATCH_TYPE_AND_RETURN(type) FUNCTION_CHECK_WITH_2_ARGUMENTS(int, BooleanType, type);
+        MATCH_AND_RETURN_ALL_TYPES()
+#undef	MATCH_TYPE_AND_RETURN
+        
+        
+#define MATCH_TYPE_AND_RETURN(type) FUNCTION_CHECK_WITH_2_ARGUMENTS(Buffer*, float, type);
+        MATCH_AND_RETURN_ALL_TYPES()
+#undef	MATCH_TYPE_AND_RETURN
+        
+#define MATCH_TYPE_AND_RETURN(type) FUNCTION_CHECK_WITH_2_ARGUMENTS(Buffer*, double, type);
+        MATCH_AND_RETURN_ALL_TYPES()
+#undef	MATCH_TYPE_AND_RETURN
+        
+#define MATCH_TYPE_AND_RETURN(type) FUNCTION_CHECK_WITH_2_ARGUMENTS(Buffer*, int, type);
+        MATCH_AND_RETURN_ALL_TYPES()
+#undef	MATCH_TYPE_AND_RETURN
+        
+#define MATCH_TYPE_AND_RETURN(type) FUNCTION_CHECK_WITH_2_ARGUMENTS(Buffer*, Buffer*, type);
+        MATCH_AND_RETURN_ALL_TYPES()
+#undef	MATCH_TYPE_AND_RETURN
+        
+#define MATCH_TYPE_AND_RETURN(type) FUNCTION_CHECK_WITH_2_ARGUMENTS(Buffer*, BooleanType, type);
+        MATCH_AND_RETURN_ALL_TYPES()
+#undef	MATCH_TYPE_AND_RETURN
+        
+        
+#define MATCH_TYPE_AND_RETURN(type) FUNCTION_CHECK_WITH_2_ARGUMENTS(BooleanType, float, type);
+        MATCH_AND_RETURN_ALL_TYPES()
+#undef	MATCH_TYPE_AND_RETURN
+        
+#define MATCH_TYPE_AND_RETURN(type) FUNCTION_CHECK_WITH_2_ARGUMENTS(BooleanType, double, type);
+        MATCH_AND_RETURN_ALL_TYPES()
+#undef	MATCH_TYPE_AND_RETURN
+        
+#define MATCH_TYPE_AND_RETURN(type) FUNCTION_CHECK_WITH_2_ARGUMENTS(BooleanType, int, type);
+        MATCH_AND_RETURN_ALL_TYPES()
+#undef	MATCH_TYPE_AND_RETURN
+        
+#define MATCH_TYPE_AND_RETURN(type) FUNCTION_CHECK_WITH_2_ARGUMENTS(BooleanType, Buffer*, type);
+        MATCH_AND_RETURN_ALL_TYPES()
+#undef	MATCH_TYPE_AND_RETURN
+        
+#define MATCH_TYPE_AND_RETURN(type) FUNCTION_CHECK_WITH_2_ARGUMENTS(BooleanType, BooleanType, type);
+        MATCH_AND_RETURN_ALL_TYPES()
+#undef	MATCH_TYPE_AND_RETURN
+        
+#undef FUNCTION_CHECK_WITH_2_ARGUMENTS
 	}
 	default:
 	{

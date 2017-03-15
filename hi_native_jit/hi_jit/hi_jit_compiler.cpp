@@ -509,10 +509,7 @@ public:
 		}
     }
     
-private:
-    
     String code;
-    
     ScopedPointer<NativeJITCompiler> compiler;
     ScopedPointer<NativeJITScope> scope;
     
@@ -649,6 +646,7 @@ public:
         testGlobals();
         
         testFunctionCalls();
+        testDoubleFunctionCalls();
         
 		testTernaryOperator();
 		
@@ -874,14 +872,9 @@ private:
         
         ScopedPointer<NativeJITTestCase<float>> test;
         
-		
-
         Random r;
         
         const float v = r.nextFloat() * 122.0f * r.nextBool() ? 1.0f : -1.0f;
-        
-        CREATE_TEST(getTestFunction<float>("return sinf(input);"))
-        EXPECT("sinf", v, sinf(v));
         
         CREATE_TEST("float square(float input){return input*input;}; float test(float input){ return square(input);};")
         EXPECT("JIT Function call", v, v*v);
@@ -900,6 +893,58 @@ private:
 
     }
 
+    void testDoubleFunctionCalls()
+    {
+        beginTest("Double Function Calls");
+        
+        ScopedPointer<NativeJITTestCase<double>> test;
+        
+        #define T double
+        
+        Random r;
+        
+        const double v = (double)(r.nextFloat() * 122.0f * r.nextBool() ? 1.0f : -1.0f);
+
+        
+        CREATE_TYPED_TEST(getTestFunction<double>("return sin(input);"))
+        expectCompileOK(test->compiler);
+        EXPECT_TYPED("sin", v, sin(v));
+        CREATE_TYPED_TEST(getTestFunction<double>("return cos(input);"))
+        expectCompileOK(test->compiler);
+        EXPECT_TYPED("cos", v, cos(v));
+        
+        CREATE_TYPED_TEST(getTestFunction<double>("return tan(input);"))
+        expectCompileOK(test->compiler);
+        EXPECT_TYPED("tan", v, tan(v));
+        
+        CREATE_TYPED_TEST(getTestFunction<double>("return atan(input);"))
+        expectCompileOK(test->compiler);
+        EXPECT_TYPED("atan", v, atan(v));
+        
+        CREATE_TYPED_TEST(getTestFunction<double>("return atanh(input);"));
+        expectCompileOK(test->compiler);
+        EXPECT_TYPED("atanh", v, atanh(v));
+        
+        CREATE_TYPED_TEST(getTestFunction<double>("return pow(input, 2.0);"))
+        expectCompileOK(test->compiler);
+        EXPECT_TYPED("pow", v, pow(v, 2.0));
+        
+        CREATE_TYPED_TEST(getTestFunction<double>("return sqrt(input);"))
+        expectCompileOK(test->compiler);
+        EXPECT_TYPED("sqrt", v, sqrt(v));
+        
+        CREATE_TYPED_TEST(getTestFunction<double>("return abs(input);"))
+        expectCompileOK(test->compiler);
+        EXPECT_TYPED("abs", v, abs(v));
+        
+        CREATE_TYPED_TEST(getTestFunction<double>("return exp(input);"))
+        expectCompileOK(test->compiler);
+        EXPECT_TYPED("exp", v, exp(v));
+        
+#undef T
+
+    }
+    
 	void testTernaryOperator()
 	{
 
@@ -1183,9 +1228,9 @@ private:
 
 		String code;
 
-		ADD_CODE_LINE("double _g0 = 0.0;");
-		ADD_CODE_LINE("double _y0 = 0.0;");
-		ADD_CODE_LINE("double freq = 1.4;");
+		ADD_CODE_LINE("float _g0 = 0.0f;");
+		ADD_CODE_LINE("float _y0 = 0.0f;");
+		ADD_CODE_LINE("float freq = 1.4f;");
 		ADD_CODE_LINE("");
 		ADD_CODE_LINE("void init()");
 		ADD_CODE_LINE("{");
@@ -1194,16 +1239,16 @@ private:
 		ADD_CODE_LINE("");
 		ADD_CODE_LINE("void prepareToPlay(double sampleRate, int blockSize)");
 		ADD_CODE_LINE("{");
-		ADD_CODE_LINE("    ");
+		ADD_CODE_LINE("    freq = expf(-0.5f);");
 		ADD_CODE_LINE("};");
 		ADD_CODE_LINE("");
 		ADD_CODE_LINE("float process(float input)");
 		ADD_CODE_LINE("{");
-		ADD_CODE_LINE("	const double g1 = freq;");
-		ADD_CODE_LINE("	const double y1 = _g0 * g1 * (_y0 - (double)input) + (double)input;");
+		ADD_CODE_LINE("	const float g1 = freq;");
+		ADD_CODE_LINE("	const float y1 = _g0 * g1 * (_y0 - input) + input;");
 		ADD_CODE_LINE("	_g0 = g1;");
 		ADD_CODE_LINE("	_y0 = y1;");
-		ADD_CODE_LINE("	return (float)y1;");
+		ADD_CODE_LINE("	return y1;");
 		ADD_CODE_LINE("};");
 
 		m->setCode(code);
@@ -1218,20 +1263,20 @@ private:
 		m->process(b1);
 		expectCompileOK(m->compiler);
 
-		double _g0 = 0.0;
-		double _y0 = 0.0;
-		double freq = 1.0;
+		float _g0 = 0.0f;
+		float _y0 = 0.0f;
+		float freq = expf(-0.5f);
 
 		START_BENCHMARK;
 
 		for(int i = 0; i < b2.size; i++)
 		{
 
-			const double g1 = freq;
-			const double y1 = _g0 * g1 * (_y0 - (double)b2[i]) + (double)b2[i];
+			const float g1 = freq;
+			const float y1 = _g0 * g1 * (_y0 - b2[i]) + b2[i];
 			_g0 = g1;
 			_y0 = y1;
-			b2[i] = (float)y1;
+			b2[i] = y1;
 		};
 
 		STOP_BENCHMARK_AND_LOG;
