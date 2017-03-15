@@ -502,6 +502,14 @@ private:
 
 		if (File::isAbsolutePath(cleanedFileName)) 
 			refFileName = cleanedFileName;
+		else if (cleanedFileName.contains("{GLOBAL_SCRIPT_FOLDER}"))
+		{
+			const File globalScriptFolder = File(PresetHandler::getDataFolder()).getChildFile("scripts");
+
+			const String f1 = cleanedFileName.fromFirstOccurrenceOf("{GLOBAL_SCRIPT_FOLDER}", false, false);
+
+			refFileName = globalScriptFolder.getChildFile(f1).getFullPathName();
+		}
 		else
 		{
 			const String fileName = "{PROJECT_FOLDER}" + cleanedFileName;

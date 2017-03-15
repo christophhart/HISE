@@ -329,6 +329,13 @@ ValueTree FileChangeListener::collectAllScriptFiles(ModulatorSynthChain *chainTo
 			// Wow, much cross-platform, very OSX, totally Windows
 			fileName = fileName.replace("\\", "/");
 
+			File globalScriptFolder = File(PresetHandler::getDataFolder()).getChildFile("scripts");
+
+			if (globalScriptFolder.isDirectory() && scriptFile.isAChildOf(globalScriptFolder))
+			{
+				fileName = "{GLOBAL_SCRIPT_FOLDER}" + scriptFile.getRelativePathFrom(globalScriptFolder);
+			}
+
 			bool exists = false;
 
 			for (int j = 0; j < externalScriptFiles.getNumChildren(); j++)
