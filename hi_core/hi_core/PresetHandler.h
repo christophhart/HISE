@@ -269,7 +269,7 @@ public:
 		static String getCompanyName();
 		static String getCompanyWebsiteName();
 		static String getVersionString();
-		static String checkSampleReferences(const ValueTree &sampleMaps);
+		static String checkSampleReferences(const ValueTree &sampleMaps, bool returnTrueIfOneSampleFound);
 	};
 
 	

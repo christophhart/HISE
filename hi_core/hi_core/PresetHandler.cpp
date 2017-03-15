@@ -1238,27 +1238,54 @@ void ProjectHandler::checkAllSampleMaps()
 	}
 }
 
-String ProjectHandler::Frontend::checkSampleReferences(const ValueTree &sampleMaps)
+String ProjectHandler::Frontend::checkSampleReferences(const ValueTree &sampleMaps, bool returnTrueIfOneSampleFound)
 {
 	Array<File> sampleList;
 
+    StringArray existingFiles;
+    StringArray missingFiles;
+    
 	const File sampleLocation = getSampleLocationForCompiledPlugin();
 
 	sampleLocation.findChildFiles(sampleList, File::findFiles, true);
 
 	String falseName;
 
+    int numCorrectSampleMaps = 0;
+    
 	for (int i = 0; i < sampleMaps.getNumChildren(); i++)
 	{
+        
+        
 		ValueTree child = sampleMaps.getChild(i);
 		
-		falseName = SampleMap::checkReferences(child, sampleLocation, sampleList);
+        const String thisFalseName = SampleMap::checkReferences(child, sampleLocation, sampleList);
 
-		if (falseName.isNotEmpty())
-			return falseName;
-	}
+        if(thisFalseName.isNotEmpty())
+        {
+            falseName = thisFalseName;
+        }
+        else
+        {
+            numCorrectSampleMaps++;
+        }
+    }
 
-	return String();
+    if(returnTrueIfOneSampleFound)
+    {
+        if(numCorrectSampleMaps != 0)
+        {
+            return String();
+        }
+        else
+        {
+            return falseName;
+        }
+    }
+    else
+    {
+        return falseName;
+    }
 }
 
 

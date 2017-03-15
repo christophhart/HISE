@@ -602,7 +602,7 @@ void SampleMap::loadSamplesFromMonolith(const ValueTree &v)
         else
         {
 #if USE_FRONTEND
-            sampler->getMainController()->sendOverlayMessage(DeactiveOverlay::State::SamplesNotFound,
+            sampler->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CustomErrorMessage,
                                                              "The sample " + f.getFileName() + " wasn't found");
             
             sampler->deleteAllSounds();
