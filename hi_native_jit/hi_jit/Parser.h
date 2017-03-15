@@ -325,9 +325,31 @@ public:
 	void addExposedFunctions()
 	{
 		NATIVE_JIT_ADD_C_FUNCTION_1(float, sinf, float);
+        NATIVE_JIT_ADD_C_FUNCTION_1(double, sin, double);
+        NATIVE_JIT_ADD_C_FUNCTION_1(float, cosf, float);
+        NATIVE_JIT_ADD_C_FUNCTION_1(double, cos, double);
+        NATIVE_JIT_ADD_C_FUNCTION_1(float, tanf, float);
+        NATIVE_JIT_ADD_C_FUNCTION_1(double, tan, double);
+        NATIVE_JIT_ADD_C_FUNCTION_1(float, atanf, float);
+        NATIVE_JIT_ADD_C_FUNCTION_1(double, atan, double);
+        NATIVE_JIT_ADD_C_FUNCTION_1(float, atanhf, float);
+        NATIVE_JIT_ADD_C_FUNCTION_1(double, atanh, double);
 		NATIVE_JIT_ADD_C_FUNCTION_0(double, getSampleRate);
 		NATIVE_JIT_ADD_C_FUNCTION_2(float, powf, float, float);
+        NATIVE_JIT_ADD_C_FUNCTION_2(double, pow, double, double);
+        NATIVE_JIT_ADD_C_FUNCTION_1(double, sqrt, double);
+        NATIVE_JIT_ADD_C_FUNCTION_1(float, sqrtf, float);
+        NATIVE_JIT_ADD_C_FUNCTION_1(float, fabs, float);
+        NATIVE_JIT_ADD_C_FUNCTION_1(double, abs, double);
+        NATIVE_JIT_ADD_C_FUNCTION_1(int, abs, int);
+        
+        
+        
+        
 		NATIVE_JIT_ADD_C_FUNCTION_1(float, fabsf, float);
+        NATIVE_JIT_ADD_C_FUNCTION_1(double, exp, double);
+        NATIVE_JIT_ADD_C_FUNCTION_1(float, expf, float);
+        
 	}
 
 	BaseFunction* getExposedFunction(const Identifier& id)

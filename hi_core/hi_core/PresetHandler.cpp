@@ -2001,14 +2001,14 @@ String PresetHandler::getDataFolder()
 
 #if JUCE_WINDOWS
     // Windows
-    File f = File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Hart Instruments");
+    File f = File::getSpecialLocation(appDataDirectoryToUse).getChildFile("HISE");
 #elif JUCE_MAC
 #if HISE_IOS
     // iOS
     File f = File::getSpecialLocation(appDataDirectoryToUse);
 #else
     // OS X
-    File f = File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support/Hart Instruments");
+    File f = File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support/HISE");
 #endif
 #else
     // Linux
