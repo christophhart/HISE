@@ -85,7 +85,11 @@ unlockCounter(0),
 #if JUCE_WINDOWS
 unlocker(ProjectHandler::Frontend::getAppDataDirectory().getFullPathName().toUTF16().getAddress())
 #else
+#if ENABLE_APPLE_SANDBOX
+unlocker(ProjectHandler::Frontend::getAppDataDirectory().getChildFile("Resources/").getFullPathName().toUTF8().getAddress())
+#else
 unlocker(ProjectHandler::Frontend::getAppDataDirectory().getFullPathName().toUTF8().getAddress())
+#endif
 #endif
 #else
 unlockCounter(0)

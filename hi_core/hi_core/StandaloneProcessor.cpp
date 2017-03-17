@@ -242,7 +242,15 @@ File GlobalSettingManager::getSettingDirectory()
 #if USE_BACKEND
 	String parentDirectory = File(PresetHandler::getDataFolder()).getFullPathName();
 #else
+
+#if ENABLE_APPLE_SANDBOX
+	String parentDirectory = ProjectHandler::Frontend::getAppDataDirectory().getChildFile("Resources/").getFullPathName();
+#else
 	String parentDirectory = ProjectHandler::Frontend::getAppDataDirectory().getFullPathName();
+#endif
+
+
+
 #endif
 #endif
 

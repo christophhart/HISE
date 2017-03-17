@@ -1432,7 +1432,13 @@ File ProjectHandler::Frontend::getSampleLocationForCompiledPlugin()
 	jassert(appDataDir.isDirectory());
 	
 #if JUCE_MAC
+
+#if ENABLE_APPLE_SANDBOX
+	File childFile = File(appDataDir.getChildFile("Resources/LinkOSX"));
+#else
 	File childFile = File(appDataDir.getChildFile("LinkOSX"));
+#endif
+
 #else
 	File childFile = File(appDataDir.getChildFile("LinkWindows"));
 #endif
