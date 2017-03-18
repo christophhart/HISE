@@ -301,9 +301,9 @@ class NativeJITScope::Pimpl : public DynamicObject
 public:
 
 	Pimpl() :
-		allocator(32768)
+		allocator(131072)
 	{
-		codeAllocators.add(new NativeJIT::ExecutionBuffer(32768));
+		codeAllocators.add(new NativeJIT::ExecutionBuffer(131072));
 
 		addExposedFunctions();
 	}
@@ -510,13 +510,13 @@ public:
 	{
 		try
 		{
-			functionBuffers.add(new NativeJIT::FunctionBuffer(*codeAllocators.getLast(), 8192));
+			functionBuffers.add(new NativeJIT::FunctionBuffer(*codeAllocators.getLast(), 32768));
 		}
 		catch (std::runtime_error e)
 		{
-			codeAllocators.add(new NativeJIT::ExecutionBuffer(32768));
+			codeAllocators.add(new NativeJIT::ExecutionBuffer(131072));
 
-			functionBuffers.add(new NativeJIT::FunctionBuffer(*codeAllocators.getLast(), 8192));
+			functionBuffers.add(new NativeJIT::FunctionBuffer(*codeAllocators.getLast(), 32768));
 		}
 		
 		return functionBuffers.getLast();
