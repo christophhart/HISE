@@ -11,13 +11,6 @@
 #ifndef HI_NATIVE_JIT_H_INCLUDED
 #define HI_NATIVE_JIT_H_INCLUDED
 
-#include "../JuceLibraryCode/JuceHeader.h"
-
-#include <typeindex>
-
-typedef std::type_index TypeInfo;
-typedef uint16 BooleanType;
-
 
 #include "hi_native_jit_public.h"
 

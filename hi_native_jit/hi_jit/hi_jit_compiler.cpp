@@ -8,7 +8,7 @@
   ==============================================================================
 */
 
-#include "hi_jit_compiler.h"
+
 
 using namespace juce;
 
@@ -160,6 +160,32 @@ NativeJITScope::~NativeJITScope()
 	pimpl = nullptr;
 }
 
+bool NativeJITScope::isFunction(const Identifier& id) const
+{
+	return pimpl->getCompiledBaseFunction(id) != nullptr;
+}
+
+
+bool NativeJITScope::isGlobal(const Identifier& id) const
+{
+	return pimpl->getGlobal(id) != nullptr;
+}
+
+
+int NativeJITScope::getNumArgsForFunction(const Identifier& id) const
+{
+	auto b = pimpl->getCompiledBaseFunction(id);
+
+	return b->getNumParameters();
+}
+
+
+int NativeJITScope::getIndexForGlobal(const juce::Identifier& id) const
+{
+	return pimpl->getIndexForGlobal(id);
+}
+
+
 int NativeJITScope::getNumGlobalVariables() const
 {
     return pimpl != nullptr ? pimpl->globals.size() : 0;
@@ -174,7 +200,8 @@ var NativeJITScope::getGlobalVariableValue(int globalIndex) const
 		if (NativeJITTypeHelpers::matchesType<float>(g->getType())) return var(GlobalBase::get<float>(g));
 		if (NativeJITTypeHelpers::matchesType<double>(g->getType())) return var(GlobalBase::get<double>(g));
 		if (NativeJITTypeHelpers::matchesType<int>(g->getType())) return var(GlobalBase::get<int>(g));
-		if (NativeJITTypeHelpers::matchesType<Buffer*>(g->getType())) return var("Buffer"); // GlobalBase::get<Buffer*>(g)->getObject()->size;
+		if (NativeJITTypeHelpers::matchesType<BooleanType>(g->getType())) return GlobalBase::get<BooleanType>(g) > 0 ? var(true) : var(false);
+		if (NativeJITTypeHelpers::matchesType<Buffer*>(g->getType())) return var(GlobalBase::getBuffer(g)->b.get());
 	}
 
 	return var();
@@ -205,6 +232,13 @@ void NativeJITScope::setGlobalVariable(const juce::Identifier& id, const juce::v
 {
 	pimpl->setGlobalVariable(id, value);
 }
+
+
+void NativeJITScope::setGlobalVariable(int globalIndex, const juce::var& newValue)
+{
+	pimpl->setGlobalVariable(globalIndex, newValue);
+}
+
 
 
 template <typename ReturnType, typename...ParameterTypes> ReturnType(*NativeJITScope::getCompiledFunction(const Identifier& id))(ParameterTypes...)
@@ -359,6 +393,11 @@ TypeInfo NativeJITScope::getGlobalVariableType(int globalIndex) const { return t
 Identifier NativeJITScope::getGlobalVariableName(int globalIndex) const { return Identifier(); }
 template <typename ReturnType, typename...ParameterTypes> ReturnType(*NativeJITScope::getCompiledFunction(const Identifier& id))(ParameterTypes...) { return nullptr; }
 int NativeJITScope::isBufferOverflow(int globalIndex) const { return -1; }
+void NativeJITScope::setGlobalVariable(int globalIndex, const juce::var& newValue) {};
+bool NativeJITScope::isFunction(const Identifier& ) const { return false; }
+int NativeJITScope::getIndexForGlobal(const Identifier& id) const { return -1; }
+int NativeJITScope::getNumArgsForFunction(const Identifier& id) const { return 0; }
+bool NativeJITScope::isGlobal(const Identifier& id) const { return false; }
 
 bool NativeJITScope::hasProperty(const Identifier& propertyName) const { return false; }
 const var& NativeJITScope::getProperty(const Identifier& propertyName) const { return var(); }

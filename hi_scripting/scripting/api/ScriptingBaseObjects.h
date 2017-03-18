@@ -38,7 +38,6 @@ class ModulatorSynthGroup;
 class ProcessorWithScriptingContent;
 class JavascriptMidiProcessor;
 
-
 /** The base class for all scripting API classes. 
 *	@ingroup scripting
 *

@@ -291,6 +291,95 @@ public:
 		Smoother smoother;
 	};
 
+    class AdditiveSynthesiser: public DspBaseObject
+    {
+    public:
+
+        AdditiveSynthesiser() :
+        DspBaseObject()
+        {
+            FloatVectorOperations::clear(lastValues, 6);
+            FloatVectorOperations::clear(b, 6);
+        };
+        
+        SET_MODULE_NAME("additive_synth");
+        
+        int getNumParameters() const override { return 6; }
+        
+        float getParameter(int index) const override
+        {
+            if(index >= 0 && index < 6) return b[index];
+            return 0.0f;
+        }
+        
+        void setParameter(int index, float newValue) override
+        {
+            if(index >= 0 && index < 6)
+                b[index] = newValue;
+        }
+        
+        void prepareToPlay(double sampleRate, int /*samplesPerBlock*/)
+        {
+            
+        }
+        
+        void processBlock(float** data, int numChannels, int numSamples)
+        {
+            float* l = data[0];
+            
+            for(int i = 0; i < numSamples; i++)
+            {
+                l[i] = process(0.f);
+            }
+            
+            if(numChannels == 2)
+                FloatVectorOperations::copy(data[1], l, numSamples);
+        }
+    
+        float process(float input)
+        {
+            const float uptimeFloat = (float)uptime;
+            
+            const float a0 = (lastValues[0]*a + b[0]*invA);
+            const float a1 = (lastValues[1]*a + b[1]*invA);
+            const float a2 = (lastValues[2]*a + b[2]*invA);
+            const float a3 = (lastValues[3]*a + b[3]*invA);
+            const float a4 = (lastValues[4]*a + b[4]*invA);
+            const float a5 = (lastValues[5]*a + b[5]*invA);
+            
+            const float v0 = a0 * sinf(uptimeFloat);
+            const float v1 = a1 * sinf(2.0f*uptimeFloat);
+            const float v2 = a2 * sinf(3.0f*uptimeFloat);
+            const float v3 = a3 * sinf(4.0f*uptimeFloat);
+            const float v4 = a4 * sinf(5.0f*uptimeFloat);
+            const float v5 = a5 * sinf(6.0f*uptimeFloat);
+            
+            lastValues[0] = a0;
+            lastValues[1] = a1;
+            lastValues[2] = a2;
+            lastValues[3] = a3;
+            lastValues[4] = a4;
+            lastValues[5] = a5;
+            
+            uptime += uptimeDelta;
+            
+            return v0+v1+v2+v3+v4+v5;
+        };
+        
+    private:
+        
+        double uptime = 0.0;
+        double uptimeDelta = 0.03;
+        
+        float b[6];
+        
+        float lastValues[6];
+        
+        const float a = 0.999f;
+        const float invA = 0.001f;
+  
+    };
+    
 	class Allpass : public DspBaseObject
 	{
 	public:
@@ -1610,6 +1699,7 @@ class HiseCoreDspFactory : public StaticDspFactory
 		registerDspModule<ScriptingDsp::Allpass>();
 		registerDspModule<ScriptingDsp::MidSideEncoder>();
 		registerDspModule<ScriptingDsp::PeakMeter>();
+        registerDspModule<ScriptingDsp::AdditiveSynthesiser>();
 	}
 };
 

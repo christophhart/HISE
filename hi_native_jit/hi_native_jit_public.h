@@ -12,6 +12,11 @@
 #define HI_NATIVE_JIT_PUBLIC_H_INCLUDED
 
 
+#include <typeindex>
+
+typedef std::type_index TypeInfo;
+typedef unsigned short BooleanType;
+
 
 /** The scope object that holds all global values and compiled functions. 
 *
@@ -26,6 +31,21 @@ public:
 	NativeJITScope();
 
 	~NativeJITScope();
+
+	void setName(const juce::Identifier& name_)
+	{
+		name = name_;
+	}
+
+	juce::Identifier getName() { return name; };
+
+	bool isFunction(const juce::Identifier& id) const;
+
+	int getNumArgsForFunction(const juce::Identifier& id) const;
+
+	bool isGlobal(const juce::Identifier& id) const;
+
+	int getIndexForGlobal(const juce::Identifier& id) const;
 
 	bool hasProperty(const juce::Identifier& propertyName) const override;
 
@@ -60,6 +80,8 @@ public:
 	*/
 	void setGlobalVariable(const juce::Identifier& id, const juce::var& value);
 
+	void setGlobalVariable(int globalIndex, const juce::var& newValue);
+
 	/** Returns a typed pointer to a compiled function with the given name.
 	*
 	*	The template arguments are the return type and the parameters (supports up to two parameters)
@@ -77,6 +99,8 @@ public:
 	class Pimpl;
 
 private:
+
+	juce::Identifier name;
 
 	mutable juce::NamedValueSet cachedValues;
 
@@ -137,6 +161,8 @@ private:
 class NativeJITCompiler : public juce::DynamicObject
 {
 public:
+
+	juce::Identifier getModuleName() { return juce::Identifier("Example"); };
 
 	/** Creates a compiler for the given code.
 	*

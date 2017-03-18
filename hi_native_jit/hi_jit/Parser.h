@@ -324,32 +324,34 @@ public:
 
 	void addExposedFunctions()
 	{
+
+
 		NATIVE_JIT_ADD_C_FUNCTION_1(float, sinf, float);
-        NATIVE_JIT_ADD_C_FUNCTION_1(double, sin, double);
+        //NATIVE_JIT_ADD_C_FUNCTION_1(double, sin, double);
         NATIVE_JIT_ADD_C_FUNCTION_1(float, cosf, float);
-        NATIVE_JIT_ADD_C_FUNCTION_1(double, cos, double);
+        //NATIVE_JIT_ADD_C_FUNCTION_1(double, cos, double);
         NATIVE_JIT_ADD_C_FUNCTION_1(float, tanf, float);
-        NATIVE_JIT_ADD_C_FUNCTION_1(double, tan, double);
+        //NATIVE_JIT_ADD_C_FUNCTION_1(double, tan, double);
         NATIVE_JIT_ADD_C_FUNCTION_1(float, atanf, float);
-        NATIVE_JIT_ADD_C_FUNCTION_1(double, atan, double);
+        //NATIVE_JIT_ADD_C_FUNCTION_1(double, atan, double);
         NATIVE_JIT_ADD_C_FUNCTION_1(float, atanhf, float);
-        NATIVE_JIT_ADD_C_FUNCTION_1(double, atanh, double);
+        //NATIVE_JIT_ADD_C_FUNCTION_1(double, atanh, double);
 		NATIVE_JIT_ADD_C_FUNCTION_0(double, getSampleRate);
 		NATIVE_JIT_ADD_C_FUNCTION_2(float, powf, float, float);
-        NATIVE_JIT_ADD_C_FUNCTION_2(double, pow, double, double);
-        NATIVE_JIT_ADD_C_FUNCTION_1(double, sqrt, double);
+        //NATIVE_JIT_ADD_C_FUNCTION_2(double, pow, double, double);
+        //NATIVE_JIT_ADD_C_FUNCTION_1(double, sqrt, double);
         NATIVE_JIT_ADD_C_FUNCTION_1(float, sqrtf, float);
-        NATIVE_JIT_ADD_C_FUNCTION_1(float, fabs, float);
-        NATIVE_JIT_ADD_C_FUNCTION_1(double, abs, double);
-        NATIVE_JIT_ADD_C_FUNCTION_1(int, abs, int);
+        //NATIVE_JIT_ADD_C_FUNCTION_1(float, fabs, float);
+        //NATIVE_JIT_ADD_C_FUNCTION_1(double, abs, double);
+        //NATIVE_JIT_ADD_C_FUNCTION_1(int, abs, int);
         
         
         
         
 		NATIVE_JIT_ADD_C_FUNCTION_1(float, fabsf, float);
-        NATIVE_JIT_ADD_C_FUNCTION_1(double, exp, double);
+       // NATIVE_JIT_ADD_C_FUNCTION_1(double, exp, double);
         NATIVE_JIT_ADD_C_FUNCTION_1(float, expf, float);
-        
+
 	}
 
 	BaseFunction* getExposedFunction(const Identifier& id)
@@ -375,9 +377,9 @@ public:
 		return nullptr;
 	}
 
-	void setGlobalVariable(const juce::Identifier& id, const juce::var& value)
+	void setGlobalVariable(int globalIndex, const var& value)
 	{
-		if (auto g = getGlobal(id))
+		if (auto g = globals[globalIndex])
 		{
 			TypeInfo t = g->getType();
 
@@ -386,7 +388,8 @@ public:
 				if (NativeJITTypeHelpers::matchesType<float>(t)) GlobalBase::store<float>(g, (float)value);
 				else if (NativeJITTypeHelpers::matchesType<double>(t)) GlobalBase::store<double>(g, (double)value);
 				else if (NativeJITTypeHelpers::matchesType<int>(t)) GlobalBase::store<int>(g, (int)value);
-				else throw String(id.toString() + " - var type mismatch: " + value.toString());
+				else if (NativeJITTypeHelpers::matchesType<BooleanType>(t)) GlobalBase::store<BooleanType>(g, (int)value > 0 ? 1 : 0);
+				else throw String(g->id.toString() + " - var type mismatch: " + value.toString());
 			}
 			else if (value.isBuffer() && NativeJITTypeHelpers::matchesType<Buffer*>(t))
 			{
@@ -394,9 +397,24 @@ public:
 			}
 			else
 			{
-				throw String(id.toString() + " - var type mismatch: " + value.toString());
+				throw String(g->id.toString() + " - var type mismatch: " + value.toString());
 			}
 		}
+	}
+
+	void setGlobalVariable(const juce::Identifier& id, const juce::var& value)
+	{
+		setGlobalVariable(getIndexForGlobal(id), value);
+	}
+
+	int getIndexForGlobal(const juce::Identifier& id) const
+	{
+		for (int i = 0; i < globals.size(); i++)
+		{
+			if (globals[i]->id == id) return i;
+		}
+
+		return -1;
 	}
 
 	BaseFunction* getCompiledBaseFunction(const Identifier& id)

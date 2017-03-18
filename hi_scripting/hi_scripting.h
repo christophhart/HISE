@@ -53,9 +53,16 @@ END_JUCE_MODULE_DECLARATION
 
 #define MAX_SCRIPT_HEIGHT 700
 
+#define INCLUDE_NATIVE_JIT 0
+
 #include "AppConfig.h"
 #include "../hi_core/hi_core.h"
 #include "../hi_dsp_library/hi_dsp_library.h"
+
+#if INCLUDE_NATIVE_JIT
+#include "../hi_native_jit/hi_native_jit_public.h"
+#endif
+
 
 #include "scripting/api/ScriptMacroDefinitions.h"
 #include "scripting/engine/JavascriptApiClass.h"

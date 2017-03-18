@@ -487,6 +487,124 @@ struct HiseJavascriptEngine::RootObject::CallbackLocalReference : public Express
 	var* data;
 };
 
+#if INCLUDE_NATIVE_JIT
+
+struct HiseJavascriptEngine::RootObject::NativeJIT
+{
+	struct ProcessBufferCall : public Expression
+	{
+		ProcessBufferCall(const CodeLocation& l, NativeJITScope* scope_) : Expression(l), scope(scope_)
+		{
+			static const Identifier p("process");
+
+#if JUCE_64BIT
+			tickFunction = scope->getCompiledFunction<float, float>(p);
+#endif
+		}
+
+		var getResult(const Scope& s) const override
+		{
+			if (tickFunction == nullptr)
+			{
+				location.throwError("float process(float input) function not defined");
+			}
+
+			var t = target->getResult(s);
+			if (t.isBuffer())
+			{
+				VariantBuffer* b = t.getBuffer();
+
+				float* data = b->buffer.getWritePointer(0);
+
+				for (int i = 0; i < b->size; i++)
+				{
+					data[i] = tickFunction(data[i]);
+				}
+			}
+
+			return var();
+		}
+
+		NativeJITScope::Ptr scope;
+
+		ExpPtr target;
+
+		float (*tickFunction)(float);
+	};
+
+	struct ScopeReference : public Expression
+	{
+		ScopeReference(const CodeLocation& l, NativeJITScope* scope_): Expression(l), scope(scope_)
+		{}
+
+		NativeJITScope::Ptr scope;
+	};
+
+	struct GlobalReference : public Expression
+	{
+		GlobalReference(CodeLocation& l, NativeJITScope* s) : Expression(l), scope(s) {};
+
+		var getResult(const Scope&) const override
+		{
+			return scope->getGlobalVariableValue(index);
+		}
+
+		void assign(const Scope& /*s*/, const var& newValue) const
+		{
+			scope->setGlobalVariable(index, newValue);
+		}
+
+		NativeJITScope::Ptr scope;
+		int index = -1;
+	};
+
+	struct GlobalAssignment : public Statement
+	{
+		GlobalAssignment(const CodeLocation& l) noexcept : Statement(l) 
+		{}
+		
+		ResultCode perform(const Scope& s, var*) const 
+		{ 
+			scope->setGlobalVariable(id, expr->getResult(s));
+
+			return Statement::ok;
+		}
+
+		NativeJITScope::Ptr scope;
+		Identifier id;
+		ExpPtr expr;
+		
+	};
+
+	struct FunctionCall : public Expression
+	{
+		FunctionCall(const CodeLocation& l) noexcept : Expression(l) {}
+
+		var getResult(const Scope& s) const override
+		{
+			var args[2];
+
+			for (int i = 0; i < numArgs; i++)
+			{
+				args[i] = arguments[i]->getResult(s);
+			}
+
+			var::NativeFunctionArgs nArgs(var(), args, numArgs);
+
+			return scope->invokeMethod(functionName, nArgs);
+		}
+		
+
+		NativeJITScope::Ptr scope;
+
+		OwnedArray<Expression> arguments;
+		int numArgs;
+		Identifier functionName;
+	};
+};
+
+#endif
+
 struct HiseJavascriptEngine::RootObject::ExternalCFunction: public ReferenceCountedObject,
 														    public DebugableObject
 {

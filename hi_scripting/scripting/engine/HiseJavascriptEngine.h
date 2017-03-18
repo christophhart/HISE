@@ -392,7 +392,7 @@ public:
 		struct GlobalVarStatement;		struct GlobalReference;		struct LocalVarStatement;
 		struct LocalReference;			struct LockStatement;	    struct CallbackParameterReference;
 		struct CallbackLocalStatement;  struct CallbackLocalReference;  struct ExternalCFunction;
-		
+		struct NativeJIT;
 
 		// Parser classes
 
@@ -569,6 +569,16 @@ public:
 
 			DynamicObject* getInlineFunction(const Identifier &id);
 
+#if INCLUDE_NATIVE_JIT
+			NativeJITScope* getNativeJITScope(const Identifier& id);
+
+			NativeJITCompiler* getNativeCompiler(const Identifier& id);
+            
+            ReferenceCountedArray<NativeJITCompiler> jitModules;
+            ReferenceCountedArray<NativeJITScope> jitScopes;
+            
+#endif
+            
 			void setProcessor(JavascriptProcessor *p) noexcept { processor = p; }
 
 			static bool initHiddenProperties;
@@ -583,6 +593,8 @@ public:
 			Array<Identifier> callbackIds;
 			OwnedArray<RootObject::BlockStatement> callbacks;
 			JavascriptProcessor* processor;
+
+
 
 			DynamicObject::Ptr globals;
 
