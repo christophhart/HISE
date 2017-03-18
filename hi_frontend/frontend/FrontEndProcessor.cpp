@@ -119,7 +119,7 @@ unlockCounter(0)
 
 		sampleMaps = externalFiles->getChildWithName("SampleMaps");
 	}
-
+    
 	if (impulseData != nullptr)
 	{
 		getSampleManager().getAudioSampleBufferPool()->restoreFromValueTree(*impulseData);
@@ -177,6 +177,11 @@ unlockCounter(0)
 		synthChain->prepareToPlay(getSampleRate(), getBlockSize());
 	}
 
+    if(sampleMaps.getNumChildren() == 0)
+    {
+        createSampleMapValueTreeFromPreset(synthData);
+    }
+    
 	suspendProcessing(false);
 
 	createUserPresetData();

@@ -199,6 +199,29 @@ public:
 		
 	};
 
+    void createSampleMapValueTreeFromPreset(ValueTree& treeToSearch)
+    {
+        static const Identifier sm("samplemap");
+        
+        for(int i = 0; i < treeToSearch.getNumChildren(); i++)
+        {
+            ValueTree child = treeToSearch.getChild(i);
+            
+            if(child.hasType(sm))
+            {
+                treeToSearch.removeChild(child, nullptr);
+                
+                sampleMaps.addChild(child, -1, nullptr);
+                
+                i--;
+            }
+            else
+            {
+                createSampleMapValueTreeFromPreset(child);
+            }
+        }
+    };
+    
 	void handleControllersForMacroKnobs(const MidiBuffer &midiMessages);
  
 	AudioProcessorEditor* createEditor();
