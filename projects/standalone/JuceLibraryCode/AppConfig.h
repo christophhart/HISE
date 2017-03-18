@@ -29,6 +29,7 @@
 #define JUCE_MODULE_AVAILABLE_hi_core                         1
 #define JUCE_MODULE_AVAILABLE_hi_dsp_library                  1
 #define JUCE_MODULE_AVAILABLE_hi_modules                      1
+#define JUCE_MODULE_AVAILABLE_hi_native_jit                   1
 #define JUCE_MODULE_AVAILABLE_hi_scripting                    1
 #define JUCE_MODULE_AVAILABLE_juce_audio_basics               1
 #define JUCE_MODULE_AVAILABLE_juce_audio_devices              1
