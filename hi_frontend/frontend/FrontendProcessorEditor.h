@@ -83,6 +83,34 @@ public:
 		g.fillAll(Colours::black);
 	};
 
+#if CRASH_ON_GLITCH
+	void paintOverChildren(Graphics& g) override
+	{
+		
+		
+		Font f = GLOBAL_BOLD_FONT().withHeight(32.0f);
+		const String s = "Debug Version. Don't use in production!";
+
+		g.setFont(f);
+		
+
+		int w = f.getStringWidth(s) + 30;
+		int h = (int)(f.getHeight() + 10.0f);
+
+		Rectangle<int> a(0, 0, w, h);
+
+		a.setCentre(getLocalBounds().getCentre());
+
+		g.setColour(Colour(0x88FFFFFF));
+
+		g.fillRect(a);
+
+		g.setColour(Colour(0x99000000));
+
+		g.drawText(s, a, Justification::centred);
+	}
+#endif
+
     void setGlobalScaleFactor(float newScaleFactor);
 
 	void resized() override;

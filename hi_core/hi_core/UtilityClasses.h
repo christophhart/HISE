@@ -221,6 +221,40 @@ private:
 };
 
 
+class BurstGlitchCrashDetector
+{
+public:
+
+	struct BurstGlitchCrash : public std::exception
+	{
+		enum class ErrorType
+		{
+			Burst = 0,
+			Glitch,
+			Crash,
+			numTypes
+		};
+
+		BurstGlitchCrash(ErrorType error, const String& message) :
+			std::exception(message.getCharPointer()),
+			type(error)
+		{};
+
+		ErrorType type;
+	};
+
+	static void checkBurst(float* data, int numSamples);
+
+};
+
+#if CRASH_ON_GLITCH
+#define CHECK_BURST_WHEN_LOGGING(data, numSamples) BurstGlitchCrashDetector::checkBurst(data, numSamples)
+#define THROWS_WHEN_LOGGING noexcept(false)
+#else
+#define CHECK_BURST_WHEN_LOGGING(data, numSamples) ignoreUnused(data, numSamples)
+#define THROWS_WHEN_LOGGING
+#endif
+
 
 /** A small helper class that detects a timeout.
 *
@@ -260,7 +294,7 @@ public:
         }
     };
     
-    ~ScopedGlitchDetector()
+    ~ScopedGlitchDetector() THROWS_WHEN_LOGGING
     {
         const double stopTime = Time::getMillisecondCounterHiRes();
         const double interval = (stopTime - startTime);
@@ -269,10 +303,15 @@ public:
         {
             lastPositiveId = identifier;
             
+#if CRASH_ON_GLITCH
+			throw BurstGlitchCrashDetector::BurstGlitchCrash(BurstGlitchCrashDetector::BurstGlitchCrash::ErrorType::Glitch, "Timeout in function:" + identifier.toString());
+#else
+
             if(Logger::getCurrentLogger() != nullptr)
             {
                 Logger::getCurrentLogger()->writeToLog("Time out in function: " + identifier.toString());
             }
+#endif
         }
     }
     
@@ -884,6 +923,7 @@ private:
 
 	MainController *mc;
 };
+
 
 
 class SemanticVersionChecker

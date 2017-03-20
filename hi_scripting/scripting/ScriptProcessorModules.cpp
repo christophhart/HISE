@@ -601,6 +601,9 @@ void JavascriptMasterEffect::applyEffect(AudioSampleBuffer &b, int startSample, 
 		scriptEngine->setCallbackParameter((int)Callback::processBlock, 0, channels);
 		scriptEngine->executeCallback((int)Callback::processBlock, &lastResult);
 
+		CHECK_BURST_WHEN_LOGGING(l, numSamples);
+		CHECK_BURST_WHEN_LOGGING(r, numSamples);
+
 		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, processBlockCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
 	}
 }

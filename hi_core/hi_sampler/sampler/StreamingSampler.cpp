@@ -1330,6 +1330,10 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 		float* outL = outputBuffer.getWritePointer(0, startSample);
 		float* outR = outputBuffer.getWritePointer(1, startSample);
 		
+		const int samplesToCheck = numSamples;
+		float* lToCheck = outL;
+		float* rToCheck = outR;
+
 #if USE_SAMPLE_DEBUG_COUNTER
         jassert((int)voiceUptime == data.leftChannel[0]);
 #endif
@@ -1430,6 +1434,10 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 			}
 		}
         
+
+		CHECK_BURST_WHEN_LOGGING(lToCheck, samplesToCheck);
+		CHECK_BURST_WHEN_LOGGING(rToCheck, samplesToCheck);
+
 #if USE_SAMPLE_DEBUG_COUNTER 
         
         for(int i = startDebug; i < numDebug; i++)

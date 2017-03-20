@@ -307,3 +307,18 @@ void VDspFFT::multiplyComplex(float* output, float* in1, int in1Offset, float* i
 }
 
 #endif
+
+void BurstGlitchCrashDetector::checkBurst(float* data, int numSamples)
+{
+	const float max = FloatVectorOperations::findMaximum(data, numSamples);
+	const float min = FloatVectorOperations::findMinimum(data, numSamples);
+
+	if (max > 32.0f)
+	{
+		throw BurstGlitchCrash(BurstGlitchCrash::ErrorType::Burst, "Burst detected: " + String(max));
+	}
+	if (min < -32.0f)
+	{
+		throw BurstGlitchCrash(BurstGlitchCrash::ErrorType::Burst, "Burst detected: " + String(min));
+	}
+}

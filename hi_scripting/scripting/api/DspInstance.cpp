@@ -185,7 +185,7 @@ void DspInstance::processBlock(const var &data)
 				else throwError("processBlock must be called on array of buffers");
 			}
 
-
+			
             
 			if (switchBypassFlag)
 			{
@@ -197,10 +197,15 @@ void DspInstance::processBlock(const var &data)
 				float* leftSamples = bypassSwitchBuffer.getWritePointer(0);
 				float* rightSamples = bypassSwitchBuffer.getWritePointer(1);
 
+				
+
 				const bool rampUp = !isBypassed();
 
 				FloatVectorOperations::copy(leftSamples, sampleData[0], numSamples);
 				FloatVectorOperations::copy(rightSamples, sampleData[1], numSamples);
+
+				CHECK_BURST_WHEN_LOGGING(leftSamples, numSamples);
+				CHECK_BURST_WHEN_LOGGING(rightSamples, numSamples);
 
 				object->processBlock(sampleData, a->size(), numSamples);
 
@@ -232,26 +237,8 @@ void DspInstance::processBlock(const var &data)
 				object->processBlock(sampleData, a->size(), numSamples);
 			}
 
-
-#if ENABLE_FILE_LOGGING
-			for (int i = 0; i < numSamples; i++)
-			{
-				bool found = false;
-
-				if (sampleData[0][i] > 20.0f || sampleData[0][i] < -20.0f)
-				{
-					Logger::writeToLog("Burst error on channel 0 at rendering " + moduleName);
-					found = true;
-				}
-				if (sampleData[1][i] > 20.0f || sampleData[1][i] < -20.0f)
-				{
-					Logger::writeToLog("Burst error on channel 1 at rendering " + moduleName);
-					found = true;
-				}
-
-				if (found) break;
-			}
-#endif
+			CHECK_BURST_WHEN_LOGGING(sampleData[0], numSamples);
+			CHECK_BURST_WHEN_LOGGING(sampleData[1], numSamples);
 
 		}
 		else if (data.isBuffer())

@@ -163,12 +163,12 @@ Set this to 0 to deactivate the safe checks for scripting
 #define ENABLE_SCRIPTING_SAFE_CHECKS 1
 #endif
 
-/** Config: ENABLE_FILE_LOGGING
+/** Config: CRASH_ON_GLITCH
  
-Set this to 1 to write all messages to a file.
+If this is set to 1, the application will crash instantly if there is a drop out or a burst in the signal (values above 32dB = +36dB ). Use this to get a crash dump with the location.
 */
-#ifndef ENABLE_FILE_LOGGING
-#define ENABLE_FILE_LOGGING 0
+#ifndef CRASH_ON_GLITCH
+#define CRASH_ON_GLITCH 0
 #endif
 
 

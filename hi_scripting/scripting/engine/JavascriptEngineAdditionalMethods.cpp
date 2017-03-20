@@ -744,16 +744,6 @@ void ScriptingObject::reportScriptError(const String &errorMessage) const
     {
         const_cast<MainController*>(getProcessor()->getMainController())->writeToConsole(errorMessage, 1, getProcessor());
     }
-    
-#else
-    
-    
-#if ENABLE_FILE_LOGGING
-    
-    Logger::writeToLog(errorMessage);
-    
-#endif
-    
 #endif
 }
 

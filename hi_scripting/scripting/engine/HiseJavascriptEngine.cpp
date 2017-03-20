@@ -161,12 +161,7 @@ struct HiseJavascriptEngine::RootObject::CodeLocation
 		throw getErrorMessage(message);
 #else
 		ignoreUnused(message);
-		DBG(getErrorMessage(message));
-        
-#if ENABLE_FILE_LOGGING
-        Logger::writeToLog(getErrorMessage(message));
-#endif
-        
+		DBG(getErrorMessage(message));        
 #endif
 	}
 
@@ -306,11 +301,7 @@ Result HiseJavascriptEngine::execute(const String& javascriptCode, bool allowCon
 	{
 #if USE_FRONTEND
 		DBG(error);
-        
-#if ENABLE_FILE_LOGGING
-        Logger::writeToLog(error);
-#endif
-        
+       
         
 #endif
 		return Result::fail(error);
@@ -342,12 +333,7 @@ var HiseJavascriptEngine::evaluate(const String& code, Result* result)
 	catch (String& error)
 	{
 #if USE_FRONTEND
-		DBG(error);
-        
-#if ENABLE_FILE_LOGGING
-        Logger::writeToLog(error);
-#endif
-        
+		DBG(error); 
 #endif
 		if (result != nullptr) *result = Result::fail(error);
 	}
