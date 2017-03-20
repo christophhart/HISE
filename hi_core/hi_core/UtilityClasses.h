@@ -225,7 +225,7 @@ class BurstGlitchCrashDetector
 {
 public:
 
-	struct BurstGlitchCrash : public std::exception
+	struct BurstGlitchCrash
 	{
 		enum class ErrorType
 		{
@@ -235,12 +235,13 @@ public:
 			numTypes
 		};
 
-		BurstGlitchCrash(ErrorType error, const String& message) :
-			std::exception(message.getCharPointer()),
+		BurstGlitchCrash(ErrorType error, const String& message_) :
+			message(message_),
 			type(error)
 		{};
 
 		ErrorType type;
+        const String message;
 	};
 
 	static void checkBurst(float* data, int numSamples);
