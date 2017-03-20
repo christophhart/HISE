@@ -51,6 +51,10 @@ lastClockCounter(0),
 wasPlayingInLastBuffer(false),
 pitchModulationActive(false)
 {
+	pitchBuffer = AudioSampleBuffer(1, 0);
+	internalBuffer = AudioSampleBuffer(2, 0);
+	gainBuffer = AudioSampleBuffer(1, 0);
+
 	for (int i = 0; i < 4; i++)
 	{
 		nextTimerCallbackTimes[i] = 0.0;
@@ -327,10 +331,12 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 {
     ADD_GLITCH_DETECTOR("Rendering " + getId());
     
-	int numSamples = outputBuffer.getNumSamples();
+	int numSamples = getBlockSize(); //outputBuffer.getNumSamples();
+
+	const int numSamplesFixed = numSamples;
 
 	// The buffer must be initialized. Did you forget to call the base class prepareToPlay()
-	jassert(numSamples <= internalBuffer.getNumSamples());
+	jassert(numSamplesFixed <= internalBuffer.getNumSamples());
 
 	int startSample = 0;
 
@@ -338,7 +344,7 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 
 	initRenderCallback();
 
-	processHiseEventBuffer(inputMidiBuffer, numSamples);
+	processHiseEventBuffer(inputMidiBuffer, numSamplesFixed);
 
 	midiInputFlag = !eventBuffer.isEmpty();
 
@@ -398,7 +404,7 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 		if (destinationChannel >= 0 && destinationChannel < outputBuffer.getNumChannels())
 		{
 			const float thisGain = gain.load() * (i % 2 == 0 ? leftBalanceGain : rightBalanceGain);
-			FloatVectorOperations::addWithMultiply(outputBuffer.getWritePointer(destinationChannel, 0), internalBuffer.getReadPointer(i, 0), thisGain, outputBuffer.getNumSamples());
+			FloatVectorOperations::addWithMultiply(outputBuffer.getWritePointer(destinationChannel, 0), internalBuffer.getReadPointer(i, 0), thisGain, numSamplesFixed);
 		}
 
 		
@@ -410,20 +416,20 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 
 		for (int i = 0; i < internalBuffer.getNumChannels(); i++)
 		{
-			gainValues[i] = internalBuffer.getMagnitude(i, 0, internalBuffer.getNumSamples());
+			gainValues[i] = internalBuffer.getMagnitude(i, 0, numSamplesFixed);
 		}
 
 		getMatrix().setGainValues(gainValues, true);
 
 		for (int i = 0; i < outputBuffer.getNumChannels(); i++)
 		{
-			gainValues[i] = outputBuffer.getMagnitude(i, 0, outputBuffer.getNumSamples());
+			gainValues[i] = outputBuffer.getMagnitude(i, 0, numSamplesFixed);
 		}
 
 		getMatrix().setGainValues(gainValues, false);
 	}
 
-	handlePeakDisplay(outputBuffer.getNumSamples());
+	handlePeakDisplay(numSamplesFixed);
 }
 
 void ModulatorSynth::preVoiceRendering(int startSample, int numThisTime)
@@ -680,11 +686,13 @@ void ModulatorSynth::prepareToPlay(double newSampleRate, int samplesPerBlock)
 
 	if(newSampleRate != -1.0)
 	{
-		pitchBuffer = AudioSampleBuffer(1, samplesPerBlock); // should be enough
-		internalBuffer = AudioSampleBuffer(getMatrix().getNumSourceChannels(), samplesPerBlock);
-		gainBuffer = AudioSampleBuffer(1, samplesPerBlock);
-		
+		// Set the channel amount correctly
+		internalBuffer.setSize(getMatrix().getNumSourceChannels(), internalBuffer.getNumSamples());
 
+		ProcessorHelpers::increaseBufferIfNeeded(pitchBuffer, samplesPerBlock);
+		ProcessorHelpers::increaseBufferIfNeeded(gainBuffer, samplesPerBlock);
+		ProcessorHelpers::increaseBufferIfNeeded(internalBuffer, samplesPerBlock);
+		
 		for(int i = 0; i < getNumVoices(); i++)
 		{
 			static_cast<ModulatorSynthVoice*>(getVoice(i))->prepareToPlay(newSampleRate, samplesPerBlock);

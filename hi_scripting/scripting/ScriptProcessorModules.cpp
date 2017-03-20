@@ -463,6 +463,16 @@ onControlCallback(new SnippetDocument("onControl", "number value"))
 	editorStateIdentifiers.add("processBlockOpen");
 	editorStateIdentifiers.add("onControlOpen");
 	editorStateIdentifiers.add("externalPopupShown");
+
+	Array<var> channelArray;
+
+	bufferL = new VariantBuffer(0);
+	bufferR = new VariantBuffer(0);
+
+	channelArray.add(var(bufferL));
+	channelArray.add(var(bufferR));
+
+	channels = var(channelArray);
 }
 
 JavascriptMasterEffect::~JavascriptMasterEffect()
@@ -561,15 +571,7 @@ void JavascriptMasterEffect::prepareToPlay(double sampleRate, int samplesPerBloc
 	ScopedReadLock sl(mainController->getCompileLock());
 
 	MasterEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
-	Array<var> channelArray;
-
-	bufferL = new VariantBuffer(0);
-	bufferR = new VariantBuffer(0);
-
-	channelArray.add(var(bufferL));
-	channelArray.add(var(bufferR));
-
-	channels = var(channelArray);
+	
 
 	if (!prepareToPlayCallback->isSnippetEmpty() && lastResult.wasOk())
 	{
@@ -1340,6 +1342,8 @@ onNoteOffCallback(new SnippetDocument("onNoteOff")),
 onControllerCallback(new SnippetDocument("onController")),
 onControlCallback(new SnippetDocument("onControl", "number value"))
 {
+	scriptChain1Buffer = AudioSampleBuffer(1, 0);
+	scriptChain2Buffer = AudioSampleBuffer(1, 0);
 
 	scriptChain1->setColour(Colour(0xFF666666));
 	scriptChain2->setColour(Colour(0xFF666666));
@@ -1356,11 +1360,6 @@ onControlCallback(new SnippetDocument("onControl", "number value"))
 	editorStateIdentifiers.add("onControllerOpen");
 	editorStateIdentifiers.add("onControlOpen");
 	editorStateIdentifiers.add("externalPopupShown");
-
-	for (int i = 0; i < editorStateIdentifiers.size(); i++)
-	{
-		DBG(editorStateIdentifiers[i].toString());
-	}
 
 	addSound(new Sound());
 
@@ -1416,8 +1415,9 @@ void JavascriptModulatorSynth::prepareToPlay(double newSampleRate, int samplesPe
 {
 	if (newSampleRate > -1.0)
 	{
-		scriptChain1Buffer = AudioSampleBuffer(1, samplesPerBlock);
-		scriptChain2Buffer = AudioSampleBuffer(1, samplesPerBlock);
+		ProcessorHelpers::increaseBufferIfNeeded(scriptChain1Buffer, samplesPerBlock);
+		ProcessorHelpers::increaseBufferIfNeeded(scriptChain2Buffer, samplesPerBlock);
+
 		scriptChain1->prepareToPlay(newSampleRate, samplesPerBlock);
 		scriptChain2->prepareToPlay(newSampleRate, samplesPerBlock);
 

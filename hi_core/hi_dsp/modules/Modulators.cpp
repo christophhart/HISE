@@ -188,7 +188,7 @@ const float * TimeModulation::getCalculatedValues(int /*voiceIndex*/)
 
 void TimeModulation::prepareToModulate(double /*sampleRate*/, int samplesPerBlock)
 {
-	internalBuffer = AudioSampleBuffer(1, samplesPerBlock); // should be enough
+	ProcessorHelpers::increaseBufferIfNeeded(internalBuffer, samplesPerBlock);
 
 	jassert(isInitialized());
 }
@@ -294,9 +294,7 @@ EnvelopeModulator::EnvelopeModulator(MainController *mc, const String &id, int v
 	Modulation(m),
 	TimeModulation(m),
 	VoiceModulation(voiceAmount_, m)
-{ 
-	globalSaveValues = AudioSampleBuffer(voiceAmount_, 1);
-};
+{};
 
 #pragma warning( pop )
 

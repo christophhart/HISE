@@ -39,6 +39,8 @@ feedback(0.7f),
 mix(1.0f),
 phaseModulationChain(new ModulatorChain(mc, "Phase Modulation", 1, Modulation::GainMode, this))
 {
+	phaseModulationBuffer = AudioSampleBuffer(1, 0);
+
     parameterNames.add("Frequency1");
     parameterNames.add("Frequency2");
     parameterNames.add("Feedback");
@@ -103,10 +105,13 @@ void PhaseFX::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     MasterEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 
-	if (sampleRate > 0.0)
+	ProcessorHelpers::increaseBufferIfNeeded(phaseModulationBuffer, samplesPerBlock);
+
+	phaseModulationChain->prepareToPlay(sampleRate, samplesPerBlock);
+
+	if (sampleRate > 0.0 && sampleRate != lastSampleRate)
 	{
-		phaseModulationChain->prepareToPlay(sampleRate, samplesPerBlock);
-		phaseModulationBuffer = AudioSampleBuffer(1, samplesPerBlock);
+		lastSampleRate = sampleRate;
 
 		phaserLeft.setSampleRate(sampleRate);
 		phaserRight.setSampleRate(sampleRate);

@@ -828,8 +828,6 @@ public:
 	{
 		if(sampleRate != -1.0)
 		{
-			
-
 			loader.assertBufferSize(samplesPerBlock * MAX_SAMPLER_PITCH);
 
 			setCurrentPlaybackSampleRate(sampleRate);
@@ -878,8 +876,7 @@ public:
 	/** Call this once for every sampler. */
 	static void initTemporaryVoiceBuffer(AudioSampleBuffer* bufferToUse, int samplesPerBlock)
 	{
-		*bufferToUse = AudioSampleBuffer(2, samplesPerBlock * MAX_SAMPLER_PITCH);
-		bufferToUse->clear();
+		ProcessorHelpers::increaseBufferIfNeeded(*bufferToUse, samplesPerBlock*MAX_SAMPLER_PITCH);
 	}
 
 	void setPitchCounterForThisBlock(double p) noexcept { pitchCounter = p; }

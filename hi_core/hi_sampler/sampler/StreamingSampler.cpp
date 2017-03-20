@@ -928,6 +928,9 @@ readPointerRight(nullptr),
 diskUsage(0.0),
 lastCallToRequestData(0.0)
 {
+	b1 = AudioSampleBuffer(2, 0);
+	b2 = AudioSampleBuffer(2, 0);
+
 	unmapper.setLoader(this);
 
 //     for(int i = 0; i < NUM_UNMAPPERS; i++)
@@ -1217,13 +1220,10 @@ void SampleLoader::refreshBufferSizes()
 {
 	const int numSamplesToUse = jmax<int>(idealBufferSize, minimumBufferSizeForSamplesPerBlock);
 
-	if (getNumSamplesForStreamingBuffers() != numSamplesToUse)
+	if (getNumSamplesForStreamingBuffers() < numSamplesToUse)
 	{
-		b1 = AudioSampleBuffer(2, numSamplesToUse);
-		b2 = AudioSampleBuffer(2, numSamplesToUse);
-
-		b1.clear();
-		b2.clear();
+		ProcessorHelpers::increaseBufferIfNeeded(b1, numSamplesToUse);
+		ProcessorHelpers::increaseBufferIfNeeded(b2, numSamplesToUse);
 
 		readBuffer = &b1;
 		writeBuffer = &b2;

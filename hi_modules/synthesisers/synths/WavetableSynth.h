@@ -675,6 +675,8 @@ public:
 		morphSmoothing(700),
 		tableIndexChain(new ModulatorChain(mc, "Table Index", numVoices, Modulation::GainMode, this))
 	{
+		tableBuffer = AudioSampleBuffer(1, 0);
+
 		parameterNames.add("HqMode");
 		editorStateIdentifiers.add("TableIndexChainShown");
 
@@ -786,8 +788,7 @@ public:
 	{
 		if(newSampleRate > -1.0)
 		{
-			tableBuffer = AudioSampleBuffer(1, samplesPerBlock);
-
+			ProcessorHelpers::increaseBufferIfNeeded(tableBuffer, samplesPerBlock);
 
 			tableIndexChain->prepareToPlay(newSampleRate, samplesPerBlock);
 

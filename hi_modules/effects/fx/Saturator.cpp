@@ -39,6 +39,8 @@ SaturatorEffect::SaturatorEffect(MainController *mc, const String &uid) :
 	preGain(1.0f),
     postGain(1.0f)
 {
+	saturationBuffer = AudioSampleBuffer(1, 0);
+
 	parameterNames.add("Saturation");
 	parameterNames.add("WetAmount");
 	parameterNames.add("PreGain");
@@ -187,6 +189,6 @@ void SaturatorEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 	if (sampleRate > 0)
 	{
-		saturationBuffer = AudioSampleBuffer(1, samplesPerBlock);
+		ProcessorHelpers::increaseBufferIfNeeded(saturationBuffer, samplesPerBlock);
 	}
 }

@@ -44,6 +44,9 @@ useStateVariableFilters(false),
 freqChain(new ModulatorChain(mc, "Freq Modulation", 1, Modulation::GainMode, this)),
 gainChain(new ModulatorChain(mc, "Gain Modulation", 1, Modulation::GainMode, this))
 {
+	freqBuffer = AudioSampleBuffer(1, 0);
+	gainBuffer = AudioSampleBuffer(1, 0);
+
 	editorStateIdentifiers.add("FrequencyChainShown");
 	editorStateIdentifiers.add("GainChainShown");
     
@@ -160,21 +163,26 @@ void MonoFilterEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
 	EffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 
-	stateFilterL.setSamplerate((float)sampleRate);
-	stateFilterR.setSamplerate((float)sampleRate);
+	if (lastSampleRate != sampleRate)
+	{
+		lastSampleRate = sampleRate;
 
-	stateFilterL.reset();
-	stateFilterR.reset();
+		stateFilterL.setSamplerate((float)sampleRate);
+		stateFilterR.setSamplerate((float)sampleRate);
 
-	moogL.reset();
-	moogR.reset();
+		stateFilterL.reset();
+		stateFilterR.reset();
 
-	moogL.setSampleRate((float)sampleRate);
-	moogR.setSampleRate((float)sampleRate);
+		moogL.reset();
+		moogR.reset();
 
-	currentCoefficients = IIRCoefficients::makeLowPass(sampleRate, sampleRate / 2.0);
-	
-	calcCoefficients();
+		moogL.setSampleRate((float)sampleRate);
+		moogR.setSampleRate((float)sampleRate);
+
+		currentCoefficients = IIRCoefficients::makeLowPass(sampleRate, sampleRate / 2.0);
+
+		calcCoefficients();
+	}
 }
 
 void MonoFilterEffect::processBlockPartial(AudioSampleBuffer &buffer, int startSample, int numSamples)
@@ -293,6 +301,9 @@ q(1.0),
 freqChain(new ModulatorChain(mc, "Frequency Modulation", numVoices, Modulation::GainMode, this)),
 gainChain(new ModulatorChain(mc, "Gain Modulation", numVoices, Modulation::GainMode, this))
 {
+	timeVariantFreqModulatorBuffer = AudioSampleBuffer(1, 0);
+	timeVariantGainModulatorBuffer = AudioSampleBuffer(1, 0);
+
 	editorStateIdentifiers.add("FrequencyChainShown");
 	editorStateIdentifiers.add("GainChainShown");
 

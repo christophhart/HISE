@@ -314,6 +314,9 @@ public:
 		waveForm2(WaveformComponent::Saw),
 		mixChain(new ModulatorChain(mc, "Mix Modulation", 1, Modulation::GainMode, this))
 	{
+		tempBuffer = AudioSampleBuffer(2, 0);
+		mixBuffer = AudioSampleBuffer(1, 0);
+
 		parameterNames.add("OctaveTranspose1");
 		parameterNames.add("WaveForm1");
 		parameterNames.add("Detune1");
@@ -527,8 +530,8 @@ public:
 
 		if(newSampleRate != -1.0)
 		{
-			tempBuffer = AudioSampleBuffer(2, samplesPerBlock);
-			mixBuffer = AudioSampleBuffer(1, samplesPerBlock);
+			ProcessorHelpers::increaseBufferIfNeeded(tempBuffer, samplesPerBlock);
+			ProcessorHelpers::increaseBufferIfNeeded(mixBuffer, samplesPerBlock);
 
 			mixChain->prepareToPlay(newSampleRate, samplesPerBlock);
 		}

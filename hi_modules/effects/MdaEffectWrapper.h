@@ -79,6 +79,8 @@ public:
 	MdaEffectWrapper(MainController *mc, const String &id):
 		MasterEffectProcessor(mc, id)
 	{
+		inputBuffer = AudioSampleBuffer(2, 0);
+
 		currentValues.inL = 0.0f;
 		currentValues.inR = 0.0f;
 		currentValues.outL = 0.0f;
@@ -145,7 +147,7 @@ public:
 	{
 		EffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 
-		inputBuffer = AudioSampleBuffer(2, samplesPerBlock);
+		ProcessorHelpers::increaseBufferIfNeeded(inputBuffer, samplesPerBlock);
 
 		effect->prepareToPlay(sampleRate);
 	};

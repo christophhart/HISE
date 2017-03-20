@@ -45,7 +45,10 @@ public:
 		Processor(mc, uid),	
 		isTailing(false),
 		useStepSize(true) 
-	{};
+	{
+		tailCheck = AudioSampleBuffer(2, 0);
+		emptyBuffer = AudioSampleBuffer(1, 0);
+	};
 
 	virtual ~EffectProcessor() {};
 
@@ -56,7 +59,7 @@ public:
 
 		if (samplesPerBlock > 0)
 		{
-			tailCheck = AudioSampleBuffer(2, samplesPerBlock);
+			ProcessorHelpers::increaseBufferIfNeeded(tailCheck, samplesPerBlock);	
 		}
 
 		for(int i = 0; i < getNumChildProcessors(); i++)
@@ -66,7 +69,8 @@ public:
 			if(mc != nullptr)
             {
                 mc->prepareToPlay(sampleRate, samplesPerBlock);
-                getBufferForChain(i) = AudioSampleBuffer(1, samplesPerBlock);
+
+				ProcessorHelpers::increaseBufferIfNeeded(getBufferForChain(i), samplesPerBlock);
             }
             else
             {
@@ -320,13 +324,15 @@ public:
 
 			float *samples[2] = { leftChannel, rightChannel };
 
+			const int samplesToUse = getBlockSize();
+
 			AudioSampleBuffer stereoBuffer(samples, 2, buffer.getNumSamples());
 
-			applyEffect(stereoBuffer, 0, buffer.getNumSamples());
+			applyEffect(stereoBuffer, 0, samplesToUse);
 
 #if ENABLE_ALL_PEAK_METERS
-			currentValues.outL = stereoBuffer.getMagnitude(0, 0, buffer.getNumSamples());
-			currentValues.outR = stereoBuffer.getMagnitude(1, 0, buffer.getNumSamples());
+			currentValues.outL = stereoBuffer.getMagnitude(0, 0, samplesToUse);
+			currentValues.outR = stereoBuffer.getMagnitude(1, 0, samplesToUse);
 #endif
 
 			if (getMatrix().isEditorShown())
@@ -337,7 +343,7 @@ public:
 
 				for (int i = 0; i < buffer.getNumChannels(); i++)
 				{
-					gainValues[i] = buffer.getMagnitude(i, 0, buffer.getNumSamples());
+					gainValues[i] = buffer.getMagnitude(i, 0, samplesToUse);
 				}
 
 				getMatrix().setGainValues(gainValues, true);

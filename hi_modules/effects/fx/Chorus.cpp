@@ -33,6 +33,8 @@
 ChorusEffect::ChorusEffect(MainController *mc, const String &id) :
 MasterEffectProcessor(mc, id)
 {
+	tempBuffer = AudioSampleBuffer(2, 0);
+
 	parameterNames.add("Rate");
 	parameterNames.add("Width");
 	parameterNames.add("Feedback");
@@ -109,7 +111,7 @@ void ChorusEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
 	EffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 
-	tempBuffer = AudioSampleBuffer(2, samplesPerBlock);
+	ProcessorHelpers::increaseBufferIfNeeded(tempBuffer, samplesPerBlock);
 
 	calculateInternalValues();
 }

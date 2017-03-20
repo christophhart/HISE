@@ -190,6 +190,8 @@ void GlobalModulatorContainerVoice::calculateBlock(int startSample, int numSampl
 GlobalModulatorData::GlobalModulatorData(Processor *modulator_):
 modulator(modulator_)
 {
+	valuesForCurrentBuffer = AudioSampleBuffer(1, 0);
+
 	if (getTimeVariantModulator() != nullptr)
 	{
 		type = GlobalModulator::TimeVariant;
@@ -219,8 +221,8 @@ void GlobalModulatorData::prepareToPlay(double /*sampleRate*/, int blockSize)
 {
 	switch (type)
 	{
-	case GlobalModulator::VoiceStart:	valuesForCurrentBuffer = AudioSampleBuffer(); return;
-	case GlobalModulator::TimeVariant:	valuesForCurrentBuffer = AudioSampleBuffer(1, blockSize);
+	case GlobalModulator::VoiceStart:	valuesForCurrentBuffer = AudioSampleBuffer(1, 0); return;
+	case GlobalModulator::TimeVariant:	ProcessorHelpers::increaseBufferIfNeeded(valuesForCurrentBuffer, blockSize); break;
     case GlobalModulator::numTypes: break;
 	}
 }

@@ -108,7 +108,9 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 		}
 	}
 
-	const int numSamples = buffer.getNumSamples();
+	const int numSamples = getBlockSize();//buffer.getNumSamples();
+
+	jassert(numSamples <= buffer.getNumSamples());
 
 	initRenderCallback();
 
@@ -156,7 +158,7 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 
 			if (destinationIndex >= 0 && destinationIndex < buffer.getNumChannels())
 			{
-				FloatVectorOperations::addWithMultiply(buffer.getWritePointer(destinationIndex, 0), internalBuffer.getReadPointer(sourceIndex, 0), getGain() * getBalance(i % 2 != 0), buffer.getNumSamples());
+				FloatVectorOperations::addWithMultiply(buffer.getWritePointer(destinationIndex, 0), internalBuffer.getReadPointer(sourceIndex, 0), getGain() * getBalance(i % 2 != 0), numSamples);
 			}
 		}
 
@@ -181,12 +183,12 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 	}
 	else // save some cycles on non multichannel buffers...
 	{
-		FloatVectorOperations::addWithMultiply(buffer.getWritePointer(0, 0), internalBuffer.getReadPointer(0, 0), getGain() * getBalance(false), buffer.getNumSamples());
-		FloatVectorOperations::addWithMultiply(buffer.getWritePointer(1, 0), internalBuffer.getReadPointer(1, 0), getGain() * getBalance(true), buffer.getNumSamples());
+		FloatVectorOperations::addWithMultiply(buffer.getWritePointer(0, 0), internalBuffer.getReadPointer(0, 0), getGain() * getBalance(false), numSamples);
+		FloatVectorOperations::addWithMultiply(buffer.getWritePointer(1, 0), internalBuffer.getReadPointer(1, 0), getGain() * getBalance(true), numSamples);
 	}
 
 	// Display the output
-	handlePeakDisplay(buffer.getNumSamples());
+	handlePeakDisplay(numSamples);
 
 #endif
 }

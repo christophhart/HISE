@@ -99,7 +99,7 @@ void SineSynthVoice::calculateBlock(int startSample, int numSamples)
 	}
 	else
 	{
-		while (numSamples > 0)
+		while (numSamples > 4)
 		{
 			for (int i = 0; i < 4; i++)
 			{
@@ -119,6 +119,25 @@ void SineSynthVoice::calculateBlock(int startSample, int numSamples)
 			}
 
 			numSamples -= 4;
+		}
+
+		while (numSamples > 0)
+		{
+			int index = (int)voiceUptime;
+
+			float v1 = sinTable[index & 2047];
+			float v2 = sinTable[(index + 1) & 2047];
+
+			const float alpha = float(voiceUptime) - (float)index;
+			const float invAlpha = 1.0f - alpha;
+
+			const float currentSample = invAlpha * v1 + alpha * v2;
+
+			*leftValues++ = currentSample;
+
+			voiceUptime += uptimeDelta;
+
+			numSamples--;
 		}
 	}
 

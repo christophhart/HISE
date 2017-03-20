@@ -816,6 +816,19 @@ public:
 	*	- ModulatorSynths
 	*/
 	static String getScriptVariableDeclaration(const Processor *p, bool copyToClipboard=true);
+
+	static void increaseBufferIfNeeded(AudioSampleBuffer& b, int numSamplesNeeded)
+	{
+		// The channel amount must be set correctly in the constructor
+		jassert(b.getNumChannels() > 0);
+
+		if (b.getNumSamples() < numSamplesNeeded)
+		{
+			b.setSize(b.getNumChannels(), numSamplesNeeded, true, true, true);
+			b.clear();
+		}
+	}
+
 };
 
 

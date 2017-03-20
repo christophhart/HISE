@@ -176,6 +176,8 @@ private:
 	float lastValue;
 
 	Smoother smoother;
+
+	
 };
 
 
@@ -262,6 +264,8 @@ private:
 
 	wdl::WDL_ImpulseBuffer impulseBuffer;
 	wdl::WDL_ConvolutionEngine_Div convolutionEngine;
+
+	double lastSampleRate = 0.0;
 };
 
 

@@ -294,9 +294,14 @@ public:
 
 		EffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 
-		for(int i = 0; i < filterBands.size(); i++)
+		if (lastSampleRate != sampleRate)
 		{
-			filterBands[i]->setSampleRate(sampleRate);
+			lastSampleRate = sampleRate;
+
+			for (int i = 0; i < filterBands.size(); i++)
+			{
+				filterBands[i]->setSampleRate(sampleRate);
+			}
 		}
 	};
 
@@ -392,6 +397,8 @@ private:
 	int fftBufferIndex;
 
 	OwnedArray<StereoFilter> filterBands;
+
+	double lastSampleRate = 0.0;
 
 };
 

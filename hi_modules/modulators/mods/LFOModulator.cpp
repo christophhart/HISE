@@ -56,6 +56,10 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 	tempoSync(getDefaultValue(TempoSync) >= 0.5f),
 	smoothingTime(getDefaultValue(SmoothingTime))
 {
+	intensityBuffer = AudioSampleBuffer(1, 0);
+
+	frequencyBuffer = AudioSampleBuffer(1, 0);
+
 	editorStateIdentifiers.add("IntensityChainShown");
 	editorStateIdentifiers.add("FrequencyChainShown");
 
@@ -279,9 +283,8 @@ void LfoModulator::prepareToPlay(double sampleRate, int samplesPerBlock)
 	{
 		CHECK_COPY_AND_RETURN_5(this);
 
-		intensityBuffer = AudioSampleBuffer(1, samplesPerBlock *2);
-
-		frequencyBuffer = AudioSampleBuffer(1, samplesPerBlock *2);
+		ProcessorHelpers::increaseBufferIfNeeded(intensityBuffer, samplesPerBlock);
+		ProcessorHelpers::increaseBufferIfNeeded(frequencyBuffer, samplesPerBlock);
 
 		intensityChain->prepareToPlay(sampleRate, samplesPerBlock);
 		frequencyChain->prepareToPlay(sampleRate, samplesPerBlock);

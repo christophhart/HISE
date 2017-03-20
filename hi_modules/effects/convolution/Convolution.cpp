@@ -58,6 +58,8 @@ rampFlag(false),
 rampIndex(0),
 processFlag(true)
 {
+	wetBuffer = AudioSampleBuffer(2, 0);
+
 	parameterNames.add("DryGain");
 	parameterNames.add("WetGain");
 	parameterNames.add("Latency");
@@ -163,16 +165,23 @@ ValueTree ConvolutionEffect::exportAsValueTree() const
 
 void ConvolutionEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    ScopedLock sl(getImpulseLock());
-    
 	EffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 
-	smoothedGainerWet.prepareToPlay(sampleRate, samplesPerBlock);
-	smoothedGainerDry.prepareToPlay(sampleRate, samplesPerBlock);
+	ProcessorHelpers::increaseBufferIfNeeded(wetBuffer, samplesPerBlock);
 
-	wetBuffer = AudioSampleBuffer(2, samplesPerBlock);
+	if (sampleRate != lastSampleRate)
+	{
+		ScopedLock sl(getImpulseLock());
 
-	convolutionEngine.Reset();
+		lastSampleRate = sampleRate;
+
+		smoothedGainerWet.prepareToPlay(sampleRate, samplesPerBlock);
+		smoothedGainerDry.prepareToPlay(sampleRate, samplesPerBlock);
+
+		convolutionEngine.Reset();
+	}
+
+	
 }
 
 void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples)

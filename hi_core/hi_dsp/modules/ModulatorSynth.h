@@ -438,7 +438,9 @@ public:
 		killFadeLevel(1.0f),
 		killFadeFactor(0.5f),
 		isTailing(false)
-	{};
+	{
+		voiceBuffer = AudioSampleBuffer(2, 0);
+	};
 
 	/** If not overriden, this uses a sine generator for an example usage of this voice class. */
 	virtual void renderNextBlock (AudioSampleBuffer& outputBuffer,
@@ -521,7 +523,7 @@ public:
 	{
 		SynthesiserVoice::setCurrentPlaybackSampleRate(sampleRate);
 
-		voiceBuffer = AudioSampleBuffer(2, samplesPerBlock);
+		ProcessorHelpers::increaseBufferIfNeeded(voiceBuffer, samplesPerBlock);
 	}
 
 	virtual void setInactive()

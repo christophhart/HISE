@@ -53,6 +53,9 @@ purged(false),
 numChannels(1),
 deactivateUIUpdate(false)
 {
+	crossfadeBuffer = AudioSampleBuffer(1, 0);
+	temporaryVoiceBuffer = AudioSampleBuffer(2, 0);
+
 	setGain(1.0);
 
 	enableAllocationFreeMessages(50);
@@ -376,7 +379,7 @@ void ModulatorSampler::prepareToPlay(double newSampleRate, int samplesPerBlock)
 
 	if (newSampleRate != -1.0)
 	{
-		crossfadeBuffer = AudioSampleBuffer(1, samplesPerBlock);
+		ProcessorHelpers::increaseBufferIfNeeded(crossfadeBuffer, samplesPerBlock);
 
 		StreamingSamplerVoice::initTemporaryVoiceBuffer(&temporaryVoiceBuffer, samplesPerBlock);
 

@@ -39,6 +39,8 @@ filterBandIndex(OneBand),
 currentCrossfadeValue(0.5f),
 semiToneTranspose(0)
 {
+	timeVariantFreqModulatorBuffer = AudioSampleBuffer(1, 0);
+
 	editorStateIdentifiers.add("XFadeChainShown");
 
 	dataA = new SliderPackData();
@@ -164,6 +166,8 @@ void HarmonicFilter::setSemitoneTranspose(float newValue)
 void HarmonicFilter::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
 	VoiceEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
+
+	ProcessorHelpers::increaseBufferIfNeeded(timeVariantFreqModulatorBuffer, samplesPerBlock);
 
 	for (int i = 0; i < harmonicFilters.size(); i++)
 	{

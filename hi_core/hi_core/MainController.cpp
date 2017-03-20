@@ -432,7 +432,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 	if (buffer.getNumSamples() != bufferSize.get())
 	{
-		debugError(synthChain, "Block size mismatch (old: " + String(bufferSize.get()) + ", new: " + String(buffer.getNumSamples()));
+		//debugError(synthChain, "Block size mismatch (old: " + String(bufferSize.get()) + ", new: " + String(buffer.getNumSamples()));
 		prepareToPlay(sampleRate, buffer.getNumSamples());
 	}
 
@@ -589,7 +589,10 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 #endif
 #endif
     
-	multiChannelBuffer.setSize(getMainSynthChain()->getMatrix().getNumSourceChannels(), samplesPerBlock);
+	// Updates the channel amount
+	multiChannelBuffer.setSize(getMainSynthChain()->getMatrix().getNumSourceChannels(), multiChannelBuffer.getNumSamples());
+
+	ProcessorHelpers::increaseBufferIfNeeded(multiChannelBuffer, samplesPerBlock);
 
 #if IS_STANDALONE_APP || IS_STANDALONE_FRONTEND
 	getMainSynthChain()->getMatrix().setNumDestinationChannels(2);

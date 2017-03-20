@@ -37,6 +37,9 @@ ModulatorChain::ModulatorChain(MainController *mc, const String &uid, int numVoi
 	parentProcessor(p),
 	isVoiceStartChain(false)
 {
+	internalVoiceBuffer = AudioSampleBuffer(numVoices, 0);
+	envelopeTempBuffer = AudioSampleBuffer(1, 0);
+
 	activeVoices.setRange(0, numVoices, false);
 	setFactoryType(new ModulatorChainFactoryType(numVoices, m, p));
 
@@ -172,8 +175,8 @@ void ModulatorChain::prepareToPlay(double sampleRate, int samplesPerBlock)
 	EnvelopeModulator::prepareToPlay(sampleRate, samplesPerBlock);
 	blockSize = samplesPerBlock;
 
-	internalVoiceBuffer = AudioSampleBuffer(polyManager.getVoiceAmount(), samplesPerBlock);
-	envelopeTempBuffer = AudioSampleBuffer(1, samplesPerBlock);
+	ProcessorHelpers::increaseBufferIfNeeded(internalVoiceBuffer, samplesPerBlock);
+	ProcessorHelpers::increaseBufferIfNeeded(envelopeTempBuffer, samplesPerBlock);
 
 	for(int i = 0; i < envelopeModulators.size(); i++) envelopeModulators[i]->prepareToPlay(sampleRate, samplesPerBlock);
 	for(int i = 0; i < variantModulators.size(); i++) variantModulators[i]->prepareToPlay(sampleRate, samplesPerBlock);

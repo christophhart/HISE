@@ -72,6 +72,9 @@ public:
 		syncTimeRight(TempoSyncer::Quarter),
 		skipFirstBuffer(true)
 	{
+		leftDelayFrames = AudioSampleBuffer(1, 0);
+		rightDelayFrames = AudioSampleBuffer(1, 0);
+
 		parameterNames.add("DelayTimeLeft");
 		parameterNames.add("DelayTimeRight");
 		parameterNames.add("FeedbackLeft");
@@ -201,12 +204,8 @@ public:
         
 		calcDelayTimes();
 
-		leftDelayFrames = AudioSampleBuffer(1, samplesPerBlock);
-		rightDelayFrames = AudioSampleBuffer(1, samplesPerBlock);
-
-		leftDelayFrames.clear();
-		rightDelayFrames.clear();
-		
+		ProcessorHelpers::increaseBufferIfNeeded(leftDelayFrames, samplesPerBlock);
+		ProcessorHelpers::increaseBufferIfNeeded(rightDelayFrames, samplesPerBlock);
 	};
 
 	void calcDelayTimes()

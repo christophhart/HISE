@@ -40,6 +40,11 @@ gain(1.0f),
 delay(0.0f),
 balance(0.0f)
 {
+	gainBuffer = AudioSampleBuffer(1, 0);
+	delayBuffer = AudioSampleBuffer(1, 0);
+	widthBuffer = AudioSampleBuffer(1, 0);
+	balanceBuffer = AudioSampleBuffer(1, 0);
+
 	smoother.setSmoothingTime(0.2f);
 
 	parameterNames.add("Gain");
@@ -241,11 +246,11 @@ void GainEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
         widthChain->prepareToPlay(sampleRate, samplesPerBlock);
 		balanceChain->prepareToPlay(sampleRate, samplesPerBlock);
         
-		gainBuffer = AudioSampleBuffer(1, samplesPerBlock);
-        delayBuffer = AudioSampleBuffer(1, samplesPerBlock);
-        widthBuffer = AudioSampleBuffer(1, samplesPerBlock);
-		balanceBuffer = AudioSampleBuffer(1, samplesPerBlock);
-        
+		ProcessorHelpers::increaseBufferIfNeeded(gainBuffer, samplesPerBlock);
+		ProcessorHelpers::increaseBufferIfNeeded(delayBuffer, samplesPerBlock);
+		ProcessorHelpers::increaseBufferIfNeeded(widthBuffer, samplesPerBlock);
+		ProcessorHelpers::increaseBufferIfNeeded(balanceBuffer, samplesPerBlock);
+
         leftDelay.prepareToPlay(sampleRate);
         rightDelay.prepareToPlay(sampleRate);
         

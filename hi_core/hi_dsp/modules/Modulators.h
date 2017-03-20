@@ -316,9 +316,9 @@ protected:
 
 	TimeModulation(Modulation::Mode m):
 		Modulation(m)
-	{};
-
-
+	{
+		internalBuffer = AudioSampleBuffer(1, 0);
+	};
 
 	/** Creates the internal buffer with double the size of the expected buffer block size.
     */
@@ -335,8 +335,6 @@ protected:
 
 	/** Checks if the prepareToPlay method has been called. */
 	virtual bool isInitialized();
-
-	
 
 	/** a vectorized version of the calcIntensityValue() and applyModulationValue() for Gain modulation with a fixed intensity value. */
 	void applyGainModulation(float *calculatedModulationValues, float *destinationValues, float fixedIntensity, int numValues) const noexcept;
@@ -752,13 +750,7 @@ public:
 	{
 		Processor::prepareToPlay(sampleRate, samplesPerBlock);
 		TimeModulation::prepareToModulate(sampleRate, samplesPerBlock);
-
-		globalSaveValues.setSize(globalSaveValues.getNumChannels(), samplesPerBlock);
-
-		globalSaveValues.clear();
 	}
-
-	const float *getCalculatedValues(int voiceIndex) override { return globalSaveValues.getReadPointer(voiceIndex); }
 
 protected:
 
@@ -813,8 +805,6 @@ protected:
 	/** Overwrite this method and return a newly created ModulatorState of the desired subclass. It will be owned by the Modulator.	*/
 	virtual ModulatorState * createSubclassedState (int /*voiceIndex*/) const = 0;
 	
-	AudioSampleBuffer globalSaveValues;
-
 	/** Use this array to access the state. */
 	OwnedArray<ModulatorState> states;
 };

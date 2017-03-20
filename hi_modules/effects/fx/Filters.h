@@ -397,6 +397,8 @@ private:
 	MoogFilter moogL;
 	MoogFilter moogR;
 
+	double lastSampleRate = 0.0;
+
 };
 
 

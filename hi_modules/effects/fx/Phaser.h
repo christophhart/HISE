@@ -152,6 +152,8 @@ private:
 
 	PhaseModulator phaserLeft;
 	PhaseModulator phaserRight;
+
+	double lastSampleRate = 0.0;
 };
 
 #endif  // PHASER_H_INCLUDED

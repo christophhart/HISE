@@ -89,6 +89,9 @@ AudioFileEnvelope::AudioFileEnvelope(MainController *mc, const String &id, Modul
 	resampleFactor(1.0),
 	attackReleaseEnvelopeFollower(EnvelopeFollower::AttackRelease(50.0, 50.0))
 {
+	intensityBuffer = AudioSampleBuffer(1, 0);
+	frequencyBuffer = AudioSampleBuffer(1, 0);
+
 	editorStateIdentifiers.add("IntensityChainShown");
 	editorStateIdentifiers.add("FrequencyChainShown");
 
@@ -369,8 +372,8 @@ void AudioFileEnvelope::prepareToPlay(double sampleRate, int samplesPerBlock)
 	{
 		CHECK_COPY_AND_RETURN_24(this);
 
-		intensityBuffer = AudioSampleBuffer(1, samplesPerBlock *2);
-		frequencyBuffer = AudioSampleBuffer(1, samplesPerBlock *2);
+		ProcessorHelpers::increaseBufferIfNeeded(intensityBuffer, samplesPerBlock * 2);
+		ProcessorHelpers::increaseBufferIfNeeded(frequencyBuffer, samplesPerBlock * 2);
 
 		intensityChain->prepareToPlay(sampleRate, samplesPerBlock);
 		frequencyChain->prepareToPlay(sampleRate, samplesPerBlock);
