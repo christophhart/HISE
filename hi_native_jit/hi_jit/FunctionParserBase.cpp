@@ -904,10 +904,12 @@ template <typename T> BASE_NODE FunctionParserBase::getGlobalNodeGetFunction(con
 		location.throwError(NativeJITTypeHelpers::getTypeMismatchErrorMessage<T>(r->type));
 	}
 
-	auto& e1 = exprBase->Immediate(GlobalBase::get<T>);
-	auto& g = exprBase->Immediate(r);
-
-	return &exprBase->Call(e1, g);
+    double* d = &r->data;
+    
+    auto& e1 = exprBase->Immediate<T*>(reinterpret_cast<T*>(d));
+    auto& e2 = exprBase->Deref(e1);
+    
+    return &e2;
 }
 
 BASE_NODE FunctionParserBase::getGlobalReference(const Identifier& id)
@@ -923,7 +925,7 @@ BASE_NODE FunctionParserBase::getGlobalReference(const Identifier& id)
 	else
 	{
 		auto g = scope->getGlobal(id);
-
+        
 #define MATCH_TYPE_AND_RETURN(type) if (NativeJITTypeHelpers::matchesType<type>(g->getType())) return getGlobalNodeGetFunction<type>(id);
 
 		MATCH_AND_RETURN_ALL_TYPES()
@@ -1294,7 +1296,6 @@ void FunctionParserBase::parseGlobalAssignment(GlobalBase* g)
 		newNode = createBinaryNode(old, newNode, assignType);
 	}
 
-    
 #if JUCE_MAC
     
     // OSX returns wrong values for double / floats if the expression is not wrapped into a dummy function call
@@ -1312,7 +1313,6 @@ void FunctionParserBase::parseGlobalAssignment(GlobalBase* g)
     
     
 #endif
-
     
 	match(NativeJitTokens::semicolon);
 

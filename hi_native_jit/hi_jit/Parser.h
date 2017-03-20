@@ -172,6 +172,8 @@ constexpr size_t getGlobalDataSize()
 struct GlobalBase
 {
 	
+    
+    
 
 	GlobalBase(const Identifier& id_, TypeInfo type_) :
 		id(id_),
@@ -189,6 +191,12 @@ struct GlobalBase
     template<typename T> static T returnSameValue(T value)
     {
         return value;
+    }
+    
+    template<typename R, typename T> static R storeData(T* d, T newValue)
+    {
+        *d = newValue;
+        return R();
     }
     
 	template<typename T> static T store(GlobalBase* b, T newValue)
@@ -584,20 +592,15 @@ public:
 	template <typename T, typename R> NativeJIT::Node<R>& callStoreFunction(NativeJIT::ExpressionNodeFactory* expr)
 	{
 		auto& t = getLastNode<T>();
-		auto& f1 = expr->Immediate(GlobalBase::store<T>);
-		auto& gb = expr->Immediate(b);
-		auto& f2 = expr->Call(f1, gb, t);
+		auto& f1 = expr->Immediate(GlobalBase::storeData<R, T>);
+        
+        double* d = &b->data;
+        
+        auto& p1 = expr->Immediate<T*>(reinterpret_cast<T*>(d));
+		auto& f2 = expr->Call(f1, p1, t);
 
-		if (typeid(R) == typeid(T))
-		{
-			return *dynamic_cast<NativeJIT::Node<R>*>(&f2);
-		}
-		else
-		{
-			auto& cast = expr->template Cast<R, T>(f2);
-
-			return cast;
-		}
+        return *dynamic_cast<NativeJIT::Node<R>*>(&f2);
+        
 	}
 
 
