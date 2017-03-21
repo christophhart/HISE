@@ -819,6 +819,8 @@ public:
 
 	static String getBase64String(const Processor* p, bool copyToClipboard=true);
 
+	static void restoreFromBase64String(Processor* p, const String& base64String);
+
 	static void increaseBufferIfNeeded(AudioSampleBuffer& b, int numSamplesNeeded)
 	{
 		// The channel amount must be set correctly in the constructor
@@ -833,28 +835,9 @@ public:
 
 	struct ValueTreeHelpers
 	{
-		static String getBase64StringFromValueTree(const ValueTree& v)
-		{
-			MemoryOutputStream internalMos;
-			GZIPCompressorOutputStream gzos(&internalMos, 9, false);
-			MemoryOutputStream mos;
+		static String getBase64StringFromValueTree(const ValueTree& v);;
 
-			v.writeToStream(mos);
-
-			gzos.write(mos.getData(), mos.getDataSize());
-			gzos.flush();
-
-			return internalMos.getMemoryBlock().toBase64Encoding();
-		};
-
-		static ValueTree getValueTreeFromBase64String(const String& base64State)
-		{
-			MemoryBlock mb;
-
-			mb.fromBase64Encoding(base64State);
-
-			return ValueTree::readFromGZIPData(mb.getData(), mb.getSize());
-		}
+		static ValueTree getValueTreeFromBase64String(const String& base64State);
 	};
 
 };

@@ -323,7 +323,16 @@ String ProcessorHelpers::getScriptVariableDeclaration(const Processor *p, bool c
 
 String ProcessorHelpers::getBase64String(const Processor* p, bool copyToClipboard/*=true*/)
 {
-	const ValueTree v = p->exportAsValueTree();
+	ValueTree v;
+
+	if (is<ProcessorWithScriptingContent>(p))
+	{
+		v = dynamic_cast<const ProcessorWithScriptingContent*>(p)->getScriptingContent()->exportAsValueTree();
+	}
+	else
+	{
+		v = p->exportAsValueTree();
+	}
 
 	const String c = ValueTreeHelpers::getBase64StringFromValueTree(v);
 
@@ -333,6 +342,20 @@ String ProcessorHelpers::getBase64String(const Processor* p, bool copyToClipboar
 	}
 
 	return c;
+}
+
+void ProcessorHelpers::restoreFromBase64String(Processor* p, const String& base64String)
+{
+	ValueTree v = ValueTreeHelpers::getValueTreeFromBase64String(base64String);
+
+	if (is<ProcessorWithScriptingContent>(p))
+	{
+		dynamic_cast<const ProcessorWithScriptingContent*>(p)->getScriptingContent()->restoreAllControlsFromPreset(v);
+	}
+	else
+	{
+		p->restoreFromValueTree(v);
+	}
 }
 
 void AudioSampleProcessor::replaceReferencesWithGlobalFolder()
@@ -420,3 +443,25 @@ void AudioSampleProcessor::setRange(Range<int> newSampleRange)
 };
 
 
+String ProcessorHelpers::ValueTreeHelpers::getBase64StringFromValueTree(const ValueTree& v)
+{
+	MemoryOutputStream internalMos;
+	GZIPCompressorOutputStream gzos(&internalMos, 9, false);
+	MemoryOutputStream mos;
+
+	v.writeToStream(mos);
+
+	gzos.write(mos.getData(), mos.getDataSize());
+	gzos.flush();
+
+	return internalMos.getMemoryBlock().toBase64Encoding();
+}
+
+ValueTree ProcessorHelpers::ValueTreeHelpers::getValueTreeFromBase64String(const String& base64State)
+{
+	MemoryBlock mb;
+
+	mb.fromBase64Encoding(base64State);
+
+	return ValueTree::readFromGZIPData(mb.getData(), mb.getSize());
+}

@@ -326,8 +326,7 @@ String ScriptingObjects::ScriptingModulator::exportState()
 {
 	if (checkValidObject())
 	{
-		ValueTree v = mod->exportAsValueTree();
-		return ProcessorHelpers::ValueTreeHelpers::getBase64StringFromValueTree(v);
+		return ProcessorHelpers::getBase64String(mod);
 	}
 
 	return String();
@@ -337,8 +336,7 @@ void ScriptingObjects::ScriptingModulator::restoreState(String base64State)
 {
 	if (checkValidObject())
 	{
-		ValueTree v = ProcessorHelpers::ValueTreeHelpers::getValueTreeFromBase64String(base64State);
-		mod->restoreFromValueTree(v);
+		ProcessorHelpers::restoreFromBase64String(mod, base64State);
 	}
 }
 
@@ -414,8 +412,7 @@ String ScriptingObjects::ScriptingEffect::exportState()
 {
 	if (checkValidObject())
 	{
-		ValueTree v = effect->exportAsValueTree();
-		return ProcessorHelpers::ValueTreeHelpers::getBase64StringFromValueTree(v);
+		return ProcessorHelpers::getBase64String(effect);
 	}
 
 	return String();
@@ -425,8 +422,7 @@ void ScriptingObjects::ScriptingEffect::restoreState(String base64State)
 {
 	if (checkValidObject())
 	{
-		ValueTree v = ProcessorHelpers::ValueTreeHelpers::getValueTreeFromBase64String(base64State);
-		effect->restoreFromValueTree(v);
+		ProcessorHelpers::restoreFromBase64String(effect, base64State);
 	}
 }
 
@@ -524,8 +520,7 @@ String ScriptingObjects::ScriptingSynth::exportState()
 {
 	if (checkValidObject())
 	{
-		ValueTree v = synth->exportAsValueTree();
-		return ProcessorHelpers::ValueTreeHelpers::getBase64StringFromValueTree(v);
+		return ProcessorHelpers::getBase64String(synth);
 	}
 
 	return String();
@@ -535,8 +530,7 @@ void ScriptingObjects::ScriptingSynth::restoreState(String base64State)
 {
 	if (checkValidObject())
 	{
-		ValueTree v = ProcessorHelpers::ValueTreeHelpers::getValueTreeFromBase64String(base64State);
-		synth->restoreFromValueTree(v);
+		ProcessorHelpers::restoreFromBase64String(synth, base64State);
 	}
 }
 
@@ -634,8 +628,7 @@ String ScriptingObjects::ScriptingMidiProcessor::exportState()
 {
 	if (checkValidObject())
 	{
-		ValueTree v = mp->exportAsValueTree();
-		return ProcessorHelpers::ValueTreeHelpers::getBase64StringFromValueTree(v);
+		return ProcessorHelpers::getBase64String(mp, false);
 	}
 
 	return String();
@@ -645,8 +638,7 @@ void ScriptingObjects::ScriptingMidiProcessor::restoreState(String base64State)
 {
 	if (checkValidObject())
 	{
-		ValueTree v = ProcessorHelpers::ValueTreeHelpers::getValueTreeFromBase64String(base64State);
-		mp->restoreFromValueTree(v);
+		ProcessorHelpers::restoreFromBase64String(mp, base64State);
 	}
 }
 
