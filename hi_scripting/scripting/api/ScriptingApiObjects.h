@@ -381,6 +381,12 @@ public:
 		/** Returns the child synth with the given index. */
 		ScriptingSynth* getChildSynthByIndex(int index);
 
+		/** Exports the state as base64 string. */
+		String exportState();
+
+		/** Restores the state from a base64 string. */
+		void restoreState(String base64State);
+
 		// ============================================================================================================ 
 
 		struct Wrapper;
@@ -431,6 +437,12 @@ public:
         
 		/** Bypasses the MidiProcessor. */
 		void setBypassed(bool shouldBeBypassed);;
+
+		/** Exports the state as base64 string. */
+		String exportState();
+
+		/** Restores the state from a base64 string. */
+		void restoreState(String base64State);
 
 		// ============================================================================================================
 

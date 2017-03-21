@@ -321,6 +321,20 @@ String ProcessorHelpers::getScriptVariableDeclaration(const Processor *p, bool c
 	return code;
 }
 
+String ProcessorHelpers::getBase64String(const Processor* p, bool copyToClipboard/*=true*/)
+{
+	const ValueTree v = p->exportAsValueTree();
+
+	const String c = ValueTreeHelpers::getBase64StringFromValueTree(v);
+
+	if (copyToClipboard)
+	{
+		SystemClipboard::copyTextToClipboard("\"" + c + "\"");
+	}
+
+	return c;
+}
+
 void AudioSampleProcessor::replaceReferencesWithGlobalFolder()
 {
 	if (!isReference(loadedFileName))

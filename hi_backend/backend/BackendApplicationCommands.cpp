@@ -117,6 +117,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuEditMoveUp,
 		MenuEditMoveDown,
 		MenuEditCreateScriptVariable,
+		MenuEditCreateBase64State,
         MenuEditCloseAllChains,
         MenuEditPlotModulator,
 		MenuViewShowSelectedProcessorInPopup,
@@ -325,6 +326,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuEditCreateScriptVariable:
 		setCommandTarget(result, "Create script variable", clipBoardNotEmpty(), false, 'C', true, ModifierKeys::commandModifier | ModifierKeys::shiftModifier);
 		break;
+	case MenuEditCreateBase64State:
+		setCommandTarget(result, "Create Base64 encoded state", clipBoardNotEmpty(), false, 'C', false);
+		break;
     case MenuEditPlotModulator:
         {
             ProcessorEditor * editor = dynamic_cast<ProcessorEditor*>(currentCopyPasteTarget.get());
@@ -523,6 +527,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuEditMoveUp:				if (currentCopyPasteTarget) Actions::moveModule(currentCopyPasteTarget, true); return true;
 	case MenuEditMoveDown:				if (currentCopyPasteTarget) Actions::moveModule(currentCopyPasteTarget, false); return true;
     case MenuEditCreateScriptVariable:  Actions::createScriptVariableDeclaration(currentCopyPasteTarget); return true;
+	case MenuEditCreateBase64State:		Actions::createBase64State(currentCopyPasteTarget.get()); return true;
     case MenuEditPlotModulator:         Actions::plotModulator(currentCopyPasteTarget.get()); updateCommands(); return true;
     case MenuEditCloseAllChains:        Actions::closeAllChains(bpe); return true;
 	case MenuToolsRecompile:            Actions::recompileAllScripts(bpe); return true;
@@ -750,6 +755,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
             }
             
             ADD_ALL_PLATFORMS(MenuEditCreateScriptVariable);
+			ADD_ALL_PLATFORMS(MenuEditCreateBase64State);
             ADD_ALL_PLATFORMS(MenuEditCloseAllChains);
             ADD_DESKTOP_ONLY(MenuEditPlotModulator);
         }
@@ -1155,6 +1161,16 @@ void BackendCommandTarget::Actions::createScriptVariableDeclaration(CopyPasteTar
 	if (editor != nullptr)
 	{
 		ProcessorHelpers::getScriptVariableDeclaration(editor->getProcessor());
+	}
+}
+
+void BackendCommandTarget::Actions::createBase64State(CopyPasteTarget* target)
+{
+	ProcessorEditor *editor = dynamic_cast<ProcessorEditor*>(target);
+
+	if (editor != nullptr)
+	{
+		ProcessorHelpers::getBase64String(editor->getProcessor());
 	}
 }
 
@@ -2002,6 +2018,8 @@ void BackendCommandTarget::Actions::validateUserPresets(BackendProcessorEditor *
 			PresetHandler::showMessageWindow("Nothing to do", "All user presets are up to date.");
 	}
 }
+
+
 
 #undef ADD_ALL_PLATFORMS
 #undef ADD_IOS_ONLY

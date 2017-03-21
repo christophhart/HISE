@@ -117,6 +117,7 @@ public:
 		MenuViewShowSelectedProcessorInPopup,
         MenuEditPlotModulator,
 		MenuEditCreateScriptVariable,
+		MenuEditCreateBase64State,
         MenuEditCloseAllChains,
 		MenuViewOffset = 0x40000,
         MenuViewFullscreen,
@@ -297,6 +298,7 @@ public:
 		static void convertSfzFilesToSampleMaps(BackendProcessorEditor * bpe);
 		static void checkAllSamplemaps(BackendProcessorEditor * bpe);
 		static void validateUserPresets(BackendProcessorEditor * bpe);
+		static void createBase64State(CopyPasteTarget* target);
 	};
 
 private:

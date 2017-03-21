@@ -30,6 +30,9 @@
 *   ===========================================================================
 */
 
+
+
+
 // MidiList =====================================================================================================================
 
 struct ScriptingObjects::MidiList::Wrapper
@@ -323,20 +326,8 @@ String ScriptingObjects::ScriptingModulator::exportState()
 {
 	if (checkValidObject())
 	{
-		MemoryOutputStream internalMos;
-
-		GZIPCompressorOutputStream gzos(&internalMos, 9, false);
-
-		MemoryOutputStream mos;
-
 		ValueTree v = mod->exportAsValueTree();
-
-		v.writeToStream(mos);
-
-		gzos.write(mos.getData(), mos.getDataSize());
-		gzos.flush();
-
-		return internalMos.getMemoryBlock().toBase64Encoding();
+		return ProcessorHelpers::ValueTreeHelpers::getBase64StringFromValueTree(v);
 	}
 
 	return String();
@@ -346,12 +337,7 @@ void ScriptingObjects::ScriptingModulator::restoreState(String base64State)
 {
 	if (checkValidObject())
 	{
-		MemoryBlock mb;
-
-		mb.fromBase64Encoding(base64State);
-
-		ValueTree v = ValueTree::readFromGZIPData(mb.getData(), mb.getSize());
-
+		ValueTree v = ProcessorHelpers::ValueTreeHelpers::getValueTreeFromBase64String(base64State);
 		mod->restoreFromValueTree(v);
 	}
 }
@@ -423,24 +409,13 @@ void ScriptingObjects::ScriptingEffect::setBypassed(bool shouldBeBypassed)
 }
 
 
+
 String ScriptingObjects::ScriptingEffect::exportState()
 {
 	if (checkValidObject())
 	{
-		MemoryOutputStream internalMos;
-
-		GZIPCompressorOutputStream gzos(&internalMos, 9, false);
-
-		MemoryOutputStream mos;
-
 		ValueTree v = effect->exportAsValueTree();
-
-		v.writeToStream(mos);
-
-		gzos.write(mos.getData(), mos.getDataSize());
-		gzos.flush();
-
-		return internalMos.getMemoryBlock().toBase64Encoding();
+		return ProcessorHelpers::ValueTreeHelpers::getBase64StringFromValueTree(v);
 	}
 
 	return String();
@@ -450,12 +425,7 @@ void ScriptingObjects::ScriptingEffect::restoreState(String base64State)
 {
 	if (checkValidObject())
 	{
-		MemoryBlock mb;
-
-		mb.fromBase64Encoding(base64State);
-
-		ValueTree v = ValueTree::readFromGZIPData(mb.getData(), mb.getSize());
-
+		ValueTree v = ProcessorHelpers::ValueTreeHelpers::getValueTreeFromBase64String(base64State);
 		effect->restoreFromValueTree(v);
 	}
 }
@@ -468,6 +438,8 @@ struct ScriptingObjects::ScriptingSynth::Wrapper
     API_METHOD_WRAPPER_1(ScriptingSynth, getAttribute);
 	API_VOID_METHOD_WRAPPER_1(ScriptingSynth, setBypassed);
 	API_METHOD_WRAPPER_1(ScriptingSynth, getChildSynthByIndex);
+	API_METHOD_WRAPPER_0(ScriptingSynth, exportState);
+	API_VOID_METHOD_WRAPPER_1(ScriptingSynth, restoreState);
 };
 
 ScriptingObjects::ScriptingSynth::ScriptingSynth(ProcessorWithScriptingContent *p, ModulatorSynth *synth_) :
@@ -494,6 +466,8 @@ synth(synth_)
     ADD_API_METHOD_1(getAttribute);
 	ADD_API_METHOD_1(setBypassed);
 	ADD_API_METHOD_1(getChildSynthByIndex);
+	ADD_API_METHOD_0(exportState);
+	ADD_API_METHOD_1(restoreState);
 };
 
 
@@ -546,6 +520,26 @@ ScriptingObjects::ScriptingSynth* ScriptingObjects::ScriptingSynth::getChildSynt
 	}
 }
 
+String ScriptingObjects::ScriptingSynth::exportState()
+{
+	if (checkValidObject())
+	{
+		ValueTree v = synth->exportAsValueTree();
+		return ProcessorHelpers::ValueTreeHelpers::getBase64StringFromValueTree(v);
+	}
+
+	return String();
+}
+
+void ScriptingObjects::ScriptingSynth::restoreState(String base64State)
+{
+	if (checkValidObject())
+	{
+		ValueTree v = ProcessorHelpers::ValueTreeHelpers::getValueTreeFromBase64String(base64State);
+		synth->restoreFromValueTree(v);
+	}
+}
+
 // ScriptingMidiProcessor ==============================================================================================================
 
 struct ScriptingObjects::ScriptingMidiProcessor::Wrapper
@@ -553,6 +547,8 @@ struct ScriptingObjects::ScriptingMidiProcessor::Wrapper
 	API_VOID_METHOD_WRAPPER_2(ScriptingMidiProcessor, setAttribute);
     API_METHOD_WRAPPER_1(ScriptingMidiProcessor, getAttribute);
 	API_VOID_METHOD_WRAPPER_1(ScriptingMidiProcessor, setBypassed);
+	API_METHOD_WRAPPER_0(ScriptingMidiProcessor, exportState);
+	API_VOID_METHOD_WRAPPER_1(ScriptingMidiProcessor, restoreState);
 };
 
 ScriptingObjects::ScriptingMidiProcessor::ScriptingMidiProcessor(ProcessorWithScriptingContent *p, MidiProcessor *mp_) :
@@ -578,6 +574,8 @@ mp(mp_)
 	ADD_API_METHOD_2(setAttribute);
     ADD_API_METHOD_1(getAttribute);
 	ADD_API_METHOD_1(setBypassed);
+	ADD_API_METHOD_0(exportState);
+	ADD_API_METHOD_1(restoreState);
 }
 
 int ScriptingObjects::ScriptingMidiProcessor::getCachedIndex(const var &indexExpression) const
@@ -629,6 +627,26 @@ void ScriptingObjects::ScriptingMidiProcessor::setBypassed(bool shouldBeBypassed
 	{
 		mp->setBypassed(shouldBeBypassed);
 		mp->sendChangeMessage();
+	}
+}
+
+String ScriptingObjects::ScriptingMidiProcessor::exportState()
+{
+	if (checkValidObject())
+	{
+		ValueTree v = mp->exportAsValueTree();
+		return ProcessorHelpers::ValueTreeHelpers::getBase64StringFromValueTree(v);
+	}
+
+	return String();
+}
+
+void ScriptingObjects::ScriptingMidiProcessor::restoreState(String base64State)
+{
+	if (checkValidObject())
+	{
+		ValueTree v = ProcessorHelpers::ValueTreeHelpers::getValueTreeFromBase64String(base64State);
+		mp->restoreFromValueTree(v);
 	}
 }
 
