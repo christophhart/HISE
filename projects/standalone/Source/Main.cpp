@@ -64,7 +64,7 @@ public:
 			std::cout << "-h:{TEXT} sets the HISE path. Use this if you don't have compiler settings set." << std::endl;
             std::cout << "-ipp      enables Intel Performance Primitives for fast convolution" << std::endl;
 			std::cout << "-t:{TEXT} sets the project type ('standalone' | 'instrument' | 'effect')" << std::endl;
-			std::cout << "-p:{TEXT} sets the plugin type ('VST' | 'AU' | 'VST_AU' | 'AAX')" << std::endl;
+			std::cout << "-p:{TEXT} sets the plugin type ('VST' | 'AU' | 'VST_AU' | 'AAX' | 'ALL')" << std::endl;
 			std::cout << "          (Leave empty for standalone export)" << std::endl;
 			std::cout << "-a:{TEXT} sets the architecture ('x86', 'x64', 'x86x64')." << std::endl;
 			std::cout << "          (Leave empty on OSX for Universal binary.)" << std::endl << std::endl;

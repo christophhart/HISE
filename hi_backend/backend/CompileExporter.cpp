@@ -355,6 +355,7 @@ int CompileExporter::getBuildOptionPart(const String& argument)
 		else if (pluginName == "AU") return 0x0020;
 		else if (pluginName == "VSTAU") return 0x0040;
 		else if (pluginName == "AAX") return 0x0080;
+        else if (pluginName == "ALL") return 0x10000;
 		else return 0;
 	}
     case 'i':
