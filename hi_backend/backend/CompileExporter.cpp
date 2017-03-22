@@ -353,7 +353,7 @@ int CompileExporter::getBuildOptionPart(const String& argument)
 
 		if (pluginName == "VST") return 0x0010;
 		else if (pluginName == "AU") return 0x0020;
-		else if (pluginName == "VSTAU") return 0x0040;
+		else if (pluginName == "VST_AU") return 0x0040;
 		else if (pluginName == "AAX") return 0x0080;
         else if (pluginName == "ALL") return 0x10000;
 		else return 0;
