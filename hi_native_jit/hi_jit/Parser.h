@@ -150,8 +150,9 @@ struct BufferOperations
 		else
 		{
 			b->overflowError = index;
-			return DummyReturn();
 		}
+
+		return DummyReturn();
 	}
 
 	template <typename DummyReturn> static DummyReturn setSize(Buffer* b, int newSize)
@@ -259,6 +260,7 @@ struct GlobalBase
 
 	Buffer ownedBuffer;
 
+	bool isConst = false;
 };
 
 
@@ -293,10 +295,10 @@ public:
 
 };
 
-#define NATIVE_JIT_ADD_C_FUNCTION_0(return_type, name) exposedFunctions.add(new TypedFunction<return_type>(Identifier(#name), (void*)name)); 
-#define NATIVE_JIT_ADD_C_FUNCTION_1(return_type, name, param1_type) exposedFunctions.add(new TypedFunction<return_type, param1_type>(Identifier(#name), (void*)name, param1_type())); 
-#define NATIVE_JIT_ADD_C_FUNCTION_2(return_type, name, param1_type, param2_type) exposedFunctions.add(new TypedFunction<return_type, param1_type, param2_type>(Identifier(#name), (void*)name, param1_type(), param2_type())); 
-#define ADD_C_FUNCTION_3(return_type, name, param1_type, param2_type, param3_type) exposedFunctions.add(new TypedFunction<return_type, param1_type, param2_type, param3_type>(Identifier(#name), (void*)name, param1_type(), param2_type(), param3_type())); 
+#define NATIVE_JIT_ADD_C_FUNCTION_0(return_type, name) exposedFunctions.add(new TypedFunction<return_type>(Identifier(#name), (void*)(static_cast<return_type(*)()>(name)))); 
+#define NATIVE_JIT_ADD_C_FUNCTION_1(return_type, name, param1_type) exposedFunctions.add(new TypedFunction<return_type, param1_type>(Identifier(#name), (void*)(static_cast<return_type(*)(param1_type)>(name)), param1_type())); 
+#define NATIVE_JIT_ADD_C_FUNCTION_2(return_type, name, param1_type, param2_type) exposedFunctions.add(new TypedFunction<return_type, param1_type, param2_type>(Identifier(#name), (void*)(static_cast<return_type(*)(param1_type, param2_type)>(name)), param1_type(), param2_type())); 
+#define ADD_C_FUNCTION_3(return_type, name, param1_type, param2_type, param3_type) exposedFunctions.add(new TypedFunction<return_type, param1_type, param2_type, param3_type>(Identifier(#name), (void*)(static_cast<return_type(*)(param1_type, param2_type, param3_type)>(name)), param1_type(), param2_type(), param3_type())); 
 
 #define ADD_GLOBAL(type, name) globals.add(GlobalBase::create<type>(name));
 
@@ -335,29 +337,29 @@ public:
 
 
 		NATIVE_JIT_ADD_C_FUNCTION_1(float, sinf, float);
-        //NATIVE_JIT_ADD_C_FUNCTION_1(double, sin, double);
+        NATIVE_JIT_ADD_C_FUNCTION_1(double, sin, double);
         NATIVE_JIT_ADD_C_FUNCTION_1(float, cosf, float);
-        //NATIVE_JIT_ADD_C_FUNCTION_1(double, cos, double);
+        NATIVE_JIT_ADD_C_FUNCTION_1(double, cos, double);
         NATIVE_JIT_ADD_C_FUNCTION_1(float, tanf, float);
-        //NATIVE_JIT_ADD_C_FUNCTION_1(double, tan, double);
+        NATIVE_JIT_ADD_C_FUNCTION_1(double, tan, double);
         NATIVE_JIT_ADD_C_FUNCTION_1(float, atanf, float);
-        //NATIVE_JIT_ADD_C_FUNCTION_1(double, atan, double);
+        NATIVE_JIT_ADD_C_FUNCTION_1(double, atan, double);
         NATIVE_JIT_ADD_C_FUNCTION_1(float, atanhf, float);
-        //NATIVE_JIT_ADD_C_FUNCTION_1(double, atanh, double);
+        NATIVE_JIT_ADD_C_FUNCTION_1(double, atanh, double);
 		NATIVE_JIT_ADD_C_FUNCTION_0(double, getSampleRate);
 		NATIVE_JIT_ADD_C_FUNCTION_2(float, powf, float, float);
-        //NATIVE_JIT_ADD_C_FUNCTION_2(double, pow, double, double);
-        //NATIVE_JIT_ADD_C_FUNCTION_1(double, sqrt, double);
+        NATIVE_JIT_ADD_C_FUNCTION_2(double, pow, double, double);
+        NATIVE_JIT_ADD_C_FUNCTION_1(double, sqrt, double);
         NATIVE_JIT_ADD_C_FUNCTION_1(float, sqrtf, float);
-        //NATIVE_JIT_ADD_C_FUNCTION_1(float, fabs, float);
-        //NATIVE_JIT_ADD_C_FUNCTION_1(double, abs, double);
-        //NATIVE_JIT_ADD_C_FUNCTION_1(int, abs, int);
         
+        NATIVE_JIT_ADD_C_FUNCTION_1(float, tanhf, float);
+        NATIVE_JIT_ADD_C_FUNCTION_1(double, tanh, double);
         
-        
+        NATIVE_JIT_ADD_C_FUNCTION_1(double, fabs, double);
+        NATIVE_JIT_ADD_C_FUNCTION_1(int, abs, int);
         
 		NATIVE_JIT_ADD_C_FUNCTION_1(float, fabsf, float);
-       // NATIVE_JIT_ADD_C_FUNCTION_1(double, exp, double);
+        NATIVE_JIT_ADD_C_FUNCTION_1(double, exp, double);
         NATIVE_JIT_ADD_C_FUNCTION_1(float, expf, float);
 
 	}
@@ -653,7 +655,8 @@ protected:
 struct FunctionInfo
 {
 	FunctionInfo():
-		code(String::CharPointerType(nullptr))
+		code(String::CharPointerType(nullptr)),
+		lineType(typeid(void))
 	{
 		
 	}
@@ -665,6 +668,7 @@ struct FunctionInfo
 	
 	int length;
 
+	Identifier id;
 
 	String program;
 
@@ -673,6 +677,9 @@ struct FunctionInfo
 	int parameterAmount = 0;
 
 	bool useSafeBufferFunctions = true;
+	bool addVoidReturnStatement;
+
+	TypeInfo lineType;
 };
 
 
