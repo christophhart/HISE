@@ -660,6 +660,9 @@ public:
 #define START_BENCHMARK const double start = Time::getMillisecondCounterHiRes();
 #define STOP_BENCHMARK_AND_LOG const double end = Time::getMillisecondCounterHiRes(); logPerformanceMessage(m->executionTime, end - start);
 
+
+
+
 class NativeJITUnitTest: public UnitTest
 {
 public:
@@ -1126,26 +1129,27 @@ private:
 	{
 		ScopedPointer<NativeJITTestModule> m = new NativeJITTestModule();
 
-		Random r;
-
-		float a = r.nextFloat();
 		
+		beginTest("Test Saturation");
 
-		beginTest("Test Saturation with gain " + String(a));
+		String code;
 
-		m->setGlobals("float saturationAmount;\nfloat k;");
+		ADD_CODE_LINE("float k;\n");
+		ADD_CODE_LINE("float saturationAmount;\n");
+		ADD_CODE_LINE("\n");
+		ADD_CODE_LINE("void init()\n");
+		ADD_CODE_LINE("{\n");
+		ADD_CODE_LINE("	saturationAmount = 0.8f;\n");
+		ADD_CODE_LINE("	k = 2.0f * saturationAmount / (1.0f - saturationAmount);\n");
+		ADD_CODE_LINE("};\n");
+		ADD_CODE_LINE("\n");
+		ADD_CODE_LINE("\n");
+		ADD_CODE_LINE("float process(float input)\n");
+		ADD_CODE_LINE("{\n");
+		ADD_CODE_LINE("	return (1.0f + k) * input / (1.0f + k * fabsf(input));\n");
+		ADD_CODE_LINE("};");
 
-		String initBody;
-		
-		initBody << "    saturationAmount = 0.8f;\n";
-		initBody << "    k = 2.0f * saturationAmount / (1.0f - saturationAmount);\n";
-		
-		m->setInitBody(initBody);
-		
-
-
-		m->setProcessBody("return (1.0f + k) * input / (1.0f + k * fabsf(input));");
-		m->merge();
+		m->setCode(code);
 
 		VariantBuffer b1(VAR_BUFFER_TEST_SIZE);
 		VariantBuffer b2(VAR_BUFFER_TEST_SIZE);
