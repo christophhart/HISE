@@ -22,6 +22,7 @@ class FunctionParserBase : protected ParserHelpers::TokenIterator
 {
 public:
 
+
 	struct MissingOperatorFunctions;
 	struct NamedNode;
 
@@ -54,14 +55,31 @@ protected:
 
 private:
 
+
+	enum AssignType
+	{
+		Assign = 0,
+		Add,
+		Sub,
+		Mul,
+		Div,
+		Mod,
+		numAssignTypes
+	};
+
 	typedef const char* TokenType;
 
 	TYPED_NODE_VOID parseLine(bool isConst);
 
+	TYPED_NODE_VOID parseLineAssignment(NamedNode* l);
+
 	void parseUntypedLine();
 
 	TYPED_NODE_VOID parseGlobalAssignment(GlobalBase* g);
-	
+
+	TokenType parseAssignType();
+
+
 	
     template <typename T> BASE_NODE getOSXDummyNode(NativeJIT::NodeBase* node);
     

@@ -126,7 +126,17 @@ void FunctionParserBase::parseFunctionBody()
 			}
 			else
 			{
-				parseUntypedLine();
+				if (auto l = getLine(id))
+				{
+					if (NativeJITTypeHelpers::matchesType<float>(l->type)) parseLineAssignment<float>(l);
+					if (NativeJITTypeHelpers::matchesType<double>(l->type)) parseLineAssignment<double>(l);
+					if (NativeJITTypeHelpers::matchesType<int>(l->type)) parseLineAssignment<int>(l);
+					if (NativeJITTypeHelpers::matchesType<BooleanType>(l->type)) parseLineAssignment<BooleanType>(l);
+				}
+				else
+				{
+					parseUntypedLine();
+				}
 			}
 		}
 		else if (matchIf(NativeJitTokens::const_))
@@ -178,6 +188,31 @@ void FunctionParserBase::parseLine(bool isConst)
 	match(NativeJitTokens::semicolon);
 }
 
+
+TYPED_NODE_VOID FunctionParserBase::parseLineAssignment(NamedNode* l)
+{
+	if (l->isConst)
+	{
+		location.throwError("Can't assign to const variable " + l->id);
+	}
+
+	Identifier id = parseIdentifier();
+	TokenType assignType = parseAssignType();
+	auto& n = parseTypedExpression<T>();
+
+	if (assignType != NativeJitTokens::assign_)
+	{
+		auto n2 = createBinaryNode(l->node, &n, assignType);
+		auto& n3 = getTypedNode<T>(n2);
+		l->node = &n3;
+	}
+	else
+	{
+		l->node = &n;
+	}
+
+	match(NativeJitTokens::semicolon);
+}
 
 void FunctionParserBase::parseUntypedLine()
 {
@@ -1254,36 +1289,17 @@ template <typename T> BASE_NODE FunctionParserBase::getOSXDummyNode(NativeJIT::N
 template <typename T>
 void FunctionParserBase::parseGlobalAssignment(GlobalBase* g)
 {
-	enum AssignType
+	if (g->isConst)
 	{
-		Assign = 0,
-		Add,
-		Sub,
-		Mul,
-		Div,
-		Mod,
-		numAssignTypes
-	};
+		location.throwError("Can't assign to const variable " + g->id.toString());
+	}
 
 	parseIdentifier();
 
-	TokenType assignType;
+	TokenType assignType = parseAssignType();
 
-	if (matchIf(NativeJitTokens::minusEquals)) assignType = NativeJitTokens::minus;
-	else if (matchIf(NativeJitTokens::divideEquals)) assignType = NativeJitTokens::divide;
-	else if (matchIf(NativeJitTokens::timesEquals)) assignType = NativeJitTokens::times;
-	else if (matchIf(NativeJitTokens::plusEquals)) assignType = NativeJitTokens::plus;
-	else if (matchIf(NativeJitTokens::moduloEquals)) assignType = NativeJitTokens::modulo;
-	else
-	{
-		match(NativeJitTokens::assign_);
-		assignType = NativeJitTokens::assign_;
-	}
-
-	NativeJIT::NodeBase* newNode = parseExpression();
-	
+	NativeJIT::NodeBase* newNode = parseExpression();	
     TypeInfo newType = getTypeForNode(newNode);
-    
 	NativeJIT::NodeBase* old = nullptr;
 
 	auto existingNode = getGlobalNode(g->id);
@@ -1338,6 +1354,25 @@ void FunctionParserBase::parseGlobalAssignment(GlobalBase* g)
 	{
 		globalNodes.add(pointerToUse.release());
 	}
+}
+
+
+FunctionParserBase::TokenType FunctionParserBase::parseAssignType()
+{
+	TokenType assignType;
+
+	if (matchIf(NativeJitTokens::minusEquals)) assignType = NativeJitTokens::minus;
+	else if (matchIf(NativeJitTokens::divideEquals)) assignType = NativeJitTokens::divide;
+	else if (matchIf(NativeJitTokens::timesEquals)) assignType = NativeJitTokens::times;
+	else if (matchIf(NativeJitTokens::plusEquals)) assignType = NativeJitTokens::plus;
+	else if (matchIf(NativeJitTokens::moduloEquals)) assignType = NativeJitTokens::modulo;
+	else
+	{
+		match(NativeJitTokens::assign_);
+		assignType = NativeJitTokens::assign_;
+	}
+
+	return assignType;
 }
 
 GlobalNode* FunctionParserBase::getGlobalNode(const Identifier& id)
