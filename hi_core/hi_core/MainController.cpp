@@ -426,6 +426,12 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
     
 	ScopedNoDenormals snd;
     
+	if (presetLoadRampFlag.get() == UserPresetHandler::RampFlags::Bypassed)
+	{
+		buffer.clear();
+		return;
+	}
+
 	AudioProcessor *thisAsProcessor = dynamic_cast<AudioProcessor*>(this);
 
 	ModulatorSynthChain *synthChain = getMainSynthChain();
@@ -542,21 +548,17 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	}
 #endif
 
-	if (presetLoadRampFlag.get() != 0)
+	if (presetLoadRampFlag.get() != UserPresetHandler::RampFlags::Active)
 	{
-		if (presetLoadRampFlag.get() == -1)
+		if (presetLoadRampFlag.get() == UserPresetHandler::RampFlags::FadeOut)
 		{
 			buffer.applyGainRamp(0, buffer.getNumSamples(), 1.0f, 0.0f);
-			presetLoadRampFlag.set(-2);
+			presetLoadRampFlag.set(UserPresetHandler::RampFlags::Bypassed);
 		}
-		else if (presetLoadRampFlag.get() == -2)
-		{
-			buffer.clear();
-		}
-		else if (presetLoadRampFlag.get() == 1)
+		else if (presetLoadRampFlag.get() == UserPresetHandler::RampFlags::FadeIn)
 		{
 			buffer.applyGainRamp(0, buffer.getNumSamples(), 0.0f, 1.0f);
-			presetLoadRampFlag.set(0);
+			presetLoadRampFlag.set(UserPresetHandler::RampFlags::Active);
 		}
 	}
 

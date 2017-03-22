@@ -236,12 +236,23 @@ public:
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(EventIdHandler)
 	};
 
-	class UserPresetHandler : public Timer
+	class UserPresetHandler : public Timer,
+							  public ThreadWithQuasiModalProgressWindow::Holder::Listener
 	{
 	public:
 
-		UserPresetHandler(MainController* mc_): mc(mc_)	{}
-		~UserPresetHandler() { stopTimer(); }
+		enum RampFlags
+		{
+			Active = 0,
+			Bypassed = -2,
+			FadeIn = 1,
+			FadeOut = -1
+		};
+
+		UserPresetHandler(MainController* mc_);
+		~UserPresetHandler();
+
+		void lastTaskRemoved() override;
 
 		// ===========================================================================================================
 
@@ -252,7 +263,11 @@ public:
 
 	private:
 
+		
+
 		void loadPresetInternal();
+
+		
 
 		MainController* mc;
 		ValueTree currentPreset;

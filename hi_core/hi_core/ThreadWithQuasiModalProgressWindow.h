@@ -273,6 +273,27 @@ public:
             window->runThread();
         }
         
+		struct Listener
+		{
+			virtual ~Listener() { masterReference.clear();};
+
+			virtual void taskAdded() {};
+			virtual void taskRemoved() {};
+			virtual void lastTaskRemoved() {};
+
+		private:
+
+			friend class WeakReference<Listener>;
+			WeakReference<Listener>::Master masterReference;
+		};
+
+
+		void addListener(Listener* newListener) { listeners.add(newListener); }
+		void removeListener(Listener* listenerToRemove) { listeners.removeAllInstancesOf(listenerToRemove); };
+
+		bool isBusy() const noexcept { return queue.size() > 0; }
+
+
 	private:
 
 		class WindowDelayer : private Timer
@@ -323,6 +344,14 @@ public:
 			{
 				getOverlay()->setDialog(nullptr);
 			}
+
+			for (int i = 0; i < listeners.size(); i++)
+			{
+				if (listeners[i].get() != nullptr)
+				{
+					listeners[i]->lastTaskRemoved();
+				}
+			}
 		}
 
 		void currentThreadHasFinished()
@@ -335,6 +364,14 @@ public:
 			}
 			else
 			{
+				for (int i = 0; i < listeners.size(); i++)
+				{
+					if (listeners[i].get() != nullptr)
+					{
+						listeners[i]->taskRemoved();
+					}
+				}
+
 				runNextThread();
 			}
 
@@ -348,12 +385,21 @@ public:
 		{
 			queue.add(window);
 
+			for (int i = 0; i < listeners.size(); i++)
+			{
+				if (listeners[i].get() != nullptr)
+				{
+					listeners[i]->taskAdded();
+				}
+			}
+
 			if (queue.size() == 1)
 			{
                 runNextThread();
 			}
 		}
 
+		
 		void runNextThread()
 		{
 			triggerAsyncUpdate();
@@ -379,6 +425,8 @@ public:
 		WindowDelayer delayer;
 
 		Component::SafePointer<Overlay> overlay;
+
+		Array<WeakReference<Listener>> listeners;
 	};
 
     //==============================================================================

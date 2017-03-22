@@ -246,6 +246,31 @@ void MainController::SampleManager::setDiskMode(DiskMode mode) noexcept
 }
 
 
+MainController::UserPresetHandler::UserPresetHandler(MainController* mc_) : mc(mc_)
+{
+	auto h = dynamic_cast<ThreadWithQuasiModalProgressWindow::Holder*>(mc);
+
+	h->addListener(this);
+}
+
+MainController::UserPresetHandler::~UserPresetHandler()
+{
+	auto h = dynamic_cast<ThreadWithQuasiModalProgressWindow::Holder*>(mc);
+
+	h->removeListener(this);
+
+	stopTimer();
+}
+
+
+void MainController::UserPresetHandler::lastTaskRemoved()
+{
+	jassert(mc->presetLoadRampFlag.get() != 1);
+
+	mc->presetLoadRampFlag.set(1);
+}
+
+
 void MainController::UserPresetHandler::timerCallback()
 {
 	loadPresetInternal();
@@ -292,8 +317,12 @@ void MainController::UserPresetHandler::loadPresetInternal()
 	if (autoData.isValid())
 		mc->getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(autoData);
 
-	mc->presetLoadRampFlag.set(1);
+	auto h = dynamic_cast<ThreadWithQuasiModalProgressWindow::Holder*>(mc);
 
+	if(!h->isBusy())
+	{
+		mc->presetLoadRampFlag.set(1);
+	}
 }
 
 

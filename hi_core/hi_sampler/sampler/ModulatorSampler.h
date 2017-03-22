@@ -215,6 +215,8 @@ public:
 		}
 
 		ModulatorSynth::renderNextBlockWithModulators(outputAudio, inputMidi);
+
+
 	}
 
 	SampleThreadPool *getBackgroundThreadPool();
