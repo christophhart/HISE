@@ -1319,6 +1319,9 @@ void CompileExporter::ProjectTemplateHelpers::handleCompanyInfo(CompileExporter*
 	REPLACE_WILDCARD("%COMPANY%", SettingWindows::UserSettingWindow::Attributes::Company);
 	REPLACE_WILDCARD("%MC%", SettingWindows::UserSettingWindow::Attributes::CompanyCode);
 	REPLACE_WILDCARD("%COMPANY_WEBSITE%", SettingWindows::UserSettingWindow::Attributes::CompanyURL);
+    
+    REPLACE_WILDCARD("%COPYRIGHT_NOTICE%", SettingWindows::UserSettingWindow::Attributes::CompanyCopyright);
+    
 }
 
 void CompileExporter::ProjectTemplateHelpers::handleVisualStudioVersion(String& templateProject)
@@ -1354,6 +1357,24 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
 		additionalSourceFiles.add(additionalMainHeaderFile);
 	}
 
+#if JUCE_WINDOWS
+
+	File resourceFile = additionalSourceCodeDirectory.getChildFile("resources.rc");
+
+	if (resourceFile.existsAsFile())
+	{
+		File resourceTargetFile = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getChildFile("Builds/VisualStudio2015/resources.rc");
+
+		const String command = "copy &quot;" + resourceFile.getFullPathName() + "&quot; &quot;" + resourceTargetFile.getFullPathName() + "&quot;";
+
+		REPLACE_WILDCARD_WITH_STRING("%PREBUILD_COMMAND%", command);
+	}
+	else
+	{
+		REPLACE_WILDCARD_WITH_STRING("%PREBUILD_COMMAND%", "");
+	}
+
+#endif
 
 	File copyProtectionCppFile = additionalSourceCodeDirectory.getChildFile("CopyProtection.cpp");
 
@@ -1830,6 +1851,8 @@ CompileExporter::ErrorCodes CompileExporter::HelperClasses::saveProjucerFile(Str
 	}
 	else
 	{
+		PresetHandler::showMessageWindow("XML Parsing Error", doc.getLastParseError(), PresetHandler::IconType::Error);
+
 		return ErrorCodes::ProjectXmlInvalid;
 	}
 

@@ -356,6 +356,7 @@ String SettingWindows::UserSettingWindow::getAttributeNameForSetting(int attribu
 	case Company: return "Company";
 	case CompanyCode: return "CompanyCode";
 	case CompanyURL: return "CompanyURL";
+    case CompanyCopyright:  return "CompanyCopyright";
 	default: return "";
 	}
 }
@@ -366,6 +367,7 @@ XmlElement * SettingWindows::UserSettingWindow::createNewSettingsFile() const
 
 	addChildElement(*xml, (int)Attributes::Company, "My Company", "Company Name");
 	addChildElement(*xml, (int)Attributes::CompanyCode, "Abcd", "Company Code (4 characters, first must be uppercase)");
+    addChildElement(*xml, (int)Attributes::CompanyCopyright, "©2017, Company", "Company Copyright");
 	addChildElement(*xml, (int)Attributes::CompanyURL, "http://yourcompany.com", "Company Website");
 
 	return xml;

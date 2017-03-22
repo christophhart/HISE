@@ -235,6 +235,7 @@ public:
 			Company = (int)CompilerSettingWindow::Attributes::numCompilerSettingAttributes,
 			CompanyCode,
 			CompanyURL,
+            CompanyCopyright,
 			numUserSettingAttributes
 		};
 

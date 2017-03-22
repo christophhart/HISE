@@ -78,15 +78,15 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "            IPPLibrary=\"%IPP_WIN_SETTING%\" extraDefs=\"%EXTRA_DEFINES_WIN%\" >\r\n"
 "      <CONFIGURATIONS>\r\n"
 "        <CONFIGURATION name=\"Debug\" winWarningLevel=\"4\" generateManifest=\"1\" winArchitecture=\"32-bit\"\r\n"
-"                       libraryPath=\"%AAX_DEBUG_LIB%;%WIN_STATIC_LIB_FOLDER_D32%/\" isDebug=\"1\" optimisation=\"1\" targetName=\"%NAME%_Debug x86.dll\" binaryPath=\"Compiled/\" useRuntimeLibDLL=\"0\"/>\r\n"
+"                       libraryPath=\"%AAX_DEBUG_LIB%;%WIN_STATIC_LIB_FOLDER_D32%/\" isDebug=\"1\" optimisation=\"1\" targetName=\"%NAME%_Debug x86.dll\" binaryPath=\"Compiled/\" useRuntimeLibDLL=\"0\" prebuildCommand=\"%PREBUILD_COMMAND%\"/>\r\n"
 "        <CONFIGURATION name=\"Debug\" winWarningLevel=\"4\" generateManifest=\"1\" winArchitecture=\"x64\"\r\n"
 "                       isDebug=\"1\" optimisation=\"1\" targetName=\"%NAME%_Debug_x64.dll\"\r\n"
-"                       libraryPath=\"%AAX_DEBUG_LIB%;%WIN_STATIC_LIB_FOLDER_D64%\" binaryPath=\"Compiled/\" useRuntimeLibDLL=\"0\"/>\r\n"
+"                       libraryPath=\"%AAX_DEBUG_LIB%;%WIN_STATIC_LIB_FOLDER_D64%\" binaryPath=\"Compiled/\" useRuntimeLibDLL=\"0\" prebuildCommand=\"%PREBUILD_COMMAND%\"/>\r\n"
 "        <CONFIGURATION name=\"Release\" winWarningLevel=\"4\" generateManifest=\"1\" winArchitecture=\"32-bit\"\r\n"
-"                       libraryPath=\"%AAX_RELEASE_LIB%;%WIN_STATIC_LIB_FOLDER_R32%\" isDebug=\"0\" optimisation=\"3\" targetName=\"%NAME% x86.dll\" binaryPath=\"Compiled/\" useRuntimeLibDLL=\"0\"/>\r\n"
+"                       libraryPath=\"%AAX_RELEASE_LIB%;%WIN_STATIC_LIB_FOLDER_R32%\" isDebug=\"0\" optimisation=\"3\" targetName=\"%NAME% x86.dll\" binaryPath=\"Compiled/\" useRuntimeLibDLL=\"0\" prebuildCommand=\"%PREBUILD_COMMAND%\"/>\r\n"
 "        <CONFIGURATION name=\"Release\" winWarningLevel=\"4\" generateManifest=\"1\"\r\n"
 "                       winArchitecture=\"x64\" isDebug=\"0\" optimisation=\"3\" targetName=\"%NAME% x64.dll\"\r\n"
-"                       libraryPath=\"%AAX_RELEASE_LIB%;%WIN_STATIC_LIB_FOLDER_R64%\" binaryPath=\"Compiled/\" useRuntimeLibDLL=\"0\"/>\r\n"
+"                       libraryPath=\"%AAX_RELEASE_LIB%;%WIN_STATIC_LIB_FOLDER_R64%\" binaryPath=\"Compiled/\" useRuntimeLibDLL=\"0\" prebuildCommand=\"%PREBUILD_COMMAND%\"/>\r\n"
 "      </CONFIGURATIONS>\r\n"
 "      <MODULEPATHS>\r\n"
 "        <MODULEPATH id=\"juce_core\" path=\"%JUCE_PATH%\"/>\r\n"
@@ -113,7 +113,7 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "    </%VS_VERSION%>\r\n"
 "    <XCODE_MAC targetFolder=\"Builds/MacOSX\"  vstFolder=\"%VSTSDK_FOLDER%\"  aaxFolder=\"%AAX_PATH%\" extraCompilerFlags=\"-Wno-reorder -Wno-inconsistent-missing-override\"\r\n"
 "               customPList=\"&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;&#10;&lt;!DOCTYPE plist PUBLIC &quot;-//Apple//DTD PLIST 1.0//EN&quot; &quot;http://www.apple.com/DTDs/PropertyList-1.0.dtd&quot;&gt;&#10;&lt;plist version=&"
-"quot;1.0&quot;&gt;&#10;&lt;dict&gt;&#10;&lt;key&gt;NSAppTransportSecurity&lt;/key&gt; &#10;&lt;dict&gt; &#10;&lt;key&gt;NSAllowsArbitraryLoads&lt;/key&gt;&lt;true/&gt;&#10;&lt;/dict&gt;&#10;&lt;/dict&gt;&#10;&lt;/plist&gt;\"\r\n"
+"quot;1.0&quot;&gt;&#10;&lt;dict&gt;&#10;&lt;key&gt;NSAppTransportSecurity&lt;/key&gt; &#10;&lt;dict&gt; &#10;&lt;key&gt;NSAllowsArbitraryLoads&lt;/key&gt;&lt;true/&gt;&#10;&lt;NSHumanReadableCopyright&lt;/key&gt;&#9;&lt;string&gt;%COPY_RIGHT_NOTICE%&lt;/string&gt;&#10;&lt;/dict&gt;&#10;&lt;/dict&gt;&#10;&lt;/plist&gt;\"\r\n"
 "               extraLinkerFlags=\"%IPP_COMPILER_FLAGS% %OSX_STATIC_LIBS%\" extraDefs=\"%EXTRA_DEFINES_OSX%\">\r\n"
 "                \r\n"
 "      <CONFIGURATIONS>\r\n"
@@ -177,3 +177,5 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "</JUCERPROJECT>\r\n";
 
 const char* projectTemplate_jucer = (const char*)projectTemplate_jucer_lines;
+
+
