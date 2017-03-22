@@ -862,10 +862,26 @@ NativeJIT::Node<Buffer*>& FunctionParserBase::getBufferNode(const Identifier& id
 
 NativeJIT::Node<float>& FunctionParserBase::parseBufferAccess(const Identifier &id)
 {
-	auto& b = getBufferNode(id);
+
 
 	auto& index = parseTypedExpression<int>();
 	match(NativeJitTokens::closeBracket);
+
+	auto g = scope->getGlobal(id);
+
+	if (g->isConst && NativeJITTypeHelpers::matchesType<Buffer*>(g->getType()))
+	{
+		float* bufferData = GlobalBase::getBuffer(g)->b->buffer.getWritePointer(0);
+
+		auto& b1 = exprBase->Immediate<float*>(bufferData);
+		auto& b2 = exprBase->Add(b1, index);
+		return exprBase->Deref(b2);
+	}
+
+
+	auto& b = getBufferNode(id);
+
+
 
 	if (info.useSafeBufferFunctions)
 	{
@@ -902,7 +918,7 @@ template <typename T> BASE_NODE FunctionParserBase::parseBufferFunction(const Id
 
 template <typename T> BASE_NODE FunctionParserBase::parseBufferAssignment(const Identifier &id)
 {
-	auto& b = getBufferNode(id);
+	
 
 	auto& index = parseTypedExpression<int>();
 	match(NativeJitTokens::closeBracket);
@@ -917,16 +933,24 @@ template <typename T> BASE_NODE FunctionParserBase::parseBufferAssignment(const 
     auto& value = exprBase->Call(dummyF, unwrapped);
 #endif
 
-	if (info.useSafeBufferFunctions)
+	auto g = scope->getGlobal(id);
+
+	if (!info.useSafeBufferFunctions && g->isConst && NativeJITTypeHelpers::matchesType<Buffer*>(g->getType()))
 	{
-		auto& f = exprBase->Immediate(BufferOperations::setSample<T>);
-		return &exprBase->Call(f, b, index, value);
+		float* bufferData = GlobalBase::getBuffer(g)->b->buffer.getWritePointer(0);
+
+		auto& b1 = exprBase->Immediate<float*>(bufferData);
+		auto& b2 = exprBase->Add(b1, index);
+		
+		auto& f = exprBase->Immediate(GlobalBase::storeData<T, float>);
+
+		return &exprBase->Call(f, b2, value);
 	}
-	else
-	{
-		auto& f = exprBase->Immediate(BufferOperations::setSampleRaw<T>);
-		return &exprBase->Call(f, b, index, value);
-	}
+
+	auto& b = getBufferNode(id);
+
+	auto& f = exprBase->Immediate(BufferOperations::setSample<T>);
+	return &exprBase->Call(f, b, index, value);
 }
 
 
