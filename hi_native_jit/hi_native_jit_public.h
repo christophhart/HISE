@@ -168,7 +168,7 @@ public:
 	*
 	*	It just preprocesses the code on creation. In order to actually compile, call compileAndReturnScope()
 	*/
-	NativeJITCompiler(const juce::String& codeToCompile);
+	NativeJITCompiler(const juce::String& codeToCompile, bool useCppMode=true);
 
 	/** Destroys the compiler. The lifetime of created scopes are independent. */
 	~NativeJITCompiler();

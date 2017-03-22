@@ -165,10 +165,11 @@ public:
 		numPrivacyModes
 	};
 
-	GlobalParser(const String& code, NativeJITScope* scope_, bool useSafeBufferFunctions_) :
+	GlobalParser(const String& code, NativeJITScope* scope_, bool useSafeBufferFunctions_, bool useCppMode_=true) :
 		ParserHelpers::TokenIterator(code.getCharPointer()),
 		scope(scope_->pimpl),
-		useSafeBufferFunctions(useSafeBufferFunctions_)
+		useSafeBufferFunctions(useSafeBufferFunctions_),
+		useCppMode(useCppMode_)
 	{
 
 	}
@@ -177,32 +178,40 @@ public:
 	{
 		try
 		{
-			match(NativeJitTokens::class_);
+			if (useCppMode)
+			{
+				match(NativeJitTokens::class_);
 
-			className = parseIdentifier();
+				className = parseIdentifier();
 
-			match(NativeJitTokens::openBrace);
+				match(NativeJitTokens::openBrace);
+			}
+			
 
 			while (currentType != NativeJitTokens::eof)
 			{
-				if (matchIf(NativeJitTokens::public_))
+				if (useCppMode)
 				{
-					currentPrivacyMode = PrivacyMode::public_;
-					match(NativeJitTokens::colon);
-				}
+					if (matchIf(NativeJitTokens::public_))
+					{
+						currentPrivacyMode = PrivacyMode::public_;
+						match(NativeJitTokens::colon);
+					}
 
-				if (matchIf(NativeJitTokens::private_))
-				{
-					currentPrivacyMode = PrivacyMode::private_;
-					match(NativeJitTokens::colon);
-				}
+					if (matchIf(NativeJitTokens::private_))
+					{
+						currentPrivacyMode = PrivacyMode::private_;
+						match(NativeJitTokens::colon);
+					}
 
-				if (matchIf(NativeJitTokens::closeBrace))
-				{
-					match(NativeJitTokens::semicolon);
-					match(NativeJitTokens::eof);
-					break;
+					if (matchIf(NativeJitTokens::closeBrace))
+					{
+						match(NativeJitTokens::semicolon);
+						match(NativeJitTokens::eof);
+						break;
+					}
 				}
+				
 
 				bool isConst = false;
 
@@ -216,7 +225,6 @@ public:
 				else if (currentType == NativeJitTokens::void_)
 				{
 					parseVoidFunction();
-
 				}
 				else
 				{
@@ -533,6 +541,7 @@ private:
 	NativeJITScope::Pimpl* scope;
 
 	bool useSafeBufferFunctions;
+	bool useCppMode;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GlobalParser)
 };

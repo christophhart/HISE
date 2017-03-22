@@ -143,10 +143,10 @@ MainContentComponent::MainContentComponent()
 
 	setApplicationCommandManagerToWatch(commandManager);
 
-	//UnitTestRunner runner;
+	UnitTestRunner runner;
     
-    //runner.setAssertOnFailure(false);
-    //runner.runAllTests();
+    runner.setAssertOnFailure(false);
+    runner.runAllTests();
     
 	doc = new CodeDocument();
 	doc->replaceAllContent(emptyText);

@@ -32,12 +32,13 @@ class NativeJITCompiler::Pimpl
 {
 public:
 
-	Pimpl(const String& codeToCompile) :
+	Pimpl(const String& codeToCompile, bool useCppMode_=true) :
 		unprocessedCode(codeToCompile),
 		preprocessor(codeToCompile),
 		code(preprocessor.process()),
 		compiledOK(false),
-		useSafeFunctions(preprocessor.shouldUseSafeBufferFunctions())
+		useSafeFunctions(preprocessor.shouldUseSafeBufferFunctions()),
+		useCppMode(useCppMode_)
 	{
 
 	};
@@ -49,7 +50,7 @@ public:
 #if JUCE_64BIT
 		ScopedPointer<NativeJITScope> scope = new NativeJITScope();
 
-		GlobalParser globalParser(code, scope, useSafeFunctions);
+		GlobalParser globalParser(code, scope, useSafeFunctions, useCppMode);
 
 		try
 		{
@@ -113,13 +114,14 @@ private:
 	const String unprocessedCode;
 
 	bool useSafeFunctions;
+	bool useCppMode;
 };
 
 
 
-NativeJITCompiler::NativeJITCompiler(const String& codeToCompile)
+NativeJITCompiler::NativeJITCompiler(const String& codeToCompile, bool useCppMode)
 {
-	pimpl = new Pimpl(codeToCompile);
+	pimpl = new Pimpl(codeToCompile, useCppMode);
 }
 
 NativeJITCompiler::~NativeJITCompiler()
@@ -501,7 +503,7 @@ public:
     NativeJITTestCase(const String& stringToTest):
     code(stringToTest)
     {
-        compiler = new NativeJITCompiler(code);
+        compiler = new NativeJITCompiler(code, false);
         scope = compiler->compileAndReturnScope();
     }
 
@@ -582,7 +584,7 @@ public:
 	void setCode(const String& code_)
 	{
 		code = code_;
-		compiler = new NativeJITCompiler(code);
+		compiler = new NativeJITCompiler(code, false);
 	}
 
 	void merge()
@@ -597,7 +599,7 @@ public:
 		code << processBody;
 		code << "\n};";
 
-		compiler = new NativeJITCompiler(code);
+		compiler = new NativeJITCompiler(code, false);
 	}
 
 	void createModule()
@@ -973,11 +975,11 @@ private:
         
         CREATE_TYPED_TEST(getTestFunction<double>("return sqrt(input);"))
         expectCompileOK(test->compiler);
-        EXPECT_TYPED("sqrt", v, sqrt(v));
+        EXPECT_TYPED("sqrt", fabs(v), sqrt(fabs(v))); // No negative square root
         
-        CREATE_TYPED_TEST(getTestFunction<double>("return abs(input);"))
+        CREATE_TYPED_TEST(getTestFunction<double>("return fabs(input);"))
         expectCompileOK(test->compiler);
-        EXPECT_TYPED("abs", v, abs(v));
+        EXPECT_TYPED("fabs", v, fabs(v));
         
         CREATE_TYPED_TEST(getTestFunction<double>("return exp(input);"))
         expectCompileOK(test->compiler);
@@ -1419,7 +1421,7 @@ private:
 		ADD_CODE_LINE("    return alpha * buffer[index] + invAlpha * buffer[index + 1];");
 		ADD_CODE_LINE("};");
 
-		ScopedPointer<NativeJITCompiler> compiler = new NativeJITCompiler(code);
+		ScopedPointer<NativeJITCompiler> compiler = new NativeJITCompiler(code, false);
 
 		var scope = compiler->compileAndReturnScope();
 
@@ -1469,10 +1471,10 @@ private:
 		beginTest("Calling functions via DynamicObject interface");
 	}
 
-
-
 	void testBigFunctionBuffer()
 	{
+		beginTest("Testing big function buffer");
+
 		String code;
 
 		ADD_CODE_LINE("int get1() { return 1; };\n");
@@ -1491,7 +1493,7 @@ private:
 		ADD_CODE_LINE("    return (float)(x+y);\n");
 		ADD_CODE_LINE("};");
 
-		ScopedPointer<NativeJITCompiler> compiler = new NativeJITCompiler(code);
+		ScopedPointer<NativeJITCompiler> compiler = new NativeJITCompiler(code, false);
 
 		ScopedPointer<NativeJITScope> scope = compiler->compileAndReturnScope();
 
