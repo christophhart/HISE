@@ -31,7 +31,8 @@
 #define NATIVE_JIT_KEYWORDS(X) \
     X(float_,      "float")      X(int_, "int")     X(double_,  "double")   X(bool_, "bool") \
     X(return_, "return")		X(true_,  "true")   X(false_,    "false")	X(const_, "const") \
-	X(void_, "void")			X(buffer_, "Buffer")
+	X(void_, "void")			X(buffer_, "Buffer") X(public_, "public")	X(private_, "private") \
+	X(class_, "class")
 
 namespace NativeJitTokens
 {

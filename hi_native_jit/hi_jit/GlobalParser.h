@@ -158,6 +158,13 @@ class GlobalParser : public ParserHelpers::TokenIterator
 {
 public:
 
+	enum class PrivacyMode
+	{
+		public_,
+		private_,
+		numPrivacyModes
+	};
+
 	GlobalParser(const String& code, NativeJITScope* scope_, bool useSafeBufferFunctions_) :
 		ParserHelpers::TokenIterator(code.getCharPointer()),
 		scope(scope_->pimpl),
@@ -170,13 +177,42 @@ public:
 	{
 		try
 		{
+			match(NativeJitTokens::class_);
+
+			className = parseIdentifier();
+
+			match(NativeJitTokens::openBrace);
+
 			while (currentType != NativeJitTokens::eof)
 			{
-				if (NativeJITTypeHelpers::matchesToken<float>(currentType)) parseStatement<float>();
-				else if (NativeJITTypeHelpers::matchesToken<double>(currentType)) parseStatement<double>();
-				else if (NativeJITTypeHelpers::matchesToken<int>(currentType)) parseStatement<int>();
-				else if (NativeJITTypeHelpers::matchesToken<BooleanType>(currentType)) parseStatement<BooleanType>();
-				else if (NativeJITTypeHelpers::matchesToken<Buffer>(currentType)) parseBufferDefinition();
+				if (matchIf(NativeJitTokens::public_))
+				{
+					currentPrivacyMode = PrivacyMode::public_;
+					match(NativeJitTokens::colon);
+				}
+
+				if (matchIf(NativeJitTokens::private_))
+				{
+					currentPrivacyMode = PrivacyMode::private_;
+					match(NativeJitTokens::colon);
+				}
+
+				if (matchIf(NativeJitTokens::closeBrace))
+				{
+					match(NativeJitTokens::semicolon);
+					match(NativeJitTokens::eof);
+					break;
+				}
+
+				bool isConst = false;
+
+				if (matchIf(NativeJitTokens::const_)) { isConst = true; }
+
+				if (NativeJITTypeHelpers::matchesToken<float>(currentType)) parseStatement<float>(isConst);
+				else if (NativeJITTypeHelpers::matchesToken<double>(currentType)) parseStatement<double>(isConst);
+				else if (NativeJITTypeHelpers::matchesToken<int>(currentType)) parseStatement<int>(isConst);
+				else if (NativeJITTypeHelpers::matchesToken<BooleanType>(currentType)) parseStatement<BooleanType>(isConst);
+				else if (NativeJITTypeHelpers::matchesToken<Buffer>(currentType)) parseBufferDefinition(isConst);
 				else if (currentType == NativeJitTokens::void_)
 				{
 					parseVoidFunction();
@@ -186,6 +222,17 @@ public:
 				{
 					location.throwError("Unexpected Token");
 				}
+			}
+
+			for (int i = 0; i < functionsToParse.size(); i++)
+			{
+				auto& f = *functionsToParse[i];
+
+				if (NativeJITTypeHelpers::matchesType<float>(f.lineType)) parseFunction<float>(f);
+				else if (NativeJITTypeHelpers::matchesType<double>(f.lineType)) parseFunction<double>(f);
+				else if (NativeJITTypeHelpers::matchesType<int>(f.lineType)) parseFunction<int>(f);
+				//else if (NativeJITTypeHelpers::matchesType<Buffer*>(f.lineType)) parseFunction<Buffer*>(f);
+				else if (NativeJITTypeHelpers::matchesType<BooleanType>(f.lineType)) parseFunction<BooleanType>(f);
 			}
 		}
 		catch (ParserHelpers::CodeLocation::Error e)
@@ -201,7 +248,7 @@ public:
 		}
 	}
 
-	template <typename LineType> void parseStatement()
+	template <typename LineType> void parseStatement(bool isConst)
 	{
 		skip();
 
@@ -209,7 +256,7 @@ public:
 
 		if (matchIf(NativeJitTokens::assign_))
 		{
-			parseVariableDefinition<LineType>(id);
+			parseVariableDefinition<LineType>(id, isConst);
 		}
 		else if (matchIf(NativeJitTokens::openParen))
 		{
@@ -230,7 +277,7 @@ public:
 		match(NativeJitTokens::semicolon);
 	}
 
-	void parseBufferDefinition()
+	void parseBufferDefinition(bool isConst)
 	{
 		skip();
 
@@ -248,6 +295,7 @@ public:
 		}
 
 		g->setBuffer(new VariantBuffer(size));
+		g->isConst = isConst;
 
 		scope->globals.add(g.release());
 
@@ -268,9 +316,11 @@ public:
 
 	}
 
-	template <typename LineType> void parseVariableDefinition(const Identifier& id)
+	template <typename LineType> void parseVariableDefinition(const Identifier& id, bool isConst)
 	{
 		GlobalBase* g = parseVariableDeclaration<LineType>(id);
+
+		g->isConst = isConst;
 
 		GlobalBase::store(g, parseLiteral<LineType>());
 	}
@@ -305,18 +355,15 @@ public:
 		return v;
 	}
 
-	template <typename LineType> void parseFunctionDefinition(const Identifier &id, bool addVoidReturnStatement=false)
+	template <typename LineType> void parseFunctionDefinition(const Identifier &id, bool addVoidReturnStatement = false)
 	{
-		FunctionInfo info;
-		
-		info.program = location.program;
+		ScopedPointer<FunctionInfo> info = new FunctionInfo();
 
-		info.useSafeBufferFunctions = useSafeBufferFunctions;
-
-		if (addVoidReturnStatement)
-		{
-			//jassert(NativeJITTypeHelpers::is<int, LineType>());
-		}
+		info->id = id;
+		info->program = location.program;
+		info->useSafeBufferFunctions = useSafeBufferFunctions;
+		info->addVoidReturnStatement = addVoidReturnStatement;
+		info->lineType = typeid(LineType);
 
 		while (currentType != NativeJitTokens::closeParen && currentType != NativeJitTokens::eof)
 		{
@@ -325,13 +372,13 @@ public:
 				location.throwError("Type name expected");
 			}
 
-			info.parameterTypes.add(Identifier(currentType));
+			info->parameterTypes.add(Identifier(currentType));
 
 			skip();
 
-			info.parameterNames.add(parseIdentifier());
-			
-			info.parameterAmount++;
+			info->parameterNames.add(parseIdentifier());
+
+			info->parameterAmount++;
 
 			matchIf(NativeJitTokens::comma);
 		}
@@ -343,56 +390,59 @@ public:
 		//NativeJIT::FunctionBuffer& fb = scope->createFunctionBuffer();
 
 		auto start = location.location;
-		info.offset = (int)(location.location - location.program);
-		
+		info->offset = (int)(location.location - location.program);
+
 		while (currentType != NativeJitTokens::closeBrace && currentType != NativeJitTokens::eof)
 		{
 			skip();
 		}
-		
+
 		auto end = location.location;
 
-		info.code = start;
-		info.length = (int)(location.location - start);
+		info->code = start;
+		info->length = (int)(location.location - start);
 
 		match(NativeJitTokens::closeBrace);
 
-		
-		
+		functionsToParse.add(info.release());
 
+	}
+
+	template <typename LineType> void parseFunction(FunctionInfo& info)
+	{
 		switch (info.parameterAmount)
 		{
 		case 0:
 		{
-			compileFunction0<LineType>(id, info, addVoidReturnStatement); return;
+			compileFunction0<LineType>(info.id, info, info.addVoidReturnStatement); return;
 		}
 		case 1:
 		{
-			if (compileFunction1<LineType, float>(id, info, addVoidReturnStatement)) return;
-			if (compileFunction1<LineType, int>(id, info, addVoidReturnStatement)) return;
-			if (compileFunction1<LineType, double>(id, info, addVoidReturnStatement)) return;
-			if (compileFunction1<LineType, Buffer*>(id, info, addVoidReturnStatement)) return;
-			if (compileFunction1<LineType, BooleanType>(id, info, addVoidReturnStatement)) return;
+			if (compileFunction1<LineType, float>(info.id, info, info.addVoidReturnStatement)) return;
+			if (compileFunction1<LineType, int>(info.id, info, info.addVoidReturnStatement)) return;
+			if (compileFunction1<LineType, double>(info.id, info, info.addVoidReturnStatement)) return;
+			if (compileFunction1<LineType, Buffer*>(info.id, info, info.addVoidReturnStatement)) return;
+			if (compileFunction1<LineType, BooleanType>(info.id, info, info.addVoidReturnStatement)) return;
 		}
 		case 2:
 		{
-			if (compileFunction2<LineType, float, float>(id, info, addVoidReturnStatement)) return;
-			if (compileFunction2<LineType, float, double>(id, info, addVoidReturnStatement)) return;
-			if (compileFunction2<LineType, float, int>(id, info, addVoidReturnStatement)) return;
-			if (compileFunction2<LineType, float, Buffer*>(id, info, addVoidReturnStatement)) return;
-			if (compileFunction2<LineType, float, BooleanType>(id, info, addVoidReturnStatement)) return;
+			if (compileFunction2<LineType, float, float>(info.id, info, info.addVoidReturnStatement)) return;
+			if (compileFunction2<LineType, float, double>(info.id, info, info.addVoidReturnStatement)) return;
+			if (compileFunction2<LineType, float, int>(info.id, info, info.addVoidReturnStatement)) return;
+			if (compileFunction2<LineType, float, Buffer*>(info.id, info, info.addVoidReturnStatement)) return;
+			if (compileFunction2<LineType, float, BooleanType>(info.id, info, info.addVoidReturnStatement)) return;
 
-			if (compileFunction2<LineType, double, float>(id, info, addVoidReturnStatement)) return;
-			if (compileFunction2<LineType, double, double>(id, info, addVoidReturnStatement)) return;
-			if (compileFunction2<LineType, double, int>(id, info, addVoidReturnStatement)) return;
-			if (compileFunction2<LineType, double, Buffer*>(id, info, addVoidReturnStatement)) return;
-			if (compileFunction2<LineType, double, BooleanType>(id, info, addVoidReturnStatement)) return;
+			if (compileFunction2<LineType, double, float>(info.id, info, info.addVoidReturnStatement)) return;
+			if (compileFunction2<LineType, double, double>(info.id, info, info.addVoidReturnStatement)) return;
+			if (compileFunction2<LineType, double, int>(info.id, info, info.addVoidReturnStatement)) return;
+			if (compileFunction2<LineType, double, Buffer*>(info.id, info, info.addVoidReturnStatement)) return;
+			if (compileFunction2<LineType, double, BooleanType>(info.id, info, info.addVoidReturnStatement)) return;
 
-			if (compileFunction2<LineType, int, float>(id, info, addVoidReturnStatement)) return;
-			if (compileFunction2<LineType, int, double>(id, info, addVoidReturnStatement)) return;
-			if (compileFunction2<LineType, int, int>(id, info, addVoidReturnStatement)) return;
-			if (compileFunction2<LineType, int, Buffer*>(id, info, addVoidReturnStatement)) return;
-			if (compileFunction2<LineType, int, BooleanType>(id, info, addVoidReturnStatement)) return;
+			if (compileFunction2<LineType, int, float>(info.id, info, info.addVoidReturnStatement)) return;
+			if (compileFunction2<LineType, int, double>(info.id, info, info.addVoidReturnStatement)) return;
+			if (compileFunction2<LineType, int, int>(info.id, info, info.addVoidReturnStatement)) return;
+			if (compileFunction2<LineType, int, Buffer*>(info.id, info, info.addVoidReturnStatement)) return;
+			if (compileFunction2<LineType, int, BooleanType>(info.id, info, info.addVoidReturnStatement)) return;
 		}
 		}
 	}
@@ -473,6 +523,12 @@ public:
 	}
 
 private:
+
+	OwnedArray<FunctionInfo> functionsToParse;
+
+	PrivacyMode currentPrivacyMode = PrivacyMode::public_;
+
+	Identifier className;
 
 	NativeJITScope::Pimpl* scope;
 

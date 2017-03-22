@@ -333,15 +333,16 @@ namespace NativeJIT
         {
             auto node = *nodeIt;
 
+#if 0
             if (!node->IsReferenced())
             {
-				continue;
-
-                Print();
+				
+				Print();
                 LogThrowAssert(node->IsReferenced(),
                                "Node with ID %u has been created but not referenced by nodes in the tree",
                                node->GetId());
             }
+
 
             // If there's a way for node's children to be evaluated without
             // evaluating this node first (f. ex. collapsing of pointers to the
@@ -352,6 +353,7 @@ namespace NativeJIT
             {
                 node->ReleaseReferencesToChildren();
             }
+#endif
         }
     }
 
