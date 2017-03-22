@@ -35,6 +35,8 @@
 
 #include <regex>
 #include <atomic>
+#include <float.h>
+#include <limits.h>
 
 #if JUCE_IOS
 #else
