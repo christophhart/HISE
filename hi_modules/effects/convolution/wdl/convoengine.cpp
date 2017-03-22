@@ -37,7 +37,7 @@
 //#define TIMING
 #include "timing.c"
 
-#if JUCE_WINDOWS
+#if JUCE_WINDOWS && JUCE_64BIT
 #define USE_SSE_WDL_CUSTOM 1
 #endif
 
