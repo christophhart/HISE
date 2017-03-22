@@ -973,6 +973,20 @@ template <typename T> BASE_NODE FunctionParserBase::getGlobalNodeGetFunction(con
 
 BASE_NODE FunctionParserBase::getGlobalReference(const Identifier& id)
 {
+	auto g = scope->getGlobal(id);
+
+	if (g->isConst)
+	{
+#define MATCH_TYPE_AND_RETURN(type) if(NativeJITTypeHelpers::matchesType<type>(g->getType())) return &exprBase->Immediate<type>(GlobalBase::get<type>(g));
+
+		MATCH_TYPE_AND_RETURN(double);
+		MATCH_TYPE_AND_RETURN(float);
+		MATCH_TYPE_AND_RETURN(int);
+		MATCH_TYPE_AND_RETURN(BooleanType);
+
+#undef MATCH_TYPE_AND_RETURN
+	}
+
 	auto existingNode = getGlobalNode(id);
 
 	const bool globalWasChanged = existingNode != nullptr;
@@ -983,8 +997,7 @@ BASE_NODE FunctionParserBase::getGlobalReference(const Identifier& id)
 	}
 	else
 	{
-		auto g = scope->getGlobal(id);
-        
+		
 #define MATCH_TYPE_AND_RETURN(type) if (NativeJITTypeHelpers::matchesType<type>(g->getType())) return getGlobalNodeGetFunction<type>(id);
 
 		MATCH_AND_RETURN_ALL_TYPES()
