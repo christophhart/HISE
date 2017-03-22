@@ -351,6 +351,102 @@ private:
 #define ADD_GLITCH_DETECTOR(x)
 #endif
 
+
+/** A collection of little helper functions to clean float arrays.
+*
+*	Source: http://musicdsp.org/showArchiveComment.php?ArchiveID=191
+*/
+struct FloatSanitizers
+{
+	static void sanitizeArray(float* data, int size)
+	{
+		uint32* dataAsInt = reinterpret_cast<uint32*>(data);
+
+		for (int i = 0; i < size; i++)
+		{
+			const uint32 sample = *dataAsInt;
+			const uint32 exponent = sample & 0x7F800000;
+
+			const int aNaN = exponent < 0x7F800000;
+			const int aDen = exponent > 0;
+
+			*dataAsInt++ = sample * (aNaN & aDen);
+
+		}
+	};
+
+	static float sanitizeFloatNumber(float& input)
+	{
+		uint32* valueAsInt = reinterpret_cast<uint32*>(&input);
+		const uint32 exponent = *valueAsInt & 0x7F800000;
+
+		const int aNaN = exponent < 0x7F800000;
+		const int aDen = exponent > 0;
+
+		const uint32 sanitized = *valueAsInt * (aNaN & aDen);
+
+		return *reinterpret_cast<const float*>(&sanitized);
+	};
+
+	struct Test : public UnitTest
+	{
+		Test():
+			UnitTest("Testing float sanitizer")
+		{
+
+		};
+
+		void runTest() override
+		{
+			beginTest("Testing array method");
+
+			float d[6];
+
+			d[0] = INFINITY;
+			d[1] = FLT_MIN / 20.0f;
+			d[2] = FLT_MIN / -14.0f;
+			d[3] = NAN;
+			d[4] = 24.0f;
+			d[5] = 0.0052f;
+
+			sanitizeArray(d, 6);
+
+			expectEquals<float>(d[0], 0.0f, "Infinity");
+			expectEquals<float>(d[1], 0.0f, "Denormal");
+			expectEquals<float>(d[2], 0.0f, "Negative Denormal");
+			expectEquals<float>(d[3], 0.0f, "NaN");
+			expectEquals<float>(d[4], 24.0f, "Normal Number");
+			expectEquals<float>(d[5], 0.0052f, "Small Number");
+
+			beginTest("Testing single method");
+
+			float d0 = INFINITY;
+			float d1 = FLT_MIN / 20.0f;
+			float d2 = FLT_MIN / -14.0f;
+			float d3 = NAN;
+			float d4 = 24.0f;
+			float d5 = 0.0052f;
+
+			d0 = sanitizeFloatNumber(d0);
+			d1 = sanitizeFloatNumber(d1);
+			d2 = sanitizeFloatNumber(d2);
+			d3 = sanitizeFloatNumber(d3);
+			d4 = sanitizeFloatNumber(d4);
+			d5 = sanitizeFloatNumber(d5);
+
+			expectEquals<float>(d0, 0.0f, "Single Infinity");
+			expectEquals<float>(d1, 0.0f, "Single Denormal");
+			expectEquals<float>(d2, 0.0f, "Single Negative Denormal");
+			expectEquals<float>(d3, 0.0f, "Single NaN");
+			expectEquals<float>(d4, 24.0f, "Single Normal Number");
+			expectEquals<float>(d5, 0.0052f, "Single Small Number");
+
+		}
+	};
+};
+
+static FloatSanitizers::Test floatSanitizerTest;
+
 /** A drop in replacement for the ChangeBroadcaster class from JUCE but with weak references.
 *
 *	If you use the normal class and forget to unregister a listener in its destructor, it will crash the application.

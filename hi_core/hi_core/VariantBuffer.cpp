@@ -73,7 +73,8 @@ var VariantBuffer::getSample(int sampleIndex)
 void VariantBuffer::setSample(int sampleIndex, float newValue)
 {
 	CHECK_CONDITION(isPositiveAndBelow(sampleIndex, buffer.getNumSamples()), getName() + ": Invalid sample index" + String(sampleIndex));
-	buffer.setSample(0, sampleIndex, newValue);
+
+	buffer.setSample(0, sampleIndex, FloatSanitizers::sanitizeFloatNumber(newValue));
 }
 
 void VariantBuffer::operator>>(VariantBuffer &destinationBuffer) const
@@ -81,11 +82,13 @@ void VariantBuffer::operator>>(VariantBuffer &destinationBuffer) const
 	CHECK_CONDITION((destinationBuffer.size >= size), "destination buffer too small: " + String(size));
 
 	FloatVectorOperations::copy(destinationBuffer.buffer.getWritePointer(0), buffer.getReadPointer(0), size);
+
+	FloatSanitizers::sanitizeArray(destinationBuffer.buffer.getWritePointer(0), destinationBuffer.size);
 }
 
 VariantBuffer& VariantBuffer::operator<<(float f)
 {
-	FloatVectorOperations::fill(buffer.getWritePointer(0), f, size);
+	FloatVectorOperations::fill(buffer.getWritePointer(0), FloatSanitizers::sanitizeFloatNumber(f), size);
 
 	return *this;
 }
@@ -99,20 +102,22 @@ VariantBuffer& VariantBuffer::operator<<(const VariantBuffer &b)
 
 	FloatVectorOperations::copy(buffer.getWritePointer(0), b.buffer.getReadPointer(0), size);
 
+	FloatSanitizers::sanitizeArray(buffer.getWritePointer(0), size);
+
 	return *this;
 }
 
 
 VariantBuffer& VariantBuffer::operator+=(float gain)
 {
-	FloatVectorOperations::add(buffer.getWritePointer(0), gain, buffer.getNumSamples());
+	FloatVectorOperations::add(buffer.getWritePointer(0), FloatSanitizers::sanitizeFloatNumber(gain), buffer.getNumSamples());
 
 	return *this;
 }
 
 VariantBuffer VariantBuffer::operator+(float gain)
 {
-	FloatVectorOperations::add(buffer.getWritePointer(0), gain, buffer.getNumSamples());
+	FloatVectorOperations::add(buffer.getWritePointer(0), FloatSanitizers::sanitizeFloatNumber(gain), buffer.getNumSamples());
 
 	return *this;
 }
@@ -137,7 +142,7 @@ VariantBuffer VariantBuffer::operator+(const VariantBuffer &b)
 
 VariantBuffer & VariantBuffer::operator-(float value)
 {
-	FloatVectorOperations::add(buffer.getWritePointer(0), -1.0f * value, buffer.getNumSamples());
+	FloatVectorOperations::add(buffer.getWritePointer(0), -1.0f * FloatSanitizers::sanitizeFloatNumber(value), buffer.getNumSamples());
 
 	return *this;
 }
@@ -145,7 +150,7 @@ VariantBuffer & VariantBuffer::operator-(float value)
 
 VariantBuffer & VariantBuffer::operator-=(float value)
 {
-	FloatVectorOperations::add(buffer.getWritePointer(0), -1.0f * value, buffer.getNumSamples());
+	FloatVectorOperations::add(buffer.getWritePointer(0), -1.0f * FloatSanitizers::sanitizeFloatNumber(value), buffer.getNumSamples());
 	
 	return *this;
 }
@@ -171,14 +176,14 @@ VariantBuffer & VariantBuffer::operator-=(const VariantBuffer &b)
 
 VariantBuffer& VariantBuffer::operator*=(float gain)
 {
-	buffer.applyGain(gain);
+	buffer.applyGain(FloatSanitizers::sanitizeFloatNumber(gain));
 
 	return *this;
 }
 
 VariantBuffer VariantBuffer::operator*(float gain)
 {
-	buffer.applyGain(gain);
+	buffer.applyGain(FloatSanitizers::sanitizeFloatNumber(gain));
 
 	return *this;
 }

@@ -395,6 +395,11 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 	while (eventIterator.getNextEvent(m, midiEventPos, true, false))
 		handleHiseEvent(m);
 
+	for (int i = 0; i < internalBuffer.getNumChannels(); i++)
+	{
+		FloatSanitizers::sanitizeArray(internalBuffer.getWritePointer(i), numSamplesFixed);
+	}
+
 	effectChain->renderMasterEffects(internalBuffer);
 
 	for (int i = 0; i < internalBuffer.getNumChannels(); i++)
