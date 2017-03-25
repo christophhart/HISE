@@ -44,7 +44,7 @@ void RoundRobinMidiProcessor::processHiseEvent(HiseEvent &m)
 
 	if(group == nullptr)
 	{
-		debugMod("WARNING: NOT USED ON GROUP!");
+		
 		return;
 	}
 

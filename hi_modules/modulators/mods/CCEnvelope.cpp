@@ -248,11 +248,6 @@ void CCEnvelope::startVoice(int voiceIndex)
 
 	if (state->current_state != CCEnvelopeState::IDLE)
 	{
-		debugMod("The Envelope was not idle at voice index " + String(voiceIndex));
-	}
-
-	if (state->current_state != CCEnvelopeState::IDLE)
-	{
 		reset(voiceIndex);
 	}
 
@@ -274,7 +269,6 @@ void CCEnvelope::startVoice(int voiceIndex)
 	state->uptime = 0;
 
 	state->current_state = CCEnvelopeState::HOLD;
-	debugMod(" (Voice " + String(voiceIndex) + ": IDLE->ATTACK");
 }
 
 void CCEnvelope::stopVoice(int voiceIndex)
@@ -382,8 +376,6 @@ void CCEnvelope::handleHiseEvent(const HiseEvent& e)
 		else value = inputValue;
 
 		targetValue = value;
-
-		debugMod(" New Value: " + String(value));
 	}
 };
 

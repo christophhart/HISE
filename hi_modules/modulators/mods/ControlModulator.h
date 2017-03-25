@@ -100,6 +100,7 @@ private:
 	float targetValue;
 	int64 uptime;
 	float inputValue;
+    float lastInputValue = -1.0f;
 
 	// the smoothed version of the target value
 	float currentValue;

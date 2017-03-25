@@ -208,7 +208,11 @@ void ControlModulator::calculateBlock(int startSample, int numSamples)
 		FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), currentValue, numSamples);
 	}
 
-	if (useTable)sendTableIndexChangeMessage(false, table, inputValue);
+	if (useTable && lastInputValue != inputValue)
+    {
+        lastInputValue = inputValue;
+        sendTableIndexChangeMessage(false, table, inputValue);
+    }
 
 	setOutputValue(currentValue);
 }
@@ -296,7 +300,5 @@ void ControlModulator::handleHiseEvent(const HiseEvent &m)
 		if(inverted) value = 1.0f - value;
 
 		targetValue = value;
-
-		debugMod(" New Value: " + String(value));
 	}
 }

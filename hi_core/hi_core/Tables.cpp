@@ -41,8 +41,8 @@ float Interpolator::interpolateLinear(const float lowValue, const float highValu
 
 Table::Table()
 {
-		graphPoints.add(GraphPoint(0.0, 0.0, 0.5));
-		graphPoints.add(GraphPoint(1.0, 1.0, 0.5));
+    graphPoints.add(GraphPoint(0.0, 0.0, 0.5));
+    graphPoints.add(GraphPoint(1.0, 1.0, 0.5));
 }
 
 void Table::setGraphPoints(const Array<GraphPoint> &newGraphPoints, int numPoints)

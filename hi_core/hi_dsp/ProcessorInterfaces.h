@@ -47,6 +47,11 @@ public:
 
 	struct TableChangeBroadcaster : public SafeChangeBroadcaster
 	{
+        TableChangeBroadcaster()
+        {
+            enableAllocationFreeMessages(50);
+        }
+        
 		CriticalSection lock;
 
 		WeakReference<Table> table;

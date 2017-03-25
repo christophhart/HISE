@@ -141,9 +141,7 @@ public:
 			sendTableIndexChangeMessage(false, velocityTable, m.getFloatVelocity());
 		}
 			
-		debugMod(String(value, 2));
-
-        if(decibelMode)
+		if(decibelMode)
         {
             const float decibelValue = -100.0f + 100.0f * value;
             value = Decibels::decibelsToGain(decibelValue);

@@ -116,7 +116,7 @@ void TableEnvelope::startVoice(int voiceIndex)
 	
 
 
-	debugMod(" (Voice " + String(voiceIndex) + ": IDLE->ATTACK");
+	
 }
 
 void TableEnvelope::stopVoice(int voiceIndex)
@@ -124,7 +124,7 @@ void TableEnvelope::stopVoice(int voiceIndex)
 	TableEnvelopeState *state = static_cast<TableEnvelopeState*>(states[voiceIndex]);
 	//jassert(state->current_state == TableEnvelopeState::SUSTAIN || state->current_state == TableEnvelopeState::ATTACK);
 
-	debugMod(" (Voice " + String(voiceIndex) + (state->current_state == TableEnvelopeState::SUSTAIN ? "SUSTAIN": "ATTACK") + "->RELEASE");
+	
 	state->current_state = TableEnvelopeState::RELEASE;
 
 	state->releaseGain = state->current_value;
@@ -236,7 +236,7 @@ float TableEnvelope::calculateNewValue()
 			else
 			{
 			state->current_state = TableEnvelopeState::SUSTAIN;
-			debugMod(" (voiceIndex = " + String(voiceIndex) + "): ATTACK->SUSTAIN");
+			
 			}
 		}
 		break;
@@ -251,7 +251,7 @@ float TableEnvelope::calculateNewValue()
 		{
 			state->current_value = 0.0f; 
 			state->current_state = TableEnvelopeState::IDLE;
-			debugMod(" (voiceIndex = " + String(voiceIndex) + "): RELEASE->IDLE");
+			
 		}
 		else
 		{

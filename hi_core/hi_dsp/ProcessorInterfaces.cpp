@@ -59,7 +59,7 @@ void LookupTableProcessor::sendTableIndexChangeMessage(bool sendSynchronous, Tab
 	tableChangeBroadcaster.tableIndex = tableIndex;
 
 	if (sendSynchronous) tableChangeBroadcaster.sendSynchronousChangeMessage();
-	else tableChangeBroadcaster.sendChangeMessage();
+    else tableChangeBroadcaster.sendAllocationFreeChangeMessage();
 }
 
 

@@ -133,6 +133,6 @@ void PitchwheelModulator::handleHiseEvent (const HiseEvent &m)
 
 		targetValue = value;
 
-		debugMod(" New Value: " + String(value));
+		
 	};
 }

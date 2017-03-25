@@ -77,7 +77,7 @@ public:
 	void setDisplayedIndex(int index)
 	{
 		nextIndexToDisplay = index;
-		sendChangeMessage();
+		sendAllocationFreeChangeMessage();
 	}
 	void setFlashActive(bool shouldBeShown) { flashActive = shouldBeShown; };
 	void setShowValueOverlay(bool shouldBeShown) { showValueOverlay = shouldBeShown; };
