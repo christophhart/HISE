@@ -318,7 +318,7 @@ public:
                 b[index] = newValue;
         }
         
-        void prepareToPlay(double sampleRate, int /*samplesPerBlock*/)
+        void prepareToPlay(double /*sampleRate*/, int /*samplesPerBlock*/)
         {
             
         }
@@ -336,7 +336,7 @@ public:
                 FloatVectorOperations::copy(data[1], l, numSamples);
         }
     
-        float process(float input)
+        float process(float /*input*/)
         {
             const float uptimeFloat = (float)uptime;
             

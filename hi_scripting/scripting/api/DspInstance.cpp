@@ -201,11 +201,16 @@ void DspInstance::processBlock(const var &data)
 
 				const bool rampUp = !isBypassed();
 
+				FloatSanitizers::sanitizeArray(sampleData[0], numSamples);
+				FloatSanitizers::sanitizeArray(sampleData[1], numSamples);
+
 				FloatVectorOperations::copy(leftSamples, sampleData[0], numSamples);
 				FloatVectorOperations::copy(rightSamples, sampleData[1], numSamples);
 
 				CHECK_BURST_WHEN_LOGGING(leftSamples, numSamples);
 				CHECK_BURST_WHEN_LOGGING(rightSamples, numSamples);
+
+				
 
 				object->processBlock(sampleData, a->size(), numSamples);
 
@@ -232,9 +237,13 @@ void DspInstance::processBlock(const var &data)
 			}
 			else
 			{
-
+				FloatSanitizers::sanitizeArray(sampleData[0], numSamples);
+				FloatSanitizers::sanitizeArray(sampleData[1], numSamples);
                 
 				object->processBlock(sampleData, a->size(), numSamples);
+
+				FloatSanitizers::sanitizeArray(sampleData[0], numSamples);
+				FloatSanitizers::sanitizeArray(sampleData[1], numSamples);
 			}
 
 			CHECK_BURST_WHEN_LOGGING(sampleData[0], numSamples);

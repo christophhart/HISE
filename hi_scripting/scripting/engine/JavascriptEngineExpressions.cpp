@@ -93,7 +93,9 @@ struct HiseJavascriptEngine::RootObject::ArraySubscript : public Expression
 		{
 			const int i = index->getResult(s);
 
-			(*b)[i] = newValue;
+			float v = (float)newValue;
+
+			(*b)[i] = FloatSanitizers::sanitizeFloatNumber(v);
 			return;
 		}
 		else if (Array<var>* array = result.getArray())

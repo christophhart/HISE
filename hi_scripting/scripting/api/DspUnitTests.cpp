@@ -46,6 +46,8 @@ public:
 	{
 		testVariantBuffer();
 
+		testVariantBufferWithCorruptValues();
+
 		testDspInstances();
 	}
 
@@ -121,6 +123,63 @@ public:
 		
 
 	}
+
+
+	void testVariantBufferWithCorruptValues()
+	{
+		VariantBuffer b(6);
+
+		b.setSample(0, INFINITY);
+		b.setSample(1, FLT_MIN / 20.0f);
+		b.setSample(2, FLT_MIN / -14.0f);
+		b.setSample(3, NAN);
+		b.setSample(4, 24.0f);
+		b.setSample(5, 0.0052f);
+
+		expectEquals<float>(b[0], 0.0f, "Storing Infinity");
+		expectEquals<float>(b[1], 0.0f, "Storing Denormal");
+		expectEquals<float>(b[2], 0.0f, "Storing Negative Denormal");
+		expectEquals<float>(b[3], 0.0f, "Storing NaN");
+		expectEquals<float>(b[4], 24.0f, "Storing Normal Number");
+		expectEquals<float>(b[5], 0.0052f, "Storing Small Number");
+
+		1.0f >> b;
+		b * INFINITY;
+		expectEquals<float>(b.getSample(0), 0.0f, "Multiplying with infinity");
+
+		1.0f >> b;
+		b * (FLT_MIN / 20.0f);
+		expectEquals<float>(b.getSample(0), 0.0f, "Multiplying with positive denormal");
+
+		1.0f >> b;
+		b * (FLT_MIN / -14.0f);
+		expectEquals<float>(b.getSample(0), 0.0f, "Multiplying with negative denormal");
+
+		1.0f >> b;
+		b * NAN;
+		expectEquals<float>(b.getSample(0), 0.0f, "Multiplying with NaN");
+
+		VariantBuffer a(6);
+
+		float* aData = a.buffer.getWritePointer(0);
+
+		aData[0] = INFINITY;
+		aData[1] = FLT_MIN / 20.0f;
+		aData[2] = FLT_MIN / -14.0f;
+		aData[3] = NAN;
+		aData[4] = 24.0f;
+		aData[5] = 0.0052f;
+
+		a >> b;
+
+		expectEquals<float>(b[0], 0.0f, "Copying Infinity");
+		expectEquals<float>(b[1], 0.0f, "Copying Denormal");
+		expectEquals<float>(b[2], 0.0f, "Copying Negative Denormal");
+		expectEquals<float>(b[3], 0.0f, "Copying NaN");
+		expectEquals<float>(b[4], 24.0f, "Copying Normal Number");
+		expectEquals<float>(b[5], 0.0052f, "Copying Small Number");
+	}
+
 
 
 	void fillFloatArrayWithRandomNumbers(float *data, int numSamples)
