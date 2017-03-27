@@ -103,7 +103,7 @@ void TableEnvelope::startVoice(int voiceIndex)
 	
 	state->uptime = 0.0f;
 
-	if (attack == 0.0f)
+	if (attack == 0.0f || state->attackModValue > 998.0)
 	{
 		state->current_value = 1.0f;
 		state->current_state = TableEnvelopeState::SUSTAIN;
