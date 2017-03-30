@@ -91,6 +91,10 @@ AudioProcessorEditor(fp)
 
     overlayToolbar = dynamic_cast<DefaultFrontendBar*>(mainBar.get()) != nullptr && fp->getToolbarPropertiesObject()->getProperty("overlaying");
     
+	addChildComponent(debugLoggerComponent = new DebugLoggerComponent(&fp->getDebugLogger()));
+
+	debugLoggerComponent->setVisible(fp->getDebugLogger().isLogging());
+
 #if HISE_IOS
     const int keyboardHeight = 210;
 #else
@@ -121,6 +125,7 @@ FrontendProcessorEditor::~FrontendProcessorEditor()
 	keyboard = nullptr;
 	aboutPage = nullptr;
 	loaderOverlay = nullptr;
+	debugLoggerComponent = nullptr;
 }
 
 void FrontendProcessorEditor::setGlobalScaleFactor(float newScaleFactor)
@@ -176,13 +181,20 @@ void FrontendProcessorEditor::resized()
     if(keyboard->isVisible())
     {
         keyboard->setBounds(0, y, width, keyboardHeight);
+		debugLoggerComponent->setBounds(0, y - 60, width, 60);
     }
+	else
+	{
+		debugLoggerComponent->setBounds(0, getHeight() - 60, width, 60);
+	}
 	
 	aboutPage->setBoundsInset(BorderSize<int>(80));
 	
     deactiveOverlay->setBounds(0, 0, width, height);
 
 	loaderOverlay->setBounds(0, 0, width, height);
+
+	
 }
 
 #if USE_COPY_PROTECTION

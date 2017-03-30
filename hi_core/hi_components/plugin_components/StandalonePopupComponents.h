@@ -136,6 +136,7 @@ private:
 	ScopedPointer<ComboBox> ccSustainSelector;
 	ScopedPointer<TextButton> clearMidiLearn;
 	ScopedPointer<TextButton> relocateButton;
+	ScopedPointer<TextButton> debugButton;
 	
 };
 

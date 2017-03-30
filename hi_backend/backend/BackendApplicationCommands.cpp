@@ -140,6 +140,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsConvertAllSamplesToMonolith,
 		MenuToolsConvertSfzToSampleMaps,
 		MenuToolsEnableAutoSaving,
+		MenuToolsEnableDebugLogging,
 		MenuToolsCreateRSAKeys,
 		MenuToolsCreateDummyLicenceFile,
         MenuViewFullscreen,
@@ -409,6 +410,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuToolsEnableAutoSaving:
 		setCommandTarget(result, "Enable Autosaving", true, bpe->owner->getAutoSaver().isAutoSaving(), 'X', false);
 		break;
+	case MenuToolsEnableDebugLogging:
+		setCommandTarget(result, "Enable Debug Logger", true, bpe->owner->getDebugLogger().isLogging(), 'X', false);
+		break;
 	case MenuToolsCreateRSAKeys:
 		setCommandTarget(result, "Create RSA Key pair", true, false, 'X', false);
 		break;
@@ -549,6 +553,8 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsCreateRSAKeys:		Actions::createRSAKeys(bpe); return true;
 	case MenuToolsCreateDummyLicenceFile: Actions::createDummyLicenceFile(bpe); return true;
 	case MenuToolsCheckAllSampleMaps:	Actions::checkAllSamplemaps(bpe); return true;
+	case MenuToolsEnableAutoSaving:		bpe->owner->getAutoSaver().toggleAutoSaving(); updateCommands(); return true;
+	case MenuToolsEnableDebugLogging:	bpe->owner->getDebugLogger().toggleLogging(), updateCommands(); return true;
     case MenuViewFullscreen:            Actions::toggleFullscreen(bpe); updateCommands(); return true;
 	case MenuViewBack:					bpe->getViewUndoManager()->undo(); updateCommands(); return true;
 	case MenuViewForward:				bpe->getViewUndoManager()->redo(); updateCommands(); return true;
@@ -570,7 +576,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuOneColumn:					Actions::setColumns(bpe, this, OneColumn);  updateCommands(); return true;
 	case MenuTwoColumns:				Actions::setColumns(bpe, this, TwoColumns);  updateCommands(); return true;
 	case MenuThreeColumns:				Actions::setColumns(bpe, this, ThreeColumns);  updateCommands(); return true;
-	case MenuToolsEnableAutoSaving:		bpe->owner->getAutoSaver().toggleAutoSaving(); updateCommands(); return true;
+	
 	case MenuViewShowSelectedProcessorInPopup: Actions::showProcessorInPopup(bpe, dynamic_cast<ProcessorEditor*>(currentCopyPasteTarget.get())); return true;
 	}
 
@@ -800,8 +806,9 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuToolsConvertAllSamplesToMonolith);
 		ADD_DESKTOP_ONLY(MenuToolsConvertSfzToSampleMaps);
 		ADD_DESKTOP_ONLY(MenuToolsEnableAutoSaving);
+		ADD_DESKTOP_ONLY(MenuToolsEnableDebugLogging);
 		p.addSeparator();
-		p.addSectionHeader("Licence Management");
+		p.addSectionHeader("License Management");
 		ADD_DESKTOP_ONLY(MenuToolsCreateDummyLicenceFile);
 		ADD_DESKTOP_ONLY(MenuToolsCreateRSAKeys);
 		break;

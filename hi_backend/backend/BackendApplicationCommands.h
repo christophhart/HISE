@@ -162,6 +162,7 @@ public:
 		MenuToolsCreateRSAKeys,
 		MenuToolsCreateDummyLicenceFile,
 		MenuToolsEnableAutoSaving,
+		MenuToolsEnableDebugLogging,
 		MenuHelpShowAboutPage,
         MenuHelpCheckVersion,
 		numCommands

@@ -104,7 +104,7 @@ public:
 	{ 
 		if(isBypassed()) return;
 
-        ADD_GLITCH_DETECTOR("Rendering voice effects for" + parentProcessor->getId());
+        ADD_GLITCH_DETECTOR(parentProcessor, DebugLogger::Location::VoiceEffectRendering);
         
 		FOR_EACH_VOICE_EFFECT(renderVoice(voiceIndex, b, startSample, numSamples)); 
 	};
@@ -140,7 +140,7 @@ public:
 	{
 		if(isBypassed()) return;
 
-        ADD_GLITCH_DETECTOR("Rendering master effects for" + parentProcessor->getId());
+		ADD_GLITCH_DETECTOR(parentProcessor, DebugLogger::Location::MasterEffectRendering);
         
 		FOR_EACH_MASTER_EFFECT(renderWholeBuffer(b));
 

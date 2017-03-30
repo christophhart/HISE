@@ -406,6 +406,8 @@ private:
 
 	ScopedPointer<ThreadWithQuasiModalProgressWindow::Overlay> progressOverlay;
 
+	ScopedPointer<DebugLoggerComponent> debugLoggerWindow;
+
 	bool rootEditorIsMainSynthChain;
 
     

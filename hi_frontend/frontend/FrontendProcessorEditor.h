@@ -134,6 +134,7 @@ private:
 	ScopedPointer<AboutPage> aboutPage;
 	ScopedPointer<DeactiveOverlay> deactiveOverlay;
 	ScopedPointer<ThreadWithQuasiModalProgressWindow::Overlay> loaderOverlay;
+	ScopedPointer<DebugLoggerComponent> debugLoggerComponent;
     
 	float scaleFactor = 1.0f;
 

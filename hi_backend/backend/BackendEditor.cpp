@@ -60,6 +60,8 @@ rootEditorIsMainSynthChain(true)
 	addAndMakeVisible(tooltipBar = new TooltipBar());
 	addAndMakeVisible(cpuVoiceComponent = new VoiceCpuBpmComponent(owner));
 
+	addChildComponent(debugLoggerWindow = new DebugLoggerComponent(&owner->getDebugLogger()));
+
     PresetHandler::buildProcessorDataBase(owner->getMainSynthChain());
     
 	cpuVoiceComponent->setColour(Slider::backgroundColourId, Colour(BACKEND_BG_COLOUR));
@@ -592,6 +594,8 @@ void BackendProcessorEditor::setViewportPositions(int viewportX, const int viewp
 #endif
 
 	keyboard->setBounds(viewportX, getHeight() - keyboardHeight, viewportWidth, keyboardHeight);
+
+	debugLoggerWindow->setBounds(keyboard->getX(), keyboard->getY() - 60, keyboard->getWidth(), 60);
 
 	const int containerHeight = getHeight() - (keyboard->isVisible() ? keyboard->getHeight() : 10)
 		- viewportY - macroOffset;

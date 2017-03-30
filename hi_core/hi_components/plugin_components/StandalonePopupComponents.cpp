@@ -107,6 +107,7 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 	addAndMakeVisible(diskModeSelector = new ComboBox("Hard Disk"));
 	addAndMakeVisible(clearMidiLearn = new TextButton("Clear MIDI CC"));
 	addAndMakeVisible(relocateButton = new TextButton("Change sample folder location"));
+	addAndMakeVisible(debugButton = new TextButton("Toggle Debug Mode"));
 
 #if IS_STANDALONE_FRONTEND
 	deviceSelector->addListener(this);
@@ -121,6 +122,7 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 	diskModeSelector->addListener(this);
 	clearMidiLearn->addListener(this);
 	relocateButton->addListener(this);
+	debugButton->addListener(this);
 
 #if IS_STANDALONE_FRONTEND
 	deviceSelector->setLookAndFeel(&plaf);
@@ -134,11 +136,14 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 	scaleFactorSelector->setLookAndFeel(&plaf);
 	diskModeSelector->setLookAndFeel(&plaf);
 	clearMidiLearn->setLookAndFeel(&blaf);
+	debugButton->setLookAndFeel(&blaf);
 	clearMidiLearn->setColour(TextButton::ColourIds::textColourOffId, Colours::white);
 	clearMidiLearn->setColour(TextButton::ColourIds::textColourOnId, Colours::white);
 	relocateButton->setLookAndFeel(&blaf);
 	relocateButton->setColour(TextButton::ColourIds::textColourOffId, Colours::white);
 	relocateButton->setColour(TextButton::ColourIds::textColourOnId, Colours::white);
+	debugButton->setColour(TextButton::ColourIds::textColourOffId, Colours::white);
+	debugButton->setColour(TextButton::ColourIds::textColourOnId, Colours::white);
 
 	scaleFactorSelector->setVisible(false);
 	
@@ -149,9 +154,9 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 #else
 
 #if IS_STANDALONE_FRONTEND
-	setSize(320, 430);
+	setSize(320, 470);
 #else
-	setSize(320, 220);
+	setSize(320, 260);
 #endif
 
 #endif
@@ -171,6 +176,7 @@ CustomSettingsWindow::~CustomSettingsWindow()
 	relocateButton->removeListener(this);
 	diskModeSelector->removeListener(this);
 	scaleFactorSelector->removeListener(this);
+	debugButton->removeListener(this);
 
 	deviceSelector = nullptr;
 	bufferSelector = nullptr;
@@ -178,6 +184,7 @@ CustomSettingsWindow::~CustomSettingsWindow()
 	diskModeSelector = nullptr;
 	clearMidiLearn = nullptr;
 	relocateButton = nullptr;
+	debugButton = nullptr;
 }
 
 void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDevices)
@@ -349,6 +356,10 @@ void CustomSettingsWindow::buttonClicked(Button* b)
 		ScopedLock sl(mc->getLock());
 
 		mc->getMacroManager().getMidiControlAutomationHandler()->clear();
+	}
+	else if (b == debugButton)
+	{
+		mc->getDebugLogger().toggleLogging();
 	}
 }
 
@@ -582,6 +593,10 @@ void CustomSettingsWindow::resized()
 	y += 80;
 	relocateButton->setBounds(10, y, getWidth() - 20, 30);
 #endif
+
+	y += 40;
+
+	debugButton->setBounds(10, y, getWidth() - 20, 30);
 
 }
 
