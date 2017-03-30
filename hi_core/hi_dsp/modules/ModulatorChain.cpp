@@ -45,6 +45,11 @@ ModulatorChain::ModulatorChain(MainController *mc, const String &uid, int numVoi
 
 	FloatVectorOperations::fill(lastVoiceValues, 1.0, NUM_POLYPHONIC_VOICES);
 
+	if (Identifier::isValidIdentifier(uid))
+	{
+		chainIdentifier = Identifier(uid);
+	}
+
 	setEditorState(Processor::Visible, false, dontSendNotification);
 };
 
@@ -373,7 +378,7 @@ ProcessorEditorBody *ModulatorChain::createEditor(ProcessorEditor *parentEditor)
 
 void ModulatorChain::renderVoice(int voiceIndex, int startSample, int numSamples)
 {
-    ADD_GLITCH_DETECTOR("Rendering " + getId() + " voices for " + parentProcessor->getId());
+    ADD_GLITCH_DETECTOR(parentProcessor, DebugLogger::Location::ModulatorChainVoiceRendering);
     
 	// Use the internal buffer from timeModulation as working buffer.
 
@@ -426,6 +431,10 @@ void ModulatorChain::renderVoice(int voiceIndex, int startSample, int numSamples
 
 	}
 
+	CHECK_AND_LOG_BUFFER_DATA_WITH_ID(parentProcessor, chainIdentifier, DebugLogger::Location::ModulatorChainVoiceRendering, internalBuffer.getReadPointer(0, startIndex), true, sampleAmount);
+
+	FloatVectorOperations::clip(internalBuffer.getWritePointer(0, startIndex), internalBuffer.getReadPointer(0, startIndex), 0.0f, 1.0f, sampleAmount);
+
 	// Copy the result to the voice buffer
 	FloatVectorOperations::copy(internalVoiceBuffer.getWritePointer(voiceIndex, startIndex), internalBuffer.getReadPointer(0, startIndex), sampleAmount);
 
@@ -440,29 +449,36 @@ void ModulatorChain::renderVoice(int voiceIndex, int startSample, int numSamples
 
 void ModulatorChain::renderNextBlock(AudioSampleBuffer& buffer, int startSample, int numSamples)
 {
-    ADD_GLITCH_DETECTOR("Rendering time varian modulators for " + parentProcessor->getId());
-    
-	jassert (getSampleRate() > 0);
-
-	initializeBuffer(internalBuffer, startSample, numSamples);
-
 	const int startIndex = startSample;
 	const int sampleAmount = numSamples;
 
-	if(shouldBeProcessed(false))
 	{
-		for(int i = 0; i < variantModulators.size(); i++)
+		ADD_GLITCH_DETECTOR(parentProcessor, DebugLogger::Location::ModulatorChainTimeVariantRendering);
+
+		jassert(getSampleRate() > 0);
+
+		initializeBuffer(internalBuffer, startSample, numSamples);
+
+		
+
+		if (shouldBeProcessed(false))
 		{
-			if(variantModulators[i]->isBypassed()) continue;
-			variantModulators[i]->renderNextBlock(internalBuffer, startSample, numSamples);
+			for (int i = 0; i < variantModulators.size(); i++)
+			{
+				if (variantModulators[i]->isBypassed()) continue;
+				variantModulators[i]->renderNextBlock(internalBuffer, startSample, numSamples);
+			}
 		}
-	}
-	
+
 #if ENABLE_PLOTTER
-	updatePlotter(internalBuffer, startSample, numSamples);
+		updatePlotter(internalBuffer, startSample, numSamples);
 #endif
 
-	FloatVectorOperations::copy(buffer.getWritePointer(0, startIndex), internalBuffer.getReadPointer(0, startIndex), sampleAmount);
+		FloatVectorOperations::copy(buffer.getWritePointer(0, startIndex), internalBuffer.getReadPointer(0, startIndex), sampleAmount);
+	}
+
+	CHECK_AND_LOG_BUFFER_DATA_WITH_ID(parentProcessor, chainIdentifier, DebugLogger::Location::ModulatorChainTimeVariantRendering, internalBuffer.getReadPointer(0, startIndex), true, sampleAmount);
+    
 }
 
 bool ModulatorChain::checkModulatorStructure()

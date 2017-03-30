@@ -35,7 +35,7 @@ void ModulatorSamplerVoice::startNote(int midiNoteNumber,
 	SynthesiserSound* s,
 	int /*currentPitchWheelPosition*/)
 {
-    ADD_GLITCH_DETECTOR("start sample playback: ");
+    ADD_GLITCH_DETECTOR(getOwnerSynth(), DebugLogger::Location::SampleStart);
     
     ModulatorSynthVoice::startNote(midiNoteNumber, 0.0f, nullptr, -1);
 
@@ -45,8 +45,6 @@ void ModulatorSamplerVoice::startNote(int midiNoteNumber,
 
 	currentlyPlayingSamplerSound = static_cast<ModulatorSamplerSound*>(s);
     
-
-
 	velocityXFadeValue = currentlyPlayingSamplerSound->getGainValueForVelocityXFade((int)(velocity * 127.0f));
 	const bool samePitch = !static_cast<ModulatorSampler*>(getOwnerSynth())->isPitchTrackingEnabled();
 
@@ -79,8 +77,10 @@ void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 {
     const StreamingSamplerSound *sound = wrappedVoice.getLoadedSound();
     jassert(sound != nullptr);
-    
-    ADD_GLITCH_DETECTOR("Rendering sample" + sound->getFileName());
+ 
+	CHECK_AND_LOG_ASSERTION(getOwnerSynth(), DebugLogger::Location::SampleRendering, sound != nullptr, 1);
+
+	ADD_GLITCH_DETECTOR(getOwnerSynth(), DebugLogger::Location::SampleRendering);
  
 	ignoreUnused(sound);
 
@@ -102,6 +102,9 @@ void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 	wrappedVoice.uptimeDelta = uptimeDelta * propertyPitch;
 
 	wrappedVoice.renderNextBlock(voiceBuffer, startSample, numSamples);
+
+	CHECK_AND_LOG_BUFFER_DATA(getOwnerSynth(), DebugLogger::Location::SampleRendering, voiceBuffer.getReadPointer(0, startSample), true, samplesInBlock);
+	CHECK_AND_LOG_BUFFER_DATA(getOwnerSynth(), DebugLogger::Location::SampleRendering, voiceBuffer.getReadPointer(1, startSample), false, samplesInBlock);
 
 	voiceUptime = wrappedVoice.voiceUptime;
 	
@@ -310,6 +313,8 @@ void MultiMicModulatorSamplerVoice::startNote(int midiNoteNumber, float velocity
 
 void MultiMicModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 {
+	ADD_GLITCH_DETECTOR(getOwnerSynth(), DebugLogger::Location::MultiMicSampleRendering);
+
 	const int startIndex = startSample;
 	const int samplesInBlock = numSamples;
 

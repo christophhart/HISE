@@ -130,8 +130,15 @@ bool SampleImporter::createSoundAndAddToSampler(ModulatorSampler *sampler, const
 	}
 	catch(StreamingSamplerSound::LoadingError l)
 	{
-		debugError(sampler, "Error loading file " + l.fileName + ": " + l.errorDescription);
-		debugError(sampler, "Loading cancelled due to Error.");
+		String x;
+		x << "Error at preloading sample " << l.fileName << ": " << l.errorDescription;
+		sampler->getMainController()->getDebugLogger().logMessage(x);
+		
+#if USE_FRONTEND
+		sampler->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CustomErrorMessage, x);
+#else
+		debugError(sampler, x);
+#endif
 
 		return false;
 	}
@@ -555,7 +562,16 @@ void FileImportDialogWindow::run()
 	}
 	catch (StreamingSamplerSound::LoadingError l)
 	{
-		debugError(sampler, l.errorDescription);
+		String x;
+		x << "Error at preloading sample " << l.fileName << ": " << l.errorDescription;
+		sampler->getMainController()->getDebugLogger().logMessage(x);
+		
+#if USE_FRONTEND
+		sampler->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CustomErrorMessage, x);
+#else
+		debugError(sampler, x);
+#endif
+
 		sampler->setShouldUpdateUI(true);
 		return;
 	}

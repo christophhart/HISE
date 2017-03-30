@@ -60,8 +60,10 @@ namespace juce
 *	A collection of basic classes.
 */
 #include "UtilityClasses.h"
-#include "HiseEventBuffer.h"
 #include "HI_LookAndFeels.h"
+#include "DebugLogger.h"
+#include "HiseEventBuffer.h"
+
 #include "ThreadWithQuasiModalProgressWindow.h"
 #include "Popup.h"
 #include "Tables.h"

@@ -172,8 +172,6 @@ void TimeModulation::applyTimeModulation(AudioSampleBuffer &buffer, int startInd
 	float *dest = buffer.getWritePointer(0, startIndex);
 	float *mod = internalBuffer.getWritePointer(0, startIndex);
 
-	FloatVectorOperations::clip(mod, mod, 0.0f, 1.0f, samplesToCopy);
-
 	switch (modulationMode)
 	{
 	case GainMode: applyGainModulation(mod, dest, getIntensity(), samplesToCopy); break;

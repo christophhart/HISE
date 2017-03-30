@@ -53,6 +53,7 @@ namespace juce
 #endif
 
 #include "UtilityClasses.cpp"
+#include "DebugLogger.cpp"
 #include "ThreadWithQuasiModalProgressWindow.cpp"
 #include "HI_LookAndFeels.cpp"
 #include "Tables.cpp"

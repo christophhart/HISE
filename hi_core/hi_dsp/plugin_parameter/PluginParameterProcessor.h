@@ -69,6 +69,8 @@ public:
 		name(name_)
 	{
 
+		setPrecallbackHandler(new DebugLogger::PriorityInversionChecker(this));
+
 	}
 
 	virtual ~PluginParameterAudioProcessor() {};

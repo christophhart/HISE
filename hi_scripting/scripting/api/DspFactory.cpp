@@ -35,17 +35,23 @@ class DspFactory::LibraryLoader : public DynamicObject
 {
 public:
 
-	LibraryLoader(MainController* mc_):
-		mc(mc_)
+	LibraryLoader(Processor* p_):
+		p(p_)
 	{
-		handler->setMainController(mc);
-		ADD_DYNAMIC_METHOD(load);
-        ADD_DYNAMIC_METHOD(list);
+		if (p != nullptr)
+		{
+			mc = p->getMainController();
+			handler->setMainController(mc);
+			ADD_DYNAMIC_METHOD(load);
+			ADD_DYNAMIC_METHOD(list);
+		}
 	}
 
 	var load(const String &name, const String &password)
 	{
 		DspFactory *f = dynamic_cast<DspFactory*>(handler->getFactory(name, password));
+
+		f->currentProcessor = p;
 
 		return var(f);
 	}
@@ -77,7 +83,9 @@ private:
 
 	SharedResourcePointer<DspFactory::Handler> handler;
 
-	MainController* mc;
+	Processor* p = nullptr;
+	MainController* mc = nullptr;
+	
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LibraryLoader)
 };
@@ -188,7 +196,7 @@ void DynamicDspFactory::openDynamicLibrary()
 
 void GlobalScriptCompileBroadcaster::createDummyLoader()
 {
-    dummyLibraryLoader = new DspFactory::LibraryLoader(dynamic_cast<MainController*>(this));
+	dummyLibraryLoader = new DspFactory::LibraryLoader(nullptr);
 }
 
 DspBaseObject * DynamicDspFactory::createDspBaseObject(const String &moduleName) const
@@ -250,6 +258,9 @@ var DynamicDspFactory::createModule(const String &moduleName) const
 	if (isUnloadedForCompilation) throw String("Can't load modules for \"unloaded for recompile\" Libraries");
 
 	ScopedPointer<DspInstance> instance = new DspInstance(this, moduleName);
+
+	instance->setProcessor(currentProcessor);
+	instance->setId(moduleName);
 
 	try
 	{
@@ -352,6 +363,9 @@ var StaticDspFactory::getModuleList() const
 var StaticDspFactory::createModule(const String &name) const
 {
 	ScopedPointer<DspInstance> instance = new DspInstance(this, name);
+
+	instance->setProcessor(currentProcessor);
+	instance->setId(name);
 
 	try
 	{

@@ -418,6 +418,8 @@ void UserPresetHandler::loadUserPreset(ModulatorSynthChain *chain, const File &f
 
         ValueTree parent = ValueTree::fromXml(*xml);
         
+		chain->getMainController()->getDebugLogger().logMessage("Loading user preset " + fileToLoad.getFileNameWithoutExtension());
+
         if (parent.isValid())
         {
             loadUserPreset(chain, parent);

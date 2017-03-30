@@ -49,9 +49,82 @@ struct FileLimitInitialiser
 static FileLimitInitialiser fileLimitInitialiser;
 #endif
 
+double ScopedGlitchDetector::locationTimeSum[30] = { .0,.0,.0,.0,.0,.0,.0,.0,.0,.0, .0,.0,.0,.0,.0,.0,.0,.0,.0,.0, .0,.0,.0,.0,.0,.0,.0,.0,.0,.0};
+int ScopedGlitchDetector::locationIndex[30] = { 0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0, };
+int ScopedGlitchDetector::lastPositiveId = 0;
 
-double ScopedGlitchDetector::maxMilliSeconds = 3.0;
-Identifier ScopedGlitchDetector::lastPositiveId = Identifier();
+ScopedGlitchDetector::ScopedGlitchDetector(Processor* const processor, int location_) :
+	location(location_),
+	startTime(processor->getMainController()->getDebugLogger().isLogging() ? Time::getMillisecondCounterHiRes() : 0.0),
+	p(processor)
+{
+	if (lastPositiveId == location)
+	{
+		// Resets the identifier if a GlitchDetector is recreated...
+		lastPositiveId = 0;
+	}
+}
+
+ScopedGlitchDetector::~ScopedGlitchDetector() 
+{
+	DebugLogger& logger = p->getMainController()->getDebugLogger();
+
+	if (logger.isLogging())
+	{
+		const double stopTime = Time::getMillisecondCounterHiRes();
+		const double interval = (stopTime - startTime);
+
+		const double bufferMs = 1000.0 * (double)p->getBlockSize() / p->getSampleRate();
+
+		locationTimeSum[location] += interval;
+		locationIndex[location]++;
+
+		const double maxTime = getAllowedPercentageForLocation(location) * bufferMs;
+
+		if (lastPositiveId == 0 && interval > maxTime)
+		{
+			lastPositiveId = location;
+
+			const double average = locationTimeSum[location] / (double)locationIndex[location];
+			const double thisTime = average / bufferMs;
+
+			DebugLogger::PerformanceData  l(location, (float)(100.0 * interval / bufferMs), (float)(100.0 * thisTime), p);
+
+			logger.logPerformanceWarning(l);
+		}
+	}
+}
+
+double ScopedGlitchDetector::getAllowedPercentageForLocation(int locationId)
+{
+	DebugLogger::Location l = (DebugLogger::Location)locationId;
+
+	// You may change these values to adapt to your system.
+
+	switch (l)
+	{
+	case DebugLogger::Location::Empty: jassertfalse;				return 0.0;
+	case DebugLogger::Location::MainRenderCallback:					return 0.7;
+	case DebugLogger::Location::MultiMicSampleRendering:			return 0.1;
+	case DebugLogger::Location::SampleRendering:					return 0.1;
+	case DebugLogger::Location::ScriptFXRendering:					return 0.15;
+	case DebugLogger::Location::TimerCallback:						return 0.04;
+	case DebugLogger::Location::SynthRendering:						return 0.15;
+	case DebugLogger::Location::SynthChainRendering:				return 0.5;
+	case DebugLogger::Location::SampleStart:						return 0.02;
+	case DebugLogger::Location::VoiceEffectRendering:				return 0.1;
+	case DebugLogger::Location::ModulatorChainVoiceRendering:		return 0.05;
+	case DebugLogger::Location::ModulatorChainTimeVariantRendering: return 0.04;
+	case DebugLogger::Location::SynthVoiceRendering:				return 0.2;
+	case DebugLogger::Location::NoteOnCallback:						return 0.05;
+	case DebugLogger::Location::MasterEffectRendering:				return 0.3;
+	case DebugLogger::Location::ScriptMidiEventCallback:			return 0.04;
+	case DebugLogger::Location::ConvolutionRendering:				return 0.1;
+	case DebugLogger::Location::numLocations:						return 0.0;
+	default:														return 0.0;
+	}
+}
+
 
 
 void AutoSaver::timerCallback()
@@ -307,18 +380,3 @@ void VDspFFT::multiplyComplex(float* output, float* in1, int in1Offset, float* i
 }
 
 #endif
-
-void BurstGlitchCrashDetector::checkBurst(float* data, int numSamples)
-{
-	const float max = FloatVectorOperations::findMaximum(data, numSamples);
-	const float min = FloatVectorOperations::findMinimum(data, numSamples);
-
-	if (max > 32.0f)
-	{
-		throw BurstGlitchCrash(BurstGlitchCrash::ErrorType::Burst, "Burst detected: " + String(max));
-	}
-	if (min < -32.0f)
-	{
-		throw BurstGlitchCrash(BurstGlitchCrash::ErrorType::Burst, "Burst detected: " + String(min));
-	}
-}

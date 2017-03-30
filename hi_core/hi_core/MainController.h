@@ -353,7 +353,8 @@ public:
 
     const CriticalSection &getLock() const;
     
-    
+	DebugLogger& getDebugLogger() { return debugLogger; }
+	const DebugLogger& getDebugLogger() const { return debugLogger; }
     
 	void setKeyboardCoulour(int keyNumber, Colour colour);
 
@@ -647,6 +648,8 @@ private:
 	bool usePopupConsole;
 
 	AutoSaver autoSaver;
+
+	DebugLogger debugLogger;
 
 #if USE_BACKEND
     

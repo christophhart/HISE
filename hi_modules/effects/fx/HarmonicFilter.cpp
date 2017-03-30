@@ -235,9 +235,7 @@ void HarmonicFilter::startVoice(int voiceIndex, int noteNumber)
 
 void HarmonicFilter::applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples)
 {
-    ADD_GLITCH_DETECTOR(getId() + " rendering function");
-    
-	double xModValue;
+    double xModValue;
 
 	if (xFadeChain->getHandler()->getNumProcessors() > 0)
 	{

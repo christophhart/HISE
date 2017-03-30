@@ -57,6 +57,7 @@ MainController::MainController():
 	masterEventBuffer(),
 	eventIdHandler(masterEventBuffer),
 	userPresetHandler(this),
+	debugLogger(this),
 	presetLoadRampFlag(0),
 	controlUndoManager(new UndoManager()),
 #if JUCE_WINDOWS
@@ -106,7 +107,19 @@ MainController::~MainController()
 
 const CriticalSection & MainController::getLock() const
 {
-	return dynamic_cast<AudioProcessor*>(const_cast<MainController*>(this))->getCallbackLock();
+	auto ap = dynamic_cast<AudioProcessor*>(const_cast<MainController*>(this));
+
+	if (getDebugLogger().isLogging() && MessageManager::getInstance()->isThisTheMessageThread())
+	{
+		ScopedTryLock sl(ap->getCallbackLock());
+
+		if (sl.isLocked())
+		{
+			getDebugLogger().setStackBacktrace(SystemStats::getStackBacktrace());
+		}
+	}
+
+	return ap->getCallbackLock();
 }
 
 void MainController::loadPreset(const File &f, Component *mainEditor)
@@ -397,42 +410,46 @@ var MainController::getGlobalVariable(int index) const
 void MainController::storePlayheadIntoDynamicObject(AudioPlayHead::CurrentPositionInfo &newPosition)
 {
 	static const Identifier bpmId("bpm");
-	static const Identifier timeSigNumerator("timeSigNumerator");
-	static const Identifier timeSigDenominator("timeSigDenominator");
-	static const Identifier timeInSamples("timeInSamples");
-	static const Identifier timeInSeconds("timeInSeconds");
-	static const Identifier editOriginTime("editOriginTime");
-	static const Identifier ppqPosition("ppqPosition");
-	static const Identifier ppqPositionOfLastBarStart("ppqPositionOfLastBarStart");
-	static const Identifier frameRate("frameRate");
-	static const Identifier isPlaying("isPlaying");
-	static const Identifier isRecording("isRecording");
-	static const Identifier ppqLoopStart("ppqLoopStart");
-	static const Identifier ppqLoopEnd("ppqLoopEnd");
-	static const Identifier isLooping("isLooping");
+	//static const Identifier timeSigNumerator("timeSigNumerator");
+	//static const Identifier timeSigDenominator("timeSigDenominator");
+	//static const Identifier timeInSamples("timeInSamples");
+	//static const Identifier timeInSeconds("timeInSeconds");
+	//static const Identifier editOriginTime("editOriginTime");
+	//static const Identifier ppqPosition("ppqPosition");
+	//static const Identifier ppqPositionOfLastBarStart("ppqPositionOfLastBarStart");
+	//static const Identifier frameRate("frameRate");
+	//static const Identifier isPlaying("isPlaying");
+	//static const Identifier isRecording("isRecording");
+	//static const Identifier ppqLoopStart("ppqLoopStart");
+	//static const Identifier ppqLoopEnd("ppqLoopEnd");
+	//static const Identifier isLooping("isLooping");
 
 	ScopedLock sl(getLock());
 
 	hostInfo->setProperty(bpmId, newPosition.bpm);
-	hostInfo->setProperty(timeSigNumerator, newPosition.timeSigNumerator);
-	hostInfo->setProperty(timeSigDenominator, newPosition.timeSigDenominator);
-	hostInfo->setProperty(timeInSamples, newPosition.timeInSamples);
-	hostInfo->setProperty(timeInSeconds, newPosition.timeInSeconds);
-	hostInfo->setProperty(editOriginTime, newPosition.editOriginTime);
-	hostInfo->setProperty(ppqPosition, newPosition.ppqPosition);
-	hostInfo->setProperty(ppqPositionOfLastBarStart, newPosition.ppqPositionOfLastBarStart);
-	hostInfo->setProperty(frameRate, newPosition.frameRate);
-	hostInfo->setProperty(isPlaying, newPosition.isPlaying);
-	hostInfo->setProperty(isRecording, newPosition.isRecording);
-	hostInfo->setProperty(ppqLoopStart, newPosition.ppqLoopStart);
-	hostInfo->setProperty(ppqLoopEnd, newPosition.ppqLoopEnd);
-	hostInfo->setProperty(isLooping, newPosition.isLooping);
+	//hostInfo->setProperty(timeSigNumerator, newPosition.timeSigNumerator);
+	//hostInfo->setProperty(timeSigDenominator, newPosition.timeSigDenominator);
+	//hostInfo->setProperty(timeInSamples, newPosition.timeInSamples);
+	//hostInfo->setProperty(timeInSeconds, newPosition.timeInSeconds);
+	//hostInfo->setProperty(editOriginTime, newPosition.editOriginTime);
+	//hostInfo->setProperty(ppqPosition, newPosition.ppqPosition);
+	//hostInfo->setProperty(ppqPositionOfLastBarStart, newPosition.ppqPositionOfLastBarStart);
+	//hostInfo->setProperty(frameRate, newPosition.frameRate);
+	//hostInfo->setProperty(isPlaying, newPosition.isPlaying);
+	//hostInfo->setProperty(isRecording, newPosition.isRecording);
+	//hostInfo->setProperty(ppqLoopStart, newPosition.ppqLoopStart);
+	//hostInfo->setProperty(ppqLoopEnd, newPosition.ppqLoopEnd);
+	//hostInfo->setProperty(isLooping, newPosition.isLooping);
 }
 
 void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &midiMessages)
 {
-    ADD_GLITCH_DETECTOR("MainRoutine");
+    ADD_GLITCH_DETECTOR(getMainSynthChain(), DebugLogger::Location::MainRenderCallback);
     
+	AudioProcessor *thisAsProcessor = dynamic_cast<AudioProcessor*>(this);
+
+	getDebugLogger().checkAudioCallbackProperties(thisAsProcessor->getSampleRate(), buffer.getNumSamples());
+
 	ScopedNoDenormals snd;
     
 	if (presetLoadRampFlag.get() == UserPresetHandler::RampFlags::Bypassed)
@@ -441,7 +458,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		return;
 	}
 
-	AudioProcessor *thisAsProcessor = dynamic_cast<AudioProcessor*>(this);
+	
 
 	ModulatorSynthChain *synthChain = getMainSynthChain();
 
@@ -595,9 +612,7 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 		logger = new ConsoleLogger(getMainSynthChain());
 		Logger::setCurrentLogger(logger);
 	}
-#if USE_GLITCH_DETECTION
-	ScopedGlitchDetector::setMaxTimeOutFromBufferSize(sampleRate_, (double)samplesPerBlock);
-#endif
+
 #endif
     
 	// Updates the channel amount

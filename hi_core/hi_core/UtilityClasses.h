@@ -44,6 +44,7 @@
 #endif
 
 class Processor;
+class MainController;
 
 /** A Helper class that encapsulates the regex operations */
 class RegexFunctions
@@ -222,43 +223,6 @@ private:
 	WeakReference<SafeChangeListener>::Master masterReference;
 };
 
-
-class BurstGlitchCrashDetector
-{
-public:
-
-	struct BurstGlitchCrash
-	{
-		enum class ErrorType
-		{
-			Burst = 0,
-			Glitch,
-			Crash,
-			numTypes
-		};
-
-		BurstGlitchCrash(ErrorType error, const String& message_) :
-			message(message_),
-			type(error)
-		{};
-
-		ErrorType type;
-        const String message;
-	};
-
-	static void checkBurst(float* data, int numSamples);
-
-};
-
-#if CRASH_ON_GLITCH
-#define CHECK_BURST_WHEN_LOGGING(data, numSamples) BurstGlitchCrashDetector::checkBurst(data, numSamples)
-#define THROWS_WHEN_LOGGING noexcept(false)
-#else
-#define CHECK_BURST_WHEN_LOGGING(data, numSamples) ignoreUnused(data, numSamples)
-#define THROWS_WHEN_LOGGING
-#endif
-
-
 /** A small helper class that detects a timeout.
 *
 *   Use this to catch down drop outs by adding it to time critical functions in the audio thread and set a global time out value 
@@ -286,71 +250,42 @@ public:
     *
     *   It uses the id to only log the last call in a stack trace, so you only get the GlitchDetector where the glitch actually occured.
     */
-    ScopedGlitchDetector(const Identifier &id):
-      identifier(id),
-      startTime(Time::getMillisecondCounterHiRes())
-    {
-        if(lastPositiveId == id)
-        {
-            // Resets the identifier if a GlitchDetector is recreated...
-            lastPositiveId = Identifier::null;
-        }
-    };
+    ScopedGlitchDetector(Processor* const processor, int location_);;
     
-    ~ScopedGlitchDetector() THROWS_WHEN_LOGGING
-    {
-        const double stopTime = Time::getMillisecondCounterHiRes();
-        const double interval = (stopTime - startTime);
-        
-        if (lastPositiveId.isNull() && interval > maxMilliSeconds)
-        {
-            lastPositiveId = identifier;
-            
-#if CRASH_ON_GLITCH
-			throw BurstGlitchCrashDetector::BurstGlitchCrash(BurstGlitchCrashDetector::BurstGlitchCrash::ErrorType::Glitch, "Timeout in function:" + identifier.toString());
-#else
-
-            if(Logger::getCurrentLogger() != nullptr)
-            {
-                Logger::getCurrentLogger()->writeToLog("Time out in function: " + identifier.toString());
-            }
-#endif
-        }
-    }
+	~ScopedGlitchDetector();
     
     // =================================================================================================================================
     
-    /** Change the global time out value. */
-    static void setMaxMilliSeconds(double newMaxMilliSeconds) noexcept
-    {
-        maxMilliSeconds = newMaxMilliSeconds;
-    };
-    
-    /** Same as setMaxMilliSeconds, but accepts the sample rate and the buffer size as parameters to save you some calculation. */
-    static void setMaxTimeOutFromBufferSize(double sampleRate, double bufferSize) noexcept
-    {
-        maxMilliSeconds = 0.85 * (bufferSize / sampleRate) * 1000.0;
-    };
-    
+
+	static double getAllowedPercentageForLocation(int locationId);
+
 private:
     
+	
+
     // =================================================================================================================================
     
-    const Identifier identifier;
+	int location = 0;
+
+	static double locationTimeSum[30];
+	static int locationIndex[30];
+
     const double startTime;
-    static double maxMilliSeconds;
-    static Identifier lastPositiveId;
     
+    static int lastPositiveId;
+
+	Processor* p;
+
     // =================================================================================================================================
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScopedGlitchDetector)
 };
 
 
-#if USE_GLITCH_DETECTION && !JUCE_DEBUG
-#define ADD_GLITCH_DETECTOR(x) static Identifier glitchId(x); ScopedGlitchDetector sgd(glitchId)
+#if USE_GLITCH_DETECTION // && !JUCE_DEBUG
+#define ADD_GLITCH_DETECTOR(processor, location) ScopedGlitchDetector sgd(processor, (int)location)
 #else
-#define ADD_GLITCH_DETECTOR(x)
+#define ADD_GLITCH_DETECTOR(processor, loc)
 #endif
 
 
@@ -446,6 +381,7 @@ struct FloatSanitizers
 		}
 	};
 };
+
 
 static FloatSanitizers::Test floatSanitizerTest;
 

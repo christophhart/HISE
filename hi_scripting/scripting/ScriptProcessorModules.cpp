@@ -154,7 +154,7 @@ void JavascriptMidiProcessor::processHiseEvent(HiseEvent &m)
 	}
 	else
 	{
-		ADD_GLITCH_DETECTOR("Processing " + getId() + " script callbacks");
+		ADD_GLITCH_DETECTOR(this, DebugLogger::Location::ScriptMidiEventCallback);
 
 		if (currentMidiMessage != nullptr)
 		{
@@ -190,7 +190,7 @@ void JavascriptMidiProcessor::registerApiClasses()
 	scriptEngine->registerApiClass(synthObject);
 	scriptEngine->registerApiClass(samplerObject);
     
-    scriptEngine->registerNativeObject("Libraries", new DspFactory::LibraryLoader(getMainController()));
+    scriptEngine->registerNativeObject("Libraries", new DspFactory::LibraryLoader(this));
     scriptEngine->registerNativeObject("Buffer", new VariantBuffer::Factory(64));
     
 }
@@ -555,7 +555,7 @@ void JavascriptMasterEffect::registerApiClasses()
 	scriptEngine->registerApiClass(engineObject);
 	scriptEngine->registerApiClass(new ScriptingApi::Console(this));
 
-	scriptEngine->registerNativeObject("Libraries", new DspFactory::LibraryLoader(getMainController()));
+	scriptEngine->registerNativeObject("Libraries", new DspFactory::LibraryLoader(this));
 	scriptEngine->registerNativeObject("Buffer", new VariantBuffer::Factory(64));
 
 }
@@ -583,6 +583,8 @@ void JavascriptMasterEffect::prepareToPlay(double sampleRate, int samplesPerBloc
 	}
 }
 
+
+
 void JavascriptMasterEffect::applyEffect(AudioSampleBuffer &b, int startSample, int numSamples)
 {
 	ignoreUnused(startSample);
@@ -591,11 +593,14 @@ void JavascriptMasterEffect::applyEffect(AudioSampleBuffer &b, int startSample, 
 	{
 		ScopedReadLock sl(getMainController()->getCompileLock());
 
-        jassert(startSample == 0);
-        
+		jassert(startSample == 0);
+		CHECK_AND_LOG_ASSERTION(this, DebugLogger::Location::ScriptFXRendering, startSample == 0, startSample);
+
 		float *l = b.getWritePointer(0, 0);
 		float *r = b.getWritePointer(1, 0);
         
+		CHECK_AND_LOG_BUFFER_DATA(this, DebugLogger::Location::ScriptFXRendering, l, true, numSamples);
+		CHECK_AND_LOG_BUFFER_DATA(this, DebugLogger::Location::ScriptFXRendering, r, false, numSamples);
         
 		bufferL->referToData(l, numSamples);
 		bufferR->referToData(r, numSamples);
@@ -603,8 +608,9 @@ void JavascriptMasterEffect::applyEffect(AudioSampleBuffer &b, int startSample, 
 		scriptEngine->setCallbackParameter((int)Callback::processBlock, 0, channels);
 		scriptEngine->executeCallback((int)Callback::processBlock, &lastResult);
 
-		CHECK_BURST_WHEN_LOGGING(l, numSamples);
-		CHECK_BURST_WHEN_LOGGING(r, numSamples);
+		CHECK_AND_LOG_BUFFER_DATA(this, DebugLogger::Location::ScriptFXRenderingPost, l, true, numSamples);
+		CHECK_AND_LOG_BUFFER_DATA(this, DebugLogger::Location::ScriptFXRenderingPost, r, false, numSamples);
+		
 
 		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, processBlockCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
 	}
@@ -949,7 +955,7 @@ void JavascriptTimeVariantModulator::registerApiClasses()
 	scriptEngine->registerApiClass(new ScriptingApi::ModulatorApi(this));
 	scriptEngine->registerApiClass(synthObject);
 
-	scriptEngine->registerNativeObject("Libraries", new DspFactory::LibraryLoader(getMainController()));
+	scriptEngine->registerNativeObject("Libraries", new DspFactory::LibraryLoader(this));
 	scriptEngine->registerNativeObject("Buffer", new VariantBuffer::Factory(64));
 }
 
@@ -1217,7 +1223,7 @@ void JavascriptEnvelopeModulator::registerApiClasses()
 	scriptEngine->registerApiClass(new ScriptingApi::ModulatorApi(this));
 	scriptEngine->registerApiClass(synthObject);
 
-	scriptEngine->registerNativeObject("Libraries", new DspFactory::LibraryLoader(getMainController()));
+	scriptEngine->registerNativeObject("Libraries", new DspFactory::LibraryLoader(this));
 	scriptEngine->registerNativeObject("Buffer", new VariantBuffer::Factory(64));
 }
 
@@ -1551,7 +1557,7 @@ void JavascriptModulatorSynth::registerApiClasses()
 	scriptEngine->registerApiClass(new ScriptingApi::Console(this));
 	scriptEngine->registerApiClass(synthObject);
 
-	scriptEngine->registerNativeObject("Libraries", new DspFactory::LibraryLoader(getMainController()));
+	scriptEngine->registerNativeObject("Libraries", new DspFactory::LibraryLoader(this));
 	scriptEngine->registerNativeObject("Buffer", new VariantBuffer::Factory(64));
 }
 

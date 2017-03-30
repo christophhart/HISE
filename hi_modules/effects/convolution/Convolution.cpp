@@ -186,7 +186,7 @@ void ConvolutionEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples)
 {
-    ADD_GLITCH_DETECTOR("Rendering IR reverb " + getId());
+	ADD_GLITCH_DETECTOR(this, DebugLogger::Location::ConvolutionRendering);
     
 	ScopedLock sl(getImpulseLock());
 
@@ -274,10 +274,10 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 
 			convolutionEngine.Advance(availableSamples);
 		}
-
-
-
 	}
+
+	CHECK_AND_LOG_BUFFER_DATA(this, DebugLogger::Location::ConvolutionRendering, l, true, numSamples);
+	CHECK_AND_LOG_BUFFER_DATA(this, DebugLogger::Location::ConvolutionRendering, r, false, numSamples);
 }
 
 ProcessorEditorBody *ConvolutionEffect::createEditor(ProcessorEditor *parentEditor)

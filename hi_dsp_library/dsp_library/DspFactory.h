@@ -36,6 +36,8 @@
 
 class DspInstance;
 
+class Processor;
+
 /** The DspFactory class is the abstract base class for handling additional modules.
 *
 *   You won't have to deal with this class, but more with one of its derived classes: 
@@ -75,6 +77,8 @@ public:
 	struct Wrapper;
 	class Handler;
 	class LibraryLoader;
+
+	Processor* currentProcessor = nullptr;
 
 	typedef ReferenceCountedObjectPtr<DspFactory> Ptr;
 };

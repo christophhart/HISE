@@ -334,6 +334,8 @@ private:
 
 	int blockSize;
 	
+	Identifier chainIdentifier;
+
 	// the values of the envelope of the first voice is stored here to retrieve it at renderNextBlock...
 	float envelopeOutputValue1;
 	float envelopeOutputValue2;

@@ -201,7 +201,7 @@ void ModulatorSynth::synthTimerCallback(uint8 index)
 {
 	if (index >= 0)
 	{
-		ADD_GLITCH_DETECTOR(getId() + " timer callback");
+		ADD_GLITCH_DETECTOR(this, DebugLogger::Location::TimerCallback);
 
 		const double thisUptime = getMainController()->getUptime() - (getBlockSize() / getSampleRate());
 		uint16 offsetInBuffer = (uint16)((nextTimerCallbackTimes[index] - thisUptime) * getSampleRate());
@@ -329,7 +329,7 @@ void ModulatorSynth::addProcessorsWhenEmpty()
 
 void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuffer, const HiseEventBuffer& inputMidiBuffer)
 {
-    ADD_GLITCH_DETECTOR("Rendering " + getId());
+    ADD_GLITCH_DETECTOR(this, DebugLogger::Location::SynthRendering);
     
 	int numSamples = getBlockSize(); //outputBuffer.getNumSamples();
 
@@ -447,7 +447,7 @@ void ModulatorSynth::preVoiceRendering(int startSample, int numThisTime)
 
 void ModulatorSynth::renderVoice(int startSample, int numThisTime)
 {
-    ADD_GLITCH_DETECTOR("Rendering voices for " + getId());
+    ADD_GLITCH_DETECTOR(this, DebugLogger::Location::SynthVoiceRendering);
     
 	for (int i = voices.size(); --i >= 0;)
 	{
@@ -458,7 +458,6 @@ void ModulatorSynth::renderVoice(int startSample, int numThisTime)
 			v->renderNextBlock(internalBuffer, startSample, numThisTime);
 		}
 	}
-
 };
 
 	
@@ -791,7 +790,7 @@ bool ModulatorSynth::isChainDisabled(InternalChains chain) const
 
 void ModulatorSynth::noteOn(const HiseEvent &m)
 {
-    ADD_GLITCH_DETECTOR("Note on callback for " + getId());
+    ADD_GLITCH_DETECTOR(this, DebugLogger::Location::NoteOnCallback);
     
     jassert(m.isNoteOn());
 

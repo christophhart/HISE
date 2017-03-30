@@ -106,6 +106,11 @@ public:
 		setEditorState(Processor::BodyShown, true, dontSendNotification);
 		setEditorState(Processor::Visible, true, dontSendNotification);
 		setEditorState(Processor::Solo, false, dontSendNotification);
+
+		if (Identifier::isValidIdentifier(id))
+		{
+			idAsIdentifier = Identifier(id);
+		}
 	};
 
 	/** Overwrite this if you need custom destruction behaviour. */
@@ -344,8 +349,23 @@ public:
 	void setId(const String &newId)
 	{
 		id = newId;
+
+		if (Identifier::isValidIdentifier(id))
+		{
+			idAsIdentifier = Identifier(id);
+		}
+		else
+		{
+			idAsIdentifier = Identifier();
+		}
+
 		sendChangeMessage();
 	};
+
+	Identifier getIDAsIdentifier() const
+	{
+		return idAsIdentifier;
+	}
 
 	/** This bypasses the processor. You don't have to check in the processors logic itself, normally the chain should do that for you. */
 	virtual void setBypassed(bool shouldBeBypassed) noexcept 
@@ -746,6 +766,7 @@ private:
 	/// the unique id of the Processor
 	String id;
 
+	Identifier idAsIdentifier;
 };
 
 

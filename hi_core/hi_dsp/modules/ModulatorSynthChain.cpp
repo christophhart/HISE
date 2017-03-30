@@ -90,7 +90,7 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 {
 	if (isBypassed()) return;
 
-	ADD_GLITCH_DETECTOR(getId() + " rendering");
+	ADD_GLITCH_DETECTOR(this, DebugLogger::Location::SynthChainRendering);
 
 	ScopedLock sl(getSynthLock());
 

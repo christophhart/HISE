@@ -213,7 +213,28 @@ public:
 
 	struct Wrapper;
 
+	void setProcessor(Processor* p)
+	{
+		jassert(p != nullptr);
+		processor = p;
+		logger = &processor->getMainController()->getDebugLogger();
+	}
+
+	void setId(const String& newName)
+	{
+		if (Identifier::isValidIdentifier(newName))
+		{
+			debugId = Identifier(newName);
+		}
+	}
+
+	void checkPriorityInversion();
+
 private:
+
+	WeakReference<Processor> processor;
+
+	DebugLogger* logger = nullptr;
 
     const SpinLock& getLock() const { return lock; };
     
@@ -236,6 +257,8 @@ private:
 	bool switchBypassFlag = false;
 
 	bool prepareToPlayWasCalled = false;
+
+	Identifier debugId;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DspInstance)
 };

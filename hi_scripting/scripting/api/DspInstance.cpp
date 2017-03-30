@@ -55,13 +55,18 @@ factory(const_cast<DspFactory*>(f)),
 object(nullptr),
 bypassed(false)
 {
+	
 }
 
 
 void DspInstance::initialise()
 {
+	
+
     const SpinLock::ScopedLockType sl(getLock());
     
+	
+
 	if (DynamicDspFactory* dynamicFactory = dynamic_cast<DynamicDspFactory*>(factory.get()))
 	{
 		if ((int)dynamicFactory->getErrorCode() != (int)LoadingErrorCode::LoadingSuccessful)
@@ -149,17 +154,18 @@ void DspInstance::processBlock(const var &data)
 {
 	if (!prepareToPlayWasCalled) throw String(moduleName + ": prepareToPlay must be called before processing buffers.");
 
+	checkPriorityInversion();
+
     const SpinLock::ScopedLockType sl(getLock());
     
 	bool skipProcessing = isBypassed() && !switchBypassFlag;
-
-	
 
 	if (object != nullptr && !skipProcessing)
 	{
 		if (data.isArray())
 		{
 			Array<var> *a = data.getArray();
+
 			float *sampleData[2];
 			int numSamples = -1;
 
@@ -168,6 +174,8 @@ void DspInstance::processBlock(const var &data)
 
 			if (a == nullptr)
 				throwError("processBlock must be called on array of buffers");
+
+			CHECK_AND_LOG_ASSERTION(processor, DebugLogger::Location::ScriptFXRendering, a->size() == 2, 165);
 
 			for (int i = 0; i < jmin<int>(2, a->size()); i++)
 			{
@@ -185,8 +193,6 @@ void DspInstance::processBlock(const var &data)
 				else throwError("processBlock must be called on array of buffers");
 			}
 
-			
-            
 			if (switchBypassFlag)
 			{
 				if (sampleData[0] == nullptr || sampleData[1] == nullptr)
@@ -197,20 +203,16 @@ void DspInstance::processBlock(const var &data)
 				float* leftSamples = bypassSwitchBuffer.getWritePointer(0);
 				float* rightSamples = bypassSwitchBuffer.getWritePointer(1);
 
-				
-
 				const bool rampUp = !isBypassed();
+
+				CHECK_AND_LOG_BUFFER_DATA_WITH_ID(processor, debugId, DebugLogger::Location::DspInstanceRendering, sampleData[0], true, numSamples);
+				CHECK_AND_LOG_BUFFER_DATA_WITH_ID(processor, debugId, DebugLogger::Location::DspInstanceRendering, sampleData[1], false, numSamples);
 
 				FloatSanitizers::sanitizeArray(sampleData[0], numSamples);
 				FloatSanitizers::sanitizeArray(sampleData[1], numSamples);
 
 				FloatVectorOperations::copy(leftSamples, sampleData[0], numSamples);
 				FloatVectorOperations::copy(rightSamples, sampleData[1], numSamples);
-
-				CHECK_BURST_WHEN_LOGGING(leftSamples, numSamples);
-				CHECK_BURST_WHEN_LOGGING(rightSamples, numSamples);
-
-				
 
 				object->processBlock(sampleData, a->size(), numSamples);
 
@@ -229,25 +231,33 @@ void DspInstance::processBlock(const var &data)
 					bypassSwitchBuffer.addFromWithRamp(1, 0, sampleData[1], numSamples, 1.0f, 0.0f);
 				}
 
+				
+
 				FloatVectorOperations::copy(sampleData[0], leftSamples, numSamples);
 				FloatVectorOperations::copy(sampleData[1], rightSamples, numSamples);
+
+				CHECK_AND_LOG_BUFFER_DATA_WITH_ID(processor, debugId, DebugLogger::Location::DspInstanceRenderingPost, sampleData[0], true, numSamples);
+				CHECK_AND_LOG_BUFFER_DATA_WITH_ID(processor, debugId, DebugLogger::Location::DspInstanceRenderingPost, sampleData[1], false, numSamples);
 
 				switchBypassFlag = false;
 
 			}
 			else
 			{
+				CHECK_AND_LOG_BUFFER_DATA_WITH_ID(processor, debugId, DebugLogger::Location::DspInstanceRendering, sampleData[0], true, numSamples);
+				CHECK_AND_LOG_BUFFER_DATA_WITH_ID(processor, debugId, DebugLogger::Location::DspInstanceRendering, sampleData[1], false, numSamples);
+
 				FloatSanitizers::sanitizeArray(sampleData[0], numSamples);
 				FloatSanitizers::sanitizeArray(sampleData[1], numSamples);
                 
 				object->processBlock(sampleData, a->size(), numSamples);
 
+				CHECK_AND_LOG_BUFFER_DATA_WITH_ID(processor, debugId, DebugLogger::Location::DspInstanceRenderingPost, sampleData[0], true, numSamples);
+				CHECK_AND_LOG_BUFFER_DATA_WITH_ID(processor, debugId, DebugLogger::Location::DspInstanceRenderingPost, sampleData[1], false, numSamples);
+
 				FloatSanitizers::sanitizeArray(sampleData[0], numSamples);
 				FloatSanitizers::sanitizeArray(sampleData[1], numSamples);
 			}
-
-			CHECK_BURST_WHEN_LOGGING(sampleData[0], numSamples);
-			CHECK_BURST_WHEN_LOGGING(sampleData[1], numSamples);
 
 		}
 		else if (data.isBuffer())
@@ -259,20 +269,24 @@ void DspInstance::processBlock(const var &data)
 				float *sampleData[1] = { b->buffer.getWritePointer(0) };
 				const int numSamples = b->size;
 
+				CHECK_AND_LOG_BUFFER_DATA_WITH_ID(processor, debugId, DebugLogger::Location::DspInstanceRendering, sampleData[0], true, numSamples);
+				FloatSanitizers::sanitizeArray(sampleData[1], numSamples);
+
 				object->processBlock(sampleData, 1, numSamples);
+
+				CHECK_AND_LOG_BUFFER_DATA_WITH_ID(processor, debugId, DebugLogger::Location::DspInstanceRenderingPost, sampleData[0], true, numSamples);
+				FloatSanitizers::sanitizeArray(sampleData[0], numSamples);
 			}
 		}
 		else throwError("Data Buffer is not valid");
 	}
-
-
 }
 
 void DspInstance::setParameter(int index, float newValue)
 {
 	if (object != nullptr && index < object->getNumParameters())
 	{
-        const SpinLock::ScopedLockType sl(getLock());
+		const SpinLock::ScopedLockType sl(getLock());
         
 		object->setParameter(index, newValue);
 	}
@@ -282,7 +296,7 @@ var DspInstance::getParameter(int index) const
 {
 	if (object != nullptr)
 	{
-        const SpinLock::ScopedLockType sl(getLock());
+        //const SpinLock::ScopedLockType sl(getLock());
         
 		return object->getParameter(index);
 	}
@@ -424,6 +438,14 @@ var DspInstance::getInfo() const
 	}
 
 	return var("No module loaded");
+}
+
+void DspInstance::checkPriorityInversion()
+{
+	if (logger != nullptr && logger->isLogging())
+	{
+		logger->checkPriorityInversion(getLock(), DebugLogger::Location::DspInstanceRendering, processor.get(), debugId);
+	}
 }
 
 void DspInstance::operator>>(const var &data)
