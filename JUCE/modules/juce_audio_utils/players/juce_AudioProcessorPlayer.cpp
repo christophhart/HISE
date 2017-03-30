@@ -150,6 +150,13 @@ void AudioProcessorPlayer::audioDeviceIOCallback (const float** const inputChann
 
         if (processor != nullptr)
         {
+			if (auto handler = processor->getPrecallbackHandler())
+			{
+				handler->preCallbackEvent();
+			}
+
+			
+
             const ScopedLock sl2 (processor->getCallbackLock());
 
             if (! processor->isSuspended())

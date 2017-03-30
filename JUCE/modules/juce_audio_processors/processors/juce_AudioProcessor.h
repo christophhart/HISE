@@ -46,6 +46,8 @@ class JUCE_API  AudioProcessor
 protected:
     struct BusesProperties;
 
+	
+
     //==============================================================================
     /** Constructor.
 
@@ -320,6 +322,14 @@ public:
         bool operator== (const BusesLayout& other) const noexcept   { return inputBuses == other.inputBuses && outputBuses == other.outputBuses; }
         bool operator!= (const BusesLayout& other) const noexcept   { return inputBuses != other.inputBuses || outputBuses != other.outputBuses; }
     };
+
+	struct PreCallbackHandler
+	{
+		virtual ~PreCallbackHandler() {};
+
+		virtual void preCallbackEvent() = 0;
+	};
+
 
     //==============================================================================
     /**
@@ -1223,6 +1233,10 @@ public:
     /** This method is called when the layout of the audio processor changes. */
     virtual void processorLayoutsChanged();
 
+	virtual void setPrecallbackHandler(PreCallbackHandler* newPrecallbackHandler) { precallbackHandler = newPrecallbackHandler; };
+
+	PreCallbackHandler* getPrecallbackHandler() { return precallbackHandler; };
+
     //==============================================================================
     /** Adds a listener that will be called when an aspect of this processor changes. */
     virtual void addListener (AudioProcessorListener* newListener);
@@ -1400,6 +1414,8 @@ protected:
         BusesProperties withOutput (const String& name, const AudioChannelSet& defaultLayout, bool isActivatedByDefault = true) const;
     };
 
+	
+
     /** Callback to query if adding/removing buses currently possible.
 
         This callback is called when the host calls addBus or removeBus.
@@ -1521,6 +1537,8 @@ private:
    #if JUCE_DEBUG && ! JUCE_DISABLE_AUDIOPROCESSOR_BEGIN_END_GESTURE_CHECKING
     BigInteger changingParams;
    #endif
+
+	ScopedPointer<PreCallbackHandler> precallbackHandler;
 
     AudioProcessorListener* getListenerLocked (int) const noexcept;
     void updateSpeakerFormatStrings();
