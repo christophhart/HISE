@@ -90,7 +90,7 @@ StreamingSamplerSound::~StreamingSamplerSound()
 
 void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 {
-    const bool preloadSizeChanged = preloadSize == newPreloadSize;
+	const bool preloadSizeChanged = preloadSize == newPreloadSize;
     const bool streamingDeactivated = newPreloadSize == -1 && entireSampleLoaded;
     
 	if(!forceReload && (preloadSizeChanged || streamingDeactivated)) return;
@@ -129,13 +129,18 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 	{
 		preloadBuffer.setSize(2, internalPreloadSize, false, false, false);
 	}
-	catch (std::bad_alloc e)
+	catch (std::exception e)
 	{
 		preloadBuffer.setSize(2, 0);
 
 		throw StreamingSamplerSound::LoadingError(getFileName(), "Preload error (max memory exceeded).");
 	}
 	
+	if (preloadBuffer.getNumSamples() == 0)
+	{
+		return;
+	}
+
 	preloadBuffer.clear();
 	
 	if (sampleRate <= 0.0)
@@ -1101,7 +1106,7 @@ bool SampleLoader::advanceReadIndex(double uptime)
 
 bool SampleLoader::requestNewData()
 {
-    ADD_GLITCH_DETECTOR("Requesting new sample data");
+    //ADD_GLITCH_DETECTOR("Requesting new sample data");
 
 #if KILL_VOICES_WHEN_STREAMING_IS_BLOCKED
     if(this->isQueued())
@@ -1310,7 +1315,7 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
     
 	if(sound != nullptr)
 	{
-        ADD_GLITCH_DETECTOR("Rendering sample " + sound->getFileName());
+        
         
 		const double startAlpha = fmod(voiceUptime, 1.0);
 		
@@ -1330,9 +1335,8 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 		float* outL = outputBuffer.getWritePointer(0, startSample);
 		float* outR = outputBuffer.getWritePointer(1, startSample);
 		
-		const int samplesToCheck = numSamples;
-		float* lToCheck = outL;
-		float* rToCheck = outR;
+		
+
 
 #if USE_SAMPLE_DEBUG_COUNTER
         jassert((int)voiceUptime == data.leftChannel[0]);
@@ -1434,10 +1438,6 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 			}
 		}
         
-
-		CHECK_BURST_WHEN_LOGGING(lToCheck, samplesToCheck);
-		CHECK_BURST_WHEN_LOGGING(rToCheck, samplesToCheck);
-
 #if USE_SAMPLE_DEBUG_COUNTER 
         
         for(int i = startDebug; i < numDebug; i++)

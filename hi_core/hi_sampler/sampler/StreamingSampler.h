@@ -105,7 +105,7 @@ public:
 
 	/** An object of this class will be thrown if the loading of the sound fails.
 	*/
-	struct LoadingError: public std::exception
+	struct LoadingError
 	{
 		/** Create one of this, if the sound fails to load.
 		*

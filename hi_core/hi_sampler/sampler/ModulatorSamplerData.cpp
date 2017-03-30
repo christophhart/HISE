@@ -148,16 +148,19 @@ void SoundPreloadThread::preloadSample(StreamingSamplerSound * s, const int prel
 	}
 	catch (StreamingSamplerSound::LoadingError l)
 	{
-		debugError(sampler, "Error at preloading " + l.fileName + ": " + l.errorDescription);
+		String x;
+		x << "Error at preloading sample " << l.fileName << ": " << l.errorDescription;
+		sampler->getMainController()->getDebugLogger().logMessage(x);
 
-		//sampler->deleteAllSounds();
+#if USE_FRONTEND
+		sampler->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CustomErrorMessage, x);
+#else
+		debugError(sampler, x);
+#endif
 
-		//sampler->clearSounds();
 		sampler->setBypassed(false);
         
 		signalThreadShouldExit();
-
-
 	}
 }
 
@@ -547,8 +550,16 @@ void SampleMap::loadSamplesFromDirectory(const ValueTree &v)
 		}
 		catch(StreamingSamplerSound::LoadingError l)
 		{
-			debugError(sampler, "Error loading file " + l.fileName + ": " + l.errorDescription);
-			debugError(sampler, "Loading cancelled due to Error.");
+			String x;
+			x << "Error at preloading sample " << l.fileName << ": " << l.errorDescription;
+			sampler->getMainController()->getDebugLogger().logMessage(x);
+			
+#if USE_FRONTEND
+			sampler->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CustomErrorMessage, x);
+#else
+			debugError(sampler, x);
+#endif
+
 			return;
 		}
 		
@@ -655,7 +666,7 @@ String SampleMap::checkReferences(ValueTree& v, const File& sampleRootFolder, Ar
 
 	if (isMonolith)
 	{
-		for (int i = 0; i < numChannels; i++)
+		for (size_t i = 0; i < numChannels; i++)
 		{
 			const String fileName = sampleMapName + ".ch" + String(i + 1);
 

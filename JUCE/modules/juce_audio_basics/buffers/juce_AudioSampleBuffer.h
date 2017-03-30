@@ -293,7 +293,7 @@ public:
                   int newNumSamples,
                   bool keepExistingContent = false,
                   bool clearExtraSpace = false,
-                  bool avoidReallocating = false) noexcept
+                  bool avoidReallocating = false)
     {
         jassert (newNumChannels >= 0);
         jassert (newNumSamples >= 0);

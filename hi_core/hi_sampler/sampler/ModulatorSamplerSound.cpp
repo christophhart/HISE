@@ -681,7 +681,22 @@ bool ModulatorSamplerSoundPool::loadMonolithicData(const ValueTree &sampleMap, c
 
 	HiseMonolithAudioFormat* hmaf = loadedMonoliths.getLast();
 
-	hmaf->fillMetadataInfo(sampleMap);
+	try
+	{
+		hmaf->fillMetadataInfo(sampleMap);
+	}
+	catch (StreamingSamplerSound::LoadingError l)
+	{
+		String x;
+		x << "Error at loading sample " << l.fileName << ": " << l.errorDescription;
+		mc->getDebugLogger().logMessage(x);
+
+#if USE_FRONTEND
+		mc->sendOverlayMessage(DeactiveOverlay::State::CustomErrorMessage, x);
+#else
+		debugError(mc->getMainSynthChain(), x);
+#endif
+	}
 
 	for (int i = 0; i < sampleMap.getNumChildren(); i++)
 	{
@@ -859,6 +874,12 @@ public:
 		}
 		catch (StreamingSamplerSound::LoadingError e)
 		{
+			String x;
+
+			x << "Error at loading sample " << e.fileName << ": " << e.errorDescription;
+
+			mainSynthChain->getMainController()->getDebugLogger().logMessage(x);
+
 			errorMessage = "There was an error at preloading.";
 			return;
 		}

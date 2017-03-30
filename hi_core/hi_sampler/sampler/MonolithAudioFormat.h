@@ -34,8 +34,11 @@
 #ifndef MONOLITHAUDIOFORMAT_H_INCLUDED
 #define MONOLITHAUDIOFORMAT_H_INCLUDED
 
-
+#if JUCE_64BIT
 #define USE_FALLBACK_READERS_FOR_MONOLITH 0
+#else
+#define USE_FALLBACK_READERS_FOR_MONOLITH 1
+#endif
 
 class MonolithAudioFormatReader : public MemoryMappedAudioFormatReader
 {
@@ -197,66 +200,7 @@ public:
 		dummyReader.bitsPerSample = 16;
 	}
 
-	void fillMetadataInfo(const ValueTree &sampleMap)
-	{
-		int numChannels = sampleMap.getChild(0).getNumChildren();
-		if (numChannels == 0) numChannels = 1;
-
-		multiChannelSampleInformation.reserve(numChannels);
-
-		for (int i = 0; i < numChannels; i++)
-		{
-			std::vector<SampleInfo> newVector;
-			newVector.reserve(sampleMap.getNumChildren());
-			multiChannelSampleInformation.push_back(newVector);
-		}
-			
-
-		for (int i = 0; i < sampleMap.getNumChildren(); i++)
-		{
-			ValueTree sample = sampleMap.getChild(i);
-
-			if (numChannels == 1)
-			{
-				SampleInfo info;
-
-				info.start = sample.getProperty("MonolithOffset");
-				info.length = sample.getProperty("MonolithLength");
-				info.sampleRate = sample.getProperty("SampleRate");
-				info.fileName = sample.getProperty("FileName");
-
-				multiChannelSampleInformation[0].push_back(info);
-			}
-			else
-			{
-				for (int channel = 0; channel < numChannels; channel++)
-				{
-					SampleInfo info;
-
-					info.start = sample.getProperty("MonolithOffset");
-					info.length = sample.getProperty("MonolithLength");
-					info.sampleRate = sample.getProperty("SampleRate");
-					info.fileName = sample.getChild(channel).getProperty("FileName");
-
-					multiChannelSampleInformation[channel].push_back(info);
-				}
-			}
-		}
-
-		for (int i = 0; i < numChannels; i++)
-		{
-			dummyReader.numChannels = isMonoChannel[i] ? 1 : 2;
-			dummyReader.sampleRate = multiChannelSampleInformation[i][0].sampleRate;
-
-			const int bytesPerFrame = sizeof(int16) * dummyReader.numChannels;
-			FileInputStream fis(monolithicFiles[i]);
-			dummyReader.lengthInSamples = (fis.getTotalLength() - 1) / bytesPerFrame;
-
-			ScopedPointer<MonolithAudioFormatReader> reader = new MonolithAudioFormatReader(monolithicFiles[i], dummyReader, 1, fis.getTotalLength() - 1, isMonoChannel[i]);
-			reader->mapEntireFile();
-			memoryReaders.add(reader.release());
-		}
-	}
+	void fillMetadataInfo(const ValueTree &sampleMap);
 
 	Array<int> getPossibleSampleRates() override
 	{
