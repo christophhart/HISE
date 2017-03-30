@@ -102,7 +102,7 @@ VoiceCpuBpmComponent::VoiceCpuBpmComponent(MainController *mc_)
 
 	setSize(114, 28);
 
-	startTimer(500);
+	startTimer(300);
 }
 
 

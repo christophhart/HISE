@@ -228,9 +228,18 @@ void MainController::compileAllScripts()
 
 void MainController::stopCpuBenchmark()
 {
-	const double usage = (Time::highResolutionTicksToSeconds(Time::getHighResolutionTicks()) - temp_usage) * sampleRate / bufferSize.get();
-	usagePercent.set((int) (usage * 100));
-
+	const float thisUsage = 100.0f * (float)((Time::highResolutionTicksToSeconds(Time::getHighResolutionTicks()) - temp_usage) * sampleRate / bufferSize.get());
+	
+	const float lastUsage = usagePercent.get();
+	
+	if (thisUsage > lastUsage)
+	{
+		usagePercent.set(thisUsage);
+	}
+	else
+	{
+		usagePercent.set(lastUsage*0.99f);
+	}
 }
 
 void MainController::clearConsole()
