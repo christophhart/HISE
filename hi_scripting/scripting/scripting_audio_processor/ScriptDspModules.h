@@ -291,6 +291,109 @@ public:
 		Smoother smoother;
 	};
 
+	// Don't use this for anything else than to check the Debug Logger!
+	class GlitchCreator : public DspBaseObject
+	{
+	public:
+
+		enum class Parameters
+		{
+			EnableGlitches = 0,
+			SlowParameter,
+			numParameters
+		};
+
+		GlitchCreator() : DspBaseObject() {};
+
+		SET_MODULE_NAME("glitch_creator");
+
+		int getNumParameters() const override { return (int)Parameters::numParameters; }
+
+		float getParameter(int /*index*/) const override
+		{
+			return -1;
+		}
+
+		void setParameter(int index, float newValue) override
+		{
+			if (index == (int)Parameters::EnableGlitches)
+			{
+				enabled = newValue > 0.5f;
+			}
+			else
+			{
+				for (int i = 0; i < 100; i++)
+				{
+					doSomethingSlow();
+				}
+			}
+		}
+
+		void doSomethingSlow()
+		{
+			for (int i = 0; i < 8192; i++)
+			{
+				randomBuffer[i] = r.nextFloat() * sinf(2.0f + randomBuffer[i]);
+			}
+		}
+
+		void prepareToPlay(double /*sampleRate*/, int /*samplesPerBlock*/)
+		{
+			
+		}
+
+		void processBlock(float** data, int numChannels, int numSamples)
+		{
+			if (!enabled)
+				return;
+
+			if (numChannels == 1)
+			{
+				DebugLogger::fillBufferWithJunk(data[0], numSamples);
+
+			}
+
+			else if (numChannels == 2)
+			{
+				DebugLogger::fillBufferWithJunk(data[0], numSamples);
+				DebugLogger::fillBufferWithJunk(data[1], numSamples);
+			}
+		}
+
+		int getNumConstants() const override
+		{
+			return (int)Parameters::numParameters;
+		}
+
+		void getIdForConstant(int index, char*name, int &size) const noexcept override
+		{
+			switch (index)
+			{
+				FILL_PARAMETER_ID(Parameters, EnableGlitches, size, name);
+				FILL_PARAMETER_ID(Parameters, SlowParameter, size, name);
+			}
+		};
+
+		bool getConstant(int index, int& value) const noexcept override
+		{
+			if (index < getNumParameters())
+			{
+				value = index;
+				return true;
+			}
+
+			return false;
+		};
+
+	private:
+
+		bool enabled = true;
+
+		float randomBuffer[8192];
+
+		Random r;
+	};
+
     class AdditiveSynthesiser: public DspBaseObject
     {
     public:
@@ -1700,6 +1803,7 @@ class HiseCoreDspFactory : public StaticDspFactory
 		registerDspModule<ScriptingDsp::MidSideEncoder>();
 		registerDspModule<ScriptingDsp::PeakMeter>();
         registerDspModule<ScriptingDsp::AdditiveSynthesiser>();
+		registerDspModule<ScriptingDsp::GlitchCreator>();
 	}
 };
 
