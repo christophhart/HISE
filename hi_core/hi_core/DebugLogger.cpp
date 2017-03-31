@@ -67,6 +67,7 @@ struct DebugLogger::Failure
 		newValue(d.thisPercentage),
 		extraValue(voiceAmount),
 		timestamp(timestamp_),
+		limit(d.limit),
 		p(d.p),
 		callbackIndex(callbackIndex_),
 		id(Identifier())
@@ -122,7 +123,7 @@ struct DebugLogger::Failure
 		if (type == FailureType::PerformanceWarning)
 		{
 			errorMessage << "- Voice Amount: **" << String(extraValue, 0) << "**  " << nl;
-			errorMessage << "- Limit: `" << String(100.0 * ScopedGlitchDetector::getAllowedPercentageForLocation((int)location), 1) << "%` Avg: `" << String(oldValue, 2) << "%`, Peak: `" << String(newValue, 1) << "%`  " << nl;
+			errorMessage << "- Limit: `" << String(100.0 * limit , 1) << "%` Avg: `" << String(oldValue, 2) << "%`, Peak: `" << String(newValue, 1) << "%`  " << nl;
 		}
 		else if (extraValue != 0.0)
 		{
@@ -140,6 +141,7 @@ struct DebugLogger::Failure
 
 	double oldValue = 0.0;
 	double newValue = 0.0;
+	double limit = 0.0;
 
 	WeakReference<Processor> p;
 
@@ -577,6 +579,13 @@ void DebugLogger::fillBufferWithJunk(float* data, int numSamples)
 	}
 }
 
+void DebugLogger::setPerformanceWarningLevel(int newWarningLevel)
+{
+	logMessage("New Warning level selected: " + String(newWarningLevel));
+
+	warningLevel = newWarningLevel;
+}
+
 #undef RETURN_CASE_STRING_FAILURE
 
 File DebugLogger::getLogFile()
@@ -637,8 +646,9 @@ void DebugLoggerComponent::paint(Graphics& g)
 	Rectangle<int> r = getLocalBounds();
 
 	r.reduce(20, 20);
+	r.setWidth(getWidth() - 200);
 
-	g.setColour(Colours::white.withAlpha(0.05f));
+	g.setColour(Colours::white.withAlpha(0.1f));
 
 	g.setFont(GLOBAL_BOLD_FONT().withHeight(40.0f));
 
@@ -648,6 +658,8 @@ void DebugLoggerComponent::paint(Graphics& g)
 	g.setFont(GLOBAL_BOLD_FONT());
 
 	g.drawText(logger->getLastErrorMessage(), r, Justification::centredLeft);
+
+	g.drawText("Warning Level:", performanceLevelSelector->getX(), 5, 140, 20, Justification::centred);
 }
 
 

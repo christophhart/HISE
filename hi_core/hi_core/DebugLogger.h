@@ -103,6 +103,7 @@ public:
 		int location;
 		float thisPercentage;
 		float averagePercentage;
+		float limit;
 		Processor* p;
 	};
 
@@ -189,6 +190,25 @@ public:
 		messageCallbackStackBacktrace = newBackTrace;
 	}
 
+	void setPerformanceWarningLevel(int newWarningLevel);
+	
+	File getCurrentLogFile() const
+	{
+		return currentLogFile;
+	}
+
+	double getScaleFactorForWarningLevel() const
+	{
+		switch (warningLevel)
+		{
+		case 0: return 3.0;
+		case 1: return 2.0;
+		case 2: return 1.0;
+		}
+
+		return 1.0;
+	}
+
 private:
 
 	mutable String messageCallbackStackBacktrace;
@@ -232,6 +252,8 @@ private:
 
 	double uptime = 0.0;
 
+	int warningLevel = 2;
+
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DebugLogger)
 };
 
@@ -248,6 +270,7 @@ private:
 class DebugLoggerComponent : public Component,
 							 public DebugLogger::Listener,
 							 public Button::Listener,
+							 public ComboBox::Listener,
 							 public Timer
 {
 public:
@@ -256,14 +279,28 @@ public:
 		logger(logger_)
 	{
 		logger->addListener(this);
-		addAndMakeVisible(showLogFolderButton = new TextButton("Open Log Folder"));
+		addAndMakeVisible(showLogFolderButton = new TextButton("Open log folder"));
+		addAndMakeVisible(closeAndShowFileButton = new TextButton("Stop & show file"));
+		addAndMakeVisible(performanceLevelSelector = new ComboBox("Warning Level"));
+
+		
+		performanceLevelSelector->addItem("Low", 1);
+		performanceLevelSelector->addItem("Mid", 2);
+		performanceLevelSelector->addItem("High", 3);
+		performanceLevelSelector->setSelectedItemIndex(2, dontSendNotification);
+
+		performanceLevelSelector->addListener(this);
+		performanceLevelSelector->setLookAndFeel(&plaf);
 
 		showLogFolderButton->setColour(TextButton::ColourIds::textColourOffId, Colours::white);
 		showLogFolderButton->setColour(TextButton::ColourIds::textColourOnId, Colours::white);
-
 		showLogFolderButton->setLookAndFeel(&blaf);
-
 		showLogFolderButton->addListener(this);
+
+		closeAndShowFileButton->setColour(TextButton::ColourIds::textColourOffId, Colours::white);
+		closeAndShowFileButton->setColour(TextButton::ColourIds::textColourOnId, Colours::white);
+		closeAndShowFileButton->setLookAndFeel(&blaf);
+		closeAndShowFileButton->addListener(this);
 
 		startTimer(30);
 	}
@@ -299,29 +336,51 @@ public:
 			stopTimer();
 			repaint();
 		}
+
 	}
 
-	void buttonClicked(Button* /*b*/) override
+	void buttonClicked(Button* b) override
 	{
-		logger->showLogFolder();
+		if (b == showLogFolderButton)
+		{
+			logger->showLogFolder();
+		}
+		else
+		{
+			File f = logger->getCurrentLogFile();
+			logger->stopLogging();
+
+			f.revealToUser();
+		}
+	}
+
+	void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override
+	{
+		logger->setPerformanceWarningLevel(comboBoxThatHasChanged->getSelectedItemIndex());
 	}
 
 	void paint(Graphics& g) override;
 
 	void resized() override
 	{
-		showLogFolderButton->setBounds(getWidth() - 120, 20, 100, 20);
+		showLogFolderButton->setBounds(getWidth() - 120, 5, 100, 20);
+		closeAndShowFileButton->setBounds(getWidth() - 120, 35, 100, 20);
+		performanceLevelSelector->setBounds(getWidth() - 280, 25, 140, 30);
 	}
 
 private:
 
 	BlackTextButtonLookAndFeel blaf;
+	PopupLookAndFeel plaf;
+
 
 	DebugLogger* logger;
 
 	bool isFailing = false;
 
 	ScopedPointer<TextButton> showLogFolderButton;
+	ScopedPointer<TextButton> closeAndShowFileButton;
+	ScopedPointer<ComboBox> performanceLevelSelector;
 };
 
 #endif  // DEBUGLOGGER_H_INCLUDED

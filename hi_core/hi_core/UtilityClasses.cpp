@@ -79,8 +79,10 @@ ScopedGlitchDetector::~ScopedGlitchDetector()
 		locationTimeSum[location] += interval;
 		locationIndex[location]++;
 
-		const double maxTime = getAllowedPercentageForLocation(location) * bufferMs;
-
+		const double allowedPercentage = getAllowedPercentageForLocation(location) * logger.getScaleFactorForWarningLevel();
+		
+		double maxTime = allowedPercentage * bufferMs;
+		
 		if (lastPositiveId == 0 && interval > maxTime)
 		{
 			lastPositiveId = location;
@@ -89,6 +91,8 @@ ScopedGlitchDetector::~ScopedGlitchDetector()
 			const double thisTime = average / bufferMs;
 
 			DebugLogger::PerformanceData  l(location, (float)(100.0 * interval / bufferMs), (float)(100.0 * thisTime), p);
+
+			l.limit = (float)allowedPercentage;
 
 			logger.logPerformanceWarning(l);
 		}

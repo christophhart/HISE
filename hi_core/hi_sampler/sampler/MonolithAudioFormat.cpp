@@ -92,10 +92,8 @@ void HiseMonolithAudioFormat::fillMetadataInfo(const ValueTree &sampleMap)
 
 		if (memoryReaders.getLast()->getMappedSection().isEmpty())
 		{
-			throw StreamingSamplerSound::LoadingError(monolithicFiles[i].getFileName(), "Error at memory mapping");
 			jassertfalse;
+			throw StreamingSamplerSound::LoadingError(monolithicFiles[i].getFileName(), "Error at memory mapping");
 		}
-
-		
 	}
 }
