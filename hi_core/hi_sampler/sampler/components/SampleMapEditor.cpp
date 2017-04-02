@@ -164,35 +164,26 @@ void SampleMapEditor::paint (Graphics& g)
 {
     //[UserPrePaint] Add your own custom painting code here..
 
-
-	g.setColour(Colours::white.withAlpha(0.1f));
-
-
-	//g.drawRect(0, map->getBottom() + 28, getWidth(), getHeight() - map->getBottom() - 28, 1);
-
-	//KnobLookAndFeel::drawHiBackground(g, 2, 2, getWidth() - 4, getHeight() - 4);
-
     int x = 0;
     int y = 2;
     int width = getWidth();
     int height = getHeight()-4;
     
-    g.setColour(Colour(0xFF333333));
-    g.fillRect((float)x, (float)y, (float)width, (float)height);
-    
-	g.setColour(Colours::white.withAlpha(0.3f));
+	Rectangle<int> a(x, y, width, height);
 
-	g.drawRect(x, y, width, height);
+	ProcessorEditorLookAndFeel::drawShadowBox(g, a, JUCE_LIVE_CONSTANT_OFF(Colour(0xff333333)));
+
+	//g.drawRect(x, y, width, height);
 
     //[/UserPrePaint]
 
-    g.setColour (Colour (0x13ffffff));
+    g.setColour (JUCE_LIVE_CONSTANT_OFF(Colour (0x13ffffff)));
     g.fillRect (8, 8, getWidth() - 132, 24);
 
     g.setColour (Colour (0x0fffffff));
     g.drawRect (8, 8, getWidth() - 132, 24, 1);
 
-    g.setColour (Colour (0xaaffffff));
+    g.setColour (Colour (0xccffffff));
     g.setFont (GLOBAL_BOLD_FONT().withHeight(22.0f));
     g.drawText (TRANS("MAP EDITOR"),
                 getWidth() - 12 - 244, 5, 244, 30,

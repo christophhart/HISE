@@ -144,12 +144,10 @@ void SampleEditor::paint (Graphics& g)
 	int width = getWidth();
 	int height = getHeight() - 4;
 
-    g.setColour(Colour(0xFF333333));
-    g.fillRect((float)x, (float)y, (float)width, (float)height);
-    
-    g.setColour(Colours::white.withAlpha(0.3f));
-    
-    g.drawRect(x, y, width, height);
+	Rectangle<int> a(x, y, width, height);
+
+	ProcessorEditorLookAndFeel::drawShadowBox(g, a, Colour(0xFF333333));
+
     //[/UserPrePaint]
 
     g.setColour (Colour (0x13ffffff));
@@ -158,8 +156,8 @@ void SampleEditor::paint (Graphics& g)
     g.setColour (Colour (0x0fffffff));
     g.drawRect (8, 8, getWidth() - 175, 24, 1);
 
-    g.setColour (Colour (0x70ffffff));
-    g.setFont (Font ("Arial", 20.00f, Font::bold));
+    g.setColour (Colour (0xccffffff));
+	g.setFont(GLOBAL_BOLD_FONT().withHeight(22.0f));
     g.drawText (TRANS("SAMPLE EDITOR"),
                 getWidth() - 8 - 232, 4, 232, 30,
                 Justification::centredRight, true);

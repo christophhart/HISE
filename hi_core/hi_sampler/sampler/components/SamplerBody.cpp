@@ -207,13 +207,13 @@ void SamplerBody::resized()
     //[UserResized] Add your own custom resize handling here..
 
 
-	settingsHeight = getProcessor()->getEditorState(ModulatorSampler::SettingsShown) ? settingsPanel->getPanelHeight() + 6: 0;
+	settingsHeight = getProcessor()->getEditorState(ModulatorSampler::SettingsShown) ? settingsPanel->getPanelHeight(): 0;
 
 	settingsPanel->setSize(settingsPanel->getWidth(), settingsHeight);
 
-	waveFormHeight = getProcessor()->getEditorState(ModulatorSampler::WaveformShown) ? sampleEditor->getHeight() + 6: 0;
+	waveFormHeight = getProcessor()->getEditorState(ModulatorSampler::WaveformShown) ? sampleEditor->getHeight(): 0;
 
-	mapHeight = getProcessor()->getEditorState(ModulatorSampler::MapPanelShown) ? map->getHeight() + 6: 0;
+	mapHeight = getProcessor()->getEditorState(ModulatorSampler::MapPanelShown) ? map->getHeight(): 0;
 	const int additionalMapHeight = getProcessor()->getEditorState(getProcessor()->getEditorStateForIndex(ModulatorSampler::EditorStates::BigSampleMap)) ? 128 : 0;
 
 	if (mapHeight != 0)
@@ -224,7 +224,7 @@ void SamplerBody::resized()
 
 	}
 
-	tableHeight = getProcessor()->getEditorState(ModulatorSampler::TableShown) ? soundTable->getHeight() + 6: 0;
+	tableHeight = getProcessor()->getEditorState(ModulatorSampler::TableShown) ? soundTable->getHeight(): 0;
 
 	int y = h;
 

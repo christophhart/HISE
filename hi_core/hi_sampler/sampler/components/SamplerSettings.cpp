@@ -505,21 +505,19 @@ void SamplerSettings::paint (Graphics& g)
     int width = getWidth();
     int height = getHeight()-4;
     
-    g.setColour(Colour(0xFF333333));
-    g.fillRect((float)x, (float)y, (float)width, (float)height);
-    
-    g.setColour(Colours::white.withAlpha(0.3f));
-    
-    g.drawRect(x, y, width, height);
+	Rectangle<int> a(x, y, width, height);
+
+	ProcessorEditorLookAndFeel::drawShadowBox(g, a, Colour(0xFF333333));
+
     //[/UserPrePaint]
 
-    g.setColour (Colour (0x18ffffff));
+    g.setColour (JUCE_LIVE_CONSTANT_OFF(Colour (0x18ffffff)));
     g.fillRect ((getWidth() / 2) - (222 / 2), 74, 222, 14);
 
     g.setColour (Colour (0x18ffffff));
     g.fillRect (getWidth() - 9 - 222, 42, 222, 14);
 
-    g.setColour (Colour (0xaaffffff));
+    g.setColour (JUCE_LIVE_CONSTANT_OFF(Colour (0xccffffff)));
     g.setFont (GLOBAL_BOLD_FONT().withHeight(22.0f));
     g.drawText (TRANS("SAMPLER SETTINGS"),
                 getWidth() - 8 - 240, 6, 240, 30,
@@ -544,13 +542,13 @@ void SamplerSettings::paint (Graphics& g)
     g.drawRect (getWidth() - 8 - 224, 41, 224, 55, 1);
 
     g.setColour (Colour (0x80ffffff));
-    g.setFont (Font ("Arial", 13.00f, Font::bold));
+    g.setFont (GLOBAL_BOLD_FONT());
     g.drawText (TRANS("Disk IO Settings"),
                 16, 49, 200, 30,
                 Justification::centred, true);
 
     g.setColour (Colour (0x80ffffff));
-    g.setFont (Font ("Arial", 13.00f, Font::bold));
+	g.setFont(GLOBAL_BOLD_FONT());
     g.drawText (TRANS("Group Settings"),
                 getWidth() - 220, 33, 200, 30,
                 Justification::centred, true);
@@ -562,7 +560,7 @@ void SamplerSettings::paint (Graphics& g)
     g.drawRect ((getWidth() / 2) - (224 / 2), 73, 224, 55, 1);
 
     g.setColour (Colour (0x80ffffff));
-    g.setFont (Font ("Arial", 13.00f, Font::bold));
+	g.setFont(GLOBAL_BOLD_FONT());
     g.drawText (TRANS("Voice Settings"),
                 (getWidth() / 2) - (200 / 2), 65, 200, 30,
                 Justification::centred, true);
@@ -574,7 +572,7 @@ void SamplerSettings::paint (Graphics& g)
     g.drawRect (getWidth() - 8 - 224, 105, 224, 55, 1);
 
     g.setColour (Colour (0x80ffffff));
-    g.setFont (Font ("Arial", 13.00f, Font::bold));
+	g.setFont(GLOBAL_BOLD_FONT());
     g.drawText (TRANS("Playback Settings"),
                 getWidth() - 224, 97, 208, 30,
                 Justification::centred, true);
