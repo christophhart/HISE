@@ -622,7 +622,7 @@ void ProcessorEditorHeader::sliderDragStarted(Slider* s)
 
 void ProcessorEditorHeader::sliderDragEnded(Slider* s)
 {
-	if (s == intensitySlider)
+	if (isHeaderOfModulatorSynth() && s == intensitySlider)
 	{
 		const float oldValue = Decibels::decibelsToGain((float)dragStartValue);
 		const float newValue = Decibels::decibelsToGain((float)s->getValue());
