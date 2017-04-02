@@ -586,6 +586,13 @@ void AudioSampleBufferComponent::paint(Graphics &g)
 {
 	if(isOpaque()) g.fillAll(bgColour);
 
+    if(buffer == nullptr)
+    {
+        g.setColour(Colours::white.withAlpha(0.3f));
+        g.setFont(GLOBAL_FONT());
+        g.drawText("Drop audio files here or right click to open dialog", getLocalBounds(), Justification::centred);
+    }
+    
 	AudioDisplayComponent::paint(g);
 
 	g.setFont(GLOBAL_FONT());
