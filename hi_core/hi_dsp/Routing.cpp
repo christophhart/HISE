@@ -41,6 +41,8 @@ allowEnablingOnly(false),
 editorShown(false)
 {
 	
+    
+    
 	resetToDefault();
 }
 
@@ -351,6 +353,9 @@ void RoutableProcessor::MatrixData::resetToDefault()
 
 	channelConnections[0] = 0;
 	channelConnections[1] = 1;
+    
+    FloatVectorOperations::clear(targetGainValues, NUM_MAX_CHANNELS);
+    FloatVectorOperations::clear(sourceGainValues, NUM_MAX_CHANNELS);
 }
 
 ValueTree RoutableProcessor::MatrixData::exportAsValueTree() const

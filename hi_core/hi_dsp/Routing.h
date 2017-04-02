@@ -107,7 +107,7 @@ public:
 		String getSourceName() const { return thisAsProcessor->getId(); }
 
 		void setGainValues(float *numMaxChannelValues, bool isSourceValue);
-		float getGainValue(int channelIndex, bool getSourceValue) const noexcept { return getSourceValue ? sourceGainValues[channelIndex] : targetGainValues[channelIndex]; };
+		float getGainValue(int channelIndex, bool getSourceValue) const { return getSourceValue ? sourceGainValues[channelIndex] : targetGainValues[channelIndex]; };
 
 		void init()
 		{
@@ -138,7 +138,7 @@ public:
 
 		float sourceGainValues[NUM_MAX_CHANNELS];
 		float targetGainValues[NUM_MAX_CHANNELS];
-		int channelConnections[NUM_MAX_CHANNELS];
+        int channelConnections[NUM_MAX_CHANNELS];
 		int sendConnections[NUM_MAX_CHANNELS];
 	};
 

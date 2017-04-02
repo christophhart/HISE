@@ -40,6 +40,7 @@ selectedAsSend(false)
 {
 	addAndMakeVisible(inMeter = new VuMeter());
 	inMeter->setType(VuMeter::StereoVertical);
+    inMeter->setPeak(0.0f, 0.0f);
 	inMeter->setColour(VuMeter::backgroundColour, Colour(0xFF333333));
 	inMeter->setColour(VuMeter::ledColour, Colours::lightgrey);
 	inMeter->setInterceptsMouseClicks(false, false);
