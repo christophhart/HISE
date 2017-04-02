@@ -125,14 +125,10 @@ void DelayEditor::paint (Graphics& g)
     //[UserPrePaint] Add your own custom painting code here..
     //[/UserPrePaint]
 
-    g.setColour (Colour (0x30000000));
-    g.fillRoundedRectangle (static_cast<float> ((getWidth() / 2) - ((getWidth() - 84) / 2)), 6.0f, static_cast<float> (getWidth() - 84), static_cast<float> (getHeight() - 12), 6.000f);
-
-    g.setColour (Colour (0x25ffffff));
-    g.drawRoundedRectangle (static_cast<float> ((getWidth() / 2) - ((getWidth() - 84) / 2)), 6.0f, static_cast<float> (getWidth() - 84), static_cast<float> (getHeight() - 12), 6.000f, 2.000f);
-
-    g.setColour (Colour (0x52ffffff));
-    g.setFont (Font ("Arial", 24.00f, Font::bold));
+    ProcessorEditorLookAndFeel::fillEditorBackgroundRect(g, this);
+    g.setColour(Colour(0xAAFFFFFF));
+    g.setFont(GLOBAL_BOLD_FONT().withHeight(22.0f));
+    
     g.drawText (TRANS("delay"),
                 getWidth() - 53 - 200, 6, 200, 40,
                 Justification::centredRight, true);

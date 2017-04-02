@@ -85,6 +85,8 @@ SimpleEnvelopeEditorBody::SimpleEnvelopeEditorBody (ProcessorEditor *p)
 
 	attackSlider->setIsUsingModulatedRing(true);
 
+	
+
 	sm = dynamic_cast<SimpleEnvelope*>(getProcessor());
 
 	startTimer(30);
@@ -117,14 +119,10 @@ void SimpleEnvelopeEditorBody::paint (Graphics& g)
 
 
     //[UserPaint] Add your own custom painting code here..
-    
-    g.setColour (Colour (0x30000000));
-    g.fillRoundedRectangle ((float)((getWidth() / 2) - ((getWidth() - 84) / 2)), 6.0f, (float)(getWidth() - 84), (float)(getHeight() - 12), 3.000f);
-    
-    g.setColour (Colour (0x30ffffff));
-    //g.drawRoundedRectangle (static_cast<float> ((getWidth() / 2) - ((getWidth() - 84) / 2)), 6.0f, static_cast<float> (getWidth() - 84), static_cast<float> (getHeight() - 12), 6.000f, 1.000f);
-    
-    g.setColour (Colour (0x66FFFFFF));
+   
+	ProcessorEditorLookAndFeel::fillEditorBackgroundRect(g, this);
+
+    g.setColour (Colour (0xAAFFFFFF));
     
     g.setFont (GLOBAL_BOLD_FONT().withHeight(26.0f));
     

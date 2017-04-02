@@ -138,6 +138,8 @@ LfoEditorBody::LfoEditorBody (ProcessorEditor *p)
 
 	startTimer(150);
 
+	ProcessorEditorLookAndFeel::setupEditorNameLabel(label);
+
 	h = getHeight();
     //[/Constructor]
 }
@@ -167,13 +169,9 @@ void LfoEditorBody::paint (Graphics& g)
 {
     //[UserPrePaint] Add your own custom painting code here..
 
+	ProcessorEditorLookAndFeel::fillEditorBackgroundRect(g, this);
+
     //[/UserPrePaint]
-
-    g.setColour (Colour (0x30000000));
-    g.fillRoundedRectangle (static_cast<float> ((getWidth() / 2) - ((getWidth() - 84) / 2)), 6.0f, static_cast<float> (getWidth() - 84), static_cast<float> (getHeight() - 16), 6.000f);
-
-    g.setColour (Colour (0x25ffffff));
-    g.drawRoundedRectangle (static_cast<float> ((getWidth() / 2) - ((getWidth() - 84) / 2)), 6.0f, static_cast<float> (getWidth() - 84), static_cast<float> (getHeight() - 16), 6.000f, 2.000f);
 
     //[UserPaint] Add your own custom painting code here..
     //[/UserPaint]

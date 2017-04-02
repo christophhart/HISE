@@ -466,6 +466,48 @@ ProcessorEditorLookAndFeel::ProcessorEditorLookAndFeel()
 
 }
 
+void ProcessorEditorLookAndFeel::drawShadowBox(Graphics& g, Rectangle<int> area, Colour fillColour)
+{
+	g.setColour(fillColour);
+	g.fillRect(area);
+
+	Colour c1 = JUCE_LIVE_CONSTANT_OFF(Colour(0x77252525));
+	Colour c2 = JUCE_LIVE_CONSTANT_OFF(Colour(0x38999999));
+
+	g.setColour(c1);
+	g.drawVerticalLine(area.getX(), (float)area.getY(), (float)(area.getBottom()));
+	g.drawHorizontalLine(area.getY(), area.getX(), (float)area.getRight());
+
+	g.setColour(c2);
+	g.drawVerticalLine(area.getRight() - 1, (float)area.getY(), (float)(area.getBottom()));
+	g.drawHorizontalLine(area.getBottom() - 1, (float)area.getX(), (float)area.getRight());
+}
+
+void ProcessorEditorLookAndFeel::setupEditorNameLabel(Label* label)
+{
+	label->setJustificationType(Justification::centredRight);
+	label->setEditable(false, false, false);
+	label->setColour(Label::textColourId, JUCE_LIVE_CONSTANT_OFF(Colour(0xAAffffff)));
+	label->setColour(TextEditor::textColourId, Colours::black);
+	label->setColour(TextEditor::backgroundColourId, Colour(0x00000000));
+
+	label->setFont(GLOBAL_BOLD_FONT().withHeight(26.0f));
+}
+
+void ProcessorEditorLookAndFeel::fillEditorBackgroundRect(Graphics& g, Component* c, int offsetFromLeftRight /*= 84*/)
+{
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x27000000)));
+	g.fillRoundedRectangle(static_cast<float> ((c->getWidth() / 2) - ((c->getWidth() - offsetFromLeftRight) / 2)), 3.0f, static_cast<float> (c->getWidth() - offsetFromLeftRight), static_cast<float> (c->getHeight() - 6), 3.000f);
+}
+
+void ProcessorEditorLookAndFeel::fillEditorBackgroundRectFixed(Graphics& g, Component* c, int fixedWidth)
+{
+    g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x27000000)));
+    g.fillRoundedRectangle (static_cast<float> ((c->getWidth() / 2) - (fixedWidth / 2)), 3.0f, (float)fixedWidth, static_cast<float> (c->getHeight() - 6), 3.000f);
+    
+
+}
+
 void ProcessorEditorLookAndFeel::drawNoiseBackground(Graphics &g, Rectangle<int> area, Colour c)
 {
     g.setOpacity(JUCE_LIVE_CONSTANT(0.4f));
@@ -609,17 +651,15 @@ void ConcertinaPanelHeaderLookAndFeel::drawConcertinaPanelHeader(Graphics& g, co
 
     const float lowAlpha = 0.25f;
     
-    g.setGradientFill(ColourGradient(Colours::black.withAlpha(isMouseOver ? (lowAlpha - 0.1f) : lowAlpha), 0, (float)area.getY(),
-                                     Colours::black.withAlpha(lowAlpha + 0.1f), 0, (float)area.getBottom(), false));
-    
-	
+    g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff121212)));
+
 	g.fillAll();
 
-	g.setColour(Colours::black.withAlpha(0.4f));
+	
 
-	g.drawRect(area, 1);
+	//g.drawRect(area, 1);
 
-	g.fillRoundedRectangle(0.0f, 0.0f, (float)area.getWidth(), 60.0f, 5.0f);
+	//g.fillRoundedRectangle(0.0f, 0.0f, (float)area.getWidth(), 60.0f, 5.0f);
 
 	//g.fillAll();
     
@@ -642,7 +682,7 @@ void ConcertinaPanelHeaderLookAndFeel::drawConcertinaPanelHeader(Graphics& g, co
 
 void PopupLookAndFeel::drawMenuBarBackground(Graphics& g, int width, int height, bool, MenuBarComponent& /*menuBar*/)
 {
-	const Colour colour = Colour(BACKEND_BG_COLOUR_BRIGHT);
+	const Colour colour = JUCE_LIVE_CONSTANT_OFF(Colour(0xff282828));
 
 	Rectangle<int> r(width, height);
 
@@ -653,7 +693,7 @@ void PopupLookAndFeel::drawMenuBarBackground(Graphics& g, int width, int height,
 	g.setGradientFill(ColourGradient(colour, 0, 0, colour.darker(0.13f), 0, (float)height, false));
 	g.fillRect(r);
 
-	g.setColour(Colour(0xFF666666));
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff959595)));
 
 	g.drawLine(0.0f, (float)height, (float)width, (float)height);
 }

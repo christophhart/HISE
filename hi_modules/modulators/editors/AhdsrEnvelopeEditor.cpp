@@ -261,6 +261,8 @@ AhdsrEnvelopeEditor::AhdsrEnvelopeEditor (ProcessorEditor *p)
 	releaseSlider->setIsUsingModulatedRing(true);
 	sustainSlider->setIsUsingModulatedRing(true);
 
+	ProcessorEditorLookAndFeel::setupEditorNameLabel(label);
+
     //[/Constructor]
 }
 
