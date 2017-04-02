@@ -403,7 +403,7 @@ public:
 	virtual const ModulatorSynthChain *getMainSynthChain() const = 0;
 
 	/** Returns the time that the plugin spends in its processBlock method. */
-	float getCpuUsage() const {return usagePercent.get();};
+	float getCpuUsage() const {return usagePercent.load();};
 
 	/** Returns the amount of playing voices. */
 	int getNumActiveVoices() const;;
@@ -665,7 +665,7 @@ private:
 
 	Array<WeakReference<TempoListener>> tempoListeners;
 
-	Atomic<float> usagePercent;
+    std::atomic<float> usagePercent;
 
 	bool enablePluginParameterUpdate;
 
