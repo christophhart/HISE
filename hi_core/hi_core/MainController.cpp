@@ -482,6 +482,9 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
     if (!masterEventBuffer.isEmpty()) setMidiInputFlag();
     
 	eventIdHandler.handleEventIds();
+
+	getDebugLogger().logEvents(masterEventBuffer);
+
 #else
 	ignoreUnused(midiMessages);
 #endif

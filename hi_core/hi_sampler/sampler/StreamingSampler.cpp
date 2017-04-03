@@ -1193,6 +1193,10 @@ void SampleLoader::fillInactiveBuffer()
 			writeBuffer.get()->clear();
 		}
         
+		logger->checkAssertion(nullptr, DebugLogger::Location::SampleLoaderReadOperation, localSound != nullptr, 1174);
+		logger->checkSampleData(nullptr, DebugLogger::Location::SampleLoaderReadOperation, true, writeBuffer.get()->getReadPointer(0, 0), writeBuffer.get()->getNumSamples());
+		logger->checkSampleData(nullptr, DebugLogger::Location::SampleLoaderReadOperation, false, writeBuffer.get()->getReadPointer(1, 0), writeBuffer.get()->getNumSamples());
+
 #if USE_SAMPLE_DEBUG_COUNTER
       
         DBG(positionInSampleFile);
@@ -1303,6 +1307,7 @@ void StreamingSamplerVoice::startNote (int /*midiNoteNumber*/,
 	}
 }
 
+#define LOG_SAMPLE_RENDERING 1
 
 void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int startSample, int numSamples)
 {
@@ -1330,12 +1335,23 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 		// Copy the not resampled values into the voice buffer.
 		StereoChannelData data = loader.fillVoiceBuffer(*tempVoiceBuffer, pitchCounter + startAlpha);
 
+#if LOG_SAMPLE_RENDERING
+
+		logger->checkAssertion(nullptr, DebugLogger::Location::SampleVoiceBufferFill, tempVoiceBuffer != nullptr, 1336);
+		logger->checkAssertion(nullptr, DebugLogger::Location::SampleVoiceBufferFill, pitchCounter != 0, 1337);
+		logger->checkAssertion(nullptr, DebugLogger::Location::SampleVoiceBufferFill, sound != nullptr, 1338);
+
+		logger->checkSampleData(nullptr, DebugLogger::Location::SampleVoiceBufferFill, true, data.leftChannel, (int)(pitchCounter + startAlpha));
+		logger->checkSampleData(nullptr, DebugLogger::Location::SampleVoiceBufferFill, false, data.rightChannel, (int)(pitchCounter + startAlpha));
+#endif
+
 		const float* const inL = data.leftChannel;
 		const float* const inR = data.rightChannel;
 		float* outL = outputBuffer.getWritePointer(0, startSample);
 		float* outR = outputBuffer.getWritePointer(1, startSample);
 		
-		
+		const int startFixed = startSample;
+		const int numSamplesFixed = numSamples;
 
 
 #if USE_SAMPLE_DEBUG_COUNTER
@@ -1459,12 +1475,17 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
         
         if(!loader.advanceReadIndex(voiceUptime))
         {
-            Logger::writeToLog("Streaming failure with sound " + sound->getFileName());
+			logger->addStreamingFailure(voiceUptime);
             resetVoice();
             return;
         }
 
 		const bool enoughSamples = sound->hasEnoughSamplesForBlock((int)(voiceUptime + numSamples * MAX_SAMPLER_PITCH));
+
+#if LOG_SAMPLE_RENDERING
+		logger->checkSampleData(nullptr, DebugLogger::Location::SampleVoiceBufferFill, true, outputBuffer.getReadPointer(0, startFixed), numSamplesFixed);
+		logger->checkSampleData(nullptr, DebugLogger::Location::SampleVoiceBufferFill, false, outputBuffer.getReadPointer(1, startFixed), numSamplesFixed);
+#endif
 
 		if(!enoughSamples) resetVoice();
 	}

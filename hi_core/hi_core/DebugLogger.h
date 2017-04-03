@@ -35,10 +35,20 @@
 #define DEBUGLOGGER_H_INCLUDED
 
 class MainController;
+class JavascriptProcessor;
 
 class DebugLogger : public Timer
 {
 public:
+
+	enum class MessageType
+	{
+		Failure=0,
+		Warning,
+		Event,
+		ParameterChange,
+		numMessageTypes
+	};
 
 	enum class FailureType
 	{
@@ -55,6 +65,7 @@ public:
 		Discontinuity, //< signals a discontinuity in the signal stream
 		PriorityInversion, //< when the audio thread lock is locked by another thread
 		SampleLoadingError,
+		StreamingFailure,
 		numFailureTypes
 	};
 
@@ -63,11 +74,16 @@ public:
 		Empty,
 		MainRenderCallback,
 		SynthChainRendering,
+		SynthPreVoiceRendering,
+		SynthPostVoiceRenderingGainMod,
+		SynthPostVoiceRendering,
 		SynthRendering,
 		TimerCallback,
 		SynthVoiceRendering,
 		MultiMicSampleRendering,
 		SampleRendering,
+		SampleVoiceBufferFill,
+		SampleLoaderReadOperation,
 		MasterEffectRendering,
 		ConvolutionRendering,
 		VoiceEffectRendering,
@@ -126,7 +142,19 @@ public:
 
 	~DebugLogger();
 
+	struct Message;
+
 	struct Failure;
+
+	struct Event;
+
+	struct PerformanceWarning;
+
+	struct ParameterChange;
+
+	struct StringMessage;
+
+	struct AudioSettingChange;
 
 	struct Listener
 	{
@@ -146,9 +174,17 @@ public:
 
 	void addFailure(const Failure& f);
 
+	void addPerformanceWarning(const PerformanceWarning& f);
+
+	void addStreamingFailure(double voiceUptime);
+
+	void logEvents(const HiseEventBuffer& masterBuffer);
+
 	void logMessage(const String& errorMessage);
 
 	void logPerformanceWarning(const PerformanceData& logData);
+
+	void logParameterChange(JavascriptProcessor* p, ReferenceCountedObject* control, const var& newValue);
 
 	void checkAudioCallbackProperties(double sampleRate, int samplesPerBlock);
 
@@ -209,20 +245,19 @@ public:
 		return 1.0;
 	}
 
+	void addSorted(Array<Message*>& list, Message* m);
+
 private:
 
 	mutable String messageCallbackStackBacktrace;
 
 	String actualBackTrace;
 
-	StringArray messages;
-	Array<int> callbackIndexesForMessage;
-
 	String lastErrorMessage = "";
 
 	int numErrorsSinceLogStart = 0;
-
 	int callbackIndex = 0;
+	int messageIndex = 0;
 
 	void addAudioDeviceChange(FailureType changeType, double oldValue, double newValue);
 
@@ -238,9 +273,15 @@ private:
 	static String getHeader();
 	String getSystemSpecs() const;
 
-	Array<Failure> pendingFailures;
-	Array<Failure> pendingMessages;
+#define NUM_MESSAGE_SLOTS 256
 
+	Array<Failure> pendingFailures;
+	Array<StringMessage> pendingStringMessages;
+	Array<ParameterChange> pendingParameterChanges;
+	Array<PerformanceWarning> pendingPerformanceWarnings;
+	Array<AudioSettingChange> pendingAudioChanges;
+	Array<Event> pendingEvents;
+	
 	Array<WeakReference<Listener>> listeners;
 
 	CriticalSection debugLock;

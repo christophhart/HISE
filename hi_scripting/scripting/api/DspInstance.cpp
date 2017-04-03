@@ -270,7 +270,7 @@ void DspInstance::processBlock(const var &data)
 				const int numSamples = b->size;
 
 				CHECK_AND_LOG_BUFFER_DATA_WITH_ID(processor, debugId, DebugLogger::Location::DspInstanceRendering, sampleData[0], true, numSamples);
-				FloatSanitizers::sanitizeArray(sampleData[1], numSamples);
+				FloatSanitizers::sanitizeArray(sampleData[0], numSamples);
 
 				object->processBlock(sampleData, 1, numSamples);
 

@@ -143,7 +143,7 @@ void VoiceCpuBpmComponent::timerCallback()
 		totalVoiceAmount += mainControllers[i]->getNumActiveVoices();
 	}
 
-	cpuSlider->setPeak(((int)totalUsage));
+	cpuSlider->setPeak(((float)totalUsage));
 	voiceLabel->setText(String(totalVoiceAmount), dontSendNotification);
 
 	if (mainControllers.size() != 0)

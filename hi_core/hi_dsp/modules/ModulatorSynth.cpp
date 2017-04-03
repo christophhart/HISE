@@ -397,6 +397,7 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 
 	for (int i = 0; i < internalBuffer.getNumChannels(); i++)
 	{
+		getMainController()->getDebugLogger().checkSampleData(this, DebugLogger::Location::SynthRendering, i % 2 != 0, internalBuffer.getReadPointer(i), numSamplesFixed);
 		FloatSanitizers::sanitizeArray(internalBuffer.getWritePointer(i), numSamplesFixed);
 	}
 
@@ -411,8 +412,6 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 			const float thisGain = gain.load() * (i % 2 == 0 ? leftBalanceGain : rightBalanceGain);
 			FloatVectorOperations::addWithMultiply(outputBuffer.getWritePointer(destinationChannel, 0), internalBuffer.getReadPointer(i, 0), thisGain, numSamplesFixed);
 		}
-
-		
 	}
 
 	if (getMatrix().isEditorShown())
@@ -442,6 +441,8 @@ void ModulatorSynth::preVoiceRendering(int startSample, int numThisTime)
 	// calculate the variant pitch values before the voices are rendered.
 	pitchChain->renderNextBlock(pitchBuffer, startSample, numThisTime);
 
+	CHECK_AND_LOG_BUFFER_DATA_WITH_ID(this, getIDAsIdentifier(), DebugLogger::Location::SynthPreVoiceRendering, pitchBuffer.getReadPointer(0, startSample), true, numThisTime);
+
 	if (!isChainDisabled(EffectChain)) effectChain->preRenderCallback(startSample, numThisTime);
 }
 
@@ -466,10 +467,14 @@ void ModulatorSynth::postVoiceRendering(int startSample, int numThisTime)
 	// Calculate the timeVariant modulators
 	gainChain->renderNextBlock(gainBuffer, startSample, numThisTime);
 
+	CHECK_AND_LOG_BUFFER_DATA_WITH_ID(this, getIDAsIdentifier(), DebugLogger::Location::SynthPostVoiceRenderingGainMod, gainBuffer.getReadPointer(0, startSample), true, numThisTime);
+
 	// Apply all gain modulators to the rendered voices
 	for (int i = 0; i < internalBuffer.getNumChannels(); i++)
 	{
 		FloatVectorOperations::multiply(internalBuffer.getWritePointer(i, startSample), gainBuffer.getReadPointer(0, startSample), numThisTime);
+
+		CHECK_AND_LOG_BUFFER_DATA_WITH_ID(this, getIDAsIdentifier(), DebugLogger::Location::SynthPostVoiceRendering, internalBuffer.getReadPointer(i, startSample), i % 2 != 0, numThisTime);
 	}
 
 	if (!isChainDisabled(EffectChain)) effectChain->renderNextBlock(internalBuffer, startSample, numThisTime);

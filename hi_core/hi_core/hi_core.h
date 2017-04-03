@@ -61,8 +61,9 @@ namespace juce
 */
 #include "UtilityClasses.h"
 #include "HI_LookAndFeels.h"
-#include "DebugLogger.h"
 #include "HiseEventBuffer.h"
+#include "DebugLogger.h"
+
 
 #include "ThreadWithQuasiModalProgressWindow.h"
 #include "Popup.h"
