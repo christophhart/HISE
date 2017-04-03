@@ -110,6 +110,8 @@ FilterEditor::FilterEditor (ProcessorEditor *p)
 
 	h = getHeight();
 
+    ProcessorEditorLookAndFeel::setupEditorNameLabel(label);
+    
 	freqSlider->setIsUsingModulatedRing(true);
 
     //[/Constructor]
@@ -138,14 +140,11 @@ void FilterEditor::paint (Graphics& g)
     //[UserPrePaint] Add your own custom painting code here..
     //[/UserPrePaint]
 
-    g.setColour (Colour (0x30000000));
-    g.fillRoundedRectangle (static_cast<float> ((getWidth() / 2) - (600 / 2)), 6.0f, 600.0f, 168.0f, 6.000f);
-
-    g.setColour (Colour (0x25ffffff));
-    g.drawRoundedRectangle (static_cast<float> ((getWidth() / 2) - (600 / 2)), 6.0f, 600.0f, 168.0f, 6.000f, 2.000f);
-
+    
     //[UserPaint] Add your own custom painting code here..
 
+    ProcessorEditorLookAndFeel::fillEditorBackgroundRectFixed(g, this, 600);
+    
 	KnobLookAndFeel::drawHiBackground(g, filterGraph->getX() - 5, filterGraph->getY() - 5, filterGraph->getWidth() + 10, filterGraph->getHeight() + 10, nullptr, false);
 
     //[/UserPaint]

@@ -510,12 +510,22 @@ public:
 
 		checkEnabledBands();
 
+        
+        
 		freqSlider->updateValue();
 		gainSlider->updateValue();
 		qSlider->updateValue();
 		enableBandButton->updateValue();
 		typeSelector->updateValue();
         dragOverlay->updatePositions();
+        
+        freqSlider->setEnabled(freqSlider->isEnabled() && numFilters != 0);
+        gainSlider->setEnabled(gainSlider->isEnabled() && numFilters != 0);
+        qSlider->setEnabled(qSlider->isEnabled() && numFilters != 0);
+        enableBandButton->setEnabled(enableBandButton->isEnabled() && numFilters != 0);
+        typeSelector->setEnabled(numFilters != 0);
+
+        
 	};
 
 	void checkEnabledBands()
@@ -628,7 +638,17 @@ public:
 			qSlider->setup(getProcessor(), -1, "Disabled");
 			enableBandButton->setup(getProcessor(), -1, "Disabled");
 			typeSelector->setup(getProcessor(), -1, "Disabled");
+            
+            freqSlider->setEnabled(false);
+            gainSlider->setEnabled(false);
+            qSlider->setEnabled(false);
+            enableBandButton->setEnabled(false);
+            typeSelector->setEnabled(false);
+
+            
 		}
+        
+        
 	}
 
     //[/UserMethods]

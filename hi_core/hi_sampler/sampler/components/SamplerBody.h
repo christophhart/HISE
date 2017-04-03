@@ -358,6 +358,7 @@ private:
     //==============================================================================
     ScopedPointer<SampleEditor> sampleEditor;
     ScopedPointer<SamplerTable> soundTable;
+    ScopedPointer<Component> buttonRow;
     ScopedPointer<TextButton> waveFormButton;
     ScopedPointer<TextButton> mapButton;
     ScopedPointer<TextButton> tableButton;

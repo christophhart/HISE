@@ -202,6 +202,10 @@ SamplerSoundMap::SamplerSoundMap(ModulatorSampler *ownerSampler_, SamplerBody *b
 	sampleLasso(new LassoComponent<WeakReference<SampleComponent>>())
 {
 
+    sampleLasso->setColour(LassoComponent<SampleComponent>::ColourIds::lassoFillColourId, Colours::white.withAlpha(0.1f));
+    sampleLasso->setColour(LassoComponent<SampleComponent>::ColourIds::lassoOutlineColourId, Colour(SIGNAL_COLOUR));
+    
+    
 	for (uint8 i = 0; i < 128; i++)
 	{
 		pressedKeys[i] = 255;
@@ -926,6 +930,8 @@ MapWithKeyboard::MapWithKeyboard(ModulatorSampler *ownerSampler, SamplerBody *b)
 	sampler(ownerSampler),
 	lastNoteNumber(-1)
 {
+    setBufferedToImage(true);
+    
 	addAndMakeVisible(map = new SamplerSoundMap(ownerSampler, b));
 };
 

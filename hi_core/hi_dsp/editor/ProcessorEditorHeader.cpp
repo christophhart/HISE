@@ -75,6 +75,8 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 	
 	idLabel->setEditable(!isHeaderOfChain() || isHeaderOfModulatorSynth());
 
+    idLabel->setBufferedToImage(true);
+    
 	addAndMakeVisible(chainIcon = new ChainIcon(getProcessor()));
 
     addAndMakeVisible (typeLabel = new Label ("Type Label",
@@ -89,6 +91,8 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
     
     typeLabel->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
 
+    typeLabel->setBufferedToImage(true);
+    
     addAndMakeVisible (debugButton = new TextButton ("Debug Button"));
 
 	debugButton->setButtonText("DBG");

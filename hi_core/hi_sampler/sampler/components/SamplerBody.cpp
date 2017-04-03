@@ -33,6 +33,8 @@ SamplerBody::SamplerBody (ProcessorEditor *p)
     //[Constructor_pre] You can add your own custom stuff here..
     //[/Constructor_pre]
 
+    addAndMakeVisible(buttonRow = new Component());
+    
     addAndMakeVisible (sampleEditor = new SampleEditor (dynamic_cast<ModulatorSampler*>(getProcessor()), this));
     sampleEditor->setName ("new component");
 
@@ -48,7 +50,7 @@ SamplerBody::SamplerBody (ProcessorEditor *p)
     waveFormButton->setColour (TextButton::textColourOnId, Colour (0x99ffffff));
     waveFormButton->setColour (TextButton::textColourOffId, Colours::white);
 
-    addAndMakeVisible (mapButton = new TextButton ("new button"));
+    buttonRow->addAndMakeVisible (mapButton = new TextButton ("new button"));
     mapButton->setButtonText (TRANS("Map Editor"));
     mapButton->setConnectedEdges (Button::ConnectedOnLeft | Button::ConnectedOnRight);
     mapButton->addListener (this);
@@ -57,7 +59,7 @@ SamplerBody::SamplerBody (ProcessorEditor *p)
     mapButton->setColour (TextButton::textColourOnId, Colour (0x99ffffff));
     mapButton->setColour (TextButton::textColourOffId, Colours::white);
 
-    addAndMakeVisible (tableButton = new TextButton ("new button"));
+    buttonRow->addAndMakeVisible (tableButton = new TextButton ("new button"));
     tableButton->setButtonText (TRANS("Table View"));
     tableButton->setConnectedEdges (Button::ConnectedOnLeft);
     tableButton->addListener (this);
@@ -66,7 +68,7 @@ SamplerBody::SamplerBody (ProcessorEditor *p)
     tableButton->setColour (TextButton::textColourOnId, Colour (0x99ffffff));
     tableButton->setColour (TextButton::textColourOffId, Colours::white);
 
-    addAndMakeVisible (settingsView = new TextButton ("new button"));
+    buttonRow->addAndMakeVisible (settingsView = new TextButton ("new button"));
     settingsView->setButtonText (TRANS("Sampler Settings"));
     settingsView->setConnectedEdges (Button::ConnectedOnRight);
     settingsView->addListener (this);
@@ -75,11 +77,13 @@ SamplerBody::SamplerBody (ProcessorEditor *p)
     settingsView->setColour (TextButton::textColourOnId, Colour (0x99ffffff));
     settingsView->setColour (TextButton::textColourOffId, Colours::white);
 
-    addAndMakeVisible (settingsPanel = new SamplerSettings (dynamic_cast<ModulatorSampler*>(getProcessor())));
+    buttonRow->addAndMakeVisible (settingsPanel = new SamplerSettings (dynamic_cast<ModulatorSampler*>(getProcessor())));
     addAndMakeVisible (map = new SampleMapEditor (dynamic_cast<ModulatorSampler*>(getProcessor()), this));
 
     //[UserPreSize]
 
+    buttonRow->setBufferedToImage(true);
+    
 	waveFormButton->setLookAndFeel(&cblaf);
 	settingsView->setLookAndFeel(&cblaf);
 	mapButton->setLookAndFeel(&cblaf);
@@ -182,6 +186,10 @@ void SamplerBody::paint (Graphics& g)
 {
     //[UserPrePaint] Add your own custom painting code here..
 	g.fillAll(Colours::transparentBlack);
+    
+  
+    
+    
     //[/UserPrePaint]
 
     //[UserPaint] Add your own custom painting code here..
@@ -192,6 +200,7 @@ void SamplerBody::resized()
 {
     //[UserPreResize] Add your own custom resize code here..
 
+    buttonRow->setBounds(0, 0, getWidth(), 26);
 
 
     //[/UserPreResize]
