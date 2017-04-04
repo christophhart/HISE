@@ -194,7 +194,7 @@ void SearchableListComponent::paint(Graphics& g)
 									 Colours::transparentBlack, 0.0f, 30.0f, false));
 	g.fillRect(0.0f, 25.0f, (float)getWidth(), 25.0f);
 	
-	g.setColour(Colour(DEBUG_AREA_BACKGROUND_COLOUR));
+	g.setColour(HiseColourScheme::getColour(HiseColourScheme::ColourIds::DebugAreaBackgroundColourId));
 	g.fillRect(0, 25, getWidth(), getHeight());
 
 	g.setColour(Colours::white.withAlpha(0.6f));

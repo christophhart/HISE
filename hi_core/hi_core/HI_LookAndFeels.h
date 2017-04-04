@@ -808,7 +808,7 @@ public:
     
     virtual ~ModulatorSynthEditorHeaderLookAndFeel() {};
 
-	Colour getColour(int /*ColourId*/) const override { return Colour(0xFFEEEEEE); };
+	Colour getColour(int /*ColourId*/) const override { return HiseColourScheme::getColour(HiseColourScheme::ColourIds::ModulatorSynthHeader);};
 };
 
 
@@ -1001,7 +1001,7 @@ private:
 
 };
 
-class KnobLookAndFeel: public LookAndFeel_V3
+class KnobLookAndFeel: public PopupLookAndFeel
 {
 public:
 
@@ -1039,6 +1039,7 @@ public:
 		return label;
 	}
 
+#if 0
 	Font getPopupMenuFont () override
 	{
 		return GLOBAL_FONT();
@@ -1055,7 +1056,7 @@ public:
 		//g.drawRoundedRectangle(0.0f, 0.0f, (float)width, (float)height, 4.0f, 0.5f);
 	   #endif
 	}
-
+#endif
 
     static void drawHiBackground(Graphics &g, int x, int y, int width, int height, Component *c=nullptr, bool isMouseOverButton=false);
 	

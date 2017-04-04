@@ -336,7 +336,7 @@ public:
     
     void paint(Graphics &g) override
     {
-        g.fillAll(Colour(DEBUG_AREA_BACKGROUND_COLOUR));
+        g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::DebugAreaBackgroundColourId));
     }
 
 	void sendPanelPropertyChangeMessage(Identifier idThatWasChanged);

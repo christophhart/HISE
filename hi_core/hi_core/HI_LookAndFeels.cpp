@@ -476,7 +476,7 @@ void ProcessorEditorLookAndFeel::drawShadowBox(Graphics& g, Rectangle<int> area,
 
 	g.setColour(c1);
 	g.drawVerticalLine(area.getX(), (float)area.getY(), (float)(area.getBottom()));
-	g.drawHorizontalLine(area.getY(), area.getX(), (float)area.getRight());
+	g.drawHorizontalLine(area.getY(), (float)area.getX(), (float)area.getRight());
 
 	g.setColour(c2);
 	g.drawVerticalLine(area.getRight() - 1, (float)area.getY(), (float)(area.getBottom()));

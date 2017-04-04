@@ -50,7 +50,7 @@ SamplePoolTable::SamplePoolTable(ModulatorSamplerSoundPool *globalPool) :
 
     // give it a border
     table.setColour (ListBox::outlineColourId, Colours::black.withAlpha(0.5f));
-	table.setColour(ListBox::backgroundColourId, Colour(DEBUG_AREA_BACKGROUND_COLOUR));
+	table.setColour(ListBox::backgroundColourId, HiseColourScheme::getColour(HiseColourScheme::ColourIds::DebugAreaBackgroundColourId));
 
     table.setOutlineThickness (0);
 
@@ -196,7 +196,7 @@ template <class FileType> ExternalFileTable<FileType>::ExternalFileTable(Pool<Fi
 
     // give it a border
     table.setColour (ListBox::outlineColourId, Colours::grey);
-	table.setColour(ListBox::backgroundColourId, Colour(DEBUG_AREA_BACKGROUND_COLOUR));
+	table.setColour(ListBox::backgroundColourId, HiseColourScheme::getColour(HiseColourScheme::ColourIds::DebugAreaBackgroundColourId));
 
     table.setOutlineThickness (0);
 

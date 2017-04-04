@@ -176,8 +176,6 @@ public:
 
 	FactoryType *getFactoryType() const override {return modulatorSynthFactory;};
 
-	virtual Colour getColour() const override { return Colours::black.withBrightness(0.39f); };
-
 	void setFactoryType(FactoryType *newFactoryType) override {modulatorSynthFactory = newFactoryType;};
 
 	/** returns the total amount of child groups (internal chains + all child synths) */

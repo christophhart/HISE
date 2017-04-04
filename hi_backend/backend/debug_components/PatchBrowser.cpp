@@ -206,24 +206,7 @@ SearchableListComponent::Collection * PatchBrowser::createCollection(int index)
 
 void PatchBrowser::paint(Graphics &g)
 {
-	g.fillAll(Colour(0xff636363));
-	
-	const Colour shadowColour = Colour(0x22000000);
-
-	g.setGradientFill(ColourGradient(shadowColour,
-		0.0f, 0.0f,
-		Colour(0),
-		4.0f, 0.0f,
-		false));
-	g.fillRect(0, 0, 4, getHeight());
-
-	g.setGradientFill(ColourGradient(shadowColour,
-		(float)getWidth(), 0.0f,
-		Colour(0),
-		(float)getWidth() - 4.0f, 0.0f,
-		false));
-	g.fillRect(getWidth() - 4, 0, 4, getHeight());
-
+	g.fillAll(Colour(0xff383838));
 
 	SearchableListComponent::paint(g);
 
@@ -258,7 +241,7 @@ void PatchBrowser::paint(Graphics &g)
 		Point<int> endPoint = c->getPointForTreeGraph(false);
 		Point<int> endPointInParent = getLocalPoint(c, endPoint);
 
-		g.setColour(Colour(0xFF333333));
+		g.setColour(Colour(0xFF222222));
 
 		g.drawLine((float)startPointInParent.getX(), (float)startPointInParent.getY(), (float)startPointInParent.getX(), (float)endPointInParent.getY(), 2.0f);
 		g.drawLine((float)startPointInParent.getX(), (float)endPointInParent.getY(), (float)endPointInParent.getX(), (float)endPointInParent.getY(), 2.0f);
@@ -462,7 +445,7 @@ PatchBrowser::PatchCollection::PatchCollection(ModulatorSynth *synth, int hierar
 root(synth),
 hierarchy(hierarchy_)
 {
-	addAndMakeVisible(foldButton = new ShapeButton("Fold Overview", Colour(0xFF333333), Colours::white.withAlpha(0.4f), Colour(0xFF333333)));
+	addAndMakeVisible(foldButton = new ShapeButton("Fold Overview", Colour(0xFF222222), Colours::white.withAlpha(0.4f), Colour(0xFF222222)));
 
 	foldButton->addListener(this);
 
@@ -565,7 +548,7 @@ void PatchBrowser::PatchCollection::paint(Graphics &g)
 
 	g.fillRoundedRectangle(xOffset + 7.0f, 7.0f, 26.0f, 26.0f, 2.0f);
 
-	g.setColour(Colour(0xFF333333));
+	g.setColour(Colour(0xFF222222));
 
 	g.drawRoundedRectangle(xOffset + 7.0f, 7.0f, 26.0f, 26.0f, 2.0f, 2.0f);
 
@@ -673,6 +656,8 @@ lastMouseDown(0)
     
 	idLabel->setInterceptsMouseClicks(false, true);
 
+    idLabel->setColour(Label::ColourIds::textColourId, Colours::white);
+    
 	setSize(380 - 16, ITEM_HEIGHT);
 
 	setUsePopupMenu(true);

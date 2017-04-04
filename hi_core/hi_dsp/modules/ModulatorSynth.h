@@ -167,7 +167,7 @@ public:
 
 	void setIconColour(Colour newIconColour) { iconColour = newIconColour; };
 	Colour getIconColour() const { return iconColour; }
-	Colour getColour() const override {	return Colours::black.withBrightness(0.45f); };
+	Colour getColour() const override { return HiseColourScheme::getColour(HiseColourScheme::ModulatorSynthBackgroundColourId); };
 
 	// ===================================================================================================================
 

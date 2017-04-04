@@ -88,11 +88,12 @@ ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
 	contentButton->setColour(TextButton::textColourOffId, Colour(0x45ffffff));
 	contentButton->setLookAndFeel(&alaf);
 
+    addAndMakeVisible(buttonRow = new Component());
 
 	for (int i = 0; i < sp->getNumSnippets(); i++)
 	{
 		TextButton *b = new TextButton("new button");
-		addAndMakeVisible(b);
+		buttonRow->addAndMakeVisible(b);
 		b->setButtonText(sp->getSnippet(i)->getCallbackName().toString());
 		b->setConnectedEdges(Button::ConnectedOnLeft | Button::ConnectedOnRight);
 		b->addListener(this);
@@ -104,6 +105,8 @@ ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
 		callbackButtons.add(b);
 	}
 
+    buttonRow->setBufferedToImage(true);
+    
 	callbackButtons.getLast()->setConnectedEdges(TextButton::ConnectedEdgeFlags::ConnectedOnLeft);
 
     timeLabel->setFont (GLOBAL_BOLD_FONT());
@@ -349,6 +352,8 @@ void ScriptingEditor::resized()
 	contentButton->setBounds(buttonX, 0, buttonWidth, 20);
 	buttonX = contentButton->getRight();
 
+    buttonRow->setBounds(0, 0, getWidth(), 28);
+    
 	for (int i = 0; i < callbackButtons.size(); i++)
 	{
 		callbackButtons[i]->setBounds(buttonX, 0, buttonWidth, 20);

@@ -67,7 +67,7 @@ public:
 
 	FactoryType *getFactoryType() const override {return effectChainFactory;};
 
-	Colour getColour() const { return Colour(0xff3a6666).withMultipliedBrightness(1.1f);};
+	Colour getColour() const { return Colour(0xff3a6666);};
 
 	void setFactoryType(FactoryType *newFactoryType) override {effectChainFactory = newFactoryType;};
 
@@ -114,6 +114,8 @@ public:
 		if(isBypassed()) return;
 
 		FOR_ALL_EFFECTS(renderNextBlock(buffer, startSample, numSamples));
+
+
 	};
 
 	bool hasTail() const override

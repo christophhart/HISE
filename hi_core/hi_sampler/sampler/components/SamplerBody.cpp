@@ -41,7 +41,7 @@ SamplerBody::SamplerBody (ProcessorEditor *p)
     addAndMakeVisible (soundTable = new SamplerTable (dynamic_cast<ModulatorSampler*>(getProcessor()), this));
     soundTable->setName ("new component");
 
-    addAndMakeVisible (waveFormButton = new TextButton ("new button"));
+    buttonRow->addAndMakeVisible (waveFormButton = new TextButton ("new button"));
     waveFormButton->setButtonText (TRANS("Sample Editor"));
     waveFormButton->setConnectedEdges (Button::ConnectedOnLeft | Button::ConnectedOnRight);
     waveFormButton->addListener (this);
@@ -77,7 +77,7 @@ SamplerBody::SamplerBody (ProcessorEditor *p)
     settingsView->setColour (TextButton::textColourOnId, Colour (0x99ffffff));
     settingsView->setColour (TextButton::textColourOffId, Colours::white);
 
-    buttonRow->addAndMakeVisible (settingsPanel = new SamplerSettings (dynamic_cast<ModulatorSampler*>(getProcessor())));
+    addAndMakeVisible (settingsPanel = new SamplerSettings (dynamic_cast<ModulatorSampler*>(getProcessor())));
     addAndMakeVisible (map = new SampleMapEditor (dynamic_cast<ModulatorSampler*>(getProcessor()), this));
 
     //[UserPreSize]
@@ -186,9 +186,6 @@ void SamplerBody::paint (Graphics& g)
 {
     //[UserPrePaint] Add your own custom painting code here..
 	g.fillAll(Colours::transparentBlack);
-    
-  
-    
     
     //[/UserPrePaint]
 

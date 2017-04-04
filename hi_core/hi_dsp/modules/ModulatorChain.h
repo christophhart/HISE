@@ -91,8 +91,17 @@ public:
 	{ 
 		if(Modulator::getColour() != Colours::transparentBlack) return Modulator::getColour();
 		else
-            //return getMode() == GainMode ? Colour(0xffD9A450) : Colour(0xff628214);
-            return getMode() == GainMode ? Colour(0xFFCA9E23) : Colour(0xFF6141B7);
+		{
+			//return getMode() == GainMode ? Colour(0xffD9A450) : Colour(0xff628214);
+			if (getMode() == GainMode)
+			{
+				return JUCE_LIVE_CONSTANT_OFF(Colour(0xffbe952c));
+			}
+			else
+			{
+				return JUCE_LIVE_CONSTANT_OFF(Colour(0xff7559a4));
+			}
+		}
 	};
 
 	void setFactoryType(FactoryType *newFactoryType) override {modulatorFactory = newFactoryType;};

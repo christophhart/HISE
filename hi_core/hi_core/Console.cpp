@@ -36,7 +36,7 @@ Console::ConsoleEditorComponent::ConsoleEditorComponent(CodeDocument &doc, CodeT
 CodeEditorComponent(doc, tok)
 {
 	setReadOnly(true);
-	setColour(CodeEditorComponent::ColourIds::backgroundColourId, Colour(0xFF666666));
+	setColour(CodeEditorComponent::ColourIds::backgroundColourId, Colour(0xFF393939));
 	getDocument().getUndoManager().setMaxNumberOfStoredUnits(0, 0);
 
 	setFont(GLOBAL_MONOSPACE_FONT());
@@ -351,9 +351,9 @@ void Console::handleAsyncUpdate()
 
 Console::ConsoleTokeniser::ConsoleTokeniser()
 {
-	s.set("id", Colours::black);
-	s.set("default", Colours::black.withBrightness(0.15f));
-	s.set("error", Colours::red.withBrightness(0.7f));
+	s.set("id", Colours::white);
+	s.set("default", Colours::white.withBrightness(0.75f));
+	s.set("error", Colours::red.withBrightness(0.9f));
 }
 
 int Console::ConsoleTokeniser::readNextToken(CodeDocument::Iterator& source)

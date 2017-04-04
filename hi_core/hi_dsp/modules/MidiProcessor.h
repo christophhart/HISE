@@ -36,6 +36,8 @@
 class MidiProcessorEditor;
 class ModulatorSynth;
 
+#define MIDI_PROCESSOR_COLOUR 0xFFC65638
+
 /**	A MidiProcessor processes a MidiBuffer.
 *	@ingroup midiProcessor
 *
@@ -56,8 +58,7 @@ public:
 
 	Colour getColour() const
     {
-        return Colour(0xFFC65638);
-     //   return Colour(0xff842d20);
+        return Colour(MIDI_PROCESSOR_COLOUR);
     };
 
 	static Path getSymbolPath()

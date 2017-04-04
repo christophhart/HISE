@@ -328,39 +328,23 @@ isCurrentlyScrolling(false)
 
 void CachedViewport::InternalViewport::paint(Graphics &g)
 {
-	g.setColour(findColour(backgroundColourId));
+	Colour c15 = HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourId);
 
-	
-    
-    g.setColour(Colour(BACKEND_BG_COLOUR));
-    
+	g.setColour(c15);
 	g.fillAll();
 
-	g.fillRect(getWidth() - SCROLLBAR_WIDTH, 0, 16, getHeight());
-
-	g.fillRect(0, 0, getWidth(), 10);
-    
-
-    g.setColour(Colour(BACKEND_BG_COLOUR_BRIGHT));
-    
-    g.fillRect(0, 10, getWidth() - SCROLLBAR_WIDTH, getHeight());
-
-	const int viewportRight = getWidth() - getVerticalScrollBar()->getWidth();
-	
-	g.setGradientFill(ColourGradient(Colour(0x22000000),
-		0.0f, 0.0f,
-		Colour(0),
-		4.0f, 0.0f,
-		false));
-	g.fillRect(0, 0, 4, getHeight());
+	Rectangle<int> area = getLocalBounds();
+	area.removeFromRight(getScrollBarThickness());
+	area.setHeight(area.getHeight() + 5);
 
 
-	g.setGradientFill(ColourGradient(Colour(0x22000000),
-		(float)viewportRight, 8.0f,
-		Colour(0),
-		(float)viewportRight - 4.0f, 8.0f,
-		false));
-	g.fillRect(viewportRight - 4, 0, 4, getHeight());
+	Colour c1 = Colour(0xff2f2f2f);
+	Colour c2 = Colour(0xff242424);
+
+	g.setGradientFill(ColourGradient(c1, 0.0f, 0.0f,
+		c2, 0.0f, (float)getHeight(), false));
+
+	g.fillRoundedRectangle(FLOAT_RECTANGLE(area), 3.0f);
 
 	if (isCurrentlyScrolling)
 	{

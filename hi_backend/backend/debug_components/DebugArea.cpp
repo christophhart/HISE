@@ -163,15 +163,24 @@ Component *CombinedDebugArea::getComponentForIndex(int i) const
 void BaseDebugArea::paint(Graphics &g)
 {
 
-        g.setColour(Colour(BACKEND_BG_COLOUR_BRIGHT));
+        g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff373737)));
         g.fillRect(panel->getBounds());
     
+		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff2c2c2c)));
+
+		g.drawVerticalLine(0, (float)panel->getY(), (float)getHeight());
+
+		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff5f5f5f)));
+
+		g.drawVerticalLine(getWidth()-1, (float)panel->getY(), (float)getHeight());
+		
+
         g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.1f),
                                      (float)panel->getX(), (float)panel->getY(),
                                      Colours::transparentBlack,
                                      (float)panel->getX(), (float)panel->getBottom(),
                                      false));
-        g.fillRect(panel->getBounds());
+        //g.fillRect(panel->getBounds());
     
         const Colour shadowColour = Colour(0x22000000);
     
@@ -180,7 +189,7 @@ void BaseDebugArea::paint(Graphics &g)
                                      Colour(0),
 									 (float)panel->getX(), (float)panel->getY() + 4.0f,
                                      false));
-        g.fillRect(panel->getX(), panel->getY(), panel->getWidth(), 4);
+        //g.fillRect(panel->getX(), panel->getY(), panel->getWidth(), 4);
     
 
         g.setGradientFill(ColourGradient(Colour(0),
@@ -188,7 +197,7 @@ void BaseDebugArea::paint(Graphics &g)
                                      shadowColour,
 									 (float)panel->getX(), (float)panel->getBottom(),
                                      false));
-        g.fillRect(panel->getX(), panel->getBottom() -4, panel->getWidth(), 4);
+        //g.fillRect(panel->getX(), panel->getBottom() -4, panel->getWidth(), 4);
     
 
     
@@ -198,14 +207,14 @@ void BaseDebugArea::paint(Graphics &g)
                                          Colour(0),
                                          4.0f, 0.0f,
                                          false));
-        g.fillRect(0, panel->getY(), 4, panel->getHeight());
+        //g.fillRect(0, panel->getY(), 4, panel->getHeight());
         
         g.setGradientFill(ColourGradient(shadowColour,
 										 (float)getWidth(), 0.0f,
                                          Colour(0),
 										 (float)getWidth() - 4.0f, 0.0f,
                                          false));
-        g.fillRect(getWidth()-4, panel->getY(), 4, panel->getHeight());
+        //g.fillRect(getWidth()-4, panel->getY(), 4, panel->getHeight());
     
     
 }
@@ -238,7 +247,7 @@ BaseDebugArea(editor)
 	mainEditor->getBackendProcessor()->setConsole(console);
 
 	plotter = new Plotter(this);
-	plotter->setColour(Plotter::backgroundColour, Colour(DEBUG_AREA_BACKGROUND_COLOUR));
+	plotter->setColour(Plotter::backgroundColour, Colour(0xFF383838));
 	mainEditor->getBackendProcessor()->setPlotter(plotter);
 
 	macroTable = new MacroParameterTable(this);
