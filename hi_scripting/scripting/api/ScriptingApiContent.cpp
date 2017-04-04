@@ -30,7 +30,7 @@
 *   ===========================================================================
 */
 
-#if JUCE_MAC
+#if 0//JUCE_MAC
 #define SEND_MESSAGE(broadcaster) {	broadcaster->sendAllocationFreeChangeMessage(); }
 #else
 #define SEND_MESSAGE(broadcaster) {	if (MessageManager::getInstance()->isThisTheMessageThread()) broadcaster->sendSynchronousChangeMessage(); else broadcaster->sendChangeMessage();}
@@ -173,7 +173,7 @@ parentComponentIndex(-1)
 	//setName(name_.toString());
 
 
-    enableAllocationFreeMessages(30);
+    //enableAllocationFreeMessages(30);
     
 	SEND_MESSAGE(this);
 }
@@ -458,7 +458,7 @@ void ScriptingApi::Content::ScriptComponent::setValue(var controlValue)
 		skipRestoring = true;
 	}
 
-    sendAllocationFreeChangeMessage();
+    SEND_MESSAGE(this);
 };
 
 void ScriptingApi::Content::ScriptComponent::setColour(int colourId, int colourAs32bitHex)
@@ -664,7 +664,7 @@ void ScriptingApi::Content::ScriptComponent::notifyChildComponents()
 
 		if (c != nullptr)
 		{
-			childComponents[i].get()->sendAllocationFreeChangeMessage();
+            SEND_MESSAGE(childComponents[i].get());
 			childComponents[i].get()->notifyChildComponents();
 		}
 		else jassertfalse;
@@ -2073,7 +2073,7 @@ void ScriptingApi::Content::ScriptPanel::internalRepaint()
 
 	graphics->setGraphics(nullptr, nullptr);
 
-	sendAllocationFreeChangeMessage();
+	SEND_MESSAGE(this);
 }
 
 void ScriptingApi::Content::ScriptPanel::setMouseCallback(var mouseCallbackFunction)

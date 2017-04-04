@@ -94,6 +94,10 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 	JavascriptProcessor* jsp = dynamic_cast<JavascriptProcessor*>(this);
 	int callbackIndex = getControlCallbackIndex();
 
+	
+	
+	getMainController_()->getDebugLogger().logParameterChange(jsp, component, controllerValue);
+
 	JavascriptProcessor::SnippetDocument* onControlCallback = jsp->getSnippet(callbackIndex);
 
 	if (onControlCallback->isSnippetEmpty())
