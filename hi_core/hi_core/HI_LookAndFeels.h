@@ -166,9 +166,9 @@ public:
 	{
 		setColour(PopupMenu::highlightedBackgroundColourId, Colour(SIGNAL_COLOUR));
 
-		Colour dark(0xFF333333);
+		Colour dark = JUCE_LIVE_CONSTANT_OFF(Colour(0xff333333));
 
-		Colour bright(0xFF999999);
+		Colour bright(0xFFAAAAAA);
 
 #if USE_BACKEND
 		setColour(PopupMenu::ColourIds::backgroundColourId, dark);
@@ -190,7 +190,7 @@ private:
 		return GLOBAL_BOLD_FONT().withHeight(24.0f);
 #else
 #if USE_BACKEND
-    	return GLOBAL_BOLD_FONT();    
+    	return GLOBAL_BOLD_FONT().withHeight(15.0f);    
 #else
 		return GLOBAL_BOLD_FONT().withHeight(16.0f);
 #endif
@@ -217,21 +217,26 @@ private:
 	{
 		if (!menuBar.isEnabled())
 		{
-			g.setColour(menuBar.findColour(PopupMenu::textColourId)
-				.withMultipliedAlpha(0.5f));
+			g.setColour(menuBar.findColour(PopupMenu::textColourId));
 		}
 		else if (isMenuOpen || isMouseOverItem)
 		{
+			Colour c1 = findColour(PopupMenu::highlightedBackgroundColourId).withMultipliedBrightness(JUCE_LIVE_CONSTANT_OFF(1.4f));
+			Colour c2 = findColour(PopupMenu::highlightedBackgroundColourId).withMultipliedBrightness(1.1f);
+
+			g.setGradientFill(ColourGradient(c1, 0.0f, 0.0f, c2, 0.0f, (float)height, false));
+
+			g.fillRect(0, 0, width, height);
+
 			Colour dark(0xFF444444);
 
-			Colour bright(0xFF999999);
+			
 
-			g.fillAll(dark);
-			g.setColour(bright);
+			g.setColour(dark);
 		}
 		else
 		{
-			g.setColour(Colour(0xFF222222));
+			g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xffbdbdbd)));
 		}
 
 		g.setFont(getPopupMenuFont());
@@ -252,9 +257,17 @@ private:
 
 	void drawPopupMenuBackground(Graphics& g, int width, int height) override
 	{
-		g.setColour((findColour(PopupMenu::backgroundColourId)));
+		Colour c1 = findColour(PopupMenu::backgroundColourId).withMultipliedBrightness(JUCE_LIVE_CONSTANT_OFF(1.3f));
+		Colour c2 = findColour(PopupMenu::backgroundColourId).withMultipliedBrightness(0.9f);
+
+		g.setGradientFill(ColourGradient(c1, 0.0f, 0.0f, c2, 0.0f, (float)height, false));
+
 		g.fillRect(0.0f, 0.0f, (float)width, (float)height);
 		(void)width; (void)height;
+
+		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff555555)));
+
+		g.drawRect(0.0f, 0.0f, (float)width, (float)height, 1.0f);
 
 #if ! JUCE_MAC
 		g.setColour(findColour(PopupMenu::textColourId));
@@ -288,8 +301,12 @@ private:
             
             if (isHighlighted)
             {
-                g.setColour (findColour (PopupMenu::highlightedBackgroundColourId));
-                g.fillRect (r);
+				Colour c1 = findColour (PopupMenu::highlightedBackgroundColourId).withMultipliedBrightness(JUCE_LIVE_CONSTANT_OFF(1.4f));
+				Colour c2 = findColour(PopupMenu::highlightedBackgroundColourId).withMultipliedBrightness(1.1f);
+                
+				g.setGradientFill(ColourGradient(c1, 0.0f, 0.0f, c2, 0.0f, (float)r.getHeight(), false));
+
+				g.fillRect (r);
                 
                 g.setColour (findColour (PopupMenu::highlightedTextColourId));
             }
@@ -702,6 +719,16 @@ public:
 
     ProcessorEditorLookAndFeel();
     
+
+	static void drawShadowBox(Graphics& g, Rectangle<int> area, Colour fillColour);
+
+	static void setupEditorNameLabel(Label* label);
+
+	static void fillEditorBackgroundRect(Graphics& g, Component* c, int offsetFromLeftRight = 84);
+
+    static void fillEditorBackgroundRectFixed(Graphics& g, Component* c, int fixedWidth);
+    
+    
 	static void drawBackground(Graphics &g, int width, int height, Colour bgColour, bool folded, int intendationLevel = 0);
     
     static void drawNoiseBackground(Graphics &g, Rectangle<int> area, Colour c=Colours::lightgrey);
@@ -749,7 +776,9 @@ public:
 										getColour(HeaderBackgroundColour).withMultipliedBrightness(0.9f),
 										288.0f, height,
 										false));
-		g.fillRoundedRectangle (0.0f, 0.0f, width, height, 3.0f);
+		//g.fillRoundedRectangle (0.0f, 0.0f, width, height, 3.0f);
+
+		g.fillAll();
 
 	}
 
@@ -766,7 +795,7 @@ public:
 
     virtual ~ModulatorEditorHeaderLookAndFeel() {};
     
-	Colour getColour(int /*ColourId*/) const override { return isChain ? Colour(0xFF3A3A3A) : Colour(0xFF222222); };
+	Colour getColour(int /*ColourId*/) const override { return isChain ? JUCE_LIVE_CONSTANT_OFF(Colour(0xff1f1f1f)) : Colour(0xFF222222); };
 
 	
 
@@ -779,7 +808,7 @@ public:
     
     virtual ~ModulatorSynthEditorHeaderLookAndFeel() {};
 
-	Colour getColour(int /*ColourId*/) const override { return Colour(0xFFEEEEEE); };
+	Colour getColour(int /*ColourId*/) const override { return HiseColourScheme::getColour(HiseColourScheme::ColourIds::ModulatorSynthHeader);};
 };
 
 
@@ -972,7 +1001,7 @@ private:
 
 };
 
-class KnobLookAndFeel: public LookAndFeel_V3
+class KnobLookAndFeel: public PopupLookAndFeel
 {
 public:
 
@@ -1010,6 +1039,7 @@ public:
 		return label;
 	}
 
+#if 0
 	Font getPopupMenuFont () override
 	{
 		return GLOBAL_FONT();
@@ -1026,7 +1056,7 @@ public:
 		//g.drawRoundedRectangle(0.0f, 0.0f, (float)width, (float)height, 4.0f, 0.5f);
 	   #endif
 	}
-
+#endif
 
     static void drawHiBackground(Graphics &g, int x, int y, int width, int height, Component *c=nullptr, bool isMouseOverButton=false);
 	

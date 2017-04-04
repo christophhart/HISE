@@ -108,6 +108,8 @@ ConvolutionEditor::ConvolutionEditor (ProcessorEditor *p)
 
 	impulseDisplay->setOpaque(false);
 
+    ProcessorEditorLookAndFeel::setupEditorNameLabel(label);
+    
     //[/UserPreSize]
 
     setSize (900, 230);
@@ -142,12 +144,12 @@ void ConvolutionEditor::paint (Graphics& g)
     //[UserPrePaint] Add your own custom painting code here..
     //[/UserPrePaint]
 
-    g.setColour (Colour (0x23000000));
-    g.fillRoundedRectangle (static_cast<float> ((getWidth() / 2) - (600 / 2)), 8.0f, 600.0f, static_cast<float> (getHeight() - 16), 6.000f);
-
-    g.setColour (Colour (0x25ffffff));
-    g.drawRoundedRectangle (static_cast<float> ((getWidth() / 2) - (600 / 2)), 8.0f, 600.0f, static_cast<float> (getHeight() - 16), 6.000f, 2.000f);
-
+    
+    ProcessorEditorLookAndFeel::fillEditorBackgroundRectFixed(g, this, 600);
+    
+    g.setColour (Colour (0xAAffffff));
+    g.setFont (GLOBAL_BOLD_FONT().withHeight(22.0f));
+    
     //[UserPaint] Add your own custom painting code here..
     //[/UserPaint]
 }

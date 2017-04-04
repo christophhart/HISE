@@ -130,10 +130,14 @@ ProcessorEditorChainBar::ProcessorEditorChainBar (ProcessorEditor *p):
 		refreshPanel();
 	}
 
+    setBufferedToImage(true);
+    
 	if (ProcessorHelpers::is<ModulatorSynth>(getProcessor()))
 	{
 		midiButton = chainButtons[1];
 
+
+        
 		startTimer(50);
 
 		

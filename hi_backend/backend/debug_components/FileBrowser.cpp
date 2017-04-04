@@ -428,7 +428,7 @@ bool FileBrowser::perform(const InvocationInfo &info)
 
 void FileBrowser::paint(Graphics &g)
 {
-	g.setColour(Colour(DEBUG_AREA_BACKGROUND_COLOUR));
+	g.setColour(HiseColourScheme::getColour(HiseColourScheme::ColourIds::DebugAreaBackgroundColourId));
 
 	g.fillRect(0, 24, getWidth(), getHeight() - 24);
 

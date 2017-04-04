@@ -43,7 +43,8 @@ ScriptWatchTable::ScriptWatchTable(MainController *mc, BaseDebugArea *area) :
 	table->getHeader().setSize(getWidth(), 22);
     table->setOutlineThickness (0);
 	table->getViewport()->setScrollBarsShown(true, false, false, false);
-    table->setColour(ListBox::backgroundColourId, Colour(DEBUG_AREA_BACKGROUND_COLOUR));
+    
+	table->setColour(ListBox::backgroundColourId, JUCE_LIVE_CONSTANT_OFF(Colour(0x04ffffff)));
 
 	table->getHeader().addColumn("Type", Type, 30, 30, 30);
 	table->getHeader().addColumn("Data Type", DataType, 100);
@@ -237,7 +238,7 @@ void ScriptWatchTable::paint(Graphics &g)
 		Colours::transparentBlack, 0.0f, 30.0f, false));
 	g.fillRect(0.0f, 25.0f, (float)getWidth(), 25.0f);
 
-	g.setColour(Colour(DEBUG_AREA_BACKGROUND_COLOUR));
+	g.setColour(HiseColourScheme::getColour(HiseColourScheme::ColourIds::DebugAreaBackgroundColourId));
 	g.fillRect(0, 25, getWidth(), getHeight());
 
 	g.setColour(Colours::white.withAlpha(0.6f));
@@ -380,6 +381,8 @@ String ScriptWatchTable::getHeadline() const
     
 void ScriptWatchTable::resized()
 {
+	
+
 	table->setBounds(0, 24, getWidth(), jmax<int>(0, getHeight() - 24));
 	fuzzySearchBox->setBounds(24, 0, getWidth()-24, 23);
 }

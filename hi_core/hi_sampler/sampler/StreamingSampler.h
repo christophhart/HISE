@@ -678,6 +678,9 @@ public:
 		return returnValue;
 	};
 
+
+	void setLogger(DebugLogger* l) { logger = l; }
+
 	
 	const CriticalSection &getLock() const { return lock; }
 
@@ -733,6 +736,8 @@ private:
     bool voiceCounterWasIncreased;
     
 	int sampleStartModValue;
+
+	DebugLogger* logger;
 
 	Atomic<AudioSampleBuffer const *> readBuffer;
 	Atomic<AudioSampleBuffer *> writeBuffer;
@@ -790,6 +795,12 @@ public:
 		clearCurrentNote();
 		loader.reset();
 	};
+
+	void setDebugLogger(DebugLogger* newLogger)
+	{ 
+		logger = newLogger; 
+		loader.setLogger(logger);
+	}
 
 	/** Adds it's output to the outputBuffer. */
 	void renderNextBlock(AudioSampleBuffer &outputBuffer, int startSample, int numSamples) override;
@@ -897,6 +908,8 @@ private:
 	double uptimeDelta;
 
 	int sampleStartModValue;
+
+	DebugLogger* logger = nullptr;
 
 	SampleLoader loader;
 };

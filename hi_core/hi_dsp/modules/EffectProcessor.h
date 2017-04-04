@@ -33,6 +33,8 @@
 #ifndef HI_EFFECT_PROCESSOR_H_INCLUDED
 #define HI_EFFECT_PROCESSOR_H_INCLUDED
 
+#define EFFECT_PROCESSOR_COLOUR 0xff3a6666
+
 /** Base class for all Processors that applies a audio effect on the audio data. 
 *	@ingroup effect
 *
@@ -82,7 +84,7 @@ public:
 
 	Colour getColour() const override 
 	{
-		return Colour(0xff3a6666);
+		return Colour(EFFECT_PROCESSOR_COLOUR);
 	}
 
 	/** Overwrite this method if the effect has a tail (produces sound if no input is active */

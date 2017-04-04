@@ -251,6 +251,8 @@ sampler(dynamic_cast<ModulatorSampler*>(ownerSynth)),
 wrappedVoice(sampler->getBackgroundThreadPool())
 {
 	wrappedVoice.setTemporaryVoiceBuffer(static_cast<ModulatorSampler*>(ownerSynth)->getTemporaryVoiceBuffer());
+	
+	wrappedVoice.setDebugLogger(&ownerSynth->getMainController()->getDebugLogger());
 };
 
 
@@ -266,6 +268,7 @@ ModulatorSamplerVoice(ownerSynth)
 		wrappedVoices.getLast()->prepareToPlay(getOwnerSynth()->getSampleRate(), getOwnerSynth()->getBlockSize());
 		wrappedVoices.getLast()->setLoaderBufferSize((int)getOwnerSynth()->getAttribute(ModulatorSampler::BufferSize));
 		wrappedVoices.getLast()->setTemporaryVoiceBuffer(static_cast<ModulatorSampler*>(ownerSynth)->getTemporaryVoiceBuffer());
+		wrappedVoices.getLast()->setDebugLogger(&ownerSynth->getMainController()->getDebugLogger());
 	}
 }
 

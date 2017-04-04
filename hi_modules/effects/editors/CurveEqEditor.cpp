@@ -91,6 +91,8 @@ CurveEqEditor::CurveEqEditor (ProcessorEditor *p)
 
     //[UserPreSize]
 
+    ProcessorEditorLookAndFeel::setupEditorNameLabel(label);
+    
     label->setFont(GLOBAL_BOLD_FONT().withHeight(26.0f));
     
 	currentlySelectedFilterBand = -1;
@@ -173,12 +175,8 @@ void CurveEqEditor::paint (Graphics& g)
     //[UserPrePaint] Add your own custom painting code here..
     //[/UserPrePaint]
 
-    g.setColour (Colour (0x30000000));
-    g.fillRoundedRectangle (static_cast<float> ((getWidth() / 2) - (700 / 2)), 6.0f, 700.0f, 304.0f, 6.000f);
-
-    g.setColour (Colour (0x25ffffff));
-    g.drawRoundedRectangle (static_cast<float> ((getWidth() / 2) - (700 / 2)), 6.0f, 700.0f, 304.0f, 6.000f, 2.000f);
-
+    ProcessorEditorLookAndFeel::fillEditorBackgroundRectFixed(g, this, 700);
+    
     //[UserPaint] Add your own custom painting code here..
 
     //[/UserPaint]

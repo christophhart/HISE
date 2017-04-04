@@ -143,7 +143,7 @@ void VoiceCpuBpmComponent::timerCallback()
 		totalVoiceAmount += mainControllers[i]->getNumActiveVoices();
 	}
 
-	cpuSlider->setPeak((float)totalUsage);
+	cpuSlider->setPeak(((float)totalUsage));
 	voiceLabel->setText(String(totalVoiceAmount), dontSendNotification);
 
 	if (mainControllers.size() != 0)
@@ -152,6 +152,8 @@ void VoiceCpuBpmComponent::timerCallback()
 
 		bpmLabel->setText(String(mc->getBpm(), 0), dontSendNotification);
 
+        bpmLabel->setText(String(mc->getBpm(), 0), dontSendNotification);
+        
 		const bool midiFlag = mc->checkAndResetMidiInputFlag();
 
 		Colour c = midiFlag ? Colour(SIGNAL_COLOUR) : Colours::white.withAlpha(0.6f);
@@ -161,7 +163,7 @@ void VoiceCpuBpmComponent::timerCallback()
 	}
 
 
-	
+	repaint();
 }
 
 void VoiceCpuBpmComponent::resized()
@@ -220,6 +222,6 @@ void VoiceCpuBpmComponent::paintOverChildren(Graphics& g)
 
 		cpuUsage += mainControllers[i]->getCpuUsage();
 	}
-
-	g.drawText(String(cpuUsage) + "%", cpuSlider->getBounds(), Justification::centred, true);
+    
+	g.drawText(String(cpuUsage, 1) + "%", cpuSlider->getBounds(), Justification::centred, true);
 }

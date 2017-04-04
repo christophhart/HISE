@@ -37,7 +37,7 @@ freeMode(false)
 {
 	setName("Modulator Data Plotter: Idle");
 
-	setColour(backgroundColour, Colour(DEBUG_AREA_BACKGROUND_COLOUR));
+	setColour(backgroundColour, HiseColourScheme::getColour(HiseColourScheme::ColourIds::DebugAreaBackgroundColourId));
 
     
 	setColour(pathColour, Colour(0x88ffffff));

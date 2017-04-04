@@ -88,9 +88,9 @@ deactivateUIUpdate(false)
     
     
     
-	sampleStartChain->setColour(Colour(0xFF73C638).withMultipliedBrightness(0.8f));
+	sampleStartChain->setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff5e8127)));
 
-	crossFadeChain->setColour(Colour(0xFFC638B4));
+	crossFadeChain->setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff884b29)));
 
 	for (int i = 0; i < 127; i++) samplerDisplayValues.currentNotes[i] = 0;
 

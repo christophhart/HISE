@@ -145,8 +145,106 @@ class LinuxFontHandler
 
 #define CONSTRAIN_TO_0_1(x)(jlimit<float>(0.0f, 1.0f, x))
 
-#define DEBUG_AREA_BACKGROUND_COLOUR 0x11FFFFFF
-#define DEBUG_AREA_BACKGROUND_COLOUR_DARK 0x84000000
+struct HiseColourScheme
+{
+	enum Scheme
+	{
+		Dark,
+		Bright,
+		numSchemes
+	};
+
+	enum ColourIds
+	{
+		EditorBackgroundColourId,
+		ModulatorSynthBackgroundColourId,
+		DebugAreaBackgroundColourId,
+		ModulatorSynthHeader,
+		numColourIds
+	};
+
+	static Colour getColour(ColourIds id)
+	{
+		switch (id)
+		{
+		case HiseColourScheme::EditorBackgroundColourId:
+		{
+			switch (currentColourScheme)
+			{
+			case HiseColourScheme::Dark:
+				return JUCE_LIVE_CONSTANT(Colour(0xff555555));
+			case HiseColourScheme::Bright:
+				return JUCE_LIVE_CONSTANT(Colour(0xff898989));
+			case HiseColourScheme::numSchemes:
+				break;
+			}
+		}
+			break;
+		case HiseColourScheme::ModulatorSynthBackgroundColourId:
+		{
+			switch (currentColourScheme)
+			{
+			case HiseColourScheme::Dark:
+				return JUCE_LIVE_CONSTANT(Colour(0xff414141));
+			case HiseColourScheme::Bright:
+				return JUCE_LIVE_CONSTANT(Colour(0xff5e5e5e));
+			case HiseColourScheme::numSchemes:
+				break;
+			}
+		}
+			
+		case HiseColourScheme::DebugAreaBackgroundColourId:
+		{
+			switch (currentColourScheme)
+			{
+			case HiseColourScheme::Dark:
+				return JUCE_LIVE_CONSTANT(Colour(0x02FFFFFF));
+			case HiseColourScheme::Bright:
+				return JUCE_LIVE_CONSTANT(Colour(0xff5d5d5d));
+			case HiseColourScheme::numSchemes:
+				break;
+			}
+		}
+		
+		case HiseColourScheme::ModulatorSynthHeader:
+		{
+			switch (currentColourScheme)
+			{
+			case HiseColourScheme::Dark:
+				return JUCE_LIVE_CONSTANT(Colour(0xFFEEEEEE));
+			case HiseColourScheme::Bright:
+				return JUCE_LIVE_CONSTANT(Colour(0xFFEEEEEE));
+			case HiseColourScheme::numSchemes:
+				break;
+			}
+		}
+
+		default:
+			break;
+		}
+
+		jassertfalse;
+		return Colours::transparentBlack;
+	}
+
+	static void setColourScheme(Scheme s)
+	{
+		currentColourScheme = s;
+	}
+
+	static Scheme getCurrentColourScheme()
+	{
+		return currentColourScheme;
+	}
+
+private:
+
+
+	static Scheme currentColourScheme;
+};
+
+
+#define DEBUG_AREA_BACKGROUND_COLOUR_DARK 0x03000000
 #define BACKEND_BG_COLOUR 0xFF888888//0xff4d4d4d
 #define BACKEND_BG_COLOUR_BRIGHT 0xFF646464
 
@@ -156,6 +254,8 @@ class LinuxFontHandler
 #define SIGNAL_COLOUR 0xFF90FFB1
 
 #define DEBUG_BG_COLOUR 0xff636363
+
+#define JUCE_LIVE_CONSTANT_OFF(x) x
 
 #include "copyProtectionMacros.h"
 

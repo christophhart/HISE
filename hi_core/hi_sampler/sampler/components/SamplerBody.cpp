@@ -33,13 +33,15 @@ SamplerBody::SamplerBody (ProcessorEditor *p)
     //[Constructor_pre] You can add your own custom stuff here..
     //[/Constructor_pre]
 
+    addAndMakeVisible(buttonRow = new Component());
+    
     addAndMakeVisible (sampleEditor = new SampleEditor (dynamic_cast<ModulatorSampler*>(getProcessor()), this));
     sampleEditor->setName ("new component");
 
     addAndMakeVisible (soundTable = new SamplerTable (dynamic_cast<ModulatorSampler*>(getProcessor()), this));
     soundTable->setName ("new component");
 
-    addAndMakeVisible (waveFormButton = new TextButton ("new button"));
+    buttonRow->addAndMakeVisible (waveFormButton = new TextButton ("new button"));
     waveFormButton->setButtonText (TRANS("Sample Editor"));
     waveFormButton->setConnectedEdges (Button::ConnectedOnLeft | Button::ConnectedOnRight);
     waveFormButton->addListener (this);
@@ -48,7 +50,7 @@ SamplerBody::SamplerBody (ProcessorEditor *p)
     waveFormButton->setColour (TextButton::textColourOnId, Colour (0x99ffffff));
     waveFormButton->setColour (TextButton::textColourOffId, Colours::white);
 
-    addAndMakeVisible (mapButton = new TextButton ("new button"));
+    buttonRow->addAndMakeVisible (mapButton = new TextButton ("new button"));
     mapButton->setButtonText (TRANS("Map Editor"));
     mapButton->setConnectedEdges (Button::ConnectedOnLeft | Button::ConnectedOnRight);
     mapButton->addListener (this);
@@ -57,7 +59,7 @@ SamplerBody::SamplerBody (ProcessorEditor *p)
     mapButton->setColour (TextButton::textColourOnId, Colour (0x99ffffff));
     mapButton->setColour (TextButton::textColourOffId, Colours::white);
 
-    addAndMakeVisible (tableButton = new TextButton ("new button"));
+    buttonRow->addAndMakeVisible (tableButton = new TextButton ("new button"));
     tableButton->setButtonText (TRANS("Table View"));
     tableButton->setConnectedEdges (Button::ConnectedOnLeft);
     tableButton->addListener (this);
@@ -66,7 +68,7 @@ SamplerBody::SamplerBody (ProcessorEditor *p)
     tableButton->setColour (TextButton::textColourOnId, Colour (0x99ffffff));
     tableButton->setColour (TextButton::textColourOffId, Colours::white);
 
-    addAndMakeVisible (settingsView = new TextButton ("new button"));
+    buttonRow->addAndMakeVisible (settingsView = new TextButton ("new button"));
     settingsView->setButtonText (TRANS("Sampler Settings"));
     settingsView->setConnectedEdges (Button::ConnectedOnRight);
     settingsView->addListener (this);
@@ -80,6 +82,8 @@ SamplerBody::SamplerBody (ProcessorEditor *p)
 
     //[UserPreSize]
 
+    buttonRow->setBufferedToImage(true);
+    
 	waveFormButton->setLookAndFeel(&cblaf);
 	settingsView->setLookAndFeel(&cblaf);
 	mapButton->setLookAndFeel(&cblaf);
@@ -182,6 +186,7 @@ void SamplerBody::paint (Graphics& g)
 {
     //[UserPrePaint] Add your own custom painting code here..
 	g.fillAll(Colours::transparentBlack);
+    
     //[/UserPrePaint]
 
     //[UserPaint] Add your own custom painting code here..
@@ -192,6 +197,7 @@ void SamplerBody::resized()
 {
     //[UserPreResize] Add your own custom resize code here..
 
+    buttonRow->setBounds(0, 0, getWidth(), 26);
 
 
     //[/UserPreResize]
@@ -207,13 +213,13 @@ void SamplerBody::resized()
     //[UserResized] Add your own custom resize handling here..
 
 
-	settingsHeight = getProcessor()->getEditorState(ModulatorSampler::SettingsShown) ? settingsPanel->getPanelHeight() + 6: 0;
+	settingsHeight = getProcessor()->getEditorState(ModulatorSampler::SettingsShown) ? settingsPanel->getPanelHeight(): 0;
 
 	settingsPanel->setSize(settingsPanel->getWidth(), settingsHeight);
 
-	waveFormHeight = getProcessor()->getEditorState(ModulatorSampler::WaveformShown) ? sampleEditor->getHeight() + 6: 0;
+	waveFormHeight = getProcessor()->getEditorState(ModulatorSampler::WaveformShown) ? sampleEditor->getHeight(): 0;
 
-	mapHeight = getProcessor()->getEditorState(ModulatorSampler::MapPanelShown) ? map->getHeight() + 6: 0;
+	mapHeight = getProcessor()->getEditorState(ModulatorSampler::MapPanelShown) ? map->getHeight(): 0;
 	const int additionalMapHeight = getProcessor()->getEditorState(getProcessor()->getEditorStateForIndex(ModulatorSampler::EditorStates::BigSampleMap)) ? 128 : 0;
 
 	if (mapHeight != 0)
@@ -224,7 +230,7 @@ void SamplerBody::resized()
 
 	}
 
-	tableHeight = getProcessor()->getEditorState(ModulatorSampler::TableShown) ? soundTable->getHeight() + 6: 0;
+	tableHeight = getProcessor()->getEditorState(ModulatorSampler::TableShown) ? soundTable->getHeight(): 0;
 
 	int y = h;
 

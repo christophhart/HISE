@@ -133,6 +133,8 @@ AudioFileEnvelopeEditor::AudioFileEnvelopeEditor (ProcessorEditor *p)
 
     //[UserPreSize]
 
+	ProcessorEditorLookAndFeel::setupEditorNameLabel(label);
+
 	AudioSampleProcessor *asp = dynamic_cast<AudioSampleProcessor*>(getProcessor());
 
 	sampleBufferContent->setAudioSampleBuffer(asp->getBuffer(), asp->getFileName());

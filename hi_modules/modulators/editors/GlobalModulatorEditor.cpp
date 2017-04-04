@@ -99,11 +99,8 @@ void GlobalModulatorEditor::paint (Graphics& g)
     //[UserPrePaint] Add your own custom painting code here..
     //[/UserPrePaint]
 
-    g.setColour (Colour (0x30000000));
-    g.fillRoundedRectangle (static_cast<float> ((getWidth() / 2) - ((getWidth() - 84) / 2)), 3.0f, static_cast<float> (getWidth() - 84), static_cast<float> (getHeight() - 6), 6.000f);
-
-    g.setColour (Colour (0x25ffffff));
-    g.drawRoundedRectangle (static_cast<float> ((getWidth() / 2) - ((getWidth() - 84) / 2)), 3.0f, static_cast<float> (getWidth() - 84), static_cast<float> (getHeight() - 6), 6.000f, 2.000f);
+   
+	ProcessorEditorLookAndFeel::fillEditorBackgroundRect(g, this);
 
     //[UserPaint] Add your own custom painting code here..
     //[/UserPaint]

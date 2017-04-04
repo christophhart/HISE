@@ -259,18 +259,21 @@ public:
 		void timerCallback();
 		void loadUserPreset(const ValueTree& presetToLoad);
 
+		File getCurrentlyLoadedFile() const { return currentlyLoadedFile; };
+
+		void setCurrentlyLoadedFile(const File& f) { currentlyLoadedFile = f; };
+
 		// ===========================================================================================================
 
 	private:
 
-		
-
 		void loadPresetInternal();
 
 		
-
 		MainController* mc;
 		ValueTree currentPreset;
+
+		File currentlyLoadedFile;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(UserPresetHandler)
 
@@ -291,6 +294,9 @@ public:
 
 	DelayedRenderer& getDelayedRenderer() { return delayedRenderer; };
 	const DelayedRenderer& getDelayedRenderer() const { return delayedRenderer; };
+
+	UserPresetHandler& getUserPresetHandler() { return userPresetHandler; };
+	const UserPresetHandler& getUserPresetHandler() const { return userPresetHandler; };
 
 #if USE_BACKEND
 	/** Writes to the console. */
@@ -403,7 +409,7 @@ public:
 	virtual const ModulatorSynthChain *getMainSynthChain() const = 0;
 
 	/** Returns the time that the plugin spends in its processBlock method. */
-	float getCpuUsage() const {return usagePercent.get();};
+	float getCpuUsage() const {return usagePercent.load();};
 
 	/** Returns the amount of playing voices. */
 	int getNumActiveVoices() const;;
@@ -665,7 +671,7 @@ private:
 
 	Array<WeakReference<TempoListener>> tempoListeners;
 
-	Atomic<float> usagePercent;
+    std::atomic<float> usagePercent;
 
 	bool enablePluginParameterUpdate;
 

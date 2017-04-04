@@ -139,6 +139,13 @@ XmlElement * AudioProcessorDriver::getSettings()
 
 void AudioProcessorDriver::initialiseAudioDriver(XmlElement *deviceData)
 {
+	DebugLogger& logger = dynamic_cast<MainController*>(this)->getDebugLogger();
+
+	if (deviceData != nullptr)
+	{
+		logger.logMessage("Audio Driver Initialisation with Settings:  \n\n```xml\n" + deviceData->createDocument("") + "```\n");
+	}
+
 	if (deviceData != nullptr && deviceData->hasTagName("DEVICESETUP") && deviceManager->initialise(0, 2, deviceData, false) == String())
 	{
 		callback->setProcessor(dynamic_cast<AudioProcessor*>(this));
@@ -148,7 +155,14 @@ void AudioProcessorDriver::initialiseAudioDriver(XmlElement *deviceData)
 	}
 	else
 	{
-		deviceManager->initialiseWithDefaultDevices(0, 2);
+		logger.logMessage("Audio Driver Default Initialisation");
+
+		const String error = deviceManager->initialiseWithDefaultDevices(0, 2);
+
+		if (error.isNotEmpty())
+		{
+			logger.logMessage("Audio Driver ERROR: " + error);
+		}
 
 		callback->setProcessor(dynamic_cast<AudioProcessor*>(this));
 

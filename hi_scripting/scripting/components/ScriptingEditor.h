@@ -750,6 +750,8 @@ private:
     ScopedPointer<TextButton> compileButton;
     ScopedPointer<DebugConsoleTextEditor> messageBox;
     ScopedPointer<Label> timeLabel;
+    
+    ScopedPointer<Component> buttonRow;
 
 	ScopedPointer<TextButton> contentButton;
 	OwnedArray<TextButton> callbackButtons;

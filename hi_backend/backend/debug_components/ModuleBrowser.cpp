@@ -168,30 +168,27 @@ ModuleBrowser::ModuleCollection::ModuleCollection(Types t)
 		typeName = "MIDI Processors";
 		factoryType = new MidiProcessorFactoryType(nullptr);
 		p = MidiProcessor::getSymbolPath();
-		c = Colour(0xFF881100);
+		c = Colour(MIDI_PROCESSOR_COLOUR);
 		if (xml != nullptr) vt = ValueTree::fromXml(*xml->getChildByName("MidiProcessors"));
 		break;
 	case ModuleBrowser::ModuleCollection::VoiceStartModulators:
 		typeName = "Voice Start Modulators";
 		factoryType = new VoiceStartModulatorFactoryType(NUM_POLYPHONIC_VOICES, Modulation::GainMode, nullptr);
 		p = VoiceStartModulator::getSymbolPath();
-		c = Colour(0xffD9911E);
-		c2 = Colour(0xff628214);
+		c = Colours::black.withAlpha(0.5f);
 		if (xml != nullptr) vt = ValueTree::fromXml(*xml->getChildByName("VoiceStartModulators"));
 		break;
 	case ModuleBrowser::ModuleCollection::TimeVariantModulators:
 		typeName = "Timevariant Modulators";
 		factoryType = new TimeVariantModulatorFactoryType(Modulation::GainMode, nullptr);
-		c = Colour(0xffD9911E);
-		c2 = Colour(0xff628214);
+		c = Colours::black.withAlpha(0.5f);
 		p = TimeVariantModulator::getSymbolPath();
 		if (xml != nullptr) vt = ValueTree::fromXml(*xml->getChildByName("TimeVariantModulators"));
 		break;
 	case ModuleBrowser::ModuleCollection::EnvelopeModulators:
 		typeName = "Envelope Modulators";
 		factoryType = new EnvelopeModulatorFactoryType(NUM_POLYPHONIC_VOICES, Modulation::GainMode, nullptr);
-		c = Colour(0xffD9911E);
-		c2 = Colour(0xff628214);
+		c = Colours::black.withAlpha(0.5f);
 		p = EnvelopeModulator::getSymbolPath();
 		if (xml != nullptr) vt = ValueTree::fromXml(*xml->getChildByName("EnvelopeModulators"));
 		break;
@@ -199,14 +196,15 @@ ModuleBrowser::ModuleCollection::ModuleCollection(Types t)
 		typeName = "Sound Generators";
 		factoryType = new ModulatorSynthChainFactoryType(NUM_POLYPHONIC_VOICES, nullptr);
 		p.loadPathFromData(BackendBinaryData::ToolbarIcons::keyboard, sizeof(BackendBinaryData::ToolbarIcons::keyboard));
-		c = Colours::white.withAlpha(0.2f);
+		c = Colours::white.withAlpha(0.7f);
+        
 		if (xml != nullptr) vt = ValueTree::fromXml(*xml->getChildByName("ModulatorSynths"));
 		break;
 	case ModuleBrowser::ModuleCollection::Effects:
 		typeName = "Effects";
 		factoryType = new EffectProcessorChainFactoryType(NUM_POLYPHONIC_VOICES, nullptr);
 		p.loadPathFromData(HiBinaryData::ProcessorIcons::effectChain, sizeof(HiBinaryData::ProcessorIcons::effectChain));
-		c = Colour(0xff3a6666);
+		c = Colour(EFFECT_PROCESSOR_COLOUR);
 		if (xml != nullptr) vt = ValueTree::fromXml(*xml->getChildByName("Effects"));
 		break;
 	case ModuleBrowser::ModuleCollection::numTypes:
@@ -232,22 +230,15 @@ void ModuleBrowser::ModuleCollection::paint(Graphics &g)
 	g.setColour(Colours::white.withAlpha(0.4f));
 	g.fillPath(p);
 
-	if (c2.isTransparent())
-	{
-		g.setColour(c);
+    g.setColour(c);
 
-		g.fillRect(40, 5, getWidth() - 50, 30);
-	}
-	else
-	{
-		g.setGradientFill(ColourGradient(c, 0.0f, 0.0f, c2, (float)getWidth(), 0.0f, true));
-
-		g.fillRect(40, 5, getWidth() - 50, 30);
-	}
-
-	g.setColour(Colours::white.withAlpha(0.3f));
+    g.fillRect(40, 5, getWidth() - 50, 30);
+	
+	g.setColour(Colours::white.withAlpha(0.15f));
 	g.drawRect(40, 5, getWidth() - 50, 30);
-	g.setColour(Colours::white);
+	
+    
+    g.setColour(c.getBrightness() > 0.5f ? Colours::black : Colours::white);
 	g.setFont(GLOBAL_BOLD_FONT());
 
 	g.drawText(typeName, 50, 0, getWidth() - 50, 40, Justification::centredLeft);

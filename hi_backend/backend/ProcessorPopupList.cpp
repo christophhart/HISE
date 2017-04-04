@@ -428,12 +428,16 @@ StupidRectangle::StupidRectangle()
 
 void StupidRectangle::paint(Graphics &g)
 {
-	
-	g.setColour(Colour(BACKEND_BG_COLOUR_BRIGHT));
-	
-	g.fillAll();
+    Colour c1 = Colour(0xff2f2f2f);
+    Colour c2 = Colour(0xff242424);
+    
+    g.setGradientFill(ColourGradient(c1, 0.0f, 0.0f,
+                                     c2, 0.0f, (float)getHeight(), false));
+    
+    
+    g.fillAll();
 
-	g.setColour(Colours::black.withAlpha(0.4f));
+	g.setColour(Colours::black.withAlpha(0.1f));
 
 	g.fillRect(0, 0, getWidth(), 40);
 
@@ -442,24 +446,6 @@ void StupidRectangle::paint(Graphics &g)
 
 	g.setColour(Colours::white.withAlpha(0.2f));
 	g.drawHorizontalLine(41, 0.0f, (float)getWidth());
-
-
-	g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.2f), 0.0f, 0.0f,
-		Colours::transparentBlack, 6.0f, 0.0, false));
-
-	g.fillRect(0, 0, 6, getHeight());
-
-	g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.2f), (float)getWidth(), 0.0f,
-		Colours::transparentBlack, (float)getWidth() - 6.0f, 0.0f, false));
-
-	g.fillRect(getWidth()-6, 0, 6, getHeight());
-
-	g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.2f), 0.0f, 0.0f,
-		Colours::transparentBlack, 0.0f, 6.0f, false));
-
-
-	g.fillRect(0, 0, getWidth(), 6);
-
 
     g.setColour(Colours::white);
     

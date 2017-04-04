@@ -194,6 +194,8 @@ public:
 	{
 		addListener(this);
 
+        setBufferedToImage(true);
+        
 		setWantsKeyboardFocus(false);
         
         setColour(HiBackgroundColours::upperBgColour, Colour(0x66333333));
@@ -273,6 +275,8 @@ public:
         MacroControlledObject(),
 		notifyEditor(dontSendNotification)
 	{
+        setBufferedToImage(true);
+        
 		addListener(this);
 		setWantsKeyboardFocus(false);
         
@@ -386,6 +390,8 @@ public:
         FloatVectorOperations::clear(modeValues, numModes);
 		addListener(this);
 		setWantsKeyboardFocus(false);
+        
+        setBufferedToImage(true);
         
         setColour(HiBackgroundColours::upperBgColour, Colour(0x66333333));
         setColour(HiBackgroundColours::lowerBgColour, Colour(0xfb111111));

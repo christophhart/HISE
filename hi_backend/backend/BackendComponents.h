@@ -181,7 +181,7 @@ public:
 
 	void paint(Graphics &g)
 	{
-		g.fillAll(Colour(BACKEND_BG_COLOUR));
+		g.fillAll(Colour(0xff555555));
 
 		g.setColour(Colours::black.withAlpha(0.1f));
 
@@ -299,7 +299,7 @@ public:
 
 	void paint(Graphics &g) override
 	{
-		g.setColour(Colour(BACKEND_BG_COLOUR_BRIGHT));
+		g.setColour(Colour(0xFF383838));
 
 		g.fillRoundedRectangle(0.0f,0.0f,(float)getWidth(), (float)getHeight()-8.0f, 3.0f);
 
@@ -410,7 +410,7 @@ public:
 		// give it a border
 
 		table.setColour (ListBox::outlineColourId, Colours::black.withAlpha(0.5f));
-		table.setColour(ListBox::backgroundColourId, Colour(DEBUG_AREA_BACKGROUND_COLOUR));
+		table.setColour(ListBox::backgroundColourId, HiseColourScheme::getColour(HiseColourScheme::ColourIds::DebugAreaBackgroundColourId));
 
 		table.setOutlineThickness (0);
 
@@ -751,19 +751,7 @@ public:
 
 	void resized();
 
-	void paint(Graphics &g)
-	{
-		if (dragNew)
-		{
-			g.fillAll(Colours::green.withAlpha(0.02f));
-			g.setColour(Colours::black);
-
-			g.setFont(GLOBAL_BOLD_FONT());
-			g.drawText("Drop Preset to load container.", 0, 0, getWidth(), getHeight(), true);
-		}
-
-	}
-
+	
 private:
 
 	class InternalViewport : public Viewport

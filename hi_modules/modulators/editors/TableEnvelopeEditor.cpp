@@ -83,6 +83,8 @@ TableEnvelopeEditorBody::TableEnvelopeEditorBody (ProcessorEditor *p)
 	startTimer(30);
 
 	h = getHeight();
+
+
     //[/Constructor]
 }
 

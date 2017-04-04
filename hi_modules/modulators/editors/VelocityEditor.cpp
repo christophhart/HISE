@@ -50,13 +50,7 @@ VelocityEditorBody::VelocityEditorBody (ProcessorEditor *p)
 
     addAndMakeVisible (label = new Label ("new label",
                                           TRANS("velocity")));
-    label->setFont (Font ("Arial Unicode MS", 24.00f, Font::bold));
-    label->setJustificationType (Justification::centredRight);
-    label->setEditable (false, false, false);
-    label->setColour (Label::textColourId, Colour (0x99ffffff));
-    label->setColour (TextEditor::textColourId, Colours::black);
-    label->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
-
+    
     addAndMakeVisible (decibelButton = new HiToggleButton ("new toggle button"));
     decibelButton->setTooltip (TRANS("Use a table to calculate the value"));
     decibelButton->setButtonText (TRANS("Decibel Mode"));
@@ -66,8 +60,9 @@ VelocityEditorBody::VelocityEditorBody (ProcessorEditor *p)
 
     //[UserPreSize]
 
-    label->setFont (GLOBAL_BOLD_FONT().withHeight(26.0f));
 
+
+    
 	vm = static_cast<VelocityModulator*>(getProcessor());
 
 	getProcessor()->getMainController()->skin(*invertedButton);
@@ -84,7 +79,12 @@ VelocityEditorBody::VelocityEditorBody (ProcessorEditor *p)
     setSize (800, 190);
 
 
+
+
     //[Constructor] You can add your own custom stuff here..
+
+	ProcessorEditorLookAndFeel::setupEditorNameLabel(label);
+
 	h = getHeight();
 
     //[/Constructor]
@@ -106,15 +106,14 @@ VelocityEditorBody::~VelocityEditorBody()
     //[/Destructor]
 }
 
+
+
 //==============================================================================
 void VelocityEditorBody::paint (Graphics& g)
 {
     //[UserPrePaint] Add your own custom painting code here..
-	g.fillAll(Colours::transparentBlack);
     
-    g.setColour (Colour (0x30000000));
-    g.fillRoundedRectangle (static_cast<float> ((getWidth() / 2) - ((getWidth() - 84) / 2)), 3.0f, static_cast<float> (getWidth() - 84), static_cast<float> (getHeight() - 6), 3.000f);
-    
+	ProcessorEditorLookAndFeel::fillEditorBackgroundRect(g, this);
 
     //[/UserPrePaint]
 

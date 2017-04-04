@@ -1,81 +1,211 @@
 
-
-DebugLogger::DebugLogger(MainController* mc_):
-	mc(mc_)
+struct DebugLogger::Message
 {
+	Message() {};
 
-}
-
-DebugLogger::~DebugLogger()
-{
-
-}
-
-double DebugLogger::getCurrentTimeStamp() const
-{
-	return 0.001 * (Time::getMillisecondCounterHiRes() - uptime);
-}
-
-void DebugLogger::addFailure(const DebugLogger::Failure& f)
-{
-	ScopedLock sl(debugLock);
-	pendingFailures.add(f);
-}
-
-void DebugLogger::logMessage(const String& errorMessage)
-{
-	if (isLogging())
-	{
-		ScopedLock sl(messageLock);
-
-		messages.add(errorMessage);
-		callbackIndexesForMessage.add(callbackIndex);
-	}
-}
-
-struct DebugLogger::Failure
-{
-	Failure() :
-		location(Location::Empty),
-		type(FailureType::Empty),
-		timestamp(0.0)
-	{};
-
-	Failure(int callbackIndex_, Location loc_, FailureType t, Processor* faultyModule, double ts, double extraValue_, const Identifier& id_=Identifier()) :
-		location(loc_),
-		type(t),
-		timestamp(ts),
-		p(faultyModule),
-		extraValue(extraValue_),
+	Message(int messageIndex_, int callbackIndex_, double timestamp_, Location l, Processor* const p_, const Identifier& id_) :
+		messageIndex(messageIndex_),
 		callbackIndex(callbackIndex_),
-		id(id_)
-	{};
-
-	Failure(int callbackIndex_, FailureType f, double old, double newvalue, double ts) :
-		location(Location::Empty),
-		type(f),
-		oldValue(old),
-		newValue(newvalue),
-		timestamp(ts),
-		callbackIndex(callbackIndex_)
-		{};
-
-	Failure(const PerformanceData& d, double timestamp_, int callbackIndex_, int voiceAmount) :
-		location((Location)d.location),
-		type(FailureType::PerformanceWarning),
-		oldValue(d.averagePercentage),
-		newValue(d.thisPercentage),
-		extraValue(voiceAmount),
 		timestamp(timestamp_),
-		limit(d.limit),
-		p(d.p),
-		callbackIndex(callbackIndex_),
-		id(Identifier())
+		p(p_),
+		id(id_),
+		location(l)
 	{};
 
-		
+	String getTimeString()
+	{
+		String t;
+		NewLine nl;
 
-	String getErrorString(int errorIndex=-1)
+		t << "- Time: **" << String(timestamp, 2) << "**  " << " / ";
+		t << "CallbackIndex: **" << String(callbackIndex) << "**  " << nl;
+
+		return t;
+	}
+
+	String getLocationString()
+	{
+		String l;
+		NewLine nl;
+
+
+		l << "- Location: `";
+
+		if (p.get() != nullptr)
+		{
+			l << p.get()->getId() << "::";
+		}
+
+		if (!id.isNull())
+		{
+			l << id.toString() << "::";
+		}
+
+		l << DebugLogger::getNameForLocation(location) << "`  " << nl;
+
+		return l;
+	}
+
+	virtual bool shouldPrintBacktrace() const { return false; };
+
+	virtual String getMessageText(int errorIndex = -1) { ignoreUnused(errorIndex); jassertfalse; return String(); }
+
+
+	int messageIndex = -1;
+
+	int callbackIndex = -1;
+	double timestamp = 0.0;
+
+	const Identifier id;
+	WeakReference<Processor> p;
+
+	Location location;
+};
+
+struct DebugLogger::StringMessage : public DebugLogger::Message
+{
+	StringMessage(int messageIndex, int callbackIndex, const String& message_, double ts) :
+		Message(messageIndex, callbackIndex, ts, Location::Empty, nullptr, Identifier()),
+		message(message_)
+	{}
+
+	String getMessageText(int errorIndex /* = -1 */) override 
+	{
+		ignoreUnused(errorIndex);
+
+		String s;
+		NewLine nl;
+
+		s << message;
+		s << getTimeString() << nl;
+
+		return s; 
+	}
+
+	String message;
+};
+
+struct DebugLogger::Event : public DebugLogger::Message
+{
+	Event(int messageIndex, int callbackIndex, const HiseEvent& e_) :
+		Message(messageIndex, callbackIndex, timestamp, Location::MainRenderCallback, nullptr, Identifier()),
+		e(e_)
+	{}
+
+	String getMessageText(int errorIndex /* = -1 */) override
+	{
+		ignoreUnused(errorIndex);
+
+		String eventString;
+		
+		eventString << "**" << e.getTypeAsString() << "** CI: `" << String(callbackIndex) << "` ID: `" << String(e.getEventId()) << "` TS: `" << String(e.getTimeStamp()) << "` ";
+		eventString << "V1: `" << (e.isNoteOnOrOff() ? MidiMessage::getMidiNoteName(e.getNoteNumber(), true, true, 3) : String(e.getNoteNumber())) << "`, V2: `" << String(e.getVelocity()) << "`, Ch: `" << String(e.getChannel()) << "`  ";
+
+		return eventString;
+	}
+
+	const HiseEvent e;
+};
+
+struct DebugLogger::AudioSettingChange : public DebugLogger::Message
+{
+	AudioSettingChange(int messageIndex, int callbackIndex, double ts, FailureType type_, double oldValue_, double newValue_) :
+		Message(messageIndex, callbackIndex, ts, Location::MainRenderCallback, nullptr, Identifier()),
+		type(type_),
+		oldValue(oldValue_),
+		newValue(newValue_)
+	{};
+
+	FailureType type;
+	double oldValue;
+	double newValue;
+
+	String getMessageText(int errorIndex = -1)
+	{
+		ignoreUnused(errorIndex);
+		
+		NewLine nl;
+		String errorMessage;
+
+		errorMessage << "### " << DebugLogger::getNameForFailure(type) << nl;
+
+		errorMessage << getTimeString();
+
+		if (type == FailureType::SampleRateChange || type == FailureType::BufferSizeChange)
+		{
+			errorMessage << "- Old: **" << String(oldValue, 0) << "**  " << nl;
+			errorMessage << "- New: **" << String(newValue, 0) << "**  " << nl << nl;
+			return errorMessage;
+		}
+	}
+};
+
+struct DebugLogger::PerformanceWarning : public DebugLogger::Message
+{
+	PerformanceWarning(int messageIndex, int callbackIndex, const DebugLogger::PerformanceData& d_, double timestamp_, int voiceAmount_) :
+		Message(messageIndex, callbackIndex, timestamp_, (Location)d_.location, d_.p, Identifier()),
+		d(d_),
+		voiceAmount(voiceAmount_),
+		timestamp(timestamp_)
+	{};
+
+	int voiceAmount = 0;
+	double timestamp = 0.0;
+
+	String getMessageText(int /*errorIndex*/) override
+	{
+		String errorMessage;
+		NewLine nl;
+
+		errorMessage << "### PerformanceWarning" << nl;
+
+		errorMessage << getTimeString();
+		errorMessage << getLocationString();
+
+		errorMessage << "- Voice Amount: **" << String(voiceAmount) << "**  " << nl;
+		errorMessage << "- Limit: `" << String(100.0 * d.limit, 1) << "%` Avg: `" << String(d.averagePercentage, 2) << "%`, Peak: `" << String(d.thisPercentage, 1) << "%`  ";
+
+		return errorMessage;
+	}
+
+	const DebugLogger::PerformanceData d;
+};
+
+struct DebugLogger::ParameterChange : public DebugLogger::Message
+{
+	ParameterChange(int messageIndex, int callbackIndex, double timestamp, const Identifier& id, const var& value_):
+		Message(messageIndex, callbackIndex, timestamp, Location::Empty, nullptr, id),
+		value(value_)
+	{}
+
+	ParameterChange() :
+		value(var())
+	{};
+
+	String getMessageText(int) override
+	{
+		String s;
+		NewLine nl;
+
+		s << "**Parameter Change** ";
+		s << "ID: `" << id << "` value: `" << value.toString() << "`  " << "CI: " << callbackIndex << nl;
+		return s;
+	}
+
+	const var value;
+};
+
+struct DebugLogger::Failure : public DebugLogger::Message
+{
+	Failure(int messageIndex, int callbackIndex_, Location loc_, FailureType t, Processor* faultyModule, double ts, double extraValue_, const Identifier& id_ = Identifier()) :
+		Message(messageIndex, callbackIndex_, ts, loc_, faultyModule, id_),
+		type(t),
+		extraValue(extraValue_)
+	{};
+
+	bool shouldPrintBacktrace() const override { return type == FailureType::PriorityInversion; }
+
+	String getMessageText(int errorIndex = -1)
 	{
 		static const String ok("All OK");
 
@@ -94,62 +224,95 @@ struct DebugLogger::Failure
 			errorMessage << "### #" << String(errorIndex) << ": " << DebugLogger::getNameForFailure(type) << nl;
 		}
 
-		
+		errorMessage << getTimeString();
 
-		errorMessage << "- Time: **" << String(timestamp, 2) << "**  " << " / ";
-		errorMessage << "CallbackIndex: **" << String(callbackIndex) << "**  " << nl;
+		errorMessage << getLocationString();
 
-		if (type == FailureType::SampleRateChange || type == FailureType::BufferSizeChange)
-		{
-			errorMessage << "- Old: **" << String(oldValue, 0) << "**  " << nl;
-			errorMessage << "- New: **" << String(newValue, 0) << "**  " << nl << nl;
-			return errorMessage;
-		}
-
-		errorMessage << "- Location: `";
-
-		if (p.get() != nullptr)
-		{
-			errorMessage << p.get()->getId() << "::";
-		}
-
-		if (!id.isNull())
-		{
-			errorMessage << id.toString() << "::";
-		}
-
-		errorMessage << DebugLogger::getNameForLocation(location) << "`  " << nl;
-
-		if (type == FailureType::PerformanceWarning)
-		{
-			errorMessage << "- Voice Amount: **" << String(extraValue, 0) << "**  " << nl;
-			errorMessage << "- Limit: `" << String(100.0 * limit , 1) << "%` Avg: `" << String(oldValue, 2) << "%`, Peak: `" << String(newValue, 1) << "%`  " << nl;
-		}
-		else if (extraValue != 0.0)
+		if (extraValue != 0.0)
 		{
 			errorMessage << "- AdditionalInfo: **" << String(extraValue, 3) << "**  " << nl;
 		}
 
-		
+
 		errorMessage << nl;
 		return errorMessage;
 	}
 
-	Location location;
 	FailureType type;
-	double timestamp = 0.0;
-
-	double oldValue = 0.0;
-	double newValue = 0.0;
-	double limit = 0.0;
-
-	WeakReference<Processor> p;
-
+	
 	double extraValue = 0.0;
-	int callbackIndex;
-
-	Identifier id;
+	
 };
+
+
+DebugLogger::DebugLogger(MainController* mc_):
+	mc(mc_)
+{
+	pendingEvents.ensureStorageAllocated(NUM_MESSAGE_SLOTS);
+	pendingFailures.ensureStorageAllocated(NUM_MESSAGE_SLOTS);
+	pendingPerformanceWarnings.ensureStorageAllocated(NUM_MESSAGE_SLOTS);
+	pendingStringMessages.ensureStorageAllocated(NUM_MESSAGE_SLOTS);
+	pendingAudioChanges.ensureStorageAllocated(16);
+}
+
+DebugLogger::~DebugLogger()
+{
+
+}
+
+double DebugLogger::getCurrentTimeStamp() const
+{
+	return 0.001 * (Time::getMillisecondCounterHiRes() - uptime);
+}
+
+void DebugLogger::addFailure(const DebugLogger::Failure& f)
+{
+	ScopedLock sl(debugLock);
+	pendingFailures.add(f);
+}
+
+void DebugLogger::addPerformanceWarning(const PerformanceWarning& f)
+{
+	ScopedLock sl(debugLock);
+	pendingPerformanceWarnings.add(f);
+}
+
+
+void DebugLogger::addStreamingFailure(double voiceUptime)
+{
+	Failure f = Failure(messageIndex++, callbackIndex, Location::SampleRendering, FailureType::StreamingFailure, nullptr, getCurrentTimeStamp(), voiceUptime);
+
+	addFailure(f);
+}
+
+void DebugLogger::logEvents(const HiseEventBuffer& masterBuffer)
+{
+	if (isLogging())
+	{
+		HiseEventBuffer::Iterator iter(masterBuffer);
+
+		while (auto e = iter.getNextConstEventPointer())
+		{
+			if (e->isAftertouch())
+				continue;
+
+			ScopedLock sl(debugLock);
+
+			Event e2(messageIndex++, callbackIndex, *e);
+
+			pendingEvents.add(e2);
+		}
+	}
+}
+
+void DebugLogger::logMessage(const String& errorMessage)
+{
+	ScopedLock sl(messageLock);
+
+	StringMessage m(messageIndex++, callbackIndex, errorMessage, getCurrentTimeStamp());
+
+	pendingStringMessages.add(m);
+}
 
 void DebugLogger::logPerformanceWarning(const PerformanceData& logData)
 {
@@ -158,8 +321,36 @@ void DebugLogger::logPerformanceWarning(const PerformanceData& logData)
 
 	const int voiceAmount = logData.p->getMainController()->getNumActiveVoices();
 
-	Failure f(logData, getCurrentTimeStamp(), callbackIndex, voiceAmount);
-	addFailure(f);
+	PerformanceWarning f(messageIndex++, callbackIndex, logData, getCurrentTimeStamp(), voiceAmount);
+	addPerformanceWarning(f);
+}
+
+
+void DebugLogger::logParameterChange(JavascriptProcessor* p, ReferenceCountedObject* control, const var& newValue)
+{
+	if (isLogging() && control != nullptr)
+	{
+		if (auto jmp = dynamic_cast<JavascriptMidiProcessor*>(p))
+		{
+			if (jmp->isFront())
+			{
+				auto c = dynamic_cast<ScriptingApi::Content::ScriptComponent*>(control);
+
+				Identifier id = c->getName();
+
+				DebugLogger::ParameterChange pc(messageIndex++, callbackIndex, getCurrentTimeStamp(), id, newValue);
+
+				ScopedLock sl(debugLock);
+
+				if (pendingParameterChanges.getLast().id == id)
+				{
+					pendingParameterChanges.removeLast();
+				}
+				
+				pendingParameterChanges.add(pc);
+			}
+		}
+	}
 }
 
 void DebugLogger::checkAudioCallbackProperties(double sampleRate, int samplesPerBlock)
@@ -240,7 +431,7 @@ void DebugLogger::checkSampleData(Processor* p, Location location, bool isLeft, 
 			failureType = isLeft ? FailureType::BurstLeft : FailureType::BurstRight;
 		}
 
-		Failure f(callbackIndex, location, failureType, p, getCurrentTimeStamp(), errorValue, id);
+		Failure f(messageIndex++, callbackIndex, location, failureType, p, getCurrentTimeStamp(), errorValue, id);
 		addFailure(f);
 	}
 }
@@ -251,7 +442,7 @@ void DebugLogger::checkAssertion(Processor* p, Location location, bool result, d
 
 	if (!result)
 	{
-		Failure f(callbackIndex, location, FailureType::Assertion, p, getCurrentTimeStamp(), extraData);
+		Failure f(messageIndex++, callbackIndex, location, FailureType::Assertion, p, getCurrentTimeStamp(), extraData);
 		addFailure(f);
 	}
 }
@@ -266,7 +457,7 @@ void DebugLogger::checkPriorityInversion(const CriticalSection& lockToCheck)
 
 	if (!sl.isLocked())
 	{
-		Failure f(callbackIndex - 1, Location::MainRenderCallback, FailureType::PriorityInversion, nullptr, getCurrentTimeStamp(), 0.0);
+		Failure f(messageIndex++, callbackIndex - 1, Location::MainRenderCallback, FailureType::PriorityInversion, nullptr, getCurrentTimeStamp(), 0.0);
 
 		actualBackTrace = messageCallbackStackBacktrace;
 
@@ -285,7 +476,7 @@ void DebugLogger::checkPriorityInversion(const SpinLock& spinLockToCheck, Locati
 		spinLockToCheck.exit();
 	else
 	{
-		Failure f(callbackIndex, l, FailureType::PriorityInversion, p, getCurrentTimeStamp(), 0.0, id);
+		Failure f(messageIndex++, callbackIndex, l, FailureType::PriorityInversion, p, getCurrentTimeStamp(), 0.0, id);
 		addFailure(f);
 	}
 }
@@ -294,11 +485,10 @@ void DebugLogger::addAudioDeviceChange(FailureType changeType, double oldValue, 
 {
 	if (isLogging())
 	{
-		Failure f(callbackIndex, changeType, oldValue, newValue, getCurrentTimeStamp());
-
+		AudioSettingChange f(messageIndex++, callbackIndex, getCurrentTimeStamp(), changeType, oldValue, newValue);
 		{
 			ScopedLock sl(debugLock);
-			pendingMessages.add(f);
+			pendingAudioChanges.add(f);
 		}
 	}
 }
@@ -336,8 +526,159 @@ void DebugLogger::startLogging()
 	}
 }
 
+
+struct MessageComparator
+{
+	static int compareElements(DebugLogger::Message* first, DebugLogger::Message* second)
+	{
+		if (first->messageIndex > second->messageIndex)
+		{
+			return 1;
+		}
+		else
+			return -1;
+	}
+};
+
+
 void DebugLogger::timerCallback()
 {
+	Array<Failure> failureCopy;
+	Array<StringMessage> messageCopy;
+	Array<PerformanceWarning> warningCopy;
+	Array<Event> eventCopy;
+	Array<AudioSettingChange> audioCopy;
+	Array<ParameterChange> parameterCopy;
+
+	{
+		if (pendingFailures.size() != 0)
+		{
+			failureCopy.ensureStorageAllocated(pendingFailures.size());
+
+			ScopedLock sl(debugLock);
+			failureCopy.addArray(pendingFailures);
+			pendingFailures.clearQuick();
+		}
+
+		if (pendingStringMessages.size() != 0)
+		{
+			messageCopy.ensureStorageAllocated(pendingStringMessages.size());
+
+			ScopedLock sl(messageLock);
+			messageCopy.addArray(pendingStringMessages);
+			pendingStringMessages.clearQuick();
+		}
+
+		if (pendingEvents.size() != 0)
+		{
+			eventCopy.ensureStorageAllocated(pendingEvents.size());
+
+			ScopedLock sl(debugLock);
+			eventCopy.addArray(pendingEvents);
+			pendingEvents.clearQuick();
+		}
+
+		if (pendingPerformanceWarnings.size() != 0)
+		{
+			warningCopy.ensureStorageAllocated(pendingPerformanceWarnings.size());
+
+			ScopedLock sl(debugLock);
+			warningCopy.addArray(pendingPerformanceWarnings);
+			pendingPerformanceWarnings.clearQuick();
+		}
+
+		if (pendingAudioChanges.size() != 0)
+		{
+			audioCopy.ensureStorageAllocated(pendingAudioChanges.size());
+
+			ScopedLock sl(debugLock);
+			audioCopy.addArray(pendingAudioChanges);
+			pendingAudioChanges.clearQuick();
+		}
+
+		if (pendingParameterChanges.size() != 0)
+		{
+			parameterCopy.ensureStorageAllocated(pendingParameterChanges.size());
+
+			ScopedLock sl(debugLock);
+			parameterCopy.addArray(pendingParameterChanges);
+			pendingParameterChanges.clearQuick();
+		}
+	}
+
+	messageIndex = 0;
+
+	Array<Message*> messages;
+
+	
+
+	for (int i = 0; i < warningCopy.size(); i++)
+		messages.add(&warningCopy.getReference(i));
+	
+	for (int i = 0; i < eventCopy.size(); i++)
+		messages.add(&eventCopy.getReference(i));
+
+	for (int i = 0; i < failureCopy.size(); i++)
+		messages.add(&failureCopy.getReference(i));
+
+	for (int i = 0; i < messageCopy.size(); i++)
+		messages.add(&messageCopy.getReference(i));
+
+	for (int i = 0; i < audioCopy.size(); i++)
+		messages.add(&audioCopy.getReference(i));
+
+	for (int i = 0; i < parameterCopy.size(); i++)
+		messages.add(&parameterCopy.getReference(i));
+
+	if (!messages.isEmpty())
+	{
+		FileOutputStream fos(currentLogFile, 512);
+		NewLine nl;
+
+
+		MessageComparator mec;
+		messages.sort(mec, false);
+
+		for (auto m : messages)
+		{
+			fos << m->getMessageText() << nl;
+
+			if (m->shouldPrintBacktrace() && actualBackTrace.isNotEmpty())
+			{
+				fos << "#### Stack back trace" << nl << nl;
+				fos << "```" << nl;
+
+				fos << actualBackTrace;
+				fos << "```" << nl << nl;
+				actualBackTrace = String();
+			}
+		}
+
+		const bool containsError = warningCopy.size() != 0 || failureCopy.size() != 0;
+
+		if (containsError)
+		{
+
+			for (int i = 0; i < listeners.size(); i++)
+			{
+				if (listeners[i].get() != nullptr)
+					listeners[i]->errorDetected();
+			}
+
+			numErrorsSinceLogStart += failureCopy.size();
+			numErrorsSinceLogStart += warningCopy.size();
+		}
+	}
+	else
+	{
+		currentlyFailing = false;
+	}
+
+	
+
+
+
+#if 0
 	if (messages.size() != 0)
 	{
 		FileOutputStream fos(currentLogFile, 512);
@@ -355,6 +696,7 @@ void DebugLogger::timerCallback()
 		callbackIndexesForMessage.clear();
 	}
 
+	
 
 	Array<Failure> a;
 
@@ -374,19 +716,9 @@ void DebugLogger::timerCallback()
 
 		for (int i = 0; i < a.size(); i++)
 		{
-			fos << a[i].getErrorString(numErrorsSinceLogStart);
+			fos << a[i].getMessageText(numErrorsSinceLogStart);
 
-			if (a[i].type == FailureType::PriorityInversion && actualBackTrace.isNotEmpty())
-			{
-				NewLine nl;
-
-				fos << "#### Stack Backtrace" << nl << nl;
-				fos << "```" << nl;
-
-				fos << actualBackTrace;
-				fos << "```" << nl << nl;
-				actualBackTrace = String();
-			}
+			
 
 			numErrorsSinceLogStart++;
 		}
@@ -423,8 +755,9 @@ void DebugLogger::timerCallback()
 		}
 
 		for (int i = 0; i < a.size(); i++)
-			fos << a[i].getErrorString();
+			fos << a[i].getMessageText();
 	}
+#endif
 }
 
 bool DebugLogger::isLogging() const
@@ -496,7 +829,12 @@ String DebugLogger::getNameForLocation(Location l)
 		RETURN_CASE_STRING_LOCATION(DspInstanceRendering);
 		RETURN_CASE_STRING_LOCATION(DspInstanceRenderingPost);
 		RETURN_CASE_STRING_LOCATION(TimerCallback);
+		RETURN_CASE_STRING_LOCATION(SampleVoiceBufferFill);
+		RETURN_CASE_STRING_LOCATION(SampleLoaderReadOperation);
 		RETURN_CASE_STRING_LOCATION(SynthRendering);
+		RETURN_CASE_STRING_LOCATION(SynthPreVoiceRendering);
+		RETURN_CASE_STRING_LOCATION(SynthPostVoiceRenderingGainMod);
+		RETURN_CASE_STRING_LOCATION(SynthPostVoiceRendering);
 		RETURN_CASE_STRING_LOCATION(SynthChainRendering);
 		RETURN_CASE_STRING_LOCATION(SampleStart);
 		RETURN_CASE_STRING_LOCATION(VoiceEffectRendering);
@@ -535,6 +873,7 @@ String DebugLogger::getNameForFailure(FailureType f)
 		RETURN_CASE_STRING_FAILURE(Discontinuity);
 		RETURN_CASE_STRING_FAILURE(PriorityInversion);
 		RETURN_CASE_STRING_FAILURE(SampleLoadingError);
+		RETURN_CASE_STRING_FAILURE(StreamingFailure);
 	}
 
 	return "Unknown failure";
@@ -585,6 +924,8 @@ void DebugLogger::setPerformanceWarningLevel(int newWarningLevel)
 
 	warningLevel = newWarningLevel;
 }
+
+
 
 #undef RETURN_CASE_STRING_FAILURE
 

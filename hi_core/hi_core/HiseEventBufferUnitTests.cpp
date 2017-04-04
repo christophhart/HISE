@@ -122,7 +122,7 @@ private:
 		beginTest("Testing constructor with note on message");
 
 		const uint8 noteNumber = (uint8)r.nextInt(128);
-		const uint8 velocity = (uint8)r.nextInt(128);
+		const uint8 velocity = jmax<uint8>(1, (uint8)r.nextInt(128));
 		const uint8 channel = (uint8)r.nextInt(Range<int>(1, 17));
 
 		MidiMessage no = MidiMessage::noteOn(channel, noteNumber, (uint8)velocity);
@@ -731,10 +731,13 @@ private:
 		handler.handleEventIds();
 		
 		HiseEvent on1 = b.getEvent(0);
-		//HiseEvent on2 = handler.getEventIdForNoteOff(HiseEvent(HiseEvent::Type::NoteOff, 37, 24, 1));
+
+		HiseEvent off1(HiseEvent::Type::NoteOff, 37, 24, 1);
+
+		uint16 eventID = handler.getEventIdForNoteOff(off1);
 		
-		//expect(on1 == on2, "NoteOnEvent");
-		expect(handler.getEventIdForNoteOff(HiseEvent(HiseEvent::Type::NoteOff, 37, 24, 1)) == 0, "RemovedNoteOnEvent");
+		expect(on1.getEventId() == eventID, "NoteOnEvent");
+		
 	}
 
 	Random r;

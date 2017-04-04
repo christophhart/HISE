@@ -64,7 +64,7 @@ rootEditorIsMainSynthChain(true)
 
     PresetHandler::buildProcessorDataBase(owner->getMainSynthChain());
     
-	cpuVoiceComponent->setColour(Slider::backgroundColourId, Colour(BACKEND_BG_COLOUR));
+	cpuVoiceComponent->setColour(Slider::backgroundColourId, HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourId));
 	cpuVoiceComponent->setOpaque(true);
 
 	addAndMakeVisible(aboutPage = new AboutPage());
@@ -633,11 +633,27 @@ bool BackendProcessorEditor::isPluginPreviewCreatable() const
     return owner->synthChain->hasDefinedFrontInterface();
 }
 
+
 void BackendProcessorEditor::paint(Graphics &g)
 {
-	g.fillAll(Colour(BACKEND_BG_COLOUR));
-
+    //g.fillAll(Colour(BACKEND_BG_COLOUR));
+    
+    g.setColour(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourId));
+    
+    g.fillAll();
+    
+    Rectangle<int> area = viewport->getBounds();
+    area.removeFromRight(viewport->viewport->getScrollBarThickness());
+    area.setHeight(area.getHeight() + 5);
+    
+    Colour c1 = JUCE_LIVE_CONSTANT_OFF(Colour(0xff2f2f2f));
+    
+	g.setColour(c1);
+    
+    g.fillRoundedRectangle(FLOAT_RECTANGLE(area), 3.0f);
+    
 }
+
 
 void BackendProcessorEditor::resized()
 {
@@ -878,7 +894,7 @@ void BackendProcessorEditor::showPseudoModalWindow(Component *componentToShow, c
 
 	stupidRectangle->addMouseListener(this, true);
 
-	const int height = dynamic_cast<PluginPreviewWindow::Content*>(componentToShow) ? getHeight() - viewport->getY() - keyboard->getHeight() : getHeight() - viewport->getY();
+    const int height = getHeight() - viewport->getY() - keyboard->getHeight();
 
 	stupidRectangle->setBounds(viewport->getX(), viewport->getY(), viewport->getWidth() - SCROLLBAR_WIDTH, height);
 

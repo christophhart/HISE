@@ -243,15 +243,15 @@ void MainController::stopCpuBenchmark()
 {
 	const float thisUsage = 100.0f * (float)((Time::highResolutionTicksToSeconds(Time::getHighResolutionTicks()) - temp_usage) * sampleRate / bufferSize.get());
 	
-	const float lastUsage = usagePercent.get();
+	const float lastUsage = usagePercent.load();
 	
 	if (thisUsage > lastUsage)
 	{
-		usagePercent.set(thisUsage);
+		usagePercent.store(thisUsage);
 	}
 	else
 	{
-		usagePercent.set(lastUsage*0.99f);
+		usagePercent.store(lastUsage*0.99f);
 	}
 }
 
@@ -482,6 +482,9 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
     if (!masterEventBuffer.isEmpty()) setMidiInputFlag();
     
 	eventIdHandler.handleEventIds();
+
+	getDebugLogger().logEvents(masterEventBuffer);
+
 #else
 	ignoreUnused(midiMessages);
 #endif

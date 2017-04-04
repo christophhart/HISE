@@ -225,7 +225,7 @@ public:
 
 	void resized() override
 	{
-		panel->setBounds(0, 28, getWidth(), getHeight() - 28);
+		panel->setBounds(1, 28, getWidth()-2, getHeight() - 28);
 		debugToolbar->setBounds(0, 0, getWidth(), 20);
 
 		const int h = getHeight() - 20 - 16;

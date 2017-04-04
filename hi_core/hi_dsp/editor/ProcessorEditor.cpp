@@ -317,6 +317,10 @@ void ProcessorEditor::paint(Graphics &g)
 	const float yOffset = (float)header->getBottom();
 
 	Colour c = getProcessor()->getColour();
+    
+    const float z = (float)getIndentationLevel() * 0.04f;
+    
+    c = c.withMultipliedBrightness(1.0f + z);
 
 	if (isSelectedForCopyAndPaste()) c = getProcessorAsChain() ? c.withMultipliedBrightness(1.05f) : c.withMultipliedBrightness(1.05f);
 
@@ -326,14 +330,13 @@ void ProcessorEditor::paint(Graphics &g)
     }
     else
     {
-        g.setGradientFill(ColourGradient(c.withMultipliedBrightness(1.05f),
+        g.setGradientFill(ColourGradient(c.withMultipliedBrightness(1.02f),
                                          0.0f, yOffset,
-                                         c.withMultipliedBrightness(0.95f),
+                                         c.withMultipliedBrightness(0.98f),
                                          0.0f, jmax(30.0f, (float)getHeight()),
                                          false));
 
     }
-    
 
 	g.fillAll(); 
         
@@ -345,13 +348,6 @@ void ProcessorEditor::paint(Graphics &g)
 	g.drawLine((float)getWidth(), 0.0f, (float)getWidth(), (float)getHeight());
        
     g.drawLine(0.0f, (float)getHeight(), (float)getWidth(), (float)getHeight());
-
-    g.setGradientFill(ColourGradient(Colour(0x6e000000),
-                                        0.0f, 27.0f,
-                                        Colour(0x00000000),
-                                        0.0f, 35.0f,
-                                        false));
-    g.fillRect(0, (int)yOffset, getWidth(), (int)yOffset);
 }
 
 

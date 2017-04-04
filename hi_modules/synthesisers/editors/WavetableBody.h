@@ -35,7 +35,8 @@ public:
 		tableLength(0),
 		tableValues(nullptr)
 	{
-		if(isDisplayForWavetableSynth()) startTimer(50);
+        if(isDisplayForWavetableSynth()) startTimer(50);
+        else setBufferedToImage(true);
 	}
 
 	bool isDisplayForWavetableSynth() const { return dynamic_cast<WavetableSynth*>(synth) != nullptr; };

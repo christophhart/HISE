@@ -333,8 +333,10 @@ MainController::EventIdHandler::EventIdHandler(HiseEventBuffer& masterBuffer_) :
     firstCC.store(-1);
     secondCC.store(-1);
     
-	for (int i = 0; i < 128; i++)
-		realNoteOnEvents[i] = HiseEvent();
+	//for (int i = 0; i < 128; i++)
+		//realNoteOnEvents[i] = HiseEvent();
+
+	memset(realNoteOnEvents, 0, sizeof(HiseEvent) * 128);
 
 	artificialEvents.calloc(HISE_EVENT_ID_ARRAY_SIZE, sizeof(HiseEvent));
 }
@@ -431,7 +433,11 @@ uint16 MainController::EventIdHandler::getEventIdForNoteOff(const HiseEvent &not
 
 	if (!noteOffEvent.isArtificial())
 	{
-		return realNoteOnEvents[noteNumber].getEventId();
+		const HiseEvent* e = realNoteOnEvents + noteNumber;
+
+		return e->getEventId();
+
+		//return realNoteOnEvents +noteNumber.getEventId();
 	}
 	else
 	{

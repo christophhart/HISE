@@ -215,9 +215,15 @@ public:
 
 	void setProcessor(Processor* p)
 	{
-		jassert(p != nullptr);
+		//jassert(p != nullptr);
 		processor = p;
-		logger = &processor->getMainController()->getDebugLogger();
+        
+        if(p != nullptr)
+        {
+            logger = &processor->getMainController()->getDebugLogger();
+        }
+        
+		
 	}
 
 	void setId(const String& newName)
