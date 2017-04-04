@@ -297,8 +297,17 @@ public:
 
 		if (shouldBePurged != purged)
 		{
-			purged = shouldBePurged;
+            purged = shouldBePurged;
 
+            if(purged)
+            {
+                getMainController()->getDebugLogger().logMessage("Purging samples from " + getId());
+            }
+            else
+            {
+                getMainController()->getDebugLogger().logMessage("Unpurging samples from " + getId());
+            }
+            
 			for (int i = 0; i < sounds.size(); i++)
 			{
 				ModulatorSamplerSound *sound = static_cast<ModulatorSamplerSound*>(getSound(i));
