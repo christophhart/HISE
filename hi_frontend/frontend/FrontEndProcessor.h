@@ -165,6 +165,8 @@ public:
 
 		v.setProperty("Program", currentlyLoadedProgram, nullptr);
 
+		v.setProperty("UserPreset", getUserPresetHandler().getCurrentlyLoadedFile().getFullPathName(), nullptr);
+
 		v.writeToStream(output);
 	};
     
@@ -179,6 +181,13 @@ public:
 		const int channelData = v.getProperty("MidiChannelFilterData", -1);
 		if (channelData != -1) synthChain->getActiveChannelData()->restoreFromData(channelData);
 			
+
+		const String userPresetName = v.getProperty("UserPreset").toString();
+
+		if (userPresetName.isNotEmpty())
+		{
+			getUserPresetHandler().setCurrentlyLoadedFile(File(userPresetName));
+		}
 
 		synthChain->restoreInterfaceValues(v.getChildWithName("InterfaceData"));
 	}

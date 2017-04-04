@@ -259,18 +259,21 @@ public:
 		void timerCallback();
 		void loadUserPreset(const ValueTree& presetToLoad);
 
+		File getCurrentlyLoadedFile() const { return currentlyLoadedFile; };
+
+		void setCurrentlyLoadedFile(const File& f) { currentlyLoadedFile = f; };
+
 		// ===========================================================================================================
 
 	private:
 
-		
-
 		void loadPresetInternal();
 
 		
-
 		MainController* mc;
 		ValueTree currentPreset;
+
+		File currentlyLoadedFile;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(UserPresetHandler)
 
@@ -291,6 +294,9 @@ public:
 
 	DelayedRenderer& getDelayedRenderer() { return delayedRenderer; };
 	const DelayedRenderer& getDelayedRenderer() const { return delayedRenderer; };
+
+	UserPresetHandler& getUserPresetHandler() { return userPresetHandler; };
+	const UserPresetHandler& getUserPresetHandler() const { return userPresetHandler; };
 
 #if USE_BACKEND
 	/** Writes to the console. */

@@ -417,6 +417,9 @@ void MultiColumnPresetBrowser::rebuildAllPresets()
 		}
 	}
 
+	File f = mc->getUserPresetHandler().getCurrentlyLoadedFile();
+
+	currentlyLoadedPreset = allPresets.indexOf(f);
 }
 
 String MultiColumnPresetBrowser::getCurrentlyLoadedPresetName()

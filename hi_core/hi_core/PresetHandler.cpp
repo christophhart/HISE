@@ -422,6 +422,8 @@ void UserPresetHandler::loadUserPreset(ModulatorSynthChain *chain, const File &f
 
         if (parent.isValid())
         {
+			chain->getMainController()->getUserPresetHandler().setCurrentlyLoadedFile(fileToLoad);
+
             loadUserPreset(chain, parent);
         }
     }
