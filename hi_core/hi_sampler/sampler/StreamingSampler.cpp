@@ -1031,8 +1031,16 @@ StereoChannelData SampleLoader::fillVoiceBuffer(AudioSampleBuffer &voiceBuffer, 
 		{
 			const int numSamplesToCopyFromSecondBuffer = jmin<int>(numSamplesAvailableInSecondBuffer, voiceBuffer.getNumSamples() - offset);
 
-			voiceBuffer.copyFrom(0, offset, *localWriteBuffer, 0, 0, numSamplesToCopyFromSecondBuffer);
-			voiceBuffer.copyFrom(1, offset, *localWriteBuffer, 1, 0, numSamplesToCopyFromSecondBuffer);
+			if (writeBufferIsBeingFilled)
+			{
+				voiceBuffer.clear(0, offset, numSamplesToCopyFromSecondBuffer);
+				voiceBuffer.clear(1, offset, numSamplesToCopyFromSecondBuffer);
+			}
+			else
+			{
+				voiceBuffer.copyFrom(0, offset, *localWriteBuffer, 0, 0, numSamplesToCopyFromSecondBuffer);
+				voiceBuffer.copyFrom(1, offset, *localWriteBuffer, 1, 0, numSamplesToCopyFromSecondBuffer);
+			}
 		}
 		else
 		{
@@ -1476,6 +1484,9 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
         if(!loader.advanceReadIndex(voiceUptime))
         {
 			logger->addStreamingFailure(voiceUptime);
+
+			outputBuffer.clear(startFixed, numSamplesFixed);
+
             resetVoice();
             return;
         }
