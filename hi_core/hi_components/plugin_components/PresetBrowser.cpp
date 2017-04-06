@@ -89,7 +89,7 @@ int PresetBrowserColumn::ColumnListModel::getNumRows()
         
         for(int i = 0; i < allFiles.size(); i++)
         {
-            if(allFiles[i].getFullPathName().contains(wildcard))
+            if(allFiles[i].getFullPathName().containsIgnoreCase(wildcard))
                 entries.add(allFiles[i]);
         }
         
