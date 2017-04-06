@@ -112,8 +112,13 @@ StandaloneProcessor::StandaloneProcessor()
 
 	wrappedProcessor = createProcessor();
 
-    
+
 	ScopedPointer<XmlElement> xml = AudioProcessorDriver::getSettings();
+
+	if (xml != nullptr)
+	{
+		dynamic_cast<MainController*>(wrappedProcessor.get())->getDebugLogger().logMessage("Sucessfully loaded XML settings from disk");
+	}
 
 #if USE_BACKEND
 	if(!CompileExporter::isExportingFromCommandLine()) 
@@ -146,12 +151,31 @@ void AudioProcessorDriver::initialiseAudioDriver(XmlElement *deviceData)
 		logger.logMessage("Audio Driver Initialisation with Settings:  \n\n```xml\n" + deviceData->createDocument("") + "```\n");
 	}
 
-	if (deviceData != nullptr && deviceData->hasTagName("DEVICESETUP") && deviceManager->initialise(0, 2, deviceData, false) == String())
+	if (deviceData != nullptr && deviceData->hasTagName("DEVICESETUP"))
 	{
-		callback->setProcessor(dynamic_cast<AudioProcessor*>(this));
+		String errorMessage = deviceManager->initialise(0, 2, deviceData, true);
 
-		deviceManager->addAudioCallback(callback);
-		deviceManager->addMidiInputCallback(String(), callback);
+		if (errorMessage.isNotEmpty())
+		{
+			logger.logMessage("Error initialising with stored settings: " + errorMessage);
+
+			logger.logMessage("Audio Driver Default Initialisation");
+
+			const String error = deviceManager->initialiseWithDefaultDevices(0, 2);
+
+			if (error.isNotEmpty())
+			{
+				logger.logMessage("Error initialising with default settings: " + error);
+			}
+			else
+			{
+				logger.logMessage("... audio driver successfully initialised with default settings");
+			}
+		}
+		else
+		{
+			logger.logMessage("... audio driver successfully initialised");
+		}
 	}
 	else
 	{
@@ -161,14 +185,18 @@ void AudioProcessorDriver::initialiseAudioDriver(XmlElement *deviceData)
 
 		if (error.isNotEmpty())
 		{
-			logger.logMessage("Audio Driver ERROR: " + error);
+			logger.logMessage("Error initialising with default settings: " + error);
 		}
-
-		callback->setProcessor(dynamic_cast<AudioProcessor*>(this));
-
-		deviceManager->addAudioCallback(callback);
-		deviceManager->addMidiInputCallback(String(), callback);
+		else
+		{
+			logger.logMessage("... audio driver successfully initialised with default settings");
+		}
 	}
+
+	callback->setProcessor(dynamic_cast<AudioProcessor*>(this));
+
+	deviceManager->addAudioCallback(callback);
+	deviceManager->addMidiInputCallback(String(), callback);
 }
 
 

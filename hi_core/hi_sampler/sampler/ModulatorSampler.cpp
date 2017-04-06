@@ -858,7 +858,7 @@ void ModulatorSampler::loadSampleMap(const ValueTree &valueTreeData)
 
 void ModulatorSampler::loadSampleMapFromIdAsync(const String& sampleMapId)
 {
-    getMainController()->getDebugLogger().logMessage("Loading " + sampleMapId);
+    getMainController()->getDebugLogger().logMessage("**Loading samplemap** " + sampleMapId);
     
 	ScopedLock sl(getMainController()->getLock());
 

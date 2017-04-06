@@ -76,8 +76,7 @@ struct DebugLogger::StringMessage : public DebugLogger::Message
 		String s;
 		NewLine nl;
 
-		s << message;
-		s << getTimeString() << nl;
+		s << message << "(CI: `" << String(callbackIndex) << "`)  ";
 
 		return s; 
 	}
@@ -188,7 +187,7 @@ struct DebugLogger::ParameterChange : public DebugLogger::Message
 		NewLine nl;
 
 		s << "**Parameter Change** ";
-		s << "ID: `" << id << "` value: `" << value.toString() << "`  " << "CI: " << callbackIndex << nl;
+		s << "ID: `" << id << "` value: `" << value.toString() << "`  " << "CI: `" << callbackIndex << "`  ";
 		return s;
 	}
 
@@ -374,12 +373,12 @@ void DebugLogger::checkAudioCallbackProperties(double sampleRate, int samplesPer
 	}
 }
 
-void DebugLogger::checkSampleData(Processor* p, Location location, bool isLeft, const float* data, int numSamples, const Identifier& id)
+bool DebugLogger::checkSampleData(Processor* p, Location location, bool isLeftChannel, const float* data, int numSamples, const Identifier& id/*=Identifier()*/)
 {
-	if (!isLogging()) return;
+	if (!isLogging()) return true;
 
-	if (location <= locationForErrorInCurrentCallback) // poor man's stack trace
-		return;
+	//if (location <= locationForErrorInCurrentCallback) // poor man's stack trace
+	//	return true;
 
 	auto range = FloatVectorOperations::findMinAndMax(data, numSamples);
 
@@ -402,7 +401,6 @@ void DebugLogger::checkSampleData(Processor* p, Location location, bool isLeft, 
 			if (data[i] > maxValue)
 				numFaultySamples++;
 		}
-
 	}
 
 	if (range.getStart() < -maxValue)
@@ -424,16 +422,20 @@ void DebugLogger::checkSampleData(Processor* p, Location location, bool isLeft, 
 
 		if (numFaultySamples == 1)
 		{
-			failureType = isLeft ? FailureType::ClickLeft : FailureType::ClickRight;
+			failureType = isLeftChannel ? FailureType::ClickLeft : FailureType::ClickRight;
 		}
 		else
 		{
-			failureType = isLeft ? FailureType::BurstLeft : FailureType::BurstRight;
+			failureType = isLeftChannel ? FailureType::BurstLeft : FailureType::BurstRight;
 		}
 
 		Failure f(messageIndex++, callbackIndex, location, failureType, p, getCurrentTimeStamp(), errorValue, id);
 		addFailure(f);
+
+		return false;
 	}
+
+	return true;
 }
 
 void DebugLogger::checkAssertion(Processor* p, Location location, bool result, double extraData)
@@ -829,7 +831,12 @@ String DebugLogger::getNameForLocation(Location l)
 		RETURN_CASE_STRING_LOCATION(DspInstanceRendering);
 		RETURN_CASE_STRING_LOCATION(DspInstanceRenderingPost);
 		RETURN_CASE_STRING_LOCATION(TimerCallback);
+		RETURN_CASE_STRING_LOCATION(SampleLoaderPreFillVoiceBufferRead);
+		RETURN_CASE_STRING_LOCATION(SampleLoaderPreFillVoiceBufferWrite);
+		RETURN_CASE_STRING_LOCATION(SampleLoaderPostFillVoiceBuffer);
+		RETURN_CASE_STRING_LOCATION(SampleLoaderPostFillVoiceBufferWrapped);
 		RETURN_CASE_STRING_LOCATION(SampleVoiceBufferFill);
+		RETURN_CASE_STRING_LOCATION(SampleVoiceBufferFillPost);
 		RETURN_CASE_STRING_LOCATION(SampleLoaderReadOperation);
 		RETURN_CASE_STRING_LOCATION(SynthRendering);
 		RETURN_CASE_STRING_LOCATION(SynthPreVoiceRendering);

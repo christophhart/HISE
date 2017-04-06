@@ -301,11 +301,11 @@ public:
 
             if(purged)
             {
-                getMainController()->getDebugLogger().logMessage("Purging samples from " + getId());
+                getMainController()->getDebugLogger().logMessage("**Purging samples** from " + getId());
             }
             else
             {
-                getMainController()->getDebugLogger().logMessage("Unpurging samples from " + getId());
+                getMainController()->getDebugLogger().logMessage("**Unpurging samples** from " + getId());
             }
             
 			for (int i = 0; i < sounds.size(); i++)
