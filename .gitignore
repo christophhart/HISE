@@ -32,3 +32,6 @@ projects/native_jit_test/Builds/MacOSX/NativeJIT Test.xcodeproj/project.xcworksp
 projects/native_jit_test/Builds/
 projects/native_jit_test/JuceLibraryCode/
 projects/standalone/JuceLibraryCode/
+tools/hlac_tool/Builds/
+tools/hlac_tool/JuceLibraryCode/
+tools/hlac_tool/Source/testSamples/
