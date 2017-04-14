@@ -1505,7 +1505,7 @@ private:
 	}
 };
 
-static NativeJITUnitTest njut;
+//static NativeJITUnitTest njut;
 
 #undef CREATE_TEST
 #undef CREATE_TEST_SETUP

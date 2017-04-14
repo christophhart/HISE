@@ -266,17 +266,7 @@ ModulatorSynthVoice* ModulatorSynth::getLastStartedVoice() const
 
 int ModulatorSynth::getNumActiveVoices() const
 {
-	int numCurrentVoices = 0;
-
-	for (int i = 0; i < getNumVoices(); i++)
-	{
-		if (!static_cast<ModulatorSynthVoice*>(getVoice(i))->isInactive())
-		{
-			numCurrentVoices++;
-		}
-	}
-
-	return numCurrentVoices;
+	return activeVoices.size();
 }
 
 ProcessorEditorBody *ModulatorSynth::createEditor(ProcessorEditor *parentEditor)
@@ -395,11 +385,20 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 	while (eventIterator.getNextEvent(m, midiEventPos, true, false))
 		handleHiseEvent(m);
 
-	for (int i = 0; i < internalBuffer.getNumChannels(); i++)
+	if (getMainController()->getDebugLogger().isLogging())
 	{
-		getMainController()->getDebugLogger().checkSampleData(this, DebugLogger::Location::SynthRendering, i % 2 != 0, internalBuffer.getReadPointer(i), numSamplesFixed);
-		FloatSanitizers::sanitizeArray(internalBuffer.getWritePointer(i), numSamplesFixed);
+		for (int i = 0; i < internalBuffer.getNumChannels(); i++)
+		{
+			getMainController()->getDebugLogger().checkSampleData(this, DebugLogger::Location::SynthRendering, i % 2 != 0, internalBuffer.getReadPointer(i), numSamplesFixed);
+
+#if PROFILE_ROUND_1
+
+#else
+			FloatSanitizers::sanitizeArray(internalBuffer.getWritePointer(i), numSamplesFixed);
+#endif
+		}
 	}
+	
 
 	effectChain->renderMasterEffects(internalBuffer);
 
@@ -450,6 +449,21 @@ void ModulatorSynth::renderVoice(int startSample, int numThisTime)
 {
     ADD_GLITCH_DETECTOR(this, DebugLogger::Location::SynthVoiceRendering);
     
+
+#if 1
+	for (int i = 0; i < activeVoices.size(); i++)
+	{
+		jassert(!activeVoices[i]->isInactive());
+
+		activeVoices[i]->renderNextBlock(internalBuffer, startSample, numThisTime);
+
+		if (activeVoices[i]->isInactive())
+		{
+			activeVoices.removeElement(i--);
+		}
+	}
+#else
+
 	for (int i = voices.size(); --i >= 0;)
 	{
 		ModulatorSynthVoice *v = static_cast<ModulatorSynthVoice*>(voices[i]);
@@ -459,6 +473,7 @@ void ModulatorSynth::renderVoice(int startSample, int numThisTime)
 			v->renderNextBlock(internalBuffer, startSample, numThisTime);
 		}
 	}
+#endif
 };
 
 	
@@ -674,6 +689,10 @@ void ModulatorSynth::startVoiceWithHiseEvent(ModulatorSynthVoice* voice, Synthes
 {
 	
 	voice->setCurrentHiseEvent(e);
+
+	jassert(!activeVoices.contains(voice));
+
+	activeVoices.insert(voice);
 
 	Synthesiser::startVoice(static_cast<SynthesiserVoice*>(voice), sound, e.getChannel(), e.getNoteNumber(), e.getFloatVelocity());
 }

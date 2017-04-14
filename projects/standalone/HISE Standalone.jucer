@@ -72,7 +72,6 @@
         <MODULEPATH id="hi_backend" path="../../"/>
         <MODULEPATH id="hi_scripting" path="../../"/>
         <MODULEPATH id="hi_dsp_library" path="../../"/>
-        <MODULEPATH id="hi_native_jit" path="../../"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <XCODE_IPHONE targetFolder="Builds/iOS" iosScreenOrientation="landscape" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override"
@@ -106,7 +105,6 @@
         <MODULEPATH id="hi_backend" path="../../"/>
         <MODULEPATH id="hi_scripting" path="../../"/>
         <MODULEPATH id="hi_dsp_library" path="../../"/>
-        <MODULEPATH id="hi_native_jit" path="../../"/>
       </MODULEPATHS>
     </XCODE_IPHONE>
     <VS2015 targetFolder="Builds/VisualStudio2015" smallIcon="S7ANvW" bigIcon="S7ANvW"
@@ -123,7 +121,7 @@
                        useRuntimeLibDLL="0"/>
         <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
                        isDebug="0" optimisation="3" targetName="HISE" headerPath="../../../../tools/SDK/ASIOSDK2.3/common"
-                       useRuntimeLibDLL="0" enableIncrementalLinking="1" alwaysGenerateDebugSymbols="0"/>
+                       useRuntimeLibDLL="0" enableIncrementalLinking="1" alwaysGenerateDebugSymbols="1"/>
         <CONFIGURATION name="CI" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
                        isDebug="0" optimisation="3" targetName="HISE" headerPath="../../../../tools/SDK/ASIOSDK2.3/common"
                        useRuntimeLibDLL="0" defines="USE_IPP=0"/>
@@ -148,7 +146,6 @@
         <MODULEPATH id="hi_dsp_library" path="../../"/>
         <MODULEPATH id="hi_core" path="../../"/>
         <MODULEPATH id="hi_backend" path="../../"/>
-        <MODULEPATH id="hi_native_jit" path="../../"/>
       </MODULEPATHS>
     </VS2015>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="USE_IPP=0" smallIcon="bfBEgJ"
@@ -179,7 +176,6 @@
         <MODULEPATH id="hi_dsp_library" path="../../"/>
         <MODULEPATH id="hi_core" path="../../"/>
         <MODULEPATH id="hi_backend" path="../../"/>
-        <MODULEPATH id="hi_native_jit" path="../../"/>
       </MODULEPATHS>
     </LINUX_MAKE>
   </EXPORTFORMATS>
@@ -188,7 +184,6 @@
     <MODULE id="hi_core" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_dsp_library" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_modules" showAllCode="1" useLocalCopy="0"/>
-    <MODULE id="hi_native_jit" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_scripting" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_audio_basics" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_audio_devices" showAllCode="1" useLocalCopy="0"/>

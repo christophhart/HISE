@@ -48,6 +48,8 @@ namespace juce
 #include "VariantBuffer.cpp"
 }
 
+#include "CustomDataContainers.cpp"
+
 #if USE_IPP
 #include "IppFFT.cpp"
 #endif

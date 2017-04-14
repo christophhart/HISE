@@ -168,7 +168,7 @@ public:
 };
 
 #ifndef DOUBLE_TO_STRING_DIGITS
-#define DOUBLE_TO_STRING_DIGITS 20
+#define DOUBLE_TO_STRING_DIGITS 8
 #endif
 
 //==============================================================================
