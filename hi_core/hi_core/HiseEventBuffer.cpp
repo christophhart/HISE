@@ -277,7 +277,12 @@ void HiseEventBuffer::copyFrom(const HiseEventBuffer& otherBuffer)
     const int eventsToCopy = jmin<int>(otherBuffer.numUsed, HISE_EVENT_BUFFER_SIZE);
     
 	memcpy(buffer, otherBuffer.buffer, sizeof(HiseEvent) * eventsToCopy);
+
+#if PROFILE_ROUND_1
+
+#else
     memset(buffer + eventsToCopy, 0, (HISE_EVENT_BUFFER_SIZE - eventsToCopy) * sizeof(HiseEvent));
+#endif
     
 	jassert(otherBuffer.numUsed < HISE_EVENT_BUFFER_SIZE);
 

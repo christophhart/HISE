@@ -82,7 +82,12 @@ public:
 		SynthVoiceRendering,
 		MultiMicSampleRendering,
 		SampleRendering,
+		SampleLoaderPreFillVoiceBufferRead,
+		SampleLoaderPreFillVoiceBufferWrite,
+		SampleLoaderPostFillVoiceBuffer,
+		SampleLoaderPostFillVoiceBufferWrapped,
 		SampleVoiceBufferFill,
+		SampleVoiceBufferFillPost,
 		SampleLoaderReadOperation,
 		MasterEffectRendering,
 		ConvolutionRendering,
@@ -188,7 +193,7 @@ public:
 
 	void checkAudioCallbackProperties(double sampleRate, int samplesPerBlock);
 
-	void checkSampleData(Processor* p, Location location, bool isLeftChannel, const float* data, int numSamples, const Identifier& id=Identifier());
+	bool checkSampleData(Processor* p, Location location, bool isLeftChannel, const float* data, int numSamples, const Identifier& id=Identifier());
 
 	void checkAssertion(Processor* p, Location location, bool result, double extraData);
 

@@ -30,6 +30,8 @@
 *   ===========================================================================
 */
 
+#define LOG_SAMPLE_RENDERING 1
+
 // ==================================================================================================== StreamingSamplerSound methods
 
 StreamingSamplerSound::StreamingSamplerSound(const String &fileNameToLoad, ModulatorSamplerSoundPool *pool):
@@ -1006,6 +1008,57 @@ StereoChannelData SampleLoader::fillVoiceBuffer(AudioSampleBuffer &voiceBuffer, 
 	const AudioSampleBuffer *localReadBuffer = readBuffer.get();
 	AudioSampleBuffer *localWriteBuffer = writeBuffer.get();
 
+#if 0
+
+	logger->checkAssertion(nullptr, DebugLogger::Location::SampleLoaderPreFillVoiceBufferRead, localReadBuffer != nullptr, 1013);
+	logger->checkAssertion(nullptr, DebugLogger::Location::SampleLoaderPreFillVoiceBufferWrite, localWriteBuffer != nullptr, 1014);
+	logger->checkAssertion(nullptr, DebugLogger::Location::SampleLoaderPreFillVoiceBufferRead, localReadBuffer->getNumSamples() != 0, 1015);
+	logger->checkAssertion(nullptr, DebugLogger::Location::SampleLoaderPreFillVoiceBufferWrite, localWriteBuffer->getNumSamples() != 0, 1016);
+
+	const bool leftROK = logger->checkSampleData(nullptr, DebugLogger::Location::SampleLoaderPreFillVoiceBufferRead, true, localReadBuffer->getReadPointer(0), localReadBuffer->getNumSamples());
+	const bool rightROK = logger->checkSampleData(nullptr, DebugLogger::Location::SampleLoaderPreFillVoiceBufferRead, false, localReadBuffer->getReadPointer(1), localReadBuffer->getNumSamples());
+	const bool leftWOK = logger->checkSampleData(nullptr, DebugLogger::Location::SampleLoaderPreFillVoiceBufferWrite, true, localWriteBuffer->getReadPointer(0), localWriteBuffer->getNumSamples());
+	const bool rightWOK = logger->checkSampleData(nullptr, DebugLogger::Location::SampleLoaderPreFillVoiceBufferWrite, false, localWriteBuffer->getReadPointer(1), localWriteBuffer->getNumSamples());
+
+	if (!leftROK || !rightROK)
+	{
+		String c;
+		NewLine nl;
+
+		c << "Sample Error (Read Buffer Access). Dumping Variables:  " << nl;
+		c << "- Samples for fill operation : " << String(numSamples, 2) << nl;
+		c << "- Read index: " << String(readIndexDouble, 3) << nl;
+		c << "- numSamples in ReadBuffer: " << String(localReadBuffer->getNumSamples()) << nl;
+		c << "- numChannels in ReadBuffer: " << String(localReadBuffer->getNumChannels()) << nl;
+		c << "- Sample length: " << String(sound.get()->getSampleLength()) << nl;
+		c << "- Position in sample file: " << positionInSampleFile << nl;
+		c << "- isUsingPreloadBuffer: " << (isReadingFromPreloadBuffer ? "yes" : "no") << nl;
+
+		logger->logMessage(c);
+
+	}
+
+	if (!leftWOK || !rightWOK)
+	{
+		String c;
+		NewLine nl;
+
+		c << "Sample Error (Write Buffer Access). Dumping Variables:  " << nl;
+		c << "- Samples for fill operation : " << String(numSamples, 2) << nl;
+		c << "- Thread is busy: " << (writeBufferIsBeingFilled ? "yes" : "no") << nl;
+		c << "- Read index: " << String(readIndexDouble, 3) << nl;
+		c << "- numSamples in WriteBuffer: " << String(localWriteBuffer->getNumSamples()) << nl;
+		c << "- numChannels in WriteBuffer: " << String(localWriteBuffer->getNumChannels()) << nl;
+		c << "- Sample length: " << String(sound.get()->getSampleLength()) << nl;
+		c << "- Position in sample file: " << positionInSampleFile << nl;
+		c << "- isUsingPreloadBuffer: " << (isReadingFromPreloadBuffer ? "yes" : "no") << nl;
+
+		logger->logMessage(c);
+
+	}
+
+#endif
+
 	const int numSamplesInBuffer = localReadBuffer->getNumSamples();
 	const int maxSampleIndexForFillOperation = (int)(readIndexDouble + numSamples)+ 1; // Round up the samples
 
@@ -1031,8 +1084,16 @@ StereoChannelData SampleLoader::fillVoiceBuffer(AudioSampleBuffer &voiceBuffer, 
 		{
 			const int numSamplesToCopyFromSecondBuffer = jmin<int>(numSamplesAvailableInSecondBuffer, voiceBuffer.getNumSamples() - offset);
 
-			voiceBuffer.copyFrom(0, offset, *localWriteBuffer, 0, 0, numSamplesToCopyFromSecondBuffer);
-			voiceBuffer.copyFrom(1, offset, *localWriteBuffer, 1, 0, numSamplesToCopyFromSecondBuffer);
+			if (writeBufferIsBeingFilled)
+			{
+				voiceBuffer.clear(0, offset, numSamplesToCopyFromSecondBuffer);
+				voiceBuffer.clear(1, offset, numSamplesToCopyFromSecondBuffer);
+			}
+			else
+			{
+				voiceBuffer.copyFrom(0, offset, *localWriteBuffer, 0, 0, numSamplesToCopyFromSecondBuffer);
+				voiceBuffer.copyFrom(1, offset, *localWriteBuffer, 1, 0, numSamplesToCopyFromSecondBuffer);
+			}
 		}
 		else
 		{
@@ -1046,6 +1107,30 @@ StereoChannelData SampleLoader::fillVoiceBuffer(AudioSampleBuffer &voiceBuffer, 
 
 		returnData.leftChannel = voiceBuffer.getReadPointer(0);
 		returnData.rightChannel = voiceBuffer.getReadPointer(1);
+
+#if LOG_SAMPLE_RENDERING
+
+		const bool leftOK = logger->checkSampleData(nullptr, DebugLogger::Location::SampleLoaderPostFillVoiceBufferWrapped, true, returnData.leftChannel, voiceBuffer.getNumSamples());
+		const bool rightOK = logger->checkSampleData(nullptr, DebugLogger::Location::SampleLoaderPostFillVoiceBufferWrapped, true, returnData.rightChannel, voiceBuffer.getNumSamples());
+
+		if (!leftOK || !rightOK)
+		{
+			String c;
+			NewLine nl;
+
+			c << "Sample Error (Wrapped). Dumping Variables:  " << nl;
+			c << "- Samples for fill operation : " << String(numSamples, 2) << nl;
+			c << "- Read index: " << String(readIndexDouble, 3) << nl;
+			c << "- numSamples in VoiceBuffer: " << String(voiceBuffer.getNumSamples()) << nl;
+			c << "- Index before wrap: " << String(indexBeforeWrap) << nl;
+			c << "- Sample length: " << String(sound.get()->getSampleLength()) << nl;
+			c << "- Position in sample file: " << positionInSampleFile << nl;
+			c << "- isUsingPreloadBuffer: " << (isReadingFromPreloadBuffer ? "yes" : "no") << nl;
+
+			logger->logMessage(c);
+		}
+
+#endif
 
 #if USE_SAMPLE_DEBUG_COUNTER
       
@@ -1080,6 +1165,30 @@ StereoChannelData SampleLoader::fillVoiceBuffer(AudioSampleBuffer &voiceBuffer, 
 		returnData.leftChannel = localReadBuffer->getReadPointer(0, index);
 		returnData.rightChannel = localReadBuffer->getReadPointer(1, index);
 
+
+#if LOG_SAMPLE_RENDERING
+
+		bool leftOK = logger->checkSampleData(nullptr, DebugLogger::Location::SampleLoaderPostFillVoiceBuffer, true, returnData.leftChannel, localReadBuffer->getNumSamples() - index);
+		bool rightOK = logger->checkSampleData(nullptr, DebugLogger::Location::SampleLoaderPostFillVoiceBuffer, true, returnData.rightChannel, localReadBuffer->getNumSamples() - index);
+
+		if (!leftOK || !rightOK)
+		{
+			String c;
+			NewLine nl;
+
+			c << "Sample Error (Unwrapped). Dumping Variables:  " << nl;
+			c << "- Samples for fill operation : " << String(numSamples, 2) << nl;
+			c << "- Read index: " << String(index) << nl;
+			c << "- numSamples: " << String(localReadBuffer->getNumSamples() - index) << nl;
+			c << "- Sample length: " << String(sound.get()->getSampleLength()) << nl;
+			c << "- Position in sample file: " << positionInSampleFile << nl;
+			c << "- isUsingPreloadBuffer: " << (isReadingFromPreloadBuffer ? "yes" : "no") << nl;
+			
+			logger->logMessage(c);
+		}
+
+#endif
+
 		return returnData;
 	}
 }
@@ -1112,6 +1221,7 @@ bool SampleLoader::requestNewData()
     if(this->isQueued())
     {
         writeBuffer.get()->clear();
+		
         cancelled = true;
         backgroundPool->notify();
         return false;
@@ -1185,6 +1295,8 @@ void SampleLoader::fillInactiveBuffer()
 			const int numSamplesToClear = getNumSamplesForStreamingBuffers() - numSamplesToFill;
 
 			localSound->fillSampleBuffer(*writeBuffer.get(), numSamplesToFill, (int)positionInSampleFile);
+
+
 
 			writeBuffer.get()->clear(numSamplesToFill, numSamplesToClear);
 		}
@@ -1307,7 +1419,7 @@ void StreamingSamplerVoice::startNote (int /*midiNoteNumber*/,
 	}
 }
 
-#define LOG_SAMPLE_RENDERING 1
+
 
 void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int startSample, int numSamples)
 {
@@ -1380,7 +1492,7 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 					*outL++ = l;
 					*outR++ = r;
 
-					jassert(r >= -1.0f);
+					
 
 					jassert(*pitchData <= (float)MAX_SAMPLER_PITCH);
 
@@ -1401,7 +1513,7 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 				*outL++ = l;
 				*outR++ = r;
 
-				jassert(r >= -1.0f);
+				
 
 				jassert(*pitchData <= (float)MAX_SAMPLER_PITCH);
 
@@ -1476,6 +1588,9 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
         if(!loader.advanceReadIndex(voiceUptime))
         {
 			logger->addStreamingFailure(voiceUptime);
+
+			outputBuffer.clear(startFixed, numSamplesFixed);
+
             resetVoice();
             return;
         }
@@ -1483,8 +1598,8 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 		const bool enoughSamples = sound->hasEnoughSamplesForBlock((int)(voiceUptime + numSamples * MAX_SAMPLER_PITCH));
 
 #if LOG_SAMPLE_RENDERING
-		logger->checkSampleData(nullptr, DebugLogger::Location::SampleVoiceBufferFill, true, outputBuffer.getReadPointer(0, startFixed), numSamplesFixed);
-		logger->checkSampleData(nullptr, DebugLogger::Location::SampleVoiceBufferFill, false, outputBuffer.getReadPointer(1, startFixed), numSamplesFixed);
+		logger->checkSampleData(nullptr, DebugLogger::Location::SampleVoiceBufferFillPost, true, outputBuffer.getReadPointer(0, startFixed), numSamplesFixed);
+		logger->checkSampleData(nullptr, DebugLogger::Location::SampleVoiceBufferFillPost, false, outputBuffer.getReadPointer(1, startFixed), numSamplesFixed);
 #endif
 
 		if(!enoughSamples) resetVoice();

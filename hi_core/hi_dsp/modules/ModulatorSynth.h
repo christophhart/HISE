@@ -150,7 +150,7 @@ public:
 	virtual void preVoiceRendering(int startSample, int numThisTime);;
 
 	/** This method is called to actually render all voices. It operates on the internal buffer of the ModulatorSynth. */
-	virtual void renderVoice(int startSample, int numThisTime);
+	void renderVoice(int startSample, int numThisTime);
 
 	/** This method is called to handle all modulatorchains after the voice rendering and handles the GUI metering. It assumes stereo mode.
 	*
@@ -380,6 +380,8 @@ protected:
 private:
 
 	// ===================================================================================================================
+
+	UnorderedStack<ModulatorSynthVoice*> activeVoices;
 
 	Colour iconColour;
 

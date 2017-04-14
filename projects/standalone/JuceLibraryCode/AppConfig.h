@@ -20,7 +20,9 @@
 // (You can add your own code in this section, and the Projucer will not overwrite it)
 
 #define DOUBLE_TO_STRING_DIGITS 8
+#define HI_RUN_UNIT_TESTS 0
 
+#define PROFILE_ROUND_1 1
 
 // [END_USER_CODE_SECTION]
 
@@ -29,7 +31,6 @@
 #define JUCE_MODULE_AVAILABLE_hi_core                         1
 #define JUCE_MODULE_AVAILABLE_hi_dsp_library                  1
 #define JUCE_MODULE_AVAILABLE_hi_modules                      1
-#define JUCE_MODULE_AVAILABLE_hi_native_jit                   1
 #define JUCE_MODULE_AVAILABLE_hi_scripting                    1
 #define JUCE_MODULE_AVAILABLE_juce_audio_basics               1
 #define JUCE_MODULE_AVAILABLE_juce_audio_devices              1
@@ -108,8 +109,8 @@
  #define   ENABLE_SCRIPTING_SAFE_CHECKS 1
 #endif
 
-#ifndef    ENABLE_FILE_LOGGING
- //#define ENABLE_FILE_LOGGING
+#ifndef    CRASH_ON_GLITCH
+ //#define CRASH_ON_GLITCH
 #endif
 
 #ifndef    ENABLE_SCRIPTING_BREAKPOINTS
