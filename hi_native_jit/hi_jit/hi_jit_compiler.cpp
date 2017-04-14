@@ -1035,6 +1035,8 @@ private:
 		a >> b1;
 		m->process(b1);
 
+		expectAllFunctionsDefined(m);
+
 		VariantBuffer b2 = VariantBuffer(VAR_BUFFER_TEST_SIZE);
 
 		a >> b2;
@@ -1076,6 +1078,8 @@ private:
 
 		m->process(b1);
 
+		expectAllFunctionsDefined(m);
+
 		START_BENCHMARK;
 		b2 * a;
 		STOP_BENCHMARK_AND_LOG;
@@ -1110,6 +1114,7 @@ private:
 		b1 >> b1;
 		m->process(b1);
 		expectCompileOK(m->compiler);
+		expectAllFunctionsDefined(m);
 
 		VariantBuffer b2 = VariantBuffer(VAR_BUFFER_TEST_SIZE);
 
@@ -1145,6 +1150,7 @@ private:
 		ADD_CODE_LINE("	k = 2.0f * saturationAmount / (1.0f - saturationAmount);\n");
 		ADD_CODE_LINE("};\n");
 		ADD_CODE_LINE("\n");
+		ADD_CODE_LINE("void prepareToPlay(double sampleRate, int blockSize) {};\n");
 		ADD_CODE_LINE("\n");
 		ADD_CODE_LINE("float process(float input)\n");
 		ADD_CODE_LINE("{\n");
@@ -1153,6 +1159,8 @@ private:
 
 		m->setCode(code);
 
+		
+
 		VariantBuffer b1(VAR_BUFFER_TEST_SIZE);
 		VariantBuffer b2(VAR_BUFFER_TEST_SIZE);
 
@@ -1160,6 +1168,9 @@ private:
 		b1 >> b2;
 
 		m->process(b1);
+
+		expectCompileOK(m->compiler);
+		expectAllFunctionsDefined(m);
 
 		const float saturationAmount = 0.8f;
 		const float k = 2 * saturationAmount / (1.0f - saturationAmount);
@@ -1171,13 +1182,7 @@ private:
 		}
 		STOP_BENCHMARK_AND_LOG;
 
-		expectCompileOK(m->compiler);
-
 		expectBufferWithSameValues(b1, b2);
-		
-
-		
-
 	}
 
 	void testDspAdditiveSynthesis()
@@ -1205,6 +1210,7 @@ private:
 		b1 >> b1;
 		m->process(b1);
 		expectCompileOK(m->compiler);
+		expectAllFunctionsDefined(m);
 
 		VariantBuffer b2 = VariantBuffer(VAR_BUFFER_TEST_SIZE);
 
@@ -1247,6 +1253,7 @@ private:
 
 		m->process(b1);
 		expectCompileOK(m->compiler);
+		expectAllFunctionsDefined(m);
 
 		START_BENCHMARK;
 
@@ -1307,6 +1314,7 @@ private:
 
 		m->process(b1);
 		expectCompileOK(m->compiler);
+		expectAllFunctionsDefined(m);
 
 		float _g0 = 0.0f;
 		float _y0 = 0.0f;
@@ -1342,6 +1350,11 @@ private:
 	void expectCompileOK(NativeJITCompiler* compiler)
 	{
 		expect(compiler->wasCompiledOK(), compiler->getErrorMessage() + "\nFunction Code:\n\n" + compiler->getCode(true));
+	}
+
+	void expectAllFunctionsDefined(NativeJITTestModule* m)
+	{
+		expect(m->module.get()->allOK(), "Not all functions defined");
 	}
 
 	void expectBufferWithSameValues(const VariantBuffer& b, float expectedValue)

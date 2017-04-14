@@ -116,6 +116,46 @@ const char* emptyText = "class NativeJitClass\n" \
 //==============================================================================
 MainContentComponent::MainContentComponent()
 {
+
+	String code;
+	NewLine nl;
+
+	code << "float lastValue = 0.0f;" << nl;
+	code << "float a = 0.9f;" << nl;
+	code << "float invA = 0.1f;" << nl;
+	code << "float test(float input) {" << nl;
+	code << "const float x1 = sinf(input);" << nl;
+	code << "return x1 + input;};";
+
+	ScopedPointer<NativeJITCompiler> compiler = new NativeJITCompiler(code, false);
+
+	ScopedPointer<NativeJITScope> scope = compiler->compileAndReturnScope();
+
+
+
+
+	if (scope != nullptr)
+	{
+		const Identifier test("test");
+
+		auto f = scope->getCompiledFunction<float, float>(test);
+
+		float t = f(1.0f);
+
+		int x = 5;
+	}
+	else
+	{
+		const String m = compiler->getErrorMessage();
+		int x = 5;
+	}
+
+	scope = nullptr;
+
+
+
+
+
 #if !JUCE_DEBUG
 
 	fileLogger = new FileLogger(File::getSpecialLocation(File::currentApplicationFile).getParentDirectory().getChildFile("UnitTests.log"), "Unit Test Log");
@@ -454,6 +494,12 @@ void MainContentComponent::run()
 {
 	if (compiler == nullptr)
 	{
+		return;
+	}
+
+	if (!module->allOK())
+	{
+		messageBox->setText("Not all functions are defined.", dontSendNotification);
 		return;
 	}
 

@@ -172,6 +172,8 @@ void FunctionParserBase::parseLine(bool isConst)
 {
 	Identifier id = parseIdentifier();
 
+	
+
 	auto existingLine = getLine(id);
 
 	if (existingLine != nullptr)
@@ -305,7 +307,6 @@ BASE_NODE FunctionParserBase::parseTernaryOperator()
 
 			if (tr == tl)
 			{
-
 #define MATCH_TYPE_AND_RETURN(type) if(NativeJITTypeHelpers::matchesType<type>(tl)) return &exprBase->Conditional(flag, getTypedNode<type>(left), getTypedNode<type>(right));
 
 				MATCH_AND_RETURN_ALL_TYPES()
@@ -551,7 +552,10 @@ template <typename T> BASE_NODE FunctionParserBase::createTypedBinaryNode(Native
 	if (op == NativeJitTokens::divide)
 	{
 		auto& div = missingOperatorFunctions->template getDivideFunction<T>(exprBase);
-		return &exprBase->Call(div, left, right);
+
+		auto& left1 = exprBase->Mul(left, exprBase->Immediate<T>((T)1));
+
+		return &exprBase->Call(div, left1, right);
 	}
 	if (op == NativeJitTokens::modulo)
 	{
