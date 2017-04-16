@@ -264,40 +264,17 @@ uint8 CompressionHelpers::getBitReductionForDifferential(AudioBufferInt16& b)
 {
 	AudioBufferInt16 copy(b.size);
 
+	auto br1 = getPossibleBitReductionAmount(b);
+
 	memcpy(copy.getWritePointer(), b.getReadPointer(), 2*b.size);
 
-	int16* d = copy.getWritePointer();
+	Diff::downSampleBuffer(copy);
 
-	for (int i = 0; i < b.size-4; i+= 4)
-	{
-		int16 firstValue = d[0];
-		int16 lastValue = d[4];
+	IntVectorOperations::sub(copy.getWritePointer(), b.getReadPointer(), b.size);
 
-		d[1] = 3 * firstValue / 4 + lastValue / 4;
-		d[2] = firstValue / 2 + lastValue / 2;
-		d[3] = firstValue / 4 + 3 * lastValue / 4;
+	auto br2 = getPossibleBitReductionAmount(copy);
 
-		d += 4;
-	}
-
-
-	d = copy.getWritePointer();
-
-	int16* w = b.getWritePointer();
-
-	const int si = b.size - 4;
-
-	d[si+1] = 2 * d[si] / 3 + d[si+3] / 3;
-	d[si+2] = d[si] / 3 + 2* d[si+3] / 3;
-
-	for (int i = 0; i < b.size; i++)
-	{
-		d[i] = w[i] - d[i];
-	}
-
-	auto br = getPossibleBitReductionAmount(copy);
-
-	return br;
+	return br2;
 }
 
 uint16 CompressionHelpers::getByteAmountForDifferential(AudioBufferInt16& b)
@@ -318,21 +295,87 @@ uint16 CompressionHelpers::getByteAmountForDifferential(AudioBufferInt16& b)
 	return fullSize + reducedSize;
 }
 
-float CompressionHelpers::getDifference(AudioSampleBuffer& workBuffer, const AudioSampleBuffer& referenceBuffer)
+
+void CompressionHelpers::dump(const AudioBufferInt16& b)
+{
+	AudioSampleBuffer fb = b.getFloatBuffer();
+
+	dump(fb);
+}
+
+
+void CompressionHelpers::dump(const AudioSampleBuffer& b)
+{
+	WavAudioFormat afm;
+	File dumpFile("D:\\compressionTest\\dump.wav");
+
+
+
+	FileOutputStream* fis = new FileOutputStream(dumpFile.getNonexistentSibling());
+	StringPairArray metadata;
+	ScopedPointer<AudioFormatWriter> writer = afm.createWriterFor(fis, 44100, 1, 16, metadata, 5);
+
+	if (writer != nullptr)
+		writer->writeFromAudioSampleBuffer(b, 0, b.getNumSamples());
+}
+
+float CompressionHelpers::getDifference(AudioSampleBuffer& workBuffer, AudioSampleBuffer& referenceBuffer)
 {
 	jassert(workBuffer.getNumSamples() == referenceBuffer.getNumSamples());
 
-	float* w = workBuffer.getWritePointer(0);
-	const float* r = referenceBuffer.getReadPointer(0);
+	AudioBufferInt16 wbInt(workBuffer, false);
+	AudioBufferInt16 rbInt(referenceBuffer, false);
 
-	for (int i = 0; i < workBuffer.getNumSamples(); i++)
+	IntVectorOperations::sub(wbInt.getWritePointer(), rbInt.getReadPointer(), rbInt.size);
+
+	auto br = getPossibleBitReductionAmount(wbInt);
+
+	if (br != 0)
 	{
-		w[i] = w[i] - r[i];
+		DBG("Bit rate for error signal: " + String(br));
+
+		float* w = workBuffer.getWritePointer(0);
+		const float* r = referenceBuffer.getReadPointer(0);
+
+		FloatVectorOperations::subtract(w, r, workBuffer.getNumSamples());
+
+		float x = workBuffer.getMagnitude(0, workBuffer.getNumSamples());
+
+		float db = Decibels::gainToDecibels(x);
+
+		if (db > -85.0f)
+		{
+			DBG("Buffer mismatch detected!");
+
+			int maxIndex = -1;
+			int minIndex = -1;
+
+			float minValue = 1000.0f;
+			float maxValue = -1000.0f;
+
+			for (int i = 0; i < referenceBuffer.getNumSamples(); i++)
+			{
+				auto thisValue = workBuffer.getSample(0, i);
+
+				if (thisValue > maxValue)
+				{
+					maxValue = thisValue;
+					maxIndex = i;
+				}
+
+				if (thisValue < minValue)
+				{
+					minValue = thisValue;
+					minIndex = i;
+				}
+			}
+
+			DBG("Min index: " + String(minIndex) + ", value: " + String(minValue));
+			DBG("Max index: " + String(maxIndex) + ", value: " + String(maxValue));
+		}
+
+		return db;
 	}
-
-	float x = workBuffer.getMagnitude(0, workBuffer.getNumSamples());
-
-	return Decibels::gainToDecibels(x);
 }
 
 void CompressionHelpers::IntVectorOperations::sub(int16* dst, const int16* src1, const int16* src2, size_t numValues)
@@ -343,11 +386,38 @@ void CompressionHelpers::IntVectorOperations::sub(int16* dst, const int16* src1,
 	}
 }
 
+
+void CompressionHelpers::IntVectorOperations::sub(int16* dst, const int16* src, size_t numValues)
+{
+	for (int i = 0; i < numValues; i++)
+	{
+		dst[i] -= src[i];
+	}
+}
+
 void CompressionHelpers::IntVectorOperations::add(int16* dst, const int16* src, int numSamples)
 {
 	for (int i = 0; i < numSamples; i++)
 	{
 		dst[i] += src[i];
+	}
+}
+
+
+void CompressionHelpers::IntVectorOperations::mul(int16*dst, const int16 value, int numSamples)
+{
+	for (int i = 0; i < numSamples; i++)
+	{
+		dst[i] *= value;
+	}
+}
+
+
+void CompressionHelpers::IntVectorOperations::div(int16* dst, const int16 value, int numSamples)
+{
+	for (int i = 0; i < numSamples; i++)
+	{
+		dst[i] /= value;
 	}
 }
 
@@ -382,3 +452,235 @@ int16 CompressionHelpers::IntVectorOperations::max(const int16* d, size_t numVal
 	return m;
 }
 
+
+uint16 CompressionHelpers::Diff::getNumFullValues(uint16 bufferSize)
+{
+	jassert(isPowerOfTwo(bufferSize));
+
+	return bufferSize / 4 + 1;
+}
+
+
+uint16 CompressionHelpers::Diff::getNumErrorValues(uint16 bufferSize)
+{
+	jassert(isPowerOfTwo(bufferSize));
+
+	return bufferSize - getNumFullValues(bufferSize);
+}
+
+CompressionHelpers::AudioBufferInt16 CompressionHelpers::Diff::createBufferWithFullValues(const AudioBufferInt16& b)
+{
+	auto numFullValues = getNumFullValues(b.size);
+
+	AudioBufferInt16 packedBuffer(numFullValues);
+
+	auto packedCheck = packedBuffer.getReadPointer();
+
+	auto r = b.getReadPointer();
+	auto w = packedBuffer.getWritePointer();
+
+	for (int i = 0; i < b.size - 4; i+= 4)
+	{
+		*w = r[i];
+		++w;
+	}
+
+	auto si = b.size - 4;
+
+	*w = r[si];
+	++w;
+	*w = r[si+3];
+	++w;
+
+	jassert(w = packedBuffer.getWritePointer() + packedBuffer.size);
+
+	return packedBuffer;
+}
+
+
+CompressionHelpers::AudioBufferInt16 CompressionHelpers::Diff::createBufferWithErrorValues(const AudioBufferInt16& b, const AudioBufferInt16& packedFullValues)
+{
+	AudioBufferInt16 workBuffer(b.size);
+
+	distributeFullSamples(workBuffer, reinterpret_cast<const uint16*>(packedFullValues.getReadPointer()), packedFullValues.size);
+
+#if 0
+	auto original = b.getReadPointer();
+
+	memcpy(workBuffer.getWritePointer(), b.getReadPointer(), sizeof(uint16)*b.size);
+
+	auto processed = workBuffer.getReadPointer();
+
+	downSampleBuffer(workBuffer);
+#endif
+	
+	IntVectorOperations::sub(workBuffer.getWritePointer(), b.getReadPointer(), b.size);
+
+
+	AudioBufferInt16 packedBuffer(getNumErrorValues(b.size));
+
+	const int16* packed = packedBuffer.getReadPointer();
+
+	int16* w = packedBuffer.getWritePointer();
+	const int16* r = workBuffer.getReadPointer();
+
+	for (int i = 0; i < b.size - 4; i += 4)
+	{
+		w[0] = r[i + 1];
+		w[1] = r[i + 2];
+		w[2] = r[i + 3];
+
+		w += 3;
+	}
+
+	auto si = b.size - 4;
+
+	w[0] = r[si + 1];
+	w[1] = r[si + 2];
+
+	w += 2;
+
+	jassert(w = packedBuffer.getWritePointer() + packedBuffer.size);
+
+	return packedBuffer;
+}
+
+void CompressionHelpers::Diff::downSampleBuffer(AudioBufferInt16& b)
+{
+	jassert(b.size % 4 == 0);
+	
+	const int16* dbg = b.getReadPointer();
+
+	int16* d = b.getWritePointer();
+
+	for (int i = 0; i < b.size - 4; i += 4)
+	{
+		int16 firstValue = d[0];
+		int16 lastValue = d[4];
+
+		d[1] = 3 * firstValue / 4 + lastValue / 4;
+		d[2] = firstValue / 2 + lastValue / 2;
+		d[3] = firstValue / 4 + 3 * lastValue / 4;
+
+		d += 4;
+	}
+
+	d = b.getWritePointer();
+
+	const int si = b.size - 4;
+
+	d[si + 1] = 2 * d[si] / 3 + d[si + 3] / 3;
+	d[si + 2] = d[si] / 3 + 2 * d[si + 3] / 3;
+}
+
+#define OPTIMIZED 0
+
+void CompressionHelpers::Diff::distributeFullSamples(AudioBufferInt16& dst, const uint16* fullSamplesPacked, int numSamples)
+{
+	// Use this only on power two block sizes (512 samples = 128 four packs + 1 last value)
+	jassert(isPowerOfTwo(numSamples - 1));
+
+	// Needs 64 bit alignment for the destination buffer.
+	jassert(reinterpret_cast<uint64>(dst.getReadPointer()) % 8 == 0);
+
+	int16* d = dst.getWritePointer();
+
+	const int16* r = reinterpret_cast<const int16*>(fullSamplesPacked);
+
+	int thisValue = 0;
+	int nextValue = 0;
+
+	for (int i = 0; i < numSamples - 2; i++)
+	{
+		thisValue = (int)r[i];
+		nextValue = (int)r[i + 1];
+
+		d[0] = (int16)(thisValue);
+		d[1] = (int16)((3 * thisValue + nextValue) / 4);
+		d[2] = (int16)((thisValue + nextValue) / 2);
+		d[3] = (int16)((thisValue + 3 * nextValue) / 4);
+
+		d += 4;
+	}
+
+	thisValue = r[numSamples - 2];
+	nextValue = r[numSamples - 1];
+	
+	d[0] = (int16)(thisValue);
+	d[1] = (int16)((2 * thisValue + nextValue) / 3);
+	d[2] = (int16)((thisValue + 2 * nextValue) / 3);
+	d[3] = (int16)(nextValue);
+
+#if 0
+	int readIndex = 0;
+
+	int thisValue = (int)(r[readIndex]);
+	++readIndex;
+	--numSamples;
+
+	while (numSamples > 2)
+	{
+		int nextValue = (int)(r[readIndex]);
+		++readIndex;
+		numSamples -= 1;
+
+		d[0] = (int16)(thisValue);
+		d[1] = (int16)((3*thisValue + nextValue) / 4);
+		d[2] = (int16)((thisValue + nextValue) / 2);
+		d[3] = (int16)((thisValue + 3 * nextValue) / 4);
+
+		d += 4;
+		thisValue = nextValue;
+		
+	}
+
+
+	++readIndex;
+	int nextValue = r[readIndex];
+
+	d += 4;
+
+	d[0] = (int16)(thisValue);
+	d[1] = (int16)((2 * thisValue + nextValue) / 3);
+	d[2] = (int16)((thisValue + 2 * nextValue) / 3);
+	d[3] = (int16)(nextValue);
+
+#endif
+
+
+}
+
+void CompressionHelpers::Diff::addErrorSignal(AudioBufferInt16& dst, const uint16* errorSignalPacked, int numSamples)
+{
+
+
+	jassert(isPowerOfTwo(4*(numSamples+1)/3));
+
+	// Needs 64 bit alignment for the destination buffer.
+	jassert(reinterpret_cast<uint64>(dst.getReadPointer()) % 8 == 0);
+
+	int16* d = dst.getWritePointer();
+
+	int16* check = d;
+
+	const int16* e = reinterpret_cast<const int16*>(errorSignalPacked);
+
+	int counter = 0;
+
+	while (numSamples > 2)
+	{
+		counter += 4;
+
+		d[1] -= e[0];
+		d[2] -= e[1];
+		d[3] -= e[2];
+
+		d += 4;
+		e += 3;
+
+		numSamples -= 3;
+	}
+
+	d[1] -= e[0];
+	d[2] -= e[1];
+}

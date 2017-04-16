@@ -19,8 +19,12 @@ public:
 
 	void logMessage(const String &message) override
 	{
+#if JUCE_DEBUG
+		DBG(message);
+#else
 		NewLine nl;
 		std::cout << message << nl;
+#endif
 	}
 };
 
@@ -54,41 +58,10 @@ int main(int argc, char **argv)
 
 	root.findChildFiles(testSamples, File::findFiles, true);
 
-	StringArray files;
-
-	files.add("akk1.wav");
-	files.add("akk2.wav");
-	files.add("piano.wav");
-	files.add("snare1.aif");
-	files.add("snare2.aif");
-	files.add("psal1.wav");
-	files.add("psal2.wav");
-	files.add("harp1.wav");
-	files.add("harp2.wav");
-	files.add("harp3.wav");
-	files.add("epiano1.aif");
-	//files.add("epiano2.aif");
-	files.add("epiano3.aif");
-	files.add("flute1.wav");
-	files.add("organ.wav");
-	files.add("wurlie2.aif");
-
-	files.add("tabla.wav");
-	//files.add("doubleBass.wav");
-	files.add("cello_rel.wav");
-	files.add("frendo1.wav");
-	files.add("frendo2.wav");
-	//files.add("frendo3.wav");
-	files.add("frendo4.wav");
-	files.add("stage1.aif");
-	files.add("stage2.aif");
-	files.add("stage3.aif");
-	//files.add("suit.aif");
-	//files.add("suit2.aif");
-	files.add("ep1.aif");
-	files.add("ep2.aif");
-	files.add("ep3.aif");
-	files.add("ep4.aif");
+	bool useBlock = true;
+	bool useDelta = true;
+	bool useDiff = true;
+	bool checkWithFlac = true;
 
 	float blockRatio = 0.0f;
 	float deltaRatio = 0.0f;
@@ -99,14 +72,19 @@ int main(int argc, char **argv)
 	double flacSpeed = 0.0;
 	double pcmSpeed = 0.0;
 	double deltaSpeed = 0.0;
+	double diffSpeed = 0.0;
 
 	float r;
 	double s;
+
+	int numFilesChecked = 0;
 
 	for (auto f : testSamples)
 	{
 		if (f.getFileName().startsWith("_"))
 			continue;
+
+		++numFilesChecked;
 
 		Logger::writeToLog("");
 		Logger::writeToLog("Compressing file " + f.getFileName());
@@ -126,100 +104,161 @@ int main(int argc, char **argv)
 		}
 		
 
+#if 0
+
+		b.clear();
+
+		float* check = b.getWritePointer(0);
+
+		check[1012] = 0.0f;
+		check[1013] = 0.251f;
+		check[1014] = 0.51f;
+		check[1015] = 0.752f;
+		check[1016] = 1.0f;
+		check[1017] = 0.751f;
+		check[1018] = 0.49f;
+		check[1019] = 0.253f;
+		check[1020] = 0.0f;
+		check[1021] = 0.32f;
+		check[1022] = 0.68f;
+		check[1023] = 1.0f;
+
+		CompressionHelpers::dump(b);
+
+	
+#endif
 		pcmSpeed += s;
 
-		auto fr = CompressionHelpers::getFLACRatio(f, s);
+		if (checkWithFlac)
+		{
+			auto fr = CompressionHelpers::getFLACRatio(f, s);
 
-		flacSpeed += s;
-		flacRatio += fr;
+			flacSpeed += s;
+			flacRatio += fr;
 
-		Logger::writeToLog("Compressing with FLAC:  " + String(fr, 3));
+			Logger::writeToLog("Compressing with FLAC:  " + String(fr, 3));
 
+		}
+
+		
 		MemoryOutputStream mos;
-		HiseLosslessAudioFormat hlaf;
-		HiseLosslessAudioFormat::CompressorOptions wholeBlock;
 
-		wholeBlock.fixedBlockWidth = 512;
-		wholeBlock.removeDcOffset = false;
-		wholeBlock.useDeltaEncoding = false;
-		wholeBlock.useDiffEncodingWithFixedBlocks = false;
+		HlacEncoder encoder;
+		HlacDecoder decoder;
 
-		hlaf.setOptions(wholeBlock);
-		hlaf.compress(b, mos);
-		mos.flush();
-		r = hlaf.getCompressionRatio();
+		if (useBlock)
+		{
+			HlacEncoder::CompressorOptions wholeBlock;
 
-		AudioSampleBuffer b2(1, b.getNumSamples());
-		MemoryInputStream mis(mos.getMemoryBlock(), true);
+			wholeBlock.fixedBlockWidth = 512;
+			wholeBlock.removeDcOffset = false;
+			wholeBlock.useDeltaEncoding = false;
+			wholeBlock.useDiffEncodingWithFixedBlocks = false;
 
-		hlaf.setupForDecompression();
-		hlaf.decompress(b2, mis);
-		blockSpeed += hlaf.getDecompressionPerformance();
-		auto db = CompressionHelpers::getDifference(b2, b);
+			encoder.setOptions(wholeBlock);
+			encoder.compress(b, mos);
+			mos.flush();
+			r = encoder.getCompressionRatio();
 
-		Logger::writeToLog("Compressing with blocks: " + String(r, 3) + " Error: " + String(db, 2) + "dB");
+			AudioSampleBuffer b2(1, b.getNumSamples());
+			MemoryInputStream mis(mos.getMemoryBlock(), true);
 
-		blockRatio += r;
 
-		mos.reset();
+			decoder.setupForDecompression();
+			decoder.decode(b2, mis);
+			blockSpeed += decoder.getDecompressionPerformance();
+			auto db = CompressionHelpers::getDifference(b2, b);
 
-		HiseLosslessAudioFormat::CompressorOptions delta;
+			Logger::writeToLog("Compressing with blocks: " + String(r, 3));
 
-		delta.fixedBlockWidth = -1;
-		delta.removeDcOffset = false;
-		delta.useDeltaEncoding = true;
-		delta.useDiffEncodingWithFixedBlocks = false;
-		delta.reuseFirstCycleLengthForBlock = true;
-		delta.deltaCycleThreshhold = 0.1f;
+			blockRatio += r;
 
-		hlaf.setOptions(delta);
+			mos.reset();
+			encoder.reset();
+		}
 
-		hlaf.compress(b, mos);
-		mos.flush();
-		r = hlaf.getCompressionRatio();
+		if (useDelta)
+		{
+			HlacEncoder::CompressorOptions delta;
 
-		AudioSampleBuffer b3(1, b.getNumSamples());
-		MemoryInputStream mis2(mos.getMemoryBlock(), true);
+			delta.fixedBlockWidth = -1;
+			delta.removeDcOffset = false;
+			delta.useDeltaEncoding = true;
+			delta.useDiffEncodingWithFixedBlocks = false;
+			delta.reuseFirstCycleLengthForBlock = true;
+			delta.deltaCycleThreshhold = 0.1f;
 
-		hlaf.setupForDecompression();
-		hlaf.decompress(b3, mis2);
-		deltaSpeed += hlaf.getDecompressionPerformance();
+			encoder.setOptions(delta);
 
-		auto db2 = CompressionHelpers::getDifference(b3, b);
+			encoder.compress(b, mos);
+			mos.flush();
+			r = encoder.getCompressionRatio();
 
-		Logger::writeToLog("Compressing with delta:  " + String(r, 3) + " Error: " + String(db2, 2) + "dB");
+			AudioSampleBuffer b3(1, b.getNumSamples());
+			MemoryInputStream mis2(mos.getMemoryBlock(), true);
 
-		deltaRatio += r;
-		mos.reset();
-		hlaf.reset();
+			decoder.setupForDecompression();
+			decoder.decode(b3, mis2);
+			deltaSpeed += decoder.getDecompressionPerformance();
 
-		HiseLosslessAudioFormat::CompressorOptions diff;
+			auto db2 = CompressionHelpers::getDifference(b3, b);
 
-		diff.fixedBlockWidth = 512;
-		diff.removeDcOffset = false;
-		diff.useDeltaEncoding = false;
-		diff.useDiffEncodingWithFixedBlocks = true;
+			Logger::writeToLog("Compressing with delta:  " + String(r, 3));
 
-		hlaf.setOptions(diff);
+			deltaRatio += r;
+			mos.reset();
+			encoder.reset();
+		}
 
-		hlaf.compress(b, mos);
+		if (useDiff)
+		{
+			HlacEncoder::CompressorOptions diff;
 
-		r = hlaf.getCompressionRatio();
+			diff.fixedBlockWidth = 1024;
+			diff.removeDcOffset = false;
+			diff.useDeltaEncoding = false;
+			diff.bitRateForWholeBlock = 4;
+			diff.useDiffEncodingWithFixedBlocks = true;
 
-		Logger::writeToLog("Compressing with diff:   " + String(r, 3));
+			encoder.setOptions(diff);
 
-		diffRatio += r;
+			encoder.compress(b, mos);
+
+			r = encoder.getCompressionRatio();
+
+			diffRatio += r;
+			encoder.reset();
+
+			AudioSampleBuffer b2(1, b.getNumSamples());
+			MemoryInputStream mis(mos.getMemoryBlock(), true);
+
+			const float* checkb2 = b2.getReadPointer(0);
+
+			decoder.setupForDecompression();
+
+			decoder.decode(b2, mis);
+			
+			diffSpeed += decoder.getDecompressionPerformance();
+			auto db = CompressionHelpers::getDifference(b2, b);
+
+			Logger::writeToLog("Compressing with diff: " + String(r, 3));
+
+			
+
+			mos.reset();
+		}
 	}
 
-	flacRatio /= (float)files.size();
-	deltaRatio /= (float)files.size();
-	diffRatio /= (float)files.size();
-	blockRatio /= (float)files.size();
+	flacRatio /= (float)numFilesChecked;
+	deltaRatio /= (float)numFilesChecked;
+	diffRatio /= (float)numFilesChecked;
+	blockRatio /= (float)numFilesChecked;
 
-	blockSpeed /= (double)files.size();
-	pcmSpeed /= (double)files.size();
-	flacSpeed /= (double)files.size();
-	deltaSpeed /= (double)files.size();
+	blockSpeed /= (double)numFilesChecked;
+	pcmSpeed /= (double)numFilesChecked;
+	flacSpeed /= (double)numFilesChecked;
+	deltaSpeed /= (double)numFilesChecked;
+	diffSpeed /= (double)numFilesChecked;
 
 	Logger::writeToLog("=====================================================");
 	Logger::writeToLog("FLAC ratio:\t" + String(flacRatio, 3));
@@ -231,6 +270,7 @@ int main(int argc, char **argv)
 	Logger::writeToLog("FLAC speed:\t" + String(flacSpeed, 1));
 	Logger::writeToLog("Block speed:\t" + String(blockSpeed, 1));
 	Logger::writeToLog("Delta speed:\t" + String(deltaSpeed, 1));
+	Logger::writeToLog("Diff speed:\t" + String(diffSpeed, 1));
 
 	Logger::setCurrentLogger(nullptr);
 
