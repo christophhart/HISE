@@ -20,6 +20,8 @@
 #define LOG_OUTPUT 0
 
 
+#define DUMP(x) CompressionHelpers::dump(x);
+
 #if LOG_OUTPUT
 #define LOG(x) DBG(x)
 #else

@@ -22,7 +22,9 @@ public:
 	HlacEncoder():
 		currentCycle(0),
 		workBuffer(0)
-	{};
+	{
+		reset();
+	};
 
 	struct CompressorOptions
 	{
@@ -37,7 +39,7 @@ public:
 
 
 	void compress(AudioSampleBuffer& source, OutputStream& output);
-
+	
 	void reset();
 
 	void setOptions(CompressorOptions& newOptions)
@@ -45,11 +47,13 @@ public:
 		options = newOptions;
 	}
 
-	float getCompressionRatio() const { return ratio; }
+	float getCompressionRatio() const;
 
 private:
 
 	bool encodeBlock(AudioSampleBuffer& block, OutputStream& output);
+
+	bool encodeBlock(CompressionHelpers::AudioBufferInt16& block, OutputStream& output);
 
 	uint8 getBitReductionAmountForMSEncoding(AudioSampleBuffer& block);
 
@@ -80,6 +84,7 @@ private:
 	uint16 indexInBlock;
 
 	uint32 numBytesWritten = 0;
+	uint32 numBytesUncompressed = 0;
 
 	uint32 numTemplates = 0;
 	uint32 numDeltas = 0;

@@ -38,6 +38,7 @@ void HlacDecoder::reset()
 	bitRateForCurrentCycle = 0;
 	firstCycleLength = -1;
 	ratio = 0.0f;
+	readIndex = 0;
 }
 
 
@@ -45,7 +46,7 @@ void HlacDecoder::decode(AudioSampleBuffer& destination, InputStream& input)
 {
 	double start = Time::getMillisecondCounterHiRes();
 
-	readIndex = 0;
+	
 
 	while (!input.isExhausted())
 	{
@@ -170,7 +171,7 @@ uint8 HlacDecoder::CycleHeader::getBitRate(bool getFullBitRate) const
 	}
 	else
 	{
-		return headerInfo >> 1;
+		return (headerInfo >> 1);
 	}
 }
 

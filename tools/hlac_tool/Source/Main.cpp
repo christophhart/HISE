@@ -146,8 +146,19 @@ int main(int argc, char **argv)
 		HlacEncoder encoder;
 		HlacDecoder decoder;
 
+		HiseLosslessAudioFormat hlac;
+
+		StringPairArray emptyMetadata;
+
 		if (useBlock)
 		{
+			MemoryOutputStream* blockMos = new MemoryOutputStream();
+
+			ScopedPointer<HiseLosslessAudioFormatWriter> blockWriter = dynamic_cast<HiseLosslessAudioFormatWriter*>(hlac.createWriterFor(blockMos, 44100, 1, 16, emptyMetadata, 5));
+			
+			if (blockWriter == nullptr)
+				return 1;
+
 			HlacEncoder::CompressorOptions wholeBlock;
 
 			wholeBlock.fixedBlockWidth = 512;
@@ -155,30 +166,37 @@ int main(int argc, char **argv)
 			wholeBlock.useDeltaEncoding = false;
 			wholeBlock.useDiffEncodingWithFixedBlocks = false;
 
-			encoder.setOptions(wholeBlock);
-			encoder.compress(b, mos);
-			mos.flush();
-			r = encoder.getCompressionRatio();
+			blockWriter->setOptions(wholeBlock);
+			blockWriter->writeFromAudioSampleBuffer(b, 0, b.getNumSamples());
+			
+			r = blockWriter->getCompressionRatioForLastFile();
 
 			AudioSampleBuffer b2(1, b.getNumSamples());
-			MemoryInputStream mis(mos.getMemoryBlock(), true);
+			MemoryInputStream* blockMis = new MemoryInputStream(blockMos->getMemoryBlock(), true);
+			ScopedPointer<HiseLosslessAudioFormatReader> blockReader = dynamic_cast<HiseLosslessAudioFormatReader*>(hlac.createReaderFor(blockMis, false));
 
+			blockReader->read(&b2, 0, b2.getNumSamples(), 0, true, true);
 
-			decoder.setupForDecompression();
-			decoder.decode(b2, mis);
-			blockSpeed += decoder.getDecompressionPerformance();
+			blockSpeed += blockReader->getDecompressionPerformanceForLastFile();
 			auto db = CompressionHelpers::getDifference(b2, b);
 
 			Logger::writeToLog("Compressing with blocks: " + String(r, 3));
 
 			blockRatio += r;
 
-			mos.reset();
-			encoder.reset();
+			blockWriter = nullptr;
+			blockReader = nullptr;
 		}
 
 		if (useDelta)
 		{
+			MemoryOutputStream* deltaMos = new MemoryOutputStream();
+			ScopedPointer<HiseLosslessAudioFormatWriter> deltaWriter = dynamic_cast<HiseLosslessAudioFormatWriter*>(hlac.createWriterFor(deltaMos, 44100, 1, 16, emptyMetadata, 5));
+
+			if (deltaWriter == nullptr)
+				return 1;
+
+
 			HlacEncoder::CompressorOptions delta;
 
 			delta.fixedBlockWidth = -1;
@@ -188,18 +206,21 @@ int main(int argc, char **argv)
 			delta.reuseFirstCycleLengthForBlock = true;
 			delta.deltaCycleThreshhold = 0.1f;
 
-			encoder.setOptions(delta);
+			deltaWriter->setOptions(delta);
 
-			encoder.compress(b, mos);
-			mos.flush();
-			r = encoder.getCompressionRatio();
+			deltaWriter->writeFromAudioSampleBuffer(b, 0, b.getNumSamples());
+
+			r = deltaWriter->getCompressionRatioForLastFile();
+
 
 			AudioSampleBuffer b3(1, b.getNumSamples());
-			MemoryInputStream mis2(mos.getMemoryBlock(), true);
+			
+			MemoryInputStream* deltaMis = new MemoryInputStream(deltaMos->getMemoryBlock(), true);
+			ScopedPointer<HiseLosslessAudioFormatReader> deltaReader = dynamic_cast<HiseLosslessAudioFormatReader*>(hlac.createReaderFor(deltaMis, false));
 
-			decoder.setupForDecompression();
-			decoder.decode(b3, mis2);
-			deltaSpeed += decoder.getDecompressionPerformance();
+			deltaReader->read(&b3, 0, b3.getNumSamples(), 0, true, true);
+
+			deltaSpeed += deltaReader->getDecompressionPerformanceForLastFile();
 
 			auto db2 = CompressionHelpers::getDifference(b3, b);
 
@@ -212,6 +233,13 @@ int main(int argc, char **argv)
 
 		if (useDiff)
 		{
+			MemoryOutputStream* diffMos = new MemoryOutputStream();
+
+			ScopedPointer<HiseLosslessAudioFormatWriter> diffWriter = dynamic_cast<HiseLosslessAudioFormatWriter*>(hlac.createWriterFor(diffMos, 44100, 1, 16, emptyMetadata, 5));
+
+			if (diffWriter == nullptr)
+				return 1;
+
 			HlacEncoder::CompressorOptions diff;
 
 			diff.fixedBlockWidth = 1024;
@@ -220,11 +248,10 @@ int main(int argc, char **argv)
 			diff.bitRateForWholeBlock = 4;
 			diff.useDiffEncodingWithFixedBlocks = true;
 
-			encoder.setOptions(diff);
+			diffWriter->setOptions(diff);
+			diffWriter->writeFromAudioSampleBuffer(b, 0, b.getNumSamples());
 
-			encoder.compress(b, mos);
-
-			r = encoder.getCompressionRatio();
+			r = diffWriter->getCompressionRatioForLastFile();
 
 			diffRatio += r;
 			encoder.reset();
@@ -232,18 +259,16 @@ int main(int argc, char **argv)
 			AudioSampleBuffer b2(1, b.getNumSamples());
 			MemoryInputStream mis(mos.getMemoryBlock(), true);
 
-			const float* checkb2 = b2.getReadPointer(0);
+			MemoryInputStream* diffMis = new MemoryInputStream(diffMos->getMemoryBlock(), true);
+			ScopedPointer<HiseLosslessAudioFormatReader> diffReader = dynamic_cast<HiseLosslessAudioFormatReader*>(hlac.createReaderFor(diffMis, false));
 
-			decoder.setupForDecompression();
+			diffReader->read(&b2, 0, b2.getNumSamples(), 0, true, true);
 
-			decoder.decode(b2, mis);
-			
-			diffSpeed += decoder.getDecompressionPerformance();
+			diffSpeed += diffReader->getDecompressionPerformanceForLastFile();
+
 			auto db = CompressionHelpers::getDifference(b2, b);
 
 			Logger::writeToLog("Compressing with diff: " + String(r, 3));
-
-			
 
 			mos.reset();
 		}
@@ -261,16 +286,16 @@ int main(int argc, char **argv)
 	diffSpeed /= (double)numFilesChecked;
 
 	Logger::writeToLog("=====================================================");
-	Logger::writeToLog("FLAC ratio:\t" + String(flacRatio, 3));
-	Logger::writeToLog("Block ratio:\t" + String(blockRatio, 3));
-	Logger::writeToLog("Delta ratio:\t" + String(deltaRatio, 3));
-	Logger::writeToLog("Diff ratio:\t" + String(diffRatio, 3));
+	if (checkWithFlac) Logger::writeToLog("FLAC ratio:\t" + String(flacRatio, 3));
+	if (useBlock) Logger::writeToLog("Block ratio:\t" + String(blockRatio, 3));
+	if (useDelta) Logger::writeToLog("Delta ratio:\t" + String(deltaRatio, 3));
+	if (useDiff) Logger::writeToLog("Diff ratio:\t" + String(diffRatio, 3));
 	Logger::writeToLog("=====================================================");
 	Logger::writeToLog("PCM speed:\t" + String(pcmSpeed, 1));
-	Logger::writeToLog("FLAC speed:\t" + String(flacSpeed, 1));
-	Logger::writeToLog("Block speed:\t" + String(blockSpeed, 1));
-	Logger::writeToLog("Delta speed:\t" + String(deltaSpeed, 1));
-	Logger::writeToLog("Diff speed:\t" + String(diffSpeed, 1));
+	if (checkWithFlac) Logger::writeToLog("FLAC speed:\t" + String(flacSpeed, 1));
+	if (useBlock) Logger::writeToLog("Block speed:\t" + String(blockSpeed, 1));
+	if (useDelta) Logger::writeToLog("Delta speed:\t" + String(deltaSpeed, 1));
+	if (useDiff) Logger::writeToLog("Diff speed:\t" + String(diffSpeed, 1));
 
 	Logger::setCurrentLogger(nullptr);
 

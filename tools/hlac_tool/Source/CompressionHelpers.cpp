@@ -343,7 +343,7 @@ float CompressionHelpers::getDifference(AudioSampleBuffer& workBuffer, AudioSamp
 
 		float db = Decibels::gainToDecibels(x);
 
-		if (db > -85.0f)
+		if (db > -96.0f)
 		{
 			DBG("Buffer mismatch detected!");
 
