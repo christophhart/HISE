@@ -86,6 +86,8 @@ void HiseMonolithAudioFormat::fillMetadataInfo(const ValueTree &sampleMap)
 		dummyReader.lengthInSamples = (fis.getTotalLength() - 1) / bytesPerFrame;
 
 		ScopedPointer<MonolithAudioFormatReader> reader = new MonolithAudioFormatReader(monolithicFiles[i], dummyReader, 1, fis.getTotalLength() - 1, isMonoChannel[i]);
+		
+#if !USE_FALLBACK_READERS_FOR_MONOLITH
 		reader->mapEntireFile();
 
 		memoryReaders.add(reader.release());
@@ -95,5 +97,6 @@ void HiseMonolithAudioFormat::fillMetadataInfo(const ValueTree &sampleMap)
 			jassertfalse;
 			throw StreamingSamplerSound::LoadingError(monolithicFiles[i].getFileName(), "Error at memory mapping");
 		}
+#endif
 	}
 }
