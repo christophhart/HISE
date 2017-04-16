@@ -182,9 +182,12 @@ void GlobalModulatorContainerVoice::startNote(int midiNoteNumber, float /*veloci
 
 void GlobalModulatorContainerVoice::calculateBlock(int startSample, int numSamples)
 {
+
 	
 	FloatVectorOperations::fill(voiceBuffer.getWritePointer(0, startSample), 0.0f, numSamples);
 	FloatVectorOperations::fill(voiceBuffer.getWritePointer(1, startSample), 0.0f, numSamples);
+
+	resetVoice();
 }
 
 GlobalModulatorData::GlobalModulatorData(Processor *modulator_):
