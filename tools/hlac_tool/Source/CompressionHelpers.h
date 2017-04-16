@@ -41,7 +41,7 @@ struct CompressionHelpers
 		AudioBufferInt16(AudioSampleBuffer& b, bool normalizeBeforeStoring);
 		AudioBufferInt16(int16* externalData_, int numSamples);
 		AudioBufferInt16(const int16* externalData_, int numSamples);
-		AudioBufferInt16(size_t size_);
+		AudioBufferInt16(int size_);
 
 		AudioSampleBuffer getFloatBuffer() const;
 
@@ -50,7 +50,7 @@ struct CompressionHelpers
 		int16* getWritePointer(int startSample = 0);
 		const int16* getReadPointer(int startSample = 0) const;
 
-		size_t size = 0;
+		int size = 0;
 		float gainFactor = 1.0f;
 
 	private:
@@ -75,10 +75,10 @@ struct CompressionHelpers
 	struct IntVectorOperations
 	{
 		/** Copies the values from src1 into dst, and calculates the normalized difference. */
-		static void sub(int16* dst, const int16* src1, const int16* src2, size_t numValues);
+		static void sub(int16* dst, const int16* src1, const int16* src2, int numValues);
 
 		/** dst = dst - src inplace. */
-		static void sub(int16* dst, const int16* src, size_t numValues);
+		static void sub(int16* dst, const int16* src, int numValues);
 
 		/** Adds the values from src to dst. */
 		static void add(int16* dst, const int16* src, int numSamples);
@@ -88,19 +88,19 @@ struct CompressionHelpers
 		static void div(int16* dst, const int16 value, int numSamples);
 
 		/** Removes the dc offset and returns the value. */
-		static int16 removeDCOffset(int16* data, size_t numValues);
+		static int16 removeDCOffset(int16* data, int numValues);
 
 		/** Returns the absolute max value in the data block. */
-		static int16 max(const int16* d, size_t numValues);
+		static int16 max(const int16* d, int numValues);
 	};
 
 	/** Gets the possible bit reduction amount for the next cycle with the given cycleLength. 
 	*
 	*	Don't use this directly, but use getCycleLengthWithLowestBitrate() instead. */
-	static uint8 getBitrateForCycleLength(const AudioBufferInt16& block, uint16 cycleLength, AudioBufferInt16& workBuffer);
+	static uint8 getBitrateForCycleLength(const AudioBufferInt16& block, int cycleLength, AudioBufferInt16& workBuffer);
 
 	/** Get the cycle length the yields the lowest bit rate for the next cycle and store the bitrate in bitRate. */
-	static uint16 getCycleLengthWithLowestBitRate(const AudioBufferInt16& block, uint8& bitRate, AudioBufferInt16& workBuffer);
+	static int getCycleLengthWithLowestBitRate(const AudioBufferInt16& block, int& bitRate, AudioBufferInt16& workBuffer);
 
 	/** calculates the max bit reduction when applying the last cycle. */
 	static uint8 getBitReductionWithTemplate(AudioBufferInt16& lastCycle, AudioBufferInt16& nextCycle, bool removeDc);
@@ -113,7 +113,7 @@ struct CompressionHelpers
 
 	static uint8 getBitReductionForDifferential(AudioBufferInt16& b);
 
-	static uint16 getByteAmountForDifferential(AudioBufferInt16& b);
+	static int getByteAmountForDifferential(AudioBufferInt16& b);
 
 	static void dump(const AudioBufferInt16& b);
 
@@ -121,8 +121,8 @@ struct CompressionHelpers
 
 	struct Diff
 	{
-		static uint16 getNumFullValues(uint16 bufferSize);
-		static uint16 getNumErrorValues(uint16 bufferSize);
+		static int getNumFullValues(int bufferSize);
+		static int getNumErrorValues(int bufferSize);
 
 
 		static AudioBufferInt16 createBufferWithFullValues(const AudioBufferInt16& b);
@@ -144,7 +144,7 @@ struct CompressionHelpers
 
 	};
 
-	static float getDifference(AudioSampleBuffer& workBuffer, AudioSampleBuffer& referenceBuffer);
+	static float checkBuffersEqual(AudioSampleBuffer& workBuffer, AudioSampleBuffer& referenceBuffer);
 
 	/** Return a section b as new AudioSampleBuffer without allocating. */
 	static AudioSampleBuffer getPart(AudioSampleBuffer& b, int startIndex, int numSamples);

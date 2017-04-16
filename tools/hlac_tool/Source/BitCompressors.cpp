@@ -92,7 +92,7 @@ bool BitCompressors::OneBit::decompress(int16* destination, const uint8* data, i
 	return true;
 }
 
-size_t BitCompressors::OneBit::getByteAmount(int numValuesToCompress)
+int BitCompressors::OneBit::getByteAmount(int numValuesToCompress)
 {
 	return numValuesToCompress / 8 + ((numValuesToCompress % 8 != 0) ? 1 : 0);
 }
@@ -105,9 +105,9 @@ int BitCompressors::TwoBit::getAllowedBitRange() const
 
 bool BitCompressors::TwoBit::compress(uint8* destination, const int16* data, int numValues)
 {
-	const int16 signMask = 0b1000000000000000;
-	const int16 valueMask = 0b0000000000000001;
-	const int16 valueMovedMask = 0b0000000000000010;
+	const uint16 signMask =  0b1000000000000000;
+	const uint16 valueMask = 0b0000000000000001;
+	const uint16 valueMovedMask = 0b0000000000000010;
 
 	const int signMoveAmount = 8 - getAllowedBitRange();
 
@@ -154,7 +154,7 @@ bool BitCompressors::TwoBit::compress(uint8* destination, const int16* data, int
 
 bool BitCompressors::TwoBit::decompress(int16* destination, const uint8* data, int numValuesToDecompress)
 {
-	const int16 signMask = 0b1000000000000000;
+	const uint16 signMask = 0b1000000000000000;
 
 	const uint8 signMasks[4] =  { 0b00000010, 0b00001000, 0b00100000, 0b10000000 };
 	const uint8 valueMasks[4] = { 0b00000001, 0b00000100, 0b00010000, 0b01000000 };
@@ -202,7 +202,7 @@ bool BitCompressors::TwoBit::decompress(int16* destination, const uint8* data, i
 }
 
 
-size_t BitCompressors::TwoBit::getByteAmount(int numValuesToCompress)
+int BitCompressors::TwoBit::getByteAmount(int numValuesToCompress)
 {
 	const int fullBytes = numValuesToCompress / 4;
 	const int lastByte = numValuesToCompress % 4 ? 1 : 0;
@@ -219,14 +219,14 @@ int BitCompressors::FourBit::getAllowedBitRange() const
 
 bool BitCompressors::FourBit::compress(uint8* destination, const int16* data, int numValues)
 {
-	const int16 signMask = 0b1000000000000000;
-	const int16 valueMask = 0b0000000000000111;
-	const int16 valueMovedMask = 0b0000000000001000;
+	const uint16 signMask = 0b1000000000000000;
+	const uint16 valueMask = 0b0000000000000111;
+	const uint16 valueMovedMask = 0b0000000000001000;
 
 
 	while (numValues >= 2)
 	{
-		uint8 target = 0;
+		uint16 target;
 
 		const int16 value1 = *data++;
 		const int16 absValue1 = (int16)abs(value1);
@@ -239,18 +239,18 @@ bool BitCompressors::FourBit::compress(uint8* destination, const int16* data, in
 		const int16 signMask2 = (value2 != absValue2) ? valueMovedMask : 0;
 
 		target |= ((absValue2 | signMask2) << 4);
-		
+
+		*destination++ = (uint8)target;
 
 		numValues -= 2;
 
-		*destination++ = target;
+		
 	}
 
 	if (numValues != 0)
 	{
-		uint8 lastByte = 0;
-		int shiftAmount = 0;
-
+		uint16 lastByte = 0;
+		
 		while (--numValues >= 0)
 		{
 			const int16 value1 = *data++;
@@ -260,7 +260,7 @@ bool BitCompressors::FourBit::compress(uint8* destination, const int16* data, in
 			lastByte = (absValue1 | signMask1);
 		}
 
-		*destination = lastByte;
+		*destination = (uint8)lastByte;
 	}
 
 
@@ -269,7 +269,7 @@ bool BitCompressors::FourBit::compress(uint8* destination, const int16* data, in
 
 bool BitCompressors::FourBit::decompress(int16* destination, const uint8* data, int numValuesToDecompress)
 {
-	const int16 signMask = 0b1000000000000000;
+	const uint16 signMask = 0b1000000000000000;
 
 	const uint8 signMasks[2] =  { 0b00001000, 0b10000000 };
 	const uint8 valueMasks[2] = { 0b00000111, 0b01110000 };
@@ -294,8 +294,6 @@ bool BitCompressors::FourBit::decompress(int16* destination, const uint8* data, 
 
 	if (numValuesToDecompress > 0)
 	{
-		int maskIndex = 0;
-
 		uint8 lastByte = *data;
 
 		while (--numValuesToDecompress >= 0)
@@ -310,14 +308,10 @@ bool BitCompressors::FourBit::decompress(int16* destination, const uint8* data, 
 	return true;
 }
 
-size_t BitCompressors::FourBit::getByteAmount(int numValuesToCompress)
+int BitCompressors::FourBit::getByteAmount(int numValuesToCompress)
 {
 	const int fullBytes = numValuesToCompress / 2;
 	const int remainder = numValuesToCompress % 2 ? 1 : 0;
-
-	float ratio = (float)fullBytes / (float)remainder;
-
-	LOG_RATIO(String("Ratio: " + String(ratio)));
 
 	return fullBytes + remainder;
 }
@@ -330,13 +324,13 @@ int BitCompressors::EightBit::getAllowedBitRange() const
 
 bool BitCompressors::EightBit::compress(uint8* destination, const int16* data, int numValues)
 {
-	const int16 valueMask = 0b0000000001111111;
-	const int16 signMask = 0b1000000000000000;
-	const int8 signMaskByte = 0b10000000;
+	const uint16 valueMask = 0b0000000001111111;
+	const uint16 signMask =  0b1000000000000000;
+	const uint8 signMaskByte =       0b10000000;
 
 	while (--numValues >= 0)
 	{
-		*destination++ = (int8)*data++;
+		*destination++ = (uint8)*data++;
 	}
 
 	return true;
@@ -345,8 +339,8 @@ bool BitCompressors::EightBit::compress(uint8* destination, const int16* data, i
 bool BitCompressors::EightBit::decompress(int16* destination, const uint8* data, int numValuesToDecompress)
 {
 
-	const int8 signMaskByte = 0b10000000;
-	const int8 valueMaskByte = 0b01111111;
+	const uint8 signMaskByte =  0b10000000;
+	const uint8 valueMaskByte = 0b01111111;
 
 	while (--numValuesToDecompress >= 0)
 	{
@@ -357,7 +351,7 @@ bool BitCompressors::EightBit::decompress(int16* destination, const uint8* data,
 	return true;
 }
 
-size_t BitCompressors::EightBit::getByteAmount(int numValuesToCompress)
+int BitCompressors::EightBit::getByteAmount(int numValuesToCompress)
 {
 	return numValuesToCompress;
 }
@@ -366,9 +360,10 @@ size_t BitCompressors::EightBit::getByteAmount(int numValuesToCompress)
 
 void printRuler()
 {
+#if JUCE_DEBUG
 	const char* str = "4   3   2   1   ";
 	DBG(str);
-	return;
+#endif
 }
 
 #if 0
@@ -399,7 +394,7 @@ void printBinary(int16 val)
 uint16 compressInt16(int16 input, int bitDepth)
 {
 	const int a = (1 << (bitDepth - 1)) - 1;
-	return input + a;
+	return (uint16)((int)input + a);
 }
 
 void compressInt16Block(int16* input, int16* output, int bitDepth, int numToCompress)
@@ -415,15 +410,15 @@ void compressInt16Block(int16* input, int16* output, int bitDepth, int numToComp
 	ippsOr_16u_I(inputIpp, outputIpp, numToCompress);
 }
 
-constexpr uint16 getBitMask(int bitDepth) { return (1 << bitDepth - 1) - 1; }
+constexpr uint16 getBitMask(int bitDepth) { return (1 << (bitDepth - 1)) - 1; }
 
 int16 decompressUInt16(uint16 input, int bitDepth)
 {
-	const int16 sub = (1 << bitDepth - 1) - 1;
+	const int16 sub = (1 << (bitDepth - 1)) - 1;
 	return (int16)input - sub;
 }
 
-void decompressInt16Block(int16* input, int16* output, int bitDepth, int numToCompress)
+void decompressInt16Block(int16* input, int16* output, uint8 bitDepth, int numToCompress)
 {
 	auto ippInput = reinterpret_cast<Ipp16u*>(input);
 	auto ippOutput = reinterpret_cast<Ipp16u*>(output);
@@ -564,14 +559,10 @@ bool BitCompressors::TwelveBit::decompress(int16* destination, const uint8* data
 	return true;
 }
 
-size_t BitCompressors::TwelveBit::getByteAmount(int numValuesToCompress)
+int BitCompressors::TwelveBit::getByteAmount(int numValuesToCompress)
 {
 	const int fullBytes = 6 * numValuesToCompress / 4;
 	const int remainder = numValuesToCompress % 4;
-
-	float ratio = (float)fullBytes / (float)remainder;
-
-	LOG_RATIO(String("Ratio: " + String(ratio)));
 
 	return fullBytes + remainder;
 }
@@ -593,7 +584,7 @@ bool BitCompressors::SixteenBit::decompress(int16* destination, const uint8* dat
 	return true;
 }
 
-size_t BitCompressors::SixteenBit::getByteAmount(int numValuesToCompress)
+int BitCompressors::SixteenBit::getByteAmount(int numValuesToCompress)
 {
 	return numValuesToCompress * sizeof(int16);
 }
@@ -656,7 +647,7 @@ void BitCompressors::UnitTests::testAutomaticCompression(uint8 maxBitSize)
 
 	
 
-	const int minDepth = getMinBitDepthForData(uncompressedData, numToCompress, compressor->getAllowedBitRange());
+	auto minDepth = getMinBitDepthForData(uncompressedData, numToCompress, (int8)compressor->getAllowedBitRange());
 
 	expect(minDepth == compressor->getAllowedBitRange(), "Bit range for " + String(compressor->getAllowedBitRange()) + " doesn't match");
 
@@ -706,7 +697,7 @@ void BitCompressors::UnitTests::fillDataWithAllowedBitRange(int16* data, int siz
 	{
 		for (int i = 0; i < size; i++)
 		{
-			data[i] = r.nextInt(Range<int>(-1, 2));
+			data[i] = (int16)r.nextInt(Range<int>(-1, 2));
 		}
 		break;
 	}
@@ -715,7 +706,7 @@ void BitCompressors::UnitTests::fillDataWithAllowedBitRange(int16* data, int siz
 	{
 		for (int i = 0; i < size; i++)
 		{
-			data[i] = r.nextInt(Range<int>(-7, 8));
+			data[i] = (int16)r.nextInt(Range<int>(-7, 8));
 		}
 		break;
 	}
@@ -725,7 +716,7 @@ void BitCompressors::UnitTests::fillDataWithAllowedBitRange(int16* data, int siz
 	{
 		for (int i = 0; i < size; i++)
 		{
-			data[i] = r.nextInt(Range<int>(-31, 32));
+			data[i] = (int16)r.nextInt(Range<int>(-31, 32));
 		}
 		break;
 	}
@@ -733,7 +724,7 @@ void BitCompressors::UnitTests::fillDataWithAllowedBitRange(int16* data, int siz
 	{
 		for (int i = 0; i < size; i++)
 		{
-			data[i] = r.nextInt(Range<int>(-127, 128));
+			data[i] = (int16)r.nextInt(Range<int>(-127, 128));
 		}
 		break;
 	}
@@ -742,7 +733,7 @@ void BitCompressors::UnitTests::fillDataWithAllowedBitRange(int16* data, int siz
 	{
 		for (int i = 0; i < size; i++)
 		{
-			data[i] = r.nextInt(Range<int>(-511, 512));
+			data[i] = (int16)r.nextInt(Range<int>(-511, 512));
 		}
 		break;
 	}
@@ -753,7 +744,7 @@ void BitCompressors::UnitTests::fillDataWithAllowedBitRange(int16* data, int siz
 
 		for (int i = 0; i < size; i++)
 		{
-			data[i] = r.nextInt(Range<int>(-max + 1, max));
+			data[i] = (int16)r.nextInt(Range<int>(-max + 1, max));
 		}
 		break;
 	}
@@ -764,7 +755,7 @@ void BitCompressors::UnitTests::fillDataWithAllowedBitRange(int16* data, int siz
 
 		for (int i = 0; i < size; i++)
 		{
-			data[i] = r.nextInt(Range<int>(-max + 1, max));
+			data[i] = (int16)r.nextInt(Range<int>(-max + 1, max));
 		}
 		break;
 	}
@@ -775,7 +766,7 @@ void BitCompressors::UnitTests::fillDataWithAllowedBitRange(int16* data, int siz
 
 		for (int i = 0; i < size; i++)
 		{
-			data[i] = r.nextInt(Range<int>(-max + 1, max));
+			data[i] = (int16)r.nextInt(Range<int>(-max + 1, max));
 		}
 		break;
 	}
@@ -797,7 +788,7 @@ void BitCompressors::UnitTests::testCompressor(Base* compressor)
 
 	fillDataWithAllowedBitRange(uncompressedData, numToCompress, compressor->getAllowedBitRange());
 
-	const int minDepth = getMinBitDepthForData(uncompressedData, numToCompress, compressor->getAllowedBitRange());
+	auto minDepth = getMinBitDepthForData(uncompressedData, numToCompress, (int8)compressor->getAllowedBitRange());
 
 	expect(minDepth == compressor->getAllowedBitRange(), "Bit range for " + String(compressor->getAllowedBitRange()) + " doesn't match");
 
@@ -934,20 +925,18 @@ bool BitCompressors::TenBit::decompress(int16* destination, const uint8* data, i
 	return true;
 }
 
-size_t BitCompressors::TenBit::getByteAmount(int numValuesToCompress)
+int BitCompressors::TenBit::getByteAmount(int numValuesToCompress)
 {
 	const int fullBytes = numValuesToCompress * 5 / 4;
 	const int remainder = (numValuesToCompress % 8) * 2;
-
-	float ratio = (float)fullBytes / (float)remainder;
-
-	LOG_RATIO(String("Ratio: " + String(ratio)));
 
 	return fullBytes + remainder;
 }
 
 uint8 BitCompressors::getMinBitDepthForData(const int16* data, int numValues, int8 expectedBitDepth)
 {
+	ignoreUnused(expectedBitDepth);
+
 	bool isZero = true;
 
 	for (int i = 0; i < numValues; i++)
@@ -968,7 +957,7 @@ uint8 BitCompressors::getMinBitDepthForData(const int16* data, int numValues, in
 
 	for (int i = 0; i < numValues; i++)
 	{
-		if (data[i] != 0 || data[i] != 1)
+		if (data[i] != 0 && data[i] != 1)
 		{
 			isOneBitCompressable = false;
 			break;
@@ -1046,7 +1035,7 @@ BitCompressors::Base* BitCompressors::Collection::getSuitableCompressorForData(c
 	return nullptr;
 }
 
-size_t BitCompressors::Collection::getNumBytesForBitRate(uint8 bitRate, size_t elements)
+int BitCompressors::Collection::getNumBytesForBitRate(uint8 bitRate, int elements)
 {
 	if (useOddCompressors)
 	{
@@ -1144,16 +1133,12 @@ bool BitCompressors::SixBit::decompress(int16* destination, const uint8* data, i
 	return true;
 }
 
-size_t BitCompressors::SixBit::getByteAmount(int numValuesToCompress)
+int BitCompressors::SixBit::getByteAmount(int numValuesToCompress)
 {
 	// 8 values => 48 bit = 6 bytes
 
 	auto fullBytes = (6 * numValuesToCompress) / 8;
-	auto remainder = sizeof(uint16) * (numValuesToCompress % 8);
-
-	float ratio = (float)fullBytes / (float)remainder;
-
-	LOG_RATIO(String("Ratio: " + String(ratio)));
+	auto remainder = 2 * (numValuesToCompress % 8);
 
 	return fullBytes + remainder;
 }
@@ -1242,16 +1227,12 @@ bool BitCompressors::FourteenBit::decompress(int16* destination, const uint8* da
 	return true;
 }
 
-size_t BitCompressors::FourteenBit::getByteAmount(int numValuesToCompress)
+int BitCompressors::FourteenBit::getByteAmount(int numValuesToCompress)
 {
 	// 8 values => 112 bit = 7 bytes;
 
 	auto fullBytes = (14 * numValuesToCompress) / 8;
-	auto remainder = sizeof(uint16) * (numValuesToCompress % 8);
-
-	float ratio = (float)fullBytes / (float)remainder;
-
-	LOG_RATIO(String("Ratio: " + String(ratio)));
+	auto remainder = 2 * (numValuesToCompress % 8);
 
 	return fullBytes + remainder;
 }
@@ -1263,15 +1244,21 @@ int BitCompressors::ZeroBit::getAllowedBitRange() const
 
 bool BitCompressors::ZeroBit::compress(uint8* destination, const int16* data, int numValues)
 {
+	ignoreUnused(destination, data, numValues);
+
 	return true;
 }
 
 bool BitCompressors::ZeroBit::decompress(int16* destination, const uint8* data, int numValuesToDecompress)
 {
+	ignoreUnused(destination, data, numValuesToDecompress);
+
 	return true;
 }
 
-size_t BitCompressors::ZeroBit::getByteAmount(int numValuesToCompress)
+int BitCompressors::ZeroBit::getByteAmount(int numValuesToCompress)
 {
+	ignoreUnused(numValuesToCompress);
+
 	return 0;
 }

@@ -111,7 +111,7 @@ void HlacDecoder::decodeCycle(const CycleHeader& header, AudioSampleBuffer& dest
 
 	uint16 numSamples = header.getNumSamples();
 
-	auto compressor = collection.getSuitableCompressorForBitRate(header.getBitRate());
+	auto compressor = collection.getSuitableCompressorForBitRate(br);
 	auto numBytesToRead = compressor->getByteAmount(numSamples);
 
 	if (numBytesToRead > 0)
@@ -155,7 +155,7 @@ HlacDecoder::CycleHeader HlacDecoder::readCycleHeader(InputStream& input)
 
 bool HlacDecoder::CycleHeader::isTemplate() const
 {
-	return headerInfo & 1 > 0;
+	return (headerInfo & 1) > 0;
 }
 
 uint8 HlacDecoder::CycleHeader::getBitRate(bool getFullBitRate) const

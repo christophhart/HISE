@@ -49,7 +49,7 @@ CompressionHelpers::AudioBufferInt16::AudioBufferInt16(const int16* externalData
 	isReadOnly = true;
 }
 
-CompressionHelpers::AudioBufferInt16::AudioBufferInt16(size_t size_)
+CompressionHelpers::AudioBufferInt16::AudioBufferInt16(int size_)
 {
 	size = size_;
 	data.calloc(size);
@@ -110,10 +110,10 @@ AudioSampleBuffer CompressionHelpers::loadFile(const File& f, double& speed)
 
 	if (reader != nullptr)
 	{
-		AudioSampleBuffer b(reader->numChannels, reader->lengthInSamples);
+		AudioSampleBuffer b(reader->numChannels, (int)reader->lengthInSamples);
 
 		double start = Time::getMillisecondCounterHiRes();
-		reader->read(&b, 0, reader->lengthInSamples, 0, true, true);
+		reader->read(&b, 0, (int)reader->lengthInSamples, 0, true, true);
 		double stop = Time::getMillisecondCounterHiRes();
 		
 		double sampleLength = reader->lengthInSamples / reader->sampleRate;
@@ -148,19 +148,19 @@ float CompressionHelpers::getFLACRatio(const File& f, double& speed)
 
 	writer->writeFromAudioReader(*reader, 0, reader->lengthInSamples);
 
-	const int fileUncompressed = reader->lengthInSamples * reader->numChannels * 2;
+	const int fileUncompressed = (int)reader->lengthInSamples * reader->numChannels * 2;
 
-	const int flacSize = mos->getDataSize();
+	const int flacSize = (int)mos->getDataSize();
 
 	MemoryInputStream* mis = new MemoryInputStream(mos->getMemoryBlock(), true);
 
 	ScopedPointer<AudioFormatReader> flacReader = flac.createReaderFor(mis, true);
 
-	AudioSampleBuffer b(flacReader->numChannels, flacReader->lengthInSamples);
+	AudioSampleBuffer b(flacReader->numChannels, (int)flacReader->lengthInSamples);
 
 	double start = Time::getMillisecondCounterHiRes();
 
-	flacReader->read(&b, 0, flacReader->lengthInSamples, 0, true, true);
+	flacReader->read(&b, 0, (int)flacReader->lengthInSamples, 0, true, true);
 
 	double stop = Time::getMillisecondCounterHiRes();
 
@@ -174,9 +174,6 @@ float CompressionHelpers::getFLACRatio(const File& f, double& speed)
 
 	return (float)flacSize / (float)fileUncompressed;
 
-	writer = nullptr;
-	reader = nullptr;
-
 }
 
 uint8 CompressionHelpers::getPossibleBitReductionAmount(const AudioBufferInt16& b)
@@ -189,7 +186,7 @@ int CompressionHelpers::getBlockAmount(AudioSampleBuffer& b)
 	return b.getNumSamples() / COMPRESSION_BLOCK_SIZE + 1;
 }
 
-uint8 CompressionHelpers::getBitrateForCycleLength(const AudioBufferInt16& block, uint16 cycleLength, AudioBufferInt16& workBuffer)
+uint8 CompressionHelpers::getBitrateForCycleLength(const AudioBufferInt16& block, int cycleLength, AudioBufferInt16& workBuffer)
 {
 	auto part = getPart(block, 0, cycleLength);
 
@@ -198,12 +195,12 @@ uint8 CompressionHelpers::getBitrateForCycleLength(const AudioBufferInt16& block
 	return BitCompressors::getMinBitDepthForData(workBuffer.getReadPointer(), cycleLength);
 }
 
-uint16 CompressionHelpers::getCycleLengthWithLowestBitRate(const AudioBufferInt16& block, uint8& bitRate, AudioBufferInt16& workBuffer)
+int CompressionHelpers::getCycleLengthWithLowestBitRate(const AudioBufferInt16& block, int& bitRate, AudioBufferInt16& workBuffer)
 {
 	bitRate = 16;
-	uint16 lowestCycleSize = -1;
+	int lowestCycleSize = -1;
 
-	for (uint16 i = 100; i < 1024; i++)
+	for (int i = 100; i < 1024; i++)
 	{
 		auto thisRate = getBitrateForCycleLength(block, i, workBuffer);
 
@@ -264,8 +261,6 @@ uint8 CompressionHelpers::getBitReductionForDifferential(AudioBufferInt16& b)
 {
 	AudioBufferInt16 copy(b.size);
 
-	auto br1 = getPossibleBitReductionAmount(b);
-
 	memcpy(copy.getWritePointer(), b.getReadPointer(), 2*b.size);
 
 	Diff::downSampleBuffer(copy);
@@ -277,7 +272,7 @@ uint8 CompressionHelpers::getBitReductionForDifferential(AudioBufferInt16& b)
 	return br2;
 }
 
-uint16 CompressionHelpers::getByteAmountForDifferential(AudioBufferInt16& b)
+int CompressionHelpers::getByteAmountForDifferential(AudioBufferInt16& b)
 {
 	BitCompressors::Collection c;
 
@@ -319,7 +314,7 @@ void CompressionHelpers::dump(const AudioSampleBuffer& b)
 		writer->writeFromAudioSampleBuffer(b, 0, b.getNumSamples());
 }
 
-float CompressionHelpers::getDifference(AudioSampleBuffer& workBuffer, AudioSampleBuffer& referenceBuffer)
+float CompressionHelpers::checkBuffersEqual(AudioSampleBuffer& workBuffer, AudioSampleBuffer& referenceBuffer)
 {
 	jassert(workBuffer.getNumSamples() == referenceBuffer.getNumSamples());
 
@@ -376,9 +371,11 @@ float CompressionHelpers::getDifference(AudioSampleBuffer& workBuffer, AudioSamp
 
 		return db;
 	}
+
+	return 0.0f;
 }
 
-void CompressionHelpers::IntVectorOperations::sub(int16* dst, const int16* src1, const int16* src2, size_t numValues)
+void CompressionHelpers::IntVectorOperations::sub(int16* dst, const int16* src1, const int16* src2, int numValues)
 {
 	for (int s = 0; s < numValues; s++)
 	{
@@ -387,7 +384,7 @@ void CompressionHelpers::IntVectorOperations::sub(int16* dst, const int16* src1,
 }
 
 
-void CompressionHelpers::IntVectorOperations::sub(int16* dst, const int16* src, size_t numValues)
+void CompressionHelpers::IntVectorOperations::sub(int16* dst, const int16* src, int numValues)
 {
 	for (int i = 0; i < numValues; i++)
 	{
@@ -421,7 +418,7 @@ void CompressionHelpers::IntVectorOperations::div(int16* dst, const int16 value,
 	}
 }
 
-int16 CompressionHelpers::IntVectorOperations::removeDCOffset(int16* data, size_t numValues)
+int16 CompressionHelpers::IntVectorOperations::removeDCOffset(int16* data, int numValues)
 {
 	int64 sum = 0;
 
@@ -430,7 +427,7 @@ int16 CompressionHelpers::IntVectorOperations::removeDCOffset(int16* data, size_
 		sum += data[i];
 	}
 
-	int16 dcOffset = sum /= numValues;
+	int16 dcOffset = (int16)(sum /= numValues);
 
 	for (int i = 0; i < numValues; i++)
 	{
@@ -440,20 +437,20 @@ int16 CompressionHelpers::IntVectorOperations::removeDCOffset(int16* data, size_
 	return dcOffset;
 }
 
-int16 CompressionHelpers::IntVectorOperations::max(const int16* d, size_t numValues)
+int16 CompressionHelpers::IntVectorOperations::max(const int16* d, int numValues)
 {
 	int16 m = 0;
 
 	for (int i = 0; i < numValues; i++)
 	{
-		m = jmax<int>(m, abs(d[i]));
+		m = jmax<int16>(m, (int16)abs(d[i]));
 	}
 
 	return m;
 }
 
 
-uint16 CompressionHelpers::Diff::getNumFullValues(uint16 bufferSize)
+int CompressionHelpers::Diff::getNumFullValues(int bufferSize)
 {
 	jassert(isPowerOfTwo(bufferSize));
 
@@ -461,7 +458,7 @@ uint16 CompressionHelpers::Diff::getNumFullValues(uint16 bufferSize)
 }
 
 
-uint16 CompressionHelpers::Diff::getNumErrorValues(uint16 bufferSize)
+int CompressionHelpers::Diff::getNumErrorValues(int bufferSize)
 {
 	jassert(isPowerOfTwo(bufferSize));
 
@@ -473,8 +470,6 @@ CompressionHelpers::AudioBufferInt16 CompressionHelpers::Diff::createBufferWithF
 	auto numFullValues = getNumFullValues(b.size);
 
 	AudioBufferInt16 packedBuffer(numFullValues);
-
-	auto packedCheck = packedBuffer.getReadPointer();
 
 	auto r = b.getReadPointer();
 	auto w = packedBuffer.getWritePointer();
@@ -492,7 +487,7 @@ CompressionHelpers::AudioBufferInt16 CompressionHelpers::Diff::createBufferWithF
 	*w = r[si+3];
 	++w;
 
-	jassert(w = packedBuffer.getWritePointer() + packedBuffer.size);
+	jassert(w == (packedBuffer.getWritePointer() + packedBuffer.size));
 
 	return packedBuffer;
 }
@@ -504,22 +499,9 @@ CompressionHelpers::AudioBufferInt16 CompressionHelpers::Diff::createBufferWithE
 
 	distributeFullSamples(workBuffer, reinterpret_cast<const uint16*>(packedFullValues.getReadPointer()), packedFullValues.size);
 
-#if 0
-	auto original = b.getReadPointer();
-
-	memcpy(workBuffer.getWritePointer(), b.getReadPointer(), sizeof(uint16)*b.size);
-
-	auto processed = workBuffer.getReadPointer();
-
-	downSampleBuffer(workBuffer);
-#endif
-	
 	IntVectorOperations::sub(workBuffer.getWritePointer(), b.getReadPointer(), b.size);
 
-
 	AudioBufferInt16 packedBuffer(getNumErrorValues(b.size));
-
-	const int16* packed = packedBuffer.getReadPointer();
 
 	int16* w = packedBuffer.getWritePointer();
 	const int16* r = workBuffer.getReadPointer();
@@ -540,7 +522,7 @@ CompressionHelpers::AudioBufferInt16 CompressionHelpers::Diff::createBufferWithE
 
 	w += 2;
 
-	jassert(w = packedBuffer.getWritePointer() + packedBuffer.size);
+	jassert(w == packedBuffer.getWritePointer() + packedBuffer.size);
 
 	return packedBuffer;
 }
@@ -549,8 +531,6 @@ void CompressionHelpers::Diff::downSampleBuffer(AudioBufferInt16& b)
 {
 	jassert(b.size % 4 == 0);
 	
-	const int16* dbg = b.getReadPointer();
-
 	int16* d = b.getWritePointer();
 
 	for (int i = 0; i < b.size - 4; i += 4)
@@ -660,8 +640,6 @@ void CompressionHelpers::Diff::addErrorSignal(AudioBufferInt16& dst, const uint1
 	jassert(reinterpret_cast<uint64>(dst.getReadPointer()) % 8 == 0);
 
 	int16* d = dst.getWritePointer();
-
-	int16* check = d;
 
 	const int16* e = reinterpret_cast<const int16*>(errorSignalPacked);
 

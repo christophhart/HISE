@@ -63,10 +63,10 @@ int main(int argc, char **argv)
 	bool useDiff = true;
 	bool checkWithFlac = true;
 
-	float blockRatio = 0.0f;
-	float deltaRatio = 0.0f;
-	float diffRatio = 0.0f;
-	float flacRatio = 0.0f;
+	double blockRatio = 0.0f;
+	double deltaRatio = 0.0f;
+	double diffRatio = 0.0f;
+	double flacRatio = 0.0f;
 
 	double blockSpeed = 0.0;
 	double flacSpeed = 0.0;
@@ -74,7 +74,7 @@ int main(int argc, char **argv)
 	double deltaSpeed = 0.0;
 	double diffSpeed = 0.0;
 
-	float r;
+	double r;
 	double s;
 
 	int numFilesChecked = 0;
@@ -178,7 +178,7 @@ int main(int argc, char **argv)
 			blockReader->read(&b2, 0, b2.getNumSamples(), 0, true, true);
 
 			blockSpeed += blockReader->getDecompressionPerformanceForLastFile();
-			auto db = CompressionHelpers::getDifference(b2, b);
+			CompressionHelpers::checkBuffersEqual(b2, b);
 
 			Logger::writeToLog("Compressing with blocks: " + String(r, 3));
 
@@ -222,7 +222,7 @@ int main(int argc, char **argv)
 
 			deltaSpeed += deltaReader->getDecompressionPerformanceForLastFile();
 
-			auto db2 = CompressionHelpers::getDifference(b3, b);
+			CompressionHelpers::checkBuffersEqual(b3, b);
 
 			Logger::writeToLog("Compressing with delta:  " + String(r, 3));
 
@@ -266,7 +266,7 @@ int main(int argc, char **argv)
 
 			diffSpeed += diffReader->getDecompressionPerformanceForLastFile();
 
-			auto db = CompressionHelpers::getDifference(b2, b);
+			CompressionHelpers::checkBuffersEqual(b2, b);
 
 			Logger::writeToLog("Compressing with diff: " + String(r, 3));
 

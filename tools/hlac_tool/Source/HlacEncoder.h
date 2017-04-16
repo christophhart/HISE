@@ -29,7 +29,7 @@ public:
 	struct CompressorOptions
 	{
 		bool useDeltaEncoding = true;
-		int fixedBlockWidth = -1;
+		int16 fixedBlockWidth = -1;
 		bool reuseFirstCycleLengthForBlock = true;
 		bool removeDcOffset = true;
 		float deltaCycleThreshhold = 0.2f;
@@ -69,11 +69,11 @@ private:
 	bool encodeCycleDelta(CompressionHelpers::AudioBufferInt16& nextCycle, OutputStream& output);
 	void  writeUncompressed(AudioSampleBuffer& block, OutputStream& output);
 
-	bool writeCycleHeader(bool isTemplate, uint8 bitDepth, uint16 numSamples, OutputStream& output);
-	bool writeDiffHeader(uint8 fullBitRate, uint8 errorBitRate, uint16 blockSize, OutputStream& output);
+	bool writeCycleHeader(bool isTemplate, int bitDepth, int numSamples, OutputStream& output);
+	bool writeDiffHeader(int fullBitRate, int errorBitRate, int blockSize, OutputStream& output);
 
-	uint16 getCycleLength(CompressionHelpers::AudioBufferInt16& block);
-	uint16 getCycleLengthFromTemplate(CompressionHelpers::AudioBufferInt16& newCycle, CompressionHelpers::AudioBufferInt16& rest);
+	int getCycleLength(CompressionHelpers::AudioBufferInt16& block);
+	int getCycleLengthFromTemplate(CompressionHelpers::AudioBufferInt16& newCycle, CompressionHelpers::AudioBufferInt16& rest);
 
 	BitCompressors::Collection collection;
 
@@ -81,7 +81,7 @@ private:
 
 	CompressionHelpers::AudioBufferInt16 workBuffer;
 
-	uint16 indexInBlock;
+	int indexInBlock;
 
 	uint32 numBytesWritten = 0;
 	uint32 numBytesUncompressed = 0;
@@ -93,7 +93,7 @@ private:
 
 	uint8 bitRateForCurrentCycle;
 
-	int16 firstCycleLength = -1;
+	int firstCycleLength = -1;
 
 	MemoryBlock readBuffer;
 

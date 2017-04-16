@@ -85,7 +85,7 @@ private:
 
 	float ratio = 0.0f;
 
-	uint64 readIndex = 0;
+	int readIndex = 0;
 
 	double decompressionSpeed = 0.0;
 };

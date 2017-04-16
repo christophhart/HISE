@@ -51,7 +51,7 @@ public:
 		numEncodeModes
 	};
 
-	HiseLosslessAudioFormatWriter(EncodeMode mode_, OutputStream* output, int sampleRate, int numChannels):
+	HiseLosslessAudioFormatWriter(EncodeMode mode_, OutputStream* output, double sampleRate, int numChannels):
 		AudioFormatWriter(output, "HLAC", sampleRate, numChannels, 16),
 		mode(mode_)
 	{

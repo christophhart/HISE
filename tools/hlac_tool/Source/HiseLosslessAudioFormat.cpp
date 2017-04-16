@@ -13,6 +13,10 @@
 
 bool HiseLosslessAudioFormatReader::readSamples(int** destSamples, int numDestChannels, int startOffsetInDestBuffer, int64 startSampleInFile, int numSamples)
 {
+	ignoreUnused(startSampleInFile);
+	ignoreUnused(numDestChannels);
+	ignoreUnused(startOffsetInDestBuffer);
+
 	bool isStereo = destSamples[1] != nullptr;
 
 	if (isStereo)
@@ -113,6 +117,8 @@ StringArray HiseLosslessAudioFormat::getQualityOptions()
 
 AudioFormatReader* HiseLosslessAudioFormat::createReaderFor(InputStream* sourceStream, bool deleteStreamIfOpeningFails)
 {
+	ignoreUnused(deleteStreamIfOpeningFails);
+
 	return new HiseLosslessAudioFormatReader(sourceStream);
 }
 
