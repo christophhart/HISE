@@ -23,7 +23,7 @@ public:
 	HiseLosslessAudioFormatReader(InputStream* input_):
 		AudioFormatReader(input_, "HLAC")
 	{
-		numChannels = 1;
+		numChannels = input->readByte(); // TODO: make this smarter
 		usesFloatingPointData = true;
 
 		decoder.setupForDecompression();
@@ -51,12 +51,7 @@ public:
 		numEncodeModes
 	};
 
-	HiseLosslessAudioFormatWriter(EncodeMode mode_, OutputStream* output, double sampleRate, int numChannels):
-		AudioFormatWriter(output, "HLAC", sampleRate, numChannels, 16),
-		mode(mode_)
-	{
-		usesFloatingPointData = true;
-	}
+	HiseLosslessAudioFormatWriter(EncodeMode mode_, OutputStream* output, double sampleRate, int numChannels);
 
 	void setOptions(HlacEncoder::CompressorOptions& newOptions)
 	{

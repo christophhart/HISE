@@ -21,18 +21,33 @@ bool HiseLosslessAudioFormatReader::readSamples(int** destSamples, int numDestCh
 
 	if (isStereo)
 	{
-		jassertfalse;
+		float** destinationFloat = reinterpret_cast<float**>(destSamples);
+
+		AudioSampleBuffer b(destinationFloat, 2, numSamples);
+
+		decoder.decode(b, *input);
+
 	}
 	else
 	{
 		float* destinationFloat = reinterpret_cast<float*>(destSamples[0]);
 
-		AudioSampleBuffer b = AudioSampleBuffer(&destinationFloat, 1, numSamples);
+		AudioSampleBuffer b(&destinationFloat, 1, numSamples);
 
 		decoder.decode(b, *input);
 	}
 
 	return true;
+}
+
+
+HiseLosslessAudioFormatWriter::HiseLosslessAudioFormatWriter(EncodeMode mode_, OutputStream* output, double sampleRate, int numChannels) :
+	AudioFormatWriter(output, "HLAC", sampleRate, numChannels, 16),
+	mode(mode_)
+{
+	output->writeByte(numChannels);
+
+	usesFloatingPointData = true;
 }
 
 bool HiseLosslessAudioFormatWriter::write(const int** samplesToWrite, int numSamples)
@@ -41,7 +56,11 @@ bool HiseLosslessAudioFormatWriter::write(const int** samplesToWrite, int numSam
 
 	if (isStereo)
 	{
-		jassertfalse;
+		float* const* r = const_cast<float**>(reinterpret_cast<const float**>(samplesToWrite));
+
+		AudioSampleBuffer b = AudioSampleBuffer(r, 2, numSamples);
+
+		encoder.compress(b, *output);
 	}
 	else
 	{

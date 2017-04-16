@@ -14,9 +14,17 @@
 
 void HlacEncoder::compress(AudioSampleBuffer& source, OutputStream& output)
 {
+	bool compressStereo = source.getNumChannels() == 2;
+
 	if (source.getNumSamples() == COMPRESSION_BLOCK_SIZE)
 	{
-		encodeBlock(source, output);
+		if (compressStereo)
+		{
+			encodeBlock(CompressionHelpers::getPart(source, 0, 0, COMPRESSION_BLOCK_SIZE), output);
+			encodeBlock(CompressionHelpers::getPart(source, 1, 0, COMPRESSION_BLOCK_SIZE), output);
+		}
+		else
+			encodeBlock(source, output);
 		
 		return;
 	}
@@ -28,8 +36,17 @@ void HlacEncoder::compress(AudioSampleBuffer& source, OutputStream& output)
 	{
 		uint32 numTodo = jmin<int>(COMPRESSION_BLOCK_SIZE, source.getNumSamples());
 
-		auto block = CompressionHelpers::getPart(source, blockOffset, numTodo);
-		encodeBlock(block, output);
+		if (compressStereo)
+		{
+			encodeBlock(CompressionHelpers::getPart(source, 0, blockOffset, numTodo), output);
+			encodeBlock(CompressionHelpers::getPart(source, 1, blockOffset, numTodo), output);
+		}
+		else
+		{
+			encodeBlock(CompressionHelpers::getPart(source, blockOffset, numTodo), output);
+		}
+
+		
 		blockOffset += numTodo;
 
 		numSamplesRemaining -= numTodo;
@@ -37,9 +54,15 @@ void HlacEncoder::compress(AudioSampleBuffer& source, OutputStream& output)
 
 	if (source.getNumSamples() - blockOffset > 0)
 	{
-		auto lastPart = CompressionHelpers::getPart(source, blockOffset, source.getNumSamples() - blockOffset);
+		const int remaining = source.getNumSamples() - blockOffset;
 
-		writeUncompressed(lastPart, output);
+		if (compressStereo)
+		{
+			encodeLastBlock(CompressionHelpers::getPart(source, 0, blockOffset, remaining), output);
+			encodeLastBlock(CompressionHelpers::getPart(source, 1, blockOffset, remaining), output);
+		}
+		else
+			encodeLastBlock(CompressionHelpers::getPart(source, blockOffset, remaining), output);
 	}
 }
 
@@ -400,13 +423,20 @@ bool HlacEncoder::writeDiffHeader(int fullBitRate, int errorBitRate, int blockSi
 }
 
 
-void HlacEncoder::writeUncompressed(AudioSampleBuffer& block, OutputStream& output)
+void HlacEncoder::encodeLastBlock(AudioSampleBuffer& block, OutputStream& output)
 {
 	CompressionHelpers::AudioBufferInt16 a(block, false);
 
-	numBytesUncompressed += block.getNumSamples() * sizeof(int16);
-
 	encodeCycle(a, output);
+
+	int numZerosToPad = COMPRESSION_BLOCK_SIZE - a.size;
+
+	jassert(numZerosToPad > 0);
+
+	LOG("PADDING " + String(numZerosToPad));
+
+	writeCycleHeader(true, 0, numZerosToPad, output);
+
 }
 
 

@@ -154,7 +154,7 @@ int main(int argc, char **argv)
 		{
 			MemoryOutputStream* blockMos = new MemoryOutputStream();
 
-			ScopedPointer<HiseLosslessAudioFormatWriter> blockWriter = dynamic_cast<HiseLosslessAudioFormatWriter*>(hlac.createWriterFor(blockMos, 44100, 1, 16, emptyMetadata, 5));
+			ScopedPointer<HiseLosslessAudioFormatWriter> blockWriter = dynamic_cast<HiseLosslessAudioFormatWriter*>(hlac.createWriterFor(blockMos, 44100, b.getNumChannels(), 16, emptyMetadata, 5));
 			
 			if (blockWriter == nullptr)
 				return 1;
@@ -171,7 +171,7 @@ int main(int argc, char **argv)
 			
 			r = blockWriter->getCompressionRatioForLastFile();
 
-			AudioSampleBuffer b2(1, b.getNumSamples());
+			AudioSampleBuffer b2(b.getNumChannels(), CompressionHelpers::getPaddedSampleSize(b.getNumSamples()));
 			MemoryInputStream* blockMis = new MemoryInputStream(blockMos->getMemoryBlock(), true);
 			ScopedPointer<HiseLosslessAudioFormatReader> blockReader = dynamic_cast<HiseLosslessAudioFormatReader*>(hlac.createReaderFor(blockMis, false));
 
@@ -191,7 +191,7 @@ int main(int argc, char **argv)
 		if (useDelta)
 		{
 			MemoryOutputStream* deltaMos = new MemoryOutputStream();
-			ScopedPointer<HiseLosslessAudioFormatWriter> deltaWriter = dynamic_cast<HiseLosslessAudioFormatWriter*>(hlac.createWriterFor(deltaMos, 44100, 1, 16, emptyMetadata, 5));
+			ScopedPointer<HiseLosslessAudioFormatWriter> deltaWriter = dynamic_cast<HiseLosslessAudioFormatWriter*>(hlac.createWriterFor(deltaMos, 44100, b.getNumChannels(), 16, emptyMetadata, 5));
 
 			if (deltaWriter == nullptr)
 				return 1;
@@ -213,7 +213,7 @@ int main(int argc, char **argv)
 			r = deltaWriter->getCompressionRatioForLastFile();
 
 
-			AudioSampleBuffer b3(1, b.getNumSamples());
+			AudioSampleBuffer b3(b.getNumChannels(), CompressionHelpers::getPaddedSampleSize(b.getNumSamples()));
 			
 			MemoryInputStream* deltaMis = new MemoryInputStream(deltaMos->getMemoryBlock(), true);
 			ScopedPointer<HiseLosslessAudioFormatReader> deltaReader = dynamic_cast<HiseLosslessAudioFormatReader*>(hlac.createReaderFor(deltaMis, false));
@@ -235,7 +235,7 @@ int main(int argc, char **argv)
 		{
 			MemoryOutputStream* diffMos = new MemoryOutputStream();
 
-			ScopedPointer<HiseLosslessAudioFormatWriter> diffWriter = dynamic_cast<HiseLosslessAudioFormatWriter*>(hlac.createWriterFor(diffMos, 44100, 1, 16, emptyMetadata, 5));
+			ScopedPointer<HiseLosslessAudioFormatWriter> diffWriter = dynamic_cast<HiseLosslessAudioFormatWriter*>(hlac.createWriterFor(diffMos, 44100, b.getNumChannels(), 16, emptyMetadata, 5));
 
 			if (diffWriter == nullptr)
 				return 1;
@@ -256,7 +256,7 @@ int main(int argc, char **argv)
 			diffRatio += r;
 			encoder.reset();
 
-			AudioSampleBuffer b2(1, b.getNumSamples());
+			AudioSampleBuffer b2(b.getNumChannels(), CompressionHelpers::getPaddedSampleSize(b.getNumSamples()));
 			MemoryInputStream mis(mos.getMemoryBlock(), true);
 
 			MemoryInputStream* diffMis = new MemoryInputStream(diffMos->getMemoryBlock(), true);

@@ -111,6 +111,8 @@ struct CompressionHelpers
 	/** Return a section b as new AudioBufferInt16 without allocating. */
 	static AudioBufferInt16 getPart(const AudioBufferInt16& b, int startIndex, int numSamples);
 
+	static int getPaddedSampleSize(int samplesNeeded);
+
 	static uint8 getBitReductionForDifferential(AudioBufferInt16& b);
 
 	static int getByteAmountForDifferential(AudioBufferInt16& b);
@@ -148,6 +150,8 @@ struct CompressionHelpers
 
 	/** Return a section b as new AudioSampleBuffer without allocating. */
 	static AudioSampleBuffer getPart(AudioSampleBuffer& b, int startIndex, int numSamples);
+
+	static AudioSampleBuffer getPart(AudioSampleBuffer& b, int channelIndex, int startIndex, int numSamples);
 };
 
 

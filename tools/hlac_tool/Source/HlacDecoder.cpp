@@ -42,20 +42,42 @@ void HlacDecoder::reset()
 }
 
 
-void HlacDecoder::decode(AudioSampleBuffer& destination, InputStream& input)
+bool HlacDecoder::decodeBlock(AudioSampleBuffer& destination, InputStream& input, int channelIndex)
 {
-	double start = Time::getMillisecondCounterHiRes();
+	indexInBlock = 0;
 
-	
+	int numTodo = jmin<int>(destination.getNumSamples() - readIndex, COMPRESSION_BLOCK_SIZE);
 
-	while (!input.isExhausted())
+	while (indexInBlock < numTodo)
 	{
 		auto header = readCycleHeader(input);
 
 		if (header.isDiff())
-			decodeDiff(header, destination, input);
+			decodeDiff(header, destination, input, channelIndex);
 		else
-			decodeCycle(header, destination, input);
+			decodeCycle(header, destination, input, channelIndex);
+	}
+
+	if(channelIndex == destination.getNumChannels() - 1)
+		readIndex += indexInBlock;
+
+	return numTodo != 0;
+}
+
+void HlacDecoder::decode(AudioSampleBuffer& destination, InputStream& input)
+{
+	double start = Time::getMillisecondCounterHiRes();
+
+	int channelIndex = 0;
+	bool decodeStereo = destination.getNumChannels() == 2;
+
+	while (!input.isExhausted())
+	{
+		if (!decodeBlock(destination, input, channelIndex))
+			break;
+
+		if (decodeStereo)
+			channelIndex = 1 - channelIndex;
 	}
 
 	double stop = Time::getMillisecondCounterHiRes();
@@ -67,7 +89,7 @@ void HlacDecoder::decode(AudioSampleBuffer& destination, InputStream& input)
 	Logger::writeToLog("HLAC Decoding Performance: " + String(decompressionSpeed, 1) + "x realtime");
 }
 
-void HlacDecoder::decodeDiff(const CycleHeader& header, AudioSampleBuffer& destination, InputStream& input)
+void HlacDecoder::decodeDiff(const CycleHeader& header, AudioSampleBuffer& destination, InputStream& input, int channelIndex)
 {
 	uint16 blockSize = header.getNumSamples();
 
@@ -93,16 +115,16 @@ void HlacDecoder::decodeDiff(const CycleHeader& header, AudioSampleBuffer& desti
 
 	CompressionHelpers::Diff::addErrorSignal(currentCycle, (const uint16*)workBuffer.getReadPointer(), numErrorValues);
 
-	auto dst = destination.getWritePointer(0, readIndex);
+	auto dst = destination.getWritePointer(channelIndex, readIndex + indexInBlock);
 	AudioDataConverters::convertInt16LEToFloat(currentCycle.getReadPointer(), dst, blockSize);
 
-	readIndex += blockSize;
+	indexInBlock += blockSize;
 }
 
 
 
 
-void HlacDecoder::decodeCycle(const CycleHeader& header, AudioSampleBuffer& destination, InputStream& input)
+void HlacDecoder::decodeCycle(const CycleHeader& header, AudioSampleBuffer& destination, InputStream& input, int channelIndex)
 {
 	uint8 br = header.getBitRate();
 
@@ -117,7 +139,7 @@ void HlacDecoder::decodeCycle(const CycleHeader& header, AudioSampleBuffer& dest
 	if (numBytesToRead > 0)
 		input.read(readBuffer.getData(), numBytesToRead);
 
-	auto dst = destination.getWritePointer(0, readIndex);
+	auto dst = destination.getWritePointer(channelIndex, readIndex + indexInBlock);
 
 	if (header.isTemplate())
 	{
@@ -139,7 +161,7 @@ void HlacDecoder::decodeCycle(const CycleHeader& header, AudioSampleBuffer& dest
 		AudioDataConverters::convertInt16LEToFloat(workBuffer.getReadPointer(), dst, numSamples);
 	}
 
-	readIndex += numSamples;
+	indexInBlock += numSamples;
 }
 
 HlacDecoder::CycleHeader HlacDecoder::readCycleHeader(InputStream& input)

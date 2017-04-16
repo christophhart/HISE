@@ -67,7 +67,7 @@ private:
 	bool encodeCycle(CompressionHelpers::AudioBufferInt16& cycle, OutputStream& output);
 	bool encodeDiff(CompressionHelpers::AudioBufferInt16& cycle, OutputStream& output);
 	bool encodeCycleDelta(CompressionHelpers::AudioBufferInt16& nextCycle, OutputStream& output);
-	void  writeUncompressed(AudioSampleBuffer& block, OutputStream& output);
+	void  encodeLastBlock(AudioSampleBuffer& block, OutputStream& output);
 
 	bool writeCycleHeader(bool isTemplate, int bitDepth, int numSamples, OutputStream& output);
 	bool writeDiffHeader(int fullBitRate, int errorBitRate, int blockSize, OutputStream& output);

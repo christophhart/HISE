@@ -56,9 +56,11 @@ private:
 
 	void reset();
 	
-	void decodeDiff(const CycleHeader& header, AudioSampleBuffer& destination, InputStream& input);
+	bool decodeBlock(AudioSampleBuffer& destination, InputStream& input, int channelIndex);
 
-	void decodeCycle(const CycleHeader& header, AudioSampleBuffer& destination, InputStream& input);
+	void decodeDiff(const CycleHeader& header, AudioSampleBuffer& destination, InputStream& input, int channelIndex);
+
+	void decodeCycle(const CycleHeader& header, AudioSampleBuffer& destination, InputStream& input, int channelIndex);
 
 	CycleHeader HlacDecoder::readCycleHeader(InputStream& input);
 

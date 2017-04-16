@@ -252,9 +252,21 @@ CompressionHelpers::AudioBufferInt16 CompressionHelpers::getPart(const AudioBuff
 
 AudioSampleBuffer CompressionHelpers::getPart(AudioSampleBuffer& b, int startIndex, int numSamples)
 {
-	float* d = b.getWritePointer(0, startIndex);
+	return getPart(b, 0, startIndex, numSamples);
+}
+
+
+AudioSampleBuffer CompressionHelpers::getPart(AudioSampleBuffer& b, int channelIndex, int startIndex, int numSamples)
+{
+	float* d = b.getWritePointer(channelIndex, startIndex);
 
 	return AudioSampleBuffer(&d, 1, numSamples);
+}
+
+int CompressionHelpers::getPaddedSampleSize(int samplesNeeded)
+{
+	int blocks = samplesNeeded / COMPRESSION_BLOCK_SIZE + 1;
+	return blocks * COMPRESSION_BLOCK_SIZE;
 }
 
 uint8 CompressionHelpers::getBitReductionForDifferential(AudioBufferInt16& b)
@@ -308,7 +320,7 @@ void CompressionHelpers::dump(const AudioSampleBuffer& b)
 
 	FileOutputStream* fis = new FileOutputStream(dumpFile.getNonexistentSibling());
 	StringPairArray metadata;
-	ScopedPointer<AudioFormatWriter> writer = afm.createWriterFor(fis, 44100, 1, 16, metadata, 5);
+	ScopedPointer<AudioFormatWriter> writer = afm.createWriterFor(fis, 44100, b.getNumChannels(), 16, metadata, 5);
 
 	if (writer != nullptr)
 		writer->writeFromAudioSampleBuffer(b, 0, b.getNumSamples());
@@ -316,7 +328,7 @@ void CompressionHelpers::dump(const AudioSampleBuffer& b)
 
 float CompressionHelpers::checkBuffersEqual(AudioSampleBuffer& workBuffer, AudioSampleBuffer& referenceBuffer)
 {
-	jassert(workBuffer.getNumSamples() == referenceBuffer.getNumSamples());
+	jassert(workBuffer.getNumSamples() >= referenceBuffer.getNumSamples());
 
 	AudioBufferInt16 wbInt(workBuffer, false);
 	AudioBufferInt16 rbInt(referenceBuffer, false);

@@ -10,6 +10,131 @@
 
 #include "BitCompressors.h"
 
+
+
+void printRuler()
+{
+#if JUCE_DEBUG
+	const char* str = "4   3   2   1   ";
+	DBG(str);
+#endif
+}
+
+#if 0
+void printBinary(int val)
+{
+	int i;
+	char str[33];
+	for (i = 31; i >= 0; i--)
+		str[31 - i] = '0' + ((val >> i) & 0x1);
+	str[32] = 0;
+	puts(str);
+	return;
+}
+#endif
+
+void printBinary(int16 val)
+{
+	int i;
+	char str[17];
+	for (i = 15; i >= 0; i--)
+		str[15 - i] = '0' + ((val >> i) & 0x1);
+	str[16] = 0;
+	DBG(str);
+	return;
+}
+
+
+uint16 compressInt16(int16 input, int bitDepth)
+{
+	const int a = (1 << (bitDepth - 1)) - 1;
+	return (uint16)((int)input + a);
+}
+
+void compressInt16Block(int16* input, int16* output, int bitDepth, int numToCompress)
+{
+	auto inputIpp = reinterpret_cast<Ipp16u*>(input);
+	auto outputIpp = reinterpret_cast<Ipp16u*>(output);
+
+	const uint16 signMask = 0b1000000000000000;
+
+	ippsAbs_16s(input, output, numToCompress);
+	ippsAndC_16u_I(signMask, inputIpp, numToCompress);
+	ippsRShiftC_16s_I(16 - bitDepth, input, numToCompress);
+	ippsOr_16u_I(inputIpp, outputIpp, numToCompress);
+}
+
+constexpr uint16 getBitMask(int bitDepth) { return (1 << (bitDepth - 1)) - 1; }
+
+int16 decompressUInt16(uint16 input, int bitDepth)
+{
+	const int16 sub = (1 << (bitDepth - 1)) - 1;
+	return (int16)input - sub;
+}
+
+void decompressInt16Block(int16* input, int16* output, uint8 bitDepth, int numToCompress)
+{
+	auto ippInput = reinterpret_cast<Ipp16u*>(input);
+	auto ippOutput = reinterpret_cast<Ipp16u*>(output);
+
+	const uint16 signMask = 0b0000000000000010;
+	const uint16 valueMask = 0b0000011111111111;
+	const uint8 shiftAmount = bitDepth - 2;
+
+	ippsAndC_16u(ippInput, valueMask, ippOutput, numToCompress);
+	ippsRShiftC_16u_I(shiftAmount, ippInput, numToCompress);
+	ippsAndC_16u_I(signMask, ippInput, numToCompress);
+	ippsMulC_16s_I(-1, input, numToCompress);
+	ippsAddC_16s_I(1, input, numToCompress);
+	ippsMul_16s_I(input, output, numToCompress);
+}
+
+
+void packArrayOfInt16(int16* d, int numValues, uint8 bitDepth)
+{
+	for (int i = 0; i < numValues; i++)
+	{
+		d[i] = compressInt16(d[i], bitDepth);
+	}
+}
+
+
+void unpackArrayOfInt16(int16* d, int numValues, uint8 bitDepth)
+{
+	for (int i = 0; i < numValues; i++)
+	{
+		d[i] = decompressUInt16(d[i], bitDepth);
+	}
+}
+
+
+int BitCompressors::ZeroBit::getAllowedBitRange() const
+{
+	return 0;
+}
+
+bool BitCompressors::ZeroBit::compress(uint8* destination, const int16* data, int numValues)
+{
+	ignoreUnused(destination, data, numValues);
+
+	return true;
+}
+
+bool BitCompressors::ZeroBit::decompress(int16* destination, const uint8* data, int numValuesToDecompress)
+{
+	ignoreUnused(destination, data, numValuesToDecompress);
+
+	return true;
+}
+
+int BitCompressors::ZeroBit::getByteAmount(int numValuesToCompress)
+{
+	ignoreUnused(numValuesToCompress);
+
+	return 0;
+}
+
+
 int BitCompressors::OneBit::getAllowedBitRange() const
 {
 	return 1;
@@ -317,6 +442,94 @@ int BitCompressors::FourBit::getByteAmount(int numValuesToCompress)
 }
 
 
+void compress6Bit(uint8* sixBytes, const int16* eightValues)
+{
+	uint16* threeShorts = reinterpret_cast<uint16*>(sixBytes);
+
+	int16 pData[8];
+	memcpy(pData, eightValues, 16);
+
+	packArrayOfInt16(pData, 8, 6);
+
+	threeShorts[0] = pData[0] << 10;
+	threeShorts[0] |= pData[1] << 4;
+	threeShorts[0] |= pData[2] >> 2;
+	threeShorts[1] = pData[2] << 14;
+	threeShorts[1] |= pData[3] << 8;
+	threeShorts[1] |= pData[4] << 2;
+	threeShorts[1] |= pData[5] >> 4;
+	threeShorts[2] = pData[5] << 12;
+	threeShorts[2] |= pData[6] << 6;
+	threeShorts[2] |= pData[7];
+}
+
+void decompress6Bit(int16* eightValues, const uint8* sixBytes)
+{
+	const uint16* dataBlock = reinterpret_cast<const uint16*>(sixBytes);
+
+	eightValues[0] = (dataBlock[0] & 0b1111110000000000) >> 10;
+	eightValues[1] = (dataBlock[0] & 0b0000001111110000) >> 4;
+	eightValues[2] = (dataBlock[0] & 0b0000000000001111) << 2;
+	eightValues[2] |= (dataBlock[1] & 0b1100000000000000) >> 14;
+	eightValues[3] = (dataBlock[1] & 0b0011111100000000) >> 8;
+	eightValues[4] = (dataBlock[1] & 0b0000000011111100) >> 2;
+	eightValues[5] = (dataBlock[1] & 0b0000000000000011) << 4;
+	eightValues[5] |= (dataBlock[2] & 0b1111000000000000) >> 12;
+	eightValues[6] = (dataBlock[2] & 0b0000111111000000) >> 6;
+	eightValues[7] = (dataBlock[2] & 0b0000000000111111);;
+
+	unpackArrayOfInt16(eightValues, 8, 6);
+}
+
+int BitCompressors::SixBit::getAllowedBitRange() const
+{
+	return 6;
+}
+
+
+bool BitCompressors::SixBit::compress(uint8* destination, const int16* data, int numValues)
+{
+	while (numValues >= 8)
+	{
+		compress6Bit(destination, data);
+
+		data += 8;
+		destination += 6;
+		numValues -= 8;
+	}
+
+	memcpy(destination, data, sizeof(int16) * numValues);
+
+	return true;
+}
+
+bool BitCompressors::SixBit::decompress(int16* destination, const uint8* data, int numValuesToDecompress)
+{
+	while (numValuesToDecompress >= 8)
+	{
+		decompress6Bit(destination, data);
+
+		destination += 8;
+		data += 6;
+		numValuesToDecompress -= 8;
+	}
+
+	memcpy(destination, data, sizeof(int16) * numValuesToDecompress);
+
+	return true;
+}
+
+int BitCompressors::SixBit::getByteAmount(int numValuesToCompress)
+{
+	// 8 values => 48 bit = 6 bytes
+
+	auto fullBytes = (6 * numValuesToCompress) / 8;
+	auto remainder = 2 * (numValuesToCompress % 8);
+
+	return fullBytes + remainder;
+}
+
+
 int BitCompressors::EightBit::getAllowedBitRange() const
 {
 	return 8;
@@ -356,101 +569,111 @@ int BitCompressors::EightBit::getByteAmount(int numValuesToCompress)
 	return numValuesToCompress;
 }
 
-
-
-void printRuler()
+void compress10Bit(void* tenBytes, const int16* eightValues)
 {
-#if JUCE_DEBUG
-	const char* str = "4   3   2   1   ";
-	DBG(str);
-#endif
+	uint16 pData[8];
+
+	pData[0] = compressInt16(eightValues[0], 10);
+	pData[1] = compressInt16(eightValues[1], 10);
+	pData[2] = compressInt16(eightValues[2], 10);
+	pData[3] = compressInt16(eightValues[3], 10);
+	pData[4] = compressInt16(eightValues[4], 10);
+	pData[5] = compressInt16(eightValues[5], 10);
+	pData[6] = compressInt16(eightValues[6], 10);
+	pData[7] = compressInt16(eightValues[7], 10);
+
+
+	uint16* fiveShorts = reinterpret_cast<uint16*>(tenBytes);
+
+	fiveShorts[0] = pData[0] << 6;
+	fiveShorts[0] |= pData[1] >> 4;
+	fiveShorts[1] = pData[1] << 12;
+	fiveShorts[1] |= pData[2] << 2;
+	fiveShorts[1] |= pData[3] >> 8;
+	fiveShorts[2] = pData[3] << 8;
+	fiveShorts[2] |= pData[4] >> 2;
+	fiveShorts[3] = pData[4] << 14;
+	fiveShorts[3] |= pData[5] << 4;
+	fiveShorts[3] |= pData[6] >> 6;
+	fiveShorts[4] = pData[6] << 10;
+	fiveShorts[4] |= pData[7];
 }
 
-#if 0
-void printBinary(int val)
+void decompress10Bit(uint16* eightValues, void* tenBytes)
 {
-	int i;
-	char str[33];
-	for (i = 31; i >= 0; i--)
-		str[31 - i] = '0' + ((val >> i) & 0x1);
-	str[32] = 0;
-	puts(str);
-	return;
-}
-#endif
+	const uint16* dataBlock = reinterpret_cast<const uint16*>(tenBytes);
 
-void printBinary(int16 val)
-{
-	int i;
-	char str[17];
-	for (i = 15; i >= 0; i--)
-		str[15 - i] = '0' + ((val >> i) & 0x1);
-	str[16] = 0;
-	DBG(str);
-	return;
-}
+	eightValues[0] = (dataBlock[0] & 0b1111111111000000) >> 6;
+	eightValues[1] = (dataBlock[0] & 0b0000000000111111) << 4;
+	eightValues[1] |= (dataBlock[1] & 0b1111000000000000) >> 12;
+	eightValues[2] = (dataBlock[1] & 0b0000111111111100) >> 2;
+	eightValues[3] = (dataBlock[1] & 0b0000000000000011) << 8;
+	eightValues[3] |= (dataBlock[2] & 0b1111111100000000) >> 8;
+	eightValues[4] = (dataBlock[2] & 0b0000000011111111) << 2;
+	eightValues[4] |= (dataBlock[3] & 0b1100000000000000) >> 14;
+	eightValues[5] = (dataBlock[3] & 0b0011111111110000) >> 4;
+	eightValues[6] = (dataBlock[3] & 0b0000000000001111) << 6;
+	eightValues[6] |= (dataBlock[4] & 0b1111110000000000) >> 10;
+	eightValues[7] = (dataBlock[4] & 0b0000001111111111);
 
-
-uint16 compressInt16(int16 input, int bitDepth)
-{
-	const int a = (1 << (bitDepth - 1)) - 1;
-	return (uint16)((int)input + a);
+	eightValues[0] = decompressUInt16(eightValues[0], 10);
+	eightValues[1] = decompressUInt16(eightValues[1], 10);
+	eightValues[2] = decompressUInt16(eightValues[2], 10);
+	eightValues[3] = decompressUInt16(eightValues[3], 10);
+	eightValues[4] = decompressUInt16(eightValues[4], 10);
+	eightValues[5] = decompressUInt16(eightValues[5], 10);
+	eightValues[6] = decompressUInt16(eightValues[6], 10);
+	eightValues[7] = decompressUInt16(eightValues[7], 10);
 }
 
-void compressInt16Block(int16* input, int16* output, int bitDepth, int numToCompress)
+int BitCompressors::TenBit::getAllowedBitRange() const
 {
-	auto inputIpp = reinterpret_cast<Ipp16u*>(input);
-	auto outputIpp = reinterpret_cast<Ipp16u*>(output);
-
-	const uint16 signMask = 0b1000000000000000;
-
-	ippsAbs_16s(input, output, numToCompress);
-	ippsAndC_16u_I(signMask, inputIpp, numToCompress);
-	ippsRShiftC_16s_I(16 - bitDepth, input, numToCompress);
-	ippsOr_16u_I(inputIpp, outputIpp, numToCompress);
+	return 10;
 }
 
-constexpr uint16 getBitMask(int bitDepth) { return (1 << (bitDepth - 1)) - 1; }
-
-int16 decompressUInt16(uint16 input, int bitDepth)
+bool BitCompressors::TenBit::compress(uint8* destination, const int16* data, int numValues)
 {
-	const int16 sub = (1 << (bitDepth - 1)) - 1;
-	return (int16)input - sub;
-}
-
-void decompressInt16Block(int16* input, int16* output, uint8 bitDepth, int numToCompress)
-{
-	auto ippInput = reinterpret_cast<Ipp16u*>(input);
-	auto ippOutput = reinterpret_cast<Ipp16u*>(output);
-
-	const uint16 signMask =  0b0000000000000010;
-	const uint16 valueMask = 0b0000011111111111;
-	const uint8 shiftAmount = bitDepth - 2;
-
-	ippsAndC_16u(ippInput, valueMask, ippOutput, numToCompress);
-	ippsRShiftC_16u_I(shiftAmount, ippInput, numToCompress);
-	ippsAndC_16u_I(signMask, ippInput, numToCompress);
-	ippsMulC_16s_I(-1, input, numToCompress);
-	ippsAddC_16s_I(1, input, numToCompress);
-	ippsMul_16s_I(input, output, numToCompress);
-}
-
-
-void packArrayOfInt16(int16* d, int numValues, uint8 bitDepth)
-{
-	for (int i = 0; i < numValues; i++)
+	while (numValues >= 8)
 	{
-		d[i] = compressInt16(d[i], bitDepth);
+		compress10Bit((void*)destination, data);
+
+		data += 8;
+		destination += 10;
+		numValues -= 8;
 	}
+
+	memcpy(destination, data, sizeof(int16) * numValues);
+
+	return true;
 }
 
-
-void unpackArrayOfInt16(int16* d, int numValues, uint8 bitDepth)
+bool BitCompressors::TenBit::decompress(int16* destination, const uint8* data, int numValuesToDecompress)
 {
-	for (int i = 0; i < numValues; i++)
+	while (numValuesToDecompress >= 8)
 	{
-		d[i] = decompressUInt16(d[i], bitDepth);
+		decompress10Bit(reinterpret_cast<uint16*>(destination), (void*)data);
+
+		destination += 8;
+		data += 10;
+		numValuesToDecompress -= 8;
 	}
+
+	memcpy(destination, data, sizeof(int16) * numValuesToDecompress);
+
+	return true;
+}
+
+int BitCompressors::TenBit::getByteAmount(int numValuesToCompress)
+{
+	const int fullBytes = numValuesToCompress * 5 / 4;
+	const int remainder = (numValuesToCompress % 8) * 2;
+
+	return fullBytes + remainder;
+}
+
+int BitCompressors::TwelveBit::getAllowedBitRange() const
+{
+	return 12;
 }
 
 
@@ -559,6 +782,8 @@ bool BitCompressors::TwelveBit::decompress(int16* destination, const uint8* data
 	return true;
 }
 
+
+
 int BitCompressors::TwelveBit::getByteAmount(int numValuesToCompress)
 {
 	const int fullBytes = 6 * numValuesToCompress / 4;
@@ -566,6 +791,104 @@ int BitCompressors::TwelveBit::getByteAmount(int numValuesToCompress)
 
 	return fullBytes + remainder;
 }
+
+
+
+
+
+void compress14Bit(uint8* fourteenBytes, const int16* eightValues)
+{
+	uint16* sevenShorts = reinterpret_cast<uint16*>(fourteenBytes);
+
+	int16 pData[8];
+	memcpy(pData, eightValues, 16);
+
+	packArrayOfInt16(pData, 8, 14);
+
+	sevenShorts[0] = pData[0] << 2;
+	sevenShorts[0] |= pData[1] >> 12;
+	sevenShorts[1] = pData[1] << 4;
+	sevenShorts[1] |= pData[2] >> 10;
+	sevenShorts[2] = pData[2] << 6;
+	sevenShorts[2] |= pData[3] >> 8;
+	sevenShorts[3] = pData[3] << 8;
+	sevenShorts[3] |= pData[4] >> 6;
+	sevenShorts[4] = pData[4] << 10;
+	sevenShorts[4] |= pData[5] >> 4;
+	sevenShorts[5] = pData[5] << 12;
+	sevenShorts[5] |= pData[6] >> 2;
+	sevenShorts[6] = pData[6] << 14;
+	sevenShorts[6] |= pData[7];
+}
+
+void decompress14Bit(int16* eightValues, const uint8* fourteenBytes)
+{
+	const uint16* dataBlock = reinterpret_cast<const uint16*>(fourteenBytes);
+
+	eightValues[0] = (dataBlock[0] & 0b1111111111111100) >> 2;
+	eightValues[1] = (dataBlock[0] & 0b0000000000000011) << 12;
+	eightValues[1] |= (dataBlock[1] & 0b1111111111110000) >> 4;
+	eightValues[2] = (dataBlock[1] & 0b0000000000001111) << 10;
+	eightValues[2] |= (dataBlock[2] & 0b1111111111000000) >> 6;
+	eightValues[3] = (dataBlock[2] & 0b0000000000111111) << 8;
+	eightValues[3] |= (dataBlock[3] & 0b1111111100000000) >> 8;
+	eightValues[4] = (dataBlock[3] & 0b0000000011111111) << 6;
+	eightValues[4] |= (dataBlock[4] & 0b1111110000000000) >> 10;
+	eightValues[5] = (dataBlock[4] & 0b0000001111111111) << 4;
+	eightValues[5] |= (dataBlock[5] & 0b1111000000000000) >> 12;
+	eightValues[6] = (dataBlock[5] & 0b0000111111111111) << 2;
+	eightValues[6] |= (dataBlock[6] & 0b1100000000000000) >> 14;
+	eightValues[7] = (dataBlock[6] & 0b0011111111111111);
+
+	unpackArrayOfInt16(eightValues, 8, 14);
+}
+
+int BitCompressors::FourteenBit::getAllowedBitRange() const
+{
+	return 14;
+}
+
+bool BitCompressors::FourteenBit::compress(uint8* destination, const int16* data, int numValues)
+{
+	while (numValues >= 8)
+	{
+		compress14Bit(destination, data);
+		data += 8;
+		destination += 14;
+		numValues -= 8;
+	}
+
+	memcpy(destination, data, sizeof(int16) * numValues);
+
+	return true;
+}
+
+bool BitCompressors::FourteenBit::decompress(int16* destination, const uint8* data, int numValuesToDecompress)
+{
+	while (numValuesToDecompress >= 8)
+	{
+		decompress14Bit(destination, data);
+
+		destination += 8;
+		data += 14;
+		numValuesToDecompress -= 8;
+	}
+
+	memcpy(destination, data, sizeof(int16) * numValuesToDecompress);
+
+	return true;
+}
+
+int BitCompressors::FourteenBit::getByteAmount(int numValuesToCompress)
+{
+	// 8 values => 112 bit = 7 bytes;
+
+	auto fullBytes = (14 * numValuesToCompress) / 8;
+	auto remainder = 2 * (numValuesToCompress % 8);
+
+	return fullBytes + remainder;
+}
+
 
 int BitCompressors::SixteenBit::getAllowedBitRange() const
 {
@@ -825,113 +1148,11 @@ void BitCompressors::UnitTests::testCompressor(Base* compressor)
 
 
 
-int BitCompressors::TwelveBit::getAllowedBitRange() const
-{
-	return 12;
-}
 
 
-void compress10Bit(void* tenBytes, const int16* eightValues)
-{
-	uint16 pData[8];
-
-	pData[0] = compressInt16(eightValues[0], 10);
-	pData[1] = compressInt16(eightValues[1], 10);
-	pData[2] = compressInt16(eightValues[2], 10);
-	pData[3] = compressInt16(eightValues[3], 10);
-	pData[4] = compressInt16(eightValues[4], 10);
-	pData[5] = compressInt16(eightValues[5], 10);
-	pData[6] = compressInt16(eightValues[6], 10);
-	pData[7] = compressInt16(eightValues[7], 10);
 
 
-	uint16* fiveShorts = reinterpret_cast<uint16*>(tenBytes);
 
-	fiveShorts[0] = pData[0] << 6;
-	fiveShorts[0] |= pData[1] >> 4;
-	fiveShorts[1] = pData[1] << 12;
-	fiveShorts[1] |= pData[2] << 2;
-	fiveShorts[1] |= pData[3] >> 8;
-	fiveShorts[2] = pData[3] << 8;
-	fiveShorts[2] |= pData[4] >> 2;
-	fiveShorts[3] = pData[4] << 14;
-	fiveShorts[3] |= pData[5] << 4;
-	fiveShorts[3] |= pData[6] >> 6;
-	fiveShorts[4] = pData[6] << 10;
-	fiveShorts[4] |= pData[7];
-}
-
-void decompress10Bit(uint16* eightValues, void* tenBytes)
-{
-	const uint16* dataBlock = reinterpret_cast<const uint16*>(tenBytes);
-
-	eightValues[0] = (dataBlock[0] & 0b1111111111000000) >> 6;
-	eightValues[1] = (dataBlock[0] & 0b0000000000111111) << 4;
-	eightValues[1] |= (dataBlock[1] & 0b1111000000000000) >> 12;
-	eightValues[2] = (dataBlock[1] & 0b0000111111111100) >> 2;
-	eightValues[3] = (dataBlock[1] & 0b0000000000000011) << 8;
-	eightValues[3] |= (dataBlock[2] & 0b1111111100000000) >> 8;
-	eightValues[4] = (dataBlock[2] & 0b0000000011111111) << 2;
-	eightValues[4] |= (dataBlock[3] & 0b1100000000000000) >> 14;
-	eightValues[5] = (dataBlock[3] & 0b0011111111110000) >> 4;
-	eightValues[6] = (dataBlock[3] & 0b0000000000001111) << 6;
-	eightValues[6] |= (dataBlock[4] & 0b1111110000000000) >> 10;
-	eightValues[7] = (dataBlock[4] & 0b0000001111111111);
-
-	eightValues[0] = decompressUInt16(eightValues[0], 10);
-	eightValues[1] = decompressUInt16(eightValues[1], 10);
-	eightValues[2] = decompressUInt16(eightValues[2], 10);
-	eightValues[3] = decompressUInt16(eightValues[3], 10);
-	eightValues[4] = decompressUInt16(eightValues[4], 10);
-	eightValues[5] = decompressUInt16(eightValues[5], 10);
-	eightValues[6] = decompressUInt16(eightValues[6], 10);
-	eightValues[7] = decompressUInt16(eightValues[7], 10);
-}
-
-int BitCompressors::TenBit::getAllowedBitRange() const
-{
-	return 10;
-}
-
-bool BitCompressors::TenBit::compress(uint8* destination, const int16* data, int numValues)
-{
-	while (numValues >= 8)
-	{
-		compress10Bit((void*)destination, data);
-
-		data += 8;
-		destination += 10;
-		numValues -= 8;
-	}
-
-	memcpy(destination, data, sizeof(int16) * numValues);
-
-	return true;
-}
-
-bool BitCompressors::TenBit::decompress(int16* destination, const uint8* data, int numValuesToDecompress)
-{
-	while (numValuesToDecompress >= 8)
-	{
-		decompress10Bit(reinterpret_cast<uint16*>(destination), (void*)data);
-
-		destination += 8;
-		data += 10;
-		numValuesToDecompress -= 8;
-	}
-
-	memcpy(destination, data, sizeof(int16) * numValuesToDecompress);
-
-	return true;
-}
-
-int BitCompressors::TenBit::getByteAmount(int numValuesToCompress)
-{
-	const int fullBytes = numValuesToCompress * 5 / 4;
-	const int remainder = (numValuesToCompress % 8) * 2;
-
-	return fullBytes + remainder;
-}
 
 uint8 BitCompressors::getMinBitDepthForData(const int16* data, int numValues, int8 expectedBitDepth)
 {
@@ -1055,210 +1276,4 @@ int BitCompressors::Collection::getNumBytesForBitRate(uint8 bitRate, int element
 	
 }
 
-int BitCompressors::SixBit::getAllowedBitRange() const
-{
-	return 6;
-}
 
-
-void compress6Bit(uint8* sixBytes, const int16* eightValues)
-{
-	uint16* threeShorts = reinterpret_cast<uint16*>(sixBytes);
-
-	int16 pData[8];
-	memcpy(pData, eightValues, 16);
-
-	packArrayOfInt16(pData, 8, 6);
-
-	threeShorts[0] = pData[0] << 10;
-	threeShorts[0] |= pData[1] << 4;
-	threeShorts[0] |= pData[2] >> 2;
-	threeShorts[1] = pData[2] << 14;
-	threeShorts[1] |= pData[3] << 8;
-	threeShorts[1] |= pData[4] << 2;
-	threeShorts[1] |= pData[5] >> 4;
-	threeShorts[2] = pData[5] << 12;
-	threeShorts[2] |= pData[6] << 6;
-	threeShorts[2] |= pData[7];
-}
-
-void decompress6Bit(int16* eightValues, const uint8* sixBytes)
-{
-	const uint16* dataBlock = reinterpret_cast<const uint16*>(sixBytes);
-
-	eightValues[0] = (dataBlock[0] & 0b1111110000000000) >> 10;
-	eightValues[1] = (dataBlock[0] & 0b0000001111110000) >> 4;
-	eightValues[2] = (dataBlock[0] & 0b0000000000001111) << 2;
-	eightValues[2] |= (dataBlock[1] & 0b1100000000000000) >> 14;
-	eightValues[3] = (dataBlock[1] & 0b0011111100000000) >> 8;
-	eightValues[4] = (dataBlock[1] & 0b0000000011111100) >> 2;
-	eightValues[5] = (dataBlock[1] & 0b0000000000000011) << 4;
-	eightValues[5] |= (dataBlock[2] & 0b1111000000000000) >> 12;
-	eightValues[6] = (dataBlock[2] & 0b0000111111000000) >> 6;
-	eightValues[7] = (dataBlock[2] & 0b0000000000111111);;
-
-	unpackArrayOfInt16(eightValues, 8, 6);
-}
-
-
-bool BitCompressors::SixBit::compress(uint8* destination, const int16* data, int numValues)
-{
-	while (numValues >= 8)
-	{
-		compress6Bit(destination, data);
-
-		data += 8;
-		destination += 6;
-		numValues -= 8;
-	}
-
-	memcpy(destination, data, sizeof(int16) * numValues);
-
-	return true;
-}
-
-bool BitCompressors::SixBit::decompress(int16* destination, const uint8* data, int numValuesToDecompress)
-{
-	while (numValuesToDecompress >= 8)
-	{
-		decompress6Bit(destination, data);
-
-		destination += 8;
-		data += 6;
-		numValuesToDecompress -= 8;
-	}
-
-	memcpy(destination, data, sizeof(int16) * numValuesToDecompress);
-
-	return true;
-}
-
-int BitCompressors::SixBit::getByteAmount(int numValuesToCompress)
-{
-	// 8 values => 48 bit = 6 bytes
-
-	auto fullBytes = (6 * numValuesToCompress) / 8;
-	auto remainder = 2 * (numValuesToCompress % 8);
-
-	return fullBytes + remainder;
-}
-
-int BitCompressors::FourteenBit::getAllowedBitRange() const
-{
-	return 14;
-}
-
-
-void compress14Bit(uint8* fourteenBytes, const int16* eightValues)
-{
-	uint16* sevenShorts = reinterpret_cast<uint16*>(fourteenBytes);
-
-	int16 pData[8];
-	memcpy(pData, eightValues, 16);
-
-	packArrayOfInt16(pData, 8, 14);
-
-	sevenShorts[0] = pData[0] << 2;
-	sevenShorts[0] |= pData[1] >> 12;
-	sevenShorts[1] = pData[1] << 4;
-	sevenShorts[1] |= pData[2] >> 10;
-	sevenShorts[2] = pData[2] << 6;
-	sevenShorts[2] |= pData[3] >> 8;
-	sevenShorts[3] = pData[3] << 8;
-	sevenShorts[3] |= pData[4] >> 6;
-	sevenShorts[4] = pData[4] << 10;
-	sevenShorts[4] |= pData[5] >> 4;
-	sevenShorts[5] = pData[5] << 12;
-	sevenShorts[5] |= pData[6] >> 2;
-	sevenShorts[6] = pData[6] << 14;
-	sevenShorts[6] |= pData[7];
-}
-
-void decompress14Bit(int16* eightValues, const uint8* fourteenBytes)
-{
-	const uint16* dataBlock = reinterpret_cast<const uint16*>(fourteenBytes);
-
-	eightValues[0] = (dataBlock[0] & 0b1111111111111100) >> 2;
-	eightValues[1] = (dataBlock[0] & 0b0000000000000011) << 12;
-	eightValues[1] |= (dataBlock[1] & 0b1111111111110000) >> 4;
-	eightValues[2] = (dataBlock[1] & 0b0000000000001111) << 10;
-	eightValues[2] |= (dataBlock[2] & 0b1111111111000000) >> 6;
-	eightValues[3] = (dataBlock[2] & 0b0000000000111111) << 8;
-	eightValues[3] |= (dataBlock[3] & 0b1111111100000000) >> 8;
-	eightValues[4] = (dataBlock[3] & 0b0000000011111111) << 6;
-	eightValues[4] |= (dataBlock[4] & 0b1111110000000000) >> 10;
-	eightValues[5] = (dataBlock[4] & 0b0000001111111111) << 4;
-	eightValues[5] |= (dataBlock[5] & 0b1111000000000000) >> 12;
-	eightValues[6] = (dataBlock[5] & 0b0000111111111111) << 2;
-	eightValues[6] |= (dataBlock[6] & 0b1100000000000000) >> 14;
-	eightValues[7] = (dataBlock[6] & 0b0011111111111111);
-
-	unpackArrayOfInt16(eightValues, 8, 14);
-}
-
-bool BitCompressors::FourteenBit::compress(uint8* destination, const int16* data, int numValues)
-{
-	while (numValues >= 8)
-	{
-		compress14Bit(destination, data);
-		data += 8;
-		destination += 14;
-		numValues -= 8;
-	}
-
-	memcpy(destination, data, sizeof(int16) * numValues);
-
-	return true;
-}
-
-bool BitCompressors::FourteenBit::decompress(int16* destination, const uint8* data, int numValuesToDecompress)
-{
-	while (numValuesToDecompress >= 8)
-	{
-		decompress14Bit(destination, data);
-
-		destination += 8;
-		data += 14;
-		numValuesToDecompress -= 8;
-	}
-
-	memcpy(destination, data, sizeof(int16) * numValuesToDecompress);
-
-	return true;
-}
-
-int BitCompressors::FourteenBit::getByteAmount(int numValuesToCompress)
-{
-	// 8 values => 112 bit = 7 bytes;
-
-	auto fullBytes = (14 * numValuesToCompress) / 8;
-	auto remainder = 2 * (numValuesToCompress % 8);
-
-	return fullBytes + remainder;
-}
-
-int BitCompressors::ZeroBit::getAllowedBitRange() const
-{
-	return 0;
-}
-
-bool BitCompressors::ZeroBit::compress(uint8* destination, const int16* data, int numValues)
-{
-	ignoreUnused(destination, data, numValues);
-
-	return true;
-}
-
-bool BitCompressors::ZeroBit::decompress(int16* destination, const uint8* data, int numValuesToDecompress)
-{
-	ignoreUnused(destination, data, numValuesToDecompress);
-
-	return true;
-}
-
-int BitCompressors::ZeroBit::getByteAmount(int numValuesToCompress)
-{
-	ignoreUnused(numValuesToCompress);
-
-	return 0;
-}
