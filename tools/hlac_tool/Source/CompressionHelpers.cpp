@@ -265,8 +265,15 @@ AudioSampleBuffer CompressionHelpers::getPart(AudioSampleBuffer& b, int channelI
 
 int CompressionHelpers::getPaddedSampleSize(int samplesNeeded)
 {
-	int blocks = samplesNeeded / COMPRESSION_BLOCK_SIZE + 1;
-	return blocks * COMPRESSION_BLOCK_SIZE;
+    if(samplesNeeded % COMPRESSION_BLOCK_SIZE == 0)
+    {
+        return samplesNeeded;
+    }
+    else
+    {
+        int blocks = samplesNeeded / COMPRESSION_BLOCK_SIZE + 1;
+        return blocks * COMPRESSION_BLOCK_SIZE;
+    }
 }
 
 uint8 CompressionHelpers::getBitReductionForDifferential(AudioBufferInt16& b)
@@ -314,7 +321,12 @@ void CompressionHelpers::dump(const AudioBufferInt16& b)
 void CompressionHelpers::dump(const AudioSampleBuffer& b)
 {
 	WavAudioFormat afm;
+    
+#if JUCE_WINDOWS
 	File dumpFile("D:\\compressionTest\\dump.wav");
+#else
+    File dumpFile("/Volumes/Shared/compressionTest/dump.wav");
+#endif
 
 
 
@@ -328,13 +340,18 @@ void CompressionHelpers::dump(const AudioSampleBuffer& b)
 
 float CompressionHelpers::checkBuffersEqual(AudioSampleBuffer& workBuffer, AudioSampleBuffer& referenceBuffer)
 {
-	jassert(workBuffer.getNumSamples() >= referenceBuffer.getNumSamples());
+    int numToCheck = referenceBuffer.getNumSamples();
+    
+    jassert(workBuffer.getNumSamples() % COMPRESSION_BLOCK_SIZE == 0);
+    
+    
+	jassert(workBuffer.getNumSamples() >= numToCheck);
 
 	AudioBufferInt16 wbInt(workBuffer, false);
 	AudioBufferInt16 rbInt(referenceBuffer, false);
 
-	IntVectorOperations::sub(wbInt.getWritePointer(), rbInt.getReadPointer(), rbInt.size);
-
+	IntVectorOperations::sub(wbInt.getWritePointer(), rbInt.getReadPointer(), numToCheck);
+    
 	auto br = getPossibleBitReductionAmount(wbInt);
 
 	if (br != 0)
@@ -344,10 +361,12 @@ float CompressionHelpers::checkBuffersEqual(AudioSampleBuffer& workBuffer, Audio
 		float* w = workBuffer.getWritePointer(0);
 		const float* r = referenceBuffer.getReadPointer(0);
 
-		FloatVectorOperations::subtract(w, r, workBuffer.getNumSamples());
+		FloatVectorOperations::subtract(w, r, numToCheck);
 
-		float x = workBuffer.getMagnitude(0, workBuffer.getNumSamples());
+		float x = workBuffer.getMagnitude(0, numToCheck);
 
+        DUMP(workBuffer);
+        
 		float db = Decibels::gainToDecibels(x);
 
 		if (db > -96.0f)
@@ -360,7 +379,7 @@ float CompressionHelpers::checkBuffersEqual(AudioSampleBuffer& workBuffer, Audio
 			float minValue = 1000.0f;
 			float maxValue = -1000.0f;
 
-			for (int i = 0; i < referenceBuffer.getNumSamples(); i++)
+			for (int i = 0; i < numToCheck; i++)
 			{
 				auto thisValue = workBuffer.getSample(0, i);
 
@@ -380,7 +399,7 @@ float CompressionHelpers::checkBuffersEqual(AudioSampleBuffer& workBuffer, Audio
 			DBG("Min index: " + String(minIndex) + ", value: " + String(minValue));
 			DBG("Max index: " + String(maxIndex) + ", value: " + String(maxValue));
 		}
-
+        
 		return db;
 	}
 
@@ -673,4 +692,27 @@ void CompressionHelpers::Diff::addErrorSignal(AudioBufferInt16& dst, const uint1
 
 	d[1] -= e[0];
 	d[2] -= e[1];
+}
+
+uint64 CompressionHelpers::Misc::NumberOfSetBits(uint64 i)
+{
+#if JUCE_MSVC
+	return __popcnt64(i);
+#endif
+}
+
+uint8 CompressionHelpers::Misc::getSampleRateIndex(double sampleRate)
+{
+	if (sampleRate == 44100.0)
+		return 0;
+	if (sampleRate == 48000.0)
+		return 1;
+	if (sampleRate == 88200.0)
+		return 2;
+	if (sampleRate == 96000.0)
+		return 3;
+
+	jassertfalse;
+
+	return 0;
 }

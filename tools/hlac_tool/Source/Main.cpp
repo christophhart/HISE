@@ -36,6 +36,12 @@ int main(int argc, char **argv)
 
 	Logger::setCurrentLogger(l);
 
+    
+    UnitTestRunner runner;
+    runner.setAssertOnFailure(false);
+    
+    //runner.runAllTests();
+    
 	if (argc != 2)
 	{
 		Logger::writeToLog("HISE Lossless Audio Codec Test tool");
@@ -47,10 +53,6 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	UnitTestRunner runner;
-	runner.setAssertOnFailure(false);
-
-	//runner.runAllTests();
 
 	File root(argv[1]);
 
@@ -58,7 +60,7 @@ int main(int argc, char **argv)
 
 	root.findChildFiles(testSamples, File::findFiles, true);
 
-	bool useBlock = true;
+    bool useBlock = true;
 	bool useDelta = true;
 	bool useDiff = true;
 	bool checkWithFlac = true;
@@ -78,6 +80,10 @@ int main(int argc, char **argv)
 	double s;
 
 	int numFilesChecked = 0;
+
+
+	HiseLosslessAudioFormat hlac;
+
 
 	for (auto f : testSamples)
 	{
@@ -140,14 +146,6 @@ int main(int argc, char **argv)
 
 		}
 
-		
-		MemoryOutputStream mos;
-
-		HlacEncoder encoder;
-		HlacDecoder decoder;
-
-		HiseLosslessAudioFormat hlac;
-
 		StringPairArray emptyMetadata;
 
 		if (useBlock)
@@ -171,8 +169,13 @@ int main(int argc, char **argv)
 			
 			r = blockWriter->getCompressionRatioForLastFile();
 
+			blockWriter->flush();
+
 			AudioSampleBuffer b2(b.getNumChannels(), CompressionHelpers::getPaddedSampleSize(b.getNumSamples()));
+
 			MemoryInputStream* blockMis = new MemoryInputStream(blockMos->getMemoryBlock(), true);
+
+
 			ScopedPointer<HiseLosslessAudioFormatReader> blockReader = dynamic_cast<HiseLosslessAudioFormatReader*>(hlac.createReaderFor(blockMis, false));
 
 			blockReader->read(&b2, 0, b2.getNumSamples(), 0, true, true);
@@ -211,15 +214,20 @@ int main(int argc, char **argv)
 			deltaWriter->writeFromAudioSampleBuffer(b, 0, b.getNumSamples());
 
 			r = deltaWriter->getCompressionRatioForLastFile();
-
+			deltaWriter->flush();
 
 			AudioSampleBuffer b3(b.getNumChannels(), CompressionHelpers::getPaddedSampleSize(b.getNumSamples()));
 			
+            FloatVectorOperations::fill(b3.getWritePointer(0), 1.0f, b3.getNumSamples());
+			
+
 			MemoryInputStream* deltaMis = new MemoryInputStream(deltaMos->getMemoryBlock(), true);
 			ScopedPointer<HiseLosslessAudioFormatReader> deltaReader = dynamic_cast<HiseLosslessAudioFormatReader*>(hlac.createReaderFor(deltaMis, false));
 
 			deltaReader->read(&b3, 0, b3.getNumSamples(), 0, true, true);
 
+            
+            
 			deltaSpeed += deltaReader->getDecompressionPerformanceForLastFile();
 
 			CompressionHelpers::checkBuffersEqual(b3, b);
@@ -227,8 +235,6 @@ int main(int argc, char **argv)
 			Logger::writeToLog("Compressing with delta:  " + String(r, 3));
 
 			deltaRatio += r;
-			mos.reset();
-			encoder.reset();
 		}
 
 		if (useDiff)
@@ -254,10 +260,12 @@ int main(int argc, char **argv)
 			r = diffWriter->getCompressionRatioForLastFile();
 
 			diffRatio += r;
-			encoder.reset();
+
+			diffWriter->flush();
 
 			AudioSampleBuffer b2(b.getNumChannels(), CompressionHelpers::getPaddedSampleSize(b.getNumSamples()));
-			MemoryInputStream mis(mos.getMemoryBlock(), true);
+			
+			FloatVectorOperations::fill(b2.getWritePointer(0), 1.0f, b2.getNumSamples());
 
 			MemoryInputStream* diffMis = new MemoryInputStream(diffMos->getMemoryBlock(), true);
 			ScopedPointer<HiseLosslessAudioFormatReader> diffReader = dynamic_cast<HiseLosslessAudioFormatReader*>(hlac.createReaderFor(diffMis, false));
@@ -269,8 +277,6 @@ int main(int argc, char **argv)
 			CompressionHelpers::checkBuffersEqual(b2, b);
 
 			Logger::writeToLog("Compressing with diff: " + String(r, 3));
-
-			mos.reset();
 		}
 	}
 

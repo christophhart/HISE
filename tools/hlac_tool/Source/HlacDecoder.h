@@ -62,7 +62,7 @@ private:
 
 	void decodeCycle(const CycleHeader& header, AudioSampleBuffer& destination, InputStream& input, int channelIndex);
 
-	CycleHeader HlacDecoder::readCycleHeader(InputStream& input);
+	CycleHeader readCycleHeader(InputStream& input);
 
 	BitCompressors::Collection collection;
 
@@ -70,7 +70,7 @@ private:
 
 	CompressionHelpers::AudioBufferInt16 workBuffer;
 
-	uint16 indexInBlock;
+	uint16 indexInBlock = 0;
 
 	uint32 numBytesWritten = 0;
 

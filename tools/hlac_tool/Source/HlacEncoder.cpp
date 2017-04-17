@@ -12,16 +12,21 @@
 
 
 
-void HlacEncoder::compress(AudioSampleBuffer& source, OutputStream& output)
+void HlacEncoder::compress(AudioSampleBuffer& source, OutputStream& output, uint32* blockOffsetData)
 {
 	bool compressStereo = source.getNumChannels() == 2;
 
 	if (source.getNumSamples() == COMPRESSION_BLOCK_SIZE)
 	{
+		blockOffsetData[blockIndex] = numBytesWritten;
+		++blockIndex;
+
 		if (compressStereo)
 		{
-			encodeBlock(CompressionHelpers::getPart(source, 0, 0, COMPRESSION_BLOCK_SIZE), output);
-			encodeBlock(CompressionHelpers::getPart(source, 1, 0, COMPRESSION_BLOCK_SIZE), output);
+            auto l = CompressionHelpers::getPart(source, 0, 0, COMPRESSION_BLOCK_SIZE);
+			encodeBlock(l, output);
+            auto r = CompressionHelpers::getPart(source, 1, 0, COMPRESSION_BLOCK_SIZE);
+			encodeBlock(r, output);
 		}
 		else
 			encodeBlock(source, output);
@@ -34,16 +39,22 @@ void HlacEncoder::compress(AudioSampleBuffer& source, OutputStream& output)
 
 	while (numSamplesRemaining >= COMPRESSION_BLOCK_SIZE)
 	{
+		blockOffsetData[blockIndex] = numBytesWritten;
+		++blockIndex;
+
 		uint32 numTodo = jmin<int>(COMPRESSION_BLOCK_SIZE, source.getNumSamples());
 
 		if (compressStereo)
 		{
-			encodeBlock(CompressionHelpers::getPart(source, 0, blockOffset, numTodo), output);
-			encodeBlock(CompressionHelpers::getPart(source, 1, blockOffset, numTodo), output);
+            auto l = CompressionHelpers::getPart(source, 0, blockOffset, numTodo);
+			encodeBlock(l, output);
+            auto r = CompressionHelpers::getPart(source, 1, blockOffset, numTodo);
+			encodeBlock(r, output);
 		}
 		else
 		{
-			encodeBlock(CompressionHelpers::getPart(source, blockOffset, numTodo), output);
+            auto b = CompressionHelpers::getPart(source, blockOffset, numTodo);
+			encodeBlock(b, output);
 		}
 
 		
@@ -54,15 +65,24 @@ void HlacEncoder::compress(AudioSampleBuffer& source, OutputStream& output)
 
 	if (source.getNumSamples() - blockOffset > 0)
 	{
+		blockOffsetData[blockIndex] = numBytesWritten;
+		++blockIndex;
+
 		const int remaining = source.getNumSamples() - blockOffset;
 
 		if (compressStereo)
 		{
-			encodeLastBlock(CompressionHelpers::getPart(source, 0, blockOffset, remaining), output);
-			encodeLastBlock(CompressionHelpers::getPart(source, 1, blockOffset, remaining), output);
+            auto l = CompressionHelpers::getPart(source, 0, blockOffset, remaining);
+			encodeLastBlock(l, output);
+            auto r = CompressionHelpers::getPart(source, 1, blockOffset, remaining);
+			encodeLastBlock(r, output);
 		}
 		else
-			encodeLastBlock(CompressionHelpers::getPart(source, blockOffset, remaining), output);
+        {
+            auto b = CompressionHelpers::getPart(source, blockOffset, remaining);
+            encodeLastBlock(b, output);
+        }
+			
 	}
 }
 
@@ -72,6 +92,7 @@ void HlacEncoder::reset()
 	currentCycle = CompressionHelpers::AudioBufferInt16(COMPRESSION_BLOCK_SIZE);
 	workBuffer = CompressionHelpers::AudioBufferInt16(COMPRESSION_BLOCK_SIZE);
 	blockOffset = 0;
+	blockIndex = 0;
 	numBytesWritten = 0;
 	numBytesUncompressed = 0;
 	numTemplates = 0;
@@ -103,7 +124,7 @@ bool HlacEncoder::encodeBlock(CompressionHelpers::AudioBufferInt16& block16, Out
 
 	auto maxBitDepth = CompressionHelpers::getPossibleBitReductionAmount(block16);
 
-	LOG(String(numBytesUncompressed/2) + "\t\tNew Block with bit depth: " + String(maxBitDepth));
+	LOG("ENC " + String(numBytesUncompressed/2) + "\t\tNew Block with bit depth: " + String(maxBitDepth));
 
 	numBytesUncompressed += COMPRESSION_BLOCK_SIZE * 2;
 
@@ -117,7 +138,7 @@ bool HlacEncoder::encodeBlock(CompressionHelpers::AudioBufferInt16& block16, Out
 
 	while (!isBlockExhausted())
 	{
-		const int numRemaining = COMPRESSION_BLOCK_SIZE - indexInBlock;
+        int numRemaining = COMPRESSION_BLOCK_SIZE - indexInBlock;
 		auto rest = CompressionHelpers::getPart(block16, indexInBlock, numRemaining);
 
 		if (numRemaining <= 4)
@@ -191,6 +212,10 @@ bool HlacEncoder::encodeBlock(CompressionHelpers::AudioBufferInt16& block16, Out
 					nextCycle.size = nextCycleSize;
 
 					indexInBlock += nextCycle.size;
+                    
+                    numRemaining = COMPRESSION_BLOCK_SIZE - indexInBlock;
+                    
+                    jassert(indexInBlock <= COMPRESSION_BLOCK_SIZE);
 
 					encodeCycleDelta(nextCycle, output);
 
@@ -252,10 +277,9 @@ bool HlacEncoder::encodeCycle(CompressionHelpers::AudioBufferInt16& cycle, Outpu
 
 	auto compressor = collection.getSuitableCompressorForData(cycle.getReadPointer(), cycle.size);
 
-
 	auto numBytesToWrite = compressor->getByteAmount(cycle.size);
-
-	LOG(" " + String(blockOffset + indexInBlock) + "\t\t\tNew Template with bit depth " + String(compressor->getAllowedBitRange()) + ": " + String(cycle.size));
+    
+	LOG("ENC  " + String(blockOffset + indexInBlock-cycle.size) + "\t\t\tNew Template with bit depth " + String(compressor->getAllowedBitRange()) + ": " + String(cycle.size));
 
 	if (!writeCycleHeader(true, compressor->getAllowedBitRange(), cycle.size, output))
 		return false;
@@ -337,13 +361,18 @@ bool HlacEncoder::encodeDiff(CompressionHelpers::AudioBufferInt16& cycle, Output
 
 	numBytesWritten += numBytesForError;
 
-	LOG(" " + String(blockOffset + indexInBlock) + "\t\t\tNew Diff block bit depth " + String(compressorFull->getAllowedBitRange()) + " -> " + String(compressorError->getAllowedBitRange()) + ": " + String(cycle.size));
+	LOG("ENC  " + String(blockOffset + indexInBlock) + "\t\t\tNew Diff block bit depth " + String(compressorFull->getAllowedBitRange()) + " -> " + String(compressorError->getAllowedBitRange()) + ": " + String(cycle.size));
 
 	return true;
 }
 
 bool HlacEncoder::encodeCycleDelta(CompressionHelpers::AudioBufferInt16& nextCycle, OutputStream& output)
 {
+    if(nextCycle.size < 8)
+    {
+        return encodeCycle(nextCycle, output);
+    }
+    
 	++numDeltas;
 
 	//CompressionHelpers::AudioBufferInt16 workBuffer(nextCycle.size);
@@ -351,7 +380,7 @@ bool HlacEncoder::encodeCycleDelta(CompressionHelpers::AudioBufferInt16& nextCyc
 	auto compressor = collection.getSuitableCompressorForData(workBuffer.getReadPointer(), nextCycle.size);
 	auto numBytesToWrite = compressor->getByteAmount(nextCycle.size);
 
-	LOG("  " + String(blockOffset + indexInBlock) + "\t\t\t\tSave delta with bit rate " + String(compressor->getAllowedBitRange()) + ": " + String(nextCycle.size));
+	LOG("ENC   " + String(blockOffset + indexInBlock) + "\t\t\t\tSave delta with bit rate " + String(compressor->getAllowedBitRange()) + ": " + String(nextCycle.size));
 
 	if (!writeCycleHeader(false, compressor->getAllowedBitRange(), nextCycle.size, output))
 		return false;
@@ -433,7 +462,7 @@ void HlacEncoder::encodeLastBlock(AudioSampleBuffer& block, OutputStream& output
 
 	jassert(numZerosToPad > 0);
 
-	LOG("PADDING " + String(numZerosToPad));
+	LOG("ENC  PADDING " + String(numZerosToPad));
 
 	writeCycleHeader(true, 0, numZerosToPad, output);
 

@@ -44,10 +44,15 @@ void HlacDecoder::reset()
 
 bool HlacDecoder::decodeBlock(AudioSampleBuffer& destination, InputStream& input, int channelIndex)
 {
+    
 	indexInBlock = 0;
 
 	int numTodo = jmin<int>(destination.getNumSamples() - readIndex, COMPRESSION_BLOCK_SIZE);
 
+    
+    
+    LOG("DEC " + String(readIndex) + "\t\tNew Block");
+    
 	while (indexInBlock < numTodo)
 	{
 		auto header = readCycleHeader(input);
@@ -56,11 +61,15 @@ bool HlacDecoder::decodeBlock(AudioSampleBuffer& destination, InputStream& input
 			decodeDiff(header, destination, input, channelIndex);
 		else
 			decodeCycle(header, destination, input, channelIndex);
+        
+        jassert(indexInBlock <= 4096);
 	}
 
 	if(channelIndex == destination.getNumChannels() - 1)
 		readIndex += indexInBlock;
 
+    
+    
 	return numTodo != 0;
 }
 
@@ -133,6 +142,8 @@ void HlacDecoder::decodeCycle(const CycleHeader& header, AudioSampleBuffer& dest
 
 	uint16 numSamples = header.getNumSamples();
 
+    jassert(indexInBlock+numSamples <= COMPRESSION_BLOCK_SIZE);
+    
 	auto compressor = collection.getSuitableCompressorForBitRate(br);
 	auto numBytesToRead = compressor->getByteAmount(numSamples);
 
@@ -143,6 +154,9 @@ void HlacDecoder::decodeCycle(const CycleHeader& header, AudioSampleBuffer& dest
 
 	if (header.isTemplate())
 	{
+        LOG("DEC  " + String(readIndex + indexInBlock) + "\t\t\tNew Template with bit depth " + String(compressor->getAllowedBitRange()) + ": " + String(numSamples));
+
+        
 		if (true && compressor->getAllowedBitRange() != 0)
 		{
 			compressor->decompress(currentCycle.getWritePointer(), (const uint8*)readBuffer.getData(), numSamples);
@@ -155,6 +169,10 @@ void HlacDecoder::decodeCycle(const CycleHeader& header, AudioSampleBuffer& dest
 	}
 	else
 	{
+        LOG("DEC  " + String(readIndex + indexInBlock) + "\t\t\t\tNew Delta with bit depth " + String(compressor->getAllowedBitRange()) + ": " + String(numSamples) + " Index in Block:" + String(indexInBlock));
+        
+        
+        
 		compressor->decompress(workBuffer.getWritePointer(), (const uint8*)readBuffer.getData(), numSamples);
 
 		CompressionHelpers::IntVectorOperations::add(workBuffer.getWritePointer(), currentCycle.getReadPointer(), numSamples);
@@ -162,6 +180,8 @@ void HlacDecoder::decodeCycle(const CycleHeader& header, AudioSampleBuffer& dest
 	}
 
 	indexInBlock += numSamples;
+    
+    
 }
 
 HlacDecoder::CycleHeader HlacDecoder::readCycleHeader(InputStream& input)

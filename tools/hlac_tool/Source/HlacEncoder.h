@@ -38,7 +38,7 @@ public:
 	};
 
 
-	void compress(AudioSampleBuffer& source, OutputStream& output);
+	void compress(AudioSampleBuffer& source, OutputStream& output, uint32* blockOffsetData);
 	
 	void reset();
 
@@ -48,6 +48,8 @@ public:
 	}
 
 	float getCompressionRatio() const;
+
+	uint32 getNumBlocksWritten() const { return blockIndex; }
 
 private:
 
@@ -81,7 +83,7 @@ private:
 
 	CompressionHelpers::AudioBufferInt16 workBuffer;
 
-	int indexInBlock;
+	int indexInBlock = 0;
 
 	uint32 numBytesWritten = 0;
 	uint32 numBytesUncompressed = 0;
@@ -90,8 +92,10 @@ private:
 	uint32 numDeltas = 0;
 
 	uint32 blockOffset = 0;
+	uint32 blockIndex = 0;
 
-	uint8 bitRateForCurrentCycle;
+
+	uint8 bitRateForCurrentCycle = 0;
 
 	int firstCycleLength = -1;
 

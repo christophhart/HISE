@@ -18,7 +18,7 @@
 #define USE_SSE 0
 
 
-#if 1 || USE_SSE
+#if USE_SSE
 #include <ipp.h>
 #endif
 
@@ -67,7 +67,7 @@ struct BitCompressors
 
 	private:
 
-		bool setDontUseOddCompressors(bool shouldUseOddCompressors)
+		void setDontUseOddCompressors(bool shouldUseOddCompressors)
 		{
 			useOddCompressors = shouldUseOddCompressors;
 		}

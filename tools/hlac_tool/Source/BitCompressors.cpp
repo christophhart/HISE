@@ -51,6 +51,7 @@ uint16 compressInt16(int16 input, int bitDepth)
 	return (uint16)((int)input + a);
 }
 
+#if USE_SSE
 void compressInt16Block(int16* input, int16* output, int bitDepth, int numToCompress)
 {
 	auto inputIpp = reinterpret_cast<Ipp16u*>(input);
@@ -63,6 +64,7 @@ void compressInt16Block(int16* input, int16* output, int bitDepth, int numToComp
 	ippsRShiftC_16s_I(16 - bitDepth, input, numToCompress);
 	ippsOr_16u_I(inputIpp, outputIpp, numToCompress);
 }
+#endif
 
 constexpr uint16 getBitMask(int bitDepth) { return (1 << (bitDepth - 1)) - 1; }
 
@@ -72,6 +74,7 @@ int16 decompressUInt16(uint16 input, int bitDepth)
 	return (int16)input - sub;
 }
 
+#if USE_SSE
 void decompressInt16Block(int16* input, int16* output, uint8 bitDepth, int numToCompress)
 {
 	auto ippInput = reinterpret_cast<Ipp16u*>(input);
@@ -88,7 +91,7 @@ void decompressInt16Block(int16* input, int16* output, uint8 bitDepth, int numTo
 	ippsAddC_16s_I(1, input, numToCompress);
 	ippsMul_16s_I(input, output, numToCompress);
 }
-
+#endif
 
 void packArrayOfInt16(int16* d, int numValues, uint8 bitDepth)
 {
@@ -210,7 +213,8 @@ bool BitCompressors::OneBit::decompress(int16* destination, const uint8* data, i
 
 		while (--numValuesToDecompress >= 0)
 		{
-			*destination++ = (lastByte & masks[maskIndex++]) >> maskIndex;
+			*destination++ = (lastByte & masks[maskIndex]) >> maskIndex;
+            ++maskIndex;
 		}
 	}
 
@@ -233,8 +237,6 @@ bool BitCompressors::TwoBit::compress(uint8* destination, const int16* data, int
 	const uint16 signMask =  0b1000000000000000;
 	const uint16 valueMask = 0b0000000000000001;
 	const uint16 valueMovedMask = 0b0000000000000010;
-
-	const int signMoveAmount = 8 - getAllowedBitRange();
 
 	while (numValues >= 4)
 	{
@@ -279,8 +281,6 @@ bool BitCompressors::TwoBit::compress(uint8* destination, const int16* data, int
 
 bool BitCompressors::TwoBit::decompress(int16* destination, const uint8* data, int numValuesToDecompress)
 {
-	const uint16 signMask = 0b1000000000000000;
-
 	const uint8 signMasks[4] =  { 0b00000010, 0b00001000, 0b00100000, 0b10000000 };
 	const uint8 valueMasks[4] = { 0b00000001, 0b00000100, 0b00010000, 0b01000000 };
 
@@ -319,7 +319,9 @@ bool BitCompressors::TwoBit::decompress(int16* destination, const uint8* data, i
 		while (--numValuesToDecompress >= 0)
 		{
 			const int16 sign = ((lastByte & signMasks[maskIndex]) != 0) ? -1 : 1;
-			*destination++ = (int16)((lastByte & valueMasks[maskIndex++]) >> (maskIndex*2)) * sign;
+			*destination++ = (int16)((lastByte & valueMasks[maskIndex]) >> (maskIndex*2)) * sign;
+            
+            ++maskIndex;
 		}
 	}
 
@@ -344,8 +346,6 @@ int BitCompressors::FourBit::getAllowedBitRange() const
 
 bool BitCompressors::FourBit::compress(uint8* destination, const int16* data, int numValues)
 {
-	const uint16 signMask = 0b1000000000000000;
-	const uint16 valueMask = 0b0000000000000111;
 	const uint16 valueMovedMask = 0b0000000000001000;
 
 
@@ -394,7 +394,7 @@ bool BitCompressors::FourBit::compress(uint8* destination, const int16* data, in
 
 bool BitCompressors::FourBit::decompress(int16* destination, const uint8* data, int numValuesToDecompress)
 {
-	const uint16 signMask = 0b1000000000000000;
+	
 
 	const uint8 signMasks[2] =  { 0b00001000, 0b10000000 };
 	const uint8 valueMasks[2] = { 0b00000111, 0b01110000 };
@@ -537,10 +537,6 @@ int BitCompressors::EightBit::getAllowedBitRange() const
 
 bool BitCompressors::EightBit::compress(uint8* destination, const int16* data, int numValues)
 {
-	const uint16 valueMask = 0b0000000001111111;
-	const uint16 signMask =  0b1000000000000000;
-	const uint8 signMaskByte =       0b10000000;
-
 	while (--numValues >= 0)
 	{
 		*destination++ = (uint8)*data++;
@@ -551,11 +547,7 @@ bool BitCompressors::EightBit::compress(uint8* destination, const int16* data, i
 
 bool BitCompressors::EightBit::decompress(int16* destination, const uint8* data, int numValuesToDecompress)
 {
-
-	const uint8 signMaskByte =  0b10000000;
-	const uint8 valueMaskByte = 0b01111111;
-
-	while (--numValuesToDecompress >= 0)
+    while (--numValuesToDecompress >= 0)
 	{
 		const int8 value = *reinterpret_cast<const int8*>(data++);
 		*destination++ = (int16)value;
@@ -679,10 +671,6 @@ int BitCompressors::TwelveBit::getAllowedBitRange() const
 
 bool BitCompressors::TwelveBit::compress(uint8* destination, const int16* data, int numValues)
 {
-	const uint16 valueMask = 0b0000011111111111;
-	const uint16 signMask = 0b1000000000000000;
-	const uint16 signKill = 0b0111111111111111;
-
 	while (numValues >= 4)
 	{
 		const uint16 v1 = compressInt16(data[0], 12);
@@ -945,8 +933,9 @@ void BitCompressors::UnitTests::runTest()
 
 }
 
-void BitCompressors::UnitTests::testAutomaticCompression(uint8 maxBitSize)
+void BitCompressors::UnitTests::testAutomaticCompression(uint8 /*maxBitSize*/)
 {
+#if USE_SSE
 	beginTest("Testing automatic compression with bit rate " + String(maxBitSize));
 
 	Collection compressorCollection;
@@ -999,6 +988,7 @@ void BitCompressors::UnitTests::testAutomaticCompression(uint8 maxBitSize)
 	ippsFree(uncompressedData);
 	ippsFree(compressedData);
 	ippsFree(decompressedData);
+#endif
 }
 
 
@@ -1106,7 +1096,7 @@ void BitCompressors::UnitTests::testCompressor(Base* compressor)
 	const int numToCompress = r.nextInt(Range<int>(4000, 4100));
 	const int byteSize = compressor->getByteAmount(numToCompress);
 
-	int16* uncompressedData = (int16*)ippsMalloc_16u(numToCompress);
+	int16* uncompressedData = (int16*)malloc(sizeof(int16)*numToCompress);
 	
 
 	fillDataWithAllowedBitRange(uncompressedData, numToCompress, compressor->getAllowedBitRange());
@@ -1115,11 +1105,11 @@ void BitCompressors::UnitTests::testCompressor(Base* compressor)
 
 	expect(minDepth == compressor->getAllowedBitRange(), "Bit range for " + String(compressor->getAllowedBitRange()) + " doesn't match");
 
-	uint8* compressedData = ippsMalloc_8u(byteSize);
+	uint8* compressedData = (uint8*)malloc(byteSize);
 	
 	compressor->compress(compressedData, uncompressedData, numToCompress);
 
-	int16* decompressedData = (int16*)ippsMalloc_16u(numToCompress);
+	int16* decompressedData = (int16*)malloc(sizeof(int16)*numToCompress);
 	
 	const double start = Time::getMillisecondCounterHiRes();
 
@@ -1141,9 +1131,9 @@ void BitCompressors::UnitTests::testCompressor(Base* compressor)
 		expectEquals<int16>(decompressedData[i], uncompressedData[i], "Sample mismatch at position " + String(i));
 	}
 
-	ippsFree(uncompressedData);
-	ippsFree(compressedData);
-	ippsFree(decompressedData);
+	free(uncompressedData);
+	free(compressedData);
+	free(decompressedData);
 }
 
 
