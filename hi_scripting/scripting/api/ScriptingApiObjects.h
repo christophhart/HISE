@@ -706,6 +706,9 @@ public:
 		/** Fills a Path. */
 		void fillPath(var path, var area);
 
+		/** Draws the given path. */
+		void drawPath(var path, var area, var thickNess);
+
 		// ============================================================================================================
 
 		struct Wrapper;

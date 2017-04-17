@@ -1003,6 +1003,7 @@ struct ScriptingObjects::GraphicsObject::Wrapper
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawTriangle);
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, fillTriangle);
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, fillPath);
+	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawPath);
 };
 
 ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *p, ConstScriptingObject* parent_) :
@@ -1030,6 +1031,7 @@ rectangleResult(Result::ok())
 	ADD_API_METHOD_3(drawTriangle);
 	ADD_API_METHOD_2(fillTriangle);
 	ADD_API_METHOD_2(fillPath);
+	ADD_API_METHOD_3(drawPath);
 }
 
 ScriptingObjects::GraphicsObject::~GraphicsObject()
@@ -1278,11 +1280,30 @@ void ScriptingObjects::GraphicsObject::fillPath(var path, var area)
 	if (PathObject* pathObject = dynamic_cast<PathObject*>(path.getObject()))
 	{
 		Path p = pathObject->getPath();
-		Rectangle<float> r = getRectangleFromVar(area);
 
-		p.scaleToFit(r.getX(), r.getY(), r.getWidth(), r.getHeight(), false);
+		if (area.isArray())
+		{
+			Rectangle<float> r = getRectangleFromVar(area);
+			p.scaleToFit(r.getX(), r.getY(), r.getWidth(), r.getHeight(), false);
+		}
 
 		g->fillPath(p);
+	}
+}
+
+void ScriptingObjects::GraphicsObject::drawPath(var path, var area, var thickness)
+{
+	if (PathObject* pathObject = dynamic_cast<PathObject*>(path.getObject()))
+	{
+		Path p = pathObject->getPath();
+		
+		if (area.isArray())
+		{
+			Rectangle<float> r = getRectangleFromVar(area);
+			p.scaleToFit(r.getX(), r.getY(), r.getWidth(), r.getHeight(), false);
+		}
+
+		g->strokePath(p, PathStrokeType(thickness));
 	}
 }
 
