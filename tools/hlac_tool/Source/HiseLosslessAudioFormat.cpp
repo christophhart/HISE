@@ -55,6 +55,12 @@ bool HiseLosslessAudioFormatReader::readSamples(int** destSamples, int numDestCh
 }
 
 
+bool HiseLosslessAudioFormatReader::setTargetAudioDataType(AudioDataConverters::DataFormat dataType)
+{
+	usesFloatingPointData = (dataType == AudioDataConverters::DataFormat::float32BE) || 
+							(dataType == AudioDataConverters::DataFormat::float32LE);
+}
+
 HiseLosslessAudioFormatWriter::HiseLosslessAudioFormatWriter(EncodeMode mode_, OutputStream* output, double sampleRate, int numChannels, uint32* blockOffsetBuffer) :
 	AudioFormatWriter(output, "HLAC", sampleRate, numChannels, 16),
 	mode(mode_),
