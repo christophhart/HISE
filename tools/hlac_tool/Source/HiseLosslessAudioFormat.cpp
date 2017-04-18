@@ -283,7 +283,7 @@ AudioFormatWriter* HiseLosslessAudioFormat::createWriterFor(OutputStream* stream
 		HiseLosslessAudioFormatWriter::EncodeMode::Block;
 
 	if (blockOffsets == nullptr)
-		blockOffsets.calloc(1024 * 1024 * 1024);
+		blockOffsets.calloc(1024 * 1024);
 
 	return new HiseLosslessAudioFormatWriter(mode, streamToWriteTo, sampleRateToUse, numberOfChannels, blockOffsets);
 }
