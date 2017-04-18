@@ -95,10 +95,10 @@ int main(int argc, char **argv)
 
 	root.findChildFiles(testSamples, File::findFiles, true);
 
-    bool useBlock = false;
-	bool useDelta = false;
+    bool useBlock = true;
+	bool useDelta = true;
 	bool useDiff = true;
-	bool checkWithFlac = false;
+	bool checkWithFlac = true;
 
 	double blockRatio = 0.0f;
 	double deltaRatio = 0.0f;

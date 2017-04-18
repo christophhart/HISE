@@ -47,6 +47,44 @@ struct BitCompressors::UnitTests : public UnitTest
 
 };
 
+struct CodecTest : public UnitTest
+{
+	CodecTest();
+
+	enum class SignalType
+	{
+		Empty,
+		Static,
+		FullNoise,
+		SineOnly,
+		MixedSine,
+		DecayingSineWithHarmonic,
+		numSignalTypes
+	};
+
+	enum class Option
+	{
+		WholeBlock,
+		Delta,
+		Diff,
+		numCompressorOptions
+	};
+
+	void runTest() override;
+
+	void testIntegerBuffers();
+
+	void testCodec(SignalType type, Option option);
+
+	AudioSampleBuffer createTestSignal(int numSamples, int numChannels, SignalType type, float maxAmplitude);
+
+	HlacEncoder::CompressorOptions options[Option::numCompressorOptions];
+	
+	String getNameForOption(Option o) const;
+	String getNameForSignal(SignalType s) const;
+
+};
+
 
 #endif
 

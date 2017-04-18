@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<JUCERPROJECT id="eMzqoD" name="HLAC Tool" projectType="consoleapp" version="1.0.0"
+              bundleIdentifier="com.HISE.hlac_tool" includeBinaryInAppConfig="1"
+              jucerVersion="4.3.0">
+  <MAINGROUP id="qMBJWS" name="HLAC Tool">
+    <GROUP id="{4EAF9D6D-10E5-0774-B3EE-59B6D71DAC1D}" name="Source">
+      <FILE id="Z7Upgg" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
+    </GROUP>
+  </MAINGROUP>
+  <EXPORTFORMATS>
+    <VS2015 targetFolder="Builds/VisualStudio2015" IPPLibrary="Sequential">
+      <CONFIGURATIONS>
+        <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
+                       isDebug="1" optimisation="1" targetName="hlac_tool"/>
+        <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
+                       isDebug="0" optimisation="3" targetName="hlac_tool" alwaysGenerateDebugSymbols="0"/>
+        <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
+                       isDebug="1" optimisation="1" targetName="hlac_tool"/>
+        <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
+                       isDebug="0" optimisation="3" targetName="hlac_tool" alwaysGenerateDebugSymbols="0"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_core" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_basics" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_lac" path="../../../HISE modules"/>
+      </MODULEPATHS>
+    </VS2015>
+    <XCODE_MAC targetFolder="Builds/MacOSX">
+      <CONFIGURATIONS>
+        <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="HLAC Tool"
+                       cppLanguageStandard="c++11" cppLibType="libc++" osxSDK="default"
+                       osxCompatibility="10.7 SDK" osxArchitecture="64BitUniversal"/>
+        <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="HLAC Tool"
+                       osxSDK="default" osxCompatibility="10.7 SDK" osxArchitecture="64BitUniversal"
+                       cppLanguageStandard="c++11" cppLibType="libc++"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_core" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_basics" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_lac" path="../../../HISE modules"/>
+      </MODULEPATHS>
+    </XCODE_MAC>
+  </EXPORTFORMATS>
+  <MODULES>
+    <MODULE id="hi_lac" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="juce_audio_basics" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="juce_audio_formats" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="juce_core" showAllCode="1" useLocalCopy="0"/>
+  </MODULES>
+  <JUCEOPTIONS HLAC_MEASURE_DECODING_PERFORMANCE="enabled" HLAC_DEBUG_LOG="disabled"
+               HLAC_INCLUDE_TEST_SUITE="enabled"/>
+</JUCERPROJECT>

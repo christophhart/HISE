@@ -165,7 +165,7 @@ struct CompressionHelpers
 
 	};
 
-	static float checkBuffersEqual(AudioSampleBuffer& workBuffer, AudioSampleBuffer& referenceBuffer);
+	static uint8 checkBuffersEqual(AudioSampleBuffer& workBuffer, AudioSampleBuffer& referenceBuffer);
 
 	/** Return a section b as new AudioSampleBuffer without allocating. */
 	static AudioSampleBuffer getPart(AudioSampleBuffer& b, int startIndex, int numSamples);

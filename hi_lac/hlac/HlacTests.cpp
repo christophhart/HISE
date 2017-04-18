@@ -30,7 +30,7 @@
 
 #if HLAC_INCLUDE_TEST_SUITE
 
-static BitCompressors::UnitTests bitTests;
+//static BitCompressors::UnitTests bitTests;
 
 void BitCompressors::UnitTests::runTest()
 {
@@ -255,3 +255,283 @@ void BitCompressors::UnitTests::testCompressor(Base* compressor)
 }
 
 #endif
+
+CodecTest::CodecTest() :
+	UnitTest("Testing HLAC codec")
+{
+	HlacEncoder::CompressorOptions wholeBlock;
+
+	wholeBlock.fixedBlockWidth = 512;
+	wholeBlock.removeDcOffset = false;
+	wholeBlock.useDeltaEncoding = false;
+	wholeBlock.useDiffEncodingWithFixedBlocks = false;
+
+	HlacEncoder::CompressorOptions delta;
+
+	delta.fixedBlockWidth = -1;
+	delta.removeDcOffset = false;
+	delta.useDeltaEncoding = true;
+	delta.bitRateForWholeBlock = 4;
+	delta.useDiffEncodingWithFixedBlocks = false;
+	delta.reuseFirstCycleLengthForBlock = true;
+	delta.deltaCycleThreshhold = 0.1f;
+
+	HlacEncoder::CompressorOptions diff;
+
+	diff.fixedBlockWidth = 1024;
+	diff.removeDcOffset = false;
+	diff.useDeltaEncoding = false;
+	diff.bitRateForWholeBlock = 4;
+	diff.useDiffEncodingWithFixedBlocks = true;
+
+	options[(int)Option::WholeBlock] = wholeBlock;
+	options[(int)Option::Delta] = delta;
+	options[(int)Option::Diff] = diff;
+}
+
+void CodecTest::runTest()
+{
+	testIntegerBuffers();
+
+	const bool testDelta = true;
+
+	for (int i = 0; i < (int)SignalType::numSignalTypes; i++)
+	{
+		if (i != (int)SignalType::MixedSine)
+			//continue;
+
+		beginTest("Testing codecs for signal " + getNameForSignal((SignalType)i));
+
+		for (int j = 0; j < (int)Option::numCompressorOptions; j++)
+		{
+			if (!testDelta && j == (int)Option::Delta)
+				continue;
+
+			testCodec((SignalType)i, (Option)j);
+			testCodec((SignalType)i, (Option)j);
+			testCodec((SignalType)i, (Option)j);
+			testCodec((SignalType)i, (Option)j);
+		}
+	}
+}
+
+void CodecTest::testIntegerBuffers()
+{
+	beginTest("Testing integer buffers");
+
+	Random r;
+
+	const int numSamples = CompressionHelpers::getPaddedSampleSize(r.nextInt(Range<int>(1000, 10000)));
+
+	AudioSampleBuffer src(1, numSamples);
+
+	for (int i = 0; i < (int)SignalType::numSignalTypes; i++)
+	{
+		logMessage("Testing " + getNameForSignal((SignalType)i));
+		AudioSampleBuffer src = createTestSignal(numSamples, 1, (SignalType)i, 1.0f);
+
+		CompressionHelpers::AudioBufferInt16 intBuffer(src, false);
+
+		AudioSampleBuffer dst = intBuffer.getFloatBuffer();
+
+		auto error = CompressionHelpers::checkBuffersEqual(dst, src);
+
+		expectEquals<int>(error, 0, "Int Buffer conversion");
+	}
+
+	
+}
+
+void CodecTest::testCodec(SignalType type, Option option)
+{
+	logMessage("Testing " + getNameForOption(option));
+
+	Random r;
+
+	const int numSamples = r.nextInt(Range<int>(16373, 24000));
+	const int numChannels = 1;
+
+	MemoryOutputStream mos;
+
+	HeapBlock<uint32> blockOffsets;
+	blockOffsets.calloc(24000);
+
+	HlacEncoder encoder;
+	HlacDecoder decoder;
+
+	decoder.setupForDecompression();
+
+	auto ts1 = createTestSignal(numSamples, numChannels, type, jlimit<float>(0.5f, 1.0f, 0.99f));
+
+	expect(ts1.getMagnitude(0, numSamples) <= 1.0f, "Peak > 1.0f");
+
+	auto ts1_dst = AudioSampleBuffer(numChannels, CompressionHelpers::getPaddedSampleSize(numSamples));
+
+	encoder.setOptions(options[(int)option]);
+	encoder.compress(ts1, mos, blockOffsets);
+
+	logMessage("Ratio: " + String(encoder.getCompressionRatio(), 3));
+
+	MemoryInputStream mis(mos.getMemoryBlock(), true);
+
+	decoder.decode(ts1_dst, mis);
+
+	auto diffBitRate = CompressionHelpers::checkBuffersEqual(ts1_dst, ts1);
+
+	expectEquals<int>((int)diffBitRate, 0, "Test codec with Signal type " + String((int)type) + " and compression mode " + String((int)option));
+
+
+}
+
+AudioSampleBuffer CodecTest::createTestSignal(int numSamples, int numChannels, SignalType type, float maxAmplitude)
+{
+	Random rd;
+
+	AudioSampleBuffer b(numChannels, numSamples);
+
+	float* l = b.getWritePointer(0);
+	float* r = b.getWritePointer(1 % numChannels);
+
+	switch (type)
+	{
+	case hlac::CodecTest::SignalType::Empty:
+	{
+		b.clear();
+		break;
+	}
+	case hlac::CodecTest::SignalType::FullNoise:
+	{
+		for (int i = 0; i < numSamples; i++)
+		{
+			l[i] = 2.0f*rd.nextFloat() - 1.0f;
+			r[i] = 2.0f*rd.nextFloat() - 1.0f;
+		}
+
+		break;
+	}
+	case hlac::CodecTest::SignalType::Static:
+	{
+		FloatVectorOperations::fill(l, 1.0f, numSamples);
+		FloatVectorOperations::fill(r, 1.0f, numSamples);
+	}
+	case hlac::CodecTest::SignalType::SineOnly:
+	{
+		double uptime = 0.0;
+		double uptimeDelta = 0.01 + rd.nextDouble() * 0.05;
+
+		for (int i = 0; i < numSamples; i++)
+		{
+			l[i] = sin(uptime);
+			uptime += uptimeDelta;
+			r[i] = l[i];
+		};
+		
+		break;
+	}
+	case hlac::CodecTest::SignalType::MixedSine:
+	{
+		double uptime = 0.0;
+		double uptimeDelta = 0.01 + rd.nextDouble() * 0.05;
+
+		for (int i = 0; i < numSamples; i++)
+		{
+			l[i] = sin(uptime) + rd.nextFloat() * 0.05f;
+			uptime += uptimeDelta;
+			r[i] = l[i] + rd.nextFloat() * 0.05f;
+		};
+
+		break;
+	}
+	case hlac::CodecTest::SignalType::DecayingSineWithHarmonic:
+	{
+		double uptime = 0.0;
+		double uptimeDelta = 0.01 + rd.nextDouble() * 0.05;
+
+		const float ra = jlimit<float>(0.7f, 0.8f, rd.nextFloat());
+		const float h1 = jlimit<float>(0.2f, 0.5f, rd.nextFloat());
+		const float h2 = jlimit<float>(0.1f, 0.3f, rd.nextFloat());
+		
+		for (int i = 0; i < numSamples; i++)
+		{
+			l[i] =  ra * sin(uptime);
+			l[i] += h1 * sin(2.0f*uptime);
+			l[i] += h2 * sin(3.0f*uptime);
+			l[i] += rd.nextFloat() * 0.03f;
+
+			uptime += (uptimeDelta + rd.nextFloat()*0.001f);
+			
+		};
+
+		FloatVectorOperations::copy(r, l, numSamples);
+
+		b.applyGainRamp(0, numSamples, 1.0f, 0.0f);
+		b.applyGainRamp(0, numSamples, 1.0f, 0.0f);
+		b.applyGainRamp(0, numSamples, 1.0f, 0.0f);
+		b.applyGainRamp(0, numSamples, 1.0f, 0.0f);
+
+		break;
+	}
+		
+	case hlac::CodecTest::SignalType::numSignalTypes:
+		break;
+	default:
+		break;
+	}
+
+	
+
+	FloatVectorOperations::multiply(l, maxAmplitude, numSamples);
+	FloatVectorOperations::multiply(r, maxAmplitude, numSamples);
+
+	logMessage("Amplitude: " + String(Decibels::gainToDecibels(b.getMagnitude(0, numSamples)), 2) + " dB");
+
+	FloatVectorOperations::clip(r, r, -1.0f, 1.0f, numSamples);
+	FloatVectorOperations::clip(l, l, -1.0f, 1.0f, numSamples);
+
+	return b;
+}
+
+String CodecTest::getNameForOption(Option o) const
+{
+	switch (o)
+	{
+	case hlac::CodecTest::Option::WholeBlock: return "Block";
+		break;
+	case hlac::CodecTest::Option::Delta: return "Delta";
+		break;
+	case hlac::CodecTest::Option::Diff: return "Diff";
+		break;
+	case hlac::CodecTest::Option::numCompressorOptions:
+		break;
+	default:
+		break;
+	}
+
+	return "";
+}
+
+String CodecTest::getNameForSignal(SignalType s) const
+{
+	switch (s)
+	{
+	case hlac::CodecTest::SignalType::Empty: return "Empty";
+		break;
+	case hlac::CodecTest::SignalType::Static: return "Static";
+	case hlac::CodecTest::SignalType::FullNoise: return "Full Noise";
+		break;
+	case hlac::CodecTest::SignalType::SineOnly: return "Sine Wave";
+		break;
+	case hlac::CodecTest::SignalType::MixedSine: return "Sine wave mixes with noise";
+		break;
+	case hlac::CodecTest::SignalType::DecayingSineWithHarmonic: return "Decaying sine wave";
+		break;
+	case hlac::CodecTest::SignalType::numSignalTypes:
+		break;
+	default:
+		break;
+	}
+
+	return {};
+}
+
+static CodecTest codecTest;

@@ -31,6 +31,11 @@
 
 CompressionHelpers::AudioBufferInt16::AudioBufferInt16(AudioSampleBuffer& b, bool normalizeBeforeStoring)
 {
+#if JUCE_DEBUG
+	const float level = b.getMagnitude(0, b.getNumSamples());
+	jassert(level <= 1.0f);
+#endif
+
 	size = b.getNumSamples();
 	data.malloc(size);
 
@@ -355,14 +360,12 @@ void CompressionHelpers::dump(const AudioSampleBuffer& b)
 		writer->writeFromAudioSampleBuffer(b, 0, b.getNumSamples());
 }
 
-float CompressionHelpers::checkBuffersEqual(AudioSampleBuffer& workBuffer, AudioSampleBuffer& referenceBuffer)
+uint8 CompressionHelpers::checkBuffersEqual(AudioSampleBuffer& workBuffer, AudioSampleBuffer& referenceBuffer)
 {
     int numToCheck = referenceBuffer.getNumSamples();
     
     jassert(workBuffer.getNumSamples() % COMPRESSION_BLOCK_SIZE == 0);
-    
-    
-	jassert(workBuffer.getNumSamples() >= numToCheck);
+    jassert(workBuffer.getNumSamples() >= numToCheck);
 
 	AudioBufferInt16 wbInt(workBuffer, false);
 	AudioBufferInt16 rbInt(referenceBuffer, false);
@@ -375,6 +378,10 @@ float CompressionHelpers::checkBuffersEqual(AudioSampleBuffer& workBuffer, Audio
 	{
 		DBG("Bit rate for error signal: " + String(br));
 
+		//DUMP(wbInt);
+		//DUMP(referenceBuffer);
+		//DUMP(workBuffer);
+
 		float* w = workBuffer.getWritePointer(0);
 		const float* r = referenceBuffer.getReadPointer(0);
 
@@ -382,8 +389,6 @@ float CompressionHelpers::checkBuffersEqual(AudioSampleBuffer& workBuffer, Audio
 
 		float x = workBuffer.getMagnitude(0, numToCheck);
 
-        DUMP(workBuffer);
-        
 		float db = Decibels::gainToDecibels(x);
 
 		if (db > -96.0f)
@@ -416,11 +421,9 @@ float CompressionHelpers::checkBuffersEqual(AudioSampleBuffer& workBuffer, Audio
 			DBG("Min index: " + String(minIndex) + ", value: " + String(minValue));
 			DBG("Max index: " + String(maxIndex) + ", value: " + String(maxValue));
 		}
-        
-		return db;
 	}
 
-	return 0.0f;
+	return br;
 }
 
 void CompressionHelpers::IntVectorOperations::sub(int16* dst, const int16* src1, const int16* src2, int numValues)
