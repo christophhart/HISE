@@ -87,7 +87,7 @@ int main(int argc, char **argv)
 
 	for (auto f : testSamples)
 	{
-		if (f.getFileName().startsWith("_"))
+        if (f.getFileName().startsWith("_") || f.isHidden())
 			continue;
 
 		++numFilesChecked;
