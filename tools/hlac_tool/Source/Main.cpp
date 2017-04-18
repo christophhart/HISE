@@ -9,9 +9,8 @@
 */
 
 #include "../JuceLibraryCode/JuceHeader.h"
-#define COMPRESSION_BLOCK_SIZE 4096
 
-#include "HiseLosslessAudioFormat.h"
+using namespace hlac;
 
 class StdLogger : public Logger
 {
@@ -36,34 +35,70 @@ int main(int argc, char **argv)
 
 	Logger::setCurrentLogger(l);
 
+
     
-    UnitTestRunner runner;
-    runner.setAssertOnFailure(false);
-    
-    //runner.runAllTests();
-    
-	if (argc != 2)
+	if (argc != 3)
 	{
 		Logger::writeToLog("HISE Lossless Audio Codec Test tool");
 		Logger::writeToLog("-----------------------------------");
-		Logger::writeToLog("Usage: hlac_tool [FOLDER_WITH_TEST_FILES]");
+		Logger::writeToLog("Usage: hlac_tool [MODE] [FOLDER_WITH_TEST_FILES]");
+		Logger::writeToLog("");
+		Logger::writeToLog("modes: 'unit_test' / 'test_directory'");
 		Logger::writeToLog("(put '_' before filename to skip samples)");
 		Logger::setCurrentLogger(nullptr);
 
 		return 1;
 	}
 
+	String mode(argv[1]);
 
-	File root(argv[1]);
+	if (mode == "unit_test")
+	{
+		UnitTestRunner runner;
+		runner.setAssertOnFailure(false);
+		runner.runAllTests();
+
+		int numTests = runner.getNumResults();
+		int numFails = 0;
+
+		for (int i = 0; i < numTests; i++)
+		{
+			auto result = runner.getResult(i);
+			
+			numFails += result->failures;
+		}
+
+		if (numFails > 0)
+		{
+			Logger::writeToLog("Unit tests failed");
+			Logger::setCurrentLogger(nullptr);
+			return 1;
+		}
+		else
+		{
+			Logger::writeToLog("All unit tests passed");
+			Logger::setCurrentLogger(nullptr);
+			return 0;
+		}
+	}
+
+	if (mode != "test_directory")
+	{
+		Logger::writeToLog("Invalid mode");
+		Logger::setCurrentLogger(nullptr);
+		return 1;
+	}
+
+	File root(argv[2]);
 
 	Array<File> testSamples;
 
 	root.findChildFiles(testSamples, File::findFiles, true);
 
-    bool useBlock = true;
-	bool useDelta = true;
+    bool useBlock = false;
+	bool useDelta = false;
 	bool useDiff = true;
-	bool checkWithFlac = true;
+	bool checkWithFlac = false;
 
 	double blockRatio = 0.0f;
 	double deltaRatio = 0.0f;

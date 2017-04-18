@@ -36,7 +36,6 @@ The HLAC codec is licensed under the permissive zlib license which allows usage 
 ## TODO
 
 - allow seeking
-- allow stereo
-- remove warnings
 - improve diff decode speed
 - make memory mapped reader
+- allow monolith with subsection readers (pad last block for this)
