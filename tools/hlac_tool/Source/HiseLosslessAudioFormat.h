@@ -15,7 +15,7 @@
 #include "HlacEncoder.h"
 #include "HlacDecoder.h"
 
-#define HLAC_VERSION 0
+#define HLAC_VERSION 2
 
 struct HiseLosslessHeader
 {
@@ -25,7 +25,13 @@ struct HiseLosslessHeader
 
 	int getVersion() const
 	{
-		return (headerByte & 0x60) >> 5;
+		if (isOldMonolith)
+		{
+			// ancient versions didn't use a real header byte
+			return headerByte; 
+		}
+		else
+			return (headerByte & 0x70) >> 4;
 	}
 
 	bool isEncrypted() const
@@ -35,29 +41,52 @@ struct HiseLosslessHeader
 
 	int getBitShiftAmount() const
 	{
-		return (headerByte & 0x0F);
+		if (isOldMonolith)
+		{
+			return 0;
+		}
+		else
+		{
+			return (headerByte & 0x0F);
+		}
 	}
 
 	int getNumChannels() const 
 	{
+		if (isOldMonolith)
+		{
+			// previous versions just stored the channel amount
+			return headerByte; 
+		}
+
 		return (sampleDataByte & 0x70) >> 4;
 	}
 
 	int getBitsPerSample() const
 	{
-		return (sampleDataByte & 0x02) != 0 ? 24 : 16;
+		if (isOldMonolith)
+			return 16;
+		else
+			return (sampleDataByte & 0x02) != 0 ? 24 : 16;
 	}
 
 	bool usesCompression() const
 	{
-		return (sampleDataByte & 1) != 0;
+		return !isOldMonolith && (sampleDataByte & 1) != 0;
 	}
 
 	double getSampleRate() const
 	{
-		const static double sampleRates[4] = { 44100.0, 48000.0, 88200.0, 96000.0 };
-		const uint8 srIndex = (sampleDataByte & 0xC0) >> 6;
-		return sampleRates[srIndex];
+		if (isOldMonolith)
+		{
+			return 44100.0; // doesn't matter anyway (the sample rate is stored externally)
+		}
+		else
+		{
+			const static double sampleRates[4] = { 44100.0, 48000.0, 88200.0, 96000.0 };
+			const uint8 srIndex = (sampleDataByte & 0xC0) >> 6;
+			return sampleRates[srIndex];
+		}
 	}
 
 	uint8 headerByte = 0;
@@ -65,6 +94,7 @@ struct HiseLosslessHeader
 	uint32 blockAmount = 0;
 	HeapBlock<uint32> blockOffsets;
 	bool headerValid = false;
+	bool isOldMonolith = false;
 
 	bool write(OutputStream* output);
 };
@@ -77,6 +107,8 @@ public:
 	bool readSamples(int** destSamples, int numDestChannels, int startOffsetInDestBuffer, int64 startSampleInFile, int numSamples) override;
 
 	double getDecompressionPerformanceForLastFile() { return decoder.getDecompressionPerformance(); }
+
+	bool setTargetAudioDataType(AudioDataConverters::DataFormat dataType);
 
 private:
 

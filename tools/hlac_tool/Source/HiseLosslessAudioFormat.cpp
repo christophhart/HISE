@@ -162,6 +162,7 @@ bool HiseLosslessAudioFormatWriter::writeHeader()
 
 	HiseLosslessHeader header(useEncryption, globalBitShiftAmount, sampleRate, numChannels, bitsPerSample, useCompression, numBlocks);
 
+	jassert(header.getVersion() == HLAC_VERSION);
 	jassert(header.getBitShiftAmount() == globalBitShiftAmount);
 	jassert(header.getNumChannels() == numChannels);
 	jassert(header.usesCompression() == useCompression);
@@ -292,8 +293,8 @@ HiseLosslessHeader::HiseLosslessHeader(bool useEncryption, uint8 globalBitShiftA
 {
 	// Header byte: | 3 bit   | 1 bit      | 4 bit        |
 	//              | version | encryption | global shift |
-	headerByte = HLAC_VERSION << 5;
-	headerByte |= (useEncryption ? 0x10 : 0);
+	headerByte = (useEncryption ? 0x80 : 0);
+	headerByte |= (HLAC_VERSION << 4);
 	headerByte |= (globalBitShiftAmount & 0x0F);
 
 	// Sample data byte | 2 bit    | 4 bit    | 1 bit 1  | 1 bit           |
@@ -317,29 +318,56 @@ HiseLosslessHeader::HiseLosslessHeader(InputStream* input)
 		return;
 	}
 
-	const uint64 metadata = input->readInt64();
-	const uint64 metadata2 = metadata & 0xFFFFFFFFFFFF0000;
-	const uint16 checksum = metadata  & 0x000000000000FFFF;
+	uint64 metadata = 0;
+	uint8* metaDataBytePtr = reinterpret_cast<uint8*>(&metadata);
 
-	headerValid = metadata > 0 && CompressionHelpers::Misc::NumberOfSetBits(metadata2) == checksum;
+	//metadata = input->readInt64();
 
-	if (!headerValid)
+	metaDataBytePtr[0] = input->readByte();
+	
+	// The old format just stored the channel amount as first header byte;
+	isOldMonolith = metaDataBytePtr[0] == 1 || metaDataBytePtr[0] == 2;
+
+	if (isOldMonolith)
 	{
-		jassertfalse;
-		return;
+		headerByte = metaDataBytePtr[0];
+		sampleDataByte = 0;
+		headerValid = true;
+		blockAmount = 0;
 	}
 	else
 	{
-		headerByte     = (uint8)((metadata & 0xFF00000000000000) >> 56);
-		sampleDataByte = (uint8)((metadata & 0x00FF000000000000) >> 48);
-	}
-	
-	blockAmount = (uint32)((metadata & 0x0000FFFFFFFF0000) >> 16);
-	blockOffsets.malloc(blockAmount);
+		metaDataBytePtr[1] = input->readByte();
+		metaDataBytePtr[2] = input->readByte();
+		metaDataBytePtr[3] = input->readByte();
+		metaDataBytePtr[4] = input->readByte();
+		metaDataBytePtr[5] = input->readByte();
+		metaDataBytePtr[6] = input->readByte();
+		metaDataBytePtr[7] = input->readByte();
 
-	for (uint32 i = 0; i < blockAmount; i++)
-	{
-		blockOffsets[i] = (uint32)input->readInt();
+		const uint64 metadataMasked = metadata & 0xFFFFFFFFFFFF0000;
+		const uint16 checksum       = metadata & 0x000000000000FFFF;
+
+		headerValid = metadataMasked > 0 && CompressionHelpers::Misc::NumberOfSetBits(metadataMasked) == checksum;
+
+		if (!headerValid)
+		{
+			jassertfalse;
+			return;
+		}
+		else
+		{
+			headerByte = (uint8)((metadataMasked & 0xFF00000000000000) >> 56);
+			sampleDataByte = (uint8)((metadataMasked & 0x00FF000000000000) >> 48);
+		}
+
+		blockAmount = (uint32)((metadataMasked & 0x0000FFFFFFFF0000) >> 16);
+		blockOffsets.malloc(blockAmount);
+
+		for (uint32 i = 0; i < blockAmount; i++)
+		{
+			blockOffsets[i] = (uint32)input->readInt();
+		}
 	}
 }
 
