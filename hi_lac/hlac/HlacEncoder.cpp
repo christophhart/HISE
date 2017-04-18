@@ -134,33 +134,60 @@ bool HlacEncoder::encodeBlock(AudioSampleBuffer& block, OutputStream& output)
 
 bool HlacEncoder::encodeBlock(CompressionHelpers::AudioBufferInt16& block16, OutputStream& output)
 {
+	auto compressedBlock = createCompressedBlock(block16);
+
+	auto thisBlockSize = compressedBlock.getSize();
+
+	if (thisBlockSize > 2 * COMPRESSION_BLOCK_SIZE)
+	{
+		writeCycleHeader(true, 16, COMPRESSION_BLOCK_SIZE, output);
+
+		numBytesWritten += sizeof(int16)*COMPRESSION_BLOCK_SIZE + 3;
+
+		return output.write(block16.getReadPointer(), sizeof(int16) * COMPRESSION_BLOCK_SIZE);
+	}
+	else
+	{
+		numBytesWritten += compressedBlock.getSize();
+		return output.write(compressedBlock.getData(), compressedBlock.getSize());
+	}
+}
+
+
+MemoryBlock HlacEncoder::createCompressedBlock(CompressionHelpers::AudioBufferInt16& block16)
+{
 	jassert(block16.size == COMPRESSION_BLOCK_SIZE);
+
+	MemoryOutputStream blockMos;
 
 	firstCycleLength = -1;
 
 	auto maxBitDepth = CompressionHelpers::getPossibleBitReductionAmount(block16);
 
-	LOG("ENC " + String(numBytesUncompressed/2) + "\t\tNew Block with bit depth: " + String(maxBitDepth));
+	LOG("ENC " + String(numBytesUncompressed / 2) + "\t\tNew Block with bit depth: " + String(maxBitDepth));
 
 	numBytesUncompressed += COMPRESSION_BLOCK_SIZE * 2;
 
 	if (maxBitDepth <= options.bitRateForWholeBlock)
 	{
 		indexInBlock = 0;
-		return encodeCycle(block16, output);
+		encodeCycle(block16, blockMos);
+
+		blockMos.flush();
+		return blockMos.getMemoryBlock();
 	}
 
 	indexInBlock = 0;
 
 	while (!isBlockExhausted())
 	{
-        int numRemaining = COMPRESSION_BLOCK_SIZE - indexInBlock;
+		int numRemaining = COMPRESSION_BLOCK_SIZE - indexInBlock;
 		auto rest = CompressionHelpers::getPart(block16, indexInBlock, numRemaining);
 
 		if (numRemaining <= 4)
 		{
-			if (!encodeCycleDelta(rest, output))
-				return false;
+			if (!encodeCycleDelta(rest, blockMos))
+				return MemoryBlock();
 
 			indexInBlock += numRemaining;
 
@@ -196,17 +223,17 @@ bool HlacEncoder::encodeBlock(CompressionHelpers::AudioBufferInt16& block16, Out
 			indexInBlock += cycleLength;
 
 			if (byteAmount == normalByteAmount)
-				encodeCycle(currentCycle, output);
+				encodeCycle(currentCycle, blockMos);
 			else
-				encodeDiff(currentCycle, output);
+				encodeDiff(currentCycle, blockMos);
 
 			continue;
 		}
 
 		indexInBlock += cycleLength;
 
-		if (!encodeCycle(currentCycle, output))
-			return false;
+		if (!encodeCycle(currentCycle, blockMos))
+			return MemoryBlock();
 
 
 		while (options.useDeltaEncoding && !isBlockExhausted())
@@ -228,12 +255,12 @@ bool HlacEncoder::encodeBlock(CompressionHelpers::AudioBufferInt16& block16, Out
 					nextCycle.size = nextCycleSize;
 
 					indexInBlock += nextCycle.size;
-                    
-                    numRemaining = COMPRESSION_BLOCK_SIZE - indexInBlock;
-                    
-                    jassert(indexInBlock <= COMPRESSION_BLOCK_SIZE);
 
-					encodeCycleDelta(nextCycle, output);
+					numRemaining = COMPRESSION_BLOCK_SIZE - indexInBlock;
+
+					jassert(indexInBlock <= COMPRESSION_BLOCK_SIZE);
+
+					encodeCycleDelta(nextCycle, blockMos);
 
 				}
 				else
@@ -245,7 +272,8 @@ bool HlacEncoder::encodeBlock(CompressionHelpers::AudioBufferInt16& block16, Out
 		}
 	}
 
-	return true;
+	blockMos.flush();
+	return blockMos.getMemoryBlock();
 }
 
 uint8 HlacEncoder::getBitReductionAmountForMSEncoding(AudioSampleBuffer& block)
@@ -284,6 +312,18 @@ uint8 HlacEncoder::getBitReductionAmountForMSEncoding(AudioSampleBuffer& block)
 #endif
 }
 
+
+bool HlacEncoder::writeUncompressed(CompressionHelpers::AudioBufferInt16& block, OutputStream& output)
+{
+	jassert(block.size == COMPRESSION_BLOCK_SIZE);
+
+	writeCycleHeader(true, 16, block.size, output);
+
+	
+
+	return output.write(block.getReadPointer(), block.size * 2);
+}
+
 bool HlacEncoder::encodeCycle(CompressionHelpers::AudioBufferInt16& cycle, OutputStream& output)
 {
 	if (cycle.size == 0)
@@ -295,15 +335,13 @@ bool HlacEncoder::encodeCycle(CompressionHelpers::AudioBufferInt16& cycle, Outpu
 
 	auto numBytesToWrite = compressor->getByteAmount(cycle.size);
     
-	LOG("ENC  " + String(blockOffset + indexInBlock-cycle.size) + "\t\t\tNew Template with bit depth " + String(compressor->getAllowedBitRange()) + ": " + String(cycle.size));
+	LOG("ENC  " + String(blockOffset + indexInBlock) + "\t\t\tNew Template with bit depth " + String(compressor->getAllowedBitRange()) + ": " + String(cycle.size));
 
 	if (!writeCycleHeader(true, compressor->getAllowedBitRange(), cycle.size, output))
 		return false;
 
 	if (numBytesToWrite > 0)
 	{
-		numBytesWritten += numBytesToWrite;
-
 		MemoryBlock mb;
 		mb.setSize(numBytesToWrite, true);
 		compressor->compress((uint8*)mb.getData(), cycle.getReadPointer(), cycle.size);
@@ -366,16 +404,12 @@ bool HlacEncoder::encodeDiff(CompressionHelpers::AudioBufferInt16& cycle, Output
 	if (!output.write(mbFull.getData(), numBytesForFull))
 		return false;
 
-	numBytesWritten += numBytesForFull;
-
 	MemoryBlock mbError;
 	mbError.setSize(numBytesForError);
 	compressorError->compress((uint8*)mbError.getData(), packedErrorBuffer.getReadPointer(), numErrorValues);
 
 	if (!output.write(mbError.getData(), numBytesForError))
 		return false;
-
-	numBytesWritten += numBytesForError;
 
 	LOG("ENC  " + String(blockOffset + indexInBlock) + "\t\t\tNew Diff block bit depth " + String(compressorFull->getAllowedBitRange()) + " -> " + String(compressorError->getAllowedBitRange()) + ": " + String(cycle.size));
 
@@ -400,8 +434,6 @@ bool HlacEncoder::encodeCycleDelta(CompressionHelpers::AudioBufferInt16& nextCyc
 
 	if (!writeCycleHeader(false, compressor->getAllowedBitRange(), nextCycle.size, output))
 		return false;
-
-	numBytesWritten += numBytesToWrite;
 
 	MemoryBlock mb;
 	mb.setSize(numBytesToWrite, true);
@@ -441,8 +473,6 @@ bool HlacEncoder::writeCycleHeader(bool isTemplate, int bitDepth, int numSamples
 			return false;
 	}
 
-	numBytesWritten += 3;
-
 	return output.writeShort((int16)numSamples);
 }
 
@@ -461,8 +491,6 @@ bool HlacEncoder::writeDiffHeader(int fullBitRate, int errorBitRate, int blockSi
 	shortPacked |= blockSizeLog;
 
 	output.writeShort(shortPacked);
-
-	numBytesWritten += 3;
 
 	return true;
 }

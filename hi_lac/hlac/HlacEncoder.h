@@ -74,6 +74,8 @@ private:
 
 	bool encodeBlock(CompressionHelpers::AudioBufferInt16& block, OutputStream& output);
 
+	MemoryBlock createCompressedBlock(CompressionHelpers::AudioBufferInt16& block);
+
 	uint8 getBitReductionAmountForMSEncoding(AudioSampleBuffer& block);
 
 	bool isBlockExhausted() const
@@ -82,6 +84,7 @@ private:
 	}
 
 
+	bool writeUncompressed(CompressionHelpers::AudioBufferInt16& block, OutputStream& output);
 
 	bool encodeCycle(CompressionHelpers::AudioBufferInt16& cycle, OutputStream& output);
 	bool encodeDiff(CompressionHelpers::AudioBufferInt16& cycle, OutputStream& output);
