@@ -175,6 +175,8 @@ void HlacDecoder::decodeCycle(const CycleHeader& header, AudioSampleBuffer& dest
         LOG("DEC  " + String(readIndex + indexInBlock) + "\t\t\tNew Template with bit depth " + String(compressor->getAllowedBitRange()) + ": " + String(numSamples));
 
         
+		
+
 		if (true && compressor->getAllowedBitRange() != 0)
 		{
 			compressor->decompress(currentCycle.getWritePointer(), (const uint8*)readBuffer.getData(), numSamples);
@@ -188,8 +190,6 @@ void HlacDecoder::decodeCycle(const CycleHeader& header, AudioSampleBuffer& dest
 	else
 	{
         LOG("DEC  " + String(readIndex + indexInBlock) + "\t\t\t\tNew Delta with bit depth " + String(compressor->getAllowedBitRange()) + ": " + String(numSamples) + " Index in Block:" + String(indexInBlock));
-        
-        
         
 		compressor->decompress(workBuffer.getWritePointer(), (const uint8*)readBuffer.getData(), numSamples);
 
@@ -215,7 +215,7 @@ HlacDecoder::CycleHeader HlacDecoder::readCycleHeader(InputStream& input)
 
 bool HlacDecoder::CycleHeader::isTemplate() const
 {
-	return (headerInfo & 1) > 0;
+	return (headerInfo & 0x20) > 0;
 }
 
 uint8 HlacDecoder::CycleHeader::getBitRate(bool getFullBitRate) const
@@ -231,13 +231,13 @@ uint8 HlacDecoder::CycleHeader::getBitRate(bool getFullBitRate) const
 	}
 	else
 	{
-		return (headerInfo >> 1);
+		return headerInfo & 0x1F;
 	}
 }
 
 bool HlacDecoder::CycleHeader::isDiff() const
 {
-	return headerInfo == 0b11100000;
+	return headerInfo == 0xC0;
 }
 
 uint16 HlacDecoder::CycleHeader::getNumSamples() const

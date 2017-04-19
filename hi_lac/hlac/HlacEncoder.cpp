@@ -320,6 +320,7 @@ bool HlacEncoder::writeUncompressed(CompressionHelpers::AudioBufferInt16& block,
 	writeCycleHeader(true, 16, block.size, output);
 
 	
+	
 
 	return output.write(block.getReadPointer(), block.size * 2);
 }
@@ -362,7 +363,7 @@ bool HlacEncoder::encodeCycle(CompressionHelpers::AudioBufferInt16& cycle, Outpu
 			jassert(CompressionHelpers::getPossibleBitReductionAmount(shouldBeZero) == 0);
 
 		}
-
+		
 
 		return output.write(mb.getData(), numBytesToWrite);
 	}
@@ -435,6 +436,7 @@ bool HlacEncoder::encodeCycleDelta(CompressionHelpers::AudioBufferInt16& nextCyc
 	if (!writeCycleHeader(false, compressor->getAllowedBitRange(), nextCycle.size, output))
 		return false;
 
+
 	MemoryBlock mb;
 	mb.setSize(numBytesToWrite, true);
 	compressor->compress((uint8*)mb.getData(), workBuffer.getReadPointer(), nextCycle.size);
@@ -443,35 +445,15 @@ bool HlacEncoder::encodeCycleDelta(CompressionHelpers::AudioBufferInt16& nextCyc
 
 bool HlacEncoder::writeCycleHeader(bool isTemplate, int bitDepth, int numSamples, OutputStream& output)
 {
-	if (bitDepth == 0)
-	{
-		if (!output.writeByte(1))
-			return false;
-	}
-	else if (bitDepth == 1)
-	{
-		if (!output.writeByte(3))
-			return false;
-	}
-	else if (bitDepth == 2)
-	{
-		if (!output.writeByte(5))
-			return false;
-	}
-	else
-	{
-		uint8 header = isTemplate ? 1 : 0;
+	jassert(bitDepth != 15);
 
-		jassert(numSamples <= COMPRESSION_BLOCK_SIZE);
+	uint8 headerByte = bitDepth;
+	
+	if (isTemplate)
+		headerByte |= 0x20;
 
-		uint8 bitDepthMoved = (uint8)(((bitDepth - 1) & 15) << 1);
-		header |= bitDepthMoved;
-
-		jassert(header != 0xE0); // Reserved for diff
-
-		if (!output.writeByte(header))
-			return false;
-	}
+	if (!output.writeByte(headerByte))
+		return false;
 
 	return output.writeShort((int16)numSamples);
 }
@@ -479,7 +461,7 @@ bool HlacEncoder::writeCycleHeader(bool isTemplate, int bitDepth, int numSamples
 
 bool HlacEncoder::writeDiffHeader(int fullBitRate, int errorBitRate, int blockSize, OutputStream& output)
 {
-	if (!output.writeByte((uint8)0xE0))
+	if (!output.writeByte((uint8)0xC0))
 		return false;
 
 	uint8 bitRates = (uint8)(fullBitRate - 1) << 4;
@@ -490,9 +472,7 @@ bool HlacEncoder::writeDiffHeader(int fullBitRate, int errorBitRate, int blockSi
 	uint16 shortPacked = bitRates << 8;
 	shortPacked |= blockSizeLog;
 
-	output.writeShort(shortPacked);
-
-	return true;
+	return output.writeShort(shortPacked);
 }
 
 
