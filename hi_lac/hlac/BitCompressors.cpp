@@ -121,10 +121,30 @@ void packArrayOfInt16(int16* d, int numValues, uint8 bitDepth)
 
 void unpackArrayOfInt16(int16* d, int numValues, uint8 bitDepth)
 {
-	for (int i = 0; i < numValues; i++)
+	jassert(numValues % 8 == 0);
+
+	jassert(reinterpret_cast<uint64>(d) % 16 == 0);
+
+#if NO_SSE
+	for (int i = 0; i < 8; i++)
 	{
 		d[i] = decompressUInt16(d[i], bitDepth);
 	}
+#else
+
+	const int16 sub = (1 << (bitDepth - 1)) - 1;
+
+	auto sub_ = _mm_set1_epi16(sub);
+
+	auto d_ = _mm_load_si128((__m128i*)d);
+	d_ = _mm_sub_epi16(d_, sub_);
+	_mm_store_si128((__m128i*)d, d_);
+
+	int x = 5;
+
+
+#endif
+
 }
 
 
@@ -506,6 +526,7 @@ int BitCompressors::SixBit::getAllowedBitRange() const
 
 bool BitCompressors::SixBit::compress(uint8* destination, const int16* data, int numValues)
 {
+
 	while (numValues >= 8)
 	{
 		compress6Bit(destination, data);
@@ -522,6 +543,7 @@ bool BitCompressors::SixBit::compress(uint8* destination, const int16* data, int
 
 bool BitCompressors::SixBit::decompress(int16* destination, const uint8* data, int numValuesToDecompress)
 {
+#if NO_SSE
 	while (numValuesToDecompress >= 8)
 	{
 		decompress6Bit(destination, data);
@@ -530,6 +552,128 @@ bool BitCompressors::SixBit::decompress(int16* destination, const uint8* data, i
 		data += 6;
 		numValuesToDecompress -= 8;
 	}
+#else
+
+	while (numValuesToDecompress >= 64)
+	{
+		const uint16* dataBlock = reinterpret_cast<const uint16*>(data);
+
+		destination[0] = (dataBlock[0] & 0b1111110000000000) >> 10;
+		destination[1] = (dataBlock[0] & 0b0000001111110000) >> 4;
+		destination[2] = (dataBlock[0] & 0b0000000000001111) << 2;
+		destination[2] |= (dataBlock[1] & 0b1100000000000000) >> 14;
+		destination[3] = (dataBlock[1] & 0b0011111100000000) >> 8;
+		destination[4] = (dataBlock[1] & 0b0000000011111100) >> 2;
+		destination[5] = (dataBlock[1] & 0b0000000000000011) << 4;
+		destination[5] |= (dataBlock[2] & 0b1111000000000000) >> 12;
+		destination[6] = (dataBlock[2] & 0b0000111111000000) >> 6;
+		destination[7] = (dataBlock[2] & 0b0000000000111111);
+
+		destination[8 + 0] =  (dataBlock[3 + 0] & 0b1111110000000000) >> 10;
+		destination[8 + 1] =  (dataBlock[3 + 0] & 0b0000001111110000) >> 4;
+		destination[8 + 2] =  (dataBlock[3 + 0] & 0b0000000000001111) << 2;
+		destination[8 + 2] |= (dataBlock[3 + 1] & 0b1100000000000000) >> 14;
+		destination[8 + 3] =  (dataBlock[3 + 1] & 0b0011111100000000) >> 8;
+		destination[8 + 4] =  (dataBlock[3 + 1] & 0b0000000011111100) >> 2;
+		destination[8 + 5] =  (dataBlock[3 + 1] & 0b0000000000000011) << 4;
+		destination[8 + 5] |= (dataBlock[3 + 2] & 0b1111000000000000) >> 12;
+		destination[8 + 6] =  (dataBlock[3 + 2] & 0b0000111111000000) >> 6;
+		destination[8 + 7] =  (dataBlock[3 + 2] & 0b0000000000111111);
+
+		destination[16 + 0] =  (dataBlock[6 + 0] & 0b1111110000000000) >> 10;
+		destination[16 + 1] =  (dataBlock[6 + 0] & 0b0000001111110000) >> 4;
+		destination[16 + 2] =  (dataBlock[6 + 0] & 0b0000000000001111) << 2;
+		destination[16 + 2] |= (dataBlock[6 + 1] & 0b1100000000000000) >> 14;
+		destination[16 + 3] =  (dataBlock[6 + 1] & 0b0011111100000000) >> 8;
+		destination[16 + 4] =  (dataBlock[6 + 1] & 0b0000000011111100) >> 2;
+		destination[16 + 5] =  (dataBlock[6 + 1] & 0b0000000000000011) << 4;
+		destination[16 + 5] |= (dataBlock[6 + 2] & 0b1111000000000000) >> 12;
+		destination[16 + 6] =  (dataBlock[6 + 2] & 0b0000111111000000) >> 6;
+		destination[16 + 7] =  (dataBlock[6 + 2] & 0b0000000000111111);
+
+		destination[24 + 0] =  (dataBlock[9 + 0] & 0b1111110000000000) >> 10;
+		destination[24 + 1] =  (dataBlock[9 + 0] & 0b0000001111110000) >> 4;
+		destination[24 + 2] =  (dataBlock[9 + 0] & 0b0000000000001111) << 2;
+		destination[24 + 2] |= (dataBlock[9 + 1] & 0b1100000000000000) >> 14;
+		destination[24 + 3] =  (dataBlock[9 + 1] & 0b0011111100000000) >> 8;
+		destination[24 + 4] =  (dataBlock[9 + 1] & 0b0000000011111100) >> 2;
+		destination[24 + 5] =  (dataBlock[9 + 1] & 0b0000000000000011) << 4;
+		destination[24 + 5] |= (dataBlock[9 + 2] & 0b1111000000000000) >> 12;
+		destination[24 + 6] =  (dataBlock[9 + 2] & 0b0000111111000000) >> 6;
+		destination[24 + 7] =  (dataBlock[9 + 2] & 0b0000000000111111);
+
+		destination[32 + 0] =  (dataBlock[12 + 0] & 0b1111110000000000) >> 10;
+		destination[32 + 1] =  (dataBlock[12 + 0] & 0b0000001111110000) >> 4;
+		destination[32 + 2] =  (dataBlock[12 + 0] & 0b0000000000001111) << 2;
+		destination[32 + 2] |= (dataBlock[12 + 1] & 0b1100000000000000) >> 14;
+		destination[32 + 3] =  (dataBlock[12 + 1] & 0b0011111100000000) >> 8;
+		destination[32 + 4] =  (dataBlock[12 + 1] & 0b0000000011111100) >> 2;
+		destination[32 + 5] =  (dataBlock[12 + 1] & 0b0000000000000011) << 4;
+		destination[32 + 5] |= (dataBlock[12 + 2] & 0b1111000000000000) >> 12;
+		destination[32 + 6] =  (dataBlock[12 + 2] & 0b0000111111000000) >> 6;
+		destination[32 + 7] =  (dataBlock[12 + 2] & 0b0000000000111111);
+
+		destination[40 + 0] =  (dataBlock[15 + 0] & 0b1111110000000000) >> 10;
+		destination[40 + 1] =  (dataBlock[15 + 0] & 0b0000001111110000) >> 4;
+		destination[40 + 2] =  (dataBlock[15 + 0] & 0b0000000000001111) << 2;
+		destination[40 + 2] |= (dataBlock[15 + 1] & 0b1100000000000000) >> 14;
+		destination[40 + 3] =  (dataBlock[15 + 1] & 0b0011111100000000) >> 8;
+		destination[40 + 4] =  (dataBlock[15 + 1] & 0b0000000011111100) >> 2;
+		destination[40 + 5] =  (dataBlock[15 + 1] & 0b0000000000000011) << 4;
+		destination[40 + 5] |= (dataBlock[15 + 2] & 0b1111000000000000) >> 12;
+		destination[40 + 6] =  (dataBlock[15 + 2] & 0b0000111111000000) >> 6;
+		destination[40 + 7] =  (dataBlock[15 + 2] & 0b0000000000111111);
+
+		destination[48 + 0] =  (dataBlock[18 + 0] & 0b1111110000000000) >> 10;
+		destination[48 + 1] =  (dataBlock[18 + 0] & 0b0000001111110000) >> 4;
+		destination[48 + 2] =  (dataBlock[18 + 0] & 0b0000000000001111) << 2;
+		destination[48 + 2] |= (dataBlock[18 + 1] & 0b1100000000000000) >> 14;
+		destination[48 + 3] =  (dataBlock[18 + 1] & 0b0011111100000000) >> 8;
+		destination[48 + 4] =  (dataBlock[18 + 1] & 0b0000000011111100) >> 2;
+		destination[48 + 5] =  (dataBlock[18 + 1] & 0b0000000000000011) << 4;
+		destination[48 + 5] |= (dataBlock[18 + 2] & 0b1111000000000000) >> 12;
+		destination[48 + 6] =  (dataBlock[18 + 2] & 0b0000111111000000) >> 6;
+		destination[48 + 7] =  (dataBlock[18 + 2] & 0b0000000000111111);
+
+		destination[56 + 0] =  (dataBlock[21 + 0] & 0b1111110000000000) >> 10;
+		destination[56 + 1] =  (dataBlock[21 + 0] & 0b0000001111110000) >> 4;
+		destination[56 + 2] =  (dataBlock[21 + 0] & 0b0000000000001111) << 2;
+		destination[56 + 2] |= (dataBlock[21 + 1] & 0b1100000000000000) >> 14;
+		destination[56 + 3] =  (dataBlock[21 + 1] & 0b0011111100000000) >> 8;
+		destination[56 + 4] =  (dataBlock[21 + 1] & 0b0000000011111100) >> 2;
+		destination[56 + 5] =  (dataBlock[21 + 1] & 0b0000000000000011) << 4;
+		destination[56 + 5] |= (dataBlock[21 + 2] & 0b1111000000000000) >> 12;
+		destination[56 + 6] =  (dataBlock[21 + 2] & 0b0000111111000000) >> 6;
+		destination[56 + 7] =  (dataBlock[21 + 2] & 0b0000000000111111);
+
+		unpackArrayOfInt16(destination, 8, 6);
+		unpackArrayOfInt16(destination+8, 8, 6);
+		unpackArrayOfInt16(destination+16, 8, 6);
+		unpackArrayOfInt16(destination+24, 8, 6);
+		unpackArrayOfInt16(destination+32, 8, 6);
+		unpackArrayOfInt16(destination+40, 8, 6);
+		unpackArrayOfInt16(destination+48, 8, 6);
+		unpackArrayOfInt16(destination+56, 8, 6);
+		
+		destination += 64;
+		data += 48;
+		numValuesToDecompress -= 64;
+	}
+
+
+	while (numValuesToDecompress >= 8)
+	{
+		decompress6Bit(destination, data);
+
+		destination += 8;
+		data += 6;
+		numValuesToDecompress -= 8;
+	}
+
+
+
+
+#endif
 
 	memcpy(destination, data, sizeof(int16) * numValuesToDecompress);
 
@@ -625,14 +769,7 @@ void decompress10Bit(uint16* eightValues, void* tenBytes)
 	eightValues[6] |= (dataBlock[4] & 0b1111110000000000) >> 10;
 	eightValues[7] = (dataBlock[4] & 0b0000001111111111);
 
-	eightValues[0] = decompressUInt16(eightValues[0], 10);
-	eightValues[1] = decompressUInt16(eightValues[1], 10);
-	eightValues[2] = decompressUInt16(eightValues[2], 10);
-	eightValues[3] = decompressUInt16(eightValues[3], 10);
-	eightValues[4] = decompressUInt16(eightValues[4], 10);
-	eightValues[5] = decompressUInt16(eightValues[5], 10);
-	eightValues[6] = decompressUInt16(eightValues[6], 10);
-	eightValues[7] = decompressUInt16(eightValues[7], 10);
+	unpackArrayOfInt16(reinterpret_cast<int16*>(eightValues), 8, 10);
 }
 
 int BitCompressors::TenBit::getAllowedBitRange() const

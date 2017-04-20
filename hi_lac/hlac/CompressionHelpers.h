@@ -70,6 +70,9 @@ struct CompressionHelpers
 		bool isReadOnly = false;
 		HeapBlock<int16> data;
 		int16* externalData = nullptr;
+
+		uint32 offsetForAlignment = 0;
+
 	};
 
 	/** Loads a file into a AudioSampleBuffer. */

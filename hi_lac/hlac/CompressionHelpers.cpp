@@ -37,7 +37,10 @@ CompressionHelpers::AudioBufferInt16::AudioBufferInt16(AudioSampleBuffer& b, boo
 #endif
 
 	size = b.getNumSamples();
-	data.malloc(size);
+
+	data.malloc(size + 15);
+
+	offsetForAlignment = (32 - reinterpret_cast<uint64>(data.getData()) % 32) / 2;
 
 	if (normalizeBeforeStoring)
 	{
@@ -61,6 +64,9 @@ CompressionHelpers::AudioBufferInt16::AudioBufferInt16(AudioSampleBuffer& b, boo
 CompressionHelpers::AudioBufferInt16::AudioBufferInt16(int16* externalData_, int numSamples)
 {
 	size = numSamples;
+
+	//jassert(reinterpret_cast<uint64>(externalData_) % 32 == 0);
+
 	externalData = externalData_;
 }
 
@@ -74,7 +80,10 @@ CompressionHelpers::AudioBufferInt16::AudioBufferInt16(const int16* externalData
 CompressionHelpers::AudioBufferInt16::AudioBufferInt16(int size_)
 {
 	size = size_;
-	data.calloc(size);
+
+	data.calloc(size+15);
+
+	offsetForAlignment = (32 - reinterpret_cast<uint64>(data.getData()) % 32) / 2;
 }
 
 AudioSampleBuffer CompressionHelpers::AudioBufferInt16::getFloatBuffer() const
@@ -611,8 +620,10 @@ void CompressionHelpers::Diff::distributeFullSamples(AudioBufferInt16& dst, cons
 	// Use this only on power two block sizes (512 samples = 128 four packs + 1 last value)
 	jassert(isPowerOfTwo(numSamples - 1));
 
-	// Needs 64 bit alignment for the destination buffer.
-	jassert(reinterpret_cast<uint64>(dst.getReadPointer()) % 8 == 0);
+	// Needs 128 bit alignment for the destination buffer.
+	jassert(reinterpret_cast<uint64>(dst.getReadPointer()) % 16 == 0);
+
+	jassert(reinterpret_cast<uint64>(fullSamplesPacked) % 16 == 0);
 
 	int16* d = dst.getWritePointer();
 
@@ -623,7 +634,7 @@ void CompressionHelpers::Diff::distributeFullSamples(AudioBufferInt16& dst, cons
 
 	int numTodo = numSamples - 2;
 
-#if OLD
+#if NO_SSE
 
 	for (int i = 0; i < numSamples - 2; i++)
 	{
@@ -642,21 +653,10 @@ void CompressionHelpers::Diff::distributeFullSamples(AudioBufferInt16& dst, cons
 
 	for (int i = 0; i < numSamples - 9; i+=4)
 	{
-		int j = 0;
-
-		r[i] = -120;
-		r[i+1] = 31;
-		r[i+2] = 50;
-		r[i+3] = 102;
-		r[i+4] = 70;
-
-		const int values[5] = { (int)r[i], (int)r[i + 1], (int)r[i + 2], (int)r[i + 3], (int)r[i + 4] };
-
 		__m128i a = _mm_loadl_epi64((const __m128i*)(r + i));
 		__m128i b = _mm_loadl_epi64((const __m128i*)(r + i + 1));
 		const __m128i mul3 = _mm_set1_epi32(3);
-
-
+		
 		a = _mm_cvtepi16_epi32(a);
 		b = _mm_cvtepi16_epi32(b);
 
@@ -664,59 +664,44 @@ void CompressionHelpers::Diff::distributeFullSamples(AudioBufferInt16& dst, cons
 
 		auto v2 = _mm_mullo_epi32(a, mul3);
 		v2 = _mm_add_epi32(v2, b);
-		v2 = _mm_srli_epi32(v2, 2);
+		v2 = _mm_srai_epi32(v2, 2);
 
 		auto v3 = _mm_add_epi32(a, b);
-		v3 = _mm_srli_epi32(v3, 1);
+		v3 = _mm_srai_epi32(v3, 1);
 
 		auto v4 = _mm_mullo_epi32(b, mul3);
 		v4 = _mm_add_epi32(v4, a);
-		v4 = _mm_srli_epi32(v4, 2);
+		v4 = _mm_srai_epi32(v4, 2);
 
-		auto mask_epi32_epi16 = _mm_set_epi8(3,2, 6,7, 10,11, 14, 15,  0, 1, 4, 5, 8, 9, 12, 13);
-		auto v5 = _mm_shuffle_epi8(v4, mask_epi32_epi16);
+		const uint8 z = 0x80;
 
+		const __m128i mask1a = _mm_set_epi8(z, z, z, z,   z, z, 5, 4,   z, z, z, z,    z, z, 1, 0);
+		const __m128i mask1b = _mm_set_epi8(z, z, z, z,   z, z,13,12,   z, z, z, z,    z, z, 9, 8);
+		const __m128i mask2a = _mm_set_epi8(z, z, z, z,   5, 4, z, z,   z, z, z, z,    1, 0, z, z);
+		const __m128i mask2b = _mm_set_epi8(z, z, z, z,  13,12, z, z,   z, z, z, z,    9, 8, z, z);
+		const __m128i mask3a = _mm_set_epi8(z, z, 5, 4,   z, z, z, z,   z, z, 1, 0,    z, z, z, z);
+		const __m128i mask3b = _mm_set_epi8(z, z,13,12,   z, z, z, z,   z, z, 9, 8,    z, z, z, z);
+		const __m128i mask4a = _mm_set_epi8( 5, 4, z, z,  z, z, z, z,   1, 0, z, z,    z, z, z, z);
+		const __m128i mask4b = _mm_set_epi8(13,12, z, z,  z, z, z, z,   9, 8, z, z,    z, z, z, z);
 
-		d[0] = (int16)(values[0]);
-		d[4] = (int16)(values[1]);
-		d[8] = (int16)(values[2]);
-		d[12] = (int16)(values[3]);
+		const __m128i d1a = _mm_shuffle_epi8(v1, mask1a);
+		const __m128i d1b = _mm_shuffle_epi8(v2, mask2a);
+		const __m128i d1c = _mm_shuffle_epi8(v3, mask3a);
+		const __m128i d1d = _mm_shuffle_epi8(v4, mask4a);
 
-		d[1] = (int16)((3 * values[0] + values[1]) / 4);
-		d[5] = (int16)((3 * values[1] + values[2]) / 4);
-		d[9] = (int16)((3 * values[2] + values[3]) / 4);
-		d[13] = (int16)((3 * values[3] + values[4]) / 4);
-
-		d[2] = (int16)((values[0] + values[1]) / 2);
-		d[6] = (int16)((values[1] + values[2]) / 2);
-		d[10] = (int16)((values[2] + values[3]) / 2);
-		d[14] = (int16)((values[3] + values[4]) / 2);
+		const __m128i d1 = _mm_or_si128(_mm_or_si128(d1a, d1b), _mm_or_si128(d1c, d1d));
 		
-		d[3] = (int16)((values[0] + 3 * values[1]) / 4);
-		d[7] = (int16)((values[1] + 3 * values[2]) / 4);
-		d[11] = (int16)((values[2] + 3 * values[3]) / 4);
-		d[15] = (int16)((values[3] + 3 * values[4]) / 4);
+		const __m128i d2a = _mm_shuffle_epi8(v1, mask1b);
+		const __m128i d2b = _mm_shuffle_epi8(v2, mask2b);
+		const __m128i d2c = _mm_shuffle_epi8(v3, mask3b);
+		const __m128i d2d = _mm_shuffle_epi8(v4, mask4b);
+
+		const __m128i d2 = _mm_or_si128(_mm_or_si128(d2a, d2b), _mm_or_si128(d2c, d2d));
+
+		_mm_store_si128((__m128i*)d, d1);
+		_mm_store_si128((__m128i*)(d+8), d2);
 
 		d += 16;
-
-#if 0
-		thisValue = (int)r[i+2];
-		nextValue = (int)r[i+3];
-
-		d[0] = (int16)(thisValue);
-		d[1] = (int16)((3 * thisValue + nextValue) / 4);
-		d[2] = (int16)((thisValue + nextValue) / 2);
-		d[3] = (int16)((thisValue + 3 * nextValue) / 4);
-
-
-		d += 4;
-#endif
-
-
-		for (int j = 0; j < 8; j++)
-		{
-			
-		}
 	}
 
 	for (int i = numSamples - 9; i < numSamples - 2; i++)
@@ -752,13 +737,15 @@ void CompressionHelpers::Diff::addErrorSignal(AudioBufferInt16& dst, const uint1
 	jassert(isPowerOfTwo(4*(numSamples+1)/3));
 
 	// Needs 64 bit alignment for the destination buffer.
-	jassert(reinterpret_cast<uint64>(dst.getReadPointer()) % 8 == 0);
+	jassert(reinterpret_cast<uint64>(dst.getReadPointer()) % 16 == 0);
 
 	int16* d = dst.getWritePointer();
 
-	const int16* e = reinterpret_cast<const int16*>(errorSignalPacked);
+	int16* e = const_cast<int16*>(reinterpret_cast<const int16*>(errorSignalPacked));
 
 	int counter = 0;
+
+#if NO_SSE
 
 	while (numSamples > 2)
 	{
@@ -776,6 +763,51 @@ void CompressionHelpers::Diff::addErrorSignal(AudioBufferInt16& dst, const uint1
 
 	d[1] -= e[0];
 	d[2] -= e[1];
+
+#else
+
+	while (numSamples > 2)
+	{
+		counter += 16;
+
+		__m128i a1 = _mm_load_si128((__m128i*)d);
+		__m128i a2 = _mm_load_si128((__m128i*)(d+8));
+
+		__m128i b1 = _mm_loadl_epi64((__m128i*)e);
+		__m128i b2 = _mm_loadl_epi64((__m128i*)(e+3));
+		__m128i b3 = _mm_loadl_epi64((__m128i*)(e+6));
+		__m128i b4 = _mm_loadl_epi64((__m128i*)(e+9));
+
+		const uint8 z = 0x80;
+
+		const __m128i mask = _mm_set_epi8 (z, z, z, z, z, z, z, z, 5, 4, 3, 2, 1, 0, z, z);
+		const __m128i mask2 = _mm_set_epi8(5, 4, 3, 2, 1, 0, z, z, z, z, z, z, z, z, z, z);
+
+		__m128i ba = _mm_shuffle_epi8(b1, mask);
+		ba = _mm_or_si128(ba, _mm_shuffle_epi8(b2, mask2));
+
+		__m128i bb = _mm_shuffle_epi8(b3, mask);
+		bb = _mm_or_si128(bb, _mm_shuffle_epi8(b4, mask2));
+
+		a1 = _mm_sub_epi16(a1, ba);
+		a2 = _mm_sub_epi16(a2, bb);
+
+		_mm_store_si128((__m128i*)d, a1);
+		_mm_store_si128((__m128i*)(d+8), a2);
+
+		d += 16;
+		e += 12;
+
+		numSamples -= 12;
+
+	}
+
+
+	d[1] -= e[0];
+	d[2] -= e[1];
+
+
+#endif
 }
 
 uint64 CompressionHelpers::Misc::NumberOfSetBits(uint64 i)

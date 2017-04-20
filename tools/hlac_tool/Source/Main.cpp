@@ -320,30 +320,6 @@ int main(int argc, char **argv)
 			return 1;
 		}
 		
-
-#if 0
-
-		b.clear();
-
-		float* check = b.getWritePointer(0);
-
-		check[1012] = 0.0f;
-		check[1013] = 0.251f;
-		check[1014] = 0.51f;
-		check[1015] = 0.752f;
-		check[1016] = 1.0f;
-		check[1017] = 0.751f;
-		check[1018] = 0.49f;
-		check[1019] = 0.253f;
-		check[1020] = 0.0f;
-		check[1021] = 0.32f;
-		check[1022] = 0.68f;
-		check[1023] = 1.0f;
-
-		CompressionHelpers::dump(b);
-
-	
-#endif
 		pcmSpeed += s;
 
 		if (checkWithFlac)

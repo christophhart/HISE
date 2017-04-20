@@ -140,7 +140,7 @@ void HlacDecoder::decode(AudioSampleBuffer& destination, InputStream& input, int
 
 	decompressionSpeeds.add(decompressionSpeed);
 
-	//Logger::writeToLog("HLAC Decoding Performance: " + String(decompressionSpeed, 1) + "x realtime");
+	Logger::writeToLog("HLAC Decoding Performance: " + String(decompressionSpeed, 1) + "x realtime");
 #endif
 }
 
