@@ -18,7 +18,8 @@
         <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
                        isDebug="1" optimisation="1" targetName="hlac_tool"/>
         <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
-                       isDebug="0" optimisation="3" targetName="hlac_tool" alwaysGenerateDebugSymbols="0"/>
+                       isDebug="0" optimisation="3" targetName="hlac_tool" alwaysGenerateDebugSymbols="1"
+                       useRuntimeLibDLL="0"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_core" path="../../JUCE/modules"/>

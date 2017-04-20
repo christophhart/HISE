@@ -27,30 +27,206 @@ public:
 	}
 };
 
-int main(int argc, char **argv)
+
+#define ABORT_WITH_MESSAGE(x) Logger::writeToLog(x); Logger::setCurrentLogger(nullptr); return 1;
+
+void printHelp()
 {
+	Logger::writeToLog("HISE Lossless Audio Codec Test tool");
+	Logger::writeToLog("-----------------------------------");
+	Logger::writeToLog("Usage: hlac_tool [MODE] [INPUT] [OUTPUT]");
+	Logger::writeToLog("");
+	Logger::writeToLog("modes: 'unit_test' / 'test_directory'");
+	Logger::writeToLog("(put '_' before filename to skip samples)");
+	Logger::setCurrentLogger(nullptr);
+}
+
+int encode(File input, File output, HlacEncoder::CompressorOptions option)
+{
+
+	AudioFormatManager afm;
+
+	afm.registerBasicFormats();
+
+	ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(input);
+
+	if (reader == nullptr)
+	{
+		ABORT_WITH_MESSAGE(input.getFileName() + " is not a valid audio file");
+	}
+
+	HiseLosslessAudioFormat hlac;
+
+	FileOutputStream* fos = new FileOutputStream(output);
+
+	StringPairArray empty;
+
+	ScopedPointer<HiseLosslessAudioFormatWriter> writer = dynamic_cast<HiseLosslessAudioFormatWriter*>(hlac.createWriterFor(fos, reader->sampleRate, reader->numChannels, 16, empty, 5));
+
+	writer->setOptions(option);
+
+	bool ok = writer->writeFromAudioReader(*reader, 0, reader->lengthInSamples);
+
+	if (ok)
+	{
+		Logger::writeToLog(output.getFileName() + "successfully encoded");
+		Logger::setCurrentLogger(nullptr);
+		return 0;
+	}
+	else
+	{
+		ABORT_WITH_MESSAGE("Error at encoding " + output.getFileName());
+	}
+}
+
+int decode(File input, File output)
+{
+	UnitTestRunner runner;
+	runner.setAssertOnFailure(false);
+	runner.runAllTests();
+
+	HiseLosslessAudioFormat hlac;
+
+	ScopedPointer<FileInputStream> fis = new FileInputStream(input);
+
+	MemoryOutputStream mos;
+
+	mos.writeFromInputStream(*fis, fis->getTotalLength());
+
+	fis = nullptr;
+
 	
 
-	ScopedPointer<Logger> l = new StdLogger();
 
+	AudioFormatManager afm;
+
+	afm.registerBasicFormats();
+
+	AudioFormat* formatToUse = afm.findFormatForFileExtension(output.getFileExtension());
+
+	if (formatToUse == nullptr)
+	{
+		ABORT_WITH_MESSAGE("Can't find a suitable format for " + output.getFileName());
+	}
+
+	int x = 0;
+
+	AudioSampleBuffer b;
+
+#if 1
+
+	MemoryBlock mb;
+
+	mb.setSize(mos.getDataSize());
+
+	mb.copyFrom(mos.getData(), 0, mos.getDataSize());
+
+	while (x < 10000)
+	{
+		if(x % 100 == 0)
+		{
+			Logger::writeToLog("Profiling: " + String(x/100) + "% complete");
+		}
+
+		MemoryInputStream* mis = new MemoryInputStream(mb, false);
+		ScopedPointer<HiseLosslessAudioFormatReader> reader = dynamic_cast<HiseLosslessAudioFormatReader*>(hlac.createReaderFor(mis, true));
+
+		if (reader == nullptr)
+		{
+			ABORT_WITH_MESSAGE("Can't read " + input.getFileName());
+		}
+		
+		b.setSize(reader->numChannels, reader->lengthInSamples, true, true, true);
+		
+		reader->read(&b, 0, reader->lengthInSamples, 0, true, true);
+
+		x++;
+	}
+
+	Logger::setCurrentLogger(nullptr);
+	return 0;
+#else
+	
+	ScopedPointer<HiseLosslessAudioFormatReader> reader = dynamic_cast<HiseLosslessAudioFormatReader*>(hlac.createReaderFor(mis, true));
+
+	FileOutputStream* fos = new FileOutputStream(output);
+
+	StringPairArray empty;
+
+	ScopedPointer<AudioFormatWriter> writer = formatToUse->createWriterFor(fos, reader->sampleRate, reader->numChannels, reader->bitsPerSample, empty, 5);
+
+	bool ok = writer->writeFromAudioReader(*reader, 0, reader->lengthInSamples);
+
+	if (ok)
+	{
+		Logger::writeToLog(input.getFileName() + " successfully decoded");
+		Logger::writeToLog("Decompression speed: " + String(reader->getDecompressionPerformanceForLastFile(), 1) + "x realtime");
+		Logger::setCurrentLogger(nullptr);
+		return 0;
+	}
+	else
+	{
+		ABORT_WITH_MESSAGE("Error at decoding " + input.getFileName());
+	}
+
+#endif
+}
+
+int main(int argc, char **argv)
+{
+	ScopedPointer<Logger> l = new StdLogger();
 	Logger::setCurrentLogger(l);
 
-
-    
-	if (argc != 3)
+	if (argc < 2)
 	{
-		Logger::writeToLog("HISE Lossless Audio Codec Test tool");
-		Logger::writeToLog("-----------------------------------");
-		Logger::writeToLog("Usage: hlac_tool [MODE] [FOLDER_WITH_TEST_FILES]");
-		Logger::writeToLog("");
-		Logger::writeToLog("modes: 'unit_test' / 'test_directory'");
-		Logger::writeToLog("(put '_' before filename to skip samples)");
-		Logger::setCurrentLogger(nullptr);
-
+		printHelp();
 		return 1;
 	}
 
 	String mode(argv[1]);
+
+	if (mode.startsWith("encode") || mode == "decode")
+	{
+		bool shouldEncode = mode != "decode";
+
+		if (argc < 3)
+		{
+			printHelp();
+			return 1;
+		}
+
+		File input = File(argv[2]);
+
+		if (!input.existsAsFile())
+		{
+			ABORT_WITH_MESSAGE("File " + String(argv[2]) + " does not exist");
+		}
+
+		File output;
+		
+		if (argc == 4)
+			output = File(argv[3]);
+		else
+		{
+			if(shouldEncode)
+				output = input.getSiblingFile(input.getFileNameWithoutExtension() + ".hlac");
+			else
+			{
+				ABORT_WITH_MESSAGE("You have to specify a output file name");
+			}
+		}
+		
+		HlacEncoder::CompressorOptions option = HlacEncoder::CompressorOptions::getPreset(HlacEncoder::CompressorOptions::Presets::Diff);
+
+		if (mode.contains("Block")) option = HlacEncoder::CompressorOptions::getPreset(HlacEncoder::CompressorOptions::Presets::WholeBlock);
+		else if (mode.contains("Delta")) option = HlacEncoder::CompressorOptions::getPreset(HlacEncoder::CompressorOptions::Presets::Delta);
+
+		if (output.existsAsFile())
+			output.deleteFile();
+
+		return shouldEncode ? encode(input, output, option) : decode(input, output);
+
+	}
 
 	if (mode == "unit_test")
 	{
@@ -192,12 +368,7 @@ int main(int argc, char **argv)
 			if (blockWriter == nullptr)
 				return 1;
 
-			HlacEncoder::CompressorOptions wholeBlock;
-
-			wholeBlock.fixedBlockWidth = 512;
-			wholeBlock.removeDcOffset = false;
-			wholeBlock.useDeltaEncoding = false;
-			wholeBlock.useDiffEncodingWithFixedBlocks = false;
+			HlacEncoder::CompressorOptions wholeBlock = HlacEncoder::CompressorOptions::getPreset(HlacEncoder::CompressorOptions::Presets::WholeBlock);
 
 			blockWriter->setOptions(wholeBlock);
 			blockWriter->writeFromAudioSampleBuffer(b, 0, b.getNumSamples());
@@ -235,14 +406,7 @@ int main(int argc, char **argv)
 				return 1;
 
 
-			HlacEncoder::CompressorOptions delta;
-
-			delta.fixedBlockWidth = -1;
-			delta.removeDcOffset = false;
-			delta.useDeltaEncoding = true;
-			delta.useDiffEncodingWithFixedBlocks = false;
-			delta.reuseFirstCycleLengthForBlock = true;
-			delta.deltaCycleThreshhold = 0.1f;
+			HlacEncoder::CompressorOptions delta = HlacEncoder::CompressorOptions::getPreset(HlacEncoder::CompressorOptions::Presets::Delta);
 
 			deltaWriter->setOptions(delta);
 
@@ -281,13 +445,7 @@ int main(int argc, char **argv)
 			if (diffWriter == nullptr)
 				return 1;
 
-			HlacEncoder::CompressorOptions diff;
-
-			diff.fixedBlockWidth = 1024;
-			diff.removeDcOffset = false;
-			diff.useDeltaEncoding = false;
-			diff.bitRateForWholeBlock = 4;
-			diff.useDiffEncodingWithFixedBlocks = true;
+			HlacEncoder::CompressorOptions diff = HlacEncoder::CompressorOptions::getPreset(HlacEncoder::CompressorOptions::Presets::Diff);
 
 			diffWriter->setOptions(diff);
 			diffWriter->writeFromAudioSampleBuffer(b, 0, b.getNumSamples());
