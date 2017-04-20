@@ -616,10 +616,14 @@ void CompressionHelpers::Diff::distributeFullSamples(AudioBufferInt16& dst, cons
 
 	int16* d = dst.getWritePointer();
 
-	const int16* r = reinterpret_cast<const int16*>(fullSamplesPacked);
+	int16* r = const_cast<int16*>(reinterpret_cast<const int16*>(fullSamplesPacked));
 
 	int thisValue = 0;
 	int nextValue = 0;
+
+	int numTodo = numSamples - 2;
+
+#if OLD
 
 	for (int i = 0; i < numSamples - 2; i++)
 	{
@@ -634,6 +638,104 @@ void CompressionHelpers::Diff::distributeFullSamples(AudioBufferInt16& dst, cons
 		d += 4;
 	}
 
+#else
+
+	for (int i = 0; i < numSamples - 9; i+=4)
+	{
+		int j = 0;
+
+		r[i] = -120;
+		r[i+1] = 31;
+		r[i+2] = 50;
+		r[i+3] = 102;
+		r[i+4] = 70;
+
+		const int values[5] = { (int)r[i], (int)r[i + 1], (int)r[i + 2], (int)r[i + 3], (int)r[i + 4] };
+
+		__m128i a = _mm_loadl_epi64((const __m128i*)(r + i));
+		__m128i b = _mm_loadl_epi64((const __m128i*)(r + i + 1));
+		const __m128i mul3 = _mm_set1_epi32(3);
+
+
+		a = _mm_cvtepi16_epi32(a);
+		b = _mm_cvtepi16_epi32(b);
+
+		auto v1 = a;
+
+		auto v2 = _mm_mullo_epi32(a, mul3);
+		v2 = _mm_add_epi32(v2, b);
+		v2 = _mm_srli_epi32(v2, 2);
+
+		auto v3 = _mm_add_epi32(a, b);
+		v3 = _mm_srli_epi32(v3, 1);
+
+		auto v4 = _mm_mullo_epi32(b, mul3);
+		v4 = _mm_add_epi32(v4, a);
+		v4 = _mm_srli_epi32(v4, 2);
+
+		auto mask_epi32_epi16 = _mm_set_epi8(3,2, 6,7, 10,11, 14, 15,  0, 1, 4, 5, 8, 9, 12, 13);
+		auto v5 = _mm_shuffle_epi8(v4, mask_epi32_epi16);
+
+
+		d[0] = (int16)(values[0]);
+		d[4] = (int16)(values[1]);
+		d[8] = (int16)(values[2]);
+		d[12] = (int16)(values[3]);
+
+		d[1] = (int16)((3 * values[0] + values[1]) / 4);
+		d[5] = (int16)((3 * values[1] + values[2]) / 4);
+		d[9] = (int16)((3 * values[2] + values[3]) / 4);
+		d[13] = (int16)((3 * values[3] + values[4]) / 4);
+
+		d[2] = (int16)((values[0] + values[1]) / 2);
+		d[6] = (int16)((values[1] + values[2]) / 2);
+		d[10] = (int16)((values[2] + values[3]) / 2);
+		d[14] = (int16)((values[3] + values[4]) / 2);
+		
+		d[3] = (int16)((values[0] + 3 * values[1]) / 4);
+		d[7] = (int16)((values[1] + 3 * values[2]) / 4);
+		d[11] = (int16)((values[2] + 3 * values[3]) / 4);
+		d[15] = (int16)((values[3] + 3 * values[4]) / 4);
+
+		d += 16;
+
+#if 0
+		thisValue = (int)r[i+2];
+		nextValue = (int)r[i+3];
+
+		d[0] = (int16)(thisValue);
+		d[1] = (int16)((3 * thisValue + nextValue) / 4);
+		d[2] = (int16)((thisValue + nextValue) / 2);
+		d[3] = (int16)((thisValue + 3 * nextValue) / 4);
+
+
+		d += 4;
+#endif
+
+
+		for (int j = 0; j < 8; j++)
+		{
+			
+		}
+	}
+
+	for (int i = numSamples - 9; i < numSamples - 2; i++)
+	{
+		thisValue = (int)r[i];
+		nextValue = (int)r[i + 1];
+
+		d[0] = (int16)(thisValue);
+		d[1] = (int16)((3 * thisValue + nextValue) / 4);
+		d[2] = (int16)((thisValue + nextValue) / 2);
+		d[3] = (int16)((thisValue + 3 * nextValue) / 4);
+
+		d += 4;
+	}
+
+
+#endif
+
+
 	thisValue = r[numSamples - 2];
 	nextValue = r[numSamples - 1];
 	
@@ -641,44 +743,6 @@ void CompressionHelpers::Diff::distributeFullSamples(AudioBufferInt16& dst, cons
 	d[1] = (int16)((2 * thisValue + nextValue) / 3);
 	d[2] = (int16)((thisValue + 2 * nextValue) / 3);
 	d[3] = (int16)(nextValue);
-
-#if 0
-	int readIndex = 0;
-
-	int thisValue = (int)(r[readIndex]);
-	++readIndex;
-	--numSamples;
-
-	while (numSamples > 2)
-	{
-		int nextValue = (int)(r[readIndex]);
-		++readIndex;
-		numSamples -= 1;
-
-		d[0] = (int16)(thisValue);
-		d[1] = (int16)((3*thisValue + nextValue) / 4);
-		d[2] = (int16)((thisValue + nextValue) / 2);
-		d[3] = (int16)((thisValue + 3 * nextValue) / 4);
-
-		d += 4;
-		thisValue = nextValue;
-		
-	}
-
-
-	++readIndex;
-	int nextValue = r[readIndex];
-
-	d += 4;
-
-	d[0] = (int16)(thisValue);
-	d[1] = (int16)((2 * thisValue + nextValue) / 3);
-	d[2] = (int16)((thisValue + 2 * nextValue) / 3);
-	d[3] = (int16)(nextValue);
-
-#endif
-
-
 }
 
 void CompressionHelpers::Diff::addErrorSignal(AudioBufferInt16& dst, const uint16* errorSignalPacked, int numSamples)

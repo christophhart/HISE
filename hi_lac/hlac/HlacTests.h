@@ -1,5 +1,5 @@
 /*  HISE Lossless Audio Codec
-*	©2017 Christoph Hart
+*	ï¿½2017 Christoph Hart
 *
 *	Redistribution and use in source and binary forms, with or without modification,
 *	are permitted provided that the following conditions are met:
@@ -59,6 +59,7 @@ struct CodecTest : public UnitTest
 		SineOnly,
 		MixedSine,
 		DecayingSineWithHarmonic,
+		NastyDiracTrain,
 		numSignalTypes
 	};
 
@@ -74,11 +75,11 @@ struct CodecTest : public UnitTest
 
 	void testIntegerBuffers();
 
-	void testCodec(SignalType type, Option option);
+	void testCodec(SignalType type, Option option, bool testStereo);
 
 	AudioSampleBuffer createTestSignal(int numSamples, int numChannels, SignalType type, float maxAmplitude);
 
-	HlacEncoder::CompressorOptions options[Option::numCompressorOptions];
+	HlacEncoder::CompressorOptions options[(int)Option::numCompressorOptions];
 	
 	String getNameForOption(Option o) const;
 	String getNameForSignal(SignalType s) const;

@@ -45,6 +45,14 @@ public:
 
 	struct CompressorOptions
 	{
+		enum class Presets
+		{
+			WholeBlock,
+			Delta,
+			Diff,
+			numPresets
+		};
+
 		bool useDeltaEncoding = true;
 		int16 fixedBlockWidth = -1;
 		bool reuseFirstCycleLengthForBlock = true;
@@ -52,6 +60,49 @@ public:
 		float deltaCycleThreshhold = 0.2f;
 		int bitRateForWholeBlock = 6;
 		bool useDiffEncodingWithFixedBlocks = false;
+
+		static CompressorOptions getPreset(Presets p)
+		{
+			if (p == Presets::WholeBlock)
+			{
+				HlacEncoder::CompressorOptions wholeBlock;
+
+				wholeBlock.fixedBlockWidth = 512;
+				wholeBlock.removeDcOffset = false;
+				wholeBlock.useDeltaEncoding = false;
+				wholeBlock.useDiffEncodingWithFixedBlocks = false;
+
+				return wholeBlock;
+			}
+			if (p == Presets::Delta)
+			{
+				HlacEncoder::CompressorOptions delta;
+
+				delta.fixedBlockWidth = -1;
+				delta.removeDcOffset = false;
+				delta.useDeltaEncoding = true;
+				delta.useDiffEncodingWithFixedBlocks = false;
+				delta.reuseFirstCycleLengthForBlock = true;
+				delta.deltaCycleThreshhold = 0.1f;
+
+				return delta;
+			}
+			if (p == Presets::Diff)
+			{
+				HlacEncoder::CompressorOptions diff;
+
+				diff.fixedBlockWidth = 1024;
+				diff.removeDcOffset = false;
+				diff.useDeltaEncoding = false;
+				diff.bitRateForWholeBlock = 4;
+				diff.useDiffEncodingWithFixedBlocks = true;
+
+				return diff;
+			}
+
+			return CompressorOptions();
+		}
+
 	};
 
 

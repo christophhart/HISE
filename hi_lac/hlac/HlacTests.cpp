@@ -259,58 +259,44 @@ void BitCompressors::UnitTests::testCompressor(Base* compressor)
 CodecTest::CodecTest() :
 	UnitTest("Testing HLAC codec")
 {
-	HlacEncoder::CompressorOptions wholeBlock;
-
-	wholeBlock.fixedBlockWidth = 512;
-	wholeBlock.removeDcOffset = false;
-	wholeBlock.useDeltaEncoding = false;
-	wholeBlock.useDiffEncodingWithFixedBlocks = false;
-
-	HlacEncoder::CompressorOptions delta;
-
-	delta.fixedBlockWidth = -1;
-	delta.removeDcOffset = false;
-	delta.useDeltaEncoding = true;
-	delta.bitRateForWholeBlock = 4;
-	delta.useDiffEncodingWithFixedBlocks = false;
-	delta.reuseFirstCycleLengthForBlock = true;
-	delta.deltaCycleThreshhold = 0.1f;
-
-	HlacEncoder::CompressorOptions diff;
-
-	diff.fixedBlockWidth = 1024;
-	diff.removeDcOffset = false;
-	diff.useDeltaEncoding = false;
-	diff.bitRateForWholeBlock = 4;
-	diff.useDiffEncodingWithFixedBlocks = true;
-
-	options[(int)Option::WholeBlock] = wholeBlock;
-	options[(int)Option::Delta] = delta;
-	options[(int)Option::Diff] = diff;
+	options[(int)Option::WholeBlock] = HlacEncoder::CompressorOptions::getPreset(HlacEncoder::CompressorOptions::Presets::WholeBlock);
+	options[(int)Option::Delta] = HlacEncoder::CompressorOptions::getPreset(HlacEncoder::CompressorOptions::Presets::Delta);
+	options[(int)Option::Diff] = HlacEncoder::CompressorOptions::getPreset(HlacEncoder::CompressorOptions::Presets::Diff);
 }
 
 void CodecTest::runTest()
 {
 	testIntegerBuffers();
 
-	const bool testDelta = true;
+	SignalType testOnly = SignalType::numSignalTypes;
+	Option soloOption = Option::numCompressorOptions;
+	bool testOnce = true;
 
 	for (int i = 0; i < (int)SignalType::numSignalTypes; i++)
 	{
-		if (i != (int)SignalType::MixedSine)
-			//continue;
+		if (testOnly != SignalType::numSignalTypes && i != (int)testOnly)
+			continue;
 
 		beginTest("Testing codecs for signal " + getNameForSignal((SignalType)i));
 
 		for (int j = 0; j < (int)Option::numCompressorOptions; j++)
 		{
-			if (!testDelta && j == (int)Option::Delta)
+			if (soloOption != Option::numCompressorOptions && j != (int)soloOption)
 				continue;
 
-			testCodec((SignalType)i, (Option)j);
-			testCodec((SignalType)i, (Option)j);
-			testCodec((SignalType)i, (Option)j);
-			testCodec((SignalType)i, (Option)j);
+			logMessage("Testing " + getNameForOption((Option)j));
+
+			testCodec((SignalType)i, (Option)j, false);
+
+			if (testOnce)
+				continue;
+
+			testCodec((SignalType)i, (Option)j, false);
+			testCodec((SignalType)i, (Option)j, true);
+			testCodec((SignalType)i, (Option)j, false);
+			testCodec((SignalType)i, (Option)j, true);
+			testCodec((SignalType)i, (Option)j, false);
+			testCodec((SignalType)i, (Option)j, true);
 		}
 	}
 }
@@ -328,7 +314,7 @@ void CodecTest::testIntegerBuffers()
 	for (int i = 0; i < (int)SignalType::numSignalTypes; i++)
 	{
 		logMessage("Testing " + getNameForSignal((SignalType)i));
-		AudioSampleBuffer src = createTestSignal(numSamples, 1, (SignalType)i, 1.0f);
+		AudioSampleBuffer src = createTestSignal(numSamples, 1, (SignalType)i, r.nextFloat() * 0.6f + 0.4f);
 
 		CompressionHelpers::AudioBufferInt16 intBuffer(src, false);
 
@@ -342,9 +328,9 @@ void CodecTest::testIntegerBuffers()
 	
 }
 
-void CodecTest::testCodec(SignalType type, Option option)
+void CodecTest::testCodec(SignalType type, Option option, bool testStereo)
 {
-	logMessage("Testing " + getNameForOption(option));
+	
 
 	Random r;
 
@@ -361,16 +347,16 @@ void CodecTest::testCodec(SignalType type, Option option)
 
 	decoder.setupForDecompression();
 
-	auto ts1 = createTestSignal(numSamples, numChannels, type, jlimit<float>(0.5f, 1.0f, 0.99f));
+	auto ts1 = createTestSignal(numSamples, numChannels, type, r.nextFloat()*0.4f + 0.6f);
 
-	expect(ts1.getMagnitude(0, numSamples) <= 1.0f, "Peak > 1.0f");
+	expect(ts1.getMagnitude(0, numSamples) <= 1.0f, "  Peak > 1.0f");
 
 	auto ts1_dst = AudioSampleBuffer(numChannels, CompressionHelpers::getPaddedSampleSize(numSamples));
 
 	encoder.setOptions(options[(int)option]);
 	encoder.compress(ts1, mos, blockOffsets);
 
-	logMessage("Ratio: " + String(encoder.getCompressionRatio(), 3));
+	logMessage("  Ratio: " + String(encoder.getCompressionRatio(), 3));
 
 	MemoryInputStream mis(mos.getMemoryBlock(), true);
 
@@ -413,6 +399,7 @@ AudioSampleBuffer CodecTest::createTestSignal(int numSamples, int numChannels, S
 	{
 		FloatVectorOperations::fill(l, 1.0f, numSamples);
 		FloatVectorOperations::fill(r, 1.0f, numSamples);
+		break;
 	}
 	case hlac::CodecTest::SignalType::SineOnly:
 	{
@@ -471,19 +458,32 @@ AudioSampleBuffer CodecTest::createTestSignal(int numSamples, int numChannels, S
 
 		break;
 	}
-		
+	case hlac::CodecTest::SignalType::NastyDiracTrain:
+	{
+		FloatVectorOperations::clear(l, numSamples);
+		FloatVectorOperations::clear(r, numSamples);
+
+		for (int i = 0; i < 256; i+=16)
+		{
+			l[i] = 0.5f;
+			l[i + 1] = 1.0f;
+			l[i + 2] = -1.0f;
+			r[i] = 0.5f;
+			r[i + 1] = 1.0f;
+			r[i + 2] = -1.0f;
+		}
+
+		break;
+	}
 	case hlac::CodecTest::SignalType::numSignalTypes:
 		break;
 	default:
 		break;
 	}
 
-	
+	b.applyGain(maxAmplitude);
 
-	FloatVectorOperations::multiply(l, maxAmplitude, numSamples);
-	FloatVectorOperations::multiply(r, maxAmplitude, numSamples);
-
-	logMessage("Amplitude: " + String(Decibels::gainToDecibels(b.getMagnitude(0, numSamples)), 2) + " dB");
+	logMessage("  Amplitude: " + String(Decibels::gainToDecibels(b.getMagnitude(0, numSamples)), 2) + " dB");
 
 	FloatVectorOperations::clip(r, r, -1.0f, 1.0f, numSamples);
 	FloatVectorOperations::clip(l, l, -1.0f, 1.0f, numSamples);
@@ -501,6 +501,7 @@ String CodecTest::getNameForOption(Option o) const
 		break;
 	case hlac::CodecTest::Option::Diff: return "Diff";
 		break;
+		
 	case hlac::CodecTest::Option::numCompressorOptions:
 		break;
 	default:
@@ -525,6 +526,7 @@ String CodecTest::getNameForSignal(SignalType s) const
 		break;
 	case hlac::CodecTest::SignalType::DecayingSineWithHarmonic: return "Decaying sine wave";
 		break;
+	case hlac::CodecTest::SignalType::NastyDiracTrain:	return "Nasty Dirac Train";
 	case hlac::CodecTest::SignalType::numSignalTypes:
 		break;
 	default:

@@ -35,11 +35,29 @@ void HlacDecoder::setupForDecompression()
 	workBuffer = CompressionHelpers::AudioBufferInt16(COMPRESSION_BLOCK_SIZE);
 	currentCycle = CompressionHelpers::AudioBufferInt16(COMPRESSION_BLOCK_SIZE);
 	readBuffer.setSize(COMPRESSION_BLOCK_SIZE * 2);
+	readIndex = 0;
 
 	decompressionSpeed = 0.0;
 
 }
 
+
+double HlacDecoder::getDecompressionPerformance() const
+{
+	if(decompressionSpeeds.size() <= 1)
+		return decompressionSpeed;
+
+	double sum = 0.0;
+
+	for (int i = 0; i < decompressionSpeeds.size(); i++)
+	{
+		sum += decompressionSpeeds[i];
+	}
+
+	sum = sum / (double)decompressionSpeeds.size();
+
+	return sum;
+}
 
 void HlacDecoder::reset()
 {
@@ -47,14 +65,11 @@ void HlacDecoder::reset()
 	currentCycle = CompressionHelpers::AudioBufferInt16(0);
 	workBuffer = CompressionHelpers::AudioBufferInt16(0);
 	blockOffset = 0;
-	numBytesWritten = 0;
-	numTemplates = 0;
-	numDeltas = 0;
 	blockOffset = 0;
 	bitRateForCurrentCycle = 0;
 	firstCycleLength = -1;
 	ratio = 0.0f;
-	readIndex = 0;
+	readOffset = 0;
 }
 
 
@@ -65,7 +80,7 @@ bool HlacDecoder::decodeBlock(AudioSampleBuffer& destination, InputStream& input
 
 	int numTodo = jmin<int>(destination.getNumSamples() - readIndex, COMPRESSION_BLOCK_SIZE);
 
-    LOG("DEC " + String(readIndex) + "\t\tNew Block");
+    LOG("DEC " + String(readOffset + readIndex) + "\t\tNew Block");
     
 	while (indexInBlock < numTodo)
 	{
@@ -87,16 +102,25 @@ bool HlacDecoder::decodeBlock(AudioSampleBuffer& destination, InputStream& input
 	return numTodo != 0;
 }
 
-void HlacDecoder::decode(AudioSampleBuffer& destination, InputStream& input)
+void HlacDecoder::decode(AudioSampleBuffer& destination, InputStream& input, int offsetInSource/*=0*/, int numSamples/*=-1*/)
 {
 #if HLAC_MEASURE_DECODING_PERFORMANCE
 	double start = Time::getMillisecondCounterHiRes();
 #endif
 
+	if (numSamples < 0)
+		numSamples = destination.getNumSamples();
+
+	jassert(offsetInSource == readOffset);
+
+	int endThisTime = offsetInSource + numSamples;
+
+	readIndex = 0;
+
 	int channelIndex = 0;
 	bool decodeStereo = destination.getNumChannels() == 2;
 
-	while (!input.isExhausted())
+	while (!input.isExhausted() && readIndex < numSamples)
 	{
 		if (!decodeBlock(destination, input, channelIndex))
 			break;
@@ -105,14 +129,18 @@ void HlacDecoder::decode(AudioSampleBuffer& destination, InputStream& input)
 			channelIndex = 1 - channelIndex;
 	}
 
+	readOffset += readIndex;
+
 #if HLAC_MEASURE_DECODING_PERFORMANCE
 	double stop = Time::getMillisecondCounterHiRes();
-	double sampleLength = (double)destination.getNumSamples() / 44100.0;
+	double sampleLength = (double)numSamples / 44100.0;
 	double delta = (stop - start) / 1000.0;
 
 	decompressionSpeed = sampleLength / delta;
 
-	Logger::writeToLog("HLAC Decoding Performance: " + String(decompressionSpeed, 1) + "x realtime");
+	decompressionSpeeds.add(decompressionSpeed);
+
+	//Logger::writeToLog("HLAC Decoding Performance: " + String(decompressionSpeed, 1) + "x realtime");
 #endif
 }
 
@@ -132,15 +160,23 @@ void HlacDecoder::decodeDiff(const CycleHeader& header, AudioSampleBuffer& desti
 	CompressionHelpers::Diff::distributeFullSamples(currentCycle, (const uint16*)workBuffer.getReadPointer(), numFullValues);
 
 	uint8 errorBitRate = header.getBitRate(false);
-	auto compressorError = collection.getSuitableCompressorForBitRate(errorBitRate);
-	auto numErrorValues = CompressionHelpers::Diff::getNumErrorValues(blockSize);
-	auto numErrorBytes = compressorError->getByteAmount(numErrorValues);
 
-	input.read(readBuffer.getData(), numErrorBytes);
+	LOG("DEC  " + String(readOffset + readIndex + indexInBlock) + "\t\t\tNew diff with bit depth " + String(fullBitRate) + "/" + String(errorBitRate) + ": " + String(blockSize));
 
-	compressorError->decompress(workBuffer.getWritePointer(), (uint8*)readBuffer.getData(), numErrorValues);
+	if (errorBitRate > 0)
+	{
+		auto compressorError = collection.getSuitableCompressorForBitRate(errorBitRate);
+		auto numErrorValues = CompressionHelpers::Diff::getNumErrorValues(blockSize);
+		auto numErrorBytes = compressorError->getByteAmount(numErrorValues);
 
-	CompressionHelpers::Diff::addErrorSignal(currentCycle, (const uint16*)workBuffer.getReadPointer(), numErrorValues);
+		input.read(readBuffer.getData(), numErrorBytes);
+
+		compressorError->decompress(workBuffer.getWritePointer(), (uint8*)readBuffer.getData(), numErrorValues);
+
+		CompressionHelpers::Diff::addErrorSignal(currentCycle, (const uint16*)workBuffer.getReadPointer(), numErrorValues);
+	}
+
+	
 
 	auto dst = destination.getWritePointer(channelIndex, readIndex + indexInBlock);
 	AudioDataConverters::convertInt16LEToFloat(currentCycle.getReadPointer(), dst, blockSize);
@@ -172,12 +208,9 @@ void HlacDecoder::decodeCycle(const CycleHeader& header, AudioSampleBuffer& dest
 
 	if (header.isTemplate())
 	{
-        LOG("DEC  " + String(readIndex + indexInBlock) + "\t\t\tNew Template with bit depth " + String(compressor->getAllowedBitRange()) + ": " + String(numSamples));
+        LOG("DEC  " + String(readOffset + readIndex + indexInBlock) + "\t\t\tNew Template with bit depth " + String(compressor->getAllowedBitRange()) + ": " + String(numSamples));
 
-        
-		
-
-		if (true && compressor->getAllowedBitRange() != 0)
+        if (compressor->getAllowedBitRange() != 0)
 		{
 			compressor->decompress(currentCycle.getWritePointer(), (const uint8*)readBuffer.getData(), numSamples);
 			AudioDataConverters::convertInt16LEToFloat(currentCycle.getReadPointer(), dst, numSamples);
@@ -189,12 +222,19 @@ void HlacDecoder::decodeCycle(const CycleHeader& header, AudioSampleBuffer& dest
 	}
 	else
 	{
-        LOG("DEC  " + String(readIndex + indexInBlock) + "\t\t\t\tNew Delta with bit depth " + String(compressor->getAllowedBitRange()) + ": " + String(numSamples) + " Index in Block:" + String(indexInBlock));
+        LOG("DEC  " + String(readOffset + indexInBlock) + "\t\t\t\tNew Delta with bit depth " + String(compressor->getAllowedBitRange()) + ": " + String(numSamples) + " Index in Block:" + String(indexInBlock));
         
-		compressor->decompress(workBuffer.getWritePointer(), (const uint8*)readBuffer.getData(), numSamples);
+		if (compressor->getAllowedBitRange() > 0)
+		{
+			compressor->decompress(workBuffer.getWritePointer(), (const uint8*)readBuffer.getData(), numSamples);
 
-		CompressionHelpers::IntVectorOperations::add(workBuffer.getWritePointer(), currentCycle.getReadPointer(), numSamples);
-		AudioDataConverters::convertInt16LEToFloat(workBuffer.getReadPointer(), dst, numSamples);
+			CompressionHelpers::IntVectorOperations::add(workBuffer.getWritePointer(), currentCycle.getReadPointer(), numSamples);
+			AudioDataConverters::convertInt16LEToFloat(workBuffer.getReadPointer(), dst, numSamples);
+		}
+		else
+		{
+			AudioDataConverters::convertInt16LEToFloat(currentCycle.getReadPointer(), dst, numSamples);
+		}
 	}
 
 	indexInBlock += numSamples;
@@ -222,12 +262,14 @@ uint8 HlacDecoder::CycleHeader::getBitRate(bool getFullBitRate) const
 {
 	if (isDiff())
 	{
-		uint16 b = (numSamples & 0xFF00) >> 8;
-
 		if (getFullBitRate)
-			return ((b & 0b11110000) >> 4) + 1;
+			return headerInfo & 0x1F;
+
 		else
-			return ((b & 0b00001111) + 1);
+		{
+			uint8 b = (uint8)((numSamples & 0xFF00) >> 8);
+			return b & 0x1f;
+		}
 	}
 	else
 	{
@@ -237,7 +279,7 @@ uint8 HlacDecoder::CycleHeader::getBitRate(bool getFullBitRate) const
 
 bool HlacDecoder::CycleHeader::isDiff() const
 {
-	return headerInfo == 0xC0;
+	return (headerInfo & 0xC0) > 0;
 }
 
 uint16 HlacDecoder::CycleHeader::getNumSamples() const

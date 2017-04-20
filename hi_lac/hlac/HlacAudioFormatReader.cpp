@@ -45,17 +45,29 @@ bool HiseLosslessAudioFormatReader::readSamples(int** destSamples, int numDestCh
 {
 	ignoreUnused(startSampleInFile);
 	ignoreUnused(numDestChannels);
-	ignoreUnused(startOffsetInDestBuffer);
-
+	
 	bool isStereo = destSamples[1] != nullptr;
 
 	if (isStereo)
 	{
 		float** destinationFloat = reinterpret_cast<float**>(destSamples);
 
+		if (startOffsetInDestBuffer > 0)
+		{
+			if (isStereo)
+			{
+				destinationFloat[0] = destinationFloat[0] + startOffsetInDestBuffer;
+			}
+			else
+			{
+				destinationFloat[0] = destinationFloat[0] + startOffsetInDestBuffer;
+				destinationFloat[1] = destinationFloat[1] + startOffsetInDestBuffer;
+			}
+		}
+
 		AudioSampleBuffer b(destinationFloat, 2, numSamples);
 
-		decoder.decode(b, *input);
+		decoder.decode(b, *input, startSampleInFile, numSamples);
 
 	}
 	else
@@ -64,7 +76,7 @@ bool HiseLosslessAudioFormatReader::readSamples(int** destSamples, int numDestCh
 
 		AudioSampleBuffer b(&destinationFloat, 1, numSamples);
 
-		decoder.decode(b, *input);
+		decoder.decode(b, *input, startSampleInFile, numSamples);
 	}
 
 	return true;

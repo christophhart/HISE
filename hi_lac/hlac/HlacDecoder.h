@@ -42,11 +42,11 @@ public:
 	workBuffer(0)
 	{};
 
-	void decode(AudioSampleBuffer& destination, InputStream& input);
+	void decode(AudioSampleBuffer& destination, InputStream& input, int offsetInSource=0, int numSamples=-1);
 
 	void setupForDecompression();
 
-	double getDecompressionPerformance() const { return decompressionSpeed; }
+	double getDecompressionPerformance() const;
 
 private:
 
@@ -87,11 +87,6 @@ private:
 
 	uint16 indexInBlock = 0;
 
-	uint32 numBytesWritten = 0;
-
-	uint32 numTemplates = 0;
-	uint32 numDeltas = 0;
-
 	uint32 blockOffset = 0;
 
 	uint8 bitRateForCurrentCycle;
@@ -102,7 +97,11 @@ private:
 
 	float ratio = 0.0f;
 
+	int readOffset = 0;
+
 	int readIndex = 0;
+
+	Array<double> decompressionSpeeds;
 
 	double decompressionSpeed = 0.0;
 };
