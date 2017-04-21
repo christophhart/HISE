@@ -43,8 +43,7 @@ void printHelp()
 
 int encode(File input, File output, HlacEncoder::CompressorOptions option)
 {
-
-	AudioFormatManager afm;
+    AudioFormatManager afm;
 
 	afm.registerBasicFormats();
 
@@ -174,7 +173,7 @@ int decode(File input, File output)
 
 int main(int argc, char **argv)
 {
-	ScopedPointer<Logger> l = new StdLogger();
+    ScopedPointer<Logger> l = new StdLogger();
 	Logger::setCurrentLogger(l);
 
 	if (argc < 2)

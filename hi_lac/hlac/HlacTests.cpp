@@ -537,3 +537,53 @@ String CodecTest::getNameForSignal(SignalType s) const
 }
 
 static CodecTest codecTest;
+
+class FormatTest : public UnitTest
+{
+public:
+
+	FormatTest() :
+		UnitTest("Testing HLAC Format")
+	{
+
+	}
+
+	void runTest() override
+	{
+		testHeader();
+	}
+
+	void testHeader()
+	{
+		beginTest("Testing header");
+
+		HiseLosslessAudioFormat hlac;
+
+		Random r;
+
+		for (int i = 0; i < 200; i++)
+		{
+			bool useEncryption = false;
+			uint8 globalShiftAmount = r.nextInt(15);
+
+			const double sampleRates[4] = { 44100.0, 48000.0, 88200.0, 96000.0 };
+			double sampleRate = sampleRates[r.nextInt(4)];
+			const int numChannels = r.nextBool() ? 1 : 2;
+			const int bitDepth = r.nextBool() ? 16 : 24;
+			bool useCompression = r.nextBool();
+			const int numBlocks = r.nextInt(Range<int>(5, 900));
+
+			HiseLosslessHeader header = HiseLosslessHeader(useEncryption, globalShiftAmount, sampleRate, numChannels, bitDepth, useCompression, numBlocks);
+
+			expect(useEncryption == header.isEncrypted(), "Encryption");
+			expectEquals<int>(header.getBitShiftAmount(), globalShiftAmount, "Shift amount");
+			expectEquals<double>(header.getSampleRate(), sampleRate, "Sample rate");
+			expectEquals<int>(header.getNumChannels(), numChannels, "Channel amount");
+			expectEquals<int>(header.getBitsPerSample(), bitDepth, "Bit depth");
+			expect(useCompression == header.usesCompression(), "Use Compression");
+			expectEquals<int>(header.getBlockAmount(), numBlocks, "Block amount");
+		}
+	}
+};
+
+static FormatTest formatTest;
