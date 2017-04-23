@@ -263,6 +263,7 @@ void ScriptCreatedComponentWrappers::ComboBoxWrapper::updateComponent()
     cb->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, GET_OBJECT_COLOUR(bgColour));
     cb->setColour(MacroControlledObject::HiBackgroundColours::upperBgColour, GET_OBJECT_COLOUR(itemColour));
     cb->setColour(MacroControlledObject::HiBackgroundColours::lowerBgColour, GET_OBJECT_COLOUR(itemColour2));
+    cb->setColour(MacroControlledObject::HiBackgroundColours::textColour, GET_OBJECT_COLOUR(textColour));
     
 	cb->clear(dontSendNotification);
 

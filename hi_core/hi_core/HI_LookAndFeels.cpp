@@ -184,7 +184,7 @@ void KnobLookAndFeel::drawHiBackground(Graphics &g, int x, int y, int width, int
 
 void KnobLookAndFeel::drawComboBox(Graphics &g, int width, int height, bool isButtonDown, int /*buttonX*/, int /*buttonY*/, int /*buttonW*/, int /*buttonH*/, ComboBox &c)
 {
-	c.setColour(ComboBox::ColourIds::textColourId, Colours::white);
+    c.setColour(ComboBox::ColourIds::textColourId, c.findColour(MacroControlledObject::HiBackgroundColours::textColour));
 
 	drawHiBackground(g, 0, 0, width, height - 2, dynamic_cast<ComboBox*>(&c), isButtonDown);
 
@@ -195,7 +195,7 @@ void KnobLookAndFeel::drawComboBox(Graphics &g, int width, int height, bool isBu
 
 	path.scaleToFit((float)width - 20.0f, (float)(height - 12) * 0.5f, 12.0f, 12.0f, true);
 
-	g.setColour(Colours::white.withAlpha(0.8f));
+	g.setColour(c.findColour(MacroControlledObject::HiBackgroundColours::textColour));
 	g.fillPath(path);
 }
 

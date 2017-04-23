@@ -1338,7 +1338,6 @@ ScriptComponent(base, parentContent, name, x, y, width, 32)
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::height));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::max));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::min));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::textColour));
 
 	deactivatedProperties.removeAllInstancesOf(getIdFor(ScriptComponent::Properties::isPluginParameter));
 
