@@ -109,6 +109,8 @@ public:
 	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;
 	void setSyncMode(int newSyncMode);
 
+	const CriticalSection& getFileLock() const override { return lock; };
+
 private:
 
 	UpdateMerger inputMerger;

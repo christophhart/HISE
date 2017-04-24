@@ -959,7 +959,7 @@ void BackendProcessorEditor::showProcessorPopup(Processor *p, Processor *parent)
 
 void BackendProcessorEditor::loadNewContainer(const File &f)
 {
-    getBackendProcessor()->suspendProcessing(true);
+	MainController::ScopedSuspender ss(getBackendProcessor());
 
 	clearPreset();
 
@@ -982,8 +982,6 @@ void BackendProcessorEditor::loadNewContainer(const File &f)
 
 	refreshInterfaceAfterPresetLoad();
 	rebuildModuleList(false);	
-
-    getBackendProcessor()->suspendProcessing(false);
 }
 
 void BackendProcessorEditor::refreshInterfaceAfterPresetLoad()
@@ -1004,9 +1002,9 @@ void BackendProcessorEditor::loadNewContainer(ValueTree &v)
         PresetHandler::showMessageWindow("Version mismatch", "The preset was built with a newer the build of HISE: " + String(presetVersion) + ". To ensure perfect compatibility, update to at least this build.", PresetHandler::IconType::Warning);
     }
     
-    getBackendProcessor()->suspendProcessing(true);
-    
-	clearPreset();
+	MainController::ScopedSuspender ss(getBackendProcessor());
+
+    clearPreset();
 
 	getBackendProcessor()->getMainSynthChain()->setBypassed(true);
 
@@ -1018,8 +1016,6 @@ void BackendProcessorEditor::loadNewContainer(ValueTree &v)
 
 	refreshInterfaceAfterPresetLoad();
 	rebuildModuleList(false);
-
-    getBackendProcessor()->suspendProcessing(false);
 }
 
 void BackendProcessorEditor::clearPreset()

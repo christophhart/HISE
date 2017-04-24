@@ -364,6 +364,8 @@ void AudioFileEnvelope::setSyncMode(int newSyncMode)
 
 void AudioFileEnvelope::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
+	ScopedLock sl(getFileLock());
+
 	Processor::prepareToPlay(sampleRate, samplesPerBlock);
 
 	TimeModulation::prepareToModulate(sampleRate, samplesPerBlock);
@@ -395,6 +397,8 @@ void AudioFileEnvelope::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 void AudioFileEnvelope::calculateBlock(int startSample, int numSamples)
 {
+	ScopedLock sl(getFileLock());
+
 #if ENABLE_ALL_PEAK_METERS
 	if (--numSamples >= 0)
 	{

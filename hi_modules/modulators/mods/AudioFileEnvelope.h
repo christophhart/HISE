@@ -212,6 +212,8 @@ public:
 		return new AudioFileEnvelope(m, id, mode);
 	}
 
+	const CriticalSection& getFileLock() const override { return fileLock; }
+
 private:
 
 	/** Calculates the oscillator value of the LFO
@@ -239,6 +241,8 @@ private:
 	double resampleFactor;
 
 	// ModulatorChain stuff
+
+	CriticalSection fileLock;
 
 	AudioSampleBuffer intensityBuffer;
 	AudioSampleBuffer frequencyBuffer;

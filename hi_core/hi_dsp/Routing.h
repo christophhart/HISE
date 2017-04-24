@@ -112,6 +112,7 @@ public:
 		void init()
 		{
 			thisAsProcessor = dynamic_cast<Processor*>(owningProcessor);
+			resetToDefault();
 		}
 
 		void loadPreset(Presets newPreset);

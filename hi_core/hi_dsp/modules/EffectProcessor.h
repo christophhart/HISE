@@ -308,6 +308,8 @@ public:
 	/** This only renders the modulatorChains. */
 	virtual void renderNextBlock(AudioSampleBuffer &/*buffer*/, int startSample, int numSamples) final override
 	{
+		jassert(isOnAir());
+
 		renderAllChains(startSample, numSamples);
 	}
 
@@ -466,6 +468,8 @@ public:
 	/** Renders the next block and applies the effect to the buffer. */
 	virtual void renderNextBlock(AudioSampleBuffer &buffer, int startSample, int numSamples) override
 	{
+		jassert(isOnAir());
+
 		renderAllChains(startSample, numSamples);
 
 		const int stepSize = calculateStepSize(0, numSamples);
@@ -571,6 +575,8 @@ public:
 	/** renders a voice and applies the effect on the voice. */
 	virtual void renderVoice(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples)
 	{
+		jassert(isOnAir());
+
 		if(hasTail()) saveBufferForTailCheck(b, startSample, numSamples);
 
 		const int startIndex = startSample;

@@ -56,7 +56,9 @@ latency(0),
 isReloading(false),
 rampFlag(false),
 rampIndex(0),
-processFlag(true)
+processFlag(true),
+loadAfterProcessFlag(false),
+isCurrentlyProcessing(false)
 {
 	wetBuffer = AudioSampleBuffer(2, 0);
 
@@ -188,8 +190,6 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 {
 	ADD_GLITCH_DETECTOR(this, DebugLogger::Location::ConvolutionRendering);
     
-	ScopedLock sl(getImpulseLock());
-
 	if (startSample != 0)
 	{
 		debugError(this, "Buffer start not 0!");
@@ -200,15 +200,20 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 
 	float *channels[2] = { l, r };
 
+	isCurrentlyProcessing.store(true);
 
+	ScopedLock sl(getImpulseLock());
 
 	if (isReloading || (!processFlag && !rampFlag))
 	{
 		smoothedGainerDry.processBlock(channels, 2, numSamples);
 
+#if ENABLE_ALL_PEAK_METERS
 		currentValues.inL = FloatVectorOperations::findMaximum(l, numSamples);
 		currentValues.inR = FloatVectorOperations::findMaximum(l, numSamples);
+#endif
 
+		isCurrentlyProcessing.store(false);
 		return;
 	}
 
@@ -216,8 +221,10 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 
 	smoothedGainerDry.processBlock(channels, 2, numSamples);
 
+#if ENABLE_ALL_PEAK_METERS
 	currentValues.inL = FloatVectorOperations::findMaximum(l, numSamples);
 	currentValues.inR = FloatVectorOperations::findMaximum(l, numSamples);
+#endif
 
 	const int availableSamples = jmin(convolutionEngine.Avail(numSamples), numSamples);
 
@@ -226,16 +233,15 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 		const float *convolutedL = convolutionEngine.Get()[0];
 		const float *convolutedR = convolutionEngine.Get()[1];
 
+#if ENABLE_ALL_PEAK_METERS
 		currentValues.outL = wetGain * FloatVectorOperations::findMaximum(convolutedL, availableSamples);
 		currentValues.outR = wetGain * FloatVectorOperations::findMaximum(convolutedR, availableSamples);
+#endif
 
 		if (rampFlag)
 		{
 			const int rampingTime = (CONVOLUTION_RAMPING_TIME_MS * (int)getSampleRate()) / 1000;
 
-            
-            
-            
 			for (int i = 0; i < availableSamples; i++)
 			{
                 float rampValue = jlimit<float>(0.0f, 1.0f, (float)rampIndex / (float)rampingTime);
@@ -275,6 +281,8 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 			convolutionEngine.Advance(availableSamples);
 		}
 	}
+
+	isCurrentlyProcessing.store(false);
 
 	CHECK_AND_LOG_BUFFER_DATA(this, DebugLogger::Location::ConvolutionRendering, l, true, numSamples);
 	CHECK_AND_LOG_BUFFER_DATA(this, DebugLogger::Location::ConvolutionRendering, r, false, numSamples);

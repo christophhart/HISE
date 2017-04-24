@@ -323,14 +323,6 @@ public:
         bool operator!= (const BusesLayout& other) const noexcept   { return inputBuses != other.inputBuses || outputBuses != other.outputBuses; }
     };
 
-	struct PreCallbackHandler
-	{
-		virtual ~PreCallbackHandler() {};
-
-		virtual void preCallbackEvent() = 0;
-	};
-
-
     //==============================================================================
     /**
         Describes the layout and properties of an audio bus.
@@ -1233,11 +1225,7 @@ public:
     /** This method is called when the layout of the audio processor changes. */
     virtual void processorLayoutsChanged();
 
-	virtual void setPrecallbackHandler(PreCallbackHandler* newPrecallbackHandler) { precallbackHandler = newPrecallbackHandler; };
-
-	PreCallbackHandler* getPrecallbackHandler() { return precallbackHandler; };
-
-    //==============================================================================
+	//==============================================================================
     /** Adds a listener that will be called when an aspect of this processor changes. */
     virtual void addListener (AudioProcessorListener* newListener);
 
@@ -1537,8 +1525,6 @@ private:
    #if JUCE_DEBUG && ! JUCE_DISABLE_AUDIOPROCESSOR_BEGIN_END_GESTURE_CHECKING
     BigInteger changingParams;
    #endif
-
-	ScopedPointer<PreCallbackHandler> precallbackHandler;
 
     AudioProcessorListener* getListenerLocked (int) const noexcept;
     void updateSpeakerFormatStrings();

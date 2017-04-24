@@ -88,6 +88,8 @@ void ModulatorSynthChain::compileAllScripts()
 
 void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffer, const HiseEventBuffer &inputMidiBuffer)
 {
+	jassert(isOnAir());
+
 	if (isBypassed()) return;
 
 	ADD_GLITCH_DETECTOR(this, DebugLogger::Location::SynthChainRendering);

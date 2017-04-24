@@ -687,7 +687,19 @@ public:
 	/** This returns the number of (named) parameters. */
 	int getNumParameters() const {return parameterNames.size();}; 
 
-	
+	/** Call this method after inserting the processor in the signal chain.
+	*
+	*	If you call prepareToPlay before calling this method, it won't lock which makes inserting new processors nicer.
+	*/
+	void setIsOnAir(bool isBeingProcessedInAudioThread);
+
+	bool isOnAir() const noexcept{ return onAir; }
+
+	/** Call this method to get either the given lock or a dummy lock when the processor isn't on air yet. */
+	const CriticalSection& getDummyLockWhenNotOnAir() const
+	{
+		return dummyLock;
+	}
 
 protected:
 
@@ -739,6 +751,10 @@ protected:
 	Array<Identifier> editorStateIdentifiers;
 
 private:
+
+	CriticalSection dummyLock;
+
+	bool onAir = false;
 
 	Path symbol;
 

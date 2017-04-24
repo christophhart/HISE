@@ -1065,8 +1065,3 @@ String DebugLogger::getSystemSpecs() const
 
 	return stats;
 }
-
-void DebugLogger::PriorityInversionChecker::preCallbackEvent()
-{
-	dynamic_cast<MainController*>(p)->getDebugLogger().checkPriorityInversion(p->getCallbackLock());
-}

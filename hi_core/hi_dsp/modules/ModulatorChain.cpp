@@ -225,39 +225,41 @@ void ModulatorChain::ModulatorChainHandler::addModulator(Modulator *newModulator
 
 	newModulator->setConstrainerForAllInternalChains(chain->getFactoryType()->getConstrainer());
 
-	if(dynamic_cast<VoiceStartModulator*>(newModulator) != nullptr)
-	{
-		VoiceStartModulator *m = static_cast<VoiceStartModulator*>(newModulator);
-
-		chain->voiceStartModulators.add(m);
-		// Must be called here to get the right virtual function!
-	}
-	else if (dynamic_cast<EnvelopeModulator*>(newModulator) != nullptr)
-	{
-		EnvelopeModulator *m = static_cast<EnvelopeModulator*>(newModulator);
-		chain->envelopeModulators.add(m);
-		if(chain->isInitialized()) m->prepareToPlay(chain->getSampleRate(), chain->blockSize);
-	}
-	else if (dynamic_cast<TimeVariantModulator*>(newModulator) != nullptr)
-	{
-		TimeVariantModulator *m = static_cast<TimeVariantModulator*>(newModulator);
-		chain->variantModulators.add(m);
-
-		if (chain->isInitialized())
-			m->prepareToPlay(chain->getSampleRate(), chain->blockSize);   
-	}
-	else jassertfalse;
-		
+	if (chain->isInitialized())
+		newModulator->prepareToPlay(chain->getSampleRate(), chain->blockSize);
 	
 	const int index = siblingToInsertBefore == nullptr ? -1 : chain->allModulators.indexOf(dynamic_cast<Modulator*>(siblingToInsertBefore));
 
-	chain->allModulators.insert(index, newModulator);
-
-	jassert(chain->checkModulatorStructure());
-
-	if (JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(newModulator))
 	{
-		sp->compileScript();
+		MainController::ScopedSuspender ss(chain->getMainController());
+
+		newModulator->setIsOnAir(true);
+
+		if (dynamic_cast<VoiceStartModulator*>(newModulator) != nullptr)
+		{
+			VoiceStartModulator *m = static_cast<VoiceStartModulator*>(newModulator);
+			chain->voiceStartModulators.add(m);
+		}
+		else if (dynamic_cast<EnvelopeModulator*>(newModulator) != nullptr)
+		{
+			EnvelopeModulator *m = static_cast<EnvelopeModulator*>(newModulator);
+			chain->envelopeModulators.add(m);
+		}
+		else if (dynamic_cast<TimeVariantModulator*>(newModulator) != nullptr)
+		{
+			TimeVariantModulator *m = static_cast<TimeVariantModulator*>(newModulator);
+			chain->variantModulators.add(m);
+		}
+		else jassertfalse;
+
+		chain->allModulators.insert(index, newModulator);
+
+		jassert(chain->checkModulatorStructure());
+
+		if (JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(newModulator))
+		{
+			sp->compileScript();
+		}
 	}
 
 	chain->sendChangeMessage();
@@ -266,9 +268,12 @@ void ModulatorChain::ModulatorChainHandler::addModulator(Modulator *newModulator
 
 void ModulatorChain::ModulatorChainHandler::add(Processor *newProcessor, Processor *siblingToInsertBefore)
 {
-	ScopedLock sl(chain->getMainController()->getLock());
+	//ScopedLock sl(chain->getMainController()->getLock());
 
 	jassert(dynamic_cast<Modulator*>(newProcessor) != nullptr);
+
+	dynamic_cast<AudioProcessor*>(chain->getMainController())->suspendProcessing(true);
+
 	addModulator(dynamic_cast<Modulator*>(newProcessor), siblingToInsertBefore);
 
 	const bool isPitchChain = chain->getMode() == Modulation::PitchMode;
@@ -278,6 +283,8 @@ void ModulatorChain::ModulatorChainHandler::add(Processor *newProcessor, Process
 
 		if(p != nullptr) p->enablePitchModulation(true);
 	}
+
+	dynamic_cast<AudioProcessor*>(chain->getMainController())->suspendProcessing(false);
 
 	sendChangeMessage();
 }

@@ -59,6 +59,7 @@ MainController::MainController():
 	userPresetHandler(this),
 	debugLogger(this),
 	presetLoadRampFlag(0),
+	suspendIndex(0),
 	controlUndoManager(new UndoManager()),
 #if JUCE_WINDOWS
     globalCodeFontSize(14.0f)
@@ -107,11 +108,9 @@ MainController::~MainController()
 
 const CriticalSection & MainController::getLock() const
 {
-	auto ap = dynamic_cast<AudioProcessor*>(const_cast<MainController*>(this));
-
 	if (getDebugLogger().isLogging() && MessageManager::getInstance()->isThisTheMessageThread())
 	{
-		ScopedTryLock sl(ap->getCallbackLock());
+		ScopedTryLock sl(processLock);
 
 		if (sl.isLocked())
 		{
@@ -119,7 +118,7 @@ const CriticalSection & MainController::getLock() const
 		}
 	}
 
-	return ap->getCallbackLock();
+	return processLock;
 }
 
 void MainController::loadPreset(const File &f, Component *mainEditor)
@@ -142,7 +141,9 @@ void MainController::loadPreset(const File &f, Component *mainEditor)
 
 void MainController::clearPreset()
 {
-    getMainSynthChain()->reset();
+	ScopedSuspender ss(this, ScopedSuspender::LockType::SuspendOnly);
+
+	getMainSynthChain()->reset();
 
 	globalVariableObject->clear();
 
@@ -160,7 +161,7 @@ void MainController::loadPreset(ValueTree &v, Component* /*mainEditor*/)
 {
 	if (v.isValid() && v.getProperty("Type", var::undefined()).toString() == "SynthChain")
 	{
-		//ScopedLock sl(getLock());
+		ScopedLock sl(getLock());
 
 		clearPreset();
 
@@ -458,7 +459,16 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		return;
 	}
 
-	
+	getDebugLogger().checkPriorityInversion(processLock);
+
+	ScopedTryLock sl(processLock);
+
+	if (!sl.isLocked())
+	{
+		buffer.clear();
+		midiMessages.clear();
+		return;
+	}
 
 	ModulatorSynthChain *synthChain = getMainSynthChain();
 
@@ -630,6 +640,8 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 #endif
 
     getMainSynthChain()->prepareToPlay(sampleRate, samplesPerBlock);
+
+	getMainSynthChain()->setIsOnAir(true);
 }
 
 void MainController::setBpm(double bpm_)

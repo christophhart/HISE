@@ -510,7 +510,7 @@ void ProcessorEditorLookAndFeel::fillEditorBackgroundRectFixed(Graphics& g, Comp
 
 void ProcessorEditorLookAndFeel::drawNoiseBackground(Graphics &g, Rectangle<int> area, Colour c)
 {
-    g.setOpacity(JUCE_LIVE_CONSTANT(0.4f));
+    g.setOpacity(JUCE_LIVE_CONSTANT_OFF(0.4f));
     for(int i = area.getY(); i < area.getBottom(); i+=400)
     {
         for(int j = area.getX(); j < area.getRight(); j+=400)

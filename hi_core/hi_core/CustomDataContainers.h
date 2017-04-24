@@ -67,6 +67,12 @@ public:
 
 	bool contains(const ElementType& elementToLookFor) const;
 
+    void clear()
+    {
+        memset(data, 0, sizeof(ElementType) * position);
+        position = 0;
+    }
+    
 	const ElementType& operator[](int index) const
 	{
 		if (index < position)

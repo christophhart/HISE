@@ -128,21 +128,6 @@ public:
 		Processor* p;
 	};
 
-	struct PriorityInversionChecker : public AudioProcessor::PreCallbackHandler
-	{
-	public:
-
-		PriorityInversionChecker(AudioProcessor* p_) :
-			p(p_)
-		{};
-
-		void preCallbackEvent() override;
-
-	private:
-
-		AudioProcessor* p;
-	};
-
 	DebugLogger(MainController* mc);
 
 	~DebugLogger();

@@ -551,7 +551,7 @@ void ModulatorSampler::setVoiceAmount(int newVoiceAmount)
 {
 	if (newVoiceAmount != voiceAmount)
 	{
-		ScopedLock sl(getSynthLock());
+		ScopedLock sl(isOnAir() ? getSynthLock() : getDummyLockWhenNotOnAir());
 
 		voiceAmount = jmin<int>(NUM_POLYPHONIC_VOICES, newVoiceAmount);
 
@@ -561,7 +561,8 @@ void ModulatorSampler::setVoiceAmount(int newVoiceAmount)
 		}
 
 		allNotesOff(1, false);
-		clearVoices();
+        deleteAllVoices();
+
 
 		for (int i = 0; i < voiceAmount; i++)
 		{
@@ -834,14 +835,16 @@ void ModulatorSampler::clearSampleMap()
 
 void ModulatorSampler::loadSampleMap(const File &f)
 {
-	setBypassed(true);
+	//setBypassed(true);
+
+	MainController::ScopedSuspender ss(getMainController(), MainController::ScopedSuspender::LockType::SuspendWithBusyWait);
 
 	clearSampleMap();
 	sampleMap->load(f);
 
 	
 
-	setBypassed(false);
+	//setBypassed(false);
 }
 
 void ModulatorSampler::loadSampleMap(const ValueTree &valueTreeData)

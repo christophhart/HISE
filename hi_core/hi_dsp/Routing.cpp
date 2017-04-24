@@ -356,6 +356,8 @@ void RoutableProcessor::MatrixData::resetToDefault()
     
     FloatVectorOperations::clear(targetGainValues, NUM_MAX_CHANNELS);
     FloatVectorOperations::clear(sourceGainValues, NUM_MAX_CHANNELS);
+
+	refreshSourceUseStates();
 }
 
 ValueTree RoutableProcessor::MatrixData::exportAsValueTree() const
@@ -407,26 +409,28 @@ void RoutableProcessor::MatrixData::restoreFromValueTree(const ValueTree &v)
 
 void RoutableProcessor::MatrixData::setNumSourceChannels(int newNumChannels, NotificationType notifyProcessors)
 {
-	ScopedLock sl(getLock());
+	if (newNumChannels != numSourceChannels)
+	{
+		ScopedLock sl(getLock());
 
-	numSourceChannels = jmax<int>(1, newNumChannels);
-	//clearAllConnections();
+		numSourceChannels = jmax<int>(1, newNumChannels);
+		//clearAllConnections();
 
-	refreshSourceUseStates();
+		refreshSourceUseStates();
 
-	if(notifyProcessors == sendNotification) owningProcessor->numSourceChannelsChanged();
+		if (notifyProcessors == sendNotification) owningProcessor->numSourceChannelsChanged();
+	}
 }
 
 void RoutableProcessor::MatrixData::setNumDestinationChannels(int newNumChannels, NotificationType notifyProcessors)
 {
-	ScopedLock sl(getLock());
+	if (newNumChannels != numDestinationChannels)
+	{
+		ScopedLock sl(getLock());
 
-	numDestinationChannels = jmax<int>(1, newNumChannels);
-	//clearAllConnections();
-
-	refreshSourceUseStates();
-
-	//resetToDefault();
+		numDestinationChannels = jmax<int>(1, newNumChannels);
+		refreshSourceUseStates();
+	}
 
 	if (notifyProcessors == sendNotification) owningProcessor->numDestinationChannelsChanged();
 }

@@ -38,7 +38,6 @@ void Processor::debugProcessor(const String &t)
 
 };
 
-
 #endif
 
 void Processor::restoreFromValueTree(const ValueTree &previouslyExportedProcessorState)
@@ -103,6 +102,17 @@ void Processor::setConstrainerForAllInternalChains(BaseConstrainer *constrainer)
 		}
 	}
 }
+
+void Processor::setIsOnAir(bool isBeingProcessedInAudioThread)
+{
+	onAir = isBeingProcessedInAudioThread;
+
+	for (int i = 0; i < getNumChildProcessors(); i++)
+	{
+		getChildProcessor(i)->setIsOnAir(isBeingProcessedInAudioThread);
+	}
+}
+
 
 bool Chain::restoreChain(const ValueTree &v)
 {
@@ -390,7 +400,7 @@ void AudioSampleProcessor::setLoadedFile(const String &fileName, bool loadThisFi
 
 	if(loadThisFile && fileName.isNotEmpty())
 	{
-		ScopedLock sl(mc->getLock());
+		ScopedLock sl(getFileLock());
 
 		mc->getSampleManager().getAudioSampleBufferPool()->releasePoolData(sampleBuffer);
 
@@ -430,7 +440,7 @@ void AudioSampleProcessor::setRange(Range<int> newSampleRange)
 	{
 		jassert(sampleBuffer != nullptr);
 
-		ScopedLock sl(mc->getLock());
+		ScopedLock sl(getFileLock());
 
 		sampleRange = newSampleRange;
 		sampleRange.setEnd(jmin<int>(sampleBuffer->getNumSamples(), sampleRange.getEnd()));

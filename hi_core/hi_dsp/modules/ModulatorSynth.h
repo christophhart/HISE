@@ -217,6 +217,13 @@ public:
 	/** Kills the voice that is playing for the longest time. */
 	void killLastVoice();
 
+    void deleteAllVoices()
+    {
+        ScopedLock sl(lock);
+        activeVoices.clear();
+        clearVoices();
+    }
+    
 	void setVoiceLimit(int newVoiceLimit);
 
 	void setKillFadeOutTime(double fadeTimeSeconds);
@@ -257,12 +264,12 @@ public:
 	/** sets the balance from -1.0 (left) to 1.0 (right) and applies a equal power pan rule. */
 	void setBalance(float newBalance)
 	{
-		ScopedLock sl(getSynthLock());
+		const float l = BalanceCalculator::getGainFactorForBalance((newBalance * 100.0f), true);
+		const float r = BalanceCalculator::getGainFactorForBalance((newBalance * 100.0f), false);
 
-		balance = newBalance;
-
-		leftBalanceGain = BalanceCalculator::getGainFactorForBalance((balance * 100.0f), true);
-		rightBalanceGain = BalanceCalculator::getGainFactorForBalance((balance * 100.0f), false);
+		balance.store(newBalance);
+		leftBalanceGain.store(l);
+		rightBalanceGain.store(r);
 	};
 
 	/** Returns the calculated (equal power) pan value for either the left or the right channel. */
@@ -403,8 +410,8 @@ private:
 	std::atomic<float> gain;
 
 	std::atomic<float> balance;
-	float leftBalanceGain;
-	float rightBalanceGain;
+	std::atomic<float> leftBalanceGain;
+	std::atomic<float> rightBalanceGain;
 
 	std::atomic<float> vuValue;
 

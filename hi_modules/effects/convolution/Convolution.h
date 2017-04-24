@@ -236,7 +236,11 @@ public:
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
+	const CriticalSection& getFileLock() const override { return unusedFileLock; }
+
 private:
+
+	CriticalSection unusedFileLock;
 
 	GainSmoother smoothedGainerWet;
 	GainSmoother smoothedGainerDry;
@@ -246,6 +250,9 @@ private:
 	const CriticalSection& getImpulseLock() const { return lock; };
 
 	void enableProcessing(bool shouldBeProcessed);
+
+	std::atomic<bool> isCurrentlyProcessing;
+	std::atomic<bool> loadAfterProcessFlag;
 
 	bool rampFlag;
 	bool rampUp;

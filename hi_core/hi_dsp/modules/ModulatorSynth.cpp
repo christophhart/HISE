@@ -319,6 +319,8 @@ void ModulatorSynth::addProcessorsWhenEmpty()
 
 void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuffer, const HiseEventBuffer& inputMidiBuffer)
 {
+	jassert(isOnAir());
+
     ADD_GLITCH_DETECTOR(this, DebugLogger::Location::SynthRendering);
     
 	int numSamples = getBlockSize(); //outputBuffer.getNumSamples();
@@ -453,7 +455,7 @@ void ModulatorSynth::renderVoice(int startSample, int numThisTime)
 #if 1
 	for (int i = 0; i < activeVoices.size(); i++)
 	{
-		jassert(!activeVoices[i]->isInactive());
+		//jassert(!activeVoices[i]->isInactive());
 
 		activeVoices[i]->renderNextBlock(internalBuffer, startSample, numThisTime);
 
@@ -710,7 +712,7 @@ void ModulatorSynth::preStartVoice(int voiceIndex, int noteNumber)
 
 void ModulatorSynth::prepareToPlay(double newSampleRate, int samplesPerBlock)
 {
-	const ScopedLock sl(getSynthLock());
+	const ScopedLock sl(isOnAir() ? getSynthLock() : getDummyLockWhenNotOnAir());
 
 	if(newSampleRate != -1.0)
 	{

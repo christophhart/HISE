@@ -420,7 +420,9 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 	if (saveThisContent) thisAsScriptBaseProcessor->restoredContentValues = content->exportAsValueTree();
 
-	ScopedLock callbackLock(mainController->getLock());
+	auto thisAsProcessor = dynamic_cast<Processor*>(this);
+
+	ScopedLock callbackLock(thisAsProcessor->isOnAir() ? mainController->getLock() : thisAsProcessor->getDummyLockWhenNotOnAir());
 	ScopedWriteLock sl(mainController->getCompileLock());
     
 

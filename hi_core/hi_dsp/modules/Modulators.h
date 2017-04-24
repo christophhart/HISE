@@ -467,6 +467,8 @@ public:
 	/** When the startNote function is called, a previously calculated value (by the handleMidiMessage function) is stored using the supplied voice index. */
 	virtual void startVoice(int voiceIndex) override
 	{
+		jassert(isOnAir());
+
 		voiceValues.setUnchecked(voiceIndex, unsavedValue);
 
 #if ENABLE_ALL_PEAK_METERS
@@ -633,6 +635,8 @@ protected:
 
 	void updatePlotter(const AudioSampleBuffer &processedBuffer, int startSample, int numSamples) override
 	{
+		jassert(isOnAir());
+
 		const float plot1 = processedBuffer.getSample(0, startSample );
 		const float plot2 = processedBuffer.getSample(0, startSample + numSamples / 4);
 		const float plot3 = processedBuffer.getSample(0, startSample + numSamples / 2);
@@ -759,6 +763,8 @@ protected:
 
 	virtual void updatePlotter(const AudioSampleBuffer &processedBuffer, int startSample, int numSamples) override
 	{
+		jassert(isOnAir());
+
 		const float plot1 = processedBuffer.getSample(0, startSample );
 		const float plot2 = processedBuffer.getSample(0, startSample + numSamples / 4);
 		const float plot3 = processedBuffer.getSample(0, startSample + numSamples / 2);

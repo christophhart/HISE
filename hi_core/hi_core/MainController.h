@@ -359,6 +359,9 @@ public:
 
     const CriticalSection &getLock() const;
     
+	AudioProcessor* getAsAudioProcessor() { return dynamic_cast<AudioProcessor*>(this); };
+	const AudioProcessor* getAsAudioProcessor() const { return dynamic_cast<const AudioProcessor*>(this); };
+
 	DebugLogger& getDebugLogger() { return debugLogger; }
 	const DebugLogger& getDebugLogger() const { return debugLogger; }
     
@@ -529,6 +532,95 @@ public:
 
 	UndoManager* getControlUndoManager() { return controlUndoManager; }
 
+	struct ScopedSuspender
+	{
+		enum class LockType
+		{
+			SuspendOnly,
+			SuspendWithBusyWait,
+			Lock,
+			TryLock,
+			numLockTypes
+		};
+
+		ScopedSuspender(MainController* mc_, LockType lockType_=LockType::SuspendOnly) :
+			mc(mc_),
+			lockType(lockType_)
+		{
+			switch (lockType)
+			{
+			case MainController::ScopedSuspender::LockType::SuspendOnly:
+				mc->suspendProcessing(true);
+				break;
+			case MainController::ScopedSuspender::LockType::SuspendWithBusyWait:
+			{
+
+				const CriticalSection& lock = mc->getLock();
+
+				ScopedTryLock sl(lock);
+				
+				while (!lock.tryEnter())
+				{
+
+				}
+
+				lock.exit();
+
+				mc->suspendProcessing(true);
+
+				break;
+			}
+			case MainController::ScopedSuspender::LockType::Lock:
+				mc->getLock().enter();
+				break;
+			case MainController::ScopedSuspender::LockType::TryLock:
+				hasLock = mc->getLock().tryEnter();
+				break;
+			case MainController::ScopedSuspender::LockType::numLockTypes:
+				break;
+			default:
+				break;
+			}
+
+			
+		}
+
+		~ScopedSuspender()
+		{
+			if (mc.get() != nullptr)
+			{
+				switch (lockType)
+				{
+				case MainController::ScopedSuspender::LockType::SuspendOnly:
+					mc->suspendProcessing(false);
+					break;
+				case MainController::ScopedSuspender::LockType::Lock:
+					mc->getLock().exit();
+					break;
+				case MainController::ScopedSuspender::LockType::TryLock:
+					if (hasLock) mc->getLock().exit();
+					break;
+				case MainController::ScopedSuspender::LockType::numLockTypes:
+					break;
+				default:
+					break;
+				}
+			}
+			else
+			{
+				jassertfalse;
+			}
+		}
+
+	private:
+
+		const LockType lockType;
+		bool hasLock = false;
+
+		WeakReference<MainController> mc;
+	};
+
+
 private: // Never call this directly, but wrap it through DelayedRenderer...
 
 	/** This is the main processing loop that is shared among all subclasses. */
@@ -536,6 +628,7 @@ private: // Never call this directly, but wrap it through DelayedRenderer...
 
 	/** Sets the sample rate for the cpu meter. */
 	void prepareToPlay(double sampleRate_, int samplesPerBlock);
+
 
 protected:
 
@@ -584,9 +677,33 @@ protected:
 		replaceBufferContent = shouldReplaceContent;
 	}
 
-	
+	bool suspendProcessing(bool shouldSuspend)
+	{
+		if (shouldSuspend)
+		{
+			if (suspendIndex == 0)
+				getAsAudioProcessor()->suspendProcessing(true);
+
+			++suspendIndex;
+		}
+		else
+		{
+			--suspendIndex;
+
+			if (suspendIndex == 0)
+				getAsAudioProcessor()->suspendProcessing(false);
+
+			jassert(suspendIndex >= 0);
+
+			
+		}
+			
+		return suspendIndex >= 0;
+	}
 
 private:
+
+	CriticalSection processLock;
 
 	ScopedPointer<UndoManager> controlUndoManager;
 
@@ -691,6 +808,8 @@ private:
     std::atomic<double> temp_usage;
 	int scrollY;
 	BigInteger shownComponents;
+
+	std::atomic<int> suspendIndex = 0;
 };
 
 

@@ -37,6 +37,8 @@
 #define JUCE_WINDOWS 1
 #endif
 
+#define JUCE_LIVE_CONSTANT_OFF(x) x
+
 #if ENABLE_CONSOLE_OUTPUT
 #define debugToConsole(p, x) (p->getMainController()->writeToConsole(x, 0, p))
 #define debugError(p, x) (p->getMainController()->writeToConsole(x, 1, p))
@@ -172,9 +174,9 @@ struct HiseColourScheme
 			switch (currentColourScheme)
 			{
 			case HiseColourScheme::Dark:
-				return JUCE_LIVE_CONSTANT(Colour(0xff555555));
+				return JUCE_LIVE_CONSTANT_OFF(Colour(0xff555555));
 			case HiseColourScheme::Bright:
-				return JUCE_LIVE_CONSTANT(Colour(0xff898989));
+				return JUCE_LIVE_CONSTANT_OFF(Colour(0xff898989));
 			case HiseColourScheme::numSchemes:
 				break;
 			}
@@ -185,9 +187,9 @@ struct HiseColourScheme
 			switch (currentColourScheme)
 			{
 			case HiseColourScheme::Dark:
-				return JUCE_LIVE_CONSTANT(Colour(0xff414141));
+				return JUCE_LIVE_CONSTANT_OFF(Colour(0xff414141));
 			case HiseColourScheme::Bright:
-				return JUCE_LIVE_CONSTANT(Colour(0xff5e5e5e));
+				return JUCE_LIVE_CONSTANT_OFF(Colour(0xff5e5e5e));
 			case HiseColourScheme::numSchemes:
 				break;
 			}
@@ -198,9 +200,9 @@ struct HiseColourScheme
 			switch (currentColourScheme)
 			{
 			case HiseColourScheme::Dark:
-				return JUCE_LIVE_CONSTANT(Colour(0x02FFFFFF));
+				return JUCE_LIVE_CONSTANT_OFF(Colour(0x02FFFFFF));
 			case HiseColourScheme::Bright:
-				return JUCE_LIVE_CONSTANT(Colour(0xff5d5d5d));
+				return JUCE_LIVE_CONSTANT_OFF(Colour(0xff5d5d5d));
 			case HiseColourScheme::numSchemes:
 				break;
 			}
@@ -211,9 +213,9 @@ struct HiseColourScheme
 			switch (currentColourScheme)
 			{
 			case HiseColourScheme::Dark:
-				return JUCE_LIVE_CONSTANT(Colour(0xFFEEEEEE));
+				return JUCE_LIVE_CONSTANT_OFF(Colour(0xFFEEEEEE));
 			case HiseColourScheme::Bright:
-				return JUCE_LIVE_CONSTANT(Colour(0xFFEEEEEE));
+				return JUCE_LIVE_CONSTANT_OFF(Colour(0xFFEEEEEE));
 			case HiseColourScheme::numSchemes:
 				break;
 			}
@@ -255,7 +257,7 @@ private:
 
 #define DEBUG_BG_COLOUR 0xff636363
 
-#define JUCE_LIVE_CONSTANT_OFF(x) x
+
 
 #include "copyProtectionMacros.h"
 

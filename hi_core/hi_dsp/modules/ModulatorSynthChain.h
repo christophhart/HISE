@@ -295,19 +295,22 @@ public:
 		/** Adds a new processor to the chain. It must be owned by the chain. */
 		void add(Processor *newProcessor, Processor *siblingToInsertBefore) override
 		{
-			ScopedLock sl(synth->getMainController()->getLock());
-
 			ModulatorSynth *ms = dynamic_cast<ModulatorSynth*>(newProcessor);
 
 			jassert(ms != nullptr);
 
 			const int index = siblingToInsertBefore == nullptr ? -1 : synth->synths.indexOf(dynamic_cast<ModulatorSynth*>(siblingToInsertBefore));
 
-			synth->synths.insert(index, ms);
-			synth->prepareToPlay(synth->getSampleRate(), synth->getBlockSize());
-
 			ms->getMatrix().setNumDestinationChannels(synth->getMatrix().getNumSourceChannels());
 			ms->getMatrix().setTargetProcessor(synth);
+
+			ms->prepareToPlay(synth->getSampleRate(), synth->getBlockSize());
+
+			{
+				MainController::ScopedSuspender ss(synth->getMainController());
+				ms->setIsOnAir(true);
+				synth->synths.insert(index, ms);
+			}
 
 			sendChangeMessage();
 		}
@@ -315,10 +318,11 @@ public:
 		/** Deletes a processor from the chain. */
 		virtual void remove(Processor *processorToBeRemoved) override
 		{
-			ScopedLock sl(synth->getMainController()->getLock());
-
-			synth->synths.removeObject(dynamic_cast<ModulatorSynth*>(processorToBeRemoved));
-
+			{
+				MainController::ScopedSuspender ss(synth->getMainController(), MainController::ScopedSuspender::LockType::Lock);
+				synth->synths.removeObject(dynamic_cast<ModulatorSynth*>(processorToBeRemoved));
+			}
+			
 			sendChangeMessage();
 		};
 

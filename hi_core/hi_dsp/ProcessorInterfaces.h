@@ -262,6 +262,8 @@ public:
 
 	double getSampleRateForLoadedFile() const { return sampleRateOfLoadedFile; }
 
+	virtual const CriticalSection& getFileLock() const = 0;
+
 protected:
 
 	/** Call this constructor within your subclass constructor. */
