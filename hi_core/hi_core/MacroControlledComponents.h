@@ -81,6 +81,7 @@ public:
         upperBgColour = 0xFF123532,
         lowerBgColour,
         outlineBgColour,
+        textColour,
         numHiBackgroundColours
     };
 
@@ -201,6 +202,7 @@ public:
         setColour(HiBackgroundColours::upperBgColour, Colour(0x66333333));
         setColour(HiBackgroundColours::lowerBgColour, Colour(0xfb111111));
         setColour(HiBackgroundColours::outlineBgColour, Colours::white.withAlpha(0.3f));
+        setColour(HiBackgroundColours::textColour, Colours::white);
 	};
 
 	void setup(Processor *p, int parameter, const String &name) override;

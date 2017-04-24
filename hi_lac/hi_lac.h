@@ -1,5 +1,5 @@
 /*  HISE Lossless Audio Codec
-*	©2017 Christoph Hart
+*	ï¿½2017 Christoph Hart
 *
 *	Redistribution and use in source and binary forms, with or without modification, 
 *	are permitted provided that the following conditions are met:
@@ -54,6 +54,10 @@ END_JUCE_MODULE_DECLARATION
 #include "AppConfig.h"
 
 #include <juce_audio_formats/juce_audio_formats.h>
+
+#ifndef HLAC_NO_SSE
+#include <immintrin.h>
+#endif
 
 // This is the current HLAC version. HLAC has full backward compatibility.
 #define HLAC_VERSION 2

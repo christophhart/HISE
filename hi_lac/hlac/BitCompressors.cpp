@@ -1,5 +1,5 @@
 /*  HISE Lossless Audio Codec
-*	©2017 Christoph Hart
+*	ï¿½2017 Christoph Hart
 *
 *	Redistribution and use in source and binary forms, with or without modification,
 *	are permitted provided that the following conditions are met:
@@ -125,7 +125,7 @@ void unpackArrayOfInt16(int16* d, int numValues, uint8 bitDepth)
 
 	jassert(reinterpret_cast<uint64>(d) % 16 == 0);
 
-#if NO_SSE
+#if HLAC_NO_SSE
 	for (int i = 0; i < 8; i++)
 	{
 		d[i] = decompressUInt16(d[i], bitDepth);
@@ -543,7 +543,7 @@ bool BitCompressors::SixBit::compress(uint8* destination, const int16* data, int
 
 bool BitCompressors::SixBit::decompress(int16* destination, const uint8* data, int numValuesToDecompress)
 {
-#if NO_SSE
+#if HLAC_NO_SSE
 	while (numValuesToDecompress >= 8)
 	{
 		decompress6Bit(destination, data);

@@ -1,5 +1,5 @@
 /*  HISE Lossless Audio Codec
-*	©2017 Christoph Hart
+*	ï¿½2017 Christoph Hart
 *
 *	Redistribution and use in source and binary forms, with or without modification,
 *	are permitted provided that the following conditions are met:
@@ -634,7 +634,7 @@ void CompressionHelpers::Diff::distributeFullSamples(AudioBufferInt16& dst, cons
 
 	int numTodo = numSamples - 2;
 
-#if NO_SSE
+#if HLAC_NO_SSE
 
 	for (int i = 0; i < numSamples - 2; i++)
 	{
@@ -745,7 +745,7 @@ void CompressionHelpers::Diff::addErrorSignal(AudioBufferInt16& dst, const uint1
 
 	int counter = 0;
 
-#if NO_SSE
+#if HLAC_NO_SSE
 
 	while (numSamples > 2)
 	{
