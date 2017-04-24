@@ -809,7 +809,7 @@ private:
 	int scrollY;
 	BigInteger shownComponents;
 
-	std::atomic<int> suspendIndex = 0;
+	std::atomic<int> suspendIndex;
 };
 
 
