@@ -143,6 +143,8 @@ void MainController::clearPreset()
 {
 	ScopedSuspender ss(this, ScopedSuspender::LockType::SuspendOnly);
 
+	
+
 	getMainSynthChain()->reset();
 
 	globalVariableObject->clear();
@@ -207,6 +209,8 @@ void MainController::loadPreset(ValueTree &v, Component* /*mainEditor*/)
         
         changed = false;
         
+		synthChain->sendRebuildMessage(true);
+
 	}
 	else
 	{

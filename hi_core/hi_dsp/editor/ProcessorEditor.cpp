@@ -364,6 +364,17 @@ void ProcessorEditor::childEditorAmountChanged() const
 	panel->updateChildEditorList();
 }
 
+void ProcessorEditorContainer::processorDeleted(Processor* deletedProcessor)
+{
+	removeSoloProcessor(deletedProcessor, true);
+}
+
+void ProcessorEditorContainer::updateChildEditorList(bool forceUpdate)
+{
+	rootProcessorEditor->getPanel()->updateChildEditorList(forceUpdate);
+	refreshSize();
+}
+
 void ProcessorEditorContainer::refreshSize(bool )
 {
 	int y = 0;
@@ -410,6 +421,9 @@ void ProcessorEditorContainer::resized()
 void ProcessorEditorContainer::setRootProcessorEditor(Processor *p)
 {
 	addAndMakeVisible(rootProcessorEditor = new ProcessorEditor(this, 0, p, nullptr));
+
+	p->addDeleteListener(this);
+
 	refreshSize(false);
 }
 
@@ -481,8 +495,17 @@ currentPosition(-1)
 	updateChildEditorList();
 }
 
+void ProcessorEditorPanel::processorDeleted(Processor* deletedProcessor)
+{
+	removeProcessorEditor(deletedProcessor);
+
+	deletedProcessor->removeDeleteListener(this);
+}
+
 void ProcessorEditorPanel::addProcessorEditor(Processor *p)
 {
+	p->addDeleteListener(this);
+
 	ProcessorEditor *editor = new ProcessorEditor(getEditor()->getRootContainer(), getEditor()->getIndentationLevel() + 1, p, getEditor());
 	editors.add(editor);
 
@@ -504,7 +527,7 @@ void ProcessorEditorPanel::removeProcessorEditor(Processor *p)
 		if (editors[i]->getProcessor() == p)
 		{
 			editors.remove(i, true);
-			getEditor()->getProcessorAsChain()->getHandler()->remove(p);
+			//getEditor()->getProcessorAsChain()->getHandler()->remove(p);
 			break;
 		}
 	}
@@ -569,9 +592,9 @@ void ProcessorEditorPanel::setInsertPosition(int position)
 	repaint();
 }
 
-void ProcessorEditorPanel::updateChildEditorList()
+void ProcessorEditorPanel::updateChildEditorList(bool forceUpdate)
 {
-	if (editors.size() == getProcessor()->getNumChildProcessors())
+	if (!forceUpdate && editors.size() == getProcessor()->getNumChildProcessors())
 	{
 		getEditor()->getHeader()->enableChainHeader();
 		return;
@@ -588,6 +611,8 @@ void ProcessorEditorPanel::updateChildEditorList()
 			addAndMakeVisible(editor);
 
 			editors.add(editor);
+			getProcessor()->getChildProcessor(i)->addDeleteListener(this);
+
 
 		}
 	}

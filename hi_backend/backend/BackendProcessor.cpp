@@ -54,6 +54,8 @@ BackendProcessor::~BackendProcessor()
 {
 	clearPreset();
 
+	
+
 	synthChain = nullptr;
 
 	jassert(editorInformation.getType() == Identifier("editorData"));

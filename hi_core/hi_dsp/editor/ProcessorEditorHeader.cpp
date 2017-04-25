@@ -711,9 +711,7 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
 	}
     else if (buttonThatWasClicked == deleteButton)
 	{
-        PresetHandler::setChanged(getProcessor());
-        
-		if(dynamic_cast<BackendProcessorEditor*>(getEditor()->getParentComponent()) != nullptr)
+        if(dynamic_cast<BackendProcessorEditor*>(getEditor()->getParentComponent()) != nullptr)
 		{
 			dynamic_cast<BackendProcessorEditor*>(getEditor()->getParentComponent())->clearPopup();
 			return;
@@ -721,10 +719,7 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
 
 		if(dynamic_cast<ModulatorSynth*>(getProcessor()) == nullptr || PresetHandler::showYesNoWindow("Delete " + getProcessor()->getId() + "?", "Do you want to delete the Synth module?"))
 		{
-            
-            PresetHandler::setChanged(getProcessor());
-            
-			getEditor()->getParentEditor()->getPanel()->removeProcessorEditor(getProcessor());
+			ProcessorHelpers::deleteProcessor(getProcessor());
 		}
 	}
   

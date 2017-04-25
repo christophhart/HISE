@@ -48,11 +48,16 @@
 
 /** The container that holds all vertically stacked ProcessorEditors. */
 class ProcessorEditorContainer : public ComponentWithMidiKeyboardTraverser,
-									   public SafeChangeBroadcaster
+							     public SafeChangeBroadcaster,
+								 public Processor::DeleteListener
 {
 public:
 
 	ProcessorEditorContainer() {};
+
+	void processorDeleted(Processor* deletedProcessor) override;
+
+	void updateChildEditorList(bool forceUpdate) override;
 
 	/** Call this whenever you change the size of a child component */
 	void refreshSize(bool processorAmountChanged=false);
@@ -335,11 +340,14 @@ private:
 };
 
 
-class ProcessorEditorPanel : public ProcessorEditorChildComponent
+class ProcessorEditorPanel : public ProcessorEditorChildComponent,
+							 public Processor::DeleteListener
 {
 public:
 
 	ProcessorEditorPanel(ProcessorEditor *parent);
+
+	void processorDeleted(Processor* deletedProcessor) override;
 
 	void addProcessorEditor(Processor *p);
 
@@ -360,7 +368,7 @@ public:
 
 	int getNumChildEditors() const { return editors.size(); };
 
-	void updateChildEditorList();
+	void updateChildEditorList(bool forceUpdate=false) override;
 
 	void refreshChildProcessorVisibility();
 	void setInsertPosition(int position);

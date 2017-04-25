@@ -197,6 +197,8 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 
 void ModulatorSynthChain::reset()
 {
+	sendDeleteMessage();
+
     this->getHandler()->clear();
     
     midiProcessorChain->getHandler()->clear();

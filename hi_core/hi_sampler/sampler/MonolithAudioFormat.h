@@ -48,7 +48,9 @@ public:
 	MonolithAudioFormatReader(const File &f, AudioFormatReader &details, int64 start, int64 length, bool isMono):
 		MemoryMappedAudioFormatReader(f, details, start, length, (isMono ? 1 : 2) * sizeof(int16)),
 		numChannels(isMono ? 1 : 2)
-	{}
+	{
+        usesFloatingPointData = true;
+    }
 
 	bool readSamples(int **destSamples, int numDestChannels, int startOffsetInDestBuffer, int64 startSampleInFile, int numSamples) override
 	{
@@ -89,12 +91,12 @@ public:
 
 		if (numChannels == 1)
 		{
-			ReadHelper<AudioData::Int32, AudioData::Int16, AudioData::LittleEndian>::read(destSamples, startOffsetInDestBuffer, 1, sourceData, 1, numSamples);
+            ReadHelper<AudioData::Float32, AudioData::Int16, AudioData::LittleEndian>::read(destSamples, startOffsetInDestBuffer, 1, sourceData, 1, numSamples);
 			//FloatVectorOperations::copy(reinterpret_cast<float*>(destSamples[1]), reinterpret_cast<float*>(destSamples[0]), numSamples);
 		}
 		else
 		{
-			ReadHelper<AudioData::Int32, AudioData::Int16, AudioData::LittleEndian>::read(destSamples, startOffsetInDestBuffer, numDestChannels, sourceData, 2, numSamples);
+			ReadHelper<AudioData::Float32, AudioData::Int16, AudioData::LittleEndian>::read(destSamples, startOffsetInDestBuffer, numDestChannels, sourceData, 2, numSamples);
 		}
 	}
 
@@ -112,6 +114,7 @@ public:
       AudioFormatReader(input, "HISE")
     {
         numChannels = isMono ? 1 : 2;
+        usesFloatingPointData = true;
         
         const int bytesPerFrame = sizeof(int16) * numChannels;
         
@@ -160,7 +163,7 @@ public:
     {
         if (numChannels == 1)
         {
-            ReadHelper<AudioData::Int32, AudioData::Int16, AudioData::LittleEndian>::read(destSamples, startOffsetInDestBuffer, 1, sourceData, 1, numSamples);
+            ReadHelper<AudioData::Float32, AudioData::Int16, AudioData::LittleEndian>::read(destSamples, startOffsetInDestBuffer, 1, sourceData, 1, numSamples);
             
             if(numDestChannels == 2)
             {
@@ -169,7 +172,7 @@ public:
         }
         else
         {
-            ReadHelper<AudioData::Int32, AudioData::Int16, AudioData::LittleEndian>::read(destSamples, startOffsetInDestBuffer, numDestChannels, sourceData, 2, numSamples);
+            ReadHelper<AudioData::Float32, AudioData::Int16, AudioData::LittleEndian>::read(destSamples, startOffsetInDestBuffer, numDestChannels, sourceData, 2, numSamples);
         }
     }
 };

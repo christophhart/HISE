@@ -532,6 +532,8 @@ private:
         
         SafeChangeBroadcaster *parent;
         std::atomic<bool> send;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FlagTimer)
     };
     
 	class AsyncBroadcaster : public AsyncUpdater
@@ -548,6 +550,7 @@ private:
 
 		SafeChangeBroadcaster *parent;
 
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AsyncBroadcaster)
 	};
 
 	AsyncBroadcaster dispatcher;
@@ -556,6 +559,8 @@ private:
 	String currentString;
 
 	Array<WeakReference<SafeChangeListener>, CriticalSection> listeners;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SafeChangeBroadcaster)
 };
 
 

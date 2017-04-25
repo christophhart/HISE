@@ -701,6 +701,55 @@ public:
 		return dummyLock;
 	}
 
+	struct DeleteListener
+	{
+		~DeleteListener()
+		{
+			masterReference.clear();
+		}
+
+		virtual void processorDeleted(Processor* deletedProcessor) = 0;
+
+		virtual void updateChildEditorList(bool forceUpdate) = 0;
+
+	private:
+
+		friend class WeakReference<DeleteListener>;
+		WeakReference<DeleteListener>::Master masterReference;
+	};
+
+	void addDeleteListener(DeleteListener* listener)
+	{
+		deleteListeners.addIfNotAlreadyThere(listener);
+	}
+
+	void removeDeleteListener(DeleteListener* listener)
+	{
+		deleteListeners.removeAllInstancesOf(listener);
+	}
+
+	void sendDeleteMessage()
+	{
+		for (int i = 0; i < deleteListeners.size(); i++)
+		{
+			if (deleteListeners[i].get() != nullptr)
+			{
+				deleteListeners[i]->processorDeleted(this);
+			}
+		}
+	}
+
+	void sendRebuildMessage(bool forceUpdate=false)
+	{
+		for (int i = 0; i < deleteListeners.size(); i++)
+		{
+			if (deleteListeners[i].get() != nullptr)
+			{
+				deleteListeners[i]->updateChildEditorList(forceUpdate);
+			}
+		}
+	}
+
 protected:
 
 	/** Overwrite this method if you want to supply a custom symbol for the Processor. 
@@ -750,7 +799,11 @@ protected:
 	Array<Identifier> parameterNames;
 	Array<Identifier> editorStateIdentifiers;
 
+	
+
 private:
+
+	Array<WeakReference<DeleteListener>> deleteListeners;
 
 	CriticalSection dummyLock;
 
@@ -857,6 +910,8 @@ public:
 	static String getBase64String(const Processor* p, bool copyToClipboard=true);
 
 	static void restoreFromBase64String(Processor* p, const String& base64String);
+
+	static void deleteProcessor(Processor* p);
 
 	static void increaseBufferIfNeeded(AudioSampleBuffer& b, int numSamplesNeeded)
 	{

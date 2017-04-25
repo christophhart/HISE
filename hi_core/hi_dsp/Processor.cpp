@@ -123,6 +123,11 @@ bool Chain::restoreChain(const ValueTree &v)
 
 	jassert(v.getType().toString() == "ChildProcessors");
 
+	for (int i = 0; i < getHandler()->getNumProcessors(); i++)
+	{
+		getHandler()->getProcessor(i)->sendDeleteMessage();
+	}
+
 	getHandler()->clear();
 
 	for(int i = 0; i < v.getNumChildren(); i++)
@@ -365,6 +370,23 @@ void ProcessorHelpers::restoreFromBase64String(Processor* p, const String& base6
 	else
 	{
 		p->restoreFromValueTree(v);
+
+		if(auto firstChild = p->getChildProcessor(0))
+			firstChild->sendRebuildMessage(true);
+	}
+}
+
+void ProcessorHelpers::deleteProcessor(Processor* p)
+{
+	PresetHandler::setChanged(p);
+
+	p->sendDeleteMessage();
+
+	auto c = dynamic_cast<Chain*>(findParentProcessor(p, false));
+
+	if (c != nullptr)
+	{
+		c->getHandler()->remove(p);
 	}
 }
 
