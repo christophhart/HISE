@@ -652,6 +652,7 @@ void ModulatorSampler::addSamplerSound(const ValueTree &description, int index, 
 	sounds.add(newSound);
 	newSound->setUndoManager(getMainController()->getControlUndoManager());
 	newSound->addChangeListener(sampleMap);
+	newSound->setMaxRRGroupIndex(rrGroupAmount);
 
 	sendChangeMessage();
 }
@@ -669,9 +670,12 @@ void ModulatorSampler::addSamplerSounds(OwnedArray<ModulatorSamplerSound>& monol
 	{
 		ModulatorSamplerSound* newSound = monolithicSounds.removeAndReturn(0);
 
+		
+
 		sounds.add(newSound);
 
 		newSound->setPurged(purged);
+		newSound->setMaxRRGroupIndex(rrGroupAmount);
 
 		newSound->setUndoManager(getMainController()->getControlUndoManager());
 		newSound->addChangeListener(sampleMap);
