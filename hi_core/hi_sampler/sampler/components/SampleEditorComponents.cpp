@@ -972,9 +972,16 @@ void MapWithKeyboard::resized()
 
 void MapWithKeyboard::mouseDown(const MouseEvent &e)
 {
+	Rectangle<int> keyboardArea(0, map->getBottom(), getWidth(), 20);
+
+	if (!keyboardArea.contains(e.getMouseDownPosition()))
+	{
+		return;
+	}
+
 	lastNoteNumber = (128 * e.getMouseDownPosition().getX()) / map->getWidth();
 
-	const int velocity = ((getHeight() - e.getMouseDownY()) * 127) / 20;
+	const int velocity = (int)(127.0f * ((float)(e.getMouseDownY() - keyboardArea.getY()) / 20.0f));
 
 	HiseEvent m(HiseEvent::Type::NoteOn, (uint8)lastNoteNumber, (uint8)velocity, 1);
 
@@ -985,8 +992,15 @@ void MapWithKeyboard::mouseDown(const MouseEvent &e)
 	repaint();
 }
 
-void MapWithKeyboard::mouseUp(const MouseEvent &)
+void MapWithKeyboard::mouseUp(const MouseEvent &e)
 {
+	Rectangle<int> keyboardArea(0, map->getBottom(), getWidth(), 20);
+
+	if (!keyboardArea.contains(e.getMouseDownPosition()))
+	{
+		return;
+	}
+
 	HiseEvent m(HiseEvent::Type::NoteOff, (uint8)lastNoteNumber, 127, 1);
 
 	sampler->preHiseEventCallback(m);
