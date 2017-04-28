@@ -84,6 +84,9 @@ int decode(File input, File output)
 	runner.setAssertOnFailure(false);
 	runner.runAllTests();
 
+	Logger::setCurrentLogger(nullptr);
+	return 0;
+
 	HiseLosslessAudioFormat hlac;
 
 	ScopedPointer<FileInputStream> fis = new FileInputStream(input);
@@ -135,9 +138,9 @@ int decode(File input, File output)
 			ABORT_WITH_MESSAGE("Can't read " + input.getFileName());
 		}
 		
-		b.setSize(reader->numChannels, reader->lengthInSamples, true, true, true);
+		b.setSize(reader->numChannels, (int)reader->lengthInSamples, true, true, true);
 		
-		reader->read(&b, 0, reader->lengthInSamples, 0, true, true);
+		reader->read(&b, 0, (int)reader->lengthInSamples, 0, true, true);
 
 		x++;
 	}

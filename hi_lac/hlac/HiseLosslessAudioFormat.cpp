@@ -98,9 +98,9 @@ AudioFormatReader* HiseLosslessAudioFormat::createReaderFor(InputStream* sourceS
 
 AudioFormatWriter* HiseLosslessAudioFormat::createWriterFor(OutputStream* streamToWriteTo, double sampleRateToUse, unsigned int numberOfChannels, int /*bitsPerSample*/, const StringPairArray& metadataValues, int /*qualityOptionIndex*/)
 {
-	HiseLosslessAudioFormatWriter::EncodeMode mode = metadataValues.getValue("EncodeMode", "Diff") == "Diff" ?
-		HiseLosslessAudioFormatWriter::EncodeMode::Diff :
-		HiseLosslessAudioFormatWriter::EncodeMode::Block;
+	HiseLosslessAudioFormatWriter::EncodeMode mode = metadataValues.getValue("EncodeMode", "Diff") == "Block" ?
+		HiseLosslessAudioFormatWriter::EncodeMode::Block :
+		HiseLosslessAudioFormatWriter::EncodeMode::Diff;
 
 	if (blockOffsets == nullptr)
 		blockOffsets.calloc(1024 * 1024);
@@ -110,8 +110,8 @@ AudioFormatWriter* HiseLosslessAudioFormat::createWriterFor(OutputStream* stream
 
 HiseLosslessHeader::HiseLosslessHeader(bool useEncryption, uint8 globalBitShiftAmount, double sampleRate, int numChannels, int bitsPerSample, bool useCompression, uint32 numBlocks)
 {
-	// Header byte: | 3 bit   | 1 bit      | 4 bit        |
-	//              | version | encryption | global shift |
+	// Header byte: 1 bit      | 3 bit   |  4 bit        |
+	//              encryption | version | global shift  |
 	headerByte = (useEncryption ? 0x80 : 0);
 	headerByte |= (HLAC_VERSION << 4);
 	headerByte |= (globalBitShiftAmount & 0x0F);
@@ -119,7 +119,7 @@ HiseLosslessHeader::HiseLosslessHeader(bool useEncryption, uint8 globalBitShiftA
 	// Sample data byte | 2 bit    | 4 bit    | 1 bit 1  | 1 bit           |
 	//                  | SR index | channels | bit rate | use compression |
 	sampleDataByte = CompressionHelpers::Misc::getSampleRateIndex(sampleRate) << 6;
-	sampleDataByte |= (numChannels & 0x0F) << 4;
+	sampleDataByte |= (numChannels & 0x0F) << 2;
 	sampleDataByte |= ((bitsPerSample == 24) ? 0x02 : 0x00);
 	sampleDataByte |= (useCompression ? 0x01 : 0x00);
 
@@ -188,6 +188,8 @@ HiseLosslessHeader::HiseLosslessHeader(InputStream* input)
 			blockOffsets[i] = (uint32)input->readInt();
 		}
 	}
+
+	headerSize = (uint32)input->getPosition();
 }
 
 
@@ -227,7 +229,7 @@ unsigned int HiseLosslessHeader::getNumChannels() const
 		return headerByte;
 	}
 
-	return (sampleDataByte & 0x70) >> 4;
+	return (sampleDataByte >> 2) & 0x0F;
 }
 
 unsigned int HiseLosslessHeader::getBitsPerSample() const

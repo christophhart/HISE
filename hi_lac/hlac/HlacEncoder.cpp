@@ -127,7 +127,7 @@ float HlacEncoder::getCompressionRatio() const
 
 bool HlacEncoder::encodeBlock(AudioSampleBuffer& block, OutputStream& output)
 {
-	auto block16 = CompressionHelpers::AudioBufferInt16(block, false);
+	auto block16 = CompressionHelpers::AudioBufferInt16(block, 0, false);
 
 	return encodeBlock(block16, output);
 }
@@ -148,7 +148,7 @@ bool HlacEncoder::encodeBlock(CompressionHelpers::AudioBufferInt16& block16, Out
 	}
 	else
 	{
-		numBytesWritten += compressedBlock.getSize();
+		numBytesWritten += (uint32)compressedBlock.getSize();
 		return output.write(compressedBlock.getData(), compressedBlock.getSize());
 	}
 }
@@ -453,7 +453,7 @@ bool HlacEncoder::writeCycleHeader(bool isTemplate, int bitDepth, int numSamples
 {
 	jassert(bitDepth != 15);
 
-	uint8 headerByte = bitDepth;
+	uint8 headerByte = (uint8)bitDepth;
 	
 	if (isTemplate)
 		headerByte |= 0x20;
@@ -483,7 +483,7 @@ bool HlacEncoder::writeDiffHeader(int fullBitRate, int errorBitRate, int blockSi
 
 void HlacEncoder::encodeLastBlock(AudioSampleBuffer& block, OutputStream& output)
 {
-	CompressionHelpers::AudioBufferInt16 a(block, false);
+	CompressionHelpers::AudioBufferInt16 a(block, 0, false);
 
 	encodeCycle(a, output);
 

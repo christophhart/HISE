@@ -50,7 +50,7 @@ struct CompressionHelpers
 	*/
 	struct AudioBufferInt16
 	{
-		AudioBufferInt16(AudioSampleBuffer& b, bool normalizeBeforeStoring);
+		AudioBufferInt16(AudioSampleBuffer& b, int channelToUse, bool normalizeBeforeStoring);
 		AudioBufferInt16(int16* externalData_, int numSamples);
 		AudioBufferInt16(const int16* externalData_, int numSamples);
 		AudioBufferInt16(int size_);

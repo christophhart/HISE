@@ -77,7 +77,7 @@ struct CodecTest : public UnitTest
 
 	void testCodec(SignalType type, Option option, bool testStereo);
 
-	AudioSampleBuffer createTestSignal(int numSamples, int numChannels, SignalType type, float maxAmplitude);
+	static AudioSampleBuffer createTestSignal(int numSamples, int numChannels, SignalType type, float maxAmplitude);
 
 	HlacEncoder::CompressorOptions options[(int)Option::numCompressorOptions];
 	

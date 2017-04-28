@@ -140,9 +140,6 @@ void unpackArrayOfInt16(int16* d, int numValues, uint8 bitDepth)
 	d_ = _mm_sub_epi16(d_, sub_);
 	_mm_store_si128((__m128i*)d, d_);
 
-	int x = 5;
-
-
 #endif
 
 }

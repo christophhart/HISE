@@ -47,6 +47,8 @@ struct HiseLosslessHeader
 	double getSampleRate() const;
 	uint32 getBlockAmount() const;
 
+	uint32 getOffsetForReadPosition(int64 samplePosition);
+
 	bool write(OutputStream* output);
 
 	void storeOffsets(uint32* offsets, int numOffsets);
@@ -59,6 +61,7 @@ private:
 	HeapBlock<uint32> blockOffsets;
 	bool headerValid = false;
 	bool isOldMonolith = false;
+	uint32 headerSize;
 };
 
 class HiseLosslessAudioFormatReader : public AudioFormatReader

@@ -48,6 +48,13 @@ public:
 
 	double getDecompressionPerformance() const;
 
+	uint32 getCurrentReadPosition() const
+	{
+		return readOffset;
+	}
+
+	void seekToPosition(InputStream& input, uint32 samplePosition, uint32 byteOffset);
+
 private:
 
 	struct CycleHeader
@@ -77,6 +84,16 @@ private:
 
 	void decodeCycle(const CycleHeader& header, AudioSampleBuffer& destination, InputStream& input, int channelIndex);
 
+	enum class FloatWriteMode
+	{
+		Copy,
+		Add,
+		Clear,
+		numWriteModes
+	};
+
+	void writeToFloatArray(bool shouldCopy, bool useTempBuffer, AudioSampleBuffer& destination, int channelIndex, int numSamples);
+
 	CycleHeader readCycleHeader(InputStream& input);
 
 	BitCompressors::Collection collection;
@@ -86,7 +103,12 @@ private:
 	CompressionHelpers::AudioBufferInt16 workBuffer;
 
 	uint16 indexInBlock = 0;
-
+	int leftFloatIndex = 0;
+	int rightFloatIndex = 0;
+	
+	int leftNumToSkip = 0;
+	int rightNumToSkip = 0;
+	
 	uint32 blockOffset = 0;
 
 	uint8 bitRateForCurrentCycle;

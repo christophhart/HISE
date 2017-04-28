@@ -48,6 +48,13 @@ bool HiseLosslessAudioFormatReader::readSamples(int** destSamples, int numDestCh
 	
 	bool isStereo = destSamples[1] != nullptr;
 
+	if (startSampleInFile != decoder.getCurrentReadPosition())
+	{
+		auto byteOffset = header.getOffsetForReadPosition(startSampleInFile);
+
+		decoder.seekToPosition(*input, (uint32)startSampleInFile, byteOffset);
+	}
+
 	if (isStereo)
 	{
 		float** destinationFloat = reinterpret_cast<float**>(destSamples);
@@ -67,7 +74,7 @@ bool HiseLosslessAudioFormatReader::readSamples(int** destSamples, int numDestCh
 
 		AudioSampleBuffer b(destinationFloat, 2, numSamples);
 
-		decoder.decode(b, *input, startSampleInFile, numSamples);
+		decoder.decode(b, *input, (int)startSampleInFile, numSamples);
 
 	}
 	else
@@ -76,7 +83,7 @@ bool HiseLosslessAudioFormatReader::readSamples(int** destSamples, int numDestCh
 
 		AudioSampleBuffer b(&destinationFloat, 1, numSamples);
 
-		decoder.decode(b, *input, startSampleInFile, numSamples);
+		decoder.decode(b, *input, (int)startSampleInFile, numSamples);
 	}
 
 	return true;
@@ -87,4 +94,40 @@ void HiseLosslessAudioFormatReader::setTargetAudioDataType(AudioDataConverters::
 {
 	usesFloatingPointData = (dataType == AudioDataConverters::DataFormat::float32BE) ||
 		(dataType == AudioDataConverters::DataFormat::float32LE);
+}
+
+uint32 HiseLosslessHeader::getOffsetForReadPosition(int64 samplePosition)
+{
+	if (samplePosition % COMPRESSION_BLOCK_SIZE == 0)
+	{
+		uint32 blockIndex = (uint32)samplePosition / COMPRESSION_BLOCK_SIZE;
+
+		if (blockIndex < blockAmount)
+		{
+			return headerSize + blockOffsets[blockIndex];
+		}
+		else
+		{
+			jassertfalse;
+			return 0;
+		}
+	}
+	else
+	{
+		auto blockIndex = (uint32)samplePosition / COMPRESSION_BLOCK_SIZE;
+
+		if (blockIndex < blockAmount)
+		{
+			return headerSize + blockOffsets[blockIndex];
+		}
+		else
+		{
+			jassertfalse;
+			return 0;
+		}
+
+		jassertfalse;
+	}
+
+	return 0;
 }

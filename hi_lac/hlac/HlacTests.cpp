@@ -1,5 +1,5 @@
 /*  HISE Lossless Audio Codec
-*	©2017 Christoph Hart
+*	ï¿½2017 Christoph Hart
 *
 *	Redistribution and use in source and binary forms, with or without modification,
 *	are permitted provided that the following conditions are met:
@@ -30,7 +30,7 @@
 
 #if HLAC_INCLUDE_TEST_SUITE
 
-//static BitCompressors::UnitTests bitTests;
+static BitCompressors::UnitTests bitTests;
 
 void BitCompressors::UnitTests::runTest()
 {
@@ -309,14 +309,12 @@ void CodecTest::testIntegerBuffers()
 
 	const int numSamples = CompressionHelpers::getPaddedSampleSize(r.nextInt(Range<int>(1000, 10000)));
 
-	AudioSampleBuffer src(1, numSamples);
-
 	for (int i = 0; i < (int)SignalType::numSignalTypes; i++)
 	{
 		logMessage("Testing " + getNameForSignal((SignalType)i));
 		AudioSampleBuffer src = createTestSignal(numSamples, 1, (SignalType)i, r.nextFloat() * 0.6f + 0.4f);
 
-		CompressionHelpers::AudioBufferInt16 intBuffer(src, false);
+		CompressionHelpers::AudioBufferInt16 intBuffer(src, 0, false);
 
 		AudioSampleBuffer dst = intBuffer.getFloatBuffer();
 
@@ -328,7 +326,7 @@ void CodecTest::testIntegerBuffers()
 	
 }
 
-void CodecTest::testCodec(SignalType type, Option option, bool testStereo)
+void CodecTest::testCodec(SignalType type, Option option, bool /*testStereo*/)
 {
 	
 
@@ -373,6 +371,8 @@ AudioSampleBuffer CodecTest::createTestSignal(int numSamples, int numChannels, S
 {
 	Random rd;
 
+	
+
 	AudioSampleBuffer b(numChannels, numSamples);
 
 	float* l = b.getWritePointer(0);
@@ -408,7 +408,7 @@ AudioSampleBuffer CodecTest::createTestSignal(int numSamples, int numChannels, S
 
 		for (int i = 0; i < numSamples; i++)
 		{
-			l[i] = sin(uptime);
+			l[i] = (float)sin(uptime);
 			uptime += uptimeDelta;
 			r[i] = l[i];
 		};
@@ -422,7 +422,7 @@ AudioSampleBuffer CodecTest::createTestSignal(int numSamples, int numChannels, S
 
 		for (int i = 0; i < numSamples; i++)
 		{
-			l[i] = sin(uptime) + rd.nextFloat() * 0.05f;
+			l[i] = (float)sin(uptime) + rd.nextFloat() * 0.05f;
 			uptime += uptimeDelta;
 			r[i] = l[i] + rd.nextFloat() * 0.05f;
 		};
@@ -440,12 +440,12 @@ AudioSampleBuffer CodecTest::createTestSignal(int numSamples, int numChannels, S
 		
 		for (int i = 0; i < numSamples; i++)
 		{
-			l[i] =  ra * sin(uptime);
-			l[i] += h1 * sin(2.0f*uptime);
-			l[i] += h2 * sin(3.0f*uptime);
+			l[i] =  ra * (float)sin(uptime);
+			l[i] += h1 * (float)sin(2.0*uptime);
+			l[i] += h2 * (float)sin(3.0*uptime);
 			l[i] += rd.nextFloat() * 0.03f;
 
-			uptime += (uptimeDelta + rd.nextFloat()*0.001f);
+			uptime += (uptimeDelta + rd.nextFloat()*0.01f);
 			
 		};
 
@@ -483,7 +483,7 @@ AudioSampleBuffer CodecTest::createTestSignal(int numSamples, int numChannels, S
 
 	b.applyGain(maxAmplitude);
 
-	logMessage("  Amplitude: " + String(Decibels::gainToDecibels(b.getMagnitude(0, numSamples)), 2) + " dB");
+	//logMessage("  Amplitude: " + String(Decibels::gainToDecibels(b.getMagnitude(0, numSamples)), 2) + " dB");
 
 	FloatVectorOperations::clip(r, r, -1.0f, 1.0f, numSamples);
 	FloatVectorOperations::clip(l, l, -1.0f, 1.0f, numSamples);
@@ -550,7 +550,30 @@ public:
 
 	void runTest() override
 	{
+		runFormatTestWithOption(HlacEncoder::CompressorOptions::Presets::WholeBlock);
+		runFormatTestWithOption(HlacEncoder::CompressorOptions::Presets::Delta);
+		runFormatTestWithOption(HlacEncoder::CompressorOptions::Presets::Diff);
+	}
+
+	void runFormatTestWithOption(HlacEncoder::CompressorOptions::Presets option)
+	{
+		logMessage(String("Testing compression mode ") + String((int)option));
+
+		currentOption = HlacEncoder::CompressorOptions::getPreset(option);
+
 		testHeader();
+
+		testDualWrite(1);
+		testDualWrite(2);
+
+		testPadding(1);
+        testPadding(2);
+	
+		for (int i = 0; i < 5; i++)
+		{
+			testSeeking(1);
+			testSeeking(2);
+		}
 	}
 
 	void testHeader()
@@ -564,11 +587,11 @@ public:
 		for (int i = 0; i < 200; i++)
 		{
 			bool useEncryption = false;
-			uint8 globalShiftAmount = r.nextInt(15);
+			uint8 globalShiftAmount = (uint8)r.nextInt(15);
 
 			const double sampleRates[4] = { 44100.0, 48000.0, 88200.0, 96000.0 };
 			double sampleRate = sampleRates[r.nextInt(4)];
-			const int numChannels = r.nextBool() ? 1 : 2;
+			const int numChannels = r.nextInt(Range<int>(1, 8));
 			const int bitDepth = r.nextBool() ? 16 : 24;
 			bool useCompression = r.nextBool();
 			const int numBlocks = r.nextInt(Range<int>(5, 900));
@@ -584,6 +607,174 @@ public:
 			expectEquals<int>(header.getBlockAmount(), numBlocks, "Block amount");
 		}
 	}
+
+	AudioSampleBuffer createTestBuffer(int numChannels=1, int size=44100)
+	{
+		Random r;
+
+		return CodecTest::createTestSignal(r.nextInt(Range<int>((6*size) / 8, (10*size) / 8)), numChannels, CodecTest::SignalType::DecayingSineWithHarmonic, 0.9f);
+	}
+
+	MemoryBlock writeIntoMemory(Array<AudioSampleBuffer>& buffers)
+	{
+		Random r;
+
+		HiseLosslessAudioFormat hlac;
+
+		MemoryOutputStream* mos = new MemoryOutputStream();
+
+		StringPairArray empty;
+
+		ScopedPointer<HiseLosslessAudioFormatWriter> writer = dynamic_cast<HiseLosslessAudioFormatWriter*>(hlac.createWriterFor(mos, 44100.0, buffers[0].getNumChannels(), 0, empty, 0));
+
+		writer->setOptions(currentOption);
+		
+		expect(writer != nullptr);
+
+		if (writer != nullptr)
+		{
+			for (int i = 0; i < buffers.size(); i++)
+			{
+				writer->writeFromAudioSampleBuffer(buffers[i], 0, buffers[i].getNumSamples());
+			}
+		}
+
+		writer->flush();
+
+		MemoryBlock mb;
+
+		mb.setSize(mos->getDataSize());
+		mb.copyFrom(mos->getData(), 0, mos->getDataSize());
+
+		return mb;
+	}
+
+	HiseLosslessAudioFormatReader* createReader(MemoryBlock& mb)
+	{
+		HiseLosslessAudioFormat hlac;
+
+		MemoryInputStream* mis = new MemoryInputStream(mb, false);
+
+		auto reader = dynamic_cast<HiseLosslessAudioFormatReader*>(hlac.createReaderFor(mis, true));
+
+		expect(reader != nullptr, "Create Reader");
+
+		return reader;
+	}
+
+	AudioSampleBuffer readIntoAudioBuffer(MemoryBlock& mb)
+	{
+		ScopedPointer<HiseLosslessAudioFormatReader> reader = createReader(mb);
+
+		AudioSampleBuffer b2(reader->numChannels, (int)reader->lengthInSamples);
+
+		reader->read(&b2, 0, (int)reader->lengthInSamples, 0, true, true);
+
+		return b2;
+	}
+
+	void testPadding(int numChannels)
+	{
+		beginTest("Testing zero padding with " + String(numChannels) + " channels");
+
+		Array<AudioSampleBuffer> buffers;
+
+		buffers.add(createTestBuffer(numChannels));
+		auto mb = writeIntoMemory(buffers);
+		auto b2 = readIntoAudioBuffer(mb);
+
+		int error = (int)CompressionHelpers::checkBuffersEqual(b2, buffers.getReference(0));
+
+		expect(b2.getNumSamples() % COMPRESSION_BLOCK_SIZE == 0, "zero pad amount matches");
+		expectEquals<int>(error, 0, "Error after reading");
+	}
+
+	int randomizeChannelAmount()
+	{
+		Random r;
+		return r.nextBool() ? 1 : 2;
+	}
+
+	void testDualWrite(int numChannels)
+	{
+		beginTest("Testing double write with " + String(numChannels) + " channels");
+
+		Array<AudioSampleBuffer> buffers;
+
+		buffers.add(createTestBuffer(numChannels));
+		buffers.add(createTestBuffer(numChannels));
+
+		auto mb = writeIntoMemory(buffers);
+
+		auto both = readIntoAudioBuffer(mb);
+
+		const int paddedFirst = CompressionHelpers::getPaddedSampleSize(buffers[0].getNumSamples());
+		const int paddedSecond = CompressionHelpers::getPaddedSampleSize(buffers[1].getNumSamples());
+
+		expectEquals<int>(both.getNumSamples(), paddedFirst + paddedSecond, "Size");
+
+		AudioSampleBuffer both2(numChannels, paddedFirst + paddedSecond);
+		both2.clear();
+
+		both2.copyFrom(0, 0, buffers[0], 0, 0, buffers[0].getNumSamples());
+		both2.copyFrom(0, paddedFirst, buffers[1], 0, 0, buffers[1].getNumSamples());
+
+		if (numChannels > 1)
+		{
+			both2.copyFrom(1, 0, buffers[0], 1, 0, buffers[0].getNumSamples());
+			both2.copyFrom(1, paddedFirst, buffers[1], 1, 0, buffers[1].getNumSamples());
+		}
+
+		int error = (int)CompressionHelpers::checkBuffersEqual(both2, both);
+
+		expectEquals<int>(error, 0, "buffers equal");
+
+	}
+
+	void testSeeking(int numChannels)
+	{
+		beginTest("Test seeking with " + String(numChannels) + " channels");
+
+		AudioSampleBuffer big(numChannels, 3000000);
+
+		auto signal = createTestBuffer(numChannels);
+
+		Random r;
+
+		int signalLength = signal.getNumSamples();
+		int offset = r.nextInt(Range<int>(0, big.getNumSamples() - 3 * signalLength)) % COMPRESSION_BLOCK_SIZE;
+
+		big.clear();
+		big.copyFrom(0, offset, signal, 0, 0, signalLength);
+		
+		if(numChannels > 1)
+			big.copyFrom(1, offset, signal, 1, 0, signalLength);
+
+		Array<AudioSampleBuffer> buffers;
+		buffers.add(big);
+
+		auto mb = writeIntoMemory(buffers);
+
+		AudioSampleBuffer signalCopy(numChannels, CompressionHelpers::getPaddedSampleSize(signalLength));
+
+		signalCopy.clear();
+
+		ScopedPointer<HiseLosslessAudioFormatReader> reader = createReader(mb);
+
+		reader->read(&signalCopy, 0, signalLength, offset, true, true);
+
+		int error = (int)CompressionHelpers::checkBuffersEqual(signalCopy, signal);
+
+		if (error > 0)
+		{
+			logMessage("Signal Length: " + String(signal.getNumSamples()));
+			logMessage("Offset: " + String(offset));
+		}
+
+		expectEquals<int>(error, 0, "Seeking");
+	}
+
+	HlacEncoder::CompressorOptions currentOption;
 };
 
 static FormatTest formatTest;

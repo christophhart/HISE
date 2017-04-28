@@ -29,7 +29,7 @@
 */
 
 
-CompressionHelpers::AudioBufferInt16::AudioBufferInt16(AudioSampleBuffer& b, bool normalizeBeforeStoring)
+CompressionHelpers::AudioBufferInt16::AudioBufferInt16(AudioSampleBuffer& b, int channelToUse, bool normalizeBeforeStoring)
 {
 #if JUCE_DEBUG
 	const float level = b.getMagnitude(0, b.getNumSamples());
@@ -44,20 +44,20 @@ CompressionHelpers::AudioBufferInt16::AudioBufferInt16(AudioSampleBuffer& b, boo
 
 	if (normalizeBeforeStoring)
 	{
-		auto r = b.findMinMax(0, 0, size);
+		auto r = b.findMinMax(channelToUse, 0, size);
 
 		const float peak = jmax<float>(fabsf(r.getStart()), fabsf(r.getEnd()));
 		gainFactor = 1.0f / peak;
 
 		b.applyGain(gainFactor); // Slow but don't care...
 
-		AudioDataConverters::convertFloatToInt16LE(b.getReadPointer(0), data, b.getNumSamples());
+		AudioDataConverters::convertFloatToInt16LE(b.getReadPointer(channelToUse), data, b.getNumSamples());
 
 		b.applyGain(peak);
 	}
 	else
 	{
-		AudioDataConverters::convertFloatToInt16LE(b.getReadPointer(0), data, b.getNumSamples());
+		AudioDataConverters::convertFloatToInt16LE(b.getReadPointer(channelToUse), data, b.getNumSamples());
 	}
 }
 
@@ -376,20 +376,20 @@ uint8 CompressionHelpers::checkBuffersEqual(AudioSampleBuffer& workBuffer, Audio
     jassert(workBuffer.getNumSamples() % COMPRESSION_BLOCK_SIZE == 0);
     jassert(workBuffer.getNumSamples() >= numToCheck);
 
-	AudioBufferInt16 wbInt(workBuffer, false);
-	AudioBufferInt16 rbInt(referenceBuffer, false);
+	AudioBufferInt16 wbInt(workBuffer, 0, false);
+	AudioBufferInt16 rbInt(referenceBuffer,0, false);
 
 	IntVectorOperations::sub(wbInt.getWritePointer(), rbInt.getReadPointer(), numToCheck);
-    
+	
 	auto br = getPossibleBitReductionAmount(wbInt);
-
+	
 	if (br != 0)
 	{
 		DBG("Bit rate for error signal: " + String(br));
 
 		//DUMP(wbInt);
-		//DUMP(referenceBuffer);
-		//DUMP(workBuffer);
+		DUMP(referenceBuffer);
+		DUMP(workBuffer);
 
 		float* w = workBuffer.getWritePointer(0);
 		const float* r = referenceBuffer.getReadPointer(0);
@@ -429,6 +429,30 @@ uint8 CompressionHelpers::checkBuffersEqual(AudioSampleBuffer& workBuffer, Audio
 
 			DBG("Min index: " + String(minIndex) + ", value: " + String(minValue));
 			DBG("Max index: " + String(maxIndex) + ", value: " + String(maxValue));
+		}
+
+		return br;
+	}
+
+
+	if (workBuffer.getNumChannels() > 1)
+	{
+		AudioBufferInt16 wbIntR(workBuffer, 1, false);
+		AudioBufferInt16 rbIntR(referenceBuffer, 1, false);
+
+		IntVectorOperations::sub(wbIntR.getWritePointer(), rbIntR.getReadPointer(), numToCheck);
+
+		auto brR = getPossibleBitReductionAmount(wbIntR);
+
+		if (brR != 0)
+		{
+			DBG("Second channel error: " + String(br));
+
+			//DUMP(wbInt);
+			DUMP(referenceBuffer);
+			DUMP(workBuffer);
+
+			return brR;
 		}
 	}
 
@@ -631,8 +655,6 @@ void CompressionHelpers::Diff::distributeFullSamples(AudioBufferInt16& dst, cons
 
 	int thisValue = 0;
 	int nextValue = 0;
-
-	int numTodo = numSamples - 2;
 
 #if HLAC_NO_SSE
 

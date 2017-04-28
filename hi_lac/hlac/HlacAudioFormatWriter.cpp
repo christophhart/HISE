@@ -35,6 +35,10 @@ HiseLosslessAudioFormatWriter::HiseLosslessAudioFormatWriter(EncodeMode mode_, O
 	tempOutputStream(new MemoryOutputStream()),
 	blockOffsets(blockOffsetBuffer)
 {
+	auto option = HlacEncoder::CompressorOptions::getPreset(HlacEncoder::CompressorOptions::Presets::Diff);
+
+	encoder.setOptions(option);
+
 	usesFloatingPointData = true;
 }
 
