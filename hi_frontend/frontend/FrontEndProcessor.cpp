@@ -71,6 +71,16 @@ void FrontendProcessor::handleControllersForMacroKnobs(const MidiBuffer &midiMes
 
 }
 
+#if JUCE_WINDOWS
+#define TURBOACTIVATE_FILE_PATH ProjectHandler::Frontend::getAppDataDirectory().getFullPathName().toUTF16().getAddress()
+#else
+#if ENABLE_APPLE_SANDBOX
+#define TURBOACTIVATE_FILE_PATH ProjectHandler::Frontend::getAppDataDirectory().getChildFile("Resources/").getFullPathName().toUTF8().getAddress()
+#else
+#define TURBOACTIVATE_FILE_PATH ProjectHandler::Frontend::getAppDataDirectory().getFullPathName().toUTF8().getAddress()
+#endif
+#endif
+
 FrontendProcessor::FrontendProcessor(ValueTree &synthData, AudioDeviceManager* manager, AudioProcessorPlayer* callback_, ValueTree *imageData_/*=nullptr*/, ValueTree *impulseData/*=nullptr*/, ValueTree *externalFiles/*=nullptr*/, ValueTree *userPresets) :
 MainController(),
 PluginParameterAudioProcessor(ProjectHandler::Frontend::getProjectName()),
@@ -79,18 +89,9 @@ synthChain(new ModulatorSynthChain(this, "Master Chain", NUM_POLYPHONIC_VOICES))
 keyFileCorrectlyLoaded(true),
 presets(*userPresets),
 currentlyLoadedProgram(0),
-
 #if USE_TURBO_ACTIVATE
 unlockCounter(0),
-#if JUCE_WINDOWS
-unlocker(ProjectHandler::Frontend::getAppDataDirectory().getFullPathName().toUTF16().getAddress())
-#else
-#if ENABLE_APPLE_SANDBOX
-unlocker(ProjectHandler::Frontend::getAppDataDirectory().getChildFile("Resources/").getFullPathName().toUTF8().getAddress())
-#else
-unlocker(ProjectHandler::Frontend::getAppDataDirectory().getFullPathName().toUTF8().getAddress())
-#endif
-#endif
+unlocker(TURBOACTIVATE_FILE_PATH)
 #else
 unlockCounter(0)
 #endif
@@ -147,7 +148,7 @@ unlockCounter(0)
 
 	synthChain->setId(synthData.getProperty("ID", String()));
 
-	suspendProcessing(true);
+    MainController::ScopedSuspender ss(this);
 
 	getSampleManager().setShouldSkipPreloading(true);
 
@@ -171,7 +172,8 @@ unlockCounter(0)
         createSampleMapValueTreeFromPreset(synthData);
     }
     
-	suspendProcessing(false);
+
+
 
 	createUserPresetData();
 }
@@ -183,13 +185,11 @@ const String FrontendProcessor::getName(void) const
 
 void FrontendProcessor::prepareToPlay(double newSampleRate, int samplesPerBlock)
 {
-	suspendProcessing(true);
+    MainController::ScopedSuspender ss(this);
 
 	CHECK_COPY_AND_RETURN_1(synthChain);
 		
 	getDelayedRenderer().prepareToPlayWrapped(newSampleRate, samplesPerBlock);
-
-	suspendProcessing(false);
 };
 
 AudioProcessorEditor* FrontendProcessor::createEditor()

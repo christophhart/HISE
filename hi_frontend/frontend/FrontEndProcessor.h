@@ -54,7 +54,8 @@ public:
         TrialExpired,
         Trial,
         Invalid,
-        LicenceNotFound,
+        KeyFileFailedToOpen,
+		LicenseFileDoesNotExist,
 		NoInternet,
         numStates
     };
@@ -70,7 +71,7 @@ public:
     
     bool licenceWasFound() const noexcept
     {
-        return unlockState != State::LicenceNotFound;
+        return unlockState != State::KeyFileFailedToOpen && unlockState != State::LicenseFileDoesNotExist;
     }
 
     bool licenceExpired() const noexcept
