@@ -210,10 +210,15 @@ void HiSlider::sliderValueChanged(Slider *s)
 void HiSlider::sliderDragStarted(Slider* s)
 {
 	dragStartValue = s->getValue();
+
+	Point<int> o;
+
+	startTouch(o);
 }
 
 void HiSlider::sliderDragEnded(Slider* s)
 {
+	abortTouch();
 	setAttributeWithUndo((float)s->getValue(), true, (float)dragStartValue);
 }
 
@@ -272,6 +277,7 @@ void HiSlider::mouseDown(const MouseEvent &e)
         
 		checkLearnMode();
 		Slider::mouseDown(e);
+		startTouch(e.getMouseDownPosition());
 	}
 	else
 	{
@@ -287,6 +293,33 @@ void HiSlider::mouseDown(const MouseEvent &e)
 			removeParameterWithPopup();
 #endif
 	}
+}
+
+void HiSlider::mouseDrag(const MouseEvent& e)
+{
+	setDragDistance((float)e.getDistanceFromDragStart());
+	Slider::mouseDrag(e);
+}
+
+void HiSlider::mouseUp(const MouseEvent& e)
+{
+	abortTouch();
+	Slider::mouseUp(e);
+}
+
+void HiSlider::touchAndHold(Point<int> downPosition)
+{
+#if USE_FRONTEND
+	enableMidiLearnWithPopup();
+#else
+
+	const bool isOnPreview = findParentComponentOfClass<BackendProcessorEditor>() == nullptr;
+
+	if (isOnPreview)
+		enableMidiLearnWithPopup();
+	else
+		removeParameterWithPopup();
+#endif
 }
 
 void HiToggleButton::setLookAndFeelOwned(LookAndFeel *laf_)

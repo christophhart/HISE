@@ -133,6 +133,9 @@ void MouseCallbackComponent::mouseDoubleClick(const MouseEvent &event)
 
 void MouseCallbackComponent::mouseDown(const MouseEvent& event)
 {
+	ignoreMouseUp = false;
+	startTouch(event.getMouseDownPosition());
+
 	if (midiLearnEnabled && event.mods.isRightButtonDown())
 	{
 #if USE_FRONTEND
@@ -168,6 +171,46 @@ void MouseCallbackComponent::mouseDown(const MouseEvent& event)
 	if (callbackLevel > CallbackLevel::PopupMenuOnly)
 	{
 		sendMessage(event, Action::Clicked);
+	}
+}
+
+void MouseCallbackComponent::touchAndHold(Point<int> downPosition)
+{
+	ignoreMouseUp = true;
+
+	if (midiLearnEnabled)
+	{
+#if USE_FRONTEND
+		enableMidiLearnWithPopup();
+#else
+		const bool isOnPreview = findParentComponentOfClass<BackendProcessorEditor>() == nullptr;
+
+		if (isOnPreview)
+			enableMidiLearnWithPopup();
+#endif
+		return;
+	}
+
+	Point<float> newPos((float)downPosition.getX(), (float)downPosition.getY());
+	ModifierKeys mods = ModifierKeys(ModifierKeys::rightButtonModifier);
+	MouseEvent e = MouseEvent(Desktop::getInstance().getMainMouseSource(), newPos, mods, 0.0f, this, this, Time(), newPos, Time(), 1, false);
+
+
+	if (callbackLevel < CallbackLevel::PopupMenuOnly) return;
+
+	if (itemList.size() != 0)
+	{
+		if (useRightClickForPopup)
+		{
+			fillPopupMenu(e);
+
+			return;
+		}
+	}
+
+	if (callbackLevel > CallbackLevel::PopupMenuOnly)
+	{
+		sendMessage(e, Action::Clicked);
 	}
 }
 
@@ -344,12 +387,14 @@ void MouseCallbackComponent::mouseExit(const MouseEvent &event)
 
 void MouseCallbackComponent::mouseUp(const MouseEvent &event)
 {
+	abortTouch();
+
 	if (draggingEnabled)
 	{
 		setAlwaysOnTop(false);
 	}
 
-
+	if (ignoreMouseUp)		   return;
 	if (currentlyShowingPopup) return;
 	if (callbackLevel < CallbackLevel::ClicksOnly) return;
 

@@ -35,6 +35,82 @@
 
 class Processor;
 
+class TouchAndHoldComponent
+{
+public:
+
+	TouchAndHoldComponent():
+		updateTimer(this)
+	{
+
+	}
+	
+	virtual ~TouchAndHoldComponent()
+	{
+		abortTouch();
+	}
+	
+	virtual void touchAndHold(Point<int> downPosition) = 0;
+	
+	void startTouch(Point<int> downPosition)
+	{
+#if HISE_IOS
+		updateTimer.startTouch(downPosition);
+#endif
+	}
+
+	void setDragDistance(float newDistance)
+	{
+		updateTimer.setDragDistance(newDistance);
+	}
+
+	void abortTouch()
+	{
+		updateTimer.stopTimer();
+	}
+
+private:
+
+	struct UpdateTimer : public Timer
+	{
+		UpdateTimer(TouchAndHoldComponent* parent_):
+			parent(parent_),
+			dragDistance(0.0f)
+		{}
+
+		void startTouch(Point<int>& newDownPosition)
+		{
+			downPosition = newDownPosition;
+			startTimer(1000);
+		}
+
+		void setDragDistance(float newDistance)
+		{
+			dragDistance = newDistance;
+		}
+
+		void timerCallback()
+		{
+			stopTimer();
+
+			if (dragDistance < 6.0f)
+			{
+				parent->touchAndHold(downPosition);
+			}
+		}
+
+	private:
+
+		Point<int> downPosition;
+
+		float dragDistance;
+
+		TouchAndHoldComponent* parent;
+	};
+
+	UpdateTimer updateTimer;
+};
+
 
 /** A base class for all control widgets that can be controlled by a MacroControlBroadcaster.
 *	@ingroup macroControl
@@ -336,7 +412,8 @@ private:
 */
 class HiSlider: public juce::Slider,
 				public MacroControlledObject,
-				public SliderListener
+				public SliderListener,
+				public TouchAndHoldComponent
 {
 public:
 
@@ -404,6 +481,12 @@ public:
 
 	
 	void mouseDown(const MouseEvent &e) override;
+
+	void mouseDrag(const MouseEvent& e) override;
+
+	void mouseUp(const MouseEvent&) override;
+
+	void touchAndHold(Point<int> downPosition) override;
 
 #if USE_BACKEND
 	void paint(Graphics &g) override

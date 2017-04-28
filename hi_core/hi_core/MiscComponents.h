@@ -34,7 +34,8 @@
 #define MISCCOMPONENTS_H_INCLUDED
 
 class MouseCallbackComponent : public Component,
-							   public MacroControlledObject
+							   public MacroControlledObject,
+							   public TouchAndHoldComponent
 {
 	// ================================================================================================================
 
@@ -140,6 +141,8 @@ public:
 
 	void mouseDown(const MouseEvent& event) override;
 
+	void touchAndHold(Point<int> downPosition) override;
+
 	void fillPopupMenu(const MouseEvent &event);
 
 	void mouseDrag(const MouseEvent& event) override;
@@ -177,6 +180,8 @@ public:
 	// ================================================================================================================
 
 private:
+
+	bool ignoreMouseUp = false;
 
 	NormalisableRange<double> range;
 
