@@ -342,8 +342,9 @@ public:
 	double getUptime() const noexcept { return uptime; }
 
 	/** returns the tempo as bpm. */
-    double getBpm() const noexcept { return 120;
-        //bpm.get() > 0.0 ? bpm.get() : 120.0;
+    double getBpm() const noexcept
+    {
+        return bpm.load() > 0.0 ? bpm.load() : 120.0;
     };
 
 	/** skins the given component (applies the global look and feel to it). */
