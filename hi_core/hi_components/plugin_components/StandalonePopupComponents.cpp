@@ -149,7 +149,7 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 	
 	rebuildMenus(true, true);
 
-#if HISE_IOS
+#if HISE_IOS && HISE_IPHONE
     setSize(250, 180);
 #else
 
@@ -196,7 +196,7 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
 	bufferSelector->clear();
 	sampleRateSelector->clear();
 	outputSelector->clear();
-	
+
 
 	if (rebuildDeviceTypes)
 	{
@@ -223,7 +223,7 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
 
 		Array<int> bufferSizes = currentDevice->getAvailableBufferSizes();
 
-		
+
 
 		if (bufferSizes.size() > 7)
 		{
@@ -235,7 +235,8 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
 			if (bufferSizes.contains(512)) powerOfTwoBufferSizes.add(512);
 			if (bufferSizes.contains(1024)) powerOfTwoBufferSizes.add(1024);
 
-			bufferSizes.swapWith(powerOfTwoBufferSizes);
+			if (powerOfTwoBufferSizes.size() > 2)
+				bufferSizes.swapWith(powerOfTwoBufferSizes);
 		}
 
 		int defaultBufferSize = currentDevice->getDefaultBufferSize();
@@ -275,9 +276,9 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
 		samplerates.add(96000.0);
 #else
 		Array<double> allSamplerates = currentDevice->getAvailableSampleRates();
-        Array<double> samplerates;
-        
-        if(allSamplerates.contains(44100.0)) samplerates.add(44100.0);
+		Array<double> samplerates;
+
+		if (allSamplerates.contains(44100.0)) samplerates.add(44100.0);
 		if (allSamplerates.contains(48000.0)) samplerates.add(48000.0);
 		if (allSamplerates.contains(88200.0)) samplerates.add(88200.0);
 		if (allSamplerates.contains(96000.0)) samplerates.add(96000.0);
@@ -294,6 +295,15 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
 
 		sampleRateSelector->setSelectedItemIndex(samplerates.indexOf(thisSampleRate), dontSendNotification);
 	}
+	else
+	{
+		String message = "The Audio driver " + deviceSelector->getText() + " could not be opened.";
+
+		
+
+		PresetHandler::showMessageWindow("Audio Driver Initialisation Error", message, PresetHandler::IconType::Error);
+	}
+
 #else
 	ignoreUnused(rebuildDevices, rebuildDeviceTypes);
 #endif
