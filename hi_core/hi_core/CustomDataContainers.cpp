@@ -125,7 +125,7 @@ bool UnorderedStack<ElementType>::isEmpty() const
 template <typename ElementType>
 int UnorderedStack<ElementType>::size() const
 {
-	return position;
+	return (int)position;
 }
 
 /** ============================================================================================================================== UNIT TEST */
@@ -137,7 +137,7 @@ public:
 	struct DummyStruct
 	{
 		DummyStruct(int index_) :
-			index(index)
+			index(index_)
 		{};
 
 		DummyStruct() :

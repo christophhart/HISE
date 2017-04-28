@@ -591,7 +591,7 @@ void FileBrowserLookAndFeel::drawFileBrowserRow(Graphics&g, int width, int heigh
 	}
 }
 
-void ConcertinaPanelHeaderLookAndFeel::drawConcertinaPanelHeader(Graphics& g, const Rectangle<int>& area, bool isMouseOver, bool /*isMouseDown*/, ConcertinaPanel& /*cp*/, Component& panel)
+void ConcertinaPanelHeaderLookAndFeel::drawConcertinaPanelHeader(Graphics& g, const Rectangle<int>& area, bool /*isMouseOver*/, bool /*isMouseDown*/, ConcertinaPanel& /*cp*/, Component& panel)
 {
 #if USE_BACKEND
 	Path path;
@@ -674,7 +674,7 @@ void ConcertinaPanelHeaderLookAndFeel::drawConcertinaPanelHeader(Graphics& g, co
     
 #else
 
-	ignoreUnused(g, area, isMouseOver, panel);
+	ignoreUnused(g, area, panel);
 
 #endif
 

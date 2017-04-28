@@ -74,8 +74,6 @@ struct DebugLogger::StringMessage : public DebugLogger::Message
 		ignoreUnused(errorIndex);
 
 		String s;
-		NewLine nl;
-
 		s << message << "(CI: `" << String(callbackIndex) << "`)  ";
 
 		return s; 
@@ -134,8 +132,10 @@ struct DebugLogger::AudioSettingChange : public DebugLogger::Message
 		{
 			errorMessage << "- Old: **" << String(oldValue, 0) << "**  " << nl;
 			errorMessage << "- New: **" << String(newValue, 0) << "**  " << nl << nl;
-			return errorMessage;
+			
 		}
+
+		return errorMessage;
 	}
 };
 
@@ -184,8 +184,6 @@ struct DebugLogger::ParameterChange : public DebugLogger::Message
 	String getMessageText(int) override
 	{
 		String s;
-		NewLine nl;
-
 		s << "**Parameter Change** ";
 		s << "ID: `" << id << "` value: `" << value.toString() << "`  " << "CI: `" << callbackIndex << "`  ";
 		return s;

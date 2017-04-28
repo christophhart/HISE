@@ -71,6 +71,8 @@ void AudioProcessorDriver::restoreSettings(MainController* mc)
     {
         dynamic_cast<FrontendSampleManager*>(mc)->setAllSampleReferencesCorrect();
     }
+#else
+	ignoreUnused(mc);
 #endif
 }
 

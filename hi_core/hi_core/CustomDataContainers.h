@@ -73,7 +73,7 @@ public:
         position = 0;
     }
     
-	const ElementType& operator[](int index) const
+	ElementType operator[](int index) const
 	{
 		if (index < position)
 		{
