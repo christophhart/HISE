@@ -36,6 +36,9 @@
 struct HiseLosslessHeader
 {
 	HiseLosslessHeader(InputStream* input);
+
+	HiseLosslessHeader(const File& f);
+
 	HiseLosslessHeader(bool useEncryption, uint8 globalBitShiftAmount, double sampleRate, int numChannels, int bitsPerSample, bool useCompression, uint32 numBlocks);
 
 	int getVersion() const;
@@ -47,11 +50,13 @@ struct HiseLosslessHeader
 	double getSampleRate() const;
 	uint32 getBlockAmount() const;
 
-	uint32 getOffsetForReadPosition(int64 samplePosition);
+	uint32 getOffsetForReadPosition(int64 samplePosition, bool addHeaderOffset);
 
 	bool write(OutputStream* output);
 
 	void storeOffsets(uint32* offsets, int numOffsets);
+
+	void readMetadataFromStream(InputStream* stream);
 
 private:
 
@@ -64,6 +69,52 @@ private:
 	uint32 headerSize;
 };
 
+class HlacReaderCommon
+{
+public:
+
+	HlacReaderCommon(InputStream* input_):
+		input(input_),
+		header(input)
+	{
+		decoder.setupForDecompression();
+	}
+
+	HlacReaderCommon(const File& f) :
+		input(nullptr),
+		header(f)
+	{
+		decoder.setupForDecompression();
+	}
+
+	/** You can choose what the target data type should be. If you read into integer AudioSampleBuffers, you might want to call this method
+	*	in order to save unnecessary conversions between float and integer numbers. */
+	void setTargetAudioDataType(AudioDataConverters::DataFormat dataType);
+
+	/** When seeking, add the length of the header as offset. */
+	void setUseHeaderOffsetWhenSeeking(bool shouldUseHeaderOffset)
+	{
+		useHeaderOffsetWhenSeeking = shouldUseHeaderOffset;
+	};
+
+private:
+
+	bool internalHlacRead(int** destSamples, int numDestChannels, int startOffsetInDestBuffer, int64 startSampleInFile, int numSamples);
+
+	friend class HiseLosslessAudioFormatReader;
+	friend class HlacMemoryMappedAudioFormatReader;
+
+	InputStream* input;
+
+	HlacDecoder decoder;
+	HiseLosslessHeader header;
+
+	bool usesFloatingPointData;
+
+	bool useHeaderOffsetWhenSeeking = true;
+
+};
+
 class HiseLosslessAudioFormatReader : public AudioFormatReader
 {
 public:
@@ -71,17 +122,45 @@ public:
 
 	bool readSamples(int** destSamples, int numDestChannels, int startOffsetInDestBuffer, int64 startSampleInFile, int numSamples) override;
 
-	double getDecompressionPerformanceForLastFile() { return decoder.getDecompressionPerformance(); }
+	double getDecompressionPerformanceForLastFile() { return internalReader.decoder.getDecompressionPerformance(); }
 
-	/** You can choose what the target data type should be. If you read into integer AudioSampleBuffers, you might want to call this method
-	*	in order to save unnecessary conversions between float and integer numbers. */
 	void setTargetAudioDataType(AudioDataConverters::DataFormat dataType);
 
 private:
 
-	HlacDecoder decoder;
+	
 
-	HiseLosslessHeader header;
+	HlacReaderCommon internalReader;
+
+};
+
+
+class HlacMemoryMappedAudioFormatReader : public MemoryMappedAudioFormatReader
+{
+public:
+
+	HlacMemoryMappedAudioFormatReader(const File& f, const AudioFormatReader& details, int64 start, int64 length, int frameSize) :
+		MemoryMappedAudioFormatReader(f, details, start, length, frameSize),
+		internalReader(f)
+	{
+		
+	}
+
+	bool readSamples(int** destSamples, int numDestChannels, int startOffsetInDestBuffer, int64 startSampleInFile, int numSamples) override;
+
+	void mapEverythingAndCreateMemoryStream();
+
+	void getSample(int64 sampleIndex, float* result) const noexcept override
+	{
+		// this should never be used
+		jassertfalse;
+		*result = 0.0f;
+	}
+
+private:
+
+	ScopedPointer<MemoryInputStream> mis;
+	HlacReaderCommon internalReader;
 
 };
 

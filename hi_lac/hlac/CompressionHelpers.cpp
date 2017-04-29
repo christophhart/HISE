@@ -36,11 +36,8 @@ CompressionHelpers::AudioBufferInt16::AudioBufferInt16(AudioSampleBuffer& b, int
 	jassert(level <= 1.0f);
 #endif
 
-	size = b.getNumSamples();
-
-	data.malloc(size + 15);
-
-	offsetForAlignment = (32 - reinterpret_cast<uint64>(data.getData()) % 32) / 2;
+	allocate(b.getNumSamples());
+	
 
 	if (normalizeBeforeStoring)
 	{
@@ -79,17 +76,20 @@ CompressionHelpers::AudioBufferInt16::AudioBufferInt16(const int16* externalData
 
 CompressionHelpers::AudioBufferInt16::AudioBufferInt16(int size_)
 {
-	size = size_;
+	allocate(size_);
+}
 
-	data.calloc(size+15);
 
-	offsetForAlignment = (32 - reinterpret_cast<uint64>(data.getData()) % 32) / 2;
+CompressionHelpers::AudioBufferInt16::~AudioBufferInt16()
+{
+	deAllocate();
 }
 
 AudioSampleBuffer CompressionHelpers::AudioBufferInt16::getFloatBuffer() const
 {
 	AudioSampleBuffer b(1, size);
-	AudioDataConverters::convertInt16LEToFloat(data, b.getWritePointer(0), size);
+
+	fastInt16ToFloat(data, b.getWritePointer(0), size);
 
 	b.applyGain(1.0f / gainFactor);
 
@@ -108,6 +108,8 @@ void CompressionHelpers::AudioBufferInt16::negate()
 
 int16* CompressionHelpers::AudioBufferInt16::getWritePointer(int startSample /*= 0*/)
 {
+	jassert(startSample < size);
+
 	jassert(!isReadOnly);
 
 	return externalData != nullptr ? externalData + startSample : data + startSample;
@@ -115,7 +117,39 @@ int16* CompressionHelpers::AudioBufferInt16::getWritePointer(int startSample /*=
 
 const int16* CompressionHelpers::AudioBufferInt16::getReadPointer(int startSample /*= 0*/) const
 {
+	jassert(startSample < size);
+	
 	return externalData != nullptr ? externalData + startSample : data + startSample;
+}
+
+
+
+void CompressionHelpers::AudioBufferInt16::allocate(int newNumSamples)
+{
+	size = newNumSamples;
+
+	if (size != 0)
+	{
+#if JUCE_WINDOWS
+		data = static_cast<int16*>(_aligned_malloc(size * sizeof(int16), 16));
+#else
+        data = static_cast<int16*>(malloc(size * sizeof(int16)));
+#endif
+		memset(data, 0, size * sizeof(int16));
+	}
+}
+
+void CompressionHelpers::AudioBufferInt16::deAllocate()
+{
+	if (data != nullptr)
+	{
+#if JUCE_WINDOWS
+		_aligned_free(data);
+#else
+        free(data);
+#endif
+		data = nullptr;
+	}
 }
 
 AudioSampleBuffer CompressionHelpers::loadFile(const File& f, double& speed)
@@ -367,6 +401,50 @@ void CompressionHelpers::dump(const AudioSampleBuffer& b)
 
 	if (writer != nullptr)
 		writer->writeFromAudioSampleBuffer(b, 0, b.getNumSamples());
+}
+
+
+void CompressionHelpers::fastInt16ToFloat(const void* source, float* dest, int numSamples)
+{
+#if HLAC_NO_SSE
+
+	AudioDataConverters::convertInt16LEToFloat(source, dest, numSamples);
+
+#else
+
+	uint64 alignOffsetFloat = reinterpret_cast<uint64>(dest) % 16;
+	uint64 alignOffsetInt = reinterpret_cast<uint64>(source) % 16;
+
+	if (alignOffsetFloat == 0 && alignOffsetInt == 0)
+	{
+		const int16* intData = static_cast<const int16*> (source);
+		const float scale = 1.0f / 0x7fff;
+
+		__m128 s = _mm_set1_ps(scale);
+
+		const int numSingle = (numSamples % 4);
+		const int numSSE = numSamples - numSingle;
+
+		for (int i = 0; i < numSSE; i += 4)
+		{
+			__m128i a = _mm_loadl_epi64((__m128i*)(intData + i));
+			a = _mm_cvtepi16_epi32(a);
+			__m128 a_f = _mm_cvtepi32_ps(a);
+			a_f = _mm_mul_ps(a_f, s);
+			_mm_store_ps(dest + i, a_f);
+		}
+
+		for (int i = 0; i < numSingle; i++)
+		{
+			dest[i + numSSE] = scale * intData[i + numSSE];
+		}
+	}
+	else
+	{
+		AudioDataConverters::convertInt16LEToFloat(source, dest, numSamples);
+	}
+
+#endif
 }
 
 uint8 CompressionHelpers::checkBuffersEqual(AudioSampleBuffer& workBuffer, AudioSampleBuffer& referenceBuffer)

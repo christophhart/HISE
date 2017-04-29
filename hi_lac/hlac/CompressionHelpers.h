@@ -55,6 +55,38 @@ struct CompressionHelpers
 		AudioBufferInt16(const int16* externalData_, int numSamples);
 		AudioBufferInt16(int size_);
 
+		AudioBufferInt16(AudioBufferInt16&& other)
+		{
+			deAllocate();
+
+			size = other.size;
+			data = other.data;
+
+			other.data = nullptr;
+
+			gainFactor = other.gainFactor;
+			isReadOnly = other.isReadOnly;
+			externalData = other.externalData;
+
+
+		}
+
+		AudioBufferInt16& operator= (AudioBufferInt16&& other)
+		{
+			deAllocate();
+
+			size = other.size;
+			data = other.data;
+			other.data = nullptr;
+			gainFactor = other.gainFactor;
+			isReadOnly = other.isReadOnly;
+			externalData = other.externalData;
+
+			return *this;
+		}
+
+		~AudioBufferInt16();;
+
 		AudioSampleBuffer getFloatBuffer() const;
 
 		void negate();
@@ -67,12 +99,12 @@ struct CompressionHelpers
 
 	private:
 
+		void allocate(int newNumSamples);
+		void deAllocate();
+
 		bool isReadOnly = false;
-		HeapBlock<int16> data;
+		int16* data = nullptr;
 		int16* externalData = nullptr;
-
-		uint32 offsetForAlignment = 0;
-
 	};
 
 	/** Loads a file into a AudioSampleBuffer. */
@@ -142,6 +174,8 @@ struct CompressionHelpers
 	static void dump(const AudioBufferInt16& b);
 
 	static void dump(const AudioSampleBuffer& b);
+
+	static void fastInt16ToFloat(const void* source, float* destination, int numSamples);
 
 	struct Diff
 	{

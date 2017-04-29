@@ -43,6 +43,8 @@ public:
 		reset();
 	};
 
+	~HlacEncoder();
+
 	struct CompressorOptions
 	{
 		enum class Presets

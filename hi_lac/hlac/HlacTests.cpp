@@ -30,7 +30,11 @@
 
 #if HLAC_INCLUDE_TEST_SUITE
 
-static BitCompressors::UnitTests bitTests;
+#include "JuceHeader.h"
+
+using namespace hlac;
+
+//static BitCompressors::UnitTests bitTests;
 
 void BitCompressors::UnitTests::runTest()
 {
@@ -536,7 +540,7 @@ String CodecTest::getNameForSignal(SignalType s) const
 	return {};
 }
 
-static CodecTest codecTest;
+//static CodecTest codecTest;
 
 class FormatTest : public UnitTest
 {
@@ -553,6 +557,28 @@ public:
 		runFormatTestWithOption(HlacEncoder::CompressorOptions::Presets::WholeBlock);
 		runFormatTestWithOption(HlacEncoder::CompressorOptions::Presets::Delta);
 		runFormatTestWithOption(HlacEncoder::CompressorOptions::Presets::Diff);
+
+#if JUCE_64BIT
+		testMemoryMappedFileReaders(1, 3000000);
+		testMemoryMappedFileReaders(2, 3000000);
+
+		testMemoryMappedFileReaders(1, 12000000);
+		testMemoryMappedFileReaders(2, 12000000);
+
+
+		testMemoryMappedBufferedRead(1, 300000);
+		testMemoryMappedBufferedRead(2, 300000);
+		
+		testMemoryMappedSeeking(1, 240000);
+		testMemoryMappedSeeking(2, 240000);
+#endif
+
+		testFlacReadPerformance(1, 12000000);
+		testFlacReadPerformance(2, 12000000);
+
+		testUncompressedReadPerformance(1, 12000000);
+		testUncompressedReadPerformance(2, 12000000);
+		
 	}
 
 	void runFormatTestWithOption(HlacEncoder::CompressorOptions::Presets option)
@@ -612,7 +638,10 @@ public:
 	{
 		Random r;
 
-		return CodecTest::createTestSignal(r.nextInt(Range<int>((6*size) / 8, (10*size) / 8)), numChannels, CodecTest::SignalType::DecayingSineWithHarmonic, 0.9f);
+		int64 upperLimit = (10 * (int64)size) / 8;
+		int64 lowerLimit = (6 * (int64)size) / 8;
+
+		return CodecTest::createTestSignal(r.nextInt(Range<int>((int)lowerLimit, (int)upperLimit)), numChannels, CodecTest::SignalType::DecayingSineWithHarmonic, 0.9f);
 	}
 
 	MemoryBlock writeIntoMemory(Array<AudioSampleBuffer>& buffers)
@@ -772,6 +801,449 @@ public:
 		}
 
 		expectEquals<int>(error, 0, "Seeking");
+	}
+
+	void testFlacReadPerformance(int numChannels, int length)
+	{
+		FlacAudioFormat flac;
+
+		auto signal = createTestBuffer(numChannels, length);
+
+		length = signal.getNumSamples();
+
+		int mb = length / 1024 / 1024;
+
+		beginTest("Testing FLAC file reader performance with " + String(numChannels) + " channels and length " + String(mb) + "MB");
+
+		TemporaryFile tempFile;
+
+		File f = tempFile.getFile();
+
+		FileOutputStream* fos = new FileOutputStream(f);
+
+		StringPairArray empty;
+
+		ScopedPointer<AudioFormatWriter> writer = flac.createWriterFor(fos, 44100.0, numChannels, 16, empty, 5);
+
+		int numBytesWritten = 0;
+
+		if (writer != nullptr)
+		{
+			writer->writeFromAudioSampleBuffer(signal, 0, signal.getNumSamples());
+			writer->flush();
+			numBytesWritten = fos->getPosition();
+			writer = nullptr;
+			fos = nullptr;
+		}
+
+		FileInputStream* fisN = new FileInputStream(f);
+		
+		ScopedPointer<AudioFormatReader> normalReader = flac.createReaderFor(fisN, false);
+
+		expectEquals<int>(normalReader->lengthInSamples, length, "FLAC Temp file write OK");
+
+
+		AudioSampleBuffer signalFLAC = AudioSampleBuffer(numChannels, length);
+
+		const double start1 = Time::getMillisecondCounterHiRes();
+		normalReader->read(&signalFLAC, 0, length, 0, true, true);
+		const double end1 = Time::getMillisecondCounterHiRes();
+
+		const double delta1 = (end1 - start1) / 1000.0;
+		const double sampleLengthInSeconds = (double)length / 44100.0;
+
+		logMessage("Read speed for FLAC reader: " + String(sampleLengthInSeconds / delta1, 1) + "x realtime");
+
+	}
+
+
+	void testUncompressedReadPerformance(int numChannels, int length)
+	{
+		WavAudioFormat waf;
+
+		auto signal = createTestBuffer(numChannels, length);
+
+		length = signal.getNumSamples();
+
+		int mb = length / 1024 / 1024;
+
+		beginTest("Testing WAV file reader performance with " + String(numChannels) + " channels and length " + String(mb) + "MB");
+
+		TemporaryFile tempFile;
+
+		File f = tempFile.getFile();
+
+		FileOutputStream* fos = new FileOutputStream(f);
+
+		StringPairArray empty;
+
+		ScopedPointer<AudioFormatWriter> writer = waf.createWriterFor(fos, 44100.0, numChannels, 16, empty, 5);
+
+		int numBytesWritten = 0;
+
+		if (writer != nullptr)
+		{
+			writer->writeFromAudioSampleBuffer(signal, 0, signal.getNumSamples());
+			writer->flush();
+			numBytesWritten = fos->getPosition();
+			writer = nullptr;
+			fos = nullptr;
+		}
+
+		FileInputStream* fisN = new FileInputStream(f);
+
+		ScopedPointer<AudioFormatReader> normalReader = waf.createReaderFor(fisN, false);
+
+		expectEquals<int>(normalReader->lengthInSamples, length, "WAV Temp file write OK");
+
+		AudioSampleBuffer signalFLAC = AudioSampleBuffer(numChannels, length);
+
+		const double start1 = Time::getMillisecondCounterHiRes();
+		normalReader->read(&signalFLAC, 0, length, 0, true, true);
+		const double end1 = Time::getMillisecondCounterHiRes();
+
+		const double delta1 = (end1 - start1) / 1000.0;
+		const double sampleLengthInSeconds = (double)length / 44100.0;
+
+		logMessage("Read speed for WAV reader: " + String(sampleLengthInSeconds / delta1, 1) + "x realtime");
+
+
+
+		FileInputStream* fisM = new FileInputStream(f);
+
+		ScopedPointer<MemoryMappedAudioFormatReader> memoryReader = waf.createMemoryMappedReader(fisM);
+
+		expectEquals<int>(memoryReader->lengthInSamples, length, "WAV Temp file write OK");
+
+		AudioSampleBuffer signalMemory = AudioSampleBuffer(numChannels, length);
+
+		memoryReader->mapEntireFile();
+
+		const double start2 = Time::getMillisecondCounterHiRes();
+
+		
+
+
+		memoryReader->read(&signalMemory, 0, length, 0, true, true);
+		const double end2 = Time::getMillisecondCounterHiRes();
+
+		const double delta2 = (end2 - start2) / 1000.0;
+
+		logMessage("Read speed for memory mapped WAV reader: " + String(sampleLengthInSeconds / delta2, 1) + "x realtime");
+
+	}
+
+	void testMemoryMappedFileReaders(int numChannels, int length)
+	{
+		HiseLosslessAudioFormat hlac;
+
+		auto signal = createTestBuffer(numChannels, length);
+
+		length = signal.getNumSamples();
+
+		int mb = length / 1024 / 1024;
+
+		beginTest("Testing memory mapped file readers with " + String(numChannels) + " channels and length " + String(mb) + "MB");
+
+		TemporaryFile tempFile;
+
+		File f = tempFile.getFile();
+
+		FileOutputStream* fos = new FileOutputStream(f);
+
+		StringPairArray empty;
+
+		ScopedPointer<AudioFormatWriter> writer = hlac.createWriterFor(fos, 44100.0, numChannels, 0, empty, 0);
+
+		int numBytesWritten = 0;
+
+		if (writer != nullptr)
+		{
+			writer->writeFromAudioSampleBuffer(signal, 0, signal.getNumSamples());
+			writer->flush();
+			numBytesWritten = fos->getPosition();
+			writer = nullptr;
+			fos = nullptr;
+		}
+
+		length = CompressionHelpers::getPaddedSampleSize(length);
+
+		FileInputStream* fisN = new FileInputStream(f);
+		FileInputStream* fisM = new FileInputStream(f);
+
+		expectEquals<int>(fisN->getTotalLength(), numBytesWritten, "Bytes written");
+
+		ScopedPointer<AudioFormatReader> normalReader = hlac.createReaderFor(fisN, false);
+		ScopedPointer<MemoryMappedAudioFormatReader> memoryReader = hlac.createMemoryMappedReader(fisM);
+
+#if JUCE_64BIT
+		expect(normalReader != nullptr, "Normal Reader OK");
+		expect(memoryReader != nullptr, "Normal Reader OK");
+
+		if (memoryReader == nullptr || normalReader == nullptr)
+			return;
+
+		expectEquals<int>(normalReader->lengthInSamples, length, "Temp file write OK");
+		expectEquals<int>(normalReader->lengthInSamples, memoryReader->lengthInSamples, "Total length");
+
+		dynamic_cast<HlacMemoryMappedAudioFormatReader*>(memoryReader.get())->mapEverythingAndCreateMemoryStream();
+
+		expectEquals<int>(memoryReader->getMappedSection().getLength(), normalReader->lengthInSamples, "Mapped section");
+
+		AudioSampleBuffer signalNormal = AudioSampleBuffer(numChannels, length);
+		AudioSampleBuffer signalMemory = AudioSampleBuffer(numChannels, length);
+
+		const double start1 = Time::getMillisecondCounterHiRes();
+		normalReader->read(&signalNormal, 0, length, 0, true, true);
+		const double end1 = Time::getMillisecondCounterHiRes();
+
+		const double delta1 = (end1 - start1) / 1000.0;
+		const double sampleLengthInSeconds = (double)length / 44100.0;
+
+		logMessage("Read speed for normal reader: " + String(sampleLengthInSeconds / delta1, 1) + "x realtime");
+
+
+
+		const double start2 = Time::getMillisecondCounterHiRes();
+
+		memoryReader->read(&signalMemory, 0, length, 0, true, true);
+		
+
+		
+		const double end2 = Time::getMillisecondCounterHiRes();
+		const double delta2 = (end2 - start2) / 1000.0;
+
+		logMessage("Read speed for memory mapped reader: " + String(sampleLengthInSeconds / delta2, 1) + "x realtime");
+
+		auto normalError = (int)CompressionHelpers::checkBuffersEqual(signalNormal, signal);
+		auto memoryError = (int)CompressionHelpers::checkBuffersEqual(signalMemory, signal);
+
+		expectEquals<int>(normalError, 0, "Normal Read operation OK");
+		expectEquals<int>(memoryError, 0, "MemoryMapped Read operation OK");
+
+
+
+#else
+		expect(memoryReader == nullptr, "Unsupported on 32bit");
+#endif
+	}
+
+	void testMemoryMappedBufferedRead(int numChannels, int length)
+	{
+		HiseLosslessAudioFormat hlac;
+
+		auto signal = createTestBuffer(numChannels, length);
+
+		length = signal.getNumSamples();
+
+		int mb = length / 1024 / 1024;
+
+		beginTest("Testing buffered memory mapped file reading with " + String(numChannels) + " channels and length " + String(mb) + "MB");
+
+		TemporaryFile tempFile;
+
+		File f = tempFile.getFile();
+
+		FileOutputStream* fos = new FileOutputStream(f);
+
+		StringPairArray empty;
+
+		ScopedPointer<AudioFormatWriter> writer = hlac.createWriterFor(fos, 44100.0, numChannels, 0, empty, 0);
+
+		int numBytesWritten = 0;
+
+		if (writer != nullptr)
+		{
+			writer->writeFromAudioSampleBuffer(signal, 0, signal.getNumSamples());
+			writer->flush();
+			numBytesWritten = fos->getPosition();
+			writer = nullptr;
+			fos = nullptr;
+		}
+
+		length = CompressionHelpers::getPaddedSampleSize(length);
+
+		FileInputStream* fisN = new FileInputStream(f);
+		FileInputStream* fisM = new FileInputStream(f);
+
+		expectEquals<int>(fisN->getTotalLength(), numBytesWritten, "Bytes written");
+
+		ScopedPointer<AudioFormatReader> normalReader = hlac.createReaderFor(fisN, false);
+		ScopedPointer<MemoryMappedAudioFormatReader> memoryReader = hlac.createMemoryMappedReader(fisM);
+
+#if JUCE_64BIT
+		expect(normalReader != nullptr, "Normal Reader OK");
+		expect(memoryReader != nullptr, "Normal Reader OK");
+
+		if (memoryReader == nullptr || normalReader == nullptr)
+			return;
+
+		expectEquals<int>(normalReader->lengthInSamples, length, "Temp file write OK");
+		expectEquals<int>(normalReader->lengthInSamples, memoryReader->lengthInSamples, "Total length");
+
+		dynamic_cast<HlacMemoryMappedAudioFormatReader*>(memoryReader.get())->mapEverythingAndCreateMemoryStream();
+
+		expectEquals<int>(memoryReader->getMappedSection().getLength(), normalReader->lengthInSamples, "Mapped section");
+
+		AudioSampleBuffer signalNormal = AudioSampleBuffer(numChannels, length);
+		AudioSampleBuffer signalMemory = AudioSampleBuffer(numChannels, length);
+
+		AudioSampleBuffer buffer(numChannels, COMPRESSION_BLOCK_SIZE * 2);
+
+		const double start1 = Time::getMillisecondCounterHiRes();
+
+		for (int i = 0; i < length; i += (COMPRESSION_BLOCK_SIZE*2))
+		{
+			const int numThisTime = jmin<int>(COMPRESSION_BLOCK_SIZE * 2, length - i);
+
+			normalReader->read(&buffer, 0, numThisTime, i, true, true);
+			
+			for (int j = 0; j < numChannels; j++)
+			{
+				FloatVectorOperations::copy(signalNormal.getWritePointer(j, i), buffer.getReadPointer(0), numThisTime);
+			}
+		}
+
+		const double end1 = Time::getMillisecondCounterHiRes();
+
+		const double delta1 = (end1 - start1) / 1000.0;
+		const double sampleLengthInSeconds = (double)length / 44100.0;
+
+		logMessage("Read speed for normal reader: " + String(sampleLengthInSeconds / delta1, 1) + "x realtime");
+
+		const double start2 = Time::getMillisecondCounterHiRes();
+
+		for (int i = 0; i < length; i += (COMPRESSION_BLOCK_SIZE * 2))
+		{
+			const int numThisTime = jmin<int>(COMPRESSION_BLOCK_SIZE * 2, length - i);
+
+			memoryReader->read(&buffer, 0, numThisTime, i, true, true);
+
+			for (int j = 0; j < numChannels; j++)
+			{
+				FloatVectorOperations::copy(signalMemory.getWritePointer(j, i), buffer.getReadPointer(0), numThisTime);
+			}
+		}
+
+		const double end2 = Time::getMillisecondCounterHiRes();
+		const double delta2 = (end2 - start2) / 1000.0;
+
+		logMessage("Read speed for memory mapped reader: " + String(sampleLengthInSeconds / delta2, 1) + "x realtime");
+
+		auto normalError = (int)CompressionHelpers::checkBuffersEqual(signalNormal, signal);
+		auto memoryError = (int)CompressionHelpers::checkBuffersEqual(signalMemory, signal);
+
+		expectEquals<int>(normalError, 0, "Normal Read operation OK");
+		expectEquals<int>(memoryError, 0, "MemoryMapped Read operation OK");
+
+
+
+#else
+		expect(memoryReader == nullptr, "Unsupported on 32bit");
+#endif
+	}
+
+	void testMemoryMappedSeeking(int numChannels, int length)
+	{
+		HiseLosslessAudioFormat hlac;
+
+		auto signal = createTestBuffer(numChannels, length);
+
+		length = signal.getNumSamples();
+
+		int mb = length / 1024;
+
+		beginTest("Testing memory mapped file seeking with " + String(numChannels) + " channels and length " + String(mb) + "KB");
+
+		TemporaryFile tempFile;
+
+		File f = tempFile.getFile();
+
+		FileOutputStream* fos = new FileOutputStream(f);
+
+		StringPairArray empty;
+
+		ScopedPointer<AudioFormatWriter> writer = hlac.createWriterFor(fos, 44100.0, numChannels, 0, empty, 0);
+
+		int numBytesWritten = 0;
+
+		if (writer != nullptr)
+		{
+			writer->writeFromAudioSampleBuffer(signal, 0, signal.getNumSamples());
+			writer->flush();
+			numBytesWritten = fos->getPosition();
+			writer = nullptr;
+			fos = nullptr;
+		}
+
+		length = CompressionHelpers::getPaddedSampleSize(length);
+
+		Random r;
+
+		
+
+		FileInputStream* fisN = new FileInputStream(f);
+		FileInputStream* fisM = new FileInputStream(f);
+
+		expectEquals<int>(fisN->getTotalLength(), numBytesWritten, "Bytes written");
+
+		ScopedPointer<AudioFormatReader> normalReader = hlac.createReaderFor(fisN, false);
+		ScopedPointer<MemoryMappedAudioFormatReader> memoryReader = hlac.createMemoryMappedReader(fisM);
+
+#if JUCE_64BIT
+		expect(normalReader != nullptr, "Normal Reader OK");
+		expect(memoryReader != nullptr, "Normal Reader OK");
+
+		if (memoryReader == nullptr || normalReader == nullptr)
+			return;
+
+		expectEquals<int>(normalReader->lengthInSamples, length, "Temp file write OK");
+		expectEquals<int>(normalReader->lengthInSamples, memoryReader->lengthInSamples, "Total length");
+
+		dynamic_cast<HlacMemoryMappedAudioFormatReader*>(memoryReader.get())->mapEverythingAndCreateMemoryStream();
+
+		expectEquals<int>(memoryReader->getMappedSection().getLength(), normalReader->lengthInSamples, "Mapped section");
+
+		AudioSampleBuffer signalNormal = AudioSampleBuffer(numChannels, length);
+		AudioSampleBuffer signalMemory = AudioSampleBuffer(numChannels, length);
+
+		signalNormal.clear();
+		signalMemory.clear();
+
+		int offset = length - r.nextInt(Range<int>(40, length));
+
+		const double start1 = Time::getMillisecondCounterHiRes();
+		normalReader->read(&signalNormal, offset, length-offset, offset, true, true);
+		const double end1 = Time::getMillisecondCounterHiRes();
+
+		const double delta1 = (end1 - start1) / 1000.0;
+		const double sampleLengthInSeconds = (double)(length - offset) / 44100.0;
+
+		logMessage("Read speed for normal reader: " + String(sampleLengthInSeconds / delta1, 1) + "x realtime");
+
+		const double start2 = Time::getMillisecondCounterHiRes();
+
+		memoryReader->read(&signalMemory, offset, length-offset, offset, true, true);
+
+		const double end2 = Time::getMillisecondCounterHiRes();
+		const double delta2 = (end2 - start2) / 1000.0;
+
+		logMessage("Read speed for memory mapped reader: " + String(sampleLengthInSeconds / delta2, 1) + "x realtime");
+
+		for(int i = 0; i < numChannels; i++)
+		{
+			FloatVectorOperations::clear(signal.getWritePointer(i), offset);
+		}
+
+		auto normalError = (int)CompressionHelpers::checkBuffersEqual(signalNormal, signal);
+		auto memoryError = (int)CompressionHelpers::checkBuffersEqual(signalMemory, signal);
+
+		expectEquals<int>(normalError, 0, "Normal Read operation OK");
+		expectEquals<int>(memoryError, 0, "MemoryMapped Read operation OK");
+
+#else
+		expect(memoryReader == nullptr, "Unsupported on 32bit");
+#endif
 	}
 
 	HlacEncoder::CompressorOptions currentOption;

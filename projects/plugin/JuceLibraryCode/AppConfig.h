@@ -105,8 +105,8 @@
  #define   ENABLE_SCRIPTING_SAFE_CHECKS 1
 #endif
 
-#ifndef    ENABLE_FILE_LOGGING
- //#define ENABLE_FILE_LOGGING
+#ifndef    CRASH_ON_GLITCH
+ //#define CRASH_ON_GLITCH
 #endif
 
 #ifndef    ENABLE_SCRIPTING_BREAKPOINTS

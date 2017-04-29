@@ -36,7 +36,8 @@ void printHelp()
 	Logger::writeToLog("-----------------------------------");
 	Logger::writeToLog("Usage: hlac_tool [MODE] [INPUT] [OUTPUT]");
 	Logger::writeToLog("");
-	Logger::writeToLog("modes: 'unit_test' / 'test_directory'");
+	Logger::writeToLog("modes: 'encode' / 'decode'");
+	Logger::writeToLog("test-modes: 'unit_test' / 'test_directory', 'memory_map_directory'");
 	Logger::writeToLog("(put '_' before filename to skip samples)");
 	Logger::setCurrentLogger(nullptr);
 }
@@ -78,27 +79,38 @@ int encode(File input, File output, HlacEncoder::CompressorOptions option)
 	}
 }
 
+void testMemoryMapPerformance(Array<File>& files)
+{
+	HiseLosslessAudioFormat hlac;
+
+	AudioSampleBuffer testBuffer;
+
+	for (int i = 0; i < files.size(); i++)
+	{
+		FileInputStream* fis = new FileInputStream(files[i]);
+
+		ScopedPointer<MemoryMappedAudioFormatReader> reader = hlac.createMemoryMappedReader(fis);
+
+		testBuffer.setSize(reader->numChannels, reader->lengthInSamples, true, false, true);
+
+		reader->read(&testBuffer, 0, reader->lengthInSamples, 0, true, true);
+	}
+}
+
 int decode(File input, File output)
 {
-	UnitTestRunner runner;
-	runner.setAssertOnFailure(false);
-	runner.runAllTests();
-
-	Logger::setCurrentLogger(nullptr);
-	return 0;
 
 	HiseLosslessAudioFormat hlac;
 
 	ScopedPointer<FileInputStream> fis = new FileInputStream(input);
+
+	
 
 	MemoryOutputStream mos;
 
 	mos.writeFromInputStream(*fis, fis->getTotalLength());
 
 	fis = nullptr;
-
-	
-
 
 	AudioFormatManager afm;
 
@@ -114,8 +126,6 @@ int decode(File input, File output)
 	int x = 0;
 
 	AudioSampleBuffer b;
-
-#if 1
 
 	MemoryBlock mb;
 
@@ -147,36 +157,11 @@ int decode(File input, File output)
 
 	Logger::setCurrentLogger(nullptr);
 	return 0;
-#else
-	
-	ScopedPointer<HiseLosslessAudioFormatReader> reader = dynamic_cast<HiseLosslessAudioFormatReader*>(hlac.createReaderFor(mis, true));
-
-	FileOutputStream* fos = new FileOutputStream(output);
-
-	StringPairArray empty;
-
-	ScopedPointer<AudioFormatWriter> writer = formatToUse->createWriterFor(fos, reader->sampleRate, reader->numChannels, reader->bitsPerSample, empty, 5);
-
-	bool ok = writer->writeFromAudioReader(*reader, 0, reader->lengthInSamples);
-
-	if (ok)
-	{
-		Logger::writeToLog(input.getFileName() + " successfully decoded");
-		Logger::writeToLog("Decompression speed: " + String(reader->getDecompressionPerformanceForLastFile(), 1) + "x realtime");
-		Logger::setCurrentLogger(nullptr);
-		return 0;
-	}
-	else
-	{
-		ABORT_WITH_MESSAGE("Error at decoding " + input.getFileName());
-	}
-
-#endif
 }
 
 int main(int argc, char **argv)
 {
-    ScopedPointer<Logger> l = new StdLogger();
+	ScopedPointer<Logger> l = new StdLogger();
 	Logger::setCurrentLogger(l);
 
 	if (argc < 2)
@@ -258,6 +243,27 @@ int main(int argc, char **argv)
 			Logger::setCurrentLogger(nullptr);
 			return 0;
 		}
+	}
+
+
+	if (mode == "memory_map_directory")
+	{
+		File root(argv[2]);
+
+		Array<File> testSamples;
+
+		root.findChildFiles(testSamples, File::findFiles, true);
+
+		for (int i = 0; i < 100; i++)
+		{
+			
+			Logger::writeToLog(String(i) + "% complete");
+
+			testMemoryMapPerformance(testSamples);
+		}
+
+		Logger::setCurrentLogger(nullptr);
+		return 0;
 	}
 
 	if (mode != "test_directory")

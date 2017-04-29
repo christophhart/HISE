@@ -88,6 +88,8 @@ bool HlacDecoder::decodeBlock(AudioSampleBuffer& destination, InputStream& input
 	{
 		auto header = readCycleHeader(input);
 
+		jassert(header.getNumSamples() != 0);
+
 		if (header.isDiff())
 			decodeDiff(header, destination, input, channelIndex);
 		else
@@ -112,7 +114,7 @@ void HlacDecoder::decode(AudioSampleBuffer& destination, InputStream& input, int
 		numSamples = destination.getNumSamples();
 	
 
-	const int endThisTime = offsetInSource + numSamples;
+	const int endThisTime = numSamples + offsetInSource;
 
 	// You must seek on a higher level!
 	//jassert(offsetInSource == readOffset);
@@ -129,7 +131,7 @@ void HlacDecoder::decode(AudioSampleBuffer& destination, InputStream& input, int
 
 	
 
-	while (!input.isExhausted() && readIndex < endThisTime)
+	while (!input.isExhausted() && readOffset + readIndex < endThisTime)
 	{
 		if (!decodeBlock(destination, input, channelIndex))
 			break;
@@ -268,7 +270,7 @@ void HlacDecoder::writeToFloatArray(bool shouldCopy, bool useTempBuffer, AudioSa
 
 
 			if (shouldCopy)
-				AudioDataConverters::convertInt16LEToFloat(src, dst, numThisTime);
+				CompressionHelpers::fastInt16ToFloat(src, dst, numThisTime);
 			else
 				FloatVectorOperations::clear(dst, numThisTime);
 
@@ -293,7 +295,7 @@ void HlacDecoder::writeToFloatArray(bool shouldCopy, bool useTempBuffer, AudioSa
 			auto dst = destination.getWritePointer(channelIndex, bufferOffset);
 
 			if (shouldCopy)
-				AudioDataConverters::convertInt16LEToFloat(src + skipToUse, dst, numThisTime);
+				CompressionHelpers::fastInt16ToFloat(src + skipToUse, dst, numThisTime);
 			else
 				FloatVectorOperations::clear(dst, numThisTime);
 
@@ -317,8 +319,6 @@ void HlacDecoder::seekToPosition(InputStream& input, uint32 position, uint32 byt
 	else
 	{
 		const int blockStart = (position / COMPRESSION_BLOCK_SIZE) * COMPRESSION_BLOCK_SIZE;
-		const int offsetInBlock = position - blockStart;
-
 		input.setPosition(byteOffset);
 		readOffset = blockStart;
 	}

@@ -120,6 +120,14 @@ void HlacEncoder::reset()
 }
 
 
+HlacEncoder::~HlacEncoder()
+{
+
+}
+
+
+
+
 float HlacEncoder::getCompressionRatio() const
 {
 	return (float)(numBytesWritten) / (float)(numBytesUncompressed);

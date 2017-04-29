@@ -108,6 +108,25 @@ AudioFormatWriter* HiseLosslessAudioFormat::createWriterFor(OutputStream* stream
 	return new HiseLosslessAudioFormatWriter(mode, streamToWriteTo, sampleRateToUse, numberOfChannels, blockOffsets);
 }
 
+
+MemoryMappedAudioFormatReader* HiseLosslessAudioFormat::createMemoryMappedReader(FileInputStream* fin)
+{
+#if JUCE_64BIT
+	ScopedPointer<AudioFormatReader> normalReader = new HiseLosslessAudioFormatReader(fin);
+
+	ScopedPointer<HlacMemoryMappedAudioFormatReader> reader = new HlacMemoryMappedAudioFormatReader(fin->getFile(), *normalReader, 0, normalReader->lengthInSamples, 1);
+
+	reader->mapEverythingAndCreateMemoryStream();
+
+	return reader.release();
+#else
+
+	// Memory mapped file support on 32bit is pretty useless so we don't bother at all...
+	jassertfalse;
+	return nullptr;
+#endif
+}
+
 HiseLosslessHeader::HiseLosslessHeader(bool useEncryption, uint8 globalBitShiftAmount, double sampleRate, int numChannels, int bitsPerSample, bool useCompression, uint32 numBlocks)
 {
 	// Header byte: 1 bit      | 3 bit   |  4 bit        |
@@ -137,13 +156,25 @@ HiseLosslessHeader::HiseLosslessHeader(InputStream* input)
 		return;
 	}
 
+	readMetadataFromStream(input);
+}
+
+HiseLosslessHeader::HiseLosslessHeader(const File& f)
+{
+	ScopedPointer<FileInputStream> fis = new FileInputStream(f);
+
+	readMetadataFromStream(fis);
+}
+
+void HiseLosslessHeader::readMetadataFromStream(InputStream* input)
+{
 	uint64 metadata = 0;
 	uint8* metaDataBytePtr = reinterpret_cast<uint8*>(&metadata);
 
 	//metadata = input->readInt64();
 
 	metaDataBytePtr[0] = input->readByte();
-	
+
 	// The old format just stored the channel amount as first header byte;
 	isOldMonolith = metaDataBytePtr[0] == 1 || metaDataBytePtr[0] == 2;
 
@@ -165,7 +196,7 @@ HiseLosslessHeader::HiseLosslessHeader(InputStream* input)
 		metaDataBytePtr[7] = input->readByte();
 
 		const uint64 metadataMasked = metadata & 0xFFFFFFFFFFFF0000;
-		const uint16 checksum       = metadata & 0x000000000000FFFF;
+		const uint16 checksum = metadata & 0x000000000000FFFF;
 
 		headerValid = metadataMasked > 0 && CompressionHelpers::Misc::NumberOfSetBits(metadataMasked) == checksum;
 
@@ -191,6 +222,7 @@ HiseLosslessHeader::HiseLosslessHeader(InputStream* input)
 
 	headerSize = (uint32)input->getPosition();
 }
+
 
 
 int HiseLosslessHeader::getVersion() const
