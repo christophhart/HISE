@@ -867,8 +867,6 @@ void ModulatorSampler::loadSampleMapFromIdAsync(const String& sampleMapId)
 {
     getMainController()->getDebugLogger().logMessage("**Loading samplemap** " + sampleMapId);
     
-	ScopedLock sl(getMainController()->getLock());
-
 	getMainController()->allNotesOff();
 
 	asyncSampleMapLoader.loadSampleMap(sampleMapId);
@@ -877,6 +875,7 @@ void ModulatorSampler::loadSampleMapFromIdAsync(const String& sampleMapId)
 
 void ModulatorSampler::loadSampleMapFromId(const String& sampleMapId)
 {
+	ScopedLock sl(getMainController()->getLock());
 
 #if USE_BACKEND
 
