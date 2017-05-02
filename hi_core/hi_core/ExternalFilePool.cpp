@@ -340,6 +340,9 @@ AudioSampleBuffer * AudioSampleBufferPool::loadDataFromStream(InputStream *input
 	AudioFormatManager afm;
 
 	afm.registerBasicFormats();
+#if HI_INCLUDE_HLAC
+	afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
+#endif
 
 	reader = afm.createReaderFor(inputStream);
 

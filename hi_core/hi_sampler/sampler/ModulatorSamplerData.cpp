@@ -860,6 +860,14 @@ MonolithExporter::MonolithExporter(SampleMap* sampleMap_) :
 
 	if (!monolithDirectory.isDirectory()) monolithDirectory.createDirectory();
 
+	StringArray sa;
+
+	sa.add("No compression");
+	sa.add("Fast Decompression");
+	sa.add("Low file size (recommended)");
+
+	addComboBox("compressOptions", sa, "HLAC Compression options");
+
 	addTextEditor("id", sampleMap->getId().toString(), "Sample Map Name");
 
 	addBasicComponents(true);

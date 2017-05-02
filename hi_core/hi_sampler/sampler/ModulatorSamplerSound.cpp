@@ -632,6 +632,9 @@ forcePoolSearch(false),
 isCurrentlyLoading(false)
 {
 	afm.registerBasicFormats();
+#if HI_INCLUDE_HLAC
+	afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
+#endif
 }
 
 void ModulatorSamplerSoundPool::setDebugProcessor(Processor *p)

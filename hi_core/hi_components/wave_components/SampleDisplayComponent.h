@@ -460,6 +460,9 @@ public:
 		AudioFormatManager afm;
 
 		afm.registerBasicFormats();
+#if HI_INCLUDE_HLAC
+		afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
+#endif
 
 		return File(s).existsAsFile() && afm.findFormatForFileExtension(File(s).getFileExtension()) != nullptr;
 	}

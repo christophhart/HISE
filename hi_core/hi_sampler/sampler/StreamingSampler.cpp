@@ -637,7 +637,7 @@ void StreamingSamplerSound::FileReader::setFile(const String &fileName)
 
 		const String fileExtension = loadedFile.getFileExtension();
 
-		fileFormatSupportsMemoryReading = fileExtension.contains("wav") || fileExtension.contains("aif");
+        fileFormatSupportsMemoryReading = fileExtension.contains("wav") || fileExtension.contains("aif");// || fileExtension.contains("hlac");
 
 		hashCode = loadedFile.hashCode64();
 	}
@@ -690,7 +690,7 @@ void StreamingSamplerSound::FileReader::refreshFileInformation()
         
 		const String fileExtension = loadedFile.getFileExtension();
 
-		fileFormatSupportsMemoryReading = fileExtension.compareIgnoreCase(".wav") || fileExtension.startsWithIgnoreCase(".aif");
+        fileFormatSupportsMemoryReading = fileExtension.compareIgnoreCase(".wav") || fileExtension.startsWithIgnoreCase(".aif");// || fileExtension.startsWithIgnoreCase("hlac");
 
 		hashCode = loadedFile.hashCode64();
 	}

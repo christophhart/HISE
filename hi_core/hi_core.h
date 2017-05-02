@@ -62,6 +62,7 @@ END_JUCE_MODULE_DECLARATION
 #include "../JUCE/modules/juce_audio_utils/juce_audio_utils.h"
 #include "../JUCE/modules/juce_gui_extra/juce_gui_extra.h"
 #include "../JUCE/modules/juce_tracktion_marketplace/juce_tracktion_marketplace.h"
+#include "../hi_lac/hi_lac.h"
 
 #include "hi_binary_data/hi_binary_data.h"
 

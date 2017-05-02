@@ -246,8 +246,6 @@ void SamplerSoundWaveform::setSoundToDisplay(const ModulatorSamplerSound *s)
 	{
 		currentSound = const_cast<ModulatorSamplerSound*>(s);
 
-		WavAudioFormat waf;
-
 		StreamingSamplerSound::Ptr sound = s->getReferenceToSound(); // The first sample is enough
 
 		ScopedPointer<AudioFormatReader> afr;

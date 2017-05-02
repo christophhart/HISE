@@ -712,6 +712,9 @@ public:
     {
         AudioFormatManager afm;
         afm.registerBasicFormats();
+#if HI_INCLUDE_HLAC
+		afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
+#endif
         return afm.createReaderFor(file);
     }
     
@@ -719,6 +722,9 @@ public:
     {
         AudioFormatManager afm;
         afm.registerBasicFormats();
+#if HI_INCLUDE_HLAC
+		afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
+#endif
         return afm.createReaderFor(stream);
     }
 
