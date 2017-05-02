@@ -18,6 +18,7 @@
 #include <hi_backend/hi_backend.h>
 #include <hi_core/hi_core.h>
 #include <hi_dsp_library/hi_dsp_library.h>
+#include <hi_lac/hi_lac.h>
 #include <hi_modules/hi_modules.h>
 #include <hi_scripting/hi_scripting.h>
 #include <juce_audio_basics/juce_audio_basics.h>

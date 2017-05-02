@@ -22,6 +22,8 @@
 #define DOUBLE_TO_STRING_DIGITS 8
 #define HI_RUN_UNIT_TESTS 0
 
+#define HI_INCLUDE_HLAC 1
+
 #define PROFILE_ROUND_1 1
 
 // [END_USER_CODE_SECTION]
@@ -30,6 +32,7 @@
 #define JUCE_MODULE_AVAILABLE_hi_backend                      1
 #define JUCE_MODULE_AVAILABLE_hi_core                         1
 #define JUCE_MODULE_AVAILABLE_hi_dsp_library                  1
+#define JUCE_MODULE_AVAILABLE_hi_lac                          1
 #define JUCE_MODULE_AVAILABLE_hi_modules                      1
 #define JUCE_MODULE_AVAILABLE_hi_scripting                    1
 #define JUCE_MODULE_AVAILABLE_juce_audio_basics               1
@@ -146,6 +149,21 @@
 
 #ifndef    IS_STATIC_DSP_LIBRARY
  //#define IS_STATIC_DSP_LIBRARY
+#endif
+
+//==============================================================================
+// hi_lac flags:
+
+#ifndef    HLAC_MEASURE_DECODING_PERFORMANCE
+ //#define HLAC_MEASURE_DECODING_PERFORMANCE
+#endif
+
+#ifndef    HLAC_DEBUG_LOG
+ //#define HLAC_DEBUG_LOG
+#endif
+
+#ifndef    HLAC_INCLUDE_TEST_SUITE
+ //#define HLAC_INCLUDE_TEST_SUITE
 #endif
 
 //==============================================================================
