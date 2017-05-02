@@ -41,6 +41,6 @@ namespace hlac
 	#include "hlac/HlacAudioFormatWriter.cpp"
 	#include "hlac/HlacAudioFormatReader.cpp"
 	#include "hlac/HiseLosslessAudioFormat.cpp"
-	#include "hlac/HlacTests.cpp"
+	
 }
 

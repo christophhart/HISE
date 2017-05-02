@@ -63,6 +63,8 @@ public:
 
 	MemoryMappedAudioFormatReader* createMemoryMappedReader(FileInputStream* fin) override;
 
+	MemoryMappedAudioFormatReader* createMemoryMappedReader(const File& file) override;
+
 	HeapBlock<uint32> blockOffsets;
 };
 

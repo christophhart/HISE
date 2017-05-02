@@ -89,6 +89,7 @@ bool HlacDecoder::decodeBlock(AudioSampleBuffer& destination, InputStream& input
 		auto header = readCycleHeader(input);
 
 		jassert(header.getNumSamples() != 0);
+		jassert(header.getNumSamples() <= COMPRESSION_BLOCK_SIZE);
 
 		if (header.isDiff())
 			decodeDiff(header, destination, input, channelIndex);
@@ -112,6 +113,7 @@ void HlacDecoder::decode(AudioSampleBuffer& destination, InputStream& input, int
 
 	if (numSamples < 0)
 		numSamples = destination.getNumSamples();
+	
 	
 
 	const int endThisTime = numSamples + offsetInSource;
@@ -274,6 +276,7 @@ void HlacDecoder::writeToFloatArray(bool shouldCopy, bool useTempBuffer, AudioSa
 			else
 				FloatVectorOperations::clear(dst, numThisTime);
 
+
 			if (channelIndex == 0)
 				leftFloatIndex += numThisTime;
 			else
@@ -289,15 +292,17 @@ void HlacDecoder::writeToFloatArray(bool shouldCopy, bool useTempBuffer, AudioSa
 		else
 		{
 			auto bufferOffset = readIndex;
-			int numThisTime = numSamples - skipToUse;
+            int numThisTime = jmin<int>(numSamples - skipToUse, destination.getNumSamples() - bufferOffset);
 			//leftSeekOffset = numToSkipLeft;
 
 			auto dst = destination.getWritePointer(channelIndex, bufferOffset);
+
 
 			if (shouldCopy)
 				CompressionHelpers::fastInt16ToFloat(src + skipToUse, dst, numThisTime);
 			else
 				FloatVectorOperations::clear(dst, numThisTime);
+
 
 			if (channelIndex == 0)
 				leftFloatIndex += numThisTime;

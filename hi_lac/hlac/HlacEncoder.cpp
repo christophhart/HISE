@@ -491,9 +491,11 @@ bool HlacEncoder::writeDiffHeader(int fullBitRate, int errorBitRate, int blockSi
 
 void HlacEncoder::encodeLastBlock(AudioSampleBuffer& block, OutputStream& output)
 {
+	MemoryOutputStream lastTemp;
+
 	CompressionHelpers::AudioBufferInt16 a(block, 0, false);
 
-	encodeCycle(a, output);
+	encodeCycle(a, lastTemp);
 
 	int numZerosToPad = COMPRESSION_BLOCK_SIZE - a.size;
 
@@ -501,8 +503,13 @@ void HlacEncoder::encodeLastBlock(AudioSampleBuffer& block, OutputStream& output
 
 	LOG("ENC  PADDING " + String(numZerosToPad));
 
-	writeCycleHeader(true, 0, numZerosToPad, output);
+	writeCycleHeader(true, 0, numZerosToPad, lastTemp);
 
+	lastTemp.flush();
+
+	output.write(lastTemp.getData(), lastTemp.getDataSize());
+
+	numBytesWritten += lastTemp.getDataSize();
 }
 
 

@@ -52,6 +52,8 @@ struct HiseLosslessHeader
 
 	uint32 getOffsetForReadPosition(int64 samplePosition, bool addHeaderOffset);
 
+	uint32 getOffsetForNextBlock(int64 samplePosition, bool addHeaderOffset);
+
 	bool write(OutputStream* output);
 
 	void storeOffsets(uint32* offsets, int numOffsets);
@@ -147,6 +149,8 @@ public:
 	}
 
 	bool readSamples(int** destSamples, int numDestChannels, int startOffsetInDestBuffer, int64 startSampleInFile, int numSamples) override;
+
+	bool mapSectionOfFile(Range<int64> samplesToMap) override;
 
 	void mapEverythingAndCreateMemoryStream();
 

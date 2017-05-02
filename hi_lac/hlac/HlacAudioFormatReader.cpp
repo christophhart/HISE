@@ -41,7 +41,7 @@ HiseLosslessAudioFormatReader::HiseLosslessAudioFormatReader(InputStream* input_
 
 bool HiseLosslessAudioFormatReader::readSamples(int** destSamples, int numDestChannels, int startOffsetInDestBuffer, int64 startSampleInFile, int numSamples)
 {
-	return internalReader.internalHlacRead(destSamples, numDestChannels, startOffsetInDestBuffer, startSampleInFile, numSamples);
+    return internalReader.internalHlacRead(destSamples, numDestChannels, startOffsetInDestBuffer, startSampleInFile, numSamples);
 }
 
 
@@ -78,6 +78,42 @@ uint32 HiseLosslessHeader::getOffsetForReadPosition(int64 samplePosition, bool a
 		if (blockIndex < blockAmount)
 		{
 			return addHeaderOffset ? (headerSize + blockOffsets[blockIndex]) : blockOffsets[blockIndex];
+		}
+		else
+		{
+			jassertfalse;
+			return 0;
+		}
+
+		jassertfalse;
+	}
+
+	return 0;
+}
+
+uint32 HiseLosslessHeader::getOffsetForNextBlock(int64 samplePosition, bool addHeaderOffset)
+{
+	if (samplePosition % COMPRESSION_BLOCK_SIZE == 0)
+	{
+		uint32 blockIndex = (uint32)samplePosition / COMPRESSION_BLOCK_SIZE;
+
+		if (blockIndex < blockAmount-1)
+		{
+			return addHeaderOffset ? (headerSize + blockOffsets[blockIndex+1]) : blockOffsets[blockIndex+1];
+		}
+		else
+		{
+			jassertfalse;
+			return 0;
+		}
+	}
+	else
+	{
+		auto blockIndex = (uint32)samplePosition / COMPRESSION_BLOCK_SIZE;
+
+		if (blockIndex < blockAmount-1)
+		{
+			return addHeaderOffset ? (headerSize + blockOffsets[blockIndex+1]) : blockOffsets[blockIndex+1];
 		}
 		else
 		{
@@ -157,8 +193,59 @@ bool HlacMemoryMappedAudioFormatReader::readSamples(int** destSamples, int numDe
 	return false;
 }
 
+
+bool HlacMemoryMappedAudioFormatReader::mapSectionOfFile(Range<int64> samplesToMap)
+{
+	dataChunkStart = (int64)internalReader.header.getOffsetForReadPosition(0, true);
+	dataLength = getFile().getSize() - dataChunkStart;
+
+	int64 start = (int64)internalReader.header.getOffsetForReadPosition(samplesToMap.getStart(), true);
+	int64 end = 0;
+
+	if (samplesToMap.getEnd() >= lengthInSamples)
+	{
+		end = getFile().getSize();
+	}
+	else
+	{
+		end = internalReader.header.getOffsetForNextBlock(samplesToMap.getEnd(), true);
+	}
+
+	auto fileRange = Range<int64>(start, end);
+	
+	map = new MemoryMappedFile(getFile(), fileRange, MemoryMappedFile::readOnly, false);
+
+	if (map != nullptr && !map->getRange().isEmpty())
+	{
+		int64 mappedStart = samplesToMap.getStart() / COMPRESSION_BLOCK_SIZE;
+
+		int64 mappedEnd = jmin<int64>(lengthInSamples, samplesToMap.getEnd() - (samplesToMap.getEnd() % COMPRESSION_BLOCK_SIZE) + 1);
+		mappedSection = Range<int64>(mappedStart, mappedEnd);
+
+		auto actualMappedRange = map->getRange();
+
+		int offset = fileRange.getStart() - actualMappedRange.getStart();
+		int length = actualMappedRange.getLength() - offset;
+
+		mis = new MemoryInputStream((uint8*)map->getData() + offset, length, false);
+
+		internalReader.input = mis;
+
+		internalReader.setUseHeaderOffsetWhenSeeking(false);
+
+		return true;
+
+	}
+
+	return false;
+}
+
 void HlacMemoryMappedAudioFormatReader::mapEverythingAndCreateMemoryStream()
 {
+	jassertfalse;
+
+	return;
+
 	dataChunkStart = (int64)internalReader.header.getOffsetForReadPosition(0, true);
 	dataLength = getFile().getSize() - dataChunkStart;
 

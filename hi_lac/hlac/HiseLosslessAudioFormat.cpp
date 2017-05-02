@@ -116,8 +116,6 @@ MemoryMappedAudioFormatReader* HiseLosslessAudioFormat::createMemoryMappedReader
 
 	ScopedPointer<HlacMemoryMappedAudioFormatReader> reader = new HlacMemoryMappedAudioFormatReader(fin->getFile(), *normalReader, 0, normalReader->lengthInSamples, 1);
 
-	reader->mapEverythingAndCreateMemoryStream();
-
 	return reader.release();
 #else
 
@@ -125,6 +123,13 @@ MemoryMappedAudioFormatReader* HiseLosslessAudioFormat::createMemoryMappedReader
 	jassertfalse;
 	return nullptr;
 #endif
+}
+
+MemoryMappedAudioFormatReader* HiseLosslessAudioFormat::createMemoryMappedReader(const File& file)
+{
+	FileInputStream* fis = new FileInputStream(file);
+
+	return createMemoryMappedReader(fis);
 }
 
 HiseLosslessHeader::HiseLosslessHeader(bool useEncryption, uint8 globalBitShiftAmount, double sampleRate, int numChannels, int bitsPerSample, bool useCompression, uint32 numBlocks)

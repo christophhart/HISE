@@ -103,7 +103,6 @@ namespace hlac
 	#include "hlac/HlacAudioFormatWriter.h"
 	#include "hlac/HlacAudioFormatReader.h"
 	#include "hlac/HiseLosslessAudioFormat.h"
-	#include "hlac/HlacTests.h"
 }
 
 

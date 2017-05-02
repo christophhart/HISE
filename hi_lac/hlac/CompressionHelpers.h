@@ -104,6 +104,7 @@ struct CompressionHelpers
 
 		bool isReadOnly = false;
 		int16* data = nullptr;
+
 		int16* externalData = nullptr;
 	};
 
