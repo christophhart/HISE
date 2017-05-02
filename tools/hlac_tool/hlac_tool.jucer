@@ -5,6 +5,8 @@
               jucerVersion="4.3.0">
   <MAINGROUP id="qMBJWS" name="HLAC Tool">
     <GROUP id="{4EAF9D6D-10E5-0774-B3EE-59B6D71DAC1D}" name="Source">
+      <FILE id="nrSZ47" name="HlacTests.cpp" compile="1" resource="0" file="Source/HlacTests.cpp"/>
+      <FILE id="zE6foA" name="HlacTests.h" compile="0" resource="0" file="Source/HlacTests.h"/>
       <FILE id="Z7Upgg" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
     </GROUP>
   </MAINGROUP>

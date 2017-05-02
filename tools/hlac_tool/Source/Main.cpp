@@ -133,7 +133,7 @@ int decode(File input, File output)
 
 	mb.copyFrom(mos.getData(), 0, mos.getDataSize());
 
-	while (x < 10000)
+	while (x < 1)
 	{
 		if(x % 100 == 0)
 		{
