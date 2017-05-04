@@ -307,7 +307,7 @@ void HiSlider::mouseUp(const MouseEvent& e)
 	Slider::mouseUp(e);
 }
 
-void HiSlider::touchAndHold(Point<int> downPosition)
+void HiSlider::touchAndHold(Point<int> /*downPosition*/)
 {
 #if USE_FRONTEND
 	enableMidiLearnWithPopup();

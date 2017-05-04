@@ -176,9 +176,6 @@ private:
 		HiseEvent e2 = generateRandomHiseEvent();
 		HiseEvent e3 = generateRandomHiseEvent();
 		HiseEvent e4 = generateRandomHiseEvent();
-		HiseEvent e5 = generateRandomHiseEvent();
-		HiseEvent e6 = generateRandomHiseEvent();
-		HiseEvent e7 = generateRandomHiseEvent();
 
 		stack.push(e1);
 		stack.push(e2);

@@ -56,6 +56,8 @@ public:
 	{
 #if HISE_IOS
 		updateTimer.startTouch(downPosition);
+#else
+		ignoreUnused(downPosition);
 #endif
 	}
 

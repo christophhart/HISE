@@ -114,7 +114,7 @@ AudioProcessorEditor(fp)
 	originalSizeY = getHeight();
 
 	const int availableHeight = Desktop::getInstance().getDisplays().getMainDisplay().userArea.getHeight();
-	const float displayScaleFactor = Desktop::getInstance().getDisplays().getMainDisplay().scale;
+	const float displayScaleFactor = (float)Desktop::getInstance().getDisplays().getMainDisplay().scale;
 	const int unscaledInterfaceHeight = getHeight();
 
 	if (displayScaleFactor == 1.0f && availableHeight > 0 && (availableHeight - unscaledInterfaceHeight < 40))

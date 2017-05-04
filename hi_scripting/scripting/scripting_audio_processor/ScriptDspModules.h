@@ -559,7 +559,8 @@ public:
 
 				while (--numSamples >= 0)
 				{
-					*ld++ = delayL.getNextSample(*ld);
+					*ld = delayL.getNextSample(*ld);
+                    ld++;
 				}
 			}
 
@@ -573,8 +574,11 @@ public:
 
 				while (--numSamples >= 0)
 				{
-					*ld++ = delayL.getNextSample(*ld);
-					*rd++ = delayR.getNextSample(*rd);
+					*ld = delayL.getNextSample(*ld);
+					*rd = delayR.getNextSample(*rd);
+                    
+                    ld++;
+                    rd++;
 				}
 			}
 		}
@@ -854,7 +858,8 @@ public:
 			case Parameters::RMSLevelRight:		return rmsLevelRight;
 			case Parameters::StereoMode:		return stereoMode;
 			case Parameters::RMSDecayFactor:	return rmsDecayFactor;
-			case Parameters::PeakDecayFactor:	return peakLevelDecayFactor;	
+			case Parameters::PeakDecayFactor:	return peakLevelDecayFactor;
+            case Parameters::numParameters:     jassertfalse; break;
 			}
 
 			return 0.0f;

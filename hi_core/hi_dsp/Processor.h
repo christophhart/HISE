@@ -703,7 +703,7 @@ public:
 
 	struct DeleteListener
 	{
-		~DeleteListener()
+		virtual ~DeleteListener()
 		{
 			masterReference.clear();
 		}

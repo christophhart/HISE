@@ -11,6 +11,8 @@ struct DebugLogger::Message
 		id(id_),
 		location(l)
 	{};
+    
+    virtual ~Message() {};
 
 	String getTimeString()
 	{
@@ -69,6 +71,11 @@ struct DebugLogger::StringMessage : public DebugLogger::Message
 		message(message_)
 	{}
 
+    virtual ~StringMessage()
+    {
+        
+    };
+    
 	String getMessageText(int errorIndex /* = -1 */) override 
 	{
 		ignoreUnused(errorIndex);
@@ -88,6 +95,11 @@ struct DebugLogger::Event : public DebugLogger::Message
 		Message(messageIndex, callbackIndex, timestamp, Location::MainRenderCallback, nullptr, Identifier()),
 		e(e_)
 	{}
+    
+    virtual ~Event()
+    {
+        
+    };
 
 	String getMessageText(int errorIndex /* = -1 */) override
 	{
@@ -112,6 +124,11 @@ struct DebugLogger::AudioSettingChange : public DebugLogger::Message
 		oldValue(oldValue_),
 		newValue(newValue_)
 	{};
+    
+    virtual ~AudioSettingChange()
+    {
+        
+    };
 
 	FailureType type;
 	double oldValue;
@@ -147,6 +164,11 @@ struct DebugLogger::PerformanceWarning : public DebugLogger::Message
 		voiceAmount(voiceAmount_),
 		timestamp(timestamp_)
 	{};
+    
+    virtual ~PerformanceWarning()
+    {
+        
+    };
 
 	int voiceAmount = 0;
 	double timestamp = 0.0;
@@ -200,6 +222,11 @@ struct DebugLogger::Failure : public DebugLogger::Message
 		extraValue(extraValue_)
 	{};
 
+    virtual ~Failure()
+    {
+        
+    };
+    
 	bool shouldPrintBacktrace() const override { return type == FailureType::PriorityInversion; }
 
 	String getMessageText(int errorIndex = -1)
