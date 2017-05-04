@@ -56,7 +56,16 @@ END_JUCE_MODULE_DECLARATION
 #include <juce_audio_formats/juce_audio_formats.h>
 
 #ifndef HLAC_NO_SSE
-#include <immintrin.h>
+#if JUCE_WINDOWS
+#define HLAC_NO_SSE 0
+#else
+#define HLAC_NO_SSE 1
+#endif
+#endif
+
+#if HLAC_NO_SSE
+#else
+#include <nmmintrin.h> 
 #endif
 
 // This is the current HLAC version. HLAC has full backward compatibility.

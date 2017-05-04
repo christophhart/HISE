@@ -451,7 +451,7 @@ uint8 CompressionHelpers::checkBuffersEqual(AudioSampleBuffer& workBuffer, Audio
 {
     int numToCheck = referenceBuffer.getNumSamples();
     
-    jassert(workBuffer.getNumSamples() % COMPRESSION_BLOCK_SIZE == 0);
+    ///jassert(workBuffer.getNumSamples() % COMPRESSION_BLOCK_SIZE == 0);
     jassert(workBuffer.getNumSamples() >= numToCheck);
 
 	AudioBufferInt16 wbInt(workBuffer, 0, false);
@@ -466,8 +466,8 @@ uint8 CompressionHelpers::checkBuffersEqual(AudioSampleBuffer& workBuffer, Audio
 		DBG("Bit rate for error signal: " + String(br));
 
 		//DUMP(wbInt);
-		DUMP(referenceBuffer);
-		DUMP(workBuffer);
+		//DUMP(referenceBuffer);
+		//DUMP(workBuffer);
 
 		float* w = workBuffer.getWritePointer(0);
 		const float* r = referenceBuffer.getReadPointer(0);
@@ -937,4 +937,39 @@ uint8 CompressionHelpers::Misc::getSampleRateIndex(double sampleRate)
 	jassertfalse;
 
 	return 0;
+}
+
+uint32 CompressionHelpers::Misc::createChecksum()
+{
+	Random r;
+	r.setSeedRandomly();
+	r.setSeedRandomly();
+	r.setSeedRandomly();
+
+	uint16 randomNumber = (uint16)r.nextInt(Range<int>(2, UINT16_MAX));
+
+	uint8* d = reinterpret_cast<uint8*>(&randomNumber);
+	uint16 product = (uint16)(d[0] * d[1]);
+
+	uint32 result;
+
+	uint16* resultPointer = reinterpret_cast<uint16*>(&result);
+	resultPointer[0] = randomNumber;
+	resultPointer[1] = product;
+
+	return result;
+}
+
+bool CompressionHelpers::Misc::validateChecksum(uint32 data)
+{
+	if (data == 0) return false;
+
+	uint16* numbers = reinterpret_cast<uint16*>(&data);
+
+	uint16 randomNumber = numbers[0];
+	uint16 product = numbers[1];
+
+	uint8* bytes = reinterpret_cast<uint8*>(&randomNumber);
+
+	return (uint16)(bytes[0] * bytes[1]) == product;
 }

@@ -676,13 +676,14 @@ void ModulatorSamplerSoundPool::deleteSound(ModulatorSamplerSound *soundToDelete
 }
 
 
+
 bool ModulatorSamplerSoundPool::loadMonolithicData(const ValueTree &sampleMap, const Array<File>& monolithicFiles, OwnedArray<ModulatorSamplerSound> &sounds)
 {
 	clearUnreferencedMonoliths();
 
-	loadedMonoliths.add(new HiseMonolithAudioFormat(monolithicFiles));
+	loadedMonoliths.add(new MonolithInfoToUse(monolithicFiles));
 
-	HiseMonolithAudioFormat* hmaf = loadedMonoliths.getLast();
+	MonolithInfoToUse* hmaf = loadedMonoliths.getLast();
 
 	try
 	{
@@ -728,6 +729,7 @@ bool ModulatorSamplerSoundPool::loadMonolithicData(const ValueTree &sampleMap, c
 
 		
 	}
+
 
 	sendChangeMessage();
 

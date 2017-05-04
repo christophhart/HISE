@@ -134,11 +134,10 @@ MemoryMappedAudioFormatReader* HiseLosslessAudioFormat::createMemoryMappedReader
 
 HiseLosslessHeader::HiseLosslessHeader(bool useEncryption, uint8 globalBitShiftAmount, double sampleRate, int numChannels, int bitsPerSample, bool useCompression, uint32 numBlocks)
 {
-	// Header byte: 1 bit      | 3 bit   |  4 bit        |
-	//              encryption | version | global shift  |
-	headerByte = (useEncryption ? 0x80 : 0);
-	headerByte |= (HLAC_VERSION << 4);
-	headerByte |= (globalBitShiftAmount & 0x0F);
+	headerByte1 = HLAC_VERSION;
+
+	headerByte2 = (useEncryption ? 0x80 : 0);
+	headerByte2 |= (globalBitShiftAmount & 0x0F);
 
 	// Sample data byte | 2 bit    | 4 bit    | 1 bit 1  | 1 bit           |
 	//                  | SR index | channels | bit rate | use compression |
@@ -173,55 +172,46 @@ HiseLosslessHeader::HiseLosslessHeader(const File& f)
 
 void HiseLosslessHeader::readMetadataFromStream(InputStream* input)
 {
-	uint64 metadata = 0;
-	uint8* metaDataBytePtr = reinterpret_cast<uint8*>(&metadata);
-
 	//metadata = input->readInt64();
 
-	metaDataBytePtr[0] = input->readByte();
+	headerByte1 = input->readByte();
+	
 
 	// The old format just stored the channel amount as first header byte;
-	isOldMonolith = metaDataBytePtr[0] == 1 || metaDataBytePtr[0] == 2;
+	isOldMonolith = headerByte1 < 2;
 
 	if (isOldMonolith)
 	{
-		headerByte = metaDataBytePtr[0];
+		headerByte2 = 0;
 		sampleDataByte = 0;
 		headerValid = true;
 		blockAmount = 0;
 	}
 	else
 	{
-		metaDataBytePtr[1] = input->readByte();
-		metaDataBytePtr[2] = input->readByte();
-		metaDataBytePtr[3] = input->readByte();
-		metaDataBytePtr[4] = input->readByte();
-		metaDataBytePtr[5] = input->readByte();
-		metaDataBytePtr[6] = input->readByte();
-		metaDataBytePtr[7] = input->readByte();
-
-		const uint64 metadataMasked = metadata & 0xFFFFFFFFFFFF0000;
-		const uint16 checksum = metadata & 0x000000000000FFFF;
-
-		headerValid = metadataMasked > 0 && CompressionHelpers::Misc::NumberOfSetBits(metadataMasked) == checksum;
+		const uint32 checkSum = (uint32)input->readInt();
+		headerValid = CompressionHelpers::Misc::validateChecksum(checkSum);
 
 		if (!headerValid)
 		{
+			headerByte2 = 0;
+			sampleDataByte = 0;
+			blockAmount = 0;
 			jassertfalse;
 			return;
 		}
 		else
 		{
-			headerByte = (uint8)((metadataMasked & 0xFF00000000000000) >> 56);
-			sampleDataByte = (uint8)((metadataMasked & 0x00FF000000000000) >> 48);
-		}
+			headerByte2 = input->readByte();
+			sampleDataByte = input->readByte();
+			blockAmount = (uint32)input->readInt();
 
-		blockAmount = (uint32)((metadataMasked & 0x0000FFFFFFFF0000) >> 16);
-		blockOffsets.malloc(blockAmount);
+			blockOffsets.malloc(blockAmount);
 
-		for (uint32 i = 0; i < blockAmount; i++)
-		{
-			blockOffsets[i] = (uint32)input->readInt();
+			for (uint32 i = 0; i < blockAmount; i++)
+			{
+				blockOffsets[i] = (uint32)input->readInt();
+			}
 		}
 	}
 
@@ -232,13 +222,7 @@ void HiseLosslessHeader::readMetadataFromStream(InputStream* input)
 
 int HiseLosslessHeader::getVersion() const
 {
-	if (isOldMonolith)
-	{
-		// ancient versions didn't use a real header byte
-		return headerByte;
-	}
-	else
-		return (headerByte & 0x70) >> 4;
+	return headerByte1;
 }
 
 bool HiseLosslessHeader::isEncrypted() const
@@ -254,7 +238,7 @@ int HiseLosslessHeader::getBitShiftAmount() const
 	}
 	else
 	{
-		return (headerByte & 0x0F);
+		return (headerByte2 & 0x0F);
 	}
 }
 
@@ -263,7 +247,7 @@ unsigned int HiseLosslessHeader::getNumChannels() const
 	if (isOldMonolith)
 	{
 		// previous versions just stored the channel amount
-		return headerByte;
+		return headerByte1 == 0 ? 2 : 1;
 	}
 
 	return (sampleDataByte >> 2) & 0x0F;
@@ -303,13 +287,20 @@ uint32 HiseLosslessHeader::getBlockAmount() const
 
 bool HiseLosslessHeader::write(OutputStream* output)
 {
-	// Add the checksum of the 48 bits.
-	uint64 metadata = ((uint64)headerByte << 56) | ((uint64)sampleDataByte << 48) | ((uint64)blockAmount << 16);
-	uint16 checkSum = (uint16)CompressionHelpers::Misc::NumberOfSetBits(metadata);
-	metadata |= checkSum;
+	output->writeByte(headerByte1);
 
-	output->writeInt64(metadata);
+	if (headerByte1 < 2)
+		return true;
 
+	auto checkSum = CompressionHelpers::Misc::createChecksum();
+
+	output->writeInt((int)checkSum);
+
+	output->writeByte(headerByte2);
+	output->writeByte(sampleDataByte);
+
+	output->writeInt((int)blockAmount);
+	
 	for (uint32 i = 0; i < blockAmount; i++)
 	{
 		if (!output->writeInt(blockOffsets[i]))

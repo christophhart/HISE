@@ -60,9 +60,12 @@ struct HiseLosslessHeader
 
 	void readMetadataFromStream(InputStream* stream);
 
+	static HiseLosslessHeader createMonolithHeader(int numChannels, double sampleRate);
+
 private:
 
-	uint8 headerByte = 0;
+	uint8 headerByte1 = 0;
+	uint8 headerByte2 = 0;
 	uint8 sampleDataByte = 0;
 	uint32 blockAmount = 0;
 	HeapBlock<uint32> blockOffsets;
@@ -103,6 +106,8 @@ private:
 
 	bool internalHlacRead(int** destSamples, int numDestChannels, int startOffsetInDestBuffer, int64 startSampleInFile, int numSamples);
 
+	
+
 	friend class HiseLosslessAudioFormatReader;
 	friend class HlacMemoryMappedAudioFormatReader;
 
@@ -130,9 +135,11 @@ public:
 
 private:
 
-	
+	static void copySampleData(int* const* destSamples, int startOffsetInDestBuffer, int numDestChannels, const void* sourceData, int numChannels, int numSamples) noexcept;
 
 	HlacReaderCommon internalReader;
+
+	bool isMonolith = false;
 
 };
 
@@ -145,16 +152,21 @@ public:
 		MemoryMappedAudioFormatReader(f, details, start, length, frameSize),
 		internalReader(f)
 	{
-		
+		isMonolith = internalReader.header.getVersion() < 2;
+
+		if (isMonolith)
+		{
+			bytesPerFrame = internalReader.header.getNumChannels() * sizeof(int16);
+			dataChunkStart = 1;
+			dataLength = f.getSize() - 1;
+		}
 	}
 
 	bool readSamples(int** destSamples, int numDestChannels, int startOffsetInDestBuffer, int64 startSampleInFile, int numSamples) override;
 
 	bool mapSectionOfFile(Range<int64> samplesToMap) override;
 
-	void mapEverythingAndCreateMemoryStream();
-
-	void getSample(int64 sampleIndex, float* result) const noexcept override
+	void getSample(int64 /*sampleIndex*/, float* result) const noexcept override
 	{
 		// this should never be used
 		jassertfalse;
@@ -162,10 +174,13 @@ public:
 	}
 
 private:
+	
+	static void copySampleData(int* const* destSamples, int startOffsetInDestBuffer, int numDestChannels, const void* sourceData, int numChannels, int numSamples) noexcept;
 
 	ScopedPointer<MemoryInputStream> mis;
 	HlacReaderCommon internalReader;
 
+	bool isMonolith = false;
 };
 
 

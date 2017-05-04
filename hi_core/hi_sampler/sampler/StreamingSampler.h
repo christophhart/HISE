@@ -132,10 +132,7 @@ public:
 	StreamingSamplerSound(const String &fileNameToLoad, ModulatorSamplerSoundPool *pool);
 
 	/** Creates a new StreamingSamplerSound from a monolithic file. */
-	StreamingSamplerSound(HiseMonolithAudioFormat *info, int channelIndex, int sampleIndex);
-
-
-	
+	StreamingSamplerSound(MonolithInfoToUse *info, int channelIndex, int sampleIndex);
 
 	~StreamingSamplerSound();
 
@@ -332,7 +329,7 @@ private:
 
 		void setFile(const String &fileName);
 
-		void setMonolithicInfo(HiseMonolithAudioFormat * info, int channelIndex, int sampleIndex);
+		void setMonolithicInfo(MonolithInfoToUse* info, int channelIndex, int sampleIndex);
 
 
 		String getFileName(bool getFullPath);
@@ -419,7 +416,7 @@ private:
 
 		ModulatorSamplerSoundPool *pool;
 
-		ReferenceCountedObjectPtr<HiseMonolithAudioFormat> monolithicInfo = nullptr;
+		ReferenceCountedObjectPtr<MonolithInfoToUse> monolithicInfo = nullptr;
 		int monolithicIndex = -1;
 		int monolithicChannelIndex = -1;
 		String monolithicName;

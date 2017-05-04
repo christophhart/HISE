@@ -75,7 +75,14 @@ void HlacDecoder::reset()
 
 bool HlacDecoder::decodeBlock(AudioSampleBuffer& destination, InputStream& input, int channelIndex)
 {
-    
+	auto checksum = input.readInt();
+
+	if (!CompressionHelpers::Misc::validateChecksum((uint32)checksum))
+	{
+		// Something is wrong here...
+		jassertfalse;
+	}
+
 	indexInBlock = 0;
 	
 	const int floatIndexToUse = channelIndex == 0 ? leftFloatIndex : rightFloatIndex;

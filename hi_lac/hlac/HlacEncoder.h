@@ -49,12 +49,14 @@ public:
 	{
 		enum class Presets
 		{
-			WholeBlock,
-			Delta,
+			Uncompressed = 0,
+			WholeBlock = 1,
 			Diff,
+			Delta,
 			numPresets
 		};
 
+		bool useCompression = true;
 		bool useDeltaEncoding = true;
 		int16 fixedBlockWidth = -1;
 		bool reuseFirstCycleLengthForBlock = true;
@@ -65,6 +67,19 @@ public:
 
 		static CompressorOptions getPreset(Presets p)
 		{
+			if (p == Presets::Uncompressed)
+			{
+				HlacEncoder::CompressorOptions uncompressed;
+
+				uncompressed.fixedBlockWidth = 4096;
+				uncompressed.useCompression = false;
+				uncompressed.removeDcOffset = false;
+				uncompressed.useDeltaEncoding = false;
+				uncompressed.useDiffEncodingWithFixedBlocks = false;
+				
+
+				return uncompressed;
+			}
 			if (p == Presets::WholeBlock)
 			{
 				HlacEncoder::CompressorOptions wholeBlock;
@@ -136,6 +151,7 @@ private:
 		return indexInBlock >= COMPRESSION_BLOCK_SIZE;
 	}
 
+	bool writeChecksumBytesForBlock(OutputStream& output);
 
 	bool writeUncompressed(CompressionHelpers::AudioBufferInt16& block, OutputStream& output);
 
@@ -175,6 +191,8 @@ private:
 	MemoryBlock readBuffer;
 
 	CompressorOptions options;
+
+	
 
 	float ratio = 0.0f;
 

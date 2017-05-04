@@ -511,7 +511,7 @@ private:
 
 	// ================================================================================================================
 
-	ReferenceCountedArray<HiseMonolithAudioFormat> loadedMonoliths;
+	ReferenceCountedArray<MonolithInfoToUse> loadedMonoliths;
 
 	int getSoundIndexFromPool(int64 hashCode);
 

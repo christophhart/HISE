@@ -30,7 +30,7 @@
         <MODULEPATH id="hi_lac" path="../../../HISE modules"/>
       </MODULEPATHS>
     </VS2015>
-    <XCODE_MAC targetFolder="Builds/MacOSX" extraCompilerFlags="-msse4.1">
+    <XCODE_MAC targetFolder="Builds/MacOSX" extraCompilerFlags="-msse4.2">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="hlac_tool"
                        cppLanguageStandard="c++11" cppLibType="libc++" osxSDK="default"

@@ -39,14 +39,14 @@ void HlacEncoder::compress(AudioSampleBuffer& source, OutputStream& output, uint
 
 		if (compressStereo)
 		{
-            auto l = CompressionHelpers::getPart(source, 0, 0, COMPRESSION_BLOCK_SIZE);
+			auto l = CompressionHelpers::getPart(source, 0, 0, COMPRESSION_BLOCK_SIZE);
 			encodeBlock(l, output);
-            auto r = CompressionHelpers::getPart(source, 1, 0, COMPRESSION_BLOCK_SIZE);
+			auto r = CompressionHelpers::getPart(source, 1, 0, COMPRESSION_BLOCK_SIZE);
 			encodeBlock(r, output);
 		}
 		else
 			encodeBlock(source, output);
-		
+
 		return;
 	}
 
@@ -62,18 +62,18 @@ void HlacEncoder::compress(AudioSampleBuffer& source, OutputStream& output, uint
 
 		if (compressStereo)
 		{
-            auto l = CompressionHelpers::getPart(source, 0, blockOffset, numTodo);
+			auto l = CompressionHelpers::getPart(source, 0, blockOffset, numTodo);
 			encodeBlock(l, output);
-            auto r = CompressionHelpers::getPart(source, 1, blockOffset, numTodo);
+			auto r = CompressionHelpers::getPart(source, 1, blockOffset, numTodo);
 			encodeBlock(r, output);
 		}
 		else
 		{
-            auto b = CompressionHelpers::getPart(source, blockOffset, numTodo);
+			auto b = CompressionHelpers::getPart(source, blockOffset, numTodo);
 			encodeBlock(b, output);
 		}
 
-		
+
 		blockOffset += numTodo;
 
 		numSamplesRemaining -= numTodo;
@@ -88,18 +88,20 @@ void HlacEncoder::compress(AudioSampleBuffer& source, OutputStream& output, uint
 
 		if (compressStereo)
 		{
-            auto l = CompressionHelpers::getPart(source, 0, blockOffset, remaining);
+			auto l = CompressionHelpers::getPart(source, 0, blockOffset, remaining);
 			encodeLastBlock(l, output);
-            auto r = CompressionHelpers::getPart(source, 1, blockOffset, remaining);
+			auto r = CompressionHelpers::getPart(source, 1, blockOffset, remaining);
 			encodeLastBlock(r, output);
 		}
 		else
-        {
-            auto b = CompressionHelpers::getPart(source, blockOffset, remaining);
-            encodeLastBlock(b, output);
-        }
-			
+		{
+			auto b = CompressionHelpers::getPart(source, blockOffset, remaining);
+			encodeLastBlock(b, output);
+		}
+
 	}
+
+	
 }
 
 void HlacEncoder::reset()
@@ -145,6 +147,8 @@ bool HlacEncoder::encodeBlock(CompressionHelpers::AudioBufferInt16& block16, Out
 	auto compressedBlock = createCompressedBlock(block16);
 
 	auto thisBlockSize = compressedBlock.getSize();
+
+	writeChecksumBytesForBlock(output);
 
 	if (thisBlockSize > 2 * COMPRESSION_BLOCK_SIZE)
 	{
@@ -316,6 +320,18 @@ uint8 HlacEncoder::getBitReductionAmountForMSEncoding(AudioSampleBuffer& block)
 #endif
 }
 
+
+bool HlacEncoder::writeChecksumBytesForBlock(OutputStream& output)
+{
+	
+	auto checkSum = CompressionHelpers::Misc::createChecksum();
+
+	if (!output.writeInt((int)checkSum))
+		return false;
+
+	numBytesWritten += 4;
+	return true;
+}
 
 bool HlacEncoder::writeUncompressed(CompressionHelpers::AudioBufferInt16& block, OutputStream& output)
 {
@@ -491,6 +507,8 @@ bool HlacEncoder::writeDiffHeader(int fullBitRate, int errorBitRate, int blockSi
 
 void HlacEncoder::encodeLastBlock(AudioSampleBuffer& block, OutputStream& output)
 {
+	writeChecksumBytesForBlock(output);
+
 	MemoryOutputStream lastTemp;
 
 	CompressionHelpers::AudioBufferInt16 a(block, 0, false);

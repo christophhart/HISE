@@ -164,6 +164,10 @@ struct CompressionHelpers
 		static uint64 NumberOfSetBits(uint64 i);
 
 		static uint8 getSampleRateIndex(double sampleRate);
+
+		static uint32 createChecksum();
+
+		static bool validateChecksum(uint32 data);
 	};
 
 	static int getPaddedSampleSize(int samplesNeeded);
@@ -200,6 +204,8 @@ struct CompressionHelpers
 		static void distributeFullSamples(AudioBufferInt16& dst, const uint16* fullSamplesPacked, int numSamples);
 
 		static void addErrorSignal(AudioBufferInt16& dst, const uint16* errorSignalPacked, int numSamples);
+
+		
 
 	};
 

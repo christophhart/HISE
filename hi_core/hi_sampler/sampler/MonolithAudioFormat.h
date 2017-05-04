@@ -34,11 +34,15 @@
 #ifndef MONOLITHAUDIOFORMAT_H_INCLUDED
 #define MONOLITHAUDIOFORMAT_H_INCLUDED
 
+#define USE_OLD_MONOLITH_FORMAT 0
+
 #if JUCE_64BIT
 #define USE_FALLBACK_READERS_FOR_MONOLITH 0
 #else
 #define USE_FALLBACK_READERS_FOR_MONOLITH 1
 #endif
+
+#if USE_OLD_MONOLITH_FORMAT // Keep it around for a while
 
 class MonolithAudioFormatReader : public MemoryMappedAudioFormatReader
 {
@@ -350,5 +354,138 @@ public:
 
 	OwnedArray<MonolithAudioFormatReader> memoryReaders;
 };
+
+typedef HiseMonolithAudioFormat MonolithInfoToUse;
+
+#else
+
+struct HlacMonolithInfo : public ReferenceCountedObject
+{
+public:
+
+	HlacMonolithInfo(const Array<File>& monolithicFiles_)
+	{
+		monolithicFiles.reserve(monolithicFiles_.size());
+
+
+		for (int i = 0; i < monolithicFiles_.size(); i++)
+		{
+			FileInputStream fis(monolithicFiles_[i]);
+
+			monolithicFiles.push_back(monolithicFiles_[i]);
+
+			ScopedPointer<FileInputStream> fallbackStream = new FileInputStream(monolithicFiles_[i]);
+			fallbackReaders.add(new hlac::HiseLosslessAudioFormatReader(fallbackStream.release()));
+			isMonoChannel[i] = fallbackReaders.getLast()->numChannels == 1;
+		}
+
+		dummyReader.numChannels = 2;
+		dummyReader.bitsPerSample = 16;
+	}
+
+	void fillMetadataInfo(const ValueTree& sampleMap);
+
+	String getFileName(int channelIndex, int sampleIndex) const
+	{
+		return multiChannelSampleInformation[channelIndex][sampleIndex].fileName;
+	}
+
+	int64 getMonolithOffset(int sampleIndex) const
+	{
+		return multiChannelSampleInformation[0][sampleIndex].start;
+	}
+
+	int64 getMonolithLength(int sampleIndex) const
+	{
+		return multiChannelSampleInformation[0][sampleIndex].length;
+	}
+
+	double getMonolithSampleRate(int sampleIndex) const
+	{
+		return multiChannelSampleInformation[0][sampleIndex].sampleRate;
+	}
+
+	AudioFormatReader* createMonolithicReader(int sampleIndex, int channelIndex)
+	{
+		const int sizeOfFirstChannelList = (int)multiChannelSampleInformation[0].size();
+		const int sizeOfChannelList = (int)multiChannelSampleInformation.size();
+
+		if (channelIndex < sizeOfChannelList && sizeOfFirstChannelList > 0 && sampleIndex < sizeOfFirstChannelList)
+		{
+			auto info = &multiChannelSampleInformation[channelIndex][sampleIndex];
+
+			const int64 start = info->start;
+			const int64 length = info->length;
+
+			return new AudioSubsectionReader(memoryReaders[channelIndex], start, length, false);
+		}
+
+		return nullptr;
+	}
+
+	AudioFormatReader* createFallbackReader(int sampleIndex, int channelIndex)
+	{
+		const int sizeOfFirstChannelList = (int)multiChannelSampleInformation[0].size();
+		const int sizeOfChannelList = (int)multiChannelSampleInformation.size();
+
+		if (channelIndex < sizeOfChannelList && sizeOfFirstChannelList > 0 && sampleIndex < sizeOfFirstChannelList)
+		{
+			auto info = &multiChannelSampleInformation[channelIndex][sampleIndex];
+
+			const int64 start = info->start;
+			const int64 length = info->length;
+
+			fallbackReaders[channelIndex]->sampleRate = info->sampleRate;
+
+			return new AudioSubsectionReader(fallbackReaders[channelIndex], start, length, false);
+		}
+
+		return nullptr;
+	}
+
+	struct SampleInfo
+	{
+		double sampleRate;
+		int64 length;
+		int64 start;
+		String fileName;
+	};
+
+private:
+
+	struct DummyReader : public AudioFormatReader
+	{
+	public:
+
+		DummyReader() :
+			AudioFormatReader(nullptr, "HISE Monolith")
+		{};
+
+		bool readSamples(int ** /*destSamples*/, int /*numDestChannels*/, int /*startOffsetInDestBuffer*/, int64 /*startSampleInFile*/, int /*numSamples*/) override
+		{
+			jassertfalse;
+			return false;
+		}
+
+	};
+
+	hlac::HiseLosslessAudioFormat hlaf;
+
+	DummyReader dummyReader;
+
+	std::vector<std::vector<SampleInfo>> multiChannelSampleInformation;
+
+	std::vector<File> monolithicFiles;
+
+	bool isMonoChannel[6];
+
+	OwnedArray<hlac::HiseLosslessAudioFormatReader> fallbackReaders;
+
+	OwnedArray<hlac::HlacMemoryMappedAudioFormatReader> memoryReaders;
+
+};
+
+typedef HlacMonolithInfo MonolithInfoToUse ;
+#endif
 
 #endif  // MONOLITHAUDIOFORMAT_H_INCLUDED

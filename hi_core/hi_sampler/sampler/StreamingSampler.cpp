@@ -59,7 +59,7 @@ StreamingSamplerSound::StreamingSamplerSound(const String &fileNameToLoad, Modul
     setPreloadSize(0);
 }
 
-StreamingSamplerSound::StreamingSamplerSound(HiseMonolithAudioFormat *info, int channelIndex, int sampleIndex):
+StreamingSamplerSound::StreamingSamplerSound(MonolithInfoToUse *info, int channelIndex, int sampleIndex):
 	fileReader(this, nullptr),
 	sampleRate(-1.0),
 	purged(false),
@@ -888,6 +888,11 @@ AudioFormatReader* StreamingSamplerSound::FileReader::createMonolithicReaderForP
 {
 	if (monolithicInfo != nullptr)
 	{
+		auto m = monolithicInfo->createFallbackReader(monolithicIndex, monolithicChannelIndex);
+
+		return m;
+
+#if 0
 #if USE_FALLBACK_READERS_FOR_MONOLITH
      
         auto m = monolithicInfo->createFallbackReader(monolithicIndex, monolithicChannelIndex);
@@ -898,6 +903,7 @@ AudioFormatReader* StreamingSamplerSound::FileReader::createMonolithicReaderForP
         
         
 		return m;
+#endif
 	}
 	else
 	{
@@ -905,7 +911,7 @@ AudioFormatReader* StreamingSamplerSound::FileReader::createMonolithicReaderForP
 	}
 }
 
-void StreamingSamplerSound::FileReader::setMonolithicInfo(HiseMonolithAudioFormat * info, int channelIndex, int sampleIndex)
+void StreamingSamplerSound::FileReader::setMonolithicInfo(MonolithInfoToUse* info, int channelIndex, int sampleIndex)
 {
 	monolithicInfo = info;
 	monolithicIndex = sampleIndex;

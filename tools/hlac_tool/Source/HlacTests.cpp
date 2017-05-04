@@ -34,7 +34,7 @@
 #if HLAC_INCLUDE_TEST_SUITE
 
 
-//static BitCompressors::UnitTests bitTests;
+static BitCompressors::UnitTests bitTests;
 
 void BitCompressors::UnitTests::runTest()
 {
@@ -540,7 +540,7 @@ String CodecTest::getNameForSignal(SignalType s) const
 	return {};
 }
 
-//static CodecTest codecTest;
+static CodecTest codecTest;
 
 class FormatTest : public UnitTest
 {
@@ -554,27 +554,19 @@ public:
 
 	void runTest() override
 	{
-
+		
+		testHeader();
 
 		runFormatTestWithOption(HlacEncoder::CompressorOptions::Presets::WholeBlock);
 		runFormatTestWithOption(HlacEncoder::CompressorOptions::Presets::Delta);
 		runFormatTestWithOption(HlacEncoder::CompressorOptions::Presets::Diff);
 
-        return;
-        
         testReadOperationWithSmallBlockSizes(1, 300000);
         testReadOperationWithSmallBlockSizes(2, 30000);
         
-
-		
-
 #if JUCE_64BIT
 		testMemoryMappedFileReaders(1, 3000000);
 		testMemoryMappedFileReaders(2, 3000000);
-
-		//testMemoryMappedFileReaders(1, 12000000);
-		//testMemoryMappedFileReaders(2, 12000000);
-
 
 		testMemoryMappedBufferedRead(1, 300000);
 		testMemoryMappedBufferedRead(2, 300000);
@@ -585,6 +577,8 @@ public:
 		testMemoryMappedSubsectionReaders(1, 160000);
 		testMemoryMappedSubsectionReaders(2, 160000);
 
+		testMemoryMappedReadingWithOffset(1, 32768);
+		testMemoryMappedReadingWithOffset(2, 160000);
 #endif
 
         return;
@@ -620,6 +614,8 @@ public:
 
 	void testHeader()
 	{
+		return;
+
 		beginTest("Testing header");
 
 		HiseLosslessAudioFormat hlac;
@@ -648,6 +644,20 @@ public:
 			expect(useCompression == header.usesCompression(), "Use Compression");
 			expectEquals<int>(header.getBlockAmount(), numBlocks, "Block amount");
 		}
+
+		return;
+
+		beginTest("Testing checksum validator");
+
+		expect(CompressionHelpers::Misc::validateChecksum(0) == false, "Zero must not pass checksum validator");
+
+		for (int i = 0; i < 1000; i++)
+		{
+			uint32 c = CompressionHelpers::Misc::createChecksum();
+			expect(CompressionHelpers::Misc::validateChecksum(c), "Checksum test " + String(i));
+			expect(!CompressionHelpers::Misc::validateChecksum(r.nextInt()), "Checksum test negative " + String(i));
+		}
+
 	}
 
 	AudioSampleBuffer createTestBuffer(int numChannels=1, int size=44100)
@@ -1342,6 +1352,88 @@ public:
 		expectEquals<int>(memory1Error, 0, "First buffer memory");
 		expectEquals<int>(memory2Error, 0, "Second buffer memory");
 
+	}
+
+	void testMemoryMappedReadingWithOffset(int numChannels, int length)
+	{
+		HiseLosslessAudioFormat hlac;
+
+		auto signal = createTestBuffer(numChannels, length);
+
+		length = signal.getNumSamples();
+
+		int mb = length / 1024 / 1024;
+
+		beginTest("Testing buffered memory mapped file reading with " + String(numChannels) + " channels and length " + String(mb) + "MB");
+
+		TemporaryFile tempFile;
+
+		File f = tempFile.getFile();
+
+		FileOutputStream* fos = new FileOutputStream(f);
+
+		StringPairArray empty;
+
+		ScopedPointer<AudioFormatWriter> writer = hlac.createWriterFor(fos, 44100.0, numChannels, 0, empty, 0);
+
+		int numBytesWritten = 0;
+
+		if (writer != nullptr)
+		{
+			writer->writeFromAudioSampleBuffer(signal, 0, signal.getNumSamples());
+			writer->flush();
+			numBytesWritten = fos->getPosition();
+			writer = nullptr;
+			fos = nullptr;
+		}
+
+		length = CompressionHelpers::getPaddedSampleSize(length);
+
+		FileInputStream* fisM = new FileInputStream(f);
+
+		ScopedPointer<MemoryMappedAudioFormatReader> memoryReader = hlac.createMemoryMappedReader(fisM);
+
+#if JUCE_64BIT
+		expect(memoryReader != nullptr, "Normal Reader OK");
+
+		if (memoryReader == nullptr)
+			return;
+
+		memoryReader->mapEntireFile();
+
+		AudioSampleBuffer signalMemory = AudioSampleBuffer(numChannels, length);
+		signalMemory.clear();
+
+		AudioSampleBuffer buffer(numChannels, COMPRESSION_BLOCK_SIZE * 2);
+
+		for (int i = 10000; i < length; i += (COMPRESSION_BLOCK_SIZE * 2))
+		{
+			const int numThisTime = jmin<int>(COMPRESSION_BLOCK_SIZE * 2, length - i);
+
+			memoryReader->read(&buffer, 0, numThisTime, i, true, true);
+
+			for (int j = 0; j < numChannels; j++)
+			{
+				FloatVectorOperations::copy(signalMemory.getWritePointer(j, i), buffer.getReadPointer(0), numThisTime);
+			}
+		}
+
+		
+		FloatVectorOperations::clear(signal.getWritePointer(0, 0), 10000);
+
+		if(numChannels > 1)
+			FloatVectorOperations::clear(signal.getWritePointer(1, 0), 10000);
+
+		auto memoryError = (int)CompressionHelpers::checkBuffersEqual(signalMemory, signal);
+
+		
+		expectEquals<int>(memoryError, 0, "MemoryMapped Read operation OK");
+
+
+
+#else
+		expect(memoryReader == nullptr, "Unsupported on 32bit");
+#endif
 	}
 
 	void testReadOperationWithSmallBlockSizes(int numChannels, int length)

@@ -30,6 +30,8 @@
 *   ===========================================================================
 */
 
+#if USE_OLD_MONOLITH_FORMAT
+
 void HiseMonolithAudioFormat::fillMetadataInfo(const ValueTree &sampleMap)
 {
 	int numChannels = sampleMap.getChild(0).getNumChildren();
@@ -100,3 +102,78 @@ void HiseMonolithAudioFormat::fillMetadataInfo(const ValueTree &sampleMap)
 #endif
 	}
 }
+
+#else
+
+void HlacMonolithInfo::fillMetadataInfo(const ValueTree& sampleMap)
+{
+	int numChannels = sampleMap.getChild(0).getNumChildren();
+	if (numChannels == 0) numChannels = 1;
+
+	multiChannelSampleInformation.reserve(numChannels);
+
+	for (int i = 0; i < numChannels; i++)
+	{
+		std::vector<SampleInfo> newVector;
+		newVector.reserve(sampleMap.getNumChildren());
+		multiChannelSampleInformation.push_back(newVector);
+	}
+
+
+	for (int i = 0; i < sampleMap.getNumChildren(); i++)
+	{
+		ValueTree sample = sampleMap.getChild(i);
+
+		if (numChannels == 1)
+		{
+			SampleInfo info;
+
+			info.start = sample.getProperty("MonolithOffset");
+			info.length = sample.getProperty("MonolithLength");
+			info.sampleRate = sample.getProperty("SampleRate");
+			info.fileName = sample.getProperty("FileName");
+
+			multiChannelSampleInformation[0].push_back(info);
+		}
+		else
+		{
+			for (int channel = 0; channel < numChannels; channel++)
+			{
+				SampleInfo info;
+
+				info.start = sample.getProperty("MonolithOffset");
+				info.length = sample.getProperty("MonolithLength");
+				info.sampleRate = sample.getProperty("SampleRate");
+				info.fileName = sample.getChild(channel).getProperty("FileName");
+
+				multiChannelSampleInformation[channel].push_back(info);
+			}
+		}
+	}
+
+	for (int i = 0; i < numChannels; i++)
+	{
+		dummyReader.numChannels = isMonoChannel[i] ? 1 : 2;
+		dummyReader.sampleRate = multiChannelSampleInformation[i][0].sampleRate;
+
+		const int bytesPerFrame = sizeof(int16) * dummyReader.numChannels;
+		FileInputStream fis(monolithicFiles[i]);
+		dummyReader.lengthInSamples = (fis.getTotalLength() - 1) / bytesPerFrame;
+
+		ScopedPointer<MemoryMappedAudioFormatReader> reader = hlaf.createMemoryMappedReader(monolithicFiles[i]);
+
+#if !USE_FALLBACK_READERS_FOR_MONOLITH
+		reader->mapEntireFile();
+
+		memoryReaders.add(dynamic_cast<hlac::HlacMemoryMappedAudioFormatReader*>(reader.release()));
+
+		if (memoryReaders.getLast()->getMappedSection().isEmpty())
+		{
+			jassertfalse;
+			throw StreamingSamplerSound::LoadingError(monolithicFiles[i].getFileName(), "Error at memory mapping");
+		}
+#endif
+	}
+}
+
+#endif

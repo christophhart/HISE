@@ -866,7 +866,7 @@ MonolithExporter::MonolithExporter(SampleMap* sampleMap_) :
 	sa.add("Fast Decompression");
 	sa.add("Low file size (recommended)");
 
-	addComboBox("compressOptions", sa, "HLAC Compression options");
+	addComboBox("compressionOptions", sa, "HLAC Compression options");
 
 	addTextEditor("id", sampleMap->getId().toString(), "Sample Map Name");
 
@@ -955,28 +955,76 @@ void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 {
 	AudioFormatManager afm;
 	afm.registerBasicFormats();
+#if HI_INCLUDE_HLAC
+	afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
+#endif
+
 	Array<File>* channelList = filesToWrite[channelIndex];
 
 	bool isMono = false;
+
+	double sampleRate = -1.0;
 
 	if (channelList->size() > 0)
 	{
 		ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(channelList->getUnchecked(0));
 
 		isMono = reader->numChannels == 1;
+		sampleRate = reader->sampleRate;
 	}
 
 	String channelFileName = sampleMap->getId().toString() + ".ch" + String(channelIndex + 1);
 
 	File outputFile = monolithDirectory.getChildFile(channelFileName);
 
+
+
 	if (!outputFile.existsAsFile() || overwriteExistingData)
 	{
 
 		outputFile.deleteFile();
 		outputFile.create();
-		FileOutputStream fos(outputFile);
+		
 
+#if HI_INCLUDE_HLAC
+
+		if (true)
+		{
+			hlac::HiseLosslessAudioFormat hlac;
+
+			
+
+			FileOutputStream* hlacOutput = new FileOutputStream(outputFile);
+
+			int cIndex = getComboBoxComponent("compressionOptions")->getSelectedItemIndex();
+
+			hlac::HlacEncoder::CompressorOptions options = hlac::HlacEncoder::CompressorOptions::getPreset((hlac::HlacEncoder::CompressorOptions::Presets)cIndex);
+
+			StringPairArray empty;
+
+			ScopedPointer<AudioFormatWriter> writer = hlac.createWriterFor(hlacOutput, sampleRate, isMono ? 1 : 2, 16, empty, 5);
+
+			dynamic_cast<hlac::HiseLosslessAudioFormatWriter*>(writer.get())->setOptions(options);
+
+			for (int i = 0; i < channelList->size(); i++)
+			{
+				setProgress((double)i / (double)numSamples);
+
+				ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(channelList->getUnchecked(i));
+
+				writer->writeFromAudioReader(*reader, 0, -1);
+			}
+
+			writer->flush();
+
+			writer = nullptr;
+
+			return;
+		}
+
+#endif
+
+		FileOutputStream fos(outputFile);
 		fos.writeBool(isMono);
 
 		showStatusMessage("Exporting Channel " + String(channelIndex + 1));
@@ -1027,6 +1075,8 @@ void MonolithExporter::updateSampleMap()
 	largestSample = 0;
 	int64 offset = 0;
 
+	const bool usePaddingForCompression = getComboBoxComponent("compressionOptions")->getSelectedItemIndex() > 0;
+
 	for (int i = 0; i < numSamples; i++)
 	{
 		ValueTree s = v.getChild(i);
@@ -1039,7 +1089,11 @@ void MonolithExporter::updateSampleMap()
 
 			if (reader != nullptr)
 			{
+#if HI_INCLUDE_HLAC
+				const int64 length = usePaddingForCompression ? hlac::CompressionHelpers::getPaddedSampleSize(reader->lengthInSamples) : reader->lengthInSamples;
+#else
 				const int64 length = reader->lengthInSamples;
+#endif
 
 				largestSample = jmax<int64>(largestSample, length);
 

@@ -476,7 +476,7 @@ public:
 		chain(bpe_->getMainSynthChain())
 	{
 
-		sampler = dynamic_cast<ModulatorSampler*>(ProcessorHelpers::getFirstProcessorWithName(chain, "ConvertSampler"));
+		sampler = dynamic_cast<ModulatorSampler*>(ProcessorHelpers::getFirstProcessorWithName(chain, "Sampler"));
 		sampleFolder = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::Samples);
 
 		jassert(sampler != nullptr);
@@ -504,6 +504,14 @@ public:
 		addComboBox("option", option, "Export Depth");
 
 		addTextEditor("directorySeparator", "::", "Directory separation character");
+
+		StringArray sa;
+
+		sa.add("No compression");
+		sa.add("Fast Decompression");
+		sa.add("Low file size (recommended)");
+
+		addComboBox("compressionOptions", sa, "HLAC Compression options");
 
 		addBasicComponents(true);
 	};

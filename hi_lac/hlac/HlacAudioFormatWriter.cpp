@@ -67,6 +67,7 @@ bool HiseLosslessAudioFormatWriter::flush()
 
 void HiseLosslessAudioFormatWriter::setOptions(HlacEncoder::CompressorOptions& newOptions)
 {
+	options = newOptions;
 	encoder.setOptions(newOptions);
 }
 
@@ -76,23 +77,45 @@ bool HiseLosslessAudioFormatWriter::write(const int** samplesToWrite, int numSam
 
 	bool isStereo = samplesToWrite[1] != nullptr;
 
-	if (isStereo)
+	if (options.useCompression)
 	{
-		float* const* r = const_cast<float**>(reinterpret_cast<const float**>(samplesToWrite));
+		if (isStereo)
+		{
+			float* const* r = const_cast<float**>(reinterpret_cast<const float**>(samplesToWrite));
 
-		AudioSampleBuffer b = AudioSampleBuffer(r, 2, numSamples);
+			AudioSampleBuffer b = AudioSampleBuffer(r, 2, numSamples);
 
-		encoder.compress(b, *tempOutputStream, blockOffsets);
+			encoder.compress(b, *tempOutputStream, blockOffsets);
+		}
+		else
+		{
+			float* r = const_cast<float*>(reinterpret_cast<const float*>(samplesToWrite[0]));
+
+			AudioSampleBuffer b = AudioSampleBuffer(&r, 1, numSamples);
+
+			encoder.compress(b, *tempOutputStream, blockOffsets);
+		}
+
 	}
 	else
 	{
-		float* r = const_cast<float*>(reinterpret_cast<const float*>(samplesToWrite[0]));
+		float* const* r = const_cast<float**>(reinterpret_cast<const float**>(samplesToWrite));
+		int numChannels = isStereo ? 2 : 1;
 
-		AudioSampleBuffer b = AudioSampleBuffer(&r, 1, numSamples);
+		AudioSampleBuffer source = AudioSampleBuffer(r, numChannels, numSamples);
 
-		encoder.compress(b, *tempOutputStream, blockOffsets);
+		MemoryBlock tempBlock;
+
+		const int bytesToWrite = numSamples * numChannels * sizeof(int16);
+
+		tempBlock.setSize(bytesToWrite, false);
+
+		AudioFormatWriter::WriteHelper<AudioData::Int16, AudioData::Float32, AudioData::LittleEndian>::write(
+			tempBlock.getData(), numChannels, (const int* const *)source.getArrayOfReadPointers(), numSamples);
+
+		tempOutputStream->write(tempBlock.getData(), bytesToWrite);
 	}
-
+	
 	return true;
 }
 
@@ -130,21 +153,31 @@ void HiseLosslessAudioFormatWriter::setTemporaryBufferType(bool shouldUseTempora
 
 bool HiseLosslessAudioFormatWriter::writeHeader()
 {
-	auto numBlocks = encoder.getNumBlocksWritten();
+	if (options.useCompression)
+	{
+		auto numBlocks = encoder.getNumBlocksWritten();
 
-	HiseLosslessHeader header(useEncryption, globalBitShiftAmount, sampleRate, numChannels, bitsPerSample, useCompression, numBlocks);
+		HiseLosslessHeader header(useEncryption, globalBitShiftAmount, sampleRate, numChannels, bitsPerSample, useCompression, numBlocks);
 
-	jassert(header.getVersion() == HLAC_VERSION);
-	jassert(header.getBitShiftAmount() == globalBitShiftAmount);
-	jassert(header.getNumChannels() == numChannels);
-	jassert(header.usesCompression() == useCompression);
-	jassert(header.getSampleRate() == sampleRate);
-	jassert(header.getBitsPerSample() == bitsPerSample);
+		jassert(header.getVersion() == HLAC_VERSION);
+		jassert(header.getBitShiftAmount() == globalBitShiftAmount);
+		jassert(header.getNumChannels() == numChannels);
+		jassert(header.usesCompression() == useCompression);
+		jassert(header.getSampleRate() == sampleRate);
+		jassert(header.getBitsPerSample() == bitsPerSample);
 
-	header.storeOffsets(blockOffsets, numBlocks);
+		header.storeOffsets(blockOffsets, numBlocks);
 
-	header.write(output);
-	return true;
+		return header.write(output);
+	}
+	else
+	{
+		auto monoHeader = HiseLosslessHeader::createMonolithHeader(numChannels, sampleRate);
+
+		return monoHeader.write(output);
+	}
+
+	
 }
 
 
