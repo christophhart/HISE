@@ -187,6 +187,7 @@ private:
 	OwnedArray<ScriptCreatedComponentWrapper> componentWrappers;
 };
 
+
 class ModulatorSynthChainBody;
 class ModulatorSynthChain;
 

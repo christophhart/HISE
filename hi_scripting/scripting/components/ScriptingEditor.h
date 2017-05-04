@@ -34,6 +34,10 @@
 #define __JUCE_HEADER_87B359E078BBC6D4__
 
 
+
+class ScriptingEditor;
+
+
 class HardcodedScriptEditor: public ProcessorEditorBody
 {
 public:
@@ -206,6 +210,9 @@ public:
 
 	void showOnInitCallback();
 
+	void openContentInPopup();
+	void closeContentPopup();
+
 	void editInAllPopup();
 	void closeAllPopup();
 
@@ -305,21 +312,25 @@ public:
 	{
 	public:
 
-		DragOverlay();
+		DragOverlay(ScriptingEditor* parentEditor, ScriptContentComponent* content=nullptr);
 
 
 		void resized();
 
 		void buttonClicked(Button* buttonThatWasClicked);
 
+		void setEditMode(bool editModeEnabled);
+
 		void paint(Graphics& g) override;
+
+		void mouseDown(const MouseEvent& e) override;
 
 
 		class Dragger : public Component
 		{
 		public:
 
-			Dragger();
+			Dragger(ScriptingEditor* parentEditor);
 
 			~Dragger();
 
@@ -420,38 +431,7 @@ public:
 
 			
 
-			void setDraggedControl(Component* componentToDrag, ScriptingApi::Content::ScriptComponent* sc)
-			{
-				if (componentToDrag != nullptr && componentToDrag != currentlyDraggedComponent.getComponent())
-				{
-					currentScriptComponent = sc;
-					currentlyDraggedComponent = componentToDrag;
-
-					currentMovementWatcher = new MovementWatcher(componentToDrag, this);
-
-					Component* p = componentToDrag->getParentComponent();
-
-					setBounds(getParentComponent()->getLocalArea(p, componentToDrag->getBounds()));
-					setVisible(true);
-					setWantsKeyboardFocus(true);
-					
-					
-
-					setAlwaysOnTop(true);
-					grabKeyboardFocus();
-				}
-				else if (componentToDrag == nullptr)
-				{
-					currentScriptComponent = nullptr;
-					currentlyDraggedComponent = nullptr;
-					currentMovementWatcher = nullptr;
-					setBounds(Rectangle<int>());
-					setVisible(false);
-					setWantsKeyboardFocus(false);
-					setAlwaysOnTop(false);
-				}
-
-			};
+			void setDraggedControl(Component* componentToDrag, ScriptingApi::Content::ScriptComponent* sc);;
 
 		private:
 
@@ -608,14 +588,7 @@ public:
 					dragComponent(dragComponent_)
 				{};
 
-				void componentMovedOrResized(bool /*wasMoved*/, bool /*wasResized*/) override
-				{
-					Component* p = getComponent()->getParentComponent();
-
-					dragComponent->setBounds(dragComponent->getParentComponent()->getLocalArea(p, getComponent()->getBounds()));
-
-					//dragComponent->setBounds(getComponent()->getBounds());
-				}
+				void componentMovedOrResized(bool /*wasMoved*/, bool /*wasResized*/) override;
 
 				void componentPeerChanged()  override {}
 				void componentVisibilityChanged() override {};
@@ -689,6 +662,7 @@ public:
 			};
 
 
+			
 			Component::SafePointer<Component> currentlyDraggedComponent;
 			ScriptingApi::Content::ScriptComponent* currentScriptComponent;
 
@@ -705,6 +679,7 @@ public:
 			Image snapShot;
 			bool copyMode = false;
 
+			Component::SafePointer<ScriptingEditor> parentEditor;
 			
 		};
 
@@ -715,8 +690,62 @@ public:
 
 		ScopedPointer<ShapeButton> dragModeButton;
 
+		Component::SafePointer<ScriptingEditor> parentEditor;
+		Component::SafePointer<ScriptContentComponent> content;
 	};
 
+
+	class ContentPopup : public DocumentWindow
+	{
+	public:
+
+		ContentPopup(ProcessorWithScriptingContent* pwsc, ScriptingEditor* parentEditor) :
+			DocumentWindow("Interface Popup", Colours::black, DocumentWindow::allButtons, true),
+			parent(parentEditor)
+		{
+			holder = new Component();
+			holder->addAndMakeVisible(content = new ScriptContentComponent(pwsc));
+			holder->addAndMakeVisible(dragOverlay = new DragOverlay(parentEditor, content));
+			holder->setSize(jmax<int>(40, content->getContentWidth()), jmax<int>(40, content->getContentHeight()));
+
+			setContentNonOwned(holder, true);
+
+			setUsingNativeTitleBar(true);
+
+			setResizable(false, false);
+			setVisible(true);
+
+			centreWithSize(holder->getWidth(), holder->getHeight());
+		}
+
+		void closeButtonPressed() override
+		{
+			if (parent.getComponent() != nullptr)
+			{
+				parent->closeContentPopup();
+			}
+		}
+
+
+		void mouseDown(const MouseEvent& e) override
+		{
+
+		}
+
+		void resized()
+		{
+			content->setBounds(0, 0, content->getContentWidth(), content->getContentHeight());
+			dragOverlay->setBounds(0, 0, content->getContentWidth(), content->getContentHeight());
+			holder->setBounds(0, 0, content->getContentWidth(), content->getContentHeight());
+		}
+
+		ScopedPointer<Component> holder;
+
+		Component::SafePointer<ScriptingEditor> parent;
+
+		ScopedPointer<ScriptContentComponent> content;
+		ScopedPointer<DragOverlay> dragOverlay;
+	};
 
 
 private:
@@ -724,6 +753,7 @@ private:
 	bool isConnectedToExternalScript = false;
 
 	ScopedPointer<DragOverlay> dragOverlay;
+	Component::SafePointer<DragOverlay> currentDragOverlay;
 
 	ScopedPointer<CodeDocument> doc;
 
@@ -731,9 +761,13 @@ private:
 
 	ScopedPointer<PopupIncludeEditorWindow> allEditor;
 
+	ScopedPointer<ContentPopup> contentPopup;
+
 	bool editorShown;
 
 	bool useComponentSelectMode;
+
+	int currentCallbackIndex = -1;
 
 	ScopedPointer<ScriptContentComponent> scriptContent;
 

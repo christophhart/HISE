@@ -382,8 +382,8 @@ Component* ScriptContentComponent::setEditedScriptComponent(ScriptingApi::Conten
 
 			
 
-			setWantsKeyboardFocus(true);
-			grabKeyboardFocus();
+			//setWantsKeyboardFocus(true);
+			//grabKeyboardFocus();
 
 			repaint();
 			return componentWrappers[i]->getComponent();

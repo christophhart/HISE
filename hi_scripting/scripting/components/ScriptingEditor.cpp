@@ -78,7 +78,9 @@ ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
     timeLabel->setColour (TextEditor::textColourId, Colours::black);
     timeLabel->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
 
-	addAndMakeVisible(contentButton = new TextButton("new button"));
+	addAndMakeVisible(buttonRow = new Component());
+
+	buttonRow->addAndMakeVisible(contentButton = new TextButton("new button"));
 	contentButton->setButtonText(TRANS("Interface"));
 	contentButton->setConnectedEdges(Button::ConnectedOnRight);
 	contentButton->addListener(this);
@@ -87,8 +89,6 @@ ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
 	contentButton->setColour(TextButton::textColourOnId, Colour(0x77ffffff));
 	contentButton->setColour(TextButton::textColourOffId, Colour(0x45ffffff));
 	contentButton->setLookAndFeel(&alaf);
-
-    addAndMakeVisible(buttonRow = new Component());
 
 	for (int i = 0; i < sp->getNumSnippets(); i++)
 	{
@@ -135,7 +135,9 @@ ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
 		lastPositions.add(37);
 	}
 	
-	addAndMakeVisible(dragOverlay = new DragOverlay());
+	addAndMakeVisible(dragOverlay = new DragOverlay(this));
+
+	currentDragOverlay = dragOverlay;
 
     setSize (800, 500);
 
@@ -147,6 +149,7 @@ ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
 ScriptingEditor::~ScriptingEditor()
 { 
 	allEditor = nullptr;
+	contentPopup = nullptr;
 
 	getProcessor()->getMainController()->setEditedScriptComponent(nullptr, nullptr);
 
@@ -282,7 +285,9 @@ int ScriptingEditor::getBodyHeight() const
 	{
 		int editorOffset = pwsc->getCallbackEditorStateOffset();
 
-		const int contentHeight = getProcessor()->getEditorState(editorOffset + ProcessorWithScriptingContent::EditorStates::contentShown) ? pwsc->getScriptingContent()->getContentHeight() : 0;
+		const bool showContent = getProcessor()->getEditorState(editorOffset + ProcessorWithScriptingContent::EditorStates::contentShown) && (contentPopup == nullptr);
+
+		const int contentHeight = showContent ? pwsc->getScriptingContent()->getContentHeight() : 0;
 
 		const int additionalOffset = (dynamic_cast<const JavascriptModulatorSynth*>(getProcessor()) != nullptr) ? 5 : 0;
 
@@ -315,8 +320,6 @@ void ScriptingEditor::paint (Graphics& g)
 		g.setGradientFill(ColourGradient(c.withMultipliedBrightness(0.8f), 0.0f, y, c, 0.0f, y+6.0f, false));
 
 		g.fillRect(1, codeEditor->getBottom(), getWidth()-2, compileButton->getHeight());
-
-		
 	}
 
     //[/UserPaint]
@@ -342,23 +345,12 @@ void ScriptingEditor::resized()
 		return;
 	}
 
-    codeEditor->setBounds ((getWidth() / 2) - ((getWidth() - 90) / 2), 104, getWidth() - 90, getHeight() - 140);
+	codeEditor->setBounds ((getWidth() / 2) - ((getWidth() - 90) / 2), 104, getWidth() - 90, getHeight() - 140);
     compileButton->setBounds (((getWidth() / 2) - ((getWidth() - 90) / 2)) + (getWidth() - 90) - 95, getHeight() - 24, 95, 24);
     messageBox->setBounds (((getWidth() / 2) - ((getWidth() - 90) / 2)) + 0, getHeight() - 24, getWidth() - 296, 24);
     
 	int buttonWidth = (getWidth()-20) / (callbackButtons.size() + 1);
 	int buttonX = 10;
-
-	contentButton->setBounds(buttonX, 0, buttonWidth, 20);
-	buttonX = contentButton->getRight();
-
-    buttonRow->setBounds(0, 0, getWidth(), 28);
-    
-	for (int i = 0; i < callbackButtons.size(); i++)
-	{
-		callbackButtons[i]->setBounds(buttonX, 0, buttonWidth, 20);
-		buttonX = callbackButtons[i]->getRight();
-	}
 
 	int y = 28;
 
@@ -367,7 +359,7 @@ void ScriptingEditor::resized()
 
 	int editorOffset = dynamic_cast<const ProcessorWithScriptingContent*>(getProcessor())->getCallbackEditorStateOffset();
 
-	scriptContent->setVisible(getProcessor()->getEditorState(editorOffset + ProcessorWithScriptingContent::contentShown));
+	scriptContent->setVisible(contentPopup==nullptr && getProcessor()->getEditorState(editorOffset + ProcessorWithScriptingContent::contentShown));
 
 	const int contentHeight = scriptContent->isVisible() ? scriptContent->getContentHeight() : 0;
 
@@ -408,6 +400,18 @@ void ScriptingEditor::resized()
 
     // The editor gets weirdly disabled occasionally, so this is a hacky fix for this...
     setEnabled(true);
+
+	contentButton->setBounds(buttonX, 0, buttonWidth, 20);
+	buttonX = contentButton->getRight();
+
+	buttonRow->setBounds(0, 0, getWidth(), 28);
+
+	for (int i = 0; i < callbackButtons.size(); i++)
+	{
+		callbackButtons[i]->setBounds(buttonX, 0, buttonWidth, 20);
+		buttonX = callbackButtons[i]->getRight();
+	}
+
 }
 
 void ScriptingEditor::buttonClicked (Button* buttonThatWasClicked)
@@ -441,6 +445,7 @@ void ScriptingEditor::buttonClicked (Button* buttonThatWasClicked)
 
 		getProcessor()->setEditorState(editorOffset + ProcessorWithScriptingContent::EditorStates::contentShown, !toggleButton(contentButton));
 		refreshBodySize();
+		resized();
 		return;
     }
 
@@ -461,6 +466,10 @@ void ScriptingEditor::buttonClicked (Button* buttonThatWasClicked)
 		for (int i = 0; i < callbackButtons.size(); i++)
 		{
 			const bool isShown = buttonThatWasClicked == callbackButtons[i];
+
+			if (isShown)
+				currentCallbackIndex = i;
+
 			callbackButtons[i]->setToggleState(isShown, dontSendNotification);
 			getProcessor()->setEditorState(editorOffset + (int)ProcessorWithScriptingContent::EditorStates::onInitShown + i, isShown);
 		}
@@ -545,22 +554,25 @@ void ScriptingEditor::setEditedScriptComponent(ReferenceCountedObject* component
 
 	Component* scc = scriptContent->setEditedScriptComponent(sc);
 
-	dragOverlay->dragger->setDraggedControl(scc, sc);
+
+	currentDragOverlay->dragger->setDraggedControl(scc, sc);
 
 	if(component != nullptr)
 	{
 		showOnInitCallback();
 
-		codeEditor->editor->selectJSONTag(sc->getName());
+		//codeEditor->editor->selectJSONTag(sc->getName());
 	}
 }
 
 void ScriptingEditor::showCallback(int callbackIndex, int lineToScroll/*=-1*/)
 {
-	if (callbackIndex < callbackButtons.size())
+	if (currentCallbackIndex != callbackIndex && callbackIndex < callbackButtons.size())
 	{
 		callbackButtons[callbackIndex]->setToggleState(false, dontSendNotification);
 		buttonClicked(callbackButtons[callbackIndex]);
+
+		
 
 		if (lineToScroll != -1)
 		{
@@ -582,6 +594,29 @@ void ScriptingEditor::showCallback(int callbackIndex, int lineToScroll/*=-1*/)
 void ScriptingEditor::showOnInitCallback()
 {
 	showCallback(0);
+}
+
+void ScriptingEditor::openContentInPopup()
+{
+	if (contentPopup == nullptr)
+	{
+		contentPopup = new ContentPopup(dynamic_cast<ProcessorWithScriptingContent*>(getProcessor()), this);
+		contentPopup->addToDesktop();
+		currentDragOverlay = contentPopup->dragOverlay;
+		refreshBodySize();
+	}
+	else
+	{
+		contentPopup->toFront(true);
+	}
+}
+
+void ScriptingEditor::closeContentPopup()
+{
+	contentPopup->removeFromDesktop();
+	contentPopup = nullptr;
+	currentDragOverlay = dragOverlay;
+	refreshBodySize();
 }
 
 void ScriptingEditor::editInAllPopup()
@@ -1170,102 +1205,6 @@ void ScriptingEditor::mouseDown(const MouseEvent &e)
 	{
 		messageBox->setText("> ", dontSendNotification);
 	}
-
-	if (e.mods.isLeftButtonDown() && useComponentSelectMode)
-	{
-		ScriptingApi::Content::ScriptComponent *sc = scriptContent->getScriptComponentFor(e.getEventRelativeTo(scriptContent).getPosition());
-
-		getProcessor()->getMainController()->setEditedScriptComponent(sc, this);
-	}
-
-	if(editorShown && e.mods.isRightButtonDown())
-	{
-		const int editComponentOffset = 109;
-
-		PopupMenu m;
-		ScopedPointer<PopupLookAndFeel> luf = new PopupLookAndFeel();
-		m.setLookAndFeel(luf);
-
-		Array<ScriptingApi::Content::ScriptComponent*> components;
-		
-		scriptContent->getScriptComponentsFor(components, e.getEventRelativeTo(scriptContent).getPosition());
-
-		if (useComponentSelectMode)
-		{
-			m.addSectionHeader("Create new widget");
-			m.addItem((int)Widgets::Knob, "Add new Slider");
-			m.addItem((int)Widgets::Button, "Add new Button");
-			m.addItem((int)Widgets::Table, "Add new Table");
-			m.addItem((int)Widgets::ComboBox, "Add new ComboBox");
-			m.addItem((int)Widgets::Label, "Add new Label");
-			m.addItem((int)Widgets::Image, "Add new Image");
-			m.addItem((int)Widgets::Plotter, "Add new Plotter");
-			m.addItem((int)Widgets::ModulatorMeter, "Add new ModulatorMeter");
-			m.addItem((int)Widgets::Panel, "Add new Panel");
-			m.addItem((int)Widgets::AudioWaveform, "Add new AudioWaveform");
-			m.addItem((int)Widgets::SliderPack, "Add new SliderPack");
-
-			m.addItem((int)Widgets::duplicateWidget, "Duplicate selected component", scriptContent->getEditedComponent() != nullptr);
-
-			if (components.size() != 0)
-			{
-				m.addSeparator();
-
-				m.addItem(6, "Connect to Module Parameter");
-
-				if (components.size() == 1)
-				{
-					m.addItem(editComponentOffset, "Edit \"" + components[0]->getName().toString() + "\" in Panel");
-				}
-				else
-				{
-					PopupMenu comp;
-
-					for (int i = 0; i < components.size(); i++)
-					{
-						comp.addItem(editComponentOffset + i, components[i]->getName().toString());
-					}
-
-					m.addSubMenu("Select Component to edit", comp, components.size() != 0);
-				}
-			}
-
-		}
-		else
-		{
-			return;
-		}
-
-		int result = m.show();
-
-		if (result == 6)
-		{
-			ScriptingApi::Content::ScriptComponent* sc = components.getFirst();
-
-			jassert(sc != nullptr);
-
-			if (ProcessorHelpers::is<JavascriptMidiProcessor>(getProcessor()))
-			{
-				ParameterConnector *comp = new ParameterConnector(sc, this);
-
-				comp->setModalBaseWindowComponent(findParentComponentOfClass<BackendProcessorEditor>());
-			}
-		}
-		else if (result >= (int)Widgets::Knob && result < (int)Widgets::numWidgets)
-		{
-			const int insertX = e.getEventRelativeTo(scriptContent).getMouseDownPosition().getX();
-			const int insertY = e.getEventRelativeTo(scriptContent).getMouseDownPosition().getY();
-
-			createNewComponent((Widgets)result, insertX, insertY);
-		}
-		else if (result >= editComponentOffset) // EDIT IN PANEL
-		{
-			ReferenceCountedObject* sc = components[result - editComponentOffset];
-
-			getProcessor()->getMainController()->setEditedScriptComponent(sc, this);
-		}
-		
-	}
 }
 
 void ScriptingEditor::toggleComponentSelectMode(bool shouldSelectOnClick)
@@ -1496,11 +1435,16 @@ namespace OverlayIcons
         81,200,65,121,9,75,67,108,123,148,145,66,53,158,121,67,108,0,0,0,0,74,60,138,67,108,236,81,200,65,121,9,75,67,99,101,0,0 };
 };
 
-ScriptingEditor::DragOverlay::DragOverlay()
+ScriptingEditor::DragOverlay::DragOverlay(ScriptingEditor* parentEditor_, ScriptContentComponent* content_):
+	parentEditor(parentEditor_),
+	content(content_)
 {
-	addAndMakeVisible(dragger = new Dragger());
-
-	setInterceptsMouseClicks(false, true);
+	if (content_ == nullptr)
+	{
+		content = parentEditor->scriptContent;
+	}
+	
+	addAndMakeVisible(dragger = new Dragger(parentEditor_));
 
 	addAndMakeVisible(dragModeButton = new ShapeButton("Drag Mode", Colours::black.withAlpha(0.6f), Colours::black.withAlpha(0.8f), Colours::black.withAlpha(0.8f)));
 
@@ -1513,7 +1457,7 @@ ScriptingEditor::DragOverlay::DragOverlay()
 
     dragModeButton->setTooltip("Toggle between Edit / Performance mode");
     
-	dragMode = false;
+	setEditMode(parentEditor_->useComponentSelectMode);
 }
 
 void ScriptingEditor::DragOverlay::resized()
@@ -1524,29 +1468,35 @@ void ScriptingEditor::DragOverlay::resized()
 
 void ScriptingEditor::DragOverlay::buttonClicked(Button* buttonThatWasClicked)
 {
-	dragMode = !dragMode;
+	setEditMode(!dragMode);
 
-	buttonThatWasClicked->setToggleState(dragMode, dontSendNotification);
-
-	findParentComponentOfClass<ScriptingEditor>()->toggleComponentSelectMode(dragMode);
-
-    Path p;
+	parentEditor->toggleComponentSelectMode(dragMode);
     
-    
+	
+}
+
+void ScriptingEditor::DragOverlay::setEditMode(bool editModeEnabled)
+{
+	dragMode = editModeEnabled;
+
+	Path p;
+
 	if (dragMode == false)
 	{
-        p.loadPathFromData(OverlayIcons::lockShape, sizeof(OverlayIcons::lockShape));
+		p.loadPathFromData(OverlayIcons::lockShape, sizeof(OverlayIcons::lockShape));
 		dragger->setDraggedControl(nullptr, nullptr);
+		setInterceptsMouseClicks(false, true);
 	}
-    else
-    {
-        p.loadPathFromData(OverlayIcons::penShape, sizeof(OverlayIcons::penShape));
-    }
+	else
+	{
+		p.loadPathFromData(OverlayIcons::penShape, sizeof(OverlayIcons::penShape));
+		setInterceptsMouseClicks(true, true);
+	}
 
-    dragModeButton->setShape(p, true, true, false);
-    
-    resized();
-    
+	dragModeButton->setShape(p, true, true, false);
+	dragModeButton->setToggleState(dragMode, dontSendNotification);
+
+	resized();
 	repaint();
 }
 
@@ -1562,16 +1512,20 @@ void ScriptingEditor::DragOverlay::paint(Graphics& g)
         g.setColour(Colours::white.withAlpha(0.05f));
         g.fillAll();
         
+		const bool isInPopup = findParentComponentOfClass<ContentPopup>() != nullptr;
+
+		Colour lineColour = isInPopup ? Colours::white : Colours::black;
+
 		for (int x = 10; x < getWidth(); x += 10)
 		{
-			g.setColour(Colours::black.withAlpha((x % 100 == 0) ? 0.12f : 0.05f));
+			g.setColour(lineColour.withAlpha((x % 100 == 0) ? 0.12f : 0.05f));
 
 			g.drawVerticalLine(x, 0.0f, (float)getHeight());
 		}
 
 		for (int y = 10; y < getHeight(); y += 10)
 		{
-			g.setColour(Colours::black.withAlpha(((y) % 100 == 0) ? 0.1f : 0.05f));
+			g.setColour(lineColour.withAlpha(((y) % 100 == 0) ? 0.1f : 0.05f));
 			g.drawHorizontalLine(y, 0.0f, (float)getWidth());
 		}
 	}
@@ -1583,11 +1537,110 @@ void ScriptingEditor::DragOverlay::paint(Graphics& g)
     g.fillRoundedRectangle(getFloatRectangle(dragModeButton->getBounds().expanded(3)), 3.0f);
 }
 
-ScriptingEditor::DragOverlay::Dragger::Dragger()
+void ScriptingEditor::DragOverlay::mouseDown(const MouseEvent& e)
+{
+	if (e.mods.isLeftButtonDown() && parentEditor->useComponentSelectMode)
+	{
+		ScriptingApi::Content::ScriptComponent *sc = content->getScriptComponentFor(e.getEventRelativeTo(content).getPosition());
+
+		parentEditor->getProcessor()->getMainController()->setEditedScriptComponent(sc, parentEditor);
+
+	}
+
+	if (parentEditor->editorShown && e.mods.isRightButtonDown())
+	{
+		const int editComponentOffset = 109;
+
+		PopupMenu m;
+		ScopedPointer<PopupLookAndFeel> luf = new PopupLookAndFeel();
+		m.setLookAndFeel(luf);
+
+		Array<ScriptingApi::Content::ScriptComponent*> components;
+
+		parentEditor->scriptContent->getScriptComponentsFor(components, e.getEventRelativeTo(content).getPosition());
+
+		if (parentEditor->useComponentSelectMode)
+		{
+			m.addSectionHeader("Create new widget");
+			m.addItem((int)Widgets::Knob, "Add new Slider");
+			m.addItem((int)Widgets::Button, "Add new Button");
+			m.addItem((int)Widgets::Table, "Add new Table");
+			m.addItem((int)Widgets::ComboBox, "Add new ComboBox");
+			m.addItem((int)Widgets::Label, "Add new Label");
+			m.addItem((int)Widgets::Image, "Add new Image");
+			m.addItem((int)Widgets::Plotter, "Add new Plotter");
+			m.addItem((int)Widgets::ModulatorMeter, "Add new ModulatorMeter");
+			m.addItem((int)Widgets::Panel, "Add new Panel");
+			m.addItem((int)Widgets::AudioWaveform, "Add new AudioWaveform");
+			m.addItem((int)Widgets::SliderPack, "Add new SliderPack");
+
+			m.addItem((int)Widgets::duplicateWidget, "Duplicate selected component", content->getEditedComponent() != nullptr);
+
+			if (components.size() != 0)
+			{
+				m.addSeparator();
+
+				m.addItem(6, "Connect to Module Parameter");
+
+				if (components.size() == 1)
+				{
+					m.addItem(editComponentOffset, "Edit \"" + components[0]->getName().toString() + "\" in Panel");
+				}
+				else
+				{
+					PopupMenu comp;
+
+					for (int i = 0; i < components.size(); i++)
+					{
+						comp.addItem(editComponentOffset + i, components[i]->getName().toString());
+					}
+
+					m.addSubMenu("Select Component to edit", comp, components.size() != 0);
+				}
+			}
+
+		}
+		else
+		{
+			return;
+		}
+
+		int result = m.show();
+
+		if (result == 6)
+		{
+			ScriptingApi::Content::ScriptComponent* sc = components.getFirst();
+
+			jassert(sc != nullptr);
+
+			if (ProcessorHelpers::is<JavascriptMidiProcessor>(parentEditor->getProcessor()))
+			{
+				ParameterConnector *comp = new ParameterConnector(sc, parentEditor);
+
+				comp->setModalBaseWindowComponent(parentEditor->findParentComponentOfClass<BackendProcessorEditor>());
+			}
+		}
+		else if (result >= (int)Widgets::Knob && result < (int)Widgets::numWidgets)
+		{
+			const int insertX = e.getEventRelativeTo(content).getMouseDownPosition().getX();
+			const int insertY = e.getEventRelativeTo(content).getMouseDownPosition().getY();
+
+			parentEditor->createNewComponent((Widgets)result, insertX, insertY);
+		}
+		else if (result >= editComponentOffset) // EDIT IN PANEL
+		{
+			ReferenceCountedObject* sc = components[result - editComponentOffset];
+
+			parentEditor->getProcessor()->getMainController()->setEditedScriptComponent(sc, parentEditor);
+		}
+
+	}
+}
+
+ScriptingEditor::DragOverlay::Dragger::Dragger(ScriptingEditor* parentEditor_):
+	parentEditor(parentEditor_)
 {
 	constrainer.setMinimumOnscreenAmounts(0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF);
-
-
 
 	addAndMakeVisible(resizer = new ResizableCornerComponent(this, &constrainer));
 
@@ -1630,11 +1683,9 @@ void ScriptingEditor::DragOverlay::Dragger::mouseDown(const MouseEvent& e)
 		dragger.startDraggingComponent(this, e);
 	}
 
-	ScriptingEditor* editor = findParentComponentOfClass<ScriptingEditor>();
-
-	if (editor != nullptr && e.mods.isRightButtonDown())
+	if (e.mods.isRightButtonDown())
 	{
-		editor->mouseDown(e);
+		setDraggedControl(nullptr, nullptr);
 	}
 }
 
@@ -1657,7 +1708,7 @@ void ScriptingEditor::DragOverlay::Dragger::mouseUp(const MouseEvent& e)
 
 	if (copyMode)
 	{
-		ScriptingEditor* editor = findParentComponentOfClass<ScriptingEditor>();
+		ScriptingEditor* editor = parentEditor.getComponent();
 
 		if (editor != nullptr)
 		{
@@ -1702,7 +1753,7 @@ void ScriptingEditor::DragOverlay::Dragger::moveOverlayedComponent(int deltaX, i
 {
 	ScriptingApi::Content::ScriptComponent *sc = currentScriptComponent;
 
-	ScriptingEditor* editor = findParentComponentOfClass<ScriptingEditor>();
+	ScriptingEditor* editor = parentEditor.getComponent();
 
 	const int oldX = sc->getPosition().getX();
 	const int oldY = sc->getPosition().getY();
@@ -1730,10 +1781,80 @@ void ScriptingEditor::DragOverlay::Dragger::resizeOverlayedComponent(int deltaX,
 	sc->setScriptObjectPropertyWithChangeMessage(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::height), newHeight, sendNotification);
 	sc->setChanged();
 
-	ScriptingEditor* editor = findParentComponentOfClass<ScriptingEditor>();
+	ScriptingEditor* editor = parentEditor.getComponent();
 
 	if (editor != nullptr)
 	{
 		editor->scriptComponentChanged(sc, sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::width));
+	}
+}
+
+void ScriptingEditor::DragOverlay::Dragger::setDraggedControl(Component* componentToDrag, ScriptingApi::Content::ScriptComponent* sc)
+{
+	if (componentToDrag != nullptr && componentToDrag != currentlyDraggedComponent.getComponent())
+	{
+		currentScriptComponent = sc;
+		currentlyDraggedComponent = componentToDrag;
+
+		currentMovementWatcher = new MovementWatcher(componentToDrag, this);
+
+		const bool isInPopup = findParentComponentOfClass<ContentPopup>() != nullptr;
+
+		if (isInPopup)
+		{
+			Component* p = componentToDrag->getParentComponent();
+
+			auto boundsInParent = componentToDrag->getBoundsInParent();
+			auto parentOffset = dynamic_cast<ScriptContentComponent*>(p) != nullptr ? Point<int>() : p->getBoundsInParent().getPosition();
+			auto actualBounds = Rectangle<int>(boundsInParent.getX() + parentOffset.getX(), boundsInParent.getY() + parentOffset.getY(), componentToDrag->getWidth(), componentToDrag->getHeight());
+
+			setBounds(actualBounds);
+		}
+		else
+		{
+			Component* p = componentToDrag->getParentComponent();
+			setBounds(getParentComponent()->getLocalArea(p, componentToDrag->getBounds()));
+		}
+
+		setVisible(true);
+		setWantsKeyboardFocus(true);
+
+
+
+		setAlwaysOnTop(true);
+		grabKeyboardFocus();
+	}
+	else if (componentToDrag == nullptr)
+	{
+		currentScriptComponent = nullptr;
+		currentlyDraggedComponent = nullptr;
+		currentMovementWatcher = nullptr;
+		setBounds(Rectangle<int>());
+		setVisible(false);
+		setWantsKeyboardFocus(false);
+		setAlwaysOnTop(false);
+	}
+}
+
+
+void ScriptingEditor::DragOverlay::Dragger::MovementWatcher::componentMovedOrResized(bool /*wasMoved*/, bool /*wasResized*/)
+{
+	Component* p = getComponent()->getParentComponent();
+
+	const bool isInPopup = dragComponent->findParentComponentOfClass<ContentPopup>() != nullptr;
+
+	if (isInPopup)
+	{
+		
+
+		auto boundsInParent = getComponent()->getBoundsInParent();
+		auto parentOffset = dynamic_cast<ScriptContentComponent*>(p) != nullptr ? Point<int>() : p->getBoundsInParent().getPosition();
+		auto actualBounds = Rectangle<int>(boundsInParent.getX() + parentOffset.getX(), boundsInParent.getY() + parentOffset.getY(), getComponent()->getWidth(), getComponent()->getHeight());
+
+		dragComponent->setBounds(actualBounds);
+	}
+	else
+	{
+		dragComponent->setBounds(dragComponent->getParentComponent()->getLocalArea(p, getComponent()->getBounds()));
 	}
 }
