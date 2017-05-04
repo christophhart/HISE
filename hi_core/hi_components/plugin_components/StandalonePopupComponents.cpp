@@ -302,6 +302,15 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
 		
 
 		PresetHandler::showMessageWindow("Audio Driver Initialisation Error", message, PresetHandler::IconType::Error);
+        
+        driver->deviceManager->initialiseWithDefaultDevices(0, 2);
+        
+        if(!loopProtection)
+        {
+            loopProtection=true;
+            rebuildMenus(true, true);
+
+        }
 	}
 
 #else

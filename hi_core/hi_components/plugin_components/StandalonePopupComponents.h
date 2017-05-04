@@ -138,6 +138,9 @@ private:
 	ScopedPointer<TextButton> relocateButton;
 	ScopedPointer<TextButton> debugButton;
 	
+    // Not the smartest solution, but works...
+    bool loopProtection=false;
+    
 };
 
 class CombinedSettingsWindow : public Component,
