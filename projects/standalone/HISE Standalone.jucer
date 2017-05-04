@@ -72,7 +72,7 @@
         <MODULEPATH id="hi_backend" path="../../"/>
         <MODULEPATH id="hi_scripting" path="../../"/>
         <MODULEPATH id="hi_dsp_library" path="../../"/>
-        <MODULEPATH id="hi_lac" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_lac" path="../../"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <XCODE_IPHONE targetFolder="Builds/iOS" iosScreenOrientation="landscape" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override"
@@ -106,7 +106,7 @@
         <MODULEPATH id="hi_backend" path="../../"/>
         <MODULEPATH id="hi_scripting" path="../../"/>
         <MODULEPATH id="hi_dsp_library" path="../../"/>
-        <MODULEPATH id="hi_lac" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_lac" path="../../"/>
       </MODULEPATHS>
     </XCODE_IPHONE>
     <VS2015 targetFolder="Builds/VisualStudio2015" smallIcon="S7ANvW" bigIcon="S7ANvW"
@@ -148,7 +148,7 @@
         <MODULEPATH id="hi_dsp_library" path="../../"/>
         <MODULEPATH id="hi_core" path="../../"/>
         <MODULEPATH id="hi_backend" path="../../"/>
-        <MODULEPATH id="hi_lac" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_lac" path="../../"/>
       </MODULEPATHS>
     </VS2015>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="USE_IPP=0" smallIcon="bfBEgJ"
@@ -179,7 +179,7 @@
         <MODULEPATH id="hi_dsp_library" path="../../"/>
         <MODULEPATH id="hi_core" path="../../"/>
         <MODULEPATH id="hi_backend" path="../../"/>
-        <MODULEPATH id="hi_lac" path="../../../HISE modules"/>
+        <MODULEPATH id="hi_lac" path="../../"/>
       </MODULEPATHS>
     </LINUX_MAKE>
   </EXPORTFORMATS>
@@ -213,7 +213,8 @@
                ENABLE_ALL_PEAK_METERS="enabled" ENABLE_CONSOLE_OUTPUT="enabled"
                ENABLE_HOST_INFO="enabled" ENABLE_CPU_MEASUREMENT="enabled" HI_EXPORT_DSP_LIBRARY="disabled"
                JUCE_ALSA="enabled" JUCE_JACK="enabled" USE_VDSP_FFT="disabled"
-               ENABLE_SCRIPTING_BREAKPOINTS="enabled"/>
+               ENABLE_SCRIPTING_BREAKPOINTS="enabled" HLAC_MEASURE_DECODING_PERFORMANCE="disabled"
+               HLAC_DEBUG_LOG="disabled" HLAC_INCLUDE_TEST_SUITE="disabled"/>
   <LIVE_SETTINGS>
     <OSX defines="USE_IPP=0"/>
   </LIVE_SETTINGS>

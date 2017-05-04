@@ -155,15 +155,15 @@
 // hi_lac flags:
 
 #ifndef    HLAC_MEASURE_DECODING_PERFORMANCE
- //#define HLAC_MEASURE_DECODING_PERFORMANCE
+ #define   HLAC_MEASURE_DECODING_PERFORMANCE 0
 #endif
 
 #ifndef    HLAC_DEBUG_LOG
- //#define HLAC_DEBUG_LOG
+ #define   HLAC_DEBUG_LOG 0
 #endif
 
 #ifndef    HLAC_INCLUDE_TEST_SUITE
- //#define HLAC_INCLUDE_TEST_SUITE
+ #define   HLAC_INCLUDE_TEST_SUITE 0
 #endif
 
 //==============================================================================
