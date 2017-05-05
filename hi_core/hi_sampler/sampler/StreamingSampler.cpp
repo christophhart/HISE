@@ -1486,6 +1486,8 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 			
 			while (numSamples >= 4)
 			{
+                
+                
 				for (int i = 0; i < 4; i++)
 				{
 					const int pos = int(indexInBufferFloat);

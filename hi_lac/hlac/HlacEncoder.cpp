@@ -1,5 +1,5 @@
 /*  HISE Lossless Audio Codec
-*	©2017 Christoph Hart
+*	ï¿½2017 Christoph Hart
 *
 *	Redistribution and use in source and binary forms, with or without modification,
 *	are permitted provided that the following conditions are met:
@@ -471,6 +471,8 @@ bool HlacEncoder::encodeCycleDelta(CompressionHelpers::AudioBufferInt16& nextCyc
 		compressor->compress((uint8*)mb.getData(), workBuffer.getReadPointer(), nextCycle.size);
 		return output.write(mb.getData(), numBytesToWrite);
 	}
+    
+    return true;
 }
 
 bool HlacEncoder::writeCycleHeader(bool isTemplate, int bitDepth, int numSamples, OutputStream& output)

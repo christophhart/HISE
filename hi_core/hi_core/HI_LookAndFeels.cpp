@@ -648,21 +648,10 @@ void ConcertinaPanelHeaderLookAndFeel::drawConcertinaPanelHeader(Graphics& g, co
     {
         return;
     }
-
-    const float lowAlpha = 0.25f;
     
     g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff121212)));
 
-	g.fillAll();
-
-	
-
-	//g.drawRect(area, 1);
-
-	//g.fillRoundedRectangle(0.0f, 0.0f, (float)area.getWidth(), 60.0f, 5.0f);
-
-	//g.fillAll();
-    
+	g.fillAll();    
     g.setColour(Colours::white);
     g.setFont(GLOBAL_BOLD_FONT());
     

@@ -564,7 +564,6 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 		for (int i = 0; i < matrix.getNumSourceChannels(); i++)
 		{
-			const int sourceChannel = i;
 			const int destinationChannel = matrix.getConnectionForSourceChannel(i);
 
 			if (destinationChannel == -1)

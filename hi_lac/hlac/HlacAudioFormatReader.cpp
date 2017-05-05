@@ -290,7 +290,7 @@ bool HlacMemoryMappedAudioFormatReader::mapSectionOfFile(Range<int64> samplesToM
 		dataChunkStart = 1;
 		dataLength = getFile().getSize() - 1;
 
-		MemoryMappedAudioFormatReader::mapSectionOfFile(samplesToMap);
+		return MemoryMappedAudioFormatReader::mapSectionOfFile(samplesToMap);
 	}
 	else
 	{

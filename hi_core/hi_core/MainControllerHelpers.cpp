@@ -348,7 +348,6 @@ void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midi
 	if (shouldDelayRendering())
 	{
 		const int thisNumSamples = buffer.getNumSamples();
-		const int sampleIndexAfterProcess = sampleIndex + thisNumSamples;
 		const int blockSize = writeBuffer->getNumSamples();
 		const bool bufferOverflow = sampleIndex + thisNumSamples >= blockSize;
 
