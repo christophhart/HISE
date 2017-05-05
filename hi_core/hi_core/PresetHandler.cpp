@@ -2001,6 +2001,24 @@ XmlElement * PresetHandler::buildFactory(FactoryType *t, const String &factoryNa
 	return xml;
 }
 
+AudioFormatReader * PresetHandler::getReaderForFile(const File &file)
+{
+	AudioFormatManager afm;
+	afm.registerBasicFormats();
+	afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
+
+	return afm.createReaderFor(file);
+}
+
+AudioFormatReader * PresetHandler::getReaderForInputStream(InputStream *stream)
+{
+	AudioFormatManager afm;
+	afm.registerBasicFormats();
+	afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
+
+	return afm.createReaderFor(stream);
+}
+
 String PresetHandler::getGlobalSampleFolder()
 {
 	return String();

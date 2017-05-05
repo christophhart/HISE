@@ -85,6 +85,7 @@
         <MODULEPATH id="hi_backend" path="../../"/>
         <MODULEPATH id="hi_scripting" path="../../"/>
         <MODULEPATH id="hi_dsp_library" path="../../"/>
+        <MODULEPATH id="hi_lac" path="../../../HISE modules"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <VS2015 targetFolder="Builds/VisualStudio2015" vstFolder="c:\SDKs\vstsdk2.4"
@@ -138,6 +139,7 @@
         <MODULEPATH id="hi_backend" path="../../"/>
         <MODULEPATH id="hi_scripting" path="../../"/>
         <MODULEPATH id="hi_dsp_library" path="../../"/>
+        <MODULEPATH id="hi_lac" path="../../../HISE modules"/>
       </MODULEPATHS>
     </VS2015>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="">
@@ -167,6 +169,7 @@
         <MODULEPATH id="hi_dsp_library" path="../../"/>
         <MODULEPATH id="hi_core" path="../../"/>
         <MODULEPATH id="hi_backend" path="../../"/>
+        <MODULEPATH id="hi_lac" path="../../../HISE modules"/>
       </MODULEPATHS>
     </LINUX_MAKE>
   </EXPORTFORMATS>
@@ -174,6 +177,7 @@
     <MODULE id="hi_backend" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_core" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_dsp_library" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="hi_lac" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_modules" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_scripting" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_audio_basics" showAllCode="1" useLocalCopy="0"/>
@@ -199,7 +203,8 @@
                ENABLE_PLOTTER="enabled" ENABLE_SCRIPTING_SAFE_CHECKS="enabled"
                ENABLE_ALL_PEAK_METERS="enabled" ENABLE_HOST_INFO="enabled" ENABLE_CPU_MEASUREMENT="enabled"
                USE_HARD_CLIPPER="enabled" USE_IPP="enabled" USE_VDSP_FFT="disabled"
-               ENABLE_SCRIPTING_BREAKPOINTS="enabled"/>
+               ENABLE_SCRIPTING_BREAKPOINTS="enabled" HLAC_MEASURE_DECODING_PERFORMANCE="disabled"
+               HLAC_DEBUG_LOG="disabled" HLAC_INCLUDE_TEST_SUITE="disabled"/>
   <LIVE_SETTINGS>
     <OSX/>
   </LIVE_SETTINGS>

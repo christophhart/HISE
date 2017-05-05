@@ -708,25 +708,9 @@ public:
 		
 	}
     
-    static AudioFormatReader *getReaderForFile(const File &file)
-    {
-        AudioFormatManager afm;
-        afm.registerBasicFormats();
-#if HI_INCLUDE_HLAC
-		afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
-#endif
-        return afm.createReaderFor(file);
-    }
+    static AudioFormatReader *getReaderForFile(const File &file);
     
-    static AudioFormatReader *getReaderForInputStream(InputStream *stream)
-    {
-        AudioFormatManager afm;
-        afm.registerBasicFormats();
-#if HI_INCLUDE_HLAC
-		afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
-#endif
-        return afm.createReaderFor(stream);
-    }
+    static AudioFormatReader *getReaderForInputStream(InputStream *stream);
 
 	
 	/** This looks in the application settings directory for a file called libraryName.library and creates it if it doesn't exist. */

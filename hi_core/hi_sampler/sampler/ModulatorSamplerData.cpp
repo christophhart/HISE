@@ -955,15 +955,11 @@ void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 {
 	AudioFormatManager afm;
 	afm.registerBasicFormats();
-#if HI_INCLUDE_HLAC
 	afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
-#endif
 
 	Array<File>* channelList = filesToWrite[channelIndex];
 
 	bool isMono = false;
-
-	double sampleRate = -1.0;
 
 	if (channelList->size() > 0)
 	{
@@ -977,64 +973,25 @@ void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 
 	File outputFile = monolithDirectory.getChildFile(channelFileName);
 
-
-
 	if (!outputFile.existsAsFile() || overwriteExistingData)
 	{
 
 		outputFile.deleteFile();
 		outputFile.create();
 		
+		hlac::HiseLosslessAudioFormat hlac;
 
-#if HI_INCLUDE_HLAC
+		FileOutputStream* hlacOutput = new FileOutputStream(outputFile);
 
-		if (true)
-		{
-			hlac::HiseLosslessAudioFormat hlac;
+		int cIndex = getComboBoxComponent("compressionOptions")->getSelectedItemIndex();
 
-			
+		hlac::HlacEncoder::CompressorOptions options = hlac::HlacEncoder::CompressorOptions::getPreset((hlac::HlacEncoder::CompressorOptions::Presets)cIndex);
 
-			FileOutputStream* hlacOutput = new FileOutputStream(outputFile);
+		StringPairArray empty;
 
-			int cIndex = getComboBoxComponent("compressionOptions")->getSelectedItemIndex();
+		ScopedPointer<AudioFormatWriter> writer = hlac.createWriterFor(hlacOutput, sampleRate, isMono ? 1 : 2, 16, empty, 5);
 
-			hlac::HlacEncoder::CompressorOptions options = hlac::HlacEncoder::CompressorOptions::getPreset((hlac::HlacEncoder::CompressorOptions::Presets)cIndex);
-
-			StringPairArray empty;
-
-			ScopedPointer<AudioFormatWriter> writer = hlac.createWriterFor(hlacOutput, sampleRate, isMono ? 1 : 2, 16, empty, 5);
-
-			dynamic_cast<hlac::HiseLosslessAudioFormatWriter*>(writer.get())->setOptions(options);
-
-			for (int i = 0; i < channelList->size(); i++)
-			{
-				setProgress((double)i / (double)numSamples);
-
-				ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(channelList->getUnchecked(i));
-
-				writer->writeFromAudioReader(*reader, 0, -1);
-			}
-
-			writer->flush();
-
-			writer = nullptr;
-
-			return;
-		}
-
-#endif
-
-		FileOutputStream fos(outputFile);
-		fos.writeBool(isMono);
-
-		showStatusMessage("Exporting Channel " + String(channelIndex + 1));
-
-		AudioSampleBuffer buffer(isMono ? 1 : 2, (int)largestSample);
-		MemoryBlock tempBlock;
-
-		size_t frameSize = sizeof(int16) * (isMono ? 1 : 2);
-
-		tempBlock.setSize(frameSize * (size_t)largestSample);
+		dynamic_cast<hlac::HiseLosslessAudioFormatWriter*>(writer.get())->setOptions(options);
 
 		for (int i = 0; i < channelList->size(); i++)
 		{
@@ -1042,23 +999,13 @@ void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 
 			ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(channelList->getUnchecked(i));
 
-			if (reader == nullptr)
-			{
-				DBG("Can't create reader for " + channelList->getUnchecked(i).getFullPathName());
-				jassertfalse;
-				break;
-			}
-
-			reader->read(&buffer, 0, (int)reader->lengthInSamples, 0, true, true);
-			size_t bytesUsed = (size_t)reader->lengthInSamples * frameSize;
-
-			AudioFormatWriter::WriteHelper<AudioData::Int16, AudioData::Float32, AudioData::LittleEndian>::write(
-				tempBlock.getData(), isMono ? 1 : 2, (const int* const *)buffer.getArrayOfReadPointers(), (int)reader->lengthInSamples);
-
-			fos.write(tempBlock.getData(), bytesUsed);
+			writer->writeFromAudioReader(*reader, 0, -1);
 		}
 
-		fos.flush();
+		writer->flush();
+		writer = nullptr;
+
+		return;
 	}
 }
 
@@ -1089,11 +1036,7 @@ void MonolithExporter::updateSampleMap()
 
 			if (reader != nullptr)
 			{
-#if HI_INCLUDE_HLAC
 				const int64 length = usePaddingForCompression ? hlac::CompressionHelpers::getPaddedSampleSize(reader->lengthInSamples) : reader->lengthInSamples;
-#else
-				const int64 length = reader->lengthInSamples;
-#endif
 
 				largestSample = jmax<int64>(largestSample, length);
 
