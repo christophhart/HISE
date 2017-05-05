@@ -2148,7 +2148,7 @@ void ScriptingApi::Content::ScriptPanel::loadImage(String imageName, String pret
 
 	File actualFile = getExternalFile(imageName);
 
-	const Image *newImage = pool->loadFileIntoPool(actualFile.getFullPathName(), true);
+	const Image *newImage = pool->loadFileIntoPool(actualFile.getFullPathName(), false);
 
 #endif
 
