@@ -129,11 +129,7 @@ uint32 HiseLosslessHeader::getOffsetForReadPosition(int64 samplePosition, bool a
 			jassertfalse;
 			return 0;
 		}
-
-		jassertfalse;
 	}
-
-	return 0;
 }
 
 uint32 HiseLosslessHeader::getOffsetForNextBlock(int64 samplePosition, bool addHeaderOffset)
@@ -165,11 +161,7 @@ uint32 HiseLosslessHeader::getOffsetForNextBlock(int64 samplePosition, bool addH
 			jassertfalse;
 			return 0;
 		}
-
-		jassertfalse;
 	}
-
-	return 0;
 }
 
 HiseLosslessHeader HiseLosslessHeader::createMonolithHeader(int numChannels, double sampleRate)
@@ -322,8 +314,8 @@ bool HlacMemoryMappedAudioFormatReader::mapSectionOfFile(Range<int64> samplesToM
 
 			auto actualMappedRange = map->getRange();
 
-			int offset = fileRange.getStart() - actualMappedRange.getStart();
-			int length = actualMappedRange.getLength() - offset;
+			int offset = (int)(fileRange.getStart() - actualMappedRange.getStart());
+			int length = (int)(actualMappedRange.getLength() - offset);
 
 			mis = new MemoryInputStream((uint8*)map->getData() + offset, length, false);
 

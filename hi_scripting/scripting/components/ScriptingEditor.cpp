@@ -1466,7 +1466,7 @@ void ScriptingEditor::DragOverlay::resized()
 }
 
 
-void ScriptingEditor::DragOverlay::buttonClicked(Button* buttonThatWasClicked)
+void ScriptingEditor::DragOverlay::buttonClicked(Button* /*buttonThatWasClicked*/)
 {
 	setEditMode(!dragMode);
 

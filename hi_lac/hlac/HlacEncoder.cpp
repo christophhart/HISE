@@ -529,7 +529,7 @@ void HlacEncoder::encodeLastBlock(AudioSampleBuffer& block, OutputStream& output
 
 	output.write(lastTemp.getData(), lastTemp.getDataSize());
 
-	numBytesWritten += lastTemp.getDataSize();
+	numBytesWritten += (uint32)lastTemp.getDataSize();
 }
 
 

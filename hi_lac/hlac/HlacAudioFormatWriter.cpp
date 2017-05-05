@@ -100,7 +100,7 @@ bool HiseLosslessAudioFormatWriter::write(const int** samplesToWrite, int numSam
 	else
 	{
 		float* const* r = const_cast<float**>(reinterpret_cast<const float**>(samplesToWrite));
-		int numChannels = isStereo ? 2 : 1;
+		numChannels = isStereo ? 2 : 1;
 
 		AudioSampleBuffer source = AudioSampleBuffer(r, numChannels, numSamples);
 

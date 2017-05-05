@@ -878,6 +878,7 @@ String DebugLogger::getNameForLocation(Location l)
 		RETURN_CASE_STRING_LOCATION(MasterEffectRendering);
 		RETURN_CASE_STRING_LOCATION(ScriptMidiEventCallback);
 		RETURN_CASE_STRING_LOCATION(ConvolutionRendering);
+        RETURN_CASE_STRING_LOCATION(numLocations);
 	}
 
 	return "Unknown Location";
@@ -906,6 +907,7 @@ String DebugLogger::getNameForFailure(FailureType f)
 		RETURN_CASE_STRING_FAILURE(PriorityInversion);
 		RETURN_CASE_STRING_FAILURE(SampleLoadingError);
 		RETURN_CASE_STRING_FAILURE(StreamingFailure);
+        RETURN_CASE_STRING_FAILURE(numFailureTypes);
 	}
 
 	return "Unknown failure";

@@ -392,12 +392,6 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 		for (int i = 0; i < internalBuffer.getNumChannels(); i++)
 		{
 			getMainController()->getDebugLogger().checkSampleData(this, DebugLogger::Location::SynthRendering, i % 2 != 0, internalBuffer.getReadPointer(i), numSamplesFixed);
-
-#if PROFILE_ROUND_1
-
-#else
-			FloatSanitizers::sanitizeArray(internalBuffer.getWritePointer(i), numSamplesFixed);
-#endif
 		}
 	}
 	
