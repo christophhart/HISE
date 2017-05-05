@@ -27,7 +27,7 @@ ifeq ($(CONFIG),Debug)
   endif
 
   JUCE_CPPFLAGS := $(DEPFLAGS) -DLINUX=1 -DDEBUG=1 -D_DEBUG=1 -DUSE_IPP=0 -DJUCER_LINUX_MAKE_6D53C8B4=1 -DJUCE_APP_VERSION=0.99 -DJUCE_APP_VERSION_HEX=0x6300 $(shell pkg-config --cflags alsa freetype2 libcurl x11 xext xinerama) -pthread -I../../JuceLibraryCode -I../../../../../HISE -I../../../../JUCE/modules
-  JUCE_CFLAGS += $(CFLAGS) $(JUCE_CPPFLAGS) $(TARGET_ARCH) -g -ggdb -O0
+  JUCE_CFLAGS += $(CFLAGS) $(JUCE_CPPFLAGS) $(TARGET_ARCH) -g -ggdb -O0 -msse4.2
   JUCE_CXXFLAGS += $(CXXFLAGS) $(JUCE_CFLAGS) -std=c++11
   JUCE_LDFLAGS += $(LDFLAGS) $(TARGET_ARCH) -L$(JUCE_BINDIR) -L$(JUCE_LIBDIR) $(shell pkg-config --libs alsa freetype2 libcurl x11 xext xinerama) -lGL -ldl -lpthread -lrt 
 
@@ -86,6 +86,7 @@ OBJECTS := \
   $(JUCE_OBJDIR)/hi_core_bbc2a29e.o \
   $(JUCE_OBJDIR)/hi_dsp_library_a9241d68.o \
   $(JUCE_OBJDIR)/hi_modules_e5677ab2.o \
+  $(JUCE_OBJDIR)/hi_lac_34b20439.o \
   $(JUCE_OBJDIR)/hi_scripting_d8d7e4e2.o \
   $(JUCE_OBJDIR)/juce_audio_basics_6b797ca1.o \
   $(JUCE_OBJDIR)/juce_audio_devices_a742c38b.o \
@@ -161,6 +162,11 @@ $(JUCE_OBJDIR)/hi_core_bbc2a29e.o: ../../JuceLibraryCode/hi_core.cpp
 $(JUCE_OBJDIR)/hi_dsp_library_a9241d68.o: ../../JuceLibraryCode/hi_dsp_library.cpp
 	-@mkdir -p $(JUCE_OBJDIR)
 	@echo "Compiling hi_dsp_library.cpp"
+	@$(CXX) $(JUCE_CXXFLAGS) -o "$@" -c "$<"
+
+$(JUCE_OBJDIR)/hi_lac_34b20439.o: ../../JuceLibraryCode/hi_lac.cpp
+	-@mkdir -p $(JUCE_OBJDIR)
+	@echo "Compiling hi_lac.cpp"
 	@$(CXX) $(JUCE_CXXFLAGS) -o "$@" -c "$<"
 
 $(JUCE_OBJDIR)/hi_modules_e5677ab2.o: ../../JuceLibraryCode/hi_modules.cpp
