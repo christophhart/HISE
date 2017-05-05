@@ -715,7 +715,7 @@ void ScriptingObjects::ScriptingAudioSampleProcessor::setFile(String fileName)
 {
 	if (checkValidObject())
 	{
-		ScopedLock sl(audioSampleProcessor->getMainController()->getLock());
+		ScopedLock sl(dynamic_cast<AudioSampleProcessor*>(audioSampleProcessor.get())->getFileLock());
 
 #if USE_FRONTEND
 		const String nameInPool = fileName.fromFirstOccurrenceOf("}", false, false);
