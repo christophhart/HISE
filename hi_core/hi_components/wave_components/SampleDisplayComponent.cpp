@@ -506,6 +506,16 @@ bgColour(Colour(0xFF555555))
 	areas[0]->setAreaEnabled(true);
 }
 
+bool AudioSampleBufferComponent::isAudioFile(const String &s)
+{
+	AudioFormatManager afm;
+
+	afm.registerBasicFormats();
+	afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
+
+	return File(s).existsAsFile() && afm.findFormatForFileExtension(File(s).getFileExtension()) != nullptr;
+}
+
 bool AudioSampleBufferComponent::isInterestedInDragSource(const SourceDetails &dragSourceDetails)
 {
 	Component *c = dragSourceDetails.sourceComponent.get();

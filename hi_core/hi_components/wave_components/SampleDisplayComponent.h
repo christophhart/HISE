@@ -455,17 +455,7 @@ public:
 		return files.size() == 1 && isAudioFile(files[0]);
 	}
 
-	static bool isAudioFile(const String &s)
-	{
-		AudioFormatManager afm;
-
-		afm.registerBasicFormats();
-#if HI_INCLUDE_HLAC
-		afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
-#endif
-
-		return File(s).existsAsFile() && afm.findFormatForFileExtension(File(s).getFileExtension()) != nullptr;
-	}
+	static bool isAudioFile(const String &s);
 
 	bool isInterestedInDragSource (const SourceDetails &dragSourceDetails) override;;
  	
