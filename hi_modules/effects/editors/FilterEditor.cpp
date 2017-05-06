@@ -56,6 +56,7 @@ FilterEditor::FilterEditor (ProcessorEditor *p)
     modeSelector->setJustificationType (Justification::centredLeft);
     modeSelector->setTextWhenNothingSelected (TRANS("Filter mode"));
     modeSelector->setTextWhenNoChoicesAvailable (TRANS("(no choices)"));
+    modeSelector->setColour(MacroControlledObject::HiBackgroundColours::textColour, Colours::white);
     modeSelector->addItem (TRANS("Low Pass"), 1);
     modeSelector->addItem (TRANS("High Pass"), 2);
     modeSelector->addItem (TRANS("Low Shelf"), 3);

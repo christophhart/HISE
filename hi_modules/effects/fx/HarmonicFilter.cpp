@@ -361,6 +361,8 @@ semiToneTranspose(0)
 	setNumFilterBands(filterBandIndex);
 
 	setQ(q);
+    
+    timeVariantFreqModulatorBuffer = AudioSampleBuffer(1, 0);
 }
 
 void HarmonicMonophonicFilter::setInternalAttribute(int parameterIndex, float newValue)

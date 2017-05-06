@@ -36,7 +36,7 @@ MasterEffectProcessor(mc, uid),
 wetAmountChain(new ModulatorChain(mc, "Wet Amount", 1, Modulation::GainMode, this)),
 loadedProcessorId(Identifier("unused"))
 {
-
+    wetAmountBuffer = AudioSampleBuffer(1, 0);
 }
 
 

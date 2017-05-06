@@ -75,6 +75,8 @@ MdaDegradeEffect::MdaDegradeEffect(MainController *mc, const String &id):
 
 	useStepSizeCalculation(false);
 	effect = new mdaDegrade();
+    
+    dryWetBuffer = AudioSampleBuffer(1, 0);
 };
 
 ProcessorEditorBody *MdaDegradeEffect::createEditor(ProcessorEditor *parentEditor)
