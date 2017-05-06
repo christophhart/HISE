@@ -1800,21 +1800,13 @@ void ScriptingEditor::DragOverlay::Dragger::setDraggedControl(Component* compone
 
 		const bool isInPopup = findParentComponentOfClass<ContentPopup>() != nullptr;
 
-		if (isInPopup)
-		{
-			Component* p = componentToDrag->getParentComponent();
-
-			auto boundsInParent = componentToDrag->getBoundsInParent();
-			auto parentOffset = dynamic_cast<ScriptContentComponent*>(p) != nullptr ? Point<int>() : p->getBoundsInParent().getPosition();
-			auto actualBounds = Rectangle<int>(boundsInParent.getX() + parentOffset.getX(), boundsInParent.getY() + parentOffset.getY(), componentToDrag->getWidth(), componentToDrag->getHeight());
-
-			setBounds(actualBounds);
-		}
-		else
-		{
-			Component* p = componentToDrag->getParentComponent();
-			setBounds(getParentComponent()->getLocalArea(p, componentToDrag->getBounds()));
-		}
+        auto c = componentToDrag->findParentComponentOfClass<ScriptContentComponent>();
+        
+        if(c != nullptr)
+        {
+            auto boundsInParent = c->getLocalArea(componentToDrag->getParentComponent(), componentToDrag->getBoundsInParent());
+            setBounds(boundsInParent);
+        }
 
 		setVisible(true);
 		setWantsKeyboardFocus(true);
@@ -1841,8 +1833,15 @@ void ScriptingEditor::DragOverlay::Dragger::MovementWatcher::componentMovedOrRes
 {
 	Component* p = getComponent()->getParentComponent();
 
-	const bool isInPopup = dragComponent->findParentComponentOfClass<ContentPopup>() != nullptr;
+    auto c = getComponent()->findParentComponentOfClass<ScriptContentComponent>();
 
+    if(c != nullptr)
+    {
+        auto boundsInParent = c->getLocalArea(getComponent()->getParentComponent(), getComponent()->getBoundsInParent());
+        dragComponent->setBounds(boundsInParent);
+    }
+    
+#if 0
 	if (isInPopup)
 	{
 		
@@ -1857,4 +1856,5 @@ void ScriptingEditor::DragOverlay::Dragger::MovementWatcher::componentMovedOrRes
 	{
 		dragComponent->setBounds(dragComponent->getParentComponent()->getLocalArea(p, getComponent()->getBounds()));
 	}
+#endif
 }
