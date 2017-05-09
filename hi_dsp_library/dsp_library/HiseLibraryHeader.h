@@ -21,9 +21,9 @@ In order to maximise ABI compatibility, crossing library boundaries is only done
 
 There is a template project for the Introjucer that contains all settings needed to build a library:
 
-http://github.com/link.
+[Example Project Repository](https://github.com/christophhart/HISE/tree/master/extras/script_module_template)
 
-The best practice would be copying this template, customize the settings and build it.
+You can use this as starting point for your library as it contains the correct compiler settings & dependencies to get started.
 
 ### Implement the library
 
@@ -46,12 +46,12 @@ return LoadingErrorCode::LoadingSuccessful;
 };
 @endcode
 
-### Installing the library
+### Installing & using the library in HISE / HISE Player
 
 The library must be placed in the OS-specific subfolder:
 
-- **Windows:** `USER_APP_DATA_DIRECTORY/Hart Instruments/dll`
-- **OSX:** `USER_LIBRARY_FOLDER/Application Support/Hart Instruments/lib`
+- **Windows:** `USER_APP_DATA_DIRECTORY/HISE/dll`
+- **OSX:** `USER_LIBRARY_FOLDER/Application Support/HISE/lib`
 
 There are some naming conventions for Windows .DLLs: use the suffix `_x86.dll` for 32bit builds and `_x64.dll` for 64bit builds.
 (The OSX libraries are universal binaries so they don't need to be named separately.)
@@ -59,7 +59,35 @@ There are some naming conventions for Windows .DLLs: use the suffix `_x86.dll` f
 If you use the above template, the build location will be adjusted automatically to these folders, but you might want to know what's going on
 when building an installer that contains your library...
 
-### Loading the library in Javascript
+### Installing & using the library in a compiled plugin
+
+If you want to use the library in a compiled plugin, you have two options:
+
+#### Dynamic Library
+
+The plugin will look for the dynamic library at the following locations:
+
+- **Windows:** `USER_APP_DATA_DIRECTORY/COMPANY/PRODUCT/dll`
+- **OSX:** `USER_LIBRARY_FOLDER/Application Support/COMPANY/PRODUCT/lib` or `USER_MUSIC_FOLDER/COMPANY/PRODUCT/Resources/lib` (depending on your sandbox settings)
+
+If you distribute the dynamic library along with your plugin, you should handle the case that the library can't be located (eg. because of an installer issue). The recommended way for this is to call `Engine.showErrorMessage(message, true`) which creates a dark overlay with the given message to make it pretty clear that something is missing:
+
+@code{.js}
+const var lib = Libraries.load("nonexistent");
+
+if(lib.getErrorCode() == lib.MissingLibrary) // the other cases should not occur in production
+{
+	Engine.showErrorMessage("The library nonexistent can't be found", true);
+}
+@endcode
+
+Now if you want to compile an iOS app (which doesn't allow dynamic libraries) or don't want to distribute the library seperately, you can also embed the library into the plugin as static library.
+
+#### Static library
+
+Recompile the library as static library (make sure you use the same projucer settings as the plugin), and add the class name of your factory to the Project Settings (it will autogenerate the code that adds the factory to the list of available factories) and paste the static libraries into the OS-specific field.
+
+#### Loading the library in Javascript
 
 Libraries can be loaded in all script processors that process audio data (Script Time Variant Modulator, Script Envelope, Script Synth and Script FX).
 
