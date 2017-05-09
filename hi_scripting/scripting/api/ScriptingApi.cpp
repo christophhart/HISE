@@ -2419,7 +2419,9 @@ bool ScriptingApi::Synth::ModuleHandler::removeModule(Processor* p)
 				editor->getPanel()->removeProcessorEditor(p);
 			}
 
-			dynamic_cast<BackendProcessorEditor*>(mainEditor)->rebuildModuleList(false);
+            c->getHandler()->remove(p);
+            
+			dynamic_cast<BackendProcessorEditor*>(mainEditor)->rebuildModuleList(true);
 		}
 		else
 		{
