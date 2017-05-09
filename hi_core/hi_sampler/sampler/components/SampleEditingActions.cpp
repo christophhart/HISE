@@ -596,6 +596,7 @@ private:
 
             const bool matchesChannel = thisFileName.startsWith(channelNames[0] + separator) ||
                                         thisFileName.contains(separator + channelNames[0] + separator) ||
+										thisFileName.contains(separator + channelNames[0] + ".") ||
                                         thisFileName.endsWith(separator + channelNames[0]);
             
             
@@ -621,6 +622,7 @@ private:
 
                 const bool matchesChannel = thisFileName.startsWith(channelNames[channels] + separator) ||
                                             thisFileName.contains(separator + channelNames[channels] + separator) ||
+											thisFileName.contains(separator + channelNames[channels] + ".") ||
                                             thisFileName.endsWith(separator + channelNames[channels]);
                 
 				if (matchesChannel)
