@@ -389,7 +389,7 @@ void ModulatorChain::renderVoice(int voiceIndex, int startSample, int numSamples
     
 	// Use the internal buffer from timeModulation as working buffer.
 
-	initializeBuffer(internalBuffer, startSample, numSamples);
+	//initializeBuffer(internalBuffer, startSample, numSamples);
 
 
 	const int startIndex = startSample;
@@ -408,13 +408,13 @@ void ModulatorChain::renderVoice(int voiceIndex, int startSample, int numSamples
 
 			for (int i = 0; i < numSamples; i++)
 			{
-				bufferPointer[i] *= rampedGain;
+				bufferPointer[i] = rampedGain;
 				rampedGain += stepSize;
 			}
 		}
 		else
 		{
-			FloatVectorOperations::multiply(internalBuffer.getWritePointer(0, startSample), constantVoiceValue, numSamples);
+			FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), constantVoiceValue, numSamples);
 		}
 
 		lastVoiceValues[voiceIndex] = constantVoiceValue;
@@ -429,9 +429,11 @@ void ModulatorChain::renderVoice(int voiceIndex, int startSample, int numSamples
 
 			FloatVectorOperations::fill(envelopeTempBuffer.getWritePointer(0, startSample), 1.0f, numSamples);
 
-			m->renderNextBlock(envelopeTempBuffer, startSample, numSamples);
+			float* bufferPointer = internalBuffer.getWritePointer(0, 0);
 
-			FloatVectorOperations::multiply(internalBuffer.getWritePointer(0, startSample), envelopeTempBuffer.getReadPointer(0, startSample), numSamples);
+			AudioSampleBuffer b1(&bufferPointer, 1, startSample + numSamples);
+
+			m->renderNextBlock(b1, startSample, numSamples);
 
 			m->polyManager.clearCurrentVoice();
 		}
