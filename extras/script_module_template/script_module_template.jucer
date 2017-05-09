@@ -39,7 +39,7 @@
         <MODULEPATH id="hi_dsp_library" path="../../../HISE modules"/>
       </MODULEPATHS>
     </XCODE_IPHONE>
-    <VS2015 targetFolder="Builds/VisualStudio2013" toolset="v140">
+    <VS2015 targetFolder="Builds/VisualStudio2015" toolset="v140">
       <CONFIGURATIONS>
         <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
                        isDebug="0" optimisation="3" targetName="gain_example_x86" binaryPath=""

@@ -50,8 +50,8 @@ return LoadingErrorCode::LoadingSuccessful;
 
 The library must be placed in the OS-specific subfolder:
 
-- **Windows:** `USER_APP_DATA_DIRECTORY/HISE/dll`
-- **OSX:** `USER_LIBRARY_FOLDER/Application Support/HISE/lib`
+- **Windows:** %APPDATA%/HISE/dll
+- **OSX:** ~/Library/Application Support/HISE/lib
 
 There are some naming conventions for Windows .DLLs: use the suffix `_x86.dll` for 32bit builds and `_x64.dll` for 64bit builds.
 (The OSX libraries are universal binaries so they don't need to be named separately.)
@@ -67,8 +67,8 @@ If you want to use the library in a compiled plugin, you have two options:
 
 The plugin will look for the dynamic library at the following locations:
 
-- **Windows:** `USER_APP_DATA_DIRECTORY/COMPANY/PRODUCT/dll`
-- **OSX:** `USER_LIBRARY_FOLDER/Application Support/COMPANY/PRODUCT/lib` or `USER_MUSIC_FOLDER/COMPANY/PRODUCT/Resources/lib` (depending on your sandbox settings)
+- **Windows:** %APPDATA%/COMPANY/PRODUCT/dll
+- **OSX:** ~/Library/Application Support/COMPANY/PRODUCT/lib or ~/Music/COMPANY/PRODUCT/Resources/lib (depending on your sandbox settings)
 
 If you distribute the dynamic library along with your plugin, you should handle the case that the library can't be located (eg. because of an installer issue). The recommended way for this is to call `Engine.showErrorMessage(message, true`) which creates a dark overlay with the given message to make it pretty clear that something is missing:
 
@@ -87,7 +87,7 @@ Now if you want to compile an iOS app (which doesn't allow dynamic libraries) or
 
 Recompile the library as static library (make sure you use the same projucer settings as the plugin), and add the class name of your factory to the Project Settings (it will autogenerate the code that adds the factory to the list of available factories) and paste the static libraries into the OS-specific field.
 
-#### Loading the library in Javascript
+### Loading the library in Javascript
 
 Libraries can be loaded in all script processors that process audio data (Script Time Variant Modulator, Script Envelope, Script Synth and Script FX).
 
