@@ -37,8 +37,73 @@
 
 #define USE_STATE_VARIABLE_FILTERS 1
 
+/** A base class for filters with multiple channels. */
+class MultiChannelFilter
+{
+public:
 
-class MoogFilter
+	MultiChannelFilter()
+	{
+		
+	}
+
+	virtual ~MultiChannelFilter() {}
+
+	void setType(int newType)
+	{
+		type = newType;
+		updateCoefficients();
+	}
+
+	void setFrequency(double newFrequency)
+	{
+		frequency = newFrequency;
+		updateCoefficients();
+	}
+
+	void setFreqAndQ(double newFrequency, double newQ)
+	{
+		frequency = newFrequency;
+		q = newQ;
+		updateCoefficients();
+	}
+
+	void setQ(double newQ)
+	{
+		q = newQ;
+		updateCoefficients();
+	}
+
+	void setSampleRate(double newSampleRate)
+	{
+		sampleRate = newSampleRate;
+		reset();
+		updateCoefficients();
+	}
+
+	void setNumChannels(int newNumChannels)
+	{
+		numChannels = jlimit<int>(0, NUM_MAX_CHANNELS, newNumChannels);
+	}
+
+	virtual void reset() = 0;
+
+	virtual void updateCoefficients() = 0;
+
+	virtual void processSamples(AudioSampleBuffer& buffer, int startSample, int numSamples) = 0;
+
+protected:
+
+	double sampleRate = 44100.0;
+	double frequency = 10000.0;
+	double q = 1.0;
+	int type = 0;
+	int numChannels = 2;
+
+};
+
+
+class MoogFilter: public MultiChannelFilter
 {
 public:
 
@@ -52,15 +117,24 @@ public:
 
 	MoogFilter()
 	{
-		sampleRate = 44100.0;
+		in1 = data;
+		in2 = in1 + NUM_MAX_CHANNELS;
+		in3 = in2 + NUM_MAX_CHANNELS;
+		in4 = in3 + NUM_MAX_CHANNELS;
+		out1 = in4 + NUM_MAX_CHANNELS;
+		out2 = out1 + NUM_MAX_CHANNELS;
+		out3 = out2 + NUM_MAX_CHANNELS;
+		out4 = out3 + NUM_MAX_CHANNELS;
+
+
 		reset();
-		setCoefficients(20000, 1.0);
+
+		setFreqAndQ(20000.0, 1.0);
 	}
 
 	void reset()
 	{
-		in1 = in2 = in3 = in4 = 0.0;
-		out1 = out2 = out3 = out4 = 0.0;
+		memset(data, 0, sizeof(double)*NUM_MAX_CHANNELS * 8);
 	}
 
 	void setMode(int newMode)
@@ -68,10 +142,10 @@ public:
 		mode = (Mode)newMode;
 	};
 
-	void setCoefficients(double frequency, double q)
-	{
-		
+	
 
+	void updateCoefficients() override
+	{
 		fc = frequency / (0.5 *sampleRate);
 		res = q / 2.0;
 		if (res > 4.0) res = 4.0;
@@ -81,53 +155,214 @@ public:
 		fb = res * (1.0 - 0.15 * f * f);
 	}
 
-	void setSampleRate(double newSampleRate)
+	
+	void processSamples(AudioSampleBuffer& buffer, int startSample, int numSamples) override
 	{
-		sampleRate = newSampleRate;
-		
-	}
-
-	void processSamples(float *buffer, int numSamples)
-	{
-		for (int i = 0; i < numSamples; i++)
+		if (numChannels != buffer.getNumChannels())
 		{
-			double input = buffer[i];
-			
-			input -= out4 * fb;
-			input *= 0.35013 * fss;
-			out1 = input + 0.3 * in1 + invF * out1; // Pole 1
-			in1 = input;
-			out2 = out1 + 0.3 * in2 + invF * out2; // Pole 2
-			in2 = out1;
-			out3 = out2 + 0.3 * in3 + invF * out3; // Pole 3
-			in3 = out2;
-			out4 = out3 + 0.3 * in4 + invF * out4; // Pole 4
-			in4 = out3;
-			buffer[i] = 2.0f * (float)out4;
+			setNumChannels(buffer.getNumChannels());
+		}
+
+		for (int c = 0; c < numChannels; c++)
+		{
+			float* d = buffer.getWritePointer(c, startSample);
+
+			for (int i = 0; i < numSamples; i++)
+			{
+				double input = (double)d[i];
+
+				input -= out4[c] * fb;
+				input *= 0.35013 * fss;
+				out1[c] = input + 0.3 * in1[c] + invF * out1[c]; 
+				in1[c] = input;
+				out2[c] = out1[c] + 0.3 * in2[c] + invF * out2[c]; 
+				in2[c] = out1[c];
+				out3[c] = out2[c] + 0.3 * in3[c] + invF * out3[c]; 
+				in3[c] = out2[c];
+				out4[c] = out3[c] + 0.3 * in4[c] + invF * out4[c]; 
+				in4[c] = out3[c];
+				d[i] = 2.0f * (float)out4[c];
+			}
 		}
 	}
 
 private:
 
+	enum Index
+	{
+		In1 = 0,
+		In2,
+		In3,
+		In4,
+		Out1,
+		Out2,
+		Out3,
+		Out4
+	};
+
 	Mode mode;
 
-	double in1, in2, in3, in4;
-	double out1, out2, out3, out4;
+	double data[NUM_MAX_CHANNELS * 8];
 
+	double* in1;
+	double* in2;
+	double* in3;
+	double* in4;
+
+	double* out1;
+	double* out2;
+	double* out3;
+	double* out4;
+	
 	double f;
 	double fss;
 	double invF;
 	double fb;
 	double fc;
 	double res;
-	double sampleRate;
+	
+};
 
+
+class SimpleOnePole: public MultiChannelFilter
+{
+public:
+
+	enum FilterType
+	{
+		LP=0,
+		HP,
+		numTypes
+	};
+
+	SimpleOnePole()
+	{
+		memset(lastValues, 0, sizeof(float)*NUM_MAX_CHANNELS);
+	}
+
+	void reset() override
+	{
+		memset(lastValues, 0, sizeof(float)*numChannels);
+	}
+
+	void updateCoefficients() override
+	{
+		const double x = exp(-2.0*double_Pi*frequency / sampleRate);
+
+		a0 = (float)(1.0 - x);
+		b1 = (float)-x;
+	}
+
+	void processSamples(AudioSampleBuffer& buffer, int startSample, int numSamples) override
+	{
+		if (buffer.getNumSamples() != numChannels)
+		{
+			setNumChannels(buffer.getNumChannels());
+		}
+		
+		switch (type)
+		{
+		case FilterType::HP:
+		{
+			for (int c = 0; c < numChannels; c++)
+			{
+				float *d = buffer.getWritePointer(c, startSample);
+
+				for (int i = 0; i < numSamples; i++)
+				{
+					const float tmp = a0*d[i] - b1*lastValues[c];
+					lastValues[c] = tmp;
+					d[i] = d[i] - tmp;
+
+				}
+			}
+
+			break;
+		}
+		case FilterType::LP:
+		{
+			for (int c = 0; c < numChannels; c++)
+			{
+				float *d = buffer.getWritePointer(c, startSample);
+
+				for (int i = 0; i < numSamples; i++)
+				{
+					d[i] = a0*d[i] - b1*lastValues[c];
+					lastValues[c] = d[i];
+				}
+			}
+
+			break;
+		}
+
+		}
+
+		
+	}
+
+private:
+
+	__declspec(align(16)) float lastValues[NUM_MAX_CHANNELS];
+
+	float a0;
+	float b1;
+};
+
+class StaticBiquad : public MultiChannelFilter
+{
+public:
+
+	enum FilterType
+	{
+		LowPass,
+		HighPass,
+		HighShelf,
+		LowShelf,
+		Peak,
+		ResoLow,
+		numFilterTypes
+	};
+
+	void setGain(double newGain)
+	{
+		gain = newGain;
+	}
+
+	void reset() override
+	{
+		for (int i = 0; i < numChannels; i++)
+		{
+			filters[i].reset();
+		}
+	}
+
+	void processSamples(AudioSampleBuffer& b, int startSample, int numSamples)
+	{
+		if (numChannels != b.getNumChannels())
+		{
+			setNumChannels(b.getNumChannels());
+		}
+
+		for (int i = 0; i < numChannels; i++)
+		{
+			float* d = b.getWritePointer(i, startSample);
+			filters[i].processSamples(d, numSamples);
+		}
+	}
+
+	void updateCoefficients() override;
+
+	IIRCoefficients currentCoefficients;
+
+	double gain = 1.0;
+
+	IIRFilter filters[NUM_MAX_CHANNELS];
 };
 
 
 #if USE_STATE_VARIABLE_FILTERS
 
-class StateVariableFilter
+class StateVariableFilter: public MultiChannelFilter
 {
 
 public:
@@ -143,22 +378,26 @@ public:
 
 	StateVariableFilter()
 	{
-		reset();
+		memset(v0z, 0, sizeof(float)*NUM_MAX_CHANNELS);
+		memset(v1, 0, sizeof(float)*NUM_MAX_CHANNELS);
+		memset(v2, 0, sizeof(float)*NUM_MAX_CHANNELS);
 	}
 
 	void reset() 
 	{
-		v0z = v1 = v2 = 0.0f;
+		memset(v0z, 0, sizeof(float)*numChannels);
+		memset(v1, 0, sizeof(float)*numChannels);
+		memset(v2, 0, sizeof(float)*numChannels);
 	};
 
-	void setType(int t) { type = t; }
-	void setSamplerate(float sampleRate) { sample_rate = sampleRate; }
-	void setCoefficients(float fc, float res)
+	void updateCoefficients() override
 	{
-		float g = tan(float_Pi * fc / sample_rate);
+		const float scaledQ = (float)q * 0.1f;
+
+		float g = tan(float_Pi * frequency / sampleRate);
 		//float damping = 1.0f / res;
 		//k = damping;
-		k = 1.0f - 0.99f * res;
+		k = 1.0f - 0.99f * scaledQ;
 		float ginv = g / (1.0f + g * (g + k));
 		g1 = ginv;
 		g2 = 2.0f * (g + k) * ginv;
@@ -167,70 +406,109 @@ public:
 		
 	}
 
-	void processSamples(float* buffer, int samples)
+	void processSamples(AudioSampleBuffer& buffer, int startSample, int numSamples) override
 	{
-		switch (type) {
+		if (numChannels != buffer.getNumChannels())
+		{
+			setNumChannels(buffer.getNumChannels());
+		}
+
+		switch (type)
+		{
 		case LP:
-			for (int i = 0; i < samples; i++) 
-			{	
-				float v0 = buffer[i]; 
-				float v1z = v1; 
-				float v2z = v2;
-				float v3 = v0 + v0z - 2.0f * v2z;
-				v1 += g1 * v3 - g2 * v1z;
-				v2 += g3 * v3 + g4 * v1z;
-				v0z = v0;
-				buffer[i] = v2; 
+		{
+			for (int c = 0; c < numChannels; c++)
+			{
+				float* d = buffer.getWritePointer(c, startSample);
+
+				for (int i = 0; i < numSamples; i++)
+				{
+					float v0 = d[i];
+					float v1z = v1[c];
+					float v2z = v2[c];
+					float v3 = v0 + v0z[c] - 2.0f * v2z;
+					v1[c] += g1 * v3 - g2 * v1z;
+					v2[c] += g3 * v3 + g4 * v1z;
+					v0z[c] = v0;
+					d[i] = v2[c];
+				}
 			}
+
 			break;
+		}
 		case BP:
-			for (int i = 0; i < samples; i++)
+		{
+			for (int c = 0; c < numChannels; c++)
 			{
-				float v0 = buffer[i];
-				float v1z = v1;
-				float v2z = v2;
-				float v3 = v0 + v0z - 2.0f * v2z;
-				v1 += g1 * v3 - g2 * v1z;
-				v2 += g3 * v3 + g4 * v1z;
-				v0z = v0;
-				buffer[i] = v1;
+				float* d = buffer.getWritePointer(c, startSample);
+
+				for (int i = 0; i < numSamples; i++)
+				{
+					float v0 = d[i];
+					float v1z = v1[c];
+					float v2z = v2[c];
+					float v3 = v0 + v0z[c] - 2.0f * v2z;
+					v1[c] += g1 * v3 - g2 * v1z;
+					v2[c] += g3 * v3 + g4 * v1z;
+					v0z[c] = v0;
+					d[i] = v1[c];
+				}
 			}
-			
+
 			break;
+		}
+
 		case HP:
-			for (int i = 0; i < samples; i++)
+		{
+			for (int c = 0; c < numChannels; c++)
 			{
-				float v0 = buffer[i];
-				float v1z = v1;
-				float v2z = v2;
-				float v3 = v0 + v0z - 2.0f * v2z;
-				v1 += g1 * v3 - g2 * v1z;
-				v2 += g3 * v3 + g4 * v1z;
-				v0z = v0;
-				buffer[i] = v0 - k * v1 - v2;
+				float* d = buffer.getWritePointer(c, startSample);
+
+				for (int i = 0; i < numSamples; i++)
+				{
+					float v0 = d[i];
+					float v1z = v1[c];
+					float v2z = v2[c];
+					float v3 = v0 + v0z[c] - 2.0f * v2z;
+					v1[c] += g1 * v3 - g2 * v1z;
+					v2[c] += g3 * v3 + g4 * v1z;
+					v0z[c] = v0;
+					d[i] = v0 - k * v1[c] - v2[c];
+				}
 			}
+
 			break;
+		}
 		case NOTCH:
-			for (int i = 0; i < samples; i++)
+		{
+			for (int c = 0; c < numChannels; c++)
 			{
-				float v0 = buffer[i];
-				float v1z = v1;
-				float v2z = v2;
-				float v3 = v0 + v0z - 2.0f * v2z;
-				v1 += g1 * v3 - g2 * v1z;
-				v2 += g3 * v3 + g4 * v1z;
-				v0z = v0;
-				buffer[i] = v0 - k * v1;
+				float* d = buffer.getWritePointer(c, startSample);
+
+				for (int i = 0; i < numSamples; i++)
+				{
+					float v0 = d[i];
+					float v1z = v1[c];
+					float v2z = v2[c];
+					float v3 = v0 + v0z[c] - 2.0f * v2z;
+					v1[c] += g1 * v3 - g2 * v1z;
+					v2[c] += g3 * v3 + g4 * v1z;
+					v0z[c] = v0;
+					d[i] = v0 - k * v1[c];
+				}
 			}
+
 			break;
+		}
 		}
 	}
 
 private:
-	float sample_rate;
-	int type = 0;
+	
+	float v0z[NUM_MAX_CHANNELS];
+	float v1[NUM_MAX_CHANNELS];
+	float v2[NUM_MAX_CHANNELS];
 
-	float v0z, v1, v2;
 	float k, g1, g2, g3, g4;
 
 };
@@ -258,12 +536,10 @@ public:
     
     virtual ~FilterEffect() {};
 
-	virtual IIRCoefficients getCurrentCoefficients() const { return currentCoefficients; };
+	virtual IIRCoefficients getCurrentCoefficients() const = 0;
 
 protected:
 
-	IIRCoefficients currentCoefficients;
-    
     int quality;
 
 };
@@ -301,7 +577,7 @@ public:
 
 	enum FilterMode
 	{
-		LowPass,
+		LowPass = 0,
 		HighPass,
 		LowShelf,
 		HighShelf,
@@ -309,7 +585,10 @@ public:
 		ResoLow,
 		StateVariableLP,
 		StateVariableHP,
-		MoogLP
+		MoogLP,
+		OnePoleLowPass,
+		OnePoleHighPass,
+		numFilterModes
 	};
 
 	MonoFilterEffect(MainController *mc, const String &id);;
@@ -344,16 +623,18 @@ public:
 	{
 		switch (mode)
 		{
-		case MonoFilterEffect::LowPass:			return currentCoefficients;
-		case MonoFilterEffect::HighPass:		return currentCoefficients;
-		case MonoFilterEffect::LowShelf:		return currentCoefficients;
-		case MonoFilterEffect::HighShelf:		return currentCoefficients;
-		case MonoFilterEffect::Peak:			return currentCoefficients;
-		case MonoFilterEffect::ResoLow:			return currentCoefficients;
+		case MonoFilterEffect::OnePoleLowPass:  return IIRCoefficients::makeLowPass(getSampleRate(), freq);
+		case MonoFilterEffect::OnePoleHighPass:  return IIRCoefficients::makeHighPass(getSampleRate(), freq);
+		case MonoFilterEffect::LowPass:			return IIRCoefficients::makeLowPass(getSampleRate(), freq);
+		case MonoFilterEffect::HighPass:		return IIRCoefficients::makeHighPass(getSampleRate(), freq);
+		case MonoFilterEffect::LowShelf:		return IIRCoefficients::makeLowShelf(getSampleRate(), freq, q, currentGain);
+		case MonoFilterEffect::HighShelf:		return IIRCoefficients::makeHighShelf(getSampleRate(), freq, q, currentGain);
+		case MonoFilterEffect::Peak:			return IIRCoefficients::makePeakFilter(getSampleRate(), freq, q, currentGain);
+		case MonoFilterEffect::ResoLow:			return makeResoLowPass(getSampleRate(), freq, q);
 		case MonoFilterEffect::StateVariableLP: return makeResoLowPass(getSampleRate(), freq, q);
 		case MonoFilterEffect::StateVariableHP: return IIRCoefficients::makeHighPass(getSampleRate(), freq);
 		case MonoFilterEffect::MoogLP:			return makeResoLowPass(getSampleRate(), freq, q);
-		default:								return currentCoefficients;
+		default:								return IIRCoefficients();
 		}
 	}
 
@@ -378,6 +659,8 @@ private:
 
 	bool changeFlag;
 
+	bool calculateGainModValue = false;
+
 	double currentFreq;
 	float currentGain;
 
@@ -386,16 +669,12 @@ private:
 	float gain;
 	FilterMode mode;
 
-	bool useStateVariableFilters;
-
-	StateVariableFilter stateFilterL;
-	StateVariableFilter stateFilterR;
-
-	IIRFilter filterL;
-	IIRFilter filterR;
-
-	MoogFilter moogL;
-	MoogFilter moogR;
+	StaticBiquad staticBiquadFilter;
+	MoogFilter moogFilter;
+	StateVariableFilter stateFilter;
+	SimpleOnePole simpleFilter;
+	
+	MultiChannelFilter* currentFilter = nullptr;
 
 	double lastSampleRate = 0.0;
 

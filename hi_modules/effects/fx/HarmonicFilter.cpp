@@ -194,17 +194,7 @@ void HarmonicFilter::startVoice(int voiceIndex, int noteNumber)
 		{
 			MonoFilterEffect *filter = harmonicFilters[i]->voiceFilters[voiceIndex];
 
-			if(filter->useStateVariableFilters)
-			{
-				filter->stateFilterL.reset();
-				filter->stateFilterR.reset();
-			}
-			else
-			{
-				filter->filterL.reset();
-				filter->filterR.reset();
-			}
-
+			filter->currentFilter->reset();
 			
 			harmonicFilters[i]->voiceFilters[voiceIndex]->setBypassed(true);
 		}
@@ -218,17 +208,7 @@ void HarmonicFilter::startVoice(int voiceIndex, int noteNumber)
 			
 			MonoFilterEffect *filter = harmonicFilters[i]->voiceFilters[voiceIndex];
 
-			if(filter->useStateVariableFilters)
-			{
-				filter->stateFilterL.reset();
-				filter->stateFilterR.reset();
-			}
-			else
-			{
-				filter->filterL.reset();
-				filter->filterR.reset();
-			}
-
+			filter->currentFilter->reset();
 		}
 	}
 }
@@ -491,16 +471,7 @@ void HarmonicMonophonicFilter::startMonophonicVoice(int noteNumber)
 		{
 			MonoFilterEffect *filter = harmonicFilters[i];
 
-			if (filter->useStateVariableFilters)
-			{
-				filter->stateFilterL.reset();
-				filter->stateFilterR.reset();
-			}
-			else
-			{
-				filter->filterL.reset();
-				filter->filterR.reset();
-			}
+			filter->currentFilter->reset();
 
 			filter->setBypassed(true);
 		}
@@ -512,16 +483,7 @@ void HarmonicMonophonicFilter::startMonophonicVoice(int noteNumber)
 
 			filter->setAttribute(MonoFilterEffect::Frequency, freqForThisHarmonic, dontSendNotification);
 
-			if (filter->useStateVariableFilters)
-			{
-				filter->stateFilterL.reset();
-				filter->stateFilterR.reset();
-			}
-			else
-			{
-				filter->filterL.reset();
-				filter->filterR.reset();
-			}
+			filter->currentFilter->reset();
 		}
 
 	}

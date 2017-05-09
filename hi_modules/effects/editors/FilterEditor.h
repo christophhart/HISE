@@ -51,7 +51,7 @@ public:
 
 	void updateGui() override
 	{
-		modeSelector->setSelectedItemIndex((int)getProcessor()->getAttribute(MonoFilterEffect::Mode), dontSendNotification);
+		modeSelector->setSelectedId((int)getProcessor()->getAttribute(MonoFilterEffect::Mode) + 1, dontSendNotification);
 		freqSlider->updateValue();
 		gainSlider->updateValue();
 		qSlider->updateValue();
@@ -60,15 +60,17 @@ public:
 
 		switch (m)
 		{
-		case MonoFilterEffect::LowPass:			qSlider->setEnabled(false); break;
-		case MonoFilterEffect::HighPass:		qSlider->setEnabled(false); break;
-		case MonoFilterEffect::LowShelf:		qSlider->setEnabled(true); break;
-		case MonoFilterEffect::HighShelf:		qSlider->setEnabled(true); break;
-		case MonoFilterEffect::Peak:			qSlider->setEnabled(true); break;
-		case MonoFilterEffect::ResoLow:			qSlider->setEnabled(true); break;
-		case MonoFilterEffect::StateVariableLP: qSlider->setEnabled(true); break;
-		case MonoFilterEffect::StateVariableHP: qSlider->setEnabled(true); break;
-		case MonoFilterEffect::MoogLP:			qSlider->setEnabled(true); break;
+		case MonoFilterEffect::OnePoleHighPass:	qSlider->setEnabled(false); gainSlider->setEnabled(false); break;
+		case MonoFilterEffect::OnePoleLowPass:	qSlider->setEnabled(false); gainSlider->setEnabled(false); break;
+		case MonoFilterEffect::LowPass:			qSlider->setEnabled(false); gainSlider->setEnabled(false); break;
+		case MonoFilterEffect::HighPass:		qSlider->setEnabled(false); gainSlider->setEnabled(false); break;
+		case MonoFilterEffect::LowShelf:		qSlider->setEnabled(true); gainSlider->setEnabled(true); break;
+		case MonoFilterEffect::HighShelf:		qSlider->setEnabled(true); gainSlider->setEnabled(true); break;
+		case MonoFilterEffect::Peak:			qSlider->setEnabled(true); gainSlider->setEnabled(true); break;
+		case MonoFilterEffect::ResoLow:			qSlider->setEnabled(true); gainSlider->setEnabled(false); break;
+		case MonoFilterEffect::StateVariableLP: qSlider->setEnabled(true); gainSlider->setEnabled(false); break;
+		case MonoFilterEffect::StateVariableHP: qSlider->setEnabled(true); gainSlider->setEnabled(false); break;
+		case MonoFilterEffect::MoogLP:			qSlider->setEnabled(true); gainSlider->setEnabled(false); break;
 		default:								break;
 		}
 	};
@@ -82,7 +84,7 @@ public:
 
 			if(c.coefficients[i] == 0.0) // Replace with safe check function!
 			{
-				jassertfalse;
+				
 				return;
 			}
 		}

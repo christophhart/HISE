@@ -57,15 +57,17 @@ FilterEditor::FilterEditor (ProcessorEditor *p)
     modeSelector->setTextWhenNothingSelected (TRANS("Filter mode"));
     modeSelector->setTextWhenNoChoicesAvailable (TRANS("(no choices)"));
     modeSelector->setColour(MacroControlledObject::HiBackgroundColours::textColour, Colours::white);
-    modeSelector->addItem (TRANS("Low Pass"), 1);
-    modeSelector->addItem (TRANS("High Pass"), 2);
-    modeSelector->addItem (TRANS("Low Shelf"), 3);
-    modeSelector->addItem (TRANS("High Shelf"), 4);
-    modeSelector->addItem (TRANS("Peak"), 5);
-    modeSelector->addItem (TRANS("Resonant LP"), 6);
-    modeSelector->addItem (TRANS("State Variable LP"), 7);
-    modeSelector->addItem (TRANS("State Variable HP"), 8);
-    modeSelector->addItem (TRANS("Moog LP"), 9);
+	modeSelector->addItem(TRANS("1 Pole LP"), MonoFilterEffect::FilterMode::OnePoleLowPass + 1);
+	modeSelector->addItem(TRANS("1 Pole HP"), MonoFilterEffect::FilterMode::OnePoleHighPass + 1);
+	modeSelector->addItem(TRANS("SVF LP"), MonoFilterEffect::FilterMode::StateVariableLP + 1);
+	modeSelector->addItem(TRANS("SVF HP"), MonoFilterEffect::FilterMode::StateVariableHP + 1);
+	modeSelector->addItem(TRANS("Moog LP"), MonoFilterEffect::FilterMode::MoogLP + 1);
+	modeSelector->addItem (TRANS("Biquad LP"), MonoFilterEffect::FilterMode::LowPass + 1);
+    modeSelector->addItem (TRANS("Biquad HP"), MonoFilterEffect::FilterMode::HighPass + 1);
+	modeSelector->addItem(TRANS("Biquad LP Rez"), MonoFilterEffect::FilterMode::ResoLow + 1);
+    modeSelector->addItem (TRANS("Low Shelf EQ"), MonoFilterEffect::FilterMode::LowShelf + 1);
+    modeSelector->addItem (TRANS("High Shelf EQ"), MonoFilterEffect::FilterMode::HighShelf + 1);
+    modeSelector->addItem (TRANS("Peak EQ"), MonoFilterEffect::FilterMode::Peak + 1);
     modeSelector->addListener (this);
 
     addAndMakeVisible (filterGraph = new FilterGraph (1));
@@ -206,7 +208,9 @@ void FilterEditor::comboBoxChanged (ComboBox* comboBoxThatHasChanged)
     {
         //[UserComboBoxCode_modeSelector] -- add your combo box handling code here..
 
-		getProcessor()->setAttribute(MonoFilterEffect::Mode, (float)modeSelector->getSelectedItemIndex(), dontSendNotification);
+		getProcessor()->setAttribute(MonoFilterEffect::Mode, (float)modeSelector->getSelectedId() - 1, dontSendNotification);
+
+		updateGui();
 
         //[/UserComboBoxCode_modeSelector]
     }

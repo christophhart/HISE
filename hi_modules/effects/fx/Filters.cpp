@@ -40,10 +40,11 @@ currentGain(1.0f),
 mode(LowPass),
 changeFlag(false),
 useFixedFrequency(false),
-useStateVariableFilters(false),
 freqChain(new ModulatorChain(mc, "Freq Modulation", 1, Modulation::GainMode, this)),
 gainChain(new ModulatorChain(mc, "Gain Modulation", 1, Modulation::GainMode, this))
 {
+	currentFilter = &simpleFilter;
+
 	freqBuffer = AudioSampleBuffer(1, 0);
 	gainBuffer = AudioSampleBuffer(1, 0);
 
@@ -79,7 +80,7 @@ void MonoFilterEffect::setInternalAttribute(int parameterIndex, float newValue)
 {
 	switch (parameterIndex)
 	{
-	case Gain:		gain = Decibels::decibelsToGain(newValue); break;
+	case Gain:		gain = Decibels::decibelsToGain(newValue); staticBiquadFilter.setGain(gain); break;
 	case Frequency:	useFixedFrequency ? currentFreq = newValue : freq = newValue; break;
 	case Q:			q = newValue; break;
 	case Mode:		setMode((int)newValue);	break;
@@ -116,45 +117,67 @@ ValueTree MonoFilterEffect::exportAsValueTree() const
 void MonoFilterEffect::setMode(int filterMode)
 {
 	mode = (FilterMode)filterMode;
-	useStateVariableFilters = (mode == StateVariableHP || mode == StateVariableLP);
-	if (useStateVariableFilters)
+
+	calculateGainModValue = false;
+	
+
+	switch (mode)
 	{
-		stateFilterL.setType(mode == StateVariableHP ? StateVariableFilter::HP : StateVariableFilter::LP);
-		stateFilterR.setType(mode == StateVariableHP ? StateVariableFilter::HP : StateVariableFilter::LP);
+	case MonoFilterEffect::OnePoleLowPass:
+		simpleFilter.setType(SimpleOnePole::FilterType::LP);
+		currentFilter = &simpleFilter;
+		break;
+	case MonoFilterEffect::OnePoleHighPass:
+		simpleFilter.setType(SimpleOnePole::FilterType::HP);
+		currentFilter = &simpleFilter;
+		break;
+	case MonoFilterEffect::LowPass:
+		staticBiquadFilter.setType(StaticBiquad::LowPass);
+		currentFilter = &staticBiquadFilter;
+		break;
+	case MonoFilterEffect::HighPass:
+		staticBiquadFilter.setType(StaticBiquad::HighPass);
+		currentFilter = &staticBiquadFilter;
+		break;
+	case MonoFilterEffect::LowShelf:
+		staticBiquadFilter.setType(StaticBiquad::LowShelf);
+		currentFilter = &staticBiquadFilter;
+		calculateGainModValue = true;
+		break;
+	case MonoFilterEffect::HighShelf:
+		staticBiquadFilter.setType(StaticBiquad::HighShelf);
+		currentFilter = &staticBiquadFilter;
+		calculateGainModValue = true;
+		break;
+	case MonoFilterEffect::Peak:
+		staticBiquadFilter.setType(StaticBiquad::Peak);
+		currentFilter = &staticBiquadFilter;
+		calculateGainModValue = true;
+		break;
+	case MonoFilterEffect::ResoLow:
+		staticBiquadFilter.setType(StaticBiquad::ResoLow);
+		currentFilter = &staticBiquadFilter;
+		break;
+	case MonoFilterEffect::StateVariableLP:
+		stateFilter.setType(StateVariableFilter::FilterType::LP);
+		currentFilter = &stateFilter;
+		break;
+	case MonoFilterEffect::StateVariableHP:
+		stateFilter.setType(StateVariableFilter::FilterType::HP);
+		currentFilter = &stateFilter;
+		break;
+	case MonoFilterEffect::MoogLP:
+		currentFilter = &moogFilter;
+		break;
+	default:
+		break;
 	}
 }
 
 void MonoFilterEffect::calcCoefficients()
 {
-	if (useStateVariableFilters)
-	{
-		stateFilterL.setCoefficients((float)currentFreq, (float)q / 10.0f);
-		stateFilterR.setCoefficients((float)currentFreq, (float)q / 10.0f);
-	}
-	else
-	{
-		if (mode == MoogLP)
-		{
-			moogL.setCoefficients((float)currentFreq, (float)q);
-			moogR.setCoefficients((float)currentFreq, (float)q);
-		}
-		else
-		{
-			switch (mode)
-			{
-			case LowPass:		currentCoefficients = IIRCoefficients::makeLowPass(getSampleRate(), currentFreq); break;
-			case HighPass:		currentCoefficients = IIRCoefficients::makeHighPass(getSampleRate(), currentFreq); break;
-			case LowShelf:		currentCoefficients = IIRCoefficients::makeLowShelf(getSampleRate(), currentFreq, q, currentGain); break;
-			case HighShelf:		currentCoefficients = IIRCoefficients::makeHighShelf(getSampleRate(), currentFreq, q, currentGain); break;
-			case Peak:			currentCoefficients = IIRCoefficients::makePeakFilter(getSampleRate(), currentFreq, q, currentGain); break;
-			case ResoLow:		currentCoefficients = makeResoLowPass(getSampleRate(), currentFreq, q); break;
-			default:			jassertfalse; return;
-			}
-
-			filterL.setCoefficients(currentCoefficients);
-			filterR.setCoefficients(currentCoefficients);
-		}
-	}
+	currentFilter->setFreqAndQ(currentFreq, q);
+	staticBiquadFilter.setGain(currentGain);
 
 	changeFlag = false;
 }
@@ -167,19 +190,10 @@ void MonoFilterEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 	{
 		lastSampleRate = sampleRate;
 
-		stateFilterL.setSamplerate((float)sampleRate);
-		stateFilterR.setSamplerate((float)sampleRate);
-
-		stateFilterL.reset();
-		stateFilterR.reset();
-
-		moogL.reset();
-		moogR.reset();
-
-		moogL.setSampleRate((float)sampleRate);
-		moogR.setSampleRate((float)sampleRate);
-
-		currentCoefficients = IIRCoefficients::makeLowPass(sampleRate, sampleRate / 2.0);
+		stateFilter.setSampleRate(sampleRate);
+		simpleFilter.setSampleRate(sampleRate);
+		moogFilter.setSampleRate(sampleRate);
+		staticBiquadFilter.setSampleRate(sampleRate);
 
 		calcCoefficients();
 	}
@@ -223,24 +237,7 @@ void MonoFilterEffect::processBlockPartial(AudioSampleBuffer &buffer, int startS
         }
     }
     
-    if (useStateVariableFilters)
-    {
-        stateFilterL.processSamples(buffer.getWritePointer(0, startSample), numSamples);
-        stateFilterR.processSamples(buffer.getWritePointer(1, startSample), numSamples);
-    }
-    else
-    {
-        if (mode == MoogLP)
-        {
-            moogL.processSamples(buffer.getWritePointer(0, startSample), numSamples);
-            moogR.processSamples(buffer.getWritePointer(1, startSample), numSamples);
-        }
-        else
-        {
-            filterL.processSamples(buffer.getWritePointer(0, startSample), numSamples);
-            filterR.processSamples(buffer.getWritePointer(1, startSample), numSamples);
-        }
-    }
+	currentFilter->processSamples(buffer, startSample, numSamples);
 }
 
 void MonoFilterEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples)
@@ -405,24 +402,26 @@ void PolyFilterEffect::preVoiceRendering(int voiceIndex, int startSample, int nu
 
 void PolyFilterEffect::applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples)
 {
+	if (voiceFilters[voiceIndex]->calculateGainModValue)
+	{
+		if (gainChain->getNumChildProcessors() > 0)
+		{
+			const float modulationValue = getCurrentModulationValue(GainChain, voiceIndex, startSample);
+
+			const float modulatedDecibelValue = modulationValue * Decibels::gainToDecibels(gain);
+
+			voiceFilters[voiceIndex]->currentGain = Decibels::decibelsToGain(modulatedDecibelValue);
+		}
+		else
+		{
+			
+			voiceFilters[voiceIndex]->currentGain = gain;
+		}
+	}
+	
 	const double freqModValue = (double)getCurrentModulationValue(FrequencyChain, voiceIndex, startSample);
-	const double checkFreq = std::abs(freqModValue * freq);
-
-    if (mode != MonoFilterEffect::FilterMode::LowPass && mode != MonoFilterEffect::FilterMode::HighPass && gainChain->getNumChildProcessors() > 0)
-	{
-		const float modulationValue = getCurrentModulationValue(GainChain, voiceIndex, startSample);
-
-		const float modulatedDecibelValue = modulationValue * Decibels::gainToDecibels(gain);
-
-		voiceFilters[voiceIndex]->gain = Decibels::decibelsToGain(modulatedDecibelValue);
-
-	}
-	else
-	{
-		voiceFilters[voiceIndex]->gain = gain;
-	}
-
-	voiceFilters[voiceIndex]->currentFreq = checkFreq < 70.0 ? 70.0 : checkFreq;
+	const double checkFreq = jmax<double>(70.0, std::abs(freqModValue * freq));
+	voiceFilters[voiceIndex]->currentFreq = checkFreq;
 	voiceFilters[voiceIndex]->freq = checkFreq;
 	voiceFilters[voiceIndex]->calcCoefficients();
 	voiceFilters[voiceIndex]->applyEffect(b, startSample, numSamples);
@@ -432,26 +431,26 @@ void PolyFilterEffect::startVoice(int voiceIndex, int noteNumber)
 {
 	VoiceEffectProcessor::startVoice(voiceIndex, noteNumber);
 
-	if (voiceFilters[voiceIndex]->useStateVariableFilters)
-	{
-		voiceFilters[voiceIndex]->stateFilterL.reset();
-		voiceFilters[voiceIndex]->stateFilterR.reset();
-
-	}
-	else
-	{
-		if (mode == MonoFilterEffect::MoogLP)
-		{
-			voiceFilters[voiceIndex]->moogL.reset();
-			voiceFilters[voiceIndex]->moogR.reset();
-		}
-		else
-		{
-			voiceFilters[voiceIndex]->filterL.reset();
-			voiceFilters[voiceIndex]->filterR.reset();
-		}
-
-		
-	}
+	voiceFilters[voiceIndex]->currentFilter->reset();
 }
 
+void StaticBiquad::updateCoefficients()
+{
+	FilterType mode = (FilterType)type;
+
+	switch (mode)
+	{
+	case StaticBiquad::LowPass:			currentCoefficients = IIRCoefficients::makeLowPass(sampleRate, frequency); break;
+	case StaticBiquad::HighPass:		currentCoefficients = IIRCoefficients::makeHighPass(sampleRate, frequency); break;
+	case StaticBiquad::LowShelf:		currentCoefficients = IIRCoefficients::makeLowShelf(sampleRate, frequency, q, gain); break;
+	case StaticBiquad::HighShelf:		currentCoefficients = IIRCoefficients::makeHighShelf(sampleRate, frequency, q, gain); break;
+	case StaticBiquad::Peak:			currentCoefficients = IIRCoefficients::makePeakFilter(sampleRate, frequency, q, gain); break;
+	case StaticBiquad::ResoLow:			currentCoefficients = MonoFilterEffect::makeResoLowPass(sampleRate, frequency, q); break;
+	default:							jassertfalse; break;
+	}
+
+	for (int i = 0; i < numChannels; i++)
+	{
+		filters[i].setCoefficients(currentCoefficients);
+	}
+}
