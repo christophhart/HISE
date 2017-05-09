@@ -787,6 +787,8 @@ private:
 
 #endif
 
+    AudioProcessor* thisAsProcessor;
+    
 	Array<WeakReference<TempoListener>> tempoListeners;
 
     std::atomic<float> usagePercent;

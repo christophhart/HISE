@@ -414,7 +414,7 @@ var MainController::getGlobalVariable(int index) const
 
 void MainController::storePlayheadIntoDynamicObject(AudioPlayHead::CurrentPositionInfo &newPosition)
 {
-	static const Identifier bpmId("bpm");
+	//static const Identifier bpmId("bpm");
 	//static const Identifier timeSigNumerator("timeSigNumerator");
 	//static const Identifier timeSigDenominator("timeSigDenominator");
 	//static const Identifier timeInSamples("timeInSamples");
@@ -429,9 +429,9 @@ void MainController::storePlayheadIntoDynamicObject(AudioPlayHead::CurrentPositi
 	//static const Identifier ppqLoopEnd("ppqLoopEnd");
 	//static const Identifier isLooping("isLooping");
 
-	ScopedLock sl(getLock());
+	//ScopedLock sl(getLock());
 
-	hostInfo->setProperty(bpmId, newPosition.bpm);
+	//hostInfo->setProperty(bpmId, newPosition.bpm);
 	//hostInfo->setProperty(timeSigNumerator, newPosition.timeSigNumerator);
 	//hostInfo->setProperty(timeSigDenominator, newPosition.timeSigDenominator);
 	//hostInfo->setProperty(timeInSamples, newPosition.timeInSamples);
@@ -451,7 +451,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 {
     ADD_GLITCH_DETECTOR(getMainSynthChain(), DebugLogger::Location::MainRenderCallback);
     
-	AudioProcessor *thisAsProcessor = dynamic_cast<AudioProcessor*>(this);
+	
 
 	getDebugLogger().checkAudioCallbackProperties(thisAsProcessor->getSampleRate(), buffer.getNumSamples());
 
@@ -621,6 +621,8 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 {
 	bufferSize = samplesPerBlock;
 	sampleRate = sampleRate_;
+    
+    thisAsProcessor = dynamic_cast<AudioProcessor*>(this);
     
 #if ENABLE_CONSOLE_OUTPUT
 	if (logger == nullptr)
