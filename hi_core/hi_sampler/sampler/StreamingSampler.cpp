@@ -1425,6 +1425,61 @@ void StreamingSamplerVoice::startNote (int /*midiNoteNumber*/,
 	}
 }
 
+#define INTERPOLATE_SSE 1
+
+#include "immintrin.h"
+
+
+
+void interpolateStereoSamples(const float* inL, const float* inR, const float* pitchData, float* outL, float* outR, int startSample, double indexInBuffer, double uptimeDelta, int numSamples)
+{
+	if (pitchData != nullptr)
+	{
+		pitchData += startSample;
+
+		float indexInBufferFloat = (float)indexInBuffer;
+
+		for(int i = 0; i < numSamples; i++)
+		{
+			const int pos = int(indexInBufferFloat);
+			const float alpha = indexInBufferFloat - (float)pos;
+			const float invAlpha = 1.0f - alpha;
+
+			float l = (inL[pos] * invAlpha + inL[pos + 1] * alpha);
+			float r = (inR[pos] * invAlpha + inR[pos + 1] * alpha);
+
+			outL[i] = l;
+			outR[i] = r;
+
+			jassert(*pitchData <= (float)MAX_SAMPLER_PITCH);
+
+			indexInBufferFloat += pitchData[i];
+		}
+	}
+	else
+	{
+
+		float indexInBufferFloat = (float)indexInBuffer;
+		const float uptimeDeltaFloat = (float)uptimeDelta;
+
+		while (numSamples > 0)
+		{
+			const int pos = int(indexInBufferFloat);
+			const float alpha = indexInBufferFloat - (float)pos;
+			const float invAlpha = 1.0f - alpha;
+
+			float l = (inL[pos] * invAlpha + inL[pos + 1] * alpha);
+			float r = (inR[pos] * invAlpha + inR[pos + 1] * alpha);
+
+			*outL++ = l;
+			*outR++ = r;
+
+			indexInBufferFloat += uptimeDeltaFloat;
+
+			numSamples--;
+		}
+	}
+}
 
 
 void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int startSample, int numSamples)
@@ -1477,6 +1532,8 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 #endif
         
 		double indexInBuffer = startAlpha;
+
+#if OLD_INTER
 
 		if (pitchData != nullptr)
 		{
@@ -1573,6 +1630,13 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 				numSamples--;
 			}
 		}
+
+#else
+
+		interpolateStereoSamples(inL, inR, pitchData, outL, outR, startSample, indexInBuffer, uptimeDelta, numSamples);
+
+#endif
+
         
 #if USE_SAMPLE_DEBUG_COUNTER 
         
