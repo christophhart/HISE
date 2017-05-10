@@ -31,6 +31,7 @@ struct HiseJavascriptEngine::RootObject::ArrayClass : public DynamicObject
         setMethod("indexOf", indexOf);
         setMethod("isArray", isArray);
 		setMethod("reverse", reverse);
+        setMethod("reserve", reserve);
 	}
 
 	static Identifier getClassName()   { static const Identifier i("Array"); return i; }
@@ -102,6 +103,18 @@ struct HiseJavascriptEngine::RootObject::ArrayClass : public DynamicObject
         
         return var();
     }
+    
+    static var reserve(Args a)
+    {
+        if (Array<var>* array = a.thisObject.getArray())
+        {
+            array->ensureStorageAllocated(getInt(a, 0));
+        }
+        
+        return var();
+    }
+    
+    
 
 	static var insert(Args a)
 	{
