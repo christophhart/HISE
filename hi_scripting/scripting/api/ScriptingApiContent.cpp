@@ -93,6 +93,7 @@ struct ScriptingApi::Content::ScriptComponent::Wrapper
 	API_METHOD_WRAPPER_0(ScriptComponent, getHeight);
     API_METHOD_WRAPPER_0(ScriptComponent, getGlobalPositionX);
     API_METHOD_WRAPPER_0(ScriptComponent, getGlobalPositionY);
+	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setControlCallback);
 };
 
 
@@ -104,6 +105,7 @@ parent(parentContent),
 skipRestoring(false),
 componentProperties(new DynamicObject()),
 changed(false),
+customControlCallback(var()),
 parentComponentIndex(-1)
 {
 	propertyIds.add(Identifier("text"));
@@ -169,6 +171,7 @@ parentComponentIndex(-1)
 	ADD_API_METHOD_0(getHeight);
     ADD_API_METHOD_0(getGlobalPositionX);
     ADD_API_METHOD_0(getGlobalPositionY);
+	ADD_API_METHOD_1(setControlCallback);
 
 	//setName(name_.toString());
 
@@ -322,20 +325,30 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 	else if (id == getIdFor(parentComponent))
 	{
 		auto c = getScriptProcessor()->getScriptingContent();
-		parentComponentIndex = c->getComponentIndex(Identifier(newValue.toString()));
 
-		if (parentComponentIndex != -1)
+		if (newValue.toString().isEmpty())
 		{
-			if (!c->getComponent(parentComponentIndex)->addChildComponent(this))
-			{
-				// something went wrong...
-				parentComponentIndex = -1;
-			}
+			parentComponentIndex = -1;
 		}
 		else
 		{
-			reportScriptError("parent component " + newValue.toString() + " not found.");
+			parentComponentIndex = c->getComponentIndex(Identifier(newValue.toString()));
+
+			if (parentComponentIndex != -1)
+			{
+				if (!c->getComponent(parentComponentIndex)->addChildComponent(this))
+				{
+					// something went wrong...
+					parentComponentIndex = -1;
+				}
+			}
+			else
+			{
+				reportScriptError("parent component " + newValue.toString() + " not found.");
+			}
 		}
+
+		
 
 		
 	}
@@ -683,6 +696,38 @@ void ScriptingApi::Content::ScriptComponent::setValueWithUndo(var newValue)
 
 	getProcessor()->getMainController()->getControlUndoManager()->beginNewTransaction(undoName);
 	getProcessor()->getMainController()->getControlUndoManager()->perform(newEvent);
+}
+
+void ScriptingApi::Content::ScriptComponent::setControlCallback(var controlFunction)
+{
+	auto obj = dynamic_cast<HiseJavascriptEngine::RootObject::InlineFunction::Object*>(controlFunction.getDynamicObject());
+
+	if (obj != nullptr)
+	{
+		int numParameters = obj->parameterNames.size();
+
+		if (numParameters == 2)
+		{
+			customControlCallback = controlFunction;
+		}
+		else
+		{
+			reportScriptError("Control Callback function must have 2 parameters: component and value");
+		}
+	}
+	else if (controlFunction.isUndefined())
+	{
+		customControlCallback = var();
+	}
+	else
+	{
+		reportScriptError("Control Callback function must be a inline function");
+	}
+}
+
+ReferenceCountedObject* ScriptingApi::Content::ScriptComponent::getCustomControlCallback()
+{
+	return customControlCallback.getObject();
 }
 
 struct ScriptingApi::Content::ScriptSlider::Wrapper

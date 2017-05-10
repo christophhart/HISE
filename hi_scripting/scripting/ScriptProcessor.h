@@ -102,6 +102,8 @@ protected:
 
 	friend class JavascriptProcessor;
 
+	JavascriptProcessor* thisAsJavascriptProcessor = nullptr;
+
 	MainController* mc;
 
 	bool allowObjectConstructors;

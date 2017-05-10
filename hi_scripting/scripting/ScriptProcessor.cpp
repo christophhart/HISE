@@ -74,6 +74,9 @@ void ProcessorWithScriptingContent::setControlValue(int index, float newValue)
 #endif
 
 			controlCallback(c, newValue);
+
+
+			
 		}
 	}
 }
@@ -91,47 +94,56 @@ float ProcessorWithScriptingContent::getControlValue(int index) const
 
 void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::ScriptComponent *component, var controllerValue)
 {
-	JavascriptProcessor* jsp = dynamic_cast<JavascriptProcessor*>(this);
-	int callbackIndex = getControlCallbackIndex();
-
-	
-	
-	getMainController_()->getDebugLogger().logParameterChange(jsp, component, controllerValue);
-
-	JavascriptProcessor::SnippetDocument* onControlCallback = jsp->getSnippet(callbackIndex);
-
-	if (onControlCallback->isSnippetEmpty())
-	{
-		return;
-	}
+	if (thisAsJavascriptProcessor == nullptr)
+		thisAsJavascriptProcessor = dynamic_cast<JavascriptProcessor*>(this);
 
 	Processor* thisAsProcessor = dynamic_cast<Processor*>(this);
-	
-	
-	HiseJavascriptEngine* scriptEngine = jsp->getScriptEngine();
 
-	scriptEngine->maximumExecutionTime = RelativeTime(3.0);
-
-#if ENABLE_SCRIPTING_BREAKPOINTS
-	jsp->breakpointWasHit(-1);
-#endif
-
-	ScopedReadLock sl(getMainController_()->getCompileLock());
-
-	scriptEngine->setCallbackParameter(callbackIndex, 0, component);
-	scriptEngine->setCallbackParameter(callbackIndex, 1, controllerValue);
-	scriptEngine->executeCallback(callbackIndex, &jsp->lastResult);
-
-	if (MessageManager::getInstance()->isThisTheMessageThread())
+	if (auto callback = component->getCustomControlCallback())
 	{
-		thisAsProcessor->sendSynchronousChangeMessage();
+		auto f = static_cast<HiseJavascriptEngine::RootObject::InlineFunction::Object*>(callback);
+
+		var args[2] = { var(component), controllerValue };
+
+		auto rootObj = thisAsJavascriptProcessor->getScriptEngine()->getRootObject();
+		auto s = HiseJavascriptEngine::RootObject::Scope(nullptr, static_cast<HiseJavascriptEngine::RootObject*>(rootObj), nullptr);
+
+		f->performDynamically(s, args, 2);
 	}
 	else
 	{
-		thisAsProcessor->sendChangeMessage();
+		int callbackIndex = getControlCallbackIndex();
+
+		getMainController_()->getDebugLogger().logParameterChange(thisAsJavascriptProcessor, component, controllerValue);
+
+		JavascriptProcessor::SnippetDocument* onControlCallback = thisAsJavascriptProcessor->getSnippet(callbackIndex);
+
+		if (onControlCallback->isSnippetEmpty())
+		{
+			return;
+		}
+
+		HiseJavascriptEngine* scriptEngine = thisAsJavascriptProcessor->getScriptEngine();
+
+		scriptEngine->maximumExecutionTime = RelativeTime(3.0);
+
+#if ENABLE_SCRIPTING_BREAKPOINTS
+		thisAsJavascriptProcessor->breakpointWasHit(-1);
+#endif
+
+		ScopedReadLock sl(getMainController_()->getCompileLock());
+
+		scriptEngine->setCallbackParameter(callbackIndex, 0, component);
+		scriptEngine->setCallbackParameter(callbackIndex, 1, controllerValue);
+		scriptEngine->executeCallback(callbackIndex, &thisAsJavascriptProcessor->lastResult);
+
+		BACKEND_ONLY(if (!thisAsJavascriptProcessor->lastResult.wasOk()) debugError(thisAsProcessor, onControlCallback->getCallbackName().toString() + ": " + thisAsJavascriptProcessor->lastResult.getErrorMessage()));
 	}
 
-	BACKEND_ONLY(if (!jsp->lastResult.wasOk()) debugError(thisAsProcessor, onControlCallback->getCallbackName().toString() + ": " + jsp->lastResult.getErrorMessage()));
+	if (MessageManager::getInstance()->isThisTheMessageThread())
+		thisAsProcessor->sendSynchronousChangeMessage();
+	else
+		thisAsProcessor->sendChangeMessage();
 }
 
 void ProcessorWithScriptingContent::restoreContent(const ValueTree &restoredState)
