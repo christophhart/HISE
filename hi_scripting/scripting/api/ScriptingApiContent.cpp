@@ -706,13 +706,13 @@ void ScriptingApi::Content::ScriptComponent::setControlCallback(var controlFunct
 	{
 		int numParameters = obj->parameterNames.size();
 
-		if (numParameters == 1)
+		if (numParameters == 2)
 		{
 			customControlCallback = controlFunction;
 		}
 		else
 		{
-			reportScriptError("Control Callback function must have 1 parameter");
+			reportScriptError("Control Callback function must have 2 parameters: component and value");
 		}
 	}
 	else

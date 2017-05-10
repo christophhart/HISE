@@ -103,10 +103,12 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 	{
 		auto f = static_cast<HiseJavascriptEngine::RootObject::InlineFunction::Object*>(callback);
 
+		var args[2] = { var(component), controllerValue };
+
 		auto rootObj = thisAsJavascriptProcessor->getScriptEngine()->getRootObject();
 		auto s = HiseJavascriptEngine::RootObject::Scope(nullptr, static_cast<HiseJavascriptEngine::RootObject*>(rootObj), nullptr);
 
-		f->performDynamically(s, &controllerValue, 1);
+		f->performDynamically(s, args, 2);
 	}
 	else
 	{
