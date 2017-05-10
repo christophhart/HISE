@@ -1427,9 +1427,6 @@ void StreamingSamplerVoice::startNote (int /*midiNoteNumber*/,
 
 #define INTERPOLATE_SSE 1
 
-#include "immintrin.h"
-
-
 
 void interpolateStereoSamples(const float* inL, const float* inR, const float* pitchData, float* outL, float* outR, int startSample, double indexInBuffer, double uptimeDelta, int numSamples)
 {

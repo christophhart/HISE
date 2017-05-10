@@ -63,7 +63,7 @@ END_JUCE_MODULE_DECLARATION
 #endif
 #endif
 
-#if HLAC_NO_SSE
+#if HLAC_NO_SSE || JUCE_IOS
 #else
 #include <nmmintrin.h> 
 #endif

@@ -302,7 +302,7 @@ public:
 
 private:
 
-	__declspec(align(16)) float lastValues[NUM_MAX_CHANNELS];
+	float lastValues[NUM_MAX_CHANNELS];
 
 	float a0;
 	float b1;
