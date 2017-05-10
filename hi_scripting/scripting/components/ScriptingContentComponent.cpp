@@ -195,9 +195,7 @@ void ScriptContentComponent::changeListenerCallback(SafeChangeBroadcaster *b)
 
 void ScriptContentComponent::updateComponent(int i)
 {
-    
-
-	if(componentWrappers[i]->getComponent() == nullptr)
+    if(componentWrappers[i]->getComponent() == nullptr)
     {
         jassertfalse;
         return;
@@ -211,7 +209,38 @@ void ScriptContentComponent::updateComponent(int i)
 
 	const Rectangle<int> localBounds = componentWrappers[i]->getComponent()->getBoundsInParent();
 	const Rectangle<int> currentPosition = contentData->components[i]->getPosition();
+	
+	auto currentParentId = componentWrappers[i]->getComponent()->getParentComponent()->getName();
+	auto newParentId = contentData->components[i]->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::parentComponent).toString();
 
+	if (currentParentId != newParentId)
+	{
+		auto componentToRemove = componentWrappers[i]->getComponent();
+
+		if (newParentId.isEmpty())
+		{
+			componentToRemove->getParentComponent()->removeChildComponent(componentToRemove);
+
+			addChildComponent(componentToRemove);
+			componentToRemove->setBounds(currentPosition);
+		}
+		else
+		{
+			for (int i = 0; i < componentWrappers.size(); i++)
+			{
+				if (componentWrappers[i]->getComponent()->getName() == newParentId)
+				{
+					auto newParent = componentWrappers[i]->getComponent();
+					componentToRemove->getParentComponent()->removeChildComponent(componentToRemove);
+					newParent->addChildComponent(componentToRemove);
+					componentToRemove->setBounds(currentPosition);
+					break;
+				}
+			}
+		}
+
+		
+	}
 
 	if (localBounds != currentPosition)
 	{

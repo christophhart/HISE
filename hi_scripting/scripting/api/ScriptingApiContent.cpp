@@ -322,20 +322,30 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 	else if (id == getIdFor(parentComponent))
 	{
 		auto c = getScriptProcessor()->getScriptingContent();
-		parentComponentIndex = c->getComponentIndex(Identifier(newValue.toString()));
 
-		if (parentComponentIndex != -1)
+		if (newValue.toString().isEmpty())
 		{
-			if (!c->getComponent(parentComponentIndex)->addChildComponent(this))
-			{
-				// something went wrong...
-				parentComponentIndex = -1;
-			}
+			parentComponentIndex = -1;
 		}
 		else
 		{
-			reportScriptError("parent component " + newValue.toString() + " not found.");
+			parentComponentIndex = c->getComponentIndex(Identifier(newValue.toString()));
+
+			if (parentComponentIndex != -1)
+			{
+				if (!c->getComponent(parentComponentIndex)->addChildComponent(this))
+				{
+					// something went wrong...
+					parentComponentIndex = -1;
+				}
+			}
+			else
+			{
+				reportScriptError("parent component " + newValue.toString() + " not found.");
+			}
 		}
+
+		
 
 		
 	}
