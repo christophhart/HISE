@@ -156,6 +156,8 @@ public:
 		*	It also looks in the child components' child componenents ... */
 		bool isChildComponent(ScriptComponent* childComponent);
 
+		ReferenceCountedObject* getCustomControlCallback();
+
 		void notifyChildComponents();
 
 		// API Methods =====================================================================================================
@@ -222,6 +224,9 @@ public:
 		/** Returns the height of the component. */
 		var getHeight() const;
 
+		/** Pass a inline function for a custom callback event. */
+		void setControlCallback(var controlFunction);
+
 		// End of API Methods ============================================================================================
 
 		void setChanged(bool isChanged = true) noexcept{ changed = isChanged; }
@@ -247,6 +252,8 @@ public:
 	private:
 
 		ReferenceCountedArray<ScriptComponent> childComponents;
+
+		var customControlCallback;
 
 		NamedValueSet defaultValues;
 		bool changed;
