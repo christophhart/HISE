@@ -39,7 +39,12 @@ CodeEditorComponent(doc, tok)
 	setColour(CodeEditorComponent::ColourIds::backgroundColourId, Colour(0xFF393939));
 	getDocument().getUndoManager().setMaxNumberOfStoredUnits(0, 0);
 
-	setFont(GLOBAL_MONOSPACE_FONT());
+#if JUCE_MAC
+    setFont(GLOBAL_MONOSPACE_FONT().withHeight(12.0f)); // other font sizes disappear on OSX Sierra, yeah!
+#else
+    setFont(GLOBAL_MONOSPACE_FONT());
+#endif
+    
 	setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colours::white.withBrightness(0.9f));
 	setLineNumbersShown(false);
 }
