@@ -121,17 +121,23 @@ void ScriptingObjects::MidiList::setValue(int index, int value)
 {
 	if (index >= 0 && index < 128)
 	{
-		data[index] = value;
-
-		if (value == -1)
+        if (value == -1)
 		{
-			numValues--;
-			if (numValues == 0) empty = true;
+            if(data[index] != -1)
+            {
+                numValues--;
+                if (numValues == 0) empty = true;
+            }
 		}
 		else
 		{
-			numValues++;
-			empty = false;
+            if(data[index] == -1)
+            {
+                numValues++;
+                empty = false;
+            }
+            
+            data[index] = value;
 		}
 	}
 }
