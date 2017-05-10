@@ -715,6 +715,10 @@ void ScriptingApi::Content::ScriptComponent::setControlCallback(var controlFunct
 			reportScriptError("Control Callback function must have 2 parameters: component and value");
 		}
 	}
+	else if (controlFunction.isUndefined())
+	{
+		customControlCallback = var();
+	}
 	else
 	{
 		reportScriptError("Control Callback function must be a inline function");
