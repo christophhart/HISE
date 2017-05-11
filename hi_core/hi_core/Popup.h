@@ -35,6 +35,7 @@
 
 
 class BaseDebugArea;
+class BackendProcessorEditor;
 
 class AutoPopupDebugComponent
 {
@@ -44,15 +45,20 @@ public:
 
 	virtual ~AutoPopupDebugComponent() {};
 
+	bool isFloating() const;
+
+	virtual void floatingStateChanged(bool isCurrentlyFloating) {}
+
 protected:
 
-	AutoPopupDebugComponent(BaseDebugArea *area) :
-		parentArea(area)
-	{};
+	AutoPopupDebugComponent(BaseDebugArea *area);;
+
+	BackendProcessorEditor* editor;
 
 private:
 
 	BaseDebugArea *parentArea;
+	
 };
 
 

@@ -123,6 +123,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuViewShowSelectedProcessorInPopup,
 		
 		MenuToolsRecompile,
+		MenuToolsCreateInterface,
         MenuToolsClearConsole,
 		MenuToolsSetCompileTimeOut,
 		MenuToolsUseBackgroundThreadForCompile,
@@ -357,6 +358,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
     case MenuEditCloseAllChains:
         setCommandTarget(result, "Close all chains", clipBoardNotEmpty(), false, 'X', false);
         break;
+	case MenuToolsCreateInterface:
+		setCommandTarget(result, "Create User Interface", true, false, 'X', false);
+		break;
 	case MenuToolsRecompile:
                          setCommandTarget(result, "Recompile all scripts", true, false, 'X', false);
                          result.addDefaultKeypress(KeyPress::F5Key, ModifierKeys::shiftModifier);
@@ -535,6 +539,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
     case MenuEditPlotModulator:         Actions::plotModulator(currentCopyPasteTarget.get()); updateCommands(); return true;
     case MenuEditCloseAllChains:        Actions::closeAllChains(bpe); return true;
 	case MenuToolsRecompile:            Actions::recompileAllScripts(bpe); return true;
+	case MenuToolsCreateInterface:		Actions::createUserInterface(bpe); return true;
 	case MenuToolsSetCompileTimeOut:	Actions::setCompileTimeOut(bpe); return true;
 	case MenuToolsUseBackgroundThreadForCompile: Actions::toggleUseBackgroundThreadsForCompiling(bpe); updateCommands(); return true;
 	case MenuToolsRecompileScriptsOnReload: Actions::toggleCompileScriptsOnPresetLoad(bpe); updateCommands(); return true;
@@ -769,6 +774,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 	case BackendCommandTarget::ToolsMenu:
 	{
 		p.addSectionHeader("Scripting Tools");
+		ADD_ALL_PLATFORMS(MenuToolsCreateInterface);
 		ADD_ALL_PLATFORMS(MenuToolsRecompile);
 		ADD_ALL_PLATFORMS(MenuToolsCheckDuplicate);
 		ADD_ALL_PLATFORMS(MenuToolsClearConsole);
@@ -1179,6 +1185,16 @@ void BackendCommandTarget::Actions::createBase64State(CopyPasteTarget* target)
 	{
 		ProcessorHelpers::getBase64String(editor->getProcessor());
 	}
+}
+
+void BackendCommandTarget::Actions::createUserInterface(BackendProcessorEditor * bpe)
+{
+	auto c = new InterfaceCreator();
+
+	c->setModalBaseWindowComponent(bpe);
+	
+	c->grabKeyboardFocus();
+
 }
 
 void BackendCommandTarget::Actions::recompileAllScripts(BackendProcessorEditor * bpe)

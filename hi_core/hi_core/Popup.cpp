@@ -138,3 +138,17 @@ void TooltipBar::mouseDown(const MouseEvent &)
 {
 	
 }
+
+bool AutoPopupDebugComponent::isFloating() const
+{
+	const Component* c = dynamic_cast<const Component*>(this);
+
+	return c->getParentComponent() != nullptr && c->findParentComponentOfClass<BackendProcessorEditor>() == nullptr;
+}
+
+AutoPopupDebugComponent::AutoPopupDebugComponent(BaseDebugArea *area) :
+	parentArea(area),
+	editor(area->getBackendProcessorEditor())
+{
+
+}

@@ -141,6 +141,7 @@ public:
         MenuViewListOffset = 0x70000,
 		MenuViewProcessorListOffset = 0x80000,
 		MenuToolsRecompile = 0x50000,
+		MenuToolsCreateInterface,
         MenuToolsCheckDuplicate,
         MenuToolsClearConsole,
 		MenuToolsSetCompileTimeOut,
@@ -300,6 +301,7 @@ public:
 		static void checkAllSamplemaps(BackendProcessorEditor * bpe);
 		static void validateUserPresets(BackendProcessorEditor * bpe);
 		static void createBase64State(CopyPasteTarget* target);
+		static void createUserInterface(BackendProcessorEditor * bpe);
 	};
 
 private:

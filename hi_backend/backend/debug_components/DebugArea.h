@@ -38,6 +38,8 @@ class MacroParameterTable;
 class ScriptWatchTable;
 
 
+
+
 class BaseDebugArea: public Component,
 					 public Timer,
 					 public RestorableObject
@@ -137,6 +139,26 @@ public:
 
 	};
 
+	class DebugPopout : public DocumentWindow
+	{
+	public:
+
+		DebugPopout(Component* c, BaseDebugArea* parent, Rectangle<int> area);
+
+		void closeButtonPressed() override;
+
+		void resized() override
+		{
+			if (getContentComponent() != nullptr)
+			{
+				area->setFloatingArea(getContentComponent(), getScreenBounds());
+			}
+		}
+
+		BackendProcessorEditor* editor;
+		BaseDebugArea* area;
+	};
+
 	void timerCallback() override
 	{
 		panel->repaint();
@@ -150,6 +172,17 @@ public:
 			{
 				return true;
 			}
+		}
+
+		return false;
+	}
+
+	bool isFloating(Component* c) const
+	{
+		for (int i = 0; i < floatingWindows.size(); i++)
+		{
+			if (floatingWindows[i]->getContentComponent() == c)
+				return true;
 		}
 
 		return false;
@@ -175,11 +208,37 @@ public:
 	{
 		ValueTree v(getIdForArea());
 
+		static const Identifier floating("floating");
+		static const Identifier ip("inPanel");
+		static const Identifier x("x");
+		static const Identifier y("y");
+		static const Identifier w("w");
+		static const Identifier h("h");
+
 		for (int i = 0; i < getNumComponents(); i++)
 		{
+			ValueTree child(getIdForComponent(i));
+
 			Component *co = getComponentForIndex(i);
 
-			v.setProperty(getIdForComponent(i), isInPanel(co) ? co->getHeight() : 0, nullptr);
+			child.setProperty(ip, isInPanel(co), nullptr);
+			
+			if (isFloating(co))
+			{
+				child.setProperty(floating, true, nullptr);
+
+				child.setProperty(x, floatingAreas[i].getX(), nullptr);
+				child.setProperty(y, floatingAreas[i].getY(), nullptr);
+				child.setProperty(w, floatingAreas[i].getWidth(), nullptr);
+				child.setProperty(h, floatingAreas[i].getHeight(), nullptr);
+			}
+			else
+			{
+				child.setProperty(floating, false, nullptr);
+				child.setProperty(y, co->getHeight(), nullptr);
+			}
+
+			v.addChild(child, -1, nullptr);
 		}
 
 		return v;
@@ -187,8 +246,18 @@ public:
 
 	void restoreFromValueTree(const ValueTree &v) override
 	{
+		if (v.getNumChildren() == 0)
+			return;
+
 		jassert(v.getType() == getIdForArea());
-		jassert(getNumComponents() == v.getNumProperties());
+		jassert(getNumComponents() == v.getNumChildren());
+
+		static const Identifier floating("floating");
+		static const Identifier ip("inPanel");
+		static const Identifier x("x");
+		static const Identifier y("y");
+		static const Identifier w("w");
+		static const Identifier h("h");
 
 		// Delete them all
 		for (int i = 0; i < getNumComponents(); i++)
@@ -199,9 +268,25 @@ public:
 		// Add them all
 		for (int i = 0; i < getNumComponents(); i++)
 		{
-			const int height = v.getProperty(getIdForComponent(i));
+			ValueTree child = v.getChild(i);
 
-			showComponent(i, height != 0);
+			Component* co = getComponentForIndex(i);
+
+			const bool ip_ = (bool)child.getProperty(ip, false);
+
+			if (ip_)
+			{
+				showComponent(i, true);
+				continue;
+			}
+
+			const bool floating_ = child.getProperty(floating, false);
+			
+			if (floating_)
+			{
+				floatingAreas[i].setBounds(child.getProperty(x, 0), child.getProperty(y, 0), child.getProperty(w, 0), child.getProperty(h, 0));
+				openInFloatingWindow(i, true);
+			}
 		}
 
 		resized();
@@ -222,6 +307,8 @@ public:
 	}
 
     void paint(Graphics &g) override;
+
+	void mouseDown(const MouseEvent& e) override;
 
 	void resized() override
 	{
@@ -270,8 +357,22 @@ public:
 	}
 	void showComponent(int index, bool shouldBeShown);
 
+	void openInFloatingWindow(int index, bool shouldBeShown);
+
+	void setFloatingArea(Component* c, Rectangle<int>& newBounds)
+	{
+		int index = getIndexForComponent(c);
+
+		if (index >= 0 && index < 16)
+		{
+			floatingAreas[index] = newBounds;
+		}
+	}
+
 	/** Overwrite this if you want to limit a components size. */
 	virtual int getMaximumSizeForComponent(int /*componentIndex*/) { return -1; }
+
+	BackendProcessorEditor* getBackendProcessorEditor() { return mainEditor; }
 
 protected:
 
@@ -288,7 +389,10 @@ private:
 	
 	ScopedPointer<Toolbar> debugToolbar;
 	
+	OwnedArray<DebugPopout> floatingWindows;
 	
+	Rectangle<int> floatingAreas[16];
+
 };
 
 

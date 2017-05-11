@@ -47,9 +47,12 @@ ScriptWatchTable::ScriptWatchTable(MainController *mc, BaseDebugArea *area) :
 	table->setColour(ListBox::backgroundColourId, JUCE_LIVE_CONSTANT_OFF(Colour(0x04ffffff)));
 
 	table->getHeader().addColumn("Type", Type, 30, 30, 30);
-	table->getHeader().addColumn("Data Type", DataType, 100);
-	table->getHeader().addColumn("Name", Name, 100);
-	table->getHeader().addColumn("Value", Value, 180);
+	table->getHeader().addColumn("Data Type", DataType, 100, 100, 100);
+	table->getHeader().addColumn("Name", Name, 100, 60, 200);
+	table->getHeader().addColumn("Value", Value, 180, 150, -1);
+
+	table->getHeader().setStretchToFitActive(true);
+	
 
 	table->addMouseListener(this, true);
 
@@ -63,6 +66,8 @@ ScriptWatchTable::ScriptWatchTable(MainController *mc, BaseDebugArea *area) :
 	mc->addScriptListener(this);
 
 	rebuildLines();
+
+
 }
 
 
@@ -363,7 +368,7 @@ void ScriptWatchTable::paintCell (Graphics& g, int rowNumber, int columnId,
 		{
 			text << allVariableLines[indexInAllLines][columnId - 1];
 
-			g.setColour(changed[rowNumber] ? Colours::darkred : Colours::black);
+			g.setColour(changed[rowNumber] ? Colours::orangered : Colours::white);
 			g.setFont(GLOBAL_MONOSPACE_FONT());
 			g.drawText(text, 5, 0, width - 10, height, Justification::centredLeft, true);
 		}
@@ -381,7 +386,7 @@ String ScriptWatchTable::getHeadline() const
     
 void ScriptWatchTable::resized()
 {
-	
+	table->getHeader().resizeAllColumnsToFit(getWidth());
 
 	table->setBounds(0, 24, getWidth(), jmax<int>(0, getHeight() - 24));
 	fuzzySearchBox->setBounds(24, 0, getWidth()-24, 23);
@@ -408,7 +413,7 @@ void ScriptComponentEditPanel::addSectionToPanel(const Array<Identifier> &idList
 
 	panel->addSection(sectionName, propertyPanelList, true);
 
-
+	
 };
 
 
@@ -533,6 +538,7 @@ void ScriptComponentEditPanel::addProperty(Array<PropertyComponent*> &arrayToAdd
 		}
 	}
 
+	
 
 	
 }

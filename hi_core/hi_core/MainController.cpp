@@ -412,7 +412,7 @@ var MainController::getGlobalVariable(int index) const
 	return globalVariableArray.getUnchecked(index);
 }
 
-void MainController::storePlayheadIntoDynamicObject(AudioPlayHead::CurrentPositionInfo &newPosition)
+void MainController::storePlayheadIntoDynamicObject(AudioPlayHead::CurrentPositionInfo &/*newPosition*/)
 {
 	//static const Identifier bpmId("bpm");
 	//static const Identifier timeSigNumerator("timeSigNumerator");

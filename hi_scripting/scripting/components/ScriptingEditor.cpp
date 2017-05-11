@@ -1549,7 +1549,13 @@ void ScriptingEditor::DragOverlay::mouseDown(const MouseEvent& e)
 
 	if (parentEditor->editorShown && e.mods.isRightButtonDown())
 	{
-		const int editComponentOffset = 109;
+		enum ComponentOffsets
+		{
+			connectComponentOffset = 5000,
+			addCallbackOffset = 10000,
+			showCallbackOffset = 15000,
+			editComponentOffset = 20000
+		};
 
 		PopupMenu m;
 		ScopedPointer<PopupLookAndFeel> luf = new PopupLookAndFeel();
@@ -1580,25 +1586,34 @@ void ScriptingEditor::DragOverlay::mouseDown(const MouseEvent& e)
 			{
 				m.addSeparator();
 
-				m.addItem(6, "Connect to Module Parameter");
-
 				if (components.size() == 1)
 				{
 					m.addItem(editComponentOffset, "Edit \"" + components[0]->getName().toString() + "\" in Panel");
+					m.addItem(connectComponentOffset, "Connect to Module Parameter");
+					m.addItem(addCallbackOffset, "Add custom callback for " + components[0]->getName().toString(), components[0]->getCustomControlCallback() == nullptr);
+					m.addItem(showCallbackOffset, "Show custom callback for " + components[0]->getName().toString(), components[0]->getCustomControlCallback() != nullptr);
 				}
 				else
 				{
-					PopupMenu comp;
+					PopupMenu editSub;
+					PopupMenu connectSub;
+					PopupMenu addSub;
+					PopupMenu showSub;
 
 					for (int i = 0; i < components.size(); i++)
 					{
-						comp.addItem(editComponentOffset + i, components[i]->getName().toString());
+						editSub.addItem(editComponentOffset + i, components[i]->getName().toString());
+						connectSub.addItem(connectComponentOffset + i, components[i]->getName().toString());
+						addSub.addItem(addCallbackOffset + i, components[i]->getName().toString(), components[0]->getCustomControlCallback() == nullptr);
+						showSub.addItem(showCallbackOffset + i, components[i]->getName().toString(), components[0]->getCustomControlCallback() != nullptr);
 					}
 
-					m.addSubMenu("Select Component to edit", comp, components.size() != 0);
+					m.addSubMenu("Edit in Panel", editSub, components.size() != 0);
+					m.addSubMenu("Connect to Module Parameter", connectSub, components.size() != 0);
+					m.addSubMenu("Add custom callback for", addSub, components.size() != 0);
+					m.addSubMenu("Show custom callback for", showSub, components.size() != 0);
 				}
 			}
-
 		}
 		else
 		{
@@ -1607,20 +1622,7 @@ void ScriptingEditor::DragOverlay::mouseDown(const MouseEvent& e)
 
 		int result = m.show();
 
-		if (result == 6)
-		{
-			ScriptingApi::Content::ScriptComponent* sc = components.getFirst();
-
-			jassert(sc != nullptr);
-
-			if (ProcessorHelpers::is<JavascriptMidiProcessor>(parentEditor->getProcessor()))
-			{
-				ParameterConnector *comp = new ParameterConnector(sc, parentEditor);
-
-				comp->setModalBaseWindowComponent(parentEditor->findParentComponentOfClass<BackendProcessorEditor>());
-			}
-		}
-		else if (result >= (int)Widgets::Knob && result < (int)Widgets::numWidgets)
+		if (result >= (int)Widgets::Knob && result < (int)Widgets::numWidgets)
 		{
 			const int insertX = e.getEventRelativeTo(content).getMouseDownPosition().getX();
 			const int insertY = e.getEventRelativeTo(content).getMouseDownPosition().getY();
@@ -1633,7 +1635,65 @@ void ScriptingEditor::DragOverlay::mouseDown(const MouseEvent& e)
 
 			parentEditor->getProcessor()->getMainController()->setEditedScriptComponent(sc, parentEditor);
 		}
+		else if (result >= showCallbackOffset)
+		{
+			auto componentToUse = components[result - showCallbackOffset];
 
+			auto func = dynamic_cast<DebugableObject*>(componentToUse->getCustomControlCallback());
+
+			if (func != nullptr)
+				func->doubleClickCallback(e, parentEditor);
+		}
+		else if (result >= addCallbackOffset)
+		{
+			auto componentToUse = components[result - addCallbackOffset];
+
+			auto name = componentToUse->getName();
+
+			NewLine nl;
+			String code;
+
+
+			String callbackName = "on" + name.toString() + "Control";
+
+			code << nl;
+			code << "inline function " << callbackName << "(component, value)" << nl;
+			code << "{" << nl;
+			code << "\t//Add your custom logic here..." << nl;
+			code << "};" << nl;
+			code << nl;
+			code << name.toString() << ".setControlCallback(" << callbackName << ");" << nl;
+
+			auto c = parentEditor->codeEditor.get();
+
+			if (c->editor->selectJSONTag(name))
+			{
+				auto insertPos = c->editor->getHighlightedRegion().getEnd();
+				c->editor->moveCaretTo(CodeDocument::Position(c->editor->getDocument(), insertPos), false);
+
+				c->editor->insertTextAtCaret(nl);
+			}
+			else
+			{
+				c->editor->selectLineAfterDefinition(name);
+			}
+
+			c->editor->insertTextAtCaret(code);
+
+			parentEditor->compileScript();
+		}
+		else if (result >= connectComponentOffset)
+		{
+			auto componentToUse = components[result - connectComponentOffset];
+
+			if (ProcessorHelpers::is<JavascriptMidiProcessor>(parentEditor->getProcessor()))
+			{
+				ParameterConnector *comp = new ParameterConnector(componentToUse, parentEditor);
+
+				comp->setModalBaseWindowComponent(parentEditor->findParentComponentOfClass<BackendProcessorEditor>());
+			}
+
+		}
 	}
 }
 
@@ -1685,7 +1745,12 @@ void ScriptingEditor::DragOverlay::Dragger::mouseDown(const MouseEvent& e)
 
 	if (e.mods.isRightButtonDown())
 	{
-		setDraggedControl(nullptr, nullptr);
+		ScriptingEditor* editor = parentEditor.getComponent();
+
+		if (editor != nullptr)
+		{
+			editor->getProcessor()->getMainController()->setEditedScriptComponent(nullptr, editor);
+		}
 	}
 }
 
@@ -1831,30 +1896,11 @@ void ScriptingEditor::DragOverlay::Dragger::setDraggedControl(Component* compone
 
 void ScriptingEditor::DragOverlay::Dragger::MovementWatcher::componentMovedOrResized(bool /*wasMoved*/, bool /*wasResized*/)
 {
-	Component* p = getComponent()->getParentComponent();
-
-    auto c = getComponent()->findParentComponentOfClass<ScriptContentComponent>();
+	auto c = getComponent()->findParentComponentOfClass<ScriptContentComponent>();
 
     if(c != nullptr)
     {
         auto boundsInParent = c->getLocalArea(getComponent()->getParentComponent(), getComponent()->getBoundsInParent());
         dragComponent->setBounds(boundsInParent);
     }
-    
-#if 0
-	if (isInPopup)
-	{
-		
-
-		auto boundsInParent = getComponent()->getBoundsInParent();
-		auto parentOffset = dynamic_cast<ScriptContentComponent*>(p) != nullptr ? Point<int>() : p->getBoundsInParent().getPosition();
-		auto actualBounds = Rectangle<int>(boundsInParent.getX() + parentOffset.getX(), boundsInParent.getY() + parentOffset.getY(), getComponent()->getWidth(), getComponent()->getHeight());
-
-		dragComponent->setBounds(actualBounds);
-	}
-	else
-	{
-		dragComponent->setBounds(dragComponent->getParentComponent()->getLocalArea(p, getComponent()->getBounds()));
-	}
-#endif
 }

@@ -226,11 +226,11 @@ void ScriptContentComponent::updateComponent(int i)
 		}
 		else
 		{
-			for (int i = 0; i < componentWrappers.size(); i++)
+			for (int c = 0; c < componentWrappers.size(); c++)
 			{
-				if (componentWrappers[i]->getComponent()->getName() == newParentId)
+				if (componentWrappers[c]->getComponent()->getName() == newParentId)
 				{
-					auto newParent = componentWrappers[i]->getComponent();
+					auto newParent = componentWrappers[c]->getComponent();
 					componentToRemove->getParentComponent()->removeChildComponent(componentToRemove);
 					newParent->addChildComponent(componentToRemove);
 					componentToRemove->setBounds(currentPosition);

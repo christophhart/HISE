@@ -456,7 +456,7 @@ public:
 
 	void drawPropertyPanelSectionHeader (Graphics& g, const String& name, bool isOpen, int width, int height) override
 	{
-		g.setColour(Colour(0xbbC1C1C1));
+		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff6b6b6b)));
 
 		g.fillRoundedRectangle(1.0f, 0.0f, (float)width-2.0f, (float)height, 1.0f);
 
@@ -467,30 +467,38 @@ public:
 
 		const int textX = (int) (buttonIndent * 2.0f + buttonSize + 2.0f);
 
-		g.setColour (Colours::black);
+		g.setColour (JUCE_LIVE_CONSTANT_OFF(Colour(0xFF000000)));
 		g.setFont (GLOBAL_BOLD_FONT());
 		g.drawText (name, textX, 0, width - textX - 4, height, Justification::centredLeft, true);
 	}
 
     void drawPropertyComponentBackground (Graphics& g, int /*width*/, int /*height*/, PropertyComponent& /*component*/) override
 	{
-        g.setColour (Colours::grey);
+        g.setColour (JUCE_LIVE_CONSTANT_OFF(Colour(0xff3d3d3d)));
         g.fillAll();
 		
 	}
 
+	Rectangle<int> getPropertyComponentContentPosition(PropertyComponent& component)
+	{
+		const int textW = jmin(220, component.getWidth() / 3);
+		return Rectangle<int>(textW, 1, component.getWidth() - textW - 1, component.getHeight() - 3);
+	}
+
+
     void drawPropertyComponentLabel (Graphics& g, int /*width*/, int /*height*/, PropertyComponent& component) override
 	{
-		 g.setColour (component.findColour (PropertyComponent::labelTextColourId)
-                    .withMultipliedAlpha (component.isEnabled() ? 1.0f : 0.6f));
+		Colour textColour = JUCE_LIVE_CONSTANT_OFF(Colour(0xffdddddd));
+
+		 g.setColour (textColour.withMultipliedAlpha (component.isEnabled() ? 1.0f : 0.6f));
 
 		 g.setFont (GLOBAL_MONOSPACE_FONT());
 
 		const Rectangle<int> r (getPropertyComponentContentPosition (component));
 
 		g.drawFittedText (component.getName(),
-						  3, r.getY(), r.getX() - 5, r.getHeight(),
-						  Justification::centredLeft, 2);
+						  3, r.getY(), r.getX() - 8, r.getHeight(),
+						  Justification::centredRight, 2);
 	};
 
 	void drawLinearSlider (Graphics &g, int /*x*/, int /*y*/, int width, 

@@ -861,6 +861,7 @@ private:
 };
 
 
+
 /** A keyboard state which adds the possibility of colouring the keys. */
 class CustomKeyboardState : public MidiKeyboardState,
 	public SafeChangeBroadcaster

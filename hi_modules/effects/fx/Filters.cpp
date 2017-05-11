@@ -442,9 +442,9 @@ void StaticBiquad::updateCoefficients()
 	{
 	case StaticBiquad::LowPass:			currentCoefficients = IIRCoefficients::makeLowPass(sampleRate, frequency); break;
 	case StaticBiquad::HighPass:		currentCoefficients = IIRCoefficients::makeHighPass(sampleRate, frequency); break;
-	case StaticBiquad::LowShelf:		currentCoefficients = IIRCoefficients::makeLowShelf(sampleRate, frequency, q, gain); break;
-	case StaticBiquad::HighShelf:		currentCoefficients = IIRCoefficients::makeHighShelf(sampleRate, frequency, q, gain); break;
-	case StaticBiquad::Peak:			currentCoefficients = IIRCoefficients::makePeakFilter(sampleRate, frequency, q, gain); break;
+	case StaticBiquad::LowShelf:		currentCoefficients = IIRCoefficients::makeLowShelf(sampleRate, frequency, q, (float)gain); break;
+	case StaticBiquad::HighShelf:		currentCoefficients = IIRCoefficients::makeHighShelf(sampleRate, frequency, q, (float)gain); break;
+	case StaticBiquad::Peak:			currentCoefficients = IIRCoefficients::makePeakFilter(sampleRate, frequency, q, (float)gain); break;
 	case StaticBiquad::ResoLow:			currentCoefficients = MonoFilterEffect::makeResoLowPass(sampleRate, frequency, q); break;
 	default:							jassertfalse; break;
 	}

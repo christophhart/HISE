@@ -32,6 +32,7 @@
 
 #if USE_BACKEND
 
+
 Console::ConsoleEditorComponent::ConsoleEditorComponent(CodeDocument &doc, CodeTokeniser* tok) :
 CodeEditorComponent(doc, tok)
 {
@@ -101,11 +102,9 @@ void Console::mouseDown(const MouseEvent &e)
         
         m.addItem(1, "Clear Console");
         m.addItem(2, "Scroll down");
-
 		
 		const String id = newTextConsole->getDocument().getLine(newTextConsole->getCaretPos().getLineNumber()).upToFirstOccurrenceOf(":", false, false);
 
-		BackendProcessorEditor *editor = findParentComponentOfClass<BackendProcessorEditor>();
 		JavascriptProcessor *jsp = dynamic_cast<JavascriptProcessor*>(ProcessorHelpers::getFirstProcessorWithName(editor->getMainSynthChain(), id));
 
 
@@ -194,8 +193,6 @@ void Console::mouseDown(const MouseEvent &e)
 
         if(name.isNotEmpty())
         {
-            BackendProcessorEditor *editor = findParentComponentOfClass<BackendProcessorEditor>();
-            
             Processor *p = ProcessorHelpers::getFirstProcessorWithName(editor->getMainSynthChain(), name);
             
             if(p != nullptr)
@@ -236,7 +233,6 @@ void Console::mouseDoubleClick(const MouseEvent& /*e*/)
 		const String lineNumber = matches[4];
 		const String charNumber = matches[5];
 
-		BackendProcessorEditor *editor = findParentComponentOfClass<BackendProcessorEditor>();
 		JavascriptProcessor *jsp = dynamic_cast<JavascriptProcessor*>(ProcessorHelpers::getFirstProcessorWithName(editor->getMainSynthChain(), id));
 
 		if (fileName.isNotEmpty())

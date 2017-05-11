@@ -47,6 +47,8 @@ BaseDebugArea::BaseDebugArea(BackendProcessorEditor *mainEditor_):
     
 	panel->setLookAndFeel(&laf);
 
+	
+
 	setOpaque(false);
 }
 
@@ -219,12 +221,74 @@ void BaseDebugArea::paint(Graphics &g)
     
 }
 
+void BaseDebugArea::mouseDown(const MouseEvent& e)
+{
+	auto c = e.eventComponent->findParentComponentOfClass<AutoPopupDebugComponent>();
+
+	if (c == nullptr)
+	{
+		c = dynamic_cast<AutoPopupDebugComponent*>(e.eventComponent);
+	}
+
+	if (c != nullptr)
+	{
+		DBG("tut");
+
+		if (e.mods.isAltDown() && e.mods.isCommandDown())
+		{
+			openInFloatingWindow(getIndexForComponent(dynamic_cast<Component*>(c)), true);
+		}
+	}
+
+	
+}
+
 void BaseDebugArea::showComponent(int index, bool shouldBeShown)
 {
-	if (shouldBeShown != isInPanel(getComponentForIndex(index)))
+	auto c = getComponentForIndex(index);
+
+	if (shouldBeShown != isInPanel(c))
 	{
 		debugToolbar->showComponent(index, shouldBeShown, true);
 	}
+}
+
+void BaseDebugArea::openInFloatingWindow(int index, bool shouldBeShown)
+{
+	auto c = getComponentForIndex(index);
+
+	if (shouldBeShown != isFloating(c))
+	{
+		if (shouldBeShown)
+		{
+			showComponent(index, false);
+
+			c->setSize(floatingAreas[index].getWidth(), floatingAreas[index].getHeight());
+
+			floatingWindows.add(new DebugPopout(c, this, floatingAreas[index]));
+			floatingWindows.getLast()->setVisible(true);
+
+		}
+		else
+		{
+			for (int i = 0; i < floatingWindows.size(); i++)
+			{
+				if (floatingWindows[i]->getContentComponent() == c)
+				{
+					floatingAreas[index] = floatingWindows[i]->getScreenBounds();
+
+					floatingWindows.remove(i);
+					break;
+				}
+			}
+
+			showComponent(index, true);
+		}
+
+		dynamic_cast<AutoPopupDebugComponent*>(c)->floatingStateChanged(shouldBeShown);
+	}
+
+	repaint();
 }
 
 void BaseDebugArea::addButtonToToolbar(ShapeButton *newButton)
@@ -350,4 +414,36 @@ Component * PropertyDebugArea::getComponentForIndex(int i) const
 
 PropertyDebugArea::PropertyDebugToolbar::PropertyDebugToolbar()
 {
+}
+
+BaseDebugArea::DebugPopout::DebugPopout(Component* c, BaseDebugArea* parent, Rectangle<int>  area) :
+	DocumentWindow(c->getName(), Colour(0xFF333333), closeButton, true),
+	area(parent)
+{
+	editor = parent->findParentComponentOfClass<BackendProcessorEditor>();
+
+	setUsingNativeTitleBar(true);
+
+	setContentNonOwned(c, true);
+
+	setResizable(true, true);
+
+	if (area.isEmpty())
+	{
+		centreWithSize(600, 600);
+	}
+	else
+	{
+		setBounds(area);
+
+		
+		
+	}
+
+	
+}
+
+void BaseDebugArea::DebugPopout::closeButtonPressed()
+{
+	area->openInFloatingWindow(area->getIndexForComponent(getContentComponent()), false);
 }
