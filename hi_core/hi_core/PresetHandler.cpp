@@ -798,14 +798,24 @@ struct CountedProcessorId
 };
 
 
-void ProjectHandler::createNewProject(const File &workingDirectory, Component* mainEditor)
+void ProjectHandler::createNewProject(File &workingDirectory, Component* mainEditor)
 {
 	if (workingDirectory.exists() && workingDirectory.isDirectory())
 	{
-		if (workingDirectory.getNumberOfChildFiles(File::findFilesAndDirectories) != 0)
+		while (workingDirectory.getNumberOfChildFiles(File::findFilesAndDirectories) != 0)
 		{
 			PresetHandler::showMessageWindow("Directory already exists", "The directory is not empty. Try another one...", PresetHandler::IconType::Warning);
-			return;
+            
+            FileChooser fc("Create new project directory");
+            
+            if (fc.browseForDirectory())
+            {
+                workingDirectory = fc.getResult();
+            }
+            else
+            {
+                return;
+            }
 		}
 	}
 

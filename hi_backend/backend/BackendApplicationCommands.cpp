@@ -502,8 +502,8 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuNewFile:                   if (PresetHandler::showYesNoWindow("New File", "Do you want to start a new preset?"))
                                             bpe->clearPreset(); return true;
 	case MenuOpenFile:                  Actions::openFile(bpe); return true;
-	case MenuSaveFile:                  Actions::saveFile(bpe, false); return true;
-	case MenuSaveFileAs:				Actions::saveFile(bpe, true); return true;
+	case MenuSaveFile:                  Actions::saveFile(bpe, false); updateCommands(); return true;
+	case MenuSaveFileAs:				Actions::saveFile(bpe, true); updateCommands(); return true;
     case MenuSaveFileAsXmlBackup:		Actions::saveFileAsXml(bpe); updateCommands(); return true;
     case MenuOpenXmlBackup:             { FileChooser fc("Select XML file to load",
                                                          GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::XMLPresetBackups), "*.xml", true);

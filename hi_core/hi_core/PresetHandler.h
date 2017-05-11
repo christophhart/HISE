@@ -177,7 +177,7 @@ public:
 		numSubDirectories
 	};
 
-	void createNewProject(const File &workingDirectory, Component* mainEditor);
+	void createNewProject(File &workingDirectory, Component* mainEditor);
 
 	void setWorkingProject(const File &workingDirectory, Component* mainEditor);
 

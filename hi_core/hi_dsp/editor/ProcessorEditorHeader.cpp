@@ -881,10 +881,6 @@ void ProcessorEditorHeader::createProcessorFromPopup(Processor *insertBeforeSibl
 
 		clipBoard = clipBoardName != String();
 
-		m.addSeparator();
-		m.addSectionHeader("Add from Preset-Folder:");
-		m.addSubMenu("Add saved Preset", PresetHandler::getAllSavedPresets(PRESET_MENU_ITEM_DELTA, getProcessor()), true);
-		
 		result = m.show();
 	}
 
@@ -894,8 +890,6 @@ void ProcessorEditorHeader::createProcessorFromPopup(Processor *insertBeforeSibl
 	if(result == 0)									return;
 
 	else if(result == CLIPBOARD_ITEM_MENU_INDEX && clipBoard) processorToBeAdded = PresetHandler::createProcessorFromClipBoard(getProcessor());
-
-	else if (result >= PRESET_MENU_ITEM_DELTA)		processorToBeAdded = PresetHandler::createProcessorFromPreset(result - PRESET_MENU_ITEM_DELTA, getProcessor());
 
 	else
 	{
@@ -1036,8 +1030,7 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 
 		enum
 		{
-			Save = 1,
-			Copy,
+			Copy=2,
 			InsertBefore,
 			CloseAllChains,
 			CheckForDuplicate,
@@ -1059,7 +1052,6 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 
 		m.addSectionHeader("Copy Tools");
 
-		m.addItem(Save, "Save " + getProcessor()->getId() + " as Preset");
 		m.addItem(Copy, "Copy " + getProcessor()->getId() + " to Clipboard");
 
 		if ((!isHeaderOfChain() || isHeaderOfModulatorSynth()) && !isMainSynthChain)
@@ -1087,10 +1079,6 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 			m.addSeparator();
 			m.addSectionHeader("Root Container Tools");
 			m.addItem(CheckForDuplicate, "Check children for duplicate IDs");
-			m.addItem(ReplaceWithClipboardContent, "Replace With Clipboard Content");
-			
-			m.addSubMenu("Replace Root Container", PresetHandler::getAllSavedPresets(PRESET_MENU_ITEM_DELTA, getProcessor()), true);
-			m.addSeparator();
 		}
 
 		else if (JavascriptProcessor *sp = dynamic_cast<JavascriptProcessor*>(getProcessor()))
@@ -1108,12 +1096,7 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 
 		if(result == 0) return;
 
-		if(result == Save)
-		{
-			PresetHandler::saveProcessorAsPreset(getProcessor());
-			idLabel->setText(getProcessor()->getId(), dontSendNotification);
-		}
-		else if (result == Copy) PresetHandler::copyProcessorToClipboard(getProcessor());
+		if (result == Copy) PresetHandler::copyProcessorToClipboard(getProcessor());
 
 		else if (result == InsertBefore)
 		{
@@ -1136,24 +1119,6 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 		else if (result == CreateScriptVariable)
 		{
 			ProcessorHelpers::getScriptVariableDeclaration(getEditor()->getProcessor());
-		}
-		else if (result == ReplaceWithClipboardContent)
-		{
-			
-			ScopedPointer<XmlElement> xml = XmlDocument::parse(SystemClipboard::getTextFromClipboard());
-
-			if (xml != nullptr)
-			{
-				ValueTree v = ValueTree::fromXml(*xml);
-
-				if (v.isValid() && v.getProperty("Type") == "SynthChain")
-				{
-					findParentComponentOfClass<BackendProcessorEditor>()->loadNewContainer(v);
-					return;
-				}
-			}
-			
-			PresetHandler::showMessageWindow("Invalid Preset", "The clipboard does not contain a valid container.", PresetHandler::IconType::Warning);
 		}
 		else if (result == OpenAllScriptsInPopup)
 		{
