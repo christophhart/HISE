@@ -471,7 +471,8 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 		convertTccScriptsToCppClasses();
 		writeValueTreeToTemporaryFile(exportPresetFile(), directoryPath, "preset");
 		writeValueTreeToTemporaryFile(exportEmbeddedFiles(type != TargetTypes::EffectPlugin), directoryPath, "externalFiles", true);
-		writeValueTreeToTemporaryFile(exportUserPresetFiles(), directoryPath, "userPresets");
+		
+        //writeValueTreeToTemporaryFile(exportUserPresetFiles(), directoryPath, "userPresets");
 
 		if (SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::EmbedAudioFiles, &GET_PROJECT_HANDLER(chainToExport)) == "No")
 		{
