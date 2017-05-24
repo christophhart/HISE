@@ -62,6 +62,11 @@ protected:
 
 public:
 
+	virtual ~FloatingTileContent()
+	{
+		parent = nullptr;
+	}
+
 	/** Returns the parent shell. 
 	*
 	*	Unlike getParentComponent(), this always returns non nullptr, so you can use it in the constructor.

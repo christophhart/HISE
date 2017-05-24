@@ -154,6 +154,16 @@ public:
 
 	FloatingTile(FloatingTileContainer* parent, ValueTree state = ValueTree());;
 
+	~FloatingTile()
+	{
+		content = nullptr;
+		foldButton = nullptr;
+		moveButton = nullptr;
+		resizeButton = nullptr;
+		lockButton = nullptr;
+		closeButton = nullptr;
+	}
+
 	bool isEmpty() const;
 
 	void setFolded(bool shouldBeFolded);
@@ -210,7 +220,6 @@ public:
 	
 	const FloatingTileContent* getCurrentFloatingPanel() const;
 	FloatingTileContent* getCurrentFloatingPanel();
-
 	
 	bool isFolded() const;
 	bool isInVerticalLayout() const;

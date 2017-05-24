@@ -249,59 +249,36 @@ class ModulatorSynthChain;
 class PanelWithProcessorConnection : public FloatingTileContent,
 									 public Component,
 									 public ComboBox::Listener,
-									 public Processor::DeleteListener
+									 public Processor::DeleteListener,
+									 public SafeChangeListener
 {
 public:
 
-	PanelWithProcessorConnection(FloatingTile* parent) :
-		FloatingTileContent(parent)
+	PanelWithProcessorConnection(FloatingTile* parent);
+
+	virtual ~PanelWithProcessorConnection();
+
+	void paint(Graphics& g) override;
+
+	void changeListenerCallback(SafeChangeBroadcaster* b) override
 	{
-		addAndMakeVisible(connectionSelector = new ComboBox());
-
-		connectionSelector->addListener(this);
-
-		getMainSynthChain()->getMainController()->skin(*connectionSelector);
-
-		StringArray items;
-		fillProcessorList(items);
-
-		connectionSelector->addItemList(items, 1);
+		refreshConnectionList();
 	}
 
-	void resized() override
-	{
-		connectionSelector->setBounds(0, 0, 128, 24);
-
-		if (content != nullptr)
-		{
-			content->setBounds(0, 0, getWidth(), getHeight()-24);
-		}
-	}
+	void resized() override;
 	
-	void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override
-	{
-		const String id = comboBoxThatHasChanged->getText();
-
-		auto p = ProcessorHelpers::getFirstProcessorWithName(getMainSynthChain(), id);
-		connectToProcessor(p);
-	}
+	void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override;
 
 	virtual void processorDeleted(Processor* deletedProcessor)
 	{
-		connectToProcessor(nullptr);
+		setConnectedProcessor(nullptr);
 	}
+
+	void refreshConnectionList();
+
+	void refreshIndexList();
 
 	virtual void updateChildEditorList(bool forceUpdate) {}
-
-	void fillProcessorList(StringArray& arrayToFill)
-	{
-		Processor::Iterator<LookupTableProcessor> iter(getMainSynthChain(), false);
-
-		while (auto p = iter.getNextProcessor())
-		{
-			arrayToFill.add(dynamic_cast<Processor*>(p)->getId());
-		}
-	}
 
 	Processor* getProcessor() { return connectedProcessor.get(); }
 	const Processor* getProcessor() const { return connectedProcessor.get(); }
@@ -310,48 +287,65 @@ public:
 
 	const ModulatorSynthChain* getMainSynthChain() const;
 
-	virtual void processorChanged()
+	virtual void refreshContent()
 	{
-		if (getProcessor() == nullptr)
+		if (getProcessor() == nullptr || hasSubIndex() && selectedIndex == -1)
 		{
 			content = nullptr;
-
-			connectionSelector->clear();
-			StringArray sa;
-			fillProcessorList(sa);
-			connectionSelector->addItemList(sa, 1);
 		}
 		else
 		{
 			getProcessor()->addDeleteListener(this);
 
-			auto ltp = dynamic_cast<LookupTableProcessor*>(getProcessor());
-
-			addAndMakeVisible(content = new TableEditor(ltp->getTable(0)));
+			addAndMakeVisible(content = createContentComponent(selectedIndex));
 		}
 
 		resized();
+		repaint();
 	}
 
-	void connectToProcessor(Processor* p)
+	virtual Component* createContentComponent(int index) = 0;
+
+	virtual void fillModuleList(StringArray& moduleList) = 0;
+
+	virtual void fillIndexList(StringArray& indexList) {};
+
+	virtual bool hasSubIndex() const { return false; }
+
+	void setConnectedProcessor(Processor* p)
 	{
 		if (connectedProcessor.get() != nullptr)
 		{
 			connectedProcessor->removeDeleteListener(this);
+			
 		}
-
-		jassert(p == nullptr || ProcessorHelpers::is<LookupTableProcessor>(p));
-
+		
 		connectedProcessor = p;
-		processorChanged();
 	}
 
 protected:
 
+	template <class ProcessorType> void fillModuleListWithType(StringArray& moduleList)
+	{
+		Processor::Iterator<ProcessorType> iter(getMainSynthChain(), false);
+
+		while (auto p = iter.getNextProcessor())
+		{
+			moduleList.add(dynamic_cast<Processor*>(p)->getId());
+		}
+	}
+
+
 private:
 
+	Component::SafePointer<BackendRootWindow> rootWindow;
+
+	bool listInitialised = false;
 
 	ScopedPointer<ComboBox> connectionSelector;
+	ScopedPointer<ComboBox> indexSelector;
+
+	int selectedIndex = -1;
 
 	WeakReference<Processor> connectedProcessor;
 
@@ -371,9 +365,89 @@ public:
 
 	SET_PANEL_NAME("TableEditor");
 
+	Component* createContentComponent(int index) override
+	{
+		auto ltp = dynamic_cast<LookupTableProcessor*>(getProcessor());
+		return new TableEditor(ltp->getTable(index));
+	}
+
+	void fillModuleList(StringArray& moduleList) override
+	{
+		fillModuleListWithType<LookupTableProcessor>(moduleList);
+	}
+
+	bool hasSubIndex() const override { return true; }
+
+	void fillIndexList(StringArray& indexList) override
+	{
+		auto ltp = dynamic_cast<LookupTableProcessor*>(getProcessor());
+
+		int numTables = 0;
+
+		while (ltp->getTable(numTables) != nullptr)
+			numTables++;
+
+		for (int i = 0; i < numTables; i++)
+		{
+			indexList.add("Table " + String(i + 1));
+		}
+	}
 };
 
 
+class SliderPackPanel : public PanelWithProcessorConnection
+{
+public:
+
+	SliderPackPanel(FloatingTile* parent) :
+		PanelWithProcessorConnection(parent)
+	{};
+
+	SET_PANEL_NAME("SliderPackEditor");
+
+	Component* createContentComponent(int index) override
+	{
+		auto p = dynamic_cast<SliderPackProcessor*>(getProcessor());
+
+		return new SliderPack(p->getSliderPackData(0));
+	}
+
+	void fillModuleList(StringArray& moduleList) override
+	{
+		fillModuleListWithType<SliderPackProcessor>(moduleList);
+	}
+
+	
+};
+
+
+class CodeEditorPanel : public PanelWithProcessorConnection
+{
+public:
+
+	CodeEditorPanel(FloatingTile* parent) :
+		PanelWithProcessorConnection(parent)
+	{
+		tokeniser = new JavascriptTokeniser();
+	};
+
+	SET_PANEL_NAME("ScriptEditor");
+
+	Component* createContentComponent(int index) override;
+
+	void fillModuleList(StringArray& moduleList) override
+	{
+		fillModuleListWithType<JavascriptProcessor>(moduleList);
+	}
+
+	bool hasSubIndex() const override { return true; }
+
+	void fillIndexList(StringArray& indexList) override;
+
+private:
+
+	ScopedPointer<JavascriptTokeniser> tokeniser;
+};
 
 #define SET_GENERIC_PANEL_ID(x) static Identifier getGenericPanelId() { static const Identifier id(x); return x;}
 

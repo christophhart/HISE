@@ -20,11 +20,11 @@
 
 
 
-Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootShell)
+Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 {
-	rootShell->setLayoutModeEnabled(false, true);
+	rootTile->setLayoutModeEnabled(false, true);
 
-	FloatingInterfaceBuilder ib(rootShell);
+	FloatingInterfaceBuilder ib(rootTile);
 
 	const int root = 0;
 

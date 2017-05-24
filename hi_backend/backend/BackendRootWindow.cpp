@@ -92,6 +92,9 @@ BackendRootWindow::~BackendRootWindow()
 #endif
 
 	floatingRoot = nullptr;
+
+	mainEditor = nullptr;
+
 #endif
 }
 

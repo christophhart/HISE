@@ -198,14 +198,34 @@ private:
 	};
 
 
-#if HISE_IOS
+
 	void getIdealPopupMenuItemSize(const String &text, bool isSeparator, int standardMenuItemHeight, int &idealWidth, int &idealHeight) override
 	{
+#if HISE_IOS
 		idealHeight = 28;
 
 		idealWidth = getPopupMenuFont().getStringWidth(text) + 20;
+#else
+		if (isSeparator)
+		{
+			idealWidth = 50;
+			idealHeight = standardMenuItemHeight > 0 ? standardMenuItemHeight / 2 : 10;
+		}
+		else
+		{
+			Font font(getPopupMenuFont());
+
+			if (standardMenuItemHeight > 0 && font.getHeight() > standardMenuItemHeight / 1.3f)
+				font.setHeight(standardMenuItemHeight / 1.3f);
+
+			idealHeight = standardMenuItemHeight > 0 ? standardMenuItemHeight : roundToInt(font.getHeight() * 1.3f);
+
+			idealHeight = jmax<int>(idealHeight, 18);
+
+			idealWidth = font.getStringWidth(text) + idealHeight * 2;
 	}
 #endif
+	}
 
 	void drawMenuBarBackground(Graphics& g, int width, int height,
 		bool, MenuBarComponent& menuBar);
@@ -1080,8 +1100,18 @@ public:
 
 	void 	positionComboBoxText (ComboBox &c, Label &labelToPosition) override
 	{
-		labelToPosition.setBounds(5, 5, c.getWidth() - 25, c.getHeight() - 10);
+		if (c.getHeight() < 20)
+		{
+			labelToPosition.setBounds(5, 2, c.getWidth() - 25, c.getHeight() - 4);
 
+		}
+		else
+		{
+			labelToPosition.setBounds(5, 5, c.getWidth() - 25, c.getHeight() - 10);
+
+		}
+
+		
 		labelToPosition.setFont (getComboBoxFont (c));
 
 

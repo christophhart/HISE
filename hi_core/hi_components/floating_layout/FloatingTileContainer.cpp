@@ -81,6 +81,8 @@ void FloatingTileContainer::removeFloatingTile(FloatingTile* componentToRemove)
 	componentRemoved(temp.get());
 
 	temp.get()->refreshRootLayout();
+
+	temp = nullptr;
 }
 
 bool FloatingTileContainer::shouldIntendAddButton() const
@@ -193,7 +195,6 @@ FloatingTabComponent::FloatingTabComponent(FloatingTile* parent) :
 FloatingTabComponent::~FloatingTabComponent()
 {
 	clear();
-	clearTabs();
 }
 
 void FloatingTabComponent::componentAdded(FloatingTile* newComponent)
@@ -279,7 +280,7 @@ void FloatingTabComponent::paint(Graphics& g)
 
 void FloatingTabComponent::resized()
 {
-	if (getParentComponent() == nullptr) // avoid resizing
+	if (getParentComponent() == nullptr || getParentShell()->getCurrentFloatingPanel() == nullptr) // avoid resizing
 		return;
 
 	TabbedComponent::resized();
@@ -382,9 +383,11 @@ ResizableFloatingTileContainer::ResizableFloatingTileContainer(FloatingTile* par
 
 ResizableFloatingTileContainer::~ResizableFloatingTileContainer()
 {
+	clear();
 	currentlyDisplayedComponents.clear();
 	addButton = nullptr;
 	resizers.clear();
+	
 }
 
 String ResizableFloatingTileContainer::getTitle() const
@@ -417,7 +420,7 @@ void ResizableFloatingTileContainer::buttonClicked(Button* b)
 
 void ResizableFloatingTileContainer::resized()
 {
-	if (getParentComponent() == nullptr) // avoid resizing
+	if (getParentComponent() == nullptr || getParentShell()->getCurrentFloatingPanel() == nullptr) // avoid resizing
 		return;
 
 	addButton->setVisible(getParentShell()->isLayoutModeEnabled() && isInsertingEnabled());

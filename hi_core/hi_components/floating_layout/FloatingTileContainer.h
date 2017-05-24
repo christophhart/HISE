@@ -47,7 +47,10 @@ public:
 		FloatingTileContent(parent)
 	{};
 
-	virtual ~FloatingTileContainer() {};
+	virtual ~FloatingTileContainer()
+	{
+		jassert(getNumComponents() == 0);
+	};
 
 	/** Returns the FloatingTile at the given index. */
 	const FloatingTile* getComponent(int index) const;

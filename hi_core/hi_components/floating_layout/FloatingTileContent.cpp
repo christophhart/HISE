@@ -271,7 +271,8 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<Note>();
 	registerType<MidiKeyboardPanel>();
 	registerType<TableEditorPanel>();
-	registerType<GenericPanel<SliderPack>>();
+	registerType<CodeEditorPanel>();
+	registerType<SliderPackPanel>();
 	registerType<ConsolePanel>();
 	registerType<ApplicationCommandButtonPanel>();
 
@@ -306,6 +307,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 		ThreeRows,
 		Note,
 		MidiKeyboard,
+		ScriptEditor,
 		TablePanel,
 		SliderPackPanel,
 		Console,
@@ -335,6 +337,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 		m.addItem((int)PopupMenuOptions::MidiKeyboard, "Virtual Keyboard");
 		m.addItem((int)PopupMenuOptions::TablePanel, "Table Editor");
 		m.addItem((int)PopupMenuOptions::SliderPackPanel, "Array Editor");
+		m.addItem((int)PopupMenuOptions::ScriptEditor, "Script Editor");
 		m.addItem((int)PopupMenuOptions::Console, "Console");
 		m.addSeparator();
 
@@ -383,7 +386,8 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::Note:				parent->setNewContent(GET_PANEL_NAME(Note)); break;
 	case PopupMenuOptions::MidiKeyboard:		parent->setNewContent(GET_PANEL_NAME(MidiKeyboardPanel)); break;
 	case PopupMenuOptions::TablePanel:			parent->setNewContent(GET_PANEL_NAME(TableEditorPanel)); break;
-	case PopupMenuOptions::SliderPackPanel:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<SliderPack>)); break;
+	case PopupMenuOptions::ScriptEditor:		parent->setNewContent(GET_PANEL_NAME(CodeEditorPanel)); break;
+	case PopupMenuOptions::SliderPackPanel:		parent->setNewContent(GET_PANEL_NAME(SliderPackPanel)); break;
 	case PopupMenuOptions::Console:				parent->setNewContent(GET_PANEL_NAME(ConsolePanel)); break;
 	case PopupMenuOptions::toggleLayoutMode:    parent->toggleLayoutModeForParentContainer(); break;
 	case PopupMenuOptions::toggleGlobalLayoutMode:    parent->getRootComponent()->toggleLayoutModeForParentContainer(); break;

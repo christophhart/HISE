@@ -320,7 +320,7 @@ const BackendRootWindow* FloatingTile::getRootWindow() const
 
 BackendRootWindow* FloatingTile::getRootWindow()
 {
-	auto rw = findParentComponentOfClass<BackendRootWindow>();
+	auto rw = dynamic_cast<BackendRootWindow*>(getRootComponent()->getParentComponent());
 
 	jassert(rw != nullptr);
 
@@ -481,7 +481,9 @@ void FloatingTile::paint(Graphics& g)
 
 	if (titleArea.getWidth() > 40)
 	{
-		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xFF333333)));
+		g.setGradientFill(ColourGradient(Colour(0xFF333333), 0.0f, 0.0f,
+									     Colour(0xFF2A2A2A), 0.0f, 16.0f, false));
+
 		g.setFont(GLOBAL_BOLD_FONT());
 		g.fillRect(0, 0, getWidth(), 16);
 		g.setColour(Colours::white.withAlpha(0.8f));
@@ -546,6 +548,9 @@ void FloatingTile::mouseDown(const MouseEvent& event)
 
 void FloatingTile::resized()
 {
+	if (content.get() == nullptr)
+		return;
+
 	LayoutHelpers::setContentBounds(this);
 
 	if (LayoutHelpers::showFoldButton(this))
@@ -628,8 +633,6 @@ const FloatingTileContent* FloatingTile::getCurrentFloatingPanel() const
 {
 	auto c = content.get();
 
-	jassert(c != nullptr);
-
 	if(c != nullptr)
 		return dynamic_cast<FloatingTileContent*>(content.get());
 
@@ -639,8 +642,6 @@ const FloatingTileContent* FloatingTile::getCurrentFloatingPanel() const
 FloatingTileContent* FloatingTile::getCurrentFloatingPanel()
 {
 	auto c = content.get();
-
-	jassert(c != nullptr);
 
 	if (c != nullptr)
 		return dynamic_cast<FloatingTileContent*>(content.get());

@@ -201,10 +201,13 @@ void TableEditor::resized()
 
 		ruler->setBounds(0, 0, getWidth(), getHeight());
 
-		snapshot = Image(Image::ARGB, getWidth(), getHeight(), true);
+		if (getHeight() > 0)
+		{
+			snapshot = Image(Image::ARGB, getWidth(), getHeight(), true);
 
-		createDragPoints();
-		refreshGraph();
+			createDragPoints();
+			refreshGraph();
+		}
 	}
 }
 

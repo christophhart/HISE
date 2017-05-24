@@ -169,7 +169,13 @@ bool PopupIncludeEditor::keyPressed(const KeyPress& key)
 
 void PopupIncludeEditor::resized()
 {
-	editor->setBounds(0, 5, getWidth(), getHeight() - 23);
+	bool isInPanel = findParentComponentOfClass<FloatingTile>() != nullptr;
+
+	if(isInPanel)
+		editor->setBounds(0, 0, getWidth(), getHeight() - 18);
+	else
+		editor->setBounds(0, 5, getWidth(), getHeight() - 23);
+
 	resultLabel->setBounds(0, getHeight() - 18, getWidth(), 18);
 }
 

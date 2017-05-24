@@ -112,12 +112,203 @@ void ApplicationCommandButtonPanel::setCommand(int commandID)
 }
 
 
+PanelWithProcessorConnection::PanelWithProcessorConnection(FloatingTile* parent) :
+	FloatingTileContent(parent)
+{
+	rootWindow = getParentShell()->getRootWindow();
+
+	addAndMakeVisible(connectionSelector = new ComboBox());
+	connectionSelector->addListener(this);
+	getMainSynthChain()->getMainController()->skin(*connectionSelector);
+
+	connectionSelector->setColour(MacroControlledObject::HiBackgroundColours::upperBgColour, Colours::transparentBlack);
+	connectionSelector->setColour(MacroControlledObject::HiBackgroundColours::lowerBgColour, Colours::transparentBlack);
+	connectionSelector->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, Colours::transparentBlack);
+	connectionSelector->setTextWhenNothingSelected("Disconnected");
+
+	addAndMakeVisible(indexSelector = new ComboBox());
+	indexSelector->addListener(this);
+	getMainSynthChain()->getMainController()->skin(*indexSelector);
+
+	indexSelector->setColour(MacroControlledObject::HiBackgroundColours::upperBgColour, Colours::transparentBlack);
+	indexSelector->setColour(MacroControlledObject::HiBackgroundColours::lowerBgColour, Colours::transparentBlack);
+	indexSelector->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, Colours::transparentBlack);
+	indexSelector->setTextWhenNothingSelected("Disconnected");
+
+	
+
+	rootWindow->getMainPanel()->getModuleListNofifier().addChangeListener(this);
+}
+
+PanelWithProcessorConnection::~PanelWithProcessorConnection()
+{
+	content = nullptr;
+
+	auto mp = rootWindow->getMainPanel();
+	
+	if(mp != nullptr)
+		mp->getModuleListNofifier().removeChangeListener(this);
+
+	rootWindow = nullptr;
+}
+
+void PanelWithProcessorConnection::paint(Graphics& g)
+{
+
+	const bool connected = getProcessor() != nullptr && (!hasSubIndex() || selectedIndex != -1);
+
+	g.setColour(Colour(0xFF3D3D3D));
+	g.fillRect(0, 16, getWidth(), 18);
+	g.setColour(connected ? Colours::white.withAlpha(0.9f) : Colours::white.withAlpha(0.1f));
+	
+	Path p;
+	p.loadPathFromData(ColumnIcons::connectionIcon, sizeof(ColumnIcons::connectionIcon));
+	p.scaleToFit(2.0, 18.0, 14.0, 14.0, true);
+	g.fillPath(p);
+
+}
+
+void PanelWithProcessorConnection::resized()
+{
+	if (!listInitialised)
+	{
+		// Do this here the first time to avoid pure virtual function call...
+		refreshConnectionList();
+		listInitialised = true;
+	}
+		
+
+	connectionSelector->setVisible(!getParentShell()->isFolded());
+	connectionSelector->setBounds(18, 16, 128, 18);
+
+	indexSelector->setVisible(!getParentShell()->isFolded());
+	indexSelector->setBounds(connectionSelector->getRight() + 5, 16, 128, 18);
+
+	if (content != nullptr)
+	{
+		if (getHeight() > 18)
+		{
+			content->setVisible(true);
+			content->setBounds(0, 16+18, getWidth(), getHeight() - 18-16);
+		}
+		else
+			content->setVisible(false);
+	}
+}
+
+void PanelWithProcessorConnection::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
+{
+	if (comboBoxThatHasChanged == connectionSelector)
+	{
+		indexSelector->clear(dontSendNotification);
+		selectedIndex = -1;
+
+		if (connectionSelector->getSelectedId() == 1)
+		{
+			setConnectedProcessor(nullptr);
+			
+			
+
+			refreshContent();
+		}
+		else
+		{
+			const String id = comboBoxThatHasChanged->getText();
+
+			auto p = ProcessorHelpers::getFirstProcessorWithName(getMainSynthChain(), id);
+			setConnectedProcessor(p);
+		
+			if (hasSubIndex())
+				refreshIndexList();
+
+			selectedIndex = -1;
+
+			refreshContent();
+		}
+	}
+	else if (comboBoxThatHasChanged == indexSelector)
+	{
+		if (indexSelector->getSelectedId() == 1)
+		{
+			selectedIndex = -1;
+		}
+		else
+			selectedIndex = indexSelector->getSelectedId() - 2;
+
+		refreshContent();
+	}
+}
+
+void PanelWithProcessorConnection::refreshConnectionList()
+{
+	String currentId = connectionSelector->getText();
+
+	connectionSelector->clear(dontSendNotification);
+
+	StringArray items;
+
+	fillModuleList(items);
+
+	int index = items.indexOf(currentId);
+
+	connectionSelector->addItem("Disconnect", 1);
+	connectionSelector->addItemList(items, 2);
+
+	if (index != -1)
+	{
+		connectionSelector->setSelectedId(index + 2, dontSendNotification);
+	}
+}
+
+void PanelWithProcessorConnection::refreshIndexList()
+{
+	String currentId = indexSelector->getText();
+
+	indexSelector->clear(dontSendNotification);
+
+	StringArray items;
+
+	fillIndexList(items);
+
+	int index = items.indexOf(currentId);
+
+	indexSelector->addItem("Disconnect", 1);
+	indexSelector->addItemList(items, 2);
+
+	if (index != -1)
+	{
+		indexSelector->setSelectedId(index + 2, dontSendNotification);
+	}
+
+	indexSelector->setEnabled(true);
+}
+
 ModulatorSynthChain* PanelWithProcessorConnection::getMainSynthChain()
 {
-	return getParentShell()->getRootWindow()->getMainSynthChain();
+	return rootWindow->getMainSynthChain();
 }
 
 const ModulatorSynthChain* PanelWithProcessorConnection::getMainSynthChain() const
 {
-	return getParentShell()->getRootWindow()->getMainSynthChain();
+	return rootWindow->getMainSynthChain();
+}
+
+Component* CodeEditorPanel::createContentComponent(int index)
+{
+	auto p = dynamic_cast<JavascriptProcessor*>(getProcessor());
+
+	return new PopupIncludeEditor(p, p->getSnippet(index)->getCallbackName());
+}
+
+void CodeEditorPanel::fillIndexList(StringArray& indexList)
+{
+	auto p = dynamic_cast<JavascriptProcessor*>(getProcessor());
+
+	if (p != nullptr)
+	{
+		for (int i = 0; i < p->getNumSnippets(); i++)
+		{
+			indexList.add(p->getSnippet(i)->getCallbackName().toString());
+		}
+	}
 }
