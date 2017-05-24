@@ -24,6 +24,8 @@
 
 #define PROFILE_ROUND_1 1
 
+#define PUT_FLOAT_IN_CODEBASE 1
+
 // [END_USER_CODE_SECTION]
 
 //==============================================================================

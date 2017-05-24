@@ -307,8 +307,11 @@ CombinedDebugArea::CombinedDebugToolbar::CombinedDebugToolbar() :
 PropertyDebugArea::PropertyDebugArea(BackendProcessorEditor *editor) :
 BaseDebugArea(editor)
 {
+#if 0
 	console = new Console(this);
 	mainEditor->getBackendProcessor()->setConsole(console);
+#endif
+	
 
 	plotter = new Plotter(this);
 	plotter->setColour(Plotter::backgroundColour, Colour(0xFF383838));

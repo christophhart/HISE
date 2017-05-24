@@ -153,6 +153,13 @@ currentlyDraggedSlider(-1),
 currentlyDraggedSliderValue(0.0),
 defaultValue(0.0)
 {
+	if (data == nullptr)
+	{
+		data = &dummyData;
+		data->setNumSliders(128);
+	}
+		
+
 	data->addChangeListener(this);
 
 	setColour(Slider::backgroundColourId, Colour(0x22000000));

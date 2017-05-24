@@ -749,6 +749,11 @@ public:
 
 	void itemDropped(const SourceDetails &dragSourceDetails) override;;
 
+	void paint(Graphics& g)
+	{
+		g.fillAll(Colour(0xFF333333));
+	}
+
 	void resized();
 
 	

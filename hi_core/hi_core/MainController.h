@@ -420,34 +420,10 @@ public:
 
 	void replaceReferencesToGlobalFolder();
 
-	void showConsole(bool consoleShouldBeShown);
-
-	/**	sets the console component to display all incoming messages. 
-	*
-	*	If you set 'isPopupConsole' to true, it will not overwrite the pointer to the main console.
-	*/
-	void setConsole(Console *c, bool isPopupConsole=false)
+	CodeDocument* getConsoleData()
 	{
-#if USE_BACKEND
-		if (isPopupConsole)
-		{
-			popupConsole = c;
-			usePopupConsole = c != nullptr;
-		}
-		else
-		{
-			console = c;
-			usePopupConsole = false;
-		}
-
-#else 
-		ignoreUnused(c, isPopupConsole);
-
-#endif
-		
-	};
-
-	Console* getConsole() { return console; }
+		return &consoleData;
+	}
 
     void clearConsole();
 
@@ -777,6 +753,8 @@ private:
 
 #if USE_BACKEND
     
+	CodeDocument consoleData;
+
 	Component::SafePointer<ScriptWatchTable> scriptWatchTable;
 	Component::SafePointer<ScriptComponentEditPanel> scriptComponentEditPanel;
 

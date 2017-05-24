@@ -267,12 +267,15 @@ void PatchBrowser::toggleShowChains()
 {
 	showChains = !showChains;
 
+#if TODO_AUTOPOPUP
 	AutoPopupDebugComponent *c = findParentComponentOfClass<BackendProcessorEditor>()->getDebugComponent(true, CombinedDebugArea::AreaIds::ProcessorCollection);
+
 
 	if (c != nullptr)
 	{
 		c->showComponentInDebugArea(showChains);
 	}
+#endif
 
 	addButton->setColours(showChains ? Colours::white : Colours::white.withAlpha(0.6f), Colours::white, Colours::white);
 	addButton->setToggleState(showChains, dontSendNotification);

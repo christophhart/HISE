@@ -310,7 +310,7 @@ void JavascriptCodeEditor::focusLost(FocusChangeType )
 {
 #if USE_BACKEND
     
-    BackendProcessorEditor *editor = findParentComponentOfClass<BackendProcessorEditor>();
+    BackendRootWindow *editor = findParentComponentOfClass<BackendRootWindow>();
 
     if(editor != nullptr)
     {

@@ -37,7 +37,7 @@ Console::ConsoleEditorComponent::ConsoleEditorComponent(CodeDocument &doc, CodeT
 CodeEditorComponent(doc, tok)
 {
 	setReadOnly(true);
-	setColour(CodeEditorComponent::ColourIds::backgroundColourId, Colour(0xFF393939));
+	setColour(CodeEditorComponent::ColourIds::backgroundColourId, Colour(0xFF282828));
 	getDocument().getUndoManager().setMaxNumberOfStoredUnits(0, 0);
 
 #if JUCE_MAC
@@ -46,25 +46,21 @@ CodeEditorComponent(doc, tok)
     setFont(GLOBAL_MONOSPACE_FONT());
 #endif
     
-	setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colours::white.withBrightness(0.9f));
+	setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colours::white.withBrightness(0.7f));
 	setLineNumbersShown(false);
 }
 
 
-Console::Console(BaseDebugArea *area) :
-		AutoPopupDebugComponent(area),
-		overflowProtection(false)
+Console::Console(MainController* mc) :
+	overflowProtection(false)
 {
 	setName("Console");
 
-	doc = new CodeDocument();
 	tokeniser = new ConsoleTokeniser();
 
-	addAndMakeVisible(newTextConsole = new ConsoleEditorComponent(*doc, tokeniser));
+	addAndMakeVisible(newTextConsole = new ConsoleEditorComponent(*mc->getConsoleData(), tokeniser));
 	newTextConsole->addMouseListener(this, true);
-
 }
-
 
 Console::~Console()
 {
@@ -105,7 +101,7 @@ void Console::mouseDown(const MouseEvent &e)
 		
 		const String id = newTextConsole->getDocument().getLine(newTextConsole->getCaretPos().getLineNumber()).upToFirstOccurrenceOf(":", false, false);
 
-		JavascriptProcessor *jsp = dynamic_cast<JavascriptProcessor*>(ProcessorHelpers::getFirstProcessorWithName(editor->getMainSynthChain(), id));
+		JavascriptProcessor *jsp = dynamic_cast<JavascriptProcessor*>(ProcessorHelpers::getFirstProcessorWithName(getMainPanel()->getMainSynthChain(), id));
 
 
 		const int SNIPPET_OFFSET = 1000;
@@ -177,7 +173,9 @@ void Console::mouseDown(const MouseEvent &e)
 				js->setEditorState(editorStateOffset + i, editorStateIndex == i, dontSendNotification);
 			}
 
+#if TODO_CONSOLE
 			editor->setRootProcessorWithUndo(js);
+#endif
 
 		}
     }
@@ -187,6 +185,7 @@ void Console::mouseDown(const MouseEvent &e)
 
 #if USE_BACKEND
         
+#if TODO_CONSOLE
 		CodeDocument::Position pos = newTextConsole->getCaretPos();
 
 		String name = newTextConsole->getDocument().getLine(pos.getLineNumber()).upToFirstOccurrenceOf(":", false, false);
@@ -200,6 +199,7 @@ void Console::mouseDown(const MouseEvent &e)
                 editor->setRootProcessorWithUndo(p);
             }
         }
+#endif
 
 #endif
         
@@ -233,7 +233,7 @@ void Console::mouseDoubleClick(const MouseEvent& /*e*/)
 		const String lineNumber = matches[4];
 		const String charNumber = matches[5];
 
-		JavascriptProcessor *jsp = dynamic_cast<JavascriptProcessor*>(ProcessorHelpers::getFirstProcessorWithName(editor->getMainSynthChain(), id));
+		JavascriptProcessor *jsp = dynamic_cast<JavascriptProcessor*>(ProcessorHelpers::getFirstProcessorWithName(getMainPanel()->getMainSynthChain(), id));
 
 		if (fileName.isNotEmpty())
 		{
@@ -255,7 +255,7 @@ void Console::mouseDoubleClick(const MouseEvent& /*e*/)
 		{
 			jassert(!callback.isNull());
 
-			ProcessorEditor* pEditor = editor->getRootContainer()->getFirstEditorOf(dynamic_cast<Processor*>(jsp));
+			ProcessorEditor* pEditor = getMainPanel()->getRootContainer()->getFirstEditorOf(dynamic_cast<Processor*>(jsp));
 
 			if (pEditor != nullptr)
 			{
@@ -276,6 +276,9 @@ void Console::mouseDoubleClick(const MouseEvent& /*e*/)
 
 void Console::logMessage(const String &t, WarningLevel warningLevel, const Processor *p, Colour c)
 {
+	
+
+
 	if(overflowProtection) return;
 
 	else
@@ -381,3 +384,13 @@ int Console::ConsoleTokeniser::readNextToken(CodeDocument::Iterator& source)
 
 
 #endif
+
+BackendProcessorEditor* ComponentWithAccessToMainPanel::getMainPanel()
+{
+	return dynamic_cast<Component*>(this)->findParentComponentOfClass<BackendRootWindow>()->getMainPanel();
+}
+
+const BackendProcessorEditor* ComponentWithAccessToMainPanel::getMainPanel() const
+{
+	return dynamic_cast<const Component*>(this)->findParentComponentOfClass<BackendRootWindow>()->getMainPanel();
+}

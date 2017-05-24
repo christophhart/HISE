@@ -85,7 +85,7 @@ void BackendProcessor::prepareToPlay(double newSampleRate, int samplesPerBlock)
 
 AudioProcessorEditor* BackendProcessor::createEditor()
 {
-	return new BackendProcessorEditor(this, editorInformation);
+	return new BackendRootWindow(this, editorInformation);
 }
 
 void BackendProcessor::setEditorState(ValueTree &editorState)

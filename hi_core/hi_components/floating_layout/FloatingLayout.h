@@ -30,44 +30,17 @@
 *   ===========================================================================
 */
 
-#ifndef HI_COMPONENTS_H_INCLUDED
-#define HI_COMPONENTS_H_INCLUDED
 
-/** @defgroup components Components
-*
-*	custom components for HI.
-*/
+#ifndef FLOATINGLAYOUT_H_INCLUDED
+#define FLOATINGLAYOUT_H_INCLUDED
 
-#include "resizable_height_component/ResizableHeightComponent.h"
+#include "FloatingIcons.cpp"
 
-#include "vu_meter/Plotter.h"
-
-#include "drag_plot/SliderPack.h"
-#include "drag_plot/TableEditor.h"
-#include "keyboard/CustomKeyboard.h"
-#include "plugin_components/VoiceCpuBpmComponent.h"
-#include "plugin_components/PresetBrowser.h"
-#include "plugin_components/PresetComponents.h"
-#include "plugin_components/StandalonePopupComponents.h"
-#include "plugin_components/FrontendBar.h"
-
-#if USE_BACKEND
-#include "plugin_components/PluginPreviewWindow.h"
-#endif
-
-#include "wave_components/SampleDisplayComponent.h"
-#include "wave_components/WavetableComponents.h"
-
-#include "vu_meter/VuMeter.h"
+#include "FloatingTileContent.h"
+#include "MiscFloatingPanelTypes.h"
+#include "FloatingTile.h"
+#include "FloatingTileContainer.h"
+#include "FloatingInterfaceBuilder.h"
 
 
-#include "eq_plot/FilterInfo.h"
-#include "eq_plot/FilterGraph.h"
-#include "eq_plot/EqComponent.h"
-
-#if PUT_FLOAT_IN_CODEBASE
-#include "floating_layout/FloatingLayout.h"
-#endif
-
-
-#endif  // HI_COMPONENTS_H_INCLUDED
+#endif  // FLOATINGLAYOUT_H_INCLUDED

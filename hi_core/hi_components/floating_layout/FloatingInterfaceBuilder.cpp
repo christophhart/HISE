@@ -1,0 +1,284 @@
+/*
+  ==============================================================================
+
+    FloatingInterfaceBuilder.cpp
+    Created: 15 May 2017 7:58:54pm
+    Author:  Christoph
+
+  ==============================================================================
+*/
+
+
+
+void FloatingInterfaceBuilder::setSizes(int index, Array<double> sizes, NotificationType shouldUpdateLayout/*=sendNotification*/)
+{
+	if (auto c = getTileManager(index))
+	{
+		if (sizes.size() != c->getNumComponents())
+		{
+			jassertfalse;
+			return;
+		}
+
+		for (int i = 0; i < c->getNumComponents(); i++)
+		{
+			c->getComponent(i)->getLayoutData().currentSize = sizes[i];
+		}
+
+		if (shouldUpdateLayout == sendNotification)
+			c->refreshLayout();
+	}
+	else
+		jassertfalse;
+}
+
+void FloatingInterfaceBuilder::setFolded(int index, Array<bool> foldStates, NotificationType shouldUpdateLayout /*= sendNotification*/)
+{
+	if (auto c = getTileManager(index))
+	{
+		if (foldStates.size() != c->getNumComponents())
+		{
+			jassertfalse;
+			return;
+		}
+
+		for (int i = 0; i < c->getNumComponents(); i++)
+		{
+			c->getComponent(i)->getLayoutData().currentSize = foldStates[i];
+		}
+
+		if (shouldUpdateLayout == sendNotification)
+			c->refreshLayout();
+	}
+	else
+		jassertfalse;
+}
+
+void FloatingInterfaceBuilder::setAbsoluteSize(int index, Array<bool> absoluteState, NotificationType shouldUpdateLayout /*= sendNotification*/)
+{
+	if (auto c = getTileManager(index))
+	{
+		if (absoluteState.size() != c->getNumComponents())
+		{
+			jassertfalse;
+			return;
+		}
+
+		for (int i = 0; i < c->getNumComponents(); i++)
+		{
+			c->getComponent(i)->getLayoutData().isAbsolute = absoluteState[i];
+		}
+
+		if (shouldUpdateLayout == sendNotification)
+			c->refreshLayout();
+	}
+	else
+		jassertfalse;
+}
+
+void FloatingInterfaceBuilder::setLocked(int index, Array<bool> lockedStates, NotificationType shouldUpdateLayout/*=sendNotification*/)
+{
+	if (auto c = getTileManager(index))
+	{
+		if (lockedStates.size() != c->getNumComponents())
+		{
+			jassertfalse;
+			return;
+		}
+
+		for (int i = 0; i < c->getNumComponents(); i++)
+		{
+			c->getComponent(i)->getLayoutData().isLocked = lockedStates[i];
+		}
+
+		if (shouldUpdateLayout == sendNotification)
+			c->refreshLayout();
+	}
+	else
+		jassertfalse;
+}
+
+void FloatingInterfaceBuilder::setDeletable(int index, bool isDeletable, Array<bool> deletableStates, NotificationType shouldUpdateLayout /*= sendNotification*/)
+{
+	getPanel(index)->setDeletable(isDeletable);
+
+	if (auto c = getContainer(index))
+	{
+		if (deletableStates.size() != c->getNumComponents())
+		{
+			jassertfalse;
+			return;
+		}
+
+		for (int i = 0; i < c->getNumComponents(); i++)
+		{
+			c->getComponent(i)->setDeletable(deletableStates[i]);
+		}
+
+		if (shouldUpdateLayout == sendNotification)
+			c->refreshLayout();
+	}
+	else
+		jassertfalse;
+}
+
+void FloatingInterfaceBuilder::setSwappable(int index, bool isSwappable, Array<bool> childSwapStates, NotificationType shouldUpdateLayout/*= sendNotification*/)
+{
+	getPanel(index)->setSwappable(isSwappable);
+
+	if (auto c = getContainer(index))
+	{
+		if (childSwapStates.size() != c->getNumComponents())
+		{
+			jassertfalse;
+			return;
+		}
+
+		for (int i = 0; i < c->getNumComponents(); i++)
+		{
+			c->getComponent(i)->setSwappable(childSwapStates[i]);
+		}
+
+		if (shouldUpdateLayout == sendNotification)
+			c->refreshLayout();
+	}
+	else
+		jassertfalse;
+}
+
+void FloatingInterfaceBuilder::setFoldable(int index, bool isFoldable, Array<bool> childFoldableStates, NotificationType /*= dontSendNotification*/)
+{
+	getPanel(index)->setCanBeFolded(isFoldable);
+
+	if (auto c = getContainer(index))
+	{
+		if (childFoldableStates.size() != c->getNumComponents())
+		{
+			jassertfalse;
+			return;
+		}
+
+		for (int i = 0; i < c->getNumComponents(); i++)
+			c->getComponent(i)->setCanBeFolded(childFoldableStates[i]);
+	}
+	else
+		jassertfalse;
+}
+
+void FloatingInterfaceBuilder::setCustomName(int index, const String& name, Array<String> names)
+{
+	if (auto p = getPanel(index))
+		p->getCurrentFloatingPanel()->setCustomTitle(name);
+	else
+		jassertfalse;
+
+	if (names.size() > 0)
+	{
+		if (auto c = getContainer(index))
+		{
+			if (names.size() != c->getNumComponents())
+			{
+				jassertfalse;
+				return;
+			}
+
+			for (int i = 0; i < c->getNumComponents(); i++)
+				c->getComponent(i)->getCurrentFloatingPanel()->setCustomTitle(names[i]);
+		}
+		else
+			jassertfalse;
+	}
+
+}
+
+FloatingTile* FloatingInterfaceBuilder::getPanel(int index)
+{
+	return createdComponents[index].getComponent();
+}
+
+FloatingTileContainer* FloatingInterfaceBuilder::getContainer(int index)
+{
+	if (auto p = getPanel(index))
+		return dynamic_cast<FloatingTileContainer*>(p->getCurrentFloatingPanel());
+
+	return nullptr;
+}
+
+ResizableFloatingTileContainer* FloatingInterfaceBuilder::getTileManager(int index)
+{
+	if (auto p = getPanel(index))
+		return dynamic_cast<ResizableFloatingTileContainer*>(p->getCurrentFloatingPanel());
+
+	return nullptr;
+}
+
+void FloatingInterfaceBuilder::removeFirstChildOfNewContainer(FloatingTile* panel)
+{
+	if (auto c = dynamic_cast<FloatingTileContainer*>(panel->getCurrentFloatingPanel()))
+		c->removeFloatingTile(c->getComponent(0));
+}
+
+
+template <typename ContentType>
+int FloatingInterfaceBuilder::addChild(int index)
+{
+	auto c = createdComponents[index].getComponent();
+
+	if (c != nullptr)
+	{
+		if (auto container = dynamic_cast<FloatingTileContainer*>(c->getCurrentFloatingPanel()))
+		{
+			auto newPanel = new FloatingTile(container);
+
+			container->addFloatingTile(newPanel);
+
+			createdComponents.add(newPanel);
+
+			newPanel->setNewContent(ContentType::getPanelId());
+
+			removeFirstChildOfNewContainer(newPanel);
+
+			return createdComponents.size() - 1;
+		}
+	}
+
+	return -1;
+}
+
+
+
+
+
+FloatingTile* FloatingInterfaceBuilder::finalizeAndReturnRoot(bool isReadOnly)
+{
+	createdComponents.getFirst()->resized();
+
+	FloatingTile::Iterator<HorizontalTile> it(createdComponents.getFirst());
+
+	while (auto c = it.getNextPanel())
+	{
+		c->refreshLayout();
+	}
+
+	return createdComponents.getFirst();
+}
+
+template <typename ContentType>
+int FloatingInterfaceBuilder::setNewContentType(int index)
+{
+	auto panelToUse = createdComponents[index].getComponent();
+
+	if (panelToUse == nullptr)
+	{
+		jassertfalse;
+		return false;
+	}
+
+	panelToUse->setNewContent(ContentType::getPanelId());
+
+
+	removeFirstChildOfNewContainer(panelToUse);
+
+
+	return true;
+}

@@ -151,7 +151,9 @@ public:
 		{
 			if (getContentComponent() != nullptr)
 			{
-				area->setFloatingArea(getContentComponent(), getScreenBounds());
+                auto b = getScreenBounds();
+                
+				area->setFloatingArea(getContentComponent(), b);
 			}
 		}
 
@@ -269,8 +271,6 @@ public:
 		for (int i = 0; i < getNumComponents(); i++)
 		{
 			ValueTree child = v.getChild(i);
-
-			Component* co = getComponentForIndex(i);
 
 			const bool ip_ = (bool)child.getProperty(ip, false);
 

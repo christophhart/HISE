@@ -30,7 +30,7 @@ void AudioDeviceDialog::buttonClicked(Button *b)
 	}
 
 #if USE_BACKEND
-	dynamic_cast<BackendProcessorEditor*>(getParentComponent())->showSettingsWindow();
+	findParentComponentOfClass<BackendRootWindow>()->showSettingsWindow();
 #endif
 }
 

@@ -49,7 +49,7 @@ Component * MidiKeyboardFocusTraverser::getDefaultComponent(Component *parentCom
 	}
 	else
 	{
-		BackendProcessorEditor *editor = parentComponent->findParentComponentOfClass<BackendProcessorEditor>();
+		BackendRootWindow *editor = parentComponent->findParentComponentOfClass<BackendRootWindow>();
 
 		if (editor != nullptr) editor->setCopyPasteTarget(nullptr);
 	}
@@ -114,7 +114,7 @@ CustomKeyboard::CustomKeyboard (CustomKeyboardState &state_):
     setKeyWidth(narrowKeys ? 14.0f : 18.0f);
 	setScrollButtonsVisible(false);
 	
-	setAvailableRange(21, 127);
+	setAvailableRange(9, 127);
 
 #endif
 

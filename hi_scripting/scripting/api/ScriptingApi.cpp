@@ -2383,7 +2383,14 @@ ScriptingApi::Synth::ModuleHandler::ModuleHandler(Synth* parent_) :
 	parent(parent_)
 {
 #if USE_BACKEND
-	mainEditor = parent->getScriptProcessor()->getMainController_()->getConsole()->findParentComponentOfClass<BackendProcessorEditor>();
+
+#if TODO_CONSOLE
+	auto console = parent->getScriptProcessor()->getMainController_()->getConsole();
+
+	if(console)
+		mainEditor = console->findParentComponentOfClass<BackendRootWindow>();
+#endif
+
 #else
 	mainEditor = nullptr;
 #endif

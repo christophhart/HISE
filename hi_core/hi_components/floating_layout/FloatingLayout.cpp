@@ -30,44 +30,13 @@
 *   ===========================================================================
 */
 
-#ifndef HI_COMPONENTS_H_INCLUDED
-#define HI_COMPONENTS_H_INCLUDED
-
-/** @defgroup components Components
-*
-*	custom components for HI.
-*/
-
-#include "resizable_height_component/ResizableHeightComponent.h"
-
-#include "vu_meter/Plotter.h"
-
-#include "drag_plot/SliderPack.h"
-#include "drag_plot/TableEditor.h"
-#include "keyboard/CustomKeyboard.h"
-#include "plugin_components/VoiceCpuBpmComponent.h"
-#include "plugin_components/PresetBrowser.h"
-#include "plugin_components/PresetComponents.h"
-#include "plugin_components/StandalonePopupComponents.h"
-#include "plugin_components/FrontendBar.h"
-
-#if USE_BACKEND
-#include "plugin_components/PluginPreviewWindow.h"
+#if !PUT_FLOAT_IN_CODEBASE
+#include "JuceHeader.h"
+#include "FloatingLayout.h"
 #endif
 
-#include "wave_components/SampleDisplayComponent.h"
-#include "wave_components/WavetableComponents.h"
-
-#include "vu_meter/VuMeter.h"
-
-
-#include "eq_plot/FilterInfo.h"
-#include "eq_plot/FilterGraph.h"
-#include "eq_plot/EqComponent.h"
-
-#if PUT_FLOAT_IN_CODEBASE
-#include "floating_layout/FloatingLayout.h"
-#endif
-
-
-#endif  // HI_COMPONENTS_H_INCLUDED
+#include "FloatingTileContent.cpp"
+#include "MiscFloatingPanelTypes.cpp"
+#include "FloatingTile.cpp"
+#include "FloatingTileContainer.cpp"
+#include "FloatingInterfaceBuilder.cpp"

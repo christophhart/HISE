@@ -75,6 +75,7 @@ using namespace juce;
 #include "backend/MainMenuComponent.h"
 #include "backend/BackendApplicationCommands.h"
 #include "backend/BackendEditor.h"
+#include "backend/BackendRootWindow.h"
 #include "backend/CompileExporter.h"
 #include "backend/HisePlayerExporter.h"
 

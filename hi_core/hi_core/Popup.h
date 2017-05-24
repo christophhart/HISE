@@ -47,7 +47,7 @@ public:
 
 	bool isFloating() const;
 
-	virtual void floatingStateChanged(bool isCurrentlyFloating) {}
+	virtual void floatingStateChanged(bool /*isCurrentlyFloating*/) {}
 
 protected:
 

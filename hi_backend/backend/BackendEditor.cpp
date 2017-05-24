@@ -34,67 +34,24 @@
 
 #include <regex>
 
-BackendProcessorEditor::BackendProcessorEditor(AudioProcessor *ownerProcessor, ValueTree &editorState) :
-AudioProcessorEditor(ownerProcessor),
-BackendCommandTarget(static_cast<BackendProcessor*>(ownerProcessor)),
-owner(static_cast<BackendProcessor*>(getAudioProcessor())),
+
+BackendProcessorEditor::BackendProcessorEditor(AudioProcessor *ownerProcessor, BackendRootWindow* parent, const ValueTree &editorState) :
+owner(static_cast<BackendProcessor*>(ownerProcessor)),
+parentRootWindow(parent),
 rootEditorIsMainSynthChain(true)
 {
-	
-
     setOpaque(true);
-
-	setEditor(this);
-    
-	
 
 	setLookAndFeel(&lookAndFeelV3);
 
 	addAndMakeVisible(viewport = new CachedViewport());
 	addAndMakeVisible(breadCrumbComponent = new BreadcrumbComponent());
-	addAndMakeVisible(referenceDebugArea = new CombinedDebugArea(this));
-	addAndMakeVisible(propertyDebugArea = new PropertyDebugArea(this));
-	addAndMakeVisible(macroKnobs = new MacroComponent(owner, propertyDebugArea->getMacroTable()));
-	addAndMakeVisible(mainToolbar = new Toolbar());
-	addAndMakeVisible(keyboard = new CustomKeyboard(owner->getKeyboardState()));
-	addAndMakeVisible(tooltipBar = new TooltipBar());
-	addAndMakeVisible(cpuVoiceComponent = new VoiceCpuBpmComponent(owner));
-
+	
 	addChildComponent(debugLoggerWindow = new DebugLoggerComponent(&owner->getDebugLogger()));
-
-    PresetHandler::buildProcessorDataBase(owner->getMainSynthChain());
-    
-	cpuVoiceComponent->setColour(Slider::backgroundColourId, HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourId));
-	cpuVoiceComponent->setOpaque(true);
 
 	addAndMakeVisible(aboutPage = new AboutPage());
 	
-	constrainer = new ComponentBoundsConstrainer();
-	constrainer->setMinimumHeight(200);
-	constrainer->setMinimumWidth(0);
-	constrainer->setMaximumWidth(1920);
-
-	addAndMakeVisible(borderDragger = new ResizableBorderComponent(this, constrainer));
-
 	viewport->viewport->setScrollBarThickness(SCROLLBAR_WIDTH);
-
-	tooltipBar->addMouseListener(this, false);
-	tooltipBar->setColour(TooltipBar::ColourIds::iconColour, Colours::lightgrey);
-	toolbarFactory = new MainToolbarFactory(this);
-
-	mainToolbar->setStyle(Toolbar::ToolbarItemStyle::iconsOnly);
-	mainToolbar->addDefaultItems(*toolbarFactory);
-	mainToolbar->setColour(Toolbar::ColourIds::backgroundColourId, Colours::transparentBlack);
-	mainToolbar->setColour(Toolbar::ColourIds::buttonMouseOverBackgroundColourId, Colours::white.withAlpha(0.2f));
-	mainToolbar->setColour(Toolbar::ColourIds::buttonMouseDownBackgroundColourId, Colours::white.withAlpha(0.7f));
-
-#if HISE_IOS
-	mainToolbar->setVertical(true);
-
-	addAndMakeVisible(menuRuler = new Component());
-
-#endif
-
 	viewport->viewport->setSingleStepSizes(0, 6);
 
 	setRootProcessor(owner->synthChain->getRootProcessor());
@@ -104,72 +61,7 @@ rootEditorIsMainSynthChain(true)
 	aboutPage->setVisible(false);
 	aboutPage->setBoundsInset(BorderSize<int>(80));
 
-	BorderSize<int> borderSize;
-	borderSize.setTop(0);
-	borderSize.setLeft(0);
-	borderSize.setRight(0);
-	borderSize.setBottom(7);
-
-	borderDragger->setBorderThickness(borderSize);
-
-#if IS_STANDALONE_APP 
-
-	if(owner->callback->getCurrentProcessor() == nullptr)
-	{
-		showSettingsWindow();
-	}
-
-#endif
-
-#if HISE_IOS 
-
-    addAndMakeVisible(menuBar = new MenuBarComponent(this));
-    menuBar->setLookAndFeel(&plaf);
-    
-#elif JUCE_MAC && IS_STANDALONE_APP
-	MenuBarModel::setMacMainMenu(this);
-
-#else
-
-	addAndMakeVisible(menuBar = new MenuBarComponent(this));
-	menuBar->setLookAndFeel(&plaf);
-
-#endif
-
-	addAndMakeVisible(progressOverlay = new ThreadWithQuasiModalProgressWindow::Overlay());
-	owner->setOverlay(progressOverlay);
-	progressOverlay->setDialog(nullptr);
-
-#if HISE_IOS
-
-	Path arrow;
-
-	arrow.startNewSubPath(0.0f, 0.0f);
-	arrow.lineTo(2.0f, 1.0f);
-	arrow.lineTo(0.0f, 2.0f);
-	arrow.closeSubPath();
-
-	addAndMakeVisible(octaveDownButton = new ShapeButton("OctaveDown", Colour(0xFF444444), Colours::white, Colours::white));
-	addAndMakeVisible(octaveUpButton = new ShapeButton("OctaveUp", Colour(0xFF444444), Colours::white, Colours::white));
-
-	octaveUpButton->addListener(keyboard);
-	octaveDownButton->addListener(keyboard);
-
-	octaveUpButton->setShape(arrow, true, true, true);
-
-	arrow.applyTransform(AffineTransform::rotation(float_Pi));
-
-	octaveDownButton->setShape(arrow, true, true, true);
-
-#endif
-
 	restoreFromValueTree(editorState);
-    
-	keyboard->grabKeyboardFocus();
-
-    updateCommands();
-
-	startTimer(1000);
 };
 
 BackendProcessorEditor::~BackendProcessorEditor()
@@ -180,93 +72,23 @@ BackendProcessorEditor::~BackendProcessorEditor()
     
 	owner->setEditorState(v);
 
-	clearModalComponent();
-
-	keyboard = nullptr;
-	currentDialog = nullptr;
-
 	// Remove the popup components
 
 	popupEditor = nullptr;
 	stupidRectangle = nullptr;
-	currentDialog = nullptr;
+	
 	aboutPage = nullptr;
-	modalComponent = nullptr;
+	
+	// Remove the toolbar stuff
 
-	// Remove the resize stuff
-
-	constrainer = nullptr;
-	borderDragger = nullptr;
-
-	// Remove the toolbar stuf
-
-	toolbarFactory = nullptr;
-	mainToolbar = nullptr;
-	tooltipBar = nullptr;
-
-	cpuVoiceComponent = nullptr;
-	backButton = nullptr;
-	forwardButton = nullptr;
 	breadCrumbComponent = nullptr;
-
-	// Remove the menu
-
-#if JUCE_MAC && IS_STANDALONE_APP
-	MenuBarModel::setMacMainMenu(nullptr);
-#else
-	menuBar->setModel(nullptr);
-	menuBar = nullptr;
-#endif
-
-	// Remove the debug panels
-
-	referenceDebugArea = nullptr;
-	propertyDebugArea = nullptr;
 
 	// Remove the main stuff
 
-	macroKnobs = nullptr;
 	container = nullptr;
 	viewport = nullptr;
-	
 }
 
-bool BackendProcessorEditor::addProcessorToPopupMenu(PopupMenu &m, Processor *p)
-{
-	Processor::Iterator<Processor> iter(p, false);
-
-	Processor *ip;
-
-	int i = 1;
-
-	ModulatorSynth *lastSynth = nullptr;
-
-	while((ip = iter.getNextProcessor()) != nullptr)
-	{
-		//if(ip->isBypassed()) continue;
-
-		const bool isSynth = dynamic_cast<ModulatorSynth*>(ip) != nullptr;
-
-		if(isSynth)
-		{
-			lastSynth = dynamic_cast<ModulatorSynth*>(ip);
-
-			m.addCustomItem(-1, new ProcessorPopupItem(lastSynth, this));
-		}
-		else
-		{
-			const bool allowClick = dynamic_cast<Chain*>(ip) == nullptr;
-									
-
-			if(allowClick)
-			{
-				m.addCustomItem(i++, new ProcessorPopupItem(lastSynth, ip, this));
-			}
-		}
-	}
-
-	return true;
-}
 
 void BackendProcessorEditor::addProcessorToPanel(Processor *p)
 {
@@ -287,131 +109,6 @@ void BackendProcessorEditor::removeProcessorFromPanel(Processor *p)
 }
 
 
-
-
-
-
-void BackendProcessorEditor::showSettingsWindow()
-{
-	jassert(owner->deviceManager != nullptr);
-
-	if (owner->deviceManager != nullptr && currentDialog == nullptr)
-	{
-		addAndMakeVisible(currentDialog = new AudioDeviceDialog(owner));
-
-		currentDialog->centreWithSize(700, 500);
-	}
-	else
-	{
-		currentDialog = nullptr;
-	}
-}
-
-void BackendProcessorEditor::showViewPanelPopup()
-{
-	PopupMenu m;
-
-	ViewInfo *currentView = owner->synthChain->getCurrentViewInfo();
-
-	m.setLookAndFeel(&plaf);
-
-	enum
-	{
-		AddNewView = -10,
-		SaveCurrentView,
-		DeleteCurrentView,
-		RenameCurrentView,
-		RemoveAllSoloProcessors,
-		ShowAllHiddenProcessors
-	};
-
-	String changed = (currentView != nullptr && currentView->wasChanged()) ? "*" : "";
-
-	m.addSectionHeader("Current View: " + ((currentView == nullptr) ? "None" : currentView->getViewName() + changed));
-	m.addSeparator();
-
-	m.addItem(AddNewView, "Add new view", true, false);
-	m.addItem(SaveCurrentView, "Save current view", currentView != nullptr, false);
-	m.addItem(RenameCurrentView, "Rename current view", currentView != nullptr, false);
-	m.addItem(DeleteCurrentView, "Delete current view", currentView != nullptr, false);
-
-	m.addSeparator();
-
-	m.addItem(RemoveAllSoloProcessors, "Unsolo all processors");
-	m.addItem(ShowAllHiddenProcessors, "Show all hidden processors");
-
-	m.addSeparator();
-
-	for (int i = 0; i < owner->synthChain->getNumViewInfos(); i++)
-	{
-		ViewInfo *info = owner->synthChain->getViewInfo(i);
-
-		m.addItem(i + 1, info->getViewName(), true, info == owner->synthChain->getCurrentViewInfo());
-	}
-
-	int result = m.show();
-
-	if (result == 0) return;
-
-
-	if (result == AddNewView)
-	{
-		String view = PresetHandler::getCustomName("View");
-
-		ViewInfo *info = new ViewInfo(owner->synthChain, currentRootProcessor, view);
-
-		owner->synthChain->addViewInfo(info);
-	}
-	else if (result == DeleteCurrentView)
-	{
-		owner->synthChain->removeCurrentViewInfo();
-	}
-	else if (result == RenameCurrentView)
-	{
-		String view = PresetHandler::getCustomName("View");
-
-		owner->synthChain->getCurrentViewInfo()->setViewName(view);
-	}
-	else if (result == SaveCurrentView)
-	{
-		String view = owner->synthChain->getCurrentViewInfo()->getViewName();
-
-		ViewInfo *info = new ViewInfo(owner->synthChain, currentRootProcessor, view);
-
-		owner->synthChain->replaceCurrentViewInfo(info);
-	}
-	else if (result == RemoveAllSoloProcessors)
-	{
-		container->clearSoloProcessors();
-	}
-	else if (result == ShowAllHiddenProcessors)
-	{
-		Processor::Iterator<Processor> iter(owner->synthChain);
-
-		Processor *p;
-
-		while ((p = iter.getNextProcessor()) != nullptr)
-		{
-			if (ProcessorHelpers::isHiddableProcessor(p))
-			{
-				p->setEditorState(Processor::Visible, true, sendNotification);
-			}
-		}
-
-		container->refreshSize(false);
-	}
-	else
-	{
-		ViewInfo *info = owner->synthChain->getViewInfo(result - 1);
-
-		info->restore();
-
-		setRootProcessor(info->getRootProcessor());
-
-		owner->synthChain->setCurrentViewInfo(result - 1);
-	}
-}
-
 void BackendProcessorEditor::setRootProcessor(Processor *p, int scrollY/*=0*/)
 {
 	const bool rootEditorWasMainSynthChain = rootEditorIsMainSynthChain;
@@ -427,8 +124,6 @@ void BackendProcessorEditor::setRootProcessor(Processor *p, int scrollY/*=0*/)
 	currentRootProcessor = p;
 	container->setRootProcessorEditor(p);
 	
-	
-
 	Processor::Iterator<Processor> iter(owner->synthChain, false);
 
 	Processor *iterProcessor;
@@ -436,9 +131,7 @@ void BackendProcessorEditor::setRootProcessor(Processor *p, int scrollY/*=0*/)
 	while ((iterProcessor = iter.getNextProcessor()) != nullptr)
 	{
 		if ((bool)iterProcessor->getEditorState("Solo"))
-		{
 			addProcessorToPanel(iterProcessor);
-		}
 	}
 
 	breadCrumbComponent->refreshBreadcrumbs();
@@ -470,147 +163,18 @@ void BackendProcessorEditor::setRootProcessorWithUndo(Processor *p)
     {
         owner->viewUndoManager->beginNewTransaction(getRootContainer()->getRootEditor()->getProcessor()->getId() + " -> " + p->getId());
         owner->viewUndoManager->perform(new ViewBrowsing(owner->synthChain, this, viewport->viewport->getViewPositionY(), p));
-        updateCommands();
+        parentRootWindow->updateCommands();
     }
-}
-
-void BackendProcessorEditor::timerCallback()
-{
-	stopTimer();
-
-	if (!GET_PROJECT_HANDLER(getMainSynthChain()).isActive() && PresetHandler::showYesNoWindow("Welcome to HISE", "Do you want to create a new project?\nA project is a folder which contains all external files needed for a sample library."))
-	{
-		owner->setChanged(false);
-
-		BackendCommandTarget::Actions::createNewProject(this);
-
-		
-	}
-}
-
-bool BackendProcessorEditor::getIndexPath(Array<int> &path, Processor *p, const int searchIndex, int &counter)
-{
-	if(searchIndex == counter) return true;
-
-	if(p->isBypassed()) return false;
-
-	for(int i = 0; i < p->getNumChildProcessors(); i++)
-	{
-		Processor *child = (p->getChildProcessor(i));
-		counter++;
-
-		if(getIndexPath(path, child, searchIndex, counter))
-		{
-			path.insert(0, i);
-			return true;
-		}
-	}
-	return false;
-}
-
-ProcessorEditor *BackendProcessorEditor::getProcessorEditorFromPath(const Array<int> &path)
-{
-
-	Processor *p = owner->synthChain;
-
-	for(int i = 0; i < path.size(); i++)
-	{
-
-		jassert(p->getNumChildProcessors() >= path[i]);
-		p = p->getChildProcessor(i);
-	}
-
-	return new ProcessorEditor(nullptr, 0, p, nullptr);
-	
-}
-
-String BackendProcessorEditor::createStringFromPath(const Array<int> &path)
-{
-
-	String p;
-
-	ProcessorEditor *pe = container->getRootEditor();
-
-	for(int i = 0; i < path.size(); i++)
-	{
-
-		p << pe->getProcessor()->getId() << " :: ";
-
-		pe = dynamic_cast<ProcessorEditor*>(pe->getPanel()->getChildEditor(path[i]));
-	}
-
-	p << pe->getProcessor()->getId();
-
-	return p;
-}
-
-
-void BackendProcessorEditor::setToolBarPosition(int x, int y, int width, int height)
-{
-#if HISE_IOS
-
-	const int widthBeforeViewport = viewport->getX();
-	width = 40;
-
-	const int yOffset = 50;
-	height = getHeight() - yOffset;
-
-	mainToolbar->setBounds((widthBeforeViewport - width)/2, yOffset, width, height);
-
-	cpuVoiceComponent->setVisible(false);
-
-#else
-	const int toolbarWidth = mainToolbar->getNumItems() * 24;
-	const int cpuVoiceWidth = cpuVoiceComponent->getWidth();
-
-	tooltipBar->setBounds(x, y + 2, width - toolbarWidth - cpuVoiceWidth - 16, height - 4);
-
-	cpuVoiceComponent->setBounds(tooltipBar->getRight() + 8, y, cpuVoiceWidth, height);
-
-	mainToolbar->setBounds(x + width - toolbarWidth, y+2, toolbarWidth, height-4);
-#endif
 }
 
 void BackendProcessorEditor::setViewportPositions(int viewportX, const int viewportY, const int viewportWidth, int viewportHeight)
 {
+	debugLoggerWindow->setBounds(0, getHeight() - 60, getWidth(), 60);
 
-
-	macroKnobs->setBounds(viewportX, viewportY, viewportWidth, macroKnobs->getCurrentHeight());
-
-	const int macroOffset = macroKnobs->isVisible() ? macroKnobs->getHeight() : 0;
-
-#if HISE_IOS
-	const int keyboardHeight = 250;
-
-	octaveDownButton->setBounds(15, getHeight() - 150, 50, 50);
-	octaveUpButton->setBounds(getWidth() - 65, getHeight() - 150, 50, 50);
-
-	octaveDownButton->setVisible(keyboard->isVisible());
-	octaveUpButton->setVisible(keyboard->isVisible());
-
-#else
-	const int keyboardHeight = 72;
-
-#endif
-
-	keyboard->setBounds(viewportX, getHeight() - keyboardHeight, viewportWidth, keyboardHeight);
-
-	debugLoggerWindow->setBounds(keyboard->getX(), keyboard->getY() - 60, keyboard->getWidth(), 60);
-
-	const int containerHeight = getHeight() - (keyboard->isVisible() ? keyboard->getHeight() : 10)
-		- viewportY - macroOffset;
+	const int containerHeight = getHeight() - viewportY;
 
 	viewport->setVisible(containerHeight > 0);
-
-
-
-	viewport->setBounds(viewportX, viewportY + macroOffset, viewportWidth + SCROLLBAR_WIDTH, containerHeight); // Overlap with the fade
-
-#if HISE_IOS
-
-	menuRuler->setBounds(viewportX, viewportY-1, viewportWidth, 1);
-
-#endif
+	viewport->setBounds(0, viewportY, getWidth(), containerHeight); // Overlap with the fade
 
 	aboutPage->setBounds(viewportX, viewportY, viewportWidth, viewportHeight);
 
@@ -620,7 +184,6 @@ void BackendProcessorEditor::setViewportPositions(int viewportX, const int viewp
 		stupidRectangle->setBounds(viewport->getBounds());
 		currentPopupComponent->setTopLeftPosition(currentPopupComponent->getX(), viewportY + 40);
 	}
-
 }
 
 bool BackendProcessorEditor::isPluginPreviewShown() const
@@ -641,80 +204,17 @@ void BackendProcessorEditor::paint(Graphics &g)
     g.setColour(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourId));
     
     g.fillAll();
-    
-    Rectangle<int> area = viewport->getBounds();
-    area.removeFromRight(viewport->viewport->getScrollBarThickness());
-    area.setHeight(area.getHeight() + 5);
-    
-    Colour c1 = JUCE_LIVE_CONSTANT_OFF(Colour(0xff2f2f2f));
-    
-	g.setColour(c1);
-    
-    g.fillRoundedRectangle(FLOAT_RECTANGLE(area), 3.0f);
-    
 }
 
 
 void BackendProcessorEditor::resized()
 {
-#if HISE_IOS
-    
-#elif IS_STANDALONE_APP
-
-	if (getParentComponent() != nullptr)
-	{
-        getParentComponent()->getParentComponent()->setSize(getWidth(), getHeight());
-	}
-#endif
-
-	progressOverlay->setBounds(0, 0, getWidth(), getHeight());
-
-#if HISE_IOS
-
-	const int menuBarOffset = 0;
-
-#else
-	const int menuBarOffset = menuBar == nullptr ? 0 : 20;
-
-	if (menuBarOffset != 0)
-	{
-		menuBar->setBounds(0, 0, getWidth(), menuBarOffset);
-	}
-
-#endif
-
-	const float dpiScale = Desktop::getInstance().getGlobalScaleFactor();
-
-	int columns = 0;
-
-	if ((float)getWidth()*dpiScale < 1279.0f)
-	{
-		columns = 1;
-	}
-	else if ((float)getWidth() * dpiScale <= 1600.0f)
-	{
-		columns = 2;
-	}
-	else
-	{
-		columns = 3;
-	}
-
-	
-
-#if HISE_IOS
-	const int breadcrumbHeight = rootEditorIsMainSynthChain ? 0 : 45;
-	const int viewportY = 10;
-	
-#else
 	const int breadcrumbHeight = rootEditorIsMainSynthChain ? 0 : 30;
-	const int viewportY = menuBarOffset + 8 + 24 + 8;
-#endif
-
+	const int viewportY = 0; // 0 + 8 + 24 + 8;
 	
-	const int viewportHeight = getHeight() - viewportY - (keyboard->isVisible() ? 0 : 10);
+	const int viewportHeight = getHeight();// -viewportY - (keyboard->isVisible() ? 0 : 10);
 	
-	const int viewportWidth = 868;
+	const int viewportWidth = getWidth() - 16;
 	
     const int bw = 16;
 
@@ -725,58 +225,15 @@ void BackendProcessorEditor::resized()
 
 	bool poolVisible, inspectorVisible;
 
-	if (columns == 1)
-	{
-		viewportX = (getWidth() - viewportWidth) / 2;
+	viewportX = 0;
 
-		poolVisible = false;
-		inspectorVisible = false;
-		inspectorX = inspectorY = poolX = poolY = 0;
+	poolVisible = false;
+	inspectorVisible = false;
+	inspectorX = inspectorY = poolX = poolY = 0;
 
-		sideColumnWidth = heightOfSideColumns = 0;
-	}
+	sideColumnWidth = heightOfSideColumns = 0;
 
-	else if (columns == 2)
-	{
-		viewportX = getWidth() - viewportWidth - 16;
-
-		
-
-		sideColumnWidth = jmin<int>(400, viewportX - 2*bw);
-
-		poolVisible = true;
-		inspectorVisible = true;
-
-		poolX = viewportX - sideColumnWidth - bw;
-
-		inspectorX = poolX;
-		
-		poolY = menuBarOffset + 12;
-
-		heightOfSideColumns = (getHeight() - poolY) / 2 - bw;
-
-		inspectorY = poolY + heightOfSideColumns + bw;
-	}
-	else
-	{
-		viewportX = (getWidth() - viewportWidth) / 2;
-
-		sideColumnWidth = jmin<int>(400, (getWidth() - viewportWidth) / 2 - 2*bw);
-
-		poolVisible = true;
-		inspectorVisible = true;
-
-		poolY = menuBarOffset + 12; // viewportY - bw - breadcrumbHeight - ;
-		poolX = viewportX - sideColumnWidth - bw;
-		inspectorX = viewportX + viewportWidth + bw;
-		inspectorY = poolY;
-
-		heightOfSideColumns = getHeight() - poolY - bw;
-	}
-
-	setToolBarPosition(viewportX, menuBarOffset + 4 , viewportWidth, 28);
-
-
+	//setToolBarPosition(viewportX, 4 , viewportWidth, 28);
 
 	breadCrumbComponent->setBounds(viewportX, viewportY, viewportWidth, breadcrumbHeight);
 
@@ -784,40 +241,12 @@ void BackendProcessorEditor::resized()
 
 	viewport->viewport->setViewPosition(0, owner->getScrollY());
 
-	//const int referenceDebugAreaHeight = (getHeight() - menuBarOffset) / 2 - 32;
-
-	referenceDebugArea->setVisible(poolVisible);
-	propertyDebugArea->setVisible(inspectorVisible);
-
-    referenceDebugArea->setBounds(poolX, poolY, poolVisible ? sideColumnWidth : 0, heightOfSideColumns);
-
-    propertyDebugArea->setBounds(inspectorX, inspectorY, inspectorVisible ? sideColumnWidth : 0, heightOfSideColumns);
-
-    if(stupidRectangle != nullptr && currentPopupComponent.get() != nullptr)
+	if(stupidRectangle != nullptr && currentPopupComponent.get() != nullptr)
     {
-        stupidRectangle->setBounds(viewportX, viewportY, viewportWidth, viewportHeight - keyboard->getHeight());
-        currentPopupComponent->setBounds(viewportX, viewportY + 40, viewportWidth, viewportHeight-40 - keyboard->getHeight());
+        stupidRectangle->setBounds(viewportX, viewportY, viewportWidth, viewportHeight);
+        currentPopupComponent->setBounds(viewportX, viewportY + 40, viewportWidth, viewportHeight-40);
     }
     
-#if IS_STANDALONE_APP
-
-	if (currentDialog != nullptr)
-	{
-		currentDialog->centreWithSize(700, 500);
-	}
-
-#else
-    
-	borderDragger->setBounds(getBounds());
-
-#endif
-    
-    
-    
-
-	
-
-	//list->setBounds(viewport->getRight() + 16, 30, list->getWidth(), list->getHeight());
 }
 
 void BackendProcessorEditor::clearPopup()
@@ -859,20 +288,7 @@ void BackendProcessorEditor::clearPopup()
 
 void BackendProcessorEditor::scriptWasCompiled(JavascriptProcessor * /*sp*/)
 {
-	updateCommands();
-}
-
-ToolbarButton * BackendProcessorEditor::getButtonForID(int id) const
-{
-	for (int i = 0; i < mainToolbar->getNumItems(); i++)
-	{
-		if (mainToolbar->getItemId(i) == id)
-		{
-			return dynamic_cast<ToolbarButton*>(mainToolbar->getItemComponent(i));
-		}
-	}
-
-	return nullptr;
+	parentRootWindow->updateCommands();
 }
 
 void BackendProcessorEditor::showPseudoModalWindow(Component *componentToShow, const String &title, bool ownComponent/*=false*/)
@@ -894,7 +310,7 @@ void BackendProcessorEditor::showPseudoModalWindow(Component *componentToShow, c
 
 	stupidRectangle->addMouseListener(this, true);
 
-    const int height = getHeight() - viewport->getY() - keyboard->getHeight();
+	const int height = getHeight() - viewport->getY();
 
 	stupidRectangle->setBounds(viewport->getX(), viewport->getY(), viewport->getWidth() - SCROLLBAR_WIDTH, height);
 
@@ -910,51 +326,6 @@ void BackendProcessorEditor::showPseudoModalWindow(Component *componentToShow, c
 	viewport->viewport->setScrollBarsShown(false, false);
 
 	componentToShow->setAlwaysOnTop(true);
-}
-
-void BackendProcessorEditor::showModulatorTreePopup()
-{
-	PopupMenu soloView;
-
-	soloView.setLookAndFeel(&plaf);
-
-	addProcessorToPopupMenu(soloView, owner->synthChain);
-
-#if HISE_IOS
-
-	soloView.showMenuAsync(PopupMenu::Options().withTargetComponent(menuRuler)
-		.withMinimumWidth(menuRuler->getWidth())
-		.withMaximumNumColumns(viewport->getHeight() / 45), nullptr);
-
-    //soloView.showAt(viewport->getBounds(), 1, 900-32);
-#else
-	soloView.show();
-#endif
-}
-
-void BackendProcessorEditor::showProcessorPopup(Processor *p, Processor *parent)
-{
-	popupEditor = new ProcessorEditor(nullptr, 1, p, nullptr);
-
-	String pathString;
-
-	if (parent != nullptr)
-	{
-		pathString << parent->getId() << " :: " << p->getId();
-	}
-	else
-	{
-		pathString << p->getId();
-	}
-
-	popupEditor->setIsPopup(true);
-
-	showPseudoModalWindow(popupEditor, pathString);
-
-	
-
-	popupEditor->setBounds(viewport->getX(), viewport->getY()+40, viewport->getWidth()-16, viewport->getHeight()-40);
-
 }
 
 void BackendProcessorEditor::loadNewContainer(const File &f)
@@ -1063,7 +434,27 @@ void BackendProcessorEditor::clearPreset()
 
 void BackendProcessorEditor::clearModuleList()
 {
-	dynamic_cast<PatchBrowser*>(propertyDebugArea->getComponentForIndex(PropertyDebugArea::ModuleBrowser))->clearCollections();
+
+	//dynamic_cast<PatchBrowser*>(propertyDebugArea->getComponentForIndex(PropertyDebugArea::ModuleBrowser))->clearCollections();
 }
 
 #undef toggleVisibility
+
+
+#if PUT_FLOAT_IN_CODEBASE
+BackendProcessorEditor* MainPanel::set(BackendProcessor* owner, BackendRootWindow* backendRoot, const ValueTree& editorState)
+{
+	addAndMakeVisible(ed = new BackendProcessorEditor(owner, backendRoot, editorState));
+
+	getParentShell()->getParentContainer()->refreshLayout();
+
+	return ed;
+}
+#endif
+
+MainTopBar::MainTopBar(FloatingTile* parent) :
+	FloatingTileContent(parent)
+{
+	addAndMakeVisible(tooltipBar = new TooltipBar());
+	addAndMakeVisible(voiceCpuBpmComponent = new VoiceCpuBpmComponent(parent->getRootWindow()->getBackendProcessor()));
+}

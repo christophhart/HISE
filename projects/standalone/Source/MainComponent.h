@@ -11,6 +11,7 @@
 
 #include "../JuceLibraryCode/JuceHeader.h"
 
+class FloatingTile;
 
 //==============================================================================
 /*
@@ -34,7 +35,7 @@ public:
                 File presetFile(presetFilename);
                 
                 File projectDirectory = File(presetFile).getParentDirectory().getParentDirectory();
-                BackendProcessorEditor* bpe = dynamic_cast<BackendProcessorEditor*>(editor.get());
+                BackendRootWindow* bpe = dynamic_cast<BackendRootWindow*>(editor.get());
                 ModulatorSynthChain* mainSynthChain = bpe->getBackendProcessor()->getMainSynthChain();
                 const File currentProjectFolder = GET_PROJECT_HANDLER(mainSynthChain).getWorkDirectory();
                 
@@ -63,8 +64,12 @@ public:
 
 private:
 
+	
+
 	ScopedPointer<AudioProcessorEditor> editor;
 	ScopedPointer<StandaloneProcessor> standaloneProcessor;
+
+	ScopedPointer<FloatingTile> root;
 
 	OpenGLContext open;
 

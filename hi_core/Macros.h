@@ -129,6 +129,9 @@ class LinuxFontHandler
 #endif
 
 
+#define GET_PANEL_NAME(classType) classType::getPanelId()
+#define SET_GENERIC_PANEL_ID(x) static Identifier getGenericPanelId() { static const Identifier id(x); return x;}
+
 #define GET_PROJECT_HANDLER(x)(x->getMainController()->getSampleManager().getProjectHandler())
 
 #define loadTable(tableVariableName, nameAsString) { const var savedData = v.getProperty(nameAsString, var()); tableVariableName->restoreData(savedData); }
@@ -174,7 +177,7 @@ struct HiseColourScheme
 			switch (currentColourScheme)
 			{
 			case HiseColourScheme::Dark:
-				return JUCE_LIVE_CONSTANT_OFF(Colour(0xff555555));
+				return JUCE_LIVE_CONSTANT_OFF(Colour(0xff333333));
 			case HiseColourScheme::Bright:
 				return JUCE_LIVE_CONSTANT_OFF(Colour(0xff898989));
 			case HiseColourScheme::numSchemes:

@@ -281,7 +281,7 @@ CompileExporter::ErrorCodes CompileExporter::compileFromCommandLine(const String
 		CompileExporter::setExportingFromCommandLine();
 
 		ScopedPointer<StandaloneProcessor> processor = new StandaloneProcessor();
-		ScopedPointer<BackendProcessorEditor> editor = dynamic_cast<BackendProcessorEditor*>(processor->createEditor());
+		ScopedPointer<BackendRootWindow> editor = dynamic_cast<BackendRootWindow*>(processor->createEditor());
 
 		ModulatorSynthChain* mainSynthChain = editor->getBackendProcessor()->getMainSynthChain();
 

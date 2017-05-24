@@ -340,14 +340,10 @@ void CachedViewport::InternalViewport::paint(Graphics &g)
 	area.removeFromRight(getScrollBarThickness());
 	area.setHeight(area.getHeight() + 5);
 
-
-	Colour c1 = Colour(0xff2f2f2f);
 	Colour c2 = Colour(0xff242424);
 
-	g.setGradientFill(ColourGradient(c1, 0.0f, 0.0f,
-		c2, 0.0f, (float)getHeight(), false));
-
-	g.fillRoundedRectangle(FLOAT_RECTANGLE(area), 3.0f);
+	g.setColour(c2);
+	g.fillRect(FLOAT_RECTANGLE(area));
 
 	if (isCurrentlyScrolling)
 	{

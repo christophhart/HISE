@@ -36,6 +36,22 @@
 class Processor;
 class BaseDebugArea;
 
+class BackendRootWindow;
+class BackendProcessorEditor;
+
+/** If the component somehow needs access to the main panel, subclass it from this interface and use getMainPanel(). */
+class ComponentWithAccessToMainPanel
+{
+public:
+
+	virtual ~ComponentWithAccessToMainPanel() {};
+
+protected:
+
+	BackendProcessorEditor* getMainPanel();
+	const BackendProcessorEditor* getMainPanel() const;
+};
+
 
 #if USE_BACKEND
 
@@ -49,7 +65,7 @@ class BaseDebugArea;
 */
 class Console: public Component,
 			   public AsyncUpdater,
-			   public AutoPopupDebugComponent
+			   public ComponentWithAccessToMainPanel
 {
 public:
 
@@ -61,7 +77,8 @@ public:
 		Error = 1
 	};
 
-	Console(BaseDebugArea *area);
+	Console(MainController* mc);
+
 	~Console();
 
 	void sendChangeMessage();
@@ -110,6 +127,8 @@ private:
 		ConsoleEditorComponent(CodeDocument &doc, CodeTokeniser *tok);
 
 		void addPopupMenuItems(PopupMenu &/*menuToAddTo*/, const MouseEvent *) override {};
+
+		
 
 	};
 

@@ -37,6 +37,9 @@ TableEditor::TableEditor(Table *tableToBeEdited):
 	currentType(DomainType::originalSize),
 	displayIndex(0.0f)
 {
+	if (editedTable == nullptr)
+		editedTable = &dummyTable;
+
 	// MUST BE SET!
 	jassert(editedTable != nullptr);
 

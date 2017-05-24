@@ -215,15 +215,6 @@ void ProcessorPopupItem::buttonClicked(Button *b)
 
 		
 	}
-	else if (b == popupButton)
-	{
-		editor->showProcessorPopup(p, parent);
-		
-		if (!usedInList)
-		{
-			triggerMenuItem();
-		}
-	}
 	else if (b == bypassButton)
 	{
 

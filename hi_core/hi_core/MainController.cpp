@@ -70,8 +70,8 @@ MainController::MainController():
 	BACKEND_ONLY(popupConsole = nullptr);
 	BACKEND_ONLY(usePopupConsole = false);
 
-	BACKEND_ONLY(shownComponents.setBit(BackendProcessorEditor::Keyboard, 1));
-	BACKEND_ONLY(shownComponents.setBit(BackendProcessorEditor::Macros, 0));
+	BACKEND_ONLY(shownComponents.setBit(BackendCommandTarget::Keyboard, 1));
+	BACKEND_ONLY(shownComponents.setBit(BackendCommandTarget::Macros, 0));
 
 	TempoSyncer::initTempoData();
     
@@ -262,30 +262,8 @@ void MainController::stopCpuBenchmark()
 
 void MainController::clearConsole()
 {
-#if USE_BACKEND
-    if (usePopupConsole)
-    {
-        popupConsole->clear();
-    }
-    else
-    {
-        console->clear();
-    }
-#endif
-    
-}
-
-
-void MainController::showConsole(bool consoleShouldBeShown)
-{
-#if USE_BACKEND
-	if (console.get() != nullptr)
-	{
-		console->showComponentInDebugArea(consoleShouldBeShown);
-	}
-#else
-	ignoreUnused(consoleShouldBeShown);
-#endif
+	consoleData.clearUndoHistory();
+	consoleData.replaceAllContent({});
 }
 
 int MainController::getNumActiveVoices() const
@@ -802,6 +780,13 @@ bool MainController::checkAndResetMidiInputFlag()
 
 void MainController::writeToConsole(const String &message, int warningLevel, const Processor *p, Colour c)
 {
+	consoleData.clearUndoHistory();
+	
+	auto pos = CodeDocument::Position(consoleData, consoleData.getNumCharacters());
+	consoleData.insertText(consoleData.getNumCharacters(), message);
+
+	return;
+
 	CHECK_KEY(this);
 
 	Console *currentConsole = usePopupConsole ? popupConsole.get() : console.get();

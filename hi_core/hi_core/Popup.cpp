@@ -94,7 +94,7 @@ void TooltipBar::timerCallback()
 
     Component *parent = dynamic_cast<Component*>(findParentComponentOfClass<ModalBaseWindow>());
     
-    jassert(parent != nullptr);
+    //jassert(parent != nullptr);
     
 	// Deactivate tooltips for multiple instances!
 	if (parent == nullptr || !parent->isParentOf(newComp))

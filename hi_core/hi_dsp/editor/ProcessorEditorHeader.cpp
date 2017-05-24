@@ -654,9 +654,11 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
 
 			getProcessor()->getMainController()->setWatchedScriptProcessor(sp, getEditor()->getBody());
 
+#if TODO_AUTOPOPUP
 			AutoPopupDebugComponent *c = findParentComponentOfClass<BackendProcessorEditor>()->getDebugComponent(true, CombinedDebugArea::AreaIds::ApiCollectionEnum);
 
 			if (c != nullptr) c->showComponentInDebugArea(!value);
+#endif
 
 		}
 
@@ -1240,7 +1242,8 @@ void ProcessorEditorHeader::labelTextChanged(Label *l)
 
 		getEditor()->getProcessor()->setId(l->getText());
         
-        findParentComponentOfClass<BackendProcessorEditor>()->getKeyboard()->grabKeyboardFocus();
+		if(auto keyboard = findParentComponentOfClass<BackendRootWindow>()->getKeyboard())
+			keyboard->grabKeyboardFocus();
 
         PresetHandler::setChanged(getProcessor());
 	}

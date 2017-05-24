@@ -34,7 +34,7 @@
 #include "hi_backend.h"
 
 #include "backend/BackendBinaryData.cpp"
-
+#include "backend/BackendCommandIcons.cpp"
 
 #include "backend/debug_components/SamplePoolTable.cpp"
 #include "backend/debug_components/MacroEditTable.cpp"
@@ -54,9 +54,11 @@
 #include "backend/BackendApplicationCommandWindows.cpp"
 #include "backend/BackendApplicationCommands.cpp"
 #include "backend/BackendEditor.cpp"
+#include "backend/BackendRootWindow.cpp"
 
 #include "backend/ProjectTemplate.cpp"
 #include "backend/StandaloneProjectTemplate.cpp"
 
 #include "backend/CompileExporter.cpp"
 #include "backend/HisePlayerExporter.cpp"
+
