@@ -88,13 +88,6 @@ bool FloatingTileContainer::shouldIntendAddButton() const
 	return getParentShell()->isLayoutModeEnabled() && FloatingTile::LayoutHelpers::showFoldButton(getParentShell());
 }
 
-Rectangle<int> FloatingTileContainer::getContainerBounds() const
-{
-	auto localBounds = dynamic_cast<const Component*>(this)->getLocalBounds();
-
-	return getParentShell()->isLayoutModeEnabled() && isInsertingEnabled() ? localBounds.withTrimmedTop(16) : localBounds;
-}
-
 void FloatingTileContainer::enableSwapMode(bool shouldBeSwappable, FloatingTile* source)
 {
 	resizeSource = shouldBeSwappable ? source : nullptr;
@@ -141,7 +134,10 @@ int FloatingTabComponent::LookAndFeel::getTabButtonBestWidth(TabBarButton &b, in
 void FloatingTabComponent::LookAndFeel::drawTabButton(TabBarButton &b, Graphics &g, bool isMouseOver, bool /*isMouseDown*/)
 {
 	if (isMouseOver)
-		g.fillAll(Colours::black.withAlpha(0.1f));
+	{
+		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x13000000)));
+		g.fillRect(0, 0, b.getWidth(), 22);
+	}
 
 	g.setColour(Colours::black.withAlpha(0.1f));
 
@@ -150,10 +146,9 @@ void FloatingTabComponent::LookAndFeel::drawTabButton(TabBarButton &b, Graphics 
 	g.setColour(Colours::white.withAlpha(a));
 	g.setFont(GLOBAL_BOLD_FONT());
 
-	
-
-	g.drawText(b.getButtonText(), 5, 4, b.getWidth() - 10, b.getHeight()-4, Justification::centredLeft);
+	g.drawText(b.getButtonText(), 5, 4, b.getWidth() - 10, b.getHeight() - 4, Justification::centredLeft);
 }
+
 
 Rectangle< int > FloatingTabComponent::LookAndFeel::getTabButtonExtraComponentBounds(const TabBarButton &b, Rectangle< int > &/*textArea*/, Component &/*extraComp*/)
 {
@@ -275,8 +270,11 @@ void FloatingTabComponent::restoreFromValueTree(const ValueTree &v)
 
 void FloatingTabComponent::paint(Graphics& g)
 {
-	g.setColour(JUCE_LIVE_CONSTANT(Colour(0xff565656)));
+	g.setColour(HiseColourScheme::getColour(HiseColourScheme::EditorBackgroundColourId));
 	g.fillRect(0, 4, getWidth(), 18);
+
+	g.setColour(Colour(0xFF333333));
+	g.fillRect(0, 22, getWidth(), 2);
 }
 
 void FloatingTabComponent::resized()
@@ -393,11 +391,14 @@ String ResizableFloatingTileContainer::getTitle() const
 {
 	if (getParentShell()->isLayoutModeEnabled())
 	{
-		return FloatingTileContent::getTitle();
+		return FloatingTileContent::getCustomTitle();
 	}
 	else
 	{
-		return "";
+		if (hasCustomTitle())
+			return FloatingTileContent::getCustomTitle();
+		else
+			return "";
 	}
 }
 

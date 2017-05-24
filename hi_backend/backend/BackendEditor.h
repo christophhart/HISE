@@ -361,6 +361,8 @@ public:
 			ed->setBounds(getLocalBounds());
 	}
 
+
+
 private:
 
 	ScopedPointer<BackendProcessorEditor> ed;

@@ -54,7 +54,25 @@ public:
 	FloatingTile* finalizeAndReturnRoot(bool isReadOnly);
 
 	/** set the given panel to the content and returns true on success. */
-	template <typename ContentType> int setNewContentType(int index);
+
+	template <typename ContentType> int setNewContentType(int index)
+	{
+		auto panelToUse = createdComponents[index].getComponent();
+
+		if (panelToUse == nullptr)
+		{
+			jassertfalse;
+			return false;
+		}
+
+		panelToUse->setNewContent(ContentType::getPanelId());
+
+
+		removeFirstChildOfNewContainer(panelToUse);
+
+
+		return true;
+	}
 
 	void setSizes(int index, Array<double> sizes, NotificationType shouldUpdateLayout= dontSendNotification);
 	void setFolded(int index, Array<bool> foldStates, NotificationType shouldUpdateLayout = dontSendNotification);
@@ -70,8 +88,31 @@ public:
 	*
 	*	If the panel is no container it will do nothing. It will return a index that can be used for further building
 	*/
-	template <typename ContentType> int addChild(int index);
 
+	template <typename ContentType> int addChild(int index)
+	{
+		auto c = createdComponents[index].getComponent();
+
+		if (c != nullptr)
+		{
+			if (auto container = dynamic_cast<FloatingTileContainer*>(c->getCurrentFloatingPanel()))
+			{
+				auto newPanel = new FloatingTile(container);
+
+				container->addFloatingTile(newPanel);
+
+				createdComponents.add(newPanel);
+
+				newPanel->setNewContent(ContentType::getPanelId());
+
+				removeFirstChildOfNewContainer(newPanel);
+
+				return createdComponents.size() - 1;
+			}
+		}
+
+		return -1;
+	}
 
 	FloatingTile* getPanel(int index);
 

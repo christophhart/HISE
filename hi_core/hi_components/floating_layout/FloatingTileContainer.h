@@ -85,7 +85,9 @@ public:
 	*
 	*	Usually this will be the full size minus the title bar if visible.
 	*/
-	Rectangle<int> getContainerBounds() const;
+
+	virtual Rectangle<int> getContainerBounds() const = 0;
+	
 
 	void enableSwapMode(bool shouldBeSwappable, FloatingTile* source);
 
@@ -142,6 +144,13 @@ public:
 	~FloatingTabComponent();
 
 	String getTitle() const override { return ""; };
+
+	Rectangle<int> getContainerBounds() const override
+	{
+		auto localBounds = dynamic_cast<const Component*>(this)->getLocalBounds();
+
+		return localBounds.withTrimmedTop(getTabBarDepth());
+	}
 
 	void componentAdded(FloatingTile* newComponent) override;
 	void componentRemoved(FloatingTile* deletedComponent) override;
@@ -211,6 +220,20 @@ public:
 	virtual ~ResizableFloatingTileContainer();
 
 	String getTitle() const override;
+
+	bool showTitleInPresentationMode() const override
+	{
+		return getCustomTitle().isNotEmpty();
+	}
+
+	Rectangle<int> getContainerBounds() const override
+	{
+		auto localBounds = dynamic_cast<const Component*>(this)->getLocalBounds();
+
+		const bool isInTabs = dynamic_cast<const FloatingTabComponent*>(getParentShell()->getParentContainer());
+
+		return getParentShell()->isLayoutModeEnabled() && isInsertingEnabled() || (!isInTabs && hasCustomTitle()) ? localBounds.withTrimmedTop(16) : localBounds;
+	}
 
 	virtual bool isVertical() const { return vertical; }
 

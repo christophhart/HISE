@@ -262,6 +262,11 @@ For all defined variables:
 #include "additional_libraries/additional_libraries.h"
 #include "hi_components/hi_components.h"
 #include "hi_dsp/hi_dsp.h"
+
+#if PUT_FLOAT_IN_CODEBASE
+#include "hi_components/floating_layout/FloatingLayout.h"
+#endif
+
 #include "hi_sampler/hi_sampler.h"
 
 #endif   // HI_CORE_INCLUDED

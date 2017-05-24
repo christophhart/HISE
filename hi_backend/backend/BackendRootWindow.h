@@ -30,7 +30,9 @@ public:
 
 	void paint(Graphics& g) override
 	{
-		g.fillAll(Colour(0xFF333333));
+		g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourId));
+
+		//g.fillAll(Colour(0xFF333333));
 	}
 
 	void resized();

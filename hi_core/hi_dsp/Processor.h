@@ -730,7 +730,9 @@ public:
 
 	void sendDeleteMessage()
 	{
-		for (int i = 0; i < deleteListeners.size(); i++)
+		int numListeners = deleteListeners.size();
+
+		for (int i = numListeners-1; i >= 0; --i)
 		{
 			if (deleteListeners[i].get() != nullptr)
 			{
@@ -741,7 +743,9 @@ public:
 
 	void sendRebuildMessage(bool forceUpdate=false)
 	{
-		for (int i = 0; i < deleteListeners.size(); i++)
+		int numListeners = deleteListeners.size();
+
+		for (int i = 0; i < numListeners; i++)
 		{
 			if (deleteListeners[i].get() != nullptr)
 			{

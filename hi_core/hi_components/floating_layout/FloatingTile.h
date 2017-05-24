@@ -53,6 +53,7 @@ public:
 		double currentSize = -0.5;
 		bool swappingEnabled = false;
 		bool layoutModeEnabled = true;
+		bool layoutModePossible = true;
 		bool swappable = true;
 		bool deletable = true;
 		bool readOnly = false;
@@ -66,6 +67,7 @@ public:
 			currentSize = -0.5;
 			swappingEnabled = false;
 			layoutModeEnabled = true;
+			layoutModePossible = true;
 			swappable = true;
 			deletable = true;
 			readOnly = false;
@@ -175,6 +177,10 @@ public:
 	void setLayoutModeEnabled(bool shouldBeEnabled, bool setChildrenToSameSetting=true);
 
 	bool isLayoutModeEnabled() const { return layoutData.layoutModeEnabled; };
+
+	void setCanDoLayoutMode(bool shouldBeAllowed);
+
+	bool canDoLayoutMode() const;
 
 	void toggleLayoutModeForParentContainer();
 

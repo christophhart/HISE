@@ -112,10 +112,12 @@ public:
 	}
 
 	/** If you set a custom title, this will return it. */
-	String getCustomTitle()
+	String getCustomTitle() const
 	{
-		return customTitle.isNotEmpty() ? customTitle : getTitle();
+		return customTitle;
 	}
+
+	bool hasCustomTitle() const { return customTitle.isNotEmpty(); }
 
 	BackendProcessorEditor* getMainPanel();
 

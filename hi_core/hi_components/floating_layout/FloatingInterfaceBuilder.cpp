@@ -219,36 +219,6 @@ void FloatingInterfaceBuilder::removeFirstChildOfNewContainer(FloatingTile* pane
 }
 
 
-template <typename ContentType>
-int FloatingInterfaceBuilder::addChild(int index)
-{
-	auto c = createdComponents[index].getComponent();
-
-	if (c != nullptr)
-	{
-		if (auto container = dynamic_cast<FloatingTileContainer*>(c->getCurrentFloatingPanel()))
-		{
-			auto newPanel = new FloatingTile(container);
-
-			container->addFloatingTile(newPanel);
-
-			createdComponents.add(newPanel);
-
-			newPanel->setNewContent(ContentType::getPanelId());
-
-			removeFirstChildOfNewContainer(newPanel);
-
-			return createdComponents.size() - 1;
-		}
-	}
-
-	return -1;
-}
-
-
-
-
-
 FloatingTile* FloatingInterfaceBuilder::finalizeAndReturnRoot(bool isReadOnly)
 {
 	createdComponents.getFirst()->resized();
@@ -261,24 +231,4 @@ FloatingTile* FloatingInterfaceBuilder::finalizeAndReturnRoot(bool isReadOnly)
 	}
 
 	return createdComponents.getFirst();
-}
-
-template <typename ContentType>
-int FloatingInterfaceBuilder::setNewContentType(int index)
-{
-	auto panelToUse = createdComponents[index].getComponent();
-
-	if (panelToUse == nullptr)
-	{
-		jassertfalse;
-		return false;
-	}
-
-	panelToUse->setNewContent(ContentType::getPanelId());
-
-
-	removeFirstChildOfNewContainer(panelToUse);
-
-
-	return true;
 }

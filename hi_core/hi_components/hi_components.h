@@ -65,9 +65,7 @@
 #include "eq_plot/FilterGraph.h"
 #include "eq_plot/EqComponent.h"
 
-#if PUT_FLOAT_IN_CODEBASE
-#include "floating_layout/FloatingLayout.h"
-#endif
+
 
 
 #endif  // HI_COMPONENTS_H_INCLUDED

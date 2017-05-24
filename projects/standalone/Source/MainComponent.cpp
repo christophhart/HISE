@@ -19,6 +19,69 @@
 #define SCALE_2 0
 
 
+
+Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootShell)
+{
+	rootShell->setLayoutModeEnabled(false, true);
+
+	FloatingInterfaceBuilder ib(rootShell);
+
+	const int root = 0;
+
+	ib.setNewContentType<HorizontalTile>(root);
+
+	const int topBar = ib.addChild<MainTopBar>(root);
+
+	
+
+	const int tabs = ib.addChild<FloatingTabComponent>(root);
+
+	ib.setSizes(root, { 32.0, -1.0 });
+	ib.setAbsoluteSize(root, { true, false });
+
+	ib.getContainer(root)->setAllowInserting(false);
+
+	ib.getPanel(topBar)->setCanDoLayoutMode(false);
+	ib.getPanel(tabs)->setCanDoLayoutMode(false);
+
+	ib.setFoldable(root, false, { false, false });
+
+	const int firstVertical = ib.addChild<VerticalTile>(tabs);
+
+	const int leftColumn = ib.addChild<HorizontalTile>(firstVertical);
+	const int mainColumn = ib.addChild<HorizontalTile>(firstVertical);
+	const int rightColumn = ib.addChild<HorizontalTile>(firstVertical);
+
+	ib.setSizes(firstVertical, { -0.5, 900.0, -0.5 }, dontSendNotification);
+	ib.setAbsoluteSize(firstVertical, { false, true, false }, dontSendNotification);
+	ib.setLocked(firstVertical, { false, true, false }, sendNotification);
+	ib.setDeletable(root, false, { false, false });
+	ib.setDeletable(firstVertical, false, { false, false, false });
+
+	const int mainArea = ib.addChild<EmptyComponent>(mainColumn);
+	const int keyboard = ib.addChild<MidiKeyboardPanel>(mainColumn);
+
+	ib.setSwappable(firstVertical, false, { false, false, false });
+	ib.setSwappable(mainColumn, false, { false, false });
+	ib.setFoldable(mainColumn, false, { false, false });
+
+	ib.getPanel(firstVertical)->setDeletable(false);
+	ib.getContainer(firstVertical)->setAllowInserting(false);
+	ib.getPanel(mainColumn)->setReadOnly(true);
+	//ib.getPanel(root)->setReadOnly(true);
+
+	ib.setCustomName(firstVertical, "Main Workspace", { "Left Panel", "", "Right Panel" });
+
+#if PUT_FLOAT_IN_CODEBASE
+	ib.setNewContentType<MainPanel>(mainArea);
+#endif
+
+	ib.finalizeAndReturnRoot(true);
+
+	return dynamic_cast<Component*>(ib.getPanel(mainArea)->getCurrentFloatingPanel());
+
+}
+
 void EmptyComponent::resized()
 {
 #if 0

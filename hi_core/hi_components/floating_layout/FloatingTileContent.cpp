@@ -219,59 +219,6 @@ struct FloatingPanelTemplates::Helpers
 	}
 };
 
-Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootShell)
-{	rootShell->setLayoutModeEnabled(false, true);
-
-	FloatingInterfaceBuilder ib(rootShell);
-
-	const int root = 0;
-
-	ib.setNewContentType<HorizontalTile>(root);
-
-	const int topBar = ib.addChild<MainTopBar>(root);
-
-	const int tabs = ib.addChild<FloatingTabComponent>(root);
-
-	ib.setSizes(root, { 32.0, -1.0 });
-	ib.setAbsoluteSize(root, { true, false });
-
-	const int firstVertical = ib.addChild<VerticalTile>(tabs);
-
-	const int leftColumn = ib.addChild<HorizontalTile>(firstVertical);
-	const int mainColumn = ib.addChild<HorizontalTile>(firstVertical);
-	const int rightColumn = ib.addChild<HorizontalTile>(firstVertical);
-
-	ib.setSizes(firstVertical, { -0.5, 900.0, -0.5 }, dontSendNotification);
-	ib.setAbsoluteSize(firstVertical, { false, true, false }, dontSendNotification);
-	ib.setLocked(firstVertical, { false, true, false }, sendNotification);
-	ib.setDeletable(root, false, { false, false });
-	ib.setDeletable(firstVertical, false, { false, false, false });
-
-	
-
-	const int mainArea = ib.addChild<EmptyComponent>(mainColumn);
-	const int keyboard = ib.addChild<MidiKeyboardPanel>(mainColumn);
-
-	ib.setSwappable(firstVertical, false, { false, false, false });
-	ib.setSwappable(mainColumn, false, { false, false });
-	ib.setFoldable(mainColumn, false, { false, false });
-	
-	ib.getPanel(firstVertical)->setDeletable(false);
-	ib.getContainer(firstVertical)->setAllowInserting(false);
-	ib.getPanel(mainColumn)->setReadOnly(true);
-	ib.getPanel(root)->setDeletable(false);
-
-	ib.setCustomName(firstVertical, "Main Workspace", { "Left Panel", "", "Right Panel" });
-
-#if PUT_FLOAT_IN_CODEBASE
-	ib.setNewContentType<MainPanel>(mainArea);
-#endif
-
-	ib.finalizeAndReturnRoot(true);
-
-	return dynamic_cast<Component*>(ib.getPanel(mainArea)->getCurrentFloatingPanel());
-	
-}
 
 void FloatingPanelTemplates::create2x2Matrix(FloatingTile* parent)
 {
@@ -323,7 +270,7 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<EmptyComponent>();
 	registerType<Note>();
 	registerType<MidiKeyboardPanel>();
-	registerType<GenericPanel<TableEditor>>();
+	registerType<TableEditorPanel>();
 	registerType<GenericPanel<SliderPack>>();
 	registerType<ConsolePanel>();
 	registerType<ApplicationCommandButtonPanel>();
@@ -435,7 +382,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::ThreeRows:			FloatingPanelTemplates::create3Rows(parent); break;
 	case PopupMenuOptions::Note:				parent->setNewContent(GET_PANEL_NAME(Note)); break;
 	case PopupMenuOptions::MidiKeyboard:		parent->setNewContent(GET_PANEL_NAME(MidiKeyboardPanel)); break;
-	case PopupMenuOptions::TablePanel:			parent->setNewContent(GET_PANEL_NAME(GenericPanel<TableEditor>)); break;
+	case PopupMenuOptions::TablePanel:			parent->setNewContent(GET_PANEL_NAME(TableEditorPanel)); break;
 	case PopupMenuOptions::SliderPackPanel:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<SliderPack>)); break;
 	case PopupMenuOptions::Console:				parent->setNewContent(GET_PANEL_NAME(ConsolePanel)); break;
 	case PopupMenuOptions::toggleLayoutMode:    parent->toggleLayoutModeForParentContainer(); break;

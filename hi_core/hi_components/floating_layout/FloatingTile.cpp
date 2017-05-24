@@ -38,6 +38,7 @@ void FloatingTile::LayoutData::updateValueTree(ValueTree & v) const
 	v.setProperty("Size", currentSize, nullptr);
 	
 	v.setProperty("LayoutEnabled", layoutModeEnabled, nullptr);
+	v.setProperty("LayoutPossible", layoutModePossible, nullptr);
 	v.setProperty("Swappable", swappable, nullptr);
 	v.setProperty("Deletable", deletable, nullptr);
 	v.setProperty("ReadOnly", readOnly, nullptr);
@@ -52,6 +53,7 @@ void FloatingTile::LayoutData::restoreFromValueTree(const ValueTree &v)
 	currentSize = v.getProperty("Size", -0.5);
 
 	layoutModeEnabled = v.getProperty("LayoutEnabled", true);
+	layoutModePossible = v.getProperty("LayoutPossible", true);
 	swappable = v.getProperty("Swappable", true);
 	deletable = v.getProperty("Deletable", true);
 	readOnly = v.getProperty("ReadOnly", false);
@@ -372,13 +374,14 @@ void FloatingTile::setLayoutModeEnabled(bool shouldBeEnabled, bool setChildrenTo
 	else
 		layoutData.layoutModeEnabled = shouldBeEnabled;
 
+
 	if (setChildrenToSameSetting)
 	{
 		if (auto tc = dynamic_cast<FloatingTileContainer*>(getCurrentFloatingPanel()))
 		{
 			for (int i = 0; i < tc->getNumComponents(); i++)
 			{
-				tc->getComponent(i)->setLayoutModeEnabled(isLayoutModeEnabled(), true);
+				tc->getComponent(i)->setLayoutModeEnabled(shouldBeEnabled, true);
 			}
 
 			tc->refreshLayout();
@@ -387,6 +390,16 @@ void FloatingTile::setLayoutModeEnabled(bool shouldBeEnabled, bool setChildrenTo
 	
 	resized();
 	repaint();
+}
+
+void FloatingTile::setCanDoLayoutMode(bool shouldBeAllowed)
+{
+	layoutData.layoutModePossible = shouldBeAllowed;
+}
+
+bool FloatingTile::canDoLayoutMode() const
+{
+	return layoutData.layoutModePossible;
 }
 
 bool FloatingTile::hasChildren() const
@@ -461,11 +474,14 @@ void FloatingTile::paint(Graphics& g)
 	if (!getCurrentFloatingPanel()->showTitleInPresentationMode() && !isLayoutModeEnabled())
 		return;
 
+	if (!canDoLayoutMode())
+		return;
+
 	Rectangle<int> titleArea = Rectangle<int>(leftOffset, 0, rightOffset - leftOffset, 16);
 
 	if (titleArea.getWidth() > 40)
 	{
-		g.setColour(Colours::white.withAlpha(0.05f));
+		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xFF333333)));
 		g.setFont(GLOBAL_BOLD_FONT());
 		g.fillRect(0, 0, getWidth(), 16);
 		g.setColour(Colours::white.withAlpha(0.8f));
@@ -756,6 +772,9 @@ bool FloatingTile::LayoutHelpers::showCloseButton(const FloatingTile* t)
 	if (t->isReadOnly())
 		return false;
 
+	if (!t->canDoLayoutMode())
+		return false;
+
 	if (!t->isLayoutModeEnabled() && (t->isEmpty() || t->hasChildren()))
 		return false;
 
@@ -785,6 +804,9 @@ bool FloatingTile::LayoutHelpers::showMoveButton(const FloatingTile* t)
 		return false;
 
 	if (!t->isLayoutModeEnabled())
+		return false;
+
+	if (!t->canDoLayoutMode())
 		return false;
 
 	auto pt = t->getParentType();
@@ -822,6 +844,9 @@ bool FloatingTile::LayoutHelpers::showLockButton(const FloatingTile* t)
 		return false;
 
 	if (t->isReadOnly())
+		return false;
+
+	if (!t->canDoLayoutMode())
 		return false;
 
 	auto pt = t->getParentType();

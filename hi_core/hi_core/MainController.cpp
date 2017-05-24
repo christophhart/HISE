@@ -350,7 +350,8 @@ void MainController::skin(Component &c)
     c.setColour(MacroControlledObject::HiBackgroundColours::upperBgColour, Colour(0x66333333));
     c.setColour(MacroControlledObject::HiBackgroundColours::lowerBgColour, Colour(0xfb111111));
     c.setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, Colours::white.withAlpha(0.3f));
-    
+	c.setColour(MacroControlledObject::HiBackgroundColours::textColour, Colours::white);
+
     if(dynamic_cast<Slider*>(&c) != nullptr) dynamic_cast<Slider*>(&c)->setScrollWheelEnabled(false);
 };
 

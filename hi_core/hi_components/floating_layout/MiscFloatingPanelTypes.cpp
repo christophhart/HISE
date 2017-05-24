@@ -110,3 +110,14 @@ void ApplicationCommandButtonPanel::setCommand(int commandID)
 	b->setShape(p, false, true, true);
 	b->setVisible(true);
 }
+
+
+ModulatorSynthChain* PanelWithProcessorConnection::getMainSynthChain()
+{
+	return getParentShell()->getRootWindow()->getMainSynthChain();
+}
+
+const ModulatorSynthChain* PanelWithProcessorConnection::getMainSynthChain() const
+{
+	return getParentShell()->getRootWindow()->getMainSynthChain();
+}
