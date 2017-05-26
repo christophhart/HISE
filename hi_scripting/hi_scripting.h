@@ -102,6 +102,7 @@ END_JUCE_MODULE_DECLARATION
 #include "scripting/components/PopupEditors.h"
 #include "scripting/components/ScriptingCodeEditor.h"
 #include "scripting/components/AutoCompletePopup.h"
+#include "scripting/components/ScriptingContentOverlay.h"
 #include "scripting/components/ScriptingEditor.h"
 
 #endif 

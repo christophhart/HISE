@@ -93,18 +93,10 @@ public:
 	virtual Identifier getIdentifierForBaseClass() const = 0;
 
 	/** Returns an empty ValueTree with the correct id. */
-	ValueTree exportAsValueTree() const override
-	{
-		ValueTree v(getIdentifierForBaseClass());
-
-		return v;
-	}
+	ValueTree exportAsValueTree() const override;
 
 	/** does nothing. */
-	void restoreFromValueTree(const ValueTree& ) override
-	{
-		
-	}
+	void restoreFromValueTree(const ValueTree& ) override;
 
 	static FloatingTileContent* createPanel(ValueTree& state, FloatingTile* parent);
 

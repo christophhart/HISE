@@ -162,6 +162,7 @@ struct HiseColourScheme
 	enum ColourIds
 	{
 		EditorBackgroundColourId,
+		EditorBackgroundColourIdBright,
 		ModulatorSynthBackgroundColourId,
 		DebugAreaBackgroundColourId,
 		ModulatorSynthHeader,
@@ -184,7 +185,18 @@ struct HiseColourScheme
 				break;
 			}
 		}
-			break;
+		case HiseColourScheme::EditorBackgroundColourIdBright:
+		{
+			switch (currentColourScheme)
+			{
+			case HiseColourScheme::Dark:
+				return JUCE_LIVE_CONSTANT_OFF(Colour(0xFF666666));
+			case HiseColourScheme::Bright:
+				return JUCE_LIVE_CONSTANT_OFF(Colour(0xFF666666));
+			case HiseColourScheme::numSchemes:
+				break;
+			}
+		}
 		case HiseColourScheme::ModulatorSynthBackgroundColourId:
 		{
 			switch (currentColourScheme)

@@ -18,6 +18,92 @@
 // Use this to quickly scale the window
 #define SCALE_2 0
 
+struct ValueTreeHelpers
+{
+	static var convertToDynamicObject(ValueTree& v)
+	{
+		DynamicObject::Ptr valueTreeAsObject = new DynamicObject();
+
+		valueTreeAsObject->setProperty("Type", v.getType().toString());
+
+		for (int i = 0; i < v.getNumProperties(); i++)
+		{
+			valueTreeAsObject->setProperty(v.getPropertyName(i), v.getProperty(v.getPropertyName(i)));
+		}
+
+		for (int i = 0; i < v.getNumChildren(); i++)
+		{
+			var childAsObject = convertToDynamicObject(v.getChild(i));
+
+			Identifier child = String(i);
+
+			valueTreeAsObject->setProperty(child, childAsObject);
+		}
+
+		return valueTreeAsObject;
+	}
+
+	static ValueTree createFromDynamicObject(const var& object)
+	{
+		DynamicObject::Ptr obj = object.getDynamicObject();
+
+		if (obj != nullptr)
+		{
+			ValueTree v(Identifier(obj->getProperty("Type")));
+
+			auto props = obj->getProperties();
+
+			for (int i = 0; i < props.size(); i++)
+			{
+				if (props.getName(i) == Identifier("Type"))
+					continue;
+
+				if (props.getValueAt(i).isObject())
+				{
+					ValueTree child = createFromDynamicObject(props.getValueAt(i));
+
+					v.addChild(child, -1, nullptr);
+				}
+				else
+				{
+					v.setProperty(props.getName(i), props.getValueAt(i), nullptr);
+				}
+			}
+
+			return v;
+		}
+
+		return {};
+	}
+
+};
+
+String FloatingTile::exportAsJSON() const
+{
+	ValueTree v = getCurrentFloatingPanel()->exportAsValueTree();
+
+	var vAsObject = ValueTreeHelpers::convertToDynamicObject(v);
+
+	auto json = JSON::toString(vAsObject, false);
+
+	return json;
+}
+
+
+void FloatingTile::loadFromJSON(const String& jsonData)
+{
+	var jsonVar;
+
+	auto result = JSON::parse(jsonData, jsonVar);
+
+	if (result.wasOk())
+	{
+		ValueTree v = ValueTreeHelpers::createFromDynamicObject(jsonVar);
+
+		setContent(v);
+	}
+}
+
 
 struct DebugPanelLookAndFeel : public ResizableFloatingTileContainer::LookAndFeel
 {
@@ -48,48 +134,46 @@ Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 
 	const int topBar = ib.addChild<MainTopBar>(root);
 
-	
+	ib.getContainer(root)->setIsDynamic(false);
 
 	const int tabs = ib.addChild<FloatingTabComponent>(root);
+
+	ib.getContainer(tabs)->setIsDynamic(true);
 
 	ib.setSizes(root, { 32.0, -1.0 });
 	ib.setAbsoluteSize(root, { true, false });
 
 	ib.getContainer(root)->setAllowInserting(false);
 
-	ib.getPanel(topBar)->setCanDoLayoutMode(false);
-	ib.getPanel(tabs)->setCanDoLayoutMode(false);
-
 	ib.setFoldable(root, false, { false, false });
 
 	const int firstVertical = ib.addChild<VerticalTile>(tabs);
+
+	ib.getContainer(firstVertical)->setIsDynamic(false);
+	ib.getPanel(firstVertical)->setVital(true);
 
 	const int leftColumn = ib.addChild<HorizontalTile>(firstVertical);
 	const int mainColumn = ib.addChild<HorizontalTile>(firstVertical);
 	const int rightColumn = ib.addChild<HorizontalTile>(firstVertical);
 
-	dynamic_cast<Component*>(ib.getContainer(leftColumn))->setLookAndFeel(new DebugPanelLookAndFeel());
-	dynamic_cast<Component*>(ib.getContainer(rightColumn))->setLookAndFeel(new DebugPanelLookAndFeel());
+	ib.getContainer(leftColumn)->setIsDynamic(true);
+	ib.getContainer(mainColumn)->setIsDynamic(false);
+	ib.getContainer(rightColumn)->setIsDynamic(true);
 
-
+	dynamic_cast<Component*>(ib.getContainer(root))->setColour(ResizableFloatingTileContainer::ColourIds::backgroundColourId, HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourId));
+	
 	ib.setSizes(firstVertical, { -0.5, 900.0, -0.5 }, dontSendNotification);
 	ib.setAbsoluteSize(firstVertical, { false, true, false }, dontSendNotification);
 	ib.setLocked(firstVertical, { false, true, false }, sendNotification);
-	ib.setDeletable(root, false, { false, false });
-	ib.setDeletable(firstVertical, false, { false, false, false });
+	
 
 	const int mainArea = ib.addChild<EmptyComponent>(mainColumn);
 	const int keyboard = ib.addChild<MidiKeyboardPanel>(mainColumn);
 
-	ib.setSwappable(firstVertical, false, { false, false, false });
-	ib.setSwappable(mainColumn, false, { false, false });
 	ib.setFoldable(mainColumn, false, { false, false });
 
-	ib.getPanel(firstVertical)->setDeletable(false);
 	ib.getContainer(firstVertical)->setAllowInserting(false);
-	ib.getPanel(mainColumn)->setReadOnly(true);
-	//ib.getPanel(root)->setReadOnly(true);
-
+	
 	ib.setCustomName(firstVertical, "Main Workspace", { "Left Panel", "", "Right Panel" });
 
 #if PUT_FLOAT_IN_CODEBASE

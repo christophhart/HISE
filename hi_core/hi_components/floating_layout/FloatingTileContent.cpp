@@ -110,6 +110,22 @@ const BackendRootWindow* FloatingTileContent::getRootWindow() const
 	return getParentShell()->getRootWindow();
 }
 
+ValueTree FloatingTileContent::exportAsValueTree() const
+{
+	ValueTree v(getIdentifierForBaseClass());
+
+	v.setProperty("Title", getCustomTitle(), nullptr);
+
+	getParentShell()->getLayoutData().updateValueTree(v);
+
+	return v;
+}
+
+void FloatingTileContent::restoreFromValueTree(const ValueTree& v)
+{
+	setCustomTitle(v.getProperty("Title", {}));
+}
+
 FloatingTileContent* FloatingTileContent::createPanel(ValueTree& state, FloatingTile* parent)
 {
 	auto p = parent->getPanelFactory()->createFromId(state.getType(), parent);
@@ -274,12 +290,14 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<CodeEditorPanel>();
 	registerType<ScriptContentPanel>();
 	registerType<SliderPackPanel>();
+	registerType<GlobalConnectorPanel>();
 	registerType<ConsolePanel>();
 	registerType<GenericPanel<ApiCollection>>();
 	registerType<ScriptWatchTablePanel>();
 	registerType<GenericPanel<ModuleBrowser>>();
 	registerType<GenericPanel<PatchBrowser>>();
 	registerType<GenericPanel<FileBrowser>>();
+	registerType<GenericPanel<ScriptComponentEditPanel>>();
 	registerType<ApplicationCommandButtonPanel>();
 
 }
@@ -296,8 +314,7 @@ void addCommandIcon(FloatingTile* parent, PopupMenu& m, int commandID)
 
 void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* parent)
 {
-	if (parent->isReadOnly())
-		return;
+	
 
 	enum class PopupMenuOptions
 	{
@@ -313,6 +330,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 		ThreeRows,
 		Note,
 		MidiKeyboard,
+		GlobalConnectorPanel,
 		ScriptEditor,
 		ScriptContent,
 		TablePanel,
@@ -320,12 +338,16 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 		Console,
 		ApiCollection,
 		ScriptWatchTable,
+		ScriptComponentEditPanel,
 		ModuleBrowser,
 		PatchBrowser,
 		FileBrowser,
 		toggleLayoutMode,
 		toggleGlobalLayoutMode,
+		exportAsJSON,
+		loadFromJSON,
 		MenuCommandOffset = 10000,
+		
 		numOptions
 	};
 
@@ -344,11 +366,16 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 			m.addItem((int)PopupMenuOptions::ThreeRows, "3 Rows");
 		}
 
-		m.addSectionHeader("Debug Tools");
-		m.addItem((int)PopupMenuOptions::Console, "Console");
+		m.addSectionHeader("Scripting Tools");
+		
+		m.addItem((int)PopupMenuOptions::GlobalConnectorPanel, "Sibling Panel Setter");
+		m.addItem((int)PopupMenuOptions::ScriptEditor, "Script Editor");
+		m.addItem((int)PopupMenuOptions::ScriptContent, "Script Content");
+		m.addItem((int)PopupMenuOptions::ScriptComponentEditPanel, "Script Interface Property Editor");
 		m.addItem((int)PopupMenuOptions::ApiCollection, "API Browser");
 		m.addItem((int)PopupMenuOptions::ScriptWatchTable, "Live Variable View");
-
+		m.addItem((int)PopupMenuOptions::Console, "Console");
+		
 
 		m.addSectionHeader("Misc Tools");
 		m.addItem((int)PopupMenuOptions::Note, "Note");
@@ -358,8 +385,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 		m.addItem((int)PopupMenuOptions::PatchBrowser, "Patch Browser");
 		m.addItem((int)PopupMenuOptions::FileBrowser, "File Browser");
 		m.addItem((int)PopupMenuOptions::SliderPackPanel, "Array Editor");
-		m.addItem((int)PopupMenuOptions::ScriptEditor, "Script Editor");
-		m.addItem((int)PopupMenuOptions::ScriptContent, "Script Content");
+		
 		m.addSeparator();
 
 		PopupMenu icons;
@@ -372,11 +398,11 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 		addCommandIcon(parent, icons, BackendCommandTarget::MainToolbarCommands::Settings);
 		
 		m.addSubMenu("Icons", icons);
-
 	}
 
-	m.addItem((int)PopupMenuOptions::toggleLayoutMode, "Toggle Layout Mode for Parent", true, parent->isLayoutModeEnabled());
-	m.addItem((int)PopupMenuOptions::toggleGlobalLayoutMode, "Toggle Global Layout Mode", true, parent->getRootComponent()->isLayoutModeEnabled());
+	m.addItem((int)PopupMenuOptions::toggleGlobalLayoutMode, "Toggle Global Layout Mode", true, parent->isLayoutModeEnabled());
+	m.addItem((int)PopupMenuOptions::exportAsJSON, "Export as JSON", true, false);
+	m.addItem((int)PopupMenuOptions::loadFromJSON, "Load JSON from clipboard", parent->canBeDeleted(), false);
 
 
 
@@ -409,7 +435,9 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::TablePanel:			parent->setNewContent(GET_PANEL_NAME(TableEditorPanel)); break;
 	case PopupMenuOptions::ScriptEditor:		parent->setNewContent(GET_PANEL_NAME(CodeEditorPanel)); break;
 	case PopupMenuOptions::ScriptContent :		parent->setNewContent(GET_PANEL_NAME(ScriptContentPanel)); break;
+	case PopupMenuOptions::ScriptComponentEditPanel: parent->setNewContent(GET_PANEL_NAME(GenericPanel<ScriptComponentEditPanel>)); break;
 	case PopupMenuOptions::SliderPackPanel:		parent->setNewContent(GET_PANEL_NAME(SliderPackPanel)); break;
+	case PopupMenuOptions::GlobalConnectorPanel:parent->setNewContent(GET_PANEL_NAME(GlobalConnectorPanel)); break;
 	case PopupMenuOptions::Console:				parent->setNewContent(GET_PANEL_NAME(ConsolePanel)); break;
 	case PopupMenuOptions::ApiCollection:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<ApiCollection>)); break;
 	case PopupMenuOptions::PatchBrowser:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<PatchBrowser>)); break;
@@ -418,6 +446,8 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::ScriptWatchTable:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<ScriptWatchTable>)); break;
 	case PopupMenuOptions::toggleLayoutMode:    parent->toggleLayoutModeForParentContainer(); break;
 	case PopupMenuOptions::toggleGlobalLayoutMode:    parent->getRootComponent()->toggleLayoutModeForParentContainer(); break;
+	case PopupMenuOptions::exportAsJSON:		SystemClipboard::copyTextToClipboard(parent->exportAsJSON()); break;
+	case PopupMenuOptions::loadFromJSON:		parent->loadFromJSON(SystemClipboard::getTextFromClipboard()); break;
 	case PopupMenuOptions::numOptions:
 	default:
 		jassertfalse;

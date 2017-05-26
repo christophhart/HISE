@@ -33,6 +33,8 @@
 ScriptWatchTable::ScriptWatchTable(BackendRootWindow* window) :
 	controller(window->getBackendProcessor())
 {
+	setOpaque(true);
+
 	setName(getHeadline());
 
     addAndMakeVisible (table = new TableListBox());
@@ -634,8 +636,8 @@ String ScriptComponentEditPanel::HiChoicePropertyComponent::getItemText () const
 	return getChoices()[currentIndex];
 }
 
-ScriptComponentEditPanel::ScriptComponentEditPanel(BaseDebugArea *area) :
-AutoPopupDebugComponent(area)
+ScriptComponentEditPanel::ScriptComponentEditPanel(BackendRootWindow* rootWindow):
+	mc(rootWindow->getBackendProcessor())
 {
 	setName("Edit Script Components");
 
@@ -645,6 +647,8 @@ AutoPopupDebugComponent(area)
 	codeDragger->setEnabled(false);
 
 	codeDragger->setVisible(false);
+
+	mc->setScriptComponentEditPanel(this);
 
 	panel->setLookAndFeel(&pplaf);
 }
@@ -697,7 +701,6 @@ void ScriptComponentEditPanel::setEditedComponent(ReferenceCountedObject* o)
 	}
 	
 
-	showComponentInDebugArea(o != nullptr);
 
 	panel->clear();
 

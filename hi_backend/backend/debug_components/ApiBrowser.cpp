@@ -34,6 +34,7 @@ ApiCollection::ApiCollection(BackendRootWindow* window) :
 SearchableListComponent(window),
 apiTree(ValueTree(ValueTree::readFromData(XmlApi::apivaluetree_dat, XmlApi::apivaluetree_datSize)))
 {
+	setOpaque(true);
 	setName("API Browser");
 
 	setFuzzyness(0.6);

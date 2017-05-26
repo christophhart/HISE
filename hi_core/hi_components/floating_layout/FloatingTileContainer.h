@@ -92,11 +92,16 @@ public:
 
 	virtual Rectangle<int> getContainerBounds() const = 0;
 	
+	ValueTree exportAsValueTree() const override;
+
+	void restoreFromValueTree(const ValueTree &v) override;
+
+
 
 	void enableSwapMode(bool shouldBeSwappable, FloatingTile* source);
 
 	/** This will be called whenever the layout needs to be updated (eg. when a new floating tile is added or the resizers were dragged. */
-	virtual void refreshLayout() {};
+	virtual void refreshLayout();
 
 	void setAllowInserting(bool shouldBeAllowed);
 
@@ -104,12 +109,24 @@ public:
 
 	bool showTitleInPresentationMode() const override { return false; }
 
+	void setIsDynamic(bool shouldBeDynamic)
+	{
+		dynamic = shouldBeDynamic;
+	};
+
+	bool isDynamic() const 
+	{ 
+		return dynamic; 
+	}
+
 protected:
 
 	virtual void componentAdded(FloatingTile* newComponent) = 0;
 	virtual void componentRemoved(FloatingTile* deletedComponent) = 0;
 
 private:
+
+	bool dynamic = true;
 
 	Component::SafePointer<FloatingTile> resizeSource;
 
@@ -147,6 +164,11 @@ public:
 
 	~FloatingTabComponent();
 
+	bool showTitleInPresentationMode() const override
+	{
+		return true;
+	}
+
 	String getTitle() const override { return ""; };
 
 	Rectangle<int> getContainerBounds() const override
@@ -154,6 +176,13 @@ public:
 		auto localBounds = dynamic_cast<const Component*>(this)->getLocalBounds();
 
 		return localBounds.withTrimmedTop(getTabBarDepth());
+	}
+
+	void refreshLayout() override
+	{
+		FloatingTileContainer::refreshLayout();
+
+		resized();
 	}
 
 	void componentAdded(FloatingTile* newComponent) override;
@@ -179,6 +208,11 @@ class ResizableFloatingTileContainer : public FloatingTileContainer,
 								   public ButtonListener
 {
 public:
+
+	enum ColourIds
+	{
+		backgroundColourId = 0xFF20,
+	};
 
 	struct LookAndFeel: public LookAndFeel_V3
 	{
@@ -268,8 +302,9 @@ public:
 
 	void foldComponent(Component* c, bool shouldBeFolded);
 
-	ValueTree exportAsValueTree() const override;
-	void restoreFromValueTree(const ValueTree &v) override;
+	bool isTitleBarDisplayed() const;
+
+	void mouseDown(const MouseEvent& event) override;
 
 protected:
 

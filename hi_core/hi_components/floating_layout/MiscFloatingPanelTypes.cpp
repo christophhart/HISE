@@ -62,6 +62,8 @@ ValueTree Note::exportAsValueTree() const
 
 void Note::restoreFromValueTree(const ValueTree& v)
 {
+	FloatingTileContent::restoreFromValueTree(v);
+
 	editor->setText(v.getProperty("Text", editor->getText()), dontSendNotification);
 }
 
@@ -77,19 +79,14 @@ void EmptyComponent::paint(Graphics& g)
 
 void EmptyComponent::mouseDown(const MouseEvent& event)
 {
-    if (event.mods.isRightButtonDown())
-	{
-		auto e2 = event.getEventRelativeTo(getParentShell()->getRootComponent());
-
-		getParentShell()->getRootComponent()->setSelector(this, e2.getMouseDownPosition());
-	}
+	getParentShell()->mouseDown(event);
 }
 
 ConsolePanel::ConsolePanel(FloatingTile* parent) :
 	FloatingTileContent(parent)
 {
 	setInterceptsMouseClicks(false, true);
-	addAndMakeVisible(console = new Console(parent->findParentComponentOfClass<BackendRootWindow>()->getBackendProcessor()));
+	addAndMakeVisible(console = new Console(getRootWindow()->getBackendProcessor()));
 }
 
 MidiKeyboardPanel::MidiKeyboardPanel(FloatingTile* parent) :
@@ -344,10 +341,94 @@ void CodeEditorPanel::fillIndexList(StringArray& indexList)
 
 Component* ScriptContentPanel::createContentComponent(int /*index*/)
 {
-	auto pwsc = dynamic_cast<ProcessorWithScriptingContent*>(getConnectedProcessor());
-
-	return new ScriptContentComponent(pwsc);
+	return new Editor(getConnectedProcessor());
 }
+
+struct ScriptContentPanel::Canvas : public ScriptEditHandler,
+	public Component
+{
+	Canvas(Processor* p) :
+		processor(p)
+	{
+		addAndMakeVisible(content = new ScriptContentComponent(dynamic_cast<ProcessorWithScriptingContent*>(p)));
+		addAndMakeVisible(overlay = new ScriptingContentOverlay(this));
+
+
+		setSize(content->getContentWidth() + 40, content->getContentHeight() + 40);
+	}
+
+	void paint(Graphics& g) override
+	{
+		g.fillAll(Colours::black);
+
+		g.setColour(Colours::white.withAlpha(0.5f));
+
+		g.drawHorizontalLine(20, 10.0f, 20.0f);
+		g.drawHorizontalLine(20, (float)getWidth() - 20.0f, (float)getWidth() - 10.0f);
+		
+		g.drawHorizontalLine(getHeight() - 20, 10.0f, 20.0f);
+		g.drawHorizontalLine(getHeight() - 20, (float)getWidth() - 20.0f, (float)getWidth() - 10.0f);
+
+		g.drawVerticalLine(20, 10.0f, 20.0f);
+		g.drawVerticalLine(20, (float)getHeight() - 20.0f, (float)getHeight() - 10.0f);
+
+		g.drawVerticalLine(getWidth() - 20, 10.0f, 20.0f);
+		g.drawVerticalLine(getWidth() - 20, (float)getHeight() - 20.0f, (float)getHeight() - 10.0f);
+	}
+
+	void selectOnInitCallback() override
+	{
+		
+	}
+
+
+	void scriptEditHandlerCompileCallback()
+	{
+		if (getScriptEditHandlerProcessor())
+			getScriptEditHandlerProcessor()->compileScript();
+	}
+
+public:
+
+	virtual ScriptContentComponent* getScriptEditHandlerContent() { return content; }
+
+	virtual ScriptingContentOverlay* getScriptEditHandlerOverlay() { return overlay; }
+
+	virtual JavascriptCodeEditor* getScriptEditHandlerEditor()
+	{
+		if (processor.get())
+		{
+			return dynamic_cast<JavascriptCodeEditor*>(processor->getMainController()->getLastActiveEditor());
+		}
+
+		return nullptr;
+	}
+
+	virtual JavascriptProcessor* getScriptEditHandlerProcessor() { return dynamic_cast<JavascriptProcessor*>(processor.get()); }
+
+	void resized() override
+	{
+		content->setBounds(20, 20, getWidth() - 40, getHeight() - 40);
+		overlay->setBounds(20, 20, getWidth() - 40, getHeight() - 40);
+	}
+
+private:
+
+	ScopedPointer<ScriptContentComponent> content;
+	ScopedPointer<ScriptingContentOverlay> overlay;
+	WeakReference<Processor> processor;
+
+};
+
+
+
+ScriptContentPanel::Editor::Editor(Processor* p)
+{
+	addAndMakeVisible(viewport = new Viewport());
+
+	viewport->setViewedComponent(new Canvas(p), true);
+}
+
 
 Component* ScriptWatchTablePanel::createContentComponent(int /*index*/)
 {
@@ -356,4 +437,16 @@ Component* ScriptWatchTablePanel::createContentComponent(int /*index*/)
 	swt->setScriptProcessor(dynamic_cast<JavascriptProcessor*>(getConnectedProcessor()), nullptr);
 
 	return swt;
+}
+
+void GlobalConnectorPanel::contentChanged()
+{
+	auto parentContainer = getParentShell()->getParentContainer();
+
+	FloatingTile::Iterator<PanelWithProcessorConnection> iter(parentContainer->getParentShell());
+
+	while (auto p = iter.getNextPanel())
+	{
+		p->setContentWithUndo(getProcessor(), 0);
+	}
 }

@@ -59,7 +59,7 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, ValueTree& 
 
 #endif
 
-	setSize(900, 700);
+	setSize(1500, 900);
 
 
 	startTimer(1000);
@@ -179,10 +179,23 @@ void BackendRootWindow::timerCallback()
 
 void BackendRootWindow::loadNewContainer(ValueTree & v)
 {
+	FloatingTile::Iterator<PanelWithProcessorConnection> iter(getRootFloatingTile());
+
+	while (auto p = iter.getNextPanel())
+		p->setContentWithUndo(nullptr, 0);
+
 	mainEditor->loadNewContainer(v);
+
+	
+
 }
 
 void BackendRootWindow::loadNewContainer(const File &f)
 {
+	FloatingTile::Iterator<PanelWithProcessorConnection> iter(getRootFloatingTile());
+
+	while (auto p = iter.getNextPanel())
+		p->setContentWithUndo(nullptr, 0);
+
 	mainEditor->loadNewContainer(f);
 }

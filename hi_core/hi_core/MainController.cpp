@@ -825,7 +825,7 @@ void MainController::setEditedScriptComponent(ReferenceCountedObject* c, Compone
 			scriptComponentEditPanel->addListener(l);
 		}
 
-		ScriptingEditor *editor = dynamic_cast<ScriptingEditor *>(listener);
+		ScriptEditHandler *editor = dynamic_cast<ScriptEditHandler *>(listener);
 
 		if (editor != nullptr)
 		{

@@ -98,53 +98,6 @@ void FloatingInterfaceBuilder::setLocked(int index, Array<bool> lockedStates, No
 		jassertfalse;
 }
 
-void FloatingInterfaceBuilder::setDeletable(int index, bool isDeletable, Array<bool> deletableStates, NotificationType shouldUpdateLayout /*= sendNotification*/)
-{
-	getPanel(index)->setDeletable(isDeletable);
-
-	if (auto c = getContainer(index))
-	{
-		if (deletableStates.size() != c->getNumComponents())
-		{
-			jassertfalse;
-			return;
-		}
-
-		for (int i = 0; i < c->getNumComponents(); i++)
-		{
-			c->getComponent(i)->setDeletable(deletableStates[i]);
-		}
-
-		if (shouldUpdateLayout == sendNotification)
-			c->refreshLayout();
-	}
-	else
-		jassertfalse;
-}
-
-void FloatingInterfaceBuilder::setSwappable(int index, bool isSwappable, Array<bool> childSwapStates, NotificationType shouldUpdateLayout/*= sendNotification*/)
-{
-	getPanel(index)->setSwappable(isSwappable);
-
-	if (auto c = getContainer(index))
-	{
-		if (childSwapStates.size() != c->getNumComponents())
-		{
-			jassertfalse;
-			return;
-		}
-
-		for (int i = 0; i < c->getNumComponents(); i++)
-		{
-			c->getComponent(i)->setSwappable(childSwapStates[i]);
-		}
-
-		if (shouldUpdateLayout == sendNotification)
-			c->refreshLayout();
-	}
-	else
-		jassertfalse;
-}
 
 void FloatingInterfaceBuilder::setFoldable(int index, bool isFoldable, Array<bool> childFoldableStates, NotificationType /*= dontSendNotification*/)
 {

@@ -124,41 +124,20 @@ private:
 };
 
 class ScriptingEditor  : public ProcessorEditorBody,
-                         public ScriptComponentEditListener,
+						 public ScriptEditHandler,
                          public ButtonListener,
 						 public TextEditor::Listener
 {
 public:
     //==============================================================================
 
-	enum class Widgets
-	{
-		Knob = 0x1000,
-		Button,
-		Table,
-		ComboBox,
-		Label,
-		Image,
-		Plotter,
-		ModulatorMeter,
-		Panel,
-		AudioWaveform,
-		SliderPack,
-		duplicateWidget,
-		numWidgets
-	};
+	
 
     ScriptingEditor (ProcessorEditor *p);
     ~ScriptingEditor();
 
     //==============================================================================
    
-	void createNewComponent(Widgets componentType, int x, int y);
-
-	String isValidWidgetName(const String &id);
-
-	void scriptComponentChanged(ReferenceCountedObject *scriptComponent, Identifier /*propertyThatWasChanged*/) override;
-
 	void textEditorReturnKeyPressed(TextEditor& t)
 	{
 		String codeToEvaluate = t.getText();
@@ -180,7 +159,14 @@ public:
 		}
 	}
 
+	JavascriptProcessor* getScriptEditHandlerProcessor() { return dynamic_cast<JavascriptProcessor*>(getProcessor()); }
 
+	ScriptContentComponent* getScriptEditHandlerContent() { return scriptContent.get(); }
+
+	ScriptingContentOverlay* getScriptEditHandlerOverlay() { return dragOverlay; }
+
+	JavascriptCodeEditor* getScriptEditHandlerEditor() { return codeEditor->editor; }
+	
 	void updateGui() override
 	{
 		JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(getProcessor());
@@ -204,8 +190,6 @@ public:
 
 	};
 
-	void setEditedScriptComponent(ReferenceCountedObject* component);
-
 	void showCallback(int callbackIndex, int charToScroll=-1);
 
 	void showOnInitCallback();
@@ -219,8 +203,6 @@ public:
 	void gotoChar(int character);
 
 	void mouseDown(const MouseEvent &e) override;
-
-	void toggleComponentSelectMode(bool shouldSelectOnClick);
 
 	void mouseDoubleClick(const MouseEvent& e) override;
 
@@ -255,7 +237,7 @@ public:
 
 	bool keyPressed(const KeyPress &k) override;
 
-	void compileScript();
+	void scriptEditHandlerCompileCallback() override;
 
 	bool isInEditMode() const
 	{
@@ -305,395 +287,13 @@ public:
 	void goToSavedPosition(int newCallback);
 	void saveLastCallback();
 
-	void changePositionOfComponent(ScriptingApi::Content::ScriptComponent* sc, int newX, int newY);
-    
-	class DragOverlay : public Component,
-						public ButtonListener
+	void selectOnInitCallback() override
 	{
-	public:
-
-		DragOverlay(ScriptingEditor* parentEditor, ScriptContentComponent* content=nullptr);
-
-
-		void resized();
-
-		void buttonClicked(Button* buttonThatWasClicked);
-
-		void setEditMode(bool editModeEnabled);
-
-		void paint(Graphics& g) override;
-
-		void mouseDown(const MouseEvent& e) override;
-
-
-		class Dragger : public Component
+		if (getActiveCallback() != 0)
 		{
-		public:
-
-			Dragger(ScriptingEditor* parentEditor);
-
-			~Dragger();
-
-			void paint(Graphics &g) override;
-
-			void mouseDown(const MouseEvent& e);
-
-			void mouseDrag(const MouseEvent& e);
-
-			void mouseUp(const MouseEvent& e);
-
-			void resized()
-			{
-				resizer->setBounds(getWidth() - 10, getHeight() - 10, 10, 10);
-			}
-
-			void moveOverlayedComponent(int deltaX, int deltaY);
-
-			void resizeOverlayedComponent(int deltaX, int deltaY);
-
-			bool keyPressed(const KeyPress &key) override
-			{
-				if (currentlyDraggedComponent == nullptr) return false;
-
-				ScriptingApi::Content::ScriptComponent *sc = currentScriptComponent;
-
-				if (sc == nullptr) return false;
-
-				const int keyCode = key.getKeyCode();
-				const int delta = key.getModifiers().isCommandDown() ? 10 : 1;
-				const bool resizeComponent = key.getModifiers().isShiftDown();
-
-				if (keyCode == KeyPress::leftKey)
-				{
-					if (resizeComponent)
-					{
-						
-						undoManager.perform(new OverlayAction(this, true, -delta, 0));
-					}
-					else
-					{
-						undoManager.perform(new OverlayAction(this, false, -delta, 0));
-					}
-
-					return true;
-				}
-				else if (keyCode == KeyPress::rightKey)
-				{
-					if (resizeComponent)
-					{
-						undoManager.perform(new OverlayAction(this, true, delta, 0));
-					}
-					else
-					{
-						undoManager.perform(new OverlayAction(this, false, delta, 0));
-					}
-
-
-					return true;
-				}
-				else if (keyCode == KeyPress::upKey)
-				{
-                    if (resizeComponent)
-                    {
-                        undoManager.perform(new OverlayAction(this, true, 0, -delta));
-                    }
-                    else
-                    {
-                        undoManager.perform(new OverlayAction(this, false, 0, -delta));
-                    }
-                    
-                    
-                    return true;
-				}
-				else if (keyCode == KeyPress::downKey)
-				{
-					if (resizeComponent)
-					{
-						undoManager.perform(new OverlayAction(this, true, 0, delta));
-					}
-					else
-					{
-						undoManager.perform(new OverlayAction(this, false, 0, delta));
-					}
-
-
-					return true;
-				}
-				else if (keyCode == 'Z' && key.getModifiers().isCommandDown())
-				{
-					DBG("Undo");
-					undoManager.undo();
-					return true;
-				}
-
-				return false;
-			}
-
-			
-
-			void setDraggedControl(Component* componentToDrag, ScriptingApi::Content::ScriptComponent* sc);;
-
-		private:
-
-			class Constrainer : public ComponentBoundsConstrainer
-			{
-			public:
-
-				void checkBounds(Rectangle<int>& newBounds, const Rectangle<int>& /*previousBounds*/, const Rectangle<int>& limits, bool /*isStretchingTop*/, bool /*isStretchingLeft*/, bool isStretchingBottom, bool isStretchingRight)
-				{
-					newBounds.setWidth(jmax<int>(10, newBounds.getWidth()));
-					newBounds.setHeight(jmax<int>(10, newBounds.getHeight()));
-
-					const bool isResizing = isStretchingRight || isStretchingBottom;
-
-					if (rasteredMovement)
-					{
-						if (isResizing)
-						{
-							newBounds.setWidth((newBounds.getWidth() / 10) * 10);
-							newBounds.setHeight((newBounds.getHeight() / 10) * 10);
-						}
-						else
-						{
-							newBounds.setX((newBounds.getX() / 10) * 10);
-							newBounds.setY((newBounds.getY() / 10) * 10);
-						}
-					}
-
-					if (lockMovement)
-					{
-						if (isResizing)
-						{
-							const bool lockHorizontally = abs(newBounds.getWidth() - startPosition.getWidth()) > abs(newBounds.getHeight() - startPosition.getHeight());
-
-							if (lockHorizontally)
-							{
-								newBounds.setHeight(startPosition.getHeight());
-							}
-							else
-							{
-								newBounds.setWidth(startPosition.getWidth());
-							}
-						}
-						else
-						{
-							const bool lockHorizontally = abs(newBounds.getX() - startPosition.getX()) > abs(newBounds.getY() - startPosition.getY());
-
-							if (lockHorizontally)
-							{
-								newBounds.setY(startPosition.getY());
-							}
-							else
-							{
-								newBounds.setX(startPosition.getX());
-							}
-						}
-					}
-                    
-                    if(newBounds.getWidth() < limits.getWidth()) // Skip limiting if the component is bigger than the editor
-                    {
-                        if (newBounds.getX() < limits.getX())
-                        {
-                            newBounds.setX(limits.getX());
-                        }
-                        if (newBounds.getRight() > limits.getRight())
-                        {
-                            if (isResizing)
-                            {
-                                newBounds.setWidth(limits.getRight() - newBounds.getX());
-                            }
-                            else
-                            {
-                                newBounds.setX(limits.getRight() - newBounds.getWidth());
-                            }
-                            
-                            
-                        }
-                        if (newBounds.getY() < limits.getY())
-                        {
-                            newBounds.setY(limits.getY());
-                        }
-                        if (newBounds.getBottom() > limits.getBottom())
-                        {
-                            if (isResizing)
-                            {
-                                newBounds.setHeight(limits.getBottom() - newBounds.getY());
-                            }
-                            else
-                            {
-                                newBounds.setY(limits.getBottom() - newBounds.getHeight());
-                            }
-                            
-                        }
-                    }
-                    
-					currentPosition = Rectangle<int>(newBounds);
-				}
-
-
-				void setStartPosition(const Rectangle<int>& startPos)
-				{
-					startPosition = Rectangle<int>(startPos);
-					currentPosition = Rectangle<int>(startPos);
-				}
-
-				int getDeltaX() const
-				{
-					return currentPosition.getX() - startPosition.getX();
-				}
-
-				int getDeltaY() const
-				{
-					return currentPosition.getY() - startPosition.getY();
-				}
-
-				int getDeltaWidth() const
-				{
-					return currentPosition.getWidth() - startPosition.getWidth();
-				}
-
-				int getDeltaHeight() const
-				{
-					return currentPosition.getHeight() - startPosition.getHeight();
-				}
-
-
-
-
-				void setRasteredMovement(bool shouldBeRastered)
-				{
-					rasteredMovement = shouldBeRastered;
-				}
-
-				void setLockedMovement(bool shouldBeLocked)
-				{
-					lockMovement = shouldBeLocked;
-				}
-
-			private:
-
-				bool rasteredMovement = false;
-				bool lockMovement = false;
-
-				Rectangle<int> startPosition;
-				Rectangle<int> currentPosition;
-			};
-
-			class MovementWatcher : public ComponentMovementWatcher
-			{
-			public:
-
-				MovementWatcher(Component* c, Component* dragComponent_) :
-					ComponentMovementWatcher(c),
-					dragComponent(dragComponent_)
-				{};
-
-				void componentMovedOrResized(bool /*wasMoved*/, bool /*wasResized*/) override;
-
-				void componentPeerChanged()  override {}
-				void componentVisibilityChanged() override {};
-
-				Component* dragComponent;
-			};
-
-			class OverlayAction: public UndoableAction
-			{
-			public:
-
-				OverlayAction(Dragger* overlay_, bool isResized_, int deltaX_, int deltaY_):
-					overlay(overlay_),
-					draggedComponent(overlay_->currentlyDraggedComponent),
-					isResized(isResized_),
-					deltaX(deltaX_),
-					deltaY(deltaY_)
-				{}
-
-				bool perform() override
-				{
-					if (overlay.getComponent() != nullptr)
-					{
-						if (isResized)
-						{
-							overlay->resizeOverlayedComponent(deltaX, deltaY);
-						}
-						else
-						{
-							overlay->moveOverlayedComponent(deltaX, deltaY);
-						}
-
-						return true;
-					}
-
-					return false;
-
-				}
-
-				bool undo() override
-				{
-					if (draggedComponent.getComponent() != nullptr &&
-						overlay.getComponent() != nullptr &&
-						overlay->currentlyDraggedComponent.getComponent() == draggedComponent.getComponent())
-					{
-						if (isResized)
-						{
-							overlay->resizeOverlayedComponent(-deltaX, -deltaY);
-						}
-						else
-						{
-							overlay->moveOverlayedComponent(-deltaX, -deltaY);
-						}
-
-						return true;
-					}
-
-					return false;
-
-				}
-
-			private:
-
-				Component::SafePointer<Dragger> overlay;
-				Component::SafePointer<Component> draggedComponent;
-
-				const bool isResized;
-				const int deltaX;
-				const int deltaY;
-
-			};
-
-
-			
-			Component::SafePointer<Component> currentlyDraggedComponent;
-			ScriptingApi::Content::ScriptComponent* currentScriptComponent;
-
-			ScopedPointer<MovementWatcher> currentMovementWatcher;
-
-			ComponentDragger dragger;
-
-			UndoManager undoManager;
-
-			Constrainer constrainer;
-
-			ScopedPointer<ResizableCornerComponent> resizer;
-
-			Image snapShot;
-			bool copyMode = false;
-
-			Component::SafePointer<ScriptingEditor> parentEditor;
-			
-		};
-
-		bool dragMode;
-
-		
-		ScopedPointer<Dragger> dragger;
-
-		ScopedPointer<ShapeButton> dragModeButton;
-
-		Component::SafePointer<ScriptingEditor> parentEditor;
-		Component::SafePointer<ScriptContentComponent> content;
-	};
-
+			buttonClicked(callbackButtons[0]); // we need synchronous execution here
+		}
+	}
 
 	class ContentPopup : public DocumentWindow
 	{
@@ -705,7 +305,7 @@ public:
 		{
 			holder = new Component();
 			holder->addAndMakeVisible(content = new ScriptContentComponent(pwsc));
-			holder->addAndMakeVisible(dragOverlay = new DragOverlay(parentEditor, content));
+			holder->addAndMakeVisible(dragOverlay = new ScriptingContentOverlay(parentEditor));
 			holder->setSize(jmax<int>(40, content->getContentWidth()), jmax<int>(40, content->getContentHeight()));
 
 			setContentNonOwned(holder, true);
@@ -744,7 +344,7 @@ public:
 		Component::SafePointer<ScriptingEditor> parent;
 
 		ScopedPointer<ScriptContentComponent> content;
-		ScopedPointer<DragOverlay> dragOverlay;
+		ScopedPointer<ScriptingContentOverlay> dragOverlay;
 	};
 
 
@@ -752,8 +352,8 @@ private:
 
 	bool isConnectedToExternalScript = false;
 
-	ScopedPointer<DragOverlay> dragOverlay;
-	Component::SafePointer<DragOverlay> currentDragOverlay;
+	ScopedPointer<ScriptingContentOverlay> dragOverlay;
+	Component::SafePointer<ScriptingContentOverlay> currentDragOverlay;
 
 	ScopedPointer<CodeDocument> doc;
 

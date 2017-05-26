@@ -367,11 +367,15 @@ public:
 
 		resized();
 		repaint();
+
+		contentChanged();
 	}
 
 	
 
 	virtual Component* createContentComponent(int index) = 0;
+
+	virtual void contentChanged() {};
 
 	virtual void fillModuleList(StringArray& moduleList) = 0;
 
@@ -528,6 +532,25 @@ class ScriptContentPanel: public PanelWithProcessorConnection
 {
 public:
 
+	struct Canvas;
+
+	class Editor : public Component
+	{
+	public:
+
+		Editor(Processor* p);
+
+		void resized() override
+		{
+			viewport->setBounds(getLocalBounds());
+		}
+
+	public:
+
+		ScopedPointer<Viewport> viewport;
+	};
+
+
 	ScriptContentPanel(FloatingTile* parent) :
 		PanelWithProcessorConnection(parent)
 	{};
@@ -567,6 +590,39 @@ private:
 
 };
 
+class GlobalConnectorPanel : public PanelWithProcessorConnection
+{
+public:
+
+
+	GlobalConnectorPanel(FloatingTile* parent):
+		PanelWithProcessorConnection(parent)
+	{
+
+	}
+
+	SET_PANEL_NAME("GlobalConnectorPanel");
+
+	int getFixedHeight() const override { return 32; }
+
+	bool hasSubIndex() const override { return false; }
+
+	Component* createContentComponent(int index) override
+	{
+		return new Component();
+	}
+
+	void contentChanged() override;
+
+	void fillModuleList(StringArray& moduleList) override
+	{
+		fillModuleListWithType<JavascriptProcessor>(moduleList);
+	};
+
+private:
+
+};
+
 
 #define SET_GENERIC_PANEL_ID(x) static Identifier getGenericPanelId() { static const Identifier id(x); return x;}
 
@@ -585,6 +641,11 @@ public:
 		setInterceptsMouseClicks(false, true);
 
 		addAndMakeVisible(component = new ContentType(getRootWindow()));
+	}
+
+	~GenericPanel()
+	{
+		component = nullptr;
 	}
 
 	void resized() override

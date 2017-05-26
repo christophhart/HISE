@@ -79,6 +79,7 @@
 #include "scripting/components/AutoCompletePopup.cpp"
 #include "scripting/components/ScriptingCodeEditorHelpers.cpp"
 #include "scripting/components/ScriptingCodeEditor.cpp"
+#include "scripting/components/ScriptingContentOverlay.cpp"
 #include "scripting/components/ScriptingEditor.cpp"
 
 #endif 

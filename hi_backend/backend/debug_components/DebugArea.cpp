@@ -313,7 +313,7 @@ BaseDebugArea(editor)
 
 	macroTable = new MacroParameterTable(this);
 
-	scriptComponentPanel = new ScriptComponentEditPanel(this);
+	
 
 	mainEditor->getBackendProcessor()->setScriptWatchTable(scriptWatchTable);
 	mainEditor->getBackendProcessor()->setScriptComponentEditPanel(scriptComponentPanel);

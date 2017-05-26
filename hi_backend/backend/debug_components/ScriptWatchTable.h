@@ -126,8 +126,6 @@ private:
 };
 
 
-
-
 class HiPropertyComponent: public SafeChangeBroadcaster
 {
 public:
@@ -302,23 +300,26 @@ public:
 
 class ScriptComponentEditPanel: public Component,
 								public SafeChangeListener,
-								public SliderListener,
-								public AutoPopupDebugComponent
+								public SliderListener
 {
 
 public:
 
 	
-	ScriptComponentEditPanel(BaseDebugArea *area);
+	ScriptComponentEditPanel(BackendRootWindow* rootWindow);
 
     ~ScriptComponentEditPanel()
     {
+		mc->setScriptComponentEditPanel(nullptr);
+
         listeners.clear();
         editedComponent = nullptr;
         panel = nullptr;
         codeDragger = nullptr;
     }
     
+	SET_GENERIC_PANEL_ID("InterfacePropertyEditor");
+
 	void addListener(ScriptComponentEditListener *listener)
 	{
 		listeners.addIfNotAlreadyThere(listener);
@@ -600,6 +601,8 @@ private:
 
 	ReferenceCountedObjectPtr<ReferenceCountedObject> editedComponent;
 
+
+	MainController* mc;
 
 };
 

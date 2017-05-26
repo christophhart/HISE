@@ -68,6 +68,8 @@ public:
 
 	void loadNewContainer(const File &f);
 	
+	FloatingTile* getRootFloatingTile() { return floatingRoot; }
+
 private:
 
 	friend class BackendCommandTarget;

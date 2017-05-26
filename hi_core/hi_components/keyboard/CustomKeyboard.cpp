@@ -36,7 +36,7 @@ Component * MidiKeyboardFocusTraverser::getDefaultComponent(Component *parentCom
 #if USE_BACKEND
 	if (FileBrowser *browser = parentComponent->findParentComponentOfClass<FileBrowser>())						return browser;
 	if (SamplerBody *samplerBody = parentComponent->findParentComponentOfClass<SamplerBody>())					return samplerBody;
-	else if (ScriptingEditor::DragOverlay::Dragger* dragger = parentComponent->findParentComponentOfClass<ScriptingEditor::DragOverlay::Dragger>()) return dragger;
+	else if (ScriptingContentOverlay::Dragger* dragger = parentComponent->findParentComponentOfClass<ScriptingContentOverlay::Dragger>()) return dragger;
 	else if (MacroParameterTable *table = parentComponent->findParentComponentOfClass<MacroParameterTable>())	return table;
 
 	if (dynamic_cast<CopyPasteTarget*>(parentComponent))

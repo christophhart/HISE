@@ -199,9 +199,7 @@ bool BackendProcessorEditor::isPluginPreviewCreatable() const
 
 void BackendProcessorEditor::paint(Graphics &g)
 {
-    //g.fillAll(Colour(BACKEND_BG_COLOUR));
-    
-    g.setColour(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourId));
+    g.setColour(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
     
     g.fillAll();
 }

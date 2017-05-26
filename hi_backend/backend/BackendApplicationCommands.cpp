@@ -140,6 +140,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
         MenuViewFullscreen,
 		MenuViewBack,
 		MenuViewForward,
+		MenuViewEnableGlobalLayoutMode,
         MenuOneColumn,
 		MenuTwoColumns,
 		MenuThreeColumns,
@@ -396,6 +397,10 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuViewForward:
 		setCommandTarget(result, "Forward: " + bpe->mainEditor->getViewUndoManager()->getRedoDescription(), bpe->mainEditor->getViewUndoManager()->canRedo(), false, (char)KeyPress::backspaceKey, true, ModifierKeys::shiftModifier);
 		break;
+	case MenuViewEnableGlobalLayoutMode:
+		setCommandTarget(result, "Enable Layout Mode", true, bpe->getRootFloatingTile()->isLayoutModeEnabled(), 'X', false);
+		result.addDefaultKeypress(KeyPress::F6Key, ModifierKeys::noModifiers);
+		break;
 	case MenuOneColumn:
 		setCommandTarget(result, "One Column", true, currentColumnMode == OneColumn, '1', true, ModifierKeys::altModifier);
 		break;
@@ -516,6 +521,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
     case MenuViewFullscreen:            Actions::toggleFullscreen(bpe); updateCommands(); return true;
 	case MenuViewBack:					bpe->mainEditor->getViewUndoManager()->undo(); updateCommands(); return true;
 	case MenuViewForward:				bpe->mainEditor->getViewUndoManager()->redo(); updateCommands(); return true;
+	case MenuViewEnableGlobalLayoutMode: bpe->getRootFloatingTile()->setLayoutModeEnabled(!bpe->getRootFloatingTile()->isLayoutModeEnabled(), true); updateCommands(); return true;
 	case MenuViewShowPluginPopupPreview: Actions::togglePluginPopupWindow(bpe); updateCommands(); return true;
     case MenuViewIncreaseCodeFontSize:  Actions::changeCodeFontSize(bpe, true); return true;
     case MenuViewDecreaseCodeFontSize:   Actions::changeCodeFontSize(bpe, false); return true;
@@ -774,6 +780,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_ALL_PLATFORMS(MenuViewBack);
 		ADD_ALL_PLATFORMS(MenuViewForward);
 		p.addSeparator();
+		ADD_DESKTOP_ONLY(MenuViewEnableGlobalLayoutMode);
 		ADD_DESKTOP_ONLY(MenuViewFullscreen);
 		ADD_ALL_PLATFORMS(MenuViewShowSelectedProcessorInPopup);
 		p.addSeparator();

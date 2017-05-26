@@ -195,7 +195,6 @@ public:
 
 	void removeProcessorFromPanel(Processor *p);
 
-	
 	/** returns the ProcessorEditor for the path. */
     void refreshInterfaceAfterPresetLoad();
     

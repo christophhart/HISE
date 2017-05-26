@@ -314,7 +314,7 @@ isCurrentlyScrolling(false)
 
 void CachedViewport::InternalViewport::paint(Graphics &g)
 {
-	Colour c15 = HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourId);
+	Colour c15 = HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright);
 
 	g.setColour(c15);
 	g.fillAll();

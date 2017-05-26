@@ -127,6 +127,7 @@ public:
 		MenuViewBack,
 		MenuViewForward,
 		MenuViewSetMainContainerAsRoot,
+		MenuViewEnableGlobalLayoutMode,
 		MenuOneColumn,
 		MenuTwoColumns,
 		MenuThreeColumns,
@@ -143,6 +144,7 @@ public:
         MenuViewShowAllHiddenProcessors,
         MenuViewListOffset = 0x70000,
 		MenuViewProcessorListOffset = 0x80000,
+		
 		MenuToolsRecompile = 0x50000,
 		MenuToolsCreateInterface,
         MenuToolsCheckDuplicate,

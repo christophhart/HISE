@@ -89,7 +89,41 @@ void FloatingTileContainer::removeFloatingTile(FloatingTile* componentToRemove)
 
 bool FloatingTileContainer::shouldIntendAddButton() const
 {
-	return getParentShell()->isLayoutModeEnabled() && FloatingTile::LayoutHelpers::showFoldButton(getParentShell());
+	return getParentShell()->isLayoutModeEnabled() || FloatingTile::LayoutHelpers::showFoldButton(getParentShell());
+}
+
+ValueTree FloatingTileContainer::exportAsValueTree() const
+{
+	ValueTree v = FloatingTileContent::exportAsValueTree();
+
+	v.setProperty("Dynamic", isDynamic(), nullptr);
+
+	for (int i = 0; i < getNumComponents(); i++)
+	{
+		auto child = getComponent(i)->getCurrentFloatingPanel();
+
+		ValueTree cv = child->exportAsValueTree();
+
+		v.addChild(cv, -1, nullptr);
+	}
+
+	return v;
+}
+
+void FloatingTileContainer::restoreFromValueTree(const ValueTree &v)
+{
+	FloatingTileContent::restoreFromValueTree(v);
+
+	setIsDynamic(v.getProperty("Dynamic", true));
+
+	clear();
+	
+	for (int i = 0; i < v.getNumChildren(); i++)
+	{
+		auto newShell = new FloatingTile(this, v.getChild(i));
+
+		addFloatingTile(newShell);
+	}
 }
 
 void FloatingTileContainer::enableSwapMode(bool shouldBeSwappable, FloatingTile* source)
@@ -105,6 +139,18 @@ void FloatingTileContainer::enableSwapMode(bool shouldBeSwappable, FloatingTile*
 void FloatingTileContainer::setAllowInserting(bool shouldBeAllowed)
 {
 	allowInserting = shouldBeAllowed;
+}
+
+void FloatingTileContainer::refreshLayout()
+{
+	FloatingTile::Iterator<FloatingTileContainer> iter(getParentShell());
+
+	// skip yourself...
+	iter.getNextPanel();
+
+	while (auto c = iter.getNextPanel())
+		c->refreshLayout();
+
 }
 
 FloatingTabComponent::CloseButton::CloseButton() :
@@ -240,7 +286,7 @@ void FloatingTabComponent::componentRemoved(FloatingTile* deletedComponent)
 
 ValueTree FloatingTabComponent::exportAsValueTree() const
 {
-	ValueTree v = FloatingTileContent::exportAsValueTree();
+	ValueTree v = FloatingTileContainer::exportAsValueTree();
 
 	v.setProperty("CurrentTab", getCurrentTabIndex(), nullptr);
 
@@ -260,6 +306,8 @@ ValueTree FloatingTabComponent::exportAsValueTree() const
 
 void FloatingTabComponent::restoreFromValueTree(const ValueTree &v)
 {
+	FloatingTileContainer::restoreFromValueTree(v);
+
 	clear();
 	clearTabs();
 
@@ -276,7 +324,7 @@ void FloatingTabComponent::paint(Graphics& g)
 	g.setColour(HiseColourScheme::getColour(HiseColourScheme::EditorBackgroundColourId));
 	g.fillRect(0, 4, getWidth(), 18);
 
-	g.setColour(JUCE_LIVE_CONSTANT(Colour(0xFF333333)));
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xFF666666)));
 	g.fillRect(0, 0, getWidth(), 24);
 }
 
@@ -298,7 +346,7 @@ void FloatingTabComponent::resized()
 
 			setTabName(i, text);
 
-			if (getComponent(i) != nullptr && getComponent(i)->isReadOnly() || !getComponent(i)->canBeDeleted())
+			if (getComponent(i) != nullptr && !getComponent(i)->canBeDeleted())
 			{
 				getTabbedButtonBar().getTabButton(i)->setExtraComponent(nullptr, TabBarButton::afterText);
 			}
@@ -332,24 +380,22 @@ void FloatingTabComponent::buttonClicked(Button* )
 
 void ResizableFloatingTileContainer::refreshLayout()
 {
+	FloatingTileContainer::refreshLayout();
+
 	rebuildResizers();
 }
 
 void ResizableFloatingTileContainer::paint(Graphics& g)
 {
-	auto thisLaf = dynamic_cast<LookAndFeel*>(&getLookAndFeel());
-
-	if(thisLaf)
-		thisLaf->paintBackground(g, *this);
+	g.setColour(findColour(ColourIds::backgroundColourId));
+	g.fillAll();
 }
 
 Rectangle<int> ResizableFloatingTileContainer::getContainerBounds() const
 {
     auto localBounds = dynamic_cast<const Component*>(this)->getLocalBounds();
     
-    const bool isInTabs = dynamic_cast<const FloatingTabComponent*>(getParentShell()->getParentContainer());
-    
-    return getParentShell()->isLayoutModeEnabled() && isInsertingEnabled() || (!isInTabs && hasCustomTitle()) ? localBounds.withTrimmedTop(20) : localBounds;
+    return isTitleBarDisplayed() ? localBounds.withTrimmedTop(20) : localBounds;
 }
 
 int ResizableFloatingTileContainer::getMinimumOffset() const
@@ -381,6 +427,10 @@ ResizableFloatingTileContainer::ResizableFloatingTileContainer(FloatingTile* par
 	FloatingTileContainer(parent),
 	vertical(isVerticalTile)
 {
+	setOpaque(true);
+
+	setColour(ColourIds::backgroundColourId, Colour(0xff373737));
+
 	addAndMakeVisible(addButton = new ShapeButton("Add Column", Colours::white.withAlpha(0.7f), Colours::white, Colours::white));
 
 	setLookAndFeel(&laf);
@@ -444,7 +494,7 @@ void ResizableFloatingTileContainer::resized()
 	if (getParentComponent() == nullptr || getParentShell()->getCurrentFloatingPanel() == nullptr) // avoid resizing
 		return;
 
-	addButton->setVisible(getParentShell()->isLayoutModeEnabled() && isInsertingEnabled());
+	addButton->setVisible(isTitleBarDisplayed());
 	addButton->setBounds(shouldIntendAddButton() ? 18 : 1, 1, 30, 15);
 	addButton->toFront(false);
 
@@ -482,6 +532,27 @@ void ResizableFloatingTileContainer::foldComponent(Component* c, bool shouldBeFo
 #endif
 }
 
+bool ResizableFloatingTileContainer::isTitleBarDisplayed() const
+{
+	const bool layoutModeWithAddingEnabled = getParentShell()->isLayoutModeEnabled() && isInsertingEnabled();
+
+	if (layoutModeWithAddingEnabled)
+		return true;
+
+	const bool isInTabs = dynamic_cast<const FloatingTabComponent*>(getParentShell()->getParentContainer());
+
+	if (isInTabs)
+		return false;
+	
+	if (hasCustomTitle())
+		return true;
+}
+
+void ResizableFloatingTileContainer::mouseDown(const MouseEvent& event)
+{
+	getParentShell()->mouseDown(event);
+}
+
 void ResizableFloatingTileContainer::componentAdded(FloatingTile* c)
 {
 	addAndMakeVisible(c);
@@ -495,39 +566,6 @@ void ResizableFloatingTileContainer::componentRemoved(FloatingTile* c)
 {
 	removeChildComponent(c);
 	refreshLayout();
-}
-
-ValueTree ResizableFloatingTileContainer::exportAsValueTree() const
-{
-	ValueTree v = FloatingTileContent::exportAsValueTree();
-
-	
-	
-	for (int i = 0; i < getNumComponents(); i++)
-	{
-		auto child = getComponent(i)->getCurrentFloatingPanel();
-
-		ValueTree cv = child->exportAsValueTree();
-		getComponent(i)->getLayoutData().updateValueTree(cv);
-
-		v.addChild(cv, -1, nullptr);
-
-	}
-
-	return v;
-}
-
-void ResizableFloatingTileContainer::restoreFromValueTree(const ValueTree &v)
-{
-	clear();
-	resizers.clear();
-
-	for (int i = 0; i < v.getNumChildren(); i++)
-	{
-		auto newShell = new FloatingTile(this, v.getChild(i));
-
-		addFloatingTile(newShell);
-	}
 }
 
 
@@ -695,7 +733,9 @@ int ResizableFloatingTileContainer::InternalResizer::getCurrentSize() const
 
 void ResizableFloatingTileContainer::InternalResizer::paint(Graphics& g)
 {
-	g.fillAll(Colours::white.withAlpha(0.02f));
+	g.setColour(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
+
+	g.fillAll();
 
 	Colour c = Colour(SIGNAL_COLOUR);
 

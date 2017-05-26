@@ -36,12 +36,6 @@ void FloatingTile::LayoutData::updateValueTree(ValueTree & v) const
 	v.setProperty("Folded", isFolded, nullptr);
 	v.setProperty("isAbsolute", isAbsolute, nullptr);
 	v.setProperty("Size", currentSize, nullptr);
-	
-	v.setProperty("LayoutEnabled", layoutModeEnabled, nullptr);
-	v.setProperty("LayoutPossible", layoutModePossible, nullptr);
-	v.setProperty("Swappable", swappable, nullptr);
-	v.setProperty("Deletable", deletable, nullptr);
-	v.setProperty("ReadOnly", readOnly, nullptr);
 }
 
 
@@ -49,14 +43,8 @@ void FloatingTile::LayoutData::restoreFromValueTree(const ValueTree &v)
 {
 	isLocked = v.getProperty("Locked", false);
 	isFolded = v.getProperty("Folded", false);
-	isAbsolute = v.getProperty("Folded", false);
+	isAbsolute = v.getProperty("isAbsolute", false);
 	currentSize = v.getProperty("Size", -0.5);
-
-	layoutModeEnabled = v.getProperty("LayoutEnabled", true);
-	layoutModePossible = v.getProperty("LayoutPossible", true);
-	swappable = v.getProperty("Swappable", true);
-	deletable = v.getProperty("Deletable", true);
-	readOnly = v.getProperty("ReadOnly", false);
 }
 
 FloatingTile::CloseButton::CloseButton() :
@@ -213,6 +201,8 @@ FloatingTile::FloatingTile(FloatingTileContainer* parent, ValueTree state /*= Va
 	Component("Empty"),
 	parentContainer(parent)
 {
+	setOpaque(true);
+
 	panelFactory.registerAllPanelTypes();
 
 	addAndMakeVisible(closeButton = new CloseButton());
@@ -231,23 +221,25 @@ bool FloatingTile::isEmpty() const
 
 void FloatingTile::setFolded(bool shouldBeFolded)
 {
-	if (shouldBeFolded != layoutData.isFolded)
-	{
-		Path p;
-		p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::foldedIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::foldedIcon));
+	layoutData.isFolded = shouldBeFolded;
 
-		layoutData.isFolded = shouldBeFolded;
+	refreshFoldButton();
+}
 
-		bool rotate = shouldBeFolded;
+void FloatingTile::refreshFoldButton()
+{
+	Path p;
+	p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::foldedIcon, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::foldedIcon));
 
-		if (getParentType() == ParentType::Vertical)
-			rotate = !rotate;
+	bool rotate = isFolded();
 
-		if (rotate)
-			p.applyTransform(AffineTransform::rotation(float_Pi / 2.0f));
+	if (getParentType() == ParentType::Vertical)
+		rotate = !rotate;
 
-		foldButton->setShape(p, false, true, true);
-	}
+	if (rotate)
+		p.applyTransform(AffineTransform::rotation(float_Pi / 2.0f));
+
+	foldButton->setShape(p, false, true, true);
 }
 
 void FloatingTile::setCanBeFolded(bool shouldBeFoldable)
@@ -296,7 +288,6 @@ void FloatingTile::toggleAbsoluteSize()
 
 		pl->refreshLayout();
 	}
-
 }
 
 void FloatingTile::setLockedSize(bool shouldBeLocked)
@@ -332,14 +323,17 @@ FloatingTile* FloatingTile::getRootComponent()
 	if (getParentType() == ParentType::Root)
 		return this;
 
-	auto parent = findParentComponentOfClass<FloatingTile>();
+	auto parent = getParentContainer()->getParentShell(); //findParentComponentOfClass<FloatingTile>();
 
 	if (parent == nullptr)
-	{
 		return nullptr;
-	}
 
 	return parent->getRootComponent();
+}
+
+const FloatingTile* FloatingTile::getRootComponent() const
+{
+	return const_cast<FloatingTile*>(this)->getRootComponent();
 }
 
 void FloatingTile::clear()
@@ -358,48 +352,50 @@ void FloatingTile::refreshRootLayout()
 	{
 		auto rootContainer = dynamic_cast<FloatingTileContainer*>(getRootComponent()->getCurrentFloatingPanel());
 
-		Iterator<FloatingTileContainer> it(getRootComponent());
-
-		while (auto tc = it.getNextPanel())
-		{
-			tc->refreshLayout();
-		}
+		if(rootContainer != nullptr)
+			rootContainer->refreshLayout();
 	}
 }
 
 void FloatingTile::setLayoutModeEnabled(bool shouldBeEnabled, bool setChildrenToSameSetting/*=true*/)
 {
-	if (isReadOnly())
-		layoutData.layoutModeEnabled = false;
-	else
-		layoutData.layoutModeEnabled = shouldBeEnabled;
-
-
-	if (setChildrenToSameSetting)
+	if (getParentType() == ParentType::Root)
 	{
-		if (auto tc = dynamic_cast<FloatingTileContainer*>(getCurrentFloatingPanel()))
-		{
-			for (int i = 0; i < tc->getNumComponents(); i++)
-			{
-				tc->getComponent(i)->setLayoutModeEnabled(shouldBeEnabled, true);
-			}
+		layoutModeEnabled = shouldBeEnabled;
 
-			tc->refreshLayout();
+		refreshMouseClickTarget();
+
+		Iterator<FloatingTileContent> all(this);
+
+		while (auto p = all.getNextPanel())
+		{
+			if (auto c = dynamic_cast<FloatingTileContainer*>(p))
+				c->refreshLayout();
+			
+			p->getParentShell()->resized();
+			p->getParentShell()->repaint();
+			p->getParentShell()->refreshMouseClickTarget();
 		}
 	}
-	
-	resized();
-	repaint();
 }
 
-void FloatingTile::setCanDoLayoutMode(bool shouldBeAllowed)
+bool FloatingTile::isLayoutModeEnabled() const
 {
-	layoutData.layoutModePossible = shouldBeAllowed;
+	if (getParentType() == ParentType::Root)
+		return layoutModeEnabled;
+
+	return canDoLayoutMode() && getRootComponent()->isLayoutModeEnabled();
 }
 
 bool FloatingTile::canDoLayoutMode() const
 {
-	return layoutData.layoutModePossible;
+	if (getParentType() == ParentType::Root)
+		return true;
+
+	if (isVital())
+		return false;
+
+	return getParentContainer()->isDynamic();
 }
 
 bool FloatingTile::hasChildren() const
@@ -459,6 +455,8 @@ void FloatingTile::bringButtonsToFront()
 
 void FloatingTile::paint(Graphics& g)
 {
+	g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::ModulatorSynthBackgroundColourId));
+
 	auto pt = getParentType();
 
 	const bool isVerticalAndFolded = getLayoutData().isFolded && !isInVerticalLayout();
@@ -493,10 +491,17 @@ void FloatingTile::paint(Graphics& g)
 
 void FloatingTile::paintOverChildren(Graphics& g)
 {
+	if (!hasChildren() && canDoLayoutMode() && isLayoutModeEnabled())
+	{
+		g.setColour(Colours::black.withAlpha(0.2f));
+		g.fillAll();
+	}
+		
+
 	if (currentSwapSource == this)
 		g.fillAll(Colours::white.withAlpha(0.1f));
 
-	if (layoutData.swappable && layoutData.swappingEnabled && !hasChildren())
+	if (isSwappable() && layoutData.swappingEnabled && !hasChildren())
 	{
 		if (isMouseOver(true))
 		{
@@ -514,14 +519,28 @@ void FloatingTile::paintOverChildren(Graphics& g)
 	}
 }
 
+void FloatingTile::refreshMouseClickTarget()
+{
+	if (!hasChildren())
+	{
+		bool allowClicksOnContent = !isLayoutModeEnabled();
+
+		setInterceptsMouseClicks(!allowClicksOnContent, true);
+		dynamic_cast<Component*>(getCurrentFloatingPanel())->setInterceptsMouseClicks(allowClicksOnContent, allowClicksOnContent);
+
+	}
+}
+
 void FloatingTile::mouseEnter(const MouseEvent& )
 {
-	repaint();
+	if(isLayoutModeEnabled())
+		repaint();
 }
 
 void FloatingTile::mouseExit(const MouseEvent& )
 {
-	repaint();
+	if (isLayoutModeEnabled())
+		repaint();
 }
 
 void FloatingTile::mouseDown(const MouseEvent& event)
@@ -537,7 +556,7 @@ void FloatingTile::mouseDown(const MouseEvent& event)
 	}
 	else
 	{
-		if (layoutData.swappingEnabled && layoutData.swappable)
+		if (layoutData.swappingEnabled && isSwappable())
 		{
 			currentSwapSource->swapWith(this);
 
@@ -651,7 +670,15 @@ FloatingTileContent* FloatingTile::getCurrentFloatingPanel()
 
 bool FloatingTile::canBeDeleted() const
 {
-	return layoutData.deletable;
+	if (getParentType() == ParentType::Root)
+		return false;
+
+	if (isVital())
+		return false;
+
+	return getParentContainer()->isDynamic();
+
+	//return layoutData.deletable;
 }
 
 bool FloatingTile::isFolded() const
@@ -664,6 +691,8 @@ bool FloatingTile::isInVerticalLayout() const
 	return getParentType() == ParentType::Vertical;
 }
 
+
+
 void FloatingTile::setContent(ValueTree& data)
 {
 	if (data.isValid())
@@ -675,13 +704,18 @@ void FloatingTile::setContent(ValueTree& data)
 	else
 		addAndMakeVisible(content = new EmptyComponent(this));
 
-	layoutData.isFolded = !layoutData.isFolded;
+	refreshFoldButton();
 
-	setFolded(!layoutData.isFolded);
 	setLockedSize(layoutData.isLocked);
 	setUseAbsoluteSize(layoutData.isAbsolute);
 
+	if(getParentContainer())
+		getParentContainer()->refreshLayout();
+
 	bringButtonsToFront();
+	refreshMouseClickTarget();
+	resized();
+	repaint();
 }
 
 void FloatingTile::setNewContent(const Identifier& newId)
@@ -701,40 +735,21 @@ void FloatingTile::setNewContent(const Identifier& newId)
 	refreshRootLayout();
 
 	bringButtonsToFront();
+	refreshMouseClickTarget();
 
 	resized();
 }
 
-void FloatingTile::setDeletable(bool shouldBeDeletable)
+bool FloatingTile::isSwappable() const
 {
-	layoutData.deletable = shouldBeDeletable;
-}
+	if (getParentType() == ParentType::Root)
+		return false;
 
-void FloatingTile::setSwappable(bool shouldBeSwappable)
-{
-	layoutData.swappable = shouldBeSwappable;
-}
+	if (isVital())
+		return false;
 
-void FloatingTile::setReadOnly(bool shouldBeReadOnly)
-{
-	layoutData.readOnly = shouldBeReadOnly;
+	return getParentContainer()->isDynamic();
 
-	setLayoutModeEnabled(false);
-	setDeletable(false);
-	setSwappable(false);
-
-	if (layoutData.readOnly)
-	{
-		FloatingTile::Iterator<FloatingTileContent> it(this);
-
-		while (auto p = it.getNextPanel())
-			p->getParentShell()->setReadOnly(shouldBeReadOnly);
-	}
-}
-
-bool FloatingTile::isReadOnly() const noexcept
-{
-	return layoutData.readOnly;
 }
 
 void FloatingTile::setSelector(const FloatingTileContent* originPanel, Point<int> mousePosition)
@@ -770,9 +785,6 @@ bool FloatingTile::LayoutHelpers::showCloseButton(const FloatingTile* t)
 	if (!t->canBeDeleted())
 		return false;
 
-	if (t->isReadOnly())
-		return false;
-
 	if (!t->canDoLayoutMode())
 		return false;
 
@@ -798,10 +810,7 @@ bool FloatingTile::LayoutHelpers::showCloseButton(const FloatingTile* t)
 
 bool FloatingTile::LayoutHelpers::showMoveButton(const FloatingTile* t)
 {
-	if (!t->layoutData.swappable)
-		return false;
-
-	if (t->isReadOnly())
+	if (!t->isSwappable())
 		return false;
 
 	if (!t->isLayoutModeEnabled())
@@ -841,10 +850,9 @@ bool FloatingTile::LayoutHelpers::showFoldButton(const FloatingTile* t)
 
 bool FloatingTile::LayoutHelpers::showLockButton(const FloatingTile* t)
 {
-	if (!t->isLayoutModeEnabled())
-		return false;
+	return false;
 
-	if (t->isReadOnly())
+	if (!t->isLayoutModeEnabled())
 		return false;
 
 	if (!t->canDoLayoutMode())

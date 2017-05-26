@@ -52,11 +52,7 @@ public:
 		bool isAbsolute = false;
 		double currentSize = -0.5;
 		bool swappingEnabled = false;
-		bool layoutModeEnabled = true;
-		bool layoutModePossible = true;
-		bool swappable = true;
-		bool deletable = true;
-		bool readOnly = false;
+		
 		bool foldable = true;
 
 		void reset()
@@ -66,11 +62,6 @@ public:
 			isAbsolute = false;
 			currentSize = -0.5;
 			swappingEnabled = false;
-			layoutModeEnabled = true;
-			layoutModePossible = true;
-			swappable = true;
-			deletable = true;
-			readOnly = false;
 			foldable = true;
 		}
 	};
@@ -167,6 +158,8 @@ public:
 
 	void setFolded(bool shouldBeFolded);
 
+	void refreshFoldButton();
+
 	void setCanBeFolded(bool shouldBeFoldable);
 
 	bool canBeFolded() const;
@@ -181,13 +174,13 @@ public:
 
 	FloatingTile* getRootComponent();
 
+	const FloatingTile* getRootComponent() const;
+
 	void clear();
 	void refreshRootLayout();
 	void setLayoutModeEnabled(bool shouldBeEnabled, bool setChildrenToSameSetting=true);
 
-	bool isLayoutModeEnabled() const { return layoutData.layoutModeEnabled; };
-
-	void setCanDoLayoutMode(bool shouldBeAllowed);
+	bool isLayoutModeEnabled() const;;
 
 	bool canDoLayoutMode() const;
 
@@ -208,6 +201,8 @@ public:
 	void paint(Graphics& g) override;
 	void paintOverChildren(Graphics& g) override;
 
+	void refreshMouseClickTarget();
+
 	void mouseEnter(const MouseEvent& event) override;
 	void mouseExit(const MouseEvent& event) override;
 	void mouseDown(const MouseEvent& event) override;
@@ -226,6 +221,10 @@ public:
 	const LayoutData& getLayoutData() const { return layoutData; }
 	LayoutData& getLayoutData() { return layoutData; }
 
+	String exportAsJSON() const;
+
+	void loadFromJSON(const String& jsonData);
+
 	struct LayoutHelpers
 	{
 	public:
@@ -241,13 +240,13 @@ public:
 
 	void setNewContent(const Identifier& newId);
 
-	void setDeletable(bool shouldBeDeletable);
+	void setVital(bool shouldBeVital) { vital = shouldBeVital; }
+
+	bool isVital() const { return vital; }
+
 	bool canBeDeleted() const;
 
-	void setSwappable(bool shouldBeSwappable);
-
-	void setReadOnly(bool shouldBeReadOnly);
-	bool isReadOnly() const noexcept;
+	bool isSwappable() const;
 
 	FloatingTileContent::Factory* getPanelFactory() { return &panelFactory; };
 
@@ -322,6 +321,10 @@ public:
 	};
 
 private:
+
+	bool vital = false;
+
+	bool layoutModeEnabled = false;
 
 	ScopedPointer<Selector> currentSelector;
 

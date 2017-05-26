@@ -225,7 +225,7 @@ ModuleBrowser::ModuleCollection::ModuleCollection(Types t)
 
 void ModuleBrowser::ModuleCollection::paint(Graphics &g)
 {
-	if (getWidth() <= 0)
+	if (getWidth() <= 50)
 		return;
 
 	//g.fillAll(Colours::black.withAlpha(0.5f));

@@ -70,7 +70,8 @@ showChains(true)
 
 PatchBrowser::~PatchBrowser()
 {
-	editor->getModuleListNofifier().removeChangeListener(this);
+	if(editor != nullptr)
+		editor->getModuleListNofifier().removeChangeListener(this);
 
 	addButton = nullptr;
 }
