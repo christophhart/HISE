@@ -203,7 +203,7 @@ struct HiseColourScheme
 			switch (currentColourScheme)
 			{
 			case HiseColourScheme::Dark:
-				return JUCE_LIVE_CONSTANT(Colour(0x02FFFFFF));
+				return JUCE_LIVE_CONSTANT_OFF(Colour(0xFF3D3D3D));
 			case HiseColourScheme::Bright:
 				return JUCE_LIVE_CONSTANT_OFF(Colour(0xff5d5d5d));
 			case HiseColourScheme::numSchemes:

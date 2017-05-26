@@ -132,7 +132,7 @@ void BackendRootWindow::resized()
 
 	const float dpiScale = Desktop::getInstance().getGlobalScaleFactor();
 
-	floatingRoot->setBounds(getLocalBounds().withTrimmedTop(menuBarOffset));
+	floatingRoot->setBounds(4, menuBarOffset, getWidth() - 8, getHeight() - menuBarOffset);
 
 #if IS_STANDALONE_APP
 

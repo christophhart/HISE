@@ -662,7 +662,7 @@ void JavascriptCodeEditor::showAutoCompleteNew()
 	}
 	else
 	{
-		Component *editor = findParentComponentOfClass<BackendProcessorEditor>();
+		Component *editor = findParentComponentOfClass<BackendRootWindow>();
 
 		if (editor == nullptr)
 		{

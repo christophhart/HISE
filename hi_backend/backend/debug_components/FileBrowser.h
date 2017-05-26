@@ -114,7 +114,9 @@ public:
 		numFileBrowserCommands
 	};
 
-	FileBrowser(BackendProcessorEditor *editor);
+	FileBrowser(BackendRootWindow* rootWindow);
+
+	SET_GENERIC_PANEL_ID("FileBrowser");
 
 	ApplicationCommandTarget* getNextCommandTarget() override
 	{

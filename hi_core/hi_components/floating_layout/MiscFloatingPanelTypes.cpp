@@ -155,7 +155,7 @@ PanelWithProcessorConnection::~PanelWithProcessorConnection()
 void PanelWithProcessorConnection::paint(Graphics& g)
 {
 
-	const bool connected = getProcessor() != nullptr && (!hasSubIndex() || selectedIndex != -1);
+	const bool connected = getProcessor() != nullptr && (!hasSubIndex() || currentIndex != -1);
 
 	g.setColour(Colour(0xFF3D3D3D));
 	g.fillRect(0, 16, getWidth(), 18);
@@ -181,7 +181,7 @@ void PanelWithProcessorConnection::resized()
 	connectionSelector->setVisible(!getParentShell()->isFolded());
 	connectionSelector->setBounds(18, 16, 128, 18);
 
-	indexSelector->setVisible(!getParentShell()->isFolded());
+	indexSelector->setVisible(!getParentShell()->isFolded() && hasSubIndex());
 	indexSelector->setBounds(connectionSelector->getRight() + 5, 16, 128, 18);
 
 	if (content != nullptr)
@@ -189,7 +189,7 @@ void PanelWithProcessorConnection::resized()
 		if (getHeight() > 18)
 		{
 			content->setVisible(true);
-			content->setBounds(0, 16+18, getWidth(), getHeight() - 18-16);
+			content->setBounds(0, 16+18, getWidth(), jmax<int>(0, getHeight() - 18-16));
 		}
 		else
 			content->setVisible(false);
@@ -201,14 +201,11 @@ void PanelWithProcessorConnection::comboBoxChanged(ComboBox* comboBoxThatHasChan
 	if (comboBoxThatHasChanged == connectionSelector)
 	{
 		indexSelector->clear(dontSendNotification);
-		selectedIndex = -1;
+		setConnectionIndex(-1);
 
 		if (connectionSelector->getSelectedId() == 1)
 		{
-			setConnectedProcessor(nullptr);
-			
-			
-
+			setCurrentProcessor(nullptr);
 			refreshContent();
 		}
 		else
@@ -216,26 +213,35 @@ void PanelWithProcessorConnection::comboBoxChanged(ComboBox* comboBoxThatHasChan
 			const String id = comboBoxThatHasChanged->getText();
 
 			auto p = ProcessorHelpers::getFirstProcessorWithName(getMainSynthChain(), id);
-			setConnectedProcessor(p);
 		
+			connectedProcessor = p;
+
 			if (hasSubIndex())
+			{
 				refreshIndexList();
-
-			selectedIndex = -1;
-
-			refreshContent();
+				setContentWithUndo(p, 0);
+			}
+			else
+			{
+				setConnectionIndex(-1);
+				setContentWithUndo(p, -1);
+			}
 		}
 	}
 	else if (comboBoxThatHasChanged == indexSelector)
 	{
-		if (indexSelector->getSelectedId() == 1)
+		int newIndex = -1;
+
+		if (indexSelector->getSelectedId() != 1)
 		{
-			selectedIndex = -1;
+			newIndex = indexSelector->getSelectedId() - 2;
+			setContentWithUndo(connectedProcessor.get(), newIndex);
 		}
 		else
-			selectedIndex = indexSelector->getSelectedId() - 2;
-
-		refreshContent();
+		{
+			setConnectionIndex(newIndex);
+			refreshContent();
+		}
 	}
 }
 
@@ -293,16 +299,39 @@ const ModulatorSynthChain* PanelWithProcessorConnection::getMainSynthChain() con
 	return rootWindow->getMainSynthChain();
 }
 
+void PanelWithProcessorConnection::setContentWithUndo(Processor* newProcessor, int newIndex)
+{
+	auto undoManager = rootWindow->getBackendProcessor()->getViewUndoManager();
+	
+	String undoText;
+
+	StringArray indexes;
+	fillIndexList(indexes);
+
+	undoText << (currentProcessor.get() != nullptr ? currentProcessor->getId() : "Disconnected") << ": " << indexes[currentIndex] << " -> ";
+	undoText << (newProcessor != nullptr ? newProcessor->getId() : "Disconnected") << ": " << indexes[newIndex] << " -> ";
+
+	undoManager->beginNewTransaction(undoText);
+	undoManager->perform(new ProcessorConnection(this, newProcessor, newIndex));
+}
+
+
 Component* CodeEditorPanel::createContentComponent(int index)
 {
 	auto p = dynamic_cast<JavascriptProcessor*>(getProcessor());
 
-	return new PopupIncludeEditor(p, p->getSnippet(index)->getCallbackName());
+	auto pe = new PopupIncludeEditor(p, p->getSnippet(index)->getCallbackName());
+
+	getProcessor()->getMainController()->setLastActiveEditor(pe->getEditor(), CodeDocument::Position());
+
+	pe->getEditor()->grabKeyboardFocus();
+
+	return pe;
 }
 
 void CodeEditorPanel::fillIndexList(StringArray& indexList)
 {
-	auto p = dynamic_cast<JavascriptProcessor*>(getProcessor());
+	auto p = dynamic_cast<JavascriptProcessor*>(getConnectedProcessor());
 
 	if (p != nullptr)
 	{
@@ -311,4 +340,20 @@ void CodeEditorPanel::fillIndexList(StringArray& indexList)
 			indexList.add(p->getSnippet(i)->getCallbackName().toString());
 		}
 	}
+}
+
+Component* ScriptContentPanel::createContentComponent(int /*index*/)
+{
+	auto pwsc = dynamic_cast<ProcessorWithScriptingContent*>(getConnectedProcessor());
+
+	return new ScriptContentComponent(pwsc);
+}
+
+Component* ScriptWatchTablePanel::createContentComponent(int /*index*/)
+{
+	auto swt = new ScriptWatchTable(getRootWindow());
+
+	swt->setScriptProcessor(dynamic_cast<JavascriptProcessor*>(getConnectedProcessor()), nullptr);
+
+	return swt;
 }

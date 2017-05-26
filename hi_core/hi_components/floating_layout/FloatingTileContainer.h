@@ -33,6 +33,7 @@
 #ifndef FLOATINGTILECONTAINER_H_INCLUDED
 #define FLOATINGTILECONTAINER_H_INCLUDED
 
+class FloatingTile;
 
 /** A floating tile container is the base class for components that can host other floating tiles in various arrangements. */
 class FloatingTileContainer : public FloatingTileContent
@@ -179,6 +180,14 @@ class ResizableFloatingTileContainer : public FloatingTileContainer,
 {
 public:
 
+	struct LookAndFeel: public LookAndFeel_V3
+	{
+		virtual void paintBackground(Graphics& g, ResizableFloatingTileContainer& container)
+		{
+
+		}
+	};
+
 	class InternalResizer : public Component
 	{
 	public:
@@ -229,15 +238,8 @@ public:
 		return getCustomTitle().isNotEmpty();
 	}
 
-	Rectangle<int> getContainerBounds() const override
-	{
-		auto localBounds = dynamic_cast<const Component*>(this)->getLocalBounds();
-
-		const bool isInTabs = dynamic_cast<const FloatingTabComponent*>(getParentShell()->getParentContainer());
-
-		return getParentShell()->isLayoutModeEnabled() && isInsertingEnabled() || (!isInTabs && hasCustomTitle()) ? localBounds.withTrimmedTop(16) : localBounds;
-	}
-
+    Rectangle<int> getContainerBounds() const override;
+	
 	virtual bool isVertical() const { return vertical; }
 
 	/** Call this if you want to refresh the layout. 
@@ -245,6 +247,8 @@ public:
 	*	It will recreate the resizer bars and move the panels to their position.
 	**/
 	void refreshLayout() override;
+
+	void paint(Graphics& g) override;
 
 	int getMinimumOffset() const;
 	int getMaximumOffset() const;
@@ -273,6 +277,8 @@ protected:
 	void componentRemoved(FloatingTile* c) override;
 
 private:
+
+	LookAndFeel laf;
 
 	void performLayout(Rectangle<int> area);
 

@@ -859,7 +859,7 @@ double ScriptingApi::Engine::getUptime() const
 {
 	const ScriptBaseMidiProcessor* jmp = dynamic_cast<const ScriptBaseMidiProcessor*>(getProcessor());
 
-	if (jmp->getCurrentHiseEvent() != nullptr)
+	if (jmp != nullptr && jmp->getCurrentHiseEvent() != nullptr)
 	{
 		return jmp->getMainController()->getUptime() + jmp->getCurrentHiseEvent()->getTimeStamp() / getSampleRate();
 	}

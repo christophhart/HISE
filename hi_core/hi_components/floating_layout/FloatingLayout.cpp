@@ -37,6 +37,7 @@
 
 #include "FloatingTileContent.cpp"
 #include "MiscFloatingPanelTypes.cpp"
-#include "FloatingTile.cpp"
 #include "FloatingTileContainer.cpp"
+#include "FloatingTile.cpp"
+
 #include "FloatingInterfaceBuilder.cpp"

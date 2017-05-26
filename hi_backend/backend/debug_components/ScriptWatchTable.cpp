@@ -30,10 +30,8 @@
 *   ===========================================================================
 */
 
-ScriptWatchTable::ScriptWatchTable(MainController *mc, BaseDebugArea *area) :
-	AutoPopupDebugComponent(area),
-	controller(mc),
-	editor(nullptr)
+ScriptWatchTable::ScriptWatchTable(BackendRootWindow* window) :
+	controller(window->getBackendProcessor())
 {
 	setName(getHeadline());
 
@@ -63,7 +61,7 @@ ScriptWatchTable::ScriptWatchTable(MainController *mc, BaseDebugArea *area) :
 	fuzzySearchBox->setFont(GLOBAL_FONT());
 	fuzzySearchBox->setSelectAllWhenFocused(true);
 
-	mc->addScriptListener(this);
+	controller->addScriptListener(this);
 
 	rebuildLines();
 
@@ -78,7 +76,6 @@ ScriptWatchTable::~ScriptWatchTable()
 	controller = nullptr;
 	allVariableLines.clear();
 	processor = nullptr;
-	editor = nullptr;
 	table = nullptr;
 }
 
@@ -214,7 +211,7 @@ void ScriptWatchTable::refreshChangeStatus()
 
 void ScriptWatchTable::mouseDoubleClick(const MouseEvent &e)
 {
-	if (processor.get() != nullptr  && editor.getComponent() != nullptr)
+	if (processor.get() != nullptr)
 	{
 		DebugInformation *info = getDebugInformationForRow(table->getSelectedRow(0));
 
@@ -222,14 +219,38 @@ void ScriptWatchTable::mouseDoubleClick(const MouseEvent &e)
 		{
 			DebugableObject *db = info->getObject();
 
+			auto editor = dynamic_cast<JavascriptCodeEditor*>(processor->getMainController()->getLastActiveEditor());
+
+			if (editor == nullptr)
+				return;
+
+			if (auto editorPanel = editor->findParentComponentOfClass<CodeEditorPanel>())
+			{
+				editorPanel->setContentWithUndo(processor, 0);
+
+				editor = editorPanel->getContent<PopupIncludeEditor>()->getEditor();
+
+				CodeDocument::Position pos(editor->getDocument(), info->location.charNumber);
+				editor->scrollToLine(jmax<int>(0, pos.getLineNumber()));
+			}
+
+			
+
+			
+
+#if 0
+
+			DebugableObject::Helpers::gotoLocation(editor.getComponent(), dynamic_cast<JavascriptProcessor*>(processor.get()), info->location);
+
 			if (db != nullptr)
 			{
 				db->doubleClickCallback(e, editor.getComponent());
 			}
 			else
 			{
-				DebugableObject::Helpers::gotoLocation(editor.getComponent(), dynamic_cast<JavascriptProcessor*>(processor.get()), info->location);
+				
 			}
+#endif
 		}
 	}
 }
@@ -283,19 +304,17 @@ DebugInformation* ScriptWatchTable::getDebugInformationForRow(int rowIndex)
 void ScriptWatchTable::setScriptProcessor(JavascriptProcessor *p, ScriptingEditor *editor_)
 {
 	processor = dynamic_cast<Processor*>(p);
-	editor = editor_;
-
+	
 	setName(getHeadline());
 
 	if(processor.get() != nullptr)
 	{
-		showComponentInDebugArea(true);
+		
 		rebuildLines();
 		startTimer(400);
 	}
 	else
 	{
-		showComponentInDebugArea(false);
 		allVariableLines.clear();
 		
 		table->updateContent();

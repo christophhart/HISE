@@ -49,7 +49,6 @@ class ScriptingEditor;
 class ScriptWatchTable      : public Component,
 public TableListBoxModel,
 public Timer,
-public AutoPopupDebugComponent,
 public TextEditor::Listener,
 public GlobalScriptCompileListener
 {
@@ -72,8 +71,10 @@ public:
 		numRefreshEvents
 	};
 
-    ScriptWatchTable(MainController *controller, BaseDebugArea *area) ;
+    ScriptWatchTable(BackendRootWindow *window) ;
     
+	SET_GENERIC_PANEL_ID("ScriptWatchTable");
+
     ~ScriptWatchTable();
     
     void timerCallback();
@@ -118,7 +119,7 @@ private:
     BigInteger changed;
     MainController *controller;
     WeakReference<Processor> processor;
-    Component::SafePointer<ScriptingEditor> editor;
+    
     ScopedPointer<TableListBox> table;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptWatchTable);

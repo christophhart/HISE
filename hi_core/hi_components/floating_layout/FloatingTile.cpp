@@ -482,7 +482,7 @@ void FloatingTile::paint(Graphics& g)
 	if (titleArea.getWidth() > 40)
 	{
 		g.setGradientFill(ColourGradient(Colour(0xFF333333), 0.0f, 0.0f,
-									     Colour(0xFF2A2A2A), 0.0f, 16.0f, false));
+									     Colour(0xFF2D2D2D), 0.0f, 16.0f, false));
 
 		g.setFont(GLOBAL_BOLD_FONT());
 		g.fillRect(0, 0, getWidth(), 16);

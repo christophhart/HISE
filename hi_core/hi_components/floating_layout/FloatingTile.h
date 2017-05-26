@@ -95,7 +95,6 @@ public:
 
 	private:
 
-
 		void addToList(FloatingTile* p)
 		{
 			if (auto m = dynamic_cast<ContentType*>(p->getCurrentFloatingPanel()))

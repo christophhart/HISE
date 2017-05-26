@@ -31,8 +31,8 @@
 */
 
 
-ModuleBrowser::ModuleBrowser(BaseDebugArea *area) :
-SearchableListComponent(area)
+ModuleBrowser::ModuleBrowser(BackendRootWindow* rootWindow) :
+SearchableListComponent(rootWindow)
 {
 	setName("Module Browser");
 }
@@ -225,6 +225,9 @@ ModuleBrowser::ModuleCollection::ModuleCollection(Types t)
 
 void ModuleBrowser::ModuleCollection::paint(Graphics &g)
 {
+	if (getWidth() <= 0)
+		return;
+
 	//g.fillAll(Colours::black.withAlpha(0.5f));
 	p.scaleToFit(10.0f, 10.0f, 20.0f, 20.0f, true);
 	g.setColour(Colours::white.withAlpha(0.4f));

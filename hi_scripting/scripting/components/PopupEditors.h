@@ -55,6 +55,8 @@ public:
 
 	void gotoChar(int character, int lineNumber = -1);
 
+	JavascriptCodeEditor* getEditor() { return editor.get(); }
+
 private:
 
 	friend class PopupIncludeEditorWindow;

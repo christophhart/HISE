@@ -38,8 +38,9 @@
 
 #include "FloatingTileContent.h"
 #include "MiscFloatingPanelTypes.h"
-#include "FloatingTile.h"
 #include "FloatingTileContainer.h"
+#include "FloatingTile.h"
+
 #include "FloatingInterfaceBuilder.h"
 
 

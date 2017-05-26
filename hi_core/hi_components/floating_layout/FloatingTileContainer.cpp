@@ -65,6 +65,8 @@ int FloatingTileContainer::getIndexOfComponent(const FloatingTile* componentToLo
 	return components.indexOf(componentToLookFor);
 }
 
+
+
 void FloatingTileContainer::addFloatingTile(FloatingTile* newComponent)
 {
 	components.add(newComponent);
@@ -154,7 +156,7 @@ void FloatingTabComponent::LookAndFeel::drawTabButton(TabBarButton &b, Graphics 
 
 Rectangle< int > FloatingTabComponent::LookAndFeel::getTabButtonExtraComponentBounds(const TabBarButton &b, Rectangle< int > &/*textArea*/, Component &/*extraComp*/)
 {
-	return Rectangle<int>(b.getWidth() - 18, 6, 16, 16);
+	return Rectangle<int>(b.getWidth() - 18, 2, 16, 16);
 }
 
 void FloatingTabComponent::LookAndFeel::drawTabAreaBehindFrontButton(TabbedButtonBar &b, Graphics &g, int , int )
@@ -274,8 +276,8 @@ void FloatingTabComponent::paint(Graphics& g)
 	g.setColour(HiseColourScheme::getColour(HiseColourScheme::EditorBackgroundColourId));
 	g.fillRect(0, 4, getWidth(), 18);
 
-	g.setColour(Colour(0xFF333333));
-	g.fillRect(0, 22, getWidth(), 2);
+	g.setColour(JUCE_LIVE_CONSTANT(Colour(0xFF333333)));
+	g.fillRect(0, 0, getWidth(), 24);
 }
 
 void FloatingTabComponent::resized()
@@ -333,6 +335,23 @@ void ResizableFloatingTileContainer::refreshLayout()
 	rebuildResizers();
 }
 
+void ResizableFloatingTileContainer::paint(Graphics& g)
+{
+	auto thisLaf = dynamic_cast<LookAndFeel*>(&getLookAndFeel());
+
+	if(thisLaf)
+		thisLaf->paintBackground(g, *this);
+}
+
+Rectangle<int> ResizableFloatingTileContainer::getContainerBounds() const
+{
+    auto localBounds = dynamic_cast<const Component*>(this)->getLocalBounds();
+    
+    const bool isInTabs = dynamic_cast<const FloatingTabComponent*>(getParentShell()->getParentContainer());
+    
+    return getParentShell()->isLayoutModeEnabled() && isInsertingEnabled() || (!isInTabs && hasCustomTitle()) ? localBounds.withTrimmedTop(20) : localBounds;
+}
+
 int ResizableFloatingTileContainer::getMinimumOffset() const
 {
 	return getDimensionOffset(getContainerBounds());
@@ -363,6 +382,8 @@ ResizableFloatingTileContainer::ResizableFloatingTileContainer(FloatingTile* par
 	vertical(isVerticalTile)
 {
 	addAndMakeVisible(addButton = new ShapeButton("Add Column", Colours::white.withAlpha(0.7f), Colours::white, Colours::white));
+
+	setLookAndFeel(&laf);
 
 	Path p;
 
@@ -611,7 +632,7 @@ void ResizableFloatingTileContainer::setBoundsOneDimension(Component* c, int off
 		newBounds = Rectangle<int>(offset, area.getY(), size, area.getHeight());
 	}
 
-	if (animate)
+	if (false && animate)
 	{
 		if (c->isVisible())
 			Desktop::getInstance().getAnimator().animateComponent(c, newBounds, 1.0f, 150, false, 1.3, 0.0);
@@ -693,6 +714,7 @@ void ResizableFloatingTileContainer::InternalResizer::paint(Graphics& g)
 		g.setColour(Colours::white.withAlpha(active ? 1.0f : 0.2f));
 		g.fillPath(resizeIcon);
 	}
+
 }
 
 void ResizableFloatingTileContainer::InternalResizer::mouseDown(const MouseEvent& e)

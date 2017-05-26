@@ -71,8 +71,7 @@ private:
 *	
 */
 class SearchableListComponent: public Component,
-							   public TextEditor::Listener,
-							   public AutoPopupDebugComponent
+							   public TextEditor::Listener
 {
 
 public:
@@ -261,9 +260,10 @@ public:
 
 	void setShowEmptyCollections(bool emptyCollectionsShouldBeShown);;
 
+	BackendRootWindow* getRootWindow() { return rootWindow; }
    
 protected:
-	SearchableListComponent(BaseDebugArea *area);
+	SearchableListComponent(BackendRootWindow* window);
 
 	/** Overwrite this method and return the number of collections.
 	*
@@ -291,6 +291,8 @@ protected:
 	}
 
 private:
+
+	BackendRootWindow* rootWindow;
 
 	double fuzzyness;
 

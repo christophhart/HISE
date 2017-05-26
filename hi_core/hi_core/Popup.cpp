@@ -139,6 +139,20 @@ void TooltipBar::mouseDown(const MouseEvent &)
 	
 }
 
+void AutoPopupDebugComponent::showComponentInDebugArea(bool shouldBeVisible)
+{
+	if (isFloating())
+		return;
+
+	if (parentArea == nullptr) return;
+
+	int index = parentArea->getIndexForComponent(dynamic_cast<Component*>(this));
+	if (index != -1)
+	{
+		parentArea->showComponent(index, shouldBeVisible);
+	}
+}
+
 bool AutoPopupDebugComponent::isFloating() const
 {
 	const Component* c = dynamic_cast<const Component*>(this);

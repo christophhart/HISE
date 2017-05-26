@@ -313,11 +313,7 @@ public:
 		return false;
 	}
 
-	void resized() override
-	{
-		tooltipBar->setBounds(2, 2, getWidth() - 200, 28);
-		voiceCpuBpmComponent->setBounds(getWidth() - 120, 2, 120, 28);
-	}
+	void resized() override;
 
 	SET_PANEL_NAME("MainTopBar");
 
@@ -326,6 +322,8 @@ private:
 	ScopedPointer<TooltipBar> tooltipBar;
 	ScopedPointer<VoiceCpuBpmComponent> voiceCpuBpmComponent;
 
+	ScopedPointer<ShapeButton> backButton;
+	ScopedPointer<ShapeButton> forwardButton;
 
 };
 

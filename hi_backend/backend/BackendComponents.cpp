@@ -238,21 +238,6 @@ void MacroComponent::changeListenerCallback(SafeChangeBroadcaster *)
 }
 
 
-void AutoPopupDebugComponent::showComponentInDebugArea(bool shouldBeVisible)
-{
-	if (isFloating())
-		return;
-
-	if (parentArea == nullptr) return;
-
-	int index = parentArea->getIndexForComponent(dynamic_cast<Component*>(this));
-	if (index != -1)
-	{
-		parentArea->showComponent(index, shouldBeVisible);
-	}
-}
-
-
 CachedViewport::CachedViewport()
 {
 	addAndMakeVisible(viewport = new InternalViewport());
@@ -265,8 +250,6 @@ CachedViewport::CachedViewport()
 
 bool CachedViewport::isInterestedInDragSource(const SourceDetails & dragSourceDetails)
 {
-    
-    
     return File::isAbsolutePath(dragSourceDetails.description.toString()) && File(dragSourceDetails.description).getFileExtension() == ".hip";
 }
 

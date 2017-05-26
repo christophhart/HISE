@@ -433,6 +433,11 @@ public:
 		lastCharacterPositionOfSelectedEditor = position.getPosition();
 	}
 
+	CodeEditorComponent* getLastActiveEditor()
+	{
+		return lastActiveEditor.getComponent();
+	}
+
 	void insertStringAtLastActiveEditor(const String &string, bool selectArguments);
 
 	void loadTypeFace(const String& fileName, const void* fontData, size_t fontDataSize);

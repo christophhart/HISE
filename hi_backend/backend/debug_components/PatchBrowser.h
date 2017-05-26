@@ -46,8 +46,10 @@ public:
 
 	// ====================================================================================================================
 
-	PatchBrowser(BaseDebugArea *area, BackendProcessorEditor *editor_);
+	PatchBrowser(BackendRootWindow *window);
 	~PatchBrowser();
+
+	SET_GENERIC_PANEL_ID("PatchBrowser");
 
 	// ====================================================================================================================
 

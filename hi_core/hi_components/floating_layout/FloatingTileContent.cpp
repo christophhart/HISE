@@ -272,8 +272,14 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<MidiKeyboardPanel>();
 	registerType<TableEditorPanel>();
 	registerType<CodeEditorPanel>();
+	registerType<ScriptContentPanel>();
 	registerType<SliderPackPanel>();
 	registerType<ConsolePanel>();
+	registerType<GenericPanel<ApiCollection>>();
+	registerType<ScriptWatchTablePanel>();
+	registerType<GenericPanel<ModuleBrowser>>();
+	registerType<GenericPanel<PatchBrowser>>();
+	registerType<GenericPanel<FileBrowser>>();
 	registerType<ApplicationCommandButtonPanel>();
 
 }
@@ -308,9 +314,15 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 		Note,
 		MidiKeyboard,
 		ScriptEditor,
+		ScriptContent,
 		TablePanel,
 		SliderPackPanel,
 		Console,
+		ApiCollection,
+		ScriptWatchTable,
+		ModuleBrowser,
+		PatchBrowser,
+		FileBrowser,
 		toggleLayoutMode,
 		toggleGlobalLayoutMode,
 		MenuCommandOffset = 10000,
@@ -332,13 +344,22 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 			m.addItem((int)PopupMenuOptions::ThreeRows, "3 Rows");
 		}
 
+		m.addSectionHeader("Debug Tools");
+		m.addItem((int)PopupMenuOptions::Console, "Console");
+		m.addItem((int)PopupMenuOptions::ApiCollection, "API Browser");
+		m.addItem((int)PopupMenuOptions::ScriptWatchTable, "Live Variable View");
+
+
 		m.addSectionHeader("Misc Tools");
 		m.addItem((int)PopupMenuOptions::Note, "Note");
 		m.addItem((int)PopupMenuOptions::MidiKeyboard, "Virtual Keyboard");
 		m.addItem((int)PopupMenuOptions::TablePanel, "Table Editor");
+		m.addItem((int)PopupMenuOptions::ModuleBrowser, "Module Browser");
+		m.addItem((int)PopupMenuOptions::PatchBrowser, "Patch Browser");
+		m.addItem((int)PopupMenuOptions::FileBrowser, "File Browser");
 		m.addItem((int)PopupMenuOptions::SliderPackPanel, "Array Editor");
 		m.addItem((int)PopupMenuOptions::ScriptEditor, "Script Editor");
-		m.addItem((int)PopupMenuOptions::Console, "Console");
+		m.addItem((int)PopupMenuOptions::ScriptContent, "Script Content");
 		m.addSeparator();
 
 		PopupMenu icons;
@@ -387,8 +408,14 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::MidiKeyboard:		parent->setNewContent(GET_PANEL_NAME(MidiKeyboardPanel)); break;
 	case PopupMenuOptions::TablePanel:			parent->setNewContent(GET_PANEL_NAME(TableEditorPanel)); break;
 	case PopupMenuOptions::ScriptEditor:		parent->setNewContent(GET_PANEL_NAME(CodeEditorPanel)); break;
+	case PopupMenuOptions::ScriptContent :		parent->setNewContent(GET_PANEL_NAME(ScriptContentPanel)); break;
 	case PopupMenuOptions::SliderPackPanel:		parent->setNewContent(GET_PANEL_NAME(SliderPackPanel)); break;
 	case PopupMenuOptions::Console:				parent->setNewContent(GET_PANEL_NAME(ConsolePanel)); break;
+	case PopupMenuOptions::ApiCollection:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<ApiCollection>)); break;
+	case PopupMenuOptions::PatchBrowser:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<PatchBrowser>)); break;
+	case PopupMenuOptions::FileBrowser:			parent->setNewContent(GET_PANEL_NAME(GenericPanel<FileBrowser>)); break;
+	case PopupMenuOptions::ModuleBrowser:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<ModuleBrowser>)); break;
+	case PopupMenuOptions::ScriptWatchTable:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<ScriptWatchTable>)); break;
 	case PopupMenuOptions::toggleLayoutMode:    parent->toggleLayoutModeForParentContainer(); break;
 	case PopupMenuOptions::toggleGlobalLayoutMode:    parent->getRootComponent()->toggleLayoutModeForParentContainer(); break;
 	case PopupMenuOptions::numOptions:

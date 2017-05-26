@@ -131,7 +131,8 @@ public:
 
 	void handleControllersForMacroKnobs(const MidiBuffer &midiMessages);
 
- 
+	UndoManager* getViewUndoManager() { return viewUndoManager; }
+
 	AudioProcessorEditor* createEditor();
 	bool hasEditor() const {return true;};
 

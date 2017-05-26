@@ -42,7 +42,7 @@
 #endif
 
 
-#define CONTAINER_WIDTH 900 - 16
+#define CONTAINER_WIDTH 900 - 32
 #define INTENDATION_WIDTH 10
 
 

@@ -177,7 +177,7 @@ Drawable * FileBrowserToolbarFactory::FileBrowserToolbarPaths::createPath(int id
 }
 
 
-FileBrowser::FileBrowser(BackendProcessorEditor* editor) :
+FileBrowser::FileBrowser(BackendRootWindow* rootWindow) :
 directorySearcher("Directory Scanner")
 {
     loadFavoriteFile();
@@ -234,7 +234,7 @@ directorySearcher("Directory Scanner")
 
 #if HISE_IOS
 #else
-    goToDirectory(GET_PROJECT_HANDLER(editor->getMainSynthChain()).getWorkDirectory());
+    goToDirectory(GET_PROJECT_HANDLER(rootWindow->getMainSynthChain()).getWorkDirectory());
 #endif
 }
 
@@ -428,6 +428,9 @@ bool FileBrowser::perform(const InvocationInfo &info)
 
 void FileBrowser::paint(Graphics &g)
 {
+	if (getHeight() <= 0)
+		return;
+
 	g.setColour(HiseColourScheme::getColour(HiseColourScheme::ColourIds::DebugAreaBackgroundColourId));
 
 	g.fillRect(0, 24, getWidth(), getHeight() - 24);

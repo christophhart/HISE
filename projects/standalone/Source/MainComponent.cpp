@@ -19,6 +19,22 @@
 #define SCALE_2 0
 
 
+struct DebugPanelLookAndFeel : public ResizableFloatingTileContainer::LookAndFeel
+{
+	void paintBackground(Graphics& g, ResizableFloatingTileContainer& container) override
+	{
+		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff373737)));
+		g.fillRect(container.getContainerBounds());
+
+		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff2c2c2c)));
+
+		//g.drawVerticalLine(0, 0.0f, (float)container.getHeight());
+
+		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff5f5f5f)));
+
+		//g.drawVerticalLine(container.getWidth() - 1, 0.0f, (float)container.getHeight());
+	}
+};
 
 Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 {
@@ -51,6 +67,10 @@ Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 	const int leftColumn = ib.addChild<HorizontalTile>(firstVertical);
 	const int mainColumn = ib.addChild<HorizontalTile>(firstVertical);
 	const int rightColumn = ib.addChild<HorizontalTile>(firstVertical);
+
+	dynamic_cast<Component*>(ib.getContainer(leftColumn))->setLookAndFeel(new DebugPanelLookAndFeel());
+	dynamic_cast<Component*>(ib.getContainer(rightColumn))->setLookAndFeel(new DebugPanelLookAndFeel());
+
 
 	ib.setSizes(firstVertical, { -0.5, 900.0, -0.5 }, dontSendNotification);
 	ib.setAbsoluteSize(firstVertical, { false, true, false }, dontSendNotification);

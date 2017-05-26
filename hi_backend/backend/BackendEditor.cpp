@@ -174,7 +174,7 @@ void BackendProcessorEditor::setViewportPositions(int viewportX, const int viewp
 	const int containerHeight = getHeight() - viewportY;
 
 	viewport->setVisible(containerHeight > 0);
-	viewport->setBounds(0, viewportY, getWidth(), containerHeight); // Overlap with the fade
+	viewport->setBounds(viewportX, viewportY, getWidth()-viewportX, containerHeight); // Overlap with the fade
 
 	aboutPage->setBounds(viewportX, viewportY, viewportWidth, viewportHeight);
 
@@ -210,11 +210,11 @@ void BackendProcessorEditor::paint(Graphics &g)
 void BackendProcessorEditor::resized()
 {
 	const int breadcrumbHeight = rootEditorIsMainSynthChain ? 0 : 30;
-	const int viewportY = 0; // 0 + 8 + 24 + 8;
+	const int viewportY = 4; // 0 + 8 + 24 + 8;
 	
 	const int viewportHeight = getHeight();// -viewportY - (keyboard->isVisible() ? 0 : 10);
 	
-	const int viewportWidth = getWidth() - 16;
+	const int viewportWidth = getWidth() - 32;
 	
     const int bw = 16;
 
@@ -225,7 +225,7 @@ void BackendProcessorEditor::resized()
 
 	bool poolVisible, inspectorVisible;
 
-	viewportX = 0;
+	viewportX = 16;
 
 	poolVisible = false;
 	inspectorVisible = false;
@@ -235,7 +235,7 @@ void BackendProcessorEditor::resized()
 
 	//setToolBarPosition(viewportX, 4 , viewportWidth, 28);
 
-	breadCrumbComponent->setBounds(viewportX, viewportY, viewportWidth, breadcrumbHeight);
+	breadCrumbComponent->setBounds(viewportX, viewportY + 3, viewportWidth, breadcrumbHeight);
 
 	setViewportPositions(viewportX, viewportY + breadcrumbHeight, viewportWidth, viewportHeight);
 
@@ -455,6 +455,38 @@ BackendProcessorEditor* MainPanel::set(BackendProcessor* owner, BackendRootWindo
 MainTopBar::MainTopBar(FloatingTile* parent) :
 	FloatingTileContent(parent)
 {
+	addAndMakeVisible(backButton = new ShapeButton("Back", Colours::white.withAlpha(0.4f), Colours::white.withAlpha(0.8f), Colours::white));
+	ScopedPointer<DrawablePath> bPath = dynamic_cast<DrawablePath*>(MainToolbarFactory::MainToolbarPaths::createPath(BackendCommandTarget::MenuViewBack, true));
+	backButton->setShape(bPath->getPath(), false, true, true);
+	backButton->setCommandToTrigger(getRootWindow()->getBackendProcessor()->getCommandManager(), BackendCommandTarget::MenuViewBack, true);
+
+	addAndMakeVisible(forwardButton = new ShapeButton("Forward", Colours::white.withAlpha(0.4f), Colours::white.withAlpha(0.8f), Colours::white));
+	ScopedPointer<DrawablePath> fPath = dynamic_cast<DrawablePath*>(MainToolbarFactory::MainToolbarPaths::createPath(BackendCommandTarget::MenuViewForward, true));
+	forwardButton->setShape(fPath->getPath(), false, true, true);
+	forwardButton->setCommandToTrigger(getRootWindow()->getBackendProcessor()->getCommandManager(), BackendCommandTarget::MenuViewForward, true);
+
 	addAndMakeVisible(tooltipBar = new TooltipBar());
 	addAndMakeVisible(voiceCpuBpmComponent = new VoiceCpuBpmComponent(parent->getRootWindow()->getBackendProcessor()));
+    
+    tooltipBar->setColour(TooltipBar::ColourIds::backgroundColour, Colours::transparentBlack);
+}
+
+void MainTopBar::resized()
+{
+	int x = 4;
+
+	backButton->setBounds(4, 4, 24, 24);
+
+	x = backButton->getRight() + 4;
+
+	forwardButton->setBounds(x, 4, 24, 24);
+
+	x = forwardButton->getRight() + 4;
+
+	voiceCpuBpmComponent->setBounds(getWidth() - 124, 4, 120, 28);
+
+	int r = voiceCpuBpmComponent->getX() - 4;
+
+	tooltipBar->setBounds(x, 4, r - x, 24);
+	
 }

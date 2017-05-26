@@ -254,6 +254,56 @@ class PanelWithProcessorConnection : public FloatingTileContent,
 {
 public:
 
+	class ProcessorConnection : public UndoableAction
+	{
+	public:
+
+		ProcessorConnection(PanelWithProcessorConnection* panel_, Processor* newProcessor_, int newIndex_) :
+			panel(panel_),
+			newProcessor(newProcessor_),
+			newIndex(newIndex_)
+		{
+			oldIndex = panel->currentIndex;
+			oldProcessor = panel->currentProcessor.get();
+		}
+
+		bool perform() override
+		{
+			if (panel.getComponent() != nullptr)
+			{
+				panel->currentIndex = newIndex;
+				panel->setCurrentProcessor(newProcessor.get());
+				panel->refreshContent();
+				return true;
+			}
+			
+			return false;
+		}
+
+		bool undo() override
+		{
+			if (panel.getComponent())
+			{
+				panel->currentIndex = oldIndex;
+				panel->setCurrentProcessor(oldProcessor.get());
+				panel->refreshContent();
+				return true;
+			}
+
+			return false;
+		}
+
+	private:
+
+		Component::SafePointer<PanelWithProcessorConnection> panel;
+		WeakReference<Processor> oldProcessor;
+		WeakReference<Processor> newProcessor;
+
+		int oldIndex = -1;
+		int newIndex = -1;
+
+	};
+
 	PanelWithProcessorConnection(FloatingTile* parent);
 
 	virtual ~PanelWithProcessorConnection();
@@ -271,25 +321,40 @@ public:
 
 	virtual void processorDeleted(Processor* deletedProcessor)
 	{
-		setConnectedProcessor(nullptr);
+		setContentWithUndo(nullptr, -1);
 	}
 
 	void refreshConnectionList();
 
 	void refreshIndexList();
 
+	template <class ContentType> ContentType* getContent() { return dynamic_cast<ContentType*>(content.get()); };
+
 	virtual void updateChildEditorList(bool forceUpdate) {}
 
-	Processor* getProcessor() { return connectedProcessor.get(); }
-	const Processor* getProcessor() const { return connectedProcessor.get(); }
+	Processor* getProcessor() { return currentProcessor.get(); }
+	const Processor* getProcessor() const { return currentProcessor.get(); }
+
+	/** Use the connected processor for filling the index list (!= the current processor which is shown). */
+	Processor* getConnectedProcessor() { return connectedProcessor.get(); }
+	const Processor* getConnectedProcessor() const { return connectedProcessor.get(); }
 
 	ModulatorSynthChain* getMainSynthChain();
 
 	const ModulatorSynthChain* getMainSynthChain() const;
 
+	void setContentWithUndo(Processor* newProcessor, int newIndex);
+
 	virtual void refreshContent()
 	{
-		if (getProcessor() == nullptr || hasSubIndex() && selectedIndex == -1)
+		if (getConnectedProcessor())
+			connectionSelector->setText(getConnectedProcessor()->getId(), dontSendNotification);
+		else
+			connectionSelector->setSelectedId(1);
+
+		indexSelector->setSelectedId(currentIndex + 2, dontSendNotification);
+
+		if (getProcessor() == nullptr || hasSubIndex() && currentIndex == -1)
 		{
 			content = nullptr;
 		}
@@ -297,12 +362,14 @@ public:
 		{
 			getProcessor()->addDeleteListener(this);
 
-			addAndMakeVisible(content = createContentComponent(selectedIndex));
+			addAndMakeVisible(content = createContentComponent(currentIndex));
 		}
 
 		resized();
 		repaint();
 	}
+
+	
 
 	virtual Component* createContentComponent(int index) = 0;
 
@@ -312,15 +379,20 @@ public:
 
 	virtual bool hasSubIndex() const { return false; }
 
-	void setConnectedProcessor(Processor* p)
+	void setCurrentProcessor(Processor* p)
 	{
-		if (connectedProcessor.get() != nullptr)
+		if (currentProcessor.get() != nullptr)
 		{
-			connectedProcessor->removeDeleteListener(this);
-			
+			currentProcessor->removeDeleteListener(this);
 		}
 		
-		connectedProcessor = p;
+		currentProcessor = p;
+		connectedProcessor = currentProcessor;
+	}
+
+	void setConnectionIndex(int newIndex)
+	{
+		currentIndex = newIndex;
 	}
 
 protected:
@@ -345,10 +417,13 @@ private:
 	ScopedPointer<ComboBox> connectionSelector;
 	ScopedPointer<ComboBox> indexSelector;
 
-	int selectedIndex = -1;
+	int currentIndex = -1;
+	int previousIndex = -1;
+	int nextIndex = -1;
 
+	WeakReference<Processor> currentProcessor;
 	WeakReference<Processor> connectedProcessor;
-
+	
 	ScopedPointer<Component> content;
 };
 
@@ -380,7 +455,7 @@ public:
 
 	void fillIndexList(StringArray& indexList) override
 	{
-		auto ltp = dynamic_cast<LookupTableProcessor*>(getProcessor());
+		auto ltp = dynamic_cast<LookupTableProcessor*>(getConnectedProcessor());
 
 		int numTables = 0;
 
@@ -449,6 +524,50 @@ private:
 	ScopedPointer<JavascriptTokeniser> tokeniser;
 };
 
+class ScriptContentPanel: public PanelWithProcessorConnection
+{
+public:
+
+	ScriptContentPanel(FloatingTile* parent) :
+		PanelWithProcessorConnection(parent)
+	{};
+
+	SET_PANEL_NAME("ScriptContent");
+
+	Component* createContentComponent(int /*index*/) override;
+
+	void fillModuleList(StringArray& moduleList) override
+	{
+		fillModuleListWithType<JavascriptProcessor>(moduleList);
+	}
+
+private:
+
+};
+
+
+class ScriptWatchTablePanel : public PanelWithProcessorConnection
+{
+public:
+
+	ScriptWatchTablePanel(FloatingTile* parent) :
+		PanelWithProcessorConnection(parent)
+	{};
+
+	SET_PANEL_NAME("ScriptWatchTable");
+
+	Component* createContentComponent(int /*index*/) override;
+
+	void fillModuleList(StringArray& moduleList) override
+	{
+		fillModuleListWithType<JavascriptProcessor>(moduleList);
+	}
+
+private:
+
+};
+
+
 #define SET_GENERIC_PANEL_ID(x) static Identifier getGenericPanelId() { static const Identifier id(x); return x;}
 
 template <class ContentType> class GenericPanel : public Component,
@@ -465,12 +584,12 @@ public:
 	{
 		setInterceptsMouseClicks(false, true);
 
-		addAndMakeVisible(component = new ContentType());
+		addAndMakeVisible(component = new ContentType(getRootWindow()));
 	}
 
 	void resized() override
 	{
-		component->setBounds(2, 24, jmax<int>(0, getWidth() - 4), jmax<int>(0, getHeight() - 26));
+		component->setBounds(0, 16, jmax<int>(0, getWidth()), jmax<int>(0, getHeight() - 16));
 	}
 
 private:

@@ -64,13 +64,7 @@ CombinedDebugArea::CombinedDebugArea(BackendProcessorEditor *mainEditor_):
 
 	imageTable = new ExternalFileTable<Image>(mainEditor->getBackendProcessor()->getSampleManager().getImagePool());
 
-	fileBrowser = new FileBrowser(mainEditor);
-
-	processorDragList = new ModuleBrowser(this);
-	apiCollection = new ApiCollection(this);
-
 	
-
 	ShapeButton *modulesButton = new ShapeButton("Modules", Colour(BACKEND_ICON_COLOUR_OFF), Colour(BACKEND_ICON_COLOUR_OFF), Colour(BACKEND_ICON_COLOUR_OFF));
 	modulesButton->setTooltip("Module Collection");
 	Path modulesPath;
@@ -319,11 +313,7 @@ BaseDebugArea(editor)
 
 	macroTable = new MacroParameterTable(this);
 
-	scriptWatchTable = new ScriptWatchTable(mainEditor->getBackendProcessor(), this);
-
 	scriptComponentPanel = new ScriptComponentEditPanel(this);
-
-	moduleList = new PatchBrowser(this, editor);
 
 	mainEditor->getBackendProcessor()->setScriptWatchTable(scriptWatchTable);
 	mainEditor->getBackendProcessor()->setScriptComponentEditPanel(scriptComponentPanel);
