@@ -76,9 +76,7 @@ public:
 
 	void setSizes(int index, Array<double> sizes, NotificationType shouldUpdateLayout= dontSendNotification);
 	void setFolded(int index, Array<bool> foldStates, NotificationType shouldUpdateLayout = dontSendNotification);
-	void setAbsoluteSize(int index, Array<bool> absoluteState, NotificationType shouldUpdateLayout = dontSendNotification);
-	void setLocked(int index, Array<bool> lockedStates, NotificationType shouldUpdateLayout= dontSendNotification);
-	
+
 	void setFoldable(int index, bool isFoldable, Array<bool> childFoldableStates, NotificationType = dontSendNotification);
 
 	void setCustomName(int index, const String& name, Array<String> names=Array<String>());

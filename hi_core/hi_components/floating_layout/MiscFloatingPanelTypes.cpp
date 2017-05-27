@@ -89,6 +89,11 @@ ConsolePanel::ConsolePanel(FloatingTile* parent) :
 	addAndMakeVisible(console = new Console(getRootWindow()->getBackendProcessor()));
 }
 
+void ConsolePanel::resized()
+{
+	console->setBounds(getParentShell()->getContentBounds());
+}
+
 MidiKeyboardPanel::MidiKeyboardPanel(FloatingTile* parent) :
 	FloatingTileContent(parent)
 {
@@ -151,16 +156,20 @@ PanelWithProcessorConnection::~PanelWithProcessorConnection()
 
 void PanelWithProcessorConnection::paint(Graphics& g)
 {
+	auto bounds = getParentShell()->getContentBounds();
 
 	const bool connected = getProcessor() != nullptr && (!hasSubIndex() || currentIndex != -1);
 
-	g.setColour(Colour(0xFF3D3D3D));
-	g.fillRect(0, 16, getWidth(), 18);
-	g.setColour(connected ? Colours::white.withAlpha(0.9f) : Colours::white.withAlpha(0.1f));
+	//g.setColour(Colour(0xFF3D3D3D));
+	g.setColour(HiseColourScheme::getColour(HiseColourScheme::EditorBackgroundColourIdBright));
+	g.fillRect(0, bounds.getY(), getWidth(), 18);
+
+	
+	g.setColour(connected ? getProcessor()->getColour() : Colours::white.withAlpha(0.1f));
 	
 	Path p;
 	p.loadPathFromData(ColumnIcons::connectionIcon, sizeof(ColumnIcons::connectionIcon));
-	p.scaleToFit(2.0, 18.0, 14.0, 14.0, true);
+	p.scaleToFit(2.0, (float)bounds.getY() + 2.0, 14.0, 14.0, true);
 	g.fillPath(p);
 
 }
@@ -173,20 +182,27 @@ void PanelWithProcessorConnection::resized()
 		refreshConnectionList();
 		listInitialised = true;
 	}
-		
+	
+	auto bounds = getParentShell()->getContentBounds();
+
+	if (bounds.isEmpty())
+		return;
 
 	connectionSelector->setVisible(!getParentShell()->isFolded());
-	connectionSelector->setBounds(18, 16, 128, 18);
+	connectionSelector->setBounds(18, bounds.getY(), 128, 18);
 
 	indexSelector->setVisible(!getParentShell()->isFolded() && hasSubIndex());
-	indexSelector->setBounds(connectionSelector->getRight() + 5, 16, 128, 18);
+	indexSelector->setBounds(connectionSelector->getRight() + 5, bounds.getY(), 128, 18);
 
 	if (content != nullptr)
 	{
 		if (getHeight() > 18)
 		{
 			content->setVisible(true);
-			content->setBounds(0, 16+18, getWidth(), jmax<int>(0, getHeight() - 18-16));
+
+			content->setBounds(getParentShell()->getContentBounds().withTrimmedTop(18));
+
+			//content->setBounds(0, 16+18, getWidth(), jmax<int>(0, getHeight() - 18-16));
 		}
 		else
 			content->setVisible(false);
@@ -313,17 +329,41 @@ void PanelWithProcessorConnection::setContentWithUndo(Processor* newProcessor, i
 }
 
 
+CodeEditorPanel::CodeEditorPanel(FloatingTile* parent) :
+	PanelWithProcessorConnection(parent)
+{
+	tokeniser = new JavascriptTokeniser();
+
+	
+}
+
+CodeEditorPanel::~CodeEditorPanel()
+{
+	tokeniser = nullptr;
+}
+
+
 Component* CodeEditorPanel::createContentComponent(int index)
 {
 	auto p = dynamic_cast<JavascriptProcessor*>(getProcessor());
 
-	auto pe = new PopupIncludeEditor(p, p->getSnippet(index)->getCallbackName());
+	const bool isCallback = index < p->getNumSnippets();
 
-	getProcessor()->getMainController()->setLastActiveEditor(pe->getEditor(), CodeDocument::Position());
+	if (isCallback)
+	{
+		auto pe = new PopupIncludeEditor(p, p->getSnippet(index)->getCallbackName());
+		getProcessor()->getMainController()->setLastActiveEditor(pe->getEditor(), CodeDocument::Position());
+		return pe;
+	}
+	else
+	{
+		const int fileIndex = index - p->getNumSnippets();
 
-	pe->getEditor()->grabKeyboardFocus();
+		auto pe = new PopupIncludeEditor(p, p->getWatchedFile(fileIndex));
+		getProcessor()->getMainController()->setLastActiveEditor(pe->getEditor(), CodeDocument::Position());
 
-	return pe;
+		return pe;
+	}
 }
 
 void CodeEditorPanel::fillIndexList(StringArray& indexList)
@@ -336,7 +376,47 @@ void CodeEditorPanel::fillIndexList(StringArray& indexList)
 		{
 			indexList.add(p->getSnippet(i)->getCallbackName().toString());
 		}
+
+		for (int i = 0; i < p->getNumWatchedFiles(); i++)
+		{
+			indexList.add(p->getWatchedFile(i).getFileName());
+		}
 	}
+}
+
+void CodeEditorPanel::gotoLocation(Processor* p, const String& fileName, int charNumber)
+{
+	if (fileName.isEmpty())
+	{
+		setContentWithUndo(p, 0);
+	}
+	else
+	{
+		auto jp = dynamic_cast<JavascriptProcessor*>(p);
+
+		int fileIndex = -1;
+
+		for (int i = 0; i < jp->getNumWatchedFiles(); i++)
+		{
+			if (jp->getWatchedFile(i).getFullPathName() == fileName)
+			{
+				fileIndex = i;
+				break;
+			}
+		}
+
+		if (fileIndex != -1)
+		{
+			setContentWithUndo(p, jp->getNumSnippets() + fileIndex);
+		}
+		else
+			return;
+	}
+
+	auto editor = getContent<PopupIncludeEditor>()->getEditor();
+
+	CodeDocument::Position pos(editor->getDocument(), charNumber);
+	editor->scrollToLine(jmax<int>(0, pos.getLineNumber()));
 }
 
 Component* ScriptContentPanel::createContentComponent(int /*index*/)
@@ -448,5 +528,127 @@ void GlobalConnectorPanel::contentChanged()
 	while (auto p = iter.getNextPanel())
 	{
 		p->setContentWithUndo(getProcessor(), 0);
+	}
+}
+
+void SliderPackPanel::resized()
+{
+	PanelWithProcessorConnection::resized();
+
+	if (auto sp = getContent<SliderPack>())
+	{
+		int numSliders = sp->getNumSliders();
+
+		int width = getWidth();
+
+		int wPerSlider = getWidth() / numSliders;
+
+		int newWidth = numSliders * wPerSlider;
+
+		int y = sp->getY();
+		int height = sp->getHeight();
+
+		sp->setBounds((getWidth() - newWidth) / 2, y, newWidth, height);
+	}
+}
+
+void SampleMapEditorPanel::changeListenerCallback(SafeChangeBroadcaster* b)
+{
+	if (getProcessor())
+	{
+		if (auto map = getContent<SampleMapEditor>())
+		{
+			auto& x = dynamic_cast<ModulatorSampler*>(getProcessor())->getSamplerDisplayValues();
+
+			map->setPressedKeys(x.currentNotes);
+			map->updateSoundData();
+		}
+	}
+}
+
+Component* SampleMapEditorPanel::createContentComponent(int index)
+{
+	auto sme = new SampleMapEditor(dynamic_cast<ModulatorSampler*>(getProcessor()), nullptr);
+
+	sme->enablePopoutMode(nullptr);
+
+	return sme;
+
+}
+
+
+void SampleMapEditorPanel::contentChanged()
+{
+	if (getProcessor())
+	{
+		getProcessor()->addChangeListener(this);
+		
+	}
+}
+
+struct SampleEditorPanel::EditListener : public SampleEditHandler::Listener
+{
+	EditListener(SampleEditorPanel* parent_) :
+		parent(parent_)
+	{
+
+	};
+
+	void soundSelectionChanged()
+	{
+		if (parent->getProcessor())
+		{
+			auto handler = dynamic_cast<ModulatorSampler*>(parent->getProcessor())->getSampleEditHandler();
+
+			const Array<WeakReference<ModulatorSamplerSound>> sounds = handler->getSelection().getItemArray();
+
+			Array<ModulatorSamplerSound*> existingSounds;
+
+			for (int i = 0; i < sounds.size(); i++)
+			{
+				if (sounds[i].get() != nullptr) existingSounds.add(sounds[i].get());
+			}
+
+			if (auto sampleEditor = parent->getContent<SampleEditor>())
+			{
+				sampleEditor->selectSounds(existingSounds);
+			}
+		}
+	}
+
+	SampleEditorPanel* parent;
+};
+
+
+
+SampleEditorPanel::SampleEditorPanel(FloatingTile* parent) :
+	PanelWithProcessorConnection(parent)
+{
+	editListener = new EditListener(this);
+}
+
+void SampleEditorPanel::changeListenerCallback(SafeChangeBroadcaster* b)
+{
+	if (getProcessor())
+	{
+		auto se = getContent<SampleEditor>();
+
+		se->updateWaveform();
+	}
+}
+
+
+
+Component* SampleEditorPanel::createContentComponent(int index)
+{
+	return new SampleEditor(dynamic_cast<ModulatorSampler*>(getProcessor()), nullptr);
+}
+
+void SampleEditorPanel::contentChanged()
+{
+	if (getProcessor())
+	{
+		getProcessor()->addChangeListener(this);
+		dynamic_cast<ModulatorSampler*>(getProcessor())->getSampleEditHandler()->addSelectionListener(editListener);
 	}
 }

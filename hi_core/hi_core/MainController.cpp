@@ -57,6 +57,7 @@ MainController::MainController():
 	masterEventBuffer(),
 	eventIdHandler(masterEventBuffer),
 	userPresetHandler(this),
+	codeHandler(this),
 	debugLogger(this),
 	presetLoadRampFlag(0),
 	suspendIndex(0),
@@ -258,12 +259,6 @@ void MainController::stopCpuBenchmark()
 	{
 		usagePercent.store(lastUsage*0.99f);
 	}
-}
-
-void MainController::clearConsole()
-{
-	consoleData.clearUndoHistory();
-	consoleData.replaceAllContent({});
 }
 
 int MainController::getNumActiveVoices() const
@@ -781,19 +776,9 @@ bool MainController::checkAndResetMidiInputFlag()
 
 void MainController::writeToConsole(const String &message, int warningLevel, const Processor *p, Colour c)
 {
-	consoleData.clearUndoHistory();
+	codeHandler.writeToConsole(message, warningLevel, p, c);
+
 	
-	auto pos = CodeDocument::Position(consoleData, consoleData.getNumCharacters());
-	consoleData.insertText(consoleData.getNumCharacters(), message);
-
-	return;
-
-	CHECK_KEY(this);
-
-	Console *currentConsole = usePopupConsole ? popupConsole.get() : console.get();
-
-	if (currentConsole != nullptr) currentConsole->logMessage(message, (Console::WarningLevel)warningLevel, p, (p != nullptr && c.isTransparent()) ? p->getColour() : c);
-
 
 }
 

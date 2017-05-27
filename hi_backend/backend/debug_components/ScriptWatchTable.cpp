@@ -228,17 +228,8 @@ void ScriptWatchTable::mouseDoubleClick(const MouseEvent &e)
 
 			if (auto editorPanel = editor->findParentComponentOfClass<CodeEditorPanel>())
 			{
-				editorPanel->setContentWithUndo(processor, 0);
-
-				editor = editorPanel->getContent<PopupIncludeEditor>()->getEditor();
-
-				CodeDocument::Position pos(editor->getDocument(), info->location.charNumber);
-				editor->scrollToLine(jmax<int>(0, pos.getLineNumber()));
+				editorPanel->gotoLocation(processor, info->location.fileName, info->location.charNumber);
 			}
-
-			
-
-			
 
 #if 0
 
@@ -259,7 +250,7 @@ void ScriptWatchTable::mouseDoubleClick(const MouseEvent &e)
 
 void ScriptWatchTable::paint(Graphics &g)
 {
-	g.setColour(Colour(DEBUG_AREA_BACKGROUND_COLOUR_DARK));
+	g.setColour(Colour(0xff353535));
 	g.fillRect(0.0f, 0.0f, (float)getWidth(), 25.0f);
 
 	g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.5f), 0.0f, 25.0f,

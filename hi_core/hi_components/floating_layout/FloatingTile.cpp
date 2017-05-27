@@ -32,19 +32,31 @@
 
 void FloatingTile::LayoutData::updateValueTree(ValueTree & v) const
 {
-	v.setProperty("Locked", isLocked, nullptr);
-	v.setProperty("Folded", isFolded, nullptr);
-	v.setProperty("isAbsolute", isAbsolute, nullptr);
+	v.setProperty("Folded", foldState, nullptr);
 	v.setProperty("Size", currentSize, nullptr);
+
+	if (minSize > 0)
+		v.setProperty("MinimumSize", minSize, nullptr);
+
+	if (backgroundColour != Colour(0))
+	{
+		v.setProperty("Colour", backgroundColour.toString(), nullptr);
+	}
 }
 
 
 void FloatingTile::LayoutData::restoreFromValueTree(const ValueTree &v)
 {
-	isLocked = v.getProperty("Locked", false);
-	isFolded = v.getProperty("Folded", false);
-	isAbsolute = v.getProperty("isAbsolute", false);
+	foldState = v.getProperty("Folded", 0);
 	currentSize = v.getProperty("Size", -0.5);
+
+	minSize = v.getProperty("MinimumSize", -1);
+
+	if (v.hasProperty("Colour"))
+	{
+		backgroundColour = Colour::fromString(v.getProperty("Colour", "0x00000000").toString());
+	}
+
 }
 
 FloatingTile::CloseButton::CloseButton() :
@@ -74,6 +86,7 @@ void FloatingTile::CloseButton::buttonClicked(Button* )
 
 		ec->clear();
 
+		
 	
 	}
 	else
@@ -99,7 +112,52 @@ void FloatingTile::MoveButton::buttonClicked(Button* )
 {
 	auto ec = dynamic_cast<FloatingTile*>(getParentComponent());
 
-	ec->getRootComponent()->enableSwapMode(!ec->layoutData.swappingEnabled, ec);
+	if (ec->hasChildren())
+	{
+		PopupMenu m;
+
+		m.setLookAndFeel(&ec->plaf);
+
+		m.addItem(1, "Swap Position", !ec->isVital(), ec->getLayoutData().swappingEnabled);
+
+		PopupMenu containerTypes;
+
+		auto thisContainer = dynamic_cast<FloatingTabComponent*>(ec->getCurrentFloatingPanel());
+
+		bool isTabs = dynamic_cast<FloatingTabComponent*>(ec->getCurrentFloatingPanel()) != nullptr;
+		bool isHorizontal = dynamic_cast<HorizontalTile*>(ec->getCurrentFloatingPanel()) != nullptr;
+		bool isVertical = dynamic_cast<VerticalTile*>(ec->getCurrentFloatingPanel()) != nullptr;
+
+		ec->getPanelFactory()->addToPopupMenu(containerTypes, FloatingTileContent::Factory::PopupMenuOptions::Tabs, "Tabs", !isTabs, isTabs);
+		ec->getPanelFactory()->addToPopupMenu(containerTypes, FloatingTileContent::Factory::PopupMenuOptions::HorizontalTile, "Horizontal Tile", !isHorizontal, isHorizontal);
+		ec->getPanelFactory()->addToPopupMenu(containerTypes, FloatingTileContent::Factory::PopupMenuOptions::VerticalTile, "Vertical Tile", !isVertical, isVertical);
+
+		m.addSubMenu("Swap Container Type", containerTypes, !ec->isVital());
+
+		const int result = m.show();
+
+		if (result == (int)FloatingTileContent::Factory::PopupMenuOptions::Tabs)
+		{
+			ec->swapContainerType(FloatingTabComponent::getPanelId());
+		}
+		else if (result == (int)FloatingTileContent::Factory::PopupMenuOptions::HorizontalTile)
+		{
+			ec->swapContainerType(HorizontalTile::getPanelId());
+		}
+		else if (result == (int)FloatingTileContent::Factory::PopupMenuOptions::VerticalTile)
+		{
+			ec->swapContainerType(VerticalTile::getPanelId());
+		}
+	}
+	else
+	{
+		ec->getRootComponent()->enableSwapMode(!ec->layoutData.swappingEnabled, ec);
+	}
+
+	
+
+
+	
 }
 
 FloatingTile::ResizeButton::ResizeButton() :
@@ -126,56 +184,15 @@ void FloatingTile::FoldButton::buttonClicked(Button* )
 {
 	auto pc = findParentComponentOfClass<FloatingTile>();
 	
-	pc->setFolded(!pc->getLayoutData().isFolded);
+	if (!pc->canBeFolded())
+		return;
+
+	pc->setFolded(!pc->isFolded());
 
 	if (auto cl = dynamic_cast<ResizableFloatingTileContainer*>(pc->getParentContainer()))
 	{
 		cl->refreshLayout();
 	}
-}
-
-FloatingTile::LockButton::LockButton():
-	ShapeButton("Lock", Colours::white.withAlpha(0.2f), Colours::white.withAlpha(0.8f), Colours::white.withAlpha(0.8f))
-{
-	Path p;
-	p.loadPathFromData(ColumnIcons::lockIcon, sizeof(ColumnIcons::lockIcon));
-
-	setShape(p, false, true, true);
-
-	addListener(this);
-}
-
-
-void FloatingTile::LockButton::buttonClicked(Button* b)
-{
-	auto pc = findParentComponentOfClass<FloatingTile>();
-	
-	pc->setLockedSize(!b->getToggleState());
-
-	if (auto cl = dynamic_cast<ResizableFloatingTileContainer*>(pc->getParentContainer()))
-	{
-		cl->refreshLayout();
-	}
-}
-
-void FloatingTile::toggleLayoutModeForParentContainer()
-{
-	if (getParentType() == ParentType::Root)
-	{
-		setLayoutModeEnabled(!isLayoutModeEnabled());
-		return;
-	}
-
-	if(!getParentContainer())
-		return;
-	
-	if(!getParentContainer()->getParentShell())
-		return;
-	
-	bool en = getParentContainer()->getParentShell()->isLayoutModeEnabled();
-
-	getParentContainer()->getParentShell()->setLayoutModeEnabled(!en);
-
 }
 
 FloatingTile::ParentType FloatingTile::getParentType() const
@@ -208,7 +225,6 @@ FloatingTile::FloatingTile(FloatingTileContainer* parent, ValueTree state /*= Va
 	addAndMakeVisible(closeButton = new CloseButton());
 	addAndMakeVisible(moveButton = new MoveButton());
 	addAndMakeVisible(foldButton = new FoldButton());
-	addAndMakeVisible(lockButton = new LockButton());
 	addAndMakeVisible(resizeButton = new ResizeButton());
 
 	setContent(state);
@@ -219,9 +235,84 @@ bool FloatingTile::isEmpty() const
 	return dynamic_cast<const EmptyComponent*>(getCurrentFloatingPanel()) != nullptr;
 }
 
+bool FloatingTile::showTitle() const
+{
+	/** Show the title if:
+	
+		- is folded and in horizontal container
+		- is not container and the panel wants a title in presentation mode
+		- is dynamic container and in layout mode
+		- is container and has a custom title or is foldable
+
+		Don't show the title if:
+
+		- is folded and in vertical container
+		- is root
+		- is in tab & layout mode is deactivated
+	
+	
+	*/
+
+	auto pt = getParentType();
+
+	const bool isRoot = pt == ParentType::Root;
+	const bool isInTab = pt == ParentType::Tabbed;
+	
+	if (isRoot)
+		return false;
+
+	if (isInTab && !isLayoutModeEnabled())
+		return false;
+
+	if (isFolded())
+		return isInVerticalLayout();
+
+	if (hasChildren())
+	{
+		const bool isDynamicContainer = dynamic_cast<const FloatingTileContainer*>(getCurrentFloatingPanel())->isDynamic();
+
+		if (isDynamicContainer && isLayoutModeEnabled())
+		{
+			return true;
+		}
+		else
+		{
+			if (getCurrentFloatingPanel()->hasCustomTitle())
+				return true;
+
+			if (canBeFolded())
+				return true;
+		
+			if (getCurrentFloatingPanel()->hasCustomTitle())
+				return true;
+
+			return false;
+		}
+			
+	}
+	else
+	{
+		return getCurrentFloatingPanel()->showTitleInPresentationMode();
+	}
+}
+
+Rectangle<int> FloatingTile::getContentBounds()
+{
+	if (isFolded())
+		return Rectangle<int>();
+
+	if (showTitle())
+		return Rectangle<int>(0, 16, getWidth(), getHeight() - 16);
+	else
+		return getLocalBounds();
+}
+
 void FloatingTile::setFolded(bool shouldBeFolded)
 {
-	layoutData.isFolded = shouldBeFolded;
+	if (!canBeFolded())
+		return;
+
+	layoutData.setFoldState(1 - (int)layoutData.isFolded());
 
 	refreshFoldButton();
 }
@@ -244,22 +335,24 @@ void FloatingTile::refreshFoldButton()
 
 void FloatingTile::setCanBeFolded(bool shouldBeFoldable)
 {
-	layoutData.foldable = shouldBeFoldable;
+	if (!shouldBeFoldable)
+		layoutData.setFoldState(-1);
+	else
+		layoutData.setFoldState(0);
+
 	resized();
 }
 
 bool FloatingTile::canBeFolded() const
 {
-	return layoutData.foldable;
+	return layoutData.canBeFolded();
 }
 
-void FloatingTile::setUseAbsoluteSize(bool shouldUseAbsoluteSize)
+void FloatingTile::refreshPinButton()
 {
-	layoutData.isAbsolute = shouldUseAbsoluteSize;
-
 	Path p;
 
-	if (shouldUseAbsoluteSize)
+	if (layoutData.isAbsolute())
 		p.loadPathFromData(ColumnIcons::absoluteIcon, sizeof(ColumnIcons::absoluteIcon));
 	else
 		p.loadPathFromData(ColumnIcons::relativeIcon, sizeof(ColumnIcons::relativeIcon));
@@ -271,11 +364,11 @@ void FloatingTile::toggleAbsoluteSize()
 {
 	if (auto pl = dynamic_cast<ResizableFloatingTileContainer*>(getParentContainer()))
 	{
-		setUseAbsoluteSize(!layoutData.isAbsolute);
+		bool shouldBeAbsolute = !layoutData.isAbsolute();
 
 		int totalWidth = pl->getDimensionSize(pl->getContainerBounds());
 
-		if (layoutData.isAbsolute)
+		if (shouldBeAbsolute)
 		{
 			layoutData.currentSize = (double)pl->getDimensionSize(getLocalBounds());
 		}
@@ -286,18 +379,10 @@ void FloatingTile::toggleAbsoluteSize()
 			layoutData.currentSize = newAbsoluteSize;
 		}
 
+		refreshPinButton();
+
 		pl->refreshLayout();
 	}
-}
-
-void FloatingTile::setLockedSize(bool shouldBeLocked)
-{
-	layoutData.isLocked = shouldBeLocked;
-
-	lockButton->setToggleState(shouldBeLocked, dontSendNotification);
-
-	if(getParentContainer())
-		getParentContainer()->refreshLayout();
 }
 
 const BackendRootWindow* FloatingTile::getRootWindow() const
@@ -339,10 +424,9 @@ const FloatingTile* FloatingTile::getRootComponent() const
 void FloatingTile::clear()
 {
 	layoutData.reset();
-	setUseAbsoluteSize(false);
-	setLockedSize(false);
-	setFolded(false);
-
+	refreshPinButton();
+	refreshFoldButton();
+	refreshMouseClickTarget();
 	refreshRootLayout();
 }
 
@@ -449,43 +533,38 @@ void FloatingTile::bringButtonsToFront()
 	moveButton->toFront(false);
 	foldButton->toFront(false);
 	closeButton->toFront(false);
-	lockButton->toFront(false);
 	resizeButton->toFront(false);
 }
 
 void FloatingTile::paint(Graphics& g)
 {
-	g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::ModulatorSynthBackgroundColourId));
+	if (!layoutData.backgroundColour.isTransparent())
+	{
+		g.fillAll(layoutData.backgroundColour);
+	}
+	else
+	{
+		g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::ModulatorSynthBackgroundColourId));
+	}
 
 	auto pt = getParentType();
 
-	const bool isVerticalAndFolded = getLayoutData().isFolded && !isInVerticalLayout();
-
-	if (isVerticalAndFolded)
-		return;
-
-	const bool isInTabOrRoot = pt == ParentType::Tabbed || pt == ParentType::Root;
-
-	if (isInTabOrRoot)
-		return;
-
-	if (!getCurrentFloatingPanel()->showTitleInPresentationMode() && !isLayoutModeEnabled())
-		return;
-
-	if (!canDoLayoutMode())
-		return;
-
-	Rectangle<int> titleArea = Rectangle<int>(leftOffset, 0, rightOffset - leftOffset, 16);
-
-	if (titleArea.getWidth() > 40)
+	if (showTitle())
 	{
-		g.setGradientFill(ColourGradient(Colour(0xFF333333), 0.0f, 0.0f,
-									     Colour(0xFF2D2D2D), 0.0f, 16.0f, false));
+		g.setGradientFill(ColourGradient(Colour(0xFF222222), 0.0f, 0.0f,
+			Colour(0xFF151515), 0.0f, 16.0f, false));
 
-		g.setFont(GLOBAL_BOLD_FONT());
 		g.fillRect(0, 0, getWidth(), 16);
-		g.setColour(Colours::white.withAlpha(0.8f));
-		g.drawText(getCurrentFloatingPanel()->getTitle(), titleArea, Justification::centred);
+
+		Rectangle<int> titleArea = Rectangle<int>(leftOffsetForTitleText, 0, rightOffsetForTitleText - leftOffsetForTitleText, 16);
+
+		if (titleArea.getWidth() > 40)
+		{
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.setColour(Colours::white.withAlpha(0.8f));
+
+			g.drawText(getCurrentFloatingPanel()->getBestTitle(), titleArea, Justification::centred);
+		}
 	}
 }
 
@@ -521,7 +600,11 @@ void FloatingTile::paintOverChildren(Graphics& g)
 
 void FloatingTile::refreshMouseClickTarget()
 {
-	if (!hasChildren())
+	if (isEmpty())
+	{
+		setInterceptsMouseClicks(true, false);
+	}
+	else if (!hasChildren())
 	{
 		bool allowClicksOnContent = !isLayoutModeEnabled();
 
@@ -574,7 +657,7 @@ void FloatingTile::resized()
 
 	if (LayoutHelpers::showFoldButton(this))
 	{
-		leftOffset = 16;
+		leftOffsetForTitleText = 16;
 		foldButton->setBounds(1, 1, 14, 14);
 		foldButton->setVisible(LayoutHelpers::showFoldButton(this));
 	}
@@ -582,14 +665,14 @@ void FloatingTile::resized()
 		foldButton->setVisible(false);
 
 
-	rightOffset = getWidth();
+	rightOffsetForTitleText = getWidth();
 
 	if (LayoutHelpers::showCloseButton(this))
 	{
-		rightOffset -= 18;
+		rightOffsetForTitleText -= 18;
 
-		closeButton->setVisible(rightOffset > 16);
-		closeButton->setBounds(rightOffset, 0, 16, 16);
+		closeButton->setVisible(rightOffsetForTitleText > 16);
+		closeButton->setBounds(rightOffsetForTitleText, 0, 16, 16);
 	}
 	else
 	{
@@ -598,48 +681,35 @@ void FloatingTile::resized()
 
 	if (LayoutHelpers::showMoveButton(this))
 	{
-		rightOffset -= 18;
-		moveButton->setVisible(rightOffset > 16);
-		moveButton->setBounds(rightOffset, 0, 16, 16);
+		rightOffsetForTitleText -= 18;
+		moveButton->setVisible(rightOffsetForTitleText > 16);
+		moveButton->setBounds(rightOffsetForTitleText, 0, 16, 16);
 		
 	}
 	else
 		moveButton->setVisible(false);
 	
-	if (LayoutHelpers::showMoveButton(this))
+	if (LayoutHelpers::showPinButton(this))
 	{
-		rightOffset -= 18;
-		resizeButton->setVisible(rightOffset > 16);
-		resizeButton->setBounds(rightOffset, 0, 16, 16);
+		rightOffsetForTitleText -= 18;
+		resizeButton->setVisible(rightOffsetForTitleText > 16);
+		resizeButton->setBounds(rightOffsetForTitleText, 0, 16, 16);
 		
 	}
 	else
 		resizeButton->setVisible(false);
-
-	if (LayoutHelpers::showLockButton(this))
-	{
-		rightOffset -= 18;
-		lockButton->setVisible(rightOffset > 16);
-		lockButton->setBounds(rightOffset, 0, 16, 16);
-		
-	}
-	else
-		lockButton->setVisible(false);
-
-
-	
 }
 
 
 double FloatingTile::getCurrentSizeInContainer()
 {
-	if (layoutData.isFolded)
+	if (isFolded())
 	{
 		return layoutData.currentSize;
 	}
 	else
 	{
-		if (layoutData.isAbsolute)
+		if (layoutData.isAbsolute())
 		{
 			return getParentType() == ParentType::Horizontal ? getWidth() : getHeight();
 		}
@@ -683,7 +753,7 @@ bool FloatingTile::canBeDeleted() const
 
 bool FloatingTile::isFolded() const
 {
-	return layoutData.isFolded;
+	return layoutData.isFolded();
 }
 
 bool FloatingTile::isInVerticalLayout() const
@@ -704,10 +774,10 @@ void FloatingTile::setContent(ValueTree& data)
 	else
 		addAndMakeVisible(content = new EmptyComponent(this));
 
-	refreshFoldButton();
+	refreshFixedSizeForNewContent();
 
-	setLockedSize(layoutData.isLocked);
-	setUseAbsoluteSize(layoutData.isAbsolute);
+	refreshFoldButton();
+	refreshPinButton();
 
 	if(getParentContainer())
 		getParentContainer()->refreshLayout();
@@ -722,16 +792,11 @@ void FloatingTile::setNewContent(const Identifier& newId)
 {
 	addAndMakeVisible(content = dynamic_cast<Component*>(FloatingTileContent::createNewPanel(newId, this)));
 
-	int fixedSize = getCurrentFloatingPanel()->getFixedSizeForOrientation();
+	refreshFixedSizeForNewContent();
+	
+	if (hasChildren())
+		setCanBeFolded(false);
 
-	if (fixedSize != 0)
-	{
-		layoutData.currentSize = fixedSize;
-		layoutData.isLocked = true;
-		layoutData.isAbsolute = true;
-	}
-		
-	setLockedSize(layoutData.isLocked);
 	refreshRootLayout();
 
 	bringButtonsToFront();
@@ -752,22 +817,13 @@ bool FloatingTile::isSwappable() const
 
 }
 
-void FloatingTile::setSelector(const FloatingTileContent* originPanel, Point<int> mousePosition)
+void FloatingTile::refreshFixedSizeForNewContent()
 {
-	if (originPanel != nullptr)
+	int fixedSize = getCurrentFloatingPanel()->getFixedSizeForOrientation();
+
+	if (fixedSize != 0)
 	{
-		jassert(getParentType() == ParentType::Root);
-
-		auto b = getLocalArea(originPanel->getParentShell(), originPanel->getParentShell()->getLocalBounds());
-
-		addAndMakeVisible(currentSelector = new Selector(b, mousePosition));
-
-		currentSelector->setBounds(getLocalBounds());
-	}
-	else
-	{
-		Desktop::getInstance().getAnimator().fadeOut(currentSelector, 150);
-		currentSelector = nullptr;
+		layoutData.currentSize = fixedSize;
 	}
 }
 
@@ -775,10 +831,17 @@ void FloatingTile::LayoutHelpers::setContentBounds(FloatingTile* t)
 {
 	t->content->setVisible(!t->isFolded());
 	t->content->setBounds(t->getLocalBounds());
+	t->content->resized();
 }
 
 bool FloatingTile::LayoutHelpers::showCloseButton(const FloatingTile* t)
 {
+	if (t->getParentType() == ParentType::Tabbed)
+		return false;
+
+	return t->canBeDeleted();
+
+#if 0
 	if (!t->getCurrentFloatingPanel()->showTitleInPresentationMode() && !t->isLayoutModeEnabled())
 		return false;
 
@@ -806,11 +869,24 @@ bool FloatingTile::LayoutHelpers::showCloseButton(const FloatingTile* t)
 	}
 
 	return false;
+#endif
+
 }
 
 bool FloatingTile::LayoutHelpers::showMoveButton(const FloatingTile* t)
 {
+	if (t->hasChildren() && dynamic_cast<const FloatingTileContainer*>(t->getCurrentFloatingPanel())->isDynamic() && t->isLayoutModeEnabled())
+		return true;
+
+	return showPinButton(t);
+}
+
+bool FloatingTile::LayoutHelpers::showPinButton(const FloatingTile* t)
+{
 	if (!t->isSwappable())
+		return false;
+
+	if (t->getParentType() == ParentType::Tabbed)
 		return false;
 
 	if (!t->isLayoutModeEnabled())
@@ -832,39 +908,49 @@ bool FloatingTile::LayoutHelpers::showMoveButton(const FloatingTile* t)
 
 bool FloatingTile::LayoutHelpers::showFoldButton(const FloatingTile* t)
 {
-	if (!t->getCurrentFloatingPanel()->showTitleInPresentationMode() && !t->isLayoutModeEnabled())
-		return false;
-
 	if (!t->canBeFolded())
 		return false;
 
-	auto pt = t->getParentType();
-
-	if (pt == ParentType::Root)
+	if (t->getParentType() == ParentType::Tabbed)
 		return false;
 
-	const bool isInTile = pt == ParentType::Horizontal || pt == ParentType::Vertical;
+	if (t->getParentType() == ParentType::Horizontal)
+		return true;
 
-	return isInTile;
+	if (t->showTitle())
+		return true;
+
+	return false;
 }
 
-bool FloatingTile::LayoutHelpers::showLockButton(const FloatingTile* t)
+void FloatingTile::TilePopupLookAndFeel::getIdealPopupMenuItemSize(const String &text, bool isSeparator, int standardMenuItemHeight, int &idealWidth, int &idealHeight)
 {
-	return false;
-
-	if (!t->isLayoutModeEnabled())
-		return false;
-
-	if (!t->canDoLayoutMode())
-		return false;
-
-	auto pt = t->getParentType();
-
-	if (pt == ParentType::Horizontal || pt == ParentType::Vertical)
+	if (isSeparator)
 	{
-		return t->isInVerticalLayout() || !t->isFolded();
+		idealWidth = 50;
+		idealHeight = standardMenuItemHeight > 0 ? standardMenuItemHeight / 2 : 10;
 	}
+	else
+	{
+		Font font(getPopupMenuFont());
 
-	return false;
+		if (standardMenuItemHeight > 0 && font.getHeight() > standardMenuItemHeight / 1.3f)
+			font.setHeight(standardMenuItemHeight / 1.3f);
+
+		idealHeight = JUCE_LIVE_CONSTANT_OFF(26);
+
+		idealWidth = font.getStringWidth(text) + idealHeight * 2;
+	}
 }
 
+void FloatingTile::TilePopupLookAndFeel::drawPopupMenuSectionHeader(Graphics& g, const Rectangle<int>& area, const String& sectionName)
+{
+	g.fillAll(JUCE_LIVE_CONSTANT_OFF(Colour(0x1AFFFFFF)));
+
+	g.setFont(getPopupMenuFont());
+	g.setColour(Colours::white);
+
+	g.drawFittedText(sectionName,
+		area.getX() + 12, area.getY(), area.getWidth() - 16, (int)(area.getHeight() * 0.8f),
+		Justification::bottomLeft, 1);
+}

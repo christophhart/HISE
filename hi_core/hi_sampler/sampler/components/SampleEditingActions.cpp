@@ -30,28 +30,26 @@
 *   ===========================================================================
 */
 
-void SamplerBody::SampleEditingActions::deleteSelectedSounds(SamplerBody *body)
+void SampleEditHandler::SampleEditingActions::deleteSelectedSounds(SampleEditHandler *handler)
 {
-	ModulatorSampler *sampler = dynamic_cast<ModulatorSampler*>(body->getProcessor());
-
-	const Array<WeakReference<ModulatorSamplerSound>> soundsToBeDeleted = body->getSelection().getItemArray();
+	auto soundsToBeDeleted = handler->getSelection().getItemArray();
 
 	const int numToBeDeleted = soundsToBeDeleted.size();
 
 	for (int i = 0; i < numToBeDeleted; i++)
 	{
-		if (soundsToBeDeleted[i].get() != nullptr) sampler->deleteSound(soundsToBeDeleted[i].get());
+		if (soundsToBeDeleted[i].get() != nullptr) handler->sampler->deleteSound(soundsToBeDeleted[i].get());
 	}
 
-	body->getSelection().deselectAll();
-	body->getSelection().dispatchPendingMessages();
+	handler->getSelection().deselectAll();
+	handler->getSelection().dispatchPendingMessages();
 }
 
-void SamplerBody::SampleEditingActions::duplicateSelectedSounds(SamplerBody *body)
+void SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(SampleEditHandler *handler)
 {
-	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(body->getProcessor());
+	ModulatorSampler *s = handler->sampler;
 
-	const Array<WeakReference<ModulatorSamplerSound>> sounds = body->getSelection().getItemArray();
+	const Array<WeakReference<ModulatorSamplerSound>> sounds = handler->getSelection().getItemArray();
 
 	for (int i = 0; i < sounds.size(); i++)
 	{
@@ -60,20 +58,20 @@ void SamplerBody::SampleEditingActions::duplicateSelectedSounds(SamplerBody *bod
 
 		s->addSamplerSound(v, index, true);
         
-		body->getSelection().addToSelection(s->getSound(index));
+		handler->getSelection().addToSelection(s->getSound(index));
 	}
     
     s->refreshPreloadSizes();
 
-	body->getSelection().dispatchPendingMessages();
+	handler->getSelection().dispatchPendingMessages();
 }
 
 
-void SamplerBody::SampleEditingActions::removeDuplicateSounds(SamplerBody *body)
+void SampleEditHandler::SampleEditingActions::removeDuplicateSounds(SampleEditHandler *handler)
 {
 	if (PresetHandler::showYesNoWindow("Confirm", "Do you really want to remove all duplicates?"))
 	{
-		Array<WeakReference<ModulatorSamplerSound>> soundsInSampler = body->getSelection().getItemArray();
+		Array<WeakReference<ModulatorSamplerSound>> soundsInSampler = handler->getSelection().getItemArray();
 
 		Array<WeakReference<ModulatorSamplerSound>> soundsToDelete;
 
@@ -98,15 +96,13 @@ void SamplerBody::SampleEditingActions::removeDuplicateSounds(SamplerBody *body)
 			}
 		}
 
-		body->getSelection().deselectAll();
+		handler->getSelection().deselectAll();
 
 		const int numDeleted = soundsToDelete.size();
 
-		ModulatorSampler *sampler = dynamic_cast<ModulatorSampler*>(body->getProcessor());
-
 		for (int i = 0; i < soundsToDelete.size(); i++)
 		{
-			sampler->deleteSound(soundsToDelete[i]);
+			handler->sampler->deleteSound(soundsToDelete[i]);
 		}
 
 		if (numDeleted != 0)
@@ -117,23 +113,22 @@ void SamplerBody::SampleEditingActions::removeDuplicateSounds(SamplerBody *body)
 }
 
 
-void SamplerBody::SampleEditingActions::cutSelectedSounds(SamplerBody *body)
+void SampleEditHandler::SampleEditingActions::cutSelectedSounds(SampleEditHandler *handler)
 {
-	copySelectedSounds(body);
-	deleteSelectedSounds(body);
+	copySelectedSounds(handler);
+	deleteSelectedSounds(handler);
 }
 
-void SamplerBody::SampleEditingActions::copySelectedSounds(SamplerBody *body)
+void SampleEditHandler::SampleEditingActions::copySelectedSounds(SampleEditHandler *handler)
 {
-	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(body->getProcessor());
-	const Array<WeakReference<ModulatorSamplerSound>> sounds = body->getSelection().getItemArray();
+	const Array<WeakReference<ModulatorSamplerSound>> sounds = handler->getSelection().getItemArray();
 
-	s->getMainController()->getSampleManager().copySamplesToClipboard(sounds);
+	handler->sampler->getMainController()->getSampleManager().copySamplesToClipboard(sounds);
 }
 
-void SamplerBody::SampleEditingActions::automapVelocity(SamplerBody *body)
+void SampleEditHandler::SampleEditingActions::automapVelocity(SampleEditHandler *handler)
 {
-	const Array<WeakReference<ModulatorSamplerSound>> sounds = body->getSelection().getItemArray();
+	const Array<WeakReference<ModulatorSamplerSound>> sounds = handler->getSelection().getItemArray();
 
 	int upperLimit = 0;
 	int lowerLimit = 127;
@@ -149,14 +144,11 @@ void SamplerBody::SampleEditingActions::automapVelocity(SamplerBody *body)
 	float peakValue = 0.0f;
 
 	for (int i = 0; i < sounds.size(); i++)
-	{
 		peakValue = sounds[i]->getNormalizedPeak();
-
-	}
 }
 
 
-void SamplerBody::SampleEditingActions::checkMicPositionAmountBeforePasting(const ValueTree &v, ModulatorSampler * s)
+void SampleEditHandler::SampleEditingActions::checkMicPositionAmountBeforePasting(const ValueTree &v, ModulatorSampler * s)
 {
 	int numMics = 1;
 
@@ -192,9 +184,9 @@ void SamplerBody::SampleEditingActions::checkMicPositionAmountBeforePasting(cons
 }
 
 
-void SamplerBody::SampleEditingActions::pasteSelectedSounds(SamplerBody *body)
+void SampleEditHandler::SampleEditingActions::pasteSelectedSounds(SampleEditHandler *handler)
 {
-	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(body->getProcessor());
+	ModulatorSampler *s = handler->sampler;
 
 	const ValueTree &v = s->getMainController()->getSampleManager().getSamplesFromClipboard();
 	
@@ -206,17 +198,17 @@ void SamplerBody::SampleEditingActions::pasteSelectedSounds(SamplerBody *body)
 
 		s->addSamplerSound(v.getChild(i), index);
 
-		body->getSelection().addToSelection(s->getSound(index));
+		handler->getSelection().addToSelection(s->getSound(index));
 	}
 
 	s->refreshPreloadSizes();
 
-	body->getSelection().dispatchPendingMessages();
+	handler->getSelection().dispatchPendingMessages();
 }
 
-void SamplerBody::SampleEditingActions::refreshCrossfades(SamplerBody * body)
+void SampleEditHandler::SampleEditingActions::refreshCrossfades(SampleEditHandler * handler)
 {
-	const Array<WeakReference<ModulatorSamplerSound>> sounds = body->getSelection().getItemArray();
+	const Array<WeakReference<ModulatorSamplerSound>> sounds = handler->getSelection().getItemArray();
 
 	for (int i = 0; i < sounds.size(); i++)
 	{
@@ -247,8 +239,6 @@ void SamplerBody::SampleEditingActions::refreshCrossfades(SamplerBody * body)
 
 			const Range<int> thisNoteRange = thisSound->getNoteRange();
 
-
-
 			if (!thisNoteRange.intersects(referenceNoteRange)) continue;
 
 			Range<int> thisVelocityRange = thisSound->getVelocityRange();
@@ -272,21 +262,21 @@ void SamplerBody::SampleEditingActions::refreshCrossfades(SamplerBody * body)
 	};
 }
 
-void SamplerBody::SampleEditingActions::selectAllSamples(SamplerBody * body)
+void SampleEditHandler::SampleEditingActions::selectAllSamples(SampleEditHandler * handler)
 {
-	body->getSelection().deselectAll();
+	handler->getSelection().deselectAll();
 
-	ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(body->getProcessor());
+	ModulatorSampler *s = handler->sampler;
 
-	int thisIndex = body->map->getCurrentRRGroup();
-
+	int thisIndex = handler->getCurrentlyDisplayedRRGroup();  
+	
 	for (int i = 0; i < s->getNumSounds(); i++)
 	{
 		ModulatorSamplerSound* sound = s->getSound(i);
 
 		if (thisIndex == -1 || sound->getRRGroup() == thisIndex)
 		{
-			body->getSelection().addToSelection(s->getSound(i));
+			handler->getSelection().addToSelection(s->getSound(i));
 		}
 	}
 }
@@ -295,27 +285,23 @@ class NormalizeThread : public ThreadWithAsyncProgressWindow
 {
 public:
 
-	NormalizeThread(SamplerBody *body_):
+	NormalizeThread(SampleEditHandler *handler_):
 		ThreadWithAsyncProgressWindow("Normalizing samples"),
-		body(body_)
+		handler(handler_)
 	{
 		addBasicComponents(false);
 	}
 
 	void run() override
 	{
-		Array<WeakReference<ModulatorSamplerSound>> soundList = body->getSelection().getItemArray();
-
-		//ScopedLock sl(dynamic_cast<ModulatorSampler*>(body->getProcessor())->getSamplerLock());
+		Array<WeakReference<ModulatorSamplerSound>> soundList = handler->getSelection().getItemArray();
 
 		for (int i = 0; i < soundList.size(); i++)
 		{
 			if (soundList[i].get() == nullptr) continue;
 
 			if (threadShouldExit())
-			{
 				return;
-			}
 
 			setProgress((double)i / (double)soundList.size());
 
@@ -326,20 +312,20 @@ public:
 
 	void threadFinished() override
 	{
-		body->soundSelectionChanged();
+		handler->sendSelectionChangeMessage();
 	}
 
 private:
 
-	Component::SafePointer<SamplerBody> body;
+	SampleEditHandler* handler;
 };
 
 
-void SamplerBody::SampleEditingActions::normalizeSamples(SamplerBody *body)
+void SampleEditHandler::SampleEditingActions::normalizeSamples(SampleEditHandler *handler, Component* childOfRoot)
 {
-	NormalizeThread *nm = new NormalizeThread(body);
+	NormalizeThread *nm = new NormalizeThread(handler);
 
-	nm->setModalBaseWindowComponent(body);
+	nm->setModalBaseWindowComponent(childOfRoot);
 	
 	nm->runThread();
 }
@@ -371,9 +357,9 @@ public:
 		numDetectionModes
 	};
 
-	MultimicMergeDialogWindow(SamplerBody *body_):
+	MultimicMergeDialogWindow(SampleEditHandler *handler_):
 		ThreadWithAsyncProgressWindow("Merge sample files to multimic sounds", true),
-		body(body_),
+		handler(handler_),
 		separator("_")
 	{
 		if (sanityCheck())
@@ -413,14 +399,14 @@ public:
 		}
 
 
-		body.getComponent()->getSelection().deselectAll();
+		handler->getSelection().deselectAll();
 
-		while (body.getComponent()->getSelection().getNumSelected() != 0)
+		while (handler->getSelection().getNumSelected() != 0)
 		{
 			wait(200);
 		}
 
-		ModulatorSampler *sampler = dynamic_cast<ModulatorSampler*>(body->getProcessor());
+		ModulatorSampler *sampler = handler->getSampler();
 
 		sampler->setBypassed(true);
 
@@ -541,7 +527,7 @@ private:
 
 	void rebuildTokenList()
 	{
-		ModulatorSamplerSound *firstSound = body->getSelection().getSelectedItem(0).get();
+		ModulatorSamplerSound *firstSound = handler->getSelection().getSelectedItem(0).get();
 
 		String fileName = firstSound->getReferenceToSound()->getFileName().upToFirstOccurrenceOf(".", false, false);
 
@@ -557,9 +543,9 @@ private:
 	{
 		channelNames.clear();
 
-		for (int i = 0; i < body->getSelection().getNumSelected(); i++)
+		for (int i = 0; i < handler->getSelection().getNumSelected(); i++)
 		{
-			String thisChannel = getChannelNameFromSound(body->getSelection().getSelectedItem(i).get());
+			String thisChannel = getChannelNameFromSound(handler->getSelection().getSelectedItem(i).get());
 
 			channelNames.addIfNotAlreadyThere(thisChannel);
 		}
@@ -575,7 +561,7 @@ private:
 	{
 		if (channelNames.size() < 2) return;
 
-		ModulatorSampler *sampler = dynamic_cast<ModulatorSampler*>(body->getProcessor());
+		ModulatorSampler *sampler = handler->getSampler();
 
 		setProgress(0.0);
 		showStatusMessage("Creating collections");
@@ -658,14 +644,14 @@ private:
 
 	bool checkAllSelected()
 	{
-		return body->getSelection().getNumSelected() == dynamic_cast<ModulatorSampler*>(body->getProcessor())->getNumSounds();
+		return handler->getSelection().getNumSelected() == handler->getSampler()->getNumSounds();
 	}
 
 	bool noExistingMultimics()
 	{		
-		for (int i = 0; i < body->getSelection().getNumSelected(); i++)
+		for (int i = 0; i < handler->getSelection().getNumSelected(); i++)
 		{
-            const int multimics = body->getSelection().getSelectedItem(i).get()->getNumMultiMicSamples();
+            const int multimics = handler->getSelection().getSelectedItem(i).get()->getNumMultiMicSamples();
             
 			if (multimics != 1)
 			{
@@ -807,7 +793,7 @@ private:
 		return fileName;
 	}
 
-	Component::SafePointer<SamplerBody> body;
+	SampleEditHandler* handler;
 
 	String separator;
 
@@ -824,22 +810,22 @@ private:
 	OwnedArray<MultiMicCollection> collections;
 };
 
-void SamplerBody::SampleEditingActions::mergeIntoMultiSamples(SamplerBody * body)
+void SampleEditHandler::SampleEditingActions::mergeIntoMultiSamples(SampleEditHandler * handler, Component* childOfRoot)
 {
-	MultimicMergeDialogWindow * dialogWindow = new MultimicMergeDialogWindow(body);
+	MultimicMergeDialogWindow * dialogWindow = new MultimicMergeDialogWindow(handler);
 
-	dialogWindow->setModalBaseWindowComponent(body);
+	dialogWindow->setModalBaseWindowComponent(childOfRoot);
 }
 
 
 
-void SamplerBody::SampleEditingActions::extractToSingleMicSamples(SamplerBody * body)
+void SampleEditHandler::SampleEditingActions::extractToSingleMicSamples(SampleEditHandler * handler)
 {
 	if (PresetHandler::showYesNoWindow("Extract Multimics to Single mics", "Do you really want to extract the multimics to single samples?"))
 	{
-		body->getSelection().deselectAll();
+		handler->getSelection().deselectAll();
 
-		ModulatorSampler *sampler = dynamic_cast<ModulatorSampler*>(body->getProcessor());
+		ModulatorSampler *sampler = handler->sampler;
 
 		sampler->setBypassed(true);
 
@@ -988,13 +974,15 @@ bool setSoundPropertiesFromMetadata(ModulatorSamplerSound *sound, const StringPa
 
 #undef SET_PROPERTY_FROM_METADATA_STRING
 
-void SamplerBody::SampleEditingActions::automapUsingMetadata(SamplerBody * body, ModulatorSampler* sampler)
+void SampleEditHandler::SampleEditingActions::automapUsingMetadata(ModulatorSampler* sampler)
 {
 	Array<WeakReference<ModulatorSamplerSound>> sounds;
 	
-	if (body != nullptr)
+	auto handler = sampler->getSampleEditHandler();
+
+	if (handler != nullptr)
 	{
-		sounds = body->getSelection().getItemArray();
+		sounds = handler->getSelection().getItemArray();
 	}
 
 	if (sounds.size() == 0)
@@ -1029,11 +1017,11 @@ void SamplerBody::SampleEditingActions::automapUsingMetadata(SamplerBody * body,
 }
 
 
-void SamplerBody::SampleEditingActions::trimSampleStart(SamplerBody * body)
+void SampleEditHandler::SampleEditingActions::trimSampleStart(SampleEditHandler * handler)
 {
-	Array<WeakReference<ModulatorSamplerSound>> sounds = body->getSelection().getItemArray();
+	Array<WeakReference<ModulatorSamplerSound>> sounds = handler->getSelection().getItemArray();
 
-	ModulatorSampler *sampler = dynamic_cast<ModulatorSampler*>(body->getProcessor());
+	ModulatorSampler *sampler = handler->getSampler();
 
 	sampler->getUndoManager()->beginNewTransaction();
 
@@ -1085,7 +1073,5 @@ void SamplerBody::SampleEditingActions::trimSampleStart(SamplerBody * body)
 				}
 			}
 		}
-
-		
 	}
 }

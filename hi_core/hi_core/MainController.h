@@ -279,6 +279,61 @@ public:
 
 	};
 
+	class CodeHandler: public AsyncUpdater
+	{
+	public:
+
+		enum WarningLevel
+		{
+			Message = 0,
+			Error = 1
+		};
+
+		CodeHandler(MainController* mc);
+
+		void writeToConsole(const String &t, int warningLevel, const Processor *p, Colour c);
+
+		void handleAsyncUpdate();
+
+
+
+		enum class ConsoleMessageItems
+		{
+			WarningLevel = 0,
+			Processor,
+			Message
+		};
+
+		using ConsoleMessage = std::tuple < WarningLevel, const WeakReference<Processor>, String >;
+
+		const CriticalSection &getLock() const { return lock; }
+
+		std::vector<ConsoleMessage> unprintedMessages;
+
+		CriticalSection lock;
+
+		void clearConsole()
+		{
+			clearFlag = true;
+
+			triggerAsyncUpdate();
+
+		}
+
+		CodeDocument* getConsoleData() { return &consoleData; }
+
+	private:
+
+		bool overflowProtection = false;
+
+		bool clearFlag = false;
+
+		CodeDocument consoleData;
+
+		MainController* mc;
+
+	};
+
 	MainController();
 
 	virtual ~MainController();
@@ -297,6 +352,9 @@ public:
 
 	UserPresetHandler& getUserPresetHandler() { return userPresetHandler; };
 	const UserPresetHandler& getUserPresetHandler() const { return userPresetHandler; };
+
+	CodeHandler& getConsoleHandler() { return codeHandler; };
+	const CodeHandler& getConsoleHandler() const { return codeHandler; };
 
 #if USE_BACKEND
 	/** Writes to the console. */
@@ -419,13 +477,6 @@ public:
 	int getNumActiveVoices() const;;
 
 	void replaceReferencesToGlobalFolder();
-
-	CodeDocument* getConsoleData()
-	{
-		return &consoleData;
-	}
-
-    void clearConsole();
 
 	void setLastActiveEditor(CodeEditorComponent *editor, CodeDocument::Position position)
 	{
@@ -692,8 +743,10 @@ private:
 	friend class UserPresetHandler;
     friend class PresetLoadingThread;
 	friend class DelayedRenderer;
+	friend class CodeHandler;
 
 	DelayedRenderer delayedRenderer;
+	CodeHandler codeHandler;
 
 	bool skipCompilingAtPresetLoad = false;
 
@@ -758,7 +811,7 @@ private:
 
 #if USE_BACKEND
     
-	CodeDocument consoleData;
+	
 
 	Component::SafePointer<ScriptWatchTable> scriptWatchTable;
 	Component::SafePointer<ScriptComponentEditPanel> scriptComponentEditPanel;

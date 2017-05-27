@@ -47,7 +47,7 @@
 
 
 /** The container that holds all vertically stacked ProcessorEditors. */
-class ProcessorEditorContainer : public ComponentWithMidiKeyboardTraverser,
+class ProcessorEditorContainer : public Component,
 							     public SafeChangeBroadcaster,
 								 public Processor::DeleteListener
 {
@@ -99,7 +99,7 @@ class ProcessorEditorHeader;
 class ProcessorEditorChainBar;
 class ProcessorEditorPanel;
 
-class ProcessorEditor : public ComponentWithMidiKeyboardTraverser,
+class ProcessorEditor : public Component,
 							  public SafeChangeListener,
 							  public DragAndDropTarget,
 
@@ -190,6 +190,14 @@ public:
 	void paintOverChildren(Graphics& g) override
 	{
 		CopyPasteTarget::paintOutlineIfSelected(g);
+	}
+
+	void mouseDown(const MouseEvent& event) override
+	{
+		if (event.mods.isRightButtonDown())
+			CopyPasteTarget::dismissCopyAndPasteFocus();
+		else
+			CopyPasteTarget::grabCopyAndPasteFocus();
 	}
 
 	String getObjectTypeName() { return getProcessor()->getId(); };
@@ -293,7 +301,7 @@ private:
 *
 *
 */
-class ProcessorEditorChildComponent: public ComponentWithMidiKeyboardTraverser
+class ProcessorEditorChildComponent: public Component
 {
 public:
 

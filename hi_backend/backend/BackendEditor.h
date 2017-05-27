@@ -312,6 +312,11 @@ public:
 		return false;
 	}
 
+	void paint(Graphics& g) override
+	{
+		g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourId));
+	}
+
 	void resized() override;
 
 	SET_PANEL_NAME("MainTopBar");

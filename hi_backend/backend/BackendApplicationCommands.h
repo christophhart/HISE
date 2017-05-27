@@ -218,9 +218,7 @@ public:
 
 	void setCopyPasteTarget(CopyPasteTarget *newTarget)
 	{
-        
-        
-		if (currentCopyPasteTarget.get() != nullptr)
+        if (currentCopyPasteTarget.get() != nullptr)
 		{
 			currentCopyPasteTarget->deselect();
 		}

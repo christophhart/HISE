@@ -64,24 +64,13 @@ protected:
 *	For Modulators there is the macro function debugMod(String &t)
 */
 class Console: public Component,
-			   public AsyncUpdater,
 			   public ComponentWithAccessToMainPanel
 {
 public:
 
-	
-	
-	enum WarningLevel
-	{
-		Message = 0,
-		Error = 1
-	};
-
 	Console(MainController* mc);
 
 	~Console();
-
-	void sendChangeMessage();
     
     void mouseDown(const MouseEvent &e) override;
     void mouseMove(const MouseEvent &e) override;
@@ -91,14 +80,11 @@ public:
 
     void clear();
 
-	void handleAsyncUpdate();
-
 	/** Adds a new line to the console.
     *
 	*   This can be called in the audio thread. It stores all text in an internal String buffer and writes it periodically
 	*   on the timer callback.
 	*/
-	void logMessage(const String &t, WarningLevel warningLevel, const Processor *p, Colour c);
 
 private:
 
@@ -127,38 +113,15 @@ private:
 		ConsoleEditorComponent(CodeDocument &doc, CodeTokeniser *tok);
 
 		void addPopupMenuItems(PopupMenu &/*menuToAddTo*/, const MouseEvent *) override {};
-
-		
-
 	};
-
-
-	enum class ConsoleMessageItems
-	{
-		WarningLevel = 0,
-		Processor,
-		Message
-	};
-
-	using ConsoleMessage = std::tuple < WarningLevel, const WeakReference<Processor>, String > ;
-
-	const CriticalSection &getLock() const { return lock; }
-
-
-	std::vector<ConsoleMessage> unprintedMessages;
 
 	friend class WeakReference<Console>;
 	WeakReference<Console>::Master masterReference;
 	
-	CriticalSection lock;
-
-	ScopedPointer<CodeDocument> doc;
 	ScopedPointer<ConsoleEditorComponent> newTextConsole;
 	ScopedPointer<CodeTokeniser> tokeniser;
 
-	bool overflowProtection;
-
-	bool clearFlag;
+	MainController* mc;
 
 };
 

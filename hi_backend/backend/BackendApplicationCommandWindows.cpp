@@ -566,7 +566,7 @@ public:
 			SampleImporter::loadAudioFilesRaw(bpe, sampler, fileNames);
 		}
 
-		SamplerBody::SampleEditingActions::automapUsingMetadata(nullptr, sampler);
+		SampleEditHandler::SampleEditingActions::automapUsingMetadata(sampler);
 
 
 

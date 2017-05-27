@@ -27,8 +27,9 @@
 //[/MiscUserDefs]
 
 //==============================================================================
-SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b)
-    : sampler(s)
+SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
+	SamplerSubEditor(s->getSampleEditHandler()),
+	sampler(s)
 {
     //[Constructor_pre] You can add your own custom stuff here..
     //[/Constructor_pre]
@@ -168,10 +169,45 @@ void SampleEditor::paint (Graphics& g)
 
 void SampleEditor::resized()
 {
-    //[UserPreResize] Add your own custom resize code here..
-    //[/UserPreResize]
+    
+	int width = 150;
+	int halfWidth = 75;
+	int setterHeight = 32;
 
-    viewport->setBounds (8, 41, getWidth() - 16, 119);
+	int y1 = getHeight() - 50;
+	int y2 = y1 - 50;
+
+	int viewportY = 41;
+	int viewportHeight = y2 - 32;
+
+	int widthOfSetters = width * 3 + halfWidth * 2;
+
+	int x = (getWidth() - widthOfSetters) / 2;
+
+    viewport->setBounds (8, viewportY, getWidth() - 16, viewportHeight);
+
+	volumeSetter->setBounds(x, y1, width-5, setterHeight);
+	
+	panSetter->setBounds(x, y2, halfWidth-5, setterHeight);
+	x += halfWidth;
+
+	pitchSetter->setBounds(x, y2, halfWidth-5, setterHeight);
+	x += halfWidth;
+
+	sampleStartSetter->setBounds(x, y1, width-5, setterHeight);
+	sampleEndSetter->setBounds(x, y2, width-5, setterHeight);
+
+	x += width;
+
+	loopStartSetter->setBounds(x, y1, width-5, setterHeight);
+	loopEndSetter->setBounds(x, y2, width-5, setterHeight);
+
+	x += width;
+
+	startModulationSetter->setBounds(x, y1, width-5, setterHeight);
+	loopCrossfadeSetter->setBounds(x, y2, width-5, setterHeight);
+
+#if 0
     volumeSetter->setBounds (proportionOfWidth (0.3150f) - proportionOfWidth (0.1400f), 162, proportionOfWidth (0.1400f), 32);
     pitchSetter->setBounds ((proportionOfWidth (0.3150f) - proportionOfWidth (0.1400f)) + 61, 195, proportionOfWidth (0.1000f), 32);
     sampleStartSetter->setBounds ((getWidth() / 2) + 4 - proportionOfWidth (0.1400f), 162, proportionOfWidth (0.1400f), 32);
@@ -180,13 +216,15 @@ void SampleEditor::resized()
     loopEndSetter->setBounds (proportionOfWidth (0.5188f) + 0, 196, proportionOfWidth (0.1400f), 32);
     loopCrossfadeSetter->setBounds (((getWidth() / 2) + 139) + roundFloatToInt (proportionOfWidth (0.1400f) * 0.0000f), 196, proportionOfWidth (0.1400f), 32);
     startModulationSetter->setBounds ((getWidth() / 2) + 139, 160, proportionOfWidth (0.1400f), 32);
+	panSetter->setBounds(proportionOfWidth(0.2388f) - proportionOfWidth(0.1000f), 195, proportionOfWidth(0.1000f), 32);
+#endif
     toolbar->setBounds (12, 10, getWidth() - 175, 20);
-    panSetter->setBounds (proportionOfWidth (0.2388f) - proportionOfWidth (0.1000f), 195, proportionOfWidth (0.1000f), 32);
-    //[UserResized] Add your own custom resize handling here..
+    
+    
 
 	currentWaveForm->setSize((int)(viewport->getWidth() * zoomFactor), viewport->getHeight() - (viewport->isHorizontalScrollBarShown() ? viewport->getScrollBarThickness() : 0));
 
-    //[/UserResized]
+    
 }
 
 
@@ -198,7 +236,7 @@ bool SampleEditor::perform (const InvocationInfo &info)
 
 	switch(info.commandID)
 	{
-	case NormalizeVolume:  SamplerBody::SampleEditingActions::normalizeSamples(body); return true;
+	case NormalizeVolume:  SampleEditHandler::SampleEditingActions::normalizeSamples(handler, this); return true;
 	case LoopEnabled:	   {for(int i = 0; i < selection.size(); i++)
 						   {
 							   selection[i]->toggleBoolProperty(ModulatorSamplerSound::LoopEnabled);

@@ -18,6 +18,8 @@
 // Use this to quickly scale the window
 #define SCALE_2 0
 
+
+
 struct ValueTreeHelpers
 {
 	static var convertToDynamicObject(ValueTree& v)
@@ -105,6 +107,26 @@ void FloatingTile::loadFromJSON(const String& jsonData)
 }
 
 
+void FloatingTile::swapContainerType(const Identifier& containerId)
+{
+	auto v = getCurrentFloatingPanel()->exportAsValueTree();
+
+	var vAsObject = ValueTreeHelpers::convertToDynamicObject(v);
+
+	vAsObject.getDynamicObject()->setProperty("Type", containerId.toString());
+
+	auto newContainer = ValueTreeHelpers::createFromDynamicObject(vAsObject);
+
+	for (int i = 0; i < newContainer.getNumChildren(); i++)
+	{
+		newContainer.getChild(i).setProperty("Size", -0.5, nullptr);
+	}
+
+	setContent(newContainer);
+}
+
+
+
 struct DebugPanelLookAndFeel : public ResizableFloatingTileContainer::LookAndFeel
 {
 	void paintBackground(Graphics& g, ResizableFloatingTileContainer& container) override
@@ -141,39 +163,47 @@ Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 	ib.getContainer(tabs)->setIsDynamic(true);
 
 	ib.setSizes(root, { 32.0, -1.0 });
-	ib.setAbsoluteSize(root, { true, false });
-
-	ib.getContainer(root)->setAllowInserting(false);
-
+	
 	ib.setFoldable(root, false, { false, false });
 
 	const int firstVertical = ib.addChild<VerticalTile>(tabs);
 
 	ib.getContainer(firstVertical)->setIsDynamic(false);
 	ib.getPanel(firstVertical)->setVital(true);
+	ib.getPanel(firstVertical)->getLayoutData().backgroundColour = HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright);
 
 	const int leftColumn = ib.addChild<HorizontalTile>(firstVertical);
 	const int mainColumn = ib.addChild<HorizontalTile>(firstVertical);
 	const int rightColumn = ib.addChild<HorizontalTile>(firstVertical);
 
+	
+
 	ib.getContainer(leftColumn)->setIsDynamic(true);
 	ib.getContainer(mainColumn)->setIsDynamic(false);
 	ib.getContainer(rightColumn)->setIsDynamic(true);
 
-	dynamic_cast<Component*>(ib.getContainer(root))->setColour(ResizableFloatingTileContainer::ColourIds::backgroundColourId, HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourId));
+	ib.getPanel(leftColumn)->getLayoutData().backgroundColour = Colour(0xFF222222);
+	ib.getPanel(leftColumn)->getLayoutData().minSize = 150;
+	ib.getPanel(leftColumn)->setCanBeFolded(true);
+	
+	ib.getPanel(mainColumn)->getLayoutData().backgroundColour = HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright);
+
+	ib.getPanel(rightColumn)->getLayoutData().backgroundColour = Colour(0xFF222222);
+	ib.getPanel(rightColumn)->getLayoutData().minSize = 150;
+	ib.getPanel(rightColumn)->setCanBeFolded(true);
+
+	ib.getPanel(root)->getLayoutData().backgroundColour = HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourId);
 	
 	ib.setSizes(firstVertical, { -0.5, 900.0, -0.5 }, dontSendNotification);
-	ib.setAbsoluteSize(firstVertical, { false, true, false }, dontSendNotification);
-	ib.setLocked(firstVertical, { false, true, false }, sendNotification);
 	
 
 	const int mainArea = ib.addChild<EmptyComponent>(mainColumn);
 	const int keyboard = ib.addChild<MidiKeyboardPanel>(mainColumn);
 
+	ib.getPanel(keyboard)->getLayoutData().backgroundColour = HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright);
+
 	ib.setFoldable(mainColumn, false, { false, false });
 
-	ib.getContainer(firstVertical)->setAllowInserting(false);
-	
 	ib.setCustomName(firstVertical, "Main Workspace", { "Left Panel", "", "Right Panel" });
 
 #if PUT_FLOAT_IN_CODEBASE
@@ -183,7 +213,6 @@ Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 	ib.finalizeAndReturnRoot(true);
 
 	return dynamic_cast<Component*>(ib.getPanel(mainArea)->getCurrentFloatingPanel());
-
 }
 
 void EmptyComponent::resized()

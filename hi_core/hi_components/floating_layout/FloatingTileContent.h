@@ -116,6 +116,25 @@ public:
 
 	bool hasCustomTitle() const { return customTitle.isNotEmpty(); }
 
+	bool hasDynamicTitle() const { return dynamicTitle.isNotEmpty(); }
+
+	/** Sets a title that is supposed to change during runtime. It will not be stored in the JSON data. */
+	void setDynamicTitle(const String& newDynamicTitle);
+
+	String getDynamicTitle() const { return dynamicTitle; }
+
+	/** This returns the title that is supposed to be displayed. */
+	String getBestTitle() const
+	{
+		if (hasDynamicTitle())
+			return getDynamicTitle();
+
+		if (hasCustomTitle())
+			return getCustomTitle();
+
+		return getTitle();
+	}
+
 	BackendProcessorEditor* getMainPanel();
 
 	const BackendProcessorEditor* getMainPanel() const;
@@ -123,6 +142,43 @@ public:
 	class Factory
 	{
 	public:
+
+		enum class PopupMenuOptions
+		{
+			Cancel = 0,
+			Empty,
+			Spacer,
+			BigResizer,
+			HorizontalTile,
+			VerticalTile,
+			Tabs,
+			Matrix2x2,
+			ThreeColumns,
+			ThreeRows,
+			Note,
+			MidiKeyboard,
+			SampleMapEditor,
+			SampleEditor,
+			GlobalConnectorPanel,
+			ScriptEditor,
+			ScriptContent,
+			TablePanel,
+			SliderPackPanel,
+			Console,
+			ApiCollection,
+			ScriptWatchTable,
+			ScriptComponentEditPanel,
+			ModuleBrowser,
+			PatchBrowser,
+			FileBrowser,
+			toggleLayoutMode,
+			toggleGlobalLayoutMode,
+			exportAsJSON,
+			loadFromJSON,
+			MenuCommandOffset = 10000,
+
+			numOptions
+		};
 
 		/** Register a subclass to this factory. The subclass must have a static method 'Identifier getName()'. */
 		template <typename DerivedClass> void registerType()
@@ -149,6 +205,10 @@ public:
 		void handlePopupMenu(PopupMenu& m, FloatingTile* parent);
 
 		void registerAllPanelTypes();
+
+		Drawable* getIcon(PopupMenuOptions type);
+
+		void addToPopupMenu(PopupMenu& m, PopupMenuOptions type, const String& name, bool isEnabled=true, bool isTicked=false);
 
 	private:
 
@@ -184,6 +244,7 @@ private:
 	Component::SafePointer<FloatingTile> parent;
 	
 	String customTitle;
+	String dynamicTitle;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FloatingTileContent)
 };

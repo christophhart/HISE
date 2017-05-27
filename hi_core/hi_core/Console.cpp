@@ -51,21 +51,20 @@ CodeEditorComponent(doc, tok)
 }
 
 
-Console::Console(MainController* mc) :
-	overflowProtection(false)
+Console::Console(MainController* mc_):
+	mc(mc_)
 {
 	setName("Console");
 
 	tokeniser = new ConsoleTokeniser();
 
-	addAndMakeVisible(newTextConsole = new ConsoleEditorComponent(*mc->getConsoleData(), tokeniser));
+	addAndMakeVisible(newTextConsole = new ConsoleEditorComponent(*mc->getConsoleHandler().getConsoleData(), tokeniser));
 	newTextConsole->addMouseListener(this, true);
 }
 
 Console::~Console()
 {
 	newTextConsole = nullptr;
-	doc = nullptr;
 	tokeniser = nullptr;
 
 	masterReference.clear();
@@ -81,9 +80,9 @@ void Console::resized()
 
 void Console::clear()
 {
-	clearFlag = true;
+	mc->getConsoleHandler().clearConsole();
 
-	triggerAsyncUpdate();
+	
 }
 
 void Console::mouseDown(const MouseEvent &e)
@@ -173,25 +172,21 @@ void Console::mouseDown(const MouseEvent &e)
 				js->setEditorState(editorStateOffset + i, editorStateIndex == i, dontSendNotification);
 			}
 
-#if TODO_CONSOLE
-			editor->setRootProcessorWithUndo(js);
-#endif
-
+			findParentComponentOfClass<BackendRootWindow>()->getMainPanel()->setRootProcessorWithUndo(js);
 		}
     }
     else if (e.mods.isAltDown())
     {
-		
-
 #if USE_BACKEND
         
-#if TODO_CONSOLE
 		CodeDocument::Position pos = newTextConsole->getCaretPos();
 
 		String name = newTextConsole->getDocument().getLine(pos.getLineNumber()).upToFirstOccurrenceOf(":", false, false);
 
         if(name.isNotEmpty())
         {
+			auto editor = findParentComponentOfClass<BackendRootWindow>()->getMainPanel();
+
             Processor *p = ProcessorHelpers::getFirstProcessorWithName(editor->getMainSynthChain(), name);
             
             if(p != nullptr)
@@ -199,8 +194,6 @@ void Console::mouseDown(const MouseEvent &e)
                 editor->setRootProcessorWithUndo(p);
             }
         }
-#endif
-
 #endif
         
     }
@@ -272,92 +265,13 @@ void Console::mouseDoubleClick(const MouseEvent& /*e*/)
 			}
 		}
 	}
-}
-
-void Console::logMessage(const String &t, WarningLevel warningLevel, const Processor *p, Colour c)
-{
-	
-
-
-	if(overflowProtection) return;
-
-	else
-	{
-		ScopedLock sl(getLock());
-
-		if(unprintedMessages.size() > 10)
-		{
-			unprintedMessages.push_back(ConsoleMessage(Error, const_cast<Processor*>(p), "Console Overflow"));
-			overflowProtection = true;
-			return;
-		}
-		else
-		{
-			unprintedMessages.push_back(ConsoleMessage(warningLevel, const_cast<Processor*>(p), t));
-		}
-	}
-
-	if (MessageManager::getInstance()->isThisTheMessageThread())
-	{
-		handleAsyncUpdate();
-	}
-	else
-	{
-		triggerAsyncUpdate();
-	}
-};
-
-
-void Console::handleAsyncUpdate()
-{
-	if (clearFlag)
-	{
-		newTextConsole->getDocument().replaceAllContent("");
-		clearFlag = false;
-	}
-
-	std::vector<ConsoleMessage> messagesForThisTime;
-	messagesForThisTime.reserve(10);
-
-	if(unprintedMessages.size() != 0)
-	{
-		ScopedLock sl(getLock());
-		messagesForThisTime.swap(unprintedMessages);
-	}
-	else return;
-
-	String message;
-
-	for(size_t i = 0; i < messagesForThisTime.size(); i++)
-	{
-        const Processor* processor = std::get<(int)ConsoleMessageItems::Processor>(messagesForThisTime[i]).get();
-        
-        if(processor == nullptr)
-        {
-            jassertfalse;
-            continue;
-        }
-        
-		message << processor->getId() << ":";
-		message << (std::get<(int)ConsoleMessageItems::WarningLevel>(messagesForThisTime[i]) == WarningLevel::Error ? "! " : " ");
-		message << std::get<(int)ConsoleMessageItems::Message>(messagesForThisTime[i]) << "\n";
-	}
-
-	doc->insertText(doc->getNumCharacters(), message);
-
-	int numLinesVisible = jmax<int>(0, doc->getNumLines() - (int)((float)newTextConsole->getHeight() / GLOBAL_MONOSPACE_FONT().getHeight()));
-
-	newTextConsole->scrollToLine(numLinesVisible);
-	overflowProtection = false;
-
-	return;
-};
+};;
 
 Console::ConsoleTokeniser::ConsoleTokeniser()
 {
 	s.set("id", Colours::white);
 	s.set("default", Colours::white.withBrightness(0.75f));
-	s.set("error", Colours::red.withBrightness(0.9f));
+	s.set("error", JUCE_LIVE_CONSTANT_OFF(Colour(0xffff3939)));
 }
 
 int Console::ConsoleTokeniser::readNextToken(CodeDocument::Iterator& source)

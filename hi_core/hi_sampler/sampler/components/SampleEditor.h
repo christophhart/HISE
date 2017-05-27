@@ -24,6 +24,7 @@
 #include "JuceHeader.h"
 
 class SamplerBody;
+class SampleEditHandler;
 
 //[/Headers]
 

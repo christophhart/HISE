@@ -96,16 +96,10 @@ public:
 
 	void restoreFromValueTree(const ValueTree &v) override;
 
-
-
 	void enableSwapMode(bool shouldBeSwappable, FloatingTile* source);
 
-	/** This will be called whenever the layout needs to be updated (eg. when a new floating tile is added or the resizers were dragged. */
+	/** This will be called whenever the layout needs to be updated eg. when a new floating tile is added or the resizers were dragged. */
 	virtual void refreshLayout();
-
-	void setAllowInserting(bool shouldBeAllowed);
-
-	bool isInsertingEnabled() const { return allowInserting; }
 
 	bool showTitleInPresentationMode() const override { return false; }
 
@@ -131,8 +125,6 @@ private:
 	Component::SafePointer<FloatingTile> resizeSource;
 
 	OwnedArray<FloatingTile> components;
-
-	bool allowInserting = true;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FloatingTileContainer)
 };
@@ -164,11 +156,6 @@ public:
 
 	~FloatingTabComponent();
 
-	bool showTitleInPresentationMode() const override
-	{
-		return true;
-	}
-
 	String getTitle() const override { return ""; };
 
 	Rectangle<int> getContainerBounds() const override
@@ -178,12 +165,9 @@ public:
 		return localBounds.withTrimmedTop(getTabBarDepth());
 	}
 
-	void refreshLayout() override
-	{
-		FloatingTileContainer::refreshLayout();
+	void popupMenuClickOnTab(int tabIndex, const String& tabName) override;
 
-		resized();
-	}
+	void refreshLayout() override;
 
 	void componentAdded(FloatingTile* newComponent) override;
 	void componentRemoved(FloatingTile* deletedComponent) override;
@@ -199,6 +183,8 @@ public:
 private:
 
 	ScopedPointer<ShapeButton> addButton;
+
+	PopupLookAndFeel plaf;
 
 	LookAndFeel laf;
 };
@@ -267,12 +253,7 @@ public:
 
 	String getTitle() const override;
 
-	bool showTitleInPresentationMode() const override
-	{
-		return getCustomTitle().isNotEmpty();
-	}
-
-    Rectangle<int> getContainerBounds() const override;
+	Rectangle<int> getContainerBounds() const override;
 	
 	virtual bool isVertical() const { return vertical; }
 

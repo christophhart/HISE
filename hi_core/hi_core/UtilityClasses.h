@@ -815,6 +815,8 @@ public:
 
 	void grabCopyAndPasteFocus();
 
+	void dismissCopyAndPasteFocus();
+
 	bool isSelectedForCopyAndPaste() { return isSelected; };
 
 	void paintOutlineIfSelected(Graphics &g)

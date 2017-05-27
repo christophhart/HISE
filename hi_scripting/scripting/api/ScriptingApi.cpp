@@ -2627,7 +2627,7 @@ void ScriptingApi::Console::stop()
 
 void ScriptingApi::Console::clear()
 {
-	getProcessor()->getMainController()->clearConsole();
+	getProcessor()->getMainController()->getConsoleHandler().clearConsole();
 }
 
 #undef SEND_MESSAGE

@@ -34,6 +34,7 @@
 #define SAMPLEEDITORCOMPONENTS_H_INCLUDED
 
 class SamplerBody;
+class SampleEditHandler;
 class SamplerSoundWaveform;
 class SamplerSoundMap;
 
@@ -45,7 +46,10 @@ class SamplerSubEditor
 {
 public:
 
-    SamplerSubEditor(): internalChange(false) {};
+    SamplerSubEditor(SampleEditHandler* handler_): 
+		internalChange(false),
+		handler(handler_)
+	{};
     
     virtual ~SamplerSubEditor() {};
 
@@ -60,7 +64,11 @@ protected:
 	*/
     virtual void soundsSelected(const Array<ModulatorSamplerSound*> &selection) = 0;
 
+	SampleEditHandler* handler;
+
 private:
+
+	
 
     bool internalChange;
 };
@@ -311,7 +319,7 @@ public:
 		numDragLimiters
 	};
 
-	SamplerSoundMap(ModulatorSampler *ownerSampler_, SamplerBody *b);
+	SamplerSoundMap(ModulatorSampler *ownerSampler_);
 
 	~SamplerSoundMap()
 	{
@@ -426,10 +434,8 @@ private:
 
 	void endSampleDragging(bool copyDraggedSounds);
 	
-
-
 	ModulatorSampler *ownerSampler;
-	SamplerBody *body;
+	SampleEditHandler* handler;
 
 	Rectangle<int> dragArea;
 	Array<DragData> dragStartData;
@@ -467,7 +473,7 @@ class MapWithKeyboard: public Component
 {
 public:
 
-	MapWithKeyboard(ModulatorSampler *ownerSampler, SamplerBody *b);
+	MapWithKeyboard(ModulatorSampler *ownerSampler);
 
 	void paint(Graphics &g) override;
 	void resized() override;
@@ -492,7 +498,7 @@ class SamplerSoundTable    : public Component,
 							 public SamplerSubEditor
 {
 public:
-	SamplerSoundTable(ModulatorSampler *ownerSampler_, SamplerBody *b);
+	SamplerSoundTable(ModulatorSampler *ownerSampler_, SampleEditHandler* handler);
 
 	void refreshList();
 
@@ -518,8 +524,7 @@ public:
 private:
 
 	ModulatorSampler *ownerSampler;
-	SamplerBody *body;
-
+	
 	bool internalSelection;
 
     TableListBox table;     

@@ -109,8 +109,12 @@ SamplerBody::SamplerBody (ProcessorEditor *p)
 
 	sampleEditor->addMouseListener(this, false);
 
+	getSampleEditHandler()->addSelectionListener(this);
+
+#if SAMPLER_DEPRECATED
 	selectionListener = new SelectionListener(this);
-	selectedSamplerSounds.addChangeListener(selectionListener);
+#endif
+	
 
 	//soundTable->addMouseListener(this, true);
 
@@ -165,6 +169,9 @@ SamplerBody::SamplerBody (ProcessorEditor *p)
 SamplerBody::~SamplerBody()
 {
     //[Destructor_pre]. You can add your own custom destruction code here..
+
+	getSampleEditHandler()->removeSelectionListener(this);
+
     //[/Destructor_pre]
 
     sampleEditor = nullptr;
@@ -188,7 +195,7 @@ void SamplerBody::soundSelectionChanged()
 
 	if ((thisTime - timeSinceLastSelectionChange) > interval)
 	{
-		const Array<WeakReference<ModulatorSamplerSound>> sounds = selectedSamplerSounds.getItemArray();
+		const Array<WeakReference<ModulatorSamplerSound>> sounds = getSampleEditHandler()->getSelection().getItemArray();
 
 		Array<ModulatorSamplerSound*> existingSounds;
 

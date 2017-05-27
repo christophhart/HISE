@@ -29,14 +29,15 @@
 //[/MiscUserDefs]
 
 //==============================================================================
-SamplerTable::SamplerTable (ModulatorSampler *s, SamplerBody *b)
-    : sampler(s),
-      body(b)
+SamplerTable::SamplerTable (ModulatorSampler *s, SamplerBody *b):
+	SamplerSubEditor(s->getSampleEditHandler()),
+	sampler(s),
+    body(b)
 {
     //[Constructor_pre] You can add your own custom stuff here..
     //[/Constructor_pre]
 
-    addAndMakeVisible (table = new SamplerSoundTable (s, b));
+    addAndMakeVisible (table = new SamplerSoundTable (s, handler));
     table->setName ("new component");
 
     addAndMakeVisible (searchLabel = new RetriggerLabel ("new label",
@@ -167,7 +168,7 @@ void SamplerTable::labelTextChanged (Label* labelThatHasChanged)
         //[UserLabelCode_searchLabel] -- add your label text handling code here..
 		String wildcard = searchLabel->getText(false);
 
-		ModulatorSamplerSound::selectSoundsBasedOnRegex(wildcard, sampler, body->getSelection());
+		ModulatorSamplerSound::selectSoundsBasedOnRegex(wildcard, sampler, handler->getSelection());
 
         //[/UserLabelCode_searchLabel]
     }

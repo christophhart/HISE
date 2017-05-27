@@ -534,7 +534,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
     case MenuDeleteView:                Actions::deleteView(bpe); updateCommands();return true;
     case MenuRenameView:                Actions::renameView(bpe); updateCommands();return true;
     case MenuViewSaveCurrentView:       Actions::saveView(bpe); updateCommands(); return true;
-    case MenuToolsClearConsole:         owner->clearConsole(); return true;
+    case MenuToolsClearConsole:         owner->getConsoleHandler().clearConsole(); return true;
 	case MenuHelpShowAboutPage:			Actions::showAboutPage(bpe); return true;
     case MenuHelpCheckVersion:          Actions::checkVersion(bpe); return true;
 	case MenuOneColumn:					Actions::setColumns(bpe, this, OneColumn);  updateCommands(); return true;

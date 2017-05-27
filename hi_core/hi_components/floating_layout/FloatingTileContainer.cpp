@@ -89,7 +89,7 @@ void FloatingTileContainer::removeFloatingTile(FloatingTile* componentToRemove)
 
 bool FloatingTileContainer::shouldIntendAddButton() const
 {
-	return getParentShell()->isLayoutModeEnabled() || FloatingTile::LayoutHelpers::showFoldButton(getParentShell());
+	return FloatingTile::LayoutHelpers::showFoldButton(getParentShell());
 }
 
 ValueTree FloatingTileContainer::exportAsValueTree() const
@@ -136,11 +136,6 @@ void FloatingTileContainer::enableSwapMode(bool shouldBeSwappable, FloatingTile*
 	}
 }
 
-void FloatingTileContainer::setAllowInserting(bool shouldBeAllowed)
-{
-	allowInserting = shouldBeAllowed;
-}
-
 void FloatingTileContainer::refreshLayout()
 {
 	FloatingTile::Iterator<FloatingTileContainer> iter(getParentShell());
@@ -181,12 +176,29 @@ int FloatingTabComponent::LookAndFeel::getTabButtonBestWidth(TabBarButton &b, in
 	return (int)(w + 48);
 }
 
+
+Path createTabBackgroundPath(Rectangle<float> bounds)
+{
+
+	Path p;
+
+	p.startNewSubPath(bounds.getX(), bounds.getY() + 4);
+	p.lineTo(bounds.getX() + 3, bounds.getY()+1);
+	p.lineTo(bounds.getRight() - 3, bounds.getY()+1);
+	p.lineTo(bounds.getRight(), bounds.getY() + 4);
+	p.lineTo(bounds.getRight(), bounds.getBottom());
+	p.lineTo(bounds.getX(), bounds.getBottom());
+	p.closeSubPath();
+
+	return p;
+}
+
 void FloatingTabComponent::LookAndFeel::drawTabButton(TabBarButton &b, Graphics &g, bool isMouseOver, bool /*isMouseDown*/)
 {
 	if (isMouseOver)
 	{
-		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x13000000)));
-		g.fillRect(0, 0, b.getWidth(), 22);
+		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x13ffffff)));
+		g.fillPath(createTabBackgroundPath(Rectangle<float>(0.0f, 0.0f, (float)b.getWidth(), 20.0f)));
 	}
 
 	g.setColour(Colours::black.withAlpha(0.1f));
@@ -196,7 +208,7 @@ void FloatingTabComponent::LookAndFeel::drawTabButton(TabBarButton &b, Graphics 
 	g.setColour(Colours::white.withAlpha(a));
 	g.setFont(GLOBAL_BOLD_FONT());
 
-	g.drawText(b.getButtonText(), 5, 4, b.getWidth() - 10, b.getHeight() - 4, Justification::centredLeft);
+	g.drawText(b.getButtonText(), 5, 2, b.getWidth() - 10, b.getHeight() - 4, Justification::centredLeft);
 }
 
 
@@ -205,13 +217,19 @@ Rectangle< int > FloatingTabComponent::LookAndFeel::getTabButtonExtraComponentBo
 	return Rectangle<int>(b.getWidth() - 18, 2, 16, 16);
 }
 
+
 void FloatingTabComponent::LookAndFeel::drawTabAreaBehindFrontButton(TabbedButtonBar &b, Graphics &g, int , int )
 {
-	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff333333)));
+	
 
 	if (b.getCurrentTabIndex() != -1)
 	{
-		g.fillRect(b.getTabButton(b.getCurrentTabIndex())->getBoundsInParent());
+
+		g.setColour(HiseColourScheme::getColour(HiseColourScheme::EditorBackgroundColourIdBright));
+
+		auto bounds = FLOAT_RECTANGLE(b.getTabButton(b.getCurrentTabIndex())->getBoundsInParent());
+
+		g.fillPath(createTabBackgroundPath(bounds));
 	}
 		
 }
@@ -243,6 +261,48 @@ FloatingTabComponent::FloatingTabComponent(FloatingTile* parent) :
 FloatingTabComponent::~FloatingTabComponent()
 {
 	clear();
+}
+
+void FloatingTabComponent::popupMenuClickOnTab(int tabIndex, const String& tabName)
+{
+	PopupMenu m;
+
+	m.setLookAndFeel(&plaf);
+
+	m.addItem(1, "Rename Tab", !getComponent(tabIndex)->isVital());
+	m.addSeparator();
+	m.addItem(2, "Export Tab as JSON", !getComponent(tabIndex)->isVital());
+	m.addItem(3, "Replace Tab with JSON in clipboard", !getComponent(tabIndex)->isVital());
+
+	const int result = m.show();
+
+	if (result == 1)
+	{
+		auto newName = PresetHandler::getCustomName("Tab", "Enter the tab name");
+		getComponent(tabIndex)->getCurrentFloatingPanel()->setCustomTitle(newName);
+		
+		getTabbedButtonBar().repaint();
+	}
+	else if (result == 2)
+	{
+		SystemClipboard::copyTextToClipboard(getComponent(tabIndex)->exportAsJSON());
+	}
+	else if (result == 3)
+	{
+		getComponent(tabIndex)->loadFromJSON(SystemClipboard::getTextFromClipboard());
+	}
+}
+
+void FloatingTabComponent::refreshLayout()
+{
+	FloatingTileContainer::refreshLayout();
+
+	if (getCurrentTabIndex() != -1)
+	{
+		getComponent(getCurrentTabIndex())->resized();
+	}
+
+	resized();
 }
 
 void FloatingTabComponent::componentAdded(FloatingTile* newComponent)
@@ -290,31 +350,14 @@ ValueTree FloatingTabComponent::exportAsValueTree() const
 
 	v.setProperty("CurrentTab", getCurrentTabIndex(), nullptr);
 
-	for (int i = 0; i < getNumComponents(); i++)
-	{
-		auto child = getComponent(i)->getCurrentFloatingPanel();
-
-		ValueTree cv;
-
-		cv = child->exportAsValueTree();
-	
-		v.addChild(cv, -1, nullptr);
-	}
-
 	return v;
 }
 
 void FloatingTabComponent::restoreFromValueTree(const ValueTree &v)
 {
-	FloatingTileContainer::restoreFromValueTree(v);
-
-	clear();
 	clearTabs();
 
-	for (int i = 0; i < v.getNumChildren(); i++)
-	{
-		addFloatingTile(new FloatingTile(this, v.getChild(i)));
-	}
+	FloatingTileContainer::restoreFromValueTree(v);
 
 	setCurrentTabIndex(v.getProperty("CurrentTab", -1));
 }
@@ -322,10 +365,10 @@ void FloatingTabComponent::restoreFromValueTree(const ValueTree &v)
 void FloatingTabComponent::paint(Graphics& g)
 {
 	g.setColour(HiseColourScheme::getColour(HiseColourScheme::EditorBackgroundColourId));
-	g.fillRect(0, 4, getWidth(), 18);
-
-	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xFF666666)));
 	g.fillRect(0, 0, getWidth(), 24);
+
+	g.setColour(HiseColourScheme::getColour(HiseColourScheme::EditorBackgroundColourIdBright));
+	g.fillRect(0, 20, getWidth(), 4);
 }
 
 void FloatingTabComponent::resized()
@@ -339,7 +382,7 @@ void FloatingTabComponent::resized()
 	{
 		for (int i = 0; i < getNumTabs(); i++)
 		{
-			String text = getComponent(i)->getCurrentFloatingPanel()->getCustomTitle();
+			String text = getComponent(i)->getCurrentFloatingPanel()->getBestTitle();
 
 			if (text.isEmpty())
 				text = "Untitled";
@@ -357,7 +400,7 @@ void FloatingTabComponent::resized()
 
 	
 
-	if (!isInsertingEnabled())
+	if (!isDynamic())
 		addButton->setVisible(false);
 
 	const int intend = FloatingTile::LayoutHelpers::showFoldButton(getParentShell()) ? 16 : 0;
@@ -368,9 +411,9 @@ void FloatingTabComponent::resized()
 	auto b = getTabbedButtonBar().getTabButton(getTabbedButtonBar().getNumTabs() - 1);
 
 	if (b != nullptr)
-		addButton->setBounds(b->getRight() + intend + 4, 6, 16, 16);
+		addButton->setBounds(b->getRight() + intend + 4, 2, 16, 16);
 	else
-		addButton->setBounds(intend + 2, 6, 16, 16);
+		addButton->setBounds(intend + 2, 2, 16, 16);
 }
 
 void FloatingTabComponent::buttonClicked(Button* )
@@ -387,8 +430,7 @@ void ResizableFloatingTileContainer::refreshLayout()
 
 void ResizableFloatingTileContainer::paint(Graphics& g)
 {
-	g.setColour(findColour(ColourIds::backgroundColourId));
-	g.fillAll();
+	
 }
 
 Rectangle<int> ResizableFloatingTileContainer::getContainerBounds() const
@@ -427,8 +469,6 @@ ResizableFloatingTileContainer::ResizableFloatingTileContainer(FloatingTile* par
 	FloatingTileContainer(parent),
 	vertical(isVerticalTile)
 {
-	setOpaque(true);
-
 	setColour(ColourIds::backgroundColourId, Colour(0xff373737));
 
 	addAndMakeVisible(addButton = new ShapeButton("Add Column", Colours::white.withAlpha(0.7f), Colours::white, Colours::white));
@@ -494,7 +534,7 @@ void ResizableFloatingTileContainer::resized()
 	if (getParentComponent() == nullptr || getParentShell()->getCurrentFloatingPanel() == nullptr) // avoid resizing
 		return;
 
-	addButton->setVisible(isTitleBarDisplayed());
+	addButton->setVisible(isTitleBarDisplayed() && isDynamic());
 	addButton->setBounds(shouldIntendAddButton() ? 18 : 1, 1, 30, 15);
 	addButton->toFront(false);
 
@@ -534,7 +574,11 @@ void ResizableFloatingTileContainer::foldComponent(Component* c, bool shouldBeFo
 
 bool ResizableFloatingTileContainer::isTitleBarDisplayed() const
 {
-	const bool layoutModeWithAddingEnabled = getParentShell()->isLayoutModeEnabled() && isInsertingEnabled();
+	return getParentShell()->showTitle();
+
+#if 0
+
+	const bool layoutModeWithAddingEnabled = getParentShell()->isLayoutModeEnabled() && isDynamic();
 
 	if (layoutModeWithAddingEnabled)
 		return true;
@@ -546,6 +590,7 @@ bool ResizableFloatingTileContainer::isTitleBarDisplayed() const
 	
 	if (hasCustomTitle())
 		return true;
+#endif
 }
 
 void ResizableFloatingTileContainer::mouseDown(const MouseEvent& event)
@@ -590,9 +635,9 @@ void ResizableFloatingTileContainer::performLayout(Rectangle<int> area)
 		if (i < getNumComponents() - 1)
 			availableSize -= resizers[i]->getCurrentSize();
 
-		if (lData.isFolded)
+		if (pc->isFolded())
 			availableSize -= 16;
-		else if (lData.isAbsolute)
+		else if (lData.isAbsolute())
 			availableSize -= lData.currentSize;
 		else
 			totalRelativeAmount += lData.currentSize * -1.0;
@@ -614,14 +659,16 @@ void ResizableFloatingTileContainer::performLayout(Rectangle<int> area)
 
 		auto& lData = pc->getLayoutData();
 
-		if (lData.isFolded)
+		if (pc->isFolded())
 		{
 			setBoundsOneDimension(pc, offset, 16, area);
 			offset += 16;
 		}
-		else if (lData.isAbsolute)
+		else if (lData.isAbsolute())
 		{
-			double size = jmax<int>(lData.currentSize, 16);
+			int size = jmax<int>((int)lData.currentSize, 16);
+
+			pc->setVisible(size > lData.minSize);
 
 			setBoundsOneDimension(pc, offset, size, area);
 			offset += lData.currentSize;
@@ -632,6 +679,8 @@ void ResizableFloatingTileContainer::performLayout(Rectangle<int> area)
 			double scaledPercentage = percentage / totalRelativeAmount;
 			int size = availableSize * scaledPercentage;
 			size = jmax<int>(size, 16);
+
+			pc->setVisible(size > lData.minSize);
 
 			setBoundsOneDimension(pc, offset, size, area);
 			offset += size;
@@ -694,7 +743,7 @@ ResizableFloatingTileContainer::InternalResizer::InternalResizer(ResizableFloati
 	{
 		auto &lData = parent->getComponent(i)->getLayoutData();
 
-		bool cantBeResized = lData.isLocked || lData.isFolded || lData.isAbsolute;
+		bool cantBeResized = parent->getComponent(i)->isFolded() || lData.isAbsolute();
 
 		if (cantBeResized)
 			continue;

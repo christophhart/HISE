@@ -187,7 +187,7 @@ void SearchableListComponent::resized()
 
 void SearchableListComponent::paint(Graphics& g)
 {
-    g.setColour(Colour(DEBUG_AREA_BACKGROUND_COLOUR_DARK));
+    g.setColour(Colour(0xff353535));
     g.fillRect(0.0f, 0.0f, (float)getWidth(), 25.0f);
     
 	g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.5f), 0.0f, 25.0f,

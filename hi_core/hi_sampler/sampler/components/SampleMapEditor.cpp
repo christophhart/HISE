@@ -27,8 +27,9 @@
 //[/MiscUserDefs]
 
 //==============================================================================
-SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b)
-    : sampler(s)
+SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
+	SamplerSubEditor(s->getSampleEditHandler()),
+	sampler(s)
 {
     //[Constructor_pre] You can add your own custom stuff here..
 
@@ -66,7 +67,7 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b)
     addAndMakeVisible (viewport = new Viewport ("new viewport"));
     viewport->setScrollBarsShown (false, true);
     viewport->setScrollBarThickness (12);
-    viewport->setViewedComponent (new MapWithKeyboard (sampler, b));
+    viewport->setViewedComponent (new MapWithKeyboard (sampler));
 
     addAndMakeVisible (toolbar = new Toolbar());
     toolbar->setName ("new component");
@@ -98,7 +99,7 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b)
 
 	map = dynamic_cast<MapWithKeyboard*>(viewport->getViewedComponent());
 
-
+	
 
 	groupDisplay->setEditable(false);
 
@@ -416,15 +417,15 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 {
 	switch(info.commandID)
 	{
-	case DuplicateSamples:	SamplerBody::SampleEditingActions::duplicateSelectedSounds(body); return true;
-	case DeleteDuplicateSamples: SamplerBody::SampleEditingActions::removeDuplicateSounds(body); return true;
-	case DeleteSamples:		SamplerBody::SampleEditingActions::deleteSelectedSounds(body); return true;
-	case CutSamples:		SamplerBody::SampleEditingActions::cutSelectedSounds(body); return true;
-	case CopySamples:		SamplerBody::SampleEditingActions::copySelectedSounds(body); return true;
-	case PasteSamples:		SamplerBody::SampleEditingActions::pasteSelectedSounds(body); return true;
-	case SelectAllSamples:	SamplerBody::SampleEditingActions::selectAllSamples(body); return true;
-	case MergeIntoMultisamples:		SamplerBody::SampleEditingActions::mergeIntoMultiSamples(body); return true;
-	case ExtractToSingleMicSamples:	SamplerBody::SampleEditingActions::extractToSingleMicSamples(body); return true;
+	case DuplicateSamples:	SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(handler); return true;
+	case DeleteDuplicateSamples: SampleEditHandler::SampleEditingActions::removeDuplicateSounds(handler); return true;
+	case DeleteSamples:		SampleEditHandler::SampleEditingActions::deleteSelectedSounds(handler); return true;
+	case CutSamples:		SampleEditHandler::SampleEditingActions::cutSelectedSounds(handler); return true;
+	case CopySamples:		SampleEditHandler::SampleEditingActions::copySelectedSounds(handler); return true;
+	case PasteSamples:		SampleEditHandler::SampleEditingActions::pasteSelectedSounds(handler); return true;
+	case SelectAllSamples:	SampleEditHandler::SampleEditingActions::selectAllSamples(handler); return true;
+	case MergeIntoMultisamples:		SampleEditHandler::SampleEditingActions::mergeIntoMultiSamples(handler, this); return true;
+	case ExtractToSingleMicSamples:	SampleEditHandler::SampleEditingActions::extractToSingleMicSamples(handler); return true;
 	case ZoomIn:			zoom(false); return true;
 	case ZoomOut:			zoom(true); return true;
 	case ToggleVerticalSize:toggleVerticalSize(); return true;
@@ -497,13 +498,13 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 
 							return true;
 							}
-	case AutomapVelocity:	SamplerBody::SampleEditingActions::automapVelocity(body);
+	case AutomapVelocity:	SampleEditHandler::SampleEditingActions::automapVelocity(handler);
 							return true;
-	case RefreshVelocityXFade:	SamplerBody::SampleEditingActions::refreshCrossfades(body);
+	case RefreshVelocityXFade:	SampleEditHandler::SampleEditingActions::refreshCrossfades(handler);
 							return true;
-	case AutomapUsingMetadata: SamplerBody::SampleEditingActions::automapUsingMetadata(body, sampler);
+	case AutomapUsingMetadata: SampleEditHandler::SampleEditingActions::automapUsingMetadata(sampler);
 							return true;
-	case TrimSampleStart:	SamplerBody::SampleEditingActions::trimSampleStart(body);
+	case TrimSampleStart:	SampleEditHandler::SampleEditingActions::trimSampleStart(handler);
 							return true;
 	}
 	return false;
@@ -513,7 +514,7 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 
 void SampleMapEditor::refreshRootNotes()
 {
-	Array<WeakReference<ModulatorSamplerSound>> sounds = body->getSelection().getItemArray();
+	Array<WeakReference<ModulatorSamplerSound>> sounds = handler->getSelection().getItemArray();
 
 	if (sounds.size() == 0 && map->selectedRootNotes == 0) return;
 
@@ -573,7 +574,7 @@ void SampleMapEditor::popoutMap()
 
 	popoutCopy->setSize(337, editor->getHeight() - 150); // 337 is very important to keep the world running.
 
-	Array<WeakReference<ModulatorSamplerSound>> refArray = body->getSelection().getItemArray();
+	Array<WeakReference<ModulatorSamplerSound>> refArray = handler->getSelection().getItemArray();
 
 	Array<ModulatorSamplerSound*> soundArray;
 

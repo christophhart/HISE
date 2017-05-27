@@ -47,23 +47,32 @@ public:
 		void updateValueTree(ValueTree & v) const;
 		void restoreFromValueTree(const ValueTree &v);
 
-		bool isLocked = false;
-		bool isFolded = false;
-		bool isAbsolute = false;
 		double currentSize = -0.5;
 		bool swappingEnabled = false;
 		
-		bool foldable = true;
-
 		void reset()
 		{
-			isLocked = false;
-			isFolded = false;
-			isAbsolute = false;
+			foldState = 0;
 			currentSize = -0.5;
 			swappingEnabled = false;
-			foldable = true;
+			backgroundColour = {};
 		}
+
+		bool isAbsolute() const { return currentSize > 0.0; }
+
+		bool isFolded() const { return foldState > 0; }
+		bool canBeFolded() const { return foldState >= 0; }
+		void setFoldState(int newFoldState) { foldState = newFoldState; }
+
+		Colour backgroundColour = {};
+
+		int minSize = -1;
+
+	private:
+
+		
+
+		int foldState = 0;
 	};
 
 	template <typename ContentType> class Iterator
@@ -130,12 +139,6 @@ public:
 		void buttonClicked(Button* b);
 	};
 
-	struct LockButton : public ShapeButton, public ButtonListener
-	{
-		LockButton();
-		void buttonClicked(Button* b);
-	};
-
 	struct ResizeButton : public ShapeButton, public ButtonListener
 	{
 		ResizeButton();
@@ -150,24 +153,25 @@ public:
 		foldButton = nullptr;
 		moveButton = nullptr;
 		resizeButton = nullptr;
-		lockButton = nullptr;
 		closeButton = nullptr;
 	}
 
+	void setContent(ValueTree& data);
+	void setNewContent(const Identifier& newId);
+
 	bool isEmpty() const;
+	bool showTitle() const;
 
+	Rectangle<int> getContentBounds();
+
+	bool isFolded() const;
 	void setFolded(bool shouldBeFolded);
-
 	void refreshFoldButton();
-
 	void setCanBeFolded(bool shouldBeFoldable);
-
 	bool canBeFolded() const;
 
-	void setUseAbsoluteSize(bool shouldUseAbsoluteSize);
+	void refreshPinButton();
 	void toggleAbsoluteSize();
-
-	void setLockedSize(bool shouldBeLocked);
 
 	const BackendRootWindow* getRootWindow() const;
 	BackendRootWindow* getRootWindow();
@@ -178,13 +182,10 @@ public:
 
 	void clear();
 	void refreshRootLayout();
+	
 	void setLayoutModeEnabled(bool shouldBeEnabled, bool setChildrenToSameSetting=true);
-
 	bool isLayoutModeEnabled() const;;
-
 	bool canDoLayoutMode() const;
-
-	void toggleLayoutModeForParentContainer();
 
 	ParentType getParentType() const;
 
@@ -195,6 +196,8 @@ public:
 
 	void enableSwapMode(bool shouldBeEnabled, FloatingTile* source);
 	void swapWith(FloatingTile* otherComponent);
+
+	void swapContainerType(const Identifier& containerId);
 
 	void bringButtonsToFront();
 
@@ -215,14 +218,12 @@ public:
 	const FloatingTileContent* getCurrentFloatingPanel() const;
 	FloatingTileContent* getCurrentFloatingPanel();
 	
-	bool isFolded() const;
 	bool isInVerticalLayout() const;
 
 	const LayoutData& getLayoutData() const { return layoutData; }
 	LayoutData& getLayoutData() { return layoutData; }
 
 	String exportAsJSON() const;
-
 	void loadFromJSON(const String& jsonData);
 
 	struct LayoutHelpers
@@ -232,121 +233,50 @@ public:
 		static void setContentBounds(FloatingTile* t);
 		static bool showCloseButton(const FloatingTile* t);
 		static bool showMoveButton(const FloatingTile* t);
+		static bool showPinButton(const FloatingTile* t);
 		static bool showFoldButton(const FloatingTile* t);
-		static bool showLockButton(const FloatingTile* t);
 	};
 
-	void setContent(ValueTree& data);
-
-	void setNewContent(const Identifier& newId);
-
 	void setVital(bool shouldBeVital) { vital = shouldBeVital; }
-
 	bool isVital() const { return vital; }
-
 	bool canBeDeleted() const;
-
 	bool isSwappable() const;
 
 	FloatingTileContent::Factory* getPanelFactory() { return &panelFactory; };
 
-	void setSelector(const FloatingTileContent* originPanel, Point<int> mousePosition);
+private:
 
-	class Selector : public Component
+	class TilePopupLookAndFeel : public PopupLookAndFeel
 	{
-	public:
+		void getIdealPopupMenuItemSize(const String &text, bool isSeparator, int standardMenuItemHeight, int &idealWidth, int &idealHeight) override;
 
-		Selector(Rectangle<int>& target_, Point<int> pos):
-			target(target_),
-			mousePosition(pos)
-		{
-			addAndMakeVisible(content = new Content());
-		}
-
-		~Selector()
-		{
-
-		}
-
-		void mouseDown(const MouseEvent& event)
-		{
-			findParentComponentOfClass<FloatingTile>()->setSelector(nullptr, {});
-		}
-
-		void paint(Graphics& g)
-		{
-			g.fillAll(Colours::black.withAlpha(0.2f));
-
-			g.setColour(Colours::white.withAlpha(0.1f));
-			g.fillRect(target);
-		}
-
-		void resized()
-		{
-			int x = jmax<int>(mousePosition.getX() - 300, 10);
-			int y = jmax<int>(mousePosition.getY() - 300, 10);
-
-			x = jmin<int>(x, getWidth() - 610);
-			y = jmin<int>(y, getHeight() - 510);
-
-			content->setBounds(x, y, 600, 500);
-		}
-
-	private:
-
-		class Content : public Component
-		{
-		public:
-
-			void paint(Graphics& g)
-			{
-				g.fillAll(Colours::black.withAlpha(0.3f));
-			}
-
-			void mouseDown(const MouseEvent&)
-			{
-				findParentComponentOfClass<FloatingTile>()->setSelector(nullptr, {});
-			}
-
-		private:
-
-		};
-		
-		Rectangle<int> target;
-
-		ScopedPointer<Content> content;
-
-		Point<int> mousePosition;
+		void drawPopupMenuSectionHeader(Graphics& g, const Rectangle<int>& area, const String& sectionName);
 
 	};
 
-private:
+	void refreshFixedSizeForNewContent();
 
 	bool vital = false;
 
 	bool layoutModeEnabled = false;
 
-	ScopedPointer<Selector> currentSelector;
-
-	int leftOffset = 0;
-	int rightOffset = 0;
+	int leftOffsetForTitleText = 0;
+	int rightOffsetForTitleText = 0;
 
 	LayoutData layoutData;
 
-	PopupLookAndFeel plaf;
+	TilePopupLookAndFeel plaf;
 
 	Component::SafePointer<FloatingTile> currentSwapSource;
 
 	ScopedPointer<ShapeButton> closeButton;
 	ScopedPointer<MoveButton> moveButton;
 	ScopedPointer<FoldButton> foldButton;
-	ScopedPointer<LockButton> lockButton;
 	ScopedPointer<ResizeButton> resizeButton;
 
 	ScopedPointer<Component> content;
 
 	FloatingTileContainer* parentContainer;
-
 	FloatingTileContent::Factory panelFactory;
 };
 

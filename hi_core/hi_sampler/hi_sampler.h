@@ -61,6 +61,7 @@
 #include "sampler/components/SampleEditor.h"
 #include "sampler/components/SampleMapEditor.h"
 #include "sampler/components/SamplerTable.h"
+#include "sampler/components/SampleEditHandler.h"
 #include "sampler/components/SamplerBody.h"
 
 #endif

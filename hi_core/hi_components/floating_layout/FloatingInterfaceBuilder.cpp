@@ -54,50 +54,6 @@ void FloatingInterfaceBuilder::setFolded(int index, Array<bool> foldStates, Noti
 		jassertfalse;
 }
 
-void FloatingInterfaceBuilder::setAbsoluteSize(int index, Array<bool> absoluteState, NotificationType shouldUpdateLayout /*= sendNotification*/)
-{
-	if (auto c = getTileManager(index))
-	{
-		if (absoluteState.size() != c->getNumComponents())
-		{
-			jassertfalse;
-			return;
-		}
-
-		for (int i = 0; i < c->getNumComponents(); i++)
-		{
-			c->getComponent(i)->getLayoutData().isAbsolute = absoluteState[i];
-		}
-
-		if (shouldUpdateLayout == sendNotification)
-			c->refreshLayout();
-	}
-	else
-		jassertfalse;
-}
-
-void FloatingInterfaceBuilder::setLocked(int index, Array<bool> lockedStates, NotificationType shouldUpdateLayout/*=sendNotification*/)
-{
-	if (auto c = getTileManager(index))
-	{
-		if (lockedStates.size() != c->getNumComponents())
-		{
-			jassertfalse;
-			return;
-		}
-
-		for (int i = 0; i < c->getNumComponents(); i++)
-		{
-			c->getComponent(i)->getLayoutData().isLocked = lockedStates[i];
-		}
-
-		if (shouldUpdateLayout == sendNotification)
-			c->refreshLayout();
-	}
-	else
-		jassertfalse;
-}
-
 
 void FloatingInterfaceBuilder::setFoldable(int index, bool isFoldable, Array<bool> childFoldableStates, NotificationType /*= dontSendNotification*/)
 {

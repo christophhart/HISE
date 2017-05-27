@@ -220,6 +220,8 @@ public:
 		}
 	}
 
+	int getNumTables() const override { return 2; }
+
 	ModulatorState *createSubclassedState(int voiceIndex) const override {return new TableEnvelopeState(voiceIndex); };
 
 private:

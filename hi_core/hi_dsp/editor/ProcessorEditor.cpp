@@ -48,10 +48,15 @@ isPopupMode(false)
 	addAndMakeVisible(panel = new ProcessorEditorPanel(this));
 	addAndMakeVisible(chainBar = new ProcessorEditorChainBar(this));
 
+	header->addMouseListener(this, false);
+	body->addMouseListener(this, false);
+
     setOpaque(true);
 	
 
 	setSize(ProcessorEditorContainer::getWidthForIntendationLevel(intendationLevel), getActualHeight());
+
+	setInterceptsMouseClicks(true, true);
 
 	header->update();
 	body->updateGui();

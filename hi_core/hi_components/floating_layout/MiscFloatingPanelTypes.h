@@ -233,7 +233,12 @@ public:
 
 	void resized() override
 	{
-		keyboard->setBounds(0, 0, getWidth(), 72);
+		int maxWidth = CONTAINER_WIDTH;
+
+		if (getWidth() < maxWidth)
+			keyboard->setBounds(0, 0, getWidth(), 72);
+		else
+			keyboard->setBounds((getWidth() - maxWidth) / 2, 0, maxWidth, 72);
 	}
 
 	int getFixedHeight() const override { return 72; }
@@ -345,7 +350,7 @@ public:
 
 	void setContentWithUndo(Processor* newProcessor, int newIndex);
 
-	virtual void refreshContent()
+	void refreshContent()
 	{
 		if (getConnectedProcessor())
 			connectionSelector->setText(getConnectedProcessor()->getId(), dontSendNotification);
@@ -364,6 +369,15 @@ public:
 
 			addAndMakeVisible(content = createContentComponent(currentIndex));
 		}
+
+		auto titleToUse = hasCustomTitle() ? getCustomTitle() : getTitle();
+
+		if (getProcessor())
+		{
+			titleToUse << ": " << getConnectedProcessor()->getId();
+		}
+
+		setDynamicTitle(titleToUse);
 
 		resized();
 		repaint();
@@ -461,12 +475,7 @@ public:
 	{
 		auto ltp = dynamic_cast<LookupTableProcessor*>(getConnectedProcessor());
 
-		int numTables = 0;
-
-		while (ltp->getTable(numTables) != nullptr)
-			numTables++;
-
-		for (int i = 0; i < numTables; i++)
+		for (int i = 0; i < ltp->getNumTables(); i++)
 		{
 			indexList.add("Table " + String(i + 1));
 		}
@@ -480,7 +489,8 @@ public:
 
 	SliderPackPanel(FloatingTile* parent) :
 		PanelWithProcessorConnection(parent)
-	{};
+	{
+	};
 
 	SET_PANEL_NAME("SliderPackEditor");
 
@@ -488,7 +498,12 @@ public:
 	{
 		auto p = dynamic_cast<SliderPackProcessor*>(getProcessor());
 
-		return new SliderPack(p->getSliderPackData(0));
+		auto sp = new SliderPack(p->getSliderPackData(0));
+
+		sp->setOpaque(true);
+		sp->setColour(Slider::backgroundColourId, Colour(0xff333333));
+
+		return sp;
 	}
 
 	void fillModuleList(StringArray& moduleList) override
@@ -496,19 +511,19 @@ public:
 		fillModuleListWithType<SliderPackProcessor>(moduleList);
 	}
 
+	void resized() override;
 	
 };
 
 
 class CodeEditorPanel : public PanelWithProcessorConnection
+					    
 {
 public:
 
-	CodeEditorPanel(FloatingTile* parent) :
-		PanelWithProcessorConnection(parent)
-	{
-		tokeniser = new JavascriptTokeniser();
-	};
+	CodeEditorPanel(FloatingTile* parent);;
+
+	~CodeEditorPanel();
 
 	SET_PANEL_NAME("ScriptEditor");
 
@@ -522,6 +537,8 @@ public:
 	bool hasSubIndex() const override { return true; }
 
 	void fillIndexList(StringArray& indexList) override;
+
+	void gotoLocation(Processor* p, const String& fileName, int charNumber);
 
 private:
 
@@ -603,7 +620,12 @@ public:
 
 	SET_PANEL_NAME("GlobalConnectorPanel");
 
-	int getFixedHeight() const override { return 32; }
+	int getFixedHeight() const override { return 18; }
+
+	bool showTitleInPresentationMode() const override
+	{
+		return false;
+	}
 
 	bool hasSubIndex() const override { return false; }
 
@@ -620,6 +642,66 @@ public:
 	};
 
 private:
+
+};
+
+class SampleMapEditorPanel : public PanelWithProcessorConnection,
+							 public SafeChangeListener
+{
+public:
+
+	SampleMapEditorPanel(FloatingTile* parent) :
+		PanelWithProcessorConnection(parent)
+	{};
+
+	
+
+	SET_PANEL_NAME("SampleMapEditor");
+
+	void changeListenerCallback(SafeChangeBroadcaster* b);
+
+	bool hasSubIndex() const override { return false; }
+
+	Component* createContentComponent(int index) override;
+
+	
+	void fillModuleList(StringArray& moduleList) override
+	{
+		fillModuleListWithType<ModulatorSampler>(moduleList);
+	};
+
+	void contentChanged() override;
+
+};
+
+
+
+class SampleEditorPanel : public PanelWithProcessorConnection,
+						  public SafeChangeListener
+{
+public:
+
+	SampleEditorPanel(FloatingTile* parent);;
+
+	SET_PANEL_NAME("SampleEditor");
+
+	void changeListenerCallback(SafeChangeBroadcaster* b);
+
+	
+	Component* createContentComponent(int index) override;
+
+	void fillModuleList(StringArray& moduleList) override
+	{
+		fillModuleListWithType<ModulatorSampler>(moduleList);
+	};
+
+	void contentChanged() override;
+
+private:
+
+	struct EditListener;
+
+	ScopedPointer<EditListener> editListener;
 
 };
 
@@ -650,7 +732,7 @@ public:
 
 	void resized() override
 	{
-		component->setBounds(0, 16, jmax<int>(0, getWidth()), jmax<int>(0, getHeight() - 16));
+		component->setBounds(getParentShell()->getContentBounds());
 	}
 
 private:
@@ -667,13 +749,7 @@ public:
 
 	ConsolePanel(FloatingTile* parent);
 
-	void resized() override
-	{
-		console->setBounds(getLocalBounds().withTrimmedTop(16));
-	}
-
-	
-
+	void resized() override;
 
 private:
 

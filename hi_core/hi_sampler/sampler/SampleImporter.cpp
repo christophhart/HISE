@@ -200,7 +200,7 @@ void SampleImporter::importNewAudioFiles(Component *childComponentOfMainEditor, 
 
 			if (body != nullptr)
 			{
-				SamplerBody::SampleEditingActions::automapUsingMetadata(body, sampler);
+				SampleEditHandler::SampleEditingActions::automapUsingMetadata(sampler);
 			}
 		}
 	}

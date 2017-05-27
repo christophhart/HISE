@@ -182,7 +182,7 @@ public:
 
 	};
 
-private:
+protected:
 
 	Font getPopupMenuFont() override
 	{
@@ -351,7 +351,20 @@ private:
             
             if (icon != nullptr)
             {
-                icon->drawWithin (g, iconArea, RectanglePlacement::centred | RectanglePlacement::onlyReduceInSize, 1.0f);
+				if (auto dp = dynamic_cast<const DrawablePath*>(icon))
+				{
+					auto p = dp->getPath();
+
+					p.scaleToFit(iconArea.getX(), iconArea.getY(), iconArea.getWidth(), iconArea.getHeight(), true);
+
+					g.fillPath(p);
+				}
+				else
+				{
+					icon->drawWithin(g, iconArea, RectanglePlacement::centred | RectanglePlacement::onlyReduceInSize, 1.0f);
+				}
+
+				
             }
             else if (isTicked)
             {

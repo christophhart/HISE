@@ -74,6 +74,32 @@ void CopyPasteTarget::grabCopyAndPasteFocus()
 }
 
 
+void CopyPasteTarget::dismissCopyAndPasteFocus()
+{
+#if USE_BACKEND
+	Component *thisAsComponent = dynamic_cast<Component*>(this);
+
+	if (thisAsComponent)
+	{
+		BackendRootWindow *editor = thisAsComponent->findParentComponentOfClass<BackendRootWindow>();
+
+		if (editor != nullptr && isSelected)
+		{
+			editor->setCopyPasteTarget(nullptr);
+			isSelected = false;
+			thisAsComponent->repaint();
+		}
+	}
+	else
+	{
+		// You can only use components as CopyAndPasteTargets!
+		jassertfalse;
+	}
+#endif
+}
+
+
+
 UserPresetData::UserPresetData(MainController* mc_) :
 mc(mc_)
 {

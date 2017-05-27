@@ -54,6 +54,7 @@
 #include "sampler/components/FileNameImporterDialog.cpp"
 #include "sampler/components/FileImportDialog.cpp"
 #include "sampler/components/SfzGroupSelectorComponent.cpp"
+
 #include "sampler/components/SampleEditorComponents.cpp"
 #include "sampler/components/SamplerSettings.cpp"
 #include "sampler/components/ValueSettingComponent.cpp"
@@ -61,6 +62,7 @@
 #include "sampler/components/SampleEditor.cpp"
 #include "sampler/components/SampleMapEditor.cpp"
 #include "sampler/components/SamplerTable.cpp"
+#include "sampler/components/SampleEditHandler.cpp"
 #include "sampler/components/SamplerBody.cpp"
 #include "sampler/components/SampleEditingActions.cpp"
 
