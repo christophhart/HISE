@@ -34,6 +34,46 @@
 #define FLOATINGTILE_H_INCLUDED
 
 
+class FloatingTilePopup: public Component,
+							public ButtonListener,
+							public ComponentListener
+{
+public:
+	FloatingTilePopup(Component* content_, Component* attachedComponent, Point<int> localPoint);
+
+	~FloatingTilePopup();
+
+	void buttonClicked(Button* b);
+	void paint(Graphics &g);
+	void resized();
+
+	void componentMovedOrResized(Component& component, bool moved, bool resized);
+
+	void componentBeingDeleted(Component& component) override;
+
+	Component* getComponent() { return content; };
+
+	Point<float> arrowPosition;
+
+	bool arrowAtBottom;
+	int arrowX = -1;
+
+	void setArrow(bool showError)
+	{
+
+	}
+
+	void updatePosition();
+
+private:
+
+	Component::SafePointer<Component> attachedComponent;
+	Point<int> localPointInComponent;
+
+	ScopedPointer<Component> content;
+	ScopedPointer<ShapeButton> closeButton;
+};
+
 
 class FloatingTileContainer;
 class FloatingTileContent;
@@ -42,37 +82,112 @@ class FloatingTile : public Component
 {
 public:
 
-	struct LayoutData 
-	{
-		void updateValueTree(ValueTree & v) const;
-		void restoreFromValueTree(const ValueTree &v);
+	
 
-		double currentSize = -0.5;
-		bool swappingEnabled = false;
-		
-		void reset()
+	
+
+	struct LayoutData: public ObjectWithDefaultProperties
+	{
+		LayoutData()
 		{
-			foldState = 0;
-			currentSize = -0.5;
-			swappingEnabled = false;
-			backgroundColour = {};
+			reset();
 		}
 
-		bool isAbsolute() const { return currentSize > 0.0; }
+		enum LayoutDataIds
+		{
+			Size,
+			Folded,
+			MinSize,
+			numProperties
+		};
 
-		bool isFolded() const { return foldState > 0; }
-		bool canBeFolded() const { return foldState >= 0; }
-		void setFoldState(int newFoldState) { foldState = newFoldState; }
+		var toDynamicObject() const override;
+		void fromDynamicObject(const var& objectData) override;
 
-		Colour backgroundColour = {};
+		int getNumDefaultableProperties() const override;
+		Identifier getDefaultablePropertyId(int i) const override;
+		
+		bool swappingEnabled = false;
+		
+		var getDefaultProperty(int id) const override
+		{
+			switch (id)
+			{
+			case FloatingTile::LayoutData::LayoutDataIds::Size:   return var(-0.5);
+			case FloatingTile::LayoutData::LayoutDataIds::Folded: return var(0);
+			case FloatingTile::LayoutData::LayoutDataIds::MinSize: return var(-1);
+			default:
+				break;
+			}
 
-		int minSize = -1;
+			jassertfalse;
+			return var();
+		}
+
+		void reset()
+		{
+			layoutDataObject = var(new DynamicObject());
+
+			resetObject(layoutDataObject.getDynamicObject());
+
+			swappingEnabled = false;
+		}
+
+		bool isAbsolute() const
+		{ 
+			double currentSize = getPropertyWithDefault(layoutDataObject, LayoutDataIds::Size);
+			return currentSize > 0.0; 
+		}
+
+		bool isFolded() const 
+		{
+			int foldState = getPropertyWithDefault(layoutDataObject, LayoutDataIds::Folded);
+			return foldState > 0; 
+		}
+
+		bool canBeFolded() const 
+		{
+			int foldState = getPropertyWithDefault(layoutDataObject, LayoutDataIds::Folded);
+			return foldState >= 0; 
+		}
+
+		void setFoldState(int newFoldState)
+		{
+			storePropertyInObject(layoutDataObject, LayoutDataIds::Folded, newFoldState);
+		}
+
+		double getCurrentSize() const
+		{
+			double currentSize = getPropertyWithDefault(layoutDataObject, LayoutDataIds::Size);
+
+			return currentSize;
+		}
+
+		void setCurrentSize(double newSize)
+		{
+			storePropertyInObject(layoutDataObject, LayoutDataIds::Size, newSize);
+		}
+
+		void setMinSize(int minSize)
+		{
+			storePropertyInObject(layoutDataObject, LayoutDataIds::MinSize, minSize);
+		}
+
+		int getMinSize() const
+		{
+			int minSize = getPropertyWithDefault(layoutDataObject, LayoutDataIds::MinSize);
+			return minSize;
+		}
+
+		var getLayoutDataObject() const
+		{
+			return layoutDataObject;
+		}
 
 	private:
 
-		
+		var layoutDataObject;
 
-		int foldState = 0;
 	};
 
 	template <typename ContentType> class Iterator
@@ -145,10 +260,14 @@ public:
 		void buttonClicked(Button* b);
 	};
 
-	FloatingTile(FloatingTileContainer* parent, ValueTree state = ValueTree());;
+	FloatingTile(FloatingTileContainer* parent, var data=var());
+
+	
 
 	~FloatingTile()
 	{
+		currentPopup = nullptr;
+
 		content = nullptr;
 		foldButton = nullptr;
 		moveButton = nullptr;
@@ -156,7 +275,7 @@ public:
 		closeButton = nullptr;
 	}
 
-	void setContent(ValueTree& data);
+	void setContent(const var& data);
 	void setNewContent(const Identifier& newId);
 
 	bool isEmpty() const;
@@ -223,8 +342,19 @@ public:
 	const LayoutData& getLayoutData() const { return layoutData; }
 	LayoutData& getLayoutData() { return layoutData; }
 
+	
+
+	void setLayoutDataObject(const var& newLayoutData)
+	{
+		layoutData.fromDynamicObject(newLayoutData);
+	}
+
 	String exportAsJSON() const;
 	void loadFromJSON(const String& jsonData);
+
+	void editJSON();
+
+	void showComponentInRootPopup(Component* newComponent, Component* attachedComponent, Point<int> localPoint);
 
 	struct LayoutHelpers
 	{
@@ -265,6 +395,8 @@ private:
 
 	LayoutData layoutData;
 
+	CodeDocument currentJSON;
+
 	TilePopupLookAndFeel plaf;
 
 	Component::SafePointer<FloatingTile> currentSwapSource;
@@ -275,6 +407,9 @@ private:
 	ScopedPointer<ResizeButton> resizeButton;
 
 	ScopedPointer<Component> content;
+
+	ScopedPointer<FloatingTilePopup> currentPopup;
+
 
 	FloatingTileContainer* parentContainer;
 	FloatingTileContent::Factory panelFactory;

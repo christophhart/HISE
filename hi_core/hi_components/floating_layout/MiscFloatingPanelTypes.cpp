@@ -52,20 +52,22 @@ void Note::resized()
 	editor->setBounds(getLocalBounds().withTrimmedTop(16));
 }
 
-ValueTree Note::exportAsValueTree() const
+var Note::toDynamicObject() const
 {
-	ValueTree v = FloatingTileContent::exportAsValueTree();
-	v.setProperty("Text", editor->getText(), nullptr);
+	var obj = FloatingTileContent::toDynamicObject();
 
-	return v;
+	storePropertyInObject(obj, SpecialPanelIds::Text, editor->getText(), String());
+
+	return obj;
 }
 
-void Note::restoreFromValueTree(const ValueTree& v)
+void Note::fromDynamicObject(const var& object)
 {
-	FloatingTileContent::restoreFromValueTree(v);
+	FloatingTileContent::fromDynamicObject(object);
 
-	editor->setText(v.getProperty("Text", editor->getText()), dontSendNotification);
+	editor->setText(getPropertyWithDefault(object, SpecialPanelIds::Text));
 }
+
 
 void Note::labelTextChanged(Label* )
 {
@@ -97,6 +99,8 @@ void ConsolePanel::resized()
 MidiKeyboardPanel::MidiKeyboardPanel(FloatingTile* parent) :
 	FloatingTileContent(parent)
 {
+	initColours();
+
 	setInterceptsMouseClicks(false, true);
 
 	addAndMakeVisible(keyboard = new CustomKeyboard(parent->getRootWindow()->getBackendProcessor()->getKeyboardState()));
@@ -651,4 +655,10 @@ void SampleEditorPanel::contentChanged()
 		getProcessor()->addChangeListener(this);
 		dynamic_cast<ModulatorSampler*>(getProcessor())->getSampleEditHandler()->addSelectionListener(editListener);
 	}
+}
+
+void SpacerPanel::paint(Graphics& g)
+{
+	g.setColour(getStyleColour(ColourIds::backgroundColour));
+	g.fillRect(getParentShell()->getContentBounds());
 }

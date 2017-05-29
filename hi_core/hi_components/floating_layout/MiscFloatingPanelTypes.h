@@ -45,15 +45,21 @@ class Note : public Component,
 {
 public:
 
+	enum SpecialPanelIds
+	{
+		Text = FloatingTileContent::PanelPropertyId::numPropertyIds,
+		numSpecialPanelIds
+	};
+
 	SET_PANEL_NAME("Note");
 
 	Note(FloatingTile* p);
 
 	void resized() override;
 
-	ValueTree exportAsValueTree() const override;;
+	var toDynamicObject() const override;;
 
-	void restoreFromValueTree(const ValueTree& v) override;;
+	void fromDynamicObject(const var& object) override;
 
 	void labelTextChanged(Label* l);
 
@@ -85,107 +91,17 @@ public:
 
 		setInterceptsMouseClicks(false, true);
 
-		addCategory();
-		flexBox = FlexBox(FlexBox::Direction::column, FlexBox::Wrap::noWrap, FlexBox::AlignContent::center, FlexBox::AlignItems::center, FlexBox::JustifyContent::center);
-
 		c = Colour(r.nextInt()).withAlpha(0.1f);
 	};
 
 	void paint(Graphics& g) override;
 
-	void resized();
-
 	void mouseDown(const MouseEvent& event);
 
-	class Overlay : public Component
-	{
-		Overlay()
-		{
-			
-		}
-	};
-
+	
 private:
 
-	struct Category: public Component
-	{
-		Category(FlexItem& item):
-			properties(item)
-		{
-			flexBox = FlexBox(FlexBox::Direction::row, FlexBox::Wrap::wrap, FlexBox::AlignContent::center, FlexBox::AlignItems::center, FlexBox::JustifyContent::center);
-
-			addItem();
-			addItem();
-			addItem();
-			addItem();
-			addItem();
-			addItem();
-			addItem();
-			addItem();
-			addItem();
-			addItem();
-			addItem();
-			addItem();
-			addItem();
-			addItem();
-			addItem();
-			addItem();
-			addItem();
-		}
-
-		void resized();
-
-		void paint(Graphics& g) override
-		{
-			g.setFont(GLOBAL_BOLD_FONT().withHeight(16.0));
-			g.setColour(Colours::white.withAlpha(0.1f));
-			g.drawText("Category", 0, 0, getWidth(), 20, Justification::centred);
-			g.fillRect(0, 0, getWidth(), 20);
-		}
-
-		struct Dummy : public Component
-		{
-			Dummy(FlexItem& item) :
-				properties(item)
-			{
-
-			};
-
-			void paint(Graphics& g)
-			{
-				g.fillAll(Colours::white.withAlpha(0.1f));
-			}
-
-			FlexItem& properties;
-		};
-
-		void addItem()
-		{
-			flexBox.items.add(FlexItem(60, 60).withMargin(10));
-
-			auto& flexItem = flexBox.items.getReference(flexBox.items.size() - 1);
-
-			
-
-			auto panel = new Dummy(flexItem);
-			elements.add(panel);
-			flexItem.associatedComponent = panel;
-			addAndMakeVisible(panel);
-		}
-		
-		OwnedArray<Dummy> elements;
-
-		FlexBox flexBox;
-
-		FlexItem& properties;
-	};
-
-
-	void addCategory();
 	
-	FlexBox flexBox;
-	OwnedArray<Category> categories;
-
 	Colour c;
 };
 
@@ -194,13 +110,36 @@ class SpacerPanel : public FloatingTileContent,
 {
 public:
 
+	enum ColourIds
+	{
+		backgroundColour,
+		numColourIds
+	};
+
 	SET_PANEL_NAME("Spacer");
 
 	SpacerPanel(FloatingTile* parent) :
 		FloatingTileContent(parent)
 	{
 		setInterceptsMouseClicks(false, false);
+
+		initColours();
+
 	}
+
+	int getNumColourIds() const override { return numColourIds; }
+	
+	Identifier getColourId(int id) const override
+	{
+		static const Identifier bgColour("bgColour");
+
+		if (id == ColourIds::backgroundColour)
+			return bgColour;
+
+		return Identifier();
+	}
+
+	void paint(Graphics& g) override;
 
 	bool showTitleInPresentationMode() const override { return false; }
 
@@ -211,6 +150,12 @@ class MidiKeyboardPanel : public FloatingTileContent,
 					      public ComponentWithKeyboard
 {
 public:
+
+	enum ColourIds
+	{
+		backgroundColour = 0,
+		numColourIds
+	};
 
 	SET_PANEL_NAME("Keyboard");
 
@@ -231,6 +176,12 @@ public:
 		keyboard = nullptr;
 	}
 
+	void paint(Graphics& g) override
+	{
+		g.setColour(getStyleColour(ColourIds::backgroundColour));
+		g.fillAll();
+	}
+
 	void resized() override
 	{
 		int maxWidth = CONTAINER_WIDTH;
@@ -240,6 +191,12 @@ public:
 		else
 			keyboard->setBounds((getWidth() - maxWidth) / 2, 0, maxWidth, 72);
 	}
+
+	int getNumColourIds() const { return numColourIds; }
+
+	Identifier getColourId(int colourId) const { RETURN_STATIC_IDENTIFIER("backgroundColour"); }
+
+	Colour getDefaultColour(int colourId) const { return Colours::transparentBlack; }
 
 	int getFixedHeight() const override { return 72; }
 

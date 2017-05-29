@@ -22,7 +22,7 @@ void FloatingInterfaceBuilder::setSizes(int index, Array<double> sizes, Notifica
 
 		for (int i = 0; i < c->getNumComponents(); i++)
 		{
-			c->getComponent(i)->getLayoutData().currentSize = sizes[i];
+			c->getComponent(i)->getLayoutData().setCurrentSize(sizes[i]);
 		}
 
 		if (shouldUpdateLayout == sendNotification)
@@ -44,7 +44,7 @@ void FloatingInterfaceBuilder::setFolded(int index, Array<bool> foldStates, Noti
 
 		for (int i = 0; i < c->getNumComponents(); i++)
 		{
-			c->getComponent(i)->getLayoutData().currentSize = foldStates[i];
+			c->getComponent(i)->getLayoutData().setFoldState(foldStates[i]);
 		}
 
 		if (shouldUpdateLayout == sendNotification)
@@ -119,6 +119,11 @@ ResizableFloatingTileContainer* FloatingInterfaceBuilder::getTileManager(int ind
 		return dynamic_cast<ResizableFloatingTileContainer*>(p->getCurrentFloatingPanel());
 
 	return nullptr;
+}
+
+FloatingTileContent* FloatingInterfaceBuilder::getContent(int index)
+{
+	return getPanel(index)->getCurrentFloatingPanel();
 }
 
 void FloatingInterfaceBuilder::removeFirstChildOfNewContainer(FloatingTile* panel)

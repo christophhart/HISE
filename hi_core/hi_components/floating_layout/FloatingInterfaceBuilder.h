@@ -117,6 +117,7 @@ public:
 
 	ResizableFloatingTileContainer* getTileManager(int index);
 
+	FloatingTileContent* getContent(int index);
 	
 
 private:

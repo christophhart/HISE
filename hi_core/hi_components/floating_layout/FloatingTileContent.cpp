@@ -34,10 +34,7 @@
 FloatingFlexBoxWindow::FloatingFlexBoxWindow() :
 	DocumentWindow("HISE Floating Window", Colour(0xFF333333), allButtons, true)
 {
-	ValueTree state;
-
-
-	setContentOwned(new FloatingTile(nullptr, state), false);
+	setContentOwned(new FloatingTile(nullptr, var()), false);
 
 	setResizable(true, true);
 	setUsingNativeTitleBar(true);
@@ -91,13 +88,48 @@ FloatingFlexBoxWindow::FloatingFlexBoxWindow() :
 
 void FloatingFlexBoxWindow::closeButtonPressed()
 {
-	ValueTree v = dynamic_cast<FloatingTile*>(getContentComponent())->getCurrentFloatingPanel()->exportAsValueTree();
+	//ValueTree v = dynamic_cast<FloatingTile*>(getContentComponent())->getCurrentFloatingPanel()->exportAsValueTree();
 
 	File f("D:\\testa.xml");
 
 	//v.createXml()->writeToFile(f, "");
 
 	delete this;
+}
+
+Identifier FloatingTileContent::getDefaultablePropertyId(int i) const
+{
+	RETURN_DEFAULT_PROPERTY_ID(i, PanelPropertyId::Type, "Type");
+	RETURN_DEFAULT_PROPERTY_ID(i, PanelPropertyId::Title, "Title");
+	RETURN_DEFAULT_PROPERTY_ID(i, PanelPropertyId::StyleData, "StyleData");
+	RETURN_DEFAULT_PROPERTY_ID(i, PanelPropertyId::LayoutData, "LayoutData");
+
+	jassertfalse;
+
+	return Identifier();
+}
+
+var FloatingTileContent::getDefaultProperty(int id) const
+{
+	auto prop = (PanelPropertyId)id;
+
+	switch (prop)
+	{
+	case FloatingTileContent::Type: return var(); // This property is not defaultable
+		break;
+	case FloatingTileContent::Title: return "";
+	case FloatingTileContent::StyleData:
+	{ 
+		DynamicObject::Ptr newStyleData = new DynamicObject(); 
+		return var(newStyleData);	
+	}
+	case FloatingTileContent::LayoutData: return var(); // this property is restored explicitely
+	case FloatingTileContent::numPropertyIds:
+	default:
+		break;
+	}
+
+	return var();
 }
 
 BackendRootWindow* FloatingTileContent::getRootWindow()
@@ -110,37 +142,56 @@ const BackendRootWindow* FloatingTileContent::getRootWindow() const
 	return getParentShell()->getRootWindow();
 }
 
-ValueTree FloatingTileContent::exportAsValueTree() const
+var FloatingTileContent::toDynamicObject() const
 {
-	ValueTree v(getIdentifierForBaseClass());
+	DynamicObject::Ptr o = new DynamicObject();
 
-	v.setProperty("Title", getCustomTitle(), nullptr);
+	var obj(o);
 
-	getParentShell()->getLayoutData().updateValueTree(v);
+	storePropertyInObject(obj, FloatingTileContent::PanelPropertyId::Type, getIdentifierForBaseClass().toString());
+	storePropertyInObject(obj, FloatingTileContent::PanelPropertyId::Title, getCustomTitle(), "");
+	storePropertyInObject(obj, PanelPropertyId::StyleData, var(styleData));
+	storePropertyInObject(obj, PanelPropertyId::LayoutData, var(getParentShell()->getLayoutData().getLayoutDataObject()));
 
-	// Don't store the size for fixed width components
 	if (getFixedSizeForOrientation() != 0)
-		v.removeProperty("Size", nullptr);
+		o->removeProperty("Size");
 
-	return v;
+	return obj;
 }
 
-void FloatingTileContent::restoreFromValueTree(const ValueTree& v)
+
+void FloatingTileContent::fromDynamicObject(const var& object)
 {
-	setCustomTitle(v.getProperty("Title", {}));
+	setCustomTitle(getPropertyWithDefault(object, PanelPropertyId::Title));
+
+	styleData = getPropertyWithDefault(object, PanelPropertyId::StyleData);
+
+	getParentShell()->setLayoutDataObject(getPropertyWithDefault(object, PanelPropertyId::LayoutData));
 }
 
-FloatingTileContent* FloatingTileContent::createPanel(ValueTree& state, FloatingTile* parent)
+FloatingTileContent* FloatingTileContent::createPanel(const var& data, FloatingTile* parent)
 {
-	auto p = parent->getPanelFactory()->createFromId(state.getType(), parent);
+	if (auto obj = data.getDynamicObject())
+	{
+		auto panelId = Identifier(obj->getProperty("Type"));
 
+		auto p = parent->getPanelFactory()->createFromId(panelId, parent);
 
-	jassert(p != nullptr);
+		jassert(p != nullptr);
 
-	if(p != nullptr)
-		p->restoreFromValueTree(state);
+		if (p != nullptr)
+		{
+			p->fromDynamicObject(data);
+		}
+			
+		return p;
+	}
+	else
+	{
+		jassertfalse;
+	}
 
-	return p;
+	
 }
 
 
@@ -241,7 +292,7 @@ struct FloatingPanelTemplates::Helpers
 		if (isRelative)
 			size *= -1.0;
 
-		parent->getComponent(index)->getLayoutData().currentSize = size;
+		parent->getComponent(index)->getLayoutData().setCurrentSize(size);
 	}
 };
 
@@ -676,3 +727,24 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	}
 }
 
+void JSONEditor::replace()
+{
+	if (editedComponent.getComponent() != nullptr)
+	{
+		var newData;
+
+		auto result = JSON::parse(doc->getAllContent(), newData);
+
+		if (result.wasOk())
+		{
+			dynamic_cast<ObjectWithDefaultProperties*>(editedComponent.getComponent())->fromDynamicObject(newData);
+
+			findParentComponentOfClass<FloatingTile>()->refreshRootLayout();
+			editedComponent->repaint();
+		}
+		else
+		{
+			PresetHandler::showMessageWindow("JSON Parser Error", result.getErrorMessage(), PresetHandler::IconType::Error);
+		}
+	}
+}

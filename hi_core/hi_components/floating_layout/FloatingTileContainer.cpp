@@ -92,38 +92,76 @@ bool FloatingTileContainer::shouldIntendAddButton() const
 	return FloatingTile::LayoutHelpers::showFoldButton(getParentShell());
 }
 
-ValueTree FloatingTileContainer::exportAsValueTree() const
+var FloatingTileContainer::toDynamicObject() const
 {
-	ValueTree v = FloatingTileContent::exportAsValueTree();
+	var obj = FloatingTileContent::toDynamicObject();
 
-	v.setProperty("Dynamic", isDynamic(), nullptr);
+	storePropertyInObject(obj, ContainerPropertyIds::Dynamic, dynamic, true);
+
+	Array<var> children;
+	children.ensureStorageAllocated(getNumComponents());
 
 	for (int i = 0; i < getNumComponents(); i++)
 	{
-		auto child = getComponent(i)->getCurrentFloatingPanel();
-
-		ValueTree cv = child->exportAsValueTree();
-
-		v.addChild(cv, -1, nullptr);
+		var child = getComponent(i)->getCurrentFloatingPanel()->toDynamicObject();
+		children.add(child);
 	}
 
-	return v;
+	storePropertyInObject(obj, ContainerPropertyIds::Content, children);
+
+	return obj;
 }
 
-void FloatingTileContainer::restoreFromValueTree(const ValueTree &v)
+void FloatingTileContainer::fromDynamicObject(const var& objectData)
 {
-	FloatingTileContent::restoreFromValueTree(v);
+	FloatingTileContent::fromDynamicObject(objectData);
 
-	setIsDynamic(v.getProperty("Dynamic", true));
+	setIsDynamic(getPropertyWithDefault(objectData, ContainerPropertyIds::Dynamic));
 
 	clear();
-	
-	for (int i = 0; i < v.getNumChildren(); i++)
-	{
-		auto newShell = new FloatingTile(this, v.getChild(i));
 
-		addFloatingTile(newShell);
+	var children = getPropertyWithDefault(objectData, ContainerPropertyIds::Content);
+
+	if (auto childList = children.getArray())
+	{
+		for (int i = 0; i < childList->size(); i++)
+		{
+			auto newShell = new FloatingTile(this, childList->getUnchecked(i));
+			addFloatingTile(newShell);
+		}
 	}
+}
+
+int FloatingTileContainer::getNumDefaultableProperties() const
+{
+	return ContainerPropertyIds::numContainerPropertyIds;
+}
+
+Identifier FloatingTileContainer::getDefaultablePropertyId(int i) const
+{
+	if (i < FloatingTileContent::numPropertyIds)
+		return FloatingTileContent::getDefaultablePropertyId(i);
+
+	RETURN_DEFAULT_PROPERTY_ID(i, ContainerPropertyIds::Content, "Content");
+	RETURN_DEFAULT_PROPERTY_ID(i, ContainerPropertyIds::Dynamic, "Dynamic");
+}
+
+var FloatingTileContainer::getDefaultProperty(int id) const
+{
+	if (id < FloatingTileContent::numPropertyIds)
+		return FloatingTileContent::getDefaultProperty(id);
+
+	auto prop = (ContainerPropertyIds)id;
+
+	switch (prop)
+	{
+	case FloatingTileContainer::Dynamic: return true;
+	case FloatingTileContainer::Content: return Array<var>();
+	default: break;
+	}
+
+	jassertfalse;
+	return var();
 }
 
 void FloatingTileContainer::enableSwapMode(bool shouldBeSwappable, FloatingTile* source)
@@ -344,23 +382,45 @@ void FloatingTabComponent::componentRemoved(FloatingTile* deletedComponent)
 	repaint();
 }
 
-ValueTree FloatingTabComponent::exportAsValueTree() const
+var FloatingTabComponent::toDynamicObject() const
 {
-	ValueTree v = FloatingTileContainer::exportAsValueTree();
+	var obj = FloatingTileContainer::toDynamicObject();
 
-	v.setProperty("CurrentTab", getCurrentTabIndex(), nullptr);
+	storePropertyInObject(obj, TabPropertyIds::CurrentTab, getCurrentTabIndex());
 
-	return v;
+	return obj;
 }
 
-void FloatingTabComponent::restoreFromValueTree(const ValueTree &v)
+void FloatingTabComponent::fromDynamicObject(const var& objectData)
 {
 	clearTabs();
 
-	FloatingTileContainer::restoreFromValueTree(v);
+	FloatingTileContainer::fromDynamicObject(objectData);
 
-	setCurrentTabIndex(v.getProperty("CurrentTab", -1));
+	setCurrentTabIndex(getPropertyWithDefault(objectData, TabPropertyIds::CurrentTab));
 }
+
+int FloatingTabComponent::getNumDefaultableProperties() const
+{
+	return TabPropertyIds::numTabPropertyIds;
+}
+
+Identifier FloatingTabComponent::getDefaultablePropertyId(int i) const
+{
+	if (i < FloatingTileContainer::ContainerPropertyIds::numContainerPropertyIds)
+		return FloatingTileContainer::getDefaultablePropertyId(i);
+
+	RETURN_DEFAULT_PROPERTY_ID(i, TabPropertyIds::CurrentTab, "CurrentTab");
+}
+
+var FloatingTabComponent::getDefaultProperty(int id) const
+{
+	if (id < FloatingTileContainer::ContainerPropertyIds::numContainerPropertyIds)
+		return FloatingTileContainer::getDefaultProperty(id);
+
+	RETURN_DEFAULT_PROPERTY(id, TabPropertyIds::CurrentTab, -1);
+}
+
 
 void FloatingTabComponent::paint(Graphics& g)
 {
@@ -430,7 +490,8 @@ void ResizableFloatingTileContainer::refreshLayout()
 
 void ResizableFloatingTileContainer::paint(Graphics& g)
 {
-	
+	g.setColour(getStyleColour(ColourIds::backgroundColourId));
+	g.fillRect(getContainerBounds());
 }
 
 Rectangle<int> ResizableFloatingTileContainer::getContainerBounds() const
@@ -469,7 +530,7 @@ ResizableFloatingTileContainer::ResizableFloatingTileContainer(FloatingTile* par
 	FloatingTileContainer(parent),
 	vertical(isVerticalTile)
 {
-	setColour(ColourIds::backgroundColourId, Colour(0xff373737));
+	initColours();
 
 	addAndMakeVisible(addButton = new ShapeButton("Add Column", Colours::white.withAlpha(0.7f), Colours::white, Colours::white));
 
@@ -613,9 +674,6 @@ void ResizableFloatingTileContainer::componentRemoved(FloatingTile* c)
 	refreshLayout();
 }
 
-
-
-
 void ResizableFloatingTileContainer::performLayout(Rectangle<int> area)
 {
 	int totalSize = getDimensionSize(area);
@@ -638,9 +696,9 @@ void ResizableFloatingTileContainer::performLayout(Rectangle<int> area)
 		if (pc->isFolded())
 			availableSize -= 16;
 		else if (lData.isAbsolute())
-			availableSize -= lData.currentSize;
+			availableSize -= lData.getCurrentSize();
 		else
-			totalRelativeAmount += lData.currentSize * -1.0;
+			totalRelativeAmount += lData.getCurrentSize() * -1.0;
 	}
 
 	int offset = getDimensionOffset(area);
@@ -666,21 +724,21 @@ void ResizableFloatingTileContainer::performLayout(Rectangle<int> area)
 		}
 		else if (lData.isAbsolute())
 		{
-			int size = jmax<int>((int)lData.currentSize, 16);
+			int size = jmax<int>((int)lData.getCurrentSize(), 16);
 
-			pc->setVisible(size > lData.minSize);
+			pc->setVisible(size > lData.getMinSize());
 
 			setBoundsOneDimension(pc, offset, size, area);
-			offset += lData.currentSize;
+			offset += lData.getCurrentSize();
 		}
 		else
 		{
-			double percentage = lData.currentSize * -1.0;
+			double percentage = lData.getCurrentSize() * -1.0;
 			double scaledPercentage = percentage / totalRelativeAmount;
 			int size = availableSize * scaledPercentage;
 			size = jmax<int>(size, 16);
 
-			pc->setVisible(size > lData.minSize);
+			pc->setVisible(size > lData.getMinSize());
 
 			setBoundsOneDimension(pc, offset, size, area);
 			offset += size;
@@ -782,7 +840,7 @@ int ResizableFloatingTileContainer::InternalResizer::getCurrentSize() const
 
 void ResizableFloatingTileContainer::InternalResizer::paint(Graphics& g)
 {
-	g.setColour(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
+	g.setColour(parent->getStyleColour(ResizableFloatingTileContainer::ColourIds::resizerColourId));
 
 	g.fillAll();
 
@@ -832,7 +890,7 @@ void ResizableFloatingTileContainer::InternalResizer::mouseDown(const MouseEvent
 
 		for (auto prevPanel : prevPanels)
 		{
-			prevDownSizes.add(prevPanel->getLayoutData().currentSize);
+			prevDownSizes.add(prevPanel->getLayoutData().getCurrentSize());
 			totalPrevDownSize += prevDownSizes.getLast();
 		}
 
@@ -840,7 +898,7 @@ void ResizableFloatingTileContainer::InternalResizer::mouseDown(const MouseEvent
 
 		for (auto nextPanel : nextPanels)
 		{
-			nextDownSizes.add(nextPanel->getLayoutData().currentSize);
+			nextDownSizes.add(nextPanel->getLayoutData().getCurrentSize());
 			totalNextDownSize += nextDownSizes.getLast();
 		}
 	}
@@ -869,10 +927,10 @@ void ResizableFloatingTileContainer::InternalResizer::mouseDrag(const MouseEvent
 	double scaleNext = nextNew / totalNextDownSize;
 
 	for (int i = 0; i < prevPanels.size(); i++)
-		prevPanels[i]->getLayoutData().currentSize = scalePrev * prevDownSizes[i];
+		prevPanels[i]->getLayoutData().setCurrentSize(scalePrev * prevDownSizes[i]);
 
 	for (int i = 0; i < nextPanels.size(); i++)
-		nextPanels[i]->getLayoutData().currentSize = scaleNext * nextDownSizes[i];
+		nextPanels[i]->getLayoutData().setCurrentSize(scaleNext * nextDownSizes[i]);
 
 	parent->resized();
 }

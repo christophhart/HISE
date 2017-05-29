@@ -36,6 +36,148 @@
 class FloatingTile;
 class FloatingTileContainer;
 
+#define RETURN_DEFAULT_PROPERTY_ID(idToCheck, name, id) if(idToCheck == name) { static const Identifier i(id); return i;}
+#define RETURN_DEFAULT_PROPERTY(idToCheck, name, value) if(idToCheck == name) { return value; }
+
+/** A base class for objects that can be stored and restored using DynamicObject. */
+class ObjectWithDefaultProperties
+{
+public:
+
+	virtual ~ObjectWithDefaultProperties() {};
+
+	/** Writes the state of this object into a dynamic object. */
+	virtual var toDynamicObject() const = 0;
+
+	/** Restores the state of this object from a dynamic object. */
+	virtual void fromDynamicObject(const var& objectData) = 0;
+
+	/** Overwrite this and get the default property. */
+	virtual var getDefaultProperty(int id) const = 0;
+	
+	/** Overwrite this and return the number of properties that are defaultable. */
+	virtual int getNumDefaultableProperties() const = 0;
+	
+	/** Overwrite this and return the Identifier for the given property index. 
+	*
+	*	You might want to use the macro RETURN_DEFAULT_PROPERTY_ID(idToCheck, name) with a named enum for this. 
+	*
+	*/
+	virtual Identifier getDefaultablePropertyId(int i) const = 0;
+
+	/** Clears the given object and sets all defaultable properties to their initial values. */
+	void resetObject(DynamicObject* objectToClear)
+	{
+		jassert(objectToClear != nullptr);
+
+		objectToClear->clear();
+
+		for (int i = 0; i < getNumDefaultableProperties(); i++)
+		{
+			objectToClear->setProperty(getDefaultablePropertyId(i), getDefaultProperty(i));
+		}
+	}
+
+	void storePropertyInObject(var obj, int id, var value, var defaultValue = var()) const
+	{
+		jassert(obj.isObject());
+
+		if (defaultValue.isUndefined() || value != defaultValue)
+		{
+			obj.getDynamicObject()->setProperty(getDefaultablePropertyId(id), value);
+		}
+	}
+
+	var getPropertyWithDefault(var obj, int id) const
+	{
+		if (auto object = obj.getDynamicObject())
+		{
+			auto prop = getDefaultablePropertyId(id);
+
+			if (object->hasProperty(prop))
+				return object->getProperty(prop);
+			else
+				return getDefaultProperty(id);
+		}
+
+	}
+};
+
+
+class JSONEditor : public Component
+{
+public:
+
+	JSONEditor(ObjectWithDefaultProperties* editedObject):
+		editedComponent(dynamic_cast<Component*>(editedObject))
+	{
+		setName("JSON Editor");
+
+		tokeniser = new JavascriptTokeniser();
+		doc = new CodeDocument();
+		doc->replaceAllContent(JSON::toString(editedObject->toDynamicObject()));
+		doc->setSavePoint();
+		doc->clearUndoHistory();
+
+		addAndMakeVisible(editor = new CodeEditorComponent(*doc, tokeniser));
+
+		editor->setColour(CodeEditorComponent::backgroundColourId, Colour(0xff262626));
+		editor->setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colour(0xFFCCCCCC));
+		editor->setColour(CodeEditorComponent::ColourIds::lineNumberTextId, Colour(0xFFCCCCCC));
+		editor->setColour(CodeEditorComponent::ColourIds::lineNumberBackgroundId, Colour(0xff363636));
+		editor->setColour(CodeEditorComponent::ColourIds::highlightColourId, Colour(0xff666666));
+		editor->setColour(CaretComponent::ColourIds::caretColourId, Colour(0xFFDDDDDD));
+		editor->setColour(ScrollBar::ColourIds::thumbColourId, Colour(0x3dffffff));
+
+		editor->setFont(GLOBAL_MONOSPACE_FONT().withHeight(16.0f));
+
+		constrainer.setMinimumWidth(200);
+		constrainer.setMinimumHeight(300);
+
+		addAndMakeVisible(resizer = new ResizableCornerComponent(this, &constrainer));
+	}
+
+	~JSONEditor()
+	{
+		
+	}
+
+	bool keyPressed(const KeyPress& key)
+	{
+		if (key == KeyPress::F5Key)
+		{
+			replace();
+			return true;
+		}
+
+		return false;
+	}
+
+	void replace();
+	
+
+	void resized() override
+	{
+		editor->setBounds(getLocalBounds());
+		resizer->setBounds(getWidth() - 12, getHeight() - 12, 12, 12);
+	}
+
+
+private:
+
+	Component::SafePointer<Component> editedComponent;
+
+	ScopedPointer<ResizableCornerComponent> resizer;
+
+	ComponentBoundsConstrainer constrainer;
+
+	ScopedPointer<CodeDocument> doc;
+	ScopedPointer<JavascriptTokeniser> tokeniser;
+	ScopedPointer<CodeEditorComponent> editor;
+};
+
+
+
 /** The base class for all components that can be put into a floating panel. 
 *
 *	In order to use it:
@@ -47,7 +189,7 @@ class FloatingTileContainer;
 *
 *	You can use the ValueTree methods to save / restore the state.
 */
-class FloatingTileContent : public RestorableObject
+class FloatingTileContent : public ObjectWithDefaultProperties
 {
 protected:
 
@@ -58,9 +200,20 @@ protected:
 	FloatingTileContent(FloatingTile* parent_) :
 		parent(parent_)
 	{
+		styleData = getDefaultProperty(PanelPropertyId::StyleData);
+
 	}
 
 public:
+
+	enum PanelPropertyId
+	{
+		Type = 0,
+		Title,
+		StyleData,
+		LayoutData,
+		numPropertyIds
+	};
 
 	virtual ~FloatingTileContent()
 	{
@@ -78,6 +231,10 @@ public:
 		return parent; 
 	}
 
+	int getNumDefaultableProperties() const override { return numPropertyIds; };
+	Identifier getDefaultablePropertyId(int i) const override;
+	var getDefaultProperty(int id) const override;
+
 	BackendRootWindow* getRootWindow();
 
 	const BackendRootWindow* getRootWindow() const;
@@ -92,13 +249,11 @@ public:
 	virtual String getTitle() const { return getIdentifierForBaseClass().toString(); };
 	virtual Identifier getIdentifierForBaseClass() const = 0;
 
-	/** Returns an empty ValueTree with the correct id. */
-	ValueTree exportAsValueTree() const override;
+	var toDynamicObject() const override;
 
-	/** does nothing. */
-	void restoreFromValueTree(const ValueTree& ) override;
+	void fromDynamicObject(const var& object) override;
 
-	static FloatingTileContent* createPanel(ValueTree& state, FloatingTile* parent);
+	static FloatingTileContent* createPanel(const var& data, FloatingTile* parent);
 
 	static FloatingTileContent* createNewPanel(const Identifier& id, FloatingTile* parent);
 
@@ -231,6 +386,50 @@ public:
 	*/
 	virtual bool showTitleInPresentationMode() const { return true; };
 
+	void setStyleProperty(Identifier id, var value)
+	{
+		styleData.getDynamicObject()->setProperty(id, value);
+	}
+
+	void setStyleColour(int id, Colour c)
+	{
+		auto prop = getColourId(id);
+
+		setStyleProperty(prop, c.toString());
+	}
+
+	var getStyleProperty(Identifier id, var defaultValue) const
+	{
+		if (styleData.getDynamicObject()->hasProperty(id))
+			return styleData.getDynamicObject()->getProperty(id);
+		else
+			return defaultValue;
+	}
+
+	Colour getStyleColour(int id) const
+	{
+		auto prop = getColourId(id);
+
+		var v = getStyleProperty(prop, "0x00000000");
+		return Colour::fromString(v.toString());
+	}
+
+	/** If your panel uses colours, overwrite this method and return the number of colours. */
+	virtual int getNumColourIds() const { return 0; }
+
+	/** If your panel uses custom colours, overwrite this method and return the colour identifier. */
+	virtual Identifier getColourId(int colourId) const { return Identifier(); }
+
+	/** If your panel uses colours, overwrite this method and return the default colour. */
+	virtual Colour getDefaultColour(int colourId) const { return Colours::transparentBlack; }
+
+	/** Call this in your subclass constructor when using custom colours. */
+	void initColours()
+	{
+		for (int i = 0; i < getNumColourIds(); i++)
+			setStyleColour(i, getDefaultColour(i));
+	}
+
 protected:
 
 	/** Overwrite this method if the component has a fixed width. */
@@ -240,6 +439,8 @@ protected:
 	virtual int getFixedHeight() const { return 0; }
 	
 private:
+
+	var styleData;
 
 	Component::SafePointer<FloatingTile> parent;
 	

@@ -40,6 +40,13 @@ class FloatingTileContainer : public FloatingTileContent
 {
 public:
 
+	enum ContainerPropertyIds
+	{
+		Dynamic = FloatingTileContent::PanelPropertyId::numPropertyIds,
+		Content,
+		numContainerPropertyIds
+	};
+
 	/** Creates a new floating tile container.
 	*
 	*	You have to supply the parent tile.
@@ -92,9 +99,12 @@ public:
 
 	virtual Rectangle<int> getContainerBounds() const = 0;
 	
-	ValueTree exportAsValueTree() const override;
+	var toDynamicObject() const override;
+	void fromDynamicObject(const var& objectData) override;
 
-	void restoreFromValueTree(const ValueTree &v) override;
+	int getNumDefaultableProperties() const override;
+	Identifier getDefaultablePropertyId(int i) const override;
+	var getDefaultProperty(int id) const override;
 
 	void enableSwapMode(bool shouldBeSwappable, FloatingTile* source);
 
@@ -136,6 +146,12 @@ class FloatingTabComponent : public FloatingTileContainer,
 {
 public:
 
+	enum TabPropertyIds
+	{
+		CurrentTab = FloatingTileContainer::ContainerPropertyIds::numContainerPropertyIds,
+		numTabPropertyIds
+	};
+
 	SET_PANEL_NAME("Tabs");
 
 	struct CloseButton : public ShapeButton, public ButtonListener
@@ -172,8 +188,12 @@ public:
 	void componentAdded(FloatingTile* newComponent) override;
 	void componentRemoved(FloatingTile* deletedComponent) override;
 
-	ValueTree exportAsValueTree() const override;
-	void restoreFromValueTree(const ValueTree &v) override;
+	var toDynamicObject() const override;
+	void fromDynamicObject(const var& objectData) override;
+
+	int getNumDefaultableProperties() const override;
+	Identifier getDefaultablePropertyId(int i) const override;
+	var getDefaultProperty(int id) const override;
 
 	void paint(Graphics& g) override;
 
@@ -197,7 +217,9 @@ public:
 
 	enum ColourIds
 	{
-		backgroundColourId = 0xFF20,
+		backgroundColourId,
+		resizerColourId,
+		numColourIds
 	};
 
 	struct LookAndFeel: public LookAndFeel_V3
@@ -286,6 +308,36 @@ public:
 	bool isTitleBarDisplayed() const;
 
 	void mouseDown(const MouseEvent& event) override;
+
+	int getNumColourIds() const { return ColourIds::numColourIds; }
+	Identifier getColourId(int colourId) const override
+	{ 
+		if (colourId == ColourIds::backgroundColourId)
+		{
+			static const Identifier bg("backgroundColour");
+			return bg;
+		}
+		else
+		{
+			static const Identifier id("resizerColourId");
+			return id;
+		}
+	}
+
+	Colour getDefaultColour(int colourId) const override
+	{ 
+		auto c = (ColourIds)colourId;
+
+		switch (c)
+		{
+		case ResizableFloatingTileContainer::backgroundColourId: return Colour(0xff373737);
+		case ResizableFloatingTileContainer::resizerColourId:    return HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright);
+		default:
+			break;
+		}
+		
+		return Colours::transparentBlack;
+	}
 
 protected:
 
