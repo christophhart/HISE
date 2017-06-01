@@ -56,6 +56,10 @@ Console::Console(MainController* mc_):
 {
 	setName("Console");
 
+	auto consoleDoc = mc->getConsoleHandler().getConsoleData();
+
+	consoleDoc->addListener(this);
+
 	tokeniser = new ConsoleTokeniser();
 
 	addAndMakeVisible(newTextConsole = new ConsoleEditorComponent(*mc->getConsoleHandler().getConsoleData(), tokeniser));
@@ -64,6 +68,8 @@ Console::Console(MainController* mc_):
 
 Console::~Console()
 {
+	mc->getConsoleHandler().getConsoleData()->removeListener(this);
+
 	newTextConsole = nullptr;
 	tokeniser = nullptr;
 

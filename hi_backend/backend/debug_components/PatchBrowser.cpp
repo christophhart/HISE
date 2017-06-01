@@ -35,13 +35,14 @@
 PatchBrowser::PatchBrowser(BackendRootWindow *window) :
 SearchableListComponent(window),
 editor(window->getMainPanel()),
+rootWindow(window),
 showChains(true)
 {
 	setName("Patch Browser");
 
 	setShowEmptyCollections(true);
 
-	editor->getModuleListNofifier().addChangeListener(this);
+	window->getModuleListNofifier().addProcessorChangeListener(this);
 
 	addAndMakeVisible(addButton = new ShapeButton("Show chains", Colours::white.withAlpha(0.6f), Colours::white, Colours::white));
 	
@@ -70,8 +71,8 @@ showChains(true)
 
 PatchBrowser::~PatchBrowser()
 {
-	if(editor != nullptr)
-		editor->getModuleListNofifier().removeChangeListener(this);
+	if(rootWindow != nullptr)
+		rootWindow->getModuleListNofifier().removeProcessorChangeListener(this);
 
 	addButton = nullptr;
 }
@@ -308,33 +309,6 @@ isOver(false)
 	hideButton->setShape(hidePath, false, true, false);
 	hideButton->addListener(this);
     
-    startTimer(3000);
-}
-
-
-
-void PatchBrowser::ModuleDragTarget::timerCallback()
-{
-	if (getProcessor() == nullptr || !dynamic_cast<Component*>(this)->isVisible()) return;
-
-	bool repaintFlag = false;
-
-	if (getProcessor()->isBypassed() != bypassed)
-	{
-		bypassed = getProcessor()->isBypassed();
-		repaintFlag = true;
-	}
-	else if (getProcessor()->getId() != id)
-	{
-		id = getProcessor()->getId();
-		repaintFlag = true;
-	}
-	else if (getProcessor()->getColour() != colour)
-	{
-		colour = getProcessor()->getColour();
-	}
-
-	if (repaintFlag) dynamic_cast<Component*>(this)->repaint();
 }
 
 void PatchBrowser::ModuleDragTarget::buttonClicked(Button *b)

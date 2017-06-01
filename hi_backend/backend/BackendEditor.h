@@ -210,15 +210,7 @@ public:
 		return owner->viewUndoManager;
 	}
 
-	SafeChangeBroadcaster &getModuleListNofifier() { return moduleListNotifier; }
-
-	void rebuildModuleList(bool synchronous)
-	{
-		if (synchronous)
-			moduleListNotifier.sendSynchronousChangeMessage();
-		else
-			moduleListNotifier.sendChangeMessage();
-	}
+	
 
 	void setPluginPreviewWindow(PluginPreviewWindow *newWindow)
 	{
@@ -251,7 +243,11 @@ public:
 		memcpy(coloursFromColourPicker, swatchColours, sizeof(Colour)*8);
 	}
 
+	
+
 private:
+
+	
 
 	BackendRootWindow* parentRootWindow;
 
@@ -269,7 +265,7 @@ private:
 
     ScopedPointer<CachedViewport> viewport;
 	
-	SafeChangeBroadcaster moduleListNotifier;
+	//SafeChangeBroadcaster moduleListNotifier;
 
 	BackendProcessor *owner;
 

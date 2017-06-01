@@ -106,6 +106,22 @@ void SampleEditHandler::handleMidiSelection()
 	}
 }
 
+SampleSelection SampleEditHandler::getSanitizedSelection()
+{
+	const Array<WeakReference<ModulatorSamplerSound>> sounds = selectedSamplerSounds.getItemArray();
+
+	SampleSelection existingSounds;
+
+	existingSounds.ensureStorageAllocated(sounds.size());
+
+	for (int i = 0; i < sounds.size(); i++)
+	{
+		if (sounds[i].get() != nullptr) existingSounds.add(sounds[i].get());
+	}
+
+	return existingSounds;
+}
+
 bool SampleEditHandler::newKeysPressed(const uint8 *currentNotes)
 {
 	for (int i = 0; i < 127; i++)

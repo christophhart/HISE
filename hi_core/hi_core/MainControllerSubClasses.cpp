@@ -407,12 +407,17 @@ void MainController::CodeHandler::handleAsyncUpdate()
 
 	consoleData.insertText(consoleData.getNumCharacters(), message);
 
-#if 0
-	int numLinesVisible = jmax<int>(0, doc->getNumLines() - (int)((float)newTextConsole->getHeight() / GLOBAL_MONOSPACE_FONT().getHeight()));
-
-	newTextConsole->scrollToLine(numLinesVisible);
-#endif
 	overflowProtection = false;
+
+	if (getMainConsole() != nullptr)
+	{
+		auto rootWindow = mainConsole->findParentComponentOfClass<BackendRootWindow>();
+		
+		if (rootWindow != nullptr)
+		{
+			BackendPanelHelpers::toggleVisibilityForRightColumnPanel<ConsolePanel>(rootWindow->getRootFloatingTile(), true);
+		}
+	}
 }
 
 

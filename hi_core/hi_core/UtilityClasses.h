@@ -396,9 +396,10 @@ class SafeChangeBroadcaster
 {
 public:
 
-	SafeChangeBroadcaster() :
+	SafeChangeBroadcaster(const String& name_ = {}) :
 		dispatcher(this),
-        flagTimer(this)
+        flagTimer(this),
+		name(name_)
 	{};
 
 	virtual ~SafeChangeBroadcaster()
@@ -553,6 +554,8 @@ private:
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AsyncBroadcaster)
 	};
 
+	const String name;
+
 	AsyncBroadcaster dispatcher;
     FlagTimer flagTimer;
 
@@ -589,6 +592,8 @@ private:
 
 	friend class WeakReference<TempoListener>;
 	WeakReference<TempoListener>::Master masterReference;
+
+	
 
 };
 

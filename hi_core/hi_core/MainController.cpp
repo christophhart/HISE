@@ -58,6 +58,7 @@ MainController::MainController():
 	eventIdHandler(masterEventBuffer),
 	userPresetHandler(this),
 	codeHandler(this),
+	processorChangeHandler(this),
 	debugLogger(this),
 	presetLoadRampFlag(0),
 	suspendIndex(0),
@@ -793,13 +794,19 @@ void MainController::setWatchedScriptProcessor(JavascriptProcessor *p, Component
 
 void MainController::setEditedScriptComponent(ReferenceCountedObject* c, Component *listener)
 {
-
-
 	ScriptingApi::Content::ScriptComponent *sc = dynamic_cast<ScriptingApi::Content::ScriptComponent *>(c);
 
 
-	if (scriptComponentEditPanel.getComponent() != nullptr)
+	for (int i = 0; i < scriptComponentEditPanels.size(); i++)
 	{
+		auto scriptComponentEditPanel = scriptComponentEditPanels[i].getComponent();
+
+		if (scriptComponentEditPanel == nullptr)
+		{
+			scriptComponentEditPanels.remove(i--);
+			continue;
+		}
+		
 		scriptComponentEditPanel->setEditedComponent(sc);
 
 		ScriptComponentEditListener *l = dynamic_cast<ScriptComponentEditListener *>(listener);
@@ -809,24 +816,41 @@ void MainController::setEditedScriptComponent(ReferenceCountedObject* c, Compone
 			scriptComponentEditPanel->removeAllListeners();
 			scriptComponentEditPanel->addListener(l);
 		}
+	}
 
-		ScriptEditHandler *editor = dynamic_cast<ScriptEditHandler *>(listener);
+	ScriptEditHandler *editor = dynamic_cast<ScriptEditHandler *>(listener);
 
-		if (editor != nullptr)
-		{
-			editor->setEditedScriptComponent(sc);
-		}
+	if (editor != nullptr)
+	{
+		editor->setEditedScriptComponent(sc);
 	}
 };
+
+bool MainController::hasScriptEditingPanels()
+{
+	for (int i = 0; i < scriptComponentEditPanels.size(); i++)
+	{
+		if (scriptComponentEditPanels[i].getComponent() == nullptr)
+			scriptComponentEditPanels.remove(i--);
+	}
+
+	return scriptComponentEditPanels.size() > 0;
+}
 
 void MainController::setScriptWatchTable(ScriptWatchTable *table)
 {
 	scriptWatchTable = table;
 }
 
-void MainController::setScriptComponentEditPanel(ScriptComponentEditPanel *panel)
+void MainController::addScriptComponentEditPanel(ScriptComponentEditPanel *panel)
 {
-	scriptComponentEditPanel = panel;
+	for (int i = 0; i < scriptComponentEditPanels.size(); i++)
+	{
+		if (scriptComponentEditPanels[i].getComponent() == nullptr)
+			scriptComponentEditPanels.remove(i--);
+	}
+
+	scriptComponentEditPanels.addIfNotAlreadyThere(panel);
 }
 
 #endif
@@ -844,3 +868,7 @@ void MainController::SampleManager::preloadEverything()
 	}
 }
 
+void MainController::CodeHandler::setMainConsole(Console* console)
+{
+	mainConsole = dynamic_cast<Component*>(console);
+}

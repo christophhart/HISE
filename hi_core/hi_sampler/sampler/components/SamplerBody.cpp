@@ -188,32 +188,6 @@ SamplerBody::~SamplerBody()
     //[/Destructor]
 }
 
-void SamplerBody::soundSelectionChanged()
-{
-	const uint32 thisTime = Time::getMillisecondCounter();
-	const uint32 interval = 0;
-
-	if ((thisTime - timeSinceLastSelectionChange) > interval)
-	{
-		const Array<WeakReference<ModulatorSamplerSound>> sounds = getSampleEditHandler()->getSelection().getItemArray();
-
-		Array<ModulatorSamplerSound*> existingSounds;
-
-		for (int i = 0; i < sounds.size(); i++)
-		{
-			if (sounds[i].get() != nullptr) existingSounds.add(sounds[i].get());
-		}
-
-		sampleEditor->selectSounds(existingSounds);
-
-		map->selectSounds(existingSounds);
-
-		soundTable->selectSounds(existingSounds);
-
-		timeSinceLastSelectionChange = Time::getMillisecondCounter();
-	}
-}
-
 //==============================================================================
 void SamplerBody::paint (Graphics& g)
 {

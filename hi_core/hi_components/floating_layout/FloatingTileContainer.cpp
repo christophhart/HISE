@@ -186,6 +186,14 @@ void FloatingTileContainer::refreshLayout()
 
 }
 
+void FloatingTileContainer::notifySiblingChange()
+{
+	for (int i = 0; i < getNumComponents(); i++)
+	{
+		getComponent(i)->getCurrentFloatingPanel()->siblingAmountChanged();
+	}
+}
+
 FloatingTabComponent::CloseButton::CloseButton() :
 	ShapeButton("Close", Colours::white.withAlpha(0.2f), Colours::white.withAlpha(0.8f), Colours::white)
 {
@@ -361,6 +369,8 @@ void FloatingTabComponent::componentAdded(FloatingTile* newComponent)
 
 	setCurrentTabIndex(getNumTabs() - 1);
 
+	notifySiblingChange();
+
 	resized();
 	repaint();
 }
@@ -377,6 +387,8 @@ void FloatingTabComponent::componentRemoved(FloatingTile* deletedComponent)
 	}
 
 	setCurrentTabIndex(getNumTabs() - 1);
+
+	notifySiblingChange();
 
 	resized();
 	repaint();
@@ -486,6 +498,8 @@ void ResizableFloatingTileContainer::refreshLayout()
 	FloatingTileContainer::refreshLayout();
 
 	rebuildResizers();
+
+	animate = false;
 }
 
 void ResizableFloatingTileContainer::paint(Graphics& g)
@@ -564,17 +578,7 @@ ResizableFloatingTileContainer::~ResizableFloatingTileContainer()
 
 String ResizableFloatingTileContainer::getTitle() const
 {
-	if (getParentShell()->isLayoutModeEnabled())
-	{
-		return FloatingTileContent::getCustomTitle();
-	}
-	else
-	{
-		if (hasCustomTitle())
-			return FloatingTileContent::getCustomTitle();
-		else
-			return "";
-	}
+	return FloatingTileContent::getCustomTitle();
 }
 
 void ResizableFloatingTileContainer::buttonClicked(Button* b)
@@ -665,12 +669,17 @@ void ResizableFloatingTileContainer::componentAdded(FloatingTile* c)
 
 	c->setBounds(0, 0, isVertical() ? 0 : getWidth(), isVertical() ? getHeight() : 0);
 
+	notifySiblingChange();
+
 	refreshLayout();
 }
 
 void ResizableFloatingTileContainer::componentRemoved(FloatingTile* c)
 {
 	removeChildComponent(c);
+
+	notifySiblingChange();
+
 	refreshLayout();
 }
 
@@ -690,6 +699,11 @@ void ResizableFloatingTileContainer::performLayout(Rectangle<int> area)
 		auto pc = getComponent(i);
 		auto& lData = pc->getLayoutData();
 
+		pc->setVisible(lData.isVisible());
+		
+		if (!lData.isVisible())
+			continue;
+
 		if (i < getNumComponents() - 1)
 			availableSize -= resizers[i]->getCurrentSize();
 
@@ -707,15 +721,30 @@ void ResizableFloatingTileContainer::performLayout(Rectangle<int> area)
 	for (int i = 0; i < numToLayout; i++)
 	{
 		auto pc = getComponent(i);
+		auto& lData = pc->getLayoutData();
 
 		if (i > 0)
 		{
-			auto rs = resizers[i - 1]->getCurrentSize();
-			setBoundsOneDimension(resizers[i - 1], offset, rs, area);
-			offset += rs;
+			auto resizer = resizers[i - 1];
+
+			if (lData.isVisible())
+			{
+				resizer->setVisible(true);
+
+				auto rs = resizer->getCurrentSize();
+				setBoundsOneDimension(resizer, offset, rs, area);
+				offset += rs;
+			}
+			else
+			{
+				resizer->setVisible(false);
+			}
+
+			
 		}
 
-		auto& lData = pc->getLayoutData();
+		if (!lData.isVisible())
+			continue;
 
 		if (pc->isFolded())
 		{
@@ -777,7 +806,7 @@ void ResizableFloatingTileContainer::setBoundsOneDimension(Component* c, int off
 		newBounds = Rectangle<int>(offset, area.getY(), size, area.getHeight());
 	}
 
-	if (false && animate)
+	if (dynamic_cast<InternalResizer*>(c) == nullptr && animate)
 	{
 		if (c->isVisible())
 			Desktop::getInstance().getAnimator().animateComponent(c, newBounds, 1.0f, 150, false, 1.3, 0.0);
@@ -880,7 +909,7 @@ void ResizableFloatingTileContainer::InternalResizer::mouseDown(const MouseEvent
 
 		downOffset = parent->isVertical() ? e2.getMouseDownY() : e2.getMouseDownX();
 
-		parent->animate = false;
+		
 		active = true;
 
 		prevDownSizes.clear();
@@ -907,7 +936,7 @@ void ResizableFloatingTileContainer::InternalResizer::mouseDown(const MouseEvent
 
 void ResizableFloatingTileContainer::InternalResizer::mouseUp(const MouseEvent& event)
 {
-	parent->animate = true;
+	
 	active = false;
 }
 

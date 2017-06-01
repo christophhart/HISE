@@ -639,7 +639,7 @@ ScriptComponentEditPanel::ScriptComponentEditPanel(BackendRootWindow* rootWindow
 
 	codeDragger->setVisible(false);
 
-	mc->setScriptComponentEditPanel(this);
+	mc->addScriptComponentEditPanel(this);
 
 	panel->setLookAndFeel(&pplaf);
 }

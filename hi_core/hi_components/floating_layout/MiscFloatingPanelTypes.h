@@ -33,11 +33,7 @@
 
 #ifndef MISCFLOATINGPANELTYPES_H_INCLUDED
 #define MISCFLOATINGPANELTYPES_H_INCLUDED
-
-class FloatingTile;
-
-#define SET_PANEL_NAME(x) static Identifier getPanelId() { static const Identifier id(x); return id;}; Identifier getIdentifierForBaseClass() const override { return getPanelId(); };
-#define GET_PANEL_NAME(className) className::getPanelId()				  
+			  
 
 class Note : public Component,
 	public FloatingTileContent,
@@ -145,6 +141,109 @@ public:
 
 };
 
+class ResizableFloatingTileContainer;
+
+class VisibilityToggleBar : public FloatingTileContent,
+					   public Component
+{
+public:
+
+	enum ColourIds
+	{
+		backgroundColour,
+		normalColour,
+		overColour,
+		onColour,
+		numColourIds
+	};
+
+	VisibilityToggleBar(FloatingTile* parent);;
+
+	SET_PANEL_NAME("VisibilityToggleBar");
+
+	bool showTitleInPresentationMode() const override
+	{
+		return false;
+	}
+
+	int getFixedHeight() const override
+	{
+		return 26;
+	}
+
+	void paint(Graphics& g) override
+	{
+		auto c = getStyleColour(ColourIds::backgroundColour);
+
+		g.fillAll(c);
+	}
+
+	void setControlledContainer(FloatingTileContainer* containerToControl);
+
+	void refreshButtons();
+
+	void siblingAmountChanged() override
+	{
+		refreshButtons();
+	}
+
+	int getNumColourIds() const { return numColourIds; }
+
+	Identifier getColourId(int colourId) const 
+	{
+		RETURN_STATIC_IDENTIFIER("backgroundColour");
+	}
+
+	Colour getDefaultColour(int colourId) const { return HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourId); }
+
+	void resized() override;
+
+private:
+
+	struct Icon : public ButtonListener,
+				  public Component
+	{
+		Icon(FloatingTile* controlledTile_);
+
+		~Icon()
+		{
+			button->removeListener(this);
+			button = nullptr;
+			controlledTile = nullptr;
+		}
+
+		void resized() override
+		{
+			button->setBounds(getLocalBounds().reduced(3));
+		}
+
+		void refreshColour();
+
+		void buttonClicked(Button*);
+
+		bool on;
+
+		Colour colourOff = Colours::white.withAlpha(0.4f);
+		Colour overColourOff = Colours::white.withAlpha(0.5f);
+		Colour downColourOff = Colours::white.withAlpha(0.6f);
+
+		Colour colourOn = Colours::white.withAlpha(1.0f);
+		Colour overColourOn = Colours::white.withAlpha(1.0f);
+		Colour downColourOn = Colours::white.withAlpha(1.0f);
+
+	private:
+		
+		ScopedPointer<ShapeButton> button;
+
+
+		Component::SafePointer<FloatingTile> controlledTile;
+	};
+
+	Component::SafePointer<Component> controlledContainer;
+
+	OwnedArray<Icon> buttons;
+};
+
 class MidiKeyboardPanel : public FloatingTileContent,
 						  public Component,
 					      public ComponentWithKeyboard
@@ -206,205 +305,6 @@ private:
 };
 
 
-class ModulatorSynthChain;
-
-class PanelWithProcessorConnection : public FloatingTileContent,
-									 public Component,
-									 public ComboBox::Listener,
-									 public Processor::DeleteListener,
-									 public SafeChangeListener
-{
-public:
-
-	class ProcessorConnection : public UndoableAction
-	{
-	public:
-
-		ProcessorConnection(PanelWithProcessorConnection* panel_, Processor* newProcessor_, int newIndex_) :
-			panel(panel_),
-			newProcessor(newProcessor_),
-			newIndex(newIndex_)
-		{
-			oldIndex = panel->currentIndex;
-			oldProcessor = panel->currentProcessor.get();
-		}
-
-		bool perform() override
-		{
-			if (panel.getComponent() != nullptr)
-			{
-				panel->currentIndex = newIndex;
-				panel->setCurrentProcessor(newProcessor.get());
-				panel->refreshContent();
-				return true;
-			}
-			
-			return false;
-		}
-
-		bool undo() override
-		{
-			if (panel.getComponent())
-			{
-				panel->currentIndex = oldIndex;
-				panel->setCurrentProcessor(oldProcessor.get());
-				panel->refreshContent();
-				return true;
-			}
-
-			return false;
-		}
-
-	private:
-
-		Component::SafePointer<PanelWithProcessorConnection> panel;
-		WeakReference<Processor> oldProcessor;
-		WeakReference<Processor> newProcessor;
-
-		int oldIndex = -1;
-		int newIndex = -1;
-
-	};
-
-	PanelWithProcessorConnection(FloatingTile* parent);
-
-	virtual ~PanelWithProcessorConnection();
-
-	void paint(Graphics& g) override;
-
-	void changeListenerCallback(SafeChangeBroadcaster* b) override
-	{
-		refreshConnectionList();
-	}
-
-	void resized() override;
-	
-	void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override;
-
-	virtual void processorDeleted(Processor* deletedProcessor)
-	{
-		setContentWithUndo(nullptr, -1);
-	}
-
-	void refreshConnectionList();
-
-	void refreshIndexList();
-
-	template <class ContentType> ContentType* getContent() { return dynamic_cast<ContentType*>(content.get()); };
-
-	virtual void updateChildEditorList(bool forceUpdate) {}
-
-	Processor* getProcessor() { return currentProcessor.get(); }
-	const Processor* getProcessor() const { return currentProcessor.get(); }
-
-	/** Use the connected processor for filling the index list (!= the current processor which is shown). */
-	Processor* getConnectedProcessor() { return connectedProcessor.get(); }
-	const Processor* getConnectedProcessor() const { return connectedProcessor.get(); }
-
-	ModulatorSynthChain* getMainSynthChain();
-
-	const ModulatorSynthChain* getMainSynthChain() const;
-
-	void setContentWithUndo(Processor* newProcessor, int newIndex);
-
-	void refreshContent()
-	{
-		if (getConnectedProcessor())
-			connectionSelector->setText(getConnectedProcessor()->getId(), dontSendNotification);
-		else
-			connectionSelector->setSelectedId(1);
-
-		indexSelector->setSelectedId(currentIndex + 2, dontSendNotification);
-
-		if (getProcessor() == nullptr || hasSubIndex() && currentIndex == -1)
-		{
-			content = nullptr;
-		}
-		else
-		{
-			getProcessor()->addDeleteListener(this);
-
-			addAndMakeVisible(content = createContentComponent(currentIndex));
-		}
-
-		auto titleToUse = hasCustomTitle() ? getCustomTitle() : getTitle();
-
-		if (getProcessor())
-		{
-			titleToUse << ": " << getConnectedProcessor()->getId();
-		}
-
-		setDynamicTitle(titleToUse);
-
-		resized();
-		repaint();
-
-		contentChanged();
-	}
-
-	
-
-	virtual Component* createContentComponent(int index) = 0;
-
-	virtual void contentChanged() {};
-
-	virtual void fillModuleList(StringArray& moduleList) = 0;
-
-	virtual void fillIndexList(StringArray& indexList) {};
-
-	virtual bool hasSubIndex() const { return false; }
-
-	void setCurrentProcessor(Processor* p)
-	{
-		if (currentProcessor.get() != nullptr)
-		{
-			currentProcessor->removeDeleteListener(this);
-		}
-		
-		currentProcessor = p;
-		connectedProcessor = currentProcessor;
-	}
-
-	void setConnectionIndex(int newIndex)
-	{
-		currentIndex = newIndex;
-	}
-
-protected:
-
-	template <class ProcessorType> void fillModuleListWithType(StringArray& moduleList)
-	{
-		Processor::Iterator<ProcessorType> iter(getMainSynthChain(), false);
-
-		while (auto p = iter.getNextProcessor())
-		{
-			moduleList.add(dynamic_cast<Processor*>(p)->getId());
-		}
-	}
-
-
-private:
-
-	Component::SafePointer<BackendRootWindow> rootWindow;
-
-	bool listInitialised = false;
-
-	ScopedPointer<ComboBox> connectionSelector;
-	ScopedPointer<ComboBox> indexSelector;
-
-	int currentIndex = -1;
-	int previousIndex = -1;
-	int nextIndex = -1;
-
-	WeakReference<Processor> currentProcessor;
-	WeakReference<Processor> connectedProcessor;
-	
-	ScopedPointer<Component> content;
-};
-
-
-
-
 class TableEditorPanel : public PanelWithProcessorConnection
 {
 public:
@@ -439,6 +339,38 @@ public:
 	}
 };
 
+class PlotterPanel : public PanelWithProcessorConnection
+{
+public:
+
+	PlotterPanel(FloatingTile* parent):
+		PanelWithProcessorConnection(parent)
+	{
+
+	}
+
+	SET_PANEL_NAME("Plotter");
+
+	Component* createContentComponent(int /*index*/) override
+	{
+		auto p = new Plotter();
+
+		auto mod = dynamic_cast<Modulator*>(getConnectedProcessor());
+
+		p->addPlottedModulator(mod);
+
+		return p;
+	}
+
+	void fillModuleList(StringArray& moduleList) override
+	{
+		fillModuleListWithType<TimeModulation>(moduleList);
+	}
+
+private:
+
+};
+
 
 class SliderPackPanel : public PanelWithProcessorConnection
 {
@@ -463,6 +395,8 @@ public:
 		return sp;
 	}
 
+	
+
 	void fillModuleList(StringArray& moduleList) override
 	{
 		fillModuleListWithType<SliderPackProcessor>(moduleList);
@@ -471,197 +405,6 @@ public:
 	void resized() override;
 	
 };
-
-
-class CodeEditorPanel : public PanelWithProcessorConnection
-					    
-{
-public:
-
-	CodeEditorPanel(FloatingTile* parent);;
-
-	~CodeEditorPanel();
-
-	SET_PANEL_NAME("ScriptEditor");
-
-	Component* createContentComponent(int index) override;
-
-	void fillModuleList(StringArray& moduleList) override
-	{
-		fillModuleListWithType<JavascriptProcessor>(moduleList);
-	}
-
-	bool hasSubIndex() const override { return true; }
-
-	void fillIndexList(StringArray& indexList) override;
-
-	void gotoLocation(Processor* p, const String& fileName, int charNumber);
-
-private:
-
-	ScopedPointer<JavascriptTokeniser> tokeniser;
-};
-
-class ScriptContentPanel: public PanelWithProcessorConnection
-{
-public:
-
-	struct Canvas;
-
-	class Editor : public Component
-	{
-	public:
-
-		Editor(Processor* p);
-
-		void resized() override
-		{
-			viewport->setBounds(getLocalBounds());
-		}
-
-	public:
-
-		ScopedPointer<Viewport> viewport;
-	};
-
-
-	ScriptContentPanel(FloatingTile* parent) :
-		PanelWithProcessorConnection(parent)
-	{};
-
-	SET_PANEL_NAME("ScriptContent");
-
-	Component* createContentComponent(int /*index*/) override;
-
-	void fillModuleList(StringArray& moduleList) override
-	{
-		fillModuleListWithType<JavascriptProcessor>(moduleList);
-	}
-
-private:
-
-};
-
-
-class ScriptWatchTablePanel : public PanelWithProcessorConnection
-{
-public:
-
-	ScriptWatchTablePanel(FloatingTile* parent) :
-		PanelWithProcessorConnection(parent)
-	{};
-
-	SET_PANEL_NAME("ScriptWatchTable");
-
-	Component* createContentComponent(int /*index*/) override;
-
-	void fillModuleList(StringArray& moduleList) override
-	{
-		fillModuleListWithType<JavascriptProcessor>(moduleList);
-	}
-
-private:
-
-};
-
-class GlobalConnectorPanel : public PanelWithProcessorConnection
-{
-public:
-
-
-	GlobalConnectorPanel(FloatingTile* parent):
-		PanelWithProcessorConnection(parent)
-	{
-
-	}
-
-	SET_PANEL_NAME("GlobalConnectorPanel");
-
-	int getFixedHeight() const override { return 18; }
-
-	bool showTitleInPresentationMode() const override
-	{
-		return false;
-	}
-
-	bool hasSubIndex() const override { return false; }
-
-	Component* createContentComponent(int index) override
-	{
-		return new Component();
-	}
-
-	void contentChanged() override;
-
-	void fillModuleList(StringArray& moduleList) override
-	{
-		fillModuleListWithType<JavascriptProcessor>(moduleList);
-	};
-
-private:
-
-};
-
-class SampleMapEditorPanel : public PanelWithProcessorConnection,
-							 public SafeChangeListener
-{
-public:
-
-	SampleMapEditorPanel(FloatingTile* parent) :
-		PanelWithProcessorConnection(parent)
-	{};
-
-	
-
-	SET_PANEL_NAME("SampleMapEditor");
-
-	void changeListenerCallback(SafeChangeBroadcaster* b);
-
-	bool hasSubIndex() const override { return false; }
-
-	Component* createContentComponent(int index) override;
-
-	
-	void fillModuleList(StringArray& moduleList) override
-	{
-		fillModuleListWithType<ModulatorSampler>(moduleList);
-	};
-
-	void contentChanged() override;
-
-};
-
-
-
-class SampleEditorPanel : public PanelWithProcessorConnection,
-						  public SafeChangeListener
-{
-public:
-
-	SampleEditorPanel(FloatingTile* parent);;
-
-	SET_PANEL_NAME("SampleEditor");
-
-	void changeListenerCallback(SafeChangeBroadcaster* b);
-
-	
-	Component* createContentComponent(int index) override;
-
-	void fillModuleList(StringArray& moduleList) override
-	{
-		fillModuleListWithType<ModulatorSampler>(moduleList);
-	};
-
-	void contentChanged() override;
-
-private:
-
-	struct EditListener;
-
-	ScopedPointer<EditListener> editListener;
-
-};
-
 
 #define SET_GENERIC_PANEL_ID(x) static Identifier getGenericPanelId() { static const Identifier id(x); return x;}
 
@@ -695,63 +438,6 @@ public:
 private:
 
 	ScopedPointer<ContentType> component;
-};
-
-class ConsolePanel : public FloatingTileContent,
-					 public Component
-{
-public:
-
-	SET_PANEL_NAME("Console");
-
-	ConsolePanel(FloatingTile* parent);
-
-	void resized() override;
-
-private:
-
-	ScopedPointer<Console> console;
-
-};
-
-struct BackendCommandIcons
-{
-	static Path getIcon(int commandId);
-};
-
-
-
-class ApplicationCommandButtonPanel : public FloatingTileContent,
-									  public Component
-{
-public:
-
-
-	ApplicationCommandButtonPanel(FloatingTile* parent) :
-		FloatingTileContent(parent)
-	{
-		addAndMakeVisible(b = new ShapeButton("Icon", Colours::white.withAlpha(0.3f), Colours::white.withAlpha(0.5f), Colours::white));
-
-		b->setVisible(false);
-	}
-
-	SET_PANEL_NAME("Icon");
-
-	void resized() override
-	{
-		b->setBounds(getLocalBounds());
-	}
-
-	void setCommand(int commandID);
-
-	bool showTitleInPresentationMode() const override
-	{
-		return false;
-	}
-
-private:
-
-	ScopedPointer<ShapeButton> b;
 };
 
 

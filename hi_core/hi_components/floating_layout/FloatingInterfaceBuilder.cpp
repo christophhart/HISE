@@ -55,6 +55,28 @@ void FloatingInterfaceBuilder::setFolded(int index, Array<bool> foldStates, Noti
 }
 
 
+void FloatingInterfaceBuilder::setVisibility(int index, bool shouldBeVisible, Array<bool> childVisibleStates, NotificationType shouldUpdateLayout /*= dontSendNotification*/)
+{
+	getPanel(index)->getLayoutData().setVisible(shouldBeVisible);
+
+	if (auto c = getTileManager(index)) // Tabs don't need to toggle the visibility of their children
+	{
+		if (childVisibleStates.size() != c->getNumComponents())
+		{
+			jassertfalse;
+			return;
+		}
+
+		for (int i = 0; i < c->getNumComponents(); i++)
+			c->getComponent(i)->getLayoutData().setVisible(childVisibleStates[i]);
+	}
+	else
+		jassertfalse;
+
+	if (shouldUpdateLayout)
+		getPanel(index)->refreshRootLayout();
+}
+
 void FloatingInterfaceBuilder::setFoldable(int index, bool isFoldable, Array<bool> childFoldableStates, NotificationType /*= dontSendNotification*/)
 {
 	getPanel(index)->setCanBeFolded(isFoldable);
@@ -99,6 +121,14 @@ void FloatingInterfaceBuilder::setCustomName(int index, const String& name, Arra
 	}
 
 }
+
+
+void FloatingInterfaceBuilder::setId(int index, const String& newID)
+{
+	getPanel(index)->getLayoutData().setId(newID);
+}
+
+
 
 FloatingTile* FloatingInterfaceBuilder::getPanel(int index)
 {

@@ -57,7 +57,7 @@ CombinedDebugArea::CombinedDebugArea(BackendProcessorEditor *mainEditor_):
   BaseDebugArea(mainEditor_)
 {
 	
-	poolTable = new SamplePoolTable(mainEditor->getBackendProcessor()->getSampleManager().getModulatorSamplerSoundPool());
+	
 
 	
 	externalFileTable = new ExternalFileTable<AudioSampleBuffer>(mainEditor->getBackendProcessor()->getSampleManager().getAudioSampleBufferPool());
@@ -307,8 +307,7 @@ BaseDebugArea(editor)
 #endif
 	
 
-	plotter = new Plotter(this);
-	plotter->setColour(Plotter::backgroundColour, Colour(0xFF383838));
+	
 	mainEditor->getBackendProcessor()->setPlotter(plotter);
 
 	macroTable = new MacroParameterTable(this);
@@ -316,7 +315,7 @@ BaseDebugArea(editor)
 	
 
 	mainEditor->getBackendProcessor()->setScriptWatchTable(scriptWatchTable);
-	mainEditor->getBackendProcessor()->setScriptComponentEditPanel(scriptComponentPanel);
+	mainEditor->getBackendProcessor()->addScriptComponentEditPanel(scriptComponentPanel);
 
 	ShapeButton *macroButton = new ShapeButton("Macro", Colour(BACKEND_ICON_COLOUR_OFF), Colour(BACKEND_ICON_COLOUR_OFF), Colour(BACKEND_ICON_COLOUR_OFF));
 	Path macroPath;

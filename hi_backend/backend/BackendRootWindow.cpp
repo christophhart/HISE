@@ -199,3 +199,37 @@ void BackendRootWindow::loadNewContainer(const File &f)
 
 	mainEditor->loadNewContainer(f);
 }
+
+FloatingTabComponent* BackendPanelHelpers::getMainTabComponent(FloatingTile* root)
+{
+	static const Identifier id("MainWorkspaceTabs");
+
+	FloatingTile::Iterator<FloatingTabComponent> iter(root);
+
+	while (auto t = iter.getNextPanel())
+	{
+
+		
+	}
+
+	return FloatingTileHelpers::findTileWithId<FloatingTabComponent>(root, id);
+}
+
+HorizontalTile* BackendPanelHelpers::getMainLeftColumn(FloatingTile* root)
+{
+	static const Identifier id("MainLeftColumn");
+
+	return FloatingTileHelpers::findTileWithId<HorizontalTile>(root, id);
+}
+
+HorizontalTile* BackendPanelHelpers::getMainRightColumn(FloatingTile* root)
+{
+	static const Identifier id("MainRightColumn");
+
+	return FloatingTileHelpers::findTileWithId<HorizontalTile>(root, id);
+}
+
+bool BackendPanelHelpers::isMainWorkspaceActive(FloatingTile* root)
+{
+	return getMainTabComponent(root)->getCurrentTabIndex() == 0;
+}

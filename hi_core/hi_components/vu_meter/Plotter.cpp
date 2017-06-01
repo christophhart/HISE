@@ -31,8 +31,7 @@
 */
 
 //==============================================================================
-Plotter::Plotter(BaseDebugArea *area) :
-AutoPopupDebugComponent(area),
+Plotter::Plotter() :
 freeModePlotterQueue(nullptr),
 freeMode(false)
 {
@@ -67,33 +66,9 @@ Plotter::~Plotter()
 
 void Plotter::addPlottedModulator(Modulator *m)
 {
-	/*if(mod.get() != nullptr)
-	{
-		mod->setPlotter(nullptr);
-		mod->sendChangeMessage();
-
-	}*/
-
 	modQueue.add(new PlotterQueue(m));
 
-#if USE_BACKEND
-	if(m != nullptr)
-	{
-
-		setName("Modulator Data Plotter: " + m->getId());
-
-		showComponentInDebugArea(true);
-
-		m->setPlotter(this);
-	}
-	else
-	{
-		setName("Modulator Data Plotter: Idle");
-
-		
-	}
-#endif
-	
+	m->setPlotter(this);
 
 	if(getParentComponent() != nullptr) getParentComponent()->repaint();
 }

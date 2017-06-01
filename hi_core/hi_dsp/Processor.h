@@ -344,9 +344,7 @@ public:
 		return getType().toString();
 	}
 
-	
-
-	void setId(const String &newId)
+	void setId(const String &newId, NotificationType notifyChangeHandler=dontSendNotification)
 	{
 		id = newId;
 
@@ -360,6 +358,10 @@ public:
 		}
 
 		sendChangeMessage();
+
+		if (notifyChangeHandler)
+			getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, 
+				MainController::ProcessorChangeHandler::EventType::ProcessorRenamed);
 	};
 
 	Identifier getIDAsIdentifier() const
@@ -368,10 +370,13 @@ public:
 	}
 
 	/** This bypasses the processor. You don't have to check in the processors logic itself, normally the chain should do that for you. */
-	virtual void setBypassed(bool shouldBeBypassed) noexcept 
+	virtual void setBypassed(bool shouldBeBypassed, NotificationType notifyChangeHandler=dontSendNotification) noexcept 
 	{ 
 		bypassed = shouldBeBypassed; 
 		currentValues.clear();
+
+		if (notifyChangeHandler)
+			getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, MainController::ProcessorChangeHandler::EventType::ProcessorBypassed, false);
 	};
 
 	/** Returns true if the processor is bypassed. */
@@ -841,6 +846,7 @@ private:
 
 	Identifier idAsIdentifier;
 };
+
 
 
 

@@ -93,19 +93,12 @@ public:
 	{
 		if (!dynamic_cast<ModulatorSampler*>(getProcessor())->shouldUpdateUI()) return;
 
-		auto& x = dynamic_cast<ModulatorSampler*>(getProcessor())->getSamplerDisplayValues();
-
-		settingsPanel->updateGui();
-
-		sampleEditor->updateWaveform();
-
 		getSampleEditHandler()->handleMidiSelection();
 
-		soundTable->refreshList();
-
-		map->setPressedKeys(x.currentNotes);
-
-		map->updateSoundData();
+		settingsPanel->updateInterface();
+		sampleEditor->updateInterface();
+		soundTable->updateInterface();
+		map->updateInterface();
 	};
 
 
@@ -113,7 +106,15 @@ public:
 	*
 	*	Since the SamplerBody itself is a ChangeBroadcaster for updateGui(), it has to use another callback
 	*/
-	void soundSelectionChanged() override;
+
+	void soundSelectionChanged(SampleSelection& newSelection) override
+	{
+		sampleEditor->selectSounds(newSelection);
+
+		map->selectSounds(newSelection);
+
+		soundTable->selectSounds(newSelection);
+	}
 
 	SampleEditHandler* getSampleEditHandler()
 	{

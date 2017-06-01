@@ -33,6 +33,7 @@
 #ifndef SAMPLEEDITHANDLER_H_INCLUDED
 #define SAMPLEEDITHANDLER_H_INCLUDED
 
+typedef Array<ModulatorSamplerSound*> SampleSelection;
 
 class SampleEditHandler: public ChangeListener
 {
@@ -45,7 +46,7 @@ public:
 			masterReference.clear();
 		}
 
-		virtual void soundSelectionChanged() = 0;
+		virtual void soundSelectionChanged(SampleSelection& newSelection) = 0;
 
 	private:
 
@@ -94,24 +95,30 @@ public:
 
 	void sendSelectionChangeMessage()
 	{
-		const Array<WeakReference<ModulatorSamplerSound>> newSelection = selectedSamplerSounds.getItemArray();
+		const uint32 thisTime = Time::getMillisecondCounter();
+		const uint32 interval = 0;
 
-		Array<ModulatorSamplerSound*> existingSounds;
-
-		for (int i = 0; i < newSelection.size(); i++)
+		if ((thisTime - timeSinceLastSelectionChange) < 1)
 		{
-			if (newSelection[i].get() != nullptr) existingSounds.add(newSelection[i].get());
+			timeSinceLastSelectionChange = thisTime;
+			return;
 		}
 
+		timeSinceLastSelectionChange = thisTime;
+
+		const Array<WeakReference<ModulatorSamplerSound>> newSelection = selectedSamplerSounds.getItemArray();
+
+		auto existingSounds = getSanitizedSelection();
+
+		
 		if (existingSounds != lastSelection)
 		{
 			for (int i = 0; i < selectionListeners.size(); i++)
 			{
-				selectionListeners[i]->soundSelectionChanged();
+				selectionListeners[i]->soundSelectionChanged(existingSounds);
 			}
 
-			lastSelection.clear();
-			lastSelection.addArray(existingSounds);
+			lastSelection.swapWith(existingSounds);
 		}
 	}
 
@@ -142,6 +149,8 @@ public:
 
 private:
 
+	SampleSelection getSanitizedSelection();
+
 	bool newKeysPressed(const uint8 *currentNotes);
 
 	void changeProperty(ModulatorSamplerSound *s, ModulatorSamplerSound::Property p, int delta);;
@@ -150,9 +159,9 @@ private:
 
 	SelectedItemSet<WeakReference<ModulatorSamplerSound>> selectedSamplerSounds;
 	
+	int timeSinceLastSelectionChange = 0;
 
-
-	Array<ModulatorSamplerSound*> lastSelection;
+	SampleSelection lastSelection;
 
 	Array<WeakReference<Listener>> selectionListeners;
 

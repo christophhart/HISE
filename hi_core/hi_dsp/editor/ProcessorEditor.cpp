@@ -543,10 +543,7 @@ void ProcessorEditorPanel::removeProcessorEditor(Processor *p)
 
 	refreshSize();
 
-	findParentComponentOfClass<BackendProcessorEditor>()->rebuildModuleList(false);
-
-	
-
+	findParentComponentOfClass<BackendRootWindow>()->sendRootContainerRebuildMessage(false);
 }
 
 int ProcessorEditorPanel::getHeightOfAllEditors() const

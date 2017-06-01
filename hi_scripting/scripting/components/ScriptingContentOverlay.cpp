@@ -882,6 +882,7 @@ private:
 };
 
 
+
 void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 {
 
@@ -893,7 +894,13 @@ void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 	{
 		ScriptingApi::Content::ScriptComponent *sc = content->getScriptComponentFor(e.getEventRelativeTo(content).getPosition());
 
-		dynamic_cast<Processor*>(parentHandler->getScriptEditHandlerProcessor())->getMainController()->setEditedScriptComponent(sc, parentHandler->getAsComponent());
+		auto mc = dynamic_cast<Processor*>(parentHandler->getScriptEditHandlerProcessor())->getMainController();
+
+		mc->setEditedScriptComponent(sc, parentHandler->getAsComponent());
+
+		auto root = findParentComponentOfClass<BackendRootWindow>()->getRootFloatingTile();
+
+		BackendPanelHelpers::toggleVisibilityForRightColumnPanel<GenericPanel<ScriptComponentEditPanel>>(root, sc != nullptr);
 	}
 
 	if (e.mods.isRightButtonDown())

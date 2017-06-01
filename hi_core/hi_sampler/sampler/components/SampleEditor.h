@@ -59,6 +59,11 @@ public:
 		updateWaveform();
 	}
 
+	void updateInterface() override
+	{
+		updateWaveform();
+	}
+
 	void rangeChanged(AudioDisplayComponent *c, int areaThatWasChanged) override
 	{
 		SamplerSoundWaveform *waveForm = dynamic_cast<SamplerSoundWaveform*>(c);

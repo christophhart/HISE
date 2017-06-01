@@ -310,7 +310,7 @@ public:
 
     ~ScriptComponentEditPanel()
     {
-		mc->setScriptComponentEditPanel(nullptr);
+		mc->addScriptComponentEditPanel(nullptr);
 
         listeners.clear();
         editedComponent = nullptr;

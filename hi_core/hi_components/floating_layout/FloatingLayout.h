@@ -34,9 +34,20 @@
 #ifndef FLOATINGLAYOUT_H_INCLUDED
 #define FLOATINGLAYOUT_H_INCLUDED
 
+class FloatingTile;
+
+
+
 #include "FloatingIcons.cpp"
 
 #include "FloatingTileContent.h"
+
+
+
+#include "PanelWithProcessorConnection.h"
+#include "ScriptingPanelTypes.h"
+#include "SamplerPanelTypes.h"
+#include "BackendPanelTypes.h"
 #include "MiscFloatingPanelTypes.h"
 #include "FloatingTileContainer.h"
 #include "FloatingTile.h"

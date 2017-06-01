@@ -82,7 +82,7 @@ public:
 	{
 		jassert(obj.isObject());
 
-		if (defaultValue.isUndefined() || value != defaultValue)
+		if ((defaultValue.isUndefined() || defaultValue.isVoid()) || value != defaultValue)
 		{
 			obj.getDynamicObject()->setProperty(getDefaultablePropertyId(id), value);
 		}
@@ -303,22 +303,23 @@ public:
 			Cancel = 0,
 			Empty,
 			Spacer,
+			VisibilityToggleBar,
 			BigResizer,
 			HorizontalTile,
 			VerticalTile,
 			Tabs,
-			Matrix2x2,
-			ThreeColumns,
-			ThreeRows,
 			Note,
 			MidiKeyboard,
-			SampleMapEditor,
+			SampleConnector,
 			SampleEditor,
-			GlobalConnectorPanel,
+			SampleMapEditor,
+			SamplerTable,
+			ScriptConnectorPanel,
 			ScriptEditor,
 			ScriptContent,
 			TablePanel,
 			SliderPackPanel,
+			Plotter,
 			Console,
 			ApiCollection,
 			ScriptWatchTable,
@@ -326,6 +327,10 @@ public:
 			ModuleBrowser,
 			PatchBrowser,
 			FileBrowser,
+			SamplePoolTable,
+			Matrix2x2,
+			ThreeColumns,
+			ThreeRows,
 			toggleLayoutMode,
 			toggleGlobalLayoutMode,
 			exportAsJSON,
@@ -336,11 +341,12 @@ public:
 		};
 
 		/** Register a subclass to this factory. The subclass must have a static method 'Identifier getName()'. */
-		template <typename DerivedClass> void registerType()
+		template <typename DerivedClass> void registerType(PopupMenuOptions index)
 		{
 			if (std::is_base_of<FloatingTileContent, DerivedClass>::value)
 			{
 				ids.add(DerivedClass::getPanelId());
+				idIndexes.add(index);
 				functions.add(&createFunc<DerivedClass>);
 			}
 		}
@@ -354,6 +360,8 @@ public:
 			else			 return nullptr;
 		}
 
+		PopupMenuOptions getOption(const FloatingTile* t) const;
+
 		/** Returns the list of all registered items. */
 		const Array<Identifier> &getIdList() const { return ids; }
 
@@ -361,7 +369,9 @@ public:
 
 		void registerAllPanelTypes();
 
-		Drawable* getIcon(PopupMenuOptions type);
+		Drawable* getIcon(PopupMenuOptions type) const;
+
+		Path getPath(PopupMenuOptions path) const;
 
 		void addToPopupMenu(PopupMenu& m, PopupMenuOptions type, const String& name, bool isEnabled=true, bool isTicked=false);
 
@@ -374,6 +384,7 @@ public:
 		typedef FloatingTileContent* (*PCreateFunc)(FloatingTile*);
 
 		Array<Identifier> ids;
+		Array<PopupMenuOptions> idIndexes;
 		Array <PCreateFunc> functions;;
 	};
 
@@ -390,6 +401,9 @@ public:
 	{
 		styleData.getDynamicObject()->setProperty(id, value);
 	}
+
+	/** Override this method when you want to be notified when the amount of siblings change. */
+	virtual void siblingAmountChanged() {}
 
 	void setStyleColour(int id, Colour c)
 	{

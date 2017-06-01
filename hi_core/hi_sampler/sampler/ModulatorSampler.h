@@ -115,6 +115,8 @@ public:
 	ModulatorSampler(MainController *mc, const String &id, int numVoices);;
 	~ModulatorSampler();
 
+	SET_PROCESSOR_CONNECTOR_TYPE_ID("ModulatorSampler");
+
 	void restoreFromValueTree(const ValueTree &v) override;
 	ValueTree exportAsValueTree() const override;
 	

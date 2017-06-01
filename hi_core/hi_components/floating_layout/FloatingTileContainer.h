@@ -123,10 +123,14 @@ public:
 		return dynamic; 
 	}
 
+	void notifySiblingChange();
+
 protected:
 
 	virtual void componentAdded(FloatingTile* newComponent) = 0;
+	
 	virtual void componentRemoved(FloatingTile* deletedComponent) = 0;
+	
 
 private:
 
@@ -301,6 +305,11 @@ public:
 
 	void buttonClicked(Button* b) override;
 
+	void enableAnimationForNextLayout()
+	{
+		animate = true;
+	}
+
 	void resized() override;
 
 	void foldComponent(Component* c, bool shouldBeFolded);
@@ -357,7 +366,7 @@ private:
 	BigInteger bigResizers;
 
 	const bool vertical;
-	bool animate = true;
+	bool animate = false;
 
 	Array<double> storedSizes;
 	Array<Component*> currentlyDisplayedComponents;

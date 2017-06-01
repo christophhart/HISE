@@ -83,6 +83,10 @@ struct DebugPanelLookAndFeel : public ResizableFloatingTileContainer::LookAndFee
 
 Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 {
+	MainController* mc = rootTile->findParentComponentOfClass<BackendRootWindow>()->getBackendProcessor();
+
+	jassert(mc != nullptr);
+
 	rootTile->setLayoutModeEnabled(false, true);
 
 	FloatingInterfaceBuilder ib(rootTile);
@@ -96,17 +100,18 @@ Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 	ib.getContainer(root)->setIsDynamic(false);
 
 	const int tabs = ib.addChild<FloatingTabComponent>(root);
-
 	ib.getContainer(tabs)->setIsDynamic(true);
 
 	ib.setSizes(root, { 32.0, -1.0 });
 	
 	ib.setFoldable(root, false, { false, false });
+	ib.setId(tabs, "MainWorkspaceTabs");
 
 	const int firstVertical = ib.addChild<VerticalTile>(tabs);
 
 	ib.getContainer(firstVertical)->setIsDynamic(false);
 	ib.getPanel(firstVertical)->setVital(true);
+	ib.setId(firstVertical, "MainWorkspace");
 
 	ib.getContent(firstVertical)->setStyleColour(ResizableFloatingTileContainer::ColourIds::backgroundColourId, 
 											  HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
@@ -119,12 +124,13 @@ Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 
 	ib.getContainer(leftColumn)->setIsDynamic(true);
 	ib.getContainer(mainColumn)->setIsDynamic(false);
-	ib.getContainer(rightColumn)->setIsDynamic(true);
+	ib.getContainer(rightColumn)->setIsDynamic(false);
 
 	ib.getContent(leftColumn)->setStyleColour(ResizableFloatingTileContainer::ColourIds::backgroundColourId, Colour(0xFF222222));
 	ib.getPanel(leftColumn)->getLayoutData().setMinSize(150);
 	ib.getPanel(leftColumn)->setCanBeFolded(true);
-	
+	ib.setId(leftColumn, "MainLeftColumn");
+
 	ib.getContent(mainColumn)->setStyleColour(ResizableFloatingTileContainer::ColourIds::backgroundColourId, 
 											  HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
 
@@ -132,6 +138,28 @@ Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 	ib.getContent(rightColumn)->setStyleColour(ResizableFloatingTileContainer::ColourIds::backgroundColourId, Colour(0xFF222222));
 	ib.getPanel(rightColumn)->getLayoutData().setMinSize(150);
 	ib.getPanel(rightColumn)->setCanBeFolded(true);
+	ib.setId(rightColumn, "MainRightColumn");
+
+	const int rightToolBar = ib.addChild<VisibilityToggleBar>(rightColumn);
+	
+	const int scriptWatchTable = ib.addChild<ScriptWatchTablePanel>(rightColumn);
+	ib.getPanel(scriptWatchTable)->setCloseTogglesVisibility(true);
+
+	const int editPanel = ib.addChild<GenericPanel<ScriptComponentEditPanel>>(rightColumn);
+	ib.getPanel(editPanel)->setCloseTogglesVisibility(true);
+
+	const int plotter = ib.addChild<PlotterPanel>(rightColumn);
+	ib.getPanel(plotter)->getLayoutData().setCurrentSize(300.0);
+	ib.getPanel(plotter)->setCloseTogglesVisibility(true);
+
+	const int console = ib.addChild<ConsolePanel>(rightColumn);
+	mc->getConsoleHandler().setMainConsole(ib.getContent<ConsolePanel>(console)->getConsole());
+	ib.getPanel(console)->setCloseTogglesVisibility(true);
+
+	ib.setVisibility(rightColumn, true, { true, false, false, false, false});
+
+	
+	
 
 
 	ib.getContent(root)->setStyleColour(ResizableFloatingTileContainer::ColourIds::backgroundColourId, 
@@ -152,11 +180,18 @@ Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 
 	ib.setCustomName(firstVertical, "Main Workspace", { "Left Panel", "", "Right Panel" });
 
-#if PUT_FLOAT_IN_CODEBASE
 	ib.setNewContentType<MainPanel>(mainArea);
-#endif
+	ib.getPanel(mainArea)->getLayoutData().setId("MainColumn");
+
+
+	ib.getContent<VisibilityToggleBar>(rightToolBar)->refreshButtons();
 
 	ib.finalizeAndReturnRoot(true);
+
+	jassert(BackendPanelHelpers::getMainTabComponent(rootTile) != nullptr);
+	jassert(BackendPanelHelpers::getMainLeftColumn(rootTile) != nullptr);
+	jassert(BackendPanelHelpers::getMainRightColumn(rootTile) != nullptr);
+	
 
 	return dynamic_cast<Component*>(ib.getPanel(mainArea)->getCurrentFloatingPanel());
 }

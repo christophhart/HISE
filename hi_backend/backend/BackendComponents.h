@@ -291,11 +291,19 @@ public:
 
 };
 
-class BreadcrumbComponent : public Component
+class BreadcrumbComponent : public Component,
+							public MainController::ProcessorChangeHandler::Listener
 {
 public:
-	BreadcrumbComponent()
-	{};
+	BreadcrumbComponent(MainController* mc_);;
+
+	~BreadcrumbComponent();
+
+	void moduleListChanged(Processor* processorThatWasChanged, MainController::ProcessorChangeHandler::EventType type)
+	{
+		if (type == MainController::ProcessorChangeHandler::EventType::ProcessorRenamed)
+			refreshBreadcrumbs();
+	}
 
 	void paint(Graphics &g) override
 	{
@@ -371,6 +379,8 @@ private:
 	};
 
 	OwnedArray<Breadcrumb> breadcrumbs;
+
+	MainController* mc;
 };
 
 class BaseDebugArea;

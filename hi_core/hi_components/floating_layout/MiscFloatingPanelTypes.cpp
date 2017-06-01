@@ -84,18 +84,6 @@ void EmptyComponent::mouseDown(const MouseEvent& event)
 	getParentShell()->mouseDown(event);
 }
 
-ConsolePanel::ConsolePanel(FloatingTile* parent) :
-	FloatingTileContent(parent)
-{
-	setInterceptsMouseClicks(false, true);
-	addAndMakeVisible(console = new Console(getRootWindow()->getBackendProcessor()));
-}
-
-void ConsolePanel::resized()
-{
-	console->setBounds(getParentShell()->getContentBounds());
-}
-
 MidiKeyboardPanel::MidiKeyboardPanel(FloatingTile* parent) :
 	FloatingTileContent(parent)
 {
@@ -118,423 +106,6 @@ void ApplicationCommandButtonPanel::setCommand(int commandID)
 }
 
 
-PanelWithProcessorConnection::PanelWithProcessorConnection(FloatingTile* parent) :
-	FloatingTileContent(parent)
-{
-	rootWindow = getParentShell()->getRootWindow();
-
-	addAndMakeVisible(connectionSelector = new ComboBox());
-	connectionSelector->addListener(this);
-	getMainSynthChain()->getMainController()->skin(*connectionSelector);
-
-	connectionSelector->setColour(MacroControlledObject::HiBackgroundColours::upperBgColour, Colours::transparentBlack);
-	connectionSelector->setColour(MacroControlledObject::HiBackgroundColours::lowerBgColour, Colours::transparentBlack);
-	connectionSelector->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, Colours::transparentBlack);
-	connectionSelector->setTextWhenNothingSelected("Disconnected");
-
-	addAndMakeVisible(indexSelector = new ComboBox());
-	indexSelector->addListener(this);
-	getMainSynthChain()->getMainController()->skin(*indexSelector);
-
-	indexSelector->setColour(MacroControlledObject::HiBackgroundColours::upperBgColour, Colours::transparentBlack);
-	indexSelector->setColour(MacroControlledObject::HiBackgroundColours::lowerBgColour, Colours::transparentBlack);
-	indexSelector->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, Colours::transparentBlack);
-	indexSelector->setTextWhenNothingSelected("Disconnected");
-
-	
-
-	rootWindow->getMainPanel()->getModuleListNofifier().addChangeListener(this);
-}
-
-PanelWithProcessorConnection::~PanelWithProcessorConnection()
-{
-	content = nullptr;
-
-	auto mp = rootWindow->getMainPanel();
-	
-	if(mp != nullptr)
-		mp->getModuleListNofifier().removeChangeListener(this);
-
-	rootWindow = nullptr;
-}
-
-void PanelWithProcessorConnection::paint(Graphics& g)
-{
-	auto bounds = getParentShell()->getContentBounds();
-
-	const bool connected = getProcessor() != nullptr && (!hasSubIndex() || currentIndex != -1);
-
-	//g.setColour(Colour(0xFF3D3D3D));
-	g.setColour(HiseColourScheme::getColour(HiseColourScheme::EditorBackgroundColourIdBright));
-	g.fillRect(0, bounds.getY(), getWidth(), 18);
-
-	
-	g.setColour(connected ? getProcessor()->getColour() : Colours::white.withAlpha(0.1f));
-	
-	Path p;
-	p.loadPathFromData(ColumnIcons::connectionIcon, sizeof(ColumnIcons::connectionIcon));
-	p.scaleToFit(2.0, (float)bounds.getY() + 2.0, 14.0, 14.0, true);
-	g.fillPath(p);
-
-}
-
-void PanelWithProcessorConnection::resized()
-{
-	if (!listInitialised)
-	{
-		// Do this here the first time to avoid pure virtual function call...
-		refreshConnectionList();
-		listInitialised = true;
-	}
-	
-	auto bounds = getParentShell()->getContentBounds();
-
-	if (bounds.isEmpty())
-		return;
-
-	connectionSelector->setVisible(!getParentShell()->isFolded());
-	connectionSelector->setBounds(18, bounds.getY(), 128, 18);
-
-	indexSelector->setVisible(!getParentShell()->isFolded() && hasSubIndex());
-	indexSelector->setBounds(connectionSelector->getRight() + 5, bounds.getY(), 128, 18);
-
-	if (content != nullptr)
-	{
-		if (getHeight() > 18)
-		{
-			content->setVisible(true);
-
-			content->setBounds(getParentShell()->getContentBounds().withTrimmedTop(18));
-
-			//content->setBounds(0, 16+18, getWidth(), jmax<int>(0, getHeight() - 18-16));
-		}
-		else
-			content->setVisible(false);
-	}
-}
-
-void PanelWithProcessorConnection::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
-{
-	if (comboBoxThatHasChanged == connectionSelector)
-	{
-		indexSelector->clear(dontSendNotification);
-		setConnectionIndex(-1);
-
-		if (connectionSelector->getSelectedId() == 1)
-		{
-			setCurrentProcessor(nullptr);
-			refreshContent();
-		}
-		else
-		{
-			const String id = comboBoxThatHasChanged->getText();
-
-			auto p = ProcessorHelpers::getFirstProcessorWithName(getMainSynthChain(), id);
-		
-			connectedProcessor = p;
-
-			if (hasSubIndex())
-			{
-				refreshIndexList();
-				setContentWithUndo(p, 0);
-			}
-			else
-			{
-				setConnectionIndex(-1);
-				setContentWithUndo(p, -1);
-			}
-		}
-	}
-	else if (comboBoxThatHasChanged == indexSelector)
-	{
-		int newIndex = -1;
-
-		if (indexSelector->getSelectedId() != 1)
-		{
-			newIndex = indexSelector->getSelectedId() - 2;
-			setContentWithUndo(connectedProcessor.get(), newIndex);
-		}
-		else
-		{
-			setConnectionIndex(newIndex);
-			refreshContent();
-		}
-	}
-}
-
-void PanelWithProcessorConnection::refreshConnectionList()
-{
-	String currentId = connectionSelector->getText();
-
-	connectionSelector->clear(dontSendNotification);
-
-	StringArray items;
-
-	fillModuleList(items);
-
-	int index = items.indexOf(currentId);
-
-	connectionSelector->addItem("Disconnect", 1);
-	connectionSelector->addItemList(items, 2);
-
-	if (index != -1)
-	{
-		connectionSelector->setSelectedId(index + 2, dontSendNotification);
-	}
-}
-
-void PanelWithProcessorConnection::refreshIndexList()
-{
-	String currentId = indexSelector->getText();
-
-	indexSelector->clear(dontSendNotification);
-
-	StringArray items;
-
-	fillIndexList(items);
-
-	int index = items.indexOf(currentId);
-
-	indexSelector->addItem("Disconnect", 1);
-	indexSelector->addItemList(items, 2);
-
-	if (index != -1)
-	{
-		indexSelector->setSelectedId(index + 2, dontSendNotification);
-	}
-
-	indexSelector->setEnabled(true);
-}
-
-ModulatorSynthChain* PanelWithProcessorConnection::getMainSynthChain()
-{
-	return rootWindow->getMainSynthChain();
-}
-
-const ModulatorSynthChain* PanelWithProcessorConnection::getMainSynthChain() const
-{
-	return rootWindow->getMainSynthChain();
-}
-
-void PanelWithProcessorConnection::setContentWithUndo(Processor* newProcessor, int newIndex)
-{
-	auto undoManager = rootWindow->getBackendProcessor()->getViewUndoManager();
-	
-	String undoText;
-
-	StringArray indexes;
-	fillIndexList(indexes);
-
-	undoText << (currentProcessor.get() != nullptr ? currentProcessor->getId() : "Disconnected") << ": " << indexes[currentIndex] << " -> ";
-	undoText << (newProcessor != nullptr ? newProcessor->getId() : "Disconnected") << ": " << indexes[newIndex] << " -> ";
-
-	undoManager->beginNewTransaction(undoText);
-	undoManager->perform(new ProcessorConnection(this, newProcessor, newIndex));
-}
-
-
-CodeEditorPanel::CodeEditorPanel(FloatingTile* parent) :
-	PanelWithProcessorConnection(parent)
-{
-	tokeniser = new JavascriptTokeniser();
-
-	
-}
-
-CodeEditorPanel::~CodeEditorPanel()
-{
-	tokeniser = nullptr;
-}
-
-
-Component* CodeEditorPanel::createContentComponent(int index)
-{
-	auto p = dynamic_cast<JavascriptProcessor*>(getProcessor());
-
-	const bool isCallback = index < p->getNumSnippets();
-
-	if (isCallback)
-	{
-		auto pe = new PopupIncludeEditor(p, p->getSnippet(index)->getCallbackName());
-		getProcessor()->getMainController()->setLastActiveEditor(pe->getEditor(), CodeDocument::Position());
-		return pe;
-	}
-	else
-	{
-		const int fileIndex = index - p->getNumSnippets();
-
-		auto pe = new PopupIncludeEditor(p, p->getWatchedFile(fileIndex));
-		getProcessor()->getMainController()->setLastActiveEditor(pe->getEditor(), CodeDocument::Position());
-
-		return pe;
-	}
-}
-
-void CodeEditorPanel::fillIndexList(StringArray& indexList)
-{
-	auto p = dynamic_cast<JavascriptProcessor*>(getConnectedProcessor());
-
-	if (p != nullptr)
-	{
-		for (int i = 0; i < p->getNumSnippets(); i++)
-		{
-			indexList.add(p->getSnippet(i)->getCallbackName().toString());
-		}
-
-		for (int i = 0; i < p->getNumWatchedFiles(); i++)
-		{
-			indexList.add(p->getWatchedFile(i).getFileName());
-		}
-	}
-}
-
-void CodeEditorPanel::gotoLocation(Processor* p, const String& fileName, int charNumber)
-{
-	if (fileName.isEmpty())
-	{
-		setContentWithUndo(p, 0);
-	}
-	else
-	{
-		auto jp = dynamic_cast<JavascriptProcessor*>(p);
-
-		int fileIndex = -1;
-
-		for (int i = 0; i < jp->getNumWatchedFiles(); i++)
-		{
-			if (jp->getWatchedFile(i).getFullPathName() == fileName)
-			{
-				fileIndex = i;
-				break;
-			}
-		}
-
-		if (fileIndex != -1)
-		{
-			setContentWithUndo(p, jp->getNumSnippets() + fileIndex);
-		}
-		else
-			return;
-	}
-
-	auto editor = getContent<PopupIncludeEditor>()->getEditor();
-
-	CodeDocument::Position pos(editor->getDocument(), charNumber);
-	editor->scrollToLine(jmax<int>(0, pos.getLineNumber()));
-}
-
-Component* ScriptContentPanel::createContentComponent(int /*index*/)
-{
-	return new Editor(getConnectedProcessor());
-}
-
-struct ScriptContentPanel::Canvas : public ScriptEditHandler,
-	public Component
-{
-	Canvas(Processor* p) :
-		processor(p)
-	{
-		addAndMakeVisible(content = new ScriptContentComponent(dynamic_cast<ProcessorWithScriptingContent*>(p)));
-		addAndMakeVisible(overlay = new ScriptingContentOverlay(this));
-
-
-		setSize(content->getContentWidth() + 40, content->getContentHeight() + 40);
-	}
-
-	void paint(Graphics& g) override
-	{
-		g.fillAll(Colours::black);
-
-		g.setColour(Colours::white.withAlpha(0.5f));
-
-		g.drawHorizontalLine(20, 10.0f, 20.0f);
-		g.drawHorizontalLine(20, (float)getWidth() - 20.0f, (float)getWidth() - 10.0f);
-		
-		g.drawHorizontalLine(getHeight() - 20, 10.0f, 20.0f);
-		g.drawHorizontalLine(getHeight() - 20, (float)getWidth() - 20.0f, (float)getWidth() - 10.0f);
-
-		g.drawVerticalLine(20, 10.0f, 20.0f);
-		g.drawVerticalLine(20, (float)getHeight() - 20.0f, (float)getHeight() - 10.0f);
-
-		g.drawVerticalLine(getWidth() - 20, 10.0f, 20.0f);
-		g.drawVerticalLine(getWidth() - 20, (float)getHeight() - 20.0f, (float)getHeight() - 10.0f);
-	}
-
-	void selectOnInitCallback() override
-	{
-		
-	}
-
-
-	void scriptEditHandlerCompileCallback()
-	{
-		if (getScriptEditHandlerProcessor())
-			getScriptEditHandlerProcessor()->compileScript();
-	}
-
-public:
-
-	virtual ScriptContentComponent* getScriptEditHandlerContent() { return content; }
-
-	virtual ScriptingContentOverlay* getScriptEditHandlerOverlay() { return overlay; }
-
-	virtual JavascriptCodeEditor* getScriptEditHandlerEditor()
-	{
-		if (processor.get())
-		{
-			return dynamic_cast<JavascriptCodeEditor*>(processor->getMainController()->getLastActiveEditor());
-		}
-
-		return nullptr;
-	}
-
-	virtual JavascriptProcessor* getScriptEditHandlerProcessor() { return dynamic_cast<JavascriptProcessor*>(processor.get()); }
-
-	void resized() override
-	{
-		content->setBounds(20, 20, getWidth() - 40, getHeight() - 40);
-		overlay->setBounds(20, 20, getWidth() - 40, getHeight() - 40);
-	}
-
-private:
-
-	ScopedPointer<ScriptContentComponent> content;
-	ScopedPointer<ScriptingContentOverlay> overlay;
-	WeakReference<Processor> processor;
-
-};
-
-
-
-ScriptContentPanel::Editor::Editor(Processor* p)
-{
-	addAndMakeVisible(viewport = new Viewport());
-
-	viewport->setViewedComponent(new Canvas(p), true);
-}
-
-
-Component* ScriptWatchTablePanel::createContentComponent(int /*index*/)
-{
-	auto swt = new ScriptWatchTable(getRootWindow());
-
-	swt->setScriptProcessor(dynamic_cast<JavascriptProcessor*>(getConnectedProcessor()), nullptr);
-
-	return swt;
-}
-
-void GlobalConnectorPanel::contentChanged()
-{
-	auto parentContainer = getParentShell()->getParentContainer();
-
-	FloatingTile::Iterator<PanelWithProcessorConnection> iter(parentContainer->getParentShell());
-
-	while (auto p = iter.getNextPanel())
-	{
-		p->setContentWithUndo(getProcessor(), 0);
-	}
-}
-
 void SliderPackPanel::resized()
 {
 	PanelWithProcessorConnection::resized();
@@ -556,109 +127,116 @@ void SliderPackPanel::resized()
 	}
 }
 
-void SampleMapEditorPanel::changeListenerCallback(SafeChangeBroadcaster* b)
-{
-	if (getProcessor())
-	{
-		if (auto map = getContent<SampleMapEditor>())
-		{
-			auto& x = dynamic_cast<ModulatorSampler*>(getProcessor())->getSamplerDisplayValues();
-
-			map->setPressedKeys(x.currentNotes);
-			map->updateSoundData();
-		}
-	}
-}
-
-Component* SampleMapEditorPanel::createContentComponent(int index)
-{
-	auto sme = new SampleMapEditor(dynamic_cast<ModulatorSampler*>(getProcessor()), nullptr);
-
-	sme->enablePopoutMode(nullptr);
-
-	return sme;
-
-}
-
-
-void SampleMapEditorPanel::contentChanged()
-{
-	if (getProcessor())
-	{
-		getProcessor()->addChangeListener(this);
-		
-	}
-}
-
-struct SampleEditorPanel::EditListener : public SampleEditHandler::Listener
-{
-	EditListener(SampleEditorPanel* parent_) :
-		parent(parent_)
-	{
-
-	};
-
-	void soundSelectionChanged()
-	{
-		if (parent->getProcessor())
-		{
-			auto handler = dynamic_cast<ModulatorSampler*>(parent->getProcessor())->getSampleEditHandler();
-
-			const Array<WeakReference<ModulatorSamplerSound>> sounds = handler->getSelection().getItemArray();
-
-			Array<ModulatorSamplerSound*> existingSounds;
-
-			for (int i = 0; i < sounds.size(); i++)
-			{
-				if (sounds[i].get() != nullptr) existingSounds.add(sounds[i].get());
-			}
-
-			if (auto sampleEditor = parent->getContent<SampleEditor>())
-			{
-				sampleEditor->selectSounds(existingSounds);
-			}
-		}
-	}
-
-	SampleEditorPanel* parent;
-};
-
-
-
-SampleEditorPanel::SampleEditorPanel(FloatingTile* parent) :
-	PanelWithProcessorConnection(parent)
-{
-	editListener = new EditListener(this);
-}
-
-void SampleEditorPanel::changeListenerCallback(SafeChangeBroadcaster* b)
-{
-	if (getProcessor())
-	{
-		auto se = getContent<SampleEditor>();
-
-		se->updateWaveform();
-	}
-}
-
-
-
-Component* SampleEditorPanel::createContentComponent(int index)
-{
-	return new SampleEditor(dynamic_cast<ModulatorSampler*>(getProcessor()), nullptr);
-}
-
-void SampleEditorPanel::contentChanged()
-{
-	if (getProcessor())
-	{
-		getProcessor()->addChangeListener(this);
-		dynamic_cast<ModulatorSampler*>(getProcessor())->getSampleEditHandler()->addSelectionListener(editListener);
-	}
-}
-
 void SpacerPanel::paint(Graphics& g)
 {
 	g.setColour(getStyleColour(ColourIds::backgroundColour));
 	g.fillRect(getParentShell()->getContentBounds());
+}
+
+VisibilityToggleBar::VisibilityToggleBar(FloatingTile* parent) :
+	FloatingTileContent(parent)
+{
+	setControlledContainer(getParentShell()->getParentContainer());
+}
+
+void VisibilityToggleBar::setControlledContainer(FloatingTileContainer* containerToControl)
+{
+	controlledContainer = dynamic_cast<Component*>(containerToControl);
+	refreshButtons();
+}
+
+void VisibilityToggleBar::refreshButtons()
+{
+	buttons.clear();
+
+	if (controlledContainer.getComponent() != nullptr)
+	{
+		auto c = dynamic_cast<FloatingTileContainer*>(controlledContainer.getComponent());
+
+		for (int i = 0; i < c->getNumComponents(); i++)
+		{
+			if (c->getComponent(i) == getParentShell()) // don't show this, obviously
+				continue;
+
+			if (c->getComponent(i)->isEmpty())
+				continue;
+
+			if (dynamic_cast<SpacerPanel*>(c->getComponent(i)->getCurrentFloatingPanel()))
+				continue;
+
+			auto icon = new Icon(c->getComponent(i));
+
+			addAndMakeVisible(icon);
+
+			buttons.add(icon);
+		}
+
+		resized();
+	}
+}
+
+void VisibilityToggleBar::resized()
+{
+	int x = 0;
+
+	auto c = dynamic_cast<ResizableFloatingTileContainer*>(getParentShell()->getParentContainer());
+
+	bool arrangeHorizontal = true;
+
+	if (c != nullptr && !c->isVertical())
+		arrangeHorizontal = false;
+
+	int buttonSize = arrangeHorizontal ? getHeight() : getWidth();
+
+	buttonSize = jmin<int>(buttonSize, 40);
+
+	int offset = 0;
+
+	if (getParentShell()->getParentContainer())
+	{
+		for (int i = 0; i < buttons.size(); i++)
+		{
+			if (arrangeHorizontal)
+				buttons[i]->setBounds(offset, 0, buttonSize, buttonSize);
+			else
+				buttons[i]->setBounds(0, offset, buttonSize, buttonSize);
+
+			offset += buttonSize + 5;
+		}
+	}
+}
+
+VisibilityToggleBar::Icon::Icon(FloatingTile* controlledTile_) :
+	controlledTile(controlledTile_)
+{
+	addAndMakeVisible(button = new ShapeButton("button", colourOff, overColourOff, downColourOff));
+
+	if (controlledTile.getComponent() != nullptr)
+	{
+		on = controlledTile->getLayoutData().isVisible();
+
+		button->setShape(controlledTile->getIcon(), false, true, true);
+	}
+
+	refreshColour();
+
+	button->addListener(this);
+}
+
+void VisibilityToggleBar::Icon::refreshColour()
+{
+	if (on)
+		button->setColours(colourOn, overColourOn, downColourOn);
+	else
+		button->setColours(colourOff, overColourOff, downColourOff);
+}
+
+void VisibilityToggleBar::Icon::buttonClicked(Button*)
+{
+	on = !controlledTile->getLayoutData().isVisible();
+
+	controlledTile->getLayoutData().setVisible(on);
+	controlledTile->getParentContainer()->refreshLayout();
+
+	refreshColour();
 }

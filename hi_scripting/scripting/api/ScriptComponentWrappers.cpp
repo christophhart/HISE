@@ -451,7 +451,7 @@ void ScriptCreatedComponentWrappers::ModulatorMeterWrapper::updateComponent()
 ScriptCreatedComponentWrappers::PlotterWrapper::PlotterWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptedPlotter *p, int index):
 ScriptCreatedComponentWrapper(content, index)
 {
-	Plotter *pl = new Plotter(nullptr);
+	Plotter *pl = new Plotter();
 
 	pl->setName(p->name.toString());
 

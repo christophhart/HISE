@@ -95,8 +95,11 @@ public:
 
 		enum LayoutDataIds
 		{
+			ID,
 			Size,
 			Folded,
+			Visible,
+			ForceFoldButton,
 			MinSize,
 			numProperties
 		};
@@ -113,8 +116,11 @@ public:
 		{
 			switch (id)
 			{
+			case FloatingTile::LayoutData::LayoutData::ID:		  return var("anonymous");
 			case FloatingTile::LayoutData::LayoutDataIds::Size:   return var(-0.5);
 			case FloatingTile::LayoutData::LayoutDataIds::Folded: return var(0);
+			case FloatingTile::LayoutData::LayoutDataIds::ForceFoldButton: return var(0);
+			case FloatingTile::LayoutData::LayoutDataIds::Visible: return var(true);
 			case FloatingTile::LayoutData::LayoutDataIds::MinSize: return var(-1);
 			default:
 				break;
@@ -129,6 +135,8 @@ public:
 			layoutDataObject = var(new DynamicObject());
 
 			resetObject(layoutDataObject.getDynamicObject());
+
+			cachedValues = CachedValues();
 
 			swappingEnabled = false;
 		}
@@ -154,6 +162,7 @@ public:
 		void setFoldState(int newFoldState)
 		{
 			storePropertyInObject(layoutDataObject, LayoutDataIds::Folded, newFoldState);
+			cachedValues.folded = newFoldState;
 		}
 
 		double getCurrentSize() const
@@ -166,11 +175,13 @@ public:
 		void setCurrentSize(double newSize)
 		{
 			storePropertyInObject(layoutDataObject, LayoutDataIds::Size, newSize);
+			cachedValues.size = newSize;
 		}
 
 		void setMinSize(int minSize)
 		{
 			storePropertyInObject(layoutDataObject, LayoutDataIds::MinSize, minSize);
+			cachedValues.minSize = minSize;
 		}
 
 		int getMinSize() const
@@ -184,7 +195,56 @@ public:
 			return layoutDataObject;
 		}
 
+		Identifier getID() const
+		{
+			String id = getPropertyWithDefault(layoutDataObject, LayoutDataIds::ID);
+
+			if (id.isNotEmpty())
+				return Identifier(id);
+
+			static const Identifier an("anonymous");
+
+			return an;
+		}
+
+		void setId(const String& id)
+		{
+			storePropertyInObject(layoutDataObject, LayoutDataIds::ID, id);
+			cachedValues.id = id;
+		}
+
+		void setVisible(bool shouldBeVisible)
+		{
+			storePropertyInObject(layoutDataObject, LayoutDataIds::Visible, shouldBeVisible);
+			cachedValues.visible = shouldBeVisible;
+		}
+
+		bool isVisible() const
+		{
+			return getPropertyWithDefault(layoutDataObject, LayoutDataIds::Visible);
+		}
+
+		void setForceFoldButton(bool shouldBeShown)
+		{
+			storePropertyInObject(layoutDataObject, LayoutDataIds::ForceFoldButton, shouldBeShown);
+			cachedValues.forceFoldButton = shouldBeShown;
+		}
+
 	private:
+
+		struct CachedValues
+		{
+			int folded = 0;
+			double size = -0.5;
+			int minSize = -1;
+			bool visible = true;
+			bool forceFoldButton = false;
+
+			String id = "anonymous";
+		};
+
+		// Only for debugging...
+		CachedValues cachedValues; 
 
 		var layoutDataObject;
 
@@ -198,6 +258,7 @@ public:
 		Iterator(FloatingTile* root)
 		{
 			addToList(root);
+
 		}
 
 		ContentType* getNextPanel()
@@ -213,7 +274,10 @@ public:
 		void addToList(FloatingTile* p)
 		{
 			if (auto m = dynamic_cast<ContentType*>(p->getCurrentFloatingPanel()))
-				panels.add(m);
+			{
+				if(p != root)
+					panels.add(m);
+			}
 
 			if (auto c = dynamic_cast<FloatingTileContainer*>(p->getCurrentFloatingPanel()))
 			{
@@ -224,7 +288,7 @@ public:
 
 		FloatingTile* root;
 		Array<ContentType*> panels;
-		int index = 1;
+		int index = 0;
 	};
 
 	enum class ParentType
@@ -342,7 +406,7 @@ public:
 	const LayoutData& getLayoutData() const { return layoutData; }
 	LayoutData& getLayoutData() { return layoutData; }
 
-	
+	Path getIcon() const;
 
 	void setLayoutDataObject(const var& newLayoutData)
 	{
@@ -372,7 +436,14 @@ public:
 	bool canBeDeleted() const;
 	bool isSwappable() const;
 
+	void setCloseTogglesVisibility(bool shouldToggleVisibility)
+	{
+		closeTogglesVisibility = shouldToggleVisibility;
+	}
+
 	FloatingTileContent::Factory* getPanelFactory() { return &panelFactory; };
+
+	const FloatingTileContent::Factory* getPanelFactory() const { return &panelFactory; };
 
 private:
 
@@ -387,6 +458,8 @@ private:
 	void refreshFixedSizeForNewContent();
 
 	bool vital = false;
+
+	bool closeTogglesVisibility = false;
 
 	bool layoutModeEnabled = false;
 
@@ -413,6 +486,24 @@ private:
 
 	FloatingTileContainer* parentContainer;
 	FloatingTileContent::Factory panelFactory;
+};
+
+
+struct FloatingTileHelpers
+{
+	template <class ContentType> static ContentType* findTileWithId(FloatingTile* root, const Identifier& id)
+	{
+		FloatingTile::Iterator<ContentType> iter(root);
+
+		while (auto t = iter.getNextPanel())
+		{
+			if (t->getParentShell()->getLayoutData().getID() == id)
+				return t;
+		}
+
+		return nullptr;
+	}
+
 };
 
 #endif  // FLOATINGTILE_H_INCLUDED

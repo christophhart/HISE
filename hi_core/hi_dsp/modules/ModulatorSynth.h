@@ -165,7 +165,12 @@ public:
 
 	// ===================================================================================================================
 
-	void setIconColour(Colour newIconColour) { iconColour = newIconColour; };
+	void setIconColour(Colour newIconColour)
+	{ 
+		iconColour = newIconColour; 
+		getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, MainController::ProcessorChangeHandler::EventType::ProcessorColourChange);
+	};
+
 	Colour getIconColour() const { return iconColour; }
 	Colour getColour() const override { return HiseColourScheme::getColour(HiseColourScheme::ModulatorSynthBackgroundColourId); };
 
@@ -196,7 +201,7 @@ public:
 
 	// ===================================================================================================================
 
-	void setBypassed(bool shouldBeBypassed) noexcept override;;
+	void setBypassed(bool shouldBeBypassed, NotificationType notifyChangeHandler=dontSendNotification) noexcept override;;
 	void disableChain(InternalChains chainToDisable, bool shouldBeDisabled);
 	bool isChainDisabled(InternalChains chain) const;;
 

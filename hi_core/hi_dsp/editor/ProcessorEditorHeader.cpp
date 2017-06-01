@@ -553,11 +553,18 @@ void ProcessorEditorHeader::resized()
 		x += 40;
 	}
 
+	if (IS(TimeModulation))
+	{
+		plotButton->setBounds(x, yOffset2, 30, 20);
+		plotButton->setVisible(true);
+
+		x += 40;
+	}
+
 	
 
 	
-    plotButton->setBounds (getWidth() - 101 - 50, yOffset2, 30, 20);
-	plotButton->setVisible(false);
+    
     
     
 	deleteButton->setEnabled(getEditor()->getIndentationLevel() != 0);
@@ -646,13 +653,23 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
     if (buttonThatWasClicked == debugButton)
     {
         const bool value = buttonThatWasClicked->getToggleState();
-		getProcessor()->enableConsoleOutput(!value);
+		
 
 		if(dynamic_cast<JavascriptProcessor*>(getProcessor()) != nullptr)
 		{
 			JavascriptProcessor *sp = value ? nullptr : dynamic_cast<JavascriptProcessor*>(getProcessor());
 
 			getProcessor()->getMainController()->setWatchedScriptProcessor(sp, getEditor()->getBody());
+
+			auto root = findParentComponentOfClass<BackendRootWindow>()->getRootFloatingTile();
+
+			auto p = BackendPanelHelpers::toggleVisibilityForRightColumnPanel<ScriptWatchTablePanel>(root, !buttonThatWasClicked->getToggleState());
+
+			if (p != nullptr)
+			{
+				p->setContentWithUndo(getProcessor(), 0);
+			}
+
 
 #if TODO_AUTOPOPUP
 			AutoPopupDebugComponent *c = findParentComponentOfClass<BackendProcessorEditor>()->getDebugComponent(true, CombinedDebugArea::AreaIds::ApiCollectionEnum);
@@ -670,12 +687,22 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
     {
         const bool value = buttonThatWasClicked->getToggleState();
 		setPlotButton(!value);
+
+		auto root = findParentComponentOfClass<BackendRootWindow>()->getRootFloatingTile();
+
+		auto p = BackendPanelHelpers::toggleVisibilityForRightColumnPanel<PlotterPanel>(root,  buttonThatWasClicked->getToggleState());
+
+		if (p != nullptr)
+		{
+			p->setContentWithUndo(getProcessor(), 0);
+		}
+
     }
 	else if (buttonThatWasClicked == bypassButton->button)
     {
         
 		bool shouldBeBypassed = bypassButton->getToggleState();
-		getProcessor()->setBypassed(shouldBeBypassed);
+		getProcessor()->setBypassed(shouldBeBypassed, sendNotification);
 		bypassButton->setToggleState(!shouldBeBypassed, dontSendNotification);
 		
 		ProcessorEditorPanel *panel = getEditor()->getPanel();
@@ -784,6 +811,7 @@ void ProcessorEditorHeader::setPlotButton(bool on)
 
 	plotButton->setToggleState(on, dontSendNotification);
 	
+#if 0
 	if(on)
 	{
 		getProcessor()->getMainController()->addPlottedModulator(mod);
@@ -796,6 +824,7 @@ void ProcessorEditorHeader::setPlotButton(bool on)
 		
 		//plotterWindow = nullptr;
 	}
+#endif
 };
 
 void ProcessorEditorHeader::enableChainHeader()
@@ -938,7 +967,7 @@ void ProcessorEditorHeader::addProcessor(Processor *processorToBeAdded, Processo
 
 #if USE_BACKEND
 
-	findParentComponentOfClass<BackendProcessorEditor>()->rebuildModuleList(false);
+	findParentComponentOfClass<BackendRootWindow>()->sendRootContainerRebuildMessage(false);
 
 #endif
 
@@ -1221,15 +1250,10 @@ void ProcessorEditorHeader::refreshShapeButton(ShapeButton *b)
 		jassert(shadow != nullptr);
 
 		shadow->setShadowProperties(DropShadow(off ? Colours::transparentBlack : shadowColour, 3, Point<int>()));
-
 	}
-	
 		
 	buttonColour = off ? Colours::grey.withAlpha(0.7f) : buttonColour;
-
 	buttonColour = buttonColour.withAlpha(b->isEnabled() ? 1.0f : 0.2f);
-
-		
 
 	b->setColours(buttonColour.withMultipliedAlpha(0.7f), buttonColour.withMultipliedAlpha(1.0f), buttonColour.withMultipliedAlpha(1.0f));
 	b->repaint();
@@ -1239,13 +1263,14 @@ void ProcessorEditorHeader::labelTextChanged(Label *l)
 {
 	if (l == idLabel)
 	{
-
-		getEditor()->getProcessor()->setId(l->getText());
+		getEditor()->getProcessor()->setId(l->getText(), sendNotification);
         
-		if(auto keyboard = findParentComponentOfClass<BackendRootWindow>()->getKeyboard())
+		auto root = findParentComponentOfClass<BackendRootWindow>();
+
+		if(auto keyboard = root->getKeyboard())
 			keyboard->grabKeyboardFocus();
 
-        PresetHandler::setChanged(getProcessor());
+		PresetHandler::setChanged(getProcessor());
 	}
 }
 

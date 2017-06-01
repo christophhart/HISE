@@ -1056,6 +1056,8 @@ SamplerSoundTable::SamplerSoundTable(ModulatorSampler *ownerSampler_, SampleEdit
 	
 
 #undef PROPERTY
+
+	refreshList();
 }
 
 void SamplerSoundTable::refreshList()

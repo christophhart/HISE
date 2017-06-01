@@ -45,7 +45,7 @@ rootEditorIsMainSynthChain(true)
 	setLookAndFeel(&lookAndFeelV3);
 
 	addAndMakeVisible(viewport = new CachedViewport());
-	addAndMakeVisible(breadCrumbComponent = new BreadcrumbComponent());
+	addAndMakeVisible(breadCrumbComponent = new BreadcrumbComponent(owner));
 	
 	addChildComponent(debugLoggerWindow = new DebugLoggerComponent(&owner->getDebugLogger()));
 
@@ -350,7 +350,7 @@ void BackendProcessorEditor::loadNewContainer(const File &f)
 	owner->loadPreset(f, this);
 
 	refreshInterfaceAfterPresetLoad();
-	rebuildModuleList(false);	
+	parentRootWindow->sendRootContainerRebuildMessage(false);	
 }
 
 void BackendProcessorEditor::refreshInterfaceAfterPresetLoad()
@@ -384,7 +384,7 @@ void BackendProcessorEditor::loadNewContainer(ValueTree &v)
 	owner->loadPreset(v, this);
 
 	refreshInterfaceAfterPresetLoad();
-	rebuildModuleList(false);
+	parentRootWindow->sendRootContainerRebuildMessage(false);
 }
 
 void BackendProcessorEditor::clearPreset()
@@ -425,7 +425,7 @@ void BackendProcessorEditor::clearPreset()
 
 	container->setRootProcessorEditor(p);
 
-	rebuildModuleList(false);
+	parentRootWindow->sendRootContainerRebuildMessage(false);
 
 	getBackendProcessor()->getMainSynthChain()->setBypassed(false);
 }

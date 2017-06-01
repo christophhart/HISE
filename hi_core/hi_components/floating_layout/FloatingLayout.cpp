@@ -30,14 +30,15 @@
 *   ===========================================================================
 */
 
-#if !PUT_FLOAT_IN_CODEBASE
-#include "JuceHeader.h"
-#include "FloatingLayout.h"
-#endif
-
 #include "FloatingTileContent.cpp"
+#include "FloatingTileFactoryMethods.cpp"
+#include "PanelWithProcessorConnection.cpp"
+#include "ScriptingPanelTypes.cpp"
+#include "SamplerPanelTypes.cpp"
+#include "BackendPanelTypes.cpp"
 #include "MiscFloatingPanelTypes.cpp"
 #include "FloatingTileContainer.cpp"
 #include "FloatingTile.cpp"
 
 #include "FloatingInterfaceBuilder.cpp"
+

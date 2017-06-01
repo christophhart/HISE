@@ -51,11 +51,10 @@ class ScriptContentComponent;
 class Plotter    : public Component,
 				   public SettableTooltipClient,
 				   public AsyncUpdater,
-				   public Slider::Listener,
-				   public AutoPopupDebugComponent
+				   public Slider::Listener
 {
 public:
-	Plotter(BaseDebugArea *area);
+	Plotter();
     ~Plotter();
 
 	enum ColourIds
@@ -65,7 +64,6 @@ public:
 		pathColour = 0x001,
 		pathColour2
 	};
-
 
 	/** Clears the queue and triggers a repaint of the component.
 	*/
@@ -148,8 +146,6 @@ private:
 	PlotterQueue freeModePlotterQueue;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Plotter)
-
-	
 
 	// the internal buffer (sized 1200 for 2x interpolation
 	float internalBuffer[1024];

@@ -65,6 +65,10 @@ public:
 		return crossFadeShown ? h + 125 : h;
 	}
 
+	void updateInterface()
+	{
+		updateGui();
+	}
 
 
 	void updateGui()

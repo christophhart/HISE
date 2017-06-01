@@ -99,7 +99,10 @@ public:
 		repaint();
 	}
 
-	
+	void updateInterface() override
+	{
+		refreshList();
+	}
 
     //[/UserMethods]
 

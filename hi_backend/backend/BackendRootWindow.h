@@ -70,7 +70,16 @@ public:
 	
 	FloatingTile* getRootFloatingTile() { return floatingRoot; }
 
+	MainController::ProcessorChangeHandler &getModuleListNofifier() { return getMainSynthChain()->getMainController()->getProcessorChangeHandler(); }
+
+	void sendRootContainerRebuildMessage(bool synchronous)
+	{
+		getModuleListNofifier().sendProcessorChangeMessage(getMainSynthChain(), MainController::ProcessorChangeHandler::EventType::RebuildModuleList, synchronous);
+	}
+
 private:
+
+	
 
 	friend class BackendCommandTarget;
 
@@ -95,6 +104,41 @@ private:
 #if PUT_FLOAT_IN_CODEBASE
 	ScopedPointer<FloatingTile> floatingRoot;
 #endif
+
+};
+
+struct BackendPanelHelpers
+{
+	template <class ContentType> static ContentType* toggleVisibilityForRightColumnPanel(FloatingTile* root, bool show)
+	{
+		auto rightColumn = getMainRightColumn(root);
+
+		FloatingTile::Iterator<ContentType> iter(rightColumn->getParentShell());
+
+		auto existingContent = iter.getNextPanel();
+
+		if (existingContent != nullptr)
+		{
+			bool visible = existingContent->getParentShell()->getLayoutData().isVisible();
+
+			if (visible != show)
+			{
+				existingContent->getParentShell()->getLayoutData().setVisible(show);
+				rightColumn->refreshLayout();
+				rightColumn->notifySiblingChange();
+			}
+
+			return existingContent;
+		}
+	}
+
+	static FloatingTabComponent* getMainTabComponent(FloatingTile* root);
+
+	static HorizontalTile* getMainLeftColumn(FloatingTile* root);
+
+	static HorizontalTile* getMainRightColumn(FloatingTile* root);
+
+	static bool isMainWorkspaceActive(FloatingTile* root);
 
 };
 

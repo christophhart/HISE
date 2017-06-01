@@ -53,7 +53,9 @@ public:
 		numColumns
 	};
 
-	SamplePoolTable(ModulatorSamplerSoundPool *globalPool) ;
+	SamplePoolTable(BackendRootWindow *rootWindow) ;
+
+	SET_GENERIC_PANEL_ID("SamplePoolTable");
 
 	~SamplePoolTable();
 

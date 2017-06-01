@@ -247,6 +247,17 @@ void SearchableListComponent::refreshDisplayedItems()
 }
 
 
+void SearchableListComponent::repaintAllItems()
+{
+	for (int i = 0; i < getNumCollections(); i++)
+	{
+		auto c = getCollection(i);
+
+		c->repaint();
+		c->repaintAllItems();
+	}
+}
+
 void SearchableListComponent::rebuildModuleList(bool forceRebuild)
 {
 	if (internalRebuildFlag || forceRebuild)

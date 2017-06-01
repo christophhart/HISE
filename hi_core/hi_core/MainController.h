@@ -279,6 +279,96 @@ public:
 
 	};
 
+
+
+	class ProcessorChangeHandler : public AsyncUpdater
+	{
+	public:
+
+		ProcessorChangeHandler(MainController* mc_) :
+			mc(mc_)
+		{}
+
+		enum class EventType
+		{
+			ProcessorAdded = 0,
+			ProcessorRemoved,
+			ProcessorRenamed,
+			ProcessorColourChange,
+			ProcessorBypassed,
+			RebuildModuleList,
+			numEventTypes
+		};
+
+		~ProcessorChangeHandler()
+		{
+			listeners.clear();
+		}
+
+		class Listener
+		{
+		public:
+			virtual void moduleListChanged(Processor* processorThatWasChanged, EventType type) = 0;
+
+			virtual ~Listener()
+			{
+				masterReference.clear();
+			}
+
+		private:
+
+			friend class WeakReference<Listener>;
+			WeakReference<Listener>::Master masterReference;
+		};
+
+		void sendProcessorChangeMessage(Processor* changedProcessor, EventType type, bool synchronous = true)
+		{
+			tempProcessor = changedProcessor;
+			tempType = type;
+
+			if (synchronous)
+				handleAsyncUpdate();
+			else
+				triggerAsyncUpdate();
+		}
+
+		void handleAsyncUpdate()
+		{
+			if (tempProcessor == nullptr)
+				return;
+
+			for (int i = 0; i < listeners.size(); i++)
+			{
+				if (listeners[i].get() != nullptr)
+					listeners[i]->moduleListChanged(tempProcessor, tempType);
+				else
+					listeners.remove(i--);
+			}
+
+			tempProcessor = nullptr;
+			tempType = EventType::numEventTypes;
+		}
+
+		void addProcessorChangeListener(Listener* newListener)
+		{
+			listeners.addIfNotAlreadyThere(newListener);
+		}
+
+		void removeProcessorChangeListener(Listener* listenerToRemove)
+		{
+			listeners.removeAllInstancesOf(listenerToRemove);
+		}
+
+	private:
+
+		MainController* mc;
+
+		Processor* tempProcessor = nullptr;
+		EventType tempType = EventType::numEventTypes;
+
+		Array<WeakReference<Listener>> listeners;
+	};
+
 	class CodeHandler: public AsyncUpdater
 	{
 	public:
@@ -322,6 +412,10 @@ public:
 
 		CodeDocument* getConsoleData() { return &consoleData; }
 
+		Component* getMainConsole() { return mainConsole.getComponent(); }
+
+		void setMainConsole(Console* console);
+
 	private:
 
 		bool overflowProtection = false;
@@ -329,6 +423,8 @@ public:
 		bool clearFlag = false;
 
 		CodeDocument consoleData;
+
+		Component::SafePointer<Component> mainConsole;
 
 		MainController* mc;
 
@@ -355,6 +451,9 @@ public:
 
 	CodeHandler& getConsoleHandler() { return codeHandler; };
 	const CodeHandler& getConsoleHandler() const { return codeHandler; };
+
+	ProcessorChangeHandler& getProcessorChangeHandler() { return processorChangeHandler; }
+	const ProcessorChangeHandler& getProcessorChangeHandler() const { return processorChangeHandler; }
 
 #if USE_BACKEND
 	/** Writes to the console. */
@@ -436,7 +535,8 @@ public:
 #if USE_BACKEND
 
 	void setScriptWatchTable(ScriptWatchTable *table);
-	void setScriptComponentEditPanel(ScriptComponentEditPanel *panel);
+	
+	void addScriptComponentEditPanel(ScriptComponentEditPanel *panel);
 
 	void setWatchedScriptProcessor(JavascriptProcessor *p, Component *editor);
 
@@ -447,6 +547,8 @@ public:
 	*/
 	void setEditedScriptComponent(ReferenceCountedObject* c, Component *listener);
 	
+	bool hasScriptEditingPanels();
+
 #endif
 
 	void setPlotter(Plotter *p);
@@ -755,6 +857,7 @@ private:
 	HiseEventBuffer masterEventBuffer;
 	EventIdHandler eventIdHandler;
 	UserPresetHandler userPresetHandler;
+	ProcessorChangeHandler processorChangeHandler;
 
 	ScopedPointer<UserPresetData> userPresetData;
 
@@ -814,7 +917,7 @@ private:
 	
 
 	Component::SafePointer<ScriptWatchTable> scriptWatchTable;
-	Component::SafePointer<ScriptComponentEditPanel> scriptComponentEditPanel;
+	Array<Component::SafePointer<ScriptComponentEditPanel>> scriptComponentEditPanels;
 
 #else
 

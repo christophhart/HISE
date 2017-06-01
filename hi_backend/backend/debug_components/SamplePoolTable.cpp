@@ -30,10 +30,11 @@
 *   ===========================================================================
 */
 
-SamplePoolTable::SamplePoolTable(ModulatorSamplerSoundPool *globalPool) :
+SamplePoolTable::SamplePoolTable(BackendRootWindow* rootWindow) :
 	font (GLOBAL_FONT()),
-	pool(globalPool)
+	pool(rootWindow->getBackendProcessor()->getSampleManager().getModulatorSamplerSoundPool())
 {
+	
 	setName(getHeadline());
 
     // Create our table component and add it to this component..
@@ -94,7 +95,7 @@ void SamplePoolTable::selectedRowsChanged(int /*lastRowSelected*/) {};
 void SamplePoolTable::paintCell (Graphics& g, int rowNumber, int columnId,
                 int width, int height, bool /*rowIsSelected*/) 
 {
-	g.setColour (Colours::black.withAlpha(.8f));
+	g.setColour (Colours::white.withAlpha(.8f));
     
 	if (pool->isFileBeingUsed(rowNumber))
 	{

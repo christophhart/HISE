@@ -206,8 +206,11 @@ int FloatingTile::LayoutData::getNumDefaultableProperties() const
 
 Identifier FloatingTile::LayoutData::getDefaultablePropertyId(int i) const
 {
+	RETURN_DEFAULT_PROPERTY_ID(i, LayoutDataIds::ID, "ID");
 	RETURN_DEFAULT_PROPERTY_ID(i, LayoutDataIds::Size, "Size");
 	RETURN_DEFAULT_PROPERTY_ID(i, LayoutDataIds::Folded, "Folded");
+	RETURN_DEFAULT_PROPERTY_ID(i, LayoutDataIds::ForceFoldButton, "ForceFoldButton");
+	RETURN_DEFAULT_PROPERTY_ID(i, LayoutDataIds::Visible, "Visible");
 	RETURN_DEFAULT_PROPERTY_ID(i, LayoutDataIds::MinSize, "MinSize");
 
 	jassertfalse;
@@ -229,24 +232,33 @@ void FloatingTile::CloseButton::buttonClicked(Button* )
 {
 	auto ec = dynamic_cast<FloatingTile*>(getParentComponent());
 
-	Desktop::getInstance().getAnimator().fadeOut(ec->content.get(), 300);
-
-	if (!ec->isEmpty())
+	if (ec->closeTogglesVisibility)
 	{
-		if (auto tc = dynamic_cast<FloatingTileContainer*>(ec->content.get()))
-			tc->clear();
-
-		ec->addAndMakeVisible(ec->content = new EmptyComponent(ec));
-
-		Desktop::getInstance().getAnimator().fadeIn(ec->content.get(), 300);
-
-		ec->clear();
+		ec->getLayoutData().setVisible(!ec->getLayoutData().isVisible());
+		ec->getParentContainer()->refreshLayout();
+		ec->getParentContainer()->notifySiblingChange();
 	}
 	else
 	{
-		auto* cl = findParentComponentOfClass<FloatingTileContainer>();
+		Desktop::getInstance().getAnimator().fadeOut(ec->content.get(), 300);
 
-		cl->removeFloatingTile(ec);
+		if (!ec->isEmpty())
+		{
+			if (auto tc = dynamic_cast<FloatingTileContainer*>(ec->content.get()))
+				tc->clear();
+
+			ec->addAndMakeVisible(ec->content = new EmptyComponent(ec));
+
+			Desktop::getInstance().getAnimator().fadeIn(ec->content.get(), 300);
+
+			ec->clear();
+		}
+		else
+		{
+			auto* cl = findParentComponentOfClass<FloatingTileContainer>();
+
+			cl->removeFloatingTile(ec);
+		}
 	}
 }
 
@@ -344,6 +356,7 @@ void FloatingTile::FoldButton::buttonClicked(Button* )
 
 	if (auto cl = dynamic_cast<ResizableFloatingTileContainer*>(pc->getParentContainer()))
 	{
+		cl->enableAnimationForNextLayout();
 		cl->refreshLayout();
 	}
 }
@@ -469,7 +482,9 @@ void FloatingTile::setFolded(bool shouldBeFolded)
 	if (!canBeFolded())
 		return;
 
-	layoutData.setFoldState(1 - (int)layoutData.isFolded());
+	
+
+	layoutData.setFoldState(layoutData.isFolded() ? 0 : 1);
 
 	refreshFoldButton();
 }
@@ -585,6 +600,14 @@ void FloatingTile::clear()
 	refreshFoldButton();
 	refreshMouseClickTarget();
 	refreshRootLayout();
+
+	if (getParentContainer())
+	{
+		getParentContainer()->notifySiblingChange();
+		getParentContainer()->refreshLayout();
+	}
+
+	resized();
 }
 
 void FloatingTile::refreshRootLayout()
@@ -1017,6 +1040,13 @@ bool FloatingTile::isInVerticalLayout() const
 
 
 
+Path FloatingTile::getIcon() const
+{
+	auto index = getPanelFactory()->getOption(this);
+
+	return getPanelFactory()->getPath(index);
+}
+
 void FloatingTile::setContent(const var& data)
 {
 	if (data.isUndefined() || data.isVoid())
@@ -1037,13 +1067,19 @@ void FloatingTile::setContent(const var& data)
 	refreshFoldButton();
 	refreshPinButton();
 
-	if(getParentContainer())
+	if (getParentContainer())
+	{
+		getParentContainer()->notifySiblingChange();
 		getParentContainer()->refreshLayout();
+	}
+		
 
 	bringButtonsToFront();
 	refreshMouseClickTarget();
 	resized();
 	repaint();
+
+
 }
 
 void FloatingTile::setNewContent(const Identifier& newId)
@@ -1054,6 +1090,12 @@ void FloatingTile::setNewContent(const Identifier& newId)
 	
 	if (hasChildren())
 		setCanBeFolded(false);
+
+	if (getParentContainer())
+	{
+		getParentContainer()->notifySiblingChange();
+		getParentContainer()->refreshLayout();
+	}
 
 	refreshRootLayout();
 
@@ -1094,8 +1136,30 @@ void FloatingTile::LayoutHelpers::setContentBounds(FloatingTile* t)
 
 bool FloatingTile::LayoutHelpers::showCloseButton(const FloatingTile* t)
 {
-	if (t->getParentType() == ParentType::Tabbed)
+	auto pt = t->getParentType();
+
+	if (t->closeTogglesVisibility)
+		return true;
+
+	if (t->hasChildren() && !t->isLayoutModeEnabled())
 		return false;
+
+	if (pt != ParentType::Root && t->isEmpty() && t->getParentContainer()->getNumComponents() == 1)
+		return false;
+
+	switch (pt)
+	{
+	case ParentType::Root:
+		return !t->isEmpty();
+	case ParentType::Horizontal:
+		return !t->isFolded() && t->canBeDeleted();
+	case ParentType::Vertical:
+		return t->canBeDeleted();
+	case ParentType::Tabbed:
+		return false;
+	}
+
+
 
 	return t->canBeDeleted();
 
@@ -1114,17 +1178,7 @@ bool FloatingTile::LayoutHelpers::showCloseButton(const FloatingTile* t)
 
 	auto pt = t->getParentType();
 
-	switch (pt)
-	{
-	case ParentType::Root:
-		return !t->isEmpty();
-	case ParentType::Horizontal:
-		return !t->isFolded();
-	case ParentType::Vertical:
-		return true;
-	case ParentType::Tabbed:
-		return false;
-	}
+	
 
 	return false;
 #endif
@@ -1212,3 +1266,4 @@ void FloatingTile::TilePopupLookAndFeel::drawPopupMenuSectionHeader(Graphics& g,
 		area.getX() + 12, area.getY(), area.getWidth() - 16, (int)(area.getHeight() * 0.8f),
 		Justification::bottomLeft, 1);
 }
+

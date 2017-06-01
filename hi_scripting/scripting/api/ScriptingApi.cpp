@@ -2428,7 +2428,7 @@ bool ScriptingApi::Synth::ModuleHandler::removeModule(Processor* p)
 
             c->getHandler()->remove(p);
             
-			dynamic_cast<BackendProcessorEditor*>(mainEditor)->rebuildModuleList(true);
+			mainEditor->findParentComponentOfClass<BackendRootWindow>()->sendRootContainerRebuildMessage(true);
 		}
 		else
 		{
@@ -2499,7 +2499,7 @@ Processor* ScriptingApi::Synth::ModuleHandler::addModule(Chain* c, const String&
 			editor->childEditorAmountChanged();
 		}
 
-		dynamic_cast<BackendProcessorEditor*>(mainEditor)->rebuildModuleList(false);
+		mainEditor->findParentComponentOfClass<BackendRootWindow>()->sendRootContainerRebuildMessage(false);
 	}
 #endif
 	

@@ -1028,7 +1028,7 @@ public:
 				midiChain->setEditorState(Processor::EditorState::Visible, true);
 				midiChain->setEditorState(Processor::EditorState::Folded, false);
 
-				bpe->rebuildModuleList(false);
+				bpe->rebuildContainer();
 				bpe->getMainSynthChain()->sendRebuildMessage(true);
 				
 				if (PresetHandler::showYesNoWindow("Switch to Interface Designer", "Do you want to switch to the interface designer mode?"))

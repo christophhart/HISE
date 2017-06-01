@@ -277,7 +277,7 @@ void ScriptingObjects::ScriptingModulator::setBypassed(bool shouldBeBypassed)
 {
 	if (checkValidObject())
 	{
-		mod->setBypassed(shouldBeBypassed);
+		mod->setBypassed(shouldBeBypassed, sendNotification);
 		mod->sendChangeMessage();
 	}
 }
@@ -407,7 +407,7 @@ void ScriptingObjects::ScriptingEffect::setBypassed(bool shouldBeBypassed)
 {
 	if (checkValidObject())
 	{
-		effect->setBypassed(shouldBeBypassed);
+		effect->setBypassed(shouldBeBypassed, sendNotification);
 		effect->sendChangeMessage();
 	}
 }
@@ -495,7 +495,7 @@ void ScriptingObjects::ScriptingSynth::setBypassed(bool shouldBeBypassed)
 {
 	if (checkValidObject())
 	{
-		synth->setBypassed(shouldBeBypassed);
+		synth->setBypassed(shouldBeBypassed, sendNotification);
 		synth->sendChangeMessage();
 	}
 }
@@ -625,7 +625,7 @@ void ScriptingObjects::ScriptingMidiProcessor::setBypassed(bool shouldBeBypassed
 {
 	if (checkValidObject())
 	{
-		mp->setBypassed(shouldBeBypassed);
+		mp->setBypassed(shouldBeBypassed, sendNotification);
 		mp->sendChangeMessage();
 	}
 }
@@ -711,7 +711,7 @@ void ScriptingObjects::ScriptingAudioSampleProcessor::setBypassed(bool shouldBeB
 {
 	if (checkValidObject())
 	{
-		audioSampleProcessor->setBypassed(shouldBeBypassed);
+		audioSampleProcessor->setBypassed(shouldBeBypassed, sendNotification);
 		audioSampleProcessor->sendChangeMessage();
 	}
 }

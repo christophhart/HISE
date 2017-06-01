@@ -348,33 +348,37 @@ void CachedViewport::InternalViewport::paint(Graphics &g)
 	}
 }
 
+BreadcrumbComponent::BreadcrumbComponent(MainController* mc_) :
+	mc(mc_)
+{
+	mc->getProcessorChangeHandler().addProcessorChangeListener(this);
+}
+
+BreadcrumbComponent::~BreadcrumbComponent()
+{
+	mc->getProcessorChangeHandler().removeProcessorChangeListener(this);
+}
+
 void BreadcrumbComponent::refreshBreadcrumbs()
 {
-	BackendProcessorEditor *bpe = findParentComponentOfClass<BackendProcessorEditor>();
+	breadcrumbs.clear();
 
-	jassert(bpe != nullptr);
+	const Processor *mainSynthChain = mc->getMainSynthChain();
 
-	if (bpe != nullptr)
+	const Processor *currentRoot = mc->getMainSynthChain()->getRootProcessor();
+
+	while (currentRoot != mainSynthChain)
 	{
-		breadcrumbs.clear();
+		Breadcrumb *b = new Breadcrumb(currentRoot);
+		breadcrumbs.add(b);
+		addAndMakeVisible(b);
 
-		const Processor *mainSynthChain = bpe->getMainSynthChain();
-
-		const Processor *currentRoot = bpe->getMainSynthChain()->getRootProcessor();
-
-		while (currentRoot != mainSynthChain)
-		{
-			Breadcrumb *b = new Breadcrumb(currentRoot);
-			breadcrumbs.add(b);
-			addAndMakeVisible(b);
-
-            currentRoot = ProcessorHelpers::findParentProcessor(currentRoot, false);
-		}
-
-		Breadcrumb *chain = new Breadcrumb(mainSynthChain);
-		breadcrumbs.add(chain);
-		addAndMakeVisible(chain);
+		currentRoot = ProcessorHelpers::findParentProcessor(currentRoot, false);
 	}
+
+	Breadcrumb *chain = new Breadcrumb(mainSynthChain);
+	breadcrumbs.add(chain);
+	addAndMakeVisible(chain);
 
 	resized();
 }

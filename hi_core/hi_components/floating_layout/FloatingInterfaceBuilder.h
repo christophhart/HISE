@@ -74,8 +74,12 @@ public:
 		return true;
 	}
 
+	void setId(int index, const String& newID);
+
 	void setSizes(int index, Array<double> sizes, NotificationType shouldUpdateLayout= dontSendNotification);
 	void setFolded(int index, Array<bool> foldStates, NotificationType shouldUpdateLayout = dontSendNotification);
+
+	void setVisibility(int index, bool shouldBeVisible, Array<bool> childVisibleStates, NotificationType shouldUpdateLayout = dontSendNotification);
 
 	void setFoldable(int index, bool isFoldable, Array<bool> childFoldableStates, NotificationType = dontSendNotification);
 
@@ -100,7 +104,7 @@ public:
 
 				createdComponents.add(newPanel);
 
-				newPanel->setNewContent(ContentType::getPanelId());
+				newPanel->setNewContent(GET_PANEL_NAME(ContentType));
 
 				removeFirstChildOfNewContainer(newPanel);
 
@@ -119,6 +123,10 @@ public:
 
 	FloatingTileContent* getContent(int index);
 	
+	template <class ContentType> ContentType* getContent(int index)
+	{
+		return dynamic_cast<ContentType*>(getContent(index));
+	}
 
 private:
 

@@ -61,6 +61,8 @@ public:
 	LookupTableProcessor();
 	virtual ~LookupTableProcessor();
 
+	//SET_PROCESSOR_CONNECTOR_TYPE_ID("LookupTableProcessor");
+
 	// ================================================================================================================
 
 	/** Overwrite this method and return the table for the supplied index.
@@ -113,6 +115,8 @@ public:
 
 	SliderPackProcessor() {};
 	virtual ~SliderPackProcessor() {};
+
+	//SET_PROCESSOR_CONNECTOR_TYPE_ID("SliderPackProcessor");
 
 	/** Overwrite this and return the const SliderPackData member from your subclassed Processor. */
 	virtual SliderPackData *getSliderPackData(int index) = 0;

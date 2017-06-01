@@ -777,7 +777,7 @@ void ModulatorSynth::numDestinationChannelsChanged()
 	}
 }
 
-void ModulatorSynth::setBypassed(bool shouldBeBypassed) noexcept
+void ModulatorSynth::setBypassed(bool shouldBeBypassed, NotificationType notifyChangeHandler) noexcept
 {
 	ScopedLock sl(getSynthLock());
 

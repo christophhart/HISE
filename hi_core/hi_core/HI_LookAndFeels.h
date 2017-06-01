@@ -425,15 +425,18 @@ class TableHeaderLookAndFeel: public PopupLookAndFeel
  
 	void drawTableHeaderColumn (Graphics &g, const String &columnName, int /*columnId*/, int width, int height, bool /*isMouseOver*/, bool /*isMouseDown*/, int /*columnFlags*/)
 	{
-		g.setColour(Colour(0xff474747));
+		if (width > 0)
+		{
+			g.setColour(Colour(0xff474747));
 
-		g.fillRect(0.0f, 0.0f, (float)width-1.0f, (float)height);
+			g.fillRect(0.0f, 0.0f, (float)width - 1.0f, (float)height);
 
-        
-		g.setFont(GLOBAL_FONT());
-        g.setColour(Colour(0xa2ffffff));
 
-		g.drawText(columnName, 3, 0, width - 3, height, Justification::centredLeft, true);
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.setColour(Colour(0xa2ffffff));
+
+			g.drawText(columnName, 3, 0, width - 3, height, Justification::centredLeft, true);
+		}
 	}
 };
 

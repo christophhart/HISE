@@ -64,7 +64,8 @@ protected:
 *	For Modulators there is the macro function debugMod(String &t)
 */
 class Console: public Component,
-			   public ComponentWithAccessToMainPanel
+			   public ComponentWithAccessToMainPanel,
+			   public CodeDocument::Listener
 {
 public:
 
@@ -77,6 +78,15 @@ public:
 	void mouseDoubleClick(const MouseEvent& event) override;
 
 	void resized() override;
+
+	void codeDocumentTextInserted(const String &newText, int insertIndex) override
+	{
+		int numLinesVisible = jmax<int>(0, newTextConsole->getDocument().getNumLines() - (int)((float)newTextConsole->getHeight() / GLOBAL_MONOSPACE_FONT().getHeight()));
+
+		newTextConsole->scrollToLine(numLinesVisible);
+	}
+
+	void codeDocumentTextDeleted(int startIndex, int endIndex) override {}
 
     void clear();
 

@@ -56,6 +56,9 @@ public:
 	/** Call this whenever the selection changes and you want to update the other editors. */
     void selectSounds(const Array<ModulatorSamplerSound*> &selection);
 
+	/** Overwrite this and call the method that updates the interface. */
+	virtual void updateInterface() = 0;
+
 protected:
 
 	/** This is called whenever one of the other subeditors (or itself) called selectSounds(). 
@@ -328,13 +331,16 @@ public:
 
 	void timerCallback() override
 	{
-        currentSnapshot = Image(Image::RGB, getWidth(), getHeight(), true);
-        
-        Graphics g2(currentSnapshot);
-        
-        drawSoundMap(g2);
-        
-        repaint();
+		if (getWidth() > 0 && getHeight() > 0)
+		{
+			currentSnapshot = Image(Image::RGB, getWidth(), getHeight(), true);
+
+			Graphics g2(currentSnapshot);
+
+			drawSoundMap(g2);
+
+			repaint();
+		}
 
         stopTimer();
 	}
@@ -520,6 +526,10 @@ public:
     
     void resized() override;
 
+	void updateInterface() override
+	{
+		refreshList();
+	}
 
 private:
 
