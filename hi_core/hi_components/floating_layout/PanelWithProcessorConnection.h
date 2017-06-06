@@ -99,6 +99,8 @@ public:
 
 	template <class ContentType> ContentType* getContent() { return dynamic_cast<ContentType*>(content.get()); };
 
+	template <class ContentType> const ContentType* getContent() const { return dynamic_cast<const ContentType*>(content.get()); };
+
 	virtual void updateChildEditorList(bool /*forceUpdate*/) {}
 
 	Processor* getProcessor() { return currentProcessor.get(); }

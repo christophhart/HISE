@@ -115,6 +115,15 @@ private:
 
 struct BackendPanelHelpers
 {
+	enum class Workspace
+	{
+		MainPanel = 0,
+		ScriptingWorkspace,
+		SamplerWorkspace,
+		CustomWorkspace,
+		numWorkspaces
+	};
+
 	template <class ContentType> static ContentType* toggleVisibilityForRightColumnPanel(FloatingTile* root, bool show)
 	{
 		auto rightColumn = getMainRightColumn(root);
@@ -146,6 +155,8 @@ struct BackendPanelHelpers
 
 	static HorizontalTile* getMainRightColumn(FloatingTile* root);
 
+	static void showWorkspace(BackendRootWindow* root, Workspace workspaceToShow, NotificationType notifyCommandManager);
+
 	struct ScriptingWorkspace
 	{
 		static FloatingTile* get(BackendRootWindow* rootWindow);
@@ -154,6 +165,13 @@ struct BackendPanelHelpers
 
 		static void showEditor(BackendRootWindow* rootWindow, bool shouldBeVisible);
 		static void showInterfaceDesigner(BackendRootWindow* rootWindow, bool shouldBeVisible);
+	};
+
+	struct SamplerWorkspace
+	{
+		static FloatingTile* get(BackendRootWindow* rootWindow);
+
+		static void setGlobalProcessor(BackendRootWindow* rootWindow, ModulatorSampler* sampler);
 	};
 
 	static bool isMainWorkspaceActive(FloatingTile* root);

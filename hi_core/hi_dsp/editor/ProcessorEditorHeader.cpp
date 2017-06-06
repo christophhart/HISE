@@ -120,14 +120,21 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 	
 	addAndMakeVisible (foldButton = new ShapeButton ("Fold", Colours::white, Colours::white, Colours::white));
 	
+	
 	checkFoldButton();
 
     foldButton->setTooltip (TRANS("Expand this Processor"));
     
     foldButton->addListener (this);
 
-	
-	
+	addAndMakeVisible(workspaceButton = new ShapeButton("Workspace", Colours::white, Colours::white, Colours::white));
+	Path workspacePath = ColumnIcons::getPath(ColumnIcons::openWorkspaceIcon, sizeof(ColumnIcons::openWorkspaceIcon));
+	workspaceButton->setShape(workspacePath, true, true, true);
+	workspaceButton->addListener(this);
+	workspaceButton->setToggleState(true, dontSendNotification);
+	workspaceButton->setTooltip("Open " + getProcessor()->getId() + " in workspace");
+	refreshShapeButton(workspaceButton);
+
     
     addAndMakeVisible (deleteButton = new ShapeButton ("Delete Processor", Colours::white, Colours::white, Colours::white));
 	Path deletePath;
@@ -365,6 +372,11 @@ bool ProcessorEditorHeader::isHeaderOfMidiProcessor() const	{ return dynamic_cas
 
 bool ProcessorEditorHeader::isHeaderOfEffectProcessor() const		{ return dynamic_cast<const EffectProcessor*>(getProcessor()) != nullptr;	};
 
+bool ProcessorEditorHeader::hasWorkspaceButton() const 
+{ 
+	return dynamic_cast<const JavascriptProcessor*>(getProcessor()) != nullptr || dynamic_cast<const ModulatorSampler*>(getProcessor()) != nullptr;
+}
+
 int ProcessorEditorHeader::getModulatorMode() const			{ jassert(isHeaderOfModulator());
 															  return dynamic_cast<const Modulation*>(getProcessor())->getMode(); };
 
@@ -476,12 +488,26 @@ void ProcessorEditorHeader::resized()
 		x += addCloseWidth + 8;
 	}
 
+	if (getProcessor()->getMainController()->getMainSynthChain() != getProcessor())
+	{
+		foldButton->setBounds(x, yOffset, addCloseWidth, addCloseWidth);
+		x += addCloseWidth + 8;
 
-    if(getProcessor()->getMainController()->getMainSynthChain() != getProcessor())
-    {
-        foldButton->setBounds(x, yOffset, addCloseWidth, addCloseWidth);
-        x += addCloseWidth + 8;
-        
+	}
+
+	if (hasWorkspaceButton())
+	{
+		workspaceButton->setBounds(x, yOffset, addCloseWidth, addCloseWidth);
+		x += addCloseWidth + 8;
+	}
+	else
+	{
+		workspaceButton->setVisible(false);
+	}
+
+	if(getProcessor()->getMainController()->getMainSynthChain() != getProcessor())
+	{
+
         chainIcon->setBounds(x, yOffset-1, chainIcon->drawIcon() ? 16 : 0, 16);
         
         x = chainIcon->getRight() + 3;
@@ -682,6 +708,24 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
 
 		buttonThatWasClicked->setToggleState(!value, dontSendNotification);
     }
+	else if (buttonThatWasClicked == workspaceButton)
+	{
+		auto rootWindow = findParentComponentOfClass<BackendRootWindow>();
+
+		if (auto jsp = dynamic_cast<JavascriptProcessor*>(getProcessor()))
+		{
+			BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(rootWindow, jsp);
+			BackendPanelHelpers::showWorkspace(rootWindow, BackendPanelHelpers::Workspace::ScriptingWorkspace, sendNotification);
+			
+		}
+		else if (auto sampler = dynamic_cast<ModulatorSampler*>(getProcessor()))
+		{
+			BackendPanelHelpers::SamplerWorkspace::setGlobalProcessor(rootWindow, sampler);
+			BackendPanelHelpers::showWorkspace(rootWindow, BackendPanelHelpers::Workspace::SamplerWorkspace, sendNotification);
+		}
+
+	}
+
 
     else if (buttonThatWasClicked == plotButton)
     {
@@ -1241,7 +1285,7 @@ void ProcessorEditorHeader::refreshShapeButton(ShapeButton *b)
 
 	Colour buttonColour = isHeaderOfModulatorSynth() ? Colours::black.withAlpha(0.8f) : Colours::white;
 
-	Colour shadowColour = isHeaderOfModulatorSynth() ? Colours::cyan.withAlpha(0.25f) : Colours::white.withAlpha(0.6f);
+	Colour shadowColour = isHeaderOfModulatorSynth() ? Colour(SIGNAL_COLOUR).withAlpha(0.25f) : Colours::white.withAlpha(0.6f);
 
 	DropShadowEffect *shadow = dynamic_cast<DropShadowEffect*>(b->getComponentEffect());
 
@@ -1255,7 +1299,7 @@ void ProcessorEditorHeader::refreshShapeButton(ShapeButton *b)
 	buttonColour = off ? Colours::grey.withAlpha(0.7f) : buttonColour;
 	buttonColour = buttonColour.withAlpha(b->isEnabled() ? 1.0f : 0.2f);
 
-	b->setColours(buttonColour.withMultipliedAlpha(0.7f), buttonColour.withMultipliedAlpha(1.0f), buttonColour.withMultipliedAlpha(1.0f));
+	b->setColours(buttonColour.withMultipliedAlpha(0.5f), buttonColour.withMultipliedAlpha(1.0f), buttonColour.withMultipliedAlpha(1.0f));
 	b->repaint();
 }
 

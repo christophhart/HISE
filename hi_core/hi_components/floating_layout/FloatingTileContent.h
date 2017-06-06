@@ -497,6 +497,10 @@ struct FloatingPanelTemplates
 
 	static Component* createMainPanel(FloatingTile* root);
 
+	static Component* createScriptingWorkspace(FloatingTile* root);
+
+	static Component* createSamplerWorkspace(FloatingTile* root);
+
 	static void create2x2Matrix(FloatingTile* parent);
 
 	static void create3Columns(FloatingTile* parent);

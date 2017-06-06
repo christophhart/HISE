@@ -460,6 +460,12 @@ public:
 
 	Path getIcon() const;
 
+	void setCustomIcon(int newIconId)
+	{
+		iconId = newIconId;
+		getParentContainer()->siblingAmountChanged();
+	}
+
 	void setLayoutDataObject(const var& newLayoutData)
 	{
 		layoutData.fromDynamicObject(newLayoutData);
@@ -487,6 +493,8 @@ public:
 	bool isVital() const { return vital; }
 	bool canBeDeleted() const;
 	bool isSwappable() const;
+
+	
 
 	void setCloseTogglesVisibility(bool shouldToggleVisibility)
 	{
@@ -532,6 +540,8 @@ private:
     bool deleteHover = false;
     
 	bool layoutModeEnabled = false;
+
+	int iconId = -1;
 
 	int leftOffsetForTitleText = 0;
 	int rightOffsetForTitleText = 0;

@@ -297,6 +297,7 @@ struct FloatingPanelTemplates::Helpers
 };
 
 
+
 void FloatingPanelTemplates::create2x2Matrix(FloatingTile* parent)
 {
 	Helpers::setContent<HorizontalTile>(parent);

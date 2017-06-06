@@ -89,6 +89,8 @@ public:
 	
 	bool isHeaderOfEffectProcessor() const;
 
+	bool hasWorkspaceButton() const;
+
 	/** Returns the Modulation::Mode of the ModulatorChain. */
 	int getModulatorMode() const;
 	
@@ -165,6 +167,8 @@ private:
     ScopedPointer<ShapeButton> deleteButton;
 	ScopedPointer<ShapeButton> addButton;
 	ScopedPointer<ShapeButton> routeButton;
+	ScopedPointer<ShapeButton> workspaceButton;
+
     ScopedPointer<Slider> intensitySlider;
 	ScopedPointer<ShapeButton> bipolarModButton;
 

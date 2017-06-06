@@ -96,6 +96,11 @@ void FloatingInterfaceBuilder::setFoldable(int index, bool isFoldable, Array<boo
 		jassertfalse;
 }
 
+void FloatingInterfaceBuilder::setDynamic(int index, bool shouldBeDynamic)
+{
+	getContainer(index)->setIsDynamic(shouldBeDynamic);
+}
+
 void FloatingInterfaceBuilder::setCustomName(int index, const String& name, Array<String> names)
 {
 	if (auto p = getPanel(index))
@@ -122,6 +127,20 @@ void FloatingInterfaceBuilder::setCustomName(int index, const String& name, Arra
 
 }
 
+
+void FloatingInterfaceBuilder::setCustomPanels(int toggleBarIndex, Array<int> panels)
+{
+	auto tb = getContent<VisibilityToggleBar>(toggleBarIndex);
+
+	jassert(tb != nullptr);
+
+	for (int i = 0; i < panels.size(); i++)
+	{
+		tb->addCustomPanel(getPanel(panels[i]));
+	}
+
+	tb->refreshButtons();
+}
 
 void FloatingInterfaceBuilder::setId(int index, const String& newID)
 {

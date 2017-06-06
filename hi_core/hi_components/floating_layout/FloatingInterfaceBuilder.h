@@ -83,7 +83,11 @@ public:
 
 	void setFoldable(int index, bool isFoldable, Array<bool> childFoldableStates, NotificationType = dontSendNotification);
 
+	void setDynamic(int index, bool shouldBeDynamic);
+
 	void setCustomName(int index, const String& name, Array<String> names=Array<String>());
+
+	void setCustomPanels(int toggleBarIndex, Array<int> panels);
 
 	/** Adds a child with the given content to the container with the index.
 	*

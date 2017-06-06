@@ -181,6 +181,11 @@ public:
 		g.fillAll(c);
 	}
 
+	void addCustomPanel(FloatingTile* panel)
+	{
+		customPanels.add(panel);
+	}
+
 	void setControlledContainer(FloatingTileContainer* containerToControl);
 
 	void refreshButtons();
@@ -202,6 +207,8 @@ public:
 	void resized() override;
 
 private:
+
+	void addIcon(FloatingTile* ft);
 
 	struct Icon : public ButtonListener,
 				  public Component
@@ -245,6 +252,8 @@ private:
 	Justification alignment = Justification::centred;
 
 	Component::SafePointer<Component> controlledContainer;
+
+	Array<Component::SafePointer<FloatingTile>> customPanels;
 
 	OwnedArray<Icon> buttons;
 };

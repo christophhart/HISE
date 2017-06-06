@@ -242,6 +242,18 @@ HorizontalTile* BackendPanelHelpers::getMainRightColumn(FloatingTile* root)
 	return FloatingTileHelpers::findTileWithId<HorizontalTile>(root, id);
 }
 
+void BackendPanelHelpers::showWorkspace(BackendRootWindow* root, Workspace workspaceToShow, NotificationType notifyCommandManager)
+{
+	if (notifyCommandManager = sendNotification)
+	{
+		root->getBackendProcessor()->getCommandManager()->invokeDirectly(BackendCommandTarget::WorkspaceMain + (int)workspaceToShow, false);
+	}
+	else
+	{
+		root->showWorkspace(BackendCommandTarget::WorkspaceMain + (int)workspaceToShow);
+	}
+}
+
 bool BackendPanelHelpers::isMainWorkspaceActive(FloatingTile* root)
 {
 	return true;
@@ -274,5 +286,22 @@ void BackendPanelHelpers::ScriptingWorkspace::showEditor(BackendRootWindow* root
 	{
 		editor->getParentShell()->getLayoutData().setVisible(shouldBeVisible);
 		editor->getParentShell()->refreshRootLayout();
+	}
+}
+
+FloatingTile* BackendPanelHelpers::SamplerWorkspace::get(BackendRootWindow* rootWindow)
+{
+	return FloatingTileHelpers::findTileWithId<FloatingTileContainer>(rootWindow->getRootFloatingTile(), "SamplerWorkspace")->getParentShell();
+}
+
+void BackendPanelHelpers::SamplerWorkspace::setGlobalProcessor(BackendRootWindow* rootWindow, ModulatorSampler* sampler)
+{
+	auto workspace = get(rootWindow);
+
+	FloatingTile::Iterator<GlobalConnectorPanel<ModulatorSampler>> iter(workspace);
+
+	if (auto connector = iter.getNextPanel())
+	{
+		connector->setContentWithUndo(dynamic_cast<Processor*>(sampler), 0);
 	}
 }

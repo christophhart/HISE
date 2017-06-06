@@ -1102,6 +1102,11 @@ bool FloatingTile::isInVerticalLayout() const
 
 Path FloatingTile::getIcon() const
 {
+	if (iconId != -1)
+	{
+		return getPanelFactory()->getPath((FloatingTileContent::Factory::PopupMenuOptions)iconId);
+	}
+
 	if (hasChildren())
 	{
 		auto firstPanel = dynamic_cast<const FloatingTileContainer*>(getCurrentFloatingPanel())->getComponent(0);

@@ -143,34 +143,61 @@ void VisibilityToggleBar::setControlledContainer(FloatingTileContainer* containe
 	refreshButtons();
 }
 
+void VisibilityToggleBar::addIcon(FloatingTile* ft)
+{
+	if (ft == getParentShell()) // don't show this, obviously
+		return;
+
+	if (ft->isEmpty())
+		return;
+
+	if (dynamic_cast<SpacerPanel*>(ft->getCurrentFloatingPanel()))
+		return;
+
+	auto icon = new Icon(ft);
+
+	addAndMakeVisible(icon);
+
+	buttons.add(icon);
+}
+
+
+
 void VisibilityToggleBar::refreshButtons()
 {
 	buttons.clear();
 
-	if (controlledContainer.getComponent() != nullptr)
+	if (customPanels.isEmpty())
 	{
-		auto c = dynamic_cast<FloatingTileContainer*>(controlledContainer.getComponent());
-
-		for (int i = 0; i < c->getNumComponents(); i++)
+		if (controlledContainer.getComponent() != nullptr)
 		{
-			if (c->getComponent(i) == getParentShell()) // don't show this, obviously
-				continue;
+			auto c = dynamic_cast<FloatingTileContainer*>(controlledContainer.getComponent());
 
-			if (c->getComponent(i)->isEmpty())
-				continue;
+			for (int i = 0; i < c->getNumComponents(); i++)
+			{
+				addIcon(c->getComponent(i));
+			}
 
-			if (dynamic_cast<SpacerPanel*>(c->getComponent(i)->getCurrentFloatingPanel()))
-				continue;
-
-			auto icon = new Icon(c->getComponent(i));
-
-			addAndMakeVisible(icon);
-
-			buttons.add(icon);
+			
+			resized();
+		}
+	}
+	else
+	{
+		for (int i = 0; i < customPanels.size(); i++)
+		{
+			if (customPanels[i].getComponent() != nullptr)
+			{
+				addIcon(customPanels[i]);
+			}
+			else
+				customPanels.remove(i--);
 		}
 
 		resized();
 	}
+
+	
 }
 
 void VisibilityToggleBar::resized()

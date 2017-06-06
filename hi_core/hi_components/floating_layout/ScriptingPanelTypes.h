@@ -69,25 +69,116 @@ private:
 	ScopedPointer<JavascriptTokeniser> tokeniser;
 };
 
+class HiseShapeButton : public ShapeButton
+{
+public:
+
+	HiseShapeButton(const String& name, ButtonListener* listener, Path onShape_, Path offShape_=Path()):
+		ShapeButton(name, Colours::white.withAlpha(0.5f), Colours::white.withAlpha(0.8f), Colours::white),
+		onShape(onShape_)
+	{
+		if (offShape_.isEmpty())
+			offShape = onShape;
+		else
+			offShape = offShape_;
+
+		if (listener != nullptr)
+			addListener(listener);
+
+		refreshShape();
+		refreshButtonColours();
+	}
+
+	void refreshButtonColours()
+	{
+		if (getToggleState())
+		{
+			setColours(Colour(SIGNAL_COLOUR).withAlpha(0.8f), Colour(SIGNAL_COLOUR), Colour(SIGNAL_COLOUR));
+		}
+		else
+		{
+			setColours(Colours::white.withAlpha(0.5f), Colours::white.withAlpha(0.8f), Colours::white);
+		}
+	}
+
+	void refreshShape()
+	{
+		if (getToggleState())
+		{
+			setShape(onShape, false, true, true);
+		}
+		else
+			setShape(offShape, false, true, true);
+	}
+
+	void refresh()
+	{
+		refreshShape();
+		refreshButtonColours();
+	}
+
+	void toggle()
+	{
+		setToggleState(!getToggleState(), dontSendNotification);
+		
+		refresh();
+	}
+
+	bool setShapes(Path newOnShape, Path newOffShape)
+	{
+		onShape = newOnShape;
+		offShape = newOffShape;
+	}
+
+	Path onShape;
+	Path offShape;
+};
+
 class ScriptContentPanel : public PanelWithProcessorConnection,
 						   public GlobalScriptCompileListener
 {
 public:
 
+	enum SpecialPanelIds
+	{
+		ZoomAmount = FloatingTileContent::PanelPropertyId::numPropertyIds,
+		EditMode,
+		numSpecialPanelIds
+	};
+
 	struct Canvas;
 
-	class Editor : public Component
+	class Editor : public Component,
+				   public ComboBox::Listener,
+				   public Button::Listener
 	{
 	public:
 
 		Editor(Processor* p);
 
-		void resized() override
-		{
-			viewport->setBounds(getLocalBounds());
-		}
+		void resized() override;
+
+		void refreshContent();
+
+		void buttonClicked(Button* b) override;
+
+		void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override;
+
+		void setZoomAmount(double newZoomAmount);
+
+		double getZoomAmount() const;
+
 
 	public:
+
+		double zoomAmount;
+
+		KnobLookAndFeel klaf;
+
+		ScopedPointer<ComboBox> zoomSelector;
+		ScopedPointer<HiseShapeButton> editSelector;
+		ScopedPointer<HiseShapeButton> compileButton;
+		ScopedPointer<HiseShapeButton> cancelButton;
 
 		ScopedPointer<Viewport> viewport;
 	};
@@ -100,6 +191,11 @@ public:
 
 	
 	SET_PANEL_NAME("ScriptContent");
+
+	var toDynamicObject() const override;;
+
+	void fromDynamicObject(const var& object) override;
+
 
 	Identifier getProcessorTypeId() const override;
 
