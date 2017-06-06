@@ -53,6 +53,11 @@ public:
 
 		Content(BackendProcessorEditor *editor_);
 
+		void paint(Graphics& g) override
+		{
+			g.fillAll(Colours::black);
+		}
+
 		~Content();
 
 		void resized() override;

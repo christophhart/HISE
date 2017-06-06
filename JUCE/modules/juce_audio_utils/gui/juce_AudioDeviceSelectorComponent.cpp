@@ -446,6 +446,8 @@ public:
                         = new ChannelSelectorListBox (setup, ChannelSelectorListBox::audioOutputType,
                                                       TRANS ("(no audio output channels found)")));
                     outputChanLabel = new Label (String(), TRANS("Active output channels:"));
+					outputChanLabel->setColour(Label::textColourId, Colours::white);
+					outputChanLabel->setFont(getLookAndFeel().getAlertWindowFont().boldened());
                     outputChanLabel->setJustificationType (Justification::centredRight);
                     outputChanLabel->attachToComponent (outputChanList, true);
                 }
@@ -467,6 +469,8 @@ public:
                         = new ChannelSelectorListBox (setup, ChannelSelectorListBox::audioInputType,
                                                       TRANS("(no audio input channels found)")));
                     inputChanLabel = new Label (String(), TRANS("Active input channels:"));
+					inputChanLabel->setColour(Label::textColourId, Colours::white);
+					inputChanLabel->setFont(getLookAndFeel().getAlertWindowFont().boldened());
                     inputChanLabel->setJustificationType (Justification::centredRight);
                     inputChanLabel->attachToComponent (inputChanList, true);
                 }
@@ -481,6 +485,12 @@ public:
 
             updateSampleRateComboBox (currentDevice);
             updateBufferSizeComboBox (currentDevice);
+
+			sampleRateLabel->setColour(Label::textColourId, Colours::white);
+			sampleRateLabel->setFont(getLookAndFeel().getAlertWindowFont().boldened());
+
+			bufferSizeLabel->setColour(Label::textColourId, Colours::white);
+			bufferSizeLabel->setFont(getLookAndFeel().getAlertWindowFont().boldened());
         }
         else
         {
@@ -614,6 +624,9 @@ private:
                                                                                   : TRANS("Device:"));
                 outputDeviceLabel->attachToComponent (outputDeviceDropDown, true);
 
+				outputDeviceLabel->setColour(Label::textColourId, Colours::white);
+				outputDeviceLabel->setFont(getLookAndFeel().getAlertWindowFont().boldened());
+
                 if (setup.maxNumOutputChannels > 0)
                 {
                     addAndMakeVisible (testButton = new TextButton (TRANS("Test"),
@@ -639,6 +652,8 @@ private:
                 addAndMakeVisible (inputDeviceDropDown);
 
                 inputDeviceLabel = new Label (String(), TRANS("Input:"));
+				inputDeviceLabel->setColour(Label::textColourId, Colours::white);
+				outputDeviceLabel->setFont(getLookAndFeel().getAlertWindowFont().boldened());
                 inputDeviceLabel->attachToComponent (inputDeviceDropDown, true);
 
                 addAndMakeVisible (inputLevelMeter
@@ -1002,6 +1017,10 @@ AudioDeviceSelectorComponent::AudioDeviceSelectorComponent (AudioDeviceManager& 
         deviceTypeDropDown->addListener (this);
 
         deviceTypeDropDownLabel = new Label (String(), TRANS("Audio device type:"));
+
+		deviceTypeDropDownLabel->setColour(Label::ColourIds::textColourId, Colours::white);
+		deviceTypeDropDownLabel->setFont(getLookAndFeel().getAlertWindowFont().boldened());
+
         deviceTypeDropDownLabel->setJustificationType (Justification::centredRight);
         deviceTypeDropDownLabel->attachToComponent (deviceTypeDropDown, true);
     }
@@ -1016,6 +1035,8 @@ AudioDeviceSelectorComponent::AudioDeviceSelectorComponent (AudioDeviceManager& 
         midiInputsLabel->setJustificationType (Justification::topRight);
         midiInputsLabel->attachToComponent (midiInputsList, true);
 
+		midiInputsLabel->setColour(Label::ColourIds::textColourId, Colours::white);
+		midiInputsLabel->setFont(getLookAndFeel().getAlertWindowFont().boldened());
         if (BluetoothMidiDevicePairingDialogue::isAvailable())
         {
             addAndMakeVisible (bluetoothButton = new TextButton (TRANS("Bluetooth MIDI"),
@@ -1036,6 +1057,7 @@ AudioDeviceSelectorComponent::AudioDeviceSelectorComponent (AudioDeviceManager& 
         midiOutputSelector->addListener (this);
 
         midiOutputLabel = new Label ("lm", TRANS("MIDI Output:"));
+		midiOutputLabel->setColour(Label::ColourIds::textColourId, Colours::white);
         midiOutputLabel->attachToComponent (midiOutputSelector, true);
     }
     else
@@ -1157,6 +1179,7 @@ void AudioDeviceSelectorComponent::updateAllControls()
             details.useStereoPairs = showChannelsAsStereoPairs;
 
             AudioDeviceSettingsPanel* sp = new AudioDeviceSettingsPanel (*type, details, hideAdvancedOptionsWithButton);
+
             audioDeviceSettingsComp = sp;
             addAndMakeVisible (sp);
             sp->updateAllControls();

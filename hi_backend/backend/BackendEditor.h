@@ -293,14 +293,28 @@ private:
 
 
 class MainTopBar : public FloatingTileContent,
-				   public Component
+				   public Component,
+				   public ButtonListener,
+				   public FloatingTile::PopupListener
 {
 public:
+	
+	enum class PopupType
+	{
+		Macro,
+		PluginPreview,
+		Settings,
+		PresetBrowser,
+		numPopupTypes
+	};
+
 	MainTopBar(FloatingTile* parent);
+
+	~MainTopBar();
 
 	int getFixedHeight() const override
 	{
-		return 32;
+		return 60;
 	}
 
 	bool showTitleInPresentationMode() const override
@@ -308,22 +322,40 @@ public:
 		return false;
 	}
 
-	void paint(Graphics& g) override
-	{
-		g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourId));
-	}
+	void popupChanged(Component* newComponent) override;
+
+	void paint(Graphics& g) override;
+
+	void buttonClicked(Button* b) override;
 
 	void resized() override;
 
 	SET_PANEL_NAME("MainTopBar");
 
+	void togglePopup(PopupType t, bool shouldShow);
+
 private:
+
+	Rectangle<int> frontendArea;
+	Rectangle<int> workspaceArea;
 
 	ScopedPointer<TooltipBar> tooltipBar;
 	ScopedPointer<VoiceCpuBpmComponent> voiceCpuBpmComponent;
 
 	ScopedPointer<ShapeButton> backButton;
 	ScopedPointer<ShapeButton> forwardButton;
+
+	ScopedPointer<ShapeButton> settingsButton;
+	ScopedPointer<ShapeButton> layoutButton;
+
+	ScopedPointer<ShapeButton> macroButton;
+	ScopedPointer<ShapeButton> pluginPreviewButton;
+	ScopedPointer<ShapeButton> presetBrowserButton;
+
+	ScopedPointer<ShapeButton> mainWorkSpaceButton;
+	ScopedPointer<ShapeButton> scriptingWorkSpaceButton;
+	ScopedPointer<ShapeButton> samplerWorkSpaceButton;
+	ScopedPointer<ShapeButton> customWorkSpaceButton;
 
 };
 

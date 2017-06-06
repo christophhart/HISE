@@ -226,14 +226,6 @@ public:
 		numColourIds
 	};
 
-	struct LookAndFeel: public LookAndFeel_V3
-	{
-		virtual void paintBackground(Graphics& g, ResizableFloatingTileContainer& container)
-		{
-
-		}
-	};
-
 	class InternalResizer : public Component
 	{
 	public:
@@ -312,8 +304,6 @@ public:
 
 	void resized() override;
 
-	void foldComponent(Component* c, bool shouldBeFolded);
-
 	bool isTitleBarDisplayed() const;
 
 	void mouseDown(const MouseEvent& event) override;
@@ -354,8 +344,6 @@ protected:
 	void componentRemoved(FloatingTile* c) override;
 
 private:
-
-	LookAndFeel laf;
 
 	void performLayout(Rectangle<int> area);
 

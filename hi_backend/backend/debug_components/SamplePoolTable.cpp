@@ -241,7 +241,7 @@ template <class FileType> void ExternalFileTable<FileType>::selectedRowsChanged(
 template <class FileType> void ExternalFileTable<FileType>::paintCell (Graphics& g, int rowNumber, int columnId,
                 int width, int height, bool /*rowIsSelected*/) 
 {
-	g.setColour (Colours::black.withAlpha(.8f));
+	g.setColour (Colours::white.withAlpha(.8f));
     g.setFont (font);
 
 	String text = getTextForTableCell(rowNumber, columnId);
@@ -289,3 +289,40 @@ template <class FileType> void ExternalFileTable<FileType>::resized()
 
 }
 
+PoolTableSubTypes::AudioFilePoolTable::AudioFilePoolTable(BackendRootWindow* rootWindow):
+	ExternalFileTable<AudioSampleBuffer>(rootWindow->getBackendProcessor()->getSampleManager().getAudioSampleBufferPool())
+{
+
+}
+
+void PoolTableSubTypes::AudioFilePoolTable::cellDoubleClicked(int rowNumber, int columnId, const MouseEvent& e)
+{
+	auto mc = dynamic_cast<MainController*>(findParentComponentOfClass<BackendRootWindow>()->getBackendProcessor());
+
+	if (auto editor = mc->getLastActiveEditor())
+	{
+		auto fileName = pool->getFileNameForId(pool->getIdForIndex(rowNumber));
+		auto ref = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getFileReference(fileName, ProjectHandler::SubDirectories::AudioFiles);
+
+		editor->insertTextAtCaret(ref);
+	}
+}
+
+PoolTableSubTypes::ImageFilePoolTable::ImageFilePoolTable(BackendRootWindow* rootWindow):
+	ExternalFileTable<Image>(rootWindow->getBackendProcessor()->getSampleManager().getImagePool())
+{
+
+}
+
+void PoolTableSubTypes::ImageFilePoolTable::cellDoubleClicked(int rowNumber, int columnId, const MouseEvent&)
+{
+	auto mc = dynamic_cast<MainController*>(findParentComponentOfClass<BackendRootWindow>()->getBackendProcessor());
+
+	if (auto editor = mc->getLastActiveEditor())
+	{
+		auto fileName = pool->getFileNameForId(pool->getIdForIndex(rowNumber));
+		auto ref = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getFileReference(fileName, ProjectHandler::SubDirectories::Images);
+
+		editor->insertTextAtCaret(ref);
+	}
+}

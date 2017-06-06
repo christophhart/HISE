@@ -30,7 +30,7 @@ public:
 
 	void paint(Graphics& g) override
 	{
-		g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourId));
+		g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
 
 		//g.fillAll(Colour(0xFF333333));
 	}
@@ -77,9 +77,15 @@ public:
 		getModuleListNofifier().sendProcessorChangeMessage(getMainSynthChain(), MainController::ProcessorChangeHandler::EventType::RebuildModuleList, synchronous);
 	}
 
+	int getCurrentWorkspace() const { return currentWorkspace; }
+
+	void showWorkspace(int workspace);
+
 private:
 
+	int currentWorkspace = BackendCommandTarget::WorkspaceMain;
 	
+	Array<Component::SafePointer<FloatingTile>> workspaces;
 
 	friend class BackendCommandTarget;
 
@@ -130,13 +136,25 @@ struct BackendPanelHelpers
 
 			return existingContent;
 		}
+
+		return nullptr;
 	}
 
-	static FloatingTabComponent* getMainTabComponent(FloatingTile* root);
+	static VerticalTile* getMainTabComponent(FloatingTile* root);
 
 	static HorizontalTile* getMainLeftColumn(FloatingTile* root);
 
 	static HorizontalTile* getMainRightColumn(FloatingTile* root);
+
+	struct ScriptingWorkspace
+	{
+		static FloatingTile* get(BackendRootWindow* rootWindow);
+
+		static void setGlobalProcessor(BackendRootWindow* rootWindow, JavascriptProcessor* jsp);
+
+		static void showEditor(BackendRootWindow* rootWindow, bool shouldBeVisible);
+		static void showInterfaceDesigner(BackendRootWindow* rootWindow, bool shouldBeVisible);
+	};
 
 	static bool isMainWorkspaceActive(FloatingTile* root);
 

@@ -781,7 +781,7 @@ void ModulatorSynth::setBypassed(bool shouldBeBypassed, NotificationType notifyC
 {
 	ScopedLock sl(getSynthLock());
 
-	Processor::setBypassed(shouldBeBypassed);
+	Processor::setBypassed(shouldBeBypassed, notifyChangeHandler);
 
 	midiProcessorChain->sendAllNoteOffEvent();
 

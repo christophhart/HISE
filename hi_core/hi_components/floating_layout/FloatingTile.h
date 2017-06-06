@@ -39,6 +39,13 @@ class FloatingTilePopup: public Component,
 							public ComponentListener
 {
 public:
+
+	enum class ColourIds
+	{
+		backgroundColourId = 0,
+		numColourIds
+	};
+
 	FloatingTilePopup(Component* content_, Component* attachedComponent, Point<int> localPoint);
 
 	~FloatingTilePopup();
@@ -46,6 +53,8 @@ public:
 	void buttonClicked(Button* b);
 	void paint(Graphics &g);
 	void resized();
+
+	void deleteAndClose();
 
 	void componentMovedOrResized(Component& component, bool moved, bool resized);
 
@@ -58,7 +67,7 @@ public:
 	bool arrowAtBottom;
 	int arrowX = -1;
 
-	void setArrow(bool showError)
+	void setArrow(bool /*showError*/)
 	{
 
 	}
@@ -230,6 +239,11 @@ public:
 			cachedValues.forceFoldButton = shouldBeShown;
 		}
 
+		bool mustShowFoldButton() const
+		{
+			return getPropertyWithDefault(layoutDataObject, LayoutDataIds::ForceFoldButton);
+		}
+
 	private:
 
 		struct CachedValues
@@ -303,6 +317,28 @@ public:
 	struct CloseButton : public ShapeButton, public ButtonListener
 	{
 		CloseButton();
+        
+        void mouseEnter(const MouseEvent& m) override
+        {
+            auto ft = dynamic_cast<FloatingTile*>(getParentComponent());
+            
+            ft->deleteHover = true;
+            ft->repaint();
+            
+            ShapeButton::mouseEnter(m);
+        }
+        
+        void mouseExit(const MouseEvent& m) override
+        {
+            auto ft = dynamic_cast<FloatingTile*>(getParentComponent());
+            
+            ft->deleteHover = false;
+            ft->repaint();
+            
+            ShapeButton::mouseExit(m);
+        }
+        
+        
 		void buttonClicked(Button* b);
 	};
 
@@ -322,6 +358,22 @@ public:
 	{
 		ResizeButton();
 		void buttonClicked(Button* b);
+	};
+
+	struct PopupListener
+	{
+		virtual ~PopupListener()
+		{
+			masterReference.clear();
+		}
+
+		virtual void popupChanged(Component* newComponent) = 0;
+
+	private:
+
+		friend class WeakReference<PopupListener>;
+
+		WeakReference<PopupListener>::Master masterReference;
 	};
 
 	FloatingTile(FloatingTileContainer* parent, var data=var());
@@ -366,7 +418,7 @@ public:
 	void clear();
 	void refreshRootLayout();
 	
-	void setLayoutModeEnabled(bool shouldBeEnabled, bool setChildrenToSameSetting=true);
+	void setLayoutModeEnabled(bool shouldBeEnabled);
 	bool isLayoutModeEnabled() const;;
 	bool canDoLayoutMode() const;
 
@@ -418,7 +470,7 @@ public:
 
 	void editJSON();
 
-	void showComponentInRootPopup(Component* newComponent, Component* attachedComponent, Point<int> localPoint);
+	FloatingTilePopup* showComponentInRootPopup(Component* newComponent, Component* attachedComponent, Point<int> localPoint);
 
 	struct LayoutHelpers
 	{
@@ -445,7 +497,23 @@ public:
 
 	const FloatingTileContent::Factory* getPanelFactory() const { return &panelFactory; };
 
+	void addPopupListener(PopupListener* listener)
+	{
+		jassert(getParentType() == ParentType::Root);
+
+		listeners.addIfNotAlreadyThere(listener);
+	}
+
+	void removePopupListener(PopupListener* listener)
+	{
+		jassert(getParentType() == ParentType::Root);
+
+		listeners.removeAllInstancesOf(listener);
+	}
+
 private:
+
+	
 
 	class TilePopupLookAndFeel : public PopupLookAndFeel
 	{
@@ -461,6 +529,8 @@ private:
 
 	bool closeTogglesVisibility = false;
 
+    bool deleteHover = false;
+    
 	bool layoutModeEnabled = false;
 
 	int leftOffsetForTitleText = 0;
@@ -483,6 +553,8 @@ private:
 
 	ScopedPointer<FloatingTilePopup> currentPopup;
 
+
+	Array<WeakReference<PopupListener>> listeners;
 
 	FloatingTileContainer* parentContainer;
 	FloatingTileContent::Factory panelFactory;

@@ -1036,7 +1036,7 @@ void MonolithExporter::updateSampleMap()
 
 			if (reader != nullptr)
 			{
-				const int64 length = usePaddingForCompression ? hlac::CompressionHelpers::getPaddedSampleSize(reader->lengthInSamples) : reader->lengthInSamples;
+				const int64 length = usePaddingForCompression ? (int64)hlac::CompressionHelpers::getPaddedSampleSize((int)reader->lengthInSamples) : reader->lengthInSamples;
 
 				largestSample = jmax<int64>(largestSample, length);
 

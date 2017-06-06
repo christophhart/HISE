@@ -177,12 +177,6 @@ public:
 
 	void buttonClicked(Button *b);
 
-	
-
-	void paint(Graphics &g) override
-	{
-		g.fillAll(Colour(0xFF444444));
-	}
 
 	~AudioDeviceDialog();
 

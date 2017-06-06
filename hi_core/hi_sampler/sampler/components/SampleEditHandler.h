@@ -65,7 +65,7 @@ public:
 		selectedSamplerSounds.removeChangeListener(this);
 	}
 
-	void changeListenerCallback(ChangeBroadcaster* source)
+	void changeListenerCallback(ChangeBroadcaster* /*source*/)
 	{
 		sendSelectionChangeMessage();
 	}

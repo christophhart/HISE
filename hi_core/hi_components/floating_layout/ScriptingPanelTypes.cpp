@@ -142,6 +142,14 @@ void ConsolePanel::resized()
 
 
 
+void ScriptContentPanel::scriptWasCompiled(JavascriptProcessor *processor)
+{
+	if (processor == dynamic_cast<JavascriptProcessor*>(getConnectedProcessor()))
+	{
+		resized();
+	}
+}
+
 Identifier ScriptContentPanel::getProcessorTypeId() const
 {
 	return JavascriptProcessor::getConnectorId();
@@ -161,7 +169,7 @@ struct ScriptContentPanel::Canvas : public ScriptEditHandler,
 		addAndMakeVisible(content = new ScriptContentComponent(dynamic_cast<ProcessorWithScriptingContent*>(p)));
 		addAndMakeVisible(overlay = new ScriptingContentOverlay(this));
 
-
+        
 		setSize(content->getContentWidth() + 40, content->getContentHeight() + 40);
 	}
 
@@ -254,4 +262,22 @@ Component* ScriptWatchTablePanel::createContentComponent(int /*index*/)
 	return swt;
 }
 
+void ConnectorHelpers::tut(PanelWithProcessorConnection* connector, const Identifier &idToSearch)
+{
+    auto parentContainer = connector->getParentShell()->getParentContainer();
+    
+    
+    FloatingTile::Iterator<PanelWithProcessorConnection> iter(parentContainer->getParentShell());
+    
+    while (auto p = iter.getNextPanel())
+    {
+        if (p == connector)
+            continue;
+        
+        if (p->getProcessorTypeId() != idToSearch)
+            continue;
+        
+        p->setContentWithUndo(connector->getProcessor(), 0);
+    }
+}
 

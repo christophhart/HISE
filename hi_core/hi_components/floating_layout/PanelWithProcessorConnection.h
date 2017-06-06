@@ -82,7 +82,7 @@ public:
 
 	void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override;
 
-	virtual void processorDeleted(Processor* deletedProcessor)
+	virtual void processorDeleted(Processor* /*deletedProcessor*/)
 	{
 		setContentWithUndo(nullptr, -1);
 	}
@@ -99,7 +99,7 @@ public:
 
 	template <class ContentType> ContentType* getContent() { return dynamic_cast<ContentType*>(content.get()); };
 
-	virtual void updateChildEditorList(bool forceUpdate) {}
+	virtual void updateChildEditorList(bool /*forceUpdate*/) {}
 
 	Processor* getProcessor() { return currentProcessor.get(); }
 	const Processor* getProcessor() const { return currentProcessor.get(); }
@@ -157,7 +157,7 @@ public:
 
 	virtual void fillModuleList(StringArray& moduleList) = 0;
 
-	virtual void fillIndexList(StringArray& indexList) {};
+	virtual void fillIndexList(StringArray& /*indexList*/) {};
 
 	virtual bool hasSubIndex() const { return false; }
 

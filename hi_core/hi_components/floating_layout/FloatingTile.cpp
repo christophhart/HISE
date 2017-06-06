@@ -38,6 +38,8 @@ FloatingTilePopup::FloatingTilePopup(Component* content_, Component* attachedCom
 	localPointInComponent(localPoint)
 {
 	
+	setColour((int)ColourIds::backgroundColourId, Colours::black.withAlpha(0.96f));
+
 	addAndMakeVisible(content);
 	addAndMakeVisible(closeButton = new ShapeButton("Close", Colours::white.withAlpha(0.5f), Colours::white.withAlpha(0.8f), Colours::white));
 
@@ -61,7 +63,7 @@ void FloatingTilePopup::paint(Graphics &g)
 {
 	
 
-	g.setColour(Colours::black.withAlpha(0.96f));
+	g.setColour(findColour((int)ColourIds::backgroundColourId));
 
 	if (arrowX > 0)
 	{
@@ -76,9 +78,9 @@ void FloatingTilePopup::paint(Graphics &g)
 
 		if (!arrowAtBottom)
 		{
-			p.lineTo(arrowX - 12.0f, yOff);
-			p.lineTo(arrowX, 0.0f);
-			p.lineTo(arrowX + 12.0f, yOff);
+			p.lineTo((float)arrowX - 12.0f, yOff);
+			p.lineTo((float)arrowX, 0.0f);
+			p.lineTo((float)arrowX + 12.0f, yOff);
 		}
 
 		
@@ -90,9 +92,9 @@ void FloatingTilePopup::paint(Graphics &g)
 
 		if (arrowAtBottom)
 		{
-			p.lineTo(arrowX + 12.0f, h);
-			p.lineTo(arrowX, (float)getHeight()-1.0f);
-			p.lineTo(arrowX - 12.0f, h);
+			p.lineTo((float)arrowX + 12.0f, h);
+			p.lineTo((float)arrowX, (float)getHeight()-1.0f);
+			p.lineTo((float)arrowX - 12.0f, h);
 		}
 
 		p.lineTo(arc + 1.0f, h);
@@ -121,7 +123,7 @@ void FloatingTilePopup::paint(Graphics &g)
 	{
 		g.setColour(Colours::white);
 		g.setFont(GLOBAL_BOLD_FONT());
-		g.drawText(content->getName(), 0, 12, getWidth(), 20, Justification::centred, false);
+		g.drawText(content->getName(), 0, 15, getWidth(), 20, Justification::centred, false);
 	}
 
 
@@ -134,9 +136,18 @@ void FloatingTilePopup::paint(Graphics &g)
 
 void FloatingTilePopup::resized()
 {
-	closeButton->setBounds(getWidth() - 21, 3, 18, 18);
+	closeButton->setBounds(getWidth() - 20, 3, 16, 18);
 
 	content->setBounds(6, 18 + 20, content->getWidth(), content->getHeight());
+}
+
+void FloatingTilePopup::deleteAndClose()
+{
+	if (attachedComponent.getComponent())
+		attachedComponent->removeComponentListener(this);
+
+	attachedComponent = nullptr;
+	updatePosition();
 }
 
 void FloatingTilePopup::componentMovedOrResized(Component& component, bool /*moved*/, bool wasResized)
@@ -171,11 +182,7 @@ void FloatingTilePopup::componentBeingDeleted(Component& component)
 
 void FloatingTilePopup::buttonClicked(Button* /*b*/)
 {
-	if(attachedComponent.getComponent())
-		attachedComponent->removeComponentListener(this);
-
-	attachedComponent = nullptr;
-	updatePosition();
+	deleteAndClose();
 }
 
 FloatingTilePopup::~FloatingTilePopup()
@@ -204,14 +211,14 @@ int FloatingTile::LayoutData::getNumDefaultableProperties() const
 	return LayoutDataIds::numProperties;
 }
 
-Identifier FloatingTile::LayoutData::getDefaultablePropertyId(int i) const
+Identifier FloatingTile::LayoutData::getDefaultablePropertyId(int index) const
 {
-	RETURN_DEFAULT_PROPERTY_ID(i, LayoutDataIds::ID, "ID");
-	RETURN_DEFAULT_PROPERTY_ID(i, LayoutDataIds::Size, "Size");
-	RETURN_DEFAULT_PROPERTY_ID(i, LayoutDataIds::Folded, "Folded");
-	RETURN_DEFAULT_PROPERTY_ID(i, LayoutDataIds::ForceFoldButton, "ForceFoldButton");
-	RETURN_DEFAULT_PROPERTY_ID(i, LayoutDataIds::Visible, "Visible");
-	RETURN_DEFAULT_PROPERTY_ID(i, LayoutDataIds::MinSize, "MinSize");
+	RETURN_DEFAULT_PROPERTY_ID(index, LayoutDataIds::ID, "ID");
+	RETURN_DEFAULT_PROPERTY_ID(index, LayoutDataIds::Size, "Size");
+	RETURN_DEFAULT_PROPERTY_ID(index, LayoutDataIds::Folded, "Folded");
+	RETURN_DEFAULT_PROPERTY_ID(index, LayoutDataIds::ForceFoldButton, "ForceFoldButton");
+	RETURN_DEFAULT_PROPERTY_ID(index, LayoutDataIds::Visible, "Visible");
+	RETURN_DEFAULT_PROPERTY_ID(index, LayoutDataIds::MinSize, "MinSize");
 
 	jassertfalse;
 
@@ -226,6 +233,7 @@ FloatingTile::CloseButton::CloseButton() :
 	setShape(p, false, true, true);
 
 	addListener(this);
+
 }
 
 void FloatingTile::CloseButton::buttonClicked(Button* )
@@ -287,8 +295,6 @@ void FloatingTile::MoveButton::buttonClicked(Button* )
 	if (ec->hasChildren())
 	{
 		PopupMenu containerTypes;
-
-		auto thisContainer = dynamic_cast<FloatingTabComponent*>(ec->getCurrentFloatingPanel());
 
 		bool isTabs = dynamic_cast<FloatingTabComponent*>(ec->getCurrentFloatingPanel()) != nullptr;
 		bool isHorizontal = dynamic_cast<HorizontalTile*>(ec->getCurrentFloatingPanel()) != nullptr;
@@ -434,6 +440,9 @@ bool FloatingTile::showTitle() const
 	if (isInTab && !isLayoutModeEnabled())
 		return false;
 
+	if (getLayoutData().mustShowFoldButton() && !isFolded())
+		return false;
+
 	if (isFolded())
 		return isInVerticalLayout();
 
@@ -482,9 +491,7 @@ void FloatingTile::setFolded(bool shouldBeFolded)
 	if (!canBeFolded())
 		return;
 
-	
-
-	layoutData.setFoldState(layoutData.isFolded() ? 0 : 1);
+	layoutData.setFoldState(shouldBeFolded ? 1 : 0);
 
 	refreshFoldButton();
 }
@@ -621,7 +628,7 @@ void FloatingTile::refreshRootLayout()
 	}
 }
 
-void FloatingTile::setLayoutModeEnabled(bool shouldBeEnabled, bool setChildrenToSameSetting/*=true*/)
+void FloatingTile::setLayoutModeEnabled(bool shouldBeEnabled)
 {
 	if (getParentType() == ParentType::Root)
 	{
@@ -710,6 +717,13 @@ void FloatingTile::swapWith(FloatingTile* otherComponent)
 
 void FloatingTile::bringButtonsToFront()
 {
+	if (getCurrentFloatingPanel())
+	{
+		closeButton->setTooltip("Delete " + getCurrentFloatingPanel()->getBestTitle());
+		resizeButton->setTooltip("Toggle absolute size for " + getCurrentFloatingPanel()->getBestTitle());
+		foldButton->setTooltip("Fold " + getCurrentFloatingPanel()->getBestTitle());
+	}
+
 	moveButton->toFront(false);
 	foldButton->toFront(false);
 	closeButton->toFront(false);
@@ -718,9 +732,24 @@ void FloatingTile::bringButtonsToFront()
 
 void FloatingTile::paint(Graphics& g)
 {
-	g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::ModulatorSynthBackgroundColourId));
+	if (getParentType() == ParentType::Root)
+	{
+		g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
+	}
+	else
+	{
+		g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::ModulatorSynthBackgroundColourId));
+	}
 
-	auto pt = getParentType();
+    if(getLayoutData().isFolded() && getParentType() == ParentType::Horizontal)
+    {
+        g.setColour(Colours::white.withAlpha(0.2f));
+        
+        Path p = getIcon();
+        p.scaleToFit(1.0f, 17.0f, 14.0f, 14.0f, true);
+        g.fillPath(p);
+    }
+    
 
 	if (showTitle())
 	{
@@ -762,6 +791,13 @@ void FloatingTile::paintOverChildren(Graphics& g)
 	}
 		
 
+    if(deleteHover)
+    {
+        g.fillAll(Colours::red.withAlpha(0.1f));
+        g.setColour(Colours::red.withAlpha(0.3f));
+        g.drawRect(getLocalBounds(), 1);
+    }
+    
 	if (currentSwapSource == this)
 		g.fillAll(Colours::white.withAlpha(0.1f));
 
@@ -932,24 +968,50 @@ void FloatingTile::editJSON()
 	showComponentInRootPopup(codeEditor, moveButton, moveButton->getLocalBounds().getCentre());
 }
 
-void FloatingTile::showComponentInRootPopup(Component* newComponent, Component* attachedComponent, Point<int> localPoint)
+FloatingTilePopup* FloatingTile::showComponentInRootPopup(Component* newComponent, Component* attachedComponent, Point<int> localPoint)
 {
 	if (getParentType() != ParentType::Root)
 	{
-		getRootComponent()->showComponentInRootPopup(newComponent, attachedComponent, localPoint);
+		return getRootComponent()->showComponentInRootPopup(newComponent, attachedComponent, localPoint);
 	}
 	else
 	{
 		if (newComponent != nullptr)
 		{
+			if (currentPopup != nullptr)
+				Desktop::getInstance().getAnimator().fadeOut(currentPopup, 150);
+
 			addAndMakeVisible(currentPopup = new FloatingTilePopup(newComponent, attachedComponent, localPoint));
 
+
 			currentPopup->updatePosition();
+
+			currentPopup->setVisible(false);
+
+			Desktop::getInstance().getAnimator().fadeIn(currentPopup, 150);
+
 		}
 		else
 		{
+			if(currentPopup != nullptr)
+				Desktop::getInstance().getAnimator().fadeOut(currentPopup, 150);
+
 			currentPopup = nullptr;
 		}
+
+		for (int i = 0; i < listeners.size(); i++)
+		{
+			if (listeners[i].get() != nullptr)
+			{
+				listeners[i]->popupChanged(newComponent);
+			}
+			else
+			{
+				listeners.remove(i--);
+			}
+		}
+
+		return currentPopup;
 	}
 }
 
@@ -972,9 +1034,7 @@ void FloatingTilePopup::updatePosition()
 		int desiredWidth = getWidth();
 		int desiredHeight = getHeight();
 
-		int distanceToTop = pointInRoot.getY();
 		int distanceToBottom = root->getHeight() - pointInRoot.getY();
-		int distanceToLeft = pointInRoot.getX();
 		int distanceToRight = root->getWidth() - pointInRoot.getX();
 
 		int xToUse = -1;
@@ -1042,8 +1102,17 @@ bool FloatingTile::isInVerticalLayout() const
 
 Path FloatingTile::getIcon() const
 {
-	auto index = getPanelFactory()->getOption(this);
+	if (hasChildren())
+	{
+		auto firstPanel = dynamic_cast<const FloatingTileContainer*>(getCurrentFloatingPanel())->getComponent(0);
 
+		if (firstPanel != nullptr)
+		{
+			return firstPanel->getIcon();
+		}
+	}
+
+	auto index = getPanelFactory()->getOption(this);
 	return getPanelFactory()->getPath(index);
 }
 
@@ -1220,6 +1289,9 @@ bool FloatingTile::LayoutHelpers::showPinButton(const FloatingTile* t)
 
 bool FloatingTile::LayoutHelpers::showFoldButton(const FloatingTile* t)
 {
+	if (t->getLayoutData().mustShowFoldButton())
+		return true;
+
 	if (!t->canBeFolded())
 		return false;
 

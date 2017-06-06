@@ -59,7 +59,7 @@ public:
 	void itemDragMove(const SourceDetails& dragSourceDetails) override;
 	void itemDropped(const SourceDetails& dragSourceDetails) override;
 
-	void moduleListChanged(Processor* changedProcessor, MainController::ProcessorChangeHandler::EventType type) override
+	void moduleListChanged(Processor* /*changedProcessor*/, MainController::ProcessorChangeHandler::EventType type) override
 	{
 		if (type == MainController::ProcessorChangeHandler::EventType::ProcessorRenamed ||
 			type == MainController::ProcessorChangeHandler::EventType::ProcessorColourChange ||

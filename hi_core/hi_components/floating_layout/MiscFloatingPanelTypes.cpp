@@ -114,8 +114,6 @@ void SliderPackPanel::resized()
 	{
 		int numSliders = sp->getNumSliders();
 
-		int width = getWidth();
-
 		int wPerSlider = getWidth() / numSliders;
 
 		int newWidth = numSliders * wPerSlider;
@@ -177,8 +175,6 @@ void VisibilityToggleBar::refreshButtons()
 
 void VisibilityToggleBar::resized()
 {
-	int x = 0;
-
 	auto c = dynamic_cast<ResizableFloatingTileContainer*>(getParentShell()->getParentContainer());
 
 	bool arrangeHorizontal = true;
@@ -190,7 +186,11 @@ void VisibilityToggleBar::resized()
 
 	buttonSize = jmin<int>(buttonSize, 40);
 
-	int offset = 0;
+	const int totalSize = arrangeHorizontal ? getWidth() : getHeight();
+
+	const int totalButtonSize = buttons.size() * buttonSize;
+
+	int offset = alignment == Justification::centred ? (totalSize-totalButtonSize)/2 :  0;
 
 	if (getParentShell()->getParentContainer())
 	{

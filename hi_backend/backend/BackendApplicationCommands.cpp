@@ -77,6 +77,10 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 {
 	const CommandID id[] = { 
 		Settings,
+		WorkspaceMain,
+		WorkspaceScript,
+		WorkspaceSampler,
+		WorkspaceCustom,
 		MenuNewFile,
 		MenuOpenFile,
 		MenuSaveFile,
@@ -188,6 +192,27 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Show Audio Device Settings (disabled for plugins)", false, bpe->currentDialog == nullptr, '8');
 #endif
 		break;
+
+	case WorkspaceMain:
+	{
+		setCommandTarget(result, "Show Main Workspace", true, bpe->getCurrentWorkspace() == WorkspaceMain, 'X', false);
+		break;
+	}
+	case WorkspaceScript:
+	{
+		setCommandTarget(result, "Show Scripting Workspace", true, bpe->getCurrentWorkspace() == WorkspaceScript, 'X', false);
+		break;
+	}
+	case WorkspaceSampler:
+	{
+		setCommandTarget(result, "Show Sampler Workspace", true, bpe->getCurrentWorkspace() == WorkspaceSampler, 'X', false);
+		break;
+	}
+	case WorkspaceCustom:
+	{
+		setCommandTarget(result, "Show Custom Workspace", true, bpe->getCurrentWorkspace() == WorkspaceCustom, 'X', false);
+		break;
+	}
 	case MenuNewFile:
 		setCommandTarget(result, "New File", true, false, 'N');
 		break;
@@ -461,6 +486,10 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	{
 	case HamburgerMenu:					Actions::showMainMenu(bpe);  return true;
 	case Settings:                      bpe->showSettingsWindow(); return true;
+	case WorkspaceMain:
+	case WorkspaceScript:
+	case WorkspaceSampler:
+	case WorkspaceCustom:				bpe->showWorkspace(info.commandID); updateCommands(); return true;
 	case MenuNewFile:                   if (PresetHandler::showYesNoWindow("New File", "Do you want to start a new preset?"))
                                             bpe->mainEditor->clearPreset(); return true;
 	case MenuOpenFile:                  Actions::openFile(bpe); return true;
@@ -521,7 +550,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
     case MenuViewFullscreen:            Actions::toggleFullscreen(bpe); updateCommands(); return true;
 	case MenuViewBack:					bpe->mainEditor->getViewUndoManager()->undo(); updateCommands(); return true;
 	case MenuViewForward:				bpe->mainEditor->getViewUndoManager()->redo(); updateCommands(); return true;
-	case MenuViewEnableGlobalLayoutMode: bpe->getRootFloatingTile()->setLayoutModeEnabled(!bpe->getRootFloatingTile()->isLayoutModeEnabled(), true); updateCommands(); return true;
+	case MenuViewEnableGlobalLayoutMode: bpe->getRootFloatingTile()->setLayoutModeEnabled(!bpe->getRootFloatingTile()->isLayoutModeEnabled()); updateCommands(); return true;
 	case MenuViewShowPluginPopupPreview: Actions::togglePluginPopupWindow(bpe); updateCommands(); return true;
     case MenuViewIncreaseCodeFontSize:  Actions::changeCodeFontSize(bpe, true); return true;
     case MenuViewDecreaseCodeFontSize:   Actions::changeCodeFontSize(bpe, false); return true;
@@ -779,7 +808,17 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 	case BackendCommandTarget::ViewMenu: {
 		ADD_ALL_PLATFORMS(MenuViewBack);
 		ADD_ALL_PLATFORMS(MenuViewForward);
+		
+
 		p.addSeparator();
+
+		ADD_ALL_PLATFORMS(WorkspaceMain);
+		ADD_ALL_PLATFORMS(WorkspaceScript);
+		ADD_ALL_PLATFORMS(WorkspaceSampler);
+		ADD_ALL_PLATFORMS(WorkspaceCustom);
+
+		p.addSeparator();
+
 		ADD_DESKTOP_ONLY(MenuViewEnableGlobalLayoutMode);
 		ADD_DESKTOP_ONLY(MenuViewFullscreen);
 		ADD_ALL_PLATFORMS(MenuViewShowSelectedProcessorInPopup);
@@ -1124,12 +1163,7 @@ void BackendCommandTarget::Actions::createBase64State(CopyPasteTarget* target)
 
 void BackendCommandTarget::Actions::createUserInterface(BackendRootWindow * bpe)
 {
-	auto c = new InterfaceCreator();
-
-	c->setModalBaseWindowComponent(bpe);
 	
-	c->grabKeyboardFocus();
-
 }
 
 void BackendCommandTarget::Actions::recompileAllScripts(BackendRootWindow * bpe)
@@ -1741,7 +1775,7 @@ void BackendCommandTarget::Actions::downloadNewProject(BackendRootWindow * bpe)
 	downloader->setModalBaseWindowComponent(bpe);
 }
 
-void BackendCommandTarget::Actions::showMainMenu(BackendRootWindow * bpe)
+void BackendCommandTarget::Actions::showMainMenu(BackendRootWindow * /*bpe*/)
 {
 #if 0
 	const int commandIDs[] = { MenuNewFile,

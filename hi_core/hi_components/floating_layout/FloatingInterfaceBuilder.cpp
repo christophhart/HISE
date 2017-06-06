@@ -163,7 +163,7 @@ void FloatingInterfaceBuilder::removeFirstChildOfNewContainer(FloatingTile* pane
 }
 
 
-FloatingTile* FloatingInterfaceBuilder::finalizeAndReturnRoot(bool isReadOnly)
+FloatingTile* FloatingInterfaceBuilder::finalizeAndReturnRoot()
 {
 	createdComponents.getFirst()->resized();
 

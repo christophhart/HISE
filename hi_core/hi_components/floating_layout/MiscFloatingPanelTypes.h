@@ -74,7 +74,8 @@ private:
 
 
 class EmptyComponent : public Component,
-					   public FloatingTileContent
+					   public FloatingTileContent,
+					   public juce::SettableTooltipClient
 {
 public:
 
@@ -84,6 +85,8 @@ public:
 		FloatingTileContent(p)
 	{
 		Random r;
+
+		setTooltip("Right click to create a Panel");
 
 		setInterceptsMouseClicks(false, true);
 
@@ -189,12 +192,12 @@ public:
 
 	int getNumColourIds() const { return numColourIds; }
 
-	Identifier getColourId(int colourId) const 
+	Identifier getColourId(int /*colourId*/) const 
 	{
 		RETURN_STATIC_IDENTIFIER("backgroundColour");
 	}
 
-	Colour getDefaultColour(int colourId) const { return HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourId); }
+	Colour getDefaultColour(int /*colourId*/) const { return HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourId); }
 
 	void resized() override;
 
@@ -238,6 +241,8 @@ private:
 
 		Component::SafePointer<FloatingTile> controlledTile;
 	};
+
+	Justification alignment = Justification::centred;
 
 	Component::SafePointer<Component> controlledContainer;
 
@@ -293,9 +298,9 @@ public:
 
 	int getNumColourIds() const { return numColourIds; }
 
-	Identifier getColourId(int colourId) const { RETURN_STATIC_IDENTIFIER("backgroundColour"); }
+	Identifier getColourId(int /*colourId*/) const { RETURN_STATIC_IDENTIFIER("backgroundColour"); }
 
-	Colour getDefaultColour(int colourId) const { return Colours::transparentBlack; }
+	Colour getDefaultColour(int /*colourId*/) const { return Colours::transparentBlack; }
 
 	int getFixedHeight() const override { return 72; }
 
@@ -383,7 +388,7 @@ public:
 
 	SET_PANEL_NAME("SliderPackEditor");
 
-	Component* createContentComponent(int index) override
+	Component* createContentComponent(int /*index*/) override
 	{
 		auto p = dynamic_cast<SliderPackProcessor*>(getProcessor());
 
@@ -406,7 +411,7 @@ public:
 	
 };
 
-#define SET_GENERIC_PANEL_ID(x) static Identifier getGenericPanelId() { static const Identifier id(x); return x;}
+
 
 template <class ContentType> class GenericPanel : public Component,
 										   public FloatingTileContent
@@ -429,6 +434,8 @@ public:
 	{
 		component = nullptr;
 	}
+
+	ContentType* getContentFromGenericPanel() { return component; }
 
 	void resized() override
 	{

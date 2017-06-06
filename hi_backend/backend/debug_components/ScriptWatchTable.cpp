@@ -211,7 +211,7 @@ void ScriptWatchTable::refreshChangeStatus()
 };
 
 
-void ScriptWatchTable::mouseDoubleClick(const MouseEvent &e)
+void ScriptWatchTable::mouseDoubleClick(const MouseEvent &)
 {
 	if (processor.get() != nullptr)
 	{
@@ -219,8 +219,6 @@ void ScriptWatchTable::mouseDoubleClick(const MouseEvent &e)
 
 		if (info != nullptr)
 		{
-			DebugableObject *db = info->getObject();
-
 			auto editor = dynamic_cast<JavascriptCodeEditor*>(processor->getMainController()->getLastActiveEditor());
 
 			if (editor == nullptr)
@@ -229,6 +227,18 @@ void ScriptWatchTable::mouseDoubleClick(const MouseEvent &e)
 			if (auto editorPanel = editor->findParentComponentOfClass<CodeEditorPanel>())
 			{
 				editorPanel->gotoLocation(processor, info->location.fileName, info->location.charNumber);
+			}
+			else if (info->location.fileName.isNotEmpty())
+			{
+				auto jsp = dynamic_cast<JavascriptProcessor*>(processor.get());
+
+				File f(info->location.fileName);
+
+				jsp->showPopupForFile(f, info->location.charNumber);
+			}
+			else if (auto scriptEditor = editor->findParentComponentOfClass<ScriptingEditor>())
+			{
+				scriptEditor->gotoLocation(info);
 			}
 
 #if 0
@@ -294,7 +304,7 @@ DebugInformation* ScriptWatchTable::getDebugInformationForRow(int rowIndex)
 	}
 }
 
-void ScriptWatchTable::setScriptProcessor(JavascriptProcessor *p, ScriptingEditor *editor_)
+void ScriptWatchTable::setScriptProcessor(JavascriptProcessor *p, ScriptingEditor* /*editor*/)
 {
 	processor = dynamic_cast<Processor*>(p);
 	
@@ -961,11 +971,11 @@ void ScriptComponentEditPanel::HiFilePropertyComponent::refresh()
 		
 void ScriptComponentEditPanel::HiFilePropertyComponent::buttonClicked(Button *)
 {
-	FileChooser fc("Load File", GET_PROJECT_HANDLER(findParentComponentOfClass<BackendProcessorEditor>()->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Images));
+	FileChooser fc("Load File", GET_PROJECT_HANDLER(findParentComponentOfClass<BackendRootWindow>()->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Images));
 
 	if(fc.browseForFileToOpen())
 	{
-		currentFile = GET_PROJECT_HANDLER(findParentComponentOfClass<BackendProcessorEditor>()->getMainSynthChain()).getFileReference(fc.getResult().getFullPathName(), ProjectHandler::SubDirectories::Images);
+		currentFile = GET_PROJECT_HANDLER(findParentComponentOfClass<BackendRootWindow>()->getMainSynthChain()).getFileReference(fc.getResult().getFullPathName(), ProjectHandler::SubDirectories::Images);
 
 		component.box.addItem(currentFile, component.box.getNumItems()+1);
 	}
@@ -977,7 +987,7 @@ void ScriptComponentEditPanel::HiFilePropertyComponent::comboBoxChanged(ComboBox
 {
     const String fileName = component.box.getItemText(component.box.getSelectedItemIndex());
     
-	currentFile = GET_PROJECT_HANDLER(findParentComponentOfClass<BackendProcessorEditor>()->getMainSynthChain()).getFileReference(fileName, ProjectHandler::SubDirectories::Images);
+	currentFile = GET_PROJECT_HANDLER(findParentComponentOfClass<BackendRootWindow>()->getMainSynthChain()).getFileReference(fileName, ProjectHandler::SubDirectories::Images);
     
 	sendSynchronousChangeMessage();
 }

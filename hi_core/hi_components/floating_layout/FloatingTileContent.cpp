@@ -42,7 +42,7 @@ FloatingFlexBoxWindow::FloatingFlexBoxWindow() :
 	centreWithSize(1500, 1000);
 
 	auto fsc = dynamic_cast<FloatingTile*>(getContentComponent());
-	fsc->setLayoutModeEnabled(false, true);
+	fsc->setLayoutModeEnabled(false);
 	
 	FloatingInterfaceBuilder ib(fsc);
 
@@ -97,12 +97,12 @@ void FloatingFlexBoxWindow::closeButtonPressed()
 	delete this;
 }
 
-Identifier FloatingTileContent::getDefaultablePropertyId(int i) const
+Identifier FloatingTileContent::getDefaultablePropertyId(int index) const
 {
-	RETURN_DEFAULT_PROPERTY_ID(i, PanelPropertyId::Type, "Type");
-	RETURN_DEFAULT_PROPERTY_ID(i, PanelPropertyId::Title, "Title");
-	RETURN_DEFAULT_PROPERTY_ID(i, PanelPropertyId::StyleData, "StyleData");
-	RETURN_DEFAULT_PROPERTY_ID(i, PanelPropertyId::LayoutData, "LayoutData");
+	RETURN_DEFAULT_PROPERTY_ID(index, PanelPropertyId::Type, "Type");
+	RETURN_DEFAULT_PROPERTY_ID(index, PanelPropertyId::Title, "Title");
+	RETURN_DEFAULT_PROPERTY_ID(index, PanelPropertyId::StyleData, "StyleData");
+	RETURN_DEFAULT_PROPERTY_ID(index, PanelPropertyId::LayoutData, "LayoutData");
 
 	jassertfalse;
 
@@ -189,9 +189,9 @@ FloatingTileContent* FloatingTileContent::createPanel(const var& data, FloatingT
 	else
 	{
 		jassertfalse;
-	}
 
-	
+		return new EmptyComponent(parent);
+	}
 }
 
 

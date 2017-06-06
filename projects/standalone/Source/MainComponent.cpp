@@ -53,41 +53,18 @@ void FloatingTile::swapContainerType(const Identifier& containerId)
 		{
 			var c = list->getUnchecked(i);
 
-			var layoutData = c.getDynamicObject()->getProperty("LayoutData");
+			var layoutDataObj = c.getDynamicObject()->getProperty("LayoutData");
 
-			layoutData.getDynamicObject()->setProperty("Size", -0.5);
+			layoutDataObj.getDynamicObject()->setProperty("Size", -0.5);
 		}
 	}
 	
 	setContent(v);
 }
 
-
-
-struct DebugPanelLookAndFeel : public ResizableFloatingTileContainer::LookAndFeel
+Component* FloatingPanelTemplates::createHiseLayout(FloatingTile* rootTile)
 {
-	void paintBackground(Graphics& g, ResizableFloatingTileContainer& container) override
-	{
-		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff373737)));
-		g.fillRect(container.getContainerBounds());
-
-		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff2c2c2c)));
-
-		//g.drawVerticalLine(0, 0.0f, (float)container.getHeight());
-
-		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff5f5f5f)));
-
-		//g.drawVerticalLine(container.getWidth() - 1, 0.0f, (float)container.getHeight());
-	}
-};
-
-Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
-{
-	MainController* mc = rootTile->findParentComponentOfClass<BackendRootWindow>()->getBackendProcessor();
-
-	jassert(mc != nullptr);
-
-	rootTile->setLayoutModeEnabled(false, true);
+	rootTile->setLayoutModeEnabled(false);
 
 	FloatingInterfaceBuilder ib(rootTile);
 
@@ -99,15 +76,70 @@ Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 
 	ib.getContainer(root)->setIsDynamic(false);
 
-	const int tabs = ib.addChild<FloatingTabComponent>(root);
-	ib.getContainer(tabs)->setIsDynamic(true);
+	const int personaContainer = ib.addChild<VerticalTile>(root);
+	ib.getContainer(personaContainer)->setIsDynamic(true);
 
-	ib.setSizes(root, { 32.0, -1.0 });
 	
-	ib.setFoldable(root, false, { false, false });
-	ib.setId(tabs, "MainWorkspaceTabs");
 
-	const int firstVertical = ib.addChild<VerticalTile>(tabs);
+	ib.setFoldable(root, false, { true, false });
+	ib.setId(personaContainer, "PersonaContainer");
+
+	ib.getContent(root)->setStyleColour(ResizableFloatingTileContainer::ColourIds::backgroundColourId,
+		HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
+
+	auto mainPanel = createMainPanel(ib.getPanel(personaContainer));
+
+	ib.getContainer(personaContainer)->setIsDynamic(false);
+
+	
+	
+	
+	File scriptJSON = File(PresetHandler::getDataFolder()).getChildFile("Workspaces/ScriptingWorkspace.json");
+	File sampleJSON = File(PresetHandler::getDataFolder()).getChildFile("Workspaces/SamplerWorkspace.json");
+
+	var scriptData = JSON::parse(scriptJSON.loadFileAsString());
+	var sampleData = JSON::parse(sampleJSON.loadFileAsString());
+	
+	auto scriptPanel = ib.addChild < EmptyComponent>(personaContainer);
+
+	ib.getPanel(scriptPanel)->setContent(scriptData);
+
+	jassert(!ib.getPanel(scriptPanel)->isEmpty());
+
+	ib.getPanel(scriptPanel)->getLayoutData().setId("ScriptingWorkspace");
+
+	auto samplePanel = ib.addChild < EmptyComponent>(personaContainer);
+
+	ib.getPanel(samplePanel)->setContent(sampleData);
+	ib.getPanel(samplePanel)->getLayoutData().setId("SamplerWorkspace");
+
+	jassert(!ib.getPanel(samplePanel)->isEmpty());
+
+	const int customPanel = ib.addChild<HorizontalTile>(personaContainer);
+	ib.getContent(customPanel)->setCustomTitle("Custom Workspace");
+	ib.getPanel(customPanel)->getLayoutData().setId("CustomWorkspace");
+	ib.getContainer(customPanel)->setIsDynamic(true);
+	ib.addChild<EmptyComponent>(customPanel);
+
+	return mainPanel;
+}
+
+
+
+
+
+Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
+{
+	MainController* mc = rootTile->findParentComponentOfClass<BackendRootWindow>()->getBackendProcessor();
+
+	jassert(mc != nullptr);
+
+
+	FloatingInterfaceBuilder ib(rootTile);
+
+	const int personaContainer = 0;
+
+	const int firstVertical = ib.addChild<VerticalTile>(personaContainer);
 
 	ib.getContainer(firstVertical)->setIsDynamic(false);
 	ib.getPanel(firstVertical)->setVital(true);
@@ -119,8 +151,6 @@ Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 	const int leftColumn = ib.addChild<HorizontalTile>(firstVertical);
 	const int mainColumn = ib.addChild<HorizontalTile>(firstVertical);
 	const int rightColumn = ib.addChild<HorizontalTile>(firstVertical);
-
-	
 
 	ib.getContainer(leftColumn)->setIsDynamic(true);
 	ib.getContainer(mainColumn)->setIsDynamic(false);
@@ -141,7 +171,13 @@ Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 	ib.setId(rightColumn, "MainRightColumn");
 
 	const int rightToolBar = ib.addChild<VisibilityToggleBar>(rightColumn);
-	
+	ib.getPanel(rightToolBar)->getLayoutData().setCurrentSize(28);
+	ib.getContent(rightToolBar)->setStyleColour(VisibilityToggleBar::ColourIds::backgroundColour, Colour(0xFF222222));
+
+	const int macroTable = ib.addChild<GenericPanel<MacroParameterTable>>(rightColumn);
+	ib.getPanel(macroTable)->setCloseTogglesVisibility(true);
+	ib.setId(macroTable, "MainMacroTable");
+
 	const int scriptWatchTable = ib.addChild<ScriptWatchTablePanel>(rightColumn);
 	ib.getPanel(scriptWatchTable)->setCloseTogglesVisibility(true);
 
@@ -156,14 +192,13 @@ Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 	mc->getConsoleHandler().setMainConsole(ib.getContent<ConsolePanel>(console)->getConsole());
 	ib.getPanel(console)->setCloseTogglesVisibility(true);
 
-	ib.setVisibility(rightColumn, true, { true, false, false, false, false});
+	ib.setVisibility(rightColumn, true, { true, false, false, false, false, false});
 
 	
 	
 
 
-	ib.getContent(root)->setStyleColour(ResizableFloatingTileContainer::ColourIds::backgroundColourId, 
-									    HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourId));
+	
 
 	ib.setSizes(firstVertical, { -0.5, 900.0, -0.5 }, dontSendNotification);
 	
@@ -176,9 +211,12 @@ Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 	ib.getContent(keyboard)->setStyleColour(ResizableFloatingTileContainer::ColourIds::backgroundColourId,
 											HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
 
-	ib.setFoldable(mainColumn, false, { false, false });
+	ib.setFoldable(mainColumn, true, { false, true });
+	ib.getPanel(mainColumn)->getLayoutData().setForceFoldButton(true);
+	ib.getPanel(keyboard)->getLayoutData().setForceFoldButton(true);
+	ib.getPanel(keyboard)->resized();
 
-	ib.setCustomName(firstVertical, "Main Workspace", { "Left Panel", "", "Right Panel" });
+	ib.setCustomName(firstVertical, "", { "Left Panel", "", "Right Panel" });
 
 	ib.setNewContentType<MainPanel>(mainArea);
 	ib.getPanel(mainArea)->getLayoutData().setId("MainColumn");
@@ -186,7 +224,7 @@ Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 
 	ib.getContent<VisibilityToggleBar>(rightToolBar)->refreshButtons();
 
-	ib.finalizeAndReturnRoot(true);
+	ib.finalizeAndReturnRoot();
 
 	jassert(BackendPanelHelpers::getMainTabComponent(rootTile) != nullptr);
 	jassert(BackendPanelHelpers::getMainLeftColumn(rootTile) != nullptr);

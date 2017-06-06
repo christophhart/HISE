@@ -53,7 +53,7 @@
       "Dynamic": false,
       "Content": [
         {
-          "Type": "GlobalConnectorPanel",
+          "Type": "GlobalConnectorModulatorSampler",
           "StyleData": {
           },
           "LayoutData": {

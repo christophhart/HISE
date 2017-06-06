@@ -278,7 +278,7 @@ public:
 
 	int getBodyHeight() const override;;
 
-    
+	void gotoLocation(DebugInformation* info);
 
     void paint (Graphics& g);
     void resized();

@@ -100,6 +100,7 @@ public:
 				return getDefaultProperty(id);
 		}
 
+		return {};
 	}
 };
 
@@ -309,7 +310,10 @@ public:
 			VerticalTile,
 			Tabs,
 			Note,
+			MacroControls,
+			MacroTable,
 			MidiKeyboard,
+			PresetBrowser,
 			SampleConnector,
 			SampleEditor,
 			SampleMapEditor,
@@ -327,6 +331,8 @@ public:
 			ModuleBrowser,
 			PatchBrowser,
 			FileBrowser,
+			ImageTable,
+			AudioFileTable,
 			SamplePoolTable,
 			Matrix2x2,
 			ThreeColumns,
@@ -357,7 +363,11 @@ public:
 			const int index = ids.indexOf(id);
 
 			if (index != -1) return functions[index](parent);
-			else			 return nullptr;
+			else
+			{
+				jassertfalse;
+				return functions[0](parent);
+			}
 		}
 
 		PopupMenuOptions getOption(const FloatingTile* t) const;
@@ -371,7 +381,7 @@ public:
 
 		Drawable* getIcon(PopupMenuOptions type) const;
 
-		Path getPath(PopupMenuOptions path) const;
+		static Path getPath(PopupMenuOptions path);
 
 		void addToPopupMenu(PopupMenu& m, PopupMenuOptions type, const String& name, bool isEnabled=true, bool isTicked=false);
 
@@ -432,10 +442,10 @@ public:
 	virtual int getNumColourIds() const { return 0; }
 
 	/** If your panel uses custom colours, overwrite this method and return the colour identifier. */
-	virtual Identifier getColourId(int colourId) const { return Identifier(); }
+	virtual Identifier getColourId(int /*colourId*/) const { return Identifier(); }
 
 	/** If your panel uses colours, overwrite this method and return the default colour. */
-	virtual Colour getDefaultColour(int colourId) const { return Colours::transparentBlack; }
+	virtual Colour getDefaultColour(int /*colourId*/) const { return Colours::transparentBlack; }
 
 	/** Call this in your subclass constructor when using custom colours. */
 	void initColours()
@@ -483,6 +493,8 @@ public:
 
 struct FloatingPanelTemplates
 {
+	static Component* createHiseLayout(FloatingTile* root);
+
 	static Component* createMainPanel(FloatingTile* root);
 
 	static void create2x2Matrix(FloatingTile* parent);

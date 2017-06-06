@@ -64,6 +64,96 @@ void MacroComponent::addSynthChainToPopup(ModulatorSynthChain *parent, PopupMenu
 	}
 }
 
+MacroComponent::MacroComponent(BackendRootWindow* rootWindow_) :
+	rootWindow(rootWindow_),
+	processor(rootWindow_->getBackendProcessor()),
+	synthChain(processor->getMainSynthChain())
+{
+	setName("Macro Controls");
+
+	synthChain->addChangeListener(this);
+
+	mlaf = new MacroKnobLookAndFeel();
+
+	for (int i = 0; i < 8; i++)
+	{
+		Slider *s = new Slider();
+		s->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
+		s->setName(synthChain->getMacroControlData(i)->getMacroName());
+		s->setRange(0.0, 127.0, 1.0);
+		//s->setTextBoxStyle(Slider::TextBoxRight, true, 50, 20);
+		s->setTextBoxStyle(Slider::NoTextBox, false, 0, 0);
+		s->setLookAndFeel(mlaf);
+		s->setValue(0.0, dontSendNotification);
+
+		macroKnobs.add(s);
+		addAndMakeVisible(s);
+		s->setTextBoxIsEditable(false);
+		s->addMouseListener(this, true);
+		s->addListener(this);
+
+		ShapeButton *t = new ShapeButton("", Colours::white.withAlpha(0.1f), Colours::white.withAlpha(0.7f), Colours::white);
+
+		static const unsigned char pathData[] = { 110,109,173,14,46,68,22,127,139,67,98,173,190,50,68,22,223,148,67,177,188,50,68,34,17,164,67,173,14,46,68,34,113,173,67,108,173,102,40,68,34,193,184,67,108,177,108,23,68,22,207,150,67,108,177,20,29,68,22,127,139,67,98,161,196,33,68,34,33,130,67,173,94,
+		41,68,22,31,130,67,173,14,46,68,22,127,139,67,99,109,65,105,178,67,152,161,9,68,108,77,27,167,67,152,65,32,68,108,77,91,212,67,152,153,26,68,108,173,190,34,68,36,17,196,67,108,177,196,17,68,24,31,162,67,108,65,105,178,67,152,161,9,68,99,109,164,146,17,
+		68,32,11,253,67,108,164,146,17,68,148,59,50,68,108,72,37,131,67,148,59,50,68,108,72,37,131,67,40,119,196,67,108,60,147,234,67,40,119,196,67,108,152,72,5,68,40,119,164,67,108,146,74,70,67,40,119,164,67,108,146,74,70,67,148,59,66,68,108,164,146,33,68,148,
+		59,66,68,108,164,146,33,68,20,9,221,67,108,164,146,17,68,32,11,253,67,99,101,0,0 };
+
+		Path path;
+		path.loadPathFromData(pathData, sizeof(pathData));
+
+
+		t->setShape(path, false, false, false);
+
+
+
+		t->addListener(this);
+
+		/*TextButton *t = new TextButton();
+		t->setButtonText("Edit Macro " + String(i +1));
+		t->setConnectedEdges (Button::ConnectedOnLeft | Button::ConnectedOnRight);
+
+		t->setColour (TextButton::buttonColourId, Colour (0x884b4b4b));
+		t->setColour (TextButton::buttonOnColourId, Colour (0xff680000));
+		t->setColour (TextButton::textColourOnId, Colour (0xaaffffff));
+		t->setColour (TextButton::textColourOffId, Colour (0x99ffffff));*/
+		t->setTooltip("Show Edit Panel for Macro " + String(i + 1));
+		t->setClickingTogglesState(true);
+
+		editButtons.add(t);
+		addAndMakeVisible(t);
+
+
+		Label *l = new Label("", synthChain->getMacroControlData(i)->getMacroName());
+
+		l->setFont(GLOBAL_BOLD_FONT());
+		l->setJustificationType(Justification::centred);
+		l->setEditable(false, true, false);
+		l->setColour(Label::backgroundColourId, Colours::black.withAlpha(0.1f));
+		l->setColour(Label::outlineColourId, Colour(0x2b000000));
+		l->setColour(Label::ColourIds::textColourId, Colours::white.withAlpha(0.8f));
+		l->setColour(Label::ColourIds::backgroundWhenEditingColourId, Colours::white.withAlpha(0.8f));
+		l->setColour(TextEditor::ColourIds::highlightColourId, Colour(SIGNAL_COLOUR).withAlpha(0.4f));
+		l->setColour(TextEditor::backgroundColourId, Colour(0x00000000));
+		l->addListener(this);
+
+		macroNames.add(l);
+		addAndMakeVisible(l);
+
+
+
+	}
+
+	changeListenerCallback(synthChain);
+}
+
+MacroComponent::~MacroComponent()
+{
+	processor->getMacroManager().setMacroControlLearnMode(processor->getMainSynthChain(), -1);
+
+	if (synthChain != nullptr) synthChain->removeChangeListener(this);
+}
+
 void MacroComponent::mouseDown(const MouseEvent &e)
 {
 	if(e.mods.isRightButtonDown() && dynamic_cast<Slider*>(e.eventComponent) != nullptr)
@@ -161,9 +251,9 @@ void MacroComponent::buttonClicked(Button *b)
 	{
 		macroKnobs[i]->setEnabled(!b->getToggleState());
 
+		macroNames[i]->setColour(Label::ColourIds::outlineColourId, Colour(0x2b000000));
 
-		editButtons[i]->setColours(Colours::black.withAlpha(0.5f), Colours::black.withAlpha(0.7f), Colour(SIGNAL_COLOUR));
-
+		editButtons[i]->setColours(Colours::white.withAlpha(0.2f), Colours::white.withAlpha(0.7f), Colours::white);
 	}
 
 	if(b->getToggleState())
@@ -178,42 +268,34 @@ void MacroComponent::buttonClicked(Button *b)
 			{
 				checkActiveButtons();
 
-				macroNames[i]->setColour(Label::ColourIds::backgroundColourId, Colour(SIGNAL_COLOUR).withAlpha(0.5f));
-					
-
+				macroNames[i]->setColour(Label::ColourIds::outlineColourId, Colour(SIGNAL_COLOUR).withAlpha(0.8f));
+				
 				processor->getMacroManager().setMacroControlLearnMode(processor->getMainSynthChain(), i);
 
-				if(table.getComponent() != nullptr)
-				{
-					table->showComponentInDebugArea(true);
-
-					table.getComponent()->setMacroController(processor->getMainSynthChain()->getMacroControlData(i));
-
-				}
-
-				
 			}
-
 		}
 	}
 
 	else
 	{
-		
 		checkActiveButtons();
 
 		processor->getMacroManager().setMacroControlLearnMode(processor->getMainSynthChain(), -1);
-		
-		if(table.getComponent() != nullptr)
-		{
-			
-			table->showComponentInDebugArea(false);
+	}
 
-			table.getComponent()->setMacroController(nullptr);
+	auto root = findParentComponentOfClass<BackendRootWindow>()->getRootFloatingTile();
 
-		}
+	auto table = BackendPanelHelpers::toggleVisibilityForRightColumnPanel<GenericPanel<MacroParameterTable>>(root, b->getToggleState());
+	
+	if (b->getToggleState())
+	{
+		const int index = editButtons.indexOf(dynamic_cast<ShapeButton*>(b));
 
-
+		table->getContentFromGenericPanel()->setMacroController(processor->getMainSynthChain()->getMacroControlData(index));
+	}
+	else
+	{
+		table->getContentFromGenericPanel()->setMacroController(nullptr);
 	}
 
 	
@@ -223,10 +305,11 @@ void MacroComponent::buttonClicked(Button *b)
 
 void MacroComponent::changeListenerCallback(SafeChangeBroadcaster *)
 {
+	
 
-	if(table.getComponent() != nullptr)
+	if(auto table = getMainTable())
 	{
-		table.getComponent()->updateContent();
+		table->updateContent();
 	}
 
 	for(int i = 0; i < macroKnobs.size(); i++)
@@ -237,6 +320,50 @@ void MacroComponent::changeListenerCallback(SafeChangeBroadcaster *)
 	checkActiveButtons();
 }
 
+
+MacroParameterTable* MacroComponent::getMainTable()
+{
+	auto table = FloatingTileHelpers::findTileWithId<GenericPanel<MacroParameterTable>>(rootWindow->getRootFloatingTile(), "MainMacroTable");
+
+	if (table != nullptr)
+		return table->getContentFromGenericPanel();
+	else
+		jassertfalse;
+
+	return nullptr;
+}
+
+void MacroComponent::resized()
+{
+	if (getWidth() <= 0)
+		return;
+
+	const int macroAmount = macroKnobs.size();
+
+	int widthPerMacroControl = 90;
+
+	int heightPerMacroControl = 90;
+
+	int macrosPerRow = jmax<int>(1, getWidth() / widthPerMacroControl);
+
+	int rows = macroAmount / macrosPerRow;
+
+	for (int i = 0; i < macroAmount; i++)
+	{
+
+		const int columnIndex = i % macrosPerRow;
+		const int rowIndex = i / macrosPerRow;
+
+		const int x = columnIndex * widthPerMacroControl;
+		const int y = rowIndex * heightPerMacroControl;
+
+		macroKnobs[i]->setBounds(x + 21, y, 48, 48);
+		macroNames[i]->setBounds(x + 1, y + 54, widthPerMacroControl - 26, 20);
+		editButtons[i]->setBounds(macroNames[i]->getRight() + 2, y + 54, 20, 20);
+	}
+
+	checkActiveButtons();
+}
 
 CachedViewport::CachedViewport()
 {

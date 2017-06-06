@@ -310,8 +310,6 @@ BaseDebugArea(editor)
 	
 	mainEditor->getBackendProcessor()->setPlotter(plotter);
 
-	macroTable = new MacroParameterTable(this);
-
 	
 
 	mainEditor->getBackendProcessor()->setScriptWatchTable(scriptWatchTable);

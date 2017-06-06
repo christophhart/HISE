@@ -202,7 +202,7 @@ void ScriptEditHandler::changePositionOfComponent(ScriptingApi::Content::ScriptC
 void ScriptEditHandler::compileScript()
 {
 	ProcessorWithScriptingContent *s = dynamic_cast<ProcessorWithScriptingContent*>(getScriptEditHandlerProcessor());
-	JavascriptProcessor* jsp = getScriptEditHandlerProcessor();
+	
 	Processor* p = dynamic_cast<Processor*>(getScriptEditHandlerProcessor());
 	Component* thisAsComponent = dynamic_cast<Component*>(this);
 

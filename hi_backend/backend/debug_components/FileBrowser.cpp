@@ -474,11 +474,9 @@ void FileBrowser::mouseDown(const MouseEvent& e)
 		}
 
 		fileTreeComponent->setDragAndDropDescription(sa.joinIntoString(";"));
-
 	}
     else
     {
-        
         PopupMenu m;
         
         m.setLookAndFeel(&plaf);
@@ -508,7 +506,7 @@ void FileBrowser::mouseDoubleClick(const MouseEvent& )
 {
 	File newRoot = fileTreeComponent->getSelectedFile();
 
-    BackendProcessorEditor *editor = findParentComponentOfClass<BackendProcessorEditor>();
+    auto *rootWindow = findParentComponentOfClass<BackendRootWindow>();
     
 	if (newRoot.isDirectory())
 	{
@@ -520,13 +518,13 @@ void FileBrowser::mouseDoubleClick(const MouseEvent& )
 	}
 	else if (newRoot.getFileExtension() == ".hip")
 	{
-		editor->loadNewContainer(newRoot);
+		rootWindow->getMainPanel()->loadNewContainer(newRoot);
 	}
     else if (newRoot.getFileExtension() == ".js")
     {
         // First look if the script is already used
         
-        Processor::Iterator<JavascriptProcessor> iter(editor->getMainSynthChain());
+        Processor::Iterator<JavascriptProcessor> iter(rootWindow->getMainSynthChain());
         
         while (JavascriptProcessor *sp = iter.getNextProcessor())
         {
@@ -542,11 +540,9 @@ void FileBrowser::mouseDoubleClick(const MouseEvent& )
     }
     else if ((ImageFileFormat::findImageFormatForFileExtension(newRoot) != nullptr) || (newRoot.getFileExtension() == ".ttf"))
     {
-
+        const String reference = GET_PROJECT_HANDLER(rootWindow->getMainSynthChain()).getFileReference(newRoot.getFullPathName(), ProjectHandler::SubDirectories::Images);
         
-        const String reference = GET_PROJECT_HANDLER(editor->getMainSynthChain()).getFileReference(newRoot.getFullPathName(), ProjectHandler::SubDirectories::Images);
-        
-        editor->getMainSynthChain()->getMainController()->insertStringAtLastActiveEditor("\"" + reference + "\"", false);
+        rootWindow->getMainSynthChain()->getMainController()->insertStringAtLastActiveEditor("\"" + reference + "\"", false);
     }
 }
 

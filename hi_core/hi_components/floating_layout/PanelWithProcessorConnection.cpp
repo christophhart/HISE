@@ -84,7 +84,7 @@ void PanelWithProcessorConnection::paint(Graphics& g)
 
 		Path p;
 		p.loadPathFromData(ColumnIcons::connectionIcon, sizeof(ColumnIcons::connectionIcon));
-		p.scaleToFit(2.0, (float)bounds.getY() + 2.0, 14.0, 14.0, true);
+		p.scaleToFit(2.0, (float)bounds.getY() + 2.0f, 14.0f, 14.0f, true);
 		g.fillPath(p);
 	}
 	

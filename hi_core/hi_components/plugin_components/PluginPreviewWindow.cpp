@@ -62,6 +62,10 @@ editor(editor_),
 mainSynthChain(editor->getMainSynthChain())
 {
 
+	setName("Interface Preview");
+
+	setOpaque(true);
+
 	addAndMakeVisible(container = new ScriptContentContainer(mainSynthChain));
 	addAndMakeVisible(frontendBar = new DefaultFrontendBar(editor->getBackendProcessor()));
 
@@ -90,7 +94,7 @@ mainSynthChain(editor->getMainSynthChain())
 	setSize(container->getContentWidth(), container->getContentHeight());
 #else
     
-    setSize(container->getContentWidth() + xDelta, container->getContentHeight() + (frontendBar->isOverlaying() ? 0 : frontendBar->getHeight()) + (showKeyboard ? (45 + xDelta) : -25));
+    setSize(container->getContentWidth() + xDelta, container->getContentHeight() + (frontendBar->isOverlaying() ? 0 : frontendBar->getHeight()) + (showKeyboard ? (72 + xDelta) : 0));
 #endif
 }
 

@@ -69,7 +69,8 @@ private:
 	ScopedPointer<JavascriptTokeniser> tokeniser;
 };
 
-class ScriptContentPanel : public PanelWithProcessorConnection
+class ScriptContentPanel : public PanelWithProcessorConnection,
+						   public GlobalScriptCompileListener
 {
 public:
 
@@ -91,14 +92,24 @@ public:
 		ScopedPointer<Viewport> viewport;
 	};
 
+	void scriptWasCompiled(JavascriptProcessor *processor) override;
 
 	ScriptContentPanel(FloatingTile* parent) :
 		PanelWithProcessorConnection(parent)
 	{};
 
+	
 	SET_PANEL_NAME("ScriptContent");
 
 	Identifier getProcessorTypeId() const override;
+
+	void contentChanged() override
+	{
+		if (getProcessor() != nullptr)
+		{
+			getProcessor()->getMainController()->addScriptListener(this, false);
+		}
+	}
 
 	Component* createContentComponent(int /*index*/) override;
 
@@ -140,6 +151,17 @@ private:
 
 };
 
+class ConnectorHelpers
+{
+public:
+    
+    static void tut(PanelWithProcessorConnection* connector, const Identifier &idToSearch);
+    
+private:
+    
+    
+};
+
 template <class ProcessorType> class GlobalConnectorPanel : public PanelWithProcessorConnection
 {
 public:
@@ -179,29 +201,17 @@ public:
 
 	bool hasSubIndex() const override { return false; }
 
-	Component* createContentComponent(int index) override
+	Component* createContentComponent(int /*index*/) override
 	{
 		return new Component();
 	}
 
-	void contentChanged() override
+    void contentChanged() override
 	{
-		auto parentContainer = getParentShell()->getParentContainer();
-
-		FloatingTile::Iterator<PanelWithProcessorConnection> iter(parentContainer->getParentShell());
-
-		Identifier idToSearch = ProcessorType::getConnectorId();
-
-		while (auto p = iter.getNextPanel())
-		{
-			if (p == this)
-				continue;
-
-			if (p->getProcessorTypeId() != idToSearch)
-				continue;
-
-			p->setContentWithUndo(getProcessor(), 0);
-		}
+        Identifier idToSearch = ProcessorType::getConnectorId();
+        
+        ConnectorHelpers::tut(this, idToSearch);
+        
 	}
 
 	void fillModuleList(StringArray& moduleList) override

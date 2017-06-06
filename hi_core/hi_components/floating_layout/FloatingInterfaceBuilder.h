@@ -51,7 +51,7 @@ public:
 		createdComponents.add(root);
 	}
 
-	FloatingTile* finalizeAndReturnRoot(bool isReadOnly);
+	FloatingTile* finalizeAndReturnRoot();
 
 	/** set the given panel to the content and returns true on success. */
 

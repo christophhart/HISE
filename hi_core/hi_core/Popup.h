@@ -125,30 +125,60 @@ public:
 
 	void setText(const String &t)
 	{
-		if(t != currentText)
+		if (t.isNotEmpty())
 		{
-			isClear = false;
-			counterSinceLastTextChange = 0;
+			isFadingOut = false;
+			alpha = 3.0f;
+
 			currentText = t;
 			repaint();
 		}
+		else
+		{
+			clearText();
+		}
+
+		
 		
 	}
 
 	void clearText()
 	{
-		if(!isClear)
+		if (isFadingOut)
 		{
-			isClear = true;
-			currentText = String();
-			counterSinceLastTextChange = 0;
-			repaint();
+			alpha -= 0.1f;
+
+			if(alpha <= 0.0f)
+			{
+				alpha = 0.0f;
+				isFadingOut = false;
+				currentText = String();
+			}
 		}
+		else
+		{
+			isFadingOut = true;
+			alpha = 3.0f;
+		}
+
+		repaint();
+		
+	}
+
+	void setShowInfoIcon(bool shouldShowIcon)
+	{
+		showIcon = shouldShowIcon;
 	}
 
 	void mouseDown(const MouseEvent &e);
 
 private:
+
+	float alpha = 0.0f;
+
+	bool showIcon = true;
+	bool isFadingOut = false;
+
 
 	int counterSinceLastTextChange;
 

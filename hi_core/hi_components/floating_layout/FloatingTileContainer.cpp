@@ -137,13 +137,16 @@ int FloatingTileContainer::getNumDefaultableProperties() const
 	return ContainerPropertyIds::numContainerPropertyIds;
 }
 
-Identifier FloatingTileContainer::getDefaultablePropertyId(int i) const
+Identifier FloatingTileContainer::getDefaultablePropertyId(int index) const
 {
-	if (i < FloatingTileContent::numPropertyIds)
-		return FloatingTileContent::getDefaultablePropertyId(i);
+	if (index < FloatingTileContent::numPropertyIds)
+		return FloatingTileContent::getDefaultablePropertyId(index);
 
-	RETURN_DEFAULT_PROPERTY_ID(i, ContainerPropertyIds::Content, "Content");
-	RETURN_DEFAULT_PROPERTY_ID(i, ContainerPropertyIds::Dynamic, "Dynamic");
+	RETURN_DEFAULT_PROPERTY_ID(index, ContainerPropertyIds::Content, "Content");
+	RETURN_DEFAULT_PROPERTY_ID(index, ContainerPropertyIds::Dynamic, "Dynamic");
+
+	jassertfalse;
+	return Identifier();
 }
 
 var FloatingTileContainer::getDefaultProperty(int id) const
@@ -309,7 +312,7 @@ FloatingTabComponent::~FloatingTabComponent()
 	clear();
 }
 
-void FloatingTabComponent::popupMenuClickOnTab(int tabIndex, const String& tabName)
+void FloatingTabComponent::popupMenuClickOnTab(int tabIndex, const String& /*tabName*/)
 {
 	PopupMenu m;
 
@@ -417,12 +420,15 @@ int FloatingTabComponent::getNumDefaultableProperties() const
 	return TabPropertyIds::numTabPropertyIds;
 }
 
-Identifier FloatingTabComponent::getDefaultablePropertyId(int i) const
+Identifier FloatingTabComponent::getDefaultablePropertyId(int index) const
 {
-	if (i < FloatingTileContainer::ContainerPropertyIds::numContainerPropertyIds)
-		return FloatingTileContainer::getDefaultablePropertyId(i);
+	if (index < FloatingTileContainer::ContainerPropertyIds::numContainerPropertyIds)
+		return FloatingTileContainer::getDefaultablePropertyId(index);
 
-	RETURN_DEFAULT_PROPERTY_ID(i, TabPropertyIds::CurrentTab, "CurrentTab");
+	RETURN_DEFAULT_PROPERTY_ID(index, TabPropertyIds::CurrentTab, "CurrentTab");
+
+	jassertfalse;
+	return Identifier();
 }
 
 var FloatingTabComponent::getDefaultProperty(int id) const
@@ -431,6 +437,10 @@ var FloatingTabComponent::getDefaultProperty(int id) const
 		return FloatingTileContainer::getDefaultProperty(id);
 
 	RETURN_DEFAULT_PROPERTY(id, TabPropertyIds::CurrentTab, -1);
+
+	jassertfalse;
+
+	return {};
 }
 
 
@@ -548,8 +558,6 @@ ResizableFloatingTileContainer::ResizableFloatingTileContainer(FloatingTile* par
 
 	addAndMakeVisible(addButton = new ShapeButton("Add Column", Colours::white.withAlpha(0.7f), Colours::white, Colours::white));
 
-	setLookAndFeel(&laf);
-
 	Path p;
 
 	if (isVertical())
@@ -606,56 +614,9 @@ void ResizableFloatingTileContainer::resized()
 	performLayout(getContainerBounds());
 }
 
-void ResizableFloatingTileContainer::foldComponent(Component* c, bool shouldBeFolded)
-{
-#if LAYOUT_OLD
-	for (int i = 0; i < getNumComponents(); i++)
-	{
-		auto fsc = getComponent(i);
-
-		if (fsc == c)
-		{
-			if (shouldBeFolded)
-			{
-				getLayoutManager()->setItemLayout(i * 2, 16, 16, 16);
-				getLayoutManager()->setItemLayout(i * 2 + 1, 0, 0, 0);
-			}
-
-			else
-			{
-
-				int resizerWidth = fsc->isLayoutModeEnabled() ? 8 : 4;
-
-				getLayoutManager()->setItemLayout(i * 2, -0.1, -1.0, -0.5);
-				getLayoutManager()->setItemLayout(i * 2 + 1, resizerWidth, resizerWidth, resizerWidth);
-			}
-		}
-	}
-
-	dynamic_cast<Component*>(this)->resized();
-
-#endif
-}
-
 bool ResizableFloatingTileContainer::isTitleBarDisplayed() const
 {
 	return getParentShell()->showTitle();
-
-#if 0
-
-	const bool layoutModeWithAddingEnabled = getParentShell()->isLayoutModeEnabled() && isDynamic();
-
-	if (layoutModeWithAddingEnabled)
-		return true;
-
-	const bool isInTabs = dynamic_cast<const FloatingTabComponent*>(getParentShell()->getParentContainer());
-
-	if (isInTabs)
-		return false;
-	
-	if (hasCustomTitle())
-		return true;
-#endif
 }
 
 void ResizableFloatingTileContainer::mouseDown(const MouseEvent& event)
@@ -685,6 +646,45 @@ void ResizableFloatingTileContainer::componentRemoved(FloatingTile* c)
 
 void ResizableFloatingTileContainer::performLayout(Rectangle<int> area)
 {
+	int visibleChildren = 0;
+
+	for (int i = 0; i < getNumComponents(); i++)
+	{
+		if (getComponent(i)->getLayoutData().isVisible())
+			visibleChildren++;
+	}
+
+	if (visibleChildren == 1)
+	{
+		for (int i = 0; i < resizers.size(); i++)
+		{
+			resizers[i]->setVisible(false);
+		}
+
+		for (int i = 0; i < getNumComponents(); i++)
+		{
+			auto c = getComponent(i);
+			auto& lData = c->getLayoutData();
+
+
+			c->setVisible(lData.isVisible());
+
+			if (lData.isAbsolute())
+			{
+				int size = jmax<int>((int)lData.getCurrentSize(), 16);
+
+				setBoundsOneDimension(c, getDimensionOffset(area), size, getContainerBounds());
+			}
+			else
+			{
+				
+				c->setBounds(getContainerBounds());
+			}
+		}
+
+		return;
+	}
+
 	int totalSize = getDimensionSize(area);
 
 	// First pass: check all folded & fixed-size panels;
@@ -710,7 +710,7 @@ void ResizableFloatingTileContainer::performLayout(Rectangle<int> area)
 		if (pc->isFolded())
 			availableSize -= 16;
 		else if (lData.isAbsolute())
-			availableSize -= lData.getCurrentSize();
+			availableSize -= (int)lData.getCurrentSize();
 		else
 			totalRelativeAmount += lData.getCurrentSize() * -1.0;
 	}
@@ -729,14 +729,13 @@ void ResizableFloatingTileContainer::performLayout(Rectangle<int> area)
 
 			if (lData.isVisible())
 			{
-				resizer->setVisible(true);
-
 				auto rs = resizer->getCurrentSize();
 				setBoundsOneDimension(resizer, offset, rs, area);
 				offset += rs;
 			}
 			else
 			{
+				// It's visible by default so just hide it if necessary
 				resizer->setVisible(false);
 			}
 
@@ -758,13 +757,13 @@ void ResizableFloatingTileContainer::performLayout(Rectangle<int> area)
 			pc->setVisible(size > lData.getMinSize());
 
 			setBoundsOneDimension(pc, offset, size, area);
-			offset += lData.getCurrentSize();
+			offset += (int)lData.getCurrentSize();
 		}
 		else
 		{
 			double percentage = lData.getCurrentSize() * -1.0;
 			double scaledPercentage = percentage / totalRelativeAmount;
-			int size = availableSize * scaledPercentage;
+			int size = (int)(availableSize * scaledPercentage);
 			size = jmax<int>(size, 16);
 
 			pc->setVisible(size > lData.getMinSize());
@@ -895,7 +894,7 @@ void ResizableFloatingTileContainer::InternalResizer::paint(Graphics& g)
 
 void ResizableFloatingTileContainer::InternalResizer::mouseDown(const MouseEvent& e)
 {
-	if (e.mods.isRightButtonDown())
+	if (false && e.mods.isRightButtonDown())
 	{
 		parent->bigResizers.setBit(index, !parent->bigResizers[index]);
 		parent->resized();
@@ -934,15 +933,13 @@ void ResizableFloatingTileContainer::InternalResizer::mouseDown(const MouseEvent
 }
 
 
-void ResizableFloatingTileContainer::InternalResizer::mouseUp(const MouseEvent& event)
+void ResizableFloatingTileContainer::InternalResizer::mouseUp(const MouseEvent&)
 {
-	
 	active = false;
 }
 
 void ResizableFloatingTileContainer::InternalResizer::mouseDrag(const MouseEvent& event)
 {
-	auto ec = parent->getComponent(index);
 	int delta = parent->isVertical() ? event.getDistanceFromDragStartY() : event.getDistanceFromDragStartX();
 	auto area = parent->getContainerBounds();
 	int totalSize = parent->isVertical() ? area.getHeight() : area.getWidth();

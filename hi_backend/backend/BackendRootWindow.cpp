@@ -9,11 +9,18 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, ValueTree& 
 	addAndMakeVisible(floatingRoot = new FloatingTile(nullptr));
 
 
-	auto mainPanelC = (FloatingPanelTemplates::createMainPanel(floatingRoot));
+	auto mainPanelC = (FloatingPanelTemplates::createHiseLayout(floatingRoot));
 
 	auto mainPanel = dynamic_cast<MainPanel*>(mainPanelC);
 
 	mainEditor = mainPanel->set(owner, this, editorState);
+
+	workspaces.add(FloatingTileHelpers::findTileWithId<VerticalTile>(floatingRoot, Identifier("MainWorkspace"))->getParentShell());
+	workspaces.add(FloatingTileHelpers::findTileWithId<FloatingTileContainer>(floatingRoot, Identifier("ScriptingWorkspace"))->getParentShell());
+	workspaces.add(FloatingTileHelpers::findTileWithId<FloatingTileContainer>(floatingRoot, Identifier("SamplerWorkspace"))->getParentShell());
+	workspaces.add(FloatingTileHelpers::findTileWithId<HorizontalTile>(floatingRoot, Identifier("CustomWorkspace"))->getParentShell());
+
+	showWorkspace(BackendCommandTarget::WorkspaceMain);
 
 	setEditor(this);
 
@@ -132,7 +139,7 @@ void BackendRootWindow::resized()
 
 	const float dpiScale = Desktop::getInstance().getGlobalScaleFactor();
 
-	floatingRoot->setBounds(4, menuBarOffset, getWidth() - 8, getHeight() - menuBarOffset);
+	floatingRoot->setBounds(4, menuBarOffset + 4, getWidth() - 8, getHeight() - menuBarOffset - 8);
 
 #if IS_STANDALONE_APP
 
@@ -200,19 +207,25 @@ void BackendRootWindow::loadNewContainer(const File &f)
 	mainEditor->loadNewContainer(f);
 }
 
-FloatingTabComponent* BackendPanelHelpers::getMainTabComponent(FloatingTile* root)
+void BackendRootWindow::showWorkspace(int workspace)
 {
-	static const Identifier id("MainWorkspaceTabs");
+	currentWorkspace = workspace;
 
-	FloatingTile::Iterator<FloatingTabComponent> iter(root);
+	int workspaceIndex = workspace - BackendCommandTarget::WorkspaceMain;
 
-	while (auto t = iter.getNextPanel())
+	for (int i = 0; i < workspaces.size(); i++)
 	{
-
-		
+		workspaces[i].getComponent()->getLayoutData().setVisible(i == workspaceIndex);
 	}
 
-	return FloatingTileHelpers::findTileWithId<FloatingTabComponent>(root, id);
+	getRootFloatingTile()->refreshRootLayout();
+}
+
+VerticalTile* BackendPanelHelpers::getMainTabComponent(FloatingTile* root)
+{
+	static const Identifier id("PersonaContainer");
+
+	return FloatingTileHelpers::findTileWithId<VerticalTile>(root, id);
 }
 
 HorizontalTile* BackendPanelHelpers::getMainLeftColumn(FloatingTile* root)
@@ -231,5 +244,35 @@ HorizontalTile* BackendPanelHelpers::getMainRightColumn(FloatingTile* root)
 
 bool BackendPanelHelpers::isMainWorkspaceActive(FloatingTile* root)
 {
-	return getMainTabComponent(root)->getCurrentTabIndex() == 0;
+	return true;
+}
+
+FloatingTile* BackendPanelHelpers::ScriptingWorkspace::get(BackendRootWindow* rootWindow)
+{
+	return FloatingTileHelpers::findTileWithId<FloatingTileContainer>(rootWindow->getRootFloatingTile(), "ScriptingWorkspace")->getParentShell();
+}
+
+void BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(BackendRootWindow* rootWindow, JavascriptProcessor* jsp)
+{
+	auto workspace = get(rootWindow);
+
+	FloatingTile::Iterator<GlobalConnectorPanel<JavascriptProcessor>> iter(workspace);
+
+	if (auto connector = iter.getNextPanel())
+	{
+		connector->setContentWithUndo(dynamic_cast<Processor*>(jsp), 0);
+	}
+}
+
+void BackendPanelHelpers::ScriptingWorkspace::showEditor(BackendRootWindow* rootWindow, bool shouldBeVisible)
+{
+	auto workspace = get(rootWindow);
+
+	auto editor = FloatingTileHelpers::findTileWithId<FloatingTileContainer>(workspace, "ScriptEditor");
+
+	if (editor != nullptr)
+	{
+		editor->getParentShell()->getLayoutData().setVisible(shouldBeVisible);
+		editor->getParentShell()->refreshRootLayout();
+	}
 }

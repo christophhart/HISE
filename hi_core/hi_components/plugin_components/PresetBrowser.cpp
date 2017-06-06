@@ -349,6 +349,8 @@ void PresetBrowserColumn::resized()
 MultiColumnPresetBrowser::MultiColumnPresetBrowser(MainController* mc_, int width, int height) :
 mc(mc_)
 {
+	setName("Preset Browser");
+
 #if USE_BACKEND
 	rootFile = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
 #else

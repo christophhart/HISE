@@ -92,11 +92,11 @@ public:
 	{
 		for(int i = 0; i < effect->getNumParameters(); i++)
 		{
-			char *name;
+			char *name2;
 
-			effect->getParameterName(i, name);
+			effect->getParameterName(i, name2);
 
-			parameterNames.add(name);
+			parameterNames.add(name2);
 		}
 	};
 

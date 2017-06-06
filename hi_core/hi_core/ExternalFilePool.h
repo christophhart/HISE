@@ -173,6 +173,8 @@ public:
 
 	Identifier getFileTypeName() const override;
 
+	static Identifier getStaticIdentifier() { RETURN_STATIC_IDENTIFIER("AudioFilePool") };
+
 	virtual size_t getFileSize(const AudioSampleBuffer *buffer) const override
 	{
 		return (size_t)buffer->getNumSamples() * (size_t)buffer->getNumChannels() * sizeof(float);
@@ -209,6 +211,8 @@ public:
 	ImagePool(ProjectHandler *handler);
 
 	Identifier getFileTypeName() const override;;
+
+	static Identifier getStaticIdentifier() { RETURN_STATIC_IDENTIFIER("ImagePool") };
 
 	virtual size_t getFileSize(const Image *image) const override
 	{

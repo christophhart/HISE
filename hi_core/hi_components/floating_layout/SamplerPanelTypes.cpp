@@ -72,7 +72,7 @@ SamplerBasePanel::~SamplerBasePanel()
 	editListener = nullptr;
 }
 
-void SamplerBasePanel::changeListenerCallback(SafeChangeBroadcaster* b)
+void SamplerBasePanel::changeListenerCallback(SafeChangeBroadcaster* /*b*/)
 {
 	if (getProcessor())
 	{
@@ -104,7 +104,7 @@ SampleEditorPanel::SampleEditorPanel(FloatingTile* parent) :
 
 }
 
-Component* SampleEditorPanel::createContentComponent(int index)
+Component* SampleEditorPanel::createContentComponent(int /*index*/)
 {
 	return new SampleEditor(dynamic_cast<ModulatorSampler*>(getProcessor()), nullptr);
 }
@@ -116,7 +116,7 @@ SampleMapEditorPanel::SampleMapEditorPanel(FloatingTile* parent) :
 
 }
 
-Component* SampleMapEditorPanel::createContentComponent(int index)
+Component* SampleMapEditorPanel::createContentComponent(int /*index*/)
 {
 	auto sme = new SampleMapEditor(dynamic_cast<ModulatorSampler*>(getProcessor()), nullptr);
 
@@ -133,7 +133,7 @@ SamplerTablePanel::SamplerTablePanel(FloatingTile* parent) :
 
 }
 
-Component* SamplerTablePanel::createContentComponent(int index)
+Component* SamplerTablePanel::createContentComponent(int /*index*/)
 {
 	auto st = new SamplerTable(dynamic_cast<ModulatorSampler*>(getProcessor()), nullptr);
 

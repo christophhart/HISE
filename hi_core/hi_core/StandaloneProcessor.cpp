@@ -2,13 +2,15 @@
 AudioDeviceDialog::AudioDeviceDialog(AudioProcessorDriver *ownerProcessor_) :
 ownerProcessor(ownerProcessor_)
 {
-	setOpaque(true);
+	setName("Audio Settings");
+
+	setOpaque(false);
 
 	selector = new AudioDeviceSelectorComponent(*ownerProcessor->deviceManager, 0, 0, 2, 2, true, false, true, false);
 
 	setLookAndFeel(&alaf);
 
-	selector->setLookAndFeel(&pplaf);
+	selector->setLookAndFeel(&alaf);
 
 	addAndMakeVisible(cancelButton = new TextButton("Cancel"));
 	addAndMakeVisible(applyAndCloseButton = new TextButton("Apply changes & close window"));
@@ -29,9 +31,7 @@ void AudioDeviceDialog::buttonClicked(Button *b)
 		ownerProcessor->initialiseAudioDriver(deviceData);
 	}
 
-#if USE_BACKEND
-	findParentComponentOfClass<BackendRootWindow>()->showSettingsWindow();
-#endif
+	findParentComponentOfClass<FloatingTilePopup>()->deleteAndClose();
 }
 
 File AudioProcessorDriver::getDeviceSettingsFile()
