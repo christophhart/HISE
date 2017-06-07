@@ -240,7 +240,7 @@ struct ScriptContentPanel::Canvas : public ScriptEditHandler,
 
 	void refreshContent()
 	{
-		auto scaleFactor = content->getTransform().getScaleFactor();
+        auto scaleFactor = 1.0; //content->getTransform().getScaleFactor();
 
 		setSize(content->getContentWidth()*scaleFactor + 20, content->getContentHeight()*scaleFactor + 20);
 	}
@@ -385,14 +385,10 @@ void ScriptContentPanel::Editor::setZoomAmount(double newZoomAmount)
 	{
 		zoomAmount = newZoomAmount;
 
-		auto content = dynamic_cast<Canvas*>(viewport->getViewedComponent())->content.get();
-		auto overlay = dynamic_cast<Canvas*>(viewport->getViewedComponent())->overlay.get();
-
 		auto s = AffineTransform::scale((float)zoomAmount);
 
-		content->setTransform(s);
-		overlay->setTransform(s);
-
+		viewport->getViewedComponent()->setTransform(s);
+		
 		refreshContent();
 	}
 

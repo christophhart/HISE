@@ -322,7 +322,7 @@ void ScriptingContentOverlay::paint(Graphics& g)
 {
 	if (dragMode)
 	{
-		g.setColour(Colours::white.withAlpha(0.05f));
+        g.setColour(Colours::white.withAlpha(0.05f));
 		g.fillAll();
 
 		const bool isInPopup = findParentComponentOfClass<ScriptingEditor>() == nullptr;
@@ -332,8 +332,7 @@ void ScriptingContentOverlay::paint(Graphics& g)
 		for (int x = 10; x < getWidth(); x += 10)
 		{
 			g.setColour(lineColour.withAlpha((x % 100 == 0) ? 0.12f : 0.05f));
-
-			g.drawVerticalLine(x, 0.0f, (float)getHeight());
+            g.drawVerticalLine(x, 0.0f, (float)getHeight());
 		}
 
 		for (int y = 10; y < getHeight(); y += 10)
