@@ -539,8 +539,66 @@ ApplicationCommandManager * SampleMapEditor::getCommandManager()
 	return sampleMapEditorCommandManager; // sampler->getMainController()->getCommandManager();
 }
 
-bool SampleMapEditor::keyPressed(const KeyPress& /*key*/)
+bool SampleMapEditor::keyPressed(const KeyPress& k)
 {
+	if (k.getModifiers().isShiftDown())
+	{
+		if (k.getKeyCode() == k.upKey)
+		{
+			int index = getCurrentRRGroup();
+
+			if (index == -1) index = 0;
+
+			index++;
+
+			setCurrentRRGroup(index);
+
+			return true;
+		}
+		else if (k.getKeyCode() == k.downKey)
+		{
+			int index = getCurrentRRGroup();
+
+			index--;
+
+			setCurrentRRGroup(index);
+
+			return true;
+		}
+	}
+	if (k.getKeyCode() == KeyPress::leftKey)
+	{
+		if (k.getModifiers().isCommandDown())
+			handler->moveSamples(SamplerSoundMap::Left);
+		else
+			getMapComponent()->selectNeighbourSample(SamplerSoundMap::Left);
+		return true;
+	}
+	else if (k.getKeyCode() == KeyPress::rightKey)
+	{
+		if (k.getModifiers().isCommandDown())
+			handler->moveSamples(SamplerSoundMap::Right);
+		else
+			getMapComponent()->selectNeighbourSample(SamplerSoundMap::Right);
+		return true;
+	}
+	else if (k.getKeyCode() == KeyPress::upKey)
+	{
+		if (k.getModifiers().isCommandDown())
+			handler->moveSamples(SamplerSoundMap::Up);
+		else
+			getMapComponent()->selectNeighbourSample(SamplerSoundMap::Up);
+		return true;
+	}
+	else if (k.getKeyCode() == KeyPress::downKey)
+	{
+		if (k.getModifiers().isCommandDown())
+			handler->moveSamples(SamplerSoundMap::Down);
+		else
+			getMapComponent()->selectNeighbourSample(SamplerSoundMap::Down);
+		return true;
+	}
+
 	return false;
 }
 

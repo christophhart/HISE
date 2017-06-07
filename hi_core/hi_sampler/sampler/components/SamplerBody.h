@@ -51,44 +51,6 @@ public:
     //==============================================================================
     //[UserMethods]     -- You can add your own custom methods in this section.
 
-#if SAMPLER_DEPRECATED
-	class SelectionListener: public ChangeListener
-	{
-	public:
-
-		SelectionListener(SamplerBody *body_):
-			body(body_)
-		{}
-
-		void changeListenerCallback(ChangeBroadcaster *)
-		{
-			const Array<WeakReference<ModulatorSamplerSound>> newSelection = body->getSelection().getItemArray();
-
-			Array<ModulatorSamplerSound*> existingSounds;
-
-			for(int i = 0; i < newSelection.size(); i++)
-			{
-				if(newSelection[i].get() != nullptr) existingSounds.add(newSelection[i].get());
-			}
-
-			if (existingSounds != lastSelection)
-			{
-				body->soundSelectionChanged();
-				lastSelection.clear();
-				lastSelection.addArray(existingSounds);
-			}
-		}
-
-	private:
-
-		Array<ModulatorSamplerSound*> lastSelection;
-
-		SamplerBody *body;
-	};
-#endif
-
-	
-
 	void updateGui() override
 	{
 		if (!dynamic_cast<ModulatorSampler*>(getProcessor())->shouldUpdateUI()) return;
@@ -167,9 +129,9 @@ public:
 				return true;
 			}
 		}
-		if(k.getKeyCode() == KeyPress::leftKey)
+		if (k.getKeyCode() == KeyPress::leftKey)
 		{
-			if(k.getModifiers().isCommandDown())
+			if (k.getModifiers().isCommandDown())
 				getSampleEditHandler()->moveSamples(SamplerSoundMap::Left);
 			else
 				map->getMapComponent()->selectNeighbourSample(SamplerSoundMap::Left);
@@ -177,7 +139,7 @@ public:
 		}
 		else if (k.getKeyCode() == KeyPress::rightKey)
 		{
-			if(k.getModifiers().isCommandDown())
+			if (k.getModifiers().isCommandDown())
 				getSampleEditHandler()->moveSamples(SamplerSoundMap::Right);
 			else
 				map->getMapComponent()->selectNeighbourSample(SamplerSoundMap::Right);
@@ -185,15 +147,15 @@ public:
 		}
 		else if (k.getKeyCode() == KeyPress::upKey)
 		{
-			if(k.getModifiers().isCommandDown())
+			if (k.getModifiers().isCommandDown())
 				getSampleEditHandler()->moveSamples(SamplerSoundMap::Up);
 			else
 				map->getMapComponent()->selectNeighbourSample(SamplerSoundMap::Up);
 			return true;
 		}
-		else if( k.getKeyCode() == KeyPress::downKey)
+		else if (k.getKeyCode() == KeyPress::downKey)
 		{
-			if(k.getModifiers().isCommandDown())
+			if (k.getModifiers().isCommandDown())
 				getSampleEditHandler()->moveSamples(SamplerSoundMap::Down);
 			else
 				map->getMapComponent()->selectNeighbourSample(SamplerSoundMap::Down);
