@@ -145,8 +145,6 @@ public:
 
 	bool keyPressed(const KeyPress &key) override;
 
-	void paintOverChildren(Graphics &g) override;
-
 	ScriptingApi::Content::ScriptComponent *getScriptComponentFor(Point<int> pos);
 
 	void getScriptComponentsFor(Array<ScriptingApi::Content::ScriptComponent*> &arrayToFill, Point<int> pos);

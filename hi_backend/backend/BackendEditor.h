@@ -147,11 +147,7 @@ public:
 			return FloatingTileContent::getDefaultProperty(id);
 
 		RETURN_DEFAULT_PROPERTY(id, (int)MainPanelProperties::ScrollPosition, var(0));
-#if JUCE_WINDOWS
-		RETURN_DEFAULT_PROPERTY(id, (int)MainPanelProperties::GlobalCodeFontSize, var(14));
-#else
-		RETURN_DEFAULT_PROPERTY(id, (int)MainPanelProperties::GlobalCodeFontSize, var(13));
-#endif
+		RETURN_DEFAULT_PROPERTY(id, (int)MainPanelProperties::GlobalCodeFontSize, var(17));
 		RETURN_DEFAULT_PROPERTY(id, (int)MainPanelProperties::Autosaving, var(true));
 
 		jassertfalse;

@@ -116,11 +116,12 @@ void ScriptEditHandler::createNewComponent(Widgets componentType, int x, int y)
 		}
 	}
 
-	selectOnInitCallback();
+	auto onInit = getScriptEditHandlerProcessor()->getSnippet("onInit");
 
-	getScriptEditHandlerEditor()->moveCaretToEnd(false);
+	CodeDocument::Position end(*onInit, onInit->getNumCharacters());
 
-	getScriptEditHandlerEditor()->insertTextAtCaret(textToInsert);
+	onInit->insertText(end, textToInsert);
+
 	compileScript();
 
 }
@@ -223,11 +224,36 @@ void ScriptEditHandler::scriptComponentChanged(ReferenceCountedObject* scriptCom
 
 		if (scriptComponentIsDefinedWithFactoryMethod) return;
 
+
+		auto onInit = getScriptEditHandlerProcessor()->getSnippet("onInit");
+
+		auto jsonRange = JavascriptCodeEditor::Helpers::getJSONTag(*onInit, sc->getName());
+
+		if (jsonRange.isEmpty())
+		{
+			auto insertPosition = JavascriptCodeEditor::Helpers::getPositionAfterDefinition(*onInit, sc->getName());
+
+			if (insertPosition.getPosition() > 0)
+			{
+				onInit->insertText(insertPosition, CodeDragger::getText(sc));
+			}
+		}
+		else
+		{
+			onInit->replaceSection(jsonRange.getStart(), jsonRange.getEnd(), CodeDragger::getText(sc));
+		}
+
+#if 0
 		if (!getScriptEditHandlerEditor()->selectJSONTag(sc->getName()))
 		{
 			getScriptEditHandlerEditor()->selectLineAfterDefinition(sc->getName());
 		}
+        
+        
+
+        
 		getScriptEditHandlerEditor()->insertTextAtCaret(CodeDragger::getText(sc));
+#endif
 
 		getScriptEditHandlerEditor()->selectJSONTag(sc->getName());
 	}
@@ -1014,22 +1040,27 @@ void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 			code << nl;
 			code << name.toString() << ".setControlCallback(" << callbackName << ");" << nl;
 
-			auto ed = parentHandler->getScriptEditHandlerEditor();
+			auto onInit = parentHandler->getScriptEditHandlerProcessor()->getSnippet("onInit");
 
-			if (ed->selectJSONTag(name))
+			auto jsonRange = JavascriptCodeEditor::Helpers::getJSONTag(*onInit, name);
+
+			int insertPos = JavascriptCodeEditor::Helpers::getPositionAfterDefinition(*onInit, name).getPosition();
+
+			if (!jsonRange.isEmpty())
 			{
-				auto insertPos = ed->getHighlightedRegion().getEnd();
-				ed->moveCaretTo(CodeDocument::Position(ed->getDocument(), insertPos), false);
+				insertPos = jsonRange.getEnd();
 
-				ed->insertTextAtCaret(nl);
+				String codeToInsert;
+				codeToInsert << nl << code;
+
+				onInit->insertText(insertPos, codeToInsert);
+				
 			}
 			else
 			{
-				ed->selectLineAfterDefinition(name);
+				onInit->insertText(insertPos, code);
 			}
-
-			ed->insertTextAtCaret(code);
-
+			
 			parentHandler->compileScript();
 		}
 		else if (result >= connectComponentOffset)

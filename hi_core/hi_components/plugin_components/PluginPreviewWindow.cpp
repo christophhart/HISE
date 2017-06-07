@@ -31,15 +31,50 @@
 */
 
 
+
+class PluginPreviewWindow::Content::ScriptDeleteListener : public Processor::DeleteListener
+{
+public:
+
+	ScriptDeleteListener(Content* parent_, Processor* processor) :
+		parent(parent_),
+		p(processor)
+	{
+		if(p != nullptr)
+			p->addDeleteListener(this);
+
+	}
+
+	~ScriptDeleteListener()
+	{
+		if(p != nullptr)
+			p->removeDeleteListener(this);
+	}
+
+	void processorDeleted(Processor* /*deletedProcessor*/) override
+	{
+		parent->findParentComponentOfClass<FloatingTilePopup>()->deleteAndClose();
+	}
+
+	void updateChildEditorList(bool /*forceUpdate*/) override {};
+
+
+public:
+
+	WeakReference<Processor> p;
+
+	Content* parent;
+
+};
+
 PluginPreviewWindow::PluginPreviewWindow(BackendProcessorEditor *editor_) :
 DocumentWindow("Preview: : " + editor_->getMainSynthChain()->getId(), Colours::black, DocumentWindow::closeButton, true),
 editor(editor_)
 {
-
+	
 	setContentOwned(new Content(editor), true);
 
 	setUsingNativeTitleBar(true);
-
 
 	centreWithSize(getContentComponent()->getWidth(), getContentComponent()->getHeight());
 
@@ -57,6 +92,11 @@ void PluginPreviewWindow::closeButtonPressed()
 	}
 }
 
+PluginPreviewWindow::Content* PluginPreviewWindow::createContent(BackendProcessorEditor* editor)
+{
+	return new Content(editor);
+}
+
 PluginPreviewWindow::Content::Content(BackendProcessorEditor *editor_) :
 editor(editor_),
 mainSynthChain(editor->getMainSynthChain())
@@ -66,14 +106,30 @@ mainSynthChain(editor->getMainSynthChain())
 
 	setOpaque(true);
 
-	addAndMakeVisible(container = new ScriptContentContainer(mainSynthChain));
+	Processor::Iterator<JavascriptMidiProcessor> iter(mainSynthChain);
+
+	while (auto m = iter.getNextProcessor())
+	{
+		if (m->isFront())
+		{
+			scriptProcessor = m;
+			break;
+		}
+	}
+
+	if (scriptProcessor != nullptr)
+	{
+		addAndMakeVisible(content = new ScriptContentComponent(scriptProcessor));
+
+		deleteListener = new ScriptDeleteListener(this, scriptProcessor);
+	}
+	else
+	{
+		jassertfalse;
+	}
+
 	addAndMakeVisible(frontendBar = new DefaultFrontendBar(editor->getBackendProcessor()));
 
-	container->checkInterfaces();
-	container->setIsFrontendContainer(true);
-	container->setIsFrontendContainer(true);
-
-    
     DynamicObject::Ptr toolbarSettings = editor->getMainSynthChain()->getMainController()->getToolbarPropertiesObject();
     
     const bool showKeyboard = (bool)toolbarSettings->hasProperty("keyboard") ? (bool)toolbarSettings->getProperty("keyboard") : true;
@@ -83,7 +139,6 @@ mainSynthChain(editor->getMainSynthChain())
     
     keyboard->setVisible(showKeyboard);
     
-
 	const int xDelta = 2;
 
 #if HISE_IOS
@@ -91,17 +146,17 @@ mainSynthChain(editor->getMainSynthChain())
 	frontendBar->setVisible(false);
 	keyboard->setVisible(false);
 
-	setSize(container->getContentWidth(), container->getContentHeight());
+	setSize(content->getContentWidth(), content->getContentHeight());
 #else
     
-    setSize(container->getContentWidth() + xDelta, container->getContentHeight() + (frontendBar->isOverlaying() ? 0 : frontendBar->getHeight()) + (showKeyboard ? (72 + xDelta) : 0));
+    setSize(content->getContentWidth() + xDelta, content->getContentHeight() + (frontendBar->isOverlaying() ? 0 : frontendBar->getHeight()) + (showKeyboard ? (72 + xDelta) : 0));
 #endif
 }
 
 PluginPreviewWindow::Content::~Content()
 {
 	frontendBar = nullptr;
-	container = nullptr;
+	content = nullptr;
 	keyboard = nullptr;
 
 	editor = nullptr;
@@ -110,10 +165,10 @@ PluginPreviewWindow::Content::~Content()
 void PluginPreviewWindow::Content::resized()
 {
 #if HISE_IOS
-	container->setBounds(0, 0, container->getContentWidth(), container->getContentHeight());
+	container->setBounds(0, 0, content->getContentWidth(), content->getContentHeight());
 #else
-	frontendBar->setBounds(2, 2, container->getContentWidth(), frontendBar->getHeight());
-	container->setBounds(2, (frontendBar->isOverlaying() ? frontendBar->getY() : frontendBar->getBottom()), container->getContentWidth(), container->getContentHeight());
-	keyboard->setBounds(2, container->getBottom(), container->getContentWidth(), 72);
+	frontendBar->setBounds(2, 2, content->getContentWidth(), frontendBar->getHeight());
+	content->setBounds(2, (frontendBar->isOverlaying() ? frontendBar->getY() : frontendBar->getBottom()), content->getContentWidth(), content->getContentHeight());
+	keyboard->setBounds(2, content->getBottom(), content->getContentWidth(), 72);
 #endif
 }

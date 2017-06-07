@@ -63,11 +63,7 @@ MainController::MainController():
 	presetLoadRampFlag(0),
 	suspendIndex(0),
 	controlUndoManager(new UndoManager()),
-#if JUCE_WINDOWS
-    globalCodeFontSize(14.0f)
-#else
-    globalCodeFontSize(13.0f)
-#endif
+    globalCodeFontSize(17.0f)
 {
 	BACKEND_ONLY(popupConsole = nullptr);
 	BACKEND_ONLY(usePopupConsole = false);

@@ -156,46 +156,21 @@ void JavascriptCodeEditor::itemDragMove(const SourceDetails &dragSourceDetails)
 
 void JavascriptCodeEditor::selectLineAfterDefinition(Identifier identifier)
 {
-    const String regexp = "(const)?\\s*(global|var|reg)?\\s*" + identifier.toString() + "\\s*=\\s*.*;[\\n\\r]";
-		
-	const String allText = getDocument().getAllContent();
+	auto position = Helpers::getPositionAfterDefinition(getDocument(), identifier);
 
-	StringArray sa = RegexFunctions::getFirstMatch(regexp, allText, nullptr);
+	if(position.getPosition() > 0)
+		moveCaretTo(position, false);
 
-	if(sa.size() > 0)
-	{
-		const String match = sa[0];
-
-		int startIndex = allText.indexOf(match) + match.length();
-
-		CodeDocument::Position pos(getDocument(), startIndex);
-
-		moveCaretTo(pos, false);
-	}
 }
 
 bool JavascriptCodeEditor::selectJSONTag(const Identifier &identifier)
 {
-	String startLine;
-	startLine << "// [JSON " << identifier.toString() << "]";
+	auto range = Helpers::getJSONTag(getDocument(), identifier);
 
-	String endLine;
-	endLine << "// [/JSON " << identifier.toString() << "]";
-
-	String allText = getDocument().getAllContent();
-
-	const int startIndex = allText.indexOf(startLine);
-
-	if (startIndex == -1) return false;
-
-	const int endIndex = allText.indexOf(endLine);
-
-	if (endIndex == -1)
-	{
+	if (range.isEmpty())
 		return false;
-	}
 
-	setHighlightedRegion(Range<int>(startIndex, endIndex + endLine.length()));
+	setHighlightedRegion(range);
 
 	return true;
 }
@@ -1280,4 +1255,48 @@ void CodeEditorWrapper::mouseDown(const MouseEvent &m)
 void CodeEditorWrapper::mouseUp(const MouseEvent &)
 {
 	stopTimer();
+}
+
+Range<int> JavascriptCodeEditor::Helpers::getJSONTag(const CodeDocument& doc, const Identifier& id)
+{
+    String startLine;
+	startLine << "// [JSON " << id.toString() << "]";
+
+	String endLine;
+	endLine << "// [/JSON " << id.toString() << "]";
+
+	String allText = doc.getAllContent();
+
+	const int startIndex = allText.indexOf(startLine);
+
+	if (startIndex == -1) 
+		return {};
+
+	const int endIndex = allText.indexOf(endLine);
+
+	if (endIndex == -1)
+		return {};
+
+	return Range<int>(startIndex, endIndex + endLine.length());
+}
+
+CodeDocument::Position JavascriptCodeEditor::Helpers::getPositionAfterDefinition(const CodeDocument& doc, Identifier id)
+{
+
+	const String regexp = "(const)?\\s*(global|var|reg)?\\s*" + id.toString() + "\\s*=\\s*.*;[\\n\\r]";
+
+	const String allText = doc.getAllContent();
+
+	StringArray sa = RegexFunctions::getFirstMatch(regexp, allText, nullptr);
+
+	if (sa.size() > 0)
+	{
+		const String match = sa[0];
+
+		int startIndex = allText.indexOf(match) + match.length();
+
+		return CodeDocument::Position(doc, startIndex);
+	}
+	else
+		return CodeDocument::Position(doc, 0);
 }

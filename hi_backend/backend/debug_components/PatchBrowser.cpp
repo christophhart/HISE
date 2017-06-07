@@ -161,6 +161,8 @@ void PatchBrowser::itemDropped(const SourceDetails& dragSourceDetails)
 				editorOfChain->changeListenerCallback(editorOfChain->getProcessor());
 				editorOfChain->childEditorAmountChanged();
 			}
+
+			findParentComponentOfClass<BackendRootWindow>()->sendRootContainerRebuildMessage(false);
 		}
 	}
 
@@ -175,7 +177,7 @@ void PatchBrowser::itemDropped(const SourceDetails& dragSourceDetails)
 
 int PatchBrowser::getNumCollectionsToCreate() const
 {
-	Processor::Iterator<ModulatorSynth> iter(editor.getComponent()->getMainSynthChain());
+    Processor::Iterator<ModulatorSynth> iter(rootWindow.getComponent()->getMainSynthChain());
 
 	int i = 0;
 
@@ -189,7 +191,7 @@ int PatchBrowser::getNumCollectionsToCreate() const
 
 SearchableListComponent::Collection * PatchBrowser::createCollection(int index)
 {
-	Processor::Iterator<ModulatorSynth> iter(editor.getComponent()->getMainSynthChain(), true);
+	Processor::Iterator<ModulatorSynth> iter(rootWindow.getComponent()->getMainSynthChain(), true);
 
 	Array<ModulatorSynth*> synths;
 	Array<int> hierarchies;

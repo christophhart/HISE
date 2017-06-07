@@ -431,21 +431,6 @@ bool ScriptContentComponent::keyPressed(const KeyPress &/*key*/)
 	return false;
 }
 
-void ScriptContentComponent::paintOverChildren(Graphics &g)
-{
-	if (editedComponent != -1)
-	{
-
-		Component *c = componentWrappers[editedComponent]->getComponent();
-		Component* parentOfC = c->getParentComponent();
-
-		g.setColour(Colours::white.withAlpha(0.2f));
-
-
-		g.drawRect(getLocalArea(parentOfC, c->getBounds()), 2);
-	}
-}
-
 void ScriptContentComponent::paint(Graphics &g)
 {
 #if USE_BACKEND

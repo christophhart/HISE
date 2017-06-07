@@ -420,15 +420,23 @@ Component* FloatingPanelTemplates::createSamplerWorkspace(FloatingTile* rootTile
 	const int toggleBar = ib.addChild<VisibilityToggleBar>(samplePanel);
 	const int fileBrowser = ib.addChild<GenericPanel<FileBrowser>>(samplePanel);
 	const int samplePoolTable = ib.addChild<GenericPanel<SamplePoolTable>>(samplePanel);
+    
+    ib.getPanel(samplePoolTable)->getLayoutData().setVisible(false);
+    
 	const int sampleHorizontal = ib.addChild<HorizontalTile>(samplePanel);
 	ib.setDynamic(sampleHorizontal, false);
 	ib.addChild<GlobalConnectorPanel<ModulatorSampler>>(sampleHorizontal);
 	const int sampleEditor = ib.addChild<SampleEditorPanel>(sampleHorizontal);
 	const int sampleVertical = ib.addChild<VerticalTile>(sampleHorizontal);
 	ib.setDynamic(sampleVertical, false);
+    
+    
+    
 	const int sampleMapEditor = ib.addChild<SampleMapEditorPanel>(sampleVertical);
 	const int samplerTable = ib.addChild<SamplerTablePanel>(sampleVertical);
 
+    ib.setSizes(sampleVertical, {-0.7, -0.3});
+    
 	ib.setSizes(samplePanel, { 32.0, 280.0, 280.0, -0.5 });
 	ib.getPanel(sampleHorizontal)->setCustomIcon((int)FloatingTileContent::Factory::PopupMenuOptions::SampleEditor);
 
@@ -472,8 +480,8 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 	ib.setDynamic(mainVertical, false);
 
 	const int toggleBar = ib.addChild < VisibilityToggleBar>(mainVertical);
-	ib.addChild<GenericPanel<ApiCollection>>(mainVertical);
-	ib.addChild<GenericPanel<FileBrowser>>(mainVertical);
+	const int apiCollection = ib.addChild<GenericPanel<ApiCollection>>(mainVertical);
+	const int fileBrowser = ib.addChild<GenericPanel<FileBrowser>>(mainVertical);
 	const int codeEditor = ib.addChild<HorizontalTile>(mainVertical);
 	ib.setDynamic(codeEditor, false);
 
@@ -500,10 +508,16 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 
 	ib.addChild<GenericPanel<ScriptComponentEditPanel>>(interfaceDesigner);
 
-	ib.setSizes(interfaceHorizontal, { -0.5, 300.0, 72.0 });
+	ib.setSizes(interfaceHorizontal, { -0.7, -0.3, 72.0 });
 	ib.setCustomName(interfaceHorizontal, "", { "Interface", "onInit Callback", "" });
 
 	ib.setCustomName(interfaceDesigner, "Interface Designer");
+    
+    ib.setId(toggleBar, "ScriptingWorkspaceToggleBar");
+    
+    ib.setId(codeEditor, "ScriptingWorkspaceCodeEditor");
+    ib.setId(interfaceDesigner, "ScriptingWorkspaceInterfaceDesigner");
+    
 	ib.setSizes(interfaceDesigner, { -0.8, -0.2 });
 
 	ib.setFoldable(mainVertical, false, { false, true, true, true, true });
@@ -511,6 +525,10 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 
 	ib.setSizes(mainVertical, { 32.0, 300.0, 300.0, -0.5, -0.5 });
 
+    ib.getPanel(interfaceDesigner)->getLayoutData().setVisible(false);
+    ib.getPanel(apiCollection)->getLayoutData().setVisible(false);
+    ib.getPanel(fileBrowser)->getLayoutData().setVisible(false);
+    
 	ib.getContent<VisibilityToggleBar>(toggleBar)->refreshButtons();
 
 	ib.getContent<FloatingTileContent>(onInitPanel)->setStyleProperty("showConnectionBar", false);
@@ -586,7 +604,10 @@ Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 	ib.getPanel(plotter)->setCloseTogglesVisibility(true);
 
 	const int console = ib.addChild<ConsolePanel>(rightColumn);
-	mc->getConsoleHandler().setMainConsole(ib.getContent<ConsolePanel>(console)->getConsole());
+	
+	ib.setId(console, "MainConsole");
+
+
 	ib.getPanel(console)->setCloseTogglesVisibility(true);
 
 	ib.setVisibility(rightColumn, true, { true, false, false, false, false, false });

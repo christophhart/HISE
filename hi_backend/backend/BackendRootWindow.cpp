@@ -94,6 +94,14 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 		setEditor(this);
 	}
 
+
+	auto consoleParent = FloatingTileHelpers::findTileWithId<ConsolePanel>(getRootFloatingTile(), "MainConsole");
+
+	if (consoleParent != nullptr)
+		getBackendProcessor()->getConsoleHandler().setMainConsole(consoleParent->getConsole());
+	else
+		jassertfalse;
+
 	setOpaque(true);
 
 #if IS_STANDALONE_APP 
@@ -158,6 +166,7 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 BackendRootWindow::~BackendRootWindow()
 {
 	getBackendProcessor()->getCommandManager()->clearCommands();
+	getBackendProcessor()->getConsoleHandler().setMainConsole(nullptr);
 
 	saveInterfaceData();
 	
@@ -394,14 +403,45 @@ void BackendPanelHelpers::ScriptingWorkspace::showEditor(BackendRootWindow* root
 {
 	auto workspace = get(rootWindow);
 
-	auto editor = FloatingTileHelpers::findTileWithId<FloatingTileContainer>(workspace, "ScriptEditor");
+	auto editor = FloatingTileHelpers::findTileWithId<FloatingTileContainer>(workspace, "ScriptingWorkspaceCodeEditor");
 
 	if (editor != nullptr)
 	{
 		editor->getParentShell()->getLayoutData().setVisible(shouldBeVisible);
 		editor->getParentShell()->refreshRootLayout();
 	}
+    
+    auto toggleBar = FloatingTileHelpers::findTileWithId<VisibilityToggleBar>(workspace, "ScriptingWorkspaceToggleBar");
+    
+    if(toggleBar != nullptr)
+    {
+        toggleBar->refreshButtons();
+    }
 }
+
+void BackendPanelHelpers::ScriptingWorkspace::showInterfaceDesigner(BackendRootWindow* rootWindow, bool shouldBeVisible)
+{
+    auto workspace = get(rootWindow);
+    
+    auto editor = FloatingTileHelpers::findTileWithId<FloatingTileContainer>(workspace, "ScriptingWorkspaceInterfaceDesigner");
+    
+    if (editor != nullptr)
+    {
+        editor->getParentShell()->getLayoutData().setVisible(shouldBeVisible);
+        editor->getParentShell()->refreshRootLayout();
+    }
+    
+    auto toggleBar = FloatingTileHelpers::findTileWithId<VisibilityToggleBar>(workspace, "ScriptingWorkspaceToggleBar");
+    
+    if(toggleBar != nullptr)
+    {
+        toggleBar->refreshButtons();
+    }
+    else
+        jassertfalse;
+    
+}
+
 
 FloatingTile* BackendPanelHelpers::SamplerWorkspace::get(BackendRootWindow* rootWindow)
 {

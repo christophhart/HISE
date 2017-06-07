@@ -35,7 +35,7 @@
 #define PLUGINPREVIEWWINDOW_H_INCLUDED
 
 class BackendProcessorEditor;
-class ScriptContentContainer;
+class ScriptContentComponent;
 
 class PluginPreviewWindow : public DocumentWindow,
 							public ModalBaseWindow
@@ -45,6 +45,7 @@ public:
 	PluginPreviewWindow(BackendProcessorEditor *editor);
 
 	void closeButtonPressed() override;;
+
 
 	class Content : public Component,
 		public ComponentWithKeyboard
@@ -66,14 +67,25 @@ public:
 
 		Component *getKeyboard() const override { return keyboard; };
 
+		
+
 	private:
+
+		class ScriptDeleteListener;
+
+		ScopedPointer<ScriptDeleteListener> deleteListener;
 
 		Component::SafePointer<BackendProcessorEditor> editor;
 		ScopedPointer<DefaultFrontendBar> frontendBar;
-		ScopedPointer<ScriptContentContainer> container;
+		ScopedPointer<ScriptContentComponent> content;
+		JavascriptMidiProcessor* scriptProcessor = nullptr;
 		ModulatorSynthChain *mainSynthChain;
 		ScopedPointer<CustomKeyboard> keyboard;
 	};
+
+
+
+	static Content* createContent(BackendProcessorEditor* editor);
 
 private:
 

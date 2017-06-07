@@ -199,6 +199,13 @@ void ModulatorSynthChain::reset()
 {
 	sendDeleteMessage();
 
+	Processor::Iterator<Processor> iter(this, false);
+
+	while (auto p = iter.getNextProcessor())
+	{
+		p->sendDeleteMessage();
+	}
+
     this->getHandler()->clear();
     
     midiProcessorChain->getHandler()->clear();

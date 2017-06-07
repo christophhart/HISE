@@ -653,7 +653,7 @@ public:
 				midiChain->getHandler()->add(s, nullptr);
 
 				midiChain->setEditorState(Processor::EditorState::Visible, true);
-				midiChain->setEditorState(Processor::EditorState::Folded, false);
+				s->setEditorState(Processor::EditorState::Folded, true);
 
 				auto root = findParentComponentOfClass<BackendRootWindow>();
 				
@@ -665,7 +665,18 @@ public:
 					
 					BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(root, jsp);
 					BackendPanelHelpers::ScriptingWorkspace::showEditor(root, false);
+                    BackendPanelHelpers::ScriptingWorkspace::showInterfaceDesigner(root, true);
 				}
+                
+                auto rootContainer = root->getMainPanel()->getRootContainer();
+                
+                auto editorOfParent = rootContainer->getFirstEditorOf(root->getMainSynthChain());
+                auto editorOfChain = rootContainer->getFirstEditorOf(midiChain);
+                
+                editorOfParent->getChainBar()->refreshPanel();
+                editorOfParent->sendResizedMessage();
+                editorOfChain->changeListenerCallback(editorOfChain->getProcessor());
+                editorOfChain->childEditorAmountChanged();
 			}
 		}
 
@@ -880,7 +891,7 @@ void MainTopBar::resized()
 #if IS_STANDALONE_APP 
 
 	settingsButton->setBounds(x, centerY, 28, 28);
-	peakMeter->setBounds(voiceCpuBpmComponent->getRight() + 2, centerY + 4, settingsButton->getX() - voiceCpuBpmComponent->getRight() - 4, 24);
+	peakMeter->setBounds(voiceCpuBpmComponent->getRight() - 2, centerY + 4, settingsButton->getX() - voiceCpuBpmComponent->getRight(), 24);
 
 #else
 
@@ -978,7 +989,7 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 	{
 		if (mc->getMainSynthChain()->hasDefinedFrontInterface())
 		{
-			c = new PluginPreviewWindow::Content(getRootWindow()->getMainPanel());
+			c = PluginPreviewWindow::createContent(getRootWindow()->getMainPanel());
 		}
 		else
 		{

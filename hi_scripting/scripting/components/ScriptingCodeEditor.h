@@ -126,29 +126,16 @@ public:
 
 	// ================================================================================================================
 
-	
-
-private:
-
-	class AutoCompletePopup;
-
-	// ================================================================================================================
-
-	Array<CodeRegion> highlightedSelection;
-	
-	Range<int> getCurrentTokenRange() const;
-	bool isNothingSelected() const;
-	void handleDoubleCharacter(const KeyPress &k, char openCharacter, char closeCharacter);
 
 	struct Helpers
 	{
 		static String getLeadingWhitespace(String line);
 		static int getBraceCount(String::CharPointerType line);
 		static bool getIndentForCurrentBlock(CodeDocument::Position pos, const String& tab,
-											 String& blockIndent, String& lastLineIndent);
+			String& blockIndent, String& lastLineIndent);
 
 		static char getCharacterAtCaret(CodeDocument::Position pos, bool beforeCaret = false);
-		
+
 		static void findAdvancedTokenRange(const CodeDocument::Position& pos, CodeDocument::Position& start, CodeDocument::Position& end)
 		{
 			end = pos;
@@ -166,8 +153,25 @@ private:
 			return CharacterFunctions::isLetterOrDigit(c) || c == '.' || c == '_' || c == '[' || c == ']';
 		}
 
+		static Range<int> getJSONTag(const CodeDocument& doc, const Identifier& id);
+
+		static CodeDocument::Position getPositionAfterDefinition(const CodeDocument& doc, Identifier id);
+
 		static Range<int> getFunctionParameterTextRange(CodeDocument::Position pos);
 	};
+
+
+private:
+
+	class AutoCompletePopup;
+
+	// ================================================================================================================
+
+	Array<CodeRegion> highlightedSelection;
+	
+	Range<int> getCurrentTokenRange() const;
+	bool isNothingSelected() const;
+	void handleDoubleCharacter(const KeyPress &k, char openCharacter, char closeCharacter);
 
 	Component::SafePointer<Component> currentModalWindow;
 
