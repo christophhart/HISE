@@ -410,7 +410,7 @@ BaseDebugArea::DebugPopout::DebugPopout(Component* c, BaseDebugArea* parent, Rec
 	DocumentWindow(c->getName(), Colour(0xFF333333), closeButton, true),
 	area(parent)
 {
-	editor = parent->findParentComponentOfClass<BackendProcessorEditor>();
+	editor = nullptr;
 
 	setUsingNativeTitleBar(true);
 

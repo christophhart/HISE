@@ -284,7 +284,7 @@ void HiSlider::mouseDown(const MouseEvent &e)
 #if USE_FRONTEND
 		enableMidiLearnWithPopup();
 #else
-		const bool isOnPreview = findParentComponentOfClass<BackendProcessorEditor>() == nullptr;
+		const bool isOnPreview = findParentComponentOfClass<FloatingTilePopup>() != nullptr;
 
 		if (isOnPreview)
 			enableMidiLearnWithPopup();
@@ -313,7 +313,7 @@ void HiSlider::touchAndHold(Point<int> /*downPosition*/)
 	enableMidiLearnWithPopup();
 #else
 
-	const bool isOnPreview = findParentComponentOfClass<BackendProcessorEditor>() == nullptr;
+	const bool isOnPreview = findParentComponentOfClass<FloatingTilePopup>() != nullptr;
 
 	if (isOnPreview)
 		enableMidiLearnWithPopup();
@@ -344,7 +344,7 @@ void HiToggleButton::mouseDown(const MouseEvent &e)
         enableMidiLearnWithPopup();
 #else
 
-		const bool isOnPreview = findParentComponentOfClass<BackendProcessorEditor>() == nullptr;
+		const bool isOnPreview = findParentComponentOfClass<FloatingTilePopup>() != nullptr;
 
 		if (isOnPreview)
 			enableMidiLearnWithPopup();
@@ -378,7 +378,7 @@ void HiComboBox::mouseDown(const MouseEvent &e)
         enableMidiLearnWithPopup();
         
 #else
-		const bool isOnPreview = findParentComponentOfClass<BackendProcessorEditor>() == nullptr;
+		const bool isOnPreview = findParentComponentOfClass<FloatingTilePopup>() != nullptr;
 
 		if (isOnPreview)
 			enableMidiLearnWithPopup();

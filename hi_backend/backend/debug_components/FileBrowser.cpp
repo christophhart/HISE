@@ -379,7 +379,7 @@ bool FileBrowser::perform(const InvocationInfo &info)
 		}
 		else if (result == ProjectFolder)
 		{
-			goToDirectory(GET_PROJECT_HANDLER(findParentComponentOfClass<BackendProcessorEditor>()->getMainSynthChain()).getWorkDirectory(), true);
+			goToDirectory(GET_PROJECT_HANDLER(findParentComponentOfClass<BackendRootWindow>()->getMainSynthChain()).getWorkDirectory(), true);
 		}
 		else if (result >= FavoriteOffset)
 		{

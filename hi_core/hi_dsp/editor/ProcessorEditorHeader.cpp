@@ -695,14 +695,6 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
 			{
 				p->setContentWithUndo(getProcessor(), 0);
 			}
-
-
-#if TODO_AUTOPOPUP
-			AutoPopupDebugComponent *c = findParentComponentOfClass<BackendProcessorEditor>()->getDebugComponent(true, CombinedDebugArea::AreaIds::ApiCollectionEnum);
-
-			if (c != nullptr) c->showComponentInDebugArea(!value);
-#endif
-
 		}
 
 
@@ -761,7 +753,7 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
     }
 	else if (buttonThatWasClicked == routeButton)
 	{
-		dynamic_cast<RoutableProcessor*>(getProcessor())->editRouting(this);
+		dynamic_cast<RoutableProcessor*>(getProcessor())->editRouting(routeButton);
 	}
     else if (buttonThatWasClicked == foldButton)
     {

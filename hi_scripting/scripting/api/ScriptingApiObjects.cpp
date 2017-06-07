@@ -289,13 +289,13 @@ void ScriptingObjects::ScriptingModulator::doubleClickCallback(const MouseEvent 
 #if USE_BACKEND
 	if (objectExists() && !objectDeleted())
 	{
-		BackendProcessorEditor *editor = componentToNotify->findParentComponentOfClass<BackendProcessorEditor>();
+		auto *editor = componentToNotify->findParentComponentOfClass<BackendRootWindow>();
 
 		Processor *p = ProcessorHelpers::getFirstProcessorWithName(editor->getMainSynthChain(), mod->getId());
 
 		if (p != nullptr)
 		{
-			editor->setRootProcessorWithUndo(p);
+			editor->getMainPanel()->setRootProcessorWithUndo(p);
 		}
 	}
 #else 
@@ -894,7 +894,7 @@ void ScriptingObjects::PathObject::doubleClickCallback(const MouseEvent &e, Comp
 {
 #if USE_BACKEND
 
-	BackendProcessorEditor *editor = componentToNotify->findParentComponentOfClass<BackendProcessorEditor>();
+	auto *editor = componentToNotify->findParentComponentOfClass<BackendRootWindow>();
 
 	PathPreviewComponent* content = new PathPreviewComponent(p);
 	

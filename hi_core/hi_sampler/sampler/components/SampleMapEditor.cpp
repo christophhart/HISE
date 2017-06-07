@@ -429,7 +429,6 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 	case ZoomIn:			zoom(false); return true;
 	case ZoomOut:			zoom(true); return true;
 	case ToggleVerticalSize:toggleVerticalSize(); return true;
-	case PopOutMap:			popoutMap(); return true;
 	case NewSampleMap:		if(PresetHandler::showYesNoWindow("Clear Sample Map", "Do you want to clear the sample map?", PresetHandler::IconType::Question)) 
 								sampler->clearSampleMap(); return true;
 	case LoadSampleMap:		{
@@ -442,7 +441,7 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 							}
 	case SaveSampleMap:				sampler->saveSampleMap(); return true;
 	case SaveSampleMapAsXml:		sampler->saveSampleMap(); return true;
-	case SaveSampleMapAsMonolith:	sampler->saveSampleMapAsMonolith(findParentComponentOfClass<BackendProcessorEditor>()); return true;
+	case SaveSampleMapAsMonolith:	sampler->saveSampleMapAsMonolith(findParentComponentOfClass<BackendRootWindow>()); return true;
 	case ImportSfz:			{
 							FileChooser f("Import sfz", GET_PROJECT_HANDLER(sampler).getWorkDirectory(), "*.sfz");
 
@@ -559,38 +558,6 @@ void SampleMapEditor::toggleVerticalSize()
 
 
 	body->refreshBodySize();
-}
-
-
-void SampleMapEditor::popoutMap()
-{
-	popoutCopy = new SampleMapEditor(sampler, body);
-
-
-
-
-
-	BackendProcessorEditor* editor = findParentComponentOfClass<BackendProcessorEditor>();
-
-	popoutCopy->setSize(337, editor->getHeight() - 150); // 337 is very important to keep the world running.
-
-	Array<WeakReference<ModulatorSamplerSound>> refArray = handler->getSelection().getItemArray();
-
-	Array<ModulatorSamplerSound*> soundArray;
-
-	for (int i = 0; i < refArray.size(); i++)
-	{
-		if(refArray[i].get() != nullptr) soundArray.add(refArray[i].get());
-	}
-
-	popoutCopy->selectSounds(soundArray);
-
-	popoutCopy->enablePopoutMode(this);
-
-
-	popoutCopy->updateSoundData();
-
-	editor->showPseudoModalWindow(popoutCopy, sampler->getId() + " Sample Map Editor");
 }
 
 //[/MiscUserCode]

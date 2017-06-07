@@ -75,6 +75,8 @@ void RouterComponent::ChannelConnector::setGainValue(float newGainValue)
 
 RouterComponent::RouterComponent(RoutableProcessor::MatrixData *data_)
 {
+	setName("Routing Matrix");
+
 	data = data_;
 	data->addChangeListener(this);
 
@@ -83,7 +85,7 @@ RouterComponent::RouterComponent(RoutableProcessor::MatrixData *data_)
 
 	rebuildConnectors();
 
-	setSize(512, 300);
+	setSize(600, 200);
 	
 	startTimer(30);
 	//START_TIMER();

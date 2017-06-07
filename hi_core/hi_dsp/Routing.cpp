@@ -534,13 +534,14 @@ void RoutableProcessor::editRouting(Component *childComponent)
 
 	AlertWindowLookAndFeel laf;
 
-	BackendProcessorEditor *editor = childComponent->findParentComponentOfClass<BackendProcessorEditor>();
+	auto editor = childComponent->findParentComponentOfClass<BackendRootWindow>();
 
 	if (editor != nullptr)
 	{
 		String id = dynamic_cast<Processor*>(this)->getId();
 
-		editor->showPseudoModalWindow(new RouterComponent(&getMatrix()), id, true);
+		editor->getRootFloatingTile()->showComponentInRootPopup(new RouterComponent(&getMatrix()), childComponent, childComponent->getLocalBounds().getCentre());
+
 	}
 #else 
 

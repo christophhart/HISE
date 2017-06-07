@@ -165,7 +165,7 @@ bool AutoPopupDebugComponent::isFloating() const
 {
 	const Component* c = dynamic_cast<const Component*>(this);
 
-	return c->getParentComponent() != nullptr && c->findParentComponentOfClass<BackendProcessorEditor>() == nullptr;
+	return c->getParentComponent() != nullptr;
 }
 
 AutoPopupDebugComponent::AutoPopupDebugComponent(BaseDebugArea *area) :

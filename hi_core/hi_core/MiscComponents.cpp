@@ -141,7 +141,7 @@ void MouseCallbackComponent::mouseDown(const MouseEvent& event)
 #if USE_FRONTEND
 		enableMidiLearnWithPopup();
 #else
-		const bool isOnPreview = findParentComponentOfClass<BackendProcessorEditor>() == nullptr;
+		const bool isOnPreview = findParentComponentOfClass<FloatingTilePopup>() != nullptr;
 
 		if (isOnPreview)
 			enableMidiLearnWithPopup();
@@ -183,7 +183,7 @@ void MouseCallbackComponent::touchAndHold(Point<int> downPosition)
 #if USE_FRONTEND
 		enableMidiLearnWithPopup();
 #else
-		const bool isOnPreview = findParentComponentOfClass<BackendProcessorEditor>() == nullptr;
+		const bool isOnPreview = findParentComponentOfClass<FloatingTilePopup>() != nullptr;
 
 		if (isOnPreview)
 			enableMidiLearnWithPopup();

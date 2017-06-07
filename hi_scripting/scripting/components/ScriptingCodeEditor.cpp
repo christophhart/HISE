@@ -94,7 +94,7 @@ void JavascriptCodeEditor::timerCallback()
 void JavascriptCodeEditor::focusGained(FocusChangeType)
 {
 #if USE_BACKEND
-	if (findParentComponentOfClass<BackendProcessorEditor>() != nullptr)
+	if (findParentComponentOfClass<BackendRootWindow>() != nullptr)
 	{
 		grabCopyAndPasteFocus();
 	}

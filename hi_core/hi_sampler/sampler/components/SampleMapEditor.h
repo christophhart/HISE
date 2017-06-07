@@ -491,8 +491,6 @@ public:
 
 	void toggleVerticalSize();
 
-	void popoutMap();
-
     //[/UserMethods]
 
     void paint (Graphics& g);
