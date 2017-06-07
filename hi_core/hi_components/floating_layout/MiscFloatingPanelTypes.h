@@ -421,6 +421,61 @@ public:
 };
 
 
+class ProcessorPeakMeter : public Component,
+	public Timer
+{
+public:
+
+	ProcessorPeakMeter(Processor* p) :
+		processor(p)
+	{
+		addAndMakeVisible(vuMeter = new VuMeter());
+
+		setOpaque(true);
+
+		vuMeter->setColour(VuMeter::backgroundColour, Colour(0xFF333333));
+		vuMeter->setColour(VuMeter::ledColour, Colours::lightgrey);
+		vuMeter->setColour(VuMeter::outlineColour, Colour(0x22000000));
+
+		startTimer(30);
+	}
+
+	~ProcessorPeakMeter()
+	{
+		stopTimer();
+		vuMeter = nullptr;
+		processor = nullptr;
+	}
+
+	void resized() override
+	{
+		if (getWidth() > getHeight())
+			vuMeter->setType(VuMeter::StereoHorizontal);
+		else
+			vuMeter->setType(VuMeter::StereoVertical);
+
+		vuMeter->setBounds(getLocalBounds());
+	}
+
+	void timerCallback() override
+	{
+		if (processor.get())
+		{
+			const auto& values = processor->getDisplayValues();
+
+			vuMeter->setPeak(values.outL, values.outR);
+		}
+	}
+
+private:
+
+	ScopedPointer<VuMeter> vuMeter;
+
+	WeakReference<Processor> processor;
+
+};
+
+
 
 template <class ContentType> class GenericPanel : public Component,
 										   public FloatingTileContent

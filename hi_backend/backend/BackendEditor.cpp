@@ -502,6 +502,7 @@ MainTopBar::MainTopBar(FloatingTile* parent) :
 	customWorkSpaceButton->setShape(ColumnIcons::getPath(ColumnIcons::customizeIcon, sizeof(ColumnIcons::customizeIcon)), false, true, true);
 	customWorkSpaceButton->setCommandToTrigger(getRootWindow()->getBackendProcessor()->getCommandManager(), BackendCommandTarget::WorkspaceCustom, true);
 	
+	addAndMakeVisible(peakMeter = new ProcessorPeakMeter(getRootWindow()->getMainSynthChain()));
 
 	addAndMakeVisible(settingsButton = new ShapeButton("Audio Settings", Colours::white.withAlpha(0.6f), Colours::white.withAlpha(0.8f), Colours::white));
 	settingsButton->setTooltip("Show Audio Settings");
@@ -893,6 +894,8 @@ void MainTopBar::resized()
 	
 	settingsButton->setBounds(x, centerY, 28, 28);
 	
+	peakMeter->setBounds(voiceCpuBpmComponent->getRight() + 2, centerY + 4, settingsButton->getX() - voiceCpuBpmComponent->getRight() - 4, 24);
+
 
 	const int rightX = settingsArea.getX() - 4;
 

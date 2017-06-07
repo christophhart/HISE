@@ -345,6 +345,7 @@ private:
 	ScopedPointer<ShapeButton> backButton;
 	ScopedPointer<ShapeButton> forwardButton;
 
+	ScopedPointer<ProcessorPeakMeter> peakMeter;
 	ScopedPointer<ShapeButton> settingsButton;
 	ScopedPointer<ShapeButton> layoutButton;
 
