@@ -408,7 +408,9 @@ var FloatingTabComponent::toDynamicObject() const
 
 void FloatingTabComponent::fromDynamicObject(const var& objectData)
 {
+	clear();
 	clearTabs();
+	
 
 	FloatingTileContainer::fromDynamicObject(objectData);
 

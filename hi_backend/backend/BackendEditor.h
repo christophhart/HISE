@@ -56,18 +56,30 @@ class ScriptContentContainer;
 
 
 
-class BackendProcessorEditor: public Component,
-							  public RestorableObject,
+class BackendProcessorEditor: public FloatingTileContent,
+							  public Component,
 							  public GlobalScriptCompileListener,
                               public Label::Listener
 {
 public:
 
-	
+	enum MainPanelProperties
+	{
+		ScrollPosition = FloatingTileContent::PanelPropertyId::numPropertyIds,
+		GlobalCodeFontSize,
+		Autosaving,
+		numPropertyIds
+	};
 
-	BackendProcessorEditor(AudioProcessor *ownerProcessor, BackendRootWindow* parent, const ValueTree &editorState);
+	BackendProcessorEditor(FloatingTile* parent);
 
 	~BackendProcessorEditor();
+
+	SET_PANEL_NAME("MainPanel");
+
+	int getFixedWidth() const override { return 900; }
+
+	String getTitle() const override { return "Main Panel"; };
 
 	void setRootProcessor(Processor *p, int scrollY=0);
 
@@ -84,61 +96,66 @@ public:
 		resized();
 	};
 
-	
-
-	ValueTree exportAsValueTree() const override
+	var toDynamicObject() const override
 	{
-		ValueTree v("editorData");
+		auto obj =  FloatingTileContent::toDynamicObject();
 
-		v.setProperty("width", getWidth(), nullptr);
-		v.setProperty("height", getHeight(), nullptr);
-		v.setProperty("scrollPosition", viewport->viewport->getViewPosition().getY(), nullptr);
-        v.setProperty("globalCodeFontSize", owner->getGlobalCodeFontSize(), nullptr);
-		v.setProperty("autosaving", owner->getAutoSaver().isAutoSaving(), nullptr);
+		storePropertyInObject(obj, MainPanelProperties::ScrollPosition, viewport->viewport->getViewPosition().getY(), 0);
+		storePropertyInObject(obj, MainPanelProperties::Autosaving, owner->getAutoSaver().isAutoSaving(), true);
+		storePropertyInObject(obj, MainPanelProperties::GlobalCodeFontSize, owner->getGlobalCodeFontSize());
 
-		MemoryBlock mb;
-
-		
-
-		mb.append(swatchColours, sizeof(Colour)*8);
-		v.setProperty("swatchColours", mb.toBase64Encoding(), nullptr);
-
-		return v;
+		return obj;
 	}
 
-	void restoreFromValueTree(const ValueTree &v) override
+	void fromDynamicObject(const var& obj) override
 	{
-		if (v.getType() == Identifier("editorData"))
-		{
-			setSize(v.getProperty("width", 900), v.getProperty("height", 700));
-            
-			owner->setScrollY(v.getProperty("scrollPosition", 0));
-            
-			const bool wasAutoSaving = v.getProperty("autosaving", true);
+		FloatingTileContent::fromDynamicObject(obj);
 
-			if (wasAutoSaving) owner->getAutoSaver().enableAutoSaving();
-			else owner->getAutoSaver().disableAutoSaving();
+		owner->setScrollY(getPropertyWithDefault(obj, MainPanelProperties::ScrollPosition));
 
-#if JUCE_WINDOWS
-            
-            owner->setGlobalCodeFontSize(v.getProperty("globalCodeFontSize", 14.0f));
-#else
-            owner->setGlobalCodeFontSize(v.getProperty("globalCodeFontSize", 13.0f));
-#endif
-            
-			MemoryBlock mb;
-			
-			mb.fromBase64Encoding(v.getProperty("swatchColours").toString());
+		const bool wasAutoSaving = getPropertyWithDefault(obj, MainPanelProperties::Autosaving);
 
-			if (mb.getSize() == sizeof(Colour) * 8)
-			{
-				storeSwatchColours((Colour*)(mb.getData()));
-			}
-		}
+		if (wasAutoSaving)
+			owner->getAutoSaver().enableAutoSaving();
 		else
-		{
-			setSize(900, 700);
-		}
+			owner->getAutoSaver().disableAutoSaving();
+
+		owner->setGlobalCodeFontSize(getPropertyWithDefault(obj, MainPanelProperties::GlobalCodeFontSize));
+	}
+
+	int getNumDefaultableProperties() const override
+	{
+		return (int)MainPanelProperties::numPropertyIds;
+	}
+
+	Identifier getDefaultablePropertyId(int id) const override
+	{
+		if (id < FloatingTileContent::numPropertyIds)
+			return FloatingTileContent::getDefaultablePropertyId(id);
+
+		RETURN_DEFAULT_PROPERTY_ID(id, (int)MainPanelProperties::ScrollPosition, "ScrollPosition");
+		RETURN_DEFAULT_PROPERTY_ID(id, (int)MainPanelProperties::GlobalCodeFontSize, "GlobalCodeFontSize");
+		RETURN_DEFAULT_PROPERTY_ID(id, (int)MainPanelProperties::Autosaving, "Autosaving");
+
+		jassertfalse;
+		return {};
+	}
+
+	var getDefaultProperty(int id) const override
+	{
+		if (id < FloatingTileContent::numPropertyIds)
+			return FloatingTileContent::getDefaultProperty(id);
+
+		RETURN_DEFAULT_PROPERTY(id, (int)MainPanelProperties::ScrollPosition, var(0));
+#if JUCE_WINDOWS
+		RETURN_DEFAULT_PROPERTY(id, (int)MainPanelProperties::GlobalCodeFontSize, var(14));
+#else
+		RETURN_DEFAULT_PROPERTY(id, (int)MainPanelProperties::GlobalCodeFontSize, var(13));
+#endif
+		RETURN_DEFAULT_PROPERTY(id, (int)MainPanelProperties::Autosaving, var(true));
+
+		jassertfalse;
+		return {};
 	}
 
 	void paint(Graphics &g);
@@ -361,44 +378,6 @@ private:
 };
 
 
-#if PUT_FLOAT_IN_CODEBASE
-class MainPanel : public FloatingTileContent,
-	public Component
-{
-public:
 
-	MainPanel(FloatingTile* parent):
-		FloatingTileContent(parent)	
-	{
-			ed = nullptr;
-	}
-
-	~MainPanel()
-	{
-		ed = nullptr;
-	}
-
-	BackendProcessorEditor* set(BackendProcessor* owner, BackendRootWindow* backendRoot, const ValueTree& editorState);
-
-	SET_PANEL_NAME("MainPanel");
-
-	int getFixedWidth() const override { return 900; }
-
-	String getTitle() const override { return "Main Panel"; };
-
-	void resized() override
-	{
-		if(ed)
-			ed->setBounds(getLocalBounds());
-	}
-
-
-
-private:
-
-	ScopedPointer<BackendProcessorEditor> ed;
-
-};
-#endif
 
 #endif

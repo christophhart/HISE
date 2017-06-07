@@ -1,28 +1,98 @@
 
 
-BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, ValueTree& editorState) :
+BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorState) :
 	AudioProcessorEditor(ownerProcessor),
 	BackendCommandTarget(static_cast<BackendProcessor*>(ownerProcessor)),
 	owner(static_cast<BackendProcessor*>(ownerProcessor))
 {
-#if PUT_FLOAT_IN_CODEBASE
+
 	addAndMakeVisible(floatingRoot = new FloatingTile(nullptr));
 
+	bool loadedCorrectly = true;
+	bool objectFound = editorState.isObject();
 
-	auto mainPanelC = (FloatingPanelTemplates::createHiseLayout(floatingRoot));
+	int width = 1500;
+	int height = 900;
 
-	auto mainPanel = dynamic_cast<MainPanel*>(mainPanelC);
+	if (objectFound)
+	{
+		floatingRoot->setContent(editorState);
 
-	mainEditor = mainPanel->set(owner, this, editorState);
+		mainEditor = FloatingTileHelpers::findTileWithId<BackendProcessorEditor>(floatingRoot, Identifier("MainColumn"));
 
-	workspaces.add(FloatingTileHelpers::findTileWithId<VerticalTile>(floatingRoot, Identifier("MainWorkspace"))->getParentShell());
-	workspaces.add(FloatingTileHelpers::findTileWithId<FloatingTileContainer>(floatingRoot, Identifier("ScriptingWorkspace"))->getParentShell());
-	workspaces.add(FloatingTileHelpers::findTileWithId<FloatingTileContainer>(floatingRoot, Identifier("SamplerWorkspace"))->getParentShell());
-	workspaces.add(FloatingTileHelpers::findTileWithId<HorizontalTile>(floatingRoot, Identifier("CustomWorkspace"))->getParentShell());
+		loadedCorrectly = mainEditor != nullptr;
 
-	showWorkspace(BackendCommandTarget::WorkspaceMain);
+		if (loadedCorrectly)
+		{
+			auto mws = FloatingTileHelpers::findTileWithId<FloatingTileContainer>(floatingRoot, Identifier("MainWorkspace"));
 
-	setEditor(this);
+			if (mws != nullptr)
+				workspaces.add(mws->getParentShell());
+			else
+				loadedCorrectly = false;
+		}
+
+		if (loadedCorrectly)
+		{
+			auto mws = FloatingTileHelpers::findTileWithId<FloatingTileContainer>(floatingRoot, Identifier("ScriptingWorkspace"));
+
+			if (mws != nullptr)
+				workspaces.add(mws->getParentShell());
+			else
+				loadedCorrectly = false;
+		}
+
+		if (loadedCorrectly)
+		{
+			auto mws = FloatingTileHelpers::findTileWithId<FloatingTileContainer>(floatingRoot, Identifier("SamplerWorkspace"));
+
+			if (mws != nullptr)
+				workspaces.add(mws->getParentShell());
+			else
+				loadedCorrectly = false;
+		}
+
+		if (loadedCorrectly)
+		{
+			auto mws = FloatingTileHelpers::findTileWithId<FloatingTileContainer>(floatingRoot, Identifier("CustomWorkspace"));
+
+			if (mws != nullptr)
+				workspaces.add(mws->getParentShell());
+			else
+				loadedCorrectly = false;
+		}
+
+		if (loadedCorrectly)
+		{
+			width = jmax<int>(960, editorState.getDynamicObject()->getProperty("MainWidth"));
+			height = jmax<int>(500, editorState.getDynamicObject()->getProperty("MainHeight"));
+			const int workspace = editorState.getDynamicObject()->getProperty("CurrentWorkspace");
+
+			if(workspace > 0)
+				showWorkspace(workspace);
+		}
+
+		setEditor(this);
+	}
+
+	if (!loadedCorrectly)
+		PresetHandler::showMessageWindow("Error loading Interface", "The interface data is corrupt. The default settings will be loaded", PresetHandler::IconType::Error);
+
+	if(!objectFound || !loadedCorrectly)
+	{
+		mainEditor = dynamic_cast<BackendProcessorEditor*>(FloatingPanelTemplates::createHiseLayout(floatingRoot));
+
+		jassert(mainEditor != nullptr);
+
+		workspaces.add(FloatingTileHelpers::findTileWithId<VerticalTile>(floatingRoot, Identifier("MainWorkspace"))->getParentShell());
+		workspaces.add(FloatingTileHelpers::findTileWithId<FloatingTileContainer>(floatingRoot, Identifier("ScriptingWorkspace"))->getParentShell());
+		workspaces.add(FloatingTileHelpers::findTileWithId<FloatingTileContainer>(floatingRoot, Identifier("SamplerWorkspace"))->getParentShell());
+		workspaces.add(FloatingTileHelpers::findTileWithId<HorizontalTile>(floatingRoot, Identifier("CustomWorkspace"))->getParentShell());
+
+		showWorkspace(BackendCommandTarget::WorkspaceMain);
+
+		setEditor(this);
+	}
 
 	setOpaque(true);
 
@@ -38,19 +108,30 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, ValueTree& 
 	PresetHandler::buildProcessorDataBase(owner->getMainSynthChain());
 
 	constrainer = new ComponentBoundsConstrainer();
-	constrainer->setMinimumHeight(200);
-	constrainer->setMinimumWidth(0);
-	constrainer->setMaximumWidth(1920);
+	constrainer->setMinimumHeight(500);
+	constrainer->setMinimumWidth(960);
+	constrainer->setMaximumWidth(4000);
 
 	
 
-	addAndMakeVisible(borderDragger = new ResizableBorderComponent(this, constrainer));
-	BorderSize<int> borderSize;
-	borderSize.setTop(0);
-	borderSize.setLeft(0);
-	borderSize.setRight(0);
-	borderSize.setBottom(7);
-	borderDragger->setBorderThickness(borderSize);
+	addAndMakeVisible(yBorderDragger = new ResizableBorderComponent(this, constrainer));
+	addAndMakeVisible(xBorderDragger = new ResizableBorderComponent(this, constrainer));
+
+	BorderSize<int> yBorderSize;
+	yBorderSize.setTop(0);
+	yBorderSize.setLeft(0);
+	yBorderSize.setRight(0);
+	yBorderSize.setBottom(7);
+	yBorderDragger->setBorderThickness(yBorderSize);
+
+
+	BorderSize<int> xBorderSize;
+	xBorderSize.setTop(0);
+	xBorderSize.setLeft(0);
+	xBorderSize.setRight(7);
+	xBorderSize.setBottom(0);
+
+	xBorderDragger->setBorderThickness(xBorderSize);
 
 	addAndMakeVisible(progressOverlay = new ThreadWithQuasiModalProgressWindow::Overlay());
 	owner->setOverlay(progressOverlay);
@@ -66,19 +147,21 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, ValueTree& 
 
 #endif
 
-	setSize(1500, 900);
-
+	setSize(width, height);
 
 	startTimer(1000);
 
 	updateCommands();
-#endif
 }
 
 
 BackendRootWindow::~BackendRootWindow()
 {
-#if PUT_FLOAT_IN_CODEBASE
+	getBackendProcessor()->getCommandManager()->clearCommands();
+
+	saveInterfaceData();
+	
+
 	clearModalComponent();
 
 	modalComponent = nullptr;
@@ -86,7 +169,8 @@ BackendRootWindow::~BackendRootWindow()
 	// Remove the resize stuff
 
 	constrainer = nullptr;
-	borderDragger = nullptr;
+	yBorderDragger = nullptr;
+	xBorderDragger = nullptr;
 	currentDialog = nullptr;
 
 	// Remove the menu
@@ -102,7 +186,7 @@ BackendRootWindow::~BackendRootWindow()
 
 	mainEditor = nullptr;
 
-#endif
+
 }
 
 bool BackendRootWindow::isFullScreenMode() const
@@ -120,9 +204,31 @@ bool BackendRootWindow::isFullScreenMode() const
 #endif
 }
 
+void BackendRootWindow::saveInterfaceData()
+{
+	if (resetOnClose)
+	{
+		getBackendProcessor()->setEditorData({});
+	}
+	else
+	{
+		var editorData = getRootFloatingTile()->getCurrentFloatingPanel()->toDynamicObject();
+
+		if (auto obj = editorData.getDynamicObject())
+		{
+			obj->setProperty("MainWidth", getWidth());
+			obj->setProperty("MainHeight", getHeight());
+			obj->setProperty("CurrentWorkspace", currentWorkspace);
+		}
+
+		getBackendProcessor()->setEditorData(editorData);
+	}
+
+}
+
 void BackendRootWindow::resized()
 {
-#if PUT_FLOAT_IN_CODEBASE
+
 #if IS_STANDALONE_APP
 	if (getParentComponent() != nullptr)
 	{
@@ -150,10 +256,11 @@ void BackendRootWindow::resized()
 
 #else
 
-	borderDragger->setBounds(getBounds());
+	yBorderDragger->setBounds(getBounds());
+	xBorderDragger->setBounds(getBounds());
 
 #endif
-#endif
+
 }
 
 void BackendRootWindow::showSettingsWindow()
@@ -182,6 +289,13 @@ void BackendRootWindow::timerCallback()
 
 		BackendCommandTarget::Actions::createNewProject(this);
 	}
+}
+
+void BackendRootWindow::resetInterface()
+{
+	resetOnClose = true;
+
+	PresetHandler::showMessageWindow("Workspace Layout Reset", "Close and open this instance to reset the interface", PresetHandler::IconType::Info);
 }
 
 void BackendRootWindow::loadNewContainer(ValueTree & v)

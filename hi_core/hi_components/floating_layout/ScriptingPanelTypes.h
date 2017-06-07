@@ -141,7 +141,7 @@ public:
 
 	enum SpecialPanelIds
 	{
-		ZoomAmount = FloatingTileContent::PanelPropertyId::numPropertyIds,
+		ZoomAmount = PanelWithProcessorConnection::SpecialPanelIds::numSpecialPanelIds,
 		EditMode,
 		numSpecialPanelIds
 	};
@@ -168,6 +168,9 @@ public:
 
 		double getZoomAmount() const;
 
+		void setEditMode(bool editModeEnabled);
+
+		bool isEditModeEnabled() const;
 
 	public:
 
@@ -198,6 +201,37 @@ public:
 	var toDynamicObject() const override;;
 
 	void fromDynamicObject(const var& object) override;
+
+
+
+	int getNumDefaultableProperties() const override
+	{
+		return SpecialPanelIds::numSpecialPanelIds;
+	}
+
+	Identifier getDefaultablePropertyId(int index) const override
+	{
+		if (index < PanelWithProcessorConnection::SpecialPanelIds::numSpecialPanelIds)
+			return PanelWithProcessorConnection::getDefaultablePropertyId(index);
+
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ZoomAmount, "ZoomAmount");
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::EditMode, "EditMode");
+
+		jassertfalse;
+		return{};
+	}
+
+	var getDefaultProperty(int index) const override
+	{
+		if (index < PanelWithProcessorConnection::SpecialPanelIds::numSpecialPanelIds)
+			return PanelWithProcessorConnection::getDefaultProperty(index);
+
+		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ZoomAmount, var(1.0));
+		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::EditMode, var(false));
+
+		jassertfalse;
+		return{};
+	}
 
 
 	Identifier getProcessorTypeId() const override;

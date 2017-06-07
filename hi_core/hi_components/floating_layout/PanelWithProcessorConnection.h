@@ -46,6 +46,13 @@ class PanelWithProcessorConnection : public FloatingTileContent,
 {
 public:
 
+	enum SpecialPanelIds
+	{
+		ProcessorId = FloatingTileContent::PanelPropertyId::numPropertyIds,
+		Index,
+		numSpecialPanelIds
+	};
+
 	/** This action will be performed when a processor / index is selected. */
 	class ProcessorConnection : public UndoableAction
 	{
@@ -74,6 +81,18 @@ public:
 	virtual ~PanelWithProcessorConnection();
 
 	void paint(Graphics& g) override;
+
+	var toDynamicObject() const override;
+
+	void fromDynamicObject(const var& object) override;
+
+
+	int getNumDefaultableProperties() const override;
+
+	Identifier getDefaultablePropertyId(int index) const override;
+
+	var getDefaultProperty(int index) const override;
+
 
 
 	void moduleListChanged(Processor* b, MainController::ProcessorChangeHandler::EventType type) override;

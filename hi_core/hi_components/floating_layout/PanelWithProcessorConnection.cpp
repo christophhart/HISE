@@ -90,6 +90,64 @@ void PanelWithProcessorConnection::paint(Graphics& g)
 	
 }
 
+var PanelWithProcessorConnection::toDynamicObject() const
+{
+	var obj = FloatingTileContent::toDynamicObject();
+
+	storePropertyInObject(obj, SpecialPanelIds::ProcessorId, getConnectedProcessor() != nullptr ? getConnectedProcessor()->getId() : "");
+	storePropertyInObject(obj, SpecialPanelIds::Index, currentIndex);
+
+	return obj;
+}
+
+void PanelWithProcessorConnection::fromDynamicObject(const var& object)
+{
+	FloatingTileContent::fromDynamicObject(object);
+
+	const String id = getPropertyWithDefault(object, SpecialPanelIds::ProcessorId);
+
+	int index = getPropertyWithDefault(object, SpecialPanelIds::Index);
+
+	if (id.isNotEmpty())
+	{
+		auto p = ProcessorHelpers::getFirstProcessorWithName(getParentShell()->getRootWindow()->getMainSynthChain(), id);
+
+		if (p != nullptr)
+		{
+			setContentWithUndo(p, index);
+		}
+	}
+}
+
+int PanelWithProcessorConnection::getNumDefaultableProperties() const
+{
+	return SpecialPanelIds::numSpecialPanelIds;
+}
+
+Identifier PanelWithProcessorConnection::getDefaultablePropertyId(int index) const
+{
+	if (index < FloatingTileContent::numPropertyIds)
+		return FloatingTileContent::getDefaultablePropertyId(index);
+
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ProcessorId, "ProcessorId");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::Index, "Index");
+
+	jassertfalse;
+	return{};
+}
+
+var PanelWithProcessorConnection::getDefaultProperty(int index) const
+{
+	if (index < FloatingTileContent::numPropertyIds)
+		return FloatingTileContent::getDefaultProperty(index);
+
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ProcessorId, var(""));
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::Index, var(-1));
+
+	jassertfalse;
+	return{};
+}
+
 void PanelWithProcessorConnection::moduleListChanged(Processor* b, MainController::ProcessorChangeHandler::EventType type)
 {
 	if (type == MainController::ProcessorChangeHandler::EventType::ProcessorBypassed ||

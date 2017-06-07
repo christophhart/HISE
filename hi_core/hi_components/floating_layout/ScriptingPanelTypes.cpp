@@ -155,17 +155,19 @@ void ScriptContentPanel::scriptWasCompiled(JavascriptProcessor *processor)
 
 var ScriptContentPanel::toDynamicObject() const
 {
-	var obj = FloatingTileContent::toDynamicObject();
+	var obj = PanelWithProcessorConnection::toDynamicObject();
 
 	auto editor = getContent<Editor>();
 	
 	if (editor != nullptr)
 	{
 		storePropertyInObject(obj, SpecialPanelIds::ZoomAmount, editor->getZoomAmount(), 1.0);
+		storePropertyInObject(obj, SpecialPanelIds::EditMode, editor->isEditModeEnabled(), false);
 	}
 	else
 	{
 		storePropertyInObject(obj, SpecialPanelIds::ZoomAmount, 1.0, 1.0);
+		storePropertyInObject(obj, SpecialPanelIds::EditMode, false, false);
 	}
 
 	
@@ -175,9 +177,15 @@ var ScriptContentPanel::toDynamicObject() const
 
 void ScriptContentPanel::fromDynamicObject(const var& object)
 {
-	FloatingTileContent::fromDynamicObject(object);
+	PanelWithProcessorConnection::fromDynamicObject(object);
 
-	
+	auto editor = getContent<Editor>();
+
+	if (editor != nullptr)
+	{
+		editor->setZoomAmount(getPropertyWithDefault(object, SpecialPanelIds::ZoomAmount));
+		editor->setEditMode(getPropertyWithDefault(object, SpecialPanelIds::EditMode));
+	}
 }
 
 Identifier ScriptContentPanel::getProcessorTypeId() const
@@ -329,6 +337,13 @@ ScriptContentPanel::Editor::Editor(Processor* p)
 	addAndMakeVisible(viewport = new Viewport());
 
 	viewport->setViewedComponent(new Canvas(p), true);
+
+	zoomSelector->setTooltip("Select Zoom Level");
+	editSelector->setTooltip("Toggle Edit / Presentation Mode");
+	compileButton->setTooltip("Apply changes to selection (Compile)");
+	cancelButton->setTooltip("Deselect current item");
+	undoButton->setTooltip("Undo last item change");
+	redoButton->setTooltip("Redo last item change");
 }
 
 
@@ -420,6 +435,13 @@ void ScriptContentPanel::Editor::setZoomAmount(double newZoomAmount)
 
 		viewport->getViewedComponent()->setTransform(s);
 		
+		if(zoomAmount == 0.5)   zoomSelector->setSelectedId(1, dontSendNotification);
+		if (zoomAmount == 0.75) zoomSelector->setSelectedId(2, dontSendNotification);
+		if (zoomAmount == 1.0)  zoomSelector->setSelectedId(3, dontSendNotification);
+		if (zoomAmount == 1.25) zoomSelector->setSelectedId(4, dontSendNotification);
+		if (zoomAmount == 1.5)  zoomSelector->setSelectedId(5, dontSendNotification);
+		if (zoomAmount == 2.0)  zoomSelector->setSelectedId(6, dontSendNotification);
+		
 		refreshContent();
 	}
 
@@ -432,6 +454,19 @@ double ScriptContentPanel::Editor::getZoomAmount() const
 	return zoomAmount;
 }
 
+void ScriptContentPanel::Editor::setEditMode(bool editModeEnabled)
+{
+	if (editModeEnabled != editSelector->getToggleState())
+	{
+		buttonClicked(editSelector);
+	}
+}
+
+bool ScriptContentPanel::Editor::isEditModeEnabled() const
+{
+	return editSelector->getToggleState();
+}
+
 Identifier ScriptWatchTablePanel::getProcessorTypeId() const
 {
 	return JavascriptProcessor::getConnectorId();
@@ -439,7 +474,7 @@ Identifier ScriptWatchTablePanel::getProcessorTypeId() const
 
 Component* ScriptWatchTablePanel::createContentComponent(int /*index*/)
 {
-	setStyleProperty(showConnectionBar, false);
+	setStyleProperty("showConnectionBar", false);
 
 	auto swt = new ScriptWatchTable(getRootWindow());
 

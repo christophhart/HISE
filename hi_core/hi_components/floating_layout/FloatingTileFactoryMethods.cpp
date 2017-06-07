@@ -66,7 +66,7 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<GenericPanel<PoolTableSubTypes::AudioFilePoolTable>>(PopupMenuOptions::AudioFileTable);
 	registerType<ApplicationCommandButtonPanel>(PopupMenuOptions::MenuCommandOffset);
 
-	registerType<MainPanel>(PopupMenuOptions::MenuCommandOffset);
+	registerType<BackendProcessorEditor>(PopupMenuOptions::MenuCommandOffset);
 	registerType<MainTopBar>(PopupMenuOptions::MenuCommandOffset);
 }
 

@@ -56,32 +56,23 @@ public:
 	void handleEditorData(bool save)
 	{
 #if IS_STANDALONE_APP
-		File xmlFile(PresetHandler::getDataFolder() + "/editorData.xml");
-#else
-        File xmlFile(PresetHandler::getDataFolder() + "/editorDataPlugin.xml");
-#endif
+		File jsonFile(PresetHandler::getDataFolder() + "/editorData.json");
 
 		if (save)
 		{
-			ScopedPointer<XmlElement> xml = editorInformation.createXml();
-			xml->writeToFile(xmlFile, "");
+			if (editorInformation.isObject())
+				jsonFile.replaceWithText(JSON::toString(editorInformation));
+			else
+				jsonFile.deleteFile();
 		}
 		else
 		{
-			ScopedPointer<XmlElement> xml = XmlDocument::parse(xmlFile);
-			if (xml != nullptr)
-			{
-				editorInformation = ValueTree::fromXml(*xml);
-			}
-			else
-			{
-				editorInformation = ValueTree("invalid");
-			}
-			
+			editorInformation = JSON::parse(jsonFile);
 		}
-	}
+#endif
 
-	
+		
+	}
 
 	void prepareToPlay (double sampleRate, int samplesPerBlock);
 	void releaseResources() 
@@ -89,16 +80,7 @@ public:
 		writeToConsole("RELEASE_RESOURCES_CALLED", CodeHandler::Error, getMainSynthChain());
 	};
 
-	void getStateInformation	(MemoryBlock &destData) override
-	{
-		MemoryOutputStream output(destData, false);
-
-		ValueTree v = synthChain->exportAsValueTree();
-
-		v.setProperty("ProjectRootFolder", GET_PROJECT_HANDLER(synthChain).getWorkDirectory().getFullPathName(), nullptr);
-
-		v.writeToStream(output);
-	};
+	void getStateInformation	(MemoryBlock &destData) override;;
 
 	
 
@@ -118,6 +100,8 @@ public:
 		}
 
         loadPreset(v);
+
+		editorInformation = JSON::parse(v.getProperty("InterfaceData", ""));
 	}
 
 	void processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiMessages);
@@ -180,7 +164,8 @@ public:
 		
 		return String(synthChain->getMacroControlData(index)->getDisplayValue(), 1);
 	}
-	void setEditorState(ValueTree &editorState);
+
+	void setEditorData(var editorState);
 private:
 
 	friend class BackendProcessorEditor;
@@ -191,7 +176,7 @@ private:
 	
 	ScopedPointer<UndoManager> viewUndoManager;
 
-	ValueTree editorInformation;
+	var editorInformation;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BackendProcessor)
 };

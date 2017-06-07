@@ -57,6 +57,34 @@ public:
 
 	void fromDynamicObject(const var& object) override;
 
+
+	int getNumDefaultableProperties() const override
+	{
+		return SpecialPanelIds::numSpecialPanelIds;
+	}
+
+	Identifier getDefaultablePropertyId(int index) const override
+	{
+		if (index < FloatingTileContent::numPropertyIds)
+			return FloatingTileContent::getDefaultablePropertyId(index);
+
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::Text, "Text");
+		
+		jassertfalse;
+		return {};
+	}
+
+	var getDefaultProperty(int index) const override
+	{
+		if (index < FloatingTileContent::numPropertyIds)
+			return FloatingTileContent::getDefaultProperty(index);
+
+		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::Text, var(""));
+
+		jassertfalse;
+		return {};
+	}
+
 	void labelTextChanged(Label* l);
 
 	int getFixedHeight() const override
@@ -147,7 +175,7 @@ public:
 class ResizableFloatingTileContainer;
 
 class VisibilityToggleBar : public FloatingTileContent,
-					   public Component
+						    public Component
 {
 public:
 
@@ -158,6 +186,13 @@ public:
 		overColour,
 		onColour,
 		numColourIds
+	};
+
+	enum SpecialPanelIds
+	{
+		Alignment = FloatingTileContent::PanelPropertyId::numPropertyIds,
+		IconIds,
+		numSpecialPanelIds
 	};
 
 	VisibilityToggleBar(FloatingTile* parent);;
@@ -190,10 +225,41 @@ public:
 
 	void refreshButtons();
 
-	void siblingAmountChanged() override
+	var toDynamicObject() const override;
+
+	void fromDynamicObject(const var& object) override;
+
+
+	int getNumDefaultableProperties() const override
 	{
-		refreshButtons();
+		return SpecialPanelIds::numSpecialPanelIds;
 	}
+
+	Identifier getDefaultablePropertyId(int index) const override
+	{
+		if (index < FloatingTileContent::numPropertyIds)
+			return FloatingTileContent::getDefaultablePropertyId(index);
+
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::Alignment, "Alignment");
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::IconIds, "IconIds");
+
+		jassertfalse;
+		return{};
+	}
+
+	var getDefaultProperty(int index) const override
+	{
+		if (index < FloatingTileContent::numPropertyIds)
+			return FloatingTileContent::getDefaultProperty(index);
+
+		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::Alignment, var((int)Justification::centred));
+		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::IconIds, Array<var>());
+
+		jassertfalse;
+		return{};
+	}
+
+	void siblingAmountChanged() override;
 
 	int getNumColourIds() const { return numColourIds; }
 
@@ -248,6 +314,8 @@ private:
 
 		Component::SafePointer<FloatingTile> controlledTile;
 	};
+
+	StringArray pendingCustomPanels;
 
 	Justification alignment = Justification::centred;
 
@@ -346,9 +414,12 @@ public:
 	{
 		auto ltp = dynamic_cast<LookupTableProcessor*>(getConnectedProcessor());
 
-		for (int i = 0; i < ltp->getNumTables(); i++)
+		if (ltp != nullptr)
 		{
-			indexList.add("Table " + String(i + 1));
+			for (int i = 0; i < ltp->getNumTables(); i++)
+			{
+				indexList.add("Table " + String(i + 1));
+			}
 		}
 	}
 };
@@ -445,6 +516,11 @@ public:
 		stopTimer();
 		vuMeter = nullptr;
 		processor = nullptr;
+	}
+
+	void paint(Graphics& g) override
+	{
+		g.fillAll(Colour(0xFF333333));
 	}
 
 	void resized() override

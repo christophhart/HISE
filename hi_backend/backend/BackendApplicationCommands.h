@@ -128,6 +128,7 @@ public:
         MenuEditCloseAllChains,
 		MenuViewOffset = 0x40000,
         MenuViewFullscreen,
+		MenuViewReset,
 		MenuViewBack,
 		MenuViewForward,
 		MenuViewSetMainContainerAsRoot,

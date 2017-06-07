@@ -57,6 +57,5 @@
 #include "eq_plot/FilterGraph.cpp"
 #include "eq_plot/EqComponent.cpp"
 
-#if PUT_FLOAT_IN_CODEBASE
+
 #include "floating_layout/FloatingLayout.cpp"
-#endif

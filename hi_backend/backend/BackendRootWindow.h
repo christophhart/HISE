@@ -22,7 +22,7 @@ class BackendRootWindow : public AudioProcessorEditor,
 {
 public:
 
-	BackendRootWindow(AudioProcessor *ownerProcessor, ValueTree& editorState);
+	BackendRootWindow(AudioProcessor *ownerProcessor, var editorState);
 
 	~BackendRootWindow();
 
@@ -35,6 +35,8 @@ public:
 		//g.fillAll(Colour(0xFF333333));
 	}
 
+	void saveInterfaceData();
+
 	void resized();
 
 	void showSettingsWindow();
@@ -45,6 +47,8 @@ public:
 	const BackendProcessor* getBackendProcessor() const { return owner; }
 
 	BackendProcessorEditor* getMainPanel() { return mainEditor; }
+
+	void resetInterface();
 
 	CustomKeyboard* getKeyboard() const override
 	{
@@ -105,11 +109,13 @@ private:
 
 	ScopedPointer<ComponentBoundsConstrainer> constrainer;
 
-	ScopedPointer<ResizableBorderComponent> borderDragger;
+	ScopedPointer<ResizableBorderComponent> yBorderDragger;
+	ScopedPointer<ResizableBorderComponent> xBorderDragger;
 
-#if PUT_FLOAT_IN_CODEBASE
+
 	ScopedPointer<FloatingTile> floatingRoot;
-#endif
+
+	bool resetOnClose = false;
 
 };
 

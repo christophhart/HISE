@@ -35,9 +35,10 @@
 #include <regex>
 
 
-BackendProcessorEditor::BackendProcessorEditor(AudioProcessor *ownerProcessor, BackendRootWindow* parent, const ValueTree &editorState) :
-owner(static_cast<BackendProcessor*>(ownerProcessor)),
-parentRootWindow(parent),
+BackendProcessorEditor::BackendProcessorEditor(FloatingTile* parent) :
+FloatingTileContent(parent),
+owner(parent->getRootWindow()->getBackendProcessor()),
+parentRootWindow(parent->getRootWindow()),
 rootEditorIsMainSynthChain(true)
 {
     setOpaque(true);
@@ -60,18 +61,13 @@ rootEditorIsMainSynthChain(true)
 
 	aboutPage->setVisible(false);
 	aboutPage->setBoundsInset(BorderSize<int>(80));
-
-	restoreFromValueTree(editorState);
 };
 
 BackendProcessorEditor::~BackendProcessorEditor()
 {
 	owner->removeScriptListener(this);
 	
-    ValueTree v = exportAsValueTree();
-    
-	owner->setEditorState(v);
-
+	
 	// Remove the popup components
 
 	popupEditor = nullptr;
@@ -438,17 +434,6 @@ void BackendProcessorEditor::clearModuleList()
 
 #undef toggleVisibility
 
-
-#if PUT_FLOAT_IN_CODEBASE
-BackendProcessorEditor* MainPanel::set(BackendProcessor* owner, BackendRootWindow* backendRoot, const ValueTree& editorState)
-{
-	addAndMakeVisible(ed = new BackendProcessorEditor(owner, backendRoot, editorState));
-
-	getParentShell()->getParentContainer()->refreshLayout();
-
-	return ed;
-}
-#endif
 
 MainTopBar::MainTopBar(FloatingTile* parent) :
 	FloatingTileContent(parent)
@@ -892,9 +877,21 @@ void MainTopBar::resized()
 	
 	x = layoutButton->getX() - 28 - 8;
 	
+#if IS_STANDALONE_APP 
+
 	settingsButton->setBounds(x, centerY, 28, 28);
-	
 	peakMeter->setBounds(voiceCpuBpmComponent->getRight() + 2, centerY + 4, settingsButton->getX() - voiceCpuBpmComponent->getRight() - 4, 24);
+
+#else
+
+	settingsButton->setVisible(false);
+	peakMeter->setBounds(voiceCpuBpmComponent->getRight() + 2, centerY + 4, layoutButton->getX() - voiceCpuBpmComponent->getRight() - 4, 24);
+
+#endif
+
+	
+	
+	
 
 
 	const int rightX = settingsArea.getX() - 4;

@@ -200,6 +200,98 @@ void VisibilityToggleBar::refreshButtons()
 	
 }
 
+var VisibilityToggleBar::toDynamicObject() const
+{
+	var obj = FloatingTileContent::toDynamicObject();
+
+	Array<var> iconList;
+
+	DBG("Export");
+
+	for (int i = 0; i < customPanels.size(); i++)
+	{
+		if (customPanels[i].getComponent() != nullptr)
+		{
+			iconList.add(customPanels[i]->getLayoutData().getID().toString());
+		}
+		else
+		{
+			jassertfalse;
+		}
+
+		DBG(iconList.getLast().toString());
+	}
+
+	
+
+
+	storePropertyInObject(obj, SpecialPanelIds::IconIds, iconList);
+	storePropertyInObject(obj, SpecialPanelIds::Alignment, var(alignment.getFlags()));
+
+	return obj;
+}
+
+void VisibilityToggleBar::fromDynamicObject(const var& object)
+{
+	FloatingTileContent::fromDynamicObject(object);
+
+	alignment = Justification(getPropertyWithDefault(object, SpecialPanelIds::Alignment));
+
+	auto l = getPropertyWithDefault(object, SpecialPanelIds::IconIds);
+
+	if (auto list = l.getArray())
+	{
+		if (!list->isEmpty())
+		{
+			for (int i = 0; i < list->size(); i++)
+			{
+				const String name = list->getUnchecked(i).toString();
+
+				// The other panels do not exist yet, so store them in a StringArray and add them on sibling change
+				pendingCustomPanels.add(name);
+
+			}
+		}
+	}
+
+}
+
+void VisibilityToggleBar::siblingAmountChanged()
+{
+	if (!pendingCustomPanels.isEmpty())
+	{
+		customPanels.clear();
+
+		auto rootPanel = getParentShell()->getParentContainer();
+
+		jassert(rootPanel != nullptr);
+
+		for (int i = 0; i < pendingCustomPanels.size(); i++)
+		{
+			auto name = pendingCustomPanels[i];
+
+			auto panel = FloatingTileHelpers::findTileWithId<FloatingTileContent>(rootPanel->getParentShell(), Identifier(name));
+
+			if (panel != nullptr)
+			{
+				addCustomPanel(panel->getParentShell());
+			}
+			else
+			{
+				// Delete all buttons
+
+				customPanels.clear();
+				refreshButtons();
+				return;
+			}
+		}
+
+		pendingCustomPanels.clear();
+	}
+
+	refreshButtons();
+}
+
 void VisibilityToggleBar::resized()
 {
 	auto c = dynamic_cast<ResizableFloatingTileContainer*>(getParentShell()->getParentContainer());

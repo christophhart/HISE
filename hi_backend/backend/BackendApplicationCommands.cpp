@@ -141,6 +141,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsEnableDebugLogging,
 		MenuToolsCreateRSAKeys,
 		MenuToolsCreateDummyLicenceFile,
+		MenuViewReset,
         MenuViewFullscreen,
 		MenuViewBack,
 		MenuViewForward,
@@ -413,6 +414,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuToolsCreateDummyLicenceFile:
 		setCommandTarget(result, "Create Dummy Licence File", true, false, 'X', false);
 		break;
+	case MenuViewReset:
+		setCommandTarget(result, "Reset Workspaces", true, false, 'X', false);
+		break;
     case MenuViewFullscreen:
         setCommandTarget(result, "Toggle Fullscreen", true, bpe->isFullScreenMode(), 'F');
         break;
@@ -549,6 +553,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsEnableDebugLogging:	bpe->owner->getDebugLogger().toggleLogging(), updateCommands(); return true;
     case MenuViewFullscreen:            Actions::toggleFullscreen(bpe); updateCommands(); return true;
 	case MenuViewBack:					bpe->mainEditor->getViewUndoManager()->undo(); updateCommands(); return true;
+	case MenuViewReset:				    bpe->resetInterface(); updateCommands(); return true;
 	case MenuViewForward:				bpe->mainEditor->getViewUndoManager()->redo(); updateCommands(); return true;
 	case MenuViewEnableGlobalLayoutMode: bpe->getRootFloatingTile()->setLayoutModeEnabled(!bpe->getRootFloatingTile()->isLayoutModeEnabled()); updateCommands(); return true;
 	case MenuViewShowPluginPopupPreview: Actions::togglePluginPopupWindow(bpe); updateCommands(); return true;
@@ -808,7 +813,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 	case BackendCommandTarget::ViewMenu: {
 		ADD_ALL_PLATFORMS(MenuViewBack);
 		ADD_ALL_PLATFORMS(MenuViewForward);
-		
+		ADD_ALL_PLATFORMS(MenuViewReset);
 
 		p.addSeparator();
 
@@ -829,55 +834,8 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
         p.addSeparator();
         ADD_ALL_PLATFORMS(MenuViewIncreaseCodeFontSize);
         ADD_ALL_PLATFORMS(MenuViewDecreaseCodeFontSize);
-		p.addSeparator();
-		ADD_ALL_PLATFORMS(MenuViewShowPluginPopupPreview);
-		ADD_ALL_PLATFORMS(DebugPanel);
-		ADD_ALL_PLATFORMS(Macros);
-		ADD_ALL_PLATFORMS(Keyboard);
 		ADD_ALL_PLATFORMS(Settings);
-		p.addSeparator();
-		ADD_ALL_PLATFORMS(MenuAddView);
-		ADD_ALL_PLATFORMS(MenuDeleteView);
-		ADD_ALL_PLATFORMS(MenuRenameView);
-		ADD_ALL_PLATFORMS(MenuViewSaveCurrentView);
-
-		if (viewActive())
-		{
-			p.addSeparator();
-			p.addSectionHeader("Current View: " + owner->synthChain->getCurrentViewInfo()->getViewName());
-
-			for (int i = 0; i < owner->synthChain->getNumViewInfos(); i++)
-			{
-				ViewInfo *info = owner->synthChain->getViewInfo(i);
-
-				p.addItem(MenuViewOffset + i, info->getViewName(), true, info == owner->synthChain->getCurrentViewInfo());
-			}
-
-		}
-
-		PopupMenu processorList;
-
-		Processor::Iterator<Processor> iter(owner->getMainSynthChain());
-
-		int i = 0;
-
-		while (Processor *pl = iter.getNextProcessor())
-		{
-			if (ProcessorHelpers::is<ModulatorChain>(pl)) continue;
-			if (ProcessorHelpers::is<MidiProcessorChain>(pl)) continue;
-			if (ProcessorHelpers::is<EffectProcessorChain>(pl)) continue;
-
-			processorList.addItem(MenuViewProcessorListOffset + i, pl->getId());
-
-			i++;
-		}
-
-		if (processorList.containsAnyActiveItems())
-		{
-			p.addSeparator();
-			p.addSubMenu("Solo Processor", processorList);
-		}
-
+		
 		break;
 		}
 	case BackendCommandTarget::HelpMenu:
@@ -1188,13 +1146,15 @@ void BackendCommandTarget::Actions::toggleFullscreen(BackendRootWindow * bpe)
         window->centreWithSize(bpe->getWidth(), bpe->getHeight());
         
         bpe->setAlwaysOnTop(false);
-        bpe->borderDragger->setVisible(true);
+        bpe->yBorderDragger->setVisible(true);
+		bpe->xBorderDragger->setVisible(true);
     }
     else
     {
         Desktop::getInstance().setKioskModeComponent(window);
         
-        bpe->borderDragger->setVisible(false);
+        bpe->yBorderDragger->setVisible(false);
+		bpe->xBorderDragger->setVisible(false);
         bpe->setAlwaysOnTop(true);
         
         bpe->setSize(Desktop::getInstance().getDisplays().getMainDisplay().totalArea.getWidth(),

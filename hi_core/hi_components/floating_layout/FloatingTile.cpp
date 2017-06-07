@@ -1100,6 +1100,49 @@ bool FloatingTile::isInVerticalLayout() const
 
 
 
+String FloatingTile::exportAsJSON() const
+{
+	var obj = getCurrentFloatingPanel()->toDynamicObject();
+
+	auto json = JSON::toString(obj, false);
+
+	return json;
+}
+
+
+void FloatingTile::loadFromJSON(const String& jsonData)
+{
+	var obj;
+
+	auto result = JSON::parse(jsonData, obj);
+
+	if (result.wasOk())
+		setContent(obj);
+}
+
+
+void FloatingTile::swapContainerType(const Identifier& containerId)
+{
+	var v = getCurrentFloatingPanel()->toDynamicObject();
+
+	v.getDynamicObject()->setProperty("Type", containerId.toString());
+
+	if (auto list = v.getDynamicObject()->getProperty("Content").getArray())
+	{
+		for (int i = 0; i < list->size(); i++)
+		{
+			var c = list->getUnchecked(i);
+
+			var layoutDataObj = c.getDynamicObject()->getProperty("LayoutData");
+
+			layoutDataObj.getDynamicObject()->setProperty("Size", -0.5);
+		}
+	}
+
+	setContent(v);
+}
+
+
 Path FloatingTile::getIcon() const
 {
 	if (iconId != -1)
@@ -1132,7 +1175,11 @@ void FloatingTile::setContent(const var& data)
 	{
 		layoutData.fromDynamicObject(data);
 
+
+
 		addAndMakeVisible(content = dynamic_cast<Component*>(FloatingTileContent::createPanel(data, this)));
+
+		getCurrentFloatingPanel()->fromDynamicObject(data);
 	}
 		
 
