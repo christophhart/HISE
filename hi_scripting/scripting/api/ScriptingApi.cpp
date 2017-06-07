@@ -859,7 +859,7 @@ double ScriptingApi::Engine::getUptime() const
 {
 	const ScriptBaseMidiProcessor* jmp = dynamic_cast<const ScriptBaseMidiProcessor*>(getProcessor());
 
-	if (jmp->getCurrentHiseEvent() != nullptr)
+	if (jmp != nullptr && jmp->getCurrentHiseEvent() != nullptr)
 	{
 		return jmp->getMainController()->getUptime() + jmp->getCurrentHiseEvent()->getTimeStamp() / getSampleRate();
 	}
@@ -2383,7 +2383,14 @@ ScriptingApi::Synth::ModuleHandler::ModuleHandler(Synth* parent_) :
 	parent(parent_)
 {
 #if USE_BACKEND
-	mainEditor = parent->getScriptProcessor()->getMainController_()->getConsole()->findParentComponentOfClass<BackendProcessorEditor>();
+
+#if TODO_CONSOLE
+	auto console = parent->getScriptProcessor()->getMainController_()->getConsole();
+
+	if(console)
+		mainEditor = console->findParentComponentOfClass<BackendRootWindow>();
+#endif
+
 #else
 	mainEditor = nullptr;
 #endif
@@ -2421,7 +2428,7 @@ bool ScriptingApi::Synth::ModuleHandler::removeModule(Processor* p)
 
             c->getHandler()->remove(p);
             
-			dynamic_cast<BackendProcessorEditor*>(mainEditor)->rebuildModuleList(true);
+			mainEditor->findParentComponentOfClass<BackendRootWindow>()->sendRootContainerRebuildMessage(true);
 		}
 		else
 		{
@@ -2492,7 +2499,7 @@ Processor* ScriptingApi::Synth::ModuleHandler::addModule(Chain* c, const String&
 			editor->childEditorAmountChanged();
 		}
 
-		dynamic_cast<BackendProcessorEditor*>(mainEditor)->rebuildModuleList(false);
+		mainEditor->findParentComponentOfClass<BackendRootWindow>()->sendRootContainerRebuildMessage(false);
 	}
 #endif
 	
@@ -2620,7 +2627,7 @@ void ScriptingApi::Console::stop()
 
 void ScriptingApi::Console::clear()
 {
-	getProcessor()->getMainController()->clearConsole();
+	getProcessor()->getMainController()->getConsoleHandler().clearConsole();
 }
 
 #undef SEND_MESSAGE

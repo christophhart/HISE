@@ -37,12 +37,15 @@ TableEditor::TableEditor(Table *tableToBeEdited):
 	currentType(DomainType::originalSize),
 	displayIndex(0.0f)
 {
-	// MUST BE SET!
+	if (editedTable == nullptr)
+		editedTable = &dummyTable;
+
+    // MUST BE SET!
 	jassert(editedTable != nullptr);
 
 	addAndMakeVisible(ruler = new Ruler());
 
-	setBufferedToImage(true);
+	
 
 	if(editedTable.get() != nullptr) editedTable->addChangeListener(this);
 }
@@ -112,11 +115,66 @@ void TableEditor::setEdge(float f, bool setLeftEdge)
 
 void TableEditor::paint (Graphics& g)
 {
+    
+    
+    g.setColour(Colours::lightgrey.withAlpha(0.1f));
+    g.drawRect(getLocalBounds(), 1);
+    
+    
+    KnobLookAndFeel::fillPathHiStyle(g, dragPath, getWidth(), getHeight());
+    
+    if (currently_dragged_point != nullptr)
+    {
+        int index = drag_points.indexOf(currently_dragged_point);
+        
+        DragPoint *dp = currently_dragged_point;
+        
+        g.setFont(GLOBAL_MONOSPACE_FONT());
+        
+        float domainValue = dp->getGraphPoint().x;
+        String domainString;
+        
+        if (currentType == DomainType::originalSize)
+        {
+            domainValue = domainValue * (this->editedTable->getTableSize() - 1);
+            domainString = String((int)domainValue);
+        }
+        else if (currentType == DomainType::scaled)
+        {
+            jassert(!domainRange.isEmpty());
+            domainValue = domainValue * domainRange.getLength() + domainRange.getStart();
+            domainString = String((int)domainValue);
+        }
+        else
+        {
+            domainString = String(domainValue, 2);
+        }
+        
+        String text = String("#") + String(index) + ": " + domainString + ", " + String(dp->getGraphPoint().y, 2);
+        
+        
+        g.setColour(Colour(0xBBffffff));
+        juce::Rectangle<int> textBox(dp->getPos().x > getWidth() - 80 ? getWidth() - 80 : dp->getPos().x, dp->getPos().y > getHeight() - 12 ? getHeight() - 12 : dp->getPos().y, 80, 12);
+        
+        g.fillRect(textBox);
+        g.setColour(Colour(0xDD000000));
+        g.drawRect(textBox, 1);
+        g.drawText(text, textBox, Justification::centred, false);
+        g.setColour(Colours::darkgrey.withAlpha(0.4f));
+        g.drawLine(0.0f, (float)getHeight(), (float)getWidth(), (float)getHeight());
+    }
+    
+    g.setOpacity(isEnabled() ? 1.0f : 0.2f);
+    
+    
+#if 0
 	if (needsRepaint || !snapshot.isValid())
 	{
 		if (editedTable.get() == nullptr) return;
 
-		snapshot.clear(Rectangle<int>(0, 0, getWidth(), getHeight()), Colours::transparentBlack);
+        
+        
+		snapshot.clear(Rectangle<int>(0, 0, getBoundsInParent().getWidth(), getBoundsInParent().getHeight()), Colours::transparentBlack);
 
 		Graphics g2(snapshot);
 
@@ -179,6 +237,7 @@ void TableEditor::paint (Graphics& g)
 
 		g.drawImageAt(snapshot, 0, 0);
 	}
+#endif
 }
 
 void TableEditor::Ruler::paint(Graphics &g)
@@ -198,10 +257,13 @@ void TableEditor::resized()
 
 		ruler->setBounds(0, 0, getWidth(), getHeight());
 
-		snapshot = Image(Image::ARGB, getWidth(), getHeight(), true);
+		if (getHeight() > 0)
+		{
+			snapshot = Image(Image::ARGB, getWidth(), getHeight(), true);
 
-		createDragPoints();
-		refreshGraph();
+			createDragPoints();
+			refreshGraph();
+		}
 	}
 }
 

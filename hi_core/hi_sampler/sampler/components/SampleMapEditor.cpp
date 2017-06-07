@@ -27,8 +27,9 @@
 //[/MiscUserDefs]
 
 //==============================================================================
-SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b)
-    : sampler(s)
+SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b):
+	SamplerSubEditor(s->getSampleEditHandler()),
+	sampler(s)
 {
     //[Constructor_pre] You can add your own custom stuff here..
 
@@ -66,7 +67,7 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b)
     addAndMakeVisible (viewport = new Viewport ("new viewport"));
     viewport->setScrollBarsShown (false, true);
     viewport->setScrollBarThickness (12);
-    viewport->setViewedComponent (new MapWithKeyboard (sampler, b));
+    viewport->setViewedComponent (new MapWithKeyboard (sampler));
 
     addAndMakeVisible (toolbar = new Toolbar());
     toolbar->setName ("new component");
@@ -98,7 +99,7 @@ SampleMapEditor::SampleMapEditor (ModulatorSampler *s, SamplerBody *b)
 
 	map = dynamic_cast<MapWithKeyboard*>(viewport->getViewedComponent());
 
-
+	
 
 	groupDisplay->setEditable(false);
 
@@ -416,19 +417,18 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 {
 	switch(info.commandID)
 	{
-	case DuplicateSamples:	SamplerBody::SampleEditingActions::duplicateSelectedSounds(body); return true;
-	case DeleteDuplicateSamples: SamplerBody::SampleEditingActions::removeDuplicateSounds(body); return true;
-	case DeleteSamples:		SamplerBody::SampleEditingActions::deleteSelectedSounds(body); return true;
-	case CutSamples:		SamplerBody::SampleEditingActions::cutSelectedSounds(body); return true;
-	case CopySamples:		SamplerBody::SampleEditingActions::copySelectedSounds(body); return true;
-	case PasteSamples:		SamplerBody::SampleEditingActions::pasteSelectedSounds(body); return true;
-	case SelectAllSamples:	SamplerBody::SampleEditingActions::selectAllSamples(body); return true;
-	case MergeIntoMultisamples:		SamplerBody::SampleEditingActions::mergeIntoMultiSamples(body); return true;
-	case ExtractToSingleMicSamples:	SamplerBody::SampleEditingActions::extractToSingleMicSamples(body); return true;
+	case DuplicateSamples:	SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(handler); return true;
+	case DeleteDuplicateSamples: SampleEditHandler::SampleEditingActions::removeDuplicateSounds(handler); return true;
+	case DeleteSamples:		SampleEditHandler::SampleEditingActions::deleteSelectedSounds(handler); return true;
+	case CutSamples:		SampleEditHandler::SampleEditingActions::cutSelectedSounds(handler); return true;
+	case CopySamples:		SampleEditHandler::SampleEditingActions::copySelectedSounds(handler); return true;
+	case PasteSamples:		SampleEditHandler::SampleEditingActions::pasteSelectedSounds(handler); return true;
+	case SelectAllSamples:	SampleEditHandler::SampleEditingActions::selectAllSamples(handler); return true;
+	case MergeIntoMultisamples:		SampleEditHandler::SampleEditingActions::mergeIntoMultiSamples(handler, this); return true;
+	case ExtractToSingleMicSamples:	SampleEditHandler::SampleEditingActions::extractToSingleMicSamples(handler); return true;
 	case ZoomIn:			zoom(false); return true;
 	case ZoomOut:			zoom(true); return true;
 	case ToggleVerticalSize:toggleVerticalSize(); return true;
-	case PopOutMap:			popoutMap(); return true;
 	case NewSampleMap:		if(PresetHandler::showYesNoWindow("Clear Sample Map", "Do you want to clear the sample map?", PresetHandler::IconType::Question)) 
 								sampler->clearSampleMap(); return true;
 	case LoadSampleMap:		{
@@ -441,7 +441,7 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 							}
 	case SaveSampleMap:				sampler->saveSampleMap(); return true;
 	case SaveSampleMapAsXml:		sampler->saveSampleMap(); return true;
-	case SaveSampleMapAsMonolith:	sampler->saveSampleMapAsMonolith(findParentComponentOfClass<BackendProcessorEditor>()); return true;
+	case SaveSampleMapAsMonolith:	sampler->saveSampleMapAsMonolith(findParentComponentOfClass<BackendRootWindow>()); return true;
 	case ImportSfz:			{
 							FileChooser f("Import sfz", GET_PROJECT_HANDLER(sampler).getWorkDirectory(), "*.sfz");
 
@@ -497,13 +497,13 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 
 							return true;
 							}
-	case AutomapVelocity:	SamplerBody::SampleEditingActions::automapVelocity(body);
+	case AutomapVelocity:	SampleEditHandler::SampleEditingActions::automapVelocity(handler);
 							return true;
-	case RefreshVelocityXFade:	SamplerBody::SampleEditingActions::refreshCrossfades(body);
+	case RefreshVelocityXFade:	SampleEditHandler::SampleEditingActions::refreshCrossfades(handler);
 							return true;
-	case AutomapUsingMetadata: SamplerBody::SampleEditingActions::automapUsingMetadata(body, sampler);
+	case AutomapUsingMetadata: SampleEditHandler::SampleEditingActions::automapUsingMetadata(sampler);
 							return true;
-	case TrimSampleStart:	SamplerBody::SampleEditingActions::trimSampleStart(body);
+	case TrimSampleStart:	SampleEditHandler::SampleEditingActions::trimSampleStart(handler);
 							return true;
 	}
 	return false;
@@ -513,7 +513,7 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 
 void SampleMapEditor::refreshRootNotes()
 {
-	Array<WeakReference<ModulatorSamplerSound>> sounds = body->getSelection().getItemArray();
+	Array<WeakReference<ModulatorSamplerSound>> sounds = handler->getSelection().getItemArray();
 
 	if (sounds.size() == 0 && map->selectedRootNotes == 0) return;
 
@@ -539,8 +539,66 @@ ApplicationCommandManager * SampleMapEditor::getCommandManager()
 	return sampleMapEditorCommandManager; // sampler->getMainController()->getCommandManager();
 }
 
-bool SampleMapEditor::keyPressed(const KeyPress& /*key*/)
+bool SampleMapEditor::keyPressed(const KeyPress& k)
 {
+	if (k.getModifiers().isShiftDown())
+	{
+		if (k.getKeyCode() == k.upKey)
+		{
+			int index = getCurrentRRGroup();
+
+			if (index == -1) index = 0;
+
+			index++;
+
+			setCurrentRRGroup(index);
+
+			return true;
+		}
+		else if (k.getKeyCode() == k.downKey)
+		{
+			int index = getCurrentRRGroup();
+
+			index--;
+
+			setCurrentRRGroup(index);
+
+			return true;
+		}
+	}
+	if (k.getKeyCode() == KeyPress::leftKey)
+	{
+		if (k.getModifiers().isCommandDown())
+			handler->moveSamples(SamplerSoundMap::Left);
+		else
+			getMapComponent()->selectNeighbourSample(SamplerSoundMap::Left);
+		return true;
+	}
+	else if (k.getKeyCode() == KeyPress::rightKey)
+	{
+		if (k.getModifiers().isCommandDown())
+			handler->moveSamples(SamplerSoundMap::Right);
+		else
+			getMapComponent()->selectNeighbourSample(SamplerSoundMap::Right);
+		return true;
+	}
+	else if (k.getKeyCode() == KeyPress::upKey)
+	{
+		if (k.getModifiers().isCommandDown())
+			handler->moveSamples(SamplerSoundMap::Up);
+		else
+			getMapComponent()->selectNeighbourSample(SamplerSoundMap::Up);
+		return true;
+	}
+	else if (k.getKeyCode() == KeyPress::downKey)
+	{
+		if (k.getModifiers().isCommandDown())
+			handler->moveSamples(SamplerSoundMap::Down);
+		else
+			getMapComponent()->selectNeighbourSample(SamplerSoundMap::Down);
+		return true;
+	}
+
 	return false;
 }
 
@@ -558,38 +616,6 @@ void SampleMapEditor::toggleVerticalSize()
 
 
 	body->refreshBodySize();
-}
-
-
-void SampleMapEditor::popoutMap()
-{
-	popoutCopy = new SampleMapEditor(sampler, body);
-
-
-
-
-
-	BackendProcessorEditor* editor = findParentComponentOfClass<BackendProcessorEditor>();
-
-	popoutCopy->setSize(337, editor->getHeight() - 150); // 337 is very important to keep the world running.
-
-	Array<WeakReference<ModulatorSamplerSound>> refArray = body->getSelection().getItemArray();
-
-	Array<ModulatorSamplerSound*> soundArray;
-
-	for (int i = 0; i < refArray.size(); i++)
-	{
-		if(refArray[i].get() != nullptr) soundArray.add(refArray[i].get());
-	}
-
-	popoutCopy->selectSounds(soundArray);
-
-	popoutCopy->enablePopoutMode(this);
-
-
-	popoutCopy->updateSoundData();
-
-	editor->showPseudoModalWindow(popoutCopy, sampler->getId() + " Sample Map Editor");
 }
 
 //[/MiscUserCode]

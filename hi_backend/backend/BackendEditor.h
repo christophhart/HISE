@@ -47,24 +47,39 @@ class BackendProcessor;
 class ScriptContentContainer;
 
 
-class BackendProcessorEditor: public AudioProcessorEditor,
-							  public BackendCommandTarget,
-							  public RestorableObject,
+#define UI_OLD 0
+
+
+
+
+
+
+
+
+class BackendProcessorEditor: public FloatingTileContent,
+							  public Component,
 							  public GlobalScriptCompileListener,
-                              public ComponentWithKeyboard,
-                              public Label::Listener,
-							  public ModalBaseWindow,
-							  public Timer
+                              public Label::Listener
 {
 public:
 
-	BackendProcessorEditor(AudioProcessor *ownerProcessor, ValueTree &editorState);
+	enum MainPanelProperties
+	{
+		ScrollPosition = FloatingTileContent::PanelPropertyId::numPropertyIds,
+		GlobalCodeFontSize,
+		Autosaving,
+		numPropertyIds
+	};
+
+	BackendProcessorEditor(FloatingTile* parent);
 
 	~BackendProcessorEditor();
 
-	void showSettingsWindow();
+	SET_PANEL_NAME("MainPanel");
 
-	void showViewPanelPopup();
+	int getFixedWidth() const override { return 900; }
+
+	String getTitle() const override { return "Main Panel"; };
 
 	void setRootProcessor(Processor *p, int scrollY=0);
 
@@ -81,106 +96,69 @@ public:
 		resized();
 	};
 
-	ValueTree exportAsValueTree() const override
+	var toDynamicObject() const override
 	{
-		ValueTree v("editorData");
+		auto obj =  FloatingTileContent::toDynamicObject();
 
-		v.setProperty("width", getWidth(), nullptr);
-		v.setProperty("height", getHeight(), nullptr);
-		v.setProperty("keyboardShown", keyboard->isVisible(), nullptr);
-		v.setProperty("macrosShown", macroKnobs->isVisible(), nullptr);
-		v.setProperty("scrollPosition", viewport->viewport->getViewPosition().getY(), nullptr);
-        v.setProperty("globalCodeFontSize", owner->getGlobalCodeFontSize(), nullptr);
-		v.setProperty("autosaving", owner->getAutoSaver().isAutoSaving(), nullptr);
+		storePropertyInObject(obj, MainPanelProperties::ScrollPosition, viewport->viewport->getViewPosition().getY(), 0);
+		storePropertyInObject(obj, MainPanelProperties::Autosaving, owner->getAutoSaver().isAutoSaving(), true);
+		storePropertyInObject(obj, MainPanelProperties::GlobalCodeFontSize, owner->getGlobalCodeFontSize());
 
-		MemoryBlock mb;
-
-		
-
-		mb.append(swatchColours, sizeof(Colour)*8);
-		v.setProperty("swatchColours", mb.toBase64Encoding(), nullptr);
-
-		v.addChild(referenceDebugArea->exportAsValueTree(), -1, nullptr);
-		v.addChild(propertyDebugArea->exportAsValueTree(), -1, nullptr);
-
-		return v;
+		return obj;
 	}
 
-	void timerCallback() override;
-
-	void restoreFromValueTree(const ValueTree &v) override
+	void fromDynamicObject(const var& obj) override
 	{
-		if (v.getType() == Identifier("editorData"))
-		{
-			keyboard->setVisible(v.getProperty("keyboardShown"));
-			macroKnobs->setVisible(v.getProperty("macrosShown"));
+		FloatingTileContent::fromDynamicObject(obj);
 
-            setSize(v.getProperty("width", 900), v.getProperty("height", 700));
-            
-			owner->setScrollY(v.getProperty("scrollPosition", 0));
-            
-			const bool wasAutoSaving = v.getProperty("autosaving", true);
+		owner->setScrollY(getPropertyWithDefault(obj, MainPanelProperties::ScrollPosition));
 
-			if (wasAutoSaving) owner->getAutoSaver().enableAutoSaving();
-			else owner->getAutoSaver().disableAutoSaving();
+		const bool wasAutoSaving = getPropertyWithDefault(obj, MainPanelProperties::Autosaving);
 
-#if JUCE_WINDOWS
-            
-            owner->setGlobalCodeFontSize(v.getProperty("globalCodeFontSize", 14.0f));
-#else
-            owner->setGlobalCodeFontSize(v.getProperty("globalCodeFontSize", 13.0f));
-#endif
-            
-			referenceDebugArea->restoreFromValueTree(v.getChildWithName(referenceDebugArea->getIdForArea()));
-			propertyDebugArea->restoreFromValueTree(v.getChildWithName(propertyDebugArea->getIdForArea()));
-
-			MemoryBlock mb;
-			
-			mb.fromBase64Encoding(v.getProperty("swatchColours").toString());
-
-			if (mb.getSize() == sizeof(Colour) * 8)
-			{
-				storeSwatchColours((Colour*)(mb.getData()));
-			}
-		}
+		if (wasAutoSaving)
+			owner->getAutoSaver().enableAutoSaving();
 		else
-		{
-			setSize(900, 700);
-		}
+			owner->getAutoSaver().disableAutoSaving();
+
+		owner->setGlobalCodeFontSize(getPropertyWithDefault(obj, MainPanelProperties::GlobalCodeFontSize));
 	}
 
-	KeyboardFocusTraverser *createFocusTraverser() override { return new MidiKeyboardFocusTraverser(); };
+	int getNumDefaultableProperties() const override
+	{
+		return (int)MainPanelProperties::numPropertyIds;
+	}
+
+	Identifier getDefaultablePropertyId(int id) const override
+	{
+		if (id < FloatingTileContent::numPropertyIds)
+			return FloatingTileContent::getDefaultablePropertyId(id);
+
+		RETURN_DEFAULT_PROPERTY_ID(id, (int)MainPanelProperties::ScrollPosition, "ScrollPosition");
+		RETURN_DEFAULT_PROPERTY_ID(id, (int)MainPanelProperties::GlobalCodeFontSize, "GlobalCodeFontSize");
+		RETURN_DEFAULT_PROPERTY_ID(id, (int)MainPanelProperties::Autosaving, "Autosaving");
+
+		jassertfalse;
+		return {};
+	}
+
+	var getDefaultProperty(int id) const override
+	{
+		if (id < FloatingTileContent::numPropertyIds)
+			return FloatingTileContent::getDefaultProperty(id);
+
+		RETURN_DEFAULT_PROPERTY(id, (int)MainPanelProperties::ScrollPosition, var(0));
+#if JUCE_WINDOWS
+		RETURN_DEFAULT_PROPERTY(id, (int)MainPanelProperties::GlobalCodeFontSize, var(14));
+#else
+		RETURN_DEFAULT_PROPERTY(id, (int)MainPanelProperties::GlobalCodeFontSize, var(13));
+#endif
+		RETURN_DEFAULT_PROPERTY(id, (int)MainPanelProperties::Autosaving, var(true));
+
+		jassertfalse;
+		return {};
+	}
 
 	void paint(Graphics &g);
-
-
-#if CRASH_ON_GLITCH
-	void paintOverChildren(Graphics& g) override
-	{
-
-
-		Font f = GLOBAL_BOLD_FONT().withHeight(32.0f);
-		const String s = "Debug Version. Don't use in production!";
-
-		g.setFont(f);
-
-
-		int w = f.getStringWidth(s) + 30;
-		int h = (int)(f.getHeight() + 10.0f);
-
-		Rectangle<int> a(0, 0, w, h);
-
-		a.setCentre(getLocalBounds().getCentre());
-
-		g.setColour(Colour(0x66FFFFFF));
-
-		g.fillRect(a);
-
-		g.setColour(Colour(0x66000000));
-
-		g.drawText(s, a, Justification::centred);
-	}
-#endif
 
 	void resized();
 
@@ -212,25 +190,7 @@ public:
 
 	const ModulatorSynthChain *getMainSynthChain() const { return owner->synthChain; };
 
-	AutoPopupDebugComponent *getDebugComponent(bool lookInReferencePanel, int index)
-	{
-		if (lookInReferencePanel)
-		{
-			return dynamic_cast<AutoPopupDebugComponent*>(referenceDebugArea->getComponentForIndex(index));
-		}
-		else
-		{
-			return dynamic_cast<AutoPopupDebugComponent*>(propertyDebugArea->getComponentForIndex(index));
-		}
-	}
-
-	ToolbarButton *getButtonForID(int id) const;
-
 	void showPseudoModalWindow(Component *componentToShow, const String &title, bool ownComponent=false);
-
-	void showModulatorTreePopup();
-	
-	void showProcessorPopup(Processor *p, Processor *parent);
 	
     void labelTextChanged(Label *) override
     {
@@ -247,52 +207,19 @@ public:
 
 	void loadNewContainer(ValueTree &v);
 
-	/** recursively scans all ProcessorEditors and adds them as submenu. 
-	*
-	*	@returns true if the Processor contains other Processors.
-	*/
-	bool addProcessorToPopupMenu(PopupMenu &m, Processor *p);
-
+	
 	void addProcessorToPanel(Processor *p);
 
 	void removeProcessorFromPanel(Processor *p);
 
-	/** This creates a path to the processor specified by the index from addProcessorEditorToPopup. */
-	bool getIndexPath(Array<int> &path, Processor *p, const int searchIndex, int &counter);
-
 	/** returns the ProcessorEditor for the path. */
-	ProcessorEditor *getProcessorEditorFromPath(const Array<int> &path);
-
     void refreshInterfaceAfterPresetLoad();
     
-	String createStringFromPath(const Array<int> &path);
-
 	ProcessorEditorContainer *getRootContainer() { return container; };
-
-	Component *getKeyboard() const override { return keyboard; }
-
-
-	bool isFullScreenMode() const
-	{
-#if IS_STANDALONE_APP
-        if(getParentComponent() == nullptr) return false;
-        
-        Component *kioskComponent = Desktop::getInstance().getKioskModeComponent();
-        
-        Component *parentparent = getParentComponent()->getParentComponent();
-        
-        return parentparent == kioskComponent;
-#else
-		return false;
-#endif
-
-	}
-    
-
 
 	BackendProcessor *getBackendProcessor() { return owner; };
 	const BackendProcessor *getBackendProcessor() const { return owner; };
-	void setToolBarPosition(int x, int y, int width, int height);
+
 	void setViewportPositions(int viewportX, const int viewportY, const int viewportWidth, int viewportHeight);
 	
 	UndoManager * getViewUndoManager()
@@ -300,15 +227,7 @@ public:
 		return owner->viewUndoManager;
 	}
 
-	SafeChangeBroadcaster &getModuleListNofifier() { return moduleListNotifier; }
-
-	void rebuildModuleList(bool synchronous)
-	{
-		if (synchronous)
-			moduleListNotifier.sendSynchronousChangeMessage();
-		else
-			moduleListNotifier.sendChangeMessage();
-	}
+	
 
 	void setPluginPreviewWindow(PluginPreviewWindow *newWindow)
 	{
@@ -341,7 +260,13 @@ public:
 		memcpy(coloursFromColourPicker, swatchColours, sizeof(Colour)*8);
 	}
 
+	
+
 private:
+
+	
+
+	BackendRootWindow* parentRootWindow;
 
 	Colour swatchColours[8];
 
@@ -349,33 +274,17 @@ private:
 	
 	friend class BackendCommandTarget;
     
-    StringArray menuNames;
-
 	WeakReference<Processor> currentRootProcessor;
 
 	LookAndFeel_V3 lookAndFeelV3;
 
-	ScopedPointer<Toolbar> mainToolbar;
-	ScopedPointer<ToolbarItemFactory> toolbarFactory;
-
-	ScopedPointer<TooltipBar> tooltipBar;
-
 	ScopedPointer<ProcessorEditorContainer> container;
 
-	ScopedPointer<MacroComponent> macroKnobs;
-
     ScopedPointer<CachedViewport> viewport;
-	ScopedPointer<CustomKeyboard> keyboard;
-	ScopedPointer<MenuBarComponent> menuBar;
-
-	SafeChangeBroadcaster moduleListNotifier;
+	
+	//SafeChangeBroadcaster moduleListNotifier;
 
 	BackendProcessor *owner;
-
-	ScopedPointer<CombinedDebugArea> referenceDebugArea;
-	ScopedPointer<PropertyDebugArea> propertyDebugArea;
-
-	ScopedPointer<ResizableBorderComponent> borderDragger;
 
 	PopupLookAndFeel plaf;
 
@@ -387,39 +296,88 @@ private:
 	ScopedPointer<ProcessorEditor> popupEditor;
 	ScopedPointer<StupidRectangle> stupidRectangle;
 	
-	ScopedPointer<AudioDeviceDialog> currentDialog;
-
 	ScopedPointer<AboutPage> aboutPage;
-
-	ScopedPointer<ComponentBoundsConstrainer> constrainer;
-
-	ScopedPointer<ProcessorList> list;
-
-	ScopedPointer<VoiceCpuBpmComponent> cpuVoiceComponent;
-	
-	ScopedPointer<ShapeButton> backButton;
-	ScopedPointer<ShapeButton> forwardButton;
 
 	ScopedPointer<BreadcrumbComponent> breadCrumbComponent;
 
 	ScopedPointer<PluginPreviewWindow> previewWindow;
 
-	ScopedPointer<ThreadWithQuasiModalProgressWindow::Overlay> progressOverlay;
-
 	ScopedPointer<DebugLoggerComponent> debugLoggerWindow;
 
 	bool rootEditorIsMainSynthChain;
+};
 
-    
-#if HISE_IOS
 
-	ScopedPointer<Component> menuRuler;
 
-	ScopedPointer<ShapeButton> octaveUpButton;
-	ScopedPointer<ShapeButton> octaveDownButton;
+class MainTopBar : public FloatingTileContent,
+				   public Component,
+				   public ButtonListener,
+				   public FloatingTile::PopupListener
+{
+public:
+	
+	enum class PopupType
+	{
+		Macro,
+		PluginPreview,
+		Settings,
+		PresetBrowser,
+		numPopupTypes
+	};
 
-#endif
+	MainTopBar(FloatingTile* parent);
+
+	~MainTopBar();
+
+	int getFixedHeight() const override
+	{
+		return 60;
+	}
+
+	bool showTitleInPresentationMode() const override
+	{
+		return false;
+	}
+
+	void popupChanged(Component* newComponent) override;
+
+	void paint(Graphics& g) override;
+
+	void buttonClicked(Button* b) override;
+
+	void resized() override;
+
+	SET_PANEL_NAME("MainTopBar");
+
+	void togglePopup(PopupType t, bool shouldShow);
+
+private:
+
+	Rectangle<int> frontendArea;
+	Rectangle<int> workspaceArea;
+
+	ScopedPointer<TooltipBar> tooltipBar;
+	ScopedPointer<VoiceCpuBpmComponent> voiceCpuBpmComponent;
+
+	ScopedPointer<ShapeButton> backButton;
+	ScopedPointer<ShapeButton> forwardButton;
+
+	ScopedPointer<ProcessorPeakMeter> peakMeter;
+	ScopedPointer<ShapeButton> settingsButton;
+	ScopedPointer<ShapeButton> layoutButton;
+
+	ScopedPointer<ShapeButton> macroButton;
+	ScopedPointer<ShapeButton> pluginPreviewButton;
+	ScopedPointer<ShapeButton> presetBrowserButton;
+
+	ScopedPointer<ShapeButton> mainWorkSpaceButton;
+	ScopedPointer<ShapeButton> scriptingWorkSpaceButton;
+	ScopedPointer<ShapeButton> samplerWorkSpaceButton;
+	ScopedPointer<ShapeButton> customWorkSpaceButton;
 
 };
+
+
+
 
 #endif

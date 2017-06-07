@@ -53,7 +53,9 @@ public:
 		numColumns
 	};
 
-	SamplePoolTable(ModulatorSamplerSoundPool *globalPool) ;
+	SamplePoolTable(BackendRootWindow *rootWindow) ;
+
+	SET_GENERIC_PANEL_ID("SamplePoolTable");
 
 	~SamplePoolTable();
 
@@ -117,6 +119,7 @@ public:
 
 	~ExternalFileTable();
 
+	
 	void changeListenerCallback(SafeChangeBroadcaster *) override
 	{
 		setName(getHeadline());
@@ -136,6 +139,8 @@ public:
 	String getHeadline() const;
 
     void resized() override;
+
+	
 
 	String getTextForTableCell(int rowNumber, int columnNumber);
 
@@ -158,6 +163,10 @@ public:
 		return id;
 	};
 
+protected:
+
+	Pool<FileType> *pool;
+
 private:
     TableListBox table;     // the table component itself
     Font font;
@@ -166,7 +175,7 @@ private:
 
 	var currentlyDraggedId;
 
-	Pool<FileType> *pool;
+	
 
 	
 	ScopedPointer<TableHeaderLookAndFeel> laf;
@@ -177,7 +186,35 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ExternalFileTable)
 };
 
+struct PoolTableSubTypes
+{
+	struct AudioFilePoolTable : public ExternalFileTable<AudioSampleBuffer>
+	{
+	public:
 
+		AudioFilePoolTable(BackendRootWindow* rootWindow);
+
+		void cellClicked(int rowNumber, int columnId, const MouseEvent&)
+		{
+
+		}
+
+		virtual void cellDoubleClicked(int rowNumber, int columnId, const MouseEvent&);
+
+		SET_GENERIC_PANEL_ID("AudioFilePoolTable");
+	};
+
+	struct ImageFilePoolTable : public ExternalFileTable<Image>
+	{
+	public:
+
+		ImageFilePoolTable(BackendRootWindow* rootWindow);
+
+		virtual void cellDoubleClicked(int rowNumber, int columnId, const MouseEvent&);
+
+		SET_GENERIC_PANEL_ID("ImagePoolTable");
+	};
+};
 
 
 

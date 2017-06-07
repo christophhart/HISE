@@ -394,7 +394,7 @@ public:
 	{
 		const float scaledQ = (float)q * 0.1f;
 
-		float g = tan(float_Pi * frequency / sampleRate);
+		float g = (float)tan(double_Pi * frequency / sampleRate);
 		//float damping = 1.0f / res;
 		//k = damping;
 		k = 1.0f - 0.99f * scaledQ;

@@ -1,0 +1,126 @@
+{
+  "Type": "VerticalTile",
+  "StyleData": {
+    "backgroundColour": "ff373737",
+    "resizerColourId": "ff666666"
+  },
+  "LayoutData": {
+    "ID": "anonymous",
+    "Size": -0.5,
+    "Folded": -1,
+    "Visible": true,
+    "MinSize": -1
+  },
+  "Dynamic": false,
+  "Content": [
+    {
+      "Type": "FileBrowser",
+      "StyleData": {
+      },
+      "LayoutData": {
+        "ID": "anonymous",
+        "Size": 280,
+        "Folded": 0,
+        "Visible": true,
+        "MinSize": -1
+      }
+    },
+    {
+      "Type": "SamplePoolTable",
+      "StyleData": {
+      },
+      "LayoutData": {
+        "ID": "anonymous",
+        "Size": 320,
+        "Folded": 0,
+        "Visible": true,
+        "MinSize": -1
+      }
+    },
+    {
+      "Type": "HorizontalTile",
+      "StyleData": {
+        "backgroundColour": "ff373737",
+        "resizerColourId": "ff666666"
+      },
+      "LayoutData": {
+        "ID": "anonymous",
+        "Size": -1.5984319,
+        "Folded": -1,
+        "Visible": true,
+        "MinSize": -1
+      },
+      "Dynamic": false,
+      "Content": [
+        {
+          "Type": "GlobalConnectorModulatorSampler",
+          "StyleData": {
+          },
+          "LayoutData": {
+            "ID": "anonymous",
+            "Size": 18,
+            "Folded": 0,
+            "Visible": true,
+            "MinSize": -1
+          }
+        },
+        {
+          "Type": "SampleEditor",
+          "StyleData": {
+            "showConnectionBar": false
+          },
+          "LayoutData": {
+            "ID": "anonymous",
+            "Size": -0.47072419,
+            "Folded": 0,
+            "Visible": true,
+            "MinSize": -1
+          }
+        },
+        {
+          "Type": "VerticalTile",
+          "StyleData": {
+            "backgroundColour": "ff373737",
+            "resizerColourId": "ff666666"
+          },
+          "LayoutData": {
+            "ID": "anonymous",
+            "Size": -0.52927581,
+            "Folded": -1,
+            "Visible": true,
+            "MinSize": -1
+          },
+          "Dynamic": false,
+          "Content": [
+            {
+              "Type": "SampleMapEditor",
+              "StyleData": {
+                "showConnectionBar": false
+              },
+              "LayoutData": {
+                "ID": "anonymous",
+                "Size": -0.47917745,
+                "Folded": 0,
+                "Visible": true,
+                "MinSize": 400
+              }
+            },
+            {
+              "Type": "SamplerTable",
+              "StyleData": {
+                "showConnectionBar": false
+              },
+              "LayoutData": {
+                "ID": "anonymous",
+                "Size": -0.52082255,
+                "Folded": 0,
+                "Visible": true,
+                "MinSize": 500
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -217,6 +217,8 @@ public:
 		}
 	}
 
+	void showPopupForFile(const File& f, int charNumberToDisplay = 0, int lineNumberToDisplay = -1);
+
 	void showPopupForFile(int index, int charNumberToDisplay=0, int lineNumberToDisplay=-1);
 
 	static ValueTree collectAllScriptFiles(ModulatorSynthChain *synthChainToExport);
@@ -360,6 +362,8 @@ public:
 
 	JavascriptProcessor(MainController *mc);
 	virtual ~JavascriptProcessor();
+
+	SET_PROCESSOR_CONNECTOR_TYPE_ID("JavascriptProcessor");
 
 	void breakpointWasHit(int index) override
 	{

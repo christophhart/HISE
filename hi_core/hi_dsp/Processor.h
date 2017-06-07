@@ -344,9 +344,7 @@ public:
 		return getType().toString();
 	}
 
-	
-
-	void setId(const String &newId)
+	void setId(const String &newId, NotificationType notifyChangeHandler=dontSendNotification)
 	{
 		id = newId;
 
@@ -360,6 +358,10 @@ public:
 		}
 
 		sendChangeMessage();
+
+		if (notifyChangeHandler)
+			getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, 
+				MainController::ProcessorChangeHandler::EventType::ProcessorRenamed);
 	};
 
 	Identifier getIDAsIdentifier() const
@@ -368,10 +370,13 @@ public:
 	}
 
 	/** This bypasses the processor. You don't have to check in the processors logic itself, normally the chain should do that for you. */
-	virtual void setBypassed(bool shouldBeBypassed) noexcept 
+	virtual void setBypassed(bool shouldBeBypassed, NotificationType notifyChangeHandler=dontSendNotification) noexcept 
 	{ 
 		bypassed = shouldBeBypassed; 
 		currentValues.clear();
+
+		if (notifyChangeHandler)
+			getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, MainController::ProcessorChangeHandler::EventType::ProcessorBypassed, false);
 	};
 
 	/** Returns true if the processor is bypassed. */
@@ -730,7 +735,9 @@ public:
 
 	void sendDeleteMessage()
 	{
-		for (int i = 0; i < deleteListeners.size(); i++)
+		int numListeners = deleteListeners.size();
+
+		for (int i = numListeners-1; i >= 0; --i)
 		{
 			if (deleteListeners[i].get() != nullptr)
 			{
@@ -741,7 +748,9 @@ public:
 
 	void sendRebuildMessage(bool forceUpdate=false)
 	{
-		for (int i = 0; i < deleteListeners.size(); i++)
+		int numListeners = deleteListeners.size();
+
+		for (int i = 0; i < numListeners; i++)
 		{
 			if (deleteListeners[i].get() != nullptr)
 			{
@@ -837,6 +846,7 @@ private:
 
 	Identifier idAsIdentifier;
 };
+
 
 
 

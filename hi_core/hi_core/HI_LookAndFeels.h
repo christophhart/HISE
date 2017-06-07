@@ -182,7 +182,7 @@ public:
 
 	};
 
-private:
+protected:
 
 	Font getPopupMenuFont() override
 	{
@@ -198,14 +198,34 @@ private:
 	};
 
 
-#if HISE_IOS
+
 	void getIdealPopupMenuItemSize(const String &text, bool isSeparator, int standardMenuItemHeight, int &idealWidth, int &idealHeight) override
 	{
+#if HISE_IOS
 		idealHeight = 28;
 
 		idealWidth = getPopupMenuFont().getStringWidth(text) + 20;
+#else
+		if (isSeparator)
+		{
+			idealWidth = 50;
+			idealHeight = standardMenuItemHeight > 0 ? standardMenuItemHeight / 2 : 10;
+		}
+		else
+		{
+			Font font(getPopupMenuFont());
+
+			if (standardMenuItemHeight > 0 && font.getHeight() > standardMenuItemHeight / 1.3f)
+				font.setHeight(standardMenuItemHeight / 1.3f);
+
+			idealHeight = standardMenuItemHeight > 0 ? standardMenuItemHeight : roundToInt(font.getHeight() * 1.3f);
+
+			idealHeight = jmax<int>(idealHeight, 18);
+
+			idealWidth = font.getStringWidth(text) + idealHeight * 2;
 	}
 #endif
+	}
 
 	void drawMenuBarBackground(Graphics& g, int width, int height,
 		bool, MenuBarComponent& menuBar);
@@ -331,7 +351,20 @@ private:
             
             if (icon != nullptr)
             {
-                icon->drawWithin (g, iconArea, RectanglePlacement::centred | RectanglePlacement::onlyReduceInSize, 1.0f);
+				if (auto dp = dynamic_cast<const DrawablePath*>(icon))
+				{
+					auto p = dp->getPath();
+
+					p.scaleToFit(iconArea.getX(), iconArea.getY(), iconArea.getWidth(), iconArea.getHeight(), true);
+
+					g.fillPath(p);
+				}
+				else
+				{
+					icon->drawWithin(g, iconArea, RectanglePlacement::centred | RectanglePlacement::onlyReduceInSize, 1.0f);
+				}
+
+				
             }
             else if (isTicked)
             {
@@ -392,15 +425,18 @@ class TableHeaderLookAndFeel: public PopupLookAndFeel
  
 	void drawTableHeaderColumn (Graphics &g, const String &columnName, int /*columnId*/, int width, int height, bool /*isMouseOver*/, bool /*isMouseDown*/, int /*columnFlags*/)
 	{
-		g.setColour(Colour(0xff474747));
+		if (width > 0)
+		{
+			g.setColour(Colour(0xff474747));
 
-		g.fillRect(0.0f, 0.0f, (float)width-1.0f, (float)height);
+			g.fillRect(0.0f, 0.0f, (float)width - 1.0f, (float)height);
 
-        
-		g.setFont(GLOBAL_FONT());
-        g.setColour(Colour(0xa2ffffff));
 
-		g.drawText(columnName, 3, 0, width - 3, height, Justification::centredLeft, true);
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.setColour(Colour(0xa2ffffff));
+
+			g.drawText(columnName, 3, 0, width - 3, height, Justification::centredLeft, true);
+		}
 	}
 };
 
@@ -456,7 +492,7 @@ public:
 
 	void drawPropertyPanelSectionHeader (Graphics& g, const String& name, bool isOpen, int width, int height) override
 	{
-		g.setColour(Colour(0xbbC1C1C1));
+		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff6b6b6b)));
 
 		g.fillRoundedRectangle(1.0f, 0.0f, (float)width-2.0f, (float)height, 1.0f);
 
@@ -467,30 +503,38 @@ public:
 
 		const int textX = (int) (buttonIndent * 2.0f + buttonSize + 2.0f);
 
-		g.setColour (Colours::black);
+		g.setColour (JUCE_LIVE_CONSTANT_OFF(Colour(0xFF000000)));
 		g.setFont (GLOBAL_BOLD_FONT());
 		g.drawText (name, textX, 0, width - textX - 4, height, Justification::centredLeft, true);
 	}
 
     void drawPropertyComponentBackground (Graphics& g, int /*width*/, int /*height*/, PropertyComponent& /*component*/) override
 	{
-        g.setColour (Colours::grey);
+        g.setColour (JUCE_LIVE_CONSTANT_OFF(Colour(0xff3d3d3d)));
         g.fillAll();
 		
 	}
 
+	Rectangle<int> getPropertyComponentContentPosition(PropertyComponent& component)
+	{
+		const int textW = jmin(220, component.getWidth() / 3);
+		return Rectangle<int>(textW, 1, component.getWidth() - textW - 1, component.getHeight() - 3);
+	}
+
+
     void drawPropertyComponentLabel (Graphics& g, int /*width*/, int /*height*/, PropertyComponent& component) override
 	{
-		 g.setColour (component.findColour (PropertyComponent::labelTextColourId)
-                    .withMultipliedAlpha (component.isEnabled() ? 1.0f : 0.6f));
+		Colour textColour = JUCE_LIVE_CONSTANT_OFF(Colour(0xffdddddd));
+
+		 g.setColour (textColour.withMultipliedAlpha (component.isEnabled() ? 1.0f : 0.6f));
 
 		 g.setFont (GLOBAL_MONOSPACE_FONT());
 
 		const Rectangle<int> r (getPropertyComponentContentPosition (component));
 
 		g.drawFittedText (component.getName(),
-						  3, r.getY(), r.getX() - 5, r.getHeight(),
-						  Justification::centredLeft, 2);
+						  3, r.getY(), r.getX() - 8, r.getHeight(),
+						  Justification::centredRight, 2);
 	};
 
 	void drawLinearSlider (Graphics &g, int /*x*/, int /*y*/, int width, 
@@ -1072,8 +1116,18 @@ public:
 
 	void 	positionComboBoxText (ComboBox &c, Label &labelToPosition) override
 	{
-		labelToPosition.setBounds(5, 5, c.getWidth() - 25, c.getHeight() - 10);
+		if (c.getHeight() < 20)
+		{
+			labelToPosition.setBounds(5, 2, c.getWidth() - 25, c.getHeight() - 4);
 
+		}
+		else
+		{
+			labelToPosition.setBounds(5, 5, c.getWidth() - 25, c.getHeight() - 10);
+
+		}
+
+		
 		labelToPosition.setFont (getComboBoxFont (c));
 
 

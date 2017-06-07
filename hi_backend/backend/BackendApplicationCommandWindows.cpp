@@ -470,7 +470,7 @@ public:
 		numExportOptions
 	};
 
-	MonolithConverter(BackendProcessorEditor* bpe_) :
+	MonolithConverter(BackendRootWindow* bpe_) :
 		MonolithExporter("Convert samples to Monolith + Samplemap", bpe_->getMainSynthChain()),
 		bpe(bpe_),
 		chain(bpe_->getMainSynthChain())
@@ -566,7 +566,7 @@ public:
 			SampleImporter::loadAudioFilesRaw(bpe, sampler, fileNames);
 		}
 
-		SamplerBody::SampleEditingActions::automapUsingMetadata(nullptr, sampler);
+		SampleEditHandler::SampleEditingActions::automapUsingMetadata(sampler);
 
 
 
@@ -660,7 +660,7 @@ private:
 	Array<File> fileList;
 
 	File sampleFolder;
-	BackendProcessorEditor* bpe;
+	BackendRootWindow* bpe;
 	ModulatorSampler* sampler;
 	ModulatorSynthChain* chain;
 };
@@ -914,4 +914,3 @@ private:
 	ErrorCodes result;
 	int httpStatusCode;
 };
-

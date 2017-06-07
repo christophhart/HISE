@@ -32,16 +32,17 @@
 
 // ====================================================================================================================
 
-PatchBrowser::PatchBrowser(BaseDebugArea *area, BackendProcessorEditor *editor_) :
-SearchableListComponent(area),
-editor(editor_),
+PatchBrowser::PatchBrowser(BackendRootWindow *window) :
+SearchableListComponent(window),
+editor(window->getMainPanel()),
+rootWindow(window),
 showChains(true)
 {
 	setName("Patch Browser");
 
 	setShowEmptyCollections(true);
 
-	editor->getModuleListNofifier().addChangeListener(this);
+	window->getModuleListNofifier().addProcessorChangeListener(this);
 
 	addAndMakeVisible(addButton = new ShapeButton("Show chains", Colours::white.withAlpha(0.6f), Colours::white, Colours::white));
 	
@@ -70,7 +71,8 @@ showChains(true)
 
 PatchBrowser::~PatchBrowser()
 {
-	editor->getModuleListNofifier().removeChangeListener(this);
+	if(rootWindow != nullptr)
+		rootWindow->getModuleListNofifier().removeProcessorChangeListener(this);
 
 	addButton = nullptr;
 }
@@ -133,7 +135,7 @@ void PatchBrowser::itemDropped(const SourceDetails& dragSourceDetails)
 			dynamic_cast<Processor*>(c)->setEditorState(Processor::EditorState::Visible, true, sendNotification);
 
 
-			ProcessorEditorContainer *rootContainer = findParentComponentOfClass<BackendProcessorEditor>()->getRootContainer();
+			ProcessorEditorContainer *rootContainer = findParentComponentOfClass<BackendRootWindow>()->getMainPanel()->getRootContainer();
 
 			jassert(rootContainer != nullptr);
 
@@ -267,13 +269,6 @@ void PatchBrowser::toggleShowChains()
 {
 	showChains = !showChains;
 
-	AutoPopupDebugComponent *c = findParentComponentOfClass<BackendProcessorEditor>()->getDebugComponent(true, CombinedDebugArea::AreaIds::ProcessorCollection);
-
-	if (c != nullptr)
-	{
-		c->showComponentInDebugArea(showChains);
-	}
-
 	addButton->setColours(showChains ? Colours::white : Colours::white.withAlpha(0.6f), Colours::white, Colours::white);
 	addButton->setToggleState(showChains, dontSendNotification);
 
@@ -314,38 +309,11 @@ isOver(false)
 	hideButton->setShape(hidePath, false, true, false);
 	hideButton->addListener(this);
     
-    startTimer(3000);
-}
-
-
-
-void PatchBrowser::ModuleDragTarget::timerCallback()
-{
-	if (getProcessor() == nullptr || !dynamic_cast<Component*>(this)->isVisible()) return;
-
-	bool repaintFlag = false;
-
-	if (getProcessor()->isBypassed() != bypassed)
-	{
-		bypassed = getProcessor()->isBypassed();
-		repaintFlag = true;
-	}
-	else if (getProcessor()->getId() != id)
-	{
-		id = getProcessor()->getId();
-		repaintFlag = true;
-	}
-	else if (getProcessor()->getColour() != colour)
-	{
-		colour = getProcessor()->getColour();
-	}
-
-	if (repaintFlag) dynamic_cast<Component*>(this)->repaint();
 }
 
 void PatchBrowser::ModuleDragTarget::buttonClicked(Button *b)
 {
-	BackendProcessorEditor *mainEditor = dynamic_cast<Component*>(this)->findParentComponentOfClass<BackendProcessorEditor>();
+	auto *mainEditor = dynamic_cast<Component*>(this)->findParentComponentOfClass<BackendRootWindow>()->getMainPanel();
 
 	if (b == soloButton)
 	{
@@ -509,7 +477,7 @@ void PatchBrowser::PatchCollection::mouseDoubleClick(const MouseEvent& )
 {
 	if (getProcessor() != nullptr)
 	{
-		findParentComponentOfClass<BackendProcessorEditor>()->setRootProcessorWithUndo(root);
+		findParentComponentOfClass<BackendRootWindow>()->getMainPanel()->setRootProcessorWithUndo(root);
 		findParentComponentOfClass<SearchableListComponent>()->repaint();
 	}
 }
@@ -527,7 +495,7 @@ void PatchBrowser::PatchCollection::paint(Graphics &g)
 		g.setOpacity(0.4f);
 	}
 
-	const bool isRoot = findParentComponentOfClass<BackendProcessorEditor>()->getMainSynthChain()->getRootProcessor() == root;
+	const bool isRoot = findParentComponentOfClass<BackendRootWindow>()->getMainSynthChain()->getRootProcessor() == root;
 
 	g.setFont(GLOBAL_BOLD_FONT().withHeight(16.0f));
 
@@ -675,7 +643,7 @@ void PatchBrowser::PatchItem::mouseDoubleClick(const MouseEvent& )
 {
 	if (processor.get() != nullptr)
 	{
-		findParentComponentOfClass<BackendProcessorEditor>()->setRootProcessorWithUndo(processor);
+		findParentComponentOfClass<BackendRootWindow>()->getMainPanel()->setRootProcessorWithUndo(processor);
 		findParentComponentOfClass<SearchableListComponent>()->repaint();
 	}
 }
@@ -705,7 +673,7 @@ void PatchBrowser::PatchItem::fillPopupMenu(PopupMenu &m)
 
 	m.addSeparator();
 
-	const bool isRoot = findParentComponentOfClass<BackendProcessorEditor>()->getMainSynthChain()->getRootProcessor() == getProcessor();
+	const bool isRoot = findParentComponentOfClass<BackendRootWindow>()->getMainSynthChain()->getRootProcessor() == getProcessor();
 	m.addItem((int)ModuleDragTarget::ViewSettings::Root, "Set Fullscreen", true, isRoot);
 	m.addItem((int)ModuleDragTarget::ViewSettings::Visible, "Show module", true, getProcessor()->getEditorState(Processor::Visible));
 	m.addItem((int)ModuleDragTarget::ViewSettings::Solo, "Add module to Root", true, getProcessor()->getEditorState(Processor::Solo));
@@ -723,7 +691,7 @@ void PatchBrowser::PatchItem::popupCallback(int menuIndex)
 {
 	ViewSettings setting = (ViewSettings)menuIndex;
 
-	BackendProcessorEditor *mainEditor = dynamic_cast<Component*>(this)->findParentComponentOfClass<BackendProcessorEditor>();
+	auto *mainEditor = dynamic_cast<Component*>(this)->findParentComponentOfClass<BackendRootWindow>()->getMainPanel();
 
 	switch (setting)
 	{
@@ -747,7 +715,7 @@ void PatchBrowser::PatchItem::popupCallback(int menuIndex)
 			mainEditor->removeProcessorFromPanel(getProcessor());
 		break;
 	case PatchBrowser::ModuleDragTarget::ViewSettings::Root:
-		findParentComponentOfClass<BackendProcessorEditor>()->setRootProcessorWithUndo(processor);
+		mainEditor->setRootProcessorWithUndo(processor);
 		findParentComponentOfClass<SearchableListComponent>()->repaint();
 		break;
 	case PatchBrowser::ModuleDragTarget::ViewSettings::Bypassed:
@@ -768,7 +736,7 @@ void PatchBrowser::PatchItem::popupCallback(int menuIndex)
 
 		c->getHandler()->add(newProcessor, nullptr);
 
-		ProcessorEditorContainer *rootContainer = findParentComponentOfClass<BackendProcessorEditor>()->getRootContainer();
+		ProcessorEditorContainer *rootContainer = mainEditor->getRootContainer();
 
 		jassert(rootContainer != nullptr);
 
@@ -820,7 +788,7 @@ void PatchBrowser::PatchItem::paint(Graphics& g)
 
 		xOffset += findParentComponentOfClass<PatchCollection>()->getIntendation();
 
-		const bool isRoot = findParentComponentOfClass<BackendProcessorEditor>()->getMainSynthChain()->getRootProcessor() == processor;
+		const bool isRoot = findParentComponentOfClass<BackendRootWindow>()->getMainSynthChain()->getRootProcessor() == processor;
 
 		
 

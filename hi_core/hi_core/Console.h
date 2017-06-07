@@ -36,6 +36,22 @@
 class Processor;
 class BaseDebugArea;
 
+class BackendRootWindow;
+class BackendProcessorEditor;
+
+/** If the component somehow needs access to the main panel, subclass it from this interface and use getMainPanel(). */
+class ComponentWithAccessToMainPanel
+{
+public:
+
+	virtual ~ComponentWithAccessToMainPanel() {};
+
+protected:
+
+	BackendProcessorEditor* getMainPanel();
+	const BackendProcessorEditor* getMainPanel() const;
+};
+
 
 #if USE_BACKEND
 
@@ -48,23 +64,14 @@ class BaseDebugArea;
 *	For Modulators there is the macro function debugMod(String &t)
 */
 class Console: public Component,
-			   public AsyncUpdater,
-			   public AutoPopupDebugComponent
+			   public ComponentWithAccessToMainPanel,
+			   public CodeDocument::Listener
 {
 public:
 
-	
-	
-	enum WarningLevel
-	{
-		Message = 0,
-		Error = 1
-	};
+	Console(MainController* mc);
 
-	Console(BaseDebugArea *area);
 	~Console();
-
-	void sendChangeMessage();
     
     void mouseDown(const MouseEvent &e) override;
     void mouseMove(const MouseEvent &e) override;
@@ -72,16 +79,22 @@ public:
 
 	void resized() override;
 
-    void clear();
+	void codeDocumentTextInserted(const String &/*newText*/, int /*insertIndex*/) override
+	{
+		int numLinesVisible = jmax<int>(0, newTextConsole->getDocument().getNumLines() - (int)((float)newTextConsole->getHeight() / GLOBAL_MONOSPACE_FONT().getHeight()));
 
-	void handleAsyncUpdate();
+		newTextConsole->scrollToLine(numLinesVisible);
+	}
+
+	void codeDocumentTextDeleted(int /*startIndex*/, int /*endIndex*/) override {}
+
+    void clear();
 
 	/** Adds a new line to the console.
     *
 	*   This can be called in the audio thread. It stores all text in an internal String buffer and writes it periodically
 	*   on the timer callback.
 	*/
-	void logMessage(const String &t, WarningLevel warningLevel, const Processor *p, Colour c);
 
 private:
 
@@ -110,36 +123,15 @@ private:
 		ConsoleEditorComponent(CodeDocument &doc, CodeTokeniser *tok);
 
 		void addPopupMenuItems(PopupMenu &/*menuToAddTo*/, const MouseEvent *) override {};
-
 	};
-
-
-	enum class ConsoleMessageItems
-	{
-		WarningLevel = 0,
-		Processor,
-		Message
-	};
-
-	using ConsoleMessage = std::tuple < WarningLevel, const WeakReference<Processor>, String > ;
-
-	const CriticalSection &getLock() const { return lock; }
-
-
-	std::vector<ConsoleMessage> unprintedMessages;
 
 	friend class WeakReference<Console>;
 	WeakReference<Console>::Master masterReference;
 	
-	CriticalSection lock;
-
-	ScopedPointer<CodeDocument> doc;
 	ScopedPointer<ConsoleEditorComponent> newTextConsole;
 	ScopedPointer<CodeTokeniser> tokeniser;
 
-	bool overflowProtection;
-
-	bool clearFlag;
+	MainController* mc;
 
 };
 

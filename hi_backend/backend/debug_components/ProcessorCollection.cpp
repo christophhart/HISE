@@ -140,11 +140,11 @@ int FuzzySearcher::getLevenshteinDistance(const String &src, const String &dest)
 
 // ====================================================================================================================
 
-SearchableListComponent::SearchableListComponent(BaseDebugArea *area):
-	AutoPopupDebugComponent(area),
+SearchableListComponent::SearchableListComponent(BackendRootWindow* window):
 	fuzzyness(0.4),
 	showEmptyCollections(false),
-	internalRebuildFlag(true)
+	internalRebuildFlag(true),
+	rootWindow(window)
 {
 	addAndMakeVisible(fuzzySearchBox = new TextEditor());
 	fuzzySearchBox->addListener(this);
@@ -187,7 +187,7 @@ void SearchableListComponent::resized()
 
 void SearchableListComponent::paint(Graphics& g)
 {
-    g.setColour(Colour(DEBUG_AREA_BACKGROUND_COLOUR_DARK));
+    g.setColour(Colour(0xff353535));
     g.fillRect(0.0f, 0.0f, (float)getWidth(), 25.0f);
     
 	g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.5f), 0.0f, 25.0f,
@@ -246,6 +246,17 @@ void SearchableListComponent::refreshDisplayedItems()
 	internalContainer->setSize(getWidth(), height);
 }
 
+
+void SearchableListComponent::repaintAllItems()
+{
+	for (int i = 0; i < getNumCollections(); i++)
+	{
+		auto c = getCollection(i);
+
+		c->repaint();
+		c->repaintAllItems();
+	}
+}
 
 void SearchableListComponent::rebuildModuleList(bool forceRebuild)
 {
@@ -321,7 +332,10 @@ void SearchableListComponent::Collection::resized()
 		{
 			items[i]->setVisible(true);
 
-			items[i]->setTopLeftPosition(12, h);
+
+			items[i]->setBounds(12, h, getWidth() - 18, ITEM_HEIGHT);
+
+			//items[i]->setTopLeftPosition(12, h);
 			h += ITEM_HEIGHT;
 		}
 	}
@@ -382,7 +396,7 @@ void SearchableListComponent::Item::mouseDown(const MouseEvent& event)
 		{
 			if (getPopupHeight() != 0)
 			{
-				BackendProcessorEditor *parent = findParentComponentOfClass<BackendProcessorEditor>();
+				BackendRootWindow *parent = findParentComponentOfClass<BackendRootWindow>();
 
 				PopupComponent *table = new PopupComponent(this);
 

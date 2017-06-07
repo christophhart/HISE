@@ -279,6 +279,157 @@ public:
 
 	};
 
+
+
+	class ProcessorChangeHandler : public AsyncUpdater
+	{
+	public:
+
+		ProcessorChangeHandler(MainController* mc_) :
+			mc(mc_)
+		{}
+
+		enum class EventType
+		{
+			ProcessorAdded = 0,
+			ProcessorRemoved,
+			ProcessorRenamed,
+			ProcessorColourChange,
+			ProcessorBypassed,
+			RebuildModuleList,
+			numEventTypes
+		};
+
+		~ProcessorChangeHandler()
+		{
+			listeners.clear();
+		}
+
+		class Listener
+		{
+		public:
+			virtual void moduleListChanged(Processor* processorThatWasChanged, EventType type) = 0;
+
+			virtual ~Listener()
+			{
+				masterReference.clear();
+			}
+
+		private:
+
+			friend class WeakReference<Listener>;
+			WeakReference<Listener>::Master masterReference;
+		};
+
+		void sendProcessorChangeMessage(Processor* changedProcessor, EventType type, bool synchronous = true)
+		{
+			tempProcessor = changedProcessor;
+			tempType = type;
+
+			if (synchronous)
+				handleAsyncUpdate();
+			else
+				triggerAsyncUpdate();
+		}
+
+		void handleAsyncUpdate()
+		{
+			if (tempProcessor == nullptr)
+				return;
+
+			for (int i = 0; i < listeners.size(); i++)
+			{
+				if (listeners[i].get() != nullptr)
+					listeners[i]->moduleListChanged(tempProcessor, tempType);
+				else
+					listeners.remove(i--);
+			}
+
+			tempProcessor = nullptr;
+			tempType = EventType::numEventTypes;
+		}
+
+		void addProcessorChangeListener(Listener* newListener)
+		{
+			listeners.addIfNotAlreadyThere(newListener);
+		}
+
+		void removeProcessorChangeListener(Listener* listenerToRemove)
+		{
+			listeners.removeAllInstancesOf(listenerToRemove);
+		}
+
+	private:
+
+		MainController* mc;
+
+		Processor* tempProcessor = nullptr;
+		EventType tempType = EventType::numEventTypes;
+
+		Array<WeakReference<Listener>> listeners;
+	};
+
+	class CodeHandler: public AsyncUpdater
+	{
+	public:
+
+		enum WarningLevel
+		{
+			Message = 0,
+			Error = 1
+		};
+
+		CodeHandler(MainController* mc);
+
+		void writeToConsole(const String &t, int warningLevel, const Processor *p, Colour c);
+
+		void handleAsyncUpdate();
+
+
+
+		enum class ConsoleMessageItems
+		{
+			WarningLevel = 0,
+			Processor,
+			Message
+		};
+
+		using ConsoleMessage = std::tuple < WarningLevel, const WeakReference<Processor>, String >;
+
+		const CriticalSection &getLock() const { return lock; }
+
+		std::vector<ConsoleMessage> unprintedMessages;
+
+		CriticalSection lock;
+
+		void clearConsole()
+		{
+			clearFlag = true;
+
+			triggerAsyncUpdate();
+
+		}
+
+		CodeDocument* getConsoleData() { return &consoleData; }
+
+		Component* getMainConsole() { return mainConsole.getComponent(); }
+
+		void setMainConsole(Console* console);
+
+	private:
+
+		bool overflowProtection = false;
+
+		bool clearFlag = false;
+
+		CodeDocument consoleData;
+
+		Component::SafePointer<Component> mainConsole;
+
+		MainController* mc;
+
+	};
+
 	MainController();
 
 	virtual ~MainController();
@@ -297,6 +448,12 @@ public:
 
 	UserPresetHandler& getUserPresetHandler() { return userPresetHandler; };
 	const UserPresetHandler& getUserPresetHandler() const { return userPresetHandler; };
+
+	CodeHandler& getConsoleHandler() { return codeHandler; };
+	const CodeHandler& getConsoleHandler() const { return codeHandler; };
+
+	ProcessorChangeHandler& getProcessorChangeHandler() { return processorChangeHandler; }
+	const ProcessorChangeHandler& getProcessorChangeHandler() const { return processorChangeHandler; }
 
 #if USE_BACKEND
 	/** Writes to the console. */
@@ -378,7 +535,8 @@ public:
 #if USE_BACKEND
 
 	void setScriptWatchTable(ScriptWatchTable *table);
-	void setScriptComponentEditPanel(ScriptComponentEditPanel *panel);
+	
+	void addScriptComponentEditPanel(ScriptComponentEditPanel *panel);
 
 	void setWatchedScriptProcessor(JavascriptProcessor *p, Component *editor);
 
@@ -389,6 +547,8 @@ public:
 	*/
 	void setEditedScriptComponent(ReferenceCountedObject* c, Component *listener);
 	
+	bool hasScriptEditingPanels();
+
 #endif
 
 	void setPlotter(Plotter *p);
@@ -420,41 +580,23 @@ public:
 
 	void replaceReferencesToGlobalFolder();
 
-	void showConsole(bool consoleShouldBeShown);
-
-	/**	sets the console component to display all incoming messages. 
-	*
-	*	If you set 'isPopupConsole' to true, it will not overwrite the pointer to the main console.
-	*/
-	void setConsole(Console *c, bool isPopupConsole=false)
-	{
-#if USE_BACKEND
-		if (isPopupConsole)
-		{
-			popupConsole = c;
-			usePopupConsole = c != nullptr;
-		}
-		else
-		{
-			console = c;
-			usePopupConsole = false;
-		}
-
-#else 
-		ignoreUnused(c, isPopupConsole);
-
-#endif
-		
-	};
-
-	Console* getConsole() { return console; }
-
-    void clearConsole();
-
 	void setLastActiveEditor(CodeEditorComponent *editor, CodeDocument::Position position)
 	{
+		auto old = lastActiveEditor;
+
 		lastActiveEditor = editor;
 		lastCharacterPositionOfSelectedEditor = position.getPosition();
+
+		if (old != nullptr)
+			old->repaint();
+
+		if (lastActiveEditor != nullptr)
+			lastActiveEditor->repaint();
+	}
+
+	CodeEditorComponent* getLastActiveEditor()
+	{
+		return lastActiveEditor.getComponent();
 	}
 
 	void insertStringAtLastActiveEditor(const String &string, bool selectArguments);
@@ -711,8 +853,10 @@ private:
 	friend class UserPresetHandler;
     friend class PresetLoadingThread;
 	friend class DelayedRenderer;
+	friend class CodeHandler;
 
 	DelayedRenderer delayedRenderer;
+	CodeHandler codeHandler;
 
 	bool skipCompilingAtPresetLoad = false;
 
@@ -721,6 +865,7 @@ private:
 	HiseEventBuffer masterEventBuffer;
 	EventIdHandler eventIdHandler;
 	UserPresetHandler userPresetHandler;
+	ProcessorChangeHandler processorChangeHandler;
 
 	ScopedPointer<UserPresetData> userPresetData;
 
@@ -777,8 +922,10 @@ private:
 
 #if USE_BACKEND
     
+	
+
 	Component::SafePointer<ScriptWatchTable> scriptWatchTable;
-	Component::SafePointer<ScriptComponentEditPanel> scriptComponentEditPanel;
+	Array<Component::SafePointer<ScriptComponentEditPanel>> scriptComponentEditPanels;
 
 #else
 

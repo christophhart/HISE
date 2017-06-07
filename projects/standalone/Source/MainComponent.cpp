@@ -6,14 +6,31 @@
   ==============================================================================
 */
 
+#define S(x) String(x, 2)
+
+
 #include "MainComponent.h"
+
+#if !PUT_FLOAT_IN_CODEBASE
+#include "../../hi_core/hi_components/floating_layout/FloatingLayout.cpp"
+#endif
 
 // Use this to quickly scale the window
 #define SCALE_2 0
 
+
+
+
 //==============================================================================
 MainContentComponent::MainContentComponent(const String &commandLine)
 {
+#if !PUT_FLOAT_IN_CODEBASE
+	addAndMakeVisible(root = new FloatingTile(nullptr));
+
+	root->setNewContent(HorizontalTile::getPanelId());
+
+	setSize(1200, 800);
+#else
 	standaloneProcessor = new StandaloneProcessor();
 
 	addAndMakeVisible(editor = standaloneProcessor->createEditor());
@@ -21,28 +38,37 @@ MainContentComponent::MainContentComponent(const String &commandLine)
 	setSize(editor->getWidth(), editor->getHeight());
 
 	handleCommandLineArguments(commandLine);
+#endif
 }
 
 MainContentComponent::~MainContentComponent()
 {
 	
+	root = nullptr;
+
 	//open.detach();
 	editor = nullptr;
+
+	
 
 	standaloneProcessor = nullptr;
 }
 
 void MainContentComponent::paint (Graphics& g)
 {
-	g.fillAll(Colours::lightgrey);
+	g.fillAll(Colour(0xFF222222));
 }
 
 void MainContentComponent::resized()
 {
+#if !PUT_FLOAT_IN_CODEBASE
+	root->setBounds(getLocalBounds());
+#else
 #if SCALE_2
 	editor->setSize(getWidth()*2, getHeight()*2);
 #else
     editor->setSize(getWidth(), getHeight());
+#endif
 #endif
 
 }

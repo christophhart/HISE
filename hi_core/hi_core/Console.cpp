@@ -32,11 +32,12 @@
 
 #if USE_BACKEND
 
+
 Console::ConsoleEditorComponent::ConsoleEditorComponent(CodeDocument &doc, CodeTokeniser* tok) :
 CodeEditorComponent(doc, tok)
 {
 	setReadOnly(true);
-	setColour(CodeEditorComponent::ColourIds::backgroundColourId, Colour(0xFF393939));
+	setColour(CodeEditorComponent::ColourIds::backgroundColourId, Colour(0xFF282828));
 	getDocument().getUndoManager().setMaxNumberOfStoredUnits(0, 0);
 
 #if JUCE_MAC
@@ -45,30 +46,31 @@ CodeEditorComponent(doc, tok)
     setFont(GLOBAL_MONOSPACE_FONT());
 #endif
     
-	setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colours::white.withBrightness(0.9f));
+	setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colours::white.withBrightness(0.7f));
 	setLineNumbersShown(false);
 }
 
 
-Console::Console(BaseDebugArea *area) :
-		AutoPopupDebugComponent(area),
-		overflowProtection(false)
+Console::Console(MainController* mc_):
+	mc(mc_)
 {
 	setName("Console");
 
-	doc = new CodeDocument();
+	auto consoleDoc = mc->getConsoleHandler().getConsoleData();
+
+	consoleDoc->addListener(this);
+
 	tokeniser = new ConsoleTokeniser();
 
-	addAndMakeVisible(newTextConsole = new ConsoleEditorComponent(*doc, tokeniser));
+	addAndMakeVisible(newTextConsole = new ConsoleEditorComponent(*mc->getConsoleHandler().getConsoleData(), tokeniser));
 	newTextConsole->addMouseListener(this, true);
-
 }
-
 
 Console::~Console()
 {
+	mc->getConsoleHandler().getConsoleData()->removeListener(this);
+
 	newTextConsole = nullptr;
-	doc = nullptr;
 	tokeniser = nullptr;
 
 	masterReference.clear();
@@ -84,9 +86,9 @@ void Console::resized()
 
 void Console::clear()
 {
-	clearFlag = true;
+	mc->getConsoleHandler().clearConsole();
 
-	triggerAsyncUpdate();
+	
 }
 
 void Console::mouseDown(const MouseEvent &e)
@@ -101,12 +103,10 @@ void Console::mouseDown(const MouseEvent &e)
         
         m.addItem(1, "Clear Console");
         m.addItem(2, "Scroll down");
-
 		
 		const String id = newTextConsole->getDocument().getLine(newTextConsole->getCaretPos().getLineNumber()).upToFirstOccurrenceOf(":", false, false);
 
-		BackendProcessorEditor *editor = findParentComponentOfClass<BackendProcessorEditor>();
-		JavascriptProcessor *jsp = dynamic_cast<JavascriptProcessor*>(ProcessorHelpers::getFirstProcessorWithName(editor->getMainSynthChain(), id));
+		JavascriptProcessor *jsp = dynamic_cast<JavascriptProcessor*>(ProcessorHelpers::getFirstProcessorWithName(getMainPanel()->getMainSynthChain(), id));
 
 
 		const int SNIPPET_OFFSET = 1000;
@@ -178,14 +178,11 @@ void Console::mouseDown(const MouseEvent &e)
 				js->setEditorState(editorStateOffset + i, editorStateIndex == i, dontSendNotification);
 			}
 
-			editor->setRootProcessorWithUndo(js);
-
+			findParentComponentOfClass<BackendRootWindow>()->getMainPanel()->setRootProcessorWithUndo(js);
 		}
     }
     else if (e.mods.isAltDown())
     {
-		
-
 #if USE_BACKEND
         
 		CodeDocument::Position pos = newTextConsole->getCaretPos();
@@ -194,8 +191,8 @@ void Console::mouseDown(const MouseEvent &e)
 
         if(name.isNotEmpty())
         {
-            BackendProcessorEditor *editor = findParentComponentOfClass<BackendProcessorEditor>();
-            
+			auto editor = findParentComponentOfClass<BackendRootWindow>()->getMainPanel();
+
             Processor *p = ProcessorHelpers::getFirstProcessorWithName(editor->getMainSynthChain(), name);
             
             if(p != nullptr)
@@ -203,7 +200,6 @@ void Console::mouseDown(const MouseEvent &e)
                 editor->setRootProcessorWithUndo(p);
             }
         }
-
 #endif
         
     }
@@ -236,8 +232,7 @@ void Console::mouseDoubleClick(const MouseEvent& /*e*/)
 		const String lineNumber = matches[4];
 		const String charNumber = matches[5];
 
-		BackendProcessorEditor *editor = findParentComponentOfClass<BackendProcessorEditor>();
-		JavascriptProcessor *jsp = dynamic_cast<JavascriptProcessor*>(ProcessorHelpers::getFirstProcessorWithName(editor->getMainSynthChain(), id));
+		JavascriptProcessor *jsp = dynamic_cast<JavascriptProcessor*>(ProcessorHelpers::getFirstProcessorWithName(getMainPanel()->getMainSynthChain(), id));
 
 		if (fileName.isNotEmpty())
 		{
@@ -259,7 +254,7 @@ void Console::mouseDoubleClick(const MouseEvent& /*e*/)
 		{
 			jassert(!callback.isNull());
 
-			ProcessorEditor* pEditor = editor->getRootContainer()->getFirstEditorOf(dynamic_cast<Processor*>(jsp));
+			ProcessorEditor* pEditor = getMainPanel()->getRootContainer()->getFirstEditorOf(dynamic_cast<Processor*>(jsp));
 
 			if (pEditor != nullptr)
 			{
@@ -276,89 +271,13 @@ void Console::mouseDoubleClick(const MouseEvent& /*e*/)
 			}
 		}
 	}
-}
-
-void Console::logMessage(const String &t, WarningLevel warningLevel, const Processor *p, Colour c)
-{
-	if(overflowProtection) return;
-
-	else
-	{
-		ScopedLock sl(getLock());
-
-		if(unprintedMessages.size() > 10)
-		{
-			unprintedMessages.push_back(ConsoleMessage(Error, const_cast<Processor*>(p), "Console Overflow"));
-			overflowProtection = true;
-			return;
-		}
-		else
-		{
-			unprintedMessages.push_back(ConsoleMessage(warningLevel, const_cast<Processor*>(p), t));
-		}
-	}
-
-	if (MessageManager::getInstance()->isThisTheMessageThread())
-	{
-		handleAsyncUpdate();
-	}
-	else
-	{
-		triggerAsyncUpdate();
-	}
-};
-
-
-void Console::handleAsyncUpdate()
-{
-	if (clearFlag)
-	{
-		newTextConsole->getDocument().replaceAllContent("");
-		clearFlag = false;
-	}
-
-	std::vector<ConsoleMessage> messagesForThisTime;
-	messagesForThisTime.reserve(10);
-
-	if(unprintedMessages.size() != 0)
-	{
-		ScopedLock sl(getLock());
-		messagesForThisTime.swap(unprintedMessages);
-	}
-	else return;
-
-	String message;
-
-	for(size_t i = 0; i < messagesForThisTime.size(); i++)
-	{
-        const Processor* processor = std::get<(int)ConsoleMessageItems::Processor>(messagesForThisTime[i]).get();
-        
-        if(processor == nullptr)
-        {
-            jassertfalse;
-            continue;
-        }
-        
-		message << processor->getId() << ":";
-		message << (std::get<(int)ConsoleMessageItems::WarningLevel>(messagesForThisTime[i]) == WarningLevel::Error ? "! " : " ");
-		message << std::get<(int)ConsoleMessageItems::Message>(messagesForThisTime[i]) << "\n";
-	}
-
-	doc->insertText(doc->getNumCharacters(), message);
-
-	int numLinesVisible = jmax<int>(0, doc->getNumLines() - (int)((float)newTextConsole->getHeight() / GLOBAL_MONOSPACE_FONT().getHeight()));
-
-	newTextConsole->scrollToLine(numLinesVisible);
-	overflowProtection = false;
-
-	return;
-};
+};;
 
 Console::ConsoleTokeniser::ConsoleTokeniser()
 {
 	s.set("id", Colours::white);
 	s.set("default", Colours::white.withBrightness(0.75f));
-	s.set("error", Colours::red.withBrightness(0.9f));
+	s.set("error", JUCE_LIVE_CONSTANT_OFF(Colour(0xffff3939)));
 }
 
 int Console::ConsoleTokeniser::readNextToken(CodeDocument::Iterator& source)
@@ -385,3 +304,13 @@ int Console::ConsoleTokeniser::readNextToken(CodeDocument::Iterator& source)
 
 
 #endif
+
+BackendProcessorEditor* ComponentWithAccessToMainPanel::getMainPanel()
+{
+	return dynamic_cast<Component*>(this)->findParentComponentOfClass<BackendRootWindow>()->getMainPanel();
+}
+
+const BackendProcessorEditor* ComponentWithAccessToMainPanel::getMainPanel() const
+{
+	return dynamic_cast<const Component*>(this)->findParentComponentOfClass<BackendRootWindow>()->getMainPanel();
+}

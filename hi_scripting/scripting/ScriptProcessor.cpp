@@ -259,6 +259,15 @@ void FileChangeListener::showPopupForFile(int index, int charNumberToDisplay/*=0
 #endif
 }
 
+void FileChangeListener::showPopupForFile(const File& f, int charNumberToDisplay /*= 0*/, int lineNumberToDisplay /*= -1*/)
+{
+	for (int i = 0; i < watchers.size(); i++)
+	{
+		if (watchers[i]->getFile() == f)
+			showPopupForFile(i, charNumberToDisplay, lineNumberToDisplay);
+	}
+}
+
 void JavascriptProcessor::showPopupForCallback(const Identifier& callback, int charNumberToDisplay, int lineNumberToDisplay)
 {
 #if USE_BACKEND

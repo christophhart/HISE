@@ -277,7 +277,7 @@ void ScriptingObjects::ScriptingModulator::setBypassed(bool shouldBeBypassed)
 {
 	if (checkValidObject())
 	{
-		mod->setBypassed(shouldBeBypassed);
+		mod->setBypassed(shouldBeBypassed, sendNotification);
 		mod->sendChangeMessage();
 	}
 }
@@ -289,13 +289,13 @@ void ScriptingObjects::ScriptingModulator::doubleClickCallback(const MouseEvent 
 #if USE_BACKEND
 	if (objectExists() && !objectDeleted())
 	{
-		BackendProcessorEditor *editor = componentToNotify->findParentComponentOfClass<BackendProcessorEditor>();
+		auto *editor = componentToNotify->findParentComponentOfClass<BackendRootWindow>();
 
 		Processor *p = ProcessorHelpers::getFirstProcessorWithName(editor->getMainSynthChain(), mod->getId());
 
 		if (p != nullptr)
 		{
-			editor->setRootProcessorWithUndo(p);
+			editor->getMainPanel()->setRootProcessorWithUndo(p);
 		}
 	}
 #else 
@@ -407,7 +407,7 @@ void ScriptingObjects::ScriptingEffect::setBypassed(bool shouldBeBypassed)
 {
 	if (checkValidObject())
 	{
-		effect->setBypassed(shouldBeBypassed);
+		effect->setBypassed(shouldBeBypassed, sendNotification);
 		effect->sendChangeMessage();
 	}
 }
@@ -495,7 +495,7 @@ void ScriptingObjects::ScriptingSynth::setBypassed(bool shouldBeBypassed)
 {
 	if (checkValidObject())
 	{
-		synth->setBypassed(shouldBeBypassed);
+		synth->setBypassed(shouldBeBypassed, sendNotification);
 		synth->sendChangeMessage();
 	}
 }
@@ -625,7 +625,7 @@ void ScriptingObjects::ScriptingMidiProcessor::setBypassed(bool shouldBeBypassed
 {
 	if (checkValidObject())
 	{
-		mp->setBypassed(shouldBeBypassed);
+		mp->setBypassed(shouldBeBypassed, sendNotification);
 		mp->sendChangeMessage();
 	}
 }
@@ -711,7 +711,7 @@ void ScriptingObjects::ScriptingAudioSampleProcessor::setBypassed(bool shouldBeB
 {
 	if (checkValidObject())
 	{
-		audioSampleProcessor->setBypassed(shouldBeBypassed);
+		audioSampleProcessor->setBypassed(shouldBeBypassed, sendNotification);
 		audioSampleProcessor->sendChangeMessage();
 	}
 }
@@ -894,7 +894,7 @@ void ScriptingObjects::PathObject::doubleClickCallback(const MouseEvent &e, Comp
 {
 #if USE_BACKEND
 
-	BackendProcessorEditor *editor = componentToNotify->findParentComponentOfClass<BackendProcessorEditor>();
+	auto *editor = componentToNotify->findParentComponentOfClass<BackendRootWindow>();
 
 	PathPreviewComponent* content = new PathPreviewComponent(p);
 	

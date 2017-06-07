@@ -61,12 +61,20 @@ public:
 	LookupTableProcessor();
 	virtual ~LookupTableProcessor();
 
+	//SET_PROCESSOR_CONNECTOR_TYPE_ID("LookupTableProcessor");
+
 	// ================================================================================================================
 
 	/** Overwrite this method and return the table for the supplied index.
 	*
 	*	If you only have one table, ignore this parameter.*/
 	virtual Table *getTable(int tableIndex) const = 0;
+
+	/** Overwrite this and return the number of tables that this processor uses.
+	*
+	*	It assumes one table so if you do have one table, you don't need to do anything...
+	*/
+	virtual int getNumTables() const { return 1; }
 
 	/** Adds a listener to this processor. */
 	void addTableChangeListener(SafeChangeListener *listener);;
@@ -107,6 +115,8 @@ public:
 
 	SliderPackProcessor() {};
 	virtual ~SliderPackProcessor() {};
+
+	//SET_PROCESSOR_CONNECTOR_TYPE_ID("SliderPackProcessor");
 
 	/** Overwrite this and return the const SliderPackData member from your subclassed Processor. */
 	virtual SliderPackData *getSliderPackData(int index) = 0;

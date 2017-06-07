@@ -51,90 +51,11 @@ class MacroComponent: public Component,
 {
 public:
 
-	MacroComponent(BackendProcessor *processor_, MacroParameterTable *table_):
-		processor(processor_),
-		synthChain(processor_->getMainSynthChain()),
-		table(table_)
-	{
-		synthChain->addChangeListener(this);
+	MacroComponent(BackendRootWindow* rootWindow);;
 
-		mlaf = new MacroKnobLookAndFeel();
+	~MacroComponent();
 
-		for(int i = 0; i < 8; i++)
-		{
-			Slider *s = new Slider();
-			s->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
-			s->setName(synthChain->getMacroControlData(i)->getMacroName());
-			s->setRange(0.0, 127.0, 1.0);
-			//s->setTextBoxStyle(Slider::TextBoxRight, true, 50, 20);
-			s->setTextBoxStyle(Slider::NoTextBox, false, 0, 0);
-			s->setLookAndFeel(mlaf);
-			s->setValue(0.0, dontSendNotification);
-
-			macroKnobs.add(s);
-			addAndMakeVisible(s);
-			s->setTextBoxIsEditable(false);
-			s->addMouseListener(this, true);
-			s->addListener(this);
-
-			ShapeButton *t = new ShapeButton("", Colours::black.withAlpha(0.5f), Colours::black.withAlpha(0.7f), Colours::white);
-
-			static const unsigned char pathData[] = { 110,109,173,14,46,68,22,127,139,67,98,173,190,50,68,22,223,148,67,177,188,50,68,34,17,164,67,173,14,46,68,34,113,173,67,108,173,102,40,68,34,193,184,67,108,177,108,23,68,22,207,150,67,108,177,20,29,68,22,127,139,67,98,161,196,33,68,34,33,130,67,173,94,
-			41,68,22,31,130,67,173,14,46,68,22,127,139,67,99,109,65,105,178,67,152,161,9,68,108,77,27,167,67,152,65,32,68,108,77,91,212,67,152,153,26,68,108,173,190,34,68,36,17,196,67,108,177,196,17,68,24,31,162,67,108,65,105,178,67,152,161,9,68,99,109,164,146,17,
-			68,32,11,253,67,108,164,146,17,68,148,59,50,68,108,72,37,131,67,148,59,50,68,108,72,37,131,67,40,119,196,67,108,60,147,234,67,40,119,196,67,108,152,72,5,68,40,119,164,67,108,146,74,70,67,40,119,164,67,108,146,74,70,67,148,59,66,68,108,164,146,33,68,148,
-			59,66,68,108,164,146,33,68,20,9,221,67,108,164,146,17,68,32,11,253,67,99,101,0,0 };
-
-			Path path;
-			path.loadPathFromData (pathData, sizeof (pathData));
-
-
-			t->setShape(path, false, false, false);
-
-			
-
-			t->addListener (this);
-
-			/*TextButton *t = new TextButton();
-			t->setButtonText("Edit Macro " + String(i +1));
-			t->setConnectedEdges (Button::ConnectedOnLeft | Button::ConnectedOnRight);
-			
-			t->setColour (TextButton::buttonColourId, Colour (0x884b4b4b));
-			t->setColour (TextButton::buttonOnColourId, Colour (0xff680000));
-			t->setColour (TextButton::textColourOnId, Colour (0xaaffffff));
-			t->setColour (TextButton::textColourOffId, Colour (0x99ffffff));*/
-			t->setTooltip("Show Edit Panel for Macro " + String(i + 1));
-			t->setClickingTogglesState(true);
-
-			editButtons.add(t);
-			addAndMakeVisible(t);
-
-			
-			Label *l = new Label ("", synthChain->getMacroControlData(i)->getMacroName());
-
-			l->setFont (GLOBAL_BOLD_FONT());
-			l->setJustificationType (Justification::centred);
-			l->setEditable (false, true, false);
-			l->setColour (Label::backgroundColourId, Colours::black.withAlpha(0.1f));
-			l->setColour (Label::outlineColourId, Colour (0x2b000000));
-			l->setColour (TextEditor::textColourId, Colours::black);
-			l->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
-			l->addListener (this);
-
-			macroNames.add(l);
-			addAndMakeVisible (l);
-
-			
-
-		}
-
-		changeListenerCallback(synthChain);
-
-	};
-
-	~MacroComponent()
-	{
-		if(synthChain != nullptr) synthChain->removeChangeListener(this);
-	}
+	SET_GENERIC_PANEL_ID("MacroControls");
 
 	struct MacroControlPopupData
 	{
@@ -160,7 +81,7 @@ public:
 			const bool on = synthChain->hasActiveParameters(i);
 
 			macroNames[i]->setColour(Label::ColourIds::backgroundColourId, on ? Colours::black.withAlpha(0.1f) : Colours::transparentBlack );			
-			macroNames[i]->setColour(Label::ColourIds::textColourId, on ? Colours::black : Colours::black.withAlpha(0.4f) );			
+			macroNames[i]->setColour(Label::ColourIds::textColourId, on ? Colours::white : Colours::white.withAlpha(0.4f) );			
 			macroNames[i]->setEnabled(on);
 		}
 
@@ -179,21 +100,10 @@ public:
 
 	}
 
-	void paint(Graphics &g)
-	{
-		g.fillAll(Colour(0xff555555));
-
-		g.setColour(Colours::black.withAlpha(0.1f));
-
-		g.drawRoundedRectangle(0.0f, 0.0f, (float) getWidth(), (float) getHeight() + 3.0f, 3.0f, 1.0f);
-
-		g.setColour(Colour(0x433f3f3f));
-
-		g.fillRoundedRectangle(0.0f, 0.0f, (float)getWidth(), (float)getHeight() +3.0f, 3.0f);
-	}
 
 	void changeListenerCallback(SafeChangeBroadcaster *);
 	
+	MacroParameterTable* getMainTable();
 
 	int getCurrentHeight()
 	{
@@ -204,54 +114,7 @@ public:
 #endif
 	}
 
-	void resized()
-	{
-		const int macroAmount = macroKnobs.size();
-
-#if HISE_IOS
-
-		const int width = (getWidth()-30) / 4;
-		int x = 15;
-
-		for(int i = 0; i < 4; i++)
-		{
-			macroKnobs[i]->setBounds(x + width / 2- 24, 10, 48, 48);
-			macroNames[i]->setBounds(x, 64, width - 28, 20);
-			editButtons[i]->setBounds(macroNames[i]->getRight() + 2, 64, 20, 20);
-
-			x += width;
-		}
-
-		x = 15;
-
-		for(int i = 4; i < 8; i++)
-		{
-			macroKnobs[i]->setBounds(x + width / 2- 24, 100, 48, 48);
-			macroNames[i]->setBounds(x, 160, width - 28, 20);
-			editButtons[i]->setBounds(macroNames[i]->getRight() + 2, 160, 20, 20);
-
-			x += width;
-		}
-
-
-#else
-
-		const int width = getWidth() / macroAmount;
-		int x = 0;
-
-		for(int i = 0; i < macroAmount; i++)
-		{
-			macroKnobs[i]->setBounds(x + width / 2- 24, 10, 48, 48);
-			macroNames[i]->setBounds(x + 4, 64, width - 28, 20);
-			editButtons[i]->setBounds(macroNames[i]->getRight() + 2, 64, 20, 20);
-			
-			x += getWidth() / macroAmount;
-		}
-
-#endif
-
-		checkActiveButtons();
-	}
+	void resized();
 
 	void sliderValueChanged(Slider *s)
 	{
@@ -279,6 +142,8 @@ public:
 
 	ScopedPointer<MacroKnobLookAndFeel> mlaf;
 
+	BackendRootWindow* rootWindow;
+
 	BackendProcessor *processor;
 
 	ModulatorSynthChain *synthChain;
@@ -287,15 +152,22 @@ public:
 	OwnedArray<Label> macroNames;
 	OwnedArray<ShapeButton> editButtons;
 
-	Component::SafePointer<MacroParameterTable> table;
-
+	
 };
 
-class BreadcrumbComponent : public Component
+class BreadcrumbComponent : public Component,
+							public MainController::ProcessorChangeHandler::Listener
 {
 public:
-	BreadcrumbComponent()
-	{};
+	BreadcrumbComponent(MainController* mc_);;
+
+	~BreadcrumbComponent();
+
+	void moduleListChanged(Processor* /*processorThatWasChanged*/, MainController::ProcessorChangeHandler::EventType type)
+	{
+		if (type == MainController::ProcessorChangeHandler::EventType::ProcessorRenamed)
+			refreshBreadcrumbs();
+	}
 
 	void paint(Graphics &g) override
 	{
@@ -371,6 +243,8 @@ private:
 	};
 
 	OwnedArray<Breadcrumb> breadcrumbs;
+
+	MainController* mc;
 };
 
 class BaseDebugArea;
@@ -381,8 +255,7 @@ class BaseDebugArea;
 *	You can change the parameter range and invert it.
 */
 class MacroParameterTable      :	public Component,
-									public TableListBoxModel,
-									public AutoPopupDebugComponent
+									public TableListBoxModel
 {
 public:
 
@@ -396,8 +269,7 @@ public:
 		numColumns
 	};
 
-	MacroParameterTable(BaseDebugArea *area)   :
-		AutoPopupDebugComponent(area),
+	MacroParameterTable(BackendRootWindow *rootWindow)   :
 		font (GLOBAL_FONT()),
 		data(nullptr)
 	{
@@ -413,7 +285,6 @@ public:
 		table.setColour(ListBox::backgroundColourId, HiseColourScheme::getColour(HiseColourScheme::ColourIds::DebugAreaBackgroundColourId));
 
 		table.setOutlineThickness (0);
-
 
 		laf = new TableHeaderLookAndFeel();
 
@@ -433,6 +304,7 @@ public:
 		setWantsKeyboardFocus(true);
 	}
 
+	SET_GENERIC_PANEL_ID("MacroTable");
 
 	int getNumRows() override
 	{
@@ -566,15 +438,13 @@ public:
 	void paintCell (Graphics& g, int rowNumber, int columnId,
 					int width, int height, bool /*rowIsSelected*/) override
 	{
-			
-		g.setColour (Colours::white.withAlpha(0.4f));
-		g.fillRect (width - 1, 0, 1, height);
-
-
-		g.setColour (Colours::black);
+		g.setColour (Colours::white.withAlpha(0.8f));
 		g.setFont (font);
 
 		String text;
+
+		if (data->getParameter(rowNumber) == nullptr)
+			return;
 
 		if(data->getParameter(rowNumber)->getProcessor() == nullptr)
 		{
@@ -748,6 +618,11 @@ public:
 	void itemDragExit(const SourceDetails &dragSourceDetails) override;
 
 	void itemDropped(const SourceDetails &dragSourceDetails) override;;
+
+	void paint(Graphics& g)
+	{
+		g.fillAll(Colour(0xFF333333));
+	}
 
 	void resized();
 

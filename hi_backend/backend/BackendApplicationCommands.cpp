@@ -60,9 +60,9 @@ currentColumnMode(OneColumn)
 }
 
 
-void BackendCommandTarget::setEditor(BackendProcessorEditor *editor)
+void BackendCommandTarget::setEditor(BackendRootWindow *editor)
 {
-	bpe = dynamic_cast<BackendProcessorEditor*>(editor);
+	bpe = dynamic_cast<BackendRootWindow*>(editor);
 
 	mainCommandManager = owner->getCommandManager();
 	mainCommandManager->registerAllCommandsForTarget(this);
@@ -76,14 +76,11 @@ void BackendCommandTarget::setEditor(BackendProcessorEditor *editor)
 void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 {
 	const CommandID id[] = { 
-		HamburgerMenu,
-		ModulatorList,
-		DebugPanel,
-		ViewPanel,
-		Mixer,
-		Macros,
-		Keyboard,
 		Settings,
+		WorkspaceMain,
+		WorkspaceScript,
+		WorkspaceSampler,
+		WorkspaceCustom,
 		MenuNewFile,
 		MenuOpenFile,
 		MenuSaveFile,
@@ -123,6 +120,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuViewShowSelectedProcessorInPopup,
 		
 		MenuToolsRecompile,
+		MenuToolsCreateInterface,
         MenuToolsClearConsole,
 		MenuToolsSetCompileTimeOut,
 		MenuToolsUseBackgroundThreadForCompile,
@@ -143,9 +141,11 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsEnableDebugLogging,
 		MenuToolsCreateRSAKeys,
 		MenuToolsCreateDummyLicenceFile,
+		MenuViewReset,
         MenuViewFullscreen,
 		MenuViewBack,
 		MenuViewForward,
+		MenuViewEnableGlobalLayoutMode,
         MenuOneColumn,
 		MenuTwoColumns,
 		MenuThreeColumns,
@@ -159,18 +159,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
         MenuToolsCheckDuplicate,
 		MenuHelpShowAboutPage,
         MenuHelpCheckVersion
-		/*        MenuRevertFile,
 		
-		
-		MenuExportFileAsPlayerLibrary,
-		MenuEditOffset,
-		MenuViewOffset,
-		MenuOneColumn,
-		MenuTwoColumns,
-		MenuThreeColumns,
-		MenuAddView,
-		MenuDeleteView,
-		MenuRenameView*/
 	};
 
 	commands.addArray(id, numElementsInArray(id));
@@ -196,21 +185,6 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case HamburgerMenu:
 		setCommandTarget(result, "Show Menu", true, false, 'X', false);
 		break;
-	case Macros:
-		setCommandTarget(result, "Show Macro Controls", true, (bpe->macroKnobs != nullptr && !bpe->macroKnobs->isVisible()), 'X', false);
-		break;
-	case DebugPanel:
-		setCommandTarget(result, "Show Debug Panel", true, (bpe->referenceDebugArea != nullptr && !bpe->referenceDebugArea->isVisible()), 'X', false);
-		break;
-	case ViewPanel:
-		setCommandTarget(result, "Show View Panel", true, true, 'X', false);
-		break;
-	case Mixer:
-		setCommandTarget(result, "Show Mixer", false, true, 'X', false);
-		break;
-	case Keyboard:
-		setCommandTarget(result, "Show Keyboard", true, (bpe->keyboard != nullptr && !bpe->keyboard->isVisible()), 'X', false);
-		break;
 	case Settings:
 
 #if IS_STANDALONE_APP
@@ -219,9 +193,27 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Show Audio Device Settings (disabled for plugins)", false, bpe->currentDialog == nullptr, '8');
 #endif
 		break;
-	case ModulatorList:
-		setCommandTarget(result, "Show Processor List", true, (bpe->popupEditor == nullptr), 'x', false);
+
+	case WorkspaceMain:
+	{
+		setCommandTarget(result, "Show Main Workspace", true, bpe->getCurrentWorkspace() == WorkspaceMain, 'X', false);
 		break;
+	}
+	case WorkspaceScript:
+	{
+		setCommandTarget(result, "Show Scripting Workspace", true, bpe->getCurrentWorkspace() == WorkspaceScript, 'X', false);
+		break;
+	}
+	case WorkspaceSampler:
+	{
+		setCommandTarget(result, "Show Sampler Workspace", true, bpe->getCurrentWorkspace() == WorkspaceSampler, 'X', false);
+		break;
+	}
+	case WorkspaceCustom:
+	{
+		setCommandTarget(result, "Show Custom Workspace", true, bpe->getCurrentWorkspace() == WorkspaceCustom, 'X', false);
+		break;
+	}
 	case MenuNewFile:
 		setCommandTarget(result, "New File", true, false, 'N');
 		break;
@@ -357,6 +349,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
     case MenuEditCloseAllChains:
         setCommandTarget(result, "Close all chains", clipBoardNotEmpty(), false, 'X', false);
         break;
+	case MenuToolsCreateInterface:
+		setCommandTarget(result, "Create User Interface", true, false, 'X', false);
+		break;
 	case MenuToolsRecompile:
                          setCommandTarget(result, "Recompile all scripts", true, false, 'X', false);
                          result.addDefaultKeypress(KeyPress::F5Key, ModifierKeys::shiftModifier);
@@ -419,14 +414,21 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuToolsCreateDummyLicenceFile:
 		setCommandTarget(result, "Create Dummy Licence File", true, false, 'X', false);
 		break;
+	case MenuViewReset:
+		setCommandTarget(result, "Reset Workspaces", true, false, 'X', false);
+		break;
     case MenuViewFullscreen:
         setCommandTarget(result, "Toggle Fullscreen", true, bpe->isFullScreenMode(), 'F');
         break;
 	case MenuViewBack:
-		setCommandTarget(result, "Back: " + bpe->getViewUndoManager()->getUndoDescription(), bpe->getViewUndoManager()->canUndo(), true, (char)KeyPress::backspaceKey, true, ModifierKeys::noModifiers);
+		setCommandTarget(result, "Back: " + bpe->mainEditor->getViewUndoManager()->getUndoDescription(), bpe->mainEditor->getViewUndoManager()->canUndo(), false, (char)KeyPress::backspaceKey, true, ModifierKeys::noModifiers);
 		break;
 	case MenuViewForward:
-		setCommandTarget(result, "Forward: " + bpe->getViewUndoManager()->getRedoDescription(), bpe->getViewUndoManager()->canRedo(), true, (char)KeyPress::backspaceKey, true, ModifierKeys::shiftModifier);
+		setCommandTarget(result, "Forward: " + bpe->mainEditor->getViewUndoManager()->getRedoDescription(), bpe->mainEditor->getViewUndoManager()->canRedo(), false, (char)KeyPress::backspaceKey, true, ModifierKeys::shiftModifier);
+		break;
+	case MenuViewEnableGlobalLayoutMode:
+		setCommandTarget(result, "Enable Layout Mode", true, bpe->getRootFloatingTile()->isLayoutModeEnabled(), 'X', false);
+		result.addDefaultKeypress(KeyPress::F6Key, ModifierKeys::noModifiers);
 		break;
 	case MenuOneColumn:
 		setCommandTarget(result, "One Column", true, currentColumnMode == OneColumn, '1', true, ModifierKeys::altModifier);
@@ -438,7 +440,7 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Three Columns", true, currentColumnMode == ThreeColumns, '3', true, ModifierKeys::altModifier);
 		break;
 	case MenuViewShowPluginPopupPreview:
-		setCommandTarget(result, "Open Plugin Preview Window", bpe->isPluginPreviewCreatable(), !bpe->isPluginPreviewShown(), 'X', false);
+		setCommandTarget(result, "Open Plugin Preview Window", bpe->mainEditor->isPluginPreviewCreatable(), !bpe->mainEditor->isPluginPreviewShown(), 'X', false);
 		break;
     case MenuViewIncreaseCodeFontSize:
         setCommandTarget(result, "Increase code font size", true, false, 'X', false);
@@ -487,20 +489,13 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	switch (info.commandID)
 	{
 	case HamburgerMenu:					Actions::showMainMenu(bpe);  return true;
-	case DebugPanel:                    toggleVisibility(bpe->referenceDebugArea);
-                                        bpe->viewedComponentChanged();
-                                        return true;
-	case Keyboard:                      toggleVisibility(bpe->keyboard);
-                                        bpe->viewedComponentChanged();
-                                        return true;
-	case Macros:                        toggleVisibility(bpe->macroKnobs);
-                                        bpe->viewedComponentChanged();
-                                        return true;
-	case ModulatorList:                 bpe->showModulatorTreePopup(); return true;
-	case ViewPanel:                     bpe->showViewPanelPopup(); return true;
 	case Settings:                      bpe->showSettingsWindow(); return true;
+	case WorkspaceMain:
+	case WorkspaceScript:
+	case WorkspaceSampler:
+	case WorkspaceCustom:				bpe->showWorkspace(info.commandID); updateCommands(); return true;
 	case MenuNewFile:                   if (PresetHandler::showYesNoWindow("New File", "Do you want to start a new preset?"))
-                                            bpe->clearPreset(); return true;
+                                            bpe->mainEditor->clearPreset(); return true;
 	case MenuOpenFile:                  Actions::openFile(bpe); return true;
 	case MenuSaveFile:                  Actions::saveFile(bpe, false); updateCommands(); return true;
 	case MenuSaveFileAs:				Actions::saveFile(bpe, true); updateCommands(); return true;
@@ -535,6 +530,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
     case MenuEditPlotModulator:         Actions::plotModulator(currentCopyPasteTarget.get()); updateCommands(); return true;
     case MenuEditCloseAllChains:        Actions::closeAllChains(bpe); return true;
 	case MenuToolsRecompile:            Actions::recompileAllScripts(bpe); return true;
+	case MenuToolsCreateInterface:		Actions::createUserInterface(bpe); return true;
 	case MenuToolsSetCompileTimeOut:	Actions::setCompileTimeOut(bpe); return true;
 	case MenuToolsUseBackgroundThreadForCompile: Actions::toggleUseBackgroundThreadsForCompiling(bpe); updateCommands(); return true;
 	case MenuToolsRecompileScriptsOnReload: Actions::toggleCompileScriptsOnPresetLoad(bpe); updateCommands(); return true;
@@ -556,8 +552,10 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsEnableAutoSaving:		bpe->owner->getAutoSaver().toggleAutoSaving(); updateCommands(); return true;
 	case MenuToolsEnableDebugLogging:	bpe->owner->getDebugLogger().toggleLogging(), updateCommands(); return true;
     case MenuViewFullscreen:            Actions::toggleFullscreen(bpe); updateCommands(); return true;
-	case MenuViewBack:					bpe->getViewUndoManager()->undo(); updateCommands(); return true;
-	case MenuViewForward:				bpe->getViewUndoManager()->redo(); updateCommands(); return true;
+	case MenuViewBack:					bpe->mainEditor->getViewUndoManager()->undo(); updateCommands(); return true;
+	case MenuViewReset:				    bpe->resetInterface(); updateCommands(); return true;
+	case MenuViewForward:				bpe->mainEditor->getViewUndoManager()->redo(); updateCommands(); return true;
+	case MenuViewEnableGlobalLayoutMode: bpe->getRootFloatingTile()->setLayoutModeEnabled(!bpe->getRootFloatingTile()->isLayoutModeEnabled()); updateCommands(); return true;
 	case MenuViewShowPluginPopupPreview: Actions::togglePluginPopupWindow(bpe); updateCommands(); return true;
     case MenuViewIncreaseCodeFontSize:  Actions::changeCodeFontSize(bpe, true); return true;
     case MenuViewDecreaseCodeFontSize:   Actions::changeCodeFontSize(bpe, false); return true;
@@ -570,14 +568,12 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
     case MenuDeleteView:                Actions::deleteView(bpe); updateCommands();return true;
     case MenuRenameView:                Actions::renameView(bpe); updateCommands();return true;
     case MenuViewSaveCurrentView:       Actions::saveView(bpe); updateCommands(); return true;
-    case MenuToolsClearConsole:         owner->clearConsole(); return true;
+    case MenuToolsClearConsole:         owner->getConsoleHandler().clearConsole(); return true;
 	case MenuHelpShowAboutPage:			Actions::showAboutPage(bpe); return true;
     case MenuHelpCheckVersion:          Actions::checkVersion(bpe); return true;
 	case MenuOneColumn:					Actions::setColumns(bpe, this, OneColumn);  updateCommands(); return true;
 	case MenuTwoColumns:				Actions::setColumns(bpe, this, TwoColumns);  updateCommands(); return true;
 	case MenuThreeColumns:				Actions::setColumns(bpe, this, ThreeColumns);  updateCommands(); return true;
-	
-	case MenuViewShowSelectedProcessorInPopup: Actions::showProcessorInPopup(bpe, dynamic_cast<ProcessorEditor*>(currentCopyPasteTarget.get())); return true;
 	}
 
 	return false;
@@ -769,6 +765,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 	case BackendCommandTarget::ToolsMenu:
 	{
 		p.addSectionHeader("Scripting Tools");
+		ADD_ALL_PLATFORMS(MenuToolsCreateInterface);
 		ADD_ALL_PLATFORMS(MenuToolsRecompile);
 		ADD_ALL_PLATFORMS(MenuToolsCheckDuplicate);
 		ADD_ALL_PLATFORMS(MenuToolsClearConsole);
@@ -816,7 +813,18 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 	case BackendCommandTarget::ViewMenu: {
 		ADD_ALL_PLATFORMS(MenuViewBack);
 		ADD_ALL_PLATFORMS(MenuViewForward);
+		ADD_ALL_PLATFORMS(MenuViewReset);
+
 		p.addSeparator();
+
+		ADD_ALL_PLATFORMS(WorkspaceMain);
+		ADD_ALL_PLATFORMS(WorkspaceScript);
+		ADD_ALL_PLATFORMS(WorkspaceSampler);
+		ADD_ALL_PLATFORMS(WorkspaceCustom);
+
+		p.addSeparator();
+
+		ADD_DESKTOP_ONLY(MenuViewEnableGlobalLayoutMode);
 		ADD_DESKTOP_ONLY(MenuViewFullscreen);
 		ADD_ALL_PLATFORMS(MenuViewShowSelectedProcessorInPopup);
 		p.addSeparator();
@@ -826,55 +834,8 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
         p.addSeparator();
         ADD_ALL_PLATFORMS(MenuViewIncreaseCodeFontSize);
         ADD_ALL_PLATFORMS(MenuViewDecreaseCodeFontSize);
-		p.addSeparator();
-		ADD_ALL_PLATFORMS(MenuViewShowPluginPopupPreview);
-		ADD_ALL_PLATFORMS(DebugPanel);
-		ADD_ALL_PLATFORMS(Macros);
-		ADD_ALL_PLATFORMS(Keyboard);
 		ADD_ALL_PLATFORMS(Settings);
-		p.addSeparator();
-		ADD_ALL_PLATFORMS(MenuAddView);
-		ADD_ALL_PLATFORMS(MenuDeleteView);
-		ADD_ALL_PLATFORMS(MenuRenameView);
-		ADD_ALL_PLATFORMS(MenuViewSaveCurrentView);
-
-		if (viewActive())
-		{
-			p.addSeparator();
-			p.addSectionHeader("Current View: " + owner->synthChain->getCurrentViewInfo()->getViewName());
-
-			for (int i = 0; i < owner->synthChain->getNumViewInfos(); i++)
-			{
-				ViewInfo *info = owner->synthChain->getViewInfo(i);
-
-				p.addItem(MenuViewOffset + i, info->getViewName(), true, info == owner->synthChain->getCurrentViewInfo());
-			}
-
-		}
-
-		PopupMenu processorList;
-
-		Processor::Iterator<Processor> iter(owner->getMainSynthChain());
-
-		int i = 0;
-
-		while (Processor *pl = iter.getNextProcessor())
-		{
-			if (ProcessorHelpers::is<ModulatorChain>(pl)) continue;
-			if (ProcessorHelpers::is<MidiProcessorChain>(pl)) continue;
-			if (ProcessorHelpers::is<EffectProcessorChain>(pl)) continue;
-
-			processorList.addItem(MenuViewProcessorListOffset + i, pl->getId());
-
-			i++;
-		}
-
-		if (processorList.containsAnyActiveItems())
-		{
-			p.addSeparator();
-			p.addSubMenu("Solo Processor", processorList);
-		}
-
+		
 		break;
 		}
 	case BackendCommandTarget::HelpMenu:
@@ -910,7 +871,7 @@ void BackendCommandTarget::menuItemSelected(int menuItemID, int topLevelMenuInde
 
 			if (f.existsAsFile())
 			{
-				bpe->loadNewContainer(f);
+				bpe->mainEditor->loadNewContainer(f);
 			}
 		}
 	}
@@ -941,7 +902,7 @@ void BackendCommandTarget::menuItemSelected(int menuItemID, int topLevelMenuInde
 
 			String file = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getRecentWorkDirectories()[index];
 
-			bpe->clearPreset();
+			bpe->mainEditor->clearPreset();
 
 			GET_PROJECT_HANDLER(bpe->getMainSynthChain()).setWorkingProject(file, bpe);
             
@@ -984,32 +945,9 @@ void BackendCommandTarget::menuItemSelected(int menuItemID, int topLevelMenuInde
 		{
 			info->restore();
 
-			bpe->setRootProcessor(info->getRootProcessor());
+			bpe->mainEditor->setRootProcessor(info->getRootProcessor());
 
 			owner->synthChain->setCurrentViewInfo(menuItemID - MenuViewOffset);
-		}
-	}
-
-	else if (menuItemID >= MenuViewProcessorListOffset && menuItemID < (int)MenuViewProcessorListOffset + 200)
-	{
-		Processor::Iterator<Processor> iter(owner->synthChain);
-
-		int i = 0;
-
-		const int indexToLookFor = (menuItemID - (int)MenuViewProcessorListOffset);
-
-		while (Processor *p = iter.getNextProcessor())
-		{
-			if (ProcessorHelpers::is<ModulatorChain>(p)) continue;
-			if (ProcessorHelpers::is<MidiProcessorChain>(p)) continue;
-			if (ProcessorHelpers::is<EffectProcessorChain>(p)) continue;
-
-			if (i == indexToLookFor)
-			{
-				bpe->showProcessorPopup(p, ProcessorHelpers::findParentProcessor(p, false));
-			}
-
-			i++;
 		}
 	}
 	else if (menuItemID >= MenuToolsExternalScriptFileOffset && menuItemID < (MenuToolsExternalScriptFileOffset + 50))
@@ -1067,7 +1005,7 @@ bool BackendCommandTarget::Actions::hasSnippetInClipboard()
     return clipboardContent.startsWith("HiseSnippet ");
 }
 
-void BackendCommandTarget::Actions::openFile(BackendProcessorEditor *bpe)
+void BackendCommandTarget::Actions::openFile(BackendRootWindow *bpe)
 {
     const bool shouldDiscard = !bpe->getBackendProcessor()->isChanged() || PresetHandler::showYesNoWindow("Discard the current preset?", "The current preset will be discarded", PresetHandler::IconType::Question);
     
@@ -1093,7 +1031,7 @@ void BackendCommandTarget::Actions::openFile(BackendProcessorEditor *bpe)
 #endif
 }
 
-void BackendCommandTarget::Actions::saveFile(BackendProcessorEditor *bpe, bool forceRename)
+void BackendCommandTarget::Actions::saveFile(BackendRootWindow *bpe, bool forceRename)
 {
 	if (forceRename || PresetHandler::showYesNoWindow("Save " + bpe->owner->getMainSynthChain()->getId(), "Do you want to save this preset?"))
 	{
@@ -1114,7 +1052,7 @@ void BackendCommandTarget::Actions::saveFile(BackendProcessorEditor *bpe, bool f
 	}
 }
 
-void BackendCommandTarget::Actions::replaceWithClipboardContent(BackendProcessorEditor *bpe)
+void BackendCommandTarget::Actions::replaceWithClipboardContent(BackendRootWindow *bpe)
 {
 	String clipboardContent = SystemClipboard::getTextFromClipboard();
 
@@ -1181,12 +1119,17 @@ void BackendCommandTarget::Actions::createBase64State(CopyPasteTarget* target)
 	}
 }
 
-void BackendCommandTarget::Actions::recompileAllScripts(BackendProcessorEditor * bpe)
+void BackendCommandTarget::Actions::createUserInterface(BackendRootWindow * bpe)
+{
+	
+}
+
+void BackendCommandTarget::Actions::recompileAllScripts(BackendRootWindow * bpe)
 {
 	bpe->owner->compileAllScripts();
 }
 
-void BackendCommandTarget::Actions::toggleFullscreen(BackendProcessorEditor * bpe)
+void BackendCommandTarget::Actions::toggleFullscreen(BackendRootWindow * bpe)
 {
 #if IS_STANDALONE_APP
     
@@ -1197,19 +1140,21 @@ void BackendCommandTarget::Actions::toggleFullscreen(BackendProcessorEditor * bp
         Desktop::getInstance().setKioskModeComponent(nullptr);
         
         const int height = Desktop::getInstance().getDisplays().getMainDisplay().userArea.getHeight() - 70;
-        bpe->setSize(bpe->referenceDebugArea->isVisible() ? 1280 : 900, height);
+        bpe->setSize(900, height);
         bpe->resized();
         
         window->centreWithSize(bpe->getWidth(), bpe->getHeight());
         
         bpe->setAlwaysOnTop(false);
-        bpe->borderDragger->setVisible(true);
+        bpe->yBorderDragger->setVisible(true);
+		bpe->xBorderDragger->setVisible(true);
     }
     else
     {
         Desktop::getInstance().setKioskModeComponent(window);
         
-        bpe->borderDragger->setVisible(false);
+        bpe->yBorderDragger->setVisible(false);
+		bpe->xBorderDragger->setVisible(false);
         bpe->setAlwaysOnTop(true);
         
         bpe->setSize(Desktop::getInstance().getDisplays().getMainDisplay().totalArea.getWidth(),
@@ -1223,37 +1168,37 @@ void BackendCommandTarget::Actions::toggleFullscreen(BackendProcessorEditor * bp
 #endif
 }
 
-void BackendCommandTarget::Actions::addView(BackendProcessorEditor *bpe)
+void BackendCommandTarget::Actions::addView(BackendRootWindow *bpe)
 {
     String view = PresetHandler::getCustomName("View");
     
-    ViewInfo *info = new ViewInfo(bpe->owner->synthChain, bpe->currentRootProcessor, view);
+    ViewInfo *info = new ViewInfo(bpe->owner->synthChain, bpe->mainEditor->currentRootProcessor, view);
     
     bpe->owner->synthChain->addViewInfo(info);
 }
 
-void BackendCommandTarget::Actions::deleteView(BackendProcessorEditor *bpe)
+void BackendCommandTarget::Actions::deleteView(BackendRootWindow *bpe)
 {
     bpe->owner->synthChain->removeCurrentViewInfo();
 }
 
-void BackendCommandTarget::Actions::renameView(BackendProcessorEditor *bpe)
+void BackendCommandTarget::Actions::renameView(BackendRootWindow *bpe)
 {
     String view = PresetHandler::getCustomName("View");
     
     bpe->owner->synthChain->getCurrentViewInfo()->setViewName(view);
 }
 
-void BackendCommandTarget::Actions::saveView(BackendProcessorEditor *bpe)
+void BackendCommandTarget::Actions::saveView(BackendRootWindow *bpe)
 {
     String view = bpe->owner->synthChain->getCurrentViewInfo()->getViewName();
     
-    ViewInfo *info = new ViewInfo(bpe->owner->synthChain, bpe->currentRootProcessor, view);
+    ViewInfo *info = new ViewInfo(bpe->owner->synthChain, bpe->mainEditor->currentRootProcessor, view);
     
     bpe->owner->synthChain->replaceCurrentViewInfo(info);
 }
 
-void BackendCommandTarget::Actions::closeAllChains(BackendProcessorEditor *bpe)
+void BackendCommandTarget::Actions::closeAllChains(BackendRootWindow *bpe)
 {
     ProcessorEditor *editor = dynamic_cast<ProcessorEditor*>(bpe->currentCopyPasteTarget.get());
     
@@ -1263,18 +1208,18 @@ void BackendCommandTarget::Actions::closeAllChains(BackendProcessorEditor *bpe)
     }
 }
 
-void BackendCommandTarget::Actions::checkDuplicateIds(BackendProcessorEditor *bpe)
+void BackendCommandTarget::Actions::checkDuplicateIds(BackendRootWindow *bpe)
 {
     PresetHandler::checkProcessorIdsForDuplicates(bpe->owner->synthChain, false);
 
 }
 
-void BackendCommandTarget::Actions::showAboutPage(BackendProcessorEditor * bpe)
+void BackendCommandTarget::Actions::showAboutPage(BackendRootWindow * bpe)
 {
-	bpe->aboutPage->showAboutPage();
+	bpe->mainEditor->aboutPage->showAboutPage();
 }
 
-void BackendCommandTarget::Actions::checkVersion(BackendProcessorEditor *bpe)
+void BackendCommandTarget::Actions::checkVersion(BackendRootWindow *bpe)
 {
     if (areMajorWebsitesAvailable())
     {
@@ -1288,7 +1233,7 @@ void BackendCommandTarget::Actions::checkVersion(BackendProcessorEditor *bpe)
     }
 }
 
-void BackendCommandTarget::Actions::setColumns(BackendProcessorEditor * bpe, BackendCommandTarget* target, ColumnMode columns)
+void BackendCommandTarget::Actions::setColumns(BackendRootWindow * bpe, BackendCommandTarget* target, ColumnMode columns)
 {
 	target->currentColumnMode = columns;
 
@@ -1309,11 +1254,6 @@ void BackendCommandTarget::Actions::setColumns(BackendProcessorEditor * bpe, Bac
 
 	bpe->resized();
 	
-}
-
-void BackendCommandTarget::Actions::showProcessorInPopup(BackendProcessorEditor * bpe, ProcessorEditor* editor)
-{
-	bpe->showProcessorPopup(editor->getProcessor(), editor->getParentEditor() != nullptr ? editor->getParentEditor()->getProcessor() : nullptr);
 }
 
 void BackendCommandTarget::Actions::plotModulator(CopyPasteTarget *currentCopyPasteTarget)
@@ -1337,17 +1277,17 @@ void BackendCommandTarget::Actions::plotModulator(CopyPasteTarget *currentCopyPa
     }
 }
 
-void BackendCommandTarget::Actions::resolveMissingSamples(BackendProcessorEditor *bpe)
+void BackendCommandTarget::Actions::resolveMissingSamples(BackendRootWindow *bpe)
 {
 	bpe->getBackendProcessor()->getSampleManager().getModulatorSamplerSoundPool()->resolveMissingSamples(bpe);
 }
 
-void BackendCommandTarget::Actions::deleteMissingSamples(BackendProcessorEditor *bpe)
+void BackendCommandTarget::Actions::deleteMissingSamples(BackendRootWindow *bpe)
 {
 	bpe->getBackendProcessor()->getSampleManager().getModulatorSamplerSoundPool()->deleteMissingSamples();
 }
 
-void BackendCommandTarget::Actions::setCompileTimeOut(BackendProcessorEditor * bpe)
+void BackendCommandTarget::Actions::setCompileTimeOut(BackendRootWindow * bpe)
 {
 	AlertWindowLookAndFeel alaf;
 
@@ -1371,14 +1311,14 @@ void BackendCommandTarget::Actions::setCompileTimeOut(BackendProcessorEditor * b
 	}
 }
 
-void BackendCommandTarget::Actions::toggleUseBackgroundThreadsForCompiling(BackendProcessorEditor * bpe)
+void BackendCommandTarget::Actions::toggleUseBackgroundThreadsForCompiling(BackendRootWindow * bpe)
 {
 	const bool lastState = bpe->getBackendProcessor()->isUsingBackgroundThreadForCompiling();
 
 	bpe->getBackendProcessor()->setShouldUseBackgroundThreadForCompiling(!lastState);
 }
 
-void BackendCommandTarget::Actions::toggleCompileScriptsOnPresetLoad(BackendProcessorEditor * bpe)
+void BackendCommandTarget::Actions::toggleCompileScriptsOnPresetLoad(BackendRootWindow * bpe)
 {
 	const bool lastState = bpe->getBackendProcessor()->isCompilingAllScriptsOnPresetLoad();
 
@@ -1386,7 +1326,7 @@ void BackendCommandTarget::Actions::toggleCompileScriptsOnPresetLoad(BackendProc
 }
 
 
-void BackendCommandTarget::Actions::toggleRelativePath(BackendProcessorEditor * bpe)
+void BackendCommandTarget::Actions::toggleRelativePath(BackendRootWindow * bpe)
 {
 	const bool state = bpe->getBackendProcessor()->getSampleManager().shouldUseRelativePathToProjectFolder();
 
@@ -1394,7 +1334,7 @@ void BackendCommandTarget::Actions::toggleRelativePath(BackendProcessorEditor * 
 }
 
 
-void BackendCommandTarget::Actions::collectExternalFiles(BackendProcessorEditor * bpe)
+void BackendCommandTarget::Actions::collectExternalFiles(BackendRootWindow * bpe)
 {
 	ExternalResourceCollector *resource = new ExternalResourceCollector(bpe->getBackendProcessor());
 
@@ -1402,7 +1342,7 @@ void BackendCommandTarget::Actions::collectExternalFiles(BackendProcessorEditor 
 }
 
 
-void BackendCommandTarget::Actions::exportFileAsSnippet(BackendProcessorEditor* bpe)
+void BackendCommandTarget::Actions::exportFileAsSnippet(BackendRootWindow* bpe)
 {
 	ValueTree v = bpe->getMainSynthChain()->exportAsValueTree();
 
@@ -1424,7 +1364,7 @@ void BackendCommandTarget::Actions::exportFileAsSnippet(BackendProcessorEditor* 
 	PresetHandler::showMessageWindow("Preset copied as compressed snippet", "You can paste the clipboard content to share this preset", PresetHandler::IconType::Info);
 }
 
-void BackendCommandTarget::Actions::saveFileAsXml(BackendProcessorEditor * bpe)
+void BackendCommandTarget::Actions::saveFileAsXml(BackendRootWindow * bpe)
 {
 	if (GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive())
 	{
@@ -1487,7 +1427,7 @@ void BackendCommandTarget::Actions::saveFileAsXml(BackendProcessorEditor * bpe)
 	}
 }
 
-void BackendCommandTarget::Actions::openFileFromXml(BackendProcessorEditor * bpe, const File &fileToLoad)
+void BackendCommandTarget::Actions::openFileFromXml(BackendRootWindow * bpe, const File &fileToLoad)
 {
     const bool shouldDiscard = !bpe->getBackendProcessor()->isChanged() || PresetHandler::showYesNoWindow("Discard the current preset?", "The current preset will be discarded", PresetHandler::IconType::Question);
     
@@ -1507,7 +1447,7 @@ void BackendCommandTarget::Actions::openFileFromXml(BackendProcessorEditor * bpe
 	}
 }
 
-void BackendCommandTarget::Actions::createNewProject(BackendProcessorEditor *bpe)
+void BackendCommandTarget::Actions::createNewProject(BackendRootWindow *bpe)
 {
     const bool shouldDiscard = !bpe->getBackendProcessor()->isChanged() || PresetHandler::showYesNoWindow("Discard the current preset?", "The current preset will be discarded", PresetHandler::IconType::Question);
     
@@ -1525,7 +1465,7 @@ void BackendCommandTarget::Actions::createNewProject(BackendProcessorEditor *bpe
 	}
 }
 
-void BackendCommandTarget::Actions::loadProject(BackendProcessorEditor *bpe)
+void BackendCommandTarget::Actions::loadProject(BackendRootWindow *bpe)
 {
     const bool shouldDiscard = !bpe->getBackendProcessor()->isChanged() || PresetHandler::showYesNoWindow("Discard the current preset?", "The current preset will be discarded", PresetHandler::IconType::Question);
     
@@ -1558,7 +1498,7 @@ void BackendCommandTarget::Actions::loadProject(BackendProcessorEditor *bpe)
 #endif
 }
 
-void BackendCommandTarget::Actions::closeProject(BackendProcessorEditor *bpe)
+void BackendCommandTarget::Actions::closeProject(BackendRootWindow *bpe)
 {
     const bool shouldDiscard = !bpe->getBackendProcessor()->isChanged() || PresetHandler::showYesNoWindow("Discard the current preset?", "The current preset will be discarded", PresetHandler::IconType::Question);
     
@@ -1571,7 +1511,7 @@ void BackendCommandTarget::Actions::closeProject(BackendProcessorEditor *bpe)
 
 }
 
-void BackendCommandTarget::Actions::showProjectInFinder(BackendProcessorEditor *bpe)
+void BackendCommandTarget::Actions::showProjectInFinder(BackendRootWindow *bpe)
 {
 	if (GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive())
 	{
@@ -1579,12 +1519,12 @@ void BackendCommandTarget::Actions::showProjectInFinder(BackendProcessorEditor *
 	}
 }
 
-void BackendCommandTarget::Actions::saveUserPreset(BackendProcessorEditor *bpe)
+void BackendCommandTarget::Actions::saveUserPreset(BackendRootWindow *bpe)
 {
     UserPresetHandler::saveUserPreset(bpe->getMainSynthChain());
 }
 
-void BackendCommandTarget::Actions::loadUserPreset(BackendProcessorEditor *bpe, const File &fileToLoad)
+void BackendCommandTarget::Actions::loadUserPreset(BackendRootWindow *bpe, const File &fileToLoad)
 {
     const bool shouldDiscard = !bpe->getBackendProcessor()->isChanged() || PresetHandler::showYesNoWindow("Discard the current preset?", "The current preset will be discarded", PresetHandler::IconType::Question);
     
@@ -1605,54 +1545,54 @@ void BackendCommandTarget::Actions::redirectSampleFolder(Processor *processorFor
     }
 }
 
-void BackendCommandTarget::Actions::showFilePresetSettings(BackendProcessorEditor * /*bpe*/)
+void BackendCommandTarget::Actions::showFilePresetSettings(BackendRootWindow * /*bpe*/)
 {
 	
 }
 
-void BackendCommandTarget::Actions::showFileProjectSettings(BackendProcessorEditor * bpe)
+void BackendCommandTarget::Actions::showFileProjectSettings(BackendRootWindow * bpe)
 {
 	SettingWindows::ProjectSettingWindow *window = new SettingWindows::ProjectSettingWindow(&GET_PROJECT_HANDLER(bpe->getMainSynthChain()));
 
 	window->setModalBaseWindowComponent(bpe);
 }
 
-void BackendCommandTarget::Actions::showFileUserSettings(BackendProcessorEditor * bpe)
+void BackendCommandTarget::Actions::showFileUserSettings(BackendRootWindow * bpe)
 {
 	SettingWindows::UserSettingWindow *window = new SettingWindows::UserSettingWindow(&GET_PROJECT_HANDLER(bpe->getMainSynthChain()));
 
 	window->setModalBaseWindowComponent(bpe);
 }
 
-void BackendCommandTarget::Actions::showFileCompilerSettings(BackendProcessorEditor * bpe)
+void BackendCommandTarget::Actions::showFileCompilerSettings(BackendRootWindow * bpe)
 {
 	SettingWindows::CompilerSettingWindow *window = new SettingWindows::CompilerSettingWindow();
 
 	window->setModalBaseWindowComponent(bpe);
 }
 
-void BackendCommandTarget::Actions::checkSettingSanity(BackendProcessorEditor * bpe)
+void BackendCommandTarget::Actions::checkSettingSanity(BackendRootWindow * bpe)
 {
 	SettingWindows::checkAllSettings(&GET_PROJECT_HANDLER(bpe->getMainSynthChain()));
 }
 
-void BackendCommandTarget::Actions::togglePluginPopupWindow(BackendProcessorEditor * bpe)
+void BackendCommandTarget::Actions::togglePluginPopupWindow(BackendRootWindow * bpe)
 {
-	if (bpe->isPluginPreviewShown())
+	if (bpe->mainEditor->isPluginPreviewShown())
 	{
-		bpe->setPluginPreviewWindow(nullptr);
+		bpe->mainEditor->setPluginPreviewWindow(nullptr);
 	}
 	else
 	{
 #if HISE_IOS
 		bpe->showPseudoModalWindow(new PluginPreviewWindow::Content(bpe), bpe->getMainSynthChain()->getId(), true);
 #else
-		bpe->setPluginPreviewWindow(new PluginPreviewWindow(bpe));
+		bpe->mainEditor->setPluginPreviewWindow(new PluginPreviewWindow(bpe->mainEditor));
 #endif
 	}
 }
                     
-void BackendCommandTarget::Actions::changeCodeFontSize(BackendProcessorEditor *bpe, bool increase)
+void BackendCommandTarget::Actions::changeCodeFontSize(BackendRootWindow *bpe, bool increase)
 {
     float currentFontSize = bpe->getMainSynthChain()->getMainController()->getGlobalCodeFontSize();
     
@@ -1668,13 +1608,13 @@ void BackendCommandTarget::Actions::changeCodeFontSize(BackendProcessorEditor *b
     bpe->getMainSynthChain()->getMainController()->setGlobalCodeFontSize(currentFontSize);
 }
 
-void BackendCommandTarget::Actions::createRSAKeys(BackendProcessorEditor * bpe)
+void BackendCommandTarget::Actions::createRSAKeys(BackendRootWindow * bpe)
 {
 	GET_PROJECT_HANDLER(bpe->getMainSynthChain()).createRSAKey();
 }
 
 
-void BackendCommandTarget::Actions::createDummyLicenceFile(BackendProcessorEditor * bpe)
+void BackendCommandTarget::Actions::createDummyLicenceFile(BackendRootWindow * bpe)
 {
 	ProjectHandler *handler = &GET_PROJECT_HANDLER(bpe->getMainSynthChain());
 
@@ -1737,7 +1677,7 @@ void BackendCommandTarget::Actions::createDummyLicenceFile(BackendProcessorEdito
 	PresetHandler::showMessageWindow("Licence File created", message, PresetHandler::IconType::Info);
 }
 
-void BackendCommandTarget::Actions::createDefaultToolbarJSON(BackendProcessorEditor * bpe)
+void BackendCommandTarget::Actions::createDefaultToolbarJSON(BackendRootWindow * bpe)
 {
 	String json = DefaultFrontendBar::createJSONString(bpe->getBackendProcessor()->getToolbarPropertiesObject());
 
@@ -1755,7 +1695,7 @@ void BackendCommandTarget::Actions::createDefaultToolbarJSON(BackendProcessorEdi
 
 }
 
-void BackendCommandTarget::Actions::toggleForcePoolSearch(BackendProcessorEditor * bpe)
+void BackendCommandTarget::Actions::toggleForcePoolSearch(BackendRootWindow * bpe)
 {
 	ModulatorSamplerSoundPool *pool = bpe->getBackendProcessor()->getSampleManager().getModulatorSamplerSoundPool();
 
@@ -1763,7 +1703,7 @@ void BackendCommandTarget::Actions::toggleForcePoolSearch(BackendProcessorEditor
 }
 
 
-void BackendCommandTarget::Actions::archiveProject(BackendProcessorEditor * bpe)
+void BackendCommandTarget::Actions::archiveProject(BackendRootWindow * bpe)
 {
 	ProjectHandler *handler = &GET_PROJECT_HANDLER(bpe->getMainSynthChain());
 
@@ -1788,15 +1728,16 @@ void BackendCommandTarget::Actions::archiveProject(BackendProcessorEditor * bpe)
 	}
 }
 
-void BackendCommandTarget::Actions::downloadNewProject(BackendProcessorEditor * bpe)
+void BackendCommandTarget::Actions::downloadNewProject(BackendRootWindow * bpe)
 {
-	ProjectDownloader *downloader = new ProjectDownloader(bpe);
+	ProjectDownloader *downloader = new ProjectDownloader(bpe->mainEditor);
 
 	downloader->setModalBaseWindowComponent(bpe);
 }
 
-void BackendCommandTarget::Actions::showMainMenu(BackendProcessorEditor * bpe)
+void BackendCommandTarget::Actions::showMainMenu(BackendRootWindow * /*bpe*/)
 {
+#if 0
 	const int commandIDs[] = { MenuNewFile,
 		MenuOpenFile,
 		MenuSaveFile,
@@ -1819,7 +1760,8 @@ void BackendCommandTarget::Actions::showMainMenu(BackendProcessorEditor * bpe)
 
 	newMenu->addCommandIds(bpe->mainCommandManager, ids);
 
-	bpe->showPseudoModalWindow(newMenu, "Main Menu", true);
+	bpe->mainEditor->showPseudoModalWindow(newMenu, "Main Menu", true);
+#endif
 
 }
 
@@ -1837,13 +1779,13 @@ void BackendCommandTarget::Actions::moveModule(CopyPasteTarget *currentCopyPaste
 			c->getHandler()->moveProcessor(editor->getProcessor(), moveUp ? -1 : 1);
 			editor->childEditorAmountChanged();
 
-			BackendProcessorEditor *bpe = editor->findParentComponentOfClass<BackendProcessorEditor>();
-			bpe->refreshContainer(processor);
+			BackendRootWindow *bpe = editor->findParentComponentOfClass<BackendRootWindow>();
+			bpe->mainEditor->refreshContainer(processor);
 		}
 	}
 }
 
-void BackendCommandTarget::Actions::createExternalScriptFile(BackendProcessorEditor * bpe)
+void BackendCommandTarget::Actions::createExternalScriptFile(BackendRootWindow * bpe)
 {
 	File scriptDirectory = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Scripts);
 
@@ -1869,7 +1811,7 @@ void BackendCommandTarget::Actions::createExternalScriptFile(BackendProcessorEdi
 	}
 }
 
-void BackendCommandTarget::Actions::exportMainSynthChainAsPlayerLibrary(BackendProcessorEditor * bpe)
+void BackendCommandTarget::Actions::exportMainSynthChainAsPlayerLibrary(BackendRootWindow * bpe)
 {
 	
 	FileChooser fc("Export as HisePlayerLibrary", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getWorkDirectory(), "*.hpl");
@@ -1884,7 +1826,7 @@ void BackendCommandTarget::Actions::exportMainSynthChainAsPlayerLibrary(BackendP
 	
 }
 
-void BackendCommandTarget::Actions::cleanBuildDirectory(BackendProcessorEditor * bpe)
+void BackendCommandTarget::Actions::cleanBuildDirectory(BackendRootWindow * bpe)
 {
 	if (!GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive()) return;
 
@@ -1907,7 +1849,7 @@ void BackendCommandTarget::Actions::cleanBuildDirectory(BackendProcessorEditor *
 	}
 }
 
-void BackendCommandTarget::Actions::convertAllSamplesToMonolith(BackendProcessorEditor * bpe)
+void BackendCommandTarget::Actions::convertAllSamplesToMonolith(BackendRootWindow * bpe)
 {
 	ModulatorSampler* sampler = dynamic_cast<ModulatorSampler*>(ProcessorHelpers::getFirstProcessorWithName(bpe->getMainSynthChain(), "Sampler"));
 
@@ -1923,7 +1865,7 @@ void BackendCommandTarget::Actions::convertAllSamplesToMonolith(BackendProcessor
 	}
 }
 
-void BackendCommandTarget::Actions::convertSfzFilesToSampleMaps(BackendProcessorEditor * bpe)
+void BackendCommandTarget::Actions::convertSfzFilesToSampleMaps(BackendRootWindow * bpe)
 {
 	ModulatorSampler* sampler = dynamic_cast<ModulatorSampler*>(ProcessorHelpers::getFirstProcessorWithName(bpe->getMainSynthChain(), "Sampler"));
 
@@ -1959,7 +1901,7 @@ void BackendCommandTarget::Actions::convertSfzFilesToSampleMaps(BackendProcessor
 	}
 }
 
-void BackendCommandTarget::Actions::checkAllSamplemaps(BackendProcessorEditor * bpe)
+void BackendCommandTarget::Actions::checkAllSamplemaps(BackendRootWindow * bpe)
 {
 	GET_PROJECT_HANDLER(bpe->getMainSynthChain()).checkAllSampleMaps();
 }
@@ -1975,7 +1917,7 @@ void removeHiddenFilesFromList(Array<File> &list)
 	}
 }
 
-void BackendCommandTarget::Actions::validateUserPresets(BackendProcessorEditor * bpe)
+void BackendCommandTarget::Actions::validateUserPresets(BackendRootWindow * bpe)
 {
 	MainController* mc = bpe->getBackendProcessor();
 	File userPresetDirectory = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);

@@ -137,8 +137,6 @@ public:
 
 	bool perform (const InvocationInfo &info) override;
 
-
-
 	void soundsSelected(const Array<ModulatorSamplerSound*> &selectedSounds) override
 	{
 		selectionIsNotEmpty = selectedSounds.size() != 0;
@@ -164,6 +162,13 @@ public:
 			popoutCopy->soundsSelected(selectedSounds);
 		}
 
+	}
+
+	void updateInterface() override
+	{
+		auto& x = sampler->getSamplerDisplayValues();
+		setPressedKeys(x.currentNotes);
+		updateSoundData();
 	}
 
 	void refreshRootNotes();
@@ -485,8 +490,6 @@ public:
 	}
 
 	void toggleVerticalSize();
-
-	void popoutMap();
 
     //[/UserMethods]
 

@@ -30,6 +30,7 @@
 *   ===========================================================================
 */
 
+#if 0
 
 void MainMenuItem::mouseUp(const MouseEvent &event)
 {
@@ -229,3 +230,5 @@ void FileMenuItem::perform()
 		break;
 	}
 }
+
+#endif

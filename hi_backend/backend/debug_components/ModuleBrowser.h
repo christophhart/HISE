@@ -38,7 +38,9 @@ class ModuleBrowser : public SearchableListComponent
 {
 public:
 
-	ModuleBrowser(BaseDebugArea *area);
+	ModuleBrowser(BackendRootWindow* rootWindow);
+
+	SET_GENERIC_PANEL_ID("ModuleBrowser");
 
 	class ModuleItem : public SearchableListComponent::Item,
 					   public DragAndDropContainer

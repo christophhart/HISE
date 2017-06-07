@@ -280,7 +280,7 @@ public:
 		object(object_),
 		id(id_),
 		namespaceId(namespaceId_)
-	{};
+		{};
 
 	String getTextForDataType() const override { return object->getDebugDataType(); }
 	String getTextForName() const override 

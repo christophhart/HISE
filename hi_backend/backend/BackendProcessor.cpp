@@ -54,11 +54,7 @@ BackendProcessor::~BackendProcessor()
 {
 	clearPreset();
 
-	
-
 	synthChain = nullptr;
-
-	jassert(editorInformation.getType() == Identifier("editorData"));
 
 	handleEditorData(true);
 }
@@ -83,12 +79,30 @@ void BackendProcessor::prepareToPlay(double newSampleRate, int samplesPerBlock)
 	getDelayedRenderer().prepareToPlayWrapped(newSampleRate, samplesPerBlock);
 };
 
-AudioProcessorEditor* BackendProcessor::createEditor()
+void BackendProcessor::getStateInformation(MemoryBlock &destData)
 {
-	return new BackendProcessorEditor(this, editorInformation);
+	MemoryOutputStream output(destData, false);
+
+	ValueTree v = synthChain->exportAsValueTree();
+
+	v.setProperty("ProjectRootFolder", GET_PROJECT_HANDLER(synthChain).getWorkDirectory().getFullPathName(), nullptr);
+
+	if (auto root = dynamic_cast<BackendRootWindow*>(getActiveEditor()))
+	{
+		root->saveInterfaceData();
+	}
+
+	v.setProperty("InterfaceData", JSON::toString(editorInformation, true), nullptr);
+
+	v.writeToStream(output);
 }
 
-void BackendProcessor::setEditorState(ValueTree &editorState)
+AudioProcessorEditor* BackendProcessor::createEditor()
 {
-	editorInformation = ValueTree(editorState);
+	return new BackendRootWindow(this, editorInformation);
+}
+
+void BackendProcessor::setEditorData(var editorState)
+{
+	editorInformation = editorState;
 }

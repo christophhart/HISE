@@ -193,9 +193,9 @@ bool SampleComponent::needsToBeDrawn()
 
 // =================================================================================================================== SamplerSoundMap
 
-SamplerSoundMap::SamplerSoundMap(ModulatorSampler *ownerSampler_, SamplerBody *b):
-	body(b),
+SamplerSoundMap::SamplerSoundMap(ModulatorSampler *ownerSampler_):
 	ownerSampler(ownerSampler_),
+	handler(ownerSampler->getSampleEditHandler()),
 	notePosition(-1),
 	veloPosition(-1),
 	selectedSounds(new SelectedItemSet<WeakReference<SampleComponent>>()),
@@ -213,8 +213,6 @@ SamplerSoundMap::SamplerSoundMap(ModulatorSampler *ownerSampler_, SamplerBody *b
 
 	selectedSounds->addChangeListener(this);
 
-	addMouseListener(b, true);
-
 	addChildComponent(sampleLasso);
 
 	updateSoundData();
@@ -227,7 +225,7 @@ void SamplerSoundMap::changeListenerCallback(ChangeBroadcaster *b)
 {
 	if(b == selectedSounds)
 	{
-		body->getSelection().deselectAll();
+		handler->getSelection().deselectAll();
 
 		for(int i = 0; i < sampleComponents.size(); i++)
 		{
@@ -244,7 +242,7 @@ void SamplerSoundMap::changeListenerCallback(ChangeBroadcaster *b)
 
 				if (selectedSampleComponents[i]->getSound() != nullptr)
 				{
-					body->getSelection().addToSelection(selectedSampleComponents[i]->getSound());
+					handler->getSelection().addToSelection(selectedSampleComponents[i]->getSound());
 				}
 			}
 		}
@@ -301,8 +299,8 @@ void SamplerSoundMap::selectNeighbourSample(Neighbour direction)
 
 			if(selectThisComponent)
 			{
-				body->getSelection().deselectAll();
-				body->getSelection().addToSelection(sampleComponents[i]->getSound());
+				handler->getSelection().deselectAll();
+				handler->getSelection().addToSelection(sampleComponents[i]->getSound());
 			}
 		}
 	}
@@ -316,7 +314,7 @@ void SamplerSoundMap::endSampleDragging(bool copyDraggedSounds)
 {
     if(currentDragDeltaX == 0 && currentDragDeltaY == 0) return;
     
-    if(copyDraggedSounds) SamplerBody::SampleEditingActions::duplicateSelectedSounds(body);
+    if(copyDraggedSounds) SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(handler);
 
 	ownerSampler->getUndoManager()->beginNewTransaction("Dragging of " + String(dragStartData.size()) + " samples");
 
@@ -895,6 +893,8 @@ void SamplerSoundMap::setSelectedIds(const Array<ModulatorSamplerSound*> newSele
 
 void SamplerSoundMap::soloGroup(int groupIndex)
 {
+	handler->setDisplayOnlyRRGroup(groupIndex);
+
 	for(int i = 0; i < sampleComponents.size(); i++)
 	{
 		const bool visible = (groupIndex == - 1) || sampleComponents[i]->appliesToGroup(groupIndex);
@@ -926,13 +926,13 @@ bool SamplerSoundMap::newSamplesDetected()
 
 // =================================================================================================================== MapWithKeyboard
 
-MapWithKeyboard::MapWithKeyboard(ModulatorSampler *ownerSampler, SamplerBody *b):
+MapWithKeyboard::MapWithKeyboard(ModulatorSampler *ownerSampler):
 	sampler(ownerSampler),
 	lastNoteNumber(-1)
 {
     setBufferedToImage(true);
     
-	addAndMakeVisible(map = new SamplerSoundMap(ownerSampler, b));
+	addAndMakeVisible(map = new SamplerSoundMap(ownerSampler));
 };
 
 void MapWithKeyboard::paint(Graphics &g)
@@ -1017,10 +1017,10 @@ void MapWithKeyboard::mouseUp(const MouseEvent &e)
 
 // =================================================================================================================== SamplerSoundTable
 
-SamplerSoundTable::SamplerSoundTable(ModulatorSampler *ownerSampler_, SamplerBody *b)   :
+SamplerSoundTable::SamplerSoundTable(ModulatorSampler *ownerSampler_, SampleEditHandler* handler)   :
+	SamplerSubEditor(handler),
 	font (GLOBAL_FONT()),
 	ownerSampler(ownerSampler_),
-	body(b),
 	internalSelection(false)
 {
 
@@ -1056,6 +1056,8 @@ SamplerSoundTable::SamplerSoundTable(ModulatorSampler *ownerSampler_, SamplerBod
 	
 
 #undef PROPERTY
+
+	refreshList();
 }
 
 void SamplerSoundTable::refreshList()
@@ -1178,10 +1180,10 @@ void SamplerSoundTable::selectedRowsChanged(int /*lastRowSelected*/)
 
 	SparseSet<int> selection = table.getSelectedRows();
 
-	body->getSelection().deselectAll();
+	handler->getSelection().deselectAll();
 
 	for(int i = 0; i < selection.size(); i++)
 	{
-		body->getSelection().addToSelection(sortedSoundList[selection[i]]);
+		handler->getSelection().addToSelection(sortedSoundList[selection[i]]);
 	}
 };

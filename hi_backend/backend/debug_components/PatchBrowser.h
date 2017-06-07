@@ -37,17 +37,19 @@ class BackendProcessorEditor;
 
 /** A searchable list of the current preset. */
 class PatchBrowser : public SearchableListComponent,
-					 public SafeChangeListener,
 					 public DragAndDropTarget,
-					 public ButtonListener
+					 public ButtonListener,
+					 public MainController::ProcessorChangeHandler::Listener
 {
 
 public:
 
 	// ====================================================================================================================
 
-	PatchBrowser(BaseDebugArea *area, BackendProcessorEditor *editor_);
+	PatchBrowser(BackendRootWindow *window);
 	~PatchBrowser();
+
+	SET_GENERIC_PANEL_ID("PatchBrowser");
 
 	// ====================================================================================================================
 
@@ -57,7 +59,19 @@ public:
 	void itemDragMove(const SourceDetails& dragSourceDetails) override;
 	void itemDropped(const SourceDetails& dragSourceDetails) override;
 
-	void changeListenerCallback(SafeChangeBroadcaster *) override { rebuildModuleList(true); }
+	void moduleListChanged(Processor* /*changedProcessor*/, MainController::ProcessorChangeHandler::EventType type) override
+	{
+		if (type == MainController::ProcessorChangeHandler::EventType::ProcessorRenamed ||
+			type == MainController::ProcessorChangeHandler::EventType::ProcessorColourChange ||
+			type == MainController::ProcessorChangeHandler::EventType::ProcessorBypassed)
+		{
+			repaintAllItems();
+		}
+		else
+		{
+			rebuildModuleList(true);
+		}
+	}
 
 	int getNumCollectionsToCreate() const override;
 	Collection *createCollection(int index) override;
@@ -74,8 +88,7 @@ private:
 
 	// ====================================================================================================================
 
-	class ModuleDragTarget : public ButtonListener,
-                             public Timer
+	class ModuleDragTarget : public ButtonListener
 	{
 	public:
 
@@ -103,8 +116,6 @@ private:
 
 		ModuleDragTarget();
 
-        void timerCallback();
-        
 		void buttonClicked(Button *b);
 
 		virtual const Processor *getProcessor() const = 0;
@@ -137,7 +148,7 @@ private:
         
         Colour colour;
         String id;
-        bool bypassed;
+        bool itemBypassed;
 		bool isOver;
 	};
 
@@ -156,6 +167,11 @@ private:
 		
 		void refreshFoldButton();
 		void buttonClicked(Button *b) override;
+
+		void repaintChildItems()
+		{
+			
+		}
 
 		void paint(Graphics &g) override;
 		void resized() override;
@@ -224,7 +240,7 @@ private:
         {
             if(processor.get() != nullptr && processor->getId() != l->getText())
             {
-                processor->setId(l->getText());
+                processor->setId(l->getText(), sendNotification);
             }
         }
         
@@ -245,6 +261,7 @@ private:
 	};
 
 	Component::SafePointer<BackendProcessorEditor> editor;
+	Component::SafePointer<BackendRootWindow> rootWindow;
 
 	Component::SafePointer<Component> lastTarget;
 

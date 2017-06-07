@@ -1,0 +1,289 @@
+{
+  "Type": "HorizontalTile",
+  "Title": "Scripting Workspace",
+  "StyleData": {
+    "backgroundColour": "ff373737",
+    "resizerColourId": "ff666666"
+  },
+  "LayoutData": {
+    "ID": "anonymous",
+    "Size": -0.5,
+    "Folded": -1,
+    "Visible": true,
+    "ForceFoldButton": 0,
+    "MinSize": -1
+  },
+  "Dynamic": false,
+  "Content": [
+    {
+      "Type": "GlobalConnectorJavascriptProcessor",
+      "StyleData": {
+      },
+      "LayoutData": {
+        "ID": "anonymous",
+        "Size": 18,
+        "Folded": 0,
+        "Visible": true,
+        "ForceFoldButton": 0,
+        "MinSize": -1
+      }
+    },
+    {
+      "Type": "VerticalTile",
+      "StyleData": {
+        "backgroundColour": "ff373737",
+        "resizerColourId": "ff666666"
+      },
+      "LayoutData": {
+        "ID": "anonymous",
+        "Size": -0.5,
+        "Folded": -1,
+        "Visible": true,
+        "ForceFoldButton": 0,
+        "MinSize": -1
+      },
+      "Dynamic": false,
+      "Content": [
+        {
+          "Type": "VisibilityToggleBar",
+          "StyleData": {
+          },
+          "LayoutData": {
+            "ID": "anonymous",
+            "Size": 32,
+            "Folded": -1,
+            "Visible": true,
+            "ForceFoldButton": 0,
+            "MinSize": -1
+          }
+        },
+        {
+          "Type": "ApiCollection",
+          "StyleData": {
+          },
+          "LayoutData": {
+            "ID": "anonymous",
+            "Size": 300,
+            "Folded": 1,
+            "Visible": false,
+            "ForceFoldButton": 0,
+            "MinSize": -1
+          }
+        },
+        {
+          "Type": "FileBrowser",
+          "StyleData": {
+          },
+          "LayoutData": {
+            "ID": "anonymous",
+            "Size": 300,
+            "Folded": 0,
+            "Visible": false,
+            "ForceFoldButton": 0,
+            "MinSize": -1
+          }
+        },
+        {
+          "Type": "HorizontalTile",
+          "Title": "Script Editor",
+          "StyleData": {
+            "backgroundColour": "ff373737",
+            "resizerColourId": "ff666666"
+          },
+          "LayoutData": {
+            "ID": "anonymous",
+            "Size": -0.48116029,
+            "Folded": -1,
+            "Visible": true,
+            "ForceFoldButton": 0,
+            "MinSize": -1
+          },
+          "Dynamic": false,
+          "Content": [
+            {
+              "Type": "VerticalTile",
+              "StyleData": {
+                "backgroundColour": "ff373737",
+                "resizerColourId": "ff666666"
+              },
+              "LayoutData": {
+                "ID": "anonymous",
+                "Size": -0.5,
+                "Folded": -1,
+                "Visible": true,
+                "ForceFoldButton": 0,
+                "MinSize": -1
+              },
+              "Dynamic": false,
+              "Content": [
+                {
+                  "Type": "Tabs",
+                  "StyleData": {
+                  },
+                  "LayoutData": {
+                    "ID": "anonymous",
+                    "Size": -0.52218935,
+                    "Folded": -1,
+                    "Visible": true,
+                    "ForceFoldButton": 0,
+                    "MinSize": -1
+                  },
+                  "Content": [
+                    {
+                      "Type": "ScriptEditor",
+                      "StyleData": {
+                      },
+                      "LayoutData": {
+                        "ID": "anonymous",
+                        "Size": -0.5,
+                        "Folded": 0,
+                        "Visible": true,
+                        "ForceFoldButton": 1,
+                        "MinSize": -1
+                      }
+                    },
+                    {
+                      "Type": "Empty",
+                      "StyleData": {
+                      },
+                      "LayoutData": {
+                        "ID": "anonymous",
+                        "Size": -0.5,
+                        "Folded": 0,
+                        "Visible": true,
+                        "ForceFoldButton": 0,
+                        "MinSize": -1
+                      }
+                    }
+                  ],
+                  "CurrentTab": 0
+                },
+                {
+                  "Type": "ScriptWatchTable",
+                  "StyleData": {
+                    "showConnectionBar": false
+                  },
+                  "LayoutData": {
+                    "ID": "anonymous",
+                    "Size": 321,
+                    "Folded": 1,
+                    "Visible": true,
+                    "ForceFoldButton": 0,
+                    "MinSize": -1
+                  }
+                }
+              ]
+            },
+            {
+              "Type": "Console",
+              "StyleData": {
+              },
+              "LayoutData": {
+                "ID": "anonymous",
+                "Size": -0.27966102,
+                "Folded": 1,
+                "Visible": true,
+                "ForceFoldButton": 0,
+                "MinSize": -1
+              }
+            }
+          ]
+        },
+        {
+          "Type": "VerticalTile",
+          "Title": "Interface Designer",
+          "StyleData": {
+            "backgroundColour": "ff373737",
+            "resizerColourId": "ff666666"
+          },
+          "LayoutData": {
+            "ID": "anonymous",
+            "Size": -0.73714115,
+            "Folded": -1,
+            "Visible": true,
+            "ForceFoldButton": 0,
+            "MinSize": -1
+          },
+          "Dynamic": false,
+          "Content": [
+            {
+              "Type": "HorizontalTile",
+              "StyleData": {
+                "backgroundColour": "ff373737",
+                "resizerColourId": "ff666666"
+              },
+              "LayoutData": {
+                "ID": "anonymous",
+                "Size": -0.53276699,
+                "Folded": -1,
+                "Visible": true,
+                "ForceFoldButton": 0,
+                "MinSize": -1
+              },
+              "Dynamic": false,
+              "Content": [
+                {
+                  "Type": "ScriptContent",
+                  "Title": "Interface",
+                  "StyleData": {
+                    "showConnectionBar": false
+                  },
+                  "LayoutData": {
+                    "ID": "anonymous",
+                    "Size": -0.5,
+                    "Folded": -1,
+                    "Visible": true,
+                    "ForceFoldButton": 0,
+                    "MinSize": -1
+                  }
+                },
+                {
+                  "Type": "ScriptEditor",
+                  "Title": "onInit callback",
+                  "StyleData": {
+                    "showConnectionBar": false
+                  },
+                  "LayoutData": {
+                    "ID": "anonymous",
+                    "Size": 200,
+                    "Folded": 0,
+                    "Visible": true,
+                    "ForceFoldButton": 1,
+                    "MinSize": -1
+                  }
+                },
+                {
+                  "Type": "Keyboard",
+                  "StyleData": {
+                    "backgroundColour": "0"
+                  },
+                  "LayoutData": {
+                    "ID": "anonymous",
+                    "Size": 72,
+                    "Folded": 0,
+                    "Visible": true,
+                    "ForceFoldButton": 0,
+                    "MinSize": -1
+                  }
+                }
+              ]
+            },
+            {
+              "Type": "InterfacePropertyEditor",
+              "StyleData": {
+              },
+              "LayoutData": {
+                "ID": "anonymous",
+                "Size": 383,
+                "Folded": 0,
+                "Visible": true,
+                "ForceFoldButton": 0,
+                "MinSize": -1
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

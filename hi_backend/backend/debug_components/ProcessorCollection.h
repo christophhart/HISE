@@ -71,8 +71,7 @@ private:
 *	
 */
 class SearchableListComponent: public Component,
-							   public TextEditor::Listener,
-							   public AutoPopupDebugComponent
+							   public TextEditor::Listener
 {
 
 public:
@@ -195,6 +194,14 @@ public:
 			g.fillAll(Colours::red);
 		}
 
+		void repaintAllItems()
+		{
+			for (int i = 0; i < items.size(); i++)
+			{
+				items[i]->repaint();
+			}
+		}
+
 		bool isFolded() const noexcept { return folded; };
 
 		void setFolded(bool shouldBeFolded) noexcept;;
@@ -256,14 +263,18 @@ public:
 	/** Call this whenever the visibility of one of the items changes. */
 	void refreshDisplayedItems();
 
+	/** Call this whenever the appearance of one of the items changes. */
+	void repaintAllItems();
+
 	/** Call this whenever an item is added / deleted. */
 	void rebuildModuleList(bool forceRebuild=false);
 
 	void setShowEmptyCollections(bool emptyCollectionsShouldBeShown);;
 
+	BackendRootWindow* getRootWindow() { return rootWindow; }
    
 protected:
-	SearchableListComponent(BaseDebugArea *area);
+	SearchableListComponent(BackendRootWindow* window);
 
 	/** Overwrite this method and return the number of collections.
 	*
@@ -291,6 +302,8 @@ protected:
 	}
 
 private:
+
+	BackendRootWindow* rootWindow;
 
 	double fuzzyness;
 

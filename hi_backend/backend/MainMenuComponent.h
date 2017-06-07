@@ -32,7 +32,7 @@
 #ifndef MAINMENUCOMPONENT_H_INCLUDED
 #define MAINMENUCOMPONENT_H_INCLUDED
 
-
+#if 0
 
 #define MAIN_MENU_ITEM_HEIGHT 50
 
@@ -95,6 +95,8 @@ public:
 	ApplicationCommandManager *manager;
 };
 
+class BackendRootWindow;
+
 class FileMenuItem : public MainMenuItem
 {
 public:
@@ -106,7 +108,7 @@ public:
 		OpenPreset
 	};
 
-	FileMenuItem(const File &file_, Action actionToDo_, BackendProcessorEditor *bpe_) :
+	FileMenuItem(const File &file_, Action actionToDo_, BackendRootWindow *bpe_) :
 		file(file_),
 		actionToDo(actionToDo_),
 		bpe(bpe_)
@@ -120,7 +122,7 @@ public:
 
 private:
 
-	BackendProcessorEditor *bpe;
+	BackendRootWindow *bpe;
 	File file;
 	Action actionToDo;
 };
@@ -179,6 +181,8 @@ private:
 	ScopedPointer<Viewport> viewport;
 	Component::SafePointer<MainMenuContainer> menuContainer;
 };
+
+#endif
 
 
 #endif  // MAINMENUCOMPONENT_H_INCLUDED

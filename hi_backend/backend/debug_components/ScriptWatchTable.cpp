@@ -30,11 +30,11 @@
 *   ===========================================================================
 */
 
-ScriptWatchTable::ScriptWatchTable(MainController *mc, BaseDebugArea *area) :
-	AutoPopupDebugComponent(area),
-	controller(mc),
-	editor(nullptr)
+ScriptWatchTable::ScriptWatchTable(BackendRootWindow* window) :
+	controller(window->getBackendProcessor())
 {
+	setOpaque(true);
+
 	setName(getHeadline());
 
     addAndMakeVisible (table = new TableListBox());
@@ -47,9 +47,12 @@ ScriptWatchTable::ScriptWatchTable(MainController *mc, BaseDebugArea *area) :
 	table->setColour(ListBox::backgroundColourId, JUCE_LIVE_CONSTANT_OFF(Colour(0x04ffffff)));
 
 	table->getHeader().addColumn("Type", Type, 30, 30, 30);
-	table->getHeader().addColumn("Data Type", DataType, 100);
-	table->getHeader().addColumn("Name", Name, 100);
-	table->getHeader().addColumn("Value", Value, 180);
+	table->getHeader().addColumn("Data Type", DataType, 100, 100, 100);
+	table->getHeader().addColumn("Name", Name, 100, 60, 200);
+	table->getHeader().addColumn("Value", Value, 180, 150, -1);
+
+	table->getHeader().setStretchToFitActive(true);
+	
 
 	table->addMouseListener(this, true);
 
@@ -60,9 +63,11 @@ ScriptWatchTable::ScriptWatchTable(MainController *mc, BaseDebugArea *area) :
 	fuzzySearchBox->setFont(GLOBAL_FONT());
 	fuzzySearchBox->setSelectAllWhenFocused(true);
 
-	mc->addScriptListener(this);
+	controller->addScriptListener(this);
 
 	rebuildLines();
+
+
 }
 
 
@@ -73,7 +78,6 @@ ScriptWatchTable::~ScriptWatchTable()
 	controller = nullptr;
 	allVariableLines.clear();
 	processor = nullptr;
-	editor = nullptr;
 	table = nullptr;
 }
 
@@ -207,15 +211,39 @@ void ScriptWatchTable::refreshChangeStatus()
 };
 
 
-void ScriptWatchTable::mouseDoubleClick(const MouseEvent &e)
+void ScriptWatchTable::mouseDoubleClick(const MouseEvent &)
 {
-	if (processor.get() != nullptr  && editor.getComponent() != nullptr)
+	if (processor.get() != nullptr)
 	{
 		DebugInformation *info = getDebugInformationForRow(table->getSelectedRow(0));
 
 		if (info != nullptr)
 		{
-			DebugableObject *db = info->getObject();
+			auto editor = dynamic_cast<JavascriptCodeEditor*>(processor->getMainController()->getLastActiveEditor());
+
+			if (editor == nullptr)
+				return;
+
+			if (auto editorPanel = editor->findParentComponentOfClass<CodeEditorPanel>())
+			{
+				editorPanel->gotoLocation(processor, info->location.fileName, info->location.charNumber);
+			}
+			else if (info->location.fileName.isNotEmpty())
+			{
+				auto jsp = dynamic_cast<JavascriptProcessor*>(processor.get());
+
+				File f(info->location.fileName);
+
+				jsp->showPopupForFile(f, info->location.charNumber);
+			}
+			else if (auto scriptEditor = editor->findParentComponentOfClass<ScriptingEditor>())
+			{
+				scriptEditor->gotoLocation(info);
+			}
+
+#if 0
+
+			DebugableObject::Helpers::gotoLocation(editor.getComponent(), dynamic_cast<JavascriptProcessor*>(processor.get()), info->location);
 
 			if (db != nullptr)
 			{
@@ -223,15 +251,16 @@ void ScriptWatchTable::mouseDoubleClick(const MouseEvent &e)
 			}
 			else
 			{
-				DebugableObject::Helpers::gotoLocation(editor.getComponent(), dynamic_cast<JavascriptProcessor*>(processor.get()), info->location);
+				
 			}
+#endif
 		}
 	}
 }
 
 void ScriptWatchTable::paint(Graphics &g)
 {
-	g.setColour(Colour(DEBUG_AREA_BACKGROUND_COLOUR_DARK));
+	g.setColour(Colour(0xff353535));
 	g.fillRect(0.0f, 0.0f, (float)getWidth(), 25.0f);
 
 	g.setGradientFill(ColourGradient(Colours::black.withAlpha(0.5f), 0.0f, 25.0f,
@@ -275,22 +304,20 @@ DebugInformation* ScriptWatchTable::getDebugInformationForRow(int rowIndex)
 	}
 }
 
-void ScriptWatchTable::setScriptProcessor(JavascriptProcessor *p, ScriptingEditor *editor_)
+void ScriptWatchTable::setScriptProcessor(JavascriptProcessor *p, ScriptingEditor* /*editor*/)
 {
 	processor = dynamic_cast<Processor*>(p);
-	editor = editor_;
-
+	
 	setName(getHeadline());
 
 	if(processor.get() != nullptr)
 	{
-		showComponentInDebugArea(true);
+		
 		rebuildLines();
 		startTimer(400);
 	}
 	else
 	{
-		showComponentInDebugArea(false);
 		allVariableLines.clear();
 		
 		table->updateContent();
@@ -363,7 +390,7 @@ void ScriptWatchTable::paintCell (Graphics& g, int rowNumber, int columnId,
 		{
 			text << allVariableLines[indexInAllLines][columnId - 1];
 
-			g.setColour(changed[rowNumber] ? Colours::darkred : Colours::black);
+			g.setColour(changed[rowNumber] ? Colours::orangered : Colours::white);
 			g.setFont(GLOBAL_MONOSPACE_FONT());
 			g.drawText(text, 5, 0, width - 10, height, Justification::centredLeft, true);
 		}
@@ -381,7 +408,7 @@ String ScriptWatchTable::getHeadline() const
     
 void ScriptWatchTable::resized()
 {
-	
+	table->getHeader().resizeAllColumnsToFit(getWidth());
 
 	table->setBounds(0, 24, getWidth(), jmax<int>(0, getHeight() - 24));
 	fuzzySearchBox->setBounds(24, 0, getWidth()-24, 23);
@@ -408,7 +435,7 @@ void ScriptComponentEditPanel::addSectionToPanel(const Array<Identifier> &idList
 
 	panel->addSection(sectionName, propertyPanelList, true);
 
-
+	
 };
 
 
@@ -533,6 +560,7 @@ void ScriptComponentEditPanel::addProperty(Array<PropertyComponent*> &arrayToAdd
 		}
 	}
 
+	
 
 	
 }
@@ -609,8 +637,8 @@ String ScriptComponentEditPanel::HiChoicePropertyComponent::getItemText () const
 	return getChoices()[currentIndex];
 }
 
-ScriptComponentEditPanel::ScriptComponentEditPanel(BaseDebugArea *area) :
-AutoPopupDebugComponent(area)
+ScriptComponentEditPanel::ScriptComponentEditPanel(BackendRootWindow* rootWindow):
+	mc(rootWindow->getBackendProcessor())
 {
 	setName("Edit Script Components");
 
@@ -620,6 +648,8 @@ AutoPopupDebugComponent(area)
 	codeDragger->setEnabled(false);
 
 	codeDragger->setVisible(false);
+
+	mc->addScriptComponentEditPanel(this);
 
 	panel->setLookAndFeel(&pplaf);
 }
@@ -672,7 +702,6 @@ void ScriptComponentEditPanel::setEditedComponent(ReferenceCountedObject* o)
 	}
 	
 
-	showComponentInDebugArea(o != nullptr);
 
 	panel->clear();
 
@@ -942,11 +971,11 @@ void ScriptComponentEditPanel::HiFilePropertyComponent::refresh()
 		
 void ScriptComponentEditPanel::HiFilePropertyComponent::buttonClicked(Button *)
 {
-	FileChooser fc("Load File", GET_PROJECT_HANDLER(findParentComponentOfClass<BackendProcessorEditor>()->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Images));
+	FileChooser fc("Load File", GET_PROJECT_HANDLER(findParentComponentOfClass<BackendRootWindow>()->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Images));
 
 	if(fc.browseForFileToOpen())
 	{
-		currentFile = GET_PROJECT_HANDLER(findParentComponentOfClass<BackendProcessorEditor>()->getMainSynthChain()).getFileReference(fc.getResult().getFullPathName(), ProjectHandler::SubDirectories::Images);
+		currentFile = GET_PROJECT_HANDLER(findParentComponentOfClass<BackendRootWindow>()->getMainSynthChain()).getFileReference(fc.getResult().getFullPathName(), ProjectHandler::SubDirectories::Images);
 
 		component.box.addItem(currentFile, component.box.getNumItems()+1);
 	}
@@ -958,7 +987,7 @@ void ScriptComponentEditPanel::HiFilePropertyComponent::comboBoxChanged(ComboBox
 {
     const String fileName = component.box.getItemText(component.box.getSelectedItemIndex());
     
-	currentFile = GET_PROJECT_HANDLER(findParentComponentOfClass<BackendProcessorEditor>()->getMainSynthChain()).getFileReference(fileName, ProjectHandler::SubDirectories::Images);
+	currentFile = GET_PROJECT_HANDLER(findParentComponentOfClass<BackendRootWindow>()->getMainSynthChain()).getFileReference(fileName, ProjectHandler::SubDirectories::Images);
     
 	sendSynchronousChangeMessage();
 }

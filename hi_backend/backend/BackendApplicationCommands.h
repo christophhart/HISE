@@ -33,7 +33,10 @@
 #ifndef BACKENDAPPLICATIONCOMMANDS_H_INCLUDED
 #define BACKENDAPPLICATIONCOMMANDS_H_INCLUDED
 
-class BackendProcessorEditor;
+class BackendRootWindow;
+
+
+
 
 class BackendCommandTarget: public ApplicationCommandTarget,
 							  public MenuBarModel
@@ -71,6 +74,10 @@ public:
 		Macros,
 		Keyboard,
 		Settings,
+		WorkspaceMain,
+		WorkspaceScript,
+		WorkspaceSampler,
+		WorkspaceCustom,
 		numToolbarButtons,
 		MenuFileOffset = 0x20000,
 		MenuNewFile,
@@ -121,9 +128,11 @@ public:
         MenuEditCloseAllChains,
 		MenuViewOffset = 0x40000,
         MenuViewFullscreen,
+		MenuViewReset,
 		MenuViewBack,
 		MenuViewForward,
 		MenuViewSetMainContainerAsRoot,
+		MenuViewEnableGlobalLayoutMode,
 		MenuOneColumn,
 		MenuTwoColumns,
 		MenuThreeColumns,
@@ -140,7 +149,9 @@ public:
         MenuViewShowAllHiddenProcessors,
         MenuViewListOffset = 0x70000,
 		MenuViewProcessorListOffset = 0x80000,
+		
 		MenuToolsRecompile = 0x50000,
+		MenuToolsCreateInterface,
         MenuToolsCheckDuplicate,
         MenuToolsClearConsole,
 		MenuToolsSetCompileTimeOut,
@@ -194,7 +205,7 @@ public:
     }
 
 	
-	void setEditor(BackendProcessorEditor *editor);
+	void setEditor(BackendRootWindow *editor);
 
 	void getAllCommands(Array<CommandID>& commands) override;;
 
@@ -212,9 +223,7 @@ public:
 
 	void setCopyPasteTarget(CopyPasteTarget *newTarget)
 	{
-        
-        
-		if (currentCopyPasteTarget.get() != nullptr)
+        if (currentCopyPasteTarget.get() != nullptr)
 		{
 			currentCopyPasteTarget->deselect();
 		}
@@ -243,69 +252,69 @@ public:
 
 		static bool hasProcessorInClipboard();
 		static bool hasSnippetInClipboard();
-		static void openFile(BackendProcessorEditor *bpe);
-		static void saveFile(BackendProcessorEditor *bpe, bool forceRename);
-		static void replaceWithClipboardContent(BackendProcessorEditor *bpe);
+		static void openFile(BackendRootWindow *bpe);
+		static void saveFile(BackendRootWindow *bpe, bool forceRename);
+		static void replaceWithClipboardContent(BackendRootWindow *bpe);
 		static void createScriptVariableDeclaration(CopyPasteTarget *currentCopyPasteTarget);
-		static void recompileAllScripts(BackendProcessorEditor * bpe);
-		static void toggleFullscreen(BackendProcessorEditor * bpe);
-		static void addView(BackendProcessorEditor *bpe);
-		static void deleteView(BackendProcessorEditor *bpe);
-		static void saveView(BackendProcessorEditor *bpe);
-		static void renameView(BackendProcessorEditor *bpe);
-		static void closeAllChains(BackendProcessorEditor *bpe);
-		static void checkDuplicateIds(BackendProcessorEditor *bpe);
-		static void showAboutPage(BackendProcessorEditor * bpe);
-		static void checkVersion(BackendProcessorEditor *bpe);
-		static void setColumns(BackendProcessorEditor * bpe, BackendCommandTarget* target, ColumnMode columns);
-		static void showProcessorInPopup(BackendProcessorEditor * bpe, ProcessorEditor* editor);
+		static void recompileAllScripts(BackendRootWindow * bpe);
+		static void toggleFullscreen(BackendRootWindow * bpe);
+		static void addView(BackendRootWindow *bpe);
+		static void deleteView(BackendRootWindow *bpe);
+		static void saveView(BackendRootWindow *bpe);
+		static void renameView(BackendRootWindow *bpe);
+		static void closeAllChains(BackendRootWindow *bpe);
+		static void checkDuplicateIds(BackendRootWindow *bpe);
+		static void showAboutPage(BackendRootWindow * bpe);
+		static void checkVersion(BackendRootWindow *bpe);
+		static void setColumns(BackendRootWindow * bpe, BackendCommandTarget* target, ColumnMode columns);
 		static void plotModulator(CopyPasteTarget *currentCopyPasteTarget);
-		static void resolveMissingSamples(BackendProcessorEditor *bpe);
-		static void deleteMissingSamples(BackendProcessorEditor *bpe);
-		static void setCompileTimeOut(BackendProcessorEditor * bpe);
-		static void toggleUseBackgroundThreadsForCompiling(BackendProcessorEditor * bpe);
-		static void toggleCompileScriptsOnPresetLoad(BackendProcessorEditor * bpe);
-		static void createNewProject(BackendProcessorEditor *bpe);
-		static void loadProject(BackendProcessorEditor *bpe);
-		static void closeProject(BackendProcessorEditor *bpe);
-		static void showProjectInFinder(BackendProcessorEditor *bpe);
-		static void saveUserPreset(BackendProcessorEditor *bpe);
-		static void loadUserPreset(BackendProcessorEditor *bpe, const File &fileToLoad);
-		static void toggleRelativePath(BackendProcessorEditor * bpe);
-		static void collectExternalFiles(BackendProcessorEditor * bpe);
-		static void saveFileAsXml(BackendProcessorEditor * bpe);
-		static void openFileFromXml(BackendProcessorEditor * bpe, const File &fileToLoad);
-		static void exportFileAsSnippet(BackendProcessorEditor* bpe);
+		static void resolveMissingSamples(BackendRootWindow *bpe);
+		static void deleteMissingSamples(BackendRootWindow *bpe);
+		static void setCompileTimeOut(BackendRootWindow * bpe);
+		static void toggleUseBackgroundThreadsForCompiling(BackendRootWindow * bpe);
+		static void toggleCompileScriptsOnPresetLoad(BackendRootWindow * bpe);
+		static void createNewProject(BackendRootWindow *bpe);
+		static void loadProject(BackendRootWindow *bpe);
+		static void closeProject(BackendRootWindow *bpe);
+		static void showProjectInFinder(BackendRootWindow *bpe);
+		static void saveUserPreset(BackendRootWindow *bpe);
+		static void loadUserPreset(BackendRootWindow *bpe, const File &fileToLoad);
+		static void toggleRelativePath(BackendRootWindow * bpe);
+		static void collectExternalFiles(BackendRootWindow * bpe);
+		static void saveFileAsXml(BackendRootWindow * bpe);
+		static void openFileFromXml(BackendRootWindow * bpe, const File &fileToLoad);
+		static void exportFileAsSnippet(BackendRootWindow* bpe);
 		static void redirectSampleFolder(Processor *processorForTheProjectHandler);
-		static void showFilePresetSettings(BackendProcessorEditor * bpe);
-		static void showFileProjectSettings(BackendProcessorEditor * bpe);
-		static void showFileUserSettings(BackendProcessorEditor * bpe);
-		static void showFileCompilerSettings(BackendProcessorEditor * bpe);
-		static void checkSettingSanity(BackendProcessorEditor * bpe);
-		static void togglePluginPopupWindow(BackendProcessorEditor * bpe);
-		static void changeCodeFontSize(BackendProcessorEditor *bpe, bool increase);
-		static void createRSAKeys(BackendProcessorEditor * bpe);
-		static void createDummyLicenceFile(BackendProcessorEditor * bpe);
-		static void createDefaultToolbarJSON(BackendProcessorEditor * bpe);
-		static void toggleForcePoolSearch(BackendProcessorEditor * bpe);
-		static void archiveProject(BackendProcessorEditor * bpe);
-		static void downloadNewProject(BackendProcessorEditor * bpe);
-		static void showMainMenu(BackendProcessorEditor * bpe);
+		static void showFilePresetSettings(BackendRootWindow * bpe);
+		static void showFileProjectSettings(BackendRootWindow * bpe);
+		static void showFileUserSettings(BackendRootWindow * bpe);
+		static void showFileCompilerSettings(BackendRootWindow * bpe);
+		static void checkSettingSanity(BackendRootWindow * bpe);
+		static void togglePluginPopupWindow(BackendRootWindow * bpe);
+		static void changeCodeFontSize(BackendRootWindow *bpe, bool increase);
+		static void createRSAKeys(BackendRootWindow * bpe);
+		static void createDummyLicenceFile(BackendRootWindow * bpe);
+		static void createDefaultToolbarJSON(BackendRootWindow * bpe);
+		static void toggleForcePoolSearch(BackendRootWindow * bpe);
+		static void archiveProject(BackendRootWindow * bpe);
+		static void downloadNewProject(BackendRootWindow * bpe);
+		static void showMainMenu(BackendRootWindow * bpe);
 		static void moveModule(CopyPasteTarget *currentCopyPasteTarget, bool moveUp);
-		static void createExternalScriptFile(BackendProcessorEditor * bpe);
-		static void exportMainSynthChainAsPlayerLibrary(BackendProcessorEditor * bpe);
-		static void cleanBuildDirectory(BackendProcessorEditor * bpe);
-		static void convertAllSamplesToMonolith(BackendProcessorEditor * bpe);
-		static void convertSfzFilesToSampleMaps(BackendProcessorEditor * bpe);
-		static void checkAllSamplemaps(BackendProcessorEditor * bpe);
-		static void validateUserPresets(BackendProcessorEditor * bpe);
+		static void createExternalScriptFile(BackendRootWindow * bpe);
+		static void exportMainSynthChainAsPlayerLibrary(BackendRootWindow * bpe);
+		static void cleanBuildDirectory(BackendRootWindow * bpe);
+		static void convertAllSamplesToMonolith(BackendRootWindow * bpe);
+		static void convertSfzFilesToSampleMaps(BackendRootWindow * bpe);
+		static void checkAllSamplemaps(BackendRootWindow * bpe);
+		static void validateUserPresets(BackendRootWindow * bpe);
 		static void createBase64State(CopyPasteTarget* target);
+		static void createUserInterface(BackendRootWindow * bpe);
 	};
 
 private:
 
 
-	
+	friend class BackendRootWindow;
 
 	ColumnMode currentColumnMode;
 
@@ -315,7 +324,7 @@ private:
 
 	WeakReference<CopyPasteTarget> currentCopyPasteTarget;
 
-	BackendProcessorEditor *bpe;
+	BackendRootWindow *bpe;
 
 	ApplicationCommandManager *mainCommandManager;
 

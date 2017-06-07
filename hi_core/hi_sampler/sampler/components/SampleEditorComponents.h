@@ -34,6 +34,7 @@
 #define SAMPLEEDITORCOMPONENTS_H_INCLUDED
 
 class SamplerBody;
+class SampleEditHandler;
 class SamplerSoundWaveform;
 class SamplerSoundMap;
 
@@ -45,12 +46,18 @@ class SamplerSubEditor
 {
 public:
 
-    SamplerSubEditor(): internalChange(false) {};
+    SamplerSubEditor(SampleEditHandler* handler_): 
+		internalChange(false),
+		handler(handler_)
+	{};
     
     virtual ~SamplerSubEditor() {};
 
 	/** Call this whenever the selection changes and you want to update the other editors. */
     void selectSounds(const Array<ModulatorSamplerSound*> &selection);
+
+	/** Overwrite this and call the method that updates the interface. */
+	virtual void updateInterface() = 0;
 
 protected:
 
@@ -60,7 +67,11 @@ protected:
 	*/
     virtual void soundsSelected(const Array<ModulatorSamplerSound*> &selection) = 0;
 
+	SampleEditHandler* handler;
+
 private:
+
+	
 
     bool internalChange;
 };
@@ -311,7 +322,7 @@ public:
 		numDragLimiters
 	};
 
-	SamplerSoundMap(ModulatorSampler *ownerSampler_, SamplerBody *b);
+	SamplerSoundMap(ModulatorSampler *ownerSampler_);
 
 	~SamplerSoundMap()
 	{
@@ -320,13 +331,16 @@ public:
 
 	void timerCallback() override
 	{
-        currentSnapshot = Image(Image::RGB, getWidth(), getHeight(), true);
-        
-        Graphics g2(currentSnapshot);
-        
-        drawSoundMap(g2);
-        
-        repaint();
+		if (getWidth() > 0 && getHeight() > 0)
+		{
+			currentSnapshot = Image(Image::RGB, getWidth(), getHeight(), true);
+
+			Graphics g2(currentSnapshot);
+
+			drawSoundMap(g2);
+
+			repaint();
+		}
 
         stopTimer();
 	}
@@ -426,10 +440,8 @@ private:
 
 	void endSampleDragging(bool copyDraggedSounds);
 	
-
-
 	ModulatorSampler *ownerSampler;
-	SamplerBody *body;
+	SampleEditHandler* handler;
 
 	Rectangle<int> dragArea;
 	Array<DragData> dragStartData;
@@ -467,7 +479,7 @@ class MapWithKeyboard: public Component
 {
 public:
 
-	MapWithKeyboard(ModulatorSampler *ownerSampler, SamplerBody *b);
+	MapWithKeyboard(ModulatorSampler *ownerSampler);
 
 	void paint(Graphics &g) override;
 	void resized() override;
@@ -492,7 +504,7 @@ class SamplerSoundTable    : public Component,
 							 public SamplerSubEditor
 {
 public:
-	SamplerSoundTable(ModulatorSampler *ownerSampler_, SamplerBody *b);
+	SamplerSoundTable(ModulatorSampler *ownerSampler_, SampleEditHandler* handler);
 
 	void refreshList();
 
@@ -514,12 +526,15 @@ public:
     
     void resized() override;
 
+	void updateInterface() override
+	{
+		refreshList();
+	}
 
 private:
 
 	ModulatorSampler *ownerSampler;
-	SamplerBody *body;
-
+	
 	bool internalSelection;
 
     TableListBox table;     

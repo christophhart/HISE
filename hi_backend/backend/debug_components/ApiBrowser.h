@@ -39,7 +39,9 @@ class ApiCollection : public SearchableListComponent
 {
 public:
 
-	ApiCollection(BaseDebugArea *area);
+	ApiCollection(BackendRootWindow *window);
+
+	SET_GENERIC_PANEL_ID("ApiCollection");
 
 	class MethodItem : public SearchableListComponent::Item
 	{

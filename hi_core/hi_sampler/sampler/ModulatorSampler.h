@@ -37,6 +37,9 @@
 
 #include "JuceHeader.h"
 
+
+class SampleEditHandler;
+
 /** The main sampler class.
 *	@ingroup sampler
 *
@@ -111,6 +114,8 @@ public:
 	/** Creates a new ModulatorSampler. */
 	ModulatorSampler(MainController *mc, const String &id, int numVoices);;
 	~ModulatorSampler();
+
+	SET_PROCESSOR_CONNECTOR_TYPE_ID("ModulatorSampler");
 
 	void restoreFromValueTree(const ValueTree &v) override;
 	ValueTree exportAsValueTree() const override;
@@ -268,6 +273,9 @@ public:
 	CriticalSection &getSamplerLock() {	return lock; }
 	
 	const CriticalSection& getExportLock() const { return exportLock; }
+
+	SampleEditHandler* getSampleEditHandler() { return sampleEditHandler; }
+	const SampleEditHandler* getSampleEditHandler() const { return sampleEditHandler; }
 
 	bool useGlobalFolderForSaving() const;
 	void setUseGlobalFolderForSaving() { useGlobalFolder = true; };
@@ -586,6 +594,8 @@ private:
 	ScopedPointer<ModulatorChain> crossFadeChain;
 	ScopedPointer<AudioThumbnailCache> soundCache;
 	
+	ScopedPointer<SampleEditHandler> sampleEditHandler;
+
 };
 
 

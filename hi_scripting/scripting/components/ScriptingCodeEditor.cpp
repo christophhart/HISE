@@ -94,9 +94,11 @@ void JavascriptCodeEditor::timerCallback()
 void JavascriptCodeEditor::focusGained(FocusChangeType)
 {
 #if USE_BACKEND
-	if (findParentComponentOfClass<BackendProcessorEditor>() != nullptr)
+	if (auto root = findParentComponentOfClass<BackendRootWindow>())
 	{
 		grabCopyAndPasteFocus();
+
+		root->getBackendProcessor()->setLastActiveEditor(this, getCaretPos());
 	}
 #endif
 }
@@ -310,7 +312,7 @@ void JavascriptCodeEditor::focusLost(FocusChangeType )
 {
 #if USE_BACKEND
     
-    BackendProcessorEditor *editor = findParentComponentOfClass<BackendProcessorEditor>();
+    BackendRootWindow *editor = findParentComponentOfClass<BackendRootWindow>();
 
     if(editor != nullptr)
     {
@@ -662,7 +664,7 @@ void JavascriptCodeEditor::showAutoCompleteNew()
 	}
 	else
 	{
-		Component *editor = findParentComponentOfClass<BackendProcessorEditor>();
+		Component *editor = findParentComponentOfClass<BackendRootWindow>();
 
 		if (editor == nullptr)
 		{
@@ -741,6 +743,15 @@ void JavascriptCodeEditor::handleEscapeKey()
 void JavascriptCodeEditor::paintOverChildren(Graphics& g)
 {
 	CopyPasteTarget::paintOutlineIfSelected(g);
+
+	if (auto rootWindow = findParentComponentOfClass<BackendRootWindow>())
+	{
+		if (rootWindow->getBackendProcessor()->getLastActiveEditor() == this)
+		{
+			g.setColour(Colour(SIGNAL_COLOUR));
+			g.fillRect(0, 0, 4, 4);
+		}
+	}
 
 	const int firstLine = getFirstLineOnScreen();
 	const int numLinesShown = getNumLinesOnScreen();

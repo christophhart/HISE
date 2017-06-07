@@ -120,14 +120,21 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 	
 	addAndMakeVisible (foldButton = new ShapeButton ("Fold", Colours::white, Colours::white, Colours::white));
 	
+	
 	checkFoldButton();
 
     foldButton->setTooltip (TRANS("Expand this Processor"));
     
     foldButton->addListener (this);
 
-	
-	
+	addAndMakeVisible(workspaceButton = new ShapeButton("Workspace", Colours::white, Colours::white, Colours::white));
+	Path workspacePath = ColumnIcons::getPath(ColumnIcons::openWorkspaceIcon, sizeof(ColumnIcons::openWorkspaceIcon));
+	workspaceButton->setShape(workspacePath, true, true, true);
+	workspaceButton->addListener(this);
+	workspaceButton->setToggleState(true, dontSendNotification);
+	workspaceButton->setTooltip("Open " + getProcessor()->getId() + " in workspace");
+	refreshShapeButton(workspaceButton);
+
     
     addAndMakeVisible (deleteButton = new ShapeButton ("Delete Processor", Colours::white, Colours::white, Colours::white));
 	Path deletePath;
@@ -365,6 +372,11 @@ bool ProcessorEditorHeader::isHeaderOfMidiProcessor() const	{ return dynamic_cas
 
 bool ProcessorEditorHeader::isHeaderOfEffectProcessor() const		{ return dynamic_cast<const EffectProcessor*>(getProcessor()) != nullptr;	};
 
+bool ProcessorEditorHeader::hasWorkspaceButton() const 
+{ 
+	return dynamic_cast<const JavascriptProcessor*>(getProcessor()) != nullptr || dynamic_cast<const ModulatorSampler*>(getProcessor()) != nullptr;
+}
+
 int ProcessorEditorHeader::getModulatorMode() const			{ jassert(isHeaderOfModulator());
 															  return dynamic_cast<const Modulation*>(getProcessor())->getMode(); };
 
@@ -476,12 +488,26 @@ void ProcessorEditorHeader::resized()
 		x += addCloseWidth + 8;
 	}
 
+	if (getProcessor()->getMainController()->getMainSynthChain() != getProcessor())
+	{
+		foldButton->setBounds(x, yOffset, addCloseWidth, addCloseWidth);
+		x += addCloseWidth + 8;
 
-    if(getProcessor()->getMainController()->getMainSynthChain() != getProcessor())
-    {
-        foldButton->setBounds(x, yOffset, addCloseWidth, addCloseWidth);
-        x += addCloseWidth + 8;
-        
+	}
+
+	if (hasWorkspaceButton())
+	{
+		workspaceButton->setBounds(x, yOffset, addCloseWidth, addCloseWidth);
+		x += addCloseWidth + 8;
+	}
+	else
+	{
+		workspaceButton->setVisible(false);
+	}
+
+	if(getProcessor()->getMainController()->getMainSynthChain() != getProcessor())
+	{
+
         chainIcon->setBounds(x, yOffset-1, chainIcon->drawIcon() ? 16 : 0, 16);
         
         x = chainIcon->getRight() + 3;
@@ -553,11 +579,18 @@ void ProcessorEditorHeader::resized()
 		x += 40;
 	}
 
+	if (IS(TimeModulation))
+	{
+		plotButton->setBounds(x, yOffset2, 30, 20);
+		plotButton->setVisible(true);
+
+		x += 40;
+	}
+
 	
 
 	
-    plotButton->setBounds (getWidth() - 101 - 50, yOffset2, 30, 20);
-	plotButton->setVisible(false);
+    
     
     
 	deleteButton->setEnabled(getEditor()->getIndentationLevel() != 0);
@@ -646,7 +679,7 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
     if (buttonThatWasClicked == debugButton)
     {
         const bool value = buttonThatWasClicked->getToggleState();
-		getProcessor()->enableConsoleOutput(!value);
+		
 
 		if(dynamic_cast<JavascriptProcessor*>(getProcessor()) != nullptr)
 		{
@@ -654,26 +687,58 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
 
 			getProcessor()->getMainController()->setWatchedScriptProcessor(sp, getEditor()->getBody());
 
-			AutoPopupDebugComponent *c = findParentComponentOfClass<BackendProcessorEditor>()->getDebugComponent(true, CombinedDebugArea::AreaIds::ApiCollectionEnum);
+			auto root = findParentComponentOfClass<BackendRootWindow>()->getRootFloatingTile();
 
-			if (c != nullptr) c->showComponentInDebugArea(!value);
+			auto p = BackendPanelHelpers::toggleVisibilityForRightColumnPanel<ScriptWatchTablePanel>(root, !buttonThatWasClicked->getToggleState());
 
+			if (p != nullptr)
+			{
+				p->setContentWithUndo(getProcessor(), 0);
+			}
 		}
 
 
 		buttonThatWasClicked->setToggleState(!value, dontSendNotification);
     }
+	else if (buttonThatWasClicked == workspaceButton)
+	{
+		auto rootWindow = findParentComponentOfClass<BackendRootWindow>();
+
+		if (auto jsp = dynamic_cast<JavascriptProcessor*>(getProcessor()))
+		{
+			BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(rootWindow, jsp);
+			BackendPanelHelpers::showWorkspace(rootWindow, BackendPanelHelpers::Workspace::ScriptingWorkspace, sendNotification);
+			
+		}
+		else if (auto sampler = dynamic_cast<ModulatorSampler*>(getProcessor()))
+		{
+			BackendPanelHelpers::SamplerWorkspace::setGlobalProcessor(rootWindow, sampler);
+			BackendPanelHelpers::showWorkspace(rootWindow, BackendPanelHelpers::Workspace::SamplerWorkspace, sendNotification);
+		}
+
+	}
+
 
     else if (buttonThatWasClicked == plotButton)
     {
         const bool value = buttonThatWasClicked->getToggleState();
 		setPlotButton(!value);
+
+		auto root = findParentComponentOfClass<BackendRootWindow>()->getRootFloatingTile();
+
+		auto p = BackendPanelHelpers::toggleVisibilityForRightColumnPanel<PlotterPanel>(root,  buttonThatWasClicked->getToggleState());
+
+		if (p != nullptr)
+		{
+			p->setContentWithUndo(getProcessor(), 0);
+		}
+
     }
 	else if (buttonThatWasClicked == bypassButton->button)
     {
         
 		bool shouldBeBypassed = bypassButton->getToggleState();
-		getProcessor()->setBypassed(shouldBeBypassed);
+		getProcessor()->setBypassed(shouldBeBypassed, sendNotification);
 		bypassButton->setToggleState(!shouldBeBypassed, dontSendNotification);
 		
 		ProcessorEditorPanel *panel = getEditor()->getPanel();
@@ -688,7 +753,7 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
     }
 	else if (buttonThatWasClicked == routeButton)
 	{
-		dynamic_cast<RoutableProcessor*>(getProcessor())->editRouting(this);
+		dynamic_cast<RoutableProcessor*>(getProcessor())->editRouting(routeButton);
 	}
     else if (buttonThatWasClicked == foldButton)
     {
@@ -782,6 +847,7 @@ void ProcessorEditorHeader::setPlotButton(bool on)
 
 	plotButton->setToggleState(on, dontSendNotification);
 	
+#if 0
 	if(on)
 	{
 		getProcessor()->getMainController()->addPlottedModulator(mod);
@@ -794,6 +860,7 @@ void ProcessorEditorHeader::setPlotButton(bool on)
 		
 		//plotterWindow = nullptr;
 	}
+#endif
 };
 
 void ProcessorEditorHeader::enableChainHeader()
@@ -936,7 +1003,7 @@ void ProcessorEditorHeader::addProcessor(Processor *processorToBeAdded, Processo
 
 #if USE_BACKEND
 
-	findParentComponentOfClass<BackendProcessorEditor>()->rebuildModuleList(false);
+	findParentComponentOfClass<BackendRootWindow>()->sendRootContainerRebuildMessage(false);
 
 #endif
 
@@ -1210,7 +1277,7 @@ void ProcessorEditorHeader::refreshShapeButton(ShapeButton *b)
 
 	Colour buttonColour = isHeaderOfModulatorSynth() ? Colours::black.withAlpha(0.8f) : Colours::white;
 
-	Colour shadowColour = isHeaderOfModulatorSynth() ? Colours::cyan.withAlpha(0.25f) : Colours::white.withAlpha(0.6f);
+	Colour shadowColour = isHeaderOfModulatorSynth() ? Colour(SIGNAL_COLOUR).withAlpha(0.25f) : Colours::white.withAlpha(0.6f);
 
 	DropShadowEffect *shadow = dynamic_cast<DropShadowEffect*>(b->getComponentEffect());
 
@@ -1219,17 +1286,12 @@ void ProcessorEditorHeader::refreshShapeButton(ShapeButton *b)
 		jassert(shadow != nullptr);
 
 		shadow->setShadowProperties(DropShadow(off ? Colours::transparentBlack : shadowColour, 3, Point<int>()));
-
 	}
-	
 		
 	buttonColour = off ? Colours::grey.withAlpha(0.7f) : buttonColour;
-
 	buttonColour = buttonColour.withAlpha(b->isEnabled() ? 1.0f : 0.2f);
 
-		
-
-	b->setColours(buttonColour.withMultipliedAlpha(0.7f), buttonColour.withMultipliedAlpha(1.0f), buttonColour.withMultipliedAlpha(1.0f));
+	b->setColours(buttonColour.withMultipliedAlpha(0.5f), buttonColour.withMultipliedAlpha(1.0f), buttonColour.withMultipliedAlpha(1.0f));
 	b->repaint();
 }
 
@@ -1237,12 +1299,14 @@ void ProcessorEditorHeader::labelTextChanged(Label *l)
 {
 	if (l == idLabel)
 	{
-
-		getEditor()->getProcessor()->setId(l->getText());
+		getEditor()->getProcessor()->setId(l->getText(), sendNotification);
         
-        findParentComponentOfClass<BackendProcessorEditor>()->getKeyboard()->grabKeyboardFocus();
+		auto root = findParentComponentOfClass<BackendRootWindow>();
 
-        PresetHandler::setChanged(getProcessor());
+		if(auto keyboard = root->getKeyboard())
+			keyboard->grabKeyboardFocus();
+
+		PresetHandler::setChanged(getProcessor());
 	}
 }
 

@@ -24,6 +24,7 @@
 #include "JuceHeader.h"
 
 class SamplerBody;
+class SampleEditHandler;
 
 //[/Headers]
 
@@ -54,6 +55,11 @@ public:
     //[UserMethods]     -- You can add your own custom methods in this section.
 
 	void changeListenerCallback(SafeChangeBroadcaster *)
+	{
+		updateWaveform();
+	}
+
+	void updateInterface() override
 	{
 		updateWaveform();
 	}

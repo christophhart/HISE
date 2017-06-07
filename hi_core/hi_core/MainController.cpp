@@ -57,6 +57,8 @@ MainController::MainController():
 	masterEventBuffer(),
 	eventIdHandler(masterEventBuffer),
 	userPresetHandler(this),
+	codeHandler(this),
+	processorChangeHandler(this),
 	debugLogger(this),
 	presetLoadRampFlag(0),
 	suspendIndex(0),
@@ -70,8 +72,8 @@ MainController::MainController():
 	BACKEND_ONLY(popupConsole = nullptr);
 	BACKEND_ONLY(usePopupConsole = false);
 
-	BACKEND_ONLY(shownComponents.setBit(BackendProcessorEditor::Keyboard, 1));
-	BACKEND_ONLY(shownComponents.setBit(BackendProcessorEditor::Macros, 0));
+	BACKEND_ONLY(shownComponents.setBit(BackendCommandTarget::Keyboard, 1));
+	BACKEND_ONLY(shownComponents.setBit(BackendCommandTarget::Macros, 0));
 
 	TempoSyncer::initTempoData();
     
@@ -260,34 +262,6 @@ void MainController::stopCpuBenchmark()
 	}
 }
 
-void MainController::clearConsole()
-{
-#if USE_BACKEND
-    if (usePopupConsole)
-    {
-        popupConsole->clear();
-    }
-    else
-    {
-        console->clear();
-    }
-#endif
-    
-}
-
-
-void MainController::showConsole(bool consoleShouldBeShown)
-{
-#if USE_BACKEND
-	if (console.get() != nullptr)
-	{
-		console->showComponentInDebugArea(consoleShouldBeShown);
-	}
-#else
-	ignoreUnused(consoleShouldBeShown);
-#endif
-}
-
 int MainController::getNumActiveVoices() const
 {
 	return getMainSynthChain()->getNumActiveVoices();
@@ -372,7 +346,8 @@ void MainController::skin(Component &c)
     c.setColour(MacroControlledObject::HiBackgroundColours::upperBgColour, Colour(0x66333333));
     c.setColour(MacroControlledObject::HiBackgroundColours::lowerBgColour, Colour(0xfb111111));
     c.setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, Colours::white.withAlpha(0.3f));
-    
+	c.setColour(MacroControlledObject::HiBackgroundColours::textColour, Colours::white);
+
     if(dynamic_cast<Slider*>(&c) != nullptr) dynamic_cast<Slider*>(&c)->setScrollWheelEnabled(false);
 };
 
@@ -412,7 +387,7 @@ var MainController::getGlobalVariable(int index) const
 	return globalVariableArray.getUnchecked(index);
 }
 
-void MainController::storePlayheadIntoDynamicObject(AudioPlayHead::CurrentPositionInfo &newPosition)
+void MainController::storePlayheadIntoDynamicObject(AudioPlayHead::CurrentPositionInfo &/*newPosition*/)
 {
 	//static const Identifier bpmId("bpm");
 	//static const Identifier timeSigNumerator("timeSigNumerator");
@@ -802,12 +777,9 @@ bool MainController::checkAndResetMidiInputFlag()
 
 void MainController::writeToConsole(const String &message, int warningLevel, const Processor *p, Colour c)
 {
-	CHECK_KEY(this);
+	codeHandler.writeToConsole(message, warningLevel, p, c);
 
-	Console *currentConsole = usePopupConsole ? popupConsole.get() : console.get();
-
-	if (currentConsole != nullptr) currentConsole->logMessage(message, (Console::WarningLevel)warningLevel, p, (p != nullptr && c.isTransparent()) ? p->getColour() : c);
-
+	
 
 }
 
@@ -822,13 +794,19 @@ void MainController::setWatchedScriptProcessor(JavascriptProcessor *p, Component
 
 void MainController::setEditedScriptComponent(ReferenceCountedObject* c, Component *listener)
 {
-
-
 	ScriptingApi::Content::ScriptComponent *sc = dynamic_cast<ScriptingApi::Content::ScriptComponent *>(c);
 
 
-	if (scriptComponentEditPanel.getComponent() != nullptr)
+	for (int i = 0; i < scriptComponentEditPanels.size(); i++)
 	{
+		auto scriptComponentEditPanel = scriptComponentEditPanels[i].getComponent();
+
+		if (scriptComponentEditPanel == nullptr)
+		{
+			scriptComponentEditPanels.remove(i--);
+			continue;
+		}
+		
 		scriptComponentEditPanel->setEditedComponent(sc);
 
 		ScriptComponentEditListener *l = dynamic_cast<ScriptComponentEditListener *>(listener);
@@ -838,24 +816,41 @@ void MainController::setEditedScriptComponent(ReferenceCountedObject* c, Compone
 			scriptComponentEditPanel->removeAllListeners();
 			scriptComponentEditPanel->addListener(l);
 		}
+	}
 
-		ScriptingEditor *editor = dynamic_cast<ScriptingEditor *>(listener);
+	ScriptEditHandler *editor = dynamic_cast<ScriptEditHandler *>(listener);
 
-		if (editor != nullptr)
-		{
-			editor->setEditedScriptComponent(sc);
-		}
+	if (editor != nullptr)
+	{
+		editor->setEditedScriptComponent(sc);
 	}
 };
+
+bool MainController::hasScriptEditingPanels()
+{
+	for (int i = 0; i < scriptComponentEditPanels.size(); i++)
+	{
+		if (scriptComponentEditPanels[i].getComponent() == nullptr)
+			scriptComponentEditPanels.remove(i--);
+	}
+
+	return scriptComponentEditPanels.size() > 0;
+}
 
 void MainController::setScriptWatchTable(ScriptWatchTable *table)
 {
 	scriptWatchTable = table;
 }
 
-void MainController::setScriptComponentEditPanel(ScriptComponentEditPanel *panel)
+void MainController::addScriptComponentEditPanel(ScriptComponentEditPanel *panel)
 {
-	scriptComponentEditPanel = panel;
+	for (int i = 0; i < scriptComponentEditPanels.size(); i++)
+	{
+		if (scriptComponentEditPanels[i].getComponent() == nullptr)
+			scriptComponentEditPanels.remove(i--);
+	}
+
+	scriptComponentEditPanels.addIfNotAlreadyThere(panel);
 }
 
 #endif
@@ -873,3 +868,7 @@ void MainController::SampleManager::preloadEverything()
 	}
 }
 
+void MainController::CodeHandler::setMainConsole(Console* console)
+{
+	mainConsole = dynamic_cast<Component*>(console);
+}

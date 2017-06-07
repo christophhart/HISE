@@ -216,9 +216,9 @@ void ChainIcon::mouseDown(const MouseEvent &)
 	{
 		Colour iconColour = dynamic_cast<ModulatorSynth*>(p)->getIconColour();
 		
-		BackendProcessorEditor *editor = findParentComponentOfClass<BackendProcessorEditor>();
+		auto editor = findParentComponentOfClass<BackendRootWindow>();
 
-		ColourSelectorWithRecentList *colourSelector = new ColourSelectorWithRecentList(editor, iconColour);
+		ColourSelectorWithRecentList *colourSelector = new ColourSelectorWithRecentList(editor->getMainPanel(), iconColour);
 
 		colourSelector->addChangeListener(this);
 

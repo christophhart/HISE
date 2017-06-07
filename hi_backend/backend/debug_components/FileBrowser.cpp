@@ -177,7 +177,7 @@ Drawable * FileBrowserToolbarFactory::FileBrowserToolbarPaths::createPath(int id
 }
 
 
-FileBrowser::FileBrowser(BackendProcessorEditor* editor) :
+FileBrowser::FileBrowser(BackendRootWindow* rootWindow) :
 directorySearcher("Directory Scanner")
 {
     loadFavoriteFile();
@@ -234,7 +234,7 @@ directorySearcher("Directory Scanner")
 
 #if HISE_IOS
 #else
-    goToDirectory(GET_PROJECT_HANDLER(editor->getMainSynthChain()).getWorkDirectory());
+    goToDirectory(GET_PROJECT_HANDLER(rootWindow->getMainSynthChain()).getWorkDirectory());
 #endif
 }
 
@@ -379,7 +379,7 @@ bool FileBrowser::perform(const InvocationInfo &info)
 		}
 		else if (result == ProjectFolder)
 		{
-			goToDirectory(GET_PROJECT_HANDLER(findParentComponentOfClass<BackendProcessorEditor>()->getMainSynthChain()).getWorkDirectory(), true);
+			goToDirectory(GET_PROJECT_HANDLER(findParentComponentOfClass<BackendRootWindow>()->getMainSynthChain()).getWorkDirectory(), true);
 		}
 		else if (result >= FavoriteOffset)
 		{
@@ -428,6 +428,9 @@ bool FileBrowser::perform(const InvocationInfo &info)
 
 void FileBrowser::paint(Graphics &g)
 {
+	if (getHeight() <= 0)
+		return;
+
 	g.setColour(HiseColourScheme::getColour(HiseColourScheme::ColourIds::DebugAreaBackgroundColourId));
 
 	g.fillRect(0, 24, getWidth(), getHeight() - 24);
@@ -471,11 +474,9 @@ void FileBrowser::mouseDown(const MouseEvent& e)
 		}
 
 		fileTreeComponent->setDragAndDropDescription(sa.joinIntoString(";"));
-
 	}
     else
     {
-        
         PopupMenu m;
         
         m.setLookAndFeel(&plaf);
@@ -505,7 +506,7 @@ void FileBrowser::mouseDoubleClick(const MouseEvent& )
 {
 	File newRoot = fileTreeComponent->getSelectedFile();
 
-    BackendProcessorEditor *editor = findParentComponentOfClass<BackendProcessorEditor>();
+    auto *rootWindow = findParentComponentOfClass<BackendRootWindow>();
     
 	if (newRoot.isDirectory())
 	{
@@ -517,13 +518,13 @@ void FileBrowser::mouseDoubleClick(const MouseEvent& )
 	}
 	else if (newRoot.getFileExtension() == ".hip")
 	{
-		editor->loadNewContainer(newRoot);
+		rootWindow->getMainPanel()->loadNewContainer(newRoot);
 	}
     else if (newRoot.getFileExtension() == ".js")
     {
         // First look if the script is already used
         
-        Processor::Iterator<JavascriptProcessor> iter(editor->getMainSynthChain());
+        Processor::Iterator<JavascriptProcessor> iter(rootWindow->getMainSynthChain());
         
         while (JavascriptProcessor *sp = iter.getNextProcessor())
         {
@@ -539,11 +540,9 @@ void FileBrowser::mouseDoubleClick(const MouseEvent& )
     }
     else if ((ImageFileFormat::findImageFormatForFileExtension(newRoot) != nullptr) || (newRoot.getFileExtension() == ".ttf"))
     {
-
+        const String reference = GET_PROJECT_HANDLER(rootWindow->getMainSynthChain()).getFileReference(newRoot.getFullPathName(), ProjectHandler::SubDirectories::Images);
         
-        const String reference = GET_PROJECT_HANDLER(editor->getMainSynthChain()).getFileReference(newRoot.getFullPathName(), ProjectHandler::SubDirectories::Images);
-        
-        editor->getMainSynthChain()->getMainController()->insertStringAtLastActiveEditor("\"" + reference + "\"", false);
+        rootWindow->getMainSynthChain()->getMainController()->insertStringAtLastActiveEditor("\"" + reference + "\"", false);
     }
 }
 

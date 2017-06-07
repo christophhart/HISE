@@ -40,7 +40,8 @@
                                                                     //[/Comments]
 */
 class SamplerBody  : public ProcessorEditorBody,
-                     public ButtonListener
+                     public ButtonListener,
+					 public SampleEditHandler::Listener
 {
 public:
     //==============================================================================
@@ -50,114 +51,16 @@ public:
     //==============================================================================
     //[UserMethods]     -- You can add your own custom methods in this section.
 
-	class SelectionListener: public ChangeListener
-	{
-	public:
-
-		SelectionListener(SamplerBody *body_):
-			body(body_)
-		{}
-
-		void changeListenerCallback(ChangeBroadcaster *)
-		{
-			const Array<WeakReference<ModulatorSamplerSound>> newSelection = body->getSelection().getItemArray();
-
-			Array<ModulatorSamplerSound*> existingSounds;
-
-			for(int i = 0; i < newSelection.size(); i++)
-			{
-				if(newSelection[i].get() != nullptr) existingSounds.add(newSelection[i].get());
-			}
-
-			if (existingSounds != lastSelection)
-			{
-				body->soundSelectionChanged();
-				lastSelection.clear();
-				lastSelection.addArray(existingSounds);
-			}
-		}
-
-	private:
-
-		Array<ModulatorSamplerSound*> lastSelection;
-
-		SamplerBody *body;
-	};
-
-
-
-	bool newKeysPressed(const uint8 *currentNotes)
-	{
-		for(int i = 0; i < 127; i++)
-		{
-			if(currentNotes[i] != 0) return true;
-		}
-		return false;
-	}
-
 	void updateGui() override
 	{
 		if (!dynamic_cast<ModulatorSampler*>(getProcessor())->shouldUpdateUI()) return;
 
-		const ModulatorSampler::SamplerDisplayValues x = dynamic_cast<ModulatorSampler*>(getProcessor())->getSamplerDisplayValues();
+		getSampleEditHandler()->handleMidiSelection();
 
-		settingsPanel->updateGui();
-
-		sampleEditor->updateWaveform();
-
-		if(getProcessor()->getEditorState(ModulatorSampler::MidiSelectActive) && newKeysPressed(x.currentNotes))
-		{
-			selectedSamplerSounds.deselectAll();
-
-			SelectedItemSet<const ModulatorSamplerSound*> midiSounds;
-
-			ModulatorSampler *sampler = dynamic_cast<ModulatorSampler*>(getProcessor());
-
-			for(int i = 0; i < 127; i++)
-			{
-				if(x.currentNotes[i] != 0)
-				{
-					const int noteNumber = i;
-					const int velocity = x.currentNotes[i];
-
-					for(int j = 0; j < sampler->getNumSounds(); j++)
-					{
-						if (sampler->soundCanBePlayed(sampler->getSound(j), 1, noteNumber, (float)velocity / 127.0f))
-						{
-							selectedSamplerSounds.addToSelection(sampler->getSound(j));
-						}
-					}
-
-				}
-			}
-		}
-
-		soundTable->refreshList();
-
-		map->setPressedKeys(x.currentNotes);
-
-		map->updateSoundData();
-	};
-
-	struct SampleEditingActions
-	{
-		static void deleteSelectedSounds(SamplerBody *body);
-		static void duplicateSelectedSounds(SamplerBody *body);
-		static void removeDuplicateSounds(SamplerBody *body);
-		static void cutSelectedSounds(SamplerBody *body);
-		static void copySelectedSounds(SamplerBody *body);
-		static void automapVelocity(SamplerBody *body);
-		static void pasteSelectedSounds(SamplerBody *body);
-
-		static void checkMicPositionAmountBeforePasting(const ValueTree &v, ModulatorSampler * s);
-
-		static void refreshCrossfades(SamplerBody * body);
-		static void selectAllSamples(SamplerBody * body);
-		static void mergeIntoMultiSamples(SamplerBody * body);
-		static void extractToSingleMicSamples(SamplerBody * body);
-		static void normalizeSamples(SamplerBody *body);
-		static void automapUsingMetadata(SamplerBody * body, ModulatorSampler* sampler);
-		static void trimSampleStart(SamplerBody * body);
+		settingsPanel->updateInterface();
+		sampleEditor->updateInterface();
+		soundTable->updateInterface();
+		map->updateInterface();
 	};
 
 
@@ -165,12 +68,21 @@ public:
 	*
 	*	Since the SamplerBody itself is a ChangeBroadcaster for updateGui(), it has to use another callback
 	*/
-	void soundSelectionChanged();;
 
-	SelectedItemSet<WeakReference<ModulatorSamplerSound>> &getSelection()
+	void soundSelectionChanged(SampleSelection& newSelection) override
 	{
-		return selectedSamplerSounds;
+		sampleEditor->selectSounds(newSelection);
+
+		map->selectSounds(newSelection);
+
+		soundTable->selectSounds(newSelection);
 	}
+
+	SampleEditHandler* getSampleEditHandler()
+	{
+		return dynamic_cast<ModulatorSampler*>(getProcessor())->getSampleEditHandler();
+	}
+
 
 	int getBodyHeight() const override
 	{
@@ -181,57 +93,8 @@ public:
 		return h + (settingsHeight != 0 ? settingsPanel->getPanelHeight() : 0) + waveFormHeight + thisMapHeight + tableHeight;
 	};
 
-	void changeProperty(ModulatorSamplerSound *s, ModulatorSamplerSound::Property p, int delta)
-	{
-		const int v = s->getProperty(p);
 
-		s->setPropertyWithUndo(p, v + delta);
-	};
-
-	void moveSamples(SamplerSoundMap::Neighbour direction)
-	{
-		ModulatorSampler *s = dynamic_cast<ModulatorSampler*>(getProcessor());
-
-		s->getUndoManager()->beginNewTransaction("Moving Samples");
-
-		switch(direction)
-		{
-		case SamplerSoundMap::Right:
-		case SamplerSoundMap::Left:
-		{
-			for(int i = 0; i < selectedSamplerSounds.getNumSelected(); i++)
-			{
-				ModulatorSamplerSound *sound = selectedSamplerSounds.getSelectedItem(i);
-
-				if(direction == SamplerSoundMap::Right)
-				{
-					changeProperty(sound, ModulatorSamplerSound::KeyHigh, 1);
-					changeProperty(sound, ModulatorSamplerSound::KeyLow, 1);
-					changeProperty(sound, ModulatorSamplerSound::RootNote, 1);
-				}
-				else
-				{
-					changeProperty(sound, ModulatorSamplerSound::KeyLow, -1);
-					changeProperty(sound, ModulatorSamplerSound::KeyHigh, -1);
-					changeProperty(sound, ModulatorSamplerSound::RootNote, -1);
-				}
-			}
-			break;
-		}
-		case SamplerSoundMap::Up:
-		case SamplerSoundMap::Down:
-		{
-			for(int i = 0; i < selectedSamplerSounds.getNumSelected(); i++)
-			{
-				ModulatorSamplerSound *sound = selectedSamplerSounds.getSelectedItem(i);
-
-				changeProperty(sound, ModulatorSamplerSound::VeloHigh, direction == SamplerSoundMap::Up ? 1 : -1);
-				changeProperty(sound, ModulatorSamplerSound::VeloLow, direction == SamplerSoundMap::Up ? 1 : -1);
-			}
-			break;
-		}
-		}
-	}
+	
 
 	bool keyPressed(const KeyPress &k) override
 	{
@@ -266,34 +129,34 @@ public:
 				return true;
 			}
 		}
-		if(k.getKeyCode() == KeyPress::leftKey)
+		if (k.getKeyCode() == KeyPress::leftKey)
 		{
-			if(k.getModifiers().isCommandDown())
-				moveSamples(SamplerSoundMap::Left);
+			if (k.getModifiers().isCommandDown())
+				getSampleEditHandler()->moveSamples(SamplerSoundMap::Left);
 			else
 				map->getMapComponent()->selectNeighbourSample(SamplerSoundMap::Left);
 			return true;
 		}
 		else if (k.getKeyCode() == KeyPress::rightKey)
 		{
-			if(k.getModifiers().isCommandDown())
-				moveSamples(SamplerSoundMap::Right);
+			if (k.getModifiers().isCommandDown())
+				getSampleEditHandler()->moveSamples(SamplerSoundMap::Right);
 			else
 				map->getMapComponent()->selectNeighbourSample(SamplerSoundMap::Right);
 			return true;
 		}
 		else if (k.getKeyCode() == KeyPress::upKey)
 		{
-			if(k.getModifiers().isCommandDown())
-				moveSamples(SamplerSoundMap::Up);
+			if (k.getModifiers().isCommandDown())
+				getSampleEditHandler()->moveSamples(SamplerSoundMap::Up);
 			else
 				map->getMapComponent()->selectNeighbourSample(SamplerSoundMap::Up);
 			return true;
 		}
-		else if( k.getKeyCode() == KeyPress::downKey)
+		else if (k.getKeyCode() == KeyPress::downKey)
 		{
-			if(k.getModifiers().isCommandDown())
-				moveSamples(SamplerSoundMap::Down);
+			if (k.getModifiers().isCommandDown())
+				getSampleEditHandler()->moveSamples(SamplerSoundMap::Down);
 			else
 				map->getMapComponent()->selectNeighbourSample(SamplerSoundMap::Down);
 			return true;
@@ -320,14 +183,13 @@ private:
 	int tableHeight;
 
 	bool internalChange;
+	uint32 timeSinceLastSelectionChange = 0;
 
-	SelectedItemSet<WeakReference<ModulatorSamplerSound>> selectedSamplerSounds;
-
+#if SAMPLER_DEPRECATED
 	ScopedPointer<SelectionListener> selectionListener;
+#endif
 
 	ChainBarButtonLookAndFeel cblaf;
-
-	uint32 timeSinceLastSelectionChange;
 
     //[/UserVariables]
 

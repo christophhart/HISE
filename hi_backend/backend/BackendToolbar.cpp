@@ -35,7 +35,7 @@ ToolbarItemComponent * MainToolbarFactory::createItem(int itemId)
 	ToolbarButton *b = new ToolbarButton(itemId, "", MainToolbarPaths::createPath(itemId, false),
 												 MainToolbarPaths::createPath(itemId, true));
 	
-	b->setCommandToTrigger(dynamic_cast<MainController*>(editor->getAudioProcessor())->getCommandManager(), itemId, true);
+	b->setCommandToTrigger(dynamic_cast<MainController*>(editor->getBackendProcessor())->getCommandManager(), itemId, true);
 
 	return b;
 }
@@ -61,17 +61,14 @@ void MainToolbarFactory::getAllToolbarItemIds(Array<int> &ids)
 		BackendProcessorEditor::Settings
 	};
 #else
-    const CommandID id[] = { BackendProcessorEditor::ModulatorList,
+    const CommandID id[] = { 
         BackendCommandTarget::MenuViewShowPluginPopupPreview,
-        //BackendProcessorEditor::DebugPanel,
-        //BackendProcessorEditor::ViewPanel,
-        //BackendProcessorEditor::Mixer,
-        BackendProcessorEditor::Macros,
-        BackendProcessorEditor::Keyboard,
+        BackendCommandTarget::Macros,
+        BackendCommandTarget::Keyboard,
 		ToolbarItemFactory::spacerId,
 		BackendCommandTarget::MenuViewBack,
 		BackendCommandTarget::MenuViewForward,
-        BackendProcessorEditor::Settings
+        BackendCommandTarget::Settings
     };
 #endif
     
@@ -96,7 +93,7 @@ Drawable *MainToolbarFactory::MainToolbarPaths::createPath(int id, bool isOn)
 
 		break;
 		}
-	case BackendProcessorEditor::ModulatorList:
+	case BackendCommandTarget::ModulatorList:
 		{
 			path.loadPathFromData (BackendBinaryData::ToolbarIcons::modulatorList, sizeof (BackendBinaryData::ToolbarIcons::modulatorList));
 
@@ -104,35 +101,35 @@ Drawable *MainToolbarFactory::MainToolbarPaths::createPath(int id, bool isOn)
 
 		}
 
-	case BackendProcessorEditor::ViewPanel:
+	case BackendCommandTarget::ViewPanel:
 		{
 		
 		path.loadPathFromData (BackendBinaryData::ToolbarIcons::viewPanel, sizeof (BackendBinaryData::ToolbarIcons::viewPanel));
 		break;
 		}
-	case BackendProcessorEditor::Mixer:
+	case BackendCommandTarget::Mixer:
 		{
 		path.loadPathFromData (BackendBinaryData::ToolbarIcons::mixer, sizeof (BackendBinaryData::ToolbarIcons::mixer));
 		break;
 
 		}
-	case BackendProcessorEditor::Keyboard:
+	case BackendCommandTarget::Keyboard:
 		{
 		path.loadPathFromData (BackendBinaryData::ToolbarIcons::keyboard, sizeof (BackendBinaryData::ToolbarIcons::keyboard));
 		break;
 
 		}
-	case BackendProcessorEditor::DebugPanel:
+	case BackendCommandTarget::DebugPanel:
 		{
 		path.loadPathFromData (BackendBinaryData::ToolbarIcons::debugPanel, sizeof (BackendBinaryData::ToolbarIcons::debugPanel));
 		break;
 		}
-	case BackendProcessorEditor::Settings:
+	case BackendCommandTarget::Settings:
 		{
 			path.loadPathFromData (BackendBinaryData::ToolbarIcons::settings, sizeof (BackendBinaryData::ToolbarIcons::settings));
 		break;
 		}
-	case BackendProcessorEditor::Macros:
+	case BackendCommandTarget::Macros:
 		{
 			path.loadPathFromData (BackendBinaryData::ToolbarIcons::macros, sizeof (BackendBinaryData::ToolbarIcons::macros));
 		break;
@@ -189,7 +186,7 @@ Drawable *MainToolbarFactory::MainToolbarPaths::createPath(int id, bool isOn)
 	
 	DrawablePath *p = new DrawablePath();
 
-    p->setFill(FillType(!isOn ? Colour(BACKEND_ICON_COLOUR_ON) : Colour(BACKEND_ICON_COLOUR_OFF)));
+	p->setFill(FillType(!isOn ? Colours::white.withAlpha(0.8f) : Colours::white.withAlpha(0.2f)));
 	p->setPath(path);
 
 	return p;	

@@ -37,7 +37,6 @@
 
 // Macros for DynamicObject objects
 
-#define RETURN_STATIC_IDENTIFIER(name) static const Identifier id(name); return id;
 
 #define SET_MODULE_NAME(x) static Identifier getName() {static const Identifier id(x); return id; };
 

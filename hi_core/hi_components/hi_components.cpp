@@ -56,3 +56,6 @@
 #include "eq_plot/FilterInfo.cpp"
 #include "eq_plot/FilterGraph.cpp"
 #include "eq_plot/EqComponent.cpp"
+
+
+#include "floating_layout/FloatingLayout.cpp"

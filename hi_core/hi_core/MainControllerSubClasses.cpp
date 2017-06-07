@@ -326,6 +326,101 @@ void MainController::UserPresetHandler::loadPresetInternal()
 }
 
 
+MainController::CodeHandler::CodeHandler(MainController* mc_):
+	mc(mc_)
+{
+
+}
+
+
+
+
+void MainController::CodeHandler::writeToConsole(const String &t, int warningLevel, const Processor *p, Colour c)
+{
+	if (overflowProtection) return;
+
+	else
+	{
+		ScopedLock sl(getLock());
+
+		if (unprintedMessages.size() > 10)
+		{
+			unprintedMessages.push_back(ConsoleMessage(Error, const_cast<Processor*>(p), "Console Overflow"));
+			overflowProtection = true;
+			return;
+		}
+		else
+		{
+			unprintedMessages.push_back(ConsoleMessage((WarningLevel)warningLevel, const_cast<Processor*>(p), t));
+		}
+	}
+
+	if (MessageManager::getInstance()->isThisTheMessageThread())
+	{
+		handleAsyncUpdate();
+	}
+	else
+	{
+		triggerAsyncUpdate();
+	}
+}
+
+
+void MainController::CodeHandler::handleAsyncUpdate()
+{
+	consoleData.clearUndoHistory();
+
+
+	if (clearFlag)
+	{
+		consoleData.clearUndoHistory();
+		consoleData.replaceAllContent({});
+		clearFlag = false;
+	}
+
+	std::vector<ConsoleMessage> messagesForThisTime;
+	messagesForThisTime.reserve(10);
+
+	if (unprintedMessages.size() != 0)
+	{
+		ScopedLock sl(getLock());
+		messagesForThisTime.swap(unprintedMessages);
+	}
+	else return;
+
+	String message;
+
+	for (size_t i = 0; i < messagesForThisTime.size(); i++)
+	{
+		const Processor* processor = std::get<(int)ConsoleMessageItems::Processor>(messagesForThisTime[i]).get();
+
+		if (processor == nullptr)
+		{
+			jassertfalse;
+			continue;
+		}
+
+		message << processor->getId() << ":";
+		message << (std::get<(int)ConsoleMessageItems::WarningLevel>(messagesForThisTime[i]) == WarningLevel::Error ? "! " : " ");
+		message << std::get<(int)ConsoleMessageItems::Message>(messagesForThisTime[i]) << "\n";
+	}
+
+	consoleData.insertText(consoleData.getNumCharacters(), message);
+
+	overflowProtection = false;
+
+	if (getMainConsole() != nullptr)
+	{
+		auto rootWindow = mainConsole->findParentComponentOfClass<BackendRootWindow>();
+		
+		if (rootWindow != nullptr)
+		{
+			BackendPanelHelpers::toggleVisibilityForRightColumnPanel<ConsolePanel>(rootWindow->getRootFloatingTile(), true);
+		}
+	}
+}
+
+
 MainController::EventIdHandler::EventIdHandler(HiseEventBuffer& masterBuffer_) :
 	masterBuffer(masterBuffer_),
 	currentEventId(1)

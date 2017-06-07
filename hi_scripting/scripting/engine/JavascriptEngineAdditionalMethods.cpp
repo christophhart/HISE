@@ -450,7 +450,12 @@ void HiseJavascriptEngine::RootObject::HiseSpecialData::createDebugInformation(D
 	{
 		InlineFunction::Object *o = dynamic_cast<InlineFunction::Object*>(inlineFunctions.getUnchecked(i).get());
 
-		debugInformation.add(new DebugableObjectInformation(o, o->name, DebugInformation::Type::InlineFunction));
+		auto inlineDebugInfo = new DebugableObjectInformation(o, o->name, DebugInformation::Type::InlineFunction);
+
+		inlineDebugInfo->location.fileName = o->location.fileName;
+		inlineDebugInfo->location.charNumber = o->location.charNumber;
+
+		debugInformation.add(inlineDebugInfo);
 	}
 
 #if JUCE_IOS

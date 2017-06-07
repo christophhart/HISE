@@ -329,11 +329,13 @@ public:
 		scaled ///< the domain is scaled with a given Range<int> object
 	};
 
+	SET_GENERIC_PANEL_ID("TableEditor");
+
 	/** Creates a editor for an existing table.
 	*
 	*	The lifetime of the table must be longer than the editor's lifetime.
 	*/
-	explicit TableEditor(Table *tableToBeEdited);
+	explicit TableEditor(Table *tableToBeEdited=nullptr);
 
 	~TableEditor();
 
@@ -669,6 +671,8 @@ private:
 	Range<int> domainRange;
 
 	WeakReference<Table> editedTable;
+
+	MidiTable dummyTable;
 
 	WeakReference<Processor> connectedProcessor;
 

@@ -48,10 +48,15 @@ isPopupMode(false)
 	addAndMakeVisible(panel = new ProcessorEditorPanel(this));
 	addAndMakeVisible(chainBar = new ProcessorEditorChainBar(this));
 
+	header->addMouseListener(this, false);
+	body->addMouseListener(this, false);
+
     setOpaque(true);
 	
 
 	setSize(ProcessorEditorContainer::getWidthForIntendationLevel(intendationLevel), getActualHeight());
+
+	setInterceptsMouseClicks(true, true);
 
 	header->update();
 	body->updateGui();
@@ -538,10 +543,7 @@ void ProcessorEditorPanel::removeProcessorEditor(Processor *p)
 
 	refreshSize();
 
-	findParentComponentOfClass<BackendProcessorEditor>()->rebuildModuleList(false);
-
-	
-
+	findParentComponentOfClass<BackendRootWindow>()->sendRootContainerRebuildMessage(false);
 }
 
 int ProcessorEditorPanel::getHeightOfAllEditors() const

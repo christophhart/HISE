@@ -777,11 +777,11 @@ void ModulatorSynth::numDestinationChannelsChanged()
 	}
 }
 
-void ModulatorSynth::setBypassed(bool shouldBeBypassed) noexcept
+void ModulatorSynth::setBypassed(bool shouldBeBypassed, NotificationType notifyChangeHandler) noexcept
 {
 	ScopedLock sl(getSynthLock());
 
-	Processor::setBypassed(shouldBeBypassed);
+	Processor::setBypassed(shouldBeBypassed, notifyChangeHandler);
 
 	midiProcessorChain->sendAllNoteOffEvent();
 

@@ -30,11 +30,11 @@
 *   ===========================================================================
 */
 
-ApiCollection::ApiCollection(BaseDebugArea *area) :
-SearchableListComponent(area),
-parentArea(area),
+ApiCollection::ApiCollection(BackendRootWindow* window) :
+SearchableListComponent(window),
 apiTree(ValueTree(ValueTree::readFromData(XmlApi::apivaluetree_dat, XmlApi::apivaluetree_datSize)))
 {
+	setOpaque(true);
 	setName("API Browser");
 
 	setFuzzyness(0.6);
@@ -76,11 +76,13 @@ void ApiCollection::MethodItem::insertIntoCodeEditor()
 {
 	ApiCollection *parent = findParentComponentOfClass<ApiCollection>();
 
-	parent->parentArea->findParentComponentOfClass<BackendProcessorEditor>()->getMainSynthChain()->getMainController()->insertStringAtLastActiveEditor(className + "." + name + arguments, arguments != "()");
+	parent->getRootWindow()->getMainSynthChain()->getMainController()->insertStringAtLastActiveEditor(className + "." + name + arguments, arguments != "()");
 }
 
 void ApiCollection::MethodItem::paint(Graphics& g)
 {
+	if (getWidth() <= 0)
+		return;
 
 	Colour c(0xFF000000);
 

@@ -126,8 +126,10 @@ public:
 		
 	};
 
+	SET_GENERIC_PANEL_ID("ArrayEditor");
+
 	/** Creates a new SliderPack. */
-	SliderPack(SliderPackData *data);
+	SliderPack(SliderPackData *data=nullptr);
 
 	~SliderPack();
 
@@ -184,6 +186,8 @@ public:
 	void setValuesFromLine();
 	int getNumSliders();
 private:
+
+	SliderPackData dummyData;
 
 	Array<WeakReference<Listener>> listeners;
 

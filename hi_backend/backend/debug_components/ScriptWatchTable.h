@@ -49,7 +49,6 @@ class ScriptingEditor;
 class ScriptWatchTable      : public Component,
 public TableListBoxModel,
 public Timer,
-public AutoPopupDebugComponent,
 public TextEditor::Listener,
 public GlobalScriptCompileListener
 {
@@ -72,8 +71,10 @@ public:
 		numRefreshEvents
 	};
 
-    ScriptWatchTable(MainController *controller, BaseDebugArea *area) ;
+    ScriptWatchTable(BackendRootWindow *window) ;
     
+	SET_GENERIC_PANEL_ID("ScriptWatchTable");
+
     ~ScriptWatchTable();
     
     void timerCallback();
@@ -118,13 +119,11 @@ private:
     BigInteger changed;
     MainController *controller;
     WeakReference<Processor> processor;
-    Component::SafePointer<ScriptingEditor> editor;
+    
     ScopedPointer<TableListBox> table;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptWatchTable);
 };
-
-
 
 
 class HiPropertyComponent: public SafeChangeBroadcaster
@@ -301,23 +300,26 @@ public:
 
 class ScriptComponentEditPanel: public Component,
 								public SafeChangeListener,
-								public SliderListener,
-								public AutoPopupDebugComponent
+								public SliderListener
 {
 
 public:
 
 	
-	ScriptComponentEditPanel(BaseDebugArea *area);
+	ScriptComponentEditPanel(BackendRootWindow* rootWindow);
 
     ~ScriptComponentEditPanel()
     {
+		mc->addScriptComponentEditPanel(nullptr);
+
         listeners.clear();
         editedComponent = nullptr;
         panel = nullptr;
         codeDragger = nullptr;
     }
     
+	SET_GENERIC_PANEL_ID("InterfacePropertyEditor");
+
 	void addListener(ScriptComponentEditListener *listener)
 	{
 		listeners.addIfNotAlreadyThere(listener);
@@ -599,6 +601,8 @@ private:
 
 	ReferenceCountedObjectPtr<ReferenceCountedObject> editedComponent;
 
+
+	MainController* mc;
 
 };
 

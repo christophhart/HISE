@@ -561,12 +561,19 @@ void ComboBox::showPopup()
 
 	addItemsToMenu(currentMenu);
 
-    currentMenu.showMenuAsync (PopupMenu::Options().withTargetComponent (this)
-                                            .withItemThatMustBeVisible (getSelectedId())
-                                            .withMinimumWidth (getWidth())
-                                            .withMaximumNumColumns (1)
-                                            .withStandardItemHeight (label->getHeight()),
-                        ModalCallbackFunction::forComponent (comboBoxPopupMenuFinishedCallback, this));
+	if (currentMenu.getNumItems() > 0)
+	{
+		currentMenu.showMenuAsync(PopupMenu::Options().withTargetComponent(this)
+			.withItemThatMustBeVisible(getSelectedId())
+			.withMinimumWidth(getWidth())
+			.withMaximumNumColumns(1)
+			.withStandardItemHeight(label->getHeight()),
+			ModalCallbackFunction::forComponent(comboBoxPopupMenuFinishedCallback, this));
+	}
+	else
+	{
+		menuActive = false;
+	}
 }
 
 //==============================================================================
