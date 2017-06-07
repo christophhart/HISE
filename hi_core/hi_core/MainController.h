@@ -582,8 +582,16 @@ public:
 
 	void setLastActiveEditor(CodeEditorComponent *editor, CodeDocument::Position position)
 	{
+		auto old = lastActiveEditor;
+
 		lastActiveEditor = editor;
 		lastCharacterPositionOfSelectedEditor = position.getPosition();
+
+		if (old != nullptr)
+			old->repaint();
+
+		if (lastActiveEditor != nullptr)
+			lastActiveEditor->repaint();
 	}
 
 	CodeEditorComponent* getLastActiveEditor()

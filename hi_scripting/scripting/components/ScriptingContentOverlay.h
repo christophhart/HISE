@@ -172,6 +172,16 @@ public:
 
 		void resizeOverlayedComponent(int deltaX, int deltaY);
 
+		void undo()
+		{
+			undoManager.undo();
+		}
+
+		void redo()
+		{
+			undoManager.redo();
+		}
+
 		bool keyPressed(const KeyPress &key) override
 		{
 			if (currentlyDraggedComponent == nullptr) return false;

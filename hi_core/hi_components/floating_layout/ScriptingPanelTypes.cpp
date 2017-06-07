@@ -284,8 +284,14 @@ namespace EditorIcons
 	static const unsigned char compileIcon[] = { 110,109,0,0,22,67,15,2,192,67,108,0,0,27,67,54,88,195,67,98,0,0,27,67,54,88,195,67,110,3,35,67,195,174,188,67,0,0,37,67,232,171,188,67,98,0,0,37,67,232,171,188,67,110,99,39,67,232,171,188,67,0,0,42,67,232,171,188,67,98,183,253,39,67,232,171,188,67,0,
 		0,27,67,93,174,198,67,0,0,27,67,93,174,198,67,108,0,0,17,67,15,2,192,67,99,101,0,0 };
 
-	static const unsigned char cancelIcon[] = { 110,109,0,0,62,67,93,174,188,67,108,0,0,67,67,166,104,192,67,108,0,0,62,67,239,34,196,67,108,0,0,67,67,239,34,196,67,108,0,0,70,67,93,230,193,67,108,0,0,73,67,239,34,196,67,108,0,0,78,67,239,34,196,67,108,0,0,73,67,166,104,192,67,108,0,0,78,67,93,174,
-		188,67,108,0,0,73,67,93,174,188,67,108,0,0,70,67,203,169,191,67,108,0,0,67,67,93,174,188,67,99,101,0,0 };
+	static const unsigned char cancelIcon[] = { 110,109,116,110,45,66,184,32,152,67,108,215,146,59,66,43,92,150,67,108,0,0,102,66,208,169,155,67,108,148,54,136,66,43,92,150,67,108,198,72,143,66,184,32,152,67,108,99,36,116,66,93,110,157,67,108,198,72,143,66,2,188,162,67,108,148,54,136,66,143,128,164,
+		67,108,0,0,102,66,233,50,159,67,108,215,146,59,66,142,128,164,67,108,116,110,45,66,2,188,162,67,108,157,219,87,66,93,110,157,67,99,101,0,0 };
+
+	static const unsigned char undoIcon[] = { 110,109,0,93,96,67,64,87,181,67,98,169,116,87,67,119,74,181,67,238,53,75,67,247,66,184,67,128,173,59,67,64,229,191,67,108,0,0,47,67,64,46,186,67,108,0,0,47,67,64,174,203,67,108,0,0,82,67,64,174,203,67,108,0,86,71,67,128,123,197,67,98,221,255,111,67,79,
+		174,178,67,128,164,101,67,210,215,207,67,128,228,102,67,64,179,210,67,98,201,215,119,67,101,133,198,67,205,117,117,67,136,117,181,67,0,93,96,67,64,87,181,67,99,101,0,0 };
+
+	static const unsigned char redoIcon[] = { 110,109,90,186,64,67,64,87,181,67,98,176,162,73,67,118,74,181,67,108,225,85,67,247,66,184,67,218,105,101,67,64,229,191,67,108,90,23,114,67,64,46,186,67,108,90,23,114,67,64,174,203,67,108,90,23,79,67,64,174,203,67,108,90,193,89,67,128,123,197,67,98,125,
+		23,49,67,79,174,178,67,218,114,59,67,211,215,207,67,218,50,58,67,64,179,210,67,98,145,63,41,67,101,133,198,67,141,161,43,67,136,117,181,67,90,186,64,67,64,87,181,67,99,101,0,0 };
 };
 
 
@@ -316,6 +322,9 @@ ScriptContentPanel::Editor::Editor(Processor* p)
 
 	addAndMakeVisible(cancelButton = new HiseShapeButton("Cancel", this, ColumnIcons::getPath(EditorIcons::cancelIcon, sizeof(EditorIcons::cancelIcon))));
 
+	addAndMakeVisible(undoButton = new HiseShapeButton("Undo", this, ColumnIcons::getPath(EditorIcons::undoIcon, sizeof(EditorIcons::undoIcon))));
+
+	addAndMakeVisible(redoButton = new HiseShapeButton("Redo", this, ColumnIcons::getPath(EditorIcons::redoIcon, sizeof(EditorIcons::redoIcon))));
 
 	addAndMakeVisible(viewport = new Viewport());
 
@@ -327,20 +336,29 @@ void ScriptContentPanel::Editor::resized()
 {
 	int x = 4;
 	
-	zoomSelector->setBounds(x, 2, 80, 20);
-
-	x = zoomSelector->getRight() + 8;
-
 	editSelector->setBounds(x, 2, 20, 20);
 
 	x = editSelector->getRight() + 8;
 
 	compileButton->setBounds(x, 2, 20, 20);
 
+	x = compileButton->getRight() + 8;
+
+	cancelButton->setBounds(x, 2, 20, 20);
+
+	x = cancelButton->getRight() + 16;
+
+	zoomSelector->setBounds(x, 2, 80, 20);
+
+	x = zoomSelector->getRight() + 8;
+
+	undoButton->setBounds(x, 2, 20, 20);
+
+	x = undoButton->getRight() + 8;
+
+	redoButton->setBounds(x, 2, 20, 20);
+
 	viewport->setBounds(getLocalBounds().withTrimmedTop(24));
-
-
-	
 
 }
 
@@ -362,7 +380,20 @@ void ScriptContentPanel::Editor::buttonClicked(Button* b)
 	}
 	if (b == compileButton)
 	{
-		//content->getScriptProcessor()->compileScript();
+		dynamic_cast<JavascriptProcessor*>(findParentComponentOfClass<PanelWithProcessorConnection>()->getConnectedProcessor())->compileScript();
+		findParentComponentOfClass<PanelWithProcessorConnection>()->getConnectedProcessor()->getMainController()->setEditedScriptComponent(nullptr, dynamic_cast<Canvas*>(viewport->getViewedComponent()));
+	}
+	if (b == cancelButton)
+	{
+		findParentComponentOfClass<PanelWithProcessorConnection>()->getConnectedProcessor()->getMainController()->setEditedScriptComponent(nullptr, dynamic_cast<Canvas*>(viewport->getViewedComponent()));
+	}
+	if (b == undoButton)
+	{
+		overlay->dragger->undo();
+	}
+	if (b == redoButton)
+	{
+		overlay->dragger->redo();
 	}
 }
 

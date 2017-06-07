@@ -180,6 +180,9 @@ public:
 		ScopedPointer<HiseShapeButton> compileButton;
 		ScopedPointer<HiseShapeButton> cancelButton;
 
+		ScopedPointer<HiseShapeButton> undoButton;
+		ScopedPointer<HiseShapeButton> redoButton;
+
 		ScopedPointer<Viewport> viewport;
 	};
 
