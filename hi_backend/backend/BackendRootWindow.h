@@ -85,6 +85,17 @@ public:
 
 	void showWorkspace(int workspace);
 
+	MainTopBar* getMainTopBar()
+	{
+		FloatingTile::Iterator<MainTopBar> iter(getRootFloatingTile());
+
+		auto bar = iter.getNextPanel();
+
+		jassert(bar != nullptr);
+
+		return bar;
+	}
+
 private:
 
 	int currentWorkspace = BackendCommandTarget::WorkspaceMain;

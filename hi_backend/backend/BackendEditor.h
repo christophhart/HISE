@@ -292,8 +292,6 @@ private:
 	ScopedPointer<ProcessorEditor> popupEditor;
 	ScopedPointer<StupidRectangle> stupidRectangle;
 	
-	ScopedPointer<AboutPage> aboutPage;
-
 	ScopedPointer<BreadcrumbComponent> breadCrumbComponent;
 
 	ScopedPointer<PluginPreviewWindow> previewWindow;
@@ -314,6 +312,7 @@ public:
 	
 	enum class PopupType
 	{
+		About,
 		Macro,
 		PluginPreview,
 		Settings,
@@ -347,6 +346,8 @@ public:
 
 	void togglePopup(PopupType t, bool shouldShow);
 
+	
+
 private:
 
 	Rectangle<int> frontendArea;
@@ -354,6 +355,8 @@ private:
 
 	ScopedPointer<TooltipBar> tooltipBar;
 	ScopedPointer<VoiceCpuBpmComponent> voiceCpuBpmComponent;
+
+	ScopedPointer<ImageButton> hiseButton;
 
 	ScopedPointer<ShapeButton> backButton;
 	ScopedPointer<ShapeButton> forwardButton;

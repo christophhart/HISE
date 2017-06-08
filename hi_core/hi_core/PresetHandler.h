@@ -97,13 +97,7 @@ public:
 
 	void buttonClicked(Button *b) override;
 
-	void mouseDown(const MouseEvent &) override
-	{
-
-		Desktop::getInstance().getAnimator().fadeOut(this, 400);
-
-		setVisible(false);
-	}
+	void mouseDown(const MouseEvent &) override;
 
 
 	void resized() override
@@ -113,11 +107,6 @@ public:
 #if USE_BACKEND
 		//checkUpdateButton->setBounds(16, getHeight() - 32, 100, 24);
 #endif
-	}
-
-	void showAboutPage()
-	{
-		Desktop::getInstance().getAnimator().fadeIn(this, 400);
 	}
 
 	void paint(Graphics &g) override;

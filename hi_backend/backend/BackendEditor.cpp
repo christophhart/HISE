@@ -50,8 +50,6 @@ rootEditorIsMainSynthChain(true)
 	
 	addChildComponent(debugLoggerWindow = new DebugLoggerComponent(&owner->getDebugLogger()));
 
-	addAndMakeVisible(aboutPage = new AboutPage());
-	
 	viewport->viewport->setScrollBarThickness(SCROLLBAR_WIDTH);
 	viewport->viewport->setSingleStepSizes(0, 6);
 
@@ -59,8 +57,6 @@ rootEditorIsMainSynthChain(true)
 
 	owner->addScriptListener(this);
 
-	aboutPage->setVisible(false);
-	aboutPage->setBoundsInset(BorderSize<int>(80));
 };
 
 BackendProcessorEditor::~BackendProcessorEditor()
@@ -72,8 +68,6 @@ BackendProcessorEditor::~BackendProcessorEditor()
 
 	popupEditor = nullptr;
 	stupidRectangle = nullptr;
-	
-	aboutPage = nullptr;
 	
 	// Remove the toolbar stuff
 
@@ -171,8 +165,6 @@ void BackendProcessorEditor::setViewportPositions(int viewportX, const int viewp
 
 	viewport->setVisible(containerHeight > 0);
 	viewport->setBounds(viewportX, viewportY, getWidth()-viewportX, containerHeight); // Overlap with the fade
-
-	aboutPage->setBounds(viewportX, viewportY, viewportWidth, viewportHeight);
 
 	if (currentPopupComponent != nullptr)
 	{
@@ -438,6 +430,14 @@ void BackendProcessorEditor::clearModuleList()
 MainTopBar::MainTopBar(FloatingTile* parent) :
 	FloatingTileContent(parent)
 {
+	addAndMakeVisible(hiseButton = new ImageButton("HISE"));
+
+	Image hise = ImageCache::getFromMemory(BinaryData::logo_mini_png, BinaryData::logo_mini_pngSize);
+	
+
+	hiseButton->setImages(false, true, true, hise, 0.9f, Colour(0), hise, 1.0f, Colours::white.withAlpha(0.1f), hise, 1.0f, Colours::white.withAlpha(0.1f), 0.1f);
+	hiseButton->setCommandToTrigger(getRootWindow()->getBackendProcessor()->getCommandManager(), BackendCommandTarget::MenuHelpShowAboutPage, true);
+
 	addAndMakeVisible(backButton = new ShapeButton("Back", Colours::white.withAlpha(0.4f), Colours::white.withAlpha(0.8f), Colours::white));
 	ScopedPointer<DrawablePath> bPath = dynamic_cast<DrawablePath*>(MainToolbarFactory::MainToolbarPaths::createPath(BackendCommandTarget::MenuViewBack, true));
 	backButton->setShape(bPath->getPath(), false, true, true);
@@ -824,6 +824,8 @@ void MainTopBar::paint(Graphics& g)
 {
 	//g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourId));
 
+	
+
 	Colour c1 = JUCE_LIVE_CONSTANT_OFF(Colour(0xFF424242));
 	Colour c2 = JUCE_LIVE_CONSTANT_OFF(Colour(0xFF404040));
 
@@ -871,11 +873,21 @@ void MainTopBar::resized()
 
 	int x = 10;
 
-	backButton->setBounds(x, (getHeight()-32)/2, 24, 24);
+	const int hiseButtonSize = 40;
+	const int hiseButtonOffset = (getHeight() - hiseButtonSize) / 2;
+
+	hiseButton->setBounds(hiseButtonOffset, hiseButtonOffset, hiseButtonSize, hiseButtonSize);
+
+	x = hiseButton->getRight() + 10;
+
+	const int backButtonSize = 24;
+	const int backButtonOffset = (getHeight() - backButtonSize) / 2;
+
+	backButton->setBounds(x, backButtonOffset, backButtonSize, backButtonSize);
 
 	x = backButton->getRight() + 4;
 
-	forwardButton->setBounds(x, (getHeight() - 32) / 2, 24, 24);
+	forwardButton->setBounds(x, backButtonOffset, backButtonSize, backButtonSize);
 
 	const int leftX = forwardButton->getRight() + 4;
 
@@ -964,6 +976,18 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 
 	switch (t)
 	{
+	case MainTopBar::PopupType::About:
+	{
+		c = new AboutPage();
+		
+		c->setSize(500, 300);
+
+		button = hiseButton;
+
+		hiseButton->setToggleState(!hiseButton->getToggleState(), dontSendNotification);
+
+		break;
+	}
 	case MainTopBar::PopupType::Macro:
 	{
 		c = new MacroComponent(getRootWindow());

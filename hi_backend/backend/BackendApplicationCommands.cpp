@@ -1216,7 +1216,9 @@ void BackendCommandTarget::Actions::checkDuplicateIds(BackendRootWindow *bpe)
 
 void BackendCommandTarget::Actions::showAboutPage(BackendRootWindow * bpe)
 {
-	bpe->mainEditor->aboutPage->showAboutPage();
+	bpe->getMainTopBar()->togglePopup(MainTopBar::PopupType::About, true);
+
+	//bpe->mainEditor->aboutPage->showAboutPage();
 }
 
 void BackendCommandTarget::Actions::checkVersion(BackendRootWindow *bpe)
