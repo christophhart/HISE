@@ -94,15 +94,15 @@ void StreamingSamplerSound::setReversed(bool shouldBeReversed)
 {
 	if (reversed != shouldBeReversed)
 	{
-		reversed = shouldBeReversed;
-
-		if (reversed)
+		if (shouldBeReversed)
 		{
 			loadEntireSample();
 			preloadBuffer.reverse(0, preloadBuffer.getNumSamples());
+			reversed = true;
 		}
 		else
 		{
+			reversed = false;
 			setPreloadSize(preloadSize, true);
 		}
 	}
@@ -110,6 +110,11 @@ void StreamingSamplerSound::setReversed(bool shouldBeReversed)
 
 void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 {
+	if (reversed)
+	{
+		return;
+	}
+
 	const bool preloadSizeChanged = preloadSize == newPreloadSize;
     const bool streamingDeactivated = newPreloadSize == -1 && entireSampleLoaded;
     

@@ -79,6 +79,9 @@ void SoundPreloadThread::run()
 
 	debugToConsole(sampler, "Changing preload size to " + String(preloadSize) + " samples");
 
+	const bool isReversed = sampler->getAttribute(ModulatorSampler::Reversed) > 0.5f;
+
+	
 	for(int i = 0; i < numSoundsToPreload; ++i)
 	{
         if(threadShouldExit()) break;
@@ -89,11 +92,12 @@ void SoundPreloadThread::run()
 
 		sampler->getSound(i)->checkFileReference();
 
+		
+
 		if (sampler->getNumMicPositions() == 1)
 		{
 			StreamingSamplerSound *s = sampler->getSound(i)->getReferenceToSound();
 			preloadSample(s, preloadSize, i);
-
 		}
 		else
 		{
@@ -123,6 +127,7 @@ void SoundPreloadThread::run()
 			}
 		}
 
+		sampler->getSound(i)->setReversed(isReversed);
 	}
 
 	sampler->setBypassed(wasBypassed);

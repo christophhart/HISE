@@ -226,6 +226,8 @@ void ModulatorSampler::restoreFromValueTree(const ValueTree &v)
 	 // Macro does not support correct default value!
 	setVoiceAmount(v.getProperty("VoiceAmount", voiceAmount));
 	
+	loadAttribute(Reversed, "Reversed");
+
 	loadAttribute(SamplerRepeatMode, "SamplerRepeatMode");
 	loadAttribute(Purged, "Purged");
 
@@ -260,6 +262,7 @@ ValueTree ModulatorSampler::exportAsValueTree() const
 	saveAttribute(OneShot, "OneShot");
 	saveAttribute(CrossfadeGroups, "CrossfadeGroups");
 	saveAttribute(Purged, "Purged");
+	saveAttribute(Reversed, "Reversed");
 	v.setProperty("NumChannels", numChannels, nullptr);
 
 	ValueTree channels("channels");
