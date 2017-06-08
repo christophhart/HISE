@@ -178,6 +178,7 @@ struct ScriptingObjects::ScriptingModulator::Wrapper
     API_METHOD_WRAPPER_1(ScriptingModulator, getAttribute);
 	API_VOID_METHOD_WRAPPER_1(ScriptingModulator, setBypassed);
 	API_VOID_METHOD_WRAPPER_1(ScriptingModulator, setIntensity);
+	API_METHOD_WRAPPER_0(ScriptingModulator, getCurrentLevel);
 	API_METHOD_WRAPPER_0(ScriptingModulator, exportState);
 	API_VOID_METHOD_WRAPPER_1(ScriptingModulator, restoreState);
 };
@@ -209,6 +210,7 @@ m(nullptr)
 	ADD_API_METHOD_1(setBypassed);
 	ADD_API_METHOD_1(setIntensity);
     ADD_API_METHOD_1(getAttribute);
+	ADD_API_METHOD_0(getCurrentLevel);
 	ADD_API_METHOD_0(exportState);
 	ADD_API_METHOD_1(restoreState);
 }
@@ -328,6 +330,16 @@ void ScriptingObjects::ScriptingModulator::setIntensity(float newIntensity)
 
 
 
+float ScriptingObjects::ScriptingModulator::getCurrentLevel()
+{
+	if (checkValidObject())
+	{
+		return m->getProcessor()->getDisplayValues().outL;
+	}
+	
+	return 0.f;
+}
+
 String ScriptingObjects::ScriptingModulator::exportState()
 {
 	if (checkValidObject())
@@ -354,6 +366,7 @@ struct ScriptingObjects::ScriptingEffect::Wrapper
     API_METHOD_WRAPPER_1(ScriptingEffect, getAttribute);
 	API_VOID_METHOD_WRAPPER_1(ScriptingEffect, setBypassed);
 	API_METHOD_WRAPPER_0(ScriptingEffect, exportState);
+	API_METHOD_WRAPPER_1(ScriptingEffect, getCurrentLevel);
 	API_VOID_METHOD_WRAPPER_1(ScriptingEffect, restoreState);
 };
 
@@ -380,6 +393,7 @@ effect(fx)
 	ADD_API_METHOD_2(setAttribute);
 	ADD_API_METHOD_1(setBypassed);
     ADD_API_METHOD_1(getAttribute);
+	ADD_API_METHOD_1(getCurrentLevel);
 	ADD_API_METHOD_0(exportState);
 	ADD_API_METHOD_1(restoreState);
 };
@@ -432,6 +446,16 @@ void ScriptingObjects::ScriptingEffect::restoreState(String base64State)
 	}
 }
 
+float ScriptingObjects::ScriptingEffect::getCurrentLevel(bool leftChannel)
+{
+	if (checkValidObject())
+	{
+		return leftChannel ? effect->getDisplayValues().outL : effect->getDisplayValues().outR;
+	}
+
+	return 0.0f;
+}
+
 // ScriptingSynth ==============================================================================================================
 
 struct ScriptingObjects::ScriptingSynth::Wrapper
@@ -441,6 +465,7 @@ struct ScriptingObjects::ScriptingSynth::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptingSynth, setBypassed);
 	API_METHOD_WRAPPER_1(ScriptingSynth, getChildSynthByIndex);
 	API_METHOD_WRAPPER_0(ScriptingSynth, exportState);
+	API_METHOD_WRAPPER_1(ScriptingSynth, getCurrentLevel);
 	API_VOID_METHOD_WRAPPER_1(ScriptingSynth, restoreState);
 };
 
@@ -468,6 +493,7 @@ synth(synth_)
     ADD_API_METHOD_1(getAttribute);
 	ADD_API_METHOD_1(setBypassed);
 	ADD_API_METHOD_1(getChildSynthByIndex);
+	ADD_API_METHOD_1(getCurrentLevel);
 	ADD_API_METHOD_0(exportState);
 	ADD_API_METHOD_1(restoreState);
 };
@@ -538,6 +564,16 @@ void ScriptingObjects::ScriptingSynth::restoreState(String base64State)
 	{
 		ProcessorHelpers::restoreFromBase64String(synth, base64State);
 	}
+}
+
+float ScriptingObjects::ScriptingSynth::getCurrentLevel(bool leftChannel)
+{
+	if (checkValidObject())
+	{
+		return leftChannel ? synth->getDisplayValues().outL : synth->getDisplayValues().outR;
+	}
+
+	return 0.0f;
 }
 
 // ScriptingMidiProcessor ==============================================================================================================

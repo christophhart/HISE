@@ -260,6 +260,9 @@ public:
 		/** Changes the Intensity of the Modulator. Ranges: Gain Mode 0 ... 1, PitchMode -12 ... 12. */
 		void setIntensity(float newIntensity);
 
+		/** Returns the current peak value of the modulator. */
+		float getCurrentLevel();
+
 		/** Exports the state as base64 string. */
 		String exportState();
 
@@ -325,6 +328,9 @@ public:
 		/** Restores the state from a base64 string. */
 		void restoreState(String base64State);
 
+		/** Returns the current peak level for the given channel. */
+		float getCurrentLevel(bool leftChannel);
+
 		// ============================================================================================================
 
 		struct Wrapper;
@@ -386,6 +392,9 @@ public:
 
 		/** Restores the state from a base64 string. */
 		void restoreState(String base64State);
+
+		/** Returns the current peak level for the given channel. */
+		float getCurrentLevel(bool leftChannel);
 
 		// ============================================================================================================ 
 
