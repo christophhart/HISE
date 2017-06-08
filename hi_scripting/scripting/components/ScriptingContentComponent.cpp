@@ -482,8 +482,6 @@ void ScriptContentComponent::getScriptComponentsFor(Array<ScriptingApi::Content:
 	{
 		Component* c = componentWrappers[i]->getComponent();
 
-		if (!c->isVisible()) continue;
-
 		Component* parentOfC = c->getParentComponent();
 
 		if (getLocalArea(parentOfC, c->getBounds()).contains(pos))

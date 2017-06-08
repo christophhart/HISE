@@ -919,7 +919,7 @@ void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 
 		auto mc = dynamic_cast<Processor*>(parentHandler->getScriptEditHandlerProcessor())->getMainController();
 
-		if (components.size > 1)
+		if (components.size() > 1)
 		{
 			PopupMenu m;
 			ScopedPointer<PopupLookAndFeel> luf = new PopupLookAndFeel();
@@ -934,16 +934,16 @@ void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 					name << " (Hidden)";
 
 				m.addItem(i + 1, name);
+			}
 
-				const int result = m.show();
+			const int result = m.show();
 
-				if (result > 0)
-				{
-					auto sc = components[result - 1];
-					mc->setEditedScriptComponent(sc, parentHandler->getAsComponent());
-					auto root = findParentComponentOfClass<BackendRootWindow>()->getRootFloatingTile();
-					BackendPanelHelpers::toggleVisibilityForRightColumnPanel<GenericPanel<ScriptComponentEditPanel>>(root, sc != nullptr);
-				}
+			if (result > 0)
+			{
+				auto sc = components[result - 1];
+				mc->setEditedScriptComponent(sc, parentHandler->getAsComponent());
+				auto root = findParentComponentOfClass<BackendRootWindow>()->getRootFloatingTile();
+				BackendPanelHelpers::toggleVisibilityForRightColumnPanel<GenericPanel<ScriptComponentEditPanel>>(root, sc != nullptr);
 			}
 
 		}
