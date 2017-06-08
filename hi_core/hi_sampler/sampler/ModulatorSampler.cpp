@@ -74,6 +74,7 @@ deactivateUIUpdate(false)
 	parameterNames.add("OneShot");
 	parameterNames.add("CrossfadeGroups");
 	parameterNames.add("Purged");
+	parameterNames.add("Reversed");
 
 	editorStateIdentifiers.add("SampleStartChainShown");
 	editorStateIdentifiers.add("SettingsShown");

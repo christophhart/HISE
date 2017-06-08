@@ -5,6 +5,7 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 	BackendCommandTarget(static_cast<BackendProcessor*>(ownerProcessor)),
 	owner(static_cast<BackendProcessor*>(ownerProcessor))
 {
+	PresetHandler::buildProcessorDataBase(owner->getMainSynthChain());
 
 	addAndMakeVisible(floatingRoot = new FloatingTile(nullptr));
 
@@ -113,7 +114,7 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 
 #endif
 
-	PresetHandler::buildProcessorDataBase(owner->getMainSynthChain());
+	
 
 	constrainer = new ComponentBoundsConstrainer();
 	constrainer->setMinimumHeight(500);
