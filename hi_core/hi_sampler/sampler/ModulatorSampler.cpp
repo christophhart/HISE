@@ -50,6 +50,7 @@ oneShotEnabled(false),
 crossfadeGroups(false),
 useGlobalFolder(false),
 purged(false),
+reversed(false),
 numChannels(1),
 deactivateUIUpdate(false)
 {
@@ -304,6 +305,7 @@ float ModulatorSampler::getAttribute(int parameterIndex) const
 	case OneShot:			return oneShotEnabled ? 1.0f : 0.0f;
 	case CrossfadeGroups:	return crossfadeGroups ? 1.0f : 0.0f;
 	case Purged:			return purged ? 1.0f : 0.0f;
+	case Reversed:			return reversed ? 1.0f : 0.0f;
 	default:				jassertfalse; return -1.0f;
 	}
 }
@@ -325,6 +327,7 @@ void ModulatorSampler::setInternalAttribute(int parameterIndex, float newValue)
 	case SamplerRepeatMode: repeatMode = (RepeatMode)(int)newValue; break;
 	case PitchTracking:		pitchTrackingEnabled = newValue == 1.0f; break;
 	case OneShot:			oneShotEnabled = newValue == 1.0f; break;
+	case Reversed:			setReversed(newValue > 0.5f); break;
 	case CrossfadeGroups:	crossfadeGroups = newValue == 1.0f; refreshCrossfadeTables(); break;
 	case Purged:			purgeAllSamples(newValue == 1.0f); break;
 	default:				jassertfalse; break;

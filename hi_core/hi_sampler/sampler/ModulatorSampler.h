@@ -78,6 +78,7 @@ public:
 		OneShot, ///< On, **Off** | plays the whole sample (ignores the note off) if set to enabled.
 		CrossfadeGroups, ///< On, **Off** | if enabled, the groups are played simultanously and can be crossfaded with the X-Fade Modulation Chain
 		Purged, ///< If this is true, all samples of this sampler won't be loaded into memory. Turning this on will load them.
+		Reversed, ///< If this is true, the samples will be fully loaded into preload buffer and reversed
 		numModulatorSamplerParameters
 	};
 
@@ -301,6 +302,21 @@ public:
 	const SamplerDisplayValues &getSamplerDisplayValues() const { return samplerDisplayValues;	}
 	int getRRGroupsForMessage(int noteNumber, int velocity);
 	void refreshRRMap();
+
+	void setReversed(bool shouldBeReversed)
+	{
+		if (reversed != shouldBeReversed)
+		{
+			reversed = shouldBeReversed;
+
+			for (int i = 0; i < getNumSounds(); i++)
+			{
+				getSound(i)->setReversed(reversed);
+			}
+		}
+
+		refreshMemoryUsage();
+	}
 
 	void purgeAllSamples(bool shouldBePurged)
 	{
@@ -556,6 +572,8 @@ private:
 	void refreshCrossfadeTables();
 
 	RoundRobinMap roundRobinMap;
+
+	bool reversed;
 
 	bool useGlobalFolder;
 	bool pitchTrackingEnabled;

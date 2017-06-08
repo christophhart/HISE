@@ -209,6 +209,9 @@ public:
 	/** Returns the length of the crossfade. */
 	int getLoopCrossfade() const noexcept{ return crossfadeLength; };
 
+	/** Loads the entire sample into the preload buffer and reverses it. */
+	void setReversed(bool shouldBeReversed);
+
 	// ==============================================================================================================================================
 
 	/** Set the preload size.
@@ -484,6 +487,8 @@ private:
 
 	int monolithOffset;
 	int monolithLength;
+
+	bool reversed = false;
 
 	bool useSmallLoopBuffer = false;
 

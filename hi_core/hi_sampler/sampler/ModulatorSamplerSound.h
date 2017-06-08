@@ -289,6 +289,16 @@ public:
 	/** Returns the calculated (equal power) pan value for either the left or the right channel. */
 	float getBalance(bool getRightChannelGain) const;;
 
+	void setReversed(bool shouldBeReversed)
+	{
+		if (reversed != shouldBeReversed)
+		{
+			reversed = shouldBeReversed;
+
+			FOR_EVERY_SOUND(setReversed(reversed));
+		}
+	}
+
 	// ====================================================================================================================
 
 	void setVelocityXFade(int crossfadeLength, bool isUpperSound);
@@ -375,6 +385,7 @@ private:
 	float normalizedPeak;
 	bool isNormalized;
 	bool purged;
+	bool reversed = false;
 	bool allFilesExist;
 	const bool isMultiMicSound;
 

@@ -108,7 +108,10 @@ public:
 
         if(playbackEditor->getCurrentTextEditor() == nullptr)
         {
-		    playbackEditor->setItemIndex((int)sampler->getAttribute(ModulatorSampler::OneShot), dontSendNotification);
+			const int oneShot = (int)sampler->getAttribute(ModulatorSampler::OneShot);
+			const int reversed = (int)sampler->getAttribute(ModulatorSampler::Reversed);
+
+		    playbackEditor->setItemIndex(reversed * 2 + oneShot, dontSendNotification);
         }
 
 		if (showCrossfadeLabel->getCurrentTextEditor() == nullptr)

@@ -415,6 +415,8 @@ SamplerSettings::SamplerSettings (ModulatorSampler *s)
 
 	playbackEditor->addOption("Normal");
 	playbackEditor->addOption("One Shot");
+	playbackEditor->addOption("Reverse");
+	playbackEditor->addOption("Reverse One Shot");
 	playbackEditor->setEditable(false);
 
 	pitchTrackingEditor->addOption("Disabled");
@@ -713,7 +715,11 @@ void SamplerSettings::labelTextChanged (Label* labelThatHasChanged)
     {
         //[UserLabelCode_playbackEditor] -- add your label text handling code here..
 
-		sampler->setAttribute(ModulatorSampler::OneShot, (float)playbackEditor->getCurrentIndex(), dontSendNotification);
+		const bool isOneShot = playbackEditor->getCurrentIndex() % 2;
+		const bool isReverse = playbackEditor->getCurrentIndex() > 1;
+
+		sampler->setAttribute(ModulatorSampler::OneShot, isOneShot ? 1.0f : 0.0f, dontSendNotification);
+		sampler->setAttribute(ModulatorSampler::Reversed, isReverse ? 1.0f : 0.0f, dontSendNotification);
 
         //[/UserLabelCode_playbackEditor]
     }

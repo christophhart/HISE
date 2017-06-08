@@ -90,6 +90,24 @@ StreamingSamplerSound::~StreamingSamplerSound()
 	fileReader.closeFileHandles(); 
 }
 
+void StreamingSamplerSound::setReversed(bool shouldBeReversed)
+{
+	if (reversed != shouldBeReversed)
+	{
+		reversed = shouldBeReversed;
+
+		if (reversed)
+		{
+			loadEntireSample();
+			preloadBuffer.reverse(0, preloadBuffer.getNumSamples());
+		}
+		else
+		{
+			setPreloadSize(preloadSize, true);
+		}
+	}
+}
+
 void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 {
 	const bool preloadSizeChanged = preloadSize == newPreloadSize;
