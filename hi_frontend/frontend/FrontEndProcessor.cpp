@@ -87,7 +87,6 @@ PluginParameterAudioProcessor(ProjectHandler::Frontend::getProjectName()),
 AudioProcessorDriver(manager, callback_),
 synthChain(new ModulatorSynthChain(this, "Master Chain", NUM_POLYPHONIC_VOICES)),
 keyFileCorrectlyLoaded(true),
-presets(*userPresets),
 currentlyLoadedProgram(0),
 #if USE_TURBO_ACTIVATE
 unlockCounter(0),

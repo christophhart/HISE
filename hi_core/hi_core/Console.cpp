@@ -307,10 +307,18 @@ int Console::ConsoleTokeniser::readNextToken(CodeDocument::Iterator& source)
 
 BackendProcessorEditor* ComponentWithAccessToMainPanel::getMainPanel()
 {
+#if USE_BACKEND
 	return dynamic_cast<Component*>(this)->findParentComponentOfClass<BackendRootWindow>()->getMainPanel();
+#else
+	return nullptr;
+#endif
 }
 
 const BackendProcessorEditor* ComponentWithAccessToMainPanel::getMainPanel() const
 {
+#if USE_BACKEND
 	return dynamic_cast<const Component*>(this)->findParentComponentOfClass<BackendRootWindow>()->getMainPanel();
+#else
+	return nullptr;
+#endif
 }

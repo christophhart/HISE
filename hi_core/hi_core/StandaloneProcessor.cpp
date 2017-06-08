@@ -31,7 +31,9 @@ void AudioDeviceDialog::buttonClicked(Button *b)
 		ownerProcessor->initialiseAudioDriver(deviceData);
 	}
 
+#if USE_BACKEND
 	findParentComponentOfClass<FloatingTilePopup>()->deleteAndClose();
+#endif
 }
 
 File AudioProcessorDriver::getDeviceSettingsFile()

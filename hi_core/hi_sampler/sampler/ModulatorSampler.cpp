@@ -51,9 +51,12 @@ crossfadeGroups(false),
 useGlobalFolder(false),
 purged(false),
 numChannels(1),
-deactivateUIUpdate(false),
-sampleEditHandler(new SampleEditHandler(this))
+deactivateUIUpdate(false)
 {
+#if USE_BACKEND
+	sampleEditHandler = new SampleEditHandler(this);
+#endif
+
 	crossfadeBuffer = AudioSampleBuffer(1, 0);
 	temporaryVoiceBuffer = AudioSampleBuffer(2, 0);
 

@@ -217,23 +217,7 @@ void BaseDebugArea::paint(Graphics &g)
 
 void BaseDebugArea::mouseDown(const MouseEvent& e)
 {
-	auto c = e.eventComponent->findParentComponentOfClass<AutoPopupDebugComponent>();
-
-	if (c == nullptr)
-	{
-		c = dynamic_cast<AutoPopupDebugComponent*>(e.eventComponent);
-	}
-
-	if (c != nullptr)
-	{
-		DBG("tut");
-
-		if (e.mods.isAltDown() && e.mods.isCommandDown())
-		{
-			openInFloatingWindow(getIndexForComponent(dynamic_cast<Component*>(c)), true);
-		}
-	}
-
+	
 	
 }
 
@@ -279,7 +263,7 @@ void BaseDebugArea::openInFloatingWindow(int index, bool shouldBeShown)
 			showComponent(index, true);
 		}
 
-		dynamic_cast<AutoPopupDebugComponent*>(c)->floatingStateChanged(shouldBeShown);
+		
 	}
 
 	repaint();

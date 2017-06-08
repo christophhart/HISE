@@ -37,29 +37,6 @@
 class BaseDebugArea;
 class BackendProcessorEditor;
 
-class AutoPopupDebugComponent
-{
-public:
-
-	void showComponentInDebugArea(bool shouldBeVisible);
-
-	virtual ~AutoPopupDebugComponent() {};
-
-	bool isFloating() const;
-
-	virtual void floatingStateChanged(bool /*isCurrentlyFloating*/) {}
-
-protected:
-
-	AutoPopupDebugComponent(BaseDebugArea *area);;
-
-	BackendProcessorEditor* editor;
-
-private:
-
-	BaseDebugArea *parentArea;
-	
-};
 
 
 /** A small utility class that allows popups for console and plotter. 

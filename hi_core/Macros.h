@@ -49,6 +49,8 @@
 #define debugMod(text) ignoreUnused(text)
 #endif
 
+#define CONTAINER_WIDTH 900 - 32
+
 
 #if USE_COPY_PROTECTION
 #define CHECK_KEY(mainController){ if(FrontendProcessor* fp = dynamic_cast<FrontendProcessor*>(mainController)) fp->checkKey();}

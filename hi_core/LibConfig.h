@@ -44,6 +44,9 @@
 #define NUM_MIC_POSITIONS 6
 #define NUM_MAX_CHANNELS 16
 
+
+#define DONT_INCLUDE_FLOATING_LAYOUT_IN_FRONTEND 1
+
 #if USE_BACKEND // make sure it's either backend or frontend...
 #undef USE_FRONTEND
 #define USE_FRONTEND 0

@@ -330,6 +330,8 @@ VisibilityToggleBar::Icon::Icon(FloatingTile* controlledTile_) :
 {
 	addAndMakeVisible(button = new ShapeButton("button", colourOff, overColourOff, downColourOff));
 
+	
+
 	if (controlledTile.getComponent() != nullptr)
 	{
 		on = controlledTile->getLayoutData().isVisible();
@@ -344,6 +346,9 @@ VisibilityToggleBar::Icon::Icon(FloatingTile* controlledTile_) :
 
 void VisibilityToggleBar::Icon::refreshColour()
 {
+	if (controlledTile.getComponent() != nullptr)
+		button->setTooltip((on ? "Hide " : "Show ") + controlledTile->getCurrentFloatingPanel()->getBestTitle());
+
 	if (on)
 		button->setColours(colourOn, overColourOn, downColourOn);
 	else

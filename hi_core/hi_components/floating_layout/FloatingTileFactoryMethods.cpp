@@ -41,8 +41,24 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<VerticalTile>(PopupMenuOptions::VerticalTile);
 	registerType<FloatingTabComponent>(PopupMenuOptions::Tabs);
 	registerType<Note>(PopupMenuOptions::Note);
+
+#if USE_BACKEND
 	registerType<GenericPanel<MacroComponent>>(PopupMenuOptions::MacroControls);
 	registerType < GenericPanel<MacroParameterTable>>(PopupMenuOptions::MacroTable);
+	registerType<GenericPanel<ApiCollection>>(PopupMenuOptions::ApiCollection);
+	registerType<GenericPanel<ModuleBrowser>>(PopupMenuOptions::ModuleBrowser);
+	registerType<GenericPanel<PatchBrowser>>(PopupMenuOptions::PatchBrowser);
+	registerType<GenericPanel<FileBrowser>>(PopupMenuOptions::FileBrowser);
+	registerType<GenericPanel<SamplePoolTable>>(PopupMenuOptions::SamplePoolTable);
+	registerType<GenericPanel<PoolTableSubTypes::ImageFilePoolTable>>(PopupMenuOptions::ImageTable);
+	registerType<GenericPanel<PoolTableSubTypes::AudioFilePoolTable>>(PopupMenuOptions::AudioFileTable);
+	registerType<MainTopBar>(PopupMenuOptions::MenuCommandOffset);
+	registerType<BackendProcessorEditor>(PopupMenuOptions::MenuCommandOffset);
+	registerType<ScriptWatchTablePanel>(PopupMenuOptions::ScriptWatchTable);
+	registerType<ConsolePanel>(PopupMenuOptions::Console);
+
+#endif
+
 	registerType<MidiKeyboardPanel>(PopupMenuOptions::MidiKeyboard);
 	registerType<GlobalConnectorPanel<ModulatorSampler>>(PopupMenuOptions::SampleConnector);
 	registerType<SampleEditorPanel>(PopupMenuOptions::SampleEditor);
@@ -53,21 +69,16 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<ScriptContentPanel>(PopupMenuOptions::ScriptContent);
 	registerType<TableEditorPanel>(PopupMenuOptions::TablePanel);
 	registerType<SliderPackPanel>(PopupMenuOptions::SliderPackPanel);
-	registerType<ConsolePanel>(PopupMenuOptions::Console);
+	
 	registerType<PlotterPanel>(PopupMenuOptions::Plotter);
-	registerType<GenericPanel<ApiCollection>>(PopupMenuOptions::ApiCollection);
-	registerType<ScriptWatchTablePanel>(PopupMenuOptions::ScriptWatchTable);
+	
+	
 	registerType<GenericPanel<ScriptComponentEditPanel>>(PopupMenuOptions::ScriptComponentEditPanel);
-	registerType<GenericPanel<ModuleBrowser>>(PopupMenuOptions::ModuleBrowser);
-	registerType<GenericPanel<PatchBrowser>>(PopupMenuOptions::PatchBrowser);
-	registerType<GenericPanel<FileBrowser>>(PopupMenuOptions::FileBrowser);
-	registerType<GenericPanel<SamplePoolTable>>(PopupMenuOptions::SamplePoolTable);
-	registerType<GenericPanel<PoolTableSubTypes::ImageFilePoolTable>>(PopupMenuOptions::ImageTable);
-	registerType<GenericPanel<PoolTableSubTypes::AudioFilePoolTable>>(PopupMenuOptions::AudioFileTable);
+	
 	registerType<ApplicationCommandButtonPanel>(PopupMenuOptions::MenuCommandOffset);
 
-	registerType<BackendProcessorEditor>(PopupMenuOptions::MenuCommandOffset);
-	registerType<MainTopBar>(PopupMenuOptions::MenuCommandOffset);
+	
+	
 }
 
 
@@ -195,7 +206,9 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 
 	}
 	case FloatingTileContent::Factory::PopupMenuOptions::MidiKeyboard:
+#if USE_BACKEND
 		path.loadPathFromData(BackendBinaryData::ToolbarIcons::keyboard, sizeof(BackendBinaryData::ToolbarIcons::keyboard));
+#endif
 		break;
 	case PopupMenuOptions::SampleConnector:
 	case FloatingTileContent::Factory::PopupMenuOptions::ScriptConnectorPanel:
@@ -258,7 +271,9 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 	}
 	case FloatingTileContent::Factory::PopupMenuOptions::ScriptContent:
 	{
+#if USE_BACKEND
 		path.loadPathFromData(BackendBinaryData::ToolbarIcons::customInterface, sizeof(BackendBinaryData::ToolbarIcons::customInterface));
+#endif
 		break;
 	}
 	case FloatingTileContent::Factory::PopupMenuOptions::TablePanel:
@@ -292,7 +307,9 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 	}
 	case FloatingTileContent::Factory::PopupMenuOptions::Console:
 	{
+#if USE_BACKEND
 		path.loadPathFromData(BackendBinaryData::ToolbarIcons::debugPanel, sizeof(BackendBinaryData::ToolbarIcons::debugPanel));
+#endif
 		break;
 	}
 	case FloatingTileContent::Factory::PopupMenuOptions::Plotter:
@@ -371,24 +388,25 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 	}
 	case FloatingTileContent::Factory::PopupMenuOptions::ApiCollection:
 	{
-		path.loadPathFromData(BackendBinaryData::ToolbarIcons::apiList, sizeof(BackendBinaryData::ToolbarIcons::apiList));
+		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::apiList, sizeof(BackendBinaryData::ToolbarIcons::apiList)));
 		break;
 	}
 	case FloatingTileContent::Factory::PopupMenuOptions::ScriptWatchTable:
 	{
-		path.loadPathFromData(BackendBinaryData::ToolbarIcons::viewPanel, sizeof(BackendBinaryData::ToolbarIcons::viewPanel));
+		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::viewPanel, sizeof(BackendBinaryData::ToolbarIcons::viewPanel)));
+
 		break;
 	}
 	case FloatingTileContent::Factory::PopupMenuOptions::ScriptComponentEditPanel:
 	{
-		path.loadPathFromData(BackendBinaryData::ToolbarIcons::mixer, sizeof(BackendBinaryData::ToolbarIcons::mixer));
+		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::mixer, sizeof(BackendBinaryData::ToolbarIcons::mixer)));
 		path.applyTransform(AffineTransform::rotation(float_Pi / 2.0f));
 
 		break;
 	}
 	case FloatingTileContent::Factory::PopupMenuOptions::ModuleBrowser:
 	{
-		path.loadPathFromData(BackendBinaryData::ToolbarIcons::modulatorList, sizeof(BackendBinaryData::ToolbarIcons::modulatorList));
+		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::modulatorList, sizeof(BackendBinaryData::ToolbarIcons::modulatorList)));
 		break;
 	}
 	case FloatingTileContent::Factory::PopupMenuOptions::PatchBrowser:
@@ -398,22 +416,22 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 	break;
 	case FloatingTileContent::Factory::PopupMenuOptions::FileBrowser:
 	{
-		path.loadPathFromData(BackendBinaryData::ToolbarIcons::fileBrowser, sizeof(BackendBinaryData::ToolbarIcons::fileBrowser));
+		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::fileBrowser, sizeof(BackendBinaryData::ToolbarIcons::fileBrowser)));
 		break;
 	}
 	case FloatingTileContent::Factory::PopupMenuOptions::SamplePoolTable:
 	{
-		path.loadPathFromData(BackendBinaryData::ToolbarIcons::sampleTable, sizeof(BackendBinaryData::ToolbarIcons::sampleTable));
+		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::sampleTable, sizeof(BackendBinaryData::ToolbarIcons::sampleTable)));
 		break;
 	}
 	case PopupMenuOptions::AudioFileTable:
 	{
-		path.loadPathFromData(BackendBinaryData::ToolbarIcons::fileTable, sizeof(BackendBinaryData::ToolbarIcons::fileTable));
+		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::fileTable, sizeof(BackendBinaryData::ToolbarIcons::fileTable)));
 		break;
 	}
 	case PopupMenuOptions::ImageTable:
 	{
-		path.loadPathFromData(BackendBinaryData::ToolbarIcons::imageTable, sizeof(BackendBinaryData::ToolbarIcons::imageTable));
+		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::imageTable, sizeof(BackendBinaryData::ToolbarIcons::imageTable)));
 		break;
 	}
 	case PopupMenuOptions::numOptions:
@@ -449,11 +467,7 @@ void FloatingTileContent::Factory::addToPopupMenu(PopupMenu& m, PopupMenuOptions
 
 void addCommandIcon(FloatingTile* parent, PopupMenu& m, int commandID)
 {
-	ApplicationCommandInfo r(commandID);
-
-	parent->getRootWindow()->getCommandInfo(commandID, r);
-
-	m.addItem(10000 + commandID, r.shortName);
+	
 }
 
 FloatingTileContent::Factory::PopupMenuOptions FloatingTileContent::Factory::getOption(const FloatingTile* t) const
@@ -472,6 +486,7 @@ FloatingTileContent::Factory::PopupMenuOptions FloatingTileContent::Factory::get
 
 void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* parent)
 {
+#if USE_BACKEND
 	if (parent->canBeDeleted())
 	{
 		if (parent->isLayoutModeEnabled())
@@ -531,13 +546,6 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 		m.addSeparator();
 
 		PopupMenu icons;
-
-		addCommandIcon(parent, icons, BackendCommandTarget::MainToolbarCommands::MenuNewFile);
-		addCommandIcon(parent, icons, BackendCommandTarget::MainToolbarCommands::MenuOpenFile);
-		addCommandIcon(parent, icons, BackendCommandTarget::MainToolbarCommands::MenuSaveFile);
-		addCommandIcon(parent, icons, BackendCommandTarget::MainToolbarCommands::MenuEditUndo);
-		addCommandIcon(parent, icons, BackendCommandTarget::MainToolbarCommands::MenuEditRedo);
-		addCommandIcon(parent, icons, BackendCommandTarget::MainToolbarCommands::Settings);
 
 		m.addSubMenu("Icons", icons);
 	}
@@ -604,4 +612,5 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 		jassertfalse;
 		break;
 	}
+#endif
 }

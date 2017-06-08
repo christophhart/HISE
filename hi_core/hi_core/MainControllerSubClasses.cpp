@@ -368,6 +368,7 @@ void MainController::CodeHandler::writeToConsole(const String &t, int warningLev
 
 void MainController::CodeHandler::handleAsyncUpdate()
 {
+#if USE_BACKEND
 	consoleData.clearUndoHistory();
 
 
@@ -415,9 +416,11 @@ void MainController::CodeHandler::handleAsyncUpdate()
 		
 		if (rootWindow != nullptr)
 		{
+
 			BackendPanelHelpers::toggleVisibilityForRightColumnPanel<ConsolePanel>(rootWindow->getRootFloatingTile(), true);
 		}
 	}
+#endif
 }
 
 

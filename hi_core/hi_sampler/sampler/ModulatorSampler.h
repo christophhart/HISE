@@ -274,8 +274,10 @@ public:
 	
 	const CriticalSection& getExportLock() const { return exportLock; }
 
+#if USE_BACKEND
 	SampleEditHandler* getSampleEditHandler() { return sampleEditHandler; }
 	const SampleEditHandler* getSampleEditHandler() const { return sampleEditHandler; }
+#endif
 
 	bool useGlobalFolderForSaving() const;
 	void setUseGlobalFolderForSaving() { useGlobalFolder = true; };
@@ -594,7 +596,9 @@ private:
 	ScopedPointer<ModulatorChain> crossFadeChain;
 	ScopedPointer<AudioThumbnailCache> soundCache;
 	
+#if USE_BACKEND
 	ScopedPointer<SampleEditHandler> sampleEditHandler;
+#endif
 
 };
 

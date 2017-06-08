@@ -503,6 +503,8 @@ void FloatingTile::refreshFoldButton()
 
 	bool rotate = isFolded();
 
+	foldButton->setTooltip((isFolded() ? "Expand " : "Fold ") + getCurrentFloatingPanel()->getBestTitle());
+
 	if (getParentType() == ParentType::Vertical)
 		rotate = !rotate;
 

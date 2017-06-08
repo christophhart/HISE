@@ -208,12 +208,20 @@ void FloatingTileContent::setDynamicTitle(const String& newDynamicTitle)
 
 const BackendProcessorEditor* FloatingTileContent::getMainPanel() const
 {
+#if USE_BACKEND && DONT_INCLUDE_FLOATING_LAYOUT_IN_FRONTEND
 	return getParentShell()->findParentComponentOfClass<BackendRootWindow>()->getMainPanel();
+#else
+	return nullptr;
+#endif
 }
 
 BackendProcessorEditor* FloatingTileContent::getMainPanel()
 {
+#if USE_BACKEND && DONT_INCLUDE_FLOATING_LAYOUT_IN_FRONTEND
 	return getParentShell()->findParentComponentOfClass<BackendRootWindow>()->getMainPanel();
+#else
+	return nullptr;
+#endif
 }
 
 int FloatingTileContent::getFixedSizeForOrientation() const
@@ -337,6 +345,7 @@ void FloatingPanelTemplates::create3Rows(FloatingTile* parent)
 
 Component* FloatingPanelTemplates::createHiseLayout(FloatingTile* rootTile)
 {
+#if USE_BACKEND
 	rootTile->setLayoutModeEnabled(false);
 
 	FloatingInterfaceBuilder ib(rootTile);
@@ -399,12 +408,16 @@ Component* FloatingPanelTemplates::createHiseLayout(FloatingTile* rootTile)
 	ib.addChild<EmptyComponent>(customPanel);
 
 	return mainPanel;
+#else
+	return rootTile;
+#endif
 }
 
 
 
 Component* FloatingPanelTemplates::createSamplerWorkspace(FloatingTile* rootTile)
 {
+#if USE_BACKEND
 	MainController* mc = rootTile->findParentComponentOfClass<BackendRootWindow>()->getBackendProcessor();
 
 	jassert(mc != nullptr);
@@ -454,12 +467,14 @@ Component* FloatingPanelTemplates::createSamplerWorkspace(FloatingTile* rootTile
 	ib.getContent<FloatingTileContent>(sampleEditor)->setStyleProperty("showConnectionBar", false);
 	ib.getContent<FloatingTileContent>(sampleMapEditor)->setStyleProperty("showConnectionBar", false);
 	ib.getContent<FloatingTileContent>(samplerTable)->setStyleProperty("showConnectionBar", false);
+#endif
 
 	return nullptr;
 }
 
 Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTile)
 {
+#if USE_BACKEND
 	MainController* mc = rootTile->findParentComponentOfClass<BackendRootWindow>()->getBackendProcessor();
 
 	jassert(mc != nullptr);
@@ -537,6 +552,9 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 	//ib.getContent<FloatingTileContent>(onInitPanel)->setStyleProperty("showConnectionBar", false);
 
 	return ib.getPanel(scriptPanel);
+#else
+	return nullptr;
+#endif
 }
 
 
@@ -545,6 +563,7 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 
 Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 {
+#if USE_BACKEND
 	MainController* mc = rootTile->findParentComponentOfClass<BackendRootWindow>()->getBackendProcessor();
 
 	jassert(mc != nullptr);
@@ -646,6 +665,9 @@ Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 
 
 	return dynamic_cast<Component*>(ib.getPanel(mainArea)->getCurrentFloatingPanel());
+#else
+	return nullptr;
+#endif
 }
 
 

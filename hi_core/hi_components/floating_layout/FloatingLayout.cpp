@@ -30,6 +30,7 @@
 *   ===========================================================================
 */
 
+#if USE_BACKEND
 #include "FloatingTileContent.cpp"
 #include "FloatingTileFactoryMethods.cpp"
 #include "PanelWithProcessorConnection.cpp"
@@ -41,4 +42,4 @@
 #include "FloatingTile.cpp"
 
 #include "FloatingInterfaceBuilder.cpp"
-
+#endif
