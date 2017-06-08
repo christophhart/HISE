@@ -206,8 +206,6 @@ var VisibilityToggleBar::toDynamicObject() const
 
 	Array<var> iconList;
 
-	DBG("Export");
-
 	for (int i = 0; i < customPanels.size(); i++)
 	{
 		if (customPanels[i].getComponent() != nullptr)
@@ -218,8 +216,6 @@ var VisibilityToggleBar::toDynamicObject() const
 		{
 			jassertfalse;
 		}
-
-		DBG(iconList.getLast().toString());
 	}
 
 	

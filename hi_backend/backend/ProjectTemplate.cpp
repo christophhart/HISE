@@ -53,7 +53,6 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "            file=\"Source/Images/FrontendKnob_Bipolar.png\"/>"
 "	   <FILE id=\"UAxUWd\" name=\"FrontendKnob_Unipolar.png\" compile=\"0\" resource=\"1\""
 "            file=\"Source/Images/FrontendKnob_Unipolar.png\"/>"
-"      <FILE id=\"c0viwk\" name=\"HISE_Logo.png\" compile=\"0\" resource=\"1\" file=\"Source/Images/HISE_Logo.png\"/>\r\n"
 "	   <FILE id=\"KmyOlv\" name=\"infoError.png\" compile=\"0\" resource=\"1\" file=\"Source/Images/infoError.png\"/>\r\n"
 "      <FILE id=\"CNpA5r\" name=\"infoInfo.png\" compile=\"0\" resource=\"1\" file=\"Source/Images/infoInfo.png\"/>\r\n"
 "      <FILE id=\"MjbOy3\" name=\"infoQuestion.png\" compile=\"0\" resource=\"1\"\r\n"

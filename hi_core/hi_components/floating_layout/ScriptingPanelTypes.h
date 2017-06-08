@@ -124,7 +124,7 @@ public:
 		refresh();
 	}
 
-	bool setShapes(Path newOnShape, Path newOffShape)
+	void setShapes(Path newOnShape, Path newOffShape)
 	{
 		onShape = newOnShape;
 		offShape = newOffShape;

@@ -215,7 +215,7 @@ void BaseDebugArea::paint(Graphics &g)
     
 }
 
-void BaseDebugArea::mouseDown(const MouseEvent& e)
+void BaseDebugArea::mouseDown(const MouseEvent& /*e*/)
 {
 	
 	

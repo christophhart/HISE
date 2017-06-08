@@ -96,7 +96,6 @@ public:
 	void sendSelectionChangeMessage()
 	{
 		const uint32 thisTime = Time::getMillisecondCounter();
-		const uint32 interval = 0;
 
 		if ((thisTime - timeSinceLastSelectionChange) < 1)
 		{

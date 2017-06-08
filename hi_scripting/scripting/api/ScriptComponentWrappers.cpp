@@ -460,11 +460,11 @@ public:
 
 	void paint(Graphics& g)
 	{
-		g.setGradientFill(ColourGradient(Colours::white.withAlpha(0.2f), 0.0f, 0.0f, Colours::black.withAlpha(0.2f), getWidth(), getHeight(), false));
+		g.setGradientFill(ColourGradient(Colours::white.withAlpha(0.2f), 0.0f, 0.0f, Colours::black.withAlpha(0.2f), (float)getWidth(), (float)getHeight(), false));
 
 		g.fillAll();
 		g.setColour(Colours::white.withAlpha(0.6f));
-		g.drawRect(getLocalBounds(), 1.0f);
+		g.drawRect(getLocalBounds(), 1);
 		
 	}
 };

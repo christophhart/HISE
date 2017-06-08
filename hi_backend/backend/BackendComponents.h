@@ -269,7 +269,7 @@ public:
 		numColumns
 	};
 
-	MacroParameterTable(BackendRootWindow *rootWindow)   :
+	MacroParameterTable(BackendRootWindow* /*rootWindow*/)   :
 		font (GLOBAL_FONT()),
 		data(nullptr)
 	{

@@ -219,8 +219,6 @@ struct ScriptContentPanel::Canvas : public ScriptEditHandler,
 
 		g.setColour(Colours::white.withAlpha(0.5f));
 
-		const int edgeWidth = 10;
-
 		g.drawHorizontalLine(10, 5.0f, 10.0f);
 		g.drawHorizontalLine(10, (float)getWidth() - 10.0f, (float)getWidth() - 5.0f);
 
@@ -250,7 +248,7 @@ struct ScriptContentPanel::Canvas : public ScriptEditHandler,
 	{
         auto scaleFactor = 1.0; //content->getTransform().getScaleFactor();
 
-		setSize(content->getContentWidth()*scaleFactor + 20, content->getContentHeight()*scaleFactor + 20);
+		setSize((int)((double)content->getContentWidth()*scaleFactor) + 20, (int)((double)content->getContentHeight()*scaleFactor) + 20);
 	}
 
 public:
@@ -385,7 +383,6 @@ void ScriptContentPanel::Editor::refreshContent()
 
 void ScriptContentPanel::Editor::buttonClicked(Button* b)
 {
-	auto content = dynamic_cast<Canvas*>(viewport->getViewedComponent())->content.get();
 	auto overlay = dynamic_cast<Canvas*>(viewport->getViewedComponent())->overlay.get();
 
 	if (b == editSelector)
@@ -412,7 +409,7 @@ void ScriptContentPanel::Editor::buttonClicked(Button* b)
 	}
 }
 
-void ScriptContentPanel::Editor::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
+void ScriptContentPanel::Editor::comboBoxChanged(ComboBox* /*comboBoxThatHasChanged*/)
 {
 	switch (zoomSelector->getSelectedId())
 	{

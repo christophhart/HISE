@@ -157,7 +157,7 @@ void BackendProcessorEditor::setRootProcessorWithUndo(Processor *p)
     }
 }
 
-void BackendProcessorEditor::setViewportPositions(int viewportX, const int viewportY, const int viewportWidth, int viewportHeight)
+void BackendProcessorEditor::setViewportPositions(int viewportX, const int viewportY, const int /*viewportWidth*/, int /*viewportHeight*/)
 {
 	debugLoggerWindow->setBounds(0, getHeight() - 60, getWidth(), 60);
 
@@ -201,8 +201,6 @@ void BackendProcessorEditor::resized()
 	const int viewportHeight = getHeight();// -viewportY - (keyboard->isVisible() ? 0 : 10);
 	
 	const int viewportWidth = getWidth() - 32;
-	
-    const int bw = 16;
 
 	int viewportX, poolX, inspectorX;
 	int poolY, inspectorY;
@@ -1029,8 +1027,6 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 	}
 	case PopupType::PresetBrowser:
 	{
-		MainController* mc = getRootWindow()->getBackendProcessor();
-
 		MultiColumnPresetBrowser* pr = new MultiColumnPresetBrowser(mc, 700, 500);
 
 		pr->setShowCloseButton(false);

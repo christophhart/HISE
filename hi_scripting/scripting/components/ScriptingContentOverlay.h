@@ -253,7 +253,7 @@ public:
 			}
 			else if (keyCode == 'Z' && key.getModifiers().isCommandDown())
 			{
-				DBG("Undo");
+				
 				undoManager.undo();
 				return true;
 			}

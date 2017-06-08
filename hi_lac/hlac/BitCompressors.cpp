@@ -119,10 +119,8 @@ void packArrayOfInt16(int16* d, int numValues, uint8 bitDepth)
 }
 
 
-void unpackArrayOfInt16(int16* d, int numValues, uint8 bitDepth)
+void unpackArrayOfInt16(int16* d, int /*numValues*/, uint8 bitDepth)
 {
-	jassert(numValues % 8 == 0);
-
 	jassert(reinterpret_cast<uint64>(d) % 16 == 0);
 
 #if HLAC_NO_SSE

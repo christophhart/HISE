@@ -69,6 +69,8 @@ public:
 		{
 			editorInformation = JSON::parse(jsonFile);
 		}
+#else
+		ignoreUnused(save);
 #endif
 
 		

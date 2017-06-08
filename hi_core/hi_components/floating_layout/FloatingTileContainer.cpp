@@ -896,41 +896,32 @@ void ResizableFloatingTileContainer::InternalResizer::paint(Graphics& g)
 
 void ResizableFloatingTileContainer::InternalResizer::mouseDown(const MouseEvent& e)
 {
-	if (false && e.mods.isRightButtonDown())
+	auto area = parent->getContainerBounds();
+
+	auto e2 = e.getEventRelativeTo(parent);
+
+	downOffset = parent->isVertical() ? e2.getMouseDownY() : e2.getMouseDownX();
+
+
+	active = true;
+
+	prevDownSizes.clear();
+	nextDownSizes.clear();
+
+	totalPrevDownSize = 0.0;
+
+	for (auto prevPanel : prevPanels)
 	{
-		parent->bigResizers.setBit(index, !parent->bigResizers[index]);
-		parent->resized();
-		
+		prevDownSizes.add(prevPanel->getLayoutData().getCurrentSize());
+		totalPrevDownSize += prevDownSizes.getLast();
 	}
-	else
+
+	totalNextDownSize = 0.0;
+
+	for (auto nextPanel : nextPanels)
 	{
-		auto area = parent->getContainerBounds();
-
-		auto e2 = e.getEventRelativeTo(parent);
-
-		downOffset = parent->isVertical() ? e2.getMouseDownY() : e2.getMouseDownX();
-
-		
-		active = true;
-
-		prevDownSizes.clear();
-		nextDownSizes.clear();
-
-		totalPrevDownSize = 0.0;
-
-		for (auto prevPanel : prevPanels)
-		{
-			prevDownSizes.add(prevPanel->getLayoutData().getCurrentSize());
-			totalPrevDownSize += prevDownSizes.getLast();
-		}
-
-		totalNextDownSize = 0.0;
-
-		for (auto nextPanel : nextPanels)
-		{
-			nextDownSizes.add(nextPanel->getLayoutData().getCurrentSize());
-			totalNextDownSize += nextDownSizes.getLast();
-		}
+		nextDownSizes.add(nextPanel->getLayoutData().getCurrentSize());
+		totalNextDownSize += nextDownSizes.getLast();
 	}
 }
 

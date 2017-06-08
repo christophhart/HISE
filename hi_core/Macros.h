@@ -133,7 +133,6 @@ class LinuxFontHandler
 #define RETURN_STATIC_IDENTIFIER(name) static const Identifier id(name); return id;
 
 
-#define GET_PANEL_NAME(classType) classType::getPanelId()
 #define SET_GENERIC_PANEL_ID(x) static Identifier getGenericPanelId() { RETURN_STATIC_IDENTIFIER(x) }
 
 #define GET_PROJECT_HANDLER(x)(x->getMainController()->getSampleManager().getProjectHandler())

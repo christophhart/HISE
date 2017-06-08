@@ -34,7 +34,7 @@ BEGIN_JUCE_MODULE_DECLARATION
 
   ID:               hi_lac
   vendor:           Christoph Hart
-  version:          0.1
+  version:          1.0
   name:             HISE Lossless Audio Codec
   description:      A fast, lossless audio codec suitable for disk streaming.
   website:          http://hise.audio

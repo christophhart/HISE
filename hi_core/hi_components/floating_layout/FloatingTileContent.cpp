@@ -43,47 +43,6 @@ FloatingFlexBoxWindow::FloatingFlexBoxWindow() :
 
 	auto fsc = dynamic_cast<FloatingTile*>(getContentComponent());
 	fsc->setLayoutModeEnabled(false);
-	
-	FloatingInterfaceBuilder ib(fsc);
-
-	const int root = 0;
-
-#if 0
-	ib.setNewContentType<FloatingTabComponent>(root);
-
-	const int firstVertical = ib.addChild<VerticalTile>(root);
-
-	const int leftColumn = ib.addChild<HorizontalTile>(firstVertical);
-	const int mainColumn = ib.addChild<HorizontalTile>(firstVertical);
-	const int rightColumn = ib.addChild<HorizontalTile>(firstVertical);
-
-	ib.setSizes(firstVertical, { -0.5, 900.0, -0.5 }, dontSendNotification);
-	ib.setAbsoluteSize(firstVertical, { false, true, false }, dontSendNotification);
-	ib.setLocked(firstVertical, { false, true, false}, sendNotification);
-	ib.setDeletable(root, false, { false });
-	ib.setDeletable(firstVertical, false, { false, false, false });
-
-
-	const int mainArea = ib.addChild<EmptyComponent>(mainColumn);
-	const int keyboard = ib.addChild<MidiKeyboardPanel>(mainColumn);
-
-	ib.setSwappable(firstVertical, false, { false, false, false });
-	ib.setSwappable(mainColumn, false, { false, false });
-
-	ib.getPanel(firstVertical)->setDeletable(false);
-	ib.getContainer(firstVertical)->setAllowInserting(false);
-	ib.getPanel(mainColumn)->setReadOnly(true);
-	ib.getPanel(root)->setDeletable(false);
-
-	ib.setCustomName(firstVertical, "Main Workspace", { "Left Panel", "Mid Panel", "Right Panel" });
-	
-
-	ib.getPanel(mainColumn)->getParentContainer()->refreshLayout();
-
-	ib.finalizeAndReturnRoot(true);
-#endif
-
-	//FloatingPanelTemplates::createMainPanel(fsc);
 }
 
 void FloatingFlexBoxWindow::closeButtonPressed()
@@ -354,7 +313,7 @@ Component* FloatingPanelTemplates::createHiseLayout(FloatingTile* rootTile)
 
 	ib.setNewContentType<HorizontalTile>(root);
 
-	const int topBar = ib.addChild<MainTopBar>(root);
+    ib.addChild<MainTopBar>(root);
 
 	ib.getContainer(root)->setIsDynamic(false);
 
@@ -453,8 +412,6 @@ Component* FloatingPanelTemplates::createSamplerWorkspace(FloatingTile* rootTile
 	ib.setSizes(samplePanel, { 32.0, 280.0, 280.0, -0.5 });
 	ib.getPanel(sampleHorizontal)->setCustomIcon((int)FloatingTileContent::Factory::PopupMenuOptions::SampleEditor);
 
-	auto tb = ib.getContent<VisibilityToggleBar>(toggleBar);
-
 	ib.setId(fileBrowser, "SampleFileBrowser");
 	ib.setId(samplePoolTable, "SamplePoolTable");
 	ib.setId(sampleEditor, "MainSampleEditor");
@@ -489,7 +446,7 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 
 	ib.getPanel(scriptPanel)->getLayoutData().setId("ScriptingWorkspace");
 
-	const int globalConnector = ib.addChild<GlobalConnectorPanel<JavascriptProcessor>>(scriptPanel);
+    ib.addChild<GlobalConnectorPanel<JavascriptProcessor>>(scriptPanel);
 
 	const int mainVertical = ib.addChild<VerticalTile>(scriptPanel);
 	ib.setDynamic(mainVertical, false);
@@ -504,10 +461,10 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 	const int codeVertical = ib.addChild<VerticalTile>(codeEditor);
 	ib.setDynamic(codeVertical, false);
 	const int codeTabs = ib.addChild<FloatingTabComponent>(codeVertical);
-	const int firstEditor = ib.addChild<CodeEditorPanel>(codeTabs);
+    ib.addChild<CodeEditorPanel>(codeTabs);
 	const int variableWatch = ib.addChild<ScriptWatchTablePanel>(codeVertical);
 
-	const int console = ib.addChild<ConsolePanel>(codeEditor);
+    ib.addChild<ConsolePanel>(codeEditor);
 	ib.setCustomName(codeEditor, "Code Editor");
 	ib.setSizes(codeEditor, { -0.75, -0.25 });
 	ib.setSizes(codeVertical, { -0.8, -0.2 });

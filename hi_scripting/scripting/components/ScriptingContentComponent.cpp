@@ -244,7 +244,7 @@ void ScriptContentComponent::updateComponent(int i)
 
 	if (localBounds != currentPosition)
 	{
-		const bool isInViewport = dynamic_cast<Viewport*>(componentWrappers[i]->getComponent()->getParentComponent());
+		const bool isInViewport = dynamic_cast<Viewport*>(componentWrappers[i]->getComponent()->getParentComponent()) != nullptr;
 		const bool sizeChanged = localBounds.getWidth() != currentPosition.getWidth() || localBounds.getHeight() != currentPosition.getHeight();
 
 		if (!isInViewport || sizeChanged)

@@ -295,7 +295,7 @@ PoolTableSubTypes::AudioFilePoolTable::AudioFilePoolTable(BackendRootWindow* roo
 
 }
 
-void PoolTableSubTypes::AudioFilePoolTable::cellDoubleClicked(int rowNumber, int columnId, const MouseEvent& e)
+void PoolTableSubTypes::AudioFilePoolTable::cellDoubleClicked(int rowNumber, int /*columnId*/, const MouseEvent& /*e*/)
 {
 	auto mc = dynamic_cast<MainController*>(findParentComponentOfClass<BackendRootWindow>()->getBackendProcessor());
 
@@ -314,7 +314,7 @@ PoolTableSubTypes::ImageFilePoolTable::ImageFilePoolTable(BackendRootWindow* roo
 
 }
 
-void PoolTableSubTypes::ImageFilePoolTable::cellDoubleClicked(int rowNumber, int columnId, const MouseEvent&)
+void PoolTableSubTypes::ImageFilePoolTable::cellDoubleClicked(int rowNumber, int /*columnId*/, const MouseEvent&)
 {
 	auto mc = dynamic_cast<MainController*>(findParentComponentOfClass<BackendRootWindow>()->getBackendProcessor());
 

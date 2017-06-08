@@ -253,8 +253,6 @@ void BackendRootWindow::resized()
 	if (menuBarOffset != 0)
 		menuBar->setBounds(getLocalBounds().withHeight(menuBarOffset));
 
-	const float dpiScale = Desktop::getInstance().getGlobalScaleFactor();
-
 	floatingRoot->setBounds(4, menuBarOffset + 4, getWidth() - 8, getHeight() - menuBarOffset - 8);
 
 #if IS_STANDALONE_APP
@@ -368,7 +366,7 @@ HorizontalTile* BackendPanelHelpers::getMainRightColumn(FloatingTile* root)
 
 void BackendPanelHelpers::showWorkspace(BackendRootWindow* root, Workspace workspaceToShow, NotificationType notifyCommandManager)
 {
-	if (notifyCommandManager = sendNotification)
+	if (notifyCommandManager == sendNotification)
 	{
 		root->getBackendProcessor()->getCommandManager()->invokeDirectly(BackendCommandTarget::WorkspaceMain + (int)workspaceToShow, false);
 	}
@@ -378,7 +376,7 @@ void BackendPanelHelpers::showWorkspace(BackendRootWindow* root, Workspace works
 	}
 }
 
-bool BackendPanelHelpers::isMainWorkspaceActive(FloatingTile* root)
+bool BackendPanelHelpers::isMainWorkspaceActive(FloatingTile* /*root*/)
 {
 	return true;
 }

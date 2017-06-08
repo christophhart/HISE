@@ -375,7 +375,7 @@ FloatingTile::ParentType FloatingTile::getParentType() const
 	{
 		return sl->isVertical() ? ParentType::Vertical : ParentType::Horizontal;
 	}
-	else if (auto tb = dynamic_cast<const FloatingTabComponent*>(getParentContainer()))
+	else if (dynamic_cast<const FloatingTabComponent*>(getParentContainer()) != nullptr)
 	{
 		return ParentType::Tabbed;
 	}
@@ -1280,6 +1280,8 @@ bool FloatingTile::LayoutHelpers::showCloseButton(const FloatingTile* t)
 		return t->canBeDeleted();
 	case ParentType::Tabbed:
 		return false;
+    case ParentType::numParentTypes:
+        return false;
 	}
 
 

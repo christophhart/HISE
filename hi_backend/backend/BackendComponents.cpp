@@ -346,7 +346,6 @@ void MacroComponent::resized()
 
 	int macrosPerRow = jmax<int>(1, getWidth() / widthPerMacroControl);
 
-	int rows = macroAmount / macrosPerRow;
 
 	for (int i = 0; i < macroAmount; i++)
 	{

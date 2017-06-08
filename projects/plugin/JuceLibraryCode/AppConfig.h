@@ -362,7 +362,7 @@
  #define JucePlugin_Manufacturer           "Hart Instruments"
 #endif
 #ifndef  JucePlugin_ManufacturerWebsite
- #define JucePlugin_ManufacturerWebsite    "http://hartinstruments.net"
+ #define JucePlugin_ManufacturerWebsite    "http://hise.audio"
 #endif
 #ifndef  JucePlugin_ManufacturerEmail
  #define JucePlugin_ManufacturerEmail      ""
@@ -389,13 +389,13 @@
  #define JucePlugin_EditorRequiresKeyboardFocus  1
 #endif
 #ifndef  JucePlugin_Version
- #define JucePlugin_Version                0.983
+ #define JucePlugin_Version                1.0.0
 #endif
 #ifndef  JucePlugin_VersionCode
- #define JucePlugin_VersionCode            0x3d700
+ #define JucePlugin_VersionCode            0x10000
 #endif
 #ifndef  JucePlugin_VersionString
- #define JucePlugin_VersionString          "0.983"
+ #define JucePlugin_VersionString          "1.0.0"
 #endif
 #ifndef  JucePlugin_VSTUniqueID
  #define JucePlugin_VSTUniqueID            JucePlugin_PluginCode

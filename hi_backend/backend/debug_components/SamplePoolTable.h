@@ -194,7 +194,7 @@ struct PoolTableSubTypes
 
 		AudioFilePoolTable(BackendRootWindow* rootWindow);
 
-		void cellClicked(int rowNumber, int columnId, const MouseEvent&)
+		void cellClicked(int /*rowNumber*/, int /*columnId*/, const MouseEvent&)
 		{
 
 		}

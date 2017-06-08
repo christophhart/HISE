@@ -81,7 +81,7 @@ void FrontendProcessor::handleControllersForMacroKnobs(const MidiBuffer &midiMes
 #endif
 #endif
 
-FrontendProcessor::FrontendProcessor(ValueTree &synthData, AudioDeviceManager* manager, AudioProcessorPlayer* callback_, ValueTree *imageData_/*=nullptr*/, ValueTree *impulseData/*=nullptr*/, ValueTree *externalFiles/*=nullptr*/, ValueTree *userPresets) :
+FrontendProcessor::FrontendProcessor(ValueTree &synthData, AudioDeviceManager* manager, AudioProcessorPlayer* callback_, ValueTree *imageData_/*=nullptr*/, ValueTree *impulseData/*=nullptr*/, ValueTree *externalFiles/*=nullptr*/, ValueTree *) :
 MainController(),
 PluginParameterAudioProcessor(ProjectHandler::Frontend::getProjectName()),
 AudioProcessorDriver(manager, callback_),

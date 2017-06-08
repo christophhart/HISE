@@ -2195,13 +2195,11 @@ void AboutPage::refreshText()
 	infoData.append("Hart Instruments Sampler Engine\n", normal, bright);
 
 	infoData.append("\nVersion: ", bold, bright);
-	infoData.append(String(JUCE_APP_VERSION), normal, bright);
+	infoData.append(ProjectInfo::versionString, normal, bright);
 	infoData.append("\nBuild time: ", bold, bright);
 	infoData.append(Time::getCompilationDate().toString(true, false, false, true), normal, bright);
 	infoData.append("\nBuild version: ", bold, bright);
 	infoData.append(String(BUILD_SUB_VERSION), normal, bright);
-
-
 
 	infoData.append("\nCreated by: ", bold, bright);
 	infoData.append("Christoph Hart", normal, bright);
@@ -2250,7 +2248,9 @@ void AboutPage::buttonClicked(Button *)
 
 void AboutPage::mouseDown(const MouseEvent &)
 {
+#if USE_BACKEND
 	findParentComponentOfClass<FloatingTilePopup>()->deleteAndClose();
+#endif
 }
 
 String PresetPlayerHandler::getSpecialFolder(FolderType type, const String &packageName /*= String()*/, bool ignoreMissingDirectory)

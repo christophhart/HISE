@@ -144,7 +144,7 @@ public:
 
 		indexSelector->setSelectedId(currentIndex + 2, dontSendNotification);
 
-		if (getProcessor() == nullptr || hasSubIndex() && currentIndex == -1)
+		if (getProcessor() == nullptr || (hasSubIndex() && currentIndex == -1))
 		{
 			content = nullptr;
 		}

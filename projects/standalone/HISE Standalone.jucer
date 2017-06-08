@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<JUCERPROJECT id="jUHBuI" name="HISE Standalone" projectType="guiapp" version="0.99"
+<JUCERPROJECT id="jUHBuI" name="HISE Standalone" projectType="guiapp" version="1.0.0"
               bundleIdentifier="com.hartinstruments.HISEStandalone" includeBinaryInAppConfig="1"
-              jucerVersion="4.3.0" companyName="Hart Instruments" companyWebsite="http://hartinstruments.net/hise">
+              jucerVersion="4.3.0" companyName="Hart Instruments" companyWebsite="http://hise.audio">
   <MAINGROUP id="yomWt4" name="HISE Standalone">
     <GROUP id="{577963C7-1A49-BB2A-D701-52DC7A5895F7}" name="Source">
       <FILE id="YnIt9L" name="logo_mini.png" compile="0" resource="1" file="../../hi_core/hi_images/logo_mini.png"/>
-      <FILE id="S7ANvW" name="logo_new.png" compile="0" resource="1" file="../../hi_core/hi_images/logo_new.png"/>
       <FILE id="yjZXfQ" name="DspUnitTests.cpp" compile="1" resource="0"
             file="../../hi_scripting/scripting/api/DspUnitTests.cpp"/>
       <FILE id="EQP6SW" name="HiseEventBufferUnitTests.cpp" compile="1" resource="0"
@@ -16,7 +15,6 @@
       <FILE id="rNV4cu" name="infoQuestion.png" compile="0" resource="1"
             file="../../hi_core/hi_images/infoQuestion.png"/>
       <FILE id="X7hemd" name="infoWarning.png" compile="0" resource="1" file="../../hi_core/hi_images/infoWarning.png"/>
-      <FILE id="celo0R" name="About.png" compile="0" resource="1" file="../../hi_core/hi_images/About.png"/>
       <FILE id="EfOrgJ" name="FrontendKnob_Bipolar.png" compile="0" resource="1"
             file="../../hi_core/hi_images/FrontendKnob_Bipolar.png"/>
       <FILE id="hJJvHU" name="FrontendKnob_Unipolar.png" compile="0" resource="1"

@@ -465,7 +465,7 @@ void FloatingTileContent::Factory::addToPopupMenu(PopupMenu& m, PopupMenuOptions
 	m.addItem((int)type, name, isEnabled, isTicked, getIcon(type));
 }
 
-void addCommandIcon(FloatingTile* parent, PopupMenu& m, int commandID)
+void addCommandIcon(FloatingTile* /*parent*/, PopupMenu& , int /*commandID*/)
 {
 	
 }
