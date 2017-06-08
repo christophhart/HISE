@@ -1119,7 +1119,7 @@ void BackendCommandTarget::Actions::createBase64State(CopyPasteTarget* target)
 	}
 }
 
-void BackendCommandTarget::Actions::createUserInterface(BackendRootWindow * bpe)
+void BackendCommandTarget::Actions::createUserInterface(BackendRootWindow * /*bpe*/)
 {
 	
 }
@@ -1439,13 +1439,20 @@ void BackendCommandTarget::Actions::openFileFromXml(BackendRootWindow * bpe, con
 	{
 		ScopedPointer<XmlElement> xml = XmlDocument::parse(fileToLoad);
 
-		String newId = xml->getStringAttribute("ID");
+		if (xml != nullptr)
+		{
+			String newId = xml->getStringAttribute("ID");
 
-		XmlBackupFunctions::restoreAllScripts(*xml, bpe->getMainSynthChain(), newId);
+			XmlBackupFunctions::restoreAllScripts(*xml, bpe->getMainSynthChain(), newId);
 
-		ValueTree v = ValueTree::fromXml(*xml);
+			ValueTree v = ValueTree::fromXml(*xml);
 
-		bpe->loadNewContainer(v);
+			bpe->loadNewContainer(v);
+		}
+		else
+		{
+			PresetHandler::showMessageWindow("Corrupt File", "The XML file is not valid. Loading aborted", PresetHandler::IconType::Error);
+		}
 	}
 }
 
