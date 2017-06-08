@@ -496,7 +496,7 @@
 				<key>USE_HFS+_COMPRESSION</key>
 				<true/>
 				<key>VERSION</key>
-				<string>0.99.648</string>
+				<string>1.0.0</string>
 			</dict>
 			<key>UUID</key>
 			<string>4BFEECC8-FF88-422F-A81D-C8289BF19B97</string>
@@ -1035,7 +1035,7 @@
 				<key>USE_HFS+_COMPRESSION</key>
 				<true/>
 				<key>VERSION</key>
-				<string>0.99.648</string>
+				<string>1.0.0</string>
 			</dict>
 			<key>TYPE</key>
 			<integer>0</integer>
@@ -1575,7 +1575,7 @@
 				<key>USE_HFS+_COMPRESSION</key>
 				<true/>
 				<key>VERSION</key>
-				<string>0.99.648</string>
+				<string>1.0.0</string>
 			</dict>
 			<key>TYPE</key>
 			<integer>0</integer>
@@ -2115,7 +2115,7 @@
 				<key>USE_HFS+_COMPRESSION</key>
 				<true/>
 				<key>VERSION</key>
-				<string>0.99.648</string>
+				<string>1.0.0</string>
 			</dict>
 			<key>TYPE</key>
 			<integer>0</integer>
@@ -2656,7 +2656,7 @@
 				<key>USE_HFS+_COMPRESSION</key>
 				<true/>
 				<key>VERSION</key>
-				<string>0.99.648</string>
+				<string>1.0.0</string>
 			</dict>
 			<key>TYPE</key>
 			<integer>0</integer>
