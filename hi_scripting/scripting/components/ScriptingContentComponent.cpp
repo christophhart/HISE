@@ -244,7 +244,11 @@ void ScriptContentComponent::updateComponent(int i)
 
 	if (localBounds != currentPosition)
 	{
-		componentWrappers[i]->getComponent()->setBounds(contentData->components[i]->getPosition());
+		const bool isInViewport = dynamic_cast<Viewport*>(componentWrappers[i]->getComponent()->getParentComponent());
+		const bool sizeChanged = localBounds.getWidth() != currentPosition.getWidth() || localBounds.getHeight() != currentPosition.getHeight();
+
+		if (!isInViewport || sizeChanged)
+			componentWrappers[i]->getComponent()->setBounds(contentData->components[i]->getPosition());
 	}
 
 	componentWrappers[i]->updateComponent();
@@ -326,7 +330,14 @@ void ScriptContentComponent::setNewContent(ScriptingApi::Content *c)
 			
 			if (parentComponentOfSc != nullptr)
 			{
-				parentComponentOfSc->addAndMakeVisible(componentWrappers.getLast()->getComponent());
+				if (auto vp = dynamic_cast<Viewport*>(parentComponentOfSc))
+				{
+					vp->setViewedComponent(componentWrappers.getLast()->getComponent(), false);
+				}
+				else
+				{
+					parentComponentOfSc->addAndMakeVisible(componentWrappers.getLast()->getComponent());
+				}
 			}
 		}
 		else

@@ -59,6 +59,7 @@ void ScriptEditHandler::createNewComponent(Widgets componentType, int x, int y)
 	case Widgets::ComboBox:			widgetType = "ComboBox"; break;
 	case Widgets::Label:				widgetType = "Label"; break;
 	case Widgets::Image:				widgetType = "Image"; break;
+	case Widgets::Viewport:			widgetType = "Viewport"; break;
 	case Widgets::Plotter:			widgetType = "Plotter"; break;
 	case Widgets::ModulatorMeter:	widgetType = "ModulatorMeter"; break;
 	case Widgets::Panel:				widgetType = "Panel"; break;
@@ -912,15 +913,47 @@ void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 
 	if (e.mods.isLeftButtonDown() && parentHandler->editModeEnabled())
 	{
-		ScriptingApi::Content::ScriptComponent *sc = content->getScriptComponentFor(e.getEventRelativeTo(content).getPosition());
+		Array<ScriptingApi::Content::ScriptComponent*> components;
+
+		parentHandler->getScriptEditHandlerContent()->getScriptComponentsFor(components, e.getEventRelativeTo(content).getPosition());
 
 		auto mc = dynamic_cast<Processor*>(parentHandler->getScriptEditHandlerProcessor())->getMainController();
 
-		mc->setEditedScriptComponent(sc, parentHandler->getAsComponent());
+		if (components.size > 1)
+		{
+			PopupMenu m;
+			ScopedPointer<PopupLookAndFeel> luf = new PopupLookAndFeel();
+			m.setLookAndFeel(luf);
 
-		auto root = findParentComponentOfClass<BackendRootWindow>()->getRootFloatingTile();
+			m.addSectionHeader("Choose Control to Edit");
+			for (int i = 0; i < components.size(); i++)
+			{
+				auto name = components[i]->getName().toString();
 
-		BackendPanelHelpers::toggleVisibilityForRightColumnPanel<GenericPanel<ScriptComponentEditPanel>>(root, sc != nullptr);
+				if (!components[i]->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::visible))
+					name << " (Hidden)";
+
+				m.addItem(i + 1, name);
+
+				const int result = m.show();
+
+				if (result > 0)
+				{
+					auto sc = components[result - 1];
+					mc->setEditedScriptComponent(sc, parentHandler->getAsComponent());
+					auto root = findParentComponentOfClass<BackendRootWindow>()->getRootFloatingTile();
+					BackendPanelHelpers::toggleVisibilityForRightColumnPanel<GenericPanel<ScriptComponentEditPanel>>(root, sc != nullptr);
+				}
+			}
+
+		}
+		else
+		{
+			ScriptingApi::Content::ScriptComponent *sc = content->getScriptComponentFor(e.getEventRelativeTo(content).getPosition());
+			mc->setEditedScriptComponent(sc, parentHandler->getAsComponent());
+			auto root = findParentComponentOfClass<BackendRootWindow>()->getRootFloatingTile();
+			BackendPanelHelpers::toggleVisibilityForRightColumnPanel<GenericPanel<ScriptComponentEditPanel>>(root, sc != nullptr);
+		}
 	}
 
 	if (e.mods.isRightButtonDown())
@@ -950,6 +983,7 @@ void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 			m.addItem((int)ScriptEditHandler::Widgets::ComboBox, "Add new ComboBox");
 			m.addItem((int)ScriptEditHandler::Widgets::Label, "Add new Label");
 			m.addItem((int)ScriptEditHandler::Widgets::Image, "Add new Image");
+			m.addItem((int)ScriptEditHandler::Widgets::Viewport, "Add new Viewport");
 			m.addItem((int)ScriptEditHandler::Widgets::Plotter, "Add new Plotter");
 			m.addItem((int)ScriptEditHandler::Widgets::ModulatorMeter, "Add new ModulatorMeter");
 			m.addItem((int)ScriptEditHandler::Widgets::Panel, "Add new Panel");

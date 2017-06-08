@@ -801,6 +801,25 @@ public:
 		// ========================================================================================================
 	};
 
+	struct ScriptedViewport : public ScriptComponent
+	{
+	public:
+
+		enum Properties
+		{
+			scrollbarThickness = ScriptComponent::numProperties,
+			autoHide,
+			numProperties
+		};
+
+		ScriptedViewport(ProcessorWithScriptingContent* base, Content* parentContent, Identifier viewportName, int x, int y, int width, int height);
+
+		virtual Identifier 	getObjectName() const override { return "ScriptedViewport"; }
+		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
+
+		
+	};
+
 
 	struct ScriptedPlotter : public ScriptComponent
 	{
@@ -955,6 +974,9 @@ public:
 
 	/** Adds a slider pack. */
 	ScriptSliderPack *addSliderPack(Identifier sliderPackName, int x, int y);
+
+	/** Adds a viewport. */
+	ScriptedViewport* addScriptedViewport(Identifier viewportName, int x, int y);
 
 	/** Restore the widget from a JSON object. */
 	void setPropertiesFromJSON(const Identifier &name, const var &jsonData);

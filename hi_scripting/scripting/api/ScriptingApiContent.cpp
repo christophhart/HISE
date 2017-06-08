@@ -2239,6 +2239,25 @@ void ScriptingApi::Content::ScriptPanel::AsyncControlCallbackSender::handleAsync
 }
 
 
+ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptedViewport::createComponentWrapper(ScriptContentComponent *content, int index)
+{
+	return new ScriptCreatedComponentWrappers::ViewportWrapper(content, this, index);
+}
+
+ScriptingApi::Content::ScriptedViewport::ScriptedViewport(ProcessorWithScriptingContent* base, Content* parentContent, Identifier viewportName, int x, int y, int width, int height):
+	ScriptComponent(base, parentContent, viewportName, x, y, width, height)
+{
+	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::macroControl));
+
+	propertyIds.add("scrollBarThickness");		ADD_AS_SLIDER_TYPE(0, 40, 1);
+	propertyIds.add("autoHide");				ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+
+
+	setDefaultValue(scrollbarThickness, 16.0);
+	setDefaultValue(autoHide, true);
+}
+
+
 struct ScriptingApi::Content::ScriptedPlotter::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_2(ScriptedPlotter, addModulatorToPlotter);
@@ -2518,6 +2537,7 @@ colour(Colour(0xff777777))
 	setMethod("addImage", Wrapper::addImage);
 	setMethod("addModulatorMeter", Wrapper::addModulatorMeter);
 	setMethod("addPlotter", Wrapper::addPlotter);
+	setMethod("addViewport", Wrapper::addScriptedViewport);
 	setMethod("addPanel", Wrapper::addPanel);
 	setMethod("addAudioWaveform", Wrapper::addAudioWaveform);
 	setMethod("addSliderPack", Wrapper::addSliderPack);
@@ -2635,6 +2655,13 @@ ScriptingApi::Content::ScriptLabel * ScriptingApi::Content::addLabel(Identifier 
 {
 	return addComponent<ScriptLabel>(labelName, x, y, 100, 50);
 };
+
+
+ScriptingApi::Content::ScriptedViewport* ScriptingApi::Content::addScriptedViewport(Identifier viewportName, int x, int y)
+{
+	return addComponent<ScriptedViewport>(viewportName, x, y, 200, 100);
+}
+
 
 ScriptingApi::Content::ScriptTable * ScriptingApi::Content::addTable(Identifier labelName, int x, int y)
 {

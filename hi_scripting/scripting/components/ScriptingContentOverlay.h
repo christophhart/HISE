@@ -64,6 +64,7 @@ public:
 		ComboBox,
 		Label,
 		Image,
+		Viewport,
 		Plotter,
 		ModulatorMeter,
 		Panel,

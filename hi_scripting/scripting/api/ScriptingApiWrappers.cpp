@@ -64,6 +64,7 @@ struct ScriptingApi::Content::Wrapper
 	static var addTable(const var::NativeFunctionArgs& args);
 	static var addImage(const var::NativeFunctionArgs& args);
 	static var addModulatorMeter(const var::NativeFunctionArgs& args);
+	static var addScriptedViewport(const var::NativeFunctionArgs& args);
 	static var addPlotter(const var::NativeFunctionArgs& args);
 	static var addModulatorToPlotter(const var::NativeFunctionArgs& args);
 	static var addPanel(const var::NativeFunctionArgs& args);
@@ -251,6 +252,25 @@ var ScriptingApi::Content::Wrapper::addPlotter (const var::NativeFunctionArgs& a
 
 	return var::undefined();
 };
+
+
+var ScriptingApi::Content::Wrapper::addScriptedViewport(const var::NativeFunctionArgs& args)
+{
+	if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
+	{
+		if (args.numArguments == 1)
+		{
+			return thisObject->addScriptedViewport(Identifier(args.arguments[0]), 0, 0);
+		}
+
+		CHECK_ARGUMENTS("addScriptedViewport()", 3);
+
+		return thisObject->addScriptedViewport(Identifier(args.arguments[0]), args.arguments[1], args.arguments[2]);
+	}
+
+	return var::undefined();
+}
+
 
 
 var ScriptingApi::Content::Wrapper::addPanel (const var::NativeFunctionArgs& args)

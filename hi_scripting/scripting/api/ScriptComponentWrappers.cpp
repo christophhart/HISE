@@ -448,6 +448,57 @@ void ScriptCreatedComponentWrappers::ModulatorMeterWrapper::updateComponent()
 	dynamic_cast<SettableTooltipClient*>(component.get())->setTooltip(GET_SCRIPT_PROPERTY(tooltip));
 }
 
+
+class DummyComponent: public Component
+{
+public:
+
+	DummyComponent()
+	{
+		setSize(4000, 4000);
+	}
+
+	void paint(Graphics& g)
+	{
+		g.setGradientFill(ColourGradient(Colours::white.withAlpha(0.2f), 0.0f, 0.0f, Colours::black.withAlpha(0.2f), getWidth(), getHeight(), false));
+
+		g.fillAll();
+		g.setColour(Colours::white.withAlpha(0.6f));
+		g.drawRect(getLocalBounds(), 1.0f);
+		
+	}
+};
+
+ScriptCreatedComponentWrappers::ViewportWrapper::ViewportWrapper(ScriptContentComponent* content, ScriptingApi::Content::ScriptedViewport* viewport, int index):
+	ScriptCreatedComponentWrapper(content, index)
+{
+	Viewport* vp = new Viewport();
+
+	vp->setName(viewport->name.toString());
+
+	vp->setViewedComponent(new DummyComponent(), true);
+
+	component = vp;
+}
+
+
+ScriptCreatedComponentWrappers::ViewportWrapper::~ViewportWrapper()
+{
+	
+}
+
+void ScriptCreatedComponentWrappers::ViewportWrapper::updateComponent()
+{
+	auto vp = dynamic_cast<Viewport*>(component.get());
+
+	auto vpc = dynamic_cast<ScriptingApi::Content::ScriptedViewport*>(getScriptComponent());
+
+	vp->setScrollBarThickness(vpc->getScriptObjectProperty(ScriptingApi::Content::ScriptedViewport::Properties::scrollbarThickness));
+
+	vp->setColour(ScrollBar::ColourIds::thumbColourId, GET_OBJECT_COLOUR(itemColour));
+
+}
+
 ScriptCreatedComponentWrappers::PlotterWrapper::PlotterWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptedPlotter *p, int index):
 ScriptCreatedComponentWrapper(content, index)
 {

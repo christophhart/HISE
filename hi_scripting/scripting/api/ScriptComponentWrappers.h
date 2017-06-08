@@ -401,6 +401,20 @@ public:
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PanelWrapper)
 	};
 
+
+	class ViewportWrapper : public ScriptCreatedComponentWrapper
+	{
+	public:
+
+		ViewportWrapper(ScriptContentComponent* content, ScriptingApi::Content::ScriptedViewport* viewport, int index);
+
+		~ViewportWrapper();
+
+		void updateComponent() override;
+		
+
+	};
+
 	class SliderPackWrapper : public ScriptCreatedComponentWrapper,
 							  public SliderPack::Listener
 	{
