@@ -62,14 +62,14 @@ void SampleEditHandler::moveSamples(SamplerSoundMap::Neighbour direction)
 *   You should have received a copy of the GNU General Public License
 *   along with HISE.  If not, see <http://www.gnu.org/licenses/>.
 *
-*   Commercial licences for using HISE in an closed source project are
+*   Commercial licenses for using HISE in an closed source project are
 *   available on request. Please visit the project's website to get more
-*   information about commercial licencing:
+*   information about commercial licensing:
 *
-*   http://www.hartinstruments.net/hise/
+*   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
-*   which also must be licenced for commercial applications:
+*   which must be separately licensed for cloused source applications:
 *
 *   http://www.juce.com
 *

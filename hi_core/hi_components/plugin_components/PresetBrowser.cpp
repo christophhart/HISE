@@ -20,7 +20,7 @@
 *   available on request. Please visit the project's website to get more
 *   information about commercial licensing:
 *
-*   http://www.hartinstruments.net/hise/
+*   http://www.hise.audio/
 *
 *   HISE is based on the JUCE library,
 *   which also must be licensed for commercial applications:
