@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "HISE"
-#define MyAppVersion "0.99 beta"
+#define MyAppVersion "1.0.0"
 #define MyAppPublisher "Hart Instruments"
 #define MyAppURL "http://hise.audio"
 
@@ -10,7 +10,7 @@
 ; NOTE: The value of AppId uniquely identifies this application.
 ; Do not use the same AppId value in installers for other applications.
 ; (To generate a new GUID, click Tools | Generate GUID inside the IDE.)
-AppId={{7BF904A4-4CAA-48C9-AC98-7F8223EED0AD}
+AppId= {01F93846-3497-4390-BB80-6456826EABA0}
 
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}

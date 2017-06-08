@@ -20,6 +20,8 @@ SET installer_project_path=tools\auto_build\
 
 SET installer_project=hise_nightly_build.iss
 
+SET version=1_0_0
+
 REM ===============================================================================
 REM Update the build version file
 
@@ -40,11 +42,11 @@ echo %build_version%
 
 IF %build_version%==ftp (
     set build_version=%prev_version%
-	SET filename=HISE_099_build%prev_version%.exe
+	SET filename=HISE_%version%_build%prev_version%.exe
 	GOTO FTP
 )
 
-SET filename=HISE_099_build%build_version%.exe
+SET filename=HISE_%version%_build%build_version%.exe
 
 if  %build_version% LSS %prev_version% (
 
@@ -199,7 +201,7 @@ if %errorlevel% NEQ 0 (
 
 xcopy %installer_project_path%\Output\RenameInstaller.exe %nightly_build_folder% /Y
 
-del %nightly_build_folder%\HISE_099_build%build_version%.exe
+del %nightly_build_folder%\HISE_%version%_build%build_version%.exe
 
 ren %nightly_build_folder%\RenameInstaller.exe %filename%
 
