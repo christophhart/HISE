@@ -1011,6 +1011,9 @@ public:
 	/** Restores all controls from a previously saved XML data file. */
 	void restoreAllControlsFromPreset(const String &fileName);
 
+	/** Set this to true to render all script panels with double resolution for retina or rescaling. */
+	void setUseHighResolutionForPanels(bool shouldUseDoubleResolution);
+
 	// ================================================================================================================
 
 	// Restores the content and sets the attributes so that the macros and the control callbacks gets executed.
@@ -1032,6 +1035,11 @@ public:
 
 	int getContentHeight() const { return height; }
 
+	bool usesDoubleResolution() const
+	{
+		return useDoubleResolution;
+	}
+
 	struct Wrapper;
 
 private:
@@ -1041,6 +1049,8 @@ private:
 	friend class ScriptContentComponent;
 	friend class WeakReference<ScriptingApi::Content>;
 	WeakReference<ScriptingApi::Content>::Master masterReference;
+
+	bool useDoubleResolution = false;
 
 	CriticalSection lock;
 	bool allowGuiCreation;

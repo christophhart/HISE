@@ -2090,7 +2090,7 @@ void ScriptingApi::Content::ScriptPanel::setPaintRoutine(var paintFunction)
 
 void ScriptingApi::Content::ScriptPanel::internalRepaint()
 {
-    const double scaleFactor = Desktop::getInstance().getDisplays().getMainDisplay().scale;
+	const double scaleFactor = parent->usesDoubleResolution() ? 2.0 : 1.0;
     
 	paintCanvas = Image(Image::PixelFormat::ARGB, (int)(scaleFactor * (double)getScriptObjectProperty(ScriptComponent::Properties::width)), (int)(scaleFactor * (double)getScriptObjectProperty(ScriptComponent::Properties::height)), true);
 
@@ -2550,6 +2550,7 @@ colour(Colour(0xff777777))
 	setMethod("setPropertiesFromJSON", Wrapper::setPropertiesFromJSON);
 	setMethod("storeAllControlsAsPreset", Wrapper::storeAllControlsAsPreset);
 	setMethod("restoreAllControlsFromPreset", Wrapper::restoreAllControlsFromPreset);
+	setMethod("setUseHighResolutionForPanels", Wrapper::setUseHighResolutionForPanels);
 	setMethod("setColour", Wrapper::setColour);
 	setMethod("clear", Wrapper::clear);
 	setMethod("createPath", Wrapper::createPath);
@@ -2786,6 +2787,14 @@ void ScriptingApi::Content::setToolbarProperties(const var &toolbarProperties)
 		set->set(newSet->getName(i), newSet->getValueAt(i));
 	}
 }
+
+
+void ScriptingApi::Content::setUseHighResolutionForPanels(bool shouldUseDoubleResolution)
+{
+	useDoubleResolution = shouldUseDoubleResolution;
+}
+
+
 
 void ScriptingApi::Content::storeAllControlsAsPreset(const String &fileName, const ValueTree& automationData)
 {

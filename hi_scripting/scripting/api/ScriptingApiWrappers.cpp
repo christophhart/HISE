@@ -93,6 +93,10 @@ struct ScriptingApi::Content::Wrapper
 	static var setTooltip(const var::NativeFunctionArgs& args);
 	static var setContentTooltip(const var::NativeFunctionArgs& args);
 	static var setToolbarProperties(const var::NativeFunctionArgs& args);
+	static var setUseHighResolutionForPanels(const var::NativeFunctionArgs& args);
+
+	
+
 	static var setImageFile(const var::NativeFunctionArgs& args);
 	static var setImageAlpha(const var::NativeFunctionArgs& args);
 	static var showControl(const var::NativeFunctionArgs& args);
@@ -412,6 +416,20 @@ var ScriptingApi::Content::Wrapper::setContentTooltip (const var::NativeFunction
 
 	return var::undefined();
 };
+
+
+
+var ScriptingApi::Content::Wrapper::setUseHighResolutionForPanels(const var::NativeFunctionArgs& args)
+{
+	if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
+	{
+		CHECK_ARGUMENTS("setUseHighResolutionForPanels()", 1);
+
+		thisObject->setUseHighResolutionForPanels(args.arguments[0]);
+	}
+
+	return var::undefined();
+}
 
 
 var ScriptingApi::Content::Wrapper::setToolbarProperties(const var::NativeFunctionArgs& args)
