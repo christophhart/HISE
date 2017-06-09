@@ -2,8 +2,8 @@
 
 <Processor Type="SynthChain" ID="Demo" Bypassed="0" Gain="1" Balance="0"
            VoiceLimit="128" KillFadeTime="20" IconColour="0" packageName=""
-           views="32.rk1bzA....cAObb+4e..vH..yw8m+A..PTQve+4eB.." currentView="-1"
-           BuildVersion="647">
+           views="32.rk1bzA...zbyM2byM2byM2byM2byM2byM2byM2byM2L" currentView="-1"
+           BuildVersion="649">
   <ChildProcessors>
     <Processor Type="MidiProcessorChain" ID="Midi Processor" Bypassed="0">
       <ChildProcessors>
@@ -12,6 +12,8 @@
           <Content>
             <Control type="ScriptSlider" id="volumeSlider" value="-12.1"/>
             <Control type="ScriptTable" id="velocityTable" value="0" data="24...............vO...f+....9C...vO"/>
+            <Control type="ScriptSlider" id="irSlider" value="0.13"/>
+            <Control type="ScriptComboBox" id="SampleMapSelector" value="1"/>
           </Content>
         </Processor>
       </ChildProcessors>
@@ -42,13 +44,19 @@
           </ChildProcessors>
           <RoutingMatrix NumSourceChannels="2" Channel0="0" Send0="-1" Channel1="1" Send1="-1"/>
         </Processor>
+        <Processor Type="Convolution" ID="Convolution Reverb" Bypassed="0" DryGain="0"
+                   WetGain="-87" Latency="0" ImpulseLength="1" ProcessInput="1"
+                   FileName="{PROJECT_FOLDER}TestImpulse.wav" min="0" max="21296">
+          <ChildProcessors/>
+          <RoutingMatrix NumSourceChannels="2" Channel0="0" Send0="-1" Channel1="1" Send1="-1"/>
+        </Processor>
       </ChildProcessors>
     </Processor>
-    <Processor Type="StreamingSampler" ID="Sampler" Bypassed="0" Gain="1" Balance="0"
-               VoiceLimit="128" KillFadeTime="20" IconColour="0" PreloadSize="8192"
-               BufferSize="4096" VoiceAmount="128" SamplerRepeatMode="2.1474836e+09"
+    <Processor Type="StreamingSampler" ID="DemoSampler" Bypassed="0" Gain="1"
+               Balance="0" VoiceLimit="128" KillFadeTime="20" IconColour="0"
+               PreloadSize="8192" BufferSize="4096" VoiceAmount="128" SamplerRepeatMode="-2.1474836e+09"
                RRGroupAmount="1" PitchTracking="1" OneShot="0" CrossfadeGroups="0"
-               Purged="0" NumChannels="1" SampleMap="">
+               Purged="0" Reversed="0" NumChannels="1" SampleMap="">
       <ChildProcessors>
         <Processor Type="MidiProcessorChain" ID="Midi Processor" Bypassed="0">
           <ChildProcessors/>
@@ -87,7 +95,7 @@
       <channels>
         <channelData enabled="1" level="0" suffix=""/>
       </channels>
-      <samplemap ID="" SaveMode="0" RRGroupAmount="1" MicPositions=";">
+      <samplemap ID="Normal" SaveMode="1" RRGroupAmount="1" MicPositions=";">
         <sample ID="0" FileName="{PROJECT_FOLDER}Triangle_-6dB.wav" Root="64"
                 HiKey="89" LoKey="50" LoVel="0" HiVel="127" RRGroup="1" Volume="0"
                 Pan="0" Normalized="0" Pitch="0" SampleStart="0" SampleEnd="44100"
@@ -99,7 +107,12 @@
   </ChildProcessors>
   <RoutingMatrix NumSourceChannels="2" Channel0="0" Send0="-1" Channel1="1" Send1="-1"/>
   <macro_controls>
-    <macro name="Volume" value="127" midi_cc="0"/>
+    <macro name="Volume" value="16.510000228881835938" midi_cc="0">
+      <controlled_parameter id="Convolution Reverb" parameter="1" parameter_name="Wet Level"
+                            min="-100" max="0" low="-100" high="0" inverted="0" readonly="1"/>
+      <controlled_parameter id="MainInterface" parameter="3" parameter_name="irSlider" min="0"
+                            max="1" low="0" high="1" inverted="0" readonly="0"/>
+    </macro>
     <macro name="Delay" value="0" midi_cc="0"/>
     <macro name="Macro 3" value="0" midi_cc="0"/>
     <macro name="Macro 4" value="0" midi_cc="0"/>

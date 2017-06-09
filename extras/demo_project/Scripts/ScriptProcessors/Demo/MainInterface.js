@@ -69,7 +69,7 @@ inline function createVolumeSlider(name, x, y)
     return widget;
 };
 
-const var volumeSlider = createVolumeSlider("volumeSlider", 277, 111);
+const var volumeSlider = createVolumeSlider("volumeSlider", 164, 111);
 
 const var SimpleGain = Synth.getEffect("Simple Gain");
 
@@ -81,7 +81,34 @@ Content.setPropertiesFromJSON("velocityTable", {
   "height": 189,
   "processorId": "SamplerVelocity"
 });
-// [/JSON velocityTable]function onNoteOn()
+// [/JSON velocityTable]
+const var irSlider = Content.addKnob("irSlider", 361, 112);
+// [JSON irSlider]
+Content.setPropertiesFromJSON("irSlider", {
+  "text": "Reverb Amount",
+  "width": 144,
+  "macroControl": "Macro 1"
+});
+// [/JSON irSlider]
+
+
+
+const var SampleMapSelector = Content.addComboBox("SampleMapSelector", 283, 405);
+
+const var DemoSampler = Synth.getSampler("DemoSampler");
+
+const var x = Sampler.getSampleMapList();
+for(sampleMap in x) SampleMapSelector.addItem(sampleMap);
+
+
+
+inline function onSampleMapSelectorControl(component, value)
+{
+	DemoSampler.loadSampleMap(SampleMapSelector.getItemText());
+};
+
+SampleMapSelector.setControlCallback(onSampleMapSelectorControl);
+function onNoteOn()
 {
 	
 }

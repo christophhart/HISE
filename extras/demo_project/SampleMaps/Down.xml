@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<samplemap ID="Down" SaveMode="1" RRGroupAmount="1" MicPositions=";">
+  <sample ID="0" FileName="{PROJECT_FOLDER}Triangle_-6dB.wav" Root="46"
+          HiKey="71" LoKey="32" LoVel="0" HiVel="127" RRGroup="1" Volume="0"
+          Pan="0" Normalized="0" Pitch="0" SampleStart="0" SampleEnd="44100"
+          SampleStartMod="0" LoopStart="0" LoopEnd="44100" LoopXFade="0"
+          LoopEnabled="1" LowerVelocityXFade="0" UpperVelocityXFade="0"
+          SampleState="0" NormalizedPeak="-1" Duplicate="1"/>
+</samplemap>
