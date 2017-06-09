@@ -40,12 +40,13 @@ Name: "Standalone64bit"; Description: "64bit Standalone application"; ExtraDiskS
 Name: "Standalone32bit"; Description: "32bit Standalone application"; ExtraDiskSpaceRequired: 9000
 
 [Files]
-Source: "..\..\projects\standalone\Builds\VisualStudio2015\x64\Release\HISE.exe"; DestDir: "{app}"; Flags: 64bit; Components: Standalone64bit
-Source: "..\..\projects\standalone\Builds\VisualStudio2015\Release\HISE x86.exe"; DestDir: "{app}"; Flags: 32bit; Components: Standalone32bit
-Source: "C:\Program Files\VST Plugins\HISE x64.dll"; DestDir: "{code:Getx64bitDir}"; Flags: 64bit; Components: x64Plugin
-Source: "C:\Program Files\VST Plugins\HISE x64 16 Out.dll"; DestDir: "{code:Getx64bitDir}"; Flags: 64bit; Components: x64PluginMC
-Source: "..\..\projects\plugin\Builds\VisualStudio2015\Release\HISE x86.dll"; DestDir: "{code:Getx86bitDir}"; Flags: 32bit; Components: x86Plugin
-Source: "..\..\projects\plugin\Builds\VisualStudio2015\Release MultiChannel\HISE x86 16 Out.dll"; DestDir: "{code:Getx86bitDir}"; Flags: 32bit; Components: x86PluginMC
+
+Source: "..\..\..\Installer\Windows\files\HISE.exe"; DestDir: "{app}"; Flags: 64bit; Components: Standalone64bit
+Source: "..\..\..\Installer\Windows\files\HISE x86.exe"; DestDir: "{app}"; Flags: 32bit; Components: Standalone32bit
+Source: "..\..\..\Installer\Windows\files\HISE x64.dll"; DestDir: "{code:Getx64bitDir}"; Flags: 64bit; Components: x64Plugin
+Source: "..\..\..\Installer\Windows\files\HISE x64 16 Out.dll"; DestDir: "{code:Getx64bitDir}"; Flags: 64bit; Components: x64PluginMC
+Source: "..\..\..\Installer\Windows\files\HISE x86.dll"; DestDir: "{code:Getx86bitDir}"; Flags: 32bit; Components: x86Plugin
+Source: "..\..\..\Installer\Windows\files\HISE x86 16 Out.dll"; DestDir: "{code:Getx86bitDir}"; Flags: 32bit; Components: x86PluginMC
 
 [Icons]
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"; 
