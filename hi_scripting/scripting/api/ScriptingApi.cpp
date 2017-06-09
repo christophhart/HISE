@@ -1392,7 +1392,14 @@ var ScriptingApi::Sampler::getSampleMapList() const
 #if USE_BACKEND
 	File rootDir = GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
 #else
+    
+    
+#if HISE_IOS
+    File rootDir = File::getSpecialLocation(File::SpecialLocationType::currentApplicationFile).getChildFile("SampleMaps");
+#else
+    
 	File rootDir = ProjectHandler::Frontend::getAppDataDirectory().getChildFile("SampleMaps");
+#endif
 
 	// This must be taken care of during installation
 	jassert(rootDir.isDirectory());

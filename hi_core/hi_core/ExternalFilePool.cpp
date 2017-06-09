@@ -226,7 +226,13 @@ const FileType * Pool<FileType>::loadFileIntoPool(const String &fileName, bool f
 	else
 	{
 #if USE_FRONTEND && DONT_EMBED_FILES_IN_FRONTEND
+        
+        
+#if HISE_IOS
+        const File directory = File::getSpecialLocation(File::SpecialLocationType::currentApplicationFile).getChildFile((getFileTypeName().toString()));
+#else
 		const File directory = ProjectHandler::Frontend::getAppDataDirectory().getChildFile(getFileTypeName().toString());
+#endif
 
 		// This should have been taken care of during installation...
 		jassert(directory.isDirectory());

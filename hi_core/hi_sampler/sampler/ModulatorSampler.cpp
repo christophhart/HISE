@@ -893,7 +893,13 @@ void ModulatorSampler::loadSampleMapFromId(const String& sampleMapId)
 #if USE_BACKEND
 	File f = GET_PROJECT_HANDLER(this).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps).getChildFile(sampleMapId + ".xml");
 #else
+    
+#if HISE_IOS
+    File f = File::getSpecialLocation(File::SpecialLocationType::currentApplicationFile).getChildFile("SampleMaps/").getChildFile(sampleMapId + ".xml");
+#else
+    
 	File f = ProjectHandler::Frontend::getAppDataDirectory().getChildFile("SampleMaps/").getChildFile(sampleMapId + ".xml");
+#endif
 
 	jassert(f.existsAsFile());
 #endif

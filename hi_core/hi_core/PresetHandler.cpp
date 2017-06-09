@@ -1505,7 +1505,6 @@ File ProjectHandler::Frontend::getAppDataDirectory(ProjectHandler *handler/*=nul
     
 	ignoreUnused(handler);
 
-#if JUCE_MAC
 #if JUCE_IOS
     
     File f = File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support/" + getCompanyName() + "/" + getProjectName());
@@ -1515,7 +1514,10 @@ File ProjectHandler::Frontend::getAppDataDirectory(ProjectHandler *handler/*=nul
         f.createDirectory();
     }
     
-#else
+    return f;
+    
+#elif JUCE_MAC
+
     
 #if ENABLE_APPLE_SANDBOX
     return File::getSpecialLocation(File::userMusicDirectory).getChildFile(getCompanyName() + "/" + getProjectName());
@@ -1523,8 +1525,7 @@ File ProjectHandler::Frontend::getAppDataDirectory(ProjectHandler *handler/*=nul
     return File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support/" + getCompanyName() + "/" + getProjectName());
 #endif
     
-#endif
-#else
+#else // WINDOWS
 
 	File f = File::getSpecialLocation(appDataDirectoryToUse).getChildFile(getCompanyName() + "/" + getProjectName());
 
@@ -1536,7 +1537,7 @@ File ProjectHandler::Frontend::getAppDataDirectory(ProjectHandler *handler/*=nul
 	return f;
 
 #endif
-#else
+#else // BACKEND
 
 	jassert(handler != nullptr);
 
