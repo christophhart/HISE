@@ -1308,11 +1308,16 @@ void ScriptingObjects::GraphicsObject::addDropShadowFromAlpha(int colour, int ra
 	shadow.radius = radius;
 
 
-    const double scaleFactor = Desktop::getInstance().getDisplays().getMainDisplay().scale;
+    
     
     Graphics g2(*imageToDraw);
     
+#if JUCE_MAC || HISE_IOS
+    const double scaleFactor = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(parent)->parent->usesDoubleResolution() ? 2.0 : 1.0;
+    
+    // don't ask why...
     g2.addTransform(AffineTransform::scale((float)(1.0 / scaleFactor)));
+#endif
     
 	shadow.drawForImage(g2, *imageToDraw);
 }
