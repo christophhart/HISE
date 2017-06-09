@@ -470,21 +470,31 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 
 		convertTccScriptsToCppClasses();
 		writeValueTreeToTemporaryFile(exportPresetFile(), directoryPath, "preset");
-		writeValueTreeToTemporaryFile(exportEmbeddedFiles(type != TargetTypes::EffectPlugin), directoryPath, "externalFiles", true);
-		
-        //writeValueTreeToTemporaryFile(exportUserPresetFiles(), directoryPath, "userPresets");
 
-		if (SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::EmbedAudioFiles, &GET_PROJECT_HANDLER(chainToExport)) == "No")
-		{
-			File appFolder = ProjectHandler::Frontend::getAppDataDirectory(&GET_PROJECT_HANDLER(chainToExport)).getChildFile("AudioResources.dat");
-			PresetHandler::writeValueTreeAsFile(exportReferencedAudioFiles(), appFolder.getFullPathName());
-		}
-		else
-		{
-			writeValueTreeToTemporaryFile(exportReferencedAudioFiles(), directoryPath, "impulses");
-		}
+#if DONT_EMBED_FILES_IN_FRONTEND
+		const bool embedFiles = false;
+#else
+		// Don't embedd external files on iOS for quicker loading times...
+		const bool embedFiles = !BuildOptionHelpers::isIOS(option);
+#endif
 
-		writeValueTreeToTemporaryFile(exportReferencedImageFiles(), directoryPath, "images");
+		// Always embed scripts and fonts, but don't embed samplemaps
+		writeValueTreeToTemporaryFile(exportEmbeddedFiles(type != TargetTypes::EffectPlugin), directoryPath, "externalFiles", embedFiles);
+
+		if (embedFiles)
+		{
+			if (SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::EmbedAudioFiles, &GET_PROJECT_HANDLER(chainToExport)) == "No")
+			{
+				File appFolder = ProjectHandler::Frontend::getAppDataDirectory(&GET_PROJECT_HANDLER(chainToExport)).getChildFile("AudioResources.dat");
+				PresetHandler::writeValueTreeAsFile(exportReferencedAudioFiles(), appFolder.getFullPathName());
+			}
+			else
+			{
+				writeValueTreeToTemporaryFile(exportReferencedAudioFiles(), directoryPath, "impulses");
+			}
+
+			writeValueTreeToTemporaryFile(exportReferencedImageFiles(), directoryPath, "images");
+		}
 
 		String presetDataString("PresetData");
 
@@ -1269,8 +1279,17 @@ CompileExporter::ErrorCodes CompileExporter::createStandaloneAppProjucerFile()
     else
         iOSResourceFile = sampleFolder.getFullPathName();
     
+	
     REPLACE_WILDCARD_WITH_STRING("%IOS_SAMPLE_FOLDER%", iOSResourceFile);
     
+	const File imageFolder = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Images);
+	const File audioFolder = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles);
+	const File sampleMapFolder = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
+
+	REPLACE_WILDCARD_WITH_STRING("%IOS_IMAGE_FOLDER%", imageFolder.getFullPathName());
+	REPLACE_WILDCARD_WITH_STRING("%IOS_AUDIO_FOLDER%", audioFolder.getFullPathName());
+	REPLACE_WILDCARD_WITH_STRING("%IOS_SAMPLEMAP_FOLDER%", sampleMapFolder.getFullPathName());
+
 	ProjectTemplateHelpers::handleVisualStudioVersion(templateProject);
 
 	ProjectTemplateHelpers::handleCompanyInfo(this, templateProject);

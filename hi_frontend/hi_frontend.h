@@ -84,6 +84,21 @@ using namespace juce;
 
 #define USER_PRESET_OFFSET 8192
 
+#if DONT_EMBED_FILES_IN_FRONTEND
+
+#define CREATE_PLUGIN(deviceManager, callback) {ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\
+	ValueTree externalFiles = PresetHandler::loadValueTreeFromData(PresetData::externalFiles, PresetData::externalFilesSize, true);\
+	\
+	FrontendProcessor* fp = new FrontendProcessor(presetData, deviceManager, callback, nullptr, nullptr, &externalFiles, nullptr);\
+	AudioProcessorDriver::restoreSettings(fp);\
+	GlobalSettingManager::restoreGlobalSettings(fp); \
+	fp->loadSamplesAfterSetup();\
+	return fp;\
+}
+
+#define CREATE_PLUGIN_WITH_AUDIO_FILES CREATE_PLUGIN // same same
+
+#else
 #define CREATE_PLUGIN(deviceManager, callback) {ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\
 	ValueTree imageData = PresetHandler::loadValueTreeFromData(PresetData::images, PresetData::imagesSize, false);\
 	ValueTree externalFiles = PresetHandler::loadValueTreeFromData(PresetData::externalFiles, PresetData::externalFilesSize, true);\
@@ -106,6 +121,8 @@ using namespace juce;
 	fp->loadSamplesAfterSetup();\
 	return fp;\
 }
+#endif
+
 
 
 #endif   // HI_FRONTEND_INCLUDED

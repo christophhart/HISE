@@ -166,10 +166,12 @@ unlockCounter(0)
 		synthChain->prepareToPlay(getSampleRate(), getBlockSize());
 	}
 
+#if !DONT_EMBED_FILES_IN_FRONTEND
     if(sampleMaps.getNumChildren() == 0)
     {
         createSampleMapValueTreeFromPreset(synthData);
     }
+#endif
     
 
 

@@ -225,9 +225,23 @@ const FileType * Pool<FileType>::loadFileIntoPool(const String &fileName, bool f
 	}
 	else
 	{
-		if (File(fileName).existsAsFile())
+#if USE_FRONTEND && DONT_EMBED_FILES_IN_FRONTEND
+		const File directory = ProjectHandler::Frontend::getAppDataDirectory().getChildFile(getFileTypeName().toString());
+
+		// This should have been taken care of during installation...
+		jassert(directory.isDirectory());
+
+		File f = directory.getChildFile(fileName);
+
+#else
+		File f(fileName);
+#endif
+
+
+
+		if (f.existsAsFile())
 		{
-			FileInputStream *fis = new FileInputStream(fileName);
+			FileInputStream *fis = new FileInputStream(f);
 			addData(idForFileName, fileName, fis);
 
 			sendChangeMessage();

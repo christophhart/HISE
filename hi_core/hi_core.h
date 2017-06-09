@@ -225,11 +225,20 @@ Set this to 1 to enable hard clipping of the output (brickwall everything over 1
 #define USE_HARD_CLIPPER 0
 #endif
 
+
+// for iOS apps, the external files don't need to be embedded. Enable this to simulate this behaviour on desktop projects (not recommended for production)
+//#define DONT_EMBED_FILES_IN_FRONTEND 1
+
 #if JUCE_IOS
+#ifndef DONT_EMBED_FILES_IN_FRONTEND
+#define DONT_EMBED_FILES_IN_FRONTEND 1
+#endif
+
 #ifndef HISE_IOS
 #define HISE_IOS 1
 #endif
 #endif
+
 
 using namespace juce;
 

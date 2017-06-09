@@ -1387,8 +1387,17 @@ var ScriptingApi::Sampler::getSampleMapList() const
 {
 	Array<var> sampleMapNames;
 
+#if USE_BACKEND || DONT_EMBED_FILES_IN_FRONTEND
+
 #if USE_BACKEND
 	File rootDir = GET_PROJECT_HANDLER(getProcessor()).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
+#else
+	File rootDir = ProjectHandler::Frontend::getAppDataDirectory().getChildFile("SampleMaps");
+
+	// This must be taken care of during installation
+	jassert(rootDir.isDirectory());
+
+#endif
 
 	Array<File> childFiles;
 

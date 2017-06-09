@@ -888,9 +888,15 @@ void ModulatorSampler::loadSampleMapFromId(const String& sampleMapId)
 {
 	ScopedLock sl(getMainController()->getLock());
 
-#if USE_BACKEND
+#if USE_BACKEND || DONT_EMBED_FILES_IN_FRONTEND
 
+#if USE_BACKEND
 	File f = GET_PROJECT_HANDLER(this).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps).getChildFile(sampleMapId + ".xml");
+#else
+	File f = ProjectHandler::Frontend::getAppDataDirectory().getChildFile("SampleMaps/").getChildFile(sampleMapId + ".xml");
+
+	jassert(f.existsAsFile());
+#endif
 
 	if (!f.existsAsFile())
 	{
