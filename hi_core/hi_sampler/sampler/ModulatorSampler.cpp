@@ -976,6 +976,18 @@ void ModulatorSampler::saveSampleMap() const
 	sampleMap->save();
 }
 
+void ModulatorSampler::saveSampleMapAs()
+{
+	auto newName = PresetHandler::getCustomName("SampleMap");
+	
+	if (newName.isNotEmpty())
+	{
+		sampleMap->setId(newName);
+		sampleMap->save();
+	}
+	
+}
+
 void ModulatorSampler::saveSampleMapAsMonolith(Component* mainEditor) const
 {
 	sampleMap->saveAsMonolith(mainEditor);

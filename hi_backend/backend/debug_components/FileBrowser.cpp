@@ -462,10 +462,9 @@ void FileBrowser::previewFile(const File& f)
 	if (currentlyPreviewFile == f)
 	{
 		rootWindow->getRootFloatingTile()->showComponentInRootPopup(nullptr, nullptr, Point<int>());
-		currentlyPreviewFile = {};
+		currentlyPreviewFile = File();
 		return;
 	}
-
 
 	currentlyPreviewFile = f;
 

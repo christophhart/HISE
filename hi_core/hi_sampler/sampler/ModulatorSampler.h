@@ -259,6 +259,8 @@ public:
 
 	void saveSampleMap() const;
 
+	void saveSampleMapAs();
+
 	void saveSampleMapAsMonolith (Component* mainEditor) const;
 
 	/** Disables the automatic cycling and allows custom setting of the used round robin group. */
