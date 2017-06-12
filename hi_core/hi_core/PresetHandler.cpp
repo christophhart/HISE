@@ -910,6 +910,13 @@ void ProjectHandler::setWorkingProject(const File &workingDirectory, Component* 
 
 	File(PresetHandler::getDataFolder()).getChildFile("projects.xml").replaceWithText(xml->createDocument(""));
 
+	for (int i = 0; i < listeners.size(); i++)
+	{
+		if (listeners[i].get() != nullptr)
+			listeners[i]->projectChanged(currentWorkDirectory);
+		else
+			listeners.remove(i--);
+	}
 }
 
 void ProjectHandler::restoreWorkingProjects()

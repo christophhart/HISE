@@ -796,8 +796,17 @@ void SampleMap::load(const File &f)
 
 	jassert(xml != nullptr);
 
-	
+	static const Identifier sm("samplemap");
+
 	ValueTree v = ValueTree::fromXml(*xml);
+
+#if USE_BACKEND
+	if (v.getType() != sm)
+	{
+		PresetHandler::showMessageWindow("Invalid Samplemap", "The XML you tried to load is not a valid samplemap. Detected Type: " + v.getType().toString(), PresetHandler::IconType::Error);
+		return;
+	}
+#endif
         
     v.setProperty("FileName", fileToUse.getFullPathName(), nullptr);
 

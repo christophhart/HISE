@@ -177,12 +177,14 @@ Drawable * FileBrowserToolbarFactory::FileBrowserToolbarPaths::createPath(int id
 }
 
 
-FileBrowser::FileBrowser(BackendRootWindow* rootWindow) :
-directorySearcher("Directory Scanner")
+FileBrowser::FileBrowser(BackendRootWindow* rootWindow_) :
+	rootWindow(rootWindow_),
+	directorySearcher("Directory Scanner")
 {
     loadFavoriteFile();
     
-    
+	GET_PROJECT_HANDLER(rootWindow->getMainSynthChain()).addListener(this);
+
 	directorySearcher.startThread(3);
 
 	fileFilter = new HiseFileBrowserFilter();
@@ -213,6 +215,7 @@ directorySearcher("Directory Scanner")
 	textEditor->addListener(this);
     textEditor->setColour(TextEditor::ColourIds::backgroundColourId, Colours::white.withAlpha(0.2f));
 	textEditor->setColour(TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
+	textEditor->setColour(TextEditor::ColourIds::highlightColourId, Colour(SIGNAL_COLOUR).withAlpha(0.7f));
 
 	directoryList = new DirectoryContentsList(fileFilter, directorySearcher);
 
@@ -236,6 +239,11 @@ directorySearcher("Directory Scanner")
 #else
     goToDirectory(GET_PROJECT_HANDLER(rootWindow->getMainSynthChain()).getWorkDirectory());
 #endif
+}
+
+void FileBrowser::projectChanged(const File& newRootDirectory)
+{
+	goToDirectory(newRootDirectory, false);
 }
 
 void FileBrowser::goToDirectory(const File &newRoot, bool useUndoManager)
@@ -279,7 +287,7 @@ void FileBrowser::getCommandInfo(CommandID commandID, ApplicationCommandInfo &re
 		
 		break;
 	case ShowFavoritePopup:
-		result.setInfo("Show Folder Favorites", "Show Folder Favorites", "View", 0);
+		result.setInfo("Go to Project Root folder", "Go to project root folder", "View", 0);
 		
 		result.addDefaultKeypress(KeyPress::escapeKey, ModifierKeys::noModifiers);
 		break;
@@ -315,6 +323,8 @@ bool FileBrowser::perform(const InvocationInfo &info)
 	{
 	case ShowFavoritePopup:
 	{
+		goToDirectory(GET_PROJECT_HANDLER(rootWindow->getMainSynthChain()).getWorkDirectory());
+#if 0
 		PopupLookAndFeel mlaf;
 		PopupMenu m;
 		m.setLookAndFeel(&mlaf);
@@ -397,7 +407,7 @@ bool FileBrowser::perform(const InvocationInfo &info)
 		{
 			jassertfalse;
 		}
-
+#endif
 
 		return true;
 	}
@@ -445,8 +455,63 @@ void FileBrowser::paint(Graphics &g)
 	g.fillRect(0.0f, 24.0f, (float)getWidth(), 25.0f);
 }
 
+//class FilePreviewComponent
+
+void FileBrowser::previewFile(const File& f)
+{
+	if (currentlyPreviewFile == f)
+	{
+		rootWindow->getRootFloatingTile()->showComponentInRootPopup(nullptr, nullptr, Point<int>());
+		currentlyPreviewFile = {};
+		return;
+	}
+
+
+	currentlyPreviewFile = f;
+
+	auto ff = dynamic_cast<HiseFileBrowserFilter*>(fileFilter.get());
+
+	Component* content = nullptr;
+
+	if (ff->isImageFile(f))
+	{
+		auto ipc = new ImagePreviewComponent();
+		
+		ipc->setSize(500, 500);
+
+		ipc->selectedFileChanged(f);
+
+		content = ipc;
+	}
+	else if (ff->isScriptFile(f))
+	{
+		auto c = new JSONEditor(f);
+
+		c->setSize(600, 500);
+
+		content = c;
+	}
+	else
+	{
+		return;
+	}
+
+	auto s = fileTreeComponent->getSelectedItem(0);
+
+	Rectangle<int> bounds = Rectangle<int>();
+
+	if (s != nullptr)
+	{
+		bounds = s->getItemPosition(true);
+	}
+
+	rootWindow->getRootFloatingTile()->showComponentInRootPopup(content, fileTreeComponent, bounds.getCentre());
+}
+
 FileBrowser::~FileBrowser()
 {
+	GET_PROJECT_HANDLER(rootWindow->getMainSynthChain()).removeListener(this);
+
     saveFavoriteFile();
     
    	directoryList = nullptr;
@@ -481,7 +546,11 @@ void FileBrowser::mouseDown(const MouseEvent& e)
         
         m.setLookAndFeel(&plaf);
         
+#if JUCE_WINDOWS
+		m.addItem(1, "Show in Explorer"); // Wow, cross platform overload...
+#else
         m.addItem(1, "Show in Finder");
+#endif
         m.addItem(2, "Copy as reference");
         
         const int result = m.show();
@@ -561,6 +630,12 @@ void FileBrowser::textEditorReturnKeyPressed(TextEditor& editor)
 
 bool FileBrowser::keyPressed(const KeyPress& key)
 {
+	if (key.getKeyCode() == KeyPress::spaceKey)
+	{
+		previewFile(fileTreeComponent->getSelectedFile(0));
+
+		return fileTreeComponent->getNumSelectedFiles() > 0;
+	}
 	if (key.isKeyCode(KeyPress::upKey) || key.isKeyCode(KeyPress::downKey))
 	{
 		if (fileTreeComponent->getNumSelectedFiles() == 1)

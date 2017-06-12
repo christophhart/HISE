@@ -554,6 +554,15 @@ void SamplerSoundMap::drawSampleComponentsForDragPosition(int numDraggedFiles, i
 }
 
 
+void SamplerSoundMap::drawSampleMapForDragPosition()
+{
+	semiTonesPerNote = 128;
+	draggedFileRootNotes = 0;
+	draggedFileRootNotes.setBit(0, true);
+
+	refreshGraphics();
+}
+
 void SamplerSoundMap::updateSampleComponentWithSound(ModulatorSamplerSound *sound)
 {
     const int index = (int)sound->getProperty(ModulatorSamplerSound::Property::ID);

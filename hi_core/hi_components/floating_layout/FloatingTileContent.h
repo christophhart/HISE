@@ -138,6 +138,34 @@ public:
 		addAndMakeVisible(resizer = new ResizableCornerComponent(this, &constrainer));
 	}
 
+	JSONEditor(const File& f)
+	{
+		setName("External Script Preview");
+
+		tokeniser = new JavascriptTokeniser();
+		doc = new CodeDocument();
+		doc->replaceAllContent(f.loadFileAsString());
+		doc->setSavePoint();
+		doc->clearUndoHistory();
+
+		addAndMakeVisible(editor = new CodeEditorComponent(*doc, tokeniser));
+
+		editor->setColour(CodeEditorComponent::backgroundColourId, Colour(0xff262626));
+		editor->setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colour(0xFFCCCCCC));
+		editor->setColour(CodeEditorComponent::ColourIds::lineNumberTextId, Colour(0xFFCCCCCC));
+		editor->setColour(CodeEditorComponent::ColourIds::lineNumberBackgroundId, Colour(0xff363636));
+		editor->setColour(CodeEditorComponent::ColourIds::highlightColourId, Colour(0xff666666));
+		editor->setColour(CaretComponent::ColourIds::caretColourId, Colour(0xFFDDDDDD));
+		editor->setColour(ScrollBar::ColourIds::thumbColourId, Colour(0x3dffffff));
+		editor->setReadOnly(true);
+		editor->setFont(GLOBAL_MONOSPACE_FONT().withHeight(16.0f));
+
+		constrainer.setMinimumWidth(200);
+		constrainer.setMinimumHeight(300);
+
+		addAndMakeVisible(resizer = new ResizableCornerComponent(this, &constrainer));
+	}
+
 	~JSONEditor()
 	{
 		
@@ -145,6 +173,9 @@ public:
 
 	bool keyPressed(const KeyPress& key)
 	{
+		if (editedComponent == nullptr)
+			return false;
+
 		if (key == KeyPress::F5Key)
 		{
 			replace();

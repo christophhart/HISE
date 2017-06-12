@@ -166,6 +166,22 @@ public:
 		numSubDirectories
 	};
 
+	struct Listener
+	{
+		virtual ~Listener()
+		{
+			masterReference.clear();
+		};
+
+		/** Whenever a project is changed, this method is called on its registered Listeners. */
+		virtual void projectChanged(const File& newRootDirectory) = 0;
+
+	private:
+
+		friend class WeakReference<Listener>;
+		WeakReference<Listener>::Master masterReference;
+	};
+
 	void createNewProject(File &workingDirectory, Component* mainEditor);
 
 	void setWorkingProject(const File &workingDirectory, Component* mainEditor);
@@ -218,6 +234,16 @@ public:
 	void checkActiveProject();
 
 	void checkAllSampleMaps();
+
+	void addListener(Listener* newProjectListener)
+	{
+		listeners.addIfNotAlreadyThere(newProjectListener);
+	}
+
+	void removeListener(Listener* listenerToRemove)
+	{
+		listeners.removeAllInstancesOf(listenerToRemove);
+	}
 
     /** checks if this is a absolute path (including absolute win paths on OSX and absolute OSX paths on windows); */
     static bool isAbsolutePathCrossPlatform(const String &pathName)
@@ -315,6 +341,8 @@ private:
 	void checkSettingsFile(Component* mainEditor=nullptr);
 
 private:
+
+	Array<WeakReference<Listener>> listeners;
 
 	MainController* mc;
 

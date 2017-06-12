@@ -214,7 +214,7 @@ public:
 
 			File f(firstName);
 
-			return f.isDirectory() || AudioSampleBufferComponent::isAudioFile(firstName);
+			return f.isDirectory() || AudioSampleBufferComponent::isAudioFile(firstName) || f.hasFileExtension("xml");
 		}
 
 		return false;
@@ -278,9 +278,21 @@ public:
 			const int x_relative = dropPoint.getX();
 			const int y_relative = dropPoint.getY();
 
-			drawSampleComponentsForDragPosition(files.size(), x_relative,y_relative);
+			if (isDraggingSampleMap(files))
+			{
+				drawSamplemapForDragPosition();
+			}
+			else
+			{
+				drawSampleComponentsForDragPosition(files.size(), x_relative, y_relative);
+			}
 		}
 	};
+
+	bool isDraggingSampleMap(const StringArray& files) const
+	{
+		return files.size() > 0 && File(files[0]).hasFileExtension("xml");
+	}
 
 	void filesDropped(const StringArray &files, int /*x*/, int /*y*/) override
 	{
@@ -325,7 +337,10 @@ public:
 		map->map->drawSampleComponentsForDragPosition(numDraggedFiles, x, y);
 	}
 
-
+	void drawSamplemapForDragPosition()
+	{
+		map->map->drawSampleMapForDragPosition();
+	}
 
 	void clearDragPosition()
 	{

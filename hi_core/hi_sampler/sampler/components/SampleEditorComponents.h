@@ -403,6 +403,8 @@ public:
 
 	void drawSampleComponentsForDragPosition(int numDraggedFiles, int x, int y);
 
+	void drawSampleMapForDragPosition();
+
 	void clearDragPosition()
 	{
 		draggedFileRootNotes.clear();

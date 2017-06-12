@@ -69,7 +69,8 @@ class BackendProcessorEditor;
 class FileBrowser : public Component,
 					public DragAndDropContainer,
 					public ApplicationCommandTarget,
-					public TextEditor::Listener
+					public TextEditor::Listener,
+					public ProjectHandler::Listener
 {
 public:
 
@@ -123,6 +124,8 @@ public:
 		return findFirstTargetParentComponent();
 	};
 
+	void projectChanged(const File& newRootDirectory) override;
+
 	void goToDirectory(const File &newRoot, bool useUndoManager=true);
 
 	void getAllCommands(Array<CommandID>& commands) override;;
@@ -132,6 +135,8 @@ public:
 	bool perform(const InvocationInfo &info) override;
 
 	void paint(Graphics &g);
+
+	void previewFile(const File& f);
 
 	void textEditorReturnKeyPressed(TextEditor& editor) override;
 
@@ -216,23 +221,41 @@ private:
 			if (file.getFileName().startsWith(".")) return false; // skip OSX hidden files on windows
 #endif
 
-            return file.hasFileExtension("hip") ||
-                   file.hasFileExtension("js") ||
-                   file.hasFileExtension("ttf") ||
+			return file.hasFileExtension("hip") ||
+
+				file.hasFileExtension("ttf") ||
 #if JUCE_WINDOWS
-				   file.getFileName() == "LinkWindows" ||
+				file.getFileName() == "LinkWindows" ||
 #else
-				   file.getFileName() == "LinkOSX" ||
+				file.getFileName() == "LinkOSX" ||
 #endif
-                   AudioSampleBufferComponent::isAudioFile(file.getFullPathName()) ||
-                   (ImageFileFormat::findImageFormatForFileExtension(file) != nullptr) ;
+				isAudioFile(file) || isImageFile(file) || isXmlFile(file) || isScriptFile(file);
         }
         
+		bool isImageFile(const File& file) const
+		{
+			return ImageFileFormat::findImageFormatForFileExtension(file) != nullptr;
+		}
+
+		bool isAudioFile(const File& file) const
+		{
+			return AudioSampleBufferComponent::isAudioFile(file.getFullPathName());
+		}
         
+		bool isXmlFile(const File& file) const
+		{
+			return file.hasFileExtension("xml");
+		}
+
         bool isDirectorySuitable(const File &) const override
         {
             return true;
         }
+
+		bool isScriptFile(const File &f) const
+		{
+			return f.hasFileExtension("js");
+		}
     };
     
     
@@ -267,6 +290,8 @@ private:
             favorites.getLast()->restoreFromValueTree(v.getChild(i));
         }
     }
+
+	File currentlyPreviewFile;
     
 
 	friend class FileBrowserToolbarFactory;
@@ -284,6 +309,8 @@ private:
 	ScopedPointer<ShapeButton> removeFromFavoritesButton;
 
 	ScopedPointer<FileFilter> fileFilter;
+
+	Component::SafePointer<BackendRootWindow> rootWindow;
 
 	var fileArray;
 
