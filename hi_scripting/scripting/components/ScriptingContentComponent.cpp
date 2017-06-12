@@ -273,7 +273,12 @@ void ScriptContentComponent::updateContent(ScriptingApi::Content::ScriptComponen
 	}
 	else
 	{
-		updateComponent(contentData->components.indexOf(componentToUpdate));
+		auto index = contentData->components.indexOf(componentToUpdate);
+
+		if (index > 0)
+			updateComponent(index);
+		else
+			jassertfalse;
 	}
 }
 
