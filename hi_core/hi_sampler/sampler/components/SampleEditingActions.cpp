@@ -346,7 +346,8 @@ public:
 		UnselectedSamples,
 		ExistingMultimicSamples,
 		SampleCollectionNotSameSize,
-		FaultySample
+		FaultySample,
+		TooMuchChannels
 	};
 
 	enum class DetectionMode
@@ -666,13 +667,19 @@ private:
 	{
 		const int numPerCollection = channelNames.size();
 
+		int maxChannelAmount = 0;
+
 		setProgress(0.0);
 
 		for (int i = 0; i < collections.size(); i++)
 		{
 			setProgress((double)i / double(collections.size()));
 
-			if (collections[i]->soundList.size() != numPerCollection)
+			auto collectionChannelAmount = collections[i]->soundList.size();
+
+			maxChannelAmount = jmax<int>(maxChannelAmount, collectionChannelAmount);
+
+			if (collectionChannelAmount != numPerCollection)
 			{
 				int faultyIndex = -1;
 
@@ -717,6 +724,13 @@ private:
 			}
 		}
 
+		if (maxChannelAmount > 8)
+		{
+			errorStatus = Error::TooMuchChannels;
+			errorMessage = "Too many channels: " + String(maxChannelAmount) + ". Max Channel Amount: " + String(NUM_MAX_CHANNELS / 2);
+			return false;
+		}
+
 		return true;
 	}
 
@@ -737,6 +751,8 @@ private:
 			return "There are already multimic samples in this sampler. Extract them back to single mics and remerge them.";
 			break;
 		case Error::SampleCollectionNotSameSize:
+			return errorMessage;
+		case Error::TooMuchChannels:
 			return errorMessage;
 		default:
 			break;

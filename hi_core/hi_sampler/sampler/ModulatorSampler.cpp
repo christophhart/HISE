@@ -146,7 +146,9 @@ void ModulatorSampler::refreshRRMap()
 
 void ModulatorSampler::setNumChannels(int numNewChannels)
 {
-	numChannels = numNewChannels;
+	jassert(numNewChannels < (NUM_MAX_CHANNELS / 2));
+
+	numChannels = jmin<int>(NUM_MAX_CHANNELS/2, numNewChannels);
 
 	getMatrix().setNumSourceChannels(numChannels * 2);
 

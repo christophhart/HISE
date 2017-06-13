@@ -409,6 +409,10 @@ void RoutableProcessor::MatrixData::restoreFromValueTree(const ValueTree &v)
 
 void RoutableProcessor::MatrixData::setNumSourceChannels(int newNumChannels, NotificationType notifyProcessors)
 {
+	jassert(newNumChannels < NUM_MAX_CHANNELS);
+
+	newNumChannels = jmin<int>(newNumChannels, NUM_MAX_CHANNELS);
+
 	if (newNumChannels != numSourceChannels)
 	{
 		ScopedLock sl(getLock());
@@ -424,6 +428,10 @@ void RoutableProcessor::MatrixData::setNumSourceChannels(int newNumChannels, Not
 
 void RoutableProcessor::MatrixData::setNumDestinationChannels(int newNumChannels, NotificationType notifyProcessors)
 {
+	jassert(newNumChannels < NUM_MAX_CHANNELS);
+
+	newNumChannels = jmin<int>(newNumChannels, NUM_MAX_CHANNELS);
+
 	if (newNumChannels != numDestinationChannels)
 	{
 		ScopedLock sl(getLock());
