@@ -47,7 +47,7 @@ FileNamePartComponent::FileNamePartComponent (const String &token)
     partName->setFont (Font ("Khmer UI", 14.00f, Font::plain));
     partName->setJustificationType (Justification::centred);
     partName->setEditable (false, false, false);
-    partName->setColour (Label::backgroundColourId, Colour (0x38ffffff));
+    partName->setColour (Label::backgroundColourId, Colour (0x88ffffff));
     partName->setColour (Label::outlineColourId, Colour (0x38ffffff));
     partName->setColour (TextEditor::textColourId, Colours::black);
     partName->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
@@ -68,7 +68,7 @@ FileNamePartComponent::FileNamePartComponent (const String &token)
     propertyLabel->setFont (Font ("Khmer UI", 14.00f, Font::plain));
     propertyLabel->setJustificationType (Justification::centred);
     propertyLabel->setEditable (true, true, false);
-    propertyLabel->setColour (Label::backgroundColourId, Colour (0x38ffffff));
+    propertyLabel->setColour (Label::backgroundColourId, Colour (0x88ffffff));
     propertyLabel->setColour (Label::outlineColourId, Colour (0x38ffffff));
     propertyLabel->setColour (TextEditor::textColourId, Colours::black);
     propertyLabel->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
@@ -90,7 +90,7 @@ FileNamePartComponent::FileNamePartComponent (const String &token)
     dataLabel->setFont (Font ("Khmer UI", 14.00f, Font::plain));
     dataLabel->setJustificationType (Justification::centred);
     dataLabel->setEditable (true, true, false);
-    dataLabel->setColour (Label::backgroundColourId, Colour (0x38ffffff));
+    dataLabel->setColour (Label::backgroundColourId, Colour (0x88ffffff));
     dataLabel->setColour (Label::outlineColourId, Colour (0x38ffffff));
     dataLabel->setColour (TextEditor::textColourId, Colours::black);
     dataLabel->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
@@ -112,7 +112,7 @@ FileNamePartComponent::FileNamePartComponent (const String &token)
     itemLabel->setFont (Font ("Khmer UI", 14.00f, Font::plain));
     itemLabel->setJustificationType (Justification::centred);
     itemLabel->setEditable (true, true, false);
-    itemLabel->setColour (Label::backgroundColourId, Colour (0x38ffffff));
+    itemLabel->setColour (Label::backgroundColourId, Colour (0x88ffffff));
     itemLabel->setColour (Label::outlineColourId, Colour (0x38ffffff));
     itemLabel->setColour (TextEditor::textColourId, Colours::black);
     itemLabel->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
@@ -134,7 +134,7 @@ FileNamePartComponent::FileNamePartComponent (const String &token)
     valueLabel->setFont (Font ("Khmer UI", 14.00f, Font::plain));
     valueLabel->setJustificationType (Justification::centred);
     valueLabel->setEditable (true, true, false);
-    valueLabel->setColour (Label::backgroundColourId, Colour (0x38ffffff));
+    valueLabel->setColour (Label::backgroundColourId, Colour (0x88ffffff));
     valueLabel->setColour (Label::outlineColourId, Colour (0x38ffffff));
     valueLabel->setColour (TextEditor::textColourId, Colours::black);
     valueLabel->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
@@ -144,16 +144,16 @@ FileNamePartComponent::FileNamePartComponent (const String &token)
 
     //[UserPreSize]
 
-	separatorLabel->setFont (GLOBAL_FONT());
-	valueLabel->setFont (GLOBAL_FONT());
-	displayGroupLabel4->setFont (GLOBAL_FONT());
-	itemLabel->setFont (GLOBAL_FONT());
-	displayGroupLabel3->setFont (GLOBAL_FONT());
-	dataLabel->setFont (GLOBAL_FONT());
-	displayGroupLabel2->setFont (GLOBAL_FONT());
-	propertyLabel->setFont (GLOBAL_FONT());
-	displayGroupLabel->setFont (GLOBAL_FONT());
-	partName->setFont (GLOBAL_FONT());
+	separatorLabel->setFont (GLOBAL_BOLD_FONT());
+	valueLabel->setFont (GLOBAL_BOLD_FONT());
+	displayGroupLabel4->setFont (GLOBAL_BOLD_FONT());
+	itemLabel->setFont (GLOBAL_BOLD_FONT());
+	displayGroupLabel3->setFont (GLOBAL_BOLD_FONT());
+	dataLabel->setFont (GLOBAL_BOLD_FONT());
+	displayGroupLabel2->setFont (GLOBAL_BOLD_FONT());
+	propertyLabel->setFont (GLOBAL_BOLD_FONT());
+	displayGroupLabel->setFont (GLOBAL_BOLD_FONT());
+	partName->setFont (GLOBAL_BOLD_FONT());
 
 	partName->setText(tokenName, dontSendNotification);
 
@@ -185,10 +185,27 @@ FileNamePartComponent::FileNamePartComponent (const String &token)
 	dataLabel->setEditable(false);
 	propertyLabel->setEditable(false);
 
+	addAndMakeVisible(propertyInfoButton = new ShapeButton("Info", Colours::white.withAlpha(0.4f), Colours::white.withAlpha(0.6f), Colours::white));
+	addAndMakeVisible(dataInfoButton = new ShapeButton("Info", Colours::white.withAlpha(0.4f), Colours::white.withAlpha(0.6f), Colours::white));
+
+	static const unsigned char pathData[] = { 110, 109, 0, 0, 12, 67, 46, 183, 84, 68, 98, 229, 174, 239, 66, 46, 183, 84, 68, 254, 255, 206, 66, 11, 205, 88, 68, 254, 255, 206, 66, 46, 215, 93, 68, 98, 254, 255, 206, 66, 82, 225, 98, 68, 228, 174, 239, 66, 46, 247, 102, 68, 0, 0, 12, 67, 46, 247, 102, 68, 98, 142, 40, 32, 67, 46, 247, 102, 68, 1, 128, 48, 67, 81, 225,
+		98, 68, 1, 128, 48, 67, 46, 215, 93, 68, 98, 1, 128, 48, 67, 10, 205, 88, 68, 142, 40, 32, 67, 46, 183, 84, 68, 0, 0, 12, 67, 46, 183, 84, 68, 99, 109, 0, 0, 12, 67, 46, 65, 101, 68, 98, 31, 62, 247, 66, 46, 65, 101, 68, 255, 175, 220, 66, 106, 239, 97, 68, 255, 175, 220, 66, 46, 215, 93, 68, 98, 255, 175, 220, 66, 242, 190,
+		89, 68, 31, 62, 247, 66, 46, 109, 86, 68, 0, 0, 12, 67, 46, 109, 86, 68, 98, 240, 96, 28, 67, 46, 109, 86, 68, 1, 168, 41, 67, 242, 190, 89, 68, 1, 168, 41, 67, 46, 215, 93, 68, 98, 1, 168, 41, 67, 106, 239, 97, 68, 241, 96, 28, 67, 46, 65, 101, 68, 0, 0, 12, 67, 46, 65, 101, 68, 99, 109, 0, 112, 7, 67, 46, 71, 89, 68, 108, 0, 144,
+		16, 67, 46, 71, 89, 68, 108, 0, 144, 16, 67, 46, 143, 91, 68, 108, 0, 112, 7, 67, 46, 143, 91, 68, 108, 0, 112, 7, 67, 46, 71, 89, 68, 99, 109, 0, 32, 21, 67, 46, 103, 98, 68, 108, 0, 224, 2, 67, 46, 103, 98, 68, 108, 0, 224, 2, 67, 46, 67, 97, 68, 108, 0, 112, 7, 67, 46, 67, 97, 68, 108, 0, 112, 7, 67, 46, 215, 93, 68, 108, 0, 224,
+		2, 67, 46, 215, 93, 68, 108, 0, 224, 2, 67, 46, 179, 92, 68, 108, 0, 144, 16, 67, 46, 179, 92, 68, 108, 0, 144, 16, 67, 46, 67, 97, 68, 108, 0, 32, 21, 67, 46, 67, 97, 68, 108, 0, 32, 21, 67, 46, 103, 98, 68, 99, 101, 0, 0 };
+
+	Path path;
+	path.loadPathFromData(pathData, sizeof(pathData));
+
+	propertyInfoButton->setShape(path, false, true, true);
+	dataInfoButton->setShape(path, false, true, true);
+
+	propertyInfoButton->addListener(this);
+	dataInfoButton->addListener(this);
 
     //[/UserPreSize]
 
-    setSize (500, 40);
+    setSize (600, 40);
 
 
     //[Constructor] You can add your own custom stuff here..
@@ -249,6 +266,10 @@ void FileNamePartComponent::resized()
     displayGroupLabel4->setBounds (409, 0, 57, 24);
     valueLabel->setBounds (379, 18, 108, 16);
     //[UserResized] Add your own custom resize handling here..
+
+	propertyInfoButton->setBounds(propertyLabel->getRight() - 14, 1, 16, 16);
+	dataInfoButton->setBounds(dataLabel->getRight() - 14, 1, 16, 16);
+
     //[/UserResized]
 }
 
@@ -414,6 +435,19 @@ void FileNamePartComponent::importSettings(XmlElement &p)
 
 	itemLabel->setText(p.getStringAttribute("Items"), sendNotification);
 	valueLabel->setText(p.getStringAttribute("Values"), sendNotification);
+}
+
+void FileNamePartComponent::buttonClicked(Button* b)
+{
+	if (b == dataInfoButton)
+	{
+		PresetHandler::showMessageWindow("Data Type Help", dataLabel->getOptionDescription(), PresetHandler::IconType::Info);
+	}
+	else if (b == propertyInfoButton)
+	{
+		PresetHandler::showMessageWindow("Property Type Help", propertyLabel->getOptionDescription(), PresetHandler::IconType::Info);
+	}
+
 }
 
 //[/MiscUserCode]

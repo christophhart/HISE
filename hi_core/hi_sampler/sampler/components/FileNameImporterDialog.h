@@ -146,6 +146,11 @@ public:
 
 private:
     //[UserVariables]   -- You can add your own custom variables in this section.
+
+	void restoreFromXml(const String& xmlData);
+
+	XmlElement* saveAsXml();
+
 	StringArray fileNames;
 	StringArray relativeFileNames;
 	StringArray tokens;

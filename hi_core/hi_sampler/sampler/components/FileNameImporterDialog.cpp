@@ -48,7 +48,7 @@ FileNameImporterDialog::FileNameImporterDialog (ModulatorSampler *sampler_, cons
     separatorEditor->setFont (Font ("Khmer UI", 14.00f, Font::plain));
     separatorEditor->setJustificationType (Justification::centred);
     separatorEditor->setEditable (true, true, false);
-    separatorEditor->setColour (Label::backgroundColourId, Colour (0x38ffffff));
+    separatorEditor->setColour (Label::backgroundColourId, Colour (0x66ffffff));
     separatorEditor->setColour (Label::outlineColourId, Colour (0x38ffffff));
     separatorEditor->setColour (TextEditor::textColourId, Colours::black);
     separatorEditor->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
@@ -69,7 +69,7 @@ FileNameImporterDialog::FileNameImporterDialog (ModulatorSampler *sampler_, cons
     fileNameEditor->setFont (Font ("Khmer UI", 14.00f, Font::plain));
     fileNameEditor->setJustificationType (Justification::centred);
     fileNameEditor->setEditable (false, false, false);
-    fileNameEditor->setColour (Label::backgroundColourId, Colour (0x38ffffff));
+    fileNameEditor->setColour (Label::backgroundColourId, Colour (0x66ffffff));
     fileNameEditor->setColour (Label::outlineColourId, Colour (0x38ffffff));
     fileNameEditor->setColour (TextEditor::textColourId, Colours::black);
     fileNameEditor->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
@@ -89,7 +89,7 @@ FileNameImporterDialog::FileNameImporterDialog (ModulatorSampler *sampler_, cons
     propertiesEditor->setFont (Font ("Khmer UI", 14.00f, Font::plain));
     propertiesEditor->setJustificationType (Justification::centred);
     propertiesEditor->setEditable (false, false, false);
-    propertiesEditor->setColour (Label::backgroundColourId, Colour (0x38ffffff));
+    propertiesEditor->setColour (Label::backgroundColourId, Colour (0x66ffffff));
     propertiesEditor->setColour (Label::outlineColourId, Colour (0x38ffffff));
     propertiesEditor->setColour (TextEditor::textColourId, Colours::black);
     propertiesEditor->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
@@ -109,7 +109,7 @@ FileNameImporterDialog::FileNameImporterDialog (ModulatorSampler *sampler_, cons
     filesAmountEditor->setFont (Font ("Khmer UI", 14.00f, Font::plain));
     filesAmountEditor->setJustificationType (Justification::centred);
     filesAmountEditor->setEditable (false, false, false);
-    filesAmountEditor->setColour (Label::backgroundColourId, Colour (0x38ffffff));
+    filesAmountEditor->setColour (Label::backgroundColourId, Colour (0x66ffffff));
     filesAmountEditor->setColour (Label::outlineColourId, Colour (0x38ffffff));
     filesAmountEditor->setColour (TextEditor::textColourId, Colours::black);
     filesAmountEditor->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
@@ -146,14 +146,14 @@ FileNameImporterDialog::FileNameImporterDialog (ModulatorSampler *sampler_, cons
 
     //[UserPreSize]
 
-	separatorLabel->setFont (GLOBAL_FONT());
-	separatorEditor->setFont (GLOBAL_FONT());
-	separatorLabel2->setFont (GLOBAL_FONT());
-	fileNameEditor->setFont (GLOBAL_FONT());
-	separatorLabel3->setFont (GLOBAL_FONT());
-	filesAmountEditor->setFont (GLOBAL_FONT());
-	separatorLabel4->setFont (GLOBAL_FONT());
-	propertiesEditor->setFont (GLOBAL_FONT());
+	separatorLabel->setFont (GLOBAL_BOLD_FONT());
+	separatorEditor->setFont (GLOBAL_BOLD_FONT());
+	separatorLabel2->setFont (GLOBAL_BOLD_FONT());
+	fileNameEditor->setFont (GLOBAL_BOLD_FONT());
+	separatorLabel3->setFont (GLOBAL_BOLD_FONT());
+	filesAmountEditor->setFont (GLOBAL_BOLD_FONT());
+	separatorLabel4->setFont (GLOBAL_BOLD_FONT());
+	propertiesEditor->setFont (GLOBAL_BOLD_FONT());
 
 	filesAmountEditor->setText(String(fileNames.size()), dontSendNotification);
 
@@ -164,20 +164,39 @@ FileNameImporterDialog::FileNameImporterDialog (ModulatorSampler *sampler_, cons
 
 	setSeparator("_");
 
-
-
     //[/UserPreSize]
 
     setSize (600, 400);
 
 
     //[Constructor] You can add your own custom stuff here..
+
+	File recentSettingsFile = File(PresetHandler::getDataFolder()).getChildFile("FileNameParserSettings.xml");
+
+	if (recentSettingsFile.existsAsFile())
+	{
+		const String recentSettings = recentSettingsFile.loadFileAsString();
+
+		restoreFromXml(recentSettings);
+	}
+
+	
+
     //[/Constructor]
 }
 
 FileNameImporterDialog::~FileNameImporterDialog()
 {
     //[Destructor_pre]. You can add your own custom destruction code here..
+
+	File recentSettingsFile = File(PresetHandler::getDataFolder()).getChildFile("FileNameParserSettings.xml");
+
+	ScopedPointer<XmlElement> settings = saveAsXml();
+
+	recentSettingsFile.replaceWithText(settings->createDocument(""));
+
+	settings = nullptr;
+
     //[/Destructor_pre]
 
     separatorLabel = nullptr;
@@ -255,14 +274,7 @@ void FileNameImporterDialog::buttonClicked (Button* buttonThatWasClicked)
     {
         //[UserButtonCode_copyButton] -- add your button handler code here..
 
-		ScopedPointer<XmlElement> settings = new XmlElement("settings");
-
-		settings->setAttribute("Separator", currentSeparator);
-
-		for(int i = 0; i < tokenPanels.size(); i++)
-		{
-			settings->addChildElement(tokenPanels[i]->exportSettings());
-		}
+		ScopedPointer<XmlElement> settings = saveAsXml();
 
 		SystemClipboard::copyTextToClipboard(settings->createDocument(""));
 
@@ -272,22 +284,7 @@ void FileNameImporterDialog::buttonClicked (Button* buttonThatWasClicked)
     {
         //[UserButtonCode_pasteButton] -- add your button handler code here..
 
-		ScopedPointer<XmlElement> settings = XmlDocument::parse(SystemClipboard::getTextFromClipboard());
-
-		if(settings != nullptr)
-		{
-			separatorEditor->setText(settings->getStringAttribute("Separator", "_"), sendNotification);
-
-			if(tokenPanels.size() == settings->getNumChildElements())
-			{
-				for(int i = 0; i < settings->getNumChildElements(); i++)
-				{
-					tokenPanels[i]->importSettings(*settings->getChildElement(i));
-
-				}
-			}
-
-		}
+		restoreFromXml(SystemClipboard::getTextFromClipboard());
 
         //[/UserButtonCode_pasteButton]
     }
@@ -295,14 +292,7 @@ void FileNameImporterDialog::buttonClicked (Button* buttonThatWasClicked)
     {
         //[UserButtonCode_saveButton] -- add your button handler code here..
 
-        ScopedPointer<XmlElement> settings = new XmlElement("settings");
-
-		settings->setAttribute("Separator", currentSeparator);
-
-		for(int i = 0; i < tokenPanels.size(); i++)
-		{
-			settings->addChildElement(tokenPanels[i]->exportSettings());
-		}
+		ScopedPointer<XmlElement> settings = saveAsXml();
 
         PresetHandler::saveFile(settings->createDocument(""), "*.xml");
 
@@ -312,23 +302,9 @@ void FileNameImporterDialog::buttonClicked (Button* buttonThatWasClicked)
     {
         //[UserButtonCode_loadButton] -- add your button handler code here..
 
-        ScopedPointer<XmlElement> settings = XmlDocument::parse(PresetHandler::loadFile("*.xml"));
+		auto content = PresetHandler::loadFile("*.xml").loadFileAsString();
 
-		if(settings != nullptr)
-		{
-			separatorEditor->setText(settings->getStringAttribute("Separator", "_"), sendNotification);
-
-			if(tokenPanels.size() == settings->getNumChildElements())
-			{
-				for(int i = 0; i < settings->getNumChildElements(); i++)
-				{
-					tokenPanels[i]->importSettings(*settings->getChildElement(i));
-
-				}
-			}
-
-		}
-
+		restoreFromXml(content);
         //[/UserButtonCode_loadButton]
     }
 
@@ -337,6 +313,56 @@ void FileNameImporterDialog::buttonClicked (Button* buttonThatWasClicked)
 }
 
 
+
+void FileNameImporterDialog::restoreFromXml(const String& xmlData)
+{
+	ScopedPointer<XmlElement> settings = XmlDocument::parse(xmlData);
+
+	if (settings != nullptr)
+	{
+		separatorEditor->setText(settings->getStringAttribute("Separator", "_"), sendNotification);
+
+		if (tokenPanels.size() == settings->getNumChildElements())
+		{
+			for (int i = 0; i < settings->getNumChildElements(); i++)
+			{
+				tokenPanels[i]->importSettings(*settings->getChildElement(i));
+
+			}
+		}
+		else
+		{
+			if (PresetHandler::showYesNoWindow("Token amount mismatch", "The settings you are about to load have a different amount of tokens. Press OK to load it anyway."))
+			{
+				for (int i = 0; i < tokenPanels.size(); i++)
+				{
+					if (i < settings->getNumChildElements())
+					{
+						tokenPanels[i]->importSettings(*settings->getChildElement(i));
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		PresetHandler::showMessageWindow("Parsing Error", "The XML settings file could not be parsed", PresetHandler::IconType::Warning);
+	}
+}
+
+XmlElement* FileNameImporterDialog::saveAsXml()
+{
+	ScopedPointer<XmlElement> settings = new XmlElement("settings");
+
+	settings->setAttribute("Separator", currentSeparator);
+
+	for (int i = 0; i < tokenPanels.size(); i++)
+	{
+		settings->addChildElement(tokenPanels[i]->exportSettings());
+	}
+
+	return settings.release();
+}
 
 //[MiscUserCode] You can add your own definitions of your custom methods or any other code here...
 //[/MiscUserCode]

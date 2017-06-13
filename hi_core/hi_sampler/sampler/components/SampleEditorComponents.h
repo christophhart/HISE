@@ -140,7 +140,9 @@ public:
 	PopupLabel(const String &name=String(), const String &initialText=String()):
 		Label(name, initialText),
 		currentIndex(0)
-	{};
+	{
+		
+	};
 
 	/** Adds an option to the popup menu. */
 	void addOption(const String &newOption, const String &toolTip = String()) { options.add(newOption); toolTips.add(toolTip); };
@@ -162,6 +164,9 @@ public:
 	/** Returns the currently selected Index. */
 	int getCurrentIndex() const noexcept { return currentIndex;	};
 
+	String getOptionDescription() const;
+	
+
 protected:
 
 	void mouseDown(const MouseEvent &e) override;
@@ -170,6 +175,8 @@ private:
 
 	void showPopup();
 	
+	
+
 	StringArray options;
 	StringArray toolTips;
 	int currentIndex;

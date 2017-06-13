@@ -71,6 +71,22 @@ void PopupLabel::setItemIndex(int index, NotificationType notify)
 };
 
 
+String PopupLabel::getOptionDescription() const
+{
+	String desc;
+
+	NewLine nl;
+
+	desc << "Use one of these options:" << nl << nl;
+
+	for (int i = 0; i < options.size(); i++)
+	{
+		desc << options[i] << ": " << toolTips[i] << nl;
+	}
+
+	return desc;
+}
+
 // =================================================================================================================== SamplerSoundWaveform
 
 

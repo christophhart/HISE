@@ -45,7 +45,8 @@ class PopupLabel;
                                                                     //[/Comments]
 */
 class FileNamePartComponent  : public Component,
-                               public LabelListener
+                               public LabelListener,
+							   public ButtonListener
 {
 public:
     //==============================================================================
@@ -209,6 +210,7 @@ public:
 	/** imports the settings from the supplied XmlElement. */
 	void importSettings(XmlElement &p);
 
+	void buttonClicked(Button* b) override;
 	
 
     //[/UserMethods]
@@ -278,6 +280,9 @@ private:
 	Range<int> valueRange;
 
 	Array<SampleImporter::SamplerSoundBasicData> dataList;
+
+	ScopedPointer<ShapeButton> propertyInfoButton;
+	ScopedPointer<ShapeButton> dataInfoButton;
 
     //[/UserVariables]
 

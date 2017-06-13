@@ -409,7 +409,7 @@ void RoutableProcessor::MatrixData::restoreFromValueTree(const ValueTree &v)
 
 void RoutableProcessor::MatrixData::setNumSourceChannels(int newNumChannels, NotificationType notifyProcessors)
 {
-	jassert(newNumChannels < NUM_MAX_CHANNELS);
+	jassert(newNumChannels <= NUM_MAX_CHANNELS);
 
 	newNumChannels = jmin<int>(newNumChannels, NUM_MAX_CHANNELS);
 
@@ -428,7 +428,7 @@ void RoutableProcessor::MatrixData::setNumSourceChannels(int newNumChannels, Not
 
 void RoutableProcessor::MatrixData::setNumDestinationChannels(int newNumChannels, NotificationType notifyProcessors)
 {
-	jassert(newNumChannels < NUM_MAX_CHANNELS);
+	jassert(newNumChannels <= NUM_MAX_CHANNELS);
 
 	newNumChannels = jmin<int>(newNumChannels, NUM_MAX_CHANNELS);
 
