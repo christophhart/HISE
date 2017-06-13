@@ -572,6 +572,7 @@ public:
 		Q,
 		Mode,
         Quality,
+        Keytrack,
 		numEffectParameters
 	};
 
@@ -589,7 +590,17 @@ public:
 		OnePoleLowPass,
 		OnePoleHighPass,
 		numFilterModes
-	};
+    };
+    
+    double fractionalMidiNoteInHz(double note)
+    {
+        // Like MidiMessage::getMidiNoteInHertz(), but with a float note.
+        note -= 69;
+        // Now 0 = A
+        return 440 * pow(2.0, note / 12.0);
+    }
+    float KTRatio = 0.0;
+    int FilterNote[128];
 
 	MonoFilterEffect(MainController *mc, const String &id);;
 
@@ -701,7 +712,21 @@ public:
 		FrequencyChainShown = Processor::numEditorStates,
 		GainChainShown,
 		numEditorStates
-	};
+    };
+    
+    enum Parameters
+    {
+        Keytrack = 5
+    };
+    
+    double fractionalMidiNoteInHz(double note)
+    {
+        // Like MidiMessage::getMidiNoteInHertz(), but with a float note.
+        note -= 69;
+        // Now 0 = A
+        return 440 * pow(2.0, note / 12.0);
+    }
+    float KTRatio = 0;
 
 	PolyFilterEffect(MainController *mc, const String &uid, int numVoices);;
 
@@ -726,7 +751,9 @@ public:
 	void startVoice(int voiceIndex, int noteNumber) override;
 	bool hasTail() const override { return true; };
 	
-	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
+    ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
+    
+    int FilterNote[128];
 
 	IIRCoefficients getCurrentCoefficients() const override {return voiceFilters[0]->getCurrentCoefficients();};
 

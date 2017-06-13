@@ -50,6 +50,12 @@ FilterEditor::FilterEditor (ProcessorEditor *p)
     gainSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     gainSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     gainSlider->addListener (this);
+    
+    addAndMakeVisible (keytrackSlider = new HiSlider ("Keytrack"));
+    keytrackSlider->setRange (0.0, 1.0, 0.1);
+    keytrackSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
+    keytrackSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
+    keytrackSlider->addListener (this);
 
     addAndMakeVisible (modeSelector = new ComboBox ("new combo box"));
     modeSelector->setEditableText (false);
@@ -92,7 +98,10 @@ FilterEditor::FilterEditor (ProcessorEditor *p)
 	qSlider->setMode(HiSlider::Linear, 0.3, 8.0, 1.0);
 
 	freqSlider->setup(getProcessor(), MonoFilterEffect::Frequency, "Frequency");
-	freqSlider->setMode(HiSlider::Frequency, 20.0, 20000.0, 1500.0);
+    freqSlider->setMode(HiSlider::Frequency, 20.0, 20000.0, 1500.0);
+    
+    keytrackSlider->setup(getProcessor(), PolyFilterEffect::Keytrack, "Keytrack");
+    keytrackSlider->setMode(HiSlider::Linear, 0.0, 1.0, 0.01);
 
 	getProcessor()->getMainController()->skin(*modeSelector);
 
@@ -128,6 +137,7 @@ FilterEditor::~FilterEditor()
     freqSlider = nullptr;
     qSlider = nullptr;
     gainSlider = nullptr;
+    keytrackSlider = nullptr;
     modeSelector = nullptr;
     filterGraph = nullptr;
     label = nullptr;
@@ -161,6 +171,7 @@ void FilterEditor::resized()
     freqSlider->setBounds ((getWidth() / 2) + -73 - (128 / 2), 118, 128, 48);
     qSlider->setBounds (((getWidth() / 2) + -73 - (128 / 2)) + 128 - -16, 118, 128, 48);
     gainSlider->setBounds (((getWidth() / 2) + -73 - (128 / 2)) + -16 - 128, 118, 128, 48);
+    keytrackSlider->setBounds (((getWidth() / 2) + -73 - (128 / 2)) + -128 - 128, 118, 128, 48);
     modeSelector->setBounds ((((getWidth() / 2) + -73 - (128 / 2)) + 128 - -16) + 128 - -23, 82, 128, 28);
     filterGraph->setBounds ((getWidth() / 2) + -69 - (proportionOfWidth (0.5075f) / 2), 16, proportionOfWidth (0.5075f), 88);
     label->setBounds ((getWidth() / 2) + 242 - (100 / 2), 7, 100, 40);

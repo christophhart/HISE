@@ -761,7 +761,7 @@ public:
 		bool hasLock = false;
 
 		WeakReference<MainController> mc;
-	};
+    };
 
 
 private: // Never call this directly, but wrap it through DelayedRenderer...
@@ -771,6 +771,8 @@ private: // Never call this directly, but wrap it through DelayedRenderer...
 
 	/** Sets the sample rate for the cpu meter. */
 	void prepareToPlay(double sampleRate_, int samplesPerBlock);
+
+
 
 
 protected:

@@ -1451,7 +1451,7 @@ void StreamingSamplerVoice::startNote (int /*midiNoteNumber*/,
 #define INTERPOLATE_SSE 1
 
 
-void interpolateStereoSamples(const float* inL, const float* inR, const float* pitchData, float* outL, float* outR, int startSample, double indexInBuffer, double uptimeDelta, int numSamples)
+void StreamingSamplerVoice::interpolateStereoSamples(const float* inL, const float* inR, const float* pitchData, float* outL, float* outR, int startSample, double indexInBuffer, double uptimeDelta, int numSamples)
 {
 	if (pitchData != nullptr)
 	{
@@ -1462,14 +1462,19 @@ void interpolateStereoSamples(const float* inL, const float* inR, const float* p
 		for(int i = 0; i < numSamples; i++)
 		{
 			const int pos = int(indexInBufferFloat);
-			const float alpha = indexInBufferFloat - (float)pos;
+            float alpha = indexInBufferFloat - (float)pos;
+            float pitchInter = (float)uptimeDelta;
+            if (pitchInter <= 0.125)
+            {
+                alpha = pow(alpha, 0.25 / pitchInter);
+            }
 			const float invAlpha = 1.0f - alpha;
 
 			float l = (inL[pos] * invAlpha + inL[pos + 1] * alpha);
 			float r = (inR[pos] * invAlpha + inR[pos + 1] * alpha);
 
-			outL[i] = l;
-			outR[i] = r;
+            outL[i] = l;
+            outR[i] = r;
 
 			jassert(*pitchData <= (float)MAX_SAMPLER_PITCH);
 
@@ -1484,15 +1489,21 @@ void interpolateStereoSamples(const float* inL, const float* inR, const float* p
 
 		while (numSamples > 0)
 		{
-			const int pos = int(indexInBufferFloat);
-			const float alpha = indexInBufferFloat - (float)pos;
+            const int pos = int(indexInBufferFloat);
+            float alpha = indexInBufferFloat - (float)pos;
+            float pitchInter = (float)uptimeDelta;
+            if (pitchInter <= 0.125)
+            {
+                alpha = pow(alpha, 0.25 / pitchInter);
+            }
 			const float invAlpha = 1.0f - alpha;
 
 			float l = (inL[pos] * invAlpha + inL[pos + 1] * alpha);
 			float r = (inR[pos] * invAlpha + inR[pos + 1] * alpha);
-
-			*outL++ = l;
-			*outR++ = r;
+            
+            
+            *outL++ = l;
+            *outR++ = r;
 
 			indexInBufferFloat += uptimeDeltaFloat;
 
@@ -1553,6 +1564,7 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
         
 		double indexInBuffer = startAlpha;
 
+        
 #if OLD_INTER
 
 		if (pitchData != nullptr)
@@ -1563,40 +1575,45 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 			
 			while (numSamples >= 4)
 			{
-                
-                
 				for (int i = 0; i < 4; i++)
 				{
-					const int pos = int(indexInBufferFloat);
-					const float alpha = indexInBufferFloat - (float)pos;
+                    const int pos = int(indexInBufferFloat);
+                    float alpha = indexInBufferFloat - (float)pos;
+                    float pitchInter = (float)uptimeDelta;
+                    if (pitchInter <= 0.125)
+                    {
+                        alpha = pow(alpha, 0.25 / pitchInter);
+                    }
 					const float invAlpha = 1.0f - alpha;
 
 					float l = (inL[pos] * invAlpha + inL[pos + 1] * alpha);
-					float r = (inR[pos] * invAlpha + inR[pos + 1] * alpha);
-
-					*outL++ = l;
-					*outR++ = r;
-
-					
+                    float r = (inR[pos] * invAlpha + inR[pos + 1] * alpha);
+                    
+                    *outL++ = l;
+                    *outR++ = r;
 
 					jassert(*pitchData <= (float)MAX_SAMPLER_PITCH);
 
 					indexInBufferFloat += *pitchData++;
-				}
-				numSamples -= 4;
+                }
+                numSamples -= 4;
 			}
 
 			while (numSamples > 0)
 			{
-				const int pos = int(indexInBufferFloat);
-				const float alpha = indexInBufferFloat - (float)pos;
+                const int pos = int(indexInBufferFloat);
+                float alpha = indexInBufferFloat - (float)pos;
+                float pitchInter = (float)uptimeDelta;
+                if (pitchInter <= 0.25)
+                {
+                    alpha = pow(alpha, 0.125 / pitchInter);
+                }
 				const float invAlpha = 1.0f - alpha;
 
 				float l = (inL[pos] * invAlpha + inL[pos + 1] * alpha);
 				float r = (inR[pos] * invAlpha + inR[pos + 1] * alpha);
-
-				*outL++ = l;
-				*outR++ = r;
+                *outL++ = l;
+                *outR++ = r;
 
 				
 
@@ -1617,33 +1634,42 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 			{
 				for (int i = 0; i < 4; i++)
 				{
-					const int pos = int(indexInBufferFloat);
-					const float alpha = indexInBufferFloat - (float)pos;
+                    const int pos = int(indexInBufferFloat);
+                    float alpha = indexInBufferFloat - (float)pos;
+                    float pitchInter = (float)uptimeDelta;
+                    if (pitchInter <= 0.125)
+                    {
+                        alpha = pow(alpha, 0.25 / pitchInter);
+                    }
 					const float invAlpha = 1.0f - alpha;
                     
 					float l = (inL[pos] * invAlpha + inL[pos + 1] * alpha);
 					float r = (inR[pos] * invAlpha + inR[pos + 1] * alpha);
-
-					*outL++ = l;
-					*outR++ = r;
+                    
 
 					indexInBufferFloat += uptimeDeltaFloat;
-				}
+                }
+                *outL++ = l;
+                *outR++ = r;
 				
 				numSamples -= 4;
 			}
 
 			while (numSamples > 0)
 			{
-				const int pos = int(indexInBufferFloat);
-				const float alpha = indexInBufferFloat - (float)pos;
+                const int pos = int(indexInBufferFloat);
+                float alpha = indexInBufferFloat - (float)pos;
+                float pitchInter = (float)uptimeDelta;
+                if (pitchInter <= 0.125)
+                {
+                    alpha = pow(alpha, 0.25 / pitchInter);
+                }
 				const float invAlpha = 1.0f - alpha;
 
 				float l = (inL[pos] * invAlpha + inL[pos + 1] * alpha);
-				float r = (inR[pos] * invAlpha + inR[pos + 1] * alpha);
-
-				*outL++ = l;
-				*outR++ = r;
+                float r = (inR[pos] * invAlpha + inR[pos + 1] * alpha);
+                *outL++ = l;
+                *outR++ = r;
 
 				indexInBufferFloat += uptimeDeltaFloat;
 
@@ -1687,7 +1713,7 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
             return;
         }
 
-		const bool enoughSamples = sound->hasEnoughSamplesForBlock((int)(voiceUptime + numSamples * MAX_SAMPLER_PITCH));
+		const bool enoughSamples = sound->hasEnoughSamplesForBlock((int)(voiceUptime + numSamples * MAX_SAMPLER_PITCH) / 8);
 
 #if LOG_SAMPLE_RENDERING
 		logger->checkSampleData(nullptr, DebugLogger::Location::SampleVoiceBufferFillPost, true, outputBuffer.getReadPointer(0, startFixed), numSamplesFixed);

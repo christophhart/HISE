@@ -172,8 +172,8 @@ void MainController::loadPreset(ValueTree &v, Component* /*mainEditor*/)
 
 		ModulatorSynthChain *synthChain = getMainSynthChain();
 
-		sampleRate = synthChain->getSampleRate();
-		bufferSize = synthChain->getBlockSize();
+		double sampleRateBackup = synthChain->getSampleRate();
+		int bufferSizeBackup = synthChain->getBlockSize();
 
 		synthChain->setBypassed(true);
 
@@ -188,7 +188,7 @@ void MainController::loadPreset(ValueTree &v, Component* /*mainEditor*/)
 
 		skipCompilingAtPresetLoad = false;
 
-		synthChain->prepareToPlay(sampleRate, bufferSize.get());
+		synthChain->prepareToPlay(sampleRateBackup, bufferSizeBackup);
 		synthChain->compileAllScripts();
 
         synthChain->loadMacrosFromValueTree(v);
@@ -445,7 +445,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		return;
 	}
 
-	ModulatorSynthChain *synthChain = getMainSynthChain();
+    ModulatorSynthChain *synthChain = getMainSynthChain();
 
 	if (buffer.getNumSamples() != bufferSize.get())
 	{
@@ -506,27 +506,63 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 	
 #if FRONTEND_IS_PLUGIN
-
-	synthChain->renderNextBlockWithModulators(buffer, masterEventBuffer);
-
-#else
-	multiChannelBuffer.clear();
+    multiChannelBuffer.clear();
 
 	synthChain->renderNextBlockWithModulators(multiChannelBuffer, masterEventBuffer);
+    
+    if (replaceBufferContent)
+    {
+        for (int i = 0; i < multiChannelBuffer.getNumSamples(); ++i)
+        {
+            if (i % 4 == 3)
+            {
+                buffer.setSample(0, i / 4, (multiChannelBuffer.getSample(0, i) + multiChannelBuffer.getSample(0, i - 1) + multiChannelBuffer.getSample(0, i - 2) + multiChannelBuffer.getSample(0, i - 3)) / 4);
+                buffer.setSample(1, i / 4, (multiChannelBuffer.getSample(1, i) + multiChannelBuffer.getSample(1, i - 1) + multiChannelBuffer.getSample(1, i - 2) + multiChannelBuffer.getSample(1, i - 3)) / 4);
+            }
+        }
+    }
+    else
+    {
+        for (int i = 0; i < multiChannelBuffer.getNumSamples(); ++i)
+        {
+            if (i % 4 == 3)
+            {
+                buffer.addSample(0, i / 4, (multiChannelBuffer.getSample(0, i) + multiChannelBuffer.getSample(0, i - 1) + multiChannelBuffer.getSample(0, i - 2) + multiChannelBuffer.getSample(0, i - 3)) / 4);
+                buffer.addSample(1, i / 4, (multiChannelBuffer.getSample(1, i) + multiChannelBuffer.getSample(1, i - 1) + multiChannelBuffer.getSample(1, i - 2) + multiChannelBuffer.getSample(1, i - 3)) / 4);
+            }
+        }
+    }
+
+#else
+    
+    multiChannelBuffer.clear();
+    synthChain->renderNextBlockWithModulators(multiChannelBuffer, masterEventBuffer);
 
 	const bool isUsingMultiChannel = buffer.getNumChannels() != 2;
 
 	if (!isUsingMultiChannel)
 	{
 		if (replaceBufferContent)
-		{
-			FloatVectorOperations::copy(buffer.getWritePointer(0), multiChannelBuffer.getReadPointer(0), buffer.getNumSamples());
-			FloatVectorOperations::copy(buffer.getWritePointer(1), multiChannelBuffer.getReadPointer(1), buffer.getNumSamples());
+        {
+            for (int i = 0; i < multiChannelBuffer.getNumSamples(); ++i)
+            {
+                if (i % 4 == 3)
+                {
+                    buffer.setSample(0, i / 4, (multiChannelBuffer.getSample(0, i) + multiChannelBuffer.getSample(0, i - 1) + multiChannelBuffer.getSample(0, i - 2) + multiChannelBuffer.getSample(0, i - 3)) / 4);
+                    buffer.setSample(1, i / 4, (multiChannelBuffer.getSample(1, i) + multiChannelBuffer.getSample(1, i - 1) + multiChannelBuffer.getSample(1, i - 2) + multiChannelBuffer.getSample(1, i - 3)) / 4);
+                }
+            }
 		}
 		else
-		{
-			FloatVectorOperations::add(buffer.getWritePointer(0), multiChannelBuffer.getReadPointer(0), buffer.getNumSamples());
-			FloatVectorOperations::add(buffer.getWritePointer(1), multiChannelBuffer.getReadPointer(1), buffer.getNumSamples());
+        {
+            for (int i = 0; i < multiChannelBuffer.getNumSamples(); ++i)
+            {
+                if (i % 4 == 3)
+                {
+                    buffer.addSample(0, i / 4, (multiChannelBuffer.getSample(0, i) + multiChannelBuffer.getSample(0, i - 1) + multiChannelBuffer.getSample(0, i - 2) + multiChannelBuffer.getSample(0, i - 3)) / 4);
+                    buffer.addSample(1, i / 4, (multiChannelBuffer.getSample(1, i) + multiChannelBuffer.getSample(1, i - 1) + multiChannelBuffer.getSample(1, i - 2) + multiChannelBuffer.getSample(1, i - 3)) / 4);
+                }
+            }
 		}
 	}
 	else
@@ -541,37 +577,26 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 				continue;
 
 			if (replaceBufferContent)
-			{
-				FloatVectorOperations::copy(buffer.getWritePointer(destinationChannel), multiChannelBuffer.getReadPointer(i), buffer.getNumSamples());
+            {
+                for (int j = 0; j < multiChannelBuffer.getNumSamples(); ++j)
+                {
+                    if (i % 4 == 3)
+                    {
+                        buffer.setSample(i, j / 4, (multiChannelBuffer.getSample(i, j) + multiChannelBuffer.getSample(i, j - 1) + multiChannelBuffer.getSample(i, j - 2) + multiChannelBuffer.getSample(i, j - 3)) / 4);
+                    }
+                }
 			}
 			else
-			{
-				FloatVectorOperations::add(buffer.getWritePointer(destinationChannel), multiChannelBuffer.getReadPointer(i), buffer.getNumSamples());
+            {
+                for (int j = 0; j < multiChannelBuffer.getNumSamples(); ++j)
+                {
+                    if (i % 4 == 3)
+                    {
+                        buffer.addSample(i, j / 4, (multiChannelBuffer.getSample(i, j) + multiChannelBuffer.getSample(i, j - 1) + multiChannelBuffer.getSample(i, j - 2) + multiChannelBuffer.getSample(i, j - 3)) / 4);
+                    }
+                }
 			}
 			
-		}
-	}
-
-	
-
-#if USE_HARD_CLIPPER
-	for (int i = 0; i < buffer.getNumChannels(); i++)
-	{
-		FloatVectorOperations::clip(buffer.getWritePointer(i, 0), buffer.getReadPointer(i, 0), -1.0f, 1.0f, buffer.getNumSamples());
-	}
-#endif
-
-	if (presetLoadRampFlag.get() != UserPresetHandler::RampFlags::Active)
-	{
-		if (presetLoadRampFlag.get() == UserPresetHandler::RampFlags::FadeOut)
-		{
-			buffer.applyGainRamp(0, buffer.getNumSamples(), 1.0f, 0.0f);
-			presetLoadRampFlag.set(UserPresetHandler::RampFlags::Bypassed);
-		}
-		else if (presetLoadRampFlag.get() == UserPresetHandler::RampFlags::FadeIn)
-		{
-			buffer.applyGainRamp(0, buffer.getNumSamples(), 0.0f, 1.0f);
-			presetLoadRampFlag.set(UserPresetHandler::RampFlags::Active);
 		}
 	}
 
@@ -590,8 +615,8 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 {
-	bufferSize = samplesPerBlock;
-	sampleRate = sampleRate_;
+	bufferSize = samplesPerBlock * 4;
+    sampleRate = sampleRate_;
     
     thisAsProcessor = dynamic_cast<AudioProcessor*>(this);
     
@@ -605,9 +630,9 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 #endif
     
 	// Updates the channel amount
-	multiChannelBuffer.setSize(getMainSynthChain()->getMatrix().getNumSourceChannels(), multiChannelBuffer.getNumSamples());
+	multiChannelBuffer.setSize(getMainSynthChain()->getMatrix().getNumSourceChannels(), multiChannelBuffer.getNumSamples() );
 
-	ProcessorHelpers::increaseBufferIfNeeded(multiChannelBuffer, samplesPerBlock);
+	ProcessorHelpers::increaseBufferIfNeeded(multiChannelBuffer, samplesPerBlock * 4);
 
 #if IS_STANDALONE_APP || IS_STANDALONE_FRONTEND
 	getMainSynthChain()->getMatrix().setNumDestinationChannels(2);
@@ -615,9 +640,10 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 	getMainSynthChain()->getMatrix().setNumDestinationChannels(JucePlugin_MaxNumOutputChannels);
 #endif
 
-    getMainSynthChain()->prepareToPlay(sampleRate, samplesPerBlock);
+    getMainSynthChain()->prepareToPlay(sampleRate * 4, samplesPerBlock * 4);
 
 	getMainSynthChain()->setIsOnAir(true);
+    
 }
 
 void MainController::setBpm(double bpm_)

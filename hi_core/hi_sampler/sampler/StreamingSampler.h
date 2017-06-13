@@ -806,6 +806,8 @@ public:
 
 	/** Adds it's output to the outputBuffer. */
 	void renderNextBlock(AudioSampleBuffer &outputBuffer, int startSample, int numSamples) override;
+    
+    void interpolateStereoSamples(const float* inL, const float* inR, const float* pitchData, float* outL, float* outR, int startSample, double indexInBuffer, double uptimeDelta, int numSamples);
 
 	/** You can pass a pointer with float values containing pitch information for each sample.
 	*
@@ -913,7 +915,7 @@ private:
 
 	DebugLogger* logger = nullptr;
 
-	SampleLoader loader;
+    SampleLoader loader;
 };
 
 #endif  // STREAMINGSAMPLER_H_INCLUDED
