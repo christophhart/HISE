@@ -98,7 +98,7 @@ It supports x86 and x64 on Windows, altough the 64bit version is highly recommen
 
 6. Make sure the VST / ASIO path settings are correct on your system. 
 	- If you don't have IPP installed, set the USE_IPP flag in the hi_core module to 0.
-	- For ease of linking, copy the ASIO and VST SDKs into HISE/tools/SDK/
+	- For ease of linking, copy the ASIO and VST SDKs into `HISE/tools/SDK/`
 
 7. Click on "Save Project and open in IDE" to load the project in XCode / Visual Studio. 
 
