@@ -123,7 +123,6 @@ parentComponentIndex(-1)
 	propertyIds.add(Identifier("itemColour2")); ADD_TO_TYPE_SELECTOR(SelectorTypes::ColourPickerSelector);
 	propertyIds.add(Identifier("textColour"));  ADD_TO_TYPE_SELECTOR(SelectorTypes::ColourPickerSelector);
 	propertyIds.add(Identifier("macroControl")); ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
-	propertyIds.add(Identifier("zOrder"));
 	propertyIds.add(Identifier("saveInPreset")); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	propertyIds.add(Identifier("isPluginParameter")); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	propertyIds.add(Identifier("pluginParameterName"));
@@ -148,7 +147,6 @@ parentComponentIndex(-1)
 	setDefaultValue(Properties::itemColour2, (int64)0xfb111111);
 	setDefaultValue(Properties::textColour, (int64)0xFFFFFFFF);
 	setDefaultValue(Properties::macroControl, -1);
-	setDefaultValue(Properties::zOrder, "Normal order");
 	setDefaultValue(Properties::saveInPreset, true);
 	setDefaultValue(Properties::isPluginParameter, false);
 	setDefaultValue(Properties::pluginParameterName, "");
@@ -192,15 +190,6 @@ StringArray ScriptingApi::Content::ScriptComponent::getOptionsFor(const Identifi
 		{
 			sa.add("Macro " + String(i + 1));
 		}
-
-		return sa;
-	}
-	else if (id == getIdFor(zOrder))
-	{
-		StringArray sa;
-
-		sa.add("Normal order");
-		sa.add("Always on top");
 
 		return sa;
 	}
@@ -504,6 +493,9 @@ void ScriptingApi::Content::ScriptComponent::setPropertiesFromJSON(const var &js
 		for (int i = 0; i < dataSet.size(); i++)
 		{
 			Identifier propertyId = dataSet.getName(i);
+
+			if (!propertyIds.contains(propertyId))
+				continue;
 
 			if (priorityProperties.contains(propertyId)) continue;
 

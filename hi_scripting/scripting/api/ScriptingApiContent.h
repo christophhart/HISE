@@ -92,7 +92,6 @@ public:
 			itemColour2,
 			textColour,
 			macroControl,
-			zOrder,
 			saveInPreset,
 			isPluginParameter,
 			pluginParameterName,

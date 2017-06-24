@@ -455,7 +455,6 @@ void ScriptComponentEditPanel::fillPanel()
 		basicIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::enabled));
 		basicIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::visible));
 		basicIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::tooltip));
-		basicIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::zOrder));
 		basicIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::parentComponent));
 		basicIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::useUndoManager));
 		
