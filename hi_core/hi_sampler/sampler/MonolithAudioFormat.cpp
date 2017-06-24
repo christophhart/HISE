@@ -154,7 +154,20 @@ void HlacMonolithInfo::fillMetadataInfo(const ValueTree& sampleMap)
 	for (int i = 0; i < numChannels; i++)
 	{
 		dummyReader.numChannels = isMonoChannel[i] ? 1 : 2;
-		dummyReader.sampleRate = multiChannelSampleInformation[i][0].sampleRate;
+        
+        
+        if(multiChannelSampleInformation.size() < i)
+        {
+            jassertfalse;
+            dummyReader.sampleRate = 44100.0;
+        }
+        else if(multiChannelSampleInformation[i].size() <= 0)
+        {
+            jassertfalse;
+            dummyReader.sampleRate = 44100.0;
+        }
+        else
+            dummyReader.sampleRate = multiChannelSampleInformation[i][0].sampleRate;
 
 		const int bytesPerFrame = sizeof(int16) * dummyReader.numChannels;
 		FileInputStream fis(monolithicFiles[i]);
