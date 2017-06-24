@@ -479,7 +479,7 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 #endif
 
 		// Always embed scripts and fonts, but don't embed samplemaps
-		writeValueTreeToTemporaryFile(exportEmbeddedFiles(type != TargetTypes::EffectPlugin), directoryPath, "externalFiles", embedFiles);
+		writeValueTreeToTemporaryFile(exportEmbeddedFiles(embedFiles && type != TargetTypes::EffectPlugin), directoryPath, "externalFiles", true);
 
 		if (embedFiles)
 		{
