@@ -273,9 +273,11 @@ void ScriptContentComponent::updateContent(ScriptingApi::Content::ScriptComponen
 	}
 	else
 	{
+		jassert(contentData->components.size() == componentWrappers.size());
+
 		auto index = contentData->components.indexOf(componentToUpdate);
 
-		if (index > 0)
+		if (index >= 0)
 			updateComponent(index);
 		else
 			jassertfalse;
