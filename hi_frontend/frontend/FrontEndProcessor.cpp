@@ -223,7 +223,15 @@ FrontendStandaloneApplication::AudioWrapper::AudioWrapper()
 
 	splashScreen->setImage(img);
 
-	setSize(img.getWidth(), img.getHeight());
+#if HISE_IOS
+    auto size = Desktop::getInstance().getDisplays().getMainDisplay().totalArea;
+    
+    setSize(size.getWidth(), size.getHeight());
+#else
+    setSize(img.getWidth(), img.getHeight());
+#endif
+    
+	
 
 	startTimer(100);
 

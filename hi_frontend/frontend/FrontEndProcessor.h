@@ -362,6 +362,7 @@ public:
 
 		void init()
 		{
+            setOpaque(true);
 			standaloneProcessor = new StandaloneProcessor();
 
 			editor = standaloneProcessor->createEditor();
@@ -374,12 +375,16 @@ public:
 				splashScreen = nullptr;
 			}
 
+#if HISE_IOS
+            resized();
+#else
 			float sf = standaloneProcessor->getScaleFactor();
 
 			int newWidth = (int)((float)editor->getWidth()*sf);
 			int newHeight = (int)((float)editor->getHeight() * sf);
 
 			setSize(newWidth, newHeight);
+#endif
 		}
 
 		void timerCallback() override
@@ -390,6 +395,11 @@ public:
 
 		AudioWrapper();
 
+        void paint(Graphics& g) override
+        {
+            g.fillAll(Colours::black);
+        }
+    
 		~AudioWrapper()
 		{
             //open.detach();
@@ -404,7 +414,7 @@ public:
 				splashScreen->setBounds(getLocalBounds());
 
 			if(editor != nullptr)
-				editor->setTopLeftPosition(0, 0);
+				editor->centreWithSize(editor->getWidth(), editor->getHeight());
 		}
 
 	private:
