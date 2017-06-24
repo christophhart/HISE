@@ -449,7 +449,7 @@ bool FloatingTile::showTitle() const
 
 	if (hasChildren())
 	{
-		const bool isDynamicContainer = dynamic_cast<const FloatingTileContainer*>(getCurrentFloatingPanel())->isDynamic();
+		
 
 		if (isDynamicContainer && isLayoutModeEnabled())
 		{
@@ -637,7 +637,14 @@ void FloatingTile::setLayoutModeEnabled(bool shouldBeEnabled)
 	{
 		layoutModeEnabled = shouldBeEnabled;
 
+		resized();
+		repaint();
 		refreshMouseClickTarget();
+
+		if (hasChildren())
+		{
+			dynamic_cast<FloatingTileContainer*>(getCurrentFloatingPanel())->refreshLayout();
+		}
 
 		Iterator<FloatingTileContent> all(this);
 
@@ -1080,8 +1087,10 @@ void FloatingTilePopup::updatePosition()
 
 bool FloatingTile::canBeDeleted() const
 {
+	const bool isInPopout = findParentComponentOfClass<FloatingTileDocumentWindow>() != nullptr;
+
 	if (getParentType() == ParentType::Root)
-		return false;
+		return isInPopout;
 
 	if (isVital())
 		return false;
@@ -1271,6 +1280,9 @@ bool FloatingTile::LayoutHelpers::showCloseButton(const FloatingTile* t)
 	if (pt != ParentType::Root && t->isEmpty() && t->getParentContainer()->getNumComponents() == 1)
 		return false;
 
+	if (!t->canBeDeleted())
+		return false;
+
 	switch (pt)
 	{
 	case ParentType::Root:
@@ -1285,9 +1297,7 @@ bool FloatingTile::LayoutHelpers::showCloseButton(const FloatingTile* t)
         return false;
 	}
 
-
-
-	return t->canBeDeleted();
+	return true;
 
 #if 0
 	if (!t->getCurrentFloatingPanel()->showTitleInPresentationMode() && !t->isLayoutModeEnabled())
@@ -1396,3 +1406,12 @@ void FloatingTile::TilePopupLookAndFeel::drawPopupMenuSectionHeader(Graphics& g,
 		Justification::bottomLeft, 1);
 }
 
+void FloatingTileDocumentWindow::closeButtonPressed()
+{
+	parent->removeFloatingWindow(this);
+}
+
+FloatingTile* FloatingTileDocumentWindow::getRootFloatingTile()
+{
+	return dynamic_cast<FloatingTile*>(getContentComponent());
+}

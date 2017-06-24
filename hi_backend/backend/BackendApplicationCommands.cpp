@@ -146,6 +146,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuViewBack,
 		MenuViewForward,
 		MenuViewEnableGlobalLayoutMode,
+		MenuViewAddFloatingWindow,
         MenuOneColumn,
 		MenuTwoColumns,
 		MenuThreeColumns,
@@ -430,6 +431,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Enable Layout Mode", true, bpe->getRootFloatingTile()->isLayoutModeEnabled(), 'X', false);
 		result.addDefaultKeypress(KeyPress::F6Key, ModifierKeys::noModifiers);
 		break;
+	case MenuViewAddFloatingWindow:
+		setCommandTarget(result, "Add floating window", true, false, 'x', false);
+		break;
 	case MenuOneColumn:
 		setCommandTarget(result, "One Column", true, currentColumnMode == OneColumn, '1', true, ModifierKeys::altModifier);
 		break;
@@ -555,7 +559,8 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuViewBack:					bpe->mainEditor->getViewUndoManager()->undo(); updateCommands(); return true;
 	case MenuViewReset:				    bpe->resetInterface(); updateCommands(); return true;
 	case MenuViewForward:				bpe->mainEditor->getViewUndoManager()->redo(); updateCommands(); return true;
-	case MenuViewEnableGlobalLayoutMode: bpe->getRootFloatingTile()->setLayoutModeEnabled(!bpe->getRootFloatingTile()->isLayoutModeEnabled()); updateCommands(); return true;
+	case MenuViewEnableGlobalLayoutMode: bpe->toggleLayoutMode(); updateCommands(); return true;
+	case MenuViewAddFloatingWindow:		bpe->addFloatingWindow(); return true;
 	case MenuViewShowPluginPopupPreview: Actions::togglePluginPopupWindow(bpe); updateCommands(); return true;
     case MenuViewIncreaseCodeFontSize:  Actions::changeCodeFontSize(bpe, true); return true;
     case MenuViewDecreaseCodeFontSize:   Actions::changeCodeFontSize(bpe, false); return true;
@@ -825,6 +830,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		p.addSeparator();
 
 		ADD_DESKTOP_ONLY(MenuViewEnableGlobalLayoutMode);
+		ADD_DESKTOP_ONLY(MenuViewAddFloatingWindow);
 		ADD_DESKTOP_ONLY(MenuViewFullscreen);
 		ADD_ALL_PLATFORMS(MenuViewShowSelectedProcessorInPopup);
 		p.addSeparator();
@@ -1788,7 +1794,7 @@ void BackendCommandTarget::Actions::moveModule(CopyPasteTarget *currentCopyPaste
 			c->getHandler()->moveProcessor(editor->getProcessor(), moveUp ? -1 : 1);
 			editor->childEditorAmountChanged();
 
-			BackendRootWindow *bpe = editor->findParentComponentOfClass<BackendRootWindow>();
+			BackendRootWindow *bpe = GET_BACKEND_ROOT_WINDOW(editor);
 			bpe->mainEditor->refreshContainer(processor);
 		}
 	}

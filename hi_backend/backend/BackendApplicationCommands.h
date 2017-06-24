@@ -133,6 +133,7 @@ public:
 		MenuViewForward,
 		MenuViewSetMainContainerAsRoot,
 		MenuViewEnableGlobalLayoutMode,
+		MenuViewAddFloatingWindow,
 		MenuOneColumn,
 		MenuTwoColumns,
 		MenuThreeColumns,

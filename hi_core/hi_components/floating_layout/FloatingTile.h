@@ -590,6 +590,43 @@ private:
 };
 
 
+class FloatingTileDocumentWindow : public DocumentWindow,
+								   public ComponentWithBackendConnection
+{
+public:
+
+	FloatingTileDocumentWindow(BackendRootWindow* parentRoot):
+		DocumentWindow("Popout", HiseColourScheme::getColour(HiseColourScheme::EditorBackgroundColourId), DocumentWindow::TitleBarButtons::allButtons, true),
+		parent(parentRoot)
+	{
+		setContentOwned(new FloatingTile(nullptr), false);
+		setVisible(true);
+		setUsingNativeTitleBar(true);
+		setResizable(true, true);
+
+		centreWithSize(500, 500);
+	}
+
+	void resized() override
+	{
+		getContentComponent()->setBounds(getLocalBounds());
+	}
+
+	void closeButtonPressed() override;
+
+	BackendRootWindow* getBackendRootWindow() override { return parent; };
+
+	const BackendRootWindow* getBackendRootWindow() const override { return parent; };
+
+	FloatingTile* getRootFloatingTile() override;;
+
+private:
+
+	BackendRootWindow* parent;
+	
+};
+
+
 struct FloatingTileHelpers
 {
 	template <class ContentType> static ContentType* findTileWithId(FloatingTile* root, const Identifier& id)

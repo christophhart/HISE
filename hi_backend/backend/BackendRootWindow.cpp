@@ -12,16 +12,31 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 	bool loadedCorrectly = true;
 	bool objectFound = editorState.isObject();
 
+
 	int width = 1500;
 	int height = 900;
+	
 
 	if (objectFound)
 	{
-		floatingRoot->setContent(editorState);
+		int dataVersion = editorState.getDynamicObject()->getProperty("UIVersion");
 
-		mainEditor = FloatingTileHelpers::findTileWithId<BackendProcessorEditor>(floatingRoot, Identifier("MainColumn"));
+		var mainData = editorState.getProperty("MainEditorData", var());
 
-		loadedCorrectly = mainEditor != nullptr;
+		if (!mainData.isObject())
+			loadedCorrectly = false;
+
+		if (dataVersion != BACKEND_UI_VERSION && PresetHandler::showYesNoWindow("UI Version Mismatch", "The stored layout is deprecated. Press OK to reset the layout data or cancel to use it anyway", PresetHandler::IconType::Question))
+			loadedCorrectly = false;
+
+		if (loadedCorrectly)
+		{
+			floatingRoot->setContent(mainData);
+
+			mainEditor = FloatingTileHelpers::findTileWithId<BackendProcessorEditor>(floatingRoot, Identifier("MainColumn"));
+
+			loadedCorrectly = mainEditor != nullptr;
+		}
 
 		if (loadedCorrectly)
 		{
@@ -65,9 +80,15 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 
 		if (loadedCorrectly)
 		{
-			width = jmax<int>(960, editorState.getDynamicObject()->getProperty("MainWidth"));
-			height = jmax<int>(500, editorState.getDynamicObject()->getProperty("MainHeight"));
-			const int workspace = editorState.getDynamicObject()->getProperty("CurrentWorkspace");
+			auto position = mainData.getProperty("Position", var());
+
+			if (position.isArray())
+			{
+				width = jmax<int>(960, position[2]);
+				height = jmax<int>(500, position[3]);
+			}
+
+			const int workspace = mainData.getDynamicObject()->getProperty("CurrentWorkspace");
 
 			if(workspace > 0)
 				showWorkspace(workspace);
@@ -95,6 +116,24 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 		setEditor(this);
 	}
 
+	var windowList = editorState.getProperty("FloatingWindows", var());
+
+	if (windowList.isArray())
+	{
+		for (int i = 0; i < windowList.size(); i++)
+		{
+			addFloatingWindow();
+
+			auto pw = popoutWindows.getLast();
+
+			var position = windowList[i].getProperty("Position", var());
+
+			if (position.isArray())
+				pw->setBounds(position[0], position[1], position[2], position[3]);
+
+			pw->getRootFloatingTile()->setContent(windowList[i]);
+		}
+	}
 
 	auto consoleParent = FloatingTileHelpers::findTileWithId<ConsolePanel>(getRootFloatingTile(), "MainConsole");
 
@@ -166,11 +205,12 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 
 BackendRootWindow::~BackendRootWindow()
 {
+	saveInterfaceData();
+
+	popoutWindows.clear();
+
 	getBackendProcessor()->getCommandManager()->clearCommands();
 	getBackendProcessor()->getConsoleHandler().setMainConsole(nullptr);
-
-	saveInterfaceData();
-	
 
 	clearModalComponent();
 
@@ -222,16 +262,52 @@ void BackendRootWindow::saveInterfaceData()
 	}
 	else
 	{
+		DynamicObject::Ptr obj = new DynamicObject();
+
 		var editorData = getRootFloatingTile()->getCurrentFloatingPanel()->toDynamicObject();
 
 		if (auto obj = editorData.getDynamicObject())
 		{
-			obj->setProperty("MainWidth", getWidth());
-			obj->setProperty("MainHeight", getHeight());
+
+			Array<var> position;
+
+			position.add(getX());
+			position.add(getY());
+			position.add(getWidth());
+			position.add(getHeight());
+
+			obj->setProperty("Position", position);
+
 			obj->setProperty("CurrentWorkspace", currentWorkspace);
 		}
 
-		getBackendProcessor()->setEditorData(editorData);
+		obj->setProperty("UIVersion", BACKEND_UI_VERSION);
+		obj->setProperty("MainEditorData", editorData);
+
+		Array<var> windowList;
+
+		for (int i = 0; i < popoutWindows.size(); i++)
+		{
+			var windowData = popoutWindows[i]->getRootFloatingTile()->getCurrentFloatingPanel()->toDynamicObject();
+
+			if (auto windowObject = windowData.getDynamicObject())
+			{
+				Array<var> position;
+
+				position.add(popoutWindows[i]->getX());
+				position.add(popoutWindows[i]->getY());
+				position.add(popoutWindows[i]->getWidth());
+				position.add(popoutWindows[i]->getHeight());
+
+				windowObject->setProperty("Position", position);
+			}
+
+			windowList.add(windowData);
+		}
+
+		obj->setProperty("FloatingWindows", windowList);
+
+		getBackendProcessor()->setEditorData(var(obj));
 	}
 
 }

@@ -51,8 +51,24 @@ public:
 
 	void timerCallback() override;
 
+	void toggleLayoutMode()
+	{
+		const bool shouldBeOn = !bpe->getRootFloatingTile()->isLayoutModeEnabled();
+
+		getRootFloatingTile()->setLayoutModeEnabled(shouldBeOn);
+
+		for (int i = 0; i < popoutWindows.size(); i++)
+		{
+			popoutWindows[i]->getRootFloatingTile()->setLayoutModeEnabled(shouldBeOn);
+		}
+	}
+
 	BackendProcessor* getBackendProcessor() { return owner; }
 	const BackendProcessor* getBackendProcessor() const { return owner; }
+
+	BackendRootWindow* getBackendRootWindow() override { return this; }
+
+	const BackendRootWindow* getBackendRootWindow() const override { return this; }
 
 	BackendProcessorEditor* getMainPanel() { return mainEditor; }
 
@@ -104,7 +120,19 @@ public:
 		return bar;
 	}
 
+	void addFloatingWindow()
+	{
+		popoutWindows.add(new FloatingTileDocumentWindow(this));
+	}
+
+	void removeFloatingWindow(FloatingTileDocumentWindow* windowToRemove)
+	{
+		popoutWindows.removeObject(windowToRemove, true);
+	}
+
 private:
+
+	OwnedArray<FloatingTileDocumentWindow> popoutWindows;
 
 	int currentWorkspace = BackendCommandTarget::WorkspaceMain;
 	
