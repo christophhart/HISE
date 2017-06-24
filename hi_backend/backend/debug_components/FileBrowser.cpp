@@ -490,7 +490,7 @@ void FileBrowser::mouseDoubleClick(const MouseEvent& )
 {
 	File newRoot = fileTreeComponent->getSelectedFile();
 
-    auto *rootWindow = GET_BACKEND_ROOT_WINDOW(this);
+    auto *rw = GET_BACKEND_ROOT_WINDOW(this);
     
 	if (newRoot.isDirectory())
 	{
@@ -502,13 +502,13 @@ void FileBrowser::mouseDoubleClick(const MouseEvent& )
 	}
 	else if (newRoot.getFileExtension() == ".hip")
 	{
-		rootWindow->getMainPanel()->loadNewContainer(newRoot);
+		rw->getMainPanel()->loadNewContainer(newRoot);
 	}
     else if (newRoot.getFileExtension() == ".js")
     {
         // First look if the script is already used
         
-        Processor::Iterator<JavascriptProcessor> iter(rootWindow->getMainSynthChain());
+        Processor::Iterator<JavascriptProcessor> iter(rw->getMainSynthChain());
         
         while (JavascriptProcessor *sp = iter.getNextProcessor())
         {

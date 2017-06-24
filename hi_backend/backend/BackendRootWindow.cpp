@@ -80,7 +80,7 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 
 		if (loadedCorrectly)
 		{
-			auto position = mainData.getProperty("Position", var());
+			auto position = editorState.getProperty("Position", var());
 
 			if (position.isArray())
 			{
@@ -88,7 +88,7 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 				height = jmax<int>(500, position[3]);
 			}
 
-			const int workspace = mainData.getDynamicObject()->getProperty("CurrentWorkspace");
+			const int workspace = editorState.getDynamicObject()->getProperty("CurrentWorkspace");
 
 			if(workspace > 0)
 				showWorkspace(workspace);
@@ -266,7 +266,7 @@ void BackendRootWindow::saveInterfaceData()
 
 		var editorData = getRootFloatingTile()->getCurrentFloatingPanel()->toDynamicObject();
 
-		if (auto obj = editorData.getDynamicObject())
+		if (auto editorObject = editorData.getDynamicObject())
 		{
 
 			Array<var> position;
