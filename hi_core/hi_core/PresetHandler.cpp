@@ -56,7 +56,7 @@ void CopyPasteTarget::grabCopyAndPasteFocus()
     
     if(thisAsComponent)
     {
-        BackendRootWindow *editor = thisAsComponent->findParentComponentOfClass<BackendRootWindow>();
+		BackendRootWindow *editor = GET_BACKEND_ROOT_WINDOW(thisAsComponent);
         
         if(editor != nullptr)
         {
@@ -81,7 +81,7 @@ void CopyPasteTarget::dismissCopyAndPasteFocus()
 
 	if (thisAsComponent)
 	{
-		BackendRootWindow *editor = thisAsComponent->findParentComponentOfClass<BackendRootWindow>();
+		BackendRootWindow *editor = GET_BACKEND_ROOT_WINDOW(thisAsComponent);
 
 		if (editor != nullptr && isSelected)
 		{

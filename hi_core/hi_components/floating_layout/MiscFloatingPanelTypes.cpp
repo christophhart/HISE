@@ -91,7 +91,7 @@ MidiKeyboardPanel::MidiKeyboardPanel(FloatingTile* parent) :
 
 	setInterceptsMouseClicks(false, true);
 
-	addAndMakeVisible(keyboard = new CustomKeyboard(parent->getRootWindow()->getBackendProcessor()->getKeyboardState()));
+	addAndMakeVisible(keyboard = new CustomKeyboard(parent->getBackendRootWindow()->getBackendProcessor()->getKeyboardState()));
 
 	keyboard->setLowestVisibleKey(12);
 }
@@ -100,7 +100,7 @@ void ApplicationCommandButtonPanel::setCommand(int commandID)
 {
 	Path p = BackendCommandIcons::getIcon(commandID);
 
-	b->setCommandToTrigger(getParentShell()->getRootWindow()->getBackendProcessor()->getCommandManager(), commandID, true);
+	b->setCommandToTrigger(getParentShell()->getBackendRootWindow()->getBackendProcessor()->getCommandManager(), commandID, true);
 	b->setShape(p, false, true, true);
 	b->setVisible(true);
 }

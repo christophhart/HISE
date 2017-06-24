@@ -37,8 +37,8 @@
 
 BackendProcessorEditor::BackendProcessorEditor(FloatingTile* parent) :
 FloatingTileContent(parent),
-owner(parent->getRootWindow()->getBackendProcessor()),
-parentRootWindow(parent->getRootWindow()),
+owner(parent->getBackendRootWindow()->getBackendProcessor()),
+parentRootWindow(parent->getBackendRootWindow()),
 rootEditorIsMainSynthChain(true)
 {
     setOpaque(true);
@@ -441,7 +441,7 @@ MainTopBar::MainTopBar(FloatingTile* parent) :
 	backButton->setShape(bPath->getPath(), false, true, true);
 	backButton->setCommandToTrigger(getRootWindow()->getBackendProcessor()->getCommandManager(), BackendCommandTarget::MenuViewBack, true);
 
-	parent->getRootComponent()->addPopupListener(this);
+	parent->getRootFloatingTile()->addPopupListener(this);
 
 	addAndMakeVisible(forwardButton = new ShapeButton("Forward", Colours::white.withAlpha(0.4f), Colours::white.withAlpha(0.8f), Colours::white));
 	ScopedPointer<DrawablePath> fPath = dynamic_cast<DrawablePath*>(MainToolbarFactory::MainToolbarPaths::createPath(BackendCommandTarget::MenuViewForward, true));
@@ -520,7 +520,7 @@ MainTopBar::MainTopBar(FloatingTile* parent) :
 	layoutButton->setShape(layoutPath, false, true, true);
 	
 	addAndMakeVisible(tooltipBar = new TooltipBar());
-	addAndMakeVisible(voiceCpuBpmComponent = new VoiceCpuBpmComponent(parent->getRootWindow()->getBackendProcessor()));
+	addAndMakeVisible(voiceCpuBpmComponent = new VoiceCpuBpmComponent(parent->getBackendRootWindow()->getBackendProcessor()));
     
 	tooltipBar->setColour(TooltipBar::ColourIds::backgroundColour, HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
 	tooltipBar->setColour(TooltipBar::ColourIds::textColour, Colours::white);
@@ -530,7 +530,7 @@ MainTopBar::MainTopBar(FloatingTile* parent) :
 
 MainTopBar::~MainTopBar()
 {
-	getParentShell()->getRootComponent()->removePopupListener(this);
+	getParentShell()->getRootFloatingTile()->removePopupListener(this);
 }
 
 void setColoursForButton(ShapeButton* b, bool on)
@@ -633,7 +633,7 @@ public:
 	{
 		if (b == closeButton)
 		{
-			auto bpe = findParentComponentOfClass<BackendRootWindow>()->getMainPanel();
+			auto bpe = GET_BACKEND_ROOT_WINDOW(this)->getMainPanel();
 
 			if (bpe != nullptr)
 			{
@@ -653,7 +653,7 @@ public:
 				midiChain->setEditorState(Processor::EditorState::Visible, true);
 				s->setEditorState(Processor::EditorState::Folded, true);
 
-				auto root = findParentComponentOfClass<BackendRootWindow>();
+				auto root = GET_BACKEND_ROOT_WINDOW(this);
 				
 				root->sendRootContainerRebuildMessage(true);
 
@@ -963,7 +963,7 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 {
 	if (!shouldShow)
 	{
-		getParentShell()->getRootComponent()->showComponentInRootPopup(nullptr, nullptr, Point<int>());
+		getParentShell()->getRootFloatingTile()->showComponentInRootPopup(nullptr, nullptr, Point<int>());
 		return;
 	}
 

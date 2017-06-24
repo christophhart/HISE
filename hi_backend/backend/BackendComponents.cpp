@@ -283,7 +283,7 @@ void MacroComponent::buttonClicked(Button *b)
 		processor->getMacroManager().setMacroControlLearnMode(processor->getMainSynthChain(), -1);
 	}
 
-	auto root = findParentComponentOfClass<BackendRootWindow>()->getRootFloatingTile();
+	auto root = GET_ROOT_FLOATING_TILE(this);
 
 	auto table = BackendPanelHelpers::toggleVisibilityForRightColumnPanel<GenericPanel<MacroParameterTable>>(root, b->getToggleState());
 	

@@ -487,7 +487,7 @@ FloatingTileContent::Factory::PopupMenuOptions FloatingTileContent::Factory::get
 void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* parent)
 {
 #if USE_BACKEND
-	if (parent->canBeDeleted())
+	if (!parent->isVital())
 	{
 		if (parent->isLayoutModeEnabled())
 		{
@@ -604,7 +604,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::AudioFileTable:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<PoolTableSubTypes::AudioFilePoolTable>)); break;
 	case PopupMenuOptions::ImageTable:			parent->setNewContent(GET_PANEL_NAME(GenericPanel<PoolTableSubTypes::ImageFilePoolTable>)); break;
 	case PopupMenuOptions::ScriptWatchTable:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<ScriptWatchTable>)); break;
-	case PopupMenuOptions::toggleGlobalLayoutMode:    parent->getRootComponent()->setLayoutModeEnabled(!parent->isLayoutModeEnabled()); break;
+	case PopupMenuOptions::toggleGlobalLayoutMode:    parent->getRootFloatingTile()->setLayoutModeEnabled(!parent->isLayoutModeEnabled()); break;
 	case PopupMenuOptions::exportAsJSON:		SystemClipboard::copyTextToClipboard(parent->exportAsJSON()); break;
 	case PopupMenuOptions::loadFromJSON:		parent->loadFromJSON(SystemClipboard::getTextFromClipboard()); break;
 	case PopupMenuOptions::numOptions:

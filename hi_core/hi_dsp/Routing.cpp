@@ -542,7 +542,7 @@ void RoutableProcessor::editRouting(Component *childComponent)
 
 	AlertWindowLookAndFeel laf;
 
-	auto editor = childComponent->findParentComponentOfClass<BackendRootWindow>();
+	auto editor = GET_BACKEND_ROOT_WINDOW(childComponent);
 
 	if (editor != nullptr)
 	{

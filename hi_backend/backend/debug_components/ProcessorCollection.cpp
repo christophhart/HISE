@@ -396,7 +396,7 @@ void SearchableListComponent::Item::mouseDown(const MouseEvent& event)
 		{
 			if (getPopupHeight() != 0)
 			{
-				BackendRootWindow *parent = findParentComponentOfClass<BackendRootWindow>();
+				BackendRootWindow *parent = GET_BACKEND_ROOT_WINDOW(this);
 
 				PopupComponent *table = new PopupComponent(this);
 

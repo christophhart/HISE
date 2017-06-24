@@ -984,7 +984,7 @@ void ModulatorSamplerSoundPool::resolveMissingSamples(Component *childComponentO
 #if USE_BACKEND
 	auto editor = dynamic_cast<BackendRootWindow*>(childComponentOfMainEditor);
 	
-	if(editor == nullptr) editor = childComponentOfMainEditor->findParentComponentOfClass<BackendRootWindow>();
+	if (editor == nullptr) editor = GET_BACKEND_ROOT_WINDOW(childComponentOfMainEditor);
 
 	SampleResolver *r = new SampleResolver(this, editor->getMainSynthChain());
     

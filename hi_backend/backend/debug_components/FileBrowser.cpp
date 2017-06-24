@@ -324,90 +324,6 @@ bool FileBrowser::perform(const InvocationInfo &info)
 	case ShowFavoritePopup:
 	{
 		goToDirectory(GET_PROJECT_HANDLER(rootWindow->getMainSynthChain()).getWorkDirectory());
-#if 0
-		PopupLookAndFeel mlaf;
-		PopupMenu m;
-		m.setLookAndFeel(&mlaf);
-
-		enum MenuIds
-		{
-			VolumeOffset = 1,
-			PresetFolder = 1000,
-			ProjectFolder,
-			GlobalSampleFolder,
-			FavoriteOffset
-		};
-
-		Array<File> roots;
-
-		m.addSectionHeader("Hard Drive Volumes");
-
-		File::findFileSystemRoots(roots);
-
-		for (int i = 0; i < roots.size(); i++)
-		{
-			m.addItem(VolumeOffset + i, roots[i].getFullPathName() + " " + roots[i].getVolumeLabel());
-		}
-
-		m.addSeparator();
-
-		m.addSectionHeader("HISE Folders");
-
-		m.addItem(ProjectFolder, "Current Project Folder");
-
-		m.addSeparator();
-
-		m.addItem(AddFavorite, "Add current Directory as favorite");
-		m.addItem(RemoveFavorite, "Remove current directory from favorite list");
-
-		m.addSeparator();
-
-		m.addSectionHeader("User Favorites");
-		
-		for (int i = 0; i < favorites.size(); i++)
-		{
-			m.addItem(FavoriteOffset + i, favorites[i]->name);
-		}
-
-		const int result = m.show();
-
-		if (result == 0) return true;
-		else if (result == AddFavorite)
-		{
-			favorites.add(new Favorite(PresetHandler::getCustomName("Favorite"), directoryList->getDirectory()));
-		}
-		else if (result == RemoveFavorite)
-		{
-			for (int i = 0; i < favorites.size(); i++)
-			{
-				if(directoryList->getDirectory() == favorites[i]->directory)
-				{
-					favorites.remove(i, true);
-					break;
-				}
-			}
-		}
-		else if (result == ProjectFolder)
-		{
-			goToDirectory(GET_PROJECT_HANDLER(findParentComponentOfClass<BackendRootWindow>()->getMainSynthChain()).getWorkDirectory(), true);
-		}
-		else if (result >= FavoriteOffset)
-		{
-			goToDirectory(favorites[result - FavoriteOffset]->directory, true);
-		}
-		else if (result >= VolumeOffset)
-		{
-			Array<File> rootFiles;
-
-			File::findFileSystemRoots(rootFiles);
-
-			goToDirectory(rootFiles[result - VolumeOffset], true);
-		}
-		else
-		{
-			jassertfalse;
-		}
-#endif
 
 		return true;
 	}
@@ -574,7 +490,7 @@ void FileBrowser::mouseDoubleClick(const MouseEvent& )
 {
 	File newRoot = fileTreeComponent->getSelectedFile();
 
-    auto *rootWindow = findParentComponentOfClass<BackendRootWindow>();
+    auto *rootWindow = GET_BACKEND_ROOT_WINDOW(this);
     
 	if (newRoot.isDirectory())
 	{

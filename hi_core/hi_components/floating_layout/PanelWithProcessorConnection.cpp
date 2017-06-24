@@ -36,7 +36,7 @@ PanelWithProcessorConnection::PanelWithProcessorConnection(FloatingTile* parent)
 	FloatingTileContent(parent),
 	showConnectionBar("showConnectionBar")
 {
-	rootWindow = getParentShell()->getRootWindow();
+	rootWindow = getParentShell()->getBackendRootWindow();
 
 	addAndMakeVisible(connectionSelector = new ComboBox());
 	connectionSelector->addListener(this);
@@ -110,7 +110,7 @@ void PanelWithProcessorConnection::fromDynamicObject(const var& object)
 
 	if (id.isNotEmpty())
 	{
-		auto p = ProcessorHelpers::getFirstProcessorWithName(getParentShell()->getRootWindow()->getMainSynthChain(), id);
+		auto p = ProcessorHelpers::getFirstProcessorWithName(getParentShell()->getBackendRootWindow()->getMainSynthChain(), id);
 
 		if (p != nullptr)
 		{

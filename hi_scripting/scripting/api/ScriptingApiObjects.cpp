@@ -291,7 +291,7 @@ void ScriptingObjects::ScriptingModulator::doubleClickCallback(const MouseEvent 
 #if USE_BACKEND
 	if (objectExists() && !objectDeleted())
 	{
-		auto *editor = componentToNotify->findParentComponentOfClass<BackendRootWindow>();
+		auto *editor = GET_BACKEND_ROOT_WINDOW(componentToNotify);
 
 		Processor *p = ProcessorHelpers::getFirstProcessorWithName(editor->getMainSynthChain(), mod->getId());
 
@@ -930,7 +930,7 @@ void ScriptingObjects::PathObject::doubleClickCallback(const MouseEvent &e, Comp
 {
 #if USE_BACKEND
 
-	auto *editor = componentToNotify->findParentComponentOfClass<BackendRootWindow>();
+	auto *editor = GET_BACKEND_ROOT_WINDOW(componentToNotify);
 
 	PathPreviewComponent* content = new PathPreviewComponent(p);
 	

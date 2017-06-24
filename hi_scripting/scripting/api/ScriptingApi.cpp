@@ -2400,12 +2400,10 @@ ScriptingApi::Synth::ModuleHandler::ModuleHandler(Synth* parent_) :
 {
 #if USE_BACKEND
 
-#if TODO_CONSOLE
-	auto console = parent->getScriptProcessor()->getMainController_()->getConsole();
+	auto console = parent->getScriptProcessor()->getMainController_()->getConsoleHandler().getMainConsole();
 
-	if(console)
-		mainEditor = console->findParentComponentOfClass<BackendRootWindow>();
-#endif
+	if (console)
+		mainEditor = GET_BACKEND_ROOT_WINDOW(console);
 
 #else
 	mainEditor = nullptr;
@@ -2444,7 +2442,7 @@ bool ScriptingApi::Synth::ModuleHandler::removeModule(Processor* p)
 
             c->getHandler()->remove(p);
             
-			mainEditor->findParentComponentOfClass<BackendRootWindow>()->sendRootContainerRebuildMessage(true);
+			GET_BACKEND_ROOT_WINDOW(mainEditor)->sendRootContainerRebuildMessage(true);
 		}
 		else
 		{
@@ -2515,7 +2513,7 @@ Processor* ScriptingApi::Synth::ModuleHandler::addModule(Chain* c, const String&
 			editor->childEditorAmountChanged();
 		}
 
-		mainEditor->findParentComponentOfClass<BackendRootWindow>()->sendRootContainerRebuildMessage(false);
+		GET_BACKEND_ROOT_WINDOW(mainEditor)->sendRootContainerRebuildMessage(false);
 	}
 #endif
 	

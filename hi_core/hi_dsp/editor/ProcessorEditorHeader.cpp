@@ -687,7 +687,7 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
 
 			getProcessor()->getMainController()->setWatchedScriptProcessor(sp, getEditor()->getBody());
 
-			auto root = findParentComponentOfClass<BackendRootWindow>()->getRootFloatingTile();
+			auto root = GET_ROOT_FLOATING_TILE(this);
 
 			auto p = BackendPanelHelpers::toggleVisibilityForRightColumnPanel<ScriptWatchTablePanel>(root, !buttonThatWasClicked->getToggleState());
 
@@ -702,7 +702,7 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
     }
 	else if (buttonThatWasClicked == workspaceButton)
 	{
-		auto rootWindow = findParentComponentOfClass<BackendRootWindow>();
+		auto rootWindow = GET_BACKEND_ROOT_WINDOW(this);
 
 		if (auto jsp = dynamic_cast<JavascriptProcessor*>(getProcessor()))
 		{
@@ -724,7 +724,7 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
         const bool value = buttonThatWasClicked->getToggleState();
 		setPlotButton(!value);
 
-		auto root = findParentComponentOfClass<BackendRootWindow>()->getRootFloatingTile();
+		auto root = GET_ROOT_FLOATING_TILE(this);
 
 		auto p = BackendPanelHelpers::toggleVisibilityForRightColumnPanel<PlotterPanel>(root,  buttonThatWasClicked->getToggleState());
 
@@ -1003,7 +1003,7 @@ void ProcessorEditorHeader::addProcessor(Processor *processorToBeAdded, Processo
 
 #if USE_BACKEND
 
-	findParentComponentOfClass<BackendRootWindow>()->sendRootContainerRebuildMessage(false);
+	GET_BACKEND_ROOT_WINDOW(this)->sendRootContainerRebuildMessage(false);
 
 #endif
 
@@ -1301,7 +1301,7 @@ void ProcessorEditorHeader::labelTextChanged(Label *l)
 	{
 		getEditor()->getProcessor()->setId(l->getText(), sendNotification);
         
-		auto root = findParentComponentOfClass<BackendRootWindow>();
+		auto root = GET_BACKEND_ROOT_WINDOW(this);
 
 		if(auto keyboard = root->getKeyboard())
 			keyboard->grabKeyboardFocus();

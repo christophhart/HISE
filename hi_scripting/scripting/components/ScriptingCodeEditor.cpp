@@ -94,7 +94,7 @@ void JavascriptCodeEditor::timerCallback()
 void JavascriptCodeEditor::focusGained(FocusChangeType)
 {
 #if USE_BACKEND
-	if (auto root = findParentComponentOfClass<BackendRootWindow>())
+	if (auto root = GET_BACKEND_ROOT_WINDOW(this))
 	{
 		grabCopyAndPasteFocus();
 
@@ -287,7 +287,7 @@ void JavascriptCodeEditor::focusLost(FocusChangeType )
 {
 #if USE_BACKEND
     
-    BackendRootWindow *editor = findParentComponentOfClass<BackendRootWindow>();
+    BackendRootWindow *editor = GET_BACKEND_ROOT_WINDOW(this);
 
     if(editor != nullptr)
     {
@@ -719,7 +719,7 @@ void JavascriptCodeEditor::paintOverChildren(Graphics& g)
 {
 	CopyPasteTarget::paintOutlineIfSelected(g);
 
-	if (auto rootWindow = findParentComponentOfClass<BackendRootWindow>())
+	if (auto rootWindow = GET_BACKEND_ROOT_WINDOW(this))
 	{
 		if (rootWindow->getBackendProcessor()->getLastActiveEditor() == this)
 		{

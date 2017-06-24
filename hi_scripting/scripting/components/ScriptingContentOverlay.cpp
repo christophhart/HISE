@@ -942,7 +942,7 @@ void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 			{
 				auto sc = components[result - 1];
 				mc->setEditedScriptComponent(sc, parentHandler->getAsComponent());
-				auto root = findParentComponentOfClass<BackendRootWindow>()->getRootFloatingTile();
+				auto root = GET_ROOT_FLOATING_TILE(this);
 				BackendPanelHelpers::toggleVisibilityForRightColumnPanel<GenericPanel<ScriptComponentEditPanel>>(root, sc != nullptr);
 			}
 
@@ -951,7 +951,7 @@ void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 		{
 			ScriptingApi::Content::ScriptComponent *sc = content->getScriptComponentFor(e.getEventRelativeTo(content).getPosition());
 			mc->setEditedScriptComponent(sc, parentHandler->getAsComponent());
-			auto root = findParentComponentOfClass<BackendRootWindow>()->getRootFloatingTile();
+			auto root = GET_ROOT_FLOATING_TILE(this);
 			BackendPanelHelpers::toggleVisibilityForRightColumnPanel<GenericPanel<ScriptComponentEditPanel>>(root, sc != nullptr);
 		}
 	}
@@ -1105,7 +1105,7 @@ void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 			{
 				ParameterConnector *comp = new ParameterConnector(componentToUse, parentHandler);
 
-				comp->setModalBaseWindowComponent(parentHandler->getAsComponent()->findParentComponentOfClass<BackendRootWindow>());
+				comp->setModalBaseWindowComponent(GET_BACKEND_ROOT_WINDOW(parentHandler->getAsComponent()));
 			}
 
 		}

@@ -297,7 +297,7 @@ PoolTableSubTypes::AudioFilePoolTable::AudioFilePoolTable(BackendRootWindow* roo
 
 void PoolTableSubTypes::AudioFilePoolTable::cellDoubleClicked(int rowNumber, int /*columnId*/, const MouseEvent& /*e*/)
 {
-	auto mc = dynamic_cast<MainController*>(findParentComponentOfClass<BackendRootWindow>()->getBackendProcessor());
+	auto mc = dynamic_cast<MainController*>(GET_BACKEND_ROOT_WINDOW(this)->getBackendProcessor());
 
 	if (auto editor = mc->getLastActiveEditor())
 	{
@@ -316,7 +316,7 @@ PoolTableSubTypes::ImageFilePoolTable::ImageFilePoolTable(BackendRootWindow* roo
 
 void PoolTableSubTypes::ImageFilePoolTable::cellDoubleClicked(int rowNumber, int /*columnId*/, const MouseEvent&)
 {
-	auto mc = dynamic_cast<MainController*>(findParentComponentOfClass<BackendRootWindow>()->getBackendProcessor());
+	auto mc = dynamic_cast<MainController*>(GET_BACKEND_ROOT_WINDOW(this)->getBackendProcessor());
 
 	if (auto editor = mc->getLastActiveEditor())
 	{

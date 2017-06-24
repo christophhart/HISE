@@ -971,11 +971,11 @@ void ScriptComponentEditPanel::HiFilePropertyComponent::refresh()
 		
 void ScriptComponentEditPanel::HiFilePropertyComponent::buttonClicked(Button *)
 {
-	FileChooser fc("Load File", GET_PROJECT_HANDLER(findParentComponentOfClass<BackendRootWindow>()->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Images));
+	FileChooser fc("Load File", GET_PROJECT_HANDLER(GET_BACKEND_ROOT_WINDOW(this)->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Images));
 
 	if(fc.browseForFileToOpen())
 	{
-		currentFile = GET_PROJECT_HANDLER(findParentComponentOfClass<BackendRootWindow>()->getMainSynthChain()).getFileReference(fc.getResult().getFullPathName(), ProjectHandler::SubDirectories::Images);
+		currentFile = GET_PROJECT_HANDLER(GET_BACKEND_ROOT_WINDOW(this)->getMainSynthChain()).getFileReference(fc.getResult().getFullPathName(), ProjectHandler::SubDirectories::Images);
 
 		component.box.addItem(currentFile, component.box.getNumItems()+1);
 	}
@@ -987,7 +987,7 @@ void ScriptComponentEditPanel::HiFilePropertyComponent::comboBoxChanged(ComboBox
 {
     const String fileName = component.box.getItemText(component.box.getSelectedItemIndex());
     
-	currentFile = GET_PROJECT_HANDLER(findParentComponentOfClass<BackendRootWindow>()->getMainSynthChain()).getFileReference(fileName, ProjectHandler::SubDirectories::Images);
+	currentFile = GET_PROJECT_HANDLER(GET_BACKEND_ROOT_WINDOW(this)->getMainSynthChain()).getFileReference(fileName, ProjectHandler::SubDirectories::Images);
     
 	sendSynchronousChangeMessage();
 }

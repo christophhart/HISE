@@ -84,10 +84,29 @@ private:
 };
 
 
+class BackendRootWindow;
+class FloatingTile;
+
+
+class ComponentWithBackendConnection
+{
+public:
+
+	virtual ~ComponentWithBackendConnection() {};
+
+	virtual BackendRootWindow* getBackendRootWindow() = 0;
+
+	virtual const BackendRootWindow* getBackendRootWindow() const = 0;
+
+	virtual FloatingTile* getRootFloatingTile() = 0;
+
+};
+
 class FloatingTileContainer;
 class FloatingTileContent;
 
-class FloatingTile : public Component
+class FloatingTile : public Component,
+					 public ComponentWithBackendConnection
 {
 public:
 
@@ -408,12 +427,12 @@ public:
 	void refreshPinButton();
 	void toggleAbsoluteSize();
 
-	const BackendRootWindow* getRootWindow() const;
-	BackendRootWindow* getRootWindow();
+	const BackendRootWindow* getBackendRootWindow() const override;
+	BackendRootWindow* getBackendRootWindow() override;
 
-	FloatingTile* getRootComponent();
+	FloatingTile* getRootFloatingTile() override;
 
-	const FloatingTile* getRootComponent() const;
+	const FloatingTile* getRootFloatingTile() const;
 
 	void clear();
 	void refreshRootLayout();

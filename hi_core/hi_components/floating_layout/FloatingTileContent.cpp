@@ -93,12 +93,12 @@ var FloatingTileContent::getDefaultProperty(int id) const
 
 BackendRootWindow* FloatingTileContent::getRootWindow()
 {
-	return getParentShell()->getRootWindow();
+	return getParentShell()->getBackendRootWindow();
 }
 
 const BackendRootWindow* FloatingTileContent::getRootWindow() const
 {
-	return getParentShell()->getRootWindow();
+	return getParentShell()->getBackendRootWindow();
 }
 
 var FloatingTileContent::toDynamicObject() const
@@ -168,7 +168,7 @@ void FloatingTileContent::setDynamicTitle(const String& newDynamicTitle)
 const BackendProcessorEditor* FloatingTileContent::getMainPanel() const
 {
 #if USE_BACKEND && DONT_INCLUDE_FLOATING_LAYOUT_IN_FRONTEND
-	return getParentShell()->findParentComponentOfClass<BackendRootWindow>()->getMainPanel();
+	return GET_BACKEND_ROOT_WINDOW(getParentShell())->getMainPanel();
 #else
 	return nullptr;
 #endif
@@ -177,7 +177,7 @@ const BackendProcessorEditor* FloatingTileContent::getMainPanel() const
 BackendProcessorEditor* FloatingTileContent::getMainPanel()
 {
 #if USE_BACKEND && DONT_INCLUDE_FLOATING_LAYOUT_IN_FRONTEND
-	return getParentShell()->findParentComponentOfClass<BackendRootWindow>()->getMainPanel();
+	return GET_BACKEND_ROOT_WINDOW(getParentShell())->getMainPanel();
 #else
 	return nullptr;
 #endif
@@ -194,39 +194,6 @@ int FloatingTileContent::getFixedSizeForOrientation() const
 	else
 		return 0;
 }
-
-#if 0
-
-FloatingPanel* FloatingPanel::createPanel(ValueTree& state, FloatingShellComponent* parent)
-{
-	auto pt = getPanelTypeForId(Identifier(state.getType()));
-
-	FloatingPanel* p = createNewPanel(pt, parent);
-
-	if (p != nullptr)
-		p->restoreFromValueTree(state);
-
-	return p;
-}
-
-FloatingPanel* FloatingPanel::Factory::createNewPanel(PanelType pt, FloatingShellComponent* parent)
-{
-	FloatingPanel* p = nullptr;
-
-	switch (pt)
-	{
-	case PanelType::PTHorizontalTile: p = new HorizontalTile(parent); break;
-	case PanelType::PTVerticalTile:	p = new VerticalTile(parent); break;
-	case PanelType::PTTabs:			p = new FloatingTabComponent(parent); break;
-	case PanelType::PTNote:			p = new Note(parent); break;
-	}
-
-	if (p == nullptr)
-		return new EmptyComponent(parent);
-
-	return p;
-}
-#endif
 
 struct FloatingPanelTemplates::Helpers
 {
@@ -377,7 +344,7 @@ Component* FloatingPanelTemplates::createHiseLayout(FloatingTile* rootTile)
 Component* FloatingPanelTemplates::createSamplerWorkspace(FloatingTile* rootTile)
 {
 #if USE_BACKEND
-	MainController* mc = rootTile->findParentComponentOfClass<BackendRootWindow>()->getBackendProcessor();
+	MainController* mc = GET_BACKEND_ROOT_WINDOW(rootTile)->getBackendProcessor();
 
 	jassert(mc != nullptr);
 
@@ -432,7 +399,7 @@ Component* FloatingPanelTemplates::createSamplerWorkspace(FloatingTile* rootTile
 Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTile)
 {
 #if USE_BACKEND
-	MainController* mc = rootTile->findParentComponentOfClass<BackendRootWindow>()->getBackendProcessor();
+	MainController* mc = GET_BACKEND_ROOT_WINDOW(rootTile)->getBackendProcessor();
 
 	jassert(mc != nullptr);
 
@@ -521,7 +488,7 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 {
 #if USE_BACKEND
-	MainController* mc = rootTile->findParentComponentOfClass<BackendRootWindow>()->getBackendProcessor();
+	MainController* mc = GET_BACKEND_ROOT_WINDOW(rootTile)->getBackendProcessor();
 
 	jassert(mc != nullptr);
 

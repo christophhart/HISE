@@ -412,7 +412,7 @@ void MainController::CodeHandler::handleAsyncUpdate()
 
 	if (getMainConsole() != nullptr)
 	{
-		auto rootWindow = mainConsole->findParentComponentOfClass<BackendRootWindow>();
+		auto rootWindow = GET_BACKEND_ROOT_WINDOW(mainConsole);
 		
 		if (rootWindow != nullptr)
 		{

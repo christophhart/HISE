@@ -106,7 +106,7 @@ void Console::mouseDown(const MouseEvent &e)
 		
 		const String id = newTextConsole->getDocument().getLine(newTextConsole->getCaretPos().getLineNumber()).upToFirstOccurrenceOf(":", false, false);
 
-		JavascriptProcessor *jsp = dynamic_cast<JavascriptProcessor*>(ProcessorHelpers::getFirstProcessorWithName(getMainPanel()->getMainSynthChain(), id));
+		JavascriptProcessor *jsp = dynamic_cast<JavascriptProcessor*>(ProcessorHelpers::getFirstProcessorWithName(GET_BACKEND_ROOT_WINDOW(this)->getMainPanel()->getMainSynthChain(), id));
 
 
 		const int SNIPPET_OFFSET = 1000;
@@ -178,7 +178,7 @@ void Console::mouseDown(const MouseEvent &e)
 				js->setEditorState(editorStateOffset + i, editorStateIndex == i, dontSendNotification);
 			}
 
-			findParentComponentOfClass<BackendRootWindow>()->getMainPanel()->setRootProcessorWithUndo(js);
+			GET_BACKEND_ROOT_WINDOW(this)->getMainPanel()->setRootProcessorWithUndo(js);
 		}
     }
     else if (e.mods.isAltDown())
@@ -191,7 +191,7 @@ void Console::mouseDown(const MouseEvent &e)
 
         if(name.isNotEmpty())
         {
-			auto editor = findParentComponentOfClass<BackendRootWindow>()->getMainPanel();
+			auto editor = GET_BACKEND_ROOT_WINDOW(this)->getMainPanel();
 
             Processor *p = ProcessorHelpers::getFirstProcessorWithName(editor->getMainSynthChain(), name);
             
@@ -232,7 +232,7 @@ void Console::mouseDoubleClick(const MouseEvent& /*e*/)
 		const String lineNumber = matches[4];
 		const String charNumber = matches[5];
 
-		JavascriptProcessor *jsp = dynamic_cast<JavascriptProcessor*>(ProcessorHelpers::getFirstProcessorWithName(getMainPanel()->getMainSynthChain(), id));
+		JavascriptProcessor *jsp = dynamic_cast<JavascriptProcessor*>(ProcessorHelpers::getFirstProcessorWithName(GET_BACKEND_ROOT_WINDOW(this)->getMainPanel()->getMainSynthChain(), id));
 
 		if (fileName.isNotEmpty())
 		{
@@ -254,7 +254,7 @@ void Console::mouseDoubleClick(const MouseEvent& /*e*/)
 		{
 			jassert(!callback.isNull());
 
-			ProcessorEditor* pEditor = getMainPanel()->getRootContainer()->getFirstEditorOf(dynamic_cast<Processor*>(jsp));
+			ProcessorEditor* pEditor = GET_BACKEND_ROOT_WINDOW(this)->getMainPanel()->getRootContainer()->getFirstEditorOf(dynamic_cast<Processor*>(jsp));
 
 			if (pEditor != nullptr)
 			{
@@ -304,21 +304,3 @@ int Console::ConsoleTokeniser::readNextToken(CodeDocument::Iterator& source)
 
 
 #endif
-
-BackendProcessorEditor* ComponentWithAccessToMainPanel::getMainPanel()
-{
-#if USE_BACKEND
-	return dynamic_cast<Component*>(this)->findParentComponentOfClass<BackendRootWindow>()->getMainPanel();
-#else
-	return nullptr;
-#endif
-}
-
-const BackendProcessorEditor* ComponentWithAccessToMainPanel::getMainPanel() const
-{
-#if USE_BACKEND
-	return dynamic_cast<const Component*>(this)->findParentComponentOfClass<BackendRootWindow>()->getMainPanel();
-#else
-	return nullptr;
-#endif
-}

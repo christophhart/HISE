@@ -311,7 +311,7 @@ void FloatingTile::MoveButton::buttonClicked(Button* )
 
 	if (result == 1)
 	{
-		ec->getRootComponent()->enableSwapMode(!ec->layoutData.swappingEnabled, ec);
+		ec->getRootFloatingTile()->enableSwapMode(!ec->layoutData.swappingEnabled, ec);
 	}
 	else if (result == 2)
 	{
@@ -433,8 +433,9 @@ bool FloatingTile::showTitle() const
 
 	const bool isRoot = pt == ParentType::Root;
 	const bool isInTab = pt == ParentType::Tabbed;
-	
-	if (isRoot)
+	const bool isDynamicContainer = dynamic_cast<const FloatingTileContainer*>(getCurrentFloatingPanel()) != nullptr && dynamic_cast<const FloatingTileContainer*>(getCurrentFloatingPanel())->isDynamic();
+
+	if (isRoot && !isDynamicContainer)
 		return false;
 
 	if (isInTab && !isLayoutModeEnabled())
@@ -566,25 +567,25 @@ void FloatingTile::toggleAbsoluteSize()
 	}
 }
 
-const BackendRootWindow* FloatingTile::getRootWindow() const
+const BackendRootWindow* FloatingTile::getBackendRootWindow() const
 {
-	auto rw = findParentComponentOfClass<BackendRootWindow>();
+	auto rw = dynamic_cast<ComponentWithBackendConnection*>(getRootFloatingTile()->getParentComponent())->getBackendRootWindow();
 
 	jassert(rw != nullptr);
 
 	return rw;
 }
 
-BackendRootWindow* FloatingTile::getRootWindow()
+BackendRootWindow* FloatingTile::getBackendRootWindow()
 {
-	auto rw = dynamic_cast<BackendRootWindow*>(getRootComponent()->getParentComponent());
+	auto rw = dynamic_cast<ComponentWithBackendConnection*>(getRootFloatingTile()->getParentComponent())->getBackendRootWindow();
 
 	jassert(rw != nullptr);
 
 	return rw;
 }
 
-FloatingTile* FloatingTile::getRootComponent()
+FloatingTile* FloatingTile::getRootFloatingTile()
 {
 	if (getParentType() == ParentType::Root)
 		return this;
@@ -594,12 +595,12 @@ FloatingTile* FloatingTile::getRootComponent()
 	if (parent == nullptr)
 		return nullptr;
 
-	return parent->getRootComponent();
+	return parent->getRootFloatingTile();
 }
 
-const FloatingTile* FloatingTile::getRootComponent() const
+const FloatingTile* FloatingTile::getRootFloatingTile() const
 {
-	return const_cast<FloatingTile*>(this)->getRootComponent();
+	return const_cast<FloatingTile*>(this)->getRootFloatingTile();
 }
 
 void FloatingTile::clear()
@@ -621,9 +622,9 @@ void FloatingTile::clear()
 
 void FloatingTile::refreshRootLayout()
 {
-	if (getRootComponent() != nullptr)
+	if (getRootFloatingTile() != nullptr)
 	{
-		auto rootContainer = dynamic_cast<FloatingTileContainer*>(getRootComponent()->getCurrentFloatingPanel());
+		auto rootContainer = dynamic_cast<FloatingTileContainer*>(getRootFloatingTile()->getCurrentFloatingPanel());
 
 		if(rootContainer != nullptr)
 			rootContainer->refreshLayout();
@@ -657,7 +658,7 @@ bool FloatingTile::isLayoutModeEnabled() const
 	if (getParentType() == ParentType::Root)
 		return layoutModeEnabled;
 
-	return canDoLayoutMode() && getRootComponent()->isLayoutModeEnabled();
+	return canDoLayoutMode() && getRootFloatingTile()->isLayoutModeEnabled();
 }
 
 bool FloatingTile::canDoLayoutMode() const
@@ -866,7 +867,7 @@ void FloatingTile::mouseDown(const MouseEvent& event)
 		{
 			currentSwapSource->swapWith(this);
 
-			getRootComponent()->enableSwapMode(false, nullptr);
+			getRootFloatingTile()->enableSwapMode(false, nullptr);
 		}
 	}
 }
@@ -974,7 +975,7 @@ FloatingTilePopup* FloatingTile::showComponentInRootPopup(Component* newComponen
 {
 	if (getParentType() != ParentType::Root)
 	{
-		return getRootComponent()->showComponentInRootPopup(newComponent, attachedComponent, localPoint);
+		return getRootFloatingTile()->showComponentInRootPopup(newComponent, attachedComponent, localPoint);
 	}
 	else
 	{

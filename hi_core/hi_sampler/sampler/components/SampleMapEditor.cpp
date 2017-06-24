@@ -441,7 +441,7 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 							}
 	case SaveSampleMap:				sampler->saveSampleMap(); return true;
 	case SaveSampleMapAsXml:		sampler->saveSampleMapAs(); return true;
-	case SaveSampleMapAsMonolith:	sampler->saveSampleMapAsMonolith(findParentComponentOfClass<BackendRootWindow>()); return true;
+	case SaveSampleMapAsMonolith:	sampler->saveSampleMapAsMonolith(GET_BACKEND_ROOT_WINDOW(this)); return true;
 	case ImportSfz:			{
 							FileChooser f("Import sfz", GET_PROJECT_HANDLER(sampler).getWorkDirectory(), "*.sfz");
 

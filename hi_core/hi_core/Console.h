@@ -39,19 +39,6 @@ class BaseDebugArea;
 class BackendRootWindow;
 class BackendProcessorEditor;
 
-/** If the component somehow needs access to the main panel, subclass it from this interface and use getMainPanel(). */
-class ComponentWithAccessToMainPanel
-{
-public:
-
-	virtual ~ComponentWithAccessToMainPanel() {};
-
-protected:
-
-	BackendProcessorEditor* getMainPanel();
-	const BackendProcessorEditor* getMainPanel() const;
-};
-
 
 #if USE_BACKEND
 
@@ -64,7 +51,6 @@ protected:
 *	For Modulators there is the macro function debugMod(String &t)
 */
 class Console: public Component,
-			   public ComponentWithAccessToMainPanel,
 			   public CodeDocument::Listener
 {
 public:
