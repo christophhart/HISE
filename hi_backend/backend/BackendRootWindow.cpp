@@ -92,9 +92,11 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 
 			if(workspace > 0)
 				showWorkspace(workspace);
+            
+            setEditor(this);
 		}
 
-		setEditor(this);
+		
 	}
 
 	if (!loadedCorrectly)
