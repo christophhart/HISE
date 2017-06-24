@@ -201,7 +201,7 @@ static const unsigned char projectStandaloneTemplate_jucer_lines[] =
 "               USE_CUSTOM_FRONTEND_TOOLBAR=\"%USE_CUSTOM_FRONTEND_TOOLBAR%\" IS_STANDALONE_FRONTEND=\"%IS_STANDALONE_FRONTEND%\" USE_GLITCH_DETECTION=\"enabled\"\r\n"
 "               ENABLE_PLOTTER=\"disabled\" ENABLE_SCRIPTING_SAFE_CHECKS=\"disabled\"\r\n"
 "               ENABLE_ALL_PEAK_METERS=\"disabled\" ENABLE_CONSOLE_OUTPUT=\"disabled\"\r\n"
-"               JUCE_ASIO=\"%USE_ASIO%\" HLAC_MEASURE_DECODING_PERFORMANCE=\"disabled\" HLAC_DEBUG_LOG=\"disabled\" HLAC_INCLUDE_TEST_SUITE=\"disabled\"/>\r\n"
+"               JUCE_ASIO=\"%USE_ASIO%\" USE_SPLASH_SCREEN=\"%USE_SPLASH_SCREEN%\" HLAC_MEASURE_DECODING_PERFORMANCE=\"disabled\" HLAC_DEBUG_LOG=\"disabled\" HLAC_INCLUDE_TEST_SUITE=\"disabled\"/>\r\n"
 "</JUCERPROJECT>\r\n";
 
 const char* projectStandaloneTemplate_jucer = (const char*)projectStandaloneTemplate_jucer_lines;

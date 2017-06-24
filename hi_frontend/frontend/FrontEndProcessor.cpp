@@ -212,3 +212,26 @@ const String FrontendStandaloneApplication::getApplicationVersion()
 {
 	return ProjectInfo::versionString;
 }
+
+FrontendStandaloneApplication::AudioWrapper::AudioWrapper()
+{
+#if USE_SPLASH_SCREEN
+
+	Image img = ImageCache::getFromMemory(BinaryData::SplashScreen_png, BinaryData::SplashScreen_pngSize);
+
+	addAndMakeVisible(splashScreen = new ImageComponent());
+
+	splashScreen->setImage(img);
+
+	setSize(img.getWidth(), img.getHeight());
+
+	startTimer(100);
+
+#else
+	splash = nullptr;
+	init();
+#endif
+
+
+	//open.attachTo(*editor);
+}

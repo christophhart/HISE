@@ -1409,17 +1409,28 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
 		copyProtectionTargetFile.create();
 	}
 
-    File iconFile = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("Icon.png");
-    
-    if(iconFile.existsAsFile())
-    {
-        additionalSourceFiles.add(iconFile);
-    }
-    else
-    {
-        templateProject = templateProject.replace("%ICON_FILE%", "");
-    }
-	
+	File iconFile = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("Icon.png");
+
+	if (iconFile.existsAsFile())
+	{
+		additionalSourceFiles.add(iconFile);
+	}
+	else
+	{
+		templateProject = templateProject.replace("%ICON_FILE%", "");
+	}
+
+	File splashScreenFile = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("SplashScreen.png");
+
+	if (splashScreenFile.existsAsFile())
+	{
+		additionalSourceFiles.add(splashScreenFile);
+		REPLACE_WILDCARD_WITH_STRING("%USE_SPLASH_SCREEN%", "enabled");
+	}
+	else
+	{
+		REPLACE_WILDCARD_WITH_STRING("%USE_SPLASH_SCREEN%", "disabled");
+	}
 
 #if JUCE_MAC
     const String additionalStaticLibs = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::OSXStaticLibs, &GET_PROJECT_HANDLER(chainToExport));
@@ -1458,10 +1469,11 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
 
 			bool isSourceFile = additionalSourceFiles[i].hasFileExtension(".cpp");
 
+			bool isSplashScreen = (additionalSourceFiles[i].getFileName() == "SplashScreen.png");
+
 			const String relativePath = additionalSourceFiles[i].getRelativePathFrom(GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries));
 
 			String newAditionalSourceLine;
-            
             
             String fileId = FileHelpers::createAlphaNumericUID();
             
@@ -1470,12 +1482,11 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
                 templateProject = templateProject.replace("%ICON_FILE%", "smallIcon=\"" + fileId + "\" bigIcon=\"" + fileId + "\"");
             }
             
-			newAditionalSourceLine << "      <FILE id=\"" << fileId << "\" name=\"" << additionalSourceFiles[i].getFileName() << "\" compile=\"" << (isSourceFile ? "1" : "0") << "\" resource=\"0\"\r\n";
+			newAditionalSourceLine << "      <FILE id=\"" << fileId << "\" name=\"" << additionalSourceFiles[i].getFileName() << "\" compile=\"" << (isSourceFile ? "1" : "0") << "\" ";
+			newAditionalSourceLine << "resource=\"" << (isSplashScreen ? "1" : "0") << "\"\r\n";
 			newAditionalSourceLine << "            file=\"" << relativePath << "\"/>\r\n";
 
 			additionalFileDefinitions.add(newAditionalSourceLine);
-            
-            
 		}
 
         

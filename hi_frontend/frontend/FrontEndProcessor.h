@@ -101,6 +101,20 @@ public:
     
     Pimpl *p;
     
+
+	struct Logger
+	{
+		Logger(TurboActivateCharPointerType turboActivateFilePath);
+
+		~Logger();
+
+		void logToFile(TurboActivateCharPointerType message);
+
+	private:
+
+		FileOutputStream* fos = nullptr;
+	};
+
 };
 
 
@@ -341,20 +355,40 @@ public:
 
 	void anotherInstanceStarted(const String& /*commandLine*/) override {}
 
-	class AudioWrapper : public Component
+	class AudioWrapper : public Component,
+						 public Timer
 	{
 	public:
 
-		AudioWrapper()
+		void init()
 		{
 			standaloneProcessor = new StandaloneProcessor();
 
+			editor = standaloneProcessor->createEditor();
+
+			addAndMakeVisible(editor);
+
+			if (splashScreen != nullptr)
+			{
+				Desktop::getInstance().getAnimator().fadeOut(splashScreen, 600);
+				splashScreen = nullptr;
+			}
+
 			float sf = standaloneProcessor->getScaleFactor();
 
-			addAndMakeVisible(editor = standaloneProcessor->createEditor());
-			setSize((int)((float)editor->getWidth()*sf), (int)((float)editor->getHeight() * sf));
-            //open.attachTo(*editor);
+			int newWidth = (int)((float)editor->getWidth()*sf);
+			int newHeight = (int)((float)editor->getHeight() * sf);
+
+			setSize(newWidth, newHeight);
 		}
+
+		void timerCallback() override
+		{
+			stopTimer();
+			init();
+		}
+
+		AudioWrapper();
 
 		~AudioWrapper()
 		{
@@ -366,12 +400,17 @@ public:
 
 		void resized()
 		{
-			editor->setTopLeftPosition(0, 0);
+			if (splashScreen != nullptr)
+				splashScreen->setBounds(getLocalBounds());
+
+			if(editor != nullptr)
+				editor->setTopLeftPosition(0, 0);
 		}
 
 	private:
 
-        
+		ScopedPointer<ImageComponent> splashScreen;
+
 		ScopedPointer<AudioProcessorEditor> editor;
 		ScopedPointer<StandaloneProcessor> standaloneProcessor;
         

@@ -225,6 +225,13 @@ Set this to 1 to enable hard clipping of the output (brickwall everything over 1
 #define USE_HARD_CLIPPER 0
 #endif
 
+/** Config: USE_SPLASH_SCREEN
+
+If your project contains a SplashScreen.png image file, it will use this as splash screen while loading the instrument in the background.
+*/
+#ifndef USE_SPLASH_SCREEN
+#define USE_SPLASH_SCREEN 0
+#endif
 
 // for iOS apps, the external files don't need to be embedded. Enable this to simulate this behaviour on desktop projects (not recommended for production)
 //#define DONT_EMBED_FILES_IN_FRONTEND 1
