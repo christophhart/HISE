@@ -404,7 +404,7 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 
 		currentModalWindow = replacer;
 
-		replacer->setModalBaseWindowComponent(this);
+		replacer->setModalBaseWindowComponent(GET_BACKEND_ROOT_WINDOW(this));
 		replacer->getTextEditor("search")->grabKeyboardFocus();
 
 		return;
