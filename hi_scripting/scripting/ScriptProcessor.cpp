@@ -219,40 +219,25 @@ File FileChangeListener::getWatchedFile(int index) const
 void FileChangeListener::showPopupForFile(int index, int charNumberToDisplay/*=0*/, int lineNumberToDisplay/*=-1*/)
 {
 #if USE_BACKEND
-	const File watchedFile = getWatchedFile(index);
 
+	auto mc = dynamic_cast<Processor*>(this)->getMainController();
+	mc->getCommandManager()->invoke(BackendCommandTarget::MenuViewAddFloatingWindow, false);
 
-	for (int i = 0; i < currentPopups.size(); i++)
-	{
-		if (currentPopups[i] == nullptr)
-		{
-			currentPopups.remove(i--);
-			continue;
-		}
+	auto rw = GET_BACKEND_ROOT_WINDOW(mc->getConsoleHandler().getMainConsole());
 
-		if (dynamic_cast<PopupIncludeEditorWindow*>(currentPopups[i].getComponent())->getFile() == watchedFile)
-		{
-			currentPopups[i]->toFront(true);
+	auto window = rw->getLastPopup();
 
-			if (charNumberToDisplay != 0)
-			{
-				dynamic_cast<PopupIncludeEditorWindow*>(currentPopups[i].getComponent())->gotoChar(charNumberToDisplay, lineNumberToDisplay);
-			}
+	window->setName(watchers[index]->getFile().getFileName());
+	window->centreWithSize(1000, 800);
+	
 
-			return;
-		}
-	}
+	auto root = window->getRootFloatingTile();
+	
+	root->setNewContent(GET_PANEL_NAME(CodeEditorPanel));
 
-	PopupIncludeEditorWindow *popup = new PopupIncludeEditorWindow(getWatchedFile(index), dynamic_cast<JavascriptProcessor*>(this));
+	auto editor = dynamic_cast<CodeEditorPanel*>(root->getCurrentFloatingPanel());
 
-	currentPopups.add(popup);
-
-	popup->addToDesktop();
-
-	if (charNumberToDisplay != 0)
-	{
-		popup->gotoChar(charNumberToDisplay, lineNumberToDisplay);
-	}
+	editor->gotoLocation(dynamic_cast<Processor*>(this), watchers[index]->getFile().getFullPathName(), charNumberToDisplay);
 
 #else
 	ignoreUnused(index, charNumberToDisplay, lineNumberToDisplay);
@@ -271,37 +256,28 @@ void FileChangeListener::showPopupForFile(const File& f, int charNumberToDisplay
 void JavascriptProcessor::showPopupForCallback(const Identifier& callback, int charNumberToDisplay, int lineNumberToDisplay)
 {
 #if USE_BACKEND
-	for (int i = 0; i < callbackPopups.size(); i++)
+
+	auto mc = dynamic_cast<Processor*>(this)->getMainController();
+	mc->getCommandManager()->invoke(BackendCommandTarget::MenuViewAddFloatingWindow, false);
+
+	auto rw = GET_BACKEND_ROOT_WINDOW(mc->getConsoleHandler().getMainConsole());
+	auto root = rw->getLastPopup()->getRootFloatingTile();
+
+	root->setNewContent(GET_PANEL_NAME(CodeEditorPanel));
+
+	auto editor = dynamic_cast<CodeEditorPanel*>(root->getCurrentFloatingPanel());
+
+	auto jp = dynamic_cast<JavascriptProcessor*>(this);
+	
+	for (int i = 0; i < jp->getNumSnippets(); i++)
 	{
-		if (callbackPopups[i] == nullptr)
+		if (jp->getSnippet(i)->getCallbackName() == callback)
 		{
-			callbackPopups.remove(i--);
-			continue;
-		}
-
-		if (dynamic_cast<PopupIncludeEditorWindow*>(callbackPopups[i].getComponent())->getCallback() == callback)
-		{
-			callbackPopups[i]->toFront(true);
-
-			if (charNumberToDisplay != 0)
-			{
-				dynamic_cast<PopupIncludeEditorWindow*>(callbackPopups[i].getComponent())->gotoChar(charNumberToDisplay, lineNumberToDisplay);
-			}
-
-			return;
+			editor->setContentWithUndo(dynamic_cast<Processor*>(this), i);
+			break;
 		}
 	}
 
-	PopupIncludeEditorWindow *popup = new PopupIncludeEditorWindow(callback, dynamic_cast<JavascriptProcessor*>(this));
-
-	callbackPopups.add(popup);
-
-	popup->addToDesktop();
-
-	if (charNumberToDisplay != 0)
-	{
-		popup->gotoChar(charNumberToDisplay, lineNumberToDisplay);
-	}
 #else
 	ignoreUnused(callback, charNumberToDisplay, lineNumberToDisplay);
 

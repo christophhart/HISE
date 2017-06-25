@@ -197,7 +197,6 @@ public:
 	void openContentInPopup();
 	void closeContentPopup();
 
-	void editInAllPopup();
 	void closeAllPopup();
 
 	void gotoChar(int character);
@@ -358,8 +357,6 @@ private:
 	ScopedPointer<CodeDocument> doc;
 
 	ScopedPointer<JavascriptTokeniser> tokenizer;
-
-	ScopedPointer<PopupIncludeEditorWindow> allEditor;
 
 	ScopedPointer<ContentPopup> contentPopup;
 

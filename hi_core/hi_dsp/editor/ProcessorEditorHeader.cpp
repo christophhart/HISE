@@ -1152,7 +1152,6 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 		{
 			m.addSeparator();
 			m.addSectionHeader("Script Processor Tools");
-			m.addItem(OpenAllScriptsInPopup, "Open Script in Popup Window", !sp->isConnectedToExternalFile());
 			m.addItem(OpenInterfaceInPopup, "Open Interface in Popup Window", true, false);
 			m.addItem(ConnectToScriptFile, "Connect to external script", true, sp->isConnectedToExternalFile());
 			m.addItem(ReloadFromExternalScript, "Reload external script", sp->isConnectedToExternalFile(), false);
@@ -1186,10 +1185,6 @@ void ProcessorEditorHeader::mouseDown(const MouseEvent &e)
 		else if (result == CreateScriptVariable)
 		{
 			ProcessorHelpers::getScriptVariableDeclaration(getEditor()->getProcessor());
-		}
-		else if (result == OpenAllScriptsInPopup)
-		{
-			dynamic_cast<ScriptingEditor*>(getEditor()->getBody())->editInAllPopup();
 		}
 		else if (result == OpenInterfaceInPopup)
 		{

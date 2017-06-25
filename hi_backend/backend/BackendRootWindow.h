@@ -72,6 +72,8 @@ public:
 
 	BackendProcessorEditor* getMainPanel() { return mainEditor; }
 
+	FloatingTileDocumentWindow* getLastPopup() { return popoutWindows.getLast(); }
+
 	void resetInterface();
 
 	CustomKeyboard* getKeyboard() const override

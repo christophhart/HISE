@@ -37,8 +37,9 @@
 
 class JavascriptCodeEditor;
 
+
 class PopupIncludeEditor : public Component,
-	public Timer
+						   public Timer
 {
 public:
 
@@ -57,6 +58,7 @@ public:
 
 	JavascriptCodeEditor* getEditor() { return editor.get(); }
 
+	
 private:
 
 	friend class PopupIncludeEditorWindow;
@@ -82,41 +84,5 @@ private:
 
 	// ================================================================================================================
 };
-
-class PopupIncludeEditorWindow : public DocumentWindow,
-	public ModalBaseWindow
-{
-public:
-
-	// ================================================================================================================
-
-	PopupIncludeEditorWindow(File f, JavascriptProcessor *s);
-
-	PopupIncludeEditorWindow(const Identifier& callbackName, JavascriptProcessor* s);
-
-	PopupIncludeEditorWindow(Component* scriptingEditor, JavascriptProcessor* s);
-
-	File getFile() const { return file; };
-	Identifier getCallback() const { return callback; }
-
-	void paint(Graphics &g) override;
-	bool keyPressed(const KeyPress& key);;
-	void closeButtonPressed() override;;
-
-	void gotoChar(int character, int lineNumber = -1);
-
-private:
-
-	Component::SafePointer<Component> parentEditorBody;
-	ScopedPointer<PopupIncludeEditor> editor;
-	const File file;
-	const Identifier callback;
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PopupIncludeEditorWindow);
-
-	// ================================================================================================================
-};
-
-
 
 #endif  // POPUPEDITORS_H_INCLUDED

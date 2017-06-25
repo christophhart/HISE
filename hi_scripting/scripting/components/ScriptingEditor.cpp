@@ -149,7 +149,6 @@ ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
 
 ScriptingEditor::~ScriptingEditor()
 { 
-	allEditor = nullptr;
 	contentPopup = nullptr;
 
 	getProcessor()->getMainController()->setEditedScriptComponent(nullptr, nullptr);
@@ -471,29 +470,9 @@ void ScriptingEditor::closeContentPopup()
 	refreshBodySize();
 }
 
-void ScriptingEditor::editInAllPopup()
-{
-	if (allEditor == nullptr)
-	{
-		compileScript();
-
-		codeEditor->setEnabled(false);
-		JavascriptProcessor *sp = dynamic_cast<JavascriptProcessor*>(getProcessor());
-
-		allEditor = new PopupIncludeEditorWindow(this, sp);
-		allEditor->addToDesktop();
-		allEditor->grabKeyboardFocus();
-	}
-	else
-	{
-		allEditor->toFront(true);
-	}
-}
-
 void ScriptingEditor::closeAllPopup()
 {
-	allEditor->removeFromDesktop();
-	allEditor = nullptr;
+	
 	codeEditor->setEnabled(true);
 	checkActiveSnippets();
 }

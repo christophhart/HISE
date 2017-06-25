@@ -639,12 +639,7 @@ void JavascriptCodeEditor::showAutoCompleteNew()
 	}
 	else
 	{
-		Component *editor = findParentComponentOfClass<BackendRootWindow>();
-
-		if (editor == nullptr)
-		{
-			editor = findParentComponentOfClass<PopupIncludeEditorWindow>();
-		}
+		Component *editor = dynamic_cast<Component*>(findParentComponentOfClass<ComponentWithBackendConnection>());
 
 		if (editor != nullptr)
 		{
