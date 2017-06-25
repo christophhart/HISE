@@ -517,6 +517,7 @@ Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 	ib.getContent(leftColumn)->setStyleColour(ResizableFloatingTileContainer::ColourIds::backgroundColourId, Colour(0xFF222222));
 	ib.getPanel(leftColumn)->getLayoutData().setMinSize(150);
 	ib.getPanel(leftColumn)->setCanBeFolded(true);
+	ib.getPanel(leftColumn)->setVital(true);
 	ib.setId(leftColumn, "MainLeftColumn");
 
 	ib.getContent(mainColumn)->setStyleColour(ResizableFloatingTileContainer::ColourIds::backgroundColourId,
@@ -527,6 +528,7 @@ Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 	ib.getPanel(rightColumn)->getLayoutData().setMinSize(150);
 	ib.getPanel(rightColumn)->setCanBeFolded(true);
 	ib.setId(rightColumn, "MainRightColumn");
+	ib.getPanel(rightColumn)->setVital(true);
 
 	const int rightToolBar = ib.addChild<VisibilityToggleBar>(rightColumn);
 	ib.getPanel(rightToolBar)->getLayoutData().setCurrentSize(28);

@@ -487,7 +487,7 @@ FloatingTileContent::Factory::PopupMenuOptions FloatingTileContent::Factory::get
 void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* parent)
 {
 #if USE_BACKEND
-	if (!parent->isVital())
+	if (parent->canBeDeleted())
 	{
 		if (parent->isLayoutModeEnabled())
 		{
