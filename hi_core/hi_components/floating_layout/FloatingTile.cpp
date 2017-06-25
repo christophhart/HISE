@@ -1411,6 +1411,17 @@ void FloatingTileDocumentWindow::closeButtonPressed()
 	parent->removeFloatingWindow(this);
 }
 
+bool FloatingTileDocumentWindow::keyPressed(const KeyPress& key)
+{
+	if (key == KeyPress::F6Key)
+	{
+		getBackendRootWindow()->getBackendProcessor()->getCommandManager()->invokeDirectly(BackendCommandTarget::MenuViewEnableGlobalLayoutMode, false);
+		return true;
+	}
+
+	return false;
+}
+
 FloatingTile* FloatingTileDocumentWindow::getRootFloatingTile()
 {
 	return dynamic_cast<FloatingTile*>(getContentComponent());

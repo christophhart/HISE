@@ -614,6 +614,8 @@ public:
 
 	void closeButtonPressed() override;
 
+	bool keyPressed(const KeyPress& key) override;
+
 	BackendRootWindow* getBackendRootWindow() override { return parent; };
 
 	const BackendRootWindow* getBackendRootWindow() const override { return parent; };
