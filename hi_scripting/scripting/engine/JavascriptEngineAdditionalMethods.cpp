@@ -206,7 +206,7 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
 				for (int i = 0; i < arguments.size(); i++)
 					parameters[i] = arguments[i]->getResult(s);
 
-				return obj->performDynamically(s, parameters, arguments.size());
+				return obj->performDynamically(s, parameters, arguments.size(), dynObj);
 			}
 		}
 
@@ -223,7 +223,7 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
 		for (int i = 0; i < arguments.size(); i++)
 			parameters[i] = arguments[i]->getResult(s);
 
-		return obj->performDynamically(s, parameters, arguments.size());
+		return obj->performDynamically(s, parameters, arguments.size(), nullptr);
 	}
 
 	var function(r);

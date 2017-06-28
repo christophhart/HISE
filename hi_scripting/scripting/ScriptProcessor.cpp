@@ -108,7 +108,7 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 		auto rootObj = thisAsJavascriptProcessor->getScriptEngine()->getRootObject();
 		auto s = HiseJavascriptEngine::RootObject::Scope(nullptr, static_cast<HiseJavascriptEngine::RootObject*>(rootObj), nullptr);
 
-		f->performDynamically(s, args, 2);
+		f->performDynamically(s, args, 2, nullptr);
 	}
 	else
 	{
