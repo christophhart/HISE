@@ -279,6 +279,12 @@ void MouseCallbackComponent::fillPopupMenu(const MouseEvent &event)
 					continue;
 				}
 
+				if (sa[j] == "%SKIP%")
+				{
+					menuIndex++;
+					continue;
+				}
+
 				const bool isDeactivated = sa[j].startsWith("~~") && sa[j].endsWith("~~");
 				const String itemText = isDeactivated ? sa[j].replace("~~", "") : sa[j];
 
@@ -301,6 +307,12 @@ void MouseCallbackComponent::fillPopupMenu(const MouseEvent &event)
 
 		for (int i = 0; i < itemList.size(); i++)
 		{
+			if (itemList[i] == "%SKIP%")
+			{
+				menuIndex++;
+				continue;
+			}
+
 			if (itemList[i].startsWith("**") && itemList[i].endsWith("**"))
 			{
 				m.addSectionHeader(itemList[i].replace("**", ""));
