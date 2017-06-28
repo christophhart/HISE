@@ -438,16 +438,18 @@ TableEditor::DragPoint::DragPoint(bool isStart_, bool isEnd_):
 	dragPlotSize(Rectangle<int>()),
 	constantValue(-1.0f)
 {
-#if HISE_IOS
-    const int size = isStartOrEnd() ? 50 : 35;
-#else
-	const int size = isStartOrEnd() ? 20 : 14;
-#endif
+	if (HiseDeviceSimulator::isMobileDevice())
+	{
+		const int size = isStartOrEnd() ? 50 : 35;
+		setSize(size, size);
+	}
+	else
+	{
+		const int size = isStartOrEnd() ? 20 : 14; 
+		setSize(size, size);
+	}
     
-	setSize(size,size);
-
 	
-    
 }
 
 TableEditor::DragPoint::~DragPoint()

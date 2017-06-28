@@ -783,17 +783,13 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 
 		PopupMenu sub;
 
-		Array<File> files;
-		StringArray processors;
-
-		bpe->getBackendProcessor()->fillExternalFileList(files, processors);
-
-		for (int i = 0; i < files.size(); i++)
+		
+		for (int i = 0; i < (int)HiseDeviceSimulator::DeviceType::numDeviceTypes; i++)
 		{
-			sub.addItem(MenuToolsExternalScriptFileOffset + i, processors[i] + ": " + files[i].getFileName());
+			sub.addItem(MenuToolsDeviceSimulatorOffset + i, "Simulate " + HiseDeviceSimulator::getDeviceName(i), true, i == (int)HiseDeviceSimulator::getDeviceType());
 		}
 
-		p.addSubMenu("Edit external script files", sub, files.size() != 0);
+		p.addSubMenu("Device simulator", sub);
 
 		p.addSeparator();
 		p.addSectionHeader("Sample Management");
@@ -956,30 +952,13 @@ void BackendCommandTarget::menuItemSelected(int menuItemID, int topLevelMenuInde
 			owner->synthChain->setCurrentViewInfo(menuItemID - MenuViewOffset);
 		}
 	}
-	else if (menuItemID >= MenuToolsExternalScriptFileOffset && menuItemID < (MenuToolsExternalScriptFileOffset + 50))
+	else if (menuItemID >= MenuToolsDeviceSimulatorOffset && menuItemID < (MenuToolsDeviceSimulatorOffset + 50))
 	{
-		Array<File> files;
-		StringArray processors;
+		HiseDeviceSimulator::DeviceType newDevice = (HiseDeviceSimulator::DeviceType)(menuItemID - (int)MenuToolsDeviceSimulatorOffset);
 
-		bpe->getBackendProcessor()->fillExternalFileList(files, processors);
+		HiseDeviceSimulator::setDeviceType(newDevice);
 
-		File f = files[menuItemID - MenuToolsExternalScriptFileOffset];
-
-		Processor::Iterator<JavascriptProcessor> iter(bpe->getMainSynthChain());
-
-		while (JavascriptProcessor *sp = iter.getNextProcessor())
-		{
-			for (int i = 0; i < sp->getNumWatchedFiles(); i++)
-			{
-				if (sp->getWatchedFile(i) == f)
-				{
-					sp->showPopupForFile(i);
-					return;
-				}
-			}
-		}
-
-		jassertfalse;
+		owner->getCommandManager()->invoke(MenuToolsRecompile, false);
 	}
 }
 

@@ -767,6 +767,8 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_2(Engine, getRegexMatches);
 	API_METHOD_WRAPPER_2(Engine, doubleToString);
 	API_METHOD_WRAPPER_0(Engine, getOS);
+	API_METHOD_WRAPPER_0(Engine, getDeviceType);
+	API_METHOD_WRAPPER_0(Engine, getDeviceResolution);
 	API_METHOD_WRAPPER_0(Engine, getVersion);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadFont);
 	API_VOID_METHOD_WRAPPER_0(Engine, undo);
@@ -804,6 +806,8 @@ ApiClass(0)
 	ADD_API_METHOD_2(getRegexMatches);
 	ADD_API_METHOD_2(doubleToString);
 	ADD_API_METHOD_0(getOS);
+	ADD_API_METHOD_0(getDeviceType);
+	ADD_API_METHOD_0(getDeviceResolution);
 	ADD_API_METHOD_0(getVersion);
 	ADD_API_METHOD_0(createTimerObject);
 	ADD_API_METHOD_0(createMessageHolder);
@@ -886,6 +890,21 @@ String ScriptingApi::Engine::getOS()
 #else
 	return "OSX";
 #endif
+}
+
+String ScriptingApi::Engine::getDeviceType()
+{
+	return HiseDeviceSimulator::getDeviceName();
+}
+
+var ScriptingApi::Engine::getDeviceResolution()
+{
+	auto r = HiseDeviceSimulator::getDisplayResolution();
+
+	Array<var> a = { r.getX(), r.getY(), r.getWidth(), r.getHeight() };
+
+	return a;
+	
 }
 
 String ScriptingApi::Engine::getVersion()

@@ -54,11 +54,10 @@ public:
 	
 	void startTouch(Point<int> downPosition)
 	{
-#if HISE_IOS
-		updateTimer.startTouch(downPosition);
-#else
-		ignoreUnused(downPosition);
-#endif
+		if (HiseDeviceSimulator::isMobileDevice())
+		{
+			updateTimer.startTouch(downPosition);
+		}
 	}
 
 	void setDragDistance(float newDistance)

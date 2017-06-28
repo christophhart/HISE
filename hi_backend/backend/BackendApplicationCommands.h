@@ -175,7 +175,8 @@ public:
 		MenuToolsCreateDummyLicenceFile,
 		MenuToolsEnableAutoSaving,
 		MenuToolsEnableDebugLogging,
-		MenuHelpShowAboutPage,
+		MenuToolsDeviceSimulatorOffset,
+		MenuHelpShowAboutPage = 0x70000,
         MenuHelpCheckVersion,
 		numCommands
 	};

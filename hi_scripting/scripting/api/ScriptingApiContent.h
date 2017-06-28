@@ -995,6 +995,9 @@ public:
     /** Sets this script as main interface with the given size. */
     void makeFrontInterface(int width, int height);
     
+	/** Sets this script as main interface with the given device resolution (only works with mobile devices). */
+	void makeFullScreenInterface();
+
 	/** sets the Tooltip that will be shown if the mouse hovers over the script's tab button. */
 	void setContentTooltip(const String &tooltipToShow) { tooltip = tooltipToShow; }
 

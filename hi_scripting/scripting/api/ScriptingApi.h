@@ -272,6 +272,12 @@ public:
 		/** Returns the current operating system ("OSX" or ("WIN"). */
 		String getOS();
 
+		/** Returns the mobile device that this software is running on. */
+		String getDeviceType();
+
+		/** Returns the full screen resolution for the current device. */
+		var getDeviceResolution();
+
         /** Returns the product version (not the HISE version!). */
         String getVersion();
         

@@ -384,3 +384,65 @@ void VDspFFT::multiplyComplex(float* output, float* in1, int in1Offset, float* i
 }
 
 #endif
+
+HiseDeviceSimulator::DeviceType HiseDeviceSimulator::currentDevice = HiseDeviceSimulator::DeviceType::Desktop;
+
+void HiseDeviceSimulator::init()
+{
+#if USE_BACKEND
+
+	currentDevice = DeviceType::Desktop;
+#else
+
+#if JUCE_IOS
+#if JUCE_IPHONE
+	currentDevice = DeviceType::iPhone5;
+#elif IS_STANDALONE_FRONTEND
+	currentDevice = DeviceType::iPad;
+#else
+	currentDevice = DeviceType::iPadAUv3;
+#endif
+
+#else
+	currentDevice = DeviceType::Desktop;
+#endif
+#endif
+}
+
+String HiseDeviceSimulator::getDeviceName(int index)
+{
+	DeviceType thisDevice = (index == -1) ? currentDevice : (DeviceType)index;
+
+	switch (thisDevice)
+	{
+	case DeviceType::Desktop: return "Desktop";
+	case DeviceType::iPad: return "iPad";
+	case DeviceType::iPadRetina: return "iPadRetina";
+	case DeviceType::iPadPro: return "iPadPro";
+	case DeviceType::iPadAUv3: return "iPadAUv3";
+	case DeviceType::iPhone5: return "iPhone5";
+	case DeviceType::iPhone6: return "iPhone6";
+	case DeviceType::iPodTouch6: return "iPodTouch6";
+	default:
+		return{};
+	}
+}
+
+Rectangle<int> HiseDeviceSimulator::getDisplayResolution()
+{
+	switch (currentDevice)
+	{
+	case HiseDeviceSimulator::DeviceType::Desktop:		return{ 0, 0, 1024, 768 };
+	case HiseDeviceSimulator::DeviceType::iPad:			return{ 0, 0, 1024, 768 };
+	case HiseDeviceSimulator::DeviceType::iPadRetina:	return{ 0, 0, 1024, 768 };
+	case HiseDeviceSimulator::DeviceType::iPadPro:		return{ 0, 0, 1366, 1024 };
+	case HiseDeviceSimulator::DeviceType::iPadAUv3:		return{ 0, 0, 1024, 768 };
+	case HiseDeviceSimulator::DeviceType::iPhone5:		return{ 0, 0, 568, 320 };
+	case HiseDeviceSimulator::DeviceType::iPhone6:		return{ 0, 0, 568, 320 };
+	case HiseDeviceSimulator::DeviceType::iPodTouch6:	return{ 0, 0, 568, 320 };
+	case HiseDeviceSimulator::DeviceType::numDeviceTypes:
+	default:
+		break;
+		return {};
+	}
+}

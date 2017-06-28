@@ -2538,6 +2538,7 @@ colour(Colour(0xff777777))
 	setMethod("setHeight", Wrapper::setHeight);
 	setMethod("setWidth", Wrapper::setWidth);
     setMethod("makeFrontInterface", Wrapper::makeFrontInterface);
+	setMethod("makeFullScreenInterface", Wrapper::makeFullScreenInterface);
 	setMethod("setName", Wrapper::setName);
 	setMethod("setPropertiesFromJSON", Wrapper::setPropertiesFromJSON);
 	setMethod("storeAllControlsAsPreset", Wrapper::storeAllControlsAsPreset);
@@ -2764,6 +2765,16 @@ void ScriptingApi::Content::makeFrontInterface(int newWidth, int newHeight)
     
     dynamic_cast<JavascriptMidiProcessor*>(getProcessor())->addToFront(true);
     
+}
+
+void ScriptingApi::Content::makeFullScreenInterface()
+{
+	width = HiseDeviceSimulator::getDisplayResolution().getWidth();
+	height = HiseDeviceSimulator::getDisplayResolution().getHeight();
+
+	setUseHighResolutionForPanels(HiseDeviceSimulator::isRetina());
+
+	dynamic_cast<JavascriptMidiProcessor*>(getProcessor())->addToFront(true);
 }
 
 void ScriptingApi::Content::setToolbarProperties(const var &toolbarProperties)
@@ -3030,6 +3041,8 @@ var ScriptingApi::Content::createPath()
 
 	return var(obj);
 }
+
+
 
 #undef ADD_TO_TYPE_SELECTOR
 #undef ADD_AS_SLIDER_TYPE

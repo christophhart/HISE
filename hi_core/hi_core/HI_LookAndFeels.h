@@ -186,45 +186,51 @@ protected:
 
 	Font getPopupMenuFont() override
 	{
-#if HISE_IOS
-		return GLOBAL_BOLD_FONT().withHeight(24.0f);
-#else
+		if (HiseDeviceSimulator::isMobileDevice())
+		{
+			return GLOBAL_BOLD_FONT().withHeight(24.0f);
+		}
+		else
+		{
 #if USE_BACKEND
-    	return GLOBAL_BOLD_FONT().withHeight(15.0f);    
+			return GLOBAL_BOLD_FONT().withHeight(15.0f);
 #else
-		return GLOBAL_BOLD_FONT().withHeight(16.0f);
+			return GLOBAL_BOLD_FONT().withHeight(16.0f);
 #endif
-#endif
+		}
 	};
 
 
 
 	void getIdealPopupMenuItemSize(const String &text, bool isSeparator, int standardMenuItemHeight, int &idealWidth, int &idealHeight) override
 	{
-#if HISE_IOS
-		idealHeight = 28;
-
-		idealWidth = getPopupMenuFont().getStringWidth(text) + 20;
-#else
-		if (isSeparator)
+		if (HiseDeviceSimulator::isMobileDevice())
 		{
-			idealWidth = 50;
-			idealHeight = standardMenuItemHeight > 0 ? standardMenuItemHeight / 2 : 10;
+			idealHeight = 28;
+
+			idealWidth = getPopupMenuFont().getStringWidth(text) + 50;
 		}
 		else
 		{
-			Font font(getPopupMenuFont());
+			if (isSeparator)
+			{
+				idealWidth = 50;
+				idealHeight = standardMenuItemHeight > 0 ? standardMenuItemHeight / 2 : 10;
+			}
+			else
+			{
+				Font font(getPopupMenuFont());
 
-			if (standardMenuItemHeight > 0 && font.getHeight() > standardMenuItemHeight / 1.3f)
-				font.setHeight(standardMenuItemHeight / 1.3f);
+				if (standardMenuItemHeight > 0 && font.getHeight() > standardMenuItemHeight / 1.3f)
+					font.setHeight(standardMenuItemHeight / 1.3f);
 
-			idealHeight = standardMenuItemHeight > 0 ? standardMenuItemHeight : roundToInt(font.getHeight() * 1.3f);
+				idealHeight = standardMenuItemHeight > 0 ? standardMenuItemHeight : roundToInt(font.getHeight() * 1.3f);
 
-			idealHeight = jmax<int>(idealHeight, 18);
+				idealHeight = jmax<int>(idealHeight, 18);
 
-			idealWidth = font.getStringWidth(text) + idealHeight * 2;
-	}
-#endif
+				idealWidth = font.getStringWidth(text) + idealHeight * 2;
+			}
+		}
 	}
 
 	void drawMenuBarBackground(Graphics& g, int width, int height,
@@ -883,13 +889,16 @@ public:
 		return GLOBAL_BOLD_FONT();
 	}
     
-    virtual Font 	getAlertWindowTitleFont () override
-    {
-#if HISE_IOS
-		return GLOBAL_BOLD_FONT().withHeight(24.0f);
-#else
-        return GLOBAL_BOLD_FONT().withHeight(17.0f);
-#endif
+	virtual Font 	getAlertWindowTitleFont() override
+	{
+		if (HiseDeviceSimulator::isMobileDevice())
+		{
+			return GLOBAL_BOLD_FONT().withHeight(24.0f);
+		}
+		else
+		{
+			return GLOBAL_BOLD_FONT().withHeight(17.0f);
+		}
     }
 
 	Font getTextButtonFont (TextButton &, int /*buttonHeight*/) override

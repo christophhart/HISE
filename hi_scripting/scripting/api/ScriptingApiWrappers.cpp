@@ -88,6 +88,7 @@ struct ScriptingApi::Content::Wrapper
 	static var setWidth(const var::NativeFunctionArgs& args);
 	static var setName(const var::NativeFunctionArgs& args);
     static var makeFrontInterface(const var::NativeFunctionArgs& args);
+	static var makeFullScreenInterface(const var::NativeFunctionArgs& args);
 	static var addItem(const var::NativeFunctionArgs& args);
 	static var setColour(const var::NativeFunctionArgs& args);
 	static var setTooltip(const var::NativeFunctionArgs& args);
@@ -480,6 +481,19 @@ var ScriptingApi::Content::Wrapper::makeFrontInterface (const var::NativeFunctio
     
     return var::undefined();
 };
+
+var ScriptingApi::Content::Wrapper::makeFullScreenInterface(const var::NativeFunctionArgs& args)
+{
+	if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
+	{
+		CHECK_ARGUMENTS("makeFullScreenInterface()", 0);
+
+		thisObject->makeFullScreenInterface();
+	}
+
+	return var::undefined();
+};
+
 
 
 var ScriptingApi::Content::Wrapper::setPropertiesFromJSON (const var::NativeFunctionArgs& args)

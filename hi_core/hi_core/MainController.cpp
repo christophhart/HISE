@@ -71,6 +71,8 @@ MainController::MainController():
 	BACKEND_ONLY(shownComponents.setBit(BackendCommandTarget::Keyboard, 1));
 	BACKEND_ONLY(shownComponents.setBit(BackendCommandTarget::Macros, 0));
 
+	HiseDeviceSimulator::init();
+
 	TempoSyncer::initTempoData();
     
 	globalVariableArray.insertMultiple(0, var::undefined(), NUM_GLOBAL_VARIABLES);
