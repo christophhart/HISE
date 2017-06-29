@@ -946,6 +946,7 @@ public:
 		void setContentData(var data)
 		{
 			jsonData = data;
+			sendChangeMessage();
 		}
 
 		// ========================================================================================================

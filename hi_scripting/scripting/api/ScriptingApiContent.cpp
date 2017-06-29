@@ -3089,7 +3089,6 @@ var ScriptingApi::Content::createPath()
 	return var(obj);
 }
 
-
 #undef ADD_TO_TYPE_SELECTOR
 #undef ADD_AS_SLIDER_TYPE
 #undef SEND_MESSAGE

@@ -36,9 +36,6 @@ PanelWithProcessorConnection::PanelWithProcessorConnection(FloatingTile* parent)
 	FloatingTileContent(parent),
 	showConnectionBar("showConnectionBar")
 {
-
-	BACKEND_ONLY(rootWindow = getParentShell()->getBackendRootWindow();)
-
 	addAndMakeVisible(connectionSelector = new ComboBox());
 	connectionSelector->addListener(this);
 	getMainSynthChain()->getMainController()->skin(*connectionSelector);
@@ -57,7 +54,7 @@ PanelWithProcessorConnection::PanelWithProcessorConnection(FloatingTile* parent)
 	indexSelector->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, Colours::transparentBlack);
 	indexSelector->setTextWhenNothingSelected("Disconnected");
 
-	BACKEND_ONLY(rootWindow->getModuleListNofifier().addProcessorChangeListener(this);)
+	BACKEND_ONLY(getMainController()->getProcessorChangeHandler().addProcessorChangeListener(this);)
 }
 
 PanelWithProcessorConnection::~PanelWithProcessorConnection()
@@ -65,8 +62,7 @@ PanelWithProcessorConnection::~PanelWithProcessorConnection()
 	content = nullptr;
 
 #if USE_BACKEND
-	rootWindow->getModuleListNofifier().removeProcessorChangeListener(this);
-	rootWindow = nullptr;
+	getMainController()->getProcessorChangeHandler().removeProcessorChangeListener(this);
 #endif
 }
 
@@ -74,7 +70,7 @@ void PanelWithProcessorConnection::paint(Graphics& g)
 {
 	auto bounds = getParentShell()->getContentBounds();
 
-	const bool scb = getStyleProperty(showConnectionBar, true);
+	const bool scb = getStyleProperty(showConnectionBar, true) && findParentComponentOfClass<ScriptContentComponent>() == nullptr;
 
 	if (scb)
 	{
@@ -178,46 +174,63 @@ void PanelWithProcessorConnection::moduleListChanged(Processor* b, MainControlle
 
 void PanelWithProcessorConnection::resized()
 {
-	if (!listInitialised)
+	const bool isInScriptContent = findParentComponentOfClass<ScriptContentComponent>() != nullptr;
+
+	if (isInScriptContent)
 	{
-		// Do this here the first time to avoid pure virtual function call...
-		refreshConnectionList();
-		listInitialised = true;
-	}
+		connectionSelector->setVisible(false);
+		indexSelector->setVisible(false);
 
-	auto bounds = getParentShell()->getContentBounds();
-
-	if (bounds.isEmpty())
-		return;
-
-	const bool scb = getStyleProperty(showConnectionBar, true);
-
-	Rectangle<int> contentArea = getParentShell()->getContentBounds();
-
-	if (scb)
-	{
-		connectionSelector->setVisible(!getParentShell()->isFolded());
-		connectionSelector->setBounds(18, bounds.getY(), 128, 18);
-
-		indexSelector->setVisible(!getParentShell()->isFolded() && hasSubIndex());
-		indexSelector->setBounds(connectionSelector->getRight() + 5, bounds.getY(), 128, 18);
-
-		contentArea = contentArea.withTrimmedTop(18);
+		if (content != nullptr)
+		{
+			content->setVisible(true);
+			content->setBounds(getLocalBounds());
+		}
+			
 	}
 	else
 	{
-		connectionSelector->setVisible(false);
-	}
-
-	if (content != nullptr)
-	{
-		if (getHeight() > 18)
+		if (!listInitialised)
 		{
-			content->setVisible(true);
-			content->setBounds(contentArea);
+			// Do this here the first time to avoid pure virtual function call...
+			refreshConnectionList();
+			listInitialised = true;
+		}
+
+		auto bounds = getParentShell()->getContentBounds();
+
+		if (bounds.isEmpty())
+			return;
+
+		const bool scb = getStyleProperty(showConnectionBar, true);
+
+		Rectangle<int> contentArea = getParentShell()->getContentBounds();
+
+		if (scb)
+		{
+			connectionSelector->setVisible(!getParentShell()->isFolded());
+			connectionSelector->setBounds(18, bounds.getY(), 128, 18);
+
+			indexSelector->setVisible(!getParentShell()->isFolded() && hasSubIndex());
+			indexSelector->setBounds(connectionSelector->getRight() + 5, bounds.getY(), 128, 18);
+
+			contentArea = contentArea.withTrimmedTop(18);
 		}
 		else
-			content->setVisible(false);
+		{
+			connectionSelector->setVisible(false);
+		}
+
+		if (content != nullptr)
+		{
+			if (getHeight() > 18)
+			{
+				content->setVisible(true);
+				content->setBounds(contentArea);
+			}
+			else
+				content->setVisible(false);
+		}
 	}
 }
 
@@ -328,7 +341,7 @@ void PanelWithProcessorConnection::setContentWithUndo(Processor* newProcessor, i
 	refreshIndexList();
 
 #if USE_BACKEND
-	auto undoManager = rootWindow->getBackendProcessor()->getViewUndoManager();
+	auto undoManager = dynamic_cast<BackendProcessor*>(getMainController())->getViewUndoManager();
 
 	String undoText;
 

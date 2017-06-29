@@ -215,21 +215,28 @@ struct ScriptContentPanel::Canvas : public ScriptEditHandler,
 
 	void paint(Graphics& g) override
 	{
-		g.fillAll(Colours::black);
+		bool isInContent = findParentComponentOfClass<ScriptContentComponent>() != nullptr;
 
-		g.setColour(Colours::white.withAlpha(0.5f));
+		if (!isInContent)
+		{
+			g.fillAll(Colours::black);
 
-		g.drawHorizontalLine(10, 5.0f, 10.0f);
-		g.drawHorizontalLine(10, (float)getWidth() - 10.0f, (float)getWidth() - 5.0f);
+			g.setColour(Colours::white.withAlpha(0.5f));
 
-		g.drawHorizontalLine(getHeight() - 10, 5.0f, 10.0f);
-		g.drawHorizontalLine(getHeight() - 10, (float)getWidth() - 10.0f, (float)getWidth() - 5.0f);
+			g.drawHorizontalLine(10, 5.0f, 10.0f);
+			g.drawHorizontalLine(10, (float)getWidth() - 10.0f, (float)getWidth() - 5.0f);
 
-		g.drawVerticalLine(10, 5.0f, 10.0f);
-		g.drawVerticalLine(10, (float)getHeight() - 10.0f, (float)getHeight() - 5.0f);
+			g.drawHorizontalLine(getHeight() - 10, 5.0f, 10.0f);
+			g.drawHorizontalLine(getHeight() - 10, (float)getWidth() - 10.0f, (float)getWidth() - 5.0f);
 
-		g.drawVerticalLine(getWidth() - 10, 5.0f, 10.0f);
-		g.drawVerticalLine(getWidth() - 10, (float)getHeight() - 10.0f, (float)getHeight() - 5.0f);
+			g.drawVerticalLine(10, 5.0f, 10.0f);
+			g.drawVerticalLine(10, (float)getHeight() - 10.0f, (float)getHeight() - 5.0f);
+
+			g.drawVerticalLine(getWidth() - 10, 5.0f, 10.0f);
+			g.drawVerticalLine(getWidth() - 10, (float)getHeight() - 10.0f, (float)getHeight() - 5.0f);
+		}
+
+		
 	}
 
 	void selectOnInitCallback() override
@@ -271,8 +278,18 @@ public:
 
 	void resized() override
 	{
-		content->setBounds(10, 10, getWidth()-20, getHeight()-20);
-		overlay->setBounds(10, 10, getWidth() - 20, getHeight() - 20);
+		bool isInContent = findParentComponentOfClass<ScriptContentComponent>() != nullptr;
+
+		if (isInContent)
+		{
+			content->setBounds(0, 0, getWidth(), getHeight());
+			overlay->setVisible(false);
+		}
+		else
+		{
+			content->setBounds(10, 10, getWidth() - 20, getHeight() - 20);
+			overlay->setBounds(10, 10, getWidth() - 20, getHeight() - 20);
+		}
 	}
 
 private:
@@ -347,31 +364,50 @@ ScriptContentPanel::Editor::Editor(Processor* p)
 
 void ScriptContentPanel::Editor::resized()
 {
-	int x = 4;
-	
-	editSelector->setBounds(x, 2, 20, 20);
+	const bool isInContent = findParentComponentOfClass<ScriptContentComponent>() != nullptr;
 
-	x = editSelector->getRight() + 8;
+	if (isInContent)
+	{
+		viewport->setBounds(getLocalBounds());
 
-	compileButton->setBounds(x, 2, 20, 20);
+		viewport->getViewedComponent()->resized();
+		viewport->setScrollBarsShown(false, false, false, false);
 
-	x = compileButton->getRight() + 8;
+		editSelector->setVisible(false);
+		compileButton->setVisible(false);
+		cancelButton->setVisible(false);
+		zoomSelector->setVisible(false);
+		undoButton->setVisible(false);
+		redoButton->setVisible(false);
+	}
+	else
+	{
+		int x = 4;
 
-	cancelButton->setBounds(x, 2, 20, 20);
+		editSelector->setBounds(x, 2, 20, 20);
 
-	x = cancelButton->getRight() + 16;
+		x = editSelector->getRight() + 8;
 
-	zoomSelector->setBounds(x, 2, 80, 20);
+		compileButton->setBounds(x, 2, 20, 20);
 
-	x = zoomSelector->getRight() + 8;
+		x = compileButton->getRight() + 8;
 
-	undoButton->setBounds(x, 2, 20, 20);
+		cancelButton->setBounds(x, 2, 20, 20);
 
-	x = undoButton->getRight() + 8;
+		x = cancelButton->getRight() + 16;
 
-	redoButton->setBounds(x, 2, 20, 20);
+		zoomSelector->setBounds(x, 2, 80, 20);
 
-	viewport->setBounds(getLocalBounds().withTrimmedTop(24));
+		x = zoomSelector->getRight() + 8;
+
+		undoButton->setBounds(x, 2, 20, 20);
+
+		x = undoButton->getRight() + 8;
+
+		redoButton->setBounds(x, 2, 20, 20);
+
+		viewport->setBounds(getLocalBounds().withTrimmedTop(24));
+	}
 
 }
 
