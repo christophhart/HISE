@@ -155,7 +155,6 @@ void HlacMonolithInfo::fillMetadataInfo(const ValueTree& sampleMap)
 	{
 		dummyReader.numChannels = isMonoChannel[i] ? 1 : 2;
         
-        
         if(multiChannelSampleInformation.size() < i)
         {
             jassertfalse;

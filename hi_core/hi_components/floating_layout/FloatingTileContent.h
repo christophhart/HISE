@@ -267,6 +267,10 @@ public:
 	Identifier getDefaultablePropertyId(int i) const override;
 	var getDefaultProperty(int id) const override;
 
+	MainController* getMainController();
+
+	const MainController* getMainController() const;
+
 	BackendRootWindow* getRootWindow();
 
 	const BackendRootWindow* getRootWindow() const;
@@ -505,22 +509,6 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FloatingTileContent)
 };
 
-
-class FloatingFlexBoxWindow : public DocumentWindow
-
-{
-public:
-
-	FloatingFlexBoxWindow();
-
-	void closeButtonPressed() override;
-
-	void resized() override
-	{
-		getContentComponent()->setBounds(getLocalBounds());
-	}
-
-};
 
 struct FloatingPanelTemplates
 {

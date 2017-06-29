@@ -70,6 +70,7 @@ public:
 		Panel,
 		AudioWaveform,
 		SliderPack,
+		FloatingTile,
 		duplicateWidget,
 		numWidgets
 	};

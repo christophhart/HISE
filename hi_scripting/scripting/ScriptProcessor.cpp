@@ -240,7 +240,7 @@ void FileChangeListener::showPopupForFile(int index, int charNumberToDisplay/*=0
 	editor->gotoLocation(dynamic_cast<Processor*>(this), watchers[index]->getFile().getFullPathName(), charNumberToDisplay);
 
 #else
-	ignoreUnused(index, charNumberToDisplay, lineNumberToDisplay);
+	ignoreUnused(index, charNumberToDisplay);
 #endif
 }
 
@@ -279,7 +279,7 @@ void JavascriptProcessor::showPopupForCallback(const Identifier& callback, int /
 	}
 
 #else
-	ignoreUnused(callback, charNumberToDisplay, lineNumberToDisplay);
+	ignoreUnused(callback);
 
 #endif
 }

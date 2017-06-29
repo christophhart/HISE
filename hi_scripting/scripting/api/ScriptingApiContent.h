@@ -921,6 +921,46 @@ public:
 		// ========================================================================================================
 	};
 
+	struct ScriptFloatingTile : public ScriptComponent
+	{
+		// ========================================================================================================
+
+		ScriptFloatingTile(ProcessorWithScriptingContent *base, Content *parentContent, Identifier panelName, int x, int y, int width, int height);
+		~ScriptFloatingTile() {};
+
+		// ========================================================================================================
+
+		virtual Identifier 	getObjectName() const override { RETURN_STATIC_IDENTIFIER("ScriptFloatingTile"); };
+		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
+		
+		
+		ValueTree exportAsValueTree() const override;
+		void restoreFromValueTree(const ValueTree &v) override;
+		
+
+		var getContentData() { return jsonData; }
+
+		// ========================================================================================================
+
+		/** Sets the JSON object for the given floating tile. */
+		void setContentData(var data)
+		{
+			jsonData = data;
+		}
+
+		// ========================================================================================================
+
+	private:
+
+		struct Wrapper;
+
+		var jsonData;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptFloatingTile);
+
+		// ========================================================================================================
+	};
+
 
 	// ================================================================================================================
 
@@ -976,6 +1016,9 @@ public:
 
 	/** Adds a viewport. */
 	ScriptedViewport* addScriptedViewport(Identifier viewportName, int x, int y);
+
+	/** Adds a floating layout component. */
+	ScriptFloatingTile* addFloatingTile(Identifier floatingTileName, int x, int y);
 
 	/** Restore the widget from a JSON object. */
 	void setPropertiesFromJSON(const Identifier &name, const var &jsonData);

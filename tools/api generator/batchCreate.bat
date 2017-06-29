@@ -46,6 +46,8 @@ xcopy "xml\struct_scripting_api_1_1_content_1_1_scripted_plotter.xml" "xml\selec
 xcopy "xml\struct_scripting_api_1_1_content_1_1_script_image.xml" "xml\selection"
 xcopy "xml\struct_scripting_api_1_1_content_1_1_script_panel.xml" "xml\selection"
 xcopy "xml\struct_scripting_api_1_1_content_1_1_script_slider_pack.xml" "xml\selection"
+xcopy "xml\struct_scripting_api_1_1_content_1_1_scripted_viewport" "xml\selection"
+xcopy "xml\struct_scripting_api_1_1_content_1_1_script_floating_tile.xml" "xml\selection"
 
 
 ren "xml\selection\class_scripting_api_1_1_colours.xml" "Colours.xml"
@@ -84,6 +86,8 @@ ren "xml\selection\struct_scripting_api_1_1_content_1_1_script_image.xml" "Scrip
 ren "xml\selection\struct_scripting_api_1_1_content_1_1_script_panel.xml" "ScriptPanel.xml"
 ren "xml\selection\struct_scripting_api_1_1_content_1_1_scripted_plotter.xml" "ScriptedPlotter.xml"
 ren "xml\selection\struct_scripting_api_1_1_content_1_1_script_slider_pack.xml" "ScriptSliderPack.xml"
+ren "xml\selection\struct_scripting_api_1_1_content_1_1_scripted_viewport.xml" "ScriptedViewport.xml"
+ren "xml\selection\struct_scripting_api_1_1_content_1_1_script_floating_tile.xml" "ScriptFloatingTile.xml"
 
 ApiExtractor.exe xml\selection xml\selection
 

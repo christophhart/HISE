@@ -126,7 +126,7 @@ void FloatingTileContainer::fromDynamicObject(const var& objectData)
 	{
 		for (int i = 0; i < childList->size(); i++)
 		{
-			auto newShell = new FloatingTile(this, childList->getUnchecked(i));
+			auto newShell = new FloatingTile(getParentShell()->getMainController(), this, childList->getUnchecked(i));
 			addFloatingTile(newShell);
 		}
 	}
@@ -304,7 +304,7 @@ FloatingTabComponent::FloatingTabComponent(FloatingTile* parent) :
 
 	setColour(TabbedComponent::ColourIds::outlineColourId, Colours::transparentBlack);
 
-	addFloatingTile(new FloatingTile(this));
+	addFloatingTile(new FloatingTile(parent->getMainController(), this));
 }
 
 FloatingTabComponent::~FloatingTabComponent()
@@ -502,7 +502,7 @@ void FloatingTabComponent::resized()
 
 void FloatingTabComponent::buttonClicked(Button* )
 {
-	addFloatingTile(new FloatingTile(this));
+	addFloatingTile(new FloatingTile(getParentShell()->getMainController(), this));
 }
 
 void ResizableFloatingTileContainer::refreshLayout()
@@ -572,7 +572,7 @@ ResizableFloatingTileContainer::ResizableFloatingTileContainer(FloatingTile* par
 
 	addButton->addListener(this);
 
-	addFloatingTile(new FloatingTile(this));
+	addFloatingTile(new FloatingTile(parent->getMainController(), this));
 
 	setInterceptsMouseClicks(false, true);
 }
@@ -596,7 +596,7 @@ void ResizableFloatingTileContainer::buttonClicked(Button* b)
 	if (b == addButton)
 	{
 
-		addFloatingTile(new FloatingTile(this));
+		addFloatingTile(new FloatingTile(getParentShell()->getMainController(), this));
 
 #if LAYOUT_OLD
 		storeSizes();

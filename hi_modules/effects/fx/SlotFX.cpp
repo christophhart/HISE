@@ -12,7 +12,20 @@
 
 ProcessorEditorBody * SlotFX::createEditor(ProcessorEditor *parentEditor)
 {
+#if USE_BACKEND
+
 	return new SlotFXEditor(parentEditor);
+
+#else
+
+	ignoreUnused(parentEditor);
+	jassertfalse;
+
+	return nullptr;
+
+#endif
+
+	
 }
 
 bool SlotFX::setEffect(const String& typeName)

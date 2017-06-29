@@ -444,7 +444,17 @@ public:
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioWaveformWrapper)
 	};
 
-	
+	class FloatingTileWrapper : public ScriptCreatedComponentWrapper
+	{
+	public:
+
+		FloatingTileWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptFloatingTile *floatingTile, int index);
+
+		void updateComponent() override;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FloatingTileWrapper)
+	};
+
 
 };
 

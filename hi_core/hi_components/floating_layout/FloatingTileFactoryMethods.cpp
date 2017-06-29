@@ -42,6 +42,8 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<FloatingTabComponent>(PopupMenuOptions::Tabs);
 	registerType<Note>(PopupMenuOptions::Note);
 
+	registerType<PresetBrowserPanel>(PopupMenuOptions::PresetBrowser);
+
 #if USE_BACKEND
 	registerType<GenericPanel<MacroComponent>>(PopupMenuOptions::MacroControls);
 	registerType < GenericPanel<MacroParameterTable>>(PopupMenuOptions::MacroTable);
@@ -56,10 +58,11 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<BackendProcessorEditor>(PopupMenuOptions::MenuCommandOffset);
 	registerType<ScriptWatchTablePanel>(PopupMenuOptions::ScriptWatchTable);
 	registerType<ConsolePanel>(PopupMenuOptions::Console);
-
 #endif
 
 	registerType<MidiKeyboardPanel>(PopupMenuOptions::MidiKeyboard);
+
+#if USE_BACKEND
 	registerType<GlobalConnectorPanel<ModulatorSampler>>(PopupMenuOptions::SampleConnector);
 	registerType<SampleEditorPanel>(PopupMenuOptions::SampleEditor);
 	registerType<SampleMapEditorPanel>(PopupMenuOptions::SampleMapEditor);
@@ -67,18 +70,19 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<GlobalConnectorPanel<JavascriptProcessor>>(PopupMenuOptions::ScriptConnectorPanel);
 	registerType<CodeEditorPanel>(PopupMenuOptions::ScriptEditor);
 	registerType<ScriptContentPanel>(PopupMenuOptions::ScriptContent);
+#endif
+
+
 	registerType<TableEditorPanel>(PopupMenuOptions::TablePanel);
 	registerType<SliderPackPanel>(PopupMenuOptions::SliderPackPanel);
 	
 	registerType<PlotterPanel>(PopupMenuOptions::Plotter);
 	
-	
+#if USE_BACKEND
 	registerType<GenericPanel<ScriptComponentEditPanel>>(PopupMenuOptions::ScriptComponentEditPanel);
-	
 	registerType<ApplicationCommandButtonPanel>(PopupMenuOptions::MenuCommandOffset);
+#endif
 
-	
-	
 }
 
 
@@ -533,7 +537,9 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 		addToPopupMenu(m, PopupMenuOptions::MacroTable, "Macro Control Editor");
 		addToPopupMenu(m, PopupMenuOptions::Plotter, "Plotter");
 		addToPopupMenu(m, PopupMenuOptions::TablePanel, "Table Editor");
+		addToPopupMenu(m, PopupMenuOptions::PresetBrowser, "Preset Browser");
 		addToPopupMenu(m, PopupMenuOptions::ModuleBrowser, "Module Browser");
+		
 		addToPopupMenu(m, PopupMenuOptions::PatchBrowser, "Patch Browser");
 		addToPopupMenu(m, PopupMenuOptions::FileBrowser, "File Browser");
 		addToPopupMenu(m, PopupMenuOptions::SamplePoolTable, "SamplePoolTable");
@@ -589,6 +595,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::SampleEditor:		parent->setNewContent(GET_PANEL_NAME(SampleEditorPanel)); break;
 	case PopupMenuOptions::SampleMapEditor:		parent->setNewContent(GET_PANEL_NAME(SampleMapEditorPanel)); break;
 	case PopupMenuOptions::SamplerTable:		parent->setNewContent(GET_PANEL_NAME(SamplerTablePanel)); break;
+		
 	case PopupMenuOptions::ScriptEditor:		parent->setNewContent(GET_PANEL_NAME(CodeEditorPanel)); break;
 	case PopupMenuOptions::ScriptContent:		parent->setNewContent(GET_PANEL_NAME(ScriptContentPanel)); break;
 	case PopupMenuOptions::Plotter:				parent->setNewContent(GET_PANEL_NAME(PlotterPanel)); break;
@@ -596,6 +603,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::SliderPackPanel:		parent->setNewContent(GET_PANEL_NAME(SliderPackPanel)); break;
 	case PopupMenuOptions::ScriptConnectorPanel:parent->setNewContent(GET_PANEL_NAME(GlobalConnectorPanel<JavascriptProcessor>)); break;
 	case PopupMenuOptions::Console:				parent->setNewContent(GET_PANEL_NAME(ConsolePanel)); break;
+	case PopupMenuOptions::PresetBrowser:		parent->setNewContent(GET_PANEL_NAME(PresetBrowserPanel)); break;
 	case PopupMenuOptions::ApiCollection:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<ApiCollection>)); break;
 	case PopupMenuOptions::PatchBrowser:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<PatchBrowser>)); break;
 	case PopupMenuOptions::FileBrowser:			parent->setNewContent(GET_PANEL_NAME(GenericPanel<FileBrowser>)); break;

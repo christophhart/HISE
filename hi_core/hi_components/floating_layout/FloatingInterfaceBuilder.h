@@ -102,7 +102,7 @@ public:
 		{
 			if (auto container = dynamic_cast<FloatingTileContainer*>(c->getCurrentFloatingPanel()))
 			{
-				auto newPanel = new FloatingTile(container);
+				auto newPanel = new FloatingTile(container->getParentShell()->getMainController(), container);
 
 				container->addFloatingTile(newPanel);
 

@@ -214,7 +214,9 @@ protected:
 
 private:
 
+#if USE_BACKEND
 	Component::SafePointer<BackendRootWindow> rootWindow;
+#endif
 
 	bool listInitialised = false;
 

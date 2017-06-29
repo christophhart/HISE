@@ -105,14 +105,9 @@ public:
 class FloatingTileContainer;
 class FloatingTileContent;
 
-class FloatingTile : public Component,
-					 public ComponentWithBackendConnection
+class FloatingTile : public Component
 {
 public:
-
-	
-
-	
 
 	struct LayoutData: public ObjectWithDefaultProperties
 	{
@@ -395,7 +390,7 @@ public:
 		WeakReference<PopupListener>::Master masterReference;
 	};
 
-	FloatingTile(FloatingTileContainer* parent, var data=var());
+	FloatingTile(MainController* mc, FloatingTileContainer* parent, var data=var());
 
 	
 
@@ -427,10 +422,10 @@ public:
 	void refreshPinButton();
 	void toggleAbsoluteSize();
 
-	const BackendRootWindow* getBackendRootWindow() const override;
-	BackendRootWindow* getBackendRootWindow() override;
+	const BackendRootWindow* getBackendRootWindow() const ;
+	BackendRootWindow* getBackendRootWindow();
 
-	FloatingTile* getRootFloatingTile() override;
+	FloatingTile* getRootFloatingTile();
 
 	const FloatingTile* getRootFloatingTile() const;
 
@@ -538,9 +533,13 @@ public:
 		listeners.removeAllInstancesOf(listener);
 	}
 
+	MainController* getMainController() { return mc; }
+
+	const MainController* getMainController() const { return mc; }
+
 private:
 
-	
+	MainController* mc;
 
 	class TilePopupLookAndFeel : public PopupLookAndFeel
 	{
@@ -595,17 +594,7 @@ class FloatingTileDocumentWindow : public DocumentWindow,
 {
 public:
 
-	FloatingTileDocumentWindow(BackendRootWindow* parentRoot):
-		DocumentWindow("Popout", HiseColourScheme::getColour(HiseColourScheme::EditorBackgroundColourId), DocumentWindow::TitleBarButtons::allButtons, true),
-		parent(parentRoot)
-	{
-		setContentOwned(new FloatingTile(nullptr), false);
-		setVisible(true);
-		setUsingNativeTitleBar(true);
-		setResizable(true, true);
-
-		centreWithSize(500, 500);
-	}
+	FloatingTileDocumentWindow(BackendRootWindow* parentRoot);
 
 	void resized() override
 	{

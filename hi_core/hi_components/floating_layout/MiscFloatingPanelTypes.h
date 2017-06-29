@@ -387,6 +387,62 @@ private:
 };
 
 
+class PresetBrowserPanel : public FloatingTileContent,
+						   public Component
+{
+public:
+
+	enum ColourIds
+	{
+		backgroundColour = 0,
+		highlightColour,
+		numColourIds
+	};
+
+	SET_PANEL_NAME("PresetBrowser");
+
+	PresetBrowserPanel(FloatingTile* parent):
+		FloatingTileContent(parent)
+	{
+		addAndMakeVisible(presetBrowser = new MultiColumnPresetBrowser(getMainController()));
+		
+	}
+
+	bool showTitleInPresentationMode() const override
+	{
+		return false;
+	}
+
+	~PresetBrowserPanel()
+	{
+		presetBrowser = nullptr;
+	}
+
+	void resized() override
+	{
+		presetBrowser->setBounds(getLocalBounds());
+		presetBrowser->setHighlightColourAndFont(getStyleColour(ColourIds::highlightColour), getStyleColour(ColourIds::backgroundColour), GLOBAL_BOLD_FONT().withHeight(16.0f));
+	}
+
+	int getNumColourIds() const { return numColourIds; }
+
+	Identifier getColourId(int colourId) const override
+	{ 
+		if (colourId == ColourIds::backgroundColour) { return Identifier("backgroundColour"); }
+		if (colourId == ColourIds::highlightColour) { return Identifier("highlightColour"); }
+	}
+
+	Colour getDefaultColour(int colourId) const override
+	{ 
+		if (colourId == ColourIds::backgroundColour) { return Colours::black.withAlpha(0.97f); }
+		if (colourId == ColourIds::highlightColour)  { return Colour(SIGNAL_COLOUR); }
+	}
+
+private:
+
+	ScopedPointer<MultiColumnPresetBrowser> presetBrowser;
+};
+
 class TableEditorPanel : public PanelWithProcessorConnection
 {
 public:
@@ -554,7 +610,7 @@ private:
 
 
 template <class ContentType> class GenericPanel : public Component,
-										   public FloatingTileContent
+												  public FloatingTileContent
 {
 public:
 

@@ -236,7 +236,6 @@ FrontendStandaloneApplication::AudioWrapper::AudioWrapper()
 	startTimer(100);
 
 #else
-	splash = nullptr;
 	init();
 #endif
 

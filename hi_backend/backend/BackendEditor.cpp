@@ -37,7 +37,7 @@
 
 BackendProcessorEditor::BackendProcessorEditor(FloatingTile* parent) :
 FloatingTileContent(parent),
-owner(parent->getBackendRootWindow()->getBackendProcessor()),
+owner(static_cast<BackendProcessor*>(parent->getMainController())),
 parentRootWindow(parent->getBackendRootWindow()),
 rootEditorIsMainSynthChain(true)
 {

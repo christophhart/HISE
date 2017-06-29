@@ -2471,8 +2471,6 @@ void ScriptingApi::Content::ScriptAudioWaveform::restoreFromValueTree(const Valu
 {
 	const String id = v.getProperty("Processor", "");
 
-
-
 	if (id.isNotEmpty())
 	{
 		if (connectedProcessor.get() == nullptr || connectedProcessor.get()->getId() != id)
@@ -2510,6 +2508,49 @@ AudioSampleProcessor * ScriptingApi::Content::ScriptAudioWaveform::getAudioProce
 	return dynamic_cast<AudioSampleProcessor*>(connectedProcessor.get());
 }
 
+// ====================================================================================================== ScriptFloatingTile functions
+
+struct ScriptingApi::Content::ScriptFloatingTile::Wrapper
+{
+	API_VOID_METHOD_WRAPPER_1(ScriptFloatingTile, setContentData);
+};
+
+ScriptingApi::Content::ScriptFloatingTile::ScriptFloatingTile(ProcessorWithScriptingContent *base, Content *parentContent, Identifier panelName, int x, int y, int width, int height) :
+	ScriptComponent(base, parentContent, panelName, x, y, width, height)
+{
+	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::saveInPreset));
+	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::macroControl));
+	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::isPluginParameter));
+	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::min));
+	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::max));
+	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::pluginParameterName));
+	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::text));
+	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::tooltip));
+	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::textColour));
+	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::useUndoManager));
+
+	setDefaultValue(ScriptComponent::Properties::saveInPreset, false);
+
+	ADD_API_METHOD_1(setContentData);
+}
+
+ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptFloatingTile::createComponentWrapper(ScriptContentComponent *content, int index)
+{
+	return new ScriptCreatedComponentWrappers::FloatingTileWrapper(content, this, index);
+}
+
+ValueTree ScriptingApi::Content::ScriptFloatingTile::exportAsValueTree() const
+{
+	auto v = ScriptComponent::exportAsValueTree();
+	
+	return v;
+}
+
+void ScriptingApi::Content::ScriptFloatingTile::restoreFromValueTree(const ValueTree &v)
+{
+	ScriptComponent::restoreFromValueTree(v);
+}
+
 // ====================================================================================================== Content functions
 
 
@@ -2533,6 +2574,7 @@ colour(Colour(0xff777777))
 	setMethod("addPanel", Wrapper::addPanel);
 	setMethod("addAudioWaveform", Wrapper::addAudioWaveform);
 	setMethod("addSliderPack", Wrapper::addSliderPack);
+	setMethod("addFloatingTile", Wrapper::addFloatingTile);
 	setMethod("setContentTooltip", Wrapper::setContentTooltip);
 	setMethod("setToolbarProperties", Wrapper::setToolbarProperties);
 	setMethod("setHeight", Wrapper::setHeight);
@@ -2694,6 +2736,11 @@ ScriptingApi::Content::ScriptSliderPack * ScriptingApi::Content::addSliderPack(I
 	return addComponent<ScriptSliderPack>(sliderPackName, x, y, 200, 100);
 }
 
+
+ScriptingApi::Content::ScriptFloatingTile* ScriptingApi::Content::addFloatingTile(Identifier floatingTileName, int x, int y)
+{
+	return addComponent<ScriptFloatingTile>(floatingTileName, x, y, 200, 100);
+}
 
 
 ScriptingApi::Content::ScriptComponent * ScriptingApi::Content::getComponent(int index)
@@ -3043,7 +3090,7 @@ var ScriptingApi::Content::createPath()
 }
 
 
-
 #undef ADD_TO_TYPE_SELECTOR
 #undef ADD_AS_SLIDER_TYPE
 #undef SEND_MESSAGE
+

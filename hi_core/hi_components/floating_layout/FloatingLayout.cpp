@@ -30,16 +30,21 @@
 *   ===========================================================================
 */
 
-#if USE_BACKEND
+
 #include "FloatingTileContent.cpp"
 #include "FloatingTileFactoryMethods.cpp"
 #include "PanelWithProcessorConnection.cpp"
+
+#if USE_BACKEND
 #include "ScriptingPanelTypes.cpp"
 #include "SamplerPanelTypes.cpp"
 #include "BackendPanelTypes.cpp"
+#endif
+
 #include "MiscFloatingPanelTypes.cpp"
 #include "FloatingTileContainer.cpp"
 #include "FloatingTile.cpp"
 
+#if USE_BACKEND
 #include "FloatingInterfaceBuilder.cpp"
 #endif

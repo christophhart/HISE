@@ -91,19 +91,21 @@ MidiKeyboardPanel::MidiKeyboardPanel(FloatingTile* parent) :
 
 	setInterceptsMouseClicks(false, true);
 
-	addAndMakeVisible(keyboard = new CustomKeyboard(parent->getBackendRootWindow()->getBackendProcessor()->getKeyboardState()));
+	addAndMakeVisible(keyboard = new CustomKeyboard(parent->getMainController()->getKeyboardState()));
 
 	keyboard->setLowestVisibleKey(12);
 }
 
+#if USE_BACKEND
 void ApplicationCommandButtonPanel::setCommand(int commandID)
 {
 	Path p = BackendCommandIcons::getIcon(commandID);
 
-	b->setCommandToTrigger(getParentShell()->getBackendRootWindow()->getBackendProcessor()->getCommandManager(), commandID, true);
+	b->setCommandToTrigger(getParentShell()->getMainController()->getCommandManager(), commandID, true);
 	b->setShape(p, false, true, true);
 	b->setVisible(true);
 }
+#endif
 
 
 void SliderPackPanel::resized()

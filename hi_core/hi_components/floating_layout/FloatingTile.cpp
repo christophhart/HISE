@@ -388,8 +388,9 @@ FloatingTile::ParentType FloatingTile::getParentType() const
 
 
 
-FloatingTile::FloatingTile(FloatingTileContainer* parent, var data) :
+FloatingTile::FloatingTile(MainController* mc_, FloatingTileContainer* parent, var data) :
 	Component("Empty"),
+	mc(mc_),
 	parentContainer(parent)
 {
 	setOpaque(true);
@@ -569,7 +570,9 @@ void FloatingTile::toggleAbsoluteSize()
 
 const BackendRootWindow* FloatingTile::getBackendRootWindow() const
 {
-	auto rw = dynamic_cast<ComponentWithBackendConnection*>(getRootFloatingTile()->getParentComponent())->getBackendRootWindow();
+	auto rw = getRootFloatingTile()->findParentComponentOfClass<ComponentWithBackendConnection>()->getBackendRootWindow();
+	
+	//auto rw = dynamic_cast<ComponentWithBackendConnection*>(getRootFloatingTile()->getParentComponent())->getBackendRootWindow();
 
 	jassert(rw != nullptr);
 
@@ -578,7 +581,10 @@ const BackendRootWindow* FloatingTile::getBackendRootWindow() const
 
 BackendRootWindow* FloatingTile::getBackendRootWindow()
 {
-	auto rw = dynamic_cast<ComponentWithBackendConnection*>(getRootFloatingTile()->getParentComponent())->getBackendRootWindow();
+
+	auto rw = getRootFloatingTile()->findParentComponentOfClass<ComponentWithBackendConnection>()->getBackendRootWindow();
+
+	//auto rw = dynamic_cast<ComponentWithBackendConnection*>(getRootFloatingTile()->getParentComponent())->getBackendRootWindow();
 
 	jassert(rw != nullptr);
 
@@ -1406,6 +1412,20 @@ void FloatingTile::TilePopupLookAndFeel::drawPopupMenuSectionHeader(Graphics& g,
 		Justification::bottomLeft, 1);
 }
 
+#if USE_BACKEND
+
+FloatingTileDocumentWindow::FloatingTileDocumentWindow(BackendRootWindow* parentRoot) :
+	DocumentWindow("Popout", HiseColourScheme::getColour(HiseColourScheme::EditorBackgroundColourId), DocumentWindow::TitleBarButtons::allButtons, true),
+	parent(parentRoot)
+{
+	setContentOwned(new FloatingTile(parentRoot->getBackendProcessor(), nullptr), false);
+	setVisible(true);
+	setUsingNativeTitleBar(true);
+	setResizable(true, true);
+
+	centreWithSize(500, 500);
+}
+
 void FloatingTileDocumentWindow::closeButtonPressed()
 {
 	parent->removeFloatingWindow(this);
@@ -1426,3 +1446,5 @@ FloatingTile* FloatingTileDocumentWindow::getRootFloatingTile()
 {
 	return dynamic_cast<FloatingTile*>(getContentComponent());
 }
+
+#endif

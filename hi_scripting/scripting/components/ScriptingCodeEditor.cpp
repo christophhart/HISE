@@ -287,14 +287,18 @@ void JavascriptCodeEditor::focusLost(FocusChangeType )
 {
 #if USE_BACKEND
     
-    BackendRootWindow *editor = GET_BACKEND_ROOT_WINDOW(this);
+	if (findParentComponentOfClass<ComponentWithBackendConnection>())
+	{
+		BackendRootWindow *editor = GET_BACKEND_ROOT_WINDOW(this);
 
-    if(editor != nullptr)
-    {
-        MainController *mc = dynamic_cast<MainController*>(editor->getAudioProcessor());
-        
-        mc->setLastActiveEditor(this, getCaretPos());
-    }
+		if (editor != nullptr)
+		{
+			MainController *mc = dynamic_cast<MainController*>(editor->getAudioProcessor());
+
+			mc->setLastActiveEditor(this, getCaretPos());
+		}
+	}
+
 #endif
 }
 

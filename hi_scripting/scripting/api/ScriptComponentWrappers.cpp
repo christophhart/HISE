@@ -755,6 +755,30 @@ void ScriptCreatedComponentWrappers::AudioWaveformWrapper::rangeChanged(AudioDis
 
 
 
+ScriptCreatedComponentWrappers::FloatingTileWrapper::FloatingTileWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptFloatingTile *floatingTile, int index):
+	ScriptCreatedComponentWrapper(content, index)
+{
+	auto mc = const_cast<MainController*>(dynamic_cast<const Processor*>(content->getScriptProcessor())->getMainController());
+
+	auto ft = new FloatingTile(mc, nullptr);
+
+	ft->setName(floatingTile->name.toString());
+
+	component = ft;
+}
+
+
+
+void ScriptCreatedComponentWrappers::FloatingTileWrapper::updateComponent()
+{
+	auto sft = dynamic_cast<ScriptingApi::Content::ScriptFloatingTile*>(getScriptComponent());
+
+	auto ft = dynamic_cast<FloatingTile*>(component.get());
+	
+	ft->setContent(sft->getContentData());
+	ft->refreshRootLayout();
+}
+
 typedef ScriptingApi::Content::ScriptComponent ScriptedComponent;
 
 ScriptedControlAudioParameter::ScriptedControlAudioParameter(ScriptingApi::Content::ScriptComponent *newComponent, AudioProcessor *parentProcessor_, ScriptBaseMidiProcessor *scriptProcessor_, int index_) :

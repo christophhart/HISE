@@ -131,7 +131,7 @@ ConsolePanel::ConsolePanel(FloatingTile* parent) :
 	FloatingTileContent(parent)
 {
 	setInterceptsMouseClicks(false, true);
-	addAndMakeVisible(console = new Console(getRootWindow()->getBackendProcessor()));
+	addAndMakeVisible(console = new Console(parent->getMainController()));
 }
 
 void ConsolePanel::resized()

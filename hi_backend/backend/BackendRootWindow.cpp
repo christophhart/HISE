@@ -7,7 +7,7 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 {
 	PresetHandler::buildProcessorDataBase(owner->getMainSynthChain());
 
-	addAndMakeVisible(floatingRoot = new FloatingTile(nullptr));
+	addAndMakeVisible(floatingRoot = new FloatingTile(owner, nullptr));
 
 	bool loadedCorrectly = true;
 	bool objectFound = editorState.isObject();

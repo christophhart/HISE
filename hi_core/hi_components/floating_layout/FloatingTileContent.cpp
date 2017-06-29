@@ -26,35 +26,9 @@
 *   which must be separately licensed for cloused source applications:
 *
 *   http://www.juce.com
-*
-*   ===========================================================================
-*/
+**/
 
 
-FloatingFlexBoxWindow::FloatingFlexBoxWindow() :
-	DocumentWindow("HISE Floating Window", Colour(0xFF333333), allButtons, true)
-{
-	setContentOwned(new FloatingTile(nullptr, var()), false);
-
-	setResizable(true, true);
-	setUsingNativeTitleBar(true);
-
-	centreWithSize(1500, 1000);
-
-	auto fsc = dynamic_cast<FloatingTile*>(getContentComponent());
-	fsc->setLayoutModeEnabled(false);
-}
-
-void FloatingFlexBoxWindow::closeButtonPressed()
-{
-	//ValueTree v = dynamic_cast<FloatingTile*>(getContentComponent())->getCurrentFloatingPanel()->exportAsValueTree();
-
-	File f("D:\\testa.xml");
-
-	//v.createXml()->writeToFile(f, "");
-
-	delete this;
-}
 
 Identifier FloatingTileContent::getDefaultablePropertyId(int index) const
 {
@@ -89,6 +63,16 @@ var FloatingTileContent::getDefaultProperty(int id) const
 	}
 
 	return var();
+}
+
+MainController* FloatingTileContent::getMainController()
+{
+	return getParentShell()->getMainController();
+}
+
+const MainController* FloatingTileContent::getMainController() const
+{
+	return getParentShell()->getMainController();
 }
 
 BackendRootWindow* FloatingTileContent::getRootWindow()
@@ -199,7 +183,7 @@ struct FloatingPanelTemplates::Helpers
 {
 	static void addNewShellTo(FloatingTileContainer* parent)
 	{
-		parent->addFloatingTile(new FloatingTile(parent));
+		parent->addFloatingTile(new FloatingTile(parent->getParentShell()->getMainController(), parent));
 	}
 
 	static FloatingTileContainer* getChildContainer(FloatingTile* parent)

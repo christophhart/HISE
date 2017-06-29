@@ -65,6 +65,7 @@ void ScriptEditHandler::createNewComponent(Widgets componentType, int x, int y)
 	case Widgets::Panel:				widgetType = "Panel"; break;
 	case Widgets::AudioWaveform:		widgetType = "AudioWaveform"; break;
 	case Widgets::SliderPack:		widgetType = "SliderPack"; break;
+	case Widgets::FloatingTile:		widgetType = "FloatingTile"; break;
 	case Widgets::duplicateWidget:
 	{
 		widgetType = getScriptEditHandlerContent()->getEditedComponent()->getObjectName().toString();
@@ -989,6 +990,7 @@ void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 			m.addItem((int)ScriptEditHandler::Widgets::Panel, "Add new Panel");
 			m.addItem((int)ScriptEditHandler::Widgets::AudioWaveform, "Add new AudioWaveform");
 			m.addItem((int)ScriptEditHandler::Widgets::SliderPack, "Add new SliderPack");
+			m.addItem((int)ScriptEditHandler::Widgets::FloatingTile, "Add new FloatingTile");
 
 			m.addItem((int)ScriptEditHandler::Widgets::duplicateWidget, "Duplicate selected component", content->getEditedComponent() != nullptr);
 

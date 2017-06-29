@@ -37,20 +37,24 @@
 class FloatingTile;
 
 
-#if USE_BACKEND
+
 #include "FloatingIcons.cpp"
 
 #include "FloatingTileContent.h"
 
-
 #include "PanelWithProcessorConnection.h"
+
+#if USE_BACKEND
 #include "ScriptingPanelTypes.h"
 #include "SamplerPanelTypes.h"
 #include "BackendPanelTypes.h"
+#endif
+
 #include "MiscFloatingPanelTypes.h"
 #include "FloatingTileContainer.h"
 #include "FloatingTile.h"
 
+#if USE_BACKEND
 #include "FloatingInterfaceBuilder.h"
 #endif
 

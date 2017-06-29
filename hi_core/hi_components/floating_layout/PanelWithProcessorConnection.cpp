@@ -36,7 +36,8 @@ PanelWithProcessorConnection::PanelWithProcessorConnection(FloatingTile* parent)
 	FloatingTileContent(parent),
 	showConnectionBar("showConnectionBar")
 {
-	rootWindow = getParentShell()->getBackendRootWindow();
+
+	BACKEND_ONLY(rootWindow = getParentShell()->getBackendRootWindow();)
 
 	addAndMakeVisible(connectionSelector = new ComboBox());
 	connectionSelector->addListener(this);
@@ -56,15 +57,17 @@ PanelWithProcessorConnection::PanelWithProcessorConnection(FloatingTile* parent)
 	indexSelector->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, Colours::transparentBlack);
 	indexSelector->setTextWhenNothingSelected("Disconnected");
 
-	rootWindow->getModuleListNofifier().addProcessorChangeListener(this);
+	BACKEND_ONLY(rootWindow->getModuleListNofifier().addProcessorChangeListener(this);)
 }
 
 PanelWithProcessorConnection::~PanelWithProcessorConnection()
 {
 	content = nullptr;
 
+#if USE_BACKEND
 	rootWindow->getModuleListNofifier().removeProcessorChangeListener(this);
 	rootWindow = nullptr;
+#endif
 }
 
 void PanelWithProcessorConnection::paint(Graphics& g)
@@ -110,7 +113,7 @@ void PanelWithProcessorConnection::fromDynamicObject(const var& object)
 
 	if (id.isNotEmpty())
 	{
-		auto p = ProcessorHelpers::getFirstProcessorWithName(getParentShell()->getBackendRootWindow()->getMainSynthChain(), id);
+		auto p = ProcessorHelpers::getFirstProcessorWithName(getParentShell()->getMainController()->getMainSynthChain(), id);
 
 		if (p != nullptr)
 		{
@@ -309,35 +312,47 @@ void PanelWithProcessorConnection::refreshIndexList()
 
 ModulatorSynthChain* PanelWithProcessorConnection::getMainSynthChain()
 {
-	return rootWindow->getMainSynthChain();
+	return getMainController()->getMainSynthChain();
 }
 
 const ModulatorSynthChain* PanelWithProcessorConnection::getMainSynthChain() const
 {
-	return rootWindow->getMainSynthChain();
+	return getMainController()->getMainSynthChain();
 }
 
 void PanelWithProcessorConnection::setContentWithUndo(Processor* newProcessor, int newIndex)
 {
-	auto undoManager = rootWindow->getBackendProcessor()->getViewUndoManager();
-
-	String undoText;
-
 	StringArray indexes;
 	fillIndexList(indexes);
 
 	refreshIndexList();
 
+#if USE_BACKEND
+	auto undoManager = rootWindow->getBackendProcessor()->getViewUndoManager();
+
+	String undoText;
+
+	
 	undoText << (currentProcessor.get() != nullptr ? currentProcessor->getId() : "Disconnected") << ": " << indexes[currentIndex] << " -> ";
 	undoText << (newProcessor != nullptr ? newProcessor->getId() : "Disconnected") << ": " << indexes[newIndex] << " -> ";
 
 	undoManager->beginNewTransaction(undoText);
 	undoManager->perform(new ProcessorConnection(this, newProcessor, newIndex));
+#else
+
+	ScopedPointer<ProcessorConnection> connection = new ProcessorConnection(this, newProcessor, newIndex);
+
+	connection->perform();
+
+	connection = nullptr;
+
+#endif
 
 	if (newIndex != -1)
 	{
 		indexSelector->setSelectedId(newIndex + 2, dontSendNotification);
 	}
+
 }
 
 PanelWithProcessorConnection::ProcessorConnection::ProcessorConnection(PanelWithProcessorConnection* panel_, Processor* newProcessor_, int newIndex_) :

@@ -70,7 +70,7 @@ struct ScriptingApi::Content::Wrapper
 	static var addPanel(const var::NativeFunctionArgs& args);
 	static var addAudioWaveform(const var::NativeFunctionArgs& args);
 	static var addSliderPack(const var::NativeFunctionArgs& args);
-	static var addPluginEditor(const var::NativeFunctionArgs& args);
+	static var addFloatingTile(const var::NativeFunctionArgs& args);
 	static var set(const var::NativeFunctionArgs& args);
 	static var get(const var::NativeFunctionArgs& args);
 	static var clearModulatorToPlotter(const var::NativeFunctionArgs& args);
@@ -328,7 +328,24 @@ var ScriptingApi::Content::Wrapper::addSliderPack(const var::NativeFunctionArgs&
 	}
 
 	return var::undefined();
+}
 
+
+var ScriptingApi::Content::Wrapper::addFloatingTile(const var::NativeFunctionArgs& args)
+{
+	if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
+	{
+		if (args.numArguments == 1)
+		{
+			return thisObject->addSliderPack(Identifier(args.arguments[0]), 0, 0);
+		}
+
+		CHECK_ARGUMENTS("addFloatingTile()", 3);
+
+		return thisObject->addFloatingTile(Identifier(args.arguments[0]), args.arguments[1], args.arguments[2]);
+	}
+
+	return var::undefined();
 }
 
 
