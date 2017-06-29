@@ -371,7 +371,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 		{
 			if (f->currentThisObject != nullptr)
 			{
-				return  f->currentThisObject;
+				return  var(f->currentThisObject.get());
 			}
 			else
 			{

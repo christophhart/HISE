@@ -149,6 +149,7 @@ END_JUCE_MODULE_DECLARATION
 #include "effects/mda/mdaDegrade.h"
 #include "effects/fx/Saturator.h"
 #include "effects/fx/AudioProcessorWrapper.h"
+#include "effects/fx/SlotFX.h"
 
 
 #if USE_BACKEND
@@ -168,6 +169,8 @@ END_JUCE_MODULE_DECLARATION
 #include "effects/editors/GainCollectorEditor.h"
 #include "effects/editors/RouteFXEditor.h"
 #include "effects/editors/SaturationEditor.h"
+
+#include "effects/editors/SlotFXEditor.h"
 
 #endif
 

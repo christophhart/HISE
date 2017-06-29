@@ -38,6 +38,7 @@ class ScriptCreatedComponentWrapper;
 class ScriptContentComponent;
 class ScriptedControlAudioParameter;
 class AudioProcessorWrapper;
+class SlotFX;
 
 /** This class wrapps all available objects that can be created by a script.
 *	@ingroup scripting
@@ -346,6 +347,60 @@ public:
 		// ============================================================================================================
 	};
 
+
+	class ScriptingSlotFX : public ConstScriptingObject,
+							public DebugableObject
+	{
+	public:
+
+		// ============================================================================================================
+
+		ScriptingSlotFX(ProcessorWithScriptingContent *p, EffectProcessor *fx);
+		~ScriptingSlotFX() {};
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("SlotFX"); }
+		bool objectDeleted() const override { return slotFX.get() == nullptr; }
+		bool objectExists() const override { return slotFX != nullptr; }
+
+		// ============================================================================================================ 
+
+		String getDebugName() const override { return slotFX.get() != nullptr ? slotFX->getId() : "Invalid"; };
+		String getDebugDataType() const override { return getObjectName().toString(); }
+		String getDebugValue() const override { return String(); }
+		void doubleClickCallback(const MouseEvent &, Component*) override {};
+
+		// ============================================================================================================ API Methods
+
+		/** Checks if the Object exists and prints a error message on the console if not. */
+		bool exists() { return checkValidObject(); };
+
+		
+		/** Bypasses the effect. This uses the soft bypass feature of the SlotFX module. */
+		void setBypassed(bool shouldBeBypassed);
+
+		/** Clears the slot (loads a unity gain module). */
+		void clear();
+
+		/** Loads the effect with the given name and returns a reference to it. */
+		ScriptingEffect* setEffect(String effectName);
+
+		/** Swaps the effect with the other slot. */
+		void swap(var otherSlot);
+
+		// ============================================================================================================
+
+		struct Wrapper;
+
+		SlotFX* getSlotFX();
+
+	private:
+
+		WeakReference<Processor> slotFX;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptingSlotFX);
+
+		// ============================================================================================================
+	};
 
 
 	class ScriptingSynth : public ConstScriptingObject,

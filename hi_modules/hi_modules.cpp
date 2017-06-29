@@ -92,6 +92,7 @@
 #include "effects/mda/mdaDegrade.cpp"
 #include "effects/fx/Saturator.cpp"
 #include "effects/fx/AudioProcessorWrapper.cpp"
+#include "effects/fx/SlotFX.cpp"
 
 #if USE_BACKEND
 
@@ -110,6 +111,8 @@
 #include "effects/editors/GainCollectorEditor.cpp"
 #include "effects/editors/RouteFXEditor.cpp"
 #include "effects/editors/SaturationEditor.cpp"
+
+#include "effects/editors/SlotFXEditor.cpp"
 
 #endif
 

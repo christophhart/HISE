@@ -428,6 +428,7 @@ public:
 		typedef ScriptingObjects::ScriptingSynth ScriptSynth;
 		typedef ScriptingObjects::ScriptingAudioSampleProcessor ScriptAudioSampleProcessor;
 		typedef ScriptingObjects::ScriptingTableProcessor ScriptTableProcessor;
+		typedef ScriptingObjects::ScriptingSlotFX ScriptSlotFX;
 
 		// ============================================================================================================ API Methods
 
@@ -563,8 +564,11 @@ public:
 		/** Returns the table processor with the given name. */
 		ScriptTableProcessor *getTableProcessor(const String &name);
 
-		/** Returns the sampler with the supplied name. */
+		/** Returns the first sampler with the name name. */
 		Sampler *getSampler(const String &name);
+
+		/** Returns the first slot with the given name. */
+		ScriptSlotFX* getSlotFX(const String& name);
 
 		/** Returns the index of the Modulator in the chain with the supplied chainId */
 		int getModulatorIndex(int chainId, const String &id) const;

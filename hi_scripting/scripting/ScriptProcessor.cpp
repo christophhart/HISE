@@ -216,7 +216,7 @@ File FileChangeListener::getWatchedFile(int index) const
 	else return File();
 }
 
-void FileChangeListener::showPopupForFile(int index, int charNumberToDisplay/*=0*/, int lineNumberToDisplay/*=-1*/)
+void FileChangeListener::showPopupForFile(int index, int charNumberToDisplay/*=0*/, int /*lineNumberToDisplay=-1*/)
 {
 #if USE_BACKEND
 
@@ -253,7 +253,7 @@ void FileChangeListener::showPopupForFile(const File& f, int charNumberToDisplay
 	}
 }
 
-void JavascriptProcessor::showPopupForCallback(const Identifier& callback, int charNumberToDisplay, int lineNumberToDisplay)
+void JavascriptProcessor::showPopupForCallback(const Identifier& callback, int /*charNumberToDisplay*/, int /*lineNumberToDisplay*/)
 {
 #if USE_BACKEND
 

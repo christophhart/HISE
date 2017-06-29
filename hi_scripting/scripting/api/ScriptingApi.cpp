@@ -1514,6 +1514,7 @@ struct ScriptingApi::Synth::Wrapper
 	API_METHOD_WRAPPER_1(Synth, getAudioSampleProcessor);
 	API_METHOD_WRAPPER_1(Synth, getTableProcessor);
 	API_METHOD_WRAPPER_1(Synth, getSampler);
+	API_METHOD_WRAPPER_1(Synth, getSlotFX);
 	API_METHOD_WRAPPER_1(Synth, getEffect);
 	API_METHOD_WRAPPER_1(Synth, getMidiProcessor);
 	API_METHOD_WRAPPER_1(Synth, getChildSynth);
@@ -1573,6 +1574,7 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	ADD_API_METHOD_1(getAudioSampleProcessor);
 	ADD_API_METHOD_1(getTableProcessor);
 	ADD_API_METHOD_1(getSampler);
+	ADD_API_METHOD_1(getSlotFX);
 	ADD_API_METHOD_1(getEffect);
 	ADD_API_METHOD_1(getMidiProcessor);
 	ADD_API_METHOD_1(getChildSynth);
@@ -2178,6 +2180,33 @@ ScriptingApi::Sampler * ScriptingApi::Synth::getSampler(const String &name)
 		reportIllegalCall("getScriptingAudioSampleProcessor()", "onInit");
 
 		return new Sampler(getScriptProcessor(), nullptr);
+	}
+}
+
+ScriptingApi::Synth::ScriptSlotFX* ScriptingApi::Synth::getSlotFX(const String& name)
+{
+	if (getScriptProcessor()->objectsCanBeCreated())
+	{
+		Processor::Iterator<SlotFX> it(owner);
+
+		while (SlotFX *s = it.getNextProcessor())
+		{
+			if (s->getId() == name)
+			{
+
+				return new ScriptSlotFX(getScriptProcessor(), s);
+			}
+		}
+
+		reportScriptError(name + " was not found. ");
+
+		return new ScriptSlotFX(getScriptProcessor(), nullptr);
+	}
+	else
+	{
+		reportIllegalCall("getScriptingAudioSampleProcessor()", "onInit");
+
+		return new ScriptSlotFX(getScriptProcessor(), nullptr);
 	}
 }
 

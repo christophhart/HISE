@@ -471,7 +471,7 @@ void ProcessorEditorHeader::resized()
 
 	int x = 8;
 
-    
+	const bool isInEffectSlot = dynamic_cast<SlotFX*>(ProcessorHelpers::findParentProcessor(getProcessor(), false)) != nullptr;
     
 	const bool isInternalChain = isHeaderOfChain() && !isHeaderOfModulatorSynth();
 
@@ -547,7 +547,11 @@ void ProcessorEditorHeader::resized()
 		x = valueMeter->getRight() + 3;
 	}
 
-	if (dynamic_cast<RoutableProcessor*>(getProcessor()) && dynamic_cast<GlobalModulatorContainer*>(getProcessor()) == nullptr)
+	bool shouldShowRoutingButton = !isInEffectSlot &&
+								   dynamic_cast<RoutableProcessor*>(getProcessor()) &&
+								   dynamic_cast<GlobalModulatorContainer*>(getProcessor()) == nullptr;
+
+	if (shouldShowRoutingButton)
 	{
 		x = valueMeter->getRight() + 3;
 
@@ -591,10 +595,17 @@ void ProcessorEditorHeader::resized()
 
 	
     
+	if (isInEffectSlot)
+	{
+        deleteButton->setVisible(false);
+	}
+	else
+	{
+		deleteButton->setEnabled(getEditor()->getIndentationLevel() != 0);
+		deleteButton->setBounds(getWidth() - 8 - addCloseWidth, yOffset, addCloseWidth, addCloseWidth);
+	}
     
-    
-	deleteButton->setEnabled(getEditor()->getIndentationLevel() != 0);
-	deleteButton->setBounds (getWidth() - 8 - addCloseWidth, yOffset, addCloseWidth, addCloseWidth);
+	
     
 	if(isHeaderOfModulatorSynth())
 	{

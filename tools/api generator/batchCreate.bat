@@ -16,6 +16,7 @@ xcopy "xml\class_scripting_api_1_1_math.xml" "xml\selection"
 xcopy "xml\class_scripting_api_1_1_message.xml" "xml\selection"
 xcopy "xml\class_scripting_api_1_1_synth.xml" "xml\selection"
 xcopy "xml\class_scripting_api_1_1_sampler.xml" "xml\selection"
+
 xcopy "xml\class_scripting_api_1_1_module_ids.xml" "xml\selection"
 xcopy "xml\struct_hise_javascript_engine_1_1_root_object_1_1_math_class.xml" "xml\selection"
 xcopy "xml\class_doxygen_array_functions.xml" "xml\selection"
@@ -31,6 +32,7 @@ xcopy "xml\class_scripting_objects_1_1_scripting_table_processor.xml" "xml\selec
 xcopy "xml\class_scripting_objects_1_1_scripting_effect.xml" "xml\selection"
 xcopy "xml\class_scripting_objects_1_1_scripting_midi_processor.xml" "xml\selection"
 xcopy "xml\class_scripting_objects_1_1_scripting_preset_storage.xml" "xml\selection"
+xcopy "xml\class_scripting_objects_1_1_scripting_slot_f_x.xml" "xml\selection"
 xcopy "xml\class_scripting_objects_1_1_graphics_object.xml" "xml\selection"
 xcopy "xml\class_scripting_objects_1_1_path_object.xml" "xml\selection"
 
@@ -67,6 +69,7 @@ ren "xml\selection\class_scripting_objects_1_1_scripting_midi_processor.xml" "Mi
 ren "xml\selection\class_scripting_objects_1_1_scripting_audio_sample_processor.xml" "AudioSampleProcessor.xml"
 ren "xml\selection\class_scripting_objects_1_1_scripting_table_processor.xml" "TableProcessor.xml"
 ren "xml\selection\class_scripting_objects_1_1_scripting_synth.xml" "ChildSynth.xml"
+ren "xml\selection\class_scripting_objects_1_1_scripting_slot_f_x.xml" "SlotFX.xml"
 ren "xml\selection\class_scripting_objects_1_1_scripting_preset_storage.xml" "PresetStorage.xml"
 ren "xml\selection\class_scripting_objects_1_1_graphics_object.xml" "Graphics.xml"
 ren "xml\selection\class_scripting_objects_1_1_path_object.xml" "Path.xml"

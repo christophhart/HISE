@@ -456,6 +456,111 @@ float ScriptingObjects::ScriptingEffect::getCurrentLevel(bool leftChannel)
 	return 0.0f;
 }
 
+// ScriptingSlotFX ==============================================================================================================
+
+
+struct ScriptingObjects::ScriptingSlotFX::Wrapper
+{
+    API_METHOD_WRAPPER_1(ScriptingSlotFX, setEffect);
+    API_VOID_METHOD_WRAPPER_0(ScriptingSlotFX, clear);
+	API_VOID_METHOD_WRAPPER_1(ScriptingSlotFX, swap);
+    
+};
+
+ScriptingObjects::ScriptingSlotFX::ScriptingSlotFX(ProcessorWithScriptingContent *p, EffectProcessor *fx) :
+ConstScriptingObject(p, fx != nullptr ? fx->getNumParameters()+1 : 1),
+slotFX(fx)
+{
+    if (fx != nullptr)
+    {
+        setName(fx->getId());
+        
+        addScriptParameters(this, slotFX.get());
+        
+        for (int i = 0; i < fx->getNumParameters(); i++)
+        {
+            addConstant(fx->getIdentifierForParameterIndex(i).toString(), var(i));
+        }
+    }
+    else
+    {
+        setName("Invalid Effect");
+    }
+    
+    ADD_API_METHOD_1(setEffect);
+    ADD_API_METHOD_0(clear);
+	ADD_API_METHOD_1(swap);
+    
+};
+
+
+
+void ScriptingObjects::ScriptingSlotFX::clear()
+{
+	if (auto slot = getSlotFX())
+	{
+		getSlotFX()->reset();
+	}
+	else
+	{
+		reportScriptError("Invalid Slot");
+	}
+}
+
+
+ScriptingObjects::ScriptingEffect* ScriptingObjects::ScriptingSlotFX::setEffect(String effectName)
+{
+	if(auto slot = getSlotFX())
+    {
+        if(slot->setEffect(effectName))
+        {
+			return new ScriptingEffect(getScriptProcessor(), slot->getCurrentEffect());
+        }
+        else
+        {
+            reportScriptError("Invalid Effect Type");
+            
+            return new ScriptingEffect(getScriptProcessor(), nullptr);
+        }
+    }
+	else
+	{
+		reportScriptError("Invalid Slot");
+		return new ScriptingEffect(getScriptProcessor(), nullptr);
+	}
+}
+
+void ScriptingObjects::ScriptingSlotFX::swap(var otherSlot)
+{
+	if (auto t = getSlotFX())
+	{
+		if (auto sl = dynamic_cast<ScriptingSlotFX*>(otherSlot.getObject()))
+		{
+			if (auto other = sl->getSlotFX())
+			{
+				t->swap(other);
+			}
+			else
+			{
+				reportScriptError("Target Slot is invalid");
+			}
+		}
+		else
+		{
+			reportScriptError("Target Slot does not exist");
+		}
+	}
+	else
+	{
+		reportScriptError("Source Slot is invalid");
+	}
+}
+
+SlotFX* ScriptingObjects::ScriptingSlotFX::getSlotFX()
+{
+	return dynamic_cast<SlotFX*>(slotFX.get());
+}
+
 // ScriptingSynth ==============================================================================================================
 
 struct ScriptingObjects::ScriptingSynth::Wrapper

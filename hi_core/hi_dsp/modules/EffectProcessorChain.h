@@ -372,7 +372,7 @@ public:
 		saturation,
 		audioProcessorWrapper,
 		scriptFxProcessor,
-		protoPlugEffect
+		slotFX
 	};
 
 	EffectProcessorChainFactoryType(int numVoices_, Processor *ownerProcessor):
