@@ -143,6 +143,10 @@
  //#define USE_HARD_CLIPPER
 #endif
 
+#ifndef    USE_SPLASH_SCREEN
+ //#define USE_SPLASH_SCREEN
+#endif
+
 //==============================================================================
 // hi_dsp_library flags:
 

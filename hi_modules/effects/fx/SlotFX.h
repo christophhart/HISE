@@ -20,8 +20,7 @@ public:
 	SET_PROCESSOR_NAME("SlotFX", "Effect Slot")
 
 	SlotFX(MainController *mc, const String &uid) :
-		MasterEffectProcessor(mc, uid),
-		rebuilder(this)
+		MasterEffectProcessor(mc, uid)
 	{
 		createList();
 
