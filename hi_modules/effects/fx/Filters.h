@@ -37,7 +37,11 @@
 
 #define USE_STATE_VARIABLE_FILTERS 1
 
-/** A base class for filters with multiple channels. */
+/** A base class for filters with multiple channels. 
+*
+*   It exposes an interface for different filter types which have common methods for
+*   setting their parameters, initialisation etc.
+*/
 class MultiChannelFilter
 {
 public:
@@ -49,12 +53,15 @@ public:
 
 	virtual ~MultiChannelFilter() {}
 
+    /** Set the filter type. The type is just a plain integer so it's up to your
+    *   filter implementation to decide what is happening with the value. */
 	void setType(int newType)
 	{
 		type = newType;
 		updateCoefficients();
 	}
 
+    /** Set the new frequency (real values from 20Hz to Fs/2). */
 	void setFrequency(double newFrequency)
 	{
 		frequency = newFrequency;
@@ -68,12 +75,14 @@ public:
 		updateCoefficients();
 	}
 
+    /** Set the resonance. */
 	void setQ(double newQ)
 	{
 		q = newQ;
 		updateCoefficients();
 	}
 
+    /** Sets the samplerate. This will be automatically called whenever the sample rate changes. */
 	void setSampleRate(double newSampleRate)
 	{
 		sampleRate = newSampleRate;
@@ -81,15 +90,20 @@ public:
 		updateCoefficients();
 	}
 
+    /** Sets the amount of channels. */
 	void setNumChannels(int newNumChannels)
 	{
 		numChannels = jlimit<int>(0, NUM_MAX_CHANNELS, newNumChannels);
 	}
 
+    /** Overwrite this method and reset all internal variables like previous values etc. This will be called
+    *   when a new voice is started to prevent clicks in the processing. */
 	virtual void reset() = 0;
 
+    /** this will be called whenever the frequency, q, or samplerate changes. */
 	virtual void updateCoefficients() = 0;
 
+    /** Implement the filter algorithm here. */
 	virtual void processSamples(AudioSampleBuffer& buffer, int startSample, int numSamples) = 0;
 
 protected:
