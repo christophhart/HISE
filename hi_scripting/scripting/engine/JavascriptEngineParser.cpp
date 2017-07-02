@@ -609,7 +609,12 @@ private:
 
 	String getFileContent(const String &fileNameInScript, String &refFileName)
 	{
-		const String cleanedFileName = fileNameInScript.removeCharacters("\"\'");
+		String cleanedFileName = fileNameInScript.removeCharacters("\"\'");
+
+		if (cleanedFileName.contains("{DEVICE}"))
+		{
+			cleanedFileName = cleanedFileName.replace("{DEVICE}", HiseDeviceSimulator::getDeviceName());
+		}
 
 #if USE_BACKEND
 

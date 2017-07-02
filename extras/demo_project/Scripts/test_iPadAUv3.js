@@ -1,0 +1,1 @@
+label.set("text", "AUv3 Script");
