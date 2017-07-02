@@ -215,13 +215,15 @@ void DefaultFrontendBar::resized()
 	
 	int rightX = getRight() - getHeight() - 4;
 
-#if IS_STANDALONE_FRONTEND
-
-	deviceSettingsButton->setBounds(rightX, 2, getHeight() - 4, getHeight() - 4);
-	rightX = deviceSettingsButton->getX() - 26 - spaceX;
-#else
-    deviceSettingsButton->setVisible(false);
-#endif
+    if(HiseDeviceSimulator::isStandalone())
+    {
+        deviceSettingsButton->setBounds(rightX, 2, getHeight() - 4, getHeight() - 4);
+        rightX = deviceSettingsButton->getX() - 26 - spaceX;
+    }
+    else
+    {
+        deviceSettingsButton->setVisible(false);
+    }
 
 	if (outMeter->isVisible())
 	{

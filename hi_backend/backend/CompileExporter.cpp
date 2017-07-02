@@ -447,11 +447,16 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 
 	solutionDirectory = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getFullPathName();
 
+	
+
 	if (option != Cancelled)
 	{
-		if (type != TargetTypes::StandaloneApplication)
+		// Use plugin mode for iOS Standalone AUv3 apps...
+		const bool createPlugin = type != TargetTypes::StandaloneApplication || option == BuildOption::StandaloneiOS;
+
+		if (createPlugin)
 		{
-			result = createPluginDataHeaderFile(solutionDirectory, publicKey);
+			result = createPluginDataHeaderFile(solutionDirectory, publicKey, option == BuildOption::StandaloneiOS);
 
 			if (result != ErrorCodes::OK) return result;
 		}
@@ -502,15 +507,15 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 
 		CppBuilder::exportValueTreeAsCpp(directoryPath, sourceDirectory, presetDataString);
 
-		if (type == TargetTypes::StandaloneApplication)
+		if (createPlugin)
 		{
-			result = createStandaloneAppProjucerFile();
+			result = createPluginProjucerFile(type, option);
 
 			if (result != ErrorCodes::OK) return result;
 		}
 		else
 		{
-			result = createPluginProjucerFile(type, option);
+			result = createStandaloneAppProjucerFile();
 
 			if (result != ErrorCodes::OK) return result;
 		}
@@ -1017,7 +1022,8 @@ public:
 
 
 CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(const String &solutionDirectory, 
-																		const String &publicKey)
+																		const String &publicKey,
+                                                                        bool iOSAUv3)
 {
 	String pluginDataHeaderFile;
 
@@ -1038,8 +1044,18 @@ CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(const St
 		pluginDataHeaderFile << "\n";
 	}
 
-	pluginDataHeaderFile << "AudioProcessor* StandaloneProcessor::createProcessor() { return nullptr; }\n";
-
+    
+    if(iOSAUv3)
+    {
+        pluginDataHeaderFile << "AudioProcessor* StandaloneProcessor::createProcessor() { CREATE_PLUGIN(deviceManager, callback); }\n\n";
+        
+        pluginDataHeaderFile << "START_JUCE_APPLICATION(FrontendStandaloneApplication)\n\n";
+    }
+    else
+    {
+        pluginDataHeaderFile << "AudioProcessor* StandaloneProcessor::createProcessor() { return nullptr; }\n";
+    }
+    
 	HeaderHelpers::addProjectInfoLines(this, pluginDataHeaderFile);
 	HeaderHelpers::addCustomToolbarRegistration(this, pluginDataHeaderFile);
 	HeaderHelpers::writeHeaderFile(solutionDirectory, pluginDataHeaderFile);
@@ -1180,51 +1196,99 @@ CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(TargetType
 
 	ProjectTemplateHelpers::handleCompanyInfo(this, templateProject);
 
-	const bool buildAU = BuildOptionHelpers::isAU(option);
-	const bool buildVST = BuildOptionHelpers::isVST(option);
-	const bool buildAAX = BuildOptionHelpers::isAAX(option);
-
-	REPLACE_WILDCARD_WITH_STRING("%BUILD_AU%", buildAU ? "1" : "0");
-	REPLACE_WILDCARD_WITH_STRING("%BUILD_VST%", buildVST ? "1" : "0");
-	REPLACE_WILDCARD_WITH_STRING("%BUILD_AAX%", buildAAX ? "1" : "0");
-
-	const File vstSDKPath = hisePath.getChildFile("tools/SDK/VST3 SDK");
-
-	if (buildVST && !vstSDKPath.isDirectory())
+	if (BuildOptionHelpers::isIOS(option))
 	{
-		return ErrorCodes::VSTSDKMissing;
-	}
+		REPLACE_WILDCARD_WITH_STRING("%BUILD_AU%", "0");
+		REPLACE_WILDCARD_WITH_STRING("%BUILD_VST%", "0");
+		REPLACE_WILDCARD_WITH_STRING("%BUILD_AAX%", "0");
+		REPLACE_WILDCARD_WITH_STRING("%BUILD_AUV3%", "1");
 
-	if (buildVST)
-		REPLACE_WILDCARD_WITH_STRING("%VSTSDK_FOLDER%", vstSDKPath.getFullPathName());
-	else
 		REPLACE_WILDCARD_WITH_STRING("%VSTSDK_FOLDER", String());
-
-	if (buildAAX)
-	{
-		const File aaxPath = hisePath.getChildFile("tools/SDK/AAX");
-
-		if (!aaxPath.isDirectory())
-		{
-			return ErrorCodes::AAXSDKMissing;
-		}
-
-		REPLACE_WILDCARD_WITH_STRING("%AAX_PATH%", aaxPath.getFullPathName());
-		REPLACE_WILDCARD_WITH_STRING("%AAX_RELEASE_LIB%", aaxPath.getChildFile("Libs/Release/").getFullPathName());
-		REPLACE_WILDCARD_WITH_STRING("%AAX_DEBUG_LIB%", aaxPath.getChildFile("Libs/Debug/").getFullPathName());
-		
-		String aaxIdentifier = "com.";
-		aaxIdentifier << SettingWindows::getSettingValue((int)SettingWindows::UserSettingWindow::Attributes::Company, &GET_PROJECT_HANDLER(chainToExport)).removeCharacters(" -_.,;");
-		aaxIdentifier << "." << SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, &GET_PROJECT_HANDLER(chainToExport)).removeCharacters(" -_.,;");
-
-		REPLACE_WILDCARD_WITH_STRING("%AAX_IDENTIFIER%", aaxIdentifier);
-	}
-	else
-	{
 		REPLACE_WILDCARD_WITH_STRING("%AAX_PATH%", String());
 		REPLACE_WILDCARD_WITH_STRING("%AAX_RELEASE_LIB%", String());
 		REPLACE_WILDCARD_WITH_STRING("%AAX_DEBUG_LIB%", String());
 		REPLACE_WILDCARD_WITH_STRING("%AAX_IDENTIFIER%", String());
+
+		const File sampleFolder = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Samples);
+
+		String iOSResourceFile;
+
+		bool hasCustomiOSFolder = sampleFolder.getChildFile("iOS").isDirectory();
+
+		if (hasCustomiOSFolder)
+		{
+			bool hasCustomiOSSampleFolder = sampleFolder.getChildFile("Samples").isDirectory();
+
+			if (hasCustomiOSSampleFolder)
+				iOSResourceFile = sampleFolder.getChildFile("iOS/Samples").getFullPathName();
+			else
+				iOSResourceFile = sampleFolder.getFullPathName();
+		}
+		else
+			iOSResourceFile = sampleFolder.getFullPathName();
+
+
+		REPLACE_WILDCARD_WITH_STRING("%IOS_SAMPLE_FOLDER%", iOSResourceFile);
+
+		const File imageFolder = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Images);
+		const File audioFolder = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles);
+		const File sampleMapFolder = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
+
+		REPLACE_WILDCARD_WITH_STRING("%IOS_IMAGE_FOLDER%", imageFolder.getFullPathName());
+		REPLACE_WILDCARD_WITH_STRING("%IOS_AUDIO_FOLDER%", audioFolder.getFullPathName());
+		REPLACE_WILDCARD_WITH_STRING("%IOS_SAMPLEMAP_FOLDER%", sampleMapFolder.getFullPathName());
+
+	}
+	else
+	{
+		REPLACE_WILDCARD_WITH_STRING("%BUILD_AUV3%", "0");
+
+		const bool buildAU = BuildOptionHelpers::isAU(option);
+		const bool buildVST = BuildOptionHelpers::isVST(option);
+		const bool buildAAX = BuildOptionHelpers::isAAX(option);
+
+		REPLACE_WILDCARD_WITH_STRING("%BUILD_AU%", buildAU ? "1" : "0");
+		REPLACE_WILDCARD_WITH_STRING("%BUILD_VST%", buildVST ? "1" : "0");
+		REPLACE_WILDCARD_WITH_STRING("%BUILD_AAX%", buildAAX ? "1" : "0");
+
+		const File vstSDKPath = hisePath.getChildFile("tools/SDK/VST3 SDK");
+
+		if (buildVST && !vstSDKPath.isDirectory())
+		{
+			return ErrorCodes::VSTSDKMissing;
+		}
+
+		if (buildVST)
+			REPLACE_WILDCARD_WITH_STRING("%VSTSDK_FOLDER%", vstSDKPath.getFullPathName());
+		else
+			REPLACE_WILDCARD_WITH_STRING("%VSTSDK_FOLDER", String());
+
+		if (buildAAX)
+		{
+			const File aaxPath = hisePath.getChildFile("tools/SDK/AAX");
+
+			if (!aaxPath.isDirectory())
+			{
+				return ErrorCodes::AAXSDKMissing;
+			}
+
+			REPLACE_WILDCARD_WITH_STRING("%AAX_PATH%", aaxPath.getFullPathName());
+			REPLACE_WILDCARD_WITH_STRING("%AAX_RELEASE_LIB%", aaxPath.getChildFile("Libs/Release/").getFullPathName());
+			REPLACE_WILDCARD_WITH_STRING("%AAX_DEBUG_LIB%", aaxPath.getChildFile("Libs/Debug/").getFullPathName());
+
+			String aaxIdentifier = "com.";
+			aaxIdentifier << SettingWindows::getSettingValue((int)SettingWindows::UserSettingWindow::Attributes::Company, &GET_PROJECT_HANDLER(chainToExport)).removeCharacters(" -_.,;");
+			aaxIdentifier << "." << SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, &GET_PROJECT_HANDLER(chainToExport)).removeCharacters(" -_.,;");
+
+			REPLACE_WILDCARD_WITH_STRING("%AAX_IDENTIFIER%", aaxIdentifier);
+		}
+		else
+		{
+			REPLACE_WILDCARD_WITH_STRING("%AAX_PATH%", String());
+			REPLACE_WILDCARD_WITH_STRING("%AAX_RELEASE_LIB%", String());
+			REPLACE_WILDCARD_WITH_STRING("%AAX_DEBUG_LIB%", String());
+			REPLACE_WILDCARD_WITH_STRING("%AAX_IDENTIFIER%", String());
+		}
 	}
 
 	ProjectTemplateHelpers::handleCompilerInfo(this, templateProject);
@@ -1261,34 +1325,7 @@ CompileExporter::ErrorCodes CompileExporter::createStandaloneAppProjucerFile()
 	REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "disabled");
 	REPLACE_WILDCARD_WITH_STRING("%IS_STANDALONE_FRONTEND%", "enabled");
 
-    const File sampleFolder = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Samples);
     
-    String iOSResourceFile;
-    
-    bool hasCustomiOSFolder = sampleFolder.getChildFile("iOS").isDirectory();
-    
-    if(hasCustomiOSFolder)
-    {
-        bool hasCustomiOSSampleFolder = sampleFolder.getChildFile("Samples").isDirectory();
-        
-        if(hasCustomiOSSampleFolder)
-            iOSResourceFile = sampleFolder.getChildFile("iOS/Samples").getFullPathName();
-        else
-            iOSResourceFile = sampleFolder.getFullPathName();
-    }
-    else
-        iOSResourceFile = sampleFolder.getFullPathName();
-    
-	
-    REPLACE_WILDCARD_WITH_STRING("%IOS_SAMPLE_FOLDER%", iOSResourceFile);
-    
-	const File imageFolder = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Images);
-	const File audioFolder = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::AudioFiles);
-	const File sampleMapFolder = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
-
-	REPLACE_WILDCARD_WITH_STRING("%IOS_IMAGE_FOLDER%", imageFolder.getFullPathName());
-	REPLACE_WILDCARD_WITH_STRING("%IOS_AUDIO_FOLDER%", audioFolder.getFullPathName());
-	REPLACE_WILDCARD_WITH_STRING("%IOS_SAMPLEMAP_FOLDER%", sampleMapFolder.getFullPathName());
 
 	ProjectTemplateHelpers::handleVisualStudioVersion(templateProject);
 

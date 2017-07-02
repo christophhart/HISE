@@ -128,7 +128,13 @@ StandaloneProcessor::StandaloneProcessor()
 	if(!CompileExporter::isExportingFromCommandLine()) 
 		dynamic_cast<AudioProcessorDriver*>(wrappedProcessor.get())->initialiseAudioDriver(xml);
 #else
-	dynamic_cast<AudioProcessorDriver*>(wrappedProcessor.get())->initialiseAudioDriver(xml);
+	
+    auto apd = dynamic_cast<AudioProcessorDriver*>(wrappedProcessor.get());
+    
+    jassert(apd != nullptr);
+    
+    apd->initialiseAudioDriver(xml);
+    
 	dynamic_cast<FrontendSampleManager*>(wrappedProcessor.get())->loadSamplesAfterSetup();
 
 #endif
@@ -148,6 +154,8 @@ XmlElement * AudioProcessorDriver::getSettings()
 
 void AudioProcessorDriver::initialiseAudioDriver(XmlElement *deviceData)
 {
+    jassert(deviceManager != nullptr);
+    
 	DebugLogger& logger = dynamic_cast<MainController*>(this)->getDebugLogger();
 
 	if (deviceData != nullptr)

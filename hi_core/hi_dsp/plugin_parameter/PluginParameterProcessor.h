@@ -64,13 +64,21 @@ public:
 #if FRONTEND_IS_PLUGIN
         AudioProcessor(BusesProperties().withInput("Input", AudioChannelSet::stereo()).withOutput("Output", AudioChannelSet::stereo())),
 #else
-		AudioProcessor(BusesProperties().withOutput("Output", AudioChannelSet::stereo())),
+		AudioProcessor(BusesProperties().withOutput("Output", AudioChannelSet::stereo(), true)),
 #endif
 		name(name_)
 	{
 
+        
+        
 	}
 
+    
+    bool isBusesLayoutSupported (const BusesLayout& layouts) const override
+    {
+        return (layouts.getMainInputChannels() == 2);
+    }
+    
 	virtual ~PluginParameterAudioProcessor() {};
 
 	void setScriptedPluginParameter(Identifier id, float newValue);

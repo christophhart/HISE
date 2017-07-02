@@ -200,7 +200,7 @@ private:
 
 	ErrorCodes compileSolution(BuildOption buildOption, TargetTypes types);
 
-	ErrorCodes createPluginDataHeaderFile(const String &solutionDirectory, const String &publicKey);
+	ErrorCodes createPluginDataHeaderFile(const String &solutionDirectory, const String &publicKey, bool iOSAUv3);
 
 	ErrorCodes createResourceFile(const String &solutionDirectory, const String & uniqueName, const String &version);
 

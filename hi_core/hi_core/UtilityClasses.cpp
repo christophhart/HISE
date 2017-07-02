@@ -387,26 +387,44 @@ void VDspFFT::multiplyComplex(float* output, float* in1, int in1Offset, float* i
 
 HiseDeviceSimulator::DeviceType HiseDeviceSimulator::currentDevice = HiseDeviceSimulator::DeviceType::Desktop;
 
-void HiseDeviceSimulator::init()
+void HiseDeviceSimulator::init(AudioProcessor::WrapperType wrapper)
 {
 #if USE_BACKEND
 
 	currentDevice = DeviceType::Desktop;
 #else
 
+    
+    
 #if JUCE_IOS
-#if JUCE_IPHONE
-	currentDevice = DeviceType::iPhone5;
-#elif IS_STANDALONE_FRONTEND
-	currentDevice = DeviceType::iPad;
+    
+    
+    const bool isIPad = SystemStats::getDeviceDescription() == "iPad";
+    
+    const bool isStandalone = wrapper != AudioProcessor::WrapperType::wrapperType_AudioUnitv3;
+    
+    
+    
+    if(isIPad)
+    {
+        currentDevice = isStandalone ? DeviceType::iPad : DeviceType::iPadAUv3;
+    }
+    else
+    {
+        currentDevice = DeviceType::iPhone5;
+    }
+    
 #else
-	currentDevice = DeviceType::iPadAUv3;
+    currentDevice = DeviceType::Desktop;
 #endif
-
-#else
-	currentDevice = DeviceType::Desktop;
+    
+    
 #endif
-#endif
+    
+    
+    int x = 5;
+    
+    
 }
 
 String HiseDeviceSimulator::getDeviceName(int index)
@@ -436,7 +454,7 @@ Rectangle<int> HiseDeviceSimulator::getDisplayResolution()
 	case HiseDeviceSimulator::DeviceType::iPad:			return{ 0, 0, 1024, 768 };
 	case HiseDeviceSimulator::DeviceType::iPadRetina:	return{ 0, 0, 1024, 768 };
 	case HiseDeviceSimulator::DeviceType::iPadPro:		return{ 0, 0, 1366, 1024 };
-	case HiseDeviceSimulator::DeviceType::iPadAUv3:		return{ 0, 0, 1024, 768 };
+	case HiseDeviceSimulator::DeviceType::iPadAUv3:		return{ 0, 0, 1024, 335 };
 	case HiseDeviceSimulator::DeviceType::iPhone5:		return{ 0, 0, 568, 320 };
 	case HiseDeviceSimulator::DeviceType::iPhone6:		return{ 0, 0, 568, 320 };
 	case HiseDeviceSimulator::DeviceType::iPodTouch6:	return{ 0, 0, 568, 320 };

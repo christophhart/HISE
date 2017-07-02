@@ -93,14 +93,29 @@ void ToggleButtonList::setValue(int index, bool value, NotificationType notify /
 CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 	mc(mc_)
 {
-#if IS_STANDALONE_FRONTEND
-	addAndMakeVisible(deviceSelector = new ComboBox("Driver"));
-	addAndMakeVisible(soundCardSelector = new ComboBox("Device"));
-	addAndMakeVisible(outputSelector = new ComboBox("Output"));
-	addAndMakeVisible(sampleRateSelector = new ComboBox("Sample Rate"));
-	addAndMakeVisible(bufferSelector = new ComboBox("Buffer Sizes"));
-	addAndMakeVisible(sampleRateSelector = new ComboBox("Sample Rate"));
-#endif
+    
+    
+    if(HiseDeviceSimulator::isStandalone())
+    {
+        addAndMakeVisible(deviceSelector = new ComboBox("Driver"));
+        addAndMakeVisible(soundCardSelector = new ComboBox("Device"));
+        addAndMakeVisible(outputSelector = new ComboBox("Output"));
+        addAndMakeVisible(sampleRateSelector = new ComboBox("Sample Rate"));
+        addAndMakeVisible(bufferSelector = new ComboBox("Buffer Sizes"));
+        addAndMakeVisible(sampleRateSelector = new ComboBox("Sample Rate"));
+        
+        deviceSelector->addListener(this);
+        soundCardSelector->addListener(this);
+        outputSelector->addListener(this);
+        bufferSelector->addListener(this);
+        sampleRateSelector->addListener(this);
+        
+        deviceSelector->setLookAndFeel(&plaf);
+        soundCardSelector->setLookAndFeel(&plaf);
+        outputSelector->setLookAndFeel(&plaf);
+        bufferSelector->setLookAndFeel(&plaf);
+        sampleRateSelector->setLookAndFeel(&plaf);
+    }
     
 	addAndMakeVisible(ccSustainSelector = new ComboBox("Sustain CC"));
     addAndMakeVisible(scaleFactorSelector = new ComboBox("Scale Factor"));
@@ -109,28 +124,12 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 	addAndMakeVisible(relocateButton = new TextButton("Change sample folder location"));
 	addAndMakeVisible(debugButton = new TextButton("Toggle Debug Mode"));
 
-#if IS_STANDALONE_FRONTEND
-	deviceSelector->addListener(this);
-	soundCardSelector->addListener(this);
-	outputSelector->addListener(this);
-	bufferSelector->addListener(this);
-	sampleRateSelector->addListener(this);
-#endif 
-
 	ccSustainSelector->addListener(this);
 	scaleFactorSelector->addListener(this);
 	diskModeSelector->addListener(this);
 	clearMidiLearn->addListener(this);
 	relocateButton->addListener(this);
 	debugButton->addListener(this);
-
-#if IS_STANDALONE_FRONTEND
-	deviceSelector->setLookAndFeel(&plaf);
-	soundCardSelector->setLookAndFeel(&plaf);
-	outputSelector->setLookAndFeel(&plaf);
-	bufferSelector->setLookAndFeel(&plaf);
-	sampleRateSelector->setLookAndFeel(&plaf);
-#endif
 
 	ccSustainSelector->setLookAndFeel(&plaf);
 	scaleFactorSelector->setLookAndFeel(&plaf);
@@ -164,14 +163,15 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 
 CustomSettingsWindow::~CustomSettingsWindow()
 {
-#if IS_STANDALONE_FRONTEND
-	deviceSelector->removeListener(this);
-	sampleRateSelector->removeListener(this);
-	bufferSelector->removeListener(this);
-	soundCardSelector->removeListener(this);
-	outputSelector->removeListener(this);
-#endif
-
+    if(HiseDeviceSimulator::isStandalone())
+    {
+        deviceSelector->removeListener(this);
+        sampleRateSelector->removeListener(this);
+        bufferSelector->removeListener(this);
+        soundCardSelector->removeListener(this);
+        outputSelector->removeListener(this);
+    }
+    
 	clearMidiLearn->removeListener(this);
 	relocateButton->removeListener(this);
 	diskModeSelector->removeListener(this);
@@ -190,132 +190,132 @@ CustomSettingsWindow::~CustomSettingsWindow()
 void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDevices)
 {
 	AudioProcessorDriver* driver = dynamic_cast<AudioProcessorDriver*>(mc);
-#if IS_STANDALONE_FRONTEND
-	const OwnedArray<AudioIODeviceType> *devices = &driver->deviceManager->getAvailableDeviceTypes();
-
-	bufferSelector->clear();
-	sampleRateSelector->clear();
-	outputSelector->clear();
-
-
-	if (rebuildDeviceTypes)
-	{
-		deviceSelector->clear();
-
-		for (int i = 0; i < devices->size(); i++)
-		{
-			deviceSelector->addItem(devices->getUnchecked(i)->getTypeName(), i + 1);
-		};
-	}
-
-	AudioIODevice* currentDevice = driver->deviceManager->getCurrentAudioDevice();
-
-	if (currentDevice != nullptr)
-	{
-		const int thisDevice = devices->indexOf(driver->deviceManager->getCurrentDeviceTypeObject());
-
-		AudioIODeviceType *currentDeviceType = devices->getUnchecked(thisDevice);
-
-		if (rebuildDeviceTypes && thisDevice != -1)
-		{
-			deviceSelector->setSelectedItemIndex(thisDevice, dontSendNotification);
-		}
-
-		Array<int> bufferSizes = currentDevice->getAvailableBufferSizes();
-
-
-
-		if (bufferSizes.size() > 7)
-		{
-			Array<int> powerOfTwoBufferSizes;
-			powerOfTwoBufferSizes.ensureStorageAllocated(6);
-			if (bufferSizes.contains(64)) powerOfTwoBufferSizes.add(64);
-			if (bufferSizes.contains(128)) powerOfTwoBufferSizes.add(128);
-			if (bufferSizes.contains(256)) powerOfTwoBufferSizes.add(256);
-			if (bufferSizes.contains(512)) powerOfTwoBufferSizes.add(512);
-			if (bufferSizes.contains(1024)) powerOfTwoBufferSizes.add(1024);
-
-			if (powerOfTwoBufferSizes.size() > 2)
-				bufferSizes.swapWith(powerOfTwoBufferSizes);
-		}
-
-		int defaultBufferSize = currentDevice->getDefaultBufferSize();
-
-		bufferSizes.addIfNotAlreadyThere(defaultBufferSize);
-
-		bufferSizes.sort();
-
-		outputSelector->addItemList(getChannelPairs(currentDevice), 1);
-		const int thisOutputName = (currentDevice->getActiveOutputChannels().getHighestBit() - 1) / 2;
-		outputSelector->setSelectedItemIndex(thisOutputName, dontSendNotification);
-
-		if (rebuildDevices)
-		{
-			soundCardSelector->clear();
-
-			StringArray soundCardNames = currentDeviceType->getDeviceNames(false);
-			soundCardSelector->addItemList(soundCardNames, 1);
-			const int soundcardIndex = soundCardNames.indexOf(currentDevice->getName());
-			soundCardSelector->setSelectedItemIndex(soundcardIndex, dontSendNotification);
-		}
-
-
-		for (int i = 0; i < bufferSizes.size(); i++)
-		{
-			bufferSelector->addItem(String(bufferSizes[i]) + String(" Samples"), i + 1);
-		}
-
-		const int thisBufferSize = currentDevice->getCurrentBufferSizeSamples();
-
-		bufferSelector->setSelectedItemIndex(bufferSizes.indexOf(thisBufferSize), dontSendNotification);
-
-#if IOS
-		samplerates.add(44100.0);
-		samplerates.add(48000.0);
-		samplerates.add(88200.0);
-		samplerates.add(96000.0);
-#else
-		Array<double> allSamplerates = currentDevice->getAvailableSampleRates();
-		Array<double> samplerates;
-
-		if (allSamplerates.contains(44100.0)) samplerates.add(44100.0);
-		if (allSamplerates.contains(48000.0)) samplerates.add(48000.0);
-		if (allSamplerates.contains(88200.0)) samplerates.add(88200.0);
-		if (allSamplerates.contains(96000.0)) samplerates.add(96000.0);
-		if (allSamplerates.contains(176400.0)) samplerates.add(176400.0);
-		if (allSamplerates.contains(192000.0)) samplerates.add(192000.0);
-#endif
-
-		for (int i = 0; i < samplerates.size(); i++)
-		{
-			sampleRateSelector->addItem(String(samplerates[i], 0), i + 1);
-		}
-
-		const double thisSampleRate = currentDevice->getCurrentSampleRate();
-
-		sampleRateSelector->setSelectedItemIndex(samplerates.indexOf(thisSampleRate), dontSendNotification);
-	}
-	else
-	{
-		String message = "The Audio driver " + deviceSelector->getText() + " could not be opened.";
-
-		
-
-		PresetHandler::showMessageWindow("Audio Driver Initialisation Error", message, PresetHandler::IconType::Error);
+    
+    if(HiseDeviceSimulator::isStandalone())
+    {
+        const OwnedArray<AudioIODeviceType> *devices = &driver->deviceManager->getAvailableDeviceTypes();
         
-        driver->deviceManager->initialiseWithDefaultDevices(0, 2);
+        bufferSelector->clear();
+        sampleRateSelector->clear();
+        outputSelector->clear();
         
-        if(!loopProtection)
+        
+        if (rebuildDeviceTypes)
         {
-            loopProtection=true;
-            rebuildMenus(true, true);
-
+            deviceSelector->clear();
+            
+            for (int i = 0; i < devices->size(); i++)
+            {
+                deviceSelector->addItem(devices->getUnchecked(i)->getTypeName(), i + 1);
+            };
         }
-	}
-
+        
+        AudioIODevice* currentDevice = driver->deviceManager->getCurrentAudioDevice();
+        
+        if (currentDevice != nullptr)
+        {
+            const int thisDevice = devices->indexOf(driver->deviceManager->getCurrentDeviceTypeObject());
+            
+            AudioIODeviceType *currentDeviceType = devices->getUnchecked(thisDevice);
+            
+            if (rebuildDeviceTypes && thisDevice != -1)
+            {
+                deviceSelector->setSelectedItemIndex(thisDevice, dontSendNotification);
+            }
+            
+            Array<int> bufferSizes = currentDevice->getAvailableBufferSizes();
+            
+            
+            
+            if (bufferSizes.size() > 7)
+            {
+                Array<int> powerOfTwoBufferSizes;
+                powerOfTwoBufferSizes.ensureStorageAllocated(6);
+                if (bufferSizes.contains(64)) powerOfTwoBufferSizes.add(64);
+                if (bufferSizes.contains(128)) powerOfTwoBufferSizes.add(128);
+                if (bufferSizes.contains(256)) powerOfTwoBufferSizes.add(256);
+                if (bufferSizes.contains(512)) powerOfTwoBufferSizes.add(512);
+                if (bufferSizes.contains(1024)) powerOfTwoBufferSizes.add(1024);
+                
+                if (powerOfTwoBufferSizes.size() > 2)
+                    bufferSizes.swapWith(powerOfTwoBufferSizes);
+            }
+            
+            int defaultBufferSize = currentDevice->getDefaultBufferSize();
+            
+            bufferSizes.addIfNotAlreadyThere(defaultBufferSize);
+            
+            bufferSizes.sort();
+            
+            outputSelector->addItemList(getChannelPairs(currentDevice), 1);
+            const int thisOutputName = (currentDevice->getActiveOutputChannels().getHighestBit() - 1) / 2;
+            outputSelector->setSelectedItemIndex(thisOutputName, dontSendNotification);
+            
+            if (rebuildDevices)
+            {
+                soundCardSelector->clear();
+                
+                StringArray soundCardNames = currentDeviceType->getDeviceNames(false);
+                soundCardSelector->addItemList(soundCardNames, 1);
+                const int soundcardIndex = soundCardNames.indexOf(currentDevice->getName());
+                soundCardSelector->setSelectedItemIndex(soundcardIndex, dontSendNotification);
+            }
+            
+            
+            for (int i = 0; i < bufferSizes.size(); i++)
+            {
+                bufferSelector->addItem(String(bufferSizes[i]) + String(" Samples"), i + 1);
+            }
+            
+            const int thisBufferSize = currentDevice->getCurrentBufferSizeSamples();
+            
+            bufferSelector->setSelectedItemIndex(bufferSizes.indexOf(thisBufferSize), dontSendNotification);
+            
+#if IOS
+            samplerates.add(44100.0);
+            samplerates.add(48000.0);
+            samplerates.add(88200.0);
+            samplerates.add(96000.0);
 #else
-	ignoreUnused(rebuildDevices, rebuildDeviceTypes);
+            Array<double> allSamplerates = currentDevice->getAvailableSampleRates();
+            Array<double> samplerates;
+            
+            if (allSamplerates.contains(44100.0)) samplerates.add(44100.0);
+            if (allSamplerates.contains(48000.0)) samplerates.add(48000.0);
+            if (allSamplerates.contains(88200.0)) samplerates.add(88200.0);
+            if (allSamplerates.contains(96000.0)) samplerates.add(96000.0);
+            if (allSamplerates.contains(176400.0)) samplerates.add(176400.0);
+            if (allSamplerates.contains(192000.0)) samplerates.add(192000.0);
 #endif
+            
+            for (int i = 0; i < samplerates.size(); i++)
+            {
+                sampleRateSelector->addItem(String(samplerates[i], 0), i + 1);
+            }
+            
+            const double thisSampleRate = currentDevice->getCurrentSampleRate();
+            
+            sampleRateSelector->setSelectedItemIndex(samplerates.indexOf(thisSampleRate), dontSendNotification);
+        }
+        else
+        {
+            String message = "The Audio driver " + deviceSelector->getText() + " could not be opened.";
+            
+            
+            
+            PresetHandler::showMessageWindow("Audio Driver Initialisation Error", message, PresetHandler::IconType::Error);
+            
+            driver->deviceManager->initialiseWithDefaultDevices(0, 2);
+            
+            if(!loopProtection)
+            {
+                loopProtection=true;
+                rebuildMenus(true, true);
+                
+            }
+        }
+    }
+    
 
     scaleFactorSelector->clear();
     scaleFactorSelector->addItem("100%", 1);
@@ -527,38 +527,43 @@ void CustomSettingsWindow::paint(Graphics& g)
 #if HISE_IOS
     g.drawText("Buffer Size", 0, 0, getWidth() / 2 - 30, 30, Justification::centredRight);
     g.drawText("Sample Rate", 0, 40, getWidth() / 2 - 30, 30, Justification::centredRight);
-    g.drawText("Streaming Mode", 0, 80, getWidth() / 2 - 30, 30, Justification::centredRight);
+    g.drawText("Sustain CC", 0, 80, getWidth() / 2 - 30, 30, Justification::centredRight);
 #else
 
 	int y = 0;
 
-#if IS_STANDALONE_FRONTEND
-	g.drawText("Driver", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
-	y += 40;
-	g.drawText("Device", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
-	y += 40;
-	g.drawText("Output", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
-	y += 40;
-    g.drawText("Buffer Size", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
-	y += 40;
-    g.drawText("Sample Rate", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
-	y += 40;
-#endif
-
-
-
-	if (scaleFactorSelector->isVisible())
-	{
-		g.drawText("Scale Factor", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
-		y += 40;
-	}
-
+    if(HiseDeviceSimulator::isStandalone())
+    {
+        g.drawText("Driver", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
+        y += 40;
+        g.drawText("Device", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
+        y += 40;
+        g.drawText("Output", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
+        y += 40;
+        g.drawText("Buffer Size", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
+        y += 40;
+        g.drawText("Sample Rate", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
+        y += 40;
+    }
+    
+#if !HISE_IOS
+    
+    if (scaleFactorSelector->isVisible())
+    {
+        g.drawText("Scale Factor", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
+        y += 40;
+    }
+    
     g.drawText("Streaming Mode", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
 	y += 40;
-	
-	g.drawText("Sustain CC", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
-	y += 80;
+    
+    g.drawText("Sustain CC", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
+    y += 80;
 
+    
+#endif
+	
+	
 #if USE_BACKEND
 	const String samplePath = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Samples).getFullPathName();
 #else
@@ -579,20 +584,23 @@ void CustomSettingsWindow::resized()
 {
     int y = 0;
     
-#if IS_STANDALONE_FRONTEND
+    if(HiseDeviceSimulator::isStandalone())
+    {
 #if !HISE_IOS
-	deviceSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
-    y+= 40;
-	soundCardSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
-    y+= 40;
-	outputSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
-    y+= 40;
+        deviceSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
+        y+= 40;
+        soundCardSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
+        y+= 40;
+        outputSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
+        y+= 40;
 #endif
-	bufferSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
-    y+= 40;
-	sampleRateSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
-    y+= 40;
-#endif
+        bufferSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
+        y+= 40;
+        sampleRateSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
+        y+= 40;
+        
+    }
+
 
 	if (scaleFactorSelector->isVisible())
 	{
@@ -600,8 +608,10 @@ void CustomSettingsWindow::resized()
 		y += 40;
 	}
 
+#if !HISE_IOS
 	diskModeSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
     y+= 40;
+#endif
 
 	ccSustainSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
 	y += 40;

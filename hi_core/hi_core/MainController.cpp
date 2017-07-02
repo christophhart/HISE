@@ -71,7 +71,7 @@ MainController::MainController():
 	BACKEND_ONLY(shownComponents.setBit(BackendCommandTarget::Keyboard, 1));
 	BACKEND_ONLY(shownComponents.setBit(BackendCommandTarget::Macros, 0));
 
-	HiseDeviceSimulator::init();
+	
 
 	TempoSyncer::initTempoData();
     
@@ -614,7 +614,13 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 #if IS_STANDALONE_APP || IS_STANDALONE_FRONTEND
 	getMainSynthChain()->getMatrix().setNumDestinationChannels(2);
 #else
+    
+#if HISE_IOS
+    getMainSynthChain()->getMatrix().setNumDestinationChannels(2);
+#else
 	getMainSynthChain()->getMatrix().setNumDestinationChannels(JucePlugin_MaxNumOutputChannels);
+#endif
+    
 #endif
 
     getMainSynthChain()->prepareToPlay(sampleRate, samplesPerBlock);

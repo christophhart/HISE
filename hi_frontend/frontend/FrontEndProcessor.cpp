@@ -95,6 +95,8 @@ unlocker(TURBOACTIVATE_FILE_PATH)
 unlockCounter(0)
 #endif
 {
+    HiseDeviceSimulator::init(wrapperType);
+    
 #if USE_COPY_PROTECTION
 	if (PresetHandler::loadKeyFile(unlocker))
 	{
@@ -236,6 +238,13 @@ FrontendStandaloneApplication::AudioWrapper::AudioWrapper()
 	startTimer(100);
 
 #else
+    
+#if HISE_IOS
+    auto size = Desktop::getInstance().getDisplays().getMainDisplay().totalArea;
+    
+    setSize(size.getWidth(), size.getHeight());
+#endif
+    
 	init();
 #endif
 

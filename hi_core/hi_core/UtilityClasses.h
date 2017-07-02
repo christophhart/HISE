@@ -998,7 +998,7 @@ public:
 		numDeviceTypes
 	};
 
-	static void init();
+    static void init(AudioProcessor::WrapperType wrapper);
 
 	static void setDeviceType(DeviceType newDeviceTye)
 	{
@@ -1012,6 +1012,23 @@ public:
 	static bool isMobileDevice() { return currentDevice > DeviceType::Desktop; }
 	static bool isRetina() { return currentDevice > DeviceType::iPad; }
 
+    static bool isAUv3() { return currentDevice == DeviceType::iPadAUv3; };
+    
+    static bool isStandalone()
+    {
+#if HISE_IOS
+        return !isAUv3();
+#else
+      
+#if IS_STANDALONE_FRONTEND
+        return true;
+#else
+        return false;
+#endif
+        
+#endif
+    }
+    
 	static Rectangle<int> getDisplayResolution();
 
 	private:
