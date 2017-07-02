@@ -588,6 +588,7 @@ private:
 	FloatingTileContent::Factory panelFactory;
 };
 
+#if USE_BACKEND
 
 class FloatingTileDocumentWindow : public DocumentWindow,
 								   public ComponentWithBackendConnection
@@ -617,6 +618,7 @@ private:
 	
 };
 
+#endif
 
 struct FloatingTileHelpers
 {

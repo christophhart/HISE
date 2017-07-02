@@ -1093,7 +1093,11 @@ void FloatingTilePopup::updatePosition()
 
 bool FloatingTile::canBeDeleted() const
 {
+#if USE_BACKEND
 	const bool isInPopout = findParentComponentOfClass<FloatingTileDocumentWindow>() != nullptr;
+#else
+    const bool isInPopout = false;
+#endif
 
 	if (getParentType() == ParentType::Root)
 		return isInPopout;

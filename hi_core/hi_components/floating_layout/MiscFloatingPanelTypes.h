@@ -420,8 +420,11 @@ public:
 
 	void resized() override
 	{
+        auto c1 = getStyleColour(ColourIds::highlightColour);
+        auto c2 = getStyleColour(ColourIds::backgroundColour);
+        
 		presetBrowser->setBounds(getLocalBounds());
-		presetBrowser->setHighlightColourAndFont(getStyleColour(ColourIds::highlightColour), getStyleColour(ColourIds::backgroundColour), GLOBAL_BOLD_FONT().withHeight(16.0f));
+		presetBrowser->setHighlightColourAndFont(c1, c2, GLOBAL_BOLD_FONT().withHeight(16.0f));
 	}
 
 	int getNumColourIds() const { return numColourIds; }
