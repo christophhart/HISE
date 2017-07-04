@@ -172,6 +172,25 @@ void MouseCallbackComponent::mouseDown(const MouseEvent& event)
 	{
 		sendMessage(event, Action::Clicked);
 	}
+
+	if (jsonPopupData.isObject())
+	{
+		if(findParentComponentOfClass<FloatingTilePopup>() == nullptr) // Deactivate this function in popups...
+		{
+			if (popupIsShowing)
+			{
+				findParentComponentOfClass<FloatingTile>()->showComponentInRootPopup(nullptr, this, popupSize.getPosition());
+				popupIsShowing = false;
+			}
+			else
+			{
+				FloatingTile *t = new FloatingTile(GET_BACKEND_ROOT_WINDOW(this)->getBackendProcessor(), nullptr, jsonPopupData);
+				t->setSize(popupSize.getWidth(), popupSize.getHeight());
+				findParentComponentOfClass<FloatingTile>()->showComponentInRootPopup(t, this, popupSize.getPosition());
+				popupIsShowing = true;
+			}
+		}
+	}
 }
 
 void MouseCallbackComponent::touchAndHold(Point<int> downPosition)

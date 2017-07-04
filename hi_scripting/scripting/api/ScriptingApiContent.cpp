@@ -1992,6 +1992,7 @@ struct ScriptingApi::Content::ScriptPanel::Wrapper
 	API_VOID_METHOD_WRAPPER_0(ScriptPanel, changed);
 	API_VOID_METHOD_WRAPPER_2(ScriptPanel, loadImage);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setDraggingBounds);
+	API_VOID_METHOD_WRAPPER_2(ScriptPanel, setPopupData);
 };
 
 ScriptingApi::Content::ScriptPanel::ScriptPanel(ProcessorWithScriptingContent *base, Content *parentContent, Identifier panelName, int x, int y, int width, int height) :
@@ -2020,6 +2021,7 @@ controlSender(this, base)
 	propertyIds.add(Identifier("selectedPopupIndex"));
 	propertyIds.add(Identifier("stepSize"));
 	propertyIds.add(Identifier("enableMidiLearn"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	
 	
 	componentProperties->setProperty(getIdFor(borderSize), 0);
 	componentProperties->setProperty(getIdFor(borderRadius), 0);
@@ -2052,6 +2054,7 @@ controlSender(this, base)
 	ADD_API_METHOD_0(stopTimer);
 	ADD_API_METHOD_2(loadImage);
 	ADD_API_METHOD_1(setDraggingBounds);
+	ADD_API_METHOD_2(setPopupData);
 }
 
 StringArray ScriptingApi::Content::ScriptPanel::getOptionsFor(const Identifier &id)
@@ -2220,6 +2223,19 @@ Rectangle<int> ScriptingApi::Content::ScriptPanel::getDragBounds() const
 void ScriptingApi::Content::ScriptPanel::setDraggingBounds(var area)
 {
 	dragBounds = area;
+}
+
+void ScriptingApi::Content::ScriptPanel::setPopupData(var jsonData, var position)
+{
+	jsonPopupData = jsonData;
+	
+	if (position.isArray())
+	{
+		popupBounds.setX(position[0]);
+		popupBounds.setY(position[1]);
+		popupBounds.setWidth(position[2]);
+		popupBounds.setHeight(position[3]);
+	}
 }
 
 void ScriptingApi::Content::ScriptPanel::AsyncControlCallbackSender::handleAsyncUpdate()
@@ -2867,27 +2883,34 @@ void ScriptingApi::Content::storeAllControlsAsPreset(const String &fileName, con
 	{
 		ScopedPointer<XmlElement> existingData = XmlDocument::parse(f);
 
-		ValueTree preset = ValueTree::fromXml(*existingData);
-
-		bool found = false;
-
-		for (int i = 0; i < preset.getNumChildren(); i++)
-		{
-			if (preset.getChild(i).getProperty("Processor") == getProcessor()->getId())
-			{
-				preset.getChild(i).copyPropertiesFrom(v, nullptr);
-				found = true;
-				break;
-			}
-		}
-
-		if (!found) preset.addChild(v, -1, nullptr);
-
-		preset.addChild(automationData, -1, nullptr);
-
-		existingData = preset.createXml();
-
-		f.replaceWithText(existingData->createDocument(""));
+        if(existingData != nullptr)
+        {
+            ValueTree preset = ValueTree::fromXml(*existingData);
+            
+            bool found = false;
+            
+            for (int i = 0; i < preset.getNumChildren(); i++)
+            {
+                if (preset.getChild(i).getProperty("Processor") == getProcessor()->getId())
+                {
+                    preset.getChild(i).copyPropertiesFrom(v, nullptr);
+                    found = true;
+                    break;
+                }
+            }
+            
+            if (!found) preset.addChild(v, -1, nullptr);
+            
+            preset.addChild(automationData, -1, nullptr);
+            
+            existingData = preset.createXml();
+            
+            f.replaceWithText(existingData->createDocument(""));
+        }
+        else
+        {
+            reportScriptError(f.getFullPathName() + " is not a valid .xml file");
+        }
 	}
 	else
 	{

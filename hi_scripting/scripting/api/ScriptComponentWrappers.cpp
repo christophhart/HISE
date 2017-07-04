@@ -609,6 +609,7 @@ void ScriptCreatedComponentWrappers::PanelWrapper::updateComponent()
 
 	bpc->setMidiLearnEnabled(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::enableMidiLearn));
 
+	bpc->setJSONPopupData(sc->getJSONPopupData(), sc->getPopupSize());
 
 	const double min = GET_SCRIPT_PROPERTY(min);
 	const double max = GET_SCRIPT_PROPERTY(max);

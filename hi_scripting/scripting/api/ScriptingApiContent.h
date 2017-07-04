@@ -695,6 +695,9 @@ public:
 		/** If `allowedDragging` is enabled, it will define the boundaries where the panel can be dragged. */
 		void setDraggingBounds(var area);
 
+		/** Sets a FloatingTile that is used as popup. The position is a array [x , y, width, height] that is used for the popup dimension */
+		void setPopupData(var jsonData, var position);
+
 		// ========================================================================================================
 
 		struct Wrapper;
@@ -707,6 +710,10 @@ public:
 		bool isUsingCustomPaintRoutine() const { return !paintRoutine.isUndefined(); }
 
 		void mouseCallback(var mouseInformation);
+
+		var getJSONPopupData() const { return jsonPopupData; }
+
+		Rectangle<int> getPopupSize() const { return popupBounds; }
 
 		void timerCallback() override;
 
@@ -724,6 +731,10 @@ public:
 		Rectangle<int> getDragBounds() const;
 
 	private:
+
+		var jsonPopupData;
+
+		Rectangle<int> popupBounds;
 
 		friend class WeakReference<ScriptPanel>;
 

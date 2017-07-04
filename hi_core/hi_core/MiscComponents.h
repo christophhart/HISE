@@ -122,6 +122,12 @@ public:
 	static StringArray getCallbackLevels();
 	static StringArray getCallbackPropertyNames();
 
+	void setJSONPopupData(var jsonData, Rectangle<int> popupSize_) 
+	{ 
+		jsonPopupData = jsonData; 
+		popupSize = popupSize_;
+	}
+
 	void setPopupMenuItems(const StringArray &newItemList);
 
 	void setActivePopupItem(int menuId)
@@ -180,6 +186,11 @@ public:
 	// ================================================================================================================
 
 private:
+
+	var jsonPopupData;
+	Rectangle<int> popupSize;
+
+	bool popupIsShowing = false;
 
 	bool ignoreMouseUp = false;
 
