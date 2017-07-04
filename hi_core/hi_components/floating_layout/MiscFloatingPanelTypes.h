@@ -100,6 +100,269 @@ private:
 };
 
 
+class PerformanceLabelPanel : public Component,
+	public Timer,
+	public FloatingTileContent
+{
+public:
+
+	PerformanceLabelPanel(FloatingTile* parent):
+		FloatingTileContent(parent)
+	{
+		addAndMakeVisible(statisticLabel = new Label());
+		statisticLabel->setEditable(false, false);
+		statisticLabel->setColour(Label::ColourIds::textColourId, Colours::white);
+		statisticLabel->setFont(GLOBAL_BOLD_FONT());
+
+		startTimer(200);
+	}
+
+	SET_PANEL_NAME("PerformanceLabel");
+
+	void timerCallback() override;
+
+	void resized() override
+	{
+		statisticLabel->setBounds(getLocalBounds());
+	}
+
+
+	bool showTitleInPresentationMode() const override
+	{
+		return false;
+	}
+
+private:
+
+	ScopedPointer<Label> statisticLabel;
+
+};
+
+class ActivityLedPanel : public FloatingTileContent,
+				    public Timer,
+					public Component
+{
+public:
+
+	enum SpecialPanelIds
+	{
+		OnImage = FloatingTileContent::PanelPropertyId::numPropertyIds,
+		OffImage,
+		ShowMidiLabel,
+		numSpecialPanelIds
+	};
+
+	ActivityLedPanel(FloatingTile* parent):
+		FloatingTileContent(parent)
+	{
+		setOpaque(true);
+
+		startTimer(100);
+	}
+
+	SET_PANEL_NAME("ActivityLed");
+	
+	var toDynamicObject() const override
+	{
+		var obj = FloatingTileContent::toDynamicObject();
+
+		storePropertyInObject(obj, (int)SpecialPanelIds::OffImage, offName);
+		storePropertyInObject(obj, (int)SpecialPanelIds::OnImage, onName);
+		storePropertyInObject(obj, (int)SpecialPanelIds::ShowMidiLabel, showMidiLabel);
+		
+		return obj;
+	}
+
+	void timerCallback()
+	{
+		const bool midiFlag = getMainController()->checkAndResetMidiInputFlag();
+
+		setOn(midiFlag);
+	}
+
+	void fromDynamicObject(const var& object) override;
+
+	Identifier getDefaultablePropertyId(int index) const override
+	{
+		if (index < FloatingTileContent::numPropertyIds)
+			return FloatingTileContent::getDefaultablePropertyId(index);
+
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::OffImage, "OffImage");
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::OnImage, "OnImage");
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowMidiLabel, "ShowMidiLabel");
+		
+		jassertfalse;
+		return{};
+	}
+
+	var getDefaultProperty(int index) const override
+	{
+		if (index < FloatingTileContent::numPropertyIds)
+			return FloatingTileContent::getDefaultProperty(index);
+
+		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::OffImage, var(""));
+		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::OnImage, var(""));
+		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowMidiLabel, true);
+		
+		jassertfalse;
+		return{};
+	}
+
+	void paint(Graphics &g) override
+	{
+		g.fillAll(Colours::black);
+		g.setColour(Colours::white);
+		if(showMidiLabel)
+			g.drawText("MIDI", 0, 0, 100, getHeight(), Justification::centredLeft, false);
+
+		g.drawImageWithin(isOn ? on : off, showMidiLabel ? 38 : 2, 2, 24, getHeight(), RectanglePlacement::centred);
+	}
+
+	void setOn(bool shouldBeOn)
+	{
+		isOn = shouldBeOn;
+		repaint();
+	}
+
+private:
+
+	bool showMidiLabel;
+
+	String onName;
+	String offName;
+
+	bool isOn = false;
+
+	Image on;
+	Image off;
+};
+
+class PopoutButtonPanel : public Component,
+	public FloatingTileContent,
+	public Button::Listener
+{
+public:
+
+	enum SpecialPanelIds
+	{
+		Text = FloatingTileContent::PanelPropertyId::numPropertyIds,
+		Width,
+		Height,
+		PopoutData,
+		numSpecialPanelIds
+	};
+
+	enum ColourIds
+	{
+		backgroundColourId,
+		textColourId,
+		buttonColourId,
+		numColourIds
+	};
+
+	SET_PANEL_NAME("PopupButton");
+
+	PopoutButtonPanel(FloatingTile* p):
+		FloatingTileContent(p)
+	{
+		addAndMakeVisible(button = new TextButton("Unused"));
+		button->addListener(this);
+		button->setLookAndFeel(&blaf);
+		
+		button->setColour(TextButton::ColourIds::textColourOffId, Colours::white);
+		button->setColour(TextButton::ColourIds::textColourOnId, Colours::white);
+	};
+
+	~PopoutButtonPanel()
+	{
+		button = nullptr;
+	}
+
+	void buttonClicked(Button* b) override;
+
+	void paint(Graphics& g) override
+	{
+		g.fillAll(Colours::black);
+	}
+
+	bool showTitleInPresentationMode() const override
+	{
+		return false;
+	}
+
+	void resized() override;
+
+	var toDynamicObject() const override
+	{
+		var obj = FloatingTileContent::toDynamicObject();
+
+		storePropertyInObject(obj, SpecialPanelIds::Text, button->getButtonText());
+		storePropertyInObject(obj, SpecialPanelIds::PopoutData, popoutData);
+		storePropertyInObject(obj, SpecialPanelIds::Width, width);
+		storePropertyInObject(obj, SpecialPanelIds::Height, height);
+		
+		return obj;
+	}
+
+	void fromDynamicObject(const var& object) override
+	{
+		FloatingTileContent::fromDynamicObject(object);
+
+		button->setButtonText(getPropertyWithDefault(object, SpecialPanelIds::Text));
+
+		popoutData = getPropertyWithDefault(object, SpecialPanelIds::PopoutData);
+		width = getPropertyWithDefault(object, SpecialPanelIds::Width);
+		height = getPropertyWithDefault(object, SpecialPanelIds::Height);
+	}
+
+	int getNumDefaultableProperties() const override
+	{
+		return SpecialPanelIds::numSpecialPanelIds;
+	}
+
+	Identifier getDefaultablePropertyId(int index) const override
+	{
+		if (index < FloatingTileContent::numPropertyIds)
+			return FloatingTileContent::getDefaultablePropertyId(index);
+
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::Text, "ButtonText");
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::Width, "Width");
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::Height, "Height");
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::PopoutData, "PopoutData");
+
+		jassertfalse;
+		return{};
+	}
+
+	var getDefaultProperty(int index) const override
+	{
+		if (index < FloatingTileContent::numPropertyIds)
+			return FloatingTileContent::getDefaultProperty(index);
+
+		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::Text, var("Popout Button"));
+		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::Width, var(300));
+		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::Height, var(300));
+		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::PopoutData, var());
+
+		jassertfalse;
+		return{};
+	}
+
+
+private:
+
+	var popoutData;
+
+	int width;
+	int height;
+
+	BlackTextButtonLookAndFeel blaf;
+
+	ScopedPointer<TextButton> button;
+};
+
+
+
 
 class EmptyComponent : public Component,
 					   public FloatingTileContent,

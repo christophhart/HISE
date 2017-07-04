@@ -362,3 +362,65 @@ void VisibilityToggleBar::Icon::buttonClicked(Button*)
 
 	refreshColour();
 }
+
+void PopoutButtonPanel::buttonClicked(Button* b)
+{
+	ScopedPointer<FloatingTile> popout = new FloatingTile(getMainController(), nullptr, popoutData);
+
+	popout->setSize(width, height);
+
+	popout->setName(popout->getLayoutData().getID().toString());
+
+	auto p = Point<int>(button->getLocalBounds().getCentreX(), button->getLocalBounds().getBottom());
+
+	getParentShell()->showComponentInRootPopup(popout.release(), button, p);
+}
+
+void PopoutButtonPanel::resized()
+{
+	button->setBounds(getParentShell()->getContentBounds());
+}
+
+void PerformanceLabelPanel::timerCallback()
+{
+	auto mc = getMainController();
+
+	const int cpuUsage = (int)mc->getCpuUsage();
+	const int voiceAmount = mc->getNumActiveVoices();
+	const double ramUsage = (double)mc->getSampleManager().getModulatorSamplerSoundPool()->getMemoryUsageForAllSamples() / 1024.0 / 1024.0;
+
+	//const bool midiFlag = mc->checkAndResetMidiInputFlag();
+
+	//activityLed->setOn(midiFlag);
+
+	String stats = "CPU: ";
+	stats << String(cpuUsage) << "%, RAM: " << String(ramUsage, 1) << "MB , Voices: " << String(voiceAmount);
+	statisticLabel->setText(stats, dontSendNotification);
+}
+
+void ActivityLedPanel::fromDynamicObject(const var& object)
+{
+	FloatingTileContent::fromDynamicObject(object);
+
+	onName = getPropertyWithDefault(object, (int)SpecialPanelIds::OnImage);
+
+#if USE_BACKEND
+	auto onFile = GET_PROJECT_HANDLER(getMainController()->getMainSynthChain()).getFilePath(onName, ProjectHandler::SubDirectories::Images);
+#endif
+
+	auto on_ = getMainController()->getSampleManager().getImagePool()->loadFileIntoPool(onFile, false);
+
+	if (on_ != nullptr)
+		on = *on_;
+
+	offName = getPropertyWithDefault(object, (int)SpecialPanelIds::OffImage);
+
+#if USE_BACKEND
+	auto offFile = GET_PROJECT_HANDLER(getMainController()->getMainSynthChain()).getFilePath(offName, ProjectHandler::SubDirectories::Images);
+#endif
+
+	auto off_ = getMainController()->getSampleManager().getImagePool()->loadFileIntoPool(offFile);
+
+	if (off_ != nullptr)
+		off = *off_;
+}

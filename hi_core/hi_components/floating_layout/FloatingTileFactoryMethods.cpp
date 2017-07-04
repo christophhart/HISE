@@ -61,6 +61,9 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 #endif
 
 	registerType<MidiKeyboardPanel>(PopupMenuOptions::MidiKeyboard);
+	registerType<PopoutButtonPanel>(PopupMenuOptions::PopoutButton);
+	registerType<PerformanceLabelPanel>(PopupMenuOptions::PerformanceStatistics);
+	registerType<ActivityLedPanel>(PopupMenuOptions::ActivityLed);
 
 #if USE_BACKEND
 	registerType<GlobalConnectorPanel<ModulatorSampler>>(PopupMenuOptions::SampleConnector);
@@ -545,6 +548,9 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 		addToPopupMenu(m, PopupMenuOptions::SamplePoolTable, "SamplePoolTable");
 		addToPopupMenu(m, PopupMenuOptions::SliderPackPanel, "Array Editor");
 		addToPopupMenu(m, PopupMenuOptions::MidiKeyboard, "Virtual Keyboard");
+		addToPopupMenu(m, PopupMenuOptions::PopoutButton, "Popout Button");
+		addToPopupMenu(m, PopupMenuOptions::PerformanceStatistics, "Performance Statistics");
+		addToPopupMenu(m, PopupMenuOptions::ActivityLed, "MIDI Activity LED");
 		addToPopupMenu(m, PopupMenuOptions::Note, "Note");
 		addToPopupMenu(m, PopupMenuOptions::AudioFileTable, "Audio File Pool Table");
 		addToPopupMenu(m, PopupMenuOptions::ImageTable, "Image Pool Table");
@@ -604,6 +610,9 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::ScriptConnectorPanel:parent->setNewContent(GET_PANEL_NAME(GlobalConnectorPanel<JavascriptProcessor>)); break;
 	case PopupMenuOptions::Console:				parent->setNewContent(GET_PANEL_NAME(ConsolePanel)); break;
 	case PopupMenuOptions::PresetBrowser:		parent->setNewContent(GET_PANEL_NAME(PresetBrowserPanel)); break;
+	case PopupMenuOptions::PopoutButton:		parent->setNewContent(GET_PANEL_NAME(PopoutButtonPanel)); break;
+	case PopupMenuOptions::ActivityLed:		    parent->setNewContent(GET_PANEL_NAME(ActivityLedPanel)); break;
+	case PopupMenuOptions::PerformanceStatistics: parent->setNewContent(GET_PANEL_NAME(PerformanceLabelPanel)); break;
 	case PopupMenuOptions::ApiCollection:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<ApiCollection>)); break;
 	case PopupMenuOptions::PatchBrowser:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<PatchBrowser>)); break;
 	case PopupMenuOptions::FileBrowser:			parent->setNewContent(GET_PANEL_NAME(GenericPanel<FileBrowser>)); break;
