@@ -483,6 +483,9 @@ public:
 		/** Sets the internal clock speed. */
 		void setClockSpeed(int clockSpeed);
 
+		/** If set to true, this will kill retriggered notes (default). */
+		void setShouldKillRetriggeredNote(bool killNote);
+
 		/** Stops the timer of the synth. You can call this also in the timer callback. */
 		void stopTimer();
 

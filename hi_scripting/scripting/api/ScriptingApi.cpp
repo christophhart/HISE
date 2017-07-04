@@ -1526,6 +1526,7 @@ struct ScriptingApi::Synth::Wrapper
 	API_METHOD_WRAPPER_0(Synth, isSustainPedalDown);
 	API_METHOD_WRAPPER_1(Synth, isKeyDown);
 	API_VOID_METHOD_WRAPPER_1(Synth, setClockSpeed);
+	API_VOID_METHOD_WRAPPER_1(Synth, setShouldKillRetriggeredNote);
 };
 
 
@@ -1586,6 +1587,7 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	ADD_API_METHOD_0(isSustainPedalDown);
 	ADD_API_METHOD_1(isKeyDown);
 	ADD_API_METHOD_1(setClockSpeed);
+	ADD_API_METHOD_1(setShouldKillRetriggeredNote);
 	
 };
 
@@ -2389,6 +2391,14 @@ void ScriptingApi::Synth::setClockSpeed(int clockSpeed)
 	case 16: owner->setClockSpeed(ModulatorSynth::ClockSpeed::Sixteens); break;
 	case 32: owner->setClockSpeed(ModulatorSynth::ThirtyTwos); break;
 	default: reportScriptError("Unknown clockspeed. Use 1,2,4,8,16 or 32");
+	}
+}
+
+void ScriptingApi::Synth::setShouldKillRetriggeredNote(bool killNote)
+{
+	if (owner != nullptr)
+	{
+		owner->setKillRetriggeredNote(killNote);
 	}
 }
 

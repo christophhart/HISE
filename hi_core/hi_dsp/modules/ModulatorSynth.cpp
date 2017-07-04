@@ -1049,7 +1049,8 @@ void ModulatorSynthVoice::stopNote(float, bool)
 
 void ModulatorSynth::handleRetriggeredNote(ModulatorSynthVoice *voice)
 {
-	voice->killVoice();
+	if(shouldKillRetriggeredNote)
+		voice->killVoice();
 };
 
 bool ModulatorSynth::getMidiInputFlag()

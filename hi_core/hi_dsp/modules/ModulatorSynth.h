@@ -333,6 +333,8 @@ public:
 
 	double getSampleRate() const { return Processor::getSampleRate(); }
 
+	void setKillRetriggeredNote(bool shouldBeKilled) { shouldKillRetriggeredNote = shouldBeKilled; }
+
 	/** specifies the behaviour when a note is started that is already ringing. By default, it is killed, but you can overwrite it to make something else. */
 	virtual void handleRetriggeredNote(ModulatorSynthVoice *voice);
 
@@ -393,6 +395,8 @@ private:
 
 	// ===================================================================================================================
 
+	
+
 	UnorderedStack<ModulatorSynthVoice*> activeVoices;
 
 	Colour iconColour;
@@ -402,6 +406,7 @@ private:
 	int lastClockCounter;
 
 	int voiceLimit;
+	bool shouldKillRetriggeredNote = true;
 
 	std::atomic<double> synthTimerIntervals[4];
 	std::atomic<double> nextTimerCallbackTimes[4];
