@@ -93,6 +93,8 @@ public:
 		balanceChain(new ModulatorChain(mc, "Pan Modulation", numVoices, Modulation::GainMode, this)),
 		pan(0.5f)
 	{
+		panBuffer = AudioSampleBuffer(1, 0);
+
 		parameterNames.add("Pan");
 		parameterNames.add("Width");
 
