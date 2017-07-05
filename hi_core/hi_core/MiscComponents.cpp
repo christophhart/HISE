@@ -185,6 +185,10 @@ void MouseCallbackComponent::mouseDown(const MouseEvent& event)
 			else
 			{
 				FloatingTile *t = new FloatingTile(GET_BACKEND_ROOT_WINDOW(this)->getBackendProcessor(), nullptr, jsonPopupData);
+				t->setOpaque(false);
+
+				t->setName(t->getCurrentFloatingPanel()->getBestTitle());
+
 				t->setSize(popupSize.getWidth(), popupSize.getHeight());
 				findParentComponentOfClass<FloatingTile>()->showComponentInRootPopup(t, this, popupSize.getPosition());
 				popupIsShowing = true;

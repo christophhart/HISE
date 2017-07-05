@@ -90,32 +90,185 @@ void ToggleButtonList::setValue(int index, bool value, NotificationType notify /
 	}
 }
 
+class MidiSourcePanel : public FloatingTileContent,
+						public Component,
+						public ToggleButtonList::Listener
+{
+public:
+
+	MidiSourcePanel(FloatingTile* parent) :
+		FloatingTileContent(parent)
+	{
+		StringArray midiInputs = MidiInput::getDevices();
+
+		numMidiDevices = midiInputs.size();
+
+		addAndMakeVisible(midiInputList = new ToggleButtonList(midiInputs, this));
+
+		//midiInputList->setLookAndFeel(&tblaf);
+		midiInputList->startTimer(4000);
+		AudioProcessorDriver::updateMidiToggleList(getMainController(), midiInputList);
+	}
+
+	SET_PANEL_NAME("MidiSources")
+
+	bool showTitleInPresentationMode() const override
+	{
+		return false;
+	}
+
+	void resized() override
+	{
+		midiInputList->setBounds(getParentShell()->getContentBounds());
+	}
+
+	void periodicCheckCallback(ToggleButtonList* list) override
+	{
+		const StringArray devices = MidiInput::getDevices();
+
+		if (numMidiDevices != devices.size())
+		{
+			list->rebuildList(devices);
+			numMidiDevices = devices.size();
+			AudioProcessorDriver::updateMidiToggleList(getMainController(), list);
+		}
+	}
+
+	void toggleButtonWasClicked(ToggleButtonList* list, int index, bool value) override
+	{
+		const String midiName = MidiInput::getDevices()[index];
+
+		dynamic_cast<AudioProcessorDriver*>(getMainController())->toggleMidiInput(midiName, value);
+	}
+
+private:
+
+	ScopedPointer<ToggleButtonList> midiInputList;
+
+	int numMidiDevices = 0;
+};
+
+
+class MidiChannelPanel : public FloatingTileContent,
+						 public Component,
+						 public ToggleButtonList::Listener
+{
+public:
+
+	MidiChannelPanel(FloatingTile* parent) :
+		FloatingTileContent(parent)
+	{
+		StringArray channelNames;
+		channelNames.add("All Channels");
+		for (int i = 0; i < 16; i++) channelNames.add("Channel " + String(i + 1));
+
+		addAndMakeVisible(channelList = new ToggleButtonList(channelNames, this));
+
+		//channelList->setLookAndFeel(&tblaf);
+
+		HiseEvent::ChannelFilterData* channelFilterData = getMainController()->getMainSynthChain()->getActiveChannelData();
+
+		channelList->setValue(0, channelFilterData->areAllChannelsEnabled());
+		for (int i = 0; i < 16; i++)
+		{
+			channelList->setValue(i + 1, channelFilterData->isChannelEnabled(i));
+		}
+
+	}
+
+	SET_PANEL_NAME("MidiChannelList");
+
+	void toggleButtonWasClicked(ToggleButtonList* list, int index, bool value) override
+	{
+		HiseEvent::ChannelFilterData *newData = getMainController()->getMainSynthChain()->getActiveChannelData();
+
+		if (index == 0)
+		{
+			newData->setEnableAllChannels(value);
+		}
+		else
+		{
+			newData->setEnableMidiChannel(index - 1, value);
+		}
+	}
+
+	void periodicCheckCallback(ToggleButtonList* list) override
+	{
+	}
+
+	void resized() override
+	{
+		channelList->setBounds(getParentShell()->getContentBounds());
+	}
+
+private:
+
+	ScopedPointer<ToggleButtonList> channelList;
+
+};
+
+class TuningWindow::Panel : public FloatingTileContent,
+	public Component
+{
+public:
+
+	Panel(FloatingTile* parent) :
+		FloatingTileContent(parent)
+	{
+		addAndMakeVisible(window = new TuningWindow(getMainController()));
+	}
+
+	SET_PANEL_NAME("TuningWindow");
+
+	void resized()
+	{
+		window->setBounds(getLocalBounds());
+	};
+
+	bool showTitleInPresentationMode() const override { return false; }
+
+private:
+
+	ScopedPointer<TuningWindow> window;
+
+};
+
+#define ADD(x) propIds.add(Identifier(#x));
+
 CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 	mc(mc_)
 {
+	ADD(Driver);
+	ADD(Device);
+	ADD(Output);
+	ADD(BufferSize);
+	ADD(SampleRate);
+	ADD(ScaleFactor);
+	ADD(StreamingMode);
+	ADD(SustainCC);
+	ADD(ClearMidiCC);
+	ADD(SampleLocation);
+	ADD(DebugMode);
     
     
-    if(HiseDeviceSimulator::isStandalone())
-    {
-        addAndMakeVisible(deviceSelector = new ComboBox("Driver"));
-        addAndMakeVisible(soundCardSelector = new ComboBox("Device"));
-        addAndMakeVisible(outputSelector = new ComboBox("Output"));
-        addAndMakeVisible(sampleRateSelector = new ComboBox("Sample Rate"));
-        addAndMakeVisible(bufferSelector = new ComboBox("Buffer Sizes"));
-        addAndMakeVisible(sampleRateSelector = new ComboBox("Sample Rate"));
+    addAndMakeVisible(deviceSelector = new ComboBox("Driver"));
+    addAndMakeVisible(soundCardSelector = new ComboBox("Device"));
+    addAndMakeVisible(outputSelector = new ComboBox("Output"));
+    addAndMakeVisible(sampleRateSelector = new ComboBox("Sample Rate"));
+    addAndMakeVisible(bufferSelector = new ComboBox("Buffer Sizes"));
+    addAndMakeVisible(sampleRateSelector = new ComboBox("Sample Rate"));
         
-        deviceSelector->addListener(this);
-        soundCardSelector->addListener(this);
-        outputSelector->addListener(this);
-        bufferSelector->addListener(this);
-        sampleRateSelector->addListener(this);
+    deviceSelector->addListener(this);
+    soundCardSelector->addListener(this);
+    outputSelector->addListener(this);
+    bufferSelector->addListener(this);
+    sampleRateSelector->addListener(this);
         
-        deviceSelector->setLookAndFeel(&plaf);
-        soundCardSelector->setLookAndFeel(&plaf);
-        outputSelector->setLookAndFeel(&plaf);
-        bufferSelector->setLookAndFeel(&plaf);
-        sampleRateSelector->setLookAndFeel(&plaf);
-    }
+    deviceSelector->setLookAndFeel(&plaf);
+    soundCardSelector->setLookAndFeel(&plaf);
+    outputSelector->setLookAndFeel(&plaf);
+    bufferSelector->setLookAndFeel(&plaf);
+    sampleRateSelector->setLookAndFeel(&plaf);
     
 	addAndMakeVisible(ccSustainSelector = new ComboBox("Sustain CC"));
     addAndMakeVisible(scaleFactorSelector = new ComboBox("Scale Factor"));
@@ -144,8 +297,6 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 	debugButton->setColour(TextButton::ColourIds::textColourOffId, Colours::white);
 	debugButton->setColour(TextButton::ColourIds::textColourOnId, Colours::white);
 
-	scaleFactorSelector->setVisible(false);
-	
 	rebuildMenus(true, true);
 
 #if HISE_IOS && HISE_IPHONE
@@ -163,14 +314,11 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 
 CustomSettingsWindow::~CustomSettingsWindow()
 {
-    if(HiseDeviceSimulator::isStandalone())
-    {
-        deviceSelector->removeListener(this);
-        sampleRateSelector->removeListener(this);
-        bufferSelector->removeListener(this);
-        soundCardSelector->removeListener(this);
-        outputSelector->removeListener(this);
-    }
+	deviceSelector->removeListener(this);
+	sampleRateSelector->removeListener(this);
+	bufferSelector->removeListener(this);
+	soundCardSelector->removeListener(this);
+	outputSelector->removeListener(this);
     
 	clearMidiLearn->removeListener(this);
 	relocateButton->removeListener(this);
@@ -271,12 +419,7 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
             
             bufferSelector->setSelectedItemIndex(bufferSizes.indexOf(thisBufferSize), dontSendNotification);
             
-#if IOS
-            samplerates.add(44100.0);
-            samplerates.add(48000.0);
-            samplerates.add(88200.0);
-            samplerates.add(96000.0);
-#else
+
             Array<double> allSamplerates = currentDevice->getAvailableSampleRates();
             Array<double> samplerates;
             
@@ -286,9 +429,8 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
             if (allSamplerates.contains(96000.0)) samplerates.add(96000.0);
             if (allSamplerates.contains(176400.0)) samplerates.add(176400.0);
             if (allSamplerates.contains(192000.0)) samplerates.add(192000.0);
-#endif
-            
-            for (int i = 0; i < samplerates.size(); i++)
+
+			for (int i = 0; i < samplerates.size(); i++)
             {
                 sampleRateSelector->addItem(String(samplerates[i], 0), i + 1);
             }
@@ -301,8 +443,6 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
         {
             String message = "The Audio driver " + deviceSelector->getText() + " could not be opened.";
             
-            
-            
             PresetHandler::showMessageWindow("Audio Driver Initialisation Error", message, PresetHandler::IconType::Error);
             
             driver->deviceManager->initialiseWithDefaultDevices(0, 2);
@@ -311,12 +451,10 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
             {
                 loopProtection=true;
                 rebuildMenus(true, true);
-                
             }
         }
     }
     
-
     scaleFactorSelector->clear();
     scaleFactorSelector->addItem("100%", 1);
     scaleFactorSelector->addItem("75%", 2);
@@ -523,111 +661,273 @@ void CustomSettingsWindow::paint(Graphics& g)
 	g.setColour(Colours::white);
 
 	g.setFont(GLOBAL_BOLD_FONT());
-    
-#if HISE_IOS
-    g.drawText("Buffer Size", 0, 0, getWidth() / 2 - 30, 30, Justification::centredRight);
-    g.drawText("Sample Rate", 0, 40, getWidth() / 2 - 30, 30, Justification::centredRight);
-    g.drawText("Sustain CC", 0, 80, getWidth() / 2 - 30, 30, Justification::centredRight);
-#else
 
 	int y = 0;
 
-    if(HiseDeviceSimulator::isStandalone())
-    {
-        g.drawText("Driver", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
-        y += 40;
-        g.drawText("Device", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
-        y += 40;
-        g.drawText("Output", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
-        y += 40;
-        g.drawText("Buffer Size", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
-        y += 40;
-        g.drawText("Sample Rate", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
-        y += 40;
-    }
-    
-#if !HISE_IOS
-    
-    if (scaleFactorSelector->isVisible())
-    {
-        g.drawText("Scale Factor", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
-        y += 40;
-    }
-    
-    g.drawText("Streaming Mode", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
-	y += 40;
-    
-    g.drawText("Sustain CC", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
-    y += 80;
+	if (isOn(Properties::Driver))
+	{
+		g.drawText("Driver", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
+		y += 40;
+	}
+	if (isOn(Properties::Device))
+	{
+		g.drawText("Device", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
+		y += 40;
+	}
+	if (isOn(Properties::Output))
+	{
+		g.drawText("Output", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
+		y += 40;
+	}
+	if (isOn(Properties::BufferSize))
+	{
+		g.drawText("Buffer Size", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
+		y += 40;
+	}
+	if (isOn(Properties::SampleRate))
+	{
+		g.drawText("Sample Rate", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
+		y += 40;
+	}
+	if (isOn(Properties::ScaleFactor))
+	{
+		g.drawText("Scale Factor", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
+		y += 40;
+	}
+	if (isOn(Properties::StreamingMode))
+	{
+		g.drawText("Streaming Mode", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
+		y += 40;
+	}
+	if (isOn(Properties::SustainCC))
+	{
+		g.drawText("Sustain CC", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
+		y += 40;
+	}
+	if (isOn(Properties::ClearMidiCC))
+	{
+		y += 40;
+	}
+	if (isOn(Properties::SampleLocation))
+	{
 
-    
-#endif
-	
-	
 #if USE_BACKEND
-	const String samplePath = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Samples).getFullPathName();
+		const String samplePath = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Samples).getFullPathName();
 #else
-	const String samplePath = ProjectHandler::Frontend::getSampleLocationForCompiledPlugin().getFullPathName();
+		const String samplePath = ProjectHandler::Frontend::getSampleLocationForCompiledPlugin().getFullPathName();
 #endif
-	
-	g.setFont(GLOBAL_BOLD_FONT());
 
-	g.drawText("Sample Location:", 15, y, getWidth() - 30, 30, Justification::centredTop);
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.drawText("Sample Location:", 15, y, getWidth() - 30, 30, Justification::centredTop);
 
-	g.setFont(GLOBAL_FONT());
-	g.drawText(samplePath, 10, y, getWidth()-20, 30, Justification::centredBottom);
-#endif
-	
+		g.setFont(GLOBAL_FONT());
+		g.drawText(samplePath, 10, y, getWidth() - 20, 30, Justification::centredBottom);
+
+		y += 80;
+	}
 }
 
 void CustomSettingsWindow::resized()
 {
     int y = 0;
     
-    if(HiseDeviceSimulator::isStandalone())
-    {
-#if !HISE_IOS
-        deviceSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
-        y+= 40;
-        soundCardSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
-        y+= 40;
-        outputSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
-        y+= 40;
-#endif
-        bufferSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
-        y+= 40;
-        sampleRateSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
-        y+= 40;
-        
-    }
+	if (isOn(Properties::Device))
+	{
+		deviceSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
+		y += 40;
+	}
+	else deviceSelector->setVisible(false);
+	
+	if (isOn(Properties::Driver))
+	{
+		soundCardSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
+		y += 40;
+	}
+	else soundCardSelector->setVisible(false);
 
+	if (isOn(Properties::Output))
+	{
+		outputSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
+		y += 40;
+	}
+	else outputSelector->setVisible(false);
 
-	if (scaleFactorSelector->isVisible())
+	if (isOn(Properties::BufferSize))
+	{
+		bufferSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
+		y += 40;
+	}
+	else bufferSelector->setVisible(false);
+
+	if (isOn(Properties::SampleRate))
+	{
+		sampleRateSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
+		y += 40;
+	}
+	else sampleRateSelector->setVisible(false);
+
+	if (isOn(Properties::ScaleFactor))
 	{
 		scaleFactorSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
 		y += 40;
 	}
+	else scaleFactorSelector->setVisible(false);
 
-#if !HISE_IOS
-	diskModeSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
-    y+= 40;
-#endif
+	if (isOn(Properties::StreamingMode))
+	{
+		diskModeSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
+		y += 40;
+	}
+	else diskModeSelector->setVisible(false);
 
-	ccSustainSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
-	y += 40;
+	if (isOn(Properties::SustainCC))
+	{
+		ccSustainSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
+		y += 40;
+	}
+	else ccSustainSelector->setVisible(false);
 
-	clearMidiLearn->setBounds(10, y, getWidth() - 20, 30);
+	if (isOn(Properties::ClearMidiCC))
+	{
+		clearMidiLearn->setBounds(10, y, getWidth() - 20, 30);
+		y += 40;
+	}
+	else clearMidiLearn->setVisible(false);
 
-#if !HISE_IOS
-	y += 80;
-	relocateButton->setBounds(10, y, getWidth() - 20, 30);
-#endif
+	if (isOn(Properties::SampleLocation))
+	{
+		y += 40;
+		relocateButton->setBounds(10, y, getWidth() - 20, 30);
+		y += 40;
+	}
+	else relocateButton->setVisible(false);
 
-	y += 40;
-
-	debugButton->setBounds(10, y, getWidth() - 20, 30);
-
+	if (isOn(Properties::DebugMode))
+	{
+		debugButton->setBounds(10, y, getWidth() - 20, 30);
+	}
+	else debugButton->setVisible(false);
 }
+
+class CustomSettingsWindow::Panel: public FloatingTileContent,
+public Component
+{
+public:
+
+#define SET(x) storePropertyInObject(obj, (int)x, var(window->properties[(int)x]));
+	
+	var toDynamicObject() const override
+	{
+		var obj = FloatingTileContent::toDynamicObject();
+
+		SET(Properties::Driver);
+		SET(Properties::Device);
+		SET(Properties::Output);
+		SET(Properties::BufferSize);
+		SET(Properties::SampleRate);
+		SET(Properties::StreamingMode);
+		SET(Properties::ScaleFactor);
+		SET(Properties::SustainCC);
+		SET(Properties::ClearMidiCC);
+		SET(Properties::SampleLocation);
+		SET(Properties::DebugMode);
+		
+		return obj;
+	}
+
+#undef SET
+
+#define SET(x) window->setProperty(x, getPropertyWithDefault(object, (int)x));
+
+	void fromDynamicObject(const var& object) override
+	{
+		FloatingTileContent::fromDynamicObject(object);
+
+		SET(Properties::Driver);
+		SET(Properties::Device);
+		SET(Properties::Output);
+		SET(Properties::BufferSize);
+		SET(Properties::SampleRate);
+		SET(Properties::StreamingMode);
+		SET(Properties::ScaleFactor);
+		SET(Properties::SustainCC);
+		SET(Properties::ClearMidiCC);
+		SET(Properties::SampleLocation);
+		SET(Properties::DebugMode);
+		
+	}
+
+#undef SET
+
+#define SET(x) RETURN_DEFAULT_PROPERTY_ID(index, (int)x, window->propIds[(int)x - (int)FloatingTileContent::numPropertyIds]);
+
+	Identifier getDefaultablePropertyId(int index) const override
+	{
+		if (index < FloatingTileContent::numPropertyIds)
+			return FloatingTileContent::getDefaultablePropertyId(index);
+
+		SET(Properties::Driver);
+		SET(Properties::Device);
+		SET(Properties::Output);
+		SET(Properties::BufferSize);
+		SET(Properties::SampleRate);
+		SET(Properties::StreamingMode);
+		SET(Properties::ScaleFactor);
+		SET(Properties::SustainCC);
+		SET(Properties::ClearMidiCC);
+		SET(Properties::SampleLocation);
+		SET(Properties::DebugMode);
+
+		jassertfalse;
+		return{};
+	}
+
+#undef SET
+
+#define SET(x) RETURN_DEFAULT_PROPERTY(index, (int)x, true);
+
+	var getDefaultProperty(int index) const override
+	{
+		if (index < FloatingTileContent::numPropertyIds)
+			return FloatingTileContent::getDefaultProperty(index);
+
+		SET(Properties::Driver);
+		SET(Properties::Device);
+		SET(Properties::Output);
+		SET(Properties::BufferSize);
+		SET(Properties::SampleRate);
+		SET(Properties::StreamingMode);
+		SET(Properties::ScaleFactor);
+		SET(Properties::SustainCC);
+		SET(Properties::ClearMidiCC);
+		SET(Properties::SampleLocation);
+		SET(Properties::DebugMode);
+
+		jassertfalse;
+		return{};
+	}
+
+	
+	Panel(FloatingTile* parent) :
+		FloatingTileContent(parent)
+	{
+		addAndMakeVisible(window = new CustomSettingsWindow(getMainController()));
+	}
+
+	SET_PANEL_NAME("CustomSettings");
+
+	void resized()
+	{
+		window->setBounds(getLocalBounds());
+	};
+
+	bool showTitleInPresentationMode() const override { return false; }
+
+private:
+
+	ScopedPointer<CustomSettingsWindow> window;
+
+};
 
 CombinedSettingsWindow::CombinedSettingsWindow(MainController* mc_):
 	mc(mc_)

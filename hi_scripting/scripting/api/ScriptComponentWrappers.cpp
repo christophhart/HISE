@@ -764,6 +764,7 @@ ScriptCreatedComponentWrappers::FloatingTileWrapper::FloatingTileWrapper(ScriptC
 	auto ft = new FloatingTile(mc, nullptr);
 
 	ft->setName(floatingTile->name.toString());
+	ft->setOpaque(false);
 
 	component = ft;
 }

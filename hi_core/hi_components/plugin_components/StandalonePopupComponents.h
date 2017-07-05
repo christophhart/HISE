@@ -76,12 +76,160 @@ private:
 };
 
 
+class TuningWindow : public Component,
+					 public ComboBox::Listener
+{
+public:
+
+	TuningWindow(MainController* mc_) :
+		mc(mc_)
+	{
+		addAndMakeVisible(transposeSelector = new ComboBox("Transpose"));
+		addAndMakeVisible(microTuningSelector = new ComboBox("MicroTuning"));
+
+		transposeSelector->addListener(this);
+		microTuningSelector->addListener(this);
+
+		transposeSelector->setLookAndFeel(&plaf);
+		microTuningSelector->setLookAndFeel(&plaf);
+
+		for (int i = -12; i < 13; i++)
+		{
+			transposeSelector->addItem(String(-i) + " semitones", i + 13);
+		}
+
+		transposeSelector->setSelectedId(getIndexForTransposeValue(dynamic_cast<GlobalSettingManager*>(mc)->transposeValue), dontSendNotification);
+
+		microTuningSelector->addItem("+25 cent", 1);
+		microTuningSelector->addItem("+20 cent", 2);
+		microTuningSelector->addItem("+15 cent", 3);
+		microTuningSelector->addItem("+10 cent", 4);
+		microTuningSelector->addItem("+5 cent", 5);
+		microTuningSelector->addItem("0 cent", 6);
+		microTuningSelector->addItem("-5 cent", 7);
+		microTuningSelector->addItem("-10 cent", 8);
+		microTuningSelector->addItem("-15 cent", 9);
+		microTuningSelector->addItem("-20 cent", 10);
+		microTuningSelector->addItem("-25 cent", 11);
+
+		microTuningSelector->setSelectedId(getIndexForPitchFactor(mc->getGlobalPitchFactorSemiTones()), dontSendNotification);
+
+		setSize(250, 90);
+	}
+
+	void paint(Graphics& g) override
+	{
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.setColour(Colours::white);
+
+		int y = 10;
+
+		g.drawText("Transpose:", 0, y, getWidth() / 2 - 20, 30, Justification::centredRight);
+
+		y += 40;
+
+		g.drawText("Microtuning:", 0, y, getWidth() / 2 - 20, 30, Justification::centredRight);
+	}
+
+	void resized() override
+	{
+		int x = getWidth() / 2 - 10;
+		int w = getWidth() - x - 10;
+
+		int y = 10;
+
+		transposeSelector->setBounds(x, y, w, 30);
+
+		y += 40;
+
+		microTuningSelector->setBounds(x, y, w, 30);
+	}
+
+	void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override
+	{
+		if (comboBoxThatHasChanged == transposeSelector)
+		{
+			int transposeValue = comboBoxThatHasChanged->getText().getIntValue();
+
+			mc->allNotesOff();
+			mc->getEventHandler().setGlobalTransposeValue(transposeValue);
+			dynamic_cast<AudioProcessorDriver*>(mc)->transposeValue = transposeValue;
+		}
+		else if (comboBoxThatHasChanged == microTuningSelector)
+		{
+			int cent = microTuningSelector->getText().getIntValue();
+
+			double semiTones = (double)cent / 100.0;
+
+			dynamic_cast<AudioProcessorDriver*>(mc)->microTuning = semiTones;
+
+			mc->setGlobalPitchFactor(semiTones);
+		}
+	}
+
+	class Panel;
+
+	
+
+private:
+
+	int getIndexForPitchFactor(double pitchFactorInSemiTones)
+	{
+		int cent = roundDoubleToInt(pitchFactorInSemiTones * 100.0);
+
+		switch (cent)
+		{
+		case 25: return 1;
+		case 20: return 2;
+		case 15: return 3;
+		case 10: return 4;
+		case 5: return 5;
+		case 0: return 6;
+		case -5: return 7;
+		case -10: return 8;
+		case -15: return 9;
+		case -20: return 10;
+		case -25: return 11;
+		default: return 6;
+		}
+	}
+
+	int getIndexForTransposeValue(int transposeValue)
+	{
+		return -transposeValue + 13;
+	}
+
+
+	PopupLookAndFeel plaf;
+
+	MainController* mc;
+
+	ScopedPointer<ComboBox> transposeSelector;
+	ScopedPointer<ComboBox> microTuningSelector;
+};
+
 
 class CustomSettingsWindow : public Component,
 	public ComboBox::Listener,
 	public Button::Listener
 {
 public:
+
+	enum class Properties
+	{
+		Driver = 4, // sloppy, update this when the amount FloatingTileContent::Properties change...
+		Device,
+		Output,
+		BufferSize,
+		SampleRate,
+		ScaleFactor,
+		StreamingMode,
+		SustainCC,
+		ClearMidiCC,
+		SampleLocation,
+		DebugMode,
+		numProperties
+	};
 
 	CustomSettingsWindow(MainController* mc_);
 
@@ -103,23 +251,19 @@ public:
 
 	void resized() override;
 
-	void enableScaleFactorSelector(bool shouldBeEnabled)
+	class Panel;
+
+	void setProperty(Properties id, bool shouldBeOn)
 	{
-		if (shouldBeEnabled)
-		{
-			scaleFactorSelector->setVisible(true);
-			setSize(getWidth(), getHeight() + 40);
-			resized();
-		}
-		else
-		{
-			scaleFactorSelector->setVisible(false);
-			setSize(getWidth(), getHeight() - 40);
-			resized();
-		}
+		properties[(int)id] = shouldBeOn;
 	}
 
+	bool isOn(Properties p) const { return properties[(int)p]; }
+
 private:
+
+	bool properties[(int)Properties::numProperties];
+	Array<Identifier> propIds;
 
 	PopupLookAndFeel plaf;
 	BlackTextButtonLookAndFeel blaf;

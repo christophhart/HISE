@@ -65,6 +65,13 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<PerformanceLabelPanel>(PopupMenuOptions::PerformanceStatistics);
 	registerType<ActivityLedPanel>(PopupMenuOptions::ActivityLed);
 
+	registerType<TuningWindow::Panel>(PopupMenuOptions::TuningWindow),
+	registerType<CustomSettingsWindow::Panel>(PopupMenuOptions::PluginSettings),
+	registerType<MidiSourcePanel>(PopupMenuOptions::MidiSourceList);
+	registerType<MidiChannelPanel>(PopupMenuOptions::MidiChannelList);
+
+	//MidiSourceList
+
 #if USE_BACKEND
 	registerType<GlobalConnectorPanel<ModulatorSampler>>(PopupMenuOptions::SampleConnector);
 	registerType<SampleEditorPanel>(PopupMenuOptions::SampleEditor);
@@ -549,11 +556,20 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 		addToPopupMenu(m, PopupMenuOptions::SliderPackPanel, "Array Editor");
 		addToPopupMenu(m, PopupMenuOptions::MidiKeyboard, "Virtual Keyboard");
 		addToPopupMenu(m, PopupMenuOptions::PopoutButton, "Popout Button");
-		addToPopupMenu(m, PopupMenuOptions::PerformanceStatistics, "Performance Statistics");
-		addToPopupMenu(m, PopupMenuOptions::ActivityLed, "MIDI Activity LED");
+		
 		addToPopupMenu(m, PopupMenuOptions::Note, "Note");
 		addToPopupMenu(m, PopupMenuOptions::AudioFileTable, "Audio File Pool Table");
 		addToPopupMenu(m, PopupMenuOptions::ImageTable, "Image Pool Table");
+
+		PopupMenu fm;
+
+		addToPopupMenu(fm, PopupMenuOptions::PerformanceStatistics, "Performance Statistics");
+		addToPopupMenu(fm, PopupMenuOptions::ActivityLed, "MIDI Activity LED");
+		addToPopupMenu(fm, PopupMenuOptions::PluginSettings, "Plugin Settings");
+		addToPopupMenu(fm, PopupMenuOptions::MidiSourceList, "Midi Source List");
+		addToPopupMenu(fm, PopupMenuOptions::MidiChannelList, "Midi Channel List");
+		
+		m.addSubMenu("Frontend Panels", fm);
 
 		m.addSeparator();
 
@@ -612,7 +628,10 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::PresetBrowser:		parent->setNewContent(GET_PANEL_NAME(PresetBrowserPanel)); break;
 	case PopupMenuOptions::PopoutButton:		parent->setNewContent(GET_PANEL_NAME(PopoutButtonPanel)); break;
 	case PopupMenuOptions::ActivityLed:		    parent->setNewContent(GET_PANEL_NAME(ActivityLedPanel)); break;
+	case PopupMenuOptions::PluginSettings:		parent->setNewContent(GET_PANEL_NAME(CustomSettingsWindow::Panel)); break;
 	case PopupMenuOptions::PerformanceStatistics: parent->setNewContent(GET_PANEL_NAME(PerformanceLabelPanel)); break;
+	case PopupMenuOptions::MidiSourceList:		parent->setNewContent(GET_PANEL_NAME(MidiSourcePanel)); break;
+	case PopupMenuOptions::MidiChannelList:		parent->setNewContent(GET_PANEL_NAME(MidiChannelPanel)); break;
 	case PopupMenuOptions::ApiCollection:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<ApiCollection>)); break;
 	case PopupMenuOptions::PatchBrowser:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<PatchBrowser>)); break;
 	case PopupMenuOptions::FileBrowser:			parent->setNewContent(GET_PANEL_NAME(GenericPanel<FileBrowser>)); break;
