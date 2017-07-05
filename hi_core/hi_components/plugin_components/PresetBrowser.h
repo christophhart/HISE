@@ -367,6 +367,11 @@ public:
 		presetColumn->setSelectedFile(newPreset, dontSendNotification);
 	}
 
+	void presetListUpdated() override
+	{
+		rebuildAllPresets();
+	}
+
 	void rebuildAllPresets();
 	String getCurrentlyLoadedPresetName();
 

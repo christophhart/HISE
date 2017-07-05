@@ -982,7 +982,7 @@ String ScriptingApi::Engine::getCurrentUserPresetName()
 
 void ScriptingApi::Engine::saveUserPreset()
 {
-	//getProcessor()->getMainController()->getUserPresetHandler().saveUserPreset();
+	getProcessor()->getMainController()->getUserPresetHandler().savePreset();
 }
 
 DynamicObject * ScriptingApi::Engine::getPlayHead() { return getProcessor()->getMainController()->getHostInfoObject(); }

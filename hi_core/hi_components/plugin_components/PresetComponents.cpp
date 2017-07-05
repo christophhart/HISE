@@ -423,7 +423,7 @@ void PresetBox::buttonClicked(Button *b)
 	}
 	else if (b == presetSaveButton)
 	{
-		UserPresetHandler::saveUserPreset(mc->getMainSynthChain());
+		UserPresetHelpers::saveUserPreset(mc->getMainSynthChain());
 
 		mc->rebuildUserPresetDatabase();
 	}

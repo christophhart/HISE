@@ -295,7 +295,7 @@ void PresetBrowserColumn::buttonClicked(Button* b)
 			if (newPresetName.isNotEmpty())
 			{
 				File newPreset = currentRoot.getChildFile(newPresetName + ".preset");
-				UserPresetHandler::saveUserPreset(mc->getMainSynthChain(), newPreset.getFullPathName());
+				UserPresetHelpers::saveUserPreset(mc->getMainSynthChain(), newPreset.getFullPathName());
                 
 				setNewRootDirectory(currentRoot);
                 
@@ -592,7 +592,7 @@ void MultiColumnPresetBrowser::loadPreset(const File& f)
 {
     if(f.existsAsFile())
     {
-        UserPresetHandler::loadUserPreset(mc->getMainSynthChain(), f);
+		UserPresetHelpers::loadUserPreset(mc->getMainSynthChain(), f);
         currentlyLoadedPreset = allPresets.indexOf(f);
         
 #if NEW_USER_PRESET

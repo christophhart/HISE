@@ -246,7 +246,9 @@ void MainController::SampleManager::setDiskMode(DiskMode mode) noexcept
 }
 
 
-MainController::UserPresetHandler::UserPresetHandler(MainController* mc_) : mc(mc_)
+MainController::UserPresetHandler::UserPresetHandler(MainController* mc_) : 
+	mc(mc_),
+	saver(this)
 {
 	auto h = dynamic_cast<ThreadWithQuasiModalProgressWindow::Holder*>(mc);
 

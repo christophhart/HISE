@@ -1515,7 +1515,7 @@ void BackendCommandTarget::Actions::showProjectInFinder(BackendRootWindow *bpe)
 
 void BackendCommandTarget::Actions::saveUserPreset(BackendRootWindow *bpe)
 {
-    UserPresetHandler::saveUserPreset(bpe->getMainSynthChain());
+	UserPresetHelpers::saveUserPreset(bpe->getMainSynthChain());
 }
 
 void BackendCommandTarget::Actions::loadUserPreset(BackendRootWindow *bpe, const File &fileToLoad)
@@ -1524,7 +1524,7 @@ void BackendCommandTarget::Actions::loadUserPreset(BackendRootWindow *bpe, const
     
     if (!shouldDiscard) return;
     
-    UserPresetHandler::loadUserPreset(bpe->getMainSynthChain(), fileToLoad);
+	UserPresetHelpers::loadUserPreset(bpe->getMainSynthChain(), fileToLoad);
 }
 
 void BackendCommandTarget::Actions::redirectSampleFolder(Processor *processorForTheProjectHandler)
@@ -1926,7 +1926,7 @@ void BackendCommandTarget::Actions::validateUserPresets(BackendRootWindow * bpe)
 
 		for (auto f : userPresets)
 		{
-			const int numControlsForThisFile = UserPresetHandler::addMissingControlsToUserPreset(mc->getMainSynthChain(), f);
+			const int numControlsForThisFile = UserPresetHelpers::addMissingControlsToUserPreset(mc->getMainSynthChain(), f);
 
 			if (numControlsForThisFile == -1)
 			{
@@ -1949,7 +1949,7 @@ void BackendCommandTarget::Actions::validateUserPresets(BackendRootWindow * bpe)
 		{
 			for (auto f : userPresets)
 			{
-				if (UserPresetHandler::updateVersionNumber(mc->getMainSynthChain(), f))
+				if (UserPresetHelpers::updateVersionNumber(mc->getMainSynthChain(), f))
 					numWrongVersionedFiles++;
 			}
 		}

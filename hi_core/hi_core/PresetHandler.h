@@ -497,7 +497,7 @@ private:
 };
 
 
-class UserPresetHandler
+class UserPresetHelpers
 {
 public:
     

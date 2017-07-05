@@ -237,7 +237,7 @@ void UserPresetData::loadPreset(int categoryToLoad, int presetToLoad) const
 					listeners[i]->presetLoaded(currentCategoryIndex, currentPresetIndex, e->name);
 				}
 
-				UserPresetHandler::loadUserPreset(mc->getMainSynthChain(), e->v);
+				UserPresetHelpers::loadUserPreset(mc->getMainSynthChain(), e->v);
 			}
 		}
 	}
@@ -350,15 +350,15 @@ void UserPresetData::refreshPresetFileList()
 
 
 
-void UserPresetHandler::saveUserPreset(ModulatorSynthChain *chain, const String& targetFile/*=String()*/)
+void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String& targetFile/*=String()*/)
 {
 #if USE_BACKEND
 
-	const String version = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version);
+	const String version = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, &GET_PROJECT_HANDLER(chain));
 
 	SemanticVersionChecker versionChecker(version, version);
 
-	if (versionChecker.newVersionNumberIsValid())
+	if (!versionChecker.newVersionNumberIsValid())
 	{
 		PresetHandler::showMessageWindow("Invalid version number", "You need semantic versioning (something like 1.0.0) in order to support user presets", PresetHandler::IconType::Error);
 		return;
@@ -377,9 +377,10 @@ void UserPresetHandler::saveUserPreset(ModulatorSynthChain *chain, const String&
 	File presetFile;
 	bool doit = false;
 
-	if (targetFile.isNotEmpty())
+	if (targetFile.isNotEmpty() && PresetHandler::showYesNoWindow("Confirm overwrite", "Do you want to overwrite the preset (Press cancel to create a new user preset?"))
 	{
 		presetFile = File(targetFile);
+		presetFile.deleteFile();
 		doit = true;
 	}
 	else
@@ -388,6 +389,9 @@ void UserPresetHandler::saveUserPreset(ModulatorSynthChain *chain, const String&
 
 		if (name.isNotEmpty())
 		{
+			if (targetFile.isNotEmpty())
+				userPresetDir = File(targetFile).getParentDirectory();
+
 			presetFile = userPresetDir.getChildFile(name + ".preset");
 			doit = true;
 		}
@@ -395,7 +399,7 @@ void UserPresetHandler::saveUserPreset(ModulatorSynthChain *chain, const String&
 
 	if (doit)
     {       
-        if(!presetFile.existsAsFile() || PresetHandler::showYesNoWindow("Confirm overwrite", "Do you want to overwrite the preset?"))
+        if(!presetFile.existsAsFile() )
         {
             Processor::Iterator<JavascriptMidiProcessor> iter(chain);
             
@@ -419,13 +423,15 @@ void UserPresetHandler::saveUserPreset(ModulatorSynthChain *chain, const String&
 
 				presetFile.replaceWithText(xml->createDocument(""));
 
+				chain->getMainController()->getUserPresetHandler().sendRebuildMessage();
+
 				return;
             }
         }
     }
 }
 
-void UserPresetHandler::loadUserPreset(ModulatorSynthChain *chain, const File &fileToLoad)
+void UserPresetHelpers::loadUserPreset(ModulatorSynthChain *chain, const File &fileToLoad)
 {
 	ScopedPointer<XmlElement> xml = XmlDocument::parse(fileToLoad);
     
@@ -455,13 +461,13 @@ void UserPresetHandler::loadUserPreset(ModulatorSynthChain *chain, const File &f
     }
 }
 
-void UserPresetHandler::loadUserPreset(ModulatorSynthChain* chain, const ValueTree &parent)
+void UserPresetHelpers::loadUserPreset(ModulatorSynthChain* chain, const ValueTree &parent)
 {
 	chain->getMainController()->loadUserPresetAsync(parent);
 
 }
 
-int UserPresetHandler::addMissingControlsToUserPreset(ModulatorSynthChain* chain, const File& fileToUpdate)
+int UserPresetHelpers::addMissingControlsToUserPreset(ModulatorSynthChain* chain, const File& fileToUpdate)
 {
 	static const Identifier type("type");
 	static const Identifier id("id");
@@ -526,7 +532,7 @@ int UserPresetHandler::addMissingControlsToUserPreset(ModulatorSynthChain* chain
 	return -1;
 }
 
-bool UserPresetHandler::updateVersionNumber(ModulatorSynthChain* chain, const File& fileToUpdate)
+bool UserPresetHelpers::updateVersionNumber(ModulatorSynthChain* chain, const File& fileToUpdate)
 {
 	ScopedPointer<XmlElement> xml = XmlDocument::parse(fileToUpdate);
 
@@ -549,7 +555,7 @@ bool UserPresetHandler::updateVersionNumber(ModulatorSynthChain* chain, const Fi
 	return false;
 }
 
-bool UserPresetHandler::checkVersionNumber(ModulatorSynthChain* chain, XmlElement& element)
+bool UserPresetHelpers::checkVersionNumber(ModulatorSynthChain* chain, XmlElement& element)
 {
 	const String presetVersion = element.getStringAttribute("Version");
 
@@ -564,7 +570,7 @@ bool UserPresetHandler::checkVersionNumber(ModulatorSynthChain* chain, XmlElemen
 	return !versionChecker.isMinorVersionUpdate() && !versionChecker.isMajorVersionUpdate();
 }
 
-String UserPresetHandler::getCurrentVersionNumber(ModulatorSynthChain* chain)
+String UserPresetHelpers::getCurrentVersionNumber(ModulatorSynthChain* chain)
 {
 #if USE_BACKEND
 	return SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, &GET_PROJECT_HANDLER(chain));
@@ -574,7 +580,7 @@ String UserPresetHandler::getCurrentVersionNumber(ModulatorSynthChain* chain)
 #endif
 }
 
-File UserPresetHandler::getUserPresetFile(ModulatorSynthChain *chain, const String &fileNameWithoutExtension)
+File UserPresetHelpers::getUserPresetFile(ModulatorSynthChain *chain, const String &fileNameWithoutExtension)
 {
 #if USE_BACKEND
     return GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::UserPresets).getChildFile(fileNameWithoutExtension + ".preset");

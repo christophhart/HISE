@@ -257,6 +257,8 @@ public:
 
 			virtual void presetChanged(const File& newPreset) = 0;
 
+			virtual void presetListUpdated() = 0;
+
 		private:
 
 			friend class WeakReference<Listener>;
@@ -294,9 +296,45 @@ public:
 
 		void incPreset(bool next, bool stayInSameDirectory);
 
+		void sendRebuildMessage()
+		{
+			for (int i = 0; i < listeners.size(); i++)
+			{
+				if (listeners[i] != nullptr)
+				{
+					listeners[i]->presetListUpdated();
+				}
+			}
+		}
+
+		void savePreset()
+		{
+			saver.triggerAsyncUpdate();
+		}
+
 		// ===========================================================================================================
 
 	private:
+
+		class Saver : public AsyncUpdater
+		{
+		public:
+
+			Saver(UserPresetHandler* handler_) :
+				handler(handler_)
+			{};
+		
+			void handleAsyncUpdate() override
+			{
+				UserPresetHelpers::saveUserPreset(handler->mc->getMainSynthChain(), handler->getCurrentlyLoadedFile().getFullPathName());
+			}
+
+		private:
+			
+			UserPresetHandler* handler;
+		};
+
+		Saver saver;
 
 		void loadPresetInternal();
 
