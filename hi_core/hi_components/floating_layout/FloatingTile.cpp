@@ -748,14 +748,19 @@ void FloatingTile::bringButtonsToFront()
 
 void FloatingTile::paint(Graphics& g)
 {
-	if (getParentType() == ParentType::Root)
+	if (isOpaque())
 	{
-		g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
+		if (getParentType() == ParentType::Root)
+		{
+			g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
+		}
+		else
+		{
+			g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::ModulatorSynthBackgroundColourId));
+		}
 	}
-	else
-	{
-		g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::ModulatorSynthBackgroundColourId));
-	}
+
+	
 
     if(getLayoutData().isFolded() && getParentType() == ParentType::Horizontal)
     {
