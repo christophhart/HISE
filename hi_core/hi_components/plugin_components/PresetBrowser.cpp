@@ -357,6 +357,8 @@ mc(mc_)
     rootFile = ProjectHandler::Frontend::getUserPresetDirectory();
 #endif
 
+	mc->getUserPresetHandler().addListener(this);
+
 	addAndMakeVisible(bankColumn = new PresetBrowserColumn(mc, 0, rootFile, this));
 	addAndMakeVisible(categoryColumn = new PresetBrowserColumn(mc, 1, rootFile, this));
 	addAndMakeVisible(presetColumn = new PresetBrowserColumn(mc, 2, rootFile, this));
@@ -380,6 +382,8 @@ mc(mc_)
 
 MultiColumnPresetBrowser::~MultiColumnPresetBrowser()
 {
+	mc->getUserPresetHandler().removeListener(this);
+
 	searchBar->inputLabel->removeListener(this);
 	searchBar->inputLabel->removeListener(presetColumn);
 
@@ -591,10 +595,12 @@ void MultiColumnPresetBrowser::loadPreset(const File& f)
         UserPresetHandler::loadUserPreset(mc->getMainSynthChain(), f);
         currentlyLoadedPreset = allPresets.indexOf(f);
         
+#if NEW_USER_PRESET
         if (listener != nullptr)
         {
             listener->presetChanged(f.getFileNameWithoutExtension());
         }
+#endif
     }
 }
 

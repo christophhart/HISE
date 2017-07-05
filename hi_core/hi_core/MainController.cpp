@@ -876,3 +876,122 @@ void MainController::CodeHandler::setMainConsole(Console* console)
 {
 	mainConsole = dynamic_cast<Component*>(console);
 }
+
+
+
+void MainController::UserPresetHandler::incPreset(bool next, bool stayInSameDirectory)
+{
+	Array<File> allPresets;
+
+	auto userDirectory = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
+
+	userDirectory.findChildFiles(allPresets, File::findFiles, true, "*.preset");
+	allPresets.sort();
+
+	if (!currentlyLoadedFile.existsAsFile())
+	{
+		currentlyLoadedFile = allPresets.getFirst();
+	}
+	else
+	{
+		if (stayInSameDirectory)
+		{
+			allPresets.clear();
+			currentlyLoadedFile.getParentDirectory().findChildFiles(allPresets, File::findFiles, false, "*.preset");
+			allPresets.sort();
+		}
+
+		if (allPresets.size() == 1)
+			return;
+
+		const int oldIndex = allPresets.indexOf(currentlyLoadedFile);
+
+		if (next)
+		{
+			const int newIndex = (oldIndex + 1) % allPresets.size();
+			currentlyLoadedFile = allPresets[newIndex];
+		}
+		else
+		{
+			int newIndex = oldIndex - 1;
+			if (newIndex == -1)
+				newIndex = allPresets.size() - 1;
+
+			currentlyLoadedFile = allPresets[newIndex];
+		}
+	}
+
+	loadUserPreset(currentlyLoadedFile);
+
+
+#if 0
+
+	int newIndex = -1;
+
+	Array<File> allPresets;
+
+	auto userDirectory = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
+
+	userDirectory.findChildFiles(allPresets, File::findFiles, true);
+
+	int currentlyLoadedPreset = allPresets.indexOf(currentlyLoadedFile);
+
+	if (next)
+	{
+		newIndex = (currentlyLoadedPreset + 1) % (allPresets.size());
+
+		const bool differentDirectories = allPresets[currentlyLoadedPreset].getParentDirectory() != allPresets[newIndex].getParentDirectory();
+
+		if (stayInSameDirectory && differentDirectories)
+		{
+			// Get the first file of the directory
+			File oldParentDirectory = allPresets[currentlyLoadedPreset].getParentDirectory();
+
+			for (int i = 0; i < allPresets.size(); i++)
+			{
+				if (allPresets[i].getParentDirectory() == oldParentDirectory)
+				{
+					newIndex = i;
+					break;
+				}
+			}
+		}
+	}
+	else
+	{
+		if (currentlyLoadedPreset <= 0)
+		{
+			newIndex = allPresets.size() - 1;
+		}
+		else
+		{
+			newIndex = (currentlyLoadedPreset - 1) % allPresets.size();
+		}
+
+		const bool differentDirectories = allPresets[currentlyLoadedPreset].getParentDirectory() != allPresets[newIndex].getParentDirectory();
+
+		if (stayInSameDirectory && differentDirectories)
+		{
+			// Get the last file of the directory
+			File oldParentDirectory = allPresets[currentlyLoadedPreset].getParentDirectory();
+
+			for (int i = allPresets.size() - 1; i >= 0; i--)
+			{
+				if (allPresets[i].getParentDirectory() == oldParentDirectory)
+				{
+					newIndex = i;
+					break;
+				}
+			}
+		}
+
+	}
+
+	if (newIndex != currentlyLoadedPreset)
+	{
+		currentlyLoadedPreset = newIndex;
+
+		
+	}
+#endif
+}

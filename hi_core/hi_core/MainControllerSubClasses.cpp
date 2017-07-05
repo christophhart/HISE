@@ -283,11 +283,32 @@ void MainController::UserPresetHandler::loadUserPreset(const ValueTree& presetTo
 	startTimer(50);
 }
 
+void MainController::UserPresetHandler::loadUserPreset(const File& fileToLoad)
+{
+	mc->allNotesOff();
+	mc->presetLoadRampFlag.set(-1);
+
+	currentlyLoadedFile = fileToLoad;
+	currentPreset = ValueTree();
+
+	startTimer(50);
+}
+
 void MainController::UserPresetHandler::loadPresetInternal()
 {
 #if USE_BACKEND
 	if (!GET_PROJECT_HANDLER(mc->getMainSynthChain()).isActive()) return;
 #endif
+
+	if (!currentPreset.isValid())
+	{
+		ScopedPointer<XmlElement> xml = XmlDocument::parse(currentlyLoadedFile);
+
+		if (xml != nullptr)
+		{
+			currentPreset = ValueTree::fromXml(*xml);
+		}
+	}
 
 	Processor::Iterator<JavascriptMidiProcessor> iter(mc->getMainSynthChain());
 
@@ -322,6 +343,14 @@ void MainController::UserPresetHandler::loadPresetInternal()
 	if(!h->isBusy())
 	{
 		mc->presetLoadRampFlag.set(1);
+	}
+
+	for (int i = 0; i < listeners.size(); i++)
+	{
+		if (listeners[i] != nullptr)
+		{
+			listeners[i]->presetChanged(currentlyLoadedFile);
+		}
 	}
 }
 

@@ -756,6 +756,12 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_2(Engine, setKeyColour);
 	API_VOID_METHOD_WRAPPER_2(Engine, showErrorMessage);
 	API_VOID_METHOD_WRAPPER_1(Engine, setLowestKeyToDisplay);
+
+	API_VOID_METHOD_WRAPPER_1(Engine, loadNextUserPreset);
+	API_VOID_METHOD_WRAPPER_1(Engine, loadPreviousUserPreset);
+	API_METHOD_WRAPPER_0(Engine, getCurrentUserPresetName);
+	API_VOID_METHOD_WRAPPER_0(Engine, saveUserPreset);
+
 	API_METHOD_WRAPPER_0(Engine, createMidiList);
 	API_METHOD_WRAPPER_0(Engine, createTimerObject);
 	API_METHOD_WRAPPER_0(Engine, createMessageHolder);
@@ -797,6 +803,10 @@ ApiClass(0)
 	ADD_API_METHOD_2(setKeyColour);
 	ADD_API_METHOD_2(showErrorMessage);
 	ADD_API_METHOD_1(setLowestKeyToDisplay);
+	ADD_API_METHOD_1(loadNextUserPreset);
+	ADD_API_METHOD_1(loadPreviousUserPreset);
+	ADD_API_METHOD_0(getCurrentUserPresetName);
+	ADD_API_METHOD_0(saveUserPreset);
 	ADD_API_METHOD_0(createMidiList);
 	ADD_API_METHOD_0(getPlayHead);
 	ADD_API_METHOD_2(dumpAsJSON);
@@ -954,6 +964,26 @@ void ScriptingApi::Engine::showErrorMessage(String message, bool isCritical)
 
 double ScriptingApi::Engine::getMilliSecondsForTempo(int tempoIndex) const { return (double)TempoSyncer::getTempoInMilliSeconds(getHostBpm(), (TempoSyncer::Tempo)tempoIndex); }
 
+
+void ScriptingApi::Engine::loadNextUserPreset(bool stayInDirectory)
+{
+	getProcessor()->getMainController()->getUserPresetHandler().incPreset(true, stayInDirectory);
+}
+
+void ScriptingApi::Engine::loadPreviousUserPreset(bool stayInDirectory)
+{
+	getProcessor()->getMainController()->getUserPresetHandler().incPreset(false, stayInDirectory);
+}
+
+String ScriptingApi::Engine::getCurrentUserPresetName()
+{
+	return getProcessor()->getMainController()->getUserPresetHandler().getCurrentlyLoadedFile().getFileNameWithoutExtension();
+}
+
+void ScriptingApi::Engine::saveUserPreset()
+{
+	//getProcessor()->getMainController()->getUserPresetHandler().saveUserPreset();
+}
 
 DynamicObject * ScriptingApi::Engine::getPlayHead() { return getProcessor()->getMainController()->getHostInfoObject(); }
 ScriptingObjects::MidiList *ScriptingApi::Engine::createMidiList() { return new ScriptingObjects::MidiList(getScriptProcessor()); };

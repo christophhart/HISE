@@ -459,8 +459,6 @@ void UserPresetHandler::loadUserPreset(ModulatorSynthChain* chain, const ValueTr
 {
 	chain->getMainController()->loadUserPresetAsync(parent);
 
-
-	
 }
 
 int UserPresetHandler::addMissingControlsToUserPreset(ModulatorSynthChain* chain, const File& fileToUpdate)

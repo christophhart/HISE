@@ -334,20 +334,13 @@ class MultiColumnPresetBrowser : public Component,
 							     public QuasiModalComponent,
 								 public Button::Listener,
 								 public PresetBrowserColumn::ColumnListModel::Listener,
-								 public Label::Listener
+								 public Label::Listener,
+								 public MainController::UserPresetHandler::Listener
 {
 public:
 
 	// ============================================================================================
 
-	class Listener
-	{
-	public:
-
-        virtual ~Listener() {};
-        
-		virtual void presetChanged(const String& newPresetName) = 0;
-	};
 
 	void colourChanged() override
 	{
@@ -363,6 +356,17 @@ public:
 
 	~MultiColumnPresetBrowser();
 
+	void presetChanged(const File& newPreset) override
+	{
+		File pFile = newPreset;
+		File cFile = pFile.getParentDirectory();
+		File bFile = cFile.getParentDirectory();
+
+		bankColumn->setSelectedFile(bFile, sendNotification);
+		categoryColumn->setSelectedFile(cFile, sendNotification);
+		presetColumn->setSelectedFile(newPreset, dontSendNotification);
+	}
+
 	void rebuildAllPresets();
 	String getCurrentlyLoadedPresetName();
 
@@ -374,8 +378,6 @@ public:
 
 	void paint(Graphics& g);
 	void resized();
-
-	void setListener(Listener* l) { listener = l; }
 
 	void labelTextChanged(Label* l) override
 	{
@@ -417,73 +419,8 @@ public:
 
 	void incPreset(bool next, bool stayInSameDirectory=false)
 	{
-		int newIndex = -1;
+		mc->getUserPresetHandler().incPreset(next, stayInSameDirectory);
 
-		if (next)
-		{
-            newIndex = (currentlyLoadedPreset + 1) % (allPresets.size());
-            
-			const bool differentDirectories = allPresets[currentlyLoadedPreset].getParentDirectory() != allPresets[newIndex].getParentDirectory();
-
-			if (stayInSameDirectory && differentDirectories)
-			{
-				// Get the first file of the directory
-				File oldParentDirectory = allPresets[currentlyLoadedPreset].getParentDirectory();
-
-				for (int i = 0; i < allPresets.size(); i++)
-				{
-					if (allPresets[i].getParentDirectory() == oldParentDirectory)
-					{
-						newIndex = i;
-						break;
-					}
-				}
-			}
-		}
-		else
-		{
-			if (currentlyLoadedPreset == 0)
-			{
-				newIndex = allPresets.size() - 1;
-			}
-			else
-			{
-				newIndex = (currentlyLoadedPreset - 1) % allPresets.size();
-			}
-
-			const bool differentDirectories = allPresets[currentlyLoadedPreset].getParentDirectory() != allPresets[newIndex].getParentDirectory();
-
-			if (stayInSameDirectory && differentDirectories)
-			{
-				// Get the last file of the directory
-				File oldParentDirectory = allPresets[currentlyLoadedPreset].getParentDirectory();
-
-				for (int i = allPresets.size() - 1; i >= 0; i--)
-				{
-					if (allPresets[i].getParentDirectory() == oldParentDirectory)
-					{
-						newIndex = i;
-						break;
-					}
-				}
-			}
-
-		}
-
-		if (newIndex != currentlyLoadedPreset)
-		{
-			currentlyLoadedPreset = newIndex;
-
-			File pFile = allPresets[currentlyLoadedPreset];
-			File cFile = pFile.getParentDirectory();
-			File bFile = cFile.getParentDirectory();
-
-			bankColumn->setSelectedFile(bFile, sendNotification);
-			categoryColumn->setSelectedFile(cFile, sendNotification);
-			presetColumn->setSelectedFile(pFile, dontSendNotification);
-
-			loadPreset(allPresets[currentlyLoadedPreset]);
-		}
 	}
 
 	void setCurrentPreset(const File& f, NotificationType sendNotification)
@@ -496,10 +433,12 @@ public:
 			
 			presetColumn->setSelectedFile(allPresets[currentlyLoadedPreset]);
 
+#if NEW_USER_PRESET
 			if (listener != nullptr && sendNotification)
 			{
 				listener->presetChanged(f.getFileNameWithoutExtension());
 			}
+#endif
 		}
 	}
 
@@ -526,7 +465,9 @@ private:
 	Array<File> allPresets;
 	int currentlyLoadedPreset = -1;
 
+#if NEW_USER_PRESET
 	Listener* listener = nullptr;
+#endif
 
 	bool showOnlyPresets = false;
 	String currentWildcard = "*";
@@ -538,7 +479,7 @@ private:
 
 };
 
-
+#if 0
 class MultiColumnPresetBrowserBar : public Component,
 							   public MultiColumnPresetBrowser::Listener,
 							   public Button::Listener
@@ -693,5 +634,6 @@ private:
 	String currentPresetName;
 
 };
+#endif
 
 #endif

@@ -263,6 +263,18 @@ public:
 		/** Returns the millisecond value for the supplied tempo (HINT: Use "TempoSync" mode from Slider!) */
 		double getMilliSecondsForTempo(int tempoIndex) const;;
 
+		/** Loads the next user preset. */
+		void loadNextUserPreset(bool stayInDirectory);
+
+		/** Loads the previous user preset. */
+		void loadPreviousUserPreset(bool stayInDirectory);
+
+		/** Returns the currently loaded user preset (without extension). */
+		String getCurrentUserPresetName();
+
+		/** Asks for a preset name and saves the current user preset. */
+		void saveUserPreset();
+
 		/** Returns the Bpm of the host. */
 		double getHostBpm() const;
 		

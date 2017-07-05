@@ -249,19 +249,50 @@ public:
 			FadeOut = -1
 		};
 
+		class Listener
+		{
+		public:
+
+			virtual ~Listener() { masterReference.clear(); };
+
+			virtual void presetChanged(const File& newPreset) = 0;
+
+		private:
+
+			friend class WeakReference<Listener>;
+			WeakReference<Listener>::Master masterReference;
+		};
+
 		UserPresetHandler(MainController* mc_);
 		~UserPresetHandler();
 
 		void lastTaskRemoved() override;
 
+
+
 		// ===========================================================================================================
 
+		void addListener(Listener* listener)
+		{
+			listeners.add(listener);
+		}
+
+		void removeListener(Listener* listener)
+		{
+			listeners.removeAllInstancesOf(listener);
+		}
+
 		void timerCallback();
+
 		void loadUserPreset(const ValueTree& presetToLoad);
+
+		void loadUserPreset(const File& fileToLoad);
 
 		File getCurrentlyLoadedFile() const { return currentlyLoadedFile; };
 
 		void setCurrentlyLoadedFile(const File& f) { currentlyLoadedFile = f; };
+
+		void incPreset(bool next, bool stayInSameDirectory);
 
 		// ===========================================================================================================
 
@@ -269,6 +300,7 @@ public:
 
 		void loadPresetInternal();
 
+		Array<WeakReference<Listener>> listeners;
 		
 		MainController* mc;
 		ValueTree currentPreset;
