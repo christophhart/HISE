@@ -380,6 +380,9 @@ void JavascriptCodeEditor::addPopupMenuItems(PopupMenu &menu, const MouseEvent *
         menu.addSeparator();
 		menu.addItem(ContextActions::ExportAsCompressedScript, "Export as compressed script");
 		menu.addItem(ContextActions::ImportCompressedScript, "Import compressed script");
+		menu.addSeparator();
+		menu.addItem(ContextActions::MoveToExternalFile, "Move selection to external file");
+		menu.addItem(ContextActions::InsertExternalFile, "Replace include with file content", s == "include");
     }
     
 #else
@@ -593,6 +596,52 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 			}
 		}
 
+		return;
+	}
+	case JavascriptCodeEditor::MoveToExternalFile:
+	{
+		const String text = getDocument().getTextBetween(getSelectionStart(), getSelectionEnd());
+
+		const String newFileName = PresetHandler::getCustomName("Script File", "Enter the file name for the external script file (without .js)");
+
+		if (newFileName.isNotEmpty())
+		{
+			File scriptDirectory = GET_PROJECT_HANDLER(GET_BACKEND_ROOT_WINDOW(this)->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Scripts);
+
+			File newFile = scriptDirectory.getChildFile(newFileName + ".js");
+
+			if (!newFile.existsAsFile() || PresetHandler::showYesNoWindow("Overwrite existing file", "Do you want to overwrite the file " + newFile.getFullPathName() + "?"));
+			{
+				newFile.replaceWithText(text);
+			}
+
+			String insertStatement = "include(\"" + newFile.getFileName() + "\");" + NewLine();
+
+			getDocument().replaceSection(getSelectionStart().getPosition(), getSelectionEnd().getPosition(), insertStatement);
+		}
+
+		return;
+	}
+	case JavascriptCodeEditor::InsertExternalFile:
+	{
+		moveCaretToEndOfLine(true);
+
+		const String text = getDocument().getTextBetween(getSelectionStart(), getSelectionEnd());
+
+		String fileName = text.fromFirstOccurrenceOf("\"", false, true);
+		fileName = fileName.upToLastOccurrenceOf("\"", false, true);
+
+		File scriptDirectory = GET_PROJECT_HANDLER(GET_BACKEND_ROOT_WINDOW(this)->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Scripts);
+
+		File scriptFile = scriptDirectory.getChildFile(fileName);
+
+		if (scriptFile.existsAsFile())
+		{
+			const String content = scriptFile.loadFileAsString();
+
+			getDocument().replaceSection(getSelectionStart().getPosition(), getSelectionEnd().getPosition(), content);
+		}
+		
 		return;
 	}
 	case JavascriptCodeEditor::OpenInPopup:

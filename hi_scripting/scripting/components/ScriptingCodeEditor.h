@@ -71,6 +71,8 @@ public:
 		AddMissingCaseStatements,
 		OpenExternalFile,
 		OpenInPopup,
+		MoveToExternalFile,
+		InsertExternalFile,
 		ExportAsCompressedScript,
 		ImportCompressedScript
 	};
