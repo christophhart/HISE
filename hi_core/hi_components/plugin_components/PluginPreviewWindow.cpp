@@ -134,7 +134,7 @@ mainSynthChain(editor->getMainSynthChain())
     
     const bool showKeyboard = (bool)toolbarSettings->hasProperty("keyboard") ? (bool)toolbarSettings->getProperty("keyboard") : true;
     
-    addAndMakeVisible(keyboard = new CustomKeyboard(editor->getBackendProcessor()->getKeyboardState()));
+    addAndMakeVisible(keyboard = new CustomKeyboard(editor->getBackendProcessor()));
     keyboard->setAvailableRange(editor->getBackendProcessor()->getKeyboardState().getLowestKeyToDisplay(), 127);
     
     keyboard->setVisible(showKeyboard);

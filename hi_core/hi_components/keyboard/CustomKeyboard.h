@@ -87,7 +87,7 @@ class CustomKeyboard : public MidiKeyboardComponent,
 {
 public:
     //==============================================================================
-    CustomKeyboard (CustomKeyboardState &state);
+    CustomKeyboard (MainController* mc);
     virtual ~CustomKeyboard();
 
 	void buttonClicked(Button *b) override
@@ -109,7 +109,8 @@ public:
 	{
 		MidiKeyboardComponent::paint(g);
 		
-		dynamic_cast<CustomKeyboardLookAndFeel*>(&getLookAndFeel())->drawKeyboardBackground(g, getWidth(), getHeight());
+		if(!useCustomGraphics)
+			dynamic_cast<CustomKeyboardLookAndFeel*>(&getLookAndFeel())->drawKeyboardBackground(g, getWidth(), getHeight());
 	};
 
 
@@ -118,8 +119,47 @@ public:
 		repaint();
 	}
 
-    void setNarrowKeys(bool shouldBeNarrowKeys);
-	
+	void setUseCustomGraphics(bool shouldUseCustomGraphics)
+	{
+		useCustomGraphics = shouldUseCustomGraphics;
+
+		for (int i = 0; i < 12; i++)
+		{
+			upImages[i] = ImagePool::loadImageFromReference(mc, "{PROJECT_FOLDER}keyboard/up_" + String(i) + ".png");
+
+			if (upImages[i].isNull())
+			{
+				jassertfalse;
+				useCustomGraphics = false;
+				break;
+			}
+
+			downImages[i] = ImagePool::loadImageFromReference(mc, "{PROJECT_FOLDER}keyboard/down_" + String(i) + ".png");
+
+			if (downImages[i].isNull())
+			{
+				jassertfalse;
+				useCustomGraphics = false;
+				break;
+			}
+		}
+
+		repaint();
+	}
+
+	int getLowKey() const { return lowKey; }
+	int getHiKey() const { return hiKey; }
+	void setRange(int lowKey_, int hiKey_)
+	{
+		lowKey = lowKey_;
+		hiKey = hiKey_;
+
+		setAvailableRange(lowKey, hiKey);
+	}
+
+
+	bool isUsingCustomGraphics() const noexcept { return useCustomGraphics; };
+
 protected:
 
 	void drawWhiteNote (int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &lineColour, const Colour &textColour) override;
@@ -128,13 +168,21 @@ protected:
 
 private:
 
+	Image upImages[12];
+	Image downImages[12];
+
+	MainController* mc;
+
 	CustomKeyboardLookAndFeel laf;
 
 	CustomKeyboardState *state;
  
+	bool useCustomGraphics = false;
+
     bool narrowKeys;
     
     int lowKey;
+	int hiKey;
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CustomKeyboard)

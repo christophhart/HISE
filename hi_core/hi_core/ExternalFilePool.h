@@ -221,6 +221,8 @@ public:
 
 	static Image getEmptyImage(int width, int height);
 
+	static Image loadImageFromReference(MainController* mc, const String referenceToImage);
+
 protected:
 
 

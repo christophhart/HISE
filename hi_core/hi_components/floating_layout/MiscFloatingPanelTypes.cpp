@@ -91,7 +91,7 @@ MidiKeyboardPanel::MidiKeyboardPanel(FloatingTile* parent) :
 
 	setInterceptsMouseClicks(false, true);
 
-	addAndMakeVisible(keyboard = new CustomKeyboard(parent->getMainController()->getKeyboardState()));
+	addAndMakeVisible(keyboard = new CustomKeyboard(parent->getMainController()));
 
 	keyboard->setLowestVisibleKey(12);
 }
@@ -397,6 +397,8 @@ void PerformanceLabelPanel::timerCallback()
 	stats << String(cpuUsage) << "%, RAM: " << String(ramUsage, 1) << "MB , Voices: " << String(voiceAmount);
 	statisticLabel->setText(stats, dontSendNotification);
 }
+
+
 
 void ActivityLedPanel::fromDynamicObject(const var& object)
 {

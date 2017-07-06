@@ -601,6 +601,15 @@ public:
 		numColourIds
 	};
 
+	enum SpecialPanelIds
+	{
+		CustomGraphics = FloatingTileContent::PanelPropertyId::numPropertyIds,
+		KeyWidth,
+		LowKey,
+		HiKey,
+		numProperyIds
+	};
+
 	SET_PANEL_NAME("Keyboard");
 
 	MidiKeyboardPanel(FloatingTile* parent);
@@ -620,6 +629,66 @@ public:
 		keyboard = nullptr;
 	}
 
+	int getNumDefaultableProperties() const override
+	{
+		return SpecialPanelIds::numProperyIds;
+	}
+
+	var toDynamicObject() const override
+	{
+		var obj = FloatingTileContent::toDynamicObject();
+
+		storePropertyInObject(obj, SpecialPanelIds::KeyWidth, keyboard->getKeyWidth());
+		storePropertyInObject(obj, SpecialPanelIds::LowKey, keyboard->getLowKey());
+		storePropertyInObject(obj, SpecialPanelIds::HiKey, keyboard->getHiKey());
+		storePropertyInObject(obj, SpecialPanelIds::CustomGraphics, keyboard->isUsingCustomGraphics());
+		
+
+		return obj;
+	}
+
+	void fromDynamicObject(const var& object) override
+	{
+		FloatingTileContent::fromDynamicObject(object);
+
+		keyboard->setUseCustomGraphics(getPropertyWithDefault(object, SpecialPanelIds::CustomGraphics));
+		
+		keyboard->setRange(getPropertyWithDefault(object, SpecialPanelIds::LowKey),
+						   getPropertyWithDefault(object, SpecialPanelIds::HiKey));
+		
+		keyboard->setKeyWidth(getPropertyWithDefault(object, SpecialPanelIds::KeyWidth));
+	}
+
+	Identifier getDefaultablePropertyId(int index) const override
+	{
+		if (index < FloatingTileContent::numPropertyIds)
+			return FloatingTileContent::getDefaultablePropertyId(index);
+
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::CustomGraphics, "CustomGraphics");
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::KeyWidth, "KeyWidth");
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::LowKey, "LowKey");
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::HiKey, "HiKey");
+
+		jassertfalse;
+		return{};
+	}
+
+	var getDefaultProperty(int index) const override
+	{
+		if (index < FloatingTileContent::numPropertyIds)
+			return FloatingTileContent::getDefaultProperty(index);
+
+		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::CustomGraphics, false);
+		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::KeyWidth, 14);
+		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::LowKey, 24);
+		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::HiKey, 127);
+
+		jassertfalse;
+		return{};
+	}
+
+	
+
 	void paint(Graphics& g) override
 	{
 		g.setColour(getStyleColour(ColourIds::backgroundColour));
@@ -630,10 +699,12 @@ public:
 	{
 		int maxWidth = CONTAINER_WIDTH;
 
+		int height = keyboard->isUsingCustomGraphics() ? getHeight() : 72;
+
 		if (getWidth() < maxWidth)
-			keyboard->setBounds(0, 0, getWidth(), 72);
+			keyboard->setBounds(0, 0, getWidth(), height);
 		else
-			keyboard->setBounds((getWidth() - maxWidth) / 2, 0, maxWidth, 72);
+			keyboard->setBounds((getWidth() - maxWidth) / 2, 0, maxWidth, height);
 	}
 
 	int getNumColourIds() const { return numColourIds; }
@@ -641,8 +712,6 @@ public:
 	Identifier getColourId(int /*colourId*/) const { RETURN_STATIC_IDENTIFIER("backgroundColour"); }
 
 	Colour getDefaultColour(int /*colourId*/) const { return Colours::transparentBlack; }
-
-	int getFixedHeight() const override { return 72; }
 
 private:
 	

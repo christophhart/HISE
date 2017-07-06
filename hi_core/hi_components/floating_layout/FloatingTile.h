@@ -634,7 +634,6 @@ struct FloatingTileHelpers
 
 		return nullptr;
 	}
-
 };
 
 #endif  // FLOATINGTILE_H_INCLUDED

@@ -429,6 +429,20 @@ Image ImagePool::getEmptyImage(int width, int height)
 	return i;
 }
 
+Image ImagePool::loadImageFromReference(MainController* mc, const String referenceToImage)
+{
+#if USE_BACKEND
+	auto file = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getFilePath(referenceToImage, ProjectHandler::SubDirectories::Images);
+#endif
+
+	auto img = mc->getSampleManager().getImagePool()->loadFileIntoPool(file, false);
+
+	if (img != nullptr)
+		return *img;
+
+	return Image();
+}
+
 void ImagePool::reloadData(Image &image, const String &fileName)
 {
 	Image newImage = ImageFileFormat::loadFrom(File(fileName));

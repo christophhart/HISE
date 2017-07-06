@@ -91,9 +91,10 @@ void CustomKeyboardLookAndFeel::drawKeyboardBackground(Graphics &g, int width, i
 }
 
 //==============================================================================
-CustomKeyboard::CustomKeyboard (CustomKeyboardState &state_):
-	MidiKeyboardComponent(state_, Orientation::horizontalKeyboard),
-	state(&state_),
+CustomKeyboard::CustomKeyboard(MainController* mc_) :
+	MidiKeyboardComponent(mc_->getKeyboardState(), Orientation::horizontalKeyboard),
+	state(&mc_->getKeyboardState()),
+	mc(mc_),
     narrowKeys(true),
     lowKey(36)
 {
@@ -123,17 +124,53 @@ CustomKeyboard::CustomKeyboard (CustomKeyboardState &state_):
 
 CustomKeyboard::~CustomKeyboard()
 {
+	mc->allNotesOff();
+
 	state->removeChangeListener(this);
 }
 
 void CustomKeyboard::drawWhiteNote(int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &lineColour, const Colour &textColour)
 {
-	dynamic_cast<CustomKeyboardLookAndFeel*>(&getLookAndFeel())->drawWhiteNote(state, midiNoteNumber, g, x, y, w, h, isDown, isOver, lineColour, textColour);
+	if (useCustomGraphics)
+	{
+		g.setOpacity(1.0f);
+        
+		const int index = midiNoteNumber % 12;
+
+		Image keyImage = isDown ? downImages[index] : upImages[index];
+
+		g.drawImage(keyImage,
+			x, y, w, h,
+			0, 0, keyImage.getWidth(), keyImage.getHeight());
+
+	}
+	else
+	{
+		dynamic_cast<CustomKeyboardLookAndFeel*>(&getLookAndFeel())->drawWhiteNote(state, midiNoteNumber, g, x, y, w, h, isDown, isOver, lineColour, textColour);
+	}
+
+	
 }
 
 void CustomKeyboard::drawBlackNote(int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &noteFillColour)
 {
-	dynamic_cast<CustomKeyboardLookAndFeel*>(&getLookAndFeel())->drawBlackNote(state, midiNoteNumber, g, x, y, w, h, isDown, isOver, noteFillColour);
+	if (useCustomGraphics)
+	{
+		g.setOpacity(1.0f);
+        
+        
+		const int index = midiNoteNumber % 12;
+
+		Image keyImage = isDown ? downImages[index] : upImages[index];
+
+		g.drawImage(keyImage,
+			x, y, w, h,
+			0, 0, keyImage.getWidth(), keyImage.getHeight());
+	}
+	else
+	{
+		dynamic_cast<CustomKeyboardLookAndFeel*>(&getLookAndFeel())->drawBlackNote(state, midiNoteNumber, g, x, y, w, h, isDown, isOver, noteFillColour);
+	}
 }
 
 void CustomKeyboardLookAndFeel::drawWhiteNote(CustomKeyboardState* state, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &lineColour, const Colour &/*textColour*/)
