@@ -917,7 +917,7 @@ bool setSoundPropertiesFromMetadata(ModulatorSamplerSound *sound, const StringPa
 
 		loopEnabled = metadata.getValue("Loop0Type", "");
 		
-#if 1
+#if 1 // Doesn't support sample start / end, but more robust loop points.
 
 		const int loopStartId = metadata.getValue("Loop0StartIdentifier", "-1").getIntValue();
 		const int loopEndId = metadata.getValue("Loop0EndIdentifier", "-1").getIntValue();

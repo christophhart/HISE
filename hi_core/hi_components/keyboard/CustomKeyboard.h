@@ -116,36 +116,11 @@ public:
 
 	void changeListenerCallback(SafeChangeBroadcaster *) override
 	{
+		
 		repaint();
 	}
 
-	void setUseCustomGraphics(bool shouldUseCustomGraphics)
-	{
-		useCustomGraphics = shouldUseCustomGraphics;
-
-		for (int i = 0; i < 12; i++)
-		{
-			upImages[i] = ImagePool::loadImageFromReference(mc, "{PROJECT_FOLDER}keyboard/up_" + String(i) + ".png");
-
-			if (upImages[i].isNull())
-			{
-				jassertfalse;
-				useCustomGraphics = false;
-				break;
-			}
-
-			downImages[i] = ImagePool::loadImageFromReference(mc, "{PROJECT_FOLDER}keyboard/down_" + String(i) + ".png");
-
-			if (downImages[i].isNull())
-			{
-				jassertfalse;
-				useCustomGraphics = false;
-				break;
-			}
-		}
-
-		repaint();
-	}
+	void setUseCustomGraphics(bool shouldUseCustomGraphics);
 
 	int getLowKey() const { return lowKey; }
 	int getHiKey() const { return hiKey; }

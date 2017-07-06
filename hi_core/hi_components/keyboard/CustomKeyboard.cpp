@@ -129,6 +129,37 @@ CustomKeyboard::~CustomKeyboard()
 	state->removeChangeListener(this);
 }
 
+void CustomKeyboard::setUseCustomGraphics(bool shouldUseCustomGraphics)
+{
+	useCustomGraphics = shouldUseCustomGraphics;
+
+	if (!useCustomGraphics)
+		return;
+
+	for (int i = 0; i < 12; i++)
+	{
+		upImages[i] = ImagePool::loadImageFromReference(mc, "{PROJECT_FOLDER}keyboard/up_" + String(i) + ".png");
+
+		if (upImages[i].isNull())
+		{
+			jassertfalse;
+			useCustomGraphics = false;
+			break;
+		}
+
+		downImages[i] = ImagePool::loadImageFromReference(mc, "{PROJECT_FOLDER}keyboard/down_" + String(i) + ".png");
+
+		if (downImages[i].isNull())
+		{
+			jassertfalse;
+			useCustomGraphics = false;
+			break;
+		}
+	}
+
+	repaint();
+}
+
 void CustomKeyboard::drawWhiteNote(int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &lineColour, const Colour &textColour)
 {
 	if (useCustomGraphics)
