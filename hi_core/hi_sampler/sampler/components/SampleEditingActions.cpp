@@ -916,6 +916,34 @@ bool setSoundPropertiesFromMetadata(ModulatorSamplerSound *sound, const StringPa
 		root = metadata.getValue("MidiUnityNote", "");
 
 		loopEnabled = metadata.getValue("Loop0Type", "");
+		
+#if 1
+
+		const int loopStartId = metadata.getValue("Loop0StartIdentifier", "-1").getIntValue();
+		const int loopEndId = metadata.getValue("Loop0EndIdentifier", "-1").getIntValue();
+
+		int loopStartIndex = -1;
+		int loopEndIndex = -1;
+
+		const int numCuePoints = metadata.getValue("NumCuePoints", "0").getIntValue();
+
+		for (int i = 0; i < numCuePoints; i++)
+		{
+			const String idTag = "CueLabel" + String(i) + "Identifier";
+
+			if (metadata.getValue(idTag, "-2").getIntValue() == loopStartId)
+			{
+				loopStartIndex = i;
+				loopStart = metadata.getValue("Cue" + String(i) + "Offset", "");
+			}
+			else if (metadata.getValue(idTag, "-2").getIntValue() == loopEndId)
+			{
+				loopEndIndex = i;
+				loopEnd = metadata.getValue("Cue" + String(i) + "Offset", "");
+			}
+		}
+
+#else
 
 		const static String loopStartTag = "LoopStart";
 		const static String loopEndTag = "LoopEnd";
@@ -957,6 +985,9 @@ bool setSoundPropertiesFromMetadata(ModulatorSamplerSound *sound, const StringPa
 					end = loopEnd;
 			}
 		}
+
+#endif
+
 	}
 	else if (format == "WAV")
 	{
