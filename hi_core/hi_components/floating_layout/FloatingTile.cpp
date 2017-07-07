@@ -126,17 +126,39 @@ void FloatingTilePopup::paint(Graphics &g)
 		g.drawText(content->getName(), 0, 15, getWidth(), 20, Justification::centred, false);
 	}
 
+	if (HiseDeviceSimulator::isMobileDevice())
+	{
+		g.setColour(Colours::black);
+		g.fillEllipse((float)getWidth() - 26.0f, 2.0f, 24.0f, 24.0f);
+		g.setColour(Colours::white.withAlpha(0.5f));
+		g.drawEllipse((float)getWidth() - 26.0f, 2.0f, 24.0f, 24.0f, 2.0f);
 
-	g.setColour(Colours::black);
-	g.fillEllipse((float)getWidth() - 22.0f, 2.0f, 20.0f, 20.0f);
-	g.setColour(Colours::white.withAlpha(0.5f));
-	g.drawEllipse((float)getWidth() - 22.0f, 2.0f, 20.0f, 20.0f, 2.0f);
+	}
+	else
+	{
+		g.setColour(Colours::black);
+		g.fillEllipse((float)getWidth() - 22.0f, 2.0f, 20.0f, 20.0f);
+		g.setColour(Colours::white.withAlpha(0.5f));
+		g.drawEllipse((float)getWidth() - 22.0f, 2.0f, 20.0f, 20.0f, 2.0f);
 
+	}
+
+
+
+	
 }
 
 void FloatingTilePopup::resized()
 {
-	closeButton->setBounds(getWidth() - 20, 3, 16, 18);
+	if (HiseDeviceSimulator::isMobileDevice())
+	{
+		closeButton->setBounds(getWidth() - 24, 3, 20, 22);
+	}
+	else
+	{
+		closeButton->setBounds(getWidth() - 20, 3, 16, 18);
+	}
+	
 
 	content->setBounds(6, 18 + 20, content->getWidth(), content->getHeight());
 }
