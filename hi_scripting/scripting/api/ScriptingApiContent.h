@@ -1091,6 +1091,7 @@ public:
 	int getComponentIndex(const Identifier &componentName) const;
 
 	int getContentHeight() const { return height; }
+	int getContentWidth() const { return width; }
 
 	bool usesDoubleResolution() const
 	{

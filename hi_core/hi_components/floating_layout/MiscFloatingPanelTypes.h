@@ -100,6 +100,27 @@ private:
 };
 
 
+
+class InterfaceContentPanel : public FloatingTileContent,
+	public Component
+{
+public:
+
+	InterfaceContentPanel(FloatingTile* parent);;
+
+	SET_PANEL_NAME("InterfacePanel");
+
+	void paint(Graphics& g) override;
+
+	void resized();
+
+private:
+
+	ScopedPointer<ScriptContentComponent> content;
+
+};
+
+
 class PerformanceLabelPanel : public Component,
 	public Timer,
 	public FloatingTileContent
@@ -226,7 +247,7 @@ public:
 
 private:
 
-	bool showMidiLabel;
+	bool showMidiLabel = true;
 
 	String onName;
 	String offName;

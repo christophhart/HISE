@@ -45,9 +45,9 @@ class FrontendEditorHolder: public Component
 
 class FrontendProcessorEditor: public AudioProcessorEditor,
 							   public Timer,
-							   public ComponentWithKeyboard,
 							   public ModalBaseWindow,
-							   public OverlayMessageBroadcaster::Listener
+							   public OverlayMessageBroadcaster::Listener,
+							   public ComponentWithBackendConnection
 
 
 {
@@ -56,6 +56,23 @@ public:
 	FrontendProcessorEditor(FrontendProcessor *fp);;
 
 	~FrontendProcessorEditor();
+
+	BackendRootWindow* getBackendRootWindow() override
+	{
+		jassertfalse;
+		return nullptr;
+	}
+
+	const BackendRootWindow* getBackendRootWindow() const override
+	{
+		jassertfalse;
+		return nullptr;
+	}
+
+	FloatingTile* getRootFloatingTile() override
+	{
+		return rootTile;
+	}
 
 	void overlayMessageSent(int state, const String& message) override
 	{
@@ -76,40 +93,10 @@ public:
 #endif
 	}
 
-	KeyboardFocusTraverser *createFocusTraverser() override { return (keyboard != nullptr && keyboard->isVisible()) ? new MidiKeyboardFocusTraverser() : new KeyboardFocusTraverser(); };
-
 	void paint(Graphics &g) override
 	{
 		g.fillAll(Colours::black);
 	};
-
-#if CRASH_ON_GLITCH
-	void paintOverChildren(Graphics& g) override
-	{
-		
-		
-		Font f = GLOBAL_BOLD_FONT().withHeight(32.0f);
-		const String s = "Debug Version. Don't use in production!";
-
-		g.setFont(f);
-		
-
-		int w = f.getStringWidth(s) + 30;
-		int h = (int)(f.getHeight() + 10.0f);
-
-		Rectangle<int> a(0, 0, w, h);
-
-		a.setCentre(getLocalBounds().getCentre());
-
-		g.setColour(Colour(0x88FFFFFF));
-
-		g.fillRect(a);
-
-		g.setColour(Colour(0x99000000));
-
-		g.drawText(s, a, Justification::centred);
-	}
-#endif
 
     void setGlobalScaleFactor(float newScaleFactor);
 
@@ -120,7 +107,7 @@ public:
 		//interfaceComponent->checkInterfaces();
 	}
 
-	Component *getKeyboard() const override { return keyboard; }
+	
 
 private:
 
@@ -128,10 +115,8 @@ private:
     
 	friend class BaseFrontendBar;
 
-	ScopedPointer<ScriptContentContainer> interfaceComponent;
-	ScopedPointer<BaseFrontendBar> mainBar;
-	ScopedPointer<CustomKeyboard> keyboard;
-	ScopedPointer<AboutPage> aboutPage;
+	ScopedPointer<FloatingTile> rootTile;
+
 	ScopedPointer<DeactiveOverlay> deactiveOverlay;
 	ScopedPointer<ThreadWithQuasiModalProgressWindow::Overlay> loaderOverlay;
 	ScopedPointer<DebugLoggerComponent> debugLoggerComponent;

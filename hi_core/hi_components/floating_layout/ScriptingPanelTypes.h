@@ -33,6 +33,7 @@
 #ifndef SCRIPTINGPANELTYPES_H_INCLUDED
 #define SCRIPTINGPANELTYPES_H_INCLUDED
 
+
 class CodeEditorPanel : public PanelWithProcessorConnection
 
 {

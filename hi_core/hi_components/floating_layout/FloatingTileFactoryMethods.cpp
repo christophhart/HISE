@@ -65,10 +65,13 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<PerformanceLabelPanel>(PopupMenuOptions::PerformanceStatistics);
 	registerType<ActivityLedPanel>(PopupMenuOptions::ActivityLed);
 
+	registerType<InterfaceContentPanel>(PopupMenuOptions::InterfaceContent);
+
 	registerType<TuningWindow::Panel>(PopupMenuOptions::TuningWindow),
 	registerType<CustomSettingsWindow::Panel>(PopupMenuOptions::PluginSettings),
 	registerType<MidiSourcePanel>(PopupMenuOptions::MidiSourceList);
 	registerType<MidiChannelPanel>(PopupMenuOptions::MidiChannelList);
+
 
 	//MidiSourceList
 
@@ -563,6 +566,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 
 		PopupMenu fm;
 
+		addToPopupMenu(fm, PopupMenuOptions::InterfaceContent, "Main Interface");
 		addToPopupMenu(fm, PopupMenuOptions::PerformanceStatistics, "Performance Statistics");
 		addToPopupMenu(fm, PopupMenuOptions::ActivityLed, "MIDI Activity LED");
 		addToPopupMenu(fm, PopupMenuOptions::PluginSettings, "Plugin Settings");
@@ -620,6 +624,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 		
 	case PopupMenuOptions::ScriptEditor:		parent->setNewContent(GET_PANEL_NAME(CodeEditorPanel)); break;
 	case PopupMenuOptions::ScriptContent:		parent->setNewContent(GET_PANEL_NAME(ScriptContentPanel)); break;
+	case PopupMenuOptions::InterfaceContent:	parent->setNewContent(GET_PANEL_NAME(InterfaceContentPanel)); break;
 	case PopupMenuOptions::Plotter:				parent->setNewContent(GET_PANEL_NAME(PlotterPanel)); break;
 	case PopupMenuOptions::ScriptComponentEditPanel: parent->setNewContent(GET_PANEL_NAME(GenericPanel<ScriptComponentEditPanel>)); break;
 	case PopupMenuOptions::SliderPackPanel:		parent->setNewContent(GET_PANEL_NAME(SliderPackPanel)); break;

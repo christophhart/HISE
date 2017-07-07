@@ -404,25 +404,49 @@ void ActivityLedPanel::fromDynamicObject(const var& object)
 {
 	FloatingTileContent::fromDynamicObject(object);
 
+	showMidiLabel = getPropertyWithDefault(object, (int)SpecialPanelIds::ShowMidiLabel);
+
 	onName = getPropertyWithDefault(object, (int)SpecialPanelIds::OnImage);
 
-#if USE_BACKEND
-	auto onFile = GET_PROJECT_HANDLER(getMainController()->getMainSynthChain()).getFilePath(onName, ProjectHandler::SubDirectories::Images);
-#endif
-
-	auto on_ = getMainController()->getSampleManager().getImagePool()->loadFileIntoPool(onFile, false);
-
-	if (on_ != nullptr)
-		on = *on_;
+	if(onName.isNotEmpty())
+		on = ImagePool::loadImageFromReference(getMainController(), onName);
 
 	offName = getPropertyWithDefault(object, (int)SpecialPanelIds::OffImage);
 
-#if USE_BACKEND
-	auto offFile = GET_PROJECT_HANDLER(getMainController()->getMainSynthChain()).getFilePath(offName, ProjectHandler::SubDirectories::Images);
-#endif
+	if(offName.isNotEmpty())
+		off = ImagePool::loadImageFromReference(getMainController(), offName);
+}
 
-	auto off_ = getMainController()->getSampleManager().getImagePool()->loadFileIntoPool(offFile);
 
-	if (off_ != nullptr)
-		off = *off_;
+
+InterfaceContentPanel::InterfaceContentPanel(FloatingTile* parent) :
+	FloatingTileContent(parent)
+{
+	setOpaque(true);
+
+	if (auto jsp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(getMainController()))
+	{
+		addAndMakeVisible(content = new ScriptContentComponent(jsp));
+	}
+
+}
+
+void InterfaceContentPanel::paint(Graphics& g)
+{
+	g.fillAll(Colours::black);
+
+	if (content == nullptr)
+	{
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.setColour(Colours::white);
+		g.drawText("No interface found", FLOAT_RECTANGLE(getLocalBounds()), Justification::centred);
+	}
+}
+
+void InterfaceContentPanel::resized()
+{
+	if (content != nullptr)
+	{
+		content->setBounds(getParentShell()->getContentBounds());
+	}
 }

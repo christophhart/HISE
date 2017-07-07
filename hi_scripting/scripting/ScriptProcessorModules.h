@@ -111,6 +111,21 @@ public:
 
 	void processHiseEvent(HiseEvent &m) override;
 
+	static JavascriptMidiProcessor* getFirstInterfaceScriptProcessor(MainController* mc)
+	{
+		Processor::Iterator<JavascriptMidiProcessor> iter(mc->getMainSynthChain());
+
+		while (auto jsp = iter.getNextProcessor())
+		{
+			if (jsp->isFront())
+			{
+				return jsp;
+			}
+		}
+
+		return nullptr;
+	}
+
 private:
 
 	void runTimerCallback(int offsetInBuffer = -1);

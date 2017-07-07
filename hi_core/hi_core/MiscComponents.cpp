@@ -177,21 +177,26 @@ void MouseCallbackComponent::mouseDown(const MouseEvent& event)
 	{
 		if(findParentComponentOfClass<FloatingTilePopup>() == nullptr) // Deactivate this function in popups...
 		{
-			if (popupIsShowing)
+			if (currentPopup.getComponent() != nullptr)
 			{
 				findParentComponentOfClass<FloatingTile>()->showComponentInRootPopup(nullptr, this, popupSize.getPosition());
-				popupIsShowing = false;
+				currentPopup = nullptr;
 			}
 			else
 			{
-				FloatingTile *t = new FloatingTile(GET_BACKEND_ROOT_WINDOW(this)->getBackendProcessor(), nullptr, jsonPopupData);
+#if USE_BACKEND
+				auto mc = GET_BACKEND_ROOT_WINDOW(this)->getBackendProcessor();
+#else
+				auto mc = dynamic_cast<MainController*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor());
+#endif
+
+				FloatingTile *t = new FloatingTile(mc, nullptr, jsonPopupData);
 				t->setOpaque(false);
 
 				t->setName(t->getCurrentFloatingPanel()->getBestTitle());
 
 				t->setSize(popupSize.getWidth(), popupSize.getHeight());
-				findParentComponentOfClass<FloatingTile>()->showComponentInRootPopup(t, this, popupSize.getPosition());
-				popupIsShowing = true;
+				currentPopup = findParentComponentOfClass<FloatingTile>()->showComponentInRootPopup(t, this, popupSize.getPosition());
 			}
 		}
 	}

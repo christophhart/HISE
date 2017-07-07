@@ -433,9 +433,17 @@ Image ImagePool::loadImageFromReference(MainController* mc, const String referen
 {
 #if USE_BACKEND
 	auto file = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getFilePath(referenceToImage, ProjectHandler::SubDirectories::Images);
+	auto img = mc->getSampleManager().getImagePool()->loadFileIntoPool(file, false);
+
+#else
+	String poolName = ProjectHandler::Frontend::getSanitiziedFileNameForPoolReference(referenceToImage);
+
+	auto img = mc->getSampleManager().getImagePool()->loadFileIntoPool(poolName, false);
+
+	jassert(img != nullptr);
 #endif
 
-	auto img = mc->getSampleManager().getImagePool()->loadFileIntoPool(file, false);
+	
 
 	if (img != nullptr)
 		return *img;

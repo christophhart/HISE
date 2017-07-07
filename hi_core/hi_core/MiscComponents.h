@@ -190,7 +190,7 @@ private:
 	var jsonPopupData;
 	Rectangle<int> popupSize;
 
-	bool popupIsShowing = false;
+	Component::SafePointer<Component> currentPopup;
 
 	bool ignoreMouseUp = false;
 

@@ -36,33 +36,13 @@ AudioProcessorEditor(fp)
 {
     addAndMakeVisible(container = new FrontendEditorHolder());
     
+
+	container->addAndMakeVisible(rootTile = new FloatingTile(fp, nullptr));
+
+	rootTile->setNewContent("InterfacePanel");
     
-	container->addAndMakeVisible(interfaceComponent = new ScriptContentContainer(fp->getMainSynthChain(), nullptr));
-	interfaceComponent->checkInterfaces();
-
-	interfaceComponent->setCurrentContent(0, dontSendNotification);
-	interfaceComponent->refreshContentBounds();
-	interfaceComponent->setIsFrontendContainer(true);
-
 	fp->addOverlayListener(this);
-
-#if INCLUDE_BAR
-
-	container->addAndMakeVisible(mainBar = BaseFrontendBar::createFrontendBar(fp));
-
-#endif
-
-	container->addAndMakeVisible(keyboard = new CustomKeyboard(fp->getKeyboardState()));
-
-    keyboard->setAvailableRange(fp->getKeyboardState().getLowestKeyToDisplay(), 127);
-    
-    bool showKeyboard = fp->getToolbarPropertiesObject()->getProperty("keyboard");
-
-    keyboard->setVisible(showKeyboard);
-
-	container->addAndMakeVisible(aboutPage = new AboutPage());
-	aboutPage->setVisible(false);
-
+	
 	container->addAndMakeVisible(deactiveOverlay = new DeactiveOverlay());
 
 #if !FRONTEND_IS_PLUGIN
@@ -89,25 +69,13 @@ AudioProcessorEditor(fp)
 	loaderOverlay->setDialog(nullptr);
 	fp->setOverlay(loaderOverlay);
 
-    overlayToolbar = dynamic_cast<DefaultFrontendBar*>(mainBar.get()) != nullptr && fp->getToolbarPropertiesObject()->getProperty("overlaying");
-    
-	addChildComponent(debugLoggerComponent = new DebugLoggerComponent(&fp->getDebugLogger()));
+    addChildComponent(debugLoggerComponent = new DebugLoggerComponent(&fp->getDebugLogger()));
 
 	debugLoggerComponent->setVisible(fp->getDebugLogger().isLogging());
 
-#if HISE_IOS
-    const int keyboardHeight = 210;
-#else
-    const int keyboardHeight = 72;
-#endif
-    
-	
-#if HISE_IPHONE
-    setSize(568, 320);
-#else
-    setSize(interfaceComponent->getContentWidth(), ((mainBar != nullptr && !overlayToolbar) ? mainBar->getHeight() : 0) + interfaceComponent->getContentHeight() + (showKeyboard ? keyboardHeight : 0));
-#endif
-	
+	auto jsp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(fp);
+	setSize(jsp->getScriptingContent()->getContentWidth(), jsp->getScriptingContent()->getContentHeight());
+
 	startTimer(4125);
 
 	originalSizeX = getWidth();
@@ -131,10 +99,6 @@ FrontendProcessorEditor::~FrontendProcessorEditor()
 {
 	dynamic_cast<OverlayMessageBroadcaster*>(getAudioProcessor())->removeOverlayListener(this);
 
-	mainBar = nullptr;
-	interfaceComponent = nullptr;
-	keyboard = nullptr;
-	aboutPage = nullptr;
 	loaderOverlay = nullptr;
 	debugLoggerComponent = nullptr;
 }
@@ -170,42 +134,10 @@ void FrontendProcessorEditor::resized()
     int height = originalSizeY != 0 ? originalSizeY : getHeight();
     
     container->setBounds(0, 0, width, height);
-    
-	if (mainBar != nullptr)
-	{
-		mainBar->setBounds(0, y, width, mainBar->getHeight());
-		
-        if(!overlayToolbar)
-            y += mainBar->getHeight();
-	}
-
-	interfaceComponent->setBounds(0, y, width, interfaceComponent->getContentHeight());
-
-	y = interfaceComponent->getBottom();
-
-#if HISE_IOS
-    const int keyboardHeight = 210;
-#else
-    const int keyboardHeight = 72;
-#endif
-    
-    if(keyboard->isVisible())
-    {
-        keyboard->setBounds(0, y, width, keyboardHeight);
-		debugLoggerComponent->setBounds(0, y - 60, width, 60);
-    }
-	else
-	{
-		debugLoggerComponent->setBounds(0, getHeight() - 60, width, 60);
-	}
-	
-	aboutPage->setBoundsInset(BorderSize<int>(80));
-	
+	rootTile->setBounds(0, 0, width, height);
     deactiveOverlay->setBounds(0, 0, width, height);
-
 	loaderOverlay->setBounds(0, 0, width, height);
-
-	
+	debugLoggerComponent->setBounds(0, height-90, width, 90);
 }
 
 #if USE_COPY_PROTECTION

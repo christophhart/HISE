@@ -356,6 +356,7 @@ public:
 			ScriptConnectorPanel,
 			ScriptEditor,
 			ScriptContent,
+			InterfaceContent,
 			TablePanel,
 			SliderPackPanel,
 			Plotter,
