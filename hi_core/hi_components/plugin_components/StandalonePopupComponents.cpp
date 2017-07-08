@@ -250,6 +250,10 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 	ADD(SampleLocation);
 	ADD(DebugMode);
     
+    for(int i = 0; i < (int)Properties::numProperties; i++)
+    {
+        properties[i] = true;
+    }
     
     addAndMakeVisible(deviceSelector = new ComboBox("Driver"));
     addAndMakeVisible(soundCardSelector = new ComboBox("Device"));

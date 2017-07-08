@@ -102,6 +102,7 @@ CustomKeyboard::CustomKeyboard(MainController* mc_) :
    
 	setLookAndFeel(&laf);
 
+    setOpaque(true);
 
 #if HISE_IOS
 

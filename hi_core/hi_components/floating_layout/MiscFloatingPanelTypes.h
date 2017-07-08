@@ -724,14 +724,7 @@ public:
 
 	void resized() override
 	{
-		int maxWidth = keyboard->isUsingCustomGraphics() ? INT_MAX : CONTAINER_WIDTH;
-
-		int height = keyboard->isUsingCustomGraphics() ? getHeight() : 72;
-
-		if (getWidth() < maxWidth)
-			keyboard->setBounds(0, 0, getWidth(), height);
-		else
-			keyboard->setBounds((getWidth() - maxWidth) / 2, 0, maxWidth, height);
+        keyboard->setBounds(0, 0, getWidth(), getHeight());
 	}
 
 	int getNumColourIds() const { return numColourIds; }
