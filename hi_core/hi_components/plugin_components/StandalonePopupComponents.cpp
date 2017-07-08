@@ -423,6 +423,14 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
             
             bufferSelector->setSelectedItemIndex(bufferSizes.indexOf(thisBufferSize), dontSendNotification);
             
+#if HISE_IOS
+            
+            Array<double> samplerates;
+            
+            samplerates.add(44100.0);
+            samplerates.add(48000.0);
+            
+#else
 
             Array<double> allSamplerates = currentDevice->getAvailableSampleRates();
             Array<double> samplerates;
@@ -434,7 +442,11 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
             if (allSamplerates.contains(176400.0)) samplerates.add(176400.0);
             if (allSamplerates.contains(192000.0)) samplerates.add(192000.0);
 
-			for (int i = 0; i < samplerates.size(); i++)
+			
+            
+#endif
+            
+            for (int i = 0; i < samplerates.size(); i++)
             {
                 sampleRateSelector->addItem(String(samplerates[i], 0), i + 1);
             }
