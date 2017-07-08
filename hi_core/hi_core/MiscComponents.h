@@ -151,6 +151,8 @@ public:
 
 	void fillPopupMenu(const MouseEvent &event);
 
+	void mouseMove(const MouseEvent& event) override;
+
 	void mouseDrag(const MouseEvent& event) override;
 	void mouseEnter(const MouseEvent &event) override;
 	void mouseExit(const MouseEvent &event) override;

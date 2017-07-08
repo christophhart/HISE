@@ -399,6 +399,15 @@ MouseCallbackComponent::CallbackLevel MouseCallbackComponent::getCallbackLevel()
 	return callbackLevel;
 }
 
+void MouseCallbackComponent::mouseMove(const MouseEvent& event)
+{
+	if (callbackLevel < CallbackLevel::AllCallbacks) return;
+
+	sendMessage(event, Action::Moved, EnterState::Nothing);
+}
+
+
+
 void MouseCallbackComponent::mouseDrag(const MouseEvent& event)
 {
 	if (draggingEnabled)
