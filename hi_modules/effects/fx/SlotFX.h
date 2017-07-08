@@ -19,13 +19,7 @@ public:
 
 	SET_PROCESSOR_NAME("SlotFX", "Effect Slot")
 
-	SlotFX(MainController *mc, const String &uid) :
-		MasterEffectProcessor(mc, uid)
-	{
-		createList();
-
-		reset();
-	}
+	SlotFX(MainController *mc, const String &uid);
 
 	~SlotFX() {};
 
@@ -136,6 +130,24 @@ public:
 
 private:
 
+	class Updater: public AsyncUpdater
+	{
+	public:
+
+		Updater(SlotFX* fx_):
+			fx(fx_)
+		{
+
+		}
+
+		void handleAsyncUpdate() override;
+
+	private:
+
+		SlotFX* fx;
+		
+	};
+
 	class Constrainer : public FactoryType::Constrainer
 	{
 #define DEACTIVATE(x) if (typeName == x::getClassType()) return false;
@@ -166,6 +178,8 @@ private:
 	CriticalSection swapLock;
 
 	bool isClear = true;
+
+	Updater updater;
 
 	ScopedPointer<MasterEffectProcessor> wrappedEffect;
 };

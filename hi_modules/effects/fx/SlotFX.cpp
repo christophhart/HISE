@@ -10,6 +10,15 @@
 
 #include "SlotFX.h"
 
+SlotFX::SlotFX(MainController *mc, const String &uid) :
+	MasterEffectProcessor(mc, uid),
+	updater(this)
+{
+	createList();
+
+	reset();
+}
+
 ProcessorEditorBody * SlotFX::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
@@ -56,18 +65,12 @@ bool SlotFX::setEffect(const String& typeName)
 			wrappedEffect = p;
 		}
 
+		updater.triggerAsyncUpdate();
         
-        for (int i = 0; i < p->getNumInternalChains(); i++)
-        {
-            dynamic_cast<ModulatorChain*>(p->getChildProcessor(i))->setColour(p->getColour());
-        }
+
+
         
-        if (JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(p))
-        {
-            sp->compileScript();
-        }
-        
-		sendRebuildMessage(true);
+		
 
 		return true;
 	}
@@ -92,4 +95,25 @@ void SlotFX::createList()
 	}
 
 	f = nullptr;
+}
+
+void SlotFX::Updater::handleAsyncUpdate()
+{
+	auto p = fx->wrappedEffect.get();
+
+	if (p != nullptr)
+	{
+		for (int i = 0; i < p->getNumInternalChains(); i++)
+		{
+			dynamic_cast<ModulatorChain*>(p->getChildProcessor(i))->setColour(p->getColour());
+		}
+
+		if (JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(p))
+		{
+			sp->compileScript();
+		}
+
+
+		fx->sendRebuildMessage(true);
+	}
 }
