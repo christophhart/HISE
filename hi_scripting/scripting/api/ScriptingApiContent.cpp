@@ -1984,6 +1984,7 @@ void ScriptingApi::Content::ScriptImage::setAlpha(float newAlphaValue)
 struct ScriptingApi::Content::ScriptPanel::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_0(ScriptPanel, repaint);
+	API_VOID_METHOD_WRAPPER_0(ScriptPanel, repaintImmediately);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setPaintRoutine);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setMouseCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setTimerCallback);
@@ -2046,6 +2047,7 @@ controlSender(this, base)
 	addConstant("data", new DynamicObject());
 
 	ADD_API_METHOD_0(repaint);
+	ADD_API_METHOD_0(repaintImmediately);
 	ADD_API_METHOD_1(setPaintRoutine);
 	ADD_API_METHOD_1(setMouseCallback);
 	ADD_API_METHOD_1(setTimerCallback);
@@ -2077,6 +2079,13 @@ void ScriptingApi::Content::ScriptPanel::repaint()
 	repainter.triggerAsyncUpdate();
 }
 
+
+void ScriptingApi::Content::ScriptPanel::repaintImmediately()
+{
+	internalRepaint();
+}
+
+
 void ScriptingApi::Content::ScriptPanel::setPaintRoutine(var paintFunction)
 {
 	paintRoutine = paintFunction;
@@ -2087,8 +2096,19 @@ void ScriptingApi::Content::ScriptPanel::internalRepaint()
 {
 	const double scaleFactor = parent->usesDoubleResolution() ? 2.0 : 1.0;
     
-	paintCanvas = Image(Image::PixelFormat::ARGB, (int)(scaleFactor * (double)getScriptObjectProperty(ScriptComponent::Properties::width)), (int)(scaleFactor * (double)getScriptObjectProperty(ScriptComponent::Properties::height)), true);
+	int canvasWidth = (int)(scaleFactor * (double)getScriptObjectProperty(ScriptComponent::Properties::width));
+	int canvasHeight = (int)(scaleFactor * (double)getScriptObjectProperty(ScriptComponent::Properties::height));
 
+	if (paintCanvas.getWidth() != canvasWidth ||
+		paintCanvas.getHeight() != canvasHeight)
+	{
+		paintCanvas = Image(Image::PixelFormat::ARGB, canvasWidth, canvasHeight, !getScriptObjectProperty(Properties::opaque));
+	}
+	else if (!getScriptObjectProperty(Properties::opaque))
+	{
+		paintCanvas.clear(Rectangle<int>(0, 0, canvasWidth, canvasHeight));
+	}
+	
 	Graphics g(paintCanvas);
 
 	g.addTransform(AffineTransform::scale((float)scaleFactor));

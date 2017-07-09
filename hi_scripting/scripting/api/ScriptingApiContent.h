@@ -674,8 +674,11 @@ public:
 
 		// ======================================================================================================== API Methods
 
-		/** Triggers a repaint. */
+		/** Triggers an asynchronous repaint. */
 		void repaint();
+
+		/** Calls the paint routine immediately. */
+		void repaintImmediately();
 
 		/** Sets a paint routine (a function with one parameter). */
 		void setPaintRoutine(var paintFunction);
