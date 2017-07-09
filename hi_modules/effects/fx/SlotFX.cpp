@@ -37,6 +37,18 @@ ProcessorEditorBody * SlotFX::createEditor(ProcessorEditor *parentEditor)
 	
 }
 
+void SlotFX::renderWholeBuffer(AudioSampleBuffer &buffer)
+{
+	if (dynamic_cast<EmptyFX*>(wrappedEffect.get()) == nullptr)
+	{
+		ScopedLock sl(swapLock);
+
+		wrappedEffect->renderAllChains(0, buffer.getNumSamples());
+
+		wrappedEffect->renderWholeBuffer(buffer);
+	}
+}
+
 bool SlotFX::setEffect(const String& typeName)
 {
 	int index = effectList.indexOf(typeName);
@@ -97,9 +109,11 @@ void SlotFX::createList()
 	f = nullptr;
 }
 
+
+
 void SlotFX::Updater::handleAsyncUpdate()
 {
-	auto p = fx->wrappedEffect.get();
+    auto p = fx->wrappedEffect.get();
 
 	if (p != nullptr)
 	{

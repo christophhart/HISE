@@ -48,13 +48,15 @@ public:
 
     ValueTree exportAsValueTree() const override
     {
-        ValueTree v = Processor::exportAsValueTree();
+        ValueTree v = MasterEffectProcessor::exportAsValueTree();
         
         return v;
     }
     
     void restoreFromValueTree(const ValueTree& v) override
     {
+		MasterEffectProcessor::restoreFromValueTree(v);
+
         auto d = v.getChildWithName("ChildProcessors").getChild(0);
         
         
@@ -75,14 +77,7 @@ public:
 		wrappedEffect->prepareToPlay(sampleRate, samplesPerBlock); 
 	}
 	
-	void renderWholeBuffer(AudioSampleBuffer &buffer) override
-	{
-		ScopedLock sl(swapLock);
-
-		wrappedEffect->renderAllChains(0, buffer.getNumSamples());
-
-		wrappedEffect->renderWholeBuffer(buffer);
-	}
+	void renderWholeBuffer(AudioSampleBuffer &buffer) override;
 
 	void applyEffect(AudioSampleBuffer &/*b*/, int /*startSample*/, int /*numSamples*/) override 
 	{ 

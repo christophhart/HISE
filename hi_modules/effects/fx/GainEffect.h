@@ -33,6 +33,53 @@
 #ifndef GAINEFFECT_H_INCLUDED
 #define GAINEFFECT_H_INCLUDED
 
+
+/** A simple effect that does nothing. */
+class EmptyFX : public MasterEffectProcessor
+{
+public:
+
+	SET_PROCESSOR_NAME("EmptyFX", "Empty")
+
+	EmptyFX(MainController *mc, const String &uid) :
+		MasterEffectProcessor(mc, uid)
+	{};
+
+	~EmptyFX()
+	{};
+
+	void setInternalAttribute(int parameterIndex, float newValue) override {};
+	float getAttribute(int parameterIndex) const override { return 0.0f; };
+
+	bool hasTail() const override { return false; };
+
+	int getNumInternalChains() const override { return 0; };
+	int getNumChildProcessors() const override { return 0; };
+
+	Processor *getChildProcessor(int processorIndex) override
+	{
+		return nullptr;
+	};
+
+	const Processor *getChildProcessor(int processorIndex) const override
+	{
+		return nullptr;
+	};
+
+	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
+
+	void prepareToPlay(double sampleRate, int samplesPerBlock)
+	{
+
+	}
+
+	void applyEffect(AudioSampleBuffer &b, int startSample, int numSamples)
+	{
+
+	}
+
+};
+
 /** A simple gain effect that allows time variant modulation. */
 class GainEffect: public MasterEffectProcessor
 {

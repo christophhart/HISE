@@ -78,6 +78,7 @@ void EffectProcessorChainFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(AudioProcessorWrapper);
 	ADD_NAME_TO_TYPELIST(JavascriptMasterEffect);
 	ADD_NAME_TO_TYPELIST(SlotFX);
+	ADD_NAME_TO_TYPELIST(EmptyFX);
 };
 
 Processor* EffectProcessorChainFactoryType::createProcessor	(int typeIndex, const String &id)
@@ -106,6 +107,7 @@ Processor* EffectProcessorChainFactoryType::createProcessor	(int typeIndex, cons
 	case audioProcessorWrapper:			return new AudioProcessorWrapper(m, id);
 	case scriptFxProcessor:				return new JavascriptMasterEffect(m, id);
 	case slotFX:						return new SlotFX(m, id);
+	case emptyFX:						return new EmptyFX(m, id);
 	default:					jassertfalse; return nullptr;
 	}
 };

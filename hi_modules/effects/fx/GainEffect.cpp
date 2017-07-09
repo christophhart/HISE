@@ -264,3 +264,18 @@ void GainEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 		balanceSmoother.setSmoothingTime(1000.0f);
 	}
 }
+
+ProcessorEditorBody * EmptyFX::createEditor(ProcessorEditor *parentEditor)
+{
+#if USE_BACKEND
+
+	return new EmptyProcessorEditorBody(parentEditor);
+
+#else 
+
+	ignoreUnused(parentEditor);
+	jassertfalse;
+	return nullptr;
+
+#endif
+}

@@ -372,7 +372,8 @@ public:
 		saturation,
 		audioProcessorWrapper,
 		scriptFxProcessor,
-		slotFX
+		slotFX,
+		emptyFX
 	};
 
 	EffectProcessorChainFactoryType(int numVoices_, Processor *ownerProcessor):
