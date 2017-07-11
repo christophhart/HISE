@@ -250,6 +250,39 @@ FrontendStandaloneApplication::AudioWrapper::AudioWrapper()
 	init();
 #endif
 
+#if !HISE_IOS
+	context = new OpenGLContext();
+	context->attachTo(*editor);
+#endif
 
-	//open.attachTo(*editor);
+	
+}
+
+FrontendStandaloneApplication::AudioWrapper::~AudioWrapper()
+{
+#if !HISE_IOS
+	context->detach();
+	context = nullptr;
+#endif
+
+	editor = nullptr;
+	standaloneProcessor = nullptr;
+}
+
+FrontendStandaloneApplication::MainWindow::MainWindow(String name) : DocumentWindow(name,
+	Colours::lightgrey,
+	DocumentWindow::allButtons)
+{
+	
+
+	setUsingNativeTitleBar(true);
+	setContentOwned(new AudioWrapper(), true);
+	centreWithSize(getWidth(), getHeight());
+
+	
+
+	setResizable(false, false);
+
+
+	setVisible(true);
 }

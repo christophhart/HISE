@@ -336,6 +336,10 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FrontendProcessor)	
 };
 
+namespace juce
+{
+	class OpenGLContext;
+}
 
 
 class FrontendStandaloneApplication : public JUCEApplication
@@ -400,13 +404,7 @@ public:
             g.fillAll(Colours::black);
         }
     
-		~AudioWrapper()
-		{
-            //open.detach();
-			editor = nullptr;
-			standaloneProcessor = nullptr;
-
-		}
+		~AudioWrapper();
 
 		void resized()
 		{
@@ -424,7 +422,7 @@ public:
 		ScopedPointer<AudioProcessorEditor> editor;
 		ScopedPointer<StandaloneProcessor> standaloneProcessor;
         
-        
+		ScopedPointer<OpenGLContext> context;
         
 	};
 
@@ -432,23 +430,12 @@ public:
 	class MainWindow : public DocumentWindow
 	{
 	public:
-		MainWindow(String name) : DocumentWindow(name,
-			Colours::lightgrey,
-			DocumentWindow::allButtons)
-		{
-			setUsingNativeTitleBar(true);
-			setContentOwned(new AudioWrapper(), true);
-			centreWithSize(getWidth(), getHeight());
-			
-			setResizable(false, false);
-
-			
-			setVisible(true);
-		}
+		MainWindow(String name);
 
 		~MainWindow()
         {
-            
+			
+
             audioWrapper = nullptr;
         }
 
@@ -459,7 +446,7 @@ public:
 
 	private:
 
-        
+		
         
 		ScopedPointer<AudioWrapper> audioWrapper;
 
