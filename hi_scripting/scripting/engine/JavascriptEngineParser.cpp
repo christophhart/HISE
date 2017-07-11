@@ -1215,7 +1215,7 @@ private:
 		}
 	}
 
-	Expression *parseInlineFunction(JavascriptNamespace* ns, TokenIterator *preparser=nullptr)
+	Statement *parseInlineFunction(JavascriptNamespace* ns, TokenIterator *preparser=nullptr)
 	{
 		if (preparser != nullptr)
 		{
@@ -1224,8 +1224,7 @@ private:
 			preparser->match(TokenTypes::function);
 			
 			Identifier name = preparser->currentValue.toString();
-
-			preparser->matchIf(TokenTypes::identifier);
+			preparser->match(TokenTypes::identifier);
 			preparser->match(TokenTypes::openParen);
 
 			Array<Identifier> inlineArguments;
@@ -1240,15 +1239,11 @@ private:
 
 			preparser->match(TokenTypes::closeParen);
 
-			if (name.isValid())
-			{
-				ScopedPointer<InlineFunction::Object> o = new InlineFunction::Object(name, inlineArguments);
+			ScopedPointer<InlineFunction::Object> o = new InlineFunction::Object(name, inlineArguments);
 
-				o->location = loc;
+			o->location = loc;
 
-				ns->inlineFunctions.add(o.release());
-			}
-
+			ns->inlineFunctions.add(o.release());
 			preparser->matchIf(TokenTypes::semicolon);
 
 			return nullptr;
@@ -1259,55 +1254,26 @@ private:
 
 			match(TokenTypes::function);
 
-			Identifier name;
-			
+			Identifier name = parseIdentifier();
+
+			match(TokenTypes::openParen);
+
+			while (currentType != TokenTypes::closeParen) skip();
+
+			match(TokenTypes::closeParen);
+
 			InlineFunction::Object::Ptr o;
 
-			if (currentType == TokenTypes::identifier)
+			for (int i = 0; i < ns->inlineFunctions.size(); i++)
 			{
-				name = parseIdentifier();
-
-				match(TokenTypes::openParen);
-
-				while (currentType != TokenTypes::closeParen) skip();
-
-				match(TokenTypes::closeParen);
-
-				for (int i = 0; i < ns->inlineFunctions.size(); i++)
+				if ((o = dynamic_cast<InlineFunction::Object*>(ns->inlineFunctions[i].get())))
 				{
-					if ((o = dynamic_cast<InlineFunction::Object*>(ns->inlineFunctions[i].get())))
+					if (o->name == name)
 					{
-						if (o->name == name)
-						{
-							break;
-						}
+						break;
 					}
 				}
 			}
-			else
-			{
-
-				match(TokenTypes::openParen);
-
-				Array<Identifier> inlineArguments;
-
-				while (currentType != TokenTypes::closeParen)
-				{
-					inlineArguments.add(currentValue.toString());
-					match(TokenTypes::identifier);
-					if (currentType != TokenTypes::closeParen)
-						match(TokenTypes::comma);
-				}
-
-				match(TokenTypes::closeParen);
-
-				o = new InlineFunction::Object(name, inlineArguments);
-
-				o->location = createDebugLocation();
-
-			}
-
-			
 
 			currentInlineFunction = o;
 
@@ -1322,10 +1288,9 @@ private:
 
 				currentInlineFunction = nullptr;
 
-				if(name.isValid()) // don't consume the semicolon when defining a object property...
-					matchIf(TokenTypes::semicolon); 
+				matchIf(TokenTypes::semicolon);
 
-				return new InlineFunction::DynamicReference(location, o);
+				return new Statement(location);
 			}
 			else
 			{
@@ -1798,12 +1763,6 @@ private:
 			{
 				InlineFunction::Object* ob = dynamic_cast<InlineFunction::Object*>(currentInlineFunction);
 
-				if (id == Identifier("this"))
-				{
-					parseIdentifier();
-					return parseSuffixes(new InlineFunction::ThisReference(location, ob));
-				}
-
 				const int inlineParameterIndex = ob->parameterNames.indexOf(id);
 				const int localParameterIndex = ob->localProperties.indexOf(id);
 
@@ -1968,11 +1927,6 @@ private:
 				throwError("Inline functions definitions cannot have a name");
 
 			return new LiteralValue(location, fn);
-		}
-		
-		if (matchIf(TokenTypes::inline_))
-		{
-			return parseInlineFunction(currentNamespace);
 		}
 
 		if (matchIf(TokenTypes::new_))

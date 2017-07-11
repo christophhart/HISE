@@ -219,15 +219,14 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			return DebugableObject::Helpers::getFunctionDoc(commentDoc, parameterNames); 
 		}
 
-		void setFunctionCall(const FunctionCall *e_, DynamicObject* thisObject)
+		void setFunctionCall(const FunctionCall *e_)
 		{
 			e = e_;
-			currentThisObject = thisObject;
 		}
 
-		var performDynamically(const Scope& s, var* args, int numArgs, DynamicObject* thisObject)
+		var performDynamically(const Scope& s, var* args, int numArgs)
 		{
-			setFunctionCall(dynamicFunctionCall, thisObject);
+			setFunctionCall(dynamicFunctionCall);
 
 			for (int i = 0; i < numArgs; i++)
 			{
@@ -241,7 +240,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 				dynamicFunctionCall->parameterResults.setUnchecked(i, var::undefined());
 			}
 
-			setFunctionCall(nullptr, nullptr);
+			setFunctionCall(nullptr);
 
 			if (c == Statement::returnWasHit) return lastReturnValue;
 			else return var::undefined();
@@ -260,7 +259,6 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 		const FunctionCall *e;
 
 		ScopedPointer<FunctionCall> dynamicFunctionCall;
-		DynamicObject::Ptr currentThisObject;
 
 		NamedValueSet localProperties;
 
@@ -301,7 +299,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 		var getResult(const Scope& s) const override
 		{
-			f->setFunctionCall(this, nullptr);
+			f->setFunctionCall(this);
 
 			for (int i = 0; i < numArgs; i++)
 			{
@@ -317,7 +315,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 			f->lastReturnValue = returnVar;
 
-			f->setFunctionCall(nullptr, nullptr);
+			f->setFunctionCall(nullptr);
 
 			if (c == Statement::returnWasHit) return returnVar;
 			else return var::undefined();
@@ -333,54 +331,6 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 		mutable var returnVar;
 
 		const int numArgs;
-	};
-
-	struct DynamicReference : public Expression
-	{
-		DynamicReference(const CodeLocation &l, Object *referedFunction) :
-			Expression(l),
-			f(referedFunction)
-		{}
-
-		~DynamicReference()
-		{
-			f = nullptr;
-		}
-
-		var getResult(const Scope&) const override
-		{
-			return var(f);
-		}
-
-		Object::Ptr f;
-	};
-
-	struct ThisReference : public Expression
-	{
-		ThisReference(const CodeLocation &l, Object *referedFunction) :
-			Expression(l),
-			f(referedFunction)
-		{}
-
-		~ThisReference()
-		{
-			f = nullptr;
-		}
-
-		var getResult(const Scope&) const override
-		{
-			if (f->currentThisObject != nullptr)
-			{
-				return  var(f->currentThisObject.get());
-			}
-			else
-			{
-				location.throwError("Accessing parameter reference outside the function call");
-				return var();
-			}
-		}
-
-		Object* f;
 	};
 
 	struct ParameterReference : public Expression

@@ -110,7 +110,7 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 
 		try
 		{	
-			f->performDynamically(s, args, 2, nullptr);
+			f->performDynamically(s, args, 2);
 		}
 		catch (String error)
 		{
