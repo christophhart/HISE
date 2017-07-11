@@ -367,7 +367,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			f = nullptr;
 		}
 
-		var getResult(const Scope& s) const override
+		var getResult(const Scope&) const override
 		{
 			if (f->currentThisObject != nullptr)
 			{
@@ -375,12 +375,8 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			}
 			else
 			{
-				static const Identifier t("this");
-
-				return s.findSymbolInParentScopes(t);
-
-				//location.throwError("Accessing this reference outside the function call");
-				
+				location.throwError("Accessing parameter reference outside the function call");
+				return var();
 			}
 		}
 
