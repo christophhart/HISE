@@ -2132,9 +2132,7 @@ ScriptingObjects::ScriptingEffect *ScriptingApi::Synth::getEffect(const String &
 
 ScriptingObjects::ScriptingAudioSampleProcessor * ScriptingApi::Synth::getAudioSampleProcessor(const String &name)
 {
-	if (getScriptProcessor()->objectsCanBeCreated())
-	{
-		Processor::Iterator<AudioSampleProcessor> it(owner);
+	Processor::Iterator<AudioSampleProcessor> it(owner);
 
 		AudioSampleProcessor *asp;
 
@@ -2150,15 +2148,8 @@ ScriptingObjects::ScriptingAudioSampleProcessor * ScriptingApi::Synth::getAudioS
         reportScriptError(name + " was not found. ");
         
 		return new ScriptAudioSampleProcessor(getScriptProcessor(), nullptr);
-	}
-	else
-	{
-		reportIllegalCall("getScriptingAudioSampleProcessor()", "onInit");
-
-		return new ScriptAudioSampleProcessor(getScriptProcessor(), nullptr);
-
-	}
 }
+
 
 
 ScriptingObjects::ScriptingTableProcessor *ScriptingApi::Synth::getTableProcessor(const String &name)
