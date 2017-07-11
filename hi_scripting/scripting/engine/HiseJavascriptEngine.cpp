@@ -209,13 +209,11 @@ struct HiseJavascriptEngine::RootObject::Scope
 
 	var findSymbolInParentScopes(const Identifier& name) const
 	{
-		if (scope == nullptr)
-			return var();
-
 		if (const var* v = getPropertyPointer(scope, name))
 			return *v;
 
-		return parent != nullptr ? parent->findSymbolInParentScopes(name) : var();
+		return parent != nullptr ? parent->findSymbolInParentScopes(name)
+			: var::undefined();
 	}
 
 

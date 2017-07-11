@@ -15,12 +15,6 @@ struct HiseJavascriptEngine::RootObject::UnqualifiedName : public Expression
 
 	void assign(const Scope& s, const var& newValue) const override
 	{
-		if (s.scope == nullptr)
-		{
-			s.root->setProperty(name, newValue);
-			return;
-		}
-
 		if (var* v = getPropertyPointer(s.scope, name))
 			*v = newValue;
 		else
