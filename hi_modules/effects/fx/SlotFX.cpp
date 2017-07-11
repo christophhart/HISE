@@ -77,6 +77,12 @@ bool SlotFX::setEffect(const String& typeName)
 			wrappedEffect = p;
 		}
 
+        if (JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(p))
+        {
+            sp->compileScript();
+        }
+
+        
 		updater.triggerAsyncUpdate();
         
 
@@ -121,12 +127,6 @@ void SlotFX::Updater::handleAsyncUpdate()
 		{
 			dynamic_cast<ModulatorChain*>(p->getChildProcessor(i))->setColour(p->getColour());
 		}
-
-		if (JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(p))
-		{
-			sp->compileScript();
-		}
-
 
 		fx->sendRebuildMessage(true);
 	}

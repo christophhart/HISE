@@ -340,15 +340,8 @@ String ProcessorHelpers::getBase64String(const Processor* p, bool copyToClipboar
 {
 	ValueTree v;
 
-	if (is<ProcessorWithScriptingContent>(p))
-	{
-		v = dynamic_cast<const ProcessorWithScriptingContent*>(p)->getScriptingContent()->exportAsValueTree();
-	}
-	else
-	{
-		v = p->exportAsValueTree();
-	}
-
+    v = p->exportAsValueTree();
+    
 	const String c = ValueTreeHelpers::getBase64StringFromValueTree(v);
 
 	if (copyToClipboard)
@@ -363,17 +356,10 @@ void ProcessorHelpers::restoreFromBase64String(Processor* p, const String& base6
 {
 	ValueTree v = ValueTreeHelpers::getValueTreeFromBase64String(base64String);
 
-	if (is<ProcessorWithScriptingContent>(p))
-	{
-		dynamic_cast<const ProcessorWithScriptingContent*>(p)->getScriptingContent()->restoreAllControlsFromPreset(v);
-	}
-	else
-	{
-		p->restoreFromValueTree(v);
-
-		if(auto firstChild = p->getChildProcessor(0))
-			firstChild->sendRebuildMessage(true);
-	}
+    p->restoreFromValueTree(v);
+    
+    if(auto firstChild = p->getChildProcessor(0))
+        firstChild->sendRebuildMessage(true);
 }
 
 void ProcessorHelpers::deleteProcessor(Processor* p)
