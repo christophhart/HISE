@@ -697,6 +697,7 @@ class HardcodedScriptFactoryType: public FactoryType
 		channelFilter,
 		channelSetter,
 		muteAll,
+		arpeggiator,
 	};
 
 public:

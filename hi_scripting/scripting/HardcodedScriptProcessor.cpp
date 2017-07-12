@@ -121,6 +121,7 @@ void HardcodedScriptFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(ChannelFilterScriptProcessor);
 	ADD_NAME_TO_TYPELIST(ChannelSetterScriptProcessor);
 	ADD_NAME_TO_TYPELIST(MuteAllScriptProcessor);
+	ADD_NAME_TO_TYPELIST(Arpeggiator);
 }
 
 Processor *HardcodedScriptFactoryType::createProcessor(int typeIndex, const String &id) 
@@ -138,6 +139,7 @@ Processor *HardcodedScriptFactoryType::createProcessor(int typeIndex, const Stri
 	case channelFilter:			mp = new ChannelFilterScriptProcessor(m, id, ownerAsSynth); break;
 	case channelSetter:			mp = new ChannelSetterScriptProcessor(m, id, ownerAsSynth); break;
 	case muteAll:				mp = new MuteAllScriptProcessor(m, id, ownerAsSynth); break;
+	case arpeggiator:			mp = new Arpeggiator(m, id, ownerAsSynth); break;
 	default:					jassertfalse; break;
 	}
 

@@ -93,6 +93,7 @@ END_JUCE_MODULE_DECLARATION
 #include "scripting/ScriptProcessor.h"
 #include "scripting/ScriptProcessorModules.h"
 #include "scripting/HardcodedScriptProcessor.h"
+#include "scripting/hardcoded_modules/Arpeggiator.h"
 
 #include "scripting/api/ScriptComponentWrappers.h"
 #include "scripting/components/ScriptingContentComponent.h"

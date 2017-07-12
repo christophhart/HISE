@@ -66,6 +66,7 @@
 #include "scripting/ScriptProcessor.cpp"
 #include "scripting/ScriptProcessorModules.cpp"
 #include "scripting/HardcodedScriptProcessor.cpp"
+#include "scripting/hardcoded_modules/Arpeggiator.cpp"
 
 #include "scripting/api/ScriptComponentWrappers.cpp"
 #include "scripting/components/ScriptingContentComponent.cpp"
