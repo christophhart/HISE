@@ -2000,6 +2000,7 @@ ScriptingApi::Content::ScriptPanel::ScriptPanel(ProcessorWithScriptingContent *b
 ScriptComponent(base, parentContent, panelName, x, y, width, height, 1),
 graphics(new ScriptingObjects::GraphicsObject(base, this)),
 repainter(this),
+repaintNotifier(this),
 controlSender(this, base)
 {
 	//deactivatedProperties.add(getIdFor(ScriptComponent::Properties::max));
@@ -2132,7 +2133,9 @@ void ScriptingApi::Content::ScriptPanel::internalRepaint()
 
 	graphics->setGraphics(nullptr, nullptr);
 
-	SEND_MESSAGE(this);
+    repaintNotifier.sendSynchronousChangeMessage();
+    
+	//SEND_MESSAGE(this);
 }
 
 void ScriptingApi::Content::ScriptPanel::setMouseCallback(var mouseCallbackFunction)

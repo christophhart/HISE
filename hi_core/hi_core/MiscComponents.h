@@ -230,7 +230,8 @@ private:
 
 
 
-class BorderPanel : public MouseCallbackComponent
+class BorderPanel : public MouseCallbackComponent,
+                    public SafeChangeListener
 {
 public:
 
@@ -242,6 +243,8 @@ public:
 	void paint(Graphics &g);
 	Colour c1, c2, borderColour;
 
+    void changeListenerCallback(SafeChangeBroadcaster* b);
+    
 	// ================================================================================================================
 
 	float borderRadius;

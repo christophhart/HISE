@@ -579,6 +579,8 @@ ScriptCreatedComponentWrapper(content, index)
 
 	bp->setName(panel->name.toString());
 
+    panel->getRepaintNotifier()->addChangeListener(bp);
+    
 	bp->addMouseCallbackListener(this);
 	bp->setDraggingEnabled(panel->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::allowDragging));
 	bp->setDragBounds(panel->getDragBounds(), this);
@@ -601,6 +603,7 @@ void ScriptCreatedComponentWrappers::PanelWrapper::updateComponent()
 	bpc->borderRadius = getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::borderRadius);
 	bpc->borderSize = getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::borderSize);
 	bpc->image = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(getScriptComponent())->getImage();
+	
 	bpc->isUsingCustomImage = sc->isUsingCustomPaintRoutine();
 	bpc->setPopupMenuItems(sc->getItemList());
 	bpc->setOpaque(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::opaque));
@@ -653,7 +656,11 @@ void ScriptCreatedComponentWrappers::PanelWrapper::boundsChanged(const Rectangle
 ScriptCreatedComponentWrappers::PanelWrapper::~PanelWrapper()
 {
 	BorderPanel *bpc = dynamic_cast<BorderPanel*>(component.get());
-	
+
+    auto panel = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(getScriptComponent());
+    
+    panel->getRepaintNotifier()->removeChangeListener(bpc);
+    
 
 	bpc->removeCallbackListener(this);
 	

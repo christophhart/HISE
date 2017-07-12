@@ -718,6 +718,8 @@ public:
 
 		Rectangle<int> getPopupSize() const { return popupBounds; }
 
+        SafeChangeBroadcaster* getRepaintNotifier() { return &repaintNotifier; };
+        
 		void timerCallback() override;
 
 		const Image* getLoadedImage(const String &prettyName) const
@@ -733,6 +735,17 @@ public:
 
 		Rectangle<int> getDragBounds() const;
 
+        struct RepaintNotifier: public SafeChangeBroadcaster
+        {
+            RepaintNotifier(ScriptPanel* panel_):
+            panel(panel_)
+            {
+                
+            }
+            
+            ScriptPanel* panel;
+        };
+        
 	private:
 
 		var jsonPopupData;
@@ -781,6 +794,8 @@ public:
 			WeakReference<ScriptPanel> parent;
 		};
 
+        
+        
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptPanel);
 
 		ReferenceCountedObjectPtr<ScriptingObjects::GraphicsObject> graphics;
@@ -809,6 +824,9 @@ public:
 
 
 		AsyncRepainter repainter;
+        
+        RepaintNotifier repaintNotifier;
+        
 		AsyncControlCallbackSender controlSender;
 
 		// ========================================================================================================

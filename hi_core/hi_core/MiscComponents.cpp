@@ -533,6 +533,12 @@ borderSize(1.0f)
 
 }
 
+void BorderPanel::changeListenerCallback(SafeChangeBroadcaster* b)
+{
+    image = dynamic_cast<ScriptingApi::Content::ScriptPanel::RepaintNotifier*>(b)->panel->getImage();
+    repaint();
+}
+
 void BorderPanel::paint(Graphics &g)
 {
 	if (isUsingCustomImage)
