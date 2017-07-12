@@ -124,6 +124,8 @@ public:
 	/** Overwrite this and return the SliderPackData member from your subclassed Processor. */
 	virtual const SliderPackData *getSliderPackData(int index) const = 0;
 
+	virtual int getNumSliderPacks() const { return 1; }
+
 private:
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SliderPackProcessor);

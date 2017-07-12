@@ -522,6 +522,7 @@ public:
 			FlashActive,
 			ShowValueOverlay,
 			ProcessorId,
+			SliderPackIndex,
 			numProperties
 		};
 
@@ -537,6 +538,10 @@ public:
 		void restoreFromValueTree(const ValueTree &v) override;
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification) override;
 		
+		void setValue(var newValue) override;
+
+		var getValue() const override;
+
 		void setScriptProcessor(ProcessorWithScriptingContent *sb);
 		SliderPackData *getSliderPackData();
 		const SliderPackData *getSliderPackData() const;
@@ -562,6 +567,9 @@ public:
 	private:
 
 		void connectToOtherSliderPack(const String &otherPackId);
+
+		String otherPackId;
+		int otherPackIndex = 0;
 
 		ScopedPointer<SliderPackData> packData;
 		WeakReference<SliderPackData> existingData;

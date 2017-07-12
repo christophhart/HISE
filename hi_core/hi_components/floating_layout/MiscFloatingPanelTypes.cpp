@@ -363,7 +363,7 @@ void VisibilityToggleBar::Icon::buttonClicked(Button*)
 	refreshColour();
 }
 
-void PopoutButtonPanel::buttonClicked(Button* b)
+void PopoutButtonPanel::buttonClicked(Button* /*b*/)
 {
 	ScopedPointer<FloatingTile> popout = new FloatingTile(getMainController(), nullptr, popoutData);
 

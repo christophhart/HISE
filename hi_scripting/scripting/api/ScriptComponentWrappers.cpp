@@ -659,8 +659,10 @@ ScriptCreatedComponentWrappers::PanelWrapper::~PanelWrapper()
 
     auto panel = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(getScriptComponent());
     
-    panel->getRepaintNotifier()->removeChangeListener(bpc);
-    
+	if (panel != nullptr)
+	{
+		panel->getRepaintNotifier()->removeChangeListener(bpc);
+	}
 
 	bpc->removeCallbackListener(this);
 	
@@ -682,9 +684,21 @@ void ScriptCreatedComponentWrappers::SliderPackWrapper::updateComponent()
 	SliderPack *sp = dynamic_cast<SliderPack*>(component.get());
 	ScriptingApi::Content::ScriptSliderPack *ssp = dynamic_cast<ScriptingApi::Content::ScriptSliderPack*>(getScriptComponent());
 
+	jassert(ssp->getSliderPackData() == sp->getData());
+
 	if (sp->getNumSliders() != ssp->getSliderPackData()->getNumSliders())
 	{
-		sp->setNumSliders(ssp->getNumSliders());
+		if (ssp->getNumSliders() > 0)
+		{
+			sp->setNumSliders(ssp->getNumSliders());
+		}
+		else
+		{
+			// Somehow, the slider amount got zeroed...
+			jassertfalse;
+		}
+
+		
 	}
 	else
 	{

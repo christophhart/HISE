@@ -1844,14 +1844,17 @@ void ScriptingApi::Synth::startTimer(double intervalInSeconds)
 	}
 #endif
 
-	JavascriptMidiProcessor *p = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor());
+	
+	auto p = dynamic_cast<ScriptBaseMidiProcessor*>(getScriptProcessor());
+
+	auto jmp = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor());
 
 	if (p == nullptr) return;
 
-	if(p->isDeferred())
+	if(jmp != nullptr && jmp->isDeferred())
 	{
 		owner->stopSynthTimer(p->getIndexInChain());
-		p->startTimer((int)(intervalInSeconds * 1000));
+		jmp->startTimer((int)(intervalInSeconds * 1000));
 		p->setIndexInChain(-1);
 	}
 	else
@@ -1872,7 +1875,9 @@ void ScriptingApi::Synth::startTimer(double intervalInSeconds)
 
 void ScriptingApi::Synth::stopTimer()
 {
-	JavascriptMidiProcessor *p = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor());
+	auto p = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor());
+	auto sbmp = static_cast<ScriptBaseMidiProcessor*>(getScriptProcessor());
+
 
 	if(p != nullptr && p->isDeferred())
 	{
@@ -1881,8 +1886,9 @@ void ScriptingApi::Synth::stopTimer()
 	}
 	else
 	{
-		if(p != nullptr) owner->stopSynthTimer(p->getIndexInChain());
-		dynamic_cast<MidiProcessor*>(getScriptProcessor())->setIndexInChain(-1);
+		if(sbmp != nullptr) owner->stopSynthTimer(sbmp->getIndexInChain());
+
+		sbmp->setIndexInChain(-1);
 	}
 }
 

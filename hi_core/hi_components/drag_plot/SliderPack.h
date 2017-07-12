@@ -74,11 +74,21 @@ public:
 		nextIndexToDisplay = -1;
 	}
 
+	void swapData(Array<var> &otherData)
+	{
+		otherData.swapWith(values);
+
+		sendChangeMessage();
+	}
+
 	void setDisplayedIndex(int index)
 	{
 		nextIndexToDisplay = index;
 		sendAllocationFreeChangeMessage();
 	}
+
+	var getDataArray() const { return var(values); }
+
 	void setFlashActive(bool shouldBeShown) { flashActive = shouldBeShown; };
 	void setShowValueOverlay(bool shouldBeShown) { showValueOverlay = shouldBeShown; };
 
@@ -101,7 +111,9 @@ private:
 
 	double stepSize;
 
-	Array<float> values;
+	Array<var> values;
+
+	//Array<float> values;
 };
 
 
@@ -181,6 +193,8 @@ public:
 	void setDisplayedIndex(int displayIndex);
 
 	void setDefaultValue(double defaultValue);
+
+	const SliderPackData* getData() const { return data; }
 
 	void resized() override;
 	void setValuesFromLine();

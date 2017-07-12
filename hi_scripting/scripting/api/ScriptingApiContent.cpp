@@ -1637,6 +1637,7 @@ existingData(nullptr)
 	propertyIds.add("flashActive");			ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	propertyIds.add("showValueOverlay");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	propertyIds.add("ProcessorId");         ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	propertyIds.add("SliderPackIndex");     
 
 	packData->setNumSliders(16);
 
@@ -1650,6 +1651,7 @@ existingData(nullptr)
 	setDefaultValue(FlashActive, true);
 	setDefaultValue(ShowValueOverlay, true);
 	setDefaultValue(ProcessorId, "");
+	setDefaultValue(SliderPackIndex, 0);
 
 	setDefaultValue(SliderAmount, 16);
 	setDefaultValue(StepSize, 0.01);
@@ -1706,9 +1708,11 @@ int ScriptingApi::Content::ScriptSliderPack::getNumSliders() const
 	return getSliderPackData()->getNumSliders();
 }
 
-void ScriptingApi::Content::ScriptSliderPack::connectToOtherSliderPack(const String &otherPackId)
+void ScriptingApi::Content::ScriptSliderPack::connectToOtherSliderPack(const String &newPackId)
 {
-	if (otherPackId.isEmpty()) return;
+	if (newPackId.isEmpty()) return;
+
+	otherPackId = newPackId;
 
 	MidiProcessor* mp = dynamic_cast<MidiProcessor*>(getProcessor());
 	if (mp == nullptr) return;
@@ -1719,9 +1723,9 @@ void ScriptingApi::Content::ScriptSliderPack::connectToOtherSliderPack(const Str
 
 	while ((p = it.getNextProcessor()) != nullptr)
 	{
-		if ((dynamic_cast<SliderPackProcessor*>(p) != nullptr) && p->getId() == otherPackId)
+		if ((dynamic_cast<SliderPackProcessor*>(p) != nullptr) && p->getId() == newPackId)
 		{
-			existingData = dynamic_cast<SliderPackProcessor*>(p)->getSliderPackData(0);
+			existingData = dynamic_cast<SliderPackProcessor*>(p)->getSliderPackData(otherPackIndex);
 
 			
 
@@ -1729,19 +1733,22 @@ void ScriptingApi::Content::ScriptSliderPack::connectToOtherSliderPack(const Str
 		}
 	}
 
-    reportScriptError(otherPackId + " was not found.");
+    reportScriptError(newPackId + " was not found.");
     
 	existingData = nullptr;
 }
 
 StringArray ScriptingApi::Content::ScriptSliderPack::getOptionsFor(const Identifier &id)
 {
-	if (id != getIdFor(ProcessorId)) return ScriptComponent::getOptionsFor(id);
+	if (id == getIdFor(ProcessorId))
+	{
+		MidiProcessor* mp = dynamic_cast<MidiProcessor*>(getProcessor());
+		if (mp == nullptr) return StringArray();
 
-	MidiProcessor* mp = dynamic_cast<MidiProcessor*>(getProcessor());
-	if (mp == nullptr) return StringArray();
-
-	return ProcessorHelpers::getAllIdsForType<SliderPackProcessor>(mp->getOwnerSynth());
+		return ProcessorHelpers::getAllIdsForType<SliderPackProcessor>(mp->getOwnerSynth());
+	}
+	
+	return ScriptComponent::getOptionsFor(id);
 };
 
 void ScriptingApi::Content::ScriptSliderPack::setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /*= sendNotification*/)
@@ -1780,6 +1787,11 @@ void ScriptingApi::Content::ScriptSliderPack::setScriptObjectPropertyWithChangeM
 	{
 		connectToOtherSliderPack(newValue.toString());
 	}
+	else if (id == getIdFor(SliderPackIndex))
+	{
+		otherPackIndex = (int)newValue;
+		connectToOtherSliderPack(otherPackId);
+	}
 
 	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
 }
@@ -1809,6 +1821,27 @@ SliderPackData * ScriptingApi::Content::ScriptSliderPack::getSliderPackData()
 const SliderPackData * ScriptingApi::Content::ScriptSliderPack::getSliderPackData() const
 {
 	return (existingData != nullptr) ? existingData.get() : packData.get();
+}
+
+void ScriptingApi::Content::ScriptSliderPack::setValue(var newValue)
+{
+	ScriptComponent::setValue(newValue);
+
+	if (auto array = newValue.getArray())
+	{
+		getSliderPackData()->swapData(*array);
+		
+		SEND_MESSAGE(this);
+	}
+	else
+	{
+		reportScriptError("You must call setValue() with an array for Slider Packs");
+	}
+}
+
+var ScriptingApi::Content::ScriptSliderPack::getValue() const
+{
+	return getSliderPackData()->getDataArray();
 }
 
 struct ScriptingApi::Content::ScriptImage::Wrapper

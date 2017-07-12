@@ -275,7 +275,7 @@ void SliderPack::sliderValueChanged(Slider *s)
 
     if(data.get() == nullptr) return;
     
-	data->setValue(index, (float)s->getValue(), dontSendNotification);
+	data->setValue(index, (float)s->getValue(), sendNotification);
 
 	for (int i = 0; i < listeners.size(); i++)
 	{
@@ -428,6 +428,12 @@ void SliderPack::mouseExit(const MouseEvent &)
 void SliderPack::paintOverChildren(Graphics &g)
 {
 	if (data.get() == nullptr) return;
+
+	if (displayAlphas.size() != sliders.size())
+	{
+		jassertfalse;
+		return;
+	}
 
 	if (isTimerRunning() && data->isFlashActive())
 	{

@@ -610,7 +610,7 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 
 			File newFile = scriptDirectory.getChildFile(newFileName + ".js");
 
-			if (!newFile.existsAsFile() || PresetHandler::showYesNoWindow("Overwrite existing file", "Do you want to overwrite the file " + newFile.getFullPathName() + "?"));
+			if (!newFile.existsAsFile() || PresetHandler::showYesNoWindow("Overwrite existing file", "Do you want to overwrite the file " + newFile.getFullPathName() + "?"))
 			{
 				newFile.replaceWithText(text);
 			}
