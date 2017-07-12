@@ -625,6 +625,7 @@ void PresetBrowserSearchBar::setHighlightColourAndFont(Colour c, Font f)
 	highlightColour = c;
 
 	inputLabel->setFont(f);
+    inputLabel->setColour(TextEditor::ColourIds::highlightColourId, Colours::white);
 	inputLabel->setColour(TextEditor::ColourIds::focusedOutlineColourId, highlightColour);
 	inputLabel->setColour(TextEditor::ColourIds::highlightedTextColourId, Colours::black);
 }
