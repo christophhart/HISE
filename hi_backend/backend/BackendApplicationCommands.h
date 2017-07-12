@@ -167,6 +167,7 @@ public:
 		MenuToolsCheckAllSampleMaps,
 		MenuToolsUseRelativePaths,
 		MenuToolsCollectExternalFiles,
+		MenuToolsCheckUnusedImages,
         MenuToolsRedirectSampleFolder,
 		MenuToolsForcePoolSearch,
 		MenuToolsConvertAllSamplesToMonolith,
@@ -311,6 +312,7 @@ public:
 		static void validateUserPresets(BackendRootWindow * bpe);
 		static void createBase64State(CopyPasteTarget* target);
 		static void createUserInterface(BackendRootWindow * bpe);
+		static void checkUnusedImages(BackendRootWindow * bpe);
 	};
 
 private:

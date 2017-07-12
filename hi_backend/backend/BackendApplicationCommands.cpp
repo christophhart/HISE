@@ -133,6 +133,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsCheckAllSampleMaps,
 		MenuToolsUseRelativePaths,
 		MenuToolsCollectExternalFiles,
+		MenuToolsCheckUnusedImages,
         MenuToolsRedirectSampleFolder,
 		MenuToolsForcePoolSearch,
 		MenuToolsConvertAllSamplesToMonolith,
@@ -390,6 +391,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuToolsCollectExternalFiles:
 		setCommandTarget(result, "Collect external files into Project folder", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
 		break;
+	case MenuToolsCheckUnusedImages:
+		setCommandTarget(result, "Check for unreferenced images", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
+		break;
     case MenuToolsRedirectSampleFolder:
 		setCommandTarget(result, "Redirect sample folder", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(),
 			GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isRedirected(ProjectHandler::SubDirectories::Samples), 'X', false);
@@ -546,6 +550,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsResolveMissingSamples:Actions::resolveMissingSamples(bpe); return true;
 	case MenuToolsUseRelativePaths:		Actions::toggleRelativePath(bpe); updateCommands();  return true;
 	case MenuToolsCollectExternalFiles:	Actions::collectExternalFiles(bpe); return true;
+	case MenuToolsCheckUnusedImages:	Actions::checkUnusedImages(bpe); return true;
     case MenuToolsRedirectSampleFolder: Actions::redirectSampleFolder(bpe->getMainSynthChain()); updateCommands(); return true;
 	case MenuToolsForcePoolSearch:		Actions::toggleForcePoolSearch(bpe); updateCommands(); return true;
 	case MenuToolsConvertAllSamplesToMonolith:	Actions::convertAllSamplesToMonolith(bpe); return true;
@@ -799,6 +804,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuToolsUseRelativePaths);
 		ADD_DESKTOP_ONLY(MenuToolsCheckAllSampleMaps);
 		ADD_DESKTOP_ONLY(MenuToolsCollectExternalFiles);
+		ADD_DESKTOP_ONLY(MenuToolsCheckUnusedImages);
 		ADD_DESKTOP_ONLY(MenuToolsRedirectSampleFolder);
 		ADD_DESKTOP_ONLY(MenuToolsForcePoolSearch);
 		ADD_DESKTOP_ONLY(MenuToolsConvertAllSamplesToMonolith);
@@ -1107,6 +1113,89 @@ void BackendCommandTarget::Actions::createBase64State(CopyPasteTarget* target)
 void BackendCommandTarget::Actions::createUserInterface(BackendRootWindow * /*bpe*/)
 {
 	
+}
+
+void BackendCommandTarget::Actions::checkUnusedImages(BackendRootWindow * bpe)
+{
+	auto handler = GET_PROJECT_HANDLER(bpe->getMainSynthChain());
+
+	auto imageDirectory = handler.getSubDirectory(ProjectHandler::SubDirectories::Images);
+	
+	Array<File> allFiles;
+	
+	imageDirectory.findChildFiles(allFiles, File::findFiles, true);
+
+	Array<File> referencedFiles;
+
+	auto imagePool = bpe->getBackendProcessor()->getSampleManager().getImagePool();
+
+	auto list = imagePool->getFileNameList();
+
+	for (int i = 0; i < list.size(); i++)
+	{
+		auto f = File(list[i]);
+
+		jassert(f.existsAsFile());
+
+		auto indexInAllFiles = allFiles.indexOf(f);
+
+		allFiles.remove(indexInAllFiles);
+	}
+
+	
+
+	for (int i = 0; i < allFiles.size(); i++)
+	{
+		auto f = allFiles[i];
+
+		if (f.getFileName() == "SplashScreen.png")
+		{
+			// Don't remove the splash screen
+			allFiles.remove(i--);
+			continue;
+		}
+
+		if (f.getFileName() == "Icon.png")
+		{
+			// Don't remove the icon file
+			allFiles.remove(i--);
+			continue;
+		}
+
+		if (f.getFileExtension() == ".ttf")
+		{
+			// Don't remove fonts
+			allFiles.remove(i--);
+			continue;
+		}
+	}
+
+	if (allFiles.isEmpty())
+	{
+		PresetHandler::showMessageWindow("No unreferenced images found", "There are no unreferenced images in the project folder", PresetHandler::IconType::Info);
+	}
+	else if (PresetHandler::showYesNoWindow(String(allFiles.size()) + " unreferenced images found", "Press OK to move the files into a temporary directory"))
+	{
+		auto tempDirectory = imageDirectory.getSiblingFile("UnusedImages");
+
+		for (int i = 0; i < allFiles.size(); i++)
+		{
+			auto path = allFiles[i].getRelativePathFrom(imageDirectory);
+
+			auto target = tempDirectory.getChildFile(path);
+
+			target.getParentDirectory().createDirectory();
+
+			allFiles[i].moveFileTo(target);
+		}
+
+		if (PresetHandler::showYesNoWindow("Open temporary location", "Do you want to open the location where the unreferenced files were moved?"))
+		{
+			tempDirectory.revealToUser();
+		}
+	}
+
+
 }
 
 void BackendCommandTarget::Actions::recompileAllScripts(BackendRootWindow * bpe)
