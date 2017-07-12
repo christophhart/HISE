@@ -106,7 +106,7 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 		var args[2] = { var(component), controllerValue };
 
 		auto rootObj = thisAsJavascriptProcessor->getScriptEngine()->getRootObject();
-		auto s = HiseJavascriptEngine::RootObject::Scope(nullptr, static_cast<HiseJavascriptEngine::RootObject*>(rootObj), nullptr);
+		auto s = HiseJavascriptEngine::RootObject::Scope(nullptr, static_cast<HiseJavascriptEngine::RootObject*>(rootObj), rootObj);
 
 		try
 		{	
