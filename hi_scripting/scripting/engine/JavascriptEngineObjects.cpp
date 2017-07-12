@@ -32,6 +32,7 @@ struct HiseJavascriptEngine::RootObject::ArrayClass : public DynamicObject
         setMethod("isArray", isArray);
 		setMethod("reverse", reverse);
         setMethod("reserve", reserve);
+		setMethod("clear", clear);
 	}
 
 	static Identifier getClassName()   { static const Identifier i("Array"); return i; }
@@ -61,6 +62,14 @@ struct HiseJavascriptEngine::RootObject::ArrayClass : public DynamicObject
 				strings.add(array->getReference(i).toString());
 
 		return strings.joinIntoString(getString(a, 0));
+	}
+
+	static var clear(Args a)
+	{
+		if (Array<var>* array = a.thisObject.getArray())
+			array->clearQuick();
+
+		return var();
 	}
 
 	static var push(Args a)
@@ -187,6 +196,9 @@ public:
 	/** Reverses the order of the elements in the array. */
 	void reverse() {}
 
+	/** Reserves the space needed for the given amount of elements. */
+	void reserve(int numElements) {}
+
 	/** Joins the array into a string with the given separator. */
 	String join(var separatorString) { return String(); }
 
@@ -195,6 +207,9 @@ public:
 
 	/** Sorts the array. */
 	void sort() {}
+
+	/** Clears the array. */
+	void clear() {}
 
 	/** Inserts the given arguments at the firstIndex. */
 	void insert(int firstIndex, var argumentList) {}
