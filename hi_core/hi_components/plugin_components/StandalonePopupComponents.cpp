@@ -945,6 +945,8 @@ private:
 
 };
 
+#undef SET
+
 CombinedSettingsWindow::CombinedSettingsWindow(MainController* mc_):
 	mc(mc_)
 {

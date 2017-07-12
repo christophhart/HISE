@@ -388,7 +388,7 @@ public:
 
 	}
 
-	void setCurrentPreset(const File& f, NotificationType sendNotification)
+	void setCurrentPreset(const File& f, NotificationType /*sendNotification*/)
 	{
 		int newIndex = allPresets.indexOf(f);
 

@@ -48,32 +48,32 @@ public:
 	~EmptyFX()
 	{};
 
-	void setInternalAttribute(int parameterIndex, float newValue) override {};
-	float getAttribute(int parameterIndex) const override { return 0.0f; };
+	void setInternalAttribute(int /*parameterIndex*/, float /*newValue*/) override {};
+	float getAttribute(int /*parameterIndex*/) const override { return 0.0f; };
 
 	bool hasTail() const override { return false; };
 
 	int getNumInternalChains() const override { return 0; };
 	int getNumChildProcessors() const override { return 0; };
 
-	Processor *getChildProcessor(int processorIndex) override
+	Processor *getChildProcessor(int /*processorIndex*/) override
 	{
 		return nullptr;
 	};
 
-	const Processor *getChildProcessor(int processorIndex) const override
+	const Processor *getChildProcessor(int /*processorIndex*/) const override
 	{
 		return nullptr;
 	};
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
-	void prepareToPlay(double sampleRate, int samplesPerBlock)
+	void prepareToPlay(double /*sampleRate*/, int /*samplesPerBlock*/)
 	{
 
 	}
 
-	void applyEffect(AudioSampleBuffer &b, int startSample, int numSamples)
+	void applyEffect(AudioSampleBuffer &/*b*/, int /*startSample*/, int /*numSamples*/)
 	{
 
 	}

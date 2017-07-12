@@ -460,7 +460,6 @@ Rectangle<int> HiseDeviceSimulator::getDisplayResolution()
 	case HiseDeviceSimulator::DeviceType::iPodTouch6:	return{ 0, 0, 568, 320 };
 	case HiseDeviceSimulator::DeviceType::numDeviceTypes:
 	default:
-		break;
 		return {};
 	}
 }

@@ -785,12 +785,16 @@ public:
 	{ 
 		if (colourId == ColourIds::backgroundColour) { return Identifier("backgroundColour"); }
 		if (colourId == ColourIds::highlightColour) { return Identifier("highlightColour"); }
+
+		return Identifier();
 	}
 
 	Colour getDefaultColour(int colourId) const override
 	{ 
 		if (colourId == ColourIds::backgroundColour) { return Colours::black.withAlpha(0.97f); }
 		if (colourId == ColourIds::highlightColour)  { return Colour(SIGNAL_COLOUR); }
+
+		return Colour(0);
 	}
 
 private:
