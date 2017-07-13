@@ -417,6 +417,18 @@ protected:
                           area.getX() + 12, area.getY(), area.getWidth() - 16, (int) (area.getHeight() * 0.8f),
                           Justification::bottomLeft, 1);
     }
+
+	Component* getParentComponentForMenuOptions(const PopupMenu::Options& options)
+	{
+		if (HiseDeviceSimulator::isAUv3())
+		{
+			if (options.getParentComponent() == nullptr && options.getTargetComponent() != nullptr)
+				return options.getTargetComponent()->getTopLevelComponent();
+		}
+		
+		return LookAndFeel_V3::getParentComponentForMenuOptions(options);
+
+	};
     
 };
 
@@ -1531,7 +1543,6 @@ class BlackTextButtonLookAndFeel : public LookAndFeel_V3
 	{
 		g.setGradientFill(ColourGradient(Colours::white.withAlpha(isButtonDown ? 0.4f : 0.2f), 0.0f, 0.0f,
 			Colours::white.withAlpha(0.1f), 0.0f, (float)button.getHeight(), false));
-
 
 		g.fillRoundedRectangle(0.0f, 0.0f, (float)button.getWidth(), (float)button.getHeight(), 4.0f);
 	}
