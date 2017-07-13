@@ -78,6 +78,9 @@ public:
 
 	CustomKeyboard* getKeyboard() const override
 	{
+		if (floatingRoot == nullptr)
+			return nullptr;
+
 		FloatingTile::Iterator<MidiKeyboardPanel> it(floatingRoot);
 
 		while (auto kb = it.getNextPanel())

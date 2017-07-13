@@ -58,7 +58,7 @@ int SliderPackData::getNumSliders() const { return values.size(); };
 
 void SliderPackData::setValue(int sliderIndex, float value, NotificationType notifySliderPack/*=dontSendNotification*/)
 {
-	if (sliderIndex < getNumSliders())
+	if (sliderIndex >= 0 && sliderIndex < getNumSliders())
 	{
 		values.setUnchecked(sliderIndex, value);
 
@@ -71,7 +71,7 @@ void SliderPackData::setValue(int sliderIndex, float value, NotificationType not
 
 float SliderPackData::getValue(int index) const
 {
-	if (index < getNumSliders())
+	if (index >= 0 && index < getNumSliders())
 	{
 		return values[index];
 	}

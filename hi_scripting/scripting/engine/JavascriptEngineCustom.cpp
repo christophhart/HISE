@@ -240,10 +240,23 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 				dynamicFunctionCall->parameterResults.setUnchecked(i, var::undefined());
 			}
 
+			cleanLocalProperties();
+
 			setFunctionCall(nullptr);
 
 			if (c == Statement::returnWasHit) return lastReturnValue;
 			else return var::undefined();
+		}
+
+		void cleanLocalProperties()
+		{
+			if (!localProperties.isEmpty())
+			{
+				for (int i = 0; i < localProperties.size(); i++)
+				{
+					*localProperties.getVarPointerAt(i) = var();
+				}
+			}
 		}
 
 		Identifier name;
