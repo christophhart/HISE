@@ -88,11 +88,21 @@ void GlobalScriptCompileBroadcaster::setExternalScriptData(const ValueTree &coll
 
 String GlobalScriptCompileBroadcaster::getExternalScriptFromCollection(const String &fileName)
 {
+    static const String deviceWildcard = "{DEVICE}";
+
+    String realFileName = fileName;
+    
+    if(realFileName.contains(deviceWildcard))
+    {
+        realFileName = realFileName.replace(deviceWildcard, HiseDeviceSimulator::getDeviceName());
+    }
+    
 	for (int i = 0; i < externalScripts.getNumChildren(); i++)
 	{
-		const String thisName = externalScripts.getChild(i).getProperty("FileName").toString();
+        const String thisName = externalScripts.getChild(i).getProperty("FileName").toString();
 
-		if (thisName == fileName)
+        
+		if (thisName == realFileName)
 		{
 			return externalScripts.getChild(i).getProperty("Content").toString();
 		}
