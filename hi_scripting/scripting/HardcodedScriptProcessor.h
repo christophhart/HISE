@@ -73,9 +73,11 @@ public:
     {
         jassert(content.get() != nullptr);
         
-        ScriptBaseMidiProcessor::restoreFromValueTree(v);
+        MidiProcessor::restoreFromValueTree(v);
         
 		onInit();
+
+		ScriptBaseMidiProcessor::restoreContent(v);
 
         if(content.get() != nullptr)
         {
