@@ -76,7 +76,7 @@ void Arpeggiator::onInit()
 	userHeldKeysArray.ensureStorageAllocated(128);
 	userHeldKeysArraySorted.ensureStorageAllocated(128);
 
-	static const String tempoList = "\n1/2\n1/2T\n1/4\n1/4T\n1/8\n1/8T\n1/16\n1/16T\n1/32\n1/32T";
+	static const String tempoList = "1/1\n1/2D\n1/2\n1/2T\n1/4D\n1/4\n1/4T\n1/8D\n1/8\n1/8T\n1/16D\n1/16\n1/16T\n1/32D\n1/32\n1/32D\n1/64D\n1/64\n1/64T";
 
 	timeSigValArray = createTempoDivisionValueArrayViaStringArray(tempoList);
 	minNoteLenSamples = Engine.getSampleRate() / 80;
@@ -179,14 +179,15 @@ void Arpeggiator::onInit()
 	semiToneSliderPack = Content.addSliderPack("SemiToneSliderPack", 160, 30);
 	
 	semiToneSliderPack->set("width", 512);
-	semiToneSliderPack->set("min", -12);
-	semiToneSliderPack->set("max", 12);
+	semiToneSliderPack->set("min", -24);
+	semiToneSliderPack->set("max", 24);
 	semiToneSliderPack->set("sliderAmount", 4);
 	semiToneSliderPack->set("stepSize", 1);
 	
 	velocitySliderPack = Content.addSliderPack("VelocitySliderPack", 160, 160);
 	
 	velocitySliderPack->set("width", 512);
+	velocitySliderPack->set("min", 1);
 	velocitySliderPack->set("max", 127);
 	velocitySliderPack->set("sliderAmount", 4);
 	velocitySliderPack->set("stepSize", "1");
@@ -194,7 +195,7 @@ void Arpeggiator::onInit()
 	lengthSliderPack = Content.addSliderPack("LengthSliderPack", 160, 290);
 	
 	lengthSliderPack->set("width", 512);
-	lengthSliderPack->set("max", 127);
+	lengthSliderPack->set("max", 100);
 	lengthSliderPack->set("sliderAmount", 4);
 	lengthSliderPack->set("stepSize", "1");
 	
@@ -500,7 +501,7 @@ Array<double> Arpeggiator::createTempoDivisionValueArrayViaStringArray(const Str
 
 		modifier_str = regexArray[3];
 
-		if (RegexFunctions::matchesWildcard("[.dD]", modifier_str))
+		if (RegexFunctions::matchesWildcard("[\\.dD]", modifier_str))
 			modifier = 1.5;
 		else if (RegexFunctions::matchesWildcard("[tT]", modifier_str))
 			modifier = 1.0 / 1.5;
@@ -538,7 +539,7 @@ void Arpeggiator::changeDirection()
 void Arpeggiator::calcTimeInterval()
 {
 	//DBG("timeSigValArray[enum("+this.timeSigEnum+")] = " + this.timeSigValArray[this.timeSigEnum] + " / " + this.timeSigStrArray[this.timeSigEnum]);
-	BPM = syncHostButton->getValue() ? Engine.getHostBpm() : internalBPMSlider->getValue();
+	BPM = ((int)syncHostButton->getValue() > 0) ? (double)Engine.getHostBpm() : (double)internalBPMSlider->getValue();
 	BPS = BPM / 60.0;
 
 	timeInterval = jmax<double>(minTimerTime, (double)timeSigValArray[speedComboBox->getValue()] * 1.0 / BPS);
