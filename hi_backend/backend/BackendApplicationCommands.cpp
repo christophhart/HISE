@@ -319,10 +319,10 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		result.addDefaultKeypress(KeyPress::downKey, ModifierKeys::ctrlModifier);
 		break;
 	case MenuEditCreateScriptVariable:
-		setCommandTarget(result, "Create script variable", clipBoardNotEmpty(), false, 'C', true, ModifierKeys::commandModifier | ModifierKeys::shiftModifier);
+		setCommandTarget(result, "Create script variable", currentCopyPasteTarget.get() != nullptr, false, 'C', true, ModifierKeys::commandModifier | ModifierKeys::shiftModifier);
 		break;
 	case MenuEditCreateBase64State:
-		setCommandTarget(result, "Create Base64 encoded state", clipBoardNotEmpty(), false, 'C', false);
+		setCommandTarget(result, "Create Base64 encoded state", currentCopyPasteTarget.get() != nullptr, false, 'C', false);
 		break;
     case MenuEditPlotModulator:
         {
