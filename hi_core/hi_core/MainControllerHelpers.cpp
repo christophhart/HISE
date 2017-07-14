@@ -434,3 +434,24 @@ void DelayedRenderer::prepareToPlayWrapped(double sampleRate, int samplesPerBloc
 		mc->prepareToPlay(sampleRate, samplesPerBlock);
 	}
 }
+
+
+void OverlayMessageBroadcaster::sendOverlayMessage(int newState, const String& newCustomMessage/*=String()*/)
+{
+	if (currentState == DeactiveOverlay::State::CriticalCustomErrorMessage)
+		return;
+
+#if USE_BACKEND
+
+	ignoreUnused(newState);
+
+	// Just print it on the console
+	Logger::getCurrentLogger()->writeToLog(newCustomMessage);
+#else
+
+	currentState = newState;
+	customMessage = newCustomMessage;
+
+	internalUpdater.triggerAsyncUpdate();
+#endif
+}

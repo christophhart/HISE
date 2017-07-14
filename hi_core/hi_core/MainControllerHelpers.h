@@ -200,21 +200,7 @@ public:
 		listeners.removeAllInstancesOf(listener);
 	}
 
-	void sendOverlayMessage(int newState, const String& newCustomMessage=String())
-	{
-#if USE_BACKEND
-
-		ignoreUnused(newState);
-
-		// Just print it on the console
-		Logger::getCurrentLogger()->writeToLog(newCustomMessage);
-#else
-		currentState = newState;
-		customMessage = newCustomMessage;
-
-		internalUpdater.triggerAsyncUpdate();
-#endif
-	}
+	void sendOverlayMessage(int newState, const String& newCustomMessage=String());
 
 private:
 
