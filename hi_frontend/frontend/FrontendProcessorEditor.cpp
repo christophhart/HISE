@@ -74,8 +74,14 @@ AudioProcessorEditor(fp)
 	debugLoggerComponent->setVisible(fp->getDebugLogger().isLogging());
 
 	auto jsp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(fp);
-	setSize(jsp->getScriptingContent()->getContentWidth(), jsp->getScriptingContent()->getContentHeight());
+    
+    if(jsp != nullptr)
+    {
+        setSize(jsp->getScriptingContent()->getContentWidth(), jsp->getScriptingContent()->getContentHeight());
 
+    }
+    
+	
 	startTimer(4125);
 
 	originalSizeX = getWidth();
