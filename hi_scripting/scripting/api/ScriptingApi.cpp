@@ -760,7 +760,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Engine, loadNextUserPreset);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadPreviousUserPreset);
 	API_METHOD_WRAPPER_0(Engine, getCurrentUserPresetName);
-	API_VOID_METHOD_WRAPPER_0(Engine, saveUserPreset);
+	API_VOID_METHOD_WRAPPER_1(Engine, saveUserPreset);
 
 	API_METHOD_WRAPPER_0(Engine, createMidiList);
 	API_METHOD_WRAPPER_0(Engine, createTimerObject);
@@ -806,7 +806,7 @@ ApiClass(0)
 	ADD_API_METHOD_1(loadNextUserPreset);
 	ADD_API_METHOD_1(loadPreviousUserPreset);
 	ADD_API_METHOD_0(getCurrentUserPresetName);
-	ADD_API_METHOD_0(saveUserPreset);
+	ADD_API_METHOD_1(saveUserPreset);
 	ADD_API_METHOD_0(createMidiList);
 	ADD_API_METHOD_0(getPlayHead);
 	ADD_API_METHOD_2(dumpAsJSON);
@@ -980,9 +980,9 @@ String ScriptingApi::Engine::getCurrentUserPresetName()
 	return getProcessor()->getMainController()->getUserPresetHandler().getCurrentlyLoadedFile().getFileNameWithoutExtension();
 }
 
-void ScriptingApi::Engine::saveUserPreset()
+void ScriptingApi::Engine::saveUserPreset(String presetName)
 {
-	getProcessor()->getMainController()->getUserPresetHandler().savePreset();
+	getProcessor()->getMainController()->getUserPresetHandler().savePreset(presetName);
 }
 
 DynamicObject * ScriptingApi::Engine::getPlayHead() { return getProcessor()->getMainController()->getHostInfoObject(); }

@@ -374,61 +374,44 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 
 #endif
 
-	File presetFile;
-	bool doit = false;
-
-	if (targetFile.isNotEmpty() && PresetHandler::showYesNoWindow("Confirm overwrite", "Do you want to overwrite the preset (Press cancel to create a new user preset?"))
+	
+	File presetFile = File(targetFile);
+	
+	if (presetFile.existsAsFile() && PresetHandler::showYesNoWindow("Confirm overwrite", "Do you want to overwrite the preset (Press cancel to create a new user preset?"))
 	{
-		presetFile = File(targetFile);
 		presetFile.deleteFile();
-		doit = true;
+		
 	}
-	else
+	
+	if (!presetFile.existsAsFile())
 	{
-		String name = PresetHandler::getCustomName("User Preset", "Enter a name for the user preset");
+		Processor::Iterator<JavascriptMidiProcessor> iter(chain);
 
-		if (name.isNotEmpty())
+		ValueTree autoData = chain->getMainController()->getMacroManager().getMidiControlAutomationHandler()->exportAsValueTree();
+
+		while (JavascriptMidiProcessor *sp = iter.getNextProcessor())
 		{
-			if (targetFile.isNotEmpty())
-				userPresetDir = File(targetFile).getParentDirectory();
+			if (!sp->isFront()) continue;
 
-			presetFile = userPresetDir.getChildFile(name + ".preset");
-			doit = true;
+			ValueTree v = sp->getScriptingContent()->exportAsValueTree();
+
+			v.setProperty("Processor", sp->getId(), nullptr);
+
+			ValueTree preset = ValueTree("Preset");
+
+			preset.setProperty("Version", getCurrentVersionNumber(chain), nullptr);
+			preset.addChild(v, -1, nullptr);
+			preset.addChild(autoData, -1, nullptr);
+
+			ScopedPointer<XmlElement> xml = preset.createXml();
+
+			presetFile.replaceWithText(xml->createDocument(""));
+
+			chain->getMainController()->getUserPresetHandler().sendRebuildMessage();
+
+			return;
 		}
 	}
-
-	if (doit)
-    {       
-        if(!presetFile.existsAsFile() )
-        {
-            Processor::Iterator<JavascriptMidiProcessor> iter(chain);
-            
-			ValueTree autoData = chain->getMainController()->getMacroManager().getMidiControlAutomationHandler()->exportAsValueTree();
-
-            while(JavascriptMidiProcessor *sp = iter.getNextProcessor())
-            {
-                if(!sp->isFront()) continue;
-                    
-				ValueTree v = sp->getScriptingContent()->exportAsValueTree();
-
-				v.setProperty("Processor", sp->getId(), nullptr);
-
-				ValueTree preset = ValueTree("Preset");
-
-				preset.setProperty("Version", getCurrentVersionNumber(chain), nullptr);
-				preset.addChild(v, -1, nullptr);
-				preset.addChild(autoData, -1, nullptr);
-
-				ScopedPointer<XmlElement> xml = preset.createXml();
-
-				presetFile.replaceWithText(xml->createDocument(""));
-
-				chain->getMainController()->getUserPresetHandler().sendRebuildMessage();
-
-				return;
-            }
-        }
-    }
 }
 
 void UserPresetHelpers::loadUserPreset(ModulatorSynthChain *chain, const File &fileToLoad)

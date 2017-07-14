@@ -443,7 +443,7 @@ void MouseCallbackComponent::mouseUp(const MouseEvent &event)
 		setAlwaysOnTop(false);
 	}
 
-	if (ignoreMouseUp)		   return;
+	if (isTouchEnabled() && ignoreMouseUp)		   return;
 	if (currentlyShowingPopup) return;
 	if (callbackLevel < CallbackLevel::ClicksOnly) return;
 

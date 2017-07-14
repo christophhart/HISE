@@ -21,7 +21,6 @@
 #define __JUCE_HEADER_2C75A49110BA0876__
 
 //[Headers]     -- You can add your own extra header files here --
-#include "JuceHeader.h"
 //[/Headers]
 
 

@@ -307,8 +307,10 @@ public:
 			}
 		}
 
-		void savePreset()
+		void savePreset(String presetName=String())
 		{
+			newPresetName = presetName;
+
 			saver.triggerAsyncUpdate();
 		}
 
@@ -326,7 +328,14 @@ public:
 		
 			void handleAsyncUpdate() override
 			{
-				UserPresetHelpers::saveUserPreset(handler->mc->getMainSynthChain(), handler->getCurrentlyLoadedFile().getFullPathName());
+				File currentPresetFile = handler->getCurrentlyLoadedFile();
+
+				if (handler->newPresetName.isNotEmpty())
+					currentPresetFile = currentPresetFile.getSiblingFile(handler->newPresetName + ".preset");
+				
+				handler->setCurrentlyLoadedFile(currentPresetFile);
+
+				UserPresetHelpers::saveUserPreset(handler->mc->getMainSynthChain(), currentPresetFile.getFullPathName());
 			}
 
 		private:
@@ -342,6 +351,8 @@ public:
 		
 		MainController* mc;
 		ValueTree currentPreset;
+
+		String newPresetName;
 
 		File currentlyLoadedFile;
 

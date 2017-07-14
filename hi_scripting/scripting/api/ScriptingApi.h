@@ -272,8 +272,8 @@ public:
 		/** Returns the currently loaded user preset (without extension). */
 		String getCurrentUserPresetName();
 
-		/** Asks for a preset name and saves the current user preset. */
-		void saveUserPreset();
+		/** Asks for a preset name (if presetName is empty) and saves the current user preset. */
+		void saveUserPreset(String presetName);
 
 		/** Returns the Bpm of the host. */
 		double getHostBpm() const;
