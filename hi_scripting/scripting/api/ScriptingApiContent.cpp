@@ -2056,6 +2056,7 @@ controlSender(this, base)
 	propertyIds.add(Identifier("selectedPopupIndex"));
 	propertyIds.add(Identifier("stepSize"));
 	propertyIds.add(Identifier("enableMidiLearn"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	propertyIds.add(Identifier("holdIsRightClick"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	
 	
 	componentProperties->setProperty(getIdFor(borderSize), 0);
@@ -2077,6 +2078,7 @@ controlSender(this, base)
 	setDefaultValue(selectedPopupIndex, -1);
 	setDefaultValue(stepSize, 0.0);
 	setDefaultValue(enableMidiLearn, false);
+	setDefaultValue(holdIsRightClick, true);
 	
 	addConstant("data", new DynamicObject());
 

@@ -375,6 +375,7 @@ mc(mc_)
 	
 	bankColumn->setNewRootDirectory(rootFile);
 
+	
 	setSize(width, height);
 
 	rebuildAllPresets();

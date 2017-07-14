@@ -654,6 +654,7 @@ public:
 			selectedPopupIndex,
 			stepSize,
 			enableMidiLearn,
+			holdIsRightClick,
 			numProperties
 		};
 

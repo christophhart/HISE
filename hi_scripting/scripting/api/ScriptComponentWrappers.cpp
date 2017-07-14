@@ -613,6 +613,8 @@ void ScriptCreatedComponentWrappers::PanelWrapper::updateComponent()
 
 	bpc->setMidiLearnEnabled(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::enableMidiLearn));
 
+	bpc->setTouchEnabled(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::holdIsRightClick));
+
 	bpc->setJSONPopupData(sc->getJSONPopupData(), sc->getPopupSize());
 
 	const double min = GET_SCRIPT_PROPERTY(min);

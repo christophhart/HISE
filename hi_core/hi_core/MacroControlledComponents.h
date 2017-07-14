@@ -54,7 +54,7 @@ public:
 	
 	void startTouch(Point<int> downPosition)
 	{
-		if (HiseDeviceSimulator::isMobileDevice())
+		if (isTouchEnabled())
 		{
 			updateTimer.startTouch(downPosition);
 		}
@@ -68,6 +68,16 @@ public:
 	void abortTouch()
 	{
 		updateTimer.stopTimer();
+	}
+
+	bool isTouchEnabled() const
+	{
+		return touchEnabled && HiseDeviceSimulator::isMobileDevice();
+	}
+
+	void setTouchEnabled(bool shouldBeEnabled)
+	{
+		touchEnabled = shouldBeEnabled;
 	}
 
 private:
@@ -108,6 +118,8 @@ private:
 
 		TouchAndHoldComponent* parent;
 	};
+
+	bool touchEnabled = true;
 
 	UpdateTimer updateTimer;
 };
