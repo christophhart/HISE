@@ -964,6 +964,12 @@ public:
 
 	struct ScriptFloatingTile : public ScriptComponent
 	{
+		enum Properties
+		{
+			updateAfterInit = ScriptComponent::Properties::numProperties,
+			numProperties
+		};
+
 		// ========================================================================================================
 
 		ScriptFloatingTile(ProcessorWithScriptingContent *base, Content *parentContent, Identifier panelName, int x, int y, int width, int height);

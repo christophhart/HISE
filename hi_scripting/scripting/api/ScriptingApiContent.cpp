@@ -2592,6 +2592,8 @@ struct ScriptingApi::Content::ScriptFloatingTile::Wrapper
 ScriptingApi::Content::ScriptFloatingTile::ScriptFloatingTile(ProcessorWithScriptingContent *base, Content *parentContent, Identifier panelName, int x, int y, int width, int height) :
 	ScriptComponent(base, parentContent, panelName, x, y, width, height)
 {
+	propertyIds.add("updateAfterInit");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::saveInPreset));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::macroControl));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::isPluginParameter));
@@ -2604,6 +2606,7 @@ ScriptingApi::Content::ScriptFloatingTile::ScriptFloatingTile(ProcessorWithScrip
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::useUndoManager));
 
 	setDefaultValue(ScriptComponent::Properties::saveInPreset, false);
+	setDefaultValue(Properties::updateAfterInit, true);
 
 	ADD_API_METHOD_1(setContentData);
 }

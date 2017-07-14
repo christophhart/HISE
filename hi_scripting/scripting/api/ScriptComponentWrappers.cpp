@@ -790,6 +790,14 @@ ScriptCreatedComponentWrappers::FloatingTileWrapper::FloatingTileWrapper(ScriptC
 	ft->setName(floatingTile->name.toString());
 	ft->setOpaque(false);
 
+	const bool updateAfterInit = (bool)floatingTile->getScriptObjectProperty(ScriptingApi::Content::ScriptFloatingTile::Properties::updateAfterInit);
+
+	if (!updateAfterInit)
+	{
+		ft->setContent(floatingTile->getContentData());
+		ft->refreshRootLayout();
+	}
+
 	component = ft;
 }
 
@@ -801,8 +809,16 @@ void ScriptCreatedComponentWrappers::FloatingTileWrapper::updateComponent()
 
 	auto ft = dynamic_cast<FloatingTile*>(component.get());
 	
-	ft->setContent(sft->getContentData());
-	ft->refreshRootLayout();
+	const bool updateAfterInit = (bool)sft->getScriptObjectProperty(ScriptingApi::Content::ScriptFloatingTile::Properties::updateAfterInit);
+
+	if (updateAfterInit)
+	{
+		ft->setContent(sft->getContentData());
+		ft->refreshRootLayout();
+	}
+
+	
+	
 }
 
 typedef ScriptingApi::Content::ScriptComponent ScriptedComponent;
