@@ -904,7 +904,7 @@ public:
             activeSubMenu = new HelperClasses::MenuWindow (*(childComp->item.subMenu), this,
                                                            options.withTargetScreenArea (childComp->getScreenBounds())
                                                                   .withMinimumWidth (0)
-                                                                  .withTargetComponent (nullptr),
+                                                                  .withTargetComponent (childComp),
                                                            false, dismissOnMouseUp, managerOfChosenCommand);
 
             activeSubMenu->setVisible (true); // (must be called before enterModalState on Windows to avoid DropShadower confusion)
@@ -1458,6 +1458,7 @@ void PopupMenu::addSubMenu (const String& subMenuName, const PopupMenu& subMenu,
     i.text = subMenuName;
     i.itemID = itemResultID;
     i.subMenu = new PopupMenu (subMenu);
+    i.subMenu->setLookAndFeel(lookAndFeel);
     i.isEnabled = isActive && (itemResultID != 0 || subMenu.getNumItems() > 0);
     i.isTicked = isTicked;
     i.image = iconToUse;
