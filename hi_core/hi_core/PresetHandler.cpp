@@ -1614,6 +1614,15 @@ void ProjectHandler::Frontend::setSampleLocation(const File &newLocation)
 
 File ProjectHandler::Frontend::getUserPresetDirectory()
 {
+#if HISE_IOS
+    File f = File::getSpecialLocation(File::SpecialLocationType::currentApplicationFile).getChildFile("UserPresets/");
+    
+    
+    return f;
+    
+#else
+    
+    
 	File presetDir = getAppDataDirectory().getChildFile("User Presets");
 	if (!presetDir.isDirectory())
 	{
@@ -1621,6 +1630,8 @@ File ProjectHandler::Frontend::getUserPresetDirectory()
 	}
 
 	return presetDir;
+    
+#endif
 }
 
 

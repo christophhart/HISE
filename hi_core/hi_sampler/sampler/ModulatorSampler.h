@@ -35,6 +35,8 @@
 
 
 
+#include "JuceHeader.h"
+
 
 class SampleEditHandler;
 
