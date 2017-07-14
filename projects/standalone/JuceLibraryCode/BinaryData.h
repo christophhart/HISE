@@ -10,7 +10,7 @@
 namespace BinaryData
 {
     extern const char*   logo_new_png;
-    const int            logo_new_pngSize = 88763;
+    const int            logo_new_pngSize = 29122;
 
     extern const char*   logo_mini_png;
     const int            logo_mini_pngSize = 3429;
@@ -37,13 +37,13 @@ namespace BinaryData
     const int            balanceKnob_200_pngSize = 14976;
 
     extern const char*   knobEmpty_200_png;
-    const int            knobEmpty_200_pngSize = 1071758;
+    const int            knobEmpty_200_pngSize = 27940;
 
     extern const char*   knobModulated_200_png;
-    const int            knobModulated_200_pngSize = 289754;
+    const int            knobModulated_200_pngSize = 9941;
 
     extern const char*   knobUnmodulated_200_png;
-    const int            knobUnmodulated_200_pngSize = 289283;
+    const int            knobUnmodulated_200_pngSize = 16137;
 
     extern const char*   toggle_200_png;
     const int            toggle_200_pngSize = 2427;
