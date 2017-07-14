@@ -1185,7 +1185,12 @@ CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(TargetType
 	}
 	else
 	{
-		REPLACE_WILDCARD_WITH_STRING("%CHANNEL_CONFIG%", "{0, 2}");
+		if (BuildOptionHelpers::isIOS(option))
+			REPLACE_WILDCARD_WITH_STRING("%CHANNEL_CONFIG%", "{0, 2}");
+		else
+			REPLACE_WILDCARD_WITH_STRING("%CHANNEL_CONFIG%", "");
+
+		
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINISSYNTH%", "1");
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINWANTSMIDIIN", "1");
 		REPLACE_WILDCARD_WITH_STRING("%FRONTEND_IS_PLUGIN%", "disabled");
