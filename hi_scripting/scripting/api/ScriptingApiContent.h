@@ -444,6 +444,19 @@ public:
 		StringArray getOptionsFor(const Identifier &id) override;
 		Justification getJustification();
 
+		/** Returns the current value. */
+		virtual var getValue() const override
+		{
+			return value;
+		}
+
+		virtual void setValue(var newValue) override
+		{
+			value = var(newValue.toString());
+			setScriptObjectProperty(text, newValue.toString());
+			sendChangeMessage();
+		}
+
 		// ======================================================================================================== API Methods
 
 		/** makes a label `editable`.

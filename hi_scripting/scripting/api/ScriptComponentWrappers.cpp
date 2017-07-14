@@ -388,9 +388,15 @@ void ScriptCreatedComponentWrappers::LabelWrapper::updateComponent()
 	l->setJustificationType(sl->getJustification());
 	l->setColour(Label::ColourIds::textColourId, GET_OBJECT_COLOUR(textColour));
 	l->setColour(Label::ColourIds::backgroundColourId, GET_OBJECT_COLOUR(bgColour));
-	l->setColour(Label::ColourIds::backgroundWhenEditingColourId, GET_OBJECT_COLOUR(bgColour).contrasting());
-	l->setColour(Label::ColourIds::textWhenEditingColourId, GET_OBJECT_COLOUR(textColour).contrasting());
+	l->setColour(Label::ColourIds::backgroundWhenEditingColourId, GET_OBJECT_COLOUR(bgColour));
+	l->setColour(Label::ColourIds::textWhenEditingColourId, GET_OBJECT_COLOUR(textColour));
+	l->setColour(TextEditor::ColourIds::highlightColourId, GET_OBJECT_COLOUR(textColour));
+	l->setColour(TextEditor::ColourIds::highlightedTextColourId, GET_OBJECT_COLOUR(textColour).contrasting());
+	l->setColour(TextEditor::ColourIds::focusedOutlineColourId, GET_OBJECT_COLOUR(itemColour));
+	l->setColour(CaretComponent::ColourIds::caretColourId, GET_OBJECT_COLOUR(textColour));
 	l->setColour(Label::ColourIds::outlineColourId, GET_OBJECT_COLOUR(itemColour));
+	
+	
 
 	bool editable = sl->getScriptObjectProperty(ScriptingApi::Content::ScriptLabel::Editable);
 	bool multiline = sl->getScriptObjectProperty(ScriptingApi::Content::ScriptLabel::Multiline);
