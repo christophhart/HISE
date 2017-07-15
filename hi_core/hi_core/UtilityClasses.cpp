@@ -446,6 +446,19 @@ String HiseDeviceSimulator::getDeviceName(int index)
 	}
 }
 
+bool HiseDeviceSimulator::fileNameContainsDeviceWildcard(const File& f)
+{
+	String fileName = f.getFileNameWithoutExtension();
+
+	for (int i = 0; i < (int)DeviceType::numDeviceTypes; i++)
+	{
+		if (fileName.contains(getDeviceName(i)))
+			return true;
+	}
+
+	return false;
+}
+
 Rectangle<int> HiseDeviceSimulator::getDisplayResolution()
 {
 	switch (currentDevice)

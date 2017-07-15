@@ -238,6 +238,7 @@ private:
 
 	Array<Component::SafePointer<DocumentWindow>> currentPopups;
 
+	static void addFileContentToValueTree(ValueTree externalScriptFiles, File scriptFile, ModulatorSynthChain* chainToExport);
 };
 
 class FileWatcher : public Timer					

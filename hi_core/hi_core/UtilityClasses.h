@@ -1009,6 +1009,8 @@ public:
 	
 	static String getDeviceName(int index=-1);
 
+	static bool fileNameContainsDeviceWildcard(const File& f);
+
 	static bool isMobileDevice() { return currentDevice > DeviceType::Desktop; }
 	static bool isRetina() { return currentDevice > DeviceType::iPad; }
 

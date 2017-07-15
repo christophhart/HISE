@@ -291,6 +291,7 @@ void JavascriptProcessor::showPopupForCallback(const Identifier& callback, int /
 #endif
 }
 
+
 ValueTree FileChangeListener::collectAllScriptFiles(ModulatorSynthChain *chainToExport)
 {
 	Processor::Iterator<JavascriptProcessor> iter(chainToExport);
@@ -332,42 +333,59 @@ ValueTree FileChangeListener::collectAllScriptFiles(ModulatorSynthChain *chainTo
         for (int i = 0; i < sp->getNumWatchedFiles(); i++)
 		{
 			File scriptFile = sp->getWatchedFile(i);
-			String fileName = scriptFile.getRelativePathFrom(GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Scripts));
 
-			// Wow, much cross-platform, very OSX, totally Windows
-			fileName = fileName.replace("\\", "/");
+			addFileContentToValueTree(externalScriptFiles, scriptFile, chainToExport);
+		}
 
-			File globalScriptFolder = File(PresetHandler::getDataFolder()).getChildFile("scripts");
+		Array<File> allScriptFiles;
 
-			if (globalScriptFolder.isDirectory() && scriptFile.isAChildOf(globalScriptFolder))
+		auto scriptDirectory = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Scripts);
+
+		scriptDirectory.findChildFiles(allScriptFiles, File::findFiles, true, "*.js");
+
+		Array<File> mobileWildcardFiles;
+
+		for (auto f : allScriptFiles)
+		{
+			if (HiseDeviceSimulator::fileNameContainsDeviceWildcard(f))
 			{
-				fileName = "{GLOBAL_SCRIPT_FOLDER}" + scriptFile.getRelativePathFrom(globalScriptFolder);
+				addFileContentToValueTree(externalScriptFiles, f, chainToExport);
 			}
-
-			bool exists = false;
-
-			for (int j = 0; j < externalScriptFiles.getNumChildren(); j++)
-			{
-				if (externalScriptFiles.getChild(j).getProperty("FileName").toString() == fileName)
-				{
-					exists = true;
-					break;
-				}
-			}
-
-			if (exists) continue;
-
-			String fileContent = scriptFile.loadFileAsString();
-			ValueTree script("Script");
-
-			script.setProperty("FileName", fileName, nullptr);
-			script.setProperty("Content", fileContent, nullptr);
-
-			externalScriptFiles.addChild(script, -1, nullptr);
 		}
 	}
 
 	return externalScriptFiles;
+}
+
+void FileChangeListener::addFileContentToValueTree(ValueTree externalScriptFiles, File scriptFile, ModulatorSynthChain* chainToExport)
+{
+	String fileName = scriptFile.getRelativePathFrom(GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Scripts));
+
+	// Wow, much cross-platform, very OSX, totally Windows
+	fileName = fileName.replace("\\", "/");
+
+	File globalScriptFolder = File(PresetHandler::getDataFolder()).getChildFile("scripts");
+
+	if (globalScriptFolder.isDirectory() && scriptFile.isAChildOf(globalScriptFolder))
+	{
+		fileName = "{GLOBAL_SCRIPT_FOLDER}" + scriptFile.getRelativePathFrom(globalScriptFolder);
+	}
+
+	for (int j = 0; j < externalScriptFiles.getNumChildren(); j++)
+	{
+		if (externalScriptFiles.getChild(j).getProperty("FileName").toString() == fileName)
+		{
+			return;
+		}
+	}
+
+	String fileContent = scriptFile.loadFileAsString();
+	ValueTree script("Script");
+
+	script.setProperty("FileName", fileName, nullptr);
+	script.setProperty("Content", fileContent, nullptr);
+
+	externalScriptFiles.addChild(script, -1, nullptr);
 }
 
 JavascriptProcessor::JavascriptProcessor(MainController *mc) :
