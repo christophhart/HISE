@@ -901,11 +901,23 @@ public:
         if (childComp != nullptr
              && hasActiveSubMenu (childComp->item))
         {
+            
+#if JUCE_IOS
+            Component* targetComp = childComp;
+#else
+            Component* targetComp = nullptr;
+#endif
+            
+            
             activeSubMenu = new HelperClasses::MenuWindow (*(childComp->item.subMenu), this,
                                                            options.withTargetScreenArea (childComp->getScreenBounds())
                                                                   .withMinimumWidth (0)
-                                                                  .withTargetComponent (childComp),
+                                                                  .withTargetComponent (targetComp),
                                                            false, dismissOnMouseUp, managerOfChosenCommand);
+            
+            
+            
+            
 
             activeSubMenu->setVisible (true); // (must be called before enterModalState on Windows to avoid DropShadower confusion)
             activeSubMenu->enterModalState (false);
