@@ -41,11 +41,22 @@ void SlotFX::renderWholeBuffer(AudioSampleBuffer &buffer)
 {
 	if (dynamic_cast<EmptyFX*>(wrappedEffect.get()) == nullptr && !wrappedEffect->isBypassed())
 	{
-		ScopedLock sl(swapLock);
-
-		wrappedEffect->renderAllChains(0, buffer.getNumSamples());
-
-		wrappedEffect->renderWholeBuffer(buffer);
+        if(hasScriptFX)
+        {
+            // Also acquire the compile lock to avoid deadlocks.
+            ScopedReadLock srl(getMainController()->getCompileLock());
+            ScopedLock sl(swapLock);
+            
+            wrappedEffect->renderAllChains(0, buffer.getNumSamples());
+            wrappedEffect->renderWholeBuffer(buffer);
+        }
+        else
+        {
+            ScopedLock sl(swapLock);
+            
+            wrappedEffect->renderAllChains(0, buffer.getNumSamples());
+            wrappedEffect->renderWholeBuffer(buffer);
+        }
 	}
 }
 
@@ -72,15 +83,19 @@ bool SlotFX::setEffect(const String& typeName)
 
 		if(p != nullptr)
 		{
-			ScopedLock sl(swapLock);
+            
+            ScopedLock sl(swapLock);
 
 			wrappedEffect = p;
+            
+            if (JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(p))
+            {
+                hasScriptFX = true;
+                sp->compileScript();
+            }
 		}
 
-        if (JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(p))
-        {
-            sp->compileScript();
-        }
+        
 
         
 		updater.triggerAsyncUpdate();

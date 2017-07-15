@@ -173,6 +173,8 @@ private:
 	CriticalSection swapLock;
 
 	bool isClear = true;
+    
+    bool hasScriptFX = false;
 
 	Updater updater;
 
