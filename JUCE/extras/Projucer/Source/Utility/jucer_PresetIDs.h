@@ -83,9 +83,11 @@ namespace Ids
     DECLARE_ID (customXcodeFlags);
     DECLARE_ID (customXcassetsFolder);
     DECLARE_ID (customXcodeResourceFolders);
+    DECLARE_ID (duplicateResourceFolderForAUv3AppEx);
     DECLARE_ID (cppLanguageStandard);
     DECLARE_ID (cppLibType);
     DECLARE_ID (codeSigningIdentity);
+    DECLARE_ID (appGroupId);
     DECLARE_ID (fastMath);
     DECLARE_ID (linkTimeOptimisation);
     DECLARE_ID (stripLocalSymbols);

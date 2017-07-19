@@ -159,12 +159,12 @@ public:
 			PluginCode,
 			EmbedAudioFiles,
 			AdditionalDspLibraries,
-			CustomToolbarClassName,
 			OSXStaticLibs,
 			WindowsStaticLibFolder,
 			ExtraDefinitionsWindows,
 			ExtraDefinitionsOSX,
 			ExtraDefinitionsIOS,
+            AppGroupId,
 			numAttributes
 		};
 
@@ -236,6 +236,7 @@ public:
 			CompanyCode,
 			CompanyURL,
             CompanyCopyright,
+            TeamDevelopmentId,
 			numUserSettingAttributes
 		};
 

@@ -101,11 +101,19 @@ public:
     bool   isMicrophonePermissionEnabled() const     { return settings   [Ids::microphonePermissionNeeded]; }
     Value  getInAppPurchasesValue()                  { return getSetting (Ids::iosInAppPurchases); }
     bool   isInAppPurchasesEnabled() const           { return settings   [Ids::iosInAppPurchases]; }
+    
+    Value  getAppGroupIdValue()                      { return getSetting (Ids::appGroupId); };
+    String getAppGroupIdString() const               { return settings   [Ids::appGroupId]; };
+    
+    Value  getDuplicateResourcesForAUv3Value()       { return getSetting (Ids::duplicateResourceFolderForAUv3AppEx); };
+    bool   shouldDuplicateResourcesForAUv3() const   { return !settings   [Ids::duplicateResourceFolderForAUv3AppEx]; };
+    
     Value  getBackgroundAudioValue()                 { return getSetting (Ids::iosBackgroundAudio); }
     bool   isBackgroundAudioEnabled() const          { return settings   [Ids::iosBackgroundAudio]; }
     Value  getBackgroundBleValue()                   { return getSetting (Ids::iosBackgroundBle); }
     bool   isBackgroundBleEnabled() const            { return settings   [Ids::iosBackgroundBle]; }
 
+    
     Value  getIosDevelopmentTeamIDValue()            { return getSetting (Ids::iosDevelopmentTeamID); }
     String getIosDevelopmentTeamIDString() const     { return settings   [Ids::iosDevelopmentTeamID]; }
 
@@ -149,6 +157,17 @@ public:
                    "This way you can specify them for OS X and iOS separately, and modify the content of the resource folders "
                    "without re-saving the Projucer project.");
 
+        
+        if (iOS)
+        {
+            if(projectType.isAudioPlugin())
+            {
+                props.add (new BooleanPropertyComponent (getDuplicateResourcesForAUv3Value(), "Don't duplicate Resources for App Extension", "Enabled"),
+                           "Enable this to avoid duplicating the resources folder for the AUv3 App Extension.");
+                
+            }
+        }
+        
         if (iOS)
         {
             static const char* orientations[] = { "Portrait and Landscape", "Portrait", "Landscape", nullptr };
@@ -203,6 +222,9 @@ public:
                    "The Development Team ID to be used for setting up code-signing your iOS app. This is a ten-character "
                    "string (for example, \"S7B6T5XJ2Q\") that describes the distribution certificate Apple issued to you. "
                    "You can find this string in the OS X app Keychain Access under \"Certificates\".");
+        
+        props.add (new TextPropertyComponent (getAppGroupIdValue(), "App Group ID", 256, false),
+                   "The App Group ID to be used to allow shared resources");
     }
 
     bool launchProject() override
@@ -834,10 +856,14 @@ public:
             if (developmentTeamID.isNotEmpty())
                 attributes << "DevelopmentTeam = " << developmentTeamID << "; ";
 
+            String d = owner.getAppGroupIdString();
+            
+            const int appGroupsEnabled = (owner.iOS && owner.getAppGroupIdString().isNotEmpty()) ? 1 : 0;
             const int inAppPurchasesEnabled = (owner.iOS && owner.isInAppPurchasesEnabled()) ? 1 : 0;
             const int sandboxEnabled = (type == Target::AudioUnitv3PlugIn ? 1 : 0);
 
             attributes << "SystemCapabilities = {";
+            attributes << "com.apple.ApplicationGroups.iOS = { enabled = " << appGroupsEnabled << "; }; ";
             attributes << "com.apple.InAppPurchase = { enabled = " << inAppPurchasesEnabled << "; }; ";
             attributes << "com.apple.Sandbox = { enabled = " << sandboxEnabled << "; }; ";
             attributes << "}; };";
@@ -1544,6 +1570,9 @@ private:
         if (! isiOS() && project.getProjectType().isAudioPlugin())
             topLevelGroupIDs.add (addEntitlementsFile());
 
+        if (isiOS() && project.getProjectType().isAudioPlugin())
+            topLevelGroupIDs.add (addAUv3EntitlementsFile());
+        
         for (int i = 0; i < getAllGroups().size(); ++i)
         {
             const Project::Item& group = getAllGroups().getReference(i);
@@ -1598,7 +1627,11 @@ private:
             {
                 // TODO: ideally resources wouldn't be copied into the AUv3 bundle as well.
                 // However, fixing this requires supporting App groups -> TODO: add app groups
-                if (! projectType.isStaticLibrary() && target.type != Target::SharedCodeTarget)
+                
+                const bool skipAUv3 = !shouldDuplicateResourcesForAUv3() && target.type == Target::AudioUnitv3PlugIn;
+                
+                if (! projectType.isStaticLibrary() && target.type != Target::SharedCodeTarget
+                    && !skipAUv3)
                     target.addBuildPhase ("PBXResourcesBuildPhase", resourceIDs);
 
                 StringArray rezFiles (rezFileIDs);
@@ -2262,6 +2295,27 @@ private:
         return project.getProjectFilenameRoot() + String (".entitlements");
     }
 
+    String addAUv3EntitlementsFile() const
+    {
+        const char* appGroupEntitlement =
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+        "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">"
+        "<plist version=\"1.0\">"
+        "<dict>"
+        "  <key>com.apple.security.application-groups</key>"
+        "    <array>"
+        "      <string>group.shared.nsk</string>"
+        "    </array>"
+        "</dict>"
+        "</plist>";
+        
+        File entitlementsFile = getTargetFolder().getChildFile (getEntitlementsFileName());
+        overwriteFileIfDifferentOrThrow (entitlementsFile, appGroupEntitlement);
+        
+        RelativePath plistPath (entitlementsFile, getTargetFolder(), RelativePath::buildTargetFolder);
+        return addFile (plistPath, false, false, false, false, nullptr);
+    }
+    
     String addEntitlementsFile() const
     {
         const char* sandboxEntitlement =

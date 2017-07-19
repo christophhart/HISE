@@ -239,12 +239,12 @@ String SettingWindows::ProjectSettingWindow::getAttributeNameForSetting(int attr
 	case SettingWindows::ProjectSettingWindow::Attributes::PluginCode:		 return "PluginCode";
 	case SettingWindows::ProjectSettingWindow::Attributes::EmbedAudioFiles:	 return "EmbedAudioFiles";
 	case SettingWindows::ProjectSettingWindow::Attributes::AdditionalDspLibraries:	return "AdditionalDspLibraries";
-	case SettingWindows::ProjectSettingWindow::Attributes::CustomToolbarClassName: return "CustomToolbarClassName";
 	case SettingWindows::ProjectSettingWindow::Attributes::OSXStaticLibs:   return "OSXStaticLibs";
 	case SettingWindows::ProjectSettingWindow::Attributes::WindowsStaticLibFolder: return "WindowsStaticLibFolder";
 	case SettingWindows::ProjectSettingWindow::Attributes::ExtraDefinitionsOSX: return "ExtraDefinitionsOSX";
 	case SettingWindows::ProjectSettingWindow::Attributes::ExtraDefinitionsWindows: return "ExtraDefinitionsWindows";
 	case SettingWindows::ProjectSettingWindow::Attributes::ExtraDefinitionsIOS: return "ExtraDefinitionsIOS";
+    case Attributes::AppGroupId: return "AppGroupID";
 	case SettingWindows::ProjectSettingWindow::Attributes::numAttributes:
 	default: return "";
 	}
@@ -261,13 +261,13 @@ XmlElement * SettingWindows::ProjectSettingWindow::createNewSettingsFile() const
 	addChildElement(*xml, (int)Attributes::PluginCode, "Abcd", "a 4 character ID code(eg. 'Abcd')");
 	addChildElementWithOptions(*xml, (int)Attributes::EmbedAudioFiles, "No", "Embed Audio files in plugin", "Yes\nNo");
 	addChildElement(*xml, (int)ProjectSettingWindow::Attributes::AdditionalDspLibraries, "", "comma separated list of all static dsp factory classes");
-	addChildElement(*xml, (int)ProjectSettingWindow::Attributes::CustomToolbarClassName, "", "Class name for the custom toolbar (leave empty to use the default one");
 	addChildElement(*xml, (int)ProjectSettingWindow::Attributes::WindowsStaticLibFolder, "", "Windows static library folder");
 	addChildElement(*xml, (int)ProjectSettingWindow::Attributes::OSXStaticLibs, "", "Additional static libs (OSX only)");
 	addChildElement(*xml, (int)ProjectSettingWindow::Attributes::ExtraDefinitionsWindows, "", "Extra preprocessor definitions for Windows");
 	addChildElement(*xml, (int)ProjectSettingWindow::Attributes::ExtraDefinitionsOSX, "", "Extra preprocessor definitions for OSX");
 	addChildElement(*xml, (int)ProjectSettingWindow::Attributes::ExtraDefinitionsIOS, "", "Extra preprocessor definitions for IOS");
-
+    addChildElement(*xml, (int)Attributes::AppGroupId, "", "App Group ID (use this for shared resources on iOS");
+    
 	return xml;
 }
 
@@ -357,6 +357,7 @@ String SettingWindows::UserSettingWindow::getAttributeNameForSetting(int attribu
 	case CompanyCode: return "CompanyCode";
 	case CompanyURL: return "CompanyURL";
     case CompanyCopyright:  return "CompanyCopyright";
+    case TeamDevelopmentId: return "TeamDevelopmentID";
 	default: return "";
 	}
 }
@@ -367,8 +368,9 @@ XmlElement * SettingWindows::UserSettingWindow::createNewSettingsFile() const
 
 	addChildElement(*xml, (int)Attributes::Company, "My Company", "Company Name");
 	addChildElement(*xml, (int)Attributes::CompanyCode, "Abcd", "Company Code (4 characters, first must be uppercase)");
-    addChildElement(*xml, (int)Attributes::CompanyCopyright, "©2017, Company", "Company Copyright");
+    addChildElement(*xml, (int)Attributes::CompanyCopyright, "(c)2017, Company", "Company Copyright");
 	addChildElement(*xml, (int)Attributes::CompanyURL, "http://yourcompany.com", "Company Website");
+    addChildElement(*xml, (int)Attributes::TeamDevelopmentId, "", "Apple Distribution ID");
 
 	return xml;
 }

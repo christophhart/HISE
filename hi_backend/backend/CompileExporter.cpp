@@ -1186,9 +1186,9 @@ CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(TargetType
 	else
 	{
 		if (BuildOptionHelpers::isIOS(option))
-			REPLACE_WILDCARD_WITH_STRING("%CHANNEL_CONFIG%", "{0, 2}");
-		else
 			REPLACE_WILDCARD_WITH_STRING("%CHANNEL_CONFIG%", "");
+		else
+			REPLACE_WILDCARD_WITH_STRING("%CHANNEL_CONFIG%", "{0, 2}");
 
 		
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINISSYNTH%", "1");
@@ -1243,6 +1243,13 @@ CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(TargetType
 		REPLACE_WILDCARD_WITH_STRING("%IOS_AUDIO_FOLDER%", audioFolder.getFullPathName());
 		REPLACE_WILDCARD_WITH_STRING("%IOS_SAMPLEMAP_FOLDER%", sampleMapFolder.getFullPathName());
 
+        const String appGroupId = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::AppGroupId, &GET_PROJECT_HANDLER(chainToExport));
+        
+        REPLACE_WILDCARD_WITH_STRING("%USE_APP_GROUPS%", appGroupId.isEmpty() ? "0" : "1");
+        REPLACE_WILDCARD_WITH_STRING("%APP_GROUP_ID%",  appGroupId);
+        
+        REPLACE_WILDCARD("%DEVELOPMENT_TEAM_ID%", SettingWindows::UserSettingWindow::Attributes::TeamDevelopmentId);
+        
 	}
 	else
 	{
@@ -1537,16 +1544,8 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
         
 		templateProject = templateProject.replace("%ADDITIONAL_FILES%", additionalFileDefinitions.joinIntoString(""));
 
-		if (additionalMainHeaderFile.existsAsFile())
-		{
-			const String customToolbarName = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::CustomToolbarClassName, &GET_PROJECT_HANDLER(chainToExport));
-
-			templateProject = templateProject.replace("%USE_CUSTOM_FRONTEND_TOOLBAR%", customToolbarName.isNotEmpty() ? "enabled" : "disabled");
-		}
-        else
-        {
-            templateProject = templateProject.replace("%USE_CUSTOM_FRONTEND_TOOLBAR%", "disabled");
-        }
+		templateProject = templateProject.replace("%USE_CUSTOM_FRONTEND_TOOLBAR%", "disabled");
+        
 	}
     else
     {
@@ -2003,15 +2002,7 @@ void CompileExporter::HeaderHelpers::addCopyProtectionHeaderLines(const String &
 }
 
 void CompileExporter::HeaderHelpers::addCustomToolbarRegistration(CompileExporter* exporter, String& pluginDataHeaderFile)
-{
-	ModulatorSynthChain* chainToExport = exporter->chainToExport;
-
-	String customToolbarName = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::CustomToolbarClassName, &GET_PROJECT_HANDLER(chainToExport));
-
-	if (customToolbarName.isEmpty()) customToolbarName = "DefaultFrontendBar";
-
-	pluginDataHeaderFile << "\nCREATE_FRONTEND_BAR(" + customToolbarName + ")\n\n";
-}
+{}
 
 void CompileExporter::HeaderHelpers::addProjectInfoLines(CompileExporter* exporter, String& pluginDataHeaderFile)
 {
