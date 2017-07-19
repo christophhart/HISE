@@ -629,6 +629,7 @@ public:
 		LowKey,
 		HiKey,
 		BlackKeyRatio,
+		DefaultAppearance,
 		numProperyIds
 	};
 
@@ -664,6 +665,7 @@ public:
 		storePropertyInObject(obj, SpecialPanelIds::LowKey, keyboard->getLowKey());
 		storePropertyInObject(obj, SpecialPanelIds::HiKey, keyboard->getHiKey());
 		storePropertyInObject(obj, SpecialPanelIds::CustomGraphics, keyboard->isUsingCustomGraphics());
+		storePropertyInObject(obj, SpecialPanelIds::DefaultAppearance, defaultAppearance);
 		storePropertyInObject(obj, SpecialPanelIds::BlackKeyRatio, keyboard->getBlackNoteLengthProportion());
 		
 
@@ -681,6 +683,8 @@ public:
 		
 		keyboard->setKeyWidth(getPropertyWithDefault(object, SpecialPanelIds::KeyWidth));
 
+		defaultAppearance = getPropertyWithDefault(object, SpecialPanelIds::DefaultAppearance);
+
 		keyboard->setBlackNoteLengthProportion(getPropertyWithDefault(object, SpecialPanelIds::BlackKeyRatio));
 	}
 
@@ -694,6 +698,7 @@ public:
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::LowKey, "LowKey");
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::HiKey, "HiKey");
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::BlackKeyRatio, "BlackKeyRatio");
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::DefaultAppearance, "DefaultAppearance");
 
 		jassertfalse;
 		return{};
@@ -709,6 +714,7 @@ public:
 		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::LowKey, 9);
 		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::HiKey, 127);
 		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::BlackKeyRatio, 0.7);
+		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::DefaultAppearance, true);
 
 		jassertfalse;
 		return{};
@@ -724,7 +730,17 @@ public:
 
 	void resized() override
 	{
-        keyboard->setBounds(0, 0, getWidth(), getHeight());
+		if (defaultAppearance)
+		{
+			int width = jmin<int>(getWidth(), CONTAINER_WIDTH);
+
+			keyboard->setBounds((getWidth() - width)/2, 0, width, 72);
+		}
+		else
+		{
+			keyboard->setBounds(0, 0, getWidth(), getHeight());
+		}
+        
 	}
 
 	int getNumColourIds() const { return numColourIds; }
@@ -733,8 +749,15 @@ public:
 
 	Colour getDefaultColour(int /*colourId*/) const { return Colours::transparentBlack; }
 
+	int getFixedHeight() const override
+	{
+		return defaultAppearance ? 72 : FloatingTileContent::getFixedHeight();
+	}
+
 private:
 	
+	bool defaultAppearance = true;
+
 	ScopedPointer<CustomKeyboard> keyboard;
 };
 
