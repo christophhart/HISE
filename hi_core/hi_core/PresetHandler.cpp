@@ -1323,6 +1323,30 @@ String ProjectHandler::Frontend::checkSampleReferences(const ValueTree &sampleMa
 }
 
 
+File ProjectHandler::Frontend::getResourcesFolder()
+{
+#if HISE_IOS
+
+	File directory = File::getSpecialLocation(File::SpecialLocationType::currentApplicationFile);
+
+	if (SystemStats::isRunningInAppExtensionSandbox())
+	{
+		return directory.getParentDirectory().getParentDirectory();
+	}
+	else
+	{
+		return directory;
+	}
+
+#else
+
+	// not interesting on Windows or macOS
+	jassertfalse;
+	return File();
+
+#endif
+}
+
 bool ProjectHandler::isActive() const
 {
 	return currentWorkDirectory != File();
@@ -1451,7 +1475,7 @@ File ProjectHandler::Frontend::getSampleLocationForCompiledPlugin()
     
 #if HISE_IOS
     
-    File f = File::getSpecialLocation(File::SpecialLocationType::currentApplicationFile).getChildFile("Samples/");
+    File f = getResourcesFolder().getChildFile("Samples/");
     
     
     return f;

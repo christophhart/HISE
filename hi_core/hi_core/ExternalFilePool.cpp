@@ -201,25 +201,7 @@ var Pool<FileType>::getPropertyForData(const Identifier &id, const Identifier &p
 	return var::undefined();
 }
 
-File getResourcesFolder()
-{
-#if HISE_IOS
-    
-    File directory = File::getSpecialLocation(File::SpecialLocationType::currentApplicationFile);
-    
-    if(SystemStats::isRunningInAppExtensionSandbox())
-    {
-        return directory.getParentDirectory().getParentDirectory();
-    }
-    else
-    {
-        return directory;
-    }
-    
-#else
-    
-#endif
-}
+
 
 template <class FileType>
 const FileType * Pool<FileType>::loadFileIntoPool(const String &fileName, bool forceReload/*=false*/)
@@ -249,7 +231,7 @@ const FileType * Pool<FileType>::loadFileIntoPool(const String &fileName, bool f
         
         
 #if HISE_IOS
-        const File directory = getResourcesFolder().getChildFile((getFileTypeName().toString()));
+        const File directory = ProjectHandler::Frontend::getResourcesFolder().getChildFile((getFileTypeName().toString()));
 #else
 		const File directory = ProjectHandler::Frontend::getAppDataDirectory().getChildFile(getFileTypeName().toString());
 #endif
