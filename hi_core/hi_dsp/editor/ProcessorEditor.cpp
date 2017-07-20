@@ -624,6 +624,8 @@ void ProcessorEditorPanel::updateChildEditorList(bool forceUpdate)
 
 	refreshSize();
 
+	resized();
+
 	if (getEditor()->getRootContainer() != nullptr)
 	{
 		getEditor()->getRootContainer()->sendChangeMessage();
