@@ -288,29 +288,7 @@ public:
 
 		/** on IOS this returns the folder where all the resources (samples, images, etc) are found.
 		*	It uses a shared folder for both the AUv3 and Standalone version in order to avoid duplicating the data. */
-		static File getResourcesFolder()
-		{
-#if HISE_IOS
-
-			File directory = File::getSpecialLocation(File::SpecialLocationType::currentApplicationFile);
-
-			if (SystemStats::isRunningInAppExtensionSandbox())
-			{
-				return directory.getParentDirectory().getParentDirectory();
-			}
-			else
-			{
-				return directory;
-			}
-
-#else
-
-			// not interesting on Windows or macOS
-			jassertfalse;
-			return File();
-
-#endif
-		}
+		static File getResourcesFolder();
 	};
 
 	

@@ -205,6 +205,32 @@ void FrontendProcessor::setCurrentProgram(int /*index*/)
 	return;
 }
 
+void FrontendProcessor::loadImages(ValueTree *imageData)
+{
+	if (imageData == nullptr)
+	{
+		File imageResources = ProjectHandler::Frontend::getAppDataDirectory().getChildFile("ImageResources.dat");
+
+		if (imageResources.existsAsFile())
+		{
+			FileInputStream fis(imageResources);
+
+			auto t = ValueTree::readFromStream(fis);
+
+			if (t.isValid())
+				getSampleManager().getImagePool()->restoreFromValueTree(t);
+			else
+				sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage, "The image resources are corrupt. Contact support");
+		}
+		else
+			sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage, "The image resources can't be located. Contact support");
+	}
+	else
+	{
+		getSampleManager().getImagePool()->restoreFromValueTree(*imageData);
+	}
+}
+
 const String FrontendStandaloneApplication::getApplicationName()
 {
 	return ProjectInfo::projectName;

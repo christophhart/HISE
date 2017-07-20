@@ -492,13 +492,15 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 			{
 				File appFolder = ProjectHandler::Frontend::getAppDataDirectory(&GET_PROJECT_HANDLER(chainToExport)).getChildFile("AudioResources.dat");
 				PresetHandler::writeValueTreeAsFile(exportReferencedAudioFiles(), appFolder.getFullPathName());
+
+				File imageFolder = ProjectHandler::Frontend::getAppDataDirectory(&GET_PROJECT_HANDLER(chainToExport)).getChildFile("ImageResources.dat");
+				PresetHandler::writeValueTreeAsFile(exportReferencedImageFiles(), imageFolder.getFullPathName());
 			}
 			else
 			{
 				writeValueTreeToTemporaryFile(exportReferencedAudioFiles(), directoryPath, "impulses");
+				writeValueTreeToTemporaryFile(exportReferencedImageFiles(), directoryPath, "images");
 			}
-
-			writeValueTreeToTemporaryFile(exportReferencedImageFiles(), directoryPath, "images");
 		}
 
 		String presetDataString("PresetData");

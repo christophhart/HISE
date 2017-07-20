@@ -301,12 +301,7 @@ public:
 
 private:
 
-	void loadImages(ValueTree *imageData)
-	{
-		if(imageData == nullptr) return;
-
-		getSampleManager().getImagePool()->restoreFromValueTree(*imageData);
-	}
+	void loadImages(ValueTree *imageData);
 	
 	friend class FrontendProcessorEditor;
 	friend class DefaultFrontendBar;

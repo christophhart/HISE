@@ -1410,7 +1410,11 @@ String ProjectHandler::getFilePath(const String &pathToFile, SubDirectories subD
 
 	File sampleFolder = dynamic_cast<FrontendDataHolder*>(mc)->getSampleLocation();
 
-	return sampleFolder.getChildFile(pathToFile.replace(id, "")).getFullPathName();
+	if (sampleFolder.isDirectory())
+		return sampleFolder.getChildFile(pathToFile.replace(id, "")).getFullPathName();
+
+	else
+		return String();
 
 #else
 

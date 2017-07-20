@@ -100,10 +100,9 @@ using namespace juce;
 
 #else
 #define CREATE_PLUGIN(deviceManager, callback) {ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\
-	ValueTree imageData = PresetHandler::loadValueTreeFromData(PresetData::images, PresetData::imagesSize, false);\
 	ValueTree externalFiles = PresetHandler::loadValueTreeFromData(PresetData::externalFiles, PresetData::externalFilesSize, true);\
 	\
-	FrontendProcessor* fp = new FrontendProcessor(presetData, deviceManager, callback, &imageData, nullptr, &externalFiles, nullptr);\
+	FrontendProcessor* fp = new FrontendProcessor(presetData, deviceManager, callback, nullptr, nullptr, &externalFiles, nullptr);\
 	AudioProcessorDriver::restoreSettings(fp);\
 	GlobalSettingManager::restoreGlobalSettings(fp); \
 	fp->loadSamplesAfterSetup();\
