@@ -211,10 +211,14 @@ void AudioProcessorDriver::initialiseAudioDriver(XmlElement *deviceData)
 	deviceManager->addMidiInputCallback(String(), callback);
 }
 
-
 void GlobalSettingManager::setGlobalScaleFactor(double newScaleFactor)
 {
 	scaleFactor = newScaleFactor;
+}
+
+void GlobalSettingManager::setUseOpenGLRenderer(bool shouldUseOpenGL)
+{
+	useOpenGL = shouldUseOpenGL;
 }
 
 void AudioProcessorDriver::updateMidiToggleList(MainController* mc, ToggleButtonList* listToUpdate)
@@ -263,6 +267,7 @@ void GlobalSettingManager::saveSettingsAsXml()
 	settings->setAttribute("MICRO_TUNING", microTuning);
 	settings->setAttribute("TRANSPOSE", transposeValue);
 	settings->setAttribute("SUSTAIN_CC", ccSustainValue);
+	settings->setAttribute("OPEN_GL", useOpenGL);
 
 #if USE_FRONTEND
 	settings->setAttribute("SAMPLES_FOUND", allSamplesFound);
@@ -330,7 +335,9 @@ void GlobalSettingManager::restoreGlobalSettings(MainController* mc)
         gm->microTuning = globalSettings->getDoubleAttribute("MICRO_TUNING", 0.0);
         gm->transposeValue = globalSettings->getIntAttribute("TRANSPOSE", 0);
         gm->ccSustainValue = globalSettings->getIntAttribute("SUSTAIN_CC", 64);
-        
+     
+		gm->useOpenGL = globalSettings->getBoolAttribute("OPEN_GL", false);
+
         mc->setGlobalPitchFactor(gm->microTuning);
         
         mc->getEventHandler().setGlobalTransposeValue(gm->transposeValue);

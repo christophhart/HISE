@@ -42,6 +42,10 @@ public:
 
 	void setGlobalScaleFactor(double scaleFactor);
 
+	void setUseOpenGLRenderer(bool shouldUseOpenGL);
+
+
+
 	static File getSettingDirectory();
 
 	static void restoreGlobalSettings(MainController* mc);
@@ -54,6 +58,8 @@ public:
 	double microTuning = 0.0;
 	int transposeValue = 0;
 	int ccSustainValue = 64;
+
+	bool useOpenGL = false;
 
 };
 
@@ -147,8 +153,6 @@ public:
 		}
 	}
 
-	
-
 	static void updateMidiToggleList(MainController* mc, ToggleButtonList* listToUpdate);
 
 	
@@ -158,7 +162,6 @@ public:
 
 	AudioDeviceManager *deviceManager;
 	AudioProcessorPlayer *callback;
-	
 };
 
 class AudioDeviceDialog : public Component,

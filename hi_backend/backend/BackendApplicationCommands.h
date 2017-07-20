@@ -134,6 +134,7 @@ public:
 		MenuViewSetMainContainerAsRoot,
 		MenuViewEnableGlobalLayoutMode,
 		MenuViewAddFloatingWindow,
+		MenuViewEnableOpenGL,
 		MenuOneColumn,
 		MenuTwoColumns,
 		MenuThreeColumns,
@@ -313,6 +314,7 @@ public:
 		static void createBase64State(CopyPasteTarget* target);
 		static void createUserInterface(BackendRootWindow * bpe);
 		static void checkUnusedImages(BackendRootWindow * bpe);
+		static void toggleOpenGLMode(BackendRootWindow * bpe);
 	};
 
 private:

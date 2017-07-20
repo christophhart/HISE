@@ -223,6 +223,7 @@ public:
 		BufferSize,
 		SampleRate,
 		ScaleFactor,
+		GraphicRendering,
 		StreamingMode,
 		SustainCC,
 		ClearMidiCC,
@@ -276,6 +277,7 @@ private:
 	ScopedPointer<ComboBox> bufferSelector;
 	ScopedPointer<ComboBox> sampleRateSelector;
 	ScopedPointer<ComboBox> diskModeSelector;
+	ScopedPointer<ComboBox> graphicRenderSelector;
 	ScopedPointer<ComboBox> scaleFactorSelector;
 	ScopedPointer<ComboBox> ccSustainSelector;
 	ScopedPointer<TextButton> clearMidiLearn;

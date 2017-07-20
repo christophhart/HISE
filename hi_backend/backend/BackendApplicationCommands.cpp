@@ -148,6 +148,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuViewForward,
 		MenuViewEnableGlobalLayoutMode,
 		MenuViewAddFloatingWindow,
+		MenuViewEnableOpenGL,
         MenuOneColumn,
 		MenuTwoColumns,
 		MenuThreeColumns,
@@ -438,6 +439,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuViewAddFloatingWindow:
 		setCommandTarget(result, "Add floating window", true, false, 'x', false);
 		break;
+	case MenuViewEnableOpenGL:
+		setCommandTarget(result, "Enable Open GL rendering", true, dynamic_cast<GlobalSettingManager*>(bpe->getBackendProcessor())->useOpenGL, 'x', false);
+		break;
 	case MenuOneColumn:
 		setCommandTarget(result, "One Column", true, currentColumnMode == OneColumn, '1', true, ModifierKeys::altModifier);
 		break;
@@ -565,6 +569,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuViewReset:				    bpe->resetInterface(); updateCommands(); return true;
 	case MenuViewForward:				bpe->mainEditor->getViewUndoManager()->redo(); updateCommands(); return true;
 	case MenuViewEnableGlobalLayoutMode: bpe->toggleLayoutMode(); updateCommands(); return true;
+	case MenuViewEnableOpenGL:			Actions::toggleOpenGLMode(bpe); updateCommands(); return true;
 	case MenuViewAddFloatingWindow:		bpe->addFloatingWindow(); return true;
 	case MenuViewShowPluginPopupPreview: Actions::togglePluginPopupWindow(bpe); updateCommands(); return true;
     case MenuViewIncreaseCodeFontSize:  Actions::changeCodeFontSize(bpe, true); return true;
@@ -834,6 +839,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuViewEnableGlobalLayoutMode);
 		ADD_DESKTOP_ONLY(MenuViewAddFloatingWindow);
 		ADD_DESKTOP_ONLY(MenuViewFullscreen);
+		ADD_DESKTOP_ONLY(MenuViewEnableOpenGL);
 		ADD_ALL_PLATFORMS(MenuViewShowSelectedProcessorInPopup);
 		p.addSeparator();
 		ADD_DESKTOP_ONLY(MenuOneColumn);
@@ -1196,6 +1202,13 @@ void BackendCommandTarget::Actions::checkUnusedImages(BackendRootWindow * bpe)
 	}
 
 
+}
+
+void BackendCommandTarget::Actions::toggleOpenGLMode(BackendRootWindow * bpe)
+{
+	bpe->owner->useOpenGL = !bpe->owner->useOpenGL;
+
+	PresetHandler::showMessageWindow("Open GL Settings changed", "Close and open this window to apply the change", PresetHandler::IconType::Info);
 }
 
 void BackendCommandTarget::Actions::recompileAllScripts(BackendRootWindow * bpe)

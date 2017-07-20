@@ -244,6 +244,7 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 	ADD(BufferSize);
 	ADD(SampleRate);
 	ADD(ScaleFactor);
+	ADD(GraphicRendering);
 	ADD(StreamingMode);
 	ADD(SustainCC);
 	ADD(ClearMidiCC);
@@ -275,7 +276,8 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
     sampleRateSelector->setLookAndFeel(&plaf);
     
 	addAndMakeVisible(ccSustainSelector = new ComboBox("Sustain CC"));
-    addAndMakeVisible(scaleFactorSelector = new ComboBox("Scale Factor"));
+    addAndMakeVisible(graphicRenderSelector = new ComboBox("Scale Factor"));
+	addAndMakeVisible(scaleFactorSelector = new ComboBox("Graphic Rendering"));
 	addAndMakeVisible(diskModeSelector = new ComboBox("Hard Disk"));
 	addAndMakeVisible(clearMidiLearn = new TextButton("Clear MIDI CC"));
 	addAndMakeVisible(relocateButton = new TextButton("Change sample folder location"));
@@ -283,6 +285,7 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 
 	ccSustainSelector->addListener(this);
 	scaleFactorSelector->addListener(this);
+	graphicRenderSelector->addListener(this);
 	diskModeSelector->addListener(this);
 	clearMidiLearn->addListener(this);
 	relocateButton->addListener(this);
@@ -290,8 +293,10 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 
 	ccSustainSelector->setLookAndFeel(&plaf);
 	scaleFactorSelector->setLookAndFeel(&plaf);
+	graphicRenderSelector->setLookAndFeel(&plaf);
 	diskModeSelector->setLookAndFeel(&plaf);
 	clearMidiLearn->setLookAndFeel(&blaf);
+	
 	debugButton->setLookAndFeel(&blaf);
 	clearMidiLearn->setColour(TextButton::ColourIds::textColourOffId, Colours::white);
 	clearMidiLearn->setColour(TextButton::ColourIds::textColourOnId, Colours::white);
@@ -327,7 +332,9 @@ CustomSettingsWindow::~CustomSettingsWindow()
 	clearMidiLearn->removeListener(this);
 	relocateButton->removeListener(this);
 	diskModeSelector->removeListener(this);
+	
 	scaleFactorSelector->removeListener(this);
+	graphicRenderSelector->removeListener(this);
 	debugButton->removeListener(this);
 
 	deviceSelector = nullptr;
@@ -475,6 +482,10 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
     scaleFactorSelector->addItem("100%", 1);
     scaleFactorSelector->addItem("75%", 2);
     
+	graphicRenderSelector->clear();
+	graphicRenderSelector->addItem("Software Renderer", 1);
+	graphicRenderSelector->addItem("Open GL Renderer", 2);
+
 	diskModeSelector->clear();
 	diskModeSelector->addItem("Fast - SSD", 1);
 	diskModeSelector->addItem("Slow - HDD", 2);
@@ -485,6 +496,8 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
 	{
 		ccSustainSelector->addItem(String("CC ") + String(i), i);
 	}
+
+	graphicRenderSelector->setSelectedItemIndex(driver->useOpenGL ? 1 : 0, dontSendNotification);
 
 	ccSustainSelector->setSelectedId(driver->ccSustainValue, dontSendNotification);
 	diskModeSelector->setSelectedItemIndex(driver->diskMode, dontSendNotification);
@@ -659,8 +672,12 @@ void CustomSettingsWindow::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
 			fpe->setGlobalScaleFactor((float)scaleFactor);
 		}
 #endif
+	}
+	else if (comboBoxThatHasChanged == graphicRenderSelector)
+	{
+		driver->setUseOpenGLRenderer(graphicRenderSelector->getSelectedItemIndex() == 1);
 
-
+		PresetHandler::showMessageWindow("Graphic engine changed", "Please reopen this window to apply the change", PresetHandler::IconType::Info);
 	}
 	else if (comboBoxThatHasChanged == diskModeSelector)
 	{
@@ -703,6 +720,11 @@ void CustomSettingsWindow::paint(Graphics& g)
 	if (isOn(Properties::SampleRate))
 	{
 		g.drawText("Sample Rate", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
+		y += 40;
+	}
+	if (isOn(Properties::GraphicRendering))
+	{
+		g.drawText("Graphic Rendering", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
 		y += 40;
 	}
 	if (isOn(Properties::ScaleFactor))
@@ -784,6 +806,13 @@ void CustomSettingsWindow::resized()
 
 	if (isOn(Properties::ScaleFactor))
 	{
+		graphicRenderSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
+		y += 40;
+	}
+	else graphicRenderSelector->setVisible(false);
+
+	if (isOn(Properties::ScaleFactor))
+	{
 		scaleFactorSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
 		y += 40;
 	}
@@ -842,6 +871,7 @@ public:
 		SET(Properties::BufferSize);
 		SET(Properties::SampleRate);
 		SET(Properties::StreamingMode);
+		SET(Properties::GraphicRendering);
 		SET(Properties::ScaleFactor);
 		SET(Properties::SustainCC);
 		SET(Properties::ClearMidiCC);
@@ -865,6 +895,7 @@ public:
 		SET(Properties::BufferSize);
 		SET(Properties::SampleRate);
 		SET(Properties::StreamingMode);
+		SET(Properties::GraphicRendering);
 		SET(Properties::ScaleFactor);
 		SET(Properties::SustainCC);
 		SET(Properties::ClearMidiCC);
@@ -888,6 +919,7 @@ public:
 		SET(Properties::BufferSize);
 		SET(Properties::SampleRate);
 		SET(Properties::StreamingMode);
+		SET(Properties::GraphicRendering);
 		SET(Properties::ScaleFactor);
 		SET(Properties::SustainCC);
 		SET(Properties::ClearMidiCC);
@@ -913,6 +945,7 @@ public:
 		SET(Properties::BufferSize);
 		SET(Properties::SampleRate);
 		SET(Properties::StreamingMode);
+		SET(Properties::GraphicRendering);
 		SET(Properties::ScaleFactor);
 		SET(Properties::SustainCC);
 		SET(Properties::ClearMidiCC);

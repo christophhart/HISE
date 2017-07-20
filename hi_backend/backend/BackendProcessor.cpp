@@ -46,6 +46,8 @@ viewUndoManager(new UndoManager())
 
 	handleEditorData(false);
 
+	restoreGlobalSettings(this);
+
 	createUserPresetData();
 }
 

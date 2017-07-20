@@ -40,6 +40,11 @@ MainContentComponent::MainContentComponent(const String &commandLine)
 
 	setSize(editor->getWidth(), editor->getHeight());
 
+	if (dynamic_cast<GlobalSettingManager*>(editor->getAudioProcessor())->useOpenGL)
+	{
+		open.attachTo(*editor);
+	}
+
 	handleCommandLineArguments(commandLine);
 #endif
 }
@@ -49,7 +54,10 @@ MainContentComponent::~MainContentComponent()
 	
 	root = nullptr;
 
-	//open.detach();
+	if (open.isAttached())
+		open.detach();
+
+	open.detach();
 	editor = nullptr;
 
 	
