@@ -125,9 +125,11 @@ public:
 		return bar;
 	}
 
-	void addFloatingWindow()
+	FloatingTileDocumentWindow* addFloatingWindow()
 	{
 		popoutWindows.add(new FloatingTileDocumentWindow(this));
+
+		return popoutWindows.getLast();
 	}
 
 	void removeFloatingWindow(FloatingTileDocumentWindow* windowToRemove)

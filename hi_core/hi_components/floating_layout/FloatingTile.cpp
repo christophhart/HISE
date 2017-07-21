@@ -1126,11 +1126,11 @@ bool FloatingTile::canBeDeleted() const
     const bool isInPopout = false;
 #endif
 
-	if (getParentType() == ParentType::Root)
-		return isInPopout;
-
 	if (isVital())
 		return false;
+
+	if (getParentType() == ParentType::Root)
+		return isInPopout;
 
 	return getParentContainer()->isDynamic();
 

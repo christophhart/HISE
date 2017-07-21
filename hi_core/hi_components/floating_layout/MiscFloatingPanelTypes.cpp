@@ -424,11 +424,14 @@ InterfaceContentPanel::InterfaceContentPanel(FloatingTile* parent) :
 {
 	setOpaque(true);
 
-	if (auto jsp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(getMainController()))
+	if (!connectToScript())
 	{
-		addAndMakeVisible(content = new ScriptContentComponent(jsp));
+		addAndMakeVisible(refreshButton = new TextButton("Refresh"));
+		refreshButton->setLookAndFeel(&laf);
+		refreshButton->setColour(TextButton::ColourIds::textColourOnId, Colours::white);
+		refreshButton->setColour(TextButton::ColourIds::textColourOffId, Colours::white);
+		refreshButton->addListener(this);
 	}
-
 }
 
 void InterfaceContentPanel::paint(Graphics& g)
@@ -439,7 +442,7 @@ void InterfaceContentPanel::paint(Graphics& g)
 	{
 		g.setFont(GLOBAL_BOLD_FONT());
 		g.setColour(Colours::white);
-		g.drawText("No interface found", FLOAT_RECTANGLE(getLocalBounds()), Justification::centred);
+		g.drawText("No interface found", FLOAT_RECTANGLE(getLocalBounds()).removeFromTop(40.0f), Justification::centred);
 	}
 }
 
@@ -448,5 +451,77 @@ void InterfaceContentPanel::resized()
 	if (content != nullptr)
 	{
 		content->setBounds(getParentShell()->getContentBounds());
+	}
+	else if (refreshButton != nullptr)
+	{
+		refreshButton->centreWithSize(200, 30);
+	}
+}
+
+void InterfaceContentPanel::scriptWasCompiled(JavascriptProcessor *processor)
+{
+	if (processor == dynamic_cast<JavascriptProcessor*>(connectedProcessor.get()))
+	{
+		updateSize();
+
+		
+	}
+}
+
+
+void InterfaceContentPanel::buttonClicked(Button* b)
+{
+	connectToScript();
+}
+
+bool InterfaceContentPanel::connectToScript()
+{
+	if (content != nullptr)
+		return true;
+
+	if (auto jsp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(getMainController()))
+	{
+		addAndMakeVisible(content = new ScriptContentComponent(jsp));
+		connectedProcessor = jsp;
+		connectedProcessor->getMainController()->addScriptListener(this);
+
+		if (refreshButton != nullptr)
+		{
+			refreshButton->setVisible(false);
+		}
+
+		updateSize();
+
+		repaint();
+
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+void InterfaceContentPanel::updateSize()
+{
+
+	if (auto pwsc = dynamic_cast<ProcessorWithScriptingContent*>(connectedProcessor.get()))
+	{
+		auto content = pwsc->getScriptingContent();
+
+		if (content != nullptr)
+		{
+			auto topLevel = findParentComponentOfClass<FloatingTileDocumentWindow>();
+
+			if (topLevel != nullptr)
+			{
+				topLevel->setName("Preview: " + connectedProcessor->getId());
+
+				topLevel->setSize(content->getContentWidth(), content->getContentHeight());
+			}
+
+			getParentShell()->setVital(true);
+			getParentShell()->resized();
+		}
 	}
 }

@@ -449,17 +449,9 @@ void ScriptingEditor::showOnInitCallback()
 
 void ScriptingEditor::openContentInPopup()
 {
-	if (contentPopup == nullptr)
-	{
-		contentPopup = new ContentPopup(dynamic_cast<ProcessorWithScriptingContent*>(getProcessor()), this);
-		contentPopup->addToDesktop();
-		currentDragOverlay = contentPopup->dragOverlay;
-		refreshBodySize();
-	}
-	else
-	{
-		contentPopup->toFront(true);
-	}
+#if USE_BACKEND
+	BackendCommandTarget::Actions::addInterfacePreview(GET_BACKEND_ROOT_WINDOW(this));
+#endif
 }
 
 void ScriptingEditor::closeContentPopup()

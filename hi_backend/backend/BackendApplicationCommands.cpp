@@ -148,6 +148,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuViewForward,
 		MenuViewEnableGlobalLayoutMode,
 		MenuViewAddFloatingWindow,
+		MenuViewAddInterfacePreview,
 		MenuViewEnableOpenGL,
         MenuOneColumn,
 		MenuTwoColumns,
@@ -439,6 +440,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuViewAddFloatingWindow:
 		setCommandTarget(result, "Add floating window", true, false, 'x', false);
 		break;
+	case MenuViewAddInterfacePreview:
+		setCommandTarget(result, "Add Interface preview", true, false, 'x', false);
+		break;
 	case MenuViewEnableOpenGL:
 		setCommandTarget(result, "Enable Open GL rendering", true, dynamic_cast<GlobalSettingManager*>(bpe->getBackendProcessor())->useOpenGL, 'x', false);
 		break;
@@ -571,6 +575,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuViewEnableGlobalLayoutMode: bpe->toggleLayoutMode(); updateCommands(); return true;
 	case MenuViewEnableOpenGL:			Actions::toggleOpenGLMode(bpe); updateCommands(); return true;
 	case MenuViewAddFloatingWindow:		bpe->addFloatingWindow(); return true;
+	case MenuViewAddInterfacePreview:	Actions::addInterfacePreview(bpe); return true;
 	case MenuViewShowPluginPopupPreview: Actions::togglePluginPopupWindow(bpe); updateCommands(); return true;
     case MenuViewIncreaseCodeFontSize:  Actions::changeCodeFontSize(bpe, true); return true;
     case MenuViewDecreaseCodeFontSize:   Actions::changeCodeFontSize(bpe, false); return true;
@@ -838,17 +843,12 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 
 		ADD_DESKTOP_ONLY(MenuViewEnableGlobalLayoutMode);
 		ADD_DESKTOP_ONLY(MenuViewAddFloatingWindow);
+		ADD_DESKTOP_ONLY(MenuViewAddInterfacePreview);
 		ADD_DESKTOP_ONLY(MenuViewFullscreen);
 		ADD_DESKTOP_ONLY(MenuViewEnableOpenGL);
-		ADD_ALL_PLATFORMS(MenuViewShowSelectedProcessorInPopup);
-		p.addSeparator();
-		ADD_DESKTOP_ONLY(MenuOneColumn);
-		ADD_DESKTOP_ONLY(MenuTwoColumns);
-		ADD_DESKTOP_ONLY(MenuThreeColumns);
         p.addSeparator();
         ADD_ALL_PLATFORMS(MenuViewIncreaseCodeFontSize);
         ADD_ALL_PLATFORMS(MenuViewDecreaseCodeFontSize);
-		ADD_ALL_PLATFORMS(Settings);
 		
 		break;
 		}
@@ -1209,6 +1209,30 @@ void BackendCommandTarget::Actions::toggleOpenGLMode(BackendRootWindow * bpe)
 	bpe->owner->useOpenGL = !bpe->owner->useOpenGL;
 
 	PresetHandler::showMessageWindow("Open GL Settings changed", "Close and open this window to apply the change", PresetHandler::IconType::Info);
+}
+
+void BackendCommandTarget::Actions::addInterfacePreview(BackendRootWindow * bpe)
+{
+	auto w = bpe->addFloatingWindow();
+
+	w->getRootFloatingTile()->setNewContent(GET_PANEL_NAME(InterfaceContentPanel));
+	w->getRootFloatingTile()->setLayoutModeEnabled(false);
+	w->getRootFloatingTile()->setVital(true);
+	
+	w->setName("Interface Preview");
+	
+	auto jmp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(bpe->getBackendProcessor());
+
+	if (jmp != nullptr)
+	{
+		if (auto content = jmp->getScriptingContent())
+		{
+			w->centreWithSize(content->getContentWidth(), content->getContentHeight());
+			w->setResizable(false, false);
+		}
+	}
+
+	w->getRootFloatingTile()->refreshRootLayout();
 }
 
 void BackendCommandTarget::Actions::recompileAllScripts(BackendRootWindow * bpe)

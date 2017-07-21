@@ -356,6 +356,11 @@ void ProcessorHelpers::restoreFromBase64String(Processor* p, const String& base6
 {
 	ValueTree v = ValueTreeHelpers::getValueTreeFromBase64String(base64String);
 
+	auto newId = v.getProperty("ID", String()).toString();
+
+	if (newId.isNotEmpty())
+		p->setId(newId, dontSendNotification);
+
     p->restoreFromValueTree(v);
     
     if(auto firstChild = p->getChildProcessor(0))

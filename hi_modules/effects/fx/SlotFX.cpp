@@ -102,7 +102,7 @@ bool SlotFX::setEffect(const String& typeName)
 	}
 	else
 	{
-		jassertfalse;
+		//jassertfalse;
 		return false;
 	}
 }

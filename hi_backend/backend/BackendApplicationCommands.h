@@ -134,6 +134,7 @@ public:
 		MenuViewSetMainContainerAsRoot,
 		MenuViewEnableGlobalLayoutMode,
 		MenuViewAddFloatingWindow,
+		MenuViewAddInterfacePreview,
 		MenuViewEnableOpenGL,
 		MenuOneColumn,
 		MenuTwoColumns,
@@ -315,6 +316,7 @@ public:
 		static void createUserInterface(BackendRootWindow * bpe);
 		static void checkUnusedImages(BackendRootWindow * bpe);
 		static void toggleOpenGLMode(BackendRootWindow * bpe);
+		static void addInterfacePreview(BackendRootWindow * bpe);
 	};
 
 private:

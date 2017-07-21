@@ -102,7 +102,9 @@ private:
 
 
 class InterfaceContentPanel : public FloatingTileContent,
-	public Component
+							  public Component,
+							  public GlobalScriptCompileListener,
+							  public ButtonListener
 {
 public:
 
@@ -114,10 +116,25 @@ public:
 
 	void resized();
 
+	void scriptWasCompiled(JavascriptProcessor *processor) override;
+
+	void buttonClicked(Button* b) override;
+
 private:
+
+	bool connectToScript();
+
+	BlackTextButtonLookAndFeel laf;
+
+	ScopedPointer<TextButton> refreshButton;
+
+
+
+	WeakReference<Processor> connectedProcessor;
 
 	ScopedPointer<ScriptContentComponent> content;
 
+	void updateSize();
 };
 
 
