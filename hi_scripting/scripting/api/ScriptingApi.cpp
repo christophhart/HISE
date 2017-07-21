@@ -1444,7 +1444,7 @@ var ScriptingApi::Sampler::getSampleMapList() const
     
     
 #if HISE_IOS
-    File rootDir = File::getSpecialLocation(File::SpecialLocationType::currentApplicationFile).getChildFile("SampleMaps");
+    File rootDir = ProjectHandler::Frontend::getResourcesFolder().getChildFile("SampleMaps");
 #else
     
 	File rootDir = ProjectHandler::Frontend::getAppDataDirectory().getChildFile("SampleMaps");

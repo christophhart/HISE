@@ -207,6 +207,12 @@ void FrontendProcessor::setCurrentProgram(int /*index*/)
 
 void FrontendProcessor::loadImages(ValueTree *imageData)
 {
+#if HISE_IOS
+    
+    // The images are loaded from actual files here...
+    return;
+#endif
+    
 	if (imageData == nullptr)
 	{
 		File imageResources = ProjectHandler::Frontend::getAppDataDirectory().getChildFile("ImageResources.dat");

@@ -897,7 +897,7 @@ void ModulatorSampler::loadSampleMapFromId(const String& sampleMapId)
 #else
     
 #if HISE_IOS
-    File f = File::getSpecialLocation(File::SpecialLocationType::currentApplicationFile).getChildFile("SampleMaps/").getChildFile(sampleMapId + ".xml");
+    File f = ProjectHandler::Frontend::getResourcesFolder().getChildFile("SampleMaps/").getChildFile(sampleMapId + ".xml");
 #else
     
 	File f = ProjectHandler::Frontend::getAppDataDirectory().getChildFile("SampleMaps/").getChildFile(sampleMapId + ".xml");

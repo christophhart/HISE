@@ -284,6 +284,8 @@ public:
 		static String getCompanyName();
 		static String getCompanyWebsiteName();
 		static String getVersionString();
+        static String getAppGroupId();
+        
 		static String checkSampleReferences(const ValueTree &sampleMaps, bool returnTrueIfOneSampleFound);
 
 		/** on IOS this returns the folder where all the resources (samples, images, etc) are found.

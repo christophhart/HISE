@@ -246,9 +246,11 @@ void MidiProcessorChain::MidiProcessorChainHandler::add(Processor *newProcessor,
 
 	const int index = siblingToInsertBefore == nullptr ? -1 : chain->processors.indexOf(dynamic_cast<MidiProcessor*>(siblingToInsertBefore));
 
+    newProcessor->prepareToPlay(chain->getSampleRate(), chain->getBlockSize());
+    
+    newProcessor->setIsOnAir(true);
+    
 	chain->processors.insert(index, m);
-
-	newProcessor->prepareToPlay(chain->getSampleRate(), chain->getBlockSize());
 
 	if (JavascriptMidiProcessor* sp = dynamic_cast<JavascriptMidiProcessor*>(newProcessor))
 	{	

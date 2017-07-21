@@ -1640,13 +1640,45 @@ void ProjectHandler::Frontend::setSampleLocation(const File &newLocation)
 #endif
 }
 
+#if HISE_IOS
+#include "Foundation/NSFileManager.h"
+#include "Foundation/NSString.h"
+#endif
+
+
 File ProjectHandler::Frontend::getUserPresetDirectory()
 {
 #if HISE_IOS
-    File f = File::getSpecialLocation(File::SpecialLocationType::currentApplicationFile).getChildFile("UserPresets/");
     
+    NSString *appGroupID = [NSString stringWithUTF8String: getAppGroupId().toUTF8()];
     
-    return f;
+    NSFileManager* fm = [NSFileManager defaultManager];
+    NSURL *containerURL = [fm containerURLForSecurityApplicationGroupIdentifier:appGroupID];
+    
+    if(containerURL == nullptr)
+    {
+        // Oops, the App Group ID was not valid
+        jassertfalse;
+    }
+    
+    String tmp = ([containerURL.relativeString UTF8String]);
+    File resourcesRoot(tmp.substring(6));
+    
+    File userPresetDirectory = resourcesRoot.getChildFile("UserPresets");
+    
+    if(!userPresetDirectory.isDirectory())
+    {
+        File factoryPresets = File::getSpecialLocation(File::SpecialLocationType::currentApplicationFile).getChildFile("UserPresets/");
+        
+        userPresetDirectory.createDirectory();
+        
+        factoryPresets.copyDirectoryTo(userPresetDirectory);
+        
+        
+        
+    }
+    
+    return userPresetDirectory;
     
 #else
     

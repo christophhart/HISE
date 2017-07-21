@@ -2014,11 +2014,18 @@ void CompileExporter::HeaderHelpers::addProjectInfoLines(CompileExporter* export
 	const String companyWebsiteName = SettingWindows::getSettingValue((int)SettingWindows::UserSettingWindow::Attributes::CompanyURL, &GET_PROJECT_HANDLER(chainToExport));
 	const String projectName = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, &GET_PROJECT_HANDLER(chainToExport));
 	const String versionString = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, &GET_PROJECT_HANDLER(chainToExport));
+    const String appGroupString = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::AppGroupId, &GET_PROJECT_HANDLER(chainToExport));
 
+
+    
+    
 	pluginDataHeaderFile << "String ProjectHandler::Frontend::getProjectName() { return \"" << projectName << "\"; };\n";
 	pluginDataHeaderFile << "String ProjectHandler::Frontend::getCompanyName() { return \"" << companyName << "\"; };\n";
 	pluginDataHeaderFile << "String ProjectHandler::Frontend::getCompanyWebsiteName() { return \"" << companyWebsiteName << "\"; };\n";
 	pluginDataHeaderFile << "String ProjectHandler::Frontend::getVersionString() { return \"" << versionString << "\"; };\n";
+    
+    pluginDataHeaderFile << "String ProjectHandler::Frontend::getAppGroupId() { return \"" << appGroupString << "\"; };\n";
+    
 }
 
 void CompileExporter::HeaderHelpers::writeHeaderFile(const String & solutionDirectory, const String& pluginDataHeaderFile)
