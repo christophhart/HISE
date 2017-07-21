@@ -444,7 +444,9 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 	auto thisAsProcessor = dynamic_cast<Processor*>(this);
 
-	ScopedLock callbackLock(mainController->getLock());
+    ScopedLock callbackLock(thisAsProcessor->isOnAir() ? mainController->getLock() : thisAsProcessor->getDummyLockWhenNotOnAir());
+
+    
 	ScopedWriteLock sl(mainController->getCompileLock());
     
 

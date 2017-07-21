@@ -82,9 +82,12 @@ bool SlotFX::setEffect(const String& typeName)
 		if(p != nullptr)
 		{
             ScopedLock callbackLock(getMainController()->getLock());
-            ScopedReadLock sl(getMainController()->getCompileLock());
+            
+            p->setIsOnAir(true);
             
 			wrappedEffect = p;
+            
+        
             hasScriptFX = thisIsScriptFX;
 		}
 
@@ -102,7 +105,7 @@ bool SlotFX::setEffect(const String& typeName)
 	}
 	else
 	{
-		//jassertfalse;
+		jassertfalse;
 		return false;
 	}
 }
