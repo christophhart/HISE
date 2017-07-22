@@ -85,7 +85,9 @@ void MonoFilterEffect::setInternalAttribute(int parameterIndex, float newValue)
 	case Q:			q = newValue; break;
 	case Mode:		setMode((int)newValue);	break;
     case Quality:   setRenderQuality((int)newValue); break;
-	default:		jassertfalse; return;
+            
+        case Keytrack:		KTRatio = newValue;	break;
+        default:		jassertfalse; return;
 	}
 
 	changeFlag = true;
@@ -100,6 +102,7 @@ void MonoFilterEffect::restoreFromValueTree(const ValueTree &v)
 	loadAttribute(Q, "Q");
 	loadAttribute(Mode, "Mode");
     loadAttribute(Quality, "RenderQuality");
+    loadAttribute(Keytrack, "Keytrack");
 }
 
 ValueTree MonoFilterEffect::exportAsValueTree() const
@@ -111,6 +114,7 @@ ValueTree MonoFilterEffect::exportAsValueTree() const
 	saveAttribute(Q, "Q");
 	saveAttribute(Mode, "Mode");
     saveAttribute(Quality, "RenderQuality");
+    saveAttribute(Keytrack, "Keytrack");
 	return v;
 }
 
@@ -295,6 +299,7 @@ currentFreq(20000.0),
 currentGain(1.0f),
 gain(1.0f),
 q(1.0),
+KTRatio(0),
 freqChain(new ModulatorChain(mc, "Frequency Modulation", numVoices, Modulation::GainMode, this)),
 gainChain(new ModulatorChain(mc, "Gain Modulation", numVoices, Modulation::GainMode, this))
 {
@@ -308,7 +313,8 @@ gainChain(new ModulatorChain(mc, "Gain Modulation", numVoices, Modulation::GainM
 	{
 		voiceFilters.add(new MonoFilterEffect(mc, uid + String(i)));
 		voiceFilters[i]->setUseInternalChains(false);
-	}
+    }
+    parameterNames.add("Keytrack");
 }
 
 float PolyFilterEffect::getAttribute(int parameterIndex) const
@@ -319,7 +325,8 @@ float PolyFilterEffect::getAttribute(int parameterIndex) const
 	case MonoFilterEffect::Frequency:	return (float)freq;
 	case MonoFilterEffect::Q:			return (float)q;
 	case MonoFilterEffect::Mode:		return (float)mode;
-    case MonoFilterEffect::Quality:		return (float)getSampleAmountForRenderQuality();
+        case MonoFilterEffect::Quality:		return (float)getSampleAmountForRenderQuality();
+        case PolyFilterEffect::Keytrack:		return (float)KTRatio;
 	default:							jassertfalse; return 1.0f;
 	}
 }
@@ -335,6 +342,7 @@ void PolyFilterEffect::setInternalAttribute(int parameterIndex, float newValue)
 		for (int i = 0; i < voiceFilters.size(); i++) voiceFilters[i]->setMode((int)newValue);
 		break;
         case MonoFilterEffect::Quality: setRenderQuality((int)newValue); break;
+        case PolyFilterEffect::Keytrack: KTRatio = newValue; break;
 	default:							jassertfalse; return;
 	}
 
@@ -350,6 +358,7 @@ void PolyFilterEffect::restoreFromValueTree(const ValueTree &v)
 	loadAttribute(MonoFilterEffect::Q, "Q");
 	loadAttribute(MonoFilterEffect::Mode, "Mode");
     loadAttribute(MonoFilterEffect::Quality, "Quality");
+    loadAttribute(PolyFilterEffect::Keytrack, "Keytrack");
 }
 
 ValueTree PolyFilterEffect::exportAsValueTree() const
@@ -361,6 +370,7 @@ ValueTree PolyFilterEffect::exportAsValueTree() const
 	saveAttribute(MonoFilterEffect::Q, "Q");
 	saveAttribute(MonoFilterEffect::Mode, "Mode");
     saveAttribute(MonoFilterEffect::Quality, "Quality");
+    saveAttribute(PolyFilterEffect::Keytrack, "Keytrack");
 
 	return v;
 }
@@ -418,9 +428,13 @@ void PolyFilterEffect::applyEffect(int voiceIndex, AudioSampleBuffer &b, int sta
 			voiceFilters[voiceIndex]->currentGain = gain;
 		}
 	}
-	
-	const double freqModValue = (double)getCurrentModulationValue(FrequencyChain, voiceIndex, startSample);
-	const double checkFreq = jmax<double>(70.0, std::abs(freqModValue * freq));
+    
+    double filterRatio = fractionalMidiNoteInHz(FilterNote[voiceIndex]) / juce::MidiMessage::getMidiNoteInHertz(60);
+    const double freqModValue = ((double)getCurrentModulationValue(FrequencyChain, voiceIndex, startSample)) * 19980;
+    double checkFreq = std::abs(((freqModValue + freq) * filterRatio * KTRatio) + ((freqModValue + freq) * (1 - KTRatio)));
+    if (checkFreq > 20000)
+        checkFreq = 20000;
+    
 	voiceFilters[voiceIndex]->currentFreq = checkFreq;
 	voiceFilters[voiceIndex]->freq = checkFreq;
 	voiceFilters[voiceIndex]->calcCoefficients();
@@ -431,7 +445,8 @@ void PolyFilterEffect::startVoice(int voiceIndex, int noteNumber)
 {
 	VoiceEffectProcessor::startVoice(voiceIndex, noteNumber);
 
-	voiceFilters[voiceIndex]->currentFilter->reset();
+    voiceFilters[voiceIndex]->currentFilter->reset();
+    FilterNote[voiceIndex] = noteNumber;
 }
 
 void StaticBiquad::updateCoefficients()

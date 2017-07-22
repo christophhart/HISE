@@ -53,11 +53,12 @@ public:
 	{
 		modeSelector->setSelectedId((int)getProcessor()->getAttribute(MonoFilterEffect::Mode) + 1, dontSendNotification);
 		freqSlider->updateValue();
-		gainSlider->updateValue();
-		qSlider->updateValue();
+        gainSlider->updateValue();
+        qSlider->updateValue();
+        keytrackSlider->updateValue();
+        keytrackSlider->setEnabled(true);
 
 		MonoFilterEffect::FilterMode m = (MonoFilterEffect::FilterMode)(int)(getProcessor()->getAttribute(MonoFilterEffect::Mode));
-
 		switch (m)
 		{
 		case MonoFilterEffect::OnePoleHighPass:	qSlider->setEnabled(false); gainSlider->setEnabled(false); break;
@@ -139,6 +140,7 @@ private:
     ScopedPointer<HiSlider> freqSlider;
     ScopedPointer<HiSlider> qSlider;
     ScopedPointer<HiSlider> gainSlider;
+    ScopedPointer<HiSlider> keytrackSlider;
     ScopedPointer<ComboBox> modeSelector;
     ScopedPointer<FilterGraph> filterGraph;
     ScopedPointer<Label> label;
