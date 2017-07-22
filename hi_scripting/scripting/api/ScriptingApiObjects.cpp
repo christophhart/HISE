@@ -182,6 +182,8 @@ struct ScriptingObjects::ScriptingModulator::Wrapper
 	API_METHOD_WRAPPER_0(ScriptingModulator, getCurrentLevel);
 	API_METHOD_WRAPPER_0(ScriptingModulator, exportState);
 	API_VOID_METHOD_WRAPPER_1(ScriptingModulator, restoreState);
+	API_VOID_METHOD_WRAPPER_1(ScriptingModulator, restoreScriptControls);
+	API_METHOD_WRAPPER_0(ScriptingModulator, exportScriptControls);
 
 };
 
@@ -216,6 +218,8 @@ m(nullptr)
 	ADD_API_METHOD_0(exportState);
 	ADD_API_METHOD_1(restoreState);
 	ADD_API_METHOD_0(getNumAttributes);
+	ADD_API_METHOD_1(restoreScriptControls);
+	ADD_API_METHOD_0(exportScriptControls);
 }
 
 String ScriptingObjects::ScriptingModulator::getDebugName() const
@@ -371,6 +375,34 @@ void ScriptingObjects::ScriptingModulator::restoreState(String base64State)
 	}
 }
 
+String ScriptingObjects::ScriptingModulator::exportScriptControls()
+{
+	if (dynamic_cast<ProcessorWithScriptingContent*>(mod.get()) == nullptr)
+	{
+		reportScriptError("exportScriptControls can only be used on Script Processors");
+	}
+
+	if (checkValidObject())
+	{
+		return ProcessorHelpers::getBase64String(mod, false, true);
+	}
+
+	return String();
+}
+
+void ScriptingObjects::ScriptingModulator::restoreScriptControls(String base64Controls)
+{
+	if (dynamic_cast<ProcessorWithScriptingContent*>(mod.get()) == nullptr)
+	{
+		reportScriptError("restoreScriptControls can only be used on Script Processors");
+	}
+
+	if (checkValidObject())
+	{
+		ProcessorHelpers::restoreFromBase64String(mod, base64Controls, true);
+	}
+}
+
 // ScriptingEffect ==============================================================================================================
 
 struct ScriptingObjects::ScriptingEffect::Wrapper
@@ -382,6 +414,8 @@ struct ScriptingObjects::ScriptingEffect::Wrapper
 	API_METHOD_WRAPPER_0(ScriptingEffect, exportState);
 	API_METHOD_WRAPPER_1(ScriptingEffect, getCurrentLevel);
 	API_VOID_METHOD_WRAPPER_1(ScriptingEffect, restoreState);
+	API_VOID_METHOD_WRAPPER_1(ScriptingEffect, restoreScriptControls);
+	API_METHOD_WRAPPER_0(ScriptingEffect, exportScriptControls);
 };
 
 ScriptingObjects::ScriptingEffect::ScriptingEffect(ProcessorWithScriptingContent *p, EffectProcessor *fx) :
@@ -410,6 +444,8 @@ effect(fx)
 	ADD_API_METHOD_1(getCurrentLevel);
 	ADD_API_METHOD_0(exportState);
 	ADD_API_METHOD_1(restoreState);
+	ADD_API_METHOD_1(restoreScriptControls);
+	ADD_API_METHOD_0(exportScriptControls);
 	ADD_API_METHOD_0(getNumAttributes);
 };
 
@@ -468,6 +504,34 @@ void ScriptingObjects::ScriptingEffect::restoreState(String base64State)
 	if (checkValidObject())
 	{
 		ProcessorHelpers::restoreFromBase64String(effect, base64State);
+	}
+}
+
+String ScriptingObjects::ScriptingEffect::exportScriptControls()
+{
+	if (dynamic_cast<ProcessorWithScriptingContent*>(effect.get()) == nullptr)
+	{
+		reportScriptError("exportScriptControls can only be used on Script Processors");
+	}
+
+	if (checkValidObject())
+	{
+		return ProcessorHelpers::getBase64String(effect, false, true);
+	}
+
+	return String();
+}
+
+void ScriptingObjects::ScriptingEffect::restoreScriptControls(String base64Controls)
+{
+	if (dynamic_cast<ProcessorWithScriptingContent*>(effect.get()) == nullptr)
+	{
+		reportScriptError("restoreScriptControls can only be used on Script Processors");
+	}
+
+	if (checkValidObject())
+	{
+		ProcessorHelpers::restoreFromBase64String(effect, base64Controls, true);
 	}
 }
 
@@ -728,6 +792,8 @@ struct ScriptingObjects::ScriptingMidiProcessor::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptingMidiProcessor, setBypassed);
 	API_METHOD_WRAPPER_0(ScriptingMidiProcessor, exportState);
 	API_VOID_METHOD_WRAPPER_1(ScriptingMidiProcessor, restoreState);
+	API_VOID_METHOD_WRAPPER_1(ScriptingMidiProcessor, restoreScriptControls);
+	API_METHOD_WRAPPER_0(ScriptingMidiProcessor, exportScriptControls);
 	
 };
 
@@ -756,6 +822,8 @@ mp(mp_)
 	ADD_API_METHOD_1(setBypassed);
 	ADD_API_METHOD_0(exportState);
 	ADD_API_METHOD_1(restoreState);
+	ADD_API_METHOD_1(restoreScriptControls);
+	ADD_API_METHOD_0(exportScriptControls);
 	ADD_API_METHOD_0(getNumAttributes);
 }
 
@@ -825,7 +893,7 @@ String ScriptingObjects::ScriptingMidiProcessor::exportState()
 {
 	if (checkValidObject())
 	{
-		return ProcessorHelpers::getBase64String(mp, false);
+		return ProcessorHelpers::getBase64String(mp, false, false);
 	}
 
 	return String();
@@ -835,7 +903,35 @@ void ScriptingObjects::ScriptingMidiProcessor::restoreState(String base64State)
 {
 	if (checkValidObject())
 	{
-		ProcessorHelpers::restoreFromBase64String(mp, base64State);
+		ProcessorHelpers::restoreFromBase64String(mp, base64State, false);
+	}
+}
+
+String ScriptingObjects::ScriptingMidiProcessor::exportScriptControls()
+{
+	if (dynamic_cast<ProcessorWithScriptingContent*>(mp.get()) == nullptr)
+	{
+		reportScriptError("exportScriptControls can only be used on Script Processors");
+	}
+
+	if (checkValidObject())
+	{
+		return ProcessorHelpers::getBase64String(mp, false, true);
+	}
+
+	return String();
+}
+
+void ScriptingObjects::ScriptingMidiProcessor::restoreScriptControls(String base64Controls)
+{
+	if (dynamic_cast<ProcessorWithScriptingContent*>(mp.get()) == nullptr)
+	{
+		reportScriptError("restoreScriptControls can only be used on Script Processors");
+	}
+
+	if (checkValidObject())
+	{
+		ProcessorHelpers::restoreFromBase64String(mp, base64Controls, true);
 	}
 }
 

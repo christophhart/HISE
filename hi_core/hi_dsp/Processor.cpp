@@ -370,35 +370,62 @@ String ProcessorHelpers::getScriptVariableDeclaration(const Processor *p, bool c
 	return code;
 }
 
-String ProcessorHelpers::getBase64String(const Processor* p, bool copyToClipboard/*=true*/)
+String ProcessorHelpers::getBase64String(const Processor* p, bool copyToClipboard/*=true*/, bool exportContentOnly/*=false*/)
 {
-	ValueTree v;
-
-    v = p->exportAsValueTree();
-    
-	const String c = ValueTreeHelpers::getBase64StringFromValueTree(v);
-
-	if (copyToClipboard)
+	if (exportContentOnly)
 	{
-		SystemClipboard::copyTextToClipboard("\"" + c + "\"");
+		if (auto pwsc = dynamic_cast<const ProcessorWithScriptingContent*>(p))
+		{
+			auto vt = pwsc->getScriptingContent()->exportAsValueTree();
+			return ValueTreeHelpers::getBase64StringFromValueTree(vt);
+		}
+		else
+			return String();
+	}
+	else
+	{
+		ValueTree v;
+
+		v = p->exportAsValueTree();
+
+		const String c = ValueTreeHelpers::getBase64StringFromValueTree(v);
+
+		if (copyToClipboard)
+			SystemClipboard::copyTextToClipboard("\"" + c + "\"");
+
+		return c;
 	}
 
-	return c;
+	
 }
 
-void ProcessorHelpers::restoreFromBase64String(Processor* p, const String& base64String)
+void ProcessorHelpers::restoreFromBase64String(Processor* p, const String& base64String, bool restoreScriptContentOnly/*=false*/)
 {
-	ValueTree v = ValueTreeHelpers::getValueTreeFromBase64String(base64String);
+	if (restoreScriptContentOnly)
+	{
+		if (auto pwsc = dynamic_cast<const ProcessorWithScriptingContent*>(p))
+		{
+			auto vt = ProcessorHelpers::ValueTreeHelpers::getValueTreeFromBase64String(base64String);
 
-	auto newId = v.getProperty("ID", String()).toString();
+			if (auto content = pwsc->getScriptingContent())
+				content->restoreAllControlsFromPreset(vt);
+		}
+	}
+	else
+	{
+		ValueTree v = ValueTreeHelpers::getValueTreeFromBase64String(base64String);
 
-	if (newId.isNotEmpty())
-		p->setId(newId, dontSendNotification);
+		auto newId = v.getProperty("ID", String()).toString();
 
-    p->restoreFromValueTree(v);
-    
-    if(auto firstChild = p->getChildProcessor(0))
-        firstChild->sendRebuildMessage(true);
+		if (newId.isNotEmpty())
+			p->setId(newId, dontSendNotification);
+
+		p->restoreFromValueTree(v);
+
+		if (auto firstChild = p->getChildProcessor(0))
+			firstChild->sendRebuildMessage(true);
+	}
+	
 }
 
 void ProcessorHelpers::deleteProcessor(Processor* p)

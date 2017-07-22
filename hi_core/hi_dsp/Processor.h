@@ -912,9 +912,9 @@ public:
 	*/
 	static String getScriptVariableDeclaration(const Processor *p, bool copyToClipboard=true);
 
-	static String getBase64String(const Processor* p, bool copyToClipboard=true);
+	static String getBase64String(const Processor* p, bool copyToClipboard=true, bool exportContentOnly=false);
 
-	static void restoreFromBase64String(Processor* p, const String& base64String);
+	static void restoreFromBase64String(Processor* p, const String& base64String, bool restoreScriptContentOnly=false);
 
 	static void deleteProcessor(Processor* p);
 

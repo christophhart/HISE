@@ -273,6 +273,12 @@ public:
 		/** Restores the state from a base64 string. */
 		void restoreState(String base64State);
 
+		/** Export the control values (without the script). */
+		String exportScriptControls();
+
+		/** Restores the control values for scripts (without recompiling). */
+		void restoreScriptControls(String base64Controls);
+
 		// ============================================================================================================
 
 		struct Wrapper;
@@ -334,6 +340,12 @@ public:
 
 		/** Restores the state from a base64 string. */
 		void restoreState(String base64State);
+
+		/** Export the control values (without the script). */
+		String exportScriptControls();
+
+		/** Restores the control values for scripts (without recompiling). */
+		void restoreScriptControls(String base64Controls);
 
 		/** Returns the current peak level for the given channel. */
 		float getCurrentLevel(bool leftChannel);
@@ -518,6 +530,12 @@ public:
 
 		/** Restores the state from a base64 string. */
 		void restoreState(String base64State);
+
+		/** Export the control values (without the script). */
+		String exportScriptControls();
+
+		/** Restores the control values for scripts (without recompiling). */
+		void restoreScriptControls(String base64Controls);
 
 		// ============================================================================================================
 
