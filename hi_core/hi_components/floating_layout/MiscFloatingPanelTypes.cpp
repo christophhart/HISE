@@ -505,6 +505,7 @@ bool InterfaceContentPanel::connectToScript()
 void InterfaceContentPanel::updateSize()
 {
 
+#if USE_BACKEND
 	if (auto pwsc = dynamic_cast<ProcessorWithScriptingContent*>(connectedProcessor.get()))
 	{
 		auto content = pwsc->getScriptingContent();
@@ -524,4 +525,5 @@ void InterfaceContentPanel::updateSize()
 			getParentShell()->resized();
 		}
 	}
+#endif
 }

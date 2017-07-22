@@ -516,11 +516,8 @@ void ResizableFloatingTileContainer::refreshLayout()
 
 void ResizableFloatingTileContainer::paint(Graphics& g)
 {
-	if(findParentComponentOfClass<FloatingTilePopup>() != nullptr)
-    {
-        g.setColour(getStyleColour(ColourIds::backgroundColourId));
-        g.fillRect(getContainerBounds());
-    }
+	g.setColour(getStyleColour(ColourIds::backgroundColourId));
+	g.fillRect(getContainerBounds());
 }
 
 Rectangle<int> ResizableFloatingTileContainer::getContainerBounds() const

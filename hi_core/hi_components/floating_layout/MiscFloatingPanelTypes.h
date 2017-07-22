@@ -679,8 +679,12 @@ public:
 		var obj = FloatingTileContent::toDynamicObject();
 
 		storePropertyInObject(obj, SpecialPanelIds::KeyWidth, keyboard->getKeyWidth());
-		storePropertyInObject(obj, SpecialPanelIds::LowKey, keyboard->getLowKey());
-		storePropertyInObject(obj, SpecialPanelIds::HiKey, keyboard->getHiKey());
+
+
+		
+
+		storePropertyInObject(obj, SpecialPanelIds::LowKey, keyboard->getRangeStart());
+		storePropertyInObject(obj, SpecialPanelIds::HiKey, keyboard->getRangeEnd());
 		storePropertyInObject(obj, SpecialPanelIds::CustomGraphics, keyboard->isUsingCustomGraphics());
 		storePropertyInObject(obj, SpecialPanelIds::DefaultAppearance, defaultAppearance);
 		storePropertyInObject(obj, SpecialPanelIds::BlackKeyRatio, keyboard->getBlackNoteLengthProportion());
