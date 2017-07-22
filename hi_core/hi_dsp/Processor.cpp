@@ -103,6 +103,40 @@ void Processor::setConstrainerForAllInternalChains(BaseConstrainer *constrainer)
 	}
 }
 
+const Identifier Processor::getIdentifierForParameterIndex(int parameterIndex) const
+{
+	if (auto pwsc = dynamic_cast<const ProcessorWithScriptingContent*>(this))
+	{
+		if (auto content = pwsc->getScriptingContent())
+		{
+			return content->getComponent(parameterIndex)->getName();
+		}
+		else
+			return Identifier();
+	}
+	else
+	{
+		if (parameterIndex > parameterNames.size()) return Identifier();
+
+		return parameterNames[parameterIndex];
+	}
+}
+
+int Processor::getNumParameters() const
+{
+	if (auto pwsc = dynamic_cast<const ProcessorWithScriptingContent*>(this))
+	{
+		if (auto content = pwsc->getScriptingContent())
+		{
+			return content->getNumComponents();
+		}
+		else
+			return 0;
+	}
+	else
+		return parameterNames.size();
+}
+
 void Processor::setIsOnAir(bool isBeingProcessedInAudioThread)
 {
 	onAir = isBeingProcessedInAudioThread;

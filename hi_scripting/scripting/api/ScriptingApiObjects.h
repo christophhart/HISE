@@ -255,6 +255,9 @@ public:
         /** Returns the attribute with the given index. */
         float getAttribute(int index);
         
+		/** Returns the number of attributes. */
+		int getNumAttributes() const;
+
 		/** Bypasses the Modulator. */
 		void setBypassed(bool shouldBeBypassed);;
 
@@ -320,6 +323,9 @@ public:
         /** Returns the attribute with the given index. */
         float getAttribute(int index);
         
+		/** Returns the number of attributes. */
+		int getNumAttributes() const;
+
 		/** Bypasses the effect. */
 		void setBypassed(bool shouldBeBypassed);
 
@@ -435,6 +441,8 @@ public:
         /** Returns the attribute with the given index. */
         float getAttribute(int index);
 
+		/** Returns the number of attributes. */
+		int getNumAttributes() const;
         
 		/** Bypasses the effect. */
 		void setBypassed(bool shouldBeBypassed);
@@ -499,6 +507,9 @@ public:
         /** Returns the attribute with the given index. */
         float getAttribute(int index);
         
+		/** Returns the number of attributes. */
+		int getNumAttributes() const;
+
 		/** Bypasses the MidiProcessor. */
 		void setBypassed(bool shouldBeBypassed);;
 
@@ -545,6 +556,9 @@ public:
         /** Returns the attribute with the given index. */
         float getAttribute(int index);
         
+		/** Returns the number of attributes. */
+		int getNumAttributes() const;
+
 		/** Bypasses the effect. */
 		void setBypassed(bool shouldBeBypassed);
 

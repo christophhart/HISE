@@ -176,11 +176,13 @@ struct ScriptingObjects::ScriptingModulator::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_2(ScriptingModulator, setAttribute);
     API_METHOD_WRAPPER_1(ScriptingModulator, getAttribute);
+	API_METHOD_WRAPPER_0(ScriptingModulator, getNumAttributes);
 	API_VOID_METHOD_WRAPPER_1(ScriptingModulator, setBypassed);
 	API_VOID_METHOD_WRAPPER_1(ScriptingModulator, setIntensity);
 	API_METHOD_WRAPPER_0(ScriptingModulator, getCurrentLevel);
 	API_METHOD_WRAPPER_0(ScriptingModulator, exportState);
 	API_VOID_METHOD_WRAPPER_1(ScriptingModulator, restoreState);
+
 };
 
 ScriptingObjects::ScriptingModulator::ScriptingModulator(ProcessorWithScriptingContent *p, Modulator *m_) :
@@ -213,6 +215,7 @@ m(nullptr)
 	ADD_API_METHOD_0(getCurrentLevel);
 	ADD_API_METHOD_0(exportState);
 	ADD_API_METHOD_1(restoreState);
+	ADD_API_METHOD_0(getNumAttributes);
 }
 
 String ScriptingObjects::ScriptingModulator::getDebugName() const
@@ -273,6 +276,16 @@ float ScriptingObjects::ScriptingModulator::getAttribute(int parameterIndex)
     }
 
 	return 0.0f;
+}
+
+int ScriptingObjects::ScriptingModulator::getNumAttributes() const
+{
+	if (checkValidObject())
+	{
+		return mod->getNumParameters();
+	}
+
+	return 0;
 }
 
 void ScriptingObjects::ScriptingModulator::setBypassed(bool shouldBeBypassed)
@@ -364,6 +377,7 @@ struct ScriptingObjects::ScriptingEffect::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_2(ScriptingEffect, setAttribute);
     API_METHOD_WRAPPER_1(ScriptingEffect, getAttribute);
+	API_METHOD_WRAPPER_0(ScriptingEffect, getNumAttributes);
 	API_VOID_METHOD_WRAPPER_1(ScriptingEffect, setBypassed);
 	API_METHOD_WRAPPER_0(ScriptingEffect, exportState);
 	API_METHOD_WRAPPER_1(ScriptingEffect, getCurrentLevel);
@@ -396,6 +410,7 @@ effect(fx)
 	ADD_API_METHOD_1(getCurrentLevel);
 	ADD_API_METHOD_0(exportState);
 	ADD_API_METHOD_1(restoreState);
+	ADD_API_METHOD_0(getNumAttributes);
 };
 
 
@@ -415,6 +430,16 @@ float ScriptingObjects::ScriptingEffect::getAttribute(int parameterIndex)
     }
 
 	return 0.0f;
+}
+
+int ScriptingObjects::ScriptingEffect::getNumAttributes() const
+{
+	if (checkValidObject())
+	{
+		return effect->getNumParameters();
+	}
+
+	return 0;
 }
 
 void ScriptingObjects::ScriptingEffect::setBypassed(bool shouldBeBypassed)
@@ -567,6 +592,7 @@ struct ScriptingObjects::ScriptingSynth::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_2(ScriptingSynth, setAttribute);
     API_METHOD_WRAPPER_1(ScriptingSynth, getAttribute);
+	API_METHOD_WRAPPER_0(ScriptingSynth, getNumAttributes);
 	API_VOID_METHOD_WRAPPER_1(ScriptingSynth, setBypassed);
 	API_METHOD_WRAPPER_1(ScriptingSynth, getChildSynthByIndex);
 	API_METHOD_WRAPPER_0(ScriptingSynth, exportState);
@@ -601,6 +627,7 @@ synth(synth_)
 	ADD_API_METHOD_1(getCurrentLevel);
 	ADD_API_METHOD_0(exportState);
 	ADD_API_METHOD_1(restoreState);
+	ADD_API_METHOD_0(getNumAttributes);
 };
 
 
@@ -620,6 +647,16 @@ float ScriptingObjects::ScriptingSynth::getAttribute(int parameterIndex)
     }
 
 	return 0.0f;
+}
+
+int ScriptingObjects::ScriptingSynth::getNumAttributes() const
+{
+	if (checkValidObject())
+	{
+		return synth->getNumParameters();
+	}
+
+	return 0;
 }
 
 void ScriptingObjects::ScriptingSynth::setBypassed(bool shouldBeBypassed)
@@ -687,9 +724,11 @@ struct ScriptingObjects::ScriptingMidiProcessor::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_2(ScriptingMidiProcessor, setAttribute);
     API_METHOD_WRAPPER_1(ScriptingMidiProcessor, getAttribute);
+	API_METHOD_WRAPPER_0(ScriptingMidiProcessor, getNumAttributes);
 	API_VOID_METHOD_WRAPPER_1(ScriptingMidiProcessor, setBypassed);
 	API_METHOD_WRAPPER_0(ScriptingMidiProcessor, exportState);
 	API_VOID_METHOD_WRAPPER_1(ScriptingMidiProcessor, restoreState);
+	
 };
 
 ScriptingObjects::ScriptingMidiProcessor::ScriptingMidiProcessor(ProcessorWithScriptingContent *p, MidiProcessor *mp_) :
@@ -717,6 +756,7 @@ mp(mp_)
 	ADD_API_METHOD_1(setBypassed);
 	ADD_API_METHOD_0(exportState);
 	ADD_API_METHOD_1(restoreState);
+	ADD_API_METHOD_0(getNumAttributes);
 }
 
 int ScriptingObjects::ScriptingMidiProcessor::getCachedIndex(const var &indexExpression) const
@@ -762,6 +802,16 @@ float ScriptingObjects::ScriptingMidiProcessor::getAttribute(int parameterIndex)
 	return 0.0f;
 }
 
+int ScriptingObjects::ScriptingMidiProcessor::getNumAttributes() const
+{
+	if (checkValidObject())
+	{
+		return mp->getNumParameters();
+	}
+
+	return 0;
+}
+
 void ScriptingObjects::ScriptingMidiProcessor::setBypassed(bool shouldBeBypassed)
 {
 	if (checkValidObject())
@@ -795,6 +845,7 @@ struct ScriptingObjects::ScriptingAudioSampleProcessor::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_2(ScriptingAudioSampleProcessor, setAttribute);
     API_METHOD_WRAPPER_1(ScriptingAudioSampleProcessor, getAttribute);
+	API_METHOD_WRAPPER_0(ScriptingAudioSampleProcessor, getNumAttributes);
 	API_VOID_METHOD_WRAPPER_1(ScriptingAudioSampleProcessor, setBypassed);
 	API_METHOD_WRAPPER_0(ScriptingAudioSampleProcessor, getSampleLength);
 	API_VOID_METHOD_WRAPPER_2(ScriptingAudioSampleProcessor, setSampleRange);
@@ -822,6 +873,7 @@ audioSampleProcessor(dynamic_cast<Processor*>(sampleProcessor))
 
 	ADD_API_METHOD_2(setAttribute);
     ADD_API_METHOD_1(getAttribute);
+	ADD_API_METHOD_0(getNumAttributes);
 	ADD_API_METHOD_1(setBypassed);
 	ADD_API_METHOD_0(getSampleLength);
 	ADD_API_METHOD_2(setSampleRange);
@@ -846,6 +898,16 @@ float ScriptingObjects::ScriptingAudioSampleProcessor::getAttribute(int paramete
     }
 
 	return 0.0f;
+}
+
+int ScriptingObjects::ScriptingAudioSampleProcessor::getNumAttributes() const
+{
+	if (checkValidObject())
+	{
+		return audioSampleProcessor->getNumParameters();
+	}
+
+	return 0;
 }
 
 void ScriptingObjects::ScriptingAudioSampleProcessor::setBypassed(bool shouldBeBypassed)
