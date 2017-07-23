@@ -309,6 +309,12 @@ gainChain(new ModulatorChain(mc, "Gain Modulation", numVoices, Modulation::GainM
 		voiceFilters.add(new MonoFilterEffect(mc, uid + String(i)));
 		voiceFilters[i]->setUseInternalChains(false);
 	}
+    
+    parameterNames.add("Gain");
+    parameterNames.add("Frequency");
+    parameterNames.add("Q");
+    parameterNames.add("Mode");
+    parameterNames.add("Quality");
 }
 
 float PolyFilterEffect::getAttribute(int parameterIndex) const
