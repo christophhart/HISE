@@ -738,8 +738,18 @@ String PresetHandler::getCustomName(const String &typeName, const String& thisMe
 	nameWindow->addButton("OK", 1, KeyPress(KeyPress::returnKey));
 	nameWindow->addButton("Cancel", 0, KeyPress(KeyPress::escapeKey));
 
+#if HISE_IOS
+    
+    const int x = nameWindow->getX();
+    const int y = jmax<int>(10, nameWindow->getY() - 150);
+    
+    nameWindow->setTopLeftPosition(x, y);
+    
+#endif
+    
 	if(nameWindow->runModalLoop()) return nameWindow->getTextEditorContents("Name");
 	else return String();
+    
 };
 
 bool PresetHandler::showYesNoWindow(const String &title, const String &message, PresetHandler::IconType type)
