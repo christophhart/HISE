@@ -108,6 +108,8 @@ public:
             {
                 SparseSet<int> rowsToDrag;
 
+				selectRowOnMouseUp = false;
+
                 if (owner.selectOnMouseDown || owner.isRowSelected (row))
                     rowsToDrag = owner.getSelectedRows();
                 else

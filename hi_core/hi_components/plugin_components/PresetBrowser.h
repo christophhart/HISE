@@ -318,6 +318,9 @@ public:
 
 	void presetChanged(const File& newPreset) override
 	{
+		if (allPresets[currentlyLoadedPreset] == newPreset)
+			return;
+
 		File pFile = newPreset;
 		File cFile = pFile.getParentDirectory();
 		File bFile = cFile.getParentDirectory();
@@ -429,6 +432,7 @@ private:
 
 	Array<File> allPresets;
 	int currentlyLoadedPreset = -1;
+	
 
 #if NEW_USER_PRESET
 	Listener* listener = nullptr;

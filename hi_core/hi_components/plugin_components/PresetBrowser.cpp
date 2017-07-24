@@ -228,6 +228,9 @@ index(index_)
 	listbox->setRowHeight(30);
 	listbox->setWantsKeyboardFocus(true);
 	
+	if (HiseDeviceSimulator::isMobileDevice())
+		listbox->setRowSelectedOnMouseDown(false);
+
 	listbox->getViewport()->setScrollOnDragEnabled(true);
 	
 	setSize(150, 300);
