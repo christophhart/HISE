@@ -1219,6 +1219,8 @@ struct ScriptingObjects::PathObject::Wrapper
 	API_VOID_METHOD_WRAPPER_2(PathObject, lineTo);
 	API_VOID_METHOD_WRAPPER_0(PathObject, clear);
 	API_VOID_METHOD_WRAPPER_4(PathObject, quadraticTo);
+	API_VOID_METHOD_WRAPPER_3(PathObject, addArc);
+	API_METHOD_WRAPPER_1(PathObject, getBounds);
 };
 
 ScriptingObjects::PathObject::PathObject(ProcessorWithScriptingContent* p) :
@@ -1230,6 +1232,8 @@ ConstScriptingObject(p, 0)
 	ADD_API_METHOD_2(startNewSubPath);
 	ADD_API_METHOD_2(lineTo);
 	ADD_API_METHOD_4(quadraticTo);
+	ADD_API_METHOD_3(addArc);
+	ADD_API_METHOD_1(getBounds);
 }
 
 ScriptingObjects::PathObject::~PathObject()
@@ -1284,6 +1288,27 @@ void ScriptingObjects::PathObject::lineTo(var x, var y)
 void ScriptingObjects::PathObject::quadraticTo(var cx, var cy, var x, var y)
 {
 	p.quadraticTo(cx, cy, x, y);
+}
+
+void ScriptingObjects::PathObject::addArc(var area, var fromRadians, var toRadians)
+{
+	auto rect = ApiHelpers::getRectangleFromVar(area);
+
+	p.addArc(rect.getX(), rect.getY(), rect.getWidth(), rect.getHeight(), fromRadians, toRadians, true);
+}
+
+var ScriptingObjects::PathObject::getBounds(var scaleFactor)
+{
+	auto r = p.getBoundsTransformed(AffineTransform::scale(scaleFactor));
+
+	Array<var> area;
+
+	area.add(r.getX());
+	area.add(r.getY());
+	area.add(r.getWidth());
+	area.add(r.getHeight());
+
+	return var(area);
 }
 
 struct ScriptingObjects::GraphicsObject::Wrapper

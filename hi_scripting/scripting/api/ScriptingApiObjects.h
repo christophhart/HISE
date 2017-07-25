@@ -712,6 +712,12 @@ public:
 		/** Adds a quadratic bezier curve with the control point [cx,cy] and the end point [x,y]. */
 		void quadraticTo(var cx, var cy, var x, var y);
 
+		/** Adds an arc to the path. */
+		void addArc(var area, var fromRadians, var toRadians);
+
+		/** Returns the area ([x, y, width, height]) that the path is occupying with the scale factor applied. */
+		var getBounds(var scaleFactor);
+
 		// ============================================================================================================
 
 		struct Wrapper;
