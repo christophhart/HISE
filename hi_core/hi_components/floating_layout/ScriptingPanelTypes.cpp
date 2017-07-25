@@ -79,11 +79,11 @@ void CodeEditorPanel::mouseDown(const MouseEvent& event)
 			return;
 	}
 
-	if (event.mods.isX1ButtonDown())
+	if (event.mods.isX2ButtonDown())
 	{
 		incIndex(true);
 	}
-	else
+	else if (event.mods.isX1ButtonDown())
 	{
 		incIndex(false);
 	}

@@ -408,14 +408,14 @@ void FloatingTabComponent::mouseDown(const MouseEvent& event)
 
 	int newTabIndex = getCurrentTabIndex();
 
-	if (event.mods.isX1ButtonDown())
+	if (event.mods.isX2ButtonDown())
 	{
 		newTabIndex = jmin<int>(newTabIndex + 1, getNumTabs() - 1);
 
 		if (newTabIndex != getCurrentTabIndex())
 			setCurrentTabIndex(newTabIndex);
 	}
-	else if (event.mods.isX2ButtonDown())
+	else if (event.mods.isX1ButtonDown())
 	{
 		newTabIndex = jmax<int>(newTabIndex - 1, 0);
 
