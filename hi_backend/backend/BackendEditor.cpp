@@ -662,7 +662,6 @@ public:
 					root->getBackendProcessor()->getCommandManager()->invokeDirectly(BackendCommandTarget::WorkspaceScript, false);
 					
 					BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(root, jsp);
-					BackendPanelHelpers::ScriptingWorkspace::showEditor(root, false);
                     BackendPanelHelpers::ScriptingWorkspace::showInterfaceDesigner(root, true);
 				}
                 
