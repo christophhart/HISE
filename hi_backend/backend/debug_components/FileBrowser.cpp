@@ -455,8 +455,12 @@ void FileBrowser::resized()
 	fileTreeComponent->setBounds(0, 24, getWidth(), getHeight() - 24);
 }
 
+
+
 void FileBrowser::mouseDown(const MouseEvent& e)
 {
+	RETURN_WHEN_X_BUTTON();
+
 	if (e.mods.isLeftButtonDown())
 	{
 		StringArray sa;

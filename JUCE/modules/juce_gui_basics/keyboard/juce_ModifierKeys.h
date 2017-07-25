@@ -87,6 +87,10 @@ public:
 
     inline bool isMiddleButtonDown() const noexcept     { return testFlags (middleButtonModifier); }
 
+	inline bool isX1ButtonDown() const noexcept { return testFlags(x1ButtonModifier); }
+
+	inline bool isX2ButtonDown() const noexcept { return testFlags(x2ButtonModifier); }
+
     /** Tests for any of the mouse-button flags. */
     inline bool isAnyMouseButtonDown() const noexcept   { return testFlags (allMouseButtonModifiers); }
 
@@ -133,6 +137,12 @@ public:
         /** Middle mouse button flag. */
         middleButtonModifier                    = 64,
 
+		/** First additional mouse button */
+		x1ButtonModifier						= 128,
+
+		/** Second additional mouse button. */
+		x2ButtonModifier                        = 256,
+
        #if JUCE_MAC
         /** Command key flag - on windows this is the same as the CTRL key flag. */
         commandModifier                         = 8,
@@ -153,7 +163,7 @@ public:
         allKeyboardModifiers                    = shiftModifier | ctrlModifier | altModifier | commandModifier,
 
         /** Represents a combination of all the mouse buttons at once. */
-        allMouseButtonModifiers                 = leftButtonModifier | rightButtonModifier | middleButtonModifier,
+        allMouseButtonModifiers                 = leftButtonModifier | rightButtonModifier | middleButtonModifier | x1ButtonModifier | x2ButtonModifier,
 
         /** Represents a combination of all the alt, ctrl and command key modifiers. */
         ctrlAltCommandModifiers                 = ctrlModifier | altModifier | commandModifier

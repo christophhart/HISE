@@ -192,6 +192,8 @@ public:
 	void componentAdded(FloatingTile* newComponent) override;
 	void componentRemoved(FloatingTile* deletedComponent) override;
 
+	void mouseDown(const MouseEvent& event) override;
+
 	var toDynamicObject() const override;
 	void fromDynamicObject(const var& objectData) override;
 

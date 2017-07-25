@@ -55,6 +55,7 @@ Component* CodeEditorPanel::createContentComponent(int index)
 	if (isCallback)
 	{
 		auto pe = new PopupIncludeEditor(p, p->getSnippet(index)->getCallbackName());
+		pe->addMouseListener(this, true);
 		getProcessor()->getMainController()->setLastActiveEditor(pe->getEditor(), CodeDocument::Position());
 		return pe;
 	}
@@ -63,9 +64,28 @@ Component* CodeEditorPanel::createContentComponent(int index)
 		const int fileIndex = index - p->getNumSnippets();
 
 		auto pe = new PopupIncludeEditor(p, p->getWatchedFile(fileIndex));
+		pe->addMouseListener(this, true);
 		getProcessor()->getMainController()->setLastActiveEditor(pe->getEditor(), CodeDocument::Position());
 
 		return pe;
+	}
+}
+
+void CodeEditorPanel::mouseDown(const MouseEvent& event)
+{
+	if (auto tab = findParentComponentOfClass<FloatingTabComponent>())
+	{
+		if (tab->getNumTabs() > 1)
+			return;
+	}
+
+	if (event.mods.isX1ButtonDown())
+	{
+		incIndex(true);
+	}
+	else
+	{
+		incIndex(false);
 	}
 }
 

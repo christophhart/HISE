@@ -57,6 +57,10 @@ public:
 		refreshIndexList();
 	}
 
+	void mouseDown(const MouseEvent& event) override;
+
+
+
 	Identifier getProcessorTypeId() const override;
 
 	bool hasSubIndex() const override { return true; }

@@ -93,6 +93,8 @@ public:
 
 	var getDefaultProperty(int index) const override;
 
+	void incIndex(bool up);
+
 
 
 	void moduleListChanged(Processor* b, MainController::ProcessorChangeHandler::EventType type) override;

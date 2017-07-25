@@ -147,6 +147,22 @@ var PanelWithProcessorConnection::getDefaultProperty(int index) const
 	return{};
 }
 
+void PanelWithProcessorConnection::incIndex(bool up)
+{
+	int newIndex = currentIndex;
+
+	if (up)
+	{
+		newIndex = jmin<int>(currentIndex + 1, indexSelector->getNumItems()-1);
+	}
+	else
+	{
+		newIndex = jmax<int>(newIndex - 1, 0);
+	}
+
+	setContentWithUndo(currentProcessor, newIndex);
+}
+
 void PanelWithProcessorConnection::moduleListChanged(Processor* b, MainController::ProcessorChangeHandler::EventType type)
 {
 	if (type == MainController::ProcessorChangeHandler::EventType::ProcessorBypassed ||

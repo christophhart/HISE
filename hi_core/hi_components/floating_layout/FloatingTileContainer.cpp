@@ -365,6 +365,8 @@ void FloatingTabComponent::componentAdded(FloatingTile* newComponent)
 
 	String text = newComponent->getCurrentFloatingPanel()->getCustomTitle();
 
+	newComponent->addMouseListener(this, true);
+
 	if (text.isEmpty())
 		text = "Untitled";
 
@@ -389,12 +391,37 @@ void FloatingTabComponent::componentRemoved(FloatingTile* deletedComponent)
 		}
 	}
 
+	deletedComponent->removeMouseListener(this);
+
 	setCurrentTabIndex(getNumTabs() - 1);
 
 	notifySiblingChange();
 
 	resized();
 	repaint();
+}
+
+void FloatingTabComponent::mouseDown(const MouseEvent& event)
+{
+	if (getNumTabs() == 1)
+		return;
+
+	int newTabIndex = getCurrentTabIndex();
+
+	if (event.mods.isX1ButtonDown())
+	{
+		newTabIndex = jmin<int>(newTabIndex + 1, getNumTabs() - 1);
+
+		if (newTabIndex != getCurrentTabIndex())
+			setCurrentTabIndex(newTabIndex);
+	}
+	else if (event.mods.isX2ButtonDown())
+	{
+		newTabIndex = jmax<int>(newTabIndex - 1, 0);
+
+		if (newTabIndex != getCurrentTabIndex())
+			setCurrentTabIndex(newTabIndex);
+	}
 }
 
 var FloatingTabComponent::toDynamicObject() const
