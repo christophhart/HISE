@@ -402,6 +402,9 @@ public:
 
 			while (Processor *p = boxIter.getNextProcessor())
 			{
+				if (p == dynamic_cast<Processor*>(editor_->getScriptEditHandlerProcessor()))
+					continue;
+
 				if (dynamic_cast<Chain*>(p) != nullptr) continue;
 
 				processorList.add(p);
