@@ -520,18 +520,20 @@ void ConnectorHelpers::tut(PanelWithProcessorConnection* connector, const Identi
 {
     auto parentContainer = connector->getParentShell()->getParentContainer();
     
-    
-    FloatingTile::Iterator<PanelWithProcessorConnection> iter(parentContainer->getParentShell());
-    
-    while (auto p = iter.getNextPanel())
-    {
-        if (p == connector)
-            continue;
-        
-        if (p->getProcessorTypeId() != idToSearch)
-            continue;
-        
-        p->setContentWithUndo(connector->getProcessor(), 0);
-    }
+	if (parentContainer != nullptr)
+	{
+		FloatingTile::Iterator<PanelWithProcessorConnection> iter(parentContainer->getParentShell());
+
+		while (auto p = iter.getNextPanel())
+		{
+			if (p == connector)
+				continue;
+
+			if (p->getProcessorTypeId() != idToSearch)
+				continue;
+
+			p->setContentWithUndo(connector->getProcessor(), 0);
+		}
+	}
 }
 
