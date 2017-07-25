@@ -148,7 +148,13 @@ protected:
 
 	ScriptingApi::Content *getContent();
 
-	ScriptingApi::Content::ScriptComponent *getScriptComponent() { return getContent()->getComponent(getIndex()); };
+	ScriptingApi::Content::ScriptComponent *getScriptComponent()
+	{ 
+		if(getContent() != nullptr)
+			return getContent()->getComponent(getIndex()); 
+
+		return nullptr;
+	};
 
 	/** the component that will be owned by this wrapper. */
 	ScopedPointer<Component> component;
