@@ -1538,6 +1538,10 @@ private:
 
 class BlackTextButtonLookAndFeel : public LookAndFeel_V3
 {
+public:
+
+	BlackTextButtonLookAndFeel();
+
 	void drawButtonBackground(Graphics& g, Button& button, const Colour& /*backgroundColour*/,
 		bool /*isMouseOverButton*/, bool isButtonDown)
 	{
@@ -1546,6 +1550,20 @@ class BlackTextButtonLookAndFeel : public LookAndFeel_V3
 
 		g.fillRoundedRectangle(0.0f, 0.0f, (float)button.getWidth(), (float)button.getHeight(), 4.0f);
 	}
+
+	void drawToggleButton(Graphics &g, ToggleButton &b, bool isMouseOverButton, bool);
+
+	Font getTextButtonFont(TextButton&, int /*buttonHeight*/) override
+	{
+		return GLOBAL_BOLD_FONT();
+	}
+
+private:
+
+	Image ticked;
+	Image unticked;
+
+
 };
 
 

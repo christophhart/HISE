@@ -80,7 +80,7 @@ private:
 	Point<int> localPointInComponent;
 
 	ScopedPointer<Component> content;
-	ScopedPointer<ShapeButton> closeButton;
+	ScopedPointer<ImageButton> closeButton;
 };
 
 

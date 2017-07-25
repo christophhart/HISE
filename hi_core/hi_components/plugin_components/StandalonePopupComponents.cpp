@@ -35,6 +35,8 @@
 ToggleButtonList::ToggleButtonList(StringArray& names, Listener* listener_) :
 	listener(listener_)
 {
+	setLookAndFeel(&btblaf);
+
 	rebuildList(names);
 }
 

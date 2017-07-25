@@ -66,6 +66,8 @@ private:
 
 	//ToolbarButtonLookAndFeel tblaf;
 
+	BlackTextButtonLookAndFeel btblaf;
+
 	OwnedArray<ToggleButton> buttons;
 
 	Listener* listener;
