@@ -191,6 +191,7 @@ FileBrowser::FileBrowser(BackendRootWindow* rootWindow_) :
 
 	browserCommandManager = new ApplicationCommandManager(); // dynamic_cast<MainController*>(editor->getAudioProcessor())->getCommandManager();
 
+
 	browserToolbarFactory = new FileBrowserToolbarFactory(this);
 
 	addAndMakeVisible(browserToolbar = new Toolbar());
@@ -239,11 +240,15 @@ FileBrowser::FileBrowser(BackendRootWindow* rootWindow_) :
 #else
     goToDirectory(GET_PROJECT_HANDLER(rootWindow->getMainSynthChain()).getWorkDirectory());
 #endif
+
+	browseUndoManager->clearUndoHistory();
 }
 
 void FileBrowser::projectChanged(const File& newRootDirectory)
 {
 	goToDirectory(newRootDirectory, false);
+
+	browseUndoManager->clearUndoHistory();
 }
 
 void FileBrowser::goToDirectory(const File &newRoot, bool useUndoManager)
@@ -369,6 +374,14 @@ void FileBrowser::paint(Graphics &g)
 		Colours::transparentBlack, 0.0f, 30.0f, false));
 
 	g.fillRect(0.0f, 24.0f, (float)getWidth(), 25.0f);
+
+	if (directoryList->getNumFiles() == 0)
+	{
+		g.setColour(Colours::white.withAlpha(0.5f));
+		g.setFont(GLOBAL_BOLD_FONT());
+
+		g.drawText("This directory is empty", getLocalBounds(), Justification::centred);
+	}
 }
 
 //class FilePreviewComponent
