@@ -159,6 +159,8 @@ class LinuxFontHandler
 
 #define CONSTRAIN_TO_0_1(x)(jlimit<float>(0.0f, 1.0f, x))
 
+#define RETURN_WHEN_X_BUTTON() if (e.mods.isX1ButtonDown() || e.mods.isX2ButtonDown()) return;
+
 struct HiseColourScheme
 {
 	enum Scheme
