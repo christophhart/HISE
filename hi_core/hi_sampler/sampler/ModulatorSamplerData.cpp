@@ -451,30 +451,41 @@ void SampleMap::replaceFileReferences(ValueTree &soundTree) const
 
 void SampleMap::save()
 {
-    if(sampleMapId.toString().isEmpty())
-    {
-        const String name = PresetHandler::getCustomName("Sample Map");
-        
-        sampleMapId = Identifier(name);
-        
-        mode = SaveMode::MultipleFiles;
-        
-    }
-	
-	File sampleMapDirectory = GET_PROJECT_HANDLER(sampler).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
-	File sampleMapFile = sampleMapDirectory.getChildFile(sampleMapId.toString() + ".xml");
+	File rootDirectory = GET_PROJECT_HANDLER(sampler).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
 
-    if(!sampleMapFile.existsAsFile() || PresetHandler::showYesNoWindow("Overwrite Samplemap", "Do you want to overwrite the samplemap\n" + sampleMapId.toString()))
-    {
-        sampleMapFile.deleteFile();
-        
-        ValueTree v = exportAsValueTree();
-        ScopedPointer<XmlElement> xml = v.createXml();
-        xml->writeToFile(sampleMapFile, "");
-     
-        
-        changed = false;
-    }
+	File fileToUse;
+
+	if (sampleMapId.isValid())
+	{
+		auto path = sampleMapId.toString().replace("_", File::separatorString) + ".xml";
+
+		fileToUse = rootDirectory.getChildFile(path);
+	}
+	else
+	{
+		fileToUse = rootDirectory;
+	}
+
+	FileChooser fc("Save SampleMap", fileToUse, "*.xml", true);
+
+	if (fc.browseForFileToSave(true))
+	{
+		File f = fc.getResult();
+
+		auto name = f.getRelativePathFrom(rootDirectory).replace(File::separatorString, "_").upToFirstOccurrenceOf(".xml", false, true);
+
+		sampleMapId = Identifier(name);
+
+		mode = SaveMode::MultipleFiles;
+
+		f.deleteFile();
+
+		ValueTree v = exportAsValueTree();
+		ScopedPointer<XmlElement> xml = v.createXml();
+		xml->writeToFile(f, "");
+
+		changed = false;
+	}
 }
 
 
@@ -880,16 +891,52 @@ MonolithExporter::MonolithExporter(SampleMap* sampleMap_) :
 	sa.add("Fast Decompression");
 	sa.add("Low file size (recommended)");
 
-	addComboBox("compressionOptions", sa, "HLAC Compression options");
+	File fileToUse;
 
-	addTextEditor("id", sampleMap->getId().toString(), "Sample Map Name");
+	auto sampleMapId = sampleMap_->getId();
+
+	if (sampleMapId.isValid())
+	{
+		auto path = sampleMapId.toString().replace("_", File::separatorString) + ".xml";
+
+		fileToUse = sampleMapDirectory.getChildFile(path);
+	}
+	else
+	{
+		fileToUse = sampleMapDirectory;
+	}
+
+
+
+	fc = new FilenameComponent("Sample Map File", fileToUse, false, false, true, "*.xml", "", "SampleMap File");
+
+	fc->setSize(400, 24);
+
+	addCustomComponent(fc);
+
+	addComboBox("compressionOptions", sa, "HLAC Compression options");
 
 	addBasicComponents(true);
 }
 
 void MonolithExporter::run()
 {
-	sampleMap->setId(getTextEditorContents("id"));
+	auto fc = dynamic_cast<FilenameComponent*>(getCustomComponent(0));
+
+	if (fc != nullptr)
+	{
+		sampleMapFile = fc->getCurrentFile();
+
+		if (sampleMapFile == sampleMapDirectory)
+		{
+			error = "No Sample Map file specified";
+			return;
+		}
+
+		auto name = sampleMapFile.getRelativePathFrom(sampleMapDirectory).replace(File::separatorString, "_").upToFirstOccurrenceOf(".xml", false, true);
+
+		sampleMap->setId(name);
+	}
 
 	exportCurrentSampleMap(true, true, true);
 }
@@ -938,14 +985,13 @@ void MonolithExporter::exportCurrentSampleMap(bool overwriteExistingData, bool e
 
 void MonolithExporter::writeSampleMapFile(bool /*overwriteExistingFile*/)
 {
-	File sampleMapFile = sampleMapDirectory.getChildFile(sampleMap->getId().toString() + ".xml");
 	ScopedPointer<XmlElement> xml = v.createXml();
 	xml->writeToFile(sampleMapFile, "");
 }
 
 void MonolithExporter::threadFinished()
 {
-	if (error.isEmpty())
+	if (error.isNotEmpty())
 	{
 		PresetHandler::showMessageWindow("Error at exporting", error, PresetHandler::IconType::Error);
 	}

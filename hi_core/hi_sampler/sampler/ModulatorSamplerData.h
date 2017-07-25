@@ -352,6 +352,11 @@ public:
 	{
 	}
 
+	~MonolithExporter()
+	{
+		fc = nullptr;
+	}
+
 	static void collectFiles()
 	{
 
@@ -391,6 +396,8 @@ private:
 
 	int64 largestSample;
 
+	ScopedPointer<FilenameComponent> fc;
+
 	ValueTree v;
 	SampleMap* sampleMap;
 	SampleMap::FileList filesToWrite;
@@ -398,6 +405,7 @@ private:
 	int numSamples;
 	File sampleMapDirectory;
 	const File monolithDirectory;
+	File sampleMapFile;
 
 	String error;
 };

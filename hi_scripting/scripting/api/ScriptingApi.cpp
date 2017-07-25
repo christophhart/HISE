@@ -1475,9 +1475,14 @@ var ScriptingApi::Sampler::getSampleMapList() const
 
 	rootDir.findChildFiles(childFiles, File::findFiles, true, "*.xml");
 
+
 	for (int i = 0; i < childFiles.size(); i++)
 	{
-		sampleMapNames.add(childFiles[i].getFileNameWithoutExtension());
+		auto name = childFiles[i].getRelativePathFrom(rootDir).replace(File::separatorString, "::").upToFirstOccurrenceOf(".xml", false, true);
+
+		sampleMapNames.add(name);
+
+		//sampleMapNames.add(childFiles[i].getFileNameWithoutExtension());
 	}
 
 #else
