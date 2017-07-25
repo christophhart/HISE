@@ -278,6 +278,15 @@ public:
 		/** Returns the Bpm of the host. */
 		double getHostBpm() const;
 		
+		/** Returns the current memory usage in MB. */
+		double getMemoryUsage() const;
+
+		/** Returns the current CPU usage from 0...1 */
+		double getCpuUsage() const;
+
+		/** Returns the amount of currently active voices. */
+		int getNumVoices() const;
+
 		/** Returns the name for the given macro index. */
 		String getMacroName(int index);
 		

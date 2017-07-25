@@ -741,6 +741,9 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_0(Engine, allNotesOff);
 	API_METHOD_WRAPPER_0(Engine, getUptime);
 	API_METHOD_WRAPPER_0(Engine, getHostBpm);
+	API_METHOD_WRAPPER_0(Engine, getCpuUsage);
+	API_METHOD_WRAPPER_0(Engine, getNumVoices);
+	API_METHOD_WRAPPER_0(Engine, getMemoryUsage);
 	API_METHOD_WRAPPER_1(Engine, getMilliSecondsForTempo);
 	API_METHOD_WRAPPER_1(Engine, getSamplesForMilliSeconds);
 	API_METHOD_WRAPPER_1(Engine, getMilliSecondsForSamples);
@@ -788,6 +791,9 @@ ApiClass(0)
 	ADD_API_METHOD_0(allNotesOff);
 	ADD_API_METHOD_0(getUptime);
 	ADD_API_METHOD_0(getHostBpm);
+	ADD_API_METHOD_0(getCpuUsage);
+	ADD_API_METHOD_0(getNumVoices);
+	ADD_API_METHOD_0(getMemoryUsage);
 	ADD_API_METHOD_1(getMilliSecondsForTempo);
 	ADD_API_METHOD_1(getSamplesForMilliSeconds);
 	ADD_API_METHOD_1(getMilliSecondsForSamples);
@@ -881,6 +887,16 @@ double ScriptingApi::Engine::getUptime() const
 	return getProcessor()->getMainController()->getUptime(); 
 }
 double ScriptingApi::Engine::getHostBpm() const		 { return getProcessor()->getMainController()->getBpm(); }
+
+double ScriptingApi::Engine::getMemoryUsage() const
+{
+	auto bytes = getProcessor()->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->getMemoryUsageForAllSamples();
+
+	return (double)bytes / 1024.0 / 1024.0;
+}
+
+double ScriptingApi::Engine::getCpuUsage() const { return (double)getProcessor()->getMainController()->getCpuUsage(); }
+int ScriptingApi::Engine::getNumVoices() const { return getProcessor()->getMainController()->getNumActiveVoices(); }
 
 String ScriptingApi::Engine::getMacroName(int index)
 {
