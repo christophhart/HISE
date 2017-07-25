@@ -312,7 +312,7 @@ public:
 
 	void threadFinished() override
 	{
-		handler->sendSelectionChangeMessage();
+		handler->sendSelectionChangeMessage(true);
 	}
 
 private:

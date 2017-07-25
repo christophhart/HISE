@@ -93,7 +93,7 @@ public:
 
 	int getCurrentlyDisplayedRRGroup() const { return rrIndex; }
 
-	void sendSelectionChangeMessage()
+	void sendSelectionChangeMessage(bool forceUpdate = false)
 	{
 		const uint32 thisTime = Time::getMillisecondCounter();
 
@@ -110,7 +110,7 @@ public:
 		auto existingSounds = getSanitizedSelection();
 
 		
-		if (existingSounds != lastSelection)
+		if (forceUpdate || existingSounds != lastSelection)
 		{
 			for (int i = 0; i < selectionListeners.size(); i++)
 			{
