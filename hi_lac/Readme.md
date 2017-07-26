@@ -26,16 +26,8 @@ For convenience, there are JUCE format readers available which offer a high leve
 - seekable with no overhead (within 4096 sample frame boundary)
 - 16 bit only 
 - multithreading capable (no global states)
-- zlib license
+- BSD license
 
 ## License
 
-The HLAC codec is licensed under the permissive zlib license which allows usage in any other software including commercial projects.
-
-
-## TODO
-
-- allow seeking
-- improve diff decode speed
-- make memory mapped reader
-- allow monolith with subsection readers (pad last block for this)
+The HLAC codec is licensed under the permissive BSD clause 4 license which allows usage in any other software including commercial projects.
