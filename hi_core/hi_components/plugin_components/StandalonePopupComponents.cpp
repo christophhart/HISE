@@ -278,8 +278,8 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
     sampleRateSelector->setLookAndFeel(&plaf);
     
 	addAndMakeVisible(ccSustainSelector = new ComboBox("Sustain CC"));
-    addAndMakeVisible(graphicRenderSelector = new ComboBox("Scale Factor"));
-	addAndMakeVisible(scaleFactorSelector = new ComboBox("Graphic Rendering"));
+    addAndMakeVisible(graphicRenderSelector = new ComboBox("Graphic Rendering"));
+	addAndMakeVisible(scaleFactorSelector = new ComboBox("Scale Factor"));
 	addAndMakeVisible(diskModeSelector = new ComboBox("Hard Disk"));
 	addAndMakeVisible(clearMidiLearn = new TextButton("Clear MIDI CC"));
 	addAndMakeVisible(relocateButton = new TextButton("Change sample folder location"));
@@ -356,14 +356,14 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
     {
         const OwnedArray<AudioIODeviceType> *devices = &driver->deviceManager->getAvailableDeviceTypes();
         
-        bufferSelector->clear();
-        sampleRateSelector->clear();
-        outputSelector->clear();
+        bufferSelector->clear(dontSendNotification);
+        sampleRateSelector->clear(dontSendNotification);
+        outputSelector->clear(dontSendNotification);
         
         
         if (rebuildDeviceTypes)
         {
-            deviceSelector->clear();
+            deviceSelector->clear(dontSendNotification);
             
             for (int i = 0; i < devices->size(); i++)
             {
@@ -385,8 +385,6 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
             }
             
             Array<int> bufferSizes = currentDevice->getAvailableBufferSizes();
-            
-            
             
             if (bufferSizes.size() > 7)
             {
@@ -414,7 +412,7 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
             
             if (rebuildDevices)
             {
-                soundCardSelector->clear();
+                soundCardSelector->clear(dontSendNotification);
                 
                 StringArray soundCardNames = currentDeviceType->getDeviceNames(false);
                 soundCardSelector->addItemList(soundCardNames, 1);
@@ -480,15 +478,15 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
         }
     }
     
-    scaleFactorSelector->clear();
+    scaleFactorSelector->clear(dontSendNotification);
     scaleFactorSelector->addItem("100%", 1);
     scaleFactorSelector->addItem("75%", 2);
     
-	graphicRenderSelector->clear();
+	graphicRenderSelector->clear(dontSendNotification);
 	graphicRenderSelector->addItem("Software Renderer", 1);
 	graphicRenderSelector->addItem("Open GL Renderer", 2);
 
-	diskModeSelector->clear();
+	diskModeSelector->clear(dontSendNotification);
 	diskModeSelector->addItem("Fast - SSD", 1);
 	diskModeSelector->addItem("Slow - HDD", 2);
 
