@@ -1513,8 +1513,6 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
     
 	if(sound != nullptr)
 	{
-        
-        
 		const double startAlpha = fmod(voiceUptime, 1.0);
 		
 		jassert(pitchCounter != 0);
@@ -1553,111 +1551,8 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
         
 		double indexInBuffer = startAlpha;
 
-#if OLD_INTER
-
-		if (pitchData != nullptr)
-		{
-			pitchData += startSample;
-
-			float indexInBufferFloat = (float)indexInBuffer;
-			
-			while (numSamples >= 4)
-			{
-                
-                
-				for (int i = 0; i < 4; i++)
-				{
-					const int pos = int(indexInBufferFloat);
-					const float alpha = indexInBufferFloat - (float)pos;
-					const float invAlpha = 1.0f - alpha;
-
-					float l = (inL[pos] * invAlpha + inL[pos + 1] * alpha);
-					float r = (inR[pos] * invAlpha + inR[pos + 1] * alpha);
-
-					*outL++ = l;
-					*outR++ = r;
-
-					
-
-					jassert(*pitchData <= (float)MAX_SAMPLER_PITCH);
-
-					indexInBufferFloat += *pitchData++;
-				}
-				numSamples -= 4;
-			}
-
-			while (numSamples > 0)
-			{
-				const int pos = int(indexInBufferFloat);
-				const float alpha = indexInBufferFloat - (float)pos;
-				const float invAlpha = 1.0f - alpha;
-
-				float l = (inL[pos] * invAlpha + inL[pos + 1] * alpha);
-				float r = (inR[pos] * invAlpha + inR[pos + 1] * alpha);
-
-				*outL++ = l;
-				*outR++ = r;
-
-				
-
-				jassert(*pitchData <= (float)MAX_SAMPLER_PITCH);
-
-				indexInBufferFloat += *pitchData++;
-
-				numSamples--;
-			}
-		}
-		else
-		{
-            
-			float indexInBufferFloat = (float)indexInBuffer;
-			const float uptimeDeltaFloat = (float)uptimeDelta;
-            
-			while (numSamples >= 4)
-			{
-				for (int i = 0; i < 4; i++)
-				{
-					const int pos = int(indexInBufferFloat);
-					const float alpha = indexInBufferFloat - (float)pos;
-					const float invAlpha = 1.0f - alpha;
-                    
-					float l = (inL[pos] * invAlpha + inL[pos + 1] * alpha);
-					float r = (inR[pos] * invAlpha + inR[pos + 1] * alpha);
-
-					*outL++ = l;
-					*outR++ = r;
-
-					indexInBufferFloat += uptimeDeltaFloat;
-				}
-				
-				numSamples -= 4;
-			}
-
-			while (numSamples > 0)
-			{
-				const int pos = int(indexInBufferFloat);
-				const float alpha = indexInBufferFloat - (float)pos;
-				const float invAlpha = 1.0f - alpha;
-
-				float l = (inL[pos] * invAlpha + inL[pos + 1] * alpha);
-				float r = (inR[pos] * invAlpha + inR[pos + 1] * alpha);
-
-				*outL++ = l;
-				*outR++ = r;
-
-				indexInBufferFloat += uptimeDeltaFloat;
-
-				numSamples--;
-			}
-		}
-
-#else
-
 		interpolateStereoSamples(inL, inR, pitchData, outL, outR, startSample, indexInBuffer, uptimeDelta, numSamples);
 
-#endif
-
-        
 #if USE_SAMPLE_DEBUG_COUNTER 
         
         for(int i = startDebug; i < numDebug; i++)
@@ -1687,7 +1582,7 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
             return;
         }
 
-		const bool enoughSamples = sound->hasEnoughSamplesForBlock((int)(voiceUptime + numSamples * MAX_SAMPLER_PITCH));
+		const bool enoughSamples = sound->hasEnoughSamplesForBlock((int)(voiceUptime));// +numSamples * MAX_SAMPLER_PITCH));
 
 #if LOG_SAMPLE_RENDERING
 		logger->checkSampleData(nullptr, DebugLogger::Location::SampleVoiceBufferFillPost, true, outputBuffer.getReadPointer(0, startFixed), numSamplesFixed);
