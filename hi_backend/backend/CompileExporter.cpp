@@ -158,7 +158,7 @@ ValueTree BaseExporter::collectAllSampleMapsInDirectory()
 
 	Array<File> sampleMapFiles;
 
-	sampleMapDirectory.findChildFiles(sampleMapFiles, File::findFiles, false, "*.xml");
+	sampleMapDirectory.findChildFiles(sampleMapFiles, File::findFiles, true, "*.xml");
 
 	for (int i = 0; i < sampleMapFiles.size(); i++)
 	{
