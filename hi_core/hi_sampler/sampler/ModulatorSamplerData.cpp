@@ -457,7 +457,7 @@ void SampleMap::save()
 
 	if (sampleMapId.isValid())
 	{
-		auto path = sampleMapId.toString().replace("_", File::separatorString) + ".xml";
+		auto path = sampleMapId.toString() + ".xml";
 
 		fileToUse = rootDirectory.getChildFile(path);
 	}
@@ -472,7 +472,9 @@ void SampleMap::save()
 	{
 		File f = fc.getResult();
 
-		auto name = f.getRelativePathFrom(rootDirectory).replace(File::separatorString, "_").upToFirstOccurrenceOf(".xml", false, true);
+		auto name = f.getRelativePathFrom(rootDirectory).upToFirstOccurrenceOf(".xml", false, true);
+
+		name = name.replace(File::separatorString, "/");
 
 		sampleMapId = Identifier(name);
 
@@ -613,7 +615,9 @@ void SampleMap::loadSamplesFromMonolith(const ValueTree &v)
     
 	for (int i = 0; i < numChannels; i++)
 	{
-		File f = monolithDirectory.getChildFile(sampleMapId.toString() + ".ch" + String(i+1));
+		auto path = sampleMapId.toString().replace("/", "_");
+
+		File f = monolithDirectory.getChildFile(path + ".ch" + String(i+1));
 		if (f.existsAsFile())
         {
              monolithFiles.add(f);
@@ -678,7 +682,7 @@ String SampleMap::checkReferences(ValueTree& v, const File& sampleRootFolder, Ar
 	const std::string channelNames = v.getProperty("MicPositions").toString().toStdString();
 	const size_t numChannels = std::count(channelNames.begin(), channelNames.end(), ';');
 
-	const String sampleMapName = v.getProperty("ID");
+	const String sampleMapName = v.getProperty("ID").toString().replace("/", "_");
 
 	if (isMonolith)
 	{
@@ -897,7 +901,7 @@ MonolithExporter::MonolithExporter(SampleMap* sampleMap_) :
 
 	if (sampleMapId.isValid())
 	{
-		auto path = sampleMapId.toString().replace("_", File::separatorString) + ".xml";
+		auto path = sampleMapId.toString() + ".xml";
 
 		fileToUse = sampleMapDirectory.getChildFile(path);
 	}
@@ -933,7 +937,9 @@ void MonolithExporter::run()
 			return;
 		}
 
-		auto name = sampleMapFile.getRelativePathFrom(sampleMapDirectory).replace(File::separatorString, "_").upToFirstOccurrenceOf(".xml", false, true);
+		auto name = sampleMapFile.getRelativePathFrom(sampleMapDirectory).upToFirstOccurrenceOf(".xml", false, true);
+
+		name = name.replace(File::separatorString, "/");
 
 		sampleMap->setId(name);
 	}
@@ -1029,7 +1035,7 @@ void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 		sampleRate = reader->sampleRate;
 	}
 
-	String channelFileName = sampleMap->getId().toString() + ".ch" + String(channelIndex + 1);
+	String channelFileName = sampleMap->getId().toString().replace("/", "_") + ".ch" + String(channelIndex + 1);
 
 	File outputFile = monolithDirectory.getChildFile(channelFileName);
 
