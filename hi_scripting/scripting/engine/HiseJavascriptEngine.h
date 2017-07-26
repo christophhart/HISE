@@ -222,6 +222,8 @@ public:
 	*/
 	int registerCallbackName(const Identifier &callbackName, int numArgs, double bufferTime);
 
+	var executeInlineFunction(var inlineFunction, var* arguments, Result* result);
+
 	var executeCallback(int callbackIndex, Result *result);
 
 	inline void setCallbackParameter(int callbackIndex, int parameterIndex, var newValue);

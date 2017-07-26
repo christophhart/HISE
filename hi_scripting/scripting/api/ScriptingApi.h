@@ -281,7 +281,7 @@ public:
 		/** Returns the current memory usage in MB. */
 		double getMemoryUsage() const;
 
-		/** Returns the current CPU usage from 0...1 */
+		/** Returns the current CPU usage in percent (0 ... 100) */
 		double getCpuUsage() const;
 
 		/** Returns the amount of currently active voices. */

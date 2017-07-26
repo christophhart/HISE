@@ -641,6 +641,27 @@ int HiseJavascriptEngine::RootObject::HiseSpecialData::getExternalCIndex(const I
 }
 
 
+var HiseJavascriptEngine::executeInlineFunction(var inlineFunction, var* arguments, Result* result)
+{
+	auto f = static_cast<HiseJavascriptEngine::RootObject::InlineFunction::Object*>(inlineFunction.getObject());
+
+	auto rootObj = getRootObject();
+	auto s = HiseJavascriptEngine::RootObject::Scope(nullptr, static_cast<HiseJavascriptEngine::RootObject*>(rootObj), rootObj);
+
+	try
+	{
+		prepareTimeout();
+		if (result != nullptr) *result = Result::ok();
+		return f->performDynamically(s, arguments, 2);
+	}
+	catch (String error)
+	{
+		if (result != nullptr) *result = Result::fail(error);
+	}
+
+	return var();
+}
+
 var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 {
 	RootObject::Callback *c = root->hiseSpecialData.callbackNEW[callbackIndex];
@@ -687,7 +708,7 @@ var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 
 	c->cleanLocalProperties();
 
-	return var::undefined();
+	return var();
 }
 
 void HiseJavascriptEngine::RootObject::Callback::setStatements(BlockStatement *s) noexcept

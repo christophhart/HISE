@@ -101,21 +101,25 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 
 	if (auto callback = component->getCustomControlCallback())
 	{
-		auto f = static_cast<HiseJavascriptEngine::RootObject::InlineFunction::Object*>(callback);
+		getMainController_()->getDebugLogger().logParameterChange(thisAsJavascriptProcessor, component, controllerValue);
 
+		var fVar(callback);
 		var args[2] = { var(component), controllerValue };
 
-		auto rootObj = thisAsJavascriptProcessor->getScriptEngine()->getRootObject();
-		auto s = HiseJavascriptEngine::RootObject::Scope(nullptr, static_cast<HiseJavascriptEngine::RootObject*>(rootObj), rootObj);
+		HiseJavascriptEngine* scriptEngine = thisAsJavascriptProcessor->getScriptEngine();
 
-		try
-		{	
-			f->performDynamically(s, args, 2);
-		}
-		catch (String error)
-		{
-			debugError(thisAsProcessor, error);
-		}
+		scriptEngine->maximumExecutionTime = RelativeTime(3.0);
+
+#if ENABLE_SCRIPTING_BREAKPOINTS
+		thisAsJavascriptProcessor->breakpointWasHit(-1);
+#endif
+
+		ScopedReadLock sl(getMainController_()->getCompileLock());
+
+		scriptEngine->executeInlineFunction(fVar, args, &thisAsJavascriptProcessor->lastResult);
+
+		BACKEND_ONLY(if (!thisAsJavascriptProcessor->lastResult.wasOk()) debugError(thisAsProcessor, "Custom onControl callback: " + thisAsJavascriptProcessor->lastResult.getErrorMessage()));
+
 	}
 	else
 	{
