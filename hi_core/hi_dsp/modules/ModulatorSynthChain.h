@@ -689,7 +689,9 @@ public:
 
 		if (fmCorrectlySetup)
 		{
-			ModulatorSynth *modSynth = static_cast<ModulatorSynth*>(getChildProcessor(modIndex));
+			auto offset = (int)ModulatorSynthGroup::InternalChains::numInternalChains;
+
+			ModulatorSynth *modSynth = static_cast<ModulatorSynth*>(getChildProcessor(modIndex-1 + offset));
 			ModulatorChain *gainChainOfModSynth = static_cast<ModulatorChain*>(modSynth->getChildProcessor(ModulatorSynth::GainModulation));
 
 			gainChainOfModSynth->renderNextBlock(modSynthGainValues, startSample, numThisTime);
@@ -743,21 +745,22 @@ public:
 		/** Deletes a processor from the chain. It also removes the reference in the ModulatorSynthGroupVoices. */
 		virtual void remove(Processor *processorToBeRemoved) override
 		{	
-			ScopedLock sl(group->lock);
-
-			ModulatorSynth *m = dynamic_cast<ModulatorSynth*>(processorToBeRemoved);
-
-			for(int i = 0; i < group->getNumVoices(); i++)
 			{
-				static_cast<ModulatorSynthGroupVoice*>(group->getVoice(i))->removeChildSynth(m);
+				MainController::ScopedSuspender ss(group->getMainController(), MainController::ScopedSuspender::LockType::Lock);
+
+				ModulatorSynth *m = dynamic_cast<ModulatorSynth*>(processorToBeRemoved);
+
+				for (int i = 0; i < group->getNumVoices(); i++)
+				{
+					static_cast<ModulatorSynthGroupVoice*>(group->getVoice(i))->removeChildSynth(m);
+				}
+
+				group->synths.removeObject(m);
+
+				group->checkFmState();
 			}
-
-			group->synths.removeObject(m);
-
-			group->checkFmState();
-
+			
 			sendChangeMessage();
-
 		};
 
 		/** Returns the processor at the index. */

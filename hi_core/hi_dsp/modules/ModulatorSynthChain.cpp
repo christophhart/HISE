@@ -327,8 +327,8 @@ ModulatorSynthGroup::ModulatorSynthGroup(MainController *mc, const String &id, i
 	handler(this),
 	vuValue(0.0f),
 	fmEnabled(false),
-	carrierIndex(-1),
-	modIndex(-1),
+	carrierIndex(0),
+	modIndex(0),
 	fmState("FM disabled"),
 	fmCorrectlySetup(false),
 	sampleStartChain(new ModulatorChain(mc, "Sample Start Modulation", numVoices, Modulation::GainMode, this))
@@ -339,6 +339,9 @@ ModulatorSynthGroup::ModulatorSynthGroup(MainController *mc, const String &id, i
 
 	setGain(1.0);
 
+	parameterNames.add("EnableFM");
+	parameterNames.add("CarrierIndex");
+	parameterNames.add("ModulatorIndex");
 
 	allowStates.clear();
 		
@@ -363,6 +366,8 @@ void ModulatorSynthGroupVoice::startNote (int midiNoteNumber, float velocity, Sy
 		ModulatorSynthVoice *childVoice = childVoices.getUnchecked(i);
 		childSynth = childSynths.getUnchecked(i);
 
+		
+
 		if(static_cast<ModulatorSynthGroup*>(ownerSynth)->allowStates[i])
 		{
 
@@ -386,6 +391,8 @@ void ModulatorSynthGroupVoice::startNote (int midiNoteNumber, float velocity, Sy
 
 			g->startVoice(voiceIndex);
 			p->startVoice(voiceIndex);
+
+			childVoice->setCurrentHiseEvent(getCurrentHiseEvent());
 
 			childVoice->startNote(midiNoteNumber, velocity, soundToPlay, -1);
 		}
@@ -441,6 +448,7 @@ void ModulatorSynthGroupVoice::checkRelease()
 			childSynth->setPeakValues(0.0f, 0.0f);
 
 			childVoice->resetVoice();
+
 		}
 
 		return;
@@ -556,14 +564,18 @@ ValueTree ModulatorSynthGroup::exportAsValueTree() const
 
 void ModulatorSynthGroup::checkFmState()
 {
+	auto offset = (int)ModulatorSynthGroup::InternalChains::numInternalChains;
+
 	if (fmEnabled)
 	{
-		if (carrierIndex == -1 || getChildProcessor(carrierIndex) == nullptr)
+		
+
+		if (carrierIndex == 0 || getChildProcessor(carrierIndex-1 + offset) == nullptr)
 		{
 			fmState = "The carrier syntesizer is not valid.";
 			fmCorrectlySetup = false;
 		}
-		else if (modIndex == -1 || getChildProcessor(modIndex) == nullptr)
+		else if (modIndex == 0 || getChildProcessor(modIndex - 1 + offset) == nullptr)
 		{
 			fmState = "The modulation synthesizer is not valid.";
 			fmCorrectlySetup = false;
@@ -589,7 +601,7 @@ void ModulatorSynthGroup::checkFmState()
 	{
 		enablePitchModulation(true);
 
-		static_cast<ModulatorSynth*>(getChildProcessor(carrierIndex))->enablePitchModulation(true);
+		static_cast<ModulatorSynth*>(getChildProcessor(carrierIndex - 1 + offset))->enablePitchModulation(true);
 	}
 
 	
@@ -613,7 +625,9 @@ void ModulatorSynthGroupVoice::calculateBlock(int startSample, int numSamples)
 	{
 		// Calculate the modulator
 
-		ModulatorSynth *modSynth = static_cast<ModulatorSynth*>(group->getChildProcessor(group->modIndex));
+		auto offset = (int)ModulatorSynthGroup::InternalChains::numInternalChains;
+
+		ModulatorSynth *modSynth = static_cast<ModulatorSynth*>(group->getChildProcessor(group->modIndex-1 + offset));
 		jassert(modSynth != nullptr);
 
 		ModulatorSynthVoice *modVoice = static_cast<ModulatorSynthVoice*>(modSynth->getVoice(voiceIndex));
@@ -650,7 +664,7 @@ void ModulatorSynthGroupVoice::calculateBlock(int startSample, int numSamples)
 
 		// Calculate the carrier voice
 
-		ModulatorSynth *carrierSynth = static_cast<ModulatorSynth*>(group->getChildProcessor(group->carrierIndex));
+		ModulatorSynth *carrierSynth = static_cast<ModulatorSynth*>(group->getChildProcessor(group->carrierIndex - 1 + offset));
 		jassert(carrierSynth != nullptr);
 
 		ModulatorSynthVoice *carrierVoice = static_cast<ModulatorSynthVoice*>(carrierSynth->getVoice(voiceIndex));
@@ -731,7 +745,7 @@ void ModulatorSynthGroupVoice::calculateBlock(int startSample, int numSamples)
 
 void ModulatorSynthGroup::ModulatorSynthGroupHandler::add(Processor *newProcessor, Processor * /*siblingToInsertBefore*/)
 {
-	ScopedLock sl(group->lock);
+	
 
 	ModulatorSynth *m = dynamic_cast<ModulatorSynth*>(newProcessor);
 
@@ -762,22 +776,31 @@ void ModulatorSynthGroup::ModulatorSynthGroupHandler::add(Processor *newProcesso
 	}
 
 	m->setGroup(group);
-
-	jassert(m != nullptr);
-	group->synths.add(m);
-
-	group->allowStates.setBit(group->synths.indexOf(m), true);
-
-			
-
-	for(int i = 0; i < group->getNumVoices(); i++)
-	{
-		static_cast<ModulatorSynthGroupVoice*>(group->getVoice(i))->addChildSynth(m);
-	}
-
 	m->prepareToPlay(group->getSampleRate(), group->getBlockSize());
 
-	group->checkFmState();
+
+	{
+		MainController::ScopedSuspender ss(group->getMainController());
+		
+		m->setIsOnAir(true);
+
+		jassert(m != nullptr);
+		group->synths.add(m);
+
+		group->allowStates.setBit(group->synths.indexOf(m), true);
+
+		for (int i = 0; i < group->getNumVoices(); i++)
+		{
+			static_cast<ModulatorSynthGroupVoice*>(group->getVoice(i))->addChildSynth(m);
+		}
+
+
+
+		group->checkFmState();
+
+	}
+
+	
 	group->sendChangeMessage();
 
 	sendChangeMessage();

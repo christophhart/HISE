@@ -110,8 +110,8 @@ GroupBody::GroupBody (ProcessorEditor *p)
     fmStateLabel->addListener (this);
 
     addAndMakeVisible (label = new Label ("new label",
-                                          TRANS("Synthesiser Group")));
-    label->setFont (Font ("Arial", 26.00f, Font::bold));
+                                          TRANS("SYNTHESISER GROUP")));
+	label->setFont(GLOBAL_BOLD_FONT().withHeight(28.0f));
     label->setJustificationType (Justification::centredRight);
     label->setEditable (false, false, false);
     label->setColour (Label::textColourId, Colour (0x52ffffff));
@@ -125,7 +125,7 @@ GroupBody::GroupBody (ProcessorEditor *p)
 	modSelector->setup(getProcessor(), ModulatorSynthGroup::ModulatorIndex, "Modulation Carrier");
 	carrierSelector->setup(getProcessor(), ModulatorSynthGroup::CarrierIndex, "Carrier Index");
 
-
+	label->setJustificationType(Justification::centred);
 
 	fadeTimeEditor->setFont (GLOBAL_FONT());
 	voiceAmountEditor->setFont (GLOBAL_FONT());
@@ -136,7 +136,7 @@ GroupBody::GroupBody (ProcessorEditor *p)
 
     //[/UserPreSize]
 
-    setSize (800, 60);
+    setSize (800, 100);
 
 
     //[Constructor] You can add your own custom stuff here..
@@ -184,12 +184,25 @@ void GroupBody::resized()
     voiceAmountLabel->setBounds (15, 9, 79, 24);
     voiceAmountEditor->setBounds (20, 27, 68, 16);
     fadeTimeEditor->setBounds (108, 27, 51, 16);
-    carrierSelector->setBounds (308, 6, 128, 28);
+    
     fmButton->setBounds (304 - 128, 12, 128, 32);
+	carrierSelector->setBounds(308, 6, 128, 28);
     modSelector->setBounds (446, 6, 128, 28);
     fmStateLabel->setBounds (309, 39, 264, 16);
     label->setBounds (getWidth() - 264, 0, 264, 40);
     //[UserResized] Add your own custom resize handling here..
+
+	fmStateLabel->setTopLeftPosition((getWidth() - fmStateLabel->getWidth()) / 2, 43);
+
+	label->setTopLeftPosition(fmStateLabel->getX(), fmStateLabel->getBottom() + 5);
+	label->setSize(fmStateLabel->getWidth(), 30);
+
+	carrierSelector->setTopLeftPosition(fmStateLabel->getX(), fmStateLabel->getY() - 32);
+
+	modSelector->setTopRightPosition(fmStateLabel->getRight(), fmStateLabel->getY() - 32);
+
+	fmButton->setTopLeftPosition(modSelector->getRight() + 20, modSelector->getY() + 20);
+
     //[/UserResized]
 }
 

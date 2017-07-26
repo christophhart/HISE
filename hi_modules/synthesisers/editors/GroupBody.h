@@ -61,10 +61,13 @@ public:
 
 			modSelector->clear(dontSendNotification);
 			carrierSelector->clear(dontSendNotification);
-			for (int i = ModulatorSynthGroup::InternalChains::numInternalChains; i < getProcessor()->getNumChildProcessors(); i++)
+
+			auto offset = (int)ModulatorSynthGroup::InternalChains::numInternalChains;
+
+			for (int i = offset; i < getProcessor()->getNumChildProcessors(); i++)
 			{
-				modSelector->addItem(getProcessor()->getChildProcessor(i)->getId(), i);
-				carrierSelector->addItem(getProcessor()->getChildProcessor(i)->getId(), i);
+				modSelector->addItem(getProcessor()->getChildProcessor(i)->getId(), i - offset + 1);
+				carrierSelector->addItem(getProcessor()->getChildProcessor(i)->getId(), i - offset + 1);
 			}
 
 			modSelector->updateValue();
