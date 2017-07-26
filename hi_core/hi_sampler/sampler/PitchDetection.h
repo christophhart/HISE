@@ -66,7 +66,7 @@ public:
 	};
 
 	/** detects the pitch in the audio buffer. */
-	static double detectPitch(AudioSampleBuffer &buffer, int startSample, int numSamples, double sampleRate)
+	static double detectPitch(const AudioSampleBuffer &buffer, int startSample, int numSamples, double sampleRate)
 	{
 		Array<double> doubleSamples;
 
@@ -74,8 +74,18 @@ public:
 
 		for(int i = 0; i < numSamples; i++)
 		{
-			const double value = (double)(buffer.getSample(0, startSample + i) + buffer.getSample(1, startSample + i)) / 2.0;
-			doubleSamples.set(i, value);
+			if (buffer.getNumChannels() == 2)
+			{
+				const double value = (double)(buffer.getSample(0, startSample + i) + buffer.getSample(1, startSample + i)) / 2.0;
+				doubleSamples.set(i, value);
+			}
+			else
+			{
+				const double value = (double)(buffer.getSample(0, startSample + i));
+				doubleSamples.set(i, value);
+			}
+
+			
 		}
 
 		dywapitchtracker tracker;

@@ -58,7 +58,10 @@ void AudioLooperVoice::startNote(int midiNoteNumber, float /*velocity*/, Synthes
     
 	if (looper->pitchTrackingEnabled)
 	{
-		const double noteDelta = jlimit<int>(-24, 24, midiNoteNumber - looper->rootNote);
+		//const double noteDelta = jlimit<int>(-24, 24, midiNoteNumber - looper->rootNote);
+
+		const double noteDelta = midiNoteNumber - looper->rootNote;
+
 		const double pitchDelta = pow(2, noteDelta / 12.0);
 
 		uptimeDelta *= pitchDelta;
@@ -244,6 +247,48 @@ void AudioLooper::setInternalAttribute(int parameterIndex, float newValue)
 	case PitchTracking:	pitchTrackingEnabled = newValue > 0.5f; break;
 	default:			jassertfalse; break;
 	}
+}
+
+void AudioLooper::newFileLoaded()
+{
+	if (!pitchTrackingEnabled)
+		return;
+
+	if (auto b = getBuffer())
+	{
+		auto freq = PitchDetection::detectPitch(*b, 0, b->getNumSamples(), getSampleRate());
+		
+		if (freq == 0.0)
+			return;
+
+		Array<Range<double>> freqRanges;
+
+		freqRanges.add(Range<double>(0, MidiMessage::getMidiNoteInHertz(1) / 2));
+
+		for (int i = 1; i < 126; i++)
+		{
+			const double thisPitch = MidiMessage::getMidiNoteInHertz(i);
+			const double nextPitch = MidiMessage::getMidiNoteInHertz(i + 1);
+			const double prevPitch = MidiMessage::getMidiNoteInHertz(i - 1);
+
+			const double lowerLimit = thisPitch - (thisPitch - prevPitch) * 0.5;
+			const double upperLimit = thisPitch + (nextPitch - thisPitch) * 0.5;
+
+			freqRanges.add(Range<double>(lowerLimit, upperLimit));
+		}
+
+		for (int j = 0; j < freqRanges.size(); j++)
+		{
+			if (freqRanges[j].contains(freq))
+			{
+				setAttribute(AudioLooper::SpecialParameters::RootNote, (float)(j), sendNotification);
+				return;
+			}
+		}
+	}
+
+	
+	
 }
 
 ProcessorEditorBody* AudioLooper::createEditor(ProcessorEditor *parentEditor)

@@ -105,6 +105,7 @@ public:
 	void setInternalAttribute(int parameterIndex, float newValue) override;
 
 	
+	void newFileLoaded() override;
 
 	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;
 	void setSyncMode(int newSyncMode);

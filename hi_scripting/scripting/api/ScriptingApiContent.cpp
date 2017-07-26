@@ -2554,7 +2554,7 @@ void ScriptingApi::Content::ScriptAudioWaveform::restoreFromValueTree(const Valu
 
 		const String fileName = v.getProperty("fileName", "");
 
-		if (fileName.isNotEmpty())
+		if (getAudioProcessor() != nullptr && fileName.isNotEmpty())
 		{
 			getAudioProcessor()->setLoadedFile(fileName, true, false);
 

@@ -443,6 +443,8 @@ public:
 
 		AudioWaveformWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptAudioWaveform *waveform, int index);
 
+		~AudioWaveformWrapper();
+
 		void updateComponent() override;
 
 		void rangeChanged(AudioDisplayComponent *broadcaster, int changedArea);

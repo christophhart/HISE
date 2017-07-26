@@ -749,6 +749,11 @@ ScriptCreatedComponentWrapper(content, index)
 
 
 
+ScriptCreatedComponentWrappers::AudioWaveformWrapper::~AudioWaveformWrapper()
+{
+
+}
+
 void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateComponent()
 {
 	ScriptingApi::Content::ScriptAudioWaveform *form = dynamic_cast<ScriptingApi::Content::ScriptAudioWaveform*>(getScriptComponent());
