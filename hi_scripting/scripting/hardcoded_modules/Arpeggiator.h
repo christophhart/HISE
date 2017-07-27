@@ -218,6 +218,7 @@ private:
 	ScriptingApi::Content::ScriptSlider *stepReset;
 	ScriptingApi::Content::ScriptSlider *stepSkipSlider;
 	ScriptingApi::Content::ScriptSlider *currentStepSlider;
+	ScriptingApi::Content::ScriptSlider *octaveSlider;
 };
 
 

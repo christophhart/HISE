@@ -69,7 +69,7 @@ const SliderPackData * Arpeggiator::getSliderPackData(int index) const
 void Arpeggiator::onInit()
 {
 	Content.setWidth(800);
-	Content.setHeight(450);
+	Content.setHeight(500);
 	
 	MidiSequenceArray.ensureStorageAllocated(128);
 	MidiSequenceArraySorted.ensureStorageAllocated(128);
@@ -156,6 +156,14 @@ void Arpeggiator::onInit()
 
 	parameterNames.add("Direction");
 
+	octaveSlider = Content.addKnob("OctaveRange", 10, 445);
+
+	octaveSlider->set("min", 0);
+	octaveSlider->set("max", 4);
+	octaveSlider->set("stepSize", "1");
+
+
+
 	currentStepSlider = Content.addKnob("CurrentValue", 160, 400);
 
 	currentStepSlider->set("width", 512);
@@ -170,6 +178,8 @@ void Arpeggiator::onInit()
 	currentStepSlider->set("stepSize", "1");
 
 	parameterNames.add("CurrentStep");
+
+	
 
 	auto bg = Content.addPanel("packBg", 150, 5);
 
@@ -244,6 +254,7 @@ void Arpeggiator::onInit()
 	speedComboBox->setValue(3); 
 	numStepSlider->setValue(4);
 	currentStepSlider->setValue(0);
+	octaveSlider->setValue(0);
 
 	velocitySliderPack->setAllValues(127);
 	lengthSliderPack->setAllValues(75);
@@ -319,6 +330,7 @@ void Arpeggiator::onTimer(int /*offsetInBuffer*/)
 	}
 }
 
+
 void Arpeggiator::playNote()
 {
 	// get time scale for timer
@@ -331,8 +343,16 @@ void Arpeggiator::playNote()
 	MidiSequenceArray.clearQuick();
 	MidiSequenceArraySorted.clearQuick();
 
-	MidiSequenceArray.addArray(userHeldKeysArray);
-	MidiSequenceArraySorted.addArray(userHeldKeysArraySorted);
+	auto octaveAmount = (int)octaveSlider->getValue() + 1;
+
+	for (int i = 0; i < octaveAmount; i++)
+	{
+		for (int j = 0; j < userHeldKeysArray.size(); j++)
+		{
+			MidiSequenceArray.addIfNotAlreadyThere(userHeldKeysArray[j] + i * 12);
+			MidiSequenceArraySorted.addIfNotAlreadyThere(userHeldKeysArraySorted[j] + i * 12);
+		}
+	}
 
 	// this ensure that if a new note is added to the sorted list, we update where we are supposed to be along the sequence
 	// not a good implementation of the idea, but it works for now
@@ -465,6 +485,9 @@ void Arpeggiator::playNote()
 	if ((int)stepReset->getValue() > 0) ++curMasterStep;
 }
 
+
+
+
 Array<double> Arpeggiator::createTempoDivisionValueArrayViaStringArray(const String& tempoValues)
 {
 	StringArray timeSignatureStrArray = StringArray::fromLines(tempoValues);
@@ -568,7 +591,7 @@ void Arpeggiator::reset(bool do_all_notes_off, bool do_stop)
 	currentStep = 0;
 	curMasterStep = 0;
 	currentStepSlider->setValue(0);
-
+	
 	switch ((int)sequenceComboBox->getValue())
 	{
 	case enumSeqUP:
