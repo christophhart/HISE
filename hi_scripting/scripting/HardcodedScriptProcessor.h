@@ -194,6 +194,10 @@ public:
 
 	void onNoteOn() override
 	{
+		Message.ignoreEvent(true);
+		
+		int newID = Synth.playNote(Message.getNoteNumber(), Message.getVelocity());
+
 		if(lastNote != -1)
 		{
 			Synth.noteOffByEventId(lastEventId);
@@ -201,8 +205,8 @@ public:
 			possibleRetriggerNote = lastNote;
 		}
 	
-		Message.ignoreEvent(true);
-		lastEventId = Synth.playNote(Message.getNoteNumber(), Message.getVelocity());
+		
+		lastEventId = newID;
 
 		lastNote = Message.getNoteNumber();
 		lastVelo = Message.getVelocity();
