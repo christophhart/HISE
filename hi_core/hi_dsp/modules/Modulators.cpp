@@ -292,7 +292,10 @@ EnvelopeModulator::EnvelopeModulator(MainController *mc, const String &id, int v
 	Modulation(m),
 	TimeModulation(m),
 	VoiceModulation(voiceAmount_, m)
-{};
+{
+	parameterNames.add("Monophonic");
+	parameterNames.add("Retrigger");
+};
 
 #pragma warning( pop )
 

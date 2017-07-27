@@ -63,7 +63,7 @@ public:
 	/// @brief special parameters for SimpleEnvelope
 	enum SpecialParameters
 	{
-		Attack, ///< the attack time in milliseconds
+		Attack = EnvelopeModulator::Parameters::numParameters, ///< the attack time in milliseconds
 		Release, ///< the release time in milliseconds
 		LinearMode, ///< toggles between linear and exponential mode
 		numTotalParameters
@@ -127,6 +127,7 @@ public:
 		{
 			ATTACK, ///< attack phase (isPlaying() returns \c true)
 			SUSTAIN, ///< sustain phase (isPlaying() returns \c true)
+			RETRIGGER, ///< retrigger state (only valid in monophonic mode
 			RELEASE, ///< attack phase (isPlaying() returns \c true)
 			IDLE ///< idle state (isPlaying() returns \c false.
 		};
@@ -154,7 +155,7 @@ private:
 
 	float calcCoefficient(float time, float targetRatio=1.0f) const;
 
-	void setAttackRate(float rate, int voiceIndex=-1);
+	void setAttackRate(float rate, SimpleEnvelopeState* state=nullptr);
 	void setReleaseRate(float rate);
 	
 	/** @brief returns the envelope value. 

@@ -111,6 +111,10 @@ public:
 
 	void updateBipolarIcon(bool shouldBeBipolar);
 
+	void updateRetriggerIcon(bool shouldBeBipolar);
+
+	void updateMonoIcon(bool shouldBeMono);
+
 	void mouseDown(const MouseEvent &e) override;
 
 	void mouseDoubleClick(const MouseEvent&) override;
@@ -168,6 +172,8 @@ private:
 	ScopedPointer<ShapeButton> addButton;
 	ScopedPointer<ShapeButton> routeButton;
 	ScopedPointer<ShapeButton> workspaceButton;
+	ScopedPointer<ShapeButton> monophonicButton;
+	ScopedPointer<ShapeButton> retriggerButton;
 
     ScopedPointer<Slider> intensitySlider;
 	ScopedPointer<ShapeButton> bipolarModButton;

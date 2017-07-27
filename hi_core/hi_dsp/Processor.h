@@ -122,7 +122,10 @@ public:
 	};
 
 	/** Overwrite this enum and add new parameters. This is used by the set- / getAttribute methods. */
-	enum SpecialParameters {};
+	enum SpecialParameters
+	{
+		numParameters = 0
+	};
 
 	/** Overwrite this enum and list all internal chains. This can be used to access them by index. */
 	enum InternalChains {};

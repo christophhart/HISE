@@ -78,6 +78,9 @@ SimpleEnvelope::SimpleEnvelope(MainController *mc, const String &id, int voiceAm
 	//editorStateIdentifiers.add("ReleaseChainShown");
 
 	for(int i = 0; i < polyManager.getVoiceAmount(); i++) states.add(createSubclassedState(i));
+
+	monophonicState = createSubclassedState(-1);
+
 	attackChain = new ModulatorChain(mc, "Attack Time Modulation", voiceAmount, ModulatorChain::GainMode, this);
 
 	attackChain->setIsVoiceStartChain(true);
@@ -93,12 +96,18 @@ SimpleEnvelope::~SimpleEnvelope()
 };
 
 
-void SimpleEnvelope::setInternalAttribute(int parameter_index, float newValue)
+void SimpleEnvelope::setInternalAttribute(int parameterIndex, float newValue)
 {
-	switch (parameter_index)
+	if (parameterIndex < EnvelopeModulator::Parameters::numParameters)
+	{
+		EnvelopeModulator::setInternalAttribute(parameterIndex, newValue);
+		return;
+	}
+
+	switch (parameterIndex)
 	{
 	case Attack:
-		setAttackRate(newValue);
+		setAttackRate(newValue, nullptr);
 		
 		break;
 	case Release:
@@ -107,7 +116,7 @@ void SimpleEnvelope::setInternalAttribute(int parameter_index, float newValue)
 		break;
 	case LinearMode:
 		linearMode = newValue > 0.5;
-		setAttackRate(attack);
+		setAttackRate(attack, nullptr);
 		setReleaseRate(release);
 		break;
 	default:
@@ -117,6 +126,11 @@ void SimpleEnvelope::setInternalAttribute(int parameter_index, float newValue)
 
 float SimpleEnvelope::getDefaultValue(int parameterIndex) const
 {
+	if (parameterIndex < EnvelopeModulator::Parameters::numParameters)
+	{
+		return EnvelopeModulator::getDefaultValue(parameterIndex);
+	}
+
 	switch (parameterIndex)
 	{
 	case Attack:
@@ -131,9 +145,14 @@ float SimpleEnvelope::getDefaultValue(int parameterIndex) const
 	}
 }
 
-float SimpleEnvelope::getAttribute(int parameter_index) const
+float SimpleEnvelope::getAttribute(int parameterIndex) const
 {
-	switch (parameter_index)
+	if (parameterIndex < EnvelopeModulator::Parameters::numParameters)
+	{
+		return EnvelopeModulator::getAttribute(parameterIndex);
+	}
+
+	switch (parameterIndex)
 	{
 	case Attack:
 		return attack;
@@ -149,62 +168,114 @@ float SimpleEnvelope::getAttribute(int parameter_index) const
 
 void SimpleEnvelope::startVoice(int voiceIndex)
 {
-	SimpleEnvelopeState *thisState = static_cast<SimpleEnvelopeState*>(states[voiceIndex]);
-
-	if(thisState->current_state != SimpleEnvelopeState::IDLE)
+	if (isMonophonic)
 	{
-		reset(voiceIndex);
-	}
+		EnvelopeModulator::startVoice(voiceIndex);
 
-	attackChain->startVoice(voiceIndex);
+		const bool restartEnvelope = shouldRetrigger || getNumPressedKeys() == 1;
 
-	if (linearMode)
-	{
-		thisState->attackDelta = this->calcCoefficient(attack * attackChain->getConstantVoiceValue(voiceIndex));
+		if (restartEnvelope)
+		{
+			auto monoState = static_cast<SimpleEnvelopeState*>(monophonicState.get());
+
+			attackChain->startVoice(voiceIndex);
+
+			if (linearMode)
+				monoState->attackDelta = this->calcCoefficient(attack * attackChain->getConstantVoiceValue(voiceIndex));
+			else
+				setAttackRate(attack * attackChain->getConstantVoiceValue(voiceIndex), monoState);
+
+			// Don't reset the envelope for tailing releases
+			if (shouldRetrigger)
+			{
+				monoState->current_state = SimpleEnvelopeState::RETRIGGER;
+			}
+			else
+			{
+				monoState->current_state = SimpleEnvelopeState::ATTACK;
+			}
+		}
 	}
 	else
 	{
-		setAttackRate(attack * attackChain->getConstantVoiceValue(voiceIndex), voiceIndex);
-	}
+		auto thisState = static_cast<SimpleEnvelopeState*>(states[voiceIndex]);
 
-	
-	thisState->current_state = SimpleEnvelopeState::ATTACK;
-	
+		if (thisState->current_state != SimpleEnvelopeState::IDLE)
+			reset(voiceIndex);
+
+		attackChain->startVoice(voiceIndex);
+
+		if (linearMode)
+			thisState->attackDelta = this->calcCoefficient(attack * attackChain->getConstantVoiceValue(voiceIndex));
+		else
+			setAttackRate(attack * attackChain->getConstantVoiceValue(voiceIndex), thisState);
+
+		thisState->current_state = SimpleEnvelopeState::ATTACK;
+	}
 }
 
 void SimpleEnvelope::stopVoice(int voiceIndex)
 {
-	SimpleEnvelopeState *thisState = static_cast<SimpleEnvelopeState*>(states[voiceIndex]);
-	//jassert(state->current_state == SimpleEnvelopeState::SUSTAIN || state->current_state == SimpleEnvelopeState::ATTACK);
+	if (isMonophonic)
+	{
+		EnvelopeModulator::stopVoice(voiceIndex);
 
-	
-	thisState->current_state = SimpleEnvelopeState::RELEASE;
-
+		if (getNumPressedKeys() == 0)
+		{
+			auto monoState = static_cast<SimpleEnvelopeState*>(monophonicState.get());
+			monoState->current_state = SimpleEnvelopeState::RELEASE;
+		}
+	}
+	else
+	{
+		auto thisState = static_cast<SimpleEnvelopeState*>(states[voiceIndex]);
+		thisState->current_state = SimpleEnvelopeState::RELEASE;
+	}
 }
 
 void SimpleEnvelope::reset(int voiceIndex)
 {
-	EnvelopeModulator::reset(voiceIndex);
+	if (isMonophonic)
+	{
+		return;
+	}
+	else
+	{
+		EnvelopeModulator::reset(voiceIndex);
 
-	SimpleEnvelopeState *thisState = static_cast<SimpleEnvelopeState*>(states[voiceIndex]);
+		SimpleEnvelopeState *thisState = static_cast<SimpleEnvelopeState*>(states[voiceIndex]);
 
-	thisState->current_state = SimpleEnvelopeState::IDLE;
-	thisState->current_value = 0.0f;
+		thisState->current_state = SimpleEnvelopeState::IDLE;
+		thisState->current_value = 0.0f;
+	}
 }
 
 bool SimpleEnvelope::isPlaying(int voiceIndex) const
 {
-	SimpleEnvelopeState *thisState = static_cast<SimpleEnvelopeState*>(states[voiceIndex]);
-	return thisState->current_state != SimpleEnvelopeState::IDLE;
+	if (isMonophonic)
+	{
+		// monophonic envelopes can't kill voices
+		return true;
+	}
+	else
+	{
+		auto thisState = static_cast<SimpleEnvelopeState*>(states[voiceIndex]);
+		return thisState->current_state != SimpleEnvelopeState::IDLE;
+	}
 }
 
 void SimpleEnvelope::calculateBlock(int startSample, int numSamples)
 {
-	const int voiceIndex = polyManager.getCurrentVoice();
+	const int samplesToSmooth = numSamples;
+
+	const int voiceIndex = isMonophonic ? -1 : polyManager.getCurrentVoice();
 
 	jassert(voiceIndex < states.size());
 
-	state = static_cast<SimpleEnvelopeState*>(states[voiceIndex]);
+	if(isMonophonic)
+		state = static_cast<SimpleEnvelopeState*>(monophonicState.get());
+	else
+		state = static_cast<SimpleEnvelopeState*>(states[voiceIndex]);
 
 	if (state->current_state == SimpleEnvelopeState::SUSTAIN)
 	{
@@ -220,7 +291,7 @@ void SimpleEnvelope::calculateBlock(int startSample, int numSamples)
 	{
 		
 		float *out = internalBuffer.getWritePointer(0, startSample);
-
+		
 		if (linearMode)
 		{
 			while (numSamples > 0)
@@ -246,22 +317,23 @@ void SimpleEnvelope::calculateBlock(int startSample, int numSamples)
 			}
 		}
 
-		
-
-		if (polyManager.getCurrentVoice() == polyManager.getLastStartedVoice()) setOutputValue(internalBuffer.getSample(0, 0));
+		if (isMonophonic || polyManager.getCurrentVoice() == polyManager.getLastStartedVoice()) setOutputValue(internalBuffer.getSample(0, 0));
 	}
+
+	
 }
 
 void SimpleEnvelope::handleHiseEvent(const HiseEvent &m)
 {
+	EnvelopeModulator::handleHiseEvent(m);
+
 	attackChain->handleHiseEvent(m);
 };
 
 void SimpleEnvelope::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
 	EnvelopeModulator::prepareToPlay(sampleRate, samplesPerBlock);
-		
-
+	
 	setInternalAttribute(Attack, attack);
 	setInternalAttribute(Release, release);
 	if(attackChain != nullptr) attackChain->prepareToPlay(sampleRate, samplesPerBlock);
@@ -305,6 +377,7 @@ float SimpleEnvelope::calculateNewValue()
 {
 	switch (state->current_state)
 	{
+	
 	case SimpleEnvelopeState::SUSTAIN: break;
 	case SimpleEnvelopeState::IDLE: break;
 	case SimpleEnvelopeState::ATTACK:
@@ -313,15 +386,24 @@ float SimpleEnvelope::calculateNewValue()
 		{
 			state->current_value = 1.0f;
 			state->current_state = SimpleEnvelopeState::SUSTAIN;
-			//debugMod(" (voiceIndex = " + String(voiceIndex) + "): ATTACK->SUSTAIN");
 		}
 		break;
+	case SimpleEnvelopeState::RETRIGGER:
+	{
+		state->current_value -= 0.005f;
+		if (state->current_value <= 0.0f)
+		{
+			state->current_value = 0.0f;
+			state->current_state = SimpleEnvelopeState::ATTACK;
+		}
+		break;
+	}
 	case SimpleEnvelopeState::RELEASE:
 		state->current_value -= release_delta;
-		if (state->current_value <= 0.0f){
+		if (state->current_value <= 0.0f)
+		{
 			state->current_value = 0.0f;
 			state->current_state = SimpleEnvelopeState::IDLE;
-			//debugMod(" (voiceIndex = " + String(voiceIndex) + "): RELEASE->IDLE");
 		}
 		break;
 	default:					    jassertfalse; break;
@@ -336,9 +418,21 @@ float SimpleEnvelope::calculateNewExpValue()
 	{
 	case SimpleEnvelopeState::SUSTAIN: break;
 	case SimpleEnvelopeState::IDLE: break;
+	case SimpleEnvelopeState::RETRIGGER:
+	{
+		state->current_value -= 0.005f;
+		if (state->current_value <= 0.0f)
+		{
+			state->current_value = 0.0f;
+			state->current_state = SimpleEnvelopeState::ATTACK;
+		}
+		break;
+	}
 	case SimpleEnvelopeState::ATTACK:
 		
 		state->current_value = state->expAttackBase + state->current_value * state->expAttackCoef;
+
+		
 
 		if (state->current_value >= 1.0f)
 		{
@@ -362,9 +456,9 @@ float SimpleEnvelope::calculateNewExpValue()
 
 
 
-void SimpleEnvelope::setAttackRate(float rate, int voiceIndex/*=-1*/) {
+void SimpleEnvelope::setAttackRate(float rate, SimpleEnvelopeState *state) {
 	
-	if (voiceIndex == -1)
+	if (state == nullptr)
 	{
 		attack = rate;
 
@@ -383,7 +477,7 @@ void SimpleEnvelope::setAttackRate(float rate, int voiceIndex/*=-1*/) {
 	}
 	else
 	{
-		SimpleEnvelopeState *thisState = static_cast<SimpleEnvelopeState*>(states[voiceIndex]);
+		SimpleEnvelopeState *thisState = static_cast<SimpleEnvelopeState*>(state);
 
 		if (linearMode)
 		{

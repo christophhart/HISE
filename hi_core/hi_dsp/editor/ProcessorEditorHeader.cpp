@@ -145,6 +145,15 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 
 	deleteButton->addListener(this);
 
+	addAndMakeVisible(retriggerButton = new ShapeButton("Retrigger Envelope", Colours::white, Colours::white, Colours::white));
+	retriggerButton->setTooltip("Retrigger envelope in Legato Mode");
+	retriggerButton->addListener(this);
+
+	addAndMakeVisible(monophonicButton = new ShapeButton("Monophonic", Colours::white, Colours::white, Colours::white));
+
+	monophonicButton->setTooltip("Toggle between monophonic and polyphonic mode");
+	monophonicButton->addListener(this);
+
 	addAndMakeVisible(routeButton = new ShapeButton("Edit Routing Matrix", Colours::white, Colours::white, Colours::white));
 	Path routePath;
 	routePath.loadPathFromData(HiBinaryData::SpecialSymbols::routingIcon, sizeof(HiBinaryData::SpecialSymbols::routingIcon));
@@ -348,6 +357,7 @@ ProcessorEditorHeader::~ProcessorEditorHeader()
     bypassButton = nullptr;
     foldButton = nullptr;
     deleteButton = nullptr;
+	retriggerButton = nullptr;
     addButton = nullptr;
     intensitySlider = nullptr;
 }
@@ -539,6 +549,31 @@ void ProcessorEditorHeader::resized()
 		x = bypassButton->getRight() + 10;
 	}
 	
+	const bool showMonoButton = IS(EnvelopeModulator) && !isHeaderOfChain();
+
+	if (showMonoButton)
+	{
+		monophonicButton->setBounds(x, yOffset, addCloseWidth, addCloseWidth);
+		x += addCloseWidth + 8;
+	}
+	else
+	{
+		monophonicButton->setVisible(false);
+	}
+
+	const bool showRetriggerButton = monophonicButton->getToggleState() && showMonoButton;
+
+	if (showRetriggerButton)
+	{
+		retriggerButton->setVisible(true);
+		retriggerButton->setBounds(x, yOffset, addCloseWidth, addCloseWidth);
+		x += addCloseWidth + 8;
+	}
+	else
+	{
+		retriggerButton->setVisible(false);
+	}
+
 	const bool showValueMeter = !isHeaderOfMidiProcessor();
 
 	if (showValueMeter)
@@ -766,8 +801,23 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
 	{
 		dynamic_cast<RoutableProcessor*>(getProcessor())->editRouting(routeButton);
 	}
+	else if (buttonThatWasClicked == retriggerButton)
+	{
+		const bool newValue = !retriggerButton->getToggleState();
+
+		getProcessor()->setAttribute(EnvelopeModulator::Parameters::Retrigger, newValue ? 1.0f : 0.f, sendNotification);
+	}
+	else if (buttonThatWasClicked == monophonicButton)
+	{
+		const bool newValue = !monophonicButton->getToggleState();
+
+		getProcessor()->setAttribute(EnvelopeModulator::Parameters::Monophonic, newValue ? 1.0f : 0.f, sendNotification);
+
+	}
     else if (buttonThatWasClicked == foldButton)
     {
+
+
 		bool shouldBeFolded = toggleButton(buttonThatWasClicked);
 
 		getEditor()->setFolded(shouldBeFolded, true);
@@ -818,6 +868,43 @@ void ProcessorEditorHeader::updateBipolarIcon(bool shouldBeBipolar)
 	bipolarModButton->setShape(p, false, true, true);
 }
 
+void ProcessorEditorHeader::updateRetriggerIcon(bool shouldRetrigger)
+{
+	retriggerButton->setToggleState(shouldRetrigger, dontSendNotification);
+	
+	Path p;
+
+	if (!shouldRetrigger)
+		p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::retriggerOffPath, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::retriggerOffPath));
+	else
+		p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::retriggerOnPath, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::retriggerOnPath));	
+
+	retriggerButton->setShape(p, false, true, true);
+}
+
+void ProcessorEditorHeader::updateMonoIcon(bool shouldBeMono)
+{
+	monophonicButton->setToggleState(shouldBeMono, dontSendNotification);
+
+	if (!monophonicButton->isVisible())
+		return;
+
+	Path p;
+
+	if (!shouldBeMono)
+	{
+		p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::polyphonicPath, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::polyphonicPath));		
+	}
+	else
+	{
+		p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::monophonicPath, sizeof(HiBinaryData::ProcessorEditorHeaderIcons::monophonicPath));	
+	}
+
+	monophonicButton->setShape(p, false, true, true);
+
+	resized();
+}
+
 void ProcessorEditorHeader::update()
 {
 	Processor *p = getProcessor();
@@ -837,6 +924,19 @@ void ProcessorEditorHeader::update()
 		plotButton->setToggleState(mod->isPlotted(), dontSendNotification);
 
 		updateBipolarIcon(m->isBipolar());
+
+		if (isHeaderOfChain())
+			return;
+
+		if (auto envelope = dynamic_cast<EnvelopeModulator*>(mod))
+		{
+			auto retrigger = getProcessor()->getAttribute(EnvelopeModulator::Parameters::Retrigger) > 0.5f;
+			auto monophonic = getProcessor()->getAttribute(EnvelopeModulator::Parameters::Monophonic) > 0.5f;
+
+			updateMonoIcon(monophonic);
+			updateRetriggerIcon(retrigger);
+		}
+
 	
 	}
 	else if(isHeaderOfModulatorSynth())

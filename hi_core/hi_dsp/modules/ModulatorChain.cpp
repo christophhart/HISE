@@ -425,6 +425,9 @@ void ModulatorChain::renderVoice(int voiceIndex, int startSample, int numSamples
 		
 			if(m->isBypassed() ) continue;
 
+			if (m->isInMonophonicMode())
+				continue;
+			
 			m->polyManager.setCurrentVoice(voiceIndex);
 
 			FloatVectorOperations::fill(envelopeTempBuffer.getWritePointer(0, startSample), 1.0f, numSamples);
@@ -468,15 +471,18 @@ void ModulatorChain::renderNextBlock(AudioSampleBuffer& buffer, int startSample,
 
 		initializeBuffer(internalBuffer, startSample, numSamples);
 
-		
-
-		if (shouldBeProcessed(false))
+		for (auto v : variantModulators)
 		{
-			for (int i = 0; i < variantModulators.size(); i++)
-			{
-				if (variantModulators[i]->isBypassed()) continue;
-				variantModulators[i]->renderNextBlock(internalBuffer, startSample, numSamples);
-			}
+			if (v->isBypassed()) continue;
+			v->renderNextBlock(internalBuffer, startSample, numSamples);
+		}
+
+		for (auto m : envelopeModulators)
+		{
+			if (m->isBypassed()) continue;
+			if (!m->isInMonophonicMode()) continue;
+
+			m->renderNextBlock(internalBuffer, startSample, numSamples);
 		}
 
 #if ENABLE_PLOTTER

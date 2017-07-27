@@ -71,6 +71,8 @@ AhdsrEnvelope::AhdsrEnvelope(MainController *mc, const String &id, int voiceAmou
 
 	for(int i = 0; i < polyManager.getVoiceAmount(); i++) states.add(createSubclassedState(i));
 
+	monophonicState = createSubclassedState(-1);
+
 	internalChains.add(new ModulatorChain(mc, "Attack Time", voiceAmount, ModulatorChain::GainMode, this));
 	internalChains.add(new ModulatorChain(mc, "Attack Level", voiceAmount, ModulatorChain::GainMode, this));
 	internalChains.add(new ModulatorChain(mc, "Decay Time", voiceAmount, ModulatorChain::GainMode, this));
@@ -166,43 +168,99 @@ void AhdsrEnvelope::setTargetRatioDR(float targetRatio) {
 
 void AhdsrEnvelope::startVoice(int voiceIndex)
 {
-	state = static_cast<AhdsrEnvelopeState*>(states[voiceIndex]);
-	
-	if(state->current_state != AhdsrEnvelopeState::IDLE)
+	if (isMonophonic)
 	{
-		reset(voiceIndex);
-	}
+		state = static_cast<AhdsrEnvelopeState*>(monophonicState.get());
 
-	for(int i = 0; i < numInternalChains; i++)
+		EnvelopeModulator::startVoice(voiceIndex);
+
+		const bool restartEnvelope = shouldRetrigger || getNumPressedKeys() == 1;
+
+		if (restartEnvelope)
+		{
+			for (int i = 0; i < numInternalChains; i++)
+			{
+				internalChains[i]->startVoice(voiceIndex);
+				state->modValues[i] = jmax(0.0f, internalChains[i]->getConstantVoiceValue(voiceIndex));
+			}
+
+			// Don't reset the envelope for tailing releases
+			if (shouldRetrigger)
+			{
+				state->current_state = AhdsrEnvelopeState::RETRIGGER;
+			}
+			else
+			{
+				state->current_state = AhdsrEnvelopeState::ATTACK;
+				state->current_value = 0.0f;
+			}
+
+			state->attackLevel = attackLevel * state->modValues[AttackLevelChain];
+			state->setAttackRate(attack);
+			state->setDecayRate(decay);
+			state->setReleaseRate(release);
+
+			state->lastSustainValue = sustain * state->modValues[SustainLevelChain];
+		}
+	}
+	else
 	{
-		internalChains[i]->startVoice(voiceIndex);
-		state->modValues[i] = jmax(0.0f, internalChains[i]->getConstantVoiceValue(voiceIndex));
+		state = static_cast<AhdsrEnvelopeState*>(states[voiceIndex]);
+
+		if (state->current_state != AhdsrEnvelopeState::IDLE)
+		{
+			reset(voiceIndex);
+		}
+
+		for (int i = 0; i < numInternalChains; i++)
+		{
+			internalChains[i]->startVoice(voiceIndex);
+			state->modValues[i] = jmax(0.0f, internalChains[i]->getConstantVoiceValue(voiceIndex));
+		}
+
+		state->attackLevel = attackLevel * state->modValues[AttackLevelChain];
+		state->setAttackRate(attack);
+		state->setDecayRate(decay);
+		state->setReleaseRate(release);
+
+		state->current_state = AhdsrEnvelopeState::ATTACK;
+
+		state->current_value = 0.0f;
+
+		state->lastSustainValue = sustain * state->modValues[SustainLevelChain];
 	}
-
-	state->attackLevel = attackLevel * state->modValues[AttackLevelChain];
-	state->setAttackRate(attack);
-	state->setDecayRate(decay);
-	state->setReleaseRate(release);
-	
-	state->current_state = AhdsrEnvelopeState::ATTACK;
-
-	state->current_value = 0.0f;
-
-	state->lastSustainValue = sustain * state->modValues[SustainLevelChain];
 }
 
 void AhdsrEnvelope::stopVoice(int voiceIndex)
 {
-	static_cast<AhdsrEnvelopeState*>(states[voiceIndex])->current_state = AhdsrEnvelopeState::RELEASE;
+	if (isMonophonic)
+	{
+		EnvelopeModulator::stopVoice(voiceIndex);
+
+		if (getNumPressedKeys() == 0)
+		{
+			auto monoState = static_cast<AhdsrEnvelopeState*>(monophonicState.get());
+			monoState->current_state = AhdsrEnvelopeState::RELEASE;
+		}
+	}
+	else
+	{
+		static_cast<AhdsrEnvelopeState*>(states[voiceIndex])->current_state = AhdsrEnvelopeState::RELEASE;
+	}
 }
 
 void AhdsrEnvelope::calculateBlock(int startSample, int numSamples)
 {
-	const int voiceIndex = polyManager.getCurrentVoice();
+	const int voiceIndex = isMonophonic ? -1 : polyManager.getCurrentVoice();
 
-	state = static_cast<AhdsrEnvelopeState*>(states[voiceIndex]);
+	jassert(voiceIndex < states.size());
 
-	const bool isSustain = static_cast<AhdsrEnvelopeState*>(states[polyManager.getCurrentVoice()])->current_state == AhdsrEnvelopeState::SUSTAIN;
+	if (isMonophonic)
+		state = static_cast<AhdsrEnvelopeState*>(monophonicState.get());
+	else
+		state = static_cast<AhdsrEnvelopeState*>(states[voiceIndex]);
+
+	const bool isSustain = static_cast<AhdsrEnvelopeState*>(state)->current_state == AhdsrEnvelopeState::SUSTAIN;
 
 	if (isSustain)
 	{
@@ -253,18 +311,24 @@ void AhdsrEnvelope::calculateBlock(int startSample, int numSamples)
 	}
 
 #if ENABLE_ALL_PEAK_METERS
-	if (polyManager.getCurrentVoice() == polyManager.getLastStartedVoice()) setOutputValue(internalBuffer.getSample(0, startSample-1));
+	if (isMonophonic || polyManager.getCurrentVoice() == polyManager.getLastStartedVoice()) setOutputValue(internalBuffer.getSample(0, startSample-1));
 #endif
 }
 
 void AhdsrEnvelope::reset(int voiceIndex)
 {
-	EnvelopeModulator::reset(voiceIndex);
+	if (isMonophonic)
+	{
+		return;
+	}
+	else
+	{
+		EnvelopeModulator::reset(voiceIndex);
 
-	state = static_cast<AhdsrEnvelopeState*>(states[voiceIndex]);
-
-	state->current_state = AhdsrEnvelopeState::IDLE;
-	state->current_value = 0.0f;
+		state = static_cast<AhdsrEnvelopeState*>(states[voiceIndex]);
+		state->current_state = AhdsrEnvelopeState::IDLE;
+		state->current_value = 0.0f;
+	}
 }
 
 void AhdsrEnvelope::handleHiseEvent(const HiseEvent &e)
@@ -277,6 +341,11 @@ void AhdsrEnvelope::handleHiseEvent(const HiseEvent &e)
 
 float AhdsrEnvelope::getDefaultValue(int parameterIndex) const
 {
+	if (parameterIndex < EnvelopeModulator::Parameters::numParameters)
+	{
+		return EnvelopeModulator::getDefaultValue(parameterIndex);
+	}
+
 	switch (parameterIndex)
 	{
 	case Attack:		return 20.0f;
@@ -291,9 +360,15 @@ float AhdsrEnvelope::getDefaultValue(int parameterIndex) const
 	}
 }
 
-void AhdsrEnvelope::setInternalAttribute(int parameter_index, float newValue)
+void AhdsrEnvelope::setInternalAttribute(int parameterIndex, float newValue)
 {
-	switch (parameter_index)
+	if (parameterIndex < EnvelopeModulator::Parameters::numParameters)
+	{
+		EnvelopeModulator::setInternalAttribute(parameterIndex, newValue);
+		return;
+	}
+
+	switch (parameterIndex)
 	{
 	case Attack:		setAttackRate(newValue); break;
 	case AttackLevel:	attackLevel = Decibels::decibelsToGain(newValue); break;
@@ -307,9 +382,14 @@ void AhdsrEnvelope::setInternalAttribute(int parameter_index, float newValue)
 	}
 }
 
-float AhdsrEnvelope::getAttribute(int parameter_index) const
+float AhdsrEnvelope::getAttribute(int parameterIndex) const
 {
-	switch (parameter_index)
+	if (parameterIndex < EnvelopeModulator::Parameters::numParameters)
+	{
+		return EnvelopeModulator::getAttribute(parameterIndex);
+	}
+
+	switch (parameterIndex)
 	{
 	case Attack:		return attack;
 	case AttackLevel:	return Decibels::gainToDecibels(attackLevel);
@@ -337,6 +417,9 @@ void AhdsrEnvelope::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 bool AhdsrEnvelope::isPlaying(int voiceIndex) const
 {
+	if (isMonophonic)
+		return true;
+
 	return static_cast<AhdsrEnvelopeState*>(states[voiceIndex])->current_state != AhdsrEnvelopeState::IDLE;
 }
 
@@ -389,6 +472,34 @@ float AhdsrEnvelope::calculateNewValue()
 				state->holdCounter = 0;
 				state->current_state = AhdsrEnvelopeState::HOLD;
 			}
+		}
+		case AhdsrEnvelopeState::RETRIGGER:
+		{
+			const bool down = attack > 0.0f;
+
+			if (down)
+			{
+				state->current_value -= 0.005f;
+				if (state->current_value <= 0.0f)
+				{
+					state->current_value = 0.0f;
+					state->current_state = AhdsrEnvelopeState::ATTACK;
+				}
+			}
+			else
+			{
+				state->current_value += 0.005f;
+
+				if (state->current_value >= state->attackLevel)
+				{
+					state->current_value = state->attackLevel;
+					state->holdCounter = 0;
+					state->current_state = AhdsrEnvelopeState::HOLD;
+				}
+			}
+
+			
+			break;
 		}
 		case AhdsrEnvelopeState::HOLD:
 			{

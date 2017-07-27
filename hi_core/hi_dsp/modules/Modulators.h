@@ -667,6 +667,14 @@ class EnvelopeModulator: public Modulator,
 {
 public:
 
+	enum Parameters
+	{
+		Monophonic = Processor::SpecialParameters::numParameters,
+		Retrigger,
+		numParameters
+	};
+
+	
 	virtual ~EnvelopeModulator() {};
 
 	static Path getSymbolPath()
@@ -712,9 +720,50 @@ public:
     /** Checks if the Envelope is active for the given voice. Overwrite this and return true as long as you want the envelope to sound. */
 	virtual bool isPlaying(int voiceIndex) const = 0;
 
+	float getAttribute(int parameterIndex) const override
+	{
+		switch (parameterIndex)
+		{
+		case Parameters::Monophonic: return isMonophonic;
+		case Parameters::Retrigger:  return shouldRetrigger;
+		default:
+			break;
+		}
+	}
+
+	float getDefaultValue(int parameterIndex) const override
+	{
+		switch (parameterIndex)
+		{
+		case Parameters::Monophonic: return 0.0f;
+		case Parameters::Retrigger:  return 1.0f;
+		default:
+			break;
+		}
+	}
+
+	void setInternalAttribute(int parameterIndex, float newValue) override
+	{
+		switch (parameterIndex)
+		{
+		case Parameters::Monophonic: isMonophonic = newValue > 0.5f;
+		case Parameters::Retrigger:  shouldRetrigger = newValue > 0.5f;
+		default:
+			break;
+		}
+	}
+
 	virtual ValueTree exportAsValueTree() const override
 	{
 		ValueTree v(Processor::exportAsValueTree());
+
+		if (dynamic_cast<const Chain*>(this) == nullptr)
+		{
+			saveAttribute(Monophonic, "Monophonic");
+			saveAttribute(Retrigger, "Retrigger");
+		}
+
+		
 
 		return v.setProperty("Intensity", getIntensity(), nullptr);
 
@@ -723,6 +772,12 @@ public:
 	virtual void restoreFromValueTree(const ValueTree &v) override
 	{
 		Processor::restoreFromValueTree(v);
+
+		if (dynamic_cast<Chain*>(this) == nullptr)
+		{
+			loadAttribute(Monophonic, "Monophonic");
+			loadAttribute(Retrigger, "Retrigger");
+		}
 
 		setIntensity(v.getProperty("Intensity", 1.0f));
 	}
@@ -756,9 +811,23 @@ public:
 		TimeModulation::prepareToModulate(sampleRate, samplesPerBlock);
 	}
 
+	bool isInMonophonicMode() const { return isMonophonic; }
+
+	void startVoice(int voiceIndex) override
+	{
+		numPressedKeys++;
+	}
+
+	void stopVoice(int voiceIndex) override
+	{
+		numPressedKeys = jmax<int>(0, numPressedKeys - 1);
+	}
+
 protected:
 
-	virtual bool shouldUpdatePlotter() const override {return polyManager.getCurrentVoice() == polyManager.getLastStartedVoice(); };
+	int getNumPressedKeys() const { return numPressedKeys; }
+
+	virtual bool shouldUpdatePlotter() const override {return isMonophonic || polyManager.getCurrentVoice() == polyManager.getLastStartedVoice(); };
 
 
 	virtual void updatePlotter(const AudioSampleBuffer &processedBuffer, int startSample, int numSamples) override
@@ -813,6 +882,16 @@ protected:
 	
 	/** Use this array to access the state. */
 	OwnedArray<ModulatorState> states;
+
+	ScopedPointer<ModulatorState> monophonicState;
+
+	bool isMonophonic = false;
+	bool shouldRetrigger = true;
+
+private:
+
+	int numPressedKeys = 0;
+
 };
 
 

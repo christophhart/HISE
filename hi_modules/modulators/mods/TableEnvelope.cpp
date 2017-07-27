@@ -48,6 +48,8 @@ TableEnvelope::TableEnvelope(MainController *mc, const String &id, int voiceAmou
 
 	for(int i = 0; i < polyManager.getVoiceAmount(); i++) states.add(createSubclassedState(i));
 
+	monophonicState = createSubclassedState(-1);
+
 	attackChain->setIsVoiceStartChain(true);
 	releaseChain->setIsVoiceStartChain(true);
 
@@ -92,75 +94,106 @@ ValueTree TableEnvelope::exportAsValueTree() const
 
 void TableEnvelope::startVoice(int voiceIndex)
 {
-	
-	TableEnvelopeState *state = static_cast<TableEnvelopeState*>(states[voiceIndex]);
-	
-	attackChain->startVoice(voiceIndex);
-	releaseChain->startVoice(voiceIndex);
-
-	state->attackModValue =  1.0f / jmax<float>(0.001f, attackChain->getConstantVoiceValue(voiceIndex));
-	state->releaseModValue = 1.0f / jmax<float>(0.001f, releaseChain->getConstantVoiceValue(voiceIndex));
-	
-	state->uptime = 0.0f;
-
-	if (attack == 0.0f || state->attackModValue > 998.0)
+	if (isMonophonic)
 	{
-		state->current_value = 1.0f;
-		state->current_state = TableEnvelopeState::SUSTAIN;
+		EnvelopeModulator::startVoice(voiceIndex);
+
+		const bool isFirstKey = getNumPressedKeys() == 1;
+		const bool restartEnvelope = shouldRetrigger || isFirstKey;
+		
+		if (restartEnvelope)
+		{
+			auto monoState = static_cast<TableEnvelopeState*>(monophonicState.get());
+
+			attackChain->startVoice(voiceIndex);
+			releaseChain->startVoice(voiceIndex);
+
+			monoState->attackModValue = 1.0f / jmax<float>(0.001f, attackChain->getConstantVoiceValue(voiceIndex));
+			monoState->releaseModValue = 1.0f / jmax<float>(0.001f, attackChain->getConstantVoiceValue(voiceIndex));
+
+			monoState->uptime = 0.0f;
+
+			if (attack == 0.0f || monoState->attackModValue > 998.0)
+			{
+				monoState->current_value = 1.0f;
+				monoState->current_state = TableEnvelopeState::SUSTAIN;
+			}
+			else
+			{
+				monoState->current_state = isFirstKey ?	TableEnvelopeState::ATTACK : TableEnvelopeState::RETRIGGER;
+			}
+		}
 	}
 	else
 	{
-		state->current_state = TableEnvelopeState::ATTACK;
+		auto state = static_cast<TableEnvelopeState*>(states[voiceIndex]);
+
+		attackChain->startVoice(voiceIndex);
+		releaseChain->startVoice(voiceIndex);
+
+		state->attackModValue = 1.0f / jmax<float>(0.001f, attackChain->getConstantVoiceValue(voiceIndex));
+		state->releaseModValue = 1.0f / jmax<float>(0.001f, releaseChain->getConstantVoiceValue(voiceIndex));
+
+		state->uptime = 0.0f;
+
+		if (attack == 0.0f || state->attackModValue > 998.0)
+		{
+			state->current_value = 1.0f;
+			state->current_state = TableEnvelopeState::SUSTAIN;
+		}
+		else
+		{
+			state->current_state = TableEnvelopeState::ATTACK;
+		}
 	}
-
-	
-
-
-	
 }
 
 void TableEnvelope::stopVoice(int voiceIndex)
 {
-	TableEnvelopeState *state = static_cast<TableEnvelopeState*>(states[voiceIndex]);
-	//jassert(state->current_state == TableEnvelopeState::SUSTAIN || state->current_state == TableEnvelopeState::ATTACK);
+	if (isMonophonic)
+	{
+		EnvelopeModulator::stopVoice(voiceIndex);
 
-	
-	state->current_state = TableEnvelopeState::RELEASE;
+		if (getNumPressedKeys() == 0)
+		{
+			auto monoState = static_cast<TableEnvelopeState*>(monophonicState.get());
+			monoState->current_state = TableEnvelopeState::RELEASE;
 
-	state->releaseGain = state->current_value;
+			monoState->releaseGain = monoState->current_value;
+			monoState->uptime = 0;
+		}
+	}
+	else
+	{
+		auto state = static_cast<TableEnvelopeState*>(states[voiceIndex]);
 
-	state->uptime = 0;
-
+		state->current_state = TableEnvelopeState::RELEASE;
+		state->releaseGain = state->current_value;
+		state->uptime = 0;
+	}
 }
 
 void TableEnvelope::calculateBlock(int startSample, int numSamples)
 {
+	const int voiceIndex = isMonophonic ? -1 : polyManager.getCurrentVoice();
+
+	auto state = static_cast<TableEnvelopeState*>(isMonophonic ? monophonicState.get() : states[voiceIndex]);
+
 	if (--numSamples >= 0)
 	{
 		const float value = calculateNewValue();
 		internalBuffer.setSample(0, startSample, value);
 		++startSample;
-		if (polyManager.getCurrentVoice() == polyManager.getLastStartedVoice())
+		if (isMonophonic || voiceIndex == polyManager.getLastStartedVoice())
 		{
-			const int voiceIndex = polyManager.getCurrentVoice();
 
 			jassert(voiceIndex < states.size());
-
-			TableEnvelopeState *state = static_cast<TableEnvelopeState*>(states[voiceIndex]);
-
 
 			// skip sustaining and idle envelopes
 			if (state->current_state == TableEnvelopeState::SUSTAIN)
 			{
 				sendTableIndexChangeMessage(false, attackTable, 1.0f);
 				sendTableIndexChangeMessage(false, releaseTable, 0.0f);
-				/*
-				currentValues.outL = 1.0f;
-
-				setInputValue(1.0f);
-
-				currentValues.inL = 1.0f;
-				*/
 			}
 			else
 			{
@@ -169,36 +202,37 @@ void TableEnvelope::calculateBlock(int startSample, int numSamples)
 				const float indexValue = (float)state->uptime / (float)tableToUse->getLengthInSamples();
 
 				sendTableIndexChangeMessage(false, tableToUse, indexValue);
-				
-
-				/*
-				// Uses negative values to indicate that the envelope is in release phase. Not very nice, but works.
-				const float signum = (state->current_state == TableEnvelopeState::ATTACK ? 1.0f : -1.0f);
-
-				const SampleLookupTable *tableToUse = state->current_state == TableEnvelopeState::ATTACK ? attackTable : releaseTable;
-
-				const float value = (float)state->uptime / (float)tableToUse->getLengthInSamples();
-
-				currentValues.outL = state->current_value;
-				currentValues.inL = value;
-				currentValues.inR = signum;
-
-				setInputValue(value * signum);
-
-				*/
 			}
 
 			setOutputValue(value);
 		}
 	}
 
-
-
-
 	while (--numSamples >= 0)
 	{
 		internalBuffer.setSample(0, startSample, calculateNewValue());
 		++startSample;
+	}
+}
+
+void TableEnvelope::reset(int voiceIndex)
+{
+	if (isMonophonic)
+	{
+		return;
+	}
+	else
+	{
+		EnvelopeModulator::reset(voiceIndex);
+
+		TableEnvelopeState *state = static_cast<TableEnvelopeState*>(states[voiceIndex]);
+
+		state->current_state = TableEnvelopeState::IDLE;
+		state->current_value = 0.0f;
+
+		setInputValue(0.0f);
+		currentValues.inL = 0.0f;
+		currentValues.outR = 0.0f;
 	}
 }
 
@@ -210,11 +244,11 @@ void TableEnvelope::handleHiseEvent(const HiseEvent& m)
 
 float TableEnvelope::calculateNewValue()
 {
-	const int voiceIndex = polyManager.getCurrentVoice();
+	const int voiceIndex = isMonophonic ? -1 : polyManager.getCurrentVoice();
 
 	jassert(voiceIndex < states.size());
 
-	TableEnvelopeState *state = static_cast<TableEnvelopeState*>(states[voiceIndex]);
+	TableEnvelopeState *state = static_cast<TableEnvelopeState*>(isMonophonic ? monophonicState.get() : states[voiceIndex]);
 
 	switch(state->current_state)
 	{
@@ -228,7 +262,7 @@ float TableEnvelope::calculateNewValue()
 		{
 			state->uptime = 0.0f;
 
-			if(attackTable->getLastValue() <= 0.01f)
+			if(!isMonophonic && attackTable->getLastValue() <= 0.01f)
 			{
 				stopVoice(voiceIndex);
 				
@@ -242,6 +276,37 @@ float TableEnvelope::calculateNewValue()
 		break;
 			
 	case TableEnvelopeState::SUSTAIN: break;
+
+	case TableEnvelopeState::RETRIGGER:
+	{
+		const float targetValue = attackTable->getInterpolatedValue(0.0);
+		const float currentValue = state->current_value;
+
+		const bool down = currentValue > targetValue;
+
+		if (down)
+		{
+			state->current_value -= 0.005;
+
+			if (state->current_value <= jmax<float>(0.0f, targetValue))
+			{
+				state->current_value = targetValue;
+				state->current_state = TableEnvelopeState::ATTACK;
+			}
+		}
+		else
+		{
+			state->current_value += 0.005;
+
+			if (state->current_value >= jmin<float>(1.0f, targetValue))
+			{
+				state->current_value = targetValue;
+				state->current_state = TableEnvelopeState::ATTACK;
+			}
+		}
+
+		break;
+	}
 
 	case TableEnvelopeState::RELEASE:
 
@@ -278,6 +343,19 @@ void TableEnvelope::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 	setInternalAttribute(Attack, attack);
 	setInternalAttribute(Release, release);
+}
+
+bool TableEnvelope::isPlaying(int voiceIndex) const
+{
+	if (isMonophonic)
+	{
+		return true;
+	}
+	else
+	{
+		TableEnvelopeState *state = static_cast<TableEnvelopeState*>(states[voiceIndex]);
+		return state->current_state != TableEnvelopeState::IDLE;
+	}
 }
 
 ProcessorEditorBody *TableEnvelope::createEditor(ProcessorEditor *parentEditor)

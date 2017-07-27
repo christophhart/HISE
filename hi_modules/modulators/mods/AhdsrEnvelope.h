@@ -65,7 +65,7 @@ public:
 	/// @brief special parameters for AhdsrEnvelope
 	enum SpecialParameters
 	{
-		Attack,		 ///< the attack time in milliseconds
+		Attack = EnvelopeModulator::Parameters::numParameters,		 ///< the attack time in milliseconds
 		AttackLevel, ///< the attack level in decibel
 		Hold,		 ///< the hold time in milliseconds
 		Decay,		 ///< the decay time in milliseconds
@@ -152,6 +152,7 @@ public:
 			HOLD, ///< hold phase
 			DECAY, ///< decay phase
 			SUSTAIN, ///< sustain phase (isPlaying() returns \c true)
+			RETRIGGER, ///< retrigger phase (monophonic only)
 			RELEASE, ///< attack phase (isPlaying() returns \c true)
 			IDLE ///< idle state (isPlaying() returns \c false.
 		};

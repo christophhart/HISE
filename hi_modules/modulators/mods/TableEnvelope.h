@@ -53,7 +53,7 @@ public:
 	/** SpecialParameters for the TableEnvelope */
 	enum SpecialParameters
 	{
-		Attack, ///< the attack time in milliseconds
+		Attack = EnvelopeModulator::Parameters::numParameters, ///< the attack time in milliseconds
 		Release, ///< the release time in milliseconds
 		numTotalParameters
 	};
@@ -105,28 +105,19 @@ public:
 
 	void calculateBlock(int startSample, int numSamples) override;;
 
-	void reset(int voiceIndex) override
-	{
-		EnvelopeModulator::reset(voiceIndex);
-
-		TableEnvelopeState *state = static_cast<TableEnvelopeState*>(states[voiceIndex]);
-
-		state->current_state = TableEnvelopeState::IDLE;
-		state->current_value = 0.0f;
-
-		setInputValue(0.0f);
-		currentValues.inL = 0.0f;
-		currentValues.outR = 0.0f;
-		
-
-	};
+	void reset(int voiceIndex) override;;
 
 	/// @brief handles note-on and note-off messages and switches the internal state
 	void handleHiseEvent(const HiseEvent &m) override;
 	
-	float getAttribute (int parameter_index) const
+	float getAttribute (int parameterIndex) const
 	{
-		switch(parameter_index)
+		if (parameterIndex < EnvelopeModulator::Parameters::numParameters)
+		{
+			return EnvelopeModulator::getAttribute(parameterIndex);
+		}
+
+		switch(parameterIndex)
 		{
 			case Attack:				return attack;
 			case Release:				return release;
@@ -135,9 +126,15 @@ public:
 	};
 
 		/** sets the envelope time and calculates the delta values per sample */
-	void setInternalAttribute (int parameter_index, float newValue) override
+	void setInternalAttribute (int parameterIndex, float newValue) override
 	{
-		switch(parameter_index)
+		if (parameterIndex < EnvelopeModulator::Parameters::numParameters)
+		{
+			EnvelopeModulator::setInternalAttribute(parameterIndex, newValue);
+			return;
+		}
+
+		switch(parameterIndex)
 		{
 			case Attack:
 				attack = newValue;
@@ -152,6 +149,25 @@ public:
 		}	
 	};
 
+	float getDefaultValue(int parameterIndex) const
+	{
+		if (parameterIndex < EnvelopeModulator::Parameters::numParameters)
+		{
+			return EnvelopeModulator::getDefaultValue(parameterIndex);
+		}
+
+		switch (parameterIndex)
+		{
+		case Attack:
+			return 20.0f;
+		case Release:
+			return 20.0f;
+		default:
+			jassertfalse;
+			return -1;
+		}
+	}
+
 	int calculateTableLength(float ms)
 	{
 		const int x = (int)(ms * getSampleRate() / 1000.0f);
@@ -165,11 +181,7 @@ public:
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 
 	/** @brief returns \c true, if the envelope is not IDLE and not bypassed. */
-	bool isPlaying(int voiceIndex) const override
-	{
-		TableEnvelopeState *state = static_cast<TableEnvelopeState*>(states[voiceIndex]);
-		return state->current_state != TableEnvelopeState::IDLE;
-	};
+	bool isPlaying(int voiceIndex) const override;;
 
 	/** The container for the envelope state. */
     struct TableEnvelopeState: public EnvelopeModulator::ModulatorState
@@ -193,6 +205,7 @@ public:
 		{
 			ATTACK, ///< attack phase (isPlaying() returns \c true)
 			SUSTAIN, ///< sustain phase (isPlaying() returns \c true)
+			RETRIGGER, ///< retrigger phase (in monophonic mode)
 			RELEASE, ///< attack phase (isPlaying() returns \c true)
 			IDLE ///< idle state (isPlaying() returns \c false.
 		};
