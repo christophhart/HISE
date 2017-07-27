@@ -48,6 +48,7 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 	frequencyChain(new ModulatorChain(mc, "LFO Frequency Mod", 1, Modulation::GainMode, this)),
 	intensityChain(new ModulatorChain(mc, "LFO Intensity Mod", 1, Modulation::GainMode, this)),
 	customTable(new SampleLookupTable()),
+	data(new SliderPackData()),
 	currentWaveform((Waveform)(int)getDefaultValue(WaveFormType)),
 	currentTable(nullptr),
 	currentRandomValue(1.0f),
@@ -69,12 +70,15 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 	parameterNames.add(Identifier("Legato"));
 	parameterNames.add(Identifier("TempoSync"));
 	parameterNames.add(Identifier("SmoothingTime"));
+	parameterNames.add(Identifier("NumSteps"));
 
 	frequencyUpdater.setManualCountLimit(4096);
 
 	randomGenerator.setSeedRandomly();
 
 	getMainController()->addTempoListener(this);
+
+	data->setNumSliders(16);
 
 	frequencyChain->getFactoryType()->setConstrainer(new NoGlobalEnvelopeConstrainer());
 	intensityChain->getFactoryType()->setConstrainer(new NoGlobalEnvelopeConstrainer());
@@ -129,6 +133,8 @@ float LfoModulator::getDefaultValue(int parameterIndex) const
 		return false;
 	case Parameters::SmoothingTime:
 		return 5.0f;
+	case Parameters::NumSteps:
+		return 16.0f;
 	default:
 		jassertfalse;
 		return -1.0f;
@@ -151,6 +157,8 @@ float LfoModulator::getAttribute(int parameter_index) const
 		return tempoSync ? 1.0f : 0.0f;
 	case Parameters::SmoothingTime:
 		return smoother.getSmoothingTime();
+	case Parameters::NumSteps:
+		return data->getNumSliders();
 	default: 
 		jassertfalse;
 		return -1.0f;
@@ -216,6 +224,9 @@ void LfoModulator::setInternalAttribute (int parameter_index, float newValue)
 		smoothingTime = newValue;
 		smoother.setSmoothingTime(smoothingTime);
 		break;
+	case Parameters::NumSteps:
+		data->setNumSliders(jmax<int>(1, (int)newValue));
+		break;
 	default: 
 		jassertfalse;
 	}
@@ -244,6 +255,23 @@ float LfoModulator::calculateNewValue ()
 
 		newValue = currentRandomValue;
 
+	}
+	else if (currentWaveform == Waveform::Steps)
+	{
+		if (lastSwapIndex != index && nextIndex - firstIndex != 1)
+		{
+			lastSwapIndex = index;
+
+			currentSliderIndex = (currentSliderIndex + 1) % data->getNumSliders();
+
+			DBG(currentSliderIndex);
+
+			data->setDisplayedIndex(currentSliderIndex);
+
+			currentSliderValue = 1.0f - data->getValue(currentSliderIndex);	
+		}
+
+		newValue = currentSliderValue;
 	}
 	else
 	{
@@ -319,6 +347,16 @@ void LfoModulator::handleHiseEvent(const HiseEvent &m)
 		if(legato == false || keysPressed == 0)
 		{
 			uptime = 0.0;
+			
+			if (currentWaveform == Steps)
+			{
+				currentSliderIndex = 0;
+				currentSliderValue = 1.0f - data->getValue(0);
+				data->setDisplayedIndex(0);
+				lastSwapIndex = -1;
+			}
+
+			
 			intensityChain->startVoice(0);
 			//intensityInterpolator.setValue(intensityChain->getConstantVoiceValue(0));
 			frequencyChain->startVoice(0);

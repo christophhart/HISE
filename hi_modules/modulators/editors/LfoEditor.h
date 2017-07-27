@@ -51,14 +51,11 @@ public:
 
 	void updateGui() override
 	{
-
 		fadeInSlider->updateValue();
 
 		waveFormSelector->updateValue();
 
 		waveformDisplay->setType((int)getProcessor()->getAttribute(LfoModulator::WaveFormType));
-
-		tableUsed = getProcessor()->getAttribute(LfoModulator::WaveFormType) == LfoModulator::Custom;
 
 		tempoSyncButton->updateValue();
 		retriggerButton->updateValue();
@@ -67,6 +64,25 @@ public:
 
 		smoothTimeSlider->updateValue();
 
+		if (getProcessor()->getAttribute(LfoModulator::TempoSync) > 0.5f)
+		{
+			frequencySlider->setMode(HiSlider::Mode::TempoSync);
+		}
+		else
+		{
+			frequencySlider->setMode(HiSlider::Frequency, 0.5, 40.0, 10.0);
+		}
+
+		const bool newTableUsed = getProcessor()->getAttribute(LfoModulator::WaveFormType) == LfoModulator::Custom;
+		const bool newStepsUsed = getProcessor()->getAttribute(LfoModulator::WaveFormType) == LfoModulator::Steps;
+
+		if (newTableUsed != tableUsed || newStepsUsed != stepsUsed)
+		{
+			tableUsed = newTableUsed;
+			stepsUsed = newStepsUsed;
+			refreshBodySize();
+			resized();
+		}
 	};
 
 	void timerCallback() override
@@ -79,7 +95,7 @@ public:
 
 	int getBodyHeight() const override
 	{
-		return tableUsed ? h : 120 ;
+		return (tableUsed || stepsUsed) ? h : 120 ;
 	};
 
 
@@ -100,6 +116,9 @@ private:
 	int h;
 
 	bool tableUsed;
+	bool stepsUsed;
+
+	ScopedPointer<SliderPack> stepPanel;
 
     //[/UserVariables]
 

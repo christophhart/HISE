@@ -42,7 +42,8 @@
 */
 class LfoModulator: public TimeVariantModulator,
 					public TempoListener,
-					public LookupTableProcessor
+					public LookupTableProcessor,
+					public SliderPackProcessor
 {
 public:
 
@@ -60,6 +61,7 @@ public:
 		Square,
 		Random,
 		Custom,
+		Steps,
 		numWaveforms
 	};
 
@@ -72,6 +74,7 @@ public:
 		Legato, ///< if enabled multiple keys are pressed, it will not retrigger the LFO
 		TempoSync, ///< enable sync to Host Tempo
 		SmoothingTime, ///< smoothes hard edges of the oscillator
+		NumSteps,
 		numParameters
 	};
 
@@ -106,7 +109,7 @@ public:
 
 		loadTable(customTable, "CustomWaveform");
 
-		
+		data->fromBase64(v.getProperty("StepData"));
 	};
 
 	ValueTree exportAsValueTree() const override
@@ -122,6 +125,8 @@ public:
 		
 		saveTable(customTable, "CustomWaveform");
 		
+		v.setProperty("StepData", data->toBase64(), nullptr);
+
 		return v;
 	}
 
@@ -149,6 +154,10 @@ public:
 		default:				jassertfalse; return nullptr;
 		}
 	};
+
+	SliderPackData *getSliderPackData(int /*index*/) override { return data; };
+
+	const SliderPackData *getSliderPackData(int /*index*/) const override { return data; };
 
 	/** Returns a new ControlEditor */
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
@@ -329,6 +338,8 @@ private:
 
 	AudioSampleBuffer frequencyBuffer;
 
+	
+
 	float voiceIntensityValue;
 
 	float intensityModulationValue;
@@ -338,6 +349,12 @@ private:
 	static float sawTable[SAMPLE_LOOKUP_TABLE_SIZE];
 	static float squareTable[SAMPLE_LOOKUP_TABLE_SIZE];
 	ScopedPointer<SampleLookupTable> customTable;
+
+	ScopedPointer<SliderPackData> data;
+
+	int currentSliderIndex = 0;
+	float currentSliderValue = 0.0f;
+	int lastSwapIndex = 0;
 
 	float currentRandomValue;
 

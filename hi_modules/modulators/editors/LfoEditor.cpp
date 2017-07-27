@@ -72,6 +72,7 @@ LfoEditorBody::LfoEditorBody (ProcessorEditor *p)
     waveFormSelector->addItem (TRANS("Square"), 4);
     waveFormSelector->addItem (TRANS("Random"), 5);
     waveFormSelector->addItem (TRANS("Custom"), 6);
+	waveFormSelector->addItem(TRANS("Steps"), 7);
     waveFormSelector->addListener (this);
 
     addAndMakeVisible (waveformDisplay = new WaveformComponent());
@@ -130,6 +131,10 @@ LfoEditorBody::LfoEditorBody (ProcessorEditor *p)
     label->setFont (GLOBAL_BOLD_FONT().withHeight(26.0f));
     
     //[/UserPreSize]
+
+	addAndMakeVisible(stepPanel = new SliderPack(dynamic_cast<SliderPackProcessor*>(getProcessor())->getSliderPackData(0)));
+
+	stepPanel->setVisible(false);
 
     setSize (800, 255);
 
@@ -193,7 +198,20 @@ void LfoEditorBody::resized()
     smoothTimeSlider->setBounds ((getWidth() / 2) + 88, 16, 128, 48);
     //[UserResized] Add your own custom resize handling here..
 
-	waveformTable->setVisible(tableUsed);
+	waveformTable->setVisible(tableUsed && !stepsUsed);
+
+
+
+	stepPanel->setVisible(!tableUsed && stepsUsed);
+
+	int maxWidth = waveformTable->getWidth();
+
+	int numSteps = stepPanel->getNumSliders();
+
+	int stepWidth = numSteps * (maxWidth / numSteps);
+	int stepX = (getWidth() - stepWidth) / 2;
+
+	stepPanel->setBounds(stepX, waveformTable->getY(), stepWidth, waveformTable->getHeight());
 
     //[/UserResized]
 }
@@ -236,11 +254,16 @@ void LfoEditorBody::comboBoxChanged (ComboBox* comboBoxThatHasChanged)
 
 		waveformDisplay->setType(waveFormSelector->getSelectedId());
 
-		tableUsed = waveFormSelector->getSelectedId() == WaveformComponent::Custom;
+		const bool newTableUsed = waveFormSelector->getSelectedId() == LfoModulator::Custom;
+		const bool newStepsUsed = waveFormSelector->getSelectedId() == LfoModulator::Steps;
 
-		waveformTable->setVisible(tableUsed);
-
-		refreshBodySize();
+		if (newTableUsed != tableUsed || newStepsUsed != stepsUsed)
+		{
+			tableUsed = newTableUsed;
+			stepsUsed = newStepsUsed;
+			refreshBodySize();
+			resized();
+		}
 
         //[/UserComboBoxCode_waveFormSelector]
     }
@@ -258,14 +281,7 @@ void LfoEditorBody::buttonClicked (Button* buttonThatWasClicked)
     {
         //[UserButtonCode_tempoSyncButton] -- add your button handler code here..
 
-		if(tempoSyncButton->getToggleState())
-		{
-			frequencySlider->setMode(HiSlider::Mode::TempoSync);
-		}
-		else
-		{
-			frequencySlider->setMode(HiSlider::Frequency, 0.5, 40.0, 10.0);
-		}
+		
 
 
 
