@@ -34,7 +34,6 @@
 
 void ProcessorWithScriptingContent::setControlValue(int index, float newValue)
 {
-
 	jassert(content.get() != nullptr);
 
 	if (content != nullptr && index < content->getNumComponents())
@@ -74,9 +73,6 @@ void ProcessorWithScriptingContent::setControlValue(int index, float newValue)
 #endif
 
 			controlCallback(c, newValue);
-
-
-			
 		}
 	}
 }
@@ -84,10 +80,7 @@ void ProcessorWithScriptingContent::setControlValue(int index, float newValue)
 float ProcessorWithScriptingContent::getControlValue(int index) const
 {
 	if (content != nullptr && index < content->getNumComponents())
-	{
 		return content->getComponent(index)->getValue();
-
-	}
 
 	else return 1.0f;
 }
@@ -188,12 +181,8 @@ ScriptingApi::Content::ScriptComponent * ProcessorWithScriptingContent::checkCon
 
 FileChangeListener::~FileChangeListener()
 {
-	
-
 	watchers.clear();
 	masterReference.clear();
-
-	
 }
 
 void FileChangeListener::addFileWatcher(const File &file)

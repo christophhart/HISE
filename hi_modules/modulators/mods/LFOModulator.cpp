@@ -158,7 +158,7 @@ float LfoModulator::getAttribute(int parameter_index) const
 	case Parameters::SmoothingTime:
 		return smoother.getSmoothingTime();
 	case Parameters::NumSteps:
-		return data->getNumSliders();
+		return (float)data->getNumSliders();
 	default: 
 		jassertfalse;
 		return -1.0f;

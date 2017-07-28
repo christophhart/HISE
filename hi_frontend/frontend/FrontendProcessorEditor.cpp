@@ -134,9 +134,7 @@ void FrontendProcessorEditor::setGlobalScaleFactor(float newScaleFactor)
 
 void FrontendProcessorEditor::resized()
 {
-	int y = 0;
-	
-    int width = originalSizeX != 0 ? originalSizeX : getWidth();
+	int width = originalSizeX != 0 ? originalSizeX : getWidth();
     int height = originalSizeY != 0 ? originalSizeY : getHeight();
     
     container->setBounds(0, 0, width, height);

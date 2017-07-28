@@ -456,9 +456,9 @@ float SimpleEnvelope::calculateNewExpValue()
 
 
 
-void SimpleEnvelope::setAttackRate(float rate, SimpleEnvelopeState *state) {
+void SimpleEnvelope::setAttackRate(float rate, SimpleEnvelopeState *stateToChange) {
 	
-	if (state == nullptr)
+	if (stateToChange == nullptr)
 	{
 		attack = rate;
 
@@ -477,7 +477,7 @@ void SimpleEnvelope::setAttackRate(float rate, SimpleEnvelopeState *state) {
 	}
 	else
 	{
-		SimpleEnvelopeState *thisState = static_cast<SimpleEnvelopeState*>(state);
+		SimpleEnvelopeState *thisState = static_cast<SimpleEnvelopeState*>(stateToChange);
 
 		if (linearMode)
 		{

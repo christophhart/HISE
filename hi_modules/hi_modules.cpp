@@ -1,5 +1,5 @@
 
-#include "hi_modules.h"
+#include "JuceHeader.h"
 
 /** @defgroup modulatorTypes ModulatorTypes =========================================================================
 *	@ingroup modulator

@@ -1,7 +1,7 @@
 
 #if HI_EXPORT_DSP_LIBRARY
 
-#include "JuceHeader.h"
+#include  "JuceHeader.h"
 
 
 size_t HelperFunctions::writeString(char* location, const char* content)

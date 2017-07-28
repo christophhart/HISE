@@ -2003,7 +2003,7 @@ void CompileExporter::HeaderHelpers::addCopyProtectionHeaderLines(const String &
 	}
 }
 
-void CompileExporter::HeaderHelpers::addCustomToolbarRegistration(CompileExporter* exporter, String& pluginDataHeaderFile)
+void CompileExporter::HeaderHelpers::addCustomToolbarRegistration(CompileExporter* /*exporter*/, String& /*pluginDataHeaderFile*/)
 {}
 
 void CompileExporter::HeaderHelpers::addProjectInfoLines(CompileExporter* exporter, String& pluginDataHeaderFile)

@@ -247,6 +247,40 @@ const String FrontendStandaloneApplication::getApplicationVersion()
 	return ProjectInfo::versionString;
 }
 
+void FrontendStandaloneApplication::AudioWrapper::init()
+{
+	setOpaque(true);
+	standaloneProcessor = new StandaloneProcessor();
+
+	editor = standaloneProcessor->createEditor();
+
+#if !HISE_IOS
+	context = new OpenGLContext();
+
+	if (dynamic_cast<GlobalSettingManager*>(editor->getAudioProcessor())->useOpenGL)
+		context->attachTo(*editor);
+#endif
+
+	addAndMakeVisible(editor);
+
+	if (splashScreen != nullptr)
+	{
+		Desktop::getInstance().getAnimator().fadeOut(splashScreen, 600);
+		splashScreen = nullptr;
+	}
+
+#if HISE_IOS
+	resized();
+#else
+	float sf = standaloneProcessor->getScaleFactor();
+
+	int newWidth = (int)((float)editor->getWidth()*sf);
+	int newHeight = (int)((float)editor->getHeight() * sf);
+
+	setSize(newWidth, newHeight);
+#endif
+}
+
 FrontendStandaloneApplication::AudioWrapper::AudioWrapper()
 {
 #if USE_SPLASH_SCREEN
@@ -282,12 +316,6 @@ FrontendStandaloneApplication::AudioWrapper::AudioWrapper()
 	init();
 #endif
 
-#if !HISE_IOS
-	context = new OpenGLContext();
-
-	if(dynamic_cast<GlobalSettingManager*>(editor->getAudioProcessor())->useOpenGL)
-		context->attachTo(*editor);
-#endif
 
 	
 }

@@ -331,11 +331,6 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FrontendProcessor)	
 };
 
-namespace juce
-{
-	class OpenGLContext;
-}
-
 
 class FrontendStandaloneApplication : public JUCEApplication
 {
@@ -359,32 +354,7 @@ public:
 	{
 	public:
 
-		void init()
-		{
-            setOpaque(true);
-			standaloneProcessor = new StandaloneProcessor();
-
-			editor = standaloneProcessor->createEditor();
-
-			addAndMakeVisible(editor);
-
-			if (splashScreen != nullptr)
-			{
-				Desktop::getInstance().getAnimator().fadeOut(splashScreen, 600);
-				splashScreen = nullptr;
-			}
-
-#if HISE_IOS
-            resized();
-#else
-			float sf = standaloneProcessor->getScaleFactor();
-
-			int newWidth = (int)((float)editor->getWidth()*sf);
-			int newHeight = (int)((float)editor->getHeight() * sf);
-
-			setSize(newWidth, newHeight);
-#endif
-		}
+		void init();
 
 		void timerCallback() override
 		{

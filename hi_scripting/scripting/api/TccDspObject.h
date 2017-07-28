@@ -35,7 +35,7 @@
 #ifndef TCCDSPOBJECT_H_INCLUDED
 #define TCCDSPOBJECT_H_INCLUDED
 
-#include "JuceHeader.h"
+ 
 
 
 

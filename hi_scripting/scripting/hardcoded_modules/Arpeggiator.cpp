@@ -79,7 +79,7 @@ void Arpeggiator::onInit()
 	static const String tempoList = "1/1\n1/2D\n1/2\n1/2T\n1/4D\n1/4\n1/4T\n1/8D\n1/8\n1/8T\n1/16D\n1/16\n1/16T\n1/32D\n1/32\n1/32D\n1/64D\n1/64\n1/64T";
 
 	timeSigValArray = createTempoDivisionValueArrayViaStringArray(tempoList);
-	minNoteLenSamples = Engine.getSampleRate() / 80;
+	minNoteLenSamples = (int)(Engine.getSampleRate() / 80.0);
 
 	bypassButton = Content.addButton("BypassButton", 10, 10);
 	bypassButton->set("text", "Bypass");

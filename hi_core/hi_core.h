@@ -53,6 +53,8 @@ END_JUCE_MODULE_DECLARATION
 #ifndef HI_CORE_INCLUDED
 #define HI_CORE_INCLUDED
 
+
+
 #include "AppConfig.h"
 
 #include "../JUCE/modules/juce_core/juce_core.h"
@@ -62,6 +64,7 @@ END_JUCE_MODULE_DECLARATION
 #include "../JUCE/modules/juce_audio_utils/juce_audio_utils.h"
 #include "../JUCE/modules/juce_gui_extra/juce_gui_extra.h"
 #include "../JUCE/modules/juce_tracktion_marketplace/juce_tracktion_marketplace.h"
+#include "../JUCE/modules/juce_opengl/juce_opengl.h"
 #include "../hi_lac/hi_lac.h"
 
 #include "hi_binary_data/hi_binary_data.h"
@@ -276,13 +279,13 @@ For all defined variables:
 
 #include "hi_core/hi_core.h"
 #include "additional_libraries/additional_libraries.h"
-#include "hi_components/hi_components.h"
-#include "hi_dsp/hi_dsp.h"
 
 
-#include "hi_components/floating_layout/FloatingLayout.h"
 
 
-#include "hi_sampler/hi_sampler.h"
+
+
+
+
 
 #endif   // HI_CORE_INCLUDED

@@ -1022,7 +1022,7 @@ public:
         return !isAUv3();
 #else
       
-#if IS_STANDALONE_FRONTEND
+#if IS_STANDALONE_FRONTEND || USE_BACKEND
         return true;
 #else
         return false;

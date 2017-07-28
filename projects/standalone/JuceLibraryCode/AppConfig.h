@@ -30,10 +30,13 @@
 
 //==============================================================================
 #define JUCE_MODULE_AVAILABLE_hi_backend                      1
+#define JUCE_MODULE_AVAILABLE_hi_components                   1
 #define JUCE_MODULE_AVAILABLE_hi_core                         1
+#define JUCE_MODULE_AVAILABLE_hi_dsp                          1
 #define JUCE_MODULE_AVAILABLE_hi_dsp_library                  1
 #define JUCE_MODULE_AVAILABLE_hi_lac                          1
 #define JUCE_MODULE_AVAILABLE_hi_modules                      1
+#define JUCE_MODULE_AVAILABLE_hi_sampler                      1
 #define JUCE_MODULE_AVAILABLE_hi_scripting                    1
 #define JUCE_MODULE_AVAILABLE_juce_audio_basics               1
 #define JUCE_MODULE_AVAILABLE_juce_audio_devices              1

@@ -33,16 +33,12 @@
 #ifndef HI_BINARY_DATA_H_INCLUDED
 #define HI_BINARY_DATA_H_INCLUDED
 
+
 namespace HiBinaryData
 {
-
-
 #include "FrontendBinaryData.h"
-
-
 #include "ProcessorEditorHeaderBinaryData.h"
 #include "LookAndFeelBinaryData.h"
-
 }
 
 #endif  // HI_BINARY_DATA_H_INCLUDED

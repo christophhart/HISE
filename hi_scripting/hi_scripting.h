@@ -42,7 +42,7 @@ BEGIN_JUCE_MODULE_DECLARATION
   website:          http://hise.audio
   license:          GPL / Commercial
 
-  dependencies:      juce_audio_basics, juce_audio_devices, juce_audio_formats, juce_audio_processors, juce_core, juce_cryptography, juce_data_structures, juce_events, juce_graphics, juce_gui_basics, juce_gui_extra, juce_opengl, hi_core, hi_dsp_library
+  dependencies:      juce_audio_basics, juce_audio_devices, juce_audio_formats, juce_audio_processors, juce_core, juce_cryptography, juce_data_structures, juce_events, juce_graphics, juce_gui_basics, juce_gui_extra, juce_opengl, hi_core, hi_dsp, hi_components, hi_dsp_library, hi_sampler
 
 END_JUCE_MODULE_DECLARATION
 
@@ -56,7 +56,7 @@ END_JUCE_MODULE_DECLARATION
 #define INCLUDE_NATIVE_JIT 0
 
 #include "AppConfig.h"
-#include "../hi_core/hi_core.h"
+#include "../hi_sampler/hi_sampler.h"
 #include "../hi_dsp_library/hi_dsp_library.h"
 
 #if INCLUDE_NATIVE_JIT

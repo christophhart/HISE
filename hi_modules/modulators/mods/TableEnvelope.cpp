@@ -286,7 +286,7 @@ float TableEnvelope::calculateNewValue()
 
 		if (down)
 		{
-			state->current_value -= 0.005;
+			state->current_value -= 0.005f;
 
 			if (state->current_value <= jmax<float>(0.0f, targetValue))
 			{
@@ -296,7 +296,7 @@ float TableEnvelope::calculateNewValue()
 		}
 		else
 		{
-			state->current_value += 0.005;
+			state->current_value += 0.005f;
 
 			if (state->current_value >= jmin<float>(1.0f, targetValue))
 			{

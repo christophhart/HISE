@@ -32,7 +32,7 @@
 
 /* HI Module */
 
-#include "hi_frontend.h"
+#include "JuceHeader.h"
 
 #include "frontend/FrontEndProcessor.cpp"
 #include "frontend/FrontendProcessorEditor.cpp"

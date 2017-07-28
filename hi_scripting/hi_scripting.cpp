@@ -32,7 +32,7 @@
 
 /* HI Module */
 
-#include "hi_scripting.h"
+#include "JuceHeader.h"
 
 #if JUCE_IOS
 #else

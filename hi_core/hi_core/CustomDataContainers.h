@@ -36,6 +36,12 @@
 #define UNORDERED_STACK_SIZE NUM_POLYPHONIC_VOICES
 
 
+#if JUCE_32BIT
+#pragma warning(push)
+#pragma warning(disable: 4018)
+#endif
+
+
 /** A container that has a unsorted but packed list of elements.
 *
 *	Features:
@@ -53,19 +59,80 @@ template <typename ElementType> class UnorderedStack
 public:
 
 	/** Creates an unordered stack. */
-	UnorderedStack() noexcept;
 
-	~UnorderedStack();
+	UnorderedStack() noexcept
+	{
+		position = 0;
+
+		for (int i = 0; i < UNORDERED_STACK_SIZE; i++)
+		{
+			data[i] = ElementType();
+		}
+	}
+
+	
+	~UnorderedStack()
+	{
+		for (int i = 0; i < position; i++)
+		{
+			data[i] = ElementType();
+		}
+	}
 
 	/** Inserts an element at the end of the unordered stack. */
-	void insert(const ElementType& elementTypeToInsert);;
+	void insert(const ElementType& elementTypeToInsert)
+	{
+		if (contains(elementTypeToInsert))
+		{
+			return;
+		}
+
+		data[position] = elementTypeToInsert;
+
+		if (position < UNORDERED_STACK_SIZE)
+			position++;
+	}
 
 	/** Removes the given element and puts the last element into its slot. */
-	void remove(const ElementType& elementTypeToRemove);;
 
-	void removeElement(int index);
+	void remove(const ElementType& elementTypeToRemove)
+	{
+		if (!contains(elementTypeToRemove))
+		{
+			return;
+		}
 
-	bool contains(const ElementType& elementToLookFor) const;
+		for (int i = 0; i < position; i++)
+		{
+			if (data[i] == elementTypeToRemove)
+			{
+				jassert(position > 0);
+
+				removeElement(i);
+			}
+		}
+	}
+
+	void removeElement(int index)
+	{
+		if (index < position)
+		{
+			--position;
+			data[index] = data[position];
+			data[position] = ElementType();
+		}
+	}
+
+	bool contains(const ElementType& elementToLookFor) const
+	{
+		for (size_t i = 0; i < position; i++)
+		{
+			if (data[i] == elementToLookFor)
+				return true;
+		}
+
+		return false;
+	}
 
     void clear()
     {
@@ -85,11 +152,15 @@ public:
 		}
 	};
 
-	bool isEmpty() const;
+	bool isEmpty() const
+	{
+		return position == 0;
+	}
 
-	int size() const;
-
-
+	int size() const
+	{
+		return (int)position;
+	}
 
 private:
 
@@ -98,7 +169,9 @@ private:
 	size_t position;
 };
 
-
+#if JUCE_32BIT
+#pragma warning(pop)
+#endif
 
 
 #endif  // CUSTOMDATACONTAINERS_H_INCLUDED

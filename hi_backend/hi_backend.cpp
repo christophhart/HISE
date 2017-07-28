@@ -31,7 +31,7 @@
 */
 
 
-#include "hi_backend.h"
+#include "JuceHeader.h"
 
 #include "backend/BackendBinaryData.cpp"
 #include "backend/BackendCommandIcons.cpp"

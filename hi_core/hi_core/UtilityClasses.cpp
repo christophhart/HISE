@@ -389,42 +389,18 @@ HiseDeviceSimulator::DeviceType HiseDeviceSimulator::currentDevice = HiseDeviceS
 
 void HiseDeviceSimulator::init(AudioProcessor::WrapperType wrapper)
 {
-#if USE_BACKEND
-
-	currentDevice = DeviceType::Desktop;
-#else
-
-    
-    
-#if JUCE_IOS
-    
-    
+#if HISE_IOS
     const bool isIPad = SystemStats::getDeviceDescription() == "iPad";
-    
     const bool isStandalone = wrapper != AudioProcessor::WrapperType::wrapperType_AudioUnitv3;
     
-    
-    
     if(isIPad)
-    {
-        currentDevice = isStandalone ? DeviceType::iPad : DeviceType::iPadAUv3;
-    }
+		currentDevice = isStandalone ? DeviceType::iPad : DeviceType::iPadAUv3;
     else
-    {
-        currentDevice = DeviceType::iPhone5;
-    }
-    
+		currentDevice = DeviceType::iPhone5;
 #else
+	ignoreUnused(wrapper);
     currentDevice = DeviceType::Desktop;
 #endif
-    
-    
-#endif
-    
-    
-    int x = 5;
-    
-    
 }
 
 String HiseDeviceSimulator::getDeviceName(int index)

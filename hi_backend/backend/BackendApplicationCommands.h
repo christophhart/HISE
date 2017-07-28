@@ -35,9 +35,6 @@
 
 class BackendRootWindow;
 
-
-
-
 class BackendCommandTarget: public ApplicationCommandTarget,
 							  public MenuBarModel
 {
