@@ -2124,6 +2124,10 @@ var ScriptingApi::Synth::getIdList(const String &type)
 
 		while (Processor* p = it.getNextProcessor())
 		{
+			// don't include selfie-boy
+			if (dynamic_cast<Processor*>(getScriptProcessor()) == p)
+				continue;
+
 			if (p->getName() == type)
 				idList.add(p->getId());
 		}
