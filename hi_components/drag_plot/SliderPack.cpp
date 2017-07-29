@@ -441,9 +441,35 @@ void SliderPack::paintOverChildren(Graphics &g)
 		{
 			if (displayAlphas[i] > 0.0f)
 			{
-				Rectangle<int> r = sliders[i]->getBounds();
+				const bool biPolar = sliders[i]->getMinimum() < 0;
 
 				g.setColour(Colours::white.withAlpha(displayAlphas[i]));
+
+				auto v = sliders[i]->getPositionOfValue(sliders[i]->getValue());
+
+				int x = sliders[i]->getX();
+				
+				int w = sliders[i]->getWidth();
+				
+				int y;
+				int h;
+
+				if (biPolar)
+				{
+					int h_half = sliders[i]->getHeight() / 2;
+
+					y = v < h_half ? v : h_half;
+					h = v < h_half ? (h_half - y) : (v - h_half);
+				}
+				else
+				{
+					y = v;
+					h = sliders[i]->getHeight() - v;
+				}
+
+				Rectangle<int> r(x, y, w, h);
+
+				
 
 				g.fillRect(r);
 			}
