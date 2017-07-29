@@ -603,6 +603,7 @@ public:
 		HiKey,
 		BlackKeyRatio,
 		DefaultAppearance,
+		DisplayOctaveNumber,
 		numProperyIds
 	};
 
@@ -638,7 +639,7 @@ public:
 
 
 		
-
+		storePropertyInObject(obj, SpecialPanelIds::DisplayOctaveNumber, keyboard->isShowingOctaveNumbers());
 		storePropertyInObject(obj, SpecialPanelIds::LowKey, keyboard->getRangeStart());
 		storePropertyInObject(obj, SpecialPanelIds::HiKey, keyboard->getRangeEnd());
 		storePropertyInObject(obj, SpecialPanelIds::CustomGraphics, keyboard->isUsingCustomGraphics());
@@ -662,6 +663,8 @@ public:
 
 		defaultAppearance = getPropertyWithDefault(object, SpecialPanelIds::DefaultAppearance);
 
+		keyboard->setShowOctaveNumber(getPropertyWithDefault(object, SpecialPanelIds::DisplayOctaveNumber));
+
 		keyboard->setBlackNoteLengthProportion(getPropertyWithDefault(object, SpecialPanelIds::BlackKeyRatio));
 	}
 
@@ -676,6 +679,7 @@ public:
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::HiKey, "HiKey");
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::BlackKeyRatio, "BlackKeyRatio");
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::DefaultAppearance, "DefaultAppearance");
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::DisplayOctaveNumber, "DisplayOctaveNumber");
 
 		jassertfalse;
 		return{};
@@ -692,6 +696,7 @@ public:
 		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::HiKey, 127);
 		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::BlackKeyRatio, 0.7);
 		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::DefaultAppearance, true);
+		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::DisplayOctaveNumber, false);
 
 		jassertfalse;
 		return{};

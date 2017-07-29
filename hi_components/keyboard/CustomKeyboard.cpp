@@ -181,6 +181,12 @@ void CustomKeyboard::drawWhiteNote(int midiNoteNumber, Graphics &g, int x, int y
 		dynamic_cast<CustomKeyboardLookAndFeel*>(&getLookAndFeel())->drawWhiteNote(state, midiNoteNumber, g, x, y, w, h, isDown, isOver, lineColour, textColour);
 	}
 
+	if (displayOctaveNumber && midiNoteNumber % 12 == 0)
+	{
+		g.setFont(GLOBAL_BOLD_FONT().withHeight(w / 3));
+		
+		g.drawText(MidiMessage::getMidiNoteName(midiNoteNumber, true, true, 3), x, (h*3)/4, w, h / 4, Justification::centred);
+	}
 	
 }
 

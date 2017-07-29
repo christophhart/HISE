@@ -122,6 +122,8 @@ public:
 
 	void setUseCustomGraphics(bool shouldUseCustomGraphics);
 
+	void setShowOctaveNumber(bool shouldDisplayOctaveNumber) { displayOctaveNumber = shouldDisplayOctaveNumber; }
+
 	int getLowKey() const { return lowKey; }
 	int getHiKey() const { return hiKey; }
 	void setRange(int lowKey_, int hiKey_)
@@ -134,6 +136,8 @@ public:
 
 
 	bool isUsingCustomGraphics() const noexcept { return useCustomGraphics; };
+
+	bool isShowingOctaveNumbers() const { return displayOctaveNumber; }
 
 protected:
 
@@ -158,6 +162,8 @@ private:
     
     int lowKey = 12;
 	int hiKey = 127;
+
+	bool displayOctaveNumber = false;
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CustomKeyboard)
