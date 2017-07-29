@@ -83,10 +83,13 @@ OBJECTS := \
   $(JUCE_OBJDIR)/Main_90ebc5c2.o \
   $(JUCE_OBJDIR)/BinaryData_ce4232d4.o \
   $(JUCE_OBJDIR)/hi_backend_1cbc0b3f.o \
+  $(JUCE_OBJDIR)/hi_components_4aaf6315.o \
   $(JUCE_OBJDIR)/hi_core_bbc2a29e.o \
+  $(JUCE_OBJDIR)/hi_dsp_acee96ec.o \
   $(JUCE_OBJDIR)/hi_dsp_library_a9241d68.o \
   $(JUCE_OBJDIR)/hi_modules_e5677ab2.o \
   $(JUCE_OBJDIR)/hi_lac_34b20439.o \
+  $(JUCE_OBJDIR)/hi_sampler_35b36ab3.o \
   $(JUCE_OBJDIR)/hi_scripting_d8d7e4e2.o \
   $(JUCE_OBJDIR)/juce_audio_basics_6b797ca1.o \
   $(JUCE_OBJDIR)/juce_audio_devices_a742c38b.o \
@@ -154,9 +157,19 @@ $(JUCE_OBJDIR)/hi_backend_1cbc0b3f.o: ../../JuceLibraryCode/hi_backend.cpp
 	@echo "Compiling hi_backend.cpp"
 	@$(CXX) $(JUCE_CXXFLAGS) -o "$@" -c "$<"
 
+$(JUCE_OBJDIR)/hi_components_4aaf6315.o: ../../JuceLibraryCode/hi_components.cpp
+	-@mkdir -p $(JUCE_OBJDIR)
+	@echo "Compiling hi_components.cpp"
+	@$(CXX) $(JUCE_CXXFLAGS) -o "$@" -c "$<"
+
 $(JUCE_OBJDIR)/hi_core_bbc2a29e.o: ../../JuceLibraryCode/hi_core.cpp
 	-@mkdir -p $(JUCE_OBJDIR)
 	@echo "Compiling hi_core.cpp"
+	@$(CXX) $(JUCE_CXXFLAGS) -o "$@" -c "$<"
+
+$(JUCE_OBJDIR)/hi_dsp_acee96ec.o: ../../JuceLibraryCode/hi_dsp.cpp
+	-@mkdir -p $(JUCE_OBJDIR)
+	@echo "Compiling hi_dsp.cpp"
 	@$(CXX) $(JUCE_CXXFLAGS) -o "$@" -c "$<"
 
 $(JUCE_OBJDIR)/hi_dsp_library_a9241d68.o: ../../JuceLibraryCode/hi_dsp_library.cpp
@@ -172,6 +185,11 @@ $(JUCE_OBJDIR)/hi_lac_34b20439.o: ../../JuceLibraryCode/hi_lac.cpp
 $(JUCE_OBJDIR)/hi_modules_e5677ab2.o: ../../JuceLibraryCode/hi_modules.cpp
 	-@mkdir -p $(JUCE_OBJDIR)
 	@echo "Compiling hi_modules.cpp"
+	@$(CXX) $(JUCE_CXXFLAGS) -o "$@" -c "$<"
+
+$(JUCE_OBJDIR)/hi_sampler_35b36ab3.o: ../../JuceLibraryCode/hi_sampler.cpp
+	-@mkdir -p $(JUCE_OBJDIR)
+	@echo "Compiling hi_sampler.cpp"
 	@$(CXX) $(JUCE_CXXFLAGS) -o "$@" -c "$<"
 
 $(JUCE_OBJDIR)/hi_scripting_d8d7e4e2.o: ../../JuceLibraryCode/hi_scripting.cpp
@@ -250,3 +268,4 @@ $(JUCE_OBJDIR)/juce_tracktion_marketplace_51662d82.o: ../../JuceLibraryCode/juce
 	@$(CXX) $(JUCE_CXXFLAGS) -o "$@" -c "$<"
 
 -include $(OBJECTS:%.o=%.d)
+
