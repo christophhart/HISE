@@ -382,6 +382,9 @@ mc(mc_)
 	setSize(width, height);
 
 	rebuildAllPresets();
+	
+	showLoadedPreset();
+
 }
 
 MultiColumnPresetBrowser::~MultiColumnPresetBrowser()
@@ -488,6 +491,23 @@ void MultiColumnPresetBrowser::resized()
 	}
 
 	
+}
+
+void MultiColumnPresetBrowser::showLoadedPreset()
+{
+	if (currentlyLoadedPreset != -1)
+	{
+		File f = allPresets[currentlyLoadedPreset];
+
+		File category = f.getParentDirectory();
+		File bank = category.getParentDirectory();
+
+		bankColumn->setSelectedFile(bank, dontSendNotification);
+		categoryColumn->setNewRootDirectory(bank);
+		categoryColumn->setSelectedFile(category, dontSendNotification);
+		presetColumn->setNewRootDirectory(category);
+		presetColumn->setSelectedFile(f, dontSendNotification);
+	}
 }
 
 void MultiColumnPresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const File& file, bool /*doubleClick*/)
