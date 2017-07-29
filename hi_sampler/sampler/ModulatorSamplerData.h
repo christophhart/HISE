@@ -380,6 +380,10 @@ public:
 		jassertfalse;
 		return false;
 	}
+    
+protected:
+    
+    File sampleMapFile;
 
 private:
 
@@ -402,7 +406,7 @@ private:
 	int numSamples;
 	File sampleMapDirectory;
 	const File monolithDirectory;
-	File sampleMapFile;
+	
 
 	String error;
 };

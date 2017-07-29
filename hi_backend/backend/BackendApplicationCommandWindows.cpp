@@ -569,12 +569,17 @@ public:
 		SampleEditHandler::SampleEditingActions::automapUsingMetadata(sampler);
 
 
+        
 
 		sampler->getSampleMap()->setId(sampleMapId);
 		sampler->getSampleMap()->setIsMonolith();
 
 		setSampleMap(sampler->getSampleMap());
 
+        auto sampleMapFolder = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
+        
+        sampleMapFile = sampleMapFolder.getChildFile(sampleMapId + ".xml");
+        
 		exportCurrentSampleMap(overwriteExistingData, exportSamples, exportSampleMap);
 	}
 
