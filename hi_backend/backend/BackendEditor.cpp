@@ -802,7 +802,7 @@ private:
 void MainTopBar::popupChanged(Component* newComponent)
 {
 	bool macroShouldBeOn = dynamic_cast<MacroComponent*>(newComponent) != nullptr;
-	bool settingsShouldBeOn = dynamic_cast<AudioDeviceDialog*>(newComponent) != nullptr;
+	bool settingsShouldBeOn = dynamic_cast<FloatingTile*>(newComponent) != nullptr;
 	bool previewShouldBeShown = dynamic_cast<PluginPreviewWindow::Content*>(newComponent) != nullptr ||
 								dynamic_cast<InterfaceCreator*>(newComponent) != nullptr;
 	bool presetBrowserShown = dynamic_cast<MultiColumnPresetBrowser*>(newComponent) != nullptr;
@@ -997,11 +997,17 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 	}
 	case PopupType::Settings:
 	{
-		c = new AudioDeviceDialog(getRootWindow()->getBackendProcessor());
+		auto ft = new FloatingTile(mc, nullptr);
 
-		c->setColour(Label::ColourIds::textColourId, Colours::white);
+		ft->setContent(FloatingPanelTemplates::createSettingsWindow(mc));
 
-		c->setSize(480, 400);
+		
+		c = ft;
+
+		c->setName("Settings");
+
+
+		c->setSize(380, 610);
 
 		button = settingsButton;
 		break;
