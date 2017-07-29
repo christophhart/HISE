@@ -809,13 +809,22 @@ void FloatingTile::paint(Graphics& g)
 {
 	if (isOpaque())
 	{
-		if (getParentType() == ParentType::Root)
+		
+
+		if (findParentComponentOfClass<ScriptContentComponent>() || findParentComponentOfClass<FloatingTilePopup>())
 		{
-			g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
+			g.fillAll(getCurrentFloatingPanel()->findPanelColour(FloatingTileContent::PanelColourId::bgColour));
 		}
 		else
 		{
-			g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::ModulatorSynthBackgroundColourId));
+			if (getParentType() == ParentType::Root)
+			{
+				g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
+			}
+			else
+			{
+				g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::ModulatorSynthBackgroundColourId));
+			}
 		}
 	}
 

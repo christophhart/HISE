@@ -254,7 +254,9 @@ void FloatingTabComponent::LookAndFeel::drawTabButton(TabBarButton &b, Graphics 
 
 	auto a = b.getToggleState() ? 1.0f : (isMouseOver ? 0.8f : 0.6f);
 
-	g.setColour(Colours::white.withAlpha(a));
+	auto c = b.findParentComponentOfClass<FloatingTileContent>()->findPanelColour(FloatingTileContent::PanelColourId::textColour);
+
+	g.setColour(c);
 	g.setFont(GLOBAL_BOLD_FONT());
 
 	g.drawText(b.getButtonText(), 5, 2, b.getWidth() - 10, b.getHeight() - 4, Justification::centredLeft);
@@ -274,7 +276,9 @@ void FloatingTabComponent::LookAndFeel::drawTabAreaBehindFrontButton(TabbedButto
 	if (b.getCurrentTabIndex() != -1)
 	{
 
-		g.setColour(HiseColourScheme::getColour(HiseColourScheme::EditorBackgroundColourIdBright));
+		auto c = b.findParentComponentOfClass<FloatingTileContent>()->findPanelColour(FloatingTileContent::PanelColourId::itemColour1);
+
+		g.setColour(c);
 
 		auto bounds = FLOAT_RECTANGLE(b.getTabButton(b.getCurrentTabIndex())->getBoundsInParent());
 
@@ -287,6 +291,11 @@ FloatingTabComponent::FloatingTabComponent(FloatingTile* parent) :
 	FloatingTileContainer(parent),
 	TabbedComponent(TabbedButtonBar::TabsAtTop)
 {
+	setDefaultPanelColour(PanelColourId::bgColour, HiseColourScheme::getColour(HiseColourScheme::EditorBackgroundColourId));
+	setDefaultPanelColour(PanelColourId::itemColour1, HiseColourScheme::getColour(HiseColourScheme::EditorBackgroundColourIdBright));
+	setDefaultPanelColour(PanelColourId::textColour, Colours::white);
+
+
 	addAndMakeVisible(addButton = new ShapeButton("Add Column", Colours::white.withAlpha(0.7f), Colours::white, Colours::white));
 
 	Path p;
@@ -475,10 +484,10 @@ var FloatingTabComponent::getDefaultProperty(int id) const
 
 void FloatingTabComponent::paint(Graphics& g)
 {
-	g.setColour(HiseColourScheme::getColour(HiseColourScheme::EditorBackgroundColourId));
+	g.setColour(findPanelColour(PanelColourId::bgColour));
 	g.fillRect(0, 0, getWidth(), 24);
 
-	g.setColour(HiseColourScheme::getColour(HiseColourScheme::EditorBackgroundColourIdBright));
+	g.setColour(findPanelColour(PanelColourId::itemColour1));
 	g.fillRect(0, 20, getWidth(), 4);
 }
 
@@ -543,7 +552,7 @@ void ResizableFloatingTileContainer::refreshLayout()
 
 void ResizableFloatingTileContainer::paint(Graphics& g)
 {
-	g.setColour(getStyleColour(ColourIds::backgroundColourId));
+	g.setColour(findPanelColour(PanelColourId::bgColour));
 	g.fillRect(getContainerBounds());
 }
 
@@ -583,7 +592,8 @@ ResizableFloatingTileContainer::ResizableFloatingTileContainer(FloatingTile* par
 	FloatingTileContainer(parent),
 	vertical(isVerticalTile)
 {
-	initColours();
+	setDefaultPanelColour(PanelColourId::bgColour, Colour(0xff373737));
+	setDefaultPanelColour(PanelColourId::itemColour1, HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
 
 	addAndMakeVisible(addButton = new ShapeButton("Add Column", Colours::white.withAlpha(0.7f), Colours::white, Colours::white));
 
@@ -897,7 +907,7 @@ int ResizableFloatingTileContainer::InternalResizer::getCurrentSize() const
 
 void ResizableFloatingTileContainer::InternalResizer::paint(Graphics& g)
 {
-	g.setColour(parent->getStyleColour(ResizableFloatingTileContainer::ColourIds::resizerColourId));
+	g.setColour(parent->findPanelColour(ResizableFloatingTileContainer::PanelColourId::itemColour1));
 
 	g.fillAll();
 

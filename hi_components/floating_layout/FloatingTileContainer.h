@@ -310,36 +310,6 @@ public:
 
 	void mouseDown(const MouseEvent& event) override;
 
-	int getNumColourIds() const { return ColourIds::numColourIds; }
-	Identifier getColourId(int colourId) const override
-	{ 
-		if (colourId == ColourIds::backgroundColourId)
-		{
-			static const Identifier bg("backgroundColour");
-			return bg;
-		}
-		else
-		{
-			static const Identifier id("resizerColourId");
-			return id;
-		}
-	}
-
-	Colour getDefaultColour(int colourId) const override
-	{ 
-		auto c = (ColourIds)colourId;
-
-		switch (c)
-		{
-		case ResizableFloatingTileContainer::backgroundColourId: return Colour(0xff373737);
-		case ResizableFloatingTileContainer::resizerColourId:    return HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright);
-		default:
-			break;
-		}
-		
-		return Colours::transparentBlack;
-	}
-
 protected:
 
 	void componentAdded(FloatingTile* c) override;

@@ -302,6 +302,9 @@ public:
         /** Returns the product version (not the HISE version!). */
         String getVersion();
         
+		/** Returns a object that contains the properties for the settings dialog. */
+		var getSettingsWindowObject();
+
 		/** Allows access to the data of the host (playing status, timeline, etc...). */
 		DynamicObject *getPlayHead();
 

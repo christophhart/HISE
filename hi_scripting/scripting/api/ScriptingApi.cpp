@@ -779,6 +779,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, getDeviceType);
 	API_METHOD_WRAPPER_0(Engine, getDeviceResolution);
 	API_METHOD_WRAPPER_0(Engine, getVersion);
+	API_METHOD_WRAPPER_0(Engine, getSettingsWindowObject);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadFont);
 	API_VOID_METHOD_WRAPPER_0(Engine, undo);
 	API_VOID_METHOD_WRAPPER_0(Engine, redo);
@@ -825,6 +826,7 @@ ApiClass(0)
 	ADD_API_METHOD_0(getDeviceType);
 	ADD_API_METHOD_0(getDeviceResolution);
 	ADD_API_METHOD_0(getVersion);
+	ADD_API_METHOD_0(getSettingsWindowObject);
 	ADD_API_METHOD_0(createTimerObject);
 	ADD_API_METHOD_0(createMessageHolder);
 	ADD_API_METHOD_1(loadFont);
@@ -942,6 +944,11 @@ String ScriptingApi::Engine::getVersion()
 #endif
 
 
+}
+
+var ScriptingApi::Engine::getSettingsWindowObject()
+{
+	return FloatingPanelTemplates::createSettingsWindow(getProcessor()->getMainController());
 }
 
 int ScriptingApi::Engine::getMidiNoteFromName(String midiNoteName) const

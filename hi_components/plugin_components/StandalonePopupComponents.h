@@ -219,7 +219,7 @@ public:
 
 	enum class Properties
 	{
-		Driver = 4, // sloppy, update this when the amount FloatingTileContent::Properties change...
+		Driver = 5, // sloppy, update this when the amount FloatingTileContent::Properties change...
 		Device,
 		Output,
 		BufferSize,

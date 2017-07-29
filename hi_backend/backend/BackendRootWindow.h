@@ -19,7 +19,7 @@ class BackendProcessorEditor;
 #define GET_ROOT_FLOATING_TILE(child) GET_BACKEND_ROOT_WINDOW(child)->getRootFloatingTile()
 
 // This is a simple counter that gets bumped everytime the layout is changed and shows a hint to reset the workspace
-#define BACKEND_UI_VERSION 1
+#define BACKEND_UI_VERSION 2
 
 class BackendRootWindow : public AudioProcessorEditor,
 						  public BackendCommandTarget,

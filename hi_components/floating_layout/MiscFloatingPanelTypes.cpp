@@ -87,7 +87,7 @@ void EmptyComponent::mouseDown(const MouseEvent& event)
 MidiKeyboardPanel::MidiKeyboardPanel(FloatingTile* parent) :
 	FloatingTileContent(parent)
 {
-	initColours();
+	setDefaultPanelColour(PanelColourId::bgColour, Colours::transparentBlack);
 
 	setInterceptsMouseClicks(false, true);
 
@@ -129,13 +129,15 @@ void SliderPackPanel::resized()
 
 void SpacerPanel::paint(Graphics& g)
 {
-	g.setColour(getStyleColour(ColourIds::backgroundColour));
+	g.setColour(findPanelColour(FloatingTileContent::PanelColourId::bgColour));
 	g.fillRect(getParentShell()->getContentBounds());
 }
 
 VisibilityToggleBar::VisibilityToggleBar(FloatingTile* parent) :
 	FloatingTileContent(parent)
 {
+	setDefaultPanelColour(PanelColourId::bgColour, HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourId));
+
 	setControlledContainer(getParentShell()->getParentContainer());
 }
 

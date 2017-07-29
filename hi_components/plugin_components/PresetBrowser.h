@@ -365,7 +365,7 @@ public:
 
 	MainController* mc;
 
-	void setHighlightColourAndFont(Colour c, Colour& bgColour, Font f)
+	void setHighlightColourAndFont(Colour c, Colour bgColour, Font f)
 	{
 		backgroundColour = bgColour;
 		outlineColour = c;

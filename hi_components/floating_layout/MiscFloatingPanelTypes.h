@@ -438,12 +438,6 @@ class SpacerPanel : public FloatingTileContent,
 {
 public:
 
-	enum ColourIds
-	{
-		backgroundColour,
-		numColourIds
-	};
-
 	SET_PANEL_NAME("Spacer");
 
 	SpacerPanel(FloatingTile* parent) :
@@ -451,20 +445,6 @@ public:
 	{
 		setInterceptsMouseClicks(false, false);
 
-		initColours();
-
-	}
-
-	int getNumColourIds() const override { return numColourIds; }
-	
-	Identifier getColourId(int id) const override
-	{
-		static const Identifier bgColour("bgColour");
-
-		if (id == ColourIds::backgroundColour)
-			return bgColour;
-
-		return Identifier();
 	}
 
 	void paint(Graphics& g) override;
@@ -479,15 +459,6 @@ class VisibilityToggleBar : public FloatingTileContent,
 						    public Component
 {
 public:
-
-	enum ColourIds
-	{
-		backgroundColour,
-		normalColour,
-		overColour,
-		onColour,
-		numColourIds
-	};
 
 	enum SpecialPanelIds
 	{
@@ -512,7 +483,7 @@ public:
 
 	void paint(Graphics& g) override
 	{
-		auto c = getStyleColour(ColourIds::backgroundColour);
+		auto c = findPanelColour(PanelColourId::bgColour);
 
 		g.fillAll(c);
 	}
@@ -561,15 +532,6 @@ public:
 	}
 
 	void siblingAmountChanged() override;
-
-	int getNumColourIds() const { return numColourIds; }
-
-	Identifier getColourId(int /*colourId*/) const 
-	{
-		RETURN_STATIC_IDENTIFIER("backgroundColour");
-	}
-
-	Colour getDefaultColour(int /*colourId*/) const { return HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourId); }
 
 	void resized() override;
 
@@ -632,12 +594,6 @@ class MidiKeyboardPanel : public FloatingTileContent,
 					      public ComponentWithKeyboard
 {
 public:
-
-	enum ColourIds
-	{
-		backgroundColour = 0,
-		numColourIds
-	};
 
 	enum SpecialPanelIds
 	{
@@ -745,7 +701,7 @@ public:
 
 	void paint(Graphics& g) override
 	{
-		g.setColour(getStyleColour(ColourIds::backgroundColour));
+		g.setColour(findPanelColour(PanelColourId::bgColour));
 		g.fillAll();
 	}
 
@@ -763,12 +719,6 @@ public:
 		}
         
 	}
-
-	int getNumColourIds() const { return numColourIds; }
-
-	Identifier getColourId(int /*colourId*/) const { RETURN_STATIC_IDENTIFIER("backgroundColour"); }
-
-	Colour getDefaultColour(int /*colourId*/) const { return Colours::transparentBlack; }
 
 	int getFixedHeight() const override
 	{
@@ -800,8 +750,10 @@ public:
 	PresetBrowserPanel(FloatingTile* parent):
 		FloatingTileContent(parent)
 	{
+		setDefaultPanelColour(PanelColourId::bgColour, Colours::black.withAlpha(0.97f));
+		setDefaultPanelColour(PanelColourId::itemColour1, Colour(SIGNAL_COLOUR));
+
 		addAndMakeVisible(presetBrowser = new MultiColumnPresetBrowser(getMainController()));
-		
 	}
 
 	bool showTitleInPresentationMode() const override
@@ -816,30 +768,11 @@ public:
 
 	void resized() override
 	{
-        auto c1 = getStyleColour(ColourIds::highlightColour);
-        auto c2 = getStyleColour(ColourIds::backgroundColour);
-        
-		presetBrowser->setBounds(getLocalBounds());
-		presetBrowser->setHighlightColourAndFont(c1, c2, GLOBAL_BOLD_FONT().withHeight(16.0f));
+        presetBrowser->setBounds(getLocalBounds());
+		presetBrowser->setHighlightColourAndFont(findPanelColour(PanelColourId::itemColour1), findPanelColour(PanelColourId::bgColour), GLOBAL_BOLD_FONT().withHeight(16.0f));
 	}
 
 	int getNumColourIds() const { return numColourIds; }
-
-	Identifier getColourId(int colourId) const override
-	{ 
-		if (colourId == ColourIds::backgroundColour) { return Identifier("backgroundColour"); }
-		if (colourId == ColourIds::highlightColour) { return Identifier("highlightColour"); }
-
-		return Identifier();
-	}
-
-	Colour getDefaultColour(int colourId) const override
-	{ 
-		if (colourId == ColourIds::backgroundColour) { return Colours::black.withAlpha(0.97f); }
-		if (colourId == ColourIds::highlightColour)  { return Colour(SIGNAL_COLOUR); }
-
-		return Colour(0);
-	}
 
 private:
 

@@ -35,6 +35,7 @@ Identifier FloatingTileContent::getDefaultablePropertyId(int index) const
 	RETURN_DEFAULT_PROPERTY_ID(index, PanelPropertyId::Type, "Type");
 	RETURN_DEFAULT_PROPERTY_ID(index, PanelPropertyId::Title, "Title");
 	RETURN_DEFAULT_PROPERTY_ID(index, PanelPropertyId::StyleData, "StyleData");
+	RETURN_DEFAULT_PROPERTY_ID(index, PanelPropertyId::ColourData, "ColourData");
 	RETURN_DEFAULT_PROPERTY_ID(index, PanelPropertyId::LayoutData, "LayoutData");
 
 	jassertfalse;
@@ -55,6 +56,10 @@ var FloatingTileContent::getDefaultProperty(int id) const
 	{ 
 		DynamicObject::Ptr newStyleData = new DynamicObject(); 
 		return var(newStyleData);	
+	}
+	case FloatingTileContent::ColourData:
+	{
+		return colourData.toDynamicObject();
 	}
 	case FloatingTileContent::LayoutData: return var(); // this property is restored explicitely
 	case FloatingTileContent::numPropertyIds:
@@ -95,6 +100,7 @@ var FloatingTileContent::toDynamicObject() const
 	storePropertyInObject(obj, FloatingTileContent::PanelPropertyId::Title, getCustomTitle(), "");
 	storePropertyInObject(obj, PanelPropertyId::StyleData, var(styleData));
 	storePropertyInObject(obj, PanelPropertyId::LayoutData, var(getParentShell()->getLayoutData().getLayoutDataObject()));
+	storePropertyInObject(obj, PanelPropertyId::ColourData, colourData.toDynamicObject());
 
 	if (getFixedSizeForOrientation() != 0)
 		o->removeProperty("Size");
@@ -108,6 +114,8 @@ void FloatingTileContent::fromDynamicObject(const var& object)
 	setCustomTitle(getPropertyWithDefault(object, PanelPropertyId::Title));
 
 	styleData = getPropertyWithDefault(object, PanelPropertyId::StyleData);
+
+	colourData.fromDynamicObject(getPropertyWithDefault(object, PanelPropertyId::ColourData));
 
 	getParentShell()->setLayoutDataObject(getPropertyWithDefault(object, PanelPropertyId::LayoutData));
 }
@@ -276,7 +284,7 @@ Component* FloatingPanelTemplates::createHiseLayout(FloatingTile* rootTile)
 	ib.setFoldable(root, false, { true, false });
 	ib.setId(personaContainer, "PersonaContainer");
 
-	ib.getContent(root)->setStyleColour(ResizableFloatingTileContainer::ColourIds::backgroundColourId,
+	ib.getContent(root)->setPanelColour(FloatingTileContent::PanelColourId::bgColour,
 		HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
 
 	auto mainPanel = createMainPanel(ib.getPanel(personaContainer));
@@ -380,6 +388,37 @@ Component* FloatingPanelTemplates::createSamplerWorkspace(FloatingTile* rootTile
 	ignoreUnused(rootTile);
 
 	return nullptr;
+}
+
+var FloatingPanelTemplates::createSettingsWindow(MainController* mc)
+{
+	ScopedPointer<FloatingTile> root = new FloatingTile(mc, nullptr);
+
+	mc->setIsOnAir(false);
+
+	FloatingInterfaceBuilder ib(root);
+
+	ib.setNewContentType<FloatingTabComponent>(0);
+
+	int tabs = 0;
+
+	ib.setDynamic(tabs, false);
+	ib.getContent<FloatingTabComponent>(tabs)->setPanelColour(FloatingTabComponent::PanelColourId::bgColour, Colour(0xff000000));
+	ib.getContent<FloatingTabComponent>(tabs)->setPanelColour(FloatingTabComponent::PanelColourId::itemColour1, Colour(0xff333333));
+
+	const int settings = ib.addChild<CustomSettingsWindow::Panel>(tabs);
+	ib.addChild<MidiSourcePanel>(tabs);
+	ib.addChild<MidiChannelPanel>(tabs);
+
+	ib.getContent<FloatingTabComponent>(tabs)->setCurrentTabIndex(0);
+	
+	ib.setCustomName(tabs, "Settings", { "Audio Settings", "Midi Sources", "MIDI Channels" });
+
+	auto v = ib.getContent(0)->toDynamicObject();
+
+	mc->setIsOnAir(true);
+
+	return v;
 }
 
 Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTile)
@@ -492,7 +531,7 @@ Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 	ib.getPanel(firstVertical)->setVital(true);
 	ib.setId(firstVertical, "MainWorkspace");
 
-	ib.getContent(firstVertical)->setStyleColour(ResizableFloatingTileContainer::ColourIds::backgroundColourId,
+	ib.getContent(firstVertical)->setPanelColour(FloatingTileContent::PanelColourId::bgColour,
 		HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
 
 	const int leftColumn = ib.addChild<HorizontalTile>(firstVertical);
@@ -503,17 +542,17 @@ Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 	ib.getContainer(mainColumn)->setIsDynamic(false);
 	ib.getContainer(rightColumn)->setIsDynamic(false);
 
-	ib.getContent(leftColumn)->setStyleColour(ResizableFloatingTileContainer::ColourIds::backgroundColourId, Colour(0xFF222222));
+	ib.getContent(leftColumn)->setPanelColour(FloatingTileContent::PanelColourId::bgColour, Colour(0xFF222222));
 	ib.getPanel(leftColumn)->getLayoutData().setMinSize(150);
 	ib.getPanel(leftColumn)->setCanBeFolded(true);
 	ib.getPanel(leftColumn)->setVital(true);
 	ib.setId(leftColumn, "MainLeftColumn");
 
-	ib.getContent(mainColumn)->setStyleColour(ResizableFloatingTileContainer::ColourIds::backgroundColourId,
+	ib.getContent(mainColumn)->setPanelColour(FloatingTileContent::PanelColourId::bgColour,
 		HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
 
 
-	ib.getContent(rightColumn)->setStyleColour(ResizableFloatingTileContainer::ColourIds::backgroundColourId, Colour(0xFF222222));
+	ib.getContent(rightColumn)->setPanelColour(FloatingTileContent::PanelColourId::bgColour, Colour(0xFF222222));
 	ib.getPanel(rightColumn)->getLayoutData().setMinSize(150);
 	ib.getPanel(rightColumn)->setCanBeFolded(true);
 	ib.setId(rightColumn, "MainRightColumn");
@@ -521,7 +560,7 @@ Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 
 	const int rightToolBar = ib.addChild<VisibilityToggleBar>(rightColumn);
 	ib.getPanel(rightToolBar)->getLayoutData().setCurrentSize(28);
-	ib.getContent(rightToolBar)->setStyleColour(VisibilityToggleBar::ColourIds::backgroundColour, Colour(0xFF222222));
+	ib.getContent(rightToolBar)->setPanelColour(FloatingTileContent::PanelColourId::bgColour, Colour(0xFF222222));
 
 	const int macroTable = ib.addChild<GenericPanel<MacroParameterTable>>(rightColumn);
 	ib.getPanel(macroTable)->setCloseTogglesVisibility(true);
@@ -556,7 +595,7 @@ Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 	const int keyboard = ib.addChild<MidiKeyboardPanel>(mainColumn);
 
 
-	ib.getContent(keyboard)->setStyleColour(ResizableFloatingTileContainer::ColourIds::backgroundColourId,
+	ib.getContent(keyboard)->setPanelColour(FloatingTileContent::PanelColourId::bgColour,
 		HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
 
 	ib.setFoldable(mainColumn, true, { false, true });

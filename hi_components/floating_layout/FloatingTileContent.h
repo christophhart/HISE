@@ -30,6 +30,8 @@
 *   ===========================================================================
 */
 
+#define OLD_COLOUR 0
+
 #ifndef FLOATINGTILECONTENT_H_INCLUDED
 #define FLOATINGTILECONTENT_H_INCLUDED
 
@@ -243,19 +245,12 @@ public:
 		Type = 0,
 		Title,
 		StyleData,
+		ColourData,
 		LayoutData,
 		numPropertyIds
 	};
 
-	enum ColourIds
-	{
-		bgColour,
-		textColour,
-		itemColour1,
-		itemColour2,
-		itemColour3,
-		numColourIds
-	};
+	
 
 	virtual ~FloatingTileContent()
 	{
@@ -272,6 +267,9 @@ public:
 
 		return parent; 
 	}
+
+	
+
 
 	int getNumDefaultableProperties() const override { return numPropertyIds; };
 	Identifier getDefaultablePropertyId(int i) const override;
@@ -468,12 +466,14 @@ public:
 	/** Override this method when you want to be notified when the amount of siblings change. */
 	virtual void siblingAmountChanged() {}
 
+#if OLD_COLOUR
 	void setStyleColour(int id, Colour c)
 	{
 		auto prop = getColourId(id);
 
 		setStyleProperty(prop, c.toString());
 	}
+#endif
 
 	var getStyleProperty(Identifier id, var defaultValue) const
 	{
@@ -483,6 +483,7 @@ public:
 			return defaultValue;
 	}
 
+#if OLD_COLOUR
 	Colour getStyleColour(int id) const
 	{
 		auto prop = getColourId(id);
@@ -490,7 +491,9 @@ public:
 		var v = getStyleProperty(prop, "0x00000000");
 		return Colour::fromString(v.toString());
 	}
+#endif
 
+#if OLD_COLOUR
 	/** If your panel uses colours, overwrite this method and return the number of colours. */
 	virtual int getNumColourIds() const { return 0; }
 
@@ -500,13 +503,16 @@ public:
 	/** If your panel uses colours, overwrite this method and return the default colour. */
 	virtual Colour getDefaultColour(int /*colourId*/) const { return Colours::transparentBlack; }
 
+
 	/** Call this in your subclass constructor when using custom colours. */
 	void initColours()
 	{
 		for (int i = 0; i < getNumColourIds(); i++)
 			setStyleColour(i, getDefaultColour(i));
 	}
+#endif
 
+	
 protected:
 
 	/** Overwrite this method if the component has a fixed width. */
@@ -517,7 +523,111 @@ protected:
 	
 private:
 
-	Colour colours[(int)ColourIds::numColourIds];
+	struct ColourHolder : public ObjectWithDefaultProperties
+	{
+		enum class ColourId
+		{
+			bgColour,
+			textColour,
+			itemColour1,
+			itemColour2,
+			itemColour3,
+			numColourIds
+		};
+
+		ColourHolder()
+		{
+			for (int i = 0; i < (int)ColourId::numColourIds; i++)
+			{
+				colours[i] = Colours::pink;
+				defaultColours[i] = Colours::pink;
+			}	
+		}
+
+		int getNumDefaultableProperties() const override { return (int)ColourId::numColourIds; };
+
+		Identifier getDefaultablePropertyId(int i) const override
+		{
+			switch ((ColourId)i)
+			{
+			case ColourId::bgColour: return "bgColour";
+			case ColourId::textColour: return "textColour";
+			case ColourId::itemColour1: return "itemColour1";
+			case ColourId::itemColour2: return "itemColour2";
+			case ColourId::itemColour3: return "itemColour3";
+			default: jassertfalse;  return Identifier();
+			}
+		}
+
+		var getDefaultProperty(int id) const override
+		{
+			auto c = defaultColours[id];
+
+			//jassert(c != Colours::pink);
+
+			return var(c.toString());
+		}
+
+		Colour getColour(ColourId id) const
+		{
+			if (id < ColourId::numColourIds)
+			{
+				return colours[(int)id];
+			}
+			else
+			{
+				jassertfalse;
+				return Colours::transparentBlack;
+			}
+		}
+
+		void setColour(ColourId id, Colour newColour)
+		{
+			if (id < ColourId::numColourIds)
+			{
+				colours[(int)id] = newColour;
+			}
+		}
+
+		void setDefaultColour(ColourId id, Colour newColour)
+		{
+			if (id < ColourId::numColourIds)
+			{
+				defaultColours[(int)id] = newColour;
+			}
+		}
+
+		var toDynamicObject() const override
+		{
+			DynamicObject::Ptr o = new DynamicObject();
+
+			var obj(o);
+
+			for (int i = 0; i < (int)ColourId::numColourIds; i++)
+			{
+				storePropertyInObject(obj, i, colours[i].toString(), defaultColours[i].toString());
+			}
+
+			return obj;
+		}
+
+		void fromDynamicObject(const var& object) override
+		{
+			for (int i = 0; i < (int)ColourId::numColourIds; i++)
+			{
+				auto s = getPropertyWithDefault(object, i).toString();
+
+				colours[i] = Colour::fromString(s);
+			}
+				
+		}
+
+		Colour colours[(int)ColourId::numColourIds];
+
+		Colour defaultColours[(int)ColourId::numColourIds];
+	};
+
+	ColourHolder colourData;
 
 	var styleData;
 
@@ -527,7 +637,31 @@ private:
 	String dynamicTitle;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FloatingTileContent)
+
+	public:
+
+	typedef ColourHolder::ColourId PanelColourId;
+
+	void setPanelColour(PanelColourId id, Colour newColour)
+	{
+		colourData.setColour(id, newColour);
+	}
+
+	void setDefaultPanelColour(PanelColourId id, Colour newColour)
+	{
+		colourData.setDefaultColour(id, newColour);
+		colourData.setColour(id, newColour);
+	}
+
+
+	Colour findPanelColour(PanelColourId colourId)
+	{
+		return colourData.getColour(colourId);
+	}
+
 };
+
+
 
 
 struct FloatingPanelTemplates
@@ -539,6 +673,8 @@ struct FloatingPanelTemplates
 	static Component* createScriptingWorkspace(FloatingTile* root);
 
 	static Component* createSamplerWorkspace(FloatingTile* root);
+
+	static var createSettingsWindow(MainController* mc);
 
 	static void create2x2Matrix(FloatingTile* parent);
 

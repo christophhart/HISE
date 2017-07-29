@@ -101,6 +101,8 @@ public:
 	MidiSourcePanel(FloatingTile* parent) :
 		FloatingTileContent(parent)
 	{
+		setDefaultPanelColour(PanelColourId::bgColour, Colours::black);
+
 		StringArray midiInputs = MidiInput::getDevices();
 
 		numMidiDevices = midiInputs.size();
@@ -160,6 +162,8 @@ public:
 	MidiChannelPanel(FloatingTile* parent) :
 		FloatingTileContent(parent)
 	{
+		setDefaultPanelColour(PanelColourId::bgColour, Colours::black); 
+
 		StringArray channelNames;
 		channelNames.add("All Channels");
 		for (int i = 0; i < 16; i++) channelNames.add("Channel " + String(i + 1));
@@ -308,7 +312,19 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 	debugButton->setColour(TextButton::ColourIds::textColourOffId, Colours::white);
 	debugButton->setColour(TextButton::ColourIds::textColourOnId, Colours::white);
 
-	rebuildMenus(true, true);
+	if (HiseDeviceSimulator::isMobileDevice())
+	{
+		setProperty(Properties::Driver, false);
+		setProperty(Properties::Device, false);
+		setProperty(Properties::Output, false);
+		setProperty(Properties::GraphicRendering, false);
+		setProperty(Properties::ScaleFactor, false);
+		setProperty(Properties::StreamingMode, false);
+		setProperty(Properties::SampleLocation, false);
+	}
+
+	if(mc->isOnAir())
+		rebuildMenus(true, true);
 
 #if HISE_IOS && HISE_IPHONE
     setSize(250, 180);
@@ -689,65 +705,34 @@ void CustomSettingsWindow::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
 	}
 }
 
+#define DRAW_LABEL(id, text) if (isOn(id)) { g.drawText(text, 0, y, getWidth() / 2 - 30, 30, Justification::centredRight); y += 40; }
+
 void CustomSettingsWindow::paint(Graphics& g)
 {
 	g.setColour(Colours::white);
 
 	g.setFont(GLOBAL_BOLD_FONT());
 
-	int y = 0;
+	int y = 10;
 
-	if (isOn(Properties::Driver))
-	{
-		g.drawText("Driver", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
-		y += 40;
-	}
-	if (isOn(Properties::Device))
-	{
-		g.drawText("Device", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
-		y += 40;
-	}
-	if (isOn(Properties::Output))
-	{
-		g.drawText("Output", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
-		y += 40;
-	}
-	if (isOn(Properties::BufferSize))
-	{
-		g.drawText("Buffer Size", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
-		y += 40;
-	}
-	if (isOn(Properties::SampleRate))
-	{
-		g.drawText("Sample Rate", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
-		y += 40;
-	}
-	if (isOn(Properties::GraphicRendering))
-	{
-		g.drawText("Graphic Rendering", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
-		y += 40;
-	}
-	if (isOn(Properties::ScaleFactor))
-	{
-		g.drawText("Scale Factor", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
-		y += 40;
-	}
-	if (isOn(Properties::StreamingMode))
-	{
-		g.drawText("Streaming Mode", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
-		y += 40;
-	}
-	if (isOn(Properties::SustainCC))
-	{
-		g.drawText("Sustain CC", 0, y, getWidth() / 2 - 30, 30, Justification::centredRight);
-		y += 40;
-	}
+	DRAW_LABEL(Properties::Driver, "Driver");
+	DRAW_LABEL(Properties::Device, "Audio Device");
+	DRAW_LABEL(Properties::Output, "Output");
+	DRAW_LABEL(Properties::BufferSize, "Buffer Size");
+	DRAW_LABEL(Properties::SampleRate, "Sample Rate");
+	DRAW_LABEL(Properties::GraphicRendering, "UI Engine");
+	DRAW_LABEL(Properties::ScaleFactor, "UI Zoom Factor");
+	DRAW_LABEL(Properties::StreamingMode, "Streaming Mode");
+	DRAW_LABEL(Properties::SustainCC, "Sustain CC");
+
 	if (isOn(Properties::ClearMidiCC))
 	{
 		y += 40;
 	}
 	if (isOn(Properties::SampleLocation))
 	{
+
+		y += 40;
 
 #if USE_BACKEND
 		const String samplePath = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Samples).getFullPathName();
@@ -765,94 +750,37 @@ void CustomSettingsWindow::paint(Graphics& g)
 	}
 }
 
+#undef DRAW_LABEL
+
+#define POSITION_COMBOBOX(id, comboBox) if (isOn(id)) {comboBox->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30); y += 40; } else comboBox->setVisible(false);
+#define POSITION_BUTTON(id, button) if (isOn(id)) {button->setBounds(10, y, getWidth() - 20, 30); y += 40; } else button->setVisible(false);
+
 void CustomSettingsWindow::resized()
 {
-    int y = 0;
+    int y = 10;
     
-	if (isOn(Properties::Device))
-	{
-		deviceSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
-		y += 40;
-	}
-	else deviceSelector->setVisible(false);
-	
-	if (isOn(Properties::Driver))
-	{
-		soundCardSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
-		y += 40;
-	}
-	else soundCardSelector->setVisible(false);
+	POSITION_COMBOBOX(Properties::Driver, deviceSelector);
+	POSITION_COMBOBOX(Properties::Device, soundCardSelector);
+	POSITION_COMBOBOX(Properties::Output, outputSelector);
+	POSITION_COMBOBOX(Properties::BufferSize, bufferSelector);
+	POSITION_COMBOBOX(Properties::SampleRate, sampleRateSelector);
 
-	if (isOn(Properties::Output))
-	{
-		outputSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
-		y += 40;
-	}
-	else outputSelector->setVisible(false);
+	POSITION_COMBOBOX(Properties::GraphicRendering, graphicRenderSelector);
+	POSITION_COMBOBOX(Properties::ScaleFactor, scaleFactorSelector);
+	POSITION_COMBOBOX(Properties::StreamingMode, diskModeSelector);
+	POSITION_COMBOBOX(Properties::SustainCC, ccSustainSelector);
 
-	if (isOn(Properties::BufferSize))
-	{
-		bufferSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
-		y += 40;
-	}
-	else bufferSelector->setVisible(false);
-
-	if (isOn(Properties::SampleRate))
-	{
-		sampleRateSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
-		y += 40;
-	}
-	else sampleRateSelector->setVisible(false);
-
-	if (isOn(Properties::GraphicRendering))
-	{
-		graphicRenderSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
-		y += 40;
-	}
-	else graphicRenderSelector->setVisible(false);
-
-	if (isOn(Properties::ScaleFactor))
-	{
-		scaleFactorSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
-		y += 40;
-	}
-	else scaleFactorSelector->setVisible(false);
-
-	if (isOn(Properties::StreamingMode))
-	{
-		diskModeSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
-		y += 40;
-	}
-	else diskModeSelector->setVisible(false);
-
-	if (isOn(Properties::SustainCC))
-	{
-		ccSustainSelector->setBounds(getWidth() / 2 - 20, y, getWidth() / 2, 30);
-		y += 40;
-	}
-	else ccSustainSelector->setVisible(false);
-
-	if (isOn(Properties::ClearMidiCC))
-	{
-		clearMidiLearn->setBounds(10, y, getWidth() - 20, 30);
-		y += 40;
-	}
-	else clearMidiLearn->setVisible(false);
+	POSITION_BUTTON(Properties::ClearMidiCC, clearMidiLearn);
+	POSITION_BUTTON(Properties::SampleLocation, relocateButton);
 
 	if (isOn(Properties::SampleLocation))
-	{
 		y += 40;
-		relocateButton->setBounds(10, y, getWidth() - 20, 30);
-		y += 40;
-	}
-	else relocateButton->setVisible(false);
-
-	if (isOn(Properties::DebugMode))
-	{
-		debugButton->setBounds(10, y, getWidth() - 20, 30);
-	}
-	else debugButton->setVisible(false);
+	
+	POSITION_BUTTON(Properties::DebugMode, debugButton);
 }
+
+#undef POSITION_COMBOBOX
+#undef POSITION_BUTTON
 
 class CustomSettingsWindow::Panel: public FloatingTileContent,
 public Component
@@ -960,6 +888,8 @@ public:
 	Panel(FloatingTile* parent) :
 		FloatingTileContent(parent)
 	{
+		setDefaultPanelColour(PanelColourId::bgColour, Colours::black);
+
 		addAndMakeVisible(window = new CustomSettingsWindow(getMainController()));
 	}
 

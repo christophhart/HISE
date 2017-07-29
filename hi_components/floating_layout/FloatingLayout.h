@@ -54,8 +54,8 @@ class FloatingTile;
 #include "FloatingTileContainer.h"
 #include "FloatingTile.h"
 
-#if USE_BACKEND
+
 #include "FloatingInterfaceBuilder.h"
-#endif
+
 
 #endif  // FLOATINGLAYOUT_H_INCLUDED
