@@ -249,6 +249,7 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 	ADD(Output);
 	ADD(BufferSize);
 	ADD(SampleRate);
+	ADD(GlobalBPM);
 	ADD(ScaleFactor);
 	ADD(GraphicRendering);
 	ADD(StreamingMode);
@@ -281,6 +282,10 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
     bufferSelector->setLookAndFeel(&plaf);
     sampleRateSelector->setLookAndFeel(&plaf);
     
+	addAndMakeVisible(bpmSelector = new ComboBox("Global BPM"));
+	bpmSelector->addListener(this);
+	bpmSelector->setLookAndFeel(&plaf);
+
 	addAndMakeVisible(ccSustainSelector = new ComboBox("Sustain CC"));
     addAndMakeVisible(graphicRenderSelector = new ComboBox("Graphic Rendering"));
 	addAndMakeVisible(scaleFactorSelector = new ComboBox("Scale Factor"));
@@ -346,7 +351,8 @@ CustomSettingsWindow::~CustomSettingsWindow()
 	bufferSelector->removeListener(this);
 	soundCardSelector->removeListener(this);
 	outputSelector->removeListener(this);
-    
+	bpmSelector->removeListener(this);
+		
 	clearMidiLearn->removeListener(this);
 	relocateButton->removeListener(this);
 	diskModeSelector->removeListener(this);
@@ -376,6 +382,14 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
         sampleRateSelector->clear(dontSendNotification);
         outputSelector->clear(dontSendNotification);
         
+		bpmSelector->clear(dontSendNotification);
+		bpmSelector->addItem("Sync to Host", 1);
+
+		for (int i = 60; i < 180; i++)
+		{
+			bpmSelector->addItem(String(i) + " BPM", i);
+		}
+
         
         if (rebuildDeviceTypes)
         {
@@ -514,6 +528,8 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
 	}
 
 	graphicRenderSelector->setSelectedItemIndex(driver->useOpenGL ? 1 : 0, dontSendNotification);
+
+	bpmSelector->setSelectedId(driver->globalBPM > 0 ? driver->globalBPM : 1, dontSendNotification);
 
 	ccSustainSelector->setSelectedId(driver->ccSustainValue, dontSendNotification);
 	diskModeSelector->setSelectedItemIndex(driver->diskMode, dontSendNotification);
@@ -689,6 +705,15 @@ void CustomSettingsWindow::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
 		}
 #endif
 	}
+	else if (comboBoxThatHasChanged == bpmSelector)
+	{
+		int selectedId = bpmSelector->getSelectedId();
+
+		if (selectedId == 1)
+			selectedId = -1;
+
+		driver->globalBPM = selectedId;
+	}
 	else if (comboBoxThatHasChanged == graphicRenderSelector)
 	{
 		driver->setUseOpenGLRenderer(graphicRenderSelector->getSelectedItemIndex() == 1);
@@ -720,6 +745,7 @@ void CustomSettingsWindow::paint(Graphics& g)
 	DRAW_LABEL(Properties::Output, "Output");
 	DRAW_LABEL(Properties::BufferSize, "Buffer Size");
 	DRAW_LABEL(Properties::SampleRate, "Sample Rate");
+	DRAW_LABEL(Properties::GlobalBPM, "Global BPM");
 	DRAW_LABEL(Properties::GraphicRendering, "UI Engine");
 	DRAW_LABEL(Properties::ScaleFactor, "UI Zoom Factor");
 	DRAW_LABEL(Properties::StreamingMode, "Streaming Mode");
@@ -764,7 +790,7 @@ void CustomSettingsWindow::resized()
 	POSITION_COMBOBOX(Properties::Output, outputSelector);
 	POSITION_COMBOBOX(Properties::BufferSize, bufferSelector);
 	POSITION_COMBOBOX(Properties::SampleRate, sampleRateSelector);
-
+	POSITION_COMBOBOX(Properties::GlobalBPM, bpmSelector);
 	POSITION_COMBOBOX(Properties::GraphicRendering, graphicRenderSelector);
 	POSITION_COMBOBOX(Properties::ScaleFactor, scaleFactorSelector);
 	POSITION_COMBOBOX(Properties::StreamingMode, diskModeSelector);
@@ -798,6 +824,7 @@ public:
 		SET(Properties::Output);
 		SET(Properties::BufferSize);
 		SET(Properties::SampleRate);
+		SET(Properties::GlobalBPM);
 		SET(Properties::StreamingMode);
 		SET(Properties::GraphicRendering);
 		SET(Properties::ScaleFactor);
@@ -822,6 +849,7 @@ public:
 		SET(Properties::Output);
 		SET(Properties::BufferSize);
 		SET(Properties::SampleRate);
+		SET(Properties::GlobalBPM);
 		SET(Properties::StreamingMode);
 		SET(Properties::GraphicRendering);
 		SET(Properties::ScaleFactor);
@@ -846,6 +874,7 @@ public:
 		SET(Properties::Output);
 		SET(Properties::BufferSize);
 		SET(Properties::SampleRate);
+		SET(Properties::GlobalBPM);
 		SET(Properties::StreamingMode);
 		SET(Properties::GraphicRendering);
 		SET(Properties::ScaleFactor);
@@ -872,6 +901,7 @@ public:
 		SET(Properties::Output);
 		SET(Properties::BufferSize);
 		SET(Properties::SampleRate);
+		SET(Properties::GlobalBPM);
 		SET(Properties::StreamingMode);
 		SET(Properties::GraphicRendering);
 		SET(Properties::ScaleFactor);

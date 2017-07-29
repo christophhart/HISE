@@ -224,6 +224,7 @@ public:
 		Output,
 		BufferSize,
 		SampleRate,
+		GlobalBPM,
 		ScaleFactor,
 		GraphicRendering,
 		StreamingMode,
@@ -278,6 +279,7 @@ private:
 	ScopedPointer<ComboBox> outputSelector;
 	ScopedPointer<ComboBox> bufferSelector;
 	ScopedPointer<ComboBox> sampleRateSelector;
+	ScopedPointer<ComboBox> bpmSelector;
 	ScopedPointer<ComboBox> diskModeSelector;
 	ScopedPointer<ComboBox> graphicRenderSelector;
 	ScopedPointer<ComboBox> scaleFactorSelector;

@@ -479,15 +479,26 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 #if ENABLE_HOST_INFO
 	AudioPlayHead::CurrentPositionInfo newTime;
 
-	if (thisAsProcessor->getPlayHead() != nullptr && thisAsProcessor->getPlayHead()->getCurrentPosition(newTime))
+	if ( thisAsProcessor->getPlayHead() != nullptr && thisAsProcessor->getPlayHead()->getCurrentPosition(newTime))
 	{
 		lastPosInfo = newTime;
 	}
 	else lastPosInfo.resetToDefault();
 
 	storePlayheadIntoDynamicObject(lastPosInfo);
-	setBpm(lastPosInfo.bpm);
+	
+	auto otherBpm = dynamic_cast<GlobalSettingManager*>(this)->globalBPM;
+
+	if (otherBpm > 0)
+		setBpm((double)otherBpm);
+	else
+	{
+		setBpm(lastPosInfo.bpm);
+	}
+	
 #endif
+
+	
 
 #if ENABLE_CPU_MEASUREMENT
 	startCpuBenchmark(buffer.getNumSamples());
@@ -554,14 +565,12 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 		}
 	}
 
-	
-
-#if USE_HARD_CLIPPER
-	for (int i = 0; i < buffer.getNumChannels(); i++)
+	// on iOS samples above 1.0f create a nasty digital distortion
+	if (USE_HARD_CLIPPER || HiseDeviceSimulator::isMobileDevice())
 	{
-		FloatVectorOperations::clip(buffer.getWritePointer(i, 0), buffer.getReadPointer(i, 0), -1.0f, 1.0f, buffer.getNumSamples());
+		for (int i = 0; i < buffer.getNumChannels(); i++)
+			FloatVectorOperations::clip(buffer.getWritePointer(i, 0), buffer.getReadPointer(i, 0), -1.0f, 1.0f, buffer.getNumSamples());
 	}
-#endif
 
 	if (presetLoadRampFlag.get() != UserPresetHandler::RampFlags::Active)
 	{

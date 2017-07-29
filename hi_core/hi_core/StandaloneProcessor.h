@@ -58,6 +58,7 @@ public:
 	double microTuning = 0.0;
 	int transposeValue = 0;
 	int ccSustainValue = 64;
+	int globalBPM = -1;
 
 	bool useOpenGL = false;
 

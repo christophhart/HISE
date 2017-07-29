@@ -267,6 +267,7 @@ void GlobalSettingManager::saveSettingsAsXml()
 	settings->setAttribute("MICRO_TUNING", microTuning);
 	settings->setAttribute("TRANSPOSE", transposeValue);
 	settings->setAttribute("SUSTAIN_CC", ccSustainValue);
+	settings->setAttribute("GLOBAL_BPM", globalBPM);
 	settings->setAttribute("OPEN_GL", useOpenGL);
 
 #if USE_FRONTEND
@@ -334,6 +335,7 @@ void GlobalSettingManager::restoreGlobalSettings(MainController* mc)
         gm->scaleFactor = globalSettings->getDoubleAttribute("SCALE_FACTOR", 1.0);
         gm->microTuning = globalSettings->getDoubleAttribute("MICRO_TUNING", 0.0);
         gm->transposeValue = globalSettings->getIntAttribute("TRANSPOSE", 0);
+		gm->globalBPM = globalSettings->getIntAttribute("GLOBAL_BPM", -1);
         gm->ccSustainValue = globalSettings->getIntAttribute("SUSTAIN_CC", 64);
      
 		gm->useOpenGL = globalSettings->getBoolAttribute("OPEN_GL", false);
