@@ -114,7 +114,7 @@ public:
 		{
 			for (int i = 0; i < selectionListeners.size(); i++)
 			{
-                if(selectionListeneri[i].get() != nullptr)
+                if(selectionListeners[i].get() != nullptr)
                 {
                     selectionListeners[i]->soundSelectionChanged(existingSounds);
                 }
