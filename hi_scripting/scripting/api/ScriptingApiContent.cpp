@@ -2159,6 +2159,8 @@ void ScriptingApi::Content::ScriptPanel::internalRepaint()
 
 	HiseJavascriptEngine* engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
 
+    engine->maximumExecutionTime = RelativeTime(0.2);
+    
 	engine->callExternalFunction(paintRoutine, args, &r);
 
 	if (r.failed())
@@ -2188,7 +2190,11 @@ void ScriptingApi::Content::ScriptPanel::mouseCallback(var mouseInformation)
 
 		Result r = Result::ok();
 
-		dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine()->callExternalFunction(mouseRoutine, args, &r);
+        auto engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
+        
+        engine->maximumExecutionTime = RelativeTime(0.5);
+        
+		engine->callExternalFunction(mouseRoutine, args, &r);
 
 		if (r.failed())
 		{
@@ -2211,7 +2217,10 @@ void ScriptingApi::Content::ScriptPanel::timerCallback()
 
 		Result r = Result::ok();
 
-		dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine()->callExternalFunction(timerRoutine, args, &r);
+        auto engine = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->getScriptEngine();
+        
+        engine->maximumExecutionTime = RelativeTime(0.5);
+		engine->callExternalFunction(timerRoutine, args, &r);
 
 		if (r.failed())
 		{

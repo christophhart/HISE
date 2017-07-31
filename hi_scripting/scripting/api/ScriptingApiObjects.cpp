@@ -1162,7 +1162,11 @@ void ScriptingObjects::TimerObject::timerCallback()
 
 	Result r = Result::ok();
 
-	dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->getScriptEngine()->callExternalFunction(getProperty("callback"), args, &r);
+    auto engine = dynamic_cast<JavascriptMidiProcessor*>(getScriptProcessor())->getScriptEngine();
+    
+    engine->maximumExecutionTime = RelativeTime(0.5);
+    
+	engine->callExternalFunction(getProperty("callback"), args, &r);
 
 	if (r.failed())
 	{
