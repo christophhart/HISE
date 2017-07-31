@@ -1422,7 +1422,7 @@ void StreamingSamplerVoice::startNote (int /*midiNoteNumber*/,
 {
 	StreamingSamplerSound *sound = dynamic_cast<StreamingSamplerSound*>(s);
 
-	if(sound->getSampleLength() > 0)
+	if(sound != nullptr && sound->getSampleLength() > 0)
 	{
 		loader.startNote(sound, sampleStartModValue);
 
