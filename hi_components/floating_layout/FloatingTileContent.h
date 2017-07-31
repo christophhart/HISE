@@ -132,7 +132,7 @@ public:
 		editor->setColour(CaretComponent::ColourIds::caretColourId, Colour(0xFFDDDDDD));
 		editor->setColour(ScrollBar::ColourIds::thumbColourId, Colour(0x3dffffff));
 
-		editor->setFont(GLOBAL_MONOSPACE_FONT().withHeight(16.0f));
+		editor->setFont(GLOBAL_MONOSPACE_FONT().withHeight(17.0f));
 
 		constrainer.setMinimumWidth(200);
 		constrainer.setMinimumHeight(300);
