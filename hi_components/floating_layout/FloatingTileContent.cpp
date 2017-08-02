@@ -424,11 +424,7 @@ var FloatingPanelTemplates::createSettingsWindow(MainController* mc)
 Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTile)
 {
 #if USE_BACKEND
-	MainController* mc = GET_BACKEND_ROOT_WINDOW(rootTile)->getBackendProcessor();
-
-	jassert(mc != nullptr);
-
-
+	
 	FloatingInterfaceBuilder ib(rootTile);
 
 	const int personaContainer = 0;

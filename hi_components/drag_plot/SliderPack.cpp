@@ -445,7 +445,7 @@ void SliderPack::paintOverChildren(Graphics &g)
 
 				g.setColour(Colours::white.withAlpha(displayAlphas[i]));
 
-				auto v = sliders[i]->getPositionOfValue(sliders[i]->getValue());
+				auto v = (int)sliders[i]->getPositionOfValue(sliders[i]->getValue());
 
 				int x = sliders[i]->getX();
 				

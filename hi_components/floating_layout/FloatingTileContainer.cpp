@@ -252,8 +252,6 @@ void FloatingTabComponent::LookAndFeel::drawTabButton(TabBarButton &b, Graphics 
 
 	g.setColour(Colours::black.withAlpha(0.1f));
 
-	auto a = b.getToggleState() ? 1.0f : (isMouseOver ? 0.8f : 0.6f);
-
 	auto c = b.findParentComponentOfClass<FloatingTileContent>()->findPanelColour(FloatingTileContent::PanelColourId::textColour);
 
 	g.setColour(c);
