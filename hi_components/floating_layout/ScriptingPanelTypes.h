@@ -47,10 +47,7 @@ public:
 
 	Component* createContentComponent(int index) override;
 
-	void fillModuleList(StringArray& moduleList) override
-	{
-		fillModuleListWithType<JavascriptProcessor>(moduleList);
-	}
+	void fillModuleList(StringArray& moduleList) override;
 
 	void contentChanged() override
 	{

@@ -71,6 +71,20 @@ Component* CodeEditorPanel::createContentComponent(int index)
 	}
 }
 
+
+void CodeEditorPanel::fillModuleList(StringArray& moduleList)
+{
+	Processor::Iterator<JavascriptProcessor> iter(getMainSynthChain(), false);
+
+	while (auto p = iter.getNextProcessor())
+	{
+		if (p->isConnectedToExternalFile())
+			continue;
+
+		moduleList.add(dynamic_cast<Processor*>(p)->getId());
+	}
+}
+
 void CodeEditorPanel::mouseDown(const MouseEvent& event)
 {
 	if (auto tab = findParentComponentOfClass<FloatingTabComponent>())
