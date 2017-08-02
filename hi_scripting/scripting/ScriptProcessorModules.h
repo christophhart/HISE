@@ -558,7 +558,8 @@ public:
 
 	Path getSpecialSymbol() const override;
 
-	
+	void connectionChanged() override;
+
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	SnippetDocument *getSnippet(int c) override;
@@ -576,6 +577,8 @@ public:
 	int getNumInternalChains() const override { return 0; };
 	int getNumChildProcessors() const override { return 0; };
 
+	virtual void renderWholeBuffer(AudioSampleBuffer &buffer);;
+
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 	void applyEffect(AudioSampleBuffer &b, int startSample, int numSamples) override;
 
@@ -589,10 +592,10 @@ public:
 
 private:
 
-	VariantBuffer::Ptr bufferL;
-	VariantBuffer::Ptr bufferR;
+	var buffers[NUM_MAX_CHANNELS];
 
-	var channels;
+	Array<var> channels;
+	Array<int> channelIndexes;
 
 	ScopedPointer<SnippetDocument> onInitCallback;
 	ScopedPointer<SnippetDocument> prepareToPlayCallback;

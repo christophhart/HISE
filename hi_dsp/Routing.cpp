@@ -522,6 +522,8 @@ void RoutableProcessor::MatrixData::refreshSourceUseStates()
 		}
 	}
 
+	owningProcessor->connectionChanged();
+
 	sendChangeMessage();
 }
 

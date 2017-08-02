@@ -166,18 +166,21 @@ void DspInstance::processBlock(const var &data)
 		{
 			Array<var> *a = data.getArray();
 
-			float *sampleData[2];
+			float *sampleData[NUM_MAX_CHANNELS];
 			int numSamples = -1;
+
+			
+			if (a == nullptr)
+				throwError("processBlock must be called on array of buffers");
+
+			int numChannels = a->size();
 
 			sampleData[0] = nullptr;
 			sampleData[1] = nullptr;
 
-			if (a == nullptr)
-				throwError("processBlock must be called on array of buffers");
-
 			CHECK_AND_LOG_ASSERTION(processor, DebugLogger::Location::ScriptFXRendering, a->size() == 2, 165);
 
-			for (int i = 0; i < jmin<int>(2, a->size()); i++)
+			for (int i = 0; i < numChannels; i++)
 			{
 				VariantBuffer *b = a->getUnchecked(i).getBuffer();
 
@@ -247,16 +250,16 @@ void DspInstance::processBlock(const var &data)
 				CHECK_AND_LOG_BUFFER_DATA_WITH_ID(processor, debugId, DebugLogger::Location::DspInstanceRendering, sampleData[0], true, numSamples);
 				CHECK_AND_LOG_BUFFER_DATA_WITH_ID(processor, debugId, DebugLogger::Location::DspInstanceRendering, sampleData[1], false, numSamples);
 
-				FloatSanitizers::sanitizeArray(sampleData[0], numSamples);
-				FloatSanitizers::sanitizeArray(sampleData[1], numSamples);
-                
-				object->processBlock(sampleData, a->size(), numSamples);
+				for (int i = 0; i < numChannels; i++)
+					FloatSanitizers::sanitizeArray(sampleData[i], numSamples);
+
+				object->processBlock(sampleData, numChannels, numSamples);
 
 				CHECK_AND_LOG_BUFFER_DATA_WITH_ID(processor, debugId, DebugLogger::Location::DspInstanceRenderingPost, sampleData[0], true, numSamples);
 				CHECK_AND_LOG_BUFFER_DATA_WITH_ID(processor, debugId, DebugLogger::Location::DspInstanceRenderingPost, sampleData[1], false, numSamples);
 
-				FloatSanitizers::sanitizeArray(sampleData[0], numSamples);
-				FloatSanitizers::sanitizeArray(sampleData[1], numSamples);
+				for (int i = 0; i < numChannels; i++)
+					FloatSanitizers::sanitizeArray(sampleData[i], numSamples);
 			}
 
 		}

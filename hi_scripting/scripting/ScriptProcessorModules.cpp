@@ -464,23 +464,20 @@ onControlCallback(new SnippetDocument("onControl", "number value"))
 	editorStateIdentifiers.add("onControlOpen");
 	editorStateIdentifiers.add("externalPopupShown");
 
-	Array<var> channelArray;
 
-	bufferL = new VariantBuffer(0);
-	bufferR = new VariantBuffer(0);
+	getMatrix().setNumAllowedConnections(NUM_MAX_CHANNELS);
 
-	channelArray.add(var(bufferL));
-	channelArray.add(var(bufferR));
+	for (int i = 0; i < NUM_MAX_CHANNELS; i++)
+	{
+		buffers[i] = new VariantBuffer(0);
+	}
 
-	channels = var(channelArray);
+	connectionChanged();
 }
 
 JavascriptMasterEffect::~JavascriptMasterEffect()
 {
 	clearExternalWindows();
-
-	bufferL = nullptr;
-	bufferR = nullptr;
 
 #if USE_BACKEND
 	if (consoleEnabled)
@@ -488,12 +485,28 @@ JavascriptMasterEffect::~JavascriptMasterEffect()
 		getMainController()->setWatchedScriptProcessor(nullptr, nullptr);
 	}
 #endif
-
 }
 
 Path JavascriptMasterEffect::getSpecialSymbol() const
 {
 	Path path; path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, sizeof(HiBinaryData::SpecialSymbols::scriptProcessor)); return path;
+}
+
+void JavascriptMasterEffect::connectionChanged()
+{
+	ScopedReadLock sl(mainController->getCompileLock());
+
+	channels.clear();
+	channelIndexes.clear();
+
+	for (int i = 0; i < getMatrix().getNumSourceChannels(); i++)
+	{
+		if (getMatrix().getConnectionForSourceChannel(i) >= 0)
+		{
+			channels.add(buffers[channelIndexes.size()]);
+			channelIndexes.add(i);
+		}
+	}
 }
 
 ProcessorEditorBody * JavascriptMasterEffect::createEditor(ProcessorEditor *parentEditor)
@@ -566,6 +579,8 @@ void JavascriptMasterEffect::postCompileCallback()
 	prepareToPlay(getSampleRate(), getBlockSize());
 }
 
+
+
 void JavascriptMasterEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
 	ScopedReadLock sl(mainController->getCompileLock());
@@ -583,6 +598,35 @@ void JavascriptMasterEffect::prepareToPlay(double sampleRate, int samplesPerBloc
 	}
 }
 
+
+void JavascriptMasterEffect::renderWholeBuffer(AudioSampleBuffer &buffer)
+{
+	if (!processBlockCallback->isSnippetEmpty() && lastResult.wasOk())
+	{
+		ScopedReadLock sl(getMainController()->getCompileLock());
+
+		const int numSamples = buffer.getNumSamples();
+
+		jassert(channelIndexes.size() == channels.size());
+
+		for (int i = 0; i < channelIndexes.size(); i++)
+		{
+			float* d = buffer.getWritePointer(channelIndexes[i], 0);
+
+			CHECK_AND_LOG_BUFFER_DATA(this, DebugLogger::Location::ScriptFXRendering, d, true, numSamples);
+
+			auto b = channels[i].getBuffer();
+			
+			if(b != nullptr)
+				b->referToData(d, numSamples);
+		}
+
+		scriptEngine->setCallbackParameter((int)Callback::processBlock, 0, channels);
+		scriptEngine->executeCallback((int)Callback::processBlock, &lastResult);
+
+		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, processBlockCallback->getCallbackName().toString() + ": " + lastResult.getErrorMessage()));
+	}
+}
 
 
 void JavascriptMasterEffect::applyEffect(AudioSampleBuffer &b, int startSample, int numSamples)
@@ -602,8 +646,8 @@ void JavascriptMasterEffect::applyEffect(AudioSampleBuffer &b, int startSample, 
 		CHECK_AND_LOG_BUFFER_DATA(this, DebugLogger::Location::ScriptFXRendering, l, true, numSamples);
 		CHECK_AND_LOG_BUFFER_DATA(this, DebugLogger::Location::ScriptFXRendering, r, false, numSamples);
         
-		bufferL->referToData(l, numSamples);
-		bufferR->referToData(r, numSamples);
+		//bufferL->referToData(l, numSamples);
+		//bufferR->referToData(r, numSamples);
 
 		scriptEngine->setCallbackParameter((int)Callback::processBlock, 0, channels);
 		scriptEngine->executeCallback((int)Callback::processBlock, &lastResult);

@@ -147,6 +147,8 @@ public:
 
 	virtual void numDestinationChannelsChanged() = 0;
 
+	virtual void connectionChanged() {};
+
 	/** Opens a routing editor in the quasi modal popup. Pass in any component that is a child component of the backend window. */
 	void editRouting(Component *childComponent);
 
