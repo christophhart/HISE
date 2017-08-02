@@ -104,11 +104,14 @@ private:
 class InterfaceContentPanel : public FloatingTileContent,
 							  public Component,
 							  public GlobalScriptCompileListener,
-							  public ButtonListener
+							  public ButtonListener,
+							  public GlobalSettingManager::ScaleFactorListener
 {
 public:
 
 	InterfaceContentPanel(FloatingTile* parent);;
+
+	~InterfaceContentPanel();
 
 	SET_PANEL_NAME("InterfacePanel");
 
@@ -119,6 +122,8 @@ public:
 	void scriptWasCompiled(JavascriptProcessor *processor) override;
 
 	void buttonClicked(Button* b) override;
+
+	void scaleFactorChanged(float newScaleFactor) override;
 
 private:
 

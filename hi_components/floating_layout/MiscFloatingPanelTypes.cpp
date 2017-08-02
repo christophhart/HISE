@@ -434,6 +434,14 @@ InterfaceContentPanel::InterfaceContentPanel(FloatingTile* parent) :
 		refreshButton->setColour(TextButton::ColourIds::textColourOffId, Colours::white);
 		refreshButton->addListener(this);
 	}
+
+	dynamic_cast<GlobalSettingManager*>(getMainController())->addScaleFactorListener(this);
+}
+
+
+InterfaceContentPanel::~InterfaceContentPanel()
+{
+	dynamic_cast<GlobalSettingManager*>(getMainController())->removeScaleFactorListener(this);
 }
 
 void InterfaceContentPanel::paint(Graphics& g)
@@ -452,7 +460,7 @@ void InterfaceContentPanel::resized()
 {
 	if (content != nullptr)
 	{
-		content->setBounds(getParentShell()->getContentBounds());
+		content->setBounds(getLocalBounds());
 	}
 	else if (refreshButton != nullptr)
 	{
@@ -474,6 +482,12 @@ void InterfaceContentPanel::scriptWasCompiled(JavascriptProcessor *processor)
 void InterfaceContentPanel::buttonClicked(Button* /*b*/)
 {
 	connectToScript();
+}
+
+
+void InterfaceContentPanel::scaleFactorChanged(float newScaleFactor)
+{
+	updateSize();
 }
 
 bool InterfaceContentPanel::connectToScript()
@@ -520,11 +534,19 @@ void InterfaceContentPanel::updateSize()
 			{
 				topLevel->setName("Preview: " + connectedProcessor->getId());
 
-				topLevel->setSize(c->getContentWidth(), c->getContentHeight());
+				auto scaleFactor = dynamic_cast<GlobalSettingManager*>(connectedProcessor->getMainController())->getGlobalScaleFactor();
+
+				setTransform(AffineTransform::scale((float)scaleFactor));
+				
+				topLevel->setSize(c->getContentWidth() * scaleFactor, c->getContentHeight() * scaleFactor);
 			}
 
 			getParentShell()->setVital(true);
-			getParentShell()->resized();
+
+			
+
+			//getParentShell()->resized();
+			//resized();
 		}
 	}
 #endif

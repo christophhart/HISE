@@ -232,6 +232,7 @@ public:
 		ClearMidiCC,
 		SampleLocation,
 		DebugMode,
+		ScaleFactorList,
 		numProperties
 	};
 
@@ -264,10 +265,14 @@ public:
 
 	bool isOn(Properties p) const { return properties[(int)p]; }
 
+	void rebuildScaleFactorList();
+
 private:
 
 	bool properties[(int)Properties::numProperties];
 	Array<Identifier> propIds;
+
+	Array<var> scaleFactorList;
 
 	PopupLookAndFeel plaf;
 	BlackTextButtonLookAndFeel blaf;

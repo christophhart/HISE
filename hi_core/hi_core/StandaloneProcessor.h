@@ -19,6 +19,24 @@ class GlobalSettingManager
 
 public:
 
+	class ScaleFactorListener
+	{
+	public:
+
+		virtual ~ScaleFactorListener()
+		{
+			masterReference.clear();
+		}
+
+		virtual void scaleFactorChanged(float newScaleFactor) = 0;
+
+	private:
+
+		friend class WeakReference<ScaleFactorListener>;
+
+		WeakReference<ScaleFactorListener>::Master masterReference;
+	};
+
 	GlobalSettingManager();
 
 	virtual ~GlobalSettingManager()
@@ -40,11 +58,23 @@ public:
 		allSamplesFound = areFound;
 	}
 
-	void setGlobalScaleFactor(double scaleFactor);
+	void setGlobalScaleFactor(double scaleFactor, NotificationType sendNotification=dontSendNotification);
+
+	float getGlobalScaleFactor() const noexcept { return (float)scaleFactor; }
 
 	void setUseOpenGLRenderer(bool shouldUseOpenGL);
 
+	void addScaleFactorListener(ScaleFactorListener* newListener)
+	{
+		listeners.addIfNotAlreadyThere(newListener);
+	}
 
+	void removeScaleFactorListener(ScaleFactorListener* listenerToRemove)
+	{
+		listeners.removeAllInstancesOf(listenerToRemove);
+	}
+
+	
 
 	static File getSettingDirectory();
 
@@ -54,13 +84,19 @@ public:
 
 	int diskMode = 0;
 	bool allSamplesFound = false;
-	double scaleFactor = 1.0;
+	
 	double microTuning = 0.0;
 	int transposeValue = 0;
 	int ccSustainValue = 64;
 	int globalBPM = -1;
 
 	bool useOpenGL = false;
+
+private:
+
+	double scaleFactor = 1.0;
+
+	Array<WeakReference<ScaleFactorListener>> listeners;
 
 };
 

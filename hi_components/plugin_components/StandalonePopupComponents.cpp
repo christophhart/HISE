@@ -257,12 +257,15 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 	ADD(ClearMidiCC);
 	ADD(SampleLocation);
 	ADD(DebugMode);
+	ADD(ScaleFactorList);
     
     for(int i = 0; i < (int)Properties::numProperties; i++)
     {
         properties[i] = true;
     }
     
+	scaleFactorList = { var(0.5), var(0.75), var(1.0), var(1.25), var(1.5), var(2.0) };
+
     addAndMakeVisible(deviceSelector = new ComboBox("Driver"));
     addAndMakeVisible(soundCardSelector = new ComboBox("Device"));
     addAndMakeVisible(outputSelector = new ComboBox("Output"));
@@ -343,6 +346,8 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 
 #endif
 }
+
+#undef ADD
 
 CustomSettingsWindow::~CustomSettingsWindow()
 {
@@ -508,9 +513,7 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
         }
     }
     
-    scaleFactorSelector->clear(dontSendNotification);
-    scaleFactorSelector->addItem("100%", 1);
-    scaleFactorSelector->addItem("75%", 2);
+	rebuildScaleFactorList();
     
 	graphicRenderSelector->clear(dontSendNotification);
 	graphicRenderSelector->addItem("Software Renderer", 1);
@@ -533,8 +536,26 @@ void CustomSettingsWindow::rebuildMenus(bool rebuildDeviceTypes, bool rebuildDev
 
 	ccSustainSelector->setSelectedId(driver->ccSustainValue, dontSendNotification);
 	diskModeSelector->setSelectedItemIndex(driver->diskMode, dontSendNotification);
-	scaleFactorSelector->setSelectedItemIndex(driver->scaleFactor == 1.0 ? 0 : 1, dontSendNotification);
+	
 }
+
+
+void CustomSettingsWindow::rebuildScaleFactorList()
+{
+	AudioProcessorDriver* driver = dynamic_cast<AudioProcessorDriver*>(mc);
+
+	scaleFactorSelector->clear(dontSendNotification);
+
+	for (int i = 0; i < scaleFactorList.size(); i++)
+	{
+		auto scaleFactor = (double)scaleFactorList[i];
+		scaleFactorSelector->addItem(String((int)(scaleFactor*100.0)) + "%", i + 1);
+	}
+
+	scaleFactorSelector->setSelectedItemIndex(scaleFactorList.indexOf(driver->getGlobalScaleFactor()), dontSendNotification);
+}
+
+
 
 void CustomSettingsWindow::buttonClicked(Button* b)
 {
@@ -691,9 +712,9 @@ void CustomSettingsWindow::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
 	}
 	else if (comboBoxThatHasChanged == scaleFactorSelector)
 	{
-		double scaleFactor = (scaleFactorSelector->getSelectedItemIndex() == 0) ? 1.0 : 0.85;
+		double scaleFactor = scaleFactorList[scaleFactorSelector->getSelectedItemIndex()];
 
-		driver->setGlobalScaleFactor(scaleFactor);
+		driver->setGlobalScaleFactor(scaleFactor, sendNotification);
 
 #if USE_FRONTEND
 
@@ -833,6 +854,8 @@ public:
 		SET(Properties::SampleLocation);
 		SET(Properties::DebugMode);
 		
+		storePropertyInObject(obj, (int)Properties::ScaleFactorList, var(window->scaleFactorList));
+
 		return obj;
 	}
 
@@ -858,6 +881,19 @@ public:
 		SET(Properties::SampleLocation);
 		SET(Properties::DebugMode);
 		
+		auto list = getPropertyWithDefault(object, (int)Properties::ScaleFactorList);
+
+		if (list.isArray())
+		{
+			window->scaleFactorList.clear();
+
+			for (int i = 0; i < list.size(); i++)
+				window->scaleFactorList.add(list[i]);
+
+			
+
+			window->rebuildScaleFactorList();
+		}
 	}
 
 #undef SET
@@ -882,6 +918,8 @@ public:
 		SET(Properties::ClearMidiCC);
 		SET(Properties::SampleLocation);
 		SET(Properties::DebugMode);
+		SET(Properties::ScaleFactorList);
+		
 
 		jassertfalse;
 		return{};
@@ -909,6 +947,8 @@ public:
 		SET(Properties::ClearMidiCC);
 		SET(Properties::SampleLocation);
 		SET(Properties::DebugMode);
+
+		if (index == (int)Properties::ScaleFactorList) return var({ var(0.5), var(0.75), var(1.0), var(1.25), var(1.5), var(2.0) });
 
 		jassertfalse;
 		return{};

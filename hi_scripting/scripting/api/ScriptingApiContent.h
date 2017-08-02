@@ -650,7 +650,8 @@ public:
 	};
 
 	struct ScriptPanel : public ScriptComponent,
-						 public Timer
+						 public Timer,
+						 public GlobalSettingManager::ScaleFactorListener
 	{
 		// ========================================================================================================
 
@@ -733,6 +734,11 @@ public:
 		}
 
 		bool isUsingCustomPaintRoutine() const { return !paintRoutine.isUndefined(); }
+
+		void scaleFactorChanged(float newScaleFactor) override
+		{
+			repaint();
+		}
 
 		void mouseCallback(var mouseInformation);
 

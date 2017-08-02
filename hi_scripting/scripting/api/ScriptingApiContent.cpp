@@ -2093,6 +2093,9 @@ controlSender(this, base)
 	ADD_API_METHOD_2(loadImage);
 	ADD_API_METHOD_1(setDraggingBounds);
 	ADD_API_METHOD_2(setPopupData);
+
+	dynamic_cast<GlobalSettingManager*>(getScriptProcessor()->getMainController_())->addScaleFactorListener(this);
+
 }
 
 StringArray ScriptingApi::Content::ScriptPanel::getOptionsFor(const Identifier &id)
@@ -2130,8 +2133,10 @@ void ScriptingApi::Content::ScriptPanel::setPaintRoutine(var paintFunction)
 
 void ScriptingApi::Content::ScriptPanel::internalRepaint()
 {
-	const double scaleFactor = parent->usesDoubleResolution() ? 2.0 : 1.0;
+	double scaleFactor = parent->usesDoubleResolution() ? 2.0 : 1.0;
     
+	scaleFactor *= dynamic_cast<GlobalSettingManager*>(getScriptProcessor()->getMainController_())->getGlobalScaleFactor();
+
 	int canvasWidth = (int)(scaleFactor * (double)getScriptObjectProperty(ScriptComponent::Properties::width));
 	int canvasHeight = (int)(scaleFactor * (double)getScriptObjectProperty(ScriptComponent::Properties::height));
 

@@ -211,9 +211,23 @@ void AudioProcessorDriver::initialiseAudioDriver(XmlElement *deviceData)
 	deviceManager->addMidiInputCallback(String(), callback);
 }
 
-void GlobalSettingManager::setGlobalScaleFactor(double newScaleFactor)
+void GlobalSettingManager::setGlobalScaleFactor(double newScaleFactor, NotificationType notifyListeners/*=dontSendNotification*/)
 {
-	scaleFactor = newScaleFactor;
+	if (scaleFactor != newScaleFactor)
+	{
+		scaleFactor = newScaleFactor;
+
+		if (notifyListeners != dontSendNotification)
+		{
+			for (int i = 0; i < listeners.size(); i++)
+			{
+				if (listeners[i].get() != nullptr)
+				{
+					listeners[i]->scaleFactorChanged(scaleFactor);
+				}
+			}
+		}
+	}
 }
 
 void GlobalSettingManager::setUseOpenGLRenderer(bool shouldUseOpenGL)

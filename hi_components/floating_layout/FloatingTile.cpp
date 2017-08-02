@@ -1345,8 +1345,13 @@ void FloatingTile::refreshFixedSizeForNewContent()
 
 void FloatingTile::LayoutHelpers::setContentBounds(FloatingTile* t)
 {
+	auto scaleFactor = t->content->getTransform().getScaleFactor();
+
+	const int width = (int)((float)t->getWidth() / scaleFactor);
+	const int height = (int)((float)t->getHeight() / scaleFactor);
+
 	t->content->setVisible(!t->isFolded());
-	t->content->setBounds(t->getLocalBounds());
+	t->content->setBounds(0, 0, width, height);
 	t->content->resized();
 }
 

@@ -802,9 +802,9 @@ private:
 void MainTopBar::popupChanged(Component* newComponent)
 {
 	bool macroShouldBeOn = dynamic_cast<MacroComponent*>(newComponent) != nullptr;
-	bool settingsShouldBeOn = dynamic_cast<FloatingTile*>(newComponent) != nullptr;
-	bool previewShouldBeShown = dynamic_cast<PluginPreviewWindow::Content*>(newComponent) != nullptr ||
-								dynamic_cast<InterfaceCreator*>(newComponent) != nullptr;
+	bool settingsShouldBeOn = (newComponent != nullptr && newComponent->getName() == "Settings");
+	bool previewShouldBeShown = (newComponent != nullptr && newComponent->getName() == "Interface Preview") ||
+								(newComponent != nullptr && newComponent->getName() == "Create User Interface");
 	bool presetBrowserShown = dynamic_cast<MultiColumnPresetBrowser*>(newComponent) != nullptr;
 
 	setColoursForButton(macroButton, macroShouldBeOn);
@@ -958,6 +958,30 @@ void MainTopBar::resized()
 }
 
 
+class OwningComponent : public Component
+{
+	public:
+
+	OwningComponent(Component* c)
+	{
+		addAndMakeVisible(ownedComponent = c);
+
+		setSize(c->getWidth(), c->getHeight());
+	}
+	
+	~OwningComponent() { ownedComponent = nullptr; }
+
+	void resized() override
+	{
+		
+	}
+
+private:
+
+	ScopedPointer<Component> ownedComponent;
+};
+
+
 void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 {
 	if (!shouldShow)
@@ -1016,11 +1040,36 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 	{
 		if (mc->getMainSynthChain()->hasDefinedFrontInterface())
 		{
-			c = PluginPreviewWindow::createContent(getRootWindow()->getMainPanel());
+			auto ft = new FloatingTile(mc, nullptr); 
+			
+			ft->setNewContent(GET_PANEL_NAME(InterfaceContentPanel));
+
+			auto content = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(mc)->getScriptingContent();
+
+			if (content != nullptr)
+			{
+				auto scaleFactor = dynamic_cast<GlobalSettingManager*>(mc)->getGlobalScaleFactor();
+
+				ft->setTransform(AffineTransform::scale(scaleFactor));
+
+				ft->setSize(content->getContentWidth(), content->getContentHeight());
+
+				c = new OwningComponent(ft);
+
+				int w = (int)((float)content->getContentWidth()*scaleFactor);
+				int h = (int)((float)content->getContentHeight()*scaleFactor);
+
+				c->setSize(w, h);
+
+				c->setName("Interface Preview");
+			}
+
+
 		}
 		else
 		{
 			c = new InterfaceCreator();
+			
 		}
 
 		

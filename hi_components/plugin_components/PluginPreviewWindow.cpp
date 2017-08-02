@@ -53,7 +53,11 @@ public:
 
 	void processorDeleted(Processor* /*deletedProcessor*/) override
 	{
-		parent->findParentComponentOfClass<FloatingTilePopup>()->deleteAndClose();
+		
+		auto popup = parent->findParentComponentOfClass<FloatingTilePopup>();
+		
+		if(popup)
+			popup->deleteAndClose();
 	}
 
 	void updateChildEditorList(bool /*forceUpdate*/) override {};

@@ -299,6 +299,9 @@ public:
 		/** Returns the full screen resolution for the current device. */
 		var getDeviceResolution();
 
+		/** Returns the current Zoom Level. */
+		var getZoomLevel() const;
+
         /** Returns the product version (not the HISE version!). */
         String getVersion();
         

@@ -778,6 +778,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, getOS);
 	API_METHOD_WRAPPER_0(Engine, getDeviceType);
 	API_METHOD_WRAPPER_0(Engine, getDeviceResolution);
+	API_METHOD_WRAPPER_0(Engine, getZoomLevel);
 	API_METHOD_WRAPPER_0(Engine, getVersion);
 	API_METHOD_WRAPPER_0(Engine, getSettingsWindowObject);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadFont);
@@ -825,6 +826,7 @@ ApiClass(0)
 	ADD_API_METHOD_0(getOS);
 	ADD_API_METHOD_0(getDeviceType);
 	ADD_API_METHOD_0(getDeviceResolution);
+	ADD_API_METHOD_0(getZoomLevel);
 	ADD_API_METHOD_0(getVersion);
 	ADD_API_METHOD_0(getSettingsWindowObject);
 	ADD_API_METHOD_0(createTimerObject);
@@ -933,6 +935,11 @@ var ScriptingApi::Engine::getDeviceResolution()
 
 	return a;
 	
+}
+
+var ScriptingApi::Engine::getZoomLevel() const
+{
+	return dynamic_cast<const GlobalSettingManager*>(getScriptProcessor()->getMainController_())->getGlobalScaleFactor();
 }
 
 String ScriptingApi::Engine::getVersion()

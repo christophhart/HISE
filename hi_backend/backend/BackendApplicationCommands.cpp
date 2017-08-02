@@ -1227,7 +1227,13 @@ void BackendCommandTarget::Actions::addInterfacePreview(BackendRootWindow * bpe)
 	{
 		if (auto content = jmp->getScriptingContent())
 		{
-			w->centreWithSize(content->getContentWidth(), content->getContentHeight());
+			auto scaleFactor = dynamic_cast<GlobalSettingManager*>(bpe->getBackendProcessor())->getGlobalScaleFactor();
+
+			const int width = (int)((float)content->getContentWidth()*scaleFactor);
+			const int height = (int)((float)content->getContentHeight()*scaleFactor);
+
+			dynamic_cast<Component*>(w->getRootFloatingTile()->getCurrentFloatingPanel())->setTransform(AffineTransform::scale((float)scaleFactor));
+			w->centreWithSize(width, height);
 			w->setResizable(false, false);
 		}
 	}
