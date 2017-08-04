@@ -97,7 +97,7 @@ AudioProcessorEditor(fp)
 	}
 	else
 	{
-		setGlobalScaleFactor((float)fp->scaleFactor);
+		setGlobalScaleFactor((float)fp->getGlobalScaleFactor());
 	}
 }
 
