@@ -173,6 +173,8 @@ public:
 		*result = 0.0f;
 	}
 
+	void setTargetAudioDataType(AudioDataConverters::DataFormat dataType);
+
 private:
 	
 	static void copySampleData(int* const* destSamples, int startOffsetInDestBuffer, int numDestChannels, const void* sourceData, int numChannels, int numSamples) noexcept;
@@ -181,6 +183,28 @@ private:
 	HlacReaderCommon internalReader;
 
 	bool isMonolith = false;
+};
+
+class HlacSubSectionReader: public AudioFormatReader
+{
+public:
+
+	HlacSubSectionReader(AudioFormatReader* sourceReader, int64 subsectionStartSample, int64 subsectionLength);
+
+	bool readSamples(int** destSamples, int numDestChannels, int startOffsetInDestBuffer,
+		int64 startSampleInFile, int numSamples);
+
+	void readMaxLevels(int64 startSampleInFile, int64 numSamples, Range<float>* results, int numChannelsToRead);
+
+	void readIntoFixedBuffer(HiseSampleBuffer& buffer, int startSample, int numSamples, int64 readerStartSample);
+
+private:
+
+	HlacMemoryMappedAudioFormatReader* memoryReader;
+	HiseLosslessAudioFormatReader* normalReader;
+
+	int64 start;
+	int64 length;
 };
 
 

@@ -262,6 +262,8 @@ public:
 
 	void setIsMonolith() noexcept { mode = SaveMode::Monolith; }
 
+	bool isMonolith() const noexcept { return mode == SaveMode::Monolith; };
+
 	/** returns the default sample directory (the sample map directory + '/samples'. */
 	String getSampleDirectory() const
 	{

@@ -43,10 +43,7 @@ HiseLosslessAudioFormatReader::HiseLosslessAudioFormatReader(InputStream* input_
 	{
 		lengthInSamples = (input_->getTotalLength() - 1) / numChannels / sizeof(int16);
 	}
-
 }
-
-
 
 bool HiseLosslessAudioFormatReader::readSamples(int** destSamples, int numDestChannels, int startOffsetInDestBuffer, int64 startSampleInFile, int numSamples)
 {
@@ -198,33 +195,49 @@ bool HlacReaderCommon::internalHlacRead(int** destSamples, int numDestChannels, 
 
 	if (isStereo)
 	{
-		float** destinationFloat = reinterpret_cast<float**>(destSamples);
-
-		if (startOffsetInDestBuffer > 0)
+		if (usesFloatingPointData)
 		{
-			if (isStereo)
+			float** destinationFloat = reinterpret_cast<float**>(destSamples);
+
+			if (startOffsetInDestBuffer > 0)
 			{
-				destinationFloat[0] = destinationFloat[0] + startOffsetInDestBuffer;
+				if (isStereo)
+				{
+					destinationFloat[0] = destinationFloat[0] + startOffsetInDestBuffer;
+				}
+				else
+				{
+					destinationFloat[0] = destinationFloat[0] + startOffsetInDestBuffer;
+					destinationFloat[1] = destinationFloat[1] + startOffsetInDestBuffer;
+				}
 			}
-			else
-			{
-				destinationFloat[0] = destinationFloat[0] + startOffsetInDestBuffer;
-				destinationFloat[1] = destinationFloat[1] + startOffsetInDestBuffer;
-			}
+
+			AudioSampleBuffer b(destinationFloat, 2, numSamples);
+			HiseSampleBuffer hsb(b);
+			decoder.decode(hsb, *input, (int)startSampleInFile, numSamples);
 		}
-
-		AudioSampleBuffer b(destinationFloat, 2, numSamples);
-
-		decoder.decode(b, *input, (int)startSampleInFile, numSamples);
-
+		else
+		{
+			HiseSampleBuffer hsb(destSamples, 2, numSamples);
+			decoder.decode(hsb, *input, (int)startSampleInFile, numSamples);
+		}
 	}
 	else
 	{
-		float* destinationFloat = reinterpret_cast<float*>(destSamples[0]);
+		if (usesFloatingPointData)
+		{
+			float* destinationFloat = reinterpret_cast<float*>(destSamples[0]);
 
-		AudioSampleBuffer b(&destinationFloat, 1, numSamples);
+			AudioSampleBuffer b(&destinationFloat, 1, numSamples);
+			HiseSampleBuffer hsb(b);
 
-		decoder.decode(b, *input, (int)startSampleInFile, numSamples);
+			decoder.decode(hsb, *input, (int)startSampleInFile, numSamples);
+		}
+		else
+		{
+			HiseSampleBuffer hsb(destSamples, 1, numSamples);
+			decoder.decode(hsb, *input, (int)startSampleInFile, numSamples);
+		}
 	}
 
 	return true;
@@ -331,6 +344,14 @@ bool HlacMemoryMappedAudioFormatReader::mapSectionOfFile(Range<int64> samplesToM
 	}
 }
 
+void HlacMemoryMappedAudioFormatReader::setTargetAudioDataType(AudioDataConverters::DataFormat dataType)
+{
+	usesFloatingPointData = (dataType == AudioDataConverters::DataFormat::float32BE) ||
+		(dataType == AudioDataConverters::DataFormat::float32LE);
+
+	internalReader.setTargetAudioDataType(dataType);
+}
+
 void HlacMemoryMappedAudioFormatReader::copySampleData(int* const* destSamples, int startOffsetInDestBuffer, int numDestChannels, const void* sourceData, int numChannels, int numSamples) noexcept
 {
 	jassert(numDestChannels == numDestChannels);
@@ -343,4 +364,64 @@ void HlacMemoryMappedAudioFormatReader::copySampleData(int* const* destSamples, 
 	{
 		ReadHelper<AudioData::Float32, AudioData::Int16, AudioData::LittleEndian>::read(destSamples, startOffsetInDestBuffer, numDestChannels, sourceData, 2, numSamples);
 	}
+}
+
+HlacSubSectionReader::HlacSubSectionReader(AudioFormatReader* sourceReader, int64 subsectionStartSample, int64 subsectionLength) :
+	AudioFormatReader(0, sourceReader->getFormatName()),
+	start(subsectionStartSample)
+{
+	length = jmin(jmax((int64)0, sourceReader->lengthInSamples - subsectionStartSample), subsectionLength);
+
+	sampleRate = sourceReader->sampleRate;
+	bitsPerSample = sourceReader->bitsPerSample;
+	numChannels = sourceReader->numChannels;
+	usesFloatingPointData = sourceReader->usesFloatingPointData;
+	lengthInSamples = length;
+
+	if (auto m = dynamic_cast<HlacMemoryMappedAudioFormatReader*>(sourceReader))
+	{
+		memoryReader = m;
+		normalReader = nullptr;
+	}
+	else
+	{
+		memoryReader = nullptr;
+		normalReader = dynamic_cast<HiseLosslessAudioFormatReader*>(sourceReader);
+	}
+}
+
+bool HlacSubSectionReader::readSamples(int** destSamples, int numDestChannels, int startOffsetInDestBuffer, int64 startSampleInFile, int numSamples)
+{
+	clearSamplesBeyondAvailableLength(destSamples, numDestChannels, startOffsetInDestBuffer,
+		startSampleInFile, numSamples, length);
+
+	if(memoryReader != nullptr)
+		return memoryReader->readSamples(destSamples, numDestChannels, startOffsetInDestBuffer, startSampleInFile + start, numSamples);
+	else
+		return normalReader->readSamples(destSamples, numDestChannels, startOffsetInDestBuffer, startSampleInFile + start, numSamples);
+}
+
+void HlacSubSectionReader::readMaxLevels(int64 startSampleInFile, int64 numSamples, Range<float>* results, int numChannelsToRead)
+{
+	startSampleInFile = jmax((int64)0, startSampleInFile);
+	numSamples = jmax((int64)0, jmin(numSamples, length - startSampleInFile));
+
+	if(memoryReader != nullptr)
+		memoryReader->readMaxLevels(startSampleInFile + start, numSamples, results, numChannelsToRead);
+	else
+		normalReader->readMaxLevels(startSampleInFile + start, numSamples, results, numChannelsToRead);
+}
+
+void HlacSubSectionReader::readIntoFixedBuffer(HiseSampleBuffer& buffer, int startSample, int numSamples, int64 readerStartSample)
+{
+	if (memoryReader != nullptr)
+	{
+		
+
+		memoryReader->usesFloatingPointData = false;
+
+		int x = 5;
+	}
+
+
 }

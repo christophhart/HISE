@@ -417,7 +417,7 @@ public:
 			const int64 start = info->start;
 			const int64 length = info->length;
 
-			return new AudioSubsectionReader(memoryReaders[channelIndex], start, length, false);
+			return new hlac::HlacSubSectionReader(memoryReaders[channelIndex], start, length);
 		}
 
 		return nullptr;

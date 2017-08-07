@@ -223,6 +223,13 @@ size_t ModulatorSamplerVoice::getStreamingBufferSize() const
 	return wrappedVoice.loader.getActualStreamingBufferSize();
 }
 
+
+
+void ModulatorSamplerVoice::setStreamingBufferDataType(bool shouldBeFloat)
+{
+	wrappedVoice.loader.setStreamingBufferDataType(shouldBeFloat);
+}
+
 const float * ModulatorSamplerVoice::getCrossfadeModulationValues(int startSample, int numSamples)
 {
 

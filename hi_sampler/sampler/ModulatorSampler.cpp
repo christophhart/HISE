@@ -52,14 +52,15 @@ useGlobalFolder(false),
 purged(false),
 reversed(false),
 numChannels(1),
-deactivateUIUpdate(false)
+deactivateUIUpdate(false),
+temporaryVoiceBuffer(true, 2, 0)
 {
 #if USE_BACKEND
 	sampleEditHandler = new SampleEditHandler(this);
 #endif
 
 	crossfadeBuffer = AudioSampleBuffer(1, 0);
-	temporaryVoiceBuffer = AudioSampleBuffer(2, 0);
+	
 
 	setGain(1.0);
 
@@ -533,6 +534,24 @@ double ModulatorSampler::getDiskUsage()
 
 void ModulatorSampler::refreshMemoryUsage()
 {
+	if (sampleMap == nullptr)
+		return;
+
+	const bool temporaryBufferIsFloatingPoint = getTemporaryVoiceBuffer()->isFloatingPoint();
+	const bool temporaryBufferShouldBeFloatingPoint = !sampleMap->isMonolith();
+
+	if (temporaryBufferIsFloatingPoint != temporaryBufferShouldBeFloatingPoint)
+	{
+		temporaryVoiceBuffer = hlac::HiseSampleBuffer(temporaryBufferShouldBeFloatingPoint, 2, 0);
+
+		StreamingSamplerVoice::initTemporaryVoiceBuffer(&temporaryVoiceBuffer, getBlockSize());
+
+		for (int i = 0; i < getNumVoices(); i++)
+		{
+			static_cast<ModulatorSamplerVoice*>(getVoice(i))->setStreamingBufferDataType(temporaryBufferShouldBeFloatingPoint);
+		}
+	}
+
 	int64 actualPreloadSize = 0;
 
 	for (int i = 0; i < getNumSounds(); i++)
@@ -546,12 +565,12 @@ void ModulatorSampler::refreshMemoryUsage()
 
 	for (int i = 0; i < getNumVoices(); i++)
 	{
-		actualPreloadSize += static_cast<ModulatorSamplerVoice*>(getVoice(i))->getStreamingBufferSize();
+		//actualPreloadSize += static_cast<ModulatorSamplerVoice*>(getVoice(i))->getStreamingBufferSize();
 	}
 
 	const int64 streamBufferSizePerVoice = 2 *				// two buffers
-		getMainController()->getSampleManager().getStreamingBufferSize() *		// buffer size per buffer
-		sizeof(float) *  // bytes per sample
+		bufferSize *		// buffer size per buffer
+		(sampleMap->isMonolith() ? 2 : 4) *  // bytes per sample
 		2 * numChannels;				// number of channels
 
 	memoryUsage = actualPreloadSize + streamBufferSizePerVoice * getNumVoices();
@@ -587,6 +606,8 @@ void ModulatorSampler::setVoiceAmount(int newVoiceAmount)
 			{
 				addVoice(new ModulatorSamplerVoice(this));
 			}
+
+			dynamic_cast<ModulatorSamplerVoice*>(voices.getLast())->setStreamingBufferDataType(temporaryVoiceBuffer.isFloatingPoint());
 
 			if (Processor::getSampleRate() != -1.0)
 			{

@@ -45,8 +45,9 @@ class ModulatorSamplerSoundPool;
 */
 struct StereoChannelData
 {
-	const float *leftChannel;
-	const float *rightChannel;
+	const void *leftChannel;
+	const void *rightChannel;
+	bool isFloatingPoint = false;
 };
 
 // ==================================================================================================================================================
@@ -286,7 +287,7 @@ public:
 	*	This is used by the SampleLoader class to fetch the samples from the preloaded buffer until the disk streaming
 	*	thread fills the other buffer.
 	*/
-	const AudioSampleBuffer &getPreloadBuffer() const
+	const hlac::HiseSampleBuffer &getPreloadBuffer() const
 	{
 		// This should not happen (either its unloaded or it has some samples)...
 		//jassert(preloadBuffer.getNumSamples() != 0);
@@ -307,7 +308,6 @@ public:
 	typedef ReferenceCountedObjectPtr<StreamingSamplerSound> Ptr;
 
 	const CriticalSection& getSampleLock() const { return lock; };
-
 
 private:
 
@@ -344,7 +344,7 @@ private:
 		AudioFormatReader *getReader();
 
 		/** Encapsulates all reading operations. It will use the best available reader type and opens the file handle if it is not open yet. */
-		void readFromDisk(AudioSampleBuffer &buffer, int startSample, int numSamples, int readerPosition, bool useMemoryMappedReader);
+		void readFromDisk(hlac::HiseSampleBuffer &buffer, int startSample, int numSamples, int readerPosition, bool useMemoryMappedReader);
 
 		/** Call this method if you want to close the file handle. If voices are playing, it won't close it. */
 		void closeFileHandles(NotificationType notifyPool=sendNotification);
@@ -461,10 +461,10 @@ private:
 	*	It copies the samples either from the preload buffer or reads it directly from the file, so don't call this method from the 
 	*	audio thread, but use the SampleLoader class which handles the background thread stuff.
 	*/
-	void fillSampleBuffer(AudioSampleBuffer &sampleBuffer, int samplesToCopy, int uptime) const;
+	void fillSampleBuffer(hlac::HiseSampleBuffer &sampleBuffer, int samplesToCopy, int uptime) const;
 
 	// used to wrap the read process for looping
-	void fillInternal(AudioSampleBuffer &sampleBuffer, int samplesToCopy, int uptime, int offsetInBuffer=0) const;
+	void fillInternal(hlac::HiseSampleBuffer &sampleBuffer, int samplesToCopy, int uptime, int offsetInBuffer=0) const;
 
 
 	// ==============================================================================================================================================
@@ -478,7 +478,7 @@ private:
 	
 	friend class SampleLoader;
 
-	AudioSampleBuffer preloadBuffer;	
+	hlac::HiseSampleBuffer preloadBuffer;	
 	double sampleRate;
 
 	int monolithOffset;
@@ -508,9 +508,9 @@ private:
 
 
 	// contains the precalculated crossfade
-	AudioSampleBuffer loopBuffer;
+	hlac::HiseSampleBuffer loopBuffer;
 
-	AudioSampleBuffer smallLoopBuffer;
+	hlac::HiseSampleBuffer smallLoopBuffer;
 
 	// ==============================================================================================================================================
 
@@ -543,6 +543,8 @@ public:
 	*/
 	SampleLoader(SampleThreadPool *pool_);;
 
+	~SampleLoader();
+
 	/** Sets the buffer size in samples. */
 	void setBufferSize(int newBufferSize);
 
@@ -565,7 +567,9 @@ public:
 		return b1.getNumSamples() * 2 * 2;
 	}
 
-	StereoChannelData fillVoiceBuffer(AudioSampleBuffer &voiceBuffer, double numSamples) const;
+	void setStreamingBufferDataType(bool shouldBeFloat);
+
+	StereoChannelData fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuffer, double numSamples) const;
 
     /** Advances the read index and returns `false` if the streaming thread is blocked. */
 	bool advanceReadIndex(double uptime);
@@ -659,8 +663,6 @@ public:
     {   
         sound = nullptr;
         diskUsage = 0.0f;
-        readPointerLeft = nullptr;
-        readPointerRight = nullptr;
         cancelled = false;
     }
 
@@ -737,11 +739,11 @@ private:
 
 	DebugLogger* logger;
 
-	Atomic<AudioSampleBuffer const *> readBuffer;
-	Atomic<AudioSampleBuffer *> writeBuffer;
+	Atomic<hlac::HiseSampleBuffer const *> readBuffer;
+	Atomic<hlac::HiseSampleBuffer *> writeBuffer;
 
-	Atomic<const float*> readPointerLeft;
-	Atomic<const float*> readPointerRight;
+	
+	
 
 	// variables for disk usage measurement
 
@@ -753,7 +755,7 @@ private:
 
 	// the internal buffers
 
-	AudioSampleBuffer b1, b2;
+	hlac::HiseSampleBuffer b1, b2;
     
     bool cancelled = false;
 };
@@ -869,7 +871,7 @@ public:
     bool isActive = false;
 
 	/** Returns the sampler's temp buffer. */
-	AudioSampleBuffer *getTemporaryVoiceBuffer()
+	hlac::HiseSampleBuffer *getTemporaryVoiceBuffer()
 	{
 		jassert(tvb != nullptr);
 
@@ -877,13 +879,13 @@ public:
 	}
 
 	/** Gives the voice a reference to the sampler temp buffer. */
-	void setTemporaryVoiceBuffer(AudioSampleBuffer* buffer)
+	void setTemporaryVoiceBuffer(hlac::HiseSampleBuffer* buffer)
 	{
 		tvb = buffer;
 	}
 
 	/** Call this once for every sampler. */
-	static void initTemporaryVoiceBuffer(AudioSampleBuffer* bufferToUse, int samplesPerBlock)
+	static void initTemporaryVoiceBuffer(hlac::HiseSampleBuffer* bufferToUse, int samplesPerBlock)
 	{
 		ProcessorHelpers::increaseBufferIfNeeded(*bufferToUse, samplesPerBlock*MAX_SAMPLER_PITCH);
 	}
@@ -894,7 +896,7 @@ private:
 
 	double pitchCounter = 0.0;
 
-	AudioSampleBuffer* tvb = nullptr;
+	hlac::HiseSampleBuffer* tvb = nullptr;
 
 	const float *pitchData;
 

@@ -846,8 +846,6 @@ private:
 };
 
 
-
-
 /** Some handy helper functions that are using mainly the Iterator. */
 class ProcessorHelpers
 {
@@ -921,17 +919,9 @@ public:
 
 	static void deleteProcessor(Processor* p);
 
-	static void increaseBufferIfNeeded(AudioSampleBuffer& b, int numSamplesNeeded)
-	{
-		// The channel amount must be set correctly in the constructor
-		jassert(b.getNumChannels() > 0);
+	static void increaseBufferIfNeeded(AudioSampleBuffer& b, int numSamplesNeeded);
 
-		if (b.getNumSamples() < numSamplesNeeded)
-		{
-			b.setSize(b.getNumChannels(), numSamplesNeeded, true, true, true);
-			b.clear();
-		}
-	}
+	static void increaseBufferIfNeeded(hlac::HiseSampleBuffer& b, int numSamplesNeeded);
 
 	struct ValueTreeHelpers
 	{

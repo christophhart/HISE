@@ -69,6 +69,8 @@ public:
 	virtual double getDiskUsage();
 	virtual size_t getStreamingBufferSize() const;
 
+	void setStreamingBufferDataType(bool shouldBeFloat);
+
 	// ================================================================================================================
 
 	const float *getCrossfadeModulationValues(int startSample, int numSamples);

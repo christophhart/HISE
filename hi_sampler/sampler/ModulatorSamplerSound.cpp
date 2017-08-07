@@ -528,6 +528,19 @@ void ModulatorSamplerSound::setChannelPurged(int channelIndex, bool shouldBePurg
 	soundList[channelIndex]->setPurged(shouldBePurged);
 }
 
+bool ModulatorSamplerSound::preloadBufferIsNonZero() const noexcept
+{
+	for (int i = 0; i < soundList.size(); i++)
+	{
+		if (!soundList[i]->isPurged() && soundList[i]->getPreloadBuffer().getNumSamples() != 0)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 int ModulatorSamplerSound::getRRGroup() const {	return rrGroup; }
 
 void ModulatorSamplerSound::selectSoundsBasedOnRegex(const String &regexWildcard, ModulatorSampler *sampler, SelectedItemSet<WeakReference<ModulatorSamplerSound>> &set)

@@ -47,13 +47,16 @@ struct CompressionHelpers
 	/** A normalized 16 bit integer buffer
 	*
 	*	The conversion between AudioSampleBuffers and this type will normalize the float values to retain the full 16bit range.
+	*	The data is 16byte aligned.
 	*/
 	struct AudioBufferInt16
 	{
 		AudioBufferInt16(AudioSampleBuffer& b, int channelToUse, bool normalizeBeforeStoring);
 		AudioBufferInt16(int16* externalData_, int numSamples);
 		AudioBufferInt16(const int16* externalData_, int numSamples);
-		AudioBufferInt16(int size_);
+		AudioBufferInt16(int size_=0);
+
+		
 
 		AudioBufferInt16(AudioBufferInt16&& other)
 		{
@@ -140,6 +143,9 @@ struct CompressionHelpers
 
 		/** Returns the absolute max value in the data block. */
 		static int16 max(const int16* d, int numValues);
+
+		/** Clears the data (sets it to zero). */
+		static void clear(int16* d, int numValues);
 	};
 
 	/** Gets the possible bit reduction amount for the next cycle with the given cycleLength. 

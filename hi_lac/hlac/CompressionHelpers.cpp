@@ -130,12 +130,18 @@ void CompressionHelpers::AudioBufferInt16::allocate(int newNumSamples)
 
 	if (size != 0)
 	{
-#if JUCE_WINDOWS
+#if  JUCE_WINDOWS
 		data = static_cast<int16*>(_aligned_malloc(size * sizeof(int16), 16));
 #else
         data = static_cast<int16*>(malloc(size * sizeof(int16)));
 #endif
-		memset(data, 0, size * sizeof(int16));
+
+        jassert(data != nullptr);
+        
+		if (data != nullptr)
+			memset(data, 0, size * sizeof(int16));
+		else
+			size = 0;
 	}
 }
 
@@ -611,6 +617,11 @@ int16 CompressionHelpers::IntVectorOperations::max(const int16* d, int numValues
 	return m;
 }
 
+
+void CompressionHelpers::IntVectorOperations::clear(int16* d, int numValues)
+{
+	memset(d, 0, sizeof(int16)*numValues);
+}
 
 int CompressionHelpers::Diff::getNumFullValues(int bufferSize)
 {

@@ -442,6 +442,30 @@ void ProcessorHelpers::deleteProcessor(Processor* p)
 	}
 }
 
+void ProcessorHelpers::increaseBufferIfNeeded(AudioSampleBuffer& b, int numSamplesNeeded)
+{
+	// The channel amount must be set correctly in the constructor
+	jassert(b.getNumChannels() > 0);
+
+	if (b.getNumSamples() < numSamplesNeeded)
+	{
+		b.setSize(b.getNumChannels(), numSamplesNeeded, true, true, true);
+		b.clear();
+	}
+}
+
+void ProcessorHelpers::increaseBufferIfNeeded(hlac::HiseSampleBuffer& b, int numSamplesNeeded)
+{
+	// The channel amount must be set correctly in the constructor
+	jassert(b.getNumChannels() > 0);
+
+	if (b.getNumSamples() < numSamplesNeeded)
+	{
+		b.setSize(b.getNumChannels(), numSamplesNeeded);
+		b.clear();
+	}
+}
+
 void AudioSampleProcessor::replaceReferencesWithGlobalFolder()
 {
 	if (!isReference(loadedFileName))
