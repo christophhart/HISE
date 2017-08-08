@@ -59,7 +59,12 @@ public:
 
 	String getProductID() override;;
 
-	bool doesProductIDMatch(const String& returnedIDFromServer) override { return returnedIDFromServer == getProductID(); };
+	bool doesProductIDMatch(const String& returnedIDFromServer) override 
+	{ 
+		auto pId = getProductID();
+
+		return returnedIDFromServer == pId; 
+	};
 
     juce::RSAKey getPublicKey() override;
 

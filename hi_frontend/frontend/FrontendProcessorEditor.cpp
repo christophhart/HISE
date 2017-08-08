@@ -146,80 +146,100 @@ void FrontendProcessorEditor::resized()
 
 #if USE_COPY_PROTECTION
 
-class OnlineActivator : public ThreadWithAsyncProgressWindow
+OnlineActivator::OnlineActivator(Unlocker* unlocker_, DeactiveOverlay* overlay_) :
+	ThreadWithAsyncProgressWindow("Online Authentication"),
+	unlocker(unlocker_),
+	overlay(overlay_)
 {
-public:
+	addTextEditor("user", unlocker->getUserEmail(), "Email Adress");
+	addTextEditor("serial", "XXXX-XXXX-XXXX-XXXX", "Serial number");
 
-	OnlineActivator(Unlocker* unlocker_, DeactiveOverlay* overlay_):
-		ThreadWithAsyncProgressWindow("Online Authentication"),
-		unlocker(unlocker_),
-		overlay(overlay_)
+
+	addBasicComponents();
+
+	showStatusMessage("Please enter your user name and the serial number and press OK");
+}
+
+
+void OnlineActivator::run()
+{
+	URL url = unlocker->getServerAuthenticationURL();
+
+	StringPairArray data;
+
+	StringArray ids = unlocker->getLocalMachineIDs();
+
+	if (ids.size() > 0)
 	{
-		addTextEditor("user", unlocker->getUserEmail(), "User Name");
-		addTextEditor("serial", "XXXX-XXXX-XXXX-XXXX", "Serial number");
+		auto email = getTextEditorContents("user");
 
+		//URL::isProbablyAnEmailAddress(email)
 
-		addBasicComponents();
+		data.set("user", email);
+		data.set("serial", getTextEditorContents("serial"));
+		data.set("machine_id", ids[0]);
 
-		showStatusMessage("Please enter your user name and the serial number and press OK");
+		url = url.withParameters(data);
 
-	}
+		ScopedPointer<InputStream> uis = url.createInputStream(false, nullptr, nullptr);
 
-	void run() override
-	{
-		URL url = unlocker->getServerAuthenticationURL();
-
-		StringPairArray data;
-
-		StringArray ids = unlocker->getLocalMachineIDs();
-		if (ids.size() > 0)
+		if (uis != nullptr)
 		{
-			data.set("user", getTextEditorContents("user"));
-			data.set("serial", getTextEditorContents("serial"));
-			data.set("machine_id", ids[0]);
-
-			url = url.withParameters(data);
-
-			ScopedPointer<InputStream> uis = url.createInputStream(false, nullptr, nullptr);
-
 			keyFile = uis->readEntireStreamAsString();
 
-		}
-	}
+			if (keyFile.startsWith("Keyfile for"))
+			{
+				error = OK;
+				
+			}
+			else
+			{
+				error = Fail;
+				errorMessage = keyFile;
 
-	void threadFinished() override
-	{
-		if (keyFile.startsWith("Keyfile for"))
-		{
-			ProjectHandler::Frontend::getLicenceKey().replaceWithText(keyFile);
-
-			PresetHandler::showMessageWindow("Authentication successfull", "The authentication was successful and the licence key was stored.\nPlease reload this plugin to finish the authentication.", PresetHandler::IconType::Info);
-
-			unlocker->applyKeyFile(keyFile);
-
-			DeactiveOverlay::State returnValue = overlay->checkLicence(keyFile);
-
-			if (returnValue != DeactiveOverlay::State::numReasons) return;
-
-			
-
-			overlay->setState(DeactiveOverlay::State::LicenseNotFound, false);
-			overlay->setState(DeactiveOverlay::State::LicenseInvalid, !unlocker->isUnlocked());
-
+			}
 		}
 		else
 		{
-			PresetHandler::showMessageWindow("Authentication failed", keyFile, PresetHandler::IconType::Error);
+			error = noConnection;
+			errorMessage = "No connection to server";
 		}
 	}
+}
 
-private:
+void OnlineActivator::threadFinished()
+{
+	if (error == OK)
+	{
+		ProjectHandler::Frontend::getLicenceKey().replaceWithText(keyFile);
 
-	String keyFile;
+		PresetHandler::showMessageWindow("Authentication successfull", "The authentication was successful and the licence key was stored.\nPlease reload this plugin to finish the authentication.", PresetHandler::IconType::Info);
 
-	Unlocker* unlocker;
-	DeactiveOverlay* overlay;
+		unlocker->applyKeyFile(keyFile);
 
-};
+		DeactiveOverlay::State returnValue = overlay->checkLicence(keyFile);
+
+		if (returnValue != DeactiveOverlay::State::numReasons) return;
+
+		overlay->setState(DeactiveOverlay::State::LicenseNotFound, false);
+		overlay->setState(DeactiveOverlay::State::LicenseInvalid, !unlocker->isUnlocked());
+
+	}
+	else if (error == noConnection)
+	{
+		auto ids = unlocker->getLocalMachineIDs();
+
+		auto id = ids[0];
+
+		if (id.isNotEmpty())
+		{
+			PresetHandler::showMessageWindow("No connection", "Authentification failed because the server could not be reached.\nIf you want to authorize this machine from another computer, use this ID: " + id, PresetHandler::IconType::Info);
+		}
+	}
+	else
+	{
+		PresetHandler::showMessageWindow("Authentication failed", errorMessage, PresetHandler::IconType::Error);
+	}
+}
 
 #endif

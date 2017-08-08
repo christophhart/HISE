@@ -44,7 +44,7 @@ String Unlocker::getWebsiteName()
 
 URL Unlocker::getServerAuthenticationURL()
 {
-	return URL(ProjectHandler::Frontend::getCompanyWebsiteName()).getChildURL("licence/key_file_generator.php");
+	return URL("http://hise.audio/licence/key_file_generator.php");
 }
 
 #endif
