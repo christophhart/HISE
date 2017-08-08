@@ -2133,12 +2133,17 @@ void ScriptingApi::Content::ScriptPanel::setPaintRoutine(var paintFunction)
 
 void ScriptingApi::Content::ScriptPanel::internalRepaint()
 {
+	if (!paintCanvas.isValid())
+		return;
+
 	double scaleFactor = parent->usesDoubleResolution() ? 2.0 : 1.0;
     
 	scaleFactor *= dynamic_cast<GlobalSettingManager*>(getScriptProcessor()->getMainController_())->getGlobalScaleFactor();
 
 	int canvasWidth = (int)(scaleFactor * (double)getScriptObjectProperty(ScriptComponent::Properties::width));
 	int canvasHeight = (int)(scaleFactor * (double)getScriptObjectProperty(ScriptComponent::Properties::height));
+
+	
 
 	if (paintCanvas.getWidth() != canvasWidth ||
 		paintCanvas.getHeight() != canvasHeight)
