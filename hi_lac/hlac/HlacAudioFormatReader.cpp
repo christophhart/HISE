@@ -259,18 +259,9 @@ bool HlacReaderCommon::fixedBufferRead(HiseSampleBuffer& buffer, int numDestChan
 	return true;
 }
 
-void HiseLosslessAudioFormatReader::copySampleData(int* const* destSamples, int startOffsetInDestBuffer, int numDestChannels, const void* sourceData, int numChannels, int numSamples) noexcept
+bool HiseLosslessAudioFormatReader::copyFromMonolith(HiseSampleBuffer& destination, int startOffsetInBuffer, int numDestChannels, int64 offsetInFile, int numChannels, int numSamples)
 {
-	jassert(numDestChannels == numDestChannels);
 
-	if (numChannels == 1)
-	{
-		ReadHelper<AudioData::Float32, AudioData::Int16, AudioData::LittleEndian>::read(destSamples, startOffsetInDestBuffer, 1, sourceData, 1, numSamples);
-	}
-	else
-	{
-		ReadHelper<AudioData::Float32, AudioData::Int16, AudioData::LittleEndian>::read(destSamples, startOffsetInDestBuffer, numDestChannels, sourceData, 2, numSamples);
-	}
 }
 
 bool HlacMemoryMappedAudioFormatReader::readSamples(int** destSamples, int numDestChannels, int startOffsetInDestBuffer, int64 startSampleInFile, int numSamples)
@@ -382,6 +373,31 @@ void HlacMemoryMappedAudioFormatReader::copySampleData(int* const* destSamples, 
 	}
 }
 
+bool HlacMemoryMappedAudioFormatReader::copyFromMonolith(HiseSampleBuffer& destination, int startOffsetInBuffer, int numDestChannels, int64 offsetInFile, int numChannels, int numSamples)
+{
+	auto sourceData = memoryReader->sampleToPointer(offsetInFile);
+
+	if (numChannels == 1)
+	{
+		memcpy(destination.getWritePointer(0, startOffsetInBuffer), sourceData, numSamples * sizeof(int16));
+
+		if (numDestChannels == 2)
+		{
+			memcpy(destination.getWritePointer(1, startOffsetInBuffer), sourceData, numSamples * sizeof(int16));
+		}
+	}
+	else
+	{
+		jassert(destination.getNumChannels() == 2);
+
+		int16* channels[2] = { static_cast<int16*>(destination.getWritePointer(0, 0)), static_cast<int16*>(destination.getWritePointer(1, 0)) };
+
+		ReadHelper<AudioData::Int16, AudioData::Int16, AudioData::LittleEndian>::read(channels, startOffsetInBuffer, numDestChannels, sourceData, 2, numSamples);
+	}
+
+	return true;
+}
+
 HlacSubSectionReader::HlacSubSectionReader(AudioFormatReader* sourceReader, int64 subsectionStartSample, int64 subsectionLength) :
 	AudioFormatReader(0, sourceReader->getFormatName()),
 	start(subsectionStartSample)
@@ -394,15 +410,24 @@ HlacSubSectionReader::HlacSubSectionReader(AudioFormatReader* sourceReader, int6
 	usesFloatingPointData = sourceReader->usesFloatingPointData;
 	lengthInSamples = length;
 
+	
+
 	if (auto m = dynamic_cast<HlacMemoryMappedAudioFormatReader*>(sourceReader))
 	{
 		memoryReader = m;
 		normalReader = nullptr;
+
+		internalReader = &memoryReader->internalReader;
+		isMonolith = memoryReader->isMonolith;
+
 	}
 	else
 	{
 		memoryReader = nullptr;
 		normalReader = dynamic_cast<HiseLosslessAudioFormatReader*>(sourceReader);
+
+		internalReader = &normalReader->internalReader;
+		isMonolith = normalReader->isMonolith;
 	}
 }
 
@@ -430,32 +455,24 @@ void HlacSubSectionReader::readMaxLevels(int64 startSampleInFile, int64 numSampl
 
 void HlacSubSectionReader::readIntoFixedBuffer(HiseSampleBuffer& buffer, int startSample, int numSamples, int64 readerStartSample)
 {
-	//jassert(buffer.getNumChannels() == memoryReader->numChannels);
-
-	if (memoryReader != nullptr)
+	if (isMonolith)
 	{
-		if (memoryReader->isMonolith)
+		if (memoryReader != nullptr)
 		{
-			throw std::logic_error("not implemented");
+			memoryReader->copyFromMonolith(buffer, startSample, buffer.getNumChannels(), start + readerStartSample, numChannels, numSamples);
 		}
 		else
 		{
-			memoryReader->internalReader.fixedBufferRead(buffer, memoryReader->numChannels, startSample, start + readerStartSample, numSamples);
-
-			if (buffer.getNumChannels() == 2 && memoryReader->numChannels == 1)
-			{
-				memcpy(buffer.getWritePointer(1, startSample), buffer.getReadPointer(0, startSample), sizeof(int16)*numSamples);
-			}
+			normalReader->copyFromMonolith(buffer, startSample, buffer.getNumChannels(), start + readerStartSample, numChannels, numSamples);
 		}
-
-		
 	}
 	else
 	{
-		throw std::logic_error("not implemented");
+		internalReader->fixedBufferRead(buffer, numChannels, startSample, start + readerStartSample, numSamples);
+
+		if (buffer.getNumChannels() == 2 && numChannels == 1)
+		{
+			memcpy(buffer.getWritePointer(1, startSample), buffer.getReadPointer(0, startSample), sizeof(int16)*numSamples);
+		}
 	}
-
-	
-
-
 }

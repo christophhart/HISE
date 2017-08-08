@@ -110,6 +110,8 @@ private:
 
 	bool fixedBufferRead(HiseSampleBuffer& buffer, int numDestChannels, int startOffsetInBuffer, int64 startSampleInFile, int numSamples);
 
+	
+
 	friend class HiseLosslessAudioFormatReader;
 	friend class HlacMemoryMappedAudioFormatReader;
 
@@ -139,7 +141,22 @@ private:
 
 	friend class HlacSubSectionReader;
 
-	static void copySampleData(int* const* destSamples, int startOffsetInDestBuffer, int numDestChannels, const void* sourceData, int numChannels, int numSamples) noexcept;
+
+	template <typename TargetType> static void copySampleData(int* const* destSamples, int startOffsetInDestBuffer, int numDestChannels, const void* sourceData, int numChannels, int numSamples) noexcept
+	{
+		jassert(numDestChannels == numDestChannels);
+
+		if (numChannels == 1)
+		{
+			ReadHelper<TargetType, AudioData::Int16, AudioData::LittleEndian>::read(destSamples, startOffsetInDestBuffer, 1, sourceData, 1, numSamples);
+		}
+		else
+		{
+			ReadHelper<TargetType, AudioData::Int16, AudioData::LittleEndian>::read(destSamples, startOffsetInDestBuffer, numDestChannels, sourceData, 2, numSamples);
+		}
+	}
+
+	bool copyFromMonolith(HiseSampleBuffer& destination, int startOffsetInBuffer, int numDestChannels, int64 offsetInFile, int numChannels, int numSamples);
 
 	HlacReaderCommon internalReader;
 
@@ -185,6 +202,8 @@ private:
 
 	static void copySampleData(int* const* destSamples, int startOffsetInDestBuffer, int numDestChannels, const void* sourceData, int numChannels, int numSamples) noexcept;
 
+	bool copyFromMonolith(HiseSampleBuffer& destination, int startOffsetInBuffer, int numDestChannels, int64 offsetInFile, int numChannels, int numSamples);
+
 	ScopedPointer<MemoryInputStream> mis;
 	HlacReaderCommon internalReader;
 
@@ -206,8 +225,12 @@ public:
 
 private:
 
+	bool isMonolith = false;
+
 	HlacMemoryMappedAudioFormatReader* memoryReader;
 	HiseLosslessAudioFormatReader* normalReader;
+
+	HlacReaderCommon* internalReader;
 
 	int64 start;
 	int64 length;

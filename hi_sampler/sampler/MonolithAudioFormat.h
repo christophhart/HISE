@@ -36,7 +36,7 @@
 
 #define USE_OLD_MONOLITH_FORMAT 0
 
-#if JUCE_64BIT && !JUCE_IOS
+#if 0 && JUCE_64BIT && !JUCE_IOS
 #define USE_FALLBACK_READERS_FOR_MONOLITH 0
 #else
 #define USE_FALLBACK_READERS_FOR_MONOLITH 1
@@ -437,7 +437,7 @@ public:
 
 			fallbackReaders[channelIndex]->sampleRate = info->sampleRate;
 
-			return new AudioSubsectionReader(fallbackReaders[channelIndex], start, length, false);
+			return new hlac::HlacSubSectionReader(fallbackReaders[channelIndex], start, length);
 		}
 
 		return nullptr;
