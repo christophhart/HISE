@@ -137,6 +137,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
         MenuToolsRedirectSampleFolder,
 		MenuToolsForcePoolSearch,
 		MenuToolsConvertAllSamplesToMonolith,
+		MenuToolsUpdateSampleMapIdsBasedOnFileName,
 		MenuToolsConvertSfzToSampleMaps,
 		MenuToolsEnableAutoSaving,
 		MenuToolsEnableDebugLogging,
@@ -406,6 +407,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuToolsConvertAllSamplesToMonolith:
 		setCommandTarget(result, "Convert all samples to Monolith + Samplemap", true, false, 'X', false);
 		break;
+	case MenuToolsUpdateSampleMapIdsBasedOnFileName:
+		setCommandTarget(result, "Update SampleMap Ids based on file names", true, false, 'X', false);
+		break;
 	case MenuToolsConvertSfzToSampleMaps:
 		setCommandTarget(result, "Convert SFZ files to SampleMaps", true, false, 'X', false);
 		break;
@@ -562,6 +566,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
     case MenuToolsRedirectSampleFolder: Actions::redirectSampleFolder(bpe->getMainSynthChain()); updateCommands(); return true;
 	case MenuToolsForcePoolSearch:		Actions::toggleForcePoolSearch(bpe); updateCommands(); return true;
 	case MenuToolsConvertAllSamplesToMonolith:	Actions::convertAllSamplesToMonolith(bpe); return true;
+	case MenuToolsUpdateSampleMapIdsBasedOnFileName:	Actions::updateSampleMapIds(bpe); return true;
 	case MenuToolsConvertSfzToSampleMaps:	Actions::convertSfzFilesToSampleMaps(bpe); return true;
 	case MenuToolsCreateRSAKeys:		Actions::createRSAKeys(bpe); return true;
 	case MenuToolsCreateDummyLicenceFile: Actions::createDummyLicenceFile(bpe); return true;
@@ -818,6 +823,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuToolsRedirectSampleFolder);
 		ADD_DESKTOP_ONLY(MenuToolsForcePoolSearch);
 		ADD_DESKTOP_ONLY(MenuToolsConvertAllSamplesToMonolith);
+		ADD_DESKTOP_ONLY(MenuToolsUpdateSampleMapIdsBasedOnFileName);
 		ADD_DESKTOP_ONLY(MenuToolsConvertSfzToSampleMaps);
 		ADD_DESKTOP_ONLY(MenuToolsEnableAutoSaving);
 		ADD_DESKTOP_ONLY(MenuToolsEnableDebugLogging);
@@ -1239,6 +1245,76 @@ void BackendCommandTarget::Actions::addInterfacePreview(BackendRootWindow * bpe)
 	}
 
 	w->getRootFloatingTile()->refreshRootLayout();
+}
+
+void BackendCommandTarget::Actions::updateSampleMapIds(BackendRootWindow * bpe)
+{
+	if (PresetHandler::showYesNoWindow("Update SampleMap Ids", "Do you really want to update the IDs of all samplemaps in the current project?\nThis is undoable"))
+	{
+		
+
+		File sampleMapRoot = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
+		File sampleRoot = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Samples);
+
+		Array<File> sampleMapFiles;
+
+		sampleMapRoot.findChildFiles(sampleMapFiles, File::findFiles, true, "*.xml");
+
+		for (int i = 0; i < sampleMapFiles.size(); i++)
+		{
+			ScopedPointer<XmlElement> xml = XmlDocument::parse(sampleMapFiles[i]);
+
+			if (xml != nullptr && xml->hasAttribute("ID"))
+			{
+				const String id = xml->getStringAttribute("ID");
+				const String relativePath = sampleMapFiles[i].getRelativePathFrom(sampleMapRoot).replace("\\", "/").upToFirstOccurrenceOf(".xml", false, true);
+
+				if (id != relativePath)
+				{
+					if (PresetHandler::showYesNoWindow("Mismatch detected", "Filename: \"" + relativePath + "\", ID: \"" + id + "\"\nDo you want to update the ID and rename the monolith samples?"))
+					{
+						xml->setAttribute("ID", relativePath);
+						sampleMapFiles[i].replaceWithText(xml->createDocument(""));
+
+						Array<File> sampleFiles;
+
+						String oldSampleFileName = id.replace("/", "_");
+
+						sampleRoot.findChildFiles(sampleFiles, File::findFiles, false);
+
+						for (auto f : sampleFiles)
+						{
+							if (f.getFileNameWithoutExtension() == oldSampleFileName)
+							{
+								File newFileName = sampleRoot.getChildFile(relativePath.replace("/", "_") + f.getFileExtension());
+
+								if (!newFileName.existsAsFile())
+								{
+									f.moveFileTo(newFileName);
+									PresetHandler::showMessageWindow("Sample file renamed", "The sample with the name " + f.getFileName() + " was renamed to " + newFileName.getFileName(), PresetHandler::IconType::Info);
+								}
+								else
+								{
+									PresetHandler::showMessageWindow("Sample already exists", "The sample with the name " + newFileName.getFullPathName() + " already exists", PresetHandler::IconType::Error);
+									return;
+								}
+							}
+						}
+					}
+				}
+
+			}
+			else
+			{
+				PresetHandler::showMessageWindow("Corrupt Samplemap", "The samplemap " + sampleMapFiles[i].getFullPathName() + " is corrupt", PresetHandler::IconType::Error);
+				return;
+			}
+		}
+
+		Array<File> sampleFiles;
+
+		
+	}
 }
 
 void BackendCommandTarget::Actions::recompileAllScripts(BackendRootWindow * bpe)

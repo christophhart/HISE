@@ -1168,7 +1168,7 @@ StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuf
 
 		const int numSamplesAvailableInSecondBuffer = localWriteBuffer->getNumSamples() - offset;
 
-		if ( (numSamplesAvailableInSecondBuffer > 0) && (numSamplesAvailableInSecondBuffer < localWriteBuffer->getNumSamples()))
+		if ( (numSamplesAvailableInSecondBuffer > 0) && (numSamplesAvailableInSecondBuffer <= localWriteBuffer->getNumSamples()))
 		{
 			const int numSamplesToCopyFromSecondBuffer = jmin<int>(numSamplesAvailableInSecondBuffer, voiceBuffer.getNumSamples() - offset);
 

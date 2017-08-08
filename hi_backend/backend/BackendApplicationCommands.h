@@ -170,6 +170,7 @@ public:
         MenuToolsRedirectSampleFolder,
 		MenuToolsForcePoolSearch,
 		MenuToolsConvertAllSamplesToMonolith,
+		MenuToolsUpdateSampleMapIdsBasedOnFileName,
 		MenuToolsConvertSfzToSampleMaps,
 		MenuToolsCreateRSAKeys,
 		MenuToolsCreateDummyLicenceFile,
@@ -314,6 +315,7 @@ public:
 		static void checkUnusedImages(BackendRootWindow * bpe);
 		static void toggleOpenGLMode(BackendRootWindow * bpe);
 		static void addInterfacePreview(BackendRootWindow * bpe);
+		static void updateSampleMapIds(BackendRootWindow * bpe);
 	};
 
 private:
