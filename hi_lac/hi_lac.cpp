@@ -36,6 +36,7 @@ namespace hlac
 {
 	#include "hlac/BitCompressors.cpp"
 	#include "hlac/CompressionHelpers.cpp"
+	#include "hlac/SampleBuffer.cpp"
 	#include "hlac/HlacEncoder.cpp"
 	#include "hlac/HlacDecoder.cpp"
 	#include "hlac/HlacAudioFormatWriter.cpp"

@@ -417,7 +417,7 @@ public:
 			const int64 start = info->start;
 			const int64 length = info->length;
 
-			return new AudioSubsectionReader(memoryReaders[channelIndex], start, length, false);
+			return new hlac::HlacSubSectionReader(memoryReaders[channelIndex], start, length);
 		}
 
 		return nullptr;
@@ -437,10 +437,37 @@ public:
 
 			fallbackReaders[channelIndex]->sampleRate = info->sampleRate;
 
-			return new AudioSubsectionReader(fallbackReaders[channelIndex], start, length, false);
+			return new hlac::HlacSubSectionReader(fallbackReaders[channelIndex], start, length);
 		}
 
 		return nullptr;
+	}
+
+	/** Use this for UI rendering stuff to avoid multithreading issues. */
+	AudioFormatReader* createThumbnailReader(int sampleIndex, int channelIndex)
+	{
+		const int sizeOfFirstChannelList = (int)multiChannelSampleInformation[0].size();
+		const int sizeOfChannelList = (int)multiChannelSampleInformation.size();
+
+		if (channelIndex < sizeOfChannelList && sizeOfFirstChannelList > 0 && sampleIndex < sizeOfFirstChannelList)
+		{
+			auto info = &multiChannelSampleInformation[channelIndex][sampleIndex];
+
+			const int64 start = info->start;
+			const int64 length = info->length;
+
+			ScopedPointer<FileInputStream> fallbackStream = new FileInputStream(monolithicFiles[channelIndex]);
+			
+			ScopedPointer<hlac::HiseLosslessAudioFormatReader> thumbnailReader = new hlac::HiseLosslessAudioFormatReader(fallbackStream.release());
+
+			thumbnailReader->sampleRate = info->sampleRate;
+
+			return new AudioSubsectionReader(thumbnailReader.release(), start, length, true);
+
+		}
+
+		return nullptr;
+	
 	}
 
 	struct SampleInfo

@@ -69,6 +69,8 @@ public:
 	virtual double getDiskUsage();
 	virtual size_t getStreamingBufferSize() const;
 
+	virtual void setStreamingBufferDataType(bool shouldBeFloat);
+
 	// ================================================================================================================
 
 	const float *getCrossfadeModulationValues(int startSample, int numSamples);
@@ -133,6 +135,8 @@ public:
 	void setLoaderBufferSize(int newBufferSize) override;
 	double getDiskUsage() override;
 	size_t getStreamingBufferSize() const override;
+
+	void setStreamingBufferDataType(bool shouldBeFloat) override;
 
 	/** Resets the display value for the current note. */
 	void resetVoice() override;

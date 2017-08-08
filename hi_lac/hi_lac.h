@@ -107,6 +107,7 @@ namespace hlac
 {
 	#include "hlac/BitCompressors.h"
 	#include "hlac/CompressionHelpers.h"
+	#include "hlac/SampleBuffer.h"
 	#include "hlac/HlacEncoder.h"
 	#include "hlac/HlacDecoder.h"
 	#include "hlac/HlacAudioFormatWriter.h"

@@ -270,7 +270,11 @@ CodecTest::CodecTest() :
 
 void CodecTest::runTest()
 {
-	testIntegerBuffers();
+	//testIntegerBuffers();
+
+	testHiseSampleBuffer();
+
+	return;
 
 	SignalType testOnly = SignalType::numSignalTypes;
 	Option soloOption = Option::numCompressorOptions;
@@ -325,10 +329,57 @@ void CodecTest::testIntegerBuffers()
 		auto error = CompressionHelpers::checkBuffersEqual(dst, src);
 
 		expectEquals<int>(error, 0, "Int Buffer conversion");
-	}
+	}	
+}
+
+void CodecTest::testHiseSampleBuffer()
+{
+	beginTest("Testing HiseSampleBuffer");
+
+	Random r;
+
+	const int numSamples = CompressionHelpers::getPaddedSampleSize(r.nextInt(Range<int>(8000, 10000)));
+
+	AudioSampleBuffer src = createTestSignal(numSamples, 1, SignalType::DecayingSineWithHarmonic, 0.6f);
+
+	HeapBlock<uint32> blockOffsets;
+	blockOffsets.calloc(10000);
+
+	HlacEncoder encoder;
+	encoder.setOptions(options[(int)Option::Diff]);
+
+	MemoryOutputStream mos;
+
+	HiseSampleBuffer s1 = HiseSampleBuffer(src);
+
+	encoder.compress(src, mos, blockOffsets);
+	
+	HlacDecoder decoder;
+
+	decoder.setupForDecompression();
+
+	const int offset = 948;
+	const int numSamplesToDecode = numSamples - offset;
+
+	HiseSampleBuffer dst = HiseSampleBuffer(false, 1, numSamples);
+
+	MemoryInputStream mis(mos.getMemoryBlock(), true);
 
 	
+
+	
+
+	decoder.decode(dst, false, mis, offset, numSamplesToDecode);
+
+	auto b1 = CompressionHelpers::getPart(src, offset, numSamplesToDecode);
+	auto b2 = CompressionHelpers::getPart(dst, 0, numSamplesToDecode);
+
+	auto error = CompressionHelpers::checkBuffersEqual(b1, b2);
+
+	expectEquals<int>((int)error, 0, "Test HiseSampleBuffer");
 }
+
+
 
 void CodecTest::testCodec(SignalType type, Option option, bool /*testStereo*/)
 {
@@ -353,7 +404,7 @@ void CodecTest::testCodec(SignalType type, Option option, bool /*testStereo*/)
 
 	expect(ts1.getMagnitude(0, numSamples) <= 1.0f, "  Peak > 1.0f");
 
-	auto ts1_dst = AudioSampleBuffer(numChannels, CompressionHelpers::getPaddedSampleSize(numSamples));
+	auto ts1_dst = HiseSampleBuffer(true, numChannels, CompressionHelpers::getPaddedSampleSize(numSamples));
 
 	encoder.setOptions(options[(int)option]);
 	encoder.compress(ts1, mos, blockOffsets);
@@ -362,9 +413,9 @@ void CodecTest::testCodec(SignalType type, Option option, bool /*testStereo*/)
 
 	MemoryInputStream mis(mos.getMemoryBlock(), true);
 
-	decoder.decode(ts1_dst, mis);
+	decoder.decode(ts1_dst, numChannels > 1, mis);
 
-	auto diffBitRate = CompressionHelpers::checkBuffersEqual(ts1_dst, ts1);
+	auto diffBitRate = CompressionHelpers::checkBuffersEqual(*ts1_dst.getFloatBufferForFileReader(), ts1);
 
 	expectEquals<int>((int)diffBitRate, 0, "Test codec with Signal type " + String((int)type) + " and compression mode " + String((int)option));
 
@@ -1490,4 +1541,4 @@ public:
 	HlacEncoder::CompressorOptions currentOption;
 };
 
-static FormatTest formatTest;
+//static FormatTest formatTest;

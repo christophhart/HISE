@@ -174,10 +174,14 @@ void HlacMonolithInfo::fillMetadataInfo(const ValueTree& sampleMap)
 
 		ScopedPointer<MemoryMappedAudioFormatReader> reader = hlaf.createMemoryMappedReader(monolithicFiles[i]);
 
+		
+
 #if !USE_FALLBACK_READERS_FOR_MONOLITH
 		reader->mapEntireFile();
 
 		memoryReaders.add(dynamic_cast<hlac::HlacMemoryMappedAudioFormatReader*>(reader.release()));
+
+		memoryReaders.getLast()->setTargetAudioDataType(AudioDataConverters::DataFormat::int16BE);
 
 		if (memoryReaders.getLast()->getMappedSection().isEmpty())
 		{

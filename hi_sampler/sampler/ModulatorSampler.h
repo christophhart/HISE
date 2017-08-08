@@ -456,7 +456,7 @@ public:
 		return saveString;
 	}
 
-	AudioSampleBuffer* getTemporaryVoiceBuffer() { return &temporaryVoiceBuffer; }
+	hlac::HiseSampleBuffer* getTemporaryVoiceBuffer() { return &temporaryVoiceBuffer; }
 
 private:
 
@@ -604,7 +604,7 @@ private:
 
 	AudioSampleBuffer crossfadeBuffer;
 
-	AudioSampleBuffer temporaryVoiceBuffer;
+	hlac::HiseSampleBuffer temporaryVoiceBuffer;
 
 	float groupGainValues[8];
 

@@ -55,6 +55,7 @@ END_JUCE_MODULE_DECLARATION
 #include "../hi_dsp_library/hi_dsp_library.h"
 
 #include "sampler/MonolithAudioFormat.h"
+
 #include "sampler/StreamingSampler.h"
 
 #include "sampler/dywapitchtrack/dywapitchtrack.h"

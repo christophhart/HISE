@@ -223,6 +223,13 @@ size_t ModulatorSamplerVoice::getStreamingBufferSize() const
 	return wrappedVoice.loader.getActualStreamingBufferSize();
 }
 
+
+
+void ModulatorSamplerVoice::setStreamingBufferDataType(bool shouldBeFloat)
+{
+	wrappedVoice.loader.setStreamingBufferDataType(shouldBeFloat);
+}
+
 const float * ModulatorSamplerVoice::getCrossfadeModulationValues(int startSample, int numSamples)
 {
 
@@ -444,6 +451,14 @@ size_t MultiMicModulatorSamplerVoice::getStreamingBufferSize() const
 	}
 
 	return size;
+}
+
+void MultiMicModulatorSamplerVoice::setStreamingBufferDataType(bool shouldBeFloat)
+{
+	for (int i = 0; i < wrappedVoices.size(); i++)
+	{
+		wrappedVoices[i]->loader.setStreamingBufferDataType(shouldBeFloat);
+	}
 }
 
 void MultiMicModulatorSamplerVoice::resetVoice()

@@ -42,7 +42,7 @@ public:
 	workBuffer(0)
 	{};
 
-	void decode(AudioSampleBuffer& destination, InputStream& input, int offsetInSource=0, int numSamples=-1);
+	void decode(HiseSampleBuffer& destination, bool decodeStereo, InputStream& input, int offsetInSource=0, int numSamples=-1);
 
 	void setupForDecompression();
 
@@ -78,11 +78,11 @@ private:
 
 	void reset();
 	
-	bool decodeBlock(AudioSampleBuffer& destination, InputStream& input, int channelIndex);
+	bool decodeBlock(HiseSampleBuffer& destination, bool decodeStereo, InputStream& input, int channelIndex);
 
-	void decodeDiff(const CycleHeader& header, AudioSampleBuffer& destination, InputStream& input, int channelIndex);
+	void decodeDiff(const CycleHeader& header, bool decodeStereo, HiseSampleBuffer& destination, InputStream& input, int channelIndex);
 
-	void decodeCycle(const CycleHeader& header, AudioSampleBuffer& destination, InputStream& input, int channelIndex);
+	void decodeCycle(const CycleHeader& header, bool decodeStereo, HiseSampleBuffer& destination, InputStream& input, int channelIndex);
 
 	enum class FloatWriteMode
 	{
@@ -92,7 +92,7 @@ private:
 		numWriteModes
 	};
 
-	void writeToFloatArray(bool shouldCopy, bool useTempBuffer, AudioSampleBuffer& destination, int channelIndex, int numSamples);
+	void writeToFloatArray(bool shouldCopy, bool useTempBuffer, HiseSampleBuffer& destination, int channelIndex, int numSamples);
 
 	CycleHeader readCycleHeader(InputStream& input);
 

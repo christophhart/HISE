@@ -104,7 +104,11 @@ public:
 
 private:
 
+	friend class HlacSubSectionReader;
+
 	bool internalHlacRead(int** destSamples, int numDestChannels, int startOffsetInDestBuffer, int64 startSampleInFile, int numSamples);
+
+	bool fixedBufferRead(HiseSampleBuffer& buffer, int numDestChannels, int startOffsetInBuffer, int64 startSampleInFile, int numSamples);
 
 	
 
@@ -135,7 +139,12 @@ public:
 
 private:
 
+	friend class HlacSubSectionReader;
+
+
 	static void copySampleData(int* const* destSamples, int startOffsetInDestBuffer, int numDestChannels, const void* sourceData, int numChannels, int numSamples) noexcept;
+
+	bool copyFromMonolith(HiseSampleBuffer& destination, int startOffsetInBuffer, int numDestChannels, int64 offsetInFile, int numChannels, int numSamples);
 
 	HlacReaderCommon internalReader;
 
@@ -173,14 +182,46 @@ public:
 		*result = 0.0f;
 	}
 
+	void setTargetAudioDataType(AudioDataConverters::DataFormat dataType);
+
 private:
 	
+	friend class HlacSubSectionReader;
+
 	static void copySampleData(int* const* destSamples, int startOffsetInDestBuffer, int numDestChannels, const void* sourceData, int numChannels, int numSamples) noexcept;
+
+	bool copyFromMonolith(HiseSampleBuffer& destination, int startOffsetInBuffer, int numDestChannels, int64 offsetInFile, int numChannels, int numSamples);
 
 	ScopedPointer<MemoryInputStream> mis;
 	HlacReaderCommon internalReader;
 
 	bool isMonolith = false;
+};
+
+class HlacSubSectionReader: public AudioFormatReader
+{
+public:
+
+	HlacSubSectionReader(AudioFormatReader* sourceReader, int64 subsectionStartSample, int64 subsectionLength);
+
+	bool readSamples(int** destSamples, int numDestChannels, int startOffsetInDestBuffer,
+		int64 startSampleInFile, int numSamples);
+
+	void readMaxLevels(int64 startSampleInFile, int64 numSamples, Range<float>* results, int numChannelsToRead);
+
+	void readIntoFixedBuffer(HiseSampleBuffer& buffer, int startSample, int numSamples, int64 readerStartSample);
+
+private:
+
+	bool isMonolith = false;
+
+	HlacMemoryMappedAudioFormatReader* memoryReader;
+	HiseLosslessAudioFormatReader* normalReader;
+
+	HlacReaderCommon* internalReader;
+
+	int64 start;
+	int64 length;
 };
 
 

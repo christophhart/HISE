@@ -124,12 +124,15 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 
     const bool sampleDeactivated = !hasActiveState() || newPreloadSize == 0;
     
+	
+
 	if (sampleDeactivated)
 	{
 		internalPreloadSize = 0;
 		preloadSize = 0;
-		preloadBuffer = AudioSampleBuffer();
-		preloadBuffer.setSize(2, 0);
+
+		preloadBuffer = hlac::HiseSampleBuffer(!fileReader.isMonolithic(), fileReader.isStereo() ? 2 : 1, 0);
+
 		return;
 	}
     
@@ -148,15 +151,17 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 
 	internalPreloadSize = jmax(preloadSize, internalPreloadSize, 2048);
 
-	preloadBuffer = AudioSampleBuffer();
+	fileReader.openFileHandles();
+
+	preloadBuffer = hlac::HiseSampleBuffer(!fileReader.isMonolithic(), fileReader.isStereo() ? 2 : 1, 0);
 	
 	try
 	{
-		preloadBuffer.setSize(2, internalPreloadSize, false, false, false);
+		preloadBuffer.setSize(fileReader.isStereo() ? 2 : 1, internalPreloadSize);
 	}
 	catch (std::exception e)
 	{
-		preloadBuffer.setSize(2, 0);
+		preloadBuffer.setSize(fileReader.isStereo() ? 2 : 1, 0);
 
 		throw StreamingSamplerSound::LoadingError(getFileName(), "Preload error (max memory exceeded).");
 	}
@@ -220,7 +225,9 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 
 size_t StreamingSamplerSound::getActualPreloadSize() const
 {
-	return hasActiveState() ? (size_t)(internalPreloadSize *preloadBuffer.getNumChannels()) * sizeof(float) + (size_t)(loopBuffer.getNumSamples() *loopBuffer.getNumChannels()) * sizeof(float) : 0;
+	auto bytesPerSample = fileReader.isMonolithic() ? sizeof(int16) : sizeof(float);
+
+	return hasActiveState() ? (size_t)(internalPreloadSize *preloadBuffer.getNumChannels()) * bytesPerSample + (size_t)(loopBuffer.getNumSamples() *loopBuffer.getNumChannels()) * bytesPerSample : 0;
 }
 
 void StreamingSamplerSound::loadEntireSample() { setPreloadSize(-1); }
@@ -414,7 +421,7 @@ void StreamingSamplerSound::loopChanged()
 
 			fileReader.openFileHandles();
 
-			smallLoopBuffer.setSize(2, (int)loopLength);
+			smallLoopBuffer = hlac::HiseSampleBuffer(!fileReader.isMonolithic(), fileReader.isStereo() ? 2 : 1, (int)loopLength);
 
 			fileReader.readFromDisk(smallLoopBuffer, 0, loopLength, loopStart, false);
 
@@ -429,10 +436,9 @@ void StreamingSamplerSound::loopChanged()
 
 		if(crossfadeLength != 0)
 		{
-			loopBuffer.setSize(2, (int)crossfadeLength);
-			loopBuffer.clear();
+			loopBuffer = hlac::HiseSampleBuffer(!fileReader.isMonolithic(), 2, (int)crossfadeLength);
 
-			AudioSampleBuffer tempBuffer = AudioSampleBuffer(2, (int)crossfadeLength);
+			hlac::HiseSampleBuffer tempBuffer(!fileReader.isMonolithic(), 2, (int)crossfadeLength);
 
 			// Calculate the fade in
 			const int startCrossfade = loopStart - crossfadeLength;
@@ -445,8 +451,10 @@ void StreamingSamplerSound::loopChanged()
 			tempBuffer.applyGainRamp(0, 0, (int)crossfadeLength, 0.0f, 1.0f);
 			tempBuffer.applyGainRamp(1, 0, (int)crossfadeLength, 0.0f, 1.0f);
 
-			FloatVectorOperations::copy(loopBuffer.getWritePointer(0, 0), tempBuffer.getReadPointer(0, 0), (int)crossfadeLength);
-			FloatVectorOperations::copy(loopBuffer.getWritePointer(1, 0), tempBuffer.getReadPointer(1, 0), (int)crossfadeLength);
+			hlac::HiseSampleBuffer::copy(loopBuffer, tempBuffer, 0, 0, (int)crossfadeLength);
+
+			//FloatVectorOperations::copy(loopBuffer.getWritePointer(0, 0), tempBuffer.getReadPointer(0, 0), (int)crossfadeLength);
+			//FloatVectorOperations::copy(loopBuffer.getWritePointer(1, 0), tempBuffer.getReadPointer(1, 0), (int)crossfadeLength);
 
 			// Calculate the fade out
 			tempBuffer.clear();
@@ -458,8 +466,10 @@ void StreamingSamplerSound::loopChanged()
 			tempBuffer.applyGainRamp(0, 0, (int)crossfadeLength, 1.0f, 0.0f);
 			tempBuffer.applyGainRamp(1, 0, (int)crossfadeLength, 1.0f, 0.0f);
 
-			FloatVectorOperations::add(loopBuffer.getWritePointer(0, 0), tempBuffer.getReadPointer(0, 0), (int)crossfadeLength);
-			FloatVectorOperations::add(loopBuffer.getWritePointer(1, 0), tempBuffer.getReadPointer(1, 0), (int)crossfadeLength);
+			hlac::HiseSampleBuffer::add(loopBuffer, tempBuffer, 0, 0, crossfadeLength);
+
+			//FloatVectorOperations::add(loopBuffer.getWritePointer(0, 0), tempBuffer.getReadPointer(0, 0), (int)crossfadeLength);
+			//FloatVectorOperations::add(loopBuffer.getWritePointer(1, 0), tempBuffer.getReadPointer(1, 0), (int)crossfadeLength);
 
 			fileReader.closeFileHandles();
 		}
@@ -479,7 +489,7 @@ float StreamingSamplerSound::calculatePeakValue()
 	return fileReader.calculatePeakValue();
 }
 
-void StreamingSamplerSound::fillSampleBuffer(AudioSampleBuffer &sampleBuffer, int samplesToCopy, int uptime) const
+void StreamingSamplerSound::fillSampleBuffer(hlac::HiseSampleBuffer &sampleBuffer, int samplesToCopy, int uptime) const
 {
 	ScopedLock sl(getSampleLock());
 
@@ -507,8 +517,10 @@ void StreamingSamplerSound::fillSampleBuffer(AudioSampleBuffer &sampleBuffer, in
 				numSamplesBeforeFirstWrap = numSamplesInThisLoop;
 				int startSample = indexInLoop;
 
-				FloatVectorOperations::copy(sampleBuffer.getWritePointer(0, 0), smallLoopBuffer.getReadPointer(0, startSample), numSamplesBeforeFirstWrap);
-				FloatVectorOperations::copy(sampleBuffer.getWritePointer(1, 0), smallLoopBuffer.getReadPointer(1, startSample), numSamplesBeforeFirstWrap);
+				hlac::HiseSampleBuffer::copy(sampleBuffer, smallLoopBuffer, 0, startSample, numSamplesBeforeFirstWrap);
+
+				//FloatVectorOperations::copy(sampleBuffer.getWritePointer(0, 0), smallLoopBuffer.getReadPointer(0, startSample), numSamplesBeforeFirstWrap);
+				//FloatVectorOperations::copy(sampleBuffer.getWritePointer(1, 0), smallLoopBuffer.getReadPointer(1, startSample), numSamplesBeforeFirstWrap);
 			}
 
 			int numSamples = samplesToCopy - numSamplesBeforeFirstWrap;
@@ -518,15 +530,19 @@ void StreamingSamplerSound::fillSampleBuffer(AudioSampleBuffer &sampleBuffer, in
 			{
 				jassert(indexInSampleBuffer < sampleBuffer.getNumSamples());
 
-				FloatVectorOperations::copy(sampleBuffer.getWritePointer(0, indexInSampleBuffer), smallLoopBuffer.getReadPointer(0, 0), loopLength);
-				FloatVectorOperations::copy(sampleBuffer.getWritePointer(1, indexInSampleBuffer), smallLoopBuffer.getReadPointer(1, 0), loopLength);
+				hlac::HiseSampleBuffer::copy(sampleBuffer, smallLoopBuffer, indexInSampleBuffer, 0, loopLength);
+
+				//FloatVectorOperations::copy(sampleBuffer.getWritePointer(0, indexInSampleBuffer), smallLoopBuffer.getReadPointer(0, 0), loopLength);
+				//FloatVectorOperations::copy(sampleBuffer.getWritePointer(1, indexInSampleBuffer), smallLoopBuffer.getReadPointer(1, 0), loopLength);
 
 				numSamples -= (int)loopLength;
 				indexInSampleBuffer += (int)loopLength;
 			}
 
-			FloatVectorOperations::copy(sampleBuffer.getWritePointer(0, indexInSampleBuffer), smallLoopBuffer.getReadPointer(0, 0), numSamples);
-			FloatVectorOperations::copy(sampleBuffer.getWritePointer(1, indexInSampleBuffer), smallLoopBuffer.getReadPointer(1, 0), numSamples);
+			hlac::HiseSampleBuffer::copy(sampleBuffer, smallLoopBuffer, indexInSampleBuffer, 0, numSamples);
+
+			//FloatVectorOperations::copy(sampleBuffer.getWritePointer(0, indexInSampleBuffer), smallLoopBuffer.getReadPointer(0, 0), numSamples);
+			//FloatVectorOperations::copy(sampleBuffer.getWritePointer(1, indexInSampleBuffer), smallLoopBuffer.getReadPointer(1, 0), numSamples);
 		}
 
 		// Loop is smaller than streaming buffers
@@ -574,28 +590,30 @@ void StreamingSamplerSound::fillSampleBuffer(AudioSampleBuffer &sampleBuffer, in
 	}
 };
 
-void StreamingSamplerSound::fillInternal(AudioSampleBuffer &sampleBuffer, int samplesToCopy, int indexInFile, int offsetInBuffer) const
+void StreamingSamplerSound::fillInternal(hlac::HiseSampleBuffer &sampleBuffer, int samplesToCopy, int uptime, int offsetInBuffer/*=0*/) const
 {
-	jassert(indexInFile + samplesToCopy <= sampleEnd);
+	jassert(uptime + samplesToCopy <= sampleEnd);
 
 	// Some samples from the loop crossfade buffer are required
-	if(loopEnabled && Range<int>(indexInFile, indexInFile + samplesToCopy).intersects(crossfadeArea))
+	if(loopEnabled && Range<int>(uptime, uptime + samplesToCopy).intersects(crossfadeArea))
 	{
-		const int numSamplesBeforeCrossfade = jmax(0, crossfadeArea.getStart() - indexInFile);
+		const int numSamplesBeforeCrossfade = jmax(0, crossfadeArea.getStart() - uptime);
 
 		if(numSamplesBeforeCrossfade > 0)
 		{
-			fillInternal(sampleBuffer, numSamplesBeforeCrossfade, indexInFile, 0);
+			fillInternal(sampleBuffer, numSamplesBeforeCrossfade, uptime, 0);
 		}
 		
 		const int numSamplesInCrossfade = jmin(samplesToCopy - numSamplesBeforeCrossfade, (int)crossfadeLength);
 
 		if(numSamplesInCrossfade > 0)
 		{
-			const int indexInLoopBuffer = jmax(0, indexInFile - crossfadeArea.getStart());
+			const int indexInLoopBuffer = jmax(0, uptime - crossfadeArea.getStart());
 
-			FloatVectorOperations::copy(sampleBuffer.getWritePointer(0, numSamplesBeforeCrossfade), loopBuffer.getReadPointer(0, indexInLoopBuffer), numSamplesInCrossfade);
-			FloatVectorOperations::copy(sampleBuffer.getWritePointer(1, numSamplesBeforeCrossfade), loopBuffer.getReadPointer(1, indexInLoopBuffer), numSamplesInCrossfade);		
+			hlac::HiseSampleBuffer::copy(sampleBuffer, loopBuffer, numSamplesBeforeCrossfade, indexInLoopBuffer, numSamplesInCrossfade);
+
+			//FloatVectorOperations::copy(sampleBuffer.getWritePointer(0, numSamplesBeforeCrossfade), loopBuffer.getReadPointer(0, indexInLoopBuffer), numSamplesInCrossfade);
+			//FloatVectorOperations::copy(sampleBuffer.getWritePointer(1, numSamplesBeforeCrossfade), loopBuffer.getReadPointer(1, indexInLoopBuffer), numSamplesInCrossfade);		
 		}
 
 		// Should be taken care by higher logic (fillSampleBuffer should wrap the loop)
@@ -603,30 +621,35 @@ void StreamingSamplerSound::fillInternal(AudioSampleBuffer &sampleBuffer, int sa
 	}
 
 	// All samples can be fetched from the preload buffer
-	else if(indexInFile + samplesToCopy < internalPreloadSize)
+	else if(uptime + samplesToCopy < internalPreloadSize)
 	{
 		// the preload buffer has already the samplestart offset
-		const int indexInPreloadBuffer = indexInFile - (int)sampleStart;
+		const int indexInPreloadBuffer = uptime - (int)sampleStart;
 
 		jassert(indexInPreloadBuffer >= 0);
 
 		if (indexInPreloadBuffer + samplesToCopy < preloadBuffer.getNumSamples())
 		{
-			FloatVectorOperations::copy(sampleBuffer.getWritePointer(0, offsetInBuffer), preloadBuffer.getReadPointer(0, indexInPreloadBuffer), samplesToCopy);
-			FloatVectorOperations::copy(sampleBuffer.getWritePointer(1, offsetInBuffer), preloadBuffer.getReadPointer(1, indexInPreloadBuffer), samplesToCopy);
+			hlac::HiseSampleBuffer::copy(sampleBuffer, preloadBuffer, offsetInBuffer, indexInPreloadBuffer, samplesToCopy);
+
+			//FloatVectorOperations::copy(sampleBuffer.getWritePointer(0, offsetInBuffer), preloadBuffer.getReadPointer(0, indexInPreloadBuffer), samplesToCopy);
+			//FloatVectorOperations::copy(sampleBuffer.getWritePointer(1, offsetInBuffer), preloadBuffer.getReadPointer(1, indexInPreloadBuffer), samplesToCopy);
 		}
 		else
 		{
 			jassertfalse;
-			FloatVectorOperations::clear(sampleBuffer.getWritePointer(0), sampleBuffer.getNumSamples());
-			FloatVectorOperations::clear(sampleBuffer.getWritePointer(1), sampleBuffer.getNumSamples());
+
+			sampleBuffer.clear();
+
+			//FloatVectorOperations::clear(sampleBuffer.getWritePointer(0), sampleBuffer.getNumSamples());
+			//FloatVectorOperations::clear(sampleBuffer.getWritePointer(1), sampleBuffer.getNumSamples());
 		}
 	}
 	
 	// Read all samples from disk
 	else
 	{
-		fileReader.readFromDisk(sampleBuffer, offsetInBuffer, samplesToCopy, indexInFile + monolithOffset, true);
+		fileReader.readFromDisk(sampleBuffer, offsetInBuffer, samplesToCopy, uptime + monolithOffset, true);
     }
 }
 
@@ -773,6 +796,9 @@ void StreamingSamplerSound::FileReader::openFileHandles(NotificationType notifyP
 			//}
 #endif
             
+			if (normalReader != nullptr)
+				stereo = normalReader->numChannels > 1;
+
             sampleLength = getMonolithLength();
             
 		}
@@ -793,6 +819,7 @@ void StreamingSamplerSound::FileReader::openFileHandles(NotificationType notifyP
                         
                         sampleLength = memoryReader->getMappedSection().getLength();
                         
+						stereo = memoryReader->numChannels > 1;
 					}
 				}
 			}
@@ -801,6 +828,7 @@ void StreamingSamplerSound::FileReader::openFileHandles(NotificationType notifyP
 			normalReader = pool->afm.createReaderFor(loadedFile);
             
             sampleLength = normalReader != nullptr ? normalReader->lengthInSamples : 0;
+			stereo = (normalReader != nullptr) ? (normalReader->numChannels > 1) : false;
             
 		}
 
@@ -812,6 +840,11 @@ void StreamingSamplerSound::FileReader::openFileHandles(NotificationType notifyP
 	}
 }
 
+
+bool StreamingSamplerSound::FileReader::isStereo() const noexcept
+{
+	return stereo;
+}
 
 void StreamingSamplerSound::FileReader::closeFileHandles(NotificationType notifyPool)
 {
@@ -833,7 +866,7 @@ void StreamingSamplerSound::FileReader::closeFileHandles(NotificationType notify
 
     
 
-void StreamingSamplerSound::FileReader::readFromDisk(AudioSampleBuffer &buffer, int startSample, int numSamples, int readerPosition, bool useMemoryMappedReader)
+void StreamingSamplerSound::FileReader::readFromDisk(hlac::HiseSampleBuffer &buffer, int startSample, int numSamples, int readerPosition, bool useMemoryMappedReader)
 {
 	if (!fileHandlesOpen) openFileHandles(sendNotification);
 
@@ -857,9 +890,10 @@ void StreamingSamplerSound::FileReader::readFromDisk(AudioSampleBuffer &buffer, 
 #endif
     
     
+	buffer.clear(startSample, numSamples);
     
-    FloatVectorOperations::clear(buffer.getWritePointer(0, startSample), numSamples);
-    FloatVectorOperations::clear(buffer.getWritePointer(1, startSample), numSamples);
+    //FloatVectorOperations::clear(buffer.getWritePointer(0, startSample), numSamples);
+    //FloatVectorOperations::clear(buffer.getWritePointer(1, startSample), numSamples);
     
 	if (useMemoryMappedReader)
 	{
@@ -867,7 +901,14 @@ void StreamingSamplerSound::FileReader::readFromDisk(AudioSampleBuffer &buffer, 
 		{
 			ScopedReadLock sl(fileAccessLock);
 
-			memoryReader->read(&buffer, startSample, numSamples, readerPosition, true, true);
+			if (buffer.isFloatingPoint())
+			{
+				memoryReader->read(buffer.getFloatBufferForFileReader(), startSample, numSamples, readerPosition, true, true);
+			}
+			else
+			{
+				jassertfalse;
+			}
 
 			return;
 		}
@@ -877,7 +918,13 @@ void StreamingSamplerSound::FileReader::readFromDisk(AudioSampleBuffer &buffer, 
 	{
 		ScopedReadLock sl(fileAccessLock);
 
-		normalReader->read(&buffer, startSample, numSamples, readerPosition, true, true);
+
+		if (buffer.isFloatingPoint())
+			normalReader->read(buffer.getFloatBufferForFileReader(), startSample, numSamples, readerPosition, true, true);
+		else
+			dynamic_cast<hlac::HlacSubSectionReader*>(normalReader.get())->readIntoFixedBuffer(buffer, startSample, numSamples, readerPosition);
+			
+
 	}
 	else
 	{
@@ -911,7 +958,7 @@ AudioFormatReader* StreamingSamplerSound::FileReader::createMonolithicReaderForP
 {
 	if (monolithicInfo != nullptr)
 	{
-		auto m = monolithicInfo->createFallbackReader(monolithicIndex, monolithicChannelIndex);
+		auto m = monolithicInfo->createThumbnailReader(monolithicIndex, monolithicChannelIndex);
 
 		return m;
 
@@ -959,14 +1006,11 @@ isReadingFromPreloadBuffer(true),
 sampleStartModValue(0),
 readBuffer(nullptr),
 writeBuffer(nullptr),
-readPointerLeft(nullptr),
-readPointerRight(nullptr),
 diskUsage(0.0),
-lastCallToRequestData(0.0)
+lastCallToRequestData(0.0),
+b1(true, 2, 0),
+b2(true, 2, 0)
 {
-	b1 = AudioSampleBuffer(2, 0);
-	b2 = AudioSampleBuffer(2, 0);
-
 	unmapper.setLoader(this);
 
 //     for(int i = 0; i < NUM_UNMAPPERS; i++)
@@ -975,6 +1019,12 @@ lastCallToRequestData(0.0)
 //     }
 //     
 	setBufferSize(BUFFER_SIZE_FOR_STREAM_BUFFERS);
+}
+
+SampleLoader::~SampleLoader()
+{
+	b1.setSize(2, 0);
+	b2.setSize(2, 0);
 }
 
 /** Sets the buffer size in samples. */
@@ -1006,8 +1056,8 @@ void SampleLoader::startNote(StreamingSamplerSound const *s, int startTime)
 
 	sampleStartModValue = (int)startTime;
 
-	const AudioSampleBuffer *localReadBuffer = &s->getPreloadBuffer();
-	AudioSampleBuffer *localWriteBuffer = &b1;
+	auto localReadBuffer = &s->getPreloadBuffer();
+	auto localWriteBuffer = &b1;
 
 	// the read pointer will be pointing directly to the preload buffer of the sample sound
 	readBuffer = localReadBuffer;
@@ -1018,9 +1068,6 @@ void SampleLoader::startNote(StreamingSamplerSound const *s, int startTime)
 	readIndex = startTime;
 	readIndexDouble = (double)startTime;
     
-	readPointerLeft = localReadBuffer->getReadPointer(0, sampleStartModValue);
-	readPointerRight = localReadBuffer->getReadPointer(1, sampleStartModValue);
-
 	isReadingFromPreloadBuffer = true;
 
 	// Set the sampleposition to (1 * bufferSize) because the first buffer is the preload buffer
@@ -1032,10 +1079,20 @@ void SampleLoader::startNote(StreamingSamplerSound const *s, int startTime)
 	requestNewData();
 };
 
-StereoChannelData SampleLoader::fillVoiceBuffer(AudioSampleBuffer &voiceBuffer, double numSamples) const
+void SampleLoader::setStreamingBufferDataType(bool shouldBeFloat)
 {
-	const AudioSampleBuffer *localReadBuffer = readBuffer.get();
-	AudioSampleBuffer *localWriteBuffer = writeBuffer.get();
+	ScopedLock sl(getLock());
+
+	b1 = hlac::HiseSampleBuffer(shouldBeFloat, 2, 0);
+	b2 = hlac::HiseSampleBuffer(shouldBeFloat, 2, 0);
+
+	refreshBufferSizes();
+}
+
+StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuffer, double numSamples) const
+{
+	auto localReadBuffer = readBuffer.get();
+	auto localWriteBuffer = writeBuffer.get();
 
 #if 0
 
@@ -1100,8 +1157,10 @@ StereoChannelData SampleLoader::fillVoiceBuffer(AudioSampleBuffer &voiceBuffer, 
 
 		if (numSamplesInFirstBuffer > 0)
 		{
-			voiceBuffer.copyFrom(0, 0, *localReadBuffer, 0, indexBeforeWrap, numSamplesInFirstBuffer);
-			voiceBuffer.copyFrom(1, 0, *localReadBuffer, 1, indexBeforeWrap, numSamplesInFirstBuffer);
+			hlac::HiseSampleBuffer::copy(voiceBuffer, *localReadBuffer, 0, indexBeforeWrap, numSamplesInFirstBuffer);
+
+			//voiceBuffer.copyFrom(0, 0, *localReadBuffer, 0, indexBeforeWrap, numSamplesInFirstBuffer);
+			//voiceBuffer.copyFrom(1, 0, *localReadBuffer, 1, indexBeforeWrap, numSamplesInFirstBuffer);
 		}
 
 		const int offset = numSamplesInFirstBuffer;
@@ -1115,29 +1174,37 @@ StereoChannelData SampleLoader::fillVoiceBuffer(AudioSampleBuffer &voiceBuffer, 
 
 			if (writeBufferIsBeingFilled)
 			{
-				voiceBuffer.clear(0, offset, numSamplesToCopyFromSecondBuffer);
-				voiceBuffer.clear(1, offset, numSamplesToCopyFromSecondBuffer);
+				voiceBuffer.clear(offset, numSamplesToCopyFromSecondBuffer);
+
+				//voiceBuffer.clear(0, offset, numSamplesToCopyFromSecondBuffer);
+				//voiceBuffer.clear(1, offset, numSamplesToCopyFromSecondBuffer);
 			}
 			else
 			{
-				voiceBuffer.copyFrom(0, offset, *localWriteBuffer, 0, 0, numSamplesToCopyFromSecondBuffer);
-				voiceBuffer.copyFrom(1, offset, *localWriteBuffer, 1, 0, numSamplesToCopyFromSecondBuffer);
+				hlac::HiseSampleBuffer::copy(voiceBuffer, *localWriteBuffer, offset, 0, numSamplesToCopyFromSecondBuffer);
+
+				//voiceBuffer.copyFrom(0, offset, *localWriteBuffer, 0, 0, numSamplesToCopyFromSecondBuffer);
+				//voiceBuffer.copyFrom(1, offset, *localWriteBuffer, 1, 0, numSamplesToCopyFromSecondBuffer);
 			}
 		}
 		else
 		{
 			// The streaming buffers must be greater than the block size!
 			jassertfalse;
-			FloatVectorOperations::clear(voiceBuffer.getWritePointer(0), voiceBuffer.getNumSamples());
-			FloatVectorOperations::clear(voiceBuffer.getWritePointer(1), voiceBuffer.getNumSamples());
+
+			voiceBuffer.clear();
+
+			//FloatVectorOperations::clear(voiceBuffer.getWritePointer(0), voiceBuffer.getNumSamples());
+			//FloatVectorOperations::clear(voiceBuffer.getWritePointer(1), voiceBuffer.getNumSamples());
 		}
 		
 		StereoChannelData returnData;
 
+		returnData.isFloatingPoint = localReadBuffer->isFloatingPoint();
 		returnData.leftChannel = voiceBuffer.getReadPointer(0);
 		returnData.rightChannel = voiceBuffer.getReadPointer(1);
 
-#if LOG_SAMPLE_RENDERING
+#if 0 && LOG_SAMPLE_RENDERING
 
 		const bool leftOK = logger->checkSampleData(nullptr, DebugLogger::Location::SampleLoaderPostFillVoiceBufferWrapped, true, returnData.leftChannel, voiceBuffer.getNumSamples());
 		const bool rightOK = logger->checkSampleData(nullptr, DebugLogger::Location::SampleLoaderPostFillVoiceBufferWrapped, true, returnData.rightChannel, voiceBuffer.getNumSamples());
@@ -1191,11 +1258,12 @@ StereoChannelData SampleLoader::fillVoiceBuffer(AudioSampleBuffer &voiceBuffer, 
 
 		StereoChannelData returnData;
 
+		returnData.isFloatingPoint = localReadBuffer->isFloatingPoint();
 		returnData.leftChannel = localReadBuffer->getReadPointer(0, index);
-		returnData.rightChannel = localReadBuffer->getReadPointer(1, index);
+		returnData.rightChannel = localReadBuffer->getReadPointer(localReadBuffer->getNumChannels() > 1 ? 1 : 0, index);
 
 
-#if LOG_SAMPLE_RENDERING
+#if 0 && LOG_SAMPLE_RENDERING
 
 		bool leftOK = logger->checkSampleData(nullptr, DebugLogger::Location::SampleLoaderPostFillVoiceBuffer, true, returnData.leftChannel, localReadBuffer->getNumSamples() - index);
 		bool rightOK = logger->checkSampleData(nullptr, DebugLogger::Location::SampleLoaderPostFillVoiceBuffer, true, returnData.rightChannel, localReadBuffer->getNumSamples() - index);
@@ -1335,8 +1403,13 @@ void SampleLoader::fillInactiveBuffer()
 		}
         
 		logger->checkAssertion(nullptr, DebugLogger::Location::SampleLoaderReadOperation, localSound != nullptr, 1174);
+
+#if 0 && LOG_SAMPLE_RENDERING
+
 		logger->checkSampleData(nullptr, DebugLogger::Location::SampleLoaderReadOperation, true, writeBuffer.get()->getReadPointer(0, 0), writeBuffer.get()->getNumSamples());
 		logger->checkSampleData(nullptr, DebugLogger::Location::SampleLoaderReadOperation, false, writeBuffer.get()->getReadPointer(1, 0), writeBuffer.get()->getNumSamples());
+
+#endif
 
 #if USE_SAMPLE_DEBUG_COUNTER
       
@@ -1384,7 +1457,7 @@ void SampleLoader::refreshBufferSizes()
 
 bool SampleLoader::swapBuffers()
 {
-	const AudioSampleBuffer *localReadBuffer = readBuffer.get();
+	auto localReadBuffer = readBuffer.get();
 
 	if(localReadBuffer == &b1)
 	{
@@ -1399,9 +1472,6 @@ bool SampleLoader::swapBuffers()
 
 	isReadingFromPreloadBuffer = false;
 	sampleStartModValue = 0;
-
-	readPointerLeft = readBuffer.get()->getReadPointer(0, 0);
-	readPointerRight = readBuffer.get()->getReadPointer(1, 0);
 
 	return writeBufferIsBeingFilled == false;
 };
@@ -1451,8 +1521,10 @@ void StreamingSamplerVoice::startNote (int /*midiNoteNumber*/,
 #define INTERPOLATE_SSE 1
 
 
-void interpolateStereoSamples(const float* inL, const float* inR, const float* pitchData, float* outL, float* outR, int startSample, double indexInBuffer, double uptimeDelta, int numSamples)
+template <typename SignalType> void interpolateStereoSamples(const SignalType* inL, const SignalType* inR, const float* pitchData, float* outL, float* outR, int startSample, double indexInBuffer, double uptimeDelta, int numSamples, bool isFloat)
 {
+	const float gainFactor = isFloat ? 1.0 :  (1.0f / (float)INT16_MAX);
+
 	if (pitchData != nullptr)
 	{
 		pitchData += startSample;
@@ -1465,11 +1537,11 @@ void interpolateStereoSamples(const float* inL, const float* inR, const float* p
 			const float alpha = indexInBufferFloat - (float)pos;
 			const float invAlpha = 1.0f - alpha;
 
-			float l = (inL[pos] * invAlpha + inL[pos + 1] * alpha);
-			float r = (inR[pos] * invAlpha + inR[pos + 1] * alpha);
+			float l = ((float)inL[pos] * invAlpha + (float)inL[pos + 1] * alpha);
+			float r = ((float)inR[pos] * invAlpha + (float)inR[pos + 1] * alpha);
 
-			outL[i] = l;
-			outR[i] = r;
+			outL[i] = l * gainFactor;
+			outR[i] = r * gainFactor;
 
 			jassert(*pitchData <= (float)MAX_SAMPLER_PITCH);
 
@@ -1488,11 +1560,11 @@ void interpolateStereoSamples(const float* inL, const float* inR, const float* p
 			const float alpha = indexInBufferFloat - (float)pos;
 			const float invAlpha = 1.0f - alpha;
 
-			float l = (inL[pos] * invAlpha + inL[pos + 1] * alpha);
-			float r = (inR[pos] * invAlpha + inR[pos + 1] * alpha);
+			float l = ((float)inL[pos] * invAlpha + (float)inL[pos + 1] * alpha);
+			float r = ((float)inR[pos] * invAlpha + (float)inR[pos + 1] * alpha);
 
-			*outL++ = l;
-			*outR++ = r;
+			*outL++ = l * gainFactor;
+			*outR++ = r * gainFactor;
 
 			indexInBufferFloat += uptimeDeltaFloat;
 
@@ -1517,7 +1589,7 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 		
 		jassert(pitchCounter != 0);
 
-		AudioSampleBuffer* tempVoiceBuffer = getTemporaryVoiceBuffer();
+		auto tempVoiceBuffer = getTemporaryVoiceBuffer();
 
 		jassert(tempVoiceBuffer != nullptr);
 
@@ -1526,7 +1598,7 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 		// Copy the not resampled values into the voice buffer.
 		StereoChannelData data = loader.fillVoiceBuffer(*tempVoiceBuffer, pitchCounter + startAlpha);
 
-#if LOG_SAMPLE_RENDERING
+#if 0 && LOG_SAMPLE_RENDERING
 
 		logger->checkAssertion(nullptr, DebugLogger::Location::SampleVoiceBufferFill, tempVoiceBuffer != nullptr, 1336);
 		logger->checkAssertion(nullptr, DebugLogger::Location::SampleVoiceBufferFill, pitchCounter != 0, 1337);
@@ -1536,8 +1608,7 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 		logger->checkSampleData(nullptr, DebugLogger::Location::SampleVoiceBufferFill, false, data.rightChannel, (int)(pitchCounter + startAlpha));
 #endif
 
-		const float* const inL = data.leftChannel;
-		const float* const inR = data.rightChannel;
+		
 		float* outL = outputBuffer.getWritePointer(0, startSample);
 		float* outR = outputBuffer.getWritePointer(1, startSample);
 		
@@ -1551,7 +1622,23 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
         
 		double indexInBuffer = startAlpha;
 
-		interpolateStereoSamples(inL, inR, pitchData, outL, outR, startSample, indexInBuffer, uptimeDelta, numSamples);
+		if (data.isFloatingPoint)
+		{
+			const float* const inL = static_cast<const float*>(data.leftChannel);
+			const float* const inR = static_cast<const float*>(data.rightChannel);
+
+			interpolateStereoSamples(inL, inR, pitchData, outL, outR, startSample, indexInBuffer, uptimeDelta, numSamples, true);
+		}
+		else
+		{
+			const int16* const inL = static_cast<const int16*>(data.leftChannel);
+			const int16* const inR = static_cast<const int16*>(data.rightChannel);
+
+			interpolateStereoSamples(inL, inR, pitchData, outL, outR, startSample, indexInBuffer, uptimeDelta, numSamples, false);
+			
+		}
+
+		
 
 #if USE_SAMPLE_DEBUG_COUNTER 
         

@@ -310,18 +310,7 @@ public:
 	bool isChannelPurged(int channelIndex) const;;
 	void setChannelPurged(int channelIndex, bool shouldBePurged);
 
-	bool preloadBufferIsNonZero() const noexcept
-	{
-		for (int i = 0; i < soundList.size(); i++)
-		{
-			if (!soundList[i]->isPurged() && soundList[i]->getPreloadBuffer().getNumSamples() != 0)
-			{
-				return true;
-			}
-		}
-
-		return false;
-	}
+	bool preloadBufferIsNonZero() const noexcept;
 
 	// ====================================================================================================================
 
