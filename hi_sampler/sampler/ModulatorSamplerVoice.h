@@ -69,7 +69,7 @@ public:
 	virtual double getDiskUsage();
 	virtual size_t getStreamingBufferSize() const;
 
-	void setStreamingBufferDataType(bool shouldBeFloat);
+	virtual void setStreamingBufferDataType(bool shouldBeFloat);
 
 	// ================================================================================================================
 
@@ -135,6 +135,8 @@ public:
 	void setLoaderBufferSize(int newBufferSize) override;
 	double getDiskUsage() override;
 	size_t getStreamingBufferSize() const override;
+
+	void setStreamingBufferDataType(bool shouldBeFloat) override;
 
 	/** Resets the display value for the current note. */
 	void resetVoice() override;

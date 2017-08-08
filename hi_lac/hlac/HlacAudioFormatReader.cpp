@@ -259,9 +259,71 @@ bool HlacReaderCommon::fixedBufferRead(HiseSampleBuffer& buffer, int numDestChan
 	return true;
 }
 
+void HiseLosslessAudioFormatReader::copySampleData(int* const* destSamples, int startOffsetInDestBuffer, int numDestChannels, const void* sourceData, int numChannels, int numSamples) noexcept
+{
+	jassert(numDestChannels == numDestChannels);
+
+	if (numChannels == 1)
+	{
+		ReadHelper<AudioData::Float32, AudioData::Int16, AudioData::LittleEndian>::read(destSamples, startOffsetInDestBuffer, 1, sourceData, 1, numSamples);
+	}
+	else
+	{
+		ReadHelper<AudioData::Float32, AudioData::Int16, AudioData::LittleEndian>::read(destSamples, startOffsetInDestBuffer, numDestChannels, sourceData, 2, numSamples);
+	}
+}
+
 bool HiseLosslessAudioFormatReader::copyFromMonolith(HiseSampleBuffer& destination, int startOffsetInBuffer, int numDestChannels, int64 offsetInFile, int numChannels, int numSamples)
 {
+	if (numSamples <= 0)
+		return true;
 
+	const int bytesPerFrame = sizeof(int16) * numChannels;
+
+	input->setPosition(1 + offsetInFile * bytesPerFrame);
+
+	while (numSamples > 0)
+	{
+		const int tempBufSize = 480 * 3 * 4; // (keep this a multiple of 3)
+		char tempBuffer[tempBufSize];
+
+		const int numThisTime = jmin(tempBufSize / bytesPerFrame, numSamples);
+		const int bytesRead = input->read(tempBuffer, numThisTime * bytesPerFrame);
+
+		if (bytesRead < numThisTime * bytesPerFrame)
+		{
+			jassert(bytesRead >= 0);
+			zeromem(tempBuffer + bytesRead, (size_t)(numThisTime * bytesPerFrame - bytesRead));
+		}
+
+
+
+		//copySampleData(destSamples, startOffsetInDestBuffer, numDestChannels,
+		//	tempBuffer, (int)numChannels, numThisTime);
+
+		if (numChannels == 1)
+		{
+			memcpy(destination.getWritePointer(0, startOffsetInBuffer), tempBuffer, numThisTime * sizeof(int16));
+
+			if (numDestChannels == 2)
+			{
+				memcpy(destination.getWritePointer(1, startOffsetInBuffer), tempBuffer, numThisTime * sizeof(int16));
+			}
+		}
+		else
+		{
+			jassert(destination.getNumChannels() == 2);
+
+			int16* channels[2] = { static_cast<int16*>(destination.getWritePointer(0, 0)), static_cast<int16*>(destination.getWritePointer(1, 0)) };
+
+			ReadHelper<AudioData::Int16, AudioData::Int16, AudioData::LittleEndian>::read(channels, startOffsetInBuffer, numDestChannels, tempBuffer, 2, numThisTime);
+		}
+
+		startOffsetInBuffer += numThisTime;
+		numSamples -= numThisTime;
+	}
+
+	return true;
 }
 
 bool HlacMemoryMappedAudioFormatReader::readSamples(int** destSamples, int numDestChannels, int startOffsetInDestBuffer, int64 startSampleInFile, int numSamples)
@@ -375,7 +437,7 @@ void HlacMemoryMappedAudioFormatReader::copySampleData(int* const* destSamples, 
 
 bool HlacMemoryMappedAudioFormatReader::copyFromMonolith(HiseSampleBuffer& destination, int startOffsetInBuffer, int numDestChannels, int64 offsetInFile, int numChannels, int numSamples)
 {
-	auto sourceData = memoryReader->sampleToPointer(offsetInFile);
+	auto sourceData = sampleToPointer(offsetInFile);
 
 	if (numChannels == 1)
 	{

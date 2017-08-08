@@ -453,6 +453,14 @@ size_t MultiMicModulatorSamplerVoice::getStreamingBufferSize() const
 	return size;
 }
 
+void MultiMicModulatorSamplerVoice::setStreamingBufferDataType(bool shouldBeFloat)
+{
+	for (int i = 0; i < wrappedVoices.size(); i++)
+	{
+		wrappedVoices[i]->loader.setStreamingBufferDataType(shouldBeFloat);
+	}
+}
+
 void MultiMicModulatorSamplerVoice::resetVoice()
 {
 	sampler->resetNoteDisplay(this->getCurrentlyPlayingNote());

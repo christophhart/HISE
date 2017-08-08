@@ -36,7 +36,7 @@
 
 #define USE_OLD_MONOLITH_FORMAT 0
 
-#if 0 && JUCE_64BIT && !JUCE_IOS
+#if JUCE_64BIT && !JUCE_IOS
 #define USE_FALLBACK_READERS_FOR_MONOLITH 0
 #else
 #define USE_FALLBACK_READERS_FOR_MONOLITH 1
@@ -441,6 +441,33 @@ public:
 		}
 
 		return nullptr;
+	}
+
+	/** Use this for UI rendering stuff to avoid multithreading issues. */
+	AudioFormatReader* createThumbnailReader(int sampleIndex, int channelIndex)
+	{
+		const int sizeOfFirstChannelList = (int)multiChannelSampleInformation[0].size();
+		const int sizeOfChannelList = (int)multiChannelSampleInformation.size();
+
+		if (channelIndex < sizeOfChannelList && sizeOfFirstChannelList > 0 && sampleIndex < sizeOfFirstChannelList)
+		{
+			auto info = &multiChannelSampleInformation[channelIndex][sampleIndex];
+
+			const int64 start = info->start;
+			const int64 length = info->length;
+
+			ScopedPointer<FileInputStream> fallbackStream = new FileInputStream(monolithicFiles[channelIndex]);
+			
+			ScopedPointer<hlac::HiseLosslessAudioFormatReader> thumbnailReader = new hlac::HiseLosslessAudioFormatReader(fallbackStream.release());
+
+			thumbnailReader->sampleRate = info->sampleRate;
+
+			return new AudioSubsectionReader(thumbnailReader.release(), start, length, true);
+
+		}
+
+		return nullptr;
+	
 	}
 
 	struct SampleInfo

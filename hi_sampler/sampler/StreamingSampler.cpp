@@ -958,7 +958,7 @@ AudioFormatReader* StreamingSamplerSound::FileReader::createMonolithicReaderForP
 {
 	if (monolithicInfo != nullptr)
 	{
-		auto m = monolithicInfo->createFallbackReader(monolithicIndex, monolithicChannelIndex);
+		auto m = monolithicInfo->createThumbnailReader(monolithicIndex, monolithicChannelIndex);
 
 		return m;
 

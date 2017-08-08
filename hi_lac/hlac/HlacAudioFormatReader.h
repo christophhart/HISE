@@ -142,19 +142,7 @@ private:
 	friend class HlacSubSectionReader;
 
 
-	template <typename TargetType> static void copySampleData(int* const* destSamples, int startOffsetInDestBuffer, int numDestChannels, const void* sourceData, int numChannels, int numSamples) noexcept
-	{
-		jassert(numDestChannels == numDestChannels);
-
-		if (numChannels == 1)
-		{
-			ReadHelper<TargetType, AudioData::Int16, AudioData::LittleEndian>::read(destSamples, startOffsetInDestBuffer, 1, sourceData, 1, numSamples);
-		}
-		else
-		{
-			ReadHelper<TargetType, AudioData::Int16, AudioData::LittleEndian>::read(destSamples, startOffsetInDestBuffer, numDestChannels, sourceData, 2, numSamples);
-		}
-	}
+	static void copySampleData(int* const* destSamples, int startOffsetInDestBuffer, int numDestChannels, const void* sourceData, int numChannels, int numSamples) noexcept;
 
 	bool copyFromMonolith(HiseSampleBuffer& destination, int startOffsetInBuffer, int numDestChannels, int64 offsetInFile, int numChannels, int numSamples);
 
