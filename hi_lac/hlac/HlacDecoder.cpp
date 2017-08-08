@@ -73,7 +73,7 @@ void HlacDecoder::reset()
 }
 
 
-bool HlacDecoder::decodeBlock(HiseSampleBuffer& destination, InputStream& input, int channelIndex)
+bool HlacDecoder::decodeBlock(HiseSampleBuffer& destination, bool decodeStereo, InputStream& input, int channelIndex)
 {
 	auto checksum = input.readInt();
 
@@ -99,20 +99,20 @@ bool HlacDecoder::decodeBlock(HiseSampleBuffer& destination, InputStream& input,
 		jassert(header.getNumSamples() <= COMPRESSION_BLOCK_SIZE);
 
 		if (header.isDiff())
-			decodeDiff(header, destination, input, channelIndex);
+			decodeDiff(header, decodeStereo, destination, input, channelIndex);
 		else
-			decodeCycle(header, destination, input, channelIndex);
+			decodeCycle(header, decodeStereo, destination, input, channelIndex);
         
         jassert(indexInBlock <= 4096);
 	}
 
-	if(channelIndex == destination.getNumChannels() - 1)
+	if(!decodeStereo || channelIndex == 1)
 		readIndex += indexInBlock;
 
 	return numTodo != 0;
 }
 
-void HlacDecoder::decode(HiseSampleBuffer& destination, InputStream& input, int offsetInSource/*=0*/, int numSamples/*=-1*/)
+void HlacDecoder::decode(HiseSampleBuffer& destination, bool decodeStereo, InputStream& input, int offsetInSource/*=0*/, int numSamples/*=-1*/)
 {
 #if HLAC_MEASURE_DECODING_PERFORMANCE
 	double start = Time::getMillisecondCounterHiRes();
@@ -136,11 +136,11 @@ void HlacDecoder::decode(HiseSampleBuffer& destination, InputStream& input, int 
 	rightFloatIndex = 0;
 
 	int channelIndex = 0;
-	bool decodeStereo = destination.getNumChannels() == 2;
+	
 
 	while (!input.isExhausted() && readOffset + readIndex < endThisTime)
 	{
-		if (!decodeBlock(destination, input, channelIndex))
+		if (!decodeBlock(destination, decodeStereo, input, channelIndex))
 			break;
 
 		if (decodeStereo)
@@ -162,7 +162,7 @@ void HlacDecoder::decode(HiseSampleBuffer& destination, InputStream& input, int 
 #endif
 }
 
-void HlacDecoder::decodeDiff(const CycleHeader& header, HiseSampleBuffer& destination, InputStream& input, int channelIndex)
+void HlacDecoder::decodeDiff(const CycleHeader& header, bool decodeStereo, HiseSampleBuffer& destination, InputStream& input, int channelIndex)
 {
 	uint16 blockSize = header.getNumSamples();
 
@@ -202,7 +202,7 @@ void HlacDecoder::decodeDiff(const CycleHeader& header, HiseSampleBuffer& destin
 
 
 
-void HlacDecoder::decodeCycle(const CycleHeader& header, HiseSampleBuffer& destination, InputStream& input, int channelIndex)
+void HlacDecoder::decodeCycle(const CycleHeader& header, bool decodeStereo, HiseSampleBuffer& destination, InputStream& input, int channelIndex)
 {
 	uint8 br = header.getBitRate();
 
@@ -324,7 +324,7 @@ void HlacDecoder::writeToFloatArray(bool shouldCopy, bool useTempBuffer, HiseSam
 				else
 				{
 					auto dst = static_cast<int16*>(destination.getWritePointer(channelIndex, bufferOffset));
-					memcpy(dst, src, sizeof(int16) * numThisTime);
+					memcpy(dst, src + skipToUse, sizeof(int16) * numThisTime);
 				}
 			}
 				

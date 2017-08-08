@@ -54,7 +54,7 @@ public:
 
 	HiseSampleBuffer(bool isFloat_, int numChannels_, int numSamples) :
 		isFloat(isFloat_),
-		floatBuffer(2, isFloat_ ? numSamples : 0),
+		floatBuffer(numChannels_, isFloat_ ? numSamples : 0),
 		leftIntBuffer(isFloat_ ? 0 : numSamples),
 		rightIntBuffer(isFloat_ ? 0 : numSamples),
 		numChannels(numChannels_),
@@ -96,20 +96,6 @@ public:
 		
 	};
 
-	HiseSampleBuffer(int** externalChannelData, int numChannels_, int numSamples) :
-		isFloat(false),
-		numChannels(numChannels_),
-		size(numSamples)
-	{
-		leftIntBuffer = FixedSampleBuffer(reinterpret_cast<int16*>(externalChannelData[0]), numSamples);
-		
-		if (numChannels > 1)
-		{
-			rightIntBuffer = FixedSampleBuffer(reinterpret_cast<int16*>(externalChannelData[1]), numSamples);
-		}	
-	}
-		
-
 	~HiseSampleBuffer() {};
 
 	bool isFloatingPoint() const { return isFloat; }
@@ -143,16 +129,6 @@ public:
 	/** Returns the internal AudioSampleBuffer for convenient usage with AudioFormatReader classes. */
 	AudioSampleBuffer* getFloatBufferForFileReader();
 
-	int** getArrayOfFixedBufferPointers(int offset)
-	{
-		jassert(offset < size);
-
-		fixedPointers[0] = reinterpret_cast<int*>(leftIntBuffer.getWritePointer(offset));
-		fixedPointers[1] = reinterpret_cast<int*>(rightIntBuffer.getWritePointer(offset));
-
-		return fixedPointers;
-	}
-
 private:
 
 	int numChannels = 0;
@@ -167,7 +143,6 @@ private:
 	FixedSampleBuffer leftIntBuffer;
 	FixedSampleBuffer rightIntBuffer;
 
-	int* fixedPointers[2];
 };
 
 

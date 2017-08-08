@@ -214,12 +214,12 @@ bool HlacReaderCommon::internalHlacRead(int** destSamples, int numDestChannels, 
 
 			AudioSampleBuffer b(destinationFloat, 2, numSamples);
 			HiseSampleBuffer hsb(b);
-			decoder.decode(hsb, *input, (int)startSampleInFile, numSamples);
+			decoder.decode(hsb, true, *input, (int)startSampleInFile, numSamples);
 		}
 		else
 		{
 			HiseSampleBuffer hsb(destSamples, 2, numSamples);
-			decoder.decode(hsb, *input, (int)startSampleInFile, numSamples);
+			decoder.decode(hsb, true, *input, (int)startSampleInFile, numSamples);
 		}
 	}
 	else
@@ -231,14 +231,30 @@ bool HlacReaderCommon::internalHlacRead(int** destSamples, int numDestChannels, 
 			AudioSampleBuffer b(&destinationFloat, 1, numSamples);
 			HiseSampleBuffer hsb(b);
 
-			decoder.decode(hsb, *input, (int)startSampleInFile, numSamples);
+			decoder.decode(hsb, false, *input, (int)startSampleInFile, numSamples);
 		}
 		else
 		{
 			HiseSampleBuffer hsb(destSamples, 1, numSamples);
-			decoder.decode(hsb, *input, (int)startSampleInFile, numSamples);
+			decoder.decode(hsb, false, *input, (int)startSampleInFile, numSamples);
 		}
 	}
+
+	return true;
+}
+
+bool HlacReaderCommon::fixedBufferRead(HiseSampleBuffer& buffer, int numDestChannels, int startOffsetInBuffer, int64 startSampleInFile, int numSamples)
+{
+	bool isStereo = numDestChannels == 2;
+
+	if (startSampleInFile != decoder.getCurrentReadPosition())
+	{
+		auto byteOffset = header.getOffsetForReadPosition(startSampleInFile, useHeaderOffsetWhenSeeking);
+
+		decoder.seekToPosition(*input, (uint32)startSampleInFile, byteOffset);
+	}
+
+	decoder.decode(buffer, isStereo, *input, (int)startSampleInFile, numSamples);
 
 	return true;
 }
@@ -414,14 +430,32 @@ void HlacSubSectionReader::readMaxLevels(int64 startSampleInFile, int64 numSampl
 
 void HlacSubSectionReader::readIntoFixedBuffer(HiseSampleBuffer& buffer, int startSample, int numSamples, int64 readerStartSample)
 {
+	//jassert(buffer.getNumChannels() == memoryReader->numChannels);
+
 	if (memoryReader != nullptr)
 	{
+		if (memoryReader->isMonolith)
+		{
+			throw std::logic_error("not implemented");
+		}
+		else
+		{
+			memoryReader->internalReader.fixedBufferRead(buffer, memoryReader->numChannels, startSample, start + readerStartSample, numSamples);
+
+			if (buffer.getNumChannels() == 2 && memoryReader->numChannels == 1)
+			{
+				memcpy(buffer.getWritePointer(1, startSample), buffer.getReadPointer(0, startSample), sizeof(int16)*numSamples);
+			}
+		}
+
 		
-
-		memoryReader->usesFloatingPointData = false;
-
-		int x = 5;
 	}
+	else
+	{
+		throw std::logic_error("not implemented");
+	}
+
+	
 
 
 }

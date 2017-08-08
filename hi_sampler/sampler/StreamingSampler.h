@@ -363,6 +363,8 @@ private:
 		bool isOpened() const noexcept { return fileHandlesOpen; }
 		bool isMonolithic() const noexcept{ return monolithicInfo != nullptr; }
 
+		bool isStereo() const noexcept;
+
 		bool isMissing() const { return missing; }
 		void setMissing() { missing = true; }
 
@@ -424,6 +426,7 @@ private:
 
 		ReadWriteLock fileAccessLock;
 
+		bool stereo = true;
 
 		bool isReading;
 

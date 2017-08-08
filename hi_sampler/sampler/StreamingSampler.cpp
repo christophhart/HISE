@@ -124,12 +124,14 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 
     const bool sampleDeactivated = !hasActiveState() || newPreloadSize == 0;
     
+	
+
 	if (sampleDeactivated)
 	{
 		internalPreloadSize = 0;
 		preloadSize = 0;
 
-		preloadBuffer = hlac::HiseSampleBuffer(!fileReader.isMonolithic(), 2, 0);
+		preloadBuffer = hlac::HiseSampleBuffer(!fileReader.isMonolithic(), fileReader.isStereo() ? 2 : 1, 0);
 
 		return;
 	}
@@ -149,15 +151,17 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 
 	internalPreloadSize = jmax(preloadSize, internalPreloadSize, 2048);
 
-	preloadBuffer = hlac::HiseSampleBuffer(!fileReader.isMonolithic(), 2, 0);
+	fileReader.openFileHandles();
+
+	preloadBuffer = hlac::HiseSampleBuffer(!fileReader.isMonolithic(), fileReader.isStereo() ? 2 : 1, 0);
 	
 	try
 	{
-		preloadBuffer.setSize(2, internalPreloadSize);
+		preloadBuffer.setSize(fileReader.isStereo() ? 2 : 1, internalPreloadSize);
 	}
 	catch (std::exception e)
 	{
-		preloadBuffer.setSize(2, 0);
+		preloadBuffer.setSize(fileReader.isStereo() ? 2 : 1, 0);
 
 		throw StreamingSamplerSound::LoadingError(getFileName(), "Preload error (max memory exceeded).");
 	}
@@ -417,7 +421,7 @@ void StreamingSamplerSound::loopChanged()
 
 			fileReader.openFileHandles();
 
-			smallLoopBuffer = hlac::HiseSampleBuffer(!fileReader.isMonolithic(), 2, (int)loopLength);
+			smallLoopBuffer = hlac::HiseSampleBuffer(!fileReader.isMonolithic(), fileReader.isStereo() ? 2 : 1, (int)loopLength);
 
 			fileReader.readFromDisk(smallLoopBuffer, 0, loopLength, loopStart, false);
 
@@ -792,6 +796,9 @@ void StreamingSamplerSound::FileReader::openFileHandles(NotificationType notifyP
 			//}
 #endif
             
+			if (normalReader != nullptr)
+				stereo = normalReader->numChannels > 1;
+
             sampleLength = getMonolithLength();
             
 		}
@@ -812,6 +819,7 @@ void StreamingSamplerSound::FileReader::openFileHandles(NotificationType notifyP
                         
                         sampleLength = memoryReader->getMappedSection().getLength();
                         
+						stereo = memoryReader->numChannels > 1;
 					}
 				}
 			}
@@ -820,6 +828,7 @@ void StreamingSamplerSound::FileReader::openFileHandles(NotificationType notifyP
 			normalReader = pool->afm.createReaderFor(loadedFile);
             
             sampleLength = normalReader != nullptr ? normalReader->lengthInSamples : 0;
+			stereo = (normalReader != nullptr) ? (normalReader->numChannels > 1) : false;
             
 		}
 
@@ -831,6 +840,11 @@ void StreamingSamplerSound::FileReader::openFileHandles(NotificationType notifyP
 	}
 }
 
+
+bool StreamingSamplerSound::FileReader::isStereo() const noexcept
+{
+	return stereo;
+}
 
 void StreamingSamplerSound::FileReader::closeFileHandles(NotificationType notifyPool)
 {
@@ -908,7 +922,8 @@ void StreamingSamplerSound::FileReader::readFromDisk(hlac::HiseSampleBuffer &buf
 		if (buffer.isFloatingPoint())
 			normalReader->read(buffer.getFloatBufferForFileReader(), startSample, numSamples, readerPosition, true, true);
 		else
-			normalReader->read(buffer.getArrayOfFixedBufferPointers(startSample), buffer.getNumChannels(), readerPosition, numSamples, false);
+			dynamic_cast<hlac::HlacSubSectionReader*>(normalReader.get())->readIntoFixedBuffer(buffer, startSample, numSamples, readerPosition);
+			
 
 	}
 	else
@@ -1245,7 +1260,7 @@ StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuf
 
 		returnData.isFloatingPoint = localReadBuffer->isFloatingPoint();
 		returnData.leftChannel = localReadBuffer->getReadPointer(0, index);
-		returnData.rightChannel = localReadBuffer->getReadPointer(1, index);
+		returnData.rightChannel = localReadBuffer->getReadPointer(localReadBuffer->getNumChannels() > 1 ? 1 : 0, index);
 
 
 #if 0 && LOG_SAMPLE_RENDERING

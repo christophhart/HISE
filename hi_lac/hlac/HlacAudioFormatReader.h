@@ -104,9 +104,11 @@ public:
 
 private:
 
+	friend class HlacSubSectionReader;
+
 	bool internalHlacRead(int** destSamples, int numDestChannels, int startOffsetInDestBuffer, int64 startSampleInFile, int numSamples);
 
-	
+	bool fixedBufferRead(HiseSampleBuffer& buffer, int numDestChannels, int startOffsetInBuffer, int64 startSampleInFile, int numSamples);
 
 	friend class HiseLosslessAudioFormatReader;
 	friend class HlacMemoryMappedAudioFormatReader;
@@ -134,6 +136,8 @@ public:
 	void setTargetAudioDataType(AudioDataConverters::DataFormat dataType);
 
 private:
+
+	friend class HlacSubSectionReader;
 
 	static void copySampleData(int* const* destSamples, int startOffsetInDestBuffer, int numDestChannels, const void* sourceData, int numChannels, int numSamples) noexcept;
 
@@ -177,6 +181,8 @@ public:
 
 private:
 	
+	friend class HlacSubSectionReader;
+
 	static void copySampleData(int* const* destSamples, int startOffsetInDestBuffer, int numDestChannels, const void* sourceData, int numChannels, int numSamples) noexcept;
 
 	ScopedPointer<MemoryInputStream> mis;

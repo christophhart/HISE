@@ -48,8 +48,6 @@ void HiseSampleBuffer::setSize(int numChannels_, int numSamples)
 	numChannels = numChannels_;
 	size = numSamples;
 
-	jassert(numChannels == 2);
-
 	if (isFloatingPoint())
 		floatBuffer.setSize(numChannels, numSamples);
 	else
@@ -58,6 +56,8 @@ void HiseSampleBuffer::setSize(int numChannels_, int numSamples)
 
 		if (numChannels > 1)
 			rightIntBuffer = FixedSampleBuffer(numSamples);
+		else
+			rightIntBuffer = FixedSampleBuffer(0);
 	}
 }
 

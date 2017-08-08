@@ -40,6 +40,7 @@
 #define LOG(x)
 #endif
 
+class HiseSampleBuffer;
 
 struct CompressionHelpers
 {
@@ -216,6 +217,8 @@ struct CompressionHelpers
 	};
 
 	static uint8 checkBuffersEqual(AudioSampleBuffer& workBuffer, AudioSampleBuffer& referenceBuffer);
+
+	static AudioSampleBuffer getPart(HiseSampleBuffer& b, int startIndex, int numSamples);
 
 	/** Return a section b as new AudioSampleBuffer without allocating. */
 	static AudioSampleBuffer getPart(AudioSampleBuffer& b, int startIndex, int numSamples);

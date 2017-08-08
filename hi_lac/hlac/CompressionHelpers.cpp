@@ -334,6 +334,30 @@ AudioSampleBuffer CompressionHelpers::getPart(AudioSampleBuffer& b, int channelI
 	return AudioSampleBuffer(&d, 1, numSamples);
 }
 
+
+AudioSampleBuffer CompressionHelpers::getPart(HiseSampleBuffer& b, int startIndex, int numSamples)
+{
+	jassert(startIndex + numSamples <= b.getNumSamples());
+
+	if (b.isFloatingPoint())
+	{
+		return getPart(*b.getFloatBufferForFileReader(), startIndex, numSamples);
+	}
+	else
+	{
+		AudioSampleBuffer buffer(b.getNumChannels(), numSamples);
+
+		for (int i = 0; i < b.getNumChannels(); i++)
+		{
+			auto src = static_cast<const int16*>(b.getReadPointer(i, startIndex));
+
+			fastInt16ToFloat(src, buffer.getWritePointer(i), numSamples);
+		}
+
+		return buffer;
+	}
+}
+
 int CompressionHelpers::getPaddedSampleSize(int samplesNeeded)
 {
     if(samplesNeeded % COMPRESSION_BLOCK_SIZE == 0)
@@ -472,8 +496,9 @@ uint8 CompressionHelpers::checkBuffersEqual(AudioSampleBuffer& workBuffer, Audio
 		DBG("Bit rate for error signal: " + String(br));
 
 		//DUMP(wbInt);
-		//DUMP(referenceBuffer);
-		//DUMP(workBuffer);
+		//
+		DUMP(referenceBuffer);
+		DUMP(workBuffer);
 
 		float* w = workBuffer.getWritePointer(0);
 		const float* r = referenceBuffer.getReadPointer(0);
@@ -542,6 +567,8 @@ uint8 CompressionHelpers::checkBuffersEqual(AudioSampleBuffer& workBuffer, Audio
 
 	return br;
 }
+
+
 
 void CompressionHelpers::IntVectorOperations::sub(int16* dst, const int16* src1, const int16* src2, int numValues)
 {
