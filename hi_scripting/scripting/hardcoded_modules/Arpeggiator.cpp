@@ -162,6 +162,12 @@ void Arpeggiator::onInit()
 	octaveSlider->set("max", 4);
 	octaveSlider->set("stepSize", "1");
 
+	parameterNames.add("OctaveRange");
+
+	shuffleSlider = Content.addKnob("Shuffle", 150, 445);
+	
+
+	parameterNames.add("Shuffle");
 
 
 	currentStepSlider = Content.addKnob("CurrentValue", 160, 400);
@@ -418,7 +424,9 @@ void Arpeggiator::playNote()
 
 		last_step_was_tied = false;
 
-		Synth.addNoteOn(midiChannel, currentNote, currentVelocity, 0);
+		int shuffleTimeStamp = (currentStep % 2 != 0) ? (int)(0.8 * (double)currentNoteLengthInSamples * (double)shuffleSlider->getValue()) : 0;
+
+		Synth.addNoteOn(midiChannel, currentNote, currentVelocity, shuffleTimeStamp);
 
 		// add a little bit of time to the note off for a tied step to engage the synth's legato features
 		// only do it if next step is not going to be skipped
@@ -435,7 +443,9 @@ void Arpeggiator::playNote()
 		// if last step was not tied, add new note
 		if (!last_step_was_tied && !curr_step_is_skip())
 		{
-			Synth.addNoteOn(midiChannel, currentNote, currentVelocity, 0);
+			int shuffleTimeStamp = (currentStep % 2 != 0) ? (int)(0.8 * (double)currentNoteLengthInSamples * (double)shuffleSlider->getValue()) : 0;
+
+			Synth.addNoteOn(midiChannel, currentNote, currentVelocity, shuffleTimeStamp);
 			currentlyPlayingKeys.add(currentNote);
 		}
 

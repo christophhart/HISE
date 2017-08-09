@@ -202,7 +202,9 @@ private:
 
 	static float getSliderValueWithoutDisplay(ScriptingApi::Content::ScriptSliderPack* sp, int index)
 	{
-		return (float)sp->getSliderPackData()->getDataArray()[index];
+		auto array = sp->getSliderPackData()->getDataArray();
+
+		return (float)array[index];
 	}
 
 	ScriptingApi::Content::ScriptSliderPack *semiToneSliderPack;
@@ -219,6 +221,7 @@ private:
 	ScriptingApi::Content::ScriptSlider *stepSkipSlider;
 	ScriptingApi::Content::ScriptSlider *currentStepSlider;
 	ScriptingApi::Content::ScriptSlider *octaveSlider;
+	ScriptingApi::Content::ScriptSlider *shuffleSlider;
 };
 
 
