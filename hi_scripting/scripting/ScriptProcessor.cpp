@@ -92,6 +92,8 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 
 	Processor* thisAsProcessor = dynamic_cast<Processor*>(this);
 
+	ScopedValueSetter<bool> objectConstructorSetter(allowObjectConstructors, true);
+
 	if (auto callback = component->getCustomControlCallback())
 	{
 		getMainController_()->getDebugLogger().logParameterChange(thisAsJavascriptProcessor, component, controllerValue);

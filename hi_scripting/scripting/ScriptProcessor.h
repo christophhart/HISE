@@ -62,6 +62,11 @@ public:
 
 	virtual ~ProcessorWithScriptingContent() {};
 
+	void setAllowObjectConstruction(bool shouldBeAllowed)
+	{
+		allowObjectConstructors = shouldBeAllowed;
+	}
+
 	bool objectsCanBeCreated() const
 	{
 		return allowObjectConstructors;
@@ -97,6 +102,7 @@ public:
 	MainController* getMainController_() { return mc; }
 
 	const MainController* getMainController_() const { return mc; }
+
 
 protected:
 
