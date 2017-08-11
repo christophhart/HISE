@@ -137,3 +137,73 @@ void SampleEditHandler::changeProperty(ModulatorSamplerSound *s, ModulatorSample
 
 	s->setPropertyWithUndo(p, v + delta);
 }
+
+void SampleEditHandler::SampleEditingActions::createMultimicSampleMap(SampleEditHandler* handler, SampleMapEditor* param2)
+{
+	const String multimicTokens = PresetHandler::getCustomName("Multimic Tokens", "Enter a semicolon separated list of all mic position tokens starting with the existing mic position");
+
+	auto list = StringArray::fromTokens(multimicTokens, ";", "\"");
+
+	if (list.size() == 0)
+		return;
+
+	auto firstToken = list[0];
+
+	String listString = "\n";
+
+	for (auto l : list)
+		listString << l << "\n";
+
+	if (PresetHandler::showYesNoWindow("Confirm multimic tokens", "You have specified these tokens:" + listString + "\nPress OK to create a multimic samplemap with these mic positions"))
+	{
+		ValueTree v = handler->getSampler()->getSampleMap()->exportAsValueTree();
+
+		for (int i = 0; i < v.getNumChildren(); i++)
+		{
+			auto sample = v.getChild(i);
+
+			if (sample.getNumChildren() != 0)
+			{
+				PresetHandler::showMessageWindow("Already a multimic samplemap", "The samplemap has already multimics", PresetHandler::IconType::Error);
+				return;
+			}
+
+			auto filename = sample.getProperty("FileName").toString();
+
+			if (!filename.contains(firstToken))
+			{
+				PresetHandler::showMessageWindow("Wrong first mic position", "You have to specify the current mic position as first mic position.\nSample: " + filename, PresetHandler::IconType::Error);
+				return;
+			}
+
+			sample.removeProperty("FileName", nullptr);
+
+			for (auto token : list)
+			{
+				auto fChild = ValueTree("file");
+				fChild.setProperty("FileName", filename.replace(firstToken, token, false), nullptr);
+				sample.addChild(fChild, -1, nullptr);
+			}
+		}
+
+		PresetHandler::showMessageWindow("Merge successful", "Press OK to choose a location for the multimic sample map");
+
+		auto sampleMapDirectory = GET_PROJECT_HANDLER(handler->getSampler()).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
+
+		FileChooser fc("Save multimic Samplemap", sampleMapDirectory, "*.xml", true);
+
+		v.setProperty("MicPositions", multimicTokens, nullptr);
+
+		if (fc.browseForFileToSave(true))
+		{
+			auto f = fc.getResult();
+
+			auto path = f.getRelativePathFrom(sampleMapDirectory).upToFirstOccurrenceOf(".xml", false, false).replace("\\", "/");
+
+			v.setProperty("ID", path, nullptr);
+
+			ScopedPointer<XmlElement> xml = v.createXml();
+			f.replaceWithText(xml->createDocument(""));
+		}
+	}
+}

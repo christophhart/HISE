@@ -356,6 +356,10 @@ void SampleMapEditor::getCommandInfo(CommandID commandID, ApplicationCommandInfo
 		result.setInfo("Merge into Multimic samples", "Merge into Multimic samples", "Sample Editing", 0);
 		result.setActive(selectionIsNotEmpty);
 		break;
+	case CreateMultiMicSampleMap:
+		result.setInfo("Create Multimic SampleMap from single mic position", "Create Multimic SampleMap from single mic position", "Sample Editing", 0);
+		result.setActive(true);
+		break;
 	case ExtractToSingleMicSamples:
 		result.setInfo("Extract to Singlemic samples", "Extract to Singlemic samples", "Sample Editing", 0);
 		result.setActive(selectionIsNotEmpty);
@@ -425,6 +429,7 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 	case PasteSamples:		SampleEditHandler::SampleEditingActions::pasteSelectedSounds(handler); return true;
 	case SelectAllSamples:	SampleEditHandler::SampleEditingActions::selectAllSamples(handler); return true;
 	case MergeIntoMultisamples:		SampleEditHandler::SampleEditingActions::mergeIntoMultiSamples(handler, this); return true;
+	case CreateMultiMicSampleMap:	SampleEditHandler::SampleEditingActions::createMultimicSampleMap(handler, this); return true;
 	case ExtractToSingleMicSamples:	SampleEditHandler::SampleEditingActions::extractToSingleMicSamples(handler); return true;
 	case ZoomIn:			zoom(false); return true;
 	case ZoomOut:			zoom(true); return true;

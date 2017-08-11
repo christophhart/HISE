@@ -314,6 +314,10 @@ SampleMap::FileList SampleMap::createFileList()
 {
 	FileList list;
 
+	bool allFound = true;
+
+	String missingFileList = "Missing files:\n";
+
 	for (int i = 0; i < sampler->getNumMicPositions(); i++)
 	{
 		list.add(new Array<File>());
@@ -328,10 +332,26 @@ SampleMap::FileList SampleMap::createFileList()
 			StreamingSamplerSound* sample = sound->getReferenceToSound(j);
 
 			File file = sample->getFileName(true);
-			jassert(file.existsAsFile());
+
+			if (!file.existsAsFile())
+			{
+				allFound = false;
+
+				missingFileList << file.getFullPathName() << "\n";
+			}
 
 			list[j]->add(file);
 		}
+	}
+
+	if (!allFound)
+	{
+		
+		SystemClipboard::copyTextToClipboard(missingFileList);
+
+		missingFileList << "This message was also copied to the clipboard";
+
+		throw missingFileList;
 	}
 
 	return list;
@@ -948,7 +968,17 @@ void MonolithExporter::exportCurrentSampleMap(bool overwriteExistingData, bool e
 
 	showStatusMessage("Collecting files");
 
-	filesToWrite = sampleMap->createFileList();
+	try
+	{
+		filesToWrite = sampleMap->createFileList();
+	}
+	catch (String errorMessage)
+	{
+		error = errorMessage;
+		return;
+	}
+	
+	
 
 	v = sampleMap->exportAsValueTree();
 	numSamples = v.getNumChildren();

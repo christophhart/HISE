@@ -145,6 +145,7 @@ public:
 		static void normalizeSamples(SampleEditHandler *handler, Component* childOfRoot);
 		static void automapUsingMetadata(ModulatorSampler* sampler);
 		static void trimSampleStart(SampleEditHandler * body);
+		static void createMultimicSampleMap(SampleEditHandler* handler, SampleMapEditor* param2);
 	};
 
 	

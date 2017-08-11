@@ -85,6 +85,7 @@ public:
 		DeleteSamples,
 		SelectAllSamples,
 		MergeIntoMultisamples,
+		CreateMultiMicSampleMap,
 		ExtractToSingleMicSamples,
 		FillNoteGaps,
 		FillVelocityGaps,
@@ -120,6 +121,7 @@ public:
 								PasteSamples,
 								DeleteSamples,
 								SelectAllSamples,
+								CreateMultiMicSampleMap,
 								MergeIntoMultisamples,
 								ExtractToSingleMicSamples,
 								FillNoteGaps,
@@ -450,6 +452,7 @@ public:
 		toolsMenu.addCommandItem(a, TrimSampleStart);
 		toolsMenu.addSeparator();
 		toolsMenu.addCommandItem(a, MergeIntoMultisamples);
+		toolsMenu.addCommandItem(a, CreateMultiMicSampleMap);
 		toolsMenu.addCommandItem(a, ExtractToSingleMicSamples);
 		
 
