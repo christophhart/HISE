@@ -445,7 +445,8 @@ void ModulatorChain::renderVoice(int voiceIndex, int startSample, int numSamples
 
 	CHECK_AND_LOG_BUFFER_DATA_WITH_ID(parentProcessor, chainIdentifier, DebugLogger::Location::ModulatorChainVoiceRendering, internalBuffer.getReadPointer(0, startIndex), true, sampleAmount);
 
-	FloatVectorOperations::clip(internalBuffer.getWritePointer(0, startIndex), internalBuffer.getReadPointer(0, startIndex), 0.0f, 1.0f, sampleAmount);
+	if(getMode() != Modulation::PitchMode)
+		FloatVectorOperations::clip(internalBuffer.getWritePointer(0, startIndex), internalBuffer.getReadPointer(0, startIndex), (getMode() == Modulation::GainMode ? 0.0f : -1.0f), 1.0f, sampleAmount);
 
 	// Copy the result to the voice buffer
 	FloatVectorOperations::copy(internalVoiceBuffer.getWritePointer(voiceIndex, startIndex), internalBuffer.getReadPointer(0, startIndex), sampleAmount);

@@ -133,6 +133,8 @@ protected:
 	{
 		if(!useStepSize) return numSamples;
 
+		return 64;
+
 		int stepSize = numSamples;
 
 		for(int i = 0; i < getNumChildProcessors(); ++i)

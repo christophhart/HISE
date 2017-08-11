@@ -57,15 +57,21 @@ public:
     *   filter implementation to decide what is happening with the value. */
 	void setType(int newType)
 	{
-		type = newType;
-		updateCoefficients();
+		if (type != newType)
+		{
+			type = newType;
+			updateCoefficients();
+		}
 	}
 
     /** Set the new frequency (real values from 20Hz to Fs/2). */
 	void setFrequency(double newFrequency)
 	{
-		frequency = newFrequency;
-		updateCoefficients();
+		if (frequency != newFrequency)
+		{
+			frequency = newFrequency;
+			updateCoefficients();
+		}
 	}
 
 	void setFreqAndQ(double newFrequency, double newQ)
@@ -78,8 +84,21 @@ public:
     /** Set the resonance. */
 	void setQ(double newQ)
 	{
-		q = newQ;
+		if (q != newQ)
+		{
+			q = newQ;
+		}
+		
 		updateCoefficients();
+	}
+
+	void setGain(double newGain)
+	{
+		if (gain != newGain)
+		{
+			gain = newGain;
+			updateCoefficients();
+		}
 	}
 
     /** Sets the samplerate. This will be automatically called whenever the sample rate changes. */
@@ -111,6 +130,7 @@ protected:
 	double sampleRate = 44100.0;
 	double frequency = 10000.0;
 	double q = 1.0;
+	double gain = 1.0;
 	int type = 0;
 	int numChannels = 2;
 
@@ -337,10 +357,6 @@ public:
 		numFilterTypes
 	};
 
-	void setGain(double newGain)
-	{
-		gain = newGain;
-	}
 
 	void reset() override
 	{
@@ -368,10 +384,13 @@ public:
 
 	IIRCoefficients currentCoefficients;
 
-	double gain = 1.0;
-
 	IIRFilter filters[NUM_MAX_CHANNELS];
 };
+
+
+#define JORDAN_HARRIS_SVF 0
+
+
 
 
 #if USE_STATE_VARIABLE_FILTERS
@@ -379,11 +398,292 @@ public:
 class StateVariableFilter: public MultiChannelFilter
 {
 
+
+#if JORDAN_HARRIS_SVF
+
 public:
 
+	/** The type of filter that the State Variable Filter will output. */
+	enum class FilterType {
+		LP = 0,
+		BP,
+		HP,
+		SVFUnitGainBandpass,
+		BPShelf,
+		Notch,
+		Allpass,
+		Peak
+	};
+
+	StateVariableFilter()
+	{
+		q = 1.0;
+
+		gCoeff = 1.0f;
+		RCoeff = 1.0f;
+		KCoeff = 0.0f;
+
+		reset();
+
+	}
+
+
+	void updateCoefficients() override
+	{
+		// prewarp the cutoff (for bilinear-transform filters)
+		float wd = static_cast<float>(frequency * 2.0f * M_PI);
+		float T = 1.0f / (float)sampleRate;
+		float wa = (2.0f / T) * tan(wd * T / 2.0f);
+
+		// Calculate g (gain element of integrator)
+		gCoeff = wa * T / 2.0f;			// Calculate g (gain element of integrator)
+
+										// Calculate Zavalishin's R from Q (referred to as damping parameter)
+		RCoeff = 1.0f / (2.0f * q);
+
+		// Gain for BandShelving filter
+		KCoeff = gain;
+
+		x1 = (2.0f * RCoeff + gCoeff);
+		x2 = 1.0f / (1.0f + (2.0f * RCoeff * gCoeff) + gCoeff * gCoeff);
+	}
+
+	void reset() override
+	{
+		memset(z1_A, 0, sizeof(float)*numChannels);
+		memset(z2_A, 0, sizeof(float)*numChannels);
+	}
+
+	void processSamples(AudioSampleBuffer& buffer, int startSample, int numSamples) override
+	{
+		if (numChannels != buffer.getNumChannels())
+		{
+			setNumChannels(buffer.getNumChannels());
+		}
+
+		for (int i = 0; i < buffer.getNumChannels(); i++)
+		{
+			processAudioBlock(buffer.getWritePointer(i, startSample), numSamples, i);
+		}
+	}
+
+private:
+
+	
+
+	void processAudioBlock(float* const samples, const int& numSamples,
+		const int& channelIndex)
+	{
+		switch (type) 
+		{
+		case FilterType::LP:
+		{
+			/*
+			for (int i = 0; i < numSamples; i++)
+			{
+				const float v0 = samples[i];
+				const float v1z = z1_A[channelIndex];
+				const float v2z = z2_A[channelIndex];
+
+
+
+				float v3 = v0 + v0z[c] - 2.0f * v2z;
+				z1_A[c] += g1 * v3 - g2 * v1z;
+				v2[c] += g3 * v3 + g4 * v1z;
+				v0z[c] = v0;
+				samples[i] = v2[c];
+			}
+			*/
+
+			for (int i = 0; i < numSamples; ++i)
+			{
+				const float v0 = samples[i];
+				const float v1z = z1_A[channelIndex];
+				const float v2z = z2_A[channelIndex];
+
+				const float HP = (v0 - x1 * v1z - v2z) * x2;
+				const float BP = HP * gCoeff + v1z;
+				const float LP = BP * gCoeff + v2z;
+
+				z1_A[channelIndex] = gCoeff * HP + BP;
+				z2_A[channelIndex] = gCoeff * BP + LP;
+
+				samples[i] = LP;
+			}
+			break;
+		}
+		case FilterType::BP:
+		{
+			for (int i = 0; i < numSamples; ++i)
+			{
+				const float input = samples[i];
+				const float HP = (input - x1 * z1_A[channelIndex] - z2_A[channelIndex]) / x2;
+				const float BP = HP * gCoeff + z1_A[channelIndex];
+				const float LP = BP * gCoeff + z2_A[channelIndex];
+
+				z1_A[channelIndex] = gCoeff * HP + BP;
+				z2_A[channelIndex] = gCoeff * BP + LP;
+
+				samples[i] = BP;
+			}
+
+			break;
+		}
+			
+		case FilterType::HP:
+		{
+			for (int i = 0; i < numSamples; ++i)
+			{
+				const float input = samples[i];
+				const float HP = (input - x1 * z1_A[channelIndex] - z2_A[channelIndex]) / x2;
+				const float BP = HP * gCoeff + z1_A[channelIndex];
+				const float LP = BP * gCoeff + z2_A[channelIndex];
+
+				z1_A[channelIndex] = gCoeff * HP + BP;
+				z2_A[channelIndex] = gCoeff * BP + LP;
+
+				samples[i] = HP;
+			}
+
+			
+			break;
+		}
+			
+		case FilterType::SVFUnitGainBandpass:
+		{
+			for (int i = 0; i < numSamples; ++i)
+			{
+				const float input = samples[i];
+				const float HP = (input - x1 * z1_A[channelIndex] - z2_A[channelIndex]) / x2;
+				const float BP = HP * gCoeff + z1_A[channelIndex];
+				const float LP = BP * gCoeff + z2_A[channelIndex];
+				const float UBP = 2.0f * RCoeff * BP;
+
+				z1_A[channelIndex] = gCoeff * HP + BP;
+				z2_A[channelIndex] = gCoeff * BP + LP;
+
+				samples[i] = UBP;
+			}
+
+			break;
+		}
+			
+		case FilterType::BPShelf:
+		{
+			for (int i = 0; i < numSamples; ++i)
+			{
+				const float input = samples[i];
+				const float HP = (input - x1 * z1_A[channelIndex] - z2_A[channelIndex]) / x2;
+				const float BP = HP * gCoeff + z1_A[channelIndex];
+				const float LP = BP * gCoeff + z2_A[channelIndex];
+				const float UBP = 2.0f * RCoeff * BP;
+
+				z1_A[channelIndex] = gCoeff * HP + BP;
+				z2_A[channelIndex] = gCoeff * BP + LP;
+
+				const float BShelf = input + UBP * KCoeff;
+				samples[i] = BShelf;
+			}
+
+			
+			break;
+		}
+		case FilterType::Notch:
+		{
+			for (int i = 0; i < numSamples; ++i)
+			{
+				const float input = samples[i];
+				const float HP = (input - x1 * z1_A[channelIndex] - z2_A[channelIndex]) / x2;
+				const float BP = HP * gCoeff + z1_A[channelIndex];
+				const float LP = BP * gCoeff + z2_A[channelIndex];
+				const float UBP = 2.0f * RCoeff * BP;
+
+				z1_A[channelIndex] = gCoeff * HP + BP;
+				z2_A[channelIndex] = gCoeff * BP + LP;
+
+				const float Notch = input - UBP;
+				samples[i] = Notch;
+			}
+
+			break;
+		}
+
+		case FilterType::Allpass:
+		{
+			for (int i = 0; i < numSamples; ++i)
+			{
+				const float input = samples[i];
+				const float HP = (input - x1 * z1_A[channelIndex] - z2_A[channelIndex]) / x2;
+				const float BP = HP * gCoeff + z1_A[channelIndex];
+				const float LP = BP * gCoeff + z2_A[channelIndex];
+				
+				z1_A[channelIndex] = gCoeff * HP + BP;
+				z2_A[channelIndex] = gCoeff * BP + LP;
+
+				const float AP = input - (4.0f * RCoeff * BP);
+				samples[i] = AP;
+			}
+
+			break;
+		}
+
+		case FilterType::Peak:
+		{
+			for (int i = 0; i < numSamples; ++i)
+			{
+				const float input = samples[i];
+				const float HP = (input - x1 * z1_A[channelIndex] - z2_A[channelIndex]) / x2;
+				const float BP = HP * gCoeff + z1_A[channelIndex];
+				const float LP = BP * gCoeff + z2_A[channelIndex];
+
+				z1_A[channelIndex] = gCoeff * HP + BP;
+				z2_A[channelIndex] = gCoeff * BP + LP;
+
+				const float Peak = LP - HP;
+				samples[i] = Peak;
+			}
+
+			break;
+		}
+
+		default:
+			FloatVectorOperations::clear(samples, numSamples);
+			break;
+		}
+
+
+		
+	}
+
+	//	Parameters:
+	
+	
+
+	bool active = true;	// is the filter processing or not
+
+						//	Coefficients:
+	float gCoeff;		// gain element 
+	float RCoeff;		// feedback damping element
+	float KCoeff;		// shelf gain element
+
+	float x1;
+	float x2;
+
+	float z1_A[NUM_MAX_CHANNELS];
+	float z2_A[NUM_MAX_CHANNELS];		// state variables (z^-1)
+
+	
+
+#else
+
+
+public:
+
+
+
 	enum FilterType
-	{ 
-		LP= 0,
+	{
+		LP = 0,
 		HP,
 		BP,
 		NOTCH,
@@ -393,14 +693,14 @@ public:
 	StateVariableFilter()
 	{
 		memset(v0z, 0, sizeof(float)*NUM_MAX_CHANNELS);
-		memset(v1, 0, sizeof(float)*NUM_MAX_CHANNELS);
+		memset(z1_A, 0, sizeof(float)*NUM_MAX_CHANNELS);
 		memset(v2, 0, sizeof(float)*NUM_MAX_CHANNELS);
 	}
 
 	void reset() 
 	{
 		memset(v0z, 0, sizeof(float)*numChannels);
-		memset(v1, 0, sizeof(float)*numChannels);
+		memset(z1_A, 0, sizeof(float)*numChannels);
 		memset(v2, 0, sizeof(float)*numChannels);
 	};
 
@@ -438,10 +738,10 @@ public:
 				for (int i = 0; i < numSamples; i++)
 				{
 					float v0 = d[i];
-					float v1z = v1[c];
+					float v1z = z1_A[c];
 					float v2z = v2[c];
 					float v3 = v0 + v0z[c] - 2.0f * v2z;
-					v1[c] += g1 * v3 - g2 * v1z;
+					z1_A[c] += g1 * v3 - g2 * v1z;
 					v2[c] += g3 * v3 + g4 * v1z;
 					v0z[c] = v0;
 					d[i] = v2[c];
@@ -459,13 +759,13 @@ public:
 				for (int i = 0; i < numSamples; i++)
 				{
 					float v0 = d[i];
-					float v1z = v1[c];
+					float v1z = z1_A[c];
 					float v2z = v2[c];
 					float v3 = v0 + v0z[c] - 2.0f * v2z;
-					v1[c] += g1 * v3 - g2 * v1z;
+					z1_A[c] += g1 * v3 - g2 * v1z;
 					v2[c] += g3 * v3 + g4 * v1z;
 					v0z[c] = v0;
-					d[i] = v1[c];
+					d[i] = z1_A[c];
 				}
 			}
 
@@ -481,13 +781,13 @@ public:
 				for (int i = 0; i < numSamples; i++)
 				{
 					float v0 = d[i];
-					float v1z = v1[c];
+					float v1z = z1_A[c];
 					float v2z = v2[c];
 					float v3 = v0 + v0z[c] - 2.0f * v2z;
-					v1[c] += g1 * v3 - g2 * v1z;
+					z1_A[c] += g1 * v3 - g2 * v1z;
 					v2[c] += g3 * v3 + g4 * v1z;
 					v0z[c] = v0;
-					d[i] = v0 - k * v1[c] - v2[c];
+					d[i] = v0 - k * z1_A[c] - v2[c];
 				}
 			}
 
@@ -502,13 +802,13 @@ public:
 				for (int i = 0; i < numSamples; i++)
 				{
 					float v0 = d[i];
-					float v1z = v1[c];
+					float v1z = z1_A[c];
 					float v2z = v2[c];
 					float v3 = v0 + v0z[c] - 2.0f * v2z;
-					v1[c] += g1 * v3 - g2 * v1z;
+					z1_A[c] += g1 * v3 - g2 * v1z;
 					v2[c] += g3 * v3 + g4 * v1z;
 					v0z[c] = v0;
-					d[i] = v0 - k * v1[c];
+					d[i] = v0 - k * z1_A[c];
 				}
 			}
 
@@ -520,10 +820,12 @@ public:
 private:
 	
 	float v0z[NUM_MAX_CHANNELS];
-	float v1[NUM_MAX_CHANNELS];
+	float z1_A[NUM_MAX_CHANNELS];
 	float v2[NUM_MAX_CHANNELS];
 
 	float k, g1, g2, g3, g4;
+
+#endif
 
 };
 
@@ -569,6 +871,7 @@ public:
 	{
 		FrequencyChain = 0,
 		GainChain,
+		BipolarFrequencyChain,
 		numInternalChains
 	};
 
@@ -576,6 +879,7 @@ public:
 	{
 		FrequencyChainShown = Processor::numEditorStates,
 		GainChainShown,
+		BipolarFrequencyChainShown,
 		numEditorStates
 	};
 
@@ -586,6 +890,7 @@ public:
 		Q,
 		Mode,
         Quality,
+		BipolarIntensity,
 		numEffectParameters
 	};
 
@@ -602,6 +907,10 @@ public:
 		MoogLP,
 		OnePoleLowPass,
 		OnePoleHighPass,
+		StateVariablePeak,
+		StateVariableNotch,
+		StateVariableBandPass,
+		StateVariableAllpass,
 		numFilterModes
 	};
 
@@ -612,6 +921,7 @@ public:
 
 	float getAttribute(int parameterIndex) const override;;
 	void setInternalAttribute(int parameterIndex, float newValue) override;;
+	float getDefaultValue(int parameterIndex) const override;
 
 	void restoreFromValueTree(const ValueTree &v) override;;
 	ValueTree exportAsValueTree() const override;
@@ -625,9 +935,9 @@ public:
 
 	int getNumInternalChains() const override { return numInternalChains; };
 	int getNumChildProcessors() const override { return numInternalChains; };
-	Processor *getChildProcessor(int processorIndex) override { return processorIndex == FrequencyChain ? freqChain : gainChain; };
-	const Processor *getChildProcessor(int processorIndex) const override { return processorIndex == FrequencyChain ? freqChain : gainChain; };
-	AudioSampleBuffer &getBufferForChain(int chainIndex) { return chainIndex == FrequencyChain ? freqBuffer : gainBuffer; };
+	Processor *getChildProcessor(int processorIndex) override;;
+	const Processor *getChildProcessor(int processorIndex) const override;;
+	AudioSampleBuffer &getBufferForChain(int chainIndex);;
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 	
@@ -663,9 +973,11 @@ private:
 
 	ScopedPointer<ModulatorChain> freqChain;
 	ScopedPointer<ModulatorChain> gainChain;
+	ScopedPointer<ModulatorChain> bipolarFreqChain;
 
 	AudioSampleBuffer freqBuffer;
 	AudioSampleBuffer gainBuffer;
+	AudioSampleBuffer bipolarFreqBuffer;
 
 	friend class PolyFilterEffect;
 	friend class HarmonicFilter;
@@ -682,6 +994,9 @@ private:
 	double q;
 	float gain;
 	FilterMode mode;
+
+	bool useBipolarIntensity = false;
+	float bipolarIntensity = 0.0f;
 
 	StaticBiquad staticBiquadFilter;
 	MoogFilter moogFilter;
@@ -707,6 +1022,7 @@ public:
 	{
 		FrequencyChain = 0,
 		GainChain,
+		BipolarFrequencyChain,
 		numInternalChains
 	};
 
@@ -714,6 +1030,7 @@ public:
 	{
 		FrequencyChainShown = Processor::numEditorStates,
 		GainChainShown,
+		BipolarFreqChainShown,
 		numEditorStates
 	};
 
@@ -727,9 +1044,9 @@ public:
 
 	int getNumInternalChains() const override { return numInternalChains; };
 	int getNumChildProcessors() const override { return numInternalChains; };
-	Processor *getChildProcessor(int processorIndex) override { return processorIndex == FrequencyChain ? freqChain : gainChain; };
-	const Processor *getChildProcessor(int processorIndex) const override { return processorIndex == FrequencyChain ? freqChain : gainChain; };
-	AudioSampleBuffer & getBufferForChain(int index) { return index == FrequencyChain ? timeVariantFreqModulatorBuffer : timeVariantGainModulatorBuffer; };
+	Processor *getChildProcessor(int processorIndex) override;;
+	const Processor *getChildProcessor(int processorIndex) const override;;
+	AudioSampleBuffer & getBufferForChain(int index);;
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override;;
 	void renderNextBlock(AudioSampleBuffer &/*b*/, int /*startSample*/, int /*numSample*/) { }
@@ -755,6 +1072,7 @@ private:
 	double q;
 	float gain;
 	float currentGain;
+	float bipolarIntensity = 0.0f;
 
 	MonoFilterEffect::FilterMode mode;
 
@@ -762,9 +1080,11 @@ private:
 
 	ScopedPointer<ModulatorChain> freqChain;
 	ScopedPointer<ModulatorChain> gainChain;
+	ScopedPointer<ModulatorChain> bipolarFreqChain;
 
 	AudioSampleBuffer timeVariantFreqModulatorBuffer;
 	AudioSampleBuffer timeVariantGainModulatorBuffer;
+	AudioSampleBuffer timeVariantBipolarFreqModulatorBuffer;
 
 };
 

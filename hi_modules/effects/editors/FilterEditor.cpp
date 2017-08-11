@@ -51,6 +51,12 @@ FilterEditor::FilterEditor (ProcessorEditor *p)
     gainSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     gainSlider->addListener (this);
 
+	addAndMakeVisible(bipolarFreqSlider = new HiSlider("Bipolar Intensity"));
+	bipolarFreqSlider->setRange(-1.0, 1.0, 0.01);
+	bipolarFreqSlider->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
+	bipolarFreqSlider->setTextBoxStyle(Slider::TextBoxRight, false, 80, 20);
+	bipolarFreqSlider->addListener(this);
+
     addAndMakeVisible (modeSelector = new ComboBox ("new combo box"));
     modeSelector->setEditableText (false);
     modeSelector->setJustificationType (Justification::centredLeft);
@@ -61,6 +67,10 @@ FilterEditor::FilterEditor (ProcessorEditor *p)
 	modeSelector->addItem(TRANS("1 Pole HP"), MonoFilterEffect::FilterMode::OnePoleHighPass + 1);
 	modeSelector->addItem(TRANS("SVF LP"), MonoFilterEffect::FilterMode::StateVariableLP + 1);
 	modeSelector->addItem(TRANS("SVF HP"), MonoFilterEffect::FilterMode::StateVariableHP + 1);
+	//modeSelector->addItem(TRANS("SVF Peak"), MonoFilterEffect::FilterMode::StateVariablePeak + 1);
+	//modeSelector->addItem(TRANS("SVF Notch"), MonoFilterEffect::FilterMode::StateVariableNotch + 1);
+	//modeSelector->addItem(TRANS("SVF BP"), MonoFilterEffect::FilterMode::StateVariableBandPass + 1);
+	//modeSelector->addItem(TRANS("SVF Allpass"), MonoFilterEffect::FilterMode::StateVariableAllpass + 1);
 	modeSelector->addItem(TRANS("Moog LP"), MonoFilterEffect::FilterMode::MoogLP + 1);
 	modeSelector->addItem (TRANS("Biquad LP"), MonoFilterEffect::FilterMode::LowPass + 1);
     modeSelector->addItem (TRANS("Biquad HP"), MonoFilterEffect::FilterMode::HighPass + 1);
@@ -87,6 +97,9 @@ FilterEditor::FilterEditor (ProcessorEditor *p)
 
 	gainSlider->setup(getProcessor(), MonoFilterEffect::Gain, "Gain");
 	gainSlider->setMode(HiSlider::Decibel, -18.0, 18.0, 0.0);
+
+	bipolarFreqSlider->setup(getProcessor(), MonoFilterEffect::BipolarIntensity, "Bipolar Freq Intensity");
+	bipolarFreqSlider->setMode(HiSlider::Linear, -1.0, 1.0, 0.0);
 
 	qSlider->setup(getProcessor(), MonoFilterEffect::Q, "Q");
 	qSlider->setMode(HiSlider::Linear, 0.3, 8.0, 1.0);
@@ -116,6 +129,7 @@ FilterEditor::FilterEditor (ProcessorEditor *p)
     ProcessorEditorLookAndFeel::setupEditorNameLabel(label);
     
 	freqSlider->setIsUsingModulatedRing(true);
+	bipolarFreqSlider->setIsUsingModulatedRing(true);
 
     //[/Constructor]
 }
@@ -130,6 +144,7 @@ FilterEditor::~FilterEditor()
     gainSlider = nullptr;
     modeSelector = nullptr;
     filterGraph = nullptr;
+	bipolarFreqSlider = nullptr;
     label = nullptr;
 
 
@@ -165,6 +180,9 @@ void FilterEditor::resized()
     filterGraph->setBounds ((getWidth() / 2) + -69 - (proportionOfWidth (0.5075f) / 2), 16, proportionOfWidth (0.5075f), 88);
     label->setBounds ((getWidth() / 2) + 242 - (100 / 2), 7, 100, 40);
     //[UserResized] Add your own custom resize handling here..
+
+	bipolarFreqSlider->setBounds(qSlider->getRight() + 16, qSlider->getY(), 128, 48);
+
     //[/UserResized]
 }
 

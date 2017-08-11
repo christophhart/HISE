@@ -41,26 +41,31 @@ mode(LowPass),
 changeFlag(false),
 useFixedFrequency(false),
 freqChain(new ModulatorChain(mc, "Freq Modulation", 1, Modulation::GainMode, this)),
-gainChain(new ModulatorChain(mc, "Gain Modulation", 1, Modulation::GainMode, this))
+gainChain(new ModulatorChain(mc, "Gain Modulation", 1, Modulation::GainMode, this)),
+bipolarFreqChain(new ModulatorChain(mc, "Bipolar Freq Mod", 1, Modulation::GainMode, this))
 {
 	currentFilter = &simpleFilter;
 
 	freqBuffer = AudioSampleBuffer(1, 0);
 	gainBuffer = AudioSampleBuffer(1, 0);
+	bipolarFreqBuffer = AudioSampleBuffer(1, 0);
 
 	editorStateIdentifiers.add("FrequencyChainShown");
 	editorStateIdentifiers.add("GainChainShown");
+	editorStateIdentifiers.add("BipolarFreqChainShown");
     
     setRenderQuality(256);
 
 	freqChain->getFactoryType()->setConstrainer(new NoGlobalEnvelopeConstrainer());
 	gainChain->getFactoryType()->setConstrainer(new NoGlobalEnvelopeConstrainer());
+	bipolarFreqChain->getFactoryType()->setConstrainer(new NoGlobalEnvelopeConstrainer());
 
 	parameterNames.add("Gain");
 	parameterNames.add("Frequency");
 	parameterNames.add("Q");
 	parameterNames.add("Mode");
     parameterNames.add("Quality");
+	parameterNames.add("BipolarIntensity");
 }
 
 float MonoFilterEffect::getAttribute(int parameterIndex) const
@@ -72,6 +77,7 @@ float MonoFilterEffect::getAttribute(int parameterIndex) const
 	case Q:			return (float)q;
 	case Mode:		return (float)mode;
     case Quality:   return (float)getSampleAmountForRenderQuality();
+	case BipolarIntensity: return bipolarIntensity;
 	default:		jassertfalse; return 1.0f;
 	}
 }
@@ -80,15 +86,32 @@ void MonoFilterEffect::setInternalAttribute(int parameterIndex, float newValue)
 {
 	switch (parameterIndex)
 	{
-	case Gain:		gain = Decibels::decibelsToGain(newValue); staticBiquadFilter.setGain(gain); break;
+	case Gain:		gain = Decibels::decibelsToGain(newValue); 
+					staticBiquadFilter.setGain(gain); 
+					stateFilter.setGain(gain); break;
 	case Frequency:	useFixedFrequency ? currentFreq = newValue : freq = newValue; break;
 	case Q:			q = newValue; break;
 	case Mode:		setMode((int)newValue);	break;
     case Quality:   setRenderQuality((int)newValue); break;
+	case BipolarIntensity: bipolarIntensity = newValue; break;
 	default:		jassertfalse; return;
 	}
 
 	changeFlag = true;
+}
+
+float MonoFilterEffect::getDefaultValue(int parameterIndex) const
+{
+	switch (parameterIndex)
+	{
+	case Gain:		return 0.0f;
+	case Frequency:	return 20000.0f;
+	case Q:			return 1.0f;
+	case Mode:		return (float)(int)FilterMode::StateVariableLP;
+	case Quality:   return 256.0f;
+	case BipolarIntensity: return 0.0f;
+	default:		jassertfalse; return 1.0f;
+	}
 }
 
 void MonoFilterEffect::restoreFromValueTree(const ValueTree &v)
@@ -100,6 +123,7 @@ void MonoFilterEffect::restoreFromValueTree(const ValueTree &v)
 	loadAttribute(Q, "Q");
 	loadAttribute(Mode, "Mode");
     loadAttribute(Quality, "RenderQuality");
+	loadAttribute(BipolarIntensity, "BipolarIntensity");
 }
 
 ValueTree MonoFilterEffect::exportAsValueTree() const
@@ -111,6 +135,7 @@ ValueTree MonoFilterEffect::exportAsValueTree() const
 	saveAttribute(Q, "Q");
 	saveAttribute(Mode, "Mode");
     saveAttribute(Quality, "RenderQuality");
+	saveAttribute(BipolarIntensity, "BipolarIntensity");
 	return v;
 }
 
@@ -120,7 +145,6 @@ void MonoFilterEffect::setMode(int filterMode)
 
 	calculateGainModValue = false;
 	
-
 	switch (mode)
 	{
 	case MonoFilterEffect::OnePoleLowPass:
@@ -159,13 +183,31 @@ void MonoFilterEffect::setMode(int filterMode)
 		currentFilter = &staticBiquadFilter;
 		break;
 	case MonoFilterEffect::StateVariableLP:
-		stateFilter.setType(StateVariableFilter::FilterType::LP);
+		stateFilter.setType((int)StateVariableFilter::FilterType::LP);
 		currentFilter = &stateFilter;
 		break;
 	case MonoFilterEffect::StateVariableHP:
-		stateFilter.setType(StateVariableFilter::FilterType::HP);
+		stateFilter.setType((int)StateVariableFilter::FilterType::HP);
 		currentFilter = &stateFilter;
 		break;
+	case MonoFilterEffect::StateVariableBandPass:
+		stateFilter.setType((int)StateVariableFilter::FilterType::BP);
+		currentFilter = &stateFilter;
+		break;
+#if JORDAN_HARRIS_SVF
+	case MonoFilterEffect::StateVariablePeak:
+		stateFilter.setType((int)StateVariableFilter::FilterType::BPShelf);
+		currentFilter = &stateFilter;
+		break;
+	case MonoFilterEffect::StateVariableNotch:
+		stateFilter.setType((int)StateVariableFilter::FilterType::Notch);
+		currentFilter = &stateFilter;
+		break;
+	case MonoFilterEffect::StateVariableAllpass:
+		stateFilter.setType((int)StateVariableFilter::FilterType::Allpass);
+		currentFilter = &stateFilter;
+		break;
+#endif
 	case MonoFilterEffect::MoogLP:
 		currentFilter = &moogFilter;
 		break;
@@ -206,9 +248,22 @@ void MonoFilterEffect::processBlockPartial(AudioSampleBuffer &buffer, int startS
         const double lastCurrentFreq = currentFreq;
         
         const float maxFreqInModBuffer = FloatVectorOperations::findMaximum(freqBuffer.getReadPointer(0, 0), numSamples);
-        
-        currentFreq = 0.15 * jmax<double>(40.0, (double)maxFreqInModBuffer * freq)
-        + 0.85 * lastCurrentFreq;
+		const double maxFreqInBipolarModBuffer = bipolarFreqChain->getNumChildProcessors() > 0 ? (double)FloatVectorOperations::findMaximum(bipolarFreqBuffer.getReadPointer(0, 0), numSamples) : 0.0;
+
+		double bipolarDelta = 0.0;
+
+		if (bipolarIntensity > 0.0f)
+		{
+			bipolarDelta = (20000.0 - freq) * maxFreqInBipolarModBuffer * (double)bipolarIntensity;
+		}
+		else if (bipolarIntensity < 0.0f)
+		{
+			bipolarDelta = (double)bipolarIntensity * maxFreqInBipolarModBuffer* freq;
+		}
+		
+		const double freqToUse = jlimit<double>(40.0, 20000.0, freq + bipolarDelta);
+
+		currentFreq = 0.15 * jmax<double>(40.0, (double)maxFreqInModBuffer * freqToUse) + 0.85 * lastCurrentFreq;
         
         const float lastCurrentGain = currentGain;
         
@@ -255,6 +310,36 @@ void MonoFilterEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, i
     processBlockPartial(buffer, startSample, numSamples);
 }
 
+Processor * MonoFilterEffect::getChildProcessor(int processorIndex)
+{
+	switch (processorIndex)
+	{
+	case FrequencyChain: return freqChain;
+	case GainChain: return gainChain;
+	case BipolarFrequencyChain: return bipolarFreqChain;
+	}
+}
+
+const Processor * MonoFilterEffect::getChildProcessor(int processorIndex) const
+{
+	switch (processorIndex)
+	{
+	case FrequencyChain: return freqChain;
+	case GainChain: return gainChain;
+	case BipolarFrequencyChain: return bipolarFreqChain;
+	}
+}
+
+AudioSampleBuffer & MonoFilterEffect::getBufferForChain(int chainIndex)
+{
+	switch (chainIndex)
+	{
+	case FrequencyChain: return freqBuffer;
+	case GainChain: return gainBuffer;
+	case BipolarFrequencyChain: return bipolarFreqBuffer;
+	}
+}
+
 ProcessorEditorBody *MonoFilterEffect::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
@@ -296,13 +381,16 @@ currentGain(1.0f),
 gain(1.0f),
 q(1.0),
 freqChain(new ModulatorChain(mc, "Frequency Modulation", numVoices, Modulation::GainMode, this)),
-gainChain(new ModulatorChain(mc, "Gain Modulation", numVoices, Modulation::GainMode, this))
+gainChain(new ModulatorChain(mc, "Gain Modulation", numVoices, Modulation::GainMode, this)),
+bipolarFreqChain(new ModulatorChain(mc, "Bipolar Freq Modulation", numVoices, Modulation::GainMode, this))
 {
 	timeVariantFreqModulatorBuffer = AudioSampleBuffer(1, 0);
 	timeVariantGainModulatorBuffer = AudioSampleBuffer(1, 0);
+	timeVariantBipolarFreqModulatorBuffer = AudioSampleBuffer(1, 0);
 
 	editorStateIdentifiers.add("FrequencyChainShown");
 	editorStateIdentifiers.add("GainChainShown");
+	editorStateIdentifiers.add("BipolarFreqChainShown");
 
 	for (int i = 0; i < numVoices; i++)
 	{
@@ -315,6 +403,7 @@ gainChain(new ModulatorChain(mc, "Gain Modulation", numVoices, Modulation::GainM
     parameterNames.add("Q");
     parameterNames.add("Mode");
     parameterNames.add("Quality");
+	parameterNames.add("BipolarIntensity");
 }
 
 float PolyFilterEffect::getAttribute(int parameterIndex) const
@@ -326,6 +415,7 @@ float PolyFilterEffect::getAttribute(int parameterIndex) const
 	case MonoFilterEffect::Q:			return (float)q;
 	case MonoFilterEffect::Mode:		return (float)mode;
     case MonoFilterEffect::Quality:		return (float)getSampleAmountForRenderQuality();
+	case MonoFilterEffect::BipolarIntensity: return bipolarIntensity;
 	default:							jassertfalse; return 1.0f;
 	}
 }
@@ -338,9 +428,10 @@ void PolyFilterEffect::setInternalAttribute(int parameterIndex, float newValue)
 	case MonoFilterEffect::Frequency:	freq = newValue; break;
 	case MonoFilterEffect::Q:			q = newValue; break;
 	case MonoFilterEffect::Mode:		mode = (MonoFilterEffect::FilterMode)(int)newValue;
-		for (int i = 0; i < voiceFilters.size(); i++) voiceFilters[i]->setMode((int)newValue);
-		break;
-        case MonoFilterEffect::Quality: setRenderQuality((int)newValue); break;
+										for (int i = 0; i < voiceFilters.size(); i++) voiceFilters[i]->setMode((int)newValue);
+										break;
+    case MonoFilterEffect::Quality:		setRenderQuality((int)newValue); break;
+	case MonoFilterEffect::BipolarIntensity: bipolarIntensity = jlimit<float>(-1.0f, 1.0f, newValue); break;
 	default:							jassertfalse; return;
 	}
 
@@ -356,6 +447,7 @@ void PolyFilterEffect::restoreFromValueTree(const ValueTree &v)
 	loadAttribute(MonoFilterEffect::Q, "Q");
 	loadAttribute(MonoFilterEffect::Mode, "Mode");
     loadAttribute(MonoFilterEffect::Quality, "Quality");
+	loadAttribute(MonoFilterEffect::BipolarIntensity, "BipolarIntensity");
 }
 
 ValueTree PolyFilterEffect::exportAsValueTree() const
@@ -367,8 +459,39 @@ ValueTree PolyFilterEffect::exportAsValueTree() const
 	saveAttribute(MonoFilterEffect::Q, "Q");
 	saveAttribute(MonoFilterEffect::Mode, "Mode");
     saveAttribute(MonoFilterEffect::Quality, "Quality");
+	saveAttribute(MonoFilterEffect::BipolarIntensity, "BipolarIntensity");
 
 	return v;
+}
+
+Processor * PolyFilterEffect::getChildProcessor(int processorIndex)
+{
+	switch (processorIndex)
+	{
+	case FrequencyChain: return freqChain;
+	case GainChain: return gainChain;
+	case BipolarFrequencyChain: return bipolarFreqChain;
+	}
+}
+
+const Processor * PolyFilterEffect::getChildProcessor(int processorIndex) const
+{
+	switch (processorIndex)
+	{
+	case FrequencyChain: return freqChain;
+	case GainChain: return gainChain;
+	case BipolarFrequencyChain: return bipolarFreqChain;
+	}
+}
+
+AudioSampleBuffer & PolyFilterEffect::getBufferForChain(int index)
+{
+	switch (index)
+	{
+	case FrequencyChain: return timeVariantFreqModulatorBuffer;
+	case GainChain: return timeVariantGainModulatorBuffer;
+	case BipolarFrequencyChain: return timeVariantBipolarFreqModulatorBuffer;
+	}
 }
 
 void PolyFilterEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
@@ -403,6 +526,8 @@ void PolyFilterEffect::preVoiceRendering(int voiceIndex, int startSample, int nu
 
 	calculateChain(PolyFilterEffect::GainChain, voiceIndex, startSample, numSamples);
 
+	calculateChain(PolyFilterEffect::BipolarFrequencyChain, voiceIndex, startSample, numSamples);
+
 	voiceFilters[voiceIndex]->q = q;
 }
 
@@ -420,17 +545,32 @@ void PolyFilterEffect::applyEffect(int voiceIndex, AudioSampleBuffer &b, int sta
 		}
 		else
 		{
-			
 			voiceFilters[voiceIndex]->currentGain = gain;
 		}
 	}
 	
 	const double freqModValue = (double)getCurrentModulationValue(FrequencyChain, voiceIndex, startSample);
-	const double checkFreq = jmax<double>(70.0, std::abs(freqModValue * freq));
+	const double bipolarFreqModValue = (double)getCurrentModulationValue(BipolarFrequencyChain, voiceIndex, startSample);
+
+	double bipolarDelta = 0.0;
+
+	if (bipolarIntensity > 0.0f)
+		bipolarDelta = (20000.0 - freq) * bipolarFreqModValue * (double)bipolarIntensity;
+	else if (bipolarIntensity < 0.0f)
+		bipolarDelta = (double)bipolarIntensity * bipolarFreqModValue * freq;
+
+	const double freqToUse = jlimit<double>(40.0, 20000.0, freq + bipolarDelta);
+
+	const double checkFreq = jmax<double>(70.0, std::abs(freqModValue * freqToUse));
+
 	voiceFilters[voiceIndex]->currentFreq = checkFreq;
 	voiceFilters[voiceIndex]->freq = checkFreq;
+
 	voiceFilters[voiceIndex]->calcCoefficients();
-	voiceFilters[voiceIndex]->applyEffect(b, startSample, numSamples);
+
+	voiceFilters[voiceIndex]->currentFilter->processSamples(b, startSample, numSamples);
+
+	//voiceFilters[voiceIndex]->applyEffect(b, startSample, numSamples);
 }
 
 void PolyFilterEffect::startVoice(int voiceIndex, int noteNumber)

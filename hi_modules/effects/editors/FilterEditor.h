@@ -53,6 +53,7 @@ public:
 	{
 		modeSelector->setSelectedId((int)getProcessor()->getAttribute(MonoFilterEffect::Mode) + 1, dontSendNotification);
 		freqSlider->updateValue();
+		bipolarFreqSlider->updateValue();
 		gainSlider->updateValue();
 		qSlider->updateValue();
 
@@ -97,6 +98,7 @@ public:
 		}
 
 		freqSlider->setDisplayValue(getProcessor()->getChildProcessor(MonoFilterEffect::FrequencyChain)->getOutputValue());
+		bipolarFreqSlider->setDisplayValue(getProcessor()->getChildProcessor(MonoFilterEffect::BipolarFrequencyChain)->getOutputValue());
 
 	}
 
@@ -139,6 +141,7 @@ private:
     ScopedPointer<HiSlider> freqSlider;
     ScopedPointer<HiSlider> qSlider;
     ScopedPointer<HiSlider> gainSlider;
+	ScopedPointer<HiSlider> bipolarFreqSlider;
     ScopedPointer<ComboBox> modeSelector;
     ScopedPointer<FilterGraph> filterGraph;
     ScopedPointer<Label> label;
