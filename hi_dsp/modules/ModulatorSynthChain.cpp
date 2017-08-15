@@ -363,9 +363,9 @@ void ModulatorSynthGroupVoice::startNote (int midiNoteNumber, float velocity, Sy
 
 	for(int i = 0; i < childSynths.size(); i++)
 	{
-		ModulatorSynthVoice *childVoice = childVoices.getUnchecked(i);
+		
 		childSynth = childSynths.getUnchecked(i);
-
+		ModulatorSynthVoice *childVoice = static_cast<ModulatorSynthVoice*>(childSynth->getVoice(getVoiceIndex()));
 		
 
 		if(static_cast<ModulatorSynthGroup*>(ownerSynth)->allowStates[i])
@@ -395,6 +395,7 @@ void ModulatorSynthGroupVoice::startNote (int midiNoteNumber, float velocity, Sy
 			childVoice->setCurrentHiseEvent(getCurrentHiseEvent());
 
 			childVoice->startNote(midiNoteNumber, velocity, soundToPlay, -1);
+
 		}
 		else
 		{
@@ -676,7 +677,7 @@ void ModulatorSynthGroupVoice::calculateBlock(int startSample, int numSamples)
 
 		float *carrierPitchValues = carrierVoice->getVoicePitchValues();
 
-		FloatVectorOperations::add(carrierPitchValues + startSample, voicePitchValues + startSample, numSamples);
+		FloatVectorOperations::multiply(carrierPitchValues + startSample, voicePitchValues + startSample, numSamples);
 
 		// This is the magic FM command
 		FloatVectorOperations::multiply(carrierPitchValues + startSample, fmModBuffer, numSamples);
@@ -710,18 +711,13 @@ void ModulatorSynthGroupVoice::calculateBlock(int startSample, int numSamples)
 
 			const float gain = childSynth->getGain();
 
-			if (childVoice->isPitchModulationActive())
+			childVoice->calculateVoicePitchValues(startSample, numSamples);
+
+			float *childPitchValues = childVoice->getVoicePitchValues();
+
+			if (childPitchValues != nullptr && voicePitchValues != nullptr)
 			{
-				childVoice->calculateVoicePitchValues(startSample, numSamples);
-
-				float *childPitchValues = childVoice->getVoicePitchValues();
-
-				if (childPitchValues != nullptr && voicePitchValues != nullptr)
-				{
-					FloatVectorOperations::add(childPitchValues + startSample, voicePitchValues + startSample, numSamples);
-				}
-				
-				
+				FloatVectorOperations::multiply(childPitchValues + startSample, voicePitchValues + startSample, numSamples);
 			}
 
 			childVoice->calculateBlock(startSample, numSamples);
@@ -775,6 +771,7 @@ void ModulatorSynthGroup::ModulatorSynthGroupHandler::add(Processor *newProcesso
 		}
 	}
 
+	m->enablePitchModulation(true);
 	m->setGroup(group);
 	m->prepareToPlay(group->getSampleRate(), group->getBlockSize());
 

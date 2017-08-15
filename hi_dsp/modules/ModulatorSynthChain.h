@@ -414,6 +414,8 @@ public:
 	ModulatorSynthGroupVoice(ModulatorSynth *ownerSynth):
 		ModulatorSynthVoice(ownerSynth)
 	{
+		enablePitchModulation(true);
+
 	};
 
 	bool canPlaySound(SynthesiserSound *) override
@@ -427,12 +429,9 @@ public:
 	{
 		ScopedLock sl(ownerSynth->getSynthLock());
 
-		jassert(childSynth->getNumVoices() == ownerSynth->getNumVoices());
+		
 
 		childSynths.add(childSynth);
-		childVoices.add(static_cast<ModulatorSynthVoice*>(childSynth->getVoice(voiceIndex)));
-
-		jassert(childSynths.size() == childVoices.size());
 	};
 
 	/** This removes reference of the child synths and a reference of the voice of the child processor with the same voice index. */
@@ -446,9 +445,6 @@ public:
 		if (childSynth != nullptr)
 		{
 			childSynths.removeAllInstancesOf(childSynth);
-			childVoices.removeAllInstancesOf(static_cast<ModulatorSynthVoice*>(childSynth->getVoice(voiceIndex)));
-
-			jassert(childSynths.size() == childVoices.size());
 		}
 
 		
@@ -464,11 +460,10 @@ public:
 
 	void calculateBlock(int startSample, int numSamples) override;
 
-    
 private:
 
 	Array<ModulatorSynth*> childSynths;
-	Array<ModulatorSynthVoice*> childVoices;
+	
 
 	float fmModBuffer[2048];
 
@@ -544,6 +539,8 @@ public:
 
 	float getAttribute(int index) const override;
 
+
+
 	/** returns the total amount of child groups (internal chains + all child synths) */
 	Processor *getChildProcessor(int processorIndex) override
 	{ 
@@ -559,6 +556,8 @@ public:
         else if (processorIndex == SampleStartModulation)		return sampleStartChain;
 		else													return handler.getProcessor(processorIndex - numInternalChains);	
 	};
+
+	
 
 
 	/** Iterates over all child synths.
