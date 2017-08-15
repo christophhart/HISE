@@ -51,13 +51,13 @@ void ToggleButtonList::rebuildList(const StringArray &names)
 		addAndMakeVisible(button);
 		button->setColour(ToggleButton::ColourIds::textColourId, Colours::white);
 		
-		button->setSize(250, 24);
+		button->setSize(250, 26);
 		button->addListener(this);
 		buttons.add(button);
 
 	}
 
-	setSize(250, buttons.size() * 26);
+	setSize(250, buttons.size() * 28);
 	resized();
 }
 
