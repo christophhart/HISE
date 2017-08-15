@@ -548,16 +548,52 @@ void MultiColumnPresetBrowser::renameEntry(int columnIndex, int rowIndex, const 
 {
 	if (columnIndex == 0)
 	{
-		File bankToDelete = f;
-
-		categoryColumn->setNewRootDirectory(File());
-		presetColumn->setNewRootDirectory(File());
+		
+        const String customName = PresetHandler::getCustomName(currentBankFile.getFileNameWithoutExtension(), "Enter the new Bank Name");
+        
+        if(customName.isNotEmpty())
+        {
+            File newBank = currentBankFile.getSiblingFile(customName);
+            
+            if(newBank.isDirectory())
+            {
+                PresetHandler::showMessageWindow("Bank already exists", "You specified an existing directory name");
+                return;
+            }
+            
+            currentBankFile.moveFileTo(newBank);
+            
+            categoryColumn->setNewRootDirectory(File());
+            presetColumn->setNewRootDirectory(File());
+        }
+        
+        rebuildAllPresets();
+        
+		
 	}
 	else if (columnIndex == 1)
 	{
 		currentCategoryFile = PresetBrowserColumn::getChildDirectory(currentBankFile, 2, rowIndex);
 
-		presetColumn->setNewRootDirectory(currentCategoryFile);
+        const String customName = PresetHandler::getCustomName(currentCategoryFile.getFileNameWithoutExtension(), "Enter the new Category Name");
+        
+        if(customName.isNotEmpty())
+        {
+            File newCategory = currentCategoryFile.getSiblingFile(customName);
+            
+            if(newCategory.isDirectory())
+            {
+                PresetHandler::showMessageWindow("Category already exists", "You specified an existing directory name");
+                return;
+            }
+            
+            currentCategoryFile.moveFileTo(newCategory);
+            
+            categoryColumn->setNewRootDirectory(currentBankFile);
+            presetColumn->setNewRootDirectory(newCategory);
+        }
+        
+        rebuildAllPresets();
 	}
 	else if (columnIndex == 2)
 	{
