@@ -185,6 +185,8 @@ void CustomKeyboard::drawWhiteNote(int midiNoteNumber, Graphics &g, int x, int y
 	{
 		g.setFont(GLOBAL_BOLD_FONT().withHeight(w / 3));
 		
+        g.setColour(Colours::grey);
+        
 		g.drawText(MidiMessage::getMidiNoteName(midiNoteNumber, true, true, 3), x, (h*3)/4, w, h / 4, Justification::centred);
 	}
 	
@@ -217,8 +219,6 @@ void CustomKeyboardLookAndFeel::drawWhiteNote(CustomKeyboardState* state, int mi
 
 	g.setColour(Colour(BACKEND_BG_COLOUR_BRIGHT));
 	g.fillRect(x, y, w, h);
-
-	const int off = midiNoteNumber % 12;
 
 	g.setGradientFill(ColourGradient(Colour(0xFFEEEEEE), 0.0f, 0.0f,
 									 Colour(0xFFCCCCCC), 0.0f, (float)(y+h), false));

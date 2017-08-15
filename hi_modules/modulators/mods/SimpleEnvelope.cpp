@@ -266,8 +266,6 @@ bool SimpleEnvelope::isPlaying(int voiceIndex) const
 
 void SimpleEnvelope::calculateBlock(int startSample, int numSamples)
 {
-	const int samplesToSmooth = numSamples;
-
 	const int voiceIndex = isMonophonic ? -1 : polyManager.getCurrentVoice();
 
 	jassert(voiceIndex < states.size());

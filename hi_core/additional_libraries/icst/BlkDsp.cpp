@@ -832,12 +832,13 @@ void VectorFunctions::unoise(float* d, int size)
 void VectorFunctions::gnoise(float* d, int size, int apxorder)
 {
 	apxorder = __min(apxorder,255);
-	float scl = sqrtf(3.0f/static_cast<float>(apxorder));
+	
 #ifdef ICSTLIB_NO_SSEOPT
 	static CriticalSection cs;
-	static unsigned int x = 1;
+	
 
 #if 0
+    static unsigned int x = 1;
 	cs.Enter();							// single thread access on
 
 	int i,j,temp;
@@ -855,6 +856,7 @@ void VectorFunctions::gnoise(float* d, int size, int apxorder)
 	cs.Leave();							// single thread access off
 #endif
 #else
+    float scl = sqrtf(3.0f/static_cast<float>(apxorder));
 	randsse(d, size, apxorder);
 	mul(d, scl, size);
 #endif

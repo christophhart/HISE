@@ -329,6 +329,8 @@ public:
         COMPLEX_SPLIT s;
         s.imagp = other.imagp + offset;
         s.realp = other.realp + offset;
+        
+        return s;
     }
     
     static COMPLEX_SPLIT createComplexSplit(juce::AudioSampleBuffer &buffer)

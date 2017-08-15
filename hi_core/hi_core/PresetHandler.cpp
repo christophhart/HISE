@@ -2149,6 +2149,7 @@ String PresetHandler::getDataFolder()
     // Windows
     File f = File::getSpecialLocation(appDataDirectoryToUse).getChildFile("HISE");
 #elif JUCE_MAC
+    
 #if HISE_IOS
     // iOS
     File f = File::getSpecialLocation(appDataDirectoryToUse);
@@ -2156,6 +2157,7 @@ String PresetHandler::getDataFolder()
     // OS X
     File f = File::getSpecialLocation(appDataDirectoryToUse).getChildFile("Application Support/HISE");
 #endif
+    
 #else
     // Linux
     File f = File::getSpecialLocation(File::SpecialLocationType::userHomeDirectory).getChildFile(".hise/");
