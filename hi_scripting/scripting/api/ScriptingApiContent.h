@@ -724,6 +724,10 @@ public:
 		/** Sets a FloatingTile that is used as popup. The position is a array [x , y, width, height] that is used for the popup dimension */
 		void setPopupData(var jsonData, var position);
 
+        
+        /** Sets a new value, stores this action in the undo manager and calls the control callbacks. */
+        void setValueWithUndo(var oldValue, var newValue, var actionName);
+        
 		// ========================================================================================================
 
 		struct Wrapper;

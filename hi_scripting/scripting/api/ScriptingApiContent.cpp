@@ -2027,6 +2027,7 @@ struct ScriptingApi::Content::ScriptPanel::Wrapper
 	API_VOID_METHOD_WRAPPER_2(ScriptPanel, loadImage);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setDraggingBounds);
 	API_VOID_METHOD_WRAPPER_2(ScriptPanel, setPopupData);
+    API_VOID_METHOD_WRAPPER_3(ScriptPanel, setValueWithUndo);
 };
 
 ScriptingApi::Content::ScriptPanel::ScriptPanel(ProcessorWithScriptingContent *base, Content *parentContent, Identifier panelName, int x, int y, int width, int height) :
@@ -2093,6 +2094,7 @@ controlSender(this, base)
 	ADD_API_METHOD_2(loadImage);
 	ADD_API_METHOD_1(setDraggingBounds);
 	ADD_API_METHOD_2(setPopupData);
+    ADD_API_METHOD_3(setValueWithUndo);
 
 	dynamic_cast<GlobalSettingManager*>(getScriptProcessor()->getMainController_())->addScaleFactorListener(this);
 
@@ -2310,6 +2312,21 @@ void ScriptingApi::Content::ScriptPanel::setPopupData(var jsonData, var position
 		popupBounds.setWidth(position[2]);
 		popupBounds.setHeight(position[3]);
 	}
+}
+
+void ScriptingApi::Content::ScriptPanel::setValueWithUndo(var oldValue, var newValue, var actionName)
+{
+    auto processor = dynamic_cast<Processor*>(getScriptProcessor());
+    
+    auto sc = getScriptProcessor()->getScriptingContent();
+    
+    const int index = sc->getComponentIndex(getName());
+    
+    auto newEvent = new BorderPanel::UndoableControlEvent(processor, index, (float)oldValue, (float)newValue);
+    
+    getProcessor()->getMainController()->getControlUndoManager()->beginNewTransaction(actionName);
+    getProcessor()->getMainController()->getControlUndoManager()->perform(newEvent);
+    
 }
 
 void ScriptingApi::Content::ScriptPanel::AsyncControlCallbackSender::handleAsyncUpdate()
