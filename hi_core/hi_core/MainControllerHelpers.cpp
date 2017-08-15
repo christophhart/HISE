@@ -446,7 +446,7 @@ void OverlayMessageBroadcaster::sendOverlayMessage(int newState, const String& n
 	ignoreUnused(newState);
 
 	// Just print it on the console
-	Logger::getCurrentLogger()->writeToLog(newCustomMessage);
+	Logger::getCurrentLogger()->writeToLog("!" + newCustomMessage);
 #else
 
 	currentState = newState;
