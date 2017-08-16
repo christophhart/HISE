@@ -155,6 +155,9 @@ void ScriptEditHandler::changePositionOfComponent(ScriptingApi::Content::ScriptC
 
 	CodeDocument* doc = JavascriptCodeEditor::Helpers::gotoAndReturnDocumentWithDefinition(dynamic_cast<Processor*>(getScriptEditHandlerProcessor()), sc);
 
+	if (doc == nullptr)
+		return;
+
 	String allText = doc->getAllContent();
 
 	StringArray matches = RegexFunctions::getFirstMatch(regexMonster, allText);

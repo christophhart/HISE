@@ -1371,13 +1371,16 @@ CodeDocument* JavascriptCodeEditor::Helpers::gotoAndReturnDocumentWithDefinition
 
 	auto info = DebugableObject::Helpers::getDebugInformation(jsp->getScriptEngine(), object);
 
-	DebugableObject::Helpers::gotoLocation(p, info);
-
-	auto activeEditor = getActiveEditor(jsp);
-
-	if (activeEditor != nullptr)
+	if (info != nullptr)
 	{
-		return &activeEditor->getDocument();
+		DebugableObject::Helpers::gotoLocation(p, info);
+
+		auto activeEditor = getActiveEditor(jsp);
+
+		if (activeEditor != nullptr)
+		{
+			return &activeEditor->getDocument();
+		}
 	}
 
 	return nullptr;
