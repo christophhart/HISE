@@ -658,6 +658,19 @@ var HiseJavascriptEngine::executeInlineFunction(var inlineFunction, var* argumen
 	{
 		if (result != nullptr) *result = Result::fail(error);
 	}
+	catch (Breakpoint bp)
+	{
+#if ENABLE_SCRIPTING_BREAKPOINTS
+		root->hiseSpecialData.setBreakpointLocalIdentifier(bp.snippetId);
+		sendBreakpointMessage(bp.index);
+		*result = Result::fail("Breakpoint Nr. " + String((int)bp.index + 1) + " was hit");
+
+		return var::undefined();
+#else
+		// This should not happen...
+		jassertfalse;
+#endif
+	}
 
 	return var();
 }

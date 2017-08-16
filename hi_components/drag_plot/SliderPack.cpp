@@ -60,7 +60,7 @@ void SliderPackData::setValue(int sliderIndex, float value, NotificationType not
 {
 	if (sliderIndex >= 0 && sliderIndex < getNumSliders())
 	{
-		values.setUnchecked(sliderIndex, value);
+		values[sliderIndex] = value;
 
 		if (notifySliderPack == sendNotification)
 		{
@@ -77,7 +77,7 @@ float SliderPackData::getValue(int index) const
 	}
 
 	jassertfalse;
-	return -1.0f;
+	return 0.0f;
 }
 
 void SliderPackData::setFromFloatArray(const Array<float> &valueArray)
@@ -130,11 +130,11 @@ void SliderPackData::fromBase64(const String &encodedValues)
 
 	Array<float> newData((float*)mb.getData(), (int)(mb.getSize() / sizeof(float)));
 
-	values.clear();
+	values = Array<var>();
 
 	for (int i = 0; i < newData.size(); i++)
 	{
-		values.add(newData[i]);
+		values.append(newData[i]);
 	}
 }
 

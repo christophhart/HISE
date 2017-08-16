@@ -204,7 +204,14 @@ private:
 	{
 		auto array = sp->getSliderPackData()->getDataArray();
 
-		return (float)array[index];
+		if (index < array.size())
+			return (float)array[index];
+		else
+		{
+			jassertfalse;
+			return 0.0f;
+		}
+			
 	}
 
 	ScriptingApi::Content::ScriptSliderPack *semiToneSliderPack;

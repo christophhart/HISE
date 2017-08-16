@@ -76,7 +76,7 @@ public:
 
 	void swapData(Array<var> &otherData)
 	{
-		otherData.swapWith(values);
+		values = var(otherData);
 
 		sendChangeMessage();
 	}
@@ -87,7 +87,7 @@ public:
 		sendAllocationFreeChangeMessage();
 	}
 
-	var getDataArray() const { return var(values); }
+	var getDataArray() const { return values; }
 
 	void setFlashActive(bool shouldBeShown) { flashActive = shouldBeShown; };
 	void setShowValueOverlay(bool shouldBeShown) { showValueOverlay = shouldBeShown; };
@@ -106,12 +106,11 @@ private:
 
 	int nextIndexToDisplay;
 	
-
 	Range<double> sliderRange;
 
 	double stepSize;
 
-	Array<var> values;
+	var values;
 
 	//Array<float> values;
 };
