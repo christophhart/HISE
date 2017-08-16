@@ -482,6 +482,7 @@ void InterfaceContentPanel::scriptWasCompiled(JavascriptProcessor *processor)
 void InterfaceContentPanel::buttonClicked(Button* /*b*/)
 {
 	connectToScript();
+	resized();
 }
 
 
@@ -542,11 +543,6 @@ void InterfaceContentPanel::updateSize()
 			}
 
 			getParentShell()->setVital(true);
-
-			
-
-			//getParentShell()->resized();
-			//resized();
 		}
 	}
 #endif
