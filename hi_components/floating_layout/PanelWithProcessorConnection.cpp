@@ -366,7 +366,7 @@ void PanelWithProcessorConnection::setContentWithUndo(Processor* newProcessor, i
 	undoText << (newProcessor != nullptr ? newProcessor->getId() : "Disconnected") << ": " << indexes[newIndex] << " -> ";
 
 	undoManager->beginNewTransaction(undoText);
-	undoManager->perform(new ProcessorConnection(this, newProcessor, newIndex));
+	undoManager->perform(new ProcessorConnection(this, newProcessor, newIndex, getAdditionalUndoInformation()));
 #else
 
 	ScopedPointer<ProcessorConnection> connection = new ProcessorConnection(this, newProcessor, newIndex);
@@ -384,10 +384,11 @@ void PanelWithProcessorConnection::setContentWithUndo(Processor* newProcessor, i
 
 }
 
-PanelWithProcessorConnection::ProcessorConnection::ProcessorConnection(PanelWithProcessorConnection* panel_, Processor* newProcessor_, int newIndex_) :
+PanelWithProcessorConnection::ProcessorConnection::ProcessorConnection(PanelWithProcessorConnection* panel_, Processor* newProcessor_, int newIndex_, var additionalInfo_) :
 	panel(panel_),
 	newProcessor(newProcessor_),
-	newIndex(newIndex_)
+	newIndex(newIndex_),
+	additionalInfo(additionalInfo_)
 {
 	oldIndex = panel->currentIndex;
 	oldProcessor = panel->currentProcessor.get();
@@ -400,6 +401,7 @@ bool PanelWithProcessorConnection::ProcessorConnection::perform()
 		panel->currentIndex = newIndex;
 		panel->setCurrentProcessor(newProcessor.get());
 		panel->refreshContent();
+		
 		return true;
 	}
 
@@ -413,6 +415,7 @@ bool PanelWithProcessorConnection::ProcessorConnection::undo()
 		panel->currentIndex = oldIndex;
 		panel->setCurrentProcessor(oldProcessor.get());
 		panel->refreshContent();
+		panel->performAdditionalUndoInformation(additionalInfo);
 		return true;
 	}
 

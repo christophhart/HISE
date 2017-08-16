@@ -103,6 +103,38 @@ void CodeEditorPanel::mouseDown(const MouseEvent& event)
 	}
 }
 
+var CodeEditorPanel::getAdditionalUndoInformation() const
+{
+	auto pe = getContent<PopupIncludeEditor>();
+
+	if (pe != nullptr)
+	{
+		
+
+		return var(pe->getEditor()->getFirstLineOnScreen());
+	}
+
+	return var(0);
+}
+
+void CodeEditorPanel::performAdditionalUndoInformation(const var& undoInformation)
+{
+	if (!undoInformation.isInt())
+		return;
+
+	auto pe = getContent<PopupIncludeEditor>();
+
+	if (pe != nullptr)
+	{
+		const int lineIndex = (int)undoInformation;
+
+		if (lineIndex > 0)
+		{
+			pe->getEditor()->scrollToLine(lineIndex);
+		}
+	}
+}
+
 Identifier CodeEditorPanel::getProcessorTypeId() const
 {
 	return JavascriptProcessor::getConnectorId();

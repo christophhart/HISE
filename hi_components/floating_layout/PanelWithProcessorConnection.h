@@ -58,7 +58,7 @@ public:
 	{
 	public:
 
-		ProcessorConnection(PanelWithProcessorConnection* panel_, Processor* newProcessor_, int newIndex_);
+		ProcessorConnection(PanelWithProcessorConnection* panel_, Processor* newProcessor_, int newIndex_, var additionalInfo);
 
 		/** Sets the index, the processor and refreshs the content. */
 		bool perform() override;
@@ -73,6 +73,8 @@ public:
 
 		int oldIndex = -1;
 		int newIndex = -1;
+
+		var additionalInfo;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ProcessorConnection)
 	};
@@ -114,6 +116,10 @@ public:
 		return Identifier("unsupported");
 	}
 	
+	virtual var getAdditionalUndoInformation() const { return var(); }
+
+	virtual void performAdditionalUndoInformation(const var& undoInformation) {};
+
 	void refreshConnectionList();
 
 	void refreshIndexList();

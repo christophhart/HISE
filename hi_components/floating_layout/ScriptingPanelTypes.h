@@ -56,7 +56,9 @@ public:
 
 	void mouseDown(const MouseEvent& event) override;
 
+	var getAdditionalUndoInformation() const override;
 
+	void performAdditionalUndoInformation(const var& undoInformation) override;
 
 	Identifier getProcessorTypeId() const override;
 
