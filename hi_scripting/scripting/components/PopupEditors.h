@@ -58,6 +58,9 @@ public:
 
 	JavascriptCodeEditor* getEditor() { return editor.get(); }
 
+	const JavascriptCodeEditor* getEditor() const { return editor.get(); }
+
+	File getFile() const { return file; }
 	
 private:
 

@@ -238,6 +238,8 @@ public:
 		String getDebugDataType() const override { return getObjectName().toString(); }
 		void doubleClickCallback(const MouseEvent &e, Component* componentToNotify) override;
 
+		void rightClickCallback(const MouseEvent& e, Component* t) override;
+
 		// ============================================================================================================
 
 		int getCachedIndex(const var &indexExpression) const override;
@@ -317,6 +319,8 @@ public:
 		String getDebugDataType() const override { return getObjectName().toString(); }
 		String getDebugValue() const override { return String(); }
 		void doubleClickCallback(const MouseEvent &, Component* ) override {};
+
+		void rightClickCallback(const MouseEvent& e, Component* t) override;
 
 		// ============================================================================================================ API Methods
 
@@ -442,6 +446,8 @@ public:
 		String getDebugValue() const override { return String(synth.get() != nullptr ? dynamic_cast<ModulatorSynth*>(synth.get())->getNumActiveVoices() : 0) + String(" voices"); }
 		void doubleClickCallback(const MouseEvent &, Component* ) override {};
 
+		void rightClickCallback(const MouseEvent& e, Component* t) override;
+
 		// ============================================================================================================ API Methods
 
 		/** Checks if the Object exists and prints a error message on the console if not. */
@@ -503,6 +509,8 @@ public:
 		String getDebugName() const override { return mp.get() != nullptr ? mp->getId() : "Invalid"; };
 		String getDebugValue() const override { return String(); }
 		void doubleClickCallback(const MouseEvent &, Component* ) override {};
+
+		void rightClickCallback(const MouseEvent& e, Component* t) override;
 
 		int getCachedIndex(const var &indexExpression) const override;
 		void assign(const int index, var newValue) override;
@@ -690,7 +698,7 @@ public:
 		String getDebugValue() const override { return String(p.getLength(), 2); }
 		String getDebugName() const override { return "Path"; }
 		
-		void doubleClickCallback(const MouseEvent &e, Component* componentToNotify) override;
+		void rightClickCallback(const MouseEvent &e, Component* componentToNotify) override;
 
 		// ============================================================================================================ API Methods
 

@@ -322,6 +322,11 @@ void ScriptingObjects::ScriptingModulator::doubleClickCallback(const MouseEvent 
 #endif
 }
 
+void ScriptingObjects::ScriptingModulator::rightClickCallback(const MouseEvent& e, Component* t)
+{
+	Helpers::showProcessorEditorPopup(e, t, mod);
+}
+
 void ScriptingObjects::ScriptingModulator::setIntensity(float newIntensity)
 {
 	if (checkValidObject())
@@ -449,6 +454,11 @@ effect(fx)
 	ADD_API_METHOD_0(getNumAttributes);
 };
 
+
+void ScriptingObjects::ScriptingEffect::rightClickCallback(const MouseEvent& e, Component* t)
+{
+	Helpers::showProcessorEditorPopup(e, t, effect.get());
+}
 
 void ScriptingObjects::ScriptingEffect::setAttribute(int parameterIndex, float newValue)
 {
@@ -695,6 +705,11 @@ synth(synth_)
 };
 
 
+void ScriptingObjects::ScriptingSynth::rightClickCallback(const MouseEvent& e, Component* t)
+{
+	Helpers::showProcessorEditorPopup(e, t, synth);
+}
+
 void ScriptingObjects::ScriptingSynth::setAttribute(int parameterIndex, float newValue)
 {
 	if (checkValidObject())
@@ -825,6 +840,11 @@ mp(mp_)
 	ADD_API_METHOD_1(restoreScriptControls);
 	ADD_API_METHOD_0(exportScriptControls);
 	ADD_API_METHOD_0(getNumAttributes);
+}
+
+void ScriptingObjects::ScriptingMidiProcessor::rightClickCallback(const MouseEvent& e, Component* t)
+{
+	Helpers::showProcessorEditorPopup(e, t, mp);
 }
 
 int ScriptingObjects::ScriptingMidiProcessor::getCachedIndex(const var &indexExpression) const
@@ -1193,7 +1213,7 @@ private:
 	Path p;
 };
 
-void ScriptingObjects::PathObject::doubleClickCallback(const MouseEvent &e, Component* componentToNotify)
+void ScriptingObjects::PathObject::rightClickCallback(const MouseEvent &e, Component* componentToNotify)
 {
 #if USE_BACKEND
 
@@ -1203,9 +1223,7 @@ void ScriptingObjects::PathObject::doubleClickCallback(const MouseEvent &e, Comp
 	
 	MouseEvent ee = e.getEventRelativeTo(editor);
 
-	Rectangle<int> r = Rectangle<int>(ee.getMouseDownPosition(), ee.getMouseDownPosition());
-
-	CallOutBox::launchAsynchronously(content, r, editor);
+	editor->getRootFloatingTile()->showComponentInRootPopup(content, editor, ee.getMouseDownPosition());
 
 #else
 

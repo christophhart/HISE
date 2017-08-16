@@ -136,10 +136,7 @@ void ScriptEditHandler::setEditedScriptComponent(ReferenceCountedObject* compone
 
 	getScriptEditHandlerOverlay()->dragger->setDraggedControl(scc, sc);
 
-	if (component != nullptr)
-	{
-		selectOnInitCallback();
-	}
+	JavascriptCodeEditor::Helpers::gotoAndReturnDocumentWithDefinition(dynamic_cast<Processor*>(getScriptEditHandlerProcessor()), sc);
 }
 
 void ScriptEditHandler::toggleComponentSelectMode(bool shouldSelectOnClick)
@@ -155,9 +152,10 @@ void ScriptEditHandler::changePositionOfComponent(ScriptingApi::Content::ScriptC
 		")\\\"\\s*,\\s*)(-?\\d+)(\\s*,\\s*)(-?\\d+)(\\s*\\);)|(create\\w+\\s*\\(\\s*\\\"(" + sc->getName().toString() +
 		")\\\"\\s*,\\s*)(-?\\d+)(\\s*,\\s*)(-?\\d+)(\\s*.*\\);)";
 
-	CodeDocument* onInitC = getScriptEditHandlerProcessor()->getSnippet(0);
 
-	String allText = onInitC->getAllContent();
+	CodeDocument* doc = JavascriptCodeEditor::Helpers::gotoAndReturnDocumentWithDefinition(dynamic_cast<Processor*>(getScriptEditHandlerProcessor()), sc);
+
+	String allText = doc->getAllContent();
 
 	StringArray matches = RegexFunctions::getFirstMatch(regexMonster, allText);
 
@@ -182,7 +180,7 @@ void ScriptEditHandler::changePositionOfComponent(ScriptingApi::Content::ScriptC
 		const int start = allText.indexOf(oldLine);
 		const int end = start + oldLine.length();
 
-		onInitC->replaceSection(start, end, replaceLine);
+		doc->replaceSection(start, end, replaceLine);
 
 		sc->setDefaultPosition(newX, newY);
 	}
@@ -912,6 +910,9 @@ void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 {
 
 	auto content = parentHandler->getScriptEditHandlerContent();
+	auto jsp = parentHandler->getScriptEditHandlerProcessor();
+	auto processor = dynamic_cast<Processor*>(jsp);
+	
 
 	jassert(content != nullptr);
 
@@ -919,9 +920,9 @@ void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 	{
 		Array<ScriptingApi::Content::ScriptComponent*> components;
 
-		parentHandler->getScriptEditHandlerContent()->getScriptComponentsFor(components, e.getEventRelativeTo(content).getPosition());
+		content->getScriptComponentsFor(components, e.getEventRelativeTo(content).getPosition());
 
-		auto mc = dynamic_cast<Processor*>(parentHandler->getScriptEditHandlerProcessor())->getMainController();
+		auto mc = processor->getMainController();
 
 		if (components.size() > 1)
 		{
@@ -976,7 +977,7 @@ void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 
 		Array<ScriptingApi::Content::ScriptComponent*> components;
 
-		parentHandler->getScriptEditHandlerContent()->getScriptComponentsFor(components, e.getEventRelativeTo(content).getPosition());
+		content->getScriptComponentsFor(components, e.getEventRelativeTo(content).getPosition());
 
 		if (parentHandler->editModeEnabled())
 		{
@@ -1048,7 +1049,7 @@ void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 		{
 			ReferenceCountedObject* sc = components[result - editComponentOffset];
 
-			dynamic_cast<Processor*>(parentHandler->getScriptEditHandlerProcessor())->getMainController()->setEditedScriptComponent(sc, dynamic_cast<Component*>(parentHandler));
+			processor->getMainController()->setEditedScriptComponent(sc, dynamic_cast<Component*>(parentHandler));
 		}
 		else if (result >= showCallbackOffset)
 		{
@@ -1056,6 +1057,7 @@ void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 
 			auto func = dynamic_cast<DebugableObject*>(componentToUse->getCustomControlCallback());
 
+			
 			if (func != nullptr)
 				func->doubleClickCallback(e, dynamic_cast<Component*>(parentHandler));
 		}
@@ -1079,34 +1081,38 @@ void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 			code << nl;
 			code << name.toString() << ".setControlCallback(" << callbackName << ");" << nl;
 
-			auto onInit = parentHandler->getScriptEditHandlerProcessor()->getSnippet("onInit");
-
-			auto jsonRange = JavascriptCodeEditor::Helpers::getJSONTag(*onInit, name);
-
-			int insertPos = JavascriptCodeEditor::Helpers::getPositionAfterDefinition(*onInit, name).getPosition();
-
-			if (!jsonRange.isEmpty())
-			{
-				insertPos = jsonRange.getEnd();
-
-				String codeToInsert;
-				codeToInsert << nl << code;
-
-				onInit->insertText(insertPos, codeToInsert);
-				
-			}
-			else
-			{
-				onInit->insertText(insertPos, code);
-			}
 			
+			auto doc = JavascriptCodeEditor::Helpers::gotoAndReturnDocumentWithDefinition(processor, componentToUse);
+
+			if (doc != nullptr)
+			{
+				auto jsonRange = JavascriptCodeEditor::Helpers::getJSONTag(*doc, name);
+
+				int insertPos = JavascriptCodeEditor::Helpers::getPositionAfterDefinition(*doc, name).getPosition();
+
+				if (!jsonRange.isEmpty())
+				{
+					insertPos = jsonRange.getEnd();
+
+					String codeToInsert;
+					codeToInsert << nl << code;
+
+					doc->insertText(insertPos, codeToInsert);
+
+				}
+				else
+				{
+					doc->insertText(insertPos, code);
+				}
+			}
+
 			parentHandler->compileScript();
 		}
 		else if (result >= connectComponentOffset)
 		{
 			auto componentToUse = components[result - connectComponentOffset];
 
-			if (dynamic_cast<JavascriptMidiProcessor*>(parentHandler->getScriptEditHandlerProcessor()))
+			if (dynamic_cast<JavascriptMidiProcessor*>(jsp))
 			{
 				ParameterConnector *comp = new ParameterConnector(componentToUse, parentHandler);
 

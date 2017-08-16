@@ -97,6 +97,8 @@ public:
     void resized() override;
     
     void refreshChangeStatus();
+
+	void mouseDown(const MouseEvent& event) override;
     void mouseDoubleClick(const MouseEvent &e) override;
     
 	void paint(Graphics &g) override;

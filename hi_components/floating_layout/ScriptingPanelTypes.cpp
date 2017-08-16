@@ -462,7 +462,11 @@ void ScriptContentPanel::Editor::buttonClicked(Button* b)
 	}
 	if (b == compileButton)
 	{
-		dynamic_cast<JavascriptProcessor*>(findParentComponentOfClass<PanelWithProcessorConnection>()->getConnectedProcessor())->compileScript();
+		auto jsp = dynamic_cast<JavascriptProcessor*>(findParentComponentOfClass<PanelWithProcessorConnection>()->getConnectedProcessor());
+
+		JavascriptCodeEditor::Helpers::applyChangesFromActiveEditor(jsp);
+
+		jsp->compileScript();
 		findParentComponentOfClass<PanelWithProcessorConnection>()->getConnectedProcessor()->getMainController()->setEditedScriptComponent(nullptr, dynamic_cast<Canvas*>(viewport->getViewedComponent()));
 	}
 	if (b == cancelButton)

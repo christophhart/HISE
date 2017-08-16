@@ -437,13 +437,17 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 
 		getDocument().findTokenContaining(start, start, end);
 
+		const String namespaceId = Helpers::findNamespaceForPosition(getDocument(), start);
+
 		const String token = getDocument().getTextBetween(start, end);
 
 		if (token.isNotEmpty())
 		{
 			Result result = Result::ok();
 
-			var t = s->getScriptEngine()->evaluate(token, &result);
+			const String c = namespaceId.isEmpty() ? token : namespaceId + "." + token;
+
+			var t = s->getScriptEngine()->evaluate(c, &result);
 
 			if (result.wasOk())
 			{
@@ -452,6 +456,15 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 					auto parent = findParentComponentOfClass<ScriptingEditor>();
 
 					DebugableObject::Helpers::gotoLocation(parent, s, obj->location);
+				}
+				else
+				{
+					auto info = DebugableObject::Helpers::getDebugInformation(s->getScriptEngine(), t);
+
+					if (info != nullptr)
+					{
+						DebugableObject::Helpers::gotoLocation(dynamic_cast<Processor*>(s), info);
+					}
 				}
 			}
 		}
@@ -1347,4 +1360,79 @@ CodeDocument::Position JavascriptCodeEditor::Helpers::getPositionAfterDefinition
 	}
 	else
 		return CodeDocument::Position(doc, 0);
+}
+
+CodeDocument* JavascriptCodeEditor::Helpers::gotoAndReturnDocumentWithDefinition(Processor* p, DebugableObject* object)
+{
+	if (object == nullptr)
+		return nullptr;
+
+	auto jsp = dynamic_cast<JavascriptProcessor*>(p);
+
+	auto info = DebugableObject::Helpers::getDebugInformation(jsp->getScriptEngine(), object);
+
+	DebugableObject::Helpers::gotoLocation(p, info);
+
+	auto activeEditor = getActiveEditor(jsp);
+
+	if (activeEditor != nullptr)
+	{
+		return &activeEditor->getDocument();
+	}
+
+	return nullptr;
+}
+
+String JavascriptCodeEditor::Helpers::findNamespaceForPosition(const CodeDocument& doc, CodeDocument::Position pos)
+{
+	while (pos.getLineNumber() > 0)
+	{
+		auto lineText = pos.getLineText();
+
+		if (lineText.startsWith("namespace"))
+		{
+			static const String r("namespace\\s+(\\S*)");
+
+			auto matches = RegexFunctions::getFirstMatch(r, lineText);
+
+			if (matches.size() > 1)
+			{
+				return matches[1];
+			}
+		}
+
+		pos = pos.movedByLines(-1);
+	}
+
+	return String();
+}
+
+void JavascriptCodeEditor::Helpers::applyChangesFromActiveEditor(JavascriptProcessor* p)
+{
+	auto activeEditor = getActiveEditor(p);
+
+	if (activeEditor == nullptr)
+		return;
+
+	if (auto pe = activeEditor->findParentComponentOfClass<PopupIncludeEditor>())
+	{
+		auto f = pe->getFile();
+
+		if(f.existsAsFile())
+			f.replaceWithText(activeEditor->getDocument().getAllContent());
+	}
+}
+
+JavascriptCodeEditor* JavascriptCodeEditor::Helpers::getActiveEditor(JavascriptProcessor* p)
+{
+	auto processor = dynamic_cast<Processor*>(p);
+	auto activeEditor = processor->getMainController()->getLastActiveEditor();
+
+	return dynamic_cast<JavascriptCodeEditor*>(activeEditor);
+}
+
+JavascriptCodeEditor* JavascriptCodeEditor::Helpers::getActiveEditor(Processor* p)
+{
+	auto activeEditor = p->getMainController()->getLastActiveEditor();
+	return dynamic_cast<JavascriptCodeEditor*>(activeEditor);
 }

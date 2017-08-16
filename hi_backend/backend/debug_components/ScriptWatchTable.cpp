@@ -211,6 +211,33 @@ void ScriptWatchTable::refreshChangeStatus()
 };
 
 
+void ScriptWatchTable::mouseDown(const MouseEvent& e)
+{
+	if (e.mods.isRightButtonDown())
+	{
+		DebugInformation *info = getDebugInformationForRow(table->getSelectedRow(0));
+
+		if (info != nullptr)
+		{
+			if (auto obj = info->getObject())
+			{
+				obj->rightClickCallback(e, table);
+			}
+			else
+			{
+				var v = info->getVariantCopy();
+
+				if (v.isObject() || v.isArray())
+				{
+					DebugableObject::Helpers::showJSONEditorForObject(e, table, v, info->getTextForName());
+				}
+			}
+		}
+	}
+	
+}
+
+
 void ScriptWatchTable::mouseDoubleClick(const MouseEvent &)
 {
 	if (processor.get() != nullptr)
@@ -219,41 +246,7 @@ void ScriptWatchTable::mouseDoubleClick(const MouseEvent &)
 
 		if (info != nullptr)
 		{
-			auto editor = dynamic_cast<JavascriptCodeEditor*>(processor->getMainController()->getLastActiveEditor());
-
-			if (editor == nullptr)
-				return;
-
-			if (auto editorPanel = editor->findParentComponentOfClass<CodeEditorPanel>())
-			{
-				editorPanel->gotoLocation(processor, info->location.fileName, info->location.charNumber);
-			}
-			else if (info->location.fileName.isNotEmpty())
-			{
-				auto jsp = dynamic_cast<JavascriptProcessor*>(processor.get());
-
-				File f(info->location.fileName);
-
-				jsp->showPopupForFile(f, info->location.charNumber);
-			}
-			else if (auto scriptEditor = editor->findParentComponentOfClass<ScriptingEditor>())
-			{
-				scriptEditor->gotoLocation(info);
-			}
-
-#if 0
-
-			DebugableObject::Helpers::gotoLocation(editor.getComponent(), dynamic_cast<JavascriptProcessor*>(processor.get()), info->location);
-
-			if (db != nullptr)
-			{
-				db->doubleClickCallback(e, editor.getComponent());
-			}
-			else
-			{
-				
-			}
-#endif
+			DebugableObject::Helpers::gotoLocation(processor.get(), info);
 		}
 	}
 }
@@ -295,6 +288,8 @@ DebugInformation* ScriptWatchTable::getDebugInformationForRow(int rowIndex)
 
 	if (engine != nullptr)
 	{
+		
+
 		const int componentIndex = filteredIndexes[rowIndex];
 		return engine->getDebugInformation(componentIndex);
 	}

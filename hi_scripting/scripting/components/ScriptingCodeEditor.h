@@ -160,6 +160,15 @@ public:
 		static CodeDocument::Position getPositionAfterDefinition(const CodeDocument& doc, Identifier id);
 
 		static Range<int> getFunctionParameterTextRange(CodeDocument::Position pos);
+
+		static CodeDocument* gotoAndReturnDocumentWithDefinition(Processor* p, DebugableObject* object);
+
+		static String findNamespaceForPosition(const CodeDocument& doc, CodeDocument::Position pos);
+
+		static void applyChangesFromActiveEditor(JavascriptProcessor* p);
+
+		static JavascriptCodeEditor* getActiveEditor(JavascriptProcessor* p);
+		static JavascriptCodeEditor* getActiveEditor(Processor* p);
 	};
 
 

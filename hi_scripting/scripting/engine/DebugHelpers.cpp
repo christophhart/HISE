@@ -91,14 +91,44 @@ String DebugInformation::toString()
 }
 
 
+void gotoLocationInternal(Processor* processor, DebugableObject::Location location)
+{
+#if USE_BACKEND
+	auto editor = dynamic_cast<JavascriptCodeEditor*>(processor->getMainController()->getLastActiveEditor());
+
+	if (editor == nullptr)
+		return;
+
+	if (auto editorPanel = editor->findParentComponentOfClass<CodeEditorPanel>())
+	{
+		editorPanel->gotoLocation(processor, location.fileName, location.charNumber);
+	}
+	else if (location.fileName.isNotEmpty())
+	{
+		auto jsp = dynamic_cast<JavascriptProcessor*>(processor);
+
+		File f(location.fileName);
+
+		jsp->showPopupForFile(f, location.charNumber);
+	}
+	else if (auto scriptEditor = editor->findParentComponentOfClass<ScriptingEditor>())
+	{
+		scriptEditor->showOnInitCallback();
+		scriptEditor->gotoChar(location.charNumber);
+	}
+#else
+	ignoreUnused(processor, location);
+#endif
+}
+
 void DebugableObject::Helpers::gotoLocation(Component* ed, JavascriptProcessor* sp, const Location& location)
 {
 #if USE_BACKEND
-	ScriptingEditor* editor = dynamic_cast<ScriptingEditor*>(ed);
+	auto handler = dynamic_cast<ScriptEditHandler*>(ed);
 
-	if (sp == nullptr && editor != nullptr)
+	if (sp == nullptr && handler != nullptr)
 	{
-		sp = dynamic_cast<JavascriptProcessor*>(editor->getProcessor());
+		sp = handler->getScriptEditHandlerProcessor();
 	}
 
 	if (sp == nullptr)
@@ -108,25 +138,72 @@ void DebugableObject::Helpers::gotoLocation(Component* ed, JavascriptProcessor* 
 		return;
 	}
 
-	File file = File(location.fileName);
+	gotoLocationInternal(dynamic_cast<Processor*>(sp), location);
 
-	if (file.existsAsFile())
-	{
-		for (int i = 0; i < sp->getNumWatchedFiles(); i++)
-		{
-			if (sp->getWatchedFile(i) == file)
-			{
-				sp->showPopupForFile(i, location.charNumber);
-			}
-		}
-	}
-	else
-	{
-		editor->showOnInitCallback();
-		editor->gotoChar(location.charNumber);
-	}
 #else
 	ignoreUnused(ed, sp, location);
 #endif
+}
+
+
+void DebugableObject::Helpers::gotoLocation(Processor* processor, DebugInformation* info)
+{
+	gotoLocationInternal(processor, info->location);
+}
+
+void DebugableObject::Helpers::showProcessorEditorPopup(const MouseEvent& e, Component* table, Processor* p)
+{
+	if (p != nullptr)
+	{
+		ProcessorEditorContainer *pc = new ProcessorEditorContainer();
+		pc->setRootProcessorEditor(p);
+
+		GET_BACKEND_ROOT_WINDOW(table)->getRootFloatingTile()->showComponentInRootPopup(pc, table, Point<int>(table->getWidth() / 2, e.getMouseDownY() + 40));
+	}
+	else
+	{
+		PresetHandler::showMessageWindow("Processor does not exist", "The Processor is not existing, because it was deleted or the reference is wrong", PresetHandler::IconType::Error);
+	}
+}
+
+void DebugableObject::Helpers::showJSONEditorForObject(const MouseEvent& e, Component* table, var object, const String& id)
+{
+	JSONEditor* jsonEditor = new JSONEditor(object);
+
+	jsonEditor->setName((object.isArray() ? "Show Array: " : "Show Object: ") + id);
+	jsonEditor->setSize(500, 500);
+
+	GET_BACKEND_ROOT_WINDOW(table)->getRootFloatingTile()->showComponentInRootPopup(jsonEditor, table, Point<int>(table->getWidth() / 2, e.getMouseDownY() + 40));
+}
+
+DebugInformation* DebugableObject::Helpers::getDebugInformation(HiseJavascriptEngine* engine, DebugableObject* object)
+{
+	for (int i = 0; i < engine->getNumDebugObjects(); i++)
+	{
+		if (engine->getDebugInformation(i)->getObject() == object)
+		{
+			return engine->getDebugInformation(i);
+		}
+	}
+
+	return nullptr;
+}
+
+DebugInformation* DebugableObject::Helpers::getDebugInformation(HiseJavascriptEngine* engine, const var& v)
+{
+	if (auto obj = dynamic_cast<DebugableObject*>(v.getObject()))
+	{
+		return getDebugInformation(engine, obj);
+	}
+
+	for (int i = 0; i < engine->getNumDebugObjects(); i++)
+	{
+		if (engine->getDebugInformation(i)->getVariantCopy() == v)
+		{
+			return engine->getDebugInformation(i);
+		}
+	}
+
+	return nullptr;
 }
 

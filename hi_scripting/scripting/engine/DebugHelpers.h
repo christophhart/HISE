@@ -34,8 +34,8 @@
 #define DEBUGHELPERS_H_INCLUDED
 
 
-
-
+class DebugInformation;
+class HiseJavascriptEngine;
 
 /** Overwrite this method if you want to add debugging functionality to a object. */
 class DebugableObject
@@ -63,6 +63,8 @@ public:
 	/** This will be called if the user double clicks on the row. */
 	virtual void doubleClickCallback(const MouseEvent &/*e*/, Component* /*componentToNotify*/) {};
 
+	virtual void rightClickCallback(const MouseEvent& /*e*/, Component* /*componentToNotifiy*/) {};
+
 	struct Helpers
 	{
 		static AttributedString getFunctionDoc(const String &docBody, const Array<Identifier> &parameters)
@@ -84,7 +86,15 @@ public:
 
 		static void gotoLocation(Component* ed, JavascriptProcessor* sp, const Location& location);
 
+		static void gotoLocation(Processor* processor, DebugInformation* info);
 		
+		static void showProcessorEditorPopup(const MouseEvent& e, Component* table, Processor* p);
+
+		static void showJSONEditorForObject(const MouseEvent& e, Component* table, var object, const String& id);
+
+		static DebugInformation* getDebugInformation(HiseJavascriptEngine* engine, DebugableObject* object);
+
+		static DebugInformation* getDebugInformation(HiseJavascriptEngine* engine, const var& v);
 	};
 
 };
@@ -149,6 +159,8 @@ public:
 	virtual String getTextForName() const = 0;
 	virtual String getTextForValue() const = 0;
 
+	virtual const var getVariantCopy() const { return var(); };
+
 	virtual AttributedString getDescription() const { return AttributedString(); };
 
 	virtual DebugableObject *getObject() { return nullptr; }
@@ -185,8 +197,12 @@ public:
 
 	DebugableObject::Location location;
 
+	
+
 protected:
 	
+	
+
 	String getVarValue(const var &v) const
 	{
 		if (DebugableObject *d = getDebugableObject(v))
@@ -233,6 +249,8 @@ public:
 
 	String getTextForValue() const override { return getVarValue(obj->getProperty(id)); }
 
+	const var getVariantCopy() const override { return obj->getProperty(id); };
+
 	AttributedString getDescription() const override;;
 
 	DebugableObject *getObject() override { return getDebugableObject(obj->getProperty(id)); }
@@ -261,6 +279,8 @@ public:
 		return namespaceId.isNull() ? id.toString() :
 									  namespaceId.toString() + "." + id.toString(); 
 	}
+
+	const var getVariantCopy() const override { return var(*value); };
 
 	String getTextForValue() const override { return getVarValue(*value); }
 	DebugableObject *getObject() override { return getDebugableObject(*value); }
