@@ -432,10 +432,10 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
         setCommandTarget(result, "Toggle Fullscreen", true, bpe->isFullScreenMode(), 'F');
         break;
 	case MenuViewBack:
-		setCommandTarget(result, "Back: " + bpe->mainEditor->getViewUndoManager()->getUndoDescription(), bpe->mainEditor->getViewUndoManager()->canUndo(), false, (char)KeyPress::backspaceKey, true, ModifierKeys::noModifiers);
+		setCommandTarget(result, "Back: " + bpe->mainEditor->getViewUndoManager()->getUndoDescription(), bpe->mainEditor->getViewUndoManager()->canUndo(), false, 'X', false);
 		break;
 	case MenuViewForward:
-		setCommandTarget(result, "Forward: " + bpe->mainEditor->getViewUndoManager()->getRedoDescription(), bpe->mainEditor->getViewUndoManager()->canRedo(), false, (char)KeyPress::backspaceKey, true, ModifierKeys::shiftModifier);
+		setCommandTarget(result, "Forward: " + bpe->mainEditor->getViewUndoManager()->getRedoDescription(), bpe->mainEditor->getViewUndoManager()->canRedo(), false, 'X', false);
 		break;
 	case MenuViewEnableGlobalLayoutMode:
 		setCommandTarget(result, "Enable Layout Mode", true, bpe->getRootFloatingTile()->isLayoutModeEnabled(), 'X', false);
