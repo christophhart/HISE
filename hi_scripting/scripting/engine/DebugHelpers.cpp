@@ -151,6 +151,8 @@ void DebugableObject::Helpers::gotoLocation(Processor* processor, DebugInformati
 	gotoLocationInternal(processor, info->location);
 }
 
+
+
 void DebugableObject::Helpers::showProcessorEditorPopup(const MouseEvent& e, Component* table, Processor* p)
 {
 	if (p != nullptr)

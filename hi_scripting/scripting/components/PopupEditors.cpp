@@ -157,7 +157,7 @@ bool PopupIncludeEditor::keyPressed(const KeyPress& key)
 
 		resultLabel->setColour(Label::backgroundColourId, Colours::white);
 		resultLabel->setColour(Label::ColourIds::textColourId, Colours::white);
-		resultLabel->setText(lastCompileOk ? "Compiled OK" : sp->getLastErrorMessage().getErrorMessage(), dontSendNotification);
+		resultLabel->setText(lastCompileOk ? "Compiled OK" : sp->getLastErrorMessage().getErrorMessage().upToFirstOccurrenceOf("\n", false, false), dontSendNotification);
 
 		startTimer(200);
 

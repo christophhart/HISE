@@ -88,6 +88,8 @@ public:
 
 		static void gotoLocation(Processor* processor, DebugInformation* info);
 		
+		static void gotoLocation(ModulatorSynthChain* mainSynthChain, const String& encodedState);
+
 		static void showProcessorEditorPopup(const MouseEvent& e, Component* table, Processor* p);
 
 		static void showJSONEditorForObject(const MouseEvent& e, Component* table, var object, const String& id);

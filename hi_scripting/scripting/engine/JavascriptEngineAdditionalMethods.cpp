@@ -265,7 +265,7 @@ var HiseJavascriptEngine::RootObject::Scope::findFunctionCall(const CodeLocation
 }
 
 
-var HiseJavascriptEngine::callExternalFunction(var function, const var::NativeFunctionArgs& args, Result* errorMessage /*= nullptr*/)
+var HiseJavascriptEngine::callExternalFunction(var function, const var::NativeFunctionArgs& args, Result* result /*= nullptr*/)
 {
 	var returnVal(var::undefined());
 
@@ -274,7 +274,7 @@ var HiseJavascriptEngine::callExternalFunction(var function, const var::NativeFu
 	try
 	{
 		prepareTimeout();
-		if (errorMessage != nullptr) *errorMessage = Result::ok();
+		if (result != nullptr) *result = Result::ok();
 
 		RootObject::FunctionObject *fo = dynamic_cast<RootObject::FunctionObject*>(function.getObject());
 
@@ -283,11 +283,15 @@ var HiseJavascriptEngine::callExternalFunction(var function, const var::NativeFu
 			return fo->invoke(RootObject::Scope(nullptr, root, root), args);;
 		}
 	}
-	catch (String& error)
+	catch (String &error)
 	{
-		root->removeProperty(thisIdent);
+		RootObject::Error e((root->currentLocation != nullptr ? *root->currentLocation : RootObject::CodeLocation("", "")), error);
 
-		if (errorMessage != nullptr) *errorMessage = Result::fail(error);
+		if (result != nullptr) *result = Result::fail(root->dumpCallStack(e));
+	}
+	catch (RootObject::Error &e)
+	{
+		if (result != nullptr) *result = Result::fail(root->dumpCallStack(e));
 	}
 	catch (Breakpoint bp)
 	{
@@ -295,7 +299,7 @@ var HiseJavascriptEngine::callExternalFunction(var function, const var::NativeFu
 #if ENABLE_SCRIPTING_BREAKPOINTS
 		root->hiseSpecialData.setBreakpointLocalIdentifier(bp.snippetId);
 		sendBreakpointMessage(bp.index);
-		if (errorMessage != nullptr) *errorMessage = Result::fail("Breakpoint Nr. " + String(bp.index + 1) + " was hit");
+		if (result != nullptr) *result = Result::fail("Breakpoint Nr. " + String(bp.index + 1) + " was hit");
 #else
 		// This should not happen
 		jassertfalse;
@@ -654,9 +658,15 @@ var HiseJavascriptEngine::executeInlineFunction(var inlineFunction, var* argumen
 		if (result != nullptr) *result = Result::ok();
 		return f->performDynamically(s, arguments, 2);
 	}
-	catch (String error)
+	catch (String &error)
 	{
-		if (result != nullptr) *result = Result::fail(error);
+		RootObject::Error e((root->currentLocation != nullptr ? *root->currentLocation : RootObject::CodeLocation("", "")), error);
+
+		if (result != nullptr) *result = Result::fail(root->dumpCallStack(e));
+	}
+	catch (RootObject::Error &e)
+	{
+		if (result != nullptr) *result = Result::fail(root->dumpCallStack(e));
 	}
 	catch (Breakpoint bp)
 	{
@@ -702,7 +712,13 @@ var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 		}
 		catch (String &error)
 		{
-			if (result != nullptr) *result = Result::fail(error);
+			RootObject::Error e((root->currentLocation != nullptr ? *root->currentLocation : RootObject::CodeLocation("", "")), error);
+
+			if (result != nullptr) *result = Result::fail(root->dumpCallStack(e));
+		}
+		catch (RootObject::Error &e)
+		{
+			if (result != nullptr) *result = Result::fail(root->dumpCallStack(e));
 		}
 		catch (Breakpoint bp)
 		{
@@ -740,7 +756,14 @@ var HiseJavascriptEngine::RootObject::Callback::perform(RootObject *root)
 #if USE_BACKEND
 	const double pre = Time::getMillisecondCounterHiRes();
 
+
+	root->addToCallStack(callbackName, nullptr);
+
+
+
 	statements->perform(s, &returnValue);
+
+	root->removeFromCallStack(callbackName);
 
 	const double post = Time::getMillisecondCounterHiRes();
 	lastExecutionTime = post - pre;
@@ -763,10 +786,16 @@ AttributedString DynamicObjectDebugInformation::getDescription() const
 
 void ScriptingObject::reportScriptError(const String &errorMessage) const
 {
+	
+
 #if USE_BACKEND // needs to be customized because of the colour!
+
+	throw errorMessage;
 
     JavascriptProcessor* jp = const_cast<JavascriptProcessor*>(dynamic_cast<const JavascriptProcessor*>(getScriptProcessor()));
     
+	
+
     if(jp != nullptr)
     {
         const DynamicObject* rootObject = jp->getScriptEngine()->getRootObject();

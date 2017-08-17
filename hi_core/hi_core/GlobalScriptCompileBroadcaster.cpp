@@ -59,6 +59,20 @@ void GlobalScriptCompileBroadcaster::sendScriptCompileMessage(JavascriptProcesso
 	}
 }
 
+void GlobalScriptCompileBroadcaster::setCallStackEnabled(bool shouldBeEnabled)
+{
+	enableCallStack = shouldBeEnabled;
+
+	ModulatorSynthChain *mainChain = dynamic_cast<MainController*>(this)->getMainSynthChain();
+
+	Processor::Iterator<JavascriptProcessor> iter(mainChain);
+
+	while (auto jp = iter.getNextProcessor())
+	{
+		jp->setCallStackEnabled(shouldBeEnabled);
+	}
+}
+
 void GlobalScriptCompileBroadcaster::fillExternalFileList(Array<File> &files, StringArray &processors)
 {
 	ModulatorSynthChain *mainChain = dynamic_cast<MainController*>(this)->getMainSynthChain();

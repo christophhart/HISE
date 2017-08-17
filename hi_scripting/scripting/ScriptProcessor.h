@@ -491,6 +491,8 @@ public:
 		compileScript();
 	}
 
+	void setCallStackEnabled(bool shouldBeEnabled);
+
 protected:
 
 	void clearExternalWindows();
@@ -568,7 +570,7 @@ private:
 
 	Array<Component::SafePointer<DocumentWindow>> callbackPopups;
 
-	
+	bool callStackEnabled = false;
 
 	
 };

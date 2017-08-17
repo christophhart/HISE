@@ -319,7 +319,11 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 				parameterResults.setUnchecked(i, parameterExpressions.getUnchecked(i)->getResult(s));
 			}
 
+			s.root->addToCallStack(f->name, &location);
+
 			ResultCode c = f->body->perform(s, &returnVar);
+
+			s.root->removeFromCallStack(f->name);
 
 			for (int i = 0; i < numArgs; i++)
 			{
@@ -333,6 +337,8 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			if (c == Statement::returnWasHit) return returnVar;
 			else return var::undefined();
 		}
+
+		
 
 		Object::Ptr referenceToObject;
 

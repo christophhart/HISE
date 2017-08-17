@@ -97,6 +97,8 @@ private:
 
 	private:
 
+		int state = 0;
+
 		CodeEditorComponent::ColourScheme s;
 
 	};

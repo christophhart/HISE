@@ -105,6 +105,18 @@ void HiseJavascriptEngine::registerGlobalStorge(DynamicObject *globalObject)
 	root->hiseSpecialData.globals = globalObject;
 }
 
+struct HiseJavascriptEngine::RootObject::Error
+{
+	Error(const CodeLocation& location_, const String& message_) :
+		location(location_),
+		message(message_)
+	{};
+
+	String message;
+	const CodeLocation& location;
+};
+
+
 struct HiseJavascriptEngine::RootObject::CodeLocation
 {
 	CodeLocation(const String& code, const String &externalFile_) noexcept        : program(code), location(program.getCharPointer()), externalFile(externalFile_) {}
@@ -130,7 +142,7 @@ struct HiseJavascriptEngine::RootObject::CodeLocation
 		
 	}
 
-	String getErrorMessage(const String &message) const
+	String getLocationString() const
 	{
 		int col = 1, line = 1;
 
@@ -149,27 +161,188 @@ struct HiseJavascriptEngine::RootObject::CodeLocation
 			const String fileName = externalFile;
 #endif
 
-			return fileName + " - Line " + String(line) + ", column " + String(col) + ": " + message;
+			return fileName + " - Line " + String(line) + ", column " + String(col);
 
 		}
-		else return "Line " + String(line) + ", column " + String(col) + ": " + message;
+		else return "Line " + String(line) + ", column " + String(col);
+	}
+
+	String getEncodedLocationString(const String& processorId, const File& scriptRoot) const
+	{
+		int charIndex = (int)(location - program.getCharPointer());
+
+		String l;
+
+		l << processorId << "|" << File(externalFile).getRelativePathFrom(scriptRoot) << "|" << String(charIndex);
+		
+		return "{" + Base64::toBase64(l) + "}";
+	}
+
+	struct Helpers
+	{
+		static int getCharNumberFromBase64String(const String& base64EncodedString)
+		{
+			auto s = getDecodedString(base64EncodedString);
+
+			auto sa = StringArray::fromTokens(s, "|", "");
+
+			return sa[2].getIntValue();
+		}
+
+		static String getProcessorId(const String& base64EncodedString)
+		{
+			auto s = getDecodedString(base64EncodedString);
+
+			auto sa = StringArray::fromTokens(s, "|", "");
+
+			jassert(sa.size() > 0);
+
+			return sa[0];
+		}
+
+		static String getFileName(const String& base64EncodedString)
+		{
+			auto s = getDecodedString(base64EncodedString);
+
+			auto sa = StringArray::fromTokens(s, "|", "");
+
+			jassert(sa.size() > 1);
+
+			if (sa[1].isEmpty())
+				return String();
+
+			return "{PROJECT_FOLDER}" + sa[1];
+		}
+
+		static String getDecodedString(const String& base64EncodedString)
+		{
+			MemoryOutputStream mos;
+			Base64::convertFromBase64(mos, base64EncodedString.removeCharacters("{}"));
+			return String::createStringFromData(mos.getData(), mos.getDataSize());
+		}
+	};
+
+	String getErrorMessage(const String &message) const
+	{
+		return message;
+		return getLocationString() + ": " + message + "\t" + getEncodedLocationString("", File());
 	}
 
 	void throwError(const String& message) const
 	{
 #if USE_BACKEND
-		throw getErrorMessage(message);
+		throw Error(*this, message);
 #else
 		ignoreUnused(message);
 		DBG(getErrorMessage(message));        
 #endif
 	}
 
+	
 	String program;
 	String externalFile;
 	String::CharPointerType location;
 	
 };
+
+
+
+
+void DebugableObject::Helpers::gotoLocation(ModulatorSynthChain* mainSynthChain, const String& encodedState)
+{
+	auto pId = HiseJavascriptEngine::RootObject::CodeLocation::Helpers::getProcessorId(encodedState);
+	DebugableObject::Location loc;
+
+	loc.charNumber = HiseJavascriptEngine::RootObject::CodeLocation::Helpers::getCharNumberFromBase64String(encodedState);
+
+	auto fileReference = HiseJavascriptEngine::RootObject::CodeLocation::Helpers::getFileName(encodedState);
+
+	auto file = GET_PROJECT_HANDLER(mainSynthChain).getFilePath(fileReference, ProjectHandler::SubDirectories::Scripts);
+
+	loc.fileName = file;
+
+	auto p = dynamic_cast<JavascriptProcessor*>(ProcessorHelpers::getFirstProcessorWithName(mainSynthChain, pId));
+
+	if (p != nullptr)
+	{
+		gotoLocation(nullptr, p, loc);
+	}
+	else
+	{
+		PresetHandler::showMessageWindow("Can't find location", "The location is not valid", PresetHandler::IconType::Error);
+	}
+}
+
+struct HiseJavascriptEngine::RootObject::CallStackEntry
+{
+	CallStackEntry() :
+		functionName(Identifier()),
+		location(CodeLocation("", "")),
+		processor(nullptr)
+	{}
+
+	CallStackEntry(const Identifier &functionName_, const CodeLocation& location_, Processor* processor_) :
+		functionName(functionName_),
+		location(location_),
+		processor(processor_)
+	{}
+
+	CallStackEntry(const CallStackEntry& otherEntry) :
+		functionName(otherEntry.functionName),
+		location(otherEntry.location),
+		processor(otherEntry.processor)
+	{
+
+	}
+
+	CallStackEntry& operator=(const CallStackEntry& otherEntry)
+	{
+		functionName = otherEntry.functionName;
+		location = otherEntry.location;
+		processor = otherEntry.processor;
+
+		return *this;
+	}
+
+	CallStackEntry(const Identifier& functionName_) :
+		functionName(functionName_),
+		location(CodeLocation("", "")),
+		processor(nullptr)
+	{}
+
+	bool operator== (const CallStackEntry& otherEntry) const
+	{
+		return functionName == otherEntry.functionName;
+	}
+
+	CodeLocation swapLocation(CodeLocation& otherLocation)
+	{
+		CodeLocation temp = CodeLocation(location);
+
+		location = otherLocation;
+
+		return temp;
+	}
+
+	String toString() const
+	{
+		String s = functionName.toString();
+		s << "() - ";
+		s << location.getLocationString();
+
+		if (processor.get() != nullptr)
+		{
+			s << "\t" << location.getEncodedLocationString(processor->getId(), GET_PROJECT_HANDLER(processor).getSubDirectory(ProjectHandler::SubDirectories::Scripts));
+		}
+
+		return s;
+	}
+
+	WeakReference<Processor> processor;
+	Identifier functionName;
+	CodeLocation location;
+};
+
 
 struct HiseJavascriptEngine::RootObject::Scope
 {
@@ -259,6 +432,57 @@ struct HiseJavascriptEngine::RootObject::Expression : public Statement
 };
 
 
+void HiseJavascriptEngine::RootObject::addToCallStack(const Identifier& id, const CodeLocation* location)
+{
+#if ENABLE_SCRIPTING_BREAKPOINTS
+	if (enableCallstack)
+	{
+		callStack.add(CallStackEntry(id, location != nullptr ? *location : CodeLocation("", ""), dynamic_cast<Processor*>(hiseSpecialData.processor)));
+	}
+#else
+	ignoreUnused(id, location);
+#endif
+}
+
+void HiseJavascriptEngine::RootObject::removeFromCallStack(const Identifier& id)
+{
+#if ENABLE_SCRIPTING_BREAKPOINTS
+	if (enableCallstack)
+	{
+		callStack.removeAllInstancesOf(CallStackEntry(id));
+	}
+#else
+	ignoreUnused(id);
+#endif
+}
+
+String HiseJavascriptEngine::RootObject::dumpCallStack(const Error& lastError) const
+{
+	if (!enableCallstack)
+		return lastError.location.getLocationString() + lastError.message;
+
+#if ENABLE_SCRIPTING_BREAKPOINTS
+	const String nl = "\n";
+	String s = lastError.message;
+	s << nl;
+
+	CodeLocation lastLocation(lastError.location);
+	
+	for (int i = callStack.size() - 1; i >= 0; i--)
+	{
+		lastLocation = callStack.getReference(i).swapLocation(lastLocation);
+
+		s << ":\t\t\t" <<  callStack[i].toString() << nl;
+	}
+
+	callStack.clear();
+
+	return s;
+#else
+	return String();
+#endif
+}
+
 var HiseJavascriptEngine::RootObject::typeof_internal(Args a)
 {
 	var v(get(a, 0));
@@ -297,14 +521,25 @@ Result HiseJavascriptEngine::execute(const String& javascriptCode, bool allowCon
 
 		
 	}
-	catch (String& error)
+	catch (String &error)
 	{
 #if USE_FRONTEND
 		DBG(error);
-       
-        
+		return Result(error);
 #endif
-		return Result::fail(error);
+
+		RootObject::Error e((root->currentLocation != nullptr ? *root->currentLocation : RootObject::CodeLocation("", "")), error);
+
+		return Result::fail(root->dumpCallStack(e));
+	}
+	catch (RootObject::Error &e)
+	{
+#if USE_FRONTEND
+		DBG(e.message);
+		return Result(e.message);
+#endif
+
+		return Result::fail(root->dumpCallStack(e));
 	}
 	catch (Breakpoint bp)
 	{
@@ -356,6 +591,11 @@ DynamicObject * HiseJavascriptEngine::getRootObject()
 	return dynamic_cast<DynamicObject*>(root.get());
 }
 
+void HiseJavascriptEngine::setCallStackEnabled(bool shouldBeEnabled)
+{
+	root->setCallStackEnabled(shouldBeEnabled);
+}
+
 void HiseJavascriptEngine::registerApiClass(ApiClass *apiClass)
 {
 	root->hiseSpecialData.apiClasses.add(apiClass);
@@ -400,9 +640,15 @@ var HiseJavascriptEngine::callFunction(const Identifier& function, const var::Na
 		if (result != nullptr) *result = Result::ok();
 		RootObject::Scope(nullptr, root, root).findAndInvokeMethod(function, args, returnVal);
 	}
-	catch (String& error)
+	catch (String &error)
 	{
-		if (result != nullptr) *result = Result::fail(error);
+		RootObject::Error e((root->currentLocation != nullptr ? *root->currentLocation : RootObject::CodeLocation("", "")), error);
+
+		if (result != nullptr) *result = Result::fail(root->dumpCallStack(e));
+	}
+	catch (RootObject::Error &e)
+	{
+		if (result != nullptr) *result = Result::fail(root->dumpCallStack(e));
 	}
 
 	return returnVal;

@@ -113,7 +113,17 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 
 		scriptEngine->executeInlineFunction(fVar, args, &thisAsJavascriptProcessor->lastResult);
 
-		BACKEND_ONLY(if (!thisAsJavascriptProcessor->lastResult.wasOk()) debugError(thisAsProcessor, "Custom onControl callback: " + thisAsJavascriptProcessor->lastResult.getErrorMessage()));
+#if USE_BACKEND
+		if (!thisAsJavascriptProcessor->lastResult.wasOk())
+		{
+			auto inlineF = dynamic_cast<HiseJavascriptEngine::RootObject::InlineFunction::Object*>(fVar.getObject());
+
+			if (inlineF != nullptr)
+			{
+				debugError(thisAsProcessor, thisAsJavascriptProcessor->lastResult.getErrorMessage());
+			}
+		}
+#endif
 
 	}
 	else
@@ -143,7 +153,7 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 		scriptEngine->setCallbackParameter(callbackIndex, 1, controllerValue);
 		scriptEngine->executeCallback(callbackIndex, &thisAsJavascriptProcessor->lastResult);
 
-		BACKEND_ONLY(if (!thisAsJavascriptProcessor->lastResult.wasOk()) debugError(thisAsProcessor, onControlCallback->getCallbackName().toString() + ": " + thisAsJavascriptProcessor->lastResult.getErrorMessage()));
+		BACKEND_ONLY(if (!thisAsJavascriptProcessor->lastResult.wasOk()) debugError(thisAsProcessor, thisAsJavascriptProcessor->lastResult.getErrorMessage()));
 	}
 
 	if (MessageManager::getInstance()->isThisTheMessageThread())
@@ -286,6 +296,14 @@ void JavascriptProcessor::showPopupForCallback(const Identifier& callback, int /
 #endif
 }
 
+
+void JavascriptProcessor::setCallStackEnabled(bool shouldBeEnabled)
+{
+	callStackEnabled = shouldBeEnabled;
+	
+	if (scriptEngine != nullptr)
+		scriptEngine->setCallStackEnabled(shouldBeEnabled);
+}
 
 ValueTree FileChangeListener::collectAllScriptFiles(ModulatorSynthChain *chainToExport)
 {
@@ -512,6 +530,8 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 				if (!lastResult.wasOk())
 				{
+					debugError(thisAsProcessor, lastResult.getErrorMessage());
+
 					content->endInitialization();
 					thisAsScriptBaseProcessor->allowObjectConstructors = false;
 
@@ -614,6 +634,8 @@ void JavascriptProcessor::setupApi()
 	scriptEngine = new HiseJavascriptEngine(this);
 
 	scriptEngine->addBreakpointListener(this);
+
+	scriptEngine->setCallStackEnabled(callStackEnabled);
 
 	scriptEngine->maximumExecutionTime = RelativeTime(mainController->getCompileTimeOut());
 
