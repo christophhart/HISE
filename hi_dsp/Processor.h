@@ -367,7 +367,7 @@ public:
 				MainController::ProcessorChangeHandler::EventType::ProcessorRenamed);
 	};
 
-	Identifier getIDAsIdentifier() const
+	const Identifier& getIDAsIdentifier() const
 	{
 		return idAsIdentifier;
 	}
