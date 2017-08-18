@@ -94,7 +94,14 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 
 		CHECK_CONDITION_WITH_LOCATION(apiClass != nullptr, "API class does not exist");
 
-		return apiClass->callFunction(functionIndex, results, expectedNumArguments);
+		try
+		{
+			return apiClass->callFunction(functionIndex, results, expectedNumArguments);
+		}
+		catch (String& error)
+		{
+			throw Error::fromLocation(location, error);
+		}
 	}
 
 	const int expectedNumArguments;
@@ -224,6 +231,20 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			e = e_;
 		}
 
+		void cleanUpAfterExecution()
+		{
+			const int numArgs = dynamicFunctionCall->parameterResults.size();
+
+			for (int i = 0; i < numArgs; i++)
+			{
+				dynamicFunctionCall->parameterResults.setUnchecked(i, var::undefined());
+			}
+
+			cleanLocalProperties();
+
+			setFunctionCall(nullptr);
+		}
+
 		var performDynamically(const Scope& s, var* args, int numArgs)
 		{
 			setFunctionCall(dynamicFunctionCall);
@@ -235,14 +256,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 			Statement::ResultCode c = body->perform(s, &lastReturnValue);
 
-			for (int i = 0; i < numArgs; i++)
-			{
-				dynamicFunctionCall->parameterResults.setUnchecked(i, var::undefined());
-			}
-
-			cleanLocalProperties();
-
-			setFunctionCall(nullptr);
+			cleanUpAfterExecution();
 
 			if (c == Statement::returnWasHit) return lastReturnValue;
 			else return var::undefined();

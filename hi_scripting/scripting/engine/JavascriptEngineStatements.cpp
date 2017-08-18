@@ -26,16 +26,15 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 
 		for (int i = 0; i < statements.size(); ++i)
 		{
-#if ENABLE_SCRIPTING_SAFE_CHECKS
-			s.root->currentLocation = &statements.getUnchecked(i)->location;
-#endif
-
 #if ENABLE_SCRIPTING_BREAKPOINTS
 			if (statements.getUnchecked(i)->breakpointReference.index != -1)
 			{
 				Statement* st = statements.getUnchecked(i);
+				const auto& loc = st->location;
+				int col, line;
 
-				Breakpoint bp = Breakpoint(st->breakpointReference.localScopeId, -1, -1, st->breakpointReference.index);
+				loc.fillColumnAndLines(col, line);
+				Breakpoint bp = Breakpoint(st->breakpointReference.localScopeId, loc.externalFile, line, col, loc.getCharIndex(), st->breakpointReference.index);
 				throw bp;
 			}
 #endif

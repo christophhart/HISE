@@ -285,25 +285,22 @@ var HiseJavascriptEngine::callExternalFunction(var function, const var::NativeFu
 	}
 	catch (String &error)
 	{
-		RootObject::Error e((root->currentLocation != nullptr ? *root->currentLocation : RootObject::CodeLocation("", "")), error);
-
-		if (result != nullptr) *result = Result::fail(root->dumpCallStack(e));
+		jassertfalse;
+		if (result != nullptr) *result = Result::fail(error);
 	}
 	catch (RootObject::Error &e)
 	{
-		if (result != nullptr) *result = Result::fail(root->dumpCallStack(e));
-	}
-	catch (Breakpoint bp)
-	{
+		static const Identifier func("function");
 
-#if ENABLE_SCRIPTING_BREAKPOINTS
+		if (result != nullptr) *result = Result::fail(root->dumpCallStack(e, func));
+	}
+	catch (Breakpoint& bp)
+	{
 		root->hiseSpecialData.setBreakpointLocalIdentifier(bp.snippetId);
 		sendBreakpointMessage(bp.index);
-		if (result != nullptr) *result = Result::fail("Breakpoint Nr. " + String(bp.index + 1) + " was hit");
-#else
-		// This should not happen
-		jassertfalse;
-#endif
+
+		static const Identifier func("function");
+		if (result != nullptr) *result = Result::fail(root->dumpCallStack(RootObject::Error::fromBreakpoint(bp), func));
 	}
 
 	return returnVal;
@@ -660,26 +657,23 @@ var HiseJavascriptEngine::executeInlineFunction(var inlineFunction, var* argumen
 	}
 	catch (String &error)
 	{
-		RootObject::Error e((root->currentLocation != nullptr ? *root->currentLocation : RootObject::CodeLocation("", "")), error);
-
-		if (result != nullptr) *result = Result::fail(root->dumpCallStack(e));
+		jassertfalse;
+		*result = Result::fail(error);
 	}
 	catch (RootObject::Error &e)
 	{
-		if (result != nullptr) *result = Result::fail(root->dumpCallStack(e));
+		if (result != nullptr) *result = Result::fail(root->dumpCallStack(e, f->name));
+
+		f->cleanUpAfterExecution();
 	}
-	catch (Breakpoint bp)
+	catch (Breakpoint& bp)
 	{
-#if ENABLE_SCRIPTING_BREAKPOINTS
 		root->hiseSpecialData.setBreakpointLocalIdentifier(bp.snippetId);
 		sendBreakpointMessage(bp.index);
-		*result = Result::fail("Breakpoint Nr. " + String((int)bp.index + 1) + " was hit");
+		
+		if (result != nullptr) *result = Result::fail(root->dumpCallStack(RootObject::Error::fromBreakpoint(bp), f->name));
 
-		return var::undefined();
-#else
-		// This should not happen...
-		jassertfalse;
-#endif
+		f->cleanUpAfterExecution();
 	}
 
 	return var();
@@ -712,26 +706,19 @@ var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 		}
 		catch (String &error)
 		{
-			RootObject::Error e((root->currentLocation != nullptr ? *root->currentLocation : RootObject::CodeLocation("", "")), error);
-
-			if (result != nullptr) *result = Result::fail(root->dumpCallStack(e));
+			jassertfalse;
+			if (result != nullptr) *result = Result::fail(error);
 		}
 		catch (RootObject::Error &e)
 		{
-			if (result != nullptr) *result = Result::fail(root->dumpCallStack(e));
+			if (result != nullptr) *result = Result::fail(root->dumpCallStack(e, c->getName()));
 		}
-		catch (Breakpoint bp)
+		catch (Breakpoint& bp)
 		{
-#if ENABLE_SCRIPTING_BREAKPOINTS
 			root->hiseSpecialData.setBreakpointLocalIdentifier(bp.snippetId);
 			sendBreakpointMessage(bp.index);
-			*result = Result::fail("Breakpoint Nr. " + String((int)bp.index + 1) + " was hit");
-
-			return var::undefined();
-#else
-			// This should not happen...
-			jassertfalse;
-#endif
+			
+			if (result != nullptr) *result = Result::fail(root->dumpCallStack(RootObject::Error::fromBreakpoint(bp), c->getName()));
 		}
 	}
 
@@ -786,32 +773,8 @@ AttributedString DynamicObjectDebugInformation::getDescription() const
 
 void ScriptingObject::reportScriptError(const String &errorMessage) const
 {
-	
-
-#if USE_BACKEND // needs to be customized because of the colour!
-
+#if USE_BACKEND
 	throw errorMessage;
-
-    JavascriptProcessor* jp = const_cast<JavascriptProcessor*>(dynamic_cast<const JavascriptProcessor*>(getScriptProcessor()));
-    
-	
-
-    if(jp != nullptr)
-    {
-        const DynamicObject* rootObject = jp->getScriptEngine()->getRootObject();
-        
-        HiseJavascriptEngine::RootObject::CodeLocation* loc = dynamic_cast<const HiseJavascriptEngine::RootObject*>(rootObject)->currentLocation;
-        
-        if (loc != nullptr)
-        {
-            const String formattedMessage = loc->getCallbackName() + ": " + loc->getErrorMessage(errorMessage);
-            const_cast<MainController*>(getProcessor()->getMainController())->writeToConsole(formattedMessage, 1, getProcessor(), getScriptProcessor()->getScriptingContent()->getColour());
-        }
-    }
-    else
-    {
-        const_cast<MainController*>(getProcessor()->getMainController())->writeToConsole(errorMessage, 1, getProcessor());
-    }
 #endif
 }
 

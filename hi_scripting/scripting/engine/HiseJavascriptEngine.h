@@ -99,74 +99,7 @@ public:
 	/** Destructor. */
 	~HiseJavascriptEngine();
 
-	struct Breakpoint
-	{
-	public:
-
-		struct Reference
-		{
-			Identifier localScopeId;
-			int index = -1;
-		};
-
-		class Listener
-		{
-		public:
-			virtual void breakpointWasHit(int breakpointIndex) = 0;
-
-			virtual ~Listener()
-			{
-				masterReference.clear();
-			}
-
-		private:
-			
-			friend class WeakReference<Listener>;
-
-			WeakReference<Listener>::Master masterReference;
-		};
-
-		Breakpoint() : snippetId(Identifier()), lineNumber(-1), charNumber(-1), index(-1) {}
-		Breakpoint(const Identifier& snippetId_, int lineNumber_, int charNumber_, int index_) : snippetId(snippetId_), lineNumber(lineNumber_), charNumber(charNumber_), index(index_) {};
-
-		bool operator ==(const Breakpoint& other) const
-		{
-			return snippetId == other.snippetId && lineNumber == other.lineNumber;
-		}
-
-		const Identifier snippetId;
-		const int lineNumber;
-		const int charNumber;
-		const int index;
-
-		bool found = false;
-		bool hit = false;
-	};
-
 	
-
-	void setBreakpoints(Array<Breakpoint> &breakpoints);
-
-	void addBreakpointListener(Breakpoint::Listener* listener)
-	{
-		breakpointListeners.add(listener);
-	}
-
-	void removeBreakpointListener(Breakpoint::Listener* listener)
-	{
-		breakpointListeners.removeAllInstancesOf(listener);
-	}
-
-	void sendBreakpointMessage(int breakpointIndex)
-	{
-		for (int i = 0; i < breakpointListeners.size(); i++)
-		{
-			if (breakpointListeners[i].get() != nullptr)
-			{
-				breakpointListeners[i]->breakpointWasHit(breakpointIndex);
-			}
-		}
-	}
 
 	/** Attempts to parse and run a block of javascript code.
 	If there's a parse or execution error, the error description is returned in
@@ -308,6 +241,8 @@ public:
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ExternalFileData)
 	};
 
+	struct Breakpoint;
+
 	//==============================================================================
 	struct RootObject : public DynamicObject
 	{
@@ -345,10 +280,77 @@ public:
 		//==============================================================================
 		struct CodeLocation;
 		struct CallStackEntry;
-		struct Error;
 		struct Scope;
 		struct Statement;
 		struct Expression;
+
+		struct Error
+		{
+			static Error fromBreakpoint(const Breakpoint &bp)
+			{
+				Error e;
+
+				e.errorMessage = "Breakpoint " + String(bp.index + 1) + " was hit";
+				e.externalLocation = bp.externalLocation;
+				e.lineNumber = bp.lineNumber;
+				e.charIndex = bp.charIndex;
+				e.columnNumber = bp.colNumber;
+				
+				return e;
+			}
+
+			static Error fromLocation(const CodeLocation& location, const String& errorMessage);
+
+			String getLocationString() const
+			{
+				if (externalLocation.isEmpty() || externalLocation.contains("()"))
+					return "Line " + String(lineNumber) + ", column " + String(columnNumber);
+				else
+				{
+#if USE_BACKEND
+					File f(externalLocation);
+					const String fileName = f.getFileName();
+#else
+					const String fileName = externalFile;
+#endif
+
+					return fileName + " - Line " + String(lineNumber) + ", column " + String(columnNumber);
+				}
+			}
+
+			String getEncodedLocation(Processor* p) const
+			{
+				String l;
+
+				l << p->getId() << "|";
+
+				if (externalLocation.contains("()"))
+					l << externalLocation;
+				else if (!externalLocation.isEmpty())
+					l << File(externalLocation).getRelativePathFrom(GET_PROJECT_HANDLER(p).getSubDirectory(ProjectHandler::SubDirectories::Scripts));
+
+				l << "|" << String(charIndex);
+				l << "|" << String(lineNumber) << "|" << String(columnNumber);
+
+				return "{" + Base64::toBase64(l) + "}";
+			}
+
+			String toString(Processor* p) const
+			{
+				String s;
+				s << getLocationString();
+				s << "\t" << getEncodedLocation(p);
+
+				return s;
+			}
+
+			int charIndex = -1;
+			int lineNumber = -1;
+			int columnNumber = -1;
+
+			String errorMessage;
+			mutable String externalLocation;
+		};
 
 		typedef ScopedPointer<Expression> ExpPtr;
 
@@ -430,7 +432,7 @@ public:
 
 		void addToCallStack(const Identifier& id, const CodeLocation* location);
 		void removeFromCallStack(const Identifier& id);
-		String dumpCallStack(const Error& lastError) const;
+		String dumpCallStack(const Error& lastError, const Identifier& rootFunctionName);
 		void setCallStackEnabled(bool shouldeBeEnabled) { enableCallstack = shouldeBeEnabled; }
 
 		class Callback:  public DynamicObject,
@@ -689,15 +691,92 @@ public:
 
 		HiseSpecialData hiseSpecialData;
 
-		CodeLocation* currentLocation = nullptr;
-
 		private:
 
-		mutable Array<CallStackEntry> callStack;
+		Array<CallStackEntry> callStack;
 
 		bool enableCallstack = false;
 	};
 
+	
+
+	struct Breakpoint
+	{
+	public:
+
+		struct Reference
+		{
+			Identifier localScopeId;
+			int index = -1;
+		};
+
+		class Listener
+		{
+		public:
+			virtual void breakpointWasHit(int breakpointIndex) = 0;
+
+			virtual ~Listener()
+			{
+				masterReference.clear();
+			}
+
+		private:
+
+			friend class WeakReference<Listener>;
+
+			WeakReference<Listener>::Master masterReference;
+		};
+
+		Breakpoint() : snippetId(Identifier()), lineNumber(-1), colNumber(-1), index(-1), charIndex(-1) {}
+		Breakpoint(const Identifier& snippetId_, const String& externalLocation_, int lineNumber_, int charNumber_, int charIndex_, int index_):
+			snippetId(snippetId_),
+			externalLocation(externalLocation_),
+			lineNumber(lineNumber_), 
+			colNumber(charNumber_), 
+			charIndex(charIndex_), 
+			index(index_) {};
+
+		bool operator ==(const Breakpoint& other) const
+		{
+			return snippetId == other.snippetId && lineNumber == other.lineNumber;
+		}
+
+		const Identifier snippetId;
+		const int lineNumber;
+		const int colNumber;
+		const int charIndex;
+		
+		const int index;
+		const String externalLocation;
+
+		bool found = false;
+		bool hit = false;
+
+		
+	};
+
+	void setBreakpoints(Array<Breakpoint> &breakpoints);
+
+	void addBreakpointListener(Breakpoint::Listener* listener)
+	{
+		breakpointListeners.add(listener);
+	}
+
+	void removeBreakpointListener(Breakpoint::Listener* listener)
+	{
+		breakpointListeners.removeAllInstancesOf(listener);
+	}
+
+	void sendBreakpointMessage(int breakpointIndex)
+	{
+		for (int i = 0; i < breakpointListeners.size(); i++)
+		{
+			if (breakpointListeners[i].get() != nullptr)
+			{
+				breakpointListeners[i]->breakpointWasHit(breakpointIndex);
+			}
+		}
+	}
 
 private:
 

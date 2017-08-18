@@ -2174,7 +2174,7 @@ void ScriptingApi::Content::ScriptPanel::internalRepaint()
 
 	if (r.failed())
 	{
-		reportScriptError(r.getErrorMessage());
+		debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
 	}
 
 	graphics->setGraphics(nullptr, nullptr);
@@ -2207,7 +2207,7 @@ void ScriptingApi::Content::ScriptPanel::mouseCallback(var mouseInformation)
 
 		if (r.failed())
 		{
-			reportScriptError(r.getErrorMessage());
+			debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
 		}
 	}
 }
@@ -2233,7 +2233,7 @@ void ScriptingApi::Content::ScriptPanel::timerCallback()
 
 		if (r.failed())
 		{
-			reportScriptError(r.getErrorMessage());
+			debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
 		}
 	}
 }

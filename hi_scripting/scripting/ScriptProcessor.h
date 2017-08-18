@@ -442,7 +442,7 @@ public:
 
 	void toggleBreakpoint(const Identifier& snippetId, int lineNumber, int charNumber)
 	{
-		HiseJavascriptEngine::Breakpoint bp(snippetId, lineNumber, charNumber, breakpoints.size());
+		HiseJavascriptEngine::Breakpoint bp(snippetId, "", lineNumber, charNumber, charNumber, breakpoints.size());
 
 		int index = breakpoints.indexOf(bp);
 
