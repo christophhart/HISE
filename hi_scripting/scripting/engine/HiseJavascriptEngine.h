@@ -424,7 +424,7 @@ public:
 		struct JSONClass;
 
 		//==============================================================================
-		static var trace(Args a)      { Logger::outputDebugString(JSON::toString(a.thisObject)); return var::undefined(); }
+		static var trace(Args a)      { return JSON::toString(get(a, 0)); }
 		static var charToInt(Args a)  { return (int)(getString(a, 0)[0]); }
 		static var typeof_internal(Args a);
 		static var exec(Args a);

@@ -220,61 +220,9 @@ void Console::mouseDoubleClick(const MouseEvent& /*e*/)
 
 	const String line = newTextConsole->getDocument().getLine(selectionStart.getLineNumber());
 
-	const String reg = ".*(\\{[^\\s]+\\}).*";
+	DebugableObject::Helpers::gotoLocation(mc->getMainSynthChain(), line);
 
-	StringArray matches = RegexFunctions::getFirstMatch(reg, line);
-
-	if (matches.size() == 2)
-	{
-		DebugableObject::Helpers::gotoLocation(mc->getMainSynthChain(), matches[1]);
-
-#if 0
-		const String encco = matches[1];
-		const Identifier callback = matches[2].isNotEmpty() ? Identifier(matches[2]) : Identifier();
-		const String fileName = matches[3].upToFirstOccurrenceOf(" - ", false, false);
-		const String lineNumber = matches[4];
-		const String charNumber = matches[5];
-
-		JavascriptProcessor *jsp = dynamic_cast<JavascriptProcessor*>(ProcessorHelpers::getFirstProcessorWithName(GET_BACKEND_ROOT_WINDOW(this)->getMainPanel()->getMainSynthChain(), id));
-
-		if (fileName.isNotEmpty())
-		{
-			for (int i = 0; i < jsp->getNumWatchedFiles(); i++)
-			{
-				if (jsp->getWatchedFile(i).getFileName() == fileName)
-				{
-					StringArray lines;
-					jsp->getWatchedFile(i).readLines(lines);
-
-					int charIndex = jmax<int>(0, charNumber.getIntValue());
-					int lineIndex = jmax<int>(0, lineNumber.getIntValue());
-
-					jsp->showPopupForFile(i, charIndex, lineIndex);
-				}
-			}
-		}
-		else
-		{
-			jassert(!callback.isNull());
-
-			ProcessorEditor* pEditor = GET_BACKEND_ROOT_WINDOW(this)->getMainPanel()->getRootContainer()->getFirstEditorOf(dynamic_cast<Processor*>(jsp));
-
-			if (pEditor != nullptr)
-			{
-				ScriptingEditor* scriptEditor = dynamic_cast<ScriptingEditor*>(pEditor->getBody());
-
-				for (int i = 0; i < jsp->getNumSnippets(); i++)
-				{
-					if (jsp->getSnippet(i)->getCallbackName() == callback)
-					{
-						scriptEditor->showCallback(i, lineNumber.getIntValue() - 1);
-						break;
-					}
-				}
-			}
-		}
-#endif
-	}
+	
 };;
 
 Console::ConsoleTokeniser::ConsoleTokeniser()

@@ -223,6 +223,38 @@ private:
 	void increaseMultiSelectionForCurrentToken();
 };
 
+class DebugConsoleTextEditor : public TextEditor,
+	public TextEditor::Listener,
+	public GlobalScriptCompileListener
+{
+public:
+
+	DebugConsoleTextEditor(const String& name, Processor* p);;
+
+	~DebugConsoleTextEditor();
+
+	void scriptWasCompiled(JavascriptProcessor *jp);
+
+	bool keyPressed(const KeyPress& k) override;
+
+	void mouseDown(const MouseEvent& e);
+	void mouseDoubleClick(const MouseEvent& e) override;
+
+	void addToHistory(const String& s);
+
+	void textEditorReturnKeyPressed(TextEditor& /*t*/);
+
+private:
+
+	LookAndFeel_V2 laf2;
+
+	WeakReference<Processor> processor;
+
+	StringArray history;
+	int currentHistoryIndex = 0;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DebugConsoleTextEditor)
+};
 
 
 class CodeEditorWrapper: public Component,

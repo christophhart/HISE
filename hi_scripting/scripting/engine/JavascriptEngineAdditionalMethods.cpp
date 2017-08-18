@@ -142,92 +142,99 @@ void HiseJavascriptEngine::RootObject::ArraySubscript::cacheIndex(AssignableObje
 
 var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) const
 {
-	if (!initialised)
+	try
 	{
-		initialised = true;
-
-		if (DotOperator* dot = dynamic_cast<DotOperator*> (object.get()))
+		if (!initialised)
 		{
-			parentIsConstReference = dynamic_cast<ConstReference*>(dot->parent.get()) != nullptr;
+			initialised = true;
 
-			if (parentIsConstReference)
+			if (DotOperator* dot = dynamic_cast<DotOperator*> (object.get()))
 			{
-				constObject = dynamic_cast<ConstScriptingObject*>(dot->parent->getResult(s).getObject());
+				parentIsConstReference = dynamic_cast<ConstReference*>(dot->parent.get()) != nullptr;
 
-				if (constObject != nullptr)
+				if (parentIsConstReference)
 				{
-					constObject->getIndexAndNumArgsForFunction(dot->child, functionIndex, numArgs);
-					isConstObjectApiFunction = true;
+					constObject = dynamic_cast<ConstScriptingObject*>(dot->parent->getResult(s).getObject());
 
-					CHECK_CONDITION_WITH_LOCATION(functionIndex != -1, "function not found");
-					CHECK_CONDITION_WITH_LOCATION(numArgs == arguments.size(), "argument amount mismatch: " + String(arguments.size()) + ", Expected: " + String(numArgs));
+					if (constObject != nullptr)
+					{
+						constObject->getIndexAndNumArgsForFunction(dot->child, functionIndex, numArgs);
+						isConstObjectApiFunction = true;
+
+						CHECK_CONDITION_WITH_LOCATION(functionIndex != -1, "function not found");
+						CHECK_CONDITION_WITH_LOCATION(numArgs == arguments.size(), "argument amount mismatch: " + String(arguments.size()) + ", Expected: " + String(numArgs));
+					}
 				}
 			}
 		}
-	}
 
-	if (isConstObjectApiFunction)
-	{
-		var parameters[5];
-
-		for (int i = 0; i < arguments.size(); i++)
-			parameters[i] = arguments[i]->getResult(s);
-
-		return constObject->callFunction(functionIndex, parameters, numArgs);
-	}
-
-	if (DotOperator* dot = dynamic_cast<DotOperator*> (object.get()))
-	{
-		var thisObject(dot->parent->getResult(s));
-
-		if (ConstScriptingObject* c = dynamic_cast<ConstScriptingObject*>(thisObject.getObject()))
+		if (isConstObjectApiFunction)
 		{
-			c->getIndexAndNumArgsForFunction(dot->child, functionIndex, numArgs);
-
-			CHECK_CONDITION_WITH_LOCATION(functionIndex != -1, "function not found");
-			CHECK_CONDITION_WITH_LOCATION(numArgs == arguments.size(), "argument amount mismatch: " + String(arguments.size()) + ", Expected: " + String(numArgs));
-
 			var parameters[5];
 
 			for (int i = 0; i < arguments.size(); i++)
 				parameters[i] = arguments[i]->getResult(s);
 
-			return c->callFunction(functionIndex, parameters, numArgs);
+			return constObject->callFunction(functionIndex, parameters, numArgs);
 		}
 
-		if (DynamicObject* dynObj = thisObject.getDynamicObject())
+		if (DotOperator* dot = dynamic_cast<DotOperator*> (object.get()))
 		{
-			var property = dynObj->getProperty(dot->child);
+			var thisObject(dot->parent->getResult(s));
 
-			if (auto obj = dynamic_cast<InlineFunction::Object*>(property.getObject()))
+			if (ConstScriptingObject* c = dynamic_cast<ConstScriptingObject*>(thisObject.getObject()))
 			{
+				c->getIndexAndNumArgsForFunction(dot->child, functionIndex, numArgs);
+
+				CHECK_CONDITION_WITH_LOCATION(functionIndex != -1, "function not found");
+				CHECK_CONDITION_WITH_LOCATION(numArgs == arguments.size(), "argument amount mismatch: " + String(arguments.size()) + ", Expected: " + String(numArgs));
+
 				var parameters[5];
 
 				for (int i = 0; i < arguments.size(); i++)
 					parameters[i] = arguments[i]->getResult(s);
 
-				return obj->performDynamically(s, parameters, arguments.size());
+				return c->callFunction(functionIndex, parameters, numArgs);
 			}
+
+			if (DynamicObject* dynObj = thisObject.getDynamicObject())
+			{
+				var property = dynObj->getProperty(dot->child);
+
+				if (auto obj = dynamic_cast<InlineFunction::Object*>(property.getObject()))
+				{
+					var parameters[5];
+
+					for (int i = 0; i < arguments.size(); i++)
+						parameters[i] = arguments[i]->getResult(s);
+
+					return obj->performDynamically(s, parameters, arguments.size());
+				}
+			}
+
+			return invokeFunction(s, s.findFunctionCall(location, thisObject, dot->child), thisObject);
 		}
 
-		return invokeFunction(s, s.findFunctionCall(location, thisObject, dot->child), thisObject);
+
+		var r = object->getResult(s);
+
+		if (auto obj = dynamic_cast<InlineFunction::Object*>(r.getObject()))
+		{
+			var parameters[5];
+
+			for (int i = 0; i < arguments.size(); i++)
+				parameters[i] = arguments[i]->getResult(s);
+
+			return obj->performDynamically(s, parameters, arguments.size());
+		}
+
+		var function(r);
+		return invokeFunction(s, function, var(s.scope));
 	}
-
-
-	var r = object->getResult(s);
-
-	if (auto obj = dynamic_cast<InlineFunction::Object*>(r.getObject()))
+	catch (String& errorMessage)
 	{
-		var parameters[5];
-
-		for (int i = 0; i < arguments.size(); i++)
-			parameters[i] = arguments[i]->getResult(s);
-
-		return obj->performDynamically(s, parameters, arguments.size());
+		throw Error::fromLocation(location, errorMessage);
 	}
-
-	var function(r);
-	return invokeFunction(s, function, var(s.scope));
 }
 
 var HiseJavascriptEngine::RootObject::Scope::findFunctionCall(const CodeLocation& location, const var& targetObject, const Identifier& functionName) const

@@ -55,7 +55,7 @@ ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
     compileButton->addListener (this);
     compileButton->setColour (TextButton::buttonColourId, Colour (0xa2616161));
 
-    addAndMakeVisible (messageBox = new DebugConsoleTextEditor("new text editor", this));
+    addAndMakeVisible (messageBox = new DebugConsoleTextEditor("new text editor", getProcessor()));
     
 	
     addAndMakeVisible (timeLabel = new Label ("new label",
@@ -100,15 +100,13 @@ ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
 
     timeLabel->setFont (GLOBAL_BOLD_FONT());
 
-	messageBox->setFont(GLOBAL_MONOSPACE_FONT());
+	
 	
 	addAndMakeVisible(scriptContent = new ScriptContentComponent(dynamic_cast<ProcessorWithScriptingContent*>(getProcessor())));
 
     scriptContent->addMouseListenersForComponentWrappers();
     
-	messageBox->setLookAndFeel(&laf2);
-
-	messageBox->setColour(Label::ColourIds::textColourId, Colours::white);
+	
 
 	useComponentSelectMode = false;
 
@@ -551,29 +549,8 @@ bool ScriptingEditor::keyPressed(const KeyPress &k)
 
 void ScriptingEditor::scriptEditHandlerCompileCallback()
 {
-	JavascriptProcessor::SnippetResult resultMessage = getScriptEditHandlerProcessor()->compileScript();
+	getScriptEditHandlerProcessor()->compileScript();
 
-	if (resultMessage.r.wasOk()) messageBox->setText("Compiled OK", false);
-	else
-	{
-		const String errorMessage = resultMessage.r.getErrorMessage().upToFirstOccurrenceOf("\n", false, false);
-
-		messageBox->setText(errorMessage, false);
-		
-		TextButton* b = callbackButtons[resultMessage.c];
-
-		if (b != nullptr && !b->getToggleState())
-			buttonClicked(b);
-
-		StringArray errorPosition = RegexFunctions::getFirstMatch(".*Line ([0-9]*), column ([0-9]*)", errorMessage);
-
-		int l = errorPosition[1].getIntValue();
-		int c = errorPosition[2].getIntValue();
-
-		CodeDocument::Position pos = CodeDocument::Position(codeEditor->editor->getDocument(), l - 1, c - 1);
-
-		codeEditor->editor->moveCaretTo(pos, false);
-	}
 
 	checkActiveSnippets();
 	refreshBodySize();

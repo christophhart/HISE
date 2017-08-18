@@ -36,10 +36,11 @@
 
 
 class JavascriptCodeEditor;
-
+class DebugConsoleTextEditor;
 
 class PopupIncludeEditor : public Component,
-						   public Timer
+						   public Timer,
+						   public ButtonListener
 {
 public:
 
@@ -52,9 +53,14 @@ public:
 
 	void timerCallback();
 	bool keyPressed(const KeyPress& key) override;
+
+	
+
 	void resized() override;;
 
 	void gotoChar(int character, int lineNumber = -1);
+
+	void buttonClicked(Button* b) override;
 
 	JavascriptCodeEditor* getEditor() { return editor.get(); }
 
@@ -63,6 +69,8 @@ public:
 	File getFile() const { return file; }
 	
 private:
+
+	void compileInternal();
 
 	friend class PopupIncludeEditorWindow;
 
@@ -75,7 +83,9 @@ private:
 	ScopedPointer < JavascriptCodeEditor > editor;
 	OptionalScopedPointer<CodeDocument> doc;
 
-	ScopedPointer<Label> resultLabel;
+	ScopedPointer<TextButton> compileButton;
+
+	ScopedPointer<DebugConsoleTextEditor> resultLabel;
 
 	JavascriptProcessor *sp;
 	File file;

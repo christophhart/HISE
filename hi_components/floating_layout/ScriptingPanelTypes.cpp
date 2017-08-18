@@ -216,7 +216,7 @@ void CodeEditorPanel::gotoLocation(Processor* p, const String& fileName, int cha
 	auto editor = getContent<PopupIncludeEditor>()->getEditor();
 
 	CodeDocument::Position pos(editor->getDocument(), charNumber);
-	editor->scrollToLine(jmax<int>(0, pos.getLineNumber() - 3));
+	editor->scrollToLine(jmax<int>(0, pos.getLineNumber()));
 }
 
 ConsolePanel::ConsolePanel(FloatingTile* parent) :

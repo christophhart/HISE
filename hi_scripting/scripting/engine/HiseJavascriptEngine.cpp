@@ -298,34 +298,45 @@ void HiseJavascriptEngine::RootObject::CodeLocation::throwError(const String& me
 
 
 
-void DebugableObject::Helpers::gotoLocation(ModulatorSynthChain* mainSynthChain, const String& encodedState)
+void DebugableObject::Helpers::gotoLocation(ModulatorSynthChain* mainSynthChain, const String& line)
 {
-	auto pId = HiseJavascriptEngine::RootObject::CodeLocation::Helpers::getProcessorId(encodedState);
-	DebugableObject::Location loc;
+	const String reg = ".*(\\{[^\\s]+\\}).*";
 
-	loc.charNumber = HiseJavascriptEngine::RootObject::CodeLocation::Helpers::getCharNumberFromBase64String(encodedState);
+	StringArray matches = RegexFunctions::getFirstMatch(reg, line);
 
-	auto fileReference = HiseJavascriptEngine::RootObject::CodeLocation::Helpers::getFileName(encodedState);
-
-	if (fileReference.contains("()"))
+	if (matches.size() == 2)
 	{
-		loc.fileName = fileReference;
-	}
-	else
-	{
-		loc.fileName = GET_PROJECT_HANDLER(mainSynthChain).getFilePath(fileReference, ProjectHandler::SubDirectories::Scripts);
+		auto encodedState = matches[1];
+
+		auto pId = HiseJavascriptEngine::RootObject::CodeLocation::Helpers::getProcessorId(encodedState);
+		DebugableObject::Location loc;
+
+		loc.charNumber = HiseJavascriptEngine::RootObject::CodeLocation::Helpers::getCharNumberFromBase64String(encodedState);
+
+		auto fileReference = HiseJavascriptEngine::RootObject::CodeLocation::Helpers::getFileName(encodedState);
+
+		if (fileReference.contains("()"))
+		{
+			loc.fileName = fileReference;
+		}
+		else
+		{
+			loc.fileName = GET_PROJECT_HANDLER(mainSynthChain).getFilePath(fileReference, ProjectHandler::SubDirectories::Scripts);
+		}
+
+		auto p = dynamic_cast<JavascriptProcessor*>(ProcessorHelpers::getFirstProcessorWithName(mainSynthChain, pId));
+
+		if (p != nullptr)
+		{
+			gotoLocation(nullptr, p, loc);
+		}
+		else
+		{
+			PresetHandler::showMessageWindow("Can't find location", "The location is not valid", PresetHandler::IconType::Error);
+		}
 	}
 
-	auto p = dynamic_cast<JavascriptProcessor*>(ProcessorHelpers::getFirstProcessorWithName(mainSynthChain, pId));
-
-	if (p != nullptr)
-	{
-		gotoLocation(nullptr, p, loc);
-	}
-	else
-	{
-		PresetHandler::showMessageWindow("Can't find location", "The location is not valid", PresetHandler::IconType::Error);
-	}
+	
 }
 
 struct HiseJavascriptEngine::RootObject::CallStackEntry
@@ -516,15 +527,15 @@ String HiseJavascriptEngine::RootObject::dumpCallStack(const Error& lastError, c
 			}
 		}
 
-		return callbackName << lastError.getLocationString() + ": " + lastError.errorMessage << "\t" << lastError.getEncodedLocation(p);
+		return callbackName << lastError.getLocationString() + ": " + lastError.errorMessage << " " << lastError.getEncodedLocation(p);
 	}
 
-#if ENABLE_SCRIPTING_BREAKPOINTS
-	const String nl = "\n";
-	String s = lastError.errorMessage;
-	s << nl;
-
 	auto p = dynamic_cast<Processor*>(hiseSpecialData.processor);
+
+	const String nl = "\n";
+	String s;
+	s << lastError.errorMessage << " " << lastError.getEncodedLocation(p);
+	s << nl;
 
 	Error thisError = lastError;
 
@@ -559,9 +570,6 @@ String HiseJavascriptEngine::RootObject::dumpCallStack(const Error& lastError, c
 	callStack.clearQuick();
 
 	return s;
-#else
-	return String();
-#endif
 }
 
 var HiseJavascriptEngine::RootObject::typeof_internal(Args a)
