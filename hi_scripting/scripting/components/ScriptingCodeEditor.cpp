@@ -437,7 +437,7 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 
 		getDocument().findTokenContaining(start, start, end);
 
-		const String namespaceId = Helpers::findNamespaceForPosition(getDocument(), start);
+		const String namespaceId = Helpers::findNamespaceForPosition(start);
 
 		const String token = getDocument().getTextBetween(start, end);
 
@@ -1386,7 +1386,7 @@ CodeDocument* JavascriptCodeEditor::Helpers::gotoAndReturnDocumentWithDefinition
 	return nullptr;
 }
 
-String JavascriptCodeEditor::Helpers::findNamespaceForPosition(const CodeDocument& doc, CodeDocument::Position pos)
+String JavascriptCodeEditor::Helpers::findNamespaceForPosition(CodeDocument::Position pos)
 {
 	while (pos.getLineNumber() > 0)
 	{

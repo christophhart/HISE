@@ -2316,13 +2316,13 @@ void ScriptingApi::Content::ScriptPanel::setPopupData(var jsonData, var position
 
 void ScriptingApi::Content::ScriptPanel::setValueWithUndo(var oldValue, var newValue, var actionName)
 {
-    auto processor = dynamic_cast<Processor*>(getScriptProcessor());
+    auto p = dynamic_cast<Processor*>(getScriptProcessor());
     
     auto sc = getScriptProcessor()->getScriptingContent();
     
     const int index = sc->getComponentIndex(getName());
     
-    auto newEvent = new BorderPanel::UndoableControlEvent(processor, index, (float)oldValue, (float)newValue);
+    auto newEvent = new BorderPanel::UndoableControlEvent(p, index, (float)oldValue, (float)newValue);
     
     getProcessor()->getMainController()->getControlUndoManager()->beginNewTransaction(actionName);
     getProcessor()->getMainController()->getControlUndoManager()->perform(newEvent);

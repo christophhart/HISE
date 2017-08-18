@@ -55,10 +55,6 @@ editedComponent(-1)
 
 	p->addChangeListener(this);
 	p->getMainController()->addScriptListener(this, true);
-
-	
-
-	
 }
 
 

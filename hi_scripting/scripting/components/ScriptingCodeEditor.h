@@ -163,7 +163,7 @@ public:
 
 		static CodeDocument* gotoAndReturnDocumentWithDefinition(Processor* p, DebugableObject* object);
 
-		static String findNamespaceForPosition(const CodeDocument& doc, CodeDocument::Position pos);
+		static String findNamespaceForPosition(CodeDocument::Position pos);
 
 		static void applyChangesFromActiveEditor(JavascriptProcessor* p);
 
