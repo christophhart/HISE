@@ -314,7 +314,7 @@ public:
 					const String fileName = externalFile;
 #endif
 
-					return fileName + " - Line " + String(lineNumber) + ", column " + String(columnNumber);
+					return fileName + " (" + String(lineNumber) + ")";
 				}
 			}
 

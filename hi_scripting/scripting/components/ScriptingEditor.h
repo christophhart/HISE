@@ -78,12 +78,29 @@ private:
 
 };
 
-class DebugConsoleTextEditor : public TextEditor
+class DebugConsoleTextEditor : public TextEditor,
+							   public TextEditor::Listener
 {
 public:
 
-	DebugConsoleTextEditor(const String& name) :
-		TextEditor(name) {};
+	DebugConsoleTextEditor(const String& name, ScriptEditHandler* handler_) :
+		TextEditor(name),
+		handler(handler_)
+	{
+		setMultiLine(false);
+		setReturnKeyStartsNewLine(false);
+		setScrollbarsShown(false);
+		setPopupMenuEnabled(false);
+		setColour(TextEditor::textColourId, Colours::white);
+		setColour(CaretComponent::ColourIds::caretColourId, Colours::white);
+		setColour(TextEditor::backgroundColourId, Colour(0x00ffffff));
+		setColour(TextEditor::highlightColourId, Colour(0x40ffffff));
+		setColour(TextEditor::shadowColourId, Colour(0x00000000));
+		setColour(TextEditor::ColourIds::focusedOutlineColourId, Colours::white.withAlpha(0.1f));
+		setText(String());
+		
+		addListener(this);
+	};
 
 	bool keyPressed(const KeyPress& k) override
 	{
@@ -104,6 +121,41 @@ public:
 		return TextEditor::keyPressed(k);
 	}
 
+	void mouseDown(const MouseEvent& e)
+	{
+		if(e.mods.isRightButtonDown())
+			setText("> ", dontSendNotification);
+
+		TextEditor::mouseDown(e);
+	}
+
+	void mouseDoubleClick(const MouseEvent& e) override
+	{
+		int x = 5;
+
+		jassertfalse;
+
+#if 0
+		const String fileName = ApiHelpers::getFileNameFromErrorMessage(messageBox->getText());
+
+		if (fileName.isNotEmpty())
+		{
+			JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(getProcessor());
+
+			for (int i = 0; i < sp->getNumWatchedFiles(); i++)
+			{
+				if (sp->getWatchedFile(i).getFileName() == fileName)
+				{
+					sp->showPopupForFile(i);
+				}
+			}
+
+		}
+#endif
+	}
+
+
+
 	void addToHistory(const String& s)
 	{
 		if (!history.contains(s))
@@ -117,7 +169,39 @@ public:
 		}
 	}
 
+	void textEditorReturnKeyPressed(TextEditor& /*t*/)
+	{
+		String codeToEvaluate = getText();
+
+		addToHistory(codeToEvaluate);
+
+		if (codeToEvaluate.startsWith("> "))
+		{
+			codeToEvaluate = codeToEvaluate.substring(2);
+		}
+
+		HiseJavascriptEngine* engine = handler->getScriptEditHandlerProcessor()->getScriptEngine();
+
+		if (engine != nullptr)
+		{
+			Result r = Result::ok();
+
+			var returnValue = engine->evaluate(codeToEvaluate, &r);
+
+			if (r.wasOk())
+			{
+				debugToConsole(dynamic_cast<Processor*>(handler->getScriptEditHandlerProcessor()), "> " + returnValue.toString());
+			}
+			else
+			{
+				debugToConsole(dynamic_cast<Processor*>(handler->getScriptEditHandlerProcessor()), r.getErrorMessage());
+			}
+		}
+	}
+
 private:
+
+	ScriptEditHandler* handler;
 
 	StringArray history;
 	int currentHistoryIndex;
@@ -131,33 +215,12 @@ class ScriptingEditor  : public ProcessorEditorBody,
 public:
     //==============================================================================
 
-	
-
     ScriptingEditor (ProcessorEditor *p);
     ~ScriptingEditor();
 
     //==============================================================================
    
-	void textEditorReturnKeyPressed(TextEditor& t)
-	{
-		String codeToEvaluate = t.getText();
-
-		dynamic_cast<DebugConsoleTextEditor*>(&t)->addToHistory(codeToEvaluate);
-
-		if (codeToEvaluate.startsWith("> "))
-		{
-			codeToEvaluate = codeToEvaluate.substring(2);
-		}
-
-		HiseJavascriptEngine* engine = dynamic_cast<JavascriptProcessor*>(getProcessor())->getScriptEngine();
-
-		if (engine != nullptr)
-		{
-			var returnValue = engine->evaluate(codeToEvaluate);
-
-			debugToConsole(getProcessor(), "> " + returnValue.toString());
-		}
-	}
+	
 
 	JavascriptProcessor* getScriptEditHandlerProcessor() { return dynamic_cast<JavascriptProcessor*>(getProcessor()); }
 
@@ -200,10 +263,6 @@ public:
 	void closeAllPopup();
 
 	void gotoChar(int character);
-
-	void mouseDown(const MouseEvent &e) override;
-
-	void mouseDoubleClick(const MouseEvent& e) override;
 
 	bool isRootEditor() const { return getEditor()->isRootEditor(); }
 
