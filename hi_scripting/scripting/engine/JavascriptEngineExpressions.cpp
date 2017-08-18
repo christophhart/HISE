@@ -9,17 +9,42 @@ struct HiseJavascriptEngine::RootObject::LiteralValue : public Expression
 
 struct HiseJavascriptEngine::RootObject::UnqualifiedName : public Expression
 {
-	UnqualifiedName(const CodeLocation& l, const Identifier& n) noexcept : Expression(l), name(n) {}
+	UnqualifiedName(const CodeLocation& l, const Identifier& n, bool isFunction) noexcept : Expression(l), name(n), isJavascriptFunction(isFunction) {}
 
 	var getResult(const Scope& s) const override  { return s.findSymbolInParentScopes(name); }
 
 	void assign(const Scope& s, const var& newValue) const override
 	{
-		if (var* v = getPropertyPointer(s.scope, name))
+		const Scope* currentScope = &s;
+		var* v = getPropertyPointer(currentScope->scope, name);
+
+		while (v == nullptr && currentScope->parent != nullptr)
+		{
+			currentScope = currentScope->parent;
+			v = getPropertyPointer(currentScope->scope, name);
+		}
+
+		if (v == nullptr)
+			v = getPropertyPointer(currentScope->root, name);
+
+		if (v != nullptr)
 			*v = newValue;
 		else
-			s.root->setProperty(name, newValue);
+		{
+			if (isJavascriptFunction)
+			{
+				currentScope->root->setProperty(name, newValue);
+			}
+			else
+			{
+				location.throwError("Unqualified assignments are not supported anymore. Use `var` or `const var` or `reg` for definitions");
+			}
+
+		}
+			
 	}
+
+	const bool isJavascriptFunction = false;
 
 	JavascriptNamespace* ns = nullptr;
 	Identifier name;
@@ -254,6 +279,8 @@ struct HiseJavascriptEngine::RootObject::NewOperator : public FunctionCall
 
 	var getResult(const Scope& s) const override
 	{
+		location.throwError("the new operator is not supported anymore");
+
 		var classOrFunc = object->getResult(s);
 
 		const bool isFunc = isFunction(classOrFunc);

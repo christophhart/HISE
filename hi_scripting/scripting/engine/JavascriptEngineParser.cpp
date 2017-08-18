@@ -1051,7 +1051,7 @@ private:
 		if (name.isNull())
 			throwError("Functions defined at statement-level must have a name");
 
-		ExpPtr nm(new UnqualifiedName(location, name)), value(new LiteralValue(location, fn));
+		ExpPtr nm(new UnqualifiedName(location, name, true)), value(new LiteralValue(location, fn));
 		return new Assignment(location, nm, value);
 	}
 
@@ -1866,7 +1866,7 @@ private:
 						}
 					}
 
-					return parseSuffixes(new UnqualifiedName(location, parseIdentifier()));
+					return parseSuffixes(new UnqualifiedName(location, parseIdentifier(), false));
 				}
 			}
 		}
@@ -1957,7 +1957,7 @@ private:
 	Expression* parseTypeof()
 	{
 		ScopedPointer<FunctionCall> f(new FunctionCall(location));
-		f->object = new UnqualifiedName(location, "typeof");
+		f->object = new UnqualifiedName(location, "typeof", true);
 		f->arguments.add(parseUnary());
 		return f.release();
 	}
@@ -2001,7 +2001,7 @@ private:
 		}
 		else
 		{
-			nameExp = new UnqualifiedName(location, parseIdentifier());
+			nameExp = new UnqualifiedName(location, parseIdentifier(), true);
 		}
 
 		
