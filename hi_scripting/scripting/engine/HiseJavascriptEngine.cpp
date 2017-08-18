@@ -422,8 +422,6 @@ struct HiseJavascriptEngine::RootObject::Scope
 	ReferenceCountedObjectPtr<RootObject> root;
 	DynamicObject::Ptr scope;
 
-	
-
 	var findFunctionCall(const CodeLocation& location, const var& targetObject, const Identifier& functionName) const;
 
 	var* findRootClassProperty(const Identifier& className, const Identifier& propName) const
@@ -627,8 +625,10 @@ Result HiseJavascriptEngine::execute(const String& javascriptCode, bool allowCon
 		return Result::fail(root->dumpCallStack(e, onInit));
 	}
 	catch (Breakpoint& bp)
-	{		
-		root->hiseSpecialData.setBreakpointLocalIdentifier(bp.snippetId);
+	{
+		if (bp.localScope != nullptr)
+			bp.copyLocalScopeToRoot(*root);
+
 		sendBreakpointMessage(bp.index);
 		return Result::fail(root->dumpCallStack(RootObject::Error::fromBreakpoint(bp), onInit));
 	}

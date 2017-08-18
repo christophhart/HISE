@@ -303,7 +303,7 @@ var HiseJavascriptEngine::callExternalFunction(var function, const var::NativeFu
 	}
 	catch (Breakpoint& bp)
 	{
-		root->hiseSpecialData.setBreakpointLocalIdentifier(bp.snippetId);
+		bp.copyLocalScopeToRoot(*root);
 		sendBreakpointMessage(bp.index);
 
 		static const Identifier func("function");
@@ -675,7 +675,11 @@ var HiseJavascriptEngine::executeInlineFunction(var inlineFunction, var* argumen
 	}
 	catch (Breakpoint& bp)
 	{
-		root->hiseSpecialData.setBreakpointLocalIdentifier(bp.snippetId);
+		if(bp.localScope == nullptr)
+			bp.localScope = f->createDynamicObjectForBreakpoint().getDynamicObject();
+
+		bp.copyLocalScopeToRoot(*root);
+
 		sendBreakpointMessage(bp.index);
 		
 		if (result != nullptr) *result = Result::fail(root->dumpCallStack(RootObject::Error::fromBreakpoint(bp), f->name));
@@ -689,10 +693,6 @@ var HiseJavascriptEngine::executeInlineFunction(var inlineFunction, var* argumen
 var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 {
 	RootObject::Callback *c = root->hiseSpecialData.callbackNEW[callbackIndex];
-
-#if ENABLE_SCRIPTING_BREAKPOINTS
-	root->hiseSpecialData.setBreakpointLocalIdentifier(Identifier());
-#endif
 
 	// You need to register the callback correctly...
 	jassert(c != nullptr);
@@ -722,7 +722,11 @@ var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 		}
 		catch (Breakpoint& bp)
 		{
-			root->hiseSpecialData.setBreakpointLocalIdentifier(bp.snippetId);
+			if(bp.localScope == nullptr)
+				bp.localScope = c->createDynamicObjectForBreakpoint().getDynamicObject();
+
+			bp.copyLocalScopeToRoot(*root);
+
 			sendBreakpointMessage(bp.index);
 			
 			if (result != nullptr) *result = Result::fail(root->dumpCallStack(RootObject::Error::fromBreakpoint(bp), c->getName()));

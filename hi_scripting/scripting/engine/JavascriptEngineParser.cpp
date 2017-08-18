@@ -254,7 +254,7 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 		hiseSpecialData = &data;
 		currentNamespace = hiseSpecialData;
 		
-#if ENABLE_SCRIPTING_BREAKPOINTS
+#if 0 //ENABLE_SCRIPTING_BREAKPOINTS
 
 		Identifier localId = hiseSpecialData->getBreakpointLocalIdentifier();
 
@@ -2371,7 +2371,6 @@ void HiseJavascriptEngine::RootObject::execute(const String& code, bool allowCon
 
 #if ENABLE_SCRIPTING_BREAKPOINTS
 	tb.breakpoints.swapWith(breakpoints);
-	hiseSpecialData.setBreakpointLocalIdentifier(Identifier());
 #endif
 
 	tb.setupApiData(hiseSpecialData, allowConstDeclarations ? code : String());

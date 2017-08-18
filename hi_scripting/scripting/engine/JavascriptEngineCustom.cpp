@@ -245,6 +245,35 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			setFunctionCall(nullptr);
 		}
 
+		var createDynamicObjectForBreakpoint()
+		{
+			auto functionCallToUse = e != nullptr ? e : dynamicFunctionCall;
+
+			if (functionCallToUse == nullptr)
+				return nullptr;
+
+			DynamicObject::Ptr object = new DynamicObject();
+
+			DynamicObject::Ptr arguments = new DynamicObject();
+			
+			for (int i = 0; i < parameterNames.size(); i++)
+			{
+				arguments->setProperty(parameterNames[i], functionCallToUse->parameterResults[i]);
+			}
+
+			DynamicObject::Ptr locals = new DynamicObject();
+
+			for (int i = 0; i < localProperties.size(); i++)
+			{
+				locals->setProperty(localProperties.getName(i), localProperties.getValueAt(i));
+			}
+
+			object->setProperty("args", var(arguments));
+			object->setProperty("locals", var(locals));
+
+			return var(object);
+		}
+
 		var performDynamically(const Scope& s, var* args, int numArgs)
 		{
 			setFunctionCall(dynamicFunctionCall);
@@ -335,21 +364,28 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 			s.root->addToCallStack(f->name, &location);
 
-			ResultCode c = f->body->perform(s, &returnVar);
-
-			s.root->removeFromCallStack(f->name);
-
-			for (int i = 0; i < numArgs; i++)
+			try
 			{
-				parameterResults.setUnchecked(i, var::undefined());
+				ResultCode c = f->body->perform(s, &returnVar);
+
+				s.root->removeFromCallStack(f->name);
+
+				f->cleanUpAfterExecution();
+
+				f->lastReturnValue = returnVar;
+
+				if (c == Statement::returnWasHit) return returnVar;
+				else return var::undefined();
 			}
+			catch (Breakpoint& bp)
+			{
+				if(bp.localScope == nullptr)
+					bp.localScope = f->createDynamicObjectForBreakpoint().getDynamicObject();
 
-			f->lastReturnValue = returnVar;
-
-			f->setFunctionCall(nullptr);
-
-			if (c == Statement::returnWasHit) return returnVar;
-			else return var::undefined();
+				throw bp;
+			}
+			
+			
 		}
 
 		

@@ -178,7 +178,7 @@ void PopupIncludeEditor::gotoChar(int character, int lineNumber/*=-1*/)
 	editor->moveCaretToEndOfLine(true);
 }
 
-void PopupIncludeEditor::buttonClicked(Button* b)
+void PopupIncludeEditor::buttonClicked(Button* /*b*/)
 {
 	compileInternal();
 }

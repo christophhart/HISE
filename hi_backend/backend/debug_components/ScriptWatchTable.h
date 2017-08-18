@@ -50,7 +50,8 @@ class ScriptWatchTable      : public Component,
 public TableListBoxModel,
 public Timer,
 public TextEditor::Listener,
-public GlobalScriptCompileListener
+public GlobalScriptCompileListener,
+public HiseJavascriptEngine::Breakpoint::Listener
 {
 public:
     
@@ -83,6 +84,11 @@ public:
 
     void setScriptProcessor(JavascriptProcessor *p, ScriptingEditor *editor);
     
+	void breakpointWasHit(int /*breakpointIndex*/) override
+	{
+		rebuildLinesAsync();
+	}
+
 	void textEditorTextChanged(TextEditor& )
 	{
 		applySearchFilter();
@@ -108,6 +114,27 @@ public:
 private:
     
 	void rebuildLines();
+
+	struct Rebuilder : public AsyncUpdater
+	{
+		Rebuilder(ScriptWatchTable* parent_):
+			parent(parent_)
+		{};
+
+		void handleAsyncUpdate() override
+		{
+			parent->rebuildLines();
+		}
+
+		ScriptWatchTable* parent;
+	};
+
+	Rebuilder rebuilder;
+
+	void rebuildLinesAsync()
+	{
+		rebuilder.triggerAsyncUpdate();
+	}
 
 	void applySearchFilter();
 
