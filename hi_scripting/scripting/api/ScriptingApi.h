@@ -689,6 +689,18 @@ public:
 		/** Clears the console. */
 		void clear();
 
+		/** Throws an error message if the condition is not true. */
+		void assertTrue(var condition);
+
+		/** Throws an error message if the values are not equal. */
+		void assertEqual(var v1, var v2);
+
+		/** Throws an error message if the value is undefined. */
+		void assertIsDefined(var value);
+
+		/** Throws an error message if the value is not an object or array. */
+		void assertIsObjectOrArray(var value);
+
 		struct Wrapper;
 
 	private:
