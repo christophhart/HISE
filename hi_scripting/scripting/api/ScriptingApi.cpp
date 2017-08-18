@@ -2726,6 +2726,7 @@ struct ScriptingApi::Console::Wrapper
 	API_VOID_METHOD_WRAPPER_2(Console, assertEqual);
 	API_VOID_METHOD_WRAPPER_1(Console, assertIsDefined);
 	API_VOID_METHOD_WRAPPER_1(Console, assertIsObjectOrArray);
+	API_VOID_METHOD_WRAPPER_1(Console, assertLegalNumber);
 };
 
 ScriptingApi::Console::Console(ProcessorWithScriptingContent *p) :
@@ -2742,6 +2743,7 @@ startTime(0.0)
 	ADD_API_METHOD_2(assertEqual);
 	ADD_API_METHOD_1(assertIsDefined);
 	ADD_API_METHOD_1(assertIsObjectOrArray);
+	ADD_API_METHOD_1(assertLegalNumber);
 }
 
 
@@ -2830,6 +2832,23 @@ void ScriptingApi::Console::assertIsObjectOrArray(var value)
 	if (!(value.isObject() || value.isArray()))
 	{
 		reportScriptError("Assertion failure: value is not object or array. Type: " + VarTypeHelpers::getVarType(value));
+	}
+}
+
+void ScriptingApi::Console::assertLegalNumber(var value)
+{
+	if (!VarTypeHelpers::isNumeric(value))
+	{
+		reportScriptError("Assertion failure: value is not a number. Type: " + VarTypeHelpers::getVarType(value) + " Value: " + value.toString());
+	}
+
+	const float v1 = (float)value;
+	float v2 = v1;
+
+
+	if (v1 != FloatSanitizers::sanitizeFloatNumber(v2))
+	{
+		reportScriptError("Assertion failure: value is not a legal number. Value: " + value.toString());
 	}
 }
 

@@ -701,6 +701,9 @@ public:
 		/** Throws an error message if the value is not an object or array. */
 		void assertIsObjectOrArray(var value);
 
+		/** Throws an error message if the value is not a legal number (eg. string or array or infinity or NaN). */
+		void assertLegalNumber(var value);
+
 		struct Wrapper;
 
 	private:
