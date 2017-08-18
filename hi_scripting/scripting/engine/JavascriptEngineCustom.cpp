@@ -250,7 +250,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			auto functionCallToUse = e != nullptr ? e : dynamicFunctionCall;
 
 			if (functionCallToUse == nullptr)
-				return nullptr;
+				return var();
 
 			DynamicObject::Ptr object = new DynamicObject();
 
