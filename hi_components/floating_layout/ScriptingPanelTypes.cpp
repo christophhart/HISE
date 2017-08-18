@@ -37,12 +37,14 @@ CodeEditorPanel::CodeEditorPanel(FloatingTile* parent) :
 {
 	tokeniser = new JavascriptTokeniser();
 
+	getMainController()->addScriptListener(this);
 
 }
 
 CodeEditorPanel::~CodeEditorPanel()
 {
 	tokeniser = nullptr;
+	getMainController()->removeScriptListener(this);
 }
 
 
@@ -83,6 +85,13 @@ void CodeEditorPanel::fillModuleList(StringArray& moduleList)
 
 		moduleList.add(dynamic_cast<Processor*>(p)->getId());
 	}
+}
+
+
+void CodeEditorPanel::scriptWasCompiled(JavascriptProcessor *processor)
+{
+	if (getProcessor() == dynamic_cast<Processor*>(processor))
+		refreshIndexList();
 }
 
 void CodeEditorPanel::mouseDown(const MouseEvent& event)
@@ -164,6 +173,23 @@ void CodeEditorPanel::gotoLocation(Processor* p, const String& fileName, int cha
 	{
 		setContentWithUndo(p, 0);
 	}
+	else if (fileName.contains("()"))
+	{
+		auto jp = dynamic_cast<JavascriptProcessor*>(p);
+
+		auto snippetId = Identifier(fileName.upToFirstOccurrenceOf("()", false, false));
+
+		
+
+		for (int i = 0; i < jp->getNumSnippets(); i++)
+		{
+			if (jp->getSnippet(i)->getCallbackName() == snippetId)
+			{
+				setContentWithUndo(p, i);
+				break;
+			}
+		}
+	}
 	else
 	{
 		auto jp = dynamic_cast<JavascriptProcessor*>(p);
@@ -190,7 +216,7 @@ void CodeEditorPanel::gotoLocation(Processor* p, const String& fileName, int cha
 	auto editor = getContent<PopupIncludeEditor>()->getEditor();
 
 	CodeDocument::Position pos(editor->getDocument(), charNumber);
-	editor->scrollToLine(jmax<int>(0, pos.getLineNumber()));
+	editor->scrollToLine(jmax<int>(0, pos.getLineNumber() - 3));
 }
 
 ConsolePanel::ConsolePanel(FloatingTile* parent) :

@@ -436,12 +436,14 @@ InterfaceContentPanel::InterfaceContentPanel(FloatingTile* parent) :
 	}
 
 	dynamic_cast<GlobalSettingManager*>(getMainController())->addScaleFactorListener(this);
+	getMainController()->addScriptListener(this);
 }
 
 
 InterfaceContentPanel::~InterfaceContentPanel()
 {
 	dynamic_cast<GlobalSettingManager*>(getMainController())->removeScaleFactorListener(this);
+	getMainController()->removeScriptListener(this);
 }
 
 void InterfaceContentPanel::paint(Graphics& g)
@@ -486,7 +488,7 @@ void InterfaceContentPanel::buttonClicked(Button* /*b*/)
 }
 
 
-void InterfaceContentPanel::scaleFactorChanged(float newScaleFactor)
+void InterfaceContentPanel::scaleFactorChanged(float /*newScaleFactor*/)
 {
 	updateSize();
 }
@@ -500,8 +502,7 @@ bool InterfaceContentPanel::connectToScript()
 	{
 		addAndMakeVisible(content = new ScriptContentComponent(jsp));
 		connectedProcessor = jsp;
-		connectedProcessor->getMainController()->addScriptListener(this);
-
+		
 		if (refreshButton != nullptr)
 		{
 			refreshButton->setVisible(false);
@@ -539,7 +540,7 @@ void InterfaceContentPanel::updateSize()
 
 				setTransform(AffineTransform::scale((float)scaleFactor));
 				
-				topLevel->setSize(c->getContentWidth() * scaleFactor, c->getContentHeight() * scaleFactor);
+				topLevel->setSize((int)((float)c->getContentWidth() * scaleFactor), (int)((float)c->getContentHeight() * scaleFactor));
 			}
 
 			getParentShell()->setVital(true);
