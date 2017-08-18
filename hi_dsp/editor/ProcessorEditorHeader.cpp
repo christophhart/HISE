@@ -951,27 +951,7 @@ void ProcessorEditorHeader::update()
 
 void ProcessorEditorHeader::setPlotButton(bool on)
 {
-	Modulator *mod = dynamic_cast<Modulator*>(getProcessor());
-
-	// the plot button should only be displayed at Modulators...
-	jassert(mod != nullptr);
-
 	plotButton->setToggleState(on, dontSendNotification);
-	
-#if 0
-	if(on)
-	{
-		getProcessor()->getMainController()->addPlottedModulator(mod);
-
-	}
-	else
-	{
-		getProcessor()->getMainController()->removePlottedModulator(mod);
-
-		
-		//plotterWindow = nullptr;
-	}
-#endif
 };
 
 void ProcessorEditorHeader::displayBypassedChain(bool isBypassed)

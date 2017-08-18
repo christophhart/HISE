@@ -472,6 +472,9 @@ Processor * PolyFilterEffect::getChildProcessor(int processorIndex)
 	case GainChain: return gainChain;
 	case BipolarFrequencyChain: return bipolarFreqChain;
 	}
+
+	jassertfalse;
+	return nullptr;
 }
 
 const Processor * PolyFilterEffect::getChildProcessor(int processorIndex) const
@@ -482,6 +485,9 @@ const Processor * PolyFilterEffect::getChildProcessor(int processorIndex) const
 	case GainChain: return gainChain;
 	case BipolarFrequencyChain: return bipolarFreqChain;
 	}
+
+	jassertfalse;
+	return nullptr;
 }
 
 AudioSampleBuffer & PolyFilterEffect::getBufferForChain(int index)
@@ -492,6 +498,9 @@ AudioSampleBuffer & PolyFilterEffect::getBufferForChain(int index)
 	case GainChain: return timeVariantGainModulatorBuffer;
 	case BipolarFrequencyChain: return timeVariantBipolarFreqModulatorBuffer;
 	}
+
+	jassertfalse;
+	return timeVariantFreqModulatorBuffer;
 }
 
 void PolyFilterEffect::prepareToPlay(double sampleRate, int samplesPerBlock)

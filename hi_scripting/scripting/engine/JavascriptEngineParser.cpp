@@ -302,7 +302,7 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 				if (breakpoints[i].found)
 					continue;
 
-				if (r.contains(breakpoints[i].charNumber))
+				if (r.contains(breakpoints[i].charIndex))
 				{
 					if (currentInlineFunction != nullptr)
 					{
