@@ -544,7 +544,7 @@ void MultiColumnPresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*
 }
 
 
-void MultiColumnPresetBrowser::renameEntry(int columnIndex, int rowIndex, const File& f, bool /*doubleClick*/)
+void MultiColumnPresetBrowser::renameEntry(int columnIndex, int rowIndex, const File& /*f*/, bool /*doubleClick*/)
 {
 	if (columnIndex == 0)
 	{

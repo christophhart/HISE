@@ -280,6 +280,11 @@ public:
 		prevValue = value;
 	}
 
+    float getDefaultValue() const
+    {
+        return prevValue;
+    }
+    
 private:
 
 	SpinLock spinLock;

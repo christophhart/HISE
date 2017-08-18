@@ -118,7 +118,7 @@ public:
 	
 	virtual var getAdditionalUndoInformation() const { return var(); }
 
-	virtual void performAdditionalUndoInformation(const var& undoInformation) {};
+	virtual void performAdditionalUndoInformation(const var& /*undoInformation*/) {};
 
 	void refreshConnectionList();
 
