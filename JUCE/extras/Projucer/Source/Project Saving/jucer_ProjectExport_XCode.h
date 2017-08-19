@@ -368,6 +368,7 @@ protected:
               osxSDKVersion               (config, Ids::osxSDK,               nullptr, "default"),
               osxDeploymentTarget         (config, Ids::osxCompatibility,     nullptr, "default"),
               iosDeploymentTarget         (config, Ids::iosCompatibility,     nullptr, "default"),
+              iosTargetFamily             (config, Ids::iosTargetFamily,      nullptr, "1,2"),
               osxArchitecture             (config, Ids::osxArchitecture,      nullptr, "default"),
               customXcodeFlags            (config, Ids::customXcodeFlags,     nullptr),
               cppLanguageStandard         (config, Ids::cppLanguageStandard,  nullptr),
@@ -387,7 +388,7 @@ protected:
         //==========================================================================
         bool iOS;
 
-        CachedValue<String> osxSDKVersion, osxDeploymentTarget, iosDeploymentTarget, osxArchitecture,
+        CachedValue<String> osxSDKVersion, osxDeploymentTarget, iosDeploymentTarget, iosTargetFamily, osxArchitecture,
                             customXcodeFlags, cppLanguageStandard, cppStandardLibrary, codeSignIdentity;
         CachedValue<bool>   fastMathEnabled, linkTimeOptimisationEnabled, stripLocalSymbolsEnabled;
         CachedValue<String> vstBinaryLocation, vst3BinaryLocation, auBinaryLocation, rtasBinaryLocation, aaxBinaryLocation;
@@ -405,9 +406,17 @@ protected:
                 const char* iosVersions[]      = { "Use Default",     "7.0", "7.1", "8.0", "8.1", "8.2", "8.3", "8.4", "9.0", "9.1", "9.2", "9.3", "10.0", 0 };
                 const char* iosVersionValues[] = { osxVersionDefault, "7.0", "7.1", "8.0", "8.1", "8.2", "8.3", "8.4", "9.0", "9.1", "9.2", "9.3", "10.0", 0 };
 
+                const char* iosTargetFamilies[] =     { "Use Default", "iPhone and iPad", "iPhone only", "iPad only", 0 };
+                const char* iosTargetFamilyValues[] = { "1,2", "1,2", "1", "2", 0 };
+                
                 props.add (new ChoicePropertyComponent (iosDeploymentTarget.getPropertyAsValue(), "iOS Deployment Target",
                                                         StringArray (iosVersions), Array<var> (iosVersionValues)),
                            "The minimum version of iOS that the target binary will run on.");
+                
+                props.add (new ChoicePropertyComponent( iosTargetFamily.getPropertyAsValue(), "iOS Target Family",
+                                                       StringArray(iosTargetFamilies), Array<var>(iosTargetFamilyValues)),
+                           "The target family (iPhone / iPad) for the project");
+                
             }
             else
             {
@@ -2010,7 +2019,7 @@ private:
         {
             s.add ("\"CODE_SIGN_IDENTITY[sdk=iphoneos*]\" = " + config.codeSignIdentity.get().quoted());
             s.add ("SDKROOT = iphoneos");
-            s.add ("TARGETED_DEVICE_FAMILY = \"1,2\"");
+            s.add ("TARGETED_DEVICE_FAMILY = " + config.iosTargetFamily.get().quoted());
 
             const String iosVersion (config.iosDeploymentTarget.get());
             if (iosVersion.isNotEmpty() && iosVersion != osxVersionDefault)
