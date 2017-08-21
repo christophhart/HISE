@@ -1485,7 +1485,12 @@ private:
 		
 		Expression *iter = parseExpression();
 
-		
+		// Allow unqualified names in for loop initialisation for convenience
+		if (auto assignment = dynamic_cast<Assignment*>(iter))
+		{
+			if (auto un = dynamic_cast<UnqualifiedName*>(assignment->target.get()))
+				un->allowUnqualifiedDefinition = true;
+		}
 
 		if (!isVarInitialiser && currentType == TokenTypes::closeParen)
 		{
@@ -1975,6 +1980,9 @@ private:
 
 	Expression* parseNewOperator()
 	{
+		location.throwError("new is not supported anymore");
+
+#if 0
 		ExpPtr nameExp; 
 		
 		Identifier name = currentValue.toString();
@@ -2010,6 +2018,9 @@ private:
 			nameExp = new DotOperator(location, nameExp, parseIdentifier());
 
 		return parseFunctionCall(new NewOperator(location), nameExp);
+#endif
+
+		return nullptr;
 	}
 
 	Expression* parseMultiplyDivide()

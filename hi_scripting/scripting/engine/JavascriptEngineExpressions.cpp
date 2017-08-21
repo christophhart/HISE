@@ -9,7 +9,7 @@ struct HiseJavascriptEngine::RootObject::LiteralValue : public Expression
 
 struct HiseJavascriptEngine::RootObject::UnqualifiedName : public Expression
 {
-	UnqualifiedName(const CodeLocation& l, const Identifier& n, bool isFunction) noexcept : Expression(l), name(n), isJavascriptFunction(isFunction) {}
+	UnqualifiedName(const CodeLocation& l, const Identifier& n, bool isFunction) noexcept : Expression(l), name(n), allowUnqualifiedDefinition(isFunction) {}
 
 	var getResult(const Scope& s) const override  { return s.findSymbolInParentScopes(name); }
 
@@ -31,7 +31,7 @@ struct HiseJavascriptEngine::RootObject::UnqualifiedName : public Expression
 			*v = newValue;
 		else
 		{
-			if (isJavascriptFunction)
+			if (allowUnqualifiedDefinition)
 			{
 				currentScope->root->setProperty(name, newValue);
 			}
@@ -44,7 +44,7 @@ struct HiseJavascriptEngine::RootObject::UnqualifiedName : public Expression
 			
 	}
 
-	const bool isJavascriptFunction = false;
+	bool allowUnqualifiedDefinition = false;
 
 	JavascriptNamespace* ns = nullptr;
 	Identifier name;
