@@ -153,6 +153,7 @@ void DebugableObject::Helpers::gotoLocation(Processor* processor, DebugInformati
 
 void DebugableObject::Helpers::showProcessorEditorPopup(const MouseEvent& e, Component* table, Processor* p)
 {
+#if USE_BACKEND
 	if (p != nullptr)
 	{
 		ProcessorEditorContainer *pc = new ProcessorEditorContainer();
@@ -164,16 +165,19 @@ void DebugableObject::Helpers::showProcessorEditorPopup(const MouseEvent& e, Com
 	{
 		PresetHandler::showMessageWindow("Processor does not exist", "The Processor is not existing, because it was deleted or the reference is wrong", PresetHandler::IconType::Error);
 	}
+#endif
 }
 
 void DebugableObject::Helpers::showJSONEditorForObject(const MouseEvent& e, Component* table, var object, const String& id)
 {
+#if USE_BACKEND
 	JSONEditor* jsonEditor = new JSONEditor(object);
 
 	jsonEditor->setName((object.isArray() ? "Show Array: " : "Show Object: ") + id);
 	jsonEditor->setSize(500, 500);
 
 	GET_BACKEND_ROOT_WINDOW(table)->getRootFloatingTile()->showComponentInRootPopup(jsonEditor, table, Point<int>(table->getWidth() / 2, e.getMouseDownY() + 40));
+#endif
 }
 
 DebugInformation* DebugableObject::Helpers::getDebugInformation(HiseJavascriptEngine* engine, DebugableObject* object)

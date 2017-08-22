@@ -369,7 +369,7 @@ void PanelWithProcessorConnection::setContentWithUndo(Processor* newProcessor, i
 	undoManager->perform(new ProcessorConnection(this, newProcessor, newIndex, getAdditionalUndoInformation()));
 #else
 
-	ScopedPointer<ProcessorConnection> connection = new ProcessorConnection(this, newProcessor, newIndex);
+	ScopedPointer<ProcessorConnection> connection = new ProcessorConnection(this, newProcessor, newIndex, getAdditionalUndoInformation());
 
 	connection->perform();
 
