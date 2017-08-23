@@ -55,10 +55,6 @@ editedComponent(-1)
 
 	p->addChangeListener(this);
 	p->getMainController()->addScriptListener(this, true);
-
-	
-
-	
 }
 
 
@@ -181,7 +177,9 @@ void ScriptContentComponent::changeListenerCallback(SafeChangeBroadcaster *b)
 
 	if (p == b)
 	{
+#if USE_BACKEND
 		updateValues();
+#endif
 	}
 	else if (dynamic_cast<ScriptingApi::Content::ScriptComponent*>(b) != nullptr)
 	{
