@@ -254,7 +254,15 @@ bool HlacReaderCommon::fixedBufferRead(HiseSampleBuffer& buffer, int numDestChan
 		decoder.seekToPosition(*input, (uint32)startSampleInFile, byteOffset);
 	}
 
-	decoder.decode(buffer, isStereo, *input, (int)startSampleInFile, numSamples);
+	if(startOffsetInBuffer == 0)
+		decoder.decode(buffer, isStereo, *input, (int)startSampleInFile, numSamples);
+	else
+	{
+		HiseSampleBuffer offset(buffer, startOffsetInBuffer);
+
+		decoder.decode(offset, isStereo, *input, (int)startSampleInFile, numSamples);
+
+	}
 
 	return true;
 }
