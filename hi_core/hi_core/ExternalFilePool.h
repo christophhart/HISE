@@ -202,19 +202,33 @@ private:
 	
 };
 
+class ProjectHandler;
 
 /** A pool for images. */
-class ImagePool: public Pool<Image>
+class ImagePool: public RestorableObject
 {
 public:
 
+	ImagePool(MainController* mc_) :
+		mc(mc_)
+	{};
+
+	~ImagePool()
+	{
+		clearData();
+	}
+
+	ValueTree exportAsValueTree() const override;
+
+	void restoreFromValueTree(const ValueTree &previouslyExportedState) override;
+
 	ImagePool(ProjectHandler *handler);
 
-	Identifier getFileTypeName() const override;;
+	Identifier getFileTypeName() const ;;
 
 	static Identifier getStaticIdentifier() { RETURN_STATIC_IDENTIFIER("ImagePool") };
 
-	virtual size_t getFileSize(const Image *image) const override
+	virtual size_t getFileSize(const Image *image) const
 	{
 		return (size_t)image->getWidth() * (size_t)image->getHeight() * sizeof(uint32);
 	}
@@ -223,12 +237,62 @@ public:
 
 	static Image loadImageFromReference(MainController* mc, const String referenceToImage);
 
+	StringArray getFileNameList() const
+	{
+		StringArray sa;
+
+		for (auto e : loadedImages)
+			sa.add(e.fileName);
+
+		return sa;
+	}
+
+	Image loadFileIntoPool(const String& fileName, bool unused);
+
+	void clearData()
+	{
+		loadedImages.clear();
+	}
+
+	Identifier getIdForFileName(const String &absoluteFileName) const;
+
+	ProjectHandler& getProjectHandler();
+
+	const ProjectHandler& getProjectHandler() const;
+
+	int getNumLoadedFiles() const
+	{
+		return loadedImages.size();
+	}
+
 protected:
 
+	MainController* mc;
 
-	void reloadData(Image &image, const String &fileName) override;;	
+	struct ImageEntry
+	{
+		ImageEntry() :
+			fileName(String()),
+			id(Identifier()),
+			image(Image())
+		{};
 
-	Image *loadDataFromStream(InputStream *inputStream) const override;;
+		ImageEntry(const Identifier& id_):
+			id(id_),
+			image(Image())
+		{}
+
+		bool operator==(const ImageEntry& other) const
+		{
+			return this->id == other.id;
+		};
+
+		Identifier id;
+		String fileName;
+		Image image;
+	};
+
+	Array<ImageEntry> loadedImages;
 };
 
 #endif  // EXTERNALFILEPOOL_H_INCLUDED

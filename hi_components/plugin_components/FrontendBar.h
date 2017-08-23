@@ -83,7 +83,7 @@ public:
 
 private:
 
-	const Image *getFilmStripImageFromString(const String &fileReference) const;
+	const Image getFilmStripImageFromString(const String &fileReference) const;
 
 	// ================================================================================================================
 

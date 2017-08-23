@@ -330,24 +330,24 @@ void DefaultFrontendBar::setProperties(DynamicObject *p)
 	{
 		String imageName = set->getWithDefault("knobFilmStrip", "");
 
-		const Image *customFilmStrip = getFilmStripImageFromString(imageName);
+		const Image customFilmStrip = getFilmStripImageFromString(imageName);
 
-		const int width = customFilmStrip->getWidth();
+		const int width = customFilmStrip.getWidth();
 
 		volumeSlider->setSize(width, width);
 		pitchSlider->setSize(width, width);
 		balanceSlider->setSize(width, width);
 
-		if (customFilmStrip->isValid())
+		if (customFilmStrip.isValid())
 		{
-			fklaf.setCustomFilmstripImage(customFilmStrip, numFilmstrips);
+			fklaf.setCustomFilmstripImage(&customFilmStrip, numFilmstrips);
 		}
 	}
 
 	resized();
 }
 
-const Image * DefaultFrontendBar::getFilmStripImageFromString(const String &fileReference) const
+const Image DefaultFrontendBar::getFilmStripImageFromString(const String &fileReference) const
 {
 #if USE_FRONTEND
 
@@ -359,7 +359,7 @@ const Image * DefaultFrontendBar::getFilmStripImageFromString(const String &file
 
 #endif
 
-	const Image *image = mc->getSampleManager().getImagePool()->loadFileIntoPool(poolName, false);
+	const Image image = mc->getSampleManager().getImagePool()->loadFileIntoPool(poolName, false);
 
 	return image;
 }
