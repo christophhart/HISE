@@ -314,7 +314,7 @@ public:
 					const String fileName = externalFile;
 #endif
 
-					return fileName + " (" + String(lineNumber) + ")";
+					return fileName + " (" + String(lineNumber) + ")"; 
 				}
 			}
 
@@ -475,6 +475,25 @@ public:
 			{
 				const double percentage = lastExecutionTime / bufferTime * 100.0;
 				return String(percentage, 2) + "%";
+			}
+
+			var createDynamicObjectForBreakpoint()
+			{
+				DynamicObject::Ptr object = new DynamicObject();
+				DynamicObject::Ptr arguments = new DynamicObject();
+
+				for (int i = 0; i < numArgs; i++)
+					arguments->setProperty(parameters[i], parameterValues[i]);
+
+				DynamicObject::Ptr locals = new DynamicObject();
+
+				for (int i = 0; i < localProperties.size(); i++)
+					locals->setProperty(localProperties.getName(i), localProperties.getValueAt(i));
+
+				object->setProperty("args", var(arguments));
+				object->setProperty("locals", var(locals));
+
+				return var(object);
 			}
 
 			void doubleClickCallback(const MouseEvent &/*e*/, Component* /*componentToNotify*/) override
@@ -665,19 +684,7 @@ public:
 				return debugLock;
 			}
 
-			void setBreakpointLocalIdentifier(Identifier localId)
-			{
-				breakpointLocalId = localId;
-			}
-
-			Identifier getBreakpointLocalIdentifier() const
-			{
-				return breakpointLocalId;
-			}
-
 		private:
-
-			Identifier breakpointLocalId;
 
 			VariableStorageType getExistingVariableStorage(const Identifier &name);
 			void throwExistingDefinition(const Identifier &name, VariableStorageType type, CodeLocation &l);
@@ -736,9 +743,37 @@ public:
 			charIndex(charIndex_), 
 			index(index_) {};
 
+		~Breakpoint()
+		{
+			localScope = nullptr;
+		}
+
 		bool operator ==(const Breakpoint& other) const
 		{
 			return snippetId == other.snippetId && lineNumber == other.lineNumber;
+		}
+
+		void copyLocalScopeToRoot(RootObject& r)
+		{
+			if (localScope != nullptr)
+			{
+				static const Identifier thisIdentifier("this");
+
+				auto properties = localScope->getProperties();
+
+				for (int i = 0; i < properties.size(); i++)
+				{
+					if (properties.getName(i) == thisIdentifier)
+						continue;
+
+					r.setProperty(properties.getName(i), properties.getValueAt(i));
+				}
+			}
+
+			localScope = nullptr;
+
+			r.hiseSpecialData.clearDebugInformation();
+			r.hiseSpecialData.createDebugInformation(&r);
 		}
 
 		const Identifier snippetId;
@@ -752,6 +787,7 @@ public:
 		bool found = false;
 		bool hit = false;
 
+		DynamicObject::Ptr localScope;
 		
 	};
 

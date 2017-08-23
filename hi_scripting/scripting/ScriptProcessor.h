@@ -379,6 +379,14 @@ public:
 			breakpoints.getReference(i).hit = (i == index);
 		}
 
+		for (int i = 0; i < breakpointListeners.size(); i++)
+		{
+			if (breakpointListeners[i].get() != nullptr)
+			{
+				breakpointListeners[i]->breakpointWasHit(index);
+			}
+		}
+
 		repaintUpdater.triggerAsyncUpdate();
 	}
 
@@ -493,6 +501,16 @@ public:
 
 	void setCallStackEnabled(bool shouldBeEnabled);
 
+	void addBreakpointListener(HiseJavascriptEngine::Breakpoint::Listener* newListener)
+	{
+		breakpointListeners.addIfNotAlreadyThere(newListener);
+	}
+
+	void removeBreakpointListener(HiseJavascriptEngine::Breakpoint::Listener* listenerToRemove)
+	{
+		breakpointListeners.removeAllInstancesOf(listenerToRemove);
+	}
+
 protected:
 
 	void clearExternalWindows();
@@ -567,6 +585,8 @@ private:
 	RepaintUpdater repaintUpdater;
 
 	Array<HiseJavascriptEngine::Breakpoint> breakpoints;
+
+	Array<WeakReference<HiseJavascriptEngine::Breakpoint::Listener>> breakpointListeners;
 
 	Array<Component::SafePointer<DocumentWindow>> callbackPopups;
 
