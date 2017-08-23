@@ -52,22 +52,6 @@ void Note::resized()
 	editor->setBounds(getLocalBounds().withTrimmedTop(16));
 }
 
-var Note::toDynamicObject() const
-{
-	var obj = FloatingTileContent::toDynamicObject();
-
-	storePropertyInObject(obj, SpecialPanelIds::Text, editor->getText(), String());
-
-	return obj;
-}
-
-void Note::fromDynamicObject(const var& object)
-{
-	FloatingTileContent::fromDynamicObject(object);
-
-	editor->setText(getPropertyWithDefault(object, SpecialPanelIds::Text));
-}
-
 
 void Note::labelTextChanged(Label* )
 {
