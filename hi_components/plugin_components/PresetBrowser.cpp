@@ -357,7 +357,17 @@ mc(mc_)
 #if USE_BACKEND
 	rootFile = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
 #else
-    rootFile = ProjectHandler::Frontend::getUserPresetDirectory();
+    
+    try
+    {
+        rootFile = ProjectHandler::Frontend::getUserPresetDirectory();
+    }
+    catch(String& s)
+    {
+        mc->sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage, s);
+    }
+    
+    
 #endif
 
 	mc->getUserPresetHandler().addListener(this);

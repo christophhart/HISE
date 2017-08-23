@@ -328,7 +328,20 @@ void UserPresetData::refreshPresetFileList()
 		addFactoryPreset(c.getProperty("FileName"), c.getProperty("Category"), i, c);
 	}
 
-	File userPresetDirectory = ProjectHandler::Frontend::getUserPresetDirectory();
+    File userPresetDirectory;
+    
+    try
+    {
+        userPresetDirectory = ProjectHandler::Frontend::getUserPresetDirectory();
+    }
+
+    catch(String& s)
+    {
+        mc->sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage, s);
+        return;
+    }
+
+
 	Array<File> newUserPresets;
 	userPresetDirectory.findChildFiles(newUserPresets, File::findFiles, false, "*.preset");
 
@@ -370,7 +383,19 @@ void UserPresetHelpers::saveUserPreset(ModulatorSynthChain *chain, const String&
 
 #else
 
-	File userPresetDir = ProjectHandler::Frontend::getUserPresetDirectory();
+    File userPresetDir;
+    
+    try
+    {
+        userPresetDir = ProjectHandler::Frontend::getUserPresetDirectory();
+    }
+    catch(String& s)
+    {
+        chain->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage, s);
+        return;
+    }
+    
+	 
 
 #endif
 
@@ -571,7 +596,21 @@ File UserPresetHelpers::getUserPresetFile(ModulatorSynthChain *chain, const Stri
 
 	ignoreUnused(chain);
 
-	return ProjectHandler::Frontend::getUserPresetDirectory().getChildFile(fileNameWithoutExtension + ".preset");
+    
+    File userPresetDir;
+    
+    try
+    {
+        userPresetDir = ProjectHandler::Frontend::getUserPresetDirectory();
+    }
+    catch(String& s)
+    {
+        chain->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CriticalCustomErrorMessage, s);
+        return File();
+    }
+    
+    
+	return userPresetDir.getChildFile(fileNameWithoutExtension + ".preset");
 #endif
 }
 
@@ -1679,6 +1718,12 @@ File ProjectHandler::Frontend::getUserPresetDirectory()
     if(!userPresetDirectory.isDirectory())
     {
         File factoryPresets = File::getSpecialLocation(File::SpecialLocationType::currentApplicationFile).getChildFile("UserPresets/");
+        
+        
+        if(!factoryPresets.isDirectory())
+           throw String("Please start the Standalone app once to copy the user presets to the shared location");
+        
+        jassert(factoryPresets.isDirectory());
         
         userPresetDirectory.createDirectory();
         
