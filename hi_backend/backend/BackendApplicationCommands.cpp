@@ -140,6 +140,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsUpdateSampleMapIdsBasedOnFileName,
 		MenuToolsConvertSfzToSampleMaps,
 		MenuToolsEnableAutoSaving,
+		MenuToolsRecordOneSecond,
 		MenuToolsEnableDebugLogging,
 		MenuToolsCreateRSAKeys,
 		MenuToolsCreateDummyLicenceFile,
@@ -419,6 +420,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuToolsEnableDebugLogging:
 		setCommandTarget(result, "Enable Debug Logger", true, bpe->owner->getDebugLogger().isLogging(), 'X', false);
 		break;
+	case MenuToolsRecordOneSecond:
+		setCommandTarget(result, "Record one second audio file", true, false, 'X', false);
+		break;
 	case MenuToolsCreateRSAKeys:
 		setCommandTarget(result, "Create RSA Key pair", true, false, 'X', false);
 		break;
@@ -572,6 +576,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsCreateDummyLicenceFile: Actions::createDummyLicenceFile(bpe); return true;
 	case MenuToolsCheckAllSampleMaps:	Actions::checkAllSamplemaps(bpe); return true;
 	case MenuToolsEnableAutoSaving:		bpe->owner->getAutoSaver().toggleAutoSaving(); updateCommands(); return true;
+	case MenuToolsRecordOneSecond:		bpe->owner->getDebugLogger().startRecording(); return true;
 	case MenuToolsEnableDebugLogging:	bpe->owner->getDebugLogger().toggleLogging(), updateCommands(); return true;
     case MenuViewFullscreen:            Actions::toggleFullscreen(bpe); updateCommands(); return true;
 	case MenuViewBack:					bpe->mainEditor->getViewUndoManager()->undo(); updateCommands(); return true;
@@ -827,6 +832,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuToolsConvertSfzToSampleMaps);
 		ADD_DESKTOP_ONLY(MenuToolsEnableAutoSaving);
 		ADD_DESKTOP_ONLY(MenuToolsEnableDebugLogging);
+		ADD_DESKTOP_ONLY(MenuToolsRecordOneSecond);
 		p.addSeparator();
 		p.addSectionHeader("License Management");
 		ADD_DESKTOP_ONLY(MenuToolsCreateDummyLicenceFile);

@@ -595,6 +595,12 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
     {
         uptime += double(buffer.getNumSamples()) / sampleRate;
     }
+
+#if USE_BACKEND
+	getDebugLogger().recordOutput(buffer);
+#endif
+
+
 }
 
 void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
