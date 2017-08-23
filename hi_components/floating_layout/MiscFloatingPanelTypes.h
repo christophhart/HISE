@@ -291,6 +291,65 @@ private:
 	Image off;
 };
 
+
+
+class ActivationWindow : 
+	public FloatingTileContent,
+	public Component,
+	public Button::Listener,
+	public Timer,
+	public OverlayMessageBroadcaster
+{
+public:
+
+	ActivationWindow(FloatingTile* parent);
+
+	SET_PANEL_NAME("ActivationPanel");
+
+	void paint(Graphics &/*g*/) override
+	{
+
+	}
+
+	void buttonClicked(Button*) override;
+
+	void resized() override
+	{
+		int y = 20;
+		productKey->setBounds(10, y, getWidth() - 20, 30);
+
+		y += 40;
+
+		statusLabel->setBounds(10, y, getWidth() - 20, 30);
+
+		y += 40;
+
+		submitButton->setBounds(10, y, getWidth() - 20, 30);
+
+	}
+
+	void timerCallback() override
+	{
+		refreshStatusLabel();
+	}
+
+private:
+
+	bool good = false;
+
+	void refreshStatusLabel();
+
+	MainController* mc;
+
+	ScopedPointer<Label> productKey;
+	ScopedPointer<TextButton> submitButton;
+	ScopedPointer<Label> statusLabel;
+
+	BlackTextButtonLookAndFeel tblaf;
+};
+
+
+
 class PopoutButtonPanel : public Component,
 	public FloatingTileContent,
 	public Button::Listener
