@@ -58,8 +58,13 @@ struct StereoChannelData
 // Set this to 1 to replace the sample content with indexes for debugging purposes (it will also mute the sound)
 #define USE_SAMPLE_DEBUG_COUNTER 0
 
+
+#if HISE_IOS
 // This is the maximum value for sample pitch manipulation (this means 3 octaves, which should be more than enough
+#define MAX_SAMPLER_PITCH 8
+#else
 #define MAX_SAMPLER_PITCH 16
+#endif
 
 // This is the default preload size. I defined a pretty random value here, but you can change this dynamically.
 #define PRELOAD_SIZE 8192

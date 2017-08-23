@@ -1032,7 +1032,13 @@ void SampleLoader::setBufferSize(int newBufferSize)
 {
 	ScopedLock sl(getLock());
 
-	idealBufferSize = newBufferSize;
+#if HISE_IOS 
+    
+    // because of memory
+	idealBufferSize = 4096;
+#else
+    idealBufferSize = newBufferSize;
+#endif
 
 	refreshBufferSizes();
 }
