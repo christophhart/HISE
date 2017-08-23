@@ -304,7 +304,7 @@ private:
 
 	CriticalSection recorderLock;
 
-	std::atomic<int> recordUptime = -1;
+	std::atomic<int> recordUptime;
 	AudioSampleBuffer debugRecorder;
 	RecordDumper dumper;
 

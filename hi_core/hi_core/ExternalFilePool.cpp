@@ -206,8 +206,6 @@ var Pool<FileType>::getPropertyForData(const Identifier &id, const Identifier &p
 template <class FileType>
 const FileType * Pool<FileType>::loadFileIntoPool(const String &fileName, bool forceReload/*=false*/)
 {
-	return nullptr;
-
 	Identifier idForFileName = getIdForFileName(fileName);
 
 	const FileType *existingData = getDataForId(idForFileName);
