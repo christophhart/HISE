@@ -159,7 +159,11 @@ int ScriptingEditor::getBodyHeight() const
 {
 	if (isRootEditor())
 	{
-		return findParentComponentOfClass<Viewport>()->getHeight() - 36;
+		if(auto viewport = findParentComponentOfClass<Viewport>())
+			return viewport->getHeight() - 36;
+
+		if (auto popup = findParentComponentOfClass<FloatingTilePopup>())
+			return 500;
 	}
 
 	const ProcessorWithScriptingContent* pwsc = dynamic_cast<const ProcessorWithScriptingContent*>(getProcessor());
