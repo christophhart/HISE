@@ -732,8 +732,8 @@ bool ScriptingApi::Content::ScriptComponent::isShowing() const
 {
 	const bool isVisible = getScriptObjectProperty(ScriptComponent::Properties::visible);
 
-	if (parentComponentIndex != -1)
-		return isVisible && parent->getComponent(parentComponentIndex)->isShowing();
+	if (auto p = parent->getComponent(parentComponentIndex))
+		return isVisible && p->isShowing();
 	else
 		return isVisible;
 	
@@ -2915,7 +2915,10 @@ ScriptingApi::Content::ScriptComponent * ScriptingApi::Content::getComponent(int
 {
 	if (index == -1) return nullptr;
 
-	return components[index];
+	if(index < components.size())
+		return components[index];
+
+	return nullptr;
 }
 
 void ScriptingApi::Content::setPropertiesFromJSON(const Identifier &componentName, const var &jsonData)

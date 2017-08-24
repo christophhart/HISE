@@ -793,7 +793,7 @@ public:
 				ChildIterator<ScriptPanel> iter(this);
 
 				while (auto childPanel = iter.getNextChildComponent())
-					childPanel->repaint();	
+					childPanel->repaintImmediately();	
 			}
 			
 			
