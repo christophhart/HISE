@@ -553,8 +553,8 @@ void ScriptingApi::Content::ScriptComponent::addToMacroControl(int macroIndex)
 {
 	if (!parent->allowGuiCreation)
 	{
-		reportScriptError("Tried to change the macro setup after onInit()");
-
+		// Will be taken care of at next compilation
+		return;
 	}
 
 	int knobIndex = parent->components.indexOf(this);
