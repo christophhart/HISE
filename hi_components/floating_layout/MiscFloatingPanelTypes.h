@@ -53,10 +53,21 @@ public:
 
 	void resized() override;
 
-	var toDynamicObject() const override;;
+	var toDynamicObject() const override
+	{
+		var obj = FloatingTileContent::toDynamicObject();
 
-	void fromDynamicObject(const var& object) override;
+		storePropertyInObject(obj, SpecialPanelIds::Text, editor->getText(), String());
 
+		return obj;
+	}
+
+	void fromDynamicObject(const var& object) override
+	{
+		FloatingTileContent::fromDynamicObject(object);
+
+		editor->setText(getPropertyWithDefault(object, SpecialPanelIds::Text));
+	}
 
 	int getNumDefaultableProperties() const override
 	{
@@ -279,6 +290,65 @@ private:
 	Image on;
 	Image off;
 };
+
+
+
+class ActivationWindow : 
+	public FloatingTileContent,
+	public Component,
+	public Button::Listener,
+	public Timer,
+	public OverlayMessageBroadcaster
+{
+public:
+
+	ActivationWindow(FloatingTile* parent);
+
+	SET_PANEL_NAME("ActivationPanel");
+
+	void paint(Graphics &/*g*/) override
+	{
+
+	}
+
+	void buttonClicked(Button*) override;
+
+	void resized() override
+	{
+		int y = 20;
+		productKey->setBounds(10, y, getWidth() - 20, 30);
+
+		y += 40;
+
+		statusLabel->setBounds(10, y, getWidth() - 20, 30);
+
+		y += 40;
+
+		submitButton->setBounds(10, y, getWidth() - 20, 30);
+
+	}
+
+	void timerCallback() override
+	{
+		refreshStatusLabel();
+	}
+
+private:
+
+	bool good = false;
+
+	void refreshStatusLabel();
+
+	MainController* mc;
+
+	ScopedPointer<Label> productKey;
+	ScopedPointer<TextButton> submitButton;
+	ScopedPointer<Label> statusLabel;
+
+	BlackTextButtonLookAndFeel tblaf;
+};
+
+
 
 class PopoutButtonPanel : public Component,
 	public FloatingTileContent,
@@ -748,11 +818,10 @@ class PresetBrowserPanel : public FloatingTileContent,
 {
 public:
 
-	enum ColourIds
+	enum SpecialPanelIds
 	{
-		backgroundColour = 0,
-		highlightColour,
-		numColourIds
+		Font = FloatingTileContent::PanelPropertyId::numPropertyIds,
+		numSpecialPanelIds
 	};
 
 	SET_PANEL_NAME("PresetBrowser");
@@ -765,6 +834,52 @@ public:
 
 		addAndMakeVisible(presetBrowser = new MultiColumnPresetBrowser(getMainController()));
 	}
+
+	var toDynamicObject() const override
+	{
+		var obj = FloatingTileContent::toDynamicObject();
+
+		storePropertyInObject(obj, SpecialPanelIds::Font, fontName, "Oxygen Bold");
+
+		return obj;
+	}
+
+	void fromDynamicObject(const var& object) override
+	{
+		FloatingTileContent::fromDynamicObject(object);
+
+		fontName = getPropertyWithDefault(object, SpecialPanelIds::Font);
+
+		presetBrowser->setHighlightColourAndFont(findPanelColour(PanelColourId::itemColour1), findPanelColour(PanelColourId::bgColour), getMainController()->getFontFromString(fontName, 16.0f));
+	}
+
+	int getNumDefaultableProperties() const override
+	{
+		return SpecialPanelIds::numSpecialPanelIds;
+	}
+
+	Identifier getDefaultablePropertyId(int index) const override
+	{
+		if (index < FloatingTileContent::numPropertyIds)
+			return FloatingTileContent::getDefaultablePropertyId(index);
+
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::Font, "Font");
+		
+		jassertfalse;
+		return {};
+	}
+
+	var getDefaultProperty(int index) const override
+	{
+		if (index < FloatingTileContent::numPropertyIds)
+			return FloatingTileContent::getDefaultProperty(index);
+
+		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::Font, var("Oxygen Bold"));
+
+		jassertfalse;
+		return {};
+	}
+
 
 	bool showTitleInPresentationMode() const override
 	{
@@ -779,12 +894,12 @@ public:
 	void resized() override
 	{
         presetBrowser->setBounds(getLocalBounds());
-		presetBrowser->setHighlightColourAndFont(findPanelColour(PanelColourId::itemColour1), findPanelColour(PanelColourId::bgColour), GLOBAL_BOLD_FONT().withHeight(16.0f));
+		presetBrowser->setHighlightColourAndFont(findPanelColour(PanelColourId::itemColour1), findPanelColour(PanelColourId::bgColour), getMainController()->getFontFromString(fontName, 16.0f));
 	}
 
-	int getNumColourIds() const { return numColourIds; }
-
 private:
+
+	String fontName;
 
 	ScopedPointer<MultiColumnPresetBrowser> presetBrowser;
 };

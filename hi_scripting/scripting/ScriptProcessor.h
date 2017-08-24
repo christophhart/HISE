@@ -379,6 +379,14 @@ public:
 			breakpoints.getReference(i).hit = (i == index);
 		}
 
+		for (int i = 0; i < breakpointListeners.size(); i++)
+		{
+			if (breakpointListeners[i].get() != nullptr)
+			{
+				breakpointListeners[i]->breakpointWasHit(index);
+			}
+		}
+
 		repaintUpdater.triggerAsyncUpdate();
 	}
 
@@ -442,7 +450,7 @@ public:
 
 	void toggleBreakpoint(const Identifier& snippetId, int lineNumber, int charNumber)
 	{
-		HiseJavascriptEngine::Breakpoint bp(snippetId, lineNumber, charNumber, breakpoints.size());
+		HiseJavascriptEngine::Breakpoint bp(snippetId, "", lineNumber, charNumber, charNumber, breakpoints.size());
 
 		int index = breakpoints.indexOf(bp);
 
@@ -489,6 +497,18 @@ public:
 		breakpoints.clear();
 
 		compileScript();
+	}
+
+	void setCallStackEnabled(bool shouldBeEnabled);
+
+	void addBreakpointListener(HiseJavascriptEngine::Breakpoint::Listener* newListener)
+	{
+		breakpointListeners.addIfNotAlreadyThere(newListener);
+	}
+
+	void removeBreakpointListener(HiseJavascriptEngine::Breakpoint::Listener* listenerToRemove)
+	{
+		breakpointListeners.removeAllInstancesOf(listenerToRemove);
 	}
 
 protected:
@@ -566,9 +586,11 @@ private:
 
 	Array<HiseJavascriptEngine::Breakpoint> breakpoints;
 
+	Array<WeakReference<HiseJavascriptEngine::Breakpoint::Listener>> breakpointListeners;
+
 	Array<Component::SafePointer<DocumentWindow>> callbackPopups;
 
-	
+	bool callStackEnabled = false;
 
 	
 };

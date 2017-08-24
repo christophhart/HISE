@@ -78,50 +78,9 @@ private:
 
 };
 
-class DebugConsoleTextEditor : public TextEditor
-{
-public:
 
-	DebugConsoleTextEditor(const String& name) :
-		TextEditor(name) {};
 
-	bool keyPressed(const KeyPress& k) override
-	{
-		if (k == KeyPress::upKey)
-		{
-			currentHistoryIndex = jmax<int>(0, currentHistoryIndex - 1);
 
-			setText(history[currentHistoryIndex], dontSendNotification);
-
-			return true;
-		}
-		else if (k == KeyPress::downKey)
-		{
-			currentHistoryIndex = jmin<int>(history.size() - 1, currentHistoryIndex + 1);
-			setText(history[currentHistoryIndex], dontSendNotification);
-		}
-
-		return TextEditor::keyPressed(k);
-	}
-
-	void addToHistory(const String& s)
-	{
-		if (!history.contains(s))
-		{
-			history.add(s);
-			currentHistoryIndex = history.size() - 1;
-		}
-		else
-		{
-			history.move(history.indexOf(s), history.size() - 1);
-		}
-	}
-
-private:
-
-	StringArray history;
-	int currentHistoryIndex;
-};
 
 class ScriptingEditor  : public ProcessorEditorBody,
 						 public ScriptEditHandler,
@@ -131,33 +90,12 @@ class ScriptingEditor  : public ProcessorEditorBody,
 public:
     //==============================================================================
 
-	
-
     ScriptingEditor (ProcessorEditor *p);
     ~ScriptingEditor();
 
     //==============================================================================
    
-	void textEditorReturnKeyPressed(TextEditor& t)
-	{
-		String codeToEvaluate = t.getText();
-
-		dynamic_cast<DebugConsoleTextEditor*>(&t)->addToHistory(codeToEvaluate);
-
-		if (codeToEvaluate.startsWith("> "))
-		{
-			codeToEvaluate = codeToEvaluate.substring(2);
-		}
-
-		HiseJavascriptEngine* engine = dynamic_cast<JavascriptProcessor*>(getProcessor())->getScriptEngine();
-
-		if (engine != nullptr)
-		{
-			var returnValue = engine->evaluate(codeToEvaluate);
-
-			debugToConsole(getProcessor(), "> " + returnValue.toString());
-		}
-	}
+	
 
 	JavascriptProcessor* getScriptEditHandlerProcessor() { return dynamic_cast<JavascriptProcessor*>(getProcessor()); }
 
@@ -200,10 +138,6 @@ public:
 	void closeAllPopup();
 
 	void gotoChar(int character);
-
-	void mouseDown(const MouseEvent &e) override;
-
-	void mouseDoubleClick(const MouseEvent& e) override;
 
 	bool isRootEditor() const { return getEditor()->isRootEditor(); }
 
@@ -256,8 +190,6 @@ public:
 		t->setColour (TextButton::buttonOnColourId, Colours::white.withAlpha(0.7f));
 		t->setColour (TextButton::textColourOnId, Colour (0xaa000000));
 		t->setColour (TextButton::textColourOffId, Colour (0x99ffffff));
-
-
 
 		contentButton->setEnabled(!contentEmpty);
 
@@ -372,7 +304,7 @@ private:
 
 	ChainBarButtonLookAndFeel alaf;
 
-	LookAndFeel_V2 laf2;
+	
 
 	Array<int> lastPositions;
 

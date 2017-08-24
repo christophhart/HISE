@@ -129,12 +129,13 @@ protected:
 	*	This can be used to check if there is some action in the modulation that needs splitting of processing to avoid parameter jumps without having to
 	*	calculate each sample.
 	*/
-	int calculateStepSize(int voiceIndex, int numSamples)
+	int calculateStepSize(int /*voiceIndex*/, int numSamples)
 	{
 		if(!useStepSize) return numSamples;
 
 		return 64;
 
+#if 0
 		int stepSize = numSamples;
 
 		for(int i = 0; i < getNumChildProcessors(); ++i)
@@ -160,6 +161,7 @@ protected:
 		}
 
 		return stepSize;
+#endif
 	}
 
 	void useStepSizeCalculation(bool shouldBeUsed) {useStepSize = shouldBeUsed; };

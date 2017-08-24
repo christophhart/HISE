@@ -125,6 +125,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsSetCompileTimeOut,
 		MenuToolsUseBackgroundThreadForCompile,
 		MenuToolsRecompileScriptsOnReload,
+		MenuToolsEnableCallStack,
 		MenuToolsCreateToolbarPropertyDefinition,
 		MenuToolsCreateExternalScriptFile,
 		MenuToolsValidateUserPresets,
@@ -142,6 +143,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsEnableAutoSaving,
 		MenuToolsRecordOneSecond,
 		MenuToolsEnableDebugLogging,
+		
 		MenuToolsCreateRSAKeys,
 		MenuToolsCreateDummyLicenceFile,
 		MenuViewReset,
@@ -368,6 +370,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuToolsUseBackgroundThreadForCompile:
 		setCommandTarget(result, "Use background thread for script compiling", true, bpe->getBackendProcessor()->isUsingBackgroundThreadForCompiling(), 'X', false);
 		break;
+	case MenuToolsEnableCallStack:
+		setCommandTarget(result, "Enable Scripting Call Stack ", true, bpe->getBackendProcessor()->isCallStackEnabled(), 'X', false);
+		break;
 	case MenuToolsRecompileScriptsOnReload:
 		setCommandTarget(result, "Recompile all scripts on preset load", true, bpe->getBackendProcessor()->isCompilingAllScriptsOnPresetLoad(), 'X', false);
 		break;
@@ -557,6 +562,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsCreateInterface:		Actions::createUserInterface(bpe); return true;
 	case MenuToolsSetCompileTimeOut:	Actions::setCompileTimeOut(bpe); return true;
 	case MenuToolsUseBackgroundThreadForCompile: Actions::toggleUseBackgroundThreadsForCompiling(bpe); updateCommands(); return true;
+	case MenuToolsEnableCallStack:		Actions::toggleCallStackEnabled(bpe); updateCommands(); return true;
 	case MenuToolsRecompileScriptsOnReload: Actions::toggleCompileScriptsOnPresetLoad(bpe); updateCommands(); return true;
 	case MenuToolsCreateToolbarPropertyDefinition:	Actions::createDefaultToolbarJSON(bpe); return true;
 	case MenuToolsCreateExternalScriptFile:	Actions::createExternalScriptFile(bpe); updateCommands(); return true;
@@ -799,6 +805,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_ALL_PLATFORMS(MenuToolsRecompile);
 		ADD_ALL_PLATFORMS(MenuToolsCheckDuplicate);
 		ADD_ALL_PLATFORMS(MenuToolsClearConsole);
+		ADD_DESKTOP_ONLY(MenuToolsEnableCallStack);
 		ADD_DESKTOP_ONLY(MenuToolsRecompileScriptsOnReload);
 		ADD_DESKTOP_ONLY(MenuToolsSetCompileTimeOut);
 		ADD_DESKTOP_ONLY(MenuToolsUseBackgroundThreadForCompile);
@@ -1321,6 +1328,11 @@ void BackendCommandTarget::Actions::updateSampleMapIds(BackendRootWindow * bpe)
 
 		
 	}
+}
+
+void BackendCommandTarget::Actions::toggleCallStackEnabled(BackendRootWindow * bpe)
+{
+	bpe->getBackendProcessor()->setCallStackEnabled(!bpe->getBackendProcessor()->isCallStackEnabled());
 }
 
 void BackendCommandTarget::Actions::recompileAllScripts(BackendRootWindow * bpe)

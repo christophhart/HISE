@@ -94,7 +94,14 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 
 		CHECK_CONDITION_WITH_LOCATION(apiClass != nullptr, "API class does not exist");
 
-		return apiClass->callFunction(functionIndex, results, expectedNumArguments);
+		try
+		{
+			return apiClass->callFunction(functionIndex, results, expectedNumArguments);
+		}
+		catch (String& error)
+		{
+			throw Error::fromLocation(location, error);
+		}
 	}
 
 	const int expectedNumArguments;
@@ -224,6 +231,49 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			e = e_;
 		}
 
+		void cleanUpAfterExecution()
+		{
+			const int numArgs = dynamicFunctionCall->parameterResults.size();
+
+			for (int i = 0; i < numArgs; i++)
+			{
+				dynamicFunctionCall->parameterResults.setUnchecked(i, var::undefined());
+			}
+
+			cleanLocalProperties();
+
+			setFunctionCall(nullptr);
+		}
+
+		var createDynamicObjectForBreakpoint()
+		{
+			auto functionCallToUse = e != nullptr ? e : dynamicFunctionCall;
+
+			if (functionCallToUse == nullptr)
+				return var();
+
+			DynamicObject::Ptr object = new DynamicObject();
+
+			DynamicObject::Ptr arguments = new DynamicObject();
+			
+			for (int i = 0; i < parameterNames.size(); i++)
+			{
+				arguments->setProperty(parameterNames[i], functionCallToUse->parameterResults[i]);
+			}
+
+			DynamicObject::Ptr locals = new DynamicObject();
+
+			for (int i = 0; i < localProperties.size(); i++)
+			{
+				locals->setProperty(localProperties.getName(i), localProperties.getValueAt(i));
+			}
+
+			object->setProperty("args", var(arguments));
+			object->setProperty("locals", var(locals));
+
+			return var(object);
+		}
+
 		var performDynamically(const Scope& s, var* args, int numArgs)
 		{
 			setFunctionCall(dynamicFunctionCall);
@@ -235,14 +285,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 			Statement::ResultCode c = body->perform(s, &lastReturnValue);
 
-			for (int i = 0; i < numArgs; i++)
-			{
-				dynamicFunctionCall->parameterResults.setUnchecked(i, var::undefined());
-			}
-
-			cleanLocalProperties();
-
-			setFunctionCall(nullptr);
+			cleanUpAfterExecution();
 
 			if (c == Statement::returnWasHit) return lastReturnValue;
 			else return var::undefined();
@@ -319,20 +362,33 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 				parameterResults.setUnchecked(i, parameterExpressions.getUnchecked(i)->getResult(s));
 			}
 
-			ResultCode c = f->body->perform(s, &returnVar);
+			s.root->addToCallStack(f->name, &location);
 
-			for (int i = 0; i < numArgs; i++)
+			try
 			{
-				parameterResults.setUnchecked(i, var::undefined());
+				ResultCode c = f->body->perform(s, &returnVar);
+
+				s.root->removeFromCallStack(f->name);
+
+				f->cleanUpAfterExecution();
+
+				f->lastReturnValue = returnVar;
+
+				if (c == Statement::returnWasHit) return returnVar;
+				else return var::undefined();
 			}
+			catch (Breakpoint& bp)
+			{
+				if(bp.localScope == nullptr)
+					bp.localScope = f->createDynamicObjectForBreakpoint().getDynamicObject();
 
-			f->lastReturnValue = returnVar;
-
-			f->setFunctionCall(nullptr);
-
-			if (c == Statement::returnWasHit) return returnVar;
-			else return var::undefined();
+				throw bp;
+			}
+			
+			
 		}
+
+		
 
 		Object::Ptr referenceToObject;
 

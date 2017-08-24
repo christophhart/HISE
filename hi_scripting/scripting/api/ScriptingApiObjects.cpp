@@ -1467,16 +1467,7 @@ void ScriptingObjects::GraphicsObject::setFont(String fontName, float fontSize)
 {
 	MainController *mc = getScriptProcessor()->getMainController_();
 
-	juce::Typeface::Ptr typeface = mc->getFont(fontName);
-
-	if (typeface != nullptr)
-	{
-		currentFont = Font(typeface).withHeight(fontSize);
-	}
-	else
-	{
-		currentFont = Font(fontName, fontSize, Font::plain);
-	}
+	currentFont = mc->getFontFromString(fontName, fontSize);
 
 	g->setFont(currentFont);
 }

@@ -157,6 +157,7 @@ public:
 		MenuToolsSetCompileTimeOut,
 		MenuToolsUseBackgroundThreadForCompile,
 		MenuToolsRecompileScriptsOnReload,
+		MenuToolsEnableCallStack,
 		MenuToolsCreateToolbarPropertyDefinition,
 		MenuToolsCreateExternalScriptFile,
 		MenuToolsValidateUserPresets,
@@ -317,6 +318,7 @@ public:
 		static void toggleOpenGLMode(BackendRootWindow * bpe);
 		static void addInterfacePreview(BackendRootWindow * bpe);
 		static void updateSampleMapIds(BackendRootWindow * bpe);
+		static void toggleCallStackEnabled(BackendRootWindow * bpe);
 	};
 
 private:

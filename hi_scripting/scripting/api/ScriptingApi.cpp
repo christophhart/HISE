@@ -2722,6 +2722,11 @@ struct ScriptingApi::Console::Wrapper
 	API_VOID_METHOD_WRAPPER_0(Console, start);
 	API_VOID_METHOD_WRAPPER_0(Console, stop);
 	API_VOID_METHOD_WRAPPER_0(Console, clear);
+	API_VOID_METHOD_WRAPPER_1(Console, assertTrue);
+	API_VOID_METHOD_WRAPPER_2(Console, assertEqual);
+	API_VOID_METHOD_WRAPPER_1(Console, assertIsDefined);
+	API_VOID_METHOD_WRAPPER_1(Console, assertIsObjectOrArray);
+	API_VOID_METHOD_WRAPPER_1(Console, assertLegalNumber);
 };
 
 ScriptingApi::Console::Console(ProcessorWithScriptingContent *p) :
@@ -2733,6 +2738,12 @@ startTime(0.0)
 	ADD_API_METHOD_0(start);
 	ADD_API_METHOD_0(stop);
 	ADD_API_METHOD_0(clear);
+
+	ADD_API_METHOD_1(assertTrue);
+	ADD_API_METHOD_2(assertEqual);
+	ADD_API_METHOD_1(assertIsDefined);
+	ADD_API_METHOD_1(assertIsObjectOrArray);
+	ADD_API_METHOD_1(assertLegalNumber);
 }
 
 
@@ -2768,6 +2779,77 @@ void ScriptingApi::Console::stop()
 void ScriptingApi::Console::clear()
 {
 	getProcessor()->getMainController()->getConsoleHandler().clearConsole();
+}
+
+
+
+void ScriptingApi::Console::assertTrue(var condition)
+{
+	if (!(bool)condition)
+		reportScriptError("Assertion failure: condition is false");
+}
+
+void ScriptingApi::Console::assertEqual(var v1, var v2)
+{
+	if (v1 != v2)
+		reportScriptError("Assertion failure: values are unequal");
+}
+
+void ScriptingApi::Console::assertIsDefined(var v1)
+{
+	if (v1.isUndefined() || v1.isVoid())
+		reportScriptError("Assertion failure: value is undefined");
+}
+
+struct VarTypeHelpers
+{
+	static bool isFunction(const var& v) noexcept
+	{
+		return dynamic_cast<HiseJavascriptEngine::RootObject::FunctionObject*> (v.getObject()) != nullptr;
+	}
+
+	static bool isNumeric(const var& v) noexcept
+	{
+		return v.isInt() || v.isDouble() || v.isInt64() || v.isBool();
+	}
+
+	static String getVarType(var v)
+	{
+		if (v.isVoid())                      return "void";
+		if (v.isString())                    return "string";
+		if (isNumeric(v))                   return "number";
+		if (isFunction(v) || v.isMethod())  return "function";
+		if (v.isObject())                    return "object";
+
+		return "undefined";
+	}
+};
+
+
+
+void ScriptingApi::Console::assertIsObjectOrArray(var value)
+{
+	if (!(value.isObject() || value.isArray()))
+	{
+		reportScriptError("Assertion failure: value is not object or array. Type: " + VarTypeHelpers::getVarType(value));
+	}
+}
+
+void ScriptingApi::Console::assertLegalNumber(var value)
+{
+	if (!VarTypeHelpers::isNumeric(value))
+	{
+		reportScriptError("Assertion failure: value is not a number. Type: " + VarTypeHelpers::getVarType(value) + " Value: " + value.toString());
+	}
+
+	const float v1 = (float)value;
+	float v2 = v1;
+
+
+	if (v1 != FloatSanitizers::sanitizeFloatNumber(v2))
+	{
+		reportScriptError("Assertion failure: value is not a legal number. Value: " + value.toString());
+	}
 }
 
 #undef SEND_MESSAGE

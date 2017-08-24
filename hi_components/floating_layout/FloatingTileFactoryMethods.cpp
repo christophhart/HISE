@@ -60,10 +60,12 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<ConsolePanel>(PopupMenuOptions::Console);
 #endif
 
+
 	registerType<MidiKeyboardPanel>(PopupMenuOptions::MidiKeyboard);
 	registerType<PopoutButtonPanel>(PopupMenuOptions::PopoutButton);
 	registerType<PerformanceLabelPanel>(PopupMenuOptions::PerformanceStatistics);
 	registerType<ActivityLedPanel>(PopupMenuOptions::ActivityLed);
+	registerType<ActivationWindow>(PopupMenuOptions::ActivationPanel);
 
 	registerType<InterfaceContentPanel>(PopupMenuOptions::InterfaceContent);
 

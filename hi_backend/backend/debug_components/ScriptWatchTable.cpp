@@ -31,7 +31,8 @@
 */
 
 ScriptWatchTable::ScriptWatchTable(BackendRootWindow* window) :
-	controller(window->getBackendProcessor())
+	controller(window->getBackendProcessor()),
+	rebuilder(this)
 {
 	setOpaque(true);
 
@@ -73,6 +74,13 @@ ScriptWatchTable::ScriptWatchTable(BackendRootWindow* window) :
 
 ScriptWatchTable::~ScriptWatchTable()
 {
+	rebuilder.cancelPendingUpdate();
+
+	if (auto jp = dynamic_cast<JavascriptProcessor*>(processor.get()))
+	{
+		jp->removeBreakpointListener(this);
+	}
+
 	controller->removeScriptListener(this);
 
 	controller = nullptr;
@@ -301,6 +309,16 @@ DebugInformation* ScriptWatchTable::getDebugInformationForRow(int rowIndex)
 
 void ScriptWatchTable::setScriptProcessor(JavascriptProcessor *p, ScriptingEditor* /*editor*/)
 {
+	if (auto jp = dynamic_cast<JavascriptProcessor*>(processor.get()))
+	{
+		jp->removeBreakpointListener(this);
+	}
+
+	if (p != nullptr)
+	{
+		p->addBreakpointListener(this);
+	}
+
 	processor = dynamic_cast<Processor*>(p);
 	
 	setName(getHeadline());

@@ -693,6 +693,8 @@ public:
 	ValueTree exportCustomFontsAsValueTree() const;
 	void restoreCustomFontValueTree(const ValueTree &v);
 
+	Font getFontFromString(const String& fontName, float fontSize) const;
+
     bool checkAndResetMidiInputFlag();
     bool isChanged() const { return changed; }
     void setChanged(bool shouldBeChanged=true) { changed = shouldBeChanged; }

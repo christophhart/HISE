@@ -146,6 +146,7 @@ public:
 			Gain = 0,
 			SmoothingTime,
 			FastMode,
+            TargetValue,
 			numParameters
 		};
 
@@ -167,17 +168,27 @@ public:
 		{
 			if (index == 0) return gain;
 			else if (index == 1) return smoothingTime;
+            else if (index == 2) return smoother.getDefaultValue();
 			else return -1;
 		}
 
 		void setParameter(int index, float newValue) override
 		{
-			if (index == 0) gain = newValue;
-			else if (index == 1)
+            if (index == (int)Parameters::Gain) gain = newValue;
+            else if (index == (int)Parameters::SmoothingTime)
             {
                 smoothingTime = newValue;
                 smoother.setSmoothingTime(smoothingTime);
             }
+            else if (index == (int)Parameters::FastMode)
+            {
+                fastMode = newValue > 0.5f;
+            }
+            else if (index == (int)Parameters::TargetValue)
+            {
+                smoother.setDefaultValue(newValue);
+            }
+            
 		}
 
 		void prepareToPlay(double sampleRate, int /*samplesPerBlock*/)
@@ -266,6 +277,7 @@ public:
 				FILL_PARAMETER_ID(Parameters, Gain, size, name);
 				FILL_PARAMETER_ID(Parameters, SmoothingTime, size, name);
 				FILL_PARAMETER_ID(Parameters, FastMode, size, name);
+                FILL_PARAMETER_ID(Parameters, TargetValue, size, name);
 			}
 		};
 

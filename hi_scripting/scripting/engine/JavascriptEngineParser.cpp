@@ -254,7 +254,7 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 		hiseSpecialData = &data;
 		currentNamespace = hiseSpecialData;
 		
-#if ENABLE_SCRIPTING_BREAKPOINTS
+#if 0 //ENABLE_SCRIPTING_BREAKPOINTS
 
 		Identifier localId = hiseSpecialData->getBreakpointLocalIdentifier();
 
@@ -302,7 +302,7 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 				if (breakpoints[i].found)
 					continue;
 
-				if (r.contains(breakpoints[i].charNumber))
+				if (r.contains(breakpoints[i].charIndex))
 				{
 					if (currentInlineFunction != nullptr)
 					{
@@ -1051,7 +1051,7 @@ private:
 		if (name.isNull())
 			throwError("Functions defined at statement-level must have a name");
 
-		ExpPtr nm(new UnqualifiedName(location, name)), value(new LiteralValue(location, fn));
+		ExpPtr nm(new UnqualifiedName(location, name, true)), value(new LiteralValue(location, fn));
 		return new Assignment(location, nm, value);
 	}
 
@@ -1485,7 +1485,12 @@ private:
 		
 		Expression *iter = parseExpression();
 
-		
+		// Allow unqualified names in for loop initialisation for convenience
+		if (auto assignment = dynamic_cast<Assignment*>(iter))
+		{
+			if (auto un = dynamic_cast<UnqualifiedName*>(assignment->target.get()))
+				un->allowUnqualifiedDefinition = true;
+		}
 
 		if (!isVarInitialiser && currentType == TokenTypes::closeParen)
 		{
@@ -1866,7 +1871,7 @@ private:
 						}
 					}
 
-					return parseSuffixes(new UnqualifiedName(location, parseIdentifier()));
+					return parseSuffixes(new UnqualifiedName(location, parseIdentifier(), false));
 				}
 			}
 		}
@@ -1957,7 +1962,7 @@ private:
 	Expression* parseTypeof()
 	{
 		ScopedPointer<FunctionCall> f(new FunctionCall(location));
-		f->object = new UnqualifiedName(location, "typeof");
+		f->object = new UnqualifiedName(location, "typeof", true);
 		f->arguments.add(parseUnary());
 		return f.release();
 	}
@@ -1975,6 +1980,9 @@ private:
 
 	Expression* parseNewOperator()
 	{
+		location.throwError("new is not supported anymore");
+
+#if 0
 		ExpPtr nameExp; 
 		
 		Identifier name = currentValue.toString();
@@ -2001,7 +2009,7 @@ private:
 		}
 		else
 		{
-			nameExp = new UnqualifiedName(location, parseIdentifier());
+			nameExp = new UnqualifiedName(location, parseIdentifier(), true);
 		}
 
 		
@@ -2010,6 +2018,9 @@ private:
 			nameExp = new DotOperator(location, nameExp, parseIdentifier());
 
 		return parseFunctionCall(new NewOperator(location), nameExp);
+#endif
+
+		return nullptr;
 	}
 
 	Expression* parseMultiplyDivide()
@@ -2371,7 +2382,6 @@ void HiseJavascriptEngine::RootObject::execute(const String& code, bool allowCon
 
 #if ENABLE_SCRIPTING_BREAKPOINTS
 	tb.breakpoints.swapWith(breakpoints);
-	hiseSpecialData.setBreakpointLocalIdentifier(Identifier());
 #endif
 
 	tb.setupApiData(hiseSpecialData, allowConstDeclarations ? code : String());

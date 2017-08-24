@@ -220,57 +220,9 @@ void Console::mouseDoubleClick(const MouseEvent& /*e*/)
 
 	const String line = newTextConsole->getDocument().getLine(selectionStart.getLineNumber());
 
-	const String reg = "(.+):! (\\w*): (.* - )?Line (\\d+), column (\\d+): (\\w+)";
+	DebugableObject::Helpers::gotoLocation(mc->getMainSynthChain(), line);
 
-	StringArray matches = RegexFunctions::getFirstMatch(reg, line);
 	
-	if (matches.size() == 7)
-	{
-		const String id = matches[1];
-		const Identifier callback = matches[2].isNotEmpty() ? Identifier(matches[2]) : Identifier();
-		const String fileName = matches[3].upToFirstOccurrenceOf(" - ", false, false);
-		const String lineNumber = matches[4];
-		const String charNumber = matches[5];
-
-		JavascriptProcessor *jsp = dynamic_cast<JavascriptProcessor*>(ProcessorHelpers::getFirstProcessorWithName(GET_BACKEND_ROOT_WINDOW(this)->getMainPanel()->getMainSynthChain(), id));
-
-		if (fileName.isNotEmpty())
-		{
-			for (int i = 0; i < jsp->getNumWatchedFiles(); i++)
-			{
-				if (jsp->getWatchedFile(i).getFileName() == fileName)
-				{
-					StringArray lines;
-					jsp->getWatchedFile(i).readLines(lines);
-
-					int charIndex = jmax<int>(0, charNumber.getIntValue());
-					int lineIndex = jmax<int>(0, lineNumber.getIntValue());
-
-					jsp->showPopupForFile(i, charIndex, lineIndex);
-				}
-			}
-		}
-		else
-		{
-			jassert(!callback.isNull());
-
-			ProcessorEditor* pEditor = GET_BACKEND_ROOT_WINDOW(this)->getMainPanel()->getRootContainer()->getFirstEditorOf(dynamic_cast<Processor*>(jsp));
-
-			if (pEditor != nullptr)
-			{
-				ScriptingEditor* scriptEditor = dynamic_cast<ScriptingEditor*>(pEditor->getBody());
-
-				for (int i = 0; i < jsp->getNumSnippets(); i++)
-				{
-					if (jsp->getSnippet(i)->getCallbackName() == callback)
-					{
-						scriptEditor->showCallback(i, lineNumber.getIntValue() - 1);
-						break;
-					}
-				}
-			}
-		}
-	}
 };;
 
 Console::ConsoleTokeniser::ConsoleTokeniser()
@@ -278,28 +230,44 @@ Console::ConsoleTokeniser::ConsoleTokeniser()
 	s.set("id", Colours::white);
 	s.set("default", Colours::white.withBrightness(0.75f));
 	s.set("error", JUCE_LIVE_CONSTANT_OFF(Colour(0xffff3939)));
+	s.set("url", Colour(0xFF555555));
+	s.set("callstack", JUCE_LIVE_CONSTANT_OFF(Colour(0xffAA3939)));
 }
 
 int Console::ConsoleTokeniser::readNextToken(CodeDocument::Iterator& source)
 {
-	while (source.nextChar() != ':')
+	while (state == 0 && source.nextChar() != ':')
 	{
-		return 0;
+		return state;
 	}
 
+	auto c = source.nextChar();
 
-	if (source.peekNextChar() == '!')
+	switch (c)
 	{
-		source.skipToEndOfLine();
-
-		return 2;
-	}
-	else
+	case '!':
 	{
-		source.skipToEndOfLine();
-
-		return 1;
+		state = 2;
+		break;
 	}
+	case '{':
+	{
+		state = 3;
+		break;
+	}
+	case '\t':
+	{
+		state = 4;
+		break;
+	}
+	case '\n':
+	{
+		state = 0;
+		break;
+	}
+	}
+	
+	return state;
 }
 
 

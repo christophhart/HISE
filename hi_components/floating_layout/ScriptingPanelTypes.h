@@ -34,7 +34,8 @@
 #define SCRIPTINGPANELTYPES_H_INCLUDED
 
 
-class CodeEditorPanel : public PanelWithProcessorConnection
+class CodeEditorPanel : public PanelWithProcessorConnection,
+						public GlobalScriptCompileListener
 
 {
 public:
@@ -53,6 +54,8 @@ public:
 	{
 		refreshIndexList();
 	}
+
+	void scriptWasCompiled(JavascriptProcessor *processor) override;
 
 	void mouseDown(const MouseEvent& event) override;
 
@@ -197,8 +200,14 @@ public:
 
 	ScriptContentPanel(FloatingTile* parent) :
 		PanelWithProcessorConnection(parent)
-	{};
+	{
+		getMainController()->addScriptListener(this);
+	};
 
+	~ScriptContentPanel()
+	{
+		getMainController()->removeScriptListener(this);
+	}
 	
 	SET_PANEL_NAME("ScriptContent");
 
@@ -239,14 +248,6 @@ public:
 
 
 	Identifier getProcessorTypeId() const override;
-
-	void contentChanged() override
-	{
-		if (getProcessor() != nullptr)
-		{
-			getProcessor()->getMainController()->addScriptListener(this, false);
-		}
-	}
 
 	Component* createContentComponent(int /*index*/) override;
 

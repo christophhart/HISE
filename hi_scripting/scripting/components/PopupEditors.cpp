@@ -48,12 +48,13 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor *s, const File &fileT
 	tokeniser = new JavascriptTokeniser();
 	addAndMakeVisible(editor = new JavascriptCodeEditor(*doc, tokeniser, s, snippetId));
 
-	addAndMakeVisible(resultLabel = new Label());
+	addAndMakeVisible(resultLabel = new DebugConsoleTextEditor("messageBox", p));
 
-	resultLabel->setFont(GLOBAL_MONOSPACE_FONT());
-	resultLabel->setColour(Label::ColourIds::backgroundColourId, Colours::darkgrey);
-	resultLabel->setColour(Label::ColourIds::textColourId, Colours::white);
-	resultLabel->setEditable(false, false, false);
+	addAndMakeVisible(compileButton = new TextButton("new button"));
+	compileButton->setButtonText(TRANS("Compile"));
+	compileButton->setConnectedEdges(Button::ConnectedOnLeft | Button::ConnectedOnRight);
+	compileButton->addListener(this);
+	compileButton->setColour(TextButton::buttonColourId, Colour(0xa2616161));
 
 	p->setEditorState(p->getEditorStateForIndex(JavascriptMidiProcessor::externalPopupShown), true);
 
@@ -72,12 +73,13 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor* s, const Identifier 
 	tokeniser = new JavascriptTokeniser();
 	addAndMakeVisible(editor = new JavascriptCodeEditor(*doc, tokeniser, s, callback));
 
-	addAndMakeVisible(resultLabel = new Label());
+	addAndMakeVisible(resultLabel = new DebugConsoleTextEditor("messageBox", dynamic_cast<Processor*>(s)));
 
-	resultLabel->setFont(GLOBAL_MONOSPACE_FONT());
-	resultLabel->setColour(Label::ColourIds::backgroundColourId, Colours::darkgrey);
-	resultLabel->setColour(Label::ColourIds::textColourId, Colours::white);
-	resultLabel->setEditable(false, false, false);
+	addAndMakeVisible(compileButton = new TextButton("new button"));
+	compileButton->setButtonText(TRANS("Compile"));
+	compileButton->setConnectedEdges(Button::ConnectedOnLeft | Button::ConnectedOnRight);
+	compileButton->addListener(this);
+	compileButton->setColour(TextButton::buttonColourId, Colour(0xa2616161));
 
 	setSize(800, 800);
 }
@@ -101,12 +103,15 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor* s) :
 	tokeniser = new JavascriptTokeniser();
 	addAndMakeVisible(editor = new JavascriptCodeEditor(*doc, tokeniser, s, empty));
 
-	addAndMakeVisible(resultLabel = new Label());
+	addAndMakeVisible(resultLabel = new DebugConsoleTextEditor("messageBox", dynamic_cast<Processor*>(s)));
 
-	resultLabel->setFont(GLOBAL_MONOSPACE_FONT());
-	resultLabel->setColour(Label::ColourIds::backgroundColourId, Colours::darkgrey);
-	resultLabel->setColour(Label::ColourIds::textColourId, Colours::white);
-	resultLabel->setEditable(false, false, false);
+	addAndMakeVisible(compileButton = new TextButton("new button"));
+	compileButton->setButtonText(TRANS("Compile"));
+	compileButton->setConnectedEdges(Button::ConnectedOnLeft | Button::ConnectedOnRight);
+	compileButton->addListener(this);
+	compileButton->setColour(TextButton::buttonColourId, Colour(0xa2616161));
+
+	
 
 	setSize(800, 800);
 }
@@ -114,8 +119,10 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor* s) :
 PopupIncludeEditor::~PopupIncludeEditor()
 {
 	editor = nullptr;
+	resultLabel = nullptr;
 	doc.clear();
 	tokeniser = nullptr;
+	compileButton = nullptr;
 
 	Processor *p = dynamic_cast<Processor*>(sp);
 
@@ -128,7 +135,7 @@ PopupIncludeEditor::~PopupIncludeEditor()
 
 void PopupIncludeEditor::timerCallback()
 {
-	resultLabel->setColour(Label::backgroundColourId, lastCompileOk ? Colours::green.withBrightness(0.1f) : Colours::red.withBrightness((0.1f)));
+	resultLabel->setColour(TextEditor::backgroundColourId, lastCompileOk ? Colours::green.withBrightness(0.1f) : Colours::red.withBrightness((0.1f)));
 	stopTimer();
 }
 
@@ -136,30 +143,8 @@ bool PopupIncludeEditor::keyPressed(const KeyPress& key)
 {
 	if (key.isKeyCode(KeyPress::F5Key))
 	{
-		if (file.existsAsFile())
-		{
-			String editorContent = doc->getAllContent();
-			file.replaceWithText(editorContent);
-		}
+		compileInternal();
 
-		if (isWholeScriptEditor())
-		{
-			sp->parseSnippetsFromString(doc->getAllContent());
-			doc->setSavePoint();
-			sp->setCompileScriptAsWhole(true);
-
-		}
-
-		sp->compileScript();
-		sp->setCompileScriptAsWhole(false);
-
-		lastCompileOk = sp->wasLastCompileOK();
-
-		resultLabel->setColour(Label::backgroundColourId, Colours::white);
-		resultLabel->setColour(Label::ColourIds::textColourId, Colours::white);
-		resultLabel->setText(lastCompileOk ? "Compiled OK" : sp->getLastErrorMessage().getErrorMessage(), dontSendNotification);
-
-		startTimer(200);
 
 		return true;
 	}
@@ -176,7 +161,8 @@ void PopupIncludeEditor::resized()
 	else
 		editor->setBounds(0, 5, getWidth(), getHeight() - 23);
 
-	resultLabel->setBounds(0, getHeight() - 18, getWidth(), 18);
+	resultLabel->setBounds(0, getHeight() - 18, getWidth()- 95, 18);
+	compileButton->setBounds(getWidth() - 95, getHeight() - 18, 95, 18);
 }
 
 void PopupIncludeEditor::gotoChar(int character, int lineNumber/*=-1*/)
@@ -190,4 +176,36 @@ void PopupIncludeEditor::gotoChar(int character, int lineNumber/*=-1*/)
 	editor->moveCaretTo(pos, false);
 	editor->moveCaretToStartOfLine(false);
 	editor->moveCaretToEndOfLine(true);
+}
+
+void PopupIncludeEditor::buttonClicked(Button* /*b*/)
+{
+	compileInternal();
+}
+
+void PopupIncludeEditor::compileInternal()
+{
+	if (file.existsAsFile())
+	{
+		String editorContent = doc->getAllContent();
+		file.replaceWithText(editorContent);
+	}
+
+	if (isWholeScriptEditor())
+	{
+		sp->parseSnippetsFromString(doc->getAllContent());
+		doc->setSavePoint();
+		sp->setCompileScriptAsWhole(true);
+
+	}
+
+	sp->compileScript();
+	sp->setCompileScriptAsWhole(false);
+
+	lastCompileOk = sp->wasLastCompileOK();
+
+	resultLabel->setColour(TextEditor::ColourIds::backgroundColourId, Colours::white);
+	resultLabel->setColour(TextEditor::ColourIds::textColourId, Colours::white);
+
+	startTimer(200);
 }

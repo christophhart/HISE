@@ -185,7 +185,7 @@ void CustomKeyboard::drawWhiteNote(int midiNoteNumber, Graphics &g, int x, int y
 
 	if (displayOctaveNumber && midiNoteNumber % 12 == 0)
 	{
-		g.setFont(GLOBAL_BOLD_FONT().withHeight(w / 3));
+		g.setFont(GLOBAL_BOLD_FONT().withHeight((float)w / 3.0f));
 		
         g.setColour(Colours::grey);
         

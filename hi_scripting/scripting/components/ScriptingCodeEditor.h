@@ -163,7 +163,7 @@ public:
 
 		static CodeDocument* gotoAndReturnDocumentWithDefinition(Processor* p, DebugableObject* object);
 
-		static String findNamespaceForPosition(const CodeDocument& doc, CodeDocument::Position pos);
+		static String findNamespaceForPosition(CodeDocument::Position pos);
 
 		static void applyChangesFromActiveEditor(JavascriptProcessor* p);
 
@@ -223,6 +223,38 @@ private:
 	void increaseMultiSelectionForCurrentToken();
 };
 
+class DebugConsoleTextEditor : public TextEditor,
+	public TextEditor::Listener,
+	public GlobalScriptCompileListener
+{
+public:
+
+	DebugConsoleTextEditor(const String& name, Processor* p);;
+
+	~DebugConsoleTextEditor();
+
+	void scriptWasCompiled(JavascriptProcessor *jp);
+
+	bool keyPressed(const KeyPress& k) override;
+
+	void mouseDown(const MouseEvent& e);
+	void mouseDoubleClick(const MouseEvent& e) override;
+
+	void addToHistory(const String& s);
+
+	void textEditorReturnKeyPressed(TextEditor& /*t*/);
+
+private:
+
+	LookAndFeel_V2 laf2;
+
+	WeakReference<Processor> processor;
+
+	StringArray history;
+	int currentHistoryIndex = 0;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DebugConsoleTextEditor)
+};
 
 
 class CodeEditorWrapper: public Component,

@@ -52,22 +52,6 @@ void Note::resized()
 	editor->setBounds(getLocalBounds().withTrimmedTop(16));
 }
 
-var Note::toDynamicObject() const
-{
-	var obj = FloatingTileContent::toDynamicObject();
-
-	storePropertyInObject(obj, SpecialPanelIds::Text, editor->getText(), String());
-
-	return obj;
-}
-
-void Note::fromDynamicObject(const var& object)
-{
-	FloatingTileContent::fromDynamicObject(object);
-
-	editor->setText(getPropertyWithDefault(object, SpecialPanelIds::Text));
-}
-
 
 void Note::labelTextChanged(Label* )
 {
@@ -436,12 +420,14 @@ InterfaceContentPanel::InterfaceContentPanel(FloatingTile* parent) :
 	}
 
 	dynamic_cast<GlobalSettingManager*>(getMainController())->addScaleFactorListener(this);
+	getMainController()->addScriptListener(this);
 }
 
 
 InterfaceContentPanel::~InterfaceContentPanel()
 {
 	dynamic_cast<GlobalSettingManager*>(getMainController())->removeScaleFactorListener(this);
+	getMainController()->removeScriptListener(this);
 }
 
 void InterfaceContentPanel::paint(Graphics& g)
@@ -486,7 +472,7 @@ void InterfaceContentPanel::buttonClicked(Button* /*b*/)
 }
 
 
-void InterfaceContentPanel::scaleFactorChanged(float newScaleFactor)
+void InterfaceContentPanel::scaleFactorChanged(float /*newScaleFactor*/)
 {
 	updateSize();
 }
@@ -500,8 +486,7 @@ bool InterfaceContentPanel::connectToScript()
 	{
 		addAndMakeVisible(content = new ScriptContentComponent(jsp));
 		connectedProcessor = jsp;
-		connectedProcessor->getMainController()->addScriptListener(this);
-
+		
 		if (refreshButton != nullptr)
 		{
 			refreshButton->setVisible(false);
@@ -539,7 +524,7 @@ void InterfaceContentPanel::updateSize()
 
 				setTransform(AffineTransform::scale((float)scaleFactor));
 				
-				topLevel->setSize(c->getContentWidth() * scaleFactor, c->getContentHeight() * scaleFactor);
+				topLevel->setSize((int)((float)c->getContentWidth() * scaleFactor), (int)((float)c->getContentHeight() * scaleFactor));
 			}
 
 			getParentShell()->setVital(true);
@@ -547,3 +532,154 @@ void InterfaceContentPanel::updateSize()
 	}
 #endif
 }
+
+
+ActivationWindow::ActivationWindow(FloatingTile* parent) :
+	FloatingTileContent(parent),
+	mc(parent->getMainController())
+{
+	addAndMakeVisible(productKey = new Label());
+	addAndMakeVisible(statusLabel = new Label());
+	addAndMakeVisible(submitButton = new TextButton("Deactivate Computer"));
+	submitButton->addListener(this);
+	submitButton->setLookAndFeel(&tblaf);
+	submitButton->setColour(TextButton::ColourIds::textColourOnId, Colours::white);
+	submitButton->setColour(TextButton::ColourIds::textColourOffId, Colours::white);
+
+#if USE_TURBO_ACTIVATE
+	const String pKey = String(dynamic_cast<FrontendProcessor*>(mc)->unlocker.getProductKey());
+#else
+	const String pKey = "1234-1234-1234-1234";
+#endif
+
+	productKey->setFont(GLOBAL_MONOSPACE_FONT());
+	productKey->setText(pKey, dontSendNotification);
+	productKey->setJustificationType(Justification::centred);
+	productKey->setColour(Label::ColourIds::backgroundColourId, Colours::white);
+
+	statusLabel->setJustificationType(Justification::centred);
+	statusLabel->setEditable(false, false, false);
+
+	refreshStatusLabel();
+
+	setSize(300, 150);
+	startTimer(3000);
+}
+
+void ActivationWindow::buttonClicked(Button*)
+{
+	if (PresetHandler::showYesNoWindow("Deactivate this computer", "Do you really want to deactivate this computer?", PresetHandler::IconType::Question))
+	{
+#if USE_TURBO_ACTIVATE
+		TurboActivateUnlocker* ul = &dynamic_cast<FrontendProcessor*>(mc)->unlocker;
+
+		ul->deactivateThisComputer();
+		refreshStatusLabel();
+
+		const bool noInternet = ul->unlockState == TurboActivateUnlocker::State::NoInternet;
+
+		if (noInternet)
+		{
+			if (PresetHandler::showYesNoWindow("Deactivate using request file", "Do you want to deactivate this computer using a offline request file"))
+			{
+				FileChooser fc("Create Deactivation Request file", File::getSpecialLocation(File::SpecialLocationType::userDesktopDirectory), "*.xml", true);
+
+				if (fc.browseForFileToSave(true))
+				{
+					File f = fc.getResult();
+
+#if JUCE_WINDOWS
+					TurboActivateCharPointerType path = f.getFullPathName().toUTF16().getAddress();
+#else
+					TurboActivateCharPointerType path = f.getFullPathName().toUTF8().getAddress();
+#endif
+					ul->deactivateWithFile(path);
+
+
+					if (ul->unlockState == TurboActivateUnlocker::State::Deactivated)
+					{
+						PresetHandler::showMessageWindow("Deactivation request file created", "Submit this file to customer support to complete the deactivation procedure for this machine");
+					}
+
+					refreshStatusLabel();
+				}
+			}
+		}
+
+		auto x = findParentComponentOfClass<FrontendProcessorEditor>();
+
+		if (x != nullptr && !good)
+		{
+			addOverlayListener(x);
+			sendOverlayMessage(DeactiveOverlay::State::CopyProtectionError);
+			dynamic_cast<AudioProcessor*>(mc)->suspendProcessing(true);
+
+			getParentComponent()->setVisible(false);
+		}
+#endif
+	}
+}
+
+void ActivationWindow::refreshStatusLabel()
+{
+#if USE_TURBO_ACTIVATE
+	auto state = dynamic_cast<FrontendProcessor*>(mc)->unlocker.unlockState;
+
+	String message;
+	good = true;
+
+	switch (state)
+	{
+	case TurboActivateUnlocker::State::Activated:
+		message = "Activation Successful";
+		good = true;
+		break;
+	case TurboActivateUnlocker::State::ActivatedButFailedToConnect:
+		message = "Activation Successful";
+		good = true;
+		break;
+	case TurboActivateUnlocker::State::Deactivated:
+		message = "Deactivated";
+		good = false;
+		break;
+	case TurboActivateUnlocker::State::TrialExpired:
+		message = "Trial expired";
+		good = false;
+		break;
+	case TurboActivateUnlocker::State::Trial:
+		message = "Trial period";
+		good = true;
+		break;
+	case TurboActivateUnlocker::State::Invalid:
+		message = "Invalid Product Key";
+		good = false;
+		break;
+	case TurboActivateUnlocker::State::KeyFileFailedToOpen:
+		message = "License file not found";
+		good = false;
+		break;
+	case TurboActivateUnlocker::State::NoInternet:
+		message = "Can't deactivate when offline";
+		good = true;
+		break;
+	case TurboActivateUnlocker::State::numStates:
+		break;
+	default:
+		break;
+	}
+
+	auto key = dynamic_cast<FrontendProcessor*>(mc)->unlocker.getProductKey();
+#else
+	good = true;
+	const String key = "1234 1234 1234";
+	const String message = "Dummy mode";
+#endif
+
+	productKey->setText(key, dontSendNotification);
+
+	statusLabel->setColour(Label::backgroundColourId, (good ? Colour(0xFF168000) : Colour(0xFFE90303)));
+	statusLabel->setColour(Label::ColourIds::textColourId, Colours::white);
+	statusLabel->setText(message, dontSendNotification);
+
+}
+

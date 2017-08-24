@@ -113,6 +113,10 @@ public:
 	void setEnableCompileAllScriptsOnPresetLoad(bool shouldBeEnabled) noexcept{ enableGlobalRecompile = shouldBeEnabled; };
 	bool isCompilingAllScriptsOnPresetLoad() const noexcept{ return enableGlobalRecompile; };
 
+	bool isCallStackEnabled() const noexcept { return enableCallStack; };
+	void setCallStackEnabled(bool shouldBeEnabled);
+
+
 	void fillExternalFileList(Array<File> &files, StringArray &processors);
 
 	void setExternalScriptData(const ValueTree &collectedExternalScripts);
@@ -125,6 +129,8 @@ private:
     
 	bool useBackgroundCompiling;
 	bool enableGlobalRecompile;
+
+	bool enableCallStack = false;
 
 	double timeOut;
 

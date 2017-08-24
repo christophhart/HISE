@@ -142,92 +142,99 @@ void HiseJavascriptEngine::RootObject::ArraySubscript::cacheIndex(AssignableObje
 
 var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) const
 {
-	if (!initialised)
+	try
 	{
-		initialised = true;
-
-		if (DotOperator* dot = dynamic_cast<DotOperator*> (object.get()))
+		if (!initialised)
 		{
-			parentIsConstReference = dynamic_cast<ConstReference*>(dot->parent.get()) != nullptr;
+			initialised = true;
 
-			if (parentIsConstReference)
+			if (DotOperator* dot = dynamic_cast<DotOperator*> (object.get()))
 			{
-				constObject = dynamic_cast<ConstScriptingObject*>(dot->parent->getResult(s).getObject());
+				parentIsConstReference = dynamic_cast<ConstReference*>(dot->parent.get()) != nullptr;
 
-				if (constObject != nullptr)
+				if (parentIsConstReference)
 				{
-					constObject->getIndexAndNumArgsForFunction(dot->child, functionIndex, numArgs);
-					isConstObjectApiFunction = true;
+					constObject = dynamic_cast<ConstScriptingObject*>(dot->parent->getResult(s).getObject());
 
-					CHECK_CONDITION_WITH_LOCATION(functionIndex != -1, "function not found");
-					CHECK_CONDITION_WITH_LOCATION(numArgs == arguments.size(), "argument amount mismatch: " + String(arguments.size()) + ", Expected: " + String(numArgs));
+					if (constObject != nullptr)
+					{
+						constObject->getIndexAndNumArgsForFunction(dot->child, functionIndex, numArgs);
+						isConstObjectApiFunction = true;
+
+						CHECK_CONDITION_WITH_LOCATION(functionIndex != -1, "function not found");
+						CHECK_CONDITION_WITH_LOCATION(numArgs == arguments.size(), "argument amount mismatch: " + String(arguments.size()) + ", Expected: " + String(numArgs));
+					}
 				}
 			}
 		}
-	}
 
-	if (isConstObjectApiFunction)
-	{
-		var parameters[5];
-
-		for (int i = 0; i < arguments.size(); i++)
-			parameters[i] = arguments[i]->getResult(s);
-
-		return constObject->callFunction(functionIndex, parameters, numArgs);
-	}
-
-	if (DotOperator* dot = dynamic_cast<DotOperator*> (object.get()))
-	{
-		var thisObject(dot->parent->getResult(s));
-
-		if (ConstScriptingObject* c = dynamic_cast<ConstScriptingObject*>(thisObject.getObject()))
+		if (isConstObjectApiFunction)
 		{
-			c->getIndexAndNumArgsForFunction(dot->child, functionIndex, numArgs);
-
-			CHECK_CONDITION_WITH_LOCATION(functionIndex != -1, "function not found");
-			CHECK_CONDITION_WITH_LOCATION(numArgs == arguments.size(), "argument amount mismatch: " + String(arguments.size()) + ", Expected: " + String(numArgs));
-
 			var parameters[5];
 
 			for (int i = 0; i < arguments.size(); i++)
 				parameters[i] = arguments[i]->getResult(s);
 
-			return c->callFunction(functionIndex, parameters, numArgs);
+			return constObject->callFunction(functionIndex, parameters, numArgs);
 		}
 
-		if (DynamicObject* dynObj = thisObject.getDynamicObject())
+		if (DotOperator* dot = dynamic_cast<DotOperator*> (object.get()))
 		{
-			var property = dynObj->getProperty(dot->child);
+			var thisObject(dot->parent->getResult(s));
 
-			if (auto obj = dynamic_cast<InlineFunction::Object*>(property.getObject()))
+			if (ConstScriptingObject* c = dynamic_cast<ConstScriptingObject*>(thisObject.getObject()))
 			{
+				c->getIndexAndNumArgsForFunction(dot->child, functionIndex, numArgs);
+
+				CHECK_CONDITION_WITH_LOCATION(functionIndex != -1, "function not found");
+				CHECK_CONDITION_WITH_LOCATION(numArgs == arguments.size(), "argument amount mismatch: " + String(arguments.size()) + ", Expected: " + String(numArgs));
+
 				var parameters[5];
 
 				for (int i = 0; i < arguments.size(); i++)
 					parameters[i] = arguments[i]->getResult(s);
 
-				return obj->performDynamically(s, parameters, arguments.size());
+				return c->callFunction(functionIndex, parameters, numArgs);
 			}
+
+			if (DynamicObject* dynObj = thisObject.getDynamicObject())
+			{
+				var property = dynObj->getProperty(dot->child);
+
+				if (auto obj = dynamic_cast<InlineFunction::Object*>(property.getObject()))
+				{
+					var parameters[5];
+
+					for (int i = 0; i < arguments.size(); i++)
+						parameters[i] = arguments[i]->getResult(s);
+
+					return obj->performDynamically(s, parameters, arguments.size());
+				}
+			}
+
+			return invokeFunction(s, s.findFunctionCall(location, thisObject, dot->child), thisObject);
 		}
 
-		return invokeFunction(s, s.findFunctionCall(location, thisObject, dot->child), thisObject);
+
+		var r = object->getResult(s);
+
+		if (auto obj = dynamic_cast<InlineFunction::Object*>(r.getObject()))
+		{
+			var parameters[5];
+
+			for (int i = 0; i < arguments.size(); i++)
+				parameters[i] = arguments[i]->getResult(s);
+
+			return obj->performDynamically(s, parameters, arguments.size());
+		}
+
+		var function(r);
+		return invokeFunction(s, function, var(s.scope));
 	}
-
-
-	var r = object->getResult(s);
-
-	if (auto obj = dynamic_cast<InlineFunction::Object*>(r.getObject()))
+	catch (String& errorMessage)
 	{
-		var parameters[5];
-
-		for (int i = 0; i < arguments.size(); i++)
-			parameters[i] = arguments[i]->getResult(s);
-
-		return obj->performDynamically(s, parameters, arguments.size());
+		throw Error::fromLocation(location, errorMessage);
 	}
-
-	var function(r);
-	return invokeFunction(s, function, var(s.scope));
 }
 
 var HiseJavascriptEngine::RootObject::Scope::findFunctionCall(const CodeLocation& location, const var& targetObject, const Identifier& functionName) const
@@ -265,7 +272,7 @@ var HiseJavascriptEngine::RootObject::Scope::findFunctionCall(const CodeLocation
 }
 
 
-var HiseJavascriptEngine::callExternalFunction(var function, const var::NativeFunctionArgs& args, Result* errorMessage /*= nullptr*/)
+var HiseJavascriptEngine::callExternalFunction(var function, const var::NativeFunctionArgs& args, Result* result /*= nullptr*/)
 {
 	var returnVal(var::undefined());
 
@@ -274,7 +281,7 @@ var HiseJavascriptEngine::callExternalFunction(var function, const var::NativeFu
 	try
 	{
 		prepareTimeout();
-		if (errorMessage != nullptr) *errorMessage = Result::ok();
+		if (result != nullptr) *result = Result::ok();
 
 		RootObject::FunctionObject *fo = dynamic_cast<RootObject::FunctionObject*>(function.getObject());
 
@@ -283,23 +290,24 @@ var HiseJavascriptEngine::callExternalFunction(var function, const var::NativeFu
 			return fo->invoke(RootObject::Scope(nullptr, root, root), args);;
 		}
 	}
-	catch (String& error)
+	catch (String &error)
 	{
-		root->removeProperty(thisIdent);
-
-		if (errorMessage != nullptr) *errorMessage = Result::fail(error);
-	}
-	catch (Breakpoint bp)
-	{
-
-#if ENABLE_SCRIPTING_BREAKPOINTS
-		root->hiseSpecialData.setBreakpointLocalIdentifier(bp.snippetId);
-		sendBreakpointMessage(bp.index);
-		if (errorMessage != nullptr) *errorMessage = Result::fail("Breakpoint Nr. " + String(bp.index + 1) + " was hit");
-#else
-		// This should not happen
 		jassertfalse;
-#endif
+		if (result != nullptr) *result = Result::fail(error);
+	}
+	catch (RootObject::Error &e)
+	{
+		static const Identifier func("function");
+
+		if (result != nullptr) *result = Result::fail(root->dumpCallStack(e, func));
+	}
+	catch (Breakpoint& bp)
+	{
+		bp.copyLocalScopeToRoot(*root);
+		sendBreakpointMessage(bp.index);
+
+		static const Identifier func("function");
+		if (result != nullptr) *result = Result::fail(root->dumpCallStack(RootObject::Error::fromBreakpoint(bp), func));
 	}
 
 	return returnVal;
@@ -654,22 +662,29 @@ var HiseJavascriptEngine::executeInlineFunction(var inlineFunction, var* argumen
 		if (result != nullptr) *result = Result::ok();
 		return f->performDynamically(s, arguments, 2);
 	}
-	catch (String error)
+	catch (String &error)
 	{
-		if (result != nullptr) *result = Result::fail(error);
-	}
-	catch (Breakpoint bp)
-	{
-#if ENABLE_SCRIPTING_BREAKPOINTS
-		root->hiseSpecialData.setBreakpointLocalIdentifier(bp.snippetId);
-		sendBreakpointMessage(bp.index);
-		*result = Result::fail("Breakpoint Nr. " + String((int)bp.index + 1) + " was hit");
-
-		return var::undefined();
-#else
-		// This should not happen...
 		jassertfalse;
-#endif
+		*result = Result::fail(error);
+	}
+	catch (RootObject::Error &e)
+	{
+		if (result != nullptr) *result = Result::fail(root->dumpCallStack(e, f->name));
+
+		f->cleanUpAfterExecution();
+	}
+	catch (Breakpoint& bp)
+	{
+		if(bp.localScope == nullptr)
+			bp.localScope = f->createDynamicObjectForBreakpoint().getDynamicObject();
+
+		bp.copyLocalScopeToRoot(*root);
+
+		sendBreakpointMessage(bp.index);
+		
+		if (result != nullptr) *result = Result::fail(root->dumpCallStack(RootObject::Error::fromBreakpoint(bp), f->name));
+
+		f->cleanUpAfterExecution();
 	}
 
 	return var();
@@ -678,10 +693,6 @@ var HiseJavascriptEngine::executeInlineFunction(var inlineFunction, var* argumen
 var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 {
 	RootObject::Callback *c = root->hiseSpecialData.callbackNEW[callbackIndex];
-
-#if ENABLE_SCRIPTING_BREAKPOINTS
-	root->hiseSpecialData.setBreakpointLocalIdentifier(Identifier());
-#endif
 
 	// You need to register the callback correctly...
 	jassert(c != nullptr);
@@ -702,20 +713,23 @@ var HiseJavascriptEngine::executeCallback(int callbackIndex, Result *result)
 		}
 		catch (String &error)
 		{
+			jassertfalse;
 			if (result != nullptr) *result = Result::fail(error);
 		}
-		catch (Breakpoint bp)
+		catch (RootObject::Error &e)
 		{
-#if ENABLE_SCRIPTING_BREAKPOINTS
-			root->hiseSpecialData.setBreakpointLocalIdentifier(bp.snippetId);
-			sendBreakpointMessage(bp.index);
-			*result = Result::fail("Breakpoint Nr. " + String((int)bp.index + 1) + " was hit");
+			if (result != nullptr) *result = Result::fail(root->dumpCallStack(e, c->getName()));
+		}
+		catch (Breakpoint& bp)
+		{
+			if(bp.localScope == nullptr)
+				bp.localScope = c->createDynamicObjectForBreakpoint().getDynamicObject();
 
-			return var::undefined();
-#else
-			// This should not happen...
-			jassertfalse;
-#endif
+			bp.copyLocalScopeToRoot(*root);
+
+			sendBreakpointMessage(bp.index);
+			
+			if (result != nullptr) *result = Result::fail(root->dumpCallStack(RootObject::Error::fromBreakpoint(bp), c->getName()));
 		}
 	}
 
@@ -740,7 +754,14 @@ var HiseJavascriptEngine::RootObject::Callback::perform(RootObject *root)
 #if USE_BACKEND
 	const double pre = Time::getMillisecondCounterHiRes();
 
+
+	root->addToCallStack(callbackName, nullptr);
+
+
+
 	statements->perform(s, &returnValue);
+
+	root->removeFromCallStack(callbackName);
 
 	const double post = Time::getMillisecondCounterHiRes();
 	lastExecutionTime = post - pre;
@@ -763,26 +784,8 @@ AttributedString DynamicObjectDebugInformation::getDescription() const
 
 void ScriptingObject::reportScriptError(const String &errorMessage) const
 {
-#if USE_BACKEND // needs to be customized because of the colour!
-
-    JavascriptProcessor* jp = const_cast<JavascriptProcessor*>(dynamic_cast<const JavascriptProcessor*>(getScriptProcessor()));
-    
-    if(jp != nullptr)
-    {
-        const DynamicObject* rootObject = jp->getScriptEngine()->getRootObject();
-        
-        HiseJavascriptEngine::RootObject::CodeLocation* loc = dynamic_cast<const HiseJavascriptEngine::RootObject*>(rootObject)->currentLocation;
-        
-        if (loc != nullptr)
-        {
-            const String formattedMessage = loc->getCallbackName() + ": " + loc->getErrorMessage(errorMessage);
-            const_cast<MainController*>(getProcessor()->getMainController())->writeToConsole(formattedMessage, 1, getProcessor(), getScriptProcessor()->getScriptingContent()->getColour());
-        }
-    }
-    else
-    {
-        const_cast<MainController*>(getProcessor()->getMainController())->writeToConsole(errorMessage, 1, getProcessor());
-    }
+#if USE_BACKEND
+	throw errorMessage;
 #endif
 }
 

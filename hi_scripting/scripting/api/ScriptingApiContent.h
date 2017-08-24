@@ -741,7 +741,7 @@ public:
 
 		bool isUsingCustomPaintRoutine() const { return !paintRoutine.isUndefined(); }
 
-		void scaleFactorChanged(float newScaleFactor) override {} // Do nothing until fixed...
+		void scaleFactorChanged(float /*newScaleFactor*/) override {} // Do nothing until fixed...
 
 		void mouseCallback(var mouseInformation);
 

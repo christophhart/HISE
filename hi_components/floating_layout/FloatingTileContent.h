@@ -411,6 +411,7 @@ public:
 			PopoutButton,
 			PerformanceStatistics,
 			ActivityLed,
+			ActivationPanel,
 			TuningWindow,
 			PluginSettings,
 			MidiSourceList,

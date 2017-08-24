@@ -1529,7 +1529,7 @@ void StreamingSamplerVoice::startNote (int /*midiNoteNumber*/,
 
 template <typename SignalType> void interpolateStereoSamples(const SignalType* inL, const SignalType* inR, const float* pitchData, float* outL, float* outR, int startSample, double indexInBuffer, double uptimeDelta, int numSamples, bool isFloat)
 {
-	const float gainFactor = isFloat ? 1.0 :  (1.0f / (float)INT16_MAX);
+	const float gainFactor = isFloat ? 1.0f :  (1.0f / (float)INT16_MAX);
 
 	if (pitchData != nullptr)
 	{

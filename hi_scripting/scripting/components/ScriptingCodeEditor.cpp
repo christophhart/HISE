@@ -437,7 +437,7 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 
 		getDocument().findTokenContaining(start, start, end);
 
-		const String namespaceId = Helpers::findNamespaceForPosition(getDocument(), start);
+		const String namespaceId = Helpers::findNamespaceForPosition(start);
 
 		const String token = getDocument().getTextBetween(start, end);
 
@@ -1386,7 +1386,7 @@ CodeDocument* JavascriptCodeEditor::Helpers::gotoAndReturnDocumentWithDefinition
 	return nullptr;
 }
 
-String JavascriptCodeEditor::Helpers::findNamespaceForPosition(const CodeDocument& doc, CodeDocument::Position pos)
+String JavascriptCodeEditor::Helpers::findNamespaceForPosition(CodeDocument::Position pos)
 {
 	while (pos.getLineNumber() > 0)
 	{
@@ -1438,4 +1438,130 @@ JavascriptCodeEditor* JavascriptCodeEditor::Helpers::getActiveEditor(Processor* 
 {
 	auto activeEditor = p->getMainController()->getLastActiveEditor();
 	return dynamic_cast<JavascriptCodeEditor*>(activeEditor);
+}
+
+DebugConsoleTextEditor::DebugConsoleTextEditor(const String& name, Processor* p) :
+	TextEditor(name),
+	processor(p)
+{
+	setMultiLine(false);
+	setReturnKeyStartsNewLine(false);
+	setScrollbarsShown(false);
+	setPopupMenuEnabled(false);
+	setColour(TextEditor::textColourId, Colours::white);
+	setColour(CaretComponent::ColourIds::caretColourId, Colours::white);
+	setColour(TextEditor::backgroundColourId, Colour(0x00ffffff));
+	setColour(TextEditor::highlightColourId, Colour(0x40ffffff));
+	setColour(TextEditor::shadowColourId, Colour(0x00000000));
+	setColour(TextEditor::ColourIds::focusedOutlineColourId, Colours::white.withAlpha(0.1f));
+	setText(String());
+
+	setFont(GLOBAL_MONOSPACE_FONT());
+	setLookAndFeel(&laf2);
+	setColour(Label::ColourIds::textColourId, Colours::white);
+
+	addListener(this);
+
+	p->getMainController()->addScriptListener(this);
+
+	scriptWasCompiled(dynamic_cast<JavascriptProcessor*>(p));
+}
+
+DebugConsoleTextEditor::~DebugConsoleTextEditor()
+{
+	if (processor != nullptr)
+	{
+		processor->getMainController()->removeScriptListener(this);
+	}
+}
+
+void DebugConsoleTextEditor::scriptWasCompiled(JavascriptProcessor *jp)
+{
+	if (dynamic_cast<Processor*>(jp) == processor)
+	{
+		auto r = jp->getLastErrorMessage();
+
+
+
+		if (r.wasOk()) setText("Compiled OK", dontSendNotification);
+		else
+			setText(r.getErrorMessage().upToFirstOccurrenceOf("\n", false, false), dontSendNotification);
+
+		setColour(TextEditor::backgroundColourId, r.wasOk() ? Colours::green.withBrightness(0.1f) : Colours::red.withBrightness((0.1f)));
+	}
+}
+
+bool DebugConsoleTextEditor::keyPressed(const KeyPress& k)
+{
+	if (k == KeyPress::upKey)
+	{
+		currentHistoryIndex = jmax<int>(0, currentHistoryIndex - 1);
+
+		setText(history[currentHistoryIndex], dontSendNotification);
+
+		return true;
+	}
+	else if (k == KeyPress::downKey)
+	{
+		currentHistoryIndex = jmin<int>(history.size() - 1, currentHistoryIndex + 1);
+		setText(history[currentHistoryIndex], dontSendNotification);
+	}
+
+	return TextEditor::keyPressed(k);
+}
+
+void DebugConsoleTextEditor::mouseDown(const MouseEvent& e)
+{
+	if (e.mods.isRightButtonDown())
+		setText("> ", dontSendNotification);
+
+	TextEditor::mouseDown(e);
+}
+
+void DebugConsoleTextEditor::mouseDoubleClick(const MouseEvent& e)
+{
+	DebugableObject::Helpers::gotoLocation(processor->getMainController()->getMainSynthChain(), getText());
+}
+
+void DebugConsoleTextEditor::addToHistory(const String& s)
+{
+	if (!history.contains(s))
+	{
+		history.add(s);
+		currentHistoryIndex = history.size() - 1;
+	}
+	else
+	{
+		history.move(history.indexOf(s), history.size() - 1);
+	}
+}
+
+void DebugConsoleTextEditor::textEditorReturnKeyPressed(TextEditor& /*t*/)
+{
+	String codeToEvaluate = getText();
+
+	addToHistory(codeToEvaluate);
+
+	if (codeToEvaluate.startsWith("> "))
+	{
+		codeToEvaluate = codeToEvaluate.substring(2);
+	}
+
+	HiseJavascriptEngine* engine = dynamic_cast<JavascriptProcessor*>(processor.get())->getScriptEngine();
+
+	if (engine != nullptr)
+	{
+		Result r = Result::ok();
+
+		var returnValue = engine->evaluate(codeToEvaluate, &r);
+
+		if (r.wasOk())
+		{
+			debugToConsole(processor, "> " + returnValue.toString());
+		}
+		else
+		{
+			debugToConsole(processor, r.getErrorMessage());
+		}
+	}
 }

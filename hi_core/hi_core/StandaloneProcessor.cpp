@@ -223,7 +223,7 @@ void GlobalSettingManager::setGlobalScaleFactor(double newScaleFactor, Notificat
 			{
 				if (listeners[i].get() != nullptr)
 				{
-					listeners[i]->scaleFactorChanged(scaleFactor);
+					listeners[i]->scaleFactorChanged((float)scaleFactor);
 				}
 			}
 		}

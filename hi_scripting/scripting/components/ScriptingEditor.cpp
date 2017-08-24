@@ -55,21 +55,9 @@ ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
     compileButton->addListener (this);
     compileButton->setColour (TextButton::buttonColourId, Colour (0xa2616161));
 
-    addAndMakeVisible (messageBox = new DebugConsoleTextEditor("new text editor"));
-    messageBox->setMultiLine (false);
-    messageBox->setReturnKeyStartsNewLine (false);
-    messageBox->setScrollbarsShown (false);
-    messageBox->setPopupMenuEnabled (false);
-    messageBox->setColour (TextEditor::textColourId, Colours::white);
-	messageBox->setColour(CaretComponent::ColourIds::caretColourId, Colours::white);
-    messageBox->setColour (TextEditor::backgroundColourId, Colour (0x00ffffff));
-    messageBox->setColour (TextEditor::highlightColourId, Colour (0x40ffffff));
-    messageBox->setColour (TextEditor::shadowColourId, Colour (0x00000000));
-	messageBox->setColour(TextEditor::ColourIds::focusedOutlineColourId, Colours::white.withAlpha(0.1f));
-    messageBox->setText (String());
-	messageBox->addMouseListener(this, true);
-	messageBox->addListener(this);
-
+    addAndMakeVisible (messageBox = new DebugConsoleTextEditor("new text editor", getProcessor()));
+    
+	
     addAndMakeVisible (timeLabel = new Label ("new label",
                                               TRANS("2.5 microseconds")));
     timeLabel->setFont (GLOBAL_BOLD_FONT());
@@ -112,15 +100,13 @@ ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
 
     timeLabel->setFont (GLOBAL_BOLD_FONT());
 
-	messageBox->setFont(GLOBAL_MONOSPACE_FONT());
+	
 	
 	addAndMakeVisible(scriptContent = new ScriptContentComponent(dynamic_cast<ProcessorWithScriptingContent*>(getProcessor())));
 
     scriptContent->addMouseListenersForComponentWrappers();
     
-	messageBox->setLookAndFeel(&laf2);
-
-	messageBox->setColour(Label::ColourIds::textColourId, Colours::white);
+	
 
 	useComponentSelectMode = false;
 
@@ -478,36 +464,6 @@ void ScriptingEditor::gotoChar(int character)
 	codeEditor->editor->scrollToLine(jmax<int>(0, pos.getLineNumber()));
 }
 
-void ScriptingEditor::mouseDown(const MouseEvent &e)
-{
-	if (e.eventComponent == messageBox)
-	{
-		messageBox->setText("> ", dontSendNotification);
-	}
-}
-
-void ScriptingEditor::mouseDoubleClick(const MouseEvent& e)
-{
-	if (e.eventComponent == messageBox)
-	{
-		const String fileName = ApiHelpers::getFileNameFromErrorMessage(messageBox->getText());
-
-		if (fileName.isNotEmpty())
-		{
-			JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(getProcessor());
-
-			for (int i = 0; i < sp->getNumWatchedFiles(); i++)
-			{
-				if (sp->getWatchedFile(i).getFileName() == fileName)
-				{
-					sp->showPopupForFile(i);
-				}
-			}
-
-		}
-	}
-}
-
 bool ScriptingEditor::keyPressed(const KeyPress &k)
 {
 #if JUCE_WINDOWS
@@ -593,36 +549,8 @@ bool ScriptingEditor::keyPressed(const KeyPress &k)
 
 void ScriptingEditor::scriptEditHandlerCompileCallback()
 {
-	JavascriptProcessor::SnippetResult resultMessage = getScriptEditHandlerProcessor()->compileScript();
+	getScriptEditHandlerProcessor()->compileScript();
 
-	if (resultMessage.r.wasOk()) messageBox->setText("Compiled OK", false);
-	else
-	{
-		const String errorMessage = resultMessage.r.getErrorMessage();
-
-		if (errorMessage.startsWith("Line"))
-		{
-			messageBox->setText(getScriptEditHandlerProcessor()->getSnippet(resultMessage.c)->getCallbackName().toString() + "() - " + errorMessage, false);
-		}
-		else
-		{
-			messageBox->setText(errorMessage, false);
-		}
-
-		TextButton* b = callbackButtons[resultMessage.c];
-
-		if (b != nullptr && !b->getToggleState())
-			buttonClicked(b);
-
-		StringArray errorPosition = RegexFunctions::getFirstMatch(".*Line ([0-9]*), column ([0-9]*)", errorMessage);
-
-		int l = errorPosition[1].getIntValue();
-		int c = errorPosition[2].getIntValue();
-
-		CodeDocument::Position pos = CodeDocument::Position(codeEditor->editor->getDocument(), l - 1, c - 1);
-
-		codeEditor->editor->moveCaretTo(pos, false);
-	}
 
 	checkActiveSnippets();
 	refreshBodySize();

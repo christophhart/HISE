@@ -689,6 +689,25 @@ juce::Typeface* MainController::getFont(const String &fontName) const
 	return nullptr;
 }
 
+Font MainController::getFontFromString(const String& fontName, float fontSize) const
+{
+	auto fn = fontName.upToFirstOccurrenceOf(" Bold", false, false);
+
+	bool isBold = fontName != fn;
+
+	Font currentFont;
+
+	juce::Typeface::Ptr typeface = getFont(fontName);
+
+	if (typeface != nullptr)	currentFont = Font(typeface).withHeight(fontSize);
+	else						currentFont = Font(fontName, fontSize, Font::plain);
+
+	if (isBold)					currentFont = currentFont.boldened();
+
+	return currentFont;
+}
+
+
 void MainController::fillWithCustomFonts(StringArray &fontList)
 {
 	for (int i = 0; i < customTypeFaces.size(); i++)
@@ -754,6 +773,7 @@ void MainController::restoreCustomFontValueTree(const ValueTree &v)
 		}
 	}
 }
+
 
 void MainController::insertStringAtLastActiveEditor(const String &string, bool selectArguments)
 {

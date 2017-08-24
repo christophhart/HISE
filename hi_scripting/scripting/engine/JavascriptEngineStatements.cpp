@@ -26,16 +26,21 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 
 		for (int i = 0; i < statements.size(); ++i)
 		{
-#if ENABLE_SCRIPTING_SAFE_CHECKS
-			s.root->currentLocation = &statements.getUnchecked(i)->location;
-#endif
-
 #if ENABLE_SCRIPTING_BREAKPOINTS
 			if (statements.getUnchecked(i)->breakpointReference.index != -1)
 			{
 				Statement* st = statements.getUnchecked(i);
+				const auto& loc = st->location;
+				int col, line;
 
-				Breakpoint bp = Breakpoint(st->breakpointReference.localScopeId, -1, -1, st->breakpointReference.index);
+				loc.fillColumnAndLines(col, line);
+				Breakpoint bp = Breakpoint(st->breakpointReference.localScopeId, loc.externalFile, line, col, loc.getCharIndex(), st->breakpointReference.index);
+
+				const bool hasRootScope = s.root == s.scope.getObject();
+
+				if(!hasRootScope)
+					bp.localScope = s.scope.getObject();
+
 				throw bp;
 			}
 #endif
@@ -225,7 +230,13 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 			var *data = &loop->currentObject;
 			CHECK_CONDITION_WITH_LOCATION(data != nullptr, "data does not exist");
 
-			if (data->isArray())			return data->getArray()->getUnchecked(loop->index);
+			if (data->isArray())
+			{
+				if (loop->index >= data->size())
+					location.throwError("Loop iterator index invalid. Do not change the array in a for...in loop");
+
+				return data->getArray()->getUnchecked(loop->index);
+			}
 			else if (data->isBuffer())		return data->getBuffer()->getSample(loop->index);
 			else if (data->isObject())		return data->getDynamicObject()->getProperties().getName(loop->index).toString();
 			else location.throwError("Illegal iterator target");
