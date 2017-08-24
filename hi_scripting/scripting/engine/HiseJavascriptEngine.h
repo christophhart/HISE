@@ -510,6 +510,11 @@ public:
 						*localProperties.getVarPointerAt(i) = var();
 					}
 				}
+
+				for (int i = 0; i < numArgs; i++)
+				{
+					parameterValues[i] = var();
+				}
 			}
 
 			Identifier parameters[4];

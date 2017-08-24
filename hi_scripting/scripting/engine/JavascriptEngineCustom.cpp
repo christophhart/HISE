@@ -374,6 +374,11 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 				f->lastReturnValue = returnVar;
 
+				for (int i = 0; i < numArgs; i++)
+				{
+					parameterResults.setUnchecked(i, var());
+				}
+
 				if (c == Statement::returnWasHit) return returnVar;
 				else return var::undefined();
 			}
