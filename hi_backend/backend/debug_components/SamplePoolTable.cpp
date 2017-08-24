@@ -309,7 +309,7 @@ void PoolTableSubTypes::AudioFilePoolTable::cellDoubleClicked(int rowNumber, int
 }
 
 PoolTableSubTypes::ImageFilePoolTable::ImageFilePoolTable(BackendRootWindow* rootWindow):
-	ExternalFileTable<Image>(rootWindow->getBackendProcessor()->getSampleManager().getImagePool())
+	ExternalFileTable<Image>(nullptr)
 {
 
 }

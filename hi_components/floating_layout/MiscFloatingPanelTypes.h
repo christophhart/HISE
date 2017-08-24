@@ -997,15 +997,12 @@ public:
 		return sp;
 	}
 
-	
-
 	void fillModuleList(StringArray& moduleList) override
 	{
 		fillModuleListWithType<SliderPackProcessor>(moduleList);
 	}
 
 	void resized() override;
-	
 };
 
 

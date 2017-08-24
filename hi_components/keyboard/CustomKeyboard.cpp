@@ -165,6 +165,8 @@ void CustomKeyboard::drawWhiteNote(int midiNoteNumber, Graphics &g, int x, int y
 {
 	if (useCustomGraphics)
 	{
+        SET_IMAGE_RESAMPLING_QUALITY();
+        
 		g.setOpacity(1.0f);
         
 		const int index = midiNoteNumber % 12;

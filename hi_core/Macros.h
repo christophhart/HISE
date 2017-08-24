@@ -284,6 +284,11 @@ private:
 #define DEBUG_BG_COLOUR 0xff636363
 
 
+#if HISE_IOS
+#define SET_IMAGE_RESAMPLING_QUALITY() g.setImageResamplingQuality (Graphics::ResamplingQuality::lowResamplingQuality);
+#else
+#define SET_IMAGE_RESAMPLING_QUALITY()
+#endif
 
 #include "copyProtectionMacros.h"
 

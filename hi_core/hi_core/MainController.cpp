@@ -71,8 +71,6 @@ MainController::MainController():
 	BACKEND_ONLY(shownComponents.setBit(BackendCommandTarget::Keyboard, 1));
 	BACKEND_ONLY(shownComponents.setBit(BackendCommandTarget::Macros, 0));
 
-	
-
 	TempoSyncer::initTempoData();
     
 	globalVariableArray.insertMultiple(0, var::undefined(), NUM_GLOBAL_VARIABLES);
@@ -597,6 +595,12 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
     {
         uptime += double(buffer.getNumSamples()) / sampleRate;
     }
+
+#if USE_BACKEND
+	getDebugLogger().recordOutput(buffer);
+#endif
+
+
 }
 
 void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)

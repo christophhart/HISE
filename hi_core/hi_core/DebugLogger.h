@@ -237,7 +237,77 @@ public:
 
 	void addSorted(Array<Message*>& list, Message* m);
 
+	void startRecording()
+	{
+		ScopedLock sl(recorderLock);
+
+		debugRecorder = AudioSampleBuffer(2, 44100 * 8);
+		recordUptime = 0;
+	}
+
+	void recordOutput(AudioSampleBuffer& bufferToRecord)
+	{
+		if (recordUptime < 0)
+			return;
+
+		ScopedLock sl(recorderLock);
+
+		int numSamplesToRecord = jmin<int>(debugRecorder.getNumSamples() - recordUptime, bufferToRecord.getNumSamples());
+
+		debugRecorder.copyFrom(0, recordUptime, bufferToRecord, 0, 0, numSamplesToRecord);
+		debugRecorder.copyFrom(1, recordUptime, bufferToRecord, 1, 0, numSamplesToRecord);
+
+		recordUptime += bufferToRecord.getNumSamples();
+
+		if (recordUptime > debugRecorder.getNumSamples())
+		{
+			recordUptime = -1;
+			dumper.triggerAsyncUpdate();
+		}
+
+	}
+
 private:
+
+	struct RecordDumper : public AsyncUpdater
+	{
+		RecordDumper(DebugLogger& parent_):
+			parent(parent_)
+		{}
+
+		void handleAsyncUpdate() override
+		{
+			auto desktop = File::getSpecialLocation(File::SpecialLocationType::userDesktopDirectory);
+
+			auto dumpFile = desktop.getChildFile("HISE_One_Second_Dump.wav");
+
+			if (dumpFile.existsAsFile())
+				dumpFile.deleteFile();
+
+			WavAudioFormat waf;
+
+			StringPairArray metadata;
+
+			ScopedPointer<AudioFormatWriter> writer = waf.createWriterFor(new FileOutputStream(dumpFile), 44100.0, 2, 24, metadata, 5);
+
+			writer->writeFromAudioSampleBuffer(parent.debugRecorder, 0, parent.debugRecorder.getNumSamples());
+
+			parent.debugRecorder = AudioSampleBuffer(2, 0);
+
+			writer = nullptr;
+
+			dumpFile.revealToUser();
+		}
+
+		DebugLogger& parent;
+	};
+
+	CriticalSection recorderLock;
+
+	std::atomic<int> recordUptime;
+	AudioSampleBuffer debugRecorder;
+	RecordDumper dumper;
+
 
 	mutable String messageCallbackStackBacktrace;
 

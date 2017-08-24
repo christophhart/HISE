@@ -190,7 +190,7 @@ MainController::SampleManager::SampleManager(MainController *mc_) :
 	projectHandler(mc_),
 	globalSamplerSoundPool(new ModulatorSamplerSoundPool(mc)),
 	globalAudioSampleBufferPool(new AudioSampleBufferPool(&projectHandler)),
-	globalImagePool(new ImagePool(&projectHandler)),
+	globalImagePool(new ImagePool(mc_)),
 	sampleClipboard(ValueTree("clipboard")),
 	useRelativePathsToProjectFolder(true)
 {

@@ -84,6 +84,8 @@ public:
 		return *this;
 	}
 
+	HiseSampleBuffer(HiseSampleBuffer& otherBuffer, int offset);
+
 	/** Creates a HiseSampleBuffer from an existing AudioSampleBuffer. */
 	HiseSampleBuffer(AudioSampleBuffer& floatBuffer_):
 		isFloat(true),
@@ -128,6 +130,8 @@ public:
 
 	/** Returns the internal AudioSampleBuffer for convenient usage with AudioFormatReader classes. */
 	AudioSampleBuffer* getFloatBufferForFileReader();
+
+	
 
 private:
 

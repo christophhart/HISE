@@ -178,6 +178,7 @@ public:
 		MenuToolsEnableAutoSaving,
 		MenuToolsEnableDebugLogging,
 		MenuToolsDeviceSimulatorOffset,
+		MenuToolsRecordOneSecond,
 		MenuHelpShowAboutPage = 0x70000,
         MenuHelpCheckVersion,
 		numCommands

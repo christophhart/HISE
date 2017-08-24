@@ -1,12 +1,4 @@
 
-void HiseSampleBuffer::reverse(int startSample, int numSamples)
-{
-	if (isFloatingPoint())
-		floatBuffer.reverse(startSample, numSamples);
-	else
-		throw std::logic_error("not implemented");
-}
-
 /*  ===========================================================================
 *
 *   This file is part of HISE.
@@ -38,6 +30,36 @@ void HiseSampleBuffer::reverse(int startSample, int numSamples)
 *
 *   ===========================================================================
 */
+
+
+
+HiseSampleBuffer::HiseSampleBuffer(HiseSampleBuffer& otherBuffer, int offset)
+{
+	if (otherBuffer.isFloatingPoint())
+	{
+		jassertfalse;
+	}
+	else
+	{
+		size = otherBuffer.size - offset;
+
+		leftIntBuffer = hlac::CompressionHelpers::getPart(otherBuffer.leftIntBuffer, offset, size);
+
+		numChannels = otherBuffer.numChannels;
+
+		if (numChannels > 1)
+			rightIntBuffer = hlac::CompressionHelpers::getPart(otherBuffer.rightIntBuffer, offset, size);
+	}
+}
+
+void HiseSampleBuffer::reverse(int startSample, int numSamples)
+{
+	if (isFloatingPoint())
+		floatBuffer.reverse(startSample, numSamples);
+	else
+		throw std::logic_error("not implemented");
+}
+
 
 void HiseSampleBuffer::setSize(int numChannels_, int numSamples)
 {
@@ -76,6 +98,9 @@ void HiseSampleBuffer::clear()
 
 void HiseSampleBuffer::clear(int startSample, int numSamples)
 {
+	if (numSamples == 0)
+		return;
+
 	if (isFloatingPoint())
 		floatBuffer.clear(startSample, numSamples);
 	else
@@ -89,6 +114,9 @@ void HiseSampleBuffer::clear(int startSample, int numSamples)
 
 void HiseSampleBuffer::copy(HiseSampleBuffer& dst, const HiseSampleBuffer& source, int startSampleDst, int startSampleSource, int numSamples)
 {
+	if (numSamples == 0)
+		return;
+
 	if (source.isFloatingPoint() == dst.isFloatingPoint())
 	{
 		auto byteToCopy = (source.isFloatingPoint() ? sizeof(float) : sizeof(int16)) * numSamples;
@@ -112,6 +140,9 @@ void HiseSampleBuffer::copy(HiseSampleBuffer& dst, const HiseSampleBuffer& sourc
 
 void HiseSampleBuffer::add(HiseSampleBuffer& dst, const HiseSampleBuffer& source, int startSampleDst, int startSampleSource, int numSamples)
 {
+	if (numSamples == 0)
+		return;
+
 	if (source.isFloatingPoint() && dst.isFloatingPoint())
 	{
 		dst.floatBuffer.addFrom(0, startSampleDst, source.floatBuffer, 0, startSampleSource, numSamples);

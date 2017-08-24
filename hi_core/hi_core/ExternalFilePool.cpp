@@ -402,20 +402,86 @@ void AudioSampleBufferPool::reloadData(AudioSampleBuffer &dataToBeOverwritten, c
 	}
 }
 
-ImagePool::ImagePool(ProjectHandler *handler) :
-Pool<Image>(handler, (int)ProjectHandler::SubDirectories::Images)
+ValueTree ImagePool::exportAsValueTree() const
+{
+	ValueTree v(getFileTypeName());
+
+	for (int i = 0; i < loadedImages.size(); i++)
+	{
+		ValueTree child("PoolData");
+
+		auto e = loadedImages[i];
+
+		child.setProperty("ID", e.id.toString(), nullptr);
+		child.setProperty("FileName", e.fileName, nullptr);
+
+		FileInputStream fis(e.fileName);
+
+		MemoryBlock mb = MemoryBlock();
+		MemoryOutputStream out(mb, false);
+		out.writeFromInputStream(fis, fis.getTotalLength());
+
+		child.setProperty("Data", var(mb.getData(), mb.getSize()), nullptr);
+
+		v.addChild(child, -1, nullptr);
+	}
+
+	return v;
+}
+
+void ImagePool::restoreFromValueTree(const ValueTree &v)
+{
+	loadedImages.clear();
+
+	for (int i = 0; i < v.getNumChildren(); i++)
+	{
+		ValueTree child = v.getChild(i);
+
+		Identifier id = Identifier(child.getProperty("ID", String()).toString());
+
+		if (loadedImages.indexOf(id) != -1)
+			continue;
+
+		var x = child.getProperty("Data", var::undefined());
+
+		MemoryBlock *mb = x.getBinaryData();
+
+		jassert(mb != nullptr);
+
+		ScopedPointer<MemoryInputStream> mis = new MemoryInputStream(*mb, false);
+
+		ImageEntry ne;
+
+		ne.fileName = child.getProperty("FileName", String()).toString();
+		jassert(ne.fileName.isNotEmpty());
+
+		ne.id = id;
+		ne.image =  ImageFileFormat::loadFrom(mis->getData(), mis->getDataSize());
+
+		mis = nullptr;
+
+		ImageCache::addImageToCache(ne.image, ne.fileName.hashCode64());
+
+		loadedImages.add(ne);
+	}
+}
+
+ImagePool::ImagePool(ProjectHandler *handler)
 {
 
 }
 
 Identifier ImagePool::getFileTypeName() const
 {
-	return getProjectHandler().getIdentifier(ProjectHandler::SubDirectories::Images);
+	return ProjectHandler::getIdentifier(ProjectHandler::SubDirectories::Images);
 }
 
 Image ImagePool::getEmptyImage(int width, int height)
 {
-	Image i(Image::PixelFormat::ARGB, width, height, true);
+	static Image i(Image::PixelFormat::ARGB, width, height, true);
+
+	if (i.isValid())
+		return i;
 
 	Graphics g(i);
 
@@ -442,30 +508,93 @@ Image ImagePool::loadImageFromReference(MainController* mc, const String referen
 
 	auto img = mc->getSampleManager().getImagePool()->loadFileIntoPool(poolName, false);
 
-	jassert(img != nullptr);
+	jassert(img.isValid());
 #endif
 
 	
 
-	if (img != nullptr)
-		return *img;
+	if (img.isValid())
+		return img;
 
 	return Image();
 }
 
-void ImagePool::reloadData(Image &image, const String &fileName)
+Image ImagePool::loadFileIntoPool(const String& fileName, bool unused)
 {
-	Image newImage = ImageFileFormat::loadFrom(File(fileName));
-	image = newImage;
+	Identifier idForFileName = getIdForFileName(fileName);
 
-	image.duplicateIfShared();
+	const int existingIndex = loadedImages.indexOf(idForFileName);
+
+	if (existingIndex != -1)
+	{
+		return loadedImages[existingIndex].image;
+	}
+
+	ImageEntry ne;
+	ne.id = idForFileName;
+	ne.fileName = fileName;
+	
+
+#if USE_FRONTEND && DONT_EMBED_FILES_IN_FRONTEND
+
+#if HISE_IOS
+	const File directory = ProjectHandler::Frontend::getResourcesFolder().getChildFile((getFileTypeName().toString()));
+#else
+	const File directory = ProjectHandler::Frontend::getAppDataDirectory().getChildFile(getFileTypeName().toString());
+#endif
+
+	// This should have been taken care of during installation...
+	jassert(directory.isDirectory());
+
+	File f = directory.getChildFile(fileName);
+
+#else
+	File f(fileName);
+#endif
+
+	ne.image = ImageCache::getFromFile(f);
+
+	loadedImages.add(ne);
+
+	return ne.image;
 }
 
-Image * ImagePool::loadDataFromStream(InputStream *inputStream) const
+Identifier ImagePool::getIdForFileName(const String &absoluteFileName) const
 {
-	Image *image = new Image(ImageFileFormat::loadFrom(*inputStream));
+#if USE_FRONTEND
+	return Identifier(absoluteFileName.upToFirstOccurrenceOf(".", false, false)); // .removeCharacters(" \n\t"));
+#else
 
-	delete inputStream;
+	const File root = getProjectHandler().getSubDirectory(ProjectHandler::SubDirectories::Images);
 
-	return image;
+	if (root.isDirectory() && File(absoluteFileName).isAChildOf(root))
+	{
+		const String id = File(absoluteFileName).getRelativePathFrom(root).upToFirstOccurrenceOf(".", false, false).replaceCharacter('\\', '/');
+
+		if (id.isEmpty()) return Identifier();
+		else return Identifier(id);
+	}
+	else
+	{
+		String id = absoluteFileName.upToFirstOccurrenceOf(".", false, false);
+		id = id.replaceCharacter('\\', '/');
+		id = id.fromLastOccurrenceOf("/", false, false);
+
+		if (id.isEmpty()) return Identifier();
+		else return Identifier(id);
+	}
+
+
+
+#endif
+}
+
+ProjectHandler& ImagePool::getProjectHandler()
+{
+	return GET_PROJECT_HANDLER(mc->getMainSynthChain());
+}
+
+const ProjectHandler& ImagePool::getProjectHandler() const
+{
+	return GET_PROJECT_HANDLER(mc->getMainSynthChain());
 }

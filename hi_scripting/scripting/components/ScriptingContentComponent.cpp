@@ -177,7 +177,9 @@ void ScriptContentComponent::changeListenerCallback(SafeChangeBroadcaster *b)
 
 	if (p == b)
 	{
+#if USE_BACKEND
 		updateValues();
+#endif
 	}
 	else if (dynamic_cast<ScriptingApi::Content::ScriptComponent*>(b) != nullptr)
 	{

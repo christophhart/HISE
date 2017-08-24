@@ -270,7 +270,9 @@ struct DebugLogger::Failure : public DebugLogger::Message
 
 
 DebugLogger::DebugLogger(MainController* mc_):
-	mc(mc_)
+	mc(mc_),
+	dumper(*this),
+    recordUptime(-1)
 {
 	pendingEvents.ensureStorageAllocated(NUM_MESSAGE_SLOTS);
 	pendingFailures.ensureStorageAllocated(NUM_MESSAGE_SLOTS);

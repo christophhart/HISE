@@ -168,9 +168,7 @@ void DebugableObject::Helpers::showProcessorEditorPopup(const MouseEvent& e, Com
 		PresetHandler::showMessageWindow("Processor does not exist", "The Processor is not existing, because it was deleted or the reference is wrong", PresetHandler::IconType::Error);
 	}
 #else
-
 	ignoreUnused(e, table, p);
-
 #endif
 }
 
@@ -184,9 +182,7 @@ void DebugableObject::Helpers::showJSONEditorForObject(const MouseEvent& e, Comp
 
 	GET_BACKEND_ROOT_WINDOW(table)->getRootFloatingTile()->showComponentInRootPopup(jsonEditor, table, Point<int>(table->getWidth() / 2, e.getMouseDownY() + 40));
 #else
-
 	ignoreUnused(e, table, object, id);
-
 #endif
 }
 

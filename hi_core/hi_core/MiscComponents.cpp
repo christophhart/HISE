@@ -536,13 +536,17 @@ borderSize(1.0f)
 void BorderPanel::changeListenerCallback(SafeChangeBroadcaster* b)
 {
     image = dynamic_cast<ScriptingApi::Content::ScriptPanel::RepaintNotifier*>(b)->panel->getImage();
-    repaint();
+    
+    if(isShowing())
+        repaint();
 }
 
 void BorderPanel::paint(Graphics &g)
 {
 	if (isUsingCustomImage)
 	{
+        SET_IMAGE_RESAMPLING_QUALITY();
+        
 		g.setColour(Colours::black);
 		g.setOpacity(1.0f);
 		

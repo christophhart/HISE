@@ -82,11 +82,11 @@ ScriptCreatedComponentWrapper(content, index)
 
 	s->setup(getProcessor(), getIndex(), sc->name.toString());
 
-	if (sc->getImage() != nullptr)
+	if (sc->getImage().isValid())
 	{
 		FilmstripLookAndFeel *fslaf = new FilmstripLookAndFeel();
 
-		fslaf->setFilmstripImage(*sc->getImage(),
+		fslaf->setFilmstripImage(sc->getImage(),
 			sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::numStrips),
 			sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::isVertical));
 
@@ -282,11 +282,11 @@ ScriptCreatedComponentWrapper(content, index)
 
 	b->updateValue();
 
-	if (sb->getImage() != nullptr)
+	if (sb->getImage().isValid())
 	{
 		FilmstripLookAndFeel *fslaf = new FilmstripLookAndFeel();
 
-		fslaf->setFilmstripImage(*sb->getImage(),
+		fslaf->setFilmstripImage(sb->getImage(),
 			2,
 			sb->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::isVertical));
 
@@ -549,7 +549,7 @@ void ScriptCreatedComponentWrappers::ImageWrapper::updateComponent()
 	ImageComponentWithMouseCallback *ic = dynamic_cast<ImageComponentWithMouseCallback*>(component.get());
 	ScriptingApi::Content::ScriptImage *si = dynamic_cast<ScriptingApi::Content::ScriptImage*>(getScriptComponent());
 
-	if (si->getImage() != nullptr)
+	if (si->getImage().isValid())
 	{
 		const StringArray sa = si->getItemList();
 
@@ -559,7 +559,7 @@ void ScriptCreatedComponentWrappers::ImageWrapper::updateComponent()
 		ic->setUseRightClickForPopup(si->getScriptObjectProperty(ScriptingApi::Content::ScriptImage::PopupOnRightClick));
 
         ic->setBounds(si->getPosition());
-		ic->setImage(*si->getImage());
+		ic->setImage(si->getImage());
         ic->setOffset(si->getScriptObjectProperty(ScriptingApi::Content::ScriptImage::Offset));
         ic->setScale(si->getScriptObjectProperty(ScriptingApi::Content::ScriptImage::Scale));
 		ic->setAlpha(si->getScriptObjectProperty(ScriptingApi::Content::ScriptImage::Alpha));

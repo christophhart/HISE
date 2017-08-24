@@ -1533,17 +1533,17 @@ void ScriptingObjects::GraphicsObject::drawImage(String imageName, var area, int
 
 	auto sc = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(parent);
 
-	const Image *img = sc->getLoadedImage(imageName);
+	const Image img = sc->getLoadedImage(imageName);
 
-	if (img != nullptr && img->isValid())
+	if (img.isValid())
 	{
 		Rectangle<float> r = getRectangleFromVar(area);
 
         if(r.getWidth() != 0)
         {
-            const double scaleFactor = (double)img->getWidth() / (double)r.getWidth();
+            const double scaleFactor = (double)img.getWidth() / (double)r.getWidth();
             
-            g->drawImage(*img, (int)r.getX(), (int)r.getY(), (int)r.getWidth(), (int)r.getHeight(), 0, yOffset, (int)img->getWidth(), (int)((double)r.getHeight() * scaleFactor));
+            g->drawImage(img, (int)r.getX(), (int)r.getY(), (int)r.getWidth(), (int)r.getHeight(), 0, yOffset, (int)img.getWidth(), (int)((double)r.getHeight() * scaleFactor));
         }        
 	}
 	else

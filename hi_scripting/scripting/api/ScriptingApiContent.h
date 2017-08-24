@@ -337,12 +337,12 @@ public:
 
 		HiSlider::Mode m;
 		Slider::SliderStyle styleId;
-		const Image *getImage() const { return image; };
+		Image getImage() const { return image; };
 
 	private:
 
 		double minimum, maximum;
-		Image const *image;
+		Image image;
 	};
 
 	struct ScriptButton : public ScriptComponent
@@ -367,7 +367,7 @@ public:
 		Identifier 	getObjectName() const override { RETURN_STATIC_IDENTIFIER("ScriptButton") }
 		bool isAutomatable() const override { return true; }
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
-		const Image *getImage() const { return image; };
+		const Image getImage() const { return image; };
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification) override;
 		StringArray getOptionsFor(const Identifier &id) override;
 
@@ -375,7 +375,7 @@ public:
 
 		// ========================================================================================================
 
-		Image const *image;
+		Image image;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptButton)
 	};
@@ -620,7 +620,7 @@ public:
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification) override;
 		StringArray getOptionsFor(const Identifier &id) override;
 		StringArray getItemList() const;
-		const Image *getImage() const;
+		const Image getImage() const;
 
 		void setScriptProcessor(ProcessorWithScriptingContent *sb);
 
@@ -642,7 +642,7 @@ public:
 
 	private:
 
-		Image const *image;
+		Image image;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptImage);
 
@@ -675,6 +675,8 @@ public:
 		ScriptPanel(ProcessorWithScriptingContent *base, Content *parentContent, Identifier panelName, int x, int y, int width, int height);;
 		~ScriptPanel()
 		{
+			loadedImages.clear();
+
 			masterReference.clear();
 			
 			graphics = nullptr;
@@ -751,7 +753,7 @@ public:
         
 		void timerCallback() override;
 
-		const Image* getLoadedImage(const String &prettyName) const
+		Image getLoadedImage(const String &prettyName) const
 		{
 			for (size_t i = 0; i < loadedImages.size(); i++)
 			{
@@ -759,7 +761,7 @@ public:
 					return std::get<(int)NamedImageEntries::Image>(loadedImages[i]);
 			}
 
-			return nullptr;
+			return Image();
 		};
 
 		Rectangle<int> getDragBounds() const;
@@ -846,9 +848,8 @@ public:
 			FileName
 		};
 
-		using NamedImage =	std::tuple < const Image*, String, String > ;
+		using NamedImage =	std::tuple < const Image, String, String > ;
 		
-
 		std::vector<NamedImage> loadedImages;
 
 

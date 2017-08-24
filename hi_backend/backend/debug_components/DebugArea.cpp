@@ -62,7 +62,7 @@ CombinedDebugArea::CombinedDebugArea(BackendProcessorEditor *mainEditor_):
 	
 	externalFileTable = new ExternalFileTable<AudioSampleBuffer>(mainEditor->getBackendProcessor()->getSampleManager().getAudioSampleBufferPool());
 
-	imageTable = new ExternalFileTable<Image>(mainEditor->getBackendProcessor()->getSampleManager().getImagePool());
+	imageTable = new ExternalFileTable<Image>(nullptr);
 
 	
 	ShapeButton *modulesButton = new ShapeButton("Modules", Colour(BACKEND_ICON_COLOUR_OFF), Colour(BACKEND_ICON_COLOUR_OFF), Colour(BACKEND_ICON_COLOUR_OFF));

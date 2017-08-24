@@ -629,6 +629,16 @@ void SampleMap::loadSamplesFromMonolith(const ValueTree &v)
 	File monolithDirectory = dynamic_cast<FrontendDataHolder*>(sampler->getMainController())->getSampleLocation();
 #endif
 
+	if (!monolithDirectory.isDirectory())
+	{
+		sampler->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CustomErrorMessage,
+			"The sample directory is not existing");
+#if USE_FRONTEND
+		sampler->deleteAllSounds();
+#endif
+		return;
+	}
+
 	Array<File> monolithFiles;
 	
     int numChannels = jmax<int>(1, v.getChild(0).getNumChildren());
@@ -696,6 +706,9 @@ void SampleMap::replaceReferencesWithGlobalFolder()
 
 String SampleMap::checkReferences(ValueTree& v, const File& sampleRootFolder, Array<File>& sampleList)
 {
+	if (!sampleRootFolder.isDirectory())
+		return "Sample Root folder does not exist";
+
 	const bool isMonolith = (int)v.getProperty("SaveMode") == (int)SaveMode::Monolith;
 
 	const std::string channelNames = v.getProperty("MicPositions").toString().toStdString();
@@ -710,6 +723,7 @@ String SampleMap::checkReferences(ValueTree& v, const File& sampleRootFolder, Ar
 			const String fileName = sampleMapName + ".ch" + String(i + 1);
 
 			File f = sampleRootFolder.getChildFile(fileName);
+
 
 			if (!f.existsAsFile())
 			{

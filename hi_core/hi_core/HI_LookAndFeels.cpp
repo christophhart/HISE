@@ -32,6 +32,8 @@
 
 void FilmstripLookAndFeel::drawToggleButton(Graphics &g, ToggleButton &b, bool isMouseOverButton, bool isButtonDown)
 {
+    SET_IMAGE_RESAMPLING_QUALITY();
+    
 	if (!imageToUse.isValid() || numStrips != 2)
 	{
 		KnobLookAndFeel::drawToggleButton(g, b, isMouseOverButton, isButtonDown);
@@ -65,6 +67,8 @@ void FilmstripLookAndFeel::drawToggleButton(Graphics &g, ToggleButton &b, bool i
 
 void FilmstripLookAndFeel::drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, int width, int height, float /*sliderPosProportional*/, float /*rotaryStartAngle*/, float /*rotaryEndAngle*/, Slider &s)
 {
+    SET_IMAGE_RESAMPLING_QUALITY();
+    
 	if (!imageToUse.isValid() || numStrips == 0)
 	{
 		KnobLookAndFeel::drawRotarySlider(g, -1, -1, width, height, -1, -1, -1, s);

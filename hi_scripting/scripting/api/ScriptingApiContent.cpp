@@ -816,12 +816,7 @@ maximum(1.0f)
 
 ScriptingApi::Content::ScriptSlider::~ScriptSlider()
 {
-	if (getScriptProcessor() != nullptr)
-	{
-		ImagePool *pool = getProcessor()->getMainController()->getSampleManager().getImagePool();
-
-		pool->releasePoolData(image);
-	}
+	image = Image();
 }
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptSlider::createComponentWrapper(ScriptContentComponent *content, int index)
@@ -851,12 +846,10 @@ void ScriptingApi::Content::ScriptSlider::setScriptObjectPropertyWithChangeMessa
 	{
 		ImagePool *pool = getProcessor()->getMainController()->getSampleManager().getImagePool();
 
-		pool->releasePoolData(image);
-
 		if (newValue == "Use default skin" || newValue == "")
 		{
 			setScriptObjectProperty(filmstripImage, "Use default skin");
-			image = nullptr;
+			image = Image();
 		}
 		else
 		{
@@ -869,7 +862,7 @@ void ScriptingApi::Content::ScriptSlider::setScriptObjectPropertyWithChangeMessa
 
 			image = pool->loadFileIntoPool(poolName, false);
 
-			jassert(image != nullptr);
+			jassert(image.isValid());
 
 #else
 
@@ -1173,12 +1166,7 @@ image(nullptr)
 
 ScriptingApi::Content::ScriptButton::~ScriptButton()
 {
-	if (getScriptProcessor() != nullptr)
-	{
-		ImagePool *pool = getProcessor()->getMainController()->getSampleManager().getImagePool();
-
-		pool->releasePoolData(image);
-	}
+	
 }
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptButton::createComponentWrapper(ScriptContentComponent *content, int index)
@@ -1192,12 +1180,10 @@ void ScriptingApi::Content::ScriptButton::setScriptObjectPropertyWithChangeMessa
 	{
 		ImagePool *pool = getProcessor()->getMainController()->getSampleManager().getImagePool();
 
-		pool->releasePoolData(image);
-
 		if (newValue == "Use default skin" || newValue == "")
 		{
 			setScriptObjectProperty(filmstripImage, "");
-			image = nullptr;
+			image = Image();
 		}
 		else
 		{
@@ -1209,7 +1195,7 @@ void ScriptingApi::Content::ScriptButton::setScriptObjectPropertyWithChangeMessa
 
 			image = pool->loadFileIntoPool(poolName, false);
 
-			jassert(image != nullptr);
+			jassert(image.isValid());
 
 #else
 
@@ -1895,12 +1881,7 @@ image(nullptr)
 
 ScriptingApi::Content::ScriptImage::~ScriptImage()
 {
-	if (getProcessor() != nullptr)
-	{
-		ImagePool *pool = getProcessor()->getMainController()->getSampleManager().getImagePool();
-
-		pool->releasePoolData(image);
-	}
+	image = Image();
 };
 
 
@@ -1943,8 +1924,6 @@ void ScriptingApi::Content::ScriptImage::setImageFile(const String &absoluteFile
 {
 	ignoreUnused(forceUseRealFile);
 
-	const bool imageWasEmpty = (image == nullptr);
-
 	CHECK_COPY_AND_RETURN_10(getProcessor());
 
 	if (absoluteFileName.isEmpty())
@@ -1955,8 +1934,6 @@ void ScriptingApi::Content::ScriptImage::setImageFile(const String &absoluteFile
 
 	ImagePool *pool = getProcessor()->getMainController()->getSampleManager().getImagePool();
 
-	pool->releasePoolData(image);
-
 	setScriptObjectProperty(FileName, absoluteFileName);
 
 #if USE_FRONTEND
@@ -1965,7 +1942,7 @@ void ScriptingApi::Content::ScriptImage::setImageFile(const String &absoluteFile
 
 	image = pool->loadFileIntoPool(poolName, false);
 
-	jassert(image != nullptr);
+	jassert(image.isValid());
 
 #else
 
@@ -1975,10 +1952,10 @@ void ScriptingApi::Content::ScriptImage::setImageFile(const String &absoluteFile
 
 #endif
 
-	if (imageWasEmpty && image != nullptr)
+	if (image.isValid())
 	{
-		setScriptObjectProperty(ScriptComponent::width, image->getWidth());
-		setScriptObjectProperty(ScriptComponent::height, image->getHeight());
+		setScriptObjectProperty(ScriptComponent::width, image.getWidth());
+		setScriptObjectProperty(ScriptComponent::height, image.getHeight());
 	}
 
 	parent->sendChangeMessage();
@@ -1991,7 +1968,7 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptImage::createCompon
 	return new ScriptCreatedComponentWrappers::ImageWrapper(content, this, index);
 }
 
-const Image * ScriptingApi::Content::ScriptImage::getImage() const
+const Image ScriptingApi::Content::ScriptImage::getImage() const
 {
 	return image;
 }
@@ -2256,19 +2233,19 @@ void ScriptingApi::Content::ScriptPanel::loadImage(String imageName, String pret
 
 	String poolName = ProjectHandler::Frontend::getSanitiziedFileNameForPoolReference(imageName);
 
-	const Image *newImage = pool->loadFileIntoPool(poolName, false);
+	const Image newImage = pool->loadFileIntoPool(poolName, false);
 
-	jassert(newImage != nullptr);
+	jassert(newImage.isValid());
 
 #else
 
 	File actualFile = getExternalFile(imageName);
 
-	const Image *newImage = pool->loadFileIntoPool(actualFile.getFullPathName(), false);
+	const Image newImage = pool->loadFileIntoPool(actualFile.getFullPathName(), false);
 
 #endif
 
-	if (newImage != nullptr)
+	if (newImage.isValid())
 	{
 		loadedImages.push_back(NamedImage(newImage, prettyName, imageName));
 	}
