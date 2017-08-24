@@ -687,12 +687,19 @@ void ScriptComponentEditPanel::changeListenerCallback(SafeChangeBroadcaster *b)
 
 	if(hpc != nullptr)
 	{
-		ScriptingApi::Content::ScriptComponent* sc = dynamic_cast<ScriptingApi::Content::ScriptComponent*>(editedComponent.get());
-		sc->setScriptObjectPropertyWithChangeMessage(hpc->getId(), hpc->getValueAsVar(), sendNotification);
-		sc->setChanged();
-		if(dynamic_cast<HiSliderPropertyComponent*>(hpc) == nullptr && dynamic_cast<HiColourPropertyComponent*>(hpc) == nullptr) // These two will be handled only on mouse on!
+		try
 		{
-			sendPanelPropertyChangeMessage(hpc->getId());
+			ScriptingApi::Content::ScriptComponent* sc = dynamic_cast<ScriptingApi::Content::ScriptComponent*>(editedComponent.get());
+			sc->setScriptObjectPropertyWithChangeMessage(hpc->getId(), hpc->getValueAsVar(), sendNotification);
+			sc->setChanged();
+			if (dynamic_cast<HiSliderPropertyComponent*>(hpc) == nullptr && dynamic_cast<HiColourPropertyComponent*>(hpc) == nullptr) // These two will be handled only on mouse on!
+			{
+				sendPanelPropertyChangeMessage(hpc->getId());
+			}
+		}
+		catch (String& errorMessage)
+		{
+			PresetHandler::showMessageWindow("Property Error", errorMessage, PresetHandler::IconType::Error);
 		}
 	}
 }
