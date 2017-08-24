@@ -199,7 +199,9 @@ FileChangeListener::~FileChangeListener()
 
 void FileChangeListener::addFileWatcher(const File &file)
 {
-	watchers.add(new FileWatcher(file, this));
+	auto p = dynamic_cast<Processor*>(this)->getMainController()->getExternalScriptFile(file);
+
+	watchers.add(p);
 }
 
 void FileChangeListener::setFileResult(const File &file, Result r)
@@ -226,6 +228,15 @@ File FileChangeListener::getWatchedFile(int index) const
 
 	}
 	else return File();
+}
+
+CodeDocument& FileChangeListener::getWatchedFileDocument(int index)
+{
+	if(index < watchers.size())
+		return watchers[index]->getFileDocument();
+
+	jassertfalse;
+	return emptyDoc;
 }
 
 void FileChangeListener::showPopupForFile(int index, int charNumberToDisplay/*=0*/, int /*lineNumberToDisplay=-1*/)
@@ -473,80 +484,49 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 	const static Identifier onInit("onInit");
 
-	if (compileScriptAsWhole)
+	for (int i = 0; i < getNumSnippets(); i++)
 	{
-		// Check the rest of the snippets or they will be deleted on failed compile...
-		for (int i = 0; i < getNumSnippets(); i++)
+		getSnippet(i)->checkIfScriptActive();
+
+		if (!getSnippet(i)->isSnippetEmpty())
 		{
-			getSnippet(i)->checkIfScriptActive();
-		}
-
-		String wholeScript;
-		mergeCallbacksToScript(wholeScript);
-
-		lastResult = scriptEngine->execute(wholeScript, true);
-
-		if (!lastResult.wasOk())
-		{
-			content->endInitialization();
-			thisAsScriptBaseProcessor->allowObjectConstructors = false;
-
-			lastCompileWasOK = false;
-
-			scriptEngine->rebuildDebugInformation();
-			return SnippetResult(lastResult, 0);
-		}
-	}
-	else
-	{
-		for (int i = 0; i < getNumSnippets(); i++)
-		{
-			getSnippet(i)->checkIfScriptActive();
-
-			if (!getSnippet(i)->isSnippetEmpty())
-			{
-				const Identifier callbackId = getSnippet(i)->getCallbackName();
+			const Identifier callbackId = getSnippet(i)->getCallbackName();
 
 #if ENABLE_SCRIPTING_BREAKPOINTS
-				Array<HiseJavascriptEngine::Breakpoint> breakpointsForCallback;
+			Array<HiseJavascriptEngine::Breakpoint> breakpointsForCallback;
 
-				for (int k = 0; k < breakpoints.size(); k++)
-				{
-					if (breakpoints[k].snippetId == callbackId || breakpoints[k].snippetId.toString().startsWith("File_"))
-						breakpointsForCallback.add(breakpoints[k]);
-				}
+			for (int k = 0; k < breakpoints.size(); k++)
+			{
+				if (breakpoints[k].snippetId == callbackId || breakpoints[k].snippetId.toString().startsWith("File_"))
+					breakpointsForCallback.add(breakpoints[k]);
+			}
 
-				if (!breakpointsForCallback.isEmpty())
-					scriptEngine->setBreakpoints(breakpointsForCallback);
+			if (!breakpointsForCallback.isEmpty())
+				scriptEngine->setBreakpoints(breakpointsForCallback);
 
-				
+
 #endif
 
-				
+			lastResult = scriptEngine->execute(getSnippet(i)->getSnippetAsFunction(), callbackId == onInit);
 
-				lastResult = scriptEngine->execute(getSnippet(i)->getSnippetAsFunction(), callbackId == onInit);
+			if (!lastResult.wasOk())
+			{
+				debugError(thisAsProcessor, lastResult.getErrorMessage());
 
-				
+				content->endInitialization();
+				thisAsScriptBaseProcessor->allowObjectConstructors = false;
 
-				if (!lastResult.wasOk())
+				// Check the rest of the snippets or they will be deleted on failed compile...
+				for (int j = i; j < getNumSnippets(); j++)
 				{
-					debugError(thisAsProcessor, lastResult.getErrorMessage());
-
-					content->endInitialization();
-					thisAsScriptBaseProcessor->allowObjectConstructors = false;
-
-					// Check the rest of the snippets or they will be deleted on failed compile...
-					for (int j = i; j < getNumSnippets(); j++)
-					{
-						getSnippet(j)->checkIfScriptActive();
-					}
-
-					lastCompileWasOK = false;
-
-					scriptEngine->rebuildDebugInformation();
-					return SnippetResult(lastResult, i);
-
+					getSnippet(j)->checkIfScriptActive();
 				}
+
+				lastCompileWasOK = false;
+
+				scriptEngine->rebuildDebugInformation();
+				return SnippetResult(lastResult, i);
+
 			}
 		}
 	}

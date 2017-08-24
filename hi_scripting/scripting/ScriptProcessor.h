@@ -173,7 +173,7 @@ protected:
 
 
 
-class FileWatcher;
+class ExternalScriptFile;
 
 class FileChangeListener
 {
@@ -201,6 +201,8 @@ public:
 
 	File getWatchedFile(int index) const;
 
+	CodeDocument& getWatchedFileDocument(int index);
+
 	void setCurrentPopup(DocumentWindow *window)
 	{
 		currentPopups.add(window);
@@ -227,75 +229,26 @@ public:
 
 	void showPopupForFile(int index, int charNumberToDisplay=0, int lineNumberToDisplay=-1);
 
-	static ValueTree collectAllScriptFiles(ModulatorSynthChain *synthChainToExport);
-
 	/** This includes every external script, compresses it and returns a base64 encoded string that can be shared without further dependencies. */
-
-	
+	static ValueTree collectAllScriptFiles(ModulatorSynthChain *synthChainToExport);
 
 private:
 
-	friend class FileWatcher;
+	friend class ExternalScriptFile;
 	friend class WeakReference < FileChangeListener > ;
 
 	WeakReference<FileChangeListener>::Master masterReference;
 
-	OwnedArray<FileWatcher> watchers;
+	CodeDocument emptyDoc;
+
+	ReferenceCountedArray<ExternalScriptFile> watchers;
 
 	Array<Component::SafePointer<DocumentWindow>> currentPopups;
 
 	static void addFileContentToValueTree(ValueTree externalScriptFiles, File scriptFile, ModulatorSynthChain* chainToExport);
 };
 
-class FileWatcher : public Timer					
-{
-public:
-	FileWatcher(const File&file, FileChangeListener *listener_):
-		fileToWatch(file),
-		lastModifiedTime(file.getLastModificationTime()),
-		listener(listener_),
-		currentResult(Result::ok())
-	{
-		//startTimer(1000);
-	}
 
-	~FileWatcher()
-	{
-		stopTimer();
-		listener = nullptr;
-	}
-
-	void timerCallback() override
-	{
-		if (fileToWatch.getLastModificationTime() != lastModifiedTime)
-		{
-			if (listener.get() != nullptr)
-			{
-				listener->fileChanged();
-			}
-			else stopTimer();
-		}
-	}
-
-	void setResult(Result r)
-	{
-		currentResult = r;
-	}
-
-	Result getResult() const { return currentResult; }
-
-	File getFile() const { return fileToWatch; }
-
-private:
-
-	WeakReference<FileChangeListener> listener;
-
-	Result currentResult;
-
-	File fileToWatch;
-	const Time lastModifiedTime;
-
-};
 
 
 
@@ -446,8 +399,6 @@ public:
 
 	void showPopupForCallback(const Identifier& callback, int charNumber, int lineNumber);
 
-	void setCompileScriptAsWhole(bool shouldCompileWholeScript) { compileScriptAsWhole = shouldCompileWholeScript; }
-
 	void toggleBreakpoint(const Identifier& snippetId, int lineNumber, int charNumber)
 	{
 		HiseJavascriptEngine::Breakpoint bp(snippetId, "", lineNumber, charNumber, charNumber, breakpoints.size());
@@ -556,8 +507,6 @@ protected:
 
 	bool lastCompileWasOK;
 	bool useStoredContentData = false;
-
-	bool compileScriptAsWhole = false;
 
 private:
 

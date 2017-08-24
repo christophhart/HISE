@@ -34,46 +34,35 @@
 
 PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor *s, const File &fileToEdit) :
 	sp(s),
-	file(fileToEdit),
-	callback(Identifier())
+	callback(Identifier()),
+	tokeniser(new JavascriptTokeniser())
 {
 	Processor *p = dynamic_cast<Processor*>(sp);
 
-	doc.setOwned(new CodeDocument());
-
-	doc->replaceAllContent(file.loadFileAsString());
+	externalFile = p->getMainController()->getExternalScriptFile(fileToEdit);
 
 	const Identifier snippetId = Identifier("File_" + fileToEdit.getFileNameWithoutExtension());
 
 	tokeniser = new JavascriptTokeniser();
-	addAndMakeVisible(editor = new JavascriptCodeEditor(*doc, tokeniser, s, snippetId));
+	addAndMakeVisible(editor = new JavascriptCodeEditor(externalFile->getFileDocument(), tokeniser, s, snippetId));
 
-	addAndMakeVisible(resultLabel = new DebugConsoleTextEditor("messageBox", p));
-
-	addAndMakeVisible(compileButton = new TextButton("new button"));
-	compileButton->setButtonText(TRANS("Compile"));
-	compileButton->setConnectedEdges(Button::ConnectedOnLeft | Button::ConnectedOnRight);
-	compileButton->addListener(this);
-	compileButton->setColour(TextButton::buttonColourId, Colour(0xa2616161));
-
-	p->setEditorState(p->getEditorStateForIndex(JavascriptMidiProcessor::externalPopupShown), true);
-
-	if (!file.existsAsFile()) editor->setEnabled(false);
-
-	setSize(800, 800);
+	addButtonAndCompileLabel();
+	
 }
 
 PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor* s, const Identifier &callback_) :
 	sp(s),
-	file(File()),
-	callback(callback_)
+	callback(callback_),
+	tokeniser(new JavascriptTokeniser())
 {
-	doc.setNonOwned(sp->getSnippet(callback_));
+	addAndMakeVisible(editor = new JavascriptCodeEditor(*sp->getSnippet(callback_), tokeniser, s, callback));
 
-	tokeniser = new JavascriptTokeniser();
-	addAndMakeVisible(editor = new JavascriptCodeEditor(*doc, tokeniser, s, callback));
+	addButtonAndCompileLabel();
+}
 
-	addAndMakeVisible(resultLabel = new DebugConsoleTextEditor("messageBox", dynamic_cast<Processor*>(s)));
+void PopupIncludeEditor::addButtonAndCompileLabel()
+{
+	addAndMakeVisible(resultLabel = new DebugConsoleTextEditor("messageBox", dynamic_cast<Processor*>(sp)));
 
 	addAndMakeVisible(compileButton = new TextButton("new button"));
 	compileButton->setButtonText(TRANS("Compile"));
@@ -84,53 +73,24 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor* s, const Identifier 
 	setSize(800, 800);
 }
 
-PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor* s) :
-	sp(s),
-	file(File()),
-	callback(Identifier())
-{
-	doc.setOwned(new CodeDocument());
 
-	String allCode;
-	sp->mergeCallbacksToScript(allCode);
-
-	doc->replaceAllContent(allCode);
-	doc->clearUndoHistory();
-	doc->setSavePoint();
-
-	static const Identifier empty("empty");
-
-	tokeniser = new JavascriptTokeniser();
-	addAndMakeVisible(editor = new JavascriptCodeEditor(*doc, tokeniser, s, empty));
-
-	addAndMakeVisible(resultLabel = new DebugConsoleTextEditor("messageBox", dynamic_cast<Processor*>(s)));
-
-	addAndMakeVisible(compileButton = new TextButton("new button"));
-	compileButton->setButtonText(TRANS("Compile"));
-	compileButton->setConnectedEdges(Button::ConnectedOnLeft | Button::ConnectedOnRight);
-	compileButton->addListener(this);
-	compileButton->setColour(TextButton::buttonColourId, Colour(0xa2616161));
-
-	
-
-	setSize(800, 800);
-}
 
 PopupIncludeEditor::~PopupIncludeEditor()
 {
+	
+
 	editor = nullptr;
 	resultLabel = nullptr;
-	doc.clear();
+
 	tokeniser = nullptr;
 	compileButton = nullptr;
 
 	Processor *p = dynamic_cast<Processor*>(sp);
 
-	if (p != nullptr)
-		p->setEditorState(p->getEditorStateForIndex(JavascriptMidiProcessor::externalPopupShown), false);
-
 	sp = nullptr;
 	p = nullptr;
+
+	externalFile = nullptr;
 }
 
 void PopupIncludeEditor::timerCallback()
@@ -144,8 +104,6 @@ bool PopupIncludeEditor::keyPressed(const KeyPress& key)
 	if (key.isKeyCode(KeyPress::F5Key))
 	{
 		compileInternal();
-
-
 		return true;
 	}
 
@@ -169,8 +127,8 @@ void PopupIncludeEditor::gotoChar(int character, int lineNumber/*=-1*/)
 {
 	CodeDocument::Position pos;
 
-	pos = lineNumber != -1 ? CodeDocument::Position(*doc, lineNumber, character) :
-		CodeDocument::Position(*doc, character);
+	pos = lineNumber != -1 ? CodeDocument::Position(editor->getDocument(), lineNumber, character) :
+		CodeDocument::Position(editor->getDocument(), character);
 
 	editor->scrollToLine(jmax<int>(0, pos.getLineNumber() - 1));
 	editor->moveCaretTo(pos, false);
@@ -183,25 +141,21 @@ void PopupIncludeEditor::buttonClicked(Button* /*b*/)
 	compileInternal();
 }
 
+File PopupIncludeEditor::getFile() const
+{
+	return externalFile != nullptr ? externalFile->getFile() : File();
+}
+
 void PopupIncludeEditor::compileInternal()
 {
-	if (file.existsAsFile())
+	if (externalFile != nullptr)
 	{
-		String editorContent = doc->getAllContent();
-		file.replaceWithText(editorContent);
-	}
-
-	if (isWholeScriptEditor())
-	{
-		sp->parseSnippetsFromString(doc->getAllContent());
-		doc->setSavePoint();
-		sp->setCompileScriptAsWhole(true);
-
+		externalFile->getFile().replaceWithText(externalFile->getFileDocument().getAllContent());
+		externalFile->getFileDocument().setSavePoint();
 	}
 
 	sp->compileScript();
-	sp->setCompileScriptAsWhole(false);
-
+	
 	lastCompileOk = sp->wasLastCompileOK();
 
 	resultLabel->setColour(TextEditor::ColourIds::backgroundColourId, Colours::white);

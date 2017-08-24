@@ -142,6 +142,7 @@ void MainController::clearPreset()
 	ScopedSuspender ss(this, ScopedSuspender::LockType::SuspendOnly);
 
 	
+	
 
 	getMainSynthChain()->reset();
 
@@ -154,6 +155,8 @@ void MainController::clearPreset()
 		setKeyboardCoulour(i, Colours::transparentBlack);
 	}
     
+	clearIncludedFiles();
+
     changed = false;
 }
 

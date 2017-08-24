@@ -48,7 +48,8 @@ public:
 
 	PopupIncludeEditor(JavascriptProcessor *s, const File &fileToEdit);
 	PopupIncludeEditor(JavascriptProcessor* s, const Identifier &callback);
-	PopupIncludeEditor(JavascriptProcessor* s);
+	
+
 	~PopupIncludeEditor();
 
 	void timerCallback();
@@ -66,29 +67,32 @@ public:
 
 	const JavascriptCodeEditor* getEditor() const { return editor.get(); }
 
-	File getFile() const { return file; }
+	File getFile() const;
 	
 private:
+
+	void addButtonAndCompileLabel();
 
 	void compileInternal();
 
 	friend class PopupIncludeEditorWindow;
 
 	bool isCallbackEditor() { return !callback.isNull(); }
-	bool isWholeScriptEditor() { return callback.isNull() && !file.existsAsFile(); }
-
+	
 	int fontSize;
+
+	ExternalScriptFile::Ptr externalFile;
 
 	ScopedPointer<JavascriptTokeniser> tokeniser;
 	ScopedPointer < JavascriptCodeEditor > editor;
-	OptionalScopedPointer<CodeDocument> doc;
-
+	
 	ScopedPointer<TextButton> compileButton;
 
 	ScopedPointer<DebugConsoleTextEditor> resultLabel;
 
 	JavascriptProcessor *sp;
-	File file;
+	
+	
 	const Identifier callback;
 
 	bool lastCompileOk;

@@ -126,3 +126,16 @@ String GlobalScriptCompileBroadcaster::getExternalScriptFromCollection(const Str
 	jassertfalse;
 	return String();
 }
+
+ExternalScriptFile::Ptr GlobalScriptCompileBroadcaster::getExternalScriptFile(const File& fileToInclude)
+{
+	for (int i = 0; i < includedFiles.size(); i++)
+	{
+		if (includedFiles[i]->getFile() == fileToInclude)
+			return includedFiles[i];
+	}
+
+	includedFiles.add(new ExternalScriptFile(fileToInclude));
+
+	return includedFiles.getLast();
+}

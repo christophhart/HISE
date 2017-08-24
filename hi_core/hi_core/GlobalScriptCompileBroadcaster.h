@@ -58,6 +58,49 @@ private:
 	WeakReference<GlobalScriptCompileListener>::Master masterReference;
 };
 
+class ExternalScriptFile : public ReferenceCountedObject
+{
+public:
+	ExternalScriptFile(const File&file) :
+		file(file),
+		currentResult(Result::ok())
+	{
+#if USE_BACKEND
+		content.replaceAllContent(file.loadFileAsString());
+		content.setSavePoint();
+		content.clearUndoHistory();
+#endif
+	}
+
+	~ExternalScriptFile()
+	{
+
+	}
+
+	void setResult(Result r)
+	{
+		currentResult = r;
+	}
+
+	CodeDocument& getFileDocument() { return content; }
+
+	Result getResult() const { return currentResult; }
+
+	File getFile() const { return file; }
+
+	typedef ReferenceCountedObjectPtr<ExternalScriptFile> ExternalScriptFile::Ptr;
+
+private:
+
+	Result currentResult;
+
+	File file;
+
+	CodeDocument content;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ExternalScriptFile)
+};
+
 
 /** This class sends a message to all registered listeners. */
 class GlobalScriptCompileBroadcaster
@@ -76,6 +119,7 @@ public:
 	{
         dummyLibraryLoader = nullptr;
     
+		clearIncludedFiles();
     };
 
 	/** This sends a synchronous message to all registered listeners.
@@ -123,6 +167,13 @@ public:
 
 	String getExternalScriptFromCollection(const String &fileName);
 
+	ExternalScriptFile::Ptr getExternalScriptFile(const File& fileToInclude);
+
+	void clearIncludedFiles()
+	{
+		includedFiles.clear();
+	}
+
 private:
 	
     void createDummyLoader();
@@ -139,6 +190,8 @@ private:
     
     DynamicObject::Ptr dummyLibraryLoader; // prevents the SharedResourcePointer from deleting the handler
     
+	ReferenceCountedArray<ExternalScriptFile> includedFiles;
+
     
 	Array<WeakReference<GlobalScriptCompileListener>> listenerListStart;
 	Array<WeakReference<GlobalScriptCompileListener>> listenerListEnd;
