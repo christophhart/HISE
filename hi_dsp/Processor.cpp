@@ -478,10 +478,10 @@ void AudioSampleProcessor::setLoadedFile(const String &fileName, bool loadThisFi
 {
 	ignoreUnused(forceReload);
 
-	loadedFileName = fileName;
-
-	if (fileName.isEmpty())
+	if (loadedFileName != fileName && fileName.isEmpty())
 	{
+		loadedFileName = fileName;
+
 		length = 0;
 		sampleRateOfLoadedFile = -1.0;
 		sampleBuffer.setSize(0, 0);
@@ -496,9 +496,11 @@ void AudioSampleProcessor::setLoadedFile(const String &fileName, bool loadThisFi
 		newFileLoaded();
 	}
 
-	if(loadThisFile && fileName.isNotEmpty())
+	if(loadedFileName != fileName && loadThisFile && fileName.isNotEmpty())
 	{
 		ScopedLock sl(getFileLock());
+
+		loadedFileName = fileName;
 
 #if USE_FRONTEND
 

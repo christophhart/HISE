@@ -500,7 +500,7 @@ public:
 	*/
 	void setAudioSampleBuffer(const AudioSampleBuffer *b, const String &fileName)
 	{
-		if(b != nullptr)
+		if(b != buffer && b != nullptr)
 		{
 			currentFileName = fileName;
 
@@ -530,8 +530,11 @@ public:
 	/** Call this whenever you need to set the range from outside. */
 	void setRange(Range<int> newRange)
 	{
-		getSampleArea(0)->setSampleRange(newRange);
-		refreshSampleAreaBounds();
+		if (getSampleArea(0)->getSampleRange() != newRange)
+		{
+			getSampleArea(0)->setSampleRange(newRange);
+			refreshSampleAreaBounds();
+		}
 	}
 
 	void setBackgroundColour(Colour c) { bgColour = c; };

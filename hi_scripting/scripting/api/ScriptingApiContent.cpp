@@ -42,6 +42,8 @@
 #define ADD_TO_TYPE_SELECTOR(x) (ScriptComponentPropertyTypeSelector::addToTypeSelector(ScriptComponentPropertyTypeSelector::x, propertyIds.getLast()))
 #define ADD_AS_SLIDER_TYPE(min, max, interval) (ScriptComponentPropertyTypeSelector::addToTypeSelector(ScriptComponentPropertyTypeSelector::SliderSelector, propertyIds.getLast(), min, max, interval))
 
+
+
 #include <cmath>
 
 
@@ -96,6 +98,7 @@ struct ScriptingApi::Content::ScriptComponent::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setControlCallback);
 };
 
+#define ADD_SCRIPT_PROPERTY(id, name) static const Identifier id(name); propertyIds.add(id);
 
 ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name_, int x, int y, int width, int height, int numConstants) :
 ConstScriptingObject(base, numConstants),
@@ -108,26 +111,29 @@ changed(false),
 customControlCallback(var()),
 parentComponentIndex(-1)
 {
-	propertyIds.add(Identifier("text"));
-	propertyIds.add(Identifier("visible"));		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-	propertyIds.add(Identifier("enabled"));		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-	propertyIds.add(Identifier("x"));			ADD_AS_SLIDER_TYPE(0, 900, 1);
-	propertyIds.add(Identifier("y"));			ADD_AS_SLIDER_TYPE(0, MAX_SCRIPT_HEIGHT, 1);
-	propertyIds.add(Identifier("width"));		ADD_AS_SLIDER_TYPE(0, 900, 1);
-	propertyIds.add(Identifier("height"));		ADD_AS_SLIDER_TYPE(0, MAX_SCRIPT_HEIGHT, 1);
-	propertyIds.add(Identifier("min"));
-	propertyIds.add(Identifier("max"));
-	propertyIds.add(Identifier("tooltip"));
-	propertyIds.add(Identifier("bgColour"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::ColourPickerSelector);
-	propertyIds.add(Identifier("itemColour"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::ColourPickerSelector);
-	propertyIds.add(Identifier("itemColour2")); ADD_TO_TYPE_SELECTOR(SelectorTypes::ColourPickerSelector);
-	propertyIds.add(Identifier("textColour"));  ADD_TO_TYPE_SELECTOR(SelectorTypes::ColourPickerSelector);
-	propertyIds.add(Identifier("macroControl")); ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
-	propertyIds.add(Identifier("saveInPreset")); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-	propertyIds.add(Identifier("isPluginParameter")); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-	propertyIds.add(Identifier("pluginParameterName"));
-	propertyIds.add(Identifier("useUndoManager"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-	propertyIds.add(Identifier("parentComponent"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	//static const Identifier textId("text"); propertyIds.add(textId);
+
+	ADD_SCRIPT_PROPERTY(textId, "text");
+
+	ADD_SCRIPT_PROPERTY(vId, "visible");			ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(eId, "enabled");			ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(xId, "x");					ADD_AS_SLIDER_TYPE(0, 900, 1);
+	ADD_SCRIPT_PROPERTY(yId, "y");					ADD_AS_SLIDER_TYPE(0, MAX_SCRIPT_HEIGHT, 1);
+	ADD_SCRIPT_PROPERTY(wId, "width");				ADD_AS_SLIDER_TYPE(0, 900, 1);
+	ADD_SCRIPT_PROPERTY(hId, "height");				ADD_AS_SLIDER_TYPE(0, MAX_SCRIPT_HEIGHT, 1);
+	ADD_SCRIPT_PROPERTY(mId1, "min");
+	ADD_SCRIPT_PROPERTY(mId2, "max");
+	ADD_SCRIPT_PROPERTY(tId, "tooltip");
+	ADD_SCRIPT_PROPERTY(bId, "bgColour");			ADD_TO_TYPE_SELECTOR(SelectorTypes::ColourPickerSelector);
+	ADD_SCRIPT_PROPERTY(iId1, "itemColour");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ColourPickerSelector);
+	ADD_SCRIPT_PROPERTY(iId2, "itemColour2");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ColourPickerSelector);
+	ADD_SCRIPT_PROPERTY(tId2, "textColour");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ColourPickerSelector);
+	ADD_SCRIPT_PROPERTY(mId3, "macroControl");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	ADD_SCRIPT_PROPERTY(sId1, "saveInPreset");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(iId4, "isPluginParameter"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(pId, "pluginParameterName");
+	ADD_SCRIPT_PROPERTY(uId, "useUndoManager");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(pId2, "parentComponent");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	
 
 	deactivatedProperties.add(getIdFor(isPluginParameter));
@@ -745,18 +751,18 @@ maximum(1.0f)
 {
 	CHECK_COPY_AND_RETURN_22(dynamic_cast<Processor*>(base));
 
-	propertyIds.add(Identifier("mode"));			ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
-	propertyIds.add(Identifier("style"));			ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
-	propertyIds.add(Identifier("stepSize"));
-	propertyIds.add(Identifier("middlePosition"));
-	propertyIds.add(Identifier("defaultValue"));
-	propertyIds.add(Identifier("suffix"));
-	propertyIds.add(Identifier("filmstripImage"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::FileSelector);
-	propertyIds.add(Identifier("numStrips"));
-	propertyIds.add(Identifier("isVertical"));		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-	propertyIds.add(Identifier("scaleFactor"));
-	propertyIds.add(Identifier("mouseSensitivity"));
-	propertyIds.add(Identifier("dragDirection"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	ADD_SCRIPT_PROPERTY(i01, "mode");			ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	ADD_SCRIPT_PROPERTY(i02, "style");			ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	ADD_SCRIPT_PROPERTY(i03, "stepSize");
+	ADD_SCRIPT_PROPERTY(i04, "middlePosition");
+	ADD_SCRIPT_PROPERTY(i05, "defaultValue");
+	ADD_SCRIPT_PROPERTY(i06, "suffix");
+	ADD_SCRIPT_PROPERTY(i07, "filmstripImage");	ADD_TO_TYPE_SELECTOR(SelectorTypes::FileSelector);
+	ADD_SCRIPT_PROPERTY(i08, "numStrips");
+	ADD_SCRIPT_PROPERTY(i09, "isVertical");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i10, "scaleFactor");
+	ADD_SCRIPT_PROPERTY(i11, "mouseSensitivity");
+	ADD_SCRIPT_PROPERTY(i12, "dragDirection");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 
 	deactivatedProperties.removeAllInstancesOf(getIdFor(isPluginParameter));
 
@@ -1018,7 +1024,6 @@ double ScriptingApi::Content::ScriptSlider::getMaxValue() const
 	else
 	{
 		reportScriptError("getMaxValue() can only be called on sliders in 'Range' mode.");
-		return 0.0;
 	}
 }
 
@@ -1031,7 +1036,6 @@ bool ScriptingApi::Content::ScriptSlider::contains(double valueToCheck)
 	else
 	{
 		reportScriptError("contains() can only be called on sliders in 'Range' mode.");
-		return false;
 	}
 }
 
@@ -1148,10 +1152,10 @@ ScriptingApi::Content::ScriptButton::ScriptButton(ProcessorWithScriptingContent 
 ScriptComponent(base, parentContent, name, x, y, 128, 32),
 image(nullptr)
 {
-	propertyIds.add("filmstripImage");	ADD_TO_TYPE_SELECTOR(SelectorTypes::FileSelector);
-	propertyIds.add("isVertical");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-	propertyIds.add("scaleFactor");
-	propertyIds.add("radioGroup");
+	ADD_SCRIPT_PROPERTY(i00, "filmstripImage");	ADD_TO_TYPE_SELECTOR(SelectorTypes::FileSelector);
+	ADD_SCRIPT_PROPERTY(i01, "isVertical");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i02, "scaleFactor");
+	ADD_SCRIPT_PROPERTY(i03, "radioGroup");
 
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::max));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::min));
@@ -1234,13 +1238,12 @@ struct ScriptingApi::Content::ScriptLabel::Wrapper
 ScriptingApi::Content::ScriptLabel::ScriptLabel(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name, int x, int y, int width, int) :
 ScriptComponent(base, parentContent, name, x, y, width, 16)
 {
-	propertyIds.add(Identifier("fontName"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
-	propertyIds.add(Identifier("fontSize"));	ADD_AS_SLIDER_TYPE(1, 200, 1);
-	propertyIds.add(Identifier("fontStyle"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
-	propertyIds.add(Identifier("alignment"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
-	propertyIds.add(Identifier("editable"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-	propertyIds.add(Identifier("multiline"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-
+	ADD_SCRIPT_PROPERTY(i01, "fontName");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	ADD_SCRIPT_PROPERTY(i02, "fontSize");	ADD_AS_SLIDER_TYPE(1, 200, 1);
+	ADD_SCRIPT_PROPERTY(i03, "fontStyle");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	ADD_SCRIPT_PROPERTY(i04, "alignment");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	ADD_SCRIPT_PROPERTY(i05, "editable");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i06, "multiline");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 
 	componentProperties->setProperty(getIdFor(FontName), 0);
 	componentProperties->setProperty(getIdFor(FontSize), 0);
@@ -1616,14 +1619,12 @@ existingData(nullptr)
 {
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::macroControl));
 
-
-
-	propertyIds.add("sliderAmount");		ADD_AS_SLIDER_TYPE(0, 128, 1);
-	propertyIds.add("stepSize");
-	propertyIds.add("flashActive");			ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-	propertyIds.add("showValueOverlay");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-	propertyIds.add("ProcessorId");         ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
-	propertyIds.add("SliderPackIndex");     
+	ADD_SCRIPT_PROPERTY(i00, "sliderAmount");		ADD_AS_SLIDER_TYPE(0, 128, 1);
+	ADD_SCRIPT_PROPERTY(i01, "stepSize");
+	ADD_SCRIPT_PROPERTY(i02, "flashActive");			ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i03, "showValueOverlay");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i04, "ProcessorId");         ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	ADD_SCRIPT_PROPERTY(i05, "SliderPackIndex");     
 
 	packData->setNumSliders(16);
 
@@ -1848,13 +1849,13 @@ image(nullptr)
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::textColour));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::macroControl));
 
-	propertyIds.add("alpha");		ADD_AS_SLIDER_TYPE(0.0, 1.0, 0.01);
-	propertyIds.add("fileName");	ADD_TO_TYPE_SELECTOR(SelectorTypes::FileSelector);
-	propertyIds.add("offset");
-	propertyIds.add("scale");
-	propertyIds.add("allowCallbacks");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
-	propertyIds.add("popupMenuItems");		ADD_TO_TYPE_SELECTOR(SelectorTypes::MultilineSelector);
-	propertyIds.add("popupOnRightClick");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i00, "alpha");				ADD_AS_SLIDER_TYPE(0.0, 1.0, 0.01);
+	ADD_SCRIPT_PROPERTY(i01, "fileName");			ADD_TO_TYPE_SELECTOR(SelectorTypes::FileSelector);
+	ADD_SCRIPT_PROPERTY(i02, "offset");
+	ADD_SCRIPT_PROPERTY(i03, "scale");
+	ADD_SCRIPT_PROPERTY(i04, "allowCallbacks");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	ADD_SCRIPT_PROPERTY(i05, "popupMenuItems");		ADD_TO_TYPE_SELECTOR(SelectorTypes::MultilineSelector);
+	ADD_SCRIPT_PROPERTY(i06, "popupOnRightClick");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 
 	priorityProperties.add(getIdFor(FileName));
 
@@ -2023,19 +2024,18 @@ controlSender(this, base)
 	//deactivatedProperties.add(getIdFor(ScriptComponent::Properties::tooltip));
 	
 
-	propertyIds.add("borderSize");					ADD_AS_SLIDER_TYPE(0, 20, 1);
-	propertyIds.add("borderRadius");				ADD_AS_SLIDER_TYPE(0, 20, 1);
-    propertyIds.add("opaque");						ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-	propertyIds.add("allowDragging");				ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-	propertyIds.add("allowCallbacks");				ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
-	propertyIds.add("popupMenuItems");				ADD_TO_TYPE_SELECTOR(SelectorTypes::MultilineSelector);
-	propertyIds.add("popupOnRightClick");			ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-	propertyIds.add(Identifier("popupMenuAlign"));  ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-	propertyIds.add(Identifier("selectedPopupIndex"));
-	propertyIds.add(Identifier("stepSize"));
-	propertyIds.add(Identifier("enableMidiLearn"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-	propertyIds.add(Identifier("holdIsRightClick"));	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-	
+	ADD_SCRIPT_PROPERTY(i00, "borderSize");					ADD_AS_SLIDER_TYPE(0, 20, 1);
+	ADD_SCRIPT_PROPERTY(i01, "borderRadius");				ADD_AS_SLIDER_TYPE(0, 20, 1);
+    ADD_SCRIPT_PROPERTY(i02, "opaque");						ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i03, "allowDragging");				ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i04, "allowCallbacks");				ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	ADD_SCRIPT_PROPERTY(i05, "popupMenuItems");				ADD_TO_TYPE_SELECTOR(SelectorTypes::MultilineSelector);
+	ADD_SCRIPT_PROPERTY(i06, "popupOnRightClick");			ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i07, "popupMenuAlign");  ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i08, "selectedPopupIndex");
+	ADD_SCRIPT_PROPERTY(i09, "stepSize");
+	ADD_SCRIPT_PROPERTY(i10, "enableMidiLearn");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i11, "holdIsRightClick");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	
 	componentProperties->setProperty(getIdFor(borderSize), 0);
 	componentProperties->setProperty(getIdFor(borderRadius), 0);
@@ -2072,8 +2072,6 @@ controlSender(this, base)
 	ADD_API_METHOD_1(setDraggingBounds);
 	ADD_API_METHOD_2(setPopupData);
     ADD_API_METHOD_3(setValueWithUndo);
-
-	dynamic_cast<GlobalSettingManager*>(getScriptProcessor()->getMainController_())->addScaleFactorListener(this);
 
 }
 
