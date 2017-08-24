@@ -705,7 +705,10 @@ void JavascriptCodeEditor::showAutoCompleteNew()
 	}
 	else
 	{
-		Component *editor = dynamic_cast<Component*>(findParentComponentOfClass<ComponentWithBackendConnection>());
+		Component *editor = dynamic_cast<Component*>(findParentComponentOfClass<PanelWithProcessorConnection>());
+
+		if(editor == nullptr || editor->getHeight() < 400)
+			editor = dynamic_cast<Component*>(findParentComponentOfClass<ComponentWithBackendConnection>());
 
 		if (editor != nullptr)
 		{
