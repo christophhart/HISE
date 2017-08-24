@@ -105,6 +105,11 @@ FrontendProcessorEditor::~FrontendProcessorEditor()
 {
 	dynamic_cast<OverlayMessageBroadcaster*>(getAudioProcessor())->removeOverlayListener(this);
 
+	container->removeChildComponent(rootTile);
+
+	rootTile = nullptr;
+	container = nullptr;
+
 	loaderOverlay = nullptr;
 	debugLoggerComponent = nullptr;
 }

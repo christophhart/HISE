@@ -155,9 +155,54 @@ public:
 		*	It also looks in the child components' child componenents ... */
 		bool isChildComponent(ScriptComponent* childComponent);
 
+		int getNumChildComponents() const
+		{
+			return childComponents.size();
+		}
+
+		ScriptComponent* getChildComponent(int index)
+		{
+			if (index < childComponents.size())
+				return childComponents[index].get();
+
+			return nullptr;
+		}
+
 		ReferenceCountedObject* getCustomControlCallback();
 
 		void notifyChildComponents();
+
+		bool isShowing() const;
+
+		template <class ChildType> class ChildIterator
+		{
+		public:
+
+			ChildIterator(ScriptComponent* c)
+			{
+				addToArray(c);
+			}
+
+			ChildType* getNextChildComponent()
+			{
+				return childComponents[i++];
+			}
+
+		private:
+
+			int i = 0;
+
+			void addToArray(ScriptComponent* c)
+			{
+				if (auto cTyped = dynamic_cast<ChildType*>(c))
+					childComponents.add(cTyped);
+
+				for (int i = 0; i < c->getNumChildComponents(); i++)
+					addToArray(c->getChildComponent(i));
+			}
+
+			Array<ChildType*> childComponents;
+		};
 
 		// API Methods =====================================================================================================
 
@@ -237,6 +282,8 @@ public:
 		bool skipRestoring;
 
 		struct Wrapper;
+
+		
 
 	protected:
 
@@ -731,6 +778,23 @@ public:
         void setValueWithUndo(var oldValue, var newValue, var actionName);
         
 		// ========================================================================================================
+
+		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor=sendNotification) override
+		{
+			ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
+
+			if (id == getIdFor((int)ScriptComponent::Properties::visible))
+			{
+				setScriptObjectProperty(ScriptComponent::visible, newValue);
+
+				ChildIterator<ScriptPanel> iter(this);
+
+				while (auto childPanel = iter.getNextChildComponent())
+					childPanel->repaint();	
+			}
+			
+			
+		}
 
 		struct Wrapper;
 

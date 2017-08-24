@@ -728,6 +728,18 @@ ReferenceCountedObject* ScriptingApi::Content::ScriptComponent::getCustomControl
 	return customControlCallback.getObject();
 }
 
+bool ScriptingApi::Content::ScriptComponent::isShowing() const
+{
+	const bool isVisible = getScriptObjectProperty(ScriptComponent::Properties::visible);
+
+	if (parentComponentIndex != -1)
+		return isVisible && parent->getComponent(parentComponentIndex)->isShowing();
+	else
+		return isVisible;
+	
+
+}
+
 struct ScriptingApi::Content::ScriptSlider::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_1(ScriptSlider, setMidPoint);
@@ -1779,6 +1791,7 @@ void ScriptingApi::Content::ScriptSliderPack::setScriptObjectPropertyWithChangeM
 		otherPackIndex = (int)newValue;
 		connectToOtherSliderPack(otherPackId);
 	}
+	
 
 	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
 }
@@ -2114,10 +2127,17 @@ void ScriptingApi::Content::ScriptPanel::internalRepaint()
     
 	scaleFactor *= dynamic_cast<GlobalSettingManager*>(getScriptProcessor()->getMainController_())->getGlobalScaleFactor();
 
+	scaleFactor = jmin<double>(2.0, scaleFactor);
+
 	int canvasWidth = (int)(scaleFactor * (double)getScriptObjectProperty(ScriptComponent::Properties::width));
 	int canvasHeight = (int)(scaleFactor * (double)getScriptObjectProperty(ScriptComponent::Properties::height));
 
-	
+	if (!isShowing())
+	{
+		paintCanvas = Image();
+
+		return;
+	}
 
 	if (paintCanvas.getWidth() != canvasWidth ||
 		paintCanvas.getHeight() != canvasHeight)

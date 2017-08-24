@@ -938,7 +938,7 @@ void ScriptingContentOverlay::mouseDown(const MouseEvent& e)
 			{
 				auto name = components[i]->getName().toString();
 
-				if (!components[i]->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::visible))
+				if (!components[i]->isShowing())
 					name << " (Hidden)";
 
 				m.addItem(i + 1, name);
