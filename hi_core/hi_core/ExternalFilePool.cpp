@@ -227,11 +227,18 @@ File SharedPoolBase::getFileFromFileNameString(const String& fileName)
 
 	File f = directory.getChildFile(fileName);
 
+	return f;
+
 #else
-	File f(fileName);
+
+	if (File::isAbsolutePath(fileName))
+		return File(fileName);
+	else
+		return File();
+
 #endif
 
-	return f;
+	
 }
 
 Identifier SharedPoolBase::getIdForFileName(const String &absoluteFileName) const
@@ -410,7 +417,8 @@ AudioSampleBuffer AudioSampleBufferPool::loadFileIntoPool(const String& fileName
 
 	File f = getFileFromFileNameString(fileName);
 
-	loadFromStream(be, new FileInputStream(f));
+	if(f.existsAsFile())
+		loadFromStream(be, new FileInputStream(f));
 
 	loadedSamples.add(be);
 

@@ -88,7 +88,7 @@ public:
 
 	File getFile() const { return file; }
 
-	typedef ReferenceCountedObjectPtr<ExternalScriptFile> ExternalScriptFile::Ptr;
+	typedef ReferenceCountedObjectPtr<ExternalScriptFile> Ptr;
 
 private:
 
