@@ -761,6 +761,9 @@ public:
 		/** Sets a timer callback. */
 		void setTimerCallback(var timerCallback);
 
+		/** Disables the paint routine and just uses the given (clipped) image. */
+		void setImage(String imageName, int xOffset, int yOffset);
+
 		/** Call this to indicate that the value has changed (the onControl callback will be executed. */
 		void changed();
 
@@ -805,6 +808,8 @@ public:
 
 		bool isUsingCustomPaintRoutine() const { return !paintRoutine.isUndefined(); }
 
+		bool isUsingClippedFixedImage() const { return usesClippedFixedImage; };
+
 		void scaleFactorChanged(float /*newScaleFactor*/) override {} // Do nothing until fixed...
 
 		void mouseCallback(var mouseInformation);
@@ -842,6 +847,12 @@ public:
         };
         
 	private:
+
+		double getScaleFactorForCanvas() const;
+
+		Rectangle<int> getBoundsForImage() const;
+
+		bool usesClippedFixedImage = false;
 
 		var jsonPopupData;
 

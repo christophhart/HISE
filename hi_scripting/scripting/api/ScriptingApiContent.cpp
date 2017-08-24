@@ -2010,6 +2010,7 @@ struct ScriptingApi::Content::ScriptPanel::Wrapper
 	API_VOID_METHOD_WRAPPER_0(ScriptPanel, repaint);
 	API_VOID_METHOD_WRAPPER_0(ScriptPanel, repaintImmediately);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setPaintRoutine);
+	API_VOID_METHOD_WRAPPER_3(ScriptPanel, setImage)
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setMouseCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setTimerCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, startTimer);
@@ -2076,6 +2077,7 @@ controlSender(this, base)
 	ADD_API_METHOD_0(repaint);
 	ADD_API_METHOD_0(repaintImmediately);
 	ADD_API_METHOD_1(setPaintRoutine);
+	ADD_API_METHOD_3(setImage);
 	ADD_API_METHOD_1(setMouseCallback);
 	ADD_API_METHOD_1(setTimerCallback);
 	ADD_API_METHOD_0(changed);
@@ -2085,6 +2087,7 @@ controlSender(this, base)
 	ADD_API_METHOD_1(setDraggingBounds);
 	ADD_API_METHOD_2(setPopupData);
     ADD_API_METHOD_3(setValueWithUndo);
+	
 
 }
 
@@ -2123,59 +2126,58 @@ void ScriptingApi::Content::ScriptPanel::setPaintRoutine(var paintFunction)
 
 void ScriptingApi::Content::ScriptPanel::internalRepaint()
 {
-	double scaleFactor = parent->usesDoubleResolution() ? 2.0 : 1.0;
-    
-	scaleFactor *= dynamic_cast<GlobalSettingManager*>(getScriptProcessor()->getMainController_())->getGlobalScaleFactor();
-
-	scaleFactor = jmin<double>(2.0, scaleFactor);
-
-	int canvasWidth = (int)(scaleFactor * (double)getScriptObjectProperty(ScriptComponent::Properties::width));
-	int canvasHeight = (int)(scaleFactor * (double)getScriptObjectProperty(ScriptComponent::Properties::height));
-
-	if (!isShowing())
+	if (!usesClippedFixedImage)
 	{
-		paintCanvas = Image();
+		auto imageBounds = getBoundsForImage();
 
-		return;
+		int canvasWidth = imageBounds.getWidth();
+		int canvasHeight = imageBounds.getHeight();
+
+		if (!isShowing())
+		{
+			paintCanvas = Image();
+
+			return;
+		}
+
+		if (paintCanvas.getWidth() != canvasWidth ||
+			paintCanvas.getHeight() != canvasHeight)
+		{
+			paintCanvas = Image(Image::PixelFormat::ARGB, canvasWidth, canvasHeight, !getScriptObjectProperty(Properties::opaque));
+		}
+		else if (!getScriptObjectProperty(Properties::opaque))
+		{
+			paintCanvas.clear(Rectangle<int>(0, 0, canvasWidth, canvasHeight));
+		}
+
+		Graphics g(paintCanvas);
+
+		g.addTransform(AffineTransform::scale((float)getScaleFactorForCanvas()));
+
+		var thisObject(this);
+		var arguments = var(graphics);
+		var::NativeFunctionArgs args(thisObject, &arguments, 1);
+
+		graphics->setGraphics(&g, &paintCanvas);
+
+		Result r = Result::ok();
+
+		HiseJavascriptEngine* engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
+
+		engine->maximumExecutionTime = RelativeTime(0.2);
+
+		engine->callExternalFunction(paintRoutine, args, &r);
+
+		if (r.failed())
+		{
+			debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
+		}
+
+		graphics->setGraphics(nullptr, nullptr);
+
+		repaintNotifier.sendSynchronousChangeMessage();
 	}
 
-	if (paintCanvas.getWidth() != canvasWidth ||
-		paintCanvas.getHeight() != canvasHeight)
-	{
-		paintCanvas = Image(Image::PixelFormat::ARGB, canvasWidth, canvasHeight, !getScriptObjectProperty(Properties::opaque));
-	}
-	else if (!getScriptObjectProperty(Properties::opaque))
-	{
-		paintCanvas.clear(Rectangle<int>(0, 0, canvasWidth, canvasHeight));
-	}
-	
-	Graphics g(paintCanvas);
-
-	g.addTransform(AffineTransform::scale((float)scaleFactor));
-	
-	var thisObject(this);
-	var arguments = var(graphics);
-	var::NativeFunctionArgs args(thisObject, &arguments, 1);
-
-	graphics->setGraphics(&g, &paintCanvas);
-
-	Result r = Result::ok();
-
-	HiseJavascriptEngine* engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
-
-    engine->maximumExecutionTime = RelativeTime(0.2);
-    
-	engine->callExternalFunction(paintRoutine, args, &r);
-
-	if (r.failed())
-	{
-		debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
-	}
-
-	graphics->setGraphics(nullptr, nullptr);
-
-    repaintNotifier.sendSynchronousChangeMessage();
-    
 	//SEND_MESSAGE(this);
 }
 
@@ -2322,6 +2324,67 @@ void ScriptingApi::Content::ScriptPanel::setValueWithUndo(var oldValue, var newV
     getProcessor()->getMainController()->getControlUndoManager()->beginNewTransaction(actionName);
     getProcessor()->getMainController()->getControlUndoManager()->perform(newEvent);
     
+}
+
+void ScriptingApi::Content::ScriptPanel::setImage(String imageName, int xOffset, int yOffset)
+{
+	paintRoutine = var();
+	usesClippedFixedImage = true;
+
+	Image toUse = getLoadedImage(imageName);
+
+	auto b = getBoundsForImage();
+
+	if (xOffset == 0)
+	{
+		double ratio = (double)b.getHeight() / (double)b.getWidth();
+		int w = toUse.getWidth();
+		int h = (int)((double)w * ratio);
+
+		yOffset = jmin<int>(yOffset, toUse.getHeight() - h);
+
+		paintCanvas = toUse.getClippedImage(Rectangle<int>(0, yOffset, w, h));
+
+	}
+	else if (yOffset == 0)
+	{
+		double ratio = (double)b.getHeight() / (double)b.getWidth();
+		int h = toUse.getHeight();
+		int w = (int)((double)h * ratio);
+
+		xOffset = jmin<int>(xOffset, toUse.getWidth() - xOffset);
+
+		paintCanvas = toUse.getClippedImage(Rectangle<int>(xOffset, 0, w, h));
+
+	}
+	else
+	{
+		reportScriptError("Can't offset both dimensions. Either x or y must be 0");
+	}
+
+	repaintNotifier.sendSynchronousChangeMessage();
+
+}
+
+Rectangle<int> ScriptingApi::Content::ScriptPanel::getBoundsForImage() const
+{
+	auto scaleFactor = getScaleFactorForCanvas();
+
+	int canvasWidth = (int)(scaleFactor * (double)getScriptObjectProperty(ScriptComponent::Properties::width));
+	int canvasHeight = (int)(scaleFactor * (double)getScriptObjectProperty(ScriptComponent::Properties::height));
+
+	return Rectangle<int>(0, 0, canvasWidth, canvasHeight);
+}
+
+double ScriptingApi::Content::ScriptPanel::getScaleFactorForCanvas() const
+{
+	double scaleFactor = parent->usesDoubleResolution() ? 2.0 : 1.0;
+
+	scaleFactor *= dynamic_cast<const GlobalSettingManager*>(getScriptProcessor()->getMainController_())->getGlobalScaleFactor();
+
+	scaleFactor = jmin<double>(2.0, scaleFactor);
+
+	return scaleFactor;
 }
 
 void ScriptingApi::Content::ScriptPanel::AsyncControlCallbackSender::handleAsyncUpdate()
