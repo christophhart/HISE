@@ -318,6 +318,9 @@ Processor * MonoFilterEffect::getChildProcessor(int processorIndex)
 	case GainChain: return gainChain;
 	case BipolarFrequencyChain: return bipolarFreqChain;
 	}
+
+	jassertfalse;
+	return nullptr;
 }
 
 const Processor * MonoFilterEffect::getChildProcessor(int processorIndex) const
@@ -328,6 +331,9 @@ const Processor * MonoFilterEffect::getChildProcessor(int processorIndex) const
 	case GainChain: return gainChain;
 	case BipolarFrequencyChain: return bipolarFreqChain;
 	}
+
+	jassertfalse;
+	return nullptr;
 }
 
 AudioSampleBuffer & MonoFilterEffect::getBufferForChain(int chainIndex)
@@ -338,6 +344,9 @@ AudioSampleBuffer & MonoFilterEffect::getBufferForChain(int chainIndex)
 	case GainChain: return gainBuffer;
 	case BipolarFrequencyChain: return bipolarFreqBuffer;
 	}
+
+	jassertfalse;
+	return bipolarFreqBuffer;
 }
 
 ProcessorEditorBody *MonoFilterEffect::createEditor(ProcessorEditor *parentEditor)

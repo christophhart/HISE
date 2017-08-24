@@ -218,7 +218,19 @@ bool HlacReaderCommon::internalHlacRead(int** destSamples, int numDestChannels, 
 		}
 		else
 		{
-			HiseSampleBuffer hsb(destSamples, 2, numSamples);
+			int16** destinationFixed = reinterpret_cast<int16**>(destSamples);
+
+			if (isStereo)
+			{
+				destinationFixed[0] = destinationFixed[0] + startOffsetInDestBuffer;
+			}
+			else
+			{
+				destinationFixed[0] = destinationFixed[0] + startOffsetInDestBuffer;
+				destinationFixed[1] = destinationFixed[1] + startOffsetInDestBuffer;
+			}
+
+			HiseSampleBuffer hsb(destinationFixed, 2, numSamples);
 			decoder.decode(hsb, true, *input, (int)startSampleInFile, numSamples);
 		}
 	}
@@ -235,7 +247,11 @@ bool HlacReaderCommon::internalHlacRead(int** destSamples, int numDestChannels, 
 		}
 		else
 		{
-			HiseSampleBuffer hsb(destSamples, 1, numSamples);
+			int16** destinationFixed = reinterpret_cast<int16**>(destSamples);
+
+			HiseSampleBuffer hsb(destinationFixed, 1, numSamples);
+
+
 			decoder.decode(hsb, false, *input, (int)startSampleInFile, numSamples);
 		}
 	}
@@ -281,12 +297,12 @@ void HiseLosslessAudioFormatReader::copySampleData(int* const* destSamples, int 
 	}
 }
 
-bool HiseLosslessAudioFormatReader::copyFromMonolith(HiseSampleBuffer& destination, int startOffsetInBuffer, int numDestChannels, int64 offsetInFile, int numChannels, int numSamples)
+bool HiseLosslessAudioFormatReader::copyFromMonolith(HiseSampleBuffer& destination, int startOffsetInBuffer, int numDestChannels, int64 offsetInFile, int numChannelsToCopy, int numSamples)
 {
 	if (numSamples <= 0)
 		return true;
 
-	const int bytesPerFrame = sizeof(int16) * numChannels;
+	const int bytesPerFrame = sizeof(int16) * numChannelsToCopy;
 
 	input->setPosition(1 + offsetInFile * bytesPerFrame);
 
@@ -309,7 +325,7 @@ bool HiseLosslessAudioFormatReader::copyFromMonolith(HiseSampleBuffer& destinati
 		//copySampleData(destSamples, startOffsetInDestBuffer, numDestChannels,
 		//	tempBuffer, (int)numChannels, numThisTime);
 
-		if (numChannels == 1)
+		if (numChannelsToCopy == 1)
 		{
 			memcpy(destination.getWritePointer(0, startOffsetInBuffer), tempBuffer, numThisTime * sizeof(int16));
 

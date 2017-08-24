@@ -502,7 +502,7 @@ void AudioSampleProcessor::setLoadedFile(const String &fileName, bool loadThisFi
 
 #if USE_FRONTEND
 
-		sampleBuffer = mc->getSampleManager().getAudioSampleBufferPool()->loadFileIntoPool(fileName, false);
+		sampleBuffer = mc->getSampleManager().getAudioSampleBufferPool()->loadFileIntoPool(fileName);
 
 		Identifier fileId = mc->getSampleManager().getAudioSampleBufferPool()->getIdForFileName(fileName);
 
@@ -510,7 +510,7 @@ void AudioSampleProcessor::setLoadedFile(const String &fileName, bool loadThisFi
 
 		File actualFile = getFile(loadedFileName, PresetPlayerHandler::AudioFiles);
 		Identifier fileId = mc->getSampleManager().getAudioSampleBufferPool()->getIdForFileName(actualFile.getFullPathName());
-		sampleBuffer = mc->getSampleManager().getAudioSampleBufferPool()->loadFileIntoPool(actualFile.getFullPathName(), forceReload);
+		sampleBuffer = mc->getSampleManager().getAudioSampleBufferPool()->loadFileIntoPool(actualFile.getFullPathName());
 
 #endif
 

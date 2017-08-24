@@ -359,7 +359,7 @@ const Image DefaultFrontendBar::getFilmStripImageFromString(const String &fileRe
 
 #endif
 
-	const Image image = mc->getSampleManager().getImagePool()->loadFileIntoPool(poolName, false);
+	const Image image = mc->getSampleManager().getImagePool()->loadFileIntoPool(poolName);
 
 	return image;
 }

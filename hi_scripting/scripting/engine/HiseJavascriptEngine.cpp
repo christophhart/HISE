@@ -618,8 +618,8 @@ Result HiseJavascriptEngine::execute(const String& javascriptCode, bool allowCon
 	catch (RootObject::Error &e)
 	{
 #if USE_FRONTEND
-		DBG(e.message);
-		return Result::fail(e.message);
+		DBG(e.errorMessage);
+		return Result::fail(e.errorMessage);
 #endif
 
 		return Result::fail(root->dumpCallStack(e, onInit));

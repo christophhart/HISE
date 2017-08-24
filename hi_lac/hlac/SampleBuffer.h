@@ -72,6 +72,17 @@ public:
 		size(otherBuffer.size)
 	{};
 
+	/** Creates an HiseSampleBuffer from an array of data pointers. */
+	HiseSampleBuffer(int16** sampleData, int numChannels_, int numSamples):
+		leftIntBuffer(sampleData[0], numSamples),
+		rightIntBuffer(numChannels_ > 1 ? sampleData[0] : nullptr, numSamples),
+		isFloat(false),
+		size(numSamples),
+		numChannels(numChannels_)
+	{
+		
+	}
+
 	HiseSampleBuffer& operator= (HiseSampleBuffer&& other)
 	{
 		isFloat = other.isFloat;
@@ -83,6 +94,8 @@ public:
 
 		return *this;
 	}
+
+	
 
 	HiseSampleBuffer(HiseSampleBuffer& otherBuffer, int offset);
 

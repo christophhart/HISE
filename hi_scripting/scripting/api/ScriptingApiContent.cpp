@@ -860,7 +860,7 @@ void ScriptingApi::Content::ScriptSlider::setScriptObjectPropertyWithChangeMessa
 
 			String poolName = ProjectHandler::Frontend::getSanitiziedFileNameForPoolReference(newValue);
 
-			image = pool->loadFileIntoPool(poolName, false);
+			image = pool->loadFileIntoPool(poolName);
 
 			jassert(image.isValid());
 
@@ -869,7 +869,7 @@ void ScriptingApi::Content::ScriptSlider::setScriptObjectPropertyWithChangeMessa
 
 			File actualFile = getExternalFile(newValue);
 
-			image = pool->loadFileIntoPool(actualFile.getFullPathName(), false);
+			image = pool->loadFileIntoPool(actualFile.getFullPathName());
 
 #endif
 		}
@@ -1193,7 +1193,7 @@ void ScriptingApi::Content::ScriptButton::setScriptObjectPropertyWithChangeMessa
 
 			String poolName = ProjectHandler::Frontend::getSanitiziedFileNameForPoolReference(newValue);
 
-			image = pool->loadFileIntoPool(poolName, false);
+			image = pool->loadFileIntoPool(poolName);
 
 			jassert(image.isValid());
 
@@ -1202,7 +1202,7 @@ void ScriptingApi::Content::ScriptButton::setScriptObjectPropertyWithChangeMessa
 
 			File actualFile = getExternalFile(newValue);
 
-			image = pool->loadFileIntoPool(actualFile.getFullPathName(), false);
+			image = pool->loadFileIntoPool(actualFile.getFullPathName());
 
 #endif
 		}
@@ -1940,7 +1940,7 @@ void ScriptingApi::Content::ScriptImage::setImageFile(const String &absoluteFile
 
 	String poolName = ProjectHandler::Frontend::getSanitiziedFileNameForPoolReference(absoluteFileName);
 
-	image = pool->loadFileIntoPool(poolName, false);
+	image = pool->loadFileIntoPool(poolName);
 
 	jassert(image.isValid());
 
@@ -1948,7 +1948,7 @@ void ScriptingApi::Content::ScriptImage::setImageFile(const String &absoluteFile
 
 	File actualFile = getExternalFile(absoluteFileName);
 
-	image = pool->loadFileIntoPool(actualFile.getFullPathName(), forceUseRealFile);
+	image = pool->loadFileIntoPool(actualFile.getFullPathName());
 
 #endif
 
@@ -2233,7 +2233,7 @@ void ScriptingApi::Content::ScriptPanel::loadImage(String imageName, String pret
 
 	String poolName = ProjectHandler::Frontend::getSanitiziedFileNameForPoolReference(imageName);
 
-	const Image newImage = pool->loadFileIntoPool(poolName, false);
+	const Image newImage = pool->loadFileIntoPool(poolName);
 
 	jassert(newImage.isValid());
 
@@ -2241,7 +2241,7 @@ void ScriptingApi::Content::ScriptPanel::loadImage(String imageName, String pret
 
 	File actualFile = getExternalFile(imageName);
 
-	const Image newImage = pool->loadFileIntoPool(actualFile.getFullPathName(), false);
+	const Image newImage = pool->loadFileIntoPool(actualFile.getFullPathName());
 
 #endif
 

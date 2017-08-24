@@ -311,7 +311,7 @@ public:
 					File f(externalLocation);
 					const String fileName = f.getFileName();
 #else
-					const String fileName = externalFile;
+					const String fileName = externalLocation;
 #endif
 
 					return fileName + " (" + String(lineNumber) + ")"; 

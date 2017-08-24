@@ -162,7 +162,7 @@ void HlacDecoder::decode(HiseSampleBuffer& destination, bool decodeStereo, Input
 #endif
 }
 
-void HlacDecoder::decodeDiff(const CycleHeader& header, bool decodeStereo, HiseSampleBuffer& destination, InputStream& input, int channelIndex)
+void HlacDecoder::decodeDiff(const CycleHeader& header, bool /*decodeStereo*/, HiseSampleBuffer& destination, InputStream& input, int channelIndex)
 {
 	uint16 blockSize = header.getNumSamples();
 
@@ -202,7 +202,7 @@ void HlacDecoder::decodeDiff(const CycleHeader& header, bool decodeStereo, HiseS
 
 
 
-void HlacDecoder::decodeCycle(const CycleHeader& header, bool decodeStereo, HiseSampleBuffer& destination, InputStream& input, int channelIndex)
+void HlacDecoder::decodeCycle(const CycleHeader& header, bool /*decodeStereo*/, HiseSampleBuffer& destination, InputStream& input, int channelIndex)
 {
 	uint8 br = header.getBitRate();
 

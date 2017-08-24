@@ -1518,7 +1518,7 @@ void DebugConsoleTextEditor::mouseDown(const MouseEvent& e)
 	TextEditor::mouseDown(e);
 }
 
-void DebugConsoleTextEditor::mouseDoubleClick(const MouseEvent& e)
+void DebugConsoleTextEditor::mouseDoubleClick(const MouseEvent& /*e*/)
 {
 	DebugableObject::Helpers::gotoLocation(processor->getMainController()->getMainSynthChain(), getText());
 }
