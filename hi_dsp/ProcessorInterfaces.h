@@ -244,12 +244,12 @@ public:
 	/** Returns the range of the sample. */
 	Range<int> getRange() const { return sampleRange; };
 
-	int getTotalLength() const { return sampleBuffer != nullptr ? sampleBuffer->getNumSamples() : 0; };
+	int getTotalLength() const { return sampleBuffer.getNumSamples(); };
 
 	/** Returns a const pointer to the audio sample buffer.
 	*
 	*	The pointer references a object from a AudioSamplePool and should be valid as long as the pool is not cleared. */
-	const AudioSampleBuffer *getBuffer() { return sampleBuffer; };
+	const AudioSampleBuffer *getBuffer() { return &sampleBuffer; };
 
 	/** Returns the filename that was loaded.
 	*
@@ -287,7 +287,7 @@ protected:
 	Range<int> sampleRange;
 	int length;
 
-	const AudioSampleBuffer *getSampleBuffer() const { return sampleBuffer; };
+	const AudioSampleBuffer *getSampleBuffer() const { return &sampleBuffer; };
 
 	double sampleRateOfLoadedFile;
 
@@ -295,7 +295,7 @@ private:
 
 	// ================================================================================================================
 
-	AudioSampleBuffer const *sampleBuffer;
+	AudioSampleBuffer sampleBuffer;
 	MainController *mc;
 
 	// ================================================================================================================

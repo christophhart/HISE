@@ -99,7 +99,7 @@ class MainController;
 /** A table component containing all samples of a ModulatorSampler.
 *	@ingroup components
 */
-template <class FileType> class ExternalFileTable      : public Component,
+class ExternalFileTableBase      : public Component,
                              public TableListBoxModel,
 							 public SafeChangeListener,
 							 public DragAndDropContainer
@@ -115,9 +115,9 @@ public:
 		numColumns
 	};
 
-	ExternalFileTable(Pool<FileType> *pool) ;
+	ExternalFileTableBase(SharedPoolBase *pool) ;
 
-	~ExternalFileTable();
+	~ExternalFileTableBase();
 
 	
 	void changeListenerCallback(SafeChangeBroadcaster *) override
@@ -165,7 +165,7 @@ public:
 
 protected:
 
-	Pool<FileType> *pool;
+	SharedPoolBase *pool;
 
 private:
     TableListBox table;     // the table component itself
@@ -183,12 +183,12 @@ private:
 
     int numRows;            // The number of rows of data we've got
 
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ExternalFileTable)
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ExternalFileTableBase)
 };
 
 struct PoolTableSubTypes
 {
-	struct AudioFilePoolTable : public ExternalFileTable<AudioSampleBuffer>
+	struct AudioFilePoolTable : public ExternalFileTableBase
 	{
 	public:
 
@@ -204,7 +204,7 @@ struct PoolTableSubTypes
 		SET_GENERIC_PANEL_ID("AudioFilePoolTable");
 	};
 
-	struct ImageFilePoolTable : public ExternalFileTable<Image>
+	struct ImageFilePoolTable : public ExternalFileTableBase
 	{
 	public:
 

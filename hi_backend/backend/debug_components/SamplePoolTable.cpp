@@ -176,7 +176,7 @@ void SamplePoolTable::mouseDown(const MouseEvent &e)
 
 
 
-template <class FileType> ExternalFileTable<FileType>::ExternalFileTable(Pool<FileType> *pool_)   :
+ExternalFileTableBase::ExternalFileTableBase(SharedPoolBase *pool_)   :
 	font (GLOBAL_FONT()),
 	pool(pool_),
 	selectedRow(-1)
@@ -214,13 +214,13 @@ template <class FileType> ExternalFileTable<FileType>::ExternalFileTable(Pool<Fi
 }
 
 
-template <class FileType> ExternalFileTable<FileType>::~ExternalFileTable()
+ExternalFileTableBase::~ExternalFileTableBase()
 {
 	pool->removeChangeListener(this);
 }
 
 
-template <class FileType> int ExternalFileTable<FileType>::getNumRows()
+int ExternalFileTableBase::getNumRows()
 {
 	return pool->getNumLoadedFiles();
 };
@@ -228,7 +228,7 @@ template <class FileType> int ExternalFileTable<FileType>::getNumRows()
 
 
 	
-template <class FileType> void ExternalFileTable<FileType>::paintRowBackground (Graphics& g, int rowNumber, int /*width*/, int /*height*/, bool rowIsSelected) 
+void ExternalFileTableBase::paintRowBackground (Graphics& g, int rowNumber, int /*width*/, int /*height*/, bool rowIsSelected)
 {
 	if(rowNumber % 2) g.fillAll(Colours::white.withAlpha(0.05f));
 
@@ -236,9 +236,9 @@ template <class FileType> void ExternalFileTable<FileType>::paintRowBackground (
         g.fillAll (Colour(0x44000000));
 }
 
-template <class FileType> void ExternalFileTable<FileType>::selectedRowsChanged(int i/*lastRowSelected*/) {selectedRow = i;};
+void ExternalFileTableBase::selectedRowsChanged(int i/*lastRowSelected*/) {selectedRow = i;};
 
-template <class FileType> void ExternalFileTable<FileType>::paintCell (Graphics& g, int rowNumber, int columnId,
+void ExternalFileTableBase::paintCell (Graphics& g, int rowNumber, int columnId,
                 int width, int height, bool /*rowIsSelected*/) 
 {
 	g.setColour (Colours::white.withAlpha(.8f));
@@ -252,7 +252,7 @@ template <class FileType> void ExternalFileTable<FileType>::paintCell (Graphics&
     //g.fillRect (width - 1, 0, 1, height);
 }
 
-template <class FileType> String ExternalFileTable<FileType>::getTextForTableCell(int rowNumber, int columnNumber)
+String ExternalFileTableBase::getTextForTableCell(int rowNumber, int columnNumber)
 {
 	
 	StringArray info = pool->getTextDataForId(rowNumber);
@@ -267,7 +267,7 @@ template <class FileType> String ExternalFileTable<FileType>::getTextForTableCel
 }
 
 
-template <class FileType> String ExternalFileTable<FileType>::getHeadline() const
+String ExternalFileTableBase::getHeadline() const
 {
 	String x;
     
@@ -279,7 +279,7 @@ template <class FileType> String ExternalFileTable<FileType>::getHeadline() cons
 }
 
     
-template <class FileType> void ExternalFileTable<FileType>::resized() 
+void ExternalFileTableBase::resized()
 {
     table.setBounds(getLocalBounds());
 
@@ -290,7 +290,7 @@ template <class FileType> void ExternalFileTable<FileType>::resized()
 }
 
 PoolTableSubTypes::AudioFilePoolTable::AudioFilePoolTable(BackendRootWindow* rootWindow):
-	ExternalFileTable<AudioSampleBuffer>(rootWindow->getBackendProcessor()->getSampleManager().getAudioSampleBufferPool())
+	ExternalFileTableBase(rootWindow->getBackendProcessor()->getSampleManager().getAudioSampleBufferPool())
 {
 
 }
@@ -309,7 +309,7 @@ void PoolTableSubTypes::AudioFilePoolTable::cellDoubleClicked(int rowNumber, int
 }
 
 PoolTableSubTypes::ImageFilePoolTable::ImageFilePoolTable(BackendRootWindow* rootWindow):
-	ExternalFileTable<Image>(nullptr)
+	ExternalFileTableBase(rootWindow->getBackendProcessor()->getSampleManager().getImagePool())
 {
 
 }

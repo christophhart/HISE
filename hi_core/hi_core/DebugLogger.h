@@ -361,11 +361,11 @@ private:
 // Use these macros instead of calling the functions directly:
 
 // Checks the buffer and logs bursts and discontinuities
-#define CHECK_AND_LOG_BUFFER_DATA(processor, location, data, isLeft, numSamples) processor->getMainController()->getDebugLogger().checkSampleData(processor, location, isLeft, data, numSamples);
+#define CHECK_AND_LOG_BUFFER_DATA(processor, location, data, isLeft, numSamples) if(processor != nullptr) processor->getMainController()->getDebugLogger().checkSampleData(processor, location, isLeft, data, numSamples);
 
-#define CHECK_AND_LOG_BUFFER_DATA_WITH_ID(processor, id, location, data, isLeft, numSamples) processor->getMainController()->getDebugLogger().checkSampleData(processor, location, isLeft, data, numSamples, id);
+#define CHECK_AND_LOG_BUFFER_DATA_WITH_ID(processor, id, location, data, isLeft, numSamples) if(processor != nullptr) processor->getMainController()->getDebugLogger().checkSampleData(processor, location, isLeft, data, numSamples, id);
 
-#define CHECK_AND_LOG_ASSERTION(processor, location, result, extraData) processor->getMainController()->getDebugLogger().checkAssertion(processor, location, result, (double)extraData);
+#define CHECK_AND_LOG_ASSERTION(processor, location, result, extraData) if(processor != nullptr) processor->getMainController()->getDebugLogger().checkAssertion(processor, location, result, (double)extraData);
 
 
 class DebugLoggerComponent : public Component,

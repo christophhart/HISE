@@ -484,7 +484,7 @@ void AudioSampleProcessor::setLoadedFile(const String &fileName, bool loadThisFi
 	{
 		length = 0;
 		sampleRateOfLoadedFile = -1.0;
-		sampleBuffer = nullptr;
+		sampleBuffer.setSize(0, 0);
 
 		setRange(Range<int>(0, 0));
 
@@ -499,8 +499,6 @@ void AudioSampleProcessor::setLoadedFile(const String &fileName, bool loadThisFi
 	if(loadThisFile && fileName.isNotEmpty())
 	{
 		ScopedLock sl(getFileLock());
-
-		mc->getSampleManager().getAudioSampleBufferPool()->releasePoolData(sampleBuffer);
 
 #if USE_FRONTEND
 
@@ -518,10 +516,7 @@ void AudioSampleProcessor::setLoadedFile(const String &fileName, bool loadThisFi
 
 		sampleRateOfLoadedFile = mc->getSampleManager().getAudioSampleBufferPool()->getSampleRateForFile(fileId);
 
-		if(sampleBuffer != nullptr)
-		{
-			setRange(Range<int>(0, sampleBuffer->getNumSamples()));
-		}
+		setRange(Range<int>(0, sampleBuffer.getNumSamples()));
 
 		// A AudioSampleProcessor must also be derived from Processor!
 		jassert(dynamic_cast<Processor*>(this) != nullptr);
@@ -534,14 +529,12 @@ void AudioSampleProcessor::setLoadedFile(const String &fileName, bool loadThisFi
 
 void AudioSampleProcessor::setRange(Range<int> newSampleRange)
 {
-	if(!newSampleRange.isEmpty() && sampleBuffer != nullptr)
+	if(!newSampleRange.isEmpty())
 	{
-		jassert(sampleBuffer != nullptr);
-
 		ScopedLock sl(getFileLock());
 
 		sampleRange = newSampleRange;
-		sampleRange.setEnd(jmin<int>(sampleBuffer->getNumSamples(), sampleRange.getEnd()));
+		sampleRange.setEnd(jmin<int>(sampleBuffer.getNumSamples(), sampleRange.getEnd()));
 		length = sampleRange.getLength();
 
 		rangeUpdated();

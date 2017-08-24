@@ -84,7 +84,7 @@ public:
 	/** Returns a non-whitespace version of the file as id (check for collisions!) */
 	Identifier getIdForFileName(const String &absoluteFileName) const;
 
-	const String getFileNameForId(Identifier identifier);;
+	const String getFileNameForId(Identifier identifier);
 
 	Identifier getIdForIndex(int index);
 
@@ -160,11 +160,7 @@ private:
 };
 
 
-/** A pool for audio samples
-*
-*	This is used to embed impulse responses into the binary file and load it from there instead of having the impulse file as seperate audio file.
-*	In order to use it, create a object, call loadExternalFilesFromValueTree() and the convolution effect checks automatically if it should load the file from disk or from the pool.
-*/
+#if 0
 class AudioSampleBufferPool: public Pool<AudioSampleBuffer>
 {
 public:
@@ -201,16 +197,279 @@ private:
 	ScopedPointer<AudioThumbnailCache> cache;
 	
 };
+#endif
 
 class ProjectHandler;
 
-/** A pool for images. */
-class ImagePool: public RestorableObject
+
+class SharedPoolBase : public RestorableObject,
+					   public SafeChangeBroadcaster
 {
 public:
 
-	ImagePool(MainController* mc_) :
+	SharedPoolBase(MainController* mc_) :
 		mc(mc_)
+	{};
+
+
+	virtual ~SharedPoolBase() {};
+
+	virtual Identifier getFileTypeName() const = 0;
+
+	virtual int getNumLoadedFiles() const = 0;
+
+	virtual void storeItemInValueTree(ValueTree& childItem, int index) const = 0;
+	virtual void restoreItemFromValueTree(ValueTree& childItem) = 0;
+
+	virtual void clearData() = 0;
+
+	virtual Identifier getIdForIndex(int index) const = 0;
+	
+	virtual String getFileNameForId(Identifier identifier) const = 0;
+
+	virtual StringArray getTextDataForId(int index) const = 0;
+
+	void notifyTable()
+	{
+#if USE_BACKEND
+		sendChangeMessage();
+#endif
+	}
+
+	File getFileFromFileNameString(const String& fileName);
+
+	Identifier getIdForFileName(const String &absoluteFileName) const;
+
+	ValueTree exportAsValueTree() const override;
+	void restoreFromValueTree(const ValueTree &v) override;
+
+	ProjectHandler& getProjectHandler();
+
+	const ProjectHandler& getProjectHandler() const;
+
+protected:
+
+	template <class DataType> struct PoolEntry
+	{
+		PoolEntry() :
+			fileName(String()),
+			id(Identifier()),
+			data(DataType())
+		{};
+
+		PoolEntry(const Identifier& id_) :
+			id(id_),
+			data(DataType())
+		{}
+
+		StringArray getTextData(const Identifier& typeName) const
+		{
+			StringArray info;
+			info.add(id.toString());
+			info.add("100kB"); // because no one cares actually.
+			info.add(typeName.toString());
+			info.add("1");
+
+			return info;
+		}
+
+		bool operator==(const PoolEntry& other) const
+		{
+			return this->id == other.id;
+		};
+
+		Identifier id;
+		String fileName;
+		DataType data;
+		var additionalData;
+	};
+
+	MainController* mc;
+};
+
+
+/** A pool for audio samples
+*
+*	This is used to embed impulse responses into the binary file and load it from there instead of having the impulse file as seperate audio file.
+*	In order to use it, create a object, call loadExternalFilesFromValueTree() and the convolution effect checks automatically if it should load the file from disk or from the pool.
+*/
+class AudioSampleBufferPool : public SharedPoolBase
+{
+public:
+
+	typedef SharedPoolBase::PoolEntry<AudioSampleBuffer> BufferEntry;
+
+	AudioSampleBufferPool(MainController* mc) :
+		SharedPoolBase(mc)
+	{
+		cache = new AudioThumbnailCache(128);
+		
+		afm.registerBasicFormats();
+	};
+
+	~AudioSampleBufferPool()
+	{
+		clearData();
+	}
+
+	Identifier getFileTypeName() const override;
+
+	int getNumLoadedFiles() const override
+	{
+		return loadedSamples.size();
+	}
+
+	Identifier getIdForIndex(int index) const override
+	{
+		return loadedSamples[index].id;
+	}
+
+	String getFileNameForId(Identifier identifier) const override
+	{
+		auto index = loadedSamples.indexOf(identifier);
+		if (index != -1)
+			return loadedSamples[index].fileName;
+
+		return String();
+	}
+
+	StringArray getTextDataForId(int index) const
+	{
+		return loadedSamples[index].getTextData(getFileTypeName());
+	}
+
+	void clearData() override
+	{
+		loadedSamples.clear();
+	}
+
+
+	
+	void storeItemInValueTree(ValueTree& child, int i) const override
+	{
+		auto e = loadedSamples[i];
+
+		child.setProperty("ID", e.id.toString(), nullptr);
+		child.setProperty("FileName", e.fileName, nullptr);
+
+		FileInputStream fis(e.fileName);
+
+		MemoryBlock mb = MemoryBlock();
+		MemoryOutputStream out(mb, false);
+		out.writeFromInputStream(fis, fis.getTotalLength());
+
+		child.setProperty("Data", var(mb.getData(), mb.getSize()), nullptr);
+		child.setProperty("AdditionalData", e.additionalData, nullptr);
+	}
+
+	void restoreItemFromValueTree(ValueTree& child) override
+	{
+		Identifier id = Identifier(child.getProperty("ID", String()).toString());
+
+		if (loadedSamples.indexOf(id) != -1)
+			return;
+
+		var x = child.getProperty("Data", var::undefined());
+
+		MemoryBlock *mb = x.getBinaryData();
+
+		jassert(mb != nullptr);
+
+		MemoryInputStream* mis = new MemoryInputStream(*mb, false);
+
+		BufferEntry ne;
+
+		ne.fileName = child.getProperty("FileName", String()).toString();
+		ne.additionalData = child.getProperty("AdditionalData");
+		jassert(ne.fileName.isNotEmpty());
+
+		ne.id = id;
+
+		loadFromStream(ne, mis);
+
+		loadedSamples.add(ne);
+
+	}
+
+	AudioThumbnailCache *getCache() { return cache; }
+
+	AudioSampleBuffer loadFileIntoPool(const String& fileName, bool unused)
+	{
+		Identifier idForFileName = getIdForFileName(fileName);
+
+		const int existingIndex = loadedSamples.indexOf(idForFileName);
+
+		if (existingIndex != -1)
+		{
+			return loadedSamples[existingIndex].data;
+		}
+
+		BufferEntry be;
+		be.id = idForFileName;
+		be.fileName = fileName;
+
+		File f = getFileFromFileNameString(fileName);
+
+		loadFromStream(be, new FileInputStream(f));
+
+		loadedSamples.add(be);
+
+		notifyTable();
+
+		return be.data;
+	}
+
+	
+	double getSampleRateForFile(const Identifier& id)
+	{
+		auto index = loadedSamples.indexOf(id);
+
+		if(index != -1)
+		{
+			auto be = loadedSamples[index];
+
+			return (double)be.additionalData;
+		}
+
+		return 0.0;
+	}
+
+private:
+
+	ScopedPointer<AudioThumbnailCache> cache;
+
+	void loadFromStream(BufferEntry& ne, InputStream* ownedStream)
+	{
+		ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(ownedStream);
+
+		if (reader != nullptr)
+		{
+			ne.data.setSize(reader->numChannels, reader->lengthInSamples, false, false, false);
+
+			reader->read(&(ne.data), 0, reader->lengthInSamples, 0, true, true);
+
+			ne.additionalData = reader->sampleRate;
+
+		}
+	}
+
+	AudioFormatManager afm;
+
+	Array<BufferEntry> loadedSamples;
+
+};
+
+
+
+/** A pool for images. */
+class ImagePool: public SharedPoolBase
+{
+public:
+
+	typedef SharedPoolBase::PoolEntry<Image> ImageEntry;
+
+	ImagePool(MainController* mc_) :
+		SharedPoolBase(mc_)
 	{};
 
 	~ImagePool()
@@ -218,13 +477,85 @@ public:
 		clearData();
 	}
 
-	ValueTree exportAsValueTree() const override;
 
-	void restoreFromValueTree(const ValueTree &previouslyExportedState) override;
+	int getNumLoadedFiles() const override
+	{
+		return loadedImages.size();
+	}
 
-	ImagePool(ProjectHandler *handler);
+	Identifier getIdForIndex(int index) const override
+	{
+		return loadedImages[index].id;
+	}
 
-	Identifier getFileTypeName() const ;;
+	String getFileNameForId(Identifier identifier) const override
+	{
+		auto index = loadedImages.indexOf(identifier);
+		if (index != -1)
+			return loadedImages[index].fileName;
+
+		return String();
+	}
+
+	void clearData() override
+	{
+		loadedImages.clear();
+	}
+
+	StringArray getTextDataForId(int index) const
+	{
+		return loadedImages[index].getTextData(getFileTypeName());
+	}
+
+	void storeItemInValueTree(ValueTree& child, int i) const override
+	{
+		auto e = loadedImages[i];
+
+		child.setProperty("ID", e.id.toString(), nullptr);
+		child.setProperty("FileName", e.fileName, nullptr);
+
+		FileInputStream fis(e.fileName);
+
+		MemoryBlock mb = MemoryBlock();
+		MemoryOutputStream out(mb, false);
+		out.writeFromInputStream(fis, fis.getTotalLength());
+
+		child.setProperty("Data", var(mb.getData(), mb.getSize()), nullptr);
+	}
+
+	void restoreItemFromValueTree(ValueTree& child) override
+	{
+		Identifier id = Identifier(child.getProperty("ID", String()).toString());
+
+		if (loadedImages.indexOf(id) != -1)
+			return;
+
+		var x = child.getProperty("Data", var::undefined());
+
+		MemoryBlock *mb = x.getBinaryData();
+
+		jassert(mb != nullptr);
+
+		ScopedPointer<MemoryInputStream> mis = new MemoryInputStream(*mb, false);
+
+		ImageEntry ne;
+
+		ne.fileName = child.getProperty("FileName", String()).toString();
+		jassert(ne.fileName.isNotEmpty());
+
+		ne.id = id;
+		ne.data = ImageFileFormat::loadFrom(mis->getData(), mis->getDataSize());
+
+		mis = nullptr;
+
+		ImageCache::addImageToCache(ne.data, ne.fileName.hashCode64());
+
+		notifyTable();
+
+		loadedImages.add(ne);
+	}
+
+	Identifier getFileTypeName() const override;
 
 	static Identifier getStaticIdentifier() { RETURN_STATIC_IDENTIFIER("ImagePool") };
 
@@ -247,50 +578,34 @@ public:
 		return sa;
 	}
 
-	Image loadFileIntoPool(const String& fileName, bool unused);
-
-	void clearData()
+	Image loadFileIntoPool(const String& fileName, bool unused)
 	{
-		loadedImages.clear();
+		Identifier idForFileName = getIdForFileName(fileName);
+
+		const int existingIndex = loadedImages.indexOf(idForFileName);
+
+		if (existingIndex != -1)
+		{
+			return loadedImages[existingIndex].data;
+		}
+
+		ImageEntry ne;
+		ne.id = idForFileName;
+		ne.fileName = fileName;
+
+		File f = getFileFromFileNameString(fileName);
+
+		ne.data = ImageCache::getFromFile(f);
+
+		loadedImages.add(ne);
+
+		return ne.data;
 	}
 
-	Identifier getIdForFileName(const String &absoluteFileName) const;
-
-	ProjectHandler& getProjectHandler();
-
-	const ProjectHandler& getProjectHandler() const;
-
-	int getNumLoadedFiles() const
-	{
-		return loadedImages.size();
-	}
 
 protected:
 
-	MainController* mc;
-
-	struct ImageEntry
-	{
-		ImageEntry() :
-			fileName(String()),
-			id(Identifier()),
-			image(Image())
-		{};
-
-		ImageEntry(const Identifier& id_):
-			id(id_),
-			image(Image())
-		{}
-
-		bool operator==(const ImageEntry& other) const
-		{
-			return this->id == other.id;
-		};
-
-		Identifier id;
-		String fileName;
-		Image image;
-	};
+	
 
 	Array<ImageEntry> loadedImages;
 };

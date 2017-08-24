@@ -249,7 +249,7 @@ name(n)
 
 AudioSampleProcessor::~AudioSampleProcessor()
 {
-	mc->getSampleManager().getAudioSampleBufferPool()->releasePoolData(sampleBuffer);
+	
 }
 
 void AudioSampleProcessor::saveToValueTree(ValueTree &v) const
@@ -278,7 +278,7 @@ void AudioSampleProcessor::restoreFromValueTree(const ValueTree &v)
 
 	Range<int> range = Range<int>(v.getProperty("min", 0), v.getProperty("max", 0));
 
-	if (sampleBuffer != nullptr) setRange(range);
+	setRange(range);
 }
 
 void AudioSampleProcessor::changeListenerCallback(SafeChangeBroadcaster *b)
@@ -288,7 +288,7 @@ void AudioSampleProcessor::changeListenerCallback(SafeChangeBroadcaster *b)
 	if (bc != nullptr)
 	{
 		setLoadedFile(bc->getCurrentlyLoadedFileName(), true);
-		bc->setAudioSampleBuffer(sampleBuffer, loadedFileName);
+		bc->setAudioSampleBuffer(getBuffer(), loadedFileName);
 
 		dynamic_cast<Processor*>(this)->sendSynchronousChangeMessage();
 	}
@@ -297,8 +297,7 @@ void AudioSampleProcessor::changeListenerCallback(SafeChangeBroadcaster *b)
 
 AudioSampleProcessor::AudioSampleProcessor(Processor *p) :
 length(0),
-sampleRateOfLoadedFile(-1.0),
-sampleBuffer(nullptr)
+sampleRateOfLoadedFile(-1.0)
 {
 	// A AudioSampleProcessor must be derived from Processor!
 	jassert(p != nullptr);

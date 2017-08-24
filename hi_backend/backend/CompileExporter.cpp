@@ -61,7 +61,7 @@ ValueTree BaseExporter::exportReferencedAudioFiles()
 
 #endif
 
-		samplePool->loadFileIntoPool(iter.getFile().getFullPathName());
+		samplePool->loadFileIntoPool(iter.getFile().getFullPathName(), false);
 	}
 
 	return samplePool->exportAsValueTree();

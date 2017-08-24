@@ -245,8 +245,6 @@ const FileType * Pool<FileType>::loadFileIntoPool(const String &fileName, bool f
 		File f(fileName);
 #endif
 
-
-
 		if (f.existsAsFile())
 		{
 			FileInputStream *fis = new FileInputStream(f);
@@ -340,6 +338,7 @@ Identifier Pool<FileType>::getIdForFileName(const String &absoluteFileName) cons
 template class Pool < Image > ;
 template class Pool < AudioSampleBuffer > ;
 
+#if 0
 AudioSampleBufferPool::AudioSampleBufferPool(ProjectHandler *handler) :
 Pool<AudioSampleBuffer>(handler, (int)ProjectHandler::SubDirectories::AudioFiles),
 sampleRateIdentifier("SampleRate")
@@ -401,75 +400,7 @@ void AudioSampleBufferPool::reloadData(AudioSampleBuffer &dataToBeOverwritten, c
 		FloatVectorOperations::copy(dataToBeOverwritten.getWritePointer(i, 0), newBuffer->getReadPointer(i, 0), dataToBeOverwritten.getNumSamples());
 	}
 }
-
-ValueTree ImagePool::exportAsValueTree() const
-{
-	ValueTree v(getFileTypeName());
-
-	for (int i = 0; i < loadedImages.size(); i++)
-	{
-		ValueTree child("PoolData");
-
-		auto e = loadedImages[i];
-
-		child.setProperty("ID", e.id.toString(), nullptr);
-		child.setProperty("FileName", e.fileName, nullptr);
-
-		FileInputStream fis(e.fileName);
-
-		MemoryBlock mb = MemoryBlock();
-		MemoryOutputStream out(mb, false);
-		out.writeFromInputStream(fis, fis.getTotalLength());
-
-		child.setProperty("Data", var(mb.getData(), mb.getSize()), nullptr);
-
-		v.addChild(child, -1, nullptr);
-	}
-
-	return v;
-}
-
-void ImagePool::restoreFromValueTree(const ValueTree &v)
-{
-	loadedImages.clear();
-
-	for (int i = 0; i < v.getNumChildren(); i++)
-	{
-		ValueTree child = v.getChild(i);
-
-		Identifier id = Identifier(child.getProperty("ID", String()).toString());
-
-		if (loadedImages.indexOf(id) != -1)
-			continue;
-
-		var x = child.getProperty("Data", var::undefined());
-
-		MemoryBlock *mb = x.getBinaryData();
-
-		jassert(mb != nullptr);
-
-		ScopedPointer<MemoryInputStream> mis = new MemoryInputStream(*mb, false);
-
-		ImageEntry ne;
-
-		ne.fileName = child.getProperty("FileName", String()).toString();
-		jassert(ne.fileName.isNotEmpty());
-
-		ne.id = id;
-		ne.image =  ImageFileFormat::loadFrom(mis->getData(), mis->getDataSize());
-
-		mis = nullptr;
-
-		ImageCache::addImageToCache(ne.image, ne.fileName.hashCode64());
-
-		loadedImages.add(ne);
-	}
-}
-
-ImagePool::ImagePool(ProjectHandler *handler)
-{
-
-}
+#endif
 
 Identifier ImagePool::getFileTypeName() const
 {
@@ -519,22 +450,8 @@ Image ImagePool::loadImageFromReference(MainController* mc, const String referen
 	return Image();
 }
 
-Image ImagePool::loadFileIntoPool(const String& fileName, bool unused)
+File SharedPoolBase::getFileFromFileNameString(const String& fileName)
 {
-	Identifier idForFileName = getIdForFileName(fileName);
-
-	const int existingIndex = loadedImages.indexOf(idForFileName);
-
-	if (existingIndex != -1)
-	{
-		return loadedImages[existingIndex].image;
-	}
-
-	ImageEntry ne;
-	ne.id = idForFileName;
-	ne.fileName = fileName;
-	
-
 #if USE_FRONTEND && DONT_EMBED_FILES_IN_FRONTEND
 
 #if HISE_IOS
@@ -552,14 +469,10 @@ Image ImagePool::loadFileIntoPool(const String& fileName, bool unused)
 	File f(fileName);
 #endif
 
-	ne.image = ImageCache::getFromFile(f);
-
-	loadedImages.add(ne);
-
-	return ne.image;
+	return f;
 }
 
-Identifier ImagePool::getIdForFileName(const String &absoluteFileName) const
+Identifier SharedPoolBase::getIdForFileName(const String &absoluteFileName) const
 {
 #if USE_FRONTEND
 	return Identifier(absoluteFileName.upToFirstOccurrenceOf(".", false, false)); // .removeCharacters(" \n\t"));
@@ -589,12 +502,49 @@ Identifier ImagePool::getIdForFileName(const String &absoluteFileName) const
 #endif
 }
 
-ProjectHandler& ImagePool::getProjectHandler()
+ValueTree SharedPoolBase::exportAsValueTree() const
+{
+	ValueTree v(getFileTypeName());
+
+	for (int i = 0; i < getNumLoadedFiles(); i++)
+	{
+		ValueTree child("PoolData");
+
+		storeItemInValueTree(child, i);
+
+		v.addChild(child, -1, nullptr);
+	}
+
+	return v;
+}
+
+void SharedPoolBase::restoreFromValueTree(const ValueTree &v)
+{
+	clearData();
+
+	for (int i = 0; i < v.getNumChildren(); i++)
+	{
+		ValueTree child = v.getChild(i);
+
+		restoreItemFromValueTree(child);
+	}
+
+#if USE_BACKEND
+	sendChangeMessage();
+#endif
+}
+
+ProjectHandler& SharedPoolBase::getProjectHandler()
 {
 	return GET_PROJECT_HANDLER(mc->getMainSynthChain());
 }
 
-const ProjectHandler& ImagePool::getProjectHandler() const
+const ProjectHandler& SharedPoolBase::getProjectHandler() const
 {
 	return GET_PROJECT_HANDLER(mc->getMainSynthChain());
+}
+
+Identifier AudioSampleBufferPool::getFileTypeName() const
+{
+	return ProjectHandler::getIdentifier(ProjectHandler::SubDirectories::AudioFiles);
 }

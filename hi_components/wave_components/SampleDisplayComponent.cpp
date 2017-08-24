@@ -530,7 +530,7 @@ bool AudioSampleBufferComponent::isInterestedInDragSource(const SourceDetails &d
 	if (c == this) return false;
 
 #if USE_BACKEND
-	const bool dragSourceIsTable = c != nullptr && dynamic_cast<ExternalFileTable<AudioSampleBuffer>*>(c->getParentComponent());
+	const bool dragSourceIsTable = c != nullptr && dynamic_cast<ExternalFileTableBase*>(c->getParentComponent());
 #else
 	const bool dragSourceIsTable = false;
 
