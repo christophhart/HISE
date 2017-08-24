@@ -57,151 +57,6 @@ public:
 };
 
 
-/** A template class which handles the logic of a pool of external file references.
-*
-*	Features:
-*	- load and stores data from files
-*	- caches them so that they are referenced multiple times
-*	- reference counting and clearing of unused data (but it must be handled manually)
-*	- export / import the whole pool as ValueTree.
-*/
-template <class FileType> class Pool: public SafeChangeBroadcaster,
-								public RestorableObject
-{
-public:
-
-	Pool(ProjectHandler *handler_, int directory) :
-		handler(handler_),
-		directoryType(directory)
-	{};
-
-	virtual ~Pool() {};
-
-	void restoreFromValueTree(const ValueTree &v) override;;
-
-	ValueTree exportAsValueTree() const override;
-
-	/** Returns a non-whitespace version of the file as id (check for collisions!) */
-	Identifier getIdForFileName(const String &absoluteFileName) const;
-
-	const String getFileNameForId(Identifier identifier);
-
-	Identifier getIdForIndex(int index);
-
-	int getIndexForId(Identifier id) const;
-
-	int getNumLoadedFiles() const {return data.size();};
-	
-	StringArray getFileNameList() const;
-
-	StringArray getTextDataForId(int i);
-
-	/** Clears the data. */
-	void clearData();
-
-	/** Call this whenever you don't need the buffer anymore. */
-	void releasePoolData(const FileType *b);
-
-	/** This loads the file into the pool. If it is already in the pool, it will be referenced. */
-	const FileType *loadFileIntoPool(const String &fileName, bool forceReload=false);;
-
-	/** Overwrite this method and return a file type identifier that will be used for the ValueTree id and stuff. */
-	virtual Identifier getFileTypeName() const = 0;
-
-protected:
-
-	/** Set a property for the data. */
-	void setPropertyForData(const Identifier &id, const Identifier &propertyName, var propertyValue) const;
-
-	/** returns the property for the data */
-	var getPropertyForData(const Identifier &id, const Identifier &propertyName) const;
-
-	/** Overwrite this method and return a data object which will be owned by the pool from then. 
-	*
-	*	You also must delete the stream object when the job is finished (a bit ugly because The AudioFormatReader class does this automatically)
-	*/
-	virtual FileType *loadDataFromStream(InputStream *inputStream) const = 0;
-
-	/** Overwrite this method and reload the data from the file. The object must not be deleted, because there may be references to it,
-	*	so make sure it will replace the data internally.
-	*
-	*	You can use loadDataFromStream to load the data and then copy the internal data to the existing data. */
-	virtual void reloadData(FileType &dataToBeOverwritten, const String &fileName) = 0;
-
-	/** Overwrite this method and return its file size. */
-	virtual size_t getFileSize(const FileType *data) const = 0;
-
-	const ProjectHandler &getProjectHandler() const { return *handler; }
-
-	// The subdirectory type for the project handler
-	int directoryType;
-
-private:
-
-	void addData(Identifier id, const String &fileName, InputStream *inputStream);;
-
-	const FileType *getDataForId(Identifier &id) const;
-
-	struct PoolData
-	{
-		Identifier id;
-		ScopedPointer<FileType> data;
-		String fileName;
-		NamedValueSet properties;
-		int refCount;
-	};
-
-	OwnedArray<PoolData> data;
-
-	ProjectHandler *handler;
-	
-
-	
-};
-
-
-#if 0
-class AudioSampleBufferPool: public Pool<AudioSampleBuffer>
-{
-public:
-
-	AudioSampleBufferPool(ProjectHandler *handler);
-
-	Identifier getFileTypeName() const override;
-
-	static Identifier getStaticIdentifier() { RETURN_STATIC_IDENTIFIER("AudioFilePool") };
-
-	virtual size_t getFileSize(const AudioSampleBuffer *buffer) const override
-	{
-		return (size_t)buffer->getNumSamples() * (size_t)buffer->getNumChannels() * sizeof(float);
-	}
-
-	AudioThumbnailCache *getCache() { return cache; }
-
-	double getSampleRateForFile(const Identifier &id)
-	{
-		return (double)getPropertyForData(id, sampleRateIdentifier);
-	}
-
-protected:
-
-	AudioSampleBuffer *loadDataFromStream(InputStream *inputStream) const override;
-
-	void reloadData(AudioSampleBuffer &dataToBeOverwritten, const String &fileName) override;;	
-
-
-private:
-
-	Identifier sampleRateIdentifier;
-
-	ScopedPointer<AudioThumbnailCache> cache;
-	
-};
-#endif
-
-class ProjectHandler;
-
-
 class SharedPoolBase : public RestorableObject,
 					   public SafeChangeBroadcaster
 {
@@ -229,12 +84,7 @@ public:
 
 	virtual StringArray getTextDataForId(int index) const = 0;
 
-	void notifyTable()
-	{
-#if USE_BACKEND
-		sendChangeMessage();
-#endif
-	}
+	void notifyTable();
 
 	File getFileFromFileNameString(const String& fileName);
 
@@ -285,6 +135,8 @@ protected:
 	};
 
 	MainController* mc;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SharedPoolBase)
 };
 
 
@@ -299,18 +151,8 @@ public:
 
 	typedef SharedPoolBase::PoolEntry<AudioSampleBuffer> BufferEntry;
 
-	AudioSampleBufferPool(MainController* mc) :
-		SharedPoolBase(mc)
-	{
-		cache = new AudioThumbnailCache(128);
-		
-		afm.registerBasicFormats();
-	};
-
-	~AudioSampleBufferPool()
-	{
-		clearData();
-	}
+	AudioSampleBufferPool(MainController* mc);;
+	~AudioSampleBufferPool();
 
 	Identifier getFileTypeName() const override;
 
@@ -319,139 +161,27 @@ public:
 		return loadedSamples.size();
 	}
 
-	Identifier getIdForIndex(int index) const override
-	{
-		return loadedSamples[index].id;
-	}
+	Identifier getIdForIndex(int index) const override;
 
-	String getFileNameForId(Identifier identifier) const override
-	{
-		auto index = loadedSamples.indexOf(identifier);
-		if (index != -1)
-			return loadedSamples[index].fileName;
+	String getFileNameForId(Identifier identifier) const override;
+	StringArray getTextDataForId(int index) const;
 
-		return String();
-	}
+	void clearData() override;
 
-	StringArray getTextDataForId(int index) const
-	{
-		return loadedSamples[index].getTextData(getFileTypeName());
-	}
-
-	void clearData() override
-	{
-		loadedSamples.clear();
-	}
-
-
-	
-	void storeItemInValueTree(ValueTree& child, int i) const override
-	{
-		auto e = loadedSamples[i];
-
-		child.setProperty("ID", e.id.toString(), nullptr);
-		child.setProperty("FileName", e.fileName, nullptr);
-
-		FileInputStream fis(e.fileName);
-
-		MemoryBlock mb = MemoryBlock();
-		MemoryOutputStream out(mb, false);
-		out.writeFromInputStream(fis, fis.getTotalLength());
-
-		child.setProperty("Data", var(mb.getData(), mb.getSize()), nullptr);
-		child.setProperty("AdditionalData", e.additionalData, nullptr);
-	}
-
-	void restoreItemFromValueTree(ValueTree& child) override
-	{
-		Identifier id = Identifier(child.getProperty("ID", String()).toString());
-
-		if (loadedSamples.indexOf(id) != -1)
-			return;
-
-		var x = child.getProperty("Data", var::undefined());
-
-		MemoryBlock *mb = x.getBinaryData();
-
-		jassert(mb != nullptr);
-
-		MemoryInputStream* mis = new MemoryInputStream(*mb, false);
-
-		BufferEntry ne;
-
-		ne.fileName = child.getProperty("FileName", String()).toString();
-		ne.additionalData = child.getProperty("AdditionalData");
-		jassert(ne.fileName.isNotEmpty());
-
-		ne.id = id;
-
-		loadFromStream(ne, mis);
-
-		loadedSamples.add(ne);
-
-	}
+	void storeItemInValueTree(ValueTree& child, int i) const override;
+	void restoreItemFromValueTree(ValueTree& child) override;
 
 	AudioThumbnailCache *getCache() { return cache; }
 
-	AudioSampleBuffer loadFileIntoPool(const String& fileName, bool unused)
-	{
-		Identifier idForFileName = getIdForFileName(fileName);
+	AudioSampleBuffer loadFileIntoPool(const String& fileName);
 
-		const int existingIndex = loadedSamples.indexOf(idForFileName);
-
-		if (existingIndex != -1)
-		{
-			return loadedSamples[existingIndex].data;
-		}
-
-		BufferEntry be;
-		be.id = idForFileName;
-		be.fileName = fileName;
-
-		File f = getFileFromFileNameString(fileName);
-
-		loadFromStream(be, new FileInputStream(f));
-
-		loadedSamples.add(be);
-
-		notifyTable();
-
-		return be.data;
-	}
-
-	
-	double getSampleRateForFile(const Identifier& id)
-	{
-		auto index = loadedSamples.indexOf(id);
-
-		if(index != -1)
-		{
-			auto be = loadedSamples[index];
-
-			return (double)be.additionalData;
-		}
-
-		return 0.0;
-	}
+	double getSampleRateForFile(const Identifier& id);
 
 private:
 
 	ScopedPointer<AudioThumbnailCache> cache;
 
-	void loadFromStream(BufferEntry& ne, InputStream* ownedStream)
-	{
-		ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(ownedStream);
-
-		if (reader != nullptr)
-		{
-			ne.data.setSize(reader->numChannels, reader->lengthInSamples, false, false, false);
-
-			reader->read(&(ne.data), 0, reader->lengthInSamples, 0, true, true);
-
-			ne.additionalData = reader->sampleRate;
-
-		}
-	}
+	void loadFromStream(BufferEntry& ne, InputStream* ownedStream);
 
 	AudioFormatManager afm;
 
@@ -468,140 +198,29 @@ public:
 
 	typedef SharedPoolBase::PoolEntry<Image> ImageEntry;
 
-	ImagePool(MainController* mc_) :
-		SharedPoolBase(mc_)
-	{};
+	ImagePool(MainController* mc_);;
 
-	~ImagePool()
-	{
-		clearData();
-	}
+	~ImagePool();
 
+	int getNumLoadedFiles() const override;
+	Identifier getIdForIndex(int index) const override;
+	String getFileNameForId(Identifier identifier) const override;
+	void clearData() override;
+	StringArray getTextDataForId(int index) const;
 
-	int getNumLoadedFiles() const override
-	{
-		return loadedImages.size();
-	}
-
-	Identifier getIdForIndex(int index) const override
-	{
-		return loadedImages[index].id;
-	}
-
-	String getFileNameForId(Identifier identifier) const override
-	{
-		auto index = loadedImages.indexOf(identifier);
-		if (index != -1)
-			return loadedImages[index].fileName;
-
-		return String();
-	}
-
-	void clearData() override
-	{
-		loadedImages.clear();
-	}
-
-	StringArray getTextDataForId(int index) const
-	{
-		return loadedImages[index].getTextData(getFileTypeName());
-	}
-
-	void storeItemInValueTree(ValueTree& child, int i) const override
-	{
-		auto e = loadedImages[i];
-
-		child.setProperty("ID", e.id.toString(), nullptr);
-		child.setProperty("FileName", e.fileName, nullptr);
-
-		FileInputStream fis(e.fileName);
-
-		MemoryBlock mb = MemoryBlock();
-		MemoryOutputStream out(mb, false);
-		out.writeFromInputStream(fis, fis.getTotalLength());
-
-		child.setProperty("Data", var(mb.getData(), mb.getSize()), nullptr);
-	}
-
-	void restoreItemFromValueTree(ValueTree& child) override
-	{
-		Identifier id = Identifier(child.getProperty("ID", String()).toString());
-
-		if (loadedImages.indexOf(id) != -1)
-			return;
-
-		var x = child.getProperty("Data", var::undefined());
-
-		MemoryBlock *mb = x.getBinaryData();
-
-		jassert(mb != nullptr);
-
-		ScopedPointer<MemoryInputStream> mis = new MemoryInputStream(*mb, false);
-
-		ImageEntry ne;
-
-		ne.fileName = child.getProperty("FileName", String()).toString();
-		jassert(ne.fileName.isNotEmpty());
-
-		ne.id = id;
-		ne.data = ImageFileFormat::loadFrom(mis->getData(), mis->getDataSize());
-
-		mis = nullptr;
-
-		ImageCache::addImageToCache(ne.data, ne.fileName.hashCode64());
-
-		notifyTable();
-
-		loadedImages.add(ne);
-	}
+	void storeItemInValueTree(ValueTree& child, int i) const override;
+	void restoreItemFromValueTree(ValueTree& child) override;
 
 	Identifier getFileTypeName() const override;
-
 	static Identifier getStaticIdentifier() { RETURN_STATIC_IDENTIFIER("ImagePool") };
+	size_t getFileSize(const Image *image) const;
 
-	virtual size_t getFileSize(const Image *image) const
-	{
-		return (size_t)image->getWidth() * (size_t)image->getHeight() * sizeof(uint32);
-	}
+	StringArray getFileNameList() const;
+
+	Image loadFileIntoPool(const String& fileName);
 
 	static Image getEmptyImage(int width, int height);
-
 	static Image loadImageFromReference(MainController* mc, const String referenceToImage);
-
-	StringArray getFileNameList() const
-	{
-		StringArray sa;
-
-		for (auto e : loadedImages)
-			sa.add(e.fileName);
-
-		return sa;
-	}
-
-	Image loadFileIntoPool(const String& fileName, bool unused)
-	{
-		Identifier idForFileName = getIdForFileName(fileName);
-
-		const int existingIndex = loadedImages.indexOf(idForFileName);
-
-		if (existingIndex != -1)
-		{
-			return loadedImages[existingIndex].data;
-		}
-
-		ImageEntry ne;
-		ne.id = idForFileName;
-		ne.fileName = fileName;
-
-		File f = getFileFromFileNameString(fileName);
-
-		ne.data = ImageCache::getFromFile(f);
-
-		loadedImages.add(ne);
-
-		return ne.data;
-	}
-
 
 protected:
 
