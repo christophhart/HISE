@@ -217,7 +217,9 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 	}
 	else
 	{
-		fileReader.readFromDisk(preloadBuffer, 0, internalPreloadSize, sampleStart + monolithOffset, true);
+		auto samplesToRead = jmin<int>(sampleLength, internalPreloadSize);
+
+		fileReader.readFromDisk(preloadBuffer, 0, samplesToRead, sampleStart + monolithOffset, true);
 	}
 }
 
