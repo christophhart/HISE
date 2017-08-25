@@ -2720,6 +2720,7 @@ colour(Colour(0xff777777))
     setMethod("makeFrontInterface", Wrapper::makeFrontInterface);
 	setMethod("makeFullScreenInterface", Wrapper::makeFullScreenInterface);
 	setMethod("setName", Wrapper::setName);
+	setMethod("getComponent", Wrapper::getComponent);
 	setMethod("setPropertiesFromJSON", Wrapper::setPropertiesFromJSON);
 	setMethod("storeAllControlsAsPreset", Wrapper::storeAllControlsAsPreset);
 	setMethod("restoreAllControlsFromPreset", Wrapper::restoreAllControlsFromPreset);
@@ -2889,6 +2890,19 @@ ScriptingApi::Content::ScriptComponent * ScriptingApi::Content::getComponent(int
 		return components[index];
 
 	return nullptr;
+}
+
+var ScriptingApi::Content::getComponent(var name)
+{
+	Identifier n(name.toString());
+
+	for (int i = 0; i < components.size(); i++)
+	{
+		if (n == components[i]->getName())
+			return var(components[i]);
+	}
+
+	return var();
 }
 
 void ScriptingApi::Content::setPropertiesFromJSON(const Identifier &componentName, const var &jsonData)

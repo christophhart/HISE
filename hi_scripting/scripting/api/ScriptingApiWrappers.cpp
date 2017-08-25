@@ -34,9 +34,9 @@
 
 #if ENABLE_SCRIPTING_SAFE_CHECKS
 
-#define CHECK_VALID_ARGUMENTS() if(thisObject->checkValidArguments(args) != -1) return var::undefined();
-#define CHECK_ARGUMENTS(callName, expectedArguments) if (!thisObject->checkArguments(callName, args.numArguments, expectedArguments)) return var::undefined(); CHECK_VALID_ARGUMENTS();
-#define CHECK_IF_DEFERRED(x) if(!thisObject->checkIfSynchronous(x))return var::undefined();
+#define CHECK_VALID_ARGUMENTS() if(thisObject->checkValidArguments(args) != -1) return var();
+#define CHECK_ARGUMENTS(callName, expectedArguments) if (!thisObject->checkArguments(callName, args.numArguments, expectedArguments)) return var(); CHECK_VALID_ARGUMENTS();
+#define CHECK_IF_DEFERRED(x) if(!thisObject->checkIfSynchronous(x))return var();
 
 #else
 
@@ -52,7 +52,7 @@ var DynamicScriptingObject::Wrappers::checkExists(const var::NativeFunctionArgs&
 	{
 		return thisObject->checkValidObject();
 	}
-	return var::undefined();
+	return var();
 }
 
 struct ScriptingApi::Content::Wrapper
@@ -71,6 +71,7 @@ struct ScriptingApi::Content::Wrapper
 	static var addAudioWaveform(const var::NativeFunctionArgs& args);
 	static var addSliderPack(const var::NativeFunctionArgs& args);
 	static var addFloatingTile(const var::NativeFunctionArgs& args);
+	static var getComponent(const var::NativeFunctionArgs& args);
 	static var set(const var::NativeFunctionArgs& args);
 	static var get(const var::NativeFunctionArgs& args);
 	static var clearModulatorToPlotter(const var::NativeFunctionArgs& args);
@@ -136,7 +137,7 @@ var ScriptingApi::Content::Wrapper::addButton (const var::NativeFunctionArgs& ar
 		return thisObject->addButton(Identifier(args.arguments[0]), args.arguments[1], args.arguments[2]);
 	}
 
-	return var::undefined();
+	return var();
 };
 
 var ScriptingApi::Content::Wrapper::addKnob (const var::NativeFunctionArgs& args)
@@ -153,7 +154,7 @@ var ScriptingApi::Content::Wrapper::addKnob (const var::NativeFunctionArgs& args
 		return thisObject->addKnob(Identifier(args.arguments[0]), args.arguments[1], args.arguments[2]);
 	}
 
-	return var::undefined();
+	return var();
 };
 
 var ScriptingApi::Content::Wrapper::addLabel (const var::NativeFunctionArgs& args)
@@ -170,7 +171,7 @@ var ScriptingApi::Content::Wrapper::addLabel (const var::NativeFunctionArgs& arg
 		return thisObject->addLabel(Identifier(args.arguments[0]), args.arguments[1], args.arguments[2]);
 	}
 
-	return var::undefined();
+	return var();
 };
 
 var ScriptingApi::Content::Wrapper::addComboBox (const var::NativeFunctionArgs& args)
@@ -187,7 +188,7 @@ var ScriptingApi::Content::Wrapper::addComboBox (const var::NativeFunctionArgs& 
 		return thisObject->addComboBox(Identifier(args.arguments[0]), args.arguments[1], args.arguments[2]);
 	}
 
-	return var::undefined();
+	return var();
 };
 
 var ScriptingApi::Content::Wrapper::addTable (const var::NativeFunctionArgs& args)
@@ -204,7 +205,7 @@ var ScriptingApi::Content::Wrapper::addTable (const var::NativeFunctionArgs& arg
 		return thisObject->addTable(Identifier(args.arguments[0]), args.arguments[1], args.arguments[2]);
 	}
 
-	return var::undefined();
+	return var();
 };
 
 var ScriptingApi::Content::Wrapper::addImage (const var::NativeFunctionArgs& args)
@@ -221,7 +222,7 @@ var ScriptingApi::Content::Wrapper::addImage (const var::NativeFunctionArgs& arg
 		return thisObject->addImage(Identifier(args.arguments[0]), args.arguments[1], args.arguments[2]);
 	}
 
-	return var::undefined();
+	return var();
 };
 
 var ScriptingApi::Content::Wrapper::addModulatorMeter (const var::NativeFunctionArgs& args)
@@ -238,7 +239,7 @@ var ScriptingApi::Content::Wrapper::addModulatorMeter (const var::NativeFunction
 		return thisObject->addModulatorMeter(Identifier(args.arguments[0]), args.arguments[1], args.arguments[2]);
 	}
 
-	return var::undefined();
+	return var();
 };
 
 var ScriptingApi::Content::Wrapper::addPlotter (const var::NativeFunctionArgs& args)
@@ -255,7 +256,7 @@ var ScriptingApi::Content::Wrapper::addPlotter (const var::NativeFunctionArgs& a
 		return thisObject->addPlotter(Identifier(args.arguments[0]), args.arguments[1], args.arguments[2]);
 	}
 
-	return var::undefined();
+	return var();
 };
 
 
@@ -273,7 +274,7 @@ var ScriptingApi::Content::Wrapper::addScriptedViewport(const var::NativeFunctio
 		return thisObject->addScriptedViewport(Identifier(args.arguments[0]), args.arguments[1], args.arguments[2]);
 	}
 
-	return var::undefined();
+	return var();
 }
 
 
@@ -292,7 +293,7 @@ var ScriptingApi::Content::Wrapper::addPanel (const var::NativeFunctionArgs& arg
 		return thisObject->addPanel(Identifier(args.arguments[0]), args.arguments[1], args.arguments[2]);
 	}
 
-	return var::undefined();
+	return var();
 };
 
 
@@ -310,7 +311,7 @@ var ScriptingApi::Content::Wrapper::addAudioWaveform(const var::NativeFunctionAr
 		return thisObject->addAudioWaveform(Identifier(args.arguments[0]), args.arguments[1], args.arguments[2]);
 	}
 
-	return var::undefined();
+	return var();
 }
 
 var ScriptingApi::Content::Wrapper::addSliderPack(const var::NativeFunctionArgs& args)
@@ -327,7 +328,7 @@ var ScriptingApi::Content::Wrapper::addSliderPack(const var::NativeFunctionArgs&
 		return thisObject->addSliderPack(Identifier(args.arguments[0]), args.arguments[1], args.arguments[2]);
 	}
 
-	return var::undefined();
+	return var();
 }
 
 
@@ -345,9 +346,26 @@ var ScriptingApi::Content::Wrapper::addFloatingTile(const var::NativeFunctionArg
 		return thisObject->addFloatingTile(Identifier(args.arguments[0]), args.arguments[1], args.arguments[2]);
 	}
 
-	return var::undefined();
+	return var();
 }
 
+
+var ScriptingApi::Content::Wrapper::getComponent(const var::NativeFunctionArgs& args)
+{
+	if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
+	{
+		CHECK_ARGUMENTS("getComponent()", 1);
+
+		if (args.numArguments == 1)
+		{
+			return thisObject->getComponent(args.arguments[0]);
+		}
+
+		return var();
+	}
+
+	return var();
+}
 
 
 var ScriptingApi::Content::Wrapper::storeAllControlsAsPreset(const var::NativeFunctionArgs& args)
@@ -359,7 +377,7 @@ var ScriptingApi::Content::Wrapper::storeAllControlsAsPreset(const var::NativeFu
 		thisObject->storeAllControlsAsPreset(args.arguments[0].toString(), ValueTree());
 	}
 
-	return var::undefined();
+	return var();
 }
 
 var ScriptingApi::Content::Wrapper::restoreAllControlsFromPreset(const var::NativeFunctionArgs& args)
@@ -371,7 +389,7 @@ var ScriptingApi::Content::Wrapper::restoreAllControlsFromPreset(const var::Nati
 		thisObject->restoreAllControlsFromPreset(args.arguments[0].toString());
 	}
 
-	return var::undefined();
+	return var();
 }
 
 
@@ -384,7 +402,7 @@ var ScriptingApi::Content::Wrapper::set (const var::NativeFunctionArgs& args)
 		thisObject->set(args.arguments[0], args.arguments[1]);
 	}
 
-	return var::undefined();
+	return var();
 };
 
 var ScriptingApi::Content::Wrapper::get (const var::NativeFunctionArgs& args)
@@ -396,7 +414,7 @@ var ScriptingApi::Content::Wrapper::get (const var::NativeFunctionArgs& args)
 		return thisObject->get(args.arguments[0]);
 	}
 
-	return var::undefined();
+	return var();
 };
 
 var ScriptingApi::Content::Wrapper::addToMacroControl (const var::NativeFunctionArgs& args)
@@ -408,7 +426,7 @@ var ScriptingApi::Content::Wrapper::addToMacroControl (const var::NativeFunction
 		thisObject->addToMacroControl(args.arguments[0]);
 	}
 
-	return var::undefined();
+	return var();
 };
 
 var ScriptingApi::Content::Wrapper::setHeight (const var::NativeFunctionArgs& args)
@@ -420,7 +438,7 @@ var ScriptingApi::Content::Wrapper::setHeight (const var::NativeFunctionArgs& ar
 		thisObject->setHeight((int)args.arguments[0]);
 	}
 
-	return var::undefined();
+	return var();
 };
 
 var ScriptingApi::Content::Wrapper::setContentTooltip (const var::NativeFunctionArgs& args)
@@ -432,7 +450,7 @@ var ScriptingApi::Content::Wrapper::setContentTooltip (const var::NativeFunction
 		thisObject->setContentTooltip(args.arguments[0].toString());
 	}
 
-	return var::undefined();
+	return var();
 };
 
 
@@ -446,7 +464,7 @@ var ScriptingApi::Content::Wrapper::setUseHighResolutionForPanels(const var::Nat
 		thisObject->setUseHighResolutionForPanels(args.arguments[0]);
 	}
 
-	return var::undefined();
+	return var();
 }
 
 
@@ -459,7 +477,7 @@ var ScriptingApi::Content::Wrapper::setToolbarProperties(const var::NativeFuncti
 		thisObject->setToolbarProperties(args.arguments[0]);
 	}
 
-	return var::undefined();
+	return var();
 }
 
 
@@ -472,7 +490,7 @@ var ScriptingApi::Content::Wrapper::setWidth (const var::NativeFunctionArgs& arg
 		thisObject->setWidth((int)args.arguments[0]);
 	}
 
-	return var::undefined();
+	return var();
 };
 
 var ScriptingApi::Content::Wrapper::setName (const var::NativeFunctionArgs& args)
@@ -484,7 +502,7 @@ var ScriptingApi::Content::Wrapper::setName (const var::NativeFunctionArgs& args
 		thisObject->setName(args.arguments[0].toString());
 	}
 
-	return var::undefined();
+	return var();
 };
 
 var ScriptingApi::Content::Wrapper::makeFrontInterface (const var::NativeFunctionArgs& args)
@@ -496,7 +514,7 @@ var ScriptingApi::Content::Wrapper::makeFrontInterface (const var::NativeFunctio
         thisObject->makeFrontInterface((int)args.arguments[0], (int)args.arguments[1]);
     }
     
-    return var::undefined();
+    return var();
 };
 
 var ScriptingApi::Content::Wrapper::makeFullScreenInterface(const var::NativeFunctionArgs& args)
@@ -508,7 +526,7 @@ var ScriptingApi::Content::Wrapper::makeFullScreenInterface(const var::NativeFun
 		thisObject->makeFullScreenInterface();
 	}
 
-	return var::undefined();
+	return var();
 };
 
 
@@ -522,7 +540,7 @@ var ScriptingApi::Content::Wrapper::setPropertiesFromJSON (const var::NativeFunc
 		thisObject->setPropertiesFromJSON(Identifier(args.arguments[0]), args.arguments[1]);
 	}
 
-	return var::undefined();
+	return var();
 };
 
 var ScriptingApi::Content::Wrapper::setColour (const var::NativeFunctionArgs& args)
@@ -534,7 +552,7 @@ var ScriptingApi::Content::Wrapper::setColour (const var::NativeFunctionArgs& ar
 		thisObject->setColour((int)args.arguments[0], (int)args.arguments[1]);
 	}
 
-	return var::undefined();
+	return var();
 };
 
 
@@ -550,7 +568,7 @@ var ScriptingApi::Content::Wrapper::addModulatorToPlotter (const var::NativeFunc
 		thisObject->addModulatorToPlotter(args.arguments[0].toString(), args.arguments[1].toString());
 	}
 
-	return var::undefined();
+	return var();
 };
 
 var ScriptingApi::Content::Wrapper::clearModulatorToPlotter (const var::NativeFunctionArgs& args)
@@ -562,7 +580,7 @@ var ScriptingApi::Content::Wrapper::clearModulatorToPlotter (const var::NativeFu
 		thisObject->clearModulatorPlotter();
 	}
 
-	return var::undefined();
+	return var();
 };
 
 var ScriptingApi::Content::Wrapper::addItem (const var::NativeFunctionArgs& args)
@@ -574,7 +592,7 @@ var ScriptingApi::Content::Wrapper::addItem (const var::NativeFunctionArgs& args
 		thisObject->addItem(args.arguments[0].toString());
 	}
 
-	return var::undefined();
+	return var();
 };
 
 var ScriptingApi::Content::Wrapper::setTooltip (const var::NativeFunctionArgs& args)
@@ -586,7 +604,7 @@ var ScriptingApi::Content::Wrapper::setTooltip (const var::NativeFunctionArgs& a
 		thisObject->setTooltip(args.arguments[0].toString());
 	}
 
-	return var::undefined();
+	return var();
 };
 
 
@@ -600,7 +618,7 @@ var ScriptingApi::Content::Wrapper::setImageFile (const var::NativeFunctionArgs&
 		thisObject->setImageFile(args.arguments[0].toString(), (bool)args.arguments[1]);
 	}
 
-	return var::undefined();
+	return var();
 };
 
 var ScriptingApi::Content::Wrapper::setImageAlpha (const var::NativeFunctionArgs& args)
@@ -612,7 +630,7 @@ var ScriptingApi::Content::Wrapper::setImageAlpha (const var::NativeFunctionArgs
 		thisObject->setAlpha((float)args.arguments[0]);
 	}
 
-	return var::undefined();
+	return var();
 };
 
 var ScriptingApi::Content::Wrapper::setRange (const var::NativeFunctionArgs& args)
@@ -624,7 +642,7 @@ var ScriptingApi::Content::Wrapper::setRange (const var::NativeFunctionArgs& arg
 		thisObject->setRange((double)args.arguments[0], (double)args.arguments[1], (double)args.arguments[2] );
 	}
 
-	return var::undefined();
+	return var();
 };
 
 var ScriptingApi::Content::Wrapper::setMode (const var::NativeFunctionArgs& args)
@@ -636,7 +654,7 @@ var ScriptingApi::Content::Wrapper::setMode (const var::NativeFunctionArgs& args
 		thisObject->setMode(args.arguments[0].toString());
 	}
 
-	return var::undefined();
+	return var();
 };
 
 var ScriptingApi::Content::Wrapper::setStyle (const var::NativeFunctionArgs& args)
@@ -648,7 +666,7 @@ var ScriptingApi::Content::Wrapper::setStyle (const var::NativeFunctionArgs& arg
 		thisObject->setStyle(args.arguments[0].toString());
 	}
 
-	return var::undefined();
+	return var();
 };
 
 var ScriptingApi::Content::Wrapper::setMidPoint (const var::NativeFunctionArgs& args)
@@ -660,7 +678,7 @@ var ScriptingApi::Content::Wrapper::setMidPoint (const var::NativeFunctionArgs& 
 		thisObject->setMidPoint((double)args.arguments[0]);
 	}
 
-	return var::undefined();
+	return var();
 };
 
 
@@ -673,7 +691,7 @@ var ScriptingApi::Content::Wrapper::setEditable (const var::NativeFunctionArgs& 
 		thisObject->setEditable((bool)args.arguments[0]);
 	}
 
-	return var::undefined();
+	return var();
 };
 
 
@@ -687,7 +705,7 @@ var ScriptingApi::Content::Wrapper::setValue (const var::NativeFunctionArgs& arg
 		thisObject->setValue(args.arguments[0]);
 	}
 
-	return var::undefined();
+	return var();
 };
 
 
@@ -701,7 +719,7 @@ var ScriptingApi::Content::Wrapper::setValueNormalized(const var::NativeFunction
 		thisObject->setValueNormalized((double)args.arguments[0]);
 	}
 
-	return var::undefined();
+	return var();
 }
 
 
@@ -715,7 +733,7 @@ var ScriptingApi::Content::Wrapper::getValueNormalized(const var::NativeFunction
 		return thisObject->getValueNormalized();
 	}
 
-	return var::undefined();
+	return var();
 }
 
 
@@ -728,7 +746,7 @@ var ScriptingApi::Content::Wrapper::setPosition (const var::NativeFunctionArgs& 
 		thisObject->setPosition((int)args.arguments[0], (int)args.arguments[1], (int)args.arguments[2], (int)args.arguments[3]);
 	}
 
-	return var::undefined();
+	return var();
 };
 
 
@@ -741,7 +759,7 @@ var ScriptingApi::Content::Wrapper::getItemText (const var::NativeFunctionArgs& 
 		return thisObject->getItemText();
 	}
 
-	return var::undefined();
+	return var();
 };
 
 
@@ -755,7 +773,7 @@ var ScriptingApi::Content::Wrapper::showControl (const var::NativeFunctionArgs& 
 		thisObject->showControl((bool)args.arguments[0]);
 	}
 
-	return var::undefined();
+	return var();
 };
 
 
@@ -769,7 +787,7 @@ var ScriptingApi::Content::Wrapper::getValue (const var::NativeFunctionArgs& arg
 		return thisObject->getValue();
 	}
 
-	return var::undefined();
+	return var();
 };
 
 var ScriptingApi::Content::Wrapper::getTableValue (const var::NativeFunctionArgs& args)
@@ -781,7 +799,7 @@ var ScriptingApi::Content::Wrapper::getTableValue (const var::NativeFunctionArgs
 		return thisObject->getTableValue((int)args.arguments[0]);
 	}
 
-	return var::undefined();
+	return var();
 };
 
 var ScriptingApi::Content::Wrapper::connectToOtherTable (const var::NativeFunctionArgs& args)
@@ -793,7 +811,7 @@ var ScriptingApi::Content::Wrapper::connectToOtherTable (const var::NativeFuncti
 		thisObject->connectToOtherTable(args.arguments[0].toString(), (int)args.arguments[1]);
 	}
 
-	return var::undefined();
+	return var();
 };
 
 var ScriptingApi::Content::Wrapper::connectToAudioSampleProcessor(const var::NativeFunctionArgs& args)
@@ -805,7 +823,7 @@ var ScriptingApi::Content::Wrapper::connectToAudioSampleProcessor(const var::Nat
 		thisObject->connectToAudioSampleProcessor(args.arguments[0].toString());
 	}
 
-	return var::undefined();
+	return var();
 }
 
 
@@ -816,7 +834,7 @@ var ScriptingApi::Content::Wrapper::clear (const var::NativeFunctionArgs& args)
 		thisObject->clear();
 	}
 
-	return var::undefined();
+	return var();
 };
 
 var ScriptingApi::Content::Wrapper::setSliderAtIndex(const var::NativeFunctionArgs& args)
@@ -828,7 +846,7 @@ var ScriptingApi::Content::Wrapper::setSliderAtIndex(const var::NativeFunctionAr
 		thisObject->setSliderAtIndex((int)args.arguments[0], (double)args.arguments[1]);
 	}
 
-	return var::undefined();
+	return var();
 }
 
 var ScriptingApi::Content::Wrapper::getSliderValueAt(const var::NativeFunctionArgs& args)
@@ -840,7 +858,7 @@ var ScriptingApi::Content::Wrapper::getSliderValueAt(const var::NativeFunctionAr
 		return thisObject->getSliderValueAt((int)args.arguments[0]);
 	}
 
-	return var::undefined();
+	return var();
 }
 
 var ScriptingApi::Content::Wrapper::setAllValues(const var::NativeFunctionArgs& args)
@@ -852,7 +870,7 @@ var ScriptingApi::Content::Wrapper::setAllValues(const var::NativeFunctionArgs& 
 		thisObject->setAllValues((double)args.arguments[0]);
 	}
 
-	return var::undefined();
+	return var();
 }
 
 var ScriptingApi::Content::Wrapper::getNumSliders(const var::NativeFunctionArgs& args)
@@ -864,7 +882,7 @@ var ScriptingApi::Content::Wrapper::getNumSliders(const var::NativeFunctionArgs&
 		return thisObject->getNumSliders();
 	}
 
-	return var::undefined();
+	return var();
 }
 
 
@@ -877,7 +895,7 @@ var ScriptingApi::Content::Wrapper::setMinValue(const var::NativeFunctionArgs& a
 		thisObject->setMinValue((double)args.arguments[0]);
 	}
 
-	return var::undefined();
+	return var();
 }
 
 var ScriptingApi::Content::Wrapper::setMaxValue(const var::NativeFunctionArgs& args)
@@ -889,7 +907,7 @@ var ScriptingApi::Content::Wrapper::setMaxValue(const var::NativeFunctionArgs& a
 		thisObject->setMaxValue((double)args.arguments[0]);
 	}
 
-	return var::undefined();
+	return var();
 }
 
 var ScriptingApi::Content::Wrapper::getMinValue(const var::NativeFunctionArgs& args)
@@ -901,7 +919,7 @@ var ScriptingApi::Content::Wrapper::getMinValue(const var::NativeFunctionArgs& a
 		return thisObject->getMinValue();
 	}
 
-	return var::undefined();
+	return var();
 }
 
 var ScriptingApi::Content::Wrapper::getMaxValue(const var::NativeFunctionArgs& args)
@@ -913,7 +931,7 @@ var ScriptingApi::Content::Wrapper::getMaxValue(const var::NativeFunctionArgs& a
 		return thisObject->getMaxValue();
 	}
 
-	return var::undefined();
+	return var();
 }
 
 var ScriptingApi::Content::Wrapper::contains(const var::NativeFunctionArgs& args)
@@ -925,7 +943,7 @@ var ScriptingApi::Content::Wrapper::contains(const var::NativeFunctionArgs& args
 		return thisObject->contains((double)args.arguments[0]);
 	}
 
-	return var::undefined();
+	return var();
 }
 
 var ScriptingApi::Content::Wrapper::createPath(const var::NativeFunctionArgs& args)
@@ -937,7 +955,7 @@ var ScriptingApi::Content::Wrapper::createPath(const var::NativeFunctionArgs& ar
 		return thisObject->createPath();
 	}
 
-	return var::undefined();
+	return var();
 }
 
 #undef GET_OBJECT

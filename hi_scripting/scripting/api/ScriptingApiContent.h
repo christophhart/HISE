@@ -1193,6 +1193,9 @@ public:
 	/** Adds a floating layout component. */
 	ScriptFloatingTile* addFloatingTile(Identifier floatingTileName, int x, int y);
 
+	/** Returns the reference to the given component. */
+	var getComponent(var name);
+
 	/** Restore the widget from a JSON object. */
 	void setPropertiesFromJSON(const Identifier &name, const var &jsonData);
 
