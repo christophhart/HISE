@@ -491,24 +491,53 @@ public:
 		StringArray getOptionsFor(const Identifier &id) override;
 		Justification getJustification();
 
+		void restoreFromValueTree(const ValueTree &v) override
+		{
+			setValue(v.getProperty("value", ""));
+			sendChangeMessage();
+		}
+
+		ValueTree exportAsValueTree() const override
+		{
+			ValueTree v = ScriptComponent::exportAsValueTree();
+
+			v.setProperty("value", getValue(), nullptr);
+			
+			return v;
+		}
+
 		/** Returns the current value. */
 		virtual var getValue() const override
 		{
-			return value;
+			return getScriptObjectProperty(ScriptComponent::Properties::text);
 		}
 
-		virtual void setValue(var newValue) override
+		void setValue(var newValue) override
 		{
-			value = var(newValue.toString());
-			setScriptObjectProperty(text, newValue.toString());
-			sendChangeMessage();
+			jassert(newValue != "internal");
+
+			if (newValue.isString())
+			{
+				setScriptObjectProperty(ScriptComponent::Properties::text, newValue);
+				sendChangeMessage();
+			}
+		}
+
+		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification)
+		{
+			if (id == getIdFor((int)ScriptComponent::Properties::text))
+			{
+				setValue(newValue.toString());
+			}
+			else
+			{
+				ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
+			}
 		}
 
 		// ======================================================================================================== API Methods
 
-		/** makes a label `editable`.
-		> This is a test.
-		*/
+		/** makes a label `editable`. */
 		void setEditable(bool shouldBeEditable);
 
 		// ========================================================================================================

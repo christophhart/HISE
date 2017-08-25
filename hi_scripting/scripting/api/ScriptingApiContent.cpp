@@ -1264,6 +1264,7 @@ ScriptComponent(base, parentContent, name, x, y, width, 16)
 	componentProperties->setProperty(getIdFor(Editable), 0);
 	componentProperties->setProperty(getIdFor(Multiline), 0);
 
+	setDefaultValue(text, name.toString());
 	setDefaultValue(bgColour, (int64)0x00000000);
 	setDefaultValue(itemColour, (int64)0x00000000);
 	setDefaultValue(textColour, (int64)0xffffffff);
@@ -1275,6 +1276,8 @@ ScriptComponent(base, parentContent, name, x, y, width, 16)
 
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::min));
 	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::max));
+
+	value = var("internal");
 
 	ADD_API_METHOD_1(setEditable);
 }
@@ -3155,11 +3158,13 @@ void ScriptingApi::Content::restoreAllControlsFromPreset(const ValueTree &preset
 		}
 #endif
 
-
-
 		var v = components[i]->getValue();
 
-		if (v.isObject())
+		if (auto label = dynamic_cast<ScriptingApi::Content::ScriptLabel*>(components[i].get()))
+		{
+			getScriptProcessor()->controlCallback(components[i], v);
+		}
+		else if (v.isObject())
 		{
 			getScriptProcessor()->controlCallback(components[i], v);
 		}

@@ -334,6 +334,8 @@ ScriptCreatedComponentWrapper(content, index)
 	l->setInterceptsMouseClicks(editable, editable);
 	l->setEditable(editable);
 
+	
+
 	l->addListener(this);
 
 	component = l;
@@ -396,17 +398,23 @@ void ScriptCreatedComponentWrappers::LabelWrapper::updateComponent()
 	l->setColour(CaretComponent::ColourIds::caretColourId, GET_OBJECT_COLOUR(textColour));
 	l->setColour(Label::ColourIds::outlineColourId, GET_OBJECT_COLOUR(itemColour));
 	
-	
-
 	bool editable = sl->getScriptObjectProperty(ScriptingApi::Content::ScriptLabel::Editable);
 	bool multiline = sl->getScriptObjectProperty(ScriptingApi::Content::ScriptLabel::Multiline);
-	const String labelText = GET_SCRIPT_PROPERTY(text);
-
-	l->setText(labelText.isEmpty() ? getScriptComponent()->value.toString() : labelText, dontSendNotification);
+	
+	l->setText(getScriptComponent()->getValue().toString(), dontSendNotification);
 
 	l->setInterceptsMouseClicks(editable, editable);
 	l->setEditable(editable);
 	l->setMultiline(multiline);
+}
+
+void ScriptCreatedComponentWrappers::LabelWrapper::labelTextChanged(Label *l)
+{
+	auto sc = getScriptComponent();
+
+	sc->setValue(l->getText());
+
+	dynamic_cast<ProcessorWithScriptingContent*>(getProcessor())->controlCallback(getScriptComponent(), sc->getValue());
 }
 
 ScriptCreatedComponentWrappers::TableWrapper::TableWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptTable *table, int index) :

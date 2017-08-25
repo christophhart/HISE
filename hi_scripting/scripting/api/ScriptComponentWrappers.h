@@ -322,7 +322,7 @@ public:
 
 		void updateComponent() override;
 
-		void labelTextChanged(Label *l) override { changed(l->getText()); };
+		void labelTextChanged(Label *l) override;;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LabelWrapper)
 	};
