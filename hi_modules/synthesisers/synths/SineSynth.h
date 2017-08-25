@@ -222,7 +222,14 @@ public:
 
 		if (useRatio)
 		{
-			factor = coarseRatio + fineRatio;
+			int cToUse = coarseRatio - 1;
+
+			if (cToUse == 0)
+				factor = 1.0 + fineRatio;
+			else if (cToUse > 0)
+				factor = 1.0 + cToUse + fineRatio;
+			else if (cToUse < 0)
+				factor = pow(2, cToUse) + fineRatio;
 		}
 		else
 		{

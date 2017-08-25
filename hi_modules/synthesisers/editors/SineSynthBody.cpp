@@ -125,6 +125,8 @@ SineSynthBody::SineSynthBody (ProcessorEditor *p)
 
 	musicalRatio->setup(getProcessor(), SineSynth::UseFreqRatio, "Use Freq Ratio");
 
+	
+
 	semiToneSlider->setup(getProcessor(), SineSynth::SemiTones, "Fine Tune");
 	semiToneSlider->setMode(HiSlider::Discrete, -12.0, 12.0, 0.0);
 
@@ -285,7 +287,7 @@ void SineSynthBody::buttonClicked (Button* buttonThatWasClicked)
 			octaveSlider->setup(getProcessor(), SineSynth::CoarseFreqRatio, "Coarse Ratio");
 			semiToneSlider->setup(getProcessor(), SineSynth::FineFreqRatio, "Fine Ratio");
 
-			octaveSlider->setRange(1.0, 16.0, 1.0);
+			octaveSlider->setRange(-5.0, 16.0, 1.0);
 			semiToneSlider->setMode(HiSlider::Linear, 0.0, 1.0);
 			semiToneSlider->setRange(0.0, 1.0, 0.01);
 
@@ -321,7 +323,7 @@ void SineSynthBody::updateGui()
 		octaveSlider->setup(getProcessor(), SineSynth::CoarseFreqRatio, "Coarse Ratio");
 		semiToneSlider->setup(getProcessor(), SineSynth::FineFreqRatio, "Fine Ratio");
 
-		octaveSlider->setRange(1.0, 16.0, 1.0);
+		octaveSlider->setRange(-5.0, 16.0, 1.0);
 		semiToneSlider->setMode(HiSlider::Linear, 0.0, 1.0);
 		semiToneSlider->setRange(0.0, 1.0, 0.01);
 
