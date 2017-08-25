@@ -113,20 +113,17 @@ void PresetBrowserColumn::ColumnListModel::listBoxItemClicked(int row, const Mou
 	{
 		const String title = index != 2 ? "Directory" : "Preset";
 
-		if (e.getMouseDownX() < 40)
-		{
-			if (PresetHandler::showYesNoWindow("Delete " + title, "Do you want to delete this " + title + "?", PresetHandler::IconType::Question))
-			{
-				if (listener != nullptr)
-				{
-					listener->deleteEntry(index, row, entries[row], false);
-				}
-			}
-		}
-		else
-		{
-			listener->renameEntry(index, row, entries[row], false);
-		}
+		auto name = entries[row].getFileNameWithoutExtension();
+
+		auto browser = dynamic_cast<MultiColumnPresetBrowser*>(listener);
+
+		if (browser == nullptr)
+			return;
+
+		browser->openModalAction(e.getMouseDownX() < 40 ? MultiColumnPresetBrowser::ModalWindow::Action::Delete :
+														  MultiColumnPresetBrowser::ModalWindow::Action::Rename,
+														  name, entries[row], index, row);
+
 	}
 	else
 	{
@@ -281,28 +278,41 @@ void PresetBrowserColumn::buttonClicked(Button* b)
 	}
 	else if (b == addButton)
 	{
-		if (!currentRoot.isDirectory()) return;
+		browser->openModalAction(MultiColumnPresetBrowser::ModalWindow::Action::Add, index == 2 ? "New Preset" : "New Directory", File(), index, -1);
+	}
+}
 
-		if (index != 2)
+void PresetBrowserColumn::addEntry(const String &newName)
+{
+	if (!currentRoot.isDirectory()) return;
+
+	if (index != 2)
+	{
+
+		File newDirectory = currentRoot.getChildFile(newName);
+		newDirectory.createDirectory();
+
+		setNewRootDirectory(currentRoot);
+	}
+	else
+	{
+		if (newName.isNotEmpty())
 		{
-			const String newDirectoryName = PresetHandler::getCustomName("Directory");
-			File newDirectory = currentRoot.getChildFile(newDirectoryName);
-			newDirectory.createDirectory();
+			File newPreset = currentRoot.getChildFile(newName + ".preset");
 
-			setNewRootDirectory(currentRoot);
-		}
-		else
-		{
-			const String newPresetName = PresetHandler::getCustomName("User Preset", "Enter a name for the user preset");
-
-			if (newPresetName.isNotEmpty())
+			if (newPreset.existsAsFile())
 			{
-				File newPreset = currentRoot.getChildFile(newPresetName + ".preset");
+				File tempFile = newPreset.getSiblingFile("tempFileBeforeMove.preset");
+
+				UserPresetHelpers::saveUserPreset(mc->getMainSynthChain(), tempFile.getFullPathName());
+				browser->confirmReplace(tempFile, newPreset);
+			}
+			else
+			{
 				UserPresetHelpers::saveUserPreset(mc->getMainSynthChain(), newPreset.getFullPathName());
-                
+
 				setNewRootDirectory(currentRoot);
-                
-                browser->rebuildAllPresets();
+				browser->rebuildAllPresets();
 			}
 		}
 	}
@@ -377,6 +387,9 @@ mc(mc_)
 	addAndMakeVisible(presetColumn = new PresetBrowserColumn(mc, 2, rootFile, this));
 	addAndMakeVisible(searchBar = new PresetBrowserSearchBar());
 	addChildComponent(closeButton = new ShapeButton("Close", Colours::white.withAlpha(0.5f), Colours::white.withAlpha(0.8f), Colours::white));
+
+	addAndMakeVisible(modalInputWindow = new ModalWindow());
+	modalInputWindow->setVisible(false);
 
 	closeButton->addListener(this);
 	Path closeShape;
@@ -457,6 +470,8 @@ String MultiColumnPresetBrowser::getCurrentlyLoadedPresetName()
 
 void MultiColumnPresetBrowser::resized()
 {
+	modalInputWindow->setBounds(getLocalBounds());
+
 	int y = 0;
 
 	const bool showCloseButton = closeButton->isVisible();
@@ -500,6 +515,19 @@ void MultiColumnPresetBrowser::resized()
 		presetColumn->setBounds(x, y, getWidth() / 3 - 5, getHeight() - y - 3);
 	}
 
+	
+}
+
+void MultiColumnPresetBrowser::openModalAction(ModalWindow::Action action, const String& preEnteredText, const File& fileToChange, int columnIndex, int rowIndex)
+{
+	if (action == ModalWindow::Action::Delete)
+	{
+		modalInputWindow->confirmDelete(columnIndex, fileToChange);
+	}
+	else
+	{
+		modalInputWindow->addActionToStack(action, preEnteredText, columnIndex, rowIndex);
+	}
 	
 }
 
@@ -554,23 +582,17 @@ void MultiColumnPresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*
 }
 
 
-void MultiColumnPresetBrowser::renameEntry(int columnIndex, int rowIndex, const File& /*f*/, bool /*doubleClick*/)
+void MultiColumnPresetBrowser::renameEntry(int columnIndex, int rowIndex, const String& newName)
 {
 	if (columnIndex == 0)
 	{
-		
-        const String customName = PresetHandler::getCustomName(currentBankFile.getFileNameWithoutExtension(), "Enter the new Bank Name");
-        
-        if(customName.isNotEmpty())
+        if(newName.isNotEmpty())
         {
-            File newBank = currentBankFile.getSiblingFile(customName);
+            File newBank = currentBankFile.getSiblingFile(newName);
             
-            if(newBank.isDirectory())
-            {
-                PresetHandler::showMessageWindow("Bank already exists", "You specified an existing directory name");
-                return;
-            }
-            
+			if (newBank.isDirectory())
+				return;
+
             currentBankFile.moveFileTo(newBank);
             
             categoryColumn->setNewRootDirectory(File());
@@ -578,24 +600,19 @@ void MultiColumnPresetBrowser::renameEntry(int columnIndex, int rowIndex, const 
         }
         
         rebuildAllPresets();
-        
-		
 	}
 	else if (columnIndex == 1)
 	{
 		currentCategoryFile = PresetBrowserColumn::getChildDirectory(currentBankFile, 2, rowIndex);
 
-        const String customName = PresetHandler::getCustomName(currentCategoryFile.getFileNameWithoutExtension(), "Enter the new Category Name");
         
-        if(customName.isNotEmpty())
+        
+        if(newName.isNotEmpty())
         {
-            File newCategory = currentCategoryFile.getSiblingFile(customName);
+            File newCategory = currentCategoryFile.getSiblingFile(newName);
             
             if(newCategory.isDirectory())
-            {
-                PresetHandler::showMessageWindow("Category already exists", "You specified an existing directory name");
-                return;
-            }
+				return;
             
             currentCategoryFile.moveFileTo(newCategory);
             
@@ -609,21 +626,25 @@ void MultiColumnPresetBrowser::renameEntry(int columnIndex, int rowIndex, const 
 	{
 		File presetFile = PresetBrowserColumn::getChildDirectory(currentCategoryFile, 3, rowIndex);
 
-		const String customName = PresetHandler::getCustomName(presetFile.getFileNameWithoutExtension(), "Enter the new Preset Name");
-
-		if (customName.isNotEmpty())
+		if (newName.isNotEmpty())
 		{
-			File newFile = presetFile.getSiblingFile(customName + ".preset");
+			File newFile = presetFile.getSiblingFile(newName + ".preset");
 
-			presetFile.moveFileTo(newFile);
-			presetColumn->setNewRootDirectory(currentCategoryFile);
+			if (newFile.existsAsFile())
+				modalInputWindow->confirmReplacement(presetFile, newFile);
+			else
+			{
+				presetFile.moveFileTo(newFile);
+				presetColumn->setNewRootDirectory(currentCategoryFile);
+				rebuildAllPresets();
+			}
 		}
 
-		rebuildAllPresets();
+		
 	}
 }
 
-void MultiColumnPresetBrowser::deleteEntry(int columnIndex, int /*rowIndex*/, const File& f, bool /*doubleClick*/)
+void MultiColumnPresetBrowser::deleteEntry(int columnIndex, const File& f)
 {
 	if (columnIndex == 0)
 	{
@@ -657,6 +678,14 @@ void MultiColumnPresetBrowser::deleteEntry(int columnIndex, int /*rowIndex*/, co
 	rebuildAllPresets();
 }
 
+
+void MultiColumnPresetBrowser::addEntry(int columnIndex, const String& name)
+{
+	if (columnIndex == 0)	bankColumn->addEntry(name);
+	if (columnIndex == 1)	categoryColumn->addEntry(name);
+	if (columnIndex == 2)	presetColumn->addEntry(name);
+	
+}
 
 void MultiColumnPresetBrowser::loadPreset(const File& f)
 {

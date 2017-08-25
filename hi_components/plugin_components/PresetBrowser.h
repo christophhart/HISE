@@ -55,6 +55,8 @@ public:
 
 class BetterLabel: public Label
 {
+public:
+
     virtual TextEditor* createEditorComponent ()
     {
         TextEditor* t = Label::createEditorComponent();
@@ -64,8 +66,12 @@ class BetterLabel: public Label
     
     void textWasEdited() override
     {
-        textWasChanged();
+        if(refreshWithEachKey)
+			textWasChanged();
     }
+
+	bool refreshWithEachKey = true;
+	
 };
 
 class PresetBrowserSearchBar: public Component
@@ -135,8 +141,8 @@ public:
             virtual ~Listener() {};
             
 			virtual void selectionChanged(int columnIndex, int rowIndex, const File& file, bool doubleClick) = 0;
-			virtual void deleteEntry(int columnIndex, int rowIndex, const File& file, bool doubleClick) = 0;
-			virtual void renameEntry(int columnIndex, int rowIndex, const File& file, bool doubleClick) = 0;
+			virtual void deleteEntry(int columnIndex, const File& f) = 0;
+			virtual void renameEntry(int columnIndex, int rowIndex, const String& newName) = 0;
 		};
 
 		ColumnListModel(int index_, Listener* listener_);
@@ -207,6 +213,9 @@ public:
 	}
 
 	void buttonClicked(Button* b);
+
+	void addEntry(const String &newName);
+
 	void paint(Graphics& g) override;
 	void resized();
 
@@ -301,6 +310,322 @@ public:
 
 	// ============================================================================================
 
+	class ModalWindow : public Component,
+						public ButtonListener
+	{
+	public:
+
+		enum class Action
+		{
+			Idle = 0,
+			Rename,
+			Add,
+			Delete,
+			Replace,
+			numActions
+		};
+
+		ModalWindow()
+		{
+			addAndMakeVisible(inputLabel = new BetterLabel());
+			addAndMakeVisible(okButton = new TextButton("OK"));
+			addAndMakeVisible(cancelButton = new TextButton("Cancel"));
+
+			inputLabel->setEditable(true, true);
+			inputLabel->setColour(Label::ColourIds::textColourId, Colours::white);
+			inputLabel->setColour(Label::ColourIds::textWhenEditingColourId, Colours::white);
+			inputLabel->setColour(Label::ColourIds::outlineWhenEditingColourId, Colours::transparentBlack);
+
+			inputLabel->setColour(TextEditor::ColourIds::highlightedTextColourId, Colours::white);
+			inputLabel->setColour(CaretComponent::ColourIds::caretColourId, Colours::white);
+
+			inputLabel->setColour(TextEditor::ColourIds::focusedOutlineColourId, Colours::transparentBlack);
+
+			
+			inputLabel->setColour(TextEditor::ColourIds::highlightColourId, Colours::white);
+			inputLabel->setColour(TextEditor::ColourIds::focusedOutlineColourId, Colours::white);
+			inputLabel->setColour(TextEditor::ColourIds::highlightedTextColourId, Colours::black);
+
+			okButton->addListener(this);
+			cancelButton->addListener(this);
+
+			okButton->setLookAndFeel(&alaf);
+			cancelButton->setLookAndFeel(&alaf);
+
+			inputLabel->refreshWithEachKey = false;
+
+			setWantsKeyboardFocus(true);
+		}
+
+		~ModalWindow()
+		{
+			inputLabel = nullptr;
+			okButton = nullptr;
+			cancelButton = nullptr;
+		}
+
+		void paint(Graphics& g) override
+		{
+			g.setColour(Colour(0xaa000000));
+
+			g.fillAll();
+
+			if(inputLabel->isVisible())
+				g.fillRect(inputLabel->getBounds());
+
+			g.setColour(Colours::white);
+			
+			g.setFont(f.boldened().withHeight(24));
+
+			g.drawText(getTitleText(), 0, inputLabel->getY() - 80, getWidth(), 30, Justification::centredTop);
+
+			g.setFont(f.boldened());
+
+			g.drawText(getCommand(), inputLabel->getBounds().expanded(50), Justification::centredTop);
+
+		}
+
+		String getCommand() const
+		{
+			auto le = stack.getLast();
+
+			switch (le.currentAction)
+			{
+			case MultiColumnPresetBrowser::ModalWindow::Action::Idle:
+				break;
+			case MultiColumnPresetBrowser::ModalWindow::Action::Rename:
+			case MultiColumnPresetBrowser::ModalWindow::Action::Add:
+				return "Enter the name";
+			case MultiColumnPresetBrowser::ModalWindow::Action::Delete:
+			case MultiColumnPresetBrowser::ModalWindow::Action::Replace:
+				return "Are you sure?";
+			case MultiColumnPresetBrowser::ModalWindow::Action::numActions:
+				break;
+			default:
+				break;
+			}
+
+			return "";
+		}
+
+		String getTitleText() const
+		{
+			String s;
+
+			StackEntry le = stack.getLast();
+
+			
+
+			switch (le.currentAction)
+			{
+			case MultiColumnPresetBrowser::ModalWindow::Action::Idle:
+				break;
+			case MultiColumnPresetBrowser::ModalWindow::Action::Rename:
+				s << "Rename ";
+				break;
+			case MultiColumnPresetBrowser::ModalWindow::Action::Add:
+				s << "Add new ";
+				break;
+			case MultiColumnPresetBrowser::ModalWindow::Action::Replace:
+				s << "Replace ";
+				break;
+			case MultiColumnPresetBrowser::ModalWindow::Action::Delete:
+				s << "Delete ";
+				break;
+			case MultiColumnPresetBrowser::ModalWindow::Action::numActions:
+				break;
+			default:
+				break;
+			}
+
+			if (le.columnIndex == 2)
+				s << "User Preset";
+			if (le.columnIndex == 1)
+				s << "Category";
+			if (le.columnIndex == 0)
+				s << "Bank";
+
+			return s;
+		}
+
+		bool keyPressed(const KeyPress& key) override
+		{
+			if (key.isKeyCode(KeyPress::returnKey))
+			{
+				okButton->triggerClick();
+				return true;
+			}
+
+			if (key.isKeyCode(KeyPress::escapeKey))
+			{
+				cancelButton->triggerClick();
+				return true;
+			}
+
+			return false;
+		}
+
+		void buttonClicked(Button* b) override
+		{
+			auto le = stack.getLast();
+
+			stack.removeLast();
+
+			auto p = findParentComponentOfClass<MultiColumnPresetBrowser>();
+
+			if (b == okButton)
+			{
+				auto text = inputLabel->getText();
+
+				
+
+				switch (le.currentAction)
+				{
+				case MultiColumnPresetBrowser::ModalWindow::Action::Idle:
+					jassertfalse;
+					break;
+				case MultiColumnPresetBrowser::ModalWindow::Action::Rename:
+					p->renameEntry(le.columnIndex, le.rowIndex, inputLabel->getText());
+					break;
+				case MultiColumnPresetBrowser::ModalWindow::Action::Add:
+					p->addEntry(le.columnIndex, inputLabel->getText());
+					break;
+				case MultiColumnPresetBrowser::ModalWindow::Action::Delete:
+					p->deleteEntry(le.columnIndex, le.oldFile);
+					break;
+				case MultiColumnPresetBrowser::ModalWindow::Action::Replace:
+					le.oldFile.moveFileTo(le.newFile);
+					if (le.oldFile.getFileName() == "tempFileBeforeMove.preset")
+						le.oldFile.deleteFile();
+
+					p->rebuildAllPresets();
+					break;
+				case MultiColumnPresetBrowser::ModalWindow::Action::numActions:
+					break;
+				default:
+					break;
+				}
+			}
+			
+			if (le.currentAction == Action::Replace && le.oldFile.getFileName() == "tempFileBeforeMove.preset")
+				le.oldFile.deleteFile();
+			
+			refreshModalWindow();
+			
+		}
+
+		void resized() override
+		{
+			inputLabel->centreWithSize(400, 30);
+
+			okButton->setBounds(inputLabel->getX(), inputLabel->getBottom() + 20, 100, 30);
+			cancelButton->setBounds(inputLabel->getRight() - 100, inputLabel->getBottom() + 20, 100, 30);
+		}
+
+		void setHighlightColourAndFont(Colour c, Colour bgColour, Font font)
+		{
+			f = font;
+
+			inputLabel->setFont(f);
+			
+		}
+
+		void refreshModalWindow()
+		{
+			auto le = stack.getLast();
+
+			inputLabel->setVisible(le.currentAction == Action::Rename || le.currentAction == Action::Add);
+
+			setVisible(le.currentAction != Action::Idle);
+
+			repaint();
+
+			if (inputLabel->isVisible())
+				inputLabel->showEditor();
+			else
+				grabKeyboardFocus();
+		}
+
+		void addActionToStack(Action actionToDo, const String& preEnteredText=String(), int newColumnIndex=-1, int newRowIndex=-1)
+		{
+			inputLabel->setText(preEnteredText, dontSendNotification);
+
+			StackEntry ne;
+
+			ne.currentAction = actionToDo;
+			ne.columnIndex = newColumnIndex;
+			ne.rowIndex = newRowIndex;
+
+			stack.add(ne);
+
+			
+
+			refreshModalWindow();
+
+
+		}
+
+		void confirmDelete(int columnIndex, const File& fileToDelete)
+		{
+			StackEntry ne;
+
+			ne.currentAction = Action::Delete;
+			ne.oldFile = fileToDelete;
+			ne.columnIndex = columnIndex;
+
+			stack.add(ne);
+			refreshModalWindow();
+		}
+
+		void confirmReplacement(const File& oldFile, const File& newFile)
+		{
+			StackEntry ne;
+
+			ne.oldFile = oldFile;
+			ne.newFile = newFile;
+
+			ne.currentAction = Action::Replace;
+			ne.columnIndex = -1;
+			ne.rowIndex = -1;
+
+			stack.add(ne);
+			refreshModalWindow();
+		}
+
+	private:
+
+		AlertWindowLookAndFeel alaf;
+
+		ScopedPointer<TextButton> okButton;
+		ScopedPointer<TextButton> cancelButton;
+
+		Font f;
+
+		
+
+		struct StackEntry
+		{
+			StackEntry():
+				currentAction(Action::Idle),
+				columnIndex(-1),
+				rowIndex(-1)
+			{
+
+			}
+
+			Action currentAction;
+
+			File newFile;
+			File oldFile;
+
+			int columnIndex = -1;
+			int rowIndex = -1;
+		};
+
+		Array<StackEntry> stack;
+		
+		ScopedPointer<BetterLabel> inputLabel;
+	};
 
 	void colourChanged() override
 	{
@@ -339,8 +664,9 @@ public:
 	String getCurrentlyLoadedPresetName();
 
 	void selectionChanged(int columnIndex, int rowIndex, const File& clickedFile, bool doubleClick);
-	void renameEntry(int columnIndex, int rowIndex, const File& f, bool doubleClick);
-	void deleteEntry(int columnIndex, int rowIndex, const File& f, bool doubleClick);
+	void renameEntry(int columnIndex, int rowIndex, const String& newName);
+	void deleteEntry(int columnIndex, const File& f);
+	void addEntry(int columnIndex, const String& name);
 
 	void loadPreset(const File& f);
 
@@ -410,6 +736,13 @@ public:
 		}
 	}
 
+	void openModalAction(ModalWindow::Action action, const String& preEnteredText, const File& fileToChange, int columnIndex, int rowIndex);
+
+	void confirmReplace(const File& oldFile, const File &newFile)
+	{
+		modalInputWindow->confirmReplacement(oldFile, newFile);
+	}
+
 private:
 
 	// ============================================================================================
@@ -429,14 +762,10 @@ private:
 	ScopedPointer<PresetBrowserColumn> presetColumn;
 
 	ScopedPointer<ShapeButton> closeButton;
+	ScopedPointer<ModalWindow> modalInputWindow;
 
 	Array<File> allPresets;
 	int currentlyLoadedPreset = -1;
-	
-
-#if NEW_USER_PRESET
-	Listener* listener = nullptr;
-#endif
 
 	bool showOnlyPresets = false;
 	String currentWildcard = "*";
@@ -449,161 +778,5 @@ private:
 	void showLoadedPreset();
 };
 
-#if 0
-class MultiColumnPresetBrowserBar : public Component,
-							   public MultiColumnPresetBrowser::Listener,
-							   public Button::Listener
-{
-public:
-
-	class PresetButton : public Button
-	{
-	public:
-		PresetButton(const String& name, const Image &imageToUse) :
-			Button(name),
-			image(imageToUse)
-		{};
-
-		void setImage(const Image& newImage)
-		{
-			image = newImage;
-			repaint();
-		}
-
-	private:
-
-		void paintButton(Graphics& g, bool /*isMouseOverButton*/, bool isButtonDown)
-		{
-			if (image.isNull())
-			{
-				g.fillAll(Colours::red);
-			}
-			else
-			{
-				Rectangle<int> clipArea(0, isButtonDown ? 103 : 0, image.getWidth(), image.getWidth());
-				Image clippedImage = image.getClippedImage(clipArea);
-				g.drawImageWithin(clippedImage, 0, 0, getWidth(), getHeight(), RectanglePlacement::centred);
-			}
-		};
-
-		Image image;
-	};
-
-	MultiColumnPresetBrowserBar(MultiColumnPresetBrowser* browser_):
-		//displaySkin(ImageCache::getFromMemory(CustomFrontendToolbarImages::PresetDisplay_png, sizeof(CustomFrontendToolbarImages::PresetDisplay_png))),
-		displaySkin(Image()),
-		browser(browser_)
-	{
-		browser->setListener(this);
-
-		addAndMakeVisible(prevButton = new PresetButton("Previous", Image()));
-		addAndMakeVisible(nextButton = new PresetButton("Next", Image()));
-		
-		//prevButton->setImage(ImageCache::getFromMemory(CustomFrontendToolbarImages::PresetPrevButton_png, sizeof(CustomFrontendToolbarImages::PresetPrevButton_png)));
-		//nextButton->setImage(ImageCache::getFromMemory(CustomFrontendToolbarImages::PresetNextButton_png, sizeof(CustomFrontendToolbarImages::PresetNextButton_png)));
-
-		addAndMakeVisible(dropDownButton = new ShapeButton("Open Preset Browser", Colours::black.withAlpha(0.6f), Colours::black, Colours::black));
-
-		Path p;
-		p.startNewSubPath(0.0f, 0.0f);
-		p.lineTo(1.0f, 0.0f);
-		p.lineTo(0.5f, 1.0f);
-		p.closeSubPath();
-
-		dropDownButton->setShape(p, true, true, true);
-
-		prevButton->addListener(this);
-		nextButton->addListener(this);
-		dropDownButton->addListener(this);
-
-		setSize(305, 30);
-	}
-
-	void mouseDown(const MouseEvent& /*event*/)
-	{
-		if(loadOnClick) showPresetPopup();
-	}
-
-	
-
-	void mouseMove(const MouseEvent& event)
-	{
-		const Rectangle<int> area(75, 2, 230, 28);
-
-		loadOnClick = area.contains(event.getPosition());
-		repaint();
-	}
-
-	void mouseExit(const MouseEvent& /*event*/)
-	{
-		loadOnClick = false;
-		repaint();
-	}
-
-	void presetChanged(const String& newPresetName) override
-	{
-		currentPresetName = newPresetName;
-		repaint();
-	}
-
-	void paint(Graphics& g) override
-	{
-		g.setColour(Colours::black.withAlpha(loadOnClick ? 1.0f : 0.8f));
-
-		g.drawImageWithin(displaySkin, 75, 2, 230, 28, RectanglePlacement::centred);
-
-		if (currentPresetName.isNotEmpty())
-		{
-			g.setColour(Colours::black);
-			g.drawText(currentPresetName, 75, 2, 230, 28, Justification::centred);
-		}
-	}
-
-	void resized()
-	{
-		prevButton->setBounds(5, 2, 30, 30);
-		nextButton->setBounds(40, 2, 30, 30);
-		dropDownButton->setBounds(280, 9, 18, 14);
-	}
-
-	void buttonClicked(Button* b) override
-	{
-		
-		if (b == nextButton)
-		{
-			browser->incPreset(true);
-		}
-		else if (b == prevButton)
-		{
-			browser->incPreset(false);
-		}
-		else if (b == dropDownButton)
-		{
-			showPresetPopup();
-		}
-	}
-
-	void showPresetPopup();
-
-	ScopedPointer<PresetButton> loadButton;
-	
-
-private:
-
-	ScopedPointer<ShapeButton> dropDownButton;
-
-	bool loadOnClick = false;
-
-	Component::SafePointer<MultiColumnPresetBrowser> browser;
-
-	ScopedPointer<PresetButton> prevButton;
-	ScopedPointer<PresetButton> nextButton;
-
-	Image displaySkin;
-
-	String currentPresetName;
-
-};
-#endif
 
 #endif
