@@ -1356,6 +1356,7 @@ struct ScriptingObjects::GraphicsObject::Wrapper
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, fillTriangle);
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, fillPath);
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawPath);
+	API_VOID_METHOD_WRAPPER_2(GraphicsObject, rotate);
 };
 
 ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *p, ConstScriptingObject* parent_) :
@@ -1384,6 +1385,7 @@ rectangleResult(Result::ok())
 	ADD_API_METHOD_2(fillTriangle);
 	ADD_API_METHOD_2(fillPath);
 	ADD_API_METHOD_3(drawPath);
+	ADD_API_METHOD_2(rotate);
 }
 
 ScriptingObjects::GraphicsObject::~GraphicsObject()
@@ -1653,6 +1655,26 @@ void ScriptingObjects::GraphicsObject::drawPath(var path, var area, var thicknes
 
 		g->strokePath(p, PathStrokeType(thickness));
 	}
+}
+
+void ScriptingObjects::GraphicsObject::rotate(var angleInRadian, var center)
+{
+	initGraphics();
+
+	Point<float> c = getPointFromVar(center);
+
+	auto a = AffineTransform::rotation(angleInRadian, c.getX(), c.getY());
+
+	g->addTransform(a);
+}
+
+Point<float> ScriptingObjects::GraphicsObject::getPointFromVar(const var& data)
+{
+	Point<float>&& f = ApiHelpers::getPointFromVar(data, &rectangleResult);
+
+	if (rectangleResult.failed()) reportScriptError(rectangleResult.getErrorMessage());
+
+	return f;
 }
 
 Rectangle<float> ScriptingObjects::GraphicsObject::getRectangleFromVar(const var &data)

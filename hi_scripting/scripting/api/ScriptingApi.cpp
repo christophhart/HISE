@@ -204,6 +204,33 @@ String ApiHelpers::getFileNameFromErrorMessage(const String &message)
 
 
 
+Point<float> ApiHelpers::getPointFromVar(const var& data, Result* r /*= nullptr*/)
+{
+	if (data.isArray())
+	{
+		Array<var>* d = data.getArray();
+
+		if (d->size() == 2)
+		{
+			Point<float> p((float)d->getUnchecked(0), (float)d->getUnchecked(1));
+
+			return p;
+		}
+		else
+		{
+			if (r != nullptr) *r = Result::fail("Point array needs 2 elements");
+
+			return Point<float>();
+		}
+	}
+	else
+	{
+		if (r != nullptr) *r = Result::fail("Point is not an array");
+
+		return Point<float>();
+	}
+}
+
 Rectangle<float> ApiHelpers::getRectangleFromVar(const var &data, Result *r/*=nullptr*/)
 {
 	if (data.isArray())

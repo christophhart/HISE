@@ -39,6 +39,7 @@ class ApiHelpers
 {
 public:
 
+	static Point<float> getPointFromVar(const var& data, Result* r = nullptr);
 
 	static Rectangle<float> getRectangleFromVar(const var &data, Result *r = nullptr);
 

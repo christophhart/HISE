@@ -819,6 +819,9 @@ public:
 		/** Draws the given path. */
 		void drawPath(var path, var area, var thickNess);
 
+		/** Rotates the canvas around center ([x, y]) by the given amount in radian. */
+		void rotate(var angleInRadian, var center);
+		
 		// ============================================================================================================
 
 		struct Wrapper;
@@ -832,6 +835,7 @@ public:
 
 	private:
 
+		Point<float> getPointFromVar(const var& data);
 		Rectangle<float> getRectangleFromVar(const var &data);
 		Rectangle<int> getIntRectangleFromVar(const var &data);
 
