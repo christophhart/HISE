@@ -694,18 +694,24 @@ juce::Typeface* MainController::getFont(const String &fontName) const
 
 Font MainController::getFontFromString(const String& fontName, float fontSize) const
 {
-	auto fn = fontName.upToFirstOccurrenceOf(" Bold", false, false);
+	static const String boldString(" Bold");
+	static const String italicString(" Italic");
 
-	bool isBold = fontName != fn;
+	bool isBold = fontName.contains(boldString);
+	bool isItalic = fontName.contains(italicString);
+
+	auto fn = fontName.replace(boldString, "");
+	fn = fn.replace(italicString, "");
 
 	Font currentFont;
 
-	juce::Typeface::Ptr typeface = getFont(fontName);
+	juce::Typeface::Ptr typeface = getFont(fn);
 
 	if (typeface != nullptr)	currentFont = Font(typeface).withHeight(fontSize);
-	else						currentFont = Font(fontName, fontSize, Font::plain);
+	else						currentFont = Font(fn, fontSize, Font::plain);
 
 	if (isBold)					currentFont = currentFont.boldened();
+	if (isItalic)				currentFont = currentFont.italicised();
 
 	return currentFont;
 }
