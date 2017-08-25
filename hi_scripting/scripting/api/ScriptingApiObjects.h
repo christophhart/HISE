@@ -786,8 +786,11 @@ public:
 		/** Sets the current font. */
 		void setFont(String fontName, float fontSize);
 
-		/** Draws a (centered) text. */
+		/** Draws a centered and vertically stretched text. */
 		void drawText(String text, var area);
+
+		/** Draws a text with the given alignment (see the Label alignment property). */
+		void drawAlignedText(String text, var area, String alignment);
 
 		/** Sets the current gradient via an array [Colour1, x1, y1, Colour2, x2, y2] */
 		void setGradientFill(var gradientData);

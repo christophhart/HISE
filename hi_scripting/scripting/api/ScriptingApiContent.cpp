@@ -1313,17 +1313,7 @@ StringArray ScriptingApi::Content::ScriptLabel::getOptionsFor(const Identifier &
 		getScriptProcessor()->getMainController_()->fillWithCustomFonts(sa);
 		sa.addArray(Font::findAllTypefaceNames());
 		break;
-	case Alignment: sa.add("left");
-		sa.add("right");
-		sa.add("top");
-		sa.add("bottom");
-		sa.add("centred");
-		sa.add("centredTop");
-		sa.add("centredBottom");
-		sa.add("topLeft");
-		sa.add("topRight");
-		sa.add("bottomLeft");
-		sa.add("bottomRight");
+	case Alignment: sa = ApiHelpers::getJustificationNames();
 		break;
 	default:		sa = ScriptComponent::getOptionsFor(id);
 	}
@@ -1333,32 +1323,9 @@ StringArray ScriptingApi::Content::ScriptLabel::getOptionsFor(const Identifier &
 
 Justification ScriptingApi::Content::ScriptLabel::getJustification()
 {
-	StringArray options = getOptionsFor(getIdFor(Alignment));
+	auto justAsString = getScriptObjectProperty(Alignment);
 
-	String justAsString = getScriptObjectProperty(Alignment);
-	int index = options.indexOf(justAsString);
-
-	if (index == -1)
-	{
-		return Justification(Justification::centredLeft);
-	}
-
-	Array<Justification::Flags> justifications;
-	justifications.ensureStorageAllocated(options.size());
-
-	justifications.add(Justification::left);
-	justifications.add(Justification::right);
-	justifications.add(Justification::top);
-	justifications.add(Justification::bottom);
-	justifications.add(Justification::centred);
-	justifications.add(Justification::centredTop);
-	justifications.add(Justification::centredBottom);
-	justifications.add(Justification::topLeft);
-	justifications.add(Justification::topRight);
-	justifications.add(Justification::bottomLeft);
-	justifications.add(Justification::bottomRight);
-
-	return justifications[index];
+	return ApiHelpers::getJustification(justAsString);
 }
 
 struct ScriptingApi::Content::ScriptComboBox::Wrapper

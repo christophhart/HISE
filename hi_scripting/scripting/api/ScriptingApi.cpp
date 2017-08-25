@@ -204,6 +204,62 @@ String ApiHelpers::getFileNameFromErrorMessage(const String &message)
 
 
 
+StringArray ApiHelpers::getJustificationNames()
+{
+	static StringArray sa;
+
+	if (sa.isEmpty())
+	{
+		sa.add("left");
+		sa.add("right");
+		sa.add("top");
+		sa.add("bottom");
+		sa.add("centred");
+		sa.add("centredTop");
+		sa.add("centredBottom");
+		sa.add("topLeft");
+		sa.add("topRight");
+		sa.add("bottomLeft");
+		sa.add("bottomRight");
+	}
+
+	return sa;
+}
+
+Justification ApiHelpers::getJustification(const String& justificationName, Result* r/*=nullptr*/)
+{
+	static Array<Justification::Flags> justifications;
+
+	if (justifications.isEmpty())
+	{
+		justifications.add(Justification::left);
+		justifications.add(Justification::right);
+		justifications.add(Justification::top);
+		justifications.add(Justification::bottom);
+		justifications.add(Justification::centred);
+		justifications.add(Justification::centredTop);
+		justifications.add(Justification::centredBottom);
+		justifications.add(Justification::topLeft);
+		justifications.add(Justification::topRight);
+		justifications.add(Justification::bottomLeft);
+		justifications.add(Justification::bottomRight);
+	}
+
+	auto names = getJustificationNames();
+
+	int index = names.indexOf(justificationName);
+
+	if (index != -1)
+	{
+		return justifications[index];
+	}
+	
+	if (r != nullptr)
+		*r = Result::fail("Justification not found: " + justificationName);
+
+	return Justification::centred;
+}
+
 Point<float> ApiHelpers::getPointFromVar(const var& data, Result* r /*= nullptr*/)
 {
 	if (data.isArray())

@@ -1346,6 +1346,7 @@ struct ScriptingObjects::GraphicsObject::Wrapper
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawHorizontalLine);
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, setFont);
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, drawText);
+	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawAlignedText);
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, setGradientFill);
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, drawEllipse);
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, fillEllipse);
@@ -1375,6 +1376,7 @@ rectangleResult(Result::ok())
 	ADD_API_METHOD_3(drawHorizontalLine);
 	ADD_API_METHOD_2(setFont);
 	ADD_API_METHOD_2(drawText);
+	ADD_API_METHOD_3(drawAlignedText);
 	ADD_API_METHOD_1(setGradientFill);
 	ADD_API_METHOD_2(drawEllipse);
 	ADD_API_METHOD_1(fillEllipse);
@@ -1485,6 +1487,25 @@ void ScriptingObjects::GraphicsObject::drawText(String text, var area)
 	g->setFont(currentFont);
 
 	g->drawText(text, r, Justification::centred);
+}
+
+void ScriptingObjects::GraphicsObject::drawAlignedText(String text, var area, String alignment)
+{
+	initGraphics();
+
+	Rectangle<float> r = getRectangleFromVar(area);
+
+	Result re = Result::ok();
+
+	auto just= ApiHelpers::getJustification(alignment, &re);
+
+	if (re.failed())
+		reportScriptError(re.getErrorMessage());
+
+
+	g->setFont(currentFont);
+
+	g->drawText(text, r, just);
 }
 
 void ScriptingObjects::GraphicsObject::setGradientFill(var gradientData)
@@ -1610,9 +1631,6 @@ void ScriptingObjects::GraphicsObject::addDropShadowFromAlpha(int colour, int ra
 	shadow.colour = Colour((uint32)colour);
 	shadow.radius = radius;
 
-
-    
-    
     Graphics g2(*imageToDraw);
     
 #if JUCE_MAC || HISE_IOS

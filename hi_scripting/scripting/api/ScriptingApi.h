@@ -47,6 +47,10 @@ public:
 
 	static String getFileNameFromErrorMessage(const String &errorMessage);
 
+	static StringArray getJustificationNames();
+
+	static Justification getJustification(const String& justificationName, Result* r=nullptr);
+
 #if USE_BACKEND
 
 	static AttributedString createAttributedStringFromApi(const ValueTree &method, const String &className, bool multiLine, Colour textColour);
