@@ -526,62 +526,68 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 
 			m.addSubMenu("Combined Layouts", combinedLayouts);
 		}
+		else
+		{
+			m.addSectionHeader("Scripting Tools");
 
-		m.addSectionHeader("Scripting Tools");
+			addToPopupMenu(m, PopupMenuOptions::ScriptConnectorPanel, "Global Script Connector");
+			addToPopupMenu(m, PopupMenuOptions::ScriptEditor, "Script Editor");
+			addToPopupMenu(m, PopupMenuOptions::ScriptContent, "Script Content");
+			addToPopupMenu(m, PopupMenuOptions::ScriptComponentEditPanel, "Script Interface Property Editor");
+			addToPopupMenu(m, PopupMenuOptions::ApiCollection, "API Browser");
+			addToPopupMenu(m, PopupMenuOptions::ScriptWatchTable, "Live Variable View");
+			addToPopupMenu(m, PopupMenuOptions::Console, "Console");
 
-		addToPopupMenu(m, PopupMenuOptions::ScriptConnectorPanel, "Global Script Connector");
-		addToPopupMenu(m, PopupMenuOptions::ScriptEditor, "Script Editor");
-		addToPopupMenu(m, PopupMenuOptions::ScriptContent, "Script Content");
-		addToPopupMenu(m, PopupMenuOptions::ScriptComponentEditPanel, "Script Interface Property Editor");
-		addToPopupMenu(m, PopupMenuOptions::ApiCollection, "API Browser");
-		addToPopupMenu(m, PopupMenuOptions::ScriptWatchTable, "Live Variable View");
-		addToPopupMenu(m, PopupMenuOptions::Console, "Console");
+			m.addSectionHeader("Sampler Tools");
 
-		m.addSectionHeader("Sampler Tools");
-
-		addToPopupMenu(m, PopupMenuOptions::SampleConnector, "Global Sampler Connector");
-		addToPopupMenu(m, PopupMenuOptions::SampleEditor, "Sample Editor");
-		addToPopupMenu(m, PopupMenuOptions::SampleMapEditor, "Sample Map Editor");
-		addToPopupMenu(m, PopupMenuOptions::SamplerTable, "Sampler Table");
-		addToPopupMenu(m, PopupMenuOptions::SamplePoolTable, "Global Sample Pool");
+			addToPopupMenu(m, PopupMenuOptions::SampleConnector, "Global Sampler Connector");
+			addToPopupMenu(m, PopupMenuOptions::SampleEditor, "Sample Editor");
+			addToPopupMenu(m, PopupMenuOptions::SampleMapEditor, "Sample Map Editor");
+			addToPopupMenu(m, PopupMenuOptions::SamplerTable, "Sampler Table");
+			addToPopupMenu(m, PopupMenuOptions::SamplePoolTable, "Global Sample Pool");
 
 
-		m.addSectionHeader("Misc Tools");
+			m.addSectionHeader("Misc Tools");
 
-		addToPopupMenu(m, PopupMenuOptions::MacroControls, "8 Macro Controls");
-		addToPopupMenu(m, PopupMenuOptions::MacroTable, "Macro Control Editor");
-		addToPopupMenu(m, PopupMenuOptions::Plotter, "Plotter");
-		addToPopupMenu(m, PopupMenuOptions::TablePanel, "Table Editor");
-		addToPopupMenu(m, PopupMenuOptions::PresetBrowser, "Preset Browser");
-		addToPopupMenu(m, PopupMenuOptions::ModuleBrowser, "Module Browser");
+			addToPopupMenu(m, PopupMenuOptions::MacroControls, "8 Macro Controls");
+			addToPopupMenu(m, PopupMenuOptions::MacroTable, "Macro Control Editor");
+			addToPopupMenu(m, PopupMenuOptions::Plotter, "Plotter");
+			addToPopupMenu(m, PopupMenuOptions::TablePanel, "Table Editor");
+			addToPopupMenu(m, PopupMenuOptions::PresetBrowser, "Preset Browser");
+			addToPopupMenu(m, PopupMenuOptions::ModuleBrowser, "Module Browser");
+
+			addToPopupMenu(m, PopupMenuOptions::PatchBrowser, "Patch Browser");
+			addToPopupMenu(m, PopupMenuOptions::FileBrowser, "File Browser");
+			addToPopupMenu(m, PopupMenuOptions::SamplePoolTable, "SamplePoolTable");
+			addToPopupMenu(m, PopupMenuOptions::SliderPackPanel, "Array Editor");
+			addToPopupMenu(m, PopupMenuOptions::MidiKeyboard, "Virtual Keyboard");
+			addToPopupMenu(m, PopupMenuOptions::PopoutButton, "Popout Button");
+
+			addToPopupMenu(m, PopupMenuOptions::Note, "Note");
+			addToPopupMenu(m, PopupMenuOptions::AudioFileTable, "Audio File Pool Table");
+			addToPopupMenu(m, PopupMenuOptions::ImageTable, "Image Pool Table");
+
+			PopupMenu fm;
+
+			addToPopupMenu(fm, PopupMenuOptions::InterfaceContent, "Main Interface");
+			addToPopupMenu(fm, PopupMenuOptions::PerformanceStatistics, "Performance Statistics");
+			addToPopupMenu(fm, PopupMenuOptions::ActivityLed, "MIDI Activity LED");
+			addToPopupMenu(fm, PopupMenuOptions::PluginSettings, "Plugin Settings");
+			addToPopupMenu(fm, PopupMenuOptions::MidiSourceList, "Midi Source List");
+			addToPopupMenu(fm, PopupMenuOptions::MidiChannelList, "Midi Channel List");
+
+			m.addSubMenu("Frontend Panels", fm);
+
+			m.addSeparator();
+
+			PopupMenu icons;
+
+			m.addSubMenu("Icons", icons);
+
+
+		}
+
 		
-		addToPopupMenu(m, PopupMenuOptions::PatchBrowser, "Patch Browser");
-		addToPopupMenu(m, PopupMenuOptions::FileBrowser, "File Browser");
-		addToPopupMenu(m, PopupMenuOptions::SamplePoolTable, "SamplePoolTable");
-		addToPopupMenu(m, PopupMenuOptions::SliderPackPanel, "Array Editor");
-		addToPopupMenu(m, PopupMenuOptions::MidiKeyboard, "Virtual Keyboard");
-		addToPopupMenu(m, PopupMenuOptions::PopoutButton, "Popout Button");
-		
-		addToPopupMenu(m, PopupMenuOptions::Note, "Note");
-		addToPopupMenu(m, PopupMenuOptions::AudioFileTable, "Audio File Pool Table");
-		addToPopupMenu(m, PopupMenuOptions::ImageTable, "Image Pool Table");
-
-		PopupMenu fm;
-
-		addToPopupMenu(fm, PopupMenuOptions::InterfaceContent, "Main Interface");
-		addToPopupMenu(fm, PopupMenuOptions::PerformanceStatistics, "Performance Statistics");
-		addToPopupMenu(fm, PopupMenuOptions::ActivityLed, "MIDI Activity LED");
-		addToPopupMenu(fm, PopupMenuOptions::PluginSettings, "Plugin Settings");
-		addToPopupMenu(fm, PopupMenuOptions::MidiSourceList, "Midi Source List");
-		addToPopupMenu(fm, PopupMenuOptions::MidiChannelList, "Midi Channel List");
-		
-		m.addSubMenu("Frontend Panels", fm);
-
-		m.addSeparator();
-
-		PopupMenu icons;
-
-		m.addSubMenu("Icons", icons);
 	}
 
 	m.addItem((int)PopupMenuOptions::toggleGlobalLayoutMode, "Toggle Global Layout Mode", true, parent->isLayoutModeEnabled());
