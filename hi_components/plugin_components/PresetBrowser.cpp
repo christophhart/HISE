@@ -54,6 +54,33 @@ listener(listener_)
 	
 }
 
+void MultiColumnPresetBrowser::ModalWindow::paint(Graphics& g)
+{
+    g.setColour(Colour(0xcc222222));
+    g.fillAll();
+    
+    auto area = inputLabel->getBounds().expanded(50);
+    
+    g.setColour(Colour(0xcc333333));
+    g.fillRect(area.expanded(40));
+    
+    g.setColour(Colour(0x33FFFFFF));
+    g.drawRect(area.expanded(40), 1);
+    
+    g.setColour(Colour(0x22000000));
+    
+    if(inputLabel->isVisible())
+        g.fillRect(inputLabel->getBounds());
+    
+    g.setColour(Colours::white);
+    g.setFont(f.boldened().withHeight(24));
+    g.drawText(getTitleText(), 0, inputLabel->getY() - 80, getWidth(), 30, Justification::centredTop);
+        
+    g.setFont(f.boldened());
+    
+    g.drawText(getCommand(), area, Justification::centredTop);
+}
+
 int PresetBrowserColumn::ColumnListModel::getNumRows()
 {
     if(wildcard.isEmpty())

@@ -327,6 +327,8 @@ public:
 
 		ModalWindow()
 		{
+            f = GLOBAL_BOLD_FONT();
+            
 			addAndMakeVisible(inputLabel = new BetterLabel());
 			addAndMakeVisible(okButton = new TextButton("OK"));
 			addAndMakeVisible(cancelButton = new TextButton("Cancel"));
@@ -346,6 +348,8 @@ public:
 			inputLabel->setColour(TextEditor::ColourIds::focusedOutlineColourId, Colours::white);
 			inputLabel->setColour(TextEditor::ColourIds::highlightedTextColourId, Colours::black);
 
+            inputLabel->setFont(f);
+            
 			okButton->addListener(this);
 			cancelButton->addListener(this);
 
@@ -364,26 +368,8 @@ public:
 			cancelButton = nullptr;
 		}
 
-		void paint(Graphics& g) override
-		{
-			g.setColour(Colour(0xaa000000));
-
-			g.fillAll();
-
-			if(inputLabel->isVisible())
-				g.fillRect(inputLabel->getBounds());
-
-			g.setColour(Colours::white);
-			
-			g.setFont(f.boldened().withHeight(24));
-
-			g.drawText(getTitleText(), 0, inputLabel->getY() - 80, getWidth(), 30, Justification::centredTop);
-
-			g.setFont(f.boldened());
-
-			g.drawText(getCommand(), inputLabel->getBounds().expanded(50), Justification::centredTop);
-
-		}
+        void paint(Graphics& g) override;
+		
 
 		String getCommand() const
 		{
@@ -516,7 +502,7 @@ public:
 
 		void resized() override
 		{
-			inputLabel->centreWithSize(400, 30);
+			inputLabel->centreWithSize(300, 30);
 
 			okButton->setBounds(inputLabel->getX(), inputLabel->getBottom() + 20, 100, 30);
 			cancelButton->setBounds(inputLabel->getRight() - 100, inputLabel->getBottom() + 20, 100, 30);
