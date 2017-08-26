@@ -25,6 +25,7 @@ xcopy "xml\class_doxygen_string_functions.xml" "xml\selection"
 xcopy "xml\class_dsp_instance.xml" "xml\selection"
 
 xcopy "xml\class_scripting_objects_1_1_scripting_modulator.xml" "xml\selection"
+xcopy "xml\class_scripting_objects_1_1_scripting_synth.xml" "xml\selection"
 xcopy "xml\class_scripting_objects_1_1_midi_list.xml" "xml\selection"
 xcopy "xml\class_scripting_objects_1_1_scripting_message_holder.xml" "xml\selection"
 xcopy "xml\class_scripting_objects_1_1_scripting_audio_sample_processor.xml" "xml\selection"

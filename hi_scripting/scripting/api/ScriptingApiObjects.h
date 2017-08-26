@@ -34,6 +34,62 @@
 #ifndef SCRIPTINGAPIOBJECTS_H_INCLUDED
 #define SCRIPTINGAPIOBJECTS_H_INCLUDED
 
+
+class ApiHelpers
+{
+public:
+
+	class ModuleHandler
+	{
+	public:
+
+		ModuleHandler(Processor* parent_);
+
+		bool removeModule(Processor* p);
+
+		Processor* addModule(Chain* c, const String& type, const String& id, int index = -1);
+
+		Modulator* addAndConnectToGlobalModulator(Chain* c, Modulator* globalModulator, const String& modName);
+
+	private:
+
+		WeakReference<Processor> parent;
+
+		Component::SafePointer<Component> mainEditor;
+	};
+
+	static Point<float> getPointFromVar(const var& data, Result* r = nullptr);
+
+	static Rectangle<float> getRectangleFromVar(const var &data, Result *r = nullptr);
+
+	static Rectangle<int> getIntRectangleFromVar(const var &data, Result* r = nullptr);
+
+	static String getFileNameFromErrorMessage(const String &errorMessage);
+
+	static StringArray getJustificationNames();
+
+	static Justification getJustification(const String& justificationName, Result* r = nullptr);
+
+#if USE_BACKEND
+
+	static AttributedString createAttributedStringFromApi(const ValueTree &method, const String &className, bool multiLine, Colour textColour);
+	static String createCodeToInsert(const ValueTree &method, const String &className);
+	static void getColourAndCharForType(int type, char &c, Colour &colour);
+	static String getValueType(const var &v);
+
+	struct Api
+	{
+		Api();
+
+		ValueTree apiTree;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Api)
+	};
+
+#endif
+};
+
+
 class ScriptCreatedComponentWrapper;
 class ScriptContentComponent;
 class ScriptedControlAudioParameter;
@@ -216,6 +272,7 @@ public:
 		HiseEvent e;
 	};
 
+	
 	/** A scripting objects that wraps an existing Modulator.
 	*/
 	class ScriptingModulator : public ConstScriptingObject,
@@ -281,6 +338,15 @@ public:
 		/** Restores the control values for scripts (without recompiling). */
 		void restoreScriptControls(String base64Controls);
 
+		/** Adds a modulator to the given chain and returns a reference. */
+		var addModulator(var chainIndex, var typeName, var modName);
+
+		/** Adds a and connects a receiver modulator for the given global modulator. */
+		var addGlobalModulator(var chainIndex, var globalMod, String modName);
+
+		/** Returns a reference as table processor to modify the table or undefined if no table modulator. */
+		var asTableProcessor();
+
 		// ============================================================================================================
 
 		struct Wrapper;
@@ -288,6 +354,8 @@ public:
 		Modulator* getModulator() { return mod.get(); }
 
 	private:
+
+		ApiHelpers::ModuleHandler moduleHandler;
 
 		WeakReference<Modulator> mod;
 		Modulation *m;
@@ -354,6 +422,12 @@ public:
 		/** Returns the current peak level for the given channel. */
 		float getCurrentLevel(bool leftChannel);
 
+		/** Adds a modulator to the given chain and returns a reference. */
+		var addModulator(var chainIndex, var typeName, var modName);
+
+		/** Adds a and connects a receiver modulator for the given global modulator. */
+		var addGlobalModulator(var chainIndex, var globalMod, String modName);
+
 		// ============================================================================================================
 
 		struct Wrapper;
@@ -361,6 +435,8 @@ public:
 		EffectProcessor* getEffect() { return dynamic_cast<EffectProcessor*>(effect.get()); }
 
 	private:
+
+		ApiHelpers::ModuleHandler moduleHandler;
 
 		WeakReference<Processor> effect;
 
@@ -477,11 +553,22 @@ public:
 		/** Returns the current peak level for the given channel. */
 		float getCurrentLevel(bool leftChannel);
 
+		/** Adds a modulator to the given chain and returns a reference. */
+		var addModulator(var chainIndex, var typeName, var modName);
+
+		/** Adds a and connects a receiver modulator for the given global modulator. */
+		var addGlobalModulator(var chainIndex, var globalMod, String modName);
+
+		/** Returns a reference as Sampler or undefined if no Sampler. */
+		var asSampler();
+
 		// ============================================================================================================ 
 
 		struct Wrapper;
 
 	private:
+
+		ApiHelpers::ModuleHandler moduleHandler;
 
 		WeakReference<Processor> synth;
 

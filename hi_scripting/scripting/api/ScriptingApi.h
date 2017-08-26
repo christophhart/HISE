@@ -35,41 +35,6 @@
 
 
 
-class ApiHelpers
-{
-public:
-
-	static Point<float> getPointFromVar(const var& data, Result* r = nullptr);
-
-	static Rectangle<float> getRectangleFromVar(const var &data, Result *r = nullptr);
-
-	static Rectangle<int> getIntRectangleFromVar(const var &data, Result* r = nullptr);
-
-	static String getFileNameFromErrorMessage(const String &errorMessage);
-
-	static StringArray getJustificationNames();
-
-	static Justification getJustification(const String& justificationName, Result* r=nullptr);
-
-#if USE_BACKEND
-
-	static AttributedString createAttributedStringFromApi(const ValueTree &method, const String &className, bool multiLine, Colour textColour);
-	static String createCodeToInsert(const ValueTree &method, const String &className);
-	static void getColourAndCharForType(int type, char &c, Colour &colour);
-	static String getValueType(const var &v);
-
-	struct Api
-	{
-		Api();
-
-		ValueTree apiTree;
-
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Api)
-	};
-
-#endif
-};
-
 
 
 /** This class wraps all available functions for the scripting engine provided by a ScriptProcessor.
@@ -630,22 +595,7 @@ public:
 
 	private:
 
-		class ModuleHandler
-		{
-		public:
-
-			ModuleHandler(Synth* parent_);
-
-			bool removeModule(Processor* p_);
-
-			Processor* addModule(Chain* chainToAdd, const String& type_, const String& id_, int index_ = -1);
-
-		private:
-
-			Synth* parent;
-
-			Component* mainEditor;
-		};
+		
 
 		friend class ModuleHandler;
 		
@@ -654,7 +604,7 @@ public:
 		Atomic<int> numPressedKeys;
 		BigInteger keyDown;
 
-		ModuleHandler moduleHandler;
+		ApiHelpers::ModuleHandler moduleHandler;
 
 		SelectedItemSet<WeakReference<ModulatorSamplerSound>> soundSelection;
 

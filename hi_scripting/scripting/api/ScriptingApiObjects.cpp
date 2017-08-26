@@ -184,13 +184,17 @@ struct ScriptingObjects::ScriptingModulator::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptingModulator, restoreState);
 	API_VOID_METHOD_WRAPPER_1(ScriptingModulator, restoreScriptControls);
 	API_METHOD_WRAPPER_0(ScriptingModulator, exportScriptControls);
+	API_METHOD_WRAPPER_3(ScriptingModulator, addModulator);
+	API_METHOD_WRAPPER_3(ScriptingModulator, addGlobalModulator);
+	API_METHOD_WRAPPER_0(ScriptingModulator, asTableProcessor);
 
 };
 
 ScriptingObjects::ScriptingModulator::ScriptingModulator(ProcessorWithScriptingContent *p, Modulator *m_) :
 ConstScriptingObject(p, m_ != nullptr ? m_->getNumParameters() + 1 : 1),
 mod(m_),
-m(nullptr)
+m(nullptr),
+moduleHandler(m_)
 {
 	if (mod != nullptr)
 	{
@@ -220,6 +224,9 @@ m(nullptr)
 	ADD_API_METHOD_0(getNumAttributes);
 	ADD_API_METHOD_1(restoreScriptControls);
 	ADD_API_METHOD_0(exportScriptControls);
+	ADD_API_METHOD_3(addModulator);
+	ADD_API_METHOD_3(addGlobalModulator);
+	ADD_API_METHOD_0(asTableProcessor);
 }
 
 String ScriptingObjects::ScriptingModulator::getDebugName() const
@@ -408,6 +415,64 @@ void ScriptingObjects::ScriptingModulator::restoreScriptControls(String base64Co
 	}
 }
 
+var ScriptingObjects::ScriptingModulator::addModulator(var chainIndex, var typeName, var modName)
+{
+	if (checkValidObject())
+	{
+		ModulatorChain *c = dynamic_cast<ModulatorChain*>(mod->getChildProcessor(chainIndex));
+
+		if (c == nullptr)
+			reportScriptError("Modulator Chain with index " + chainIndex.toString() + " does not exist");
+		
+		Processor* p = moduleHandler.addModule(c, typeName, modName, -1);
+
+		auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), dynamic_cast<Modulator*>(p));
+		return var(mod);
+	}
+
+	auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), nullptr);
+	return var(mod);
+}
+
+var ScriptingObjects::ScriptingModulator::addGlobalModulator(var chainIndex, var globalMod, String modName)
+{
+	if (checkValidObject())
+	{
+		if (auto gm = dynamic_cast<ScriptingModulator*>(globalMod.getObject()))
+		{
+			ModulatorChain *c = dynamic_cast<ModulatorChain*>(mod->getChildProcessor(chainIndex));
+
+			if (c == nullptr)
+				reportScriptError("Modulator Chain with index " + chainIndex.toString() + " does not exist");
+
+			auto p = moduleHandler.addAndConnectToGlobalModulator(c, gm->getModulator(), modName);
+
+			auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), p);
+			return var(mod);
+		}
+	}
+
+	auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), nullptr);
+	return var(mod);
+}
+
+var ScriptingObjects::ScriptingModulator::asTableProcessor()
+{
+	if (checkValidObject())
+	{
+		auto ltp = dynamic_cast<LookupTableProcessor*>(mod.get());
+
+		if (ltp == nullptr)
+			return var(); // don't complain here, handle it on scripting level
+
+		auto t = new ScriptingTableProcessor(getScriptProcessor(), ltp);
+			return var(t);
+	}
+
+	auto t = new ScriptingObjects::ScriptingTableProcessor(getScriptProcessor(), nullptr);
+	return var(t);
+}
+
 // ScriptingEffect ==============================================================================================================
 
 struct ScriptingObjects::ScriptingEffect::Wrapper
@@ -421,11 +486,14 @@ struct ScriptingObjects::ScriptingEffect::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptingEffect, restoreState);
 	API_VOID_METHOD_WRAPPER_1(ScriptingEffect, restoreScriptControls);
 	API_METHOD_WRAPPER_0(ScriptingEffect, exportScriptControls);
+	API_METHOD_WRAPPER_3(ScriptingEffect, addModulator);
+	API_METHOD_WRAPPER_3(ScriptingEffect, addGlobalModulator);
 };
 
 ScriptingObjects::ScriptingEffect::ScriptingEffect(ProcessorWithScriptingContent *p, EffectProcessor *fx) :
 ConstScriptingObject(p, fx != nullptr ? fx->getNumParameters()+1 : 1),
-effect(fx)
+effect(fx),
+moduleHandler(fx)
 {
 	if (fx != nullptr)
 	{
@@ -452,6 +520,8 @@ effect(fx)
 	ADD_API_METHOD_1(restoreScriptControls);
 	ADD_API_METHOD_0(exportScriptControls);
 	ADD_API_METHOD_0(getNumAttributes);
+	ADD_API_METHOD_3(addModulator);
+	ADD_API_METHOD_3(addGlobalModulator);
 };
 
 
@@ -553,6 +623,47 @@ float ScriptingObjects::ScriptingEffect::getCurrentLevel(bool leftChannel)
 	}
 
 	return 0.0f;
+}
+
+var ScriptingObjects::ScriptingEffect::addModulator(var chainIndex, var typeName, var modName)
+{
+	if (checkValidObject())
+	{
+		ModulatorChain *c = dynamic_cast<ModulatorChain*>(effect->getChildProcessor(chainIndex));
+
+		if (c == nullptr)
+			reportScriptError("Modulator Chain with index " + chainIndex.toString() + " does not exist");
+
+		Processor* p = moduleHandler.addModule(c, typeName, modName, -1);
+
+		auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), dynamic_cast<Modulator*>(p));
+		return var(mod);
+	}
+
+	auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), nullptr);
+	return var(mod);
+}
+
+var ScriptingObjects::ScriptingEffect::addGlobalModulator(var chainIndex, var globalMod, String modName)
+{
+	if (checkValidObject())
+	{
+		if (auto gm = dynamic_cast<ScriptingModulator*>(globalMod.getObject()))
+		{
+			ModulatorChain *c = dynamic_cast<ModulatorChain*>(effect->getChildProcessor(chainIndex));
+
+			if (c == nullptr)
+				reportScriptError("Modulator Chain with index " + chainIndex.toString() + " does not exist");
+
+			auto p = moduleHandler.addAndConnectToGlobalModulator(c, gm->getModulator(), modName);
+
+			auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), p);
+			return var(mod);
+		}
+	}
+
+	auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), nullptr);
+	return var(mod);
 }
 
 // ScriptingSlotFX ==============================================================================================================
@@ -672,11 +783,15 @@ struct ScriptingObjects::ScriptingSynth::Wrapper
 	API_METHOD_WRAPPER_0(ScriptingSynth, exportState);
 	API_METHOD_WRAPPER_1(ScriptingSynth, getCurrentLevel);
 	API_VOID_METHOD_WRAPPER_1(ScriptingSynth, restoreState);
+	API_METHOD_WRAPPER_3(ScriptingSynth, addModulator);
+	API_METHOD_WRAPPER_3(ScriptingSynth, addGlobalModulator);
+	API_METHOD_WRAPPER_0(ScriptingSynth, asSampler);
 };
 
 ScriptingObjects::ScriptingSynth::ScriptingSynth(ProcessorWithScriptingContent *p, ModulatorSynth *synth_) :
-ConstScriptingObject(p, synth_ != nullptr ? synth_->getNumParameters()+1: 1),
-synth(synth_)
+	ConstScriptingObject(p, synth_ != nullptr ? synth_->getNumParameters() + 1 : 1),
+	synth(synth_),
+	moduleHandler(synth_)
 {
 	if (synth != nullptr)
 	{
@@ -702,6 +817,9 @@ synth(synth_)
 	ADD_API_METHOD_0(exportState);
 	ADD_API_METHOD_1(restoreState);
 	ADD_API_METHOD_0(getNumAttributes);
+	ADD_API_METHOD_3(addModulator);
+	ADD_API_METHOD_3(addGlobalModulator);
+	ADD_API_METHOD_0(asSampler);
 };
 
 
@@ -795,6 +913,64 @@ float ScriptingObjects::ScriptingSynth::getCurrentLevel(bool leftChannel)
 	}
 
 	return 0.0f;
+}
+
+var ScriptingObjects::ScriptingSynth::addModulator(var chainIndex, var typeName, var modName)
+{
+	if (checkValidObject())
+	{
+		ModulatorChain *c = dynamic_cast<ModulatorChain*>(synth->getChildProcessor(chainIndex));
+
+		if (c == nullptr)
+			reportScriptError("Modulator Chain with index " + chainIndex.toString() + " does not exist");
+
+		Processor* p = moduleHandler.addModule(c, typeName, modName, -1);
+
+		auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), dynamic_cast<Modulator*>(p));
+		return var(mod);
+	}
+
+	auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), nullptr);
+	return var(mod);
+}
+
+var ScriptingObjects::ScriptingSynth::addGlobalModulator(var chainIndex, var globalMod, String modName)
+{
+	if (checkValidObject())
+	{
+		if (auto gm = dynamic_cast<ScriptingModulator*>(globalMod.getObject()))
+		{
+			ModulatorChain *c = dynamic_cast<ModulatorChain*>(synth->getChildProcessor(chainIndex));
+
+			if (c == nullptr)
+				reportScriptError("Modulator Chain with index " + chainIndex.toString() + " does not exist");
+
+			auto p = moduleHandler.addAndConnectToGlobalModulator(c, gm->getModulator(), modName);
+
+			auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), p);
+			return var(mod);
+		}
+	}
+
+	auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), nullptr);
+	return var(mod);
+}
+
+var ScriptingObjects::ScriptingSynth::asSampler()
+{
+	if (checkValidObject())
+	{
+		auto sampler = dynamic_cast<ModulatorSampler*>(synth.get());
+
+		if (sampler == nullptr)
+			return var(); // don't complain here, handle it on scripting level
+
+		auto t = new ScriptingApi::Sampler(getScriptProcessor(), sampler);
+		return var(t);
+	}
+
+	auto t = new ScriptingApi::Sampler(getScriptProcessor(), nullptr);
+	return var(t);
 }
 
 // ScriptingMidiProcessor ==============================================================================================================
@@ -1822,3 +1998,5 @@ String ScriptingObjects::ScriptingMessageHolder::dump() const
 
 	return x;
 }
+
+

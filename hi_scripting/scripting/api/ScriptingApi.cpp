@@ -1683,7 +1683,7 @@ struct ScriptingApi::Synth::Wrapper
 ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *ownerSynth) :
 	ScriptingObject(p),
 	ApiClass(0),
-	moduleHandler(this),
+	moduleHandler(dynamic_cast<Processor*>(p)),
 	owner(ownerSynth),
 	numPressedKeys(0),
 	keyDown(0),
@@ -2604,132 +2604,6 @@ void ScriptingApi::Synth::setModulatorAttribute(int chain, int modulatorIndex, i
 }
 
 
-ScriptingApi::Synth::ModuleHandler::ModuleHandler(Synth* parent_) :
-	parent(parent_)
-{
-#if USE_BACKEND
-
-	auto console = parent->getScriptProcessor()->getMainController_()->getConsoleHandler().getMainConsole();
-
-	if (console)
-		mainEditor = GET_BACKEND_ROOT_WINDOW(console);
-
-#else
-	mainEditor = nullptr;
-#endif
-}
-
-bool ScriptingApi::Synth::ModuleHandler::removeModule(Processor* p)
-{
-	if (!MessageManager::getInstance()->isThisTheMessageThread())
-	{
-		parent->reportScriptError("Effects can't be removed from the audio thread!");
-		return false;
-	}
-
-	if (p != nullptr)
-	{
-		Chain* c = dynamic_cast<Chain*>(ProcessorHelpers::findParentProcessor(p, false));
-
-#if USE_BACKEND
-		if (mainEditor != nullptr)
-		{
-			BackendProcessorEditor* bpe = dynamic_cast<BackendProcessorEditor*>(mainEditor);
-
-			if (bpe == nullptr) return true;
-
-			ProcessorEditorContainer* container = bpe->getRootContainer();
-
-			if (container == nullptr) return true;
-
-			ProcessorEditor* editor = container->getFirstEditorOf(dynamic_cast<Processor*>(c));
-
-			if (editor != nullptr)
-			{
-				editor->getPanel()->removeProcessorEditor(p);
-			}
-
-            c->getHandler()->remove(p);
-            
-			GET_BACKEND_ROOT_WINDOW(mainEditor)->sendRootContainerRebuildMessage(true);
-		}
-		else
-		{
-			c->getHandler()->remove(p);
-		}
-#else
-		c->getHandler()->remove(p);
-#endif
-	}
-
-	return true;
-}
-
-Processor* ScriptingApi::Synth::ModuleHandler::addModule(Chain* c, const String& type, const String& id, int index /*= -1*/)
-{
-	if (!MessageManager::getInstance()->isThisTheMessageThread())
-	{
-		parent->reportScriptError("Modules can't be added from the audio thread!");
-		return nullptr;
-	}
-	
-	Processor* p = nullptr;
-	
-	for (int i = 0; i < c->getHandler()->getNumProcessors(); i++)
-	{
-		if (c->getHandler()->getProcessor(i)->getId() == id)
-			p = c->getHandler()->getProcessor(i);
-	}
-
-	if (p != nullptr) 
-		return p;
-	else
-		p = parent->getProcessor()->getMainController()->createProcessor(c->getFactoryType(), type, id);
-
-	if (p == nullptr)
-	{
-		parent->reportScriptError("Module with type " + type + " could not be generated.");
-		return nullptr;
-	}
-
-	if (index >= 0 && index < c->getHandler()->getNumProcessors())
-	{
-		Processor* sibling = c->getHandler()->getProcessor(index);
-		c->getHandler()->add(p, sibling);
-	}
-	else
-	{
-		c->getHandler()->add(p, nullptr);
-	}
-
-	
-#if USE_BACKEND
-	if (mainEditor != nullptr)
-	{
-		BackendProcessorEditor* bpe = dynamic_cast<BackendProcessorEditor*>(mainEditor);
-
-		if (bpe == nullptr) return p;
-		
-		ProcessorEditorContainer* container = bpe->getRootContainer();
-
-		if (container == nullptr) return p;
-
-		ProcessorEditor* editor = container->getFirstEditorOf(dynamic_cast<Processor*>(c));
-
-		if (editor != nullptr)
-		{
-			editor->changeListenerCallback(dynamic_cast<Processor*>(c));
-			editor->childEditorAmountChanged();
-		}
-
-		GET_BACKEND_ROOT_WINDOW(mainEditor)->sendRootContainerRebuildMessage(false);
-	}
-#endif
-	
-	return p;
-}
-
-
 ScriptingObjects::ScriptingModulator* ScriptingApi::Synth::addModulator(int chain, const String &type, const String &id)
 {
 	ModulatorChain *c = nullptr;
@@ -3145,4 +3019,173 @@ Array<Identifier> ScriptingApi::ModuleIds::getTypeList(ModulatorSynth* s)
 	}
 
 	return ids;
+}
+
+ApiHelpers::ModuleHandler::ModuleHandler(Processor* parent_) :
+	parent(parent_)
+{
+#if USE_BACKEND
+
+	auto console = parent->getMainController()->getConsoleHandler().getMainConsole();
+
+	if (console)
+		mainEditor = GET_BACKEND_ROOT_WINDOW(console);
+
+#else
+	mainEditor = nullptr;
+#endif
+}
+
+bool ApiHelpers::ModuleHandler::removeModule(Processor* p)
+{
+	if (!MessageManager::getInstance()->isThisTheMessageThread())
+	{
+		throw String("Effects can't be removed from the audio thread!");
+	}
+
+	if (p != nullptr)
+	{
+		Chain* c = dynamic_cast<Chain*>(ProcessorHelpers::findParentProcessor(p, false));
+
+#if USE_BACKEND
+		if (mainEditor != nullptr)
+		{
+			auto* rootWindow = dynamic_cast<BackendRootWindow*>(mainEditor.getComponent());
+
+			if (rootWindow == nullptr) return true;
+
+			ProcessorEditorContainer* container = rootWindow->getMainPanel()->getRootContainer();
+
+			if (container == nullptr) return true;
+
+			ProcessorEditor* editor = container->getFirstEditorOf(dynamic_cast<Processor*>(c));
+
+			if (editor != nullptr)
+			{
+				editor->getPanel()->removeProcessorEditor(p);
+			}
+
+			c->getHandler()->remove(p);
+
+			rootWindow->sendRootContainerRebuildMessage(true);
+		}
+		else
+		{
+			c->getHandler()->remove(p);
+		}
+#else
+		c->getHandler()->remove(p);
+#endif
+	}
+
+	return true;
+}
+
+Processor* ApiHelpers::ModuleHandler::addModule(Chain* c, const String& type, const String& id, int index /*= -1*/)
+{
+	if (!MessageManager::getInstance()->isThisTheMessageThread())
+	{
+		throw String("Modules can't be added from the audio thread!");
+		return nullptr;
+	}
+
+	
+
+	for (int i = 0; i < c->getHandler()->getNumProcessors(); i++)
+	{
+		if (c->getHandler()->getProcessor(i)->getId() == id)
+		{
+			return c->getHandler()->getProcessor(i);
+		}
+	}
+
+	ScopedPointer<Processor> p = parent->getMainController()->createProcessor(c->getFactoryType(), type, id);
+
+	Processor* returnP = nullptr;
+
+	if (p == nullptr)
+		throw String("Module with type " + type + " could not be generated.");
+
+	if (index >= 0 && index < c->getHandler()->getNumProcessors())
+	{
+		Processor* sibling = c->getHandler()->getProcessor(index);
+		
+		returnP = p.get();
+
+		c->getHandler()->add(p.release(), sibling);
+	}
+	else
+	{
+		returnP = p.get();
+		c->getHandler()->add(p.release(), nullptr);
+	}
+	
+	if (returnP == nullptr)
+		return nullptr;
+
+#if USE_BACKEND
+	if (mainEditor != nullptr)
+	{
+		auto rootWindow = dynamic_cast<BackendRootWindow*>(mainEditor.getComponent());
+
+		if (rootWindow == nullptr) return returnP;
+
+		ProcessorEditorContainer* container = rootWindow->getMainPanel()->getRootContainer();
+
+		if (container == nullptr) return returnP;
+
+		ProcessorEditor* editor = container->getFirstEditorOf(dynamic_cast<Processor*>(c));
+
+		if (editor != nullptr)
+		{
+			editor->changeListenerCallback(dynamic_cast<Processor*>(c));
+			editor->childEditorAmountChanged();
+		}
+
+		rootWindow->sendRootContainerRebuildMessage(false);
+	}
+#endif
+
+	return returnP;
+}
+
+Modulator* ApiHelpers::ModuleHandler::addAndConnectToGlobalModulator(Chain* c, Modulator* globalModulator, const String& modName)
+{
+	if (globalModulator == nullptr)
+		throw String("Global Modulator does not exist");
+
+	if (auto container = dynamic_cast<GlobalModulatorContainer*>(ProcessorHelpers::findParentProcessor(globalModulator, true)))
+	{
+		GlobalModulator* m;;
+
+		if (auto vm = dynamic_cast<VoiceStartModulator*>(globalModulator))
+		{
+			auto vMod = addModule(c, GlobalVoiceStartModulator::getClassType().toString(), modName);
+			m = dynamic_cast<GlobalModulator*>(vMod);
+		}
+		else if (auto tm = dynamic_cast<TimeVariantModulator*>(globalModulator))
+		{
+			auto tMod = addModule(c, GlobalTimeVariantModulator::getClassType().toString(), modName);
+			m = dynamic_cast<GlobalModulator*>(tMod);
+		}
+
+		auto entry = container->getId() + ":" + globalModulator->getId();
+
+		m->connectToGlobalModulator(entry);
+
+		if (!m->isConnected())
+		{
+			throw String("Can't connect to global modulator");
+		}
+
+		auto returnMod = dynamic_cast<Modulator*>(m);
+
+#if USE_BACKEND
+		returnMod->sendChangeMessage();
+#endif
+
+		return returnMod;
+	}
+	else
+		throw String("The modulator you passed in is not a global modulator. You must specify a modulator in a Global Modulator Container");
 }
