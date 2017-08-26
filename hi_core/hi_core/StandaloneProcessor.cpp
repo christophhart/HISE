@@ -61,21 +61,6 @@ void AudioProcessorDriver::restoreSettings(MainController* mc)
 
 		
 	}
-    
-#if USE_FRONTEND
-    bool allSamplesThere = deviceData != nullptr && deviceData->getBoolAttribute("SAMPLES_FOUND");
-    
-    if (!allSamplesThere)
-    {
-        dynamic_cast<FrontendSampleManager*>(mc)->checkAllSampleReferences();
-    }
-    else
-    {
-        dynamic_cast<FrontendSampleManager*>(mc)->setAllSampleReferencesCorrect();
-    }
-#else
-	ignoreUnused(mc);
-#endif
 }
 
 void AudioProcessorDriver::saveDeviceSettingsAsXml()
@@ -360,5 +345,23 @@ void GlobalSettingManager::restoreGlobalSettings(MainController* mc)
         
         mc->getEventHandler().addCCRemap(gm->ccSustainValue, 64);
         mc->getSampleManager().setDiskMode((MainController::SampleManager::DiskMode)gm->diskMode);
+
+#if USE_FRONTEND
+		bool allSamplesThere = globalSettings->getBoolAttribute("SAMPLES_FOUND");
+
+		if (!allSamplesThere)
+		{
+			dynamic_cast<FrontendSampleManager*>(mc)->checkAllSampleReferences();
+		}
+		else
+		{
+			dynamic_cast<FrontendSampleManager*>(mc)->setAllSampleReferencesCorrect();
+		}
+#else
+		ignoreUnused(mc);
+#endif
     }
+
+
+
 }
