@@ -741,7 +741,7 @@ Range<int> JavascriptCodeEditor::getCurrentTokenRange() const
 	return Range<int>(tokenStart.getPosition(), tokenEnd.getPosition());
 }
 
-void JavascriptCodeEditor::closeAutoCompleteNew(const String returnString)
+void JavascriptCodeEditor::closeAutoCompleteNew(String returnString)
 {
 	Desktop::getInstance().getAnimator().fadeOut(currentPopup, 200);
 
@@ -750,6 +750,11 @@ void JavascriptCodeEditor::closeAutoCompleteNew(const String returnString)
 	if (returnString.isNotEmpty())
 	{
 		Range<int> tokenRange = getCurrentTokenRange();
+
+		auto currentNamespace = Helpers::findNamespaceForPosition(getCaretPos());
+
+		if (currentNamespace.isNotEmpty() && returnString.startsWith(currentNamespace))
+			returnString = returnString.replace(currentNamespace + ".", "");
 
 		getDocument().replaceSection(tokenRange.getStart(), tokenRange.getEnd(), returnString);
 
@@ -1391,6 +1396,10 @@ CodeDocument* JavascriptCodeEditor::Helpers::gotoAndReturnDocumentWithDefinition
 
 String JavascriptCodeEditor::Helpers::findNamespaceForPosition(CodeDocument::Position pos)
 {
+	auto startPos = pos;
+	String namespaceId;
+
+
 	while (pos.getLineNumber() > 0)
 	{
 		auto lineText = pos.getLineText();
@@ -1403,11 +1412,38 @@ String JavascriptCodeEditor::Helpers::findNamespaceForPosition(CodeDocument::Pos
 
 			if (matches.size() > 1)
 			{
-				return matches[1];
+				namespaceId = matches[1];
+				break;
 			}
 		}
 
 		pos = pos.movedByLines(-1);
+	}
+
+	if (namespaceId.isNotEmpty())
+	{
+		int bracketCount = 0;
+		
+		while (pos != startPos)
+		{
+			if (pos.getCharacter() == '{')
+				bracketCount++;
+
+			if (pos.getCharacter() == '}')
+			{
+				bracketCount--;
+
+				if (bracketCount == 0) // end of namespace is reached
+					break;
+			}
+				
+			pos = pos.movedBy(1);
+		}
+
+		if (bracketCount > 0)
+			return namespaceId;
+		else
+			return String();
 	}
 
 	return String();

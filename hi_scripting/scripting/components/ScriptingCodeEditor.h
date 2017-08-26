@@ -106,7 +106,7 @@ public:
     void performPopupMenuAction(int menuId) override;
 
 	void showAutoCompleteNew();
-	void closeAutoCompleteNew(const String returnString);
+	void closeAutoCompleteNew(String returnString);
 
 	void selectLineAfterDefinition(Identifier identifier);
 	bool selectJSONTag(const Identifier &identifier);
