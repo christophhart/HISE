@@ -115,11 +115,17 @@ void TableEditor::setEdge(float f, bool setLeftEdge)
 
 void TableEditor::paint (Graphics& g)
 {
-    
-    
-    g.setColour(Colours::lightgrey.withAlpha(0.1f));
+	g.setColour(Colours::lightgrey.withAlpha(0.1f));
     g.drawRect(getLocalBounds(), 1);
     
+	if (editedTable.get() == nullptr)
+	{
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.drawText("No table", getLocalBounds(), Justification::centred);
+		return;
+	}
+		
+
     
     KnobLookAndFeel::fillPathHiStyle(g, dragPath, getWidth(), getHeight());
     
@@ -165,79 +171,7 @@ void TableEditor::paint (Graphics& g)
     }
     
     g.setOpacity(isEnabled() ? 1.0f : 0.2f);
-    
-    
-#if 0
-	if (needsRepaint || !snapshot.isValid())
-	{
-		if (editedTable.get() == nullptr) return;
-
-        
-        
-		snapshot.clear(Rectangle<int>(0, 0, getBoundsInParent().getWidth(), getBoundsInParent().getHeight()), Colours::transparentBlack);
-
-		Graphics g2(snapshot);
-
-		g2.setColour(Colours::lightgrey.withAlpha(0.1f));
-		g2.drawRect(getLocalBounds(), 1);
-
-
-		KnobLookAndFeel::fillPathHiStyle(g2, dragPath, getWidth(), getHeight());
-
-		if (currently_dragged_point != nullptr)
-		{
-			int index = drag_points.indexOf(currently_dragged_point);
-
-			DragPoint *dp = currently_dragged_point;
-
-			g2.setFont(GLOBAL_MONOSPACE_FONT());
-
-			float domainValue = dp->getGraphPoint().x;
-			String domainString;
-
-			if (currentType == DomainType::originalSize)
-			{
-				domainValue = domainValue * (this->editedTable->getTableSize() - 1);
-				domainString = String((int)domainValue);
-			}
-			else if (currentType == DomainType::scaled)
-			{
-				jassert(!domainRange.isEmpty());
-				domainValue = domainValue * domainRange.getLength() + domainRange.getStart();
-				domainString = String((int)domainValue);
-			}
-			else
-			{
-				domainString = String(domainValue, 2);
-			}
-
-			String text = String("#") + String(index) + ": " + domainString + ", " + String(dp->getGraphPoint().y, 2);
-
-
-			g2.setColour(Colour(0xBBffffff));
-			juce::Rectangle<int> textBox(dp->getPos().x > getWidth() - 80 ? getWidth() - 80 : dp->getPos().x, dp->getPos().y > getHeight() - 12 ? getHeight() - 12 : dp->getPos().y, 80, 12);
-
-			g2.fillRect(textBox);
-			g2.setColour(Colour(0xDD000000));
-			g2.drawRect(textBox, 1);
-			g2.drawText(text, textBox, Justification::centred, false);
-			g2.setColour(Colours::darkgrey.withAlpha(0.4f));
-			g2.drawLine(0.0f, (float)getHeight(), (float)getWidth(), (float)getHeight());
-		}
-
-		g.setOpacity(isEnabled() ? 1.0f : 0.2f);
-
-		g.drawImageAt(snapshot, 0, 0);
-		
-		needsRepaint = false;
-	}
-	else
-	{
-		g.setOpacity(isEnabled() ? 1.0f : 0.2f);
-
-		g.drawImageAt(snapshot, 0, 0);
-	}
-#endif
+ 
 }
 
 void TableEditor::Ruler::paint(Graphics &g)
@@ -289,6 +223,13 @@ void TableEditor::changeListenerCallback(SafeChangeBroadcaster *b)
 void TableEditor::connectToLookupTableProcessor(Processor *p)
 {
 	if (p == connectedProcessor) return;
+
+	if (p == nullptr)
+	{
+		connectedProcessor = nullptr;
+		createDragPoints();
+		refreshGraph();
+	}
 
 	if (LookupTableProcessor * ltp = dynamic_cast<LookupTableProcessor*>(p))
 	{
