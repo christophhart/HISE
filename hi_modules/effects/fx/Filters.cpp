@@ -40,6 +40,7 @@ currentGain(1.0f),
 mode(LowPass),
 changeFlag(false),
 useFixedFrequency(false),
+useInternalChains(true),
 freqChain(new ModulatorChain(mc, "Freq Modulation", 1, Modulation::GainMode, this)),
 gainChain(new ModulatorChain(mc, "Gain Modulation", 1, Modulation::GainMode, this)),
 bipolarFreqChain(new ModulatorChain(mc, "Bipolar Freq Mod", 1, Modulation::GainMode, this))
