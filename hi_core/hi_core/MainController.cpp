@@ -965,75 +965,110 @@ void MainController::UserPresetHandler::incPreset(bool next, bool stayInSameDire
 
 	loadUserPreset(currentlyLoadedFile);
 
+}
 
-#if 0
+void MainController::GlobalAsyncModuleHandler::removeAsync(Processor* p, Component* rootWindow)
+{
+	Job d;
 
-	int newIndex = -1;
+	d.processorToRemove = p;
+	d.what = Job::What::Delete;
+	d.rootWindow = rootWindow;
 
-	Array<File> allPresets;
+	thingsToDo.add(d);
+	triggerAsyncUpdate();
+}
 
-	auto userDirectory = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
+void MainController::GlobalAsyncModuleHandler::addAsync(Chain* c, Processor* p, Component* rootWindow, const String& type, const String& id, int index)
+{
+	Job d;
 
-	userDirectory.findChildFiles(allPresets, File::findFiles, true);
+	d.chain = dynamic_cast<Processor*>(c);
+	d.processorToAdd = p;
+	d.what = Job::What::Add;
+	d.rootWindow = rootWindow;
+	d.type = type;
+	d.id = id;
+	d.index = index;
 
-	int currentlyLoadedPreset = allPresets.indexOf(currentlyLoadedFile);
+	thingsToDo.add(d);
+	triggerAsyncUpdate();
+}
 
-	if (next)
+void MainController::GlobalAsyncModuleHandler::handleAsyncUpdate()
+{
+#if USE_BACKEND
+	BackendRootWindow* rootWindow = dynamic_cast<BackendRootWindow*>(thingsToDo.getFirst().rootWindow.getComponent());
+
+	WeakReference<Processor> currentRoot;
+	
+	if (rootWindow != nullptr)
 	{
-		newIndex = (currentlyLoadedPreset + 1) % (allPresets.size());
+		currentRoot = rootWindow->getMainPanel()->getRootContainer()->getRootEditor()->getProcessor();
+		rootWindow->getMainPanel()->removeContainer();
+	}
+	
+#endif
 
-		const bool differentDirectories = allPresets[currentlyLoadedPreset].getParentDirectory() != allPresets[newIndex].getParentDirectory();
+	while (!thingsToDo.isEmpty())
+	{
+		auto thisJob = thingsToDo.getFirst();
 
-		if (stayInSameDirectory && differentDirectories)
-		{
-			// Get the first file of the directory
-			File oldParentDirectory = allPresets[currentlyLoadedPreset].getParentDirectory();
+		
 
-			for (int i = 0; i < allPresets.size(); i++)
-			{
-				if (allPresets[i].getParentDirectory() == oldParentDirectory)
-				{
-					newIndex = i;
-					break;
-				}
-			}
-		}
+		if (thisJob.what == Job::What::Delete)
+			thisJob.remove();
+		else
+			thisJob.add();
+
+		thingsToDo.remove(0);
+	}
+
+#if USE_BACKEND
+	
+	if (rootWindow != nullptr && currentRoot != nullptr)
+		rootWindow->getMainPanel()->setRootProcessor(currentRoot);
+
+#endif
+}
+
+void MainController::GlobalAsyncModuleHandler::Job::add()
+{
+	auto c = dynamic_cast<Chain*>(chain.get());
+
+	if (processorToAdd.get() == nullptr)
+		return;
+
+	if (c == nullptr)
+	{
+		delete processorToAdd.get(); // Rather bad...
+		return;
+	}
+
+	if (index >= 0 && index < c->getHandler()->getNumProcessors())
+	{
+		Processor* sibling = c->getHandler()->getProcessor(index);
+		c->getHandler()->add(processorToAdd, sibling);
 	}
 	else
 	{
-		if (currentlyLoadedPreset <= 0)
-		{
-			newIndex = allPresets.size() - 1;
-		}
-		else
-		{
-			newIndex = (currentlyLoadedPreset - 1) % allPresets.size();
-		}
-
-		const bool differentDirectories = allPresets[currentlyLoadedPreset].getParentDirectory() != allPresets[newIndex].getParentDirectory();
-
-		if (stayInSameDirectory && differentDirectories)
-		{
-			// Get the last file of the directory
-			File oldParentDirectory = allPresets[currentlyLoadedPreset].getParentDirectory();
-
-			for (int i = allPresets.size() - 1; i >= 0; i--)
-			{
-				if (allPresets[i].getParentDirectory() == oldParentDirectory)
-				{
-					newIndex = i;
-					break;
-				}
-			}
-		}
-
+		c->getHandler()->add(processorToAdd, nullptr);
 	}
+}
 
-	if (newIndex != currentlyLoadedPreset)
-	{
-		currentlyLoadedPreset = newIndex;
+void MainController::GlobalAsyncModuleHandler::Job::remove()
+{
+	auto p = processorToRemove.get();
 
-		
-	}
-#endif
+	if (p == nullptr)
+		return;
+
+	auto c = dynamic_cast<Chain*>(ProcessorHelpers::findParentProcessor(p, false));
+
+	jassert(c != nullptr);
+
+	if (c == nullptr)
+		return;
+
+	c->getHandler()->remove(p);
 }

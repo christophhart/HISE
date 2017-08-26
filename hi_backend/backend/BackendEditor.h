@@ -85,6 +85,8 @@ public:
 
 	void rebuildContainer();
 
+	void removeContainer();
+
 	void setRootProcessorWithUndo(Processor *p);
 
 	void viewedComponentChanged()

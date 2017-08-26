@@ -360,7 +360,48 @@ public:
 
 	};
 
+	struct GlobalAsyncModuleHandler : public AsyncUpdater
+	{
+		~GlobalAsyncModuleHandler()
+		{
+			cancelPendingUpdate();
+			handleAsyncUpdate();
+		}
 
+		void removeAsync(Processor* p, Component* rootWindow);
+
+		void addAsync(Chain* c, Processor* p, Component* rootWindow, const String& type, const String& id, int index);
+
+		void handleAsyncUpdate() override;
+
+		struct Job
+		{
+			enum class What
+			{
+				Delete,
+				Add,
+				numWhat
+			};
+
+			void add();
+
+			void remove();
+
+			String type;
+			String id;
+			int index = 0;
+
+			Component::SafePointer<Component> rootWindow;
+
+			WeakReference<Processor> chain;
+			WeakReference<Processor> processorToRemove;
+			WeakReference<Processor> processorToAdd;
+
+			What what; // what
+		};
+
+		Array<Job> thingsToDo;
+	};
 
 	class ProcessorChangeHandler : public AsyncUpdater
 	{
@@ -535,6 +576,9 @@ public:
 
 	ProcessorChangeHandler& getProcessorChangeHandler() { return processorChangeHandler; }
 	const ProcessorChangeHandler& getProcessorChangeHandler() const { return processorChangeHandler; }
+
+	GlobalAsyncModuleHandler& getGlobalAsyncModuleHandler() { return globalAsyncModuleHandler; }
+	const GlobalAsyncModuleHandler& getGlobalAsyncModuleHandler() const { return globalAsyncModuleHandler; }
 
 #if USE_BACKEND
 	/** Writes to the console. */
@@ -955,6 +999,7 @@ private:
 	EventIdHandler eventIdHandler;
 	UserPresetHandler userPresetHandler;
 	ProcessorChangeHandler processorChangeHandler;
+	GlobalAsyncModuleHandler globalAsyncModuleHandler;
 
 	ScopedPointer<UserPresetData> userPresetData;
 

@@ -45,6 +45,8 @@ public:
 
 		ModuleHandler(Processor* parent_);
 
+		~ModuleHandler();
+		
 		bool removeModule(Processor* p);
 
 		Processor* addModule(Chain* c, const String& type, const String& id, int index = -1);
@@ -52,6 +54,8 @@ public:
 		Modulator* addAndConnectToGlobalModulator(Chain* c, Modulator* globalModulator, const String& modName);
 
 	private:
+
+		
 
 		WeakReference<Processor> parent;
 

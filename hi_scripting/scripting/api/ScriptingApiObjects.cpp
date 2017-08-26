@@ -426,12 +426,15 @@ var ScriptingObjects::ScriptingModulator::addModulator(var chainIndex, var typeN
 		
 		Processor* p = moduleHandler.addModule(c, typeName, modName, -1);
 
-		auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), dynamic_cast<Modulator*>(p));
-		return var(mod);
+		if (p != nullptr)
+		{
+			auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), dynamic_cast<Modulator*>(p));
+			return var(mod);
+		}
+		
 	}
 
-	auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), nullptr);
-	return var(mod);
+	return var();
 }
 
 var ScriptingObjects::ScriptingModulator::addGlobalModulator(var chainIndex, var globalMod, String modName)
@@ -447,13 +450,16 @@ var ScriptingObjects::ScriptingModulator::addGlobalModulator(var chainIndex, var
 
 			auto p = moduleHandler.addAndConnectToGlobalModulator(c, gm->getModulator(), modName);
 
-			auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), p);
-			return var(mod);
+			if (p != nullptr)
+			{
+				auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), p);
+				return var(mod);
+			}
+			
 		}
 	}
 
-	auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), nullptr);
-	return var(mod);
+	return var();
 }
 
 var ScriptingObjects::ScriptingModulator::asTableProcessor()
@@ -636,12 +642,19 @@ var ScriptingObjects::ScriptingEffect::addModulator(var chainIndex, var typeName
 
 		Processor* p = moduleHandler.addModule(c, typeName, modName, -1);
 
-		auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), dynamic_cast<Modulator*>(p));
-		return var(mod);
-	}
+		if (p != nullptr)
+		{
+			auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), dynamic_cast<Modulator*>(p));
+			return var(mod);
+		}
 
-	auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), nullptr);
-	return var(mod);
+		return var();
+	}
+	else
+	{
+		return var();
+	}
+	
 }
 
 var ScriptingObjects::ScriptingEffect::addGlobalModulator(var chainIndex, var globalMod, String modName)
@@ -657,13 +670,17 @@ var ScriptingObjects::ScriptingEffect::addGlobalModulator(var chainIndex, var gl
 
 			auto p = moduleHandler.addAndConnectToGlobalModulator(c, gm->getModulator(), modName);
 
-			auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), p);
-			return var(mod);
+			if (p != nullptr)
+			{
+				auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), p);
+				return var(mod);
+			}
+
+			return var();
 		}
 	}
 
-	auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), nullptr);
-	return var(mod);
+	return var();
 }
 
 // ScriptingSlotFX ==============================================================================================================
@@ -926,12 +943,14 @@ var ScriptingObjects::ScriptingSynth::addModulator(var chainIndex, var typeName,
 
 		Processor* p = moduleHandler.addModule(c, typeName, modName, -1);
 
-		auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), dynamic_cast<Modulator*>(p));
-		return var(mod);
+		if (p != nullptr)
+		{
+			auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), dynamic_cast<Modulator*>(p));
+			return var(mod);
+		}
 	}
 
-	auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), nullptr);
-	return var(mod);
+	return var();
 }
 
 var ScriptingObjects::ScriptingSynth::addGlobalModulator(var chainIndex, var globalMod, String modName)
@@ -947,13 +966,15 @@ var ScriptingObjects::ScriptingSynth::addGlobalModulator(var chainIndex, var glo
 
 			auto p = moduleHandler.addAndConnectToGlobalModulator(c, gm->getModulator(), modName);
 
-			auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), p);
-			return var(mod);
+			if (p != nullptr)
+			{
+				auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), p);
+				return var(mod);
+			}
 		}
 	}
 
-	auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), nullptr);
-	return var(mod);
+	return var();
 }
 
 var ScriptingObjects::ScriptingSynth::asSampler()
@@ -2000,3 +2021,113 @@ String ScriptingObjects::ScriptingMessageHolder::dump() const
 }
 
 
+
+ApiHelpers::ModuleHandler::ModuleHandler(Processor* parent_) :
+	parent(parent_)
+{
+#if USE_BACKEND
+
+	auto console = parent->getMainController()->getConsoleHandler().getMainConsole();
+
+	if (console)
+		mainEditor = GET_BACKEND_ROOT_WINDOW(console);
+
+#else
+	mainEditor = nullptr;
+#endif
+}
+
+ApiHelpers::ModuleHandler::~ModuleHandler()
+{
+	
+}
+
+
+
+
+bool ApiHelpers::ModuleHandler::removeModule(Processor* p)
+{
+	if (!MessageManager::getInstance()->isThisTheMessageThread())
+	{
+		throw String("Effects can't be removed from the audio thread!");
+	}
+
+	if (p != nullptr)
+	{
+		parent->getMainController()->getGlobalAsyncModuleHandler().removeAsync(p, mainEditor);
+		return true;
+	}
+	else
+		return false;
+}
+
+Processor* ApiHelpers::ModuleHandler::addModule(Chain* c, const String& type, const String& id, int index /*= -1*/)
+{
+	if (!MessageManager::getInstance()->isThisTheMessageThread())
+	{
+		throw String("Modules can't be added from the audio thread!");
+		return nullptr;
+	}
+
+	for (int i = 0; i < c->getHandler()->getNumProcessors(); i++)
+	{
+		if (c->getHandler()->getProcessor(i)->getId() == id)
+		{
+			return c->getHandler()->getProcessor(i);
+		}
+	}
+
+	ScopedPointer<Processor> newProcessor = parent->getMainController()->createProcessor(c->getFactoryType(), type, id);
+
+	if (newProcessor == nullptr)
+		throw String("Module with type " + type + " could not be generated.");
+
+	// Now we're safe...
+	Processor* pFree = newProcessor.release();
+
+	parent->getMainController()->getGlobalAsyncModuleHandler().addAsync(c, pFree, mainEditor, type, id, index);
+
+	// will be owned by the job, than by the handler...
+	return pFree;
+}
+
+Modulator* ApiHelpers::ModuleHandler::addAndConnectToGlobalModulator(Chain* c, Modulator* globalModulator, const String& modName)
+{
+	if (globalModulator == nullptr)
+		throw String("Global Modulator does not exist");
+
+	if (auto container = dynamic_cast<GlobalModulatorContainer*>(ProcessorHelpers::findParentProcessor(globalModulator, true)))
+	{
+		GlobalModulator* m;;
+
+		if (auto vm = dynamic_cast<VoiceStartModulator*>(globalModulator))
+		{
+			auto vMod = addModule(c, GlobalVoiceStartModulator::getClassType().toString(), modName);
+			m = dynamic_cast<GlobalModulator*>(vMod);
+		}
+		else if (auto tm = dynamic_cast<TimeVariantModulator*>(globalModulator))
+		{
+			auto tMod = addModule(c, GlobalTimeVariantModulator::getClassType().toString(), modName);
+			m = dynamic_cast<GlobalModulator*>(tMod);
+		}
+
+		auto entry = container->getId() + ":" + globalModulator->getId();
+
+		m->connectToGlobalModulator(entry);
+
+		if (!m->isConnected())
+		{
+			throw String("Can't connect to global modulator");
+		}
+
+		auto returnMod = dynamic_cast<Modulator*>(m);
+
+#if USE_BACKEND
+		returnMod->sendChangeMessage();
+#endif
+
+		return returnMod;
+	}
+	else
+		throw String("The modulator you passed in is not a global modulator. You must specify a modulator in a Global Modulator Container");
+}

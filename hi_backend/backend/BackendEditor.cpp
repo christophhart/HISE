@@ -142,9 +142,14 @@ void BackendProcessorEditor::setRootProcessor(Processor *p, int scrollY/*=0*/)
 
 void BackendProcessorEditor::rebuildContainer()
 {
-	container = nullptr;
+	removeContainer();
 
 	viewport->viewport->setViewedComponent(container = new ProcessorEditorContainer());
+}
+
+void BackendProcessorEditor::removeContainer()
+{
+	container = nullptr;
 }
 
 void BackendProcessorEditor::setRootProcessorWithUndo(Processor *p)
