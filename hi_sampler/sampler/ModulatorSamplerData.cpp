@@ -1103,7 +1103,18 @@ void MonolithExporter::writeFiles(int channelIndex, bool overwriteExistingData)
 
 			ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(channelList->getUnchecked(i));
 
-			writer->writeFromAudioReader(*reader, 0, -1);
+			if (reader != nullptr)
+			{
+				writer->writeFromAudioReader(*reader, 0, -1);
+			}
+			else
+			{
+				error = "Could not read the source file " + channelList->getUnchecked(i).getFullPathName();
+				writer->flush();
+				writer = nullptr;
+
+				return;
+			}
 		}
 
 		writer->flush();
