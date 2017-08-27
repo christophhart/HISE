@@ -1553,17 +1553,10 @@ public:
 
 	void drawToggleButton(Graphics &g, ToggleButton &b, bool isMouseOverButton, bool);
 
-	Font getTextButtonFont(TextButton&, int /*buttonHeight*/) override
-	{
-		return GLOBAL_BOLD_FONT();
-	}
-
 private:
 
 	Image ticked;
 	Image unticked;
-
-
 };
 
 
