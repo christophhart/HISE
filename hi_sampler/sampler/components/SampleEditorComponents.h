@@ -549,7 +549,7 @@ private:
     TableListBox table;     
     Font font;
 
-	Array<ModulatorSamplerSound*> sortedSoundList;
+	Array<WeakReference<ModulatorSamplerSound>> sortedSoundList;
 
     int numRows;
 

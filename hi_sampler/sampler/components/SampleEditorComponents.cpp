@@ -1143,7 +1143,8 @@ void SamplerSoundTable::paintCell (Graphics& g, int rowNumber, int columnId,
         }
 		
 		
-
+		if (sortedSoundList[rowNumber].get() == nullptr)
+			return;
 
 
 		String text(sortedSoundList[rowNumber]->getPropertyAsString((ModulatorSamplerSound::Property)columnId));
