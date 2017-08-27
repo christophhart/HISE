@@ -429,7 +429,7 @@ bool SampleMapEditor::perform (const InvocationInfo &info)
 	case PasteSamples:		SampleEditHandler::SampleEditingActions::pasteSelectedSounds(handler); return true;
 	case SelectAllSamples:	SampleEditHandler::SampleEditingActions::selectAllSamples(handler); return true;
 	case MergeIntoMultisamples:		SampleEditHandler::SampleEditingActions::mergeIntoMultiSamples(handler, this); return true;
-	case CreateMultiMicSampleMap:	SampleEditHandler::SampleEditingActions::createMultimicSampleMap(handler, this); return true;
+	case CreateMultiMicSampleMap:	SampleEditHandler::SampleEditingActions::createMultimicSampleMap(handler); return true;
 	case ExtractToSingleMicSamples:	SampleEditHandler::SampleEditingActions::extractToSingleMicSamples(handler); return true;
 	case ZoomIn:			zoom(false); return true;
 	case ZoomOut:			zoom(true); return true;

@@ -47,20 +47,9 @@ File AudioProcessorDriver::getDeviceSettingsFile()
 }
 
 
-void AudioProcessorDriver::restoreSettings(MainController* mc)
+void AudioProcessorDriver::restoreSettings(MainController* /*mc*/)
 {
-	ScopedPointer<XmlElement> deviceData = getSettings();
-
-	if (deviceData != nullptr)
-	{
-		
-
-#if HISE_IOS
-		deviceData->setAttribute("audioDeviceBufferSize", 512);
-#endif
-
-		
-	}
+	
 }
 
 void AudioProcessorDriver::saveDeviceSettingsAsXml()

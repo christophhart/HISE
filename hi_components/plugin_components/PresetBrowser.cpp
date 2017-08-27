@@ -142,12 +142,12 @@ void PresetBrowserColumn::ColumnListModel::listBoxItemClicked(int row, const Mou
 
 		auto name = entries[row].getFileNameWithoutExtension();
 
-		auto browser = dynamic_cast<MultiColumnPresetBrowser*>(listener);
+		auto pb = dynamic_cast<MultiColumnPresetBrowser*>(listener);
 
-		if (browser == nullptr)
+		if (pb == nullptr)
 			return;
 
-		browser->openModalAction(e.getMouseDownX() < 40 ? MultiColumnPresetBrowser::ModalWindow::Action::Delete :
+		pb->openModalAction(e.getMouseDownX() < 40 ? MultiColumnPresetBrowser::ModalWindow::Action::Delete :
 														  MultiColumnPresetBrowser::ModalWindow::Action::Rename,
 														  name, entries[row], index, row);
 

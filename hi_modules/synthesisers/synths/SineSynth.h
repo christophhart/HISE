@@ -218,18 +218,18 @@ public:
 									break;
 		}
 
-		double factor;
+		double factor = 1.0;
 
 		if (useRatio)
 		{
-			int cToUse = coarseRatio - 1;
+			double cToUse = (double)coarseRatio - 1.0;
 
 			if (cToUse == 0)
-				factor = 1.0 + fineRatio;
+				factor = 1.0 + (double)fineRatio;
 			else if (cToUse > 0)
-				factor = 1.0 + cToUse + fineRatio;
+				factor = 1.0 + cToUse + (double)fineRatio;
 			else if (cToUse < 0)
-				factor = pow(2, cToUse) + fineRatio;
+				factor = pow(2, cToUse) + (double)fineRatio;
 		}
 		else
 		{

@@ -138,7 +138,7 @@ void SampleEditHandler::changeProperty(ModulatorSamplerSound *s, ModulatorSample
 	s->setPropertyWithUndo(p, v + delta);
 }
 
-void SampleEditHandler::SampleEditingActions::createMultimicSampleMap(SampleEditHandler* handler, SampleMapEditor* param2)
+void SampleEditHandler::SampleEditingActions::createMultimicSampleMap(SampleEditHandler* handler)
 {
 	const String multimicTokens = PresetHandler::getCustomName("Multimic Tokens", "Enter a semicolon separated list of all mic position tokens starting with the existing mic position");
 
