@@ -170,6 +170,54 @@ public:
 		// ============================================================================================================
 	};
 
+	class ScriptSliderPackData : public ConstScriptingObject,
+								 public DebugableObject
+	{
+	public:
+
+		ScriptSliderPackData(ProcessorWithScriptingContent* pwsc);
+
+		~ScriptSliderPackData() {};
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("SliderPackData"); }
+
+		String getDebugName() const override { return "SliderPackData"; };
+		String getDebugValue() const override { return String(getNumSliders()); };
+
+		void rightClickCallback(const MouseEvent& e, Component *c) override;
+
+		SliderPackData* getSliderPackData() { return &data; }
+
+		// ============================================================================================================
+
+		/** Returns the step size. */
+		var getStepSize() const;
+
+		/** Sets the amount of sliders. */
+		void setNumSliders(var numSliders);
+
+		/** Returns the amount of sliders. */
+		int getNumSliders() const;
+
+		/** Sets the value at the given position. */
+		void setValue(int sliderIndex, float value);
+
+		/** Returns the value at the given position. */
+		float getValue(int index) const;
+
+		/** Sets the range. */
+		void setRange(double minValue, double maxValue, double stepSize);
+
+		// ============================================================================================================
+
+	private:
+
+		struct Wrapper;
+
+		SliderPackData data;
+
+	};
+
 	class ScriptingMessageHolder : public ConstScriptingObject,
 								   public DebugableObject
 	{

@@ -1023,7 +1023,6 @@ double ScriptingApi::Content::ScriptSlider::getMinValue() const
 	else
 	{
 		reportScriptError("getMinValue() can only be called on sliders in 'Range' mode.");
-		return 0.0;
 	}
 }
 
@@ -1592,6 +1591,7 @@ struct ScriptingApi::Content::ScriptSliderPack::Wrapper
 	API_METHOD_WRAPPER_1(ScriptSliderPack, getSliderValueAt);
 	API_VOID_METHOD_WRAPPER_1(ScriptSliderPack, setAllValues);
 	API_METHOD_WRAPPER_0(ScriptSliderPack, getNumSliders);
+	API_VOID_METHOD_WRAPPER_1(ScriptSliderPack, referToData);
 };
 
 ScriptingApi::Content::ScriptSliderPack::ScriptSliderPack(ProcessorWithScriptingContent *base, Content *parentContent, Identifier imageName, int x, int y, int width, int height) :
@@ -1629,6 +1629,7 @@ existingData(nullptr)
 	ADD_API_METHOD_1(getSliderValueAt);
 	ADD_API_METHOD_1(setAllValues);
 	ADD_API_METHOD_0(getNumSliders);
+	ADD_API_METHOD_1(referToData);
 }
 
 ScriptingApi::Content::ScriptSliderPack::~ScriptSliderPack()
@@ -1812,6 +1813,17 @@ void ScriptingApi::Content::ScriptSliderPack::setValue(var newValue)
 var ScriptingApi::Content::ScriptSliderPack::getValue() const
 {
 	return getSliderPackData()->getDataArray();
+}
+
+void ScriptingApi::Content::ScriptSliderPack::referToData(var sliderPackData)
+{
+	if (auto spd = dynamic_cast<ScriptingObjects::ScriptSliderPackData*>(sliderPackData.getObject()))
+	{
+		existingData = spd->getSliderPackData();
+		existingData->sendChangeMessage();
+	}
+	else
+		reportScriptError("not a valid SliderPackData object");
 }
 
 struct ScriptingApi::Content::ScriptImage::Wrapper
@@ -2892,9 +2904,9 @@ ScriptingApi::Content::ScriptComponent * ScriptingApi::Content::getComponent(int
 	return nullptr;
 }
 
-var ScriptingApi::Content::getComponent(var name)
+var ScriptingApi::Content::getComponent(var componentName)
 {
-	Identifier n(name.toString());
+	Identifier n(componentName.toString());
 
 	for (int i = 0; i < components.size(); i++)
 	{

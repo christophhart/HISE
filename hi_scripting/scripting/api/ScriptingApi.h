@@ -284,6 +284,9 @@ public:
 		/** Creates a MIDI List object. */
         ScriptingObjects::MidiList *createMidiList(); 
 
+		/** Creates a SliderPack Data object. */
+		ScriptingObjects::ScriptSliderPackData* createSliderPackData();
+
 		/** Creates a new timer object. */
 		ScriptingObjects::TimerObject* createTimerObject();
 

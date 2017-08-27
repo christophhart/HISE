@@ -170,6 +170,79 @@ void addScriptParameters(ConstScriptingObject* this_, Processor* p)
 	this_->addConstant("ScriptParameters", var(scriptedParameters.get()));
 }
 
+
+struct ScriptingObjects::ScriptSliderPackData::Wrapper
+{
+	API_VOID_METHOD_WRAPPER_2(ScriptSliderPackData, setValue);
+	API_VOID_METHOD_WRAPPER_1(ScriptSliderPackData, setNumSliders);
+	API_METHOD_WRAPPER_1(ScriptSliderPackData, getValue);
+	API_METHOD_WRAPPER_0(ScriptSliderPackData, getNumSliders);
+	API_VOID_METHOD_WRAPPER_3(ScriptSliderPackData, setRange);
+	
+};
+
+ScriptingObjects::ScriptSliderPackData::ScriptSliderPackData(ProcessorWithScriptingContent* pwsc) :
+	ConstScriptingObject(pwsc, 0)
+{
+	ADD_API_METHOD_2(setValue);
+	ADD_API_METHOD_1(setNumSliders);
+	ADD_API_METHOD_1(getValue);
+	ADD_API_METHOD_0(getNumSliders);
+	ADD_API_METHOD_3(setRange);
+}
+
+void ScriptingObjects::ScriptSliderPackData::rightClickCallback(const MouseEvent& e, Component *c)
+{
+	SliderPack *s = new SliderPack(&data);
+
+	const int numSliders = getNumSliders();
+
+
+
+	int widthPerSlider = 16;
+
+	if (numSliders > 64)
+		widthPerSlider = 8;
+
+	s->setSize((int)getNumSliders() * 16, 200);
+
+	auto editor = GET_BACKEND_ROOT_WINDOW(c);
+
+	MouseEvent ee = e.getEventRelativeTo(editor);
+
+	editor->getRootFloatingTile()->showComponentInRootPopup(s, editor, ee.getMouseDownPosition());
+}
+
+var ScriptingObjects::ScriptSliderPackData::getStepSize() const
+{
+	return data.getStepSize();
+}
+
+void ScriptingObjects::ScriptSliderPackData::setNumSliders(var numSliders)
+{
+	data.setNumSliders(numSliders);
+}
+
+int ScriptingObjects::ScriptSliderPackData::getNumSliders() const
+{
+	return data.getNumSliders();
+}
+
+void ScriptingObjects::ScriptSliderPackData::setValue(int sliderIndex, float value)
+{
+	data.setValue(sliderIndex, value, sendNotification);
+}
+
+float ScriptingObjects::ScriptSliderPackData::getValue(int index) const
+{
+	return data.getValue((int)index);
+}
+
+void ScriptingObjects::ScriptSliderPackData::setRange(double minValue, double maxValue, double stepSize)
+{
+	data.setRange(minValue, maxValue, stepSize);
+}
+
 // ScriptingModulator ===========================================================================================================
 
 struct ScriptingObjects::ScriptingModulator::Wrapper
@@ -428,8 +501,8 @@ var ScriptingObjects::ScriptingModulator::addModulator(var chainIndex, var typeN
 
 		if (p != nullptr)
 		{
-			auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), dynamic_cast<Modulator*>(p));
-			return var(mod);
+			auto newMod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), dynamic_cast<Modulator*>(p));
+			return var(newMod);
 		}
 		
 	}
@@ -452,8 +525,8 @@ var ScriptingObjects::ScriptingModulator::addGlobalModulator(var chainIndex, var
 
 			if (p != nullptr)
 			{
-				auto mod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), p);
-				return var(mod);
+				auto newMod = new ScriptingObjects::ScriptingModulator(getScriptProcessor(), p);
+				return var(newMod);
 			}
 			
 		}
@@ -2066,7 +2139,6 @@ Processor* ApiHelpers::ModuleHandler::addModule(Chain* c, const String& type, co
 	if (!MessageManager::getInstance()->isThisTheMessageThread())
 	{
 		throw String("Modules can't be added from the audio thread!");
-		return nullptr;
 	}
 
 	for (int i = 0; i < c->getHandler()->getNumProcessors(); i++)
@@ -2098,7 +2170,7 @@ Modulator* ApiHelpers::ModuleHandler::addAndConnectToGlobalModulator(Chain* c, M
 
 	if (auto container = dynamic_cast<GlobalModulatorContainer*>(ProcessorHelpers::findParentProcessor(globalModulator, true)))
 	{
-		GlobalModulator* m;;
+		GlobalModulator* m = nullptr;
 
 		if (auto vm = dynamic_cast<VoiceStartModulator*>(globalModulator))
 		{
@@ -2110,6 +2182,11 @@ Modulator* ApiHelpers::ModuleHandler::addAndConnectToGlobalModulator(Chain* c, M
 			auto tMod = addModule(c, GlobalTimeVariantModulator::getClassType().toString(), modName);
 			m = dynamic_cast<GlobalModulator*>(tMod);
 		}
+		else
+			throw String("Not a global modulator");
+
+		if (m != nullptr)
+			throw String("Global modulator can't be created");
 
 		auto entry = container->getId() + ":" + globalModulator->getId();
 

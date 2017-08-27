@@ -185,12 +185,12 @@ public:
 
 			ChildType* getNextChildComponent()
 			{
-				return childComponents[i++];
+				return childComponents[index++];
 			}
 
 		private:
 
-			int i = 0;
+			int index = 0;
 
 			void addToArray(ScriptComponent* c)
 			{
@@ -636,6 +636,9 @@ public:
 		const SliderPackData *getSliderPackData() const;
 
 		// ======================================================================================================== API Methods
+
+		/** Connects this SliderPack to an existing SliderPackData object. */
+		void referToData(var sliderPackData);
 
 		/** sets the slider value at the given index.*/
 		void setSliderAtIndex(int index, double value);
