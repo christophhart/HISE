@@ -184,6 +184,8 @@ struct ScriptingObjects::ScriptSliderPackData::Wrapper
 ScriptingObjects::ScriptSliderPackData::ScriptSliderPackData(ProcessorWithScriptingContent* pwsc) :
 	ConstScriptingObject(pwsc, 0)
 {
+	data.setNumSliders(16);
+
 	ADD_API_METHOD_2(setValue);
 	ADD_API_METHOD_1(setNumSliders);
 	ADD_API_METHOD_1(getValue);

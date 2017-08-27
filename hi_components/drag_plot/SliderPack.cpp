@@ -310,6 +310,9 @@ void SliderPack::mouseDown(const MouseEvent &e)
 
 		Slider *s = sliders[sliderIndex];
 
+		if (s == nullptr)
+			return;
+
 		double normalizedValue = (double)(getHeight() - y) / (double)getHeight();
 
 		double value = s->proportionOfLengthToValue(normalizedValue);

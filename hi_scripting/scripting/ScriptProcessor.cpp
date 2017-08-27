@@ -533,8 +533,16 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 	scriptEngine->rebuildDebugInformation();
 
-	content->restoreAllControlsFromPreset(thisAsScriptBaseProcessor->restoredContentValues);
-
+	
+	try
+	{
+		content->restoreAllControlsFromPreset(thisAsScriptBaseProcessor->restoredContentValues);
+	}
+	catch (String& s)
+	{
+		debugError(thisAsProcessor, "Error at content restoring: " + s);
+	}
+	
 	useStoredContentData = false; // From now on it's normal;
 
 	content->endInitialization();
