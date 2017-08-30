@@ -2146,8 +2146,11 @@ void ScriptingApi::Content::ScriptPanel::internalRepaint()
 
 		HiseJavascriptEngine* engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
 
-		engine->maximumExecutionTime = RelativeTime(0.2);
-
+        if(!engine->isInitialising())
+        {
+            engine->maximumExecutionTime = RelativeTime(0.2);
+        }
+        
 		engine->callExternalFunction(paintRoutine, args, &r);
 
 		if (r.failed())

@@ -195,6 +195,7 @@ ScriptingObjects::ScriptSliderPackData::ScriptSliderPackData(ProcessorWithScript
 
 void ScriptingObjects::ScriptSliderPackData::rightClickCallback(const MouseEvent& e, Component *c)
 {
+#if USE_BACKEND
 	SliderPack *s = new SliderPack(&data);
 
 	const int numSliders = getNumSliders();
@@ -213,6 +214,9 @@ void ScriptingObjects::ScriptSliderPackData::rightClickCallback(const MouseEvent
 	MouseEvent ee = e.getEventRelativeTo(editor);
 
 	editor->getRootFloatingTile()->showComponentInRootPopup(s, editor, ee.getMouseDownPosition());
+#else
+    ignoreUnused(e, c);
+#endif
 }
 
 var ScriptingObjects::ScriptSliderPackData::getStepSize() const

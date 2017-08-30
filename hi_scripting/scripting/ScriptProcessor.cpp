@@ -480,6 +480,8 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 	content = thisAsScriptBaseProcessor->getScriptingContent();
 
+    scriptEngine->setIsInitialising(true);
+    
 	thisAsScriptBaseProcessor->allowObjectConstructors = true;
 
 	const static Identifier onInit("onInit");
@@ -507,6 +509,8 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 #endif
 
+            
+            
 			lastResult = scriptEngine->execute(getSnippet(i)->getSnippetAsFunction(), callbackId == onInit);
 
 			if (!lastResult.wasOk())
@@ -514,6 +518,7 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 				debugError(thisAsProcessor, lastResult.getErrorMessage());
 
 				content->endInitialization();
+                scriptEngine->setIsInitialising(false);
 				thisAsScriptBaseProcessor->allowObjectConstructors = false;
 
 				// Check the rest of the snippets or they will be deleted on failed compile...
@@ -533,7 +538,6 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 	scriptEngine->rebuildDebugInformation();
 
-	
 	try
 	{
 		content->restoreAllControlsFromPreset(thisAsScriptBaseProcessor->restoredContentValues);
@@ -547,6 +551,8 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 	content->endInitialization();
 
+    scriptEngine->setIsInitialising(false);
+    
 	thisAsScriptBaseProcessor->allowObjectConstructors = false;
 
 	lastCompileWasOK = true;

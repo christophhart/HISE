@@ -194,6 +194,14 @@ public:
 	void registerApiClass(ApiClass *apiClass);
 	bool isApiClassRegistered(const String& className);
 
+    void setIsInitialising(bool shouldBeInitialising)
+    {
+        initialising = shouldBeInitialising;
+    }
+    
+    bool isInitialising() const { return initialising; };
+    
+    
 	const ApiClass* getApiClass(const Identifier &className) const;
 
 	struct ExternalFileData
@@ -821,6 +829,8 @@ public:
 
 private:
 
+    bool initialising = false;
+            
 	ReferenceCountedObjectPtr<RootObject> root;
 	void prepareTimeout() const noexcept;
 	
