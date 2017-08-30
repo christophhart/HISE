@@ -863,7 +863,7 @@ void BlackTextButtonLookAndFeel::drawToggleButton(Graphics &g, ToggleButton &b, 
 
 	g.setColour(Colours::white);
 
-	g.setFont(GLOBAL_BOLD_FONT());
+	//g.setFont(GLOBAL_BOLD_FONT());
 
 	const int textX = 24;
 

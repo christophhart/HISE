@@ -107,8 +107,14 @@ public:
 
 		numMidiDevices = midiInputs.size();
 
-		addAndMakeVisible(midiInputList = new ToggleButtonList(midiInputs, this));
+        addAndMakeVisible(viewport = new Viewport());
+        
+		midiInputList = new ToggleButtonList(midiInputs, this);
 
+        viewport->setViewedComponent(midiInputList);
+        
+        viewport->setScrollBarsShown (true, false, true, false);
+        
 		//midiInputList->setLookAndFeel(&tblaf);
 		midiInputList->startTimer(4000);
 		AudioProcessorDriver::updateMidiToggleList(getMainController(), midiInputList);
@@ -123,7 +129,8 @@ public:
 
 	void resized() override
 	{
-		midiInputList->setBounds(getParentShell()->getContentBounds().reduced(5));
+        
+		viewport->setBounds(getParentShell()->getContentBounds().reduced(5));
 	}
 
 	void periodicCheckCallback(ToggleButtonList* list) override
@@ -147,6 +154,8 @@ public:
 
 private:
 
+    ScopedPointer<Viewport> viewport;
+    
 	ScopedPointer<ToggleButtonList> midiInputList;
 
 	int numMidiDevices = 0;
@@ -168,8 +177,17 @@ public:
 		channelNames.add("All Channels");
 		for (int i = 0; i < 16; i++) channelNames.add("Channel " + String(i + 1));
 
-		addAndMakeVisible(channelList = new ToggleButtonList(channelNames, this));
+        
+        addAndMakeVisible(viewport = new Viewport());
+        
+		channelList = new ToggleButtonList(channelNames, this);
 
+        viewport->setViewedComponent(channelList);
+        
+        viewport->setScrollBarsShown (true, false, true, false);
+
+        
+        
 		//channelList->setLookAndFeel(&tblaf);
 
 		HiseEvent::ChannelFilterData* channelFilterData = getMainController()->getMainSynthChain()->getActiveChannelData();
@@ -204,11 +222,13 @@ public:
 
 	void resized() override
 	{
-		channelList->setBounds(getParentShell()->getContentBounds().reduced(5));
+		viewport->setBounds(getParentShell()->getContentBounds().reduced(5));
 	}
 
 private:
 
+    ScopedPointer<Viewport> viewport;
+    
 	ScopedPointer<ToggleButtonList> channelList;
 
 };
