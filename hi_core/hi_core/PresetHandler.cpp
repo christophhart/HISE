@@ -2491,6 +2491,11 @@ void FrontendSampleManager::setAllSampleReferencesCorrect()
 
 void FrontendSampleManager::checkAllSampleReferences()
 {
+#if HISE_IOS
+    
+    samplesCorrectlyLoaded = true;
+    
+#else
 	ValueTree sampleMapTree = dynamic_cast<FrontendDataHolder*>(this)->getValueTree(ProjectHandler::SubDirectories::SampleMaps);
 
 	const String missingSampleName = ProjectHandler::Frontend::checkSampleReferences(sampleMapTree, true);
@@ -2501,6 +2506,7 @@ void FrontendSampleManager::checkAllSampleReferences()
 	{
 		dynamic_cast<MainController*>(this)->sendOverlayMessage(DeactiveOverlay::State::SamplesNotFound, "The sample " + missingSampleName + " was not found.");
 	}
+#endif
 }
 
 bool FrontendSampleManager::areSampleReferencesCorrect() const

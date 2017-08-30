@@ -407,7 +407,11 @@ public:
 
 private:
 
-	bool samplesCorrectlyLoaded = false;
+#if HISE_IOS
+	bool samplesCorrectlyLoaded = true;
+#else
+    bool samplesCorrectlyLoaded = true;
+#endif
 
 };
 
