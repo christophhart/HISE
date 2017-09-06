@@ -511,12 +511,13 @@ void StreamingSamplerSound::fillSampleBuffer(hlac::HiseSampleBuffer &sampleBuffe
 
 			if (indexInLoop < 0)
 			{
-				numSamplesBeforeFirstWrap = loopStart - (uptime+sampleStart);
+                numSamplesBeforeFirstWrap = jmin<int>(samplesToCopy, loopStart - (uptime+sampleStart));
+                
 				fillInternal(sampleBuffer, numSamplesBeforeFirstWrap, uptime + (int)sampleStart, 0);
 			}
 			else
 			{
-				numSamplesBeforeFirstWrap = numSamplesInThisLoop;
+				numSamplesBeforeFirstWrap = jmin<int>(samplesToCopy, numSamplesInThisLoop);
 				int startSample = indexInLoop;
 
 				hlac::HiseSampleBuffer::copy(sampleBuffer, smallLoopBuffer, 0, startSample, numSamplesBeforeFirstWrap);
@@ -528,6 +529,12 @@ void StreamingSamplerSound::fillSampleBuffer(hlac::HiseSampleBuffer &sampleBuffe
 			int numSamples = samplesToCopy - numSamplesBeforeFirstWrap;
 			int indexInSampleBuffer = numSamplesBeforeFirstWrap;
 
+            if(numSamples < 0)
+            {
+                jassertfalse;
+                return;
+            }
+            
 			while (numSamples > (int)loopLength)
 			{
 				jassert(indexInSampleBuffer < sampleBuffer.getNumSamples());
@@ -541,6 +548,9 @@ void StreamingSamplerSound::fillSampleBuffer(hlac::HiseSampleBuffer &sampleBuffe
 				indexInSampleBuffer += (int)loopLength;
 			}
 
+            
+            
+            
 			hlac::HiseSampleBuffer::copy(sampleBuffer, smallLoopBuffer, indexInSampleBuffer, 0, numSamples);
 
 			//FloatVectorOperations::copy(sampleBuffer.getWritePointer(0, indexInSampleBuffer), smallLoopBuffer.getReadPointer(0, 0), numSamples);

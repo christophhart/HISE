@@ -110,6 +110,11 @@ int16* CompressionHelpers::AudioBufferInt16::getWritePointer(int startSample /*=
 {
 	jassert(startSample < size);
 
+    if(startSample >= size)
+    {
+        return nullptr;
+    }
+    
 	jassert(!isReadOnly);
 
 	return externalData != nullptr ? externalData + startSample : data + startSample;
