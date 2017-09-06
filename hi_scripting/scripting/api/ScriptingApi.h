@@ -388,6 +388,9 @@ public:
 		/** Returns an array with all available sample maps. */
 		var getSampleMapList() const;
 
+        /** Returns the currently loaded sample map. */
+        String getCurrentSampleMapId() const;
+        
         /** Gets the attribute with the given index (use the constants for clearer code). */
         var getAttribute(int index) const;
         

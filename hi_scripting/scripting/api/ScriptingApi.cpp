@@ -1238,6 +1238,7 @@ struct ScriptingApi::Sampler::Wrapper
 	API_VOID_METHOD_WRAPPER_0(Sampler, refreshInterface);
 	API_VOID_METHOD_WRAPPER_1(Sampler, loadSampleMap);
 	API_METHOD_WRAPPER_0(Sampler, getSampleMapList);
+    API_METHOD_WRAPPER_0(Sampler, getCurrentSampleMapId);
     API_VOID_METHOD_WRAPPER_2(Sampler, setAttribute);
     API_METHOD_WRAPPER_1(Sampler, getAttribute);
 };
@@ -1262,6 +1263,7 @@ sampler(sampler_)
 	ADD_API_METHOD_1(isMicPositionPurged);
 	ADD_API_METHOD_0(refreshInterface);
 	ADD_API_METHOD_1(loadSampleMap);
+    ADD_API_METHOD_0(getCurrentSampleMapId);
 	ADD_API_METHOD_0(getSampleMapList);
     ADD_API_METHOD_1(getAttribute);
     ADD_API_METHOD_2(setAttribute);
@@ -1546,6 +1548,21 @@ void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
 	{
 		s->loadSampleMapFromIdAsync(fileName);
 	}
+}
+
+String ScriptingApi::Sampler::getCurrentSampleMapId() const
+{
+    ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+    
+    if (s != nullptr)
+    {
+        auto map = s->getSampleMap();
+        
+        if(map != nullptr)
+            return map->getId().toString();
+    }
+    
+    return String();
 }
 
 
