@@ -452,11 +452,11 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 	if (option != Cancelled)
 	{
 		// Use plugin mode for iOS Standalone AUv3 apps...
-		const bool createPlugin = type != TargetTypes::StandaloneApplication || option == BuildOption::StandaloneiOS;
+		const bool createPlugin = type != TargetTypes::StandaloneApplication || BuildOptionHelpers::isIOS(option);
 
 		if (createPlugin)
 		{
-			result = createPluginDataHeaderFile(solutionDirectory, publicKey, option == BuildOption::StandaloneiOS);
+			result = createPluginDataHeaderFile(solutionDirectory, publicKey, option == BuildOptionHelpers::isIOS(option));
 
 			if (result != ErrorCodes::OK) return result;
 		}
@@ -723,6 +723,9 @@ CompileExporter::BuildOption CompileExporter::showCompilePopup(TargetTypes type)
 	default:
 		break;
 	}
+
+	
+
 #else
 	switch (type)
 	{
@@ -742,7 +745,9 @@ CompileExporter::BuildOption CompileExporter::showCompilePopup(TargetTypes type)
 		break;
 	case CompileExporter::TargetTypes::StandaloneApplication:
 		b->addItem("Standalone macOS", BuildOption::StandalonemacOS);
-		b->addItem("Standalone iOS", BuildOption::StandaloneiOS);
+		b->addItem("Standalone iOS (iPad / iPhone)", BuildOption::StandaloneiOS);
+		b->addItem("Standalone iPad only", BuildOption::StandaloneiPad);
+		b->addItem("Standalone iPhone only", BuildOption::StandaloneiPhone);
 		break;
 	case CompileExporter::TargetTypes::numTargetTypes:
 		break;
@@ -1215,6 +1220,7 @@ CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(TargetType
 		REPLACE_WILDCARD_WITH_STRING("%AAX_RELEASE_LIB%", String());
 		REPLACE_WILDCARD_WITH_STRING("%AAX_DEBUG_LIB%", String());
 		REPLACE_WILDCARD_WITH_STRING("%AAX_IDENTIFIER%", String());
+		REPLACE_WILDCARD_WITH_STRING("%TARGET_FAMILY%", ProjectTemplateHelpers::getTargetFamilyString(option));
 
 		const File sampleFolder = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Samples);
 
@@ -1565,11 +1571,27 @@ void CompileExporter::ProjectTemplateHelpers::handleCopyProtectionInfo(CompileEx
 	templateProject = templateProject.replace("%USE_COPY_PROTECTION%", useCopyProtection ? "enabled" : "disabled");
 }
 
+String CompileExporter::ProjectTemplateHelpers::getTargetFamilyString(BuildOption option)
+{
+	const bool isIPad = BuildOptionHelpers::isIPad(option);
+	const bool isIPhone = BuildOptionHelpers::isIPhone(option);
+
+	if (isIPad && isIPhone)
+		return "1,2";
+	else if (isIPad)
+		return "2";
+	else if (isIPhone)
+		return "1";
+	else
+	{
+		jassertfalse;
+		return "";
+	}
+}
+
 CompileExporter::ErrorCodes CompileExporter::copyHISEImageFiles()
 {
-	
 	File imageDirectory = hisePath.getChildFile("hi_core/hi_images/");
-
 	File targetDirectory = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getChildFile("Source/Images/");
 
 	targetDirectory.createDirectory();

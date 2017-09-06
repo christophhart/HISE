@@ -69,7 +69,7 @@ public:
 
 	/** 0xABCD
 	*
-	*	A = OS (1 = Windows / 2 = OSX / 4 = iOS)
+	*	A = OS (1 = Windows / 2 = OSX / 4 = iPad, 8=iPhone, 12 = iPad/iPhone)
 	*	B = type (1 = Standalone, 2 = Instrument, 4 = Effect)
 	*	C = platform (0 = void, 1 = VST, 2 = AU, 4 = VST / AU, 8 = AAX);
 	*	D = bit (1 = 32bit, 2 = 64bit, 4 = both) 
@@ -96,7 +96,9 @@ public:
 		StandaloneWindowsx86 = 0x1101,
 		StandaloneWindowsx64 = 0x1102,
 		StandaloneWindowsx64x86 = 0x1104,
-		StandaloneiOS = 0x4104,
+		StandaloneiOS = 0xC104,
+		StandaloneiPad = 0x4104,
+		StandaloneiPhone = 0x8104,
 		StandalonemacOS = 0x2104,
         AllPluginFormatsFX = 0x10404,
         AllPluginFormatsInstrument = 0x10204,
@@ -110,7 +112,9 @@ public:
 		static bool isAAX(BuildOption option) { return ((option & 0x10000) != 0) || (option & 0x0080) != 0; };
 		static bool is32Bit(BuildOption option) { return (option & 0x0001) != 0 || (option & 0x0004) != 0; };
 		static bool is64Bit(BuildOption option) { return (option & 0x0002) != 0 || (option & 0x0004) != 0; };
-		static bool isIOS(BuildOption option) { return (option & 0x4000) != 0; };
+		static bool isIOS(BuildOption option) { return (option & 0xC000) != 0; };
+		static bool isIPhone(BuildOption option) { return (option & 0x8000) != 0; };
+		static bool isIPad(BuildOption option) { return (option & 0x4000) != 0; };
 		static bool isWindows(BuildOption option) { return (option & 0x1000) != 0; };
 		static bool isOSX(BuildOption option) { return (option & 0x2000) != 0; }
 		static bool isStandalone(BuildOption option) { return (option & 0x0100) != 0; }
@@ -213,6 +217,7 @@ private:
 		static void handleVisualStudioVersion(String& templateProject);
 		static void handleAdditionalSourceCode(CompileExporter* exporter, String &templateProject);
 		static void handleCopyProtectionInfo(CompileExporter* exporter, String &templateProject);
+		static String getTargetFamilyString(BuildOption option);
 	};
 
 	struct HeaderHelpers
