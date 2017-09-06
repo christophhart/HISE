@@ -820,6 +820,7 @@ public:
 	enum SpecialPanelIds
 	{
 		Font = FloatingTileContent::PanelPropertyId::numPropertyIds,
+        FontSize,
 		numSpecialPanelIds
 	};
 
@@ -845,6 +846,7 @@ public:
 		var obj = FloatingTileContent::toDynamicObject();
 
 		storePropertyInObject(obj, SpecialPanelIds::Font, fontName, "Oxygen Bold");
+        storePropertyInObject(obj, SpecialPanelIds::FontSize, fontSize, 14.0f);
 
 		return obj;
 	}
@@ -854,10 +856,14 @@ public:
 		FloatingTileContent::fromDynamicObject(object);
 
 		fontName = getPropertyWithDefault(object, SpecialPanelIds::Font);
+        fontSize = getPropertyWithDefault(object, SpecialPanelIds::FontSize);
 
 		tooltipBar->setColour(TooltipBar::backgroundColour, findPanelColour(PanelColourId::bgColour));
 		tooltipBar->setColour(TooltipBar::iconColour, findPanelColour(PanelColourId::itemColour1));
 		tooltipBar->setColour(TooltipBar::textColour, findPanelColour(PanelColourId::textColour));
+        
+        auto f = getMainController()->getFontFromString(fontName, fontSize);
+        tooltipBar->setFont(f);
 	}
 
 	int getNumDefaultableProperties() const override
@@ -871,6 +877,7 @@ public:
 			return FloatingTileContent::getDefaultablePropertyId(index);
 
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::Font, "Font");
+        RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::FontSize, "FontSize");
 
 		jassertfalse;
 		return{};
@@ -882,6 +889,7 @@ public:
 			return FloatingTileContent::getDefaultProperty(index);
 
 		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::Font, var("Oxygen Bold"));
+        RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::FontSize, 14.0f);
 
 		jassertfalse;
 		return{};
@@ -907,6 +915,7 @@ public:
 private:
 
 	String fontName;
+    float fontSize = 14.0f;
 
 	ScopedPointer<TooltipBar> tooltipBar;
 };
@@ -998,6 +1007,7 @@ public:
 private:
 
 	String fontName;
+    
 
 	ScopedPointer<MultiColumnPresetBrowser> presetBrowser;
 };

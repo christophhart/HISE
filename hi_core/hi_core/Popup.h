@@ -149,8 +149,16 @@ public:
 
 	void mouseDown(const MouseEvent &e);
 
+    void setFont(Font f)
+    {
+        font = f;
+        repaint();
+    }
+    
 private:
 
+    Font font;
+    
 	float alpha = 0.0f;
 
 	bool showIcon = true;

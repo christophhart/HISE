@@ -36,7 +36,8 @@ counterSinceLastTextChange(0),
 currentText(""),
 isClear(true),
 lastMousePosition(),
-newPosition(true)
+newPosition(true),
+font(GLOBAL_BOLD_FONT())
 {
 #if JUCE_DEBUG
 	startTimer(50);
@@ -88,7 +89,7 @@ void TooltipBar::paint(Graphics &g)
 	
 
 	g.setColour(findColour(textColour).withMultipliedAlpha(thisAlpha));
-	g.setFont(GLOBAL_BOLD_FONT());
+	g.setFont(font);
 	g.drawText(currentText, offset + 4, 0, getWidth() - offset, getHeight(), Justification::centredLeft, true);
 }
 
