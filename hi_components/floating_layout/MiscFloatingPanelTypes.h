@@ -812,6 +812,104 @@ private:
 	ScopedPointer<CustomKeyboard> keyboard;
 };
 
+class TooltipPanel : public FloatingTileContent,
+	public Component
+{
+public:
+
+	enum SpecialPanelIds
+	{
+		Font = FloatingTileContent::PanelPropertyId::numPropertyIds,
+		numSpecialPanelIds
+	};
+
+	int getFixedHeight() const override
+	{
+		return 30;
+	}
+
+	SET_PANEL_NAME("TooltipPanel");
+
+	TooltipPanel(FloatingTile* parent) :
+		FloatingTileContent(parent)
+	{
+		setDefaultPanelColour(PanelColourId::bgColour, Colour(0xFF383838));
+		setDefaultPanelColour(PanelColourId::itemColour1, Colours::white.withAlpha(0.2f));
+		setDefaultPanelColour(PanelColourId::textColour, Colours::white.withAlpha(0.8f));
+
+		addAndMakeVisible(tooltipBar = new TooltipBar());;
+	}
+
+	var toDynamicObject() const override
+	{
+		var obj = FloatingTileContent::toDynamicObject();
+
+		storePropertyInObject(obj, SpecialPanelIds::Font, fontName, "Oxygen Bold");
+
+		return obj;
+	}
+
+	void fromDynamicObject(const var& object) override
+	{
+		FloatingTileContent::fromDynamicObject(object);
+
+		fontName = getPropertyWithDefault(object, SpecialPanelIds::Font);
+
+		tooltipBar->setColour(TooltipBar::backgroundColour, findPanelColour(PanelColourId::bgColour));
+		tooltipBar->setColour(TooltipBar::iconColour, findPanelColour(PanelColourId::itemColour1));
+		tooltipBar->setColour(TooltipBar::textColour, findPanelColour(PanelColourId::textColour));
+	}
+
+	int getNumDefaultableProperties() const override
+	{
+		return SpecialPanelIds::numSpecialPanelIds;
+	}
+
+	Identifier getDefaultablePropertyId(int index) const override
+	{
+		if (index < FloatingTileContent::numPropertyIds)
+			return FloatingTileContent::getDefaultablePropertyId(index);
+
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::Font, "Font");
+
+		jassertfalse;
+		return{};
+	}
+
+	var getDefaultProperty(int index) const override
+	{
+		if (index < FloatingTileContent::numPropertyIds)
+			return FloatingTileContent::getDefaultProperty(index);
+
+		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::Font, var("Oxygen Bold"));
+
+		jassertfalse;
+		return{};
+	}
+
+
+	bool showTitleInPresentationMode() const override
+	{
+		return false;
+	}
+
+	~TooltipPanel()
+	{
+		tooltipBar = nullptr;
+	}
+
+	void resized() override
+	{
+		tooltipBar->setBounds(getLocalBounds());
+	}
+
+
+private:
+
+	String fontName;
+
+	ScopedPointer<TooltipBar> tooltipBar;
+};
 
 class PresetBrowserPanel : public FloatingTileContent,
 						   public Component

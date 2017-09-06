@@ -414,6 +414,7 @@ public:
 			ActivationPanel,
 			TuningWindow,
 			PluginSettings,
+			TooltipPanel,
 			MidiSourceList,
 			MidiChannelList,
 			Matrix2x2,
