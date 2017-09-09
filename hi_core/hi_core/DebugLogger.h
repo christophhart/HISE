@@ -189,6 +189,11 @@ public:
 
 	void timerCallback() override;
 
+	MainController* getMainController()
+	{
+		return mc;
+	}
+
 	void startLogging();
 	bool isLogging() const;
 	void stopLogging();
@@ -440,31 +445,7 @@ public:
 
 	}
 
-	void buttonClicked(Button* b) override
-	{
-		if (b == showLogFolderButton)
-		{
-			logger->showLogFolder();
-		}
-		else
-		{
-			File f = logger->getCurrentLogFile();
-			logger->stopLogging();
-
-#if HISE_IOS
-            auto content = f.loadFileAsString();
-            
-            SystemClipboard::copyToClipboard(content);
-            
-            PresetHandler::showMessageBox("Logging ended", "The log data was copied to the clipboard. You can paste it in your email app in order to send it to our technical support");
-            
-            
-            
-#else
-			f.revealToUser();
-#endif
-		}
-	}
+	void buttonClicked(Button* b) override;
 
 	void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override
 	{

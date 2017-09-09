@@ -533,6 +533,16 @@ void DebugLogger::addAudioDeviceChange(FailureType changeType, double oldValue, 
 void DebugLogger::startLogging()
 {
 	currentLogFile = getLogFile();
+
+#if HISE_IOS
+	if (currentLogFile.existsAsFile())
+	{
+		logger->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CustomInformation, "There is an unsaved log (probably because the app crashed while logging). This log was copied to the clipboard and can be pasted in your mail app.");
+		SystemClipboard::copyTextToClipboard(currentLogFile.loadFileAsString());
+		currentLogFile.deleteFile();
+	}
+#endif
+
 	currentlyLogging = true;
 	currentLogFile.create();
 	numErrorsSinceLogStart = 0;
@@ -710,91 +720,6 @@ void DebugLogger::timerCallback()
 	{
 		currentlyFailing = false;
 	}
-
-	
-
-
-
-#if 0
-	if (messages.size() != 0)
-	{
-		FileOutputStream fos(currentLogFile, 512);
-		NewLine nl;
-
-		ScopedLock sl(messageLock);
-
-		for (auto m : messages)
-		{
-			fos << "#### " << m << "  " << nl;
-			fos << "- Callback Index: **" << String(callbackIndex) << "**  " << nl << nl;
-		}
-
-		messages.clear();
-		callbackIndexesForMessage.clear();
-	}
-
-	
-
-	Array<Failure> a;
-
-	if ( !pendingFailures.isEmpty())
-	{
-		FileOutputStream fos(currentLogFile, 512);
-
-		a.ensureStorageAllocated(pendingFailures.size());
-
-		{
-			ScopedLock sl(debugLock);
-			a.addArray(pendingFailures);
-			pendingFailures.clearQuick();
-		}
-
-		
-
-		for (int i = 0; i < a.size(); i++)
-		{
-			fos << a[i].getMessageText(numErrorsSinceLogStart);
-
-			
-
-			numErrorsSinceLogStart++;
-		}
-		
-		lastErrorMessage = getNameForFailure(a.getLast().type);
-
-		currentlyFailing = true;
-
-		for (int i = 0; i < listeners.size(); i++)
-		{
-			if (listeners[i].get() != nullptr)
-				listeners[i]->errorDetected();
-		}
-
-		return;
-	}
-	else
-	{
-		currentlyFailing = false;
-	}
-
-	if (!pendingMessages.isEmpty())
-	{
-		FileOutputStream fos(currentLogFile, 512);
-
-		a.clearQuick();
-
-		a.ensureStorageAllocated(pendingMessages.size());
-
-		{
-			ScopedLock sl(debugLock);
-			a.addArray(pendingMessages);
-			pendingMessages.clearQuick();
-		}
-
-		for (int i = 0; i < a.size(); i++)
-			fos << a[i].getMessageText();
-	}
-#endif
 }
 
 bool DebugLogger::isLogging() const
@@ -977,7 +902,11 @@ File DebugLogger::getLogFile()
 {
 	File f = getLogFolder().getChildFile("Debuglog.txt");
 
+#if HISE_IOS
+	return f; // Just use one debug log file on iOS
+#else
 	return f.getNonexistentSibling();
+#endif
 }
 
 File DebugLogger::getLogFolder()
@@ -1020,6 +949,34 @@ String DebugLogger::getHeader()
 	return header;
 }
 
+
+void DebugLoggerComponent::buttonClicked(Button* b)
+{
+	if (b == showLogFolderButton)
+	{
+		logger->showLogFolder();
+	}
+	else
+	{
+		File f = logger->getCurrentLogFile();
+		logger->stopLogging();
+
+		
+
+#if HISE_IOS
+		auto content = f.loadFileAsString();
+
+		SystemClipboard::copyTextToClipboard(content);
+
+		logger->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CustomInformation, "The log data was copied to the clipboard. You can paste it in your email app in order to send it to our technical support");
+
+		f.deleteFile();
+
+#else
+		f.revealToUser();
+#endif
+	}
+}
 
 void DebugLoggerComponent::paint(Graphics& g)
 {
