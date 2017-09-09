@@ -115,13 +115,13 @@ public:
 		if (!objectExists())
 		{
 			reportScriptError(getObjectName().toString() + " " + getInstanceName() + " does not exist.");
-			return false;
+			RETURN_IF_FRONTEND(false)
 		}
 
 		if (objectDeleted())
 		{
 			reportScriptError(getObjectName().toString() + " " + getInstanceName() + " was deleted");
-			return false;
+			RETURN_IF_FRONTEND(false)
 		}
 
 		return true;
@@ -175,13 +175,13 @@ protected:
 		if(!objectExists())
 		{
 			reportScriptError(getObjectName().toString() + " " + getInstanceName() + " does not exist.");
-			return false;
+			RETURN_IF_FRONTEND(false)
 		}
 
 		if(objectDeleted())
 		{
 			reportScriptError(getObjectName().toString() + " " + getInstanceName() + " was deleted");	
-			return false;
+			RETURN_IF_FRONTEND(false)
 		}
 
 		return true;

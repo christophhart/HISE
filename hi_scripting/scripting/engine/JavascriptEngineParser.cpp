@@ -982,8 +982,7 @@ private:
 		}
 
 		throwError("Cannot define local variables outside of inline functions or callbacks.");
-
-		return nullptr;
+		RETURN_IF_FRONTEND(nullptr)
 	}
 
 	Statement* parseCallback()
@@ -1940,7 +1939,7 @@ private:
 		}
 
 		throwError("Found " + getTokenName(currentType) + " when expecting an expression");
-		return nullptr;
+		RETURN_IF_FRONTEND(nullptr);
 	}
 
 	template <typename OpType>
@@ -1981,46 +1980,7 @@ private:
 	Expression* parseNewOperator()
 	{
 		location.throwError("new is not supported anymore");
-
-#if 0
-		ExpPtr nameExp; 
-		
-		Identifier name = currentValue.toString();
-
-		JavascriptNamespace* ns = hiseSpecialData->getNamespace(name);
-
-		if (ns != nullptr)
-		{
-			match(TokenTypes::identifier);
-			match(TokenTypes::dot);
-			name = currentValue.toString();
-		}
-
-		if (JavascriptNamespace* constNamespace = getNamespaceForStorageType(JavascriptNamespace::StorageType::ConstVariable, ns, name))
-		{
-			nameExp = parseConstExpression(constNamespace);
-		}
-		else if (JavascriptNamespace* regNamespace = getNamespaceForStorageType(JavascriptNamespace::StorageType::Register, ns, name))
-		{
-			VarRegister* rootRegister = &regNamespace->varRegister;
-			const int registerIndex = rootRegister->getRegisterIndex(name);
-
-			nameExp = new RegisterName(location, parseIdentifier(), rootRegister, registerIndex, getRegisterData(registerIndex, regNamespace));
-		}
-		else
-		{
-			nameExp = new UnqualifiedName(location, parseIdentifier(), true);
-		}
-
-		
-
-		while (matchIf(TokenTypes::dot))
-			nameExp = new DotOperator(location, nameExp, parseIdentifier());
-
-		return parseFunctionCall(new NewOperator(location), nameExp);
-#endif
-
-		return nullptr;
+		RETURN_IF_FRONTEND(nullptr)
 	}
 
 	Expression* parseMultiplyDivide()

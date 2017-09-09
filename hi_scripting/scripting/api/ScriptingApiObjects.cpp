@@ -825,14 +825,13 @@ ScriptingObjects::ScriptingEffect* ScriptingObjects::ScriptingSlotFX::setEffect(
         else
         {
             reportScriptError("Invalid Effect Type");
-            
-            return new ScriptingEffect(getScriptProcessor(), nullptr);
+            RETURN_IF_FRONTEND(new ScriptingEffect(getScriptProcessor(), nullptr))
         }
     }
 	else
 	{
 		reportScriptError("Invalid Slot");
-		return new ScriptingEffect(getScriptProcessor(), nullptr);
+		RETURN_IF_FRONTEND(new ScriptingEffect(getScriptProcessor(), nullptr))
 	}
 }
 
@@ -978,8 +977,7 @@ ScriptingObjects::ScriptingSynth* ScriptingObjects::ScriptingSynth::getChildSynt
 	else
 	{
 		reportIllegalCall("getChildSynth()", "onInit");
-
-		return new ScriptingObjects::ScriptingSynth(getScriptProcessor(), nullptr);
+		RETURN_IF_FRONTEND(new ScriptingObjects::ScriptingSynth(getScriptProcessor(), nullptr))
 	}
 }
 

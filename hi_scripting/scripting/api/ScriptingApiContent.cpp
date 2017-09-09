@@ -643,18 +643,18 @@ bool ScriptingApi::Content::ScriptComponent::addChildComponent(ScriptComponent* 
 	if (childIndex < thisIndex)
 	{
 		reportScriptError("Child component must be declared after parent component");
-		return false;
+		RETURN_IF_FRONTEND(false)
 	}
 
 	if (childComponent == this)
 	{
 		reportScriptError("Can't add itself as parent.");
-		return false;
+		RETURN_IF_FRONTEND(false)
 	}
 	if (childComponent->isChildComponent(this))
 	{
 		reportScriptError("Can't add a parent as child component");
-		return false;
+		RETURN_IF_FRONTEND(false)
 	}
 
 	childComponents.addIfNotAlreadyThere(childComponent);
@@ -1492,7 +1492,7 @@ float ScriptingApi::Content::ScriptTable::getTableValue(int inputValue)
 		else
 		{
 			reportScriptError("Connected Table was not found!");
-			return -1.0f;
+			RETURN_IF_FRONTEND(-1.0f)
 		}
 	}
 	else
@@ -1554,11 +1554,10 @@ void ScriptingApi::Content::ScriptTable::connectToOtherTable(const String &other
 
 	}
 
-    reportScriptError(otherTableId + " was not found.");
-    
 	useOtherTable = false;
 	referencedTable = nullptr;
 
+    reportScriptError(otherTableId + " was not found.");
 }
 
 LookupTableProcessor * ScriptingApi::Content::ScriptTable::getTableProcessor() const
@@ -1713,9 +1712,9 @@ void ScriptingApi::Content::ScriptSliderPack::connectToOtherSliderPack(const Str
 		}
 	}
 
-    reportScriptError(newPackId + " was not found.");
-    
 	existingData = nullptr;
+
+    reportScriptError(newPackId + " was not found.");
 }
 
 StringArray ScriptingApi::Content::ScriptSliderPack::getOptionsFor(const Identifier &id)
@@ -2597,9 +2596,9 @@ void ScriptingApi::Content::ScriptAudioWaveform::connectToAudioSampleProcessor(S
 
 	}
 
-    reportScriptError(processorId + " was not found.");
-    
 	connectedProcessor = nullptr;
+
+    reportScriptError(processorId + " was not found.");
 }
 
 void ScriptingApi::Content::ScriptAudioWaveform::setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /*= sendNotification*/)

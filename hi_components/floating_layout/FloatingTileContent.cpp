@@ -341,8 +341,7 @@ Component* FloatingPanelTemplates::createHiseLayout(FloatingTile* rootTile)
 Component* FloatingPanelTemplates::createSamplerWorkspace(FloatingTile* rootTile)
 {
 #if USE_BACKEND
-	MainController* mc = GET_BACKEND_ROOT_WINDOW(rootTile)->getBackendProcessor();
-
+	
 	jassert(mc != nullptr);
 
 	FloatingInterfaceBuilder ib(rootTile);
@@ -517,11 +516,6 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 {
 #if USE_BACKEND
-	MainController* mc = GET_BACKEND_ROOT_WINDOW(rootTile)->getBackendProcessor();
-
-	jassert(mc != nullptr);
-
-
 	FloatingInterfaceBuilder ib(rootTile);
 
 	const int personaContainer = 0;

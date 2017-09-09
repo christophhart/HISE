@@ -777,16 +777,17 @@ AttributedString DynamicObjectDebugInformation::getDescription() const
 	return AttributedString();
 }
 
-
-
-#pragma warning( push )
-#pragma warning( disable : 4100)
-
 void ScriptingObject::reportScriptError(const String &errorMessage) const
 {
 #if USE_BACKEND
 	throw errorMessage;
+#else
+	
+#if JUCE_DEBUG
+	DBG(errorMessage);
+#else
+	ignoreUnused(errorMessage);
+#endif
+
 #endif
 }
-
-#pragma warning( pop ) 
