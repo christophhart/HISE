@@ -315,6 +315,11 @@ void GlobalSettingManager::restoreGlobalSettings(MainController* mc)
 
 	ScopedPointer<XmlElement> globalSettings = XmlDocument::parse(savedDeviceData);
 
+#if USE_FRONTEND
+	if(globalSettings == nullptr)
+		dynamic_cast<FrontendSampleManager*>(mc)->checkAllSampleReferences();
+#endif
+
 	if(globalSettings != nullptr)
     {
         GlobalSettingManager* gm = dynamic_cast<GlobalSettingManager*>(mc);
