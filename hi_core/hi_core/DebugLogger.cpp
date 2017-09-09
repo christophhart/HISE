@@ -342,6 +342,13 @@ void DebugLogger::logMessage(const String& errorMessage)
 
 void DebugLogger::logPerformanceWarning(const PerformanceData& logData)
 {
+#if HISE_IOS
+    
+    // Don't log performance warnings on iOS for now...
+    ignoreUnused(logData);
+    
+#else
+    
 	if (!isLogging())
 		return;
 
@@ -349,6 +356,7 @@ void DebugLogger::logPerformanceWarning(const PerformanceData& logData)
 
 	PerformanceWarning f(messageIndex++, callbackIndex, logData, getCurrentTimeStamp(), voiceAmount);
 	addPerformanceWarning(f);
+#endif
 }
 
 
@@ -974,6 +982,7 @@ File DebugLogger::getLogFile()
 
 File DebugLogger::getLogFolder()
 {
+    
 #if USE_BACKEND
 
 	File f = File(PresetHandler::getDataFolder()).getChildFile("Logs/");
@@ -1036,7 +1045,10 @@ void DebugLoggerComponent::paint(Graphics& g)
 
 	g.drawText(logger->getLastErrorMessage(), r, Justification::centredLeft);
 
+#if HISE_IOS
+#else
 	g.drawText("Warning Level:", performanceLevelSelector->getX(), 5, 140, 20, Justification::centred);
+#endif
 }
 
 

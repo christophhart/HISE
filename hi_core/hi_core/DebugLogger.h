@@ -451,7 +451,18 @@ public:
 			File f = logger->getCurrentLogFile();
 			logger->stopLogging();
 
+#if HISE_IOS
+            auto content = f.loadFileAsString();
+            
+            SystemClipboard::copyToClipboard(content);
+            
+            PresetHandler::showMessageBox("Logging ended", "The log data was copied to the clipboard. You can paste it in your email app in order to send it to our technical support");
+            
+            
+            
+#else
 			f.revealToUser();
+#endif
 		}
 	}
 
@@ -464,9 +475,15 @@ public:
 
 	void resized() override
 	{
+#if HISE_IOS
+      
+        performanceLevelSelector->setVisible(false);
+        showLogFolderButton->setVisible(false);
+#else
 		showLogFolderButton->setBounds(getWidth() - 120, 5, 100, 20);
 		closeAndShowFileButton->setBounds(getWidth() - 120, 35, 100, 20);
 		performanceLevelSelector->setBounds(getWidth() - 280, 25, 140, 30);
+#endif
 	}
 
 private:
