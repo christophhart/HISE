@@ -33,6 +33,8 @@
 #ifndef MACROCONTROLLEDCOMPONENTS_H_INCLUDED
 #define MACROCONTROLLEDCOMPONENTS_H_INCLUDED
 
+#include <limits>
+
 class Processor;
 
 class TouchAndHoldComponent
@@ -441,28 +443,54 @@ public:
 		numModes
 	};
 
+	static void setRangeSkewFactorFromMidPoint(NormalisableRange<double>& range, const double midPoint)
+	{
+		const double length = range.end - range.start;
+
+		if (range.end > range.start && range.getRange().contains(midPoint))
+			range.skew = std::log(0.5) / std::log((midPoint - range.start)
+				/ (length));
+	}
+
+	static double getMidPointFromRangeSkewFactor(const NormalisableRange<double>& range)
+	{
+		const double length = range.end - range.start;
+
+		return std::pow(2.0, -1.0 / range.skew) * length + range.start;
+	}
+
 	static NormalisableRange<double> getRangeForMode(HiSlider::Mode m)
 	{
+		NormalisableRange<double> r;
+
 		switch(m)
 		{
-		case Frequency:		return NormalisableRange<double>(20.0, 20000.0, 1);
-							
-		case Decibel:		return NormalisableRange<double>(-100.0, 0.0, 0.1);
-							
-		case Time:			return NormalisableRange<double>(0.0, 20000.0, 1);
-							
-		case TempoSync:		return NormalisableRange<double>(0, TempoSyncer::numTempos-1, 1);
-							
-		case Pan:			return NormalisableRange<double>(-100.0, 100.0, 1);
-							
-		case NormalizedPercentage:	return NormalisableRange<double>(0.0, 1.0, 0.01);									
-									
-		case Linear:		
-		case Discrete:		return NormalisableRange<double>(0.0, 1.0, 0.01);
+		case Frequency:				r = NormalisableRange<double>(20.0, 20000.0, 1);
+									setRangeSkewFactorFromMidPoint(r, 1500.0);
+									break;
+		case Decibel:				r = NormalisableRange<double>(-100.0, 0.0, 0.1);
+									setRangeSkewFactorFromMidPoint(r, -18.0);
+									break;
+		case Time:					r = NormalisableRange<double>(0.0, 20000.0, 1);
+									setRangeSkewFactorFromMidPoint(r, 1000.0);
+									break;
+		case TempoSync:				r = NormalisableRange<double>(0, TempoSyncer::numTempos-1, 1);
+									break;
+		case Pan:					r = NormalisableRange<double>(-100.0, 100.0, 1);
+									break;
+		case NormalizedPercentage:	r = NormalisableRange<double>(0.0, 1.0, 0.01);									
+									break;
+		case Linear:				r = NormalisableRange<double>(0.0, 1.0, 0.01); 
+									break;
+		case Discrete:				r = NormalisableRange<double>();
+									r.interval = 1;
+									break;
         case numModes: 
-		default:			jassertfalse; return NormalisableRange<double>();
+		default:					jassertfalse; 
+									r = NormalisableRange<double>();
 		}
 
+		return r;
 	};
 
 	/** Creates a Slider. The name will be displayed. 
@@ -506,13 +534,34 @@ public:
 	}
 #endif
 
+	void setMode(Mode m)
+	{
+		if (mode != m)
+		{
+			mode = m;
+
+			normRange = getRangeForMode(m);
+
+			setTextValueSuffix(getModeSuffix());
+
+			setRange(normRange.start, normRange.end, normRange.interval);
+			setSkewFactor(normRange.skew);
+
+			setValue(modeValues[m], dontSendNotification);
+
+			repaint();
+		}
+	}
+
+
+
 	/** sets the mode. */
-	void setMode(Mode m, double min=-1.0, double max=-1.0, double mid=0.5) 
+	void setMode(Mode m, double min, double max, double mid=DBL_MAX, double stepSize=DBL_MAX)
 	{ 
 		if(mode != m)
 		{
 			mode = m; 
-			setModeRange(min, max, mid);
+			setModeRange(min, max, mid, stepSize);
 			setTextValueSuffix(getModeSuffix());
 
 			setValue(modeValues[m], dontSendNotification);
@@ -520,6 +569,8 @@ public:
 			repaint();
 		}
 	};
+
+	
 
 	/* initialises the slider. You must call this after creation before you use this component! */
 	void setup(Processor *p, int parameter, const String &name) override;
@@ -612,55 +663,23 @@ private:
 		return getSuffixForMode(mode, (float)modeValues[Pan]);
 	};
 
-	void setModeRange(double min, double max, double mid)
+	void setModeRange(double min, double max, double mid, double stepSize)
 	{
 		jassert(mode != numModes);
 
-		if(min != -1.0 && max != -1.0)
-		{
-			setRange(min, max, 0.1);
-			normRange = NormalisableRange<double>(min, max);
+		normRange = NormalisableRange<double>();
 
-			if(mode == Discrete)
-			{
-				
-				setRange(min, max, 1);
-                setSkewFactor(1.0);
-				return;
-			}
-			else if (mid != -1.0)
-			{
-				setSkewFactorFromMidPoint(mid);
-				return;
-			}			
-		}
+		normRange.start = min;
+		normRange.end = max;
+		
+		normRange.interval = stepSize != DBL_MAX ? stepSize : 0.01;
+			
 
-		normRange = getRangeForMode(mode);
+		if(mid != DBL_MAX)
+			setRangeSkewFactorFromMidPoint(normRange, mid);
 
-		switch(mode)
-		{
-		case Frequency:		setRange(20.0, 20000.0, 1);
-							setSkewFactorFromMidPoint(1500.0);
-							break;
-		case Decibel:		setRange(-100.0, 0.0, 0.1);
-							setSkewFactorFromMidPoint(-18.0);
-							break;
-		case Time:			setRange(0.0, 20000.0, 1);
-							setSkewFactorFromMidPoint(1000.0);
-							break;
-		case TempoSync:		setRange(0, TempoSyncer::numTempos-1, 1);
-							setSkewFactor(1.0);
-							break;
-		case Pan:			setRange(-100.0, 100.0, 1.0);
-							setSkewFactor(1.0);
-							break;
-		case NormalizedPercentage:	setRange(0.0, 1.0, 0.01);
-									setSkewFactor(1.0);
-									break;
-		case Linear:		break;
-		case Discrete:		jassertfalse; break;
-        case numModes:  jassertfalse; break;
-		}
+		setRange(normRange.start, normRange.end, normRange.interval);
+		setSkewFactor(normRange.skew);
 	};
 	
 	Mode mode;
