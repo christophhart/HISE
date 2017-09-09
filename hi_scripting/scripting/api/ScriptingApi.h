@@ -272,6 +272,9 @@ public:
 		/** Returns the full screen resolution for the current device. */
 		var getDeviceResolution();
 
+		/** Returns true if running as VST / AU / AAX plugin. */
+		bool isPlugin() const;
+
 		/** Returns the current Zoom Level. */
 		var getZoomLevel() const;
 

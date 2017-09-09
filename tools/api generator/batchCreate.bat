@@ -37,6 +37,8 @@ xcopy "xml\class_scripting_objects_1_1_scripting_preset_storage.xml" "xml\select
 xcopy "xml\class_scripting_objects_1_1_scripting_slot_f_x.xml" "xml\selection"
 xcopy "xml\class_scripting_objects_1_1_graphics_object.xml" "xml\selection"
 xcopy "xml\class_scripting_objects_1_1_path_object.xml" "xml\selection"
+xcopy "xml\class_scripting_objects_1_1_timer_object.xml" "xml\selection"
+
 
 xcopy "xml\struct_scripting_api_1_1_content_1_1_script_button.xml" "xml\selection"
 xcopy "xml\struct_scripting_api_1_1_content_1_1_script_combo_box.xml" "xml\selection"
@@ -78,6 +80,7 @@ ren "xml\selection\class_scripting_objects_1_1_scripting_slot_f_x.xml" "SlotFX.x
 ren "xml\selection\class_scripting_objects_1_1_scripting_preset_storage.xml" "PresetStorage.xml"
 ren "xml\selection\class_scripting_objects_1_1_graphics_object.xml" "Graphics.xml"
 ren "xml\selection\class_scripting_objects_1_1_path_object.xml" "Path.xml"
+ren "xml\selection\class_scripting_objects_1_1_timer_object.xml" "Timer.xml"
 
 ren "xml\selection\struct_scripting_api_1_1_content_1_1_script_button.xml" "ScriptButton.xml"
 ren "xml\selection\struct_scripting_api_1_1_content_1_1_script_combo_box.xml" "ScriptComboBox.xml"
