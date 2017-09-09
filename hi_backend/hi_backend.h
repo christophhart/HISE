@@ -36,7 +36,7 @@ BEGIN_JUCE_MODULE_DECLARATION
 
   ID:               hi_backend
   vendor:           Hart Instruments
-  version:          1.0
+  version:          1.1
   name:             HISE Backend Module
   description:      The backend application classes for HISE
   website:          http://hise.audio
