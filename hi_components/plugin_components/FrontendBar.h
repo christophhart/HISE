@@ -147,6 +147,7 @@ public:
 		CriticalCustomErrorMessage,
 		SamplesNotFound,
 		CustomErrorMessage,
+		CustomInformation,
 		numReasons
 	};
 

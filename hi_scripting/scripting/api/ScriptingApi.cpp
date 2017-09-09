@@ -841,6 +841,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, getMacroName);
 	API_VOID_METHOD_WRAPPER_2(Engine, setKeyColour);
 	API_VOID_METHOD_WRAPPER_2(Engine, showErrorMessage);
+	API_VOID_METHOD_WRAPPER_1(Engine, showMessage);
 	API_VOID_METHOD_WRAPPER_1(Engine, setLowestKeyToDisplay);
 
 	API_VOID_METHOD_WRAPPER_1(Engine, loadNextUserPreset);
@@ -893,6 +894,7 @@ ApiClass(0)
 	ADD_API_METHOD_1(getMacroName);
 	ADD_API_METHOD_2(setKeyColour);
 	ADD_API_METHOD_2(showErrorMessage);
+	ADD_API_METHOD_1(showMessage);
 	ADD_API_METHOD_1(setLowestKeyToDisplay);
 	ADD_API_METHOD_1(loadNextUserPreset);
 	ADD_API_METHOD_1(loadPreviousUserPreset);
@@ -1074,6 +1076,17 @@ void ScriptingApi::Engine::showErrorMessage(String message, bool isCritical)
 	{
 		throw message;
 	}
+}
+
+void ScriptingApi::Engine::showMessage(String message)
+{
+#if USE_FRONTEND
+
+	getProcessor()->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CustomInformation, message);
+
+#else
+	debugToConsole(getProcessor(), message);
+#endif
 }
 
 double ScriptingApi::Engine::getMilliSecondsForTempo(int tempoIndex) const { return (double)TempoSyncer::getTempoInMilliSeconds(getHostBpm(), (TempoSyncer::Tempo)tempoIndex); }

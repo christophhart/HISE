@@ -590,6 +590,10 @@ void DeactiveOverlay::buttonClicked(Button *b)
 		{
 			setState(CustomErrorMessage, false);
 		}
+		if (currentState[CustomInformation])
+		{
+			setState(CustomInformation, false);
+		}
 		else if (currentState[SamplesNotFound])
 		{
 			FrontendSampleManager* fp = dynamic_cast<FrontendSampleManager*>(findParentComponentOfClass<AudioProcessorEditor>()->getAudioProcessor());
@@ -752,6 +756,8 @@ String DeactiveOverlay::getTextForError(State s) const
 		return customMessage;
 	case DeactiveOverlay::CriticalCustomErrorMessage:
 		return customMessage;
+	case DeactiveOverlay::CustomInformation:
+		return customMessage;
 	case DeactiveOverlay::numReasons:
 		break;
 	default:
@@ -765,12 +771,23 @@ void DeactiveOverlay::resized()
 {
 	useActivationResponseButton->setVisible(false);
 
+	
+
 	if (currentState != 0)
 	{
 		descriptionLabel->centreWithSize(getWidth() - 20, 150);
 	}
 
+	if (currentState[CustomInformation])
+	{
+		resolveLicenceButton->setVisible(false);
+		registerProductButton->setVisible(false);
+		resolveSamplesButton->setVisible(false);
+		ignoreButton->setVisible(true);
 
+		ignoreButton->centreWithSize(200, 32);
+		ignoreButton->setButtonText("OK");
+	}
 
 	if (currentState[CustomErrorMessage])
 	{
@@ -780,7 +797,9 @@ void DeactiveOverlay::resized()
 		ignoreButton->setVisible(true);
 
 		ignoreButton->centreWithSize(200, 32);
+		ignoreButton->setButtonText("Ignore");
 	}
+	
 
 	if (currentState[SamplesNotFound])
 	{
@@ -794,6 +813,8 @@ void DeactiveOverlay::resized()
 
 		ignoreButton->setTopLeftPosition(ignoreButton->getX(),
 			resolveSamplesButton->getY() + 40);
+
+		ignoreButton->setButtonText("Ignore");
 	}
 
 	if (currentState[LicenseNotFound] ||

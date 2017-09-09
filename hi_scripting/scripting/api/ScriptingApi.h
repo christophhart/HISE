@@ -230,6 +230,9 @@ public:
 		/** Shows a error message on the compiled plugin (or prints it on the console). Use isCritical if you want to disable the "Ignore" Button. */
 		void showErrorMessage(String message, bool isCritical);
         
+		/** Shows a message with an overlay on the compiled plugin with an "OK" button in order to notify the user about important events. */
+		void showMessage(String message);
+
 		/** Returns the millisecond value for the supplied tempo (HINT: Use "TempoSync" mode from Slider!) */
 		double getMilliSecondsForTempo(int tempoIndex) const;;
 
