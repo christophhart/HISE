@@ -537,7 +537,7 @@ void DebugLogger::startLogging()
 #if HISE_IOS
 	if (currentLogFile.existsAsFile())
 	{
-		logger->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CustomInformation, "There is an unsaved log (probably because the app crashed while logging). This log was copied to the clipboard and can be pasted in your mail app.");
+		getMainController()->sendOverlayMessage(DeactiveOverlay::State::CustomInformation, "There is an unsaved log (probably because the app crashed while logging). This log was copied to the clipboard and can be pasted in your mail app.");
 		SystemClipboard::copyTextToClipboard(currentLogFile.loadFileAsString());
 		currentLogFile.deleteFile();
 	}

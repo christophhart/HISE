@@ -389,6 +389,10 @@ public:
 		addAndMakeVisible(closeAndShowFileButton = new TextButton("Stop & show file"));
 		addAndMakeVisible(performanceLevelSelector = new ComboBox("Warning Level"));
 
+        
+#if HISE_IOS
+        closeAndShowFileButton->setButtonText("Stop Logging");
+#endif
 		
 		performanceLevelSelector->addItem("Low", 1);
 		performanceLevelSelector->addItem("Mid", 2);
@@ -458,8 +462,9 @@ public:
 	{
 #if HISE_IOS
       
-        performanceLevelSelector->setVisible(false);
         showLogFolderButton->setVisible(false);
+        performanceLevelSelector->setVisible(false);
+        closeAndShowFileButton->setBounds(getWidth() - 120, 35, 100, 20);
 #else
 		showLogFolderButton->setBounds(getWidth() - 120, 5, 100, 20);
 		closeAndShowFileButton->setBounds(getWidth() - 120, 35, 100, 20);
