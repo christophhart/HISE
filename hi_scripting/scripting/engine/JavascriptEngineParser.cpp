@@ -982,7 +982,7 @@ private:
 		}
 
 		throwError("Cannot define local variables outside of inline functions or callbacks.");
-		RETURN_IF_FRONTEND(nullptr)
+		RETURN_IF_NO_THROW(nullptr)
 	}
 
 	Statement* parseCallback()
@@ -1939,7 +1939,7 @@ private:
 		}
 
 		throwError("Found " + getTokenName(currentType) + " when expecting an expression");
-		RETURN_IF_FRONTEND(nullptr);
+		RETURN_IF_NO_THROW(nullptr);
 	}
 
 	template <typename OpType>
@@ -1980,7 +1980,7 @@ private:
 	Expression* parseNewOperator()
 	{
 		location.throwError("new is not supported anymore");
-		RETURN_IF_FRONTEND(nullptr)
+		return nullptr;
 	}
 
 	Expression* parseMultiplyDivide()

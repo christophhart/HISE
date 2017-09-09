@@ -60,16 +60,20 @@
 
 #define SCALE_FACTOR() ((float)Desktop::getInstance().getDisplays().getMainDisplay().scale)
 
+#if JUCE_DEBUG || USE_FRONTEND
+#define RETURN_IF_NO_THROW(x) return x;
+#define RETURN_VOID_IF_NO_THROW() return;
+#else
+#define RETURN_IF_NO_THROW(x)
+#define RETURN_VOID_IF_NO_THROW()
+#endif
+
 #if USE_BACKEND
 #define BACKEND_ONLY(x) x 
 #define FRONTEND_ONLY(x)
-#define RETURN_IF_FRONTEND(x)
-#define RETURN_VOID_IF_FRONTEND()
 #else
 #define BACKEND_ONLY(x)
 #define FRONTEND_ONLY(x) x
-#define RETURN_IF_FRONTEND(x) return x;
-#define RETURN_VOID_IF_FRONTEND() return;
 #endif
 
 #if USE_BACKEND

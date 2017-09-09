@@ -643,18 +643,18 @@ bool ScriptingApi::Content::ScriptComponent::addChildComponent(ScriptComponent* 
 	if (childIndex < thisIndex)
 	{
 		reportScriptError("Child component must be declared after parent component");
-		RETURN_IF_FRONTEND(false)
+		RETURN_IF_NO_THROW(false)
 	}
 
 	if (childComponent == this)
 	{
 		reportScriptError("Can't add itself as parent.");
-		RETURN_IF_FRONTEND(false)
+		RETURN_IF_NO_THROW(false)
 	}
 	if (childComponent->isChildComponent(this))
 	{
 		reportScriptError("Can't add a parent as child component");
-		RETURN_IF_FRONTEND(false)
+		RETURN_IF_NO_THROW(false)
 	}
 
 	childComponents.addIfNotAlreadyThere(childComponent);
@@ -1029,6 +1029,7 @@ double ScriptingApi::Content::ScriptSlider::getMinValue() const
 	else
 	{
 		reportScriptError("getMinValue() can only be called on sliders in 'Range' mode.");
+		RETURN_IF_NO_THROW(0.0)
 	}
 }
 
@@ -1041,6 +1042,7 @@ double ScriptingApi::Content::ScriptSlider::getMaxValue() const
 	else
 	{
 		reportScriptError("getMaxValue() can only be called on sliders in 'Range' mode.");
+		RETURN_IF_NO_THROW(1.0)
 	}
 }
 
@@ -1053,6 +1055,7 @@ bool ScriptingApi::Content::ScriptSlider::contains(double valueToCheck)
 	else
 	{
 		reportScriptError("contains() can only be called on sliders in 'Range' mode.");
+		RETURN_IF_NO_THROW(false)
 	}
 }
 
@@ -1492,7 +1495,7 @@ float ScriptingApi::Content::ScriptTable::getTableValue(int inputValue)
 		else
 		{
 			reportScriptError("Connected Table was not found!");
-			RETURN_IF_FRONTEND(-1.0f)
+			RETURN_IF_NO_THROW(-1.0f)
 		}
 	}
 	else

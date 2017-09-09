@@ -69,7 +69,7 @@ int ScriptingObject::checkValidArguments(const var::NativeFunctionArgs &args)
 		if (args.arguments[i].isUndefined())
 		{
 			reportScriptError("Argument " + String(i) + " is undefined!");
-			RETURN_IF_FRONTEND(i);
+			RETURN_IF_NO_THROW(i);
 		}
 	}
 

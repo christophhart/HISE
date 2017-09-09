@@ -418,7 +418,7 @@ int ScriptingApi::Message::getNoteNumber() const
 	if(constMessageHolder == nullptr || !constMessageHolder->isNoteOnOrOff())
 	{
 		reportIllegalCall("getNoteNumber()", "onNoteOn / onNoteOff");
-		RETURN_IF_FRONTEND(-1)
+		RETURN_IF_NO_THROW(-1)
 	}
 #endif
 
@@ -523,7 +523,7 @@ var ScriptingApi::Message::getControllerNumber() const
 	if(constMessageHolder == nullptr || ( !constMessageHolder->isController() && !constMessageHolder->isPitchWheel() && !constMessageHolder->isAftertouch() ))
 	{
 		reportIllegalCall("getControllerNumber()", "onController");
-		RETURN_IF_FRONTEND(var())
+		RETURN_IF_NO_THROW(var())
 	}
 #endif
 
@@ -540,7 +540,7 @@ var ScriptingApi::Message::getControllerValue() const
 	if(constMessageHolder == nullptr || ( !constMessageHolder->isController() && !constMessageHolder->isPitchWheel() && !constMessageHolder->isAftertouch() ))
 	{
 		reportIllegalCall("getControllerValue()", "onController");
-		RETURN_IF_FRONTEND(var())
+		RETURN_IF_NO_THROW(var())
 	}
 #endif
 
@@ -556,7 +556,7 @@ int ScriptingApi::Message::getVelocity() const
 	if(constMessageHolder == nullptr || (!constMessageHolder->isNoteOn()))
 	{
 		reportIllegalCall("getVelocity()", "onNoteOn");
-		RETURN_IF_FRONTEND(-1)
+		RETURN_IF_NO_THROW(-1)
 	}
 #endif
 
@@ -568,7 +568,7 @@ void ScriptingApi::Message::ignoreEvent(bool shouldBeIgnored/*=true*/)
 	if (messageHolder == nullptr)
 	{
 		reportIllegalCall("ignoreEvent()", "midi event");
-		RETURN_VOID_IF_FRONTEND()
+		RETURN_VOID_IF_NO_THROW()
 	}
 
 	messageHolder->ignoreEvent(shouldBeIgnored);
@@ -580,7 +580,7 @@ int ScriptingApi::Message::getChannel() const
 	if(constMessageHolder == nullptr)
 	{
 		reportScriptError("Can only be called in MIDI callbacks");
-		RETURN_IF_FRONTEND(-1)
+		RETURN_IF_NO_THROW(-1)
 	}
 #endif
 
@@ -593,13 +593,13 @@ void ScriptingApi::Message::setChannel(int newValue)
 	if(messageHolder == nullptr)
 	{
 		reportIllegalCall("setChannel()", "midi event");
-		RETURN_VOID_IF_FRONTEND()
+		RETURN_VOID_IF_NO_THROW()
 	}
 
 	if(newValue < 1 || newValue > 16)
 	{
 		reportScriptError("Channel must be between 1 and 16.");
-		RETURN_VOID_IF_FRONTEND()
+		RETURN_VOID_IF_NO_THROW()
 	}
 #endif
 
@@ -666,7 +666,7 @@ int ScriptingApi::Message::getCoarseDetune() const
 	if (constMessageHolder == nullptr)
 	{
 		reportIllegalCall("getCoarseDetune()", "midi event");
-		RETURN_IF_FRONTEND(0)
+		RETURN_IF_NO_THROW(0)
 	}
 #endif
 
@@ -680,7 +680,7 @@ void ScriptingApi::Message::setFineDetune(int cents)
 	if (messageHolder == nullptr)
 	{
 		reportIllegalCall("setFineDetune()", "midi event");
-		RETURN_VOID_IF_FRONTEND()
+		RETURN_VOID_IF_NO_THROW()
 	}
 #endif
 
@@ -693,7 +693,7 @@ int ScriptingApi::Message::getFineDetune() const
 	if (constMessageHolder == nullptr)
 	{
 		reportIllegalCall("getFineDetune()", "midi event");
-		RETURN_IF_FRONTEND(0)
+		RETURN_IF_NO_THROW(0)
 	}
 #endif
 
@@ -707,7 +707,7 @@ void ScriptingApi::Message::setGain(int gainInDecibels)
 	if (messageHolder == nullptr)
 	{
 		reportIllegalCall("setGain()", "midi event");
-		RETURN_VOID_IF_FRONTEND()
+		RETURN_VOID_IF_NO_THROW()
 	}
 #endif
 
@@ -720,7 +720,7 @@ int ScriptingApi::Message::getGain() const
 	if (constMessageHolder == nullptr)
 	{
 		reportIllegalCall("getGain()", "midi event");
-		RETURN_IF_FRONTEND(0)
+		RETURN_IF_NO_THROW(0)
 	}
 #endif
 
@@ -733,7 +733,7 @@ int ScriptingApi::Message::getTimestamp() const
 	if (constMessageHolder == nullptr)
 	{
 		reportIllegalCall("getTimestamp()", "midi event");
-		RETURN_IF_FRONTEND(0)
+		RETURN_IF_NO_THROW(0)
 	}
 #endif
 
@@ -746,7 +746,7 @@ void ScriptingApi::Message::store(var messageEventHolder) const
 	if (constMessageHolder == nullptr)
 	{
 		reportIllegalCall("store()", "midi event");
-		RETURN_VOID_IF_FRONTEND()
+		RETURN_VOID_IF_NO_THROW()
 	}
 #endif
 
@@ -860,6 +860,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_2(Engine, getRegexMatches);
 	API_METHOD_WRAPPER_2(Engine, doubleToString);
 	API_METHOD_WRAPPER_0(Engine, getOS);
+	API_METHOD_WRAPPER_0(Engine, isPlugin);
 	API_METHOD_WRAPPER_0(Engine, getDeviceType);
 	API_METHOD_WRAPPER_0(Engine, getDeviceResolution);
 	API_METHOD_WRAPPER_0(Engine, getZoomLevel);
@@ -911,6 +912,7 @@ ApiClass(0)
 	ADD_API_METHOD_0(getOS);
 	ADD_API_METHOD_0(getDeviceType);
 	ADD_API_METHOD_0(getDeviceResolution);
+	ADD_API_METHOD_0(isPlugin);
 	ADD_API_METHOD_0(getZoomLevel);
 	ADD_API_METHOD_0(getVersion);
 	ADD_API_METHOD_0(getSettingsWindowObject);
@@ -1021,6 +1023,15 @@ var ScriptingApi::Engine::getDeviceResolution()
 
 	return a;
 	
+}
+
+bool ScriptingApi::Engine::isPlugin() const
+{
+#if IS_STANDALONE_APP
+	return true;
+#else
+	return false;
+#endif
 }
 
 var ScriptingApi::Engine::getZoomLevel() const
@@ -1157,7 +1168,7 @@ var ScriptingApi::Engine::loadFromJSON(String fileName)
 	else
 	{
 		reportScriptError("File not found");
-		RETURN_IF_FRONTEND(var())
+		RETURN_IF_NO_THROW(var())
 	}
 }
 
@@ -1332,13 +1343,13 @@ int ScriptingApi::Sampler::getRRGroupsForMessage(int noteNumber, int velocity)
 	if (s == nullptr)
 	{
 		reportScriptError("getRRGroupsForMessage() only works with Samplers.");
-		RETURN_IF_FRONTEND(0)
+		RETURN_IF_NO_THROW(0)
 	}
 
 	if (s->isRoundRobinEnabled())
 	{
 		reportScriptError("Round Robin is not disabled. Call 'Synth.enableRoundRobin(false)' before calling this method.");
-		RETURN_IF_FRONTEND(0)
+		RETURN_IF_NO_THROW(0)
 	}
 
 	return s->getRRGroupsForMessage(noteNumber, velocity);
@@ -1383,7 +1394,7 @@ int ScriptingApi::Sampler::getNumSelectedSounds()
 	if (s == nullptr)
 	{
 		reportScriptError("getNumSelectedSounds() only works with Samplers.");
-		RETURN_IF_FRONTEND(-1)
+		RETURN_IF_NO_THROW(-1)
 	}
 
 	return soundSelection.getNumSelected();
@@ -1419,7 +1430,7 @@ var ScriptingApi::Sampler::getSoundProperty(int propertyIndex, int soundIndex)
 	if (s == nullptr)
 	{
 		reportScriptError("getSoundProperty() only works with Samplers.");
-		RETURN_IF_FRONTEND(var())
+		RETURN_IF_NO_THROW(var())
 	}
 
 	ModulatorSamplerSound *sound = soundSelection.getSelectedItem(soundIndex);
@@ -1431,7 +1442,7 @@ var ScriptingApi::Sampler::getSoundProperty(int propertyIndex, int soundIndex)
 	else
 	{
 		reportScriptError("no sound with index " + String(soundIndex));
-		RETURN_IF_FRONTEND(var())
+		RETURN_IF_NO_THROW(var())
 	}
 
 }
@@ -1443,7 +1454,7 @@ void ScriptingApi::Sampler::setSoundProperty(int soundIndex, int propertyIndex, 
 	if (s == nullptr)
 	{
 		reportScriptError("setSoundProperty() only works with Samplers.");
-		RETURN_VOID_IF_FRONTEND()
+		RETURN_VOID_IF_NO_THROW()
 	}
 
 	ModulatorSamplerSound *sound = soundSelection.getSelectedItem(soundIndex);
@@ -1494,13 +1505,13 @@ String ScriptingApi::Sampler::getMicPositionName(int channelIndex)
 	if (s == nullptr)
 	{
 		reportScriptError("getMicPositionName() only works with Samplers.");
-		RETURN_IF_FRONTEND("")
+		RETURN_IF_NO_THROW("")
 	}
 
 	if (s->getNumMicPositions() == 1)
 	{
 		reportScriptError("getMicPositionName() only works with multi mic Samplers.");
-		RETURN_IF_FRONTEND("")
+		RETURN_IF_NO_THROW("")
 	}
 
 	return s->getChannelData(channelIndex).suffix;
@@ -1513,7 +1524,7 @@ int ScriptingApi::Sampler::getNumMicPositions() const
 	if (s == nullptr)
 	{
 		reportScriptError("getNumMicPositions() only works with Samplers.");
-		RETURN_IF_FRONTEND(0)
+		RETURN_IF_NO_THROW(0)
 	}
 
 	return s->getNumMicPositions();
@@ -1526,7 +1537,7 @@ bool ScriptingApi::Sampler::isMicPositionPurged(int micIndex)
 	if (s == nullptr)
 	{
 		reportScriptError("isMicPositionPurged() only works with Samplers.");
-		RETURN_IF_FRONTEND(false)
+		RETURN_IF_NO_THROW(false)
 	}
 
 	if (micIndex >= 0 && micIndex < s->getNumMicPositions())
@@ -1545,7 +1556,7 @@ void ScriptingApi::Sampler::refreshInterface()
 	if (s == nullptr)
 	{
 		reportScriptError("refreshInterface() only works with Samplers.");
-		RETURN_VOID_IF_FRONTEND()
+		RETURN_VOID_IF_NO_THROW()
 	}
 
 	s->sendChangeMessage();
@@ -1642,7 +1653,7 @@ var ScriptingApi::Sampler::getAttribute(int index) const
     if (s == nullptr)
     {
         reportScriptError("getAttribute() only works with Samplers.");
-		RETURN_IF_FRONTEND(var());
+		RETURN_IF_NO_THROW(var());
     }
     
     return s->getAttribute(index);
@@ -1655,7 +1666,7 @@ void ScriptingApi::Sampler::setAttribute(int index, var newValue)
     if (s == nullptr)
     {
         reportScriptError("setAttribute() only works with Samplers.");
-        RETURN_VOID_IF_FRONTEND()
+        RETURN_VOID_IF_NO_THROW()
     }
     
     s->setAttribute(index, newValue, sendNotification);
@@ -1855,7 +1866,7 @@ int ScriptingApi::Synth::playNote(int noteNumber, int velocity)
 	if(velocity == 0)
 	{
 		reportScriptError("A velocity of 0 is not valid!");
-		RETURN_IF_FRONTEND(-1)
+		RETURN_IF_NO_THROW(-1)
 	}
 
 	return addNoteOn(1, noteNumber, velocity, 0); // the timestamp will be added from the current event
@@ -2142,12 +2153,12 @@ ScriptingObjects::ScriptingModulator *ScriptingApi::Synth::getModulator(const St
 		}
 
 		reportScriptError(name + " was not found. ");
-		RETURN_IF_FRONTEND(new ScriptingObjects::ScriptingModulator(getScriptProcessor(), nullptr))
+		RETURN_IF_NO_THROW(new ScriptingObjects::ScriptingModulator(getScriptProcessor(), nullptr))
 	}
 	else
 	{
 		reportIllegalCall("getModulator()", "onInit");
-		RETURN_IF_FRONTEND(new ScriptingObjects::ScriptingModulator(getScriptProcessor(), nullptr))
+		RETURN_IF_NO_THROW(new ScriptingObjects::ScriptingModulator(getScriptProcessor(), nullptr))
 	}	
 }
 
@@ -2175,13 +2186,13 @@ ScriptingObjects::ScriptingMidiProcessor *ScriptingApi::Synth::getMidiProcessor(
 
         reportScriptError(name + " was not found. ");
         
-		RETURN_IF_FRONTEND(new ScriptMidiProcessor(getScriptProcessor(), nullptr))
+		RETURN_IF_NO_THROW(new ScriptMidiProcessor(getScriptProcessor(), nullptr))
 	}
 	else
 	{
 		reportIllegalCall("getMidiProcessor()", "onInit");
 
-		RETURN_IF_FRONTEND(new ScriptMidiProcessor(getScriptProcessor(), nullptr))
+		RETURN_IF_NO_THROW(new ScriptMidiProcessor(getScriptProcessor(), nullptr))
 
 	}	
 }
@@ -2205,12 +2216,12 @@ ScriptingObjects::ScriptingSynth *ScriptingApi::Synth::getChildSynth(const Strin
 		}
         
         reportScriptError(name + " was not found. ");
-		RETURN_IF_FRONTEND(new ScriptingObjects::ScriptingSynth(getScriptProcessor(), nullptr))
+		RETURN_IF_NO_THROW(new ScriptingObjects::ScriptingSynth(getScriptProcessor(), nullptr))
 	}
 	else
 	{
 		reportIllegalCall("getChildSynth()", "onInit");
-		RETURN_IF_FRONTEND(new ScriptingObjects::ScriptingSynth(getScriptProcessor(), nullptr))
+		RETURN_IF_NO_THROW(new ScriptingObjects::ScriptingSynth(getScriptProcessor(), nullptr))
 
 	}	
 }
@@ -2232,7 +2243,7 @@ ScriptingApi::Synth::ScriptSynth* ScriptingApi::Synth::getChildSynthByIndex(int 
 	else
 	{
 		reportIllegalCall("getChildSynth()", "onInit");
-		RETURN_IF_FRONTEND(new ScriptingObjects::ScriptingSynth(getScriptProcessor(), nullptr))
+		RETURN_IF_NO_THROW(new ScriptingObjects::ScriptingSynth(getScriptProcessor(), nullptr))
 	}
 }
 
@@ -2280,12 +2291,12 @@ ScriptingObjects::ScriptingEffect *ScriptingApi::Synth::getEffect(const String &
 		}
 
         reportScriptError(name + " was not found. ");
-		RETURN_IF_FRONTEND(new ScriptEffect(getScriptProcessor(), nullptr))
+		RETURN_IF_NO_THROW(new ScriptEffect(getScriptProcessor(), nullptr))
 	}
 	else
 	{
 		reportIllegalCall("getEffect()", "onInit");
-		RETURN_IF_FRONTEND(new ScriptEffect(getScriptProcessor(), nullptr))
+		RETURN_IF_NO_THROW(new ScriptEffect(getScriptProcessor(), nullptr))
 	}	
 }
 
@@ -2305,7 +2316,7 @@ ScriptingObjects::ScriptingAudioSampleProcessor * ScriptingApi::Synth::getAudioS
 		}
 
         reportScriptError(name + " was not found. ");
-		RETURN_IF_FRONTEND(new ScriptAudioSampleProcessor(getScriptProcessor(), nullptr))
+		RETURN_IF_NO_THROW(new ScriptAudioSampleProcessor(getScriptProcessor(), nullptr))
 }
 
 
@@ -2326,12 +2337,12 @@ ScriptingObjects::ScriptingTableProcessor *ScriptingApi::Synth::getTableProcesso
 		}
 
         reportScriptError(name + " was not found. ");
-		RETURN_IF_FRONTEND(new ScriptTableProcessor(getScriptProcessor(), nullptr));
+		RETURN_IF_NO_THROW(new ScriptTableProcessor(getScriptProcessor(), nullptr));
 	}
 	else
 	{
 		reportIllegalCall("getScriptingTableProcessor()", "onInit");
-		RETURN_IF_FRONTEND(new ScriptTableProcessor(getScriptProcessor(), nullptr));
+		RETURN_IF_NO_THROW(new ScriptTableProcessor(getScriptProcessor(), nullptr));
 	}
 }
 
@@ -2351,12 +2362,12 @@ ScriptingApi::Sampler * ScriptingApi::Synth::getSampler(const String &name)
 		}
 
         reportScriptError(name + " was not found. ");
-		RETURN_IF_FRONTEND(new Sampler(getScriptProcessor(), nullptr))
+		RETURN_IF_NO_THROW(new Sampler(getScriptProcessor(), nullptr))
 	}
 	else
 	{
 		reportIllegalCall("getScriptingAudioSampleProcessor()", "onInit");
-		RETURN_IF_FRONTEND(new Sampler(getScriptProcessor(), nullptr))
+		RETURN_IF_NO_THROW(new Sampler(getScriptProcessor(), nullptr))
 	}
 }
 
@@ -2376,12 +2387,12 @@ ScriptingApi::Synth::ScriptSlotFX* ScriptingApi::Synth::getSlotFX(const String& 
 		}
 
 		reportScriptError(name + " was not found. ");
-		RETURN_IF_FRONTEND(new ScriptSlotFX(getScriptProcessor(), nullptr))
+		RETURN_IF_NO_THROW(new ScriptSlotFX(getScriptProcessor(), nullptr))
 	}
 	else
 	{
 		reportIllegalCall("getScriptingAudioSampleProcessor()", "onInit");
-		RETURN_IF_FRONTEND(new ScriptSlotFX(getScriptProcessor(), nullptr))
+		RETURN_IF_NO_THROW(new ScriptSlotFX(getScriptProcessor(), nullptr))
 	}
 }
 
@@ -2470,7 +2481,7 @@ int ScriptingApi::Synth::addNoteOn(int channel, int noteNumber, int velocity, in
 	}
 	else reportScriptError("Channel must be between 1 and 16.");
 
-	RETURN_IF_FRONTEND(-1)
+	RETURN_IF_NO_THROW(-1)
 }
 
 void ScriptingApi::Synth::addNoteOff(int channel, int noteNumber, int timeStampSamples)
@@ -2690,7 +2701,7 @@ int ScriptingApi::Synth::getModulatorIndex(int chain, const String &id) const
 
 	reportScriptError("Modulator " + id + " was not found in " + c->getId());
 
-	RETURN_IF_FRONTEND(-1)
+	RETURN_IF_NO_THROW(-1)
 }
 
 // ====================================================================================================== Console functions
