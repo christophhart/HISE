@@ -95,6 +95,7 @@ ScriptCreatedComponentWrapper(content, index)
 		s->setLookAndFeelOwned(fslaf);
 	}
 
+#if OLD
 	if (sc->m == HiSlider::Linear)
 	{
 		double min = GET_SCRIPT_PROPERTY(min);
@@ -113,6 +114,17 @@ ScriptCreatedComponentWrapper(content, index)
 	{
 		s->setMode(sc->m);
 	}
+#else
+	double min = GET_SCRIPT_PROPERTY(min);
+	double max = GET_SCRIPT_PROPERTY(max);
+	double step = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::stepSize);
+	double middle = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::middlePosition);
+
+
+
+	s->setMode(sc->m, min, max, middle, step);
+
+#endif
 
 	s->updateValue(dontSendNotification);
 

@@ -578,6 +578,12 @@ void ScriptingApi::Content::ScriptComponent::addToMacroControl(int macroIndex)
 	{
 		NormalisableRange<double> range(getScriptObjectProperty(Properties::min), getScriptObjectProperty(Properties::max));
 
+		if (auto s = dynamic_cast<ScriptSlider*>(this))
+		{
+			range.interval = getScriptObjectProperty((int)ScriptSlider::Properties::stepSize);
+			HiSlider::setRangeSkewFactorFromMidPoint(range, getScriptObjectProperty((int)ScriptSlider::Properties::middlePosition));
+		}
+
 		getProcessor()->getMainController()->getMacroManager().getMacroChain()->addControlledParameter(
 			macroIndex, getProcessor()->getId(), knobIndex, name.toString(), range, false);
 	}
@@ -1154,7 +1160,11 @@ void ScriptingApi::Content::ScriptSlider::setMode(String mode)
 		setScriptObjectProperty(ScriptComponent::Properties::max, nr.end);
 		setScriptObjectProperty(stepSize, nr.interval);
 		setScriptObjectProperty(ScriptSlider::Properties::suffix, HiSlider::getSuffixForMode(m, getValue()));
-		setMidPoint(getScriptObjectProperty(ScriptSlider::Properties::middlePosition));
+
+		setMidPoint(HiSlider::getMidPointFromRangeSkewFactor(nr));
+
+
+		//setMidPoint(getScriptObjectProperty(ScriptSlider::Properties::middlePosition));
 	}
 }
 
@@ -1966,7 +1976,11 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptImage::createCompon
 
 const Image ScriptingApi::Content::ScriptImage::getImage() const
 {
-	return image;
+	
+
+	return image.isNull() ? ImagePool::getEmptyImage(getScriptObjectProperty(ScriptComponent::Properties::width),
+													 getScriptObjectProperty(ScriptComponent::Properties::height)) : 
+							image;
 }
 
 StringArray ScriptingApi::Content::ScriptImage::getItemList() const
