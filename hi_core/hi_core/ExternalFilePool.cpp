@@ -130,10 +130,7 @@ size_t ImagePool::getFileSize(const Image *image) const
 
 Image ImagePool::getEmptyImage(int width, int height)
 {
-	static Image i(Image::PixelFormat::ARGB, width, height, true);
-
-	if (i.isValid())
-		return i;
+	Image i(Image::PixelFormat::ARGB, width, height, true);
 
 	Graphics g(i);
 
