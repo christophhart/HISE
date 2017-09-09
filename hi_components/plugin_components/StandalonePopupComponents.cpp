@@ -37,6 +37,8 @@ ToggleButtonList::ToggleButtonList(StringArray& names, Listener* listener_) :
 {
 	setLookAndFeel(&btblaf);
 
+	setSize(250, 20);
+
 	rebuildList(names);
 }
 
@@ -57,7 +59,7 @@ void ToggleButtonList::rebuildList(const StringArray &names)
 
 	}
 
-	setSize(250, buttons.size() * 28);
+	setSize(getWidth(), buttons.size() * 28);
 	resized();
 }
 
@@ -132,6 +134,11 @@ public:
 	void resized() override
 	{
 		viewport->setBounds(getParentShell()->getContentBounds().reduced(5));
+
+		const int delta = viewport->isVerticalScrollBarShown() ? viewport->getScrollBarThickness() : 0;
+
+		midiInputList->setSize(getParentShell()->getContentBounds().getWidth() - 5 - delta, midiInputList->getHeight());
+
 		midiInputList->setColourAndFont(findPanelColour(PanelColourId::textColour), getFont());
 	}
 
@@ -225,6 +232,10 @@ public:
 	void resized() override
 	{
 		viewport->setBounds(getParentShell()->getContentBounds().reduced(5));
+
+		const int delta = viewport->isVerticalScrollBarShown() ? viewport->getScrollBarThickness() : 0;
+
+		channelList->setSize(getParentShell()->getContentBounds().getWidth() - 5 - delta, channelList->getHeight());
 		channelList->setColourAndFont(findPanelColour(PanelColourId::textColour), getFont());
 	}
 
@@ -1006,6 +1017,11 @@ public:
 	void resized()
 	{
 		viewport->setBounds(getLocalBounds().reduced(5));
+
+		const int delta = viewport->isVerticalScrollBarShown() ? viewport->getScrollBarThickness() : 0;
+
+		window->setSize(getParentShell()->getContentBounds().getWidth() - 5 - delta, window->getHeight());
+
 	};
 
 	bool showTitleInPresentationMode() const override { return false; }
