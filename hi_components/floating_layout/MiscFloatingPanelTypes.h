@@ -167,7 +167,10 @@ public:
 		statisticLabel->setEditable(false, false);
 		statisticLabel->setColour(Label::ColourIds::textColourId, Colours::white);
 		
-
+        setDefaultPanelColour(PanelColourId::textColour, Colours::white);
+        
+        statisticLabel->setFont(GLOBAL_BOLD_FONT());
+        
 		startTimer(200);
 	}
 
@@ -180,12 +183,11 @@ public:
 		FloatingTileContent::fromDynamicObject(object);
 
 		statisticLabel->setColour(Label::ColourIds::textColourId, findPanelColour(PanelColourId::textColour));
-		statisticLabel->setFont(getFont());
+		
 	}
 
 	void resized() override
 	{
-		statisticLabel->setFont(getFont());
 		statisticLabel->setBounds(getLocalBounds());
 	}
 

@@ -359,9 +359,6 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 
 	if (HiseDeviceSimulator::isMobileDevice())
 	{
-		setProperty(Properties::Driver, false);
-		setProperty(Properties::Device, false);
-		setProperty(Properties::Output, false);
 		setProperty(Properties::GraphicRendering, false);
 		setProperty(Properties::ScaleFactor, false);
 		setProperty(Properties::StreamingMode, false);
