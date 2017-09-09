@@ -342,8 +342,6 @@ Component* FloatingPanelTemplates::createSamplerWorkspace(FloatingTile* rootTile
 {
 #if USE_BACKEND
 	
-	jassert(mc != nullptr);
-
 	FloatingInterfaceBuilder ib(rootTile);
 
 	const int personaContainer = 0;
@@ -396,6 +394,7 @@ Component* FloatingPanelTemplates::createSamplerWorkspace(FloatingTile* rootTile
 
 var FloatingPanelTemplates::createSettingsWindow(MainController* mc)
 {
+#if IS_STANDALONE_APP
 	ScopedPointer<FloatingTile> root = new FloatingTile(mc, nullptr);
 
 	mc->setIsOnAir(false);
@@ -423,6 +422,11 @@ var FloatingPanelTemplates::createSettingsWindow(MainController* mc)
 	mc->setIsOnAir(true);
 
 	return v;
+#else
+
+	ignoreUnused(mc);
+	return var();
+#endif
 }
 
 Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTile)

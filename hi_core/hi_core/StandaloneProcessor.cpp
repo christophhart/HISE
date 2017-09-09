@@ -211,7 +211,7 @@ void GlobalSettingManager::setUseOpenGLRenderer(bool shouldUseOpenGL)
 
 void AudioProcessorDriver::updateMidiToggleList(MainController* mc, ToggleButtonList* listToUpdate)
 {
-    
+#if USE_BACKEND || IS_STANDALONE_APP
 	ScopedPointer<XmlElement> midiSourceXml = dynamic_cast<AudioProcessorDriver*>(mc)->deviceManager->createStateXml();
 
 	StringArray midiInputs = MidiInput::getDevices();
@@ -233,6 +233,7 @@ void AudioProcessorDriver::updateMidiToggleList(MainController* mc, ToggleButton
 			}
 		}
 	}
+#endif
 }
 
 
