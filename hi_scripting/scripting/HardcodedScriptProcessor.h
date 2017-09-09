@@ -365,7 +365,10 @@ public:
 			attenuationLevel = 1.0;
 		}
 	
-		Synth.playNote(Message.getNoteNumber(), (int)(velocityValues[Message.getNoteNumber()] * attenuationLevel));
+		int v = (int)(velocityValues[Message.getNoteNumber()] * attenuationLevel);
+
+		if(v > 0)
+			Synth.playNote(Message.getNoteNumber(), v);
 	}
 	
 	void onControl(ScriptingApi::Content::ScriptComponent *component , var value ) override

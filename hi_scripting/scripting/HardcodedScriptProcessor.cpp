@@ -70,46 +70,58 @@ ProcessorEditorBody *HardcodedScriptProcessor::createEditor(ProcessorEditor *par
 
 void HardcodedScriptProcessor::processHiseEvent(HiseEvent &m)
 {
-	currentEvent = &m;
-
-	Message.setHiseEvent(m);
-
-	Message.ignoreEvent(false);
-
-	switch (m.getType())
+	try
 	{
-	case HiseEvent::Type::NoteOn: Synth.increaseNoteCounter(m.getNoteNumber());
-		onNoteOn();
-		break;
+		currentEvent = &m;
 
-	case HiseEvent::Type::NoteOff: Synth.decreaseNoteCounter(m.getNoteNumber());
-		onNoteOff();
-		break;
+		Message.setHiseEvent(m);
 
-	case HiseEvent::Type::Controller:
-	case HiseEvent::Type::PitchBend:
-	case HiseEvent::Type::Aftertouch: onController();
-		break;
+		Message.ignoreEvent(false);
 
-	case HiseEvent::Type::TimerEvent:
-	{
-		if (m.getTimerIndex() == getIndexInChain())
+		switch (m.getType())
 		{
-			onTimer(m.getTimeStamp());
-			m.ignoreEvent(true);
+		case HiseEvent::Type::NoteOn: Synth.increaseNoteCounter(m.getNoteNumber());
+			onNoteOn();
+			break;
+
+		case HiseEvent::Type::NoteOff: Synth.decreaseNoteCounter(m.getNoteNumber());
+			onNoteOff();
+			break;
+
+		case HiseEvent::Type::Controller:
+		case HiseEvent::Type::PitchBend:
+		case HiseEvent::Type::Aftertouch: onController();
+			break;
+
+		case HiseEvent::Type::TimerEvent:
+		{
+			if (m.getTimerIndex() == getIndexInChain())
+			{
+				onTimer(m.getTimeStamp());
+				m.ignoreEvent(true);
+				break;
+			}
+		}
+		case HiseEvent::Type::Empty:
+		case HiseEvent::Type::AllNotesOff:
+		case HiseEvent::Type::SongPosition:
+		case HiseEvent::Type::MidiStart:
+		case HiseEvent::Type::MidiStop:
+		case HiseEvent::Type::VolumeFade:
+		case HiseEvent::Type::PitchFade:
+		case HiseEvent::Type::numTypes:
 			break;
 		}
 	}
-    case HiseEvent::Type::Empty:
-    case HiseEvent::Type::AllNotesOff:
-    case HiseEvent::Type::SongPosition:
-    case HiseEvent::Type::MidiStart:
-    case HiseEvent::Type::MidiStop:
-    case HiseEvent::Type::VolumeFade:
-    case HiseEvent::Type::PitchFade:
-    case HiseEvent::Type::numTypes:
-        break;
+	catch (String& error)
+	{
+#if USE_BACKEND
+		debugError(this, error);
+#else
+		DBG(error);
+#endif
 	}
+	
 }
 
 void HardcodedScriptFactoryType::fillTypeNameList()
