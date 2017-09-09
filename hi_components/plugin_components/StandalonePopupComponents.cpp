@@ -360,17 +360,7 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 	if(mc->isOnAir())
 		rebuildMenus(true, true);
 
-#if HISE_IOS && HISE_IPHONE
-    setSize(250, 180);
-#else
-
-#if IS_STANDALONE_FRONTEND
-	setSize(320, 470);
-#else
-	setSize(320, 260);
-#endif
-
-#endif
+	setSize(320, 400);
 }
 
 #undef ADD
@@ -914,6 +904,8 @@ public:
 		SET(Properties::SampleLocation);
 		SET(Properties::DebugMode);
 		
+		window->refreshSizeFromProperties();
+
 		window->setColour(ColourIds::textColour, findPanelColour(FloatingTileContent::PanelColourId::textColour));
 		window->setColour(ColourIds::backgroundColour, findPanelColour(FloatingTileContent::PanelColourId::bgColour));
 		window->setFont(getFont());
@@ -998,9 +990,14 @@ public:
 	{
 		setDefaultPanelColour(PanelColourId::bgColour, Colours::black);
 		setDefaultPanelColour(PanelColourId::textColour, Colours::white);
-		
 
-		addAndMakeVisible(window = new CustomSettingsWindow(getMainController()));
+		addAndMakeVisible(viewport = new Viewport());
+
+		window = new CustomSettingsWindow(getMainController());
+
+		viewport->setViewedComponent(window);
+		viewport->setScrollBarsShown(true, false, true, false);
+
 		window->setFont(GLOBAL_BOLD_FONT());
 	}
 
@@ -1008,12 +1005,14 @@ public:
 
 	void resized()
 	{
-		window->setBounds(getLocalBounds().reduced(5));
+		viewport->setBounds(getLocalBounds().reduced(5));
 	};
 
 	bool showTitleInPresentationMode() const override { return false; }
 
 private:
+
+	ScopedPointer<Viewport> viewport;
 
 	ScopedPointer<CustomSettingsWindow> window;
 

@@ -279,6 +279,22 @@ public:
 
 	bool isOn(Properties p) const { return properties[(int)p]; }
 
+	void refreshSizeFromProperties()
+	{
+		int height = 0;
+
+		for (int i = (int)Properties::Driver; i <= (int)Properties::DebugMode; i++)
+		{
+			if (properties[i])
+				height += 40;
+		}
+
+		if (properties[(int)Properties::SampleLocation])
+			height += 40;
+
+		setSize(320, height);
+	}
+
 	void rebuildScaleFactorList();
 
 	void setFont(Font f)
