@@ -42,7 +42,7 @@ public:
 
 	enum ContainerPropertyIds
 	{
-		Dynamic = FloatingTileContent::PanelPropertyId::numPropertyIds,
+		Dynamic = (int)FloatingTileContent::PanelPropertyId::numPropertyIds,
 		Content,
 		numContainerPropertyIds
 	};

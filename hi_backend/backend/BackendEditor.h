@@ -65,7 +65,7 @@ public:
 
 	enum MainPanelProperties
 	{
-		ScrollPosition = FloatingTileContent::PanelPropertyId::numPropertyIds,
+		ScrollPosition = (int)FloatingTileContent::PanelPropertyId::numPropertyIds,
 		GlobalCodeFontSize,
 		Autosaving,
 		numPropertyIds

@@ -43,7 +43,7 @@ public:
 
 	enum SpecialPanelIds
 	{
-		Text = FloatingTileContent::PanelPropertyId::numPropertyIds,
+		Text = (int)FloatingTileContent::PanelPropertyId::numPropertyIds,
 		numSpecialPanelIds
 	};
 
@@ -209,7 +209,7 @@ public:
 
 	enum SpecialPanelIds
 	{
-		OnImage = FloatingTileContent::PanelPropertyId::numPropertyIds,
+		OnImage = (int)FloatingTileContent::PanelPropertyId::numPropertyIds,
 		OffImage,
 		ShowMidiLabel,
 		numSpecialPanelIds
@@ -374,7 +374,7 @@ public:
 
 	enum SpecialPanelIds
 	{
-		Text = FloatingTileContent::PanelPropertyId::numPropertyIds,
+		Text = (int)FloatingTileContent::PanelPropertyId::numPropertyIds,
 		Width,
 		Height,
 		PopoutData,
@@ -553,7 +553,7 @@ public:
 
 	enum SpecialPanelIds
 	{
-		Alignment = FloatingTileContent::PanelPropertyId::numPropertyIds,
+		Alignment = (int)FloatingTileContent::PanelPropertyId::numPropertyIds,
 		IconIds,
 		numSpecialPanelIds
 	};
@@ -688,7 +688,7 @@ public:
 
 	enum SpecialPanelIds
 	{
-		CustomGraphics = FloatingTileContent::PanelPropertyId::numPropertyIds,
+		CustomGraphics = (int)FloatingTileContent::PanelPropertyId::numPropertyIds,
 		KeyWidth,
 		LowKey,
 		HiKey,

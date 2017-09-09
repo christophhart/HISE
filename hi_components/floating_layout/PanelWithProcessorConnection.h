@@ -48,7 +48,7 @@ public:
 
 	enum SpecialPanelIds
 	{
-		ProcessorId = FloatingTileContent::PanelPropertyId::numPropertyIds,
+		ProcessorId = (int)FloatingTileContent::PanelPropertyId::numPropertyIds,
 		Index,
 		numSpecialPanelIds
 	};
