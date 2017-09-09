@@ -125,7 +125,7 @@ int PanelWithProcessorConnection::getNumDefaultableProperties() const
 
 Identifier PanelWithProcessorConnection::getDefaultablePropertyId(int index) const
 {
-	if (index < FloatingTileContent::numPropertyIds)
+	if (index < (int)PanelPropertyId::numPropertyIds)
 		return FloatingTileContent::getDefaultablePropertyId(index);
 
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ProcessorId, "ProcessorId");
@@ -137,7 +137,7 @@ Identifier PanelWithProcessorConnection::getDefaultablePropertyId(int index) con
 
 var PanelWithProcessorConnection::getDefaultProperty(int index) const
 {
-	if (index < FloatingTileContent::numPropertyIds)
+	if (index < (int)PanelPropertyId::numPropertyIds)
 		return FloatingTileContent::getDefaultProperty(index);
 
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ProcessorId, var(""));

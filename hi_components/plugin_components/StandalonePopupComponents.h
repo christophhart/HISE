@@ -62,6 +62,12 @@ public:
 
 	void setValue(int index, bool value, NotificationType notify = dontSendNotification);
 
+	void setColourAndFont(Colour c, Font f)
+	{
+		btblaf.textColour = c;
+		btblaf.f = f;
+	}
+
 private:
 
 	//ToolbarButtonLookAndFeel tblaf;
@@ -217,9 +223,17 @@ class CustomSettingsWindow : public Component,
 {
 public:
 
+    enum ColourIds
+    {
+        backgroundColour = 0xF1242,
+        itemColour1,
+        textColour,
+        numColourIds
+    };
+    
 	enum class Properties
 	{
-		Driver = 5, // sloppy, update this when the amount FloatingTileContent::Properties change...
+		Driver = 7, // sloppy, update this when the amount FloatingTileContent::Properties change...
 		Device,
 		Output,
 		BufferSize,
@@ -267,7 +281,14 @@ public:
 
 	void rebuildScaleFactorList();
 
+	void setFont(Font f)
+	{
+		font = f;
+	}
+
 private:
+
+    Font font;
 
 	bool properties[(int)Properties::numProperties];
 	Array<Identifier> propIds;

@@ -76,7 +76,7 @@ public:
 
 	Identifier getDefaultablePropertyId(int index) const override
 	{
-		if (index < FloatingTileContent::numPropertyIds)
+		if (index < (int)PanelPropertyId::numPropertyIds)
 			return FloatingTileContent::getDefaultablePropertyId(index);
 
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::Text, "Text");
@@ -87,7 +87,7 @@ public:
 
 	var getDefaultProperty(int index) const override
 	{
-		if (index < FloatingTileContent::numPropertyIds)
+		if (index < (int)PanelPropertyId::numPropertyIds)
 			return FloatingTileContent::getDefaultProperty(index);
 
 		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::Text, var(""));
@@ -166,7 +166,7 @@ public:
 		addAndMakeVisible(statisticLabel = new Label());
 		statisticLabel->setEditable(false, false);
 		statisticLabel->setColour(Label::ColourIds::textColourId, Colours::white);
-		statisticLabel->setFont(GLOBAL_BOLD_FONT());
+		
 
 		startTimer(200);
 	}
@@ -175,8 +175,17 @@ public:
 
 	void timerCallback() override;
 
+	void fromDynamicObject(const var& object) override
+	{
+		FloatingTileContent::fromDynamicObject(object);
+
+		statisticLabel->setColour(Label::ColourIds::textColourId, findPanelColour(PanelColourId::textColour));
+		statisticLabel->setFont(getFont());
+	}
+
 	void resized() override
 	{
+		statisticLabel->setFont(getFont());
 		statisticLabel->setBounds(getLocalBounds());
 	}
 
@@ -211,6 +220,8 @@ public:
 	{
 		setOpaque(true);
 
+		
+
 		startTimer(100);
 	}
 
@@ -238,7 +249,7 @@ public:
 
 	Identifier getDefaultablePropertyId(int index) const override
 	{
-		if (index < FloatingTileContent::numPropertyIds)
+		if (index < (int)PanelPropertyId::numPropertyIds)
 			return FloatingTileContent::getDefaultablePropertyId(index);
 
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::OffImage, "OffImage");
@@ -251,7 +262,7 @@ public:
 
 	var getDefaultProperty(int index) const override
 	{
-		if (index < FloatingTileContent::numPropertyIds)
+		if (index < (int)PanelPropertyId::numPropertyIds)
 			return FloatingTileContent::getDefaultProperty(index);
 
 		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::OffImage, var(""));
@@ -266,6 +277,9 @@ public:
 	{
 		g.fillAll(Colours::black);
 		g.setColour(Colours::white);
+
+		g.setFont(getFont());
+
 		if(showMidiLabel)
 			g.drawText("MIDI", 0, 0, 100, getHeight(), Justification::centredLeft, false);
 
@@ -279,6 +293,8 @@ public:
 	}
 
 private:
+
+	Path midiShape;
 
 	bool showMidiLabel = true;
 
@@ -435,7 +451,7 @@ public:
 
 	Identifier getDefaultablePropertyId(int index) const override
 	{
-		if (index < FloatingTileContent::numPropertyIds)
+		if (index < (int)PanelPropertyId::numPropertyIds)
 			return FloatingTileContent::getDefaultablePropertyId(index);
 
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::Text, "ButtonText");
@@ -449,7 +465,7 @@ public:
 
 	var getDefaultProperty(int index) const override
 	{
-		if (index < FloatingTileContent::numPropertyIds)
+		if (index < (int)PanelPropertyId::numPropertyIds)
 			return FloatingTileContent::getDefaultProperty(index);
 
 		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::Text, var("Popout Button"));
@@ -584,7 +600,7 @@ public:
 
 	Identifier getDefaultablePropertyId(int index) const override
 	{
-		if (index < FloatingTileContent::numPropertyIds)
+		if (index < (int)PanelPropertyId::numPropertyIds)
 			return FloatingTileContent::getDefaultablePropertyId(index);
 
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::Alignment, "Alignment");
@@ -596,7 +612,7 @@ public:
 
 	var getDefaultProperty(int index) const override
 	{
-		if (index < FloatingTileContent::numPropertyIds)
+		if (index < (int)PanelPropertyId::numPropertyIds)
 			return FloatingTileContent::getDefaultProperty(index);
 
 		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::Alignment, var((int)Justification::centred));
@@ -745,7 +761,7 @@ public:
 
 	Identifier getDefaultablePropertyId(int index) const override
 	{
-		if (index < FloatingTileContent::numPropertyIds)
+		if (index < (int)PanelPropertyId::numPropertyIds)
 			return FloatingTileContent::getDefaultablePropertyId(index);
 
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::CustomGraphics, "CustomGraphics");
@@ -762,7 +778,7 @@ public:
 
 	var getDefaultProperty(int index) const override
 	{
-		if (index < FloatingTileContent::numPropertyIds)
+		if (index < (int)PanelPropertyId::numPropertyIds)
 			return FloatingTileContent::getDefaultProperty(index);
 
 		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::CustomGraphics, false);
@@ -817,13 +833,6 @@ class TooltipPanel : public FloatingTileContent,
 {
 public:
 
-	enum SpecialPanelIds
-	{
-		Font = FloatingTileContent::PanelPropertyId::numPropertyIds,
-        FontSize,
-		numSpecialPanelIds
-	};
-
 	int getFixedHeight() const override
 	{
 		return 30;
@@ -841,60 +850,16 @@ public:
 		addAndMakeVisible(tooltipBar = new TooltipBar());;
 	}
 
-	var toDynamicObject() const override
-	{
-		var obj = FloatingTileContent::toDynamicObject();
-
-		storePropertyInObject(obj, SpecialPanelIds::Font, fontName, "Oxygen Bold");
-        storePropertyInObject(obj, SpecialPanelIds::FontSize, fontSize, 14.0f);
-
-		return obj;
-	}
-
 	void fromDynamicObject(const var& object) override
 	{
 		FloatingTileContent::fromDynamicObject(object);
-
-		fontName = getPropertyWithDefault(object, SpecialPanelIds::Font);
-        fontSize = getPropertyWithDefault(object, SpecialPanelIds::FontSize);
 
 		tooltipBar->setColour(TooltipBar::backgroundColour, findPanelColour(PanelColourId::bgColour));
 		tooltipBar->setColour(TooltipBar::iconColour, findPanelColour(PanelColourId::itemColour1));
 		tooltipBar->setColour(TooltipBar::textColour, findPanelColour(PanelColourId::textColour));
         
-        auto f = getMainController()->getFontFromString(fontName, fontSize);
-        tooltipBar->setFont(f);
+        tooltipBar->setFont(getFont());
 	}
-
-	int getNumDefaultableProperties() const override
-	{
-		return SpecialPanelIds::numSpecialPanelIds;
-	}
-
-	Identifier getDefaultablePropertyId(int index) const override
-	{
-		if (index < FloatingTileContent::numPropertyIds)
-			return FloatingTileContent::getDefaultablePropertyId(index);
-
-		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::Font, "Font");
-        RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::FontSize, "FontSize");
-
-		jassertfalse;
-		return{};
-	}
-
-	var getDefaultProperty(int index) const override
-	{
-		if (index < FloatingTileContent::numPropertyIds)
-			return FloatingTileContent::getDefaultProperty(index);
-
-		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::Font, var("Oxygen Bold"));
-        RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::FontSize, 14.0f);
-
-		jassertfalse;
-		return{};
-	}
-
 
 	bool showTitleInPresentationMode() const override
 	{
@@ -925,12 +890,6 @@ class PresetBrowserPanel : public FloatingTileContent,
 {
 public:
 
-	enum SpecialPanelIds
-	{
-		Font = FloatingTileContent::PanelPropertyId::numPropertyIds,
-		numSpecialPanelIds
-	};
-
 	SET_PANEL_NAME("PresetBrowser");
 
 	PresetBrowserPanel(FloatingTile* parent):
@@ -942,51 +901,12 @@ public:
 		addAndMakeVisible(presetBrowser = new MultiColumnPresetBrowser(getMainController()));
 	}
 
-	var toDynamicObject() const override
-	{
-		var obj = FloatingTileContent::toDynamicObject();
-
-		storePropertyInObject(obj, SpecialPanelIds::Font, fontName, "Oxygen Bold");
-
-		return obj;
-	}
-
 	void fromDynamicObject(const var& object) override
 	{
 		FloatingTileContent::fromDynamicObject(object);
 
-		fontName = getPropertyWithDefault(object, SpecialPanelIds::Font);
-
-		presetBrowser->setHighlightColourAndFont(findPanelColour(PanelColourId::itemColour1), findPanelColour(PanelColourId::bgColour), getMainController()->getFontFromString(fontName, 16.0f));
+		presetBrowser->setHighlightColourAndFont(findPanelColour(PanelColourId::itemColour1), findPanelColour(PanelColourId::bgColour), getFont());
 	}
-
-	int getNumDefaultableProperties() const override
-	{
-		return SpecialPanelIds::numSpecialPanelIds;
-	}
-
-	Identifier getDefaultablePropertyId(int index) const override
-	{
-		if (index < FloatingTileContent::numPropertyIds)
-			return FloatingTileContent::getDefaultablePropertyId(index);
-
-		RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::Font, "Font");
-		
-		jassertfalse;
-		return {};
-	}
-
-	var getDefaultProperty(int index) const override
-	{
-		if (index < FloatingTileContent::numPropertyIds)
-			return FloatingTileContent::getDefaultProperty(index);
-
-		RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::Font, var("Oxygen Bold"));
-
-		jassertfalse;
-		return {};
-	}
-
 
 	bool showTitleInPresentationMode() const override
 	{

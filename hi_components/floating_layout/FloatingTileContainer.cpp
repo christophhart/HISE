@@ -139,7 +139,7 @@ int FloatingTileContainer::getNumDefaultableProperties() const
 
 Identifier FloatingTileContainer::getDefaultablePropertyId(int index) const
 {
-	if (index < FloatingTileContent::numPropertyIds)
+	if (index < (int)PanelPropertyId::numPropertyIds)
 		return FloatingTileContent::getDefaultablePropertyId(index);
 
 	RETURN_DEFAULT_PROPERTY_ID(index, ContainerPropertyIds::Content, "Content");
@@ -151,7 +151,7 @@ Identifier FloatingTileContainer::getDefaultablePropertyId(int index) const
 
 var FloatingTileContainer::getDefaultProperty(int id) const
 {
-	if (id < FloatingTileContent::numPropertyIds)
+	if (id < (int)PanelPropertyId::numPropertyIds)
 		return FloatingTileContent::getDefaultProperty(id);
 
 	auto prop = (ContainerPropertyIds)id;

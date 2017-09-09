@@ -37,6 +37,8 @@ Identifier FloatingTileContent::getDefaultablePropertyId(int index) const
 	RETURN_DEFAULT_PROPERTY_ID(index, PanelPropertyId::StyleData, "StyleData");
 	RETURN_DEFAULT_PROPERTY_ID(index, PanelPropertyId::ColourData, "ColourData");
 	RETURN_DEFAULT_PROPERTY_ID(index, PanelPropertyId::LayoutData, "LayoutData");
+	RETURN_DEFAULT_PROPERTY_ID(index, PanelPropertyId::Font, "Font");
+	RETURN_DEFAULT_PROPERTY_ID(index, PanelPropertyId::FontSize, "FontSize");
 
 	jassertfalse;
 
@@ -49,20 +51,22 @@ var FloatingTileContent::getDefaultProperty(int id) const
 
 	switch (prop)
 	{
-	case FloatingTileContent::Type: return var(); // This property is not defaultable
+	case PanelPropertyId::Type: return var(); // This property is not defaultable
 		break;
-	case FloatingTileContent::Title: return "";
-	case FloatingTileContent::StyleData:
+	case PanelPropertyId::Title: return "";
+	case PanelPropertyId::StyleData:
 	{ 
 		DynamicObject::Ptr newStyleData = new DynamicObject(); 
 		return var(newStyleData);	
 	}
-	case FloatingTileContent::ColourData:
+	case PanelPropertyId::ColourData:
 	{
 		return colourData.toDynamicObject();
 	}
-	case FloatingTileContent::LayoutData: return var(); // this property is restored explicitely
-	case FloatingTileContent::numPropertyIds:
+	case PanelPropertyId::LayoutData: return var(); // this property is restored explicitely
+	case PanelPropertyId::FontSize: return 14.0f;
+	case PanelPropertyId::Font:	return "Oxygen Bold";
+	case PanelPropertyId::numPropertyIds:
 	default:
 		break;
 	}
@@ -96,11 +100,13 @@ var FloatingTileContent::toDynamicObject() const
 
 	var obj(o);
 
-	storePropertyInObject(obj, FloatingTileContent::PanelPropertyId::Type, getIdentifierForBaseClass().toString());
-	storePropertyInObject(obj, FloatingTileContent::PanelPropertyId::Title, getCustomTitle(), "");
-	storePropertyInObject(obj, PanelPropertyId::StyleData, var(styleData));
-	storePropertyInObject(obj, PanelPropertyId::LayoutData, var(getParentShell()->getLayoutData().getLayoutDataObject()));
-	storePropertyInObject(obj, PanelPropertyId::ColourData, colourData.toDynamicObject());
+	storePropertyInObject(obj, (int)PanelPropertyId::Type, getIdentifierForBaseClass().toString());
+	storePropertyInObject(obj, (int)PanelPropertyId::Title, getCustomTitle(), "");
+	storePropertyInObject(obj, (int)PanelPropertyId::StyleData, var(styleData));
+	storePropertyInObject(obj, (int)PanelPropertyId::Font, fontName);
+	storePropertyInObject(obj, (int)PanelPropertyId::FontSize, fontSize);
+	storePropertyInObject(obj, (int)PanelPropertyId::LayoutData, var(getParentShell()->getLayoutData().getLayoutDataObject()));
+	storePropertyInObject(obj, (int)PanelPropertyId::ColourData, colourData.toDynamicObject());
 
 	if (getFixedSizeForOrientation() != 0)
 		o->removeProperty("Size");
@@ -111,13 +117,12 @@ var FloatingTileContent::toDynamicObject() const
 
 void FloatingTileContent::fromDynamicObject(const var& object)
 {
-	setCustomTitle(getPropertyWithDefault(object, PanelPropertyId::Title));
-
-	styleData = getPropertyWithDefault(object, PanelPropertyId::StyleData);
-
-	colourData.fromDynamicObject(getPropertyWithDefault(object, PanelPropertyId::ColourData));
-
-	getParentShell()->setLayoutDataObject(getPropertyWithDefault(object, PanelPropertyId::LayoutData));
+	setCustomTitle(getPropertyWithDefault(object, (int)PanelPropertyId::Title));
+	styleData = getPropertyWithDefault(object, (int)PanelPropertyId::StyleData);
+	fontName = getPropertyWithDefault(object, (int)PanelPropertyId::Font);
+	fontSize = getPropertyWithDefault(object, (int)PanelPropertyId::FontSize);
+	colourData.fromDynamicObject(getPropertyWithDefault(object, (int)PanelPropertyId::ColourData));
+	getParentShell()->setLayoutDataObject(getPropertyWithDefault(object, (int)PanelPropertyId::LayoutData));
 }
 
 FloatingTileContent* FloatingTileContent::createPanel(const var& data, FloatingTile* parent)

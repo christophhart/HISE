@@ -132,7 +132,7 @@ public:
 
 	Identifier getDefaultablePropertyId(int id) const override
 	{
-		if (id < FloatingTileContent::numPropertyIds)
+		if (id < (int)PanelPropertyId::numPropertyIds)
 			return FloatingTileContent::getDefaultablePropertyId(id);
 
 		RETURN_DEFAULT_PROPERTY_ID(id, (int)MainPanelProperties::ScrollPosition, "ScrollPosition");
@@ -145,7 +145,7 @@ public:
 
 	var getDefaultProperty(int id) const override
 	{
-		if (id < FloatingTileContent::numPropertyIds)
+		if (id < (int)PanelPropertyId::numPropertyIds)
 			return FloatingTileContent::getDefaultProperty(id);
 
 		RETURN_DEFAULT_PROPERTY(id, (int)MainPanelProperties::ScrollPosition, var(0));

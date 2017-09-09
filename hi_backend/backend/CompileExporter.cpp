@@ -456,7 +456,7 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 
 		if (createPlugin)
 		{
-			result = createPluginDataHeaderFile(solutionDirectory, publicKey, option == BuildOptionHelpers::isIOS(option));
+			result = createPluginDataHeaderFile(solutionDirectory, publicKey, BuildOptionHelpers::isIOS(option));
 
 			if (result != ErrorCodes::OK) return result;
 		}

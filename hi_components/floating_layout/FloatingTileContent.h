@@ -38,8 +38,8 @@
 class FloatingTile;
 class FloatingTileContainer;
 
-#define RETURN_DEFAULT_PROPERTY_ID(idToCheck, name, id) if(idToCheck == name) { static const Identifier i(id); return i;}
-#define RETURN_DEFAULT_PROPERTY(idToCheck, name, value) if(idToCheck == name) { return value; }
+#define RETURN_DEFAULT_PROPERTY_ID(idToCheck, name, id) if(idToCheck == (int)name) { static const Identifier i(id); return i;}
+#define RETURN_DEFAULT_PROPERTY(idToCheck, name, value) if(idToCheck == (int)name) { return value; }
 
 /** A base class for objects that can be stored and restored using DynamicObject. */
 class ObjectWithDefaultProperties
@@ -264,19 +264,21 @@ protected:
 	FloatingTileContent(FloatingTile* parent_) :
 		parent(parent_)
 	{
-		styleData = getDefaultProperty(PanelPropertyId::StyleData);
+		styleData = getDefaultProperty((int)PanelPropertyId::StyleData);
 
 	}
 
 public:
 
-	enum PanelPropertyId
+	enum class PanelPropertyId
 	{
 		Type = 0,
 		Title,
 		StyleData,
 		ColourData,
 		LayoutData,
+		Font,
+		FontSize,
 		numPropertyIds
 	};
 
@@ -301,7 +303,7 @@ public:
 	
 
 
-	int getNumDefaultableProperties() const override { return numPropertyIds; };
+	int getNumDefaultableProperties() const override { return (int)PanelPropertyId::numPropertyIds; };
 	Identifier getDefaultablePropertyId(int i) const override;
 	var getDefaultProperty(int id) const override;
 
@@ -351,6 +353,14 @@ public:
 	void setDynamicTitle(const String& newDynamicTitle);
 
 	String getDynamicTitle() const { return dynamicTitle; }
+
+	Font getFont() const
+	{
+		if (fontName.isEmpty())
+			return GLOBAL_BOLD_FONT();
+
+		return getMainController()->getFontFromString(fontName, fontSize);
+	}
 
 	/** This returns the title that is supposed to be displayed. */
 	String getBestTitle() const
@@ -498,15 +508,6 @@ public:
 	/** Override this method when you want to be notified when the amount of siblings change. */
 	virtual void siblingAmountChanged() {}
 
-#if OLD_COLOUR
-	void setStyleColour(int id, Colour c)
-	{
-		auto prop = getColourId(id);
-
-		setStyleProperty(prop, c.toString());
-	}
-#endif
-
 	var getStyleProperty(Identifier id, var defaultValue) const
 	{
 		if (styleData.getDynamicObject()->hasProperty(id))
@@ -514,35 +515,6 @@ public:
 		else
 			return defaultValue;
 	}
-
-#if OLD_COLOUR
-	Colour getStyleColour(int id) const
-	{
-		auto prop = getColourId(id);
-
-		var v = getStyleProperty(prop, "0x00000000");
-		return Colour::fromString(v.toString());
-	}
-#endif
-
-#if OLD_COLOUR
-	/** If your panel uses colours, overwrite this method and return the number of colours. */
-	virtual int getNumColourIds() const { return 0; }
-
-	/** If your panel uses custom colours, overwrite this method and return the colour identifier. */
-	virtual Identifier getColourId(int /*colourId*/) const { return Identifier(); }
-
-	/** If your panel uses colours, overwrite this method and return the default colour. */
-	virtual Colour getDefaultColour(int /*colourId*/) const { return Colours::transparentBlack; }
-
-
-	/** Call this in your subclass constructor when using custom colours. */
-	void initColours()
-	{
-		for (int i = 0; i < getNumColourIds(); i++)
-			setStyleColour(i, getDefaultColour(i));
-	}
-#endif
 
 	
 protected:
@@ -660,6 +632,9 @@ private:
 	};
 
 	ColourHolder colourData;
+
+	String fontName;
+	float fontSize = 14.0f;
 
 	var styleData;
 

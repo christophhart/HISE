@@ -855,15 +855,17 @@ BlackTextButtonLookAndFeel::BlackTextButtonLookAndFeel()
 
 	ticked = ImageCache::getFromMemory(CheckboxOn_png, sizeof(CheckboxOn_png));
 	unticked = ImageCache::getFromMemory(CheckboxOff_png, sizeof(CheckboxOff_png));
+
+	f = GLOBAL_BOLD_FONT();
+	textColour = Colours::white;
 }
 
 void BlackTextButtonLookAndFeel::drawToggleButton(Graphics &g, ToggleButton &b, bool , bool)
 {
 	g.drawImageAt(b.getToggleState() ? ticked : unticked, 0, 3);
 
-	g.setColour(Colours::white);
-
-	//g.setFont(GLOBAL_BOLD_FONT());
+	g.setColour(textColour);
+	g.setFont(f);
 
 	const int textX = 24;
 
@@ -872,7 +874,7 @@ void BlackTextButtonLookAndFeel::drawToggleButton(Graphics &g, ToggleButton &b, 
 		b.getWidth() - textX - 2, b.getHeight() - 8,
 		Justification::centredLeft, 10);
 
-	g.setColour(Colours::white.withAlpha(0.2f));
+	g.setColour(textColour.withAlpha(0.2f));
 
 	g.drawHorizontalLine(b.getHeight() - 1, 0.0f, (float)b.getWidth());
 }

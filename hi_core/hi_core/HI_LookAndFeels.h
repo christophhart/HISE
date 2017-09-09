@@ -1553,7 +1553,12 @@ public:
 
 	void drawToggleButton(Graphics &g, ToggleButton &b, bool isMouseOverButton, bool);
 
+
+	Colour textColour;
+	Font f;
+
 private:
+
 
 	Image ticked;
 	Image unticked;

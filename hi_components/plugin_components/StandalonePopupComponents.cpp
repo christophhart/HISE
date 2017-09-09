@@ -111,6 +111,8 @@ public:
         
 		midiInputList = new ToggleButtonList(midiInputs, this);
 
+		setDefaultPanelColour(PanelColourId::textColour, Colours::white);
+
         viewport->setViewedComponent(midiInputList);
         
         viewport->setScrollBarsShown (true, false, true, false);
@@ -129,8 +131,8 @@ public:
 
 	void resized() override
 	{
-        
 		viewport->setBounds(getParentShell()->getContentBounds().reduced(5));
+		midiInputList->setColourAndFont(findPanelColour(PanelColourId::textColour), getFont());
 	}
 
 	void periodicCheckCallback(ToggleButtonList* list) override
@@ -186,7 +188,7 @@ public:
         
         viewport->setScrollBarsShown (true, false, true, false);
 
-        
+		setDefaultPanelColour(PanelColourId::textColour, Colours::white);
         
 		//channelList->setLookAndFeel(&tblaf);
 
@@ -223,6 +225,7 @@ public:
 	void resized() override
 	{
 		viewport->setBounds(getParentShell()->getContentBounds().reduced(5));
+		channelList->setColourAndFont(findPanelColour(PanelColourId::textColour), getFont());
 	}
 
 private:
@@ -262,7 +265,8 @@ private:
 #define ADD(x) propIds.add(Identifier(#x));
 
 CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
-	mc(mc_)
+	mc(mc_),
+    font(GLOBAL_BOLD_FONT())
 {
 	ADD(Driver);
 	ADD(Device);
@@ -279,6 +283,8 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 	ADD(DebugMode);
 	ADD(ScaleFactorList);
     
+	setColour(ColourIds::textColour, Colours::white);
+
     for(int i = 0; i < (int)Properties::numProperties; i++)
     {
         properties[i] = true;
@@ -368,6 +374,8 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 }
 
 #undef ADD
+
+
 
 CustomSettingsWindow::~CustomSettingsWindow()
 {
@@ -775,9 +783,9 @@ void CustomSettingsWindow::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
 
 void CustomSettingsWindow::paint(Graphics& g)
 {
-	g.setColour(Colours::white);
-
-	g.setFont(GLOBAL_BOLD_FONT());
+    g.setColour(findColour((int)ColourIds::textColour));
+    
+	g.setFont(font);
 
 	int y = 10;
 
@@ -807,7 +815,7 @@ void CustomSettingsWindow::paint(Graphics& g)
 		const String samplePath = ProjectHandler::Frontend::getSampleLocationForCompiledPlugin().getFullPathName();
 #endif
 
-		g.setFont(GLOBAL_BOLD_FONT());
+		g.setFont(font);
 		g.drawText("Sample Location:", 15, y, getWidth() - 30, 30, Justification::centredTop);
 
 		g.setFont(GLOBAL_FONT());
@@ -854,6 +862,9 @@ public Component
 {
 public:
 
+    
+    
+    
 #define SET(x) storePropertyInObject(obj, (int)x, var(window->properties[(int)x]));
 	
 	var toDynamicObject() const override
@@ -873,9 +884,11 @@ public:
 		SET(Properties::ClearMidiCC);
 		SET(Properties::SampleLocation);
 		SET(Properties::DebugMode);
+        
 		
 		storePropertyInObject(obj, (int)Properties::ScaleFactorList, var(window->scaleFactorList));
 
+        
 		return obj;
 	}
 
@@ -901,6 +914,11 @@ public:
 		SET(Properties::SampleLocation);
 		SET(Properties::DebugMode);
 		
+		window->setColour(ColourIds::textColour, findPanelColour(FloatingTileContent::PanelColourId::textColour));
+		window->setColour(ColourIds::backgroundColour, findPanelColour(FloatingTileContent::PanelColourId::bgColour));
+		window->setFont(getFont());
+		
+
 		auto list = getPropertyWithDefault(object, (int)Properties::ScaleFactorList);
 
 		if (list.isArray())
@@ -918,11 +936,11 @@ public:
 
 #undef SET
 
-#define SET(x) RETURN_DEFAULT_PROPERTY_ID(index, (int)x, window->propIds[(int)x - (int)FloatingTileContent::numPropertyIds]);
+#define SET(x) RETURN_DEFAULT_PROPERTY_ID(index, (int)x, window->propIds[(int)x - (int)FloatingTileContent::PanelPropertyId::numPropertyIds]);
 
 	Identifier getDefaultablePropertyId(int index) const override
 	{
-		if (index < FloatingTileContent::numPropertyIds)
+		if (index < (int)PanelPropertyId::numPropertyIds)
 			return FloatingTileContent::getDefaultablePropertyId(index);
 
 		SET(Properties::Driver);
@@ -951,7 +969,7 @@ public:
 
 	var getDefaultProperty(int index) const override
 	{
-		if (index < FloatingTileContent::numPropertyIds)
+		if (index < (int)PanelPropertyId::numPropertyIds)
 			return FloatingTileContent::getDefaultProperty(index);
 
 		SET(Properties::Driver);
@@ -979,8 +997,11 @@ public:
 		FloatingTileContent(parent)
 	{
 		setDefaultPanelColour(PanelColourId::bgColour, Colours::black);
+		setDefaultPanelColour(PanelColourId::textColour, Colours::white);
+		
 
 		addAndMakeVisible(window = new CustomSettingsWindow(getMainController()));
+		window->setFont(GLOBAL_BOLD_FONT());
 	}
 
 	SET_PANEL_NAME("CustomSettings");
