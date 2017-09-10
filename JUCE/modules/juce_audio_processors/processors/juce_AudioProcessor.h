@@ -1270,6 +1270,8 @@ public:
         wrapperType_Standalone
     };
 
+	WrapperType getWrapperTypeBeingCreated() const;
+
     /** When loaded by a plugin wrapper, this flag will be set to indicate the type
         of plugin within which the processor is running.
     */

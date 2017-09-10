@@ -1335,6 +1335,65 @@ void BackendCommandTarget::Actions::toggleCallStackEnabled(BackendRootWindow * b
 	bpe->getBackendProcessor()->setCallStackEnabled(!bpe->getBackendProcessor()->isCallStackEnabled());
 }
 
+void BackendCommandTarget::Actions::testPlugin(const String& pluginToLoad)
+{
+	AudioPluginFormatManager fm;
+	KnownPluginList list;
+
+	fm.addDefaultFormats();
+
+	
+
+	OwnedArray <PluginDescription> typesFound;
+
+	for (int i = 0; i < fm.getNumFormats(); i++)
+	{
+		list.scanAndAddFile(pluginToLoad, false, typesFound, *fm.getFormat(i));
+	}
+
+	String error;
+
+	if (!typesFound.isEmpty())
+	{
+		NewLine nl;
+
+		auto desc = typesFound.getUnchecked(0);
+
+		Logger::writeToLog("Loading plugin " + desc->name + nl);
+
+		ScopedPointer<XmlElement> xml = desc->createXml();
+
+		Logger::writeToLog("Plugin description:");
+		Logger::writeToLog(xml->createDocument(""));
+
+		Logger::writeToLog("Initialising...");
+
+		ScopedPointer<AudioPluginInstance> plugin = fm.createPluginInstance(*desc, 44100.0, 512, error);
+
+		Logger::writeToLog("OK");
+
+		Logger::writeToLog("Creating Editor...");
+
+		ScopedPointer<AudioProcessorEditor> editor = plugin->createEditor();
+
+		Logger::writeToLog("OK");
+
+		Logger::writeToLog("Removing Editor...");
+
+		editor = nullptr;
+
+		Logger::writeToLog("OK");
+
+		Logger::writeToLog("Closing Plugin...");
+
+		plugin = nullptr;
+
+		Logger::writeToLog("OK");
+
+		return;
+	}
+}
+
 void BackendCommandTarget::Actions::recompileAllScripts(BackendRootWindow * bpe)
 {
 	bpe->owner->compileAllScripts();

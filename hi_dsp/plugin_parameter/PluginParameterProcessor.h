@@ -61,18 +61,30 @@ public:
     
 	/** You have to create and add all PluginParameters here in order to ensure compatibility with most hosts */
 	PluginParameterAudioProcessor(const String &name_ = "Untitled"):
-#if FRONTEND_IS_PLUGIN
-        AudioProcessor(BusesProperties().withInput("Input", AudioChannelSet::stereo()).withOutput("Output", AudioChannelSet::stereo())),
-#else
-		AudioProcessor(BusesProperties().withOutput("Output", AudioChannelSet::stereo(), true)),
-#endif
+		AudioProcessor(getHiseBusProperties()),
 		name(name_)
 	{
-
-        
-        
+		
 	}
 
+	BusesProperties getHiseBusProperties() const
+	{
+#if FRONTEND_IS_PLUGIN
+		return BusesProperties().withInput("Input", AudioChannelSet::stereo()).withOutput("Output", AudioChannelSet::stereo());
+#else
+
+		if (getWrapperTypeBeingCreated() == wrapperType_AAX)
+		{
+			return BusesProperties().withInput("Input", AudioChannelSet::stereo()).withOutput("Output", AudioChannelSet::stereo());
+		}
+		else
+		{
+			return BusesProperties().withOutput("Output", AudioChannelSet::stereo());
+		}
+#endif
+
+		
+	}
     
     bool isBusesLayoutSupported (const BusesLayout& layouts) const override
     {

@@ -22,6 +22,21 @@ AudioProcessor* StandaloneProcessor::createProcessor()
 	return new BackendProcessor(deviceManager, callback);
 }
 
+class StdLogger : public Logger
+{
+public:
+
+	StdLogger()
+	{
+
+	}
+
+	void logMessage(const String& message) override
+	{
+		NewLine nl;
+		std::cout << message << nl;
+	}
+};
 
 //==============================================================================
 class HISEStandaloneApplication  : public JUCEApplication
@@ -39,7 +54,9 @@ public:
     {
         if (commandLine.startsWith("export"))
 		{
-			CompileExporter::ErrorCodes result = CompileExporter::compileFromCommandLine(commandLine);
+			String pluginFile;
+
+			CompileExporter::ErrorCodes result = CompileExporter::compileFromCommandLine(commandLine, pluginFile);
 
 			if (result != CompileExporter::OK)
 			{
@@ -67,7 +84,23 @@ public:
 			std::cout << "-p:{TEXT} sets the plugin type ('VST' | 'AU' | 'VST_AU' | 'AAX' | 'ALL')" << std::endl;
 			std::cout << "          (Leave empty for standalone export)" << std::endl;
 			std::cout << "-a:{TEXT} sets the architecture ('x86', 'x64', 'x86x64')." << std::endl;
-			std::cout << "          (Leave empty on OSX for Universal binary.)" << std::endl << std::endl;
+			std::cout << "          (Leave empty on OSX for Universal binary.)" << std::endl;
+			std::cout << "--test [PLUGIN_FILE]" << std::endl;
+			std::cout << "Tests the given plugin" << std::endl << std::endl;
+
+			quit();
+			return;
+		}
+		else if (commandLine.startsWith("--test"))
+		{
+			ScopedPointer<StdLogger> stdLogger = new StdLogger();
+
+			Logger::setCurrentLogger(stdLogger);
+
+			BackendCommandTarget::Actions::testPlugin(commandLine.fromFirstOccurrenceOf("--test", false, false).trim().replace("\"", ""));
+
+			Logger::setCurrentLogger(nullptr);
+			stdLogger = nullptr;
 
 			quit();
 			return;
@@ -102,6 +135,7 @@ public:
         // the other instance's command-line arguments were.
     }
 
+	
     //==============================================================================
     /*
         This class implements the desktop window that contains an instance of

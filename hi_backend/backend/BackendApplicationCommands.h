@@ -319,6 +319,8 @@ public:
 		static void addInterfacePreview(BackendRootWindow * bpe);
 		static void updateSampleMapIds(BackendRootWindow * bpe);
 		static void toggleCallStackEnabled(BackendRootWindow * bpe);
+		static void testPlugin(const String& pluginToLoad);
+
 	};
 
 private:

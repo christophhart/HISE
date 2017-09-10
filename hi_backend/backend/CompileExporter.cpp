@@ -257,7 +257,7 @@ CompileExporter::ErrorCodes CompileExporter::exportMainSynthChainAsStandaloneApp
 }
 
 
-CompileExporter::ErrorCodes CompileExporter::compileFromCommandLine(const String& commandLine)
+CompileExporter::ErrorCodes CompileExporter::compileFromCommandLine(const String& commandLine, String& pluginFile)
 {
 	String options = commandLine.fromFirstOccurrenceOf("export ", false, false);
 
@@ -309,6 +309,8 @@ CompileExporter::ErrorCodes CompileExporter::compileFromCommandLine(const String
 		std::cout << "DONE" << std::endl << std::endl;
 
 		BuildOption b = exporter.getBuildOptionFromCommandLine(args);
+
+		pluginFile = HelperClasses::getFileNameForCompiledPlugin(mainSynthChain, b);
 
 		if (BuildOptionHelpers::isEffect(b)) result = exporter.exportMainSynthChainAsFX(b);
 		else if (BuildOptionHelpers::isInstrument(b)) result = exporter.exportMainSynthChainAsInstrument(b);
@@ -935,6 +937,17 @@ CompileExporter::ErrorCodes CompileExporter::compileSolution(BuildOption buildOp
 
 #endif
     
+
+#if JUCE_MAC
+	if (globalCommandLineExport)
+	{
+		Logger::writeToLog("Execute" + permissionCommand);
+		Logger::writeToLog("Call " + command + " in order to compile the project");
+
+		return ErrorCodes::OK;
+	}
+#endif
+
 	int returnType = system(command.getCharPointer());
 
 	if (returnType != 0)
@@ -943,8 +956,8 @@ CompileExporter::ErrorCodes CompileExporter::compileSolution(BuildOption buildOp
 	}
 
 	batchFile.getParentDirectory().getChildFile("temp/").deleteRecursively();
-    
-    return ErrorCodes::OK;
+
+	return ErrorCodes::OK;
 }
 
 
@@ -1194,9 +1207,10 @@ CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(TargetType
 	{
 		if (BuildOptionHelpers::isIOS(option))
 			REPLACE_WILDCARD_WITH_STRING("%CHANNEL_CONFIG%", "");
+		else if (BuildOptionHelpers::isAAX(option))
+			REPLACE_WILDCARD_WITH_STRING("%CHANNEL_CONFIG%", "{1, 1}, {2, 2}");
 		else
 			REPLACE_WILDCARD_WITH_STRING("%CHANNEL_CONFIG%", "{0, 2}");
-
 		
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINISSYNTH%", "1");
 		REPLACE_WILDCARD_WITH_STRING("%PLUGINWANTSMIDIIN", "1");
@@ -1466,6 +1480,11 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
 		copyProtectionTargetFile.create();
 	}
 
+	File turboActivateFile = additionalSourceCodeDirectory.getChildFile("TurboActivate.dat");
+
+	if (turboActivateFile.existsAsFile())
+		additionalSourceFiles.add(turboActivateFile);
+
 	File iconFile = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Images).getChildFile("Icon.png");
 
 	if (iconFile.existsAsFile())
@@ -1528,6 +1547,8 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
 
 			bool isSplashScreen = (additionalSourceFiles[i].getFileName() == "SplashScreen.png");
 
+			bool isTurboActivate = (additionalSourceFiles[i].getFileName() == "TurboActivate.dat");
+
 			const String relativePath = additionalSourceFiles[i].getRelativePathFrom(GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries));
 
 			String newAditionalSourceLine;
@@ -1540,7 +1561,7 @@ void CompileExporter::ProjectTemplateHelpers::handleAdditionalSourceCode(Compile
             }
             
 			newAditionalSourceLine << "      <FILE id=\"" << fileId << "\" name=\"" << additionalSourceFiles[i].getFileName() << "\" compile=\"" << (isSourceFile ? "1" : "0") << "\" ";
-			newAditionalSourceLine << "resource=\"" << (isSplashScreen ? "1" : "0") << "\"\r\n";
+			newAditionalSourceLine << "resource=\"" << (isSplashScreen || isTurboActivate ? "1" : "0") << "\"\r\n";
 			newAditionalSourceLine << "            file=\"" << relativePath << "\"/>\r\n";
 
 			additionalFileDefinitions.add(newAditionalSourceLine);
@@ -1921,6 +1942,64 @@ File CompileExporter::BatchFileCreator::getBatchFile(CompileExporter* exporter)
 #else
     return GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getChildFile("batchCompileOSX");
 #endif
+}
+
+String CompileExporter::HelperClasses::getFileNameForCompiledPlugin(ModulatorSynthChain* chain, BuildOption option)
+{
+	File directory = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getChildFile("Compiled");
+
+	auto name = SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, &GET_PROJECT_HANDLER(chain));
+
+	String suffix;
+
+	switch (option)
+	{
+	case CompileExporter::VSTWindowsx86:
+		suffix = " x86.dll";
+		break;
+	case CompileExporter::VSTWindowsx64:
+		suffix = " x64.dll";
+		break;
+	case CompileExporter::VSTWindowsx64x86:
+		suffix = " x64.dll";
+		break;
+	case CompileExporter::VSTiWindowsx86:
+		suffix = " x86.dll";
+		break;
+	case CompileExporter::VSTiWindowsx64:
+		suffix = " x64.dll";
+		break;
+	case CompileExporter::VSTiWindowsx64x86:
+		suffix = " x64.dll";
+		break;
+	case CompileExporter::AUmacOS:
+		suffix = ".component";
+		break;
+	case CompileExporter::VSTmacOS:
+		suffix = ".vst";
+		break;
+	case CompileExporter::VSTAUmacOS:
+		suffix = ".component";
+		break;
+	case CompileExporter::AUimacOS:
+		suffix = ".component";
+		break;
+	case CompileExporter::VSTimacOS:
+		suffix = ".vst";
+		break;
+	case CompileExporter::VSTiAUimacOS:
+		suffix = ".component";
+		break;
+	default:
+		break;
+	}
+
+	if (suffix.isNotEmpty())
+	{
+		return directory.getChildFile(name + suffix).getFullPathName();
+	}
+
+	return String();
 }
 
 bool CompileExporter::HelperClasses::isUsingVisualStudio2015()

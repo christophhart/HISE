@@ -959,6 +959,11 @@ void AudioProcessor::editorBeingDeleted (AudioProcessorEditor* const editor) noe
         activeEditor = nullptr;
 }
 
+AudioProcessor::WrapperType AudioProcessor::getWrapperTypeBeingCreated() const
+{
+	return wrapperTypeBeingCreated.get();
+}
+
 AudioProcessorEditor* AudioProcessor::createEditorIfNeeded()
 {
     if (activeEditor != nullptr)

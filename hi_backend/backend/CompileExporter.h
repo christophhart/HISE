@@ -155,7 +155,7 @@ public:
 	ErrorCodes exportMainSynthChainAsFX(BuildOption option=BuildOption::Cancelled);
 	ErrorCodes exportMainSynthChainAsStandaloneApp(BuildOption option=BuildOption::Cancelled);
 
-	static ErrorCodes compileFromCommandLine(const String& commandLine);
+	static ErrorCodes compileFromCommandLine(const String& commandLine, String& pluginFile);
 
 	BuildOption getBuildOptionFromCommandLine(StringArray &args);
 
@@ -185,6 +185,8 @@ private:
 
 	struct HelperClasses
 	{
+		static String getFileNameForCompiledPlugin(ModulatorSynthChain* chain, BuildOption option);
+
 		static bool isUsingVisualStudio2015();
 
 		static ErrorCodes saveProjucerFile(String templateProject, CompileExporter* exporter);
