@@ -805,7 +805,7 @@ void ScriptingObjects::ScriptingSlotFX::clear()
 {
 	if (auto slot = getSlotFX())
 	{
-		getSlotFX()->reset();
+        slot->reset();
 	}
 	else
 	{
@@ -2176,12 +2176,12 @@ Modulator* ApiHelpers::ModuleHandler::addAndConnectToGlobalModulator(Chain* c, M
 	{
 		GlobalModulator* m = nullptr;
 
-		if (auto vm = dynamic_cast<VoiceStartModulator*>(globalModulator))
+		if (dynamic_cast<VoiceStartModulator*>(globalModulator) != nullptr)
 		{
 			auto vMod = addModule(c, GlobalVoiceStartModulator::getClassType().toString(), modName);
 			m = dynamic_cast<GlobalModulator*>(vMod);
 		}
-		else if (auto tm = dynamic_cast<TimeVariantModulator*>(globalModulator))
+		else if (dynamic_cast<TimeVariantModulator*>(globalModulator) != nullptr)
 		{
 			auto tMod = addModule(c, GlobalTimeVariantModulator::getClassType().toString(), modName);
 			m = dynamic_cast<GlobalModulator*>(tMod);

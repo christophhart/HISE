@@ -119,6 +119,8 @@ MemoryMappedAudioFormatReader* HiseLosslessAudioFormat::createMemoryMappedReader
 	return reader.release();
 #else
 
+	ignoreUnused(fin);
+
 	// Memory mapped file support on 32bit is pretty useless so we don't bother at all...
 	jassertfalse;
 	return nullptr;

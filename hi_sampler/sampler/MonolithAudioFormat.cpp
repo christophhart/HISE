@@ -151,7 +151,7 @@ void HlacMonolithInfo::fillMetadataInfo(const ValueTree& sampleMap)
 		}
 	}
 
-	for (size_t i = 0; i < numChannels; i++)
+	for (size_t i = 0; i < (size_t)numChannels; i++)
 	{
 		dummyReader.numChannels = isMonoChannel[i] ? 1 : 2;
         

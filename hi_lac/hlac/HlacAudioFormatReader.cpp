@@ -459,11 +459,11 @@ void HlacMemoryMappedAudioFormatReader::copySampleData(int* const* destSamples, 
 	}
 }
 
-bool HlacMemoryMappedAudioFormatReader::copyFromMonolith(HiseSampleBuffer& destination, int startOffsetInBuffer, int numDestChannels, int64 offsetInFile, int numChannels, int numSamples)
+bool HlacMemoryMappedAudioFormatReader::copyFromMonolith(HiseSampleBuffer& destination, int startOffsetInBuffer, int numDestChannels, int64 offsetInFile, int numSrcChannels, int numSamples)
 {
 	auto sourceData = sampleToPointer(offsetInFile);
 
-	if (numChannels == 1)
+	if (numSrcChannels == 1)
 	{
 		memcpy(destination.getWritePointer(0, startOffsetInBuffer), sourceData, numSamples * sizeof(int16));
 

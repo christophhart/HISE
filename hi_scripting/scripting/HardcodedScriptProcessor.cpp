@@ -117,8 +117,10 @@ void HardcodedScriptProcessor::processHiseEvent(HiseEvent &m)
 	{
 #if USE_BACKEND
 		debugError(this, error);
+		
 #else
 		DBG(error);
+		ignoreUnused(error);
 #endif
 	}
 	

@@ -1028,9 +1028,9 @@ var ScriptingApi::Engine::getDeviceResolution()
 bool ScriptingApi::Engine::isPlugin() const
 {
 #if IS_STANDALONE_APP
-	return true;
-#else
 	return false;
+#else
+	return true;
 #endif
 }
 

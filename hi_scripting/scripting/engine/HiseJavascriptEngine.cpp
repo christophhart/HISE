@@ -794,7 +794,7 @@ var HiseJavascriptEngine::getScriptObject(const Identifier &id) const
 			const int index = api->getConstantIndex(Identifier(sa[1]));
 			return api->getConstantValue(index);
 		}
-		else if (auto ns = dynamic_cast<const RootObject::JavascriptNamespace*>(v.getObject()))
+		else if (dynamic_cast<const RootObject::JavascriptNamespace*>(v.getObject()) != nullptr)
 		{
 			Result r = Result::ok();
 

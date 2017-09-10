@@ -578,7 +578,7 @@ void ScriptingApi::Content::ScriptComponent::addToMacroControl(int macroIndex)
 	{
 		NormalisableRange<double> range(getScriptObjectProperty(Properties::min), getScriptObjectProperty(Properties::max));
 
-		if (auto s = dynamic_cast<ScriptSlider*>(this))
+		if (dynamic_cast<ScriptSlider*>(this) != nullptr)
 		{
 			range.interval = getScriptObjectProperty((int)ScriptSlider::Properties::stepSize);
 			HiSlider::setRangeSkewFactorFromMidPoint(range, getScriptObjectProperty((int)ScriptSlider::Properties::middlePosition));
@@ -3205,7 +3205,7 @@ void ScriptingApi::Content::restoreAllControlsFromPreset(const ValueTree &preset
 
 		var v = components[i]->getValue();
 
-		if (auto label = dynamic_cast<ScriptingApi::Content::ScriptLabel*>(components[i].get()))
+		if (dynamic_cast<ScriptingApi::Content::ScriptLabel*>(components[i].get()) != nullptr)
 		{
 			getScriptProcessor()->controlCallback(components[i], v);
 		}

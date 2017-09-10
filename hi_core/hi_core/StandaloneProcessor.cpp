@@ -233,6 +233,8 @@ void AudioProcessorDriver::updateMidiToggleList(MainController* mc, ToggleButton
 			}
 		}
 	}
+#else
+	ignoreUnused(mc, listToUpdate);
 #endif
 }
 
