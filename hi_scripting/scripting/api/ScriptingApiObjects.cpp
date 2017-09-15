@@ -2189,7 +2189,7 @@ Modulator* ApiHelpers::ModuleHandler::addAndConnectToGlobalModulator(Chain* c, M
 		else
 			throw String("Not a global modulator");
 
-		if (m != nullptr)
+		if (m == nullptr)
 			throw String("Global modulator can't be created");
 
 		auto entry = container->getId() + ":" + globalModulator->getId();
