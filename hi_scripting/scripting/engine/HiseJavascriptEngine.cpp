@@ -75,6 +75,15 @@ namespace TokenTypes
 
 HiseJavascriptEngine::~HiseJavascriptEngine()
 {
+	if (auto content = dynamic_cast<ScriptingApi::Content*>(root->getProperty("Content").getObject()))
+	{
+		for (int i = 0; i < content->getNumComponents(); i++)
+		{
+			if (auto c = content->getComponent(i))
+				c->preRecompileCallback();
+		}
+	}
+
 	root->hiseSpecialData.clear();
 	root = nullptr;
 	breakpointListeners.clear();

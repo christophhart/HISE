@@ -112,8 +112,11 @@ public:
 		virtual StringArray getOptionsFor(const Identifier &id);
 		virtual ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) = 0;
 
+
 		Identifier getName() const;
 		Identifier getObjectName() const override;
+
+		virtual void preRecompileCallback() {};
 
 		virtual ValueTree exportAsValueTree() const override;;
 		virtual void restoreFromValueTree(const ValueTree &v) override;;
@@ -752,18 +755,9 @@ public:
 		};
 
 		ScriptPanel(ProcessorWithScriptingContent *base, Content *parentContent, Identifier panelName, int x, int y, int width, int height);;
-		~ScriptPanel()
-		{
-			loadedImages.clear();
-
-			masterReference.clear();
-			
-			graphics = nullptr;
-
-			timerRoutine = var::undefined();
-			mouseRoutine = var::undefined();
-			paintRoutine = var::undefined();
-		}
+		
+        ~ScriptPanel();
+		
 
 		// ========================================================================================================
 
@@ -775,6 +769,14 @@ public:
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 
 		bool isAutomatable() const override { return true; }
+
+		void preRecompileCallback() override
+		{
+			stopTimer();
+			repaintNotifier.removeAllChangeListeners();
+			controlSender.cancelPendingUpdate();
+			repainter.stopTimer();
+		}
 
 		// ======================================================================================================== API Methods
 
@@ -878,6 +880,8 @@ public:
             ScriptPanel* panel;
         };
         
+		
+
 	private:
 
 		double getScaleFactorForCanvas() const;
@@ -910,6 +914,11 @@ public:
 		{
 			AsyncRepainter(ScriptPanel* parent_) : parent(parent_){}
 
+            ~AsyncRepainter()
+            {
+                
+            }
+            
             void triggerAsyncUpdate()
             {
                 if(!isTimerRunning()) startTimer(30);
@@ -1267,6 +1276,52 @@ public:
 
 	struct Wrapper;
 
+#if 0
+	struct Iterator
+	{
+		Iterator(const Content* c_, int pos_) :
+			c(c_),
+			pos(pos_)
+		{}
+
+		bool operator!= (const Iterator& other) const
+		{
+			return c != other.c;
+		}
+
+		const Iterator& operator++ ()
+		{
+			++pos;
+			return *this;
+		}
+
+		const ScriptComponent* operator* () const
+		{
+			return c->getComponent(pos);
+		}
+
+		ScriptComponent* operator* ()
+		{
+			return const_cast<ScriptComponent*>(c->getComponent(pos));
+		}
+
+	private:
+
+		const Content* c;
+		int pos;
+	};
+
+	Iterator begin() const
+	{
+		return Iterator(this, 0);
+	}
+
+	Iterator end() const
+	{
+		return Iterator(this, getNumComponents());
+	}
+#endif
+
 private:
 
 	template<class Subtype> Subtype *addComponent(Identifier name, int x, int y, int width = -1, int height = -1);
@@ -1289,7 +1344,6 @@ private:
 
 	// ================================================================================================================
 };
-
 
 
 #endif  // SCRIPTINGAPICONTENT_H_INCLUDED

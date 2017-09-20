@@ -2089,6 +2089,21 @@ controlSender(this, base)
 
 }
 
+ScriptingApi::Content::ScriptPanel::~ScriptPanel()
+{
+    stopTimer();
+    
+    loadedImages.clear();
+    
+    masterReference.clear();
+    
+    graphics = nullptr;
+    
+    timerRoutine = var();
+    mouseRoutine = var();
+    paintRoutine = var();
+}
+
 StringArray ScriptingApi::Content::ScriptPanel::getOptionsFor(const Identifier &id)
 {
 	if (id == getIdFor(allowCallbacks))
