@@ -113,6 +113,7 @@ using namespace juce;
 	ValueTree externalFiles = PresetHandler::loadValueTreeFromData(PresetData::externalFiles, PresetData::externalFilesSize, true);\
 	\
 	FrontendProcessor* fp = new FrontendProcessor(presetData, deviceManager, callback, &imageData, &impulseData, &externalFiles, nullptr);\
+    UserPresetHelpers::extractUserPresets(PresetData::userPresets, PresetData::userPresetsSize);\
 	AudioProcessorDriver::restoreSettings(fp);\
 	GlobalSettingManager::restoreGlobalSettings(fp); \
 	fp->loadSamplesAfterSetup();\

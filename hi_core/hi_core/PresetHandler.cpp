@@ -614,6 +614,106 @@ File UserPresetHelpers::getUserPresetFile(ModulatorSynthChain *chain, const Stri
 #endif
 }
 
+ValueTree UserPresetHelpers::collectAllUserPresets(ModulatorSynthChain* chain)
+{
+	ValueTree v("UserPresets");
+
+	auto presetRoot = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
+	
+	Array<File> banks;
+
+	presetRoot.findChildFiles(banks, File::findDirectories, false);
+
+	for (auto bank : banks)
+	{
+		ValueTree b("Bank");
+		b.setProperty("FileName", bank.getFileNameWithoutExtension(), nullptr);
+
+		Array<File> categories;
+
+		bank.findChildFiles(categories, File::findDirectories, false);
+
+		for (auto cat : categories)
+		{
+			ValueTree c("Category");
+			c.setProperty("FileName", cat.getFileNameWithoutExtension(), nullptr);
+
+			Array<File> presets;
+
+			cat.findChildFiles(presets, File::findFiles, false, "*.preset");
+
+			for (auto preset : presets)
+			{
+				ScopedPointer<XmlElement> xml = XmlDocument::parse(preset);
+
+				if (xml != nullptr)
+				{
+					ValueTree p = ValueTree("PresetFile");
+					p.setProperty("FileName", preset.getFileNameWithoutExtension(), nullptr);
+					ValueTree pContent = ValueTree::fromXml(*xml);
+					p.setProperty("isDirectory", false, nullptr);
+					p.addChild(pContent, -1, nullptr);
+
+					c.addChild(p, -1, nullptr);
+				}
+				
+			}
+
+			c.setProperty("isDirectory", true, nullptr);
+			b.addChild(c, -1, nullptr);
+		}
+
+		b.setProperty("isDirectory", true, nullptr);
+		v.addChild(b, -1, nullptr);
+	}
+
+	return v;
+}
+
+void UserPresetHelpers::extractUserPresets(const char* userPresetData, size_t size)
+{
+#if USE_FRONTEND
+	auto userPresetDirectory = ProjectHandler::Frontend::getUserPresetDirectory();
+
+	if (userPresetDirectory.isDirectory())
+		return;
+
+	userPresetDirectory.createDirectory();
+
+	ValueTree presetTree = PresetHandler::loadValueTreeFromData(userPresetData, size, true);
+
+	for (auto bank : presetTree)
+	{
+		jassert(bank.getProperty("isDirectory"));
+
+		auto bankName = bank.getProperty("FileName").toString();
+		auto bankFile = userPresetDirectory.getChildFile(bankName);
+		bankFile.createDirectory();
+
+		for (auto category : bank)
+		{
+			jassert(category.getProperty("isDirectory"));
+
+			auto catName = category.getProperty("FileName").toString();
+			auto catFile = bankFile.getChildFile(catName);
+			catFile.createDirectory();
+
+			for (auto preset : category)
+			{
+				auto presetName = preset.getProperty("FileName").toString();
+				auto presetFile = catFile.getChildFile(presetName + ".preset");
+				auto presetContent = preset.getChild(0);
+				
+				presetFile.replaceWithText(presetContent.toXmlString());
+			}
+		}
+	}
+
+#else
+	ignoreUnused(userPresetData, size);
+#endif
+}
+
 void PresetHandler::saveProcessorAsPreset(Processor *p, const String &directoryPath/*=String()*/)
 {
 	const bool hasCustomName = p->getName() != p->getId();
@@ -1741,10 +1841,7 @@ File ProjectHandler::Frontend::getUserPresetDirectory()
     
     
 	File presetDir = getAppDataDirectory().getChildFile("User Presets");
-	if (!presetDir.isDirectory())
-	{
-		presetDir.createDirectory();
-	}
+	
 
 	return presetDir;
     

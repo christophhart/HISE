@@ -531,6 +531,10 @@ public:
 	static String getCurrentVersionNumber(ModulatorSynthChain* chain);
 
     static File getUserPresetFile(ModulatorSynthChain *chain, const String &fileNameWithoutExtension);
+
+	static ValueTree collectAllUserPresets(ModulatorSynthChain* chain);
+
+	static void extractUserPresets(const char* userPresetData, size_t size);
 };
 
 /** A helper class which provides loading and saving Processors to files and clipboard. 

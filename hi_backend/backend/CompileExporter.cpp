@@ -123,6 +123,8 @@ ValueTree BaseExporter::exportEmbeddedFiles(bool includeSampleMaps)
 	ValueTree externalScriptFiles = FileChangeListener::collectAllScriptFiles(chainToExport);
 	ValueTree customFonts = chainToExport->getMainController()->exportCustomFontsAsValueTree();
 	
+	
+
 	ValueTree externalFiles("ExternalFiles");
 	externalFiles.addChild(externalScriptFiles, -1, nullptr);
 	externalFiles.addChild(customFonts, -1, nullptr);
@@ -484,6 +486,9 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 		// Don't embedd external files on iOS for quicker loading times...
 		const bool embedFiles = !BuildOptionHelpers::isIOS(option);
 #endif
+
+		// Embed the user presets and extract them on first load
+		writeValueTreeToTemporaryFile(UserPresetHelpers::collectAllUserPresets(chainToExport), directoryPath, "userPresets", true);
 
 		// Always embed scripts and fonts, but don't embed samplemaps
 		writeValueTreeToTemporaryFile(exportEmbeddedFiles(embedFiles && type != TargetTypes::EffectPlugin), directoryPath, "externalFiles", true);

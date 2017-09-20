@@ -925,7 +925,11 @@ void MainController::UserPresetHandler::incPreset(bool next, bool stayInSameDire
 {
 	Array<File> allPresets;
 
+#if USE_BACKEND
 	auto userDirectory = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
+#else
+	auto userDirectory = ProjectHandler::Frontend::getUserPresetDirectory();
+#endif
 
 	userDirectory.findChildFiles(allPresets, File::findFiles, true, "*.preset");
 	allPresets.sort();
