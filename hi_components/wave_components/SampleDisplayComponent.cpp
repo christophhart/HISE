@@ -371,20 +371,32 @@ void AudioDisplayComponent::SampleArea::paint(Graphics &g)
 		fadeInPath.lineTo((float)getWidth(), (float)getHeight());
 		fadeInPath.closeSubPath();
 
-		g.setColour(getAreaColour().withAlpha(areaEnabled ? 0.1f : 0.02f));
+		g.setColour(getAreaColour().withAlpha(areaEnabled ? 0.1f : 0.05f));
 		g.fillPath(fadeInPath);
 
 		g.setColour(getAreaColour().withAlpha(0.3f));
 		PathStrokeType stroke(1.0f);
 		g.strokePath(fadeInPath, stroke);
 	}
-	else
+	else if (area == SamplerSoundWaveform::AreaTypes::PlayArea)
 	{
 		g.setColour(getAreaColour().withAlpha(areaEnabled ? 0.1f : 0.02f));
 		g.fillAll();
 
 		g.setColour(getAreaColour().withAlpha(0.3f));
 		g.drawRect(getLocalBounds(), 1);
+	}
+	else
+	{
+		g.setColour(getAreaColour().withAlpha(areaEnabled ? 0.1f : 0.06f));
+		g.fillAll();
+
+		g.setColour(getAreaColour().withAlpha(0.3f));
+		g.drawRect(getLocalBounds(), 1);
+
+		g.setColour(getAreaColour());
+		g.drawVerticalLine(0, 0.0, (float)getHeight());
+		g.drawVerticalLine(getWidth() - 1, 0.0, (float)getHeight());
 	}
 
 }

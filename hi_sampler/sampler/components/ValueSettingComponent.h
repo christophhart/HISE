@@ -227,9 +227,11 @@ public:
 		}
 	}
 
-	void setLabelColour(Colour c)
+	void setLabelColour(Colour c, Colour t)
 	{
 		valueLabel->setColour(Label::backgroundColourId, c);
+		valueLabel->setColour(Label::textColourId, t);
+		valueLabel->setColour(Label::ColourIds::textWhenEditingColourId, t);
 	};
 
 	void timerCallback()

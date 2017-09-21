@@ -86,10 +86,10 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
 	loopEndSetter->setPropertyType(ModulatorSamplerSound::LoopEnd);
 	loopCrossfadeSetter->setPropertyType(ModulatorSamplerSound::LoopXFade);
 
-	loopStartSetter->setLabelColour(Colours::green.withAlpha(0.1f));
-	loopEndSetter->setLabelColour(Colours::green.withAlpha(0.1f));
-	loopCrossfadeSetter->setLabelColour(Colours::yellow.withAlpha(0.1f));
-	startModulationSetter->setLabelColour(Colours::blue.withAlpha(0.1f));
+	loopStartSetter->setLabelColour(Colours::green.withAlpha(0.1f), Colours::white);
+	loopEndSetter->setLabelColour(Colours::green.withAlpha(0.1f), Colours::white);
+	loopCrossfadeSetter->setLabelColour(Colours::yellow.withAlpha(0.1f), Colours::white);
+	startModulationSetter->setLabelColour(Colours::blue.withAlpha(0.1f), Colours::white);
 
 
     //[/UserPreSize]

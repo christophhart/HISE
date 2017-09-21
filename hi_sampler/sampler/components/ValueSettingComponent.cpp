@@ -271,7 +271,11 @@ void ValueSettingComponent::mouseDown(const MouseEvent &e)
         
         s->setSize (600, 32);
         
-        CallOutBox::launchAsynchronously (s, getScreenBounds(), getParentComponent());
+		auto root = getTopLevelComponent();
+
+		auto rootPos = root->getLocalArea(getParentComponent(), getBoundsInParent());
+
+        CallOutBox::launchAsynchronously (s, rootPos, root);
         
         startTimer(500);
         
