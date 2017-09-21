@@ -790,8 +790,7 @@ public:
 	};
 
 
-	class TimerObject : public Timer,
-						public DynamicScriptingObject
+	class TimerObject : public DynamicScriptingObject
 	{
 	public:
 
@@ -806,16 +805,46 @@ public:
 		bool objectDeleted() const override { return false; }
 		bool objectExists() const override { return false; }
 
+		void timerCallback();
+
 		// ============================================================================================================
 		
-		/** the timer callback. */
-		void timerCallback() override;;
+		/** Starts the timer. */
+		void startTimer(int intervalInMilliSeconds);
+
+		/** Stops the timer. */
+		void stopTimer();
+		
+		/** Sets the function that will be called periodically. */
+		void setTimerCallback(var callbackFunction);
 
 		struct Wrapper;
 
 		// ============================================================================================================
 
 	private:
+
+		struct InternalTimer : public Timer
+		{
+		public:
+
+			InternalTimer(TimerObject* parent_):
+				parent(parent_)
+			{
+				
+			}
+
+			void timerCallback()
+			{
+				parent->timerCallback();
+			}
+
+		private:
+
+			TimerObject* parent;
+		};
+
+		InternalTimer it;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TimerObject)
 	};

@@ -1431,26 +1431,28 @@ struct ScriptingObjects::TimerObject::Wrapper
 {
 	DYNAMIC_METHOD_WRAPPER(TimerObject, startTimer, (int)ARG(0));
 	DYNAMIC_METHOD_WRAPPER(TimerObject, stopTimer);
+	DYNAMIC_METHOD_WRAPPER(TimerObject, setTimerCallback, ARG(0));
 };
 
 ScriptingObjects::TimerObject::TimerObject(ProcessorWithScriptingContent *p) :
-DynamicScriptingObject(p)
+	DynamicScriptingObject(p),
+	it(this)
 {
 	ADD_DYNAMIC_METHOD(startTimer);
 	ADD_DYNAMIC_METHOD(stopTimer);
-
-
+	ADD_DYNAMIC_METHOD(setTimerCallback);
 }
 
 
 ScriptingObjects::TimerObject::~TimerObject()
 {
+	it.stopTimer();
 	removeProperty("callback");
 }
 
 void ScriptingObjects::TimerObject::timerCallback()
 {
-	var undefinedArgs = var::undefined();
+	var undefinedArgs;
 	var thisObject(this);
 	var::NativeFunctionArgs args(thisObject, &undefinedArgs, 0);
 
@@ -1460,13 +1462,40 @@ void ScriptingObjects::TimerObject::timerCallback()
     
     engine->maximumExecutionTime = RelativeTime(0.5);
     
-	engine->callExternalFunction(getProperty("callback"), args, &r);
+	auto callback = getProperty("callback");
+
+	engine->callExternalFunction(callback, args, &r);
 
 	if (r.failed())
 	{
 		stopTimer();
 		debugError(getProcessor(), r.getErrorMessage());
 	}
+}
+
+void ScriptingObjects::TimerObject::startTimer(int intervalInMilliSeconds)
+{
+	if (intervalInMilliSeconds > 10)
+	{
+		it.startTimer(intervalInMilliSeconds);
+	}
+	else
+		throw String("Go easy on the timer");
+}
+
+void ScriptingObjects::TimerObject::stopTimer()
+{
+	it.stopTimer();
+}
+
+void ScriptingObjects::TimerObject::setTimerCallback(var callbackFunction)
+{
+	if (dynamic_cast<HiseJavascriptEngine::RootObject::FunctionObject*>(callbackFunction.getObject()))
+	{
+		setProperty("callback", callbackFunction);
+	}
+	else
+		throw String("You need to pass in a function for the timer callback");
 }
 
 class PathPreviewComponent: public Component
