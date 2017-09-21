@@ -231,7 +231,8 @@ private:
 
 
 class BorderPanel : public MouseCallbackComponent,
-                    public SafeChangeListener
+                    public SafeChangeListener,
+					public SettableTooltipClient
 {
 public:
 

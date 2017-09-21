@@ -2027,15 +2027,6 @@ repainter(this),
 repaintNotifier(this),
 controlSender(this, base)
 {
-	//deactivatedProperties.add(getIdFor(ScriptComponent::Properties::max));
-	//deactivatedProperties.add(getIdFor(ScriptComponent::Properties::min));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::bgColour));
-	deactivatedProperties.add(getIdFor(ScriptComponent::Properties::macroControl));
-    deactivatedProperties.add(getIdFor(ScriptComponent::Properties::text));
-	//deactivatedProperties.add(getIdFor(ScriptComponent::Properties::enabled));
-	//deactivatedProperties.add(getIdFor(ScriptComponent::Properties::tooltip));
-	
-
 	ADD_SCRIPT_PROPERTY(i00, "borderSize");					ADD_AS_SLIDER_TYPE(0, 20, 1);
 	ADD_SCRIPT_PROPERTY(i01, "borderRadius");				ADD_AS_SLIDER_TYPE(0, 20, 1);
     ADD_SCRIPT_PROPERTY(i02, "opaque");						ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);

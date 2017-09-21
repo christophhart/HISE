@@ -95,26 +95,6 @@ ScriptCreatedComponentWrapper(content, index)
 		s->setLookAndFeelOwned(fslaf);
 	}
 
-#if OLD
-	if (sc->m == HiSlider::Linear)
-	{
-		double min = GET_SCRIPT_PROPERTY(min);
-		double max = GET_SCRIPT_PROPERTY(max);
-		double step = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::stepSize);
-		double middle = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::middlePosition);
-
-		s->setMode(sc->m, min, max, middle);
-
-		s->setRange(min, max, step);
-
-		//if(sc->middlePosition != DBL_MAX) s->setSkewFactorFromMidPoint(sc->middlePosition);
-
-	}
-	else
-	{
-		s->setMode(sc->m);
-	}
-#else
 	double min = GET_SCRIPT_PROPERTY(min);
 	double max = GET_SCRIPT_PROPERTY(max);
 	double step = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::stepSize);
@@ -123,8 +103,6 @@ ScriptCreatedComponentWrapper(content, index)
 
 
 	s->setMode(sc->m, min, max, middle, step);
-
-#endif
 
 	s->updateValue(dontSendNotification);
 
@@ -636,6 +614,8 @@ void ScriptCreatedComponentWrappers::PanelWrapper::updateComponent()
 	bpc->setActivePopupItem((int)getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::selectedPopupIndex));
 	bpc->setUseRightClickForPopup(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::PopupOnRightClick));
 	bpc->alignPopup(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::popupMenuAlign));
+
+	bpc->setTooltip(GET_SCRIPT_PROPERTY(tooltip));
 
 	bpc->setMidiLearnEnabled(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::enableMidiLearn));
 
