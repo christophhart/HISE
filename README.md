@@ -102,6 +102,16 @@ It supports x86 and x64 on Windows, altough the 64bit version is highly recommen
 
 8. Hit compile and wait...
 
+### Compiling without IPP on OSX
+
+If you don't have Intel Performance Primitives installed on your machine, you need to change the Projucer file. Open the `.jucer` file in the Projucer (like in step 5 above), click on the Xcode (MacOSX) target and delete this from the **Extra Linker Flags** field:
+
+```
+/opt/intel/ipp/lib/libippi.a  /opt/intel/ipp/lib/libipps.a /opt/intel/ipp/lib/libippvm.a /opt/intel/ipp/lib/libippcore.a
+```
+
+Then remove the include directories from the **Debug** and **Release** configurations (Remove everything in the **Header Search Paths** and **Extra Library Search Paths**. Then proceed with step 7...
+
 ### Linux
 
 1. Get these dependencies (taken from the JUCE forum):
@@ -145,9 +155,9 @@ sudo apt-get -y install libcurl4-gnutls-dev
 
 6. type `make` and wait. 
 
-## Licence
+## License
 
-HISE is licenced under the GPL v3, but there will be a commercial licence for closed source usage. Every instrument you'll build will inheritate this licence so in order to release a closed source product you'll have to obtain a HISE commercial licence as well as a JUCE commercial licence. Please get in touch with me for further informations.
+HISE is licensed under the GPL v3, but there will be a commercial license for closed source usage. Every instrument you'll build will inheritate this license so in order to release a closed source product you'll have to obtain a HISE commercial license as well as a JUCE commercial license. Please get in touch with me for further informations.
 
 ## Included frameworks
 
