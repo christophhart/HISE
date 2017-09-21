@@ -89,28 +89,28 @@ It supports x86 and x64 on Windows, altough the 64bit version is highly recommen
 
 1. Clone this repository. It also includes the (slightly modified) JUCE source code, so it might take a while.
 
-3. Get all necessary 3rd party code:
+2. Get all necessary 3rd party code:
 	- [ASIO SDK](http://www.steinberg.net/sdk_downloads/asiosdk2.3.zip) for standalone support on Windows.
 	- [VST SDK](http://www.steinberg.net/sdk_downloads/vstsdk366_27_06_2016_build_61.zip) for building VST plugins
 	- [Intel Performance Primitives](https://software.intel.com/en-us/articles/free-ipp) (this is optional but heavily increases the performance of the convolution reverb)
 
-5. Open the Projucer (there are compiled versions for every supported OS in the `tools/projucer` subdirectory) and load the HISE project (either `projects/standalone/HISE Standalone.jucer` or `project/plugin/HISE.jucer`)
+3. Open the Projucer (there are compiled versions for every supported OS in the `tools/projucer` subdirectory) and load the HISE project (either `projects/standalone/HISE Standalone.jucer` or `project/plugin/HISE.jucer`)
 
-6. Make sure the VST / ASIO path settings is correct on your system. If you don't have IPP installed, set the USE_IPP flag in the hi_core module to 0.
+4. Make sure the VST / ASIO path settings is correct on your system. If you don't have IPP installed, set the USE_IPP flag in the hi_core module to 0.
 
-7. Click on "Save Project and open in IDE" to load the project in XCode / Visual Studio. 
+5. Click on "Save Project and open in IDE" to load the project in XCode / Visual Studio. 
 
-8. Hit compile and wait...
+6. Hit compile and wait...
 
 ### Compiling without IPP on OSX
 
-If you don't have Intel Performance Primitives installed on your machine, you need to change the Projucer file. Open the `.jucer` file in the Projucer (like in step 5 above), click on the Xcode (MacOSX) target and delete this from the **Extra Linker Flags** field:
+If you don't have Intel Performance Primitives installed on your machine, you need to change the Projucer file. Open the `.jucer` file in the Projucer (like in step 3 above), click on the Xcode (MacOSX) target and delete this from the **Extra Linker Flags** field:
 
 ```
 /opt/intel/ipp/lib/libippi.a  /opt/intel/ipp/lib/libipps.a /opt/intel/ipp/lib/libippvm.a /opt/intel/ipp/lib/libippcore.a
 ```
 
-Then remove the include directories from the **Debug** and **Release** configurations (Remove everything in the **Header Search Paths** and **Extra Library Search Paths**. Then proceed with step 7...
+Then remove the include directories from the **Debug** and **Release** configurations (Remove everything in the **Header Search Paths** and **Extra Library Search Paths**. As last step, you'll need to change the `USE_IPP` flag. Click on the `hi_core` module and change the `USE_IPP` field to *disabled*. Then proceed with step 5...
 
 ### Linux
 
