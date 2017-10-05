@@ -368,7 +368,7 @@ void SampleMap::clear()
 {
     mode = Undefined;
     fileOnDisk = File();
-    sampleMapId = Identifier("unused");
+    sampleMapId = Identifier();
     changed = false;
     
     sampler->sendChangeMessage();

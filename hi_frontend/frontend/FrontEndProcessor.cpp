@@ -153,7 +153,13 @@ unlockCounter(0)
 
 	getSampleManager().setShouldSkipPreloading(true);
 
+	
+
+	setSkipCompileAtPresetLoad(true);
+
 	synthChain->restoreFromValueTree(synthData);
+
+	setSkipCompileAtPresetLoad(false);
 
 	synthChain->compileAllScripts();
 

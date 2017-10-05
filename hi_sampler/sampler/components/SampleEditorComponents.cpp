@@ -640,6 +640,10 @@ void SamplerSoundMap::updateSoundData()
 			sampleComponents.add(c);
 		}
 	}
+	else
+	{
+		refreshGraphics();
+	}
 
 	updateSampleComponents();
 }

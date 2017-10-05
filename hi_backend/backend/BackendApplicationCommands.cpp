@@ -140,6 +140,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsConvertAllSamplesToMonolith,
 		MenuToolsUpdateSampleMapIdsBasedOnFileName,
 		MenuToolsConvertSfzToSampleMaps,
+		MenuToolsRemoveAllSampleMaps,
 		MenuToolsEnableAutoSaving,
 		MenuToolsRecordOneSecond,
 		MenuToolsEnableDebugLogging,
@@ -419,6 +420,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuToolsConvertSfzToSampleMaps:
 		setCommandTarget(result, "Convert SFZ files to SampleMaps", true, false, 'X', false);
 		break;
+	case MenuToolsRemoveAllSampleMaps:
+		setCommandTarget(result, "Clear all Samplemaps", true, false, 'X', false);
+		break;
 	case MenuToolsEnableAutoSaving:
 		setCommandTarget(result, "Enable Autosaving", true, bpe->owner->getAutoSaver().isAutoSaving(), 'X', false);
 		break;
@@ -578,6 +582,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsConvertAllSamplesToMonolith:	Actions::convertAllSamplesToMonolith(bpe); return true;
 	case MenuToolsUpdateSampleMapIdsBasedOnFileName:	Actions::updateSampleMapIds(bpe); return true;
 	case MenuToolsConvertSfzToSampleMaps:	Actions::convertSfzFilesToSampleMaps(bpe); return true;
+	case MenuToolsRemoveAllSampleMaps:	Actions::removeAllSampleMaps(bpe); return true;
 	case MenuToolsCreateRSAKeys:		Actions::createRSAKeys(bpe); return true;
 	case MenuToolsCreateDummyLicenceFile: Actions::createDummyLicenceFile(bpe); return true;
 	case MenuToolsCheckAllSampleMaps:	Actions::checkAllSamplemaps(bpe); return true;
@@ -837,6 +842,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuToolsConvertAllSamplesToMonolith);
 		ADD_DESKTOP_ONLY(MenuToolsUpdateSampleMapIdsBasedOnFileName);
 		ADD_DESKTOP_ONLY(MenuToolsConvertSfzToSampleMaps);
+		ADD_DESKTOP_ONLY(MenuToolsRemoveAllSampleMaps);
 		ADD_DESKTOP_ONLY(MenuToolsEnableAutoSaving);
 		ADD_DESKTOP_ONLY(MenuToolsEnableDebugLogging);
 		ADD_DESKTOP_ONLY(MenuToolsRecordOneSecond);
@@ -1391,6 +1397,17 @@ void BackendCommandTarget::Actions::testPlugin(const String& pluginToLoad)
 		Logger::writeToLog("OK");
 
 		return;
+	}
+}
+
+void BackendCommandTarget::Actions::removeAllSampleMaps(BackendRootWindow * bpe)
+{
+	if (PresetHandler::showYesNoWindow("Remove all Samplemaps", "Are you sure you want to clear all samplemaps?\nThis is useful before exporting if you recall samplemaps using scripted controls or user presets"))
+	{
+		Processor::Iterator<ModulatorSampler> iter(bpe->getMainSynthChain(), false);
+
+		while (auto sampler = iter.getNextProcessor())
+			sampler->clearSampleMap();
 	}
 }
 

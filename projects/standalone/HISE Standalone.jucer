@@ -2,7 +2,8 @@
 
 <JUCERPROJECT id="jUHBuI" name="HISE Standalone" projectType="guiapp" version="1.1.0"
               bundleIdentifier="com.hartinstruments.HISEStandalone" includeBinaryInAppConfig="1"
-              jucerVersion="4.3.0" companyName="Hart Instruments" companyWebsite="http://hise.audio">
+              jucerVersion="4.3.0" companyName="Hart Instruments" companyWebsite="http://hise.audio"
+              companyCopyright="Hart Instruments">
   <MAINGROUP id="yomWt4" name="HISE Standalone">
     <GROUP id="{577963C7-1A49-BB2A-D701-52DC7A5895F7}" name="Source">
       <FILE id="ho3qQy" name="logo_new.png" compile="0" resource="1" file="../../hi_core/hi_images/logo_new.png"/>

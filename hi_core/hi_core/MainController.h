@@ -792,6 +792,11 @@ public:
 
 	EventIdHandler& getEventHandler() { return eventIdHandler; }
 
+	void setSkipCompileAtPresetLoad(bool shouldSkip)
+	{
+		skipCompilingAtPresetLoad = shouldSkip;
+	}
+
 	bool shouldSkipCompiling() const
 	{
 		return skipCompilingAtPresetLoad;

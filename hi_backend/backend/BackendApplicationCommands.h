@@ -173,6 +173,7 @@ public:
 		MenuToolsConvertAllSamplesToMonolith,
 		MenuToolsUpdateSampleMapIdsBasedOnFileName,
 		MenuToolsConvertSfzToSampleMaps,
+		MenuToolsRemoveAllSampleMaps,
 		MenuToolsCreateRSAKeys,
 		MenuToolsCreateDummyLicenceFile,
 		MenuToolsEnableAutoSaving,
@@ -321,6 +322,7 @@ public:
 		static void toggleCallStackEnabled(BackendRootWindow * bpe);
 		static void testPlugin(const String& pluginToLoad);
 
+		static void removeAllSampleMaps(BackendRootWindow * bpe);
 	};
 
 private:

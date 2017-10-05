@@ -1089,7 +1089,30 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SemanticVersionChecker);
 };
 
+class DelayedFunctionCaller: public Timer
+{
+public:
 
+	DelayedFunctionCaller(std::function<void(void)> func, int delayInMilliseconds) :
+		f(func)
+	{
+		startTimer(delayInMilliseconds);
+	}
+
+
+	void timerCallback() override
+	{
+		stopTimer();
+		f();
+		delete this;
+	}
+
+private:
+
+	std::function<void(void)> f;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DelayedFunctionCaller);
+};
 
 
 #if USE_VDSP_FFT

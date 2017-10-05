@@ -340,8 +340,9 @@ void BackendProcessorEditor::loadNewContainer(const File &f)
 
 	owner->loadPreset(f, this);
 
-	refreshInterfaceAfterPresetLoad();
-	parentRootWindow->sendRootContainerRebuildMessage(false);	
+	auto refreshFunction = [this]()->void {refreshInterfaceAfterPresetLoad(); parentRootWindow->sendRootContainerRebuildMessage(false); };
+	new DelayedFunctionCaller(refreshFunction, 300);
+	
 }
 
 void BackendProcessorEditor::refreshInterfaceAfterPresetLoad()
@@ -374,8 +375,8 @@ void BackendProcessorEditor::loadNewContainer(ValueTree &v)
 
 	owner->loadPreset(v, this);
 
-	refreshInterfaceAfterPresetLoad();
-	parentRootWindow->sendRootContainerRebuildMessage(false);
+	auto refreshFunction = [this]()->void {refreshInterfaceAfterPresetLoad(); parentRootWindow->sendRootContainerRebuildMessage(false); };
+	new DelayedFunctionCaller(refreshFunction, 300);
 }
 
 void BackendProcessorEditor::clearPreset()
