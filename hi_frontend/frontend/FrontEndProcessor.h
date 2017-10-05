@@ -139,6 +139,8 @@ public:
 
 	~FrontendProcessor()
 	{
+		setEnabledMidiChannels(synthChain->getActiveChannelData()->exportData());
+
 		synthChain = nullptr;
 
 		storeAllSamplesFound(areSamplesLoadedCorrectly());
@@ -193,7 +195,7 @@ public:
 
 		getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(v.getChildWithName("MidiAutomation"));
 
-		const int channelData = v.getProperty("MidiChannelFilterData", -1);
+		channelData = v.getProperty("MidiChannelFilterData", -1);
 		if (channelData != -1) synthChain->getActiveChannelData()->restoreFromData(channelData);
 			
 

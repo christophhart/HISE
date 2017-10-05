@@ -58,6 +58,13 @@ public:
 		allSamplesFound = areFound;
 	}
 
+	void setEnabledMidiChannels(int newMidiChannelNumber)
+	{
+		channelData = newMidiChannelNumber;
+	}
+
+	int getChannelData() const { return channelData; };
+
 	void setGlobalScaleFactor(double scaleFactor, NotificationType sendNotification=dontSendNotification);
 
 	float getGlobalScaleFactor() const noexcept { return (float)scaleFactor; }
@@ -89,6 +96,8 @@ public:
 	int transposeValue = 0;
 	int ccSustainValue = 64;
 	int globalBPM = -1;
+
+	int channelData = 1;
 
 	bool useOpenGL = false;
 

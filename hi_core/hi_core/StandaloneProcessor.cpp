@@ -260,6 +260,7 @@ void GlobalSettingManager::saveSettingsAsXml()
 	settings->setAttribute("SUSTAIN_CC", ccSustainValue);
 	settings->setAttribute("GLOBAL_BPM", globalBPM);
 	settings->setAttribute("OPEN_GL", useOpenGL);
+	settings->setAttribute("MIDI_CHANNELS", channelData);
 
 #if USE_FRONTEND
 	settings->setAttribute("SAMPLES_FOUND", allSamplesFound);
@@ -332,6 +333,7 @@ void GlobalSettingManager::restoreGlobalSettings(MainController* mc)
         gm->microTuning = globalSettings->getDoubleAttribute("MICRO_TUNING", 0.0);
         gm->transposeValue = globalSettings->getIntAttribute("TRANSPOSE", 0);
 		gm->globalBPM = globalSettings->getIntAttribute("GLOBAL_BPM", -1);
+		gm->channelData = globalSettings->getIntAttribute("MIDI_CHANNELS", 1);
         gm->ccSustainValue = globalSettings->getIntAttribute("SUSTAIN_CC", 64);
      
 		gm->useOpenGL = globalSettings->getBoolAttribute("OPEN_GL", false);
@@ -342,6 +344,7 @@ void GlobalSettingManager::restoreGlobalSettings(MainController* mc)
         
         mc->getEventHandler().addCCRemap(gm->ccSustainValue, 64);
         mc->getSampleManager().setDiskMode((MainController::SampleManager::DiskMode)gm->diskMode);
+		mc->getMainSynthChain()->getActiveChannelData()->restoreFromData(gm->channelData);
 
 #if USE_FRONTEND
 		bool allSamplesThere = globalSettings->getBoolAttribute("SAMPLES_FOUND");
