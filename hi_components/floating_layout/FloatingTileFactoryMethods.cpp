@@ -74,6 +74,8 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<MidiSourcePanel>(PopupMenuOptions::MidiSourceList);
 	registerType<MidiChannelPanel>(PopupMenuOptions::MidiChannelList);
 
+	registerType<SampleMapBrowser>(PopupMenuOptions::SampleMapBrowser);
+
 	registerType<TooltipPanel>(PopupMenuOptions::TooltipPanel);
 
 	//MidiSourceList
@@ -577,6 +579,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 			addToPopupMenu(fm, PopupMenuOptions::MidiSourceList, "Midi Source List");
 			addToPopupMenu(fm, PopupMenuOptions::MidiChannelList, "Midi Channel List");
 			addToPopupMenu(fm, PopupMenuOptions::TooltipPanel, "Tooltip Bar");
+			addToPopupMenu(fm, PopupMenuOptions::SampleMapBrowser, "Sample Map Browser");
 
 			m.addSubMenu("Frontend Panels", fm);
 
@@ -653,6 +656,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::FileBrowser:			parent->setNewContent(GET_PANEL_NAME(GenericPanel<FileBrowser>)); break;
 	case PopupMenuOptions::ModuleBrowser:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<ModuleBrowser>)); break;
 	case PopupMenuOptions::SamplePoolTable:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<SamplePoolTable>)); break;
+	case PopupMenuOptions::SampleMapBrowser:	parent->setNewContent(GET_PANEL_NAME(SampleMapBrowser)); break;
 	case PopupMenuOptions::AudioFileTable:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<PoolTableSubTypes::AudioFilePoolTable>)); break;
 	case PopupMenuOptions::ImageTable:			parent->setNewContent(GET_PANEL_NAME(GenericPanel<PoolTableSubTypes::ImageFilePoolTable>)); break;
 	case PopupMenuOptions::ScriptWatchTable:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<ScriptWatchTable>)); break;

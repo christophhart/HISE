@@ -464,7 +464,8 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 	const bool saveThisContent = lastCompileWasOK && content != nullptr && !useStoredContentData;
 
-	if (saveThisContent) thisAsScriptBaseProcessor->restoredContentValues = content->exportAsValueTree();
+	if (saveThisContent) 
+		thisAsScriptBaseProcessor->restoredContentValues = content->exportAsValueTree();
 
 	auto thisAsProcessor = dynamic_cast<Processor*>(this);
 

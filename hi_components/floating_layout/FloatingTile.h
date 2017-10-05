@@ -74,6 +74,8 @@ public:
 
 	void updatePosition();
 
+	Component* getAttachedComponent() const { return attachedComponent.getComponent(); }
+
 private:
 
 	Component::SafePointer<Component> attachedComponent;

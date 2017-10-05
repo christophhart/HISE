@@ -65,5 +65,6 @@
 #include "sampler/components/SampleEditHandler.cpp"
 #include "sampler/components/SamplerBody.cpp"
 #include "sampler/components/SampleEditingActions.cpp"
+#include "sampler/components/SampleMapBrowser.cpp"
 
 #endif

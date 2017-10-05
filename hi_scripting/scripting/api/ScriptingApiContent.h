@@ -1121,6 +1121,15 @@ public:
 		ValueTree exportAsValueTree() const override;
 		void restoreFromValueTree(const ValueTree &v) override;
 		
+		void setValue(var newValue) override
+		{
+			value = newValue;
+		}
+
+		var getValue() const override
+		{
+			return value;
+		}
 
 		var getContentData() { return jsonData; }
 

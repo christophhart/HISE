@@ -479,6 +479,19 @@ ScriptingApi::Content::ScriptComponent * ScriptContentComponent::getScriptCompon
 	return nullptr;
 }
 
+ScriptingApi::Content::ScriptComponent* ScriptContentComponent::getScriptComponentFor(Component* component)
+{
+	for (int i = 0; i < componentWrappers.size(); i++)
+	{
+		if (contentData.get() != nullptr && componentWrappers[i]->getComponent() == component)
+		{
+			return contentData->getComponent(i);
+		}
+	}
+
+	return nullptr;
+}
+
 void ScriptContentComponent::getScriptComponentsFor(Array<ScriptingApi::Content::ScriptComponent*> &arrayToFill, Point<int> pos)
 {
 	for (int i = componentWrappers.size() - 1; i >= 0; --i)
