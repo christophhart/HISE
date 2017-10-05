@@ -93,6 +93,7 @@ public:
     Value getCompanyName()                              { return getProjectValue (Ids::companyName); }
     Value getCompanyWebsite()                           { return getProjectValue (Ids::companyWebsite); }
     Value getCompanyEmail()                             { return getProjectValue (Ids::companyEmail); }
+	Value getCompanyCopyright()							{ return getProjectValue(Ids::companyCopyright); }
 
     //==============================================================================
     Value getProjectValue (const Identifier& name)      { return projectRoot.getPropertyAsValue (name, getUndoManagerFor (projectRoot)); }

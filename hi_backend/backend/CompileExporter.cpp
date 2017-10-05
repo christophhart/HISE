@@ -1415,9 +1415,8 @@ void CompileExporter::ProjectTemplateHelpers::handleCompanyInfo(CompileExporter*
 	REPLACE_WILDCARD("%COMPANY%", SettingWindows::UserSettingWindow::Attributes::Company);
 	REPLACE_WILDCARD("%MC%", SettingWindows::UserSettingWindow::Attributes::CompanyCode);
 	REPLACE_WILDCARD("%COMPANY_WEBSITE%", SettingWindows::UserSettingWindow::Attributes::CompanyURL);
-    
+	REPLACE_WILDCARD("%COMPANY_COPYRIGHT%", SettingWindows::UserSettingWindow::Attributes::CompanyCopyright);
     REPLACE_WILDCARD("%COPYRIGHT_NOTICE%", SettingWindows::UserSettingWindow::Attributes::CompanyCopyright);
-    
 }
 
 void CompileExporter::ProjectTemplateHelpers::handleVisualStudioVersion(String& templateProject)

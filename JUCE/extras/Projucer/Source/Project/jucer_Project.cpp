@@ -132,6 +132,9 @@ void Project::setMissingDefaultValues()
     if (shouldIncludeBinaryInAppConfig() == var())
         shouldIncludeBinaryInAppConfig() = true;
 
+	if (getCompanyCopyright().toString().isEmpty())
+		getCompanyCopyright() = getCompanyName().toString();
+
     ProjucerApplication::getApp().updateNewlyOpenedProject (*this);
 }
 
@@ -453,6 +456,9 @@ void Project::createPropertyEditors (PropertyListBuilder& props)
 
     props.add (new TextPropertyComponent (getCompanyEmail(), "Company E-mail", 256, false),
                "Your company e-mail, which will be added to the properties of the binary where possible");
+
+	props.add(new TextPropertyComponent(getCompanyCopyright(), "Company Copyright", 256, false),
+		+"Your company copyright, which will be added to the properties of the binary where possible");
 
     {
         StringArray projectTypeNames;

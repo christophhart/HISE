@@ -368,7 +368,7 @@ protected:
               osxSDKVersion               (config, Ids::osxSDK,               nullptr, "default"),
               osxDeploymentTarget         (config, Ids::osxCompatibility,     nullptr, "default"),
               iosDeploymentTarget         (config, Ids::iosCompatibility,     nullptr, "default"),
-              iosTargetFamily             (config, Ids::iosTargetFamily,      nullptr, "1,2"),
+              iosTargetFamily             (config, Ids::iosDeviceFamily,      nullptr, "1,2"),
               osxArchitecture             (config, Ids::osxArchitecture,      nullptr, "default"),
               customXcodeFlags            (config, Ids::customXcodeFlags,     nullptr),
               cppLanguageStandard         (config, Ids::cppLanguageStandard,  nullptr),
@@ -413,7 +413,7 @@ protected:
                                                         StringArray (iosVersions), Array<var> (iosVersionValues)),
                            "The minimum version of iOS that the target binary will run on.");
                 
-                props.add (new ChoicePropertyComponent( iosTargetFamily.getPropertyAsValue(), "iOS Target Family",
+                props.add (new ChoicePropertyComponent( iosTargetFamily.getPropertyAsValue(), "iOS Device Family",
                                                        StringArray(iosTargetFamilies), Array<var>(iosTargetFamilyValues)),
                            "The target family (iPhone / iPad) for the project");
                 
@@ -1213,7 +1213,7 @@ public:
             addPlistDictionaryKey (dict, "CFBundleSignature",           xcodeBundleSignature);
             addPlistDictionaryKey (dict, "CFBundleShortVersionString",  owner.project.getVersionString());
             addPlistDictionaryKey (dict, "CFBundleVersion",             owner.project.getVersionString());
-            addPlistDictionaryKey (dict, "NSHumanReadableCopyright",    owner.project.getCompanyName().toString());
+            addPlistDictionaryKey (dict, "NSHumanReadableCopyright",	owner.project.getCompanyCopyright().toString());
             addPlistDictionaryKeyBool (dict, "NSHighResolutionCapable", true);
 
             StringArray documentExtensions;
