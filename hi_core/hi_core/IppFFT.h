@@ -34,6 +34,7 @@
 
 #define IPP_FFT_MAX_POWER_OF_TWO 16
 
+
 /** A wrapper around the Intel IPP FFT routines.
 *
 *	It uses RAII to manage all required buffers & datas. In order to use it, create an instance once and then call the routines:
@@ -59,7 +60,7 @@ public:
 	// =============================================================================================================================
 
 	/** Creates a IPP FFT object. The initialisation time is rather slow, but then it will unleash its power because it allocates all necessary buffers once. */
-    IppFFT(DataType typeToUse=DataType::ComplexFloat, int maxPowerOfTwo = IPP_FFT_MAX_POWER_OF_TWO, const int flagToUse = IPP_FFT_NODIV_BY_ANY);
+    IppFFT(DataType typeToUse=DataType::ComplexFloat, int maxPowerOfTwo = IPP_FFT_MAX_POWER_OF_TWO, const int flagToUse=8);
 	~IppFFT();
 
 	// ==================================================================================================================================== float FFTs
@@ -134,14 +135,7 @@ private:
 
 		void setSize(uint32 len);
 
-		void releaseData()
-		{
-			if (data != nullptr)
-			{
-				ippFree(data);
-				data = nullptr;
-			}
-		}
+		void releaseData();
 
 		Ipp8u *getData() { return data; }
 		const Ipp8u *getData() const { return data; }

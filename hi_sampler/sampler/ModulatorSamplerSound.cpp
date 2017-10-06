@@ -30,8 +30,6 @@
 *   ===========================================================================
 */
 
-#include <regex>
-
 
 ModulatorSamplerSound::ModulatorSamplerSound(StreamingSamplerSound *sound, int index_) :
 index(index_),

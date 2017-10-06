@@ -30,11 +30,16 @@
 *   ===========================================================================
 */
 
+
+
 IppFFT::IppFFT(DataType typeToUse, int maxPowerOfTwo /*= IPP_FFT_MAX_POWER_OF_TWO*/, const int flagToUse /*= IPP_FFT_NODIV_BY_ANY*/) :
 type(typeToUse),
 maxOrder(jmin<int>(maxPowerOfTwo, IPP_FFT_MAX_POWER_OF_TWO)),
 flag(flagToUse)
 {
+	
+	
+
 	for (int i = 0; i < maxOrder; i++)
 	{
 		specBuffers.add(new Buffer());
@@ -337,6 +342,15 @@ void IppFFT::Buffer::setSize(uint32 len)
 	}
 	else
 	{
+		data = nullptr;
+	}
+}
+
+void IppFFT::Buffer::releaseData()
+{
+	if (data != nullptr)
+	{
+		ippFree(data);
 		data = nullptr;
 	}
 }

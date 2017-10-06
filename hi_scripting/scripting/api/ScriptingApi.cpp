@@ -30,7 +30,6 @@
 *   ===========================================================================
 */
 
-#include <regex>
 
 
 #define SEND_MESSAGE(broadcaster) {	if (MessageManager::getInstance()->isThisTheMessageThread()) broadcaster->sendSynchronousChangeMessage(); else broadcaster->sendChangeMessage();}

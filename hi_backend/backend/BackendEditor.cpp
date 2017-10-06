@@ -32,9 +32,6 @@
 
 #define toggleVisibility(x) {x->setVisible(!x->isVisible()); owner->setComponentShown(info.commandID, x->isVisible());}
 
-#include <regex>
-
-
 BackendProcessorEditor::BackendProcessorEditor(FloatingTile* parent) :
 FloatingTileContent(parent),
 owner(static_cast<BackendProcessor*>(parent->getMainController())),

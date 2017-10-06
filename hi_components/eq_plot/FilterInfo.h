@@ -35,8 +35,7 @@
 #ifndef HI_FILTER_INFO_H_INCLUDED
 #define HI_FILTER_INFO_H_INCLUDED
 
-#include <complex>
-#include <vector>
+
 
 #ifndef double_E
 #define double_E 2.71828183
