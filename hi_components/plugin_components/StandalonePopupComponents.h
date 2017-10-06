@@ -270,7 +270,7 @@ public:
 
 	void resized() override;
 
-	class Panel;
+	
 
 	void setProperty(Properties id, bool shouldBeOn)
 	{
@@ -303,6 +303,8 @@ public:
 	}
 
 private:
+
+	friend class CustomSettingsWindowPanel;
 
     Font font;
 

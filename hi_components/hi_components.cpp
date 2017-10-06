@@ -42,6 +42,7 @@
 #include "plugin_components/PresetBrowser.cpp"
 #include "plugin_components/PresetComponents.cpp"
 #include "plugin_components/StandalonePopupComponents.cpp"
+#include "plugin_components/PanelTypes.cpp"
 #include "plugin_components/FrontendBar.cpp"
 
 #if USE_BACKEND

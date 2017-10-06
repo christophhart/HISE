@@ -51,6 +51,7 @@ class FloatingTile;
 #endif
 
 #include "MiscFloatingPanelTypes.h"
+#include "FrontendPanelTypes.h"
 #include "FloatingTileContainer.h"
 #include "FloatingTile.h"
 

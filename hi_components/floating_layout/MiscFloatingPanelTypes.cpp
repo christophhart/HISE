@@ -31,33 +31,6 @@
 */
 
 
-Note::Note(FloatingTile* parent) :
-	FloatingTileContent(parent)
-{
-	addAndMakeVisible(editor = new TextEditor());
-	editor->setFont(GLOBAL_BOLD_FONT());
-	editor->setColour(TextEditor::ColourIds::backgroundColourId, Colours::transparentBlack);
-	editor->setColour(TextEditor::ColourIds::textColourId, Colours::white.withAlpha(0.8f));
-	editor->setColour(TextEditor::ColourIds::focusedOutlineColourId, Colours::white.withAlpha(0.5f));
-	editor->setColour(CaretComponent::ColourIds::caretColourId, Colours::white);
-	editor->addListener(this);
-	editor->setReturnKeyStartsNewLine(true);
-	editor->setMultiLine(true, true);
-
-	editor->setLookAndFeel(&plaf);
-}
-
-void Note::resized()
-{
-	editor->setBounds(getLocalBounds().withTrimmedTop(16));
-}
-
-
-void Note::labelTextChanged(Label* )
-{
-
-}
-
 void EmptyComponent::paint(Graphics& g)
 {
 	g.fillAll(c);
@@ -66,18 +39,6 @@ void EmptyComponent::paint(Graphics& g)
 void EmptyComponent::mouseDown(const MouseEvent& event)
 {
 	getParentShell()->mouseDown(event);
-}
-
-MidiKeyboardPanel::MidiKeyboardPanel(FloatingTile* parent) :
-	FloatingTileContent(parent)
-{
-	setDefaultPanelColour(PanelColourId::bgColour, Colours::transparentBlack);
-
-	setInterceptsMouseClicks(false, true);
-
-	addAndMakeVisible(keyboard = new CustomKeyboard(parent->getMainController()));
-
-	keyboard->setLowestVisibleKey(12);
 }
 
 #if USE_BACKEND
@@ -366,43 +327,6 @@ void PopoutButtonPanel::resized()
 {
 	button->setBounds(getParentShell()->getContentBounds());
 }
-
-void PerformanceLabelPanel::timerCallback()
-{
-	auto mc = getMainController();
-
-	const int cpuUsage = (int)mc->getCpuUsage();
-	const int voiceAmount = mc->getNumActiveVoices();
-	const double ramUsage = (double)mc->getSampleManager().getModulatorSamplerSoundPool()->getMemoryUsageForAllSamples() / 1024.0 / 1024.0;
-
-	//const bool midiFlag = mc->checkAndResetMidiInputFlag();
-
-	//activityLed->setOn(midiFlag);
-
-	String stats = "CPU: ";
-	stats << String(cpuUsage) << "%, RAM: " << String(ramUsage, 1) << "MB , Voices: " << String(voiceAmount);
-	statisticLabel->setText(stats, dontSendNotification);
-}
-
-
-
-void ActivityLedPanel::fromDynamicObject(const var& object)
-{
-	FloatingTileContent::fromDynamicObject(object);
-
-	showMidiLabel = getPropertyWithDefault(object, (int)SpecialPanelIds::ShowMidiLabel);
-
-	onName = getPropertyWithDefault(object, (int)SpecialPanelIds::OnImage);
-
-	if(onName.isNotEmpty())
-		on = ImagePool::loadImageFromReference(getMainController(), onName);
-
-	offName = getPropertyWithDefault(object, (int)SpecialPanelIds::OffImage);
-
-	if(offName.isNotEmpty())
-		off = ImagePool::loadImageFromReference(getMainController(), offName);
-}
-
 
 
 InterfaceContentPanel::InterfaceContentPanel(FloatingTile* parent) :

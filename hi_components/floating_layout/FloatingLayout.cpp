@@ -42,6 +42,7 @@
 #endif
 
 #include "MiscFloatingPanelTypes.cpp"
+#include "FrontendPanelTypes.cpp"
 #include "FloatingTileContainer.cpp"
 #include "FloatingTile.cpp"
 

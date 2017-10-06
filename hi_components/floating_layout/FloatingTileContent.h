@@ -272,13 +272,13 @@ public:
 
 	enum class PanelPropertyId
 	{
-		Type = 0,
-		Title,
+		Type = 0, ///< the ID of the panel that determines the actual type.
+		Title, ///< can be used to show a better title in the popup
 		StyleData,
-		ColourData,
-		LayoutData,
-		Font,
-		FontSize,
+		ColourData, ///< an object that contains 5 basic colour IDs that can be used to customize the panel: `bgColour`, `textColour`, `itemColour1`, `itemColour2` and `itemColour3`
+		LayoutData, ///< this object contains information about the layout within its parent container. You usually don't need to change this via scripting.
+		Font, ///< if the panel is rendering text, this can be used to change the font. For changing the font-style, append ` Bold` or ` Italic` at the font name.
+		FontSize, ///< if the panel is rendering text, this can be used to change the font size.
 		numPropertyIds
 	};
 
