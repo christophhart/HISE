@@ -35,3 +35,9 @@ projects/native_jit_test/JuceLibraryCode/
 tools/hlac_tool/Builds/
 tools/hlac_tool/JuceLibraryCode/
 tools/hlac_tool/Source/testSamples/
+tools/dsp_api/html/
+tools/floating_tile_docs/html/
+tools/hise_api/html/
+tools/hise_api/upload.ftp
+tools/scripting_api/html/
+*.tmp

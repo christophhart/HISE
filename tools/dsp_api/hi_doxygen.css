@@ -8,26 +8,131 @@ body, table, div, p, dl
 	font-size: 15px;
     line-height: 1.6;
 	
+	color: #222;
+    
 
+}
+
+body {
+	margin: 0px;
+	
+}
+
+.icona
+{
+	display: none;
+}
+
+.hiseLogo img
+{
+	height: 45px;
+	padding: 5px;
+	
+}
+
+.hiseLogo
+{
+	display: inline-block;
+	float: left;
+}
+
+.mainHeader
+{
+	height: 55px;
+	background-color: #333;
+	border-bottom: 1px solid #111;
+	
+}
+
+.jumboImage
+{	
+	//background-color: rgba(0,0,0, 0.0);
+	background-image: url(http://hise.audio/images/All.png) !important;
+
+	background-size: cover;
+	background-position: center center;
+	
+	margin-bottom: 0px;
+	color: #fff;
+	height: 200px;
+
+}
+
+.mainTitle
+{
+	font-size: 1.2em;
+    color: #888;
+	
+	display: inline-block;
+}
+
+.hise
+{
+	display: inline-block;
+	float: left;
+	padding: 15px;
+}
+
+.hise a
+{
+	padding: 0px;
+	color: #fff;
+	margin-right: 50px;
+}
+
+.menuItem
+{
+	display: inline-block;
+	float: left;
+	padding: 15px;
+	
+	margin-right: 30px;
+}
+
+.menuItem a
+{
+	color: #eee;
+}
+
+#MSearchBox
+{
+	display: float;
+    margin-top: 15px;
+    
 }
 
 code
 {
 	font-family: "Source Code Pro", monospace;
-	letter-spacing: -1px;
+	font-family: "Source Code Pro", monospace;
+    border-radius: 4px;
+    /* letter-spacing: -1px; */
+    padding: 3px;
+    font-weight: bold;
+    color: #700;
+    background-color: #ffeeee;
 }
 
 /* @group Heading Levels */
 
 h1.groupheader {
 	font-size: 150%;
+	
+}
+
+h1
+{
+	margin-bottom: 40px;
 }
 
 .title {
-	font: 400 14px/28px Roboto,sans-serif;
-	font-size: 150%;
+	
+	font-size: 2em;
+	text-align: center;
 	font-weight: bold;
-	margin: 10px 2px;
+	margin: 0px 2px;
+	color: #90FFB1;
+	
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -236,6 +341,7 @@ span.lineno {
 	border-right: 2px solid #0F0;
 	background-color: #E8E8E8;
         white-space: pre;
+		    display: none;
 }
 span.lineno a {
 	background-color: #D8D8D8;
@@ -274,18 +380,12 @@ div.groupText {
 	font-style: italic;
 }
 
-body {
-	background-color: white;
-	color: #222;
-    margin: 0px auto;
-	max-width: 1000px;
-}
-
-div.contents {
+div.contents 
+{
 	
-	margin-top: 10px;
-	margin-left: 12px;
-	margin-right: 8px;
+	margin: 0px auto;
+	max-width: 1000px;}
+
 }
 
 td.indexkey {
@@ -691,8 +791,7 @@ span.mlabel {
 
 div.directory {
         margin: 10px 0px;
-        border-top: 1px solid #A8B8D9;
-        border-bottom: 1px solid #A8B8D9;
+        
         width: 100%;
 }
 
@@ -721,17 +820,15 @@ div.directory {
 }
 
 .directory td.desc {
+	display: none;
         width: 100%;
         padding-left: 6px;
 	padding-right: 6px;
 	padding-top: 3px;
-	border-left: 1px solid rgba(0,0,0,0.05);
+	
 }
 
-.directory tr.even {
-	padding-left: 6px;
-	background-color: #F7F8FB;
-}
+
 
 .directory img {
 	vertical-align: -30%;
@@ -767,35 +864,39 @@ address {
 }
 
 table.doxtable {
+	
 	border-collapse:collapse;
         margin-top: 4px;
         margin-bottom: 4px;
 }
 
 table.doxtable td, table.doxtable th {
-	border: 1px solid #2D4068;
+	border: 1px solid #fff;
 	padding: 3px 7px 2px;
+	padding: 20px;
+	background-color: #f8f8f8;
+	
 }
 
 table.doxtable th {
-	background-color: #374F7F;
-	color: #FFFFFF;
+	
+	color: #444;
 	font-size: 110%;
 	padding-bottom: 4px;
 	padding-top: 5px;
+	background-color: #ccc;
+}
+
+table.doxtable th:odd
+{
+	
 }
 
 table.fieldtable {
-        /*width: 100%;*/
+        width: 100%;
         margin-bottom: 10px;
-        border: 1px solid #A8B8D9;
-        border-spacing: 0px;
-        -moz-border-radius: 4px;
-        -webkit-border-radius: 4px;
-        border-radius: 4px;
-        -moz-box-shadow: rgba(0, 0, 0, 0.15) 2px 2px 2px;
-        -webkit-box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.15);
-        box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.15);
+        border: 1px solid #fff;
+        
 }
 
 .fieldtable td, .fieldtable th {
@@ -804,17 +905,19 @@ table.fieldtable {
 
 .fieldtable td.fieldtype, .fieldtable td.fieldname {
         white-space: nowrap;
-        border-right: 1px solid #A8B8D9;
-        border-bottom: 1px solid #A8B8D9;
+        
         vertical-align: top;
 }
 
 .fieldtable td.fieldname {
         padding-top: 3px;
+		background-color: #eee;
+		font-family: "Source Code Pro", fixed;
+		padding: 10px;
 }
 
 .fieldtable td.fielddoc {
-        border-bottom: 1px solid #A8B8D9;
+        
         /*width: 100%;*/
 }
 
@@ -830,7 +933,10 @@ table.fieldtable {
         border-bottom: none;
 }
 
+
+
 .fieldtable th {
+	display: none;
         background-image:url('nav_f.png');
         background-repeat:repeat-x;
         background-color: #E2E8F2;
@@ -945,16 +1051,23 @@ div.ingroups a
 
 div.header
 {
-        background-image:url('nav_h.png');
-        background-repeat:repeat-x;
-	background-color: #F9FAFC;
+    border-bottom: 15px solid #ddd;
+    background-color: #666;
 	margin:  0px;
-	border-bottom: 1px solid #C4CFE5;
+	
+	
 }
 
 div.headertitle
 {
-	padding: 5px 5px 5px 10px;
+	margin-top: 1.5em;
+    font-size: 1.5em;
+    padding: 20px;
+    margin-top: 0px;
+    max-width: 1000px;
+	margin: 0 auto;
+	
+	
 }
 
 dl
@@ -1071,10 +1184,6 @@ dl.section dd {
 	border-bottom: 1px solid #5373B4;
 }
 
-.image
-{
-        text-align: center;
-}
 
 .dotgraph
 {
@@ -1376,3 +1485,29 @@ tr.heading h2 {
   }
 }
 
+.summary
+{
+	display:none;
+}
+
+.mainFooter
+{
+	color: #aaa;
+	margin-top: 50px;
+	height: 80px;
+	background-color: #444;
+    border-top: 60px solid #4f4f4f;
+    padding-top: 30px;
+    padding-bottom: 30px;
+	text-align: center;
+}
+
+.mainFooter p
+{
+	color: #aaa;	
+}
+
+.mainFooter a
+{
+	color: #fff;
+}
