@@ -34,9 +34,6 @@
 #define HI_CORE_H_INCLUDED
 
 
-#if USE_IPP
-#include "IppFFT.h"
-#endif
 
 #ifndef INT_MAX
 #define INT_MAX 2147483647
@@ -50,6 +47,15 @@ namespace juce
 {
 #include "VariantBuffer.h"
 }
+
+namespace hise
+{
+	using namespace juce;
+
+#if USE_IPP
+#include "IppFFT.h"
+#endif
+
 
 #include "CustomDataContainers.h"
 
@@ -88,5 +94,7 @@ namespace juce
 #include "MacroControlBroadcaster.h"
 #include "MiscComponents.h"
 #include "StandaloneProcessor.h"
+
+}
 
 #endif  // HI_CORE_H_INCLUDED

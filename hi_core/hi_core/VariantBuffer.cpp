@@ -1,4 +1,4 @@
-
+using namespace hise;
 
 VariantBuffer::VariantBuffer(float *externalData, int size_) :
 size((externalData != nullptr) ? size_ : 0)

@@ -23,7 +23,7 @@ public:
 
 	FFTProcessor(int dataType);
 
-	IppFFT *getFFTObject();
+	hise::IppFFT *getFFTObject();
 
 	// Direct FFT functions
 
@@ -58,7 +58,7 @@ public:
 private:
 
 #if USE_IPP
-	ScopedPointer<IppFFT> fftData;
+	ScopedPointer<hise::IppFFT> fftData;
 #endif
 
 };

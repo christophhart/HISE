@@ -54,7 +54,10 @@ END_JUCE_MODULE_DECLARATION
 #include "AppConfig.h"
 #include "../JUCE/modules/juce_core/juce_core.h"
 
+namespace hise
+{
 using namespace juce;
+
 
 /** Config: HI_EXPORT_DSP_LIBRARY
 
@@ -104,5 +107,9 @@ namespace HelperFunctions
 
 
 #endif
+
+
+}
+
  
 #endif

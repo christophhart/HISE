@@ -15,14 +15,14 @@
 
 REGISTER_STATIC_DSP_LIBRARIES()
 {
-    REGISTER_STATIC_DSP_FACTORY(HiseCoreDspFactory);
+    REGISTER_STATIC_DSP_FACTORY(hise::HiseCoreDspFactory);
 }
 
 //==============================================================================
 // This creates new instances of the plugin..
 AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
-	return new BackendProcessor();	
+	return new hise::BackendProcessor();	
 };
 
-AudioProcessor* StandaloneProcessor::createProcessor(void) { return nullptr; }
+AudioProcessor* hise::StandaloneProcessor::createProcessor(void) { return nullptr; }

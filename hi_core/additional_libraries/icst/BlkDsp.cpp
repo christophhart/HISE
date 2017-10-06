@@ -26,7 +26,7 @@
 FFTProcessor::FFTProcessor(int fftDataType)
 {
 #if USE_IPP
-	fftData = new IppFFT((IppFFT::DataType)fftDataType);
+	fftData = new hise::IppFFT((hise::IppFFT::DataType)fftDataType);
 #else
 	ignoreUnused(fftDataType);
 	jassertfalse;
@@ -34,7 +34,7 @@ FFTProcessor::FFTProcessor(int fftDataType)
 }
 
 
-IppFFT * FFTProcessor::getFFTObject()
+hise::IppFFT * FFTProcessor::getFFTObject()
 {
 #if USE_IPP
 	return fftData.get();

@@ -34,6 +34,12 @@
 
 #include "JuceHeader.h"
 
+#include <regex>
+
+namespace hise
+{
+	using namespace juce;
+
 #include "sampler/MonolithAudioFormat.cpp"
 #include "sampler/StreamingSampler.cpp"
 
@@ -69,3 +75,5 @@
 #endif
 
 #include "sampler/components/SampleMapBrowser.cpp"
+
+}

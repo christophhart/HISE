@@ -63,6 +63,10 @@ END_JUCE_MODULE_DECLARATION
 #include "../hi_native_jit/hi_native_jit_public.h"
 #endif
 
+namespace hise
+{
+using namespace juce;
+
 
 #include "scripting/api/ScriptMacroDefinitions.h"
 #include "scripting/engine/JavascriptApiClass.h"
@@ -107,4 +111,8 @@ END_JUCE_MODULE_DECLARATION
 #include "scripting/components/ScriptingEditor.h"
 
 #endif 
+
+}
+
 #endif
+

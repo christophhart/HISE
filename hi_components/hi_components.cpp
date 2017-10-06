@@ -32,6 +32,10 @@
 
 #include "JuceHeader.h"
 
+namespace hise
+{
+using namespace juce;
+
 #include "resizable_height_component/ResizableHeightComponent.cpp"
 
 #include "vu_meter/Plotter.cpp"
@@ -60,3 +64,5 @@
 
 
 #include "floating_layout/FloatingLayout.cpp"
+
+}

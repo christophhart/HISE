@@ -43,10 +43,25 @@
 
 #include "hi_core.h"
 
+#include <regex>
+#include <atomic>
+#include <float.h>
+#include <limits.h>
+
+#if JUCE_IOS
+#else
+#include "xmmintrin.h"
+#endif
+
+
 namespace juce
 {
 #include "VariantBuffer.cpp"
 }
+
+namespace hise
+{
+using namespace juce;
 
 #include "CustomDataContainers.cpp"
 
@@ -81,3 +96,5 @@ namespace juce
 #if HI_RUN_UNIT_TESTS
 //#include "HiseEventBufferUnitTests.cpp"
 #endif
+
+}

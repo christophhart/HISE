@@ -34,6 +34,12 @@
 
 #include "JuceHeader.h"
 
+#include <regex>
+
+namespace hise
+{
+	using namespace juce;
+
 #if JUCE_IOS
 #else
 #include "scripting/api/TccContext.cpp"
@@ -84,3 +90,5 @@
 #include "scripting/components/ScriptingEditor.cpp"
 
 #endif 
+
+}

@@ -19,10 +19,10 @@
 	AudioAnalysisBase::AudioAnalysisBase()
 	{
 #if USE_IPP
-		realFloatFFTs = new FFTProcessor((int)IppFFT::DataType::RealFloat);
-		realDoubleFFTs = new FFTProcessor((int)IppFFT::DataType::RealDouble);
-		complexFloatFFTs = new FFTProcessor((int)IppFFT::DataType::ComplexFloat);
-		complexDoubleFFTs = new FFTProcessor((int)IppFFT::DataType::ComplexDouble);
+		realFloatFFTs = new FFTProcessor((int)hise::IppFFT::DataType::RealFloat);
+		realDoubleFFTs = new FFTProcessor((int)hise::IppFFT::DataType::RealDouble);
+		complexFloatFFTs = new FFTProcessor((int)hise::IppFFT::DataType::ComplexFloat);
+		complexDoubleFFTs = new FFTProcessor((int)hise::IppFFT::DataType::ComplexDouble);
 #endif
 	}
 

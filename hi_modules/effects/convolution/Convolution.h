@@ -35,21 +35,6 @@
 
 #define CONVOLUTION_RAMPING_TIME_MS 30
 
-#if JUCE_MSVC
- #pragma warning (push)
- #pragma warning (disable: 4127 4706 4100)
-#endif
-
-namespace wdl
-{
-	// This include does not need to appear in the base header, so it's included in-place
-	#include "wdl/convoengine.h"
-};
-
-#if JUCE_MSVC
- #pragma warning (pop)
-#endif
-
 
 class GainSmoother
 {
@@ -94,73 +79,7 @@ public:
 		smoother.setSmoothingTime(smoothingTime);
 	}
 
-	void processBlock(float** data, int numChannels, int numSamples)
-	{
-		if (numChannels == 1)
-		{
-			float *l = data[0];
-
-			if (fastMode)
-			{
-				const float a = 0.99f;
-				const float invA = 1.0f - a;
-
-				while (--numSamples >= 0)
-				{
-					const float smoothedGain = lastValue * a + gain * invA;
-					lastValue = smoothedGain;
-
-					*l++ *= smoothedGain;
-				}
-			}
-			else
-			{
-				while (--numSamples >= 0)
-				{
-					const float smoothedGain = smoother.smooth(gain);
-
-					*l++ *= smoothedGain;
-				}
-			}
-
-
-		}
-
-		else if (numChannels == 2)
-		{
-			if (fastMode)
-			{
-				const float a = 0.99f;
-				const float invA = 1.0f - a;
-
-				float *l = data[0];
-				float *r = data[1];
-
-				while (--numSamples >= 0)
-				{
-					const float smoothedGain = lastValue * a + gain * invA;
-					lastValue = smoothedGain;
-
-					*l++ *= smoothedGain;
-					*r++ *= smoothedGain;
-				}
-			}
-			else
-			{
-				float *l = data[0];
-				float *r = data[1];
-
-				while (--numSamples >= 0)
-				{
-					const float smoothedGain = smoother.smooth(gain);
-
-					*l++ *= smoothedGain;
-					*r++ *= smoothedGain;
-				}
-			}
-
-		}
-	}
+	void processBlock(float** data, int numChannels, int numSamples);
 
 	int getNumConstants() const 
 	{
@@ -210,6 +129,7 @@ public:
 
 	ConvolutionEffect(MainController *mc, const String &id);;
 
+	~ConvolutionEffect();
 	
 
 	// ============================================================================================= Convolution methods
@@ -269,8 +189,9 @@ private:
 	float wetGain;
 	int latency;
 
-	wdl::WDL_ImpulseBuffer impulseBuffer;
-	wdl::WDL_ConvolutionEngine_Div convolutionEngine;
+	struct WdlPimpl;
+
+	ScopedPointer<WdlPimpl> wdlPimpl;
 
 	double lastSampleRate = 0.0;
 };

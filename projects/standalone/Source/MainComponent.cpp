@@ -11,10 +11,6 @@
 
 #include "MainComponent.h"
 
-#if !PUT_FLOAT_IN_CODEBASE
-#include "../../hi_core/hi_components/floating_layout/FloatingLayout.cpp"
-#endif
-
 // Use this to quickly scale the window
 #define SCALE_2 0
 
@@ -27,26 +23,53 @@
 //==============================================================================
 MainContentComponent::MainContentComponent(const String &commandLine)
 {
-#if !PUT_FLOAT_IN_CODEBASE
-	addAndMakeVisible(root = new FloatingTile(nullptr));
 
-	root->setNewContent(HorizontalTile::getPanelId());
-
-	setSize(1200, 800);
-#else
-	standaloneProcessor = new StandaloneProcessor();
+	standaloneProcessor = new hise::StandaloneProcessor();
 
 	addAndMakeVisible(editor = standaloneProcessor->createEditor());
 
 	setSize(editor->getWidth(), editor->getHeight());
 
-	if (dynamic_cast<GlobalSettingManager*>(editor->getAudioProcessor())->useOpenGL)
+	if (dynamic_cast<hise::GlobalSettingManager*>(editor->getAudioProcessor())->useOpenGL)
 	{
 		open.attachTo(*editor);
 	}
 
 	handleCommandLineArguments(commandLine);
-#endif
+
+}
+
+void MainContentComponent::handleCommandLineArguments(const String& args)
+{
+	if (args.isNotEmpty())
+	{
+		String presetFilename = args.trimCharactersAtEnd("\"").trimCharactersAtStart("\"");
+
+		if (File::isAbsolutePath(presetFilename))
+		{
+			File presetFile(presetFilename);
+
+			File projectDirectory = File(presetFile).getParentDirectory().getParentDirectory();
+			auto bpe = dynamic_cast<hise::BackendRootWindow*>(editor.get());
+			auto mainSynthChain = bpe->getBackendProcessor()->getMainSynthChain();
+			const File currentProjectFolder = GET_PROJECT_HANDLER(mainSynthChain).getWorkDirectory();
+
+			if ((currentProjectFolder != projectDirectory) &&
+				hise::PresetHandler::showYesNoWindow("Switch Project", "The file you are about to load is in a different project. Do you want to switch projects?", hise::PresetHandler::IconType::Question))
+			{
+				GET_PROJECT_HANDLER(mainSynthChain).setWorkingProject(projectDirectory, nullptr);
+			}
+
+			if (presetFile.getFileExtension() == ".hip")
+			{
+				mainSynthChain->getMainController()->loadPreset(presetFile, editor);
+			}
+			else if (presetFile.getFileExtension() == ".xml")
+			{
+				hise::BackendCommandTarget::Actions::openFileFromXml(bpe, presetFile);
+			}
+		}
+	}
 }
 
 MainContentComponent::~MainContentComponent()

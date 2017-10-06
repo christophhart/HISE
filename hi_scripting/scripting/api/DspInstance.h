@@ -35,8 +35,8 @@
 
 #include <atomic>
 
-#define REGISTER_STATIC_DSP_LIBRARIES() void DspFactory::Handler::registerStaticFactories(DspFactory::Handler *instance)
-#define REGISTER_STATIC_DSP_FACTORY(factoryName) DspFactory::Handler::registerStaticFactory<factoryName>(instance);
+#define REGISTER_STATIC_DSP_LIBRARIES() void hise::DspFactory::Handler::registerStaticFactories(hise::DspFactory::Handler *instance)
+#define REGISTER_STATIC_DSP_FACTORY(factoryName) hise::DspFactory::Handler::registerStaticFactory<factoryName>(instance);
 
 class DynamicDspFactory : public DspFactory
 {

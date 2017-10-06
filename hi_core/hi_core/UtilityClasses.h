@@ -33,15 +33,7 @@
 #ifndef UTILITYCLASSES_H_INCLUDED
 #define UTILITYCLASSES_H_INCLUDED
 
-#include <regex>
-#include <atomic>
-#include <float.h>
-#include <limits.h>
 
-#if JUCE_IOS
-#else
-#include "xmmintrin.h"
-#endif
 
 class Processor;
 class MainController;
@@ -51,122 +43,17 @@ class RegexFunctions
 {
 public:
     
-	static Array<StringArray> findSubstringsThatMatchWildcard(const String &regexWildCard, const String &stringToTest)
-	{
-		Array<StringArray> matches;
-		String remainingText = stringToTest;
-		StringArray m = getFirstMatch(regexWildCard, remainingText);
-
-		while (m.size() != 0 && m[0].length() != 0)
-		{
-			remainingText = remainingText.fromFirstOccurrenceOf(m[0], false, false);
-			matches.add(m);
-			m = getFirstMatch(regexWildCard, remainingText);
-		}
-
-		return matches;
-	}
+	static Array<StringArray> findSubstringsThatMatchWildcard(const String &regexWildCard, const String &stringToTest);
 
 	/** Searches a string and returns a StringArray with all matches. 
 	*	You can specify and index of a capture group (if not, the entire match will be used). */
-	static StringArray search(const String& wildcard, const String &stringToTest, int indexInMatch=0)
-	{
-#if TRAVIS_CI
-        return StringArray(); // Travis CI seems to have a problem with libc++...
-#else
-		try
-		{
-			StringArray searchResults;
-
-			std::regex includeRegex(wildcard.toStdString());
-			std::string xAsStd = stringToTest.toStdString();
-			std::sregex_iterator it(xAsStd.begin(), xAsStd.end(), includeRegex);
-			std::sregex_iterator it_end;
-
-			while (it != it_end)
-			{
-				std::smatch result = *it;
-
-				StringArray matches;
-				for (auto x : result)
-				{
-					matches.add(String(x));
-				}
-
-				if (indexInMatch < matches.size()) searchResults.add(matches[indexInMatch]);
-
-				++it;
-			}
-
-			return searchResults;
-		}
-		catch (std::regex_error e)
-		{
-			DBG(e.what());
-			return StringArray();
-		}
-#endif
-	}
+	static StringArray search(const String& wildcard, const String &stringToTest, int indexInMatch=0);
 
 	/** Returns the first match of the given wildcard in the test string. The first entry will be the whole match, followed by capture groups. */
-    static StringArray getFirstMatch(const String &wildcard, const String &stringToTest, const Processor* /*processorForErrorOutput*/=nullptr)
-    {
-#if TRAVIS_CI
-        return StringArray(); // Travis CI seems to have a problem with libc++...
-#else
-        
-        try
-        {
-            std::regex reg(wildcard.toStdString());
-			std::string s(stringToTest.toStdString());
-            std::smatch match;
-            
-
-            if (std::regex_search(s, match, reg))
-            {
-                StringArray sa;
-
-                for (auto x:match)
-                {
-					sa.add(String(x));
-                }
-                
-                return sa;
-            }
-            
-            return StringArray();
-        }
-        catch (std::regex_error e)
-        {
-            jassertfalse;
-
-			DBG(e.what());
-            return StringArray();
-        }
-#endif
-    }
+    static StringArray getFirstMatch(const String &wildcard, const String &stringToTest, const Processor* /*processorForErrorOutput*/=nullptr);
     
 	/** Checks if the given string matches the regex wildcard. */
-    static bool matchesWildcard(const String &wildcard, const String &stringToTest, const Processor* /*processorForErrorOutput*/=nullptr)
-    {
-#if TRAVIS_CI
-        return false; // Travis CI seems to have a problem with libc++...
-#else
-        
-        try
-        {
-            std::regex reg(wildcard.toStdString());
-            
-            return std::regex_search(stringToTest.toStdString(), reg);
-        }
-        catch (std::regex_error e)
-        {
-			DBG(e.what());
-            
-            return false;
-        }
-#endif
-    }
+    static bool matchesWildcard(const String &wildcard, const String &stringToTest, const Processor* /*processorForErrorOutput*/=nullptr);
 
 };
 
@@ -175,23 +62,9 @@ public:
 class ScopedNoDenormals
 {
 public:
-	ScopedNoDenormals()
-    {
-#if JUCE_IOS
-#else
-		oldMXCSR = _mm_getcsr();
-	    int newMXCSR = oldMXCSR | 0x8040;
-		_mm_setcsr(newMXCSR);
-#endif
-	};
+	ScopedNoDenormals();;
 
-	~ScopedNoDenormals()
-	{
-#if JUCE_IOS
-#else
-		_mm_setcsr(oldMXCSR);
-        #endif
-	};
+	~ScopedNoDenormals();;
 
 	int oldMXCSR;
 };
@@ -295,35 +168,9 @@ private:
 */
 struct FloatSanitizers
 {
-	static void sanitizeArray(float* data, int size)
-	{
-		uint32* dataAsInt = reinterpret_cast<uint32*>(data);
+	static void sanitizeArray(float* data, int size);;
 
-		for (int i = 0; i < size; i++)
-		{
-			const uint32 sample = *dataAsInt;
-			const uint32 exponent = sample & 0x7F800000;
-
-			const int aNaN = exponent < 0x7F800000;
-			const int aDen = exponent > 0;
-
-			*dataAsInt++ = sample * (aNaN & aDen);
-
-		}
-	};
-
-	static float sanitizeFloatNumber(float& input)
-	{
-		uint32* valueAsInt = reinterpret_cast<uint32*>(&input);
-		const uint32 exponent = *valueAsInt & 0x7F800000;
-
-		const int aNaN = exponent < 0x7F800000;
-		const int aDen = exponent > 0;
-
-		const uint32 sanitized = *valueAsInt * (aNaN & aDen);
-
-		return *reinterpret_cast<const float*>(&sanitized);
-	};
+	static float sanitizeFloatNumber(float& input);;
 
 	struct Test : public UnitTest
 	{
@@ -333,52 +180,7 @@ struct FloatSanitizers
 
 		};
 
-		void runTest() override
-		{
-			beginTest("Testing array method");
-
-			float d[6];
-
-			d[0] = INFINITY;
-			d[1] = FLT_MIN / 20.0f;
-			d[2] = FLT_MIN / -14.0f;
-			d[3] = NAN;
-			d[4] = 24.0f;
-			d[5] = 0.0052f;
-
-			sanitizeArray(d, 6);
-
-			expectEquals<float>(d[0], 0.0f, "Infinity");
-			expectEquals<float>(d[1], 0.0f, "Denormal");
-			expectEquals<float>(d[2], 0.0f, "Negative Denormal");
-			expectEquals<float>(d[3], 0.0f, "NaN");
-			expectEquals<float>(d[4], 24.0f, "Normal Number");
-			expectEquals<float>(d[5], 0.0052f, "Small Number");
-
-			beginTest("Testing single method");
-
-			float d0 = INFINITY;
-			float d1 = FLT_MIN / 20.0f;
-			float d2 = FLT_MIN / -14.0f;
-			float d3 = NAN;
-			float d4 = 24.0f;
-			float d5 = 0.0052f;
-
-			d0 = sanitizeFloatNumber(d0);
-			d1 = sanitizeFloatNumber(d1);
-			d2 = sanitizeFloatNumber(d2);
-			d3 = sanitizeFloatNumber(d3);
-			d4 = sanitizeFloatNumber(d4);
-			d5 = sanitizeFloatNumber(d5);
-
-			expectEquals<float>(d0, 0.0f, "Single Infinity");
-			expectEquals<float>(d1, 0.0f, "Single Denormal");
-			expectEquals<float>(d2, 0.0f, "Single Negative Denormal");
-			expectEquals<float>(d3, 0.0f, "Single NaN");
-			expectEquals<float>(d4, 24.0f, "Single Normal Number");
-			expectEquals<float>(d5, 0.0052f, "Single Small Number");
-
-		}
+		void runTest() override;
 	};
 };
 
@@ -412,89 +214,37 @@ public:
 	*
 	*	This will immediately call all the listeners that are registered. For thread-safety reasons, you must only call this method on the main message thread.
 	*/
-	void sendSynchronousChangeMessage()
-	{
-        // Ooops, only call this in the message thread.
-		// Use sendChangeMessage() if you need to send a message from elsewhere.
-		jassert(MessageManager::getInstance()->isThisTheMessageThread());
-
-		ScopedLock sl(listeners.getLock());
-
-		for (int i = 0; i < listeners.size(); i++)
-		{
-			if (listeners[i].get() != nullptr)
-			{
-				listeners[i]->changeListenerCallback(this);
-			}
-			else
-			{
-				// Ooops, you called an deleted listener. 
-				// Normally, it would crash now, but since this is really lame, this class only throws an assert!
-				jassertfalse;
-
-				listeners.remove(i--);
-			}
-		}
-	};
+	void sendSynchronousChangeMessage();;
 
 	/** Registers a listener to receive change callbacks from this broadcaster.
 	*
 	*	Trying to add a listener that's already on the list will have no effect.
 	*/
-	void addChangeListener(SafeChangeListener *listener)
-	{
-		ScopedLock sl(listeners.getLock());
-
-		listeners.addIfNotAlreadyThere(listener);
-	}
+	void addChangeListener(SafeChangeListener *listener);
 
 	/**	Unregisters a listener from the list.
 	*
 	*	If the listener isn't on the list, this won't have any effect.
 	*/
-	void removeChangeListener(SafeChangeListener *listener)
-	{
-		ScopedLock sl(listeners.getLock());
-
-		listeners.removeAllInstancesOf(listener);
-	}
+	void removeChangeListener(SafeChangeListener *listener);
 
 	/** Removes all listeners from the list. */
-	void removeAllChangeListeners()
-	{
-		dispatcher.cancelPendingUpdate();
-
-		ScopedLock sl(listeners.getLock());
-
-		listeners.clear();
-	}
+	void removeAllChangeListeners();
 
 	/** Causes an asynchronous change message to be sent to all the registered listeners.
 	*
 	*	The message will be delivered asynchronously by the main message thread, so this method will return immediately.
 	*	To call the listeners synchronously use sendSynchronousChangeMessage().
 	*/
-	void sendChangeMessage(const String &/*identifier*/ = String())
-	{
-		dispatcher.triggerAsyncUpdate();
-	};
+	void sendChangeMessage(const String &/*identifier*/ = String());;
     
     /** This will send a message without allocating a message slot.
     *
     *   Use this in the audio thread to prevent malloc calls, but don't overuse this feature.
     */
-    void sendAllocationFreeChangeMessage()
-    {
-        // You need to call enableAllocationFreeMessages() first...
-        jassert(flagTimer.isTimerRunning());
-        
-        flagTimer.triggerUpdate();
-    }
+    void sendAllocationFreeChangeMessage();
     
-    void enableAllocationFreeMessages(int timerIntervalMilliseconds)
-    {
-        flagTimer.startTimer(timerIntervalMilliseconds);
-    }
+    void enableAllocationFreeMessages(int timerIntervalMilliseconds);
 
 private:
 
@@ -607,16 +357,7 @@ class BalanceCalculator
 public:
 
 	/** Converts a balance value to the gain factor for the supplied channel using an equal power formula. Input is -100.0 ... 100.0 */
-	static float getGainFactorForBalance(float balanceValue, bool calculateLeftChannel)
-	{
-		if (balanceValue == 0.0f) return 1.0f;
-
-		const float balance = balanceValue / 100.0f;
-
-		float panValue = (float_Pi * (balance + 1.0f)) * 0.25f;
-
-		return 1.41421356237309504880f * (calculateLeftChannel ? cosf(panValue) : sinf(panValue));
-	};
+	static float getGainFactorForBalance(float balanceValue, bool calculateLeftChannel);;
 
 	/** Processes a stereo buffer with an array of balance values (from 0...1) - typically the output of a modulation chain. 
 	*
@@ -624,31 +365,10 @@ public:
 	*	The float array that is passed in is used as working buffer, so don't rely on it not being changed...
 	*	
 	*/
-	static void processBuffer(AudioSampleBuffer &stereoBuffer, float *panValues, int startSample, int numSamples)
-	{
-		FloatVectorOperations::multiply(panValues + startSample, float_Pi * 0.5f, numSamples);
-
-		stereoBuffer.applyGain(1.4142f); // +3dB for equal power...
-
-		float *l = stereoBuffer.getWritePointer(0, startSample);
-		float *r = stereoBuffer.getWritePointer(1, startSample);
-
-		while (--numSamples >= 0)
-		{
-			*l++ *= cosf(*panValues) * 1.4142f;
-			*r++ *= sinf(*panValues);
-
-			panValues++;
-		}
-	}
+	static void processBuffer(AudioSampleBuffer &stereoBuffer, float *panValues, int startSample, int numSamples);
 
 	/** Returns a string version of the pan value. */
-	static String getBalanceAsString(int balanceValue)
-	{
-		if (balanceValue == 0) return "C";
-
-		else return String(balanceValue) + (balanceValue > 0 ? "R" : "L");
-	}
+	static String getBalanceAsString(int balanceValue);
 };
 
 

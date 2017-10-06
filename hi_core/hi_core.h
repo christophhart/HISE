@@ -67,7 +67,12 @@ END_JUCE_MODULE_DECLARATION
 #include "../JUCE/modules/juce_opengl/juce_opengl.h"
 #include "../hi_lac/hi_lac.h"
 
-#include "hi_binary_data/hi_binary_data.h"
+#include <atomic>
+#include <complex>
+
+
+
+
 
 //=============================================================================
 /** Config: USE_BACKEND
@@ -250,7 +255,6 @@ If your project contains a SplashScreen.png image file, it will use this as spla
 #endif
 
 
-using namespace juce;
 
 /**Appconfig file
 
@@ -274,15 +278,20 @@ For all defined variables:
 #include "ipp.h"
 #endif
 
+namespace hise
+{
+using namespace juce;
+
+#include "hi_binary_data/hi_binary_data.h"
+
 #include "LibConfig.h"
 #include "Macros.h"
 
-#include "hi_core/hi_core.h"
+}
+
+#include "hi_core/hi_core.h" // has its own namespace definition
+
 #include "additional_libraries/additional_libraries.h"
-
-
-
-
 
 
 

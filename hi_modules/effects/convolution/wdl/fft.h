@@ -33,7 +33,7 @@
 #if HISE_IOS || (JUCE_MAC && USE_VDSP_FFT)
 #define HiseFFTType VDspFFT
 #elif USE_IPP
-#define HiseFFTType IppFFT
+#define HiseFFTType hise::IppFFT
 #else
 class HiseFFTType {};
 #endif

@@ -33,6 +33,10 @@
 
 #include "JuceHeader.h"
 
+namespace hise
+{
+using namespace juce;
+
 #include "backend/BackendBinaryData.cpp"
 #include "backend/BackendCommandIcons.cpp"
 
@@ -62,3 +66,4 @@
 #include "backend/CompileExporter.cpp"
 #include "backend/HisePlayerExporter.cpp"
 
+}

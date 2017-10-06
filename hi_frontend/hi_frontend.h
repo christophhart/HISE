@@ -75,10 +75,17 @@ AudioProcessor* createPlugin(ValueTree &presetData, ValueTree &imageData, ValueT
 #define USE_FRONTEND 1
 #endif
 
+namespace hise
+{
+
+
 using namespace juce;
 
 #include "frontend/FrontEndProcessor.h"
 #include "frontend/FrontendProcessorEditor.h"
+
+
+}
 
 #define USER_PRESET_OFFSET 8192
 
@@ -87,9 +94,9 @@ using namespace juce;
 #define CREATE_PLUGIN(deviceManager, callback) {ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\
 	ValueTree externalFiles = PresetHandler::loadValueTreeFromData(PresetData::externalFiles, PresetData::externalFilesSize, true);\
 	\
-	FrontendProcessor* fp = new FrontendProcessor(presetData, deviceManager, callback, nullptr, nullptr, &externalFiles, nullptr);\
-	AudioProcessorDriver::restoreSettings(fp);\
-	GlobalSettingManager::restoreGlobalSettings(fp); \
+	hise::FrontendProcessor* fp = new hise::FrontendProcessor(presetData, deviceManager, callback, nullptr, nullptr, &externalFiles, nullptr);\
+	hise::AudioProcessorDriver::restoreSettings(fp);\
+	hise::GlobalSettingManager::restoreGlobalSettings(fp); \
 	fp->loadSamplesAfterSetup();\
 	return fp;\
 }
@@ -98,24 +105,24 @@ using namespace juce;
 
 #else
 #define CREATE_PLUGIN(deviceManager, callback) {ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\
-	ValueTree externalFiles = PresetHandler::loadValueTreeFromData(PresetData::externalFiles, PresetData::externalFilesSize, true);\
+	ValueTree externalFiles = hise::PresetHandler::loadValueTreeFromData(PresetData::externalFiles, PresetData::externalFilesSize, true);\
 	\
-	FrontendProcessor* fp = new FrontendProcessor(presetData, deviceManager, callback, nullptr, nullptr, &externalFiles, nullptr);\
-	AudioProcessorDriver::restoreSettings(fp);\
-	GlobalSettingManager::restoreGlobalSettings(fp); \
+	auto fp = new hise::FrontendProcessor(presetData, deviceManager, callback, nullptr, nullptr, &externalFiles, nullptr);\
+	hise::AudioProcessorDriver::restoreSettings(fp);\
+	hise::GlobalSettingManager::restoreGlobalSettings(fp); \
 	fp->loadSamplesAfterSetup();\
 	return fp;\
 }
 
 #define CREATE_PLUGIN_WITH_AUDIO_FILES(deviceManager, callback) {ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\
-	ValueTree imageData = PresetHandler::loadValueTreeFromData(PresetData::images, PresetData::imagesSize, false);\
-	ValueTree impulseData = PresetHandler::loadValueTreeFromData(PresetData::impulses, PresetData::impulsesSize, false); \
-	ValueTree externalFiles = PresetHandler::loadValueTreeFromData(PresetData::externalFiles, PresetData::externalFilesSize, true);\
+	ValueTree imageData = hise::PresetHandler::loadValueTreeFromData(PresetData::images, PresetData::imagesSize, false);\
+	ValueTree impulseData = hise::PresetHandler::loadValueTreeFromData(PresetData::impulses, PresetData::impulsesSize, false); \
+	ValueTree externalFiles = hise::PresetHandler::loadValueTreeFromData(PresetData::externalFiles, PresetData::externalFilesSize, true);\
 	\
-	FrontendProcessor* fp = new FrontendProcessor(presetData, deviceManager, callback, &imageData, &impulseData, &externalFiles, nullptr);\
-    UserPresetHelpers::extractUserPresets(PresetData::userPresets, PresetData::userPresetsSize);\
-	AudioProcessorDriver::restoreSettings(fp);\
-	GlobalSettingManager::restoreGlobalSettings(fp); \
+	auto fp = new hise::FrontendProcessor(presetData, deviceManager, callback, &imageData, &impulseData, &externalFiles, nullptr);\
+    hise::UserPresetHelpers::extractUserPresets(PresetData::userPresets, PresetData::userPresetsSize);\
+	hise::AudioProcessorDriver::restoreSettings(fp);\
+	hise::GlobalSettingManager::restoreGlobalSettings(fp); \
 	fp->loadSamplesAfterSetup();\
 	return fp;\
 }

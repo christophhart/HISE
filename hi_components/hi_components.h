@@ -62,6 +62,10 @@ END_JUCE_MODULE_DECLARATION
 *	custom components for HI.
 */
 
+namespace hise
+{
+using namespace juce;
+
 #include "resizable_height_component/ResizableHeightComponent.h"
 
 #include "vu_meter/Plotter.h"
@@ -90,6 +94,8 @@ END_JUCE_MODULE_DECLARATION
 #include "eq_plot/EqComponent.h"
 
 #include "floating_layout/FloatingLayout.h"
+
+}
 
 
 #endif  // HI_COMPONENTS_H_INCLUDED

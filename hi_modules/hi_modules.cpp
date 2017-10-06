@@ -1,6 +1,29 @@
 
 #include "JuceHeader.h"
 
+
+#if JUCE_MSVC
+#pragma warning (push)
+#pragma warning (disable: 4127 4706 4100)
+#endif
+
+namespace wdl
+{
+
+#include "effects/convolution/wdl/convoengine.cpp"
+#include "effects/convolution/wdl/fft.c"
+
+}
+
+#if JUCE_MSVC
+#pragma warning (pop)
+#endif
+
+namespace hise
+{
+	using namespace juce;
+
+
 /** @defgroup modulatorTypes ModulatorTypes =========================================================================
 *	@ingroup modulator
 *
@@ -143,3 +166,5 @@
 #include "synthesisers/editors/AudioLooperEditor.cpp"
 
 #endif
+
+}

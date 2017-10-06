@@ -11,7 +11,6 @@
 
 #include "../JuceLibraryCode/JuceHeader.h"
 
-class FloatingTile;
 
 //==============================================================================
 /*
@@ -24,38 +23,7 @@ public:
     //==============================================================================
     MainContentComponent(const String &commandLine);
 
-	void handleCommandLineArguments(const String& args)
-	{
-		if (args.isNotEmpty())
-		{
-			String presetFilename = args.trimCharactersAtEnd("\"").trimCharactersAtStart("\"");
-
-            if(File::isAbsolutePath(presetFilename))
-            {
-                File presetFile(presetFilename);
-                
-                File projectDirectory = File(presetFile).getParentDirectory().getParentDirectory();
-                BackendRootWindow* bpe = dynamic_cast<BackendRootWindow*>(editor.get());
-                ModulatorSynthChain* mainSynthChain = bpe->getBackendProcessor()->getMainSynthChain();
-                const File currentProjectFolder = GET_PROJECT_HANDLER(mainSynthChain).getWorkDirectory();
-                
-                if ((currentProjectFolder != projectDirectory) &&
-                    PresetHandler::showYesNoWindow("Switch Project", "The file you are about to load is in a different project. Do you want to switch projects?", PresetHandler::IconType::Question))
-                {
-                    GET_PROJECT_HANDLER(mainSynthChain).setWorkingProject(projectDirectory, nullptr);
-                }
-                
-                if (presetFile.getFileExtension() == ".hip")
-                {
-                    mainSynthChain->getMainController()->loadPreset(presetFile, editor);
-                }
-                else if (presetFile.getFileExtension() == ".xml")
-                {
-                    BackendCommandTarget::Actions::openFileFromXml(bpe, presetFile);
-                }
-            }
-		}
-	}
+	void handleCommandLineArguments(const String& args);
 
 	~MainContentComponent();
 
@@ -64,12 +32,10 @@ public:
 
 private:
 
-	
-
 	ScopedPointer<AudioProcessorEditor> editor;
-	ScopedPointer<StandaloneProcessor> standaloneProcessor;
+	ScopedPointer<hise::StandaloneProcessor> standaloneProcessor;
 
-	ScopedPointer<FloatingTile> root;
+	ScopedPointer<hise::FloatingTile> root;
 
 	OpenGLContext open;
 

@@ -72,7 +72,9 @@ END_JUCE_MODULE_DECLARATION
 *	Contains all classes related to the editors of DSP modules
 */
 
-
+namespace hise
+{
+using namespace juce;
 
 #include "Processor.h"
 #include "ProcessorInterfaces.h"
@@ -176,5 +178,8 @@ class ProcessorEditor;
 // Plugin Parameters
 
 #include "plugin_parameter/PluginParameterProcessor.h"
+
+
+}
 
 #endif  // HI_DSP_H_INCLUDED

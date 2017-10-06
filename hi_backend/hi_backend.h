@@ -54,6 +54,8 @@ END_JUCE_MODULE_DECLARATION
 #include "AppConfig.h"
 #include "../hi_modules/hi_modules.h"
 
+namespace hise
+{
 using namespace juce;
 
 #include "backend/BackendBinaryData.h"
@@ -78,6 +80,9 @@ using namespace juce;
 #include "backend/BackendRootWindow.h"
 #include "backend/CompileExporter.h"
 #include "backend/HisePlayerExporter.h"
+}
+
+
 
 
 #endif   // HI_BACKEND_INCLUDED

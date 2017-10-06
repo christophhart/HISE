@@ -40,7 +40,7 @@ EffectProcessorChain::EffectProcessorChain(Processor *parentProcessor_, const St
 	setEditorState(Processor::Visible, false, dontSendNotification);
 }
 
-ProcessorEditorBody *::EffectProcessorChain::createEditor(ProcessorEditor *parentEditor)
+ProcessorEditorBody *EffectProcessorChain::EffectProcessorChain::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
 

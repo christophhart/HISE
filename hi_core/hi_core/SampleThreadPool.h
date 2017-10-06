@@ -33,36 +33,15 @@
 #ifndef SAMPLETHREADPOOL_H_INCLUDED
 #define SAMPLETHREADPOOL_H_INCLUDED
 
-#define NEW_THREAD_POOL_IMPLEMENTATION 1
 
-#include "../additional_libraries/lockfree_fifo/readerwriterqueue.h"
-
-#if NEW_THREAD_POOL_IMPLEMENTATION
 
 class NewSampleThreadPool : public Thread
 {
 public:
 
-	NewSampleThreadPool():
-		Thread("Sample Loading Thread"),
-		jobQueue(2048),
-		currentlyExecutedJob(nullptr),
-		diskUsage(0.0),
-		counter(0)
-	{
-		startThread(9);
-		
-	}
+	NewSampleThreadPool();
 
-	~NewSampleThreadPool()
-	{
-		if (Job* currentJob = currentlyExecutedJob.load())
-		{
-			currentJob->signalJobShouldExit();
-		}
-
-		stopThread(300);
-	}
+	~NewSampleThreadPool();
 	
 
 	class Job
@@ -110,270 +89,19 @@ public:
 		const String name;
 	};
 
-	double getDiskUsage() const noexcept
-	{
-		return diskUsage.load();
-	}
+	double getDiskUsage() const noexcept;
 
-	void addJob(Job* jobToAdd, bool unused)
-	{
-		++counter;
-        
-		ignoreUnused(unused);
+	void addJob(Job* jobToAdd, bool unused);
 
-#if ENABLE_CONSOLE_OUTPUT
-		if (jobToAdd->isQueued())
-		{
-			Logger::writeToLog(errorMessage);
-			Logger::writeToLog(String(counter.get()));
-		}
-#endif
+	void run() override;
 
+	struct Pimpl;
 
-		jobToAdd->queued.store(true);
-		jobQueue.enqueue(jobToAdd);
-		
+	ScopedPointer<Pimpl> pimpl;
 
-		notify();
-	}
-
-	void run() override
-	{
-		while (!threadShouldExit())
-		{
-			if (WeakReference<Job>* next = jobQueue.peek())
-			{
-                Job* j = next->get();
-
-#if ENABLE_CPU_MEASUREMENT
-
-				const int64 lastEndTime = endTime;
-				startTime = Time::getHighResolutionTicks();
-#endif
-                
-                if(j != nullptr)
-                {
-                    currentlyExecutedJob.store(j);
-                    
-                    j->running.store(true);
-                    
-                    Job::JobStatus status = j->runJob();
-                    
-                    j->running.store(false);
-                    
-                    if (status == Job::jobHasFinished)
-                    {
-                        jobQueue.pop();
-                        j->queued.store(false);
-                        --counter;
-                    }
-                    
-                    currentlyExecutedJob.store(nullptr);
-                }
-                
-                
-#if ENABLE_CPU_MEASUREMENT
-				endTime = Time::getHighResolutionTicks();
-
-				const int64 idleTime = startTime - lastEndTime;
-				const int64 busyTime = endTime - startTime;
-
-				diskUsage.store((double)busyTime / (double)(idleTime + busyTime));
-#endif
-			}
-
-#if 0 // Set this to true to enable defective threading (for debugging purposes)
-			wait(500);
-#else
-            else
-            {
-                wait(500);
-            }
-#endif
-            
-            
-		}
-			
-	}
-
-    Atomic<int> counter;
-    
-	std::atomic<double> diskUsage;
-
-	int64 startTime, endTime;
-
-	moodycamel::ReaderWriterQueue<WeakReference<Job>> jobQueue;
-
-	std::atomic<Job*> currentlyExecutedJob;
-
-	static const String errorMessage;
 };
-
-
 
 typedef NewSampleThreadPool SampleThreadPool;
 typedef NewSampleThreadPool::Job SampleThreadPoolJob;
-
-#else
-
-class SampleThreadPool;
-class SampleThreadPoolThread;
-
-#define CHRISBOY 1
-
-class SampleThreadPoolJob
-{
-public:
-	explicit SampleThreadPoolJob(const String& name);
-
-	/** Destructor. */
-	virtual ~SampleThreadPoolJob();
-
-	//==============================================================================
-	
-	enum JobStatus
-	{
-		jobHasFinished = 0, 
-		jobNeedsRunningAgain
-	};
-
-	virtual JobStatus runJob() = 0;
-	
-	bool isRunning() const noexcept{ return isActive; }
-
-	bool shouldExit() const noexcept{ return shouldStop; }
-		
-	void signalJobShouldExit();
-
-	bool waitForJobToFinish(SampleThreadPoolJob* const otherJob, int timeOut);
-
-	//==============================================================================
-private:
-	friend class SampleThreadPool;
-	friend class SampleThreadPoolThread;
-
-	SampleThreadPool* pool;
-	bool shouldStop, isActive, shouldBeDeleted;
-
-	Atomic<int> indexInPool;
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SampleThreadPoolJob)
-};
-
-
-//==============================================================================
-
-class SampleThreadPool
-{
-public:
-	//==============================================================================
-
-	SampleThreadPool(int numberOfThreads);
-	SampleThreadPool();
-	~SampleThreadPool();
-
-	class JUCE_API  JobSelector
-	{
-	public:
-		virtual ~JobSelector() {}
-
-		virtual bool isJobSuitable(SampleThreadPoolJob* job) = 0;
-	};
-	
-
-
-	void addJob(SampleThreadPoolJob* job,
-		bool deleteJobWhenFinished);
-	
-	
-
-	bool removeJob(SampleThreadPoolJob* job,
-		bool interruptIfRunning,
-		int timeOutMilliseconds);
-	
-	bool removeAllJobs(bool interruptRunningJobs,
-		int timeOutMilliseconds,
-		JobSelector* selectedJobsToRemove = nullptr);
-	
-	int getNumJobs() const;
-
-	bool contains(const SampleThreadPoolJob* job) const;
-	
-	bool isJobRunning(const SampleThreadPoolJob* job) const;
-	
-	bool waitForJobToFinish(const SampleThreadPoolJob* job,
-		int timeOutMilliseconds) const;
-	
-	bool setThreadPriorities(int newPriority);
-
-private:
-	//==============================================================================
-	Array <SampleThreadPoolJob*> jobs;
-
-	SampleThreadPoolJob* preAllocatedJobs[1024];
-
-	SampleThreadPoolJob *getFirstJob()
-	{
-		ScopedLock sl(getLock());
-
-		for (int i = 0; i < 1024; i++)
-		{
-			if (preAllocatedJobs[i] != nullptr) return preAllocatedJobs[i];
-		}
-
-		return nullptr;
-	}
-
-	int getFirstFreeSlot()
-	{
-		ScopedLock sl(getLock());
-		for (int i = 0; i < 1024; i++)
-		{
-			if (preAllocatedJobs[i] == nullptr) return i;
-		}
-
-		jassertfalse;
-		return -1;
-	}
-
-	int getLastFreeSlot()
-	{
-		ScopedLock sl(getLock());
-		for (int i = 1024; --i >= 0;)
-		{
-			if (preAllocatedJobs[i] == nullptr) return i;
-		}
-
-		jassertfalse;
-		return -1;
-	}
-
-	const CriticalSection& getLock() const { return lock; }
-
-	void deleteJob(SampleThreadPoolJob *job);
-
-	void deleteJob(const int index);
-
-	class SampleThreadPoolThread;
-	friend class SampleThreadPoolJob;
-	friend class SampleThreadPoolThread;
-	friend struct ContainerDeletePolicy<SampleThreadPoolThread>;
-	OwnedArray<SampleThreadPoolThread> threads;
-
-	CriticalSection lock;
-	WaitableEvent jobFinishedSignal;
-
-	bool runNextJob(SampleThreadPoolThread&);
-	SampleThreadPoolJob* pickNextJobToRun();
-	
-	void createThreads(int numThreads);
-	void stopThreads();
-
-	void removeAllJobs(bool, int, bool);
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SampleThreadPool)
-};
-
-#endif
 
 #endif  // SAMPLETHREADPOOL_H_INCLUDED

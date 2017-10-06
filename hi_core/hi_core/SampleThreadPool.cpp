@@ -30,363 +30,137 @@
 *   ===========================================================================
 */
 
-#if NEW_THREAD_POOL_IMPLEMENTATION
 
-const String NewSampleThreadPool::errorMessage("HDD overflow");
+#include "../additional_libraries/lockfree_fifo/readerwriterqueue.h"
 
-#else
-
-class SampleThreadPool::SampleThreadPoolThread : public Thread
+struct NewSampleThreadPool::Pimpl
 {
-public:
-	SampleThreadPoolThread(SampleThreadPool& p)
-		: Thread("Pool"), currentJob(nullptr), pool(p)
+	Pimpl() :
+		jobQueue(2048),
+		currentlyExecutedJob(nullptr),
+		diskUsage(0.0),
+		counter(0)
+	{};
+
+	~Pimpl()
 	{
-		p.setThreadPriorities(9);
+		if (Job* currentJob = currentlyExecutedJob.load())
+		{
+			currentJob->signalJobShouldExit();
+		}
 	}
 
-	void run() override
-	{
-		while (!threadShouldExit())
-			if (!pool.runNextJob(*this))
-				wait(500);
-	}
+	Atomic<int> counter;
 
-	SampleThreadPoolJob* volatile currentJob;
-	SampleThreadPool& pool;
+	std::atomic<double> diskUsage;
 
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SampleThreadPoolThread)
+	int64 startTime, endTime;
+
+	moodycamel::ReaderWriterQueue<WeakReference<Job>> jobQueue;
+
+	std::atomic<Job*> currentlyExecutedJob;
+
+	static const String errorMessage;
 };
 
-//==============================================================================
-SampleThreadPoolJob::SampleThreadPoolJob(const String& /*name*/)
-	: pool(nullptr),
-	shouldStop(false), isActive(false), shouldBeDeleted(false), indexInPool(-1)
+NewSampleThreadPool::NewSampleThreadPool() :
+	Thread("Sample Loading Thread"),
+	pimpl(new Pimpl())
 {
+
+	startThread(9);
 }
 
-SampleThreadPoolJob::~SampleThreadPoolJob()
+NewSampleThreadPool::~NewSampleThreadPool()
 {
-	// you mustn't delete a job while it's still in a pool! Use SampleThreadPool::removeJob()
-	// to remove it first!
-	jassert(pool == nullptr || !pool->contains(this));
+	pimpl = nullptr;
+
+	stopThread(300);
 }
 
-void SampleThreadPoolJob::signalJobShouldExit()
+double NewSampleThreadPool::getDiskUsage() const noexcept
 {
-	shouldStop = true;
+	return pimpl->diskUsage.load();
 }
 
-bool SampleThreadPoolJob::waitForJobToFinish(SampleThreadPoolJob* const otherJob, int timeOut)
+void NewSampleThreadPool::addJob(Job* jobToAdd, bool unused)
 {
-	return pool->waitForJobToFinish(otherJob, timeOut);
-}
+	++pimpl->counter;
 
-//==============================================================================
-SampleThreadPool::SampleThreadPool(const int numThreads)
-{
-	for (int i = 0; i < 1024; i++)
+	ignoreUnused(unused);
+
+#if ENABLE_CONSOLE_OUTPUT
+	if (jobToAdd->isQueued())
 	{
-		preAllocatedJobs[i] = nullptr;
+		Logger::writeToLog(pimpl->errorMessage);
+		Logger::writeToLog(String(pimpl->counter.get()));
 	}
-
-	jassert(numThreads > 0); // not much point having a pool without any threads!
-
-#if !FRONTEND_IS_PLUGIN
-	createThreads(numThreads);
 #endif
+
+
+	jobToAdd->queued.store(true);
+	pimpl->jobQueue.enqueue(jobToAdd);
+
+
+	notify();
 }
 
-SampleThreadPool::SampleThreadPool()
+void NewSampleThreadPool::run()
 {
-	for (int i = 0; i < 1024; i++)
+	while (!threadShouldExit())
 	{
-		preAllocatedJobs[i] = nullptr;
-	}
+		if (WeakReference<Job>* next = pimpl->jobQueue.peek())
+		{
+			Job* j = next->get();
 
-#if !FRONTEND_IS_PLUGIN
-	createThreads(SystemStats::getNumCpus());
+#if ENABLE_CPU_MEASUREMENT
+
+			const int64 lastEndTime = pimpl->endTime;
+			pimpl->startTime = Time::getHighResolutionTicks();
 #endif
-}
 
-SampleThreadPool::~SampleThreadPool()
-{
-	removeAllJobs(true, 5000);
-	stopThreads();
-}
-
-void SampleThreadPool::createThreads(int numThreads)
-{
-	for (int i = jmax(1, numThreads); --i >= 0;)
-		threads.add(new SampleThreadPoolThread(*this));
-
-	for (int i = threads.size(); --i >= 0;)
-		threads.getUnchecked(i)->startThread();
-}
-
-void SampleThreadPool::stopThreads()
-{
-	for (int i = threads.size(); --i >= 0;)
-		threads.getUnchecked(i)->signalThreadShouldExit();
-
-	for (int i = threads.size(); --i >= 0;)
-		threads.getUnchecked(i)->stopThread(500);
-}
-
-void SampleThreadPool::addJob(SampleThreadPoolJob* const job, const bool /*deleteJobWhenFinished*/)
-{
-	if (job->pool == nullptr)
-	{
-		job->pool = this;
-		job->shouldStop = false;
-		job->isActive = false;
-
-		{
-			const ScopedLock sl(getLock());
-
-			const int index = getFirstFreeSlot();
-
-			if (index != -1)
+			if (j != nullptr)
 			{
-				preAllocatedJobs[index] = job;
-				job->indexInPool = index;
-			}
-		}
+				pimpl->currentlyExecutedJob.store(j);
 
-		for (int i = threads.size(); --i >= 0;)
-			threads.getUnchecked(i)->notify();
-	}
-}
+				j->running.store(true);
 
-int SampleThreadPool::getNumJobs() const
-{
-	return jobs.size();
-}
+				Job::JobStatus status = j->runJob();
 
-bool SampleThreadPool::contains(const SampleThreadPoolJob* const job) const
-{
-	return job->indexInPool.get() != -1;
-}
+				j->running.store(false);
 
-bool SampleThreadPool::isJobRunning(const SampleThreadPoolJob* const job) const
-{
-	const ScopedLock sl(getLock());
-	return job->isActive && contains(job);
-}
-
-bool SampleThreadPool::waitForJobToFinish(const SampleThreadPoolJob* const job, const int timeOutMs) const
-{
-	if (job != nullptr)
-	{
-		const uint32 start = Time::getMillisecondCounter();
-
-		while (contains(job))
-		{
-			if (timeOutMs >= 0 && Time::getMillisecondCounter() >= start + (uint32)timeOutMs)
-				return false;
-
-			jobFinishedSignal.wait(2);
-		}
-	}
-
-	return true;
-}
-
-bool SampleThreadPool::removeJob(SampleThreadPoolJob* const job,
-	const bool interruptIfRunning,
-	const int timeOutMs)
-{
-	bool dontWait = true;
-
-	if (job != nullptr)
-	{
-		if (job->isActive)
-		{
-			if (interruptIfRunning)
-				job->signalJobShouldExit();
-
-			dontWait = false;
-		}
-		else
-		{
-			deleteJob(job);
-		}
-	}
-
-	return dontWait || waitForJobToFinish(job, timeOutMs);
-}
-
-bool SampleThreadPool::removeAllJobs(const bool interruptRunningJobs, const int timeOutMs,
-	SampleThreadPool::JobSelector* const /*selectedJobsToRemove*/)
-{
-	Array <SampleThreadPoolJob*> jobsToWaitFor;
-	jobsToWaitFor.ensureStorageAllocated(1024);
-
-	const ScopedLock sl(getLock());
-
-	for (int i = 1024; --i >= 0;)
-	{
-		SampleThreadPoolJob* const job = preAllocatedJobs[i];
-
-		if (job == nullptr) continue;
-
-		if (job->isActive)
-		{
-			jobsToWaitFor.add(job);
-			if (interruptRunningJobs)
-				job->signalJobShouldExit();
-		}
-		else
-		{
-			deleteJob(i);
-		}
-	}
-
-	const uint32 start = Time::getMillisecondCounter();
-
-	for (;;)
-	{
-		for (int i = jobsToWaitFor.size(); --i >= 0;)
-		{
-			SampleThreadPoolJob* const job = jobsToWaitFor.getUnchecked(i);
-
-			if (!isJobRunning(job))
-				jobsToWaitFor.remove(i);
-		}
-
-		if (jobsToWaitFor.size() == 0)
-			break;
-
-		if (timeOutMs >= 0 && Time::getMillisecondCounter() >= start + (uint32)timeOutMs)
-			return false;
-
-		jobFinishedSignal.wait(20);
-	}
-
-	return true;
-}
-
-
-
-bool SampleThreadPool::setThreadPriorities(const int newPriority)
-{
-	bool ok = true;
-
-	for (int i = threads.size(); --i >= 0;)
-		if (!threads.getUnchecked(i)->setPriority(newPriority))
-			ok = false;
-
-	return ok;
-}
-
-SampleThreadPoolJob* SampleThreadPool::pickNextJobToRun()
-{
-	const ScopedLock sl(getLock());
-
-	for (int i = 0; i < 1024; ++i)
-	{
-		SampleThreadPoolJob* job = preAllocatedJobs[i];
-
-		if (job != nullptr && !job->isActive)
-		{
-			if (job->shouldStop)
-			{
-				deleteJob(i);
-				continue;
-			}
-
-			job->isActive = true;
-			return job;
-		}
-	}
-	
-	return nullptr;
-}
-
-bool SampleThreadPool::runNextJob(SampleThreadPoolThread& thread)
-{
-	if (SampleThreadPoolJob* const job = pickNextJobToRun())
-	{
-		SampleThreadPoolJob::JobStatus result = SampleThreadPoolJob::jobHasFinished;
-		thread.currentJob = job;
-
-		try
-		{
-			result = job->runJob();
-		}
-		catch (...)
-		{
-			jassertfalse; // Your runJob() method mustn't throw any exceptions!
-		}
-
-		thread.currentJob = nullptr;
-
-		const ScopedLock sl(getLock());
-		
-		const int index = job->indexInPool.get();
-
-		if (preAllocatedJobs[index] == job)
-		{
-			job->isActive = false;
-
-			if (result != SampleThreadPoolJob::jobNeedsRunningAgain || job->shouldStop)
-			{
-				deleteJob(index);
-
-				jobFinishedSignal.signal();
-			}
-			else
-			{
-				// move the job to the end of the queue if it wants another go
-				const int lastFreeIndex = getLastFreeSlot();
-
-				if (lastFreeIndex != -1)
+				if (status == Job::jobHasFinished)
 				{
-					preAllocatedJobs[index] = nullptr;
-					preAllocatedJobs[lastFreeIndex] = job;
+					pimpl->jobQueue.pop();
+					j->queued.store(false);
+					--pimpl->counter;
 				}
+
+				pimpl->currentlyExecutedJob.store(nullptr);
 			}
-		}
 
-		return true;
-	}
 
-	return false;
-}
+#if ENABLE_CPU_MEASUREMENT
+			pimpl->endTime = Time::getHighResolutionTicks();
 
-void SampleThreadPool::deleteJob(SampleThreadPoolJob* const job)
-{
-	const int indexInPool = job->indexInPool.get();
+			const int64 idleTime = pimpl->startTime - lastEndTime;
+			const int64 busyTime = pimpl->endTime - pimpl->startTime;
 
-	if (indexInPool != -1)
-	{
-		deleteJob(indexInPool);
-	}
-}
-
-void SampleThreadPool::deleteJob(const int index)
-{
-	SampleThreadPoolJob *job;
-
-	if (index >= 0 && index < 1024)
-	{
-		const ScopedLock sl(getLock());
-
-		job = preAllocatedJobs[index];
-
-		preAllocatedJobs[index] = nullptr;
-		
-		if (job != nullptr)
-		{
-			job->shouldStop = true;
-			job->pool = nullptr;
-			job->indexInPool = -1;
-		}
-	}
-	else
-	{
-		job = nullptr;
-	}	
-}
-
+			pimpl->diskUsage.store((double)busyTime / (double)(idleTime + busyTime));
 #endif
+		}
+
+#if 0 // Set this to true to enable defective threading (for debugging purposes)
+		wait(500);
+#else
+		else
+		{
+			wait(500);
+		}
+#endif
+
+
+	}
+}
+
+const String NewSampleThreadPool::Pimpl::errorMessage("HDD overflow");

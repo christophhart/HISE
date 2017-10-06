@@ -54,6 +54,11 @@ END_JUCE_MODULE_DECLARATION
 #include "../hi_components/hi_components.h"
 #include "../hi_dsp_library/hi_dsp_library.h"
 
+namespace hise
+{
+	using namespace juce;
+
+
 #include "sampler/MonolithAudioFormat.h"
 
 #include "sampler/StreamingSampler.h"
@@ -88,5 +93,7 @@ END_JUCE_MODULE_DECLARATION
 #endif
 
 #include "sampler/components/SampleMapBrowser.h"
+
+}
 
 #endif   // HI_SAMPLER_INCLUDED

@@ -12,8 +12,18 @@
 
 #include "JuceHeader.h"
 
+#include "additional_libraries/additional_libraries.cpp"
+
+namespace hise
+{
+using namespace juce;
+
 HiseColourScheme::Scheme HiseColourScheme::currentColourScheme = Dark;
 
-#include "additional_libraries/additional_libraries.cpp"
 #include "hi_binary_data/hi_binary_data.cpp"
+
+
+}
+
 #include "hi_core/hi_core.cpp"
+

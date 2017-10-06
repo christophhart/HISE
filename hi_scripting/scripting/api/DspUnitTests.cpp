@@ -30,6 +30,10 @@
 *   ===========================================================================
 */
 
+#include "AppConfig.h"
+
+#if HI_RUN_UNIT_TESTS
+
 #include  "JuceHeader.h"
 
 class DspUnitTests : public UnitTest
@@ -199,3 +203,5 @@ public:
 };
 
 static DspUnitTests dspUnitTest;
+
+#endif

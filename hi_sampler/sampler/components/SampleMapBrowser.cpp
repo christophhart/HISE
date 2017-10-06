@@ -164,7 +164,7 @@ void SampleMapBrowser::ColumnListBoxModel::paintListBoxItem(int rowNumber, Graph
 	}
 }
 
-void SampleMapBrowser::ColumnListBoxModel::returnKeyPressed(int row)
+void SampleMapBrowser::ColumnListBoxModel::returnKeyPressed(int /*row*/)
 {
 
 }
@@ -306,15 +306,15 @@ void SampleMapBrowser::rebuildValueTree()
 		}
 		else if (sampleList[i].isObject())
 		{
-			var columns = sampleList[i].getProperty("Columns", var());
+			var columnArray = sampleList[i].getProperty("Columns", var());
 
-			numColumns = jmax<int>(numColumns, columns.size());
+			numColumns = jmax<int>(numColumns, columnArray.size());
 
 			var id = sampleList[i].getProperty("ID", var());
 
-			if (columns.isArray() && id.isString())
+			if (columnArray.isArray() && id.isString())
 			{
-				ValueTreeHelpers::createEntryWithHierarchy(columnData, *columns.getArray(), id);
+				ValueTreeHelpers::createEntryWithHierarchy(columnData, *columnArray.getArray(), id);
 			}
 			else
 			{

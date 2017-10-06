@@ -30,22 +30,14 @@
 *   ===========================================================================
 */
 
-#if JUCE_MSVC
- #pragma warning (push)
- #pragma warning (disable: 4127 4706 4100)
-#endif
 
-namespace wdl
+
+
+struct ConvolutionEffect::WdlPimpl
 {
-
-#include "wdl/convoengine.cpp"
-#include "wdl/fft.c"
-
-}
-
-#if JUCE_MSVC
- #pragma warning (pop)
-#endif
+	wdl::WDL_ImpulseBuffer impulseBuffer;
+	wdl::WDL_ConvolutionEngine_Div convolutionEngine;
+};
 
 ConvolutionEffect::ConvolutionEffect(MainController *mc, const String &id) :
 MasterEffectProcessor(mc, id),
@@ -58,7 +50,8 @@ rampFlag(false),
 rampIndex(0),
 processFlag(true),
 loadAfterProcessFlag(false),
-isCurrentlyProcessing(false)
+isCurrentlyProcessing(false),
+wdlPimpl(new WdlPimpl())
 {
 	wetBuffer = AudioSampleBuffer(2, 0);
 
@@ -75,6 +68,11 @@ isCurrentlyProcessing(false)
 	smoothedGainerDry.setParameter((int)ScriptingDsp::SmoothedGainer::Parameters::Gain, 0.0f);
 }
 
+ConvolutionEffect::~ConvolutionEffect()
+{
+	wdlPimpl = nullptr;
+}
+
 void ConvolutionEffect::setImpulse()
 {
 	if (getSampleBuffer() == nullptr) return;
@@ -85,13 +83,13 @@ void ConvolutionEffect::setImpulse()
 
 	ScopedLock sl(getImpulseLock());
 
-	convolutionEngine.Reset();
+	wdlPimpl->convolutionEngine.Reset();
 
-	impulseBuffer.SetNumChannels(getSampleBuffer()->getNumChannels());
-	const int numSamples = impulseBuffer.SetLength(length);
+	wdlPimpl->impulseBuffer.SetNumChannels(getSampleBuffer()->getNumChannels());
+	const int numSamples = wdlPimpl->impulseBuffer.SetLength(length);
 
-	float *bufferL = impulseBuffer.impulses[0].Get();
-	float *bufferR = getSampleBuffer()->getNumChannels() > 1 ? impulseBuffer.impulses[1].Get() : bufferL;
+	float *bufferL = wdlPimpl->impulseBuffer.impulses[0].Get();
+	float *bufferR = getSampleBuffer()->getNumChannels() > 1 ? wdlPimpl->impulseBuffer.impulses[1].Get() : bufferL;
 
 	FloatVectorOperations::copy(bufferL, getSampleBuffer()->getReadPointer(0, sampleRange.getStart()), numSamples);
 	if (getSampleBuffer()->getNumChannels() > 1)
@@ -100,7 +98,7 @@ void ConvolutionEffect::setImpulse()
 
 	}
 
-	convolutionEngine.SetImpulse(&impulseBuffer, 0, getBlockSize(), 0, 0, getBlockSize());
+	wdlPimpl->convolutionEngine.SetImpulse(&(wdlPimpl->impulseBuffer), 0, getBlockSize(), 0, 0, getBlockSize());
 }
 
 float ConvolutionEffect::getAttribute(int parameterIndex) const
@@ -180,7 +178,7 @@ void ConvolutionEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 		smoothedGainerWet.prepareToPlay(sampleRate, samplesPerBlock);
 		smoothedGainerDry.prepareToPlay(sampleRate, samplesPerBlock);
 
-		convolutionEngine.Reset();
+		wdlPimpl->convolutionEngine.Reset();
 	}
 
 	
@@ -217,7 +215,7 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 		return;
 	}
 
-	convolutionEngine.Add(channels, numSamples, 2);
+	wdlPimpl->convolutionEngine.Add(channels, numSamples, 2);
 
 	smoothedGainerDry.processBlock(channels, 2, numSamples);
 
@@ -226,12 +224,12 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 	currentValues.inR = FloatVectorOperations::findMaximum(l, numSamples);
 #endif
 
-	const int availableSamples = jmin(convolutionEngine.Avail(numSamples), numSamples);
+	const int availableSamples = jmin(wdlPimpl->convolutionEngine.Avail(numSamples), numSamples);
 
 	if (availableSamples > 0)
 	{
-		const float *convolutedL = convolutionEngine.Get()[0];
-		const float *convolutedR = convolutionEngine.Get()[1];
+		const float *convolutedL = wdlPimpl->convolutionEngine.Get()[0];
+		const float *convolutedR = wdlPimpl->convolutionEngine.Get()[1];
 
 #if ENABLE_ALL_PEAK_METERS
 		currentValues.outL = wetGain * FloatVectorOperations::findMaximum(convolutedL, availableSamples);
@@ -255,13 +253,13 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 				rampIndex++;
 			}
 
-			convolutionEngine.Advance(availableSamples);
+			wdlPimpl->convolutionEngine.Advance(availableSamples);
 
 			if (rampIndex >= rampingTime)
 			{
 				if (!processFlag)
 				{
-					convolutionEngine.Reset();
+					wdlPimpl->convolutionEngine.Reset();
 				}
 
 				rampFlag = false;
@@ -278,7 +276,7 @@ void ConvolutionEffect::applyEffect(AudioSampleBuffer &buffer, int startSample, 
 			FloatVectorOperations::add(l, wetBuffer.getReadPointer(0), availableSamples);
 			FloatVectorOperations::add(r, wetBuffer.getReadPointer(1), availableSamples);
 
-			convolutionEngine.Advance(availableSamples);
+			wdlPimpl->convolutionEngine.Advance(availableSamples);
 		}
 	}
 
@@ -315,5 +313,73 @@ void ConvolutionEffect::enableProcessing(bool shouldBeProcessed)
 		rampFlag = true;
 		rampUp = shouldBeProcessed;
 		rampIndex = 0;
+	}
+}
+
+void GainSmoother::processBlock(float** data, int numChannels, int numSamples)
+{
+	if (numChannels == 1)
+	{
+		float *l = data[0];
+
+		if (fastMode)
+		{
+			const float a = 0.99f;
+			const float invA = 1.0f - a;
+
+			while (--numSamples >= 0)
+			{
+				const float smoothedGain = lastValue * a + gain * invA;
+				lastValue = smoothedGain;
+
+				*l++ *= smoothedGain;
+			}
+		}
+		else
+		{
+			while (--numSamples >= 0)
+			{
+				const float smoothedGain = smoother.smooth(gain);
+
+				*l++ *= smoothedGain;
+			}
+		}
+
+
+	}
+
+	else if (numChannels == 2)
+	{
+		if (fastMode)
+		{
+			const float a = 0.99f;
+			const float invA = 1.0f - a;
+
+			float *l = data[0];
+			float *r = data[1];
+
+			while (--numSamples >= 0)
+			{
+				const float smoothedGain = lastValue * a + gain * invA;
+				lastValue = smoothedGain;
+
+				*l++ *= smoothedGain;
+				*r++ *= smoothedGain;
+			}
+		}
+		else
+		{
+			float *l = data[0];
+			float *r = data[1];
+
+			while (--numSamples >= 0)
+			{
+				const float smoothedGain = smoother.smooth(gain);
+
+				*l++ *= smoothedGain;
+				*r++ *= smoothedGain;
+			}
+		}
+
 	}
 }

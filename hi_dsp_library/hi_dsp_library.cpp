@@ -35,12 +35,16 @@
 
 #include "AppConfig.h"
 
-
-
 // Import the files here when not building a library (see comment in hi_dsp_library.h)
 #if HI_EXPORT_DSP_LIBRARY
 #else
 #include "hi_dsp_library.h"
+
+
+namespace hise
+{
+using namespace juce;
+
 #include "dsp_library/DspBaseModule.cpp"
 
 size_t HelperFunctions::writeString(char* location, const char* content)
@@ -55,5 +59,8 @@ String HelperFunctions::createStringFromChar(const char* charFromOtherHeap, size
 }
 
 
+}
+
 #endif
+
 

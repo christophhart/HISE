@@ -33,8 +33,6 @@
 #ifndef FILTERS_H_INCLUDED
 #define FILTERS_H_INCLUDED
 
-#include <math.h>
-
 #define USE_STATE_VARIABLE_FILTERS 1
 
 /** A base class for filters with multiple channels. 

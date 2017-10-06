@@ -30,6 +30,11 @@
 *   ===========================================================================
 */
 
+
+#include "AppConfig.h"
+
+#if HI_RUN_UNIT_TESTS
+
 #include  "JuceHeader.h"
 
 class HiseEventUnitTest : public UnitTest
@@ -741,3 +746,5 @@ private:
 };
 
 static HiseEventUnitTest eventBufferTestInstance;
+
+#endif

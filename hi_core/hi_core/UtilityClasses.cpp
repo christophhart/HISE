@@ -30,6 +30,8 @@
 * == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == =
 */
 
+
+
 #if  JUCE_MAC
 
 struct FileLimitInitialiser
@@ -453,4 +455,315 @@ Rectangle<int> HiseDeviceSimulator::getDisplayResolution()
 	default:
 		return {};
 	}
+}
+
+Array<StringArray> RegexFunctions::findSubstringsThatMatchWildcard(const String &regexWildCard, const String &stringToTest)
+{
+	Array<StringArray> matches;
+	String remainingText = stringToTest;
+	StringArray m = getFirstMatch(regexWildCard, remainingText);
+
+	while (m.size() != 0 && m[0].length() != 0)
+	{
+		remainingText = remainingText.fromFirstOccurrenceOf(m[0], false, false);
+		matches.add(m);
+		m = getFirstMatch(regexWildCard, remainingText);
+	}
+
+	return matches;
+}
+
+StringArray RegexFunctions::search(const String& wildcard, const String &stringToTest, int indexInMatch/*=0*/)
+{
+#if TRAVIS_CI
+	return StringArray(); // Travis CI seems to have a problem with libc++...
+#else
+	try
+	{
+		StringArray searchResults;
+
+		std::regex includeRegex(wildcard.toStdString());
+		std::string xAsStd = stringToTest.toStdString();
+		std::sregex_iterator it(xAsStd.begin(), xAsStd.end(), includeRegex);
+		std::sregex_iterator it_end;
+
+		while (it != it_end)
+		{
+			std::smatch result = *it;
+
+			StringArray matches;
+			for (auto x : result)
+			{
+				matches.add(String(x));
+			}
+
+			if (indexInMatch < matches.size()) searchResults.add(matches[indexInMatch]);
+
+			++it;
+		}
+
+		return searchResults;
+	}
+	catch (std::regex_error e)
+	{
+		DBG(e.what());
+		return StringArray();
+	}
+#endif
+}
+
+StringArray RegexFunctions::getFirstMatch(const String &wildcard, const String &stringToTest, const Processor* /*processorForErrorOutput*//*=nullptr*/)
+{
+#if TRAVIS_CI
+	return StringArray(); // Travis CI seems to have a problem with libc++...
+#else
+
+	try
+	{
+		std::regex reg(wildcard.toStdString());
+		std::string s(stringToTest.toStdString());
+		std::smatch match;
+
+
+		if (std::regex_search(s, match, reg))
+		{
+			StringArray sa;
+
+			for (auto x : match)
+			{
+				sa.add(String(x));
+			}
+
+			return sa;
+		}
+
+		return StringArray();
+	}
+	catch (std::regex_error e)
+	{
+		jassertfalse;
+
+		DBG(e.what());
+		return StringArray();
+	}
+#endif
+}
+
+bool RegexFunctions::matchesWildcard(const String &wildcard, const String &stringToTest, const Processor* /*processorForErrorOutput*//*=nullptr*/)
+{
+#if TRAVIS_CI
+	return false; // Travis CI seems to have a problem with libc++...
+#else
+
+	try
+	{
+		std::regex reg(wildcard.toStdString());
+
+		return std::regex_search(stringToTest.toStdString(), reg);
+	}
+	catch (std::regex_error e)
+	{
+		DBG(e.what());
+
+		return false;
+	}
+#endif
+}
+
+ScopedNoDenormals::ScopedNoDenormals()
+{
+#if JUCE_IOS
+#else
+	oldMXCSR = _mm_getcsr();
+	int newMXCSR = oldMXCSR | 0x8040;
+	_mm_setcsr(newMXCSR);
+#endif
+}
+
+ScopedNoDenormals::~ScopedNoDenormals()
+{
+#if JUCE_IOS
+#else
+	_mm_setcsr(oldMXCSR);
+#endif
+}
+
+void FloatSanitizers::sanitizeArray(float* data, int size)
+{
+	uint32* dataAsInt = reinterpret_cast<uint32*>(data);
+
+	for (int i = 0; i < size; i++)
+	{
+		const uint32 sample = *dataAsInt;
+		const uint32 exponent = sample & 0x7F800000;
+
+		const int aNaN = exponent < 0x7F800000;
+		const int aDen = exponent > 0;
+
+		*dataAsInt++ = sample * (aNaN & aDen);
+
+	}
+}
+
+float FloatSanitizers::sanitizeFloatNumber(float& input)
+{
+	uint32* valueAsInt = reinterpret_cast<uint32*>(&input);
+	const uint32 exponent = *valueAsInt & 0x7F800000;
+
+	const int aNaN = exponent < 0x7F800000;
+	const int aDen = exponent > 0;
+
+	const uint32 sanitized = *valueAsInt * (aNaN & aDen);
+
+	return *reinterpret_cast<const float*>(&sanitized);
+}
+
+void FloatSanitizers::Test::runTest()
+{
+	beginTest("Testing array method");
+
+	float d[6];
+
+	d[0] = INFINITY;
+	d[1] = FLT_MIN / 20.0f;
+	d[2] = FLT_MIN / -14.0f;
+	d[3] = NAN;
+	d[4] = 24.0f;
+	d[5] = 0.0052f;
+
+	sanitizeArray(d, 6);
+
+	expectEquals<float>(d[0], 0.0f, "Infinity");
+	expectEquals<float>(d[1], 0.0f, "Denormal");
+	expectEquals<float>(d[2], 0.0f, "Negative Denormal");
+	expectEquals<float>(d[3], 0.0f, "NaN");
+	expectEquals<float>(d[4], 24.0f, "Normal Number");
+	expectEquals<float>(d[5], 0.0052f, "Small Number");
+
+	beginTest("Testing single method");
+
+	float d0 = INFINITY;
+	float d1 = FLT_MIN / 20.0f;
+	float d2 = FLT_MIN / -14.0f;
+	float d3 = NAN;
+	float d4 = 24.0f;
+	float d5 = 0.0052f;
+
+	d0 = sanitizeFloatNumber(d0);
+	d1 = sanitizeFloatNumber(d1);
+	d2 = sanitizeFloatNumber(d2);
+	d3 = sanitizeFloatNumber(d3);
+	d4 = sanitizeFloatNumber(d4);
+	d5 = sanitizeFloatNumber(d5);
+
+	expectEquals<float>(d0, 0.0f, "Single Infinity");
+	expectEquals<float>(d1, 0.0f, "Single Denormal");
+	expectEquals<float>(d2, 0.0f, "Single Negative Denormal");
+	expectEquals<float>(d3, 0.0f, "Single NaN");
+	expectEquals<float>(d4, 24.0f, "Single Normal Number");
+	expectEquals<float>(d5, 0.0052f, "Single Small Number");
+}
+
+void SafeChangeBroadcaster::sendSynchronousChangeMessage()
+{
+	// Ooops, only call this in the message thread.
+// Use sendChangeMessage() if you need to send a message from elsewhere.
+	jassert(MessageManager::getInstance()->isThisTheMessageThread());
+
+	ScopedLock sl(listeners.getLock());
+
+	for (int i = 0; i < listeners.size(); i++)
+	{
+		if (listeners[i].get() != nullptr)
+		{
+			listeners[i]->changeListenerCallback(this);
+		}
+		else
+		{
+			// Ooops, you called an deleted listener. 
+			// Normally, it would crash now, but since this is really lame, this class only throws an assert!
+			jassertfalse;
+
+			listeners.remove(i--);
+		}
+	}
+}
+
+void SafeChangeBroadcaster::addChangeListener(SafeChangeListener *listener)
+{
+	ScopedLock sl(listeners.getLock());
+
+	listeners.addIfNotAlreadyThere(listener);
+}
+
+void SafeChangeBroadcaster::removeChangeListener(SafeChangeListener *listener)
+{
+	ScopedLock sl(listeners.getLock());
+
+	listeners.removeAllInstancesOf(listener);
+}
+
+void SafeChangeBroadcaster::removeAllChangeListeners()
+{
+	dispatcher.cancelPendingUpdate();
+
+	ScopedLock sl(listeners.getLock());
+
+	listeners.clear();
+}
+
+void SafeChangeBroadcaster::sendChangeMessage(const String &/*identifier*/ /*= String()*/)
+{
+	dispatcher.triggerAsyncUpdate();
+}
+
+void SafeChangeBroadcaster::sendAllocationFreeChangeMessage()
+{
+	// You need to call enableAllocationFreeMessages() first...
+	jassert(flagTimer.isTimerRunning());
+
+	flagTimer.triggerUpdate();
+}
+
+void SafeChangeBroadcaster::enableAllocationFreeMessages(int timerIntervalMilliseconds)
+{
+	flagTimer.startTimer(timerIntervalMilliseconds);
+}
+
+
+
+float BalanceCalculator::getGainFactorForBalance(float balanceValue, bool calculateLeftChannel)
+{
+	if (balanceValue == 0.0f) return 1.0f;
+
+	const float balance = balanceValue / 100.0f;
+
+	float panValue = (float_Pi * (balance + 1.0f)) * 0.25f;
+
+	return 1.41421356237309504880f * (calculateLeftChannel ? cosf(panValue) : sinf(panValue));
+}
+
+void BalanceCalculator::processBuffer(AudioSampleBuffer &stereoBuffer, float *panValues, int startSample, int numSamples)
+{
+	FloatVectorOperations::multiply(panValues + startSample, float_Pi * 0.5f, numSamples);
+
+	stereoBuffer.applyGain(1.4142f); // +3dB for equal power...
+
+	float *l = stereoBuffer.getWritePointer(0, startSample);
+	float *r = stereoBuffer.getWritePointer(1, startSample);
+
+	while (--numSamples >= 0)
+	{
+		*l++ *= cosf(*panValues) * 1.4142f;
+		*r++ *= sinf(*panValues);
+
+		panValues++;
+	}
+}
+
+String BalanceCalculator::getBalanceAsString(int balanceValue)
+{
+	if (balanceValue == 0) return "C";
+
+	else return String(balanceValue) + (balanceValue > 0 ? "R" : "L");
 }

@@ -32,6 +32,10 @@
 
 #include "JuceHeader.h"
 
+namespace hise
+{
+using namespace juce;
+
 #include "Processor.cpp"
 #include "ProcessorInterfaces.cpp"
 
@@ -61,3 +65,6 @@
 #include "modules/ModulatorSynthChain.cpp"
 
 #include "plugin_parameter/PluginParameterProcessor.cpp"
+
+
+}

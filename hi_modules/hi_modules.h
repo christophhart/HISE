@@ -56,6 +56,10 @@ END_JUCE_MODULE_DECLARATION
 #include "AppConfig.h"
 #include "../hi_scripting/hi_scripting.h"
 
+namespace hise
+{
+using namespace juce;
+
 /** @defgroup modulatorTypes ModulatorTypes =========================================================================
 *	@ingroup modulator
 *
@@ -203,6 +207,7 @@ END_JUCE_MODULE_DECLARATION
 
 #endif
 
+}
 
 
 

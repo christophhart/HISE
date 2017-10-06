@@ -17,9 +17,9 @@ REGISTER_STATIC_DSP_LIBRARIES()
 	REGISTER_STATIC_DSP_FACTORY(HiseCoreDspFactory);
 }
 
-AudioProcessor* StandaloneProcessor::createProcessor()
+AudioProcessor* hise::StandaloneProcessor::createProcessor()
 {
-	return new BackendProcessor(deviceManager, callback);
+	return new hise::BackendProcessor(deviceManager, callback);
 }
 
 class StdLogger : public Logger
@@ -56,12 +56,12 @@ public:
 		{
 			String pluginFile;
 
-			CompileExporter::ErrorCodes result = CompileExporter::compileFromCommandLine(commandLine, pluginFile);
+			hise::CompileExporter::ErrorCodes result = hise::CompileExporter::compileFromCommandLine(commandLine, pluginFile);
 
-			if (result != CompileExporter::OK)
+			if (result != hise::CompileExporter::OK)
 			{
 				std::cout << std::endl << "==============================================================================" << std::endl;
-				std::cout << "EXPORT ERROR: " << CompileExporter::getCompileResult(result) << std::endl;
+				std::cout << "EXPORT ERROR: " << hise::CompileExporter::getCompileResult(result) << std::endl;
 				std::cout << "==============================================================================" << std::endl << std::endl;
 
 				exit((int)result);
@@ -97,7 +97,7 @@ public:
 
 			Logger::setCurrentLogger(stdLogger);
 
-			BackendCommandTarget::Actions::testPlugin(commandLine.fromFirstOccurrenceOf("--test", false, false).trim().replace("\"", ""));
+			hise::BackendCommandTarget::Actions::testPlugin(commandLine.fromFirstOccurrenceOf("--test", false, false).trim().replace("\"", ""));
 
 			Logger::setCurrentLogger(nullptr);
 			stdLogger = nullptr;
