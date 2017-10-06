@@ -85,10 +85,8 @@ END_JUCE_MODULE_DECLARATION
 #include "sampler/components/SamplerTable.h"
 #include "sampler/components/SampleEditHandler.h"
 #include "sampler/components/SamplerBody.h"
-#include "sampler/components/SampleMapBrowser.h"
-
 #endif
 
-
+#include "sampler/components/SampleMapBrowser.h"
 
 #endif   // HI_SAMPLER_INCLUDED
