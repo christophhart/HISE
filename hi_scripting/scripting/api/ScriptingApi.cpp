@@ -866,6 +866,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, getZoomLevel);
 	API_METHOD_WRAPPER_0(Engine, getVersion);
 	API_METHOD_WRAPPER_0(Engine, getSettingsWindowObject);
+	API_METHOD_WRAPPER_1(Engine, getMasterPeakLevel);
 	API_VOID_METHOD_WRAPPER_1(Engine, loadFont);
 	API_VOID_METHOD_WRAPPER_0(Engine, undo);
 	API_VOID_METHOD_WRAPPER_0(Engine, redo);
@@ -909,6 +910,7 @@ ApiClass(0)
 	ADD_API_METHOD_2(matchesRegex);
 	ADD_API_METHOD_2(getRegexMatches);
 	ADD_API_METHOD_2(doubleToString);
+	ADD_API_METHOD_1(getMasterPeakLevel);
 	ADD_API_METHOD_0(getOS);
 	ADD_API_METHOD_0(getDeviceType);
 	ADD_API_METHOD_0(getDeviceResolution);
@@ -923,7 +925,6 @@ ApiClass(0)
 	ADD_API_METHOD_0(undo);
 	ADD_API_METHOD_0(redo);
 }
-
 
 
 void ScriptingApi::Engine::allNotesOff()
@@ -1048,6 +1049,16 @@ String ScriptingApi::Engine::getVersion()
 #endif
 
 
+}
+
+double ScriptingApi::Engine::getMasterPeakLevel(int channel)
+{
+	// currently only stereo supported for this method...
+
+	if (channel == 0)
+		return getScriptProcessor()->getMainController_()->getMainSynthChain()->getDisplayValues().outL;
+	else
+		return getScriptProcessor()->getMainController_()->getMainSynthChain()->getDisplayValues().outR;
 }
 
 var ScriptingApi::Engine::getSettingsWindowObject()
