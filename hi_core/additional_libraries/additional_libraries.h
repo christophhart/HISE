@@ -48,7 +48,10 @@
 #define ICSTLIB_USE_IPP 1
 #endif
 
-class IppFFT;
+namespace hise
+{
+	class IppFFT;
+}
 
 #include "icst/MathDefs.h"
 #include "icst/Common.h"  	
