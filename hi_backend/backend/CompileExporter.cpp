@@ -1072,13 +1072,13 @@ CompileExporter::ErrorCodes CompileExporter::createPluginDataHeaderFile(const St
     
     if(iOSAUv3)
     {
-        pluginDataHeaderFile << "AudioProcessor* StandaloneProcessor::createProcessor() { CREATE_PLUGIN(deviceManager, callback); }\n\n";
+        pluginDataHeaderFile << "AudioProcessor* hise::StandaloneProcessor::createProcessor() { CREATE_PLUGIN(deviceManager, callback); }\n\n";
         
-        pluginDataHeaderFile << "START_JUCE_APPLICATION(FrontendStandaloneApplication)\n\n";
+        pluginDataHeaderFile << "START_JUCE_APPLICATION(hise::FrontendStandaloneApplication)\n\n";
     }
     else
     {
-        pluginDataHeaderFile << "AudioProcessor* StandaloneProcessor::createProcessor() { return nullptr; }\n";
+        pluginDataHeaderFile << "AudioProcessor* hise::StandaloneProcessor::createProcessor() { return nullptr; }\n";
     }
     
 	HeaderHelpers::addProjectInfoLines(this, pluginDataHeaderFile);
@@ -1102,15 +1102,15 @@ CompileExporter::ErrorCodes CompileExporter::createStandaloneAppHeaderFile(const
 
 	if (SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::EmbedAudioFiles, &GET_PROJECT_HANDLER(chainToExport)) == "No")
 	{
-		pluginDataHeaderFile << "AudioProcessor* StandaloneProcessor::createProcessor() { CREATE_PLUGIN(deviceManager, callback); }\n";
+		pluginDataHeaderFile << "AudioProcessor* hise::StandaloneProcessor::createProcessor() { CREATE_PLUGIN(deviceManager, callback); }\n";
 		pluginDataHeaderFile << "\n";
-		pluginDataHeaderFile << "START_JUCE_APPLICATION(FrontendStandaloneApplication)\n";
+		pluginDataHeaderFile << "START_JUCE_APPLICATION(hise::FrontendStandaloneApplication)\n";
 	}
 	else
 	{
-		pluginDataHeaderFile << "AudioProcessor* StandaloneProcessor::createProcessor() { CREATE_PLUGIN_WITH_AUDIO_FILES(deviceManager, callback); }\n";
+		pluginDataHeaderFile << "AudioProcessor* hise::StandaloneProcessor::createProcessor() { CREATE_PLUGIN_WITH_AUDIO_FILES(deviceManager, callback); }\n";
 		pluginDataHeaderFile << "\n";
-		pluginDataHeaderFile << "START_JUCE_APPLICATION(FrontendStandaloneApplication)\n";
+		pluginDataHeaderFile << "START_JUCE_APPLICATION(hise::FrontendStandaloneApplication)\n";
 	}
 
 	HeaderHelpers::addProjectInfoLines(this, pluginDataHeaderFile);
@@ -2066,7 +2066,7 @@ void CompileExporter::HeaderHelpers::addStaticDspFactoryRegistration(String& plu
 
 	pluginDataHeaderFile << "REGISTER_STATIC_DSP_LIBRARIES()" << "\n";
 	pluginDataHeaderFile << "{" << "\n";
-	pluginDataHeaderFile << "\tREGISTER_STATIC_DSP_FACTORY(HiseCoreDspFactory);" << "\n";
+	pluginDataHeaderFile << "\tREGISTER_STATIC_DSP_FACTORY(hise::HiseCoreDspFactory);" << "\n";
 
 	File tccConvertedFile = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::AdditionalSourceCode).getChildFile("ConvertedTccScriptFactory.cpp");
 
@@ -2103,7 +2103,7 @@ void CompileExporter::HeaderHelpers::addCopyProtectionHeaderLines(const String &
 	else
 	{
 		pluginDataHeaderFile << "#if USE_COPY_PROTECTION" << "\n";
-		pluginDataHeaderFile << "RSAKey Unlocker::getPublicKey() { return RSAKey(\"\"); };" << "\n";
+		pluginDataHeaderFile << "RSAKey hise::Unlocker::getPublicKey() { return RSAKey(\"\"); };" << "\n";
 		pluginDataHeaderFile << "#endif" << "\n";
 	}
 }
@@ -2124,12 +2124,12 @@ void CompileExporter::HeaderHelpers::addProjectInfoLines(CompileExporter* export
 
     
     
-	pluginDataHeaderFile << "String ProjectHandler::Frontend::getProjectName() { return \"" << projectName << "\"; };\n";
-	pluginDataHeaderFile << "String ProjectHandler::Frontend::getCompanyName() { return \"" << companyName << "\"; };\n";
-	pluginDataHeaderFile << "String ProjectHandler::Frontend::getCompanyWebsiteName() { return \"" << companyWebsiteName << "\"; };\n";
-	pluginDataHeaderFile << "String ProjectHandler::Frontend::getVersionString() { return \"" << versionString << "\"; };\n";
+	pluginDataHeaderFile << "String hise::ProjectHandler::Frontend::getProjectName() { return \"" << projectName << "\"; };\n";
+	pluginDataHeaderFile << "String hise::ProjectHandler::Frontend::getCompanyName() { return \"" << companyName << "\"; };\n";
+	pluginDataHeaderFile << "String hise::ProjectHandler::Frontend::getCompanyWebsiteName() { return \"" << companyWebsiteName << "\"; };\n";
+	pluginDataHeaderFile << "String hise::ProjectHandler::Frontend::getVersionString() { return \"" << versionString << "\"; };\n";
     
-    pluginDataHeaderFile << "String ProjectHandler::Frontend::getAppGroupId() { return \"" << appGroupString << "\"; };\n";
+    pluginDataHeaderFile << "String hise::ProjectHandler::Frontend::getAppGroupId() { return \"" << appGroupString << "\"; };\n";
     
 }
 
