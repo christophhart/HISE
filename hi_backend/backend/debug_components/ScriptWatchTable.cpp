@@ -479,6 +479,8 @@ void ScriptComponentEditPanel::fillPanel()
 		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::saveInPreset));
 		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::isPluginParameter));
 		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::pluginParameterName));
+		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::processorId));
+		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::parameterId));
 
 		addSectionToPanel(parameterIds, "Parameter Properties");
 
@@ -541,6 +543,12 @@ void ScriptComponentEditPanel::addProperty(Array<PropertyComponent*> &arrayToAdd
 		arrayToAddTo.add(new HiChoicePropertyComponent(obj, id, options, this));
 		dynamic_cast<HiChoicePropertyComponent*>(arrayToAddTo.getLast())->addChangeListener(this);
 		arrayToAddTo.getLast()->setLookAndFeel(&pplaf);
+
+		if (id == Identifier("parameterId"))
+		{
+			parameterComponent = dynamic_cast<HiChoicePropertyComponent*>(arrayToAddTo.getLast());
+		}
+
 	}
 	else if (t == ScriptComponentPropertyTypeSelector::ToggleSelector) // All toggle properties
 	{
@@ -608,13 +616,11 @@ ScriptComponentEditPanel::HiChoicePropertyComponent::HiChoicePropertyComponent(D
 	panel(panel_)
 {
 	setLookAndFeel(&plaf);
-	choices.addArray(options);
 
-	String itemName = properties->getProperty(id);
+	setOptions(options, false);
 
-	const int index = choices.indexOf(itemName);
-
-	setIndex(index);
+	refresh();
+	
 };
 
 void ScriptComponentEditPanel::HiChoicePropertyComponent::setIndex (int newIndex)
@@ -633,7 +639,7 @@ int ScriptComponentEditPanel::HiChoicePropertyComponent::getIndex () const
  	
 String ScriptComponentEditPanel::HiChoicePropertyComponent::getItemText () const
 {
-	String itemText = getChoices()[currentIndex];
+	String itemText = choices[currentIndex];
 
 	if(itemText == "Load new File")
 	{
@@ -646,7 +652,26 @@ String ScriptComponentEditPanel::HiChoicePropertyComponent::getItemText () const
 	}
 
 
-	return getChoices()[currentIndex];
+	return itemText;
+}
+
+void ScriptComponentEditPanel::HiChoicePropertyComponent::setOptions(const StringArray& newOptions, bool rebuildComboBox)
+{
+	choices.clear();
+
+	choices.addArray(newOptions);
+
+	if (rebuildComboBox)
+	{
+		comboBox.clear(dontSendNotification);
+		comboBox.addItemList(choices, 1);
+	}
+
+	String itemName = properties->getProperty(id);
+
+	const int index = choices.indexOf(itemName);
+
+	setIndex(index);
 }
 
 ScriptComponentEditPanel::ScriptComponentEditPanel(BackendRootWindow* rootWindow):
@@ -668,6 +693,20 @@ ScriptComponentEditPanel::ScriptComponentEditPanel(BackendRootWindow* rootWindow
 
 void ScriptComponentEditPanel::sendPanelPropertyChangeMessage(Identifier idThatWasChanged)
 {
+	if (idThatWasChanged == Identifier("processorId"))
+	{
+		if (parameterComponent.getComponent() != nullptr)
+		{
+			auto c = dynamic_cast<ScriptingApi::Content::ScriptComponent*>(editedComponent.get());
+			
+			if (c != nullptr)
+			{
+				parameterComponent->setOptions(c->getOptionsFor(c->getIdFor(ScriptingApi::Content::ScriptComponent::parameterId)), true);
+				
+			}
+		}
+	}
+
 	for (int i = 0; i < listeners.size(); i++)
 	{
 		if (listeners[i].get() != nullptr)

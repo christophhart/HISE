@@ -94,7 +94,33 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 
 	ScopedValueSetter<bool> objectConstructorSetter(allowObjectConstructors, true);
 
-	if (auto callback = component->getCustomControlCallback())
+	if (component->isConnectedToProcessor())
+	{
+		float v = (float)controllerValue;
+		FloatSanitizers::sanitizeFloatNumber(v);
+		
+		auto index = component->getConnectedParameterIndex();
+
+		if (index == -2)
+		{
+			if (auto mod = dynamic_cast<Modulation*>(component->getConnectedProcessor()))
+			{
+				mod->setIntensity(v);
+				BACKEND_ONLY(component->getConnectedProcessor()->sendChangeMessage());
+			}
+		}
+		else if (index == -3)
+		{
+			component->getConnectedProcessor()->setBypassed(v > 0.5f);
+		}
+		else
+		{
+			component->getConnectedProcessor()->setAttribute(index, v, sendNotification);
+		}
+
+		
+	}
+	else if (auto callback = component->getCustomControlCallback())
 	{
 		getMainController_()->getDebugLogger().logParameterChange(thisAsJavascriptProcessor, component, controllerValue);
 

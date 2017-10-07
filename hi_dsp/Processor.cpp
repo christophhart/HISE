@@ -466,6 +466,77 @@ void ProcessorHelpers::increaseBufferIfNeeded(hlac::HiseSampleBuffer& b, int num
 	}
 }
 
+StringArray ProcessorHelpers::getListOfAllConnectableProcessors(const Processor* processorToSkip)
+{
+	const Processor* mainSynthChain = processorToSkip->getMainController()->getMainSynthChain();
+
+	Processor::Iterator<const Processor> boxIter(mainSynthChain, false);
+
+	Array<const Processor*> processorList;
+
+	processorList.add(mainSynthChain);
+
+	while (const Processor *p = boxIter.getNextProcessor())
+	{
+		if (p == processorToSkip)
+			continue;
+
+		if (dynamic_cast<const Chain*>(p) != nullptr) continue;
+
+		processorList.add(p);
+	}
+
+	StringArray processorIdList;
+
+	for (int i = 0; i < processorList.size(); i++)
+	{
+		processorIdList.add(processorList[i]->getId());
+	}
+
+	return processorIdList;
+}
+
+StringArray ProcessorHelpers::getListOfAllParametersForProcessor(Processor* p)
+{
+	StringArray parameterNames;
+
+	parameterNames.add("Bypass");
+
+	if (is<Modulator>(p))
+		parameterNames.add("Intensity");
+
+	if (p != nullptr)
+	{
+		for (int i = 0; i < p->getNumParameters(); i++)
+			parameterNames.add(p->getIdentifierForParameterIndex(i).toString());
+	}
+	
+	return parameterNames;
+}
+
+int ProcessorHelpers::getParameterIndexFromProcessor(Processor* p, const Identifier& id)
+{
+	static const Identifier intensityId("Intensity");
+	static const Identifier bypassId("Bypass");
+
+	if (id == intensityId)
+		return -2;
+
+	if (id == bypassId)
+		return -3;
+
+	if (p != nullptr)
+	{
+		for (int i = 0; i < p->getNumParameters(); i++)
+		{
+			if (p->getIdentifierForParameterIndex(i) == id)
+				return i;
+		}
+	}
+
+	return -1;
+}
+
 void AudioSampleProcessor::replaceReferencesWithGlobalFolder()
 {
 	if (!isReference(loadedFileName))

@@ -134,7 +134,8 @@ parentComponentIndex(-1)
 	ADD_SCRIPT_PROPERTY(pId, "pluginParameterName");
 	ADD_SCRIPT_PROPERTY(uId, "useUndoManager");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(pId2, "parentComponent");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
-	
+	ADD_SCRIPT_PROPERTY(pId3, "processorId");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	ADD_SCRIPT_PROPERTY(pId4, "parameterId");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 
 	deactivatedProperties.add(getIdFor(isPluginParameter));
 
@@ -158,6 +159,8 @@ parentComponentIndex(-1)
 	setDefaultValue(Properties::pluginParameterName, "");
 	setDefaultValue(Properties::useUndoManager, false);
 	setDefaultValue(Properties::parentComponent, "");
+	setDefaultValue(Properties::processorId, "");
+	setDefaultValue(Properties::parameterId, "");
 
 	ADD_API_METHOD_2(set);
 	ADD_API_METHOD_1(get);
@@ -212,6 +215,14 @@ StringArray ScriptingApi::Content::ScriptComponent::getOptionsFor(const Identifi
 		}
 
 		return sa;
+	}
+	else if (id == getIdFor(processorId))
+	{
+		return ProcessorHelpers::getListOfAllConnectableProcessors(dynamic_cast<Processor*>(getScriptProcessor()));
+	}
+	else if (id == getIdFor(parameterId) && connectedProcessor.get() != nullptr)
+	{
+		return ProcessorHelpers::getListOfAllParametersForProcessor(connectedProcessor.get());
 	}
 
 	return StringArray();
@@ -343,14 +354,31 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 			}
 		}
 
-		
-
-		
 	}
 	else if (id == getIdFor(x) || id == getIdFor(y) || id == getIdFor(width) ||
-			 id == getIdFor(height) || id == getIdFor(visible) || id == getIdFor(enabled))
+		id == getIdFor(height) || id == getIdFor(visible) || id == getIdFor(enabled))
 	{
 		notifyChildComponents();
+	}
+	else if (id == getIdFor(processorId))
+	{
+		auto pId = newValue.toString();
+
+		if (pId.isNotEmpty())
+		{
+			connectedProcessor = ProcessorHelpers::getFirstProcessorWithName(getScriptProcessor()->getMainController_()->getMainSynthChain(), pId);
+		}
+	}
+	else if (id == getIdFor(parameterId))
+	{
+		auto parameterName = newValue.toString();
+
+		if (parameterName.isNotEmpty())
+		{
+			connectedParameterIndex = ProcessorHelpers::getParameterIndexFromProcessor(connectedProcessor, Identifier(parameterName));
+		}
+		else
+			connectedParameterIndex = -1;
 	}
 
 	if (notifyEditor == sendNotification)
@@ -744,6 +772,16 @@ bool ScriptingApi::Content::ScriptComponent::isShowing() const
 		return isVisible;
 	
 
+}
+
+bool ScriptingApi::Content::ScriptComponent::isConnectedToProcessor() const
+{
+
+	const bool hasProcessorConnection = connectedProcessor.get() != nullptr;
+
+	const bool hasParameterConnection = connectedParameterIndex != -1;
+
+	return hasProcessorConnection && hasParameterConnection;
 }
 
 struct ScriptingApi::Content::ScriptSlider::Wrapper

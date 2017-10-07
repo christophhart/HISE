@@ -108,8 +108,10 @@ protected:
     */
     StringArray choices;
 
+	ComboBox comboBox;
+
 private:
-    ComboBox comboBox;
+    
     bool isCustomClass;
 
     class RemapperValueSource;

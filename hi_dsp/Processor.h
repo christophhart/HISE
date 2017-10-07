@@ -930,6 +930,14 @@ public:
 		static ValueTree getValueTreeFromBase64String(const String& base64State);
 	};
 
+
+	/** Returns a list of all processors that can be connected to a parameter. */
+	static StringArray getListOfAllConnectableProcessors(const Processor* processorToSkip);
+
+	static StringArray getListOfAllParametersForProcessor(Processor* p);
+
+	static int getParameterIndexFromProcessor(Processor* p, const Identifier& id);
+
 };
 
 

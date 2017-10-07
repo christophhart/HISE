@@ -515,6 +515,8 @@ private:
 
 		String getItemText() const;
  	
+		void setOptions(const StringArray& newOptions, bool rebuildComboBox);
+
 	private:
 
 		ReferenceCountedObjectPtr<DynamicObject> properties;
@@ -630,6 +632,7 @@ private:
 
 	ReferenceCountedObjectPtr<ReferenceCountedObject> editedComponent;
 
+	Component::SafePointer<HiChoicePropertyComponent> parameterComponent;
 
 	MainController* mc;
 

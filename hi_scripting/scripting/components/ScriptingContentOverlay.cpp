@@ -214,7 +214,7 @@ void ScriptEditHandler::compileScript()
 	scriptEditHandlerCompileCallback();
 }
 
-void ScriptEditHandler::scriptComponentChanged(ReferenceCountedObject* scriptComponent, Identifier)
+void ScriptEditHandler::scriptComponentChanged(ReferenceCountedObject* scriptComponent, Identifier id)
 {
 	if (getScriptEditHandlerEditor() == nullptr)
 		return;
@@ -382,6 +382,7 @@ void ScriptingContentOverlay::paint(Graphics& g)
 }
 
 
+
 class ParameterConnector : public ThreadWithAsyncProgressWindow,
 	public ComboBoxListener,
 	public Timer
@@ -398,25 +399,7 @@ public:
 	{
 		if (sp != nullptr)
 		{
-			Processor::Iterator<Processor> boxIter(sp->getOwnerSynth(), false);
-
-
-			while (Processor *p = boxIter.getNextProcessor())
-			{
-				if (p == dynamic_cast<Processor*>(editor_->getScriptEditHandlerProcessor()))
-					continue;
-
-				if (dynamic_cast<Chain*>(p) != nullptr) continue;
-
-				processorList.add(p);
-			}
-
-			StringArray processorIdList;
-
-			for (int i = 0; i < processorList.size(); i++)
-			{
-				processorIdList.add(processorList[i]->getId());
-			}
+			auto processorIdList = ProcessorHelpers::getListOfAllConnectableProcessors(dynamic_cast<Processor*>(editor_->getScriptEditHandlerProcessor()));
 
 			addComboBox("Processors", processorIdList, "Module");
 

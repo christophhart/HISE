@@ -97,6 +97,8 @@ public:
 			pluginParameterName,
 			useUndoManager,
 			parentComponent,
+			processorId,
+			parameterId,
 			numProperties
 		};
 
@@ -276,6 +278,8 @@ public:
 
 		// End of API Methods ============================================================================================
 
+		
+
 		void setChanged(bool isChanged = true) noexcept{ changed = isChanged; }
 		bool isChanged() const noexcept{ return changed; };
 
@@ -286,7 +290,11 @@ public:
 
 		struct Wrapper;
 
-		
+		bool isConnectedToProcessor() const;;
+
+		Processor* getConnectedProcessor() const { return connectedProcessor.get(); };
+
+		int getConnectedParameterIndex() { return connectedParameterIndex; };
 
 	protected:
 
@@ -308,6 +316,9 @@ public:
 		bool changed;
 
 		int parentComponentIndex;
+
+		WeakReference<Processor> connectedProcessor;
+		int connectedParameterIndex = -1;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptComponent);
 	};
