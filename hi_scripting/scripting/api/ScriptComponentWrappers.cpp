@@ -751,7 +751,16 @@ ScriptCreatedComponentWrapper(content, index)
 
 ScriptCreatedComponentWrappers::AudioWaveformWrapper::~AudioWaveformWrapper()
 {
-
+	if (auto form = dynamic_cast<ScriptingApi::Content::ScriptAudioWaveform*>(getScriptComponent()))
+	{
+		if (auto asp = form->getAudioProcessor())
+		{
+			if (auto asb = dynamic_cast<AudioSampleBufferComponent*>(getComponent()))
+			{
+				asb->removeChangeListener(asp);
+			}
+		}
+	}
 }
 
 void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateComponent()

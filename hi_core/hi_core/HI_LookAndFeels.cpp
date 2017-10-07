@@ -279,10 +279,13 @@ void KnobLookAndFeel::drawToggleButton (Graphics &g, ToggleButton &b, bool isMou
 
 	String text = b.getButtonText();
 
-	g.drawText (text,
-				30, 6, b.getWidth() - 36, b.getHeight() - 12,
-				Justification::centredLeft, true);
-		
+	Rectangle<int> textArea(30, 6, b.getWidth() - 36, b.getHeight() - 12);
+
+	if (textArea.getHeight() > 0 && textArea.getWidth() > 0)
+	{
+		g.drawText(text, textArea, Justification::centredLeft, true);
+	}
+	
 	g.setColour (Colours::black.withAlpha( (b.isEnabled() ? 1.0f : 0.5f) ));
 	g.drawImage(clip, 7, (b.getHeight() - 16) / 2, 16, 16, 0, 0, filmStripHeight, filmStripHeight);
 }
