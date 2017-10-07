@@ -75,6 +75,8 @@ AudioProcessor* createPlugin(ValueTree &presetData, ValueTree &imageData, ValueT
 #define USE_FRONTEND 1
 #endif
 
+#include "frontend/TurboActivateHeader.h"
+
 namespace hise
 {
 

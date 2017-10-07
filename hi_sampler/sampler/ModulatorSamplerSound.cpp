@@ -52,7 +52,7 @@ purgeChannels(0)
 
 	
 
-	setProperty(Pan, 0);
+	setProperty(Pan, 0, dontSendNotification);
 }
 
 
@@ -82,7 +82,7 @@ purgeChannels(0)
 	}
 
 	
-	setProperty(Pan, 0);
+	setProperty(Pan, 0, dontSendNotification);
 }
 
 ModulatorSamplerSound::~ModulatorSamplerSound()

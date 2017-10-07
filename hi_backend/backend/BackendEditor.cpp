@@ -337,7 +337,7 @@ void BackendProcessorEditor::loadNewContainer(const File &f)
 
 	owner->loadPreset(f, this);
 
-	auto refreshFunction = [this]()->void {refreshInterfaceAfterPresetLoad(); parentRootWindow->sendRootContainerRebuildMessage(false); };
+	auto refreshFunction = [this]()->void { refreshInterfaceAfterPresetLoad(); parentRootWindow->sendRootContainerRebuildMessage(true); };
 	new DelayedFunctionCaller(refreshFunction, 300);
 	
 }
@@ -362,19 +362,19 @@ void BackendProcessorEditor::loadNewContainer(ValueTree &v)
     
 	MainController::ScopedSuspender ss(getBackendProcessor());
 
-    clearPreset();
-
 	getBackendProcessor()->getMainSynthChain()->setBypassed(true);
 
 	clearModuleList();
-
 	container = nullptr;
 
 	owner->loadPreset(v, this);
 
-	auto refreshFunction = [this]()->void {refreshInterfaceAfterPresetLoad(); parentRootWindow->sendRootContainerRebuildMessage(false); };
+
+	auto refreshFunction = [this]()->void { refreshInterfaceAfterPresetLoad(); parentRootWindow->sendRootContainerRebuildMessage(true); };
 	new DelayedFunctionCaller(refreshFunction, 300);
 }
+
+
 
 void BackendProcessorEditor::clearPreset()
 {
