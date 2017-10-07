@@ -94,7 +94,7 @@ using namespace juce;
 #if DONT_EMBED_FILES_IN_FRONTEND
 
 #define CREATE_PLUGIN(deviceManager, callback) {ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\
-	ValueTree externalFiles = PresetHandler::loadValueTreeFromData(PresetData::externalFiles, PresetData::externalFilesSize, true);\
+ValueTree externalFiles = hise::PresetHandler::loadValueTreeFromData(PresetData::externalFiles, PresetData::externalFilesSize, true);\
 	\
 	hise::FrontendProcessor* fp = new hise::FrontendProcessor(presetData, deviceManager, callback, nullptr, nullptr, &externalFiles, nullptr);\
 	hise::AudioProcessorDriver::restoreSettings(fp);\

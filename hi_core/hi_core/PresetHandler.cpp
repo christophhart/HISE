@@ -1791,10 +1791,6 @@ void ProjectHandler::Frontend::setSampleLocation(const File &newLocation)
 #endif
 }
 
-#if HISE_IOS
-#include "Foundation/NSFileManager.h"
-#include "Foundation/NSString.h"
-#endif
 
 
 File ProjectHandler::Frontend::getUserPresetDirectory()

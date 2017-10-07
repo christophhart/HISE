@@ -14,6 +14,12 @@
 
 #include "additional_libraries/additional_libraries.cpp"
 
+
+#if HISE_IOS
+#include "Foundation/NSFileManager.h"
+#include "Foundation/NSString.h"
+#endif
+
 namespace hise
 {
 using namespace juce;

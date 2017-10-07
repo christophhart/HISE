@@ -65,7 +65,7 @@ extern void WDL_fft_complexmul(WDL_FFT_COMPLEX *dest, WDL_FFT_COMPLEX *src, int 
 extern void WDL_fft_complexmul2(WDL_FFT_COMPLEX *dest, WDL_FFT_COMPLEX *src, WDL_FFT_COMPLEX *src2, int len);
 extern void WDL_fft_complexmul3(WDL_FFT_COMPLEX *destAdd, WDL_FFT_COMPLEX *src, WDL_FFT_COMPLEX *src2, int len);
 
-extern void WDL_fft(WDL_FFT_COMPLEX *, int len, int isInverse, HiseFFTType &data, bool unpack=true);
+extern void WDL_fft(WDL_FFT_COMPLEX *, int len, int isInverse, hise::VDspFFT &data, bool unpack=true);
 
 int WDL_fft_permute(int fftsize, int idx);
 
