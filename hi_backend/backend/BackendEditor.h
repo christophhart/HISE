@@ -46,7 +46,7 @@ class CustomKeyboard;
 class BackendProcessor;
 class ScriptContentContainer;
 
-class BackendHelpers
+struct BackendHelpers
 {
 	/** Executes this function if the given Component is not in the root container to prevent false positive triggering. */
 	static void callIfNotInRootContainer(std::function<void(void)> func, Component* c);
