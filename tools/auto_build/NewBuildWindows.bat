@@ -20,7 +20,8 @@ SET installer_project_path=tools\auto_build\
 
 SET installer_project=hise_nightly_build.iss
 
-SET version=1_0_0
+echo Enter version (with underscores for the filename)
+SET p/ version
 
 REM ===============================================================================
 REM Update the build version file
