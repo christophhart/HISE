@@ -1111,3 +1111,13 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 		popup->setColour((int)FloatingTilePopup::ColourIds::backgroundColourId, JUCE_LIVE_CONSTANT_OFF(Colour(0xec000000)));
 
 }
+
+void BackendHelpers::callIfNotInRootContainer(std::function<void(void)> func, Component* c)
+{
+	auto container = c->findParentComponentOfClass<ProcessorEditorContainer>();
+
+	if (container == nullptr)
+	{
+		func();
+	}
+}

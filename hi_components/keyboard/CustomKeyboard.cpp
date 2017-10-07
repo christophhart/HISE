@@ -123,9 +123,11 @@ CustomKeyboard::CustomKeyboard(MainController* mc_) :
 	
 }
 
+
+
 CustomKeyboard::~CustomKeyboard()
 {
-	mc->allNotesOff();
+	BACKEND_ONLY(BackendHelpers::callIfNotInRootContainer([this]() {mc->allNotesOff(); }, this));
 
 	state->removeChangeListener(this);
 }
