@@ -36,7 +36,7 @@ BEGIN_JUCE_MODULE_DECLARATION
 
   ID:               hi_sampler
   vendor:           Hart Instruments
-  version:          1.1
+  version:          1.1.1
   name:             HISE Sampler Module
   description:      The sampler module for HISE
   website:          http://hise.audio

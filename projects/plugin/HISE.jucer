@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<JUCERPROJECT id="TQ3pmU" name="HISE" projectType="audioplug" version="1.1.0"
+<JUCERPROJECT id="TQ3pmU" name="HISE" projectType="audioplug" version="1.1.1"
               bundleIdentifier="com.hartinstruments.HISE" includeBinaryInAppConfig="1"
               buildVST="1" buildVST3="0" buildAU="1" buildRTAS="0" buildAAX="0"
               pluginName="HISE" pluginDesc="HISE" pluginManufacturer="Hart Instruments"
@@ -10,7 +10,7 @@
               pluginAUExportPrefix="TestPluginAU" pluginRTASCategory="" aaxIdentifier="com.hartinstruments.HISE"
               pluginAAXCategory="AAX_ePlugInCategory_SWGenerators" jucerVersion="4.3.0"
               companyName="Hart Instruments" companyWebsite="http://hise.audio"
-              pluginIsMidiEffectPlugin="0" buildAUv3="0">
+              pluginIsMidiEffectPlugin="0" buildAUv3="0" companyCopyright="Hart Instruments">
   <MAINGROUP id="VUOG93" name="HISE">
     <GROUP id="{665762C7-5461-7343-9D6B-1FFA3A6308C3}" name="Source">
       <FILE id="PpFbAI" name="balanceKnob_200.png" compile="0" resource="1"
@@ -96,16 +96,17 @@
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
                        isDebug="1" optimisation="1" targetName="HISE x86 Debug" binaryPath=""
-                       libraryPath="" useRuntimeLibDLL="0"/>
+                       libraryPath="" useRuntimeLibDLL="0" defines="JucePlugin_MaxNumOutputChannels=2&#10;JucePlugin_PreferredChannelConfigurations={0\,2}"/>
         <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
                        isDebug="0" optimisation="3" targetName="HISE x86" binaryPath=""
-                       libraryPath="" useRuntimeLibDLL="0"/>
+                       libraryPath="" useRuntimeLibDLL="0" defines="JucePlugin_MaxNumOutputChannels=2&#10;JucePlugin_PreferredChannelConfigurations={0\,2}"/>
         <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
                        isDebug="1" optimisation="1" targetName="HISE x64 Debug" binaryPath=""
-                       libraryPath="" useRuntimeLibDLL="0"/>
+                       libraryPath="" useRuntimeLibDLL="0" defines="JucePlugin_MaxNumOutputChannels=2&#10;JucePlugin_PreferredChannelConfigurations={0\,2}"/>
         <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
                        isDebug="0" optimisation="3" targetName="HISE x64" binaryPath="C:\Program Files\VST Plugins"
-                       alwaysGenerateDebugSymbols="0" useRuntimeLibDLL="0" libraryPath=""/>
+                       alwaysGenerateDebugSymbols="0" useRuntimeLibDLL="0" libraryPath=""
+                       defines="JucePlugin_MaxNumOutputChannels=2&#10;JucePlugin_PreferredChannelConfigurations={0\,2}"/>
         <CONFIGURATION name="Debug MultiChannel" winWarningLevel="4" generateManifest="1"
                        winArchitecture="x64" isDebug="1" optimisation="1" targetName="HISE x64 Debug 16 Out"
                        binaryPath="" libraryPath="" useRuntimeLibDLL="0" defines="JucePlugin_MaxNumOutputChannels=16&#10;JucePlugin_PreferredChannelConfigurations={0\,16}"/>
