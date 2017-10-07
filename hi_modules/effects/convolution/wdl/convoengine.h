@@ -127,7 +127,7 @@ public:
   void AddSilenceToOutput(int len, int nch);
 
 
-  hise::VDspFFT fftData;
+  HiseFFTType fftData;
 
 } WDL_FIXALIGN;
 

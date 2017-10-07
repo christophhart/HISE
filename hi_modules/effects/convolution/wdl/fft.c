@@ -32,7 +32,7 @@
 
 #if USE_IPP || USE_VDSP_FFT
 
-void WDL_fft(WDL_FFT_COMPLEX *buf, int len, int isInverse, hise::VDspFFT &fftData, bool unpack)
+void WDL_fft(WDL_FFT_COMPLEX *buf, int len, int isInverse, HiseFFTType &fftData, bool unpack)
 {
     if (isInverse)
 		fftData.complexFFTInverseInplace((float*)buf, len);
