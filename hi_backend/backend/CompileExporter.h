@@ -69,7 +69,7 @@ public:
 
 	/** 0xABCD
 	*
-	*	A = OS (1 = Windows / 2 = OSX / 4 = iPad, 8=iPhone, 12 = iPad/iPhone)
+	*	A = OS (0 = Linux / 1 = Windows / 2 = OSX / 4 = iPad, 8=iPhone, 12 = iPad/iPhone)
 	*	B = type (1 = Standalone, 2 = Instrument, 4 = Effect)
 	*	C = platform (0 = void, 1 = VST, 2 = AU, 4 = VST / AU, 8 = AAX);
 	*	D = bit (1 = 32bit, 2 = 64bit, 4 = both) 
@@ -77,6 +77,9 @@ public:
 	enum BuildOption
 	{
 		Cancelled = 0,
+		StandaloneLinux = 0x0104,
+		VSTiLinux = 0x0214,
+		VSTLinux = 0x0414,
 		VSTWindowsx86 = 0x1411,
 		VSTWindowsx64 = 0x1412,
 		VSTWindowsx64x86 = 0x1414,
@@ -116,6 +119,7 @@ public:
 		static bool isIPhone(BuildOption option) { return (option & 0x8000) != 0; };
 		static bool isIPad(BuildOption option) { return (option & 0x4000) != 0; };
 		static bool isWindows(BuildOption option) { return (option & 0x1000) != 0; };
+		static bool isLinux(BuildOption option) { return (option & 0x0000) == 0; };
 		static bool isOSX(BuildOption option) { return (option & 0x2000) != 0; }
 		static bool isStandalone(BuildOption option) { return (option & 0x0100) != 0; }
 		static bool isInstrument(BuildOption option) { return (option & 0x0200) != 0; }
