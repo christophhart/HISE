@@ -55,6 +55,7 @@ public:
 		VolumeFade,
 		PitchFade,
 		TimerEvent,
+		StartOffset,
 		numTypes
 	};
 
@@ -162,45 +163,21 @@ public:
 
 	float getGainFactor() const noexcept { return Decibels::decibelsToGain((float)gain); };
 
-	static HiseEvent createVolumeFade(uint16 eventId, int fadeTimeMilliseconds, int8 targetValue)
-	{
-		HiseEvent e(Type::VolumeFade, 0, 0, 1);
+	static HiseEvent createVolumeFade(uint16 eventId, int fadeTimeMilliseconds, int8 targetValue);
 
-		e.setEventId(eventId);
-		e.setGain(targetValue);
-		e.setPitchWheelValue(fadeTimeMilliseconds);
-		e.setArtificial();
+	static HiseEvent createPitchFade(uint16 eventId, int fadeTimeMilliseconds, int8 coarseTune, int8 fineTune);
 
-		return e;	
-	}
+	static HiseEvent createTimerEvent(uint8 timerIndex, uint16 offset);
 
-	static HiseEvent createPitchFade(uint16 eventId, int fadeTimeMilliseconds, int8 coarseTune, int8 fineTune)
-	{
-		HiseEvent e(Type::PitchFade, 0, 0, 1);
-
-		e.setEventId(eventId);
-		e.setCoarseDetune((int)coarseTune);
-		e.setFineDetune(fineTune);
-		e.setPitchWheelValue(fadeTimeMilliseconds);
-		e.setArtificial();
-
-		return e;
-	}
-
-	static HiseEvent createTimerEvent(uint8 timerIndex, uint16 offset)
-	{
-		HiseEvent e(Type::TimerEvent, 0, 0, timerIndex);
-
-		e.setArtificial();
-		e.setTimeStamp(offset);
-
-		return e;
-	}
+	static HiseEvent createStartOffsetEvent(uint16 eventId, int offsetInSamples);
 
 	bool isVolumeFade() const noexcept{ return type == Type::VolumeFade; };
-	bool isPitchFade() const noexcept{ return type == Type::PitchFade; }
+	bool isPitchFade() const noexcept { return type == Type::PitchFade; };
+	bool isStartOffset() const noexcept { return type == Type::StartOffset; };
 
 	int getFadeTime() const noexcept{ return getPitchWheelValue(); };
+
+	
 
 	bool isTimerEvent() const noexcept { return type == Type::TimerEvent; };
 	int getTimerIndex() const noexcept { return channel; }	
@@ -233,17 +210,17 @@ public:
 	void setVelocity(uint8 newVelocity) noexcept{ value = newVelocity; };
 
 	bool isPitchWheel() const noexcept{ return type == Type::PitchBend; };
-	int getPitchWheelValue() const noexcept{ return number | (value << 7); };
-	void setPitchWheelValue(int position) noexcept
-	{ 
-		number = position & 127;
-		value =  (position >> 7) & 127;
-	};
+	int getPitchWheelValue() const noexcept;;
+	void setPitchWheelValue(int position) noexcept;;
 
 	void setFadeTime(int fadeTime) noexcept
 	{
 		setPitchWheelValue(fadeTime);
 	}
+
+	void setStartOffset(int startOffset) noexcept;
+
+	int getStartOffset() const noexcept;;
 
 	bool isChannelPressure() const noexcept{ return type == Type::Aftertouch; };
 	int getChannelPressureValue() const noexcept{ return value; };

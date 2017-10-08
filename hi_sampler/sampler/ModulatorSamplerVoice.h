@@ -51,6 +51,9 @@ public:
 
 	bool canPlaySound(SynthesiserSound*) { return true; };
 	void startNote(int midiNoteNumber, float velocity, SynthesiserSound* s, int /*currentPitchWheelPosition*/) override;
+
+	void setStartOffset(int offsetInSamples) override;
+
 	void stopNote(float velocity, bool allowTailoff) override;
 
 	// ================================================================================================================

@@ -64,6 +64,20 @@ void ModulatorSamplerVoice::startNote(int midiNoteNumber,
 }
 
 
+void ModulatorSamplerVoice::setStartOffset(int offsetInSamples)
+{
+	if (auto sound = wrappedVoice.getLoadedSound())
+	{
+		auto maxOffset = sound->getSampleStartModulation();
+
+		int offsetToUse = jmin<int>(offsetInSamples, maxOffset);
+
+		wrappedVoice.setSampleStartModValue(voiceUptime);
+		wrappedVoice.voiceUptime = (double)offsetToUse;
+		voiceUptime = wrappedVoice.voiceUptime;
+	}
+}
+
 void ModulatorSamplerVoice::stopNote(float velocity, bool allowTailoff)
 {
 	ModulatorSynthVoice::stopNote(velocity, allowTailoff);

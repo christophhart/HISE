@@ -1700,6 +1700,7 @@ struct ScriptingApi::Synth::Wrapper
 	API_VOID_METHOD_WRAPPER_3(Synth, addNoteOff);
 	API_VOID_METHOD_WRAPPER_3(Synth, addVolumeFade);
 	API_VOID_METHOD_WRAPPER_4(Synth, addPitchFade);
+	API_VOID_METHOD_WRAPPER_2(Synth, addStartOffset);
 	API_VOID_METHOD_WRAPPER_4(Synth, addController);
 	API_METHOD_WRAPPER_1(Synth, addMessageFromHolder);
 	API_VOID_METHOD_WRAPPER_2(Synth, setVoiceGainValue);
@@ -1761,6 +1762,7 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	ADD_API_METHOD_3(addNoteOff);
 	ADD_API_METHOD_3(addVolumeFade);
 	ADD_API_METHOD_4(addPitchFade);
+	ADD_API_METHOD_2(addStartOffset);
 	ADD_API_METHOD_4(addController);
 	ADD_API_METHOD_1(addMessageFromHolder);
 	ADD_API_METHOD_2(setVoiceGainValue);
@@ -1962,6 +1964,28 @@ void ScriptingApi::Synth::addPitchFade(int eventId, int fadeTimeMilliseconds, in
 				sp->addHiseEventToBuffer(e);
 			}
 			else reportScriptError("Fade time must be positive");
+		}
+		else reportScriptError("Event ID must be positive");
+	}
+	else reportScriptError("Only valid in MidiProcessors");
+}
+
+void ScriptingApi::Synth::addStartOffset(int eventId, int offsetSamples)
+{
+	if (ScriptBaseMidiProcessor* sp = dynamic_cast<ScriptBaseMidiProcessor*>(getScriptProcessor()))
+	{
+		if (eventId > 0)
+		{
+			if (offsetSamples >= 0)
+			{
+				HiseEvent e = HiseEvent::createStartOffsetEvent((uint16)eventId, offsetSamples);
+
+				if (sp->getCurrentHiseEvent())
+					e.setTimeStamp(sp->getCurrentHiseEvent()->getTimeStamp());
+
+				sp->addHiseEventToBuffer(e);
+			}
+			else reportScriptError("Offset must be positive");
 		}
 		else reportScriptError("Event ID must be positive");
 	}

@@ -406,6 +406,17 @@ void ModulatorSynthGroupVoice::startNote (int midiNoteNumber, float velocity, Sy
 
 };
 
+void ModulatorSynthGroupVoice::setStartOffset(int offsetInSamples)
+{
+	for (int i = 0; i < childSynths.size(); i++)
+	{
+		auto childSynth = childSynths.getUnchecked(i);
+		ModulatorSynthVoice *childVoice = static_cast<ModulatorSynthVoice*>(childSynth->getVoice(getVoiceIndex()));
+
+		childVoice->setStartOffset(offsetInSamples);
+	}
+}
+
 void ModulatorSynthGroupVoice::stopNote (float, bool)
 {
 	

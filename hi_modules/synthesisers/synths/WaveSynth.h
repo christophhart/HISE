@@ -59,7 +59,6 @@ public:
 		setWaveForm(WaveformComponent::Saw, false);
 
 		initSinTable(sinTable);
-		
 	};
 
 	bool canPlaySound(SynthesiserSound *) override
@@ -75,13 +74,19 @@ public:
 
         const double cyclesPerSecond = MidiMessage::getMidiNoteInHertz (midiNoteNumber);
         
-		const double cyclesPerSample = cyclesPerSecond / getSampleRate() * getOwnerSynth()->getMainController()->getGlobalPitchFactor();
+		cyclesPerSample = cyclesPerSecond / getSampleRate() * getOwnerSynth()->getMainController()->getGlobalPitchFactor();
 		
 		voiceUptime2 = 0.0;
 
 		uptimeDelta = cyclesPerSample;
 		uptimeDelta2 = cyclesPerSample;
     }
+
+	void setStartOffset(int offsetInSamples) override
+	{
+		voiceUptime = (double)offsetInSamples * cyclesPerSample;
+		voiceUptime2 = (double)offsetInSamples * cyclesPerSample;
+	}
 
 	void calculateBlock(int startSample, int numSamples) override
 	{
@@ -252,6 +257,10 @@ private:
 	double uptimeDelta2;
 
 	double voiceUptime2;
+
+	double cyclesPerSample = 1.0;
+
+	Random voiceStartRandomizer;
 
 	WaveformComponent::WaveformType type1, type2;
 

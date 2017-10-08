@@ -560,6 +560,10 @@ void ModulatorSynth::handleHiseEvent(const HiseEvent& m)
 		default:    break;
 		}
 	}
+	else if (m.isStartOffset())
+	{
+		handleStartOffset(m.getEventId(), m.getStartOffset());
+	}
 	else if (m.isVolumeFade())
 	{
 		handleVolumeFade(m.getEventId(), m.getFadeTime(), m.getGainFactor());
@@ -653,6 +657,19 @@ void ModulatorSynth::handlePitchFade(uint16 eventId, int fadeTimeMilliseconds, d
 		if (!v->isInactive() && v->getCurrentHiseEvent().getEventId() == eventId)
 		{
 			v->setPitchFade(fadeTimeSeconds, pitchFactor);
+		}
+	}
+}
+
+void ModulatorSynth::handleStartOffset(uint16 eventId, int startOffsetSamples)
+{
+	for (int i = voices.size(); --i >= 0;)
+	{
+		ModulatorSynthVoice *v = static_cast<ModulatorSynthVoice*>(voices[i]);
+
+		if (!v->isInactive() && v->getCurrentHiseEvent().getEventId() == eventId)
+		{
+			v->setStartOffset(startOffsetSamples);
 		}
 	}
 }

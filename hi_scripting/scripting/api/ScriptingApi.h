@@ -465,6 +465,9 @@ public:
 		/** Adds a pitch fade to the given event ID. */
 		void addPitchFade(int eventId, int fadeTimeMilliseconds, int targetCoarsePitch, int targetFinePitch);
 
+		/** Adds an offset to the given eventId (for Samplers it will be truncated to the max. sample start mod. */
+		void addStartOffset(int eventId, int offsetSamples);
+
 		/** Adds the event from the given holder and returns a event id for note ons. */
 		int addMessageFromHolder(var messageHolder);
 

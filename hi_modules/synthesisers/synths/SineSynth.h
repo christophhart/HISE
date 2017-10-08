@@ -81,6 +81,11 @@ public:
         uptimeDelta *= getOwnerSynth()->getMainController()->getGlobalPitchFactor();
     }
 
+	void setStartOffset(int offsetInSamples) override
+	{
+		voiceUptime = (double)offsetInSamples;
+	}
+
 	void calculateBlock(int startSample, int numSamples) override;;
 
 	

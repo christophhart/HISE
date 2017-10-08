@@ -453,6 +453,9 @@ public:
 	/** Calls the base class startNote() for the group itself and all child synths.  */
 	void startNote (int midiNoteNumber, float velocity, SynthesiserSound*, int ) override;
 
+	virtual void setStartOffset(int offsetInSamples) override;
+	
+
 	/** Calls the base class stopNote() for the group itself and all child synths. */
 	void stopNote (float , bool) override;
 

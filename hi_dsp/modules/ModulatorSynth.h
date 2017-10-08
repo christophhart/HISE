@@ -189,6 +189,7 @@ public:
 	void handleHostInfoHiseEvents();
 	void handleVolumeFade(int eventId, int fadeTimeMilliseconds, float gain);
 	void handlePitchFade(uint16 eventId, int fadeTimeMilliseconds, double pitchFactor);
+	void handleStartOffset(uint16 eventId, int startOffsetSamples);
 
 	virtual void preHiseEventCallback(const HiseEvent &e);
 	virtual void preStartVoice(int voiceIndex, int noteNumber);
@@ -656,6 +657,12 @@ public:
 
 	void setTransposeAmount(int value) noexcept{ transposeAmount = value; };
 	int getTransposeAmount() const noexcept { return transposeAmount; };
+
+	/** Sets the start offset. The default implementation just converts this value to seconds but you can overwrite this to handle other domains. */
+	virtual void setStartOffset(int offsetInSamples)
+	{
+		voiceUptime = (double)offsetInSamples;
+	}
 
 	void setVolumeFade(double fadeTimeSeconds, float targetVolume)
 	{
