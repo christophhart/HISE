@@ -7,6 +7,8 @@
 #pragma warning (disable: 4127 4706 4100)
 #endif
 
+#include "synthesisers/synths/PolyBlep.cpp"
+
 namespace wdl
 {
 

@@ -1,17 +1,17 @@
 /*
   ==============================================================================
 
-  This is an automatically generated GUI class created by the Introjucer!
+  This is an automatically generated GUI class created by the Projucer!
 
   Be careful when adding custom code to these files, as only the code within
   the "//[xyz]" and "//[/xyz]" sections will be retained when the file is loaded
   and re-saved.
 
-  Created with Introjucer version: 4.1.0
+  Created with Projucer version: 4.3.0
 
   ------------------------------------------------------------------------------
 
-  The Introjucer is part of the JUCE library - "Jules' Utility Class Extensions"
+  The Projucer is part of the JUCE library - "Jules' Utility Class Extensions"
   Copyright (c) 2015 - ROLI Ltd.
 
   ==============================================================================
@@ -37,7 +37,8 @@
 class WaveSynthBody  : public ProcessorEditorBody,
                        public SliderListener,
                        public ComboBoxListener,
-                       public LabelListener
+                       public LabelListener,
+                       public ButtonListener
 {
 public:
     //==============================================================================
@@ -65,12 +66,30 @@ public:
 		panSlider->updateValue();
 		panSlider2->updateValue();
 
+		enableSecondButton->updateValue();
+
+		pulseSlider1->updateValue();
+		pulseSlider2->updateValue();
+
+		const bool enableSecond = enableSecondButton->getToggleState();
+
 		mixSlider->updateValue();
 
 		mixSlider->setEnabled(getProcessor()->getChildProcessor(WaveSynth::MixModulation)->getNumChildProcessors() == 0);
 
-		waveformDisplay->setType((int)getProcessor()->getAttribute(WaveSynth::WaveForm1));
-		waveformDisplay2->setType((int)getProcessor()->getAttribute(WaveSynth::WaveForm2));
+		refreshWaveform(waveformDisplay, ((int)getProcessor()->getAttribute(WaveSynth::WaveForm1)));
+		refreshWaveform(waveformDisplay2, ((int)getProcessor()->getAttribute(WaveSynth::WaveForm2)));
+
+		if (!enableSecond)
+		{
+			mixSlider->setEnabled(false);
+			panSlider2->setEnabled(false);
+			pulseSlider2->setEnabled(false);
+			waveFormSelector2->setEnabled(false);
+			octaveSlider2->setEnabled(false);
+			detuneSlider2->setEnabled(false);
+			panSlider2->setEnabled(false);
+		}
 	};
 
 	void changeListenerCallback(SafeChangeBroadcaster *b)
@@ -87,13 +106,32 @@ public:
 	{
 		return h;
 	}
+	
+	void refreshWaveform(WaveformComponent* component, int type)
+	{
+		if (type < WaveformComponent::WaveformType::Custom)
+		{
+			component->setType(type);
+			return;
+		}
+		
+		switch (type)
+		{
+		case WaveSynth::AdditionalWaveformTypes::Square2: component->setType(WaveformComponent::Square); break;
+		case WaveSynth::AdditionalWaveformTypes::Triangle2: component->setType(WaveformComponent::Triangle); break;
+		case WaveSynth::AdditionalWaveformTypes::Trapezoid1: component->setType(WaveformComponent::Saw); break;
+		case WaveSynth::AdditionalWaveformTypes::Trapezoid2: component->setType(WaveformComponent::Saw); break;
+		}
+	}
+
     //[/UserMethods]
 
-    void paint (Graphics& g);
-    void resized();
-    void sliderValueChanged (Slider* sliderThatWasMoved);
-    void comboBoxChanged (ComboBox* comboBoxThatHasChanged);
-    void labelTextChanged (Label* labelThatHasChanged);
+    void paint (Graphics& g) override;
+    void resized() override;
+    void sliderValueChanged (Slider* sliderThatWasMoved) override;
+    void comboBoxChanged (ComboBox* comboBoxThatHasChanged) override;
+    void labelTextChanged (Label* labelThatHasChanged) override;
+    void buttonClicked (Button* buttonThatWasClicked) override;
 
 
 
@@ -118,6 +156,9 @@ private:
     ScopedPointer<HiSlider> panSlider2;
     ScopedPointer<HiSlider> detuneSlider2;
     ScopedPointer<HiSlider> detuneSlider;
+    ScopedPointer<HiToggleButton> enableSecondButton;
+    ScopedPointer<HiSlider> pulseSlider1;
+    ScopedPointer<HiSlider> pulseSlider2;
 
 
     //==============================================================================

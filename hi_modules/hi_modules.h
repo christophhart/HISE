@@ -56,6 +56,8 @@ END_JUCE_MODULE_DECLARATION
 #include "AppConfig.h"
 #include "../hi_scripting/hi_scripting.h"
 
+#include "synthesisers/synths/PolyBlep.h"
+
 namespace hise
 {
 using namespace juce;

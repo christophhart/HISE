@@ -1,17 +1,17 @@
 /*
   ==============================================================================
 
-  This is an automatically generated GUI class created by the Introjucer!
+  This is an automatically generated GUI class created by the Projucer!
 
   Be careful when adding custom code to these files, as only the code within
   the "//[xyz]" and "//[/xyz]" sections will be retained when the file is loaded
   and re-saved.
 
-  Created with Introjucer version: 4.1.0
+  Created with Projucer version: 4.3.0
 
   ------------------------------------------------------------------------------
 
-  The Introjucer is part of the JUCE library - "Jules' Utility Class Extensions"
+  The Projucer is part of the JUCE library - "Jules' Utility Class Extensions"
   Copyright (c) 2015 - ROLI Ltd.
 
   ==============================================================================
@@ -50,6 +50,11 @@ WaveSynthBody::WaveSynthBody (ProcessorEditor *p)
     waveFormSelector->addItem (TRANS("Saw"), 3);
     waveFormSelector->addItem (TRANS("Square"), 4);
     waveFormSelector->addItem (TRANS("Noise"), 5);
+    waveFormSelector->addItem (TRANS("Triangle 2"), 6);
+    waveFormSelector->addItem (TRANS("Square 2"), 7);
+    waveFormSelector->addItem (TRANS("Trapezoid 1"), 8);
+    waveFormSelector->addItem (TRANS("Trapezoid 2"), 9);
+    waveFormSelector->addSeparator();
     waveFormSelector->addListener (this);
 
     addAndMakeVisible (waveformDisplay = new WaveformComponent());
@@ -114,6 +119,11 @@ WaveSynthBody::WaveSynthBody (ProcessorEditor *p)
     waveFormSelector2->addItem (TRANS("Saw"), 3);
     waveFormSelector2->addItem (TRANS("Square"), 4);
     waveFormSelector2->addItem (TRANS("Noise"), 5);
+    waveFormSelector2->addItem (TRANS("Triangle 2"), 6);
+    waveFormSelector2->addItem (TRANS("Square 2"), 7);
+    waveFormSelector2->addItem (TRANS("Trapezoid 1"), 8);
+    waveFormSelector2->addItem (TRANS("Trapezoid 2"), 9);
+    waveFormSelector2->addSeparator();
     waveFormSelector2->addListener (this);
 
     addAndMakeVisible (waveformDisplay2 = new WaveformComponent());
@@ -149,6 +159,24 @@ WaveSynthBody::WaveSynthBody (ProcessorEditor *p)
     detuneSlider->setTextBoxStyle (Slider::TextBoxRight, false, 40, 20);
     detuneSlider->addListener (this);
 
+    addAndMakeVisible (enableSecondButton = new HiToggleButton ("enableSecondButton"));
+    enableSecondButton->setButtonText (TRANS("Enable 2nd Osc"));
+    enableSecondButton->addListener (this);
+
+    addAndMakeVisible (pulseSlider1 = new HiSlider ("Pulse 1"));
+    pulseSlider1->setTooltip (TRANS("Select the pulse width if possible"));
+    pulseSlider1->setRange (0, 1, 0.01);
+    pulseSlider1->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
+    pulseSlider1->setTextBoxStyle (Slider::TextBoxRight, false, 40, 20);
+    pulseSlider1->addListener (this);
+
+    addAndMakeVisible (pulseSlider2 = new HiSlider ("Pulse 2"));
+    pulseSlider2->setTooltip (TRANS("Select the pulse width if possible"));
+    pulseSlider2->setRange (0, 1, 0.01);
+    pulseSlider2->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
+    pulseSlider2->setTextBoxStyle (Slider::TextBoxRight, false, 40, 20);
+    pulseSlider2->addListener (this);
+
 
     //[UserPreSize]
 
@@ -160,8 +188,10 @@ WaveSynthBody::WaveSynthBody (ProcessorEditor *p)
 
 	octaveSlider->setup(getProcessor(), WaveSynth::SpecialParameters::OctaveTranspose1, "Octave 1");
 	octaveSlider->setMode(HiSlider::Discrete, -5.0, 5.0);
+	octaveSlider->setRange(-5.0, 5.0, 1.0);
 	octaveSlider2->setup(getProcessor(), WaveSynth::SpecialParameters::OctaveTranspose2, "Octave 2");
 	octaveSlider2->setMode(HiSlider::Discrete, -5.0, 5.0);
+	octaveSlider2->setRange(-5.0, 5.0, 1.0);
 
 	detuneSlider->setup(getProcessor(), WaveSynth::SpecialParameters::Detune1, "Detune 1");
 	detuneSlider2->setup(getProcessor(), WaveSynth::SpecialParameters::Detune2, "Detune 2");
@@ -178,6 +208,14 @@ WaveSynthBody::WaveSynthBody (ProcessorEditor *p)
 	mixSlider->setup(getProcessor(), WaveSynth::SpecialParameters::Mix, "Mix");
 	mixSlider->setMode(HiSlider::Mode::NormalizedPercentage);
 
+	enableSecondButton->setup(getProcessor(), WaveSynth::SpecialParameters::EnableSecondOscillator, "Enable 2nd Osc");
+
+	pulseSlider1->setup(getProcessor(), WaveSynth::SpecialParameters::PulseWidth1, "Pulse Width 1");
+	pulseSlider1->setMode(HiSlider::Mode::NormalizedPercentage);
+
+	pulseSlider2->setup(getProcessor(), WaveSynth::SpecialParameters::PulseWidth2, "Pulse Width 2");
+	pulseSlider2->setMode(HiSlider::Mode::NormalizedPercentage);
+
     voiceAmountEditor->setFont(GLOBAL_FONT());
     voiceAmountLabel->setFont(GLOBAL_FONT());
     fadeTimeEditor->setFont(GLOBAL_FONT());
@@ -185,7 +223,7 @@ WaveSynthBody::WaveSynthBody (ProcessorEditor *p)
 
     //[/UserPreSize]
 
-    setSize (800, 160);
+    setSize (800, 200);
 
 
     //[Constructor] You can add your own custom stuff here..
@@ -214,6 +252,9 @@ WaveSynthBody::~WaveSynthBody()
     panSlider2 = nullptr;
     detuneSlider2 = nullptr;
     detuneSlider = nullptr;
+    enableSecondButton = nullptr;
+    pulseSlider1 = nullptr;
+    pulseSlider2 = nullptr;
 
 
     //[Destructor]. You can add your own custom destruction code here..
@@ -227,7 +268,7 @@ void WaveSynthBody::paint (Graphics& g)
     //[/UserPrePaint]
 
     g.setColour (Colour (0x52ffffff));
-    g.setFont (GLOBAL_BOLD_FONT().withHeight(24.0f));
+    g.setFont (Font ("Arial", 20.00f, Font::bold));
     g.drawText (TRANS("SYNTHESISER"),
                 (getWidth() / 2) - (152 / 2), 95, 152, 30,
                 Justification::centred, true);
@@ -264,10 +305,13 @@ void WaveSynthBody::resized()
     waveFormSelector2->setBounds (getWidth() - 26 - 128, 65, 128, 24);
     waveformDisplay2->setBounds (getWidth() - 26 - 128, 15, 128, 48);
     mixSlider->setBounds ((getWidth() / 2) - (128 / 2), 13, 128, 48);
-    panSlider->setBounds (158, 73, 128, 48);
+    panSlider->setBounds (160, 73, 128, 48);
     panSlider2->setBounds (getWidth() - 161 - 128, 73, 128, 48);
     detuneSlider2->setBounds (getWidth() - 26 - 128, 94, 128, 48);
     detuneSlider->setBounds (25, 96, 128, 48);
+    enableSecondButton->setBounds ((getWidth() / 2) + -64, 136, 128, 28);
+    pulseSlider1->setBounds (160, 132, 128, 48);
+    pulseSlider2->setBounds (getWidth() - 161 - 128, 132, 128, 48);
     //[UserResized] Add your own custom resize handling here..
     //[/UserResized]
 }
@@ -311,6 +355,16 @@ void WaveSynthBody::sliderValueChanged (Slider* sliderThatWasMoved)
     {
         //[UserSliderCode_detuneSlider] -- add your slider handling code here..
         //[/UserSliderCode_detuneSlider]
+    }
+    else if (sliderThatWasMoved == pulseSlider1)
+    {
+        //[UserSliderCode_pulseSlider1] -- add your slider handling code here..
+        //[/UserSliderCode_pulseSlider1]
+    }
+    else if (sliderThatWasMoved == pulseSlider2)
+    {
+        //[UserSliderCode_pulseSlider2] -- add your slider handling code here..
+        //[/UserSliderCode_pulseSlider2]
     }
 
     //[UsersliderValueChanged_Post]
@@ -375,6 +429,21 @@ void WaveSynthBody::labelTextChanged (Label* labelThatHasChanged)
     //[/UserlabelTextChanged_Post]
 }
 
+void WaveSynthBody::buttonClicked (Button* buttonThatWasClicked)
+{
+    //[UserbuttonClicked_Pre]
+    //[/UserbuttonClicked_Pre]
+
+    if (buttonThatWasClicked == enableSecondButton)
+    {
+        //[UserButtonCode_enableSecondButton] -- add your button handler code here..
+        //[/UserButtonCode_enableSecondButton]
+    }
+
+    //[UserbuttonClicked_Post]
+    //[/UserbuttonClicked_Post]
+}
+
 
 
 //[MiscUserCode] You can add your own definitions of your custom methods or any other code here...
@@ -383,9 +452,9 @@ void WaveSynthBody::labelTextChanged (Label* labelThatHasChanged)
 
 //==============================================================================
 #if 0
-/*  -- Introjucer information section --
+/*  -- Projucer information section --
 
-    This is where the Introjucer stores the metadata that describe this GUI layout, so
+    This is where the Projucer stores the metadata that describe this GUI layout, so
     make changes in here at your peril!
 
 BEGIN_JUCER_METADATA
@@ -394,7 +463,7 @@ BEGIN_JUCER_METADATA
                  parentClasses="public ProcessorEditorBody" constructorParams="ProcessorEditor *p"
                  variableInitialisers="ProcessorEditorBody(p)" snapPixels="8"
                  snapActive="1" snapShown="1" overlayOpacity="0.330" fixedSize="1"
-                 initialWidth="800" initialHeight="160">
+                 initialWidth="800" initialHeight="200">
   <BACKGROUND backgroundColour="ffffff">
     <TEXT pos="0Cc 95 152 30" fill="solid: 52ffffff" hasStroke="0" text="SYNTHESISER"
           fontname="Arial" fontsize="20" bold="1" italic="0" justification="36"/>
@@ -407,12 +476,12 @@ BEGIN_JUCER_METADATA
           virtualName="HiSlider" explicitFocusOrder="0" pos="158 15 128 48"
           min="-5" max="5" int="1" style="RotaryHorizontalVerticalDrag"
           textBoxPos="TextBoxRight" textBoxEditable="1" textBoxWidth="40"
-          textBoxHeight="20" skewFactor="1"/>
+          textBoxHeight="20" skewFactor="1" needsCallback="1"/>
   <COMBOBOX name="new combo box" id="223afd792a25b6b" memberName="waveFormSelector"
             virtualName="HiComboBox" explicitFocusOrder="0" pos="26 65 128 24"
             tooltip="Selects the synthesiser's waveform" editable="0" layout="33"
-            items="Sine&#10;Triangle&#10;Saw&#10;Square&#10;Noise" textWhenNonSelected="Select Waveform"
-            textWhenNoItems="(no choices)"/>
+            items="Sine&#10;Triangle&#10;Saw&#10;Square&#10;Noise&#10;Triangle 2&#10;Square 2&#10;Trapezoid 1&#10;Trapezoid 2&#10;"
+            textWhenNonSelected="Select Waveform" textWhenNoItems="(no choices)"/>
   <GENERICCOMPONENT name="new component" id="5bdd135efdbc6b85" memberName="waveformDisplay"
                     virtualName="" explicitFocusOrder="0" pos="26 15 128 48" class="WaveformComponent"
                     params=""/>
@@ -442,37 +511,56 @@ BEGIN_JUCER_METADATA
           virtualName="HiSlider" explicitFocusOrder="0" pos="161Rr 15 128 48"
           min="-5" max="5" int="1" style="RotaryHorizontalVerticalDrag"
           textBoxPos="TextBoxRight" textBoxEditable="1" textBoxWidth="40"
-          textBoxHeight="20" skewFactor="1"/>
+          textBoxHeight="20" skewFactor="1" needsCallback="1"/>
   <COMBOBOX name="new combo box" id="749f547d3ce33f2c" memberName="waveFormSelector2"
             virtualName="HiComboBox" explicitFocusOrder="0" pos="26Rr 65 128 24"
             tooltip="Selects the synthesiser's waveform" editable="0" layout="33"
-            items="Sine&#10;Triangle&#10;Saw&#10;Square&#10;Noise" textWhenNonSelected="Select Waveform"
-            textWhenNoItems="(no choices)"/>
+            items="Sine&#10;Triangle&#10;Saw&#10;Square&#10;Noise&#10;Triangle 2&#10;Square 2&#10;Trapezoid 1&#10;Trapezoid 2&#10;"
+            textWhenNonSelected="Select Waveform" textWhenNoItems="(no choices)"/>
   <GENERICCOMPONENT name="new component" id="82267d619093f456" memberName="waveformDisplay2"
                     virtualName="" explicitFocusOrder="0" pos="26Rr 15 128 48" class="WaveformComponent"
                     params=""/>
   <SLIDER name="Mix" id="3ef4da35a0bb5ce1" memberName="mixSlider" virtualName="HiSlider"
           explicitFocusOrder="0" pos="0Cc 13 128 48" min="0" max="100"
           int="1" style="RotaryHorizontalVerticalDrag" textBoxPos="TextBoxRight"
-          textBoxEditable="1" textBoxWidth="40" textBoxHeight="20" skewFactor="1"/>
+          textBoxEditable="1" textBoxWidth="40" textBoxHeight="20" skewFactor="1"
+          needsCallback="1"/>
   <SLIDER name="Pan 1" id="18299b70f4f7493" memberName="panSlider" virtualName="HiSlider"
-          explicitFocusOrder="0" pos="158 73 128 48" min="-100" max="100"
+          explicitFocusOrder="0" pos="160 73 128 48" min="-100" max="100"
           int="1" style="RotaryHorizontalVerticalDrag" textBoxPos="TextBoxRight"
-          textBoxEditable="1" textBoxWidth="40" textBoxHeight="20" skewFactor="1"/>
+          textBoxEditable="1" textBoxWidth="40" textBoxHeight="20" skewFactor="1"
+          needsCallback="1"/>
   <SLIDER name="Pan 2" id="5fb8e21c6e3ef898" memberName="panSlider2" virtualName="HiSlider"
           explicitFocusOrder="0" pos="161Rr 73 128 48" min="-100" max="100"
           int="1" style="RotaryHorizontalVerticalDrag" textBoxPos="TextBoxRight"
-          textBoxEditable="1" textBoxWidth="40" textBoxHeight="20" skewFactor="1"/>
+          textBoxEditable="1" textBoxWidth="40" textBoxHeight="20" skewFactor="1"
+          needsCallback="1"/>
   <SLIDER name="Detune 2" id="bb37c0e3877e65e3" memberName="detuneSlider2"
           virtualName="HiSlider" explicitFocusOrder="0" pos="26Rr 94 128 48"
           min="-100" max="100" int="1" style="RotaryHorizontalVerticalDrag"
           textBoxPos="TextBoxRight" textBoxEditable="1" textBoxWidth="40"
-          textBoxHeight="20" skewFactor="1"/>
+          textBoxHeight="20" skewFactor="1" needsCallback="1"/>
   <SLIDER name="Detune" id="5539f75b4ea811c1" memberName="detuneSlider"
           virtualName="HiSlider" explicitFocusOrder="0" pos="25 96 128 48"
           min="-100" max="100" int="1" style="RotaryHorizontalVerticalDrag"
           textBoxPos="TextBoxRight" textBoxEditable="1" textBoxWidth="40"
-          textBoxHeight="20" skewFactor="1"/>
+          textBoxHeight="20" skewFactor="1" needsCallback="1"/>
+  <TOGGLEBUTTON name="enableSecondButton" id="d5fb0bb61f179f07" memberName="enableSecondButton"
+                virtualName="HiToggleButton" explicitFocusOrder="0" pos="-64C 136 128 28"
+                buttonText="Enable 2nd Osc" connectedEdges="0" needsCallback="1"
+                radioGroupId="0" state="0"/>
+  <SLIDER name="Pulse 1" id="cc96ecee717343f8" memberName="pulseSlider1"
+          virtualName="HiSlider" explicitFocusOrder="0" pos="160 132 128 48"
+          tooltip="Select the pulse width if possible" min="0" max="1"
+          int="0.010000000000000000208" style="RotaryHorizontalVerticalDrag"
+          textBoxPos="TextBoxRight" textBoxEditable="1" textBoxWidth="40"
+          textBoxHeight="20" skewFactor="1" needsCallback="1"/>
+  <SLIDER name="Pulse 2" id="2925a0b39ba3d5b8" memberName="pulseSlider2"
+          virtualName="HiSlider" explicitFocusOrder="0" pos="161Rr 132 128 48"
+          tooltip="Select the pulse width if possible" min="0" max="1"
+          int="0.010000000000000000208" style="RotaryHorizontalVerticalDrag"
+          textBoxPos="TextBoxRight" textBoxEditable="1" textBoxWidth="40"
+          textBoxHeight="20" skewFactor="1" needsCallback="1"/>
 </JUCER_COMPONENT>
 
 END_JUCER_METADATA

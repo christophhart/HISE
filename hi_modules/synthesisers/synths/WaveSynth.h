@@ -36,6 +36,8 @@ class WaveSynth;
 
 #define NAIVE 0
 
+#define USE_MARTIN_FINKE_POLY_BLEP_ALGORITHM 1
+
 class WaveSound : public ModulatorSynthSound
 {
 public:
@@ -50,137 +52,37 @@ class WaveSynthVoice: public ModulatorSynthVoice
 {
 public:
 
-	WaveSynthVoice(ModulatorSynth *ownerSynth):
-		ModulatorSynthVoice(ownerSynth),
-		octaveTransposeFactor1(1.0),
-		octaveTransposeFactor2(1.0)
-	{
-		setWaveForm(WaveformComponent::Saw, true);
-		setWaveForm(WaveformComponent::Saw, false);
+	WaveSynthVoice(ModulatorSynth *ownerSynth);;
 
-		initSinTable(sinTable);
-	};
 
 	bool canPlaySound(SynthesiserSound *) override
 	{
 		return true;
 	};
 
-	void startNote (int midiNoteNumber, float /*velocity*/, SynthesiserSound* , int /*currentPitchWheelPosition*/) override
-	{
-        ModulatorSynthVoice::startNote(midiNoteNumber, 0.0f, nullptr, -1);
-        
-		midiNoteNumber += getTransposeAmount();
+	void startNote (int midiNoteNumber, float /*velocity*/, SynthesiserSound* , int /*currentPitchWheelPosition*/) override;
 
-        const double cyclesPerSecond = MidiMessage::getMidiNoteInHertz (midiNoteNumber);
-        
-		cyclesPerSample = cyclesPerSecond / getSampleRate() * getOwnerSynth()->getMainController()->getGlobalPitchFactor();
-		
-		voiceUptime2 = 0.0;
+	void calculateBlock(int startSample, int numSamples) override;;
 
-		uptimeDelta = cyclesPerSample;
-		uptimeDelta2 = cyclesPerSample;
-    }
+	void setOctaveTransposeFactor(double newFactor, bool leftFactor);
 
-	void setStartOffset(int offsetInSamples) override
-	{
-		voiceUptime = (double)offsetInSamples * cyclesPerSample;
-		voiceUptime2 = (double)offsetInSamples * cyclesPerSample;
-	}
+	void setWaveForm(WaveformComponent::WaveformType type, bool left);
 
-	void calculateBlock(int startSample, int numSamples) override
-	{
-		const int startIndex = startSample;
-		const int samplesToCopy = numSamples;
+	void setPulseWidth(double pulseWidth, bool left);
 
-		const float *voicePitchValues = getVoicePitchValues();
-
-		const float *modValues = getVoiceGainValues(startSample, numSamples);
-
-		float *outL = voiceBuffer.getWritePointer(0, startSample);
-		float *outR = voiceBuffer.getWritePointer(1, startSample);
-
-		if (voicePitchValues != nullptr)
-		{
-			voicePitchValues += startSample;
-
-			while (numSamples > 0)
-			{
-				for (int i = 0; i < 4; i++)
-				{
-					const float currentSample = getLeftSample(voiceUptime, uptimeDelta);
-					const float currentSample2 = getRightSample(voiceUptime2, uptimeDelta2);
-
-					*outL++ = currentSample;
-					*outR++ = currentSample2;
-
-					voiceUptime += (uptimeDelta * *voicePitchValues * octaveTransposeFactor1);
-					voiceUptime2 += (uptimeDelta2 * *voicePitchValues++ * octaveTransposeFactor2);
-
-					
-				}
-
-				numSamples -= 4;
-			}
-		}
-		else
-		{
-			while (numSamples > 0)
-			{
-				for (int i = 0; i < 4; i++)
-				{
-					const float currentSample = getLeftSample(voiceUptime, uptimeDelta);
-					const float currentSample2 = getRightSample(voiceUptime2, uptimeDelta2);
-
-					*outL++ = currentSample;
-					*outR++ = currentSample2;
-
-					voiceUptime += (uptimeDelta * octaveTransposeFactor1);
-					voiceUptime2 += (uptimeDelta2 * octaveTransposeFactor2);
-
-					
-				}
-
-				numSamples -= 4;
-			}
-		}
-	
-			
-
-		getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesToCopy);
-
-		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), modValues + startIndex, samplesToCopy);
-		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), modValues + startIndex, samplesToCopy);
-	};
-
-	void setOctaveTransposeFactor(double newFactor, bool leftFactor)
-	{
-		ScopedLock sl(getOwnerSynth()->getSynthLock());
-
-		if(leftFactor) octaveTransposeFactor1 = newFactor;
-		else octaveTransposeFactor2 = newFactor;
-	}
-
-	void setWaveForm(WaveformComponent::WaveformType type, bool left)
-	{
-		switch(type)
-		{
-		case WaveformComponent::Saw:	left ? (getLeftSample = &getSaw) :
-											   (getRightSample = &getSaw); break;
-		case WaveformComponent::Sine:	left ? (getLeftSample = &getSine) :
-											   (getRightSample = &getSine); break;
-		case WaveformComponent::Triangle:	left ? (getLeftSample = &getTriangle) :
-												   (getRightSample = &getTriangle); break;
-		case WaveformComponent::Noise:	left ? (getLeftSample = &getNoise):
-											   (getRightSample = &getNoise); break;
-		default:						left ? (getLeftSample = &getPulse) :
-											   (getRightSample = &getPulse); break;
-
-
-		}
-	}
+	void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 
 private:
+
+	float(*getLeftSample)(double, double);
+	float(*getRightSample)(double, double);
+
+#if USE_MARTIN_FINKE_POLY_BLEP_ALGORITHM
+
+	mf::PolyBLEP leftGenerator;
+	mf::PolyBLEP rightGenerator;
+
+#else
 
 	static float getSaw(double voiceUptime, double uptimeDelta)
 	{
@@ -199,7 +101,7 @@ private:
 	{
 		return noiseGenerator.nextFloat();
 	}
-
+	
 	static float getPulse(double voiceUptime, double uptimeDelta)
 	{
 		const double pulseWidth = 0.5;
@@ -249,8 +151,8 @@ private:
 		return (float)((b * b - a * a) / (2.0 * kernelSize));
 	};
 
-	float (*getLeftSample)(double, double);
-	float (*getRightSample)(double, double);
+
+#endif
 
 	double octaveTransposeFactor1, octaveTransposeFactor2;
 
@@ -261,6 +163,8 @@ private:
 	double cyclesPerSample = 1.0;
 
 	Random voiceStartRandomizer;
+
+	bool enableSecondOsc = true;
 
 	WaveformComponent::WaveformType type1, type2;
 
@@ -290,6 +194,15 @@ public:
 		MixChainShown = ModulatorSynth::numEditorStates
 	};
 
+	enum AdditionalWaveformTypes
+	{
+		Triangle2 = WaveformComponent::WaveformType::Custom,
+		Square2,
+		Trapezoid1,
+		Trapezoid2,
+		numAdditionalWaveformTypes
+	};
+
 	enum SpecialParameters
 	{
 		OctaveTranspose1 = ModulatorSynth::numModulatorSynthParameters, ///< -5 ... **0** ... 5 | The octave transpose factor for the first Oscillator.
@@ -301,6 +214,9 @@ public:
 		Detune2, ///< -100ct ... **0ct** ... 100ct | the pitch detune of the first oscillator in cent (100 cent = 1 semitone)
 		Pan2, ///< -100 ... **0** ... 100 | the stereo panning of the first oscillator
 		Mix, ///< 0 ... **50%** ... 100% | the balance between the two oscillators (0% is only the left oscillator, while 100% is the right oscillator). This can be modulated using the Mix Modulation chain (if there are some Modulators, this control will be disabled.
+		EnableSecondOscillator, ///< **On** ... Off | Can be used to mute the second oscillator to save CPU cycles
+		PulseWidth1, ///< 0 ... **1** | Determines the first pulse width for waveforms that support this (eg. square)
+		PulseWidth2, ///< 0 ... **1** | Determines the second pulse width for waveforms that support this (eg. square)
 		numWaveSynthParameters
 	};
 
@@ -310,277 +226,47 @@ public:
 		numInternalChains
 	};
 
-	WaveSynth(MainController *mc, const String &id, int numVoices):
-		ModulatorSynth(mc, id, numVoices),
-		octaveTranspose1((int)getDefaultValue(OctaveTranspose1)),
-		octaveTranspose2((int)getDefaultValue(OctaveTranspose2)),
-		detune1(getDefaultValue(Detune1)),
-		detune2(getDefaultValue(Detune2)),
-		pan1(getDefaultValue(Pan1)),
-		pan2(getDefaultValue(Pan2)),
-		mix(getDefaultValue(Mix)),
-		waveForm1(WaveformComponent::Saw),
-		waveForm2(WaveformComponent::Saw),
-		mixChain(new ModulatorChain(mc, "Mix Modulation", 1, Modulation::GainMode, this))
-	{
-		tempBuffer = AudioSampleBuffer(2, 0);
-		mixBuffer = AudioSampleBuffer(1, 0);
+	WaveSynth(MainController *mc, const String &id, int numVoices);;
 
-		parameterNames.add("OctaveTranspose1");
-		parameterNames.add("WaveForm1");
-		parameterNames.add("Detune1");
-		parameterNames.add("Pan1");
-		parameterNames.add("OctaveTranspose2");
-		parameterNames.add("WaveForm2");
-		parameterNames.add("Detune2");
-		parameterNames.add("Pan2");
-		parameterNames.add("Mix");
+	void restoreFromValueTree(const ValueTree &v) override;;
 
-		editorStateIdentifiers.add("MixChainShown");
-
-		mixChain->setColour(Colour(0xff4D54B3));
-
-		for(int i = 0; i < numVoices; i++) addVoice(new WaveSynthVoice(this));
-		addSound (new WaveSound());	
-	};
-
-	void restoreFromValueTree(const ValueTree &v) override
-	{
-		ModulatorSynth::restoreFromValueTree(v);
-
-		loadAttribute(OctaveTranspose1, "OctaveTranspose1");
-		loadAttribute(OctaveTranspose2, "OctaveTranspose2");
-		loadAttribute(Detune1, "Detune1");
-		loadAttribute(Detune2, "Detune2");
-		loadAttribute(WaveForm1, "WaveForm1");
-		loadAttribute(WaveForm2, "WaveForm2");
-		loadAttribute(Pan1, "Pan1");
-		loadAttribute(Pan2, "Pan2");
-		loadAttribute(Mix, "Mix");
-	};
-
-	ValueTree exportAsValueTree() const override
-	{
-		ValueTree v = ModulatorSynth::exportAsValueTree();
-
-		saveAttribute(OctaveTranspose1, "OctaveTranspose1");
-		saveAttribute(OctaveTranspose2, "OctaveTranspose2");
-		saveAttribute(Detune1, "Detune1");
-		saveAttribute(Detune2, "Detune2");
-		saveAttribute(WaveForm1, "WaveForm1");
-		saveAttribute(WaveForm2, "WaveForm2");
-		saveAttribute(Pan1, "Pan1");
-		saveAttribute(Pan2, "Pan2");
-		saveAttribute(Mix, "Mix");
-		
-		return v;
-	}
+	ValueTree exportAsValueTree() const override;
 
 	int getNumChildProcessors() const override { return numInternalChains;	};
 
 	int getNumInternalChains() const override {return numInternalChains; };
 
-	virtual Processor *getChildProcessor(int processorIndex) override
-	{
-		jassert(processorIndex < numInternalChains);
+	virtual Processor *getChildProcessor(int processorIndex) override;;
 
-		switch(processorIndex)
-		{
-		case GainModulation:	return gainChain;
-		case PitchModulation:	return pitchChain;
-		case MixModulation:		return mixChain;
-		case MidiProcessor:		return midiProcessorChain;
-		case EffectChain:		return effectChain;
-		default:				jassertfalse; return nullptr;
-		}
-	};
-
-	virtual const Processor *getChildProcessor(int processorIndex) const override
-	{
-		jassert(processorIndex < numInternalChains);
-
-		switch(processorIndex)
-		{
-		case GainModulation:	return gainChain;
-		case PitchModulation:	return pitchChain;
-		case MixModulation:		return mixChain;
-		case MidiProcessor:		return midiProcessorChain;
-		case EffectChain:		return effectChain;
-		default:				jassertfalse; return nullptr;
-		}
-	};
+	virtual const Processor *getChildProcessor(int processorIndex) const override;;
 
 	
-	float getDefaultValue(int parameterIndex) const override
-	{
-		if (parameterIndex < ModulatorSynth::numModulatorSynthParameters) return ModulatorSynth::getAttribute(parameterIndex);
-
-		switch (parameterIndex)
-		{
-		case OctaveTranspose1:		return 0.0f;
-		case WaveForm1:				return (float)WaveformComponent::WaveformType::Saw;
-		case Detune1:				return 0.0f;
-		case Pan1:					return 0.0f;
-		case OctaveTranspose2:		return 0.0f;
-		case WaveForm2:				return (float)WaveformComponent::WaveformType::Saw;
-		case Detune2:				return 0.0f;
-		case Pan2:					return 0.0f;
-		case Mix:					return 0.5f;
-		default:					jassertfalse; return -1.0f;
-		}
-	};
+	float getDefaultValue(int parameterIndex) const override;;
 
 
-	float getAttribute(int parameterIndex) const override 
-	{
-		if(parameterIndex < ModulatorSynth::numModulatorSynthParameters) return ModulatorSynth::getAttribute(parameterIndex);
+	float getAttribute(int parameterIndex) const override;;
 
-		switch(parameterIndex)
-		{
-		case OctaveTranspose1:		return (float)octaveTranspose1;
-		case WaveForm1:				return (float)waveForm1;
-		case Detune1:				return detune1;
-		case Pan1:					return pan1;
-		case OctaveTranspose2:		return (float)octaveTranspose2;
-		case WaveForm2:				return (float)waveForm2;
-		case Detune2:				return detune2;
-		case Pan2:					return pan2;
-		case Mix:					return mix;
-		default:					jassertfalse; return -1.0f;
-		}
-	};
+	void setInternalAttribute(int parameterIndex, float newValue) override;;
 
-	void setInternalAttribute(int parameterIndex, float newValue) override
-	{
-		if(parameterIndex < ModulatorSynth::numModulatorSynthParameters)
-		{
-			ModulatorSynth::setInternalAttribute(parameterIndex, newValue);
-			return;
-		}
+	void postVoiceRendering(int startSample, int numSamples) override;;
 
-		switch(parameterIndex)
-		{
-		case OctaveTranspose1:		octaveTranspose1 = (int)newValue;
-									refreshPitchValues(true);
-									break;
-		case OctaveTranspose2:		octaveTranspose2 = (int)newValue;
-									refreshPitchValues(false);
-									break;
-		case Detune1:				detune1 = newValue;
-									refreshPitchValues(true);
-									break;
-		case Detune2:				detune2 = newValue;
-									refreshPitchValues(false);
-									break;
-		case WaveForm1:				waveForm1 = (WaveformComponent::WaveformType)(int)newValue;
-									refreshWaveForm(true);
-									break;
-		case WaveForm2:				waveForm2 = (WaveformComponent::WaveformType)(int)newValue; 
-									refreshWaveForm(false);
-									break;
-		case Pan1:					pan1 = newValue; break;
-		case Pan2:					pan2 = newValue; break;
-		case Mix:					mix = newValue; break;
-		default:					jassertfalse;
-									break;
-		}
-	};
+	void prepareToPlay(double newSampleRate, int samplesPerBlock) override;
 
-	void postVoiceRendering(int startSample, int numSamples) override
-	{
-		const float *leftSamples = internalBuffer.getReadPointer(0, startSample);
-		const float *rightSamples = internalBuffer.getReadPointer(1, startSample);
-
-		// Copy all samples to the temporary buffer which contains the separated generators
-		FloatVectorOperations::copy(tempBuffer.getWritePointer(0, startSample), leftSamples, numSamples);
-		FloatVectorOperations::copy(tempBuffer.getWritePointer(1, startSample), rightSamples, numSamples);
-
-		const bool useMixBuffer = mixChain->getNumChildProcessors() != 0;
-
-		if(useMixBuffer) mixChain->renderAllModulatorsAsMonophonic(mixBuffer, startSample, numSamples);
-
-		if(useMixBuffer)
-		{
-
-			// Multiply the left generator with the mix modulation values
-			FloatVectorOperations::multiply(tempBuffer.getWritePointer(0, startSample), mixBuffer.getReadPointer(0, startSample), numSamples);
-		
-			// Invert the mix modulation values
-			FloatVectorOperations::multiply(mixBuffer.getWritePointer(0, startSample), -1.0f, numSamples);
-			FloatVectorOperations::add(mixBuffer.getWritePointer(0, startSample), 1.0f, numSamples);
-
-			// Multiply the right generator with the inverted mix values
-			FloatVectorOperations::multiply(tempBuffer.getWritePointer(1, startSample), mixBuffer.getReadPointer(0, startSample), numSamples);
-		}
-		else
-		{
-			FloatVectorOperations::multiply(tempBuffer.getWritePointer(0, startSample), 1.0f-mix, numSamples);
-			FloatVectorOperations::multiply(tempBuffer.getWritePointer(1, startSample), mix, numSamples);
-		}
-
-		const float balance1Left = BalanceCalculator::getGainFactorForBalance(pan1, true);
-		const float balance1Right = BalanceCalculator::getGainFactorForBalance(pan1, false);
-		
-		FloatVectorOperations::copyWithMultiply(internalBuffer.getWritePointer(0, startSample), tempBuffer.getReadPointer(0, startSample), balance1Left, numSamples);
-		FloatVectorOperations::copyWithMultiply(internalBuffer.getWritePointer(1, startSample), tempBuffer.getReadPointer(0, startSample), balance1Right, numSamples);
-
-		const float balance2Left = BalanceCalculator::getGainFactorForBalance(pan2, true);
-		const float balance2Right = BalanceCalculator::getGainFactorForBalance(pan2, false);
-
-		FloatVectorOperations::addWithMultiply(internalBuffer.getWritePointer(0, startSample), tempBuffer.getReadPointer(1, startSample), balance2Left, numSamples);
-		FloatVectorOperations::addWithMultiply(internalBuffer.getWritePointer(1, startSample), tempBuffer.getReadPointer(1, startSample), balance2Right, numSamples);
-
-		ModulatorSynth::postVoiceRendering(startSample, numSamples);
-	};
-
-	void prepareToPlay(double newSampleRate, int samplesPerBlock) override
-	{
-		ModulatorSynth::prepareToPlay(newSampleRate, samplesPerBlock);
-
-		if(newSampleRate != -1.0)
-		{
-			ProcessorHelpers::increaseBufferIfNeeded(tempBuffer, samplesPerBlock);
-			ProcessorHelpers::increaseBufferIfNeeded(mixBuffer, samplesPerBlock);
-
-			mixChain->prepareToPlay(newSampleRate, samplesPerBlock);
-		}
-	}
-
-	void preHiseEventCallback(const HiseEvent &m) override
-	{
-		mixChain->handleHiseEvent(m);
-
-		ModulatorSynth::preHiseEventCallback(m);
-	}
+	void preHiseEventCallback(const HiseEvent &m) override;
 
 	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;
 
 private:
 
-	void refreshPitchValues(bool left)
-	{
-		for(int i = 0; i < getNumVoices(); i++) 
-		{
-			static_cast<WaveSynthVoice*>(getVoice(i))->setOctaveTransposeFactor(getPitchValue(left), left);
-		}
-	}
+	bool enableSecondOscillator = true;
 
-	void refreshWaveForm(bool left)
-	{
-		for(int i = 0; i < getNumVoices(); i++) 
-		{
-			static_cast<WaveSynthVoice*>(getVoice(i))->setWaveForm(left ? waveForm1 : waveForm2, left);
-		}
-	}
+	void refreshPitchValues(bool left);
 
-	double getPitchValue(bool getLeftValue)
-	{
-		const double octaveValue = pow(2.0, (double) getLeftValue ? octaveTranspose1 : octaveTranspose2);
+	void refreshWaveForm(bool left);
 
-		const double detuneValue = pow(2.0, (getLeftValue ? detune1 : detune2) / 1200.0);
+	void refreshPulseWidth(bool left);
 
-		return octaveValue * detuneValue;
-	}
+	double getPitchValue(bool getLeftValue);
 
 	ScopedPointer<ModulatorChain> mixChain;
 
@@ -594,6 +280,8 @@ private:
 	float pan1, pan2;
 
 	float detune1, detune2;
+
+	double pulseWidth1, pulseWidth2;
 
 	WaveformComponent::WaveformType waveForm1, waveForm2;
 
