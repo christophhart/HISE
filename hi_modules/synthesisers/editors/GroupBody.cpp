@@ -1,17 +1,17 @@
 /*
   ==============================================================================
 
-  This is an automatically generated GUI class created by the Introjucer!
+  This is an automatically generated GUI class created by the Projucer!
 
   Be careful when adding custom code to these files, as only the code within
   the "//[xyz]" and "//[/xyz]" sections will be retained when the file is loaded
   and re-saved.
 
-  Created with Introjucer version: 4.1.0
+  Created with Projucer version: 4.3.0
 
   ------------------------------------------------------------------------------
 
-  The Introjucer is part of the JUCE library - "Jules' Utility Class Extensions"
+  The Projucer is part of the JUCE library - "Jules' Utility Class Extensions"
   Copyright (c) 2015 - ROLI Ltd.
 
   ==============================================================================
@@ -110,16 +110,36 @@ GroupBody::GroupBody (ProcessorEditor *p)
     fmStateLabel->addListener (this);
 
     addAndMakeVisible (label = new Label ("new label",
-                                          TRANS("SYNTHESISER GROUP")));
-	label->setFont(GLOBAL_BOLD_FONT().withHeight(28.0f));
-    label->setJustificationType (Justification::centredRight);
+                                          TRANS("Synthesiser Group")));
+    label->setFont (Font ("Arial", 26.00f, Font::bold));
+    label->setJustificationType (Justification::centred);
     label->setEditable (false, false, false);
     label->setColour (Label::textColourId, Colour (0x52ffffff));
     label->setColour (TextEditor::textColourId, Colours::black);
     label->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
 
+    addAndMakeVisible (unisonoSlider = new HiSlider ("Detune"));
+    unisonoSlider->setRange (-100, 100, 1);
+    unisonoSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
+    unisonoSlider->setTextBoxStyle (Slider::TextBoxRight, false, 40, 20);
+    unisonoSlider->addListener (this);
+
+    addAndMakeVisible (detuneSlider = new HiSlider ("Detune"));
+    detuneSlider->setRange (-100, 100, 1);
+    detuneSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
+    detuneSlider->setTextBoxStyle (Slider::TextBoxRight, false, 40, 20);
+    detuneSlider->addListener (this);
+
+    addAndMakeVisible (spreadSlider = new HiSlider ("Detune"));
+    spreadSlider->setRange (-100, 100, 1);
+    spreadSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
+    spreadSlider->setTextBoxStyle (Slider::TextBoxRight, false, 40, 20);
+    spreadSlider->addListener (this);
+
 
     //[UserPreSize]
+
+	label->setFont(GLOBAL_BOLD_FONT().withHeight(28.0f));
 
 	fmButton->setup(getProcessor(), ModulatorSynthGroup::EnableFM, "Enable FM");
 	modSelector->setup(getProcessor(), ModulatorSynthGroup::ModulatorIndex, "Modulation Carrier");
@@ -134,9 +154,19 @@ GroupBody::GroupBody (ProcessorEditor *p)
     fmStateLabel->setFont(GLOBAL_FONT());
     fmStateLabel->setEditable(false, false);
 
+	unisonoSlider->setup(getProcessor(), 0, "Unisono Voices");
+	unisonoSlider->setMode(HiSlider::Mode::Discrete, 1, 16, 8, 1.0);
+
+	detuneSlider->setup(getProcessor(), 0, "Detune");
+	detuneSlider->setMode(HiSlider::Mode::Linear, 0.0, 6.0, 1.0, 0.01);
+	detuneSlider->setTextValueSuffix(" st");
+
+	spreadSlider->setup(getProcessor(), 0, "Spread");
+	spreadSlider->setMode(HiSlider::Mode::NormalizedPercentage);
+
     //[/UserPreSize]
 
-    setSize (800, 100);
+    setSize (800, 120);
 
 
     //[Constructor] You can add your own custom stuff here..
@@ -158,6 +188,9 @@ GroupBody::~GroupBody()
     modSelector = nullptr;
     fmStateLabel = nullptr;
     label = nullptr;
+    unisonoSlider = nullptr;
+    detuneSlider = nullptr;
+    spreadSlider = nullptr;
 
 
     //[Destructor]. You can add your own custom destruction code here..
@@ -184,24 +217,15 @@ void GroupBody::resized()
     voiceAmountLabel->setBounds (15, 9, 79, 24);
     voiceAmountEditor->setBounds (20, 27, 68, 16);
     fadeTimeEditor->setBounds (108, 27, 51, 16);
-    
-    fmButton->setBounds (304 - 128, 12, 128, 32);
-	carrierSelector->setBounds(308, 6, 128, 28);
-    modSelector->setBounds (446, 6, 128, 28);
-    fmStateLabel->setBounds (309, 39, 264, 16);
-    label->setBounds (getWidth() - 264, 0, 264, 40);
+    carrierSelector->setBounds (getWidth() - 149 - 128, 78, 128, 28);
+    fmButton->setBounds (getWidth() - 16 - 128, 16, 128, 32);
+    modSelector->setBounds (getWidth() - 11 - 128, 78, 128, 28);
+    fmStateLabel->setBounds (getWidth() - 12 - 264, 56, 264, 16);
+    label->setBounds (560 - 264, 8, 264, 40);
+    unisonoSlider->setBounds (16, 64, 128, 48);
+    detuneSlider->setBounds (160, 64, 128, 48);
+    spreadSlider->setBounds (296, 64, 128, 48);
     //[UserResized] Add your own custom resize handling here..
-
-	fmStateLabel->setTopLeftPosition((getWidth() - fmStateLabel->getWidth()) / 2, 43);
-
-	label->setTopLeftPosition(fmStateLabel->getX(), fmStateLabel->getBottom() + 5);
-	label->setSize(fmStateLabel->getWidth(), 30);
-
-	carrierSelector->setTopLeftPosition(fmStateLabel->getX(), fmStateLabel->getY() - 32);
-
-	modSelector->setTopRightPosition(fmStateLabel->getRight(), fmStateLabel->getY() - 32);
-
-	fmButton->setTopLeftPosition(modSelector->getRight() + 20, modSelector->getY() + 20);
 
     //[/UserResized]
 }
@@ -288,6 +312,31 @@ void GroupBody::buttonClicked (Button* buttonThatWasClicked)
     //[/UserbuttonClicked_Post]
 }
 
+void GroupBody::sliderValueChanged (Slider* sliderThatWasMoved)
+{
+    //[UsersliderValueChanged_Pre]
+    //[/UsersliderValueChanged_Pre]
+
+    if (sliderThatWasMoved == unisonoSlider)
+    {
+        //[UserSliderCode_unisonoSlider] -- add your slider handling code here..
+        //[/UserSliderCode_unisonoSlider]
+    }
+    else if (sliderThatWasMoved == detuneSlider)
+    {
+        //[UserSliderCode_detuneSlider] -- add your slider handling code here..
+        //[/UserSliderCode_detuneSlider]
+    }
+    else if (sliderThatWasMoved == spreadSlider)
+    {
+        //[UserSliderCode_spreadSlider] -- add your slider handling code here..
+        //[/UserSliderCode_spreadSlider]
+    }
+
+    //[UsersliderValueChanged_Post]
+    //[/UsersliderValueChanged_Post]
+}
+
 
 
 //[MiscUserCode] You can add your own definitions of your custom methods or any other code here...
@@ -296,9 +345,9 @@ void GroupBody::buttonClicked (Button* buttonThatWasClicked)
 
 //==============================================================================
 #if 0
-/*  -- Introjucer information section --
+/*  -- Projucer information section --
 
-    This is where the Introjucer stores the metadata that describe this GUI layout, so
+    This is where the Projucer stores the metadata that describe this GUI layout, so
     make changes in here at your peril!
 
 BEGIN_JUCER_METADATA
@@ -307,7 +356,7 @@ BEGIN_JUCER_METADATA
                  parentClasses="public ProcessorEditorBody" constructorParams="ProcessorEditor *p"
                  variableInitialisers="ProcessorEditorBody(p)" snapPixels="8"
                  snapActive="1" snapShown="1" overlayOpacity="0.330" fixedSize="1"
-                 initialWidth="800" initialHeight="60">
+                 initialWidth="800" initialHeight="120">
   <BACKGROUND backgroundColour="8e0000"/>
   <LABEL name="new label" id="f18e00eab8404cdf" memberName="fadeTimeLabel"
          virtualName="" explicitFocusOrder="0" pos="103 8 79 24" textCol="ffffffff"
@@ -332,28 +381,43 @@ BEGIN_JUCER_METADATA
          focusDiscardsChanges="0" fontname="Khmer UI" fontsize="14" bold="0"
          italic="0" justification="33"/>
   <COMBOBOX name="Carrier Selection" id="223afd792a25b6b" memberName="carrierSelector"
-            virtualName="HiComboBox" explicitFocusOrder="0" pos="308 6 128 28"
+            virtualName="HiComboBox" explicitFocusOrder="0" pos="149Rr 78 128 28"
             tooltip="Set the carrier synthesizer" editable="0" layout="33"
             items="" textWhenNonSelected="Select Carrier" textWhenNoItems="(no choices)"/>
   <TOGGLEBUTTON name="FM Synthesiser" id="e77edc03c117de85" memberName="fmButton"
-                virtualName="HiToggleButton" explicitFocusOrder="0" pos="304r 12 128 32"
+                virtualName="HiToggleButton" explicitFocusOrder="0" pos="16Rr 16 128 32"
                 tooltip="Enables FM Modulation&#10;" txtcol="ffffffff" buttonText="Enable FM"
                 connectedEdges="0" needsCallback="1" radioGroupId="0" state="0"/>
   <COMBOBOX name="Modulation Selection" id="96d6c3d91b3a6311" memberName="modSelector"
-            virtualName="HiComboBox" explicitFocusOrder="0" pos="446 6 128 28"
+            virtualName="HiComboBox" explicitFocusOrder="0" pos="11Rr 78 128 28"
             tooltip="Set the modulation synthesizer" editable="0" layout="33"
             items="" textWhenNonSelected="Select Modulator" textWhenNoItems="(no choices)"/>
   <LABEL name="new label" id="3fc5b4f17a9b1eb" memberName="fmStateLabel"
-         virtualName="" explicitFocusOrder="0" pos="309 39 264 16" bkgCol="38ffffff"
+         virtualName="" explicitFocusOrder="0" pos="12Rr 56 264 16" bkgCol="38ffffff"
          outlineCol="38ffffff" edTextCol="ff000000" edBkgCol="0" hiliteCol="407a0000"
          labelText="FM deactivated" editableSingleClick="1" editableDoubleClick="1"
          focusDiscardsChanges="0" fontname="Khmer UI" fontsize="14" bold="0"
          italic="0" justification="36"/>
   <LABEL name="new label" id="bd1d8d6ad6d04bdc" memberName="label" virtualName=""
-         explicitFocusOrder="0" pos="0Rr 0 264 40" textCol="52ffffff"
+         explicitFocusOrder="0" pos="560r 8 264 40" textCol="52ffffff"
          edTextCol="ff000000" edBkgCol="0" labelText="Synthesiser Group"
          editableSingleClick="0" editableDoubleClick="0" focusDiscardsChanges="0"
-         fontname="Arial" fontsize="26" bold="1" italic="0" justification="34"/>
+         fontname="Arial" fontsize="26" bold="1" italic="0" justification="36"/>
+  <SLIDER name="Detune" id="5539f75b4ea811c1" memberName="unisonoSlider"
+          virtualName="HiSlider" explicitFocusOrder="0" pos="16 64 128 48"
+          min="-100" max="100" int="1" style="RotaryHorizontalVerticalDrag"
+          textBoxPos="TextBoxRight" textBoxEditable="1" textBoxWidth="40"
+          textBoxHeight="20" skewFactor="1" needsCallback="1"/>
+  <SLIDER name="Detune" id="e0537e402c8fc75" memberName="detuneSlider"
+          virtualName="HiSlider" explicitFocusOrder="0" pos="160 64 128 48"
+          min="-100" max="100" int="1" style="RotaryHorizontalVerticalDrag"
+          textBoxPos="TextBoxRight" textBoxEditable="1" textBoxWidth="40"
+          textBoxHeight="20" skewFactor="1" needsCallback="1"/>
+  <SLIDER name="Detune" id="e3fe6ec018016207" memberName="spreadSlider"
+          virtualName="HiSlider" explicitFocusOrder="0" pos="296 64 128 48"
+          min="-100" max="100" int="1" style="RotaryHorizontalVerticalDrag"
+          textBoxPos="TextBoxRight" textBoxEditable="1" textBoxWidth="40"
+          textBoxHeight="20" skewFactor="1" needsCallback="1"/>
 </JUCER_COMPONENT>
 
 END_JUCER_METADATA

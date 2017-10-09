@@ -1,17 +1,17 @@
 /*
   ==============================================================================
 
-  This is an automatically generated GUI class created by the Introjucer!
+  This is an automatically generated GUI class created by the Projucer!
 
   Be careful when adding custom code to these files, as only the code within
   the "//[xyz]" and "//[/xyz]" sections will be retained when the file is loaded
   and re-saved.
 
-  Created with Introjucer version: 4.1.0
+  Created with Projucer version: 4.3.0
 
   ------------------------------------------------------------------------------
 
-  The Introjucer is part of the JUCE library - "Jules' Utility Class Extensions"
+  The Projucer is part of the JUCE library - "Jules' Utility Class Extensions"
   Copyright (c) 2015 - ROLI Ltd.
 
   ==============================================================================
@@ -38,7 +38,8 @@
 class GroupBody  : public ProcessorEditorBody,
                    public LabelListener,
                    public ComboBoxListener,
-                   public ButtonListener
+                   public ButtonListener,
+                   public SliderListener
 {
 public:
     //==============================================================================
@@ -90,11 +91,12 @@ public:
 
     //[/UserMethods]
 
-    void paint (Graphics& g);
-    void resized();
-    void labelTextChanged (Label* labelThatHasChanged);
-    void comboBoxChanged (ComboBox* comboBoxThatHasChanged);
-    void buttonClicked (Button* buttonThatWasClicked);
+    void paint (Graphics& g) override;
+    void resized() override;
+    void labelTextChanged (Label* labelThatHasChanged) override;
+    void comboBoxChanged (ComboBox* comboBoxThatHasChanged) override;
+    void buttonClicked (Button* buttonThatWasClicked) override;
+    void sliderValueChanged (Slider* sliderThatWasMoved) override;
 
 
 
@@ -113,6 +115,9 @@ private:
     ScopedPointer<HiComboBox> modSelector;
     ScopedPointer<Label> fmStateLabel;
     ScopedPointer<Label> label;
+    ScopedPointer<HiSlider> unisonoSlider;
+    ScopedPointer<HiSlider> detuneSlider;
+    ScopedPointer<HiSlider> spreadSlider;
 
 
     //==============================================================================

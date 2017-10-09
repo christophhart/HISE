@@ -30,6 +30,60 @@
 *   ===========================================================================
 */
 
+
+ModulatorSynthChain::ModulatorSynthChain(MainController *mc, const String &id, int numVoices_, UndoManager *viewUndoManager /*= nullptr*/) :
+	MacroControlBroadcaster(this),
+	ModulatorSynth(mc, id, numVoices_),
+#if USE_BACKEND
+	ViewManager(this, viewUndoManager),
+#endif
+	numVoices(numVoices_),
+	handler(this),
+	vuValue(0.0f)
+{
+#if USE_BACKEND == 0
+	ignoreUnused(viewUndoManager);
+#endif
+
+	FactoryType *t = new ModulatorSynthChainFactoryType(numVoices, this);
+
+	getMatrix().setAllowResizing(true);
+
+	setGain(1.0);
+
+	editorStateIdentifiers.add("InterfaceShown");
+
+	setFactoryType(t);
+
+	setEditorState(Processor::EditorState::BodyShown, false);
+
+	// Skip the pitch chain
+	pitchChain->setBypassed(true);
+
+	//gainChain->getFactoryType()->setConstrainer(new NoMidiInputConstrainer());
+
+	constrainer = new NoMidiInputConstrainer();
+
+	gainChain->getFactoryType()->setConstrainer(constrainer, false);
+
+	effectChain->getFactoryType()->setConstrainer(constrainer, false);
+
+	disableChain(PitchModulation, true);
+}
+
+ModulatorSynthChain::~ModulatorSynthChain()
+{
+	getHandler()->clear();
+
+	effectChain = nullptr;
+	midiProcessorChain = nullptr;
+	gainChain = nullptr;
+	pitchChain = nullptr;
+
+	constrainer = nullptr;
+}
+
+
 ProcessorEditorBody *ModulatorSynthChain::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
@@ -44,6 +98,29 @@ ProcessorEditorBody *ModulatorSynthChain::createEditor(ProcessorEditor *parentEd
 
 #endif
 };
+
+
+Processor * ModulatorSynthChain::getChildProcessor(int processorIndex)
+{
+
+	if (processorIndex < ModulatorSynth::numInternalChains) return ModulatorSynth::getChildProcessor(processorIndex);
+	else													return handler.getProcessor(processorIndex - numInternalChains);
+}
+
+
+const Processor * ModulatorSynthChain::getChildProcessor(int processorIndex) const
+{
+
+	if (processorIndex < ModulatorSynth::numInternalChains) return ModulatorSynth::getChildProcessor(processorIndex);
+	else													return handler.getProcessor(processorIndex - numInternalChains);
+}
+
+void ModulatorSynthChain::prepareToPlay(double newSampleRate, int samplesPerBlock)
+{
+	ModulatorSynth::prepareToPlay(newSampleRate, samplesPerBlock);
+
+	for (int i = 0; i < synths.size(); i++) synths[i]->prepareToPlay(newSampleRate, samplesPerBlock);
+}
 
 void ModulatorSynthChain::numSourceChannelsChanged()
 {
@@ -64,6 +141,28 @@ void ModulatorSynthChain::numSourceChannelsChanged()
 void ModulatorSynthChain::numDestinationChannelsChanged()
 {
 	
+}
+
+
+ValueTree ModulatorSynthChain::exportAsValueTree() const
+{
+	ValueTree v = ModulatorSynth::exportAsValueTree();
+
+	if (this == getMainController()->getMainSynthChain())
+	{
+		v.setProperty("packageName", packageName, nullptr);
+
+
+
+#if USE_BACKEND
+		ViewManager::saveViewsToValueTree(v);
+#endif
+		MacroControlBroadcaster::saveMacrosToValueTree(v);
+
+		v.addChild(getMainController()->getMacroManager().getMidiControlAutomationHandler()->exportAsValueTree(), -1, nullptr);
+
+	}
+	return v;
 }
 
 void ModulatorSynthChain::addProcessorsWhenEmpty()
@@ -195,6 +294,26 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 #endif
 }
 
+
+void ModulatorSynthChain::restoreFromValueTree(const ValueTree &v)
+{
+	packageName = v.getProperty("packageName", "");
+
+	ModulatorSynth::restoreFromValueTree(v);
+
+
+#if USE_BACKEND
+	ViewManager::restoreViewsFromValueTree(v);
+#endif
+
+	ValueTree autoData = v.getChildWithName("MidiAutomation");
+
+	if (autoData.isValid())
+	{
+		getMainController()->getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(autoData);
+	}
+}
+
 void ModulatorSynthChain::reset()
 {
 	sendDeleteMessage();
@@ -304,497 +423,6 @@ bool ModulatorSynthChain::hasDefinedFrontInterface() const
     return false;
 }
 
-ProcessorEditorBody *ModulatorSynthGroup::createEditor(ProcessorEditor *parentEditor)
-{
-#if USE_BACKEND
-
-	return new GroupBody(parentEditor);
-
-	
-#else 
-
-	ignoreUnused(parentEditor);
-	jassertfalse;
-	return nullptr;
-
-#endif
-};
-
-
-ModulatorSynthGroup::ModulatorSynthGroup(MainController *mc, const String &id, int numVoices):
-	ModulatorSynth(mc, id, numVoices),
-	numVoices(numVoices),
-	handler(this),
-	vuValue(0.0f),
-	fmEnabled(false),
-	carrierIndex(0),
-	modIndex(0),
-	fmState("FM disabled"),
-	fmCorrectlySetup(false),
-	sampleStartChain(new ModulatorChain(mc, "Sample Start Modulation", numVoices, Modulation::GainMode, this))
-{
-	setFactoryType(new ModulatorSynthChainFactoryType(numVoices, this));
-
-	getFactoryType()->setConstrainer(new SynthGroupConstrainer());
-
-	setGain(1.0);
-
-	parameterNames.add("EnableFM");
-	parameterNames.add("CarrierIndex");
-	parameterNames.add("ModulatorIndex");
-
-	allowStates.clear();
-		
-	for(int i = 0; i < numVoices; i++) addVoice(new ModulatorSynthGroupVoice(this));
-	addSound (new ModulatorSynthGroupSound());	
-
-};
-
-/** Calls the base class startNote() for the group itself and all child synths.  */
-void ModulatorSynthGroupVoice::startNote (int midiNoteNumber, float velocity, SynthesiserSound*, int )
-{
-	ModulatorSynthVoice::startNote(midiNoteNumber, velocity, nullptr, -1);
-
-	// The uptime is not used, but it must be > 0, or the voice is not rendered.
-	uptimeDelta = 1.0;
-
-	ModulatorSynthGroup::ChildSynthIterator iterator(static_cast<ModulatorSynthGroup*>(ownerSynth), ModulatorSynthGroup::ChildSynthIterator::IterateAllSynths);
-	ModulatorSynth *childSynth;
-
-	for(int i = 0; i < childSynths.size(); i++)
-	{
-		
-		childSynth = childSynths.getUnchecked(i);
-		ModulatorSynthVoice *childVoice = static_cast<ModulatorSynthVoice*>(childSynth->getVoice(getVoiceIndex()));
-		
-
-		if(static_cast<ModulatorSynthGroup*>(ownerSynth)->allowStates[i])
-		{
-
-			ModulatorSynthSound *soundToPlay = nullptr;
-
-			for(int j = 0; j < childSynth->getNumSounds(); j++)
-			{
-				ModulatorSynthSound *s = static_cast<ModulatorSynthSound*>(childSynth->getSound(j));
-
-				if(s->appliesToMessage(1, midiNoteNumber, (int)(velocity * 127)))
-				{
-					soundToPlay = s;
-					break; // only one sound at a time (can be changed later)
-				}
-			}
-
-			if (soundToPlay == nullptr) continue;
-
-			childVoice->setCurrentHiseEvent(getCurrentHiseEvent());
-			childSynth->preStartVoice(voiceIndex, midiNoteNumber);
-			childVoice->startNote(midiNoteNumber, velocity, soundToPlay, -1);
-		}
-		else
-		{
-			childVoice->setInactive();
-			
-		}
-	}
-
-};
-
-void ModulatorSynthGroupVoice::stopNote (float, bool)
-{
-	
-	ModulatorSynthGroup::ChildSynthIterator iterator(static_cast<ModulatorSynthGroup*>(ownerSynth), ModulatorSynthGroup::ChildSynthIterator::IterateAllSynths);
-	ModulatorSynth *childSynth;
-
-	while(iterator.getNextAllowedChild(childSynth))
-	{
-		ModulatorChain *g = static_cast<ModulatorChain*>(childSynth->getChildProcessor(ModulatorSynth::GainModulation));
-		ModulatorChain *p = static_cast<ModulatorChain*>(childSynth->getChildProcessor(ModulatorSynth::PitchModulation));
-
-		g->stopVoice(voiceIndex);
-		p->stopVoice(voiceIndex);
-	}
-
-	ModulatorSynthVoice::stopNote(1.0f, true);
-
-	//checkRelease();
-	
-};
-
-void ModulatorSynthGroupVoice::checkRelease()
-{
-	
-
-	ModulatorChain *ownerGainChain = static_cast<ModulatorChain*>(ownerSynth->getChildProcessor(ModulatorSynth::GainModulation));
-	//ModulatorChain *ownerPitchChain = static_cast<ModulatorChain*>(ownerSynth->getChildProcessor(ModulatorSynth::PitchModulation));
-
-	if( killThisVoice && (killFadeLevel < 0.001f) )
-	{
-		resetVoice();
-		
-
-		ModulatorSynthGroup::ChildSynthIterator iterator(static_cast<ModulatorSynthGroup*>(ownerSynth), ModulatorSynthGroup::ChildSynthIterator::IterateAllSynths);
-		ModulatorSynth *childSynth;
-
-		while(iterator.getNextAllowedChild(childSynth))
-		{
-			ModulatorSynthVoice *childVoice = static_cast<ModulatorSynthVoice*>(childSynth->getVoice(voiceIndex));
-
-			childSynth->setPeakValues(0.0f, 0.0f);
-
-			childVoice->resetVoice();
-
-		}
-
-		return;
-
-	}
-
-	if(! ownerGainChain->isPlaying(voiceIndex))
-	{
-		resetVoice();
-
-		//ownerGainChain->reset(voiceIndex);
-		//ownerPitchChain->reset(voiceIndex);
-
-		//clearCurrentNote();
-		//uptimeDelta = 0.0;
-
-		ModulatorSynthGroup::ChildSynthIterator iterator(static_cast<ModulatorSynthGroup*>(ownerSynth), ModulatorSynthGroup::ChildSynthIterator::IterateAllSynths);
-		ModulatorSynth *childSynth;
-
-		while(iterator.getNextAllowedChild(childSynth))
-		{
-			ModulatorSynthVoice *childVoice = static_cast<ModulatorSynthVoice*>(childSynth->getVoice(voiceIndex));
-
-			childSynth->setPeakValues(0.0f, 0.0f);
-
-			childVoice->resetVoice();
-
-			/*
-			ModulatorChain *c = static_cast<ModulatorChain*>(childSynth->getChildProcessor(ModulatorSynth::GainModulation));
-			ModulatorChain *p = static_cast<ModulatorChain*>(childSynth->getChildProcessor(ModulatorSynth::PitchModulation));
-
-			c->reset(voiceIndex);
-			p->reset(voiceIndex);
-
-			childVoice->clearCurrentNote();
-			childVoice->uptimeDelta = 0.0;
-			*/
-		}
-	}
-
-
-}
-
-void ModulatorSynthGroup::setInternalAttribute(int index, float newValue)
-{
-	if (index < ModulatorSynth::numModulatorSynthParameters)
-	{
-		ModulatorSynth::setInternalAttribute(index, newValue);
-		return;
-	}
-
-	switch (index)
-	{
-	case EnableFM:		 fmEnabled = (newValue > 0.5f); break;
-						 
-	case ModulatorIndex: modIndex = (int)newValue; break;
-	case CarrierIndex:	 carrierIndex = (int)newValue; break;
-	default:			 jassertfalse;
-	}
-
-	checkFmState();
-}
-
-float ModulatorSynthGroup::getAttribute(int index) const
-{
-	if (index < ModulatorSynth::numModulatorSynthParameters)
-	{
-		return ModulatorSynth::getAttribute(index);
-	}
-
-	switch (index)
-	{
-	case EnableFM:		 return fmEnabled ? 1.0f : 0.0f;
-	case ModulatorIndex: return (float)modIndex;
-	case CarrierIndex:	 return (float)carrierIndex;
-	default:			 jassertfalse; return -1.0f;
-	}
-}
-
-void ModulatorSynthGroup::preHiseEventCallback(const HiseEvent &m)
-{
-	ModulatorSynth::preHiseEventCallback(m);
-
-	ModulatorSynth *child;
-	ChildSynthIterator iterator(this, ChildSynthIterator::SkipUnallowedSynths);
-
-	while(iterator.getNextAllowedChild(child))
-	{
-		child->preHiseEventCallback(m);
-	}
-};
-
-void ModulatorSynthGroup::restoreFromValueTree(const ValueTree &v)
-{
-	ModulatorSynth::restoreFromValueTree(v);
-
-	loadAttribute(EnableFM, "EnableFM");
-	loadAttribute(CarrierIndex, "CarrierIndex");
-	loadAttribute(ModulatorIndex, "ModulatorIndex");
-
-}
-
-ValueTree ModulatorSynthGroup::exportAsValueTree() const
-{
-	ValueTree v = ModulatorSynth::exportAsValueTree();
-
-	saveAttribute(EnableFM, "EnableFM");
-	saveAttribute(CarrierIndex, "CarrierIndex");
-	saveAttribute(ModulatorIndex, "ModulatorIndex");
-
-	return v;
-}
-
-void ModulatorSynthGroup::checkFmState()
-{
-	auto offset = (int)ModulatorSynthGroup::InternalChains::numInternalChains;
-
-	if (fmEnabled)
-	{
-		
-
-		if (carrierIndex == 0 || getChildProcessor(carrierIndex-1 + offset) == nullptr)
-		{
-			fmState = "The carrier syntesizer is not valid.";
-			fmCorrectlySetup = false;
-		}
-		else if (modIndex == 0 || getChildProcessor(modIndex - 1 + offset) == nullptr)
-		{
-			fmState = "The modulation synthesizer is not valid.";
-			fmCorrectlySetup = false;
-		}
-		else if (modIndex == carrierIndex)
-		{
-			fmState = "You can't use the same synthesiser as carrier and modulator.";
-			fmCorrectlySetup = false;
-		}
-		else
-		{
-			fmState = "FM is working.";
-			fmCorrectlySetup = true;
-		}
-	}
-	else
-	{
-		fmState = "FM is deactivated";
-		fmCorrectlySetup = false;
-	}
-
-	if (fmCorrectlySetup)
-	{
-		enablePitchModulation(true);
-
-		static_cast<ModulatorSynth*>(getChildProcessor(carrierIndex - 1 + offset))->enablePitchModulation(true);
-	}
-
-	
-
-	sendChangeMessage();
-}
-
-void ModulatorSynthGroupVoice::calculateBlock(int startSample, int numSamples)
-{
-	ScopedLock sl(ownerSynth->getSynthLock());
-
-	// Clear the buffer, since all child voices are added to this so it must be empty.
-	voiceBuffer.clear();
-
-	ModulatorSynthGroup *group = static_cast<ModulatorSynthGroup*>(getOwnerSynth());
-
-	
-	const float *voicePitchValues = getVoicePitchValues();
-
-	if (group->fmIsCorrectlySetup())
-	{
-		// Calculate the modulator
-
-		auto offset = (int)ModulatorSynthGroup::InternalChains::numInternalChains;
-
-		ModulatorSynth *modSynth = static_cast<ModulatorSynth*>(group->getChildProcessor(group->modIndex-1 + offset));
-		jassert(modSynth != nullptr);
-
-		ModulatorSynthVoice *modVoice = static_cast<ModulatorSynthVoice*>(modSynth->getVoice(voiceIndex));
-
-		if (modSynth->isBypassed() || modVoice->isInactive()) return;
-
-		modVoice->calculateVoicePitchValues(startSample, numSamples);
-
-		const float modGain = modSynth->getGain();
-
-		float *modPitchValues = modVoice->getVoicePitchValues();
-
-		if (voicePitchValues != nullptr && modPitchValues != nullptr)
-		{
-			FloatVectorOperations::multiply(modPitchValues + startSample, voicePitchValues + startSample, numSamples);
-		}
-
-		modVoice->calculateBlock(startSample, numSamples);
-		
-
-		const float *modValues = modVoice->getVoiceValues(0, startSample); // Channel is the same;
-
-		FloatVectorOperations::copy(fmModBuffer, modValues, numSamples);
-
-		FloatVectorOperations::multiply(fmModBuffer, group->modSynthGainValues.getReadPointer(0, startSample), numSamples);
-
-		FloatVectorOperations::multiply(fmModBuffer, modGain, numSamples);
-
-		const float peak = FloatVectorOperations::findMaximum(fmModBuffer, numSamples);
-
-		FloatVectorOperations::add(fmModBuffer, 1.0f, numSamples);
-
-		modSynth->setPeakValues(peak, peak);
-
-		// Calculate the carrier voice
-
-		ModulatorSynth *carrierSynth = static_cast<ModulatorSynth*>(group->getChildProcessor(group->carrierIndex - 1 + offset));
-		jassert(carrierSynth != nullptr);
-
-		ModulatorSynthVoice *carrierVoice = static_cast<ModulatorSynthVoice*>(carrierSynth->getVoice(voiceIndex));
-		
-
-		if (carrierSynth->isBypassed() || carrierVoice->isInactive()) return;
-		
-		carrierVoice->calculateVoicePitchValues(startSample, numSamples);
-
-		float *carrierPitchValues = carrierVoice->getVoicePitchValues();
-
-		FloatVectorOperations::multiply(carrierPitchValues + startSample, voicePitchValues + startSample, numSamples);
-
-		// This is the magic FM command
-		FloatVectorOperations::multiply(carrierPitchValues + startSample, fmModBuffer, numSamples);
-        
-#if JUCE_WINDOWS
-		FloatVectorOperations::clip(carrierPitchValues + startSample, carrierPitchValues + startSample, 0.00000001f, 1000.0f, numSamples);
-#endif
-		carrierVoice->calculateBlock(startSample, numSamples);
-
-		
-
-		const float carrierGain = carrierSynth->getGain();
-
-		voiceBuffer.copyFrom(0, startSample, carrierVoice->getVoiceValues(0, startSample), numSamples, carrierGain * carrierSynth->getBalance(false));
-		voiceBuffer.copyFrom(1, startSample, carrierVoice->getVoiceValues(1, startSample), numSamples, carrierGain * carrierSynth->getBalance(true));
-
-		const float peak2 = FloatVectorOperations::findMaximum(carrierVoice->getVoiceValues(0, startSample), numSamples);
-
-		carrierSynth->setPeakValues(peak2, peak2);
-	}
-	else
-	{
-		ModulatorSynthGroup::ChildSynthIterator iterator(static_cast<ModulatorSynthGroup*>(ownerSynth), ModulatorSynthGroup::ChildSynthIterator::IterateAllSynths);
-		ModulatorSynth *childSynth;
-
-		while (iterator.getNextAllowedChild(childSynth))
-		{
-			ModulatorSynthVoice *childVoice = static_cast<ModulatorSynthVoice*>(childSynth->getVoice(voiceIndex));
-
-			if (childSynth->isBypassed() || childVoice->isInactive()) continue;
-
-			const float gain = childSynth->getGain();
-
-			childVoice->calculateVoicePitchValues(startSample, numSamples);
-
-			float *childPitchValues = childVoice->getVoicePitchValues();
-
-			if (childPitchValues != nullptr && voicePitchValues != nullptr)
-			{
-				FloatVectorOperations::multiply(childPitchValues + startSample, voicePitchValues + startSample, numSamples);
-			}
-
-			childVoice->calculateBlock(startSample, numSamples);
-
-			childSynth->setPeakValues(gain, gain);
-
-			voiceBuffer.addFrom(0, startSample, childVoice->getVoiceValues(0, startSample), numSamples, gain * childSynth->getBalance(false));
-			voiceBuffer.addFrom(1, startSample, childVoice->getVoiceValues(1, startSample), numSamples, gain * childSynth->getBalance(true));
-		}
-	}
-
-	
-
-	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startSample, numSamples);
-
-	const float *modValues = getVoiceGainValues(startSample, numSamples);
-
-	FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startSample), modValues + startSample, numSamples);
-	FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startSample), modValues + startSample, numSamples);
-};
-
-void ModulatorSynthGroup::ModulatorSynthGroupHandler::add(Processor *newProcessor, Processor * /*siblingToInsertBefore*/)
-{
-	
-
-	ModulatorSynth *m = dynamic_cast<ModulatorSynth*>(newProcessor);
-
-	// Check incompatibilites with SynthGroups
-
-	if(m->getChildProcessor(ModulatorSynth::EffectChain)->getNumChildProcessors() != 0)
-	{
-		if(AlertWindow::showOkCancelBox(AlertWindow::AlertIconType::WarningIcon, "Effects detected", "Synths that are added to a SynthGroup are not allowed to have effects.\n Press OK to create the synth with all effects removed"))
-		{
-			dynamic_cast<EffectProcessorChain*>(m->getChildProcessor(ModulatorSynth::EffectChain))->getHandler()->clear();
-			m->setEditorState(ModulatorSynth::EffectChainShown, false);
-		}
-		else
-		{
-			return;
-		}
-	}
-	else if(dynamic_cast<ModulatorSampler*>(m) != nullptr && m->getAttribute(ModulatorSampler::VoiceAmount) != group->getNumVoices())
-	{
-		if(AlertWindow::showOkCancelBox(AlertWindow::AlertIconType::WarningIcon, "Different Voice Amount detected", "StreamingSamplers that are added to a SynthGroup must have the same voice number as the SynthGroup\n Press OK to resize the voice amount."))
-		{
-			dynamic_cast<ModulatorSampler*>(m)->setAttribute(ModulatorSampler::VoiceAmount, (float)group->getNumVoices(), sendNotification);
-		}
-		else
-		{
-			return;
-		}
-	}
-
-	m->enablePitchModulation(true);
-	m->setGroup(group);
-	m->prepareToPlay(group->getSampleRate(), group->getBlockSize());
-
-
-	{
-		MainController::ScopedSuspender ss(group->getMainController());
-		
-		m->setIsOnAir(true);
-
-		jassert(m != nullptr);
-		group->synths.add(m);
-
-		group->allowStates.setBit(group->synths.indexOf(m), true);
-
-		for (int i = 0; i < group->getNumVoices(); i++)
-		{
-			static_cast<ModulatorSynthGroupVoice*>(group->getVoice(i))->addChildSynth(m);
-		}
-
-
-
-		group->checkFmState();
-
-	}
-
-	
-	group->sendChangeMessage();
-
-	sendChangeMessage();
-}
 
 NoMidiInputConstrainer::NoMidiInputConstrainer()
 {
@@ -824,4 +452,60 @@ SynthGroupConstrainer::SynthGroupConstrainer()
 	ADD_NAME_TO_TYPELIST(ModulatorSynthGroup);
 
 	forbiddenModulators.addArray(typeNames);
+}
+
+void ModulatorSynthChain::ModulatorSynthChainHandler::add(Processor *newProcessor, Processor *siblingToInsertBefore)
+{
+	ModulatorSynth *ms = dynamic_cast<ModulatorSynth*>(newProcessor);
+
+	jassert(ms != nullptr);
+
+	const int index = siblingToInsertBefore == nullptr ? -1 : synth->synths.indexOf(dynamic_cast<ModulatorSynth*>(siblingToInsertBefore));
+
+	ms->getMatrix().setNumDestinationChannels(synth->getMatrix().getNumSourceChannels());
+	ms->getMatrix().setTargetProcessor(synth);
+
+	ms->prepareToPlay(synth->getSampleRate(), synth->getBlockSize());
+
+	{
+		MainController::ScopedSuspender ss(synth->getMainController());
+		ms->setIsOnAir(true);
+		synth->synths.insert(index, ms);
+	}
+
+	sendChangeMessage();
+}
+
+void ModulatorSynthChain::ModulatorSynthChainHandler::remove(Processor *processorToBeRemoved)
+{
+	{
+		MainController::ScopedSuspender ss(synth->getMainController(), MainController::ScopedSuspender::LockType::Lock);
+		synth->synths.removeObject(dynamic_cast<ModulatorSynth*>(processorToBeRemoved));
+	}
+
+	sendChangeMessage();
+}
+
+Processor * ModulatorSynthChain::ModulatorSynthChainHandler::getProcessor(int processorIndex)
+{
+	return synth->synths[processorIndex];
+}
+
+const Processor * ModulatorSynthChain::ModulatorSynthChainHandler::getProcessor(int processorIndex) const
+{
+	return synth->synths[processorIndex];
+}
+
+int ModulatorSynthChain::ModulatorSynthChainHandler::getNumProcessors() const
+{
+	return synth->synths.size();
+}
+
+void ModulatorSynthChain::ModulatorSynthChainHandler::clear()
+{
+	ScopedLock sl(synth->getMainController()->getLock());
+
+	synth->synths.clear();
+
+	sendChangeMessage();
 }

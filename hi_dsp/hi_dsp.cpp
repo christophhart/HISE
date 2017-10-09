@@ -63,6 +63,7 @@ using namespace juce;
 #include "modules/EffectProcessorChain.cpp"
 #include "modules/ModulatorSynth.cpp"
 #include "modules/ModulatorSynthChain.cpp"
+#include "modules/ModulatorSynthGroup.cpp"
 
 #include "plugin_parameter/PluginParameterProcessor.cpp"
 

@@ -511,7 +511,7 @@ void WaveSynthVoice::setWaveForm(WaveformComponent::WaveformType type, bool left
 {
 #if USE_MARTIN_FINKE_POLY_BLEP_ALGORITHM
 
-	switch (type)
+	switch ((int)type)
 	{
 	case hise::WaveformComponent::Sine: 
 		left ? leftGenerator.setWaveform(mf::PolyBLEP::SINE) : rightGenerator.setWaveform(mf::PolyBLEP::SINE); break;
