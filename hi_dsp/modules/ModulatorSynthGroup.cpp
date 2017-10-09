@@ -218,10 +218,12 @@ ModulatorSynthGroup::ModulatorSynthGroup(MainController *mc, const String &id, i
 	modIndex((int)getDefaultValue(ModulatorSynthGroup::SpecialParameters::ModulatorIndex)),
 	fmState("FM disabled"),
 	fmCorrectlySetup(false),
+	unisonoVoiceAmount((int)getDefaultValue(ModulatorSynthGroup::SpecialParameters::UnisonoVoiceAmount)),
+	unisonoDetuneAmount((double)getDefaultValue(ModulatorSynthGroup::SpecialParameters::UnisonoDetune)),
+	unisonoSpreadAmount(getDefaultValue(ModulatorSynthGroup::SpecialParameters::UnisonoSpread)),
 	sampleStartChain(new ModulatorChain(mc, "Sample Start Modulation", numVoices, Modulation::GainMode, this))
 {
 	setFactoryType(new ModulatorSynthChainFactoryType(numVoices, this));
-
 	getFactoryType()->setConstrainer(new SynthGroupConstrainer());
 
 	setGain(1.0);
@@ -229,12 +231,14 @@ ModulatorSynthGroup::ModulatorSynthGroup(MainController *mc, const String &id, i
 	parameterNames.add("EnableFM");
 	parameterNames.add("CarrierIndex");
 	parameterNames.add("ModulatorIndex");
+	parameterNames.add("UnisonoVoiceAmount");
+	parameterNames.add("UnisonoDetune");
+	parameterNames.add("UnisonoSpread");
 
 	allowStates.clear();
 
 	for (int i = 0; i < numVoices; i++) addVoice(new ModulatorSynthGroupVoice(this));
 	addSound(new ModulatorSynthGroupSound());
-
 };
 
 
@@ -270,14 +274,15 @@ void ModulatorSynthGroup::setInternalAttribute(int index, float newValue)
 
 	switch (index)
 	{
-	case EnableFM:		 fmEnabled = (newValue > 0.5f); break;
+	case EnableFM:			 fmEnabled = (newValue > 0.5f); checkFmState(); break;
 
-	case ModulatorIndex: modIndex = (int)newValue; break;
-	case CarrierIndex:	 carrierIndex = (int)newValue; break;
-	default:			 jassertfalse;
+	case ModulatorIndex:	 modIndex = (int)newValue; checkFmState(); break;
+	case CarrierIndex:		 carrierIndex = (int)newValue; checkFmState(); break;
+	case UnisonoVoiceAmount: setUnisonoVoiceAmount((int)newValue); break;
+	case UnisonoDetune:		 setUnisonoDetuneAmount(newValue); break;
+	case UnisonoSpread:		 setUnisonoSpreadAmount(newValue); break;
+	default:				 jassertfalse;
 	}
-
-	checkFmState();
 }
 
 float ModulatorSynthGroup::getAttribute(int index) const
@@ -289,10 +294,13 @@ float ModulatorSynthGroup::getAttribute(int index) const
 
 	switch (index)
 	{
-	case EnableFM:		 return fmEnabled ? 1.0f : 0.0f;
-	case ModulatorIndex: return (float)modIndex;
-	case CarrierIndex:	 return (float)carrierIndex;
-	default:			 jassertfalse; return -1.0f;
+	case EnableFM:			 return fmEnabled ? 1.0f : 0.0f;
+	case ModulatorIndex:	 return (float)modIndex;
+	case CarrierIndex:		 return (float)carrierIndex;
+	case UnisonoVoiceAmount: return (float)unisonoVoiceAmount;
+	case UnisonoDetune:		 return (float)unisonoDetuneAmount;
+	case UnisonoSpread:		 return unisonoSpreadAmount;
+	default:				 jassertfalse; return -1.0f;
 	}
 }
 
@@ -307,8 +315,11 @@ float ModulatorSynthGroup::getDefaultValue(int parameterIndex) const
 	switch (parameterIndex)
 	{
 	case EnableFM:		 return 0.0f;
-	case ModulatorIndex: return (float)modIndex;
-	case CarrierIndex:	 return (float)carrierIndex;
+	case ModulatorIndex: return (float)0;
+	case CarrierIndex:	 return (float)0;
+	case UnisonoVoiceAmount: return 1.0f;
+	case UnisonoDetune:		 return 0.0f;
+	case UnisonoSpread:		 return 0.0f;
 	default:			 jassertfalse; return -1.0f;
 	}
 }
@@ -338,6 +349,24 @@ void ModulatorSynthGroup::allowChildSynth(int childSynthIndex, bool shouldBeAllo
 void ModulatorSynthGroup::setAllowStateForAllChildSynths(bool shouldBeEnabled)
 {
 	allowStates.setRange(0, numVoices, shouldBeEnabled);
+}
+
+
+void ModulatorSynthGroup::setUnisonoVoiceAmount(int newVoiceAmount)
+{
+	unisonoVoiceAmount = newVoiceAmount;
+}
+
+
+void ModulatorSynthGroup::setUnisonoDetuneAmount(float newDetuneAmount)
+{
+	unisonoDetuneAmount = newDetuneAmount;
+}
+
+
+void ModulatorSynthGroup::setUnisonoSpreadAmount(float newSpreadAmount)
+{
+	unisonoSpreadAmount = newSpreadAmount;
 }
 
 void ModulatorSynthGroup::preHiseEventCallback(const HiseEvent &m)
@@ -435,6 +464,9 @@ void ModulatorSynthGroup::restoreFromValueTree(const ValueTree &v)
 	loadAttribute(EnableFM, "EnableFM");
 	loadAttribute(CarrierIndex, "CarrierIndex");
 	loadAttribute(ModulatorIndex, "ModulatorIndex");
+	loadAttribute(UnisonoVoiceAmount, "UnisonoVoiceAmount");
+	loadAttribute(UnisonoDetune, "UnisonoDetune");
+	loadAttribute(UnisonoSpread, "UnisonoSpread");
 
 }
 
@@ -445,6 +477,9 @@ ValueTree ModulatorSynthGroup::exportAsValueTree() const
 	saveAttribute(EnableFM, "EnableFM");
 	saveAttribute(CarrierIndex, "CarrierIndex");
 	saveAttribute(ModulatorIndex, "ModulatorIndex");
+	saveAttribute(UnisonoVoiceAmount, "UnisonoVoiceAmount");
+	saveAttribute(UnisonoDetune, "UnisonoDetune");
+	saveAttribute(UnisonoSpread, "UnisonoSpread");
 
 	return v;
 }
@@ -455,8 +490,6 @@ void ModulatorSynthGroup::checkFmState()
 
 	if (fmEnabled)
 	{
-
-
 		if (carrierIndex == 0 || getChildProcessor(carrierIndex - 1 + offset) == nullptr)
 		{
 			fmState = "The carrier syntesizer is not valid.";

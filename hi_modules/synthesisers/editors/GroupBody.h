@@ -87,6 +87,10 @@ public:
 		fadeTimeEditor->setText(String((int)getProcessor()->getAttribute(ModulatorSynth::KillFadeTime)), dontSendNotification);
 		voiceAmountEditor->setText(String((int)getProcessor()->getAttribute(ModulatorSynth::VoiceLimit)), dontSendNotification);
 
+		unisonoSlider->updateValue();
+		detuneSlider->updateValue();
+		spreadSlider->updateValue();
+
 	};
 
     //[/UserMethods]

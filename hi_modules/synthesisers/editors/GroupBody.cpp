@@ -154,14 +154,14 @@ GroupBody::GroupBody (ProcessorEditor *p)
     fmStateLabel->setFont(GLOBAL_FONT());
     fmStateLabel->setEditable(false, false);
 
-	unisonoSlider->setup(getProcessor(), 0, "Unisono Voices");
+	unisonoSlider->setup(getProcessor(), ModulatorSynthGroup::SpecialParameters::UnisonoVoiceAmount, "Unisono Voices");
 	unisonoSlider->setMode(HiSlider::Mode::Discrete, 1, 16, 8, 1.0);
 
-	detuneSlider->setup(getProcessor(), 0, "Detune");
+	detuneSlider->setup(getProcessor(), ModulatorSynthGroup::SpecialParameters::UnisonoDetune, "Detune");
 	detuneSlider->setMode(HiSlider::Mode::Linear, 0.0, 6.0, 1.0, 0.01);
 	detuneSlider->setTextValueSuffix(" st");
 
-	spreadSlider->setup(getProcessor(), 0, "Spread");
+	spreadSlider->setup(getProcessor(), ModulatorSynthGroup::SpecialParameters::UnisonoSpread, "Spread");
 	spreadSlider->setMode(HiSlider::Mode::NormalizedPercentage);
 
     //[/UserPreSize]

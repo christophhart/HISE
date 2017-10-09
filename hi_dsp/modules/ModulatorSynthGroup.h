@@ -111,6 +111,9 @@ public:
 		EnableFM = ModulatorSynth::numModulatorSynthParameters,
 		CarrierIndex,
 		ModulatorIndex,
+		UnisonoVoiceAmount,
+		UnisonoDetune,
+		UnisonoSpread,
 		numSynthGroupParameters
 	};
 
@@ -194,6 +197,10 @@ public:
 	/** set the state for all groups at once. */
 	void setAllowStateForAllChildSynths(bool shouldBeEnabled);;
 
+	void setUnisonoVoiceAmount(int newVoiceAmount);
+	void setUnisonoDetuneAmount(float newDetuneAmount);
+	void setUnisonoSpreadAmount(float newSpreadAmount);
+
 	Processor *getParentProcessor() { return nullptr; };
 	const Processor *getParentProcessor() const { return nullptr; };
 
@@ -265,13 +272,19 @@ private:
 	// the precalculated modvalues for LFOs & stuff
 	AudioSampleBuffer modSynthGainValues;
 
+	
+
 	String fmState;
 
 	bool fmEnabled;
 	bool fmCorrectlySetup;
-
 	int modIndex;
 	int carrierIndex;
+
+	int unisonoVoiceAmount;
+	double unisonoDetuneAmount;
+	float unisonoSpreadAmount;
+
 	ModulatorSynthGroupHandler handler;
 	int numVoices;
 	float vuValue;
