@@ -71,7 +71,7 @@ public:
 
 		midiNoteNumber += getTransposeAmount();
 
-        voiceUptime = 0.0;
+		voiceUptime = (double)getCurrentHiseEvent().getStartOffset();
         
         const double cyclesPerSecond = MidiMessage::getMidiNoteInHertz (midiNoteNumber);
 		const double cyclesPerSample = cyclesPerSecond / getSampleRate();
@@ -81,14 +81,7 @@ public:
         uptimeDelta *= getOwnerSynth()->getMainController()->getGlobalPitchFactor();
     }
 
-	void setStartOffset(int offsetInSamples) override
-	{
-		voiceUptime = (double)offsetInSamples;
-	}
-
 	void calculateBlock(int startSample, int numSamples) override;;
-
-	
 
 	void setOctaveTransposeFactor(double newFactor)
 	{

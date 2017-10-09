@@ -37,6 +37,8 @@
 
 #include  "JuceHeader.h"
 
+using namespace hise;
+
 class HiseEventUnitTest : public UnitTest
 {
 public:
@@ -61,7 +63,7 @@ public:
 		testEventBufferMoveOperations();
 		testEventHandler();
 		testEventBufferStack();
-		
+		testStartOffset();
 	}
 
 private:
@@ -143,6 +145,7 @@ private:
 		expectEquals<int>(noe.getGain(), 0, "Gain");
 		expectEquals<int>(noe.getCoarseDetune(), 0, "Coarse Detune");
 		expectEquals<int>(noe.getFineDetune(), 0, "Fine Detune");
+		expectEquals<int>(noe.getStartOffset(), 0, "Start Offset");
 
 		const uint16 timeStamp = (uint16)r.nextInt(4096);
 
@@ -168,6 +171,8 @@ private:
 		expectEquals<int>(noe2.getCoarseDetune(), 0, "Coarse Detune");
 		expectEquals<int>(noe2.getFineDetune(), 0, "Fine Detune");
 		expectEquals<int>(noe2.getTimeStamp(), timeStamp, "Timestamp of copied message");
+		
+
 	}
 
 	void testEventBufferStack()
@@ -743,6 +748,22 @@ private:
 	}
 
 	Random r;
+
+	void testStartOffset()
+	{
+		beginTest("StartOffset Test");
+
+		HiseEvent noe(HiseEvent::Type::NoteOn, 37, 2, 1);
+
+		uint16 offset = (uint16)r.nextInt();
+
+		noe.setStartOffset(offset);
+
+		expectEquals<int>(offset, noe.getStartOffset(), "Offset mismatch");
+
+	}
+
+
 };
 
 static HiseEventUnitTest eventBufferTestInstance;

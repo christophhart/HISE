@@ -136,6 +136,11 @@ public:
 		/** Returns the timestamp of the message. */
 		int getTimestamp() const;
 
+		/** Sets the start offset for the given message. */
+		void setStartOffset(int newStartOffset);
+
+		int getStartOffset() const;
+
 		/** Stores a copy of the current event into the given holder object. */
 		void store(var messageEventHolder) const;
 
@@ -459,14 +464,14 @@ public:
 		/** Plays a note and returns the event id. Be careful or you get stuck notes! */
 		int playNote(int noteNumber, int velocity);
 		
+		/** Plays a note and returns the event id with the given channel and start offset. */
+		int playNoteWithStartOffset(int channel, int number, int velocity, int offset);
+
 		/** Fades all voices with the given event id to the target volume (in decibels). */
 		void addVolumeFade(int eventId, int fadeTimeMilliseconds, int targetVolume);
 
 		/** Adds a pitch fade to the given event ID. */
 		void addPitchFade(int eventId, int fadeTimeMilliseconds, int targetCoarsePitch, int targetFinePitch);
-
-		/** Adds an offset to the given eventId (for Samplers it will be truncated to the max. sample start mod. */
-		void addStartOffset(int eventId, int offsetSamples);
 
 		/** Adds the event from the given holder and returns a event id for note ons. */
 		int addMessageFromHolder(var messageHolder);
@@ -613,7 +618,7 @@ public:
 
 	private:
 
-		
+		int internalAddNoteOn(int channel, int noteNumber, int velocity, int timestamp, int startOffset);
 
 		friend class ModuleHandler;
 		

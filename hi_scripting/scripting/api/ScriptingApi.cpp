@@ -362,6 +362,8 @@ struct ScriptingApi::Message::Wrapper
 	API_METHOD_WRAPPER_0(Message, getFineDetune);
 	API_VOID_METHOD_WRAPPER_1(Message, setGain);
 	API_METHOD_WRAPPER_0(Message, getGain);
+	API_VOID_METHOD_WRAPPER_1(Message, setStartOffset);
+	API_METHOD_WRAPPER_0(Message, getStartOffset)
 	API_METHOD_WRAPPER_0(Message, getTimestamp);
 	API_VOID_METHOD_WRAPPER_1(Message, store);
 	API_METHOD_WRAPPER_0(Message, makeArtificial);
@@ -399,6 +401,8 @@ constMessageHolder(nullptr)
 	ADD_API_METHOD_1(setFineDetune);
 	ADD_API_METHOD_0(getFineDetune);
 	ADD_API_METHOD_0(getTimestamp);
+	ADD_API_METHOD_0(getStartOffset);
+	ADD_API_METHOD_1(setStartOffset);
 	ADD_API_METHOD_1(store);
 	ADD_API_METHOD_0(makeArtificial);
 	ADD_API_METHOD_0(isArtificial);
@@ -737,6 +741,36 @@ int ScriptingApi::Message::getTimestamp() const
 #endif
 
 	return constMessageHolder->getTimeStamp();
+}
+
+void ScriptingApi::Message::setStartOffset(int newStartOffset)
+{
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+	if (constMessageHolder == nullptr)
+	{
+		reportIllegalCall("setStartOffset()", "midi event");
+		RETURN_VOID_IF_NO_THROW()
+	}
+
+	if (newStartOffset > UINT16_MAX)
+		reportScriptError("Max start offset is 65536 (2^16)");
+
+#endif
+
+	messageHolder->setStartOffset((uint16)newStartOffset);
+}
+
+int ScriptingApi::Message::getStartOffset() const
+{
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+	if (constMessageHolder == nullptr)
+	{
+		reportIllegalCall("setStartOffset()", "midi event");
+		RETURN_IF_NO_THROW(0)
+	}
+#endif
+
+	return constMessageHolder->getStartOffset();
 }
 
 void ScriptingApi::Message::store(var messageEventHolder) const
@@ -1694,13 +1728,13 @@ struct ScriptingApi::Synth::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Synth, noteOff);
 	API_VOID_METHOD_WRAPPER_1(Synth, noteOffByEventId);
 	API_METHOD_WRAPPER_2(Synth, playNote);
+	API_METHOD_WRAPPER_4(Synth, playNoteWithStartOffset);
 	API_VOID_METHOD_WRAPPER_2(Synth, setAttribute);
 	API_METHOD_WRAPPER_1(Synth, getAttribute);
 	API_METHOD_WRAPPER_4(Synth, addNoteOn);
 	API_VOID_METHOD_WRAPPER_3(Synth, addNoteOff);
 	API_VOID_METHOD_WRAPPER_3(Synth, addVolumeFade);
 	API_VOID_METHOD_WRAPPER_4(Synth, addPitchFade);
-	API_VOID_METHOD_WRAPPER_2(Synth, addStartOffset);
 	API_VOID_METHOD_WRAPPER_4(Synth, addController);
 	API_METHOD_WRAPPER_1(Synth, addMessageFromHolder);
 	API_VOID_METHOD_WRAPPER_2(Synth, setVoiceGainValue);
@@ -1756,13 +1790,13 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, ModulatorSynth *own
 	ADD_API_METHOD_1(noteOff);
 	ADD_API_METHOD_1(noteOffByEventId);
 	ADD_API_METHOD_2(playNote);
+	ADD_API_METHOD_4(playNoteWithStartOffset);
 	ADD_API_METHOD_2(setAttribute);
 	ADD_API_METHOD_1(getAttribute);
 	ADD_API_METHOD_4(addNoteOn);
 	ADD_API_METHOD_3(addNoteOff);
 	ADD_API_METHOD_3(addVolumeFade);
 	ADD_API_METHOD_4(addPitchFade);
-	ADD_API_METHOD_2(addStartOffset);
 	ADD_API_METHOD_4(addController);
 	ADD_API_METHOD_1(addMessageFromHolder);
 	ADD_API_METHOD_2(setVoiceGainValue);
@@ -1881,9 +1915,20 @@ int ScriptingApi::Synth::playNote(int noteNumber, int velocity)
 		RETURN_IF_NO_THROW(-1)
 	}
 
-	return addNoteOn(1, noteNumber, velocity, 0); // the timestamp will be added from the current event
+	return internalAddNoteOn(1, noteNumber, velocity, 0, 0); // the timestamp will be added from the current event
 }
 
+
+int ScriptingApi::Synth::playNoteWithStartOffset(int channel, int number, int velocity, int offset)
+{
+	if (velocity == 0)
+	{
+		reportScriptError("A velocity of 0 is not valid!");
+		RETURN_IF_NO_THROW(-1)
+	}
+
+	return internalAddNoteOn(channel, number, velocity, 0, offset); // the timestamp will be added from the current event
+}
 
 void ScriptingApi::Synth::addVolumeFade(int eventId, int fadeTimeMilliseconds, int targetVolume)
 {
@@ -1964,28 +2009,6 @@ void ScriptingApi::Synth::addPitchFade(int eventId, int fadeTimeMilliseconds, in
 				sp->addHiseEventToBuffer(e);
 			}
 			else reportScriptError("Fade time must be positive");
-		}
-		else reportScriptError("Event ID must be positive");
-	}
-	else reportScriptError("Only valid in MidiProcessors");
-}
-
-void ScriptingApi::Synth::addStartOffset(int eventId, int offsetSamples)
-{
-	if (ScriptBaseMidiProcessor* sp = dynamic_cast<ScriptBaseMidiProcessor*>(getScriptProcessor()))
-	{
-		if (eventId > 0)
-		{
-			if (offsetSamples >= 0)
-			{
-				HiseEvent e = HiseEvent::createStartOffsetEvent((uint16)eventId, offsetSamples);
-
-				if (sp->getCurrentHiseEvent())
-					e.setTimeStamp(sp->getCurrentHiseEvent()->getTimeStamp());
-
-				sp->addHiseEventToBuffer(e);
-			}
-			else reportScriptError("Offset must be positive");
 		}
 		else reportScriptError("Event ID must be positive");
 	}
@@ -2474,7 +2497,7 @@ float ScriptingApi::Synth::getAttribute(int attributeIndex) const
 	return owner->getAttribute(attributeIndex);
 }
 
-int ScriptingApi::Synth::addNoteOn(int channel, int noteNumber, int velocity, int timeStampSamples)
+int ScriptingApi::Synth::internalAddNoteOn(int channel, int noteNumber, int velocity, int timeStampSamples, int startOffset)
 {
 	if (channel > 0 && channel <= 16)
 	{
@@ -2497,7 +2520,11 @@ int ScriptingApi::Synth::addNoteOn(int channel, int noteNumber, int velocity, in
 							m.setTimeStamp((uint16)timeStampSamples);
 						}
 
-						
+						if (startOffset > UINT16_MAX)
+							reportScriptError("Max start offset is 65536 (2^16)");
+
+						m.setStartOffset((uint16)startOffset);
+
 						m.setArtificial();
 
 						sp->getMainController()->getEventHandler().pushArtificialNoteOn(m);
@@ -2516,6 +2543,11 @@ int ScriptingApi::Synth::addNoteOn(int channel, int noteNumber, int velocity, in
 	else reportScriptError("Channel must be between 1 and 16.");
 
 	RETURN_IF_NO_THROW(-1)
+}
+
+int ScriptingApi::Synth::addNoteOn(int channel, int noteNumber, int velocity, int timeStampSamples)
+{
+	return internalAddNoteOn(channel, noteNumber, velocity, timeStampSamples, 0);
 }
 
 void ScriptingApi::Synth::addNoteOff(int channel, int noteNumber, int timeStampSamples)

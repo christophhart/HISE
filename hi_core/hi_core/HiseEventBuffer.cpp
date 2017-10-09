@@ -123,16 +123,6 @@ HiseEvent HiseEvent::createTimerEvent(uint8 timerIndex, uint16 offset)
 	return e;
 }
 
-HiseEvent HiseEvent::createStartOffsetEvent(uint16 eventId, int offsetInSamples)
-{
-	HiseEvent e(Type::StartOffset, 0, 0, 1);
-	e.setEventId(eventId);
-	e.setStartOffset(offsetInSamples);
-	e.setArtificial();
-
-	return e;
-}
-
 int HiseEvent::getPitchWheelValue() const noexcept
 {
 	return number | (value << 7);
@@ -140,25 +130,18 @@ int HiseEvent::getPitchWheelValue() const noexcept
 
 void HiseEvent::setPitchWheelValue(int position) noexcept
 {
-
 	number = position & 127;
 	value = (position >> 7) & 127;
 }
 
-void HiseEvent::setStartOffset(int startOffset) noexcept
+void HiseEvent::setStartOffset(uint16 newStartOffset) noexcept
 {
-	number = (uint8)(startOffset & 0xFF);
-	value = (uint8)((startOffset >> 8) & 0xFF);
-	gain = (uint8)((startOffset >> 16) & 0xFF);
-	semitones = (uint8)((startOffset >> 24) & 0xFF);
+	startOffset = newStartOffset;
 }
 
-int HiseEvent::getStartOffset() const noexcept
+uint16 HiseEvent::getStartOffset() const noexcept
 {
-
-	uint32 x =  number | (value << 8) | (gain << 16) | (semitones << 24);
-
-	return (int)x;
+	return startOffset;
 }
 
 HiseEventBuffer::HiseEventBuffer()

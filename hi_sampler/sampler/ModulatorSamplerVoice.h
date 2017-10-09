@@ -52,8 +52,6 @@ public:
 	bool canPlaySound(SynthesiserSound*) { return true; };
 	void startNote(int midiNoteNumber, float velocity, SynthesiserSound* s, int /*currentPitchWheelPosition*/) override;
 
-	void setStartOffset(int offsetInSamples) override;
-
 	void stopNote(float velocity, bool allowTailoff) override;
 
 	// ================================================================================================================
@@ -77,7 +75,7 @@ public:
 	// ================================================================================================================
 
 	const float *getCrossfadeModulationValues(int startSample, int numSamples);
-	void setSampleStartModValue(float modValue) { if (modValue >= 0.0f) sampleStartModValue = modValue; };
+	void setSampleStartModValue(float modValue) { sampleStartModValue = modValue; };
 	void enablePitchModulation(bool shouldBeEnabled);
 	
 	/** returns the sound that is played by the voice.

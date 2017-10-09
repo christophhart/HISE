@@ -302,6 +302,9 @@ public:
 	};
 
 	const SamplerDisplayValues &getSamplerDisplayValues() const { return samplerDisplayValues;	}
+
+	SamplerDisplayValues& getSamplerDisplayValues() { return samplerDisplayValues; }
+
 	int getRRGroupsForMessage(int noteNumber, int velocity);
 	void refreshRRMap();
 

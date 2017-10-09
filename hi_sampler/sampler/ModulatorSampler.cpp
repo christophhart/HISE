@@ -739,12 +739,26 @@ void ModulatorSampler::preStartVoice(int voiceIndex, int noteNumber)
 {
 	ModulatorSynth::preStartVoice(voiceIndex, noteNumber);
 
-	sampleStartChain->startVoice(voiceIndex);
+	const bool useSampleStartChain = sampleStartChain->getNumChildProcessors() != 0;
+
+	float sampleStartModValue;
+
+	if (useSampleStartChain)
+	{
+		sampleStartChain->startVoice(voiceIndex);
+		sampleStartModValue = sampleStartChain->getConstantVoiceValue(voiceIndex);
+
+		// The display value can already be determined here.
+		BACKEND_ONLY(samplerDisplayValues.currentSampleStartPos = jlimit<float>(0.0f, 1.0f, sampleStartModValue));
+	}
+	else
+	{
+		// hack: the sample start value is normalized so we need to just flip the sign in order to tell startVoice to use a direct sample value
+		sampleStartModValue = -1.0f * static_cast<ModulatorSynthVoice*>(getVoice(voiceIndex))->getCurrentHiseEvent().getStartOffset();
+		samplerDisplayValues.currentSampleStartPos = 0.0f;
+	}
+
 	crossFadeChain->startVoice(voiceIndex);
-
-	const float sampleStartModValue = sampleStartChain->getConstantVoiceValue(voiceIndex);
-
-	samplerDisplayValues.currentSampleStartPos = sampleStartModValue;
 
 	static_cast<ModulatorSamplerVoice*>(getLastStartedVoice())->setSampleStartModValue(sampleStartModValue);
 }

@@ -386,16 +386,9 @@ void ModulatorSynthGroupVoice::startNote (int midiNoteNumber, float velocity, Sy
 
 			if (soundToPlay == nullptr) continue;
 
-			ModulatorChain *g = static_cast<ModulatorChain*>(childSynth->getChildProcessor(ModulatorSynth::GainModulation));
-			ModulatorChain *p = static_cast<ModulatorChain*>(childSynth->getChildProcessor(ModulatorSynth::PitchModulation));
-
-			g->startVoice(voiceIndex);
-			p->startVoice(voiceIndex);
-
 			childVoice->setCurrentHiseEvent(getCurrentHiseEvent());
-
+			childSynth->preStartVoice(voiceIndex, midiNoteNumber);
 			childVoice->startNote(midiNoteNumber, velocity, soundToPlay, -1);
-
 		}
 		else
 		{
@@ -405,17 +398,6 @@ void ModulatorSynthGroupVoice::startNote (int midiNoteNumber, float velocity, Sy
 	}
 
 };
-
-void ModulatorSynthGroupVoice::setStartOffset(int offsetInSamples)
-{
-	for (int i = 0; i < childSynths.size(); i++)
-	{
-		auto childSynth = childSynths.getUnchecked(i);
-		ModulatorSynthVoice *childVoice = static_cast<ModulatorSynthVoice*>(childSynth->getVoice(getVoiceIndex()));
-
-		childVoice->setStartOffset(offsetInSamples);
-	}
-}
 
 void ModulatorSynthGroupVoice::stopNote (float, bool)
 {

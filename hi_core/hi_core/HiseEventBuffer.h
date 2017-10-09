@@ -55,7 +55,6 @@ public:
 		VolumeFade,
 		PitchFade,
 		TimerEvent,
-		StartOffset,
 		numTypes
 	};
 
@@ -169,15 +168,10 @@ public:
 
 	static HiseEvent createTimerEvent(uint8 timerIndex, uint16 offset);
 
-	static HiseEvent createStartOffsetEvent(uint16 eventId, int offsetInSamples);
-
 	bool isVolumeFade() const noexcept{ return type == Type::VolumeFade; };
 	bool isPitchFade() const noexcept { return type == Type::PitchFade; };
-	bool isStartOffset() const noexcept { return type == Type::StartOffset; };
-
-	int getFadeTime() const noexcept{ return getPitchWheelValue(); };
-
 	
+	int getFadeTime() const noexcept{ return getPitchWheelValue(); };
 
 	bool isTimerEvent() const noexcept { return type == Type::TimerEvent; };
 	int getTimerIndex() const noexcept { return channel; }	
@@ -218,9 +212,9 @@ public:
 		setPitchWheelValue(fadeTime);
 	}
 
-	void setStartOffset(int startOffset) noexcept;
+	void setStartOffset(uint16 startOffset) noexcept;
 
-	int getStartOffset() const noexcept;;
+	uint16 getStartOffset() const noexcept;;
 
 	bool isChannelPressure() const noexcept{ return type == Type::Aftertouch; };
 	int getChannelPressureValue() const noexcept{ return value; };
@@ -322,10 +316,8 @@ private:
 
 	uint16 eventId = 0;
 	uint16 timeStamp = 0;
-
-	uint8 unused1 = 0;
-	uint8 unused2 = 0;
-
+	uint16 startOffset = 0;
+	
 	bool ignored = false;
 	bool artificial = false;
 	

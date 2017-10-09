@@ -222,7 +222,7 @@ void SamplerSoundWaveform::drawSampleStartBar(Graphics &g)
 
 		g.setColour(Colours::blue.withAlpha(0.1f));
 
-		g.fillRect(x - 5, 0, 10, getHeight());
+		g.fillRect(jmax<int>(0, x - 5), 0, 10, getHeight());
 	}
 }
 

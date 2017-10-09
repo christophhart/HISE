@@ -36,6 +36,8 @@
 
 #include  "JuceHeader.h"
 
+using namespace hise;
+
 class DspUnitTests : public UnitTest
 {
 public:

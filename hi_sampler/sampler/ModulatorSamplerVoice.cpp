@@ -49,7 +49,27 @@ void ModulatorSamplerVoice::startNote(int midiNoteNumber,
 	const bool samePitch = !static_cast<ModulatorSampler*>(getOwnerSynth())->isPitchTrackingEnabled();
 
 	StreamingSamplerSound *sound = currentlyPlayingSamplerSound->getReferenceToSound();
-	const int sampleStartModulationDelta = (int)(sampleStartModValue * sound->getSampleStartModulation());
+
+	int sampleStartModulationDelta;
+
+	// if value is >= 0, then it comes from the modulator chain value
+	const bool sampleStartModIsFromChain = sampleStartModValue >= 0.0f;
+
+	if (sampleStartModIsFromChain)
+	{
+		jassert(sampleStartModValue <= 1.0f);
+		sampleStartModulationDelta = (int)(jlimit<float>(0.0f, 1.0f, sampleStartModValue) * sound->getSampleStartModulation());
+	}
+	else
+	{
+		auto maxOffset = sound->getSampleStartModulation();
+
+		// just flip the sign and use it directly...
+		sampleStartModulationDelta = jlimit<int>(0, maxOffset, (int)(-1.0f * sampleStartModValue));
+
+		// Now set the sample start mod value...
+		BACKEND_ONLY(sampler->getSamplerDisplayValues().currentSampleStartPos = jlimit<float>(0.0f, 1.0f, sampleStartModulationDelta / (float)maxOffset));
+	}
 
 	wrappedVoice.setPitchFactor(midiNoteNumber, samePitch ? midiNoteNumber : currentlyPlayingSamplerSound->getRootNote(), sound, getOwnerSynth()->getMainController()->getGlobalPitchFactor());
 	wrappedVoice.setSampleStartModValue(sampleStartModulationDelta);
@@ -61,21 +81,6 @@ void ModulatorSamplerVoice::startNote(int midiNoteNumber,
 
 	jassert(uptimeDelta < MAX_SAMPLER_PITCH);
 	
-}
-
-
-void ModulatorSamplerVoice::setStartOffset(int offsetInSamples)
-{
-	if (auto sound = wrappedVoice.getLoadedSound())
-	{
-		auto maxOffset = sound->getSampleStartModulation();
-
-		int offsetToUse = jmin<int>(offsetInSamples, maxOffset);
-
-		wrappedVoice.setSampleStartModValue(voiceUptime);
-		wrappedVoice.voiceUptime = (double)offsetToUse;
-		voiceUptime = wrappedVoice.voiceUptime;
-	}
 }
 
 void ModulatorSamplerVoice::stopNote(float velocity, bool allowTailoff)
