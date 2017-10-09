@@ -21,7 +21,6 @@ Permission has been granted to release this port under the WDL/IPlug license:
     3. This notice may not be removed or altered from any source distribution.
 */
 
-#include "PolyBLEP.h"
 
 #define _USE_MATH_DEFINES
 
