@@ -115,7 +115,7 @@ void PolyBLEP::setPulseWidth(double newPulseWidth) {
 
 void PolyBLEP::setStartOffset(double offsetInSamples)
 {
-	sync(offsetInSamples / sampleRate * freqInSecondsPerSample);
+	sync(offsetInSamples / sampleRate / freqInSecondsPerSample);
 }
 
 void PolyBLEP::sync(double phase) {

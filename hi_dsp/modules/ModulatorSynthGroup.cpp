@@ -31,6 +31,7 @@
 */
 
 
+#define CREATE_ITERATOR() ModulatorSynthGroup::ChildSynthIterator iterator(static_cast<ModulatorSynthGroup*>(ownerSynth), ModulatorSynthGroup::ChildSynthIterator::IterateAllSynths); ModulatorSynth *childSynth;
 
 
 ModulatorSynthGroupVoice::ModulatorSynthGroupVoice(ModulatorSynth *ownerSynth) :
@@ -49,8 +50,6 @@ bool ModulatorSynthGroupVoice::canPlaySound(SynthesiserSound *)
 void ModulatorSynthGroupVoice::addChildSynth(ModulatorSynth *childSynth)
 {
 	ScopedLock sl(ownerSynth->getSynthLock());
-
-
 
 	childSynths.add(childSynth);
 }
@@ -77,72 +76,305 @@ void ModulatorSynthGroupVoice::startNote(int midiNoteNumber, float velocity, Syn
 	// The uptime is not used, but it must be > 0, or the voice is not rendered.
 	uptimeDelta = 1.0;
 
-	ModulatorSynthGroup::ChildSynthIterator iterator(static_cast<ModulatorSynthGroup*>(ownerSynth), ModulatorSynthGroup::ChildSynthIterator::IterateAllSynths);
-	ModulatorSynth *childSynth;
+	numUnisonoVoices = (int)getOwnerSynth()->getAttribute(ModulatorSynthGroup::SpecialParameters::UnisonoVoiceAmount);
+	int numVoices = (int)getOwnerSynth()->getAttribute(ModulatorSynth::Parameters::VoiceLimit);
 
-	for (int i = 0; i < childSynths.size(); i++)
+	const float detune = getOwnerSynth()->getAttribute(ModulatorSynthGroup::SpecialParameters::UnisonoDetune);
+
+	for (int i = 0; i < numUnisonoVoices; i++)
 	{
+		const int unisonoVoiceIndex = voiceIndex*numUnisonoVoices + i;
 
-		childSynth = childSynths.getUnchecked(i);
-		ModulatorSynthVoice *childVoice = static_cast<ModulatorSynthVoice*>(childSynth->getVoice(getVoiceIndex()));
+		if (unisonoVoiceIndex >= numVoices) // don't start more voices than you have allocated
+			break;
 
+		CREATE_ITERATOR();
 
-		if (static_cast<ModulatorSynthGroup*>(ownerSynth)->allowStates[i])
+		while (iterator.getNextAllowedChild(childSynth))
 		{
+			startNoteInternal(childSynth, unisonoVoiceIndex, midiNoteNumber, velocity);
 
-			ModulatorSynthSound *soundToPlay = nullptr;
-
-			for (int j = 0; j < childSynth->getNumSounds(); j++)
-			{
-				ModulatorSynthSound *s = static_cast<ModulatorSynthSound*>(childSynth->getSound(j));
-
-				if (s->appliesToMessage(1, midiNoteNumber, (int)(velocity * 127)))
-				{
-					soundToPlay = s;
-					break; // only one sound at a time (can be changed later)
-				}
-			}
-
-			if (soundToPlay == nullptr) continue;
-
-			childVoice->setCurrentHiseEvent(getCurrentHiseEvent());
-			childSynth->preStartVoice(voiceIndex, midiNoteNumber);
-			childVoice->startNote(midiNoteNumber, velocity, soundToPlay, -1);
 		}
-		else
-		{
-			childVoice->setInactive();
+			
+	}
+};
 
+
+ModulatorSynthVoice* ModulatorSynthGroupVoice::startNoteInternal(ModulatorSynth* childSynth, int childVoiceIndex, int midiNoteNumber, float velocity)
+{
+	ModulatorSynthVoice* childVoice = static_cast<ModulatorSynthVoice*>(childSynth->getVoice(childVoiceIndex));
+
+	ModulatorSynthSound *soundToPlay = nullptr;
+
+	for (int j = 0; j < childSynth->getNumSounds(); j++)
+	{
+		ModulatorSynthSound *s = static_cast<ModulatorSynthSound*>(childSynth->getSound(j));
+
+		if (s->appliesToMessage(1, midiNoteNumber, (int)(velocity * 127)))
+		{
+			soundToPlay = s;
+			break; // only one sound at a time (can be changed later)
 		}
 	}
 
+	if (soundToPlay == nullptr) return nullptr;
+
+	childVoice->setCurrentHiseEvent(getCurrentHiseEvent());
+
+	if (numUnisonoVoices != 1)
+	{
+		childVoice->addToStartOffset(startOffsetRandomizer.nextInt(441));
+	}
+
+	childSynth->preStartVoice(childVoiceIndex, midiNoteNumber);
+	childVoice->startNote(midiNoteNumber, velocity, soundToPlay, -1);
+}
+
+
+void ModulatorSynthGroupVoice::calculateBlock(int startSample, int numSamples)
+{
+	ScopedLock sl(ownerSynth->getSynthLock());
+
+	// Clear the buffer, since all child voices are added to this so it must be empty.
+	voiceBuffer.clear();
+
+	ModulatorSynthGroup *group = static_cast<ModulatorSynthGroup*>(getOwnerSynth());
+
+	if (group->fmIsCorrectlySetup())
+	{
+		calculateFMBlock(group, startSample, numSamples);
+	}
+	else
+	{
+		calculateNoFMBlock(startSample, numSamples);
+
+	}
+
+	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startSample, numSamples);
+
+	const float *modValues = getVoiceGainValues(startSample, numSamples);
+
+	FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startSample), modValues + startSample, numSamples);
+	FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startSample), modValues + startSample, numSamples);
 };
+
+
+
+void ModulatorSynthGroupVoice::calculateNoFMBlock(int startSample, int numSamples)
+{
+	const float *voicePitchValues = getVoicePitchValues();
+
+
+	if (numUnisonoVoices == 1)
+	{
+		CREATE_ITERATOR();
+
+		while (iterator.getNextAllowedChild(childSynth))
+			calculateNoFMVoiceInternal(childSynth, voiceIndex, startSample, numSamples, voicePitchValues);
+	}
+	else
+	{
+		int numVoices = (int)getOwnerSynth()->getAttribute(ModulatorSynth::Parameters::VoiceLimit);
+
+		for (int i = 0; i < numUnisonoVoices; i++)
+		{
+			const int unisonoVoiceIndex = voiceIndex*numUnisonoVoices + i;
+
+			CREATE_ITERATOR();
+
+			while (iterator.getNextAllowedChild(childSynth))
+				calculateNoFMVoiceInternal(childSynth, unisonoVoiceIndex, startSample, numSamples, voicePitchValues);
+		}
+	}
+
+
+	
+
+	CREATE_ITERATOR();
+
+	
+}
+
+
+void ModulatorSynthGroupVoice::calculateNoFMVoiceInternal(ModulatorSynth * childSynth, int childVoiceIndex, int startSample, int numSamples, const float * voicePitchValues)
+{
+	ModulatorSynthVoice *childVoice = static_cast<ModulatorSynthVoice*>(childSynth->getVoice(childVoiceIndex));
+
+	if (childSynth->isBypassed() || childVoice->isInactive()) return;
+
+	const float gain = childSynth->getGain();
+
+	childVoice->calculateVoicePitchValues(startSample, numSamples);
+
+	float *childPitchValues = childVoice->getVoicePitchValues();
+
+	float detuneMultiplier = 1.0f;
+	float detuneGainFactor = 1.0f;
+	
+
+	float detuneBalanceLeft = 1.0f;
+	float detuneBalanceRight = 1.0f;
+
+	if (numUnisonoVoices != 1)
+	{
+		// 0 ... voiceAmount -> -detune ... detune
+
+		const float detune = ownerSynth->getAttribute(ModulatorSynthGroup::SpecialParameters::UnisonoDetune);
+		const float balance = ownerSynth->getAttribute(ModulatorSynthGroup::SpecialParameters::UnisonoSpread);
+
+		const int unisonoIndex = childVoiceIndex % numUnisonoVoices;
+
+		detuneGainFactor = 1.0f / sqrtf((float)numUnisonoVoices);
+
+		const float normalizedVoiceIndex = (float)unisonoIndex / (float)(numUnisonoVoices - 1);
+		const float normalizedDetuneAmount = normalizedVoiceIndex * 2.0f - 1.0f;
+		const float detuneOctaveAmount = detune * normalizedDetuneAmount;
+		detuneMultiplier = Modulation::PitchConverters::octaveRangeToPitchFactor(detuneOctaveAmount);
+
+		const float detuneBalanceAmount = normalizedDetuneAmount * 100.0f * balance;
+
+		
+
+		detuneBalanceLeft = BalanceCalculator::getGainFactorForBalance(detuneBalanceAmount, true);
+		detuneBalanceRight = BalanceCalculator::getGainFactorForBalance(detuneBalanceAmount, false);
+
+	}
+
+	if (childPitchValues != nullptr && voicePitchValues != nullptr)
+	{
+		FloatVectorOperations::multiply(childPitchValues + startSample, voicePitchValues + startSample, detuneMultiplier, numSamples);
+	}
+
+	childVoice->calculateBlock(startSample, numSamples);
+	childSynth->setPeakValues(gain, gain);
+
+	const float g_left = detuneBalanceLeft * detuneGainFactor * gain * childSynth->getBalance(false);
+	const float g_right = detuneBalanceRight * detuneGainFactor * gain * childSynth->getBalance(true);
+
+	voiceBuffer.addFrom(0, startSample, childVoice->getVoiceValues(0, startSample), numSamples, g_left);
+	voiceBuffer.addFrom(1, startSample, childVoice->getVoiceValues(1, startSample), numSamples, g_right);
+}
+
+void ModulatorSynthGroupVoice::calculateFMBlock(ModulatorSynthGroup * group, int startSample, int numSamples)
+{
+	// Calculate the modulator
+
+	const float *voicePitchValues = getVoicePitchValues();
+
+	auto offset = (int)ModulatorSynthGroup::InternalChains::numInternalChains;
+
+	ModulatorSynth *modSynth = static_cast<ModulatorSynth*>(group->getChildProcessor(group->modIndex - 1 + offset));
+	jassert(modSynth != nullptr);
+
+	ModulatorSynthVoice *modVoice = static_cast<ModulatorSynthVoice*>(modSynth->getVoice(voiceIndex));
+
+	if (modSynth->isBypassed() || modVoice->isInactive()) return;
+
+	modVoice->calculateVoicePitchValues(startSample, numSamples);
+
+	const float modGain = modSynth->getGain();
+
+	float *modPitchValues = modVoice->getVoicePitchValues();
+
+	if (voicePitchValues != nullptr && modPitchValues != nullptr)
+	{
+		FloatVectorOperations::multiply(modPitchValues + startSample, voicePitchValues + startSample, numSamples);
+	}
+
+	modVoice->calculateBlock(startSample, numSamples);
+
+	const float *modValues = modVoice->getVoiceValues(0, startSample); // Channel is the same;
+
+	FloatVectorOperations::copy(fmModBuffer, modValues, numSamples);
+	FloatVectorOperations::multiply(fmModBuffer, group->modSynthGainValues.getReadPointer(0, startSample), numSamples);
+	FloatVectorOperations::multiply(fmModBuffer, modGain, numSamples);
+
+	const float peak = FloatVectorOperations::findMaximum(fmModBuffer, numSamples);
+
+	FloatVectorOperations::add(fmModBuffer, 1.0f, numSamples);
+
+	modSynth->setPeakValues(peak, peak);
+
+	// Calculate the carrier voice
+
+	for (int i = 0; i < numUnisonoVoices; i++)
+	{
+		const int unisonoVoiceIndex = voiceIndex*numUnisonoVoices + i;
+		calculateFMCarrierInternal(group, unisonoVoiceIndex, startSample, numSamples, voicePitchValues);
+	}
+
+	
+}
+
+
+void ModulatorSynthGroupVoice::calculateFMCarrierInternal(ModulatorSynthGroup * group, int childVoiceIndex, int startSample, int numSamples, const float * voicePitchValues)
+{
+	auto indexOffset = (int)ModulatorSynthGroup::InternalChains::numInternalChains;
+
+	ModulatorSynth *carrierSynth = static_cast<ModulatorSynth*>(group->getChildProcessor(group->carrierIndex - 1 + indexOffset));
+	jassert(carrierSynth != nullptr);
+
+	ModulatorSynthVoice *carrierVoice = static_cast<ModulatorSynthVoice*>(carrierSynth->getVoice(childVoiceIndex));
+
+
+	if (carrierSynth->isBypassed() || carrierVoice->isInactive()) return;
+
+	carrierVoice->calculateVoicePitchValues(startSample, numSamples);
+
+	float *carrierPitchValues = carrierVoice->getVoicePitchValues();
+
+	FloatVectorOperations::multiply(carrierPitchValues + startSample, voicePitchValues + startSample, numSamples);
+
+	// This is the magic FM command
+	FloatVectorOperations::multiply(carrierPitchValues + startSample, fmModBuffer, numSamples);
+
+#if JUCE_WINDOWS
+	FloatVectorOperations::clip(carrierPitchValues + startSample, carrierPitchValues + startSample, 0.00000001f, 1000.0f, numSamples);
+#endif
+	carrierVoice->calculateBlock(startSample, numSamples);
+
+	const float carrierGain = carrierSynth->getGain();
+
+	voiceBuffer.addFrom(0, startSample, carrierVoice->getVoiceValues(0, startSample), numSamples, carrierGain * carrierSynth->getBalance(false));
+	voiceBuffer.addFrom(1, startSample, carrierVoice->getVoiceValues(1, startSample), numSamples, carrierGain * carrierSynth->getBalance(true));
+
+	const float peak2 = FloatVectorOperations::findMaximum(carrierVoice->getVoiceValues(0, startSample), numSamples);
+	carrierSynth->setPeakValues(peak2, peak2);
+}
 
 void ModulatorSynthGroupVoice::stopNote(float, bool)
 {
+	DBG("Stop Voice " + String(voiceIndex));
 
-	ModulatorSynthGroup::ChildSynthIterator iterator(static_cast<ModulatorSynthGroup*>(ownerSynth), ModulatorSynthGroup::ChildSynthIterator::IterateAllSynths);
-	ModulatorSynth *childSynth;
-
-	while (iterator.getNextAllowedChild(childSynth))
+	for (int i = 0; i < numUnisonoVoices; i++)
 	{
-		ModulatorChain *g = static_cast<ModulatorChain*>(childSynth->getChildProcessor(ModulatorSynth::GainModulation));
-		ModulatorChain *p = static_cast<ModulatorChain*>(childSynth->getChildProcessor(ModulatorSynth::PitchModulation));
+		const int unisonoVoiceIndex = voiceIndex*numUnisonoVoices + i;
 
-		g->stopVoice(voiceIndex);
-		p->stopVoice(voiceIndex);
+		DBG(unisonoVoiceIndex);
+
+		CREATE_ITERATOR();
+
+		while (iterator.getNextAllowedChild(childSynth))
+			stopNoteInternal(childSynth, unisonoVoiceIndex);
 	}
 
-	ModulatorSynthVoice::stopNote(1.0f, true);
+	
 
-	//checkRelease();
-
+	ModulatorSynthVoice::stopNote(0.0, false);
 };
+
+
+void ModulatorSynthGroupVoice::stopNoteInternal(ModulatorSynth * childSynth, int childVoiceIndex)
+{
+	ModulatorChain *g = static_cast<ModulatorChain*>(childSynth->getChildProcessor(ModulatorSynth::GainModulation));
+	ModulatorChain *p = static_cast<ModulatorChain*>(childSynth->getChildProcessor(ModulatorSynth::PitchModulation));
+
+	g->stopVoice(voiceIndex);
+	p->stopVoice(voiceIndex);
+}
 
 void ModulatorSynthGroupVoice::checkRelease()
 {
-
-
 	ModulatorChain *ownerGainChain = static_cast<ModulatorChain*>(ownerSynth->getChildProcessor(ModulatorSynth::GainModulation));
 	//ModulatorChain *ownerPitchChain = static_cast<ModulatorChain*>(ownerSynth->getChildProcessor(ModulatorSynth::PitchModulation));
 
@@ -150,63 +382,45 @@ void ModulatorSynthGroupVoice::checkRelease()
 	{
 		resetVoice();
 
-
-		ModulatorSynthGroup::ChildSynthIterator iterator(static_cast<ModulatorSynthGroup*>(ownerSynth), ModulatorSynthGroup::ChildSynthIterator::IterateAllSynths);
-		ModulatorSynth *childSynth;
-
-		while (iterator.getNextAllowedChild(childSynth))
+		for (int i = 0; i < numUnisonoVoices; i++)
 		{
-			ModulatorSynthVoice *childVoice = static_cast<ModulatorSynthVoice*>(childSynth->getVoice(voiceIndex));
+			const int unisonoVoiceIndex = voiceIndex*numUnisonoVoices + i;
 
-			childSynth->setPeakValues(0.0f, 0.0f);
+			CREATE_ITERATOR();
 
-			childVoice->resetVoice();
-
+			while (iterator.getNextAllowedChild(childSynth))
+				resetInternal(childSynth, voiceIndex);
 		}
 
 		return;
-
 	}
 
 	if (!ownerGainChain->isPlaying(voiceIndex))
 	{
 		resetVoice();
 
-		//ownerGainChain->reset(voiceIndex);
-		//ownerPitchChain->reset(voiceIndex);
-
-		//clearCurrentNote();
-		//uptimeDelta = 0.0;
-
-		ModulatorSynthGroup::ChildSynthIterator iterator(static_cast<ModulatorSynthGroup*>(ownerSynth), ModulatorSynthGroup::ChildSynthIterator::IterateAllSynths);
-		ModulatorSynth *childSynth;
-
-		while (iterator.getNextAllowedChild(childSynth))
+		for (int i = 0; i < numUnisonoVoices; i++)
 		{
-			ModulatorSynthVoice *childVoice = static_cast<ModulatorSynthVoice*>(childSynth->getVoice(voiceIndex));
+			const int unisonoVoiceIndex = voiceIndex*numUnisonoVoices + i;
 
-			childSynth->setPeakValues(0.0f, 0.0f);
+			CREATE_ITERATOR();
 
-			childVoice->resetVoice();
-
-			/*
-			ModulatorChain *c = static_cast<ModulatorChain*>(childSynth->getChildProcessor(ModulatorSynth::GainModulation));
-			ModulatorChain *p = static_cast<ModulatorChain*>(childSynth->getChildProcessor(ModulatorSynth::PitchModulation));
-
-			c->reset(voiceIndex);
-			p->reset(voiceIndex);
-
-			childVoice->clearCurrentNote();
-			childVoice->uptimeDelta = 0.0;
-			*/
+			while (iterator.getNextAllowedChild(childSynth))
+				resetInternal(childSynth, voiceIndex);
 		}
 	}
-
-
 }
 
 
 
+
+void ModulatorSynthGroupVoice::resetInternal(ModulatorSynth * childSynth, int childVoiceIndex)
+{
+	ModulatorSynthVoice *childVoice = static_cast<ModulatorSynthVoice*>(childSynth->getVoice(voiceIndex));
+
+	childSynth->setPeakValues(0.0f, 0.0f);
+	childVoice->resetVoice();
+}
 
 ModulatorSynthGroup::ModulatorSynthGroup(MainController *mc, const String &id, int numVoices) :
 	ModulatorSynth(mc, id, numVoices),
@@ -529,134 +743,7 @@ void ModulatorSynthGroup::checkFmState()
 	sendChangeMessage();
 }
 
-void ModulatorSynthGroupVoice::calculateBlock(int startSample, int numSamples)
-{
-	ScopedLock sl(ownerSynth->getSynthLock());
 
-	// Clear the buffer, since all child voices are added to this so it must be empty.
-	voiceBuffer.clear();
-
-	ModulatorSynthGroup *group = static_cast<ModulatorSynthGroup*>(getOwnerSynth());
-
-
-	const float *voicePitchValues = getVoicePitchValues();
-
-	if (group->fmIsCorrectlySetup())
-	{
-		// Calculate the modulator
-
-		auto offset = (int)ModulatorSynthGroup::InternalChains::numInternalChains;
-
-		ModulatorSynth *modSynth = static_cast<ModulatorSynth*>(group->getChildProcessor(group->modIndex - 1 + offset));
-		jassert(modSynth != nullptr);
-
-		ModulatorSynthVoice *modVoice = static_cast<ModulatorSynthVoice*>(modSynth->getVoice(voiceIndex));
-
-		if (modSynth->isBypassed() || modVoice->isInactive()) return;
-
-		modVoice->calculateVoicePitchValues(startSample, numSamples);
-
-		const float modGain = modSynth->getGain();
-
-		float *modPitchValues = modVoice->getVoicePitchValues();
-
-		if (voicePitchValues != nullptr && modPitchValues != nullptr)
-		{
-			FloatVectorOperations::multiply(modPitchValues + startSample, voicePitchValues + startSample, numSamples);
-		}
-
-		modVoice->calculateBlock(startSample, numSamples);
-
-
-		const float *modValues = modVoice->getVoiceValues(0, startSample); // Channel is the same;
-
-		FloatVectorOperations::copy(fmModBuffer, modValues, numSamples);
-
-		FloatVectorOperations::multiply(fmModBuffer, group->modSynthGainValues.getReadPointer(0, startSample), numSamples);
-
-		FloatVectorOperations::multiply(fmModBuffer, modGain, numSamples);
-
-		const float peak = FloatVectorOperations::findMaximum(fmModBuffer, numSamples);
-
-		FloatVectorOperations::add(fmModBuffer, 1.0f, numSamples);
-
-		modSynth->setPeakValues(peak, peak);
-
-		// Calculate the carrier voice
-
-		ModulatorSynth *carrierSynth = static_cast<ModulatorSynth*>(group->getChildProcessor(group->carrierIndex - 1 + offset));
-		jassert(carrierSynth != nullptr);
-
-		ModulatorSynthVoice *carrierVoice = static_cast<ModulatorSynthVoice*>(carrierSynth->getVoice(voiceIndex));
-
-
-		if (carrierSynth->isBypassed() || carrierVoice->isInactive()) return;
-
-		carrierVoice->calculateVoicePitchValues(startSample, numSamples);
-
-		float *carrierPitchValues = carrierVoice->getVoicePitchValues();
-
-		FloatVectorOperations::multiply(carrierPitchValues + startSample, voicePitchValues + startSample, numSamples);
-
-		// This is the magic FM command
-		FloatVectorOperations::multiply(carrierPitchValues + startSample, fmModBuffer, numSamples);
-
-#if JUCE_WINDOWS
-		FloatVectorOperations::clip(carrierPitchValues + startSample, carrierPitchValues + startSample, 0.00000001f, 1000.0f, numSamples);
-#endif
-		carrierVoice->calculateBlock(startSample, numSamples);
-
-
-
-		const float carrierGain = carrierSynth->getGain();
-
-		voiceBuffer.copyFrom(0, startSample, carrierVoice->getVoiceValues(0, startSample), numSamples, carrierGain * carrierSynth->getBalance(false));
-		voiceBuffer.copyFrom(1, startSample, carrierVoice->getVoiceValues(1, startSample), numSamples, carrierGain * carrierSynth->getBalance(true));
-
-		const float peak2 = FloatVectorOperations::findMaximum(carrierVoice->getVoiceValues(0, startSample), numSamples);
-
-		carrierSynth->setPeakValues(peak2, peak2);
-	}
-	else
-	{
-		ModulatorSynthGroup::ChildSynthIterator iterator(static_cast<ModulatorSynthGroup*>(ownerSynth), ModulatorSynthGroup::ChildSynthIterator::IterateAllSynths);
-		ModulatorSynth *childSynth;
-
-		while (iterator.getNextAllowedChild(childSynth))
-		{
-			ModulatorSynthVoice *childVoice = static_cast<ModulatorSynthVoice*>(childSynth->getVoice(voiceIndex));
-
-			if (childSynth->isBypassed() || childVoice->isInactive()) continue;
-
-			const float gain = childSynth->getGain();
-
-			childVoice->calculateVoicePitchValues(startSample, numSamples);
-
-			float *childPitchValues = childVoice->getVoicePitchValues();
-
-			if (childPitchValues != nullptr && voicePitchValues != nullptr)
-			{
-				FloatVectorOperations::multiply(childPitchValues + startSample, voicePitchValues + startSample, numSamples);
-			}
-
-			childVoice->calculateBlock(startSample, numSamples);
-
-			childSynth->setPeakValues(gain, gain);
-
-			voiceBuffer.addFrom(0, startSample, childVoice->getVoiceValues(0, startSample), numSamples, gain * childSynth->getBalance(false));
-			voiceBuffer.addFrom(1, startSample, childVoice->getVoiceValues(1, startSample), numSamples, gain * childSynth->getBalance(true));
-		}
-	}
-
-
-
-	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startSample, numSamples);
-
-	const float *modValues = getVoiceGainValues(startSample, numSamples);
-
-	FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startSample), modValues + startSample, numSamples);
-	FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startSample), modValues + startSample, numSamples);
-};
 
 void ModulatorSynthGroup::ModulatorSynthGroupHandler::add(Processor *newProcessor, Processor * /*siblingToInsertBefore*/)
 {
@@ -795,3 +882,5 @@ bool ModulatorSynthGroup::ChildSynthIterator::getNextAllowedChild(ModulatorSynth
 
 	return child != nullptr && counter <= limit;
 }
+
+#undef CREATE_ITERATOR

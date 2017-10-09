@@ -517,6 +517,11 @@ public:
 
 	const HiseEvent &getCurrentHiseEvent() const { return currentHiseEvent; }
 
+	void addToStartOffset(uint16 delta)
+	{
+		currentHiseEvent.setStartOffset(currentHiseEvent.getStartOffset() + delta);
+	}
+
 	/** This calculates the angle delta. For this synth, it detects the sine frequency, but you can override it to make something else. */
 	virtual void startNote (int /*midiNoteNumber*/, float /*velocity*/, SynthesiserSound* , int /*currentPitchWheelPosition*/)
 	{
@@ -685,6 +690,13 @@ public:
 			pitchFader.reset(getSampleRate(), fadeTimeSeconds);
 			pitchFader.setValue(targetPitch);
 		}
+	}
+
+	/** Just multiplies the existing pitch factor. */
+	void setUnisonoDetuneAmount(float detuneAmount)
+	{
+		eventPitchFactor *= detuneAmount;
+		scriptPitchActive = true;
 	}
 
 protected:

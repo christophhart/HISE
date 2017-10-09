@@ -273,14 +273,7 @@ void WaveSynth::postVoiceRendering(int startSample, int numSamples)
 		FloatVectorOperations::addWithMultiply(internalBuffer.getWritePointer(0, startSample), tempBuffer.getReadPointer(1, startSample), balance2Left, numSamples);
 		FloatVectorOperations::addWithMultiply(internalBuffer.getWritePointer(1, startSample), tempBuffer.getReadPointer(1, startSample), balance2Right, numSamples);
 	}
-	else
-	{
-		// Just copy the first channel to the second
-		FloatVectorOperations::copy(internalBuffer.getWritePointer(1, startSample), internalBuffer.getReadPointer(0, startSample), numSamples);
-	}
-
 	
-
 	ModulatorSynth::postVoiceRendering(startSample, numSamples);
 }
 
@@ -426,31 +419,49 @@ void WaveSynthVoice::calculateBlock(int startSample, int numSamples)
 
 	if (voicePitchValues == nullptr)
 	{
-		while (--numSamples >= 0)
+		if (enableSecondOsc)
 		{
-			*outL++ = leftGenerator.getAndInc();
-
-			if(enableSecondOsc)
+			while (--numSamples >= 0)
+			{
+				*outL++ = leftGenerator.getAndInc();
 				*outR++ = rightGenerator.getAndInc();
+			}
+		}
+		else
+		{
+			while (--numSamples >= 0)
+			{
+				*outL = leftGenerator.getAndInc();
+				*outR++ = *outL++;
+			}
 		}
 	}
 	else
 	{
 		voicePitchValues += startSample;
 
-		while (--numSamples >= 0)
+		if (enableSecondOsc)
 		{
-			
-			leftGenerator.setFreqModulationValue(*voicePitchValues);
-			*outL++ = leftGenerator.getAndInc();
-
-			if (enableSecondOsc)
+			while (--numSamples >= 0)
 			{
-				*outR++ = rightGenerator.getAndInc();
+				leftGenerator.setFreqModulationValue(*voicePitchValues);
+				*outL++ = leftGenerator.getAndInc();
+
 				rightGenerator.setFreqModulationValue(*voicePitchValues);
+				*outR++ = rightGenerator.getAndInc();
+				
+				voicePitchValues++;
 			}
-			
-			voicePitchValues++;
+		}
+		else
+		{
+			while (--numSamples >= 0)
+			{
+				leftGenerator.setFreqModulationValue(*voicePitchValues++);
+				
+				*outL = leftGenerator.getAndInc();
+				*outR++ = *outL++;
+			}
 		}
 	}
 

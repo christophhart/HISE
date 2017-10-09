@@ -67,14 +67,32 @@ public:
 	/** Calls the base class startNote() for the group itself and all child synths.  */
 	void startNote(int midiNoteNumber, float velocity, SynthesiserSound*, int) override;
 
+	ModulatorSynthVoice* startNoteInternal(ModulatorSynth* childSynth, int childVoiceIndex, int midiNoteNumber, float velocity);
+
 	/** Calls the base class stopNote() for the group itself and all child synths. */
 	void stopNote(float, bool) override;
 
+	void stopNoteInternal(ModulatorSynth * childSynth, int childVoiceIndex);
+
 	void checkRelease();
+
+	void resetInternal(ModulatorSynth * childSynth, int childVoiceIndex);
 
 	void calculateBlock(int startSample, int numSamples) override;
 
+	void calculateNoFMBlock(int startSample, int numSamples);
+
+	void calculateNoFMVoiceInternal(ModulatorSynth * childSynth, int childVoiceIndex, int startSample, int numSamples, const float * voicePitchValues);
+
+	void calculateFMBlock(ModulatorSynthGroup * group, int startSample, int numSamples);
+
+	void calculateFMCarrierInternal(ModulatorSynthGroup * group, int childVoiceIndex, int startSample, int numSamples, const float * voicePitchValues);
+
 private:
+
+	Random startOffsetRandomizer;
+
+	int numUnisonoVoices = 1;
 
 	Array<ModulatorSynth*> childSynths;
 	float fmModBuffer[2048];
