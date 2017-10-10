@@ -84,11 +84,15 @@ public:
 
 	void calculateNoFMVoiceInternal(ModulatorSynth * childSynth, int childVoiceIndex, int startSample, int numSamples, const float * voicePitchValues);
 
+	void calculateDetuneMultipliers(int childVoiceIndex, float &detuneGainFactor, float &detuneMultiplier, float &detuneBalanceLeft, float &detuneBalanceRight);
+
 	void calculateFMBlock(ModulatorSynthGroup * group, int startSample, int numSamples);
 
 	void calculateFMCarrierInternal(ModulatorSynthGroup * group, int childVoiceIndex, int startSample, int numSamples, const float * voicePitchValues);
 
 private:
+
+	ModulatorSynth* getFMModulator();
 
 	Random startOffsetRandomizer;
 
@@ -162,6 +166,8 @@ public:
 	float getAttribute(int index) const override;
 	float getDefaultValue(int parameterIndex) const override;
 
+	ModulatorSynth* getFMModulator();
+
 	/** returns the total amount of child groups (internal chains + all child synths) */
 	Processor *getChildProcessor(int processorIndex) override;;
 
@@ -188,6 +194,7 @@ public:
 		enum Mode
 		{
 			SkipUnallowedSynths = 0,
+			GetFMCarrierOnly,
 			IterateAllSynths
 		};
 
@@ -205,6 +212,8 @@ public:
 		int counter;
 		const int limit;
 		const Mode mode;
+
+		bool carrierWasReturned = false;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ChildSynthIterator)
 
