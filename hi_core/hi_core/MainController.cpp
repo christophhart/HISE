@@ -1031,8 +1031,11 @@ void MainController::GlobalAsyncModuleHandler::handleAsyncUpdate()
 #if USE_BACKEND
 	
 	if (rootWindow != nullptr && currentRoot != nullptr)
+	{
 		rootWindow->getMainPanel()->setRootProcessor(currentRoot);
-
+		rootWindow->sendRootContainerRebuildMessage(false);
+	}
+		
 #endif
 }
 
