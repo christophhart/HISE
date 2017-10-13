@@ -161,11 +161,11 @@ void StereoEffect::applyEffect(int voiceIndex, AudioSampleBuffer &b, int startSa
 		float* outL = b.getWritePointer(0, startSample);
 		float* outR = b.getWritePointer(1, startSample);
 
-		const float normalizedPan = (pan - 0.5f) * 200.0f;
+		const float normalizedPan = (pan - 0.5f) * 400.0f;
 
 		while (--numSamples >= 0)
 		{
-			const float scaledPanValue = *panValues++ * normalizedPan - normalizedPan;
+			const float scaledPanValue = (*panValues++ - 0.5f) * normalizedPan;
 
 			*outL++ *= BalanceCalculator::getGainFactorForBalance(scaledPanValue, true);
 			*outR++ *= BalanceCalculator::getGainFactorForBalance(scaledPanValue, false);

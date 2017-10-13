@@ -77,8 +77,7 @@ void ModulatorSynthGroupVoice::startNote(int midiNoteNumber, float velocity, Syn
 	uptimeDelta = 1.0;
 
 	numUnisonoVoices = (int)getOwnerSynth()->getAttribute(ModulatorSynthGroup::SpecialParameters::UnisonoVoiceAmount);
-	int numVoices = (int)getOwnerSynth()->getAttribute(ModulatorSynth::Parameters::VoiceLimit);
-
+	
 	const float detune = getOwnerSynth()->getAttribute(ModulatorSynthGroup::SpecialParameters::UnisonoDetune);
 
 	if (auto mod = getFMModulator())
@@ -128,11 +127,13 @@ ModulatorSynthVoice* ModulatorSynthGroupVoice::startNoteInternal(ModulatorSynth*
 
 	if (numUnisonoVoices != 1)
 	{
-		childVoice->addToStartOffset(startOffsetRandomizer.nextInt(441));
+		childVoice->addToStartOffset((uint16)startOffsetRandomizer.nextInt(441));
 	}
 
 	childSynth->preStartVoice(childVoiceIndex, midiNoteNumber);
 	childVoice->startNote(midiNoteNumber, velocity, soundToPlay, -1);
+
+	return childVoice;
 }
 
 
@@ -185,8 +186,6 @@ void ModulatorSynthGroupVoice::calculateNoFMBlock(int startSample, int numSample
 	}
 	else
 	{
-		int numVoices = (int)getOwnerSynth()->getAttribute(ModulatorSynth::Parameters::VoiceLimit);
-
 		for (int i = 0; i < numUnisonoVoices; i++)
 		{
 			const int unisonoVoiceIndex = voiceIndex*numUnisonoVoices + i;
@@ -197,13 +196,6 @@ void ModulatorSynthGroupVoice::calculateNoFMBlock(int startSample, int numSample
 				calculateNoFMVoiceInternal(childSynth, unisonoVoiceIndex, startSample, numSamples, voicePitchValues);
 		}
 	}
-
-
-	
-
-	CREATE_ITERATOR();
-
-	
 }
 
 
