@@ -257,6 +257,11 @@ void ModulatorSynthGroupVoice::calculateDetuneMultipliers(int childVoiceIndex)
 		detuneValues.balanceLeft = BalanceCalculator::getGainFactorForBalance(detuneBalanceAmount, true);
 		detuneValues.balanceRight = BalanceCalculator::getGainFactorForBalance(detuneBalanceAmount, false);
 	}
+	else
+	{
+		// reset them...
+		detuneValues = DetuneValues();
+	}
 
 }
 
