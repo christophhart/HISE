@@ -42,7 +42,7 @@ void AudioLooperVoice::startNote(int midiNoteNumber, float /*velocity*/, Synthes
 
 	midiNoteNumber += getTransposeAmount();
 
-	voiceUptime = 0.0;
+	voiceUptime = (double)getCurrentHiseEvent().getStartOffset();
 
 	AudioLooper *looper = dynamic_cast<AudioLooper*>(getOwnerSynth());
 
@@ -70,6 +70,8 @@ void AudioLooperVoice::startNote(int midiNoteNumber, float /*velocity*/, Synthes
 
 void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 {
+	
+
 	const int startIndex = startSample;
 	const int samplesToCopy = numSamples;
 
@@ -81,7 +83,8 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 
 	const AudioSampleBuffer *buffer = looper->getBuffer();
 
-	if (buffer == nullptr) return;
+	if (buffer == nullptr || buffer->getNumChannels() == 0)
+		return;
 
 	const float *leftSamples = buffer->getReadPointer(0);
 	const float *rightSamples = buffer->getNumChannels() > 1 ? buffer->getReadPointer(1) : leftSamples;
