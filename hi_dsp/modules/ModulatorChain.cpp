@@ -58,9 +58,29 @@ Chain::Handler *ModulatorChain::getHandler() {return &handler;};
 
 bool ModulatorChain::shouldBeProcessed(bool checkPolyphonicModulators) const
 { 
-	bool empty = checkPolyphonicModulators ? ( (envelopeModulators.size() + voiceStartModulators.size()) == 0 ) : 
-												variantModulators.size() == 0;
-	return ( (!isBypassed()) && (!empty) ); 
+	if (isBypassed())
+		return false;
+
+	if (checkPolyphonicModulators)
+	{
+		for (int i = 0; i < envelopeModulators.size(); i++)
+			if (!envelopeModulators[i]->isBypassed())
+				return true;
+
+		for (int i = 0; i < voiceStartModulators.size(); i++)
+			if (!voiceStartModulators[i]->isBypassed())
+				return true;
+
+		return false;
+	}
+	else
+	{
+		for (int i = 0; i < variantModulators.size(); i++)
+			if (!variantModulators[i]->isBypassed())
+				return true;
+
+		return false;
+	}
 };
 
 void ModulatorChain::reset(int voiceIndex)
