@@ -1054,7 +1054,7 @@ public:
 
 		MemoryOutputStream out;
 
-		out << "RSAKey Unlocker::getPublicKey()" << newLine
+		out << "RSAKey hise::Unlocker::getPublicKey()" << newLine
 			<< "{" << newLine;
 
 		for (int i = 0; i < sections.size(); ++i)
