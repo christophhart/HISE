@@ -35,6 +35,7 @@
 #define MODULATORSYNTHGROUP_H_INCLUDED
 
 
+// TODO: Fix unisono kill voice when > 8 voices.
 
 class ModulatorSynthGroupSound : public ModulatorSynthSound
 {
@@ -51,6 +52,22 @@ public:
 /** This class acts as wrapper in a ModulatorSynthGroup for all child synth voices. */
 class ModulatorSynthGroupVoice : public ModulatorSynthVoice
 {
+	struct DetuneValues
+	{
+		float multiplier = 1.0f;
+		float gainFactor = 1.0f;
+		float balanceLeft = 1.0f;
+		float balanceRight = 1.0f;
+
+		float detuneModValue = 1.0f;
+		float spreadModValue = 1.0f;
+
+		float getGainFactor(bool getRightChannel)
+		{
+			return gainFactor * (getRightChannel ? balanceRight : balanceLeft);
+		}
+	};
+
 public:
 
 	ModulatorSynthGroupVoice(ModulatorSynth *ownerSynth);;
@@ -84,13 +101,15 @@ public:
 
 	void calculateNoFMVoiceInternal(ModulatorSynth * childSynth, int childVoiceIndex, int startSample, int numSamples, const float * voicePitchValues);
 
-	void calculateDetuneMultipliers(int childVoiceIndex, float &detuneGainFactor, float &detuneMultiplier, float &detuneBalanceLeft, float &detuneBalanceRight);
+	void calculateDetuneMultipliers(int childVoiceIndex);
 
 	void calculateFMBlock(ModulatorSynthGroup * group, int startSample, int numSamples);
 
 	void calculateFMCarrierInternal(ModulatorSynthGroup * group, int childVoiceIndex, int startSample, int numSamples, const float * voicePitchValues);
 
 private:
+
+	DetuneValues detuneValues;
 
 	ModulatorSynth* getFMModulator();
 
@@ -143,7 +162,8 @@ public:
 
 		enum InternalChains
 	{
-		SampleStartModulation = ModulatorSynth::numInternalChains,
+		DetuneModulation = ModulatorSynth::numInternalChains,
+		SpreadModulation,
 		numInternalChains
 	};
 
@@ -228,6 +248,11 @@ public:
 	void setUnisonoDetuneAmount(float newDetuneAmount);
 	void setUnisonoSpreadAmount(float newSpreadAmount);
 
+	virtual int getNumActiveVoices() const
+	{
+		return ModulatorSynth::getNumActiveVoices() * unisonoVoiceAmount;
+	}
+
 	Processor *getParentProcessor() { return nullptr; };
 	const Processor *getParentProcessor() const { return nullptr; };
 
@@ -239,6 +264,8 @@ public:
 
 	/** Clears the internal buffers of the childs and the group itself. */
 	void initRenderCallback() override;;
+
+	void preStartVoice(int voiceIndex, int noteNumber) override;;
 
 	void preVoiceRendering(int startSample, int numThisTime) override;;
 	void postVoiceRendering(int startSample, int numThisTime) override;;
@@ -289,17 +316,42 @@ public:
 
 	bool fmIsCorrectlySetup() const { return fmCorrectlySetup; };
 
+	const float* calculateDetuneModulationValuesForVoice(int voiceIndex, int startSample, int numSamples)
+	{
+		detuneChain->renderVoice(voiceIndex, startSample, numSamples);
+		float *detuneValues = detuneChain->getVoiceValues(voiceIndex);
+		const float* timeVariantDetuneValues = detuneBuffer.getReadPointer(0);
+
+		FloatVectorOperations::multiply(detuneValues + startSample, timeVariantDetuneValues + startSample, numSamples);
+
+		return detuneChain->getVoiceValues(voiceIndex) + startSample;
+	}
+
+
+	const float* calculateSpreadModulationValuesForVoice(int voiceIndex, int startSample, int numSamples)
+	{
+		spreadChain->renderVoice(voiceIndex, startSample, numSamples);
+		float *spreadValues = spreadChain->getVoiceValues(voiceIndex);
+		const float* timeVariantSpreadValues = spreadBuffer.getReadPointer(0);
+
+		FloatVectorOperations::multiply(spreadValues + startSample, timeVariantSpreadValues + startSample, numSamples);
+
+		return spreadChain->getVoiceValues(voiceIndex) + startSample;
+	}
+
 private:
 
 	friend class ChildSynthIterator;
 	friend class ModulatorSynthGroupVoice;
 
-	ScopedPointer<ModulatorChain> sampleStartChain;
+	ScopedPointer<ModulatorChain> detuneChain;
+	ScopedPointer<ModulatorChain> spreadChain;
 
 	// the precalculated modvalues for LFOs & stuff
 	AudioSampleBuffer modSynthGainValues;
 
-	
+	AudioSampleBuffer spreadBuffer;
+	AudioSampleBuffer detuneBuffer;
 
 	String fmState;
 
@@ -309,6 +361,7 @@ private:
 	int carrierIndex;
 
 	int unisonoVoiceAmount;
+	int unisonoVoiceLimit;
 	double unisonoDetuneAmount;
 	float unisonoSpreadAmount;
 

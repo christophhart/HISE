@@ -88,7 +88,7 @@ void ModulatorSynthGroupVoice::startNote(int midiNoteNumber, float velocity, Syn
 	{
 		const int unisonoVoiceIndex = voiceIndex*numUnisonoVoices + i;
 
-		if (unisonoVoiceIndex >= numVoices) // don't start more voices than you have allocated
+		if (unisonoVoiceIndex >= NUM_POLYPHONIC_VOICES) // don't start more voices than you have allocated
 			break;
 
 		CREATE_ITERATOR();
@@ -104,6 +104,9 @@ void ModulatorSynthGroupVoice::startNote(int midiNoteNumber, float velocity, Syn
 
 ModulatorSynthVoice* ModulatorSynthGroupVoice::startNoteInternal(ModulatorSynth* childSynth, int childVoiceIndex, int midiNoteNumber, float velocity)
 {
+	if (childVoiceIndex >= NUM_POLYPHONIC_VOICES)
+		return nullptr;
+
 	ModulatorSynthVoice* childVoice = static_cast<ModulatorSynthVoice*>(childSynth->getVoice(childVoiceIndex));
 
 	ModulatorSynthSound *soundToPlay = nullptr;
@@ -141,6 +144,12 @@ void ModulatorSynthGroupVoice::calculateBlock(int startSample, int numSamples)
 	voiceBuffer.clear();
 
 	ModulatorSynthGroup *group = static_cast<ModulatorSynthGroup*>(getOwnerSynth());
+
+	if (numUnisonoVoices > 1)
+	{
+		detuneValues.detuneModValue = static_cast<ModulatorSynthGroup*>(ownerSynth)->calculateDetuneModulationValuesForVoice(voiceIndex, startSample, numSamples)[0];
+		detuneValues.spreadModValue = static_cast<ModulatorSynthGroup*>(ownerSynth)->calculateSpreadModulationValuesForVoice(voiceIndex, startSample, numSamples)[0];
+	}
 
 	if (group->fmIsCorrectlySetup())
 	{
@@ -200,6 +209,9 @@ void ModulatorSynthGroupVoice::calculateNoFMBlock(int startSample, int numSample
 
 void ModulatorSynthGroupVoice::calculateNoFMVoiceInternal(ModulatorSynth * childSynth, int childVoiceIndex, int startSample, int numSamples, const float * voicePitchValues)
 {
+	if (childVoiceIndex >= NUM_POLYPHONIC_VOICES)
+		return;
+
 	ModulatorSynthVoice *childVoice = static_cast<ModulatorSynthVoice*>(childSynth->getVoice(childVoiceIndex));
 
 	if (childSynth->isBypassed() || childVoice->isInactive()) return;
@@ -208,32 +220,29 @@ void ModulatorSynthGroupVoice::calculateNoFMVoiceInternal(ModulatorSynth * child
 
 	childVoice->calculateVoicePitchValues(startSample, numSamples);
 
+	
+
 	float *childPitchValues = childVoice->getVoicePitchValues();
 
-	float detuneMultiplier = 1.0f;
-	float detuneGainFactor = 1.0f;
-	float detuneBalanceLeft = 1.0f;
-	float detuneBalanceRight = 1.0f;
-
-	calculateDetuneMultipliers(childVoiceIndex, detuneGainFactor, detuneMultiplier, detuneBalanceLeft, detuneBalanceRight);
+	calculateDetuneMultipliers(childVoiceIndex);
 
 	if (childPitchValues != nullptr && voicePitchValues != nullptr)
 	{
-		FloatVectorOperations::multiply(childPitchValues + startSample, voicePitchValues + startSample, detuneMultiplier, numSamples);
+		FloatVectorOperations::multiply(childPitchValues + startSample, voicePitchValues + startSample, detuneValues.multiplier, numSamples);
 	}
 
 	childVoice->calculateBlock(startSample, numSamples);
 	childSynth->setPeakValues(gain, gain);
 
-	const float g_left = detuneBalanceLeft * detuneGainFactor * gain * childSynth->getBalance(false);
-	const float g_right = detuneBalanceRight * detuneGainFactor * gain * childSynth->getBalance(true);
+	const float g_left = detuneValues.getGainFactor(false) * gain * childSynth->getBalance(false);
+	const float g_right = detuneValues.getGainFactor(true) * gain * childSynth->getBalance(true);
 
 	voiceBuffer.addFrom(0, startSample, childVoice->getVoiceValues(0, startSample), numSamples, g_left);
 	voiceBuffer.addFrom(1, startSample, childVoice->getVoiceValues(1, startSample), numSamples, g_right);
 }
 
 
-void ModulatorSynthGroupVoice::calculateDetuneMultipliers(int childVoiceIndex, float &detuneGainFactor, float &detuneMultiplier, float &detuneBalanceLeft, float &detuneBalanceRight)
+void ModulatorSynthGroupVoice::calculateDetuneMultipliers(int childVoiceIndex)
 {
 	if (numUnisonoVoices != 1)
 	{
@@ -244,19 +253,19 @@ void ModulatorSynthGroupVoice::calculateDetuneMultipliers(int childVoiceIndex, f
 
 		const int unisonoIndex = childVoiceIndex % numUnisonoVoices;
 
-		detuneGainFactor = 1.0f / sqrtf((float)numUnisonoVoices);
+		detuneValues.gainFactor = 1.0f / sqrtf((float)numUnisonoVoices);
 
 		const float normalizedVoiceIndex = (float)unisonoIndex / (float)(numUnisonoVoices - 1);
 		const float normalizedDetuneAmount = normalizedVoiceIndex * 2.0f - 1.0f;
-		const float detuneOctaveAmount = detune * normalizedDetuneAmount;
-		detuneMultiplier = Modulation::PitchConverters::octaveRangeToPitchFactor(detuneOctaveAmount);
+		const float detuneOctaveAmount = detune * normalizedDetuneAmount * detuneValues.detuneModValue;
+		detuneValues.multiplier = Modulation::PitchConverters::octaveRangeToPitchFactor(detuneOctaveAmount);
 
-		const float detuneBalanceAmount = normalizedDetuneAmount * 100.0f * balance;
+		const float detuneBalanceAmount = normalizedDetuneAmount * 100.0f * balance * detuneValues.spreadModValue;
 
-		detuneBalanceLeft = BalanceCalculator::getGainFactorForBalance(detuneBalanceAmount, true);
-		detuneBalanceRight = BalanceCalculator::getGainFactorForBalance(detuneBalanceAmount, false);
-
+		detuneValues.balanceLeft = BalanceCalculator::getGainFactorForBalance(detuneBalanceAmount, true);
+		detuneValues.balanceRight = BalanceCalculator::getGainFactorForBalance(detuneBalanceAmount, false);
 	}
+
 }
 
 void ModulatorSynthGroupVoice::calculateFMBlock(ModulatorSynthGroup * group, int startSample, int numSamples)
@@ -311,6 +320,9 @@ void ModulatorSynthGroupVoice::calculateFMBlock(ModulatorSynthGroup * group, int
 
 void ModulatorSynthGroupVoice::calculateFMCarrierInternal(ModulatorSynthGroup * group, int childVoiceIndex, int startSample, int numSamples, const float * voicePitchValues)
 {
+	if (childVoiceIndex >= NUM_POLYPHONIC_VOICES)
+		return;
+
 	auto indexOffset = (int)ModulatorSynthGroup::InternalChains::numInternalChains;
 
 	ModulatorSynth *carrierSynth = static_cast<ModulatorSynth*>(group->getChildProcessor(group->carrierIndex - 1 + indexOffset));
@@ -321,12 +333,7 @@ void ModulatorSynthGroupVoice::calculateFMCarrierInternal(ModulatorSynthGroup * 
 	if (carrierVoice == nullptr)
 		return;
 
-	float detunePitchMultiplier = 1.0f;
-	float detuneGainFactor = 1.0f;
-	float detuneBalanceLeft = 1.0f;
-	float detuneBalanceRight = 1.0f;
-
-	calculateDetuneMultipliers(childVoiceIndex, detuneGainFactor, detunePitchMultiplier, detuneBalanceLeft, detuneBalanceRight);
+	calculateDetuneMultipliers(childVoiceIndex);
 
 	if (carrierSynth->isBypassed() || carrierVoice->isInactive()) return;
 
@@ -334,7 +341,7 @@ void ModulatorSynthGroupVoice::calculateFMCarrierInternal(ModulatorSynthGroup * 
 
 	float *carrierPitchValues = carrierVoice->getVoicePitchValues();
 
-	FloatVectorOperations::multiply(carrierPitchValues + startSample, voicePitchValues + startSample, detunePitchMultiplier, numSamples);
+	FloatVectorOperations::multiply(carrierPitchValues + startSample, voicePitchValues + startSample, detuneValues.multiplier, numSamples);
 
 	// This is the magic FM command
 	FloatVectorOperations::multiply(carrierPitchValues + startSample, fmModBuffer, numSamples);
@@ -346,8 +353,8 @@ void ModulatorSynthGroupVoice::calculateFMCarrierInternal(ModulatorSynthGroup * 
 
 	const float carrierGain = carrierSynth->getGain();
 
-	const float g_left = detuneGainFactor * detuneBalanceLeft * carrierGain * carrierSynth->getBalance(false);
-	const float g_right = detuneGainFactor * detuneBalanceRight * carrierGain * carrierSynth->getBalance(true);
+	const float g_left = detuneValues.getGainFactor(false) * carrierGain * carrierSynth->getBalance(false);
+	const float g_right = detuneValues.getGainFactor(true) * carrierGain * carrierSynth->getBalance(true);
 
 	voiceBuffer.addFrom(0, startSample, carrierVoice->getVoiceValues(0, startSample), numSamples, g_left);
 	voiceBuffer.addFrom(1, startSample, carrierVoice->getVoiceValues(1, startSample), numSamples, g_right);
@@ -383,6 +390,9 @@ void ModulatorSynthGroupVoice::stopNote(float, bool)
 
 void ModulatorSynthGroupVoice::stopNoteInternal(ModulatorSynth * childSynth, int childVoiceIndex)
 {
+	if (childVoiceIndex >= NUM_POLYPHONIC_VOICES)
+		return;
+
 	ModulatorChain *g = static_cast<ModulatorChain*>(childSynth->getChildProcessor(ModulatorSynth::GainModulation));
 	ModulatorChain *p = static_cast<ModulatorChain*>(childSynth->getChildProcessor(ModulatorSynth::PitchModulation));
 
@@ -439,6 +449,9 @@ void ModulatorSynthGroupVoice::checkRelease()
 
 void ModulatorSynthGroupVoice::resetInternal(ModulatorSynth * childSynth, int childVoiceIndex)
 {
+	if (childVoiceIndex >= NUM_POLYPHONIC_VOICES)
+		return;
+
 	ModulatorSynthVoice *childVoice = static_cast<ModulatorSynthVoice*>(childSynth->getVoice(childVoiceIndex));
 
 	childSynth->setPeakValues(0.0f, 0.0f);
@@ -458,10 +471,17 @@ ModulatorSynthGroup::ModulatorSynthGroup(MainController *mc, const String &id, i
 	unisonoVoiceAmount((int)getDefaultValue(ModulatorSynthGroup::SpecialParameters::UnisonoVoiceAmount)),
 	unisonoDetuneAmount((double)getDefaultValue(ModulatorSynthGroup::SpecialParameters::UnisonoDetune)),
 	unisonoSpreadAmount(getDefaultValue(ModulatorSynthGroup::SpecialParameters::UnisonoSpread)),
-	sampleStartChain(new ModulatorChain(mc, "Sample Start Modulation", numVoices, Modulation::GainMode, this))
+	detuneChain(new ModulatorChain(mc, "Detune Mod", numVoices, Modulation::GainMode, this)),
+	spreadChain(new ModulatorChain(mc, "Spread Mod", numVoices, Modulation::GainMode, this))
 {
+	spreadBuffer = AudioSampleBuffer(1, 0);
+	detuneBuffer = AudioSampleBuffer(1, 0);
+
 	setFactoryType(new ModulatorSynthChainFactoryType(numVoices, this));
 	getFactoryType()->setConstrainer(new SynthGroupConstrainer());
+
+	detuneChain->setColour(Colour(0xFF880022));
+	spreadChain->setColour(Colour(0xFF22AA88));
 
 	setGain(1.0);
 
@@ -579,7 +599,8 @@ ModulatorSynth* ModulatorSynthGroup::getFMModulator()
 Processor * ModulatorSynthGroup::getChildProcessor(int processorIndex)
 {
 	if (processorIndex < ModulatorSynth::numInternalChains) return ModulatorSynth::getChildProcessor(processorIndex);
-	else if (processorIndex == SampleStartModulation)		return sampleStartChain;
+	else if (processorIndex == DetuneModulation)			return detuneChain;
+	else if (processorIndex == SpreadModulation)			return spreadChain;
 	else													return handler.getProcessor(processorIndex - numInternalChains);
 }
 
@@ -587,7 +608,8 @@ Processor * ModulatorSynthGroup::getChildProcessor(int processorIndex)
 const Processor * ModulatorSynthGroup::getChildProcessor(int processorIndex) const
 {
 	if (processorIndex < ModulatorSynth::numInternalChains) return ModulatorSynth::getChildProcessor(processorIndex);
-	else if (processorIndex == SampleStartModulation)		return sampleStartChain;
+	else if (processorIndex == DetuneModulation)			return detuneChain;
+	else if (processorIndex == SpreadModulation)			return spreadChain;
 	else													return handler.getProcessor(processorIndex - numInternalChains);
 }
 
@@ -606,7 +628,11 @@ void ModulatorSynthGroup::setAllowStateForAllChildSynths(bool shouldBeEnabled)
 
 void ModulatorSynthGroup::setUnisonoVoiceAmount(int newVoiceAmount)
 {
-	unisonoVoiceAmount = newVoiceAmount;
+	unisonoVoiceAmount = jmax<int>(1, newVoiceAmount);
+
+	unisonoVoiceLimit = NUM_POLYPHONIC_VOICES / unisonoVoiceAmount;
+
+	setVoiceLimit(unisonoVoiceLimit);
 }
 
 
@@ -624,6 +650,12 @@ void ModulatorSynthGroup::setUnisonoSpreadAmount(float newSpreadAmount)
 void ModulatorSynthGroup::preHiseEventCallback(const HiseEvent &m)
 {
 	ModulatorSynth::preHiseEventCallback(m);
+
+	if (unisonoVoiceAmount > 1)
+	{
+		detuneChain->handleHiseEvent(m);
+		spreadChain->handleHiseEvent(m);
+	}
 
 	ModulatorSynth *child;
 	ChildSynthIterator iterator(this, ChildSynthIterator::SkipUnallowedSynths);
@@ -643,7 +675,11 @@ void ModulatorSynthGroup::prepareToPlay(double newSampleRate, int samplesPerBloc
 
 		ModulatorSynth::prepareToPlay(newSampleRate, samplesPerBlock);
 
-		sampleStartChain->prepareToPlay(newSampleRate, samplesPerBlock);
+		detuneChain->prepareToPlay(newSampleRate, samplesPerBlock);
+		spreadChain->prepareToPlay(newSampleRate, samplesPerBlock);
+
+		ProcessorHelpers::increaseBufferIfNeeded(spreadBuffer, samplesPerBlock);
+		ProcessorHelpers::increaseBufferIfNeeded(detuneBuffer, samplesPerBlock);
 
 		ChildSynthIterator iterator(this, ChildSynthIterator::IterateAllSynths);
 		ModulatorSynth *childSynth;
@@ -670,6 +706,17 @@ void ModulatorSynthGroup::initRenderCallback()
 }
 
 
+void ModulatorSynthGroup::preStartVoice(int voiceIndex, int noteNumber)
+{
+	ModulatorSynth::preStartVoice(voiceIndex, noteNumber);
+
+	if (unisonoVoiceAmount)
+	{
+		detuneChain->startVoice(voiceIndex);
+		spreadChain->startVoice(voiceIndex);
+	}
+}
+
 void ModulatorSynthGroup::preVoiceRendering(int startSample, int numThisTime)
 {
 	ModulatorSynth::preVoiceRendering(startSample, numThisTime);
@@ -687,6 +734,12 @@ void ModulatorSynthGroup::preVoiceRendering(int startSample, int numThisTime)
 		gainChainOfModSynth->renderNextBlock(modSynthGainValues, startSample, numThisTime);
 	}
 
+	if (unisonoVoiceAmount > 1)
+	{
+		spreadChain->renderNextBlock(spreadBuffer, startSample, numThisTime);
+		detuneChain->renderNextBlock(detuneBuffer, startSample, numThisTime);
+	}
+	
 	while (iterator.getNextAllowedChild(childSynth))
 	{
 		childSynth->preVoiceRendering(startSample, numThisTime);

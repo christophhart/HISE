@@ -164,6 +164,9 @@ GroupBody::GroupBody (ProcessorEditor *p)
 	spreadSlider->setup(getProcessor(), ModulatorSynthGroup::SpecialParameters::UnisonoSpread, "Spread");
 	spreadSlider->setMode(HiSlider::Mode::NormalizedPercentage);
 
+	spreadSlider->setIsUsingModulatedRing(true);
+	detuneSlider->setIsUsingModulatedRing(true);
+
     //[/UserPreSize]
 
     setSize (800, 120);
@@ -171,6 +174,8 @@ GroupBody::GroupBody (ProcessorEditor *p)
 
     //[Constructor] You can add your own custom stuff here..
 	h = getHeight();
+
+	startTimer(50);
     //[/Constructor]
 }
 
@@ -353,7 +358,7 @@ void GroupBody::sliderValueChanged (Slider* sliderThatWasMoved)
 BEGIN_JUCER_METADATA
 
 <JUCER_COMPONENT documentType="Component" className="GroupBody" componentName=""
-                 parentClasses="public ProcessorEditorBody" constructorParams="ProcessorEditor *p"
+                 parentClasses="public ProcessorEditorBody, public Timer" constructorParams="ProcessorEditor *p"
                  variableInitialisers="ProcessorEditorBody(p)" snapPixels="8"
                  snapActive="1" snapShown="1" overlayOpacity="0.330" fixedSize="1"
                  initialWidth="800" initialHeight="120">

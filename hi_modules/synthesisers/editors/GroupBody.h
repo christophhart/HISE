@@ -36,6 +36,7 @@
                                                                     //[/Comments]
 */
 class GroupBody  : public ProcessorEditorBody,
+                   public Timer,
                    public LabelListener,
                    public ComboBoxListener,
                    public ButtonListener,
@@ -50,6 +51,15 @@ public:
     //[UserMethods]     -- You can add your own custom methods in this section.
 
 	int getBodyHeight() const override { return h; };
+
+	void timerCallback() override
+	{
+		const float detuneValue = (float)getProcessor()->getChildProcessor(ModulatorSynthGroup::DetuneModulation)->getOutputValue();
+		const float spreadValue = (float)getProcessor()->getChildProcessor(ModulatorSynthGroup::SpreadModulation)->getOutputValue();
+
+		spreadSlider->setDisplayValue(spreadValue);
+		detuneSlider->setDisplayValue(detuneValue);
+	}
 
 	void updateGui() override
 	{
