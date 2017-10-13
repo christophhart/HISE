@@ -171,6 +171,11 @@ protected:
 		return static_cast<ModulatorChain*>(getChildProcessor(chainIndex))->getVoiceValues(voiceIndex)[samplePosition];
 	}
 
+	float* getCurrentModulationValues(int chainIndex, int voiceIndex, int startSample)
+	{
+		return static_cast<ModulatorChain*>(getChildProcessor(chainIndex))->getVoiceValues(voiceIndex) + startSample;
+	}
+
 	void calculateChain(int chainIndex, int voiceIndex, int startSample, int numSamples)
 	{
 		ModulatorChain *mc = static_cast<ModulatorChain*>(getChildProcessor(chainIndex));

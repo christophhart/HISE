@@ -1,17 +1,17 @@
 /*
   ==============================================================================
 
-  This is an automatically generated GUI class created by the Introjucer!
+  This is an automatically generated GUI class created by the Projucer!
 
   Be careful when adding custom code to these files, as only the code within
   the "//[xyz]" and "//[/xyz]" sections will be retained when the file is loaded
   and re-saved.
 
-  Created with Introjucer version: 4.1.0
+  Created with Projucer version: 4.3.0
 
   ------------------------------------------------------------------------------
 
-  The Introjucer is part of the JUCE library - "Jules' Utility Class Extensions"
+  The Projucer is part of the JUCE library - "Jules' Utility Class Extensions"
   Copyright (c) 2015 - ROLI Ltd.
 
   ==============================================================================
@@ -49,16 +49,20 @@ StereoEditor::StereoEditor (ProcessorEditor *p)
     //[UserPreSize]
 
 	widthSlider->setup(getProcessor(), StereoEffect::Width, "Stereo Width");
-	widthSlider->setMode(HiSlider::Discrete, 0.0, 200.0, 100.0);
+	widthSlider->setMode(HiSlider::Discrete, 0.0, 200.0, 100.0, 1.0);
 
 	panSlider->setup(getProcessor(), StereoEffect::Pan, "Pan");
 	panSlider->setMode(HiSlider::Pan);
+	panSlider->setIsUsingModulatedRing(true);
+	panSlider->setEnabled(false);
     //[/UserPreSize]
 
     setSize (800, 80);
 
 
     //[Constructor] You can add your own custom stuff here..
+
+	START_TIMER();
 
 	h = getHeight();
     //[/Constructor]
@@ -138,9 +142,9 @@ void StereoEditor::sliderValueChanged (Slider* sliderThatWasMoved)
 
 //==============================================================================
 #if 0
-/*  -- Introjucer information section --
+/*  -- Projucer information section --
 
-    This is where the Introjucer stores the metadata that describe this GUI layout, so
+    This is where the Projucer stores the metadata that describe this GUI layout, so
     make changes in here at your peril!
 
 BEGIN_JUCER_METADATA
@@ -160,12 +164,12 @@ BEGIN_JUCER_METADATA
           virtualName="HiSlider" explicitFocusOrder="0" pos="0C 17 128 48"
           min="0" max="200" int="1" style="RotaryHorizontalVerticalDrag"
           textBoxPos="TextBoxRight" textBoxEditable="1" textBoxWidth="80"
-          textBoxHeight="20" skewFactor="1"/>
+          textBoxHeight="20" skewFactor="1" needsCallback="1"/>
   <SLIDER name="Pan" id="89cc5b4c20e221e" memberName="panSlider" virtualName="HiSlider"
           explicitFocusOrder="0" pos="-14r 17 128 48" posRelativeX="f930000f86c6c8b6"
           min="-100" max="100" int="1" style="RotaryHorizontalVerticalDrag"
           textBoxPos="TextBoxRight" textBoxEditable="1" textBoxWidth="80"
-          textBoxHeight="20" skewFactor="1"/>
+          textBoxHeight="20" skewFactor="1" needsCallback="1"/>
 </JUCER_COMPONENT>
 
 END_JUCER_METADATA
