@@ -1068,6 +1068,21 @@ void SampleEditHandler::SampleEditingActions::trimSampleStart(SampleEditHandler 
 {
 	Array<WeakReference<ModulatorSamplerSound>> sounds = handler->getSelection().getItemArray();
 
+    int multiMicIndex = 0;
+    
+	int micPositions = handler->getSampler()->getNumMicPositions();
+
+    if(micPositions > 1)
+    {
+        multiMicIndex = jlimit(0, micPositions-1, PresetHandler::getCustomName("Channel Index", "Enter the channel index (starting with 0) for the mic position that you want to use to detect the sample start").getIntValue());
+    }
+    
+	float dBThreshold = PresetHandler::getCustomName("Threshold", "Enter the dB Value for the threshold (it will use this as difference to the peak level").getFloatValue();
+
+	dBThreshold = jlimit<float>(-100.0f, 0.0f, dBThreshold);
+
+	
+
 	ModulatorSampler *sampler = handler->getSampler();
 
 	sampler->getUndoManager()->beginNewTransaction();
@@ -1078,7 +1093,7 @@ void SampleEditHandler::SampleEditingActions::trimSampleStart(SampleEditHandler 
 	{
 		if (sounds[i].get() != nullptr)
 		{
-			AudioFormatReader* reader = sounds[i]->getReferenceToSound()->createReaderForAnalysis();
+			AudioFormatReader* reader = sounds[i]->getReferenceToSound(multiMicIndex)->createReaderForAnalysis();
 
 			if (reader != nullptr)
 			{
@@ -1096,9 +1111,7 @@ void SampleEditHandler::SampleEditingActions::trimSampleStart(SampleEditHandler 
 
 					const float maxLevel = jmax<float>(std::fabs(lLow), std::fabs(lHigh), std::fabs(rLow), std::fabs(rHigh));
                     
-                    const float dBThreshhold = -18.0f;
-                    
-                    const float threshHoldLevel = Decibels::decibelsToGain(dBThreshhold) * maxLevel;
+					const float threshHoldLevel = Decibels::decibelsToGain(dBThreshold) * maxLevel;
 
 					int sample = sounds[i]->getProperty(ModulatorSamplerSound::SampleStart);
 
