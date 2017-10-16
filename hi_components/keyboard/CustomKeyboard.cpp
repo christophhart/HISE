@@ -113,6 +113,8 @@ CustomKeyboard::CustomKeyboard(MainController* mc_) :
     
 #else
 
+	
+
     setKeyWidth(narrowKeys ? 14.0f : 18.0f);
 	setScrollButtonsVisible(false);
 	
@@ -130,6 +132,43 @@ CustomKeyboard::~CustomKeyboard()
 	BACKEND_ONLY(BackendHelpers::callIfNotInRootContainer([this]() {mc->allNotesOff(); }, this));
 
 	state->removeChangeListener(this);
+}
+
+
+void CustomKeyboard::mouseDown(const MouseEvent& e)
+{
+	if (toggleMode)
+	{
+		auto number = getNoteAtPosition(e.getMouseDownPosition());
+
+		if (state->isNoteOnForChannels(getMidiChannelsToDisplay(), number))
+		{
+			state->noteOff(getMidiChannel(), number, 1.0f);
+		}
+		else
+		{
+			state->noteOn(getMidiChannel(), number, 1.0f);
+		}
+	}
+	else
+	{
+		MidiKeyboardComponent::mouseDown(e);
+	}
+	
+}
+
+
+void CustomKeyboard::mouseUp(const MouseEvent& e)
+{
+	if (!toggleMode)
+		MidiKeyboardComponent::mouseUp(e);
+}
+
+
+void CustomKeyboard::mouseDrag(const MouseEvent& e)
+{
+	if (!toggleMode)
+		MidiKeyboardComponent::mouseDrag(e);
 }
 
 void CustomKeyboard::setUseCustomGraphics(bool shouldUseCustomGraphics)

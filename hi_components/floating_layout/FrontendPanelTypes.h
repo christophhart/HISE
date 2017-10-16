@@ -117,7 +117,8 @@ const var data = {
 "HiKey": 127,
 "CustomGraphics": false,
 "DefaultAppearance": true,
-"BlackKeyRatio": 0.7
+"BlackKeyRatio": 0.7,
+"ToggleMode": false
 };
 ```
 ### Using custom filmstrips
@@ -150,6 +151,7 @@ public:
 		BlackKeyRatio, ///< the height of the black keys in proportion to the total height.
 		DefaultAppearance, ///< set this to true to use the standard appearance in HISE.
 		DisplayOctaveNumber, ///< set this to true to add octave numbers at each C note.
+		ToggleMode, ///< if activated, then the notes will be held until clicked again
 		numProperyIds
 	};
 

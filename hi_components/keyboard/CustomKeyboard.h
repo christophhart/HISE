@@ -120,6 +120,12 @@ public:
 		repaint();
 	}
 
+	void mouseDown(const MouseEvent& e) override;
+
+	void mouseUp(const MouseEvent& e) override;
+
+	void mouseDrag(const MouseEvent& e) override;
+
 	void setUseCustomGraphics(bool shouldUseCustomGraphics);
 
 	void setShowOctaveNumber(bool shouldDisplayOctaveNumber) { displayOctaveNumber = shouldDisplayOctaveNumber; }
@@ -138,6 +144,13 @@ public:
 	bool isUsingCustomGraphics() const noexcept { return useCustomGraphics; };
 
 	bool isShowingOctaveNumbers() const { return displayOctaveNumber; }
+
+	void setEnableToggleMode(bool shouldBeEnabled)
+	{
+		toggleMode = shouldBeEnabled;
+	}
+
+	bool isToggleModeEnabled() const { return toggleMode; };
 
 protected:
 
@@ -164,6 +177,8 @@ private:
 	int hiKey = 127;
 
 	bool displayOctaveNumber = false;
+
+	bool toggleMode = false;
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CustomKeyboard)

@@ -193,7 +193,7 @@ var MidiKeyboardPanel::toDynamicObject() const
 	storePropertyInObject(obj, SpecialPanelIds::CustomGraphics, keyboard->isUsingCustomGraphics());
 	storePropertyInObject(obj, SpecialPanelIds::DefaultAppearance, defaultAppearance);
 	storePropertyInObject(obj, SpecialPanelIds::BlackKeyRatio, keyboard->getBlackNoteLengthProportion());
-
+	storePropertyInObject(obj, SpecialPanelIds::ToggleMode, keyboard->isToggleModeEnabled());
 
 	return obj;
 }
@@ -214,6 +214,8 @@ void MidiKeyboardPanel::fromDynamicObject(const var& object)
 	keyboard->setShowOctaveNumber(getPropertyWithDefault(object, SpecialPanelIds::DisplayOctaveNumber));
 
 	keyboard->setBlackNoteLengthProportion(getPropertyWithDefault(object, SpecialPanelIds::BlackKeyRatio));
+
+	keyboard->setEnableToggleMode(getPropertyWithDefault(object, SpecialPanelIds::ToggleMode));
 }
 
 Identifier MidiKeyboardPanel::getDefaultablePropertyId(int index) const
@@ -228,6 +230,7 @@ Identifier MidiKeyboardPanel::getDefaultablePropertyId(int index) const
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::BlackKeyRatio, "BlackKeyRatio");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::DefaultAppearance, "DefaultAppearance");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::DisplayOctaveNumber, "DisplayOctaveNumber");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ToggleMode, "ToggleMode");
 
 	jassertfalse;
 	return{};
@@ -245,6 +248,7 @@ var MidiKeyboardPanel::getDefaultProperty(int index) const
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::BlackKeyRatio, 0.7);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::DefaultAppearance, true);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::DisplayOctaveNumber, false);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ToggleMode, false);
 
 	jassertfalse;
 	return{};
