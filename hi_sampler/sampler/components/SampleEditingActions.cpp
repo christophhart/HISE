@@ -515,11 +515,10 @@ private:
 
 	public:
 
-
 		// ============================================================================================================
 
 		StreamingSamplerSoundArray soundList;
-		const MappingData mappingData;
+		MappingData mappingData;
 		const String fileNameWithoutToken;
 
 		// ============================================================================================================
@@ -593,6 +592,8 @@ private:
 
 				MultiMicCollection *newCollection = new MultiMicCollection(sampler->getSound(i), thisFileNameWithoutToken);
 
+				newCollection->mappingData.fillOtherProperties(sampler->getSound(i));
+
 				collections.add(newCollection);
 			}
 		}
@@ -621,6 +622,9 @@ private:
 						if (collections[j]->fits(sampler->getSound(i), thisFileNameWithoutToken, mode))
 						{
 							collections[j]->soundList.add(sampler->getSound(i)->getReferenceToSound());
+
+							collections[j]->mappingData.fillOtherProperties(sampler->getSound(i));
+
 							break;
 						}
 					}

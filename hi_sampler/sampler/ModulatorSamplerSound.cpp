@@ -427,6 +427,17 @@ void ModulatorSamplerSound::setMappingData(MappingData newData)
 	midiNotes.clear();
 	midiNotes.setRange(newData.loKey, newData.hiKey - newData.loKey + 1, true);
 	rrGroup = newData.rrGroup;
+
+	setProperty(SampleStart, newData.sampleStart, dontSendNotification);
+	setProperty(SampleEnd, newData.sampleEnd, dontSendNotification);
+	setProperty(SampleStartMod, newData.sampleStartMod, dontSendNotification);
+	setProperty(LoopEnabled, newData.loopEnabled, dontSendNotification);
+	setProperty(LoopStart, newData.loopStart, dontSendNotification);
+	setProperty(LoopEnd, newData.loopEnd, dontSendNotification);
+	setProperty(LoopXFade, newData.loopXFade, dontSendNotification);
+	setProperty(Volume, newData.volume, dontSendNotification);
+	setProperty(Pan, newData.pan, dontSendNotification);
+	setProperty(Pitch, newData.pitch, dontSendNotification);
 }
 
 void ModulatorSamplerSound::calculateNormalizedPeak(bool forceScan /*= false*/)
@@ -1230,3 +1241,29 @@ void ModulatorSamplerSoundPool::clearUnreferencedMonoliths()
 
 	sendChangeMessage();
 }
+
+#define SET_IF_NOT_ZERO(field, x) if ((int)sound->getProperty(x) != 0) field = (int)sound->getProperty(x);
+
+void MappingData::fillOtherProperties(ModulatorSamplerSound* sound)
+{
+	SET_IF_NOT_ZERO(volume, ModulatorSamplerSound::Volume);
+
+	SET_IF_NOT_ZERO(pan, ModulatorSamplerSound::Pan);
+	SET_IF_NOT_ZERO(pitch, ModulatorSamplerSound::Pitch);
+	SET_IF_NOT_ZERO(sampleStart, ModulatorSamplerSound::SampleStart);
+	SET_IF_NOT_ZERO(sampleEnd, ModulatorSamplerSound::SampleEnd);
+	SET_IF_NOT_ZERO(sampleStartMod, ModulatorSamplerSound::SampleStartMod);
+
+	// Skip the rest if the loop isn't enabled.
+	if (!sound->getProperty(ModulatorSamplerSound::LoopEnabled))
+		return;
+
+	SET_IF_NOT_ZERO(loopEnabled, ModulatorSamplerSound::LoopEnabled);
+	SET_IF_NOT_ZERO(loopStart, ModulatorSamplerSound::LoopStart);
+	SET_IF_NOT_ZERO(loopEnd, ModulatorSamplerSound::LoopEnd);
+	SET_IF_NOT_ZERO(loopXFade, ModulatorSamplerSound::LoopXFade);
+
+
+}
+
+#undef SET_IF_NOT_ZERO

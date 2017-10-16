@@ -53,12 +53,32 @@ struct MappingData
 
 	MappingData() {};
 
+	/** This fills the information from the given sound. 
+	*
+	*	If the property is non-null, it will be used, so you can use sets with only one loop point
+	*	per mic position.
+	*/
+	void fillOtherProperties(ModulatorSamplerSound* sound);
+
 	int rootNote;
 	int loKey;
 	int hiKey;
 	int loVel;
 	int hiVel;
 	int rrGroup;
+
+	int volume = 0;
+	int pan = 0;
+	int pitch = 0;
+
+	int sampleStart = 0;
+	int sampleEnd = 0;
+	int loopEnabled = 0;
+	int loopStart = 0;
+	int loopEnd = 0;
+	int loopXFade = 0;
+	int sampleStartMod = 0;
+
 };
 
 // ====================================================================================================================
