@@ -37,23 +37,6 @@ fi
 
 echo "OK"
 
-echo "Compiling multichannel version..."
-
-xcodebuild -project "$plugin_folder/Builds/MacOSX/HISE.xcodeproj" -configuration "Release MultiChannel" clean
-
-xcodebuild -project "$plugin_folder/Builds/MacOSX/HISE.xcodeproj" -configuration "Release MultiChannel" | xcpretty
-
-if [ $? != "0" ];
-then
-	echo "========================================================================"
-	echo "Error at compiling. Aborting..."
-    exit
-fi
-
-
-
-echo "OK"
-
 echo "Compiling Standalone App..."
 
 xcodebuild -project "$standalone_folder/Builds/MacOSX/HISE Standalone.xcodeproj" -configuration "Release" clean
