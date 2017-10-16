@@ -169,6 +169,7 @@ public:
 		MenuToolsCollectExternalFiles,
 		MenuToolsCheckUnusedImages,
         MenuToolsRedirectSampleFolder,
+		MenuToolsRedirectScriptFolder,
 		MenuToolsForcePoolSearch,
 		MenuToolsConvertAllSamplesToMonolith,
 		MenuToolsUpdateSampleMapIdsBasedOnFileName,
@@ -323,6 +324,7 @@ public:
 		static void testPlugin(const String& pluginToLoad);
 
 		static void removeAllSampleMaps(BackendRootWindow * bpe);
+		static void redirectScriptFolder(BackendRootWindow * bpe);
 	};
 
 private:

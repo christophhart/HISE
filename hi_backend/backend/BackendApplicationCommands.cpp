@@ -136,6 +136,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsCollectExternalFiles,
 		MenuToolsCheckUnusedImages,
         MenuToolsRedirectSampleFolder,
+		MenuToolsRedirectScriptFolder,
 		MenuToolsForcePoolSearch,
 		MenuToolsConvertAllSamplesToMonolith,
 		MenuToolsUpdateSampleMapIdsBasedOnFileName,
@@ -408,6 +409,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Redirect sample folder", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(),
 			GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isRedirected(ProjectHandler::SubDirectories::Samples), 'X', false);
         break;
+	case MenuToolsRedirectScriptFolder:
+		setCommandTarget(result, "Redirect script folder", true, !PresetHandler::getGlobalScriptFolder().isAChildOf(File(PresetHandler::getDataFolder())), 'X', false);
+		break;
 	case MenuToolsForcePoolSearch:
 		setCommandTarget(result, "Force duplicate search in pool when loading samples", true, bpe->getBackendProcessor()->getSampleManager().getModulatorSamplerSoundPool()->isPoolSearchForced(), 'X', false);
 		break;
@@ -578,6 +582,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsCollectExternalFiles:	Actions::collectExternalFiles(bpe); return true;
 	case MenuToolsCheckUnusedImages:	Actions::checkUnusedImages(bpe); return true;
     case MenuToolsRedirectSampleFolder: Actions::redirectSampleFolder(bpe->getMainSynthChain()); updateCommands(); return true;
+	case MenuToolsRedirectScriptFolder: Actions::redirectScriptFolder(bpe); updateCommands(); return true;
 	case MenuToolsForcePoolSearch:		Actions::toggleForcePoolSearch(bpe); updateCommands(); return true;
 	case MenuToolsConvertAllSamplesToMonolith:	Actions::convertAllSamplesToMonolith(bpe); return true;
 	case MenuToolsUpdateSampleMapIdsBasedOnFileName:	Actions::updateSampleMapIds(bpe); return true;
@@ -816,6 +821,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuToolsUseBackgroundThreadForCompile);
 		ADD_DESKTOP_ONLY(MenuToolsCreateToolbarPropertyDefinition);
 		ADD_DESKTOP_ONLY(MenuToolsCreateExternalScriptFile);
+		ADD_DESKTOP_ONLY(MenuToolsRedirectScriptFolder);
 		ADD_DESKTOP_ONLY(MenuToolsValidateUserPresets);
 
 		PopupMenu sub;
@@ -1408,6 +1414,18 @@ void BackendCommandTarget::Actions::removeAllSampleMaps(BackendRootWindow * bpe)
 
 		while (auto sampler = iter.getNextProcessor())
 			sampler->clearSampleMap();
+	}
+}
+
+void BackendCommandTarget::Actions::redirectScriptFolder(BackendRootWindow * bpe)
+{
+	FileChooser fc("Redirect sample folder to the following location");
+
+	if (fc.browseForDirectory())
+	{
+		File f = fc.getResult();
+
+		ProjectHandler::createLinkFileInFolder(File(PresetHandler::getDataFolder()).getChildFile("scripts"), f);
 	}
 }
 

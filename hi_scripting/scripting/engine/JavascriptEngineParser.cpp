@@ -622,7 +622,7 @@ private:
 			refFileName = cleanedFileName;
 		else if (cleanedFileName.contains("{GLOBAL_SCRIPT_FOLDER}"))
 		{
-			const File globalScriptFolder = File(PresetHandler::getDataFolder()).getChildFile("scripts");
+			File globalScriptFolder = PresetHandler::getGlobalScriptFolder();
 
 			const String f1 = cleanedFileName.fromFirstOccurrenceOf("{GLOBAL_SCRIPT_FOLDER}", false, false);
 

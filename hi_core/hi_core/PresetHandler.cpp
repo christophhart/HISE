@@ -1512,21 +1512,26 @@ void ProjectHandler::createLinkFile(ProjectHandler::SubDirectories dir, const Fi
 {
     File subDirectory = currentWorkDirectory.getChildFile(getIdentifier(dir));
     
-    File linkFile = getLinkFile(subDirectory);
-    
-    if(linkFile.existsAsFile())
-    {
-        if(!PresetHandler::showYesNoWindow("Already there", "Link redirect file exists. Do you want to replace it?"))
-        {
-            return;
-        }
-    }
-    
-    linkFile.create();
-        
-    linkFile.replaceWithText(relocation.getFullPathName());
+	createLinkFileInFolder(subDirectory, relocation);
 }
 
+
+void ProjectHandler::createLinkFileInFolder(const File& source, const File& target)
+{
+	File linkFile = getLinkFile(source);
+
+	if (linkFile.existsAsFile())
+	{
+		if (!PresetHandler::showYesNoWindow("Already there", "Link redirect file exists. Do you want to replace it?"))
+		{
+			return;
+		}
+	}
+
+	linkFile.create();
+
+	linkFile.replaceWithText(target.getFullPathName());
+}
 
 void ProjectHandler::setProjectSettings(Component *mainEditor)
 {
@@ -2251,6 +2256,27 @@ XmlElement * PresetHandler::buildFactory(FactoryType *t, const String &factoryNa
 	}
 
 	return xml;
+}
+
+File PresetHandler::getGlobalScriptFolder()
+{
+	File globalScriptFolder = File(getDataFolder()).getChildFile("scripts");
+
+#if JUCE_WINDOWS
+	const File link = globalScriptFolder.getChildFile("LinkWindows");
+#else
+	const File link = globalScriptFolder.getChildFile("LinkOSX");
+#endif
+
+	if (link.existsAsFile())
+	{
+		File linkTarget = File(link.loadFileAsString());
+
+		if (linkTarget.isDirectory())
+			globalScriptFolder = linkTarget;
+	}
+
+	return globalScriptFolder;
 }
 
 AudioFormatReader * PresetHandler::getReaderForFile(const File &file)

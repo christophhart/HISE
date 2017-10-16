@@ -414,7 +414,7 @@ void FileChangeListener::addFileContentToValueTree(ValueTree externalScriptFiles
 	// Wow, much cross-platform, very OSX, totally Windows
 	fileName = fileName.replace("\\", "/");
 
-	File globalScriptFolder = File(PresetHandler::getDataFolder()).getChildFile("scripts");
+	File globalScriptFolder = PresetHandler::getGlobalScriptFolder();
 
 	if (globalScriptFolder.isDirectory() && scriptFile.isAChildOf(globalScriptFolder))
 	{

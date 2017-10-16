@@ -220,6 +220,8 @@ public:
 	*/
 	void createLinkFile(SubDirectories dir, const File &relocation);
 
+	static void createLinkFileInFolder(const File& source, const File& target);
+
 	/** */
 	void setProjectSettings(Component *mainEditor=nullptr);
 
@@ -344,7 +346,7 @@ private:
 
 	Array<FolderReference> subDirectories;
 	
-    File getLinkFile(const File &subDirectory);
+    static File getLinkFile(const File &subDirectory);
 	
 	void checkSubDirectories();
 
@@ -744,6 +746,8 @@ public:
 		
 	}
     
+	static File getGlobalScriptFolder();
+
     static AudioFormatReader *getReaderForFile(const File &file);
     
     static AudioFormatReader *getReaderForInputStream(InputStream *stream);
