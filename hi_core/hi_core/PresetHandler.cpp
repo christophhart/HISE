@@ -1106,12 +1106,12 @@ bool ProjectHandler::isValidProjectFolder(const File &file) const
 File ProjectHandler::getLinkFile(const File &subDirectory)
 {
 #if JUCE_MAC
-    File childFile = subDirectory.getChildFile("LinkOSX");
+    return subDirectory.getChildFile("LinkOSX");
+#elif JUCE_LINUX
+    return subDirectory.getChildFile("LinkLinux");
 #else
-    File childFile = subDirectory.getChildFile("LinkWindows");
+    return subDirectory.getChildFile("LinkWindows");
 #endif
-    
-    return childFile;
 }
 
 
@@ -1649,16 +1649,10 @@ File ProjectHandler::Frontend::getSampleLocationForCompiledPlugin()
 	// The installer should take care of creating the app data directory...
 	jassert(appDataDir.isDirectory());
 	
-#if JUCE_MAC
-
-#if ENABLE_APPLE_SANDBOX
-	File childFile = File(appDataDir.getChildFile("Resources/LinkOSX"));
+#if JUCE_MAC && ENABLE_APPLE_SANDBOX
+    File childFile = PresetHandler::getLinkFile(appDataDir.getChildFile("Resources/"));
 #else
-	File childFile = File(appDataDir.getChildFile("LinkOSX"));
-#endif
-
-#else
-	File childFile = File(appDataDir.getChildFile("LinkWindows"));
+    File childFile = PresetHandler::getLinkFile(appDataDir);
 #endif
 
 	if (childFile.exists())
@@ -1775,16 +1769,10 @@ void ProjectHandler::Frontend::setSampleLocation(const File &newLocation)
 	// The installer should take care of creating the app data directory...
 	jassert(appDataDir.isDirectory());
 
-#if JUCE_MAC
-    
-#if ENABLE_APPLE_SANDBOX
-    File childFile = File(appDataDir.getChildFile("Resources/LinkOSX"));
+#if JUCE_MAC && ENABLE_APPLE_SANDBOX
+    File childFile = PresetHandler::getLinkFile(File(appDataDir.getChildFile("Resources/"));
 #else
-    File childFile = File(appDataDir.getChildFile("LinkOSX"));
-#endif
-
-#else
-	File childFile = File(appDataDir.getChildFile("LinkWindows"));
+    File childFile = PresetHandler::getLinkFile(appDataDir);
 #endif
 
 	childFile.replaceWithText(newLocation.getFullPathName());
@@ -2262,12 +2250,8 @@ File PresetHandler::getGlobalScriptFolder()
 {
 	File globalScriptFolder = File(getDataFolder()).getChildFile("scripts");
 
-#if JUCE_WINDOWS
-	const File link = globalScriptFolder.getChildFile("LinkWindows");
-#else
-	const File link = globalScriptFolder.getChildFile("LinkOSX");
-#endif
-
+    const File link = PresetHandler::getLinkFile(globalScriptFolder);
+    
 	if (link.existsAsFile())
 	{
 		File linkTarget = File(link.loadFileAsString());
