@@ -427,7 +427,14 @@ public:
 			ccSelector->addItem("CC " + String(i));
 		}
 
-		Sampler.enableRoundRobin(false);
+		try
+        {
+            Sampler.enableRoundRobin(false);
+        }
+        catch(String& errorMessage)
+        {
+            DBG(errorMessage);
+        }
 
 	}
 
