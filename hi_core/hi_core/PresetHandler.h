@@ -300,7 +300,8 @@ public:
 		static File getResourcesFolder();
 	};
 
-	
+	static File getLinkFile(const File &subDirectory);
+    
 private:
 
 
@@ -346,7 +347,7 @@ private:
 
 	Array<FolderReference> subDirectories;
 	
-    static File getLinkFile(const File &subDirectory);
+    
 	
 	void checkSubDirectories();
 

@@ -1650,9 +1650,9 @@ File ProjectHandler::Frontend::getSampleLocationForCompiledPlugin()
 	jassert(appDataDir.isDirectory());
 	
 #if JUCE_MAC && ENABLE_APPLE_SANDBOX
-    File childFile = PresetHandler::getLinkFile(appDataDir.getChildFile("Resources/"));
+    File childFile = ProjectHandler::getLinkFile(appDataDir.getChildFile("Resources/"));
 #else
-    File childFile = PresetHandler::getLinkFile(appDataDir);
+    File childFile = ProjectHandler::getLinkFile(appDataDir);
 #endif
 
 	if (childFile.exists())
@@ -1770,9 +1770,9 @@ void ProjectHandler::Frontend::setSampleLocation(const File &newLocation)
 	jassert(appDataDir.isDirectory());
 
 #if JUCE_MAC && ENABLE_APPLE_SANDBOX
-    File childFile = PresetHandler::getLinkFile(File(appDataDir.getChildFile("Resources/"));
+    File childFile = ProjectHandler::getLinkFile(File(appDataDir.getChildFile("Resources/"));
 #else
-    File childFile = PresetHandler::getLinkFile(appDataDir);
+    File childFile = ProjectHandler::getLinkFile(appDataDir);
 #endif
 
 	childFile.replaceWithText(newLocation.getFullPathName());
@@ -2250,7 +2250,7 @@ File PresetHandler::getGlobalScriptFolder()
 {
 	File globalScriptFolder = File(getDataFolder()).getChildFile("scripts");
 
-    const File link = PresetHandler::getLinkFile(globalScriptFolder);
+    const File link = ProjectHandler::getLinkFile(globalScriptFolder);
     
 	if (link.existsAsFile())
 	{
