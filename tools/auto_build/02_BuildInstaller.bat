@@ -8,13 +8,15 @@ set PRODUCT=HISE
 set COMPANY="Hart Instruments"
 set WEBSITE=http://hise.audio/
 
+set FART_TOOL=C:\tools\fart.exe
+
 git describe --abbrev=0 > tmpFile
 
 SET /p VERSION_POINT= < tmpFile
 
 echo Version with point: %VERSION_POINT%
 
-fart tmpFile . _
+%FART_TOOL% tmpFile . _
 
 SET /p VERSION_UNDERSCORE= < tmpFile
 
@@ -27,11 +29,11 @@ SET filename=%PRODUCT%_%VERSION_UNDERSCORE%.exe
 
 copy iss_installer_template.iss install_script.iss
 
-fart install_script.iss $PRODUCT %PRODUCT%
-fart install_script.iss $COMPANY %COMPANY%
-fart install_script.iss $WEBSITE %WEBSITE%
-fart install_script.iss $VERSION_POINT %VERSION_POINT%
-fart install_script.iss $VERSION_UNDERSCORE %VERSION_UNDERSCORE%
+%FART_TOOL% install_script.iss $PRODUCT %PRODUCT%
+%FART_TOOL% install_script.iss $COMPANY %COMPANY%
+%FART_TOOL% install_script.iss $WEBSITE %WEBSITE%
+%FART_TOOL% install_script.iss $VERSION_POINT %VERSION_POINT%
+%FART_TOOL% install_script.iss $VERSION_UNDERSCORE %VERSION_UNDERSCORE%
 
 REM =======================================================================================
 REM Building Installer
