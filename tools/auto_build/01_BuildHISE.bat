@@ -49,8 +49,7 @@ if %errorlevel% NEQ 0 (
 	echo ========================================================================
 	echo Error at compiling. Aborting...
 	cd tools\auto_build
-	pause
-    goto:eof
+	exit 1
 )
 
 echo OK
@@ -67,8 +66,7 @@ if %errorlevel% NEQ 0 (
 	echo ========================================================================
 	echo Error at compiling. Aborting...
 	cd tools\auto_build
-	pause
-    goto:eof
+	exit 1
 )
 
 echo OK
@@ -81,8 +79,7 @@ if %errorlevel% NEQ 0 (
 	echo ========================================================================
 	echo Error at compiling. Aborting...
 	cd tools\auto_build
-	pause
-    goto:eof
+	exit 1
 )
 
 echo "OK"
