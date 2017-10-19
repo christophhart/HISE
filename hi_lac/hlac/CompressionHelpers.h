@@ -228,6 +228,26 @@ struct CompressionHelpers
 
 
 
+/** This helper class compresses a list of HLAC files into a big FLAC chunk. */
+struct HlacArchiver
+{
+	struct ArchiveData
+	{
+		Array<File> fileList;
+		File targetFile;
+		String metadataJSON;
+		double* progress = nullptr;
+
+	};
+
+	/** Extracts the compressed data from the given file. */
+	static bool extractSampleData(const File& f);
+
+	/** Compressed the given data using the supplied ThreadWithAsyncProgressWindow. */
+	static void compressSampleData(const ArchiveData& data, Thread* threadWindow = nullptr);
+
+};
+
 
 
 

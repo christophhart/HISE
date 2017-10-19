@@ -1016,3 +1016,140 @@ bool CompressionHelpers::Misc::validateChecksum(uint32 data)
 
 	return (uint16)(bytes[0] * bytes[1]) == product;
 }
+
+bool HlacArchiver::extractSampleData(const File& f)
+{
+	FileInputStream* fis = new FileInputStream(f);
+
+	FlacAudioFormat flacFormat;
+	hlac::HiseLosslessAudioFormat hlacFormat;
+
+	auto metadataString = fis->readString();
+
+	DBG(metadataString);
+
+	StringPairArray metadata;
+
+	while (!fis->isExhausted())
+	{
+		const bool isOK = fis->readBool();
+
+		if (fis->isExhausted())
+			return isOK;
+
+		auto name = fis->readString();
+		DBG(name);
+
+		File t = f.getSiblingFile(name);
+
+		t.deleteFile();
+
+		File tmpFlacFile = t.getSiblingFile("TmpFlac.flac");
+
+		if (tmpFlacFile.existsAsFile())
+			tmpFlacFile.deleteFile();
+
+		ScopedPointer<FileOutputStream> flacTempWriteStream = new FileOutputStream(tmpFlacFile);
+
+		auto checksum = fis->readInt();
+
+		if (checksum != 9124)
+			return false;
+
+		auto length = fis->readInt64();
+
+		flacTempWriteStream->writeFromInputStream(*fis, length);
+
+		flacTempWriteStream->flush();
+		flacTempWriteStream = nullptr;
+
+		FileInputStream* flacTempInputStream = new FileInputStream(tmpFlacFile);
+
+		ScopedPointer<AudioFormatReader> flacReader = flacFormat.createReaderFor(flacTempInputStream, true);
+
+		if (flacReader == nullptr)
+			return false;
+
+		FileOutputStream* monolithOutputStream = new FileOutputStream(t);
+
+		ScopedPointer<AudioFormatWriter> writer = hlacFormat.createWriterFor(monolithOutputStream, flacReader->sampleRate, flacReader->numChannels, 5, metadata, 5);
+
+		writer->writeFromAudioReader(*flacReader, 0, flacReader->lengthInSamples);
+
+		writer->flush();
+
+		writer = nullptr;
+		flacReader = nullptr;
+
+		tmpFlacFile.deleteFile();
+	}
+}
+
+void HlacArchiver::compressSampleData(const ArchiveData& data, Thread* usedThread /*= nullptr*/)
+{
+#if USE_BACKEND
+	const String& metadataJSON = data.metadataJSON;
+	const Array<File>& hlacFiles = data.fileList;
+	const File& targetFile = data.targetFile;
+
+	if (!targetFile.isDirectory())
+	{
+		targetFile.deleteFile();
+
+		FlacAudioFormat flacFormat;
+
+		ScopedPointer<FileOutputStream> fos = new FileOutputStream(targetFile);
+
+		fos->writeString(metadataJSON);
+
+		hlac::HiseLosslessAudioFormat haf;
+
+		StringPairArray metadata;
+
+		for (int i = 0; i < hlacFiles.size(); i++)
+		{
+			if (usedThread != nullptr && usedThread->threadShouldExit())
+			{
+				return;
+			}
+
+			if(data.progress != nullptr)
+				*data.progress = ((double)i / (double)hlacFiles.size());
+
+			auto tmpFile = targetFile.getNonexistentSibling();
+
+			FileOutputStream* tempOutput = new FileOutputStream(tmpFile);
+
+			ScopedPointer<AudioFormatReader> reader = haf.createReaderFor(new FileInputStream(hlacFiles[i]), true);
+
+			const String name = hlacFiles[i].getFileName();
+			const int nameLength = name.length() + 1;
+
+			fos->writeBool(true);
+			fos->writeString(name);
+
+			ScopedPointer<AudioFormatWriter> writer = flacFormat.createWriterFor(tempOutput, reader->sampleRate, reader->numChannels, 16, metadata, 9);
+
+			writer->writeFromAudioReader(*reader, 0, reader->lengthInSamples);
+
+			writer->flush();
+			writer = nullptr;
+
+			ScopedPointer<FileInputStream> tmpInput = new FileInputStream(tmpFile);
+
+			fos->writeInt(9124);
+			fos->writeInt64(tmpInput->getTotalLength());
+			fos->writeFromInputStream(*tmpInput, -1);
+
+			tmpInput = nullptr;
+
+			tmpFile.deleteFile();
+
+		}
+
+		fos->writeBool(true);
+		fos->flush();
+		fos = nullptr;
+	}
+#endif
+}

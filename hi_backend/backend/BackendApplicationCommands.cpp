@@ -106,6 +106,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuExportFileAsStandaloneApp,
 		MenuExportFileAsPlayerLibrary,
 		MenuExportFileAsSnippet,
+		MenuExportSampleDataForInstaller,
 		MenuFileQuit,
 		MenuEditUndo,
 		MenuEditRedo,
@@ -282,6 +283,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		break;
 	case MenuExportFileAsSnippet:
 		setCommandTarget(result, "Export as pasteable web snippet", true, false, 'X', false);
+		break;
+	case MenuExportSampleDataForInstaller:
+		setCommandTarget(result, "Export Samples for Installer", true, false, 'X', false);
 		break;
 	case MenuFileSettingsPreset:
 		setCommandTarget(result, "Preset Properties", true, false, 'X', false);
@@ -610,6 +614,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuExportFileAsStandaloneApp: exporter.exportMainSynthChainAsStandaloneApp(); return true;
     case MenuExportFileAsSnippet:       Actions::exportFileAsSnippet(bpe); return true;
 	case MenuExportFileAsPlayerLibrary: Actions::exportMainSynthChainAsPlayerLibrary(bpe); return true;
+	case MenuExportSampleDataForInstaller: Actions::exportSampleDataForInstaller(bpe); return true;
     case MenuAddView:                   Actions::addView(bpe); updateCommands();return true;
     case MenuDeleteView:                Actions::deleteView(bpe); updateCommands();return true;
     case MenuRenameView:                Actions::renameView(bpe); updateCommands();return true;
@@ -762,6 +767,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		exportSub.addCommandItem(mainCommandManager, MenuExportFileAsStandaloneApp);
 		exportSub.addCommandItem(mainCommandManager, MenuExportFileAsPlayerLibrary);
         exportSub.addCommandItem(mainCommandManager, MenuExportFileAsSnippet);
+		exportSub.addCommandItem(mainCommandManager, MenuExportSampleDataForInstaller);
 
 		p.addSubMenu("Export", exportSub);
 		p.addSeparator();
@@ -1417,7 +1423,7 @@ void BackendCommandTarget::Actions::removeAllSampleMaps(BackendRootWindow * bpe)
 	}
 }
 
-void BackendCommandTarget::Actions::redirectScriptFolder(BackendRootWindow * bpe)
+void BackendCommandTarget::Actions::redirectScriptFolder(BackendRootWindow * /*bpe*/)
 {
 	FileChooser fc("Redirect sample folder to the following location");
 
@@ -1427,6 +1433,13 @@ void BackendCommandTarget::Actions::redirectScriptFolder(BackendRootWindow * bpe
 
 		ProjectHandler::createLinkFileInFolder(File(PresetHandler::getDataFolder()).getChildFile("scripts"), f);
 	}
+}
+
+void BackendCommandTarget::Actions::exportSampleDataForInstaller(BackendRootWindow * bpe)
+{
+	SampleDataExporter *exporter = new SampleDataExporter(bpe->mainEditor);
+
+	exporter->setModalBaseWindowComponent(bpe);
 }
 
 void BackendCommandTarget::Actions::recompileAllScripts(BackendRootWindow * bpe)

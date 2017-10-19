@@ -670,6 +670,129 @@ private:
 	ModulatorSynthChain* chain;
 };
 
+
+
+class SampleDataExporter : public ThreadWithAsyncProgressWindow
+{
+public:
+
+	SampleDataExporter(BackendProcessorEditor* bpe_) :
+		ThreadWithAsyncProgressWindow("Export Samples for Installer"),
+		bpe(bpe_)
+	{
+		StringArray sa;
+		sa.add("Export Monolith files only");
+
+		addComboBox("file_selection", sa, "Select files to export");
+
+		targetFile = new FilenameComponent("Target directory", File(), true, true, true, "", "" , "Choose export directory");
+		targetFile->setSize(300, 24);
+		addCustomComponent(targetFile);
+
+		addBasicComponents(true);
+
+		showStatusMessage("Select the target file and press OK");
+
+	};
+
+	void run() override
+	{
+		showStatusMessage("Collecting samples");
+
+		showStatusMessage("Exporting");
+
+		hlac::HlacArchiver::ArchiveData data;
+
+		data.targetFile = getTargetFile();
+		data.metadataJSON = getMetadataJSON();
+		data.fileList = collectMonoliths();
+		data.progress = &progress;
+
+		hlac::HlacArchiver::compressSampleData(data, getCurrentThread());
+
+		if (threadShouldExit())
+			return;
+
+		auto r = hlac::HlacArchiver::extractSampleData(getTargetFile());
+		
+		DBG((r ? "OK" : "Not OK"));
+
+	};
+
+	void threadFinished() override
+	{
+		
+	}
+
+private:
+
+	Array<File> collectMonoliths()
+	{
+		Array<File> sampleMonoliths;
+
+		File sampleDirectory = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Samples);
+
+		sampleDirectory.findChildFiles(sampleMonoliths, File::findFiles, false, "*.ch*");
+
+		numExported = sampleMonoliths.size();
+
+		return sampleMonoliths;
+	}
+
+	String getMetadataJSON() const
+	{
+		DynamicObject::Ptr d = new DynamicObject();
+
+		d->setProperty("Name", getProjectName());
+		d->setProperty("Version", getProjectVersion());
+		d->setProperty("Company", getCompanyName());
+
+		var data(d);
+
+		return JSON::toString(data, true);
+	}
+
+	String getProjectName() const
+	{
+		return SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, &GET_PROJECT_HANDLER(bpe->getMainSynthChain()));
+	}
+
+	String getCompanyName() const
+	{
+		return SettingWindows::getSettingValue((int)SettingWindows::UserSettingWindow::Attributes::Company, &GET_PROJECT_HANDLER(bpe->getMainSynthChain()));
+	}
+
+	String getProjectVersion() const
+	{
+		return SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, &GET_PROJECT_HANDLER(bpe->getMainSynthChain()));
+	}
+
+	File getTargetFile() const
+	{
+		
+
+		auto currentFile = targetFile->getCurrentFile();
+
+		auto name = getProjectName();
+
+		auto version = getProjectVersion();
+		version = version.replaceCharacter('.', '_');
+
+
+		auto fileName = name + "_" + version + "_Samples.hr1";
+
+		currentFile = File("D:\\Test");
+
+		return currentFile.getChildFile(fileName);
+	}
+
+	BackendProcessorEditor* bpe;
+
+	ScopedPointer<FilenameComponent> targetFile;
+
+	int numExported = 0;
+};
+
 class ProjectDownloader : public ThreadWithAsyncProgressWindow,
 	public TextEditor::Listener
 {
