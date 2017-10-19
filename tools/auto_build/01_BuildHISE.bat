@@ -16,13 +16,11 @@ REM ============================================================================
 
 call ConfigWindows.bat
 
+git describe --abbrev=0 > tmpFile
 
+SET /p versionPoint= < tmpFile
 
-
-SET /p versionPoint=Enter version with points for the project files: 
-
-
-
+del tmpFile
 
 echo Building Installer %filename%
 
@@ -36,8 +34,6 @@ cd..
 
 %projucerPath% --resave %standalone_projucer_project%
 %projucerPath% --resave %plugin_projucer_project%
-
-
 
 REM ===========================================================
 REM Compiling
