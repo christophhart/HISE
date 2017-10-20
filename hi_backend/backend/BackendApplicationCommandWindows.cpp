@@ -672,9 +672,19 @@ private:
 
 
 
-class SampleDataExporter : public ThreadWithAsyncProgressWindow
+class SampleDataExporter : public ThreadWithAsyncProgressWindow,
+						   public hlac::HlacArchiver::Listener
 {
 public:
+
+	enum PartSize
+	{
+		HalfGig = 0,
+		OneGig,
+		OneAndHalfGig,
+		TwoGig,
+		numPartSizes
+	};
 
 	SampleDataExporter(BackendProcessorEditor* bpe_) :
 		ThreadWithAsyncProgressWindow("Export Samples for Installer"),
@@ -684,6 +694,15 @@ public:
 		sa.add("Export Monolith files only");
 
 		addComboBox("file_selection", sa, "Select files to export");
+
+		StringArray sa2;
+
+		sa2.add("500 MB");
+		sa2.add("1 GB");
+		sa2.add("1.5 GB");
+		sa2.add("2 GB");
+
+		addComboBox("split", sa2, "Split archive size");
 
 		targetFile = new FilenameComponent("Target directory", File(), true, true, true, "", "" , "Choose export directory");
 		targetFile->setSize(300, 24);
@@ -695,33 +714,51 @@ public:
 
 	};
 
+	void logVerboseMessage(const String& verboseMessage) override
+	{
+		debugToConsole(bpe->getMainSynthChain(), verboseMessage);
+	}
+
+	void logStatusMessage(const String& message) override
+	{
+		showStatusMessage(message);
+	}
+
 	void run() override
 	{
 		showStatusMessage("Collecting samples");
 
 		showStatusMessage("Exporting");
 
-		hlac::HlacArchiver::ArchiveData data;
+		hlac::HlacArchiver compressor(getCurrentThread());
+
+		compressor.setListener(this);
+
+		hlac::HlacArchiver::CompressData data;
 
 		data.targetFile = getTargetFile();
 		data.metadataJSON = getMetadataJSON();
 		data.fileList = collectMonoliths();
 		data.progress = &progress;
+		data.partSize = 1024 * 1024;
 
-		hlac::HlacArchiver::compressSampleData(data, getCurrentThread());
+		auto partSize = (PartSize)getComboBoxComponent("split")->getSelectedItemIndex();
 
-		if (threadShouldExit())
-			return;
+		switch (partSize)
+		{
+		case PartSize::HalfGig: data.partSize *= 500; break;
+		case PartSize::OneGig: data.partSize *= 1000; break;
+		case PartSize::OneAndHalfGig: data.partSize *= 1500; break;
+		case PartSize::TwoGig: data.partSize *= 2000; break;
+			break;
+		}
 
-		auto r = hlac::HlacArchiver::extractSampleData(getTargetFile());
-		
-		DBG((r ? "OK" : "Not OK"));
-
+		compressor.compressSampleData(data);
 	};
 
 	void threadFinished() override
 	{
-		
+		PresetHandler::showMessageWindow("Samples successfully exported", "All samples were exported without errors");
 	}
 
 private:
@@ -769,20 +806,11 @@ private:
 
 	File getTargetFile() const
 	{
-		
-
 		auto currentFile = targetFile->getCurrentFile();
-
 		auto name = getProjectName();
-
 		auto version = getProjectVersion();
 		version = version.replaceCharacter('.', '_');
-
-
 		auto fileName = name + "_" + version + "_Samples.hr1";
-
-		currentFile = File("D:\\Test");
-
 		return currentFile.getChildFile(fileName);
 	}
 
@@ -791,6 +819,122 @@ private:
 	ScopedPointer<FilenameComponent> targetFile;
 
 	int numExported = 0;
+};
+
+class SampleDataImporter : public ThreadWithAsyncProgressWindow,
+						   public hlac::HlacArchiver::Listener
+{
+public:
+
+	enum class ErrorCode
+	{
+		OK = 0,
+		ProductMismatch,
+		VersionMismatch,
+		FileError,
+		numErrorCodes
+	};
+
+	SampleDataImporter(BackendProcessorEditor* bpe_) :
+		ThreadWithAsyncProgressWindow("Import archived samples"),
+		bpe(bpe_)
+	{
+		targetFile = new FilenameComponent("Source file", File(), true, false, false, "*.hr1", "", "Select Sample Archive to import");
+		targetFile->setSize(300, 24);
+		addCustomComponent(targetFile);
+
+		StringArray sa;
+
+		sa.add("Overwrite if newer");
+		sa.add("Leave existing files");
+		sa.add("Force overwrite");
+
+		addComboBox("overwrite", sa, "Overwrite existing samples");
+
+		addBasicComponents(true);
+
+		showStatusMessage("Choose a sample archive and press OK to import it to the current project.");
+	}
+	
+	void logVerboseMessage(const String& verboseMessage) override
+	{
+		debugToConsole(bpe->getMainSynthChain(), verboseMessage);
+	}
+
+	void logStatusMessage(const String& message) override
+	{
+		showStatusMessage(message);
+	}
+
+	void run() override
+	{
+		showStatusMessage("Reading metadata");
+
+		auto md = getMetadata();
+
+		showStatusMessage("Importing Samples");
+
+		auto option = (hlac::HlacArchiver::OverwriteOption)getComboBoxComponent("overwrite")->getSelectedItemIndex();
+
+		hlac::HlacArchiver::DecompressData data;
+
+		data.option = option;
+		data.sourceFile = getSourceFile();
+		data.targetDirectory = getTargetDirectory();
+		data.progress = &progress;
+
+		hlac::HlacArchiver decompressor(getCurrentThread());
+
+		decompressor.setListener(this);
+
+		decompressor.extractSampleData(data);
+	}
+
+	void threadFinished() override
+	{
+		PresetHandler::showMessageWindow("Tut", "Successful");
+	}
+
+private:
+
+	String getProjectName() const
+	{
+		return SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Name, &GET_PROJECT_HANDLER(bpe->getMainSynthChain()));
+	}
+
+	String getCompanyName() const
+	{
+		return SettingWindows::getSettingValue((int)SettingWindows::UserSettingWindow::Attributes::Company, &GET_PROJECT_HANDLER(bpe->getMainSynthChain()));
+	}
+
+	String getProjectVersion() const
+	{
+		return SettingWindows::getSettingValue((int)SettingWindows::ProjectSettingWindow::Attributes::Version, &GET_PROJECT_HANDLER(bpe->getMainSynthChain()));
+	}
+
+	File getTargetDirectory() const
+	{
+		return GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Samples);
+	}
+
+	String getMetadata() const
+	{
+		return hlac::HlacArchiver::getMetadataJSON(getSourceFile());
+	}
+
+	File getSourceFile() const
+	{
+		return targetFile->getCurrentFile();
+	}
+
+	void checkSanity(var metadata)
+	{
+		
+	}
+
+	ScopedPointer<FilenameComponent> targetFile;
+
+	BackendProcessorEditor* bpe;
 };
 
 class ProjectDownloader : public ThreadWithAsyncProgressWindow,

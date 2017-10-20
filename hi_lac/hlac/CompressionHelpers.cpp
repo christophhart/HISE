@@ -1017,139 +1017,439 @@ bool CompressionHelpers::Misc::validateChecksum(uint32 data)
 	return (uint16)(bytes[0] * bytes[1]) == product;
 }
 
-bool HlacArchiver::extractSampleData(const File& f)
+#define CHECK_FLAG(x) readAndCheckFlag(fis, x)
+
+#define VERBOSE_LOG(x) listener->logVerboseMessage(x)
+#define STATUS_LOG(x) listener->logStatusMessage(x)
+
+bool HlacArchiver::extractSampleData(const DecompressData& data)
 {
-	FileInputStream* fis = new FileInputStream(f);
+	jassert(listener != nullptr);
+	jassert(thread != nullptr);
+
+	auto sourceFile = data.sourceFile;
+	auto targetDirectory = data.targetDirectory;
+	auto option = data.option;
+	
+	ScopedPointer<FileInputStream> fis = new FileInputStream(sourceFile);
 
 	FlacAudioFormat flacFormat;
 	hlac::HiseLosslessAudioFormat hlacFormat;
 
+	CHECK_FLAG(Flag::BeginMetadata);
 	auto metadataString = fis->readString();
+	CHECK_FLAG(Flag::EndMetadata);
 
-	DBG(metadataString);
+	VERBOSE_LOG(metadataString);
 
 	StringPairArray metadata;
 
-	while (!fis->isExhausted())
+	int partIndex = 1;
+
+	Flag currentFlag = readFlag(fis);
+
+	while (currentFlag == Flag::BeginName)
 	{
-		const bool isOK = fis->readBool();
-
-		if (fis->isExhausted())
-			return isOK;
-
 		auto name = fis->readString();
-		DBG(name);
+		CHECK_FLAG(Flag::EndName);
 
-		File t = f.getSiblingFile(name);
+		VERBOSE_LOG("  Reading Monolith " + name);
+		STATUS_LOG("Extracting " + name);
+		
 
-		t.deleteFile();
+		CHECK_FLAG(Flag::BeginTime);
+		auto archiveTime = Time::fromISO8601(fis->readString());
+		CHECK_FLAG(Flag::EndTime);
 
-		File tmpFlacFile = t.getSiblingFile("TmpFlac.flac");
+		if (thread->threadShouldExit())
+			return false;
 
-		if (tmpFlacFile.existsAsFile())
+		if (data.progress != nullptr)
+			*data.progress = (double)fis->getPosition() / (double)fis->getTotalLength();
+
+		File targetHlacFile = targetDirectory.getChildFile(name);
+
+		bool overwriteThisFile = true;
+
+		if (targetHlacFile.existsAsFile() && option == OverwriteOption::DontOverwrite)
+		{
+			overwriteThisFile = false;
+		}
+		
+		if (targetHlacFile.existsAsFile() && option == OverwriteOption::ForceOverwrite)
+		{
+			targetHlacFile.deleteFile();
+		}
+
+		if (targetHlacFile.existsAsFile() && option == OverwriteOption::OverwriteIfNewer)
+		{
+			Time existingTime = targetHlacFile.getCreationTime();
+
+			if (archiveTime > existingTime)
+				targetHlacFile.deleteFile();
+		}
+
+		if (overwriteThisFile)
+		{
+			VERBOSE_LOG("  Overwriting File ");
+
+			File tmpFlacFile = targetHlacFile.getSiblingFile("TmpFlac.flac");
+
+			if (tmpFlacFile.existsAsFile())
+				tmpFlacFile.deleteFile();
+
+			ScopedPointer<FileOutputStream> flacTempWriteStream = new FileOutputStream(tmpFlacFile);
+
+
+			CHECK_FLAG(Flag::BeginMonolithLength);
+			auto bytesToRead = fis->readInt64();
+			CHECK_FLAG(Flag::EndMonolithLength);
+
+			CHECK_FLAG(Flag::BeginMonolith);
+			flacTempWriteStream->writeFromInputStream(*fis, bytesToRead);
+
+			currentFlag = readFlag(fis);
+
+			while (currentFlag == Flag::SplitMonolith)
+			{
+				partIndex++;
+
+				fis = nullptr;
+
+				fis = new FileInputStream(getPartFile(sourceFile, partIndex));
+
+				CHECK_FLAG(Flag::BeginMonolithLength);
+				bytesToRead = fis->readInt64();
+				CHECK_FLAG(Flag::EndMonolithLength);
+
+
+				CHECK_FLAG(Flag::ResumeMonolith);
+				flacTempWriteStream->writeFromInputStream(*fis, bytesToRead);
+
+				currentFlag = readFlag(fis);
+
+			}
+
+			jassert(currentFlag == Flag::EndMonolith);
+			flacTempWriteStream->flush();
+			flacTempWriteStream = nullptr;
+
+			FileInputStream* flacTempInputStream = new FileInputStream(tmpFlacFile);
+
+			ScopedPointer<AudioFormatReader> flacReader = flacFormat.createReaderFor(flacTempInputStream, true);
+
+			
+
+			if (flacReader == nullptr)
+				return false;
+
+			VERBOSE_LOG("    Samplerate: " + String(flacReader->sampleRate, 1));
+			VERBOSE_LOG("    Channels: " + String(flacReader->numChannels));
+			VERBOSE_LOG("    Length: " + String(flacReader->lengthInSamples));
+
+			FileOutputStream* monolithOutputStream = new FileOutputStream(targetHlacFile);
+			ScopedPointer<AudioFormatWriter> writer = hlacFormat.createWriterFor(monolithOutputStream, flacReader->sampleRate, flacReader->numChannels, 5, metadata, 5);
+
+			STATUS_LOG("Decompressing " + name);
+
+			writer->writeFromAudioReader(*flacReader, 0, flacReader->lengthInSamples);
+			writer->flush();
+			writer = nullptr;
+
+			flacReader = nullptr;
 			tmpFlacFile.deleteFile();
+			currentFlag = readFlag(fis);
+		}
+		else
+		{
+			VERBOSE_LOG("  Skipping File ");
 
-		ScopedPointer<FileOutputStream> flacTempWriteStream = new FileOutputStream(tmpFlacFile);
+			CHECK_FLAG(Flag::BeginMonolithLength);
+			auto bytesToSkip = fis->readInt64();
+			CHECK_FLAG(Flag::EndMonolithLength);
 
-		auto checksum = fis->readInt();
+			CHECK_FLAG(Flag::BeginMonolith);
+			fis->skipNextBytes(bytesToSkip);
+			currentFlag = readFlag(fis);
 
-		if (checksum != 9124)
-			return false;
+			while (currentFlag == Flag::SplitMonolith)
+			{
+				partIndex++;
 
-		auto length = fis->readInt64();
+				fis = nullptr;
+				fis = new FileInputStream(getPartFile(sourceFile, partIndex));
 
-		flacTempWriteStream->writeFromInputStream(*fis, length);
+				CHECK_FLAG(Flag::BeginMonolithLength);
+				bytesToSkip = fis->readInt64();
+				CHECK_FLAG(Flag::EndMonolithLength);
 
-		flacTempWriteStream->flush();
-		flacTempWriteStream = nullptr;
 
-		FileInputStream* flacTempInputStream = new FileInputStream(tmpFlacFile);
+				CHECK_FLAG(Flag::ResumeMonolith);
+				fis->skipNextBytes(bytesToSkip);
 
-		ScopedPointer<AudioFormatReader> flacReader = flacFormat.createReaderFor(flacTempInputStream, true);
+				currentFlag = readFlag(fis);
+			}
 
-		if (flacReader == nullptr)
-			return false;
-
-		FileOutputStream* monolithOutputStream = new FileOutputStream(t);
-
-		ScopedPointer<AudioFormatWriter> writer = hlacFormat.createWriterFor(monolithOutputStream, flacReader->sampleRate, flacReader->numChannels, 5, metadata, 5);
-
-		writer->writeFromAudioReader(*flacReader, 0, flacReader->lengthInSamples);
-
-		writer->flush();
-
-		writer = nullptr;
-		flacReader = nullptr;
-
-		tmpFlacFile.deleteFile();
+			jassert(currentFlag == Flag::EndMonolith);
+			currentFlag = readFlag(fis);
+		}
 	}
+
+	jassert(currentFlag == Flag::EndOfArchive);
+
+	return true;
 }
 
-void HlacArchiver::compressSampleData(const ArchiveData& data, Thread* usedThread /*= nullptr*/)
+#undef CHECK_FLAG
+
+#define WRITE_FLAG(x) writeFlag(fos, x)
+
+FileInputStream* HlacArchiver::writeTempFile(hlac::HlacMemoryMappedAudioFormatReader* reader)
 {
+	WavAudioFormat flacFormat;
+
+	StringPairArray metadata;
+
+	tmpFile.deleteFile();
+	FileOutputStream* tempOutput = new FileOutputStream(tmpFile);
+
+	const int bufferSize = 8192;
+
+	AudioSampleBuffer tempBuffer(reader->numChannels, bufferSize);
+
+	ScopedPointer<AudioFormatWriter> writer = flacFormat.createWriterFor(tempOutput, reader->sampleRate, reader->numChannels, 16, metadata, 7);
+
+	bool writeResult = true;
+
+	reader->mapEntireFile();
+
+	for (int offsetInReader = 0; offsetInReader < reader->lengthInSamples; offsetInReader += bufferSize)
+	{
+
+		double partProgress = (double)offsetInReader / (double)reader->lengthInSamples * deltaPerFile;
+
+		if (progress != nullptr)
+			*progress = fileProgress + partProgress;
+
+		const int numToRead = jmin<int>(bufferSize, reader->lengthInSamples - offsetInReader);
+
+		reader->read(&tempBuffer, 0, numToRead, offsetInReader, true, true);
+
+		writeResult = writer->writeFromAudioSampleBuffer(tempBuffer, 0, numToRead);
+
+		if (!writeResult)
+		{
+			VERBOSE_LOG("Error at writing from temp buffer at position " + String(offsetInReader) + ", chunk-length: " + String(numToRead));
+			return nullptr;
+		}
+	}
+
+	tempOutput->flush();
+	writer = nullptr;
+
+	return new FileInputStream(tmpFile);
+}
+
+void HlacArchiver::compressSampleData(const CompressData& data)
+{
+	jassert(listener != nullptr);
+	jassert(thread != nullptr);
+
 #if USE_BACKEND
 	const String& metadataJSON = data.metadataJSON;
 	const Array<File>& hlacFiles = data.fileList;
 	const File& targetFile = data.targetFile;
+	progress = data.progress;
 
 	if (!targetFile.isDirectory())
 	{
+		int partIndex = 1;
+
 		targetFile.deleteFile();
 
 		FlacAudioFormat flacFormat;
 
 		ScopedPointer<FileOutputStream> fos = new FileOutputStream(targetFile);
 
+		listener->logVerboseMessage("Writing to " + fos->getFile().getFileName());
+
+		WRITE_FLAG(Flag::BeginMetadata);
 		fos->writeString(metadataJSON);
+		WRITE_FLAG(Flag::EndMetadata);
 
 		hlac::HiseLosslessAudioFormat haf;
 
 		StringPairArray metadata;
 
+		tmpFile = targetFile.getSiblingFile("Temp.flac");
+
+		deltaPerFile = (double)1 / (double)hlacFiles.size();
+
 		for (int i = 0; i < hlacFiles.size(); i++)
 		{
-			if (usedThread != nullptr && usedThread->threadShouldExit())
-			{
+			if (thread->threadShouldExit())
 				return;
-			}
+
+			fileProgress = ((double)i / (double)hlacFiles.size());
 
 			if(data.progress != nullptr)
-				*data.progress = ((double)i / (double)hlacFiles.size());
+				*data.progress = fileProgress;
 
-			auto tmpFile = targetFile.getNonexistentSibling();
+			auto sizeLeftInPart = data.partSize - fos->getPosition();
 
-			FileOutputStream* tempOutput = new FileOutputStream(tmpFile);
+			
+			
 
-			ScopedPointer<AudioFormatReader> reader = haf.createReaderFor(new FileInputStream(hlacFiles[i]), true);
+			ScopedPointer<hlac::HlacMemoryMappedAudioFormatReader> reader = dynamic_cast<hlac::HlacMemoryMappedAudioFormatReader*>(haf.createMemoryMappedReader(hlacFiles[i]));
+
+			
+
+			//reader->usesFloatingPointData = false;
 
 			const String name = hlacFiles[i].getFileName();
+
+			VERBOSE_LOG("  Writing monolith " + name);
+			STATUS_LOG("Compressing " + name);
+
+			
+
+			VERBOSE_LOG("    Samplerate: " + String(reader->sampleRate, 1));
+			VERBOSE_LOG("    Channels: " + String(reader->numChannels));
+			VERBOSE_LOG("    Length: " + String(reader->lengthInSamples));
+
 			const int nameLength = name.length() + 1;
 
-			fos->writeBool(true);
+			WRITE_FLAG(Flag::BeginName);
 			fos->writeString(name);
+			WRITE_FLAG(Flag::EndName);
 
-			ScopedPointer<AudioFormatWriter> writer = flacFormat.createWriterFor(tempOutput, reader->sampleRate, reader->numChannels, 16, metadata, 9);
+			WRITE_FLAG(Flag::BeginTime);
+			fos->writeString(hlacFiles[i].getCreationTime().toISO8601(true));
+			WRITE_FLAG(Flag::EndTime);
 
-			writer->writeFromAudioReader(*reader, 0, reader->lengthInSamples);
+			
 
-			writer->flush();
-			writer = nullptr;
+			ScopedPointer<FileInputStream> tmpInput = writeTempFile(reader);
 
-			ScopedPointer<FileInputStream> tmpInput = new FileInputStream(tmpFile);
+			int64 bytesToWrite = jmin<int64>(tmpInput->getTotalLength(), sizeLeftInPart);
 
-			fos->writeInt(9124);
-			fos->writeInt64(tmpInput->getTotalLength());
-			fos->writeFromInputStream(*tmpInput, -1);
+			WRITE_FLAG(Flag::BeginMonolithLength);
+			fos->writeInt64(bytesToWrite);
+			WRITE_FLAG(Flag::EndMonolithLength);
+
+			WRITE_FLAG(Flag::BeginMonolith);
+			fos->writeFromInputStream(*tmpInput, bytesToWrite);
+
+			while(!tmpInput->isExhausted())
+			{
+				WRITE_FLAG(Flag::SplitMonolith);
+
+				fos->flush();
+				fos = nullptr;
+
+				partIndex++;
+
+				fos = new FileOutputStream(getPartFile(targetFile, partIndex));
+
+				bytesToWrite = jmin<int64>(data.partSize, tmpInput->getNumBytesRemaining());
+
+				WRITE_FLAG(Flag::BeginMonolithLength);
+				fos->writeInt64(bytesToWrite);
+				WRITE_FLAG(Flag::EndMonolithLength);
+
+				WRITE_FLAG(Flag::ResumeMonolith);
+				fos->writeFromInputStream(*tmpInput, bytesToWrite);
+				fos->flush();
+			}
+			
+			WRITE_FLAG(Flag::EndMonolith);
+			
+
+			jassert(tmpInput->isExhausted());
+
+			fos->flush();
 
 			tmpInput = nullptr;
-
-			tmpFile.deleteFile();
-
+			
 		}
 
-		fos->writeBool(true);
+		WRITE_FLAG(Flag::EndOfArchive);
 		fos->flush();
 		fos = nullptr;
 	}
 #endif
 }
+
+String HlacArchiver::getMetadataJSON(const File& sourceFile)
+{
+	ScopedPointer<FileInputStream> fis = new FileInputStream(sourceFile);
+
+	return fis->readString();
+}
+
+#define RETURN_FLAG(x) if(f == Flag::x) return #x;
+
+String HlacArchiver::getFlagName(Flag f)
+{
+	RETURN_FLAG(BeginMetadata);
+	RETURN_FLAG(EndMetadata);
+	RETURN_FLAG(BeginName);
+	RETURN_FLAG(EndName);
+	RETURN_FLAG(BeginTime);
+	RETURN_FLAG(EndTime);
+	RETURN_FLAG(BeginMonolithLength);
+	RETURN_FLAG(EndMonolithLength);
+	RETURN_FLAG(BeginMonolith);
+	RETURN_FLAG(EndMonolith);
+	RETURN_FLAG(SplitMonolith);
+	RETURN_FLAG(ResumeMonolith);
+	RETURN_FLAG(EndOfArchive);
+
+	return "Undefined";
+}
+
+#undef RETURN
+
+File HlacArchiver::getPartFile(const File& originalFile, int partIndex)
+{
+	String newFileName = originalFile.getFileNameWithoutExtension() + ".hr" + String(partIndex);
+
+	VERBOSE_LOG("New Part " + newFileName);
+
+	return originalFile.getSiblingFile(newFileName);
+}
+
+bool HlacArchiver::writeFlag(FileOutputStream* fos, Flag flag)
+{
+	VERBOSE_LOG("    W " + getFlagName(flag));
+
+	if (fos != nullptr)
+		return fos->writeInt((int)flag);
+
+	return false;
+}
+
+bool HlacArchiver::readAndCheckFlag(FileInputStream* fis, Flag flag)
+{
+	VERBOSE_LOG("    R " + getFlagName(flag));
+
+	if (fis != nullptr)
+	{
+		const Flag actualFlag = (Flag)fis->readInt();
+		jassert(actualFlag == flag);
+		return actualFlag == flag;
+	}
+
+	return false;
+}
+
+HlacArchiver::Flag HlacArchiver::readFlag(FileInputStream* fis)
+{
+	const Flag actualFlag = (Flag)fis->readInt();
+	VERBOSE_LOG("    R " + getFlagName(actualFlag));
+
+	return actualFlag;
+}
+
+#undef VERBOSE_LOG
+#undef STATUS_LOG

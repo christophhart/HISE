@@ -226,25 +226,110 @@ struct CompressionHelpers
 	static AudioSampleBuffer getPart(AudioSampleBuffer& b, int channelIndex, int startIndex, int numSamples);
 };
 
+class HlacMemoryMappedAudioFormatReader;
 
 
 /** This helper class compresses a list of HLAC files into a big FLAC chunk. */
 struct HlacArchiver
 {
-	struct ArchiveData
+	enum class OverwriteOption
+	{
+		OverwriteIfNewer = 0,
+		DontOverwrite,
+		ForceOverwrite,
+		numOverwriteOptions
+	};
+
+	enum class Flag
+	{
+		BeginMetadata,
+		EndMetadata,
+		BeginName,
+		EndName,
+		BeginTime,
+		EndTime,
+		BeginMonolithLength,
+		EndMonolithLength,
+		BeginMonolith,
+		EndMonolith,
+		SplitMonolith,
+		ResumeMonolith,
+		EndOfArchive,
+		numFlags
+	};
+
+	struct CompressData
 	{
 		Array<File> fileList;
 		File targetFile;
 		String metadataJSON;
+		int64 partSize = -1;
 		double* progress = nullptr;
+	};
 
+	struct DecompressData
+	{
+		OverwriteOption option;
+		File sourceFile;
+		File targetDirectory;
+		double* progress = nullptr;
+	};
+
+	HlacArchiver(Thread* threadToUse) :
+		thread(threadToUse)
+	{}
+
+	struct Listener
+	{
+		virtual void logStatusMessage(const String& message) = 0;
+
+		virtual void logVerboseMessage(const String& verboseMessage) = 0;
 	};
 
 	/** Extracts the compressed data from the given file. */
-	static bool extractSampleData(const File& f);
+	bool extractSampleData(const DecompressData& data);
 
-	/** Compressed the given data using the supplied ThreadWithAsyncProgressWindow. */
-	static void compressSampleData(const ArchiveData& data, Thread* threadWindow = nullptr);
+	/** Compressed the given data using the supplied Thread. */
+	void compressSampleData(const CompressData& data);
+
+	static String getMetadataJSON(const File& sourceFile);
+
+	void setListener(Listener* l)
+	{
+		listener = l;
+	}
+
+private:
+
+	FileInputStream* writeTempFile(hlac::HlacMemoryMappedAudioFormatReader* reader);
+
+	Listener* listener = nullptr;
+
+	String getFlagName(Flag f);
+
+	File getPartFile(const File& originalFile, int partIndex);
+
+	bool writeFlag(FileOutputStream* fos, Flag flag);
+
+	bool readAndCheckFlag(FileInputStream* fis, Flag flag);
+
+	Flag readFlag(FileInputStream* fis);
+
+	Flag currentFlag = Flag::numFlags;
+
+	bool decompressMode = false;
+
+	Thread* thread = nullptr;
+	
+	File targetFile;
+	File tmpFile;
+
+	double deltaPerFile = 0.1;
+	double fileProgress = 0.0;
+
+	CompressData cData;
+	
+	double* progress = nullptr;
 
 };
 

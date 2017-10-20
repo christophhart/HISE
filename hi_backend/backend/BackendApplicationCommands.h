@@ -166,6 +166,7 @@ public:
 		MenuToolsResolveMissingSamples = 0x60000,
 		MenuToolsDeleteMissingSamples,
 		MenuToolsCheckAllSampleMaps,
+		MenuToolsImportArchivedSamples,
 		MenuToolsUseRelativePaths,
 		MenuToolsCollectExternalFiles,
 		MenuToolsCheckUnusedImages,
@@ -327,6 +328,7 @@ public:
 		static void removeAllSampleMaps(BackendRootWindow * bpe);
 		static void redirectScriptFolder(BackendRootWindow * bpe);
 		static void exportSampleDataForInstaller(BackendRootWindow * bpe);
+		static void importArchivedSamples(BackendRootWindow * bpe);
 	};
 
 private:
