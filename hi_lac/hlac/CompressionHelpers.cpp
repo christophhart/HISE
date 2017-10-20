@@ -1031,6 +1031,14 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 	auto targetDirectory = data.targetDirectory;
 	auto option = data.option;
 	
+	Array<File> parts;
+
+	sourceFile.getParentDirectory().findChildFiles(parts, File::findFiles, false, sourceFile.getFileNameWithoutExtension() + ".*");
+
+	const int numParts = parts.size();
+
+
+
 	ScopedPointer<FileInputStream> fis = new FileInputStream(sourceFile);
 
 	FlacAudioFormat flacFormat;
@@ -1046,6 +1054,8 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 
 	int partIndex = 1;
 
+	
+
 	Flag currentFlag = readFlag(fis);
 
 	while (currentFlag == Flag::BeginName)
@@ -1056,6 +1066,13 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 		VERBOSE_LOG("  Reading Monolith " + name);
 		STATUS_LOG("Extracting " + name);
 		
+		*data.partProgress = (double)fis->getPosition() / (double)fis->getTotalLength();
+
+		const double totalProgress = (double)(partIndex - 1) / (double)numParts;
+
+		const double totalPartProgress = *data.partProgress / (double)numParts;
+
+		*data.totalProgress = totalProgress + totalPartProgress;
 
 		CHECK_FLAG(Flag::BeginTime);
 		auto archiveTime = Time::fromISO8601(fis->readString());
@@ -1064,9 +1081,7 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 		if (thread->threadShouldExit())
 			return false;
 
-		if (data.progress != nullptr)
-			*data.progress = (double)fis->getPosition() / (double)fis->getTotalLength();
-
+		
 		File targetHlacFile = targetDirectory.getChildFile(name);
 
 		bool overwriteThisFile = true;
@@ -1105,6 +1120,8 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 			auto bytesToRead = fis->readInt64();
 			CHECK_FLAG(Flag::EndMonolithLength);
 
+			STATUS_LOG("Creating temp file");
+
 			CHECK_FLAG(Flag::BeginMonolith);
 			flacTempWriteStream->writeFromInputStream(*fis, bytesToRead);
 
@@ -1114,6 +1131,8 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 			{
 				partIndex++;
 
+				
+
 				fis = nullptr;
 
 				fis = new FileInputStream(getPartFile(sourceFile, partIndex));
@@ -1122,6 +1141,7 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 				bytesToRead = fis->readInt64();
 				CHECK_FLAG(Flag::EndMonolithLength);
 
+				
 
 				CHECK_FLAG(Flag::ResumeMonolith);
 				flacTempWriteStream->writeFromInputStream(*fis, bytesToRead);
@@ -1138,8 +1158,6 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 
 			ScopedPointer<AudioFormatReader> flacReader = flacFormat.createReaderFor(flacTempInputStream, true);
 
-			
-
 			if (flacReader == nullptr)
 				return false;
 
@@ -1152,8 +1170,25 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 
 			STATUS_LOG("Decompressing " + name);
 
-			writer->writeFromAudioReader(*flacReader, 0, flacReader->lengthInSamples);
-			writer->flush();
+			const int bufferSize = 8192 * 32;
+
+			AudioSampleBuffer tempBuffer(flacReader->numChannels, bufferSize);
+
+			for (int64 readerOffset = 0; readerOffset < flacReader->lengthInSamples; readerOffset += bufferSize)
+			{
+				if (thread->threadShouldExit())
+					return false;
+
+				const int64 numToRead = jmin<int64>((int64)bufferSize, flacReader->lengthInSamples - readerOffset);
+
+				flacReader->read(&tempBuffer, 0, numToRead, readerOffset, true, true);
+
+				writer->writeFromAudioSampleBuffer(tempBuffer, 0, numToRead);
+
+				*data.progress = (double)readerOffset / (double)flacReader->lengthInSamples;
+			}
+
+			
 			writer = nullptr;
 
 			flacReader = nullptr;
@@ -1175,6 +1210,8 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 			while (currentFlag == Flag::SplitMonolith)
 			{
 				partIndex++;
+
+				
 
 				fis = nullptr;
 				fis = new FileInputStream(getPartFile(sourceFile, partIndex));
@@ -1204,32 +1241,41 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 
 #define WRITE_FLAG(x) writeFlag(fos, x)
 
-FileInputStream* HlacArchiver::writeTempFile(hlac::HlacMemoryMappedAudioFormatReader* reader)
+FileInputStream* HlacArchiver::writeTempFile(AudioFormatReader* reader)
 {
-	WavAudioFormat flacFormat;
+	FlacAudioFormat flacFormat;
 
 	StringPairArray metadata;
 
 	tmpFile.deleteFile();
 	FileOutputStream* tempOutput = new FileOutputStream(tmpFile);
 
-	const int bufferSize = 8192;
+	const int bufferSize = 8192 * 32;
 
 	AudioSampleBuffer tempBuffer(reader->numChannels, bufferSize);
 
-	ScopedPointer<AudioFormatWriter> writer = flacFormat.createWriterFor(tempOutput, reader->sampleRate, reader->numChannels, 16, metadata, 7);
+	ScopedPointer<AudioFormatWriter> writer = flacFormat.createWriterFor(tempOutput, reader->sampleRate, reader->numChannels, 16, metadata, 9);
 
 	bool writeResult = true;
 
-	reader->mapEntireFile();
+	dynamic_cast<HiseLosslessAudioFormatReader*>(reader)->setTargetAudioDataType(AudioDataConverters::float32BE);
 
 	for (int offsetInReader = 0; offsetInReader < reader->lengthInSamples; offsetInReader += bufferSize)
 	{
 
-		double partProgress = (double)offsetInReader / (double)reader->lengthInSamples * deltaPerFile;
+		if (thread->threadShouldExit())
+		{
+			tempOutput->flush();
+			writer = nullptr;
+			tmpFile.deleteFile();
+			return nullptr;
+		}
+			
+
+		double partProgress = (double)offsetInReader / (double)reader->lengthInSamples;
 
 		if (progress != nullptr)
-			*progress = fileProgress + partProgress;
+			*progress = partProgress;
 
 		const int numToRead = jmin<int>(bufferSize, reader->lengthInSamples - offsetInReader);
 
@@ -1281,7 +1327,7 @@ void HlacArchiver::compressSampleData(const CompressData& data)
 
 		StringPairArray metadata;
 
-		tmpFile = targetFile.getSiblingFile("Temp.flac");
+		tmpFile = targetFile.getSiblingFile("Temp.dat");
 
 		deltaPerFile = (double)1 / (double)hlacFiles.size();
 
@@ -1290,21 +1336,14 @@ void HlacArchiver::compressSampleData(const CompressData& data)
 			if (thread->threadShouldExit())
 				return;
 
-			fileProgress = ((double)i / (double)hlacFiles.size());
-
-			if(data.progress != nullptr)
-				*data.progress = fileProgress;
+			*data.totalProgress = ((double)i / (double)hlacFiles.size());
 
 			auto sizeLeftInPart = data.partSize - fos->getPosition();
 
 			
-			
+			FileInputStream* fis = new FileInputStream(hlacFiles[i]);
 
-			ScopedPointer<hlac::HlacMemoryMappedAudioFormatReader> reader = dynamic_cast<hlac::HlacMemoryMappedAudioFormatReader*>(haf.createMemoryMappedReader(hlacFiles[i]));
-
-			
-
-			//reader->usesFloatingPointData = false;
+			ScopedPointer<AudioFormatReader> reader = haf.createReaderFor(fis, true);
 
 			const String name = hlacFiles[i].getFileName();
 
@@ -1330,6 +1369,9 @@ void HlacArchiver::compressSampleData(const CompressData& data)
 			
 
 			ScopedPointer<FileInputStream> tmpInput = writeTempFile(reader);
+
+			if (tmpInput == nullptr)
+				return;
 
 			int64 bytesToWrite = jmin<int64>(tmpInput->getTotalLength(), sizeLeftInPart);
 
@@ -1376,6 +1418,8 @@ void HlacArchiver::compressSampleData(const CompressData& data)
 		WRITE_FLAG(Flag::EndOfArchive);
 		fos->flush();
 		fos = nullptr;
+
+		tmpFile.deleteFile();
 	}
 #endif
 }

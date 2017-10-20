@@ -708,6 +708,11 @@ public:
 		targetFile->setSize(300, 24);
 		addCustomComponent(targetFile);
 
+		totalProgressBar = new ProgressBar(totalProgress);
+		totalProgressBar->setName("Total Progress");
+		totalProgressBar->setSize(300, 24);
+		addCustomComponent(totalProgressBar);
+
 		addBasicComponents(true);
 
 		showStatusMessage("Select the target file and press OK");
@@ -740,6 +745,7 @@ public:
 		data.metadataJSON = getMetadataJSON();
 		data.fileList = collectMonoliths();
 		data.progress = &progress;
+		data.totalProgress = &totalProgress;
 		data.partSize = 1024 * 1024;
 
 		auto partSize = (PartSize)getComboBoxComponent("split")->getSelectedItemIndex();
@@ -770,6 +776,8 @@ private:
 		File sampleDirectory = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::Samples);
 
 		sampleDirectory.findChildFiles(sampleMonoliths, File::findFiles, false, "*.ch*");
+
+		sampleMonoliths.sort();
 
 		numExported = sampleMonoliths.size();
 
@@ -818,6 +826,10 @@ private:
 
 	ScopedPointer<FilenameComponent> targetFile;
 
+	ScopedPointer<ProgressBar> totalProgressBar;
+
+	double totalProgress = 0.0;
+
 	int numExported = 0;
 };
 
@@ -851,7 +863,19 @@ public:
 
 		addComboBox("overwrite", sa, "Overwrite existing samples");
 
+		partProgressBar = new ProgressBar(partProgress);
+		partProgressBar->setName("Part Progress");
+		partProgressBar->setSize(300, 24);
+		addCustomComponent(partProgressBar);
+
+		totalProgressBar = new ProgressBar(totalProgress);
+		totalProgressBar->setSize(300, 24);
+		totalProgressBar->setName("Total Progress");
+		addCustomComponent(totalProgressBar);
+
 		addBasicComponents(true);
+
+
 
 		showStatusMessage("Choose a sample archive and press OK to import it to the current project.");
 	}
@@ -882,6 +906,8 @@ public:
 		data.sourceFile = getSourceFile();
 		data.targetDirectory = getTargetDirectory();
 		data.progress = &progress;
+		data.partProgress = &partProgress;
+		data.totalProgress = &totalProgress;
 
 		hlac::HlacArchiver decompressor(getCurrentThread());
 
@@ -892,7 +918,7 @@ public:
 
 	void threadFinished() override
 	{
-		PresetHandler::showMessageWindow("Tut", "Successful");
+		PresetHandler::showMessageWindow("Samples imported", "All samples were imported successfully.");
 	}
 
 private:
@@ -933,6 +959,13 @@ private:
 	}
 
 	ScopedPointer<FilenameComponent> targetFile;
+
+	ScopedPointer<ProgressBar> totalProgressBar;
+
+	ScopedPointer<ProgressBar> partProgressBar;
+
+	double partProgress = 0.0;
+	double totalProgress = 0.0;
 
 	BackendProcessorEditor* bpe;
 };

@@ -265,6 +265,7 @@ struct HlacArchiver
 		String metadataJSON;
 		int64 partSize = -1;
 		double* progress = nullptr;
+		double* totalProgress = nullptr;
 	};
 
 	struct DecompressData
@@ -273,6 +274,8 @@ struct HlacArchiver
 		File sourceFile;
 		File targetDirectory;
 		double* progress = nullptr;
+		double* partProgress = nullptr;
+		double* totalProgress = nullptr;
 	};
 
 	HlacArchiver(Thread* threadToUse) :
@@ -301,7 +304,7 @@ struct HlacArchiver
 
 private:
 
-	FileInputStream* writeTempFile(hlac::HlacMemoryMappedAudioFormatReader* reader);
+	FileInputStream* writeTempFile(AudioFormatReader* reader);
 
 	Listener* listener = nullptr;
 
@@ -330,6 +333,7 @@ private:
 	CompressData cData;
 	
 	double* progress = nullptr;
+	
 
 };
 

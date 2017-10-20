@@ -755,7 +755,7 @@ public:
 		return mb;
 	}
 
-	HiseLosslessAudioFormatReader* createReader(MemoryBlock& mb)
+	HiseLosslessAudioFormatReader* createReader(MemoryBlock& mb, bool targetIsFloat)
 	{
 		HiseLosslessAudioFormat hlac;
 
@@ -763,14 +763,16 @@ public:
 
 		auto reader = dynamic_cast<HiseLosslessAudioFormatReader*>(hlac.createReaderFor(mis, true));
 
+        reader->setTargetAudioDataType(AudioDataConverters::DataFormat::float32BE);
+        
 		expect(reader != nullptr, "Create Reader");
 
 		return reader;
 	}
 
-	AudioSampleBuffer readIntoAudioBuffer(MemoryBlock& mb)
+	AudioSampleBuffer readIntoAudioBuffer(MemoryBlock& mb, bool isFloatTarget)
 	{
-		ScopedPointer<HiseLosslessAudioFormatReader> reader = createReader(mb);
+		ScopedPointer<HiseLosslessAudioFormatReader> reader = createReader(mb, isFloatTarget);
 
 		AudioSampleBuffer b2(reader->numChannels, (int)reader->lengthInSamples);
 
@@ -802,7 +804,7 @@ public:
 
 		buffers.add(createTestBuffer(numChannels));
 		auto mb = writeIntoMemory(buffers);
-		auto b2 = readIntoAudioBuffer(mb);
+		auto b2 = readIntoAudioBuffer(mb, true);
 
 		int error = (int)CompressionHelpers::checkBuffersEqual(b2, buffers.getReference(0));
 
@@ -827,7 +829,7 @@ public:
 
 		auto mb = writeIntoMemory(buffers);
 
-		auto both = readIntoAudioBuffer(mb);
+		auto both = readIntoAudioBuffer(mb, false);
 
 		const int paddedFirst = CompressionHelpers::getPaddedSampleSize(buffers[0].getNumSamples());
 		const int paddedSecond = CompressionHelpers::getPaddedSampleSize(buffers[1].getNumSamples());
@@ -848,7 +850,12 @@ public:
 
 		int error = (int)CompressionHelpers::checkBuffersEqual(both2, both);
 
-		logMessage("Option:\n" + currentOption.toString());
+		if (error > 0)
+		{
+			logMessage("Option:\n" + currentOption.toString());
+		}
+
+		
 
 		
 
@@ -884,7 +891,7 @@ public:
 
 		signalCopy.clear();
 
-		ScopedPointer<HiseLosslessAudioFormatReader> reader = createReader(mb);
+		ScopedPointer<HiseLosslessAudioFormatReader> reader = createReader(mb, true);
 
 		reader->read(&signalCopy, 0, signalLength, offset, true, true);
 
@@ -1525,7 +1532,7 @@ public:
 
 		auto mb = writeIntoMemory(buffers);
 
-		ScopedPointer<HiseLosslessAudioFormatReader> reader = createReader(mb);
+		ScopedPointer<HiseLosslessAudioFormatReader> reader = createReader(mb, true);
 
 		AudioSampleBuffer signal2 = AudioSampleBuffer(numChannels, reader->lengthInSamples);
 
