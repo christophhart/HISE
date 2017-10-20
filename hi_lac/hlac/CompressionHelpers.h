@@ -226,7 +226,116 @@ struct CompressionHelpers
 	static AudioSampleBuffer getPart(AudioSampleBuffer& b, int channelIndex, int startIndex, int numSamples);
 };
 
+class HlacMemoryMappedAudioFormatReader;
 
+
+/** This helper class compresses a list of HLAC files into a big FLAC chunk. */
+struct HlacArchiver
+{
+	enum class OverwriteOption
+	{
+		OverwriteIfNewer = 0,
+		DontOverwrite,
+		ForceOverwrite,
+		numOverwriteOptions
+	};
+
+	enum class Flag
+	{
+		BeginMetadata,
+		EndMetadata,
+		BeginName,
+		EndName,
+		BeginTime,
+		EndTime,
+		BeginMonolithLength,
+		EndMonolithLength,
+		BeginMonolith,
+		EndMonolith,
+		SplitMonolith,
+		ResumeMonolith,
+		EndOfArchive,
+		numFlags
+	};
+
+	struct CompressData
+	{
+		Array<File> fileList;
+		File targetFile;
+		String metadataJSON;
+		int64 partSize = -1;
+		double* progress = nullptr;
+		double* totalProgress = nullptr;
+	};
+
+	struct DecompressData
+	{
+		OverwriteOption option;
+		File sourceFile;
+		File targetDirectory;
+		double* progress = nullptr;
+		double* partProgress = nullptr;
+		double* totalProgress = nullptr;
+	};
+
+	HlacArchiver(Thread* threadToUse) :
+		thread(threadToUse)
+	{}
+
+	struct Listener
+	{
+		virtual void logStatusMessage(const String& message) = 0;
+
+		virtual void logVerboseMessage(const String& verboseMessage) = 0;
+	};
+
+	/** Extracts the compressed data from the given file. */
+	bool extractSampleData(const DecompressData& data);
+
+	/** Compressed the given data using the supplied Thread. */
+	void compressSampleData(const CompressData& data);
+
+	static String getMetadataJSON(const File& sourceFile);
+
+	void setListener(Listener* l)
+	{
+		listener = l;
+	}
+
+private:
+
+	FileInputStream* writeTempFile(AudioFormatReader* reader);
+
+	Listener* listener = nullptr;
+
+	String getFlagName(Flag f);
+
+	File getPartFile(const File& originalFile, int partIndex);
+
+	bool writeFlag(FileOutputStream* fos, Flag flag);
+
+	bool readAndCheckFlag(FileInputStream* fis, Flag flag);
+
+	Flag readFlag(FileInputStream* fis);
+
+	Flag currentFlag = Flag::numFlags;
+
+	bool decompressMode = false;
+
+	Thread* thread = nullptr;
+	
+	File targetFile;
+	File tmpFile;
+
+	double deltaPerFile = 0.1;
+	double fileProgress = 0.0;
+
+	CompressData cData;
+	
+	double* progress = nullptr;
+	
+
+};
 
 
 

@@ -34,7 +34,7 @@
 #if HLAC_INCLUDE_TEST_SUITE
 
 
-static BitCompressors::UnitTests bitTests;
+//static BitCompressors::UnitTests bitTests;
 
 void BitCompressors::UnitTests::runTest()
 {
@@ -270,15 +270,13 @@ CodecTest::CodecTest() :
 
 void CodecTest::runTest()
 {
-	//testIntegerBuffers();
+	testIntegerBuffers();
 
 	testHiseSampleBuffer();
 
-	return;
-
 	SignalType testOnly = SignalType::numSignalTypes;
 	Option soloOption = Option::numCompressorOptions;
-	bool testOnce = true;
+	bool testOnce = false;
 
 	for (int i = 0; i < (int)SignalType::numSignalTypes; i++)
 	{
@@ -307,6 +305,8 @@ void CodecTest::runTest()
 			testCodec((SignalType)i, (Option)j, true);
 		}
 	}
+
+	
 }
 
 void CodecTest::testIntegerBuffers()
@@ -366,7 +366,7 @@ void CodecTest::testHiseSampleBuffer()
 	MemoryInputStream mis(mos.getMemoryBlock(), true);
 
 	
-
+	
 	
 
 	decoder.decode(dst, false, mis, offset, numSamplesToDecode);
@@ -378,8 +378,6 @@ void CodecTest::testHiseSampleBuffer()
 
 	expectEquals<int>((int)error, 0, "Test HiseSampleBuffer");
 }
-
-
 
 void CodecTest::testCodec(SignalType type, Option option, bool /*testStereo*/)
 {
@@ -591,7 +589,7 @@ String CodecTest::getNameForSignal(SignalType s) const
 	return {};
 }
 
-static CodecTest codecTest;
+//static CodecTest codecTest;
 
 class FormatTest : public UnitTest
 {
@@ -608,9 +606,13 @@ public:
 		
 		testHeader();
 
+		testArchiver();
+
 		runFormatTestWithOption(HlacEncoder::CompressorOptions::Presets::WholeBlock);
 		runFormatTestWithOption(HlacEncoder::CompressorOptions::Presets::Delta);
 		runFormatTestWithOption(HlacEncoder::CompressorOptions::Presets::Diff);
+
+		return;
 
         testReadOperationWithSmallBlockSizes(1, 300000);
         testReadOperationWithSmallBlockSizes(2, 30000);
@@ -632,8 +634,6 @@ public:
 		testMemoryMappedReadingWithOffset(2, 160000);
 #endif
 
-        return;
-        
 		testFlacReadPerformance(1, 12000000);
 		testFlacReadPerformance(2, 12000000);
 
@@ -755,7 +755,7 @@ public:
 		return mb;
 	}
 
-	HiseLosslessAudioFormatReader* createReader(MemoryBlock& mb)
+	HiseLosslessAudioFormatReader* createReader(MemoryBlock& mb, bool targetIsFloat)
 	{
 		HiseLosslessAudioFormat hlac;
 
@@ -763,14 +763,16 @@ public:
 
 		auto reader = dynamic_cast<HiseLosslessAudioFormatReader*>(hlac.createReaderFor(mis, true));
 
+        reader->setTargetAudioDataType(AudioDataConverters::DataFormat::float32BE);
+        
 		expect(reader != nullptr, "Create Reader");
 
 		return reader;
 	}
 
-	AudioSampleBuffer readIntoAudioBuffer(MemoryBlock& mb)
+	AudioSampleBuffer readIntoAudioBuffer(MemoryBlock& mb, bool isFloatTarget)
 	{
-		ScopedPointer<HiseLosslessAudioFormatReader> reader = createReader(mb);
+		ScopedPointer<HiseLosslessAudioFormatReader> reader = createReader(mb, isFloatTarget);
 
 		AudioSampleBuffer b2(reader->numChannels, (int)reader->lengthInSamples);
 
@@ -778,6 +780,21 @@ public:
 
 		return b2;
 	}
+
+	void testArchiver()
+	{
+		beginTest("Testing Archiver");
+
+		int numChannels = 1;
+
+		Array<AudioSampleBuffer> buffers;
+
+		for (int i = 0; i < 12; i++)
+		{
+			buffers.add(createTestBuffer(numChannels));
+		}
+	}
+	
 
 	void testPadding(int numChannels)
 	{
@@ -787,7 +804,7 @@ public:
 
 		buffers.add(createTestBuffer(numChannels));
 		auto mb = writeIntoMemory(buffers);
-		auto b2 = readIntoAudioBuffer(mb);
+		auto b2 = readIntoAudioBuffer(mb, true);
 
 		int error = (int)CompressionHelpers::checkBuffersEqual(b2, buffers.getReference(0));
 
@@ -812,7 +829,7 @@ public:
 
 		auto mb = writeIntoMemory(buffers);
 
-		auto both = readIntoAudioBuffer(mb);
+		auto both = readIntoAudioBuffer(mb, false);
 
 		const int paddedFirst = CompressionHelpers::getPaddedSampleSize(buffers[0].getNumSamples());
 		const int paddedSecond = CompressionHelpers::getPaddedSampleSize(buffers[1].getNumSamples());
@@ -832,6 +849,15 @@ public:
 		}
 
 		int error = (int)CompressionHelpers::checkBuffersEqual(both2, both);
+
+		if (error > 0)
+		{
+			logMessage("Option:\n" + currentOption.toString());
+		}
+
+		
+
+		
 
 		expectEquals<int>(error, 0, "buffers equal");
 
@@ -865,7 +891,7 @@ public:
 
 		signalCopy.clear();
 
-		ScopedPointer<HiseLosslessAudioFormatReader> reader = createReader(mb);
+		ScopedPointer<HiseLosslessAudioFormatReader> reader = createReader(mb, true);
 
 		reader->read(&signalCopy, 0, signalLength, offset, true, true);
 
@@ -875,7 +901,14 @@ public:
 		{
 			logMessage("Signal Length: " + String(signal.getNumSamples()));
 			logMessage("Offset: " + String(offset));
+
+
+			logMessage("Option:\n" + currentOption.toString());
+
+
 		}
+
+
 
 		expectEquals<int>(error, 0, "Seeking");
 	}
@@ -1499,7 +1532,7 @@ public:
 
 		auto mb = writeIntoMemory(buffers);
 
-		ScopedPointer<HiseLosslessAudioFormatReader> reader = createReader(mb);
+		ScopedPointer<HiseLosslessAudioFormatReader> reader = createReader(mb, true);
 
 		AudioSampleBuffer signal2 = AudioSampleBuffer(numChannels, reader->lengthInSamples);
 
@@ -1541,4 +1574,4 @@ public:
 	HlacEncoder::CompressorOptions currentOption;
 };
 
-//static FormatTest formatTest;
+static FormatTest formatTest;

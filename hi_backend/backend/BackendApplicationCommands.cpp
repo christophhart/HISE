@@ -106,6 +106,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuExportFileAsStandaloneApp,
 		MenuExportFileAsPlayerLibrary,
 		MenuExportFileAsSnippet,
+		MenuExportSampleDataForInstaller,
 		MenuFileQuit,
 		MenuEditUndo,
 		MenuEditRedo,
@@ -145,7 +146,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsEnableAutoSaving,
 		MenuToolsRecordOneSecond,
 		MenuToolsEnableDebugLogging,
-		
+		MenuToolsImportArchivedSamples,
 		MenuToolsCreateRSAKeys,
 		MenuToolsCreateDummyLicenceFile,
 		MenuViewReset,
@@ -283,6 +284,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuExportFileAsSnippet:
 		setCommandTarget(result, "Export as pasteable web snippet", true, false, 'X', false);
 		break;
+	case MenuExportSampleDataForInstaller:
+		setCommandTarget(result, "Export Samples for Installer", true, false, 'X', false);
+		break;
 	case MenuFileSettingsPreset:
 		setCommandTarget(result, "Preset Properties", true, false, 'X', false);
 		break;
@@ -398,6 +402,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		break;
 	case MenuToolsCheckAllSampleMaps:
 		setCommandTarget(result, "Check all sample maps", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
+		break;
+	case MenuToolsImportArchivedSamples:
+		setCommandTarget(result, "Import archived samples", true, false, 'X', false);
 		break;
 	case MenuToolsCollectExternalFiles:
 		setCommandTarget(result, "Collect external files into Project folder", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
@@ -591,6 +598,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsCreateRSAKeys:		Actions::createRSAKeys(bpe); return true;
 	case MenuToolsCreateDummyLicenceFile: Actions::createDummyLicenceFile(bpe); return true;
 	case MenuToolsCheckAllSampleMaps:	Actions::checkAllSamplemaps(bpe); return true;
+	case MenuToolsImportArchivedSamples: Actions::importArchivedSamples(bpe); return true;
 	case MenuToolsEnableAutoSaving:		bpe->owner->getAutoSaver().toggleAutoSaving(); updateCommands(); return true;
 	case MenuToolsRecordOneSecond:		bpe->owner->getDebugLogger().startRecording(); return true;
 	case MenuToolsEnableDebugLogging:	bpe->owner->getDebugLogger().toggleLogging(), updateCommands(); return true;
@@ -610,6 +618,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuExportFileAsStandaloneApp: exporter.exportMainSynthChainAsStandaloneApp(); return true;
     case MenuExportFileAsSnippet:       Actions::exportFileAsSnippet(bpe); return true;
 	case MenuExportFileAsPlayerLibrary: Actions::exportMainSynthChainAsPlayerLibrary(bpe); return true;
+	case MenuExportSampleDataForInstaller: Actions::exportSampleDataForInstaller(bpe); return true;
     case MenuAddView:                   Actions::addView(bpe); updateCommands();return true;
     case MenuDeleteView:                Actions::deleteView(bpe); updateCommands();return true;
     case MenuRenameView:                Actions::renameView(bpe); updateCommands();return true;
@@ -762,6 +771,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		exportSub.addCommandItem(mainCommandManager, MenuExportFileAsStandaloneApp);
 		exportSub.addCommandItem(mainCommandManager, MenuExportFileAsPlayerLibrary);
         exportSub.addCommandItem(mainCommandManager, MenuExportFileAsSnippet);
+		exportSub.addCommandItem(mainCommandManager, MenuExportSampleDataForInstaller);
 
 		p.addSubMenu("Export", exportSub);
 		p.addSeparator();
@@ -841,6 +851,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuToolsDeleteMissingSamples);
 		ADD_DESKTOP_ONLY(MenuToolsUseRelativePaths);
 		ADD_DESKTOP_ONLY(MenuToolsCheckAllSampleMaps);
+		ADD_DESKTOP_ONLY(MenuToolsImportArchivedSamples);
 		ADD_DESKTOP_ONLY(MenuToolsCollectExternalFiles);
 		ADD_DESKTOP_ONLY(MenuToolsCheckUnusedImages);
 		ADD_DESKTOP_ONLY(MenuToolsRedirectSampleFolder);
@@ -856,6 +867,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		p.addSectionHeader("License Management");
 		ADD_DESKTOP_ONLY(MenuToolsCreateDummyLicenceFile);
 		ADD_DESKTOP_ONLY(MenuToolsCreateRSAKeys);
+		
 		break;
 	}
 	case BackendCommandTarget::ViewMenu: {
@@ -1417,7 +1429,7 @@ void BackendCommandTarget::Actions::removeAllSampleMaps(BackendRootWindow * bpe)
 	}
 }
 
-void BackendCommandTarget::Actions::redirectScriptFolder(BackendRootWindow * bpe)
+void BackendCommandTarget::Actions::redirectScriptFolder(BackendRootWindow * /*bpe*/)
 {
 	FileChooser fc("Redirect sample folder to the following location");
 
@@ -1427,6 +1439,21 @@ void BackendCommandTarget::Actions::redirectScriptFolder(BackendRootWindow * bpe
 
 		ProjectHandler::createLinkFileInFolder(File(PresetHandler::getDataFolder()).getChildFile("scripts"), f);
 	}
+}
+
+void BackendCommandTarget::Actions::exportSampleDataForInstaller(BackendRootWindow * bpe)
+{
+	SampleDataExporter *exporter = new SampleDataExporter(bpe->mainEditor);
+
+	exporter->setModalBaseWindowComponent(bpe);
+}
+
+void BackendCommandTarget::Actions::importArchivedSamples(BackendRootWindow * bpe)
+{
+	SampleDataImporter* importer = new SampleDataImporter(bpe->mainEditor);
+
+	importer->setModalBaseWindowComponent(bpe);
+
 }
 
 void BackendCommandTarget::Actions::recompileAllScripts(BackendRootWindow * bpe)

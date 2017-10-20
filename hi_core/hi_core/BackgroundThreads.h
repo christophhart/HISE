@@ -210,6 +210,11 @@ protected:
 	
 	double progress;
 
+	Thread* getCurrentThread()
+	{
+		return thread;
+	}
+
 private:
 
 	void handleAsyncUpdate() override;
