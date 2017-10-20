@@ -40,6 +40,7 @@ class MainController;
 class Chain;
 class Processor;
 class FactoryType;
+class DeactiveOverlay;
 
 #if USE_BACKEND
 
@@ -48,48 +49,7 @@ class FactoryType;
 
 #endif
 
-#if USE_COPY_PROTECTION
 
-class Unlocker: public OnlineUnlockStatus
-{
-public:
-    Unlocker():
-        state(String())
-    {}
-
-	String getProductID() override;;
-
-	bool doesProductIDMatch(const String& returnedIDFromServer) override 
-	{ 
-		auto pId = getProductID();
-
-		return returnedIDFromServer == pId; 
-	};
-
-    juce::RSAKey getPublicKey() override;
-
-    String getState() override
-    {
-        return state;
-    };
-
-	String getWebsiteName() override;
-
-	String readReplyFromWebserver(const String &/*email*/, const String &/*password*/) override { return ""; };
-
-	URL getServerAuthenticationURL() override;
-   
-    void saveState(const String &s) override
-    {
-        state = s;
-    }
-private:
-    String state;
-};
-
-
-
-#endif
 
 class AboutPage : public Component,
 				  public ButtonListener
@@ -702,25 +662,6 @@ public:
 
 		return newTree;
 	}
-
-#if USE_COPY_PROTECTION
-	static bool loadKeyFile(Unlocker &ul)
-	{
-		File keyFile = ProjectHandler::Frontend::getLicenceKey();
-
-		if (keyFile.existsAsFile())
-		{
-			String keyData = keyFile.loadFileAsString();
-
-			if (ul.applyKeyFile(keyData))
-			{
-				return true;
-			}
-		}
-		
-        return false;
-	};
-#endif
 
 	/** Opens a file dialog and saves the new path into the library's setting file. */
 	static File getSampleFolder(const String &libraryName)

@@ -30,24 +30,6 @@
 *   ===========================================================================
 */
 
-#if USE_COPY_PROTECTION
-
-String Unlocker::getProductID()
-{
-	return String(ProjectHandler::Frontend::getProjectName()) + " " + String(ProjectHandler::Frontend::getVersionString());
-}
-
-String Unlocker::getWebsiteName()
-{
-	return ProjectHandler::Frontend::getCompanyWebsiteName();
-}
-
-URL Unlocker::getServerAuthenticationURL()
-{
-	return URL("http://hise.audio/licence/key_file_generator.php");
-}
-
-#endif
 
 void CopyPasteTarget::grabCopyAndPasteFocus()
 {   
@@ -2451,10 +2433,7 @@ void AboutPage::refreshText()
 
 #if USE_COPY_PROTECTION
 
-	Unlocker *ul = &dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor())->unlocker;
-
-	infoData.append("\n\nRegistered to: ", bold, bright);
-	infoData.append(ul->getUserEmail(), normal, bright);
+	
 
 #endif
 

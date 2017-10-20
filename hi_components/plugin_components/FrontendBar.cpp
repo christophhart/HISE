@@ -429,37 +429,14 @@ DeactiveOverlay::DeactiveOverlay() :
 
 void DeactiveOverlay::buttonClicked(Button *b)
 {
-	if (b == resolveLicenceButton)
+	if (b == resolveLicenseButton)
 	{
 #if USE_COPY_PROTECTION
-		FileChooser fc("Load Licence key file", File(), "*" + ProjectHandler::Frontend::getLicenceKeyExtension(), true);
 
-		if (fc.browseForFileToOpen())
-		{
-			File f = fc.getResult();
 
-			String keyContent = f.loadFileAsString();
 
-			Unlocker *ul = &dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor())->unlocker;
-			ul->applyKeyFile(keyContent);
+		Unlocker::resolveLicenseFile(this);
 
-			State returnValue = checkLicence(keyContent);
-
-			if (returnValue == numReasons || returnValue == LicenseNotFound)
-			{
-				f.copyFileTo(ProjectHandler::Frontend::getLicenceKey());
-
-				returnValue = checkLicence();
-			}
-
-			refreshLabel();
-
-			if (returnValue != numReasons) return;
-
-			setState(LicenseInvalid, !ul->isUnlocked());
-
-			PresetHandler::showMessageWindow("Valid key file found.", "You found a valid key file. Please reload this instance to activate the plugin.");
-		}
 #elif USE_TURBO_ACTIVATE
 
 		const String key = PresetHandler::getCustomName("Product Key", "Enter the product key that you've received along with the download link\nIt should have this format: XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX");
@@ -520,9 +497,10 @@ void DeactiveOverlay::buttonClicked(Button *b)
 	else if (b == registerProductButton)
 	{
 #if USE_COPY_PROTECTION
-		Unlocker *ul = &dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor())->unlocker;
-		OnlineActivator* activator = new OnlineActivator(ul, this);
-		activator->setModalBaseWindowComponent(this);
+
+		Unlocker::showActivationWindow(this);
+
+
 #elif USE_TURBO_ACTIVATE
 
 		FileChooser fc("Save activation request file", File::getSpecialLocation(File::SpecialLocationType::userDesktopDirectory), "*.xml", true);
@@ -606,94 +584,23 @@ void DeactiveOverlay::buttonClicked(Button *b)
 	}
 }
 
+#if !USE_COPY_PROTECTION
+
 bool DeactiveOverlay::check(State s, const String &value/*=String()*/)
 {
-#if USE_COPY_PROTECTION
-	Unlocker *ul = &dynamic_cast<FrontendProcessor*>(findParentComponentOfClass<FrontendProcessorEditor>()->getAudioProcessor())->unlocker;
-
-	String compareValue;
-
-	switch (s)
-	{
-	case DeactiveOverlay::AppDataDirectoryNotFound:
-		return ProjectHandler::Frontend::getAppDataDirectory().isDirectory();
-		break;
-	case DeactiveOverlay::LicenseNotFound:
-		return ProjectHandler::Frontend::getLicenceKey().existsAsFile();
-		break;
-	case DeactiveOverlay::ProductNotMatching:
-		compareValue = ProjectHandler::Frontend::getProjectName() + String(" ") + ProjectHandler::Frontend::getVersionString();
-		return value == compareValue;
-		break;
-	case DeactiveOverlay::UserNameNotMatching:
-		break;
-	case DeactiveOverlay::EmailNotMatching:
-		break;
-	case DeactiveOverlay::MachineNumbersNotMatching:
-	{
-		StringArray ids = ul->getLocalMachineIDs();
-		return ids.contains(value);
-		break;
-	}
-	case DeactiveOverlay::LicenseInvalid:
-		return ul->isUnlocked();
-		break;
-	case DeactiveOverlay::SamplesNotFound:
-		break;
-	case DeactiveOverlay::numReasons:
-		break;
-	default:
-		break;
-	}
-
-#else
-
 	ignoreUnused(s, value);
-
-#endif
-
 	return true;
 }
 
-
-#define CHECK_LICENCE_PARAMETER(state, text){\
-if (!check(state, text))\
-{ setState(state, true); return state; }\
-currentState.setBit(state, false);}
-
-
-DeactiveOverlay::State DeactiveOverlay::checkLicence(const String &keyContent)
+DeactiveOverlay::State DeactiveOverlay::checkLicense(const String &keyContent)
 {
-#if USE_COPY_PROTECTION
-	String key = keyContent;
-
-	if (keyContent.isEmpty())
-	{
-		key = ProjectHandler::Frontend::getLicenceKey().loadFileAsString();
-	}
-
-	StringArray lines = StringArray::fromLines(key);
-
-	if (!check(AppDataDirectoryNotFound) || !check(LicenseNotFound) || lines.size() < 4)
-	{
-		setState(LicenseNotFound, true);
-		return LicenseNotFound;
-	}
-
-	currentState.setBit(LicenseNotFound, false);
-
-	const String productName = lines[0].fromFirstOccurrenceOf("Keyfile for ", false, false);
-	CHECK_LICENCE_PARAMETER(ProductNotMatching, productName);
-
-	const String keyFileMachineId = lines[3].fromFirstOccurrenceOf("Machine numbers: ", false, false);
-	CHECK_LICENCE_PARAMETER(MachineNumbersNotMatching, keyFileMachineId);
-
-	return numReasons;
-#else
 	ignoreUnused(keyContent);
 	return numReasons;
-#endif
 }
+
+#endif
+
+
 
 String DeactiveOverlay::getTextForError(State s) const
 {

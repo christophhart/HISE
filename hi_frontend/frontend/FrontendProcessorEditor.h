@@ -35,41 +35,6 @@
 
 #define INCLUDE_BAR 1
 
-#if USE_COPY_PROTECTION
-
-class OnlineActivator : public ThreadWithAsyncProgressWindow
-{
-public:
-
-	enum Error
-	{
-		OK = 0,
-		Fail,
-		noConnection,
-		numErrorMessages
-	};
-
-	OnlineActivator(Unlocker* unlocker_, DeactiveOverlay* overlay_);
-
-	void run() override;
-
-	void threadFinished() override;
-
-private:
-
-	Error error;
-
-	String errorMessage;
-
-	String keyFile;
-
-	Unlocker* unlocker;
-	DeactiveOverlay* overlay;
-
-};
-
-#endif
-
 class ScriptContentContainer;
 
 class FrontendEditorHolder: public Component

@@ -98,13 +98,12 @@ unlockCounter(0)
     HiseDeviceSimulator::init(wrapperType);
     
 #if USE_COPY_PROTECTION
-	if (PresetHandler::loadKeyFile(unlocker))
-	{
-	}
-	else
+
+	if (!unlocker.loadKeyFile())
 	{
 		keyFileCorrectlyLoaded = false;
 	}
+	
 #elif USE_TURBO_ACTIVATE
 	
 	keyFileCorrectlyLoaded = unlocker.isUnlocked();

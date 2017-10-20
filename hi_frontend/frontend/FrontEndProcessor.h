@@ -34,6 +34,36 @@
 #define FRONTENDPROCESSOR_H_INCLUDED
 
 
+#if USE_COPY_PROTECTION
+class Unlocker
+{
+public:
+
+	Unlocker();
+
+	~Unlocker();
+
+	var loadKeyFile();
+
+	forcedinline var isUnlocked() const;
+
+	static RSAKey getPublicKey();
+
+	forcedinline var isValidMachine(const String& machineId) const;
+
+	static void showActivationWindow(Component* overlay);
+
+	static void resolveLicenseFile(Component* overlay);
+
+private:
+
+	friend class OnlineActivator;
+
+	class Pimpl;
+	Pimpl* pimpl;
+};
+#endif
+
 
 
 /** This class lets you take your exported HISE presets and wrap them into a hardcoded plugin (VST / AU, x86/x64, Win / OSX)
@@ -200,8 +230,6 @@ public:
 
 	void setCurrentProgram(int index) override;
 	
-    
-
 #if USE_COPY_PROTECTION
 	Unlocker unlocker;
 #endif
