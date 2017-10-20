@@ -1725,11 +1725,11 @@ File ProjectHandler::Frontend::getAppDataDirectory(ProjectHandler *handler/*=nul
 #endif
 }
 
-File ProjectHandler::Frontend::getLicenceKey()
+File ProjectHandler::Frontend::getLicenseKey()
 {
 #if USE_FRONTEND
 
-	return getAppDataDirectory().getChildFile(getProjectName() + getLicenceKeyExtension());
+	return getAppDataDirectory().getChildFile(getProjectName() + getLicenseKeyExtension());
 
 #else
 
@@ -1738,19 +1738,19 @@ File ProjectHandler::Frontend::getLicenceKey()
 #endif
 }
 
-String ProjectHandler::Frontend::getLicenceKeyExtension()
+String ProjectHandler::Frontend::getLicenseKeyExtension()
 {
 
 #if JUCE_WINDOWS
 
 #if JUCE_64BIT
-	return ".licence_x64";
+	return ".license_x64";
 #else
-	return ".licence_x86";
+	return ".license_x86";
 #endif
 
 #else
-	return ".licence";
+	return ".license";
 #endif
 }
 

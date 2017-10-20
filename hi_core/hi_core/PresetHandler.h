@@ -278,9 +278,9 @@ public:
 		*/
 		static File getAppDataDirectory(ProjectHandler *handler=nullptr);
 
-		static File getLicenceKey();
+		static File getLicenseKey();
 
-		static String getLicenceKeyExtension();
+		static String getLicenseKeyExtension();
 
 		static String getSanitiziedFileNameForPoolReference(const String &absoluteFileName);
 		

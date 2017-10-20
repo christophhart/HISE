@@ -173,7 +173,7 @@ public:
 
 	bool check(State s, const String &value = String());
 
-	State checkLicence(const String &keyContent = String());
+	State checkLicense(const String &keyContent = String());
 
 	void refreshLabel()
 	{
@@ -201,7 +201,7 @@ private:
 
 	ScopedPointer<Label> descriptionLabel;
 
-	ScopedPointer<TextButton> resolveLicenceButton;
+	ScopedPointer<TextButton> resolveLicenseButton;
 	ScopedPointer<TextButton> resolveSamplesButton;
 	ScopedPointer<TextButton> registerProductButton;
 	ScopedPointer<TextButton> useActivationResponseButton;

@@ -53,7 +53,7 @@ AudioProcessorEditor(fp)
 
 	if (!fp->unlocker.isUnlocked())
 	{
-		deactiveOverlay->checkLicence();
+		deactiveOverlay->checkLicense();
 	}
 
 	deactiveOverlay->setState(DeactiveOverlay::LicenseInvalid, !fp->unlocker.isUnlocked());
