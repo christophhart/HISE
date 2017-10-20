@@ -47,6 +47,11 @@ AudioProcessorEditor(fp)
 
 #if !FRONTEND_IS_PLUGIN
 	deactiveOverlay->setState(DeactiveOverlay::SamplesNotFound, !fp->areSamplesLoadedCorrectly());
+#else
+
+	// make sure to call setState at least once or the overlay will be visible...
+	deactiveOverlay->setState(DeactiveOverlay::SamplesNotFound, false);
+
 #endif
 
 #if USE_COPY_PROTECTION
