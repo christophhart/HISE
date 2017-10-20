@@ -178,7 +178,7 @@ public:
 		MenuToolsConvertSfzToSampleMaps,
 		MenuToolsRemoveAllSampleMaps,
 		MenuToolsCreateRSAKeys,
-		MenuToolsCreateDummyLicenceFile,
+		MenuToolsCreateDummyLicenseFile,
 		MenuToolsEnableAutoSaving,
 		MenuToolsEnableDebugLogging,
 		MenuToolsDeviceSimulatorOffset,
@@ -302,7 +302,7 @@ public:
 		static void togglePluginPopupWindow(BackendRootWindow * bpe);
 		static void changeCodeFontSize(BackendRootWindow *bpe, bool increase);
 		static void createRSAKeys(BackendRootWindow * bpe);
-		static void createDummyLicenceFile(BackendRootWindow * bpe);
+		static void createDummyLicenseFile(BackendRootWindow * bpe);
 		static void createDefaultToolbarJSON(BackendRootWindow * bpe);
 		static void toggleForcePoolSearch(BackendRootWindow * bpe);
 		static void archiveProject(BackendRootWindow * bpe);

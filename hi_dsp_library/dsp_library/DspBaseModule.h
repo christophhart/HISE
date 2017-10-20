@@ -46,7 +46,7 @@ enum class LoadingErrorCode
 	MissingLibrary, ///< the library could not be found in the library folder.
 	NoValidLibrary, ///< The library seems to be missing a initialise() method with the correct signature
 	NoVersionMatch, ///< The version does not match. This error code will be never thrown automatically, but it is there to communicate the problem back to the Script Engine.
-	KeyInvalid, ///< The licence key that was passed to the initialise() method didn't match the one of the library.
+	KeyInvalid, ///< The license key that was passed to the initialise() method didn't match the one of the library.
 	numErrorCodes
 };
 

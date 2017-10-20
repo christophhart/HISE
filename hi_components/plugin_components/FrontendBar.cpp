@@ -784,4 +784,3 @@ void DeactiveOverlay::resized()
 	}
 }
 
-#undef CHECK_LICENCE_PARAMETER

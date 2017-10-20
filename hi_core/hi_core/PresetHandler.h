@@ -234,7 +234,7 @@ public:
 		*	This directory will be used for:
 		*	- sample location folder (using a LinkOS file)
 		*	- user presets (in the UserPresets subfolder)
-		*	- licence key file
+		*	- license key file
 		*/
 		static File getAppDataDirectory(ProjectHandler *handler=nullptr);
 

@@ -148,7 +148,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsEnableDebugLogging,
 		MenuToolsImportArchivedSamples,
 		MenuToolsCreateRSAKeys,
-		MenuToolsCreateDummyLicenceFile,
+		MenuToolsCreateDummyLicenseFile,
 		MenuViewReset,
         MenuViewFullscreen,
 		MenuViewBack,
@@ -446,8 +446,8 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuToolsCreateRSAKeys:
 		setCommandTarget(result, "Create RSA Key pair", true, false, 'X', false);
 		break;
-	case MenuToolsCreateDummyLicenceFile:
-		setCommandTarget(result, "Create Dummy Licence File", true, false, 'X', false);
+	case MenuToolsCreateDummyLicenseFile:
+		setCommandTarget(result, "Create Dummy License File", true, false, 'X', false);
 		break;
 	case MenuViewReset:
 		setCommandTarget(result, "Reset Workspaces", true, false, 'X', false);
@@ -596,7 +596,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsConvertSfzToSampleMaps:	Actions::convertSfzFilesToSampleMaps(bpe); return true;
 	case MenuToolsRemoveAllSampleMaps:	Actions::removeAllSampleMaps(bpe); return true;
 	case MenuToolsCreateRSAKeys:		Actions::createRSAKeys(bpe); return true;
-	case MenuToolsCreateDummyLicenceFile: Actions::createDummyLicenceFile(bpe); return true;
+	case MenuToolsCreateDummyLicenseFile: Actions::createDummyLicenseFile(bpe); return true;
 	case MenuToolsCheckAllSampleMaps:	Actions::checkAllSamplemaps(bpe); return true;
 	case MenuToolsImportArchivedSamples: Actions::importArchivedSamples(bpe); return true;
 	case MenuToolsEnableAutoSaving:		bpe->owner->getAutoSaver().toggleAutoSaving(); updateCommands(); return true;
@@ -865,7 +865,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_DESKTOP_ONLY(MenuToolsRecordOneSecond);
 		p.addSeparator();
 		p.addSectionHeader("License Management");
-		ADD_DESKTOP_ONLY(MenuToolsCreateDummyLicenceFile);
+		ADD_DESKTOP_ONLY(MenuToolsCreateDummyLicenseFile);
 		ADD_DESKTOP_ONLY(MenuToolsCreateRSAKeys);
 		
 		break;
@@ -1955,7 +1955,7 @@ void BackendCommandTarget::Actions::createRSAKeys(BackendRootWindow * bpe)
 }
 
 
-void BackendCommandTarget::Actions::createDummyLicenceFile(BackendRootWindow * bpe)
+void BackendCommandTarget::Actions::createDummyLicenseFile(BackendRootWindow * bpe)
 {
 	ProjectHandler *handler = &GET_PROJECT_HANDLER(bpe->getMainSynthChain());
 
@@ -1971,7 +1971,7 @@ void BackendCommandTarget::Actions::createDummyLicenceFile(BackendRootWindow * b
 
 	if (appName.isEmpty() || version.isEmpty())
 	{
-		PresetHandler::showMessageWindow("No Product name", "You need a product name for a licence file.", PresetHandler::IconType::Warning);
+		PresetHandler::showMessageWindow("No Product name", "You need a product name for a license file.", PresetHandler::IconType::Warning);
 		return;
 	}
 
@@ -2001,21 +2001,21 @@ void BackendCommandTarget::Actions::createDummyLicenceFile(BackendRootWindow * b
 	}
 
 	String keyContent = KeyGeneration::generateKeyFile(productName, dummyEmail, userName, ids.joinIntoString("\n"), privateKey);
-	File key = handler->getWorkDirectory().getChildFile(productName + ProjectHandler::Frontend::getLicenceKeyExtension());
+	File key = handler->getWorkDirectory().getChildFile(productName + ProjectHandler::Frontend::getLicenseKeyExtension());
 
 	key.replaceWithText(keyContent);
 
 #if JUCE_WINDOWS
 #if JUCE_64BIT
-	const String message = "A dummy licence file for 64bit plugins was created.\nTo load 32bit plugins, please use the 32bit version of HISE to create the licence file";
+	const String message = "A dummy license file for 64bit plugins was created.\nTo load 32bit plugins, please use the 32bit version of HISE to create the license file";
 #else
-	const String message = "A dummy licence file for 32bit plugins was created.\nTo load 64bit plugins, please use the 64bit version of HISE to create the licence file";
+	const String message = "A dummy license file for 32bit plugins was created.\nTo load 64bit plugins, please use the 64bit version of HISE to create the license file";
 #endif
 #else
-	const String message = "A dummy licence file for the plugins was created.";
+	const String message = "A dummy license file for the plugins was created.";
 #endif
 
-	PresetHandler::showMessageWindow("Licence File created", message, PresetHandler::IconType::Info);
+	PresetHandler::showMessageWindow("License File created", message, PresetHandler::IconType::Info);
 }
 
 void BackendCommandTarget::Actions::createDefaultToolbarJSON(BackendRootWindow * bpe)
