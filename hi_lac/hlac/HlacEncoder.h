@@ -65,6 +65,27 @@ public:
 		int bitRateForWholeBlock = 6;
 		bool useDiffEncodingWithFixedBlocks = false;
 
+		static String getBoolString(bool b)
+		{
+			return b ? "true" : "false";
+		}
+
+		String toString() const
+		{
+			String s;
+			NewLine nl;
+
+			s << "useCompression: " << getBoolString(useCompression) << nl;
+			s << "useDeltaEncoding: " << getBoolString(useDeltaEncoding) << nl;
+			s << "fixedBlockWidth: " << String(fixedBlockWidth) << nl;
+			s << "reuseFirstCycleLength: " << getBoolString(reuseFirstCycleLengthForBlock) << nl;
+			s << "removeDCOffset: " << getBoolString(removeDcOffset) << nl;
+			s << "bitRateForWholeBlock: " << String(bitRateForWholeBlock) << nl;
+			s << "useDiffEncodingWithFixedBlocks: " << getBoolString(useDiffEncodingWithFixedBlocks) << nl;
+
+			return s;
+		}
+
 		static CompressorOptions getPreset(Presets p)
 		{
 			if (p == Presets::Uncompressed)
