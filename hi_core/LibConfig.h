@@ -45,7 +45,7 @@
 #define NUM_MAX_CHANNELS 16
 
 
-#ifdef ENABLE_STARTUP_LOG
+#if ENABLE_STARTUP_LOG
 class StartupLogger
 {
 public:
