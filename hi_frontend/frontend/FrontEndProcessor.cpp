@@ -95,6 +95,8 @@ unlocker(TURBOACTIVATE_FILE_PATH)
 unlockCounter(0)
 #endif
 {
+	LOG_START("Checking license");
+
     HiseDeviceSimulator::init(wrapperType);
     
 #if USE_COPY_PROTECTION
@@ -110,6 +112,7 @@ unlockCounter(0)
 
 #endif
     
+	LOG_START("Load images");
 
 	loadImages(imageData_);
 
@@ -132,6 +135,8 @@ unlockCounter(0)
 		if (audioResourceFile.existsAsFile())
 		{
 			FileInputStream fis(audioResourceFile);
+
+			LOG_START("Load impulses");
 
 			ValueTree impulseDataFile = ValueTree::readFromStream(fis);
 
@@ -156,13 +161,19 @@ unlockCounter(0)
 
 	setSkipCompileAtPresetLoad(true);
 
+	LOG_START("Restoring main container");
+
 	synthChain->restoreFromValueTree(synthData);
 
 	setSkipCompileAtPresetLoad(false);
 
+	LOG_START("Compiling all scripts");
+
 	synthChain->compileAllScripts();
 
 	synthChain->loadMacrosFromValueTree(synthData);
+
+	LOG_START("Adding plugin parameters");
 
 	addScriptedParameters();
 
@@ -170,6 +181,8 @@ unlockCounter(0)
 
 	if (getSampleRate() > 0)
 	{
+		LOG_START("Initialising audio callback");
+
 		synthChain->prepareToPlay(getSampleRate(), getBlockSize());
 	}
 
@@ -254,6 +267,8 @@ const String FrontendStandaloneApplication::getApplicationVersion()
 
 void FrontendStandaloneApplication::AudioWrapper::init()
 {
+	LOG_START("Initialising Standalone Wrapper");
+
 	setOpaque(true);
 	standaloneProcessor = new StandaloneProcessor();
 

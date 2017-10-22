@@ -1,4 +1,38 @@
 
+
+#if ENABLE_STARTUP_LOG
+File StartupLogger::getLogFile()
+{
+	return File::getSpecialLocation(File::userDesktopDirectory).getChildFile("StartLog.txt");
+}
+
+void StartupLogger::init()
+{
+	isInitialised = true;
+
+	getLogFile().deleteFile();
+	getLogFile().create();
+
+#if USE_BACKEND
+	log("Startup Log for HISE");
+#else
+	getLogFile().replaceWithText("Startup Log for " + ProjectHandler::Frontend::getProjectName() + "\n====================================\n");
+#endif
+}
+
+
+void StartupLogger::log(const String& message)
+{
+	if (!isInitialised)
+		init();
+
+	NewLine nl;
+	getLogFile().appendText(Time::getCurrentTime().toString(true, true, true, true) + ": " + message + nl);
+}
+
+bool StartupLogger::isInitialised = false;
+#endif
+
 struct DebugLogger::Message
 {
 	Message() {};

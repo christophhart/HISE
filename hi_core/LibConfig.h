@@ -45,6 +45,24 @@
 #define NUM_MAX_CHANNELS 16
 
 
+#ifdef ENABLE_STARTUP_LOG
+class StartupLogger
+{
+public:
+	static void log(const String& message);;
+private:
+	static File getLogFile();
+	static void init();
+	static bool isInitialised;
+};
+
+#define LOG_START(x) StartupLogger::log(x);
+#else
+#define LOG_START(x)
+#endif
+
+
+
 #define DONT_INCLUDE_FLOATING_LAYOUT_IN_FRONTEND 1
 
 #if USE_BACKEND // make sure it's either backend or frontend...

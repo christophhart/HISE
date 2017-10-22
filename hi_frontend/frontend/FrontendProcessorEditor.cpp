@@ -34,10 +34,14 @@
 FrontendProcessorEditor::FrontendProcessorEditor(FrontendProcessor *fp) :
 AudioProcessorEditor(fp)
 {
+	LOG_START("Creating Interface")
+
     addAndMakeVisible(container = new FrontendEditorHolder());
     
 
 	container->addAndMakeVisible(rootTile = new FloatingTile(fp, nullptr));
+
+	LOG_START("Creating Root Panel");
 
 	rootTile->setNewContent("InterfacePanel");
     
@@ -121,6 +125,8 @@ FrontendProcessorEditor::~FrontendProcessorEditor()
 
 void FrontendProcessorEditor::setGlobalScaleFactor(float newScaleFactor)
 {
+	LOG_START("Change scale factor");
+
     if (newScaleFactor > 0.2 && (scaleFactor != newScaleFactor))
     {
         scaleFactor = newScaleFactor;
@@ -144,6 +150,8 @@ void FrontendProcessorEditor::setGlobalScaleFactor(float newScaleFactor)
 
 void FrontendProcessorEditor::resized()
 {
+	LOG_START("Resizing interface");
+
 	int width = originalSizeX != 0 ? originalSizeX : getWidth();
     int height = originalSizeY != 0 ? originalSizeY : getHeight();
     

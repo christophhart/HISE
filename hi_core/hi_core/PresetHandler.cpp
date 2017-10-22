@@ -660,6 +660,8 @@ void UserPresetHelpers::extractUserPresets(const char* userPresetData, size_t si
 	if (userPresetDirectory.isDirectory())
 		return;
 
+	LOG_START("Extracting user presets to AppData directory");
+
 	userPresetDirectory.createDirectory();
 
 	ValueTree presetTree = PresetHandler::loadValueTreeFromData(userPresetData, size, true);
@@ -2551,8 +2553,12 @@ void PresetPlayerHandler::addInstrumentToPackageXml(const String &instrumentFile
 
 void FrontendSampleManager::loadSamplesAfterSetup()
 {
+	
+
 	if (shouldLoadSamplesAfterSetup())
 	{
+		LOG_START("Loading samples");
+
 		dynamic_cast<AudioProcessor*>(this)->suspendProcessing(false);
 		dynamic_cast<MainController*>(this)->getSampleManager().setShouldSkipPreloading(false);
 		dynamic_cast<MainController*>(this)->getSampleManager().preloadEverything();

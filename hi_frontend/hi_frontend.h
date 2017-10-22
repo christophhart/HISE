@@ -116,12 +116,18 @@ ValueTree externalFiles = hise::PresetHandler::loadValueTreeFromData(PresetData:
 	return fp;\
 }
 
-#define CREATE_PLUGIN_WITH_AUDIO_FILES(deviceManager, callback) {ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\
+#define CREATE_PLUGIN_WITH_AUDIO_FILES(deviceManager, callback) {\
+    LOG_START("Loading embedded instrument data")\
+    ValueTree presetData = ValueTree::readFromData(PresetData::preset, PresetData::presetSize);\
+	LOG_START("Loading embedded image data")\
 	ValueTree imageData = hise::PresetHandler::loadValueTreeFromData(PresetData::images, PresetData::imagesSize, false);\
+	LOG_START("Loading embedded impulse responses")\
 	ValueTree impulseData = hise::PresetHandler::loadValueTreeFromData(PresetData::impulses, PresetData::impulsesSize, false); \
+	LOG_START("Loading embedded other data")\
 	ValueTree externalFiles = hise::PresetHandler::loadValueTreeFromData(PresetData::externalFiles, PresetData::externalFilesSize, true);\
 	\
-	auto fp = new hise::FrontendProcessor(presetData, deviceManager, callback, &imageData, &impulseData, &externalFiles, nullptr);\
+	LOG_START("Creating Frontend Processor")\
+	auto fp = new hise::FrontendProcessor(presetData, deviceManager, callback, &imageData, &impulseData, &externalFiles, nullptr); \
     hise::UserPresetHelpers::extractUserPresets(PresetData::userPresets, PresetData::userPresetsSize);\
 	hise::AudioProcessorDriver::restoreSettings(fp);\
 	hise::GlobalSettingManager::restoreGlobalSettings(fp); \

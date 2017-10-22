@@ -136,6 +136,9 @@ void SoundPreloadThread::run()
 	sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->setUpdatePool(true);
 	sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->sendChangeMessage();
 	dynamic_cast<AudioProcessor*>(sampler->getMainController())->suspendProcessing(false);
+
+	LOG_START("Loaded Samples for " + sampler->getId());
+
 };
 
 void SoundPreloadThread::preloadSample(StreamingSamplerSound * s, const int preloadSize, int soundIndex)
@@ -168,6 +171,7 @@ void SoundPreloadThread::preloadSample(StreamingSamplerSound * s, const int prel
 		signalThreadShouldExit();
 	}
 }
+
 
 ThumbnailHandler::ThumbnailHandler(const File &directoryToLoad, const StringArray &fileNames, ModulatorSampler *s) :
 ThreadWithQuasiModalProgressWindow("Generating Audio Thumbnails for " + String(fileNames.size()) + " files.", true, true, s->getMainController()),

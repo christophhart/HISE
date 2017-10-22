@@ -85,8 +85,12 @@ AudioDeviceDialog::~AudioDeviceDialog()
 
 StandaloneProcessor::StandaloneProcessor()
 {
+	LOG_START("Creating Device Manager");
+
 	deviceManager = new AudioDeviceManager();
 	callback = new AudioProcessorPlayer();
+
+	LOG_START("Create Main Processor");
 
 	wrappedProcessor = createProcessor();
 
@@ -107,8 +111,12 @@ StandaloneProcessor::StandaloneProcessor()
     
     jassert(apd != nullptr);
     
+	LOG_START("Initialise Audio Driver...");
+
     apd->initialiseAudioDriver(xml);
     
+	LOG_START("OK");
+
 	dynamic_cast<FrontendSampleManager*>(wrappedProcessor.get())->loadSamplesAfterSetup();
 
 #endif
@@ -315,6 +323,8 @@ File GlobalSettingManager::getSettingDirectory()
 
 void GlobalSettingManager::restoreGlobalSettings(MainController* mc)
 {
+	LOG_START("Restoring global settings");
+
 	File savedDeviceData = getGlobalSettingsFile();
 
 	ScopedPointer<XmlElement> globalSettings = XmlDocument::parse(savedDeviceData);
@@ -351,10 +361,12 @@ void GlobalSettingManager::restoreGlobalSettings(MainController* mc)
 
 		if (!allSamplesThere)
 		{
+			LOG_START("Samples not validated. Checking references");
 			dynamic_cast<FrontendSampleManager*>(mc)->checkAllSampleReferences();
 		}
 		else
 		{
+			LOG_START("Samples are validated. Skipping reference check");
 			dynamic_cast<FrontendSampleManager*>(mc)->setAllSampleReferencesCorrect();
 		}
 #else
