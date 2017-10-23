@@ -693,6 +693,8 @@ void ModulatorSynth::startVoiceWithHiseEvent(ModulatorSynthVoice* voice, Synthes
 
 void ModulatorSynth::preStartVoice(int voiceIndex, int noteNumber)
 {
+	LOG_SYNTH_EVENT("preStartVoice for " + getId() + " with index " + String(voiceIndex));
+
 	lastStartedVoice = static_cast<ModulatorSynthVoice*>(getVoice(voiceIndex));
 
 
@@ -969,6 +971,8 @@ int ModulatorSynth::getIndexInGroup() const
 
 void ModulatorSynthVoice::resetVoice()
 {
+	LOG_SYNTH_EVENT("Reset Note for " + getOwnerSynth()->getId() + " with index " + String(voiceIndex));
+
 	clearCurrentNote();
 
 	ModulatorSynth *os = getOwnerSynth();
@@ -1031,6 +1035,7 @@ int ModulatorSynthVoice::getVoiceIndex() const
 
 void ModulatorSynthVoice::stopNote(float, bool)
 {
+	LOG_SYNTH_EVENT("Stop Note for " + getOwnerSynth()->getId() + " with index " + String(voiceIndex));
     
 		ModulatorSynth *os = getOwnerSynth();
 		

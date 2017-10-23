@@ -342,6 +342,8 @@ public:
 	/** Calculates the voice values with the GainModulationChain and returns a read pointer to the values. */
 	const float *calculateGainValuesForVoice(int voiceIndex, float scriptGainValue, int startSample, int numSamples)
 	{
+		LOG_SYNTH_EVENT("Rendering Gain chain for " + getId() + " for voice index " + String(voiceIndex));
+
 		gainChain->renderVoice(voiceIndex, startSample, numSamples);
 		float *gainData = gainChain->getVoiceValues(voiceIndex);
 		if (scriptGainValue != 1.0f) FloatVectorOperations::multiply(gainData + startSample, scriptGainValue, numSamples);
@@ -525,6 +527,8 @@ public:
 	/** This calculates the angle delta. For this synth, it detects the sine frequency, but you can override it to make something else. */
 	virtual void startNote (int /*midiNoteNumber*/, float /*velocity*/, SynthesiserSound* , int /*currentPitchWheelPosition*/)
 	{
+		LOG_SYNTH_EVENT("Start Note for " + getOwnerSynth()->getId() + " with index " + String(voiceIndex));
+
 		jassert(!currentHiseEvent.isEmpty());
 
 		killThisVoice = false;

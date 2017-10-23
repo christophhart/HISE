@@ -135,6 +135,10 @@
  #define   ENABLE_HOST_INFO 1
 #endif
 
+#ifndef    ENABLE_STARTUP_LOGGER
+ //#define ENABLE_STARTUP_LOGGER
+#endif
+
 #ifndef    ENABLE_CPU_MEASUREMENT
  #define   ENABLE_CPU_MEASUREMENT 1
 #endif
