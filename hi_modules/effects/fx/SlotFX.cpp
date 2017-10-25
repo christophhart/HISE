@@ -81,6 +81,10 @@ bool SlotFX::setEffect(const String& typeName)
         
 		if(p != nullptr)
 		{
+			auto newId = getId() + "_" + p->getId();
+
+			p->setId(newId);
+
             ScopedLock callbackLock(getMainController()->getLock());
             
             p->setIsOnAir(true);
