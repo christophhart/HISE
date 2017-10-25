@@ -35,6 +35,8 @@
 #define MODULATORSYNTHGROUP_H_INCLUDED
 
 
+#define NUM_MAX_UNISONO_VOICES 16
+
 // TODO: Fix unisono kill voice when > 8 voices.
 
 class ModulatorSynthGroupSound : public ModulatorSynthSound
@@ -99,7 +101,7 @@ public:
 
 	void calculateNoFMBlock(int startSample, int numSamples);
 
-	void calculateNoFMVoiceInternal(ModulatorSynth * childSynth, int childVoiceIndex, int startSample, int numSamples, const float * voicePitchValues);
+	void calculateNoFMVoiceInternal(ModulatorSynth* childSynth, int unisonoIndex, int startSample, int numSamples, const float * voicePitchValues);
 
 	void calculateDetuneMultipliers(int childVoiceIndex);
 
@@ -107,7 +109,62 @@ public:
 
 	void calculateFMCarrierInternal(ModulatorSynthGroup * group, int childVoiceIndex, int startSample, int numSamples, const float * voicePitchValues);
 
+	int getChildVoiceAmount() const;
+
 private:
+
+	
+	
+	class ChildVoiceContainer
+	{
+	public:
+
+		ChildVoiceContainer()
+		{
+			clear();
+		}
+
+		void addVoice(ModulatorSynthVoice* v)
+		{
+			voices[numVoices++] = v;
+		}
+
+		ModulatorSynthVoice* getVoice(int index)
+		{
+			if (index < numVoices)
+			{
+				return voices[index];
+			}
+			else
+			{
+				jassertfalse;
+				return nullptr;
+			}
+		}
+
+		int size() const
+		{
+			return numVoices;
+		}
+
+		void clear()
+		{
+			memset(voices, 0, sizeof(ModulatorSynthGroupVoice*) * 8);
+			numVoices = 0;
+		}
+
+	private:
+
+		ModulatorSynthVoice* voices[8];
+		int numVoices = 0;
+	};
+
+	ChildVoiceContainer& getChildContainer(int childVoiceIndex)
+	{
+		return startedChildVoices[childVoiceIndex % NUM_MAX_UNISONO_VOICES];
+	}
+
+	ChildVoiceContainer startedChildVoices[NUM_MAX_UNISONO_VOICES];
 
 	DetuneValues detuneValues;
 
@@ -248,10 +305,7 @@ public:
 	void setUnisonoDetuneAmount(float newDetuneAmount);
 	void setUnisonoSpreadAmount(float newSpreadAmount);
 
-	virtual int getNumActiveVoices() const
-	{
-		return ModulatorSynth::getNumActiveVoices() * unisonoVoiceAmount;
-	}
+	virtual int getNumActiveVoices() const;
 
 	Processor *getParentProcessor() { return nullptr; };
 	const Processor *getParentProcessor() const { return nullptr; };

@@ -367,6 +367,8 @@ public:
 	/** Returns a read pointer to the calculated pitch values. Used by Synthgroups to render their pitch values on the voice value. */
 	float *getPitchValuesForVoice(int voiceIndex) { return pitchChain->getVoiceValues(voiceIndex);};
 
+	ModulatorSynthVoice* getFreeVoice(SynthesiserSound* s, int midiChannel, int midiNoteNumber);
+
 	HiseEventBuffer eventBuffer;
 	AudioSampleBuffer internalBuffer;
 
