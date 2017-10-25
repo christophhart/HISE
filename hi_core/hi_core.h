@@ -65,9 +65,9 @@ END_JUCE_MODULE_DECLARATION
 #include "../JUCE/modules/juce_gui_extra/juce_gui_extra.h"
 #include "../JUCE/modules/juce_tracktion_marketplace/juce_tracktion_marketplace.h"
 #include "../JUCE/modules/juce_opengl/juce_opengl.h"
-#include "../hi_lac/hi_lac.h"
+#include "../hi_streaming/hi_streaming.h"
 
-#include <atomic>
+
 #include <complex>
 
 

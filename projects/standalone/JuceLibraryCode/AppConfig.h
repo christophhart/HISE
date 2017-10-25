@@ -38,6 +38,7 @@
 #define JUCE_MODULE_AVAILABLE_hi_modules                      1
 #define JUCE_MODULE_AVAILABLE_hi_sampler                      1
 #define JUCE_MODULE_AVAILABLE_hi_scripting                    1
+#define JUCE_MODULE_AVAILABLE_hi_streaming                    1
 #define JUCE_MODULE_AVAILABLE_juce_audio_basics               1
 #define JUCE_MODULE_AVAILABLE_juce_audio_devices              1
 #define JUCE_MODULE_AVAILABLE_juce_audio_formats              1
@@ -175,6 +176,13 @@
 
 #ifndef    HLAC_INCLUDE_TEST_SUITE
  #define   HLAC_INCLUDE_TEST_SUITE 0
+#endif
+
+//==============================================================================
+// hi_streaming flags:
+
+#ifndef    STANDALONE_STREAMING
+ //#define STANDALONE_STREAMING
 #endif
 
 //==============================================================================

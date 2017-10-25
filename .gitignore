@@ -42,3 +42,4 @@ tools/hise_api/upload.ftp
 tools/scripting_api/html/
 *.tmp
 tools/auto_build/Output/
+tools/streaming_api/html/

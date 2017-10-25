@@ -59,9 +59,9 @@ namespace hise
 	using namespace juce;
 
 
-#include "sampler/MonolithAudioFormat.h"
 
-#include "sampler/StreamingSampler.h"
+
+
 
 #include "sampler/dywapitchtrack/dywapitchtrack.h"
 #include "sampler/PitchDetection.h"

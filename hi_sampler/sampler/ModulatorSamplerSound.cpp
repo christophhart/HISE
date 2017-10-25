@@ -647,14 +647,12 @@ ModulatorSamplerSoundPool::ModulatorSamplerSoundPool(MainController *mc_) :
 mc(mc_),
 debugProcessor(nullptr),
 mainAudioProcessor(nullptr),
-numOpenFileHandles(0),
 updatePool(true),
 searchPool(true),
 forcePoolSearch(false),
 isCurrentlyLoading(false)
 {
-	afm.registerBasicFormats();
-	afm.registerFormat(new hlac::HiseLosslessAudioFormat(), false);
+	
 }
 
 void ModulatorSamplerSoundPool::setDebugProcessor(Processor *p)
@@ -1076,16 +1074,14 @@ String ModulatorSamplerSoundPool::getTextForPoolTable(int columnId, int indexInP
 
 void ModulatorSamplerSoundPool::increaseNumOpenFileHandles()
 {
-	numOpenFileHandles++;
+	StreamingSamplerSoundPool::increaseNumOpenFileHandles();
 
 	if(updatePool) sendChangeMessage();
 }
 
 void ModulatorSamplerSoundPool::decreaseNumOpenFileHandles()
 {
-	numOpenFileHandles--; 
-	
-	if (numOpenFileHandles < 0) numOpenFileHandles = 0;
+	StreamingSamplerSoundPool::decreaseNumOpenFileHandles();
 
 	if(updatePool) sendChangeMessage();
 }

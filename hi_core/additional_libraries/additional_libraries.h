@@ -89,7 +89,7 @@ extern "C"
 
 #endif
 
-#include "lockfree_fifo/readerwriterqueue.h"
+
 
 
 #endif  // ADDITIONAL_LIBRARIES_H_INCLUDED

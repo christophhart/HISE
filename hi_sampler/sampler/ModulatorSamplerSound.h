@@ -438,7 +438,8 @@ private:
 *	This is achieved by isolating the actual sample data into a StreamingSamplerSound object which will be wrapped
 *	by a ModulatorSamplerSound object.
 */
-class ModulatorSamplerSoundPool : public SafeChangeBroadcaster
+class ModulatorSamplerSoundPool : public StreamingSamplerSoundPool,
+								  public SafeChangeBroadcaster
 {
 public:
 
@@ -505,12 +506,9 @@ public:
 
 	// ================================================================================================================
 
-	AudioFormatManager afm;
+	void increaseNumOpenFileHandles() override;
 
-
-	void increaseNumOpenFileHandles();
-
-	void decreaseNumOpenFileHandles();
+	void decreaseNumOpenFileHandles() override;
 
 	bool isFileBeingUsed(int poolIndex);
 
@@ -552,7 +550,7 @@ private:
     bool updatePool;
 	bool searchPool;
     
-	int numOpenFileHandles;
+	
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ModulatorSamplerSoundPool)
 };

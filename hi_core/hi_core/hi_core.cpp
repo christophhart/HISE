@@ -75,7 +75,6 @@ using namespace juce;
 #include "HI_LookAndFeels.cpp"
 #include "Tables.cpp"
 #include "ExternalFilePool.cpp"
-#include "SampleThreadPool.cpp"
 #include "GlobalScriptCompileBroadcaster.cpp"
 #include "MainControllerHelpers.cpp"
 #include "MainController.cpp"

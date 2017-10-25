@@ -40,8 +40,8 @@ namespace hise
 {
 	using namespace juce;
 
-#include "sampler/MonolithAudioFormat.cpp"
-#include "sampler/StreamingSampler.cpp"
+
+
 
 #include "sampler/dywapitchtrack/dywapitchtrack.c"
 

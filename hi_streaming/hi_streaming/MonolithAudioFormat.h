@@ -460,6 +460,8 @@ public:
 			
 			ScopedPointer<hlac::HiseLosslessAudioFormatReader> thumbnailReader = new hlac::HiseLosslessAudioFormatReader(fallbackStream.release());
 
+			thumbnailReader->setTargetAudioDataType(AudioDataConverters::int16BE);
+
 			thumbnailReader->sampleRate = info->sampleRate;
 
 			return new AudioSubsectionReader(thumbnailReader.release(), start, length, true);
@@ -477,6 +479,8 @@ public:
 		int64 start;
 		String fileName;
 	};
+
+	typedef ReferenceCountedObjectPtr<HlacMonolithInfo> Ptr;
 
 private:
 
@@ -509,6 +513,8 @@ private:
 	OwnedArray<hlac::HiseLosslessAudioFormatReader> fallbackReaders;
 
 	OwnedArray<hlac::HlacMemoryMappedAudioFormatReader> memoryReaders;
+
+	
 
 };
 

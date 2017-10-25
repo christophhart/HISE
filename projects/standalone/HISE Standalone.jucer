@@ -75,6 +75,7 @@
         <MODULEPATH id="hi_sampler" path="../../"/>
         <MODULEPATH id="hi_components" path="../../"/>
         <MODULEPATH id="hi_dsp" path="../../"/>
+        <MODULEPATH id="hi_streaming" path="../../"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <XCODE_IPHONE targetFolder="Builds/iOS" iosScreenOrientation="landscape" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override"
@@ -112,6 +113,7 @@
         <MODULEPATH id="hi_sampler" path="../../"/>
         <MODULEPATH id="hi_components" path="../../"/>
         <MODULEPATH id="hi_dsp" path="../../"/>
+        <MODULEPATH id="hi_streaming" path="../../"/>
       </MODULEPATHS>
     </XCODE_IPHONE>
     <VS2015 targetFolder="Builds/VisualStudio2015" smallIcon="ho3qQy" bigIcon="ho3qQy"
@@ -157,6 +159,7 @@
         <MODULEPATH id="hi_sampler" path="../../"/>
         <MODULEPATH id="hi_components" path="../../"/>
         <MODULEPATH id="hi_dsp" path="../../"/>
+        <MODULEPATH id="hi_streaming" path="../../"/>
       </MODULEPATHS>
     </VS2015>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="USE_IPP=0" smallIcon="bfBEgJ"
@@ -191,6 +194,7 @@
         <MODULEPATH id="hi_sampler" path="../../"/>
         <MODULEPATH id="hi_components" path="../../"/>
         <MODULEPATH id="hi_dsp" path="../../"/>
+        <MODULEPATH id="hi_streaming" path="../../"/>
       </MODULEPATHS>
     </LINUX_MAKE>
   </EXPORTFORMATS>
@@ -204,6 +208,7 @@
     <MODULE id="hi_modules" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_sampler" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_scripting" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="hi_streaming" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_audio_basics" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_audio_devices" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_audio_formats" showAllCode="1" useLocalCopy="0"/>

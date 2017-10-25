@@ -24,6 +24,7 @@
 #include <hi_modules/hi_modules.h>
 #include <hi_sampler/hi_sampler.h>
 #include <hi_scripting/hi_scripting.h>
+#include <hi_streaming/hi_streaming.h>
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_audio_devices/juce_audio_devices.h>
 #include <juce_audio_formats/juce_audio_formats.h>
