@@ -36,7 +36,7 @@ BEGIN_JUCE_MODULE_DECLARATION
 
   ID:               hi_dsp
   vendor:           Hart Instruments
-  version:          1.1.1
+  version:          1.1.2
   name:             HISE DSP Module
   description:      The DSP base classes for HISE
   website:          http://hise.audio

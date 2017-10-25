@@ -36,13 +36,13 @@ BEGIN_JUCE_MODULE_DECLARATION
 
   ID:               hi_streaming
   vendor:           Hart Instruments
-  version:          1.1.1
+  version:          1.1.2
   name:             HISE Streaming module
   description:      The streaming sampler classes for HISE
   website:          http://hise.audio
   license:          GPL / Commercial
 
-  dependencies:      juce_audio_basics, juce_audio_devices, juce_audio_formats, juce_audio_processors, juce_core, juce_cryptography, juce_data_structures, juce_events, juce_graphics, juce_gui_basics, juce_gui_extra, juce_opengl, hi_lac
+  dependencies:     juce_audio_basics, juce_audio_devices, juce_audio_formats, juce_audio_processors, juce_core, juce_data_structures, juce_events, hi_lac
   OSXFrameworks:    Accelerate
   iOSFrameworks:    Accelerate
 
