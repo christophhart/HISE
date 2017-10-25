@@ -329,7 +329,7 @@ void ScriptContentComponent::setNewContent(ScriptingApi::Content *c)
 
 		const int parentIndex = sc->getParentComponentIndex();
 
-		if (parentIndex != -1)
+		if (parentIndex != -1 && parentIndex < componentWrappers.size())
 		{
 			Component* parentComponentOfSc = componentWrappers[parentIndex]->getComponent();
 			
