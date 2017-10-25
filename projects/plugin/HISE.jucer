@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<JUCERPROJECT id="TQ3pmU" name="HISE" projectType="audioplug" version="1.1.1"
+<JUCERPROJECT id="TQ3pmU" name="HISE" projectType="audioplug" version="1.1.2"
               bundleIdentifier="com.hartinstruments.HISE" includeBinaryInAppConfig="1"
               buildVST="1" buildVST3="0" buildAU="1" buildRTAS="0" buildAAX="0"
               pluginName="HISE" pluginDesc="HISE" pluginManufacturer="Hart Instruments"
@@ -92,6 +92,7 @@
         <MODULEPATH id="hi_sampler" path="../../"/>
         <MODULEPATH id="hi_components" path="../../"/>
         <MODULEPATH id="hi_dsp" path="../../"/>
+        <MODULEPATH id="hi_streaming" path="../../../HISE modules"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <VS2015 targetFolder="Builds/VisualStudio2015" vstFolder="c:\SDKs\vstsdk2.4"
@@ -150,6 +151,7 @@
         <MODULEPATH id="hi_sampler" path="../../"/>
         <MODULEPATH id="hi_components" path="../../"/>
         <MODULEPATH id="hi_dsp" path="../../"/>
+        <MODULEPATH id="hi_streaming" path="../../../HISE modules"/>
       </MODULEPATHS>
     </VS2015>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="">
@@ -183,6 +185,7 @@
         <MODULEPATH id="hi_sampler" path="../../"/>
         <MODULEPATH id="hi_components" path="../../"/>
         <MODULEPATH id="hi_dsp" path="../../"/>
+        <MODULEPATH id="hi_streaming" path="../../../HISE modules"/>
       </MODULEPATHS>
     </LINUX_MAKE>
   </EXPORTFORMATS>
@@ -196,6 +199,7 @@
     <MODULE id="hi_modules" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_sampler" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_scripting" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="hi_streaming" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_audio_basics" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_audio_devices" showAllCode="1" useLocalCopy="0"/>
     <MODULES id="juce_audio_formats" showAllCode="1" useLocalCopy="0"/>
@@ -220,7 +224,8 @@
                ENABLE_ALL_PEAK_METERS="enabled" ENABLE_HOST_INFO="enabled" ENABLE_CPU_MEASUREMENT="enabled"
                USE_HARD_CLIPPER="enabled" USE_IPP="enabled" USE_VDSP_FFT="disabled"
                ENABLE_SCRIPTING_BREAKPOINTS="enabled" HLAC_MEASURE_DECODING_PERFORMANCE="disabled"
-               HLAC_DEBUG_LOG="disabled" HLAC_INCLUDE_TEST_SUITE="disabled"/>
+               HLAC_DEBUG_LOG="disabled" HLAC_INCLUDE_TEST_SUITE="disabled"
+               STANDALONE_STREAMING="disabled"/>
   <LIVE_SETTINGS>
     <OSX/>
   </LIVE_SETTINGS>

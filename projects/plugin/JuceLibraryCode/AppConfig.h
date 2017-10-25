@@ -31,6 +31,7 @@
 #define JUCE_MODULE_AVAILABLE_hi_modules                      1
 #define JUCE_MODULE_AVAILABLE_hi_sampler                      1
 #define JUCE_MODULE_AVAILABLE_hi_scripting                    1
+#define JUCE_MODULE_AVAILABLE_hi_streaming                    1
 #define JUCE_MODULE_AVAILABLE_juce_audio_basics               1
 #define JUCE_MODULE_AVAILABLE_juce_audio_devices              1
 #define JUCE_MODULE_AVAILABLE_juce_audio_formats              1
@@ -169,6 +170,13 @@
 
 #ifndef    HLAC_INCLUDE_TEST_SUITE
  #define   HLAC_INCLUDE_TEST_SUITE 0
+#endif
+
+//==============================================================================
+// hi_streaming flags:
+
+#ifndef    STANDALONE_STREAMING
+ #define   STANDALONE_STREAMING 0
 #endif
 
 //==============================================================================
@@ -400,13 +408,13 @@
  #define JucePlugin_EditorRequiresKeyboardFocus  1
 #endif
 #ifndef  JucePlugin_Version
- #define JucePlugin_Version                1.1.1
+ #define JucePlugin_Version                1.1.2
 #endif
 #ifndef  JucePlugin_VersionCode
- #define JucePlugin_VersionCode            0x10101
+ #define JucePlugin_VersionCode            0x10102
 #endif
 #ifndef  JucePlugin_VersionString
- #define JucePlugin_VersionString          "1.1.1"
+ #define JucePlugin_VersionString          "1.1.2"
 #endif
 #ifndef  JucePlugin_VSTUniqueID
  #define JucePlugin_VSTUniqueID            JucePlugin_PluginCode

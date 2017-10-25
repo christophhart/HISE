@@ -8,7 +8,7 @@ set PRODUCT=HISE
 set COMPANY="Hart Instruments"
 set WEBSITE=http://hise.audio/
 
-set FART_TOOL=C:\tools\fart.exe
+set FART_TOOL=fart
 
 git describe --abbrev=0 > tmpFile
 

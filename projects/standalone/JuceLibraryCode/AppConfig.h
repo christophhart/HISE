@@ -182,7 +182,7 @@
 // hi_streaming flags:
 
 #ifndef    STANDALONE_STREAMING
- //#define STANDALONE_STREAMING
+ #define   STANDALONE_STREAMING 0
 #endif
 
 //==============================================================================
