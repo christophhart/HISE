@@ -112,6 +112,7 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "		 <MODULEPATH id=\"hi_sampler\" path=\"%HISE_PATH%\"/>\r\n"
 "	     <MODULEPATH id=\"hi_components\" path=\"%HISE_PATH%\"/>\r\n"
 "        <MODULEPATH id=\"hi_dsp\" path=\"%HISE_PATH%\"/>\r\n"
+"        <MODULEPATH id=\"hi_streaming\" path=\"%HISE_PATH%\"/>\r\n"
 "      </MODULEPATHS>\r\n"
 "    </%VS_VERSION%>\r\n"
 "    <XCODE_MAC targetFolder=\"Builds/MacOSX\"  vstFolder=\"%VSTSDK_FOLDER%\"  aaxFolder=\"%AAX_PATH%\" extraCompilerFlags=\"-Wno-reorder -Wno-inconsistent-missing-override\"\r\n"
@@ -151,6 +152,7 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "		 <MODULEPATH id=\"hi_sampler\" path=\"%HISE_PATH%\"/>\r\n"
 "	     <MODULEPATH id=\"hi_components\" path=\"%HISE_PATH%\"/>\r\n"
 "        <MODULEPATH id=\"hi_dsp\" path=\"%HISE_PATH%\"/>\r\n"
+"        <MODULEPATH id=\"hi_streaming\" path=\"%HISE_PATH%\"/>\r\n"
 "      </MODULEPATHS>\r\n"
 "    </XCODE_MAC>\r\n"
 "    <XCODE_IPHONE targetFolder=\"Builds/iOS\" iosScreenOrientation=\"landscape\" extraCompilerFlags=\"-Wno-reorder -Wno-inconsistent-missing-override\" extraLinkerFlags=\"%OSX_STATIC_LIBS%\" extraDefs=\"%EXTRA_DEFINES_IOS%&#10;USE_IPP=0&#10;HISE_IOS=1&#10;JUCE_USE_CUSTOM_AU3_STANDALONE_APP=1&#10;USE_VDSP_FFT=1\" %ICON_FILE% \r\n"
@@ -189,6 +191,7 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "		 <MODULEPATH id=\"hi_sampler\" path=\"%HISE_PATH%\"/>\r\n"
 "	     <MODULEPATH id=\"hi_components\" path=\"%HISE_PATH%\"/>\r\n"
 "        <MODULEPATH id=\"hi_dsp\" path=\"%HISE_PATH%\"/>\r\n"
+"        <MODULEPATH id=\"hi_streaming\" path=\"%HISE_PATH%\"/>\r\n"
 "      </MODULEPATHS>\r\n"
 "    </XCODE_IPHONE>\r\n"
 "  </EXPORTFORMATS>\r\n"
@@ -202,6 +205,7 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "    <MODULE id=\"hi_sampler\" showAllCode=\"1\" useLocalCopy=\"0\"/>\r\n"
 "    <MODULE id=\"hi_components\" showAllCode=\"1\" useLocalCopy=\"0\"/>\r\n"
 "    <MODULE id=\"hi_dsp\" showAllCode=\"1\" useLocalCopy=\"0\"/>\r\n"
+"    <MODULE id=\"hi_streaming\" showAllCode=\"1\" useLocalCopy=\"0\"/>\r\n"
 "    <MODULE id=\"juce_audio_basics\" showAllCode=\"1\" useLocalCopy=\"0\"/>\r\n"
 "    <MODULE id=\"juce_audio_devices\" showAllCode=\"1\" useLocalCopy=\"0\"/>\r\n"
 "    <MODULE id=\"juce_audio_formats\" showAllCode=\"1\" useLocalCopy=\"0\"/>\r\n"
@@ -220,7 +224,7 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "  </MODULES>\r\n"
 "  <JUCEOPTIONS JUCE_QUICKTIME=\"disabled\" USE_BACKEND=\"disabled\" USE_FRONTEND=\"enabled\" HI_EXPORT_DSP_LIBRARY=\"disabled\" USE_COPY_PROTECTION=\"%USE_COPY_PROTECTION%\" IS_STANDALONE_APP=\"disabled\"\r\n"
 "               USE_IPP=\"%USE_IPP%\" FRONTEND_IS_PLUGIN=\"%FRONTEND_IS_PLUGIN%\" USE_CUSTOM_FRONTEND_TOOLBAR=\"%USE_CUSTOM_FRONTEND_TOOLBAR%\" IS_STANDALONE_FRONTEND=\"%IS_STANDALONE_FRONTEND%\" USE_GLITCH_DETECTION = \"enabled\" ENABLE_PLOTTER=\"disabled\" ENABLE_SCRIPTING_SAFE_CHECKS=\"disabled\""
-"               ENABLE_ALL_PEAK_METERS=\"disabled\" USE_SPLASH_SCREEN=\"%USE_SPLASH_SCREEN%\" ENABLE_CONSOLE_OUTPUT=\"disabled\" HLAC_MEASURE_DECODING_PERFORMANCE=\"disabled\" HLAC_DEBUG_LOG=\"disabled\" HLAC_INCLUDE_TEST_SUITE=\"disabled\"/>/>\r\n"
+"               ENABLE_ALL_PEAK_METERS=\"disabled\" USE_SPLASH_SCREEN=\"%USE_SPLASH_SCREEN%\" ENABLE_CONSOLE_OUTPUT=\"disabled\" HLAC_MEASURE_DECODING_PERFORMANCE=\"disabled\" HLAC_DEBUG_LOG=\"disabled\" HLAC_INCLUDE_TEST_SUITE=\"disabled\" STANDALONE_STREAMING=\"disabled\"/>/>\r\n"
 "</JUCERPROJECT>\r\n";
 
 const char* projectTemplate_jucer = (const char*)projectTemplate_jucer_lines;
