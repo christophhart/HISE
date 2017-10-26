@@ -159,6 +159,7 @@ public:
 		MenuToolsUseBackgroundThreadForCompile,
 		MenuToolsRecompileScriptsOnReload,
 		MenuToolsEnableCallStack,
+		MenuToolsCheckCyclicReferences,
 		MenuToolsCreateToolbarPropertyDefinition,
 		MenuToolsCreateExternalScriptFile,
 		MenuToolsValidateUserPresets,
@@ -329,6 +330,7 @@ public:
 		static void redirectScriptFolder(BackendRootWindow * bpe);
 		static void exportSampleDataForInstaller(BackendRootWindow * bpe);
 		static void importArchivedSamples(BackendRootWindow * bpe);
+		static void checkCyclicReferences(BackendRootWindow * bpe);
 	};
 
 private:

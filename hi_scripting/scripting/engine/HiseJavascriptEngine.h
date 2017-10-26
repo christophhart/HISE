@@ -201,6 +201,7 @@ public:
     
     bool isInitialising() const { return initialising; };
     
+	
     
 	const ApiClass* getApiClass(const Identifier &className) const;
 
@@ -251,8 +252,96 @@ public:
 
 	struct Breakpoint;
 
+	struct CyclicReferenceCheckBase
+	{
+		
+
+		struct Reference
+		{
+			typedef ReferenceCountedObjectPtr<Reference> Ptr;
+			typedef Array<Reference> List;
+
+			Reference(const var& parent_, const var& child_, Identifier parentId_, Identifier childId_):
+			parent(parent_),
+			child(child_),
+			parentId(parentId_),
+			childId(childId_),
+			description(toString())
+			 {}
+
+			Reference() {};
+
+			Reference(const Reference& other) :
+				parent(other.parent),
+				child(other.child),
+				parentId(other.parentId),
+				childId(other.childId),
+				description(other.description)
+			{
+				
+			}
+
+			~Reference()
+			{
+			}
+
+			bool equals (const Reference& other) const;
+
+			String toString() const
+			{
+				String ref;
+
+				ref << "Reference: " << parentId << "(" << parent.toString() << ")" << " -> " << childId << "(" << child.toString() << ")";
+
+				return ref;
+			};
+
+			bool isCyclicReference() const;
+
+			struct ListHelpers
+			{
+
+				static bool addAllReferencesWithTarget(const var& sourceVar, const Identifier& sourceId, const var& targetVar, const Identifier& targetId, List& references);
+
+				static bool checkIfExist(const List& references, const Reference& referenceToCheck);
+
+				static bool checkEqualitySafe(const var& a, const var& b);
+
+				static int overFlowProtection;
+
+			};
+
+			const var parent;
+			const var child;
+			const Identifier parentId;
+			const Identifier childId;
+
+			String description;
+		};
+
+		
+
+		/** Overwrite this method and add all references for child objects to the supplied Array. */
+		virtual bool updateCyclicReferenceList(Reference::List& references) = 0;
+
+	protected:
+
+		/** This crawls through Javascript Objects and Arrays and adds a list of references. 
+		*
+		*	If parent and parentId are not defined, then it won't add the reference so call this from your data storages,
+		*	and it will recursively scan all objects.
+		*/
+		static bool updateList(Reference::List& references, const var& varToCheck, const Identifier& parentId);
+
+	
+		static int overflowProtection;
+	};
+
+	bool checkCyclicReferences(CyclicReferenceCheckBase::Reference::List& references);
+
 	//==============================================================================
-	struct RootObject : public DynamicObject
+	struct RootObject : public DynamicObject,
+						public CyclicReferenceCheckBase
 	{
 		RootObject();
 
@@ -283,7 +372,7 @@ public:
 		static Identifier getPrototypeIdentifier();
 		static var* getPropertyPointer(DynamicObject* o, const Identifier& i) noexcept;
 
-		
+		bool updateCyclicReferenceList(Reference::List& references) override;
 
 		//==============================================================================
 		struct CodeLocation;
@@ -543,7 +632,8 @@ public:
 		};
 
 		struct JavascriptNamespace: public ReferenceCountedObject,
-									public DebugableObject
+									public DebugableObject,
+									public CyclicReferenceCheckBase
 		{
 			enum class StorageType
 			{
@@ -573,7 +663,7 @@ public:
 					   constObjects.size();
 			}
 
-			
+			bool updateCyclicReferenceList(Reference::List& references) override;
 
 			DebugInformation* createDebugInformation(int index) const;
 
@@ -613,6 +703,8 @@ public:
 			const JavascriptNamespace* getNamespace(const Identifier &id) const;
 
 			DynamicObject* getInlineFunction(const Identifier &id);
+
+			bool updateCyclicReferenceList(CyclicReferenceCheckBase::Reference::List& references) override;
 
 #if INCLUDE_NATIVE_JIT
 			NativeJITScope* getNativeJITScope(const Identifier& id);

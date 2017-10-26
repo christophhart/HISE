@@ -861,6 +861,8 @@ public:
 
 		var getJSONPopupData() const { return jsonPopupData; }
 
+		var getDataObject() const { return getConstantValue(0); }
+
 		Rectangle<int> getPopupSize() const { return popupBounds; }
 
         SafeChangeBroadcaster* getRepaintNotifier() { return &repaintNotifier; };
@@ -963,8 +965,6 @@ public:
 		var timerRoutine = var::undefined();
 
 		var dragBounds;
-
-		DynamicObject::Ptr customProperties;
 
 		Image paintCanvas;
 

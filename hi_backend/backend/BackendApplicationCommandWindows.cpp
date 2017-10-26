@@ -833,6 +833,67 @@ private:
 	int numExported = 0;
 };
 
+class CyclicReferenceChecker: public ThreadWithAsyncProgressWindow
+{
+public:
+
+	CyclicReferenceChecker(BackendProcessorEditor* bpe_) :
+		ThreadWithAsyncProgressWindow("Checking cyclic references"),
+		bpe(bpe_)
+	{
+		StringArray processorList = ProcessorHelpers::getAllIdsForType<JavascriptProcessor>(bpe->getMainSynthChain());
+
+		addComboBox("scriptProcessor", processorList, "ScriptProcessor to analyze");
+		addBasicComponents(true);
+	}
+
+	void run() override
+	{
+		showStatusMessage("Checking Cyclic references");
+		setProgress(-1.0);
+		
+		auto id = getComboBoxComponent("scriptProcessor")->getText();
+		auto jsp = dynamic_cast<JavascriptProcessor*>(ProcessorHelpers::getFirstProcessorWithName(bpe->getMainSynthChain(), id));
+
+		if (jsp != nullptr)
+		{
+			HiseJavascriptEngine::CyclicReferenceCheckBase::Reference::List references;
+
+			HiseJavascriptEngine::CyclicReferenceCheckBase::Reference::ListHelpers::overFlowProtection = 0;
+
+			bool ok = jsp->getScriptEngine()->checkCyclicReferences(references);
+
+			if (!ok)
+			{
+				if (references.size() != 0)
+				{
+					cyclicReferenceString = references.getLast().toString();
+				}
+			}
+		}
+
+	}
+
+	void threadFinished()
+	{
+		if (cyclicReferenceString.isNotEmpty())
+		{
+			PresetHandler::showMessageWindow("Cyclic References found", "The " + cyclicReferenceString + " is a cyclic reference. Your script will be leaking memory",
+				PresetHandler::IconType::Error);
+		}
+		else
+		{
+			PresetHandler::showMessageWindow("No Cyclic References found", "Your script does not contain cyclic references", PresetHandler::IconType::Info);
+		}
+	}
+
+private:
+
+	String cyclicReferenceString;
+
+	BackendProcessorEditor* bpe;
+};
+
 class SampleDataImporter : public ThreadWithAsyncProgressWindow,
 						   public hlac::HlacArchiver::Listener
 {

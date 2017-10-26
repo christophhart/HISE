@@ -60,6 +60,7 @@ namespace hise
 #include "scripting/engine/JavascriptEngineObjects.cpp"
 #include "scripting/engine/JavascriptEngineMathObject.cpp"
 #include "scripting/engine/JavascriptEngineAdditionalMethods.cpp"
+#include "scripting/engine/JavascriptEngineCyclicReferenceChecks.cpp"
 
 #include "scripting/api/XmlApi.cpp"
 #include "scripting/api/ScriptingApiObjects.cpp"

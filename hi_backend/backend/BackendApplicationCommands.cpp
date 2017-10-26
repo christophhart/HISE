@@ -127,6 +127,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsUseBackgroundThreadForCompile,
 		MenuToolsRecompileScriptsOnReload,
 		MenuToolsEnableCallStack,
+		MenuToolsCheckCyclicReferences,
 		MenuToolsCreateToolbarPropertyDefinition,
 		MenuToolsCreateExternalScriptFile,
 		MenuToolsValidateUserPresets,
@@ -379,6 +380,9 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuToolsEnableCallStack:
 		setCommandTarget(result, "Enable Scripting Call Stack ", true, bpe->getBackendProcessor()->isCallStackEnabled(), 'X', false);
 		break;
+	case MenuToolsCheckCyclicReferences:
+		setCommandTarget(result, "Check Javascript objects for cyclic references", true, false, 'X', false);
+		break;
 	case MenuToolsRecompileScriptsOnReload:
 		setCommandTarget(result, "Recompile all scripts on preset load", true, bpe->getBackendProcessor()->isCompilingAllScriptsOnPresetLoad(), 'X', false);
 		break;
@@ -578,6 +582,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsSetCompileTimeOut:	Actions::setCompileTimeOut(bpe); return true;
 	case MenuToolsUseBackgroundThreadForCompile: Actions::toggleUseBackgroundThreadsForCompiling(bpe); updateCommands(); return true;
 	case MenuToolsEnableCallStack:		Actions::toggleCallStackEnabled(bpe); updateCommands(); return true;
+	case MenuToolsCheckCyclicReferences:Actions::checkCyclicReferences(bpe); return true;
 	case MenuToolsRecompileScriptsOnReload: Actions::toggleCompileScriptsOnPresetLoad(bpe); updateCommands(); return true;
 	case MenuToolsCreateToolbarPropertyDefinition:	Actions::createDefaultToolbarJSON(bpe); return true;
 	case MenuToolsCreateExternalScriptFile:	Actions::createExternalScriptFile(bpe); updateCommands(); return true;
@@ -826,6 +831,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		ADD_ALL_PLATFORMS(MenuToolsCheckDuplicate);
 		ADD_ALL_PLATFORMS(MenuToolsClearConsole);
 		ADD_DESKTOP_ONLY(MenuToolsEnableCallStack);
+		ADD_DESKTOP_ONLY(MenuToolsCheckCyclicReferences);
 		ADD_DESKTOP_ONLY(MenuToolsRecompileScriptsOnReload);
 		ADD_DESKTOP_ONLY(MenuToolsSetCompileTimeOut);
 		ADD_DESKTOP_ONLY(MenuToolsUseBackgroundThreadForCompile);
@@ -1443,17 +1449,24 @@ void BackendCommandTarget::Actions::redirectScriptFolder(BackendRootWindow * /*b
 
 void BackendCommandTarget::Actions::exportSampleDataForInstaller(BackendRootWindow * bpe)
 {
-	SampleDataExporter *exporter = new SampleDataExporter(bpe->mainEditor);
+	auto exporter = new SampleDataExporter(bpe->mainEditor);
 
 	exporter->setModalBaseWindowComponent(bpe);
 }
 
 void BackendCommandTarget::Actions::importArchivedSamples(BackendRootWindow * bpe)
 {
-	SampleDataImporter* importer = new SampleDataImporter(bpe->mainEditor);
+	auto importer = new SampleDataImporter(bpe->mainEditor);
 
 	importer->setModalBaseWindowComponent(bpe);
 
+}
+
+void BackendCommandTarget::Actions::checkCyclicReferences(BackendRootWindow * bpe)
+{
+	auto checker = new CyclicReferenceChecker(bpe->mainEditor);
+
+	checker->setModalBaseWindowComponent(bpe);
 }
 
 void BackendCommandTarget::Actions::recompileAllScripts(BackendRootWindow * bpe)
