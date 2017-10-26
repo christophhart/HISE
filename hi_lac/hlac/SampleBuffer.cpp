@@ -57,7 +57,16 @@ void HiseSampleBuffer::reverse(int startSample, int numSamples)
 	if (isFloatingPoint())
 		floatBuffer.reverse(startSample, numSamples);
 	else
-		throw std::logic_error("not implemented");
+	{
+
+		leftIntBuffer.reverse(startSample, numSamples);
+
+		if (numChannels > 1)
+			rightIntBuffer.reverse(startSample, numSamples);
+
+		Logger::writeToLog("Trying to reverse non float buffer");
+	}
+		
 }
 
 
@@ -157,7 +166,7 @@ void HiseSampleBuffer::add(HiseSampleBuffer& dst, const HiseSampleBuffer& source
 	}
 	else if (!source.isFloatingPoint() && !dst.isFloatingPoint())
 	{
-		throw std::logic_error("not implemented");
+		Logger::writeToLog("Trying to add non floating buffer");
 	}
 	else
 	{

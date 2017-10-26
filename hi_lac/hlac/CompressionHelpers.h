@@ -93,6 +93,8 @@ struct CompressionHelpers
 
 		AudioSampleBuffer getFloatBuffer() const;
 
+		void reverse(int startSample, int numSamples);
+
 		void negate();
 
 		int16* getWritePointer(int startSample = 0);

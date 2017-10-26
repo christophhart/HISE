@@ -96,6 +96,23 @@ AudioSampleBuffer CompressionHelpers::AudioBufferInt16::getFloatBuffer() const
 	return b;
 }
 
+
+void CompressionHelpers::AudioBufferInt16::reverse(int startSample, int numSamples)
+{
+	auto s = getWritePointer(startSample);
+
+	auto t = getWritePointer(startSample + numSamples - 1);
+
+	const int numToReverse = numSamples / 2;
+
+	for (int i = 0; i < numToReverse; i++)
+	{
+		int16 temp = *s;
+		*s++ = *t;
+		*t-- = temp;
+	}
+}
+
 void CompressionHelpers::AudioBufferInt16::negate()
 {
 	int16* d = getWritePointer();
