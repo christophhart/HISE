@@ -117,7 +117,8 @@ ModulatorSynthVoice* ModulatorSynthGroupVoice::startNoteInternal(ModulatorSynth*
 	{
 		ModulatorSynthSound *s = static_cast<ModulatorSynthSound*>(childSynth->getSound(j));
 
-		if (s->appliesToMessage(1, midiNoteNumber, (int)(velocity * 127)))
+		//if (s->appliesToMessage(1, midiNoteNumber, (int)(velocity * 127)))
+		if(childSynth->soundCanBePlayed(s, 1, midiNoteNumber, velocity))
 		{
 			soundToPlay = s;
 			
@@ -245,6 +246,9 @@ void ModulatorSynthGroupVoice::calculateNoFMVoiceInternal(ModulatorSynth * child
 		
 		voiceBuffer.addFrom(0, startSample, childVoice->getVoiceValues(0, startSample), numSamples, g_left);
 		voiceBuffer.addFrom(1, startSample, childVoice->getVoiceValues(1, startSample), numSamples, g_right);
+
+		if (childVoice->getCurrentlyPlayingSound() == nullptr)
+			resetVoice();
 	}
 
 	childSynth->setPeakValues(gain, gain);
@@ -390,6 +394,10 @@ void ModulatorSynthGroupVoice::calculateFMCarrierInternal(ModulatorSynthGroup * 
 		const float peak2 = FloatVectorOperations::findMaximum(carrierVoice->getVoiceValues(0, startSample), numSamples);
 		carrierSynth->setPeakValues(peak2, peak2);
 #endif
+
+		if (carrierVoice->getCurrentlyPlayingSound() == nullptr)
+			resetVoice();
+
 	}
 
 	

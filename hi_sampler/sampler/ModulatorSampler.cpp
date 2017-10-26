@@ -686,7 +686,7 @@ void ModulatorSampler::addSamplerSound(const ValueTree &description, int index, 
 	sounds.add(newSound);
 	newSound->setUndoManager(getMainController()->getControlUndoManager());
 	newSound->addChangeListener(sampleMap);
-	newSound->setMaxRRGroupIndex(rrGroupAmount);
+	//newSound->setMaxRRGroupIndex(rrGroupAmount);
 
 	sendChangeMessage();
 }

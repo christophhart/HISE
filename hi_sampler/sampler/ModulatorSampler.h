@@ -578,7 +578,7 @@ private:
 
 	RoundRobinMap roundRobinMap;
 
-	bool reversed;
+	bool reversed = false;
 
 	bool useGlobalFolder;
 	bool pitchTrackingEnabled;

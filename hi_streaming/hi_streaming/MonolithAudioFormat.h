@@ -460,7 +460,7 @@ public:
 			
 			ScopedPointer<hlac::HiseLosslessAudioFormatReader> thumbnailReader = new hlac::HiseLosslessAudioFormatReader(fallbackStream.release());
 
-			thumbnailReader->setTargetAudioDataType(AudioDataConverters::int16BE);
+			thumbnailReader->setTargetAudioDataType(AudioDataConverters::float32BE);
 
 			thumbnailReader->sampleRate = info->sampleRate;
 
