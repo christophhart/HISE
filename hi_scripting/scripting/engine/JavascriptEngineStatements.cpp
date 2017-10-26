@@ -283,9 +283,15 @@ struct HiseJavascriptEngine::RootObject::LoopStatement : public Statement
 
 				index++;
 
-				if (r == returnWasHit)   return r;
+				if (r == returnWasHit)
+				{
+					currentObject = var();
+					return r;
+				}
 				if (r == breakWasHit)    break;
 			}
+
+			currentObject = var();
 
 			return ok;
 		}
