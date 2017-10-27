@@ -199,8 +199,15 @@ void ScriptContentComponent::updateComponent(int i)
         return;
     }
     
+	
+
 	const bool v = contentData->components[i]->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::visible);
 	componentWrappers[i]->getComponent()->setVisible(v);
+
+	if (!contentData->components[i]->isShowing())
+	{
+		return;
+	}
 
 	const bool e = contentData->components[i]->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::enabled);
 	componentWrappers[i]->getComponent()->setEnabled(e);
