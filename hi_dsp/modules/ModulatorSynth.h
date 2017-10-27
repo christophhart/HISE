@@ -103,6 +103,15 @@ public:
 		Bar = -2
 	};
 
+	enum class BypassState
+	{
+		Active = 0,
+		RampStartPending,
+		Ramping,
+		SoftBypassed,
+		numBypassStates
+	};
+
 	// ===================================================================================================================
 
 	ModulatorSynth(MainController *mc, const String &id, int numVoices);
@@ -228,8 +237,20 @@ public:
 	/** Kills the voice that is playing for the longest time. */
 	void killLastVoice();
 
+	void setSoftBypass(bool shouldBeBypassed);
+
+	bool isSoftBypassed() const { return bypassState == (int)BypassState::SoftBypassed; };
+
+	
+
     void deleteAllVoices();
     
+	void resetAllVoices();
+
+	virtual void killAllVoices();
+
+	virtual bool areVoicesActive() const;
+
 	void setVoiceLimit(int newVoiceLimit);
 
 	void setKillFadeOutTime(double fadeTimeSeconds);
@@ -251,6 +272,9 @@ public:
 	int getVoiceIndex(const SynthesiserVoice *v) const;;
 
 	void processHiseEventBuffer(const HiseEventBuffer &inputBuffer, int numSamples);
+
+	/** Checks the flag and implements the soft bypass logic. Returns false if the ramp is pending. */
+	virtual bool handleSoftBypass();
 
 	/** Adds a SimpleEnvelope to a empty ModulatorSynth to prevent clicks. */
 	virtual void addProcessorsWhenEmpty();
@@ -342,8 +366,6 @@ public:
 	/** Calculates the voice values with the GainModulationChain and returns a read pointer to the values. */
 	const float *calculateGainValuesForVoice(int voiceIndex, float scriptGainValue, int startSample, int numSamples)
 	{
-		LOG_SYNTH_EVENT("Rendering Gain chain for " + getId() + " for voice index " + String(voiceIndex));
-
 		gainChain->renderVoice(voiceIndex, startSample, numSamples);
 		float *gainData = gainChain->getVoiceValues(voiceIndex);
 		if (scriptGainValue != 1.0f) FloatVectorOperations::multiply(gainData + startSample, scriptGainValue, numSamples);
@@ -396,6 +418,8 @@ protected:
 	// Used to display the playing position
 	ModulatorSynthVoice *lastStartedVoice;
 
+	std::atomic<int> bypassState;
+
 private:
 
 	// ===================================================================================================================
@@ -430,6 +454,8 @@ private:
 
 	std::atomic<float> killFadeTime;
 	
+	
+
 	// ===================================================================================================================
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ModulatorSynth)
@@ -584,6 +610,11 @@ public:
 		killThisVoice = true;	
 	}
 
+	bool const shouldBeKilled() const
+	{
+		return killThisVoice;
+	}
+
 	void setKillFadeFactor(float newKillFadeFactor)
 	{
 		killFadeFactor = newKillFadeFactor;
@@ -591,8 +622,7 @@ public:
 
 	void applyKillFadeout(int startSample, int numSamples)
 	{
-		//float *l = voiceBuffer.getWritePointer(0, 0);
-		//float *r = voiceBuffer.getWritePointer(1, 0);
+		
 
 		while(--numSamples >= 0)
 		{

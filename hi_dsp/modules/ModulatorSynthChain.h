@@ -179,6 +179,10 @@ public:
 
 	int getNumActiveVoices() const override;
 
+	void killAllVoices() override;
+	
+	bool areVoicesActive() const override;
+
 	/** Handles the ModulatorSynthChain. */
 	class ModulatorSynthChainHandler: public Chain::Handler
 	{

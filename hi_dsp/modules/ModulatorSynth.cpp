@@ -287,19 +287,45 @@ ProcessorEditorBody *ModulatorSynth::createEditor(ProcessorEditor *parentEditor)
 
 void ModulatorSynth::processHiseEventBuffer(const HiseEventBuffer &inputBuffer, int numSamples)
 {
-	eventBuffer.copyFrom(inputBuffer);
-
-	if (checkTimerCallback(0)) synthTimerCallback(0);
-	if (checkTimerCallback(1)) synthTimerCallback(1);
-	if (checkTimerCallback(2)) synthTimerCallback(2);
-	if (checkTimerCallback(3)) synthTimerCallback(3);
-
-	if (getMainController()->getMainSynthChain() == this)
+	if(handleSoftBypass())
 	{
-		handleHostInfoHiseEvents();
+		eventBuffer.copyFrom(inputBuffer);
+
+		if (checkTimerCallback(0)) synthTimerCallback(0);
+		if (checkTimerCallback(1)) synthTimerCallback(1);
+		if (checkTimerCallback(2)) synthTimerCallback(2);
+		if (checkTimerCallback(3)) synthTimerCallback(3);
+
+		if (getMainController()->getMainSynthChain() == this)
+		{
+			handleHostInfoHiseEvents();
+		}
+
+		midiProcessorChain->renderNextHiseEventBuffer(eventBuffer, numSamples);
+	}
+}
+
+bool ModulatorSynth::handleSoftBypass()
+{
+	if (bypassState > (int)BypassState::Active)
+	{
+		if (bypassState == (int)BypassState::RampStartPending)
+		{
+			bypassState = (int)BypassState::Ramping;
+			killAllVoices();
+		}
+		else
+		{
+			if (!areVoicesActive())
+				bypassState = (int)BypassState::SoftBypassed;
+		}
+
+		eventBuffer.clear();
+
+		return false;
 	}
 
-	midiProcessorChain->renderNextHiseEventBuffer(eventBuffer, numSamples);
+	return true;
 }
 
 void ModulatorSynth::addProcessorsWhenEmpty()
@@ -333,10 +359,10 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 	int startSample = 0;
 
 	
-
 	initRenderCallback();
 
 	processHiseEventBuffer(inputMidiBuffer, numSamplesFixed);
+
 
 	midiInputFlag = !eventBuffer.isEmpty();
 
@@ -765,23 +791,21 @@ void ModulatorSynth::numDestinationChannelsChanged()
 
 void ModulatorSynth::setBypassed(bool shouldBeBypassed, NotificationType notifyChangeHandler) noexcept
 {
-	ScopedLock sl(getSynthLock());
-
 	Processor::setBypassed(shouldBeBypassed, notifyChangeHandler);
 
-	midiProcessorChain->sendAllNoteOffEvent();
+	setSoftBypass(shouldBeBypassed);
+}
 
-	for (int i = 0; i < getNumInternalChains(); i++)
+void ModulatorSynth::setSoftBypass(bool shouldBeBypassed)
+{
+	if (shouldBeBypassed)
 	{
-		ModulatorChain *chain = dynamic_cast<ModulatorChain*>(getChildProcessor(i));
-
-		if (chain != nullptr)
-		{
-			chain->handleHiseEvent(HiseEvent(HiseEvent::Type::AllNotesOff, 0, 0, 1));
-		}
+		bypassState.store((int)BypassState::RampStartPending);
 	}
-
-	allNotesOff(1, false);
+	else
+	{
+		bypassState.store((int)BypassState::Active);
+	}
 }
 
 void ModulatorSynth::disableChain(InternalChains chainToDisable, bool shouldBeDisabled)
@@ -1064,6 +1088,7 @@ bool ModulatorSynth::getMidiInputFlag()
 	return false;
 }
 
+
 void ModulatorSynth::killAllVoicesWithNoteNumber(int noteNumber)
 {
 	for(int i = 0; i < voices.size(); i++)
@@ -1134,6 +1159,31 @@ void ModulatorSynth::deleteAllVoices()
 	ScopedLock sl(lock);
 	activeVoices.clear();
 	clearVoices();
+}
+
+void ModulatorSynth::resetAllVoices()
+{
+	ScopedLock sl(lock);
+
+	for (int i = 0; i < getNumVoices(); i++)
+	{
+		static_cast<ModulatorSynthVoice*>(getVoice(i))->resetVoice();
+	}
+
+	activeVoices.clear();
+}
+
+void ModulatorSynth::killAllVoices()
+{
+	for (int i = 0; i < getNumVoices(); i++)
+	{
+		static_cast<ModulatorSynthVoice*>(getVoice(i))->killVoice();
+	}
+}
+
+bool ModulatorSynth::areVoicesActive() const
+{
+	return !activeVoices.isEmpty();
 }
 
 void ModulatorSynth::setVoiceLimit(int newVoiceLimit)

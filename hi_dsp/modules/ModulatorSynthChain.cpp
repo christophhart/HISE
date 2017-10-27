@@ -189,11 +189,13 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 {
 	jassert(isOnAir());
 
-	if (isBypassed()) return;
+	if (isSoftBypassed()) return;
 
 	ADD_GLITCH_DETECTOR(this, DebugLogger::Location::SynthChainRendering);
 
 	ScopedLock sl(getSynthLock());
+
+	
 
 	if (getMainController()->getMainSynthChain() == this && !activeChannels.areAllChannelsEnabled())
 	{
@@ -215,9 +217,6 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 
 	initRenderCallback();
 
-	
-
-
 #if FRONTEND_IS_PLUGIN
 
 	effectChain->renderMasterEffects(buffer);
@@ -230,7 +229,7 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 	internalBuffer.setSize(getMatrix().getNumSourceChannels(), numSamples, true, false, true);
 
 	// Process the Synths and add store their output in the internal buffer
-	for (int i = 0; i < synths.size(); i++) if (!synths[i]->isBypassed()) synths[i]->renderNextBlockWithModulators(internalBuffer, eventBuffer);
+	for (int i = 0; i < synths.size(); i++) if (!synths[i]->isSoftBypassed()) synths[i]->renderNextBlockWithModulators(internalBuffer, eventBuffer);
 
 	HiseEventBuffer::Iterator eventIterator(eventBuffer);
 
@@ -352,13 +351,29 @@ int ModulatorSynthChain::getNumActiveVoices() const
 {
 	int totalVoices = 0;
 
-	for (int i = 0; i < handler.getNumProcessors(); i++)
-	{
-		totalVoices += dynamic_cast<const ModulatorSynth*>(handler.getProcessor(i))->getNumActiveVoices();
-	}
+	for (auto synth : synths)
+		totalVoices += synth->getNumActiveVoices();
 
 	return totalVoices;
 }
+
+void ModulatorSynthChain::killAllVoices()
+{
+	for (auto synth : synths)
+		synth->killAllVoices();
+}
+
+bool ModulatorSynthChain::areVoicesActive() const
+{
+	for (auto synth : synths)
+	{
+		if (synth->areVoicesActive())
+			return true;
+	}
+		
+	return false;
+}
+
 
 void ModulatorSynthChain::saveInterfaceValues(ValueTree &v)
 {
