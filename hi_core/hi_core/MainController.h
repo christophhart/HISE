@@ -593,7 +593,7 @@ public:
 	void compileAllScripts();
 
 	/** Call this if you want all voices to stop. */
-	void allNotesOff() { allNotesOffFlag = true; };
+	void allNotesOff();;
 
 	/** Create a new processor and returns it. You have to supply a Chain that the Processor will be added to.
 	*

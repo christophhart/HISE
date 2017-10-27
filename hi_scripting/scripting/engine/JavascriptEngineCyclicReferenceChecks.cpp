@@ -277,7 +277,7 @@ bool HiseJavascriptEngine::RootObject::updateCyclicReferenceList(Reference::List
 	if (!hiseSpecialData.updateCyclicReferenceList(references))
 		return false;
 
-	
+	return true;
 }
 
 bool HiseJavascriptEngine::RootObject::JavascriptNamespace::updateCyclicReferenceList(Reference::List& references)

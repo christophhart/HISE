@@ -382,7 +382,7 @@ public:
 			getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, MainController::ProcessorChangeHandler::EventType::ProcessorBypassed, false);
 	};
 
-	/** Returns true if the processor is bypassed. */
+	/** Returns true if the processor is bypassed. For checking the bypass state of ModulatorSynths, better use isSoftBypassed(). */
 	bool isBypassed() const noexcept { return bypassed; };
 
 	/** Sets the sample rate and the block size. */

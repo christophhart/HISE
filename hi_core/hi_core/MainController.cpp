@@ -247,6 +247,11 @@ void MainController::compileAllScripts()
 	}
 };
 
+void MainController::allNotesOff()
+{
+	allNotesOffFlag = true;
+}
+
 void MainController::stopCpuBenchmark()
 {
 	const float thisUsage = 100.0f * (float)((Time::highResolutionTicksToSeconds(Time::getHighResolutionTicks()) - temp_usage) * sampleRate / bufferSize.get());

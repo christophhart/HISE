@@ -454,7 +454,7 @@ StreamingSamplerVoice::StreamingSamplerVoice(SampleThreadPool *pool) :
 	pitchData = nullptr;
 };
 
-void StreamingSamplerVoice::startNote(int midiNoteNumber,
+void StreamingSamplerVoice::startNote(int /*midiNoteNumber*/,
 	float /*velocity*/,
 	SynthesiserSound* s,
 	int /*currentPitchWheelPosition*/)
