@@ -88,7 +88,7 @@ ProcessorEditorBody *ModulatorSynthChain::createEditor(ProcessorEditor *parentEd
 {
 #if USE_BACKEND
 
-	return new ModulatorSynthChainBody(parentEditor);
+	return new EmptyProcessorEditorBody(parentEditor);
 
 #else 
 

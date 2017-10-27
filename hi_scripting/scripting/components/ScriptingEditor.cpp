@@ -44,6 +44,16 @@ ScriptingEditor::ScriptingEditor (ProcessorEditor *p)
 {
 	JavascriptProcessor *sp = dynamic_cast<JavascriptProcessor*>(getProcessor());
 
+	if (auto jsp = dynamic_cast<JavascriptMidiProcessor*>(sp))
+	{
+		isFront = jsp->isFront();
+	}
+
+	if (isFront)
+	{
+		return;
+	}
+
 	static const Identifier empty("empty");
 
     addAndMakeVisible (codeEditor = new CodeEditorWrapper (*doc, tokenizer, sp, empty));
@@ -157,6 +167,9 @@ ScriptingEditor::~ScriptingEditor()
 
 int ScriptingEditor::getBodyHeight() const
 {
+	if (isFront)
+		return 0;
+
 	if (isRootEditor())
 	{
 		if(auto viewport = findParentComponentOfClass<Viewport>())
@@ -224,6 +237,9 @@ void ScriptingEditor::paint (Graphics& g)
 
 void ScriptingEditor::resized()
 {
+	if (isFront)
+		return;
+
 	codeEditor->setVisible(!isConnectedToExternalScript);
 	codeEditor->setVisible(!isConnectedToExternalScript);
 	messageBox->setVisible(!isConnectedToExternalScript);
@@ -404,6 +420,31 @@ void ScriptingEditor::saveLastCallback()
 			lastPositions.set(lastCallback, codeEditor->editor->getCaretPos().getPosition());
 		}
 	}
+}
+
+void ScriptingEditor::updateGui()
+{
+	if (isFront)
+		return;
+
+	JavascriptProcessor* sp = dynamic_cast<JavascriptProcessor*>(getProcessor());
+
+	const bool nowConnected = sp->isConnectedToExternalFile();
+
+	if (nowConnected != isConnectedToExternalScript)
+	{
+		isConnectedToExternalScript = nowConnected;
+		useComponentSelectMode = false;
+		refreshBodySize();
+	}
+
+	if (getHeight() != getBodyHeight()) setSize(getWidth(), getBodyHeight());
+
+	getProcessor()->setEditorState(Processor::BodyShown, true);
+
+	int editorOffset = dynamic_cast<ProcessorWithScriptingContent*>(getProcessor())->getCallbackEditorStateOffset();
+
+	contentButton->setToggleState(getProcessor()->getEditorState(editorOffset + ProcessorWithScriptingContent::EditorStates::contentShown), dontSendNotification);
 }
 
 void ScriptingEditor::showCallback(int callbackIndex, int lineToScroll/*=-1*/)
