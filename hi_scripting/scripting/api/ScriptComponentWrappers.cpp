@@ -93,6 +93,8 @@ ScriptCreatedComponentWrapper(content, index)
 		s->setTextBoxStyle(Slider::NoTextBox, true, 0, 0);
 
 		s->setLookAndFeelOwned(fslaf);
+
+		s->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
 	}
 
 	double min = GET_SCRIPT_PROPERTY(min);
@@ -117,56 +119,19 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateComponent()
 
 	s->setUseUndoManagerForEvents(GET_SCRIPT_PROPERTY(useUndoManager));
 
-    FilmstripLookAndFeel *fslaf = dynamic_cast<FilmstripLookAndFeel*>(&s->getLookAndFeel());
-
-    ScriptingApi::Content::ScriptSlider* sc = dynamic_cast<ScriptingApi::Content::ScriptSlider*>(getScriptComponent());
-    
-    if(fslaf != nullptr)
-    {
-        fslaf->setScaleFactor(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::scaleFactor));
-    }
-    
 	s->setTooltip(GET_SCRIPT_PROPERTY(tooltip));
-
 	s->setName(GET_SCRIPT_PROPERTY(text));
+	s->enableMacroControlledComponent(GET_SCRIPT_PROPERTY(enabled));
 
-	if (sc->styleId == Slider::RotaryHorizontalVerticalDrag)
-	{
-		String direction = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::dragDirection);
-
-		if (direction == "Horizontal") s->setSliderStyle(Slider::RotaryHorizontalDrag);
-		else if (direction == "Vertical") s->setSliderStyle(Slider::RotaryVerticalDrag);
-		else s->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
-	}
-	else
-	{
-		s->setSliderStyle(sc->styleId);
-	}
+	ScriptingApi::Content::ScriptSlider* sc = dynamic_cast<ScriptingApi::Content::ScriptSlider*>(getScriptComponent());
 
 	double sensitivityScaler = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::mouseSensitivity);
-	
+
 	if (sensitivityScaler != 1.0)
 	{
 		double sensitivity = jmax<double>(1.0, 250.0 * sensitivityScaler);
 		s->setMouseDragSensitivity((int)sensitivity);
 	}
-
-	s->enableMacroControlledComponent(GET_SCRIPT_PROPERTY(enabled));
-
-	if (sc->styleId == Slider::TwoValueHorizontal)
-	{
-		s->setTextBoxStyle(Slider::NoTextBox, false, 0, 0);
-	}
-
-	s->setColour(Slider::backgroundColourId, GET_OBJECT_COLOUR(bgColour));
-	s->setColour(Slider::thumbColourId, GET_OBJECT_COLOUR(itemColour));
-	s->setColour(Slider::trackColourId, GET_OBJECT_COLOUR(itemColour2));
-
-    s->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, GET_OBJECT_COLOUR(bgColour));
-    s->setColour(MacroControlledObject::HiBackgroundColours::upperBgColour, GET_OBJECT_COLOUR(itemColour));
-    s->setColour(MacroControlledObject::HiBackgroundColours::lowerBgColour, GET_OBJECT_COLOUR(itemColour2));
-
-	s->setColour(Slider::textBoxTextColourId, GET_OBJECT_COLOUR(textColour));
 
 	const double min = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::min);
 	const double max = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::max);
@@ -196,6 +161,52 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateComponent()
 	}
 
 	s->setValue(sc->value, dontSendNotification);
+
+	const bool usesFilmStrip = sc->getImage().isValid();
+
+	if (usesFilmStrip)
+	{
+		FilmstripLookAndFeel *fslaf = dynamic_cast<FilmstripLookAndFeel*>(&s->getLookAndFeel());
+
+		
+
+		if (fslaf != nullptr)
+		{
+			fslaf->setScaleFactor(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::scaleFactor));
+		}
+	}
+	else
+	{
+		if (sc->styleId == Slider::RotaryHorizontalVerticalDrag)
+		{
+			String direction = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::dragDirection);
+
+			if (direction == "Horizontal") s->setSliderStyle(Slider::RotaryHorizontalDrag);
+			else if (direction == "Vertical") s->setSliderStyle(Slider::RotaryVerticalDrag);
+			else s->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
+		}
+		else
+		{
+			s->setSliderStyle(sc->styleId);
+		}
+
+		if (sc->styleId == Slider::TwoValueHorizontal)
+		{
+			s->setTextBoxStyle(Slider::NoTextBox, false, 0, 0);
+		}
+
+		s->setColour(Slider::backgroundColourId, GET_OBJECT_COLOUR(bgColour));
+		s->setColour(Slider::thumbColourId, GET_OBJECT_COLOUR(itemColour));
+		s->setColour(Slider::trackColourId, GET_OBJECT_COLOUR(itemColour2));
+
+		s->setColour(MacroControlledObject::HiBackgroundColours::outlineBgColour, GET_OBJECT_COLOUR(bgColour));
+		s->setColour(MacroControlledObject::HiBackgroundColours::upperBgColour, GET_OBJECT_COLOUR(itemColour));
+		s->setColour(MacroControlledObject::HiBackgroundColours::lowerBgColour, GET_OBJECT_COLOUR(itemColour2));
+
+		s->setColour(Slider::textBoxTextColourId, GET_OBJECT_COLOUR(textColour));
+	}
+
+	
 
 	s->repaint();
 }
