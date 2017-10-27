@@ -373,7 +373,8 @@ public:
 		audioProcessorWrapper,
 		scriptFxProcessor,
 		slotFX,
-		emptyFX
+		emptyFX,
+		dynamics
 	};
 
 	EffectProcessorChainFactoryType(int numVoices_, Processor *ownerProcessor):

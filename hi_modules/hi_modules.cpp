@@ -21,6 +21,8 @@ namespace wdl
 #pragma warning (pop)
 #endif
 
+#include "effects/fx/chunkware_simple_dynamics/chunkware_simple_dynamics.cpp"
+
 namespace hise
 {
 	using namespace juce;
@@ -115,6 +117,7 @@ namespace hise
 #include "effects/convolution/Convolution.cpp"
 #include "effects/mda/mdaLimiter.cpp"
 #include "effects/mda/mdaDegrade.cpp"
+#include "effects/fx/Dynamics.cpp"
 #include "effects/fx/Saturator.cpp"
 #include "effects/fx/AudioProcessorWrapper.cpp"
 #include "effects/fx/SlotFX.cpp"
@@ -136,6 +139,7 @@ namespace hise
 #include "effects/editors/GainCollectorEditor.cpp"
 #include "effects/editors/RouteFXEditor.cpp"
 #include "effects/editors/SaturationEditor.cpp"
+#include "effects/editors/DynamicsEditor.cpp"
 
 #include "effects/editors/SlotFXEditor.cpp"
 

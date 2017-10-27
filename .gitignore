@@ -43,3 +43,4 @@ tools/scripting_api/html/
 *.tmp
 tools/auto_build/Output/
 tools/streaming_api/html/
+tools/auto_build/install_script.iss

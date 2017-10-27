@@ -58,6 +58,8 @@ END_JUCE_MODULE_DECLARATION
 
 #include "synthesisers/synths/PolyBlep.h"
 
+#include "effects/fx/chunkware_simple_dynamics/chunkware_simple_dynamics.h"
+
 namespace hise
 {
 using namespace juce;
@@ -153,6 +155,7 @@ using namespace juce;
 #include "effects/convolution/Convolution.h"
 #include "effects/mda/mdaLimiter.h"
 #include "effects/mda/mdaDegrade.h"
+#include "effects/fx/Dynamics.h"
 #include "effects/fx/Saturator.h"
 #include "effects/fx/AudioProcessorWrapper.h"
 #include "effects/fx/SlotFX.h"
@@ -175,6 +178,7 @@ using namespace juce;
 #include "effects/editors/GainCollectorEditor.h"
 #include "effects/editors/RouteFXEditor.h"
 #include "effects/editors/SaturationEditor.h"
+#include "effects/editors/DynamicsEditor.h"
 
 #include "effects/editors/SlotFXEditor.h"
 
