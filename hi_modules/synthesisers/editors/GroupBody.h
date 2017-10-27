@@ -65,32 +65,21 @@ public:
 	{
 		fmStateLabel->setText(dynamic_cast<ModulatorSynthGroup*>(getProcessor())->getFMState(), dontSendNotification);
 
-		if (getProcessor()->getAttribute(ModulatorSynthGroup::EnableFM))
+		modSelector->clear(dontSendNotification);
+		carrierSelector->clear(dontSendNotification);
+
+		auto offset = (int)ModulatorSynthGroup::InternalChains::numInternalChains;
+
+		carrierSelector->addItem("Enable All Synths", -1);
+
+		for (int i = offset; i < getProcessor()->getNumChildProcessors(); i++)
 		{
-			modSelector->setVisible(true);
-			carrierSelector->setVisible(true);
-
-			modSelector->clear(dontSendNotification);
-			carrierSelector->clear(dontSendNotification);
-
-			auto offset = (int)ModulatorSynthGroup::InternalChains::numInternalChains;
-
-			for (int i = offset; i < getProcessor()->getNumChildProcessors(); i++)
-			{
-				modSelector->addItem(getProcessor()->getChildProcessor(i)->getId(), i - offset + 1);
-				carrierSelector->addItem(getProcessor()->getChildProcessor(i)->getId(), i - offset + 1);
-			}
-
-			modSelector->updateValue();
-			carrierSelector->updateValue();
-
-
+			modSelector->addItem(getProcessor()->getChildProcessor(i)->getId(), i - offset + 1);
+			carrierSelector->addItem(getProcessor()->getChildProcessor(i)->getId(), i - offset + 1);
 		}
-		else
-		{
-			modSelector->setVisible(false);
-			carrierSelector->setVisible(false);
-		}
+
+		modSelector->updateValue();
+		carrierSelector->updateValue();
 
 		fmButton->updateValue();
 

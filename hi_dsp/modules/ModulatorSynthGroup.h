@@ -72,6 +72,27 @@ class ModulatorSynthGroupVoice : public ModulatorSynthVoice
 
 public:
 
+	struct Iterator
+	{
+		Iterator(ModulatorSynthGroupVoice* v_):
+			v(v_)
+		{
+			numSize = v->childSynths.size();
+			mod = v->getFMModulator();
+		}
+
+		ModulatorSynth* getNextActiveChildSynth();
+
+	private:
+
+		ModulatorSynthGroupVoice* v;
+
+		ModulatorSynth* mod;
+
+		int i = 0;
+		int numSize = 0;
+	};
+
 	ModulatorSynthGroupVoice(ModulatorSynth *ownerSynth);;
 
 	bool canPlaySound(SynthesiserSound *) override;;
@@ -113,8 +134,6 @@ public:
 
 private:
 
-	
-	
 	class ChildVoiceContainer
 	{
 	public:
@@ -170,12 +189,45 @@ private:
 
 	ModulatorSynth* getFMModulator();
 
+	ModulatorSynth* getFMCarrier();
+
 	Random startOffsetRandomizer;
 
 	int numUnisonoVoices = 1;
 
-	Array<ModulatorSynth*> childSynths;
+	bool useFMForVoice = false;
+
+	struct ChildSynth
+	{
+		ChildSynth() :
+			synth(nullptr),
+			isActiveForThisVoice(false)
+		{}
+
+		ChildSynth(ModulatorSynth* synth_) :
+			synth(synth_),
+			isActiveForThisVoice(false)
+		{}
+
+		ChildSynth(const ChildSynth& other) :
+			synth(other.synth),
+			isActiveForThisVoice(other.isActiveForThisVoice)
+		{};
+
+		
+		bool operator== (const ChildSynth& other) const
+		{
+			return synth == other.synth;
+		}
+
+		ModulatorSynth* synth;
+		bool isActiveForThisVoice = false;
+	};
+
+	Array<ChildSynth> childSynths;
+
 	float fmModBuffer[2048];
+	void handleActiveStateForChildSynths();
 };
 
 
@@ -243,7 +295,11 @@ public:
 	float getAttribute(int index) const override;
 	float getDefaultValue(int parameterIndex) const override;
 
+	bool handleSoftBypass() override;
+
 	ModulatorSynth* getFMModulator();
+
+	ModulatorSynth* getFMCarrier();
 
 	/** returns the total amount of child groups (internal chains + all child synths) */
 	Processor *getChildProcessor(int processorIndex) override;;
@@ -393,6 +449,7 @@ public:
 		return spreadChain->getVoiceValues(voiceIndex) + startSample;
 	}
 
+	
 private:
 
 	friend class ChildSynthIterator;
