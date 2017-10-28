@@ -957,6 +957,8 @@ MonolithExporter::MonolithExporter(SampleMap* sampleMap_) :
 
 	addComboBox("compressionOptions", sa, "HLAC Compression options");
 
+	getComboBoxComponent("compressionOptions")->setSelectedItemIndex(2, dontSendNotification);
+
 	addBasicComponents(true);
 }
 
