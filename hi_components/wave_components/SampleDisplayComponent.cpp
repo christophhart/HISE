@@ -238,6 +238,18 @@ void SamplerSoundWaveform::paint(Graphics &g)
 	{
 		drawSampleStartBar(g);
 	};
+
+	if (currentSound.get() != nullptr)
+	{
+		if (currentSound->getReferenceToSound()->isMonolithic())
+		{
+			g.setColour(Colour(0x22000000));
+			g.fillRect(0, 0, 80, 20);
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.setColour(Colours::white);
+			g.drawText("Monolith", 0, 0, 80, 20, Justification::centred);
+		}
+	}
 }
 
 void SamplerSoundWaveform::setSoundToDisplay(const ModulatorSamplerSound *s)
