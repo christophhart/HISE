@@ -1071,9 +1071,7 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 
 	int partIndex = 1;
 
-	
-
-	Flag currentFlag = readFlag(fis);
+	currentFlag = readFlag(fis);
 
 	while (currentFlag == Flag::BeginName)
 	{
@@ -1200,7 +1198,7 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 
 				flacReader->read(&tempBuffer, 0, numToRead, readerOffset, true, true);
 
-				writer->writeFromAudioSampleBuffer(tempBuffer, 0, numToRead);
+				writer->writeFromAudioSampleBuffer(tempBuffer, 0, (int)numToRead);
 
 				*data.progress = (double)readerOffset / (double)flacReader->lengthInSamples;
 			}

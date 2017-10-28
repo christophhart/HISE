@@ -301,8 +301,6 @@ void ModulatorSynthGroupVoice::calculateFMBlock(ModulatorSynthGroup * group, int
 
 	const float *voicePitchValues = getVoicePitchValues();
 
-	auto offset = (int)ModulatorSynthGroup::InternalChains::numInternalChains;
-
 	ModulatorSynth *modSynth = getFMModulator();
 
 	if (modSynth == nullptr)

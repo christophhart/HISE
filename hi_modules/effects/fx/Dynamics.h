@@ -77,8 +77,8 @@ public:
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
-	const Processor* getChildProcessor(int processorIndex) const { return nullptr; };
-	Processor* getChildProcessor(int processorIndex) { return nullptr; };
+	const Processor* getChildProcessor(int /*processorIndex*/) const { return nullptr; };
+	Processor* getChildProcessor(int /*processorIndex*/) { return nullptr; };
 	int getNumChildProcessors() const { return 0; };
 
 	void applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples) override;
