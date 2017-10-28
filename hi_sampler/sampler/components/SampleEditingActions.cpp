@@ -903,7 +903,7 @@ void SampleEditHandler::SampleEditingActions::extractToSingleMicSamples(SampleEd
 
 #define SET_PROPERTY_FROM_METADATA_STRING(string, prop) if (string.isNotEmpty()) sound->setProperty(prop, string.getIntValue(), sendNotification);
 
-bool setSoundPropertiesFromMetadata(ModulatorSamplerSound *sound, const StringPairArray &metadata)
+bool setSoundPropertiesFromMetadata(ModulatorSamplerSound *sound, const StringPairArray &metadata, bool readOnly=false)
 {
 	const String format = metadata.getValue("MetaDataSource", "");
 	
@@ -1000,16 +1000,21 @@ bool setSoundPropertiesFromMetadata(ModulatorSamplerSound *sound, const StringPa
 		loopEnabled = (loopStart.isNotEmpty() && loopStart != "0" && loopEnd.isNotEmpty() && loopEnd != "0") ? "1" : "";
 	}
 
-	SET_PROPERTY_FROM_METADATA_STRING(lowVel, ModulatorSamplerSound::VeloLow);
-	SET_PROPERTY_FROM_METADATA_STRING(hiVel, ModulatorSamplerSound::VeloHigh);
-	SET_PROPERTY_FROM_METADATA_STRING(loKey, ModulatorSamplerSound::KeyLow);
-	SET_PROPERTY_FROM_METADATA_STRING(hiKey, ModulatorSamplerSound::KeyHigh);
-	SET_PROPERTY_FROM_METADATA_STRING(root, ModulatorSamplerSound::RootNote);
-	SET_PROPERTY_FROM_METADATA_STRING(start, ModulatorSamplerSound::SampleStart);
-	SET_PROPERTY_FROM_METADATA_STRING(end, ModulatorSamplerSound::SampleEnd);
-	SET_PROPERTY_FROM_METADATA_STRING(loopEnabled, ModulatorSamplerSound::LoopEnabled);
-	SET_PROPERTY_FROM_METADATA_STRING(loopStart, ModulatorSamplerSound::LoopStart);
-	SET_PROPERTY_FROM_METADATA_STRING(loopEnd, ModulatorSamplerSound::LoopEnd);
+	if (!readOnly)
+	{
+		SET_PROPERTY_FROM_METADATA_STRING(lowVel, ModulatorSamplerSound::VeloLow);
+		SET_PROPERTY_FROM_METADATA_STRING(hiVel, ModulatorSamplerSound::VeloHigh);
+		SET_PROPERTY_FROM_METADATA_STRING(loKey, ModulatorSamplerSound::KeyLow);
+		SET_PROPERTY_FROM_METADATA_STRING(hiKey, ModulatorSamplerSound::KeyHigh);
+		SET_PROPERTY_FROM_METADATA_STRING(root, ModulatorSamplerSound::RootNote);
+		SET_PROPERTY_FROM_METADATA_STRING(start, ModulatorSamplerSound::SampleStart);
+		SET_PROPERTY_FROM_METADATA_STRING(end, ModulatorSamplerSound::SampleEnd);
+		SET_PROPERTY_FROM_METADATA_STRING(loopEnabled, ModulatorSamplerSound::LoopEnabled);
+		SET_PROPERTY_FROM_METADATA_STRING(loopStart, ModulatorSamplerSound::LoopStart);
+		SET_PROPERTY_FROM_METADATA_STRING(loopEnd, ModulatorSamplerSound::LoopEnd);
+	}
+
+	
 
 	return 	lowVel != "" ||
 		hiVel != "" ||
@@ -1024,6 +1029,50 @@ bool setSoundPropertiesFromMetadata(ModulatorSamplerSound *sound, const StringPa
 }
 
 #undef SET_PROPERTY_FROM_METADATA_STRING
+
+bool SampleEditHandler::SampleEditingActions::metadataWasFound(ModulatorSampler* sampler)
+{
+	Array<WeakReference<ModulatorSamplerSound>> sounds;
+
+	auto handler = sampler->getSampleEditHandler();
+
+	if (handler != nullptr)
+	{
+		sounds = handler->getSelection().getItemArray();
+	}
+
+	if (sounds.size() == 0)
+	{
+		for (int i = 0; i < sampler->getNumSounds(); i++)
+		{
+			sounds.add(sampler->getSound(i));
+		}
+	}
+
+	AudioFormatManager *afm = &(sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->afm);
+
+	bool metadataWasFound = false;
+
+	for (int i = 0; i < sounds.size(); i++)
+	{
+
+		File f = File(sounds[i].get()->getProperty(ModulatorSamplerSound::FileName).toString());
+
+		ScopedPointer<AudioFormatReader> reader = afm->createReaderFor(f);
+
+		if (reader != nullptr)
+		{
+			if (setSoundPropertiesFromMetadata(sounds[i].get(), reader->metadataValues, true))
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+
 
 void SampleEditHandler::SampleEditingActions::automapUsingMetadata(ModulatorSampler* sampler)
 {

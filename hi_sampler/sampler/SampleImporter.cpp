@@ -605,6 +605,8 @@ void FileImportDialogWindow::run()
 		}
 	}
 
+	
+
 	sampler->setShouldUpdateUI(true);
 	pool->setUpdatePool(true);
 	pool->setDeactivatePoolSearch(false);
@@ -619,6 +621,11 @@ void FileImportDialogWindow::threadFinished()
 {
 	sampler->refreshPreloadSizes();
 	sampler->refreshMemoryUsage();
+
+	if (SampleEditHandler::SampleEditingActions::metadataWasFound(sampler) && PresetHandler::showYesNoWindow("Loop points found", "Do you want to set the loop points from the metadata"))
+	{
+		SampleEditHandler::SampleEditingActions::automapUsingMetadata(sampler);
+	}
 
 	int currentRRAmount = (int)sampler->getAttribute(ModulatorSampler::Parameters::RRGroupAmount);
 	int maxRRIndex = 0;

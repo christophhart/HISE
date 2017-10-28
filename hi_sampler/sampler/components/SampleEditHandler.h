@@ -144,6 +144,9 @@ public:
 		static void extractToSingleMicSamples(SampleEditHandler * body);
 		static void normalizeSamples(SampleEditHandler *handler, Component* childOfRoot);
 		static void automapUsingMetadata(ModulatorSampler* sampler);
+
+		static bool metadataWasFound(ModulatorSampler* sampler);
+
 		static void trimSampleStart(SampleEditHandler * body);
 		static void createMultimicSampleMap(SampleEditHandler* handler);
 	};
