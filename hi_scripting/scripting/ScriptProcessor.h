@@ -397,6 +397,8 @@ public:
 
 	void setCompileProgress(double progress);
 
+	void compileScriptWithCycleReferenceCheckEnabled();
+
 	void showPopupForCallback(const Identifier& callback, int charNumber, int lineNumber);
 
 	void toggleBreakpoint(const Identifier& snippetId, int lineNumber, int charNumber)
@@ -541,7 +543,7 @@ private:
 
 	bool callStackEnabled = false;
 
-	
+	bool cycleReferenceCheckEnabled = false;
 };
 
 

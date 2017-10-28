@@ -335,7 +335,8 @@ struct HiseJavascriptEngine::RootObject::ArrayDeclaration : public Expression
 
 //==============================================================================
 struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
-														  public DebugableObject
+														  public DebugableObject,
+														  public CyclicReferenceCheckBase
 {
 	FunctionObject() noexcept{}
 
@@ -347,6 +348,10 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 	{
 		out << "function " << functionCode;
 	}
+
+	bool updateCyclicReferenceList(ThreadData& data, const Identifier& id) override;
+
+	void prepareCycleReferenceCheck() override;
 
 	var invoke(const Scope& s, const var::NativeFunctionArgs& args) const
 	{
@@ -361,6 +366,12 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 
 		var result;
 		body->perform(Scope(&s, s.root, functionRoot), &result);
+
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+		if(enableCycleCheck)
+			lastScopeForCycleCheck = var(functionRoot);
+#endif
+
 		return result;
 	}
 
@@ -408,6 +419,8 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 		return DebugableObject::Helpers::getFunctionDoc(commentDoc, parameters);
 	}
 
+	bool enableCycleCheck = false;
+
 	Identifier name;
 
 	String functionCode;
@@ -416,6 +429,8 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 
 	String commentDoc;
 	String functionDef;
+
+	mutable var lastScopeForCycleCheck;
 
 	DynamicObject::Ptr unneededScope;
 };

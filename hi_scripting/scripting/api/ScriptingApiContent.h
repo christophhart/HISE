@@ -744,7 +744,8 @@ public:
 
 	struct ScriptPanel : public ScriptComponent,
 						 public Timer,
-						 public GlobalSettingManager::ScaleFactorListener
+						 public GlobalSettingManager::ScaleFactorListener,
+						 public HiseJavascriptEngine::CyclicReferenceCheckBase
 	{
 		// ========================================================================================================
 
@@ -788,6 +789,10 @@ public:
 			controlSender.cancelPendingUpdate();
 			repainter.stopTimer();
 		}
+
+		bool updateCyclicReferenceList(ThreadData& data, const Identifier& id) override;
+
+		void prepareCycleReferenceCheck() override;
 
 		// ======================================================================================================== API Methods
 
@@ -861,7 +866,7 @@ public:
 
 		var getJSONPopupData() const { return jsonPopupData; }
 
-		var getDataObject() const { return getConstantValue(0); }
+		
 
 		Rectangle<int> getPopupSize() const { return popupBounds; }
 

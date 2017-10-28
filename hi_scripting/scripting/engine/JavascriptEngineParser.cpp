@@ -2346,7 +2346,12 @@ void HiseJavascriptEngine::RootObject::execute(const String& code, bool allowCon
 
 	tb.setupApiData(hiseSpecialData, allowConstDeclarations ? code : String());
 
-	ScopedPointer<BlockStatement>(tb.parseStatementList())->perform(Scope(nullptr, this, this), nullptr);
+	auto sl = ScopedPointer<BlockStatement>(tb.parseStatementList());
+	
+	if(shouldUseCycleCheck)
+		prepareCycleReferenceCheck();
+
+	sl->perform(Scope(nullptr, this, this), nullptr);
 }
 
 HiseJavascriptEngine::RootObject::FunctionObject::FunctionObject(const FunctionObject& other) : DynamicObject(), functionCode(other.functionCode)

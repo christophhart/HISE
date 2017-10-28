@@ -849,7 +849,7 @@ public:
 
 	void run() override
 	{
-		showStatusMessage("Checking Cyclic references");
+		
 		setProgress(-1.0);
 		
 		auto id = getComboBoxComponent("scriptProcessor")->getText();
@@ -857,39 +857,53 @@ public:
 
 		if (jsp != nullptr)
 		{
-			HiseJavascriptEngine::CyclicReferenceCheckBase::Reference::List references;
+			
+			data.progress = &progress;
+			data.thread = this;
+			
+			showStatusMessage("Recompiling script");
 
-			HiseJavascriptEngine::CyclicReferenceCheckBase::Reference::ListHelpers::overFlowProtection = 0;
-
-			bool ok = jsp->getScriptEngine()->checkCyclicReferences(references);
-
-			if (!ok)
 			{
-				if (references.size() != 0)
-				{
-					cyclicReferenceString = references.getLast().toString();
-				}
+				// don't bother...
+				MessageManagerLock mm;
+
+				jsp->compileScriptWithCycleReferenceCheckEnabled();
 			}
+
+			showStatusMessage("Checking Cyclic references");
+
+			jsp->getScriptEngine()->checkCyclicReferences(data, Identifier());
+
 		}
 
 	}
 
 	void threadFinished()
 	{
-		if (cyclicReferenceString.isNotEmpty())
+		if (data.overflowHit)
 		{
-			PresetHandler::showMessageWindow("Cyclic References found", "The " + cyclicReferenceString + " is a cyclic reference. Your script will be leaking memory",
-				PresetHandler::IconType::Error);
+			PresetHandler::showMessageWindow("Overflow", "The reference check was cancelled due to a stack overflow", PresetHandler::IconType::Error);
+		}
+		else if (data.cyclicReferenceString.isNotEmpty())
+		{
+			if (PresetHandler::showYesNoWindow("Cyclic References found", "The " + data.cyclicReferenceString + " is a cyclic reference. Your script will be leaking memory.\nPres OK to copy this message to the clipboard.",
+				PresetHandler::IconType::Error))
+			{
+				SystemClipboard::copyTextToClipboard(data.cyclicReferenceString);
+			}
 		}
 		else
 		{
-			PresetHandler::showMessageWindow("No Cyclic References found", "Your script does not contain cyclic references", PresetHandler::IconType::Info);
+			PresetHandler::showMessageWindow("No Cyclic References found", 
+										     "Your script does not contain cyclic references.\n" + String(data.numChecked) + " references were checked", 
+											 PresetHandler::IconType::Info);
 		}
 	}
 
 private:
 
-	String cyclicReferenceString;
+	HiseJavascriptEngine::CyclicReferenceCheckBase::ThreadData data;
+
 
 	BackendProcessorEditor* bpe;
 };

@@ -30,73 +30,72 @@
 *   ===========================================================================
 */
 
+#if LOG_REFERENCE_CHECKS
+#define LOG_REFERENCE_CHECK(x) DBG(x)
+#else
+#define LOG_REFERENCE_CHECK(x)
+#endif
 
 
-bool isVarWithReferences(const var &v)
+HiseJavascriptEngine::CyclicReferenceCheckBase::Reference::Reference(const var& parent_, const var& child_, Identifier parentId_, Identifier childId_) :
+	parent(parent_),
+	child(child_),
+	parentId(parentId_),
+	childId(childId_),
+	description(toString())
 {
-	return (v.isObject() || v.isArray());
-}
-
-
-Identifier getIdWithParent(const Identifier &parentId, const String& name, bool isObject)
-{
-	if (isObject)
-	{
-		return Identifier(parentId.toString() + "." + name);
-	}
-	else
-	{
-		return Identifier(parentId.toString() + "[" + name + "]");
-	}
 
 }
 
-bool varHasReferences(const var& v)
+HiseJavascriptEngine::CyclicReferenceCheckBase::Reference::Reference(const Reference& other) :
+	parent(other.parent),
+	child(other.child),
+	parentId(other.parentId),
+	childId(other.childId),
+	description(other.description)
 {
-	if (auto panel = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(v.getObject()))
-		return true;
 
-	if (!isVarWithReferences(v))
-		return false;
+}
 
-	if (auto obj = v.getDynamicObject())
-	{
-		auto set = obj->getProperties();
+String HiseJavascriptEngine::CyclicReferenceCheckBase::Reference::toString() const
+{
+	if (isEmpty())
+		return String();
 
-		for (int i = 0; i < set.size(); i++)
-		{
-			if (isVarWithReferences(set.getValueAt(i)))
-				return true;
-		}
-	}
-	else if (auto ar = v.getArray())
-	{
-		for (auto v_ : *ar)
-		{
-			if (isVarWithReferences(v_))
-				return true;
-		}
+	String ref;
 
-	}
+	ref << "Reference: " << parentId << " -> " << childId;
 
-	return false;
+	return ref;
+}
+
+bool HiseJavascriptEngine::CyclicReferenceCheckBase::Reference::isEmpty() const
+{
+	return parent == var() && child == var() && parentId == Identifier() && childId == Identifier();
 }
 
 
-
-bool HiseJavascriptEngine::CyclicReferenceCheckBase::updateList(Reference::List& references, const var& varToCheck, const Identifier& parentId)
+bool HiseJavascriptEngine::CyclicReferenceCheckBase::updateList(ThreadData& data, const var& varToCheck, const Identifier& parentId)
 {
-	overflowProtection++;
+	data.overflowProtection++;
 
-	DBG("Checking all references from " + parentId.toString());
-	DBG("==================================================================");
+	data.numChecked++;
 
-	if (overflowProtection > 200)
+	LOG_REFERENCE_CHECK("Checking all references from " + parentId.toString());
+	LOG_REFERENCE_CHECK("==================================================================");
+
+	if (data.overflowProtection > 200)
 	{
-		DBG("updateList overflow");
+		LOG_REFERENCE_CHECK("updateList overflow");
+		data.overflowHit = true;
 		return false;
 	}
 
+	if (auto cc = dynamic_cast<CyclicReferenceCheckBase*>(varToCheck.getObject()))
+	{
+		if (!cc->updateCyclicReferenceList(data, parentId))
+			return false;
+	}
 	if (auto obj = varToCheck.getDynamicObject())
 	{
 		auto set = obj->getProperties();
@@ -106,21 +105,20 @@ bool HiseJavascriptEngine::CyclicReferenceCheckBase::updateList(Reference::List&
 			auto v = set.getValueAt(i);
 			const String name = set.getName(i).toString();
 
-			if (!varHasReferences(v))
+			if (!Reference::ListHelpers::varHasReferences(v))
 			{
-				DBG("  Skipping variable " + name + ": no references");
+				LOG_REFERENCE_CHECK("  Skipping variable " + name + ": no references");
 				continue;
 			}
 
+			Identifier pIdToUse = Reference::ListHelpers::getIdWithParent(parentId, name, true);
 
-			Identifier pIdToUse = getIdWithParent(parentId, name, true);
+			data.coallescateOverflowProtection = 0;
 
-			if (!Reference::ListHelpers::addAllReferencesWithTarget(varToCheck, parentId, v, pIdToUse, references))
+			if (!Reference::ListHelpers::addAllReferencesWithTarget(varToCheck, parentId, v, pIdToUse, data))
 				return false;
 
-			Reference::ListHelpers::overFlowProtection = 0;
-
-			if (!updateList(references, v, pIdToUse))
+			if (!updateList(data, v, pIdToUse))
 				return false;
 
 		}
@@ -132,63 +130,40 @@ bool HiseJavascriptEngine::CyclicReferenceCheckBase::updateList(Reference::List&
 			auto v = ar->getUnchecked(i);
 			const String name = String(i);
 
-			if (!varHasReferences(v))
+			if (!Reference::ListHelpers::varHasReferences(v))
 			{
 				continue;
 			}
 
-			Identifier pIdToUse = getIdWithParent(parentId, name, false);
+			Identifier pIdToUse = Reference::ListHelpers::getIdWithParent(parentId, name, false);
 
-			if (!Reference::ListHelpers::addAllReferencesWithTarget(varToCheck, parentId, v, pIdToUse, references))
+			data.coallescateOverflowProtection = 0;
+
+			if (!Reference::ListHelpers::addAllReferencesWithTarget(varToCheck, parentId, v, pIdToUse, data))
 				return false;
 
-			Reference::ListHelpers::overFlowProtection = 0;
-
-			if (!updateList(references, v, pIdToUse))
+			if (!updateList(data, v, pIdToUse))
 				return false;
 		}
 
 	}
-	else if (auto panel = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(varToCheck.getObject()))
-	{
-		auto pString = parentId.toString() + ".";
+	
 
-		auto pData = Identifier(pString + "data");
-		auto pJSON = Identifier(pString + "popupData");
-
-		if (!Reference::ListHelpers::addAllReferencesWithTarget(varToCheck, parentId, panel->getDataObject(), pData, references))
-			return false;
-		
-		if (!updateList(references, panel->getDataObject(), Identifier(pString + "data")))
-			return false;
-
-		if (!Reference::ListHelpers::addAllReferencesWithTarget(varToCheck, parentId, panel->getDataObject(), pData, references))
-			return false;
-
-		if (!updateList(references, panel->getJSONPopupData(), Identifier(pString + "popupData")))
-			return false;
-	}
-
-	overflowProtection--;
+	data.overflowProtection--;
 
 	return true;
 }
 
 
-
-int HiseJavascriptEngine::CyclicReferenceCheckBase::Reference::ListHelpers::overFlowProtection = 0;
-
-int HiseJavascriptEngine::CyclicReferenceCheckBase::overflowProtection = 0;
-
-bool HiseJavascriptEngine::CyclicReferenceCheckBase::Reference::ListHelpers::addAllReferencesWithTarget(const var& sourceVar, const Identifier& sourceId, const var& targetVar, const Identifier& targetId, List& references)
+bool HiseJavascriptEngine::CyclicReferenceCheckBase::Reference::ListHelpers::addAllReferencesWithTarget(const var& sourceVar, const Identifier& sourceId, const var& targetVar, const Identifier& targetId, ThreadData& data)
 {
-	DBG("  Add all references with target " + targetId.toString() + " (source is " + sourceId.toString() + ")");
+	LOG_REFERENCE_CHECK("  Add all references with target " + targetId.toString() + " (source is " + sourceId.toString() + ")");
 
-	overFlowProtection++;
+	data.coallescateOverflowProtection++;
 
-	for (auto ref : references)
+	for (auto ref : data.referenceList)
 	{
-		DBG("    Checking " + ref.toString());
+		LOG_REFERENCE_CHECK("    Checking " + ref.toString());
 
 		if (ListHelpers::checkEqualitySafe(ref.child, sourceVar))
 		{
@@ -196,15 +171,17 @@ bool HiseJavascriptEngine::CyclicReferenceCheckBase::Reference::ListHelpers::add
 
 			if (r.isCyclicReference())
 			{
-				DBG("      Cyclic " + r.toString() + " found.");
-				references.add(r);
+				LOG_REFERENCE_CHECK("      Cyclic " + r.toString() + " found.");
+				data.referenceList.clearQuick();
+				
+				data.cyclicReferenceString = r.description;
 				return false;
 			}
 
-			if (!checkIfExist(references, r))
+			if (!checkIfExist(data.referenceList, r))
 			{
-				DBG("      Coallescating reference for target " + targetId.toString() + " with source " + ref.parentId.toString());
-				references.add(r);
+				LOG_REFERENCE_CHECK("      Coallescating reference for target " + targetId.toString() + " with source " + ref.parentId.toString());
+				data.referenceList.add(r);
 			}
 		}
 
@@ -212,13 +189,13 @@ bool HiseJavascriptEngine::CyclicReferenceCheckBase::Reference::ListHelpers::add
 
 	Reference r(sourceVar, targetVar, sourceId, targetId);
 
-	if (!checkIfExist(references, r))
+	if (!checkIfExist(data.referenceList, r))
 	{
-		DBG("    Adding " + r.toString());
-		references.add(r);
+		LOG_REFERENCE_CHECK("    Adding " + r.toString());
+		data.referenceList.add(r);
 	}
 
-	overFlowProtection--;
+	data.coallescateOverflowProtection--;
 
 	return true;
 }
@@ -247,6 +224,60 @@ bool HiseJavascriptEngine::CyclicReferenceCheckBase::Reference::ListHelpers::che
 	}
 }
 
+
+bool HiseJavascriptEngine::CyclicReferenceCheckBase::Reference::ListHelpers::isVarWithReferences(const var &v)
+{
+	return (v.isObject() || v.isArray());
+}
+
+Identifier HiseJavascriptEngine::CyclicReferenceCheckBase::Reference::ListHelpers::getIdWithParent(const Identifier &parentId, const String& name, bool isObject)
+{
+	if (isObject)
+	{
+		return Identifier(parentId.toString() + "." + name);
+	}
+	else
+	{
+		return Identifier(parentId.toString() + "[" + name + "]");
+	}
+}
+
+bool HiseJavascriptEngine::CyclicReferenceCheckBase::Reference::ListHelpers::varHasReferences(const var& v)
+{
+	if (auto panel = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(v.getObject()))
+		return true;
+
+	if (!isVarWithReferences(v))
+		return false;
+
+	if (auto cc = dynamic_cast<HiseJavascriptEngine::CyclicReferenceCheckBase*>(v.getObject()))
+	{
+		return true;
+	}
+	else if (auto obj = v.getDynamicObject())
+	{
+		auto set = obj->getProperties();
+
+		for (int i = 0; i < set.size(); i++)
+		{
+			if (isVarWithReferences(set.getValueAt(i)))
+				return true;
+		}
+	}
+	else if (auto ar = v.getArray())
+	{
+		for (auto v_ : *ar)
+		{
+			if (isVarWithReferences(v_))
+				return true;
+		}
+
+	}
+
+	return false;
+}
+
+
 bool HiseJavascriptEngine::CyclicReferenceCheckBase::Reference::equals(const Reference& other) const
 {
 	return ListHelpers::checkEqualitySafe(child, other.child) && ListHelpers::checkEqualitySafe(parent, other.parent);
@@ -254,49 +285,81 @@ bool HiseJavascriptEngine::CyclicReferenceCheckBase::Reference::equals(const Ref
 
 bool HiseJavascriptEngine::CyclicReferenceCheckBase::Reference::isCyclicReference() const
 {
+	if (isEmpty())
+		return false;
+
 	bool isCycle = ListHelpers::checkEqualitySafe(child, parent);
 
-	DBG("     checking for cycle with " + parentId.toString() + " to " + childId.toString() + ": " + (isCycle ? "true" : "false"));
+	LOG_REFERENCE_CHECK("     checking for cycle with " + parentId.toString() + " to " + childId.toString() + ": " + (isCycle ? "true" : "false"));
 
 	return isCycle;
 }
 
-bool HiseJavascriptEngine::checkCyclicReferences(CyclicReferenceCheckBase::Reference::List& references)
+bool HiseJavascriptEngine::checkCyclicReferences(CyclicReferenceCheckBase::ThreadData& data, const Identifier& id)
 {
-	return root->updateCyclicReferenceList(references);
+	
+	return root->updateCyclicReferenceList(data, id);
 }
 
 
-bool HiseJavascriptEngine::RootObject::updateCyclicReferenceList(Reference::List& references)
+bool HiseJavascriptEngine::RootObject::updateCyclicReferenceList(ThreadData& data, const Identifier& id)
 {
-	overflowProtection = 0;
+	data.thread->showStatusMessage("Checking root variables");
 
-	if (!updateList(references, var(this), Identifier("root")))
-		return false;
+	auto set = getProperties();
 
-	if (!hiseSpecialData.updateCyclicReferenceList(references))
+	for (int i = 0; i < set.size(); i++)
+	{
+		if (!updateList(data, set.getValueAt(i), set.getName(i)))
+			return false;
+
+		if (data.thread->threadShouldExit())
+			return false;
+	}
+
+	if (!hiseSpecialData.updateCyclicReferenceList(data, Identifier("rootNamespace")))
 		return false;
 
 	return true;
 }
 
-bool HiseJavascriptEngine::RootObject::JavascriptNamespace::updateCyclicReferenceList(Reference::List& references)
+bool HiseJavascriptEngine::RootObject::JavascriptNamespace::updateCyclicReferenceList(ThreadData& data, const Identifier& parentId)
 {
 	auto nsString = id.toString() + ".";
+
+	data.thread->showStatusMessage("Checking namespace " + parentId.toString());
 
 	for (int i = 0; i < constObjects.size(); i++)
 	{
 		auto n_ = constObjects.getName(i);
 
-		if (!updateList(references, constObjects.getValueAt(i), Identifier(nsString + n_)))
+		if (!updateList(data, constObjects.getValueAt(i), Identifier(nsString + n_)))
 			return false;
+
+		if (data.thread->threadShouldExit())
+			return false;
+		
 	}
 	
 	for (int i = 0; i < varRegister.getNumUsedRegisters(); i++)
 	{
 		auto n_ = varRegister.getRegisterId(i).toString();
 
-		if (!updateList(references, varRegister.getFromRegister(i), Identifier(nsString + n_)))
+		if (!updateList(data, varRegister.getFromRegister(i), Identifier(nsString + n_)))
+			return false;
+
+		if (data.thread->threadShouldExit())
+			return false;
+	}
+
+	for (int i = 0; i < inlineFunctions.size(); i++)
+	{
+		auto f = dynamic_cast<InlineFunction::Object*>(inlineFunctions[i].getObject());
+
+		if (!f->updateCyclicReferenceList(data, f->name))
+			return false;
+		
+		if (data.thread->threadShouldExit())
 			return false;
 	}
 
@@ -304,19 +367,161 @@ bool HiseJavascriptEngine::RootObject::JavascriptNamespace::updateCyclicReferenc
 }
 
 
-bool HiseJavascriptEngine::RootObject::HiseSpecialData::updateCyclicReferenceList(CyclicReferenceCheckBase::Reference::List& references)
+bool HiseJavascriptEngine::RootObject::HiseSpecialData::updateCyclicReferenceList(ThreadData& data, const Identifier &parentId)
 {
-	if (!JavascriptNamespace::updateCyclicReferenceList(references))
+	data.thread->showStatusMessage("Checking root namespace");
+
+	if (!JavascriptNamespace::updateCyclicReferenceList(data, parentId))
 	{
 		return false;
 	}
 
+	if (data.thread->threadShouldExit())
+		return false;
+
 	for (int i = 0; i < namespaces.size(); i++)
 	{
-		if (!namespaces[i]->updateCyclicReferenceList(references))
+		*data.progress = (double)i / (double)namespaces.size();
+
+		if (!namespaces[i]->updateCyclicReferenceList(data, namespaces[i]->id))
+			return false;
+
+		if (data.thread->threadShouldExit())
 			return false;
 	}
 
 	return true;
 }
 
+
+bool HiseJavascriptEngine::RootObject::FunctionObject::updateCyclicReferenceList(ThreadData& data, const Identifier& id)
+{
+	if (auto obj = lastScopeForCycleCheck.getDynamicObject())
+	{
+		if (!Reference::ListHelpers::addAllReferencesWithTarget(this, id, lastScopeForCycleCheck, Identifier("scope"), data))
+			return false;
+
+		obj->removeProperty(Identifier("this"));
+
+		if (!updateList(data, lastScopeForCycleCheck, id))
+			return false;
+
+		if (data.thread->threadShouldExit())
+			return false;
+	}
+}
+
+bool ScriptingApi::Content::ScriptPanel::updateCyclicReferenceList(ThreadData& data, const Identifier& id)
+{
+	var thisAsVar(this);
+
+	auto pString = id.toString() + ".";
+
+	auto pDataId = Identifier(pString + "data");
+	auto pJsonId = Identifier(pString + "popupData");
+
+	auto pData = getConstantValue(0);
+	auto pJson = jsonPopupData;
+
+	if (!Reference::ListHelpers::addAllReferencesWithTarget(thisAsVar, getName(), pData, pDataId, data))
+		return false;
+
+	if (!updateList(data, pData, pDataId))
+		return false;
+
+	if (data.thread->threadShouldExit())
+		return false;
+
+	if (!Reference::ListHelpers::addAllReferencesWithTarget(thisAsVar, getName(), pJson, pJsonId, data))
+		return false;
+
+	if (!updateList(data, pJson, pJsonId))
+		return false;
+
+	if (data.thread->threadShouldExit())
+		return false;
+
+	return true;
+}
+
+bool HiseJavascriptEngine::RootObject::InlineFunction::Object::updateCyclicReferenceList(ThreadData& data, const Identifier &id)
+{
+	for (int i = 0; i < localProperties.size(); i++)
+	{
+		auto lId = Identifier(id.toString() + "." + localProperties.getName(i).toString());
+
+		if (!updateList(data, localProperties.getValueAt(i), lId))
+			return false;
+
+		if (data.thread->threadShouldExit())
+			return false;
+	}
+
+	enableCycleCheck = false;
+
+	cleanLocalProperties();
+}
+
+
+void HiseJavascriptEngine::RootObject::prepareCycleReferenceCheck()
+{
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+	auto set = getProperties();
+
+	for (int i = 0; i < set.size(); i++)
+	{
+		if (auto c = dynamic_cast<CyclicReferenceCheckBase*>(set.getValueAt(i).getObject()))
+			c->prepareCycleReferenceCheck();
+	}
+
+	hiseSpecialData.prepareCycleReferenceCheck();
+#endif
+}
+
+void HiseJavascriptEngine::RootObject::HiseSpecialData::prepareCycleReferenceCheck()
+{
+	JavascriptNamespace::prepareCycleReferenceCheck();
+
+	for (int i = 0; i < namespaces.size(); i++)
+	{
+		namespaces[i]->prepareCycleReferenceCheck();
+	}
+}
+
+void HiseJavascriptEngine::RootObject::JavascriptNamespace::prepareCycleReferenceCheck()
+{
+	for (int i = 0; i < varRegister.getNumUsedRegisters(); i++)
+	{
+		if (auto c = dynamic_cast<CyclicReferenceCheckBase*>(varRegister.getFromRegister(i).getObject()))
+			c->prepareCycleReferenceCheck();
+	}
+
+	for (int i = 0; i < constObjects.size(); i++)
+	{
+		if (auto c = dynamic_cast<CyclicReferenceCheckBase*>(constObjects.getValueAt(i).getObject()))
+			c->prepareCycleReferenceCheck();
+	}
+
+	for (auto i: inlineFunctions)
+	{
+		auto f = dynamic_cast<CyclicReferenceCheckBase*>(i);
+		f->prepareCycleReferenceCheck();
+	}
+}
+
+void HiseJavascriptEngine::RootObject::FunctionObject::prepareCycleReferenceCheck()
+{
+	enableCycleCheck = true;
+}
+
+void HiseJavascriptEngine::RootObject::InlineFunction::Object::prepareCycleReferenceCheck()
+{
+	enableCycleCheck = true;
+}
+
+void ScriptingApi::Content::ScriptPanel::prepareCycleReferenceCheck()
+{
+
+}
+
+#undef LOG_REFERENCE_CHECK

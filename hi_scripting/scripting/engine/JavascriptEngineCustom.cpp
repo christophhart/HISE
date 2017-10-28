@@ -176,7 +176,8 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 	struct FunctionCall;
 
 	struct Object : public DynamicObject,
-					public DebugableObject
+					public DebugableObject,
+					public CyclicReferenceCheckBase
 	{
 	public:
 
@@ -225,6 +226,10 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 		{ 
 			return DebugableObject::Helpers::getFunctionDoc(commentDoc, parameterNames); 
 		}
+
+		bool updateCyclicReferenceList(ThreadData& data, const Identifier &id) override;
+
+		void prepareCycleReferenceCheck() override;
 
 		void setFunctionCall(const FunctionCall *e_)
 		{
@@ -293,6 +298,11 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 		void cleanLocalProperties()
 		{
+#if ENABLE_SCRIPTING_SAFE_CHECKS
+			if (enableCycleCheck) // Keep the scope, don't mind the leaking...
+				return;
+#endif
+
 			if (!localProperties.isEmpty())
 			{
 				for (int i = 0; i < localProperties.size(); i++)
@@ -317,6 +327,10 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 		ScopedPointer<FunctionCall> dynamicFunctionCall;
 
 		NamedValueSet localProperties;
+
+		bool enableCycleCheck = false;
+
+		var lastScopeForCycleCheck;
 
 		Location location;
 

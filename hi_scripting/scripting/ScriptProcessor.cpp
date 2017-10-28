@@ -509,6 +509,9 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
     scriptEngine->setIsInitialising(true);
     
+	if(cycleReferenceCheckEnabled)
+		scriptEngine->setUseCycleReferenceCheckForNextCompilation();
+
 	thisAsScriptBaseProcessor->allowObjectConstructors = true;
 
 	const static Identifier onInit("onInit");
@@ -536,8 +539,6 @@ JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 
 #endif
 
-            
-            
 			lastResult = scriptEngine->execute(getSnippet(i)->getSnippetAsFunction(), callbackId == onInit);
 
 			if (!lastResult.wasOk())
@@ -953,6 +954,12 @@ void JavascriptProcessor::setCompileProgress(double progress)
 }
 
 
+
+void JavascriptProcessor::compileScriptWithCycleReferenceCheckEnabled()
+{
+	ScopedValueSetter<bool> ss(cycleReferenceCheckEnabled, true);
+	compileScript();
+}
 
 JavascriptProcessor::SnippetDocument::SnippetDocument(const Identifier &callbackName_, const String &parameters_) :
 CodeDocument(),

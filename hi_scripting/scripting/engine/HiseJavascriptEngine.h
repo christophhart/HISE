@@ -35,6 +35,7 @@
 
 
 class JavascriptProcessor;
+class ThreadWithAsyncProgressWindow;
 
 /** The HISE Javascript Engine.
  *
@@ -254,61 +255,31 @@ public:
 
 	struct CyclicReferenceCheckBase
 	{
-		
+		struct ThreadData;
 
 		struct Reference
 		{
-			typedef ReferenceCountedObjectPtr<Reference> Ptr;
 			typedef Array<Reference> List;
 
-			Reference(const var& parent_, const var& child_, Identifier parentId_, Identifier childId_):
-			parent(parent_),
-			child(child_),
-			parentId(parentId_),
-			childId(childId_),
-			description(toString())
-			 {}
-
 			Reference() {};
+			Reference(const var& parent_, const var& child_, Identifier parentId_, Identifier childId_);
+			Reference(const Reference& other);
 
-			Reference(const Reference& other) :
-				parent(other.parent),
-				child(other.child),
-				parentId(other.parentId),
-				childId(other.childId),
-				description(other.description)
-			{
-				
-			}
-
-			~Reference()
-			{
-			}
+			~Reference() {}
 
 			bool equals (const Reference& other) const;
-
-			String toString() const
-			{
-				String ref;
-
-				ref << "Reference: " << parentId << "(" << parent.toString() << ")" << " -> " << childId << "(" << child.toString() << ")";
-
-				return ref;
-			};
-
+			String toString() const;;
+			bool isEmpty() const;
 			bool isCyclicReference() const;
 
 			struct ListHelpers
 			{
-
-				static bool addAllReferencesWithTarget(const var& sourceVar, const Identifier& sourceId, const var& targetVar, const Identifier& targetId, List& references);
-
+				static bool addAllReferencesWithTarget(const var& sourceVar, const Identifier& sourceId, const var& targetVar, const Identifier& targetId, ThreadData& references);
 				static bool checkIfExist(const List& references, const Reference& referenceToCheck);
-
 				static bool checkEqualitySafe(const var& a, const var& b);
-
-				static int overFlowProtection;
-
+				static bool isVarWithReferences(const var &v);
+				static Identifier getIdWithParent(const Identifier &parentId, const String& name, bool isObject);
+				static bool varHasReferences(const var& v);
 			};
 
 			const var parent;
@@ -319,10 +290,24 @@ public:
 			String description;
 		};
 
-		
+		struct ThreadData
+		{
+			double* progress = nullptr;
+			ThreadWithAsyncProgressWindow* thread = nullptr;
+			Reference::List referenceList;
+			String cyclicReferenceString;
+			
+			int numChecked = 0; 
+			int overflowProtection = 0;
+			int coallescateOverflowProtection = 0;
+			bool overflowHit = false;
+		};
+
+		/** Overwrite this method and prepare the object for a cycle reference check. */
+		virtual void prepareCycleReferenceCheck() = 0;
 
 		/** Overwrite this method and add all references for child objects to the supplied Array. */
-		virtual bool updateCyclicReferenceList(Reference::List& references) = 0;
+		virtual bool updateCyclicReferenceList(ThreadData& references, const Identifier &id) = 0;
 
 	protected:
 
@@ -331,13 +316,13 @@ public:
 		*	If parent and parentId are not defined, then it won't add the reference so call this from your data storages,
 		*	and it will recursively scan all objects.
 		*/
-		static bool updateList(Reference::List& references, const var& varToCheck, const Identifier& parentId);
-
-	
-		static int overflowProtection;
+		static bool updateList(ThreadData& data, const var& varToCheck, const Identifier& parentId);
 	};
 
-	bool checkCyclicReferences(CyclicReferenceCheckBase::Reference::List& references);
+	bool checkCyclicReferences(CyclicReferenceCheckBase::ThreadData& references, const Identifier &id);
+
+	
+	
 
 	//==============================================================================
 	struct RootObject : public DynamicObject,
@@ -372,7 +357,9 @@ public:
 		static Identifier getPrototypeIdentifier();
 		static var* getPropertyPointer(DynamicObject* o, const Identifier& i) noexcept;
 
-		bool updateCyclicReferenceList(Reference::List& references) override;
+		bool updateCyclicReferenceList(ThreadData& data, const Identifier &id) override;
+
+		void prepareCycleReferenceCheck() override;
 
 		//==============================================================================
 		struct CodeLocation;
@@ -663,7 +650,9 @@ public:
 					   constObjects.size();
 			}
 
-			bool updateCyclicReferenceList(Reference::List& references) override;
+			bool updateCyclicReferenceList(ThreadData& data, const Identifier& id) override;
+
+			void prepareCycleReferenceCheck() override;
 
 			DebugInformation* createDebugInformation(int index) const;
 
@@ -704,7 +693,9 @@ public:
 
 			DynamicObject* getInlineFunction(const Identifier &id);
 
-			bool updateCyclicReferenceList(CyclicReferenceCheckBase::Reference::List& references) override;
+			bool updateCyclicReferenceList(CyclicReferenceCheckBase::ThreadData& data, const Identifier& id) override;
+
+			void prepareCycleReferenceCheck() override;
 
 #if INCLUDE_NATIVE_JIT
 			NativeJITScope* getNativeJITScope(const Identifier& id);
@@ -801,6 +792,11 @@ public:
 			
 		};
 
+		void setUseCycleReferenceCheckForNextCompilation()
+		{
+			shouldUseCycleCheck = true;
+		}
+
 		HiseSpecialData hiseSpecialData;
 
 		private:
@@ -808,6 +804,8 @@ public:
 		Array<CallStackEntry> callStack;
 
 		bool enableCallstack = false;
+
+		bool shouldUseCycleCheck = false;
 	};
 
 	
@@ -917,6 +915,11 @@ public:
 				breakpointListeners[i]->breakpointWasHit(breakpointIndex);
 			}
 		}
+	}
+
+	void setUseCycleReferenceCheckForNextCompilation()
+	{
+		root->setUseCycleReferenceCheckForNextCompilation();
 	}
 
 private:

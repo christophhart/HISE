@@ -667,8 +667,8 @@ void FloatSanitizers::Test::runTest()
 void SafeChangeBroadcaster::sendSynchronousChangeMessage()
 {
 	// Ooops, only call this in the message thread.
-// Use sendChangeMessage() if you need to send a message from elsewhere.
-	jassert(MessageManager::getInstance()->isThisTheMessageThread());
+	// Use sendChangeMessage() if you need to send a message from elsewhere.
+	jassert(MessageManager::getInstance()->isThisTheMessageThread() || MessageManager::getInstance()->currentThreadHasLockedMessageManager());
 
 	ScopedLock sl(listeners.getLock());
 
