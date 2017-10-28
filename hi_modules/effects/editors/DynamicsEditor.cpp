@@ -254,9 +254,9 @@ void DynamicsEditor::resized()
     limiterRelease->setBounds (((getWidth() / 2) + 208 - (128 / 2)) + 128 / 2 - (128 / 2), 64 + 140, 128, 48);
     //[UserResized] Add your own custom resize handling here..
 
-	compMeter->setTransform(AffineTransform::rotation(float_Pi, compMeter->getBounds().getCentreX(), compMeter->getBounds().getCentreY()));
-	limiterMeter->setTransform(AffineTransform::rotation(float_Pi, limiterMeter->getBounds().getCentreX(), limiterMeter->getBounds().getCentreY()));
-	gateMeter->setTransform(AffineTransform::rotation(float_Pi, gateMeter->getBounds().getCentreX(), limiterMeter->getBounds().getCentreY()));
+	compMeter->setTransform(AffineTransform::rotation(float_Pi, (float)compMeter->getBounds().getCentreX(), (float)compMeter->getBounds().getCentreY()));
+	limiterMeter->setTransform(AffineTransform::rotation(float_Pi, (float)limiterMeter->getBounds().getCentreX(), (float)limiterMeter->getBounds().getCentreY()));
+	gateMeter->setTransform(AffineTransform::rotation(float_Pi, (float)gateMeter->getBounds().getCentreX(), (float)limiterMeter->getBounds().getCentreY()));
     //[/UserResized]
 }
 

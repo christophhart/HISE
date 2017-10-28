@@ -302,7 +302,7 @@ bool HiseJavascriptEngine::checkCyclicReferences(CyclicReferenceCheckBase::Threa
 }
 
 
-bool HiseJavascriptEngine::RootObject::updateCyclicReferenceList(ThreadData& data, const Identifier& id)
+bool HiseJavascriptEngine::RootObject::updateCyclicReferenceList(ThreadData& data, const Identifier& /*id*/)
 {
 	data.thread->showStatusMessage("Checking root variables");
 
@@ -409,6 +409,8 @@ bool HiseJavascriptEngine::RootObject::FunctionObject::updateCyclicReferenceList
 		if (data.thread->threadShouldExit())
 			return false;
 	}
+
+	return true;
 }
 
 bool ScriptingApi::Content::ScriptPanel::updateCyclicReferenceList(ThreadData& data, const Identifier& id)
@@ -451,15 +453,23 @@ bool HiseJavascriptEngine::RootObject::InlineFunction::Object::updateCyclicRefer
 		auto lId = Identifier(id.toString() + "." + localProperties.getName(i).toString());
 
 		if (!updateList(data, localProperties.getValueAt(i), lId))
+		{
+			enableCycleCheck = false;
+			cleanLocalProperties();
 			return false;
-
+		}
+			
 		if (data.thread->threadShouldExit())
+		{
+			enableCycleCheck = false;
+			cleanLocalProperties();
 			return false;
+		}	
 	}
 
 	enableCycleCheck = false;
-
 	cleanLocalProperties();
+	return true;
 }
 
 

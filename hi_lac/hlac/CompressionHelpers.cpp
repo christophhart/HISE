@@ -1194,11 +1194,11 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 				if (thread->threadShouldExit())
 					return false;
 
-				const int64 numToRead = jmin<int64>((int64)bufferSize, flacReader->lengthInSamples - readerOffset);
+				const int numToRead = jmin<int>(bufferSize, (int)(flacReader->lengthInSamples - readerOffset));
 
 				flacReader->read(&tempBuffer, 0, numToRead, readerOffset, true, true);
 
-				writer->writeFromAudioSampleBuffer(tempBuffer, 0, (int)numToRead);
+				writer->writeFromAudioSampleBuffer(tempBuffer, 0, numToRead);
 
 				*data.progress = (double)readerOffset / (double)flacReader->lengthInSamples;
 			}
@@ -1292,7 +1292,7 @@ FileInputStream* HlacArchiver::writeTempFile(AudioFormatReader* reader)
 		if (progress != nullptr)
 			*progress = partProgress;
 
-		const int numToRead = jmin<int>(bufferSize, reader->lengthInSamples - offsetInReader);
+		const int numToRead = jmin<int>(bufferSize, (int)(reader->lengthInSamples - offsetInReader));
 
 		reader->read(&tempBuffer, 0, numToRead, offsetInReader, true, true);
 

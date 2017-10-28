@@ -60,11 +60,7 @@ void ModulatorSynthGroupVoice::removeChildSynth(ModulatorSynth *childSynth)
 	ScopedLock sl(ownerSynth->getSynthLock());
 
 	jassert(childSynth != nullptr);
-	
-
-	auto index = childSynths.indexOf(childSynth);
-
-	jassert(index != -1);
+	jassert(childSynths.indexOf(childSynth) != -1);
 
 	for (int i = 0; i < NUM_MAX_UNISONO_VOICES; i++)
 	{

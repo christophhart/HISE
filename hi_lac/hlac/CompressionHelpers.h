@@ -326,7 +326,7 @@ private:
 
 	Thread* thread = nullptr;
 	
-	File targetFile;
+	
 	File tmpFile;
 
 	double deltaPerFile = 0.1;

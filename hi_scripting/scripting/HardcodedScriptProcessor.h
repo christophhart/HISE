@@ -433,7 +433,7 @@ public:
         }
         catch(String& errorMessage)
         {
-            DBG(errorMessage);
+			Logger::writeToLog(errorMessage);
         }
 
 	}
