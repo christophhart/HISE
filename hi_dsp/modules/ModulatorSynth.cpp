@@ -49,7 +49,8 @@ iconColour(Colours::transparentBlack),
 clockSpeed(ClockSpeed::Inactive),
 lastClockCounter(0),
 wasPlayingInLastBuffer(false),
-pitchModulationActive(false)
+pitchModulationActive(false),
+bypassState(0),
 {
 	pitchBuffer = AudioSampleBuffer(1, 0);
 	internalBuffer = AudioSampleBuffer(2, 0);

@@ -36,6 +36,7 @@
 
 class MainController;
 class JavascriptProcessor;
+class ModulatorSynth;
 
 class DebugLogger : public Timer
 {
@@ -66,6 +67,7 @@ public:
 		PriorityInversion, //< when the audio thread lock is locked by another thread
 		SampleLoadingError,
 		StreamingFailure,
+		SoftBypassFailure,
 		numFailureTypes
 	};
 
@@ -102,6 +104,13 @@ public:
 		NoteOffCallback,
 		ScriptMidiEventCallback,
 		SampleStart,
+		DeleteOneSample,
+		DeleteAllSamples,
+		AddOneSample,
+		AddMultipleSamples,
+		SampleMapLoading,
+		SampleMapLoadingFromFile,
+		SamplePreloadingThread,
 		numLocations
 	};
 
@@ -182,6 +191,7 @@ public:
 
 	void checkAssertion(Processor* p, Location location, bool result, double extraData);
 
+	bool checkIsSoftBypassed(const ModulatorSynth* synth, Location location);
 
 	void checkPriorityInversion(const CriticalSection& lockToCheck);
 

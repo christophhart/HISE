@@ -196,6 +196,11 @@ void ModulatorSampler::setNumMicPositions(StringArray &micPositions)
 
 }
 
+bool ModulatorSampler::checkAndLogIsSoftBypassed(DebugLogger::Location location) const
+{
+	return const_cast<MainController*>(getMainController())->getDebugLogger().checkIsSoftBypassed(this, location);
+}
+
 void ModulatorSampler::refreshCrossfadeTables()
 {
 	
@@ -448,7 +453,9 @@ void ModulatorSampler::refreshStreamingBuffers()
 
 void ModulatorSampler::deleteSound(ModulatorSamplerSound *s)
 {
-	ScopedLock sl(getMainController()->getLock());
+	//ScopedLock sl(getMainController()->getLock());
+
+	checkAndLogIsSoftBypassed(DebugLogger::Location::DeleteOneSample);
 
 	allNotesOff(1, false);
 
@@ -484,7 +491,9 @@ void ModulatorSampler::deleteAllSounds()
 {
 	//ReferenceCountedArray<ModulatorSamplerSound> savedSounds(sounds);
 
-	ScopedLock sl(getMainController()->getLock());
+	checkAndLogIsSoftBypassed(DebugLogger::Location::DeleteAllSamples);
+
+	//ScopedLock sl(getMainController()->getLock());
 
 	for (int i = 0; i < voices.size(); i++)
 	{
@@ -674,7 +683,8 @@ void ModulatorSampler::resetNotes()
 
 void ModulatorSampler::addSamplerSound(const ValueTree &description, int index, bool forceReuse)
 {
-	ScopedLock sl(getMainController()->getLock());
+	//ScopedLock sl(getMainController()->getLock());
+	checkAndLogIsSoftBypassed(DebugLogger::Location::AddOneSample);
 
 	jassert(sounds.size() == index);
 
@@ -694,7 +704,8 @@ void ModulatorSampler::addSamplerSound(const ValueTree &description, int index, 
 
 void ModulatorSampler::addSamplerSounds(OwnedArray<ModulatorSamplerSound>& monolithicSounds)
 {
-	ScopedLock sl(getMainController()->getLock());
+	//ScopedLock sl(getMainController()->getLock());
+	checkAndLogIsSoftBypassed(DebugLogger::Location::AddMultipleSamples);
 
 	jassert(sounds.size() == 0);
 
@@ -889,7 +900,9 @@ void ModulatorSampler::loadSampleMap(const File &f)
 {
 	//setBypassed(true);
 
-	MainController::ScopedSuspender ss(getMainController(), MainController::ScopedSuspender::LockType::SuspendWithBusyWait);
+	//MainController::ScopedSuspender ss(getMainController(), MainController::ScopedSuspender::LockType::SuspendWithBusyWait);
+
+	checkAndLogIsSoftBypassed(DebugLogger::Location::SampleMapLoadingFromFile);
 
 	clearSampleMap();
 	sampleMap->load(f);
@@ -923,7 +936,9 @@ void ModulatorSampler::loadSampleMapFromIdAsync(const String& sampleMapId)
 
 void ModulatorSampler::loadSampleMapFromId(const String& sampleMapId)
 {
-	ScopedLock sl(getMainController()->getLock());
+	checkAndLogIsSoftBypassed(DebugLogger::Location::SampleMapLoading);
+
+	//ScopedLock sl(getMainController()->getLock());
 
 #if USE_BACKEND || DONT_EMBED_FILES_IN_FRONTEND
 

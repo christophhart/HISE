@@ -461,6 +461,8 @@ public:
 
 	hlac::HiseSampleBuffer* getTemporaryVoiceBuffer() { return &temporaryVoiceBuffer; }
 
+	bool checkAndLogIsSoftBypassed(DebugLogger::Location location) const;
+
 private:
 
 	struct AsyncPurger : public AsyncUpdater,

@@ -1051,8 +1051,6 @@ bool SampleEditHandler::SampleEditingActions::metadataWasFound(ModulatorSampler*
 
 	AudioFormatManager *afm = &(sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->afm);
 
-	bool metadataWasFound = false;
-
 	for (int i = 0; i < sounds.size(); i++)
 	{
 

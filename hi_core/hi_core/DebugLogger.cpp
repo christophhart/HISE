@@ -37,11 +37,11 @@ struct DebugLogger::Message
 {
 	Message() {};
 
-	Message(int messageIndex_, int callbackIndex_, double timestamp_, Location l, Processor* const p_, const Identifier& id_) :
+	Message(int messageIndex_, int callbackIndex_, double timestamp_, Location l, const Processor* const p_, const Identifier& id_) :
 		messageIndex(messageIndex_),
 		callbackIndex(callbackIndex_),
 		timestamp(timestamp_),
-		p(p_),
+		p(const_cast<Processor*>(p_)),
 		id(id_),
 		location(l)
 	{};
@@ -250,7 +250,7 @@ struct DebugLogger::ParameterChange : public DebugLogger::Message
 
 struct DebugLogger::Failure : public DebugLogger::Message
 {
-	Failure(int messageIndex, int callbackIndex_, Location loc_, FailureType t, Processor* faultyModule, double ts, double extraValue_, const Identifier& id_ = Identifier()) :
+	Failure(int messageIndex, int callbackIndex_, Location loc_, FailureType t, const Processor* faultyModule, double ts, double extraValue_, const Identifier& id_ = Identifier()) :
 		Message(messageIndex, callbackIndex_, ts, loc_, faultyModule, id_),
 		type(t),
 		extraValue(extraValue_)
@@ -518,6 +518,24 @@ void DebugLogger::checkAssertion(Processor* p, Location location, bool result, d
 	}
 }
 
+
+bool DebugLogger::checkIsSoftBypassed(const ModulatorSynth* synth, Location location)
+{
+	// Hit this even in debug mode
+	jassert(synth->getPlayingSynth()->isSoftBypassed());
+
+	if (!isLogging())
+		return !synth->getPlayingSynth()->isSoftBypassed();
+
+	if (!synth->getPlayingSynth()->isSoftBypassed())
+	{
+		Failure f(messageIndex++, callbackIndex, location, FailureType::SoftBypassFailure, synth, getCurrentTimeStamp(), 0.0);
+		addFailure(f);
+		return false;
+	}
+
+	return true;
+}
 
 void DebugLogger::checkPriorityInversion(const CriticalSection& lockToCheck)
 {
@@ -847,6 +865,13 @@ String DebugLogger::getNameForLocation(Location l)
 		RETURN_CASE_STRING_LOCATION(MasterEffectRendering);
 		RETURN_CASE_STRING_LOCATION(ScriptMidiEventCallback);
 		RETURN_CASE_STRING_LOCATION(ConvolutionRendering);
+		RETURN_CASE_STRING_LOCATION(DeleteOneSample);
+		RETURN_CASE_STRING_LOCATION(DeleteAllSamples);
+		RETURN_CASE_STRING_LOCATION(AddOneSample);
+		RETURN_CASE_STRING_LOCATION(AddMultipleSamples);
+		RETURN_CASE_STRING_LOCATION(SampleMapLoading);
+		RETURN_CASE_STRING_LOCATION(SampleMapLoadingFromFile);
+		RETURN_CAST_STRING_LOCATION(SamplePreloadingThread);
         RETURN_CASE_STRING_LOCATION(numLocations);
 	}
 
@@ -876,6 +901,7 @@ String DebugLogger::getNameForFailure(FailureType f)
 		RETURN_CASE_STRING_FAILURE(PriorityInversion);
 		RETURN_CASE_STRING_FAILURE(SampleLoadingError);
 		RETURN_CASE_STRING_FAILURE(StreamingFailure);
+		RETURN_CASE_STRING_FAILURE(SoftBypassFailure);
         RETURN_CASE_STRING_FAILURE(numFailureTypes);
 	}
 

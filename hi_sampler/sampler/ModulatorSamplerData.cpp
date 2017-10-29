@@ -58,7 +58,8 @@ void SoundPreloadThread::run()
     
 	ModulatorSamplerSoundPool *pool = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
 
-	dynamic_cast<AudioProcessor*>(sampler->getMainController())->suspendProcessing(true);
+	//dynamic_cast<AudioProcessor*>(sampler->getMainController())->suspendProcessing(true);
+	sampler->checkAndLogIsSoftBypassed(DebugLogger::Location::SamplePreloadingThread);
 
 	jassert(!pool->getPreloadLockFlag());
 
