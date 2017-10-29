@@ -55,7 +55,15 @@ HiseSampleBuffer::HiseSampleBuffer(HiseSampleBuffer& otherBuffer, int offset)
 void HiseSampleBuffer::reverse(int startSample, int numSamples)
 {
 	if (isFloatingPoint())
+	{
 		floatBuffer.reverse(startSample, numSamples);
+
+		int fadeLength = jmin<int>(500, numSamples);
+
+		floatBuffer.applyGainRamp(numSamples - fadeLength, fadeLength, 1.0f, 0.0f);
+
+	}
+		
 	else
 	{
 
@@ -64,7 +72,6 @@ void HiseSampleBuffer::reverse(int startSample, int numSamples)
 		if (numChannels > 1)
 			rightIntBuffer.reverse(startSample, numSamples);
 
-		Logger::writeToLog("Trying to reverse non float buffer");
 	}
 		
 }
