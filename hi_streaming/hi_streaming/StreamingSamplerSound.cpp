@@ -881,7 +881,7 @@ void StreamingSamplerSound::FileReader::readFromDisk(hlac::HiseSampleBuffer &buf
 
 	buffer.clear(startSample, numSamples);
 
-	if (useMemoryMappedReader)
+	if (!isMonolithic() && useMemoryMappedReader)
 	{
 		if (memoryReader != nullptr && memoryReader->getMappedSection().contains(Range<int64>(readerPosition, readerPosition + numSamples)))
 		{
