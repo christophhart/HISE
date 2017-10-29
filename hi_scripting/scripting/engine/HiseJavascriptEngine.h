@@ -35,7 +35,7 @@
 
 
 class JavascriptProcessor;
-class ThreadWithAsyncProgressWindow;
+class DialogWindowWithBackgroundThread;
 
 /** The HISE Javascript Engine.
  *
@@ -293,7 +293,7 @@ public:
 		struct ThreadData
 		{
 			double* progress = nullptr;
-			ThreadWithAsyncProgressWindow* thread = nullptr;
+			DialogWindowWithBackgroundThread* thread = nullptr;
 			Reference::List referenceList;
 			String cyclicReferenceString;
 			

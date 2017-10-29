@@ -383,14 +383,14 @@ void ScriptingContentOverlay::paint(Graphics& g)
 
 
 
-class ParameterConnector : public ThreadWithAsyncProgressWindow,
+class ParameterConnector : public DialogWindowWithBackgroundThread,
 	public ComboBoxListener,
 	public Timer
 {
 public:
 
 	ParameterConnector(ScriptingApi::Content::ScriptComponent *sc_, ScriptEditHandler *editor_) :
-		ThreadWithAsyncProgressWindow("Connect widget to module parameter"),
+		DialogWindowWithBackgroundThread("Connect widget to module parameter"),
 		sc(sc_),
 		editor(editor_),
 		sp(dynamic_cast<JavascriptMidiProcessor*>(editor_->getScriptEditHandlerProcessor())),

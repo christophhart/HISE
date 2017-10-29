@@ -45,7 +45,6 @@ public:
 	void setModalBaseWindowComponent(Component * childComponentOfModalBaseWindow, int fadeInTime=0);
 
 	void showOnDesktop();
-
 	void destroy();
 
 private:
@@ -57,71 +56,20 @@ class ModalBaseWindow
 {
 public:
 
-	ModalBaseWindow()
-	{
-		s.colour = Colours::black;
-		s.radius = 20;
-		s.offset = Point<int>();
-	}
+	ModalBaseWindow();
+	virtual ~ModalBaseWindow();;
 
-	virtual ~ModalBaseWindow()
-	{	
-		shadow = nullptr;
-		clearModalComponent();
-		
-	};
-
-
-	void setModalComponent(Component *component, int fadeInTime=0)
-	{
-		if (modalComponent != nullptr)
-		{
-			shadow = nullptr;
-			modalComponent = nullptr;
-		}
-
-		
-		shadow = new DropShadower(s);
-		modalComponent = component;
-
-
-		if (fadeInTime == 0)
-		{
-			dynamic_cast<Component*>(this)->addAndMakeVisible(modalComponent);
-			modalComponent->centreWithSize(component->getWidth(), component->getHeight());
-		}
-		else
-		{
-			dynamic_cast<Component*>(this)->addChildComponent(modalComponent);
-			modalComponent->centreWithSize(component->getWidth(), component->getHeight());
-			Desktop::getInstance().getAnimator().fadeIn(modalComponent, fadeInTime);
-			
-		}
-
-		
-
-		shadow->setOwner(modalComponent);
-
-		
-	}
-
-	bool isCurrentlyModal() const { return modalComponent != nullptr; }
-
-	void clearModalComponent()
-	{
-		shadow = nullptr;
-		modalComponent = nullptr;
-	}
+	void setModalComponent(Component *component, int fadeInTime=0);
+	bool isCurrentlyModal() const;
+	void clearModalComponent();
 
 	ScopedPointer<Component> modalComponent;
-
 	DropShadow s;
-
 	ScopedPointer<DropShadower> shadow;
 };
 
 
-/** An replacement for the ThreadWithProgressWindow with the following differences:
+/** A dialog window that performs an operation on a background thread.
 *
 *	- no modal windows
 *	- a callback (in the message loop) when the thread is finished.
@@ -131,7 +79,7 @@ public:
 *
 *	Then simply create a instance and call its method 'setModalComponentOfMainEditor()'
 */
-class ThreadWithAsyncProgressWindow : public AlertWindow,
+class DialogWindowWithBackgroundThread : public AlertWindow,
 									  public QuasiModalComponent,
 									  public AsyncUpdater
 {
@@ -140,7 +88,7 @@ public:
 	// ================================================================================================================
 
 	/** This stops the thread. In order to avoid killing, check threadShouldExit() regularly in your run() method. */
-	virtual ~ThreadWithAsyncProgressWindow();
+	virtual ~DialogWindowWithBackgroundThread();
 
 
 	// ================================================================================================================
@@ -203,7 +151,7 @@ protected:
 	*
 	*	Don't forget to call 'addBasicComponents' after you added your stuff.
 	*/
-	ThreadWithAsyncProgressWindow(const String &title, bool synchronous=false);
+	DialogWindowWithBackgroundThread(const String &title, bool synchronous=false);
 
 	/** Call this method in your constructor after you created all custom methods. */
 	void addBasicComponents(bool addOkButton = true);
@@ -225,7 +173,7 @@ private:
 	{
 	public:
 
-		LoadingThread(ThreadWithAsyncProgressWindow *parent_) :
+		LoadingThread(DialogWindowWithBackgroundThread *parent_) :
 			Thread(parent_->getName()),
 			parent(parent_)
 		{};
@@ -238,7 +186,7 @@ private:
 
 	private:
 
-		ThreadWithAsyncProgressWindow *parent;
+		DialogWindowWithBackgroundThread *parent;
 	};
 
 
@@ -256,12 +204,12 @@ private:
 
 	// ================================================================================================================
 
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ThreadWithAsyncProgressWindow)
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DialogWindowWithBackgroundThread)
 };
 
 class MainController;
 
-class PresetLoadingThread : public ThreadWithAsyncProgressWindow
+class PresetLoadingThread : public DialogWindowWithBackgroundThread
 {
 public:
 

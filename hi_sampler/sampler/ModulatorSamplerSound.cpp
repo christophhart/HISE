@@ -792,7 +792,7 @@ void ModulatorSamplerSoundPool::deleteMissingSamples()
 }
 
 
-class SampleResolver : public ThreadWithAsyncProgressWindow
+class SampleResolver : public DialogWindowWithBackgroundThread
 {
 public:
 
@@ -807,7 +807,7 @@ public:
     };
     
 	SampleResolver(ModulatorSamplerSoundPool *pool_, Processor *synthChain_):
-		ThreadWithAsyncProgressWindow("Sample Resolver"),
+		DialogWindowWithBackgroundThread("Sample Resolver"),
 		pool(pool_),
 		mainSynthChain(synthChain_)
 	{

@@ -73,7 +73,7 @@ void QuasiModalComponent::destroy()
 }
 
 
-ThreadWithAsyncProgressWindow::ThreadWithAsyncProgressWindow(const String &title, bool synchronous_) :
+DialogWindowWithBackgroundThread::DialogWindowWithBackgroundThread(const String &title, bool synchronous_) :
 AlertWindow(title, String(), AlertWindow::AlertIconType::NoIcon),
 progress(0.0),
 isQuasiModal(false),
@@ -86,7 +86,7 @@ synchronous(synchronous_)
 
 }
 
-ThreadWithAsyncProgressWindow::~ThreadWithAsyncProgressWindow()
+DialogWindowWithBackgroundThread::~DialogWindowWithBackgroundThread()
 {
 	if (thread != nullptr)
 	{
@@ -94,7 +94,7 @@ ThreadWithAsyncProgressWindow::~ThreadWithAsyncProgressWindow()
 	}
 }
 
-void ThreadWithAsyncProgressWindow::addBasicComponents(bool addOKButton)
+void DialogWindowWithBackgroundThread::addBasicComponents(bool addOKButton)
 {
 	addTextEditor("state", "", "Status", false);
 
@@ -111,7 +111,7 @@ void ThreadWithAsyncProgressWindow::addBasicComponents(bool addOKButton)
 
 }
 
-bool ThreadWithAsyncProgressWindow::threadShouldExit() const
+bool DialogWindowWithBackgroundThread::threadShouldExit() const
 {
 	if (thread != nullptr)
 	{
@@ -121,13 +121,13 @@ bool ThreadWithAsyncProgressWindow::threadShouldExit() const
 	return false;
 }
 
-void ThreadWithAsyncProgressWindow::handleAsyncUpdate()
+void DialogWindowWithBackgroundThread::handleAsyncUpdate()
 {
 	threadFinished();
 	destroy();
 }
 
-void ThreadWithAsyncProgressWindow::buttonClicked(Button* b)
+void DialogWindowWithBackgroundThread::buttonClicked(Button* b)
 {
 	if (b->getName() == "OK")
 	{
@@ -161,7 +161,7 @@ void ThreadWithAsyncProgressWindow::buttonClicked(Button* b)
 	}
 }
 
-void ThreadWithAsyncProgressWindow::runSynchronous()
+void DialogWindowWithBackgroundThread::runSynchronous()
 {
 	// Obviously only available in the message loop!
 	jassert(MessageManager::getInstance()->isThisTheMessageThread());
@@ -171,7 +171,7 @@ void ThreadWithAsyncProgressWindow::runSynchronous()
 	destroy();
 }
 
-void ThreadWithAsyncProgressWindow::showStatusMessage(const String &message)
+void DialogWindowWithBackgroundThread::showStatusMessage(const String &message)
 {
 	MessageManagerLock lock(thread);
 
@@ -192,16 +192,16 @@ void ThreadWithAsyncProgressWindow::showStatusMessage(const String &message)
 
 
 
-void ThreadWithAsyncProgressWindow::runThread()
+void DialogWindowWithBackgroundThread::runThread()
 {
 	thread = new LoadingThread(this);
 	thread->startThread();
 }
 
 
-
+#if 0
 PresetLoadingThread::PresetLoadingThread(MainController *mc, const ValueTree v_) :
-ThreadWithAsyncProgressWindow("Loading Preset " + v_.getProperty("ID").toString()),
+DialogWindowWithBackgroundThread("Loading Preset " + v_.getProperty("ID").toString()),
 v(v_),
 mc(mc),
 fileNeedsToBeParsed(false)
@@ -210,7 +210,7 @@ fileNeedsToBeParsed(false)
 }
 
 PresetLoadingThread::PresetLoadingThread(MainController *mc, const File &presetFile) :
-ThreadWithAsyncProgressWindow("Loading Preset " + presetFile.getFileName()),
+DialogWindowWithBackgroundThread("Loading Preset " + presetFile.getFileName()),
 file(presetFile),
 fileNeedsToBeParsed(true),
 mc(mc)
@@ -261,7 +261,7 @@ void PresetLoadingThread::run()
 	sampleRate = synthChain->getSampleRate();
 	bufferSize = synthChain->getBlockSize();
 
-	synthChain->setBypassed(true);
+	mc->getSampleManager().setShouldSkipPreloading(true);
 
 	// Reset the sample rate so that prepareToPlay does not get called in restoreFromValueTree
 	synthChain->setCurrentPlaybackSampleRate(-1.0);
@@ -292,9 +292,9 @@ void PresetLoadingThread::threadFinished()
 
 	mc->getSampleManager().getAudioSampleBufferPool()->clearData();
 
-	synthChain->setBypassed(false);
-
 	Processor::Iterator<ModulatorSampler> iter(synthChain, false);
+
+	mc->getSampleManager().preloadEverything();
 
 	int i = 0;
 
@@ -311,4 +311,61 @@ void PresetLoadingThread::threadFinished()
 		}
 	}
 }
+#endif
 
+
+ModalBaseWindow::ModalBaseWindow()
+{
+	s.colour = Colours::black;
+	s.radius = 20;
+	s.offset = Point<int>();
+}
+
+ModalBaseWindow::~ModalBaseWindow()
+{
+
+	shadow = nullptr;
+	clearModalComponent();
+}
+
+void ModalBaseWindow::setModalComponent(Component *component, int fadeInTime/*=0*/)
+{
+	if (modalComponent != nullptr)
+	{
+		shadow = nullptr;
+		modalComponent = nullptr;
+	}
+
+
+	shadow = new DropShadower(s);
+	modalComponent = component;
+
+
+	if (fadeInTime == 0)
+	{
+		dynamic_cast<Component*>(this)->addAndMakeVisible(modalComponent);
+		modalComponent->centreWithSize(component->getWidth(), component->getHeight());
+	}
+	else
+	{
+		dynamic_cast<Component*>(this)->addChildComponent(modalComponent);
+		modalComponent->centreWithSize(component->getWidth(), component->getHeight());
+		Desktop::getInstance().getAnimator().fadeIn(modalComponent, fadeInTime);
+
+	}
+
+
+
+	shadow->setOwner(modalComponent);
+}
+
+bool ModalBaseWindow::isCurrentlyModal() const
+{
+	return modalComponent != nullptr;
+}
+
+void ModalBaseWindow::clearModalComponent()
+{
+	shadow = nullptr;
+	modalComponent = nullptr;
+}

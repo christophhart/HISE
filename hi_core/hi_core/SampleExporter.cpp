@@ -113,7 +113,7 @@ void SampleMapSearcher::searchInternal(ValueTree &treeToSearch, bool stripPath)
 
 
 ExternalResourceCollector::ExternalResourceCollector(MainController *mc_) :
-ThreadWithAsyncProgressWindow("Copying external files into the project folder"),
+DialogWindowWithBackgroundThread("Copying external files into the project folder"),
 mc(mc_)
 {
 	numTotalSamples = mc->getSampleManager().getModulatorSamplerSoundPool()->getNumSoundsInPool();

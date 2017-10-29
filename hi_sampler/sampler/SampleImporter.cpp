@@ -438,7 +438,7 @@ XmlElement *SampleImporter::createXmlDescriptionForFile(const File &f, int index
 	return newSample;
 }
 
-void SampleImporter::SampleCollection::cleanCollection(ThreadWithAsyncProgressWindow *thread)
+void SampleImporter::SampleCollection::cleanCollection(DialogWindowWithBackgroundThread *thread)
 {
 	thread->showStatusMessage("Cleaning file list");
 
@@ -503,7 +503,7 @@ int SampleImporter::SampleCollection::getIndexOfSameMicSample(int currentIndex) 
 }
 
 FileImportDialogWindow::FileImportDialogWindow(ModulatorSampler *sampler_, const StringArray &files_):
-	ThreadWithAsyncProgressWindow("File Name Pattern Settings"),
+	DialogWindowWithBackgroundThread("File Name Pattern Settings"),
 	sampler(sampler_),
 	files(files_)
 {

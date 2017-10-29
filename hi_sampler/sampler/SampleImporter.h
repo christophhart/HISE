@@ -35,7 +35,7 @@
 
 class FileNameImporterDialog;
 
-class FileImportDialogWindow : public ThreadWithAsyncProgressWindow
+class FileImportDialogWindow : public DialogWindowWithBackgroundThread
 {
 public:
 
@@ -140,7 +140,7 @@ public:
 	struct SampleCollection
 	{
 		/** Deletes duplicate entries when using multimic import mode*/
-		void cleanCollection(ThreadWithAsyncProgressWindow *thread);
+		void cleanCollection(DialogWindowWithBackgroundThread *thread);
 
 		int getIndexOfSameMicSample(int currentIndex) const;
 

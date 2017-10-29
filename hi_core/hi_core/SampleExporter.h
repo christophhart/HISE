@@ -91,7 +91,7 @@ private:
 
 };
 
-class ExternalResourceCollector : public ThreadWithAsyncProgressWindow
+class ExternalResourceCollector : public DialogWindowWithBackgroundThread
 {
 public:
 

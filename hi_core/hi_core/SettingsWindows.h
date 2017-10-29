@@ -60,7 +60,7 @@ private:
 
 	static File getFileForSettingsWindow(Settings s, ProjectHandler *handler = nullptr);
 
-	class BaseSettingsWindow : public ThreadWithAsyncProgressWindow
+	class BaseSettingsWindow : public DialogWindowWithBackgroundThread
 	{
 	public:
 
@@ -73,7 +73,7 @@ private:
 		};
 
 		BaseSettingsWindow(const String &settingName) :
-			ThreadWithAsyncProgressWindow(settingName + " Properties")
+			DialogWindowWithBackgroundThread(settingName + " Properties")
 		{}
 
 		/** Saves the file to the disk. */

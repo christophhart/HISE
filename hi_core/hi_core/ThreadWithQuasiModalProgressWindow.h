@@ -87,110 +87,14 @@ public:
 	{
 	public:
 
-		Overlay() :
-			currentTaskIndex(0),
-			totalTasks(0),
-			totalProgress(0.0)
-		{ 
-			setInterceptsMouseClicks(true, true); 
-			addAndMakeVisible(totalProgressBar = new ProgressBar(totalProgress));
+		Overlay();
 
-			totalProgressBar->setLookAndFeel(&alaf);
-			totalProgressBar->setOpaque(true);
-		}
-
-		void setDialog(AlertWindow *newWindow)
-		{
-			toFront(false);
-
-			setVisible(newWindow != nullptr);
-
-			window = newWindow;
-
-			if (window != nullptr)
-			{
-				window->toFront(false);
-
-				removeAllChildren();
-				addAndMakeVisible(window); 
-				addAndMakeVisible(totalProgressBar);
-
-				resized();
-			}
-		}
-		
-		void resized()
-		{
-			if (window.getComponent() != nullptr)
-			{
-				window->centreWithSize(window->getWidth(), window->getHeight());
-
-				totalProgressBar->setBounds(window->getX(), window->getBottom() + 20, window->getWidth(), 24);
-			}
-		}
-
-		void setTotalTasks(int numTasks)
-		{
-			totalTasks = jmax<int>(totalTasks, numTasks);
-
-			if (totalTasks == 0)
-			{
-				totalProgress = 0.0;
-			}
-			else
-			{
-				totalProgress = (double(currentTaskIndex - 1) / (double)totalTasks);
-			}
-		}
-
-
-		void incCurrentIndex()
-		{
-			currentTaskIndex++;
-
-			if (totalTasks == 0.0)
-			{
-				totalProgress = 0.0;
-			}
-			else
-			{
-				totalProgress = (double(currentTaskIndex - 1) / (double)totalTasks);
-			}
-		}
-
-		void clearIndexes()
-		{
-			currentTaskIndex = 0;
-			totalTasks = 0;
-			totalProgress = 0.0;
-			parentSnapshot = Image();
-		}
-
-#if USE_BACKEND
-		void paint(Graphics &g) override 
-		{
-			g.fillAll(Colours::grey.withAlpha(0.5f));
-
-			if (window.getComponent() != nullptr)
-			{
-				Rectangle<int> textArea(0,
-										0,
-										getWidth(),
-										42);
-
-                g.setColour(Colours::black.withAlpha(0.7f));
-                g.fillRect(textArea);
-                
-				g.setColour(Colours::white);
-
-                
-                
-				g.setFont(GLOBAL_BOLD_FONT());
-
-				g.drawText("Task: " + String(currentTaskIndex) + "/" + String(totalTasks), textArea, Justification::centred);
-			}
-		};
-#endif
+		void setDialog(AlertWindow *newWindow);
+		void resized();
+		void setTotalTasks(int numTasks);
+		void incCurrentIndex();
+		void clearIndexes();
+		void paint(Graphics &g) override;;
 
 	private:
 
@@ -222,60 +126,23 @@ public:
 	{
 	public:
 
-		Holder():
-			overlay(nullptr),
-			delayer(*this)
-		{
-			
-		}
+		Holder();
 
-		virtual ~Holder()
-		{
-			cancel();
-		}
+		virtual ~Holder();
 
-		void buttonClicked(Button *) override
-		{
-			cancel();
-		}
+		void buttonClicked(Button *) override;
 
-		void setOverlay(Overlay *currentOverlay)
-		{
-			overlay = currentOverlay;
-		}
+		void setOverlay(Overlay *currentOverlay);
 
-		Overlay *getOverlay() { return overlay.getComponent(); }
+		Overlay *getOverlay();
 
-		void showDialog()
-		{
-			ThreadWithQuasiModalProgressWindow *window = queue.getFirst();
+		void showDialog();
 
-			if (getOverlay() && window != nullptr)
-			{
-				getOverlay()->setTotalTasks(queue.size());
-				getOverlay()->incCurrentIndex();
-
-				AlertWindow *w = window->getAlertWindow();
-				getCancelButton(w)->addListener(this);
-				getOverlay()->setDialog(w);
-			}
-
-		}
-
-        void handleAsyncUpdate()
-        {
-            ThreadWithQuasiModalProgressWindow *window = queue[0];
-            
-			
-
-			showDialog();
-
-            window->runThread();
-        }
+        void handleAsyncUpdate();
         
 		struct Listener
 		{
-			virtual ~Listener() { masterReference.clear();};
+			virtual ~Listener();;
 
 			virtual void taskAdded() {};
 			virtual void taskRemoved() {};
@@ -288,10 +155,10 @@ public:
 		};
 
 
-		void addListener(Listener* newListener) { listeners.add(newListener); }
-		void removeListener(Listener* listenerToRemove) { listeners.removeAllInstancesOf(listenerToRemove); };
+		void addListener(Listener* newListener);
+		void removeListener(Listener* listenerToRemove);;
 
-		bool isBusy() const noexcept { return queue.size() > 0; }
+		bool isBusy() const noexcept;
 
 
 	private:
@@ -299,25 +166,11 @@ public:
 		class WindowDelayer : private Timer
 		{
 		public:
-			WindowDelayer(ThreadWithQuasiModalProgressWindow::Holder &parent_):
-				parent(parent_)
-			{
+			WindowDelayer(ThreadWithQuasiModalProgressWindow::Holder &parent_);
 
-			}
+			void postDelayMessage();;
 
-			void postDelayMessage()
-			{
-				if (!isTimerRunning())
-				{
-					startTimer(200);
-				}
-			};
-
-			void timerCallback() override
-			{
-				parent.showDialog();
-				stopTimer();
-			};
+			void timerCallback() override;;
 
 		private:
 
@@ -326,99 +179,19 @@ public:
 
 		friend class ThreadWithQuasiModalProgressWindow;
 
-		void cancel()
-		{
-			clearDialog();
+		void cancel();
 
-			if (getOverlay())
-			{
-				getOverlay()->clearIndexes();
-			}
-			
-			queue.clear();
-		}
+		void clearDialog();
 
-		void clearDialog()
-		{
-			if (getOverlay() != nullptr)
-			{
-				getOverlay()->setDialog(nullptr);
-			}
-
-			for (int i = 0; i < listeners.size(); i++)
-			{
-				if (listeners[i].get() != nullptr)
-				{
-					listeners[i]->lastTaskRemoved();
-				}
-			}
-		}
-
-		void currentThreadHasFinished()
-		{
-			queue.remove(0, true);
-
-			if (queue.size() == 0)
-			{
-				clearDialog();
-			}
-			else
-			{
-				for (int i = 0; i < listeners.size(); i++)
-				{
-					if (listeners[i].get() != nullptr)
-					{
-						listeners[i]->taskRemoved();
-					}
-				}
-
-				runNextThread();
-			}
-
-			if (queue.size() == 0 && getOverlay())
-			{
-				getOverlay()->clearIndexes();
-			}
-		}
+		void currentThreadHasFinished();
 		
-		void addThreadToQueue(ThreadWithQuasiModalProgressWindow *window)
-		{
-			queue.add(window);
-
-			for (int i = 0; i < listeners.size(); i++)
-			{
-				if (listeners[i].get() != nullptr)
-				{
-					listeners[i]->taskAdded();
-				}
-			}
-
-			if (queue.size() == 1)
-			{
-                runNextThread();
-			}
-		}
+		void addThreadToQueue(ThreadWithQuasiModalProgressWindow *window);
 
 		
-		void runNextThread()
-		{
-			triggerAsyncUpdate();
-		}
+		void runNextThread();
 
 		/** AlertWindow, Y U no giving cancel button? */
-		static TextButton *getCancelButton(AlertWindow *window)
-		{
-			for (int i = 0; i < window->getNumChildComponents(); i++)
-			{
-				if (TextButton *b = dynamic_cast<TextButton*>(window->getChildComponent(i)))
-				{
-					return b;
-				}
-			}
-
-			jassertfalse;
-			return nullptr;
-		}
+		static TextButton *getCancelButton(AlertWindow *window);
 
 		OwnedArray<ThreadWithQuasiModalProgressWindow> queue;
 

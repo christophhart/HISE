@@ -281,12 +281,12 @@ void SampleEditHandler::SampleEditingActions::selectAllSamples(SampleEditHandler
 	}
 }
 
-class NormalizeThread : public ThreadWithAsyncProgressWindow
+class NormalizeThread : public DialogWindowWithBackgroundThread
 {
 public:
 
 	NormalizeThread(SampleEditHandler *handler_):
-		ThreadWithAsyncProgressWindow("Normalizing samples"),
+		DialogWindowWithBackgroundThread("Normalizing samples"),
 		handler(handler_)
 	{
 		addBasicComponents(false);
@@ -333,7 +333,7 @@ void SampleEditHandler::SampleEditingActions::normalizeSamples(SampleEditHandler
 
 
 
-class MultimicMergeDialogWindow : public ThreadWithAsyncProgressWindow,
+class MultimicMergeDialogWindow : public DialogWindowWithBackgroundThread,
 								  public TextEditor::Listener,
 								  public ComboBox::Listener
 {
@@ -359,7 +359,7 @@ public:
 	};
 
 	MultimicMergeDialogWindow(SampleEditHandler *handler_):
-		ThreadWithAsyncProgressWindow("Merge sample files to multimic sounds", true),
+		DialogWindowWithBackgroundThread("Merge sample files to multimic sounds", true),
 		handler(handler_),
 		separator("_")
 	{

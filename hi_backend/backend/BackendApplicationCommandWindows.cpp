@@ -48,7 +48,7 @@ static bool areMajorWebsitesAvailable()
 
 
 
-class UpdateChecker : public ThreadWithAsyncProgressWindow
+class UpdateChecker : public DialogWindowWithBackgroundThread
 {
 public:
 
@@ -78,7 +78,7 @@ public:
 	};
 
 	UpdateChecker() :
-		ThreadWithAsyncProgressWindow("Checking for newer version."),
+		DialogWindowWithBackgroundThread("Checking for newer version."),
 		updatesAvailable(false),
 		lastUpdate(BUILD_SUB_VERSION)
 	{
@@ -672,7 +672,7 @@ private:
 
 
 
-class SampleDataExporter : public ThreadWithAsyncProgressWindow,
+class SampleDataExporter : public DialogWindowWithBackgroundThread,
 						   public hlac::HlacArchiver::Listener
 {
 public:
@@ -687,7 +687,7 @@ public:
 	};
 
 	SampleDataExporter(BackendProcessorEditor* bpe_) :
-		ThreadWithAsyncProgressWindow("Export Samples for Installer"),
+		DialogWindowWithBackgroundThread("Export Samples for Installer"),
 		bpe(bpe_)
 	{
 		StringArray sa;
@@ -833,12 +833,12 @@ private:
 	int numExported = 0;
 };
 
-class CyclicReferenceChecker: public ThreadWithAsyncProgressWindow
+class CyclicReferenceChecker: public DialogWindowWithBackgroundThread
 {
 public:
 
 	CyclicReferenceChecker(BackendProcessorEditor* bpe_) :
-		ThreadWithAsyncProgressWindow("Checking cyclic references"),
+		DialogWindowWithBackgroundThread("Checking cyclic references"),
 		bpe(bpe_)
 	{
 		StringArray processorList = ProcessorHelpers::getAllIdsForType<JavascriptProcessor>(bpe->getMainSynthChain());
@@ -908,7 +908,7 @@ private:
 	BackendProcessorEditor* bpe;
 };
 
-class SampleDataImporter : public ThreadWithAsyncProgressWindow,
+class SampleDataImporter : public DialogWindowWithBackgroundThread,
 						   public hlac::HlacArchiver::Listener
 {
 public:
@@ -923,7 +923,7 @@ public:
 	};
 
 	SampleDataImporter(BackendProcessorEditor* bpe_) :
-		ThreadWithAsyncProgressWindow("Import archived samples"),
+		DialogWindowWithBackgroundThread("Import archived samples"),
 		bpe(bpe_)
 	{
 		targetFile = new FilenameComponent("Source file", File(), true, false, false, "*.hr1", "", "Select Sample Archive to import");
@@ -1045,7 +1045,7 @@ private:
 	BackendProcessorEditor* bpe;
 };
 
-class ProjectDownloader : public ThreadWithAsyncProgressWindow,
+class ProjectDownloader : public DialogWindowWithBackgroundThread,
 	public TextEditor::Listener
 {
 public:
@@ -1062,7 +1062,7 @@ public:
 	};
 
 	ProjectDownloader(BackendProcessorEditor *bpe_) :
-		ThreadWithAsyncProgressWindow("Download new Project"),
+		DialogWindowWithBackgroundThread("Download new Project"),
 		bpe(bpe_),
 		result(ErrorCodes::OK)
 	{

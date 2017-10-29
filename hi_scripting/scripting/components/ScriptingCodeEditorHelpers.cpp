@@ -31,13 +31,13 @@
 */
 
 
-class CodeReplacer : public ThreadWithAsyncProgressWindow,
+class CodeReplacer : public DialogWindowWithBackgroundThread,
 	public TextEditorListener
 {
 public:
 
 	CodeReplacer(JavascriptCodeEditor *editor_) :
-		ThreadWithAsyncProgressWindow("Search & Replace"),
+		DialogWindowWithBackgroundThread("Search & Replace"),
 		editor(editor_)
 	{
 		addTextEditor("search", editor->getTextInRange(editor->getHighlightedRegion()), "Search for");

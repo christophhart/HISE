@@ -110,3 +110,293 @@ bool ThreadWithQuasiModalProgressWindow::runThread (const int priority)
 
     return ! wasCancelledByUser;
 }
+
+ThreadWithQuasiModalProgressWindow::Overlay::Overlay() :
+	currentTaskIndex(0),
+	totalTasks(0),
+	totalProgress(0.0)
+{
+
+	setInterceptsMouseClicks(true, true);
+	addAndMakeVisible(totalProgressBar = new ProgressBar(totalProgress));
+
+	totalProgressBar->setLookAndFeel(&alaf);
+	totalProgressBar->setOpaque(true);
+}
+
+void ThreadWithQuasiModalProgressWindow::Overlay::setDialog(AlertWindow *newWindow)
+{
+	toFront(false);
+
+	setVisible(newWindow != nullptr);
+
+	window = newWindow;
+
+	if (window != nullptr)
+	{
+		window->toFront(false);
+
+		removeAllChildren();
+		addAndMakeVisible(window);
+		addAndMakeVisible(totalProgressBar);
+
+		resized();
+	}
+}
+
+void ThreadWithQuasiModalProgressWindow::Overlay::resized()
+{
+	if (window.getComponent() != nullptr)
+	{
+		window->centreWithSize(window->getWidth(), window->getHeight());
+
+		totalProgressBar->setBounds(window->getX(), window->getBottom() + 20, window->getWidth(), 24);
+	}
+}
+
+void ThreadWithQuasiModalProgressWindow::Overlay::setTotalTasks(int numTasks)
+{
+	totalTasks = jmax<int>(totalTasks, numTasks);
+
+	if (totalTasks == 0)
+	{
+		totalProgress = 0.0;
+	}
+	else
+	{
+		totalProgress = (double(currentTaskIndex - 1) / (double)totalTasks);
+	}
+}
+
+void ThreadWithQuasiModalProgressWindow::Overlay::incCurrentIndex()
+{
+	currentTaskIndex++;
+
+	if (totalTasks == 0.0)
+	{
+		totalProgress = 0.0;
+	}
+	else
+	{
+		totalProgress = (double(currentTaskIndex - 1) / (double)totalTasks);
+	}
+}
+
+void ThreadWithQuasiModalProgressWindow::Overlay::clearIndexes()
+{
+	currentTaskIndex = 0;
+	totalTasks = 0;
+	totalProgress = 0.0;
+	parentSnapshot = Image();
+}
+
+void ThreadWithQuasiModalProgressWindow::Overlay::paint(Graphics &g)
+{
+#if USE_BACKEND
+	g.fillAll(Colours::grey.withAlpha(0.5f));
+
+	if (window.getComponent() != nullptr)
+	{
+		Rectangle<int> textArea(0,
+			0,
+			getWidth(),
+			42);
+
+		g.setColour(Colours::black.withAlpha(0.7f));
+		g.fillRect(textArea);
+
+		g.setColour(Colours::white);
+
+
+
+		g.setFont(GLOBAL_BOLD_FONT());
+
+		g.drawText("Task: " + String(currentTaskIndex) + "/" + String(totalTasks), textArea, Justification::centred);
+	}
+#endif
+}
+
+ThreadWithQuasiModalProgressWindow::Holder::Holder() :
+	overlay(nullptr),
+	delayer(*this)
+{
+
+}
+
+ThreadWithQuasiModalProgressWindow::Holder::~Holder()
+{
+	cancel();
+}
+
+void ThreadWithQuasiModalProgressWindow::Holder::buttonClicked(Button *)
+{
+	cancel();
+}
+
+void ThreadWithQuasiModalProgressWindow::Holder::setOverlay(Overlay *currentOverlay)
+{
+	overlay = currentOverlay;
+}
+
+ThreadWithQuasiModalProgressWindow::ThreadWithQuasiModalProgressWindow::Overlay * ThreadWithQuasiModalProgressWindow::Holder::getOverlay()
+{
+	return overlay.getComponent();
+}
+
+void ThreadWithQuasiModalProgressWindow::Holder::showDialog()
+{
+	ThreadWithQuasiModalProgressWindow *window = queue.getFirst();
+
+	if (getOverlay() && window != nullptr)
+	{
+		getOverlay()->setTotalTasks(queue.size());
+		getOverlay()->incCurrentIndex();
+
+		AlertWindow *w = window->getAlertWindow();
+		getCancelButton(w)->addListener(this);
+		getOverlay()->setDialog(w);
+	}
+}
+
+void ThreadWithQuasiModalProgressWindow::Holder::handleAsyncUpdate()
+{
+	ThreadWithQuasiModalProgressWindow *window = queue[0];
+
+
+
+	showDialog();
+
+	window->runThread();
+}
+
+void ThreadWithQuasiModalProgressWindow::Holder::addListener(Listener* newListener)
+{
+	listeners.add(newListener);
+}
+
+void ThreadWithQuasiModalProgressWindow::Holder::removeListener(Listener* listenerToRemove)
+{
+	listeners.removeAllInstancesOf(listenerToRemove);
+}
+
+bool ThreadWithQuasiModalProgressWindow::Holder::isBusy() const noexcept
+{
+	return queue.size() > 0;
+}
+
+void ThreadWithQuasiModalProgressWindow::Holder::cancel()
+{
+	clearDialog();
+
+	if (getOverlay())
+	{
+		getOverlay()->clearIndexes();
+	}
+
+	queue.clear();
+}
+
+void ThreadWithQuasiModalProgressWindow::Holder::clearDialog()
+{
+	for (int i = 0; i < listeners.size(); i++)
+	{
+		if (listeners[i].get() != nullptr)
+		{
+			listeners[i]->lastTaskRemoved();
+		}
+	}
+
+	if (getOverlay() != nullptr)
+	{
+		getOverlay()->setDialog(nullptr);
+	}
+}
+
+void ThreadWithQuasiModalProgressWindow::Holder::currentThreadHasFinished()
+{
+	queue.remove(0, true);
+
+	if (queue.size() == 0)
+	{
+		clearDialog();
+	}
+	else
+	{
+		for (int i = 0; i < listeners.size(); i++)
+		{
+			if (listeners[i].get() != nullptr)
+			{
+				listeners[i]->taskRemoved();
+			}
+		}
+
+		runNextThread();
+	}
+
+	if (queue.size() == 0 && getOverlay())
+	{
+		getOverlay()->clearIndexes();
+	}
+}
+
+void ThreadWithQuasiModalProgressWindow::Holder::addThreadToQueue(ThreadWithQuasiModalProgressWindow *window)
+{
+	queue.add(window);
+
+	for (int i = 0; i < listeners.size(); i++)
+	{
+		if (listeners[i].get() != nullptr)
+		{
+			listeners[i]->taskAdded();
+		}
+	}
+
+	if (queue.size() == 1)
+	{
+		runNextThread();
+	}
+}
+
+void ThreadWithQuasiModalProgressWindow::Holder::runNextThread()
+{
+	triggerAsyncUpdate();
+}
+
+TextButton * ThreadWithQuasiModalProgressWindow::Holder::getCancelButton(AlertWindow *window)
+{
+	for (int i = 0; i < window->getNumChildComponents(); i++)
+	{
+		if (TextButton *b = dynamic_cast<TextButton*>(window->getChildComponent(i)))
+		{
+			return b;
+		}
+	}
+
+	jassertfalse;
+	return nullptr;
+}
+
+ThreadWithQuasiModalProgressWindow::Holder::Listener::~Listener()
+{
+	masterReference.clear();
+}
+
+ThreadWithQuasiModalProgressWindow::Holder::WindowDelayer::WindowDelayer(ThreadWithQuasiModalProgressWindow::Holder &parent_) :
+	parent(parent_)
+{
+
+}
+
+void ThreadWithQuasiModalProgressWindow::Holder::WindowDelayer::postDelayMessage()
+{
+	if (!isTimerRunning())
+	{
+		startTimer(200);
+	}
+}
+
+void ThreadWithQuasiModalProgressWindow::Holder::WindowDelayer::timerCallback()
+{
+	parent.showDialog();
+	stopTimer();
+}
