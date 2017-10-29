@@ -362,6 +362,10 @@ protected:
 
 private:
 
+	void handleFirstBuffer(float * destinationValues, int numValues) const;
+
+	mutable bool firstBuffer;
+
 };
 
 
@@ -643,6 +647,8 @@ protected:
 		addValueToPlotter(plot3);
 		addValueToPlotter(plot4);
 	};
+
+
 
 };
 

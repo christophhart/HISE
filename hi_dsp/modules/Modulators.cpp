@@ -194,11 +194,15 @@ bool TimeModulation::isInitialized() { return getProcessor()->getSampleRate() !=
 
 void TimeModulation::applyGainModulation(float *calculatedModulationValues, float *destinationValues, float fixedIntensity, int numValues) const noexcept
 {
+	
 	const float a = 1.0f - fixedIntensity;
 
 	FloatVectorOperations::multiply(calculatedModulationValues, fixedIntensity, numValues);
 	FloatVectorOperations::add(calculatedModulationValues, a, numValues);
 	FloatVectorOperations::multiply(destinationValues, calculatedModulationValues, numValues);
+
+	handleFirstBuffer(destinationValues, numValues);
+
 }
 
 void TimeModulation::applyGainModulation(float *calculatedModulationValues, float *destinationValues, float fixedIntensity, float *intensityValues, int numValues) const noexcept
@@ -209,6 +213,8 @@ void TimeModulation::applyGainModulation(float *calculatedModulationValues, floa
 	FloatVectorOperations::add(intensityValues, 1.0f, numValues);
 	FloatVectorOperations::add(calculatedModulationValues, intensityValues, numValues);
 	FloatVectorOperations::multiply(destinationValues, calculatedModulationValues, numValues);
+
+	handleFirstBuffer(destinationValues, numValues);
 }
 
 void TimeModulation::applyPitchModulation(float* calculatedModulationValues, float *destinationValues, float fixedIntensity, int numValues) const noexcept
@@ -271,6 +277,21 @@ void TimeModulation::initializeBuffer(AudioSampleBuffer &bufferToBeInitialized, 
 	float *writePointer = bufferToBeInitialized.getWritePointer(0, startSample);
 
 	FloatVectorOperations::fill(writePointer, 1.0f, numSamples);
+}
+
+void TimeModulation::handleFirstBuffer(float * destinationValues, int numValues) const
+{
+#if HISE_SMOOTH_FIRST_MOD_BUFFER
+	if (firstBuffer)
+	{
+		const float valueToGoTo = destinationValues[numValues - 1];
+		FloatVectorOperations::fill(destinationValues, 1.0f, numValues);
+
+		AudioSampleBuffer b(&destinationValues, 1, numValues);
+		b.applyGainRamp(0, numValues, 1.0f, valueToGoTo);
+		firstBuffer = false;
+	}
+#endif
 }
 
 #pragma warning( push )

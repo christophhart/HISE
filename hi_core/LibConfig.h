@@ -45,6 +45,10 @@
 #define NUM_MAX_CHANNELS 16
 
 
+#ifndef HISE_SMOOTH_FIRST_MOD_BUFFER
+#define HISE_SMOOTH_FIRST_MOD_BUFFER 1
+#endif
+
 #if ENABLE_STARTUP_LOG
 class StartupLogger
 {
