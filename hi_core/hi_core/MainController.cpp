@@ -938,181 +938,42 @@ void MainController::addScriptComponentEditPanel(ScriptComponentEditPanel *panel
 
 #endif
 
+void MainController::SampleManager::setShouldSkipPreloading(bool skip)
+{
+	skipPreloading = skip;
+}
+
 void MainController::SampleManager::preloadEverything()
 {
-	// This makes no sense...
-	jassert(!skipPreloading);
+	
+	jassert(skipPreloading);
+
+	skipPreloading = false;
+	
+	jassert(mc->getKillStateHandler().voicesAreKilled());
 
 	Processor::Iterator<ModulatorSampler> it(mc->getMainSynthChain());
 
+	Array<WeakReference<Processor>> samplersToPreload;
+
+	bool first = true;
+
 	while (ModulatorSampler* s = it.getNextProcessor())
 	{
-		s->refreshPreloadSizes();
+		if (s->hasPendingSampleLoad())
+		{
+			auto f = [](Processor* p)->bool {
+				return static_cast<ModulatorSampler*>(p)->preloadAllSamples();
+			};
+
+			mc->getKillStateHandler().killVoicesAndCall(s, f, KillStateHandler::SampleLoadingThread);
+		}
 	}
 }
+
 
 void MainController::CodeHandler::setMainConsole(Console* console)
 {
 	mainConsole = dynamic_cast<Component*>(console);
 }
 
-
-
-void MainController::UserPresetHandler::incPreset(bool next, bool stayInSameDirectory)
-{
-	Array<File> allPresets;
-
-#if USE_BACKEND
-	auto userDirectory = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
-#else
-	auto userDirectory = ProjectHandler::Frontend::getUserPresetDirectory();
-#endif
-
-	userDirectory.findChildFiles(allPresets, File::findFiles, true, "*.preset");
-	allPresets.sort();
-
-	if (!currentlyLoadedFile.existsAsFile())
-	{
-		currentlyLoadedFile = allPresets.getFirst();
-	}
-	else
-	{
-		if (stayInSameDirectory)
-		{
-			allPresets.clear();
-			currentlyLoadedFile.getParentDirectory().findChildFiles(allPresets, File::findFiles, false, "*.preset");
-			allPresets.sort();
-		}
-
-		if (allPresets.size() == 1)
-			return;
-
-		const int oldIndex = allPresets.indexOf(currentlyLoadedFile);
-
-		if (next)
-		{
-			const int newIndex = (oldIndex + 1) % allPresets.size();
-			currentlyLoadedFile = allPresets[newIndex];
-		}
-		else
-		{
-			int newIndex = oldIndex - 1;
-			if (newIndex == -1)
-				newIndex = allPresets.size() - 1;
-
-			currentlyLoadedFile = allPresets[newIndex];
-		}
-	}
-
-	loadUserPreset(currentlyLoadedFile);
-
-}
-
-void MainController::GlobalAsyncModuleHandler::removeAsync(Processor* p, Component* rootWindow)
-{
-	Job d;
-
-	d.processorToRemove = p;
-	d.what = Job::What::Delete;
-	d.rootWindow = rootWindow;
-
-	thingsToDo.add(d);
-	triggerAsyncUpdate();
-}
-
-void MainController::GlobalAsyncModuleHandler::addAsync(Chain* c, Processor* p, Component* rootWindow, const String& type, const String& id, int index)
-{
-	Job d;
-
-	d.chain = dynamic_cast<Processor*>(c);
-	d.processorToAdd = p;
-	d.what = Job::What::Add;
-	d.rootWindow = rootWindow;
-	d.type = type;
-	d.id = id;
-	d.index = index;
-
-	thingsToDo.add(d);
-	triggerAsyncUpdate();
-}
-
-void MainController::GlobalAsyncModuleHandler::handleAsyncUpdate()
-{
-#if USE_BACKEND
-	BackendRootWindow* rootWindow = dynamic_cast<BackendRootWindow*>(thingsToDo.getFirst().rootWindow.getComponent());
-
-	WeakReference<Processor> currentRoot;
-	
-	if (rootWindow != nullptr)
-	{
-		currentRoot = rootWindow->getMainPanel()->getRootContainer()->getRootEditor()->getProcessor();
-		rootWindow->getMainPanel()->removeContainer();
-	}
-	
-#endif
-
-	while (!thingsToDo.isEmpty())
-	{
-		auto thisJob = thingsToDo.getFirst();
-
-		
-
-		if (thisJob.what == Job::What::Delete)
-			thisJob.remove();
-		else
-			thisJob.add();
-
-		thingsToDo.remove(0);
-	}
-
-#if USE_BACKEND
-	
-	if (rootWindow != nullptr && currentRoot != nullptr)
-	{
-		rootWindow->getMainPanel()->setRootProcessor(currentRoot);
-		rootWindow->sendRootContainerRebuildMessage(false);
-	}
-		
-#endif
-}
-
-void MainController::GlobalAsyncModuleHandler::Job::add()
-{
-	auto c = dynamic_cast<Chain*>(chain.get());
-
-	if (processorToAdd.get() == nullptr)
-		return;
-
-	if (c == nullptr)
-	{
-		delete processorToAdd.get(); // Rather bad...
-		return;
-	}
-
-	if (index >= 0 && index < c->getHandler()->getNumProcessors())
-	{
-		Processor* sibling = c->getHandler()->getProcessor(index);
-		c->getHandler()->add(processorToAdd, sibling);
-	}
-	else
-	{
-		c->getHandler()->add(processorToAdd, nullptr);
-	}
-}
-
-void MainController::GlobalAsyncModuleHandler::Job::remove()
-{
-	auto p = processorToRemove.get();
-
-	if (p == nullptr)
-		return;
-
-	auto c = dynamic_cast<Chain*>(ProcessorHelpers::findParentProcessor(p, false));
-
-	jassert(c != nullptr);
-
-	if (c == nullptr)
-		return;
-
-	c->getHandler()->remove(p);
-}

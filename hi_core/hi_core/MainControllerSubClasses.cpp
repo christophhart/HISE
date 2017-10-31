@@ -190,8 +190,6 @@ MainController::CodeHandler::CodeHandler(MainController* mc_):
 }
 
 
-
-
 void MainController::CodeHandler::writeToConsole(const String &t, int warningLevel, const Processor *p, Colour c)
 {
 	if (overflowProtection) return;
@@ -464,3 +462,7 @@ void MainController::EventIdHandler::addCCRemap(int firstCC_, int secondCC_)
 		secondCC_ = -1;
 	}
 }
+
+
+
+

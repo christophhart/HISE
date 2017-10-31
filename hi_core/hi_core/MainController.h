@@ -373,47 +373,42 @@ public:
 		MainController* mc;
 	};
 
-	struct GlobalAsyncModuleHandler : public AsyncUpdater
+	struct GlobalAsyncModuleHandler: public AsyncUpdater
 	{
-		~GlobalAsyncModuleHandler()
+		GlobalAsyncModuleHandler() :
+			pendingJobs(1024)
+		{};
+
+		struct JobData
 		{
-			cancelPendingUpdate();
-			handleAsyncUpdate();
-		}
-
-		void removeAsync(Processor* p, Component* rootWindow);
-
-		void addAsync(Chain* c, Processor* p, Component* rootWindow, const String& type, const String& id, int index);
-
-		void handleAsyncUpdate() override;
-
-		struct Job
-		{
-			enum class What
+			enum What
 			{
 				Delete,
 				Add,
 				numWhat
 			};
 
-			void add();
+			JobData(Processor* parent_, Processor* processor_, What what_);;
+			JobData();;
 
-			void remove();
-
-			String type;
-			String id;
-			int index = 0;
-
-			Component::SafePointer<Component> rootWindow;
-
-			WeakReference<Processor> chain;
-			WeakReference<Processor> processorToRemove;
+			WeakReference<Processor> parent;
+			WeakReference<Processor> processorToDelete;
 			WeakReference<Processor> processorToAdd;
 
 			What what; // what
+
+			void doit();
 		};
 
-		Array<Job> thingsToDo;
+		void removeAsync(Processor* p, Component* rootWindow);
+
+		void addAsync(Chain* c, Processor* p, Component* rootWindow, const String& type, const String& id, int index);
+
+		void addPendingUIJob(Processor* parent, Processor* p, JobData::What what);
+
+		void handleAsyncUpdate() override;
+
+		LockfreeQueue<JobData> pendingJobs;
 	};
 
 	class ProcessorChangeHandler : public AsyncUpdater
@@ -519,7 +514,6 @@ public:
 		void writeToConsole(const String &t, int warningLevel, const Processor *p, Colour c);
 
 		void handleAsyncUpdate();
-
 
 
 		enum class ConsoleMessageItems
