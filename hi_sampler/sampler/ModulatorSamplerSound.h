@@ -89,7 +89,8 @@ struct MappingData
 *	It also contains methods that extend the properties of a StreamingSamplerSound. */
 class ModulatorSamplerSound : public ModulatorSynthSound,
 	public SafeChangeBroadcaster,
-	public RestorableObject
+	public RestorableObject,
+	public ControlledObject
 {
 public:
 
@@ -127,10 +128,10 @@ public:
 
 	/** Creates a ModulatorSamplerSound.
 	*	You only have to supply the index and the fileName, the rest is supposed to be restored with restoreFromValueTree(). */
-	ModulatorSamplerSound(StreamingSamplerSound *sound, int index_);
+	ModulatorSamplerSound(MainController* mc, StreamingSamplerSound *sound, int index_);
 	~ModulatorSamplerSound();
 
-	ModulatorSamplerSound(StreamingSamplerSoundArray &soundArray, int index_);
+	ModulatorSamplerSound(MainController* mc, StreamingSamplerSoundArray &soundArray, int index_);
 
 	// ====================================================================================================================
 
@@ -139,6 +140,9 @@ public:
 	*	This is used to display the name in the user interface and for the tag name within the XML samplemap,
 	*	so you must return a valid tag name here. */
 	static String getPropertyName(Property p);
+
+	/** Returns true if the property should be changed asynchronously when all voices are killed. */
+	static bool isAsyncProperty(Property p);
 
 	/** Returns the min and max values for the Property.
 	*
@@ -345,6 +349,10 @@ public:
 
 private:
 
+	void setPropertyInternal(Property p, int newValue);
+
+	void setPreloadPropertyInternal(Property y, int newValue);
+
 	// ================================================================================================================
 
 	/** A PropertyChange is a undoable modification of one of the properties of the sound */
@@ -423,6 +431,8 @@ private:
 	float rightBalanceGain;
 
 	BigInteger purgeChannels;
+
+	bool enableAsyncPropertyChange = true;
 
 	// ================================================================================================================
 

@@ -428,7 +428,7 @@ public:
 		{
 			MultiMicCollection * c = collections[i];
 
-			ModulatorSamplerSound * s = new ModulatorSamplerSound(c->soundList, i);
+			ModulatorSamplerSound * s = new ModulatorSamplerSound(sampler->getMainController(), c->soundList, i);
 
 			s->setMappingData(c->mappingData);
 
@@ -892,7 +892,7 @@ void SampleEditHandler::SampleEditingActions::extractToSingleMicSamples(SampleEd
 
 		for (int i = 0; i < singleList.size(); i++)
 		{
-			ModulatorSamplerSound * s = new ModulatorSamplerSound(singleList[i], i);
+			ModulatorSamplerSound * s = new ModulatorSamplerSound(sampler->getMainController(), singleList[i], i);
 
 			s->setMappingData(singleData[i]);
 

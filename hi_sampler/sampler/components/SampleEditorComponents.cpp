@@ -635,9 +635,13 @@ void SamplerSoundMap::updateSoundData()
 
 		for(int i = 0; i < ownerSampler->getNumSounds(); i++)
 		{
-			SampleComponent *c = new SampleComponent(ownerSampler->getSound(i), this);
+			if (ownerSampler->getSound(i) != nullptr)
+			{
+				SampleComponent *c = new SampleComponent(ownerSampler->getSound(i), this);
+				sampleComponents.add(c);
+			}
 
-			sampleComponents.add(c);
+			
 		}
 	}
 	else

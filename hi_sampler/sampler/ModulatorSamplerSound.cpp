@@ -31,7 +31,8 @@
 */
 
 
-ModulatorSamplerSound::ModulatorSamplerSound(StreamingSamplerSound *sound, int index_) :
+ModulatorSamplerSound::ModulatorSamplerSound(MainController* mc, StreamingSamplerSound *sound, int index_):
+	ControlledObject(mc),
 index(index_),
 wrappedSound(sound),
 gain(1.0f),
@@ -56,7 +57,8 @@ purgeChannels(0)
 }
 
 
-ModulatorSamplerSound::ModulatorSamplerSound(StreamingSamplerSoundArray &soundArray, int index_):
+ModulatorSamplerSound::ModulatorSamplerSound(MainController* mc, StreamingSamplerSoundArray &soundArray, int index_):
+	ControlledObject(mc),
 index(index_),
 wrappedSound(soundArray.getFirst()),
 isMultiMicSound(true),
@@ -120,6 +122,11 @@ String ModulatorSamplerSound::getPropertyName(Property p)
 	case SampleState:	return "SampleState";
 	default:			jassertfalse; return String();
 	}
+}
+
+bool ModulatorSamplerSound::isAsyncProperty(Property p)
+{
+	return p >= SampleStart;
 }
 
 Range<int> ModulatorSamplerSound::getPropertyRange(Property p) const
@@ -231,54 +238,17 @@ var ModulatorSamplerSound::getProperty(Property p) const
 
 void ModulatorSamplerSound::setProperty(Property p, int newValue, NotificationType notifyEditor/*=sendNotification*/)
 {
-	ScopedLock sl(getLock());
-
-	switch (p)
+	//ScopedLock sl(getLock());
+	
+	if (enableAsyncPropertyChange && isAsyncProperty(p))
 	{
-	case ID:			jassertfalse; break;
-	case FileName:		jassertfalse; break;
-	case RootNote:		rootNote = newValue; break;
-	case VeloHigh:	{	int low = jmin(velocityRange.findNextSetBit(0), newValue, 127);
-		velocityRange.clear();
-		velocityRange.setRange(low, newValue - low + 1, true); break; }
-	case VeloLow:	{	int high = jmax(velocityRange.getHighestBit(), newValue, 0);
-		velocityRange.clear();
-		velocityRange.setRange(newValue, high - newValue + 1, true); break; }
-	case KeyHigh:	{	int low = jmin(midiNotes.findNextSetBit(0), newValue, 127);
-		midiNotes.clear();
-		midiNotes.setRange(low, newValue - low + 1, true); break; }
-	case KeyLow:	{	int high = jmax(midiNotes.getHighestBit(), newValue, 0);
-		midiNotes.clear();
-		midiNotes.setRange(newValue, high - newValue + 1, true); break; }
-	case RRGroup:		rrGroup = newValue; break;
-	case Normalized:	isNormalized = newValue == 1; 
-						if (isNormalized && normalizedPeak < 0.0f) calculateNormalizedPeak();
-						break;
-	case Volume:	{	gain.set(Decibels::decibelsToGain((float)newValue));
-		break;
-	}
-	case Pan:		{
-		pan = (int)newValue;
-		leftBalanceGain = BalanceCalculator::getGainFactorForBalance((float)newValue, true);
-		rightBalanceGain = BalanceCalculator::getGainFactorForBalance((float)newValue, false);
-		break;
-	}
-	case Pitch:		{	centPitch = newValue;
-		pitchFactor.store(powf(2.0f, (float)centPitch / 1200.f));
-		break;
-	};
-	case SampleStart:	FOR_EVERY_SOUND(setSampleStart(newValue)); break;
-	case SampleEnd:		FOR_EVERY_SOUND(setSampleEnd(newValue)); break;
-	case SampleStartMod: FOR_EVERY_SOUND(setSampleStartModulation(newValue)); break;
+		auto f = [this, p, newValue](Processor*) { setPreloadPropertyInternal(p, newValue); return true; };
 
-	case LoopEnabled:	FOR_EVERY_SOUND(setLoopEnabled(newValue == 1.0f)); break;
-	case LoopStart:		FOR_EVERY_SOUND(setLoopStart(newValue)); break;
-	case LoopEnd:		FOR_EVERY_SOUND(setLoopEnd(newValue)); break;
-	case LoopXFade:		FOR_EVERY_SOUND(setLoopCrossfade(newValue)); break;
-	case LowerVelocityXFade: lowerVeloXFadeValue = newValue; break;
-	case UpperVelocityXFade: upperVeloXFadeValue = newValue; break;
-	case SampleState:	setPurged(newValue == 1.0f); break;
-	default:			jassertfalse; break;
+		getMainController()->getKillStateHandler().killVoicesAndCall(getMainController()->getMainSynthChain(), f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
+	}
+	else
+	{
+		setPropertyInternal(p, newValue);
 	}
 
 	if(notifyEditor) sendChangeMessage();
@@ -356,7 +326,9 @@ ValueTree ModulatorSamplerSound::exportAsValueTree() const
 void ModulatorSamplerSound::restoreFromValueTree(const ValueTree &v)
 {
     const ScopedLock sl(getLock());
-    
+ 
+	ScopedValueSetter<bool> svs(enableAsyncPropertyChange, false);
+
     normalizedPeak = v.getProperty("NormalizedPeak", -1.0f);
     
 	for (int i = RootNote; i < numProperties; i++) // ID and filename must be passed to the constructor!
@@ -607,6 +579,70 @@ void ModulatorSamplerSound::selectSoundsBasedOnRegex(const String &regexWildcard
 }
 
 
+void ModulatorSamplerSound::setPropertyInternal(Property p, int newValue)
+{
+	switch (p)
+	{
+	case ID:			jassertfalse; break;
+	case FileName:		jassertfalse; break;
+	case RootNote:		rootNote = newValue; break;
+	case VeloHigh: {	int low = jmin(velocityRange.findNextSetBit(0), newValue, 127);
+		velocityRange.clear();
+		velocityRange.setRange(low, newValue - low + 1, true); break; }
+	case VeloLow: {	int high = jmax(velocityRange.getHighestBit(), newValue, 0);
+		velocityRange.clear();
+		velocityRange.setRange(newValue, high - newValue + 1, true); break; }
+	case KeyHigh: {	int low = jmin(midiNotes.findNextSetBit(0), newValue, 127);
+		midiNotes.clear();
+		midiNotes.setRange(low, newValue - low + 1, true); break; }
+	case KeyLow: {	int high = jmax(midiNotes.getHighestBit(), newValue, 0);
+		midiNotes.clear();
+		midiNotes.setRange(newValue, high - newValue + 1, true); break; }
+	case RRGroup:		rrGroup = newValue; break;
+	case Normalized:	isNormalized = newValue == 1;
+		if (isNormalized && normalizedPeak < 0.0f) calculateNormalizedPeak();
+		break;
+	case Volume: {	gain.set(Decibels::decibelsToGain((float)newValue));
+		break;
+	}
+	case Pan: {
+		pan = (int)newValue;
+		leftBalanceGain = BalanceCalculator::getGainFactorForBalance((float)newValue, true);
+		rightBalanceGain = BalanceCalculator::getGainFactorForBalance((float)newValue, false);
+		break;
+	}
+	case Pitch: {	centPitch = newValue;
+		pitchFactor.store(powf(2.0f, (float)centPitch / 1200.f));
+		break;
+	};
+	case SampleStart:	FOR_EVERY_SOUND(setSampleStart(newValue)); break;
+	case SampleEnd:		FOR_EVERY_SOUND(setSampleEnd(newValue)); break;
+	case SampleStartMod: FOR_EVERY_SOUND(setSampleStartModulation(newValue)); break;
+
+	case LoopEnabled:	FOR_EVERY_SOUND(setLoopEnabled(newValue == 1.0f)); break;
+	case LoopStart:		FOR_EVERY_SOUND(setLoopStart(newValue)); break;
+	case LoopEnd:		FOR_EVERY_SOUND(setLoopEnd(newValue)); break;
+	case LoopXFade:		FOR_EVERY_SOUND(setLoopCrossfade(newValue)); break;
+	case LowerVelocityXFade: lowerVeloXFadeValue = newValue; break;
+	case UpperVelocityXFade: upperVeloXFadeValue = newValue; break;
+	case SampleState:	setPurged(newValue == 1.0f); break;
+	default:			jassertfalse; break;
+	}
+
+}
+
+void ModulatorSamplerSound::setPreloadPropertyInternal(Property p, int newValue)
+{
+	auto firstSampler = ProcessorHelpers::getFirstProcessorWithType<ModulatorSampler>(getMainController()->getMainSynthChain());
+
+	auto f = [this, p, newValue](Processor*)->bool {
+		setPropertyInternal(p, newValue);
+		return true;
+	};
+
+	firstSampler->killAllVoicesAndCall(f);
+}
+
 // ====================================================================================================================
 
 
@@ -731,7 +767,7 @@ bool ModulatorSamplerSoundPool::loadMonolithicData(const ValueTree &sampleMap, c
 			String fileName = sample.getProperty("FileName").toString().fromFirstOccurrenceOf("{PROJECT_FOLDER}", false, false);
 			StreamingSamplerSound* sound = new StreamingSamplerSound(hmaf, 0, i);
 			pool.add(sound);
-			sounds.add(new ModulatorSamplerSound(sound, i));
+			sounds.add(new ModulatorSamplerSound(mc, sound, i));
 		}
 		else
 		{
@@ -744,7 +780,7 @@ bool ModulatorSamplerSoundPool::loadMonolithicData(const ValueTree &sampleMap, c
 				multiMicArray.add(sound);
 			}
 
-			sounds.add(new ModulatorSamplerSound(multiMicArray, i));
+			sounds.add(new ModulatorSamplerSound(mc, multiMicArray, i));
 		}
 
 		
@@ -758,6 +794,10 @@ bool ModulatorSamplerSoundPool::loadMonolithicData(const ValueTree &sampleMap, c
 
 void ModulatorSamplerSoundPool::clearUnreferencedSamples()
 {
+	jassert(mc->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::SampleLoadingThread);
+
+	MessageManagerLock mml;
+
 	for (int i = 0; i < pool.size(); i++)
 	{
 		if (pool[i]->getReferenceCount() == 2)
@@ -1122,7 +1162,7 @@ ModulatorSamplerSound * ModulatorSamplerSoundPool::addSoundWithSingleMic(const V
 		if (i != -1)
 		{
 			if(updatePool) sendChangeMessage();
-			return new ModulatorSamplerSound(pool[i], index);
+			return new ModulatorSamplerSound(mc, pool[i], index);
 		}
 		else
 		{
@@ -1145,7 +1185,7 @@ ModulatorSamplerSound * ModulatorSamplerSoundPool::addSoundWithSingleMic(const V
             
             if (i != -1)
             {
-                ModulatorSamplerSound *sound = new ModulatorSamplerSound(pool[i], index);
+                ModulatorSamplerSound *sound = new ModulatorSamplerSound(mc, pool[i], index);
                 if(updatePool) sendChangeMessage();
                 return sound;
             }
@@ -1157,7 +1197,7 @@ ModulatorSamplerSound * ModulatorSamplerSoundPool::addSoundWithSingleMic(const V
 
 		if(updatePool) sendChangeMessage();
 
-		return new ModulatorSamplerSound(s, index);
+		return new ModulatorSamplerSound(mc, s, index);
 	}
 }
 
@@ -1219,7 +1259,7 @@ ModulatorSamplerSound * ModulatorSamplerSoundPool::addSoundWithMultiMic(const Va
 
 	if(updatePool) sendChangeMessage();
 
-	return new ModulatorSamplerSound(multiMicArray, index);
+	return new ModulatorSamplerSound(mc, multiMicArray, index);
 }
 
 bool ModulatorSamplerSoundPool::isPoolSearchForced() const
