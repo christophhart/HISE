@@ -50,6 +50,41 @@ public:
 	{
 	public:
 
+		class PreloadListener
+		{
+		public:
+
+			virtual ~PreloadListener()
+			{
+				masterReference.clear();
+			}
+
+			virtual void preloadStateChanged(bool isPreloading) = 0;
+
+		protected:
+
+		private:
+
+			friend class WeakReference<PreloadListener>;
+			WeakReference<PreloadListener>::Master masterReference;
+		};
+		
+		/** A POD structure that contains information about a Preload function. */
+		struct PreloadThreadData
+		{
+			Thread* thread = nullptr;
+			double* progress = nullptr;
+			int samplesLoaded = 0;
+			int totalSamplesToLoad = 0;
+		};
+
+		/** A PreloadFunction is a lambda that will be called by the preload thread.
+		*
+		*
+		*	Regularly check the PreloadThreadData thread if it should exit and return false on a failure to abort.
+		*/
+		using PreloadFunction = std::function<bool(Processor*, PreloadThreadData&)>;
+
 		enum class DiskMode
 		{
 			SSD = 0,
@@ -107,11 +142,58 @@ public:
 
 		bool shouldSkipPreloading() const { return skipPreloading; };
 
-		void setShouldSkipPreloading(bool skip) { skipPreloading = skip; }
+		/** If you load multiple samplemaps at once (eg. at startup), call this and it will coallescate the preloading. */
+		void setShouldSkipPreloading(bool skip);
 
+		/** Preload everything since the last call to setShouldSkipPreloading. */
 		void preloadEverything();
 
+		void clearPreloadFlag();
+		void setPreloadFlag();
+
+		void triggerSamplePreloading();
+
+		void addPreloadListener(PreloadListener* p);
+		void removePreloadListener(PreloadListener* p);
+
 	private:
+
+		struct PreloadListenerUpdater : public AsyncUpdater
+		{
+		public:
+
+			PreloadListenerUpdater(SampleManager* manager_) :
+				manager(manager_)
+			{};
+
+			void handleAsyncUpdate() override;
+
+		private:
+
+			SampleManager* manager;
+		};
+
+		PreloadListenerUpdater preloadListenerUpdater;
+
+		
+
+		struct PreloadJob : public SampleThreadPoolJob
+		{
+		public:
+
+
+			PreloadJob(MainController* mc);
+			JobStatus runJob() override;
+			void executePendingFunctions(LockfreeQueue<SafeFunctionCall>& pendingFunctions);
+
+		private:
+
+			MainController* mc = nullptr;
+			LockfreeQueue<SafeFunctionCall>* pendingFunctions;
+			double progress = 0.0;
+		};
+
+		CriticalSection preloadLock;
 
 		ProjectHandler projectHandler;
 
@@ -127,6 +209,14 @@ public:
 		bool hddMode = false;
 		bool useRelativePathsToProjectFolder;
 		bool skipPreloading = false;
+
+		PreloadJob internalPreloadJob;
+
+		// Just used for the listeners
+		std::atomic<bool> preloadFlag;
+
+		Array<WeakReference<PreloadListener>> preloadListeners;
+
 	};
 
 	/** Contains methods for handling macros. */
