@@ -666,27 +666,32 @@ void FloatSanitizers::Test::runTest()
 
 void SafeChangeBroadcaster::sendSynchronousChangeMessage()
 {
-	// Ooops, only call this in the message thread.
-	// Use sendChangeMessage() if you need to send a message from elsewhere.
-	jassert(MessageManager::getInstance()->isThisTheMessageThread() || MessageManager::getInstance()->currentThreadHasLockedMessageManager());
-
-	ScopedLock sl(listeners.getLock());
-
-	for (int i = 0; i < listeners.size(); i++)
+	if (MessageManager::getInstance()->isThisTheMessageThread() || MessageManager::getInstance()->currentThreadHasLockedMessageManager())
 	{
-		if (listeners[i].get() != nullptr)
-		{
-			listeners[i]->changeListenerCallback(this);
-		}
-		else
-		{
-			// Ooops, you called an deleted listener. 
-			// Normally, it would crash now, but since this is really lame, this class only throws an assert!
-			jassertfalse;
+		ScopedLock sl(listeners.getLock());
 
-			listeners.remove(i--);
+		for (int i = 0; i < listeners.size(); i++)
+		{
+			if (listeners[i].get() != nullptr)
+			{
+				listeners[i]->changeListenerCallback(this);
+			}
+			else
+			{
+				// Ooops, you called an deleted listener. 
+				// Normally, it would crash now, but since this is really lame, this class only throws an assert!
+				jassertfalse;
+
+				listeners.remove(i--);
+			}
 		}
 	}
+	else
+	{
+		sendChangeMessage();
+	}
+
+	
 }
 
 void SafeChangeBroadcaster::addChangeListener(SafeChangeListener *listener)
