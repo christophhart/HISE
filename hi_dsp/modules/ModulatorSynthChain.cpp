@@ -491,11 +491,15 @@ void ModulatorSynthChain::ModulatorSynthChainHandler::add(Processor *newProcesso
 	sendChangeMessage();
 }
 
-void ModulatorSynthChain::ModulatorSynthChainHandler::remove(Processor *processorToBeRemoved)
+void ModulatorSynthChain::ModulatorSynthChainHandler::remove(Processor *processorToBeRemoved, bool removeSynth)
 {
 	{
-		MainController::ScopedSuspender ss(synth->getMainController(), MainController::ScopedSuspender::LockType::Lock);
-		synth->synths.removeObject(dynamic_cast<ModulatorSynth*>(processorToBeRemoved));
+		auto& tmp = synth;
+
+		auto f = [tmp, removeSynth](Processor* p) { tmp->synths.removeObject(dynamic_cast<ModulatorSynth*>(p), removeSynth); return true; };
+
+		synth->getMainController()->getKillStateHandler().killVoicesAndCall(processorToBeRemoved, f, MainController::KillStateHandler::TargetThread::MessageThread);
+		
 	}
 
 	sendChangeMessage();

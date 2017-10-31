@@ -334,7 +334,7 @@ public:
 		virtual void add(Processor *newProcessor, Processor *siblingToInsertBefore) = 0;
 
 		/** Deletes a processor from the chain. */
-		virtual void remove(Processor *processorToBeRemoved) = 0;
+		virtual void remove(Processor *processorToBeRemoved, bool deleteProcessor=true) = 0;
 
 		/** Returns the processor at the index. */
 		virtual Processor *getProcessor(int processorIndex) = 0;

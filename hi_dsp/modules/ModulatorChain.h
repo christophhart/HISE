@@ -231,9 +231,9 @@ public:
 		void add(Processor *newProcessor, Processor *siblingToInsertBefore) override;
 	
 		/** Deletes the Modulator. */
-		void deleteModulator(Modulator *modulatorToBeDeleted);
+		void deleteModulator(Modulator *modulatorToBeDeleted, bool deleteMod);
 
-		void remove(Processor *processorToBeRemoved) override;
+		void remove(Processor *processorToBeRemoved, bool deleteProcessor=true) override;
 
 		/** Returns the modulator at the specified index. */
 		Modulator *getModulator(int modIndex) const

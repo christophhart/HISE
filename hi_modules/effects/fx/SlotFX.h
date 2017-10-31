@@ -125,23 +125,7 @@ public:
 
 private:
 
-	class Updater: public AsyncUpdater
-	{
-	public:
-
-		Updater(SlotFX* fx_):
-			fx(fx_)
-		{
-
-		}
-
-		void handleAsyncUpdate() override;
-
-	private:
-
-		SlotFX* fx;
-		
-	};
+	
 
 	class Constrainer : public FactoryType::Constrainer
 	{
@@ -175,8 +159,6 @@ private:
 	bool isClear = true;
     
     bool hasScriptFX = false;
-
-	Updater updater;
 
 	ScopedPointer<MasterEffectProcessor> wrappedEffect;
 };

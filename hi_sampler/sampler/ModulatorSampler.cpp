@@ -33,9 +33,7 @@
 ModulatorSampler::ModulatorSampler(MainController *mc, const String &id, int numVoices) :
 ModulatorSynth(mc, id, numVoices),
 preloadSize(PRELOAD_SIZE),
-asyncPreloader(this),
 asyncPurger(this),
-asyncSampleMapLoader(this),
 soundCache(new AudioThumbnailCache(512)),
 sampleStartChain(new ModulatorChain(mc, "Sample Start", numVoices, Modulation::GainMode, this)),
 crossFadeChain(new ModulatorChain(mc, "Group Fade", numVoices, Modulation::GainMode, this)),

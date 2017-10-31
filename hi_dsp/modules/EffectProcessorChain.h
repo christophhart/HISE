@@ -209,7 +209,7 @@ public:
 		*/
 		void add(Processor *newProcessor, Processor *siblingToInsertBefore) override;
 
-		void remove(Processor *processorToBeRemoved) override
+		void remove(Processor *processorToBeRemoved, bool removeEffect=true) override
 		{
 			ScopedLock sl(chain->getMainController()->getLock());
 
@@ -217,9 +217,9 @@ public:
 			
 			chain->allEffects.removeAllInstancesOf(dynamic_cast<EffectProcessor*>(processorToBeRemoved));
 
-			if(VoiceEffectProcessor* vep = dynamic_cast<VoiceEffectProcessor*>(processorToBeRemoved)) chain->voiceEffects.removeObject(vep);
-			else if (MasterEffectProcessor* mep = dynamic_cast<MasterEffectProcessor*>(processorToBeRemoved)) chain->masterEffects.removeObject(mep);
-			else if (MonophonicEffectProcessor* moep = dynamic_cast<MonophonicEffectProcessor*>(processorToBeRemoved)) chain->monoEffects.removeObject(moep);
+			if(VoiceEffectProcessor* vep = dynamic_cast<VoiceEffectProcessor*>(processorToBeRemoved)) chain->voiceEffects.removeObject(vep, removeEffect);
+			else if (MasterEffectProcessor* mep = dynamic_cast<MasterEffectProcessor*>(processorToBeRemoved)) chain->masterEffects.removeObject(mep, removeEffect);
+			else if (MonophonicEffectProcessor* moep = dynamic_cast<MonophonicEffectProcessor*>(processorToBeRemoved)) chain->monoEffects.removeObject(moep, removeEffect);
 			else jassertfalse;
 
 			jassert(chain->allEffects.size() == (chain->masterEffects.size() + chain->voiceEffects.size() + chain->monoEffects.size()));

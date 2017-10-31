@@ -229,7 +229,7 @@ public:
 
 		void add(Processor *newProcessor, Processor *siblingToInsertBefore);
 
-		void remove(Processor *processorToBeRemoved)
+		void remove(Processor *processorToBeRemoved, bool deleteMp=true)
 		{
 			ScopedLock sl(chain->getMainController()->getLock());
 
@@ -238,7 +238,7 @@ public:
 			{
 				if (chain->processors[i] == processorToBeRemoved)
 				{
-					chain->processors.remove(i);
+					chain->processors.remove(i, deleteMp);
 					break;
 				}
 			}

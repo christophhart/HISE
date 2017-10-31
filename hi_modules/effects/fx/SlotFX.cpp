@@ -11,8 +11,7 @@
 #include "SlotFX.h"
 
 SlotFX::SlotFX(MainController *mc, const String &uid) :
-	MasterEffectProcessor(mc, uid),
-	updater(this)
+	MasterEffectProcessor(mc, uid)
 {
 	createList();
 
@@ -97,13 +96,6 @@ bool SlotFX::setEffect(const String& typeName)
 
         
 
-        
-		updater.triggerAsyncUpdate();
-        
-
-
-        
-		
 
 		return true;
 	}
@@ -130,19 +122,3 @@ void SlotFX::createList()
 	f = nullptr;
 }
 
-
-
-void SlotFX::Updater::handleAsyncUpdate()
-{
-    auto p = fx->wrappedEffect.get();
-
-	if (p != nullptr)
-	{
-		for (int i = 0; i < p->getNumInternalChains(); i++)
-		{
-			dynamic_cast<ModulatorChain*>(p->getChildProcessor(i))->setColour(p->getColour());
-		}
-
-		fx->sendRebuildMessage(true);
-	}
-}

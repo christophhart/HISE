@@ -496,85 +496,16 @@ private:
 		ModulatorSampler *sampler;
 	};
 
-    struct AsyncPreloader: public AsyncUpdater,
-						   public Timer
-    {
-        AsyncPreloader(ModulatorSampler *sampler_):
-        sampler(sampler_),
-        preloadSize(-1)
-        {};
-        
-		void timerCallback()
-		{
-			triggerAsyncUpdate();
-			stopTimer();
-		}
-
-        void handleAsyncUpdate()
-        {
-			if (sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->isPreloading())
-			{
-				startTimer(100);
-				return;
-			}
-
-            sampler->setPreloadSize(preloadSize);
-        }
-        
-        void setPreloadSize(int newPreloadSize)
-        {
-            preloadSize = newPreloadSize;
-            triggerAsyncUpdate();
-        }
-        
-        int preloadSize;
-        
-        ModulatorSampler *sampler;
-    };
     
-	struct AsyncSampleMapLoader : public AsyncUpdater,
-								  public Timer
-	{
-		AsyncSampleMapLoader(ModulatorSampler* s) :
-			sampler(s)
-		{};
-
-		void timerCallback()
-		{
-			triggerAsyncUpdate();
-			stopTimer();
-		}
-
-		void handleAsyncUpdate()
-		{
-			if (sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->isPreloading())
-			{
-				startTimer(100);
-				return;
-			}
-
-			sampler->loadSampleMapFromId(sampleMapId);
-		}
-
-		void loadSampleMap(const String& newSampleMapId)
-		{
-			sampleMapId = newSampleMapId;
-			startTimer(50);
-		}
-
-		String sampleMapId;
-
-		ModulatorSampler *sampler;
-	};
 
     /** Sets the streaming buffer and preload buffer sizes. */
     void setPreloadSize(int newPreloadSize);
     
+	
+
 	CriticalSection exportLock;
 
-    AsyncPreloader asyncPreloader;
 	AsyncPurger asyncPurger;
-	AsyncSampleMapLoader asyncSampleMapLoader;
 
 	void refreshCrossfadeTables();
 

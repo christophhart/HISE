@@ -1105,7 +1105,7 @@ void ModulatorSynthGroup::ModulatorSynthGroupHandler::add(Processor *newProcesso
 }
 
 
-void ModulatorSynthGroup::ModulatorSynthGroupHandler::remove(Processor *processorToBeRemoved)
+void ModulatorSynthGroup::ModulatorSynthGroupHandler::remove(Processor *processorToBeRemoved, bool removeSynth)
 {
 	{
 		MainController::ScopedSuspender ss(group->getMainController(), MainController::ScopedSuspender::LockType::Lock);
@@ -1117,7 +1117,7 @@ void ModulatorSynthGroup::ModulatorSynthGroupHandler::remove(Processor *processo
 			static_cast<ModulatorSynthGroupVoice*>(group->getVoice(i))->removeChildSynth(m);
 		}
 
-		group->synths.removeObject(m);
+		group->synths.removeObject(m, removeSynth);
 
 		group->checkFmState();
 	}

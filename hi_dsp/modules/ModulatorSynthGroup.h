@@ -403,7 +403,7 @@ public:
 		void add(Processor *newProcessor, Processor *siblingToInsertBefore) override;
 
 		/** Deletes a processor from the chain. It also removes the reference in the ModulatorSynthGroupVoices. */
-		virtual void remove(Processor *processorToBeRemoved) override;;
+		virtual void remove(Processor *processorToBeRemoved, bool removeSynth=true) override;;
 
 		/** Returns the processor at the index. */
 		virtual Processor *getProcessor(int processorIndex);;

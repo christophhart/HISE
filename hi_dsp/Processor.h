@@ -897,6 +897,16 @@ public:
 		return dynamic_cast<ProcessorType*>(p) != nullptr;
 	}
 
+	template <class ProcessorType> static ProcessorType* getFirstProcessorWithType(const Processor *root)
+	{
+		Processor::Iterator<ProcessorType> iter(root);
+
+		if (auto p = iter.getNextProcessor())
+			return p;
+
+		return nullptr;
+	}
+
 	/** Checks if the Processor can be hidden. This returns true for all processors that show up in the popup list. */
 	static bool isHiddableProcessor(const Processor *p);
 

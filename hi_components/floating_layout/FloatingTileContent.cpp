@@ -394,39 +394,7 @@ Component* FloatingPanelTemplates::createSamplerWorkspace(FloatingTile* rootTile
 
 var FloatingPanelTemplates::createSettingsWindow(MainController* mc)
 {
-#if IS_STANDALONE_APP
-	ScopedPointer<FloatingTile> root = new FloatingTile(mc, nullptr);
-
-	mc->setIsOnAir(false);
-
-	FloatingInterfaceBuilder ib(root);
-
-	ib.setNewContentType<FloatingTabComponent>(0);
-
-	int tabs = 0;
-
-	ib.setDynamic(tabs, false);
-	ib.getContent<FloatingTabComponent>(tabs)->setPanelColour(FloatingTabComponent::PanelColourId::bgColour, Colour(0xff000000));
-	ib.getContent<FloatingTabComponent>(tabs)->setPanelColour(FloatingTabComponent::PanelColourId::itemColour1, Colour(0xff333333));
-
-	ib.addChild<CustomSettingsWindowPanel>(tabs);
-	ib.addChild<MidiSourcePanel>(tabs);
-	ib.addChild<MidiChannelPanel>(tabs);
-
-	ib.getContent<FloatingTabComponent>(tabs)->setCurrentTabIndex(0);
-	
-	ib.setCustomName(tabs, "Settings", { "Audio Settings", "Midi Sources", "MIDI Channels" });
-
-	auto v = ib.getContent(0)->toDynamicObject();
-
-	mc->setIsOnAir(true);
-
-	return v;
-#else
-
-	ignoreUnused(mc);
 	return var();
-#endif
 }
 
 Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTile)
