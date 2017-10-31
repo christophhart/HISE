@@ -338,7 +338,7 @@ private:
 };
 
 
-class MonolithExporter : public ThreadWithAsyncProgressWindow,
+class MonolithExporter : public DialogWindowWithBackgroundThread,
 						 public AudioFormatWriter
 {
 public:
@@ -346,7 +346,7 @@ public:
 	MonolithExporter(SampleMap* sampleMap_);
 
 	MonolithExporter(const String &name, ModulatorSynthChain* chain) :
-		ThreadWithAsyncProgressWindow(name),
+		DialogWindowWithBackgroundThread(name),
 		AudioFormatWriter(nullptr, "", 0.0, 0, 1),
 		sampleMapDirectory(GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps)),
 		monolithDirectory(GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::Samples)),

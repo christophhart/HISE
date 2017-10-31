@@ -918,7 +918,7 @@ int RoundRobinMap::getRRGroupsForMessage(int noteNumber, int velocity)
 }
 
 MonolithExporter::MonolithExporter(SampleMap* sampleMap_) :
-	ThreadWithAsyncProgressWindow("Exporting samples as monolith"),
+	DialogWindowWithBackgroundThread("Exporting samples as monolith"),
 	AudioFormatWriter(nullptr, "", 0.0, 0, 1),
 	sampleMapDirectory(GET_PROJECT_HANDLER(sampleMap_->getSampler()).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps)),
 	monolithDirectory(GET_PROJECT_HANDLER(sampleMap_->getSampler()).getSubDirectory(ProjectHandler::SubDirectories::Samples))
