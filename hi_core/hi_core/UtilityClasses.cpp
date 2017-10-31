@@ -772,3 +772,25 @@ String BalanceCalculator::getBalanceAsString(int balanceValue)
 
 	else return String(balanceValue) + (balanceValue > 0 ? "R" : "L");
 }
+
+SafeFunctionCall::SafeFunctionCall(Processor* p_, const ProcessorFunction& f_) :
+	p(p_),
+	f(f_)
+{
+
+}
+
+SafeFunctionCall::SafeFunctionCall() :
+	p(nullptr),
+	f()
+{
+
+}
+
+bool SafeFunctionCall::call()
+{
+	if (p.get() != nullptr)
+		return f(p.get());
+
+	return false;
+}

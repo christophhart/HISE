@@ -59,8 +59,9 @@ MainController::MainController():
 	userPresetHandler(this),
 	codeHandler(this),
 	processorChangeHandler(this),
+	killStateHandler(this),
 	debugLogger(this),
-	presetLoadRampFlag(0),
+	//presetLoadRampFlag(OldUserPresetHandler::Active),
 	suspendIndex(0),
 	controlUndoManager(new UndoManager()),
     globalCodeFontSize(17.0f)
@@ -268,6 +269,21 @@ void MainController::stopCpuBenchmark()
 	}
 }
 
+void MainController::killAndCallOnMessageThread(const ProcessorFunction& f)
+{
+	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, KillStateHandler::MessageThread);
+}
+
+void MainController::killAndCallOnAudioThread(const ProcessorFunction& f)
+{
+	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, KillStateHandler::AudioThread);
+}
+
+void MainController::killAndCallOnLoadingThread(const ProcessorFunction& f)
+{
+	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, KillStateHandler::SampleLoadingThread);
+}
+
 int MainController::getNumActiveVoices() const
 {
 	return getMainSynthChain()->getNumActiveVoices();
@@ -437,12 +453,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	getDebugLogger().checkAudioCallbackProperties(thisAsProcessor->getSampleRate(), buffer.getNumSamples());
 
 	ScopedNoDenormals snd;
-    
-	if (presetLoadRampFlag.get() == UserPresetHandler::RampFlags::Bypassed)
-	{
-		buffer.clear();
-		return;
-	}
+
 
 	getDebugLogger().checkPriorityInversion(processLock);
 
@@ -473,6 +484,8 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 	getMacroManager().getMidiControlAutomationHandler()->handleParameterData(midiMessages); // TODO_BUFFER: Move this after the next line...
 
 	masterEventBuffer.addEvents(midiMessages);
+
+	killStateHandler.handleKillState();
 
     if (!masterEventBuffer.isEmpty()) setMidiInputFlag();
     

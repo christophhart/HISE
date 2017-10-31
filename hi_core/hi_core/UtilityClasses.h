@@ -834,6 +834,20 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DelayedFunctionCaller);
 };
 
+using ProcessorFunction = std::function<bool(Processor*)>;
+
+struct SafeFunctionCall
+{
+	SafeFunctionCall(Processor* p_, const ProcessorFunction& f_);
+
+	SafeFunctionCall();;
+
+	bool call();
+
+	ProcessorFunction f;
+	WeakReference<Processor> p;
+};
+
 
 #if USE_VDSP_FFT
 
