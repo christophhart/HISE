@@ -273,9 +273,31 @@ void MainController::compileAllScripts()
 	}
 };
 
-void MainController::allNotesOff()
+void MainController::allNotesOff(bool resetSoftBypassState/*=false*/)
 {
-	allNotesOffFlag = true;
+	if (resetSoftBypassState)
+	{
+		auto f = [](Processor* p)
+		{
+			Processor::Iterator<ModulatorSynth> iter(p);
+
+			while (auto s = iter.getNextProcessor())
+			{
+				if (!s->isBypassed())
+				{
+					s->setSoftBypass(false);
+				}
+			}
+
+			return true;
+		};
+
+		getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, KillStateHandler::TargetThread::MessageThread);
+	}
+	else
+	{
+		allNotesOffFlag = true;
+	}
 }
 
 void MainController::stopCpuBenchmark()
