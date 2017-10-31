@@ -181,6 +181,8 @@ public:
 
 	void killAllVoices() override;
 	
+	void resetAllVoices() override;
+
 	bool areVoicesActive() const override;
 
 	/** Handles the ModulatorSynthChain. */
@@ -197,7 +199,7 @@ public:
 		void add(Processor *newProcessor, Processor *siblingToInsertBefore) override;
 
 		/** Deletes a processor from the chain. */
-		virtual void remove(Processor *processorToBeRemoved) override;;
+		virtual void remove(Processor *processorToBeRemoved, bool removeSynth=true) override;;
 
 		/** Returns the processor at the index. */
 		virtual Processor *getProcessor(int processorIndex) override;;

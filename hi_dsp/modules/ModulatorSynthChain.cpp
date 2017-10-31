@@ -315,14 +315,22 @@ void ModulatorSynthChain::restoreFromValueTree(const ValueTree &v)
 
 void ModulatorSynthChain::reset()
 {
-	sendDeleteMessage();
 
-	Processor::Iterator<Processor> iter(this, false);
-
-	while (auto p = iter.getNextProcessor())
 	{
-		p->sendDeleteMessage();
+		MessageManagerLock mm;
+
+		
+
+		sendDeleteMessage();
+
+		Processor::Iterator<Processor> iter(this, false);
+
+		while (auto p = iter.getNextProcessor())
+		{
+			p->sendDeleteMessage();
+		}
 	}
+	
 
     this->getHandler()->clear();
     
@@ -331,6 +339,25 @@ void ModulatorSynthChain::reset()
     effectChain->getHandler()->clear();
     getMatrix().resetToDefault();
     getMatrix().setNumSourceChannels(2);
+
+	setIconColour(Colours::transparentBlack);
+
+	
+
+#if USE_BACKEND
+	setId("Master Chain");
+#endif
+
+
+	for (int i = 0; i < getNumInternalChains(); i++)
+	{
+		getChildProcessor(i)->setEditorState(getEditorStateForIndex(Processor::Visible), false, sendNotification);
+	}
+
+	for (int i = 0; i < ModulatorSynth::numModulatorSynthParameters; i++)
+	{
+		setAttribute(i, getDefaultValue(i), dontSendNotification);
+	}
 
 #if USE_BACKEND
     clearAllViews();
@@ -361,6 +388,12 @@ void ModulatorSynthChain::killAllVoices()
 {
 	for (auto synth : synths)
 		synth->killAllVoices();
+}
+
+void ModulatorSynthChain::resetAllVoices()
+{
+	for (auto synth : synths)
+		synth->resetAllVoices();
 }
 
 bool ModulatorSynthChain::areVoicesActive() const
