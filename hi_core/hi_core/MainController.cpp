@@ -122,30 +122,32 @@ const CriticalSection & MainController::getLock() const
 	return processLock;
 }
 
-void MainController::loadPreset(const File &f, Component *mainEditor)
+void MainController::loadPresetFromFile(const File &f, Component* /*mainEditor*/)
 {
-	clearPreset();
-
-	PresetLoadingThread *presetLoader = new PresetLoadingThread(this, f);
-
-	if (mainEditor != nullptr)
+	auto f2 = [f](Processor* p)
 	{
-		presetLoader->setModalBaseWindowComponent(mainEditor);
-	}
+		FileInputStream fis(f);
+
+		ValueTree v = ValueTree::readFromStream(fis);
+		p->getMainController()->loadPresetFromValueTree(v);
+		return true;
+	};
+
+#if USE_BACKEND
+	const bool synchronous = CompileExporter::isExportingFromCommandLine();
+
+	if (synchronous)
+		f2(getMainSynthChain());
 	else
-	{
-		presetLoader->showOnDesktop();
-	}
-
-	presetLoader->runSynchronous();
+		killAndCallOnLoadingThread(f2);
+#else
+	jassertfalse;
+#endif
 }
 
 void MainController::clearPreset()
 {
-	ScopedSuspender ss(this, ScopedSuspender::LockType::SuspendOnly);
-
-	
-	
+	jassert(!getMainSynthChain()->areVoicesActive());
 
 	getMainSynthChain()->reset();
 
@@ -160,67 +162,90 @@ void MainController::clearPreset()
     
 	clearIncludedFiles();
 
+	getSampleManager().getImagePool()->clearData();
+	getSampleManager().getAudioSampleBufferPool()->clearData();
+
+
     changed = false;
 }
 
-void MainController::loadPreset(ValueTree &v, Component* /*mainEditor*/)
+void MainController::loadPresetFromValueTree(const ValueTree &v, Component* /*mainEditor*/)
 {
+	jassert(killStateHandler.getCurrentThread() == KillStateHandler::SampleLoadingThread);
+
 	if (v.isValid() && v.getProperty("Type", var::undefined()).toString() == "SynthChain")
 	{
-		ScopedLock sl(getLock());
-
-		clearPreset();
 
 		if (v.getType() != Identifier("Processor"))
 		{
-			v = PresetHandler::changeFileStructureToNewFormat(v);
+			jassertfalse;
+			
 		}
 
-		ModulatorSynthChain *synthChain = getMainSynthChain();
-
-		sampleRate = synthChain->getSampleRate();
-		bufferSize = synthChain->getBlockSize();
-
-		synthChain->setBypassed(true);
-
-		// Reset the sample rate so that prepareToPlay does not get called in restoreFromValueTree
-		synthChain->setCurrentPlaybackSampleRate(-1.0);
-		synthChain->setId(v.getProperty("ID", "MainSynthChain"));
-
-		skipCompilingAtPresetLoad = true;
-
-
-		synthChain->restoreFromValueTree(v);
-
-		skipCompilingAtPresetLoad = false;
-
-		synthChain->prepareToPlay(sampleRate, bufferSize.get());
-		synthChain->compileAllScripts();
-
-        synthChain->loadMacrosFromValueTree(v);
-
-		getSampleManager().getAudioSampleBufferPool()->clearData();
-
-		synthChain->setBypassed(false);
-
-        
-        Processor::Iterator<ModulatorSynth> iter(synthChain, false);
-        
-        while(ModulatorSynth *synth = iter.getNextProcessor())
-        {
-            synth->setEditorState(Processor::EditorState::Folded, true);
-        }
-        
-        changed = false;
-        
-		synthChain->sendRebuildMessage(true);
-
+		loadPresetInternal(v);
 	}
 	else
 	{
 		PresetHandler::showMessageWindow("No valid container", "This preset is not a container file", PresetHandler::IconType::Error);
 	}
 }
+
+
+void MainController::loadPresetInternal(const ValueTree& v)
+{
+	ModulatorSynthChain *synthChain = getMainSynthChain();
+
+	jassert(killStateHandler.getCurrentThread() == KillStateHandler::SampleLoadingThread);
+	jassert(!synthChain->areVoicesActive());
+	
+	clearPreset();
+
+	getSampleManager().setShouldSkipPreloading(true);
+
+	// Reset the sample rate so that prepareToPlay does not get called in restoreFromValueTree
+	// synthChain->setCurrentPlaybackSampleRate(-1.0);
+	synthChain->setId(v.getProperty("ID", "MainSynthChain"));
+
+	skipCompilingAtPresetLoad = true;
+
+	synthChain->restoreFromValueTree(v);
+
+	skipCompilingAtPresetLoad = false;
+
+	synthChain->compileAllScripts();
+
+	if (sampleRate > 0.0)
+	{
+		LOG_START("Initialising audio callback");
+
+		synthChain->prepareToPlay(sampleRate, bufferSize.get());
+	}
+
+	synthChain->loadMacrosFromValueTree(v);
+
+	
+	getSampleManager().getAudioSampleBufferPool()->clearData();
+
+#if USE_BACKEND
+	Processor::Iterator<ModulatorSynth> iter(synthChain, false);
+
+	while (ModulatorSynth *synth = iter.getNextProcessor())
+	{
+		synth->setEditorState(Processor::EditorState::Folded, true);
+	}
+
+	changed = false;
+
+	synthChain->sendRebuildMessage(true);
+
+	getSampleManager().preloadEverything();
+
+#endif
+
+	allNotesOff(true);
+}
+
+
 
 
 void MainController::startCpuBenchmark(int bufferSize_)

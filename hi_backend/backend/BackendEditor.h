@@ -209,7 +209,7 @@ public:
 
 	void loadNewContainer(const File &f);
 
-	void loadNewContainer(ValueTree &v);
+	void loadNewContainer(const ValueTree &v);
 
 	
 	void addProcessorToPanel(Processor *p);

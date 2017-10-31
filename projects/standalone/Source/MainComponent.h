@@ -30,6 +30,8 @@ public:
     void paint (Graphics&);
     void resized();
 
+	void requestQuit(const std::function<void(void)>& f);
+
 private:
 
 	ScopedPointer<AudioProcessorEditor> editor;

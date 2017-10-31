@@ -619,8 +619,8 @@ public:
 	void writeToConsole(const String &message, int warningLevel, const Processor *p=nullptr, Colour c=Colours::transparentBlack);
 #endif
 
-	void loadPreset(const File &f, Component *mainEditor=nullptr);
-	void loadPreset(ValueTree &v, Component *mainEditor=nullptr);
+	void loadPresetFromFile(const File &f, Component *mainEditor=nullptr);
+	void loadPresetFromValueTree(const ValueTree &v, Component *mainEditor=nullptr);
     void clearPreset();
     
 	/** Compiles all scripts in the main synth chain */

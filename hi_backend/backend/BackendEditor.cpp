@@ -316,9 +316,12 @@ void BackendProcessorEditor::showPseudoModalWindow(Component *componentToShow, c
 
 void BackendProcessorEditor::loadNewContainer(const File &f)
 {
-	MainController::ScopedSuspender ss(getBackendProcessor());
+	clearModuleList();
+	container = nullptr;
 
-	clearPreset();
+	isLoadingPreset = true;
+	viewport->showPreloadMessage(true);
+	
 
 	f.setLastAccessTime(Time::getCurrentTime());
 
@@ -327,19 +330,7 @@ void BackendProcessorEditor::loadNewContainer(const File &f)
 		GET_PROJECT_HANDLER(getMainSynthChain()).setWorkingProject(f.getParentDirectory().getParentDirectory(), this);
 	}
 
-	getBackendProcessor()->getMainSynthChain()->setBypassed(true);
-
-
-
-	clearModuleList();
-
-	container = nullptr;
-
-	owner->loadPreset(f, this);
-
-	auto refreshFunction = [this]()->void { refreshInterfaceAfterPresetLoad(); parentRootWindow->sendRootContainerRebuildMessage(true); };
-	new DelayedFunctionCaller(refreshFunction, 300);
-	
+	owner->killAndCallOnLoadingThread([f](Processor* p) {p->getMainController()->loadPresetFromFile(f, nullptr); return true; });
 }
 
 void BackendProcessorEditor::refreshInterfaceAfterPresetLoad()
@@ -351,72 +342,32 @@ void BackendProcessorEditor::refreshInterfaceAfterPresetLoad()
     container->setRootProcessorEditor(p);
 }
 
-void BackendProcessorEditor::loadNewContainer(ValueTree &v)
+void BackendProcessorEditor::loadNewContainer(const ValueTree &v)
 {
-    const int presetVersion = v.getProperty("BuildVersion", 0);
-    
-    if(presetVersion > BUILD_SUB_VERSION)
-    {
-        PresetHandler::showMessageWindow("Version mismatch", "The preset was built with a newer the build of HISE: " + String(presetVersion) + ". To ensure perfect compatibility, update to at least this build.", PresetHandler::IconType::Warning);
-    }
-    
-	MainController::ScopedSuspender ss(getBackendProcessor());
+	getRootWindow()->getRootFloatingTile()->showComponentInRootPopup(nullptr, nullptr, Point<int>());
 
-	getBackendProcessor()->getMainSynthChain()->setBypassed(true);
-
-	clearModuleList();
+    clearModuleList();
 	container = nullptr;
+	isLoadingPreset = true;
+	viewport->showPreloadMessage(true);
+	
 
-	owner->loadPreset(v, this);
-
-
-	auto refreshFunction = [this]()->void { refreshInterfaceAfterPresetLoad(); parentRootWindow->sendRootContainerRebuildMessage(true); };
-	new DelayedFunctionCaller(refreshFunction, 300);
+	owner->killAndCallOnLoadingThread([v](Processor* p) {p->getMainController()->loadPresetFromValueTree(v, nullptr); return true; });
 }
 
 
 
 void BackendProcessorEditor::clearPreset()
 {
-	getBackendProcessor()->getMainSynthChain()->setBypassed(true);
-
 	setPluginPreviewWindow(nullptr);
 
 	clearModuleList();
-
     container = nullptr;
-    
-    owner->clearPreset();
-    
-    Processor *p = static_cast<Processor*>(owner->synthChain);
-    
-    
-    
-    
-	owner->synthChain->setIconColour(Colours::transparentBlack);
+	isLoadingPreset = true;
+	viewport->showPreloadMessage(true);
 
-	owner->getSampleManager().getImagePool()->clearData();
-	owner->getSampleManager().getAudioSampleBufferPool()->clearData();
+	owner->killAndCallOnLoadingThread([](Processor* p) {p->getMainController()->clearPreset(); return true; });
 
-    owner->synthChain->setId("Master Chain");
-    
-	for (int i = 0; i < owner->synthChain->getNumInternalChains(); i++)
-	{
-		owner->synthChain->getChildProcessor(i)->setEditorState(owner->synthChain->getEditorStateForIndex(Processor::Visible), false, sendNotification);
-	}
-
-    for(int i = 0; i < ModulatorSynth::numModulatorSynthParameters; i++)
-    {
-        owner->synthChain->setAttribute(i, owner->synthChain->getDefaultValue(i), dontSendNotification);
-    }
-
-	rebuildContainer();
-
-	container->setRootProcessorEditor(p);
-
-	parentRootWindow->sendRootContainerRebuildMessage(false);
-
-	getBackendProcessor()->getMainSynthChain()->setBypassed(false);
 }
 
 void BackendProcessorEditor::clearModuleList()

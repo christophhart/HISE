@@ -127,6 +127,15 @@ StandaloneProcessor::StandaloneProcessor()
 }
 
 
+void StandaloneProcessor::requestQuit(const std::function<void(void)>& f)
+{
+	auto f2 = [f](Processor* p) {f(); return true; };
+
+	auto mc = dynamic_cast<MainController*>(wrappedProcessor.get());
+	
+	mc->getKillStateHandler().killVoicesAndCall(mc->getMainSynthChain(), f2, MainController::KillStateHandler::TargetThread::MessageThread);
+}
+
 XmlElement * AudioProcessorDriver::getSettings()
 {
 	File savedDeviceData = getDeviceSettingsFile();

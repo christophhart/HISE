@@ -250,6 +250,8 @@ class StandaloneProcessor
 {
 public:
 
+	
+
 	StandaloneProcessor();
 
 	~StandaloneProcessor()
@@ -279,6 +281,8 @@ public:
 		return scaleFactor; 
 #endif
 	}
+
+	void requestQuit(const std::function<void(void)>& f);
 
 private:
 

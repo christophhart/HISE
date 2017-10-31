@@ -301,7 +301,7 @@ CompileExporter::ErrorCodes CompileExporter::compileFromCommandLine(const String
 
 		if (presetFile.getFileExtension() == ".hip")
 		{
-			editor->getBackendProcessor()->loadPreset(presetFile, editor);
+			editor->getBackendProcessor()->loadPresetFromFile(presetFile, editor);
 		}
 		else if (presetFile.getFileExtension() == ".xml")
 		{
