@@ -619,9 +619,22 @@ public:
 
 	void itemDropped(const SourceDetails &dragSourceDetails) override;;
 
+	void showPreloadMessage(bool shouldShow)
+	{
+		isPreloading = shouldShow;
+		repaint();
+	}
+
 	void paint(Graphics& g)
 	{
 		g.fillAll(Colour(0xFF333333));
+
+		if (isPreloading)
+		{
+			g.setColour(Colours::white);
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.drawText("Loading Instrument...", viewport->getLocalBounds(), Justification::centred);
+		}
 	}
 
 	void resized();
@@ -648,6 +661,8 @@ private:
 
 
 public:
+
+	std::atomic<bool> isPreloading = false;
 
 	ScopedPointer<InternalViewport> viewport;
 

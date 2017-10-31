@@ -65,7 +65,8 @@ struct BackendHelpers
 class BackendProcessorEditor: public FloatingTileContent,
 							  public Component,
 							  public GlobalScriptCompileListener,
-                              public Label::Listener
+                              public Label::Listener,
+							  public MainController::SampleManager::PreloadListener
 {
 public:
 
@@ -94,6 +95,8 @@ public:
 	void removeContainer();
 
 	void setRootProcessorWithUndo(Processor *p);
+
+	void preloadStateChanged(bool isPreloading) override;
 
 	void viewedComponentChanged()
 	{
@@ -307,6 +310,8 @@ private:
 	ScopedPointer<DebugLoggerComponent> debugLoggerWindow;
 
 	bool rootEditorIsMainSynthChain;
+
+	std::atomic<bool> isLoadingPreset = false;
 };
 
 

@@ -38,6 +38,8 @@ owner(static_cast<BackendProcessor*>(parent->getMainController())),
 parentRootWindow(parent->getBackendRootWindow()),
 rootEditorIsMainSynthChain(true)
 {
+	owner->getSampleManager().addPreloadListener(this);
+
     setOpaque(true);
 
 	setLookAndFeel(&lookAndFeelV3);
@@ -58,8 +60,9 @@ rootEditorIsMainSynthChain(true)
 
 BackendProcessorEditor::~BackendProcessorEditor()
 {
+	owner->getSampleManager().removePreloadListener(this);
+
 	owner->removeScriptListener(this);
-	
 	
 	// Remove the popup components
 
@@ -159,6 +162,17 @@ void BackendProcessorEditor::setRootProcessorWithUndo(Processor *p)
     }
 }
 
+void BackendProcessorEditor::preloadStateChanged(bool isPreloading)
+{
+	if (isLoadingPreset && !isPreloading)
+	{
+		isLoadingPreset = false;
+		viewport->showPreloadMessage(false);
+		refreshInterfaceAfterPresetLoad();
+		parentRootWindow->sendRootContainerRebuildMessage(true);
+	}
+}
+
 void BackendProcessorEditor::setViewportPositions(int viewportX, const int viewportY, const int /*viewportWidth*/, int /*viewportHeight*/)
 {
 	debugLoggerWindow->setBounds(0, getHeight() - 60, getWidth(), 60);
@@ -189,9 +203,10 @@ bool BackendProcessorEditor::isPluginPreviewCreatable() const
 
 void BackendProcessorEditor::paint(Graphics &g)
 {
-    g.setColour(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
-    
-    g.fillAll();
+	g.setColour(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
+	g.fillAll();
+
+
 }
 
 

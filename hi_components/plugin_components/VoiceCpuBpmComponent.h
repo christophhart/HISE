@@ -37,11 +37,14 @@ class VuMeter;
 
 class VoiceCpuBpmComponent : public Component,
 	public Timer,
-	public ButtonListener
+	public ButtonListener,
+	public MainController::SampleManager::PreloadListener
 {
 public:
 
 	VoiceCpuBpmComponent(MainController *mc_);
+
+	~VoiceCpuBpmComponent();
 
 	// ================================================================================================================
 
@@ -57,7 +60,11 @@ public:
 		mainControllers.swapWith(newMainControllers);
 	}
 
+	void preloadStateChanged(bool isPreloading) override;
+
 private:
+
+	bool preloadActive = false;
 
 	// ================================================================================================================
 
