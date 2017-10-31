@@ -78,6 +78,10 @@ Set this to true if you add this module to your existing C++ project and don't e
 #define STANDALONE_STREAMING 1
 #endif
 
+
+#include "hi_streaming/lockfree_fifo/readerwriterqueue.h"
+
+
 namespace hise
 {
 using namespace juce;

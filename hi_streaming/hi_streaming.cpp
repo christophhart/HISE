@@ -1,8 +1,6 @@
 
 #include "hi_streaming.h"
 
-#include "hi_streaming/lockfree_fifo/readerwriterqueue.h"
-
 namespace hise
 {
 using namespace juce;

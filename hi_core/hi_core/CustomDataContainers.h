@@ -174,4 +174,99 @@ private:
 #endif
 
 
+
+/** A wrapper around moodycamels ReaderWriterQueue with more JUCE like interface and some assertions. */
+template <class ElementType> class LockfreeQueue
+{
+public:
+
+	using ElementFunction = std::function<bool(ElementType&)>;
+
+	LockfreeQueue(int numElements) :
+		queue((size_t)numElements)
+	{
+		
+	}
+
+	virtual ~LockfreeQueue()
+	{
+
+	}
+
+	LockfreeQueue() :
+		queue(0)
+	{};
+
+	/** Removes an element and returns false if the queue is empty. */
+	bool pop(ElementType& newElement)
+	{
+		return queue.try_dequeue(newElement);
+	}
+
+	/** Adds an element to the queue. If it fails because the queue is full, it throws an assertion and return false. */
+	bool push(const ElementType&& newElement)
+	{
+		const bool ok = queue.try_enqueue(newElement);
+#if HI_RUN_UNIT_TESTS == 0
+		jassert(ok);
+#endif
+		return ok;
+	}
+
+	/** Iterates over the queue, calls the given function for every element and removes it. */
+	bool callForEveryElementInQueue(const ElementFunction& f)
+	{
+		ElementType t;
+		
+		while (pop(t))
+		{
+			if (!f(t))
+				return false;
+		}
+
+		jassert(queue.size_approx() == 0);
+
+		return true;
+	}
+
+	/** If the type of the queue is callable, this will call all functions in the queue. */
+	bool callEveryElementInQueue()
+	{
+		ElementType t;
+		
+		while (pop(t))
+		{
+			if (!t())
+				return false;
+		}
+
+		jassert(queue.size_approx() == 0);
+
+		return true;
+	}
+
+	bool isEmpty() const
+	{
+		return queue.size_approx() == 0;
+	}
+
+	int size() const
+	{
+		return (int)queue.size_approx();
+	}
+
+	void swap(LockfreeQueue<ElementType>& otherQueue)
+	{
+		moodycamel::ReaderWriterQueue<ElementType> t = queue;
+		queue = otherQueue.queue;
+		otherQueue.queue = t;
+	}
+
+private:
+
+	moodycamel::ReaderWriterQueue<ElementType> queue;
+};
+
+
+
 #endif  // CUSTOMDATACONTAINERS_H_INCLUDED
