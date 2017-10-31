@@ -35,13 +35,13 @@
 
 
 
-class NewSampleThreadPool : public Thread
+class SampleThreadPool : public Thread
 {
 public:
 
-	NewSampleThreadPool();
+	SampleThreadPool();
 
-	~NewSampleThreadPool();
+	~SampleThreadPool();
 	
 
 	class Job
@@ -73,9 +73,13 @@ public:
 
 		bool isQueued() const noexcept{ return queued.load(); };
 
+	protected:
+
+		Thread* getCurrentThread() { return currentThread.load(); }
+
 	private:
 
-		friend class NewSampleThreadPool;
+		friend class SampleThreadPool;
         
         friend class WeakReference<Job>;
         WeakReference<Job>::Master masterReference;
@@ -85,6 +89,8 @@ public:
 		std::atomic<bool> running;
 
 		std::atomic<bool> shouldStop;
+
+		std::atomic<Thread*> currentThread;
 
 		const String name;
 	};
@@ -101,7 +107,6 @@ public:
 
 };
 
-typedef NewSampleThreadPool SampleThreadPool;
-typedef NewSampleThreadPool::Job SampleThreadPoolJob;
+typedef SampleThreadPool::Job SampleThreadPoolJob;
 
 #endif  // SAMPLETHREADPOOL_H_INCLUDED
