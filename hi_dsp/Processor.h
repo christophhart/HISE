@@ -364,7 +364,7 @@ public:
 
 		if (notifyChangeHandler)
 			getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, 
-				MainController::ProcessorChangeHandler::EventType::ProcessorRenamed);
+				MainController::ProcessorChangeHandler::EventType::ProcessorRenamed, false);
 	};
 
 	const Identifier& getIDAsIdentifier() const

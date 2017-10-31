@@ -107,6 +107,8 @@ public:
 
 	virtual void processorDeleted(Processor* /*deletedProcessor*/)
 	{
+		jassert(MessageManager::getInstance()->isThisTheMessageThread() || MessageManager::getInstance()->currentThreadHasLockedMessageManager());
+
 		setContentWithUndo(nullptr, -1);
 	}
 

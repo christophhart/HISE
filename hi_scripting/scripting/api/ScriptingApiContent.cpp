@@ -2156,7 +2156,10 @@ void ScriptingApi::Content::ScriptPanel::repaint()
 
 void ScriptingApi::Content::ScriptPanel::repaintImmediately()
 {
-	internalRepaint();
+	if (MessageManager::getInstance()->isThisTheMessageThread())
+		internalRepaint();
+	else
+		repaint();
 }
 
 

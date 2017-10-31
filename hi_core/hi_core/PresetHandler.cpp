@@ -982,6 +982,8 @@ void ProjectHandler::createNewProject(File &workingDirectory, Component* mainEdi
 
 void ProjectHandler::setWorkingProject(const File &workingDirectory, Component* mainEditor)
 {
+	MessageManagerLock mm;
+
 	if (workingDirectory == currentWorkDirectory) return;
 
 	if (!isValidProjectFolder(workingDirectory))
@@ -2560,7 +2562,6 @@ void FrontendSampleManager::loadSamplesAfterSetup()
 		LOG_START("Loading samples");
 
 		dynamic_cast<AudioProcessor*>(this)->suspendProcessing(false);
-		dynamic_cast<MainController*>(this)->getSampleManager().setShouldSkipPreloading(false);
 		dynamic_cast<MainController*>(this)->getSampleManager().preloadEverything();
 	}
 	else

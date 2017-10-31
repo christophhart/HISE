@@ -55,7 +55,7 @@ void MainController::MacroManager::removeMacroControlsFor(Processor *p)
 		macroChain->getMacroControlData(i)->removeAllParametersWithProcessor(p);
 	}
 
-	macroChain->sendSynchronousChangeMessage();
+	macroChain->sendChangeMessage();
 }
 
 void MainController::MacroManager::removeMacroControlsFor(Processor *p, Identifier name)
@@ -79,7 +79,7 @@ void MainController::MacroManager::removeMacroControlsFor(Processor *p, Identifi
 		}
 	}
 
-	macroChain->sendSynchronousChangeMessage();
+	macroChain->sendChangeMessage();
 }
 
 MidiControllerAutomationHandler * MainController::MacroManager::getMidiControlAutomationHandler()

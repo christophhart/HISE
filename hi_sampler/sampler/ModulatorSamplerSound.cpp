@@ -697,6 +697,8 @@ void ModulatorSamplerSoundPool::deleteSound(ModulatorSamplerSound *soundToDelete
 
 bool ModulatorSamplerSoundPool::loadMonolithicData(const ValueTree &sampleMap, const Array<File>& monolithicFiles, OwnedArray<ModulatorSamplerSound> &sounds)
 {
+	jassert(!mc->getMainSynthChain()->areVoicesActive());
+
 	clearUnreferencedMonoliths();
 
 	loadedMonoliths.add(new MonolithInfoToUse(monolithicFiles));

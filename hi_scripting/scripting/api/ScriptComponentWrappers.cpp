@@ -658,7 +658,8 @@ void ScriptCreatedComponentWrappers::PanelWrapper::mouseCallback(const var &mous
 {
 	auto sp = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(getScriptComponent());
 
-	sp->mouseCallback(mouseInformation);
+	if(sp != nullptr)
+		sp->mouseCallback(mouseInformation);
 }
 
 void ScriptCreatedComponentWrappers::PanelWrapper::boundsChanged(const Rectangle<int> &newBounds)

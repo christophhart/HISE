@@ -57,11 +57,13 @@ public:
 	SampleEditHandler(ModulatorSampler* sampler_):
 		sampler(sampler_)
 	{
+		MessageManagerLock mml;
 		selectedSamplerSounds.addChangeListener(this);
 	}
 
 	~SampleEditHandler()
 	{
+		MessageManagerLock mml;
 		selectedSamplerSounds.removeChangeListener(this);
 	}
 

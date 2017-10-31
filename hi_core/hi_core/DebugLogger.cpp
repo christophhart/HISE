@@ -521,13 +521,15 @@ void DebugLogger::checkAssertion(Processor* p, Location location, bool result, d
 
 bool DebugLogger::checkIsSoftBypassed(const ModulatorSynth* synth, Location location)
 {
+	auto silence = synth->getMainController()->getMainSynthChain()->areVoicesActive();
+
 	// Hit this even in debug mode
-	jassert(synth->getPlayingSynth()->isSoftBypassed());
+	jassert(!silence);
 
 	if (!isLogging())
 		return !synth->getPlayingSynth()->isSoftBypassed();
 
-	if (!synth->getPlayingSynth()->isSoftBypassed())
+	if (!silence)
 	{
 		Failure f(messageIndex++, callbackIndex, location, FailureType::SoftBypassFailure, synth, getCurrentTimeStamp(), 0.0);
 		addFailure(f);
@@ -871,7 +873,7 @@ String DebugLogger::getNameForLocation(Location l)
 		RETURN_CASE_STRING_LOCATION(AddMultipleSamples);
 		RETURN_CASE_STRING_LOCATION(SampleMapLoading);
 		RETURN_CASE_STRING_LOCATION(SampleMapLoadingFromFile);
-		RETURN_CAST_STRING_LOCATION(SamplePreloadingThread);
+		RETURN_CASE_STRING_LOCATION(SamplePreloadThread);
         RETURN_CASE_STRING_LOCATION(numLocations);
 	}
 

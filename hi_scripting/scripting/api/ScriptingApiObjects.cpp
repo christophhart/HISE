@@ -2153,7 +2153,7 @@ ApiHelpers::ModuleHandler::~ModuleHandler()
 
 bool ApiHelpers::ModuleHandler::removeModule(Processor* p)
 {
-	if (!MessageManager::getInstance()->isThisTheMessageThread())
+	if (p->getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::AudioThread)
 	{
 		throw String("Effects can't be removed from the audio thread!");
 	}
@@ -2169,7 +2169,9 @@ bool ApiHelpers::ModuleHandler::removeModule(Processor* p)
 
 Processor* ApiHelpers::ModuleHandler::addModule(Chain* c, const String& type, const String& id, int index /*= -1*/)
 {
-	if (!MessageManager::getInstance()->isThisTheMessageThread())
+	
+
+	if (dynamic_cast<Processor*>(c)->getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::AudioThread)
 	{
 		throw String("Modules can't be added from the audio thread!");
 	}

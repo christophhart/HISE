@@ -110,7 +110,7 @@ public:
 		AddMultipleSamples,
 		SampleMapLoading,
 		SampleMapLoadingFromFile,
-		SamplePreloadingThread,
+		SamplePreloadThread,
 		numLocations
 	};
 
