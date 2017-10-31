@@ -552,6 +552,115 @@ public:
 
 	};
 
+	class KillStateHandler : private AsyncUpdater
+	{
+	public:
+
+		enum TargetThread
+		{
+			MessageThread = 0,
+			SampleLoadingThread,
+			AudioThread,
+			numTargetThreads
+		};
+
+		KillStateHandler(MainController* mc);
+
+		/** Returns false if there is a pending action somewhere that prevents clickless voice rendering. */
+		bool voiceStartIsDisabled() const;
+
+		/** Call this in the processBlock method and it will check whether voice starts are allowed.
+		*
+		*	It checks if anything is pending and if yes, voiceStartIsDisabled() will return true for the callback.
+		*/
+		void handleKillState();
+
+		/** Checks if all voices are killed. Use this as an assertion on all functions where you assume killed voices. */
+		bool voicesAreKilled() const;
+
+		/** Give this method a lambda and a processor and it will call it as soon as all voices are killed.
+		*
+		*	If the voices are already killed, it will synchronously call the function if this function is called from the given targetThread.
+		*	If not, it will kill all functions and execute the function on the specified thread.
+		*
+		*	It will check whether the processor was deleted before calling the function.
+		*/
+		void killVoicesAndCall(Processor* p, const ProcessorFunction& functionToExecuteWhenKilled, TargetThread targetThread);
+
+		/** This can be set by the Internal Preloader. */
+		void setSampleLoadingPending(bool isPending);
+
+		void setSampleLoadingThreadId(void* newId);
+
+		LockfreeQueue<SafeFunctionCall>& getSampleLoadingQueue() { return pendingSampleLoadFunctions; }
+
+		TargetThread getCurrentThread() const;
+
+	private:
+
+		
+
+		void initAudioThreadId();
+
+		enum NewKillState
+		{
+			Clear,				// when nothing happens
+			Pending,			// something is pending...
+			SetForClearance,    // when all callbacks are done, it will check in the next audio callback and reset to clear
+			numNewKillStates
+		};
+
+		enum PendingState
+		{
+			VoiceKillStart = 0,
+			VoiceKill,
+			AudioThreadFunction,
+			SyncMessageCallback,
+			WaitingForAsyncUpdate,
+			AsyncMessageCallback,
+			SampleLoading,
+			numPendingStates
+		};
+
+		/*@ internal*/
+		static String getStringForKillState(NewKillState s);
+		/*@ internal*/
+		static String getStringForPendingState(PendingState state);
+		/*@ internal*/
+		void onAllVoicesAreKilled();
+		void triggerPendingMessageCallbackFunctionsUpdate();
+		void triggerPendingSampleLoadingFunctionsUpdate();
+		void executePendingAudioThreadFunctions();
+		/*@ internal*/
+		void handleAsyncUpdate() override;
+		/*@ internal*/
+		void setPendingState(PendingState pendingState, bool isPending);
+		/*@ internal*/
+		void setKillState(NewKillState newKillState);
+		/*@ internal*/
+		bool isPending(PendingState state) const;
+		/*@ internal*/
+		bool isNothingPending() const;
+		/*@ internal*/
+		void addFunctionToExecute(Processor* p, const ProcessorFunction& functionToCallWhenVoicesAreKilled, TargetThread targetThread, NotificationType triggerUpdate);
+
+		BigInteger pendingStates;
+
+		std::atomic<NewKillState> killState;
+
+		LockfreeQueue<SafeFunctionCall> pendingAudioThreadFunctions;
+		LockfreeQueue<SafeFunctionCall> pendingMessageThreadFunctions;
+		LockfreeQueue<SafeFunctionCall> pendingSampleLoadFunctions;
+
+		MainController* mc;
+
+		bool disableVoiceStartsThisCallback = false;
+
+		void* threadIds[(int)TargetThread::numTargetThreads];
+		
+		LockfreeQueue<SafeFunctionCall>* pendingFunctions[TargetThread::numTargetThreads];
+	};
+
 	MainController();
 
 	virtual ~MainController();
@@ -580,6 +689,8 @@ public:
 	GlobalAsyncModuleHandler& getGlobalAsyncModuleHandler() { return globalAsyncModuleHandler; }
 	const GlobalAsyncModuleHandler& getGlobalAsyncModuleHandler() const { return globalAsyncModuleHandler; }
 
+	KillStateHandler& getKillStateHandler() { return killStateHandler; };
+	const KillStateHandler& getKillStateHandler() const { return killStateHandler; };
 #if USE_BACKEND
 	/** Writes to the console. */
 	void writeToConsole(const String &message, int warningLevel, const Processor *p=nullptr, Colour c=Colours::transparentBlack);
@@ -980,7 +1091,16 @@ protected:
 		return suspendIndex >= 0;
 	}
 
+
+	void killAndCallOnMessageThread(const ProcessorFunction& f);
+
+	void killAndCallOnAudioThread(const ProcessorFunction& f);
+
+	void killAndCallOnLoadingThread(const ProcessorFunction& f);
+
 private:
+
+	void loadPresetInternal(const ValueTree& v);
 
 	CriticalSection processLock;
 
@@ -1030,6 +1150,8 @@ private:
 
 	ScopedPointer<SampleManager> sampleManager;
 	MacroManager macroManager;
+
+	KillStateHandler killStateHandler;
 
 	Component::SafePointer<Plotter> plotter;
 
