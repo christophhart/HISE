@@ -134,6 +134,8 @@ public:
 
 private:
 
+	friend class ModulatorSynthGroup;
+
 	class ChildVoiceContainer
 	{
 	public:
@@ -295,11 +297,11 @@ public:
 	float getAttribute(int index) const override;
 	float getDefaultValue(int parameterIndex) const override;
 
-	bool handleSoftBypass() override;
-
 	ModulatorSynth* getFMModulator();
-
 	ModulatorSynth* getFMCarrier();
+
+	const ModulatorSynth* getFMModulator() const;
+	const ModulatorSynth* getFMCarrier() const;
 
 	/** returns the total amount of child groups (internal chains + all child synths) */
 	Processor *getChildProcessor(int processorIndex) override;;
@@ -380,6 +382,12 @@ public:
 	void preVoiceRendering(int startSample, int numThisTime) override;;
 	void postVoiceRendering(int startSample, int numThisTime) override;;
 
+	void killAllVoices() override;
+
+	void resetAllVoices() override;
+
+	String getFMStateString() const;
+
 	void restoreFromValueTree(const ValueTree &v) override;
 	ValueTree exportAsValueTree() const override;
 
@@ -421,8 +429,10 @@ public:
 
 	};
 
-	String getFMState() const { return fmState; };
+	String getFMState() const { return getFMStateString(); };
 	void checkFmState();
+
+	void checkFMStateInternally();
 
 	bool fmIsCorrectlySetup() const { return fmCorrectlySetup; };
 
@@ -463,8 +473,6 @@ private:
 
 	AudioSampleBuffer spreadBuffer;
 	AudioSampleBuffer detuneBuffer;
-
-	String fmState;
 
 	bool fmEnabled;
 	bool fmCorrectlySetup;
