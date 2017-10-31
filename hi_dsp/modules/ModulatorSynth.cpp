@@ -50,7 +50,7 @@ clockSpeed(ClockSpeed::Inactive),
 lastClockCounter(0),
 wasPlayingInLastBuffer(false),
 pitchModulationActive(false),
-bypassState(0),
+bypassState(false)
 {
 	pitchBuffer = AudioSampleBuffer(1, 0);
 	internalBuffer = AudioSampleBuffer(2, 0);
@@ -288,45 +288,19 @@ ProcessorEditorBody *ModulatorSynth::createEditor(ProcessorEditor *parentEditor)
 
 void ModulatorSynth::processHiseEventBuffer(const HiseEventBuffer &inputBuffer, int numSamples)
 {
-	if(handleSoftBypass())
+	eventBuffer.copyFrom(inputBuffer);
+
+	if (checkTimerCallback(0)) synthTimerCallback(0);
+	if (checkTimerCallback(1)) synthTimerCallback(1);
+	if (checkTimerCallback(2)) synthTimerCallback(2);
+	if (checkTimerCallback(3)) synthTimerCallback(3);
+
+	if (getMainController()->getMainSynthChain() == this)
 	{
-		eventBuffer.copyFrom(inputBuffer);
-
-		if (checkTimerCallback(0)) synthTimerCallback(0);
-		if (checkTimerCallback(1)) synthTimerCallback(1);
-		if (checkTimerCallback(2)) synthTimerCallback(2);
-		if (checkTimerCallback(3)) synthTimerCallback(3);
-
-		if (getMainController()->getMainSynthChain() == this)
-		{
-			handleHostInfoHiseEvents();
-		}
-
-		midiProcessorChain->renderNextHiseEventBuffer(eventBuffer, numSamples);
-	}
-}
-
-bool ModulatorSynth::handleSoftBypass()
-{
-	if (bypassState > (int)BypassState::Active)
-	{
-		if (bypassState == (int)BypassState::RampStartPending)
-		{
-			bypassState = (int)BypassState::Ramping;
-			killAllVoices();
-		}
-		else
-		{
-			if (!areVoicesActive())
-				bypassState = (int)BypassState::SoftBypassed;
-		}
-
-		eventBuffer.clear();
-
-		return false;
+		handleHostInfoHiseEvents();
 	}
 
-	return true;
+	midiProcessorChain->renderNextHiseEventBuffer(eventBuffer, numSamples);
 }
 
 void ModulatorSynth::addProcessorsWhenEmpty()
@@ -364,7 +338,7 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 
 	processHiseEventBuffer(inputMidiBuffer, numSamplesFixed);
 
-
+	
 	midiInputFlag = !eventBuffer.isEmpty();
 
 	HiseEventBuffer::Iterator eventIterator(eventBuffer);
@@ -414,6 +388,8 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 	while (eventIterator.getNextEvent(m, midiEventPos, true, false))
 		handleHiseEvent(m);
 
+	
+
 	if (getMainController()->getDebugLogger().isLogging())
 	{
 		for (int i = 0; i < internalBuffer.getNumChannels(); i++)
@@ -421,7 +397,6 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 			getMainController()->getDebugLogger().checkSampleData(this, DebugLogger::Location::SynthRendering, i % 2 != 0, internalBuffer.getReadPointer(i), numSamplesFixed);
 		}
 	}
-	
 
 	effectChain->renderMasterEffects(internalBuffer);
 
@@ -531,6 +506,11 @@ void ModulatorSynth::setPeakValues(float l, float r)
 
 void ModulatorSynth::handleHiseEvent(const HiseEvent& m)
 {
+	if (getMainController()->getKillStateHandler().voiceStartIsDisabled())
+	{
+		return;
+	}
+	
 	preHiseEventCallback(m);
 	
 	const int channel = m.getChannel();
@@ -696,7 +676,8 @@ bool ModulatorSynth::soundCanBePlayed(ModulatorSynthSound *sound, int midiChanne
 	
 void ModulatorSynth::startVoiceWithHiseEvent(ModulatorSynthVoice* voice, SynthesiserSound *sound, const HiseEvent &e)
 {
-	
+	jassert(!getMainController()->getKillStateHandler().voiceStartIsDisabled());
+
 	//jassert(!activeVoices.contains(voice));
 
 	activeVoices.insert(voice);
@@ -732,7 +713,7 @@ void ModulatorSynth::prepareToPlay(double newSampleRate, int samplesPerBlock)
 		
 		for(int i = 0; i < getNumVoices(); i++)
 		{
-			static_cast<ModulatorSynthVoice*>(getVoice(i))->prepareToPlay(newSampleRate, samplesPerBlock);
+ 			static_cast<ModulatorSynthVoice*>(getVoice(i))->prepareToPlay(newSampleRate, samplesPerBlock);
 		}
 
 		vuMerger.limitFromBlockSizeToFrameRate(newSampleRate, samplesPerBlock);
@@ -801,11 +782,25 @@ void ModulatorSynth::setSoftBypass(bool shouldBeBypassed)
 {
 	if (shouldBeBypassed)
 	{
-		bypassState.store((int)BypassState::RampStartPending);
+		if (!bypassState)
+		{
+			if (!areVoicesActive())
+			{
+				bypassState = true;
+			}
+			else
+			{
+				auto& tmp = bypassState;
+
+				auto f = [&tmp](Processor*) {tmp.store(true); return true; };
+
+				getMainController()->getKillStateHandler().killVoicesAndCall(this, f, MainController::KillStateHandler::TargetThread::AudioThread);
+			}
+		}
 	}
 	else
 	{
-		bypassState.store((int)BypassState::Active);
+		bypassState.store(false);
 	}
 }
 
@@ -980,6 +975,16 @@ int ModulatorSynth::getIndexInGroup() const
 	return -1;
 }
 
+ModulatorSynth* ModulatorSynth::getPlayingSynth()
+{
+	return isInGroup() ? static_cast<ModulatorSynth*>(getGroup()) : this;
+}
+
+const ModulatorSynth* ModulatorSynth::getPlayingSynth() const
+{
+	return isInGroup() ? static_cast<const ModulatorSynth*>(getGroup()) : this;
+}
+
 void ModulatorSynthVoice::resetVoice()
 {
 	LOG_SYNTH_EVENT("Reset Note for " + getOwnerSynth()->getId() + " with index " + String(voiceIndex));
@@ -1090,6 +1095,8 @@ bool ModulatorSynth::getMidiInputFlag()
 }
 
 
+
+
 void ModulatorSynth::killAllVoicesWithNoteNumber(int noteNumber)
 {
 	for(int i = 0; i < voices.size(); i++)
@@ -1176,9 +1183,19 @@ void ModulatorSynth::resetAllVoices()
 
 void ModulatorSynth::killAllVoices()
 {
-	for (int i = 0; i < getNumVoices(); i++)
+	// Never call this directly, use 
+	jassert(!MessageManager::getInstance()->isThisTheMessageThread());
+
+	if (isInGroup())
 	{
-		static_cast<ModulatorSynthVoice*>(getVoice(i))->killVoice();
+		getGroup()->killAllVoices();
+	}
+	else
+	{
+		for (int i = 0; i < getNumVoices(); i++)
+		{
+			static_cast<ModulatorSynthVoice*>(getVoice(i))->killVoice();
+		}
 	}
 }
 
