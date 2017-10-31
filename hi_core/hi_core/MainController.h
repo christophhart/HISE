@@ -236,27 +236,16 @@ public:
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(EventIdHandler)
 	};
 
-	class UserPresetHandler : public Timer,
-							  public ThreadWithQuasiModalProgressWindow::Holder::Listener
+	class UserPresetHandler
 	{
 	public:
-
-		enum RampFlags
-		{
-			Active = 0,
-			Bypassed = -2,
-			FadeIn = 1,
-			FadeOut = -1
-		};
 
 		class Listener
 		{
 		public:
 
 			virtual ~Listener() { masterReference.clear(); };
-
 			virtual void presetChanged(const File& newPreset) = 0;
-
 			virtual void presetListUpdated() = 0;
 
 		private:
@@ -265,99 +254,33 @@ public:
 			WeakReference<Listener>::Master masterReference;
 		};
 
-		UserPresetHandler(MainController* mc_);
-		~UserPresetHandler();
-
-		void lastTaskRemoved() override;
-
-
-
-		// ===========================================================================================================
-
-		void addListener(Listener* listener)
-		{
-			listeners.add(listener);
-		}
-
-		void removeListener(Listener* listener)
-		{
-			listeners.removeAllInstancesOf(listener);
-		}
-
-		void timerCallback();
-
-		void loadUserPreset(const ValueTree& presetToLoad);
-
-		void loadUserPreset(const File& fileToLoad);
-
-		File getCurrentlyLoadedFile() const { return currentlyLoadedFile; };
-
-		void setCurrentlyLoadedFile(const File& f) { currentlyLoadedFile = f; };
+		UserPresetHandler(MainController* mc_) :
+			mc(mc_)
+		{};
 
 		void incPreset(bool next, bool stayInSameDirectory);
+		void loadUserPreset(const ValueTree& v);
+		void loadUserPreset(const File& f);
 
-		void sendRebuildMessage()
-		{
-			for (int i = 0; i < listeners.size(); i++)
-			{
-				if (listeners[i] != nullptr)
-				{
-					listeners[i]->presetListUpdated();
-				}
-			}
-		}
+		File getCurrentlyLoadedFile() const;;
 
-		void savePreset(String presetName=String())
-		{
-			newPresetName = presetName;
+		void setCurrentlyLoadedFile(const File& f);
 
-			saver.triggerAsyncUpdate();
-		}
-
-		// ===========================================================================================================
+		void sendRebuildMessage();
+		void savePreset(String presetName = String());
+		void addListener(Listener* listener);
+		void removeListener(Listener* listener);
 
 	private:
 
-		class Saver : public AsyncUpdater
-		{
-		public:
-
-			Saver(UserPresetHandler* handler_) :
-				handler(handler_)
-			{};
-		
-			void handleAsyncUpdate() override
-			{
-				File currentPresetFile = handler->getCurrentlyLoadedFile();
-
-				if (handler->newPresetName.isNotEmpty())
-					currentPresetFile = currentPresetFile.getSiblingFile(handler->newPresetName + ".preset");
-				
-				handler->setCurrentlyLoadedFile(currentPresetFile);
-
-				UserPresetHelpers::saveUserPreset(handler->mc->getMainSynthChain(), currentPresetFile.getFullPathName());
-			}
-
-		private:
-			
-			UserPresetHandler* handler;
-		};
-
-		Saver saver;
-
-		void loadPresetInternal();
+		void loadUserPresetInternal(const ValueTree& v);
+		void saveUserPresetInternal(const String& name=String());
 
 		Array<WeakReference<Listener>> listeners;
-		
-		MainController* mc;
-		ValueTree currentPreset;
-
-		String newPresetName;
 
 		File currentlyLoadedFile;
 
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(UserPresetHandler)
-
+		MainController* mc;
 	};
 
 	struct GlobalAsyncModuleHandler : public AsyncUpdater
@@ -913,12 +836,7 @@ public:
 		return skipCompilingAtPresetLoad;
 	}
 
-	void loadUserPresetAsync(const ValueTree& v)
-	{
-		allNotesOff();
-		presetLoadRampFlag.set(-1);
-		userPresetHandler.loadUserPreset(v);
-	}
+	void loadUserPresetAsync(const ValueTree& v);
 
 	UndoManager* getControlUndoManager() { return controlUndoManager; }
 

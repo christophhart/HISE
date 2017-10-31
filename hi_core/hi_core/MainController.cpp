@@ -580,21 +580,6 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 			FloatVectorOperations::clip(buffer.getWritePointer(i, 0), buffer.getReadPointer(i, 0), -1.0f, 1.0f, buffer.getNumSamples());
 	}
 
-	if (presetLoadRampFlag.get() != UserPresetHandler::RampFlags::Active)
-	{
-		if (presetLoadRampFlag.get() == UserPresetHandler::RampFlags::FadeOut)
-		{
-			buffer.applyGainRamp(0, buffer.getNumSamples(), 1.0f, 0.0f);
-			presetLoadRampFlag.set(UserPresetHandler::RampFlags::Bypassed);
-		}
-		else if (presetLoadRampFlag.get() == UserPresetHandler::RampFlags::FadeIn)
-		{
-			buffer.applyGainRamp(0, buffer.getNumSamples(), 0.0f, 1.0f);
-			presetLoadRampFlag.set(UserPresetHandler::RampFlags::Active);
-		}
-	}
-
-	//midiMessages.clear();
 #endif
 
 #if ENABLE_CPU_MEASUREMENT
@@ -824,6 +809,13 @@ bool MainController::checkAndResetMidiInputFlag()
 	midiInputFlag = false;
 
 	return returnValue;
+}
+
+void MainController::loadUserPresetAsync(const ValueTree& v)
+{
+	//getMainSynthChain()->killAllVoices();
+	//presetLoadRampFlag.set(OldUserPresetHandler::FadeOut);
+	userPresetHandler.loadUserPreset(v);
 }
 
 #if USE_BACKEND
