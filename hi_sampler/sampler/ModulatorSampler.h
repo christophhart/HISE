@@ -111,7 +111,6 @@ public:
 		numEditorStates
 	};
 
-
 	/** Creates a new ModulatorSampler. */
 	ModulatorSampler(MainController *mc, const String &id, int numVoices);;
 	~ModulatorSampler();
@@ -192,6 +191,7 @@ public:
 	*/
 	void setVoiceAmount(int newVoiceAmount);
 
+	void setVoiceAmountInternal();
 	
 
     /** Sets the streaming buffer and preload buffer sizes asynchronously. */
@@ -252,10 +252,15 @@ public:
 	SampleMap *getSampleMap() {	return sampleMap; };
 	void clearSampleMap();
 	
-	void loadSampleMap(const File &f);
-	void loadSampleMap(const ValueTree &valueTreeData);
+	void loadSampleMapSync(const File &f);
+	void loadSampleMapSync(const ValueTree &valueTreeData);
 	void loadSampleMapFromIdAsync(const String& sampleMapId);
 	void loadSampleMapFromId(const String& sampleMapId);
+
+	/** This function will be called on a background thread and preloads all samples. */
+	bool preloadAllSamples();
+
+	bool preloadSample(StreamingSamplerSound * s, const int preloadSizeToUse, int soundIndex);
 
 	void saveSampleMap() const;
 
@@ -312,43 +317,66 @@ public:
 	{
 		if (reversed != shouldBeReversed)
 		{
-			reversed = shouldBeReversed;
-
-			for (int i = 0; i < getNumSounds(); i++)
+			auto f = [shouldBeReversed](Processor* p)
 			{
-				getSound(i)->setReversed(reversed);
-			}
+				auto s = static_cast<ModulatorSampler*>(p);
+
+				s->reversed = shouldBeReversed;
+
+				for (int i = 0; i < s->getNumSounds(); i++)
+				{
+					s->getSound(i)->setReversed(shouldBeReversed);
+				}
+
+				s->refreshMemoryUsage();
+
+				return true;
+			};
+
+			killAllVoicesAndCall(f);
 		}
 
-		refreshMemoryUsage();
+		
 	}
 
 	void purgeAllSamples(bool shouldBePurged)
 	{
+		
 
 		if (shouldBePurged != purged)
 		{
-            purged = shouldBePurged;
-
-            if(purged)
-            {
-                getMainController()->getDebugLogger().logMessage("**Purging samples** from " + getId());
-            }
-            else
-            {
-                getMainController()->getDebugLogger().logMessage("**Unpurging samples** from " + getId());
-            }
-            
-			for (int i = 0; i < sounds.size(); i++)
+			if (shouldBePurged)
 			{
-				ModulatorSamplerSound *sound = static_cast<ModulatorSamplerSound*>(getSound(i));
-
-				sound->setPurged(shouldBePurged);
+				getMainController()->getDebugLogger().logMessage("**Purging samples** from " + getId());
+			}
+			else
+			{
+				getMainController()->getDebugLogger().logMessage("**Unpurging samples** from " + getId());
 			}
 
-			refreshPreloadSizes();
-			refreshMemoryUsage();
-			
+
+			auto f = [shouldBePurged](Processor* p)
+			{
+				auto s = static_cast<ModulatorSampler*>(p);
+
+				jassert(s->allVoicesAreKilled());
+
+				s->purged = shouldBePurged;
+
+				for (int i = 0; i < s->sounds.size(); i++)
+				{
+					ModulatorSamplerSound *sound = static_cast<ModulatorSamplerSound*>(s->getSound(i));
+
+					sound->setPurged(shouldBePurged);
+				}
+
+				s->refreshPreloadSizes();
+				s->refreshMemoryUsage();
+
+				return true;
+			};
+
+			killAllVoicesAndCall(f);
 		}
 	}
 
@@ -463,7 +491,29 @@ public:
 
 	bool checkAndLogIsSoftBypassed(DebugLogger::Location location) const;
 
+	void setHasPendingSampleLoad(bool hasSamplesPending)
+	{
+		samplePreloadPending = hasSamplesPending;
+	}
+
+	bool hasPendingSampleLoad() const { return samplePreloadPending; }
+
+	void killAllVoicesAndCall(const ProcessorFunction& f);
+
 private:
+
+	bool isOnSampleLoadingThread() const
+	{
+		return getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::SampleLoadingThread;
+	}
+
+	bool allVoicesAreKilled() const
+	{
+		return getMainController()->getKillStateHandler().voicesAreKilled();
+	}
+
+	
+	
 
 	struct AsyncPurger : public AsyncUpdater,
 						 public Timer
@@ -555,6 +605,8 @@ private:
 #if USE_BACKEND
 	ScopedPointer<SampleEditHandler> sampleEditHandler;
 #endif
+
+	std::atomic<bool> samplePreloadPending = false;
 
 };
 

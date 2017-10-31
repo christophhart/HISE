@@ -303,7 +303,7 @@ public:
 
 		if (f.getFileExtension() == ".xml")
 		{
-			sampler->loadSampleMap(f);
+			sampler->loadSampleMapSync(f);
 		}
 		else if (f.getFileExtension() == ".sfz")
 		{

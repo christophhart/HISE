@@ -32,17 +32,24 @@
 
 void SampleEditHandler::SampleEditingActions::deleteSelectedSounds(SampleEditHandler *handler)
 {
-	auto soundsToBeDeleted = handler->getSelection().getItemArray();
-
-	const int numToBeDeleted = soundsToBeDeleted.size();
-
-	for (int i = 0; i < numToBeDeleted; i++)
+	auto f = [handler](Processor* )
 	{
-		if (soundsToBeDeleted[i].get() != nullptr) handler->sampler->deleteSound(soundsToBeDeleted[i].get());
-	}
+		auto soundsToBeDeleted = handler->getSelection().getItemArray();
 
-	handler->getSelection().deselectAll();
-	handler->getSelection().dispatchPendingMessages();
+		const int numToBeDeleted = soundsToBeDeleted.size();
+
+		for (int i = 0; i < numToBeDeleted; i++)
+		{
+			if (soundsToBeDeleted[i].get() != nullptr) handler->sampler->deleteSound(soundsToBeDeleted[i].get());
+		}
+
+		handler->getSelection().deselectAll();
+		handler->getSelection().dispatchPendingMessages();
+
+		return true;
+	};
+
+	handler->sampler->killAllVoicesAndCall(f);
 }
 
 void SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(SampleEditHandler *handler)
