@@ -32,8 +32,10 @@
 
 #if 0//JUCE_MAC
 #define SEND_MESSAGE(broadcaster) {	broadcaster->sendAllocationFreeChangeMessage(); }
-#else
+#elif 0
 #define SEND_MESSAGE(broadcaster) {	if (MessageManager::getInstance()->isThisTheMessageThread()) broadcaster->sendSynchronousChangeMessage(); else broadcaster->sendChangeMessage();}
+#else
+#define SEND_MESSAGE(broadcaster) {	broadcaster->sendChangeMessage();}
 #endif
 
 

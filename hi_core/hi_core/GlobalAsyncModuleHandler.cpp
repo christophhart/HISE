@@ -58,6 +58,8 @@ void MainController::GlobalAsyncModuleHandler::JobData::doit()
 	}
 	else
 	{
+		DBG("Deleting processor");
+
 		processorToDelete->sendDeleteMessage();
 
 		if (parent.get() != nullptr)
@@ -70,6 +72,8 @@ void MainController::GlobalAsyncModuleHandler::JobData::doit()
 void MainController::GlobalAsyncModuleHandler::addPendingUIJob(Processor* parent, Processor* p, JobData::What what)
 {
 	pendingJobs.push(JobData(parent, p, what));
+
+	triggerAsyncUpdate();
 }
 
 void MainController::GlobalAsyncModuleHandler::handleAsyncUpdate()
@@ -83,7 +87,7 @@ void MainController::GlobalAsyncModuleHandler::handleAsyncUpdate()
 }
 
 
-void MainController::GlobalAsyncModuleHandler::removeAsync(Processor* p, Component* rootWindow)
+void MainController::GlobalAsyncModuleHandler::removeAsync(Processor* p, Component* /*rootWindow*/)
 {
 	auto f = [](Processor* p)
 	{
@@ -98,7 +102,7 @@ void MainController::GlobalAsyncModuleHandler::removeAsync(Processor* p, Compone
 			return true;
 
 		c->getHandler()->remove(p, false);
-		p->getMainController()->getGlobalAsyncModuleHandler().addPendingUIJob(dynamic_cast<Processor*>(c), p, JobData::What::Add);
+		p->getMainController()->getGlobalAsyncModuleHandler().addPendingUIJob(dynamic_cast<Processor*>(c), p, JobData::What::Delete);
 
 		return true;
 	};
@@ -106,7 +110,7 @@ void MainController::GlobalAsyncModuleHandler::removeAsync(Processor* p, Compone
 	p->getMainController()->getKillStateHandler().killVoicesAndCall(p, f, KillStateHandler::SampleLoadingThread);
 }
 
-void MainController::GlobalAsyncModuleHandler::addAsync(Chain* c, Processor* p, Component* rootWindow, const String& type, const String& id, int index)
+void MainController::GlobalAsyncModuleHandler::addAsync(Chain* c, Processor* p, Component* /*rootWindow*/, const String& /*type*/, const String& /*id*/, int index)
 {
 
 	auto f = [c, index](Processor* p)

@@ -392,7 +392,7 @@ Component* FloatingPanelTemplates::createSamplerWorkspace(FloatingTile* rootTile
 	return nullptr;
 }
 
-var FloatingPanelTemplates::createSettingsWindow(MainController* mc)
+var FloatingPanelTemplates::createSettingsWindow(MainController* /*mc*/)
 {
 	return var();
 }

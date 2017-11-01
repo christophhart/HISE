@@ -364,7 +364,8 @@ void MacroComponent::resized()
 	checkActiveButtons();
 }
 
-CachedViewport::CachedViewport()
+CachedViewport::CachedViewport():
+isPreloading(false)
 {
 	addAndMakeVisible(viewport = new InternalViewport());
 

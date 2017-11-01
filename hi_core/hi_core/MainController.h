@@ -184,12 +184,10 @@ public:
 
 			PreloadJob(MainController* mc);
 			JobStatus runJob() override;
-			void executePendingFunctions(LockfreeQueue<SafeFunctionCall>& pendingFunctions);
 
 		private:
 
 			MainController* mc = nullptr;
-			LockfreeQueue<SafeFunctionCall>* pendingFunctions;
 			double progress = 0.0;
 		};
 

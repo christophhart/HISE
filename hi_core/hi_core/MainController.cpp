@@ -978,8 +978,6 @@ void MainController::SampleManager::preloadEverything()
 
 	Array<WeakReference<Processor>> samplersToPreload;
 
-	bool first = true;
-
 	while (ModulatorSampler* s = it.getNextProcessor())
 	{
 		if (s->hasPendingSampleLoad())

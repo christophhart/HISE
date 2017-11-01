@@ -606,7 +606,7 @@ private:
 	ScopedPointer<SampleEditHandler> sampleEditHandler;
 #endif
 
-	std::atomic<bool> samplePreloadPending = false;
+    std::atomic<bool> samplePreloadPending;
 
 };
 

@@ -130,7 +130,7 @@ void MainController::KillStateHandler::handleKillState()
 
 
 
-	switch (killState)
+	switch ((int)killState.load())
 	{
 	case NewKillState::Clear:
 	{
@@ -347,11 +347,12 @@ MainController::KillStateHandler::TargetThread MainController::KillStateHandler:
 
 	if (threadId == threadIds[(int)TargetThread::AudioThread])
 		return TargetThread::AudioThread;
-	else if (threadId = threadIds[(int)TargetThread::SampleLoadingThread])
+	else if (threadId == threadIds[(int)TargetThread::SampleLoadingThread])
 		return TargetThread::SampleLoadingThread;
 	else
 	{
 		jassertfalse;
+		return MessageThread;
 	}
 }
 

@@ -567,6 +567,9 @@ private:
 
 		int compareElements (const ModulatorSamplerSound* first, const ModulatorSamplerSound* second) const
         {
+			if (first == nullptr || second == nullptr)
+				return direction;
+
 			int result = first->getProperty (propertyToSort).toString()
                            .compareNatural (second->getProperty (propertyToSort).toString());
 

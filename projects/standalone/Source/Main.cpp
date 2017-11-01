@@ -174,13 +174,13 @@ public:
 
         void closeButtonPressed()
         {
-			auto mainWindow = dynamic_cast<MainContentComponent*>(getContentComponent());
+			auto mw = dynamic_cast<MainContentComponent*>(getContentComponent());
 
             // This is called when the user tries to close this window. Here, we'll just
             // ask the app to quit when this happens, but you can change this to do
             // whatever you need.
 
-			mainWindow->requestQuit([]() {JUCEApplication::getInstance()->systemRequestedQuit(); });
+			mw->requestQuit([]() {JUCEApplication::getInstance()->systemRequestedQuit(); });
 
             
         }

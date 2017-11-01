@@ -662,7 +662,7 @@ private:
 
 public:
 
-	std::atomic<bool> isPreloading = false;
+	std::atomic<bool> isPreloading;
 
 	ScopedPointer<InternalViewport> viewport;
 

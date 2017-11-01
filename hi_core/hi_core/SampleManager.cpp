@@ -120,8 +120,7 @@ void MainController::SampleManager::PreloadListenerUpdater::handleAsyncUpdate()
 
 MainController::SampleManager::PreloadJob::PreloadJob(MainController* mc_) :
 	SampleThreadPoolJob("Internal Preloading"),
-	mc(mc_),
-	pendingFunctions(nullptr)
+	mc(mc_)
 {
 
 }
@@ -198,10 +197,5 @@ void MainController::SampleManager::addPreloadListener(PreloadListener* p)
 void MainController::SampleManager::removePreloadListener(PreloadListener* p)
 {
 	preloadListeners.removeAllInstancesOf(p);
-}
-
-void MainController::SampleManager::PreloadJob::executePendingFunctions(LockfreeQueue<SafeFunctionCall>& pendingFunctionList)
-{
-
 }
 

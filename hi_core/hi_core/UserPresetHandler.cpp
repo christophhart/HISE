@@ -108,9 +108,7 @@ void MainController::UserPresetHandler::loadUserPresetInternal(const ValueTree& 
 
 	jassert(userPresetToLoad.isValid());
 
-	auto synth = mc->getMainSynthChain();
-
-	jassert(!synth->areVoicesActive());
+	jassert(!mc->getMainSynthChain()->areVoicesActive());
 
 	Processor::Iterator<JavascriptMidiProcessor> iter(mc->getMainSynthChain());
 

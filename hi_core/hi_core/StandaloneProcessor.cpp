@@ -129,7 +129,7 @@ StandaloneProcessor::StandaloneProcessor()
 
 void StandaloneProcessor::requestQuit(const std::function<void(void)>& f)
 {
-	auto f2 = [f](Processor* p) {f(); return true; };
+	auto f2 = [f](Processor* ) {f(); return true; };
 
 	auto mc = dynamic_cast<MainController*>(wrappedProcessor.get());
 	

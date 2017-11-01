@@ -36,7 +36,8 @@ BackendProcessorEditor::BackendProcessorEditor(FloatingTile* parent) :
 FloatingTileContent(parent),
 owner(static_cast<BackendProcessor*>(parent->getMainController())),
 parentRootWindow(parent->getBackendRootWindow()),
-rootEditorIsMainSynthChain(true)
+rootEditorIsMainSynthChain(true),
+isLoadingPreset(false)
 {
 	owner->getSampleManager().addPreloadListener(this);
 

@@ -311,7 +311,7 @@ private:
 
 	bool rootEditorIsMainSynthChain;
 
-	std::atomic<bool> isLoadingPreset = false;
+	std::atomic<bool> isLoadingPreset;
 };
 
 
