@@ -64,6 +64,66 @@ class ModulatorSampler: public ModulatorSynth,
 {
 public:
 
+	/** A small helper tool that iterates over the sound array in a thread-safe way.
+	*
+	*/
+	class SoundIterator
+	{
+	public:
+
+		/** This iterates over all sounds and locks the sound lock if desired. */
+		SoundIterator(ModulatorSampler* s_, bool lock_=true):
+			s(s_),
+			lock(lock_)
+		{
+			if (s->getNumSounds() == 0)
+			{
+				lock = false;
+			}
+			else
+			{
+				if (lock)
+					s->getMainController()->getSampleManager().getSamplerSoundLock().enter();
+			}
+		}
+
+		ModulatorSamplerSound* getNextSound()
+		{
+			while (auto sound = getSoundInternal())
+				return sound;
+
+			return nullptr;
+		}
+
+		~SoundIterator()
+		{
+			if(lock)
+				s->getMainController()->getSampleManager().getSamplerSoundLock().exit();
+		}
+
+		int size() const
+		{
+			return s->getNumSounds();
+		}
+
+	private:
+
+		ModulatorSamplerSound* getSoundInternal()
+		{
+			if (index >= s->getNumSounds())
+				return nullptr;
+
+			return static_cast<ModulatorSamplerSound*>(s->getSound(index++));
+		}
+
+		bool lock;
+
+		int index = 0;
+
+		ModulatorSampler* s;
+	};
+
+
 	SET_PROCESSOR_NAME("StreamingSampler", "Sampler")
 
 	/** Special Parameters for the ModulatorSampler. */
@@ -124,9 +184,6 @@ public:
 	void setInternalAttribute(int parameterIndex, float newValue) override;;
 
 	int getNumMicPositions() const { return numChannels; }
-
-	const ModulatorSamplerSound *getSound(int soundIndex) const;
-	ModulatorSamplerSound *getSound(int soundIndex);
 
 	Processor *getChildProcessor(int processorIndex) override;;
 	const Processor *getChildProcessor(int processorIndex) const override;;
@@ -209,7 +266,7 @@ public:
 	*
 	*	
 	*/
-	void addSamplerSound(const ValueTree &description, int index, bool forceReuse=false);
+	ModulatorSamplerSound* addSamplerSound(const ValueTree &description, int index, bool forceReuse=false);
 
 	void addSamplerSounds(OwnedArray<ModulatorSamplerSound>& monolithicSounds);
 
@@ -260,7 +317,7 @@ public:
 	/** This function will be called on a background thread and preloads all samples. */
 	bool preloadAllSamples();
 
-	bool preloadSample(StreamingSamplerSound * s, const int preloadSizeToUse, int soundIndex);
+	bool preloadSample(StreamingSamplerSound * s, const int preloadSizeToUse);
 
 	void saveSampleMap() const;
 
@@ -323,9 +380,11 @@ public:
 
 				s->reversed = shouldBeReversed;
 
-				for (int i = 0; i < s->getNumSounds(); i++)
+				ModulatorSampler::SoundIterator sIter(s);
+
+				while (auto sound = sIter.getNextSound())
 				{
-					s->getSound(i)->setReversed(shouldBeReversed);
+					sound->setReversed(shouldBeReversed);
 				}
 
 				s->refreshMemoryUsage();

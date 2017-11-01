@@ -564,7 +564,7 @@ void JavascriptCodeEditor::performPopupMenuAction(int menuId)
 		{
 			const bool success = s->parseSnippetsFromString(x);
 
-			if (success)
+			if (editor != nullptr && success)
 				editor->compileScript();
 		}
 

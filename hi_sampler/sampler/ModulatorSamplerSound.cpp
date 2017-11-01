@@ -552,24 +552,23 @@ void ModulatorSamplerSound::selectSoundsBasedOnRegex(const String &regexWildcard
     {
 		std::regex reg(wildcard.toStdString());
 
-		for (int i = 0; i < sampler->getNumSounds(); i++)
+		ModulatorSampler::SoundIterator iter(sampler);
+
+		while (auto sound = iter.getNextSound())
 		{
-			const String name = sampler->getSound(i)->getPropertyAsString(Property::FileName);
+			const String name = sound->getPropertyAsString(Property::FileName);
 
 			if (std::regex_search(name.toStdString(), reg))
 			{
 				if (subtractMode)
 				{
-					set.deselect(sampler->getSound(i));
+					set.deselect(sound);
 				}
 				else
 				{
-					set.addToSelection(sampler->getSound(i));
+					set.addToSelection(sound);
 				}
-
-
 			}
-
 		}
 	}
 	catch (std::regex_error e)
@@ -965,9 +964,11 @@ public:
 		{
 			setProgress((double)index / (double)numSamplers);
 
-			for (int i = 0; i < s->getNumSounds(); i++)
+			ModulatorSampler::SoundIterator sIter(s);
+
+			while (auto sound = sIter.getNextSound())
 			{
-				s->getSound(i)->checkFileReference();
+				sound->checkFileReference();
 			}
 
 			s->sendChangeMessage();

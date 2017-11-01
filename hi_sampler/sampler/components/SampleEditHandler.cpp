@@ -93,11 +93,13 @@ void SampleEditHandler::handleMidiSelection()
 				const int noteNumber = i;
 				const int velocity = x.currentNotes[i];
 
-				for (int j = 0; j < sampler->getNumSounds(); j++)
+				ModulatorSampler::SoundIterator sIter(sampler);
+
+				while (auto sound = sIter.getNextSound())
 				{
-					if (sampler->soundCanBePlayed(sampler->getSound(j), 1, noteNumber, (float)velocity / 127.0f))
+					if (sampler->soundCanBePlayed(sound, 1, noteNumber, (float)velocity / 127.0f))
 					{
-						selectedSamplerSounds.addToSelection(sampler->getSound(j));
+						selectedSamplerSounds.addToSelection(sound);
 					}
 				}
 

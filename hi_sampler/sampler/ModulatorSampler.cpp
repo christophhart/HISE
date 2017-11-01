@@ -352,18 +352,6 @@ void ModulatorSampler::setInternalAttribute(int parameterIndex, float newValue)
 	}
 }
 
-const ModulatorSamplerSound * ModulatorSampler::getSound(int soundIndex) const
-{
-	SynthesiserSound *s = sounds[soundIndex];
-	return static_cast<const ModulatorSamplerSound*>(s);
-}
-
-ModulatorSamplerSound * ModulatorSampler::getSound(int soundIndex)
-{
-	SynthesiserSound *s = sounds[soundIndex];
-	return static_cast<ModulatorSamplerSound*>(s);
-}
-
 Processor * ModulatorSampler::getChildProcessor(int processorIndex)
 {
 	jassert(processorIndex < numInternalChains);
@@ -463,6 +451,8 @@ void ModulatorSampler::deleteSound(ModulatorSamplerSound *s)
 {
 	//ScopedLock sl(getMainController()->getLock());
 
+	ScopedLock sl(getMainController()->getSampleManager().getSamplerSoundLock());
+
 	jassert(getMainController()->getKillStateHandler().voicesAreKilled());
 
 	checkAndLogIsSoftBypassed(DebugLogger::Location::DeleteOneSample);
@@ -482,8 +472,6 @@ void ModulatorSampler::deleteSound(ModulatorSamplerSound *s)
 	const int deletedIndex = s->getProperty(ModulatorSamplerSound::ID);
 
 	{
-		MessageManagerLock mml;
-
 		SynthesiserSound::Ptr refPointer = s;
 
 		sounds.removeObject(s);
@@ -503,6 +491,8 @@ void ModulatorSampler::deleteSound(ModulatorSamplerSound *s)
 
 void ModulatorSampler::deleteAllSounds()
 {
+	ScopedLock sl(getMainController()->getSampleManager().getSamplerSoundLock());
+
 	jassert(getMainController()->getKillStateHandler().voicesAreKilled());
 
 	for (int i = 0; i < voices.size(); i++)
@@ -512,7 +502,6 @@ void ModulatorSampler::deleteAllSounds()
 
 	if(getNumSounds() != 0)
 	{
-		MessageManagerLock mml;
 		clearSounds();
 	}
 	
@@ -580,13 +569,16 @@ void ModulatorSampler::refreshMemoryUsage()
 
 	int64 actualPreloadSize = 0;
 
-	for (int i = 0; i < getNumSounds(); i++)
 	{
-		for (int j = 0; j < numChannels; j++)
+		ModulatorSampler::SoundIterator sIter(this);
+
+		while (auto sound = sIter.getNextSound())
 		{
-			actualPreloadSize += getSound(i)->getReferenceToSound(j)->getActualPreloadSize();
+			for (int j = 0; j < numChannels; j++)
+			{
+				actualPreloadSize += sound->getReferenceToSound(j)->getActualPreloadSize();
+			}
 		}
-		
 	}
 
 	for (int i = 0; i < getNumVoices(); i++)
@@ -721,7 +713,7 @@ void ModulatorSampler::resetNotes()
 	}
 }
 
-void ModulatorSampler::addSamplerSound(const ValueTree &description, int index, bool forceReuse)
+ModulatorSamplerSound* ModulatorSampler::addSamplerSound(const ValueTree &description, int index, bool forceReuse/*=false*/)
 {
 	//ScopedLock sl(getMainController()->getLock());
 	checkAndLogIsSoftBypassed(DebugLogger::Location::AddOneSample);
@@ -739,6 +731,8 @@ void ModulatorSampler::addSamplerSound(const ValueTree &description, int index, 
 	//newSound->setMaxRRGroupIndex(rrGroupAmount);
 
 	sendChangeMessage();
+
+	return newSound;
 }
 
 
@@ -931,6 +925,8 @@ void ModulatorSampler::clearSampleMap()
 {
 	jassert(isOnSampleLoadingThread());
 
+	ScopedLock sl(getMainController()->getSampleManager().getSamplerSoundLock());
+
 	sampleMap->saveIfNeeded();
 
 	deleteAllSounds();
@@ -1050,9 +1046,11 @@ void ModulatorSampler::loadSampleMapFromId(const String& sampleMapId)
 
 	int maxGroup = 1;
 
-	for (int i = 0; i < getNumSounds(); i++)
+	ModulatorSampler::SoundIterator sIter(this);
+
+	while (auto sound = sIter.getNextSound())
 	{
-		maxGroup = jmax<int>(maxGroup, getSound(i)->getProperty(ModulatorSamplerSound::RRGroup));
+		maxGroup = jmax<int>(maxGroup, sound->getProperty(ModulatorSamplerSound::RRGroup));
 	}
 
 	setAttribute(ModulatorSampler::RRGroupAmount, (float)maxGroup, sendNotification);
@@ -1099,16 +1097,15 @@ void ModulatorSampler::setRRGroupAmount(int newGroupLimit)
 
 	allNotesOff(1, true);
 
-	for (int i = 0; i < sounds.size(); i++)
-	{
-		getSound(i)->setMaxRRGroupIndex(rrGroupAmount);
-	};
+	ModulatorSampler::SoundIterator sIter(this);
+
+	while (auto sound = sIter.getNextSound())
+		sound->setMaxRRGroupIndex(rrGroupAmount);
 }
 
 
 bool ModulatorSampler::preloadAllSamples()
 {
-	const int numSoundsToPreload = getNumSounds();
 	const int preloadSizeToUse = (int)getAttribute(ModulatorSampler::PreloadSize) * getPreloadScaleFactor();
 
 	resetNotes();
@@ -1118,18 +1115,17 @@ bool ModulatorSampler::preloadAllSamples()
 
 	const bool isReversed = getAttribute(ModulatorSampler::Reversed) > 0.5f;
 
-	for (int i = 0; i < numSoundsToPreload; ++i)
-	{
-		if (getSound(i) == nullptr) 
-			continue;
+	ModulatorSampler::SoundIterator sIter(this);
 
-		getSound(i)->checkFileReference();
+	while (auto sound = sIter.getNextSound())
+	{
+		sound->checkFileReference();
 
 		if (getNumMicPositions() == 1)
 		{
-			StreamingSamplerSound *s = getSound(i)->getReferenceToSound();
-			
-			if (!preloadSample(s, preloadSizeToUse, i))
+			auto s = sound->getReferenceToSound();
+
+			if (!preloadSample(s, preloadSizeToUse))
 				return false;
 		}
 		else
@@ -1138,30 +1134,22 @@ bool ModulatorSampler::preloadAllSamples()
 			{
 				const bool isEnabled = getChannelData(j).enabled;
 
-				ModulatorSamplerSound *sound = getSound(i);
+				StreamingSamplerSound *s = sound->getReferenceToSound(j);
 
-				if (sound != nullptr)
+				if (s != nullptr)
 				{
-					StreamingSamplerSound *s = sound->getReferenceToSound(j);
-
-					if (s != nullptr)
+					if (isEnabled)
 					{
-						if (isEnabled)
-						{
-							if (!preloadSample(s, preloadSizeToUse, i))
-								return false;
-						}
-						else
-						{
-							s->setPurged(true);
-						}
-
+						if (!preloadSample(s, preloadSizeToUse))
+							return false;
 					}
+					else
+						s->setPurged(true);
 				}
 			}
 		}
 
-		getSound(i)->setReversed(isReversed);
+		sound->setReversed(isReversed);
 	}
 
 	refreshMemoryUsage();
@@ -1173,7 +1161,7 @@ bool ModulatorSampler::preloadAllSamples()
 }
 
 
-bool ModulatorSampler::preloadSample(StreamingSamplerSound * s, int preloadSizeToUse, int /*soundIndex*/)
+bool ModulatorSampler::preloadSample(StreamingSamplerSound * s, const int preloadSizeToUse)
 {
 	jassert(s != nullptr);
 

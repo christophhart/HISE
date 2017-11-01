@@ -156,7 +156,16 @@ public:
 		void addPreloadListener(PreloadListener* p);
 		void removePreloadListener(PreloadListener* p);
 
+		/** Lock this everytime you add / remove ModulatorSamplerSounds.
+		*
+		*	If you use a ModulatorSampler:SoundIterator, it will lock automatically.
+		*
+		*/
+		CriticalSection& getSamplerSoundLock() { return samplerSoundLock; }
+
 	private:
+
+		CriticalSection samplerSoundLock;
 
 		struct PreloadListenerUpdater : public AsyncUpdater
 		{

@@ -149,26 +149,31 @@ SampleMap::FileList SampleMap::createFileList()
 		list.add(new Array<File>());
 	}
 
-	for (int i = 0; i < sampler->getNumSounds(); i++)
 	{
-		ModulatorSamplerSound* sound = sampler->getSound(i);
+		ModulatorSampler::SoundIterator soundIter(sampler);
 
-		for (int j = 0; j < sound->getNumMultiMicSamples(); j++)
+		while (auto sound = soundIter.getNextSound())
 		{
-			StreamingSamplerSound* sample = sound->getReferenceToSound(j);
-
-			File file = sample->getFileName(true);
-
-			if (!file.existsAsFile())
+			for (int i = 0; i < sound->getNumMultiMicSamples(); i++)
 			{
-				allFound = false;
+				StreamingSamplerSound* sample = sound->getReferenceToSound(i);
 
-				missingFileList << file.getFullPathName() << "\n";
+				File file = sample->getFileName(true);
+
+				if (!file.existsAsFile())
+				{
+					allFound = false;
+
+					missingFileList << file.getFullPathName() << "\n";
+				}
+
+				list[i]->add(file);
 			}
-
-			list[j]->add(file);
 		}
 	}
+
+	
+
 
 	if (!allFound)
 	{
@@ -203,6 +208,8 @@ void SampleMap::clear()
 
 void SampleMap::restoreFromValueTree(const ValueTree &v)
 {
+	ScopedLock sl(sampler->getMainController()->getSampleManager().getSamplerSoundLock());
+
 	mode = (SaveMode)(int)v.getProperty("SaveMode");
 
 	const String sampleMapName = v.getProperty("ID");
@@ -254,28 +261,27 @@ ValueTree SampleMap::exportAsValueTree() const
 
 	StringArray absoluteFileNames;
 
-	for(int i = 0; i < sampler->getNumSounds(); i++)
-	{
-		ValueTree soundTree = sampler->getSound(i)->exportAsValueTree();
+	ModulatorSampler::SoundIterator sIter(sampler);
 
-        
-        
-        
+	while (auto sound = sIter.getNextSound())
+	{
+		ValueTree soundTree = sound->exportAsValueTree();
+
 		if (soundTree.getNumChildren() != 0)
 		{
 			for (int j = 0; j < soundTree.getNumChildren(); j++)
 			{
-                ValueTree child = soundTree.getChild(j);
-                
+				ValueTree child = soundTree.getChild(j);
+
 				replaceFileReferences(child);
-			}	
+			}
 		}
 		else
 		{
 			replaceFileReferences(soundTree);
 		}
 
-		v.addChild(soundTree, i, nullptr);
+		v.addChild(soundTree, -1, nullptr);
 	}
 
 	return v;
@@ -406,28 +412,34 @@ void SampleMap::loadSamplesFromDirectory(const ValueTree &v)
     ModulatorSamplerSoundPool *pool = sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool();
     pool->setUpdatePool(false);
     
-	for(int i = 0; i < treeToUse->getNumChildren(); i++)
 	{
-		try
+		ScopedLock sl(sampler->getMainController()->getSampleManager().getSamplerSoundLock());
+
+		for (int i = 0; i < treeToUse->getNumChildren(); i++)
 		{
-			sampler->addSamplerSound(treeToUse->getChild(i), i);
-		}
-		catch(StreamingSamplerSound::LoadingError l)
-		{
-			String x;
-			x << "Error at preloading sample " << l.fileName << ": " << l.errorDescription;
-			sampler->getMainController()->getDebugLogger().logMessage(x);
-			
+			try
+			{
+				sampler->addSamplerSound(treeToUse->getChild(i), i);
+			}
+			catch (StreamingSamplerSound::LoadingError l)
+			{
+				String x;
+				x << "Error at preloading sample " << l.fileName << ": " << l.errorDescription;
+				sampler->getMainController()->getDebugLogger().logMessage(x);
+
 #if USE_FRONTEND
-			sampler->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CustomErrorMessage, x);
+				sampler->getMainController()->sendOverlayMessage(DeactiveOverlay::State::CustomErrorMessage, x);
 #else
-			debugError(sampler, x);
+				debugError(sampler, x);
 #endif
 
-			return;
+				return;
+			}
+
 		}
-		
 	}
+
+	
 
     pool->setUpdatePool(true);
     pool->sendChangeMessage();

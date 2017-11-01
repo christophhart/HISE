@@ -58,14 +58,14 @@ void SampleEditHandler::SampleEditingActions::duplicateSelectedSounds(SampleEdit
 
 	const Array<WeakReference<ModulatorSamplerSound>> sounds = handler->getSelection().getItemArray();
 
+	ScopedLock sl(s->getMainController()->getSampleManager().getSamplerSoundLock());
+
 	for (int i = 0; i < sounds.size(); i++)
 	{
 		ValueTree v = sounds[i].get()->exportAsValueTree();
 		const int index = s->getNumSounds();
-
-		s->addSamplerSound(v, index, true);
-        
-		handler->getSelection().addToSelection(s->getSound(index));
+		auto newSound = s->addSamplerSound(v, index, true);
+		handler->getSelection().addToSelection(newSound);
 	}
     
     s->refreshPreloadSizes();
@@ -199,13 +199,17 @@ void SampleEditHandler::SampleEditingActions::pasteSelectedSounds(SampleEditHand
 	
 	checkMicPositionAmountBeforePasting(v, s);
 
-	for (int i = 0; i < v.getNumChildren(); i++)
 	{
-		const int index = s->getNumSounds();
+		ScopedLock sl(s->getMainController()->getSampleManager().getSamplerSoundLock());
 
-		s->addSamplerSound(v.getChild(i), index);
+		for (int i = 0; i < v.getNumChildren(); i++)
+		{
+			const int index = s->getNumSounds();
 
-		handler->getSelection().addToSelection(s->getSound(index));
+			auto newSound = s->addSamplerSound(v.getChild(i), index);
+
+			handler->getSelection().addToSelection(newSound);
+		}
 	}
 
 	s->refreshPreloadSizes();
@@ -277,13 +281,13 @@ void SampleEditHandler::SampleEditingActions::selectAllSamples(SampleEditHandler
 
 	int thisIndex = handler->getCurrentlyDisplayedRRGroup();  
 	
-	for (int i = 0; i < s->getNumSounds(); i++)
-	{
-		ModulatorSamplerSound* sound = s->getSound(i);
+	ModulatorSampler::SoundIterator sIter(s);
 
+	while (auto sound = sIter.getNextSound())
+	{
 		if (thisIndex == -1 || sound->getRRGroup() == thisIndex)
 		{
-			handler->getSelection().addToSelection(s->getSound(i));
+			handler->getSelection().addToSelection(sound);
 		}
 	}
 }
@@ -577,31 +581,37 @@ private:
 
 
 
-		const int numSounds = sampler->getNumSounds();
-
 		collections.clear();
 
-		for (int i = 0; i < numSounds; i++)
 		{
-			setProgress((double)i / (double)numSounds);
+			ModulatorSampler::SoundIterator sIter(sampler);
 
-			const String thisFileName = sampler->getSound(i)->getReferenceToSound()->getFileName();
+			int i = 0;
 
-            const bool matchesChannel = thisFileName.startsWith(channelNames[0] + separator) ||
-                                        thisFileName.contains(separator + channelNames[0] + separator) ||
-										thisFileName.contains(separator + channelNames[0] + ".") ||
-                                        thisFileName.endsWith(separator + channelNames[0]);
-            
-            
-			if (matchesChannel)
+			while (auto sound = sIter.getNextSound())
 			{
-				const String thisFileNameWithoutToken = thisFileName.replace(channelNames[0], "", true);
+				setProgress((double)i / (double)sampler->getNumSounds());
 
-				MultiMicCollection *newCollection = new MultiMicCollection(sampler->getSound(i), thisFileNameWithoutToken);
+				i++;
 
-				newCollection->mappingData.fillOtherProperties(sampler->getSound(i));
+				const String thisFileName = sound->getReferenceToSound()->getFileName();
 
-				collections.add(newCollection);
+				const bool matchesChannel = thisFileName.startsWith(channelNames[0] + separator) ||
+					thisFileName.contains(separator + channelNames[0] + separator) ||
+					thisFileName.contains(separator + channelNames[0] + ".") ||
+					thisFileName.endsWith(separator + channelNames[0]);
+
+
+				if (matchesChannel)
+				{
+					const String thisFileNameWithoutToken = thisFileName.replace(channelNames[0], "", true);
+
+					MultiMicCollection *newCollection = new MultiMicCollection(sound, thisFileNameWithoutToken);
+
+					newCollection->mappingData.fillOtherProperties(sound);
+
+					collections.add(newCollection);
+				}
 			}
 		}
 
@@ -609,34 +619,37 @@ private:
 
 		for (int channels = 1; channels < channelNames.size(); channels++)
 		{
-			for (int i = 0; i < numSounds; i++)
+			ModulatorSampler::SoundIterator sIter(sampler);
+
+			while (auto sound = sIter.getNextSound())
 			{
 				setProgress((double)channels / (double)channelNames.size());
 
-				const String thisFileName = sampler->getSound(i)->getReferenceToSound()->getFileName();
+				const String thisFileName = sound->getReferenceToSound()->getFileName();
 
-                const bool matchesChannel = thisFileName.startsWith(channelNames[channels] + separator) ||
-                                            thisFileName.contains(separator + channelNames[channels] + separator) ||
-											thisFileName.contains(separator + channelNames[channels] + ".") ||
-                                            thisFileName.endsWith(separator + channelNames[channels]);
-                
+				const bool matchesChannel = thisFileName.startsWith(channelNames[channels] + separator) ||
+					thisFileName.contains(separator + channelNames[channels] + separator) ||
+					thisFileName.contains(separator + channelNames[channels] + ".") ||
+					thisFileName.endsWith(separator + channelNames[channels]);
+
 				if (matchesChannel)
 				{
 					const String thisFileNameWithoutToken = thisFileName.replace(channelNames[channels], "", true);
 
-					for (int j = 0; j < collections.size(); j++)
+					for (int i = 0; i < collections.size(); i++)
 					{
-						if (collections[j]->fits(sampler->getSound(i), thisFileNameWithoutToken, mode))
+						if (collections[i]->fits(sound, thisFileNameWithoutToken, mode))
 						{
-							collections[j]->soundList.add(sampler->getSound(i)->getReferenceToSound());
+							collections[i]->soundList.add(sound->getReferenceToSound());
 
-							collections[j]->mappingData.fillOtherProperties(sampler->getSound(i));
+							collections[i]->mappingData.fillOtherProperties(sound);
 
 							break;
 						}
 					}
 				}
 			}
+
 		}
 
 		showStatusMessage("Checking Collection Sanity");
@@ -860,19 +873,19 @@ void SampleEditHandler::SampleEditingActions::extractToSingleMicSamples(SampleEd
 
 		Array<MappingData> singleData;
 
-		for (int i = 0; i < sampler->getNumSounds(); i++)
-		{
-			ModulatorSamplerSound *s = sampler->getSound(i);
+		ModulatorSampler::SoundIterator sIter(sampler);
 
-			for (int j = 0; j < s->getNumMultiMicSamples(); j++)
+		while (auto s = sIter.getNextSound())
+		{
+			for (int i = 0; i < s->getNumMultiMicSamples(); i++)
 			{
-				StreamingSamplerSound * single = s->getReferenceToSound(j);
+				StreamingSamplerSound * single = s->getReferenceToSound(i);
 				MappingData newData((int)s->getProperty(ModulatorSamplerSound::RootNote),
-									(int)s->getProperty(ModulatorSamplerSound::KeyLow),
-									(int)s->getProperty(ModulatorSamplerSound::KeyHigh),
-									(int)s->getProperty(ModulatorSamplerSound::VeloLow),
-									(int)s->getProperty(ModulatorSamplerSound::VeloHigh),
-									(int)s->getProperty(ModulatorSamplerSound::RRGroup));
+					(int)s->getProperty(ModulatorSamplerSound::KeyLow),
+					(int)s->getProperty(ModulatorSamplerSound::KeyHigh),
+					(int)s->getProperty(ModulatorSamplerSound::VeloLow),
+					(int)s->getProperty(ModulatorSamplerSound::VeloHigh),
+					(int)s->getProperty(ModulatorSamplerSound::RRGroup));
 
 				singleList.add(single);
 				singleData.add(newData);
@@ -1048,13 +1061,10 @@ bool SampleEditHandler::SampleEditingActions::metadataWasFound(ModulatorSampler*
 		sounds = handler->getSelection().getItemArray();
 	}
 
-	if (sounds.size() == 0)
-	{
-		for (int i = 0; i < sampler->getNumSounds(); i++)
-		{
-			sounds.add(sampler->getSound(i));
-		}
-	}
+	ModulatorSampler::SoundIterator sIter(sampler);
+
+	while (auto sound = sIter.getNextSound())
+		sounds.add(sound);
 
 	AudioFormatManager *afm = &(sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->afm);
 
@@ -1090,13 +1100,13 @@ void SampleEditHandler::SampleEditingActions::automapUsingMetadata(ModulatorSamp
 		sounds = handler->getSelection().getItemArray();
 	}
 
-	if (sounds.size() == 0)
+	ModulatorSampler::SoundIterator sIter(sampler);
+
+	while (auto sound = sIter.getNextSound())
 	{
-		for (int i = 0; i < sampler->getNumSounds(); i++)
-		{
-			sounds.add(sampler->getSound(i));
-		}
+		sounds.add(sound);
 	}
+
 
 	AudioFormatManager *afm = &(sampler->getMainController()->getSampleManager().getModulatorSamplerSoundPool()->afm);
 
