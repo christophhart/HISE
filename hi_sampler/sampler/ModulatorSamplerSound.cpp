@@ -794,19 +794,22 @@ bool ModulatorSamplerSoundPool::loadMonolithicData(const ValueTree &sampleMap, c
 
 void ModulatorSamplerSoundPool::clearUnreferencedSamples()
 {
-	jassert(mc->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::SampleLoadingThread);
-
-	MessageManagerLock mml;
-
-	for (int i = 0; i < pool.size(); i++)
+	if (pool.size() > 0)
 	{
-		if (pool[i]->getReferenceCount() == 2)
-		{
-			pool.remove(i--);
-		}
-	}
+		jassert(mc->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::SampleLoadingThread);
 
-	sendChangeMessage();
+		MessageManagerLock mml;
+
+		for (int i = 0; i < pool.size(); i++)
+		{
+			if (pool[i]->getReferenceCount() == 2)
+			{
+				pool.remove(i--);
+			}
+		}
+
+		sendChangeMessage();
+	}
 }
 
 int ModulatorSamplerSoundPool::getNumSoundsInPool() const noexcept
