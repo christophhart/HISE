@@ -224,7 +224,7 @@ void VoiceCpuBpmComponent::paintOverChildren(Graphics& g)
 {
 	if (preloadActive)
 	{
-		if (isOpaque()) g.fillAll(findColour(Slider::ColourIds::backgroundColourId));
+		g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourId));
 
 		g.setColour(Colour(0xFF444444));
 

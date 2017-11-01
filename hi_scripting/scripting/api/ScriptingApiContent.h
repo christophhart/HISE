@@ -745,7 +745,8 @@ public:
 	struct ScriptPanel : public ScriptComponent,
 						 public Timer,
 						 public GlobalSettingManager::ScaleFactorListener,
-						 public HiseJavascriptEngine::CyclicReferenceCheckBase
+						 public HiseJavascriptEngine::CyclicReferenceCheckBase,
+						 public MainController::SampleManager::PreloadListener
 	{
 		// ========================================================================================================
 
@@ -782,6 +783,8 @@ public:
 
 		bool isAutomatable() const override { return true; }
 
+		void preloadStateChanged(bool isPreloading) override;
+
 		void preRecompileCallback() override
 		{
 			stopTimer();
@@ -810,6 +813,9 @@ public:
 
 		/** Sets a timer callback. */
 		void setTimerCallback(var timerCallback);
+
+		/** Sets a loading callback that will be called when the preloading starts or finishes. */
+		void setLoadingCallback(var loadingCallback);
 
 		/** Disables the paint routine and just uses the given (clipped) image. */
 		void setImage(String imageName, int xOffset, int yOffset);
@@ -856,7 +862,7 @@ public:
 			return paintCanvas;
 		}
 
-		bool isUsingCustomPaintRoutine() const { return !paintRoutine.isUndefined(); }
+		bool isUsingCustomPaintRoutine() const { return HiseJavascriptEngine::isJavascriptFunction(paintRoutine); }
 
 		bool isUsingClippedFixedImage() const { return usesClippedFixedImage; };
 
@@ -965,9 +971,10 @@ public:
 
 		ReferenceCountedObjectPtr<ScriptingObjects::GraphicsObject> graphics;
 
-		var paintRoutine = var::undefined();
-		var mouseRoutine = var::undefined();
-		var timerRoutine = var::undefined();
+		var paintRoutine;
+		var mouseRoutine;
+		var timerRoutine;
+		var loadRoutine;
 
 		var dragBounds;
 

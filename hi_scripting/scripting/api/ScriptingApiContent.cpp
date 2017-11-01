@@ -2050,6 +2050,7 @@ struct ScriptingApi::Content::ScriptPanel::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setPaintRoutine);
 	API_VOID_METHOD_WRAPPER_3(ScriptPanel, setImage)
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setMouseCallback);
+	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setLoadingCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setTimerCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, startTimer);
 	API_VOID_METHOD_WRAPPER_0(ScriptPanel, stopTimer);
@@ -2065,7 +2066,11 @@ ScriptComponent(base, parentContent, panelName, x, y, width, height, 1),
 graphics(new ScriptingObjects::GraphicsObject(base, this)),
 repainter(this),
 repaintNotifier(this),
-controlSender(this, base)
+controlSender(this, base),
+loadRoutine(var()),
+paintRoutine(var()),
+mouseRoutine(var()),
+timerRoutine(var())
 {
 	ADD_SCRIPT_PROPERTY(i00, "borderSize");					ADD_AS_SLIDER_TYPE(0, 20, 1);
 	ADD_SCRIPT_PROPERTY(i01, "borderRadius");				ADD_AS_SLIDER_TYPE(0, 20, 1);
@@ -2108,6 +2113,7 @@ controlSender(this, base)
 	ADD_API_METHOD_1(setPaintRoutine);
 	ADD_API_METHOD_3(setImage);
 	ADD_API_METHOD_1(setMouseCallback);
+	ADD_API_METHOD_1(setLoadingCallback);
 	ADD_API_METHOD_1(setTimerCallback);
 	ADD_API_METHOD_0(changed);
 	ADD_API_METHOD_1(startTimer);
@@ -2124,6 +2130,11 @@ ScriptingApi::Content::ScriptPanel::~ScriptPanel()
 {
     stopTimer();
     
+	if (HiseJavascriptEngine::isJavascriptFunction(loadRoutine))
+	{
+		 getScriptProcessor()->getMainController_()->getSampleManager().removePreloadListener(this);
+	}
+
     loadedImages.clear();
     
     masterReference.clear();
@@ -2231,6 +2242,42 @@ void ScriptingApi::Content::ScriptPanel::internalRepaint()
 	//SEND_MESSAGE(this);
 }
 
+void ScriptingApi::Content::ScriptPanel::setLoadingCallback(var loadingCallback)
+{
+	if (HiseJavascriptEngine::isJavascriptFunction(loadingCallback))
+	{
+		getScriptProcessor()->getMainController_()->getSampleManager().addPreloadListener(this);
+		loadRoutine = loadingCallback;
+	}
+}
+
+
+void ScriptingApi::Content::ScriptPanel::preloadStateChanged(bool isPreloading)
+{
+	if (HiseJavascriptEngine::isJavascriptFunction(loadRoutine))
+	{
+		var thisObject(this);
+		var b(isPreloading);
+		var::NativeFunctionArgs args(thisObject, &b, 1);
+
+		Result r = Result::ok();
+
+		auto engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine();
+
+		if (engine != nullptr)
+		{
+			engine->maximumExecutionTime = RelativeTime(0.5);
+			engine->callExternalFunction(loadRoutine, args, &r);
+
+			if (r.failed())
+			{
+				debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
+			}
+		}
+	}
+}
+
+
 void ScriptingApi::Content::ScriptPanel::setMouseCallback(var mouseCallbackFunction)
 {
 	mouseRoutine = mouseCallbackFunction;
@@ -2238,7 +2285,7 @@ void ScriptingApi::Content::ScriptPanel::setMouseCallback(var mouseCallbackFunct
 
 void ScriptingApi::Content::ScriptPanel::mouseCallback(var mouseInformation)
 {
-	if (!mouseRoutine.isUndefined())
+	if (HiseJavascriptEngine::isJavascriptFunction(mouseRoutine))
 	{
 		var thisObject(this);
 
@@ -2266,7 +2313,7 @@ void ScriptingApi::Content::ScriptPanel::setTimerCallback(var timerCallback_)
 
 void ScriptingApi::Content::ScriptPanel::timerCallback()
 {
-	if (!timerRoutine.isUndefined())
+	if (HiseJavascriptEngine::isJavascriptFunction(timerRoutine))
 	{
 		var thisObject(this);
 		var::NativeFunctionArgs args(thisObject, nullptr, 0);

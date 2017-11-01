@@ -34,6 +34,12 @@
 
 
 //==============================================================================
+
+bool HiseJavascriptEngine::isJavascriptFunction(const var& v)
+{
+	return v.isObject() && dynamic_cast<HiseJavascriptEngine::RootObject::FunctionObject*>(v.getObject());
+}
+
 HiseJavascriptEngine::HiseJavascriptEngine(JavascriptProcessor *p) : maximumExecutionTime(15.0), root(new RootObject()), unneededScope(new DynamicObject())
 {
 	root->hiseSpecialData.setProcessor(p);

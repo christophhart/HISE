@@ -161,6 +161,15 @@ String ApiHelpers::createCodeToInsert(const ValueTree &method, const String &cla
 
 		return functionDef;
 	}
+	else if (name == "setLoadingCallback")
+	{
+		const String argumentName = "isPreloading";
+		String functionDef = className;
+		functionDef << "." << name + "(function(" << argumentName << ")\n";
+		functionDef << "{\n\t\n});\n";
+
+		return functionDef;
+	}
 	else if (name == "setTimerCallback")
 	{
 		const String argumentName = "";

@@ -202,7 +202,7 @@ public:
     
     bool isInitialising() const { return initialising; };
     
-	
+	static bool isJavascriptFunction(const var& v);
     
 	const ApiClass* getApiClass(const Identifier &className) const;
 
