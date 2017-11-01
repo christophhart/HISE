@@ -126,7 +126,7 @@ private:
 
 #define ADD(x) propIds.add(Identifier(#x));
 
-CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
+CustomSettingsWindow::CustomSettingsWindow(MainController* mc_, bool buildMenus) :
 	mc(mc_),
     font(GLOBAL_BOLD_FONT())
 {
@@ -216,7 +216,7 @@ CustomSettingsWindow::CustomSettingsWindow(MainController* mc_) :
 		setProperty(Properties::SampleLocation, false);
 	}
 
-	if(mc->isOnAir())
+	if(buildMenus)
 		rebuildMenus(true, true);
 
 	setSize(320, 400);

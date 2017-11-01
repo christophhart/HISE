@@ -42,12 +42,14 @@ CustomSettingsWindowPanel::CustomSettingsWindowPanel(FloatingTile* parent) :
 
 	addAndMakeVisible(viewport = new Viewport());
 
-	window = new CustomSettingsWindow(getMainController());
+	window = new CustomSettingsWindow(getMainController(), parent->shouldCreateChildComponents());
 
 	viewport->setViewedComponent(window);
 	viewport->setScrollBarsShown(true, false, true, false);
 
 	window->setFont(GLOBAL_BOLD_FONT());
+
+	
 }
 
 
@@ -82,7 +84,6 @@ var CustomSettingsWindowPanel::toDynamicObject() const
 	SET(CustomSettingsWindow::Properties::DebugMode);
 
 	storePropertyInObject(obj, (int)CustomSettingsWindow::Properties::ScaleFactorList, var(window->scaleFactorList));
-
 
 	return obj;
 }

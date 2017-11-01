@@ -744,6 +744,27 @@ bool FloatingTile::canDoLayoutMode() const
 	return getParentContainer()->isDynamic();
 }
 
+
+void FloatingTile::setAllowChildComponentCreation(bool shouldCreateChildComponents)
+{
+	jassert(getParentType() == ParentType::Root);
+
+	allowChildComponentCreation = shouldCreateChildComponents;
+}
+
+
+bool FloatingTile::shouldCreateChildComponents() const
+{
+	if (getParentType() == ParentType::Root)
+	{
+		return allowChildComponentCreation;
+	}
+	else
+	{
+		return getRootFloatingTile()->shouldCreateChildComponents();
+	}
+}
+
 bool FloatingTile::hasChildren() const
 {
 	return dynamic_cast<FloatingTileContainer*>(content.get()) != nullptr;

@@ -392,10 +392,63 @@ Component* FloatingPanelTemplates::createSamplerWorkspace(FloatingTile* rootTile
 	return nullptr;
 }
 
-var FloatingPanelTemplates::createSettingsWindow(MainController* /*mc*/)
+#define SET_FALSE(x) sData->setProperty(sw->getDefaultablePropertyId((int)x), false);
+
+var FloatingPanelTemplates::createSettingsWindow(MainController* mc)
 {
-	return var();
+	MessageManagerLock mm;
+	
+	ScopedPointer<FloatingTile> root = new FloatingTile(mc, nullptr);
+
+	root->setAllowChildComponentCreation(false);
+
+	FloatingInterfaceBuilder ib(root);
+
+	ib.setNewContentType<FloatingTabComponent>(0);
+
+	int tabs = 0;
+
+	ib.setDynamic(tabs, false);
+	ib.getContent<FloatingTabComponent>(tabs)->setPanelColour(FloatingTabComponent::PanelColourId::bgColour, Colour(0xff000000));
+	ib.getContent<FloatingTabComponent>(tabs)->setPanelColour(FloatingTabComponent::PanelColourId::itemColour1, Colour(0xff333333));
+
+	int settingsWindows = ib.addChild<CustomSettingsWindowPanel>(tabs);
+
+#if IS_STANDALONE_APP
+	ib.addChild<MidiSourcePanel>(tabs);
+#else
+	auto sw = ib.getContent<CustomSettingsWindowPanel>(settingsWindows);
+
+	DynamicObject::Ptr sData = new DynamicObject();
+
+	SET_FALSE(CustomSettingsWindowPanel::SpecialPanelIds::BufferSize);
+	SET_FALSE(CustomSettingsWindowPanel::SpecialPanelIds::SampleRate);
+	SET_FALSE(CustomSettingsWindowPanel::SpecialPanelIds::Output);
+	SET_FALSE(CustomSettingsWindowPanel::SpecialPanelIds::Driver);
+	SET_FALSE(CustomSettingsWindowPanel::SpecialPanelIds::Device);
+
+	var sd(sData);
+
+	ib.getContent<CustomSettingsWindowPanel>(settingsWindows)->fromDynamicObject(sd);
+#endif
+
+	ib.addChild<MidiChannelPanel>(tabs);
+
+	ib.getContent<FloatingTabComponent>(tabs)->setCurrentTabIndex(0);
+	
+#if IS_STANDALONE_APP
+	ib.setCustomName(tabs, "Settings", { "Audio Settings", "Midi Sources", "MIDI Channels" });
+#else
+	ib.setCustomName(tabs, "Settings", { "Plugin Settings", "MIDI Channels" });
+#endif
+
+
+	auto v = ib.getContent(0)->toDynamicObject();
+
+	return v;
 }
+
+#undef SET_FALSE
 
 Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTile)
 {

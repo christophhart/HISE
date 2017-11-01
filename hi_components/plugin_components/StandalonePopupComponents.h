@@ -250,7 +250,7 @@ public:
 		numProperties
 	};
 
-	CustomSettingsWindow(MainController* mc_);
+	CustomSettingsWindow(MainController* mc_, bool buildMenus=true);
 
 	~CustomSettingsWindow();
 

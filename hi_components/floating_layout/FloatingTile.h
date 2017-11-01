@@ -443,6 +443,9 @@ public:
 	const FloatingTileContainer* getParentContainer() const { return parentContainer; }
 	FloatingTileContainer* getParentContainer() { return parentContainer; }
 
+	void setAllowChildComponentCreation(bool shouldCreateChildComponents);
+	bool shouldCreateChildComponents() const;
+
 	bool hasChildren() const;
 
 	void enableSwapMode(bool shouldBeEnabled, FloatingTile* source);
@@ -560,6 +563,8 @@ private:
     bool deleteHover = false;
     
 	bool layoutModeEnabled = false;
+
+	bool allowChildComponentCreation = true;
 
 	int iconId = -1;
 

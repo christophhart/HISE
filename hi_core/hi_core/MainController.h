@@ -844,10 +844,7 @@ public:
 
 	void loadTypeFace(const String& fileName, const void* fontData, size_t fontDataSize);
 
-	void setIsOnAir(bool shouldBeOnAir) { onAir = shouldBeOnAir; }
-	bool isOnAir() const { return onAir; }
-
-
+	
 	void fillWithCustomFonts(StringArray &fontList);
 	juce::Typeface* getFont(const String &fontName) const;
 	ValueTree exportCustomFontsAsValueTree() const;
@@ -1117,8 +1114,6 @@ private:
 	bool skipCompilingAtPresetLoad = false;
 
 	bool replaceBufferContent = true;
-
-	bool onAir = true;
 
 	HiseEventBuffer masterEventBuffer;
 	EventIdHandler eventIdHandler;
