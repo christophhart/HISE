@@ -36,7 +36,6 @@
 #include "PanelWithProcessorConnection.cpp"
 
 #if USE_BACKEND
-#include "ScriptingPanelTypes.cpp"
 #include "SamplerPanelTypes.cpp"
 #include "BackendPanelTypes.cpp"
 #endif

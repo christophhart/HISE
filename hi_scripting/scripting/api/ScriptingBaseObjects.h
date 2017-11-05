@@ -61,16 +61,17 @@ public:
 	/** \internal Checks if the callback is made on the audio thread (check this with every API call that changes the MidiMessage. */
 	bool checkIfSynchronous(const Identifier &callbackName) const;
 
+
+	ProcessorWithScriptingContent *getScriptProcessor();
+	const ProcessorWithScriptingContent *getScriptProcessor() const;
+
+	Processor* getProcessor() { return thisAsProcessor; };
+	const Processor* getProcessor() const { return thisAsProcessor; }
+
 protected:
 
 	ScriptingObject(ProcessorWithScriptingContent *p);
 
-	ProcessorWithScriptingContent *getScriptProcessor(); 
-
-	const ProcessorWithScriptingContent *getScriptProcessor() const; 
-
-	Processor* getProcessor() { return thisAsProcessor; };
-	const Processor* getProcessor() const { return thisAsProcessor; }
 
 	/** \internal Prints a error in the script to the console. */
 	void reportScriptError(const String &errorMessage) const;

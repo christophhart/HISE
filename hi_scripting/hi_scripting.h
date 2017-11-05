@@ -93,6 +93,7 @@ using namespace juce;
 #include "scripting/api/ScriptingApiObjects.h"
 #include "scripting/api/ScriptingApi.h"
 #include "scripting/api/ScriptingApiContent.h"
+#include "scripting/api/ScriptComponentEditBroadcaster.h"
 
 #include "scripting/ScriptProcessor.h"
 #include "scripting/ScriptProcessorModules.h"
@@ -102,8 +103,11 @@ using namespace juce;
 #include "scripting/api/ScriptComponentWrappers.h"
 #include "scripting/components/ScriptingContentComponent.h"
 
+
+
 #if USE_BACKEND
 
+#include "scripting/components/ScriptingPanelTypes.h"
 #include "scripting/components/PopupEditors.h"
 #include "scripting/components/ScriptingCodeEditor.h"
 #include "scripting/components/AutoCompletePopup.h"

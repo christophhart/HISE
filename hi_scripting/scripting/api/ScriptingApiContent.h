@@ -73,6 +73,8 @@ public:
 		public AssignableObject,
 		public DebugableObject
 	{
+		using Ptr = ReferenceCountedObjectPtr<ScriptComponent>;
+
 		// ============================================================================================================
 
 		enum Properties
@@ -139,17 +141,13 @@ public:
 		int getNumIds() const;
 
 		const var getScriptObjectProperty(int p) const;
+
+		var getNonDefaultScriptObjectProperties() const;
+
 		String getScriptObjectPropertiesAsJSON() const;
 		DynamicObject *getScriptObjectProperties() const { return componentProperties.get(); }
 		bool isPropertyDeactivated(Identifier &id) const;
 		Rectangle<int> getPosition() const;
-
-		void setDefaultPosition(int newX, int newY)
-		{
-			setDefaultValue(Properties::x, newX);
-			setDefaultValue(Properties::y, newY);
-			sendSynchronousChangeMessage();
-		}
 
 		int getParentComponentIndex() const;
 
@@ -174,6 +172,14 @@ public:
 		}
 
 		ReferenceCountedObject* getCustomControlCallback();
+
+		/** This updates the internal content data object from the script processor.
+		*
+		*	You should never use this, but use ScriptComponentEditBroadcaster::setPropertyForSelection() instead.
+		*/
+		void updateContentPropertyInternal(int propertyId, const var& newValue);
+
+		void updateContentPropertyInternal(const Identifier& propertyId, const var& newValue);
 
 		void notifyChildComponents();
 
@@ -1377,5 +1383,7 @@ private:
 	// ================================================================================================================
 };
 
+using ScriptComponent = ScriptingApi::Content::ScriptComponent;
+using ScriptComponentSelection = ReferenceCountedArray<ScriptComponent>;
 
 #endif  // SCRIPTINGAPICONTENT_H_INCLUDED

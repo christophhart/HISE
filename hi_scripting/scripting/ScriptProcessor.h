@@ -92,9 +92,6 @@ public:
 		return restoredContentValues.getChildWithName(name).getProperty("value", var::undefined());
 	}
 
-	/** Checks if any of the properties was changed. */
-	ScriptingApi::Content::ScriptComponent *checkContentChangedInPropertyPanel();
-
 	void restoreContent(const ValueTree &restoredState);
 
 	void saveContent(ValueTree &savedState) const;
@@ -261,6 +258,8 @@ class JavascriptProcessor :	public FileChangeListener,
 {
 public:
 
+	
+
 	// ================================================================================================================
 
 	/** A named document that contains a callback function. */
@@ -369,6 +368,9 @@ public:
 	SnippetDocument *getSnippet(const Identifier& id);
 	const SnippetDocument *getSnippet(const Identifier& id) const;
 
+
+	
+
 	void saveScript(ValueTree &v) const;
 	void restoreScript(const ValueTree &v);
 
@@ -464,6 +466,31 @@ public:
 		breakpointListeners.removeAllInstancesOf(listenerToRemove);
 	}
 
+	var getContentProperties()
+	{
+		return contentPropertyData;
+	}
+
+	const var getContentProperties() const
+	{
+		return contentPropertyData;
+	}
+
+	void setContentProperties(const var& newProperties)
+	{
+		if (newProperties.getDynamicObject() == nullptr)
+			throw String("You have to use a object for the content properties.");
+
+		contentPropertyData = newProperties;
+	}
+	
+	void clearContentPropertiesDoc()
+	{
+		contentPropertyDocument = nullptr;
+	}
+
+	CodeDocument* createAndUpdateJsonDoc();
+
 protected:
 
 	void clearExternalWindows();
@@ -544,6 +571,15 @@ private:
 	bool callStackEnabled = false;
 
 	bool cycleReferenceCheckEnabled = false;
+
+	var contentPropertyData;
+
+	ScopedPointer<CodeDocument> contentPropertyDocument;
+
+	
+
+public:
+	void storeCurrentInterfaceStateInContentProperties();
 };
 
 

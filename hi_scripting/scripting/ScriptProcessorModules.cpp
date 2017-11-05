@@ -62,6 +62,8 @@ deferredUpdatePending(false)
 
 JavascriptMidiProcessor::~JavascriptMidiProcessor()
 {
+	getMainController()->getScriptComponentEditBroadcaster()->clearSelection(sendNotification);
+
 	clearExternalWindows();
 
 	onInitCallback = nullptr;

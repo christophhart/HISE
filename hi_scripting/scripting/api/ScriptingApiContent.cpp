@@ -281,7 +281,9 @@ void ScriptingApi::Content::ScriptComponent::restoreFromValueTree(const ValueTre
 void ScriptingApi::Content::ScriptComponent::doubleClickCallback(const MouseEvent &, Component* componentToNotify)
 {
 #if USE_BACKEND
-	getScriptProcessor()->getMainController_()->setEditedScriptComponent(this, componentToNotify);
+
+	jassertfalse;
+
 #else
 	ignoreUnused(componentToNotify);
 #endif
@@ -410,7 +412,8 @@ const var ScriptingApi::Content::ScriptComponent::getScriptObjectProperty(int p)
 	return componentProperties->getProperty(getIdFor(p));
 }
 
-String ScriptingApi::Content::ScriptComponent::getScriptObjectPropertiesAsJSON() const
+
+var ScriptingApi::Content::ScriptComponent::getNonDefaultScriptObjectProperties() const
 {
 	DynamicObject::Ptr clone = componentProperties->clone();
 
@@ -432,9 +435,15 @@ String ScriptingApi::Content::ScriptComponent::getScriptObjectPropertiesAsJSON()
 		}
 	}
 
-	var string = var(clone);
+	return var(clone);
+}
 
-	return JSON::toString(string, false);
+
+String ScriptingApi::Content::ScriptComponent::getScriptObjectPropertiesAsJSON() const
+{
+	auto v = getNonDefaultScriptObjectProperties();
+
+	return JSON::toString(v, false);
 }
 
 bool ScriptingApi::Content::ScriptComponent::isPropertyDeactivated(Identifier &id) const
@@ -784,6 +793,39 @@ bool ScriptingApi::Content::ScriptComponent::isConnectedToProcessor() const
 	const bool hasParameterConnection = connectedParameterIndex != -1;
 
 	return hasProcessorConnection && hasParameterConnection;
+}
+
+void ScriptingApi::Content::ScriptComponent::updateContentPropertyInternal(int propertyId, const var& newValue)
+{
+	updateContentPropertyInternal(getIdFor(propertyId), newValue);
+}
+
+void ScriptingApi::Content::ScriptComponent::updateContentPropertyInternal(const Identifier& propId, const var& newValue)
+{
+	if (auto jp = dynamic_cast<JavascriptProcessor*>(getProcessor()))
+	{
+		auto componentId = getName();
+		auto allVar = jp->getContentProperties();
+
+		if (auto allDyn = allVar.getDynamicObject())
+		{
+			auto allSet = allDyn->getProperties();
+
+			if (allSet.contains(componentId))
+			{
+				auto componentDyn = allSet.getVarPointer(componentId)->getDynamicObject();
+				componentDyn->getProperties().set(propId, newValue);
+			}
+			else
+				jassertfalse;
+		}
+		else
+		{
+			jassertfalse;
+		}
+
+		setScriptObjectPropertyWithChangeMessage(propId, newValue);
+	}
 }
 
 struct ScriptingApi::Content::ScriptSlider::Wrapper
@@ -2882,6 +2924,47 @@ template <class Subtype> Subtype* ScriptingApi::Content::addComponent(Identifier
 	components.add(t);
 
 	var savedValue = getScriptProcessor()->getSavedValue(name);
+
+	auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
+
+	if (jp != nullptr)
+	{
+		if (auto contentDataObject = jp->getContentProperties().getDynamicObject())
+		{
+			auto& contentDataSet = contentDataObject->getProperties();
+
+			if (!contentDataSet.contains(name))
+			{
+				// Make a copy of the properties so that they won't get changed when
+				// you call set(id, value);
+
+				//contentDataSet.set(name, var(t->getScriptObjectProperties()->clone()));
+
+				DynamicObject::Ptr newData = new DynamicObject();
+				newData->setProperty("type", t->getObjectName().toString());
+
+				contentDataSet.set(name, var(newData));
+			}
+			else
+			{
+				auto d = Identifier(contentDataSet[name]["type"]);
+
+				if (d == t->getObjectName())
+				{
+					t->setPropertiesFromJSON(contentDataSet[name]);
+				}
+				else
+				{
+					jassertfalse;
+				}
+
+				
+			}
+		}
+	}
+
+
+
 
 	if (!savedValue.isUndefined())
 	{

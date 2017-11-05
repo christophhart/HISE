@@ -786,18 +786,9 @@ public:
 
 	void setScriptWatchTable(ScriptWatchTable *table);
 	
-	void addScriptComponentEditPanel(ScriptComponentEditPanel *panel);
-
 	void setWatchedScriptProcessor(JavascriptProcessor *p, Component *editor);
 
-	/** Sets the ScriptComponent object to be edited in the main ScriptComponentEditPanel.
-	*
-	*	The pointer is a DynamicObject because of forward declaration issues, but make sure, you only call this method with ScriptComponent objects
-	*	(otherwise it will have no effect)
-	*/
-	void setEditedScriptComponent(ReferenceCountedObject* c, Component *listener);
 	
-	bool hasScriptEditingPanels();
 
 #endif
 

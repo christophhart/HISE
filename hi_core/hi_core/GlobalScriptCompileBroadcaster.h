@@ -36,6 +36,9 @@
 class JavascriptMidiProcessor;
 class JavascriptProcessor;
 
+class GlobalScriptCompileBroadcaster;
+
+
 
 /** A GlobalScriptCompileListener gets informed whenever a script was compiled.
 *
@@ -101,23 +104,19 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ExternalScriptFile)
 };
 
+class ScriptComponentEditBroadcaster;
 
 /** This class sends a message to all registered listeners. */
 class GlobalScriptCompileBroadcaster
 {
 public:
 
-	GlobalScriptCompileBroadcaster() :
-		timeOut(5.0),
-		useBackgroundCompiling(false),
-		enableGlobalRecompile(true)
-	{
-        createDummyLoader();
-    }
+	GlobalScriptCompileBroadcaster();
 
 	virtual ~GlobalScriptCompileBroadcaster()
 	{
         dummyLibraryLoader = nullptr;
+		globalEditBroadcaster = nullptr;
     
 		clearIncludedFiles();
     };
@@ -174,8 +173,20 @@ public:
 		includedFiles.clear();
 	}
 
+	ScriptComponentEditBroadcaster* getScriptComponentEditBroadcaster()
+	{
+		return globalEditBroadcaster;
+	}
+
+	const ScriptComponentEditBroadcaster* getScriptComponentEditBroadcaster() const
+	{
+		return globalEditBroadcaster;
+	}
+
 private:
 	
+	ScopedPointer<ScriptComponentEditBroadcaster> globalEditBroadcaster;
+
     void createDummyLoader();
     
 	bool useBackgroundCompiling;
@@ -192,7 +203,6 @@ private:
     
 	ReferenceCountedArray<ExternalScriptFile> includedFiles;
 
-    
 	Array<WeakReference<GlobalScriptCompileListener>> listenerListStart;
 	Array<WeakReference<GlobalScriptCompileListener>> listenerListEnd;
 };

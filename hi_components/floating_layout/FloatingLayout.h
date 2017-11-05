@@ -45,7 +45,6 @@ class FloatingTile;
 #include "PanelWithProcessorConnection.h"
 
 #if USE_BACKEND
-#include "ScriptingPanelTypes.h"
 #include "SamplerPanelTypes.h"
 #include "BackendPanelTypes.h"
 #endif

@@ -157,11 +157,16 @@ public:
 
 	class Editor : public Component,
 				   public ComboBox::Listener,
-				   public Button::Listener
+				   public Button::Listener,
+				   public ScriptComponentEditListener
 	{
 	public:
 
 		Editor(Processor* p);
+
+		void scriptComponentSelectionChanged() override;
+
+		void scriptComponentPropertyChanged(ScriptComponent* sc, Identifier idThatWasChanged, const var& newValue) override;
 
 		void resized() override;
 
@@ -251,10 +256,7 @@ public:
 
 	Component* createContentComponent(int /*index*/) override;
 
-	void fillModuleList(StringArray& moduleList) override
-	{
-		fillModuleListWithType<JavascriptProcessor>(moduleList);
-	}
+	void fillModuleList(StringArray& moduleList) override;
 
 private:
 

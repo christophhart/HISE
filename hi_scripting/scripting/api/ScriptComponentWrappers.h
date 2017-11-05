@@ -264,24 +264,6 @@ private:
 
 };
 
-class ScriptComponentEditListener
-{
-public:
-
-	virtual ~ScriptComponentEditListener()
-	{
-		masterReference.clear();
-	}
-
-	virtual void scriptComponentChanged(ReferenceCountedObject *componentThatWasChanged, Identifier idThatWasChanged) = 0;
-
-private:
-
-	friend class WeakReference<ScriptComponentEditListener>;
-	WeakReference<ScriptComponentEditListener>::Master masterReference;
-
-};
-
 
 class ScriptCreatedComponentWrappers
 {

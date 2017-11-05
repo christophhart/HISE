@@ -30,6 +30,18 @@
 *   ===========================================================================
 */
 
+
+GlobalScriptCompileBroadcaster::GlobalScriptCompileBroadcaster() :
+	timeOut(5.0),
+	useBackgroundCompiling(false),
+	enableGlobalRecompile(true),
+	globalEditBroadcaster(new ScriptComponentEditBroadcaster())
+{
+	createDummyLoader();
+}
+
+
+
 void GlobalScriptCompileBroadcaster::sendScriptCompileMessage(JavascriptProcessor *processorThatWasCompiled)
 {
 	if (!enableGlobalRecompile) return;

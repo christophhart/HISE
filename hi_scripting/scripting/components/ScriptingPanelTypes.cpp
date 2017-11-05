@@ -52,11 +52,23 @@ Component* CodeEditorPanel::createContentComponent(int index)
 {
 	auto p = dynamic_cast<JavascriptProcessor*>(getProcessor());
 
+	const int numSnippets = p->getNumSnippets();
+	const int numFiles = p->getNumWatchedFiles();
+
 	const bool isCallback = index < p->getNumSnippets();
+
+	const bool isJSONData = index == (numSnippets + numFiles);
 
 	if (isCallback)
 	{
 		auto pe = new PopupIncludeEditor(p, p->getSnippet(index)->getCallbackName());
+		pe->addMouseListener(this, true);
+		getProcessor()->getMainController()->setLastActiveEditor(pe->getEditor(), CodeDocument::Position());
+		return pe;
+	}
+	else if (isJSONData)
+	{
+		auto pe = new PopupIncludeEditor(p, Identifier("JsonData"));
 		pe->addMouseListener(this, true);
 		getProcessor()->getMainController()->setLastActiveEditor(pe->getEditor(), CodeDocument::Position());
 		return pe;
@@ -116,7 +128,7 @@ var CodeEditorPanel::getAdditionalUndoInformation() const
 {
 	auto pe = getContent<PopupIncludeEditor>();
 
-	if (pe != nullptr)
+	if (pe != nullptr && pe->getEditor() != nullptr)
 	{
 		
 
@@ -164,6 +176,8 @@ void CodeEditorPanel::fillIndexList(StringArray& indexList)
 		{
 			indexList.add(p->getWatchedFile(i).getFileName());
 		}
+
+		indexList.add("UI JSON Data");
 	}
 }
 
@@ -290,8 +304,14 @@ Component* ScriptContentPanel::createContentComponent(int /*index*/)
 	return new Editor(getConnectedProcessor());
 }
 
+
+void ScriptContentPanel::fillModuleList(StringArray& moduleList)
+{
+	fillModuleListWithType<JavascriptProcessor>(moduleList);
+}
+
 struct ScriptContentPanel::Canvas : public ScriptEditHandler,
-	public Component
+									public Component
 {
 
 	Canvas(Processor* p) :
@@ -410,7 +430,8 @@ namespace EditorIcons
 };
 
 
-ScriptContentPanel::Editor::Editor(Processor* p)
+ScriptContentPanel::Editor::Editor(Processor* p):
+	ScriptComponentEditListener(p->getMainController())
 {
 	addAndMakeVisible(zoomSelector = new ComboBox("Zoom"));
 	zoomSelector->addListener(this);
@@ -453,6 +474,17 @@ ScriptContentPanel::Editor::Editor(Processor* p)
 	redoButton->setTooltip("Redo last item change");
 }
 
+
+void ScriptContentPanel::Editor::scriptComponentSelectionChanged()
+{
+
+}
+
+
+void ScriptContentPanel::Editor::scriptComponentPropertyChanged(ScriptComponent* sc, Identifier idThatWasChanged, const var& newValue)
+{
+
+}
 
 void ScriptContentPanel::Editor::resized()
 {
@@ -525,19 +557,21 @@ void ScriptContentPanel::Editor::buttonClicked(Button* b)
 		JavascriptCodeEditor::Helpers::applyChangesFromActiveEditor(jsp);
 
 		jsp->compileScript();
-		findParentComponentOfClass<PanelWithProcessorConnection>()->getConnectedProcessor()->getMainController()->setEditedScriptComponent(nullptr, dynamic_cast<Canvas*>(viewport->getViewedComponent()));
+		
+		getScriptComponentEditBroadcaster()->clearSelection();
+
 	}
 	if (b == cancelButton)
 	{
-		findParentComponentOfClass<PanelWithProcessorConnection>()->getConnectedProcessor()->getMainController()->setEditedScriptComponent(nullptr, dynamic_cast<Canvas*>(viewport->getViewedComponent()));
+		getScriptComponentEditBroadcaster()->clearSelection();
 	}
 	if (b == undoButton)
 	{
-		overlay->dragger->undo();
+		getScriptComponentEditBroadcaster()->getUndoManager().undo();
 	}
 	if (b == redoButton)
 	{
-		overlay->dragger->redo();
+		getScriptComponentEditBroadcaster()->getUndoManager().redo();
 	}
 }
 

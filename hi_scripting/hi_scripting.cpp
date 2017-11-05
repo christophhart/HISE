@@ -65,6 +65,7 @@ namespace hise
 #include "scripting/api/XmlApi.cpp"
 #include "scripting/api/ScriptingApiObjects.cpp"
 #include "scripting/api/ScriptingApi.cpp"
+#include "scripting/api/ScriptComponentEditBroadcaster.cpp"
 #include "scripting/api/ScriptingApiWrappers.cpp"
 #include "scripting/api/ScriptingApiContent.cpp"
 
@@ -83,6 +84,7 @@ namespace hise
 
 #if USE_BACKEND
 
+#include "scripting/components/ScriptingPanelTypes.cpp"
 #include "scripting/components/PopupEditors.cpp"
 #include "scripting/components/AutoCompletePopup.cpp"
 #include "scripting/components/ScriptingCodeEditorHelpers.cpp"
