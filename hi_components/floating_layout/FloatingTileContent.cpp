@@ -495,7 +495,7 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 	const int keyboard = ib.addChild<MidiKeyboardPanel>(interfaceHorizontal);
 	ib.getPanel(keyboard)->getLayoutData().setForceFoldButton(true);
 
-	ib.addChild<GenericPanel<ScriptComponentEditPanel>>(interfaceDesigner);
+	ib.addChild<ScriptComponentEditPanel::Panel>(interfaceDesigner);
 
 	ib.setSizes(interfaceHorizontal, { -0.7, -0.3, 72.0 });
 	ib.setCustomName(interfaceHorizontal, "", { "Interface", "onInit Callback", "" });
@@ -589,7 +589,7 @@ Component* FloatingPanelTemplates::createMainPanel(FloatingTile* rootTile)
 	const int scriptWatchTable = ib.addChild<ScriptWatchTablePanel>(rightColumn);
 	ib.getPanel(scriptWatchTable)->setCloseTogglesVisibility(true);
 
-	const int editPanel = ib.addChild<GenericPanel<ScriptComponentEditPanel>>(rightColumn);
+	const int editPanel = ib.addChild<ScriptComponentEditPanel::Panel>(rightColumn);
 	ib.getPanel(editPanel)->setCloseTogglesVisibility(true);
 
 	const int plotter = ib.addChild<PlotterPanel>(rightColumn);

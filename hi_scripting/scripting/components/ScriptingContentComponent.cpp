@@ -499,6 +499,28 @@ ScriptingApi::Content::ScriptComponent* ScriptContentComponent::getScriptCompone
 	return nullptr;
 }
 
+Component* ScriptContentComponent::getComponentFor(ScriptingApi::Content::ScriptComponent* sc)
+{
+	if (sc == nullptr)
+		return nullptr;
+
+	if (contentData != nullptr)
+	{
+		auto index = contentData->getComponentIndex(sc->getName());
+
+		if (index != -1)
+		{
+			auto cw = componentWrappers[index];
+			if (cw != nullptr)
+			{
+				return cw->getComponent();
+			}
+		}
+	}
+
+	return nullptr;
+}
+
 void ScriptContentComponent::getScriptComponentsFor(Array<ScriptingApi::Content::ScriptComponent*> &arrayToFill, Point<int> pos)
 {
 	for (int i = componentWrappers.size() - 1; i >= 0; --i)
@@ -510,6 +532,31 @@ void ScriptContentComponent::getScriptComponentsFor(Array<ScriptingApi::Content:
 		if (getLocalArea(parentOfC, c->getBounds()).contains(pos))
 		{
 			arrayToFill.add(contentData->getComponent(i));
+		}
+	}
+}
+
+void ScriptContentComponent::getScriptComponentsFor(Array<ScriptingApi::Content::ScriptComponent*> &arrayToFill, const Rectangle<int> area)
+{
+	arrayToFill.clear();
+
+	for (int i = componentWrappers.size() - 1; i >= 0; --i)
+	{
+		auto sc = contentData->getComponent(i);
+
+		Component* c = componentWrappers[i]->getComponent();
+
+		if (sc == nullptr || !sc->isShowing())
+			continue;
+
+		Component* parentOfC = c->getParentComponent();
+
+		auto cBounds = getLocalArea(parentOfC, c->getBounds());
+
+
+		if (area.contains(cBounds))
+		{
+			arrayToFill.addIfNotAlreadyThere(sc);
 		}
 	}
 }

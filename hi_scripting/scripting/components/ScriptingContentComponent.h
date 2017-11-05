@@ -149,7 +149,11 @@ public:
 
 	ScriptingApi::Content::ScriptComponent* getScriptComponentFor(Component* component);
 
+	Component* getComponentFor(ScriptingApi::Content::ScriptComponent* sc);
+
 	void getScriptComponentsFor(Array<ScriptingApi::Content::ScriptComponent*> &arrayToFill, Point<int> pos);
+
+	void getScriptComponentsFor(Array<ScriptingApi::Content::ScriptComponent*> &arrayToFill, const Rectangle<int> area);
 
 	void refreshMacroIndexes();
 

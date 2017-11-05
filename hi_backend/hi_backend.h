@@ -63,6 +63,8 @@ using namespace juce;
 #include "backend/debug_components/SamplePoolTable.h"
 #include "backend/debug_components/MacroEditTable.h"
 #include "backend/debug_components/ScriptWatchTable.h"
+#include "backend/debug_components/ScriptComponentEditPanel.h"
+#include "backend/debug_components/ScriptComponentPropertyPanels.h"
 #include "backend/debug_components/ProcessorCollection.h"
 #include "backend/debug_components/ApiBrowser.h"
 #include "backend/debug_components/ModuleBrowser.h"

@@ -55,9 +55,26 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor* s, const Identifier 
 	callback(callback_),
 	tokeniser(new JavascriptTokeniser())
 {
-	addAndMakeVisible(editor = new JavascriptCodeEditor(*sp->getSnippet(callback_), tokeniser, s, callback));
+	static const Identifier jsonId("JsonData");
+
+	if (callback == jsonId)
+	{
+		addAndMakeVisible(editor = new JavascriptCodeEditor(*sp->createAndUpdateJsonDoc(), tokeniser, s, callback));
+	}
+	else
+	{
+		addAndMakeVisible(editor = new JavascriptCodeEditor(*sp->getSnippet(callback_), tokeniser, s, callback));
+	}
+
+	
 
 	addButtonAndCompileLabel();
+
+	if (callback == jsonId)
+	{
+		compileButton->setButtonText("Apply Changes");
+	}
+
 }
 
 void PopupIncludeEditor::addButtonAndCompileLabel()
@@ -154,12 +171,54 @@ void PopupIncludeEditor::compileInternal()
 		externalFile->getFileDocument().setSavePoint();
 	}
 
+	if (callback == Identifier("JsonData") &&
+		PresetHandler::showYesNoWindow("Apply raw UI JSON change", "You've changed the global JSON object via the code editor. Do you want to apply these changes?\nAny other changes you've made since then will be discarded!", PresetHandler::IconType::Question))
+	{
+		var newData;
+
+		Result r = JSON::parse(editor->getDocument().getAllContent().fromFirstOccurrenceOf("{", true, true), newData);
+
+		if (r.wasOk() && newData.isObject())
+		{
+			editor = nullptr;
+
+			sp->setContentProperties(newData);
+			sp->clearContentPropertiesDoc();
+
+
+
+			auto& tmp = sp;
+			auto f = [tmp]()
+			{
+				tmp->compileScript();
+			};
+
+			new DelayedFunctionCaller(f, 100);
+
+			auto panel = findParentComponentOfClass<CodeEditorPanel>();
+			
+			panel->setContentWithUndo(dynamic_cast<Processor*>(sp), 0);
+
+
+			return;
+		}
+		else
+		{
+			lastCompileOk = false;
+			resultLabel->setText(r.getErrorMessage());
+			resultLabel->setColour(TextEditor::ColourIds::backgroundColourId, Colours::white);
+			resultLabel->setColour(TextEditor::ColourIds::textColourId, Colours::white);
+			startTimer(200);
+			return;
+		}
+	}
+	
 	sp->compileScript();
 	
 	lastCompileOk = sp->wasLastCompileOK();
-
 	resultLabel->setColour(TextEditor::ColourIds::backgroundColourId, Colours::white);
 	resultLabel->setColour(TextEditor::ColourIds::textColourId, Colours::white);
-
 	startTimer(200);
+
+	
 }

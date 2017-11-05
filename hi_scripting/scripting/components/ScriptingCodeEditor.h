@@ -131,6 +131,93 @@ public:
 
 	struct Helpers
 	{
+		static String getRegexForUIDefinition(ScriptComponent* sc)
+		{
+			const String regexMonster = "(Content\\.add\\w+\\s*\\(\\s*\\\"(" + sc->getName().toString() +
+				")\\\"\\s*,\\s*)(-?\\d+)(\\s*,\\s*)(-?\\d+)(\\s*\\);)|([cC]reate\\w*\\s*\\(\\s*\\\"(" + sc->getName().toString() +
+				")\\\"\\s*,\\s*)(-?\\d+)(\\s*,\\s*)(-?\\d+)(\\s*.*\\);)";
+
+			return regexMonster;
+		}
+
+		static CodeDocument* getPositionOfUIDefinition(ScriptComponent* sc, CodeDocument::Position& position)
+		{
+			auto regexMonster = getRegexForUIDefinition(sc);
+
+			auto p = sc->getScriptProcessor();
+
+			CodeDocument* doc = gotoAndReturnDocumentWithDefinition(dynamic_cast<Processor*>(p), sc);
+
+			if (doc == nullptr)
+			{
+				jassertfalse;
+				return nullptr;
+			}
+
+			String allText = doc->getAllContent();
+
+			StringArray matches = RegexFunctions::getFirstMatch(regexMonster, allText);
+
+			const bool isContentDefinition = matches[1].isNotEmpty();
+			const bool isInlineDefinition = matches[7].isNotEmpty();
+
+			if ((isContentDefinition || isInlineDefinition) && matches.size() > 12)
+			{
+				const String oldDefinition = matches[0]; // not the whole line
+
+				const int charIndex = allText.indexOf(oldDefinition);
+
+				position = CodeDocument::Position(*doc, charIndex);
+				position.setPositionMaintained(true);
+				return doc;
+			}
+
+			jassertfalse;
+			return nullptr;
+		}
+
+		static void changeXYOfUIDefinition(ScriptComponent* sc, CodeDocument* doc, const CodeDocument::Position& definitionLine, int newX, int newY)
+		{
+			auto regexMonster = getRegexForUIDefinition(sc);
+			
+			auto oldLine = definitionLine.getLineText();
+
+			StringArray matches = RegexFunctions::getFirstMatch(regexMonster, oldLine);
+
+			const bool isContentDefinition = matches[1].isNotEmpty();
+			const bool isInlineDefinition = matches[7].isNotEmpty();
+
+			if ((isContentDefinition || isInlineDefinition) && matches.size() > 12)
+			{
+				const String oldDefinition = matches[0];
+
+				jassert(oldLine.contains(oldDefinition));
+
+				String replaceDefinition;
+
+				if (isContentDefinition)
+				{
+					replaceDefinition << matches[1] << String(newX) << matches[4] << String(newY) << matches[6];
+				}
+				else
+				{
+
+					replaceDefinition << matches[7] << String(newX) << matches[10] << String(newY) << matches[12];
+				}
+
+				CodeDocument::Position startPos(*doc, 0);
+				CodeDocument::Position endPos(*doc, 0);
+
+				doc->findLineContaining(definitionLine, startPos, endPos);
+
+				auto replaceLine = oldLine.replace(oldDefinition, replaceDefinition);
+
+				doc->replaceSection(startPos.getPosition(), endPos.getPosition(), replaceLine);
+			}
+		}
+
+
+
 		static String getLeadingWhitespace(String line);
 		static int getBraceCount(String::CharPointerType line);
 		static bool getIndentForCurrentBlock(CodeDocument::Position pos, const String& tab,
