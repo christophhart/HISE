@@ -3550,6 +3550,8 @@ void ScriptingApi::Content::Helpers::duplicateSelection(Content* c, ReferenceCou
 {
 	c->allowGuiCreation = true;
 
+	ReferenceCountedArray<ScriptComponent> newComponents;
+
 	for (auto sc : selection)
 	{
 		int newX = sc->getPosition().getX() + deltaX;
@@ -3557,38 +3559,32 @@ void ScriptingApi::Content::Helpers::duplicateSelection(Content* c, ReferenceCou
 
 		auto newId = getUniqueIdentifier(c, sc->getName().toString());
 
-		ScopedPointer<ScriptComponent> nc = createComponentFromId(c, sc->getObjectName(), newId, newX, newY, 100, 100);
+		auto p = sc->getNonDefaultScriptObjectProperties();
+		auto& set = p.getDynamicObject()->getProperties();
 
-		if (nc != nullptr)
-		{
-			auto p = sc->getNonDefaultScriptObjectProperties();
-			auto set = p.getDynamicObject()->getProperties();
-			
-			set.set("x", newX);
-			set.set("y", newY);
+		set.set("x", newX);
+		set.set("y", newY);
 
-			ValueTree child("Component");
-			child.setProperty("type", sc->getObjectName().toString(), nullptr);
-			child.setProperty("id", newId.toString(), nullptr);
+		ValueTree child("Component");
+		
+		ValueTreeConverters::copyDynamicObjectPropertiesToValueTree(child, p);
 
-			for (int i = 0; i < set.size(); i++)
-			{
-				child.setProperty(set.getName(i), set.getValueAt(i), nullptr);
-			}
+		child.setProperty("id", newId.toString(), nullptr);
+		child.setProperty("type", sc->getObjectName().toString(), nullptr);
 
-			
-			nc->setPropertiesFromJSON(p);
-			
-			auto insertIndex = c->components.indexOf(sc) + 1;
 
-			c->components.insert(insertIndex, nc.release());
-			c->contentPropertyData.addChild(child, insertIndex, nullptr);
-		}
+		auto newComponent = c->addComponentFromValueTree(child);
+
+		newComponents.add(newComponent);
 	}
 
 	c->allowGuiCreation = false;
 
 	dynamic_cast<JavascriptProcessor*>(c->getScriptProcessor())->compileScript();
+
+	auto b = c->getProcessor()->getMainController()->getScriptComponentEditBroadcaster();
+
+	b->setSelection(newComponents, sendNotification);
 }
 
 

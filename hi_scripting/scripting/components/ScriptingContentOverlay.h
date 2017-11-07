@@ -186,9 +186,11 @@ public:
 			resizer->setBounds(getWidth() - 10, getHeight() - 10, 10, 10);
 		}
 
-		void moveOverlayedComponent(int newX, int newY);
+		void moveOverlayedComponent(int deltaX, int deltaY);
 
 		void resizeOverlayedComponent(int newWidth, int newHeight);
+
+		void duplicateSelection(int deltaX, int deltaY);
 
 	private:
 

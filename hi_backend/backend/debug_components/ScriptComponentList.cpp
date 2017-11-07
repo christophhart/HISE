@@ -75,6 +75,30 @@ void ScriptComponentList::buttonClicked(Button* b)
 	rebuildModuleList(true);
 }
 
+void getChildDepth(ScriptComponent* sc, int& depth)
+{
+	int index = sc->getParentComponentIndex();
+
+	if (index != -1)
+	{
+		auto child = sc->parent->getComponent(index);
+
+		if (depth > 32)
+		{
+			jassertfalse;
+			depth = 0;
+			return;
+		}
+
+		if (child != nullptr)
+		{
+			depth++;
+			getChildDepth(child, depth);
+		}
+	}
+}
+
+
 ScriptComponentList::ScriptComponentItem::ScriptComponentItem(ScriptComponent* c_) :
 	Item(c_->getName().toString().toLowerCase()),
 	c(c_)
@@ -83,22 +107,20 @@ ScriptComponentList::ScriptComponentItem::ScriptComponentItem(ScriptComponent* c
 
 	c->addChangeListener(this);
 
-	Colour co = Colours::white.withAlpha(c->isShowing() ? 1.0f : 0.4f);
+	
+	
 
-	s.setJustification(Justification::centredLeft);
+	id = c->getName().toString();
 
-	s.append(c->getName().toString(), GLOBAL_BOLD_FONT(), co);
+	typeOffset = GLOBAL_BOLD_FONT().getStringWidthFloat(id) + 5.0f;
 
-	co = co.withMultipliedBrightness(0.4f);
+	typeName = " (" + c->getObjectName().toString() + ")";
+	typeName = typeName.replace("Scripting", "");
+	typeName = typeName.replace("Scripted", "");
+	typeName = typeName.replace("Script", "");
 
-	String x = " (" + c->getObjectName().toString() + ")";
-	x = x.replace("Scripting", "");
-	x = x.replace("Scripted", "");
-	x = x.replace("Script", "");
-
-
-	s.append(x, GLOBAL_FONT(), co);
-
+	getChildDepth(c, childDepth);
+	
 	setSize(380 - 16 - 8 - 24, ITEM_HEIGHT);
 }
 
@@ -128,6 +150,7 @@ void ScriptComponentList::ScriptComponentItem::mouseDoubleClick(const MouseEvent
 
 }
 
+
 void ScriptComponentList::ScriptComponentItem::paint(Graphics& g)
 {
 	if (getWidth() <= 0)
@@ -150,9 +173,9 @@ void ScriptComponentList::ScriptComponentItem::paint(Graphics& g)
 
 	auto b = findParentComponentOfClass<ScriptComponentList>()->getScriptComponentEditBroadcaster();
 
-	co = b->isSelected(c) ? Colour(SIGNAL_COLOUR) : Colour(0xFF999999);
+	co = b->isSelected(c) ? Colour(SIGNAL_COLOUR) : Colour(0xFF666666);
 
-	co = co.withAlpha(isMouseOver(true) ? 1.0f : 0.6f);
+	co = co.withAlpha(isMouseOver(true) ? 1.0f : 0.3f);
 
 	g.setColour(co);
 
@@ -160,9 +183,43 @@ void ScriptComponentList::ScriptComponentItem::paint(Graphics& g)
 
 	
     
-    s.draw(g, Rectangle<float>(10.0f, 0.0f, (float)getWidth(), (float)ITEM_HEIGHT));
-    
+	g.setColour(Colours::black.withAlpha(0.1f));
+
+	g.fillRect(3, 3, (int)h - 6, (int)h - 6);
+
+	static const Identifier sip("saveInPreset");
+
+	const bool saveInPreset = c->getScriptObjectProperties()->getProperty(sip);
 	
+	Colour c3 = saveInPreset ? Colours::green : Colours::red;
+
+	c3 = c3.withAlpha(JUCE_LIVE_CONSTANT_OFF(0.3f));
+
+	g.setColour(c3);
+
+	const float offset = JUCE_LIVE_CONSTANT_OFF(8.0f);
+	Rectangle<float> circle(offset, offset, (float)ITEM_HEIGHT - 2.0f * offset, (float)ITEM_HEIGHT - 2.0f * offset);
+
+	g.fillEllipse(circle);
+
+	g.drawEllipse(circle, 1.0f);
+
+	g.setOpacity(c->isShowing() ? 1.0f : 0.4f);
+
+	Colour textColour = Colours::white.withAlpha(c->isShowing() ? 1.0f : 0.4f);
+
+	g.setColour(textColour);
+	g.setFont(GLOBAL_BOLD_FONT());
+	
+	float textOffset = h + 2.0f + (float)(childDepth * 10);
+	
+	g.drawText(id, textOffset, 0, typeOffset, ITEM_HEIGHT, Justification::centredLeft);
+
+	g.setColour(textColour.withMultipliedBrightness(0.4f));
+	g.setFont(GLOBAL_FONT());
+
+	g.drawText(id, textOffset + typeOffset, 0, getWidth() - (textOffset + typeOffset), ITEM_HEIGHT, Justification::centredLeft);
+
 }
 
 void ScriptComponentList::ScriptComponentItem::mouseDown(const MouseEvent& event)

@@ -103,6 +103,15 @@ void ScriptComponentEditBroadcaster::setSelection(ScriptComponent* componentToSe
 	
 }
 
+void ScriptComponentEditBroadcaster::setSelection(ScriptComponentSelection newSelection, NotificationType notifyListeners /*= sendNotification*/)
+{
+	currentSelection.swapWith(newSelection);
+
+	if (notifyListeners)
+		sendSelectionChangeMessage();
+	
+}
+
 void ScriptComponentEditBroadcaster::updateSelectionBasedOnModifier(ScriptComponent* componentToUpdate, const ModifierKeys& mods, NotificationType notifyListeners /*= sendNotification*/)
 {
 	if (mods.isCommandDown())

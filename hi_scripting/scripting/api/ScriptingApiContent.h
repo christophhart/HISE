@@ -1347,6 +1347,24 @@ public:
 		return contentPropertyData;
 	}
 
+	ScriptComponent* addComponentFromValueTree(const ValueTree& child)
+	{
+		auto sc = Helpers::createComponentFromId(this, child.getProperty("type").toString(), child.getProperty("id").toString(), 0, 0, 100, 100);
+
+		DynamicObject* dyn = new DynamicObject();
+		var d(dyn);
+
+		ValueTreeConverters::copyValueTreePropertiesToDynamicObject(child, d);
+
+		components.add(sc);
+
+		sc->setPropertiesFromJSON(d);
+
+		contentPropertyData.addChild(child, -1, nullptr);
+
+		return sc;
+	}
+
 	void createComponentsFromValueTree(const ValueTree& newProperties)
 	{
 		contentPropertyData = newProperties;
@@ -1358,15 +1376,7 @@ public:
 		for (int i = 0; i < contentPropertyData.getNumChildren(); i++)
 		{
 			auto child = contentPropertyData.getChild(i);
-
-			auto sc = Helpers::createComponentFromId(this, child.getProperty("type").toString(), child.getProperty("id").toString(), 0, 0, 100, 100);
-
-			DynamicObject* dyn = sc->getScriptObjectProperties();
-
-			var d(dyn);
-			ValueTreeConverters::copyValueTreePropertiesToDynamicObject(child, d);
-
-			components.add(sc);
+			addComponentFromValueTree(child);
 		}
 	}
 

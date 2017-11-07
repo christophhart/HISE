@@ -798,7 +798,7 @@ void ScriptingContentOverlay::Dragger::mouseDown(const MouseEvent& e)
 	{
 		snapShot = draggedComponent->createComponentSnapshot(draggedComponent->getLocalBounds());
 
-		startBounds = getLocalBounds();
+		startBounds = getBounds();
 
 		dragger.startDraggingComponent(this, e);
 	}
@@ -824,27 +824,18 @@ void ScriptingContentOverlay::Dragger::mouseUp(const MouseEvent& e)
 {
 	snapShot = Image();
 
+	Rectangle<int> newBounds = getBounds();
+
+	int deltaX = newBounds.getX() - startBounds.getX();
+	int deltaY = newBounds.getY() - startBounds.getY();
+
 	if (copyMode)
 	{
-		const int oldX = sc->getPosition().getX();
-		const int oldY = sc->getPosition().getY();
-
-		const int newX = oldX + constrainer.getDeltaX();
-		const int newY = oldY + constrainer.getDeltaY();
-
-		auto handler = findParentComponentOfClass<ScriptEditHandler>();
-
-		handler->createNewComponent(ScriptEditHandler::Widgets::duplicateWidget, newX, newY);
-
-		copyMode = false;
-
-		repaint();
+		duplicateSelection(deltaX, deltaY);
 		return;
 	}
 
 	repaint();
-
-	Rectangle<int> newBounds = getBounds();
 
 	const bool wasResized = newBounds.getWidth() != startBounds.getWidth() || newBounds.getHeight() != startBounds.getHeight();
 
@@ -854,11 +845,13 @@ void ScriptingContentOverlay::Dragger::mouseUp(const MouseEvent& e)
 	}
 	else
 	{
-		moveOverlayedComponent(newBounds.getX(), newBounds.getY());
+		
+
+		moveOverlayedComponent(deltaX, deltaY);
 	}
 }
 
-void ScriptingContentOverlay::Dragger::moveOverlayedComponent(int newX, int newY)
+void ScriptingContentOverlay::Dragger::moveOverlayedComponent(int deltaX, int deltaY)
 {
 	auto b = dynamic_cast<ScriptComponentEditListener*>(getParentComponent())->getScriptComponentEditBroadcaster();
 
@@ -866,14 +859,14 @@ void ScriptingContentOverlay::Dragger::moveOverlayedComponent(int newX, int newY
 	static const Identifier y("y");
 	static const Identifier pos("position");
 
-	String sizeString = "[" + String(newX) + ", " + String(newY) + "]";
+	String sizeString = "[" + String(deltaX) + ", " + String(deltaY) + "]";
 
 	auto tName = ScriptComponentEditBroadcaster::getTransactionName(sc, pos, var(sizeString));
 
 	b->getUndoManager().beginNewTransaction(tName);
 
-	b->setScriptComponentPropertyDeltaForSelection(x, newX - sc->getPosition().getX(), sendNotification, false);
-	b->setScriptComponentPropertyDeltaForSelection(y, newY - sc->getPosition().getY(), sendNotification, false);
+	b->setScriptComponentPropertyDeltaForSelection(x, deltaX, sendNotification, false);
+	b->setScriptComponentPropertyDeltaForSelection(y, deltaY, sendNotification, false);
 }
 
 void ScriptingContentOverlay::Dragger::resizeOverlayedComponent(int newWidth, int newHeight)
@@ -894,6 +887,16 @@ void ScriptingContentOverlay::Dragger::resizeOverlayedComponent(int newWidth, in
 	b->setScriptComponentProperty(sc, height, newHeight, sendNotification, false);
 }
 
+
+void ScriptingContentOverlay::Dragger::duplicateSelection(int deltaX, int deltaY)
+{
+	auto b = dynamic_cast<ScriptComponentEditListener*>(getParentComponent())->getScriptComponentEditBroadcaster();
+
+	auto content = b->getFirstFromSelection()->parent;
+
+	ScriptingApi::Content::Helpers::duplicateSelection(content, b->getSelection(), deltaX, deltaY);
+	
+}
 
 void ScriptingContentOverlay::Dragger::MovementWatcher::componentMovedOrResized(bool /*wasMoved*/, bool wasResized)
 {

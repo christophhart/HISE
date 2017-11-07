@@ -184,6 +184,8 @@ public:
 	/** Sets the selection to the given ScriptComponent. */
 	void setSelection(ScriptComponent* componentToSet, NotificationType notifyListeners = sendNotification);
 
+	void setSelection(ScriptComponentSelection newSelection, NotificationType notifyListeners = sendNotification);
+
 	void updateSelectionBasedOnModifier(ScriptComponent* componentToUpdate, const ModifierKeys& mods, NotificationType notifyListeners = sendNotification);
 
 	void addScriptComponentEditListener(ScriptComponentEditListener* listenerToAdd)

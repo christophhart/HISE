@@ -71,7 +71,13 @@ public:
 
 	private:
 
+		int childDepth = 0;
+
 		AttributedString s;
+
+		String id;
+		String typeName;
+		float typeOffset;
 
 		ScriptComponent::Ptr c;
 	};
@@ -87,7 +93,7 @@ public:
 	{
 		static const Identifier e("visible");
 
-		if (showOnlyVisibleItems && e == idThatWasChanged)
+		if (e == idThatWasChanged && showOnlyVisibleItems)
 		{
 			rebuildModuleList(true);
 		}
