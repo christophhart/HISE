@@ -52,7 +52,7 @@ public:
 protected:
 
 	/** Returns the value from the first selected component. */
-	const var& getCurrentPropertyValue(int indexInSelection=0) const;
+	const var& getCurrentPropertyValue(bool returnUndefinedWhenMultipleSelection=true) const;
 
 	PopupLookAndFeel plaf;
 
@@ -66,7 +66,8 @@ private:
 
 
 class HiSliderPropertyComponent : public HiPropertyComponent,
-								  public Slider::Listener
+								  public Slider::Listener,
+								  public Label::Listener
 
 {
 public:
@@ -75,14 +76,36 @@ public:
 
 	void sliderValueChanged(Slider *s) override;
 
+	void labelTextChanged(Label* labelThatHasChanged) override;
+
 	void refresh() override;
 
 	void updateRange();
 
+	
 
 private:
 
-	ScopedPointer<Slider> slider;
+	void updateInternal(const var& newValue);
+
+	struct Comp : public Component
+	{
+		Comp(HiSliderPropertyComponent* parent);
+
+		void resized() override
+		{
+			auto b = getLocalBounds();
+
+			editor.setBounds(b.removeFromLeft(60));
+			slider.setBounds(b);
+		}
+
+		Label editor;
+		Slider slider;
+	};
+
+	Comp comp;
+	
 
 };
 

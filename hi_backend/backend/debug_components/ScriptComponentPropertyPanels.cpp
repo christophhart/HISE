@@ -90,31 +90,66 @@ HiPropertyComponent::HiPropertyComponent(const Identifier& id, ScriptComponentEd
 	
 }
 
-const var& HiPropertyComponent::getCurrentPropertyValue(int indexInSelection/*=0*/) const
+const var& HiPropertyComponent::getCurrentPropertyValue(bool returnUndefinedWhenMultipleSelection) const
 {
-	auto first = panel->getScriptComponentEditBroadcaster()->getFirstFromSelection();
-	return first->getScriptObjectProperties()->getProperty(getId());
+	
+
+	auto b = panel->getScriptComponentEditBroadcaster();
+
+	auto first = b->getFirstFromSelection();
+
+	const var& firstValue = first->getScriptObjectProperties()->getProperty(getId());
+	
+	if (returnUndefinedWhenMultipleSelection && (b->getNumSelected() > 1))
+	{
+		ScriptComponentEditBroadcaster::Iterator iter(b);
+
+		while (auto sc = iter.getNextScriptComponent())
+		{
+			auto nextValue = sc->getScriptObjectProperties()->getProperty(getId());
+			if (nextValue != firstValue)
+				return var::undefined();
+		}
+	}
+
+	return firstValue;
 }
 
 HiSliderPropertyComponent::HiSliderPropertyComponent(const Identifier& id, ScriptComponentEditPanel* panel) :
-	HiPropertyComponent(id, panel)
+	HiPropertyComponent(id, panel),
+	comp(this)
 {
-	addAndMakeVisible(slider = new Slider(id.toString()));
+	addAndMakeVisible(comp);
 
-	slider->setTextBoxStyle(Slider::TextEntryBoxPosition::NoTextBox, false, 80, 20);
-
-	slider->setColour(Slider::backgroundColourId, Colour(0xfb282828));
-	slider->setColour(Slider::thumbColourId, Colour(0xff777777));
-	slider->setColour(Slider::trackColourId, Colour(0xff222222));
-	slider->setColour(Slider::textBoxTextColourId, Colours::white);
-	slider->setColour(Slider::textBoxOutlineColourId, Colour(0x45ffffff));
-
-	slider->setScrollWheelEnabled(false);
-
-	slider->addListener(this);
 
 	refresh();
 
+}
+
+
+HiSliderPropertyComponent::Comp::Comp(HiSliderPropertyComponent* parent)
+{
+	addAndMakeVisible(editor);
+	addAndMakeVisible(slider);
+
+	slider.setTextBoxStyle(Slider::TextEntryBoxPosition::NoTextBox, false, 80, 20);
+	slider.setColour(Slider::backgroundColourId, Colour(0xfb282828));
+	slider.setColour(Slider::thumbColourId, Colour(0xff777777));
+	slider.setColour(Slider::trackColourId, Colour(0xff222222));
+	slider.setColour(Slider::textBoxTextColourId, Colours::white);
+	slider.setColour(Slider::textBoxOutlineColourId, Colour(0x45ffffff));
+	slider.setScrollWheelEnabled(false);
+
+	editor.addListener(parent);
+	editor.setFont(GLOBAL_BOLD_FONT());
+	editor.setColour(Label::ColourIds::backgroundColourId, Colours::white);
+	editor.setColour(Label::ColourIds::backgroundWhenEditingColourId, Colours::white);
+	editor.setColour(Label::ColourIds::outlineWhenEditingColourId, Colour(SIGNAL_COLOUR));
+	editor.setColour(TextEditor::ColourIds::highlightColourId, Colour(SIGNAL_COLOUR));
+
+	editor.setEditable(true);
+
+	slider.addListener(parent);
 }
 
 
@@ -123,18 +158,61 @@ void HiSliderPropertyComponent::sliderValueChanged(Slider *s)
 {
 	var newValue(s->getValue());
 
+	updateInternal(newValue);
+}
+
+
+void HiSliderPropertyComponent::labelTextChanged(Label* l)
+{
+	auto d = l->getText().getDoubleValue();
+
+	var newValue(d);
+
+	updateInternal(newValue);
+
+}
+
+void HiSliderPropertyComponent::updateInternal(const var& newValue)
+{
 	panel->getScriptComponentEditBroadcaster()->setScriptComponentPropertyForSelection(getId(), newValue, sendNotification);
 }
 
 void HiSliderPropertyComponent::refresh()
 {
-	updateRange();
+	auto newVar = getCurrentPropertyValue();
 
-	auto newValue = (double)getCurrentPropertyValue();
-
-	if (slider->getValue() != newValue)
+	if (newVar.isUndefined())
 	{
-		slider->setValue(newValue, dontSendNotification);
+		comp.slider.setEnabled(false);
+
+		comp.editor.setText("*", dontSendNotification);
+	}
+	else
+	{
+		comp.slider.setEnabled(true);
+
+		updateRange();
+
+		auto newValue = (double)newVar;
+
+		if (comp.slider.getValue() != newValue)
+		{
+			comp.slider.setValue(newValue, dontSendNotification);
+		}
+
+		if (!comp.editor.isBeingEdited())
+		{
+			auto nAsInt = (int)newValue;
+
+			if ((double)nAsInt == newValue)
+			{
+				comp.editor.setText(String(nAsInt), dontSendNotification);
+			}
+			else
+			{
+				comp.editor.setText(String(newValue, 2), dontSendNotification);
+			}
+		}
 	}
 }
 
@@ -142,7 +220,7 @@ void HiSliderPropertyComponent::refresh()
 
 void HiSliderPropertyComponent::updateRange()
 {
-	int oldRange = (double)slider->getMaximum();
+	int oldRange = (double)comp.slider.getMaximum();
 
 	static const Identifier x("x");
 	static const Identifier y("y");
@@ -185,10 +263,11 @@ void HiSliderPropertyComponent::updateRange()
 
 	if (oldRange != range)
 	{
-		slider->setRange(0.0, (double)range, 1);
-		slider->repaint();
+		comp.slider.setRange(0.0, (double)range, 1);
+		comp.slider.repaint();
 	}
 }
+
 
 HiChoicePropertyComponent::HiChoicePropertyComponent(const Identifier& id, ScriptComponentEditPanel* panel):
 	HiPropertyComponent(id, panel)
@@ -220,8 +299,18 @@ void HiChoicePropertyComponent::refresh()
 		comboBox.clear(dontSendNotification);
 		auto sa = sc->getOptionsFor(getId());
 		comboBox.addItemList(sa, 1);
-		auto selectedText = getCurrentPropertyValue().toString();
-		comboBox.setText(selectedText, dontSendNotification);
+
+		auto newVar = getCurrentPropertyValue();
+
+		if (newVar.isUndefined())
+		{
+			comboBox.setText("*", dontSendNotification);
+		}
+		else
+		{
+			auto selectedText = getCurrentPropertyValue().toString();
+			comboBox.setText(selectedText, dontSendNotification);
+		}
 	}
 }
 
@@ -248,11 +337,24 @@ HiTogglePropertyComponent::HiTogglePropertyComponent(const Identifier& id, Scrip
 
 void HiTogglePropertyComponent::refresh()
 {
-	const bool on = (bool)getCurrentPropertyValue();
+	auto newVar = getCurrentPropertyValue();
 
-	button.setButtonText(on ? "Enabled" : "Disabled");
+	if (newVar.isUndefined())
+	{
+		button.setButtonText("*");
 
-	button.setToggleState(on, dontSendNotification);
+		const bool on = (bool)getCurrentPropertyValue(false);
+
+		button.setToggleState(on, dontSendNotification);
+	}
+	else
+	{
+		const bool on = (bool)newVar;
+
+		button.setButtonText(on ? "Enabled" : "Disabled");
+
+		button.setToggleState(on, dontSendNotification);
+	}
 }
 
 void HiTogglePropertyComponent::buttonClicked(Button *)
@@ -269,6 +371,8 @@ HiTextPropertyComponent::HiTextPropertyComponent(const Identifier& id, ScriptCom
 {
 	addAndMakeVisible(editor);
 
+
+
 	if (getId() == Identifier("min") || getId() == Identifier("max"))
 	{
 		useNumberMode = true;
@@ -283,7 +387,18 @@ HiTextPropertyComponent::HiTextPropertyComponent(const Identifier& id, ScriptCom
 
 void HiTextPropertyComponent::refresh()
 {
-	editor.setText(getCurrentPropertyValue().toString());
+	auto newVar = getCurrentPropertyValue();
+
+	if (newVar.isUndefined())
+	{
+		editor.setText("*", dontSendNotification);
+	}
+	else
+	{
+		editor.setText(newVar.toString(), dontSendNotification);
+	}
+
+	
 }
 
 void HiTextPropertyComponent::textEditorFocusLost(TextEditor&)
@@ -327,6 +442,12 @@ void HiColourPropertyComponent::refresh()
 {
 	auto v = getCurrentPropertyValue();
 
+	if (v.isUndefined())
+	{
+		v = getCurrentPropertyValue(false);
+
+	}
+	
 	Colour c;
 
 	if (v.isString())
@@ -339,6 +460,8 @@ void HiColourPropertyComponent::refresh()
 	}
 
 	comp.setDisplayedColour(c);
+
+	
 }
 
 
@@ -356,13 +479,19 @@ void HiFilePropertyComponent::refresh()
 {
 	auto sc = panel->getScriptComponentEditBroadcaster()->getFirstFromSelection();
 
-	if (sc != nullptr)
+	auto newVar = getCurrentPropertyValue();
+
+	combinedComponent.box.clear(dontSendNotification);
+	auto sa = sc->getOptionsFor(getId());
+	combinedComponent.box.addItemList(sa, 1);
+
+	if (newVar.isUndefined())
 	{
-		combinedComponent.box.clear(dontSendNotification);
-		auto sa = sc->getOptionsFor(getId());
-		combinedComponent.box.addItemList(sa, 1);
-		auto selectedText = getCurrentPropertyValue().toString();
-		combinedComponent.box.setText(selectedText, dontSendNotification);
+		combinedComponent.box.setText("*", dontSendNotification);
+	}
+	else
+	{
+		combinedComponent.box.setText(newVar.toString(), dontSendNotification);
 	}
 }
 
@@ -489,6 +618,8 @@ HiColourPropertyComponent::ColourComp::Popup::Popup(ColourComp* parent) :
 	selector.setColour(ColourSelector::ColourIds::backgroundColourId, Colours::transparentBlack);
 	selector.setColour(ColourSelector::ColourIds::labelTextColourId, Colours::white);
 
+	selector.setCurrentColour(parent->colour);
+
 	addAndMakeVisible(selector);
 
 	selector.addChangeListener(parent);
@@ -500,3 +631,4 @@ void HiColourPropertyComponent::ColourComp::Popup::resized()
 {
 	selector.setBounds(getLocalBounds().reduced(10));
 }
+

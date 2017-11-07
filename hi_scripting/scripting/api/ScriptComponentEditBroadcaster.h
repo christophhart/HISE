@@ -211,6 +211,8 @@ public:
 
 	ScriptComponentSelection getSelection() { return currentSelection; }
 
+	int getNumSelected() const { return currentSelection.size(); }
+
 	ScriptComponent* getFirstFromSelection();
 
 	const ScriptComponent* getFirstFromSelection() const;
