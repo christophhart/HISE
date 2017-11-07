@@ -404,6 +404,7 @@ public:
 			ScriptConnectorPanel,
 			ScriptEditor,
 			ScriptContent,
+			ScriptComponentList,
 			InterfaceContent,
 			TablePanel,
 			SliderPackPanel,

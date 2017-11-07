@@ -47,6 +47,7 @@ using namespace juce;
 #include "backend/debug_components/ScriptComponentPropertyPanels.cpp"
 #include "backend/debug_components/ProcessorCollection.cpp"
 #include "backend/debug_components/ApiBrowser.cpp"
+#include "backend/debug_components/ScriptComponentList.cpp"
 #include "backend/debug_components/ModuleBrowser.cpp"
 #include "backend/debug_components/PatchBrowser.cpp"
 #include "backend/debug_components/FileBrowser.cpp"

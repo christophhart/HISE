@@ -67,6 +67,7 @@ using namespace juce;
 #include "backend/debug_components/ScriptComponentPropertyPanels.h"
 #include "backend/debug_components/ProcessorCollection.h"
 #include "backend/debug_components/ApiBrowser.h"
+#include "backend/debug_components/ScriptComponentList.h"
 #include "backend/debug_components/ModuleBrowser.h"
 #include "backend/debug_components/PatchBrowser.h"
 #include "backend/debug_components/FileBrowser.h"

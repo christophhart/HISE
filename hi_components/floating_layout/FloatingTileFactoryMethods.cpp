@@ -58,6 +58,7 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<BackendProcessorEditor>(PopupMenuOptions::MenuCommandOffset);
 	registerType<ScriptWatchTablePanel>(PopupMenuOptions::ScriptWatchTable);
 	registerType<ConsolePanel>(PopupMenuOptions::Console);
+	registerType<ScriptComponentList::Panel>(PopupMenuOptions::ScriptComponentList);
 #endif
 
 
@@ -537,6 +538,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 			addToPopupMenu(m, PopupMenuOptions::ScriptEditor, "Script Editor");
 			addToPopupMenu(m, PopupMenuOptions::ScriptContent, "Script Content");
 			addToPopupMenu(m, PopupMenuOptions::ScriptComponentEditPanel, "Script Interface Property Editor");
+			addToPopupMenu(m, PopupMenuOptions::ScriptComponentList, "Script Component List");
 			addToPopupMenu(m, PopupMenuOptions::ApiCollection, "API Browser");
 			addToPopupMenu(m, PopupMenuOptions::ScriptWatchTable, "Live Variable View");
 			addToPopupMenu(m, PopupMenuOptions::Console, "Console");
@@ -637,6 +639,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 		
 	case PopupMenuOptions::ScriptEditor:		parent->setNewContent(GET_PANEL_NAME(CodeEditorPanel)); break;
 	case PopupMenuOptions::ScriptContent:		parent->setNewContent(GET_PANEL_NAME(ScriptContentPanel)); break;
+	case PopupMenuOptions::ScriptComponentList: parent->setNewContent(GET_PANEL_NAME(ScriptComponentList::Panel)); break;
 	case PopupMenuOptions::InterfaceContent:	parent->setNewContent(GET_PANEL_NAME(InterfaceContentPanel)); break;
 	case PopupMenuOptions::Plotter:				parent->setNewContent(GET_PANEL_NAME(PlotterPanel)); break;
 	case PopupMenuOptions::ScriptComponentEditPanel: parent->setNewContent(GET_PANEL_NAME(ScriptComponentEditPanel::Panel)); break;
