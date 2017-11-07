@@ -39,7 +39,8 @@
 class ScriptComponentList : public SearchableListComponent,
 							public ScriptComponentEditListener,
 							public GlobalScriptCompileListener,
-							public ButtonListener
+							public ButtonListener,
+							public DragAndDropContainer
 {
 public:
 
@@ -50,7 +51,8 @@ public:
 	void buttonClicked(Button* b) override;
 
 	class ScriptComponentItem : public SearchableListComponent::Item,
-								public SafeChangeListener
+								public SafeChangeListener,
+								public DragAndDropTarget
 								
 	{
 	public:
@@ -67,9 +69,27 @@ public:
 
 		void paint(Graphics& g) override;
 
-		void mouseDown(const MouseEvent& event) override;
+		void mouseUp(const MouseEvent& event) override;
+
+		void mouseDrag(const MouseEvent& event) override;
+
+		
+
+		bool isInterestedInDragSource(const SourceDetails& dragSourceDetails) override;
+		
+		void itemDragEnter(const SourceDetails& dragSourceDetails) override;
+
+		void itemDragExit(const SourceDetails& dragSourceDetails) override;
+
+		void itemDragMove(const SourceDetails& dragSourceDetails) override;
+
+		void itemDropped(const SourceDetails& dragSourceDetails) override;
+
 
 	private:
+
+		bool insertDragAfterComponent = false;
+		bool insertDragAsParentComponent = false;
 
 		int childDepth = 0;
 

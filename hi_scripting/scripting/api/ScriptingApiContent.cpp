@@ -465,6 +465,8 @@ void ScriptingApi::Content::ScriptComponent::set(String propertyName, var newVal
 {
 	Identifier propertyId = Identifier(propertyName);
 
+	handleScriptPropertyChange(propertyId);
+
 	if (!componentProperties->hasProperty(propertyId))
 	{
 		reportScriptError("the property does not exist");
@@ -532,6 +534,8 @@ void ScriptingApi::Content::ScriptComponent::setPropertiesFromJSON(const var &js
 		{
 			if (dataSet.contains(priorityProperties[i]))
 			{
+				handleScriptPropertyChange(priorityProperties[i]);
+
 				setScriptObjectPropertyWithChangeMessage(priorityProperties[i], dataSet[priorityProperties[i]], dontSendNotification);
 			}
 		}
@@ -544,6 +548,8 @@ void ScriptingApi::Content::ScriptComponent::setPropertiesFromJSON(const var &js
 				continue;
 
 			if (priorityProperties.contains(propertyId)) continue;
+
+			handleScriptPropertyChange(propertyId);
 
 			setScriptObjectPropertyWithChangeMessage(propertyId, dataSet.getValueAt(i), dontSendNotification);
 		}
@@ -2953,6 +2959,7 @@ template <class Subtype> Subtype* ScriptingApi::Content::addComponent(Identifier
 		{
 			auto jsonData = ValueTreeConverters::convertValueTreeToDynamicObject(child);
 
+			ScriptComponent::ScopedPropertyEnabler spe(t);
 			t->setPropertiesFromJSON(jsonData);
 		}
 		else
@@ -3474,13 +3481,37 @@ void ScriptingApi::Content::cleanJavascriptObjects()
 	{
 		components[i]->setControlCallback(var());
 		
+		components[i]->cleanScriptChangedPropertyIds();
+
 		if (auto p = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(components[i].get()))
 		{
+			auto data = p->getConstantValue(0).getDynamicObject();
+
+			data->clear();
+
 			p->setPaintRoutine(var());
 			p->setTimerCallback(var());
 			p->setMouseCallback(var());
 			p->setLoadingCallback(var());
 		}
+	}
+}
+
+void ScriptingApi::Content::rebuildComponentListFromValueTree(bool recompile/*=false*/)
+{
+	components.clear();
+
+	components.ensureStorageAllocated(contentPropertyData.getNumChildren());
+
+	for (int i = 0; i < contentPropertyData.getNumChildren(); i++)
+	{
+		auto child = contentPropertyData.getChild(i);
+		addComponentFromValueTree(child);
+	}
+
+	if (recompile)
+	{
+		dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->compileScript();
 	}
 }
 
@@ -3518,7 +3549,7 @@ void ScriptingApi::Content::Helpers::deleteSelection(Content* c, ScriptComponent
 		deleteComponent(c, sc->getName(), false);
 	}
 
-	dynamic_cast<JavascriptProcessor*>(c->getScriptProcessor())->compileScript();
+	c->rebuildComponentListFromValueTree(true);
 }
 
 
@@ -3528,11 +3559,10 @@ void ScriptingApi::Content::Helpers::deleteComponent(Content* c, const Identifie
 
 	c->contentPropertyData.removeChild(childToRemove, nullptr);
 
-	auto indexToRemove = c->getComponentIndex(id);
-	c->components.remove(indexToRemove);
-
-	if(compileAfterDeletion)
-		dynamic_cast<JavascriptProcessor*>(c->getScriptProcessor())->compileScript();
+	if (compileAfterDeletion)
+	{
+		c->rebuildComponentListFromValueTree(true);
+	}
 }
 
 void ScriptingApi::Content::Helpers::renameComponent(Content* c, const Identifier& id, const Identifier& newId)
@@ -3542,8 +3572,7 @@ void ScriptingApi::Content::Helpers::renameComponent(Content* c, const Identifie
 	if (childTree.isValid())
 		childTree.setProperty("id", newId.toString(), nullptr);
 
-	c->getComponentWithName(id)->name = newId;
-	dynamic_cast<JavascriptProcessor*>(c->getScriptProcessor())->compileScript();
+	c->rebuildComponentListFromValueTree(true);
 }
 
 void ScriptingApi::Content::Helpers::duplicateSelection(Content* c, ReferenceCountedArray<ScriptComponent> selection, int deltaX, int deltaY)
@@ -3572,20 +3601,86 @@ void ScriptingApi::Content::Helpers::duplicateSelection(Content* c, ReferenceCou
 		child.setProperty("id", newId.toString(), nullptr);
 		child.setProperty("type", sc->getObjectName().toString(), nullptr);
 
-
-		auto newComponent = c->addComponentFromValueTree(child);
-
-		newComponents.add(newComponent);
+		c->contentPropertyData.addChild(child, -1, nullptr);
 	}
 
 	c->allowGuiCreation = false;
 
-	dynamic_cast<JavascriptProcessor*>(c->getScriptProcessor())->compileScript();
+	c->rebuildComponentListFromValueTree(true);
 
 	auto b = c->getProcessor()->getMainController()->getScriptComponentEditBroadcaster();
 
 	b->setSelection(newComponents, sendNotification);
 }
+
+
+void ScriptingApi::Content::Helpers::moveComponents(ScriptComponent* target, var list, bool insertAsChildComponent)
+{
+	auto content = target->parent;
+
+	auto parentIndexOfTarget = target->getParentComponentIndex();
+
+	if (auto ar = list.getArray())
+	{
+		ValueTree deletedChilds("DeletedChilds");
+
+		Array<Identifier> deletedIds;
+
+		for (auto v : *ar)
+		{
+			auto sc = dynamic_cast<ScriptComponent*>(v.getObject());
+
+			auto child = content->contentPropertyData.getChildWithProperty("id", sc->name.toString());
+
+			content->contentPropertyData.removeChild(child, nullptr);
+
+			deletedChilds.addChild(child, -1, nullptr);
+
+		}
+
+		int insertIndex = content->getComponentIndex(target->getName()) + 1;
+
+		static const Identifier parentComponent("parentComponent");
+
+		while (deletedChilds.getNumChildren() > 0)
+		{
+			auto child = deletedChilds.getChild(0);
+			deletedChilds.removeChild(child, nullptr);
+
+			auto n = Identifier(child.getProperty("id").toString());
+
+			String parentId = child.getProperty(parentComponent).toString();
+
+			if (parentId.isNotEmpty() && deletedIds.contains(Identifier(parentId)))
+			{
+
+			}
+			else if (insertAsChildComponent)
+			{
+				child.setProperty(parentComponent, target->getName().toString(), nullptr);
+			}
+			else if (parentIndexOfTarget != -1)
+			{
+				auto parentOfTarget = content->getComponent(parentIndexOfTarget);
+
+				child.setProperty(parentComponent, parentOfTarget->getName().toString(), nullptr);
+			}
+			else
+			{
+				child.setProperty(parentComponent, "", nullptr);
+			}
+
+			content->contentPropertyData.addChild(child, insertIndex, nullptr);
+
+			auto newC = content->addComponentFromValueTree(child, insertIndex++);
+
+			//int insertIndex = content->getComponentIndex(n) + 1;
+		}
+
+		content->rebuildComponentListFromValueTree(true);
+	}
+}
+
 
 
 
@@ -3630,4 +3725,61 @@ ScriptingApi::Content::ScriptComponent* ScriptingApi::Content::Helpers::createCo
 		return sc;
 
 	return nullptr;
+}
+
+String ScriptingApi::Content::Helpers::createScriptVariableDeclaration(ReferenceCountedArray<ScriptComponent> selection)
+{
+
+	String s;
+	NewLine nl;
+
+	for (int i = 0; i < selection.size(); i++)
+	{
+		auto c = selection[i];
+
+		s << "const var " << c->name.toString() << " = Content.getComponent(\"" << c->name.toString() << "\");" << nl;;
+	}
+
+	s << nl;
+
+	return s;
+}
+
+void ScriptingApi::Content::Helpers::gotoLocation(ScriptComponent* sc)
+{
+	Processor* p = dynamic_cast<Processor*>(const_cast<ProcessorWithScriptingContent*>(sc->parent->getScriptProcessor()));
+	auto jp = dynamic_cast<JavascriptProcessor*>(p);
+
+	auto engine = jp->getScriptEngine();
+
+	for (int i = 0; i < engine->getNumDebugObjects(); i++)
+	{
+		auto info = engine->getDebugInformation(i);
+
+		if (info->getObject() == sc)
+		{
+			auto location = info->getLocation();
+
+			DebugableObject::Helpers::gotoLocation(p, info);
+
+			return;
+		}
+	}
+
+	PresetHandler::showMessageWindow("Can't find script location", "The variable definition can't be found", PresetHandler::IconType::Warning);
+}
+
+void ScriptingApi::Content::Helpers::recompileAndSearchForPropertyChange(ScriptComponent * sc, const Identifier& id)
+{
+	sc->setPropertyToLookFor(id);
+
+	auto jp = dynamic_cast<JavascriptProcessor*>(const_cast<ProcessorWithScriptingContent*>(sc->getScriptProcessor()));
+
+	auto result = jp->compileScript();
+
+	DebugableObject::Helpers::gotoLocation(dynamic_cast<Processor*>(jp)->getMainController()->getMainSynthChain(), result.r.getErrorMessage());
+
+	sc->setPropertyToLookFor(Identifier());
+	
+	jp->compileScript();
 }

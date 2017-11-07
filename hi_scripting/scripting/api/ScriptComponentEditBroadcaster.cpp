@@ -131,6 +131,65 @@ void ScriptComponentEditBroadcaster::updateSelectionBasedOnModifier(ScriptCompon
 	}
 }
 
+struct ScriptComponentSorter
+{
+	int compareElements(ScriptComponent* first, ScriptComponent* second)
+	{
+		jassert(first->parent == second->parent);
+
+		auto firstIndex = first->parent->getComponentIndex(first->getName());
+		auto secondIndex = second->parent->getComponentIndex(second->getName());
+
+		if (firstIndex < secondIndex)
+			return -1;
+
+		if (firstIndex > secondIndex)
+			return 1;
+
+		return 0;
+
+	}
+
+#if 0
+	@endcode
+
+		..and this method must return:
+	-a value of < 0 if the first comes before the second
+		- a value of 0 if the two objects are equivalent
+		- a value of > 0 if the second comes before the first
+#endif
+};
+
+void addChildrenToSelection(ScriptComponentEditBroadcaster* b, ScriptComponent* sc)
+{
+	for (int i = 0; i < sc->getNumChildComponents(); i++)
+	{
+		auto child = sc->getChildComponent(i);
+
+		addChildrenToSelection(b, child);
+
+		b->addToSelection(child, dontSendNotification);
+	}
+}
+
+void ScriptComponentEditBroadcaster::prepareSelectionForDragging(ScriptComponent* source)
+{
+	addToSelection(source, dontSendNotification);
+
+	Iterator iter(this);
+
+	while (auto sc = iter.getNextScriptComponent())
+	{
+		addChildrenToSelection(this, sc);
+	}
+
+	ScriptComponentSorter sorter;
+
+	currentSelection.sort(sorter, false);
+
+	sendSelectionChangeMessage();
+}
+
 void ScriptComponentEditBroadcaster::setScriptComponentProperty(ScriptComponent* sc, const Identifier& propertyId, const var& newValue, NotificationType notifyListeners/*=sendNotification*/, bool beginNewTransaction/*=true*/)
 {
 	if (beginNewTransaction)

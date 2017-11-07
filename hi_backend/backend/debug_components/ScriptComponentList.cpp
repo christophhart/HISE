@@ -99,16 +99,39 @@ void getChildDepth(ScriptComponent* sc, int& depth)
 }
 
 
+void getSearchTermInternal(ScriptComponent* c, String& term)
+{
+	term << c->getName().toString();
+
+	int parentIndex = c->getParentComponentIndex();
+
+	if (parentIndex != -1)
+	{
+		auto parent = c->parent->getComponent(parentIndex);
+
+		getSearchTermInternal(parent, term);
+	}
+}
+
+
+String getSearchTerm(ScriptComponent* c)
+{
+	String term;
+
+	getSearchTermInternal(c, term);
+
+	return term;
+
+}
+
+
 ScriptComponentList::ScriptComponentItem::ScriptComponentItem(ScriptComponent* c_) :
-	Item(c_->getName().toString().toLowerCase()),
+	Item(getSearchTerm(c_)),
 	c(c_)
 {
 	setOpaque(true);
 
 	c->addChangeListener(this);
-
-	
-	
 
 	id = c->getName().toString();
 
@@ -145,86 +168,72 @@ void ScriptComponentList::ScriptComponentItem::mouseExit(const MouseEvent&)
 	repaint();
 }
 
+
+
 void ScriptComponentList::ScriptComponentItem::mouseDoubleClick(const MouseEvent&)
 {
-
+	ScriptingApi::Content::Helpers::gotoLocation(c);
 }
 
 
-void ScriptComponentList::ScriptComponentItem::paint(Graphics& g)
+
+bool ScriptComponentList::ScriptComponentItem::isInterestedInDragSource(const SourceDetails& dragSourceDetails)
 {
-	if (getWidth() <= 0)
+	if (auto ar = dragSourceDetails.description.getArray())
+	{
+		var d(c);
+		return !ar->contains(d);
+	}
+
+	return false;
+}
+
+void ScriptComponentList::ScriptComponentItem::itemDragEnter(const SourceDetails& dragSourceDetails)
+{
+	insertDragAfterComponent = dragSourceDetails.localPosition.getY() > (ITEM_HEIGHT / 2);
+	insertDragAsParentComponent = !insertDragAfterComponent;
+
+	repaint();
+}
+
+void ScriptComponentList::ScriptComponentItem::itemDragExit(const SourceDetails& dragSourceDetails)
+{
+	insertDragAfterComponent = false;
+	insertDragAsParentComponent = false;
+
+	repaint();
+}
+
+void ScriptComponentList::ScriptComponentItem::itemDragMove(const SourceDetails& dragSourceDetails)
+{
+	insertDragAfterComponent = dragSourceDetails.localPosition.getY() > (ITEM_HEIGHT / 2);
+	insertDragAsParentComponent = !insertDragAfterComponent;
+
+	repaint();
+}
+
+void ScriptComponentList::ScriptComponentItem::itemDropped(const SourceDetails& dragSourceDetails)
+{
+	insertDragAfterComponent = dragSourceDetails.localPosition.getY() > (ITEM_HEIGHT / 2);
+	insertDragAsParentComponent = !insertDragAfterComponent;
+
+	ScriptingApi::Content::Helpers::moveComponents(c, dragSourceDetails.description, insertDragAsParentComponent);
+
+	insertDragAfterComponent = false;
+	insertDragAsParentComponent = false;
+
+	repaint();
+}
+
+
+void ScriptComponentList::ScriptComponentItem::mouseUp(const MouseEvent& event)
+{
+	if (!event.mods.isRightButtonDown() && event.mouseWasDraggedSinceMouseDown())
 		return;
 
-	g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::DebugAreaBackgroundColourId));
-
-	Colour co(0xFF000000);
-
-	const float h = (float)getHeight();
-	const float w = (float)getWidth() - 4;
-
-
-
-	ColourGradient grad(co.withAlpha(0.1f), 0.0f, .0f, co.withAlpha(0.2f), 0.0f, h, false);
-
-	g.setGradientFill(grad);
-
-	g.fillRect(2, 2, (int)w - 4, (int)h - 4);
-
-	auto b = findParentComponentOfClass<ScriptComponentList>()->getScriptComponentEditBroadcaster();
-
-	co = b->isSelected(c) ? Colour(SIGNAL_COLOUR) : Colour(0xFF666666);
-
-	co = co.withAlpha(isMouseOver(true) ? 1.0f : 0.3f);
-
-	g.setColour(co);
-
-	g.drawRect(2, 2, (int)w, (int)h - 4, 1);
-
-	
-    
-	g.setColour(Colours::black.withAlpha(0.1f));
-
-	g.fillRect(3, 3, (int)h - 6, (int)h - 6);
-
-	static const Identifier sip("saveInPreset");
-
-	const bool saveInPreset = c->getScriptObjectProperties()->getProperty(sip);
-	
-	Colour c3 = saveInPreset ? Colours::green : Colours::red;
-
-	c3 = c3.withAlpha(JUCE_LIVE_CONSTANT_OFF(0.3f));
-
-	g.setColour(c3);
-
-	const float offset = JUCE_LIVE_CONSTANT_OFF(8.0f);
-	Rectangle<float> circle(offset, offset, (float)ITEM_HEIGHT - 2.0f * offset, (float)ITEM_HEIGHT - 2.0f * offset);
-
-	g.fillEllipse(circle);
-
-	g.drawEllipse(circle, 1.0f);
-
-	g.setOpacity(c->isShowing() ? 1.0f : 0.4f);
-
-	Colour textColour = Colours::white.withAlpha(c->isShowing() ? 1.0f : 0.4f);
-
-	g.setColour(textColour);
-	g.setFont(GLOBAL_BOLD_FONT());
-	
-	float textOffset = h + 2.0f + (float)(childDepth * 10);
-	
-	g.drawText(id, textOffset, 0, typeOffset, ITEM_HEIGHT, Justification::centredLeft);
-
-	g.setColour(textColour.withMultipliedBrightness(0.4f));
-	g.setFont(GLOBAL_FONT());
-
-	g.drawText(id, textOffset + typeOffset, 0, getWidth() - (textOffset + typeOffset), ITEM_HEIGHT, Justification::centredLeft);
-
-}
-
-void ScriptComponentList::ScriptComponentItem::mouseDown(const MouseEvent& event)
-{
 	auto b = findParentComponentOfClass<ScriptComponentEditListener>()->getScriptComponentEditBroadcaster();
+
+
 
 	if (event.mods.isRightButtonDown())
 	{
@@ -274,8 +283,9 @@ void ScriptComponentList::ScriptComponentItem::mouseDown(const MouseEvent& event
 		}
 		case CreateScriptVariableDeclaration:
 		{
-			String s;
-			s << "const var " << c->name.toString() << " = Content.getComponent(\"" << c->name.toString() << "\");";
+			auto s = ScriptingApi::Content::Helpers::createScriptVariableDeclaration(b->getSelection());
+
+
 			SystemClipboard::copyTextToClipboard(s);
 			break;
 		}
@@ -303,7 +313,7 @@ void ScriptComponentList::ScriptComponentItem::mouseDown(const MouseEvent& event
 		default:
 			break;
 		}
-		
+
 	}
 	else
 	{
@@ -330,15 +340,129 @@ void ScriptComponentList::ScriptComponentItem::mouseDown(const MouseEvent& event
 		}
 		else
 		{
-			
+
 
 			b->updateSelectionBasedOnModifier(c, event.mods, sendNotification);
 			repaint();
 		}
 
 		l->lastClickedComponent = c;
+
 	}
 }
+
+void ScriptComponentList::ScriptComponentItem::mouseDrag(const MouseEvent& event)
+{
+	if (event.mods.isRightButtonDown())
+		return;
+
+	auto b = findParentComponentOfClass<ScriptComponentEditListener>()->getScriptComponentEditBroadcaster();
+
+	auto container = DragAndDropContainer::findParentDragContainerFor(this);
+
+	if (container->isDragAndDropActive())
+		return;
+
+	if (event.mouseWasDraggedSinceMouseDown())
+	{
+		b->prepareSelectionForDragging(c);
+
+		ScriptComponentEditBroadcaster::Iterator iter(b);
+
+		Array<var> list;
+
+		while (auto sc = iter.getNextScriptComponent())
+		{
+			list.add(var(sc));
+		}
+
+		container->startDragging(list, this);
+		repaint();
+	}
+}
+
+
+
+
+void ScriptComponentList::ScriptComponentItem::paint(Graphics& g)
+{
+	if (getWidth() <= 0)
+		return;
+
+	g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::DebugAreaBackgroundColourId));
+
+	Colour co(0xFF000000);
+
+	const float h = (float)getHeight();
+	const float w = (float)getWidth() - 4;
+
+	ColourGradient grad(co.withAlpha(0.1f), 0.0f, .0f, co.withAlpha(0.2f), 0.0f, h, false);
+
+	g.setGradientFill(grad);
+
+	g.fillRect(2, 2, (int)w - 4, (int)h - 4);
+
+	auto b = findParentComponentOfClass<ScriptComponentList>()->getScriptComponentEditBroadcaster();
+
+	co = b->isSelected(c) ? Colour(SIGNAL_COLOUR) : Colour(0xFF666666);
+
+	co = co.withAlpha((!isMouseButtonDown() && isMouseOver(true)) ? 1.0f : 0.3f);
+
+	g.setColour(co);
+
+	g.drawRect(2, 2, (int)w, (int)h - 4, 1);
+    
+	g.setColour(Colours::black.withAlpha(0.1f));
+
+	g.fillRect(3, 3, (int)h - 6, (int)h - 6);
+
+	static const Identifier sip("saveInPreset");
+
+	const bool saveInPreset = c->getScriptObjectProperties()->getProperty(sip);
+	
+	Colour c3 = saveInPreset ? Colours::green : Colours::red;
+
+	c3 = c3.withAlpha(JUCE_LIVE_CONSTANT_OFF(0.3f));
+
+	g.setColour(c3);
+
+	const float offset = JUCE_LIVE_CONSTANT_OFF(8.0f);
+	Rectangle<float> circle(offset, offset, (float)ITEM_HEIGHT - 2.0f * offset, (float)ITEM_HEIGHT - 2.0f * offset);
+
+	g.fillEllipse(circle);
+
+	g.drawEllipse(circle, 1.0f);
+
+	g.setOpacity(c->isShowing() ? 1.0f : 0.4f);
+
+	Colour textColour = Colours::white.withAlpha(c->isShowing() ? 1.0f : 0.4f);
+
+	g.setColour(textColour);
+	g.setFont(GLOBAL_BOLD_FONT());
+	
+	float textOffset = h + 2.0f + (float)(childDepth * 10);
+	
+	g.drawText(id, textOffset, 0, typeOffset, ITEM_HEIGHT, Justification::centredLeft);
+
+	g.setColour(textColour.withMultipliedBrightness(0.4f));
+	g.setFont(GLOBAL_FONT());
+
+	g.drawText(typeName, textOffset + typeOffset, 0, getWidth() - (textOffset + typeOffset), ITEM_HEIGHT, Justification::centredLeft);
+
+	if (insertDragAfterComponent)
+	{
+		g.setColour(Colour(SIGNAL_COLOUR));
+		g.fillRect(0, getHeight() - 3, getWidth(), 3);
+	}
+	else if (insertDragAsParentComponent)
+	{
+		g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.3f));
+		g.fillRect(2, 2, (int)w - 4, (int)h - 4);
+	}
+
+
+}
+
 
 ScriptComponentList::AllCollection::AllCollection(JavascriptProcessor* p, bool showOnlyVisibleItems)
 {

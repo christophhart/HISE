@@ -302,6 +302,54 @@ public:
 
 		int getConnectedParameterIndex() { return connectedParameterIndex; };
 
+		struct ScopedPropertyEnabler
+		{
+			ScopedPropertyEnabler(ScriptComponent* c_) :
+				c(c_)
+			{
+				c->countJsonSetProperties = false;
+			};
+
+			~ScopedPropertyEnabler()
+			{
+				c->countJsonSetProperties = true;
+				c = nullptr;
+			}
+
+			ScriptComponent::Ptr c;
+		};
+
+		void cleanScriptChangedPropertyIds()
+		{
+			scriptChangedProperties.clearQuick();
+			
+		}
+
+		bool isPropertyOverwrittenByScript(const Identifier& id)
+		{
+			return scriptChangedProperties.contains(id);
+		}
+
+		void setPropertyToLookFor(const Identifier& id)
+		{
+			searchedProperty = id;
+		}
+
+		void handleScriptPropertyChange(const Identifier& id)
+		{
+			if (countJsonSetProperties)
+			{
+				if (searchedProperty.isNull())
+				{
+					scriptChangedProperties.add(id);
+				}
+				if (searchedProperty == id)
+				{
+					throw String("Here...");
+				}
+			}
+		}
+
 	protected:
 
 		void setDefaultValue(int p, const var &defaultValue);
@@ -313,6 +361,10 @@ public:
 		DynamicObject::Ptr componentProperties;
 
 	private:
+
+		Array<Identifier> scriptChangedProperties;
+		bool countJsonSetProperties = true;
+		Identifier searchedProperty;
 
 		ReferenceCountedArray<ScriptComponent> childComponents;
 
@@ -1304,8 +1356,6 @@ public:
 	/** Set this to true to render all script panels with double resolution for retina or rescaling. */
 	void setUseHighResolutionForPanels(bool shouldUseDoubleResolution);
 
-	
-
 	// ================================================================================================================
 
 	// Restores the content and sets the attributes so that the macros and the control callbacks gets executed.
@@ -1347,7 +1397,7 @@ public:
 		return contentPropertyData;
 	}
 
-	ScriptComponent* addComponentFromValueTree(const ValueTree& child)
+	ScriptComponent* addComponentFromValueTree(const ValueTree& child, int insertIndex=-1)
 	{
 		auto sc = Helpers::createComponentFromId(this, child.getProperty("type").toString(), child.getProperty("id").toString(), 0, 0, 100, 100);
 
@@ -1356,11 +1406,12 @@ public:
 
 		ValueTreeConverters::copyValueTreePropertiesToDynamicObject(child, d);
 
-		components.add(sc);
+		components.insert(insertIndex, sc);
 
+		ScriptComponent::ScopedPropertyEnabler spe(sc);
 		sc->setPropertiesFromJSON(d);
 
-		contentPropertyData.addChild(child, -1, nullptr);
+		contentPropertyData.addChild(child, insertIndex, nullptr);
 
 		return sc;
 	}
@@ -1369,21 +1420,15 @@ public:
 	{
 		contentPropertyData = newProperties;
 
-		components.clear();
+		rebuildComponentListFromValueTree();
 
-		components.ensureStorageAllocated(contentPropertyData.getNumChildren());
-
-		for (int i = 0; i < contentPropertyData.getNumChildren(); i++)
-		{
-			auto child = contentPropertyData.getChild(i);
-			addComponentFromValueTree(child);
-		}
 	}
 
 	struct Wrapper;
 
 	struct Helpers
 	{
+		static void gotoLocation(ScriptComponent* sc);
 
 		static Identifier getUniqueIdentifier(Content* c, const String& id);
 
@@ -1395,6 +1440,8 @@ public:
 
 		static void duplicateSelection(Content* c, ReferenceCountedArray<ScriptComponent> selection, int deltaX, int deltaY);
 
+		static void moveComponents(ScriptComponent* target, var list, bool insertAsParentComponent);
+
 		static ScriptComponent* createComponentFromId(Content* c, const Identifier& typeId, const Identifier& name, int x, int y, int width, int h);
 
 		template <class T> static T* createComponentIfTypeMatches(ScriptingApi::Content* c, const Identifier& typeId, const Identifier& name, int x, int y, int w, int h)
@@ -1405,6 +1452,8 @@ public:
 			return nullptr;
 		}
 
+		static String createScriptVariableDeclaration(ReferenceCountedArray<ScriptComponent> selection);
+		static void recompileAndSearchForPropertyChange(ScriptComponent * sc, const Identifier& id);
 	};
 
 	template <class SubType> SubType* createNewComponent(const Identifier& id, int x, int y, int w, int h)
@@ -1433,9 +1482,11 @@ public:
 
 private:
 
+	var templateFunctions;
+
 	template<class Subtype> Subtype *addComponent(Identifier name, int x, int y, int width = -1, int height = -1);
 
-	
+	void rebuildComponentListFromValueTree(bool recompile=false);
 
 	friend class ScriptContentComponent;
 	friend class WeakReference<ScriptingApi::Content>;

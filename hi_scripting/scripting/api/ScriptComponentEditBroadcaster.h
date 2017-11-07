@@ -198,6 +198,7 @@ public:
 		listeners.removeAllInstancesOf(listenerToRemove);
 	}
 
+	void prepareSelectionForDragging(ScriptComponent* source);
 
 	void setScriptComponentProperty(ScriptComponent* sc, const Identifier& propertyId, const var& newValue, NotificationType notifyListeners=sendNotification, bool beginNewTransaction=true);
 

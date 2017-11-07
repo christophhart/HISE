@@ -81,62 +81,52 @@ void ScriptEditHandler::createNewComponent(Widgets componentType, int x, int y)
 	case Widgets::numWidgets: break;
 	}
 
-	String id = PresetHandler::getCustomName(widgetType);
-
-	String errorMessage = isValidWidgetName(id);
-
-	while (errorMessage.isNotEmpty() && PresetHandler::showYesNoWindow("Wrong variable name", errorMessage + "\nPress 'OK' to re-enter a valid variable name or 'Cancel' to abort", PresetHandler::IconType::Warning))
-	{
-		id = PresetHandler::getCustomName(widgetType);
-		errorMessage = isValidWidgetName(id);
-	}
-
-	errorMessage = isValidWidgetName(id);
-
-	if (errorMessage.isNotEmpty()) return;
-
 	auto content = getScriptEditHandlerProcessor()->getContent();
+
+	Identifier id = ScriptingApi::Content::Helpers::getUniqueIdentifier(content, widgetType);
+
+	ScriptComponent::Ptr newComponent;
 
 	switch (componentType)
 	{
 	case hise::ScriptEditHandler::Widgets::Knob: 
-		content->createNewComponent<ScriptingApi::Content::ScriptSlider>(id, x, y, 128, 48);
+		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptSlider>(id, x, y, 128, 48);
 		break;
 	case hise::ScriptEditHandler::Widgets::Button:
-		content->createNewComponent<ScriptingApi::Content::ScriptButton>(id, x, y, 128, 28);
+		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptButton>(id, x, y, 128, 28);
 		break;
 	case hise::ScriptEditHandler::Widgets::Table:
-		content->createNewComponent<ScriptingApi::Content::ScriptTable>(id, x, y, 100, 50);
+		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptTable>(id, x, y, 100, 50);
 		break;
 	case hise::ScriptEditHandler::Widgets::ComboBox:
-		content->createNewComponent<ScriptingApi::Content::ScriptComboBox>(id, x, y, 128, 32);
+		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptComboBox>(id, x, y, 128, 32);
 		break;
 	case hise::ScriptEditHandler::Widgets::Label:
-		content->createNewComponent<ScriptingApi::Content::ScriptLabel>(id, x, y, 128, 28);
+		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptLabel>(id, x, y, 128, 28);
 		break;
 	case hise::ScriptEditHandler::Widgets::Image:
-		content->createNewComponent<ScriptingApi::Content::ScriptImage>(id, x, y, 50, 50);
+		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptImage>(id, x, y, 50, 50);
 		break;
 	case hise::ScriptEditHandler::Widgets::Viewport:
-		content->createNewComponent<ScriptingApi::Content::ScriptedViewport>(id, x, y, 200, 100);
+		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptedViewport>(id, x, y, 200, 100);
 		break;
 	case hise::ScriptEditHandler::Widgets::Plotter:
-		content->createNewComponent<ScriptingApi::Content::ScriptedPlotter>(id, x, y, 100, 50);
+		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptedPlotter>(id, x, y, 100, 50);
 		break;
 	case hise::ScriptEditHandler::Widgets::ModulatorMeter:
-		content->createNewComponent<ScriptingApi::Content::ModulatorMeter>(id, x, y, 100, 50);
+		newComponent = content->createNewComponent<ScriptingApi::Content::ModulatorMeter>(id, x, y, 100, 50);
 		break;
 	case hise::ScriptEditHandler::Widgets::Panel:
-		content->createNewComponent<ScriptingApi::Content::ScriptPanel>(id, x, y, 100, 50);
+		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptPanel>(id, x, y, 100, 50);
 		break;
 	case hise::ScriptEditHandler::Widgets::AudioWaveform:
-		content->createNewComponent<ScriptingApi::Content::ScriptAudioWaveform>(id, x, y, 200, 100);
+		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptAudioWaveform>(id, x, y, 200, 100);
 		break;
 	case hise::ScriptEditHandler::Widgets::SliderPack:
-		content->createNewComponent<ScriptingApi::Content::ScriptSliderPack>(id, x, y, 200, 100);
+		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptSliderPack>(id, x, y, 200, 100);
 		break;
 	case hise::ScriptEditHandler::Widgets::FloatingTile:
-		content->createNewComponent<ScriptingApi::Content::ScriptFloatingTile>(id, x, y, 200, 100);
+		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptFloatingTile>(id, x, y, 200, 100);
 		break;
 	case hise::ScriptEditHandler::Widgets::duplicateWidget:
 		jassertfalse;
@@ -150,6 +140,9 @@ void ScriptEditHandler::createNewComponent(Widgets componentType, int x, int y)
 
 	compileScript();
 
+	auto b = content->getScriptProcessor()->getMainController_()->getScriptComponentEditBroadcaster();
+
+	b->setSelection(newComponent);
 
 #if 0
 	switch (componentType)
@@ -472,6 +465,22 @@ bool ScriptingContentOverlay::keyPressed(const KeyPress &key)
 
 			ScriptingApi::Content::Helpers::duplicateSelection(pwsc->getScriptingContent(), b->getSelection(), deltaX, deltaY);
 		}
+
+		return true;
+	}
+	else if (keyCode == 'C' && key.getModifiers().isCommandDown())
+	{
+		auto s = ScriptingApi::Content::Helpers::createScriptVariableDeclaration(b->getSelection());
+		SystemClipboard::copyTextToClipboard(s);
+		return true;
+	}
+	else if (keyCode == KeyPress::deleteKey)
+	{
+		auto pwsc = dynamic_cast<ProcessorWithScriptingContent*>(handler->getScriptEditHandlerProcessor());
+
+		ScriptingApi::Content::Helpers::deleteSelection(pwsc->getScriptingContent(), b);
+
+		return true;
 	}
 
 	return false;

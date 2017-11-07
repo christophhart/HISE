@@ -49,6 +49,9 @@ public:
 
 	virtual Identifier getId() const { return propertyId; }
 	
+	void resized() override;
+	
+
 protected:
 
 	/** Returns the value from the first selected component. */
@@ -60,7 +63,43 @@ protected:
 
 private:
 
+	bool checkOverwrittenProperty();
+
 	Identifier propertyId;
+
+	struct Overlay : public Component,
+					 public ButtonListener
+	{
+		Overlay(HiPropertyComponent* parent)
+		{
+			addAndMakeVisible(gotoButton);
+			gotoButton.setButtonText("SHOW");
+			gotoButton.addListener(this);
+			gotoButton.setLookAndFeel(&alaf);
+		}
+		
+		void paint(Graphics &g) override
+		{
+			g.fillAll(Colours::black.withAlpha(0.8f));
+			g.setColour(Colours::white);
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.drawText("This property was overwritten by the script", 0, 0, getWidth() - 80, getHeight(), Justification::centred);
+		}
+
+		void resized() override
+		{
+			gotoButton.setBounds(getWidth() - 50, 4, 40, getHeight()-8);
+		}
+
+		void buttonClicked(Button* b) override;
+
+		AlertWindowLookAndFeel alaf;
+
+		TextButton gotoButton;
+	};
+
+	Overlay overlay;
+
 };
 
 

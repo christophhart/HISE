@@ -36,7 +36,8 @@
 
 class ScriptComponentEditPanel : public Component,
 	public ScriptComponentEditListener,
-	public Timer
+	public Timer,
+	public TextEditor::Listener
 {
 
 public:
@@ -82,6 +83,8 @@ public:
 		stopTimer();
 	}
 
+	void textEditorReturnKeyPressed(TextEditor&) override;
+
 	void paint(Graphics &g) override
 	{
 		g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::DebugAreaBackgroundColourId));
@@ -108,13 +111,15 @@ private:
 	PopupLookAndFeel plaf;
 	AlertWindowLookAndFeel alaf;
 	
-	ScopedPointer<ComboBox> copyFromComponent;
+	ScopedPointer<TextEditor> idEditor;
 	
+
 	ScopedPointer<PropertyPanel> panel;
 	
 	MainController* mc;
 
 	WeakReference<Processor> connectedProcessor;
+	void updateIdEditor();
 };
 
 

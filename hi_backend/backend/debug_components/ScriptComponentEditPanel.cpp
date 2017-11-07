@@ -41,14 +41,15 @@ ScriptComponentEditPanel::ScriptComponentEditPanel(BackendRootWindow* rootWindow
 
 	setName("Edit Script Components");
 
-	addAndMakeVisible(copyFromComponent = new ComboBox());
-	copyFromComponent->setLookAndFeel(&pplaf);
-	copyFromComponent->setTextWhenNothingSelected("Copy properties from other component");
-	copyFromComponent->setTextWhenNoChoicesAvailable("No components to copy from available");
+	addAndMakeVisible(idEditor = new TextEditor());
+	
+	idEditor->addListener(this);
 
 	addAndMakeVisible(panel = new PropertyPanel());
 
 	panel->setLookAndFeel(&pplaf);
+
+	updateIdEditor();
 }
 
 ScriptComponentEditPanel::~ScriptComponentEditPanel()
@@ -169,25 +170,12 @@ void ScriptComponentEditPanel::fillPanel()
 
 void ScriptComponentEditPanel::rebuildWidgets()
 {
-	copyFromComponent->clear(dontSendNotification);
-
 	auto sc = getScriptComponentEditBroadcaster()->getFirstFromSelection();
 
 	if (sc == nullptr)
 		return;
 
-	auto content = sc->parent;
-
-	for (int i = 0; i < content->getNumComponents(); i++)
-	{
-		auto c = content->getComponent(i);
-
-		if (c == sc)
-			continue;
-
-		auto n = c->getName().toString();
-		copyFromComponent->addItem(n, i + 1);
-	}
+	updateIdEditor();
 }
 
 void ScriptComponentEditPanel::addProperty(Array<PropertyComponent*> &arrayToAddTo, const Identifier &id)
@@ -240,8 +228,32 @@ void ScriptComponentEditPanel::addProperty(Array<PropertyComponent*> &arrayToAdd
 }
 
 
+void ScriptComponentEditPanel::updateIdEditor()
+{
+	auto b = getScriptComponentEditBroadcaster();
+
+	int numSelected = b->getNumSelected();
+
+	if (numSelected == 0)
+	{
+		idEditor->setReadOnly(true);
+		idEditor->setText("Nothing selected", dontSendNotification);
+	}
+	else if (numSelected == 1)
+	{
+		idEditor->setReadOnly(false);
+		idEditor->setText(b->getFirstFromSelection()->getName().toString(), dontSendNotification);
+	}
+	else
+	{
+		idEditor->setText("Multiple elements selected", dontSendNotification);
+		idEditor->setReadOnly(true);
+	}
+}
+
 void ScriptComponentEditPanel::scriptComponentSelectionChanged()
 {
+	updateIdEditor();
 	fillPanel();
 }
 
@@ -253,11 +265,34 @@ void ScriptComponentEditPanel::scriptComponentPropertyChanged(ScriptComponent* s
 	}
 }
 
+void ScriptComponentEditPanel::textEditorReturnKeyPressed(TextEditor& t)
+{
+	auto b = getScriptComponentEditBroadcaster();
+
+	jassert(b->getNumSelected() == 1);
+
+	auto sc = b->getFirstFromSelection();
+
+	if (sc != nullptr)
+	{
+		auto newName = t.getText().trim().removeCharacters(" \t\n");
+
+		if (Identifier::isValidIdentifier(newName))
+		{
+			ScriptingApi::Content::Helpers::renameComponent(sc->parent, sc->name, Identifier(t.getText()));
+		}
+		else
+		{
+			PresetHandler::showMessageWindow("Invalid ID", "The ID you've entered is not a valid variable name. Use CamelCase without whitespace");
+		}
+	}
+}
+
 void ScriptComponentEditPanel::resized()
 {
 	Rectangle<int> b = getLocalBounds();
 
-	copyFromComponent->setBounds(b.removeFromTop(40).reduced(8));
+	idEditor->setBounds(b.removeFromTop(40).reduced(8));
 	panel->setBounds(b);
 }
 

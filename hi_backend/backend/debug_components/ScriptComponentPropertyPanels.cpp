@@ -82,12 +82,26 @@ private:
 };
 #endif
 
-HiPropertyComponent::HiPropertyComponent(const Identifier& id, ScriptComponentEditPanel* panel_):
+HiPropertyComponent::HiPropertyComponent(const Identifier& id, ScriptComponentEditPanel* panel_) :
 	PropertyComponent(id.toString()),
 	propertyId(id),
-	panel(panel_)
+	panel(panel_),
+	overlay(this)
 {
-	
+	if (!checkOverwrittenProperty())
+	{
+		addAndMakeVisible(overlay);
+		overlay.setAlwaysOnTop(true);
+	}
+		
+}
+
+void HiPropertyComponent::resized()
+{
+	PropertyComponent::resized();
+
+	if (overlay.isVisible())
+		overlay.setBounds(getLocalBounds());
 }
 
 const var& HiPropertyComponent::getCurrentPropertyValue(bool returnUndefinedWhenMultipleSelection) const
@@ -113,6 +127,19 @@ const var& HiPropertyComponent::getCurrentPropertyValue(bool returnUndefinedWhen
 	}
 
 	return firstValue;
+}
+
+bool HiPropertyComponent::checkOverwrittenProperty()
+{
+	ScriptComponentEditBroadcaster::Iterator iter(panel->getScriptComponentEditBroadcaster());
+
+	while (auto sc = iter.getNextScriptComponent())
+	{
+		if (sc->isPropertyOverwrittenByScript(getId()))
+			return false;
+	}
+
+	return true;
 }
 
 HiSliderPropertyComponent::HiSliderPropertyComponent(const Identifier& id, ScriptComponentEditPanel* panel) :
@@ -632,3 +659,13 @@ void HiColourPropertyComponent::ColourComp::Popup::resized()
 	selector.setBounds(getLocalBounds().reduced(10));
 }
 
+void HiPropertyComponent::Overlay::buttonClicked(Button* b)
+{
+	Identifier id = findParentComponentOfClass<HiPropertyComponent>()->getId();
+
+	ScriptComponentEditBroadcaster* br = findParentComponentOfClass<ScriptComponentEditPanel>()->getScriptComponentEditBroadcaster();
+
+	auto sc = br->getFirstFromSelection();
+
+	ScriptingApi::Content::Helpers::recompileAndSearchForPropertyChange(sc, id);
+}
